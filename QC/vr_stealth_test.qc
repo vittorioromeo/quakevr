@@ -115,7 +115,7 @@ void() VR_Stealth_TestFrame =
     if(ask > 0)
     {
         cvar_set("vr_stealth_test", "0");
-        stt_p = find(world, classname, "player");
+        stt_p = VR_Player();
         stt_m = world;
         float nearest = 1000;
         for(entity e = findflags(world, flags, FL_MONSTER); e; e = findflags(e, flags, FL_MONSTER))

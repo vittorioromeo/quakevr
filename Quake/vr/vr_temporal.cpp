@@ -25,6 +25,7 @@
 // Debug views (vr_temporal_debug): 1 the vectors, 2 the mask and the rejected pixels, 3 the reprojection test (the
 // previous frame through the vectors); vr_temporal_error prints the reprojection's error.
 
+#include "vr_glutil.hpp"
 #include "vr_temporal.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -473,30 +474,7 @@ bool invert4(const float* m, float* out)
     {
         return 0;
     }
-    const GLuint p = GL_CreateProgramFunc();
-    if(v)
-    {
-        GL_AttachShaderFunc(p, v);
-    }
-    GL_AttachShaderFunc(p, s);
-    GL_LinkProgramFunc(p);
-    if(v)
-    {
-        GL_DeleteShaderFunc(v);
-    }
-    GL_DeleteShaderFunc(s);
-    GLint ok = 0;
-    GL_GetProgramivFunc(p, GL_LINK_STATUS, &ok);
-    if(!ok)
-    {
-        char log[2048];
-        GL_GetProgramInfoLogFunc(p, sizeof(log), nullptr, log);
-        Con_Warning("VR: %s shader failed to link:\n%s\n", name, log);
-        GL_DeleteProgramFunc(p);
-        return 0;
-    }
-    GL_ObjectLabelFunc(GL_PROGRAM, p, -1, name);
-    return p;
+    return gfx::linkProgram(v, s, name);
 }
 
 [[nodiscard]] bool ensurePrograms()

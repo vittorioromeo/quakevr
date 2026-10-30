@@ -19,6 +19,7 @@
 // The view draws the head and its chain (vr_flail.cpp) where the step left them (flailHead).
 
 #include "vr_box3d_internal.hpp"
+#include "vr_progs.hpp"
 
 #include "vr_admelee.hpp"
 #include "vr_timescale.hpp"
@@ -391,8 +392,8 @@ void syncFlails(float dt)
         for(int h = 0; h < 2; h++)
         {
             Head& head = flails.heads[i][h];
-            const glm::vec3 at = live ? fieldVec(player, h ? f.muzzlepos : f.offmuzzlepos) : glm::vec3{0.f};
-            const glm::vec3 hand = live ? fieldVec(player, h ? f.handpos : f.offhandpos) : glm::vec3{0.f};
+            const glm::vec3 at = live ? fieldVec(player, progs::handFields(h).muzzle) : glm::vec3{0.f};
+            const glm::vec3 hand = live ? fieldVec(player, progs::handFields(h).pos) : glm::vec3{0.f};
             if(!live || !holdsFlail(player, h) || at == glm::vec3{0.f} || hand == glm::vec3{0.f})
             {
                 if(B3_IS_NON_NULL(head.anchor))

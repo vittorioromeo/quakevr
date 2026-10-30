@@ -86,7 +86,7 @@ void(float xClass) VR_ADGun_Prepare =
 // world precache where they are (precache_sound may come late in Quake VR's progs; models setmodel precaches itself).
 void() AD_WeaponsOnDemand =
 {
-    if(!cvar("vr_ad_mounted"))
+    if(!cvar_hget(cvarh_vr_ad_mounted))
     {
         return; // (Quake VR's stand-ins without AD's data: their own sounds)
     }
@@ -217,7 +217,7 @@ void() VR_ADGun_Drop =
     {
         self.ad_gib1mdl = ad_string_null; // (its crossbow fell as ours: AD's gibs throw no second one)
     }
-    if(cvar("developer"))
+    if(cvar_hget(cvarh_developer))
     {
         dprint(sprintf("adgun: %s drops its %s (%g in it)\n", self.classname,
             VR_IsADGun(wid) ? VR_EnemyGun_Name(wid) : WeaponIdToWeaponName(wid), WeaponIdToBaseClipSize(wid)));
@@ -329,13 +329,13 @@ void() VR_FuelTank_Think =
 {
     VR_FuelTank_ImpactFix(self);
     entity g = VR_FuelTank_Gun(self);
-    if(!g || !cvar("vr_adgun_tank_world"))
+    if(!g || !cvar_hget(cvarh_vr_adgun_tank_world))
     {
         if(g)
         {
             g.vr_fuellink = world;
         }
-        if(cvar("developer"))
+        if(cvar_hget(cvarh_developer))
         {
             dprint(sprintf("adgun: a tank at %v goes with its gun\n", self.origin));
         }
@@ -384,7 +384,7 @@ void(float xSpeed) VR_FuelTank_Impact =
 // where his back tank was; a monster: behind it), else beside the gun.
 void(entity xGun, entity xFrom) VR_FuelTank_Attach =
 {
-    if(!xGun || xGun.classname != "thrown_weapon" || !VR_FuelTank_Fuelled(xGun.weapon) || !cvar("vr_adgun_tank_world") ||
+    if(!xGun || xGun.classname != "thrown_weapon" || !VR_FuelTank_Fuelled(xGun.weapon) || !cvar_hget(cvarh_vr_adgun_tank_world) ||
        VR_FuelTank_Of(xGun) || (xGun.weaponflags & QVR_WPNFLAG_TANK_BURST))
     {
         return; // (a gun whose tank burst never has one again)
@@ -444,7 +444,7 @@ void(entity xGun, entity xFrom) VR_FuelTank_Attach =
         t.th_pain = VR_FuelTank_Pain;
     }
     vr_fueltank_made++;
-    if(cvar("developer"))
+    if(cvar_hget(cvarh_developer))
     {
         dprint(sprintf("adgun: %s's tank made at %v (%s)\n", xGun.netname, t.origin,
             xFrom.classname != "" ? xFrom.classname : "beside it"));
@@ -458,7 +458,7 @@ void() VR_FuelTank_Frame =
         return;
     }
     vr_fueltank_next = time + 0.5;
-    if(!cvar("vr_adgun_tank_world"))
+    if(!cvar_hget(cvarh_vr_adgun_tank_world))
     {
         return;
     }
@@ -544,7 +544,7 @@ void(entity g, entity t, vector xAt, entity xBy) VR_HoseCut_Cut =
     vr_hosecut_count++;
     vr_hosecut_tank = t;
     vr_hosecut_gun = g;
-    if(cvar("developer"))
+    if(cvar_hget(cvarh_developer))
     {
         dprint(sprintf("adgun: %s's hose cut at %v by %s, its tank free with %.2f of its fuel\n", g.netname, xAt,
             xBy.classname, t.vr_fueltank_fuel));
@@ -585,7 +585,7 @@ float(entity b, entity t, entity g, float xFrom) VR_HoseCut_Ribs =
         if(speed < least || along > VR_HOSECUT_ALONG)
         {
             vr_hosecut_refused++;
-            if(cvar("developer"))
+            if(cvar_hget(cvarh_developer))
             {
                 dprint(sprintf("adgun: %s's hose not cut: %.1f m/s, %.2f along the blade\n", g.netname, speed, along));
             }
@@ -833,7 +833,7 @@ void() VR_ADGun_PlasmaTouch =
 void(float xHand, float xWid) VR_ADGun_FirePlasma =
 {
     // (Without AD's data, ours: layered from the game's own as it loads, vr_audio.cpp; AD's was never precached then.)
-    sound(self, VRGetGunChannel(xHand), cvar("vr_ad_mounted") ? ad_SOUND_PLASMA_FIRE : "vr/derived/plasma_fire.wav", 1,
+    sound(self, VRGetGunChannel(xHand), cvar_hget(cvarh_vr_ad_mounted) ? ad_SOUND_PLASMA_FIRE : "vr/derived/plasma_fire.wav", 1,
         ATTN_NORM);
     self.punchangle_x = -1;
     float kind = ad_CT_MONARMYPLASMA;
@@ -979,7 +979,7 @@ void() VR_ADGun_PoisonThink =
     }
     // Green smoke puffing off it all the while (every quarter second; vr_adgun_stream_fire 0: AD's few motes), its damage
     // every other time (half a second).
-    if(cvar("vr_adgun_stream_fire") > 0)
+    if(cvar_hget(cvarh_vr_adgun_stream_fire) > 0)
     {
         particle2(v.origin + (v.mins + v.maxs) * 0.5, (v.maxs - v.mins) * (0.5 / 16), QVR_PARTICLE_PRESET_POISONPUFF, 2);
         self.frags = self.frags + 1; // (puffs sent: the tests)
@@ -1024,7 +1024,7 @@ void(entity xVictim, entity xFrom, entity xBy, float xDps, float xTime) VR_ADGun
         xVictim.vr_adpoison = p;
         p.dmg = 0;
         p.cnt = 0;
-        if(cvar("vr_adgun_stream_fire") > 0) // (green smoke puffing off it from the first: VR_ADGun_PoisonThink)
+        if(cvar_hget(cvarh_vr_adgun_stream_fire) > 0) // (green smoke puffing off it from the first: VR_ADGun_PoisonThink)
         {
             particle2(xVictim.origin + (xVictim.mins + xVictim.maxs) * 0.5, (xVictim.maxs - xVictim.mins) * (0.5 / 16),
                 QVR_PARTICLE_PRESET_POISONPUFF, 3);
@@ -1089,7 +1089,7 @@ void(entity f, float xLevel) VR_TankField_Loop =
     {
         return;
     }
-    string loop = f.vr_tf_kind == 1 ? "ambience/fire1.wav" : (cvar("vr_ad_mounted") ? "traps/steam_loop.wav" : "");
+    string loop = f.vr_tf_kind == 1 ? "ambience/fire1.wav" : (cvar_hget(cvarh_vr_ad_mounted) ? "traps/steam_loop.wav" : "");
     if(xLevel > 0 && loop != "")
     {
         sound(f, CHAN_BURN, loop, (f.vr_tf_kind == 1 ? 0.9 : 0.6) * xLevel / 4, ATTN_NORM);
@@ -1111,7 +1111,7 @@ void(entity f) VR_TankField_Unwhoosh =
         return;
     }
     f.vr_tf_hush = 0;
-    if(cvar("vr_ad_mounted"))
+    if(cvar_hget(cvarh_vr_ad_mounted))
     {
         sound(f, CHAN_WEAPON, f.vr_tf_kind == 2 ? "enforcer/fum_poisonoff.wav" : "enforcer/pyro_flameoff.wav", 0.6, ATTN_NORM);
     }
@@ -1366,7 +1366,7 @@ void() VR_TankField_Think =
         VR_TankField_Loop(self, 0);
         if(!self.vr_tf_hush)
         {
-            if(cvar("developer"))
+            if(cvar_hget(cvarh_developer))
             {
                 dprint(sprintf("adgun: a tank's %s field at %v gone after %.1f s\n", self.vr_tf_kind == 1 ? "fire" : "poison",
                     self.origin, time - self.vr_tf_start));
@@ -1413,7 +1413,7 @@ entity(vector at, float poison, float s, float xFuel, entity xBy) VR_TankField_M
     f.nextthink = time + (f.vr_tf_spread > 0 ? 0.05 : 0.1);
     if(xFuel > 0)
     {
-        if(cvar("vr_ad_mounted"))
+        if(cvar_hget(cvarh_vr_ad_mounted))
         {
             AD_WeaponsOnDemand(); // (the whoosh, its end, the hiss: precached as a burst comes, any map)
             sound(f, CHAN_WEAPON, poison ? "enforcer/fum_poisonon.wav" : "enforcer/pyro_flameon.wav", 1, ATTN_NORM);
@@ -1431,7 +1431,7 @@ entity(vector at, float poison, float s, float xFuel, entity xBy) VR_TankField_M
         {
             VR_TankField_Flames(f, s, life);
         }
-        if(cvar("developer"))
+        if(cvar_hget(cvarh_developer))
         {
             dprint(sprintf("adgun: a tank's %s field at %v: %.1f s, reach %.0f\n", poison ? "poison" : "fire", f.origin, life,
                 f.vr_tf_radius));
@@ -1514,7 +1514,7 @@ void(entity t, entity xBy) VR_FuelTank_BurstNow =
         particle2(at, '0 0 0', QVR_PARTICLE_PRESET_GUNSMOKE, 4);
         particle2(at, '0 0 0', QVR_PARTICLE_PRESET_SMOKE, 1);
         sound(t, CHAN_AUTO, "weapons/tink1.wav", 0.8, ATTN_NORM);
-        if(cvar("developer"))
+        if(cvar_hget(cvarh_developer))
         {
             dprint(sprintf("adgun: a tank bursts empty at %v (%s)\n", at, xBy.classname));
         }
@@ -1599,7 +1599,7 @@ void(entity t, entity xBy) VR_FuelTank_BurstNow =
             vr_burn_len = 0;
         }
     }
-    if(cvar("developer"))
+    if(cvar_hget(cvarh_developer))
     {
         dprint(sprintf("adgun: a %s tank bursts at %v (%s): fuel %g of %g, reach %.0f, ", poison ? "poison" : "fuel", at,
             xBy.classname, fuel, full, radius));
@@ -1617,7 +1617,7 @@ void(entity flame, float poison) VR_ADGun_StreamFx =
 {
     float a = cvar("vr_adgun_stream_alpha");
     flame.alpha = (a > 0 && a < 1) ? max(0.1, a) : 0; // (0: opaque)
-    float n = cvar("vr_adgun_stream_fire") * (flame.classname == "vr_adflame" ? 0.5 : 1);
+    float n = cvar_hget(cvarh_vr_adgun_stream_fire) * (flame.classname == "vr_adflame" ? 0.5 : 1);
     if(n <= 0 || (!poison && flame.model != ad_SBURST_FLAME))
     {
         return;
@@ -1636,7 +1636,7 @@ void(entity flame, float poison) VR_ADGun_StreamFx =
 // smoke; under water: nothing).
 void(vector org, vector dir, float poison, float water) VR_ADGun_StreamMuzzle =
 {
-    if(cvar("vr_adgun_stream_fire") <= 0 || water)
+    if(cvar_hget(cvarh_vr_adgun_stream_fire) <= 0 || water)
     {
         return;
     }
@@ -1691,7 +1691,7 @@ void(entity flame) VR_ADGun_FlameScorch =
         dprint(sprintf("adgun: a flame (%s's) scorches at %v\n", flame.owner.classname, flame.origin));
     }
     particle2(flame.origin, normalize(flame.velocity) * 2, QVR_PARTICLE_PRESET_ADFLAMEHIT,
-        cvar("vr_adgun_stream_fire") > 0 ? 1 : 0);
+        cvar_hget(cvarh_vr_adgun_stream_fire) > 0 ? 1 : 0);
 };
 
 void() VR_ADGun_FlameThink =

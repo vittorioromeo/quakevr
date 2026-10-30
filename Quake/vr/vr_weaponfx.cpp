@@ -1,5 +1,7 @@
 // vr_weaponfx.cpp -- see vr_weaponfx.hpp.
 
+#include "vr_testkit.hpp"
+#include "vr_random.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_weaponfx.hpp"
 #include "vr_adcrossbow.hpp"
@@ -106,12 +108,6 @@ int lastFrame = -1;
 
 // Visual randomness (no sequence that matters): 0..1.
 unsigned seed = 0x2545F491u;
-[[nodiscard]] float random01()
-{
-    seed = seed * 1664525u + 1013904223u;
-    return static_cast<float>(seed >> 8) / static_cast<float>(1u << 24);
-}
-
 // The draws' buffers (the main thread).
 struct WeaponFxScratch
 {
@@ -286,14 +282,14 @@ void playerFired(int hand)
         k.time = cl.time;
         k.strength = za::max(weapons::value(slot, Key::RecoilStrength), 0.f) * feel.recoil;
         k.duration = za::max(weapons::value(slot, Key::RecoilTime) * feel.recoilTime, 0.02f);
-        k.sideways = random01() * 2.f - 1.f;
+        k.sideways = vrand::lcg01(seed) * 2.f - 1.f;
     }
     const bool flash = vr_muzzle_flash.value != 0.f && weapons::value(slot, Key::Flash) != 0.f && feel.flash > 0.f;
     if(flash)
     {
         h.flashAt = cl.time;
-        h.flashRoll = random01() * 360.f;
-        h.flashJitter = 0.85f + 0.3f * random01();
+        h.flashRoll = vrand::lcg01(seed) * 360.f;
+        h.flashJitter = 0.85f + 0.3f * vrand::lcg01(seed);
     }
     if(vr_debug_weaponfx.value)
     {
@@ -374,7 +370,7 @@ void monsterFired(int ent)
     }
     slot->ent = ent;
     slot->at = cl.time;
-    slot->roll = random01() * 360.f;
+    slot->roll = vrand::lcg01(seed) * 360.f;
     slot->slot = propSlot;
     slot->told = false;
     slot->variant = propSlot >= 0 ? adguns::variantOf(cl_entities[ent].model->name) : -1;
@@ -444,7 +440,7 @@ void test_f()
         const glm::vec3 fwd = hands::forward(hands::current().rot[hand]);
         for(int i = 0; i < count; i++)
         {
-            const glm::vec3 spread{random01() - 0.5f, random01() - 0.5f, random01() - 0.5f};
+            const glm::vec3 spread{vrand::lcg01(seed) - 0.5f, vrand::lcg01(seed) - 0.5f, vrand::lcg01(seed) - 0.5f};
             const glm::vec3 to = m.muzzle + glm::normalize(fwd + spread * (count > 1 ? 0.06f : 0.f)) * 1000.f;
             addTracer(m.muzzle, to, slot);
             bttrails::hitscan(m.muzzle, to, tracerSpeed(slot), false);
@@ -490,7 +486,7 @@ void parseTracer()
     if(tracer)
     {
         const float chance = vr_tracer_chance.value * (slot >= 0 ? za::max(weapons::value(slot, Key::TracerChance), 0.f) : 1.f);
-        tracer = random01() < chance;
+        tracer = vrand::lcg01(seed) < chance;
     }
     const bool trail = bttrails::wanted(hand > 1); // bullet time's distortion trail, tracer or not (vr_bttrails.cpp)
     if(!tracer && !trail)
@@ -587,13 +583,13 @@ void adGunBurst(const view::ViewEntity& w, int slot, const adguns::FireFeel& fee
         return;
     }
     const glm::vec3 fwd = glm::normalize(ax);
-    const auto jitter = [](float k) { return glm::vec3{random01() - 0.5f, random01() - 0.5f, random01() - 0.5f} * (2.f * k); };
+    const auto jitter = [](float k) { return glm::vec3{vrand::lcg01(seed) - 0.5f, vrand::lcg01(seed) - 0.5f, vrand::lcg01(seed) - 0.5f} * (2.f * k); };
     // `n` sparks from `at` along `dir`, `speed` units a second, spread `spread` of it.
     const auto sparks = [&](const glm::vec3& at, const glm::vec3& dir, int n, float speed, float spread, const glm::vec3& c) {
         for(int i = 0; i < n; i++)
         {
-            const float s = speed * (0.5f + random01());
-            particles::hotTrail(at, dir * s + jitter(s * spread), c, 1.f, 0.25f + 0.25f * random01(), true);
+            const float s = speed * (0.5f + vrand::lcg01(seed));
+            particles::hotTrail(at, dir * s + jitter(s * spread), c, 1.f, 0.25f + 0.25f * vrand::lcg01(seed), true);
         }
     };
     switch(feel.burst)
@@ -622,7 +618,7 @@ void adGunBurst(const view::ViewEntity& w, int slot, const adguns::FireFeel& fee
         sparks(at, back, 8, 150.f, 0.45f, feel.colour);
         for(int i = 0; i < 4; i++)
         {
-            particles::hotTrail(at, back * (60.f + 60.f * random01()) + jitter(15.f), feel.colour, 1.f, 0.2f + 0.15f * random01(), false);
+            particles::hotTrail(at, back * (60.f + 60.f * vrand::lcg01(seed)) + jitter(15.f), feel.colour, 1.f, 0.2f + 0.15f * vrand::lcg01(seed), false);
         }
     }
     if(vr_debug_weaponfx.value)
@@ -1012,7 +1008,7 @@ void recoilTest_f()
     drawn(pos3, ang3);
     check(glm::length(pos3) == glm::length(pos0) && ang3.x == ang0.x, "values put back: the held weapon's kick as before",
         glm::length(pos3), glm::length(pos0));
-    Con_Printf("vr_recoil_test: %d passed, %d failed\n", passed, failed);
+    qvr::testkit::verdict("vr_recoil_test", passed, failed);
 }
 
 } // namespace

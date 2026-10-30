@@ -18,15 +18,10 @@ string vr_gpt_class;      // whose
 vector vr_gpt_at;         // where its monster was
 float vr_gpt_time;        // when 1 or 3 hit it (8: the gibs since)
 
-entity() VR_GPT_Player =
-{
-    return find(world, classname, "player");
-};
-
 // The newest monster: live (xLive) or a dead body still drawn (a corpse, a dying one).
 entity(float xLive) VR_GPT_Nearest =
 {
-    entity p = VR_GPT_Player();
+    entity p = VR_Player();
     entity best = world;
     for(entity e = nextent(world); e; e = nextent(e))
     {
@@ -99,7 +94,7 @@ void() VR_GibProps_TestFrame =
         return;
     }
     cvar_set("vr_gibprops_test", "0");
-    entity p = VR_GPT_Player();
+    entity p = VR_Player();
     entity os = self;
     entity m, h = vr_gpt_head;
     if(request <= 3)

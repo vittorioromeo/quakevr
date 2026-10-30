@@ -61,11 +61,10 @@ void snapshot_f()
 {
     snapshot.cvars.clear();
     snapshot.known.clear();
-    for(cvar_t* var = Cvar_FindVarAfter("", 0); var; var = var->next)
-    {
+    cvars::forEach([](cvar_t* var) {
         snapshot.cvars.pushBack(SavedCvar{var, za::String{var->string}});
         snapshot.known.insert(var);
-    }
+    });
     snapshot.taken = true;
 }
 
@@ -79,13 +78,12 @@ void restoreCvars()
     // The cvars made since the snapshot first (to their defaults: as a game that never made them), gathered before any
     // is set (a callback can make another and sort the list again).
     za::Vector<cvar_t*> made;
-    for(cvar_t* var = Cvar_FindVarAfter("", 0); var; var = var->next)
-    {
+    cvars::forEach([&made](cvar_t* var) {
         if(!snapshot.known.contains(var))
         {
             made.pushBack(var);
         }
-    }
+    });
     for(cvar_t* var : made)
     {
         if(settable(var) && var->default_string && strcmp(var->string, var->default_string) != 0)

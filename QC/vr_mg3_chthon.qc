@@ -81,9 +81,9 @@ void() boss_final_face =
 {
     if(self.enemy.health <= 0 || random() < 0.02)
     {
-        self.enemy = find(self.enemy, classname, "player");
+        self.enemy = VR_NextPlayer(self.enemy);
         if(!self.enemy)
-            self.enemy = find(self.enemy, classname, "player");
+            self.enemy = VR_NextPlayer(self.enemy);
     }
     if(self.enemy.health > 0)
         ai_face();
@@ -704,7 +704,7 @@ void(float variant) MG3_Chthon_Teleport =
         pt = find(pt, classname, pointClass);
     }
 
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     while(p)
     {
         pt = find(world, classname, pointClass);
@@ -726,7 +726,7 @@ void(float variant) MG3_Chthon_Teleport =
         VR_ComfortFade(p);
         makevectors(pt.mangle);
         spawn_tfog(pt.origin + v_forward * 32);
-        p = find(p, classname, "player");
+        p = VR_NextPlayer(p);
     }
 };
 
@@ -904,7 +904,7 @@ void() MG3_Chthon_SpawnerWake =
 {
     activator = self.enemy;
     if(!activator)
-        activator = find(world, classname, "player");
+        activator = VR_Player();
     boss_final_awake();
 };
 void(entity user) MG3_Chthon_FromSpawner =

@@ -69,7 +69,7 @@ float() MGH_HordeGetPlayersAlive =
 	local entity e;
 
 	// count entities
-	e = find(world, classname, "player");
+	e = VR_Player();
 	while(e)
 	{
 		if (e.health > 0)
@@ -79,7 +79,7 @@ float() MGH_HordeGetPlayersAlive =
 			else
 				dprint("Player is no longer a client!\n");
 		}
-		e = find(e, classname, "player");
+		e = VR_NextPlayer(e);
 	}
 	dprint("there are ");
 	dprint(ftos(playercount));
@@ -136,7 +136,7 @@ entity() MGH_HordeFindTarget =
 	rcount = random() * playercount;
 
 	playercount = 0; // reset for new count
-	e = find(world, classname, "player");
+	e = VR_Player();
 	while(e)
 	{
 		if (e.health > 0)
@@ -145,7 +145,7 @@ entity() MGH_HordeFindTarget =
 		if ((rcount <= playercount) && !(e.flags & FL_NOTARGET))
 			return e;
 		else
-			e = find(e, classname, "player");
+			e = VR_NextPlayer(e);
 	}
 	return world;
 };
@@ -499,7 +499,7 @@ void() MGH_horde_ammo_touch =
 	stuffcmd (other, "bf\n");
 
 	// loop through all players and give ammo
-	temp_player = find(world, classname, "player");
+	temp_player = VR_Player();
 	while(temp_player)
 	{
 		if (temp_player.health > 0) // only give ammo to living players
@@ -525,7 +525,7 @@ void() MGH_horde_ammo_touch =
 			W_SetCurrentAmmo();
 			self = t;
 		}
-		temp_player = find(temp_player, classname, "player");
+		temp_player = VR_NextPlayer(temp_player);
 	}
 
 	// remove
@@ -626,12 +626,12 @@ void(entity temp_player) MGH_horde_set_keys =
 void(float key_item) MGH_horde_key_give_all =
 {
 	local entity temp_player;
-	temp_player = find(world, classname, "player");
+	temp_player = VR_Player();
 
 	while (temp_player)
 	{
 		VR_ItemUtil_EntAddItem(temp_player, key_item == IT_KEY1 ? IID_KEY1 : IID_KEY2);
-		temp_player = find(temp_player, classname, "player");
+		temp_player = VR_NextPlayer(temp_player);
 	}
 
 	MGH_horde_print_keys();
@@ -640,12 +640,12 @@ void(float key_item) MGH_horde_key_give_all =
 void(float key_item) MGH_horde_key_remove_all =
 {
 	local entity temp_player;
-	temp_player = find(world, classname, "player");
+	temp_player = VR_Player();
 
 	while (temp_player)
 	{
 		VR_ItemUtil_EntDelItem(temp_player, key_item == IT_KEY1 ? IID_KEY1 : IID_KEY2);
-		temp_player = find(temp_player, classname, "player");
+		temp_player = VR_NextPlayer(temp_player);
 	}
 
 	MGH_horde_print_keys();
@@ -1865,7 +1865,7 @@ float(entity spawnpoint) MGH_CheckBlockedSpawn =
 	if (spawnpoint.spawnflags & MGH_SKIP_BLOCK_CHECK)
 		return FALSE;
 
-	p = find(world, classname, "player");
+	p = VR_Player();
 	while(p && !blocked)
 	{
 		if ((p.health > 0) && (p.deadflag <= 0))
@@ -1883,13 +1883,13 @@ float(entity spawnpoint) MGH_CheckBlockedSpawn =
 				blocked = TRUE;
 			}
 		}
-		p = find(p, classname, "player");
+		p = VR_NextPlayer(p);
 	}
 	return blocked;
 };
 float() MGH_Active = { return MG1_Campaign() && MGH_horde_ent != world; };
 void(string text) MGH_CenterprintAll = {
- entity p = find(world,classname,"player"); while(p) { centerprint(p,text); p=find(p,classname,"player"); }
+ entity p = VR_Player(); while(p) { centerprint(p,text); p=VR_NextPlayer(p); }
 };
 void(vector org) MGH_SilentFog = {
  WriteByte(MSG_BROADCAST,SVC_TEMPENTITY); WriteByte(MSG_BROADCAST,TE_TELEPORT);
@@ -1942,7 +1942,7 @@ void() MGH_DeathThink = {
 void(entity p) MGH_ResetHunger = { if(MGH_Active() && (serverflags & 2)) p.MGH_hunger_time=time+10; };
 void() MGH_RuneHunger = {
  if(!MGH_Active() || !(self.spawnflags & 2)) return;
- entity p=find(world,classname,"player"); while(p) { p.MGH_hunger_time=time+10; p=find(p,classname,"player"); }
+ entity p=VR_Player(); while(p) { p.MGH_hunger_time=time+10; p=VR_NextPlayer(p); }
 };
 void(entity attacker) MGH_Kill = {
  if(!MGH_Active()) return;

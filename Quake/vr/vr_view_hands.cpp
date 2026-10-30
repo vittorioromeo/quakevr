@@ -4,6 +4,7 @@
 
 #include "vr_view_internal.hpp"
 #include "vr_progs.hpp"
+#include <glm/gtc/type_ptr.hpp>
 
 namespace view_detail
 {
@@ -132,19 +133,6 @@ namespace
 {
     return CLAMP(0.f, fingerFrames[hand][finger] + 5.f * fingerBias[hand][finger], 5.f);
 }
-[[nodiscard]] glm::mat4 toMat4(const float m[16])
-{
-    glm::mat4 r;
-    for(int c = 0; c < 4; c++)
-    {
-        for(int row = 0; row < 4; row++)
-        {
-            r[c][row] = m[c * 4 + row];
-        }
-    }
-    return r;
-}
-
 namespace
 {
 // Whether `g` was solved for `held` where it is in the hand now: turned no more than `degrees`, moved no more than
@@ -442,7 +430,7 @@ glm::mat4 rigPlacement(int hand, const glm::vec3& pos, const glm::vec3& handRot,
         mirrored);
     float m[16];
     render::entityMatrix(v.ent, mirrored, ENTSCALE_DEFAULT, glm::vec3{0.f}, m);
-    return toMat4(m);
+    return glm::make_mat4(m);
 }
 
 namespace
@@ -1406,7 +1394,7 @@ bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool
     {
         float m[16];
         render::entityMatrix(ve.ent, mirrored, ENTSCALE_DEFAULT, glm::vec3{0.f}, m);
-        rh.drawnToWorld = toMat4(m);
+        rh.drawnToWorld = glm::make_mat4(m);
     }
     FILE*& trace = graspTrace;
     if(!vr_debug_grasp_trace.value && trace)
@@ -1959,7 +1947,7 @@ bool tugGrab(int hand, const LimbHold& limb, TugGrab& out)
     }
     qcvm_t* oldvm = nullptr;
     PR_PushQCVM(&sv.qcvm, &oldvm);
-    const int propOfs = ED_FindFieldOffset("vr_ag_prop");
+    const int propOfs = progs::fields().vr_ag_prop;
     const int prop = propOfs >= 0 && limb.num < qcvm->num_edicts
                          ? NUM_FOR_EDICT(PROG_TO_EDICT(progs::fieldInt(EDICT_NUM(limb.num), propOfs)))
                          : 0;
@@ -2509,7 +2497,7 @@ void setupGhostHands(const hands::State& s)
     vec3_t origin{0.f, 0.f, 0.f}, angles;
     VectorCopy(e.angles, angles);
     R_EntityMatrix(m, origin, angles, ENTSCALE_DEFAULT);
-    return glm::mat3{toMat4(m)};
+    return glm::mat3{glm::make_mat4(m)};
 }
 
 // Where the floating weapon goes at first: level, facing where the head does, its grip (the holding hand's point: the

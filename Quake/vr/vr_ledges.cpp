@@ -56,6 +56,7 @@
 #include "Zancle/Vocabulary/Pair.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
 #include "vr_zancle.hpp"
+#include "vr_geom.hpp"
 
 #include <string.h>
 
@@ -73,10 +74,7 @@ struct LedgeScratch
     za::Vector<glm::vec2> over;     // the open over it
 };
 
-[[nodiscard]] glm::vec3 vec(const float* v)
-{
-    return {v[0], v[1], v[2]};
-}
+using geom::vec;
 
 // A model's hull 0, in its own space.
 struct Hull

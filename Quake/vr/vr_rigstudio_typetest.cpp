@@ -9,6 +9,7 @@
 // Backspace, Enter: "arm" (the bones filtered, the tool and the game's keys untouched); the console's key opens and
 // closes the console. Ends on `rigstudio typing: N passed, M failed`.
 
+#include "vr_testkit.hpp"
 #include "vr_rigstudio_internal.hpp"
 #include "vr_engine.hpp"
 
@@ -289,7 +290,7 @@ void check(bool ok, const char* what)
 
 void finish()
 {
-    Con_Printf("rigstudio typing: %d passed, %d failed\n", tt.passed, tt.failed);
+    qvr::testkit::verdict("rigstudio typing", tt.passed, tt.failed);
     tt.step = -1;
 }
 

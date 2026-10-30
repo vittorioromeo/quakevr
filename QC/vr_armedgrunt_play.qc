@@ -911,7 +911,7 @@ float(entity g, entity p) VR_AG_WeaponStruck =
     }
     VR_AG_WeaponLine(p);
     vector mid = (vr_ag_wa + vr_ag_wb) * 0.5;
-    entity pl = find(world, classname, "player");
+    entity pl = VR_Player();
     while(pl)
     {
         if(pl.health > 0 && vlen(pl.origin - mid) < 128 &&
@@ -919,7 +919,7 @@ float(entity g, entity p) VR_AG_WeaponStruck =
         {
             return TRUE;
         }
-        pl = find(pl, classname, "player");
+        pl = VR_NextPlayer(pl);
     }
     entity e = findradius(mid, 48);
     while(e)
@@ -954,14 +954,14 @@ float(entity g, entity p) VR_AG_WeaponStruck =
 // Whether a player's hand holds `g`'s ragdoll (lifted, judo-thrown and still held: vr_foegrab_throw.qc HandOver).
 float(entity g) VR_AG_HeldByHand =
 {
-    entity pl = find(world, classname, "player");
+    entity pl = VR_Player();
     while(pl)
     {
         if(VR_Carry_Held(pl, cVR_OffHand) == g || VR_Carry_Held(pl, cVR_MainHand) == g)
         {
             return TRUE;
         }
-        pl = find(pl, classname, "player");
+        pl = VR_NextPlayer(pl);
     }
     return FALSE;
 };

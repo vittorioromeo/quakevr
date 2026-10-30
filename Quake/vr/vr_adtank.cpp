@@ -1,5 +1,6 @@
 // vr_adtank.cpp -- see vr_adtank.hpp.
 
+#include "vr_random.hpp"
 #include "vr_adtank.hpp"
 
 #include "vr_adguns.hpp"
@@ -168,8 +169,7 @@ constexpr float pilotStir = 40.f;  // units/s its flames drift a unit of a stirr
 unsigned pilotSeed = 0x9E3779B9u;
 [[nodiscard]] float pilotRandom()
 {
-    pilotSeed = pilotSeed * 1664525u + 1013904223u;
-    return static_cast<float>(pilotSeed >> 8) / static_cast<float>(1u << 24);
+    return vrand::lcg01(pilotSeed);
 }
 
 // `ve` (the pyro's gun, held in hand `i`) burning its pilot light this frame: small flames off its pilot pipe's tip,

@@ -40,7 +40,7 @@ float ar_sc_scattered;           // the run's supplies put on random places (the
 float ar_ds1; float ar_ds2; float ar_ds3; // the supplies' rolls (a Levy triple, as VR_ARENA_Rand's)
 
 float() VR_ARENA_Opt_Scatter = { return cvar("vr_arena_scatter") != 0; }
-float() VR_ARENA_Opt_Shards  = { return VR_ARENA_Clamp(floor(cvar("vr_arena_shards")), 0, AR_SHARDS_MAX); }
+float() VR_ARENA_Opt_Shards  = { return clamp(floor(cvar("vr_arena_shards")), 0, AR_SHARDS_MAX); }
 
 // ---------------------------------------------------------------------------
 // The supplies' rolls
@@ -90,7 +90,7 @@ void() VR_ARNAV_Frame =
     if(s) { from = s.origin; }
     else
     {
-        entity p = VR_ARENA_FindPlayer();
+        entity p = VR_PlayerAlive();
         if(!p) { ar_nav_state = 0; return; }
         from = p.origin;
     }
@@ -160,7 +160,7 @@ vector() VR_ARENA_ScatterPlace =
     ar_place_ok = FALSE;
     if(!VR_ARENA_Opt_Scatter() || !VR_ARNAV_Ready()) { return '0 0 0'; }
 
-    entity p = VR_ARENA_FindPlayer();
+    entity p = VR_PlayerAlive();
     float high = ar_nav_hi_n > 0 && VR_ARENA_DropRand() < AR_SCATTER_HIGH;
     float t;
     for(t = 0; t < AR_SCATTER_TRIES; t++)

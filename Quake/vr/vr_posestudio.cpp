@@ -31,6 +31,7 @@
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/String/String.hpp"
 #include "vr_zancle.hpp"
+#include "vr_geom.hpp"
 
 #include <glm/gtc/quaternion.hpp>
 
@@ -538,19 +539,6 @@ int subjectPoses(const Note* n, int* out)
     return s < 1e-5f ? glm::vec3{0.f} : glm::vec3{q.x, q.y, q.z} / s * (a * (180.f / 3.14159265f));
 }
 
-[[nodiscard]] float wrap180(float d)
-{
-    while(d > 180.f)
-    {
-        d -= 360.f;
-    }
-    while(d < -180.f)
-    {
-        d += 360.f;
-    }
-    return d;
-}
-
 // The chest's box: round its shoulders' middle, turned with it (model space)
 [[nodiscard]] Rigid chestFrame(const Note& n)
 {
@@ -730,14 +718,6 @@ void say(const za::String& text)
     Con_Printf("Pose Studio: %s\n", text.cStr());
 }
 
-void haptic(int hand, float seconds, float amplitude)
-{
-    if(Backend* be = backend(); be && !vr_disablehaptics.value && hand >= 0 && hand < HAND_COUNT)
-    {
-        be->haptic(hand, seconds, 160.f, amplitude);
-    }
-}
-
 void pushUndo()
 {
     if(static_cast<int>(ses.undo.size()) >= UNDO_MAX)
@@ -855,7 +835,7 @@ void grab(int hand, int p)
         ses.grab = g;
         ses.locked = n;
         ses.lockedFrame = host_framecount;
-        haptic(hand, 0.03f, 0.6f);
+        haptics::pulse(hand, 0.03f, 0.6f);
         return;
     }
     g.gripHand = gripHandOf(n, p);
@@ -883,7 +863,7 @@ void grab(int hand, int p)
     ses.grab = g;
     ses.locked = n;
     ses.lockedFrame = host_framecount;
-    haptic(hand, 0.03f, 0.6f);
+    haptics::pulse(hand, 0.03f, 0.6f);
 }
 
 // The chest's turn a drag asks for now: turned about its waist as the hand carries the box round it, and twisted as the
@@ -943,7 +923,7 @@ void poseDragLive(Grab& g, const Note& n, const Rigid& c, const Rigid& partNow)
             const glm::vec3 now = chestTurnNow(g, n, c);
             for(int i = 0; i < 3; i++)
             {
-                d.v[agpose::Torso][i] = wrap180(now[i] - g.torso0[i]) * sc;
+                d.v[agpose::Torso][i] = geom::wrap180(now[i] - g.torso0[i]) * sc;
             }
             break;
         }
@@ -1050,7 +1030,7 @@ void poseDrag(Grab& g, const Note& n, const Rigid& c, const Rigid& partNow)
             for(int i = 0; i < 3; i++)
             {
                 const float most = i == 0 ? 70.f : 50.f;
-                const float ask = t[i] + wrap180(now[i] - g.torso0[i]);
+                const float ask = t[i] + geom::wrap180(now[i] - g.torso0[i]);
                 t[i] = za::clamp(ask, -most, most);
                 g.torsoClamped = g.torsoClamped || t[i] != ask;
             }
@@ -1075,7 +1055,7 @@ void poseDrag(Grab& g, const Note& n, const Rigid& c, const Rigid& partNow)
         if(g.part == PPelvis)
         {
             const glm::vec3 t0 = torsoOf(g.part0.rot), t1 = torsoOf(partNow.rot);
-            glm::vec3 dt{wrap180(t1.x - t0.x), wrap180(t1.y - t0.y), wrap180(t1.z - t0.z)};
+            glm::vec3 dt{geom::wrap180(t1.x - t0.x), geom::wrap180(t1.y - t0.y), geom::wrap180(t1.z - t0.z)};
             if(g.legMirror)
             {
                 dt.x = -dt.x;
@@ -1209,7 +1189,7 @@ void dragFrame(const hands::State& s)
         {
             if(ses.limited.part != g.part)
             {
-                haptic(g.hand, 0.04f, 0.5f); // (a bump: it stops here)
+                haptics::pulse(g.hand, 0.04f, 0.5f); // (a bump: it stops here)
             }
             ses.limited.part = g.part;
             ses.limited.why = why;
@@ -1220,7 +1200,7 @@ void dragFrame(const hands::State& s)
     {
         g.tickPos = grabber(s, g.hand);
         g.tickRot = c.rot;
-        haptic(g.hand, 0.01f, 0.2f);
+        haptics::pulse(g.hand, 0.01f, 0.2f);
     }
 }
 
@@ -1273,7 +1253,7 @@ void release()
             say(va("%s: moved %.2f units, turned %.1f deg (%s)", g.part == PWeaponR || g.part == PWeaponL ? "weapon" : "hand",
                 static_cast<double>(glm::length(d)), static_cast<double>(turn), text.cStr()));
         }
-        haptic(g.hand, 0.02f, 0.3f);
+        haptics::pulse(g.hand, 0.02f, 0.3f);
         g = Grab{};
         dropUnchangedUndo();
         return;
@@ -1286,7 +1266,7 @@ void release()
         static_cast<double>(glm::length(d)), static_cast<double>(angleDeg(g.total.rot, g.total0.rot)),
         g.slotKey == aggrip::allWeapons ? "every weapon" : slotLabel(g.slotKey),
         g.gripHand == aggrip::Main ? "main hand" : g.gripHand == aggrip::Off ? "off hand" : "second grip"));
-    haptic(g.hand, 0.02f, 0.3f);
+    haptics::pulse(g.hand, 0.02f, 0.3f);
     g = Grab{};
     dropUnchangedUndo(); // (nothing changed)
 }
@@ -2017,13 +1997,13 @@ void hoverFrame(const hands::State& s)
         }
         if(best != ses.hover[h] && best >= 0)
         {
-            haptic(h, 0.015f, 0.25f);
+            haptics::pulse(h, 0.015f, 0.25f);
         }
         ses.hover[h] = best;
         const int b = buttonAtHand(s.pos[h]);
         if(b != ses.hoverButton[h] && b >= 0)
         {
-            haptic(h, 0.015f, 0.25f);
+            haptics::pulse(h, 0.015f, 0.25f);
         }
         ses.hoverButton[h] = b;
     }
@@ -2366,7 +2346,7 @@ bool start(int returnPage)
     Cvar_SetValueQuick(&vr_agrunt_freeze, 1.f);
     placePanel(hands::current());
     say("walk up to an armed grunt or enforcer; grip a box to move it");
-    S_LocalSound("misc/menu3.wav");
+    qvr::menuui::uiSound(qvr::menuui::UiSound::Adjust);
     return true;
 }
 
@@ -2431,7 +2411,7 @@ bool button(int hand, posing::Button b, bool down)
         {
             ses.panelHand = -1;
             savePanel(hands::current());
-            haptic(hand, 0.02f, 0.3f);
+            haptics::pulse(hand, 0.02f, 0.3f);
         }
         if(b == posing::Button::Grip && ses.scrubHand == hand)
         {
@@ -2452,7 +2432,7 @@ bool button(int hand, posing::Button b, bool down)
     switch(b)
     {
         case posing::Button::StickClick:
-            haptic(hand, 0.03f, 0.5f);
+            haptics::pulse(hand, 0.03f, 0.5f);
             cycleGrabSet(); // (either stick's click: Grab: Everything / Weapons / Limbs)
             break;
         case posing::Button::Grip:
@@ -2461,7 +2441,7 @@ bool button(int hand, posing::Button b, bool down)
                 // (the handle bar: the panel moves with this hand, where it is let go it stays)
                 ses.panelHand = hand;
                 ses.panelRel = compose(inverse(controller(hands::current(), hand)), panelFrame());
-                haptic(hand, 0.03f, 0.6f);
+                haptics::pulse(hand, 0.03f, 0.6f);
             }
             else if(ses.grab.part < 0 && ses.hover[hand] >= 0)
             {
@@ -2475,7 +2455,7 @@ bool button(int hand, posing::Button b, bool down)
         case posing::Button::Trigger:
             if(ses.hoverButton[hand] >= 0)
             {
-                haptic(hand, 0.03f, 0.5f);
+                haptics::pulse(hand, 0.03f, 0.5f);
                 press(ses.hoverButton[hand]);
             }
             break;

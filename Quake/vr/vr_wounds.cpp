@@ -1,5 +1,6 @@
 // vr_wounds.cpp -- see vr_wounds.hpp.
 
+#include "vr_random.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_wounds_internal.hpp"
 #include "vr_bloodprints.hpp"
@@ -18,6 +19,7 @@
 #include "vr_handrig.hpp"
 #include "vr_progs.hpp"
 #include "vr_water.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Algorithm/Copy.hpp"
 #include "Zancle/Algorithm/Remove.hpp"
@@ -122,19 +124,6 @@ void resetGear()
     gibsSeen.clear();
     spatteredNow.clear();
     splashes.clear();
-}
-
-[[nodiscard]] float rnd()
-{
-    rng ^= rng << 13;
-    rng ^= rng >> 17;
-    rng ^= rng << 5;
-    return static_cast<float>(rng & 0xFFFFFF) / static_cast<float>(0x1000000);
-}
-
-[[nodiscard]] float rnd(float lo, float hi)
-{
-    return lo + (hi - lo) * rnd();
 }
 
 [[nodiscard]] bool enabled()
@@ -867,7 +856,7 @@ namespace detail
     s.v[0] = glm::vec4{c, r};
     s.v[1] = glm::vec4{axis, 0.f};
     s.v[2] = allowed(what);
-    s.v[3] = glm::vec4{along, rnd(0.f, 97.f)};
+    s.v[3] = glm::vec4{along, vrand::xorshiftRange(rng, 0.f, 97.f)};
     s.v[4] = glm::vec4{depth, facing, stretch, run};
     return s;
 }
@@ -882,7 +871,7 @@ namespace
     s.v[0] = glm::vec4{c, r};
     s.v[1] = glm::vec4{axis, blast ? 2.f : 1.f};
     s.v[2] = allowed(what);
-    s.v[3] = glm::vec4{0.f, 0.f, 0.f, rnd(0.f, 97.f)};
+    s.v[3] = glm::vec4{0.f, 0.f, 0.f, vrand::xorshiftRange(rng, 0.f, 97.f)};
     s.v[4] = glm::vec4{inner, facing, 0.55f, 0.f};
     return s;
 }
@@ -894,7 +883,7 @@ namespace
     s.v[0] = glm::vec4{0.f, 0.f, surface, soak};
     s.v[1] = glm::vec4{0.f, 0.f, 1.f, 3.f};
     s.v[2] = allowed(what);
-    s.v[3] = glm::vec4{0.f, 0.f, 0.f, rnd(0.f, 97.f)};
+    s.v[3] = glm::vec4{0.f, 0.f, 0.f, vrand::xorshiftRange(rng, 0.f, 97.f)};
     s.v[4] = glm::vec4{0.f, 0.f, patch, 0.f};
     return s;
 }
@@ -922,15 +911,15 @@ struct WoundSize
         case KindShot: s.r = za::min(1.6f + 0.1f * a, 3.f); break;
         case KindMelee:
             s.r = za::min(2.4f + 0.05f * a, 5.f);
-            s.stretch = blunt ? rnd(1.f, 1.4f) : rnd(1.8f, 2.6f);
+            s.stretch = blunt ? vrand::xorshiftRange(rng, 1.f, 1.4f) : vrand::xorshiftRange(rng, 1.8f, 2.6f);
             break;
         default: s.r = za::min(2.f + 0.07f * a, 3.8f); break;
     }
-    s.r *= rnd(0.85f, 1.15f);
+    s.r *= vrand::xorshiftRange(rng, 0.85f, 1.15f);
     const float runChance = kind == KindShot ? 0.45f : kind == KindMelee ? 1.f : 0.75f;
-    if(rnd() < runChance)
+    if(vrand::xorshift01(rng) < runChance)
     {
-        s.run = s.r * rnd(1.5f, kind == KindMelee ? 4.f : 3.f);
+        s.run = s.r * vrand::xorshiftRange(rng, 1.5f, kind == KindMelee ? 4.f : 3.f);
     }
     return s;
 }
@@ -1069,7 +1058,7 @@ void facingPoints(const Surface& s, const glm::vec3& from, int count, za::Vector
     }
     for(int tries = 0; tries < count * 12 && static_cast<int>(out.size()) < count; tries++)
     {
-        const za::SizeT i = za::min(n - 1, static_cast<za::SizeT>(rnd() * static_cast<float>(n))) * 3;
+        const za::SizeT i = za::min(n - 1, static_cast<za::SizeT>(vrand::xorshift01(rng) * static_cast<float>(n))) * 3;
         const glm::vec3 c = (s.tris[i] + s.tris[i + 1] + s.tris[i + 2]) / 3.f;
         const glm::vec3 nrm = outward(s.tris[i], s.tris[i + 1], s.tris[i + 2]);
         const glm::vec3 to = from - c;
@@ -1124,13 +1113,7 @@ PlayerCapsules playerCapsules(entity_t* const own[3])
     return out;
 }
 
-[[nodiscard]] glm::vec3 closestOnSegment(const glm::vec3& p, const glm::vec3& a, const glm::vec3& b)
-{
-    const glm::vec3 ab = b - a;
-    const float l2 = glm::dot(ab, ab);
-    const float t = l2 > 1e-6f ? za::clamp(glm::dot(p - a, ab) / l2, 0.f, 1.f) : 0.f;
-    return a + ab * t;
-}
+using geom::closestOnSegment;
 
 // The first capsule the line through `org` going `dir` goes into (48 units either side): where, and its normal there.
 bool strikeCapsules(za::Span<const Capsule> caps, const glm::vec3& org, const glm::vec3& dir, glm::vec3& at, glm::vec3& normal)
@@ -1290,7 +1273,7 @@ void wound(const Target& t, const Event& ev)
             bool struck = false;
             for(int i = 0; i < 6 && !struck; i++)
             {
-                struck = strikeCapsules(*t.capsules, org + t.shift + (i ? glm::vec3{rnd(-6.f, 6.f), rnd(-6.f, 6.f), rnd(-8.f, 8.f)} : glm::vec3{0.f}), way, at, n);
+                struck = strikeCapsules(*t.capsules, org + t.shift + (i ? glm::vec3{vrand::xorshiftRange(rng, -6.f, 6.f), vrand::xorshiftRange(rng, -6.f, 6.f), vrand::xorshiftRange(rng, -8.f, 8.f)} : glm::vec3{0.f}), way, at, n);
             }
             if(!struck)
             {
@@ -1314,7 +1297,7 @@ void wound(const Target& t, const Event& ev)
         glm::vec3 side = glm::cross(way, glm::vec3{0.f, 0.f, 1.f});
         side = glm::length(side) > 0.1f ? glm::normalize(side) : glm::vec3{1.f, 0.f, 0.f};
         const glm::vec3 up = glm::normalize(glm::cross(side, way));
-        return org + side * rnd(-7.f, 7.f) + up * rnd(-6.f, 20.f); // the box's middle is the pelvis: more on the chest
+        return org + side * vrand::xorshiftRange(rng, -7.f, 7.f) + up * vrand::xorshiftRange(rng, -6.f, 20.f); // the box's middle is the pelvis: more on the chest
     };
 
     switch(ev.kind)
@@ -1545,7 +1528,7 @@ void apply(const Event& ev)
         rng = seed;
         wound(targets[i], ev);
     }
-    static_cast<void>(rnd());
+    static_cast<void>(vrand::xorshift01(rng));
     if(bloodOnly && !reopenSpread)
     {
         return; // (a re-opened wound painted again, more of its blood: what runs from it ran already)
@@ -1575,7 +1558,7 @@ void bloodyHead(entity_t& e, int num)
     for(int tries = 0; tries < 60 && splats.size() < 6; tries++)
     {
         const za::SizeT n = surf.tris.size() / 3;
-        const za::SizeT i = za::min(n - 1, static_cast<za::SizeT>(rnd() * static_cast<float>(n))) * 3;
+        const za::SizeT i = za::min(n - 1, static_cast<za::SizeT>(vrand::xorshift01(rng) * static_cast<float>(n))) * 3;
         const glm::vec3 c = (surf.tris[i] + surf.tris[i + 1] + surf.tris[i + 2]) / 3.f;
         if(splats.size() < 3 && c.z > lowZ)
         {
@@ -1795,8 +1778,8 @@ void smearHand(int hand, int blots, float amount, bool theirs)
     for(int i = 0; i < blots; i++)
     {
         // a patch threshold of the noise (0..1, about 0.5 on average): 0.6 covers about a fifth, 0.5 half
-        const float patch = za::clamp(0.68f - 0.06f * k + rnd(-0.03f, 0.03f), 0.4f, 0.9f);
-        splats.pushBack(liquidSplat(e->origin[2] + 64.f, 1.f, patch, glm::vec4{rnd(0.85f, 1.f), 0.f, 0.f, 0.f}));
+        const float patch = za::clamp(0.68f - 0.06f * k + vrand::xorshiftRange(rng, -0.03f, 0.03f), 0.4f, 0.9f);
+        splats.pushBack(liquidSplat(e->origin[2] + 64.f, 1.f, patch, glm::vec4{vrand::xorshiftRange(rng, 0.85f, 1.f), 0.f, 0.f, 0.f}));
     }
     splats.erase(za::removeIf(splats.begin(), splats.end(), [](const Splat& s) { return !paintsAnything(s); }), splats.end());
     if(vr_wounds_debug.value)
@@ -2486,7 +2469,7 @@ namespace detail
     s.v[0] = glm::vec4{c, radius};
     s.v[1] = glm::vec4{0.f, 0.f, 0.f, 4.f};
     s.v[2] = allowed(paintBlood);
-    s.v[3] = glm::vec4{0.f, 0.f, 0.f, rnd(0.f, 97.f)};
+    s.v[3] = glm::vec4{0.f, 0.f, 0.f, vrand::xorshiftRange(rng, 0.f, 97.f)};
     s.v[4] = glm::vec4{core, -0.05f, 1.f / za::max(drop, 0.1f), share * q * q};
     return s;
 }
@@ -2742,11 +2725,11 @@ void spatterFrom(const Event& ev, int saw)
             {
                 continue;
             }
-            if(rnd() < za::min(1.f, (cut ? 0.12f : 0.35f) * k))
+            if(vrand::xorshift01(rng) < za::min(1.f, (cut ? 0.12f : 0.35f) * k))
             {
                 smearHand(h, 1, za::min(0.3f * k, 3.f));
             }
-            if(cut && rnd() < za::min(1.f, 0.1f * k * vr_gore_spread.value))
+            if(cut && vrand::xorshift01(rng) < za::min(1.f, 0.1f * k * vr_gore_spread.value))
             {
                 armMarks(h, 1, 0.9f, 0.f, true);
             }
@@ -2880,23 +2863,23 @@ void armMarks(int hand, int count, float size, float legs, bool lower)
     {
         glm::vec3 a, b;
         float rad, u;
-        if(sk.legs && rnd() < legs)
+        if(sk.legs && vrand::xorshift01(rng) < legs)
         {
-            const int side = rnd() < 0.5f ? 0 : 1;
-            const bool thigh = rnd() < 0.6f;
+            const int side = vrand::xorshift01(rng) < 0.5f ? 0 : 1;
+            const bool thigh = vrand::xorshift01(rng) < 0.6f;
             a = thigh ? sk.hip[side] : sk.knee[side];
             b = thigh ? sk.knee[side] : sk.ankle[side];
             rad = (thigh ? 0.085f : 0.06f) * sk.m2w;
-            u = rnd(0.15f, 0.85f);
+            u = vrand::xorshiftRange(rng, 0.15f, 0.85f);
         }
         else
         {
-            const int h = hand >= 0 ? hand : (rnd() < 0.5f ? 0 : 1);
-            const bool upper = !lower && rnd() < 0.4f;
+            const int h = hand >= 0 ? hand : (vrand::xorshift01(rng) < 0.5f ? 0 : 1);
+            const bool upper = !lower && vrand::xorshift01(rng) < 0.4f;
             a = upper ? sk.shoulder[h] : sk.elbow[h];
             b = upper ? sk.elbow[h] : sk.wrist[h];
             rad = (upper ? 0.058f : 0.046f) * sk.m2w;
-            u = lower ? rnd(0.5f, 0.92f) : rnd(0.12f, 0.92f);
+            u = lower ? vrand::xorshiftRange(rng, 0.5f, 0.92f) : vrand::xorshiftRange(rng, 0.12f, 0.92f);
         }
         glm::vec3 axis = b - a;
         const float len = glm::length(axis);
@@ -2908,11 +2891,11 @@ void armMarks(int hand, int count, float size, float legs, bool lower)
         const glm::vec3 p = a + axis * (len * u);
         glm::vec3 top = up - axis * glm::dot(up, axis);
         top = glm::length(top) > 0.2f ? glm::normalize(top) : glm::normalize(glm::cross(axis, glm::vec3{1.f, 0.f, 0.f}));
-        const float ang = rnd(-2.f, 2.f); // round from its top, either way
+        const float ang = vrand::xorshiftRange(rng, -2.f, 2.f); // round from its top, either way
         const glm::vec3 dir = top * za::cos(ang) + glm::cross(axis, top) * za::sin(ang);
-        const float r = rnd(0.6f, 1.2f) * size;
+        const float r = vrand::xorshiftRange(rng, 0.6f, 1.2f) * size;
         const glm::vec3 c = p + dir * rad;
-        splats.pushBack(woundSplat(c, r, dir, axis, rnd(1.3f, 2.2f), rad * 0.9f + 0.5f, 0.1f, rnd() < 0.7f ? r * rnd(1.5f, 4.f) : 0.f, paintBlood));
+        splats.pushBack(woundSplat(c, r, dir, axis, vrand::xorshiftRange(rng, 1.3f, 2.2f), rad * 0.9f + 0.5f, 0.1f, vrand::xorshift01(rng) < 0.7f ? r * vrand::xorshiftRange(rng, 1.5f, 4.f) : 0.f, paintBlood));
         mid += c;
     }
     if(splats.empty())
@@ -2938,7 +2921,7 @@ void hurtSpread(const Event& ev)
     }
     const float want = vr_gore_spread.value * za::clamp(static_cast<float>(ev.amount) / 15.f, 0.3f, 3.f) * (ev.kind == KindShot ? 0.6f : 1.f);
     const int whole = static_cast<int>(want);
-    const int n = za::min(4, whole + (rnd() < want - static_cast<float>(whole) ? 1 : 0));
+    const int n = za::min(4, whole + (vrand::xorshift01(rng) < want - static_cast<float>(whole) ? 1 : 0));
     armMarks(-1, n, 1.f, 0.2f, false);
 }
 
@@ -3148,7 +3131,7 @@ void drips(double now)
             continue;
         }
         const float wet = m.wetLeft / dryTime();
-        m.dripNext = now + rnd(0.5f, 1.5f) / (0.4f + 5.f * wet * wet) * (m.view ? 2.5 : 1.0);
+        m.dripNext = now + vrand::xorshiftRange(rng, 0.5f, 1.5f) / (0.4f + 5.f * wet * wet) * (m.view ? 2.5 : 1.0);
         const glm::vec3 color = m.liquid == 1 ? glm::vec3{0.22f, 0.3f, 0.08f} : glm::vec3{0.3f, 0.34f, 0.38f};
         glm::vec3 at;
         float floorZ;
@@ -3162,7 +3145,7 @@ void drips(double now)
             {
                 continue;
             }
-            at = glm::vec3{m.ent->origin[0], m.ent->origin[1], m.ent->origin[2]} + glm::vec3{rnd(-1.5f, 1.5f), rnd(-1.5f, 1.5f), -1.f};
+            at = glm::vec3{m.ent->origin[0], m.ent->origin[1], m.ent->origin[2]} + glm::vec3{vrand::xorshiftRange(rng, -1.5f, 1.5f), vrand::xorshiftRange(rng, -1.5f, 1.5f), -1.f};
             floorZ = cl_entities[cl.viewentity].origin[2] - 24.f;
         }
         else
@@ -3177,7 +3160,7 @@ void drips(double now)
             const za::SizeT n = surf.tris.size() / 3;
             for(int tries = 0; tries < 10 && !found; tries++)
             {
-                const za::SizeT k = za::min(n - 1, static_cast<za::SizeT>(rnd() * static_cast<float>(n))) * 3;
+                const za::SizeT k = za::min(n - 1, static_cast<za::SizeT>(vrand::xorshift01(rng) * static_cast<float>(n))) * 3;
                 const glm::vec3 c = (surf.tris[k] + surf.tris[k + 1] + surf.tris[k + 2]) / 3.f;
                 const glm::vec3 nrm = outward(surf.tris[k], surf.tris[k + 1], surf.tris[k + 2]);
                 if(c.z < m.waterline && nrm.z < 0.3f)

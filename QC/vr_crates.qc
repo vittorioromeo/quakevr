@@ -384,7 +384,7 @@ void(float xSpeed) VR_SolidProp_Impact =
         float speed = max(vlen(self.velocity), xSpeed * VRMetersToUnits());
         if(time - self.carry_thrown > VR_THROWN_BOX_TIME || speed < VR_Thrown_HitSpeed(self))
         {
-            if(cvar("developer"))
+            if(cvar_hget(cvarh_developer))
             {
                 dprint(sprintf("%s: met %s at %.1f m/s (%.2f s after the throw; hurts from %.1f): the throw is over\n",
                     self.classname, other == world ? "the level" : other.classname, speed / VRMetersToUnits(),
@@ -480,7 +480,7 @@ void(entity xBox) VR_Crate_SlamFrame =
         // A heavy blow: a punch's with it in hand (vr_dmg_fist, Held Weapon: Punch x, its Melee Damage x and weight's
         // curve) times its speed over the least (at most twice) and vr_carry_slam_damage.
         dmg = cvar_hget(cvarh_vr_dmg_fist) * VR_Carry_PunchMult(self, cVR_MainHand) * VR_Weight_MeleeMult(self, cVR_MainHand) *
-              cvar_hget(cvarh_vr_melee_dmg_multiplier) * min(speed / need, 2) * max(0, cvar("vr_carry_slam_damage"));
+              cvar_hget(cvarh_vr_melee_dmg_multiplier) * min(speed / need, 2) * max(0, cvar_hget(cvarh_vr_carry_slam_damage));
     }
     dprint(sprintf("slam: %s swung down at %.1f m/s onto %s: %.1f damage to it, broken\n", xBox.model, speed,
         struck == world ? "the level" : struck.classname, dmg));
@@ -609,7 +609,7 @@ void(vector xA, vector xB) VR_Crate_MonsterShot =
     {
         return;
     }
-    for(entity p = find(world, classname, "player"); p != world; p = find(p, classname, "player"))
+    for(entity p = VR_Player(); p != world; p = VR_NextPlayer(p))
     {
         VR_Crate_ShieldShot(p.mainhand_held, xA, xB, shield);
         if(p.offhand_held != p.mainhand_held)
@@ -791,7 +791,7 @@ void() VR_CratePiece_Think =
     {
         self.takedamage = DAMAGE_YES; // (not DAMAGE_AIM: no autoaim at it)
     }
-    float life = cvar("vr_crate_piece_time");
+    float life = cvar_hget(cvarh_vr_crate_piece_time);
     if(self.carry_player != world || life <= 0 || time < self.vr_crate_born + life)
     {
         self.alpha = 0;
@@ -958,7 +958,7 @@ void(entity crate, vector mid, vector dir) VR_Crate_Contents =
         }
         return;
     }
-    entity player = find(world, classname, "player");
+    entity player = VR_Player();
     if(player != world && random() < cvar("vr_crate_ammo"))
     {
         float nails = (VR_WeaponUtil_EntIsEligibleForWeapon(player, WID_NAILGUN) ||

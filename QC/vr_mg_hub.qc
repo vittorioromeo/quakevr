@@ -20,7 +20,7 @@
 // MG1 progression; licensed source and provenance: docs/vr-port/OFFICIAL_QC_SOURCE.md.
 .float MG1_rune_locked;
 .float MG1_electrode_pressed;
-float() MG1_Campaign = { return cvar("vr_campaign") == VR_CAMPAIGN_MG1; };
+float() MG1_Campaign = { return cvar_hget(cvarh_vr_campaign) == VR_CAMPAIGN_MG1; };
 float() MG1_Hub = { return MG1_Campaign() && world.worldtype == 3; };
 float() MG1_LastRune = { return floor(serverflags / 64) & 31; };
 void() MG1_ClearLastRune = { serverflags = serverflags - (serverflags & 1984); };

@@ -9,6 +9,8 @@
 // light kept), decals painted where its sides face (each texel's place on the model found through its triangle), the
 // add-ons' surfaces painted as they are laid out.
 
+#include "vr_mdlbuild.hpp"
+#include "vr_bytes.hpp"
 #include "vr_adguns.hpp"
 
 #include "vr_units.hpp"
@@ -67,20 +69,6 @@ const FireFeel fireFeels[variantCount] = {
     {},
 };
 
-[[nodiscard]] int rd(const byte* b, size_t at)
-{
-    int v;
-    memcpy(&v, b + at, 4);
-    return LittleLong(v);
-}
-
-[[nodiscard]] float rdf(const byte* b, size_t at)
-{
-    float v;
-    memcpy(&v, b + at, 4);
-    return LittleFloat(v);
-}
-
 void put(za::Vector<byte>& out, int v)
 {
     const int le = LittleLong(v);
@@ -91,22 +79,6 @@ void putf(za::Vector<byte>& out, float v)
 {
     const float le = LittleFloat(v);
     out.emplaceBackRange(reinterpret_cast<const byte*>(&le), 4);
-}
-
-[[nodiscard]] byte nearestNormal(const glm::vec3& d)
-{
-    int best = 0;
-    float bestDot = -2.f;
-    for(int i = 0; i < NUMVERTEXNORMALS; i++)
-    {
-        const float k = d.x * r_avertexnormals[i][0] + d.y * r_avertexnormals[i][1] + d.z * r_avertexnormals[i][2];
-        if(k > bestDot)
-        {
-            bestDot = k;
-            best = i;
-        }
-    }
-    return static_cast<byte>(best);
 }
 
 // An alias model's file read: its header's numbers, its first skin, where its vertices, triangles and frame 0 are.
@@ -131,29 +103,29 @@ struct Mdl
         return n < NUMVERTEXNORMALS ? glm::vec3{r_avertexnormals[n][0], r_avertexnormals[n][1], r_avertexnormals[n][2]}
                                     : glm::vec3{0.f, 0.f, 1.f};
     }
-    [[nodiscard]] int tri(int t, int k) const { return rd(src, triAt + static_cast<size_t>(t) * 16 + static_cast<size_t>(k) * 4); }
-    [[nodiscard]] int st(int v, int k) const { return rd(src, stAt + static_cast<size_t>(v) * 12 + static_cast<size_t>(k) * 4); }
+    [[nodiscard]] int tri(int t, int k) const { return qvr::bytes::le32(src, triAt + static_cast<size_t>(t) * 16 + static_cast<size_t>(k) * 4); }
+    [[nodiscard]] int st(int v, int k) const { return qvr::bytes::le32(src, stAt + static_cast<size_t>(v) * 12 + static_cast<size_t>(k) * 4); }
 };
 
 [[nodiscard]] bool readMdl(const byte* src, size_t size, Mdl& m, const char*& why)
 {
-    if(size < mdlHeader || rd(src, 0) != IDPOLYHEADER || rd(src, 4) != ALIAS_VERSION)
+    if(size < mdlHeader || qvr::bytes::le32(src, 0) != IDPOLYHEADER || qvr::bytes::le32(src, 4) != ALIAS_VERSION)
     {
         why = "not an alias model";
         return false;
     }
     m.src = src;
     m.size = size;
-    m.scale = {rdf(src, 8), rdf(src, 12), rdf(src, 16)};
-    m.origin = {rdf(src, 20), rdf(src, 24), rdf(src, 28)};
-    const int numSkins = rd(src, 48);
-    m.skinW = rd(src, 52);
-    m.skinH = rd(src, 56);
-    m.numVerts = rd(src, 60);
-    m.numTris = rd(src, 64);
-    const int numFrames = rd(src, 68);
-    m.flags = rd(src, 76);
-    m.sizeField = rdf(src, 80);
+    m.scale = {qvr::bytes::lef32(src, 8), qvr::bytes::lef32(src, 12), qvr::bytes::lef32(src, 16)};
+    m.origin = {qvr::bytes::lef32(src, 20), qvr::bytes::lef32(src, 24), qvr::bytes::lef32(src, 28)};
+    const int numSkins = qvr::bytes::le32(src, 48);
+    m.skinW = qvr::bytes::le32(src, 52);
+    m.skinH = qvr::bytes::le32(src, 56);
+    m.numVerts = qvr::bytes::le32(src, 60);
+    m.numTris = qvr::bytes::le32(src, 64);
+    const int numFrames = qvr::bytes::le32(src, 68);
+    m.flags = qvr::bytes::le32(src, 76);
+    m.sizeField = qvr::bytes::lef32(src, 80);
     if(numSkins < 1 || m.skinW <= 0 || m.skinH <= 0 || m.numVerts < 3 || m.numTris < 1 || numFrames < 1)
     {
         why = "an empty model";
@@ -169,14 +141,14 @@ struct Mdl
             return false;
         }
         const byte* picture;
-        if(rd(src, at) == 0)
+        if(qvr::bytes::le32(src, at) == 0)
         {
             picture = src + at + 4;
             at += 4 + skinBytes;
         }
         else
         {
-            const int n = za::max(rd(src, at + 4), 1);
+            const int n = za::max(qvr::bytes::le32(src, at + 4), 1);
             picture = src + at + 8 + static_cast<size_t>(n) * 4;
             at += 8 + static_cast<size_t>(n) * 4 + static_cast<size_t>(n) * skinBytes;
         }
@@ -194,7 +166,7 @@ struct Mdl
         why = "truncated (frames)";
         return false;
     }
-    at += rd(src, at) == 0 ? 4 : 4 + 4 + 8 + static_cast<size_t>(za::max(rd(src, at + 4), 1)) * 4;
+    at += qvr::bytes::le32(src, at) == 0 ? 4 : 4 + 4 + 8 + static_cast<size_t>(za::max(qvr::bytes::le32(src, at + 4), 1)) * 4;
     m.poseAt = at + 24;
     if(m.poseAt + static_cast<size_t>(m.numVerts) * 4 > size || m.skin + skinBytes > src + size)
     {
@@ -1420,7 +1392,7 @@ void writeMdl(const Build& b, const glm::vec3& from, int flags, float sizeField,
             bmin[c] = za::min(bmin[c], q[c]);
             bmax[c] = za::max(bmax[c], q[c]);
         }
-        q[3] = nearestNormal(v.n);
+        q[3] = qvr::mdlbuild::nearestNormal(v.n);
         packed.emplaceBackRange(q, 4);
     }
     f.emplaceBackRange(bmin, 4);

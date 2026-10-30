@@ -1,4 +1,5 @@
 #include "vr_alloccount.h"
+#include "vr_trace.hpp"
 // vr_box3d_ragdoll.cpp -- ragdolls: made (deaths, active deaths, cuts), driven (shoves, swimming, climbing, active),
 // shocked and written back.
 // Split from vr_box3d.cpp (see its comment for the whole); the shared declarations are in
@@ -1516,7 +1517,7 @@ namespace
 // The liquid at `at` (metres), for a dying body's swim (vr_ragactive.cpp, "Liquids").
 ragactive::Liquid activeLiquidAt(const glm::vec3& at)
 {
-    switch(liquidAt(at * world->m2u))
+    switch(worldtrace::liquidContents(at * world->m2u, false))
     {
         case CONTENTS_WATER: return ragactive::Liquid::Water;
         case CONTENTS_SLIME: return ragactive::Liquid::Slime;

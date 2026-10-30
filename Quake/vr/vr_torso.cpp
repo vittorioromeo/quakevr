@@ -15,6 +15,7 @@
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
 #include "vr_units.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -31,26 +32,8 @@ namespace
 
 // The turn from `from` to `to`, -180 to 180 (the quotient rounded half away from zero: as za::remainder but at odd
 // multiples of 180, which za::remainder rounds to even; kept as written).
-[[nodiscard]] float wrapYaw(float a)
-{
-    return a - za::round(a / 360.f) * 360.f;
-}
-
-[[nodiscard]] float yawDelta(float to, float from)
-{
-    return wrapYaw(to - from);
-}
-
-[[nodiscard]] float yawOf(const glm::vec3& v)
-{
-    return glm::degrees(za::atan2(v.y, v.x));
-}
-
-[[nodiscard]] float smoothStep(float edge0, float edge1, float x)
-{
-    const float t = za::clamp((x - edge0) / (edge1 - edge0), 0.f, 1.f);
-    return t * t * (3.f - 2.f * t);
-}
+using geom::yawOf;
+using geom::yawDelta;
 
 // The estimate's state, in the play space's degrees (world yaw less the play space's turn).
 struct Estimate
@@ -118,7 +101,7 @@ void handVotes(const hands::State& s, float torsoWorld, float torsoFromHead, flo
         angle[h] = angleOf(s.pos[h] - chest);
         // In front (5 to 25 cm ahead of its shoulder; behind the back or hanging by the side: none), and not far off to
         // a side (full up to vr_torso_side_angle from the chest, none 35 degrees further).
-        est.weight[h] = smoothStep(0.05f, 0.25f, ahead) * (1.f - smoothStep(side, side + 35.f, za::fabs(angle[h])));
+        est.weight[h] = geom::smoothstep(0.05f, 0.25f, ahead) * (1.f - geom::smoothstep(side, side + 35.f, za::fabs(angle[h])));
     }
 
     // Both hands in front: their midpoint.
@@ -139,14 +122,14 @@ void handVotes(const hands::State& s, float torsoWorld, float torsoFromHead, flo
     const glm::vec3 across = s.pos[HAND_MAIN] - s.pos[HAND_OFF];
     const float apart = glm::length(glm::vec2{across}) / m2u;
     const float downAngle = angleOf({-across.y, across.x, 0.f}); // the line turned a quarter left: forward
-    float down = smoothStep(0.25f, 0.4f, apart) * (1.f - smoothStep(70.f, 100.f, za::fabs(torsoFromHead + downAngle)));
+    float down = geom::smoothstep(0.25f, 0.4f, apart) * (1.f - geom::smoothstep(70.f, 100.f, za::fabs(torsoFromHead + downAngle)));
     for(int h = 0; h < HAND_COUNT; h++)
     {
         const glm::vec3 fromAxis = s.pos[h] - (s.playerOrigin + s.lean);
-        down *= smoothStep(0.35f, 0.5f, (s.head.z - s.pos[h].z) / m2u) *
-                (1.f - smoothStep(0.3f, 0.42f, glm::length(glm::vec2{fromAxis}) / m2u));
+        down *= geom::smoothstep(0.35f, 0.5f, (s.head.z - s.pos[h].z) / m2u) *
+                (1.f - geom::smoothstep(0.3f, 0.42f, glm::length(glm::vec2{fromAxis}) / m2u));
     }
-    down *= 1.f - smoothStep(0.12f, 0.25f, za::fabs(across.z) / m2u); // level with each other
+    down *= 1.f - geom::smoothstep(0.12f, 0.25f, za::fabs(across.z) / m2u); // level with each other
     const float downWeight = down * za::max(0.f, vr_torso_hands_down.value);
 
     sum += bothWeight * (torsoFromHead + midAngle) + oneWeight * (torsoFromHead + angle[k]) +
@@ -228,7 +211,7 @@ float estimate(const hands::State& s, float headYaw, float turnYaw, bool handsVa
         }
     }
     // Never further from the head than the neck turns, eased or not (a quick look round takes the body along).
-    est.yaw = wrapYaw(head + za::clamp(yawDelta(est.yaw, head), -neck, neck));
+    est.yaw = geom::wrap180(head + za::clamp(yawDelta(est.yaw, head), -neck, neck));
     est.valid = true;
     return est.yaw + turnYaw;
 }

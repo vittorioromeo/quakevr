@@ -653,7 +653,7 @@ float(entity h) VR_Grapple_FindGun =
     }
     else
     {
-        entity p = find(world, classname, "player");
+        entity p = VR_Player();
         while(p && gg_where == GW_NONE)
         {
             if(VR_Grapple_HandHas(p, cVR_MainHand, tag))
@@ -678,7 +678,7 @@ float(entity h) VR_Grapple_FindGun =
                     s = VR_Grapple_NextHolster(s);
                 }
             }
-            p = find(p, classname, "player");
+            p = VR_NextPlayer(p);
         }
         entity e = find(world, classname, "thrown_weapon");
         while(e && gg_where == GW_NONE)

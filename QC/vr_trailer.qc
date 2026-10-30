@@ -163,13 +163,13 @@ void() VR_Trailer_Reset =
         vr_trailer_grunt = g;
     }
     // the Super Axe: out of the player's hands, off the bridge, on its pedestal again
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     if(vr_trailer_axe != world)
     {
         while(p != world)
         {
             VR_Trailer_TakeWeapon(p, vr_trailer_axe.weapon);
-            p = find(p, classname, "player");
+            p = VR_NextPlayer(p);
         }
         e = find(world, classname, "thrown_weapon");
         while(e != world)
@@ -185,7 +185,7 @@ void() VR_Trailer_Reset =
         VR_WeaponGrabbable_Make(vr_trailer_axe);
     }
     // the player at the start, facing along the bridge
-    p = find(world, classname, "player");
+    p = VR_Player();
     while(p != world)
     {
         setorigin(p, vr_trailer.origin);
@@ -195,7 +195,7 @@ void() VR_Trailer_Reset =
         p.fixangle = TRUE;
         p.flags = p.flags - (p.flags & FL_ONGROUND);
         if(p.health > 0 && p.health < 100) { p.health = 100; }
-        p = find(p, classname, "player");
+        p = VR_NextPlayer(p);
     }
     vr_trailer_resets = vr_trailer_resets + 1;
     bprint(sprintf("trailer: reset %g: the grunt at %v, the axe on its pedestal, you at the start (%g things taken away)\n",
@@ -211,7 +211,7 @@ void() VR_Trailer_Log =
     {
         a = find(a, classname, "thrown_weapon");
     }
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     string axe = (a != world) ? sprintf("axe %s", vtos(a.origin)) : sprintf("axe in hand %g/%g", p.weapon, p.weapon2);
     string doing = "other";
     if(g.think == army_stand1 || g.think == army_stand2 || g.think == army_stand3 || g.think == army_stand4 ||

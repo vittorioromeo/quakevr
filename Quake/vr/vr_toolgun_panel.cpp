@@ -474,8 +474,8 @@ bool interact(Ui& ui, const Rect& r, const char* name, int& id, bool enabled = t
     {
         ps.pressed = false;
         ps.dragging = id;
-        S_LocalSound("misc/menu3.wav");
-        toolgun::haptic(laserHand(), 0.015f, 0.3f);
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Adjust);
+        haptics::pulse(laserHand(), 0.015f, 0.3f, 200.f);
         return true;
     }
     return false;
@@ -1111,7 +1111,7 @@ void armedPage(Ui& ui)
             if(code == 0)
             {
                 q_snprintf(note, sizeof(note), "Random: a weapon from the pool (Combat > Armed Grunts), a second that pairs %.0f%% of the time.",
-                    Cvar_VariableValue("vr_agrunt_dual_chance") * 100.f);
+                    vr_agrunt_dual_chance.value * 100.f);
             }
             else if(code < 0)
             {
@@ -1664,7 +1664,7 @@ void frame(const hands::State& s)
     ps.pressed = false; // (a press off every widget: nothing)
     if(ui.hovered != ps.hovered && ui.hovered >= 0)
     {
-        toolgun::haptic(laserHand(), 0.01f, 0.12f); // a tick on each widget the laser comes onto
+        haptics::pulse(laserHand(), 0.01f, 0.12f, 200.f); // a tick on each widget the laser comes onto
     }
     ps.hovered = ui.hovered;
 }

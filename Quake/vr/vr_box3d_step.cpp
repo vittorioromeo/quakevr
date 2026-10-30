@@ -1,4 +1,6 @@
 #include "vr_alloccount.h"
+#include "vr_trace.hpp"
+#include "vr_progs.hpp"
 #include "vr_tracy.h"
 // vr_box3d_step.cpp -- the step: before it (spin align, lifts, liquids, slides), after it (sounds, falls, impacts,
 // touches) and VR_PhysicsFrameEnd.
@@ -356,14 +358,8 @@ void liftAgain()
 // floats more than the head and limbs, so a body floats face down, and an armoured knight less: it sinks), and dragged:
 // its motion and spin damped at the liquid's Drag (vr_ragdoll_drag_*, 1/s) by how deep it is, more the faster it goes
 // (twice at 60 units/s), so a fall into it is braked as it goes in (the splash) and a sink is slow. A knocked-down
-// monster's landing under it is cushioned too (liquidFallShare).
-// What liquid is at `p` (CONTENTS_WATER, _SLIME, _LAVA; else what is there), as wetFrom tells it.
-[[nodiscard]] int liquidAt(const glm::vec3& p)
-{
-    vec3_t v{p.x, p.y, p.z};
-    return VR_LiquidContents(sv.worldmodel, v, SV_PointContents(v)); // (SV_PointContents: a current is water)
-}
-
+// monster's landing under it is cushioned too (liquidFallShare). The liquid at a point: worldtrace::liquidContents(p,
+// false) (CONTENTS_WATER, _SLIME, _LAVA; else what is there; SV_PointContents: a current is water).
 namespace
 {
 // The liquid's Float and Drag (false: not a liquid).
@@ -409,7 +405,7 @@ namespace
         return 0.f;
     }
     float lift = 0.f, drag = 0.f;
-    if(!liquidFeel(liquidAt(glm::vec3{com.x, com.y, lo + 1.f}), lift, drag) && !liquidFeel(liquidAt(com), lift, drag))
+    if(!liquidFeel(worldtrace::liquidContents(glm::vec3{com.x, com.y, lo + 1.f}, false), lift, drag) && !liquidFeel(worldtrace::liquidContents(com, false), lift, drag))
     {
         return 0.f;
     }
@@ -459,7 +455,7 @@ void ragdollsInLiquids(float dt)
         if(vr_debug_ragdoll.value >= 2.f && r.lift[0] != 0.f) // (its pelvis in a liquid: the sink speed tests')
         {
             const glm::vec3 p = world->toU(b3Body_GetWorldCenter(r.body[0])), v = world->toU(b3Body_GetLinearVelocity(r.body[0]));
-            Con_Printf("ragdoll %d in liquid %d: pelvis z %.1f, %.1f u/s up, %.1f across\n", r.num, liquidAt(p), p.z, v.z,
+            Con_Printf("ragdoll %d in liquid %d: pelvis z %.1f, %.1f u/s up, %.1f across\n", r.num, worldtrace::liquidContents(p, false), p.z, v.z,
                 glm::length(glm::vec2{v.x, v.y}));
         }
     }
@@ -1366,7 +1362,7 @@ extern "C" void VR_PhysicsFrameEnd(void)
     ragtool::serverFrame(); // (the ragdoll tool's run, vr_ragtool: its next steps, the virtual hand, the log)
     ragtest::frame(); // (the ragdoll tests under way, vr_ragdoll_act: their next steps, whether each began)
     {
-        const VmScope vm;
+        const progs::ServerVm vm;
         pressTestFrame(); // (vr_prop_press_test under way: the hand's next target)
         strikeTestFrame(); // (vr_prop_strike_test under way: the hand's next move)
     }

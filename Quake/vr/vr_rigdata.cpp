@@ -8,6 +8,7 @@
 #include "vr_ragdoll.hpp"
 #include "vr_rig2.hpp"
 #include "vr_rigpose.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Algorithm/Erase.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -32,8 +33,8 @@ using namespace qvr;
 namespace
 {
 
-constexpr float pi = 3.14159265358979f;
-constexpr float deg = pi / 180.f;
+using geom::pi;
+using geom::deg;
 
 // One model's entry (read when first asked for; `none`: it has no files).
 struct Entry

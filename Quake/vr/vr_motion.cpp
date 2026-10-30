@@ -1,6 +1,7 @@
 // vr_motion.cpp -- the motion recorder: see vr_motion.hpp and docs/vr-port/MOTIONS.md. Recording, the
 // take file, the server's samples and the QC's events; playback is vr_motion_play.cpp.
 
+#include "vr_menuui.hpp"
 #include "vr_motion.hpp"
 #include "vr_motion_take.hpp"
 #include "vr_motion_review.hpp"
@@ -40,6 +41,7 @@
 #include "Zancle/Vocabulary/Pair.hpp"
 #include "Zancle/Vocabulary/UniquePtr.hpp"
 #include "vr_zancle.hpp"
+#include "vr_geom.hpp"
 
 #include <stdio.h>
 #include <string.h>
@@ -380,11 +382,6 @@ constexpr const char* wxyz[3] = {"wx", "wy", "wz"};
 constexpr const char* gxyz[3] = {"gx", "gy", "gz"};
 constexpr const char* avxyz[3] = {"avx", "avy", "avz"};
 
-[[nodiscard]] float wrapYaw(float y)
-{
-    return za::remainder(y, 360.f);
-}
-
 [[nodiscard]] za::String eventField(za::String s)
 {
     for(char& c : s)
@@ -437,7 +434,7 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
 
     // The player: world, its own frame's, and relative to the monster.
     s.vec("org_w_", true, r.origin, 3, xyz);
-    s.num("yaw", wrapYaw(r.headAngles.y), 3);
+    s.num("yaw", geom::wrap180(r.headAngles.y), 3);
     s.num("play_yaw", r.playYaw, 3);
     const bool svPlayer = sv && sv->player;
     const glm::vec3 pvel = svPlayer ? dir(sv->velocity) : glm::vec3{0.f};
@@ -453,18 +450,18 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
         s.empty("sv_onground");
     }
     s.pos("lean", true, dir(r.lean), u2m);
-    s.num("body_yaw", wrapYaw(r.bodyYaw - yaw0), 3);
+    s.num("body_yaw", geom::wrap180(r.bodyYaw - yaw0), 3);
     s.num("crouch", r.crouch, 4);
     s.num("view_pitch", r.headAngles.x, 3);
-    s.num("view_yaw", wrapYaw(r.headAngles.y - yaw0), 3);
+    s.num("view_yaw", geom::wrap180(r.headAngles.y - yaw0), 3);
     s.num("view_roll", r.headAngles.z, 3);
     s.num("aim_pitch", r.aim.x, 3);
-    s.num("aim_yaw", wrapYaw(r.aim.y - yaw0), 3);
+    s.num("aim_yaw", geom::wrap180(r.aim.y - yaw0), 3);
     s.num("aim_roll", r.aim.z, 3);
     s.pos("org_d", mon, df(r.origin), u2m);
     if(mon)
     {
-        s.num("view_yaw_d", wrapYaw(r.headAngles.y - sv->monAngles.y), 3);
+        s.num("view_yaw_d", geom::wrap180(r.headAngles.y - sv->monAngles.y), 3);
     }
     else
     {
@@ -487,11 +484,11 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
         s.vec(p + "pos_w_", true, hr.pos, 3, xyz);
         s.pos(p + "pos_d", mon, df(hr.pos), u2m);
         s.num(name("pitch").cStr(), hr.rot.x, 3);
-        s.num(name("yaw").cStr(), wrapYaw(hr.rot.y - yaw0), 3);
+        s.num(name("yaw").cStr(), geom::wrap180(hr.rot.y - yaw0), 3);
         s.num(name("roll").cStr(), hr.rot.z, 3);
         if(mon)
         {
-            s.num(name("yaw_d").cStr(), wrapYaw(hr.rot.y - sv->monAngles.y), 3);
+            s.num(name("yaw_d").cStr(), geom::wrap180(hr.rot.y - sv->monAngles.y), 3);
         }
         else
         {
@@ -618,9 +615,9 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
     if(mon)
     {
         s.num("mon_pitch", sv->monAngles.x, 3);
-        s.num("mon_yaw_w", wrapYaw(sv->monAngles.y), 3);
+        s.num("mon_yaw_w", geom::wrap180(sv->monAngles.y), 3);
         s.num("mon_roll", sv->monAngles.z, 3);
-        s.num("mon_yaw", wrapYaw(sv->monAngles.y - yaw0), 3);
+        s.num("mon_yaw", geom::wrap180(sv->monAngles.y - yaw0), 3);
     }
     else
     {
@@ -706,8 +703,7 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
     qcvm_t* oldVm = nullptr;
     PR_PushQCVM(&sv.qcvm, &oldVm);
     za::String out;
-    const auto& f = progs::fields();
-    const int ofs = hand == HAND_MAIN ? f.mainhand_held : f.offhand_held;
+    const int ofs = progs::handFields(hand == HAND_MAIN).held;
     edict_t* const player = EDICT_NUM(1);
     const int num = ofs >= 0 && !player->free ? progs::fieldInt(player, ofs) : 0;
     // (An edict reference in range and on an edict's start; one freed since is skipped below.)
@@ -1047,26 +1043,15 @@ bool armedOrRecording();
 // The nearest live monster to `from` (FL_MONSTER, the training dummy too), or null.
 [[nodiscard]] edict_t* nearestMonster(const glm::vec3& from)
 {
-    edict_t* best = nullptr;
-    float bestDist = 4096.f;
-    for(int i = 1; i < qcvm->num_edicts; i++)
-    {
-        edict_t* e = EDICT_NUM(i);
-        if(e->free || !(static_cast<int>(e->v.flags) & FL_MONSTER) || e->v.health <= 0.f ||
-           static_cast<int>(e->v.solid) == SOLID_NOT)
+    return progs::nearestBy(1, 4096.f, [&](const edict_t* e) {
+        if(!(static_cast<int>(e->v.flags) & FL_MONSTER) || e->v.health <= 0.f || static_cast<int>(e->v.solid) == SOLID_NOT)
         {
-            continue;
+            return 4096.f;
         }
         const glm::vec3 mid{e->v.origin[0] + (e->v.mins[0] + e->v.maxs[0]) * 0.5f,
             e->v.origin[1] + (e->v.mins[1] + e->v.maxs[1]) * 0.5f, e->v.origin[2] + (e->v.mins[2] + e->v.maxs[2]) * 0.5f};
-        const float d = glm::distance(mid, from);
-        if(d < bestDist)
-        {
-            bestDist = d;
-            best = e;
-        }
-    }
-    return best;
+        return glm::distance(mid, from);
+    });
 }
 
 // ----------------------------------------------------------------------------
@@ -1206,14 +1191,6 @@ void countTakes()
     return n;
 }
 
-void haptic(int hand, float seconds, float amplitude)
-{
-    if(Backend* be = backend(); be && !vr_disablehaptics.value)
-    {
-        be->haptic(hand, seconds, 160.f, amplitude);
-    }
-}
-
 void startTake(const za::String& label)
 {
     if(rec != Rec::Off)
@@ -1223,7 +1200,7 @@ void startTake(const za::String& label)
     if(!hands::current().valid)
     {
         Con_Printf("Motion recorder: not in a game with VR hands\n");
-        S_LocalSound("doors/basetry.wav");
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Deny);
         return;
     }
 
@@ -1243,8 +1220,8 @@ void startTake(const za::String& label)
     }
     preroll.clear();
     rec = Rec::Recording;
-    haptic(recordHand(), 0.06f, 0.8f);
-    S_LocalSound("misc/talk.wav");
+    haptics::pulse(recordHand(), 0.06f, 0.8f);
+    qvr::menuui::uiSound(qvr::menuui::UiSound::Talk);
     Con_Printf("Motion recorder: recording %s #%d\n", takeLabel.cStr(), takeNumber);
 }
 
@@ -1329,8 +1306,8 @@ void finishTake()
         Con_Printf("Motion recorder: %s #%d too short (%.2f s), not kept\n", takeLabel.cStr(), takeNumber, held);
         feedbackText = va("NOT KEPT: too short (%.2f s)", held);
         feedbackUntil = realtime + 2.0;
-        haptic(recordHand(), 0.25f, 0.4f);
-        S_LocalSound("doors/basetry.wav");
+        haptics::pulse(recordHand(), 0.25f, 0.4f);
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Deny);
         return;
     }
 
@@ -1395,8 +1372,8 @@ void pollSaves(bool wait)
             unsaved.pushBack({p.info, *p.rows});
             feedbackText = "NOT SAVED! (see the console)";
             feedbackUntil = realtime + 6.0;
-            haptic(recordHand(), 0.4f, 1.f);
-            S_LocalSound("doors/basetry.wav");
+            haptics::pulse(recordHand(), 0.4f, 1.f);
+            qvr::menuui::uiSound(qvr::menuui::UiSound::Deny);
             continue;
         }
         const za::String path = written == 1 ? p.path : p.fallback;
@@ -1420,8 +1397,8 @@ void pollSaves(bool wait)
             static_cast<int>(p.rows->size()), events, category.cStr(), count, count == 1 ? "" : "s");
         feedbackText = va("SAVED %s #%d (%s: %d)", label.cStr(), p.info.take, category.cStr(), count);
         feedbackUntil = realtime + 2.5;
-        haptic(recordHand(), 0.12f, 0.6f);
-        S_LocalSound("misc/menu2.wav");
+        haptics::pulse(recordHand(), 0.12f, 0.6f);
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Select);
     }
 }
 
@@ -1635,7 +1612,7 @@ void sampleEntities(edict_t* player)
     if(replayAgProgs != qcvm->progs)
     {
         replayAgProgs = qcvm->progs;
-        replayAgFieldWid = ED_FindFieldOffset("vr_ag_wid");
+        replayAgFieldWid = progs::fields().vr_ag_wid;
     }
     const glm::vec3 from{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
     const auto& f = progs::fields();
@@ -2364,7 +2341,7 @@ void discardLast()
     if(savedThisSession.empty())
     {
         Con_Printf("Motion recorder: no take saved in this session to delete\n");
-        S_LocalSound("doors/basetry.wav");
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Deny);
         return;
     }
     const za::String from = savedThisSession.back();
@@ -2374,7 +2351,7 @@ void discardLast()
     if(rename(from.cStr(), (dir + "/" + name).cStr()) != 0) // (<stdio.h>'s)
     {
         Con_Printf("Motion recorder: can't move %s into motions/discarded/\n", name.cStr());
-        S_LocalSound("doors/basetry.wav");
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Deny);
         return;
     }
     savedThisSession.popBack();
@@ -2384,7 +2361,7 @@ void discardLast()
     feedbackText = va("DELETED %s", name.cStr());
     feedbackUntil = realtime + 2.0;
     lastSavedName = savedThisSession.empty() ? za::String{} : za::String{files::fileName(savedThisSession.back())};
-    S_LocalSound("misc/menu3.wav");
+    qvr::menuui::uiSound(qvr::menuui::UiSound::Adjust);
 }
 
 bool parseTakeName(za::StringView name, za::StringView& label, za::StringView& stamp)

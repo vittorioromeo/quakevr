@@ -2,6 +2,7 @@
 // _probe, _leafdebug, _approach, _hittest and vr_mhull_walktest.
 // Split from vr_hull.cpp (a pure move); what they share is in vr_hull_internal.hpp.
 
+#include "vr_random.hpp"
 #include "vr_hull_internal.hpp"
 #include "vr_alloccount.hpp"
 #include "vr_brushes.hpp"
@@ -575,19 +576,6 @@ struct WalkTest
 };
 WalkTest walkTest;
 
-za::U32 nextRandom(za::U32& s)
-{
-    s ^= s << 13;
-    s ^= s >> 17;
-    s ^= s << 5;
-    return s;
-}
-
-float random01(za::U32& s)
-{
-    return static_cast<float>(nextRandom(s) & 0xffffff) / 16777216.f;
-}
-
 // Somewhere random the player's box stands (on a floor, in the open, not in liquid).
 bool hop(edict_t* ent)
 {
@@ -596,7 +584,7 @@ bool hop(edict_t* ent)
     glm::vec3 wmaxs{world->maxs[0], world->maxs[1], world->maxs[2]};
     WalkTest& w = walkTest;
     // Every other hop near a door, lift, train or button (a pusher), if the map has any.
-    if(random01(w.seed) < 0.5f)
+    if(vrand::xorshift01(w.seed) < 0.5f)
     {
         int count = 0;
         edict_t* chosen = nullptr;
@@ -604,7 +592,7 @@ bool hop(edict_t* ent)
         {
             edict_t* e = EDICT_NUM(i);
             if(!e->free && static_cast<int>(e->v.solid) == SOLID_BSP && static_cast<int>(e->v.movetype) == MOVETYPE_PUSH &&
-                random01(w.seed) * static_cast<float>(++count) < 1.f)
+                vrand::xorshift01(w.seed) * static_cast<float>(++count) < 1.f)
             {
                 chosen = e; // reservoir sampling: each pusher alike
             }
@@ -618,7 +606,7 @@ bool hop(edict_t* ent)
     }
     for(int attempt = 0; attempt < 400; ++attempt)
     {
-        glm::vec3 p = wmins + (wmaxs - wmins) * glm::vec3{random01(w.seed), random01(w.seed), random01(w.seed)};
+        glm::vec3 p = wmins + (wmaxs - wmins) * glm::vec3{vrand::xorshift01(w.seed), vrand::xorshift01(w.seed), vrand::xorshift01(w.seed)};
         vec3_t v{p.x, p.y, p.z};
         if(SV_PointContents(v) != CONTENTS_EMPTY)
         {
@@ -697,8 +685,8 @@ glm::vec3 monsterGoal(MonsterWalk& w, const edict_t* e)
     glm::vec3 p = o;
     for(int attempt = 0; attempt < 24; ++attempt)
     {
-        const float yaw = random01(w.seed) * 6.2831853f, d = 96.f + 288.f * random01(w.seed);
-        p = o + glm::vec3{za::cos(yaw) * d, za::sin(yaw) * d, flies ? (random01(w.seed) - 0.5f) * 96.f : 24.f};
+        const float yaw = vrand::xorshift01(w.seed) * 6.2831853f, d = 96.f + 288.f * vrand::xorshift01(w.seed);
+        p = o + glm::vec3{za::cos(yaw) * d, za::sin(yaw) * d, flies ? (vrand::xorshift01(w.seed) - 0.5f) * 96.f : 24.f};
         vec3_t v{p.x, p.y, p.z};
         if(flies)
         {
@@ -1141,7 +1129,7 @@ void hitTest_f()
         const glm::vec3 right = glm::normalize(glm::vec3{-aim.y, aim.x, 0.f}), up{0.f, 0.f, 1.f};
         for(int i = 0; i < 200; ++i)
         {
-            const float cr = (random01(seed) + random01(seed)) - 1.f, cu = (random01(seed) + random01(seed)) - 1.f;
+            const float cr = (vrand::xorshift01(seed) + vrand::xorshift01(seed)) - 1.f, cu = (vrand::xorshift01(seed) + vrand::xorshift01(seed)) - 1.f;
             const glm::vec3 end = from + (aim + right * (cr * spread) + up * (cu * spread)) * (dist * 2.f);
             vec3_t e{end.x, end.y, end.z};
             const trace_t tr = SV_Move(f, vec3_origin, vec3_origin, e, MOVE_NORMAL, nullptr);
@@ -1482,12 +1470,12 @@ void walkTestFrame(edict_t* ent)
         {
             ++w.hopFails;
         }
-        w.nextHop = sv.qcvm.time + 3.0 + 4.0 * random01(w.seed);
+        w.nextHop = sv.qcvm.time + 3.0 + 4.0 * vrand::xorshift01(w.seed);
     }
     if(sv.qcvm.time >= w.nextTurn)
     {
-        w.yaw = random01(w.seed) * 6.2831853f;
-        w.nextTurn = sv.qcvm.time + 0.3 + 1.2 * random01(w.seed);
+        w.yaw = vrand::xorshift01(w.seed) * 6.2831853f;
+        w.nextTurn = sv.qcvm.time + 0.3 + 1.2 * vrand::xorshift01(w.seed);
     }
     const float speed = 320.f;
     ent->v.velocity[0] = za::cos(w.yaw) * speed;
@@ -1496,7 +1484,7 @@ void walkTestFrame(edict_t* ent)
     {
         ent->v.velocity[2] = 270.f;
         ent->v.flags = static_cast<float>((int)ent->v.flags & ~FL_ONGROUND);
-        w.nextJump = sv.qcvm.time + 0.5 + 3.0 * random01(w.seed);
+        w.nextJump = sv.qcvm.time + 0.5 + 3.0 * vrand::xorshift01(w.seed);
     }
 }
 

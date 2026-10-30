@@ -21,6 +21,7 @@
 #include "Zancle/Math/Abs.hpp"
 #include "vr_progs.hpp"
 #include "vr_selfcollide.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Algorithm/AnyOf.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
@@ -174,12 +175,6 @@ void findModels()
     return fireModel;
 }
 
-[[nodiscard]] float smooth01(float e0, float e1, float x)
-{
-    const float t = za::clamp((x - e0) / (e1 - e0), 0.f, 1.f);
-    return t * t * (3.f - 2.f * t);
-}
-
 // The flame of a stick at `origin` turned `axes` (its +x the head), its head going `vel`, `s` big (hung: on its wall),
 // stirred by a hand passing it (`stir`: vr_flamewobble.cpp's lean, sideways units a unit up).
 [[nodiscard]] Flame flameOf(const glm::vec3& origin, const glm::mat3& axes, const glm::vec3& vel, float s, bool hung,
@@ -188,7 +183,7 @@ void findModels()
     Flame f;
     const glm::vec3 along = axes[0];
     const float a = za::clamp(along.z, -1.f, 1.f);
-    f.inv = hung ? 0.f : smooth01(0.f, 1.f, -a);
+    f.inv = hung ? 0.f : geom::smoothstep(0.f, 1.f, -a);
     // Keep the flame rooted at the torch end, including when inverted.
     f.foot = origin + along * stickHeadX;
 
@@ -196,7 +191,7 @@ void findModels()
     // (vr_walltorch_flatten).
     const glm::vec3 vh{vel.x, vel.y, 0.f};
     const float speed = glm::length(vh);
-    const float flat = za::min(1.5f, smooth01(flattenFrom, flattenTo, speed) * za::max(0.f, vr_walltorch_flatten.value));
+    const float flat = za::min(1.5f, geom::smoothstep(flattenFrom, flattenTo, speed) * za::max(0.f, vr_walltorch_flatten.value));
     glm::vec3 lean = -vh * (leanPerSpeed * za::max(0.f, vr_walltorch_lean.value));
     if(const float l = glm::length(lean), most = leanMost + flattenLean * za::min(1.f, flat); l > most)
     {
@@ -219,7 +214,7 @@ void findModels()
         const glm::vec3 bp = back - f.up * glm::dot(back, f.up);
         if(glm::length(bp) > 0.1f)
         {
-            x2 = glm::mix(xs, glm::normalize(bp), smooth01(20.f, 150.f, speed));
+            x2 = glm::mix(xs, glm::normalize(bp), geom::smoothstep(20.f, 150.f, speed));
         }
     }
     if(glm::length(x2) < 0.1f)

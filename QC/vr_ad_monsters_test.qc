@@ -46,7 +46,7 @@ void() AD_MT_Report =
 // The AD monster nearest the player (drawn: not gibbed away), alive or dead.
 entity() AD_MT_Find =
 {
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     entity best = world;
     float bestd = 100000;
     for(entity e = nextent(world); e; e = nextent(e))
@@ -66,7 +66,7 @@ entity() AD_MT_Find =
 
 void() AD_MT_Nearest =
 {
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     entity m = AD_MT_Find();
     if(m == world)
     {
@@ -104,7 +104,7 @@ void() AD_MonstersTestFrame =
     else if(request == 3 || request == 4)
     {
         // 3: the nearest killed by a blow of its health (it dies whole); 4: hit for 1000 (a corpse gibbed: gone).
-        entity p = find(world, classname, "player");
+        entity p = VR_Player();
         entity m = AD_MT_Find();
         if(m != world)
         {
@@ -120,7 +120,7 @@ void() AD_MonstersTestFrame =
     {
         // 5: the nearest's neck snapped by your hands (VR_FoeGrab_NeckSnap: AD's Killed, VR_AD_NeckSnapKilled).
         // (the nearest awake one: a map's dormant monster, not yet triggered, can't be hurt)
-        entity p5 = find(world, classname, "player");
+        entity p5 = VR_Player();
         entity m5 = world;
         for(entity e5 = nextent(world); e5; e5 = nextent(e5))
         {

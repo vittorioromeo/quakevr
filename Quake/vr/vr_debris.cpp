@@ -1,4 +1,6 @@
+#include "vr_strings.hpp"
 #include "vr_alloccount.h"
+#include "vr_trace.hpp"
 // vr_debris.cpp -- rocks and bricks lying about the maps; see vr_debris.hpp and docs/vr-port/ROUND21.md, "Rocks and
 // bricks". The models are Misc/quakevr/make_debris.py's; QC vr_debris.qc spawns and handles them.
 
@@ -35,6 +37,7 @@
 #include "Zancle/String/StringView.hpp"
 #include "Zancle/Vocabulary/Pair.hpp"
 #include "vr_zancle.hpp"
+#include "vr_geom.hpp"
 
 #include <ctype.h>
 #include <string.h>
@@ -399,24 +402,9 @@ mem::Cache<KeptPlan> kept{"debris plan", mem::GameDirChange};
     return static_cast<unsigned>(layout ^ (layout >> 32));
 }
 
-[[nodiscard]] glm::vec3 vec(const float* v)
-{
-    return {v[0], v[1], v[2]};
-}
+using geom::vec;
 
 } // namespace
-
-trace_t traceLine(const glm::vec3& a, const glm::vec3& b)
-{
-    vec3_t start{a.x, a.y, a.z}, end{b.x, b.y, b.z};
-    return SV_Move(start, vec3_origin, vec3_origin, end, MOVE_NOMONSTERS, qcvm->edicts);
-}
-
-int contents(const glm::vec3& p)
-{
-    vec3_t v{p.x, p.y, p.z};
-    return SV_PointContents(v);
-}
 
 namespace
 {
@@ -521,18 +509,13 @@ struct FloorGrid
     }
 };
 
-[[nodiscard]] bool startsWith(const char* s, const char* prefix)
-{
-    return !strncmp(s, prefix, strlen(prefix));
-}
-
 void obstaclesOf(za::Vector<Obstacle>& out, float extra)
 {
     for(const StaticThing& t : statics)
     {
         // A static brush (a func_illusionary: fake walls, cobwebs, a secret's way through) only as a still brush is
         // for the crates (an `extra`); the rocks keep 40 from every static thing, as they always did.
-        const float margin = extra > 0.f && startsWith(t.classname.cStr(), "func_") ? 8.f : 40.f + extra;
+        const float margin = extra > 0.f && qvr::strings::startsWith(t.classname.cStr(), "func_") ? 8.f : 40.f + extra;
         out.pushBack({t.lo - glm::vec3{margin}, t.hi + glm::vec3{margin}, t.classname.cStr()});
     }
     for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
@@ -552,10 +535,10 @@ void obstaclesOf(za::Vector<Obstacle>& out, float extra)
         float margin = 0.f;
         const char* why = cls;
         glm::vec3 reach{0.f};
-        if(startsWith(cls, "func_"))
+        if(qvr::strings::startsWith(cls, "func_"))
         {
             if(!strcmp(cls, "func_wall") || !strcmp(cls, "func_illusionary") || !strcmp(cls, "func_episodegate") ||
-                !strcmp(cls, "func_bossgate") || startsWith(cls, "func_detail") || !strcmp(cls, "func_group"))
+                !strcmp(cls, "func_bossgate") || qvr::strings::startsWith(cls, "func_detail") || !strcmp(cls, "func_group"))
             {
                 margin = 8.f; // still brushes: not under or in them
             }
@@ -565,24 +548,24 @@ void obstaclesOf(za::Vector<Obstacle>& out, float extra)
                 // (a door slides about its width, a lift goes down its height).
                 margin = 48.f;
                 reach = glm::min(size, glm::vec3{128.f});
-                if(startsWith(cls, "func_plat") || startsWith(cls, "func_new_plat") || startsWith(cls, "func_elvtr"))
+                if(qvr::strings::startsWith(cls, "func_plat") || qvr::strings::startsWith(cls, "func_new_plat") || qvr::strings::startsWith(cls, "func_elvtr"))
                 {
                     reach.z = za::max(reach.z, 256.f);
                 }
             }
         }
         else if(!strcmp(cls, "trigger_teleport") || !strcmp(cls, "info_teleport_destination") ||
-                startsWith(cls, "info_player") || startsWith(cls, "trigger_changelevel"))
+                qvr::strings::startsWith(cls, "info_player") || qvr::strings::startsWith(cls, "trigger_changelevel"))
         {
             margin = 64.f;
         }
-        else if(startsWith(cls, "trigger_"))
+        else if(qvr::strings::startsWith(cls, "trigger_"))
         {
             margin = 24.f;
         }
-        else if(startsWith(cls, "item_") || startsWith(cls, "weapon_") || startsWith(cls, "ammo_") ||
-                startsWith(cls, "misc_explobox") || startsWith(cls, "monster_") || startsWith(cls, "path_corner") ||
-                startsWith(cls, "light_torch") || startsWith(cls, "light_flame") || startsWith(cls, "func_weapon"))
+        else if(qvr::strings::startsWith(cls, "item_") || qvr::strings::startsWith(cls, "weapon_") || qvr::strings::startsWith(cls, "ammo_") ||
+                qvr::strings::startsWith(cls, "misc_explobox") || qvr::strings::startsWith(cls, "monster_") || qvr::strings::startsWith(cls, "path_corner") ||
+                qvr::strings::startsWith(cls, "light_torch") || qvr::strings::startsWith(cls, "light_flame") || qvr::strings::startsWith(cls, "func_weapon"))
         {
             margin = 40.f;
         }
@@ -702,7 +685,7 @@ struct Planner
         glm::vec3& floor, glm::vec3& normal, int& reason)
     {
         const float height = (onSide ? (m.hi.y - m.lo.y) * scale.y : (m.hi.z - m.lo.z) * scale.z);
-        const trace_t down = traceLine(p + glm::vec3{0.f, 0.f, 6.f}, p - glm::vec3{0.f, 0.f, 6.f});
+        const trace_t down = worldtrace::serverLine(p + glm::vec3{0.f, 0.f, 6.f}, p - glm::vec3{0.f, 0.f, 6.f});
         if(down.fraction >= 1.f || down.startsolid || down.ent != qcvm->edicts)
         {
             reason = RUneven;
@@ -723,7 +706,7 @@ struct Planner
             return false;
         }
         const glm::vec3 mid = floor + glm::vec3{0.f, 0.f, za::max(height * 0.5f, 0.6f)};
-        if(contents(floor + glm::vec3{0.f, 0.f, 0.5f}) != CONTENTS_EMPTY || contents(floor + glm::vec3{0.f, 0.f, height + 4.f}) != CONTENTS_EMPTY)
+        if(worldtrace::contents(floor + glm::vec3{0.f, 0.f, 0.5f}) != CONTENTS_EMPTY || worldtrace::contents(floor + glm::vec3{0.f, 0.f, height + 4.f}) != CONTENTS_EMPTY)
         {
             reason = RLiquid;
             return false;
@@ -734,7 +717,7 @@ struct Planner
             const float a = static_cast<float>(k) * 0.785398f;
             const glm::vec2 d{za::cos(a), za::sin(a)};
             const float reach = halfAlong(m, scale, onSide, yaw, d) + 0.3f;
-            if(traceLine(mid, mid + glm::vec3{d * reach, 0.f}).fraction < 1.f)
+            if(worldtrace::serverLine(mid, mid + glm::vec3{d * reach, 0.f}).fraction < 1.f)
             {
                 reason = RCramped;
                 return false;
@@ -746,7 +729,7 @@ struct Planner
         for(const glm::vec2 corner : {glm::vec2{hx, hy}, glm::vec2{-hx, hy}, glm::vec2{hx, -hy}, glm::vec2{-hx, -hy}})
         {
             const glm::vec3 at = floor + glm::vec3{c * corner.x - s * corner.y, s * corner.x + c * corner.y, 0.f};
-            const trace_t t = traceLine(at + glm::vec3{0.f, 0.f, 3.f}, at - glm::vec3{0.f, 0.f, 3.f});
+            const trace_t t = worldtrace::serverLine(at + glm::vec3{0.f, 0.f, 3.f}, at - glm::vec3{0.f, 0.f, 3.f});
             if(t.fraction >= 1.f || t.startsolid || t.ent != qcvm->edicts || za::abs(t.endpos[2] - floor.z) > 1.f ||
                 t.plane.normal[2] < 0.9f)
             {
@@ -755,7 +738,7 @@ struct Planner
             }
         }
         // Open above (not under a step or a low ledge).
-        if(traceLine(floor + glm::vec3{0.f, 0.f, 0.5f}, floor + glm::vec3{0.f, 0.f, 40.f}).fraction < 1.f)
+        if(worldtrace::serverLine(floor + glm::vec3{0.f, 0.f, 0.5f}, floor + glm::vec3{0.f, 0.f, 40.f}).fraction < 1.f)
         {
             reason = RLow;
             return false;
@@ -1212,7 +1195,7 @@ int plan()
                 const glm::vec3 at = a + edge * (t / len);
                 // The floor that meets it (a point just out from the wall, at the edge's height).
                 const glm::vec3 probe = at + glm::vec3{out * 2.f, 0.f};
-                const trace_t down = traceLine(probe + glm::vec3{0.f, 0.f, 4.f}, probe - glm::vec3{0.f, 0.f, 4.f});
+                const trace_t down = worldtrace::serverLine(probe + glm::vec3{0.f, 0.f, 4.f}, probe - glm::vec3{0.f, 0.f, 4.f});
                 if(down.fraction >= 1.f || down.startsolid || za::abs(down.endpos[2] - at.z) > 1.5f)
                 {
                     pl.rejected[RNoFloor]++;
@@ -1271,8 +1254,8 @@ int plan()
         const float weight = za::max(s.rockWeight, s.brickWeight);
         // A corner: a wall beside the spot, along its own wall (either way).
         const glm::vec3 side = s.at + glm::vec3{s.out * 6.f, 5.f};
-        const bool corner = traceLine(side, side + glm::vec3{s.along * 20.f, 0.f}).fraction < 1.f ||
-                            traceLine(side, side - glm::vec3{s.along * 20.f, 0.f}).fraction < 1.f;
+        const bool corner = worldtrace::serverLine(side, side + glm::vec3{s.along * 20.f, 0.f}).fraction < 1.f ||
+                            worldtrace::serverLine(side, side - glm::vec3{s.along * 20.f, 0.f}).fraction < 1.f;
         // Fewer where it is dark (where nobody sees them: the foot of a wall is often the darkest of a room).
         const float dark = za::clamp(vr_debris_dark.value, 0.f, 1.f);
         const float lit = dark + (1.f - dark) * za::clamp((s.light - 8.f) / 32.f, 0.f, 1.f);

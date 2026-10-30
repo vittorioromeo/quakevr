@@ -1,6 +1,8 @@
 // vr_avatar.cpp -- see vr_avatar.hpp.
 
 #include "vr_modelmetadata.hpp"
+#include "vr_trace.hpp"
+#include "vr_progs.hpp"
 #include "vr_avatar.hpp"
 #include "vr_agarmor.hpp"
 #include "vr_selfcollide.hpp"
@@ -43,6 +45,7 @@
 #include <glm/gtc/quaternion.hpp>
 
 #include <string.h>
+#include "vr_geom.hpp"
 
 namespace qvr::avatar
 {
@@ -115,11 +118,7 @@ constexpr glm::vec3 UP{0.f, 0.f, 1.f};
 constexpr glm::vec3 FWD{1.f, 0.f, 0.f};
 constexpr glm::vec3 BACK{-1.f, 0.f, 0.f};
 
-[[nodiscard]] glm::vec3 safeNormalize(const glm::vec3& v, const glm::vec3& fallback = UP)
-{
-    const float len = glm::length(v);
-    return len > 1e-5f ? v / len : fallback;
-}
+using geom::safeNormalize;
 
 // Columns: x along `dir`, z towards `hint`, y = z x x (make_vrbody.py's frame()).
 [[nodiscard]] glm::mat3 basis(const glm::vec3& dir, const glm::vec3& hint)
@@ -1231,12 +1230,6 @@ struct Water
 
 Water water;
 
-[[nodiscard]] bool isLiquid(int c)
-{
-    return c == CONTENTS_WATER || c == CONTENTS_SLIME || c == CONTENTS_LAVA ||
-           (c <= CONTENTS_CURRENT_0 && c >= CONTENTS_CURRENT_DOWN);
-}
-
 // How high the liquid stands above the body's floor, in metres of the body: sampled up the pelvis's
 // column from the floor to a little above `top` (solid below the water is the bottom, the floor
 // being where the head's height puts it).
@@ -1255,7 +1248,7 @@ Water water;
     {
         vec3_t v{p.x, p.y, b.floorZ + h * b.m2w};
         const int c = Mod_PointInLeaf(v, cl.worldmodel)->contents;
-        if(isLiquid(c))
+        if(worldtrace::isLiquid(c, true))
         {
             wet = true;
             surface = h + STEP * 0.5f;
@@ -1393,10 +1386,7 @@ constexpr float STEP_LIFT = 0.06f;    // metres
 constexpr float STEP_DISTANCE = 0.25f; // metres the body may move from the feet before they step
 
 // Degrees from `from` to `to`, -180 .. 180.
-[[nodiscard]] float yawDelta(float to, float from)
-{
-    return za::remainder(to - from, 360.f);
-}
+using geom::yawDelta;
 
 [[nodiscard]] glm::vec3 yawForward(float yaw)
 {
@@ -1632,7 +1622,7 @@ struct FootHit
 [[nodiscard]] FootHit footTrace(const glm::vec3& a, const glm::vec3& z)
 {
     FootHit h;
-    if(!sv.active || svs.maxclients < 1 || !svs.clients[0].active || !svs.clients[0].edict)
+    if(!progs::localPlayer())
     {
         return h;
     }

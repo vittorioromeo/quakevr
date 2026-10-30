@@ -544,3 +544,126 @@ float(entity xOther) VR_OwnerSpared =
     }
     return xOther == self.owner && !self.vr_gate_crossed;
 }
+
+// ----------------------------------------------------------------------------
+// Canonical helpers (CODE_STYLE.md, "Canonical helpers"): use these, don't write local copies.
+// ----------------------------------------------------------------------------
+
+// The first player entity (single player: the player; world if none). Coop code that wants the nearest or a visible
+// client keeps checkclient.
+inline entity() VR_Player = { return find(world, classname, "player"); };
+// The player entity after `p` (the loop: `for(p = VR_Player(); p; p = VR_NextPlayer(p))`).
+inline entity(entity p) VR_NextPlayer = { return find(p, classname, "player"); };
+
+// The first living player (health above 0, not dead; world if none).
+entity() VR_PlayerAlive =
+{
+    entity p = VR_Player();
+    while(p)
+    {
+        if(p.health > 0 && !p.deadflag) { return p; }
+        p = VR_NextPlayer(p);
+    }
+    return world;
+};
+
+// `v` held to xLow .. xHigh.
+float(float v, float xLow, float xHigh) clamp =
+{
+    if(v < xLow) return xLow;
+    if(v > xHigh) return xHigh;
+    return v;
+};
+
+// The angle `a` (degrees) wrapped to -180 .. 180 (180 itself becomes -180).
+inline float(float a) VR_Wrap180 = { return a - 360 * floor((a + 180) / 360); };
+
+// a x b.
+vector(vector a, vector b) VR_Cross =
+{
+    vector c;
+    c_x = a_y * b_z - a_z * b_y;
+    c_y = a_z * b_x - a_x * b_z;
+    c_z = a_x * b_y - a_y * b_x;
+    return c;
+};
+
+// a .. b at t (0 a, 1 b; not clamped).
+inline vector(vector a, vector b, float t) VR_Lerp = { return a + (b - a) * t; };
+// Smoothstep of `x` clamped to 0 .. 1.
+float(float x) VR_Smooth = { x = min(1, max(0, x)); return x * x * (3 - 2 * x); };
+
+// The least distance from `p` to the segment a .. b.
+float(vector p, vector a, vector b) VR_PointSegmentDistance =
+{
+    vector ab = b - a;
+    float l2 = ab * ab;
+    float k = l2 > 0 ? min(1, max(0, ((p - a) * ab) / l2)) : 0;
+    return vlen(p - (a + ab * k));
+};
+
+// VR_SegmentDistance's closest points: how far along the first segment (0 its start, 1 its end), and the second.
+float vr_seg_s;
+float vr_seg_t;
+
+// The least distance between the segments `xA0` .. `xA1` and `xB0` .. `xB1` (their closest points: vr_seg_s,
+// vr_seg_t). A segment whose squared length is at most `xEps` is a point; for near-parallel segments (the determinant
+// at most `xDenomMin`) the search starts from the first's start.
+float(vector xA0, vector xA1, vector xB0, vector xB1, float xEps, float xDenomMin) VR_SegmentDistanceEps =
+{
+    vector d1 = xA1 - xA0;
+    vector d2 = xB1 - xB0;
+    vector r = xA0 - xB0;
+    float a = d1 * d1;
+    float e = d2 * d2;
+    float f = d2 * r;
+    float s = 0;
+    float t = 0;
+    vr_seg_s = 0;
+    vr_seg_t = 0;
+    if(a <= xEps && e <= xEps)
+    {
+        return vlen(r);
+    }
+    if(a <= xEps)
+    {
+        t = min(1, max(0, f / e));
+    }
+    else
+    {
+        float c = d1 * r;
+        if(e <= xEps)
+        {
+            s = min(1, max(0, -c / a));
+        }
+        else
+        {
+            float bb = d1 * d2;
+            float denom = a * e - bb * bb;
+            if(denom > xDenomMin)
+            {
+                s = min(1, max(0, (bb * f - c * e) / denom));
+            }
+            t = (bb * s + f) / e;
+            if(t < 0)
+            {
+                t = 0;
+                s = min(1, max(0, -c / a));
+            }
+            else if(t > 1)
+            {
+                t = 1;
+                s = min(1, max(0, (bb - c) / a));
+            }
+        }
+    }
+    vr_seg_s = s;
+    vr_seg_t = t;
+    return vlen((xA0 + d1 * s) - (xB0 + d2 * t));
+};
+
+// VR_SegmentDistanceEps with the usual thresholds.
+inline float(vector xA0, vector xA1, vector xB0, vector xB1) VR_SegmentDistance =
+{
+    return VR_SegmentDistanceEps(xA0, xA1, xB0, xB1, 0.0001, 0.0001);
+};

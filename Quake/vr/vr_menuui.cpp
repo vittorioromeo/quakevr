@@ -420,7 +420,6 @@ struct PanelGrab
 };
 PanelGrab panelGrab;
 
-void haptic(int hand, float seconds, float amplitude);
 
 [[nodiscard]] int grabMode()
 {
@@ -515,7 +514,7 @@ void updateGrab(const hands::State& s, bool on)
             const bool onIt = hits[h].valid && hits[h].menu == panelGrab.armedMenu;
             if(takeHold(s, h, panelGrab.armedMenu, onIt ? hits[h].point : panelGrab.armedSpot))
             {
-                haptic(h, 0.03f, 0.3f);
+                haptics::pulse(h, 0.03f, 0.3f, 200.f);
             }
         }
     }
@@ -1026,14 +1025,6 @@ Remembered remembered;
     }
 }
 
-void haptic(int hand, float seconds, float amplitude)
-{
-    if(Backend* be = backend(); be && !vr_disablehaptics.value)
-    {
-        be->haptic(hand, seconds, 200.f, amplitude);
-    }
-}
-
 // The spectator camera's switch, in the bottom left corner of every menu in the headset (the VR menu style): whether
 // the window shows the spectator camera (a whole extra render of the scene: so that it is not left on after
 // recording), a click switches it (Graphics > Recording > Window View, and the desktop mirror on if it was off).
@@ -1323,8 +1314,8 @@ void toggleSpectator(int hand)
     }
     Con_DPrintf("spectator camera switched %s (vr_window_view %g, vr_mirror %g)\n", spectatorOn() ? "on" : "off",
         vr_window_view.value, vr_mirror.value);
-    S_LocalSound("misc/menu3.wav");
-    haptic(hand, 0.02f, 0.3f);
+    qvr::menuui::uiSound(qvr::menuui::UiSound::Adjust);
+    haptics::pulse(hand, 0.02f, 0.3f, 200.f);
 }
 
 // ----------------------------------------------------------------------------
@@ -1436,7 +1427,7 @@ bool pointTo(int hand)
     const int hovered = toolAt(m_mousex, m_mousey);
     if(hovered >= 0 && hovered != tb().hovered)
     {
-        haptic(hand, 0.01f, 0.15f);
+        haptics::pulse(hand, 0.01f, 0.15f, 200.f);
     }
     tb().hovered = hovered;
 
@@ -1445,7 +1436,7 @@ bool pointTo(int hand)
     const auto light = [hand](bool now, bool& was) {
         if(now && !was)
         {
-            haptic(hand, 0.01f, 0.15f);
+            haptics::pulse(hand, 0.01f, 0.15f, 200.f);
         }
         was = now;
     };
@@ -1891,7 +1882,7 @@ bool toolbarFocused()
 void focusToolbar(int dir)
 {
     focusTool(dir > 0 || toolbarRow() ? ToolBack : lastTool()); // (the row: its first, from either end of a page)
-    S_LocalSound("misc/menu1.wav");
+    qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
 }
 
 void backToGame(int hand)
@@ -1919,7 +1910,7 @@ void backToGame(int hand)
     IN_Activate();
     key_dest = key_game;
     m_state = m_none;
-    haptic(hand, 0.04f, 0.4f);
+    haptics::pulse(hand, 0.04f, 0.4f, 200.f);
 }
 
 // A corner button pressed (`hand` its pulse). The jumps go where the menus' own links go, so Back
@@ -1931,7 +1922,7 @@ void useTool(int tool, int hand)
     if(const char* reason = toolUnavailable(tool, true))
     {
         Con_Printf("%s: %s.\n", toolLabels[tool], reason);
-        S_LocalSound("misc/menu1.wav");
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
         return;
     }
     tb().focused = -1;
@@ -1941,7 +1932,7 @@ void useTool(int tool, int hand)
             if(menu::currentInstance() > 0)
             {
                 menu::closeInstance(menu::currentInstance()); // (a panel after the first: Close Panel)
-                haptic(hand, 0.04f, 0.4f);
+                haptics::pulse(hand, 0.04f, 0.4f, 200.f);
                 break;
             }
             backToGame(hand);
@@ -1955,7 +1946,7 @@ void useTool(int tool, int hand)
             IN_Activate();
             key_dest = key_game;
             m_state = m_none;
-            haptic(hand, 0.04f, 0.4f);
+            haptics::pulse(hand, 0.04f, 0.4f, 200.f);
             Cbuf_InsertText("echo Quickloading...; wait; load quick\n");
             break;
         case ToolMainMenu: menu::jumpToMainMenu(); break;
@@ -1966,7 +1957,7 @@ void useTool(int tool, int hand)
         case ToolLevels:
             if(m_state == m_maps)
             {
-                S_LocalSound("misc/menu1.wav");
+                qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
                 break;
             }
             VR_NavJump(m_maps); // (Back from them: here)
@@ -1996,8 +1987,8 @@ void useTool(int tool, int hand)
                 s.savedAt = -1e9;
                 Con_Printf("Save Default: press again within %.0f seconds to write your changed settings for review.\n",
                     saveDefaultsConfirm);
-                S_LocalSound("misc/menu1.wav");
-                haptic(hand, 0.04f, 0.4f);
+                qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
+                haptics::pulse(hand, 0.04f, 0.4f, 200.f);
                 break;
             }
             s.armedAt = -1e9;
@@ -2005,7 +1996,7 @@ void useTool(int tool, int hand)
             s.saved = proposedefaults::write(path); // (prints "Saved N settings for review: <path>")
             s.savedAt = realtime;
             S_LocalSound(s.saved >= 0 ? "misc/menu2.wav" : "misc/menu1.wav");
-            haptic(hand, 0.08f, 0.8f);
+            haptics::pulse(hand, 0.08f, 0.8f, 200.f);
             break;
         }
         case ToolChecklist: menu::jumpToChecklist(); break;
@@ -2064,7 +2055,7 @@ bool scrollStick(float y)
     carry -= rows;
     if(rows > 0 && scrollMenu(y > 0.f ? -rows : rows))
     {
-        haptic(HAND_MAIN, 0.005f, 0.06f);
+        haptics::pulse(HAND_MAIN, 0.005f, 0.06f, 200.f);
     }
     return true;
 }
@@ -2206,7 +2197,7 @@ bool gripButton(int hand, bool down)
         if(takeHold(hands::current(), hand, hit.menu, hit.point))
         {
             panelGrab.pressTaken[hand] = true;
-            haptic(hand, 0.03f, 0.3f);
+            haptics::pulse(hand, 0.03f, 0.3f, 200.f);
             return true;
         }
         return false;
@@ -2981,7 +2972,7 @@ extern "C" int VR_MenuKey(int key, int repeat)
     if(key == K_MOUSE1 && !repeat && !M_WaitingForKeyBinding() && menuui::versionLinkPress())
     {
         tb().focused = -1;
-        haptic(pointingHand, 0.02f, 0.3f);
+        haptics::pulse(pointingHand, 0.02f, 0.3f, 200.f);
         return 1;
     }
     if(!menuui::toolbarShown() || M_WaitingForKeyBinding())
@@ -2993,7 +2984,7 @@ extern "C" int VR_MenuKey(int key, int repeat)
     if(key == K_MOUSE1 && !repeat && recordingAt(m_mousex, m_mousey) && menuui::pointerOn(false))
     {
         tb().focused = -1;
-        haptic(pointingHand, 0.02f, 0.3f);
+        haptics::pulse(pointingHand, 0.02f, 0.3f, 200.f);
         menu::jumpToRecording();
         return 1;
     }
@@ -3002,7 +2993,7 @@ extern "C" int VR_MenuKey(int key, int repeat)
         tb().focused = -1;
         if(qvr::renderdoc::captureFromCvars())
         {
-            haptic(pointingHand, 0.02f, 0.3f);
+            haptics::pulse(pointingHand, 0.02f, 0.3f, 200.f);
         }
         return 1;
     }
@@ -3011,7 +3002,7 @@ extern "C" int VR_MenuKey(int key, int repeat)
         tb().focused = -1;
         if(qvr::obs::press())
         {
-            haptic(pointingHand, 0.02f, 0.3f);
+            haptics::pulse(pointingHand, 0.02f, 0.3f, 200.f);
         }
         return 1;
     }
@@ -3047,7 +3038,7 @@ extern "C" int VR_MenuKey(int key, int repeat)
         {
             focusTool(ToolBack);
         }
-        S_LocalSound("misc/menu1.wav");
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
         return 1;
     }
 
@@ -3071,7 +3062,7 @@ extern "C" int VR_MenuKey(int key, int repeat)
                 if(next >= 0 && next < toolsShown())
                 {
                     tb().focused = next;
-                    S_LocalSound("misc/menu1.wav");
+                    qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
                 }
                 return 1;
             }
@@ -3081,7 +3072,7 @@ extern "C" int VR_MenuKey(int key, int repeat)
                 {
                     menu::selectEnd(1);
                 }
-                S_LocalSound("misc/menu1.wav");
+                qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
                 return 1;
             case K_UPARROW: return 1; // (nothing above it)
             default: break;
@@ -3111,7 +3102,7 @@ extern "C" int VR_MenuKey(int key, int repeat)
                     menu::selectEnd(dir); // on round the page: its first setting below, its last above
                 }
             }
-            S_LocalSound("misc/menu1.wav");
+            qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
             return 1;
         }
         case K_ENTER:
@@ -3122,7 +3113,7 @@ extern "C" int VR_MenuKey(int key, int repeat)
         case K_MOUSE2:
         case K_MOUSE4:
             tb().focused = -1;
-            S_LocalSound("misc/menu1.wav");
+            qvr::menuui::uiSound(qvr::menuui::UiSound::Move);
             return 1;
         case K_LEFTARROW:
         case K_RIGHTARROW: return 1; // nothing to change here (and nothing under it changed)

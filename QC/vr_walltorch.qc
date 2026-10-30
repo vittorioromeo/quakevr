@@ -527,15 +527,6 @@ void(entity t, string xFrom) VR_WallTorch_Relight =
     dprint(sprintf("walltorch: lit again from %s\n", xFrom));
 };
 
-// The nearest point of the segment a..b to p, how far.
-float(vector p, vector a, vector b) VR_WallTorch_SegmentDist =
-{
-    vector ab = b - a;
-    float l2 = ab * ab;
-    float k = l2 > 0 ? min(1, max(0, ((p - a) * ab) / l2)) : 0;
-    return vlen(p - (a + ab * k));
-};
-
 // The map's flames (light_flame_large_yellow, light_flame_small_yellow, light_flame_small_white) are static entities,
 // gone from the entity list: each leaves its place here as it spawns, for VR_WallTorch_FireAt (not entities: those
 // would move the map's edict numbers). Set at each map's spawn, which a loaded save runs too (before its own globals).
@@ -573,13 +564,13 @@ float(entity f, vector p) VR_FlameProp_Hot =
     vector o = f.origin;
     if(f.vr_flameprop == 3)
     {
-        return VR_WallTorch_SegmentDist(p, o + '0 0 6', o + '0 0 13') < 3;
+        return VR_PointSegmentDistance(p, o + '0 0 6', o + '0 0 13') < 3;
     }
     if(f.vr_flameprop == 2)
     {
-        return VR_WallTorch_SegmentDist(p, o + '0 0 -6', o + '0 0 32') < 12;
+        return VR_PointSegmentDistance(p, o + '0 0 -6', o + '0 0 32') < 12;
     }
-    return VR_WallTorch_SegmentDist(p, o + '0 0 -6', o + '0 0 12') < 9;
+    return VR_PointSegmentDistance(p, o + '0 0 -6', o + '0 0 12') < 9;
 };
 
 // A fire the head `xHead` of torch `t` is in: another torch's flame (on its wall, or taken and lit), one of the map's
@@ -602,19 +593,19 @@ string(entity t, vector xHead) VR_WallTorch_FireAt =
         }
         if(vr_fire_spot_large[i] == 2)
         {
-            if(VR_WallTorch_SegmentDist(xHead, o + '0 0 1', o + '0 0 16') < 6)
+            if(VR_PointSegmentDistance(xHead, o + '0 0 1', o + '0 0 16') < 6)
             {
                 return "a burning torch";
             }
         }
         else if(vr_fire_spot_large[i] == 1)
         {
-            if(VR_WallTorch_SegmentDist(xHead, o + '0 0 -6', o + '0 0 32') < 12)
+            if(VR_PointSegmentDistance(xHead, o + '0 0 -6', o + '0 0 32') < 12)
             {
                 return "a large flame";
             }
         }
-        else if(VR_WallTorch_SegmentDist(xHead, o + '0 0 -6', o + '0 0 12') < 9)
+        else if(VR_PointSegmentDistance(xHead, o + '0 0 -6', o + '0 0 12') < 9)
         {
             return "a flame";
         }
@@ -647,7 +638,7 @@ string(entity t, vector xHead) VR_WallTorch_FireAt =
         if(e.wt_state == 0)
         {
             // Id's flame: from the cup up (the lower two thirds of it are hot enough).
-            if(VR_WallTorch_SegmentDist(xHead, e.origin + '0 0 2', e.origin + '0 0 20') < 6)
+            if(VR_PointSegmentDistance(xHead, e.origin + '0 0 2', e.origin + '0 0 20') < 6)
             {
                 return "a torch on its wall";
             }
@@ -655,7 +646,7 @@ string(entity t, vector xHead) VR_WallTorch_FireAt =
         else if(e.wt_fire >= 0.25)
         {
             vector h = VR_WallTorch_Head(e);
-            if(VR_WallTorch_SegmentDist(xHead, h, h + '0 0 1' * (16 * e.wt_fire)) < 5)
+            if(VR_PointSegmentDistance(xHead, h, h + '0 0 1' * (16 * e.wt_fire)) < 5)
             {
                 return "a burning torch";
             }

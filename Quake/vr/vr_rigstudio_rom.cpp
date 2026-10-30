@@ -4,6 +4,7 @@
 // live (undoable), saved to quakevr/rigs/<model>.rig2.txt. The mesh is drawn on the authored rig (its blended weights;
 // Game: the engine's skinned model, Shaded: the studio's). The pose's faults (vr_rig2_check's measures) are shown live.
 
+#include "vr_testkit.hpp"
 #include "vr_rigstudio_internal.hpp"
 #include "vr_agarms.hpp"
 #include "vr_cvars.hpp"
@@ -12,6 +13,7 @@
 #include "vr_rig2.hpp"
 #include "vr_rigdata.hpp"
 #include "vr_rigpose.hpp"
+#include "vr_geom.hpp"
 
 #include "thirdparty/imgui/imgui.h"
 
@@ -40,7 +42,7 @@ void romTestTick(rig2::Rig& rig); // (the test's frame: below)
 namespace
 {
 
-constexpr float pi = 3.14159265f;
+using geom::pi;
 constexpr float sweepPhase = 1.6f; // seconds a sweep's leg takes (min to max)
 
 [[nodiscard]] ImU32 col(const glm::vec4& c)
@@ -762,13 +764,13 @@ void expect(bool ok, const char* what)
 
 void finishTest()
 {
-    Con_Printf("rigstudio rom test: %d passed, %d failed\n", romTest.passed, romTest.failed);
+    qvr::testkit::verdict("rigstudio rom test", romTest.passed, romTest.failed);
     romTest = RomTest{};
 }
 
 void finishWeaponTest()
 {
-    Con_Printf("rigstudio rom weapon: %d passed, %d failed\n", romTest.passed, romTest.failed);
+    qvr::testkit::verdict("rigstudio rom weapon", romTest.passed, romTest.failed);
     romTest = RomTest{};
 }
 

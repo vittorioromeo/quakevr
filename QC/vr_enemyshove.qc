@@ -67,7 +67,7 @@ entity(entity m) VR_EnemyShove_Target =
 {
     float reach = VR_EnemyShove_Reach(m);
     entity best = world;
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     while(p)
     {
         vector to = p.origin - m.origin;
@@ -80,7 +80,7 @@ entity(entity m) VR_EnemyShove_Target =
             best = p;
             reach = d;
         }
-        p = find(p, classname, "player");
+        p = VR_NextPlayer(p);
     }
     return best;
 };

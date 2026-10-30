@@ -1185,4 +1185,33 @@ void configFrame()
     wasOpen = open;
 }
 
+cvars::Override::Override(cvar_t& var, float value) : var(var), was(var.string)
+{
+    Cvar_SetValueQuick(&var, value);
+}
+
+cvars::Override::Override(cvar_t& var, const char* value) : var(var), was(var.string)
+{
+    Cvar_SetQuick(&var, value);
+}
+
+cvars::Override::~Override()
+{
+    Cvar_SetQuick(&var, was.cStr());
+}
+
+void cvars::Snapshot::keep(cvar_t& var)
+{
+    saved.emplaceBack(Saved{&var, za::String{var.string}});
+}
+
+void cvars::Snapshot::restore()
+{
+    for(int i = size() - 1; i >= 0; --i)
+    {
+        Cvar_SetQuick(saved[i].var, saved[i].value.cStr());
+    }
+    saved.clear();
+}
+
 } // namespace qvr

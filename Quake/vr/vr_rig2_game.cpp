@@ -14,6 +14,7 @@
 //   its grip frame's turn), its weapons carried with the hands as drawn; a take's legs (aglegs) on the leg bones
 //   (legsOnRig).
 
+#include "vr_testkit.hpp"
 #include "vr_rig2.hpp"
 #include "vr_agarms.hpp"
 #include "vr_agbody.hpp"
@@ -28,6 +29,7 @@
 #include "vr_rigdata.hpp"
 #include "vr_rigpose.hpp"
 #include "vr_rigseq.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Acos.hpp"
@@ -49,7 +51,7 @@ namespace qvr::rig2
 namespace
 {
 
-constexpr float pi = 3.14159265358979f;
+using geom::pi;
 
 [[nodiscard]] rigpose::Rigid compose(const rigpose::Rigid& a, const rigpose::Rigid& b) // a after b
 {
@@ -1178,7 +1180,7 @@ void animCheck_f()
     const char* what = Cmd_Argv(1);
     if(!strcmp(what, "end"))
     {
-        Con_Printf("rig2anim check: %d passed, %d failed\n", animCheck.passed, animCheck.failed);
+        qvr::testkit::verdict("rig2anim check", animCheck.passed, animCheck.failed);
         Cvar_SetValueQuick(&vr_rig2anim_check_passed, static_cast<float>(animCheck.passed)); // (QC's test reads them)
         Cvar_SetValueQuick(&vr_rig2anim_check_failed, static_cast<float>(animCheck.failed));
         animCheck = AnimCheck{};
@@ -1409,7 +1411,7 @@ void motionReport()
             worstRatio, worstFrozen, worstJerk, t.flagsOr, t.flagsAnd);
         reported++;
     }
-    Con_Printf("vr_rig2_motion_test: %d passed, %d failed\n", reported - failed, failed);
+    qvr::testkit::verdict("vr_rig2_motion_test", reported - failed, failed);
 }
 } // namespace
 

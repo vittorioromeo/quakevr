@@ -5,6 +5,7 @@
 // Quake VR progs; the movement works with any progs (and moves a mod's shots to the gun).
 
 #include "vr_box3d.hpp"
+#include "vr_trace.hpp"
 #include "vr_climb.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -40,6 +41,7 @@
 #include "Zancle/Math/Pow.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "vr_zancle.hpp"
+#include "vr_geom.hpp"
 
 #include <stdlib.h>
 #include <string.h>
@@ -70,10 +72,7 @@ constexpr float easyHandTouchBonus = 4.5f;
     return fields();
 }
 
-[[nodiscard]] glm::vec3 vec(const float* v)
-{
-    return {v[0], v[1], v[2]};
-}
+using geom::vec;
 
 [[nodiscard]] bool finite(const glm::vec3& v)
 {
@@ -903,24 +902,13 @@ extern "C" void VR_ClientRoomscaleMove(edict_t* ent)
 namespace
 {
 
-[[nodiscard]] bool isLiquid(int contents)
-{
-    return contents == CONTENTS_WATER || contents == CONTENTS_SLIME || contents == CONTENTS_LAVA; // currents are water here
-}
-
-[[nodiscard]] int contentsAt(const glm::vec3& p)
-{
-    vec3_t v{p.x, p.y, p.z};
-    return SV_PointContents(v);
-}
-
 // The surface between a point out of the liquid and one in it.
 [[nodiscard]] glm::vec3 surfaceBetween(glm::vec3 dry, glm::vec3 wet)
 {
     for(int i = 0; i < 12 && glm::distance(dry, wet) > 0.1f; i++)
     {
         const glm::vec3 mid = (dry + wet) * 0.5f;
-        (isLiquid(contentsAt(mid)) ? wet : dry) = mid;
+        (worldtrace::isLiquid(worldtrace::contents(mid)) ? wet : dry) = mid;
     }
     return (dry + wet) * 0.5f;
 }
@@ -929,17 +917,17 @@ namespace
 // below it (from out of it); false if there is none (a wall or floor comes first).
 [[nodiscard]] bool surfaceOver(const glm::vec3& p, float range, glm::vec3& out)
 {
-    const bool wet = isLiquid(contentsAt(p));
+    const bool wet = worldtrace::isLiquid(worldtrace::contents(p));
     glm::vec3 last = p;
     for(float d = 4.f; d < range + 4.f; d += 4.f)
     {
         const glm::vec3 q = p + glm::vec3{0.f, 0.f, wet ? za::min(d, range) : -za::min(d, range)};
-        const int c = contentsAt(q);
+        const int c = worldtrace::contents(q);
         if(c == CONTENTS_SOLID || c == CONTENTS_SKY)
         {
             return false;
         }
-        if(isLiquid(c) != wet)
+        if(worldtrace::isLiquid(c) != wet)
         {
             out = wet ? surfaceBetween(q, last) : surfaceBetween(last, q);
             return true;
@@ -1139,8 +1127,8 @@ WaterFeel waterFeel[MAX_SCOREBOARD];
 // A hand (or a gun) crossing the surface: into it going down, or out of it going up, fast.
 void handCrossing(edict_t* ent, WaterFeel& w, int probe, const WaterProbe& was, const glm::vec3& p, int contents, float dt)
 {
-    const bool in = isLiquid(contents);
-    const bool crossed = in != isLiquid(was.contents) && (contents == CONTENTS_EMPTY || was.contents == CONTENTS_EMPTY);
+    const bool in = worldtrace::isLiquid(contents);
+    const bool crossed = in != worldtrace::isLiquid(was.contents) && (contents == CONTENTS_EMPTY || was.contents == CONTENTS_EMPTY);
     const int hand = probe & 1;
     if(!crossed || !(dt > 0.f) || qcvm->time - w.handSplash[hand] < 0.3)
     {
@@ -1199,7 +1187,7 @@ void wading(edict_t* ent, WaterFeel& w, float dt)
         w.wadeDir = moved / distance;
     }
     const glm::vec3 feet = origin + glm::vec3{0.f, 0.f, ent->v.mins[2] - 4.f};
-    const bool onBottom = hasFlag(ent, FL_ONGROUND) || contentsAt(feet) == CONTENTS_SOLID;
+    const bool onBottom = hasFlag(ent, FL_ONGROUND) || worldtrace::contents(feet) == CONTENTS_SOLID;
     if(w.wadeSpeed < 15.f || !onBottom) // slower than 0.6 m/s: standing, shuffling
     {
         w.wade = za::min(w.wade, 0.6f); // the next step soon after moving again
@@ -1259,14 +1247,14 @@ void waterFeedback(edict_t* ent)
             probe = {};
             continue;
         }
-        const int contents = contentsAt(p);
+        const int contents = worldtrace::contents(p);
         if(probe.valid)
         {
             handCrossing(ent, w, i, probe, p, contents, dt);
         }
         if(i < 2)
         {
-            if(!isLiquid(contents))
+            if(!worldtrace::isLiquid(contents))
             {
                 w.wetSince[hand] = -1.0;
             }
@@ -1370,7 +1358,7 @@ void predictWaterEntry(edict_t* ent)
     }
     const glm::vec3 vel = vec(ent->v.velocity);
     const glm::vec3 from = vec(ent->v.origin);
-    if(glm::length(vel) < vr_water_splash_speed.value || contentsAt(from) != CONTENTS_EMPTY)
+    if(glm::length(vel) < vr_water_splash_speed.value || worldtrace::contents(from) != CONTENTS_EMPTY)
     {
         return;
     }
@@ -1410,12 +1398,12 @@ void walkLeaves(LiquidWalk& w, int num, double f1, double f2)
         {
             c = CONTENTS_WATER; // as SV_PointContents
         }
-        if(isLiquid(c))
+        if(worldtrace::isLiquid(c))
         {
             const glm::vec3 point = w.from + w.delta * ((f1 + f2) * 0.5);
             c = VR_LiquidContents(sv.worldmodel, &point.x, c);
         }
-        if((isLiquid(c) && w.last == CONTENTS_EMPTY) || (c == CONTENTS_EMPTY && isLiquid(w.last)))
+        if((worldtrace::isLiquid(c) && w.last == CONTENTS_EMPTY) || (c == CONTENTS_EMPTY && worldtrace::isLiquid(w.last)))
         {
             w.found = true;
             w.at = f1;

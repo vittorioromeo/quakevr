@@ -38,6 +38,8 @@
 // script's (vr_relight_lights writes them, to compare), and the water-vis patch is its vis_maps.py's (the same bytes:
 // vr_relight_vispatch patches a file to compare). What neither does: the BSP2 maps' glowing textures.
 
+#include "vr_bytes.hpp"
+#include "vr_strings.hpp"
 #include "vr_relight.hpp"
 #include "vr_relight_maps.hpp"
 #include "vr_relight_tool.hpp"
@@ -191,42 +193,9 @@ struct V3
 // ---------------------------------------------------------------------------------------------------------------------
 // The .bsp.
 
-struct Bsp
+struct Bsp : bytes::View
 {
-    const unsigned char* data{nullptr};
-    za::SizeT size{0};
-
-    [[nodiscard]] int i32(za::SizeT at) const
-    {
-        int v = 0;
-        if(at + 4 <= size)
-        {
-            memcpy(&v, data + at, 4);
-        }
-        return LittleLong(v);
-    }
-    [[nodiscard]] short i16(za::SizeT at) const
-    {
-        short v = 0;
-        if(at + 2 <= size)
-        {
-            memcpy(&v, data + at, 2);
-        }
-        return LittleShort(v);
-    }
-    [[nodiscard]] unsigned short u16(za::SizeT at) const
-    {
-        return static_cast<unsigned short>(i16(at));
-    }
-    [[nodiscard]] double f32(za::SizeT at) const
-    {
-        float v = 0.f;
-        if(at + 4 <= size)
-        {
-            memcpy(&v, data + at, 4);
-        }
-        return static_cast<double>(LittleFloat(v));
-    }
+    [[nodiscard]] double f32(za::SizeT at) const { return static_cast<double>(View::f32(at)); }
     [[nodiscard]] int lumpOffset(int index) const
     {
         return i32(4 + static_cast<za::SizeT>(index) * 8);
@@ -918,16 +887,6 @@ constexpr const char* kindNames[] = {"fixture", "glow", "liquid", "off"};
     return !*s;
 }
 
-[[nodiscard]] za::String lower(za::StringView s)
-{
-    za::String out{s};
-    for(char& c : out)
-    {
-        c = static_cast<char>(tolower(static_cast<unsigned char>(c)));
-    }
-    return out;
-}
-
 // The rules of relight_textures.cfg (load_rules); a line it cannot read is said and skipped.
 [[nodiscard]] za::Vector<Rule> loadRules(const char* text, const char* file)
 {
@@ -946,7 +905,7 @@ constexpr const char* kindNames[] = {"fixture", "glow", "liquid", "off"};
             return;
         }
         Rule r;
-        const za::String first = lower(words[0]);
+        const za::String first = qvr::strings::lower(words[0]);
         bool ok = true;
         if(first == za::StringView{"strength"})
         {
@@ -1048,7 +1007,7 @@ constexpr const char* kindNames[] = {"fixture", "glow", "liquid", "off"};
 [[nodiscard]] Rule textureRule(const za::Vector<Rule>& rules, const char* game, const char* map, const char* name)
 {
     char full[256];
-    q_snprintf(full, sizeof(full), "%s/%s/%s", game, map, lower(za::StringView{name}).cStr());
+    q_snprintf(full, sizeof(full), "%s/%s/%s", game, map, qvr::strings::lower(za::StringView{name}).cStr());
     Rule merged;
     for(const Rule& r : rules)
     {
@@ -1694,7 +1653,7 @@ struct Measured
 [[nodiscard]] Measured glowImage(const char* map, const char* name)
 {
     char file[64];
-    q_strlcpy(file, lower(za::StringView{name}).cStr(), sizeof(file));
+    q_strlcpy(file, qvr::strings::lower(za::StringView{name}).cStr(), sizeof(file));
     for(char& c : file)
     {
         if(c == '*')
@@ -1881,7 +1840,7 @@ struct Report
         char name[17] = {};
         memcpy(name, b.data + base, 16);
         const int width = b.i32(base + 16), height = b.i32(base + 20), pix = b.i32(base + 24);
-        const za::String low = lower(za::StringView{name});
+        const za::String low = qvr::strings::lower(za::StringView{name});
         const za::SizeT npix = width > 0 && height > 0 ? static_cast<za::SizeT>(width) * static_cast<za::SizeT>(height) : 0;
         const bool pixelsOk = pix > 0 && npix && base + static_cast<za::SizeT>(pix) + npix <= b.size;
         const byte* pixels = pixelsOk ? b.data + base + pix : nullptr;

@@ -1,3 +1,4 @@
+#include "vr_strings.hpp"
 #include "vr_alloccount.h"
 // vr_cleanskins.cpp -- clean weapon skins: a skin's patch applied as it is uploaded (see vr_cleanskins.hpp).
 
@@ -158,13 +159,6 @@ void load(Entry& e)
     return e;
 }
 
-[[nodiscard]] bool endsWith(const char* s, const char* end)
-{
-    const za::SizeT n = strlen(s);
-    const za::SizeT m = strlen(end);
-    return n >= m && !strcmp(s + n - m, end);
-}
-
 // The patch's name and the textures it serves, for texture `name` (bpp 1: an alias model's 8-bit skin,
 // "progs/v_axe.mdl:frame0", a group's "progs/v_axe.mdl:frame0_1", their fullbrights "..._glow"; bpp 4: a full-colour
 // replacement, "progs/v_axe.mdl_0"). False for any other texture.
@@ -209,8 +203,8 @@ void load(Entry& e)
         q_strlcpy(prefix, name, za::min(sizeof(prefix), static_cast<za::SizeT>(p - name) + 1));
         return true;
     }
-    if(!strstr(name, ".mdl_") || endsWith(name, "_glow") || endsWith(name, "_luma") || endsWith(name, "_norm") ||
-       endsWith(name, "_bump"))
+    if(!strstr(name, ".mdl_") || qvr::strings::endsWith(name, "_glow") || qvr::strings::endsWith(name, "_luma") || qvr::strings::endsWith(name, "_norm") ||
+       qvr::strings::endsWith(name, "_bump"))
     {
         return false;
     }

@@ -694,11 +694,11 @@ void writeHandFields(edict_t* ent, const glm::vec3& origin, const VrHandMove& ha
     const portals::Reach gate = portals::reach(origin, hand.pos);
     glm::vec3 angles = hand.rot;
     angles.y = anglemod(angles.y + gate.yaw);
-    setFieldVec(ent, h ? f.handpos : f.offhandpos, gate.position);
-    setFieldVec(ent, h ? f.handrot : f.offhandrot, angles);
+    setFieldVec(ent, progs::handFields(h).pos, gate.position);
+    setFieldVec(ent, progs::handFields(h).rot, angles);
     setFieldVec(ent, h ? f.handvel : f.offhandvel, gate.turn * hand.vel);
-    setFieldVec(ent, h ? f.handavel : f.offhandavel, gate.turn * hand.angVel);
-    setFieldVec(ent, h ? f.handthrowvel : f.offhandthrowvel, gate.turn * hand.throwVel);
+    setFieldVec(ent, progs::handFields(h).avel, gate.turn * hand.angVel);
+    setFieldVec(ent, progs::handFields(h).throwVel, gate.turn * hand.throwVel);
     setFieldVec(ent, h ? f.handthrowpos : f.offhandthrowpos, gate.turn * (hand.throwPos - gate.from) + gate.to);
     setFieldVec(ent, h ? f.handthrowflick : f.offhandthrowflick, gate.turn * hand.throwFlick);
 }
@@ -757,12 +757,12 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
         const portals::Reach gate = portals::reachAlong(move.origin, move.hands[h].pos, move.muzzlePos[h]);
         glm::vec3 angles = move.shotRot[h];
         angles.y = anglemod(angles.y + gate.yaw);
-        setFieldVec(ent, h ? f.muzzlepos : f.offmuzzlepos, gate.position);
-        setFieldVec(ent, h ? f.shotrot : f.offshotrot, angles);
+        setFieldVec(ent, progs::handFields(h).muzzle, gate.position);
+        setFieldVec(ent, progs::handFields(h).shotRot, angles);
         const portals::Reach port = portals::reachAlong(move.origin, move.hands[h].pos, move.loadPort[h]);
-        setFieldVec(ent, h ? f.loadportpos : f.offloadportpos, port.position);
-        setFieldVec(ent, h ? f.loadportaxis : f.offloadportaxis, port.turn * move.loadPortAxis[h]);
-        setFieldVec(ent, h ? f.loadportface : f.offloadportface, port.turn * move.loadPortFace[h]);
+        setFieldVec(ent, progs::handFields(h).loadPortPos, port.position);
+        setFieldVec(ent, progs::handFields(h).loadPortAxis, port.turn * move.loadPortAxis[h]);
+        setFieldVec(ent, progs::handFields(h).loadPortFace, port.turn * move.loadPortFace[h]);
         setFieldVec(ent, h ? f.launchofs : f.offlaunchofs, move.launchOfs[h]); // (the shot's frame: no turn)
         setMagBox(ent, h, move.origin, move.hands[h].pos, move.magBox[h]);
     }
@@ -1289,12 +1289,12 @@ void rebaseHands(edict_t* player)
         const auto muzzle = portals::reachAlong(origin, hand.pos, move.muzzlePos[h]);
         glm::vec3 angles = move.shotRot[h];
         angles.y = anglemod(angles.y + muzzle.yaw);
-        setFieldVec(player, h ? f.muzzlepos : f.offmuzzlepos, muzzle.position);
-        setFieldVec(player, h ? f.shotrot : f.offshotrot, angles);
+        setFieldVec(player, progs::handFields(h).muzzle, muzzle.position);
+        setFieldVec(player, progs::handFields(h).shotRot, angles);
         const portals::Reach port = portals::reachAlong(origin, hand.pos, move.loadPort[h]);
-        setFieldVec(player, h ? f.loadportpos : f.offloadportpos, port.position);
-        setFieldVec(player, h ? f.loadportaxis : f.offloadportaxis, port.turn * move.loadPortAxis[h]);
-        setFieldVec(player, h ? f.loadportface : f.offloadportface, port.turn * move.loadPortFace[h]);
+        setFieldVec(player, progs::handFields(h).loadPortPos, port.position);
+        setFieldVec(player, progs::handFields(h).loadPortAxis, port.turn * move.loadPortAxis[h]);
+        setFieldVec(player, progs::handFields(h).loadPortFace, port.turn * move.loadPortFace[h]);
         setMagBox(player, h, origin, hand.pos, move.magBox[h]);
     }
 }

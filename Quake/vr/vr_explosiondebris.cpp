@@ -59,13 +59,6 @@ constexpr int edictReserve = 512;   // entities always left to the game (ED_Allo
 constexpr int maxPending = 32;      // explosions a frame (more: dropped)
 constexpr float fadeMost = 0.5f;    // s: the fade, at most (a third of a short life)
 
-struct VmScope
-{
-    qcvm_t* old{nullptr};
-    VmScope() { PR_PushQCVM(&sv.qcvm, &old); }
-    ~VmScope() { PR_PopQCVM(old); }
-};
-
 float lifeMin() { return za::clamp(vr_explosion_debris_life_min.value, 0.1f, 30.f); }
 float lifeMax() { return za::clamp(vr_explosion_debris_life_max.value, 0.1f, 30.f); }
 
@@ -94,8 +87,6 @@ struct Server
     float minSpeed{1e30f}, maxSpeed{0.f}, minLife{1e30f}, maxLife{0.f};
 };
 Server server;
-
-float rnd(float lo, float hi) { return server.rng.getF(lo, hi); }
 
 [[nodiscard]] int limit()
 {
@@ -223,7 +214,7 @@ void rescan()
 
 glm::vec3 direction()
 {
-    const float z = rnd(-1.f, 1.f), angle = rnd(0.f, 6.2831853f);
+    const float z = server.rng.getF(-1.f, 1.f), angle = server.rng.getF(0.f, 6.2831853f);
     const float r = za::sqrt(za::max(0.f, 1.f - z * z));
     glm::vec3 v{r * za::cos(angle), r * za::sin(angle), z + za::clamp(vr_explosion_debris_up.value, 0.f, 2.f)};
     return glm::length(v) > 1e-4f ? glm::normalize(v) : glm::vec3{0.f, 0.f, 1.f};
@@ -279,7 +270,7 @@ edict_t* make(const glm::vec3& at, const glm::vec3& velocity, const glm::vec3& s
     {
         e->v.origin[k] = at[k];
         e->v.velocity[k] = velocity[k];
-        e->v.angles[k] = rnd(0.f, 360.f);
+        e->v.angles[k] = server.rng.getF(0.f, 360.f);
         e->v.mins[k] = -0.5f * size;
         e->v.maxs[k] = 0.5f * size;
         e->v.size[k] = size;
@@ -326,7 +317,7 @@ void launch(const glm::vec3& org)
     constexpr float degrees = 3.14159265f / 180.f;
     for(int n = 0; n < count; n++)
     {
-        const float size = rnd(za::min(sa, sb), za::max(sa, sb)) * units::worldScale();
+        const float size = server.rng.getF(za::min(sa, sb), za::max(sa, sb)) * units::worldScale();
         const glm::vec3 dir = direction();
         // A blast exactly at a wall or floor: out along its way to a free launch point, or not this chunk (as before).
         glm::vec3 at = org;
@@ -359,8 +350,8 @@ void launch(const glm::vec3& org)
         {
             retireOldest();
         }
-        const float speed = rnd(lo, hi), life = rnd(za::min(la, lb), za::max(la, lb));
-        const glm::vec3 spin{rnd(-600.f, 600.f) * degrees, rnd(-600.f, 600.f) * degrees, rnd(-600.f, 600.f) * degrees};
+        const float speed = server.rng.getF(lo, hi), life = server.rng.getF(za::min(la, lb), za::max(la, lb));
+        const glm::vec3 spin{server.rng.getF(-600.f, 600.f) * degrees, server.rng.getF(-600.f, 600.f) * degrees, server.rng.getF(-600.f, 600.f) * degrees};
         if(!make(at, dir * speed * units::metresToUnits(), spin, size, life))
         {
             break;
@@ -482,7 +473,7 @@ void stats_f()
     int asleep = 0;
     if(sv.active)
     {
-        const VmScope vm;
+        const progs::ServerVm vm;
         for(int i = 0; i < s.count; i++)
         {
             if(valid(s.live[i]) && (static_cast<int>(EDICT_NUM(s.live[i].num)->v.flags) & FL_ONGROUND))
@@ -505,7 +496,7 @@ void list_f()
     {
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     const Server& s = server;
     for(int i = 0; i < s.count; i++)
     {
@@ -534,7 +525,7 @@ void launch_f()
         Con_Printf("usage: vr_explosion_debris_launch <x y z> <vx vy vz> [size] [life] (in a game)\n");
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     if(!usable())
     {
         Con_Printf("vr_explosion_debris_launch: not Quake VR's progs\n");
@@ -674,7 +665,7 @@ void serverClear()
     {
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     server.evicted += removeIf([](const Live&) { return true; }, true);
 }
 

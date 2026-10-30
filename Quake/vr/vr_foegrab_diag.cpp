@@ -3,6 +3,7 @@
 // Split from vr_foegrab.cpp (a pure move); what they share is in vr_foegrab_internal.hpp.
 
 #include "vr_foegrab_internal.hpp"
+#include "vr_progs.hpp"
 
 namespace foegrab::detail
 {
@@ -269,23 +270,10 @@ namespace
 [[nodiscard]] edict_t* nearestMonster()
 {
     edict_t* player = EDICT_NUM(1);
-    edict_t* best = nullptr;
-    float bestDist = 1e30f;
-    for(int num = svs.maxclients + 1; num < qcvm->num_edicts; num++)
-    {
-        edict_t* m = EDICT_NUM(num);
-        if(m->free || !(static_cast<int>(m->v.flags) & FL_MONSTER) || m->v.health <= 0.f)
-        {
-            continue;
-        }
-        const float d = glm::distance(vec(m->v.origin), vec(player->v.origin));
-        if(d < bestDist)
-        {
-            bestDist = d;
-            best = m;
-        }
-    }
-    return best;
+    return progs::nearestBy(svs.maxclients + 1, 1e30f, [&](const edict_t* m) {
+        const bool live = (static_cast<int>(m->v.flags) & FL_MONSTER) && m->v.health > 0.f;
+        return live ? glm::distance(vec(m->v.origin), vec(player->v.origin)) : 1e30f;
+    });
 }
 
 // vr_foegrab_necksnap_test: the live monster nearest the first player has its neck snapped as both his hands would
@@ -300,7 +288,7 @@ void neckSnapTest_f()
         Con_Printf("vr_foegrab_necksnap_test: in a game\n");
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     edict_t* m = nearestMonster();
     if(!m || m->v.health <= 0.f)
     {
@@ -340,7 +328,7 @@ void hurt_f()
         Con_Printf("usage: vr_foegrab_hurt <share of its full health, 0.01..1>\n");
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     edict_t* m = nullptr;
     for(int h = 0; h < 2 && !m; h++)
     {
@@ -370,7 +358,7 @@ void walkTest_f()
         Con_Printf("usage: vr_foegrab_walk_test <speed units/s> <seconds>\n");
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     edict_t* best = nearestMonster();
     if(!best)
     {
@@ -395,7 +383,7 @@ void throwTest_f()
         Con_Printf("usage: vr_foegrab_throw_test [way: 0 left, 1 right, 2 towards you, 3 away] [twist deg/s] (in a game)\n");
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     edict_t* player = EDICT_NUM(1);
     // (A third argument: that edict instead of the nearest, if it is a live monster: vr_ragdoll_act's.)
     const int only = Cmd_Argc() > 3 ? Q_atoi(Cmd_Argv(3)) : 0;
@@ -428,7 +416,7 @@ void status_f()
         Con_Printf("vr_foegrab_status: no server\n");
         return;
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     int count = 0;
     for(int c = 0; c < za::min(svs.maxclients, static_cast<int>(MAX_SCOREBOARD)); c++)
     {
@@ -833,7 +821,7 @@ za::String qvr::foegrab::noteHand(int hand)
     {
         return {};
     }
-    const VmScope vm;
+    const progs::ServerVm vm;
     const Holder& holder = holders[0];
     const Hold& g = holder.holds[hand];
     za::String out;

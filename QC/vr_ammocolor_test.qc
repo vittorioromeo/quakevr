@@ -170,7 +170,7 @@ void() VR_AmmoColor_TestFrame =
     if(req)
     {
         cvar_set("vr_ammocolor_test", "0");
-        vr_act_player = find(world, classname, "player");
+        vr_act_player = VR_Player();
         if(!vr_act_player) { dprint("ammocolor: no player\n"); return; }
         if(req == 2)
         {

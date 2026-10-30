@@ -168,6 +168,7 @@
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/Optional.hpp"
 #include "vr_zancle.hpp"
+#include "vr_geom.hpp"
 
 
 using namespace qvr;
@@ -214,10 +215,7 @@ constexpr float minFooting = 3.f;      // units of a ledge's top (from the lip i
 constexpr double mantleRetry = 0.15;   // seconds a search for the mantle that found no room holds (the body and hold still),
 constexpr float mantleRetryMove = 1.f; // unless the body moved this far
 
-[[nodiscard]] glm::vec3 vec(const float* v)
-{
-    return {v[0], v[1], v[2]};
-}
+using geom::vec;
 
 void setVec(float* out, const glm::vec3& v)
 {
@@ -1147,7 +1145,7 @@ Climber climbers[MAX_SCOREBOARD];
     {
         return "a weapon";
     }
-    const edict_t* held = entityField(ent, h == 1 ? f.mainhand_held : f.offhand_held);
+    const edict_t* held = entityField(ent, progs::handFields(h == 1).held);
     if(held && !held->free)
     {
         return "a carried object";
@@ -1903,7 +1901,7 @@ void debugHands(edict_t* ent, Climber& c, const VrMove* move, double time)
     };
     for(int h = 0; h < 2; h++)
     {
-        edict_t* held = entityField(ent, h == 1 ? f.mainhand_held : f.offhand_held);
+        edict_t* held = entityField(ent, progs::handFields(h == 1).held);
         edict_t* otherHeld = entityField(ent, h == 1 ? f.offhand_held : f.mainhand_held);
         edict_t* target = entityField(ent, h == 1 ? f.mainhand_fgtarget : f.offhand_fgtarget);
         edict_t* pulled = entityField(ent, h == 1 ? f.mainhand_fgpulled : f.offhand_fgpulled);
@@ -2968,7 +2966,7 @@ void probe(edict_t* ent, float yaw)
 // tests. Takes nothing.
 void try_f()
 {
-    if(Cmd_Argc() < 4 || !sv.active || svs.maxclients < 1 || !svs.clients[0].active || !svs.clients[0].edict)
+    if(Cmd_Argc() < 4 || !progs::localPlayer())
     {
         Con_Printf("vr_climb_try <x> <y> <z> [off|main] [<vx> <vy> <vz>]\n");
         return;
@@ -3014,7 +3012,7 @@ void try_f()
 
 void probe_f()
 {
-    if(!sv.active || svs.maxclients < 1 || !svs.clients[0].active || !svs.clients[0].edict)
+    if(!progs::localPlayer())
     {
         return;
     }

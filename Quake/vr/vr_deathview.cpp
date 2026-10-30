@@ -19,6 +19,7 @@
 #include "vr_engine.hpp"
 #include "vr_progs.hpp"
 #include "vr_ragdoll.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -60,29 +61,6 @@ struct State
 };
 State state;
 
-[[nodiscard]] float wrap180(float a)
-{
-    while(a > 180.f)
-    {
-        a -= 360.f;
-    }
-    while(a < -180.f)
-    {
-        a += 360.f;
-    }
-    return a;
-}
-
-[[nodiscard]] edict_t* serverEdict(int num)
-{
-    if(!sv.active || num <= 0 || num >= sv.qcvm.num_edicts)
-    {
-        return nullptr;
-    }
-    edict_t* ed = reinterpret_cast<edict_t*>(reinterpret_cast<byte*>(sv.qcvm.edicts) + num * sv.qcvm.edict_size);
-    return ed->free ? nullptr : ed;
-}
-
 // The ragdoll body of player `player` (a listen server's edicts; QC vr_deathdoll.qc): its edict, 0 none.
 [[nodiscard]] int dollOf(int player)
 {
@@ -91,14 +69,14 @@ State state;
     {
         return 0;
     }
-    edict_t* p = serverEdict(player);
+    edict_t* p = progs::edictAt(player);
     const int ref = p ? progs::fieldInt(p, f.vr_deathdoll_body) : 0;
     if(ref <= 0 || sv.qcvm.edict_size <= 0)
     {
         return 0;
     }
     const int num = ref / sv.qcvm.edict_size;
-    edict_t* b = serverEdict(num);
+    edict_t* b = progs::edictAt(num);
     return b && progs::fieldInt(b, f.vr_deathdoll) == player * sv.qcvm.edict_size ? num : 0; // (its player: an entity)
 }
 
@@ -236,11 +214,11 @@ void update(const hands::State& s)
         state.anchor += (state.headEyes - state.anchor) * k;
         if(vr_death_view_turn.value != 0.f)
         {
-            const float want = wrap180(state.headYaw - state.yawRef);
-            float step = wrap180(want - state.yaw) * k;
+            const float want = geom::wrap180(state.headYaw - state.yawRef);
+            float step = geom::wrap180(want - state.yaw) * k;
             const float most = za::max(vr_death_view_turn_speed.value, 0.f) * dt;
             step = za::clamp(step, -most, most);
-            state.yaw = wrap180(state.yaw + step);
+            state.yaw = geom::wrap180(state.yaw + step);
         }
         else
         {
@@ -253,7 +231,7 @@ void update(const hands::State& s)
 void status_f()
 {
     const progs::FieldOffsets& f = progs::fields();
-    edict_t* p = serverEdict(cl.viewentity);
+    edict_t* p = progs::edictAt(cl.viewentity);
     const bool hiddenFromOthers = p && f.vr_deathdoll_body >= 0 && progs::fieldInt(p, f.vr_deathdoll_body) != 0;
     const int doll = dollOf(cl.viewentity);
     glm::vec3 eyes{0.f};
@@ -297,7 +275,7 @@ void eyeView(const hands::State& s, int eye, glm::vec3& origin, glm::vec3& angle
             state.vomitYawRef = angles.y;
         }
         const glm::mat3 own = hands::basisOf(angles); // (forward, left, up)
-        const glm::mat3 rel = hands::basisOf(glm::vec3{angles.x, wrap180(angles.y - state.vomitYawRef), angles.z});
+        const glm::mat3 rel = hands::basisOf(glm::vec3{angles.x, geom::wrap180(angles.y - state.vomitYawRef), angles.z});
         const glm::quat full = glm::normalize(state.headRot * glm::quat_cast(rel));
         const glm::mat3 view = glm::mat3_cast(full);
         const glm::vec3 spacing = glm::transpose(own) * (origin - s.head);

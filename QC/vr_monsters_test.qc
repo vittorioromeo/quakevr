@@ -7,7 +7,7 @@
 // (bprint: any developer level; waiting: deferred monsters not yet brought in).
 void(float xRequest) VR_MonstersTest_Run =
 {
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     float live = 0, dead = 0, awake = 0, waiting = 0, acted = 0;
     entity oself = self, oother = other, oact = activator;
     for(entity e = nextent(world); e; e = nextent(e))
@@ -85,7 +85,7 @@ void(float xRequest) VR_MonstersTest_Run =
 // it, as ranges (a boss drawn as two entities, the Armagon's legs and torso: both its own).
 void() VR_MonstersTest_HitProbe =
 {
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     entity m = world;
     float best = 3000;
     for(entity e = findflags(world, flags, FL_MONSTER); e; e = findflags(e, flags, FL_MONSTER))

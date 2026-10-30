@@ -1,7 +1,9 @@
 // vr_foegrab.cpp -- holding enemies: see vr_foegrab.hpp.
 
 #include "vr_foegrab_internal.hpp"
+#include "vr_progs.hpp"
 #include "vr_physics.hpp"
+#include "vr_geom.hpp"
 
 namespace foegrab::detail
 {
@@ -93,10 +95,7 @@ struct FoeGrabScratch
 mem::Scratch<FoeGrabScratch> scratch{"foegrab"};
 } // namespace
 
-[[nodiscard]] glm::vec3 vec(const float* v)
-{
-    return glm::vec3{v[0], v[1], v[2]};
-}
+using geom::vec;
 
 // Where `player` faces, level (his yaw).
 [[nodiscard]] glm::vec3 forwardFlat(edict_t* player)
@@ -786,7 +785,7 @@ void manhandle(edict_t* player, Holder& hd, int h, edict_t* m)
     int hands = 0;
     for(int h = 0; h < 2 && m && !m->free; h++)
     {
-        const int heldOfs = h ? fields().mainhand_held : fields().offhand_held;
+        const int heldOfs = progs::handFields(h).held;
         hands += heldOfs >= 0 && fieldInt(player, heldOfs) == EDICT_TO_PROG(m) && box3d::ragdollHeld(player, h) == 1;
     }
     return hands;
@@ -803,7 +802,7 @@ void breakFree(int c, edict_t* m)
     edict_t* player = EDICT_NUM(c + 1);
     for(int h = 0; h < 2; h++)
     {
-        const int heldOfs = h ? fields().mainhand_held : fields().offhand_held;
+        const int heldOfs = progs::handFields(h).held;
         if(heldOfs >= 0 && fieldInt(player, heldOfs) == EDICT_TO_PROG(m))
         {
             box3d::ragdollRelease(player, h, glm::vec3{0.f});
@@ -846,7 +845,7 @@ void legDragStep(int c, edict_t* m)
     int hands = 0;
     for(int h = 0; h < 2; h++)
     {
-        const int heldOfs = h ? fields().mainhand_held : fields().offhand_held;
+        const int heldOfs = progs::handFields(h).held;
         soft[h] = heldOfs >= 0 && fieldInt(player, heldOfs) == EDICT_TO_PROG(m) && box3d::ragdollHoldForce(player, h) >= 0.f;
         hands += soft[h];
     }

@@ -98,7 +98,7 @@ void() VR_HotBlade_TestFrame =
     }
     cvar_set("vr_hotblade_test", "0");
     entity oldSelf = self;
-    self = find(world, classname, "player");
+    self = VR_Player();
     if(self == world)
     {
         self = oldSelf;

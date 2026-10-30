@@ -209,7 +209,7 @@ void(entity p) VR_Melee_SweepTest =
         // The line up (`up`), the model's +y across the facing (`side`): the head's width along `side` x `up`.
         vector hg0 = O - up * (len * (hlo_x + hhi_x) * 0.5) - fwd * 12;
         vector hg1 = hg0 + fwd * 24;
-        vector pn = normalize(VR_Melee_Cross(side, up));
+        vector pn = normalize(VR_Cross(side, up));
         vector hc = O + pn * (len * (hlo_y + hhi_y) * 0.5);
         vector cC = hc + side * (len * hhi_z * 0.7 + 2);
         setorigin(t, cC);
@@ -486,7 +486,7 @@ void(entity p) VR_Melee_FistLineTest =
     vector dFar = h + VRForwardOf(VRGetEntHandRot(p, cVR_MainHand)) * 4;
     // Across: square to the line and to the edit's move of the far end (the hand's up when it did not move).
     vector moved = far - dFar;
-    vector across = VR_Melee_Cross(fwd, moved);
+    vector across = VR_Cross(fwd, moved);
     if(vlen(across) < 0.01)
     {
         across = up;
@@ -734,7 +734,7 @@ float(entity p, entity b, entity xA, entity xB, float xLen) VR_MMT_Two =
     vector way = normalize(cb - ca); // (the swing's)
     way_z = 0;
     way = normalize(way);
-    vector ax = normalize(VR_Melee_Cross(way, '0 0 1')); // the blade level, across the swing
+    vector ax = normalize(VR_Cross(way, '0 0 1')); // the blade level, across the swing
     vector g = ca - way * 40 - ax * (xLen * 0.6);
     VR_MMT_Start(b, g, ax);
     float k;
@@ -750,7 +750,7 @@ float(entity p, entity b, entity xW, vector xN, float xD, float xLen) VR_MMT_Wal
 {
     vector c = xW.origin + '0 0 10';
     vector ax = xN * -1;
-    vector way = normalize(VR_Melee_Cross(xN, '0 0 1')); // (along the wall)
+    vector way = normalize(VR_Cross(xN, '0 0 1')); // (along the wall)
     vector g0 = c + ax * (xD - 4 - xLen) - way * 46;
     VR_MMT_Start(b, g0, ax);
     // Into the wall (6 units, the tip 2 past it) and along it, 8 units a frame, across the monster.
@@ -996,7 +996,7 @@ void(entity p) VR_Melee_LineEndsTest =
     {
         pt = pt + normalize(out) * rBase;
     }
-    vector across = VR_Melee_Cross(ax, moved);
+    vector across = VR_Cross(ax, moved);
     if(vlen(across) < 0.01)
     {
         across = up;
@@ -1035,7 +1035,7 @@ void() VR_Melee_SweepTestFrame =
         return;
     }
     cvar_set("vr_melee_sweep_test", "0");
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     if(p == world)
     {
         return;

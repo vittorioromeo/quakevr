@@ -13,10 +13,12 @@
 // - the hinges' bend from the posed bones (the knee's shin behind it: below 0);
 // - a coarse self-intersection count near the joint swept (an edge through a triangle not its own, more than at rest).
 
+#include "vr_testkit.hpp"
 #include "vr_rig2.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_rigpose.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -39,8 +41,8 @@ namespace qvr::rig2
 namespace
 {
 
-constexpr float pi = 3.14159265358979f;
-constexpr float deg = pi / 180.f;
+using geom::pi;
+using geom::deg;
 constexpr float foldLimit = 150.f;     // degrees between two triangles along a ridge (0 flat; 180 folded back onto itself)
 constexpr float foldGrowth = 60.f;     // ... more than at rest
 constexpr float collapseRatio = 0.1f;  // a triangle's area against its rest area
@@ -955,7 +957,7 @@ void check_f()
         }
     }
     printTally("new", "ALL", allNew);
-    Con_Printf("rig2 check: %d passed, %d failed\n", passed, failed);
+    qvr::testkit::verdict("rig2 check", passed, failed);
 }
 
 void info_f()

@@ -243,15 +243,6 @@ entity(entity p, float xHand) VR_Revolver_Hand =
     return h;
 };
 
-vector(vector a, vector b) VR_RV_Cross =
-{
-    vector c;
-    c_x = a_y * b_z - a_z * b_y;
-    c_y = a_z * b_x - a_x * b_z;
-    c_z = a_x * b_y - a_y * b_x;
-    return c;
-};
-
 float(float a) VR_RV_AngleNorm =
 {
     a = a - floor(a / 360) * 360;
@@ -269,7 +260,7 @@ float(float xHand) VR_Revolver_Frame =
     makevectors(VRGetEntHandRot(self, xHand));
     vr_rv_axis = ax == '0 0 0' ? v_forward : normalize(ax);
     vr_rv_up = normalize(v_up - vr_rv_axis * (v_up * vr_rv_axis));
-    vr_rv_left = VR_RV_Cross(vr_rv_up, vr_rv_axis);
+    vr_rv_left = VR_Cross(vr_rv_up, vr_rv_axis);
     if(xHand == cVR_OffHand)
     {
         vr_rv_left = -vr_rv_left; // (the model's +y: the gun mirrored in the off hand)
@@ -758,7 +749,7 @@ void(float xHand, entity h, entity r) VR_Revolver_OtherHand =
     {
         return;
     }
-    vector t = VR_RV_Cross(vr_rv_axis, radial * (1 / rr)); // (a turn's way there, right-handed about the axis in the world)
+    vector t = VR_Cross(vr_rv_axis, radial * (1 / rr)); // (a turn's way there, right-handed about the axis in the world)
     float vt = rel * t;
     if(fabs(vt) < cvar_hget(cvarh_vr_revolver_spin_speed))
     {

@@ -255,10 +255,7 @@ void playSound(const cvar_t& name)
 
 void buzz(int hand, float seconds, float amplitude)
 {
-    if(Backend* const be = backend(); be && (hand == HAND_OFF || hand == HAND_MAIN))
-    {
-        be->haptic(hand, seconds, 160.f, amplitude);
-    }
+    haptics::pulse(hand, seconds, amplitude);
 }
 
 void stop(bool quiet)

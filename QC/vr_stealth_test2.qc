@@ -266,7 +266,7 @@ float(float i) VR_STT2_Kind =
 
 void(float xAsk) VR_STT2_Start =
 {
-    stt2_p = find(world, classname, "player");
+    stt2_p = VR_Player();
     stt2_phome = stt2_p.origin;
     stt2_fails = 0;
     stt2_step = xAsk;
@@ -477,7 +477,7 @@ void() VR_STT2_Frame =
     // fast as one player alone (the meter on the most suspicious player, not shared out between them).
     if(stt2_step == 102)
     {
-        entity p2 = find(p, classname, "player");
+        entity p2 = VR_NextPlayer(p);
         if(stt2_stage == 0)
         {
             if(p2 == world)

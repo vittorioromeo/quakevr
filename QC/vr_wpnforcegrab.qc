@@ -250,7 +250,7 @@ entity(float xHand) VR_Forcegrab_FindTarget =
             traceline(handPos, c, MOVE_PORTALS, self);
             if(trace_ent != world && trace_ent != e && ((trace_ent.flags & FL_MONSTER) || isragdoll(trace_ent)))
             {
-                if(cvar("developer") >= 2) // (every frame an open hand points at it)
+                if(cvar_hget(cvarh_developer) >= 2) // (every frame an open hand points at it)
                 {
                     dprint(sprintf("forcegrab: %s behind %s, skipped\n", e.classname, trace_ent.classname));
                 }
@@ -676,7 +676,7 @@ void(float xHand) VR_Forcegrab_HandFrame =
     // grabs (his note: things pulled mid-climb).
     if(VRHasBit(self.vrbits0, QVR_VRBITS0_OFFHAND_CLIMBING) || VRHasBit(self.vrbits0, QVR_VRBITS0_MAINHAND_CLIMBING))
     {
-        if(VRGetFireButtonPressed(xHand) && cvar("developer") >= 2)
+        if(VRGetFireButtonPressed(xHand) && cvar_hget(cvarh_developer) >= 2)
         {
             dprint("forcegrab: off while climbing\n");
         }

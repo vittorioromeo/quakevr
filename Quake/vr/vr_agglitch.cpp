@@ -1,6 +1,7 @@
 // vr_agglitch.cpp -- the armed humanoids' glitch finder (vr_agglitch.hpp; ROUND22.md, "Armed humanoids in motion: the
 // glitch finder and a robust solve").
 
+#include "vr_stats.hpp"
 #include "vr_agglitch.hpp"
 #include "vr_rig2.hpp"
 #include "vr_backend.hpp"
@@ -19,6 +20,7 @@
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/String/String.hpp"
 #include "vr_zancle.hpp"
+#include "vr_geom.hpp"
 
 #include <string.h>
 
@@ -27,7 +29,7 @@ using namespace qvr;
 namespace
 {
 
-constexpr float pi = 3.14159265f;
+using geom::pi;
 constexpr float refFrame = 1.f / 90.f; // the rates and jumps are given per frame at 90 Hz
 
 enum Metric : int
@@ -255,7 +257,7 @@ void stop()
         return 0.f;
     }
     za::quickSort(v.begin(), v.end());
-    return v[static_cast<za::SizeT>(share * static_cast<float>(v.size() - 1))];
+    return v[vrstats::rankIndex(v.size(), share, vrstats::Rank::Floor)];
 }
 
 // Each metric's worst and 95th percentile over the rows of `subject` (-1 all) in `st` (-1 all).

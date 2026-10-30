@@ -49,7 +49,7 @@ struct StruggleCost
 StruggleCost struggleCost;
 
 constexpr float twoPi = 6.2831853f;
-constexpr float pi = 3.14159265f;
+using geom::pi;
 constexpr int senseEvery = 3;       // frames between its looks at the floor
 constexpr float rampIn = 0.35f;     // s: its effort up from nothing as it begins (taken by surprise)
 constexpr float fadeOut = 0.35f;    // s: its strengths let go over this as it ends
@@ -271,7 +271,7 @@ constexpr const char* behaviourNames[behaviourCount] = {"swat", "pry", "crunch",
 
 void ease(float& v, float to, float dt, float tau)
 {
-    v += (to - v) * (1.f - za::exp(-dt / za::max(tau, 1e-3f)));
+    v = geom::approachExp(v, to, dt, za::max(tau, 1e-3f));
 }
 
 // What it senses: its motion and which way up it is each frame, the floor under its pelvis, chest and head every few.

@@ -300,3 +300,12 @@ void resetMockState();
 void setMockEyeCameras(bool on, const glm::vec3* at = nullptr, const float* pitchDeg = nullptr, const float* yawDeg = nullptr);
 
 } // namespace qvr
+
+namespace qvr::haptics
+{
+
+// The canonical buzz on a controller (vr_main.cpp): `hand` HAND_OFF or HAND_MAIN for `seconds` at `amplitude` (0..1) and
+// `hz`. Nothing with no headset (no backend), with vr_disablehaptics or for another hand number.
+void pulse(int hand, float seconds, float amplitude, float hz = 160.f);
+
+} // namespace qvr::haptics

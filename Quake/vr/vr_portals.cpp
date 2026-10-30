@@ -16,6 +16,7 @@
 #include "vr_server.hpp"
 #include "vr_stereo.hpp"
 #include "vr_view.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Container/Array.hpp"
@@ -138,10 +139,7 @@ bool eyeRectAll = true;
     return drawDepth > 0 ? path[drawDepth] : -1;
 }
 
-[[nodiscard]] glm::vec3 vec(const float* v)
-{
-    return {v[0], v[1], v[2]};
-}
+using geom::vec;
 
 [[nodiscard]] glm::mat3 turnAboutZ(float degrees)
 {
@@ -2944,12 +2942,7 @@ extern "C" int VR_PortalAlias(const entity_t* e, const float boundsMatrix[16], c
     using namespace qvr::portals;
     if(!e || !e->model || !walkOn()) { return 0; }
     if(!current()) { build(); }
-    struct VmScope
-    {
-        qcvm_t* old = nullptr;
-        VmScope() { PR_PushQCVM(&sv.qcvm, &old); }
-        ~VmScope() { PR_PopQCVM(old); }
-    } scope;
+    progs::ServerVm scope;
     const glm::mat4 bounds = glm::make_mat4(boundsMatrix);
     glm::vec3 corners[8], centre{0.f};
     for(int c = 0; c < 8; c++)

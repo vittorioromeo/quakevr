@@ -1,5 +1,6 @@
 // vr_meleehud.cpp -- see vr_meleehud.hpp.
 
+#include "vr_random.hpp"
 #include "vr_meleehud.hpp"
 #include "vr_color.hpp"
 #include "vr_cvars.hpp"
@@ -30,11 +31,6 @@ float emberDue[2] = {0.f}; // each hand's embers owed (a fraction of one carried
 double lastQueue = -1.0;
 
 za::FastNonCryptoRng rng{0x5C0FFEEu}; // a fixed seed: the same embers every run
-
-[[nodiscard]] float rnd(float lo, float hi)
-{
-    return lo + (hi - lo) * rng.getF(0.f, 1.f); // (lo > hi too)
-}
 
 // A hand with nothing in it to glow for: empty, not steadying the other's weapon, carrying or climbing.
 [[nodiscard]] bool bareFist(int hand)
@@ -75,7 +71,7 @@ void ember(const hands::State& s, int hand, float bright)
             const float l = glm::length(out);
             out = l > 1e-3f ? out / l : glm::vec3{0.f};
         }
-        particles::counterEmber(p + out * 0.25f, out * rnd(1.5f, 5.f) + glm::vec3{rnd(-1.f, 1.f), rnd(-1.f, 1.f), rnd(2.f, 7.f)},
+        particles::counterEmber(p + out * 0.25f, out * vrand::range(rng, 1.5f, 5.f) + glm::vec3{vrand::range(rng, -1.f, 1.f), vrand::range(rng, -1.f, 1.f), vrand::range(rng, 2.f, 7.f)},
             bright);
         return;
     }
@@ -86,8 +82,8 @@ void ember(const hands::State& s, int hand, float bright)
     }
     // The knuckles: about 9 cm from the wrist towards the fingers, 2 cm over the back of the hand, 8 cm across.
     const float cm = za::max(0.1f, vr_world_scale.value) / 3.81f; // units a centimetre (a unit is 1.5 inches)
-    const glm::vec3 knuckles = h.wrist + h.forward * (9.f * cm) + h.back * (2.f * cm) + h.up * (rnd(-4.f, 4.f) * cm);
-    particles::counterEmber(knuckles, h.back * rnd(1.f, 4.f) + glm::vec3{rnd(-1.f, 1.f), rnd(-1.f, 1.f), rnd(2.f, 7.f)},
+    const glm::vec3 knuckles = h.wrist + h.forward * (9.f * cm) + h.back * (2.f * cm) + h.up * (vrand::range(rng, -4.f, 4.f) * cm);
+    particles::counterEmber(knuckles, h.back * vrand::range(rng, 1.f, 4.f) + glm::vec3{vrand::range(rng, -1.f, 1.f), vrand::range(rng, -1.f, 1.f), vrand::range(rng, 2.f, 7.f)},
         bright);
 }
 

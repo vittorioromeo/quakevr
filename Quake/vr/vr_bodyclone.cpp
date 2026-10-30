@@ -14,6 +14,7 @@
 #include "vr_menu.hpp"
 #include "vr_panel.hpp"
 #include "vr_units.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -40,19 +41,6 @@ struct Mirror
 };
 
 Mirror state;
-
-[[nodiscard]] float wrapDegrees(float a)
-{
-    while(a > 180.f)
-    {
-        a -= 360.f;
-    }
-    while(a < -180.f)
-    {
-        a += 360.f;
-    }
-    return a;
-}
 
 void update()
 {
@@ -105,7 +93,7 @@ void update()
     // Kept while you stand about where it was put and the panel stays (it moves with your head, and is turned again
     // when the menu is opened again).
     const glm::vec2 moved{s.head.x - state.head.x, s.head.y - state.head.y};
-    if(!state.placed || glm::length(moved) > 0.6f * m2u || za::fabs(wrapDegrees(yaw - state.yaw)) > 2.f)
+    if(!state.placed || glm::length(moved) > 0.6f * m2u || za::fabs(geom::wrap180(yaw - state.yaw)) > 2.f)
     {
         state.placed = true;
         state.head = s.head;

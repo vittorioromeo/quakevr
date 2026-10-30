@@ -198,3 +198,82 @@ Test code stays out of releases: a QC file of tests (`*_test.qc`, listed in `pro
 the release packaging does), and every call or declaration of it from game code is wrapped the same way. A new test file:
 wrap it, and compile once with `-DQVR_NO_TESTS` (no errors allowed; the compile writes `quakevr/progs.dat`: build again
 for the development one).
+
+## Canonical helpers
+
+One implementation each; new code uses these, a local copy is a review finding. Other clusters add their own lists below.
+
+### Geometry and math (`Quake/vr/vr_geom.hpp`, namespace `qvr::geom`)
+
+- `geom::vec(const float*)` and `geom::store(vec3, float*)`: Quake `vec3_t` to/from `glm::vec3` (a file may write
+  `using geom::vec;` to keep the short name). Not yet merged: the `setVec(float*, vec3)` spellings (climb, foegrab, portals).
+- `geom::pi`, `geom::deg` (float pi; degrees to radians), `geom::up` (+z).
+- `geom::safeNormalize(v, fallback = up, eps = 1e-5f)`: pass the site's eps when it differs.
+- `geom::wrap180(a)` (round form, no loop: the old `while` wraps hung on inf/NaN), `geom::yawDelta(to, from)`,
+  `geom::yawOf(dir)`.
+- `geom::smooth01(t)`, `geom::smoothstep(e0, e1, x, minWidth)`, `geom::approachExp(now, target, dt, tau)`.
+- `geom::closestOnSegment(p, a, b, &t, eps)`, `geom::segmentDistance(p, a, b, &t, eps)`, `geom::closestOnTriangle`.
+- `geom::quakeFromTracking(v)`: tracking space to Quake axes.
+- Angles to axes and back: `held::axesFromAngles` / `held::anglesFromAxes` (vr_held.hpp); the rest of the angle helpers
+  are in `hands::`.
+- A matrix from a float[16]: `glm::make_mat4` (no local `toMat4`). Angle between two vectors: `still::degreesBetween`.
+
+### Engine access (refactor A2)
+
+Use these; don't write a local copy (a file's own wrapper is fine only when it bakes in that site's own rule or
+constants, and then its body calls the canonical one).
+
+| need | helper | where |
+|---|---|---|
+| the server's VM current for a scope | `progs::ServerVm vm;` (RAII) | vr_progs.hpp |
+| the local player | `progs::localPlayer()` (null when not hosting / client 0 not in game) | vr_progs.hpp |
+| a server edict by number | `progs::edictAt(num)` (null: out of range, free, not hosting) | vr_progs.hpp |
+| edict loops, nearest one | `progs::forEachEdict(first, fn)`, `progs::nearestBy(first, limit, distance, &best)` | vr_progs.hpp |
+| calling QC | `progs::callQc(fn, a, b, c)`, `qcFloat`, `qcText(dst, size, fn, a)`, `qcVec(fn, a, fallback)`; by name with `progs::findFunction` (or bind it in `Bindings`) | vr_progs.hpp |
+| builtin vector parms / returns | `progs::vecParm(OFS_PARMn)`, `returnVec(v)`, `setVecParm(ofs, v)`, `returnedVec()` | vr_progs.hpp |
+| entity fields | `progs::fields().name` (add the field to vr_fields.inc; no `ED_FindFieldOffset("...")` for a fixed name) | vr_fields.inc |
+| a hand's fields | `progs::handFields(hand).pos / rot / held / muzzle / shotRot / loadPortPos / loadPortAxis / loadPortFace / throwVel / avel` (`hand` nonzero: the main hand) | vr_progs.hpp |
+| point contents, liquids | `worldtrace::contents(p)` (server), `clientContents(p)`, `liquidContents(p, client)`, `isLiquid(c, currents)`; each site keeps its own rule of what is liquid | vr_trace.hpp |
+| a server line trace | `worldtrace::serverLine(a, b)` (passes the world) / `serverLine(a, b, pass, type)` | vr_trace.hpp |
+| a controller buzz | `haptics::pulse(hand, seconds, amplitude, hz = 160)` (vr_disablehaptics and the hand's bounds inside) | vr_backend.hpp |
+| a cvar set for a scope | `cvars::Override o{cvar, value};` (RAII) | vr_cvars.hpp |
+| cvars kept and put back later | `cvars::Snapshot` (`keep(cvar)`, `restore()`) | vr_cvars.hpp |
+| every cvar | `cvars::forEach(fn)` | vr_cvars.hpp |
+| a VR cvar's value | `vr_x.value` directly, never `Cvar_VariableValue("vr_x")` (by name only for names typed or made at run time) | vr_cvars.hpp |
+| a client entity's number | `client::entityNumber(e, limit)` (-1: null, the world, not one of cl_entities) | vr_client.hpp |
+
+### Small libraries (refactor A3)
+
+Do not write a local copy (a second `rnd`, `lower`, `trim`, `startsWith`, `appendf`, `nearestNormal`, LE reader, quantile, UI click or verdict line).
+
+| need | helper | where |
+|---|---|---|
+| a float in [lo, hi] from a file's own `za::FastNonCryptoRng` (lo > hi allowed) | `vrand::range(rng, lo, hi)` | `vr_random.hpp` |
+| the small seeded streams (xorshift32, the 1664525 LCG) as `[0,1)` floats / ranges | `vrand::xorshift32/xorshift01/xorshiftRange`, `vrand::lcg01/lcgRange` | `vr_random.hpp` |
+| `startsWith` / `endsWith` on C strings, `lower`, `trim` (space, tab, CR, LF), `appendf(za::String&, fmt, ...)` (any length) | `strings::startsWith/endsWith/lower/trim/appendf` | `vr_strings.hpp` |
+| a quantile of sorted samples; the rank rule is a parameter (`Floor`, `Nearest`, `Count`) | `vrstats::quantileSorted`, `rankIndex` | `vr_stats.hpp` |
+| little-endian int/float from model bytes (unchecked); a bounds-checked reader (0 past the end) | `bytes::le32/lef32`, `bytes::View` | `vr_bytes.hpp` |
+| the MDL normal index nearest to a direction | `mdlbuild::nearestNormal` | `vr_mdlbuild.hpp` |
+| a verdict line `<name>: N passed, M failed`; a pass/fail counter | `testkit::verdict`, `testkit::Tally` | `vr_testkit.hpp` |
+| a UI click / cue sound by kind (the path table) | `menuui::uiSound(UiSound::Move/Select/Adjust/Deny/Talk/Pickup)` | `vr_menuui.hpp` |
+| linking a GL program (info log, label, shader cleanup); a bound-FBO completeness check | `gfx::linkProgram`, `gfx::boundFramebufferComplete` | `vr_glutil.hpp` |
+
+### QC (refactor A4)
+
+Use these instead of a local copy (refactor 2026-10-29, cluster A4).
+
+- `QC/vr_util.qc`, end of file: `VR_Player()` (the first player: never spell `find(world, classname, "player")`),
+  `VR_NextPlayer(p)`, `VR_PlayerAlive()` (the first living one), `clamp(v, lo, hi)`, `VR_Wrap180(a)` (-180 .. 180,
+  floor form; the base packs' one-step `if(d > 180) d -= 360` wraps are a different rule and stay), `VR_Cross(a, b)`,
+  `VR_Lerp(a, b, t)`, `VR_Smooth(x)` (clamped smoothstep), `VR_PointSegmentDistance(p, a, b)`,
+  `VR_SegmentDistance(a0, a1, b0, b1)` (closest points in `vr_seg_s`, `vr_seg_t`) and `VR_SegmentDistanceEps` (the
+  same with a site's own thresholds).
+- `QC/vr_testutil.qc` (tests only): `VR_Test_Begin("tag")`, `VR_Test_Check(ok, what)` (`<tag>: PASS|FAIL <what>`),
+  `VR_Test_Verdict()` (`<tag>: <p> passed, <f> failed`), one tally (`vr_test_pass`, `vr_test_fail`). The armed grunts'
+  harness (`VR_AGT_Check/Print/Spawn/Remove/Hunt`, vr_armedgrunt_test.qc: `agtest: <what> PASS|FAIL` by bprint) is
+  the other shared one; a new test uses one of the two, never a third copy.
+- Cvars: read with a handle, `cvar_hget(cvarh_<name>)` (declared and made in `QC/vr_cvars.qc`, compiled right after
+  defs.qc so every file sees it); `cvar("...")` only in tests and one-off code. A new handle: its global and its
+  `VR_CVAR_HMAKE` line at the end of each list (the handles' numbers follow the order).
+- Builtins: a `= #0` prototype is bound by name; `Misc/quakevr/check_builtins.py` (run by the kit's build.sh) fails the
+  build when one names no engine builtin, or a `vrBuiltins` entry has no prototype.

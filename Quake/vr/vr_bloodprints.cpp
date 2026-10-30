@@ -1,6 +1,7 @@
 // vr_bloodprints.cpp -- see vr_bloodprints.hpp.
 
 #include "vr_bloodprints.hpp"
+#include "vr_trace.hpp"
 #include "vr_cvars.hpp"
 #include "vr_decals.hpp"
 #include "vr_engine.hpp"
@@ -116,13 +117,7 @@ State st;
 
 [[nodiscard]] bool liquidAt(const glm::vec3& p)
 {
-    if(!cl.worldmodel)
-    {
-        return false;
-    }
-    vec3_t v{p.x, p.y, p.z};
-    const int c = Mod_PointInLeaf(v, cl.worldmodel)->contents;
-    return c <= CONTENTS_WATER && c >= CONTENTS_LAVA;
+    return worldtrace::isLiquid(worldtrace::clientContents(p));
 }
 
 [[nodiscard]] bool debug()

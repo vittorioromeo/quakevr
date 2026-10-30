@@ -1,4 +1,5 @@
 #include "vr_alloccount.h"
+#include "vr_trace.hpp"
 // vr_box3d_knockdown.cpp -- knockdowns: recoveries and getting up (the pose fit, the stand spot) and the stagger,
 // topple, shove and get-up API.
 // Split from vr_box3d.cpp (see its comment for the whole); the shared declarations are in
@@ -465,9 +466,7 @@ void beginLiving(RagdollBodies& r, edict_t* ent)
 // Whether `p` (units) is in water, slime or lava.
 [[nodiscard]] bool liquidAt(const glm::vec3& p)
 {
-    vec3_t v{p.x, p.y, p.z};
-    const int c = VR_LiquidContents(sv.worldmodel, v, SV_PointContents(v));
-    return c <= CONTENTS_WATER && c >= CONTENTS_LAVA;
+    return worldtrace::isLiquid(worldtrace::liquidContents(p, false));
 }
 
 // `ent` going down (its ragdoll made: a stagger gone over, a shove's knockdown, a throw) towards level `dir`: its arms

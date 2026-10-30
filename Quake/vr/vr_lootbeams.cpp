@@ -553,12 +553,8 @@ void test_f()
             G_FLOAT(OFS_PARM0) = 6.f; // WID_NAILGUN
             G_FLOAT(OFS_PARM1) = 2.f; // AID_NAILS
             G_FLOAT(OFS_PARM2) = thing.value;
-            G_VECTOR(OFS_PARM3)[0] = at.x;
-            G_VECTOR(OFS_PARM3)[1] = at.y;
-            G_VECTOR(OFS_PARM3)[2] = at.z;
-            G_VECTOR(OFS_PARM4)[0] = 0.f;
-            G_VECTOR(OFS_PARM4)[1] = angles.y;
-            G_VECTOR(OFS_PARM4)[2] = 90.f;
+            progs::setVecParm(OFS_PARM3, at);
+            progs::setVecParm(OFS_PARM4, {0.f, angles.y, 90.f});
             PR_ExecuteProgram(static_cast<func_t>(fn));
             made += PROG_TO_EDICT(G_INT(OFS_RETURN)) != qcvm->edicts;
             mags++;

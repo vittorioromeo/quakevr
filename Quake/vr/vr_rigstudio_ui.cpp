@@ -11,6 +11,7 @@
 #include "vr_imgui.hpp"
 #include "vr_rigdata.hpp"
 #include "vr_toolgun.hpp"
+#include "vr_geom.hpp"
 
 #include "thirdparty/imgui/imgui.h"
 
@@ -38,7 +39,7 @@ using namespace qvr::rigstudio::detail;
 namespace
 {
 
-constexpr float deg = 3.14159265f / 180.f;
+using geom::deg;
 
 [[nodiscard]] bool dirtyAny()
 {

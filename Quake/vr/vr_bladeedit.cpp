@@ -292,14 +292,6 @@ void say(const za::String& text)
     Con_Printf("Edit Blade Shape: %s\n", text.cStr());
 }
 
-void haptic(int hand, float seconds, float amplitude)
-{
-    if(Backend* be = backend(); be && !vr_disablehaptics.value && hand >= 0 && hand < HAND_COUNT)
-    {
-        be->haptic(hand, seconds, 160.f, amplitude);
-    }
-}
-
 [[nodiscard]] const char* modelName()
 {
     const qmodel_t* m = weapons::heldModel(ses.hand);
@@ -803,7 +795,7 @@ void grab(int hand, int h)
     ses.grab = h;
     ses.grabOffset = handleAt(ses.geo, h) - hands::current().pos[hand];
     ses.lastTick = handleAt(ses.geo, h);
-    haptic(hand, 0.03f, 0.6f);
+    haptics::pulse(hand, 0.03f, 0.6f);
 }
 
 void release()
@@ -813,7 +805,7 @@ void release()
         return;
     }
     ses.grab = -1;
-    haptic(otherHand(), 0.02f, 0.3f);
+    haptics::pulse(otherHand(), 0.02f, 0.3f);
     if(!ses.undo.empty() && changedFrom(ses.undo.back()) == 0)
     {
         ses.undo.popBack(); // (nothing moved)
@@ -991,7 +983,7 @@ void hoverFrame(const hands::State& s)
     }
     if(best != ses.hover && best >= 0)
     {
-        haptic(other, 0.015f, 0.25f);
+        haptics::pulse(other, 0.015f, 0.25f);
     }
     ses.hover = best;
     for(int h = 0; h < HAND_COUNT; h++)
@@ -999,7 +991,7 @@ void hoverFrame(const hands::State& s)
         const int b = buttonAtHand(s.pos[h]);
         if(b != ses.hoverButton[h] && b >= 0)
         {
-            haptic(h, 0.015f, 0.25f);
+            haptics::pulse(h, 0.015f, 0.25f);
         }
         ses.hoverButton[h] = b;
     }
@@ -1016,7 +1008,7 @@ void editFrame(const hands::State& s)
     if(glm::length(t - ses.lastTick) >= TICK_UNITS)
     {
         ses.lastTick = t;
-        haptic(otherHand(), 0.01f, 0.2f);
+        haptics::pulse(otherHand(), 0.01f, 0.2f);
     }
     ses.geoValid = layOut(s, ses.geo); // (drawn as it is now)
 }
@@ -1386,7 +1378,7 @@ bool start(int hand, int returnPage)
         const cvar_t* id = weapons::cvar(slot, Key::ID);
         say(va("started on %s (slot %d)", id ? id->string : "?", slot + 1));
     }
-    S_LocalSound("misc/menu3.wav");
+    qvr::menuui::uiSound(qvr::menuui::UiSound::Adjust);
     return true;
 }
 
@@ -1459,7 +1451,7 @@ bool button(int hand, posing::Button b, bool down)
         case posing::Button::Trigger:
             if(ses.hoverButton[hand] >= 0)
             {
-                haptic(hand, 0.03f, 0.5f);
+                haptics::pulse(hand, 0.03f, 0.5f);
                 press(ses.hoverButton[hand]);
             }
             break;

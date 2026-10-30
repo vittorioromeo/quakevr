@@ -4,6 +4,7 @@
 
 #include "vr_mem.hpp"
 #include "vr_units.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Base/IsFinite.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -29,7 +30,7 @@ constexpr float springDamping = 20.f; // per second, along each spring (the wobb
 constexpr float gravity = 9.81f;      // metres per second squared
 constexpr float substep = 1.f / 300.f;
 constexpr float taper = 0.015f;       // metres over which a coil narrows to the wire's lead into each end
-constexpr float pi = 3.14159265f;
+using geom::pi;
 
 // The springs between the stubs: that many, each relaxed at the cord's relaxed length over them.
 constexpr int springs = segments - 2;

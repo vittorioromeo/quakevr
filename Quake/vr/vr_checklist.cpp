@@ -3,6 +3,7 @@
 // quakevr/checklist_ticks.txt (a passed item's text a line, a failed one's after "[fail] "), the sections folded or
 // unfolded by hand in quakevr/checklist_sections.txt ("collapsed <name>" / "expanded <name>").
 
+#include "vr_strings.hpp"
 #include "vr_checklist.hpp"
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
@@ -85,21 +86,6 @@ constexpr size_t collapsedPrefixLength = 10;
 constexpr const char* expandedPrefix = "expanded ";
 constexpr size_t expandedPrefixLength = 9;
 
-[[nodiscard]] za::String trimmed(za::StringView s)
-{
-    size_t a = 0;
-    size_t b = s.size();
-    while(a < b && (s[a] == ' ' || s[a] == '\t' || s[a] == '\r' || s[a] == '\n'))
-    {
-        a++;
-    }
-    while(b > a && (s[b - 1] == ' ' || s[b - 1] == '\t' || s[b - 1] == '\r' || s[b - 1] == '\n'))
-    {
-        b--;
-    }
-    return za::String{s.substrByPosLen(a, b - a)};
-}
-
 // The file's lines, trimmed (false: no file).
 [[nodiscard]] bool readLines(const za::String& path, za::Vector<za::String>& out)
 {
@@ -124,7 +110,7 @@ constexpr size_t expandedPrefixLength = 9;
     {
         size_t end = text.find('\n', start);
         end = end == za::StringView::nPos ? text.size() : end;
-        out.pushBack(trimmed(text.substrByPosLen(start, end - start)));
+        out.pushBack(qvr::strings::trim(text.substrByPosLen(start, end - start)));
         start = end + 1;
     }
     return true;
@@ -378,8 +364,8 @@ void writeTicks()
     {
         return l;
     }
-    id = trimmed(l.substrByPosLen(open + 6, l.size() - open - 7));
-    return trimmed(l.substrByPosLen(0, open));
+    id = qvr::strings::trim(l.substrByPosLen(open + 6, l.size() - open - 7));
+    return qvr::strings::trim(l.substrByPosLen(0, open));
 }
 
 void readList()
@@ -403,7 +389,7 @@ void readList()
         }
         if(l.size() >= 2 && l.front() == '[' && l.back() == ']')
         {
-            state.sections.pushBack(drawable(trimmed(l.substrByPosLen(1, l.size() - 2))));
+            state.sections.pushBack(drawable(qvr::strings::trim(l.substrByPosLen(1, l.size() - 2))));
             current = static_cast<int>(state.sections.size()) - 1;
             continue;
         }

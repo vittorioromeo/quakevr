@@ -9,6 +9,7 @@
 #include "vr_lines.hpp"
 #include "vr_progs.hpp"
 #include "vr_text3d.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Base/Limits.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -198,10 +199,7 @@ float wayOut(const float* hullMins, const float* hullMaxs, const glm::vec3& p, i
     return best;
 }
 
-[[nodiscard]] glm::vec3 vec(const float* v)
-{
-    return glm::vec3{v[0], v[1], v[2]};
-}
+using geom::vec;
 
 // Moves the player by d if nothing is in the way, linked (his triggers touched): how far he went.
 float movePlayer(edict_t* p, const glm::vec3& d)

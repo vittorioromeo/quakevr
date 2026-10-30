@@ -1,15 +1,10 @@
 #ifdef QVR_TESTS
 // Destructive source-backed MG1 progression acceptance. Debug > Tests; reload after use.
-float MG1_H_pass, MG1_H_fail;
 .entity MG1_H_player;
 .vector MG1_H_origin;
-void(float ok, string text) MG1_H_Check = {
-    if(ok) MG1_H_pass++; else MG1_H_fail++;
-    dprint(sprintf("mghubtest: %s %s\n",ok ? "PASS" : "FAIL",text));
-};
 void() MG1_H_Sink = { self.cnt++; };
 void() MG1_H_Report = {
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     float count = 0, ghosts = 0, active = 0;
     entity e = find(world, classname, "misc_rune_indicator");
     while(e) { count++; if(e.alpha == 0.2) ghosts++; else active++; e = find(e, classname, "misc_rune_indicator"); }
@@ -25,25 +20,25 @@ void() MG1_H_Report = {
 };
 void() MG1_H_Unit = {
     if(mapname != "hub") { dprint("mghubtest: unit needs Machine hub\n"); return; }
-    entity caller = self, p = find(world,classname,"player");
+    entity caller = self, p = VR_Player();
     float flags = serverflags;
-    MG1_H_pass = MG1_H_fail = 0;
+    VR_Test_Begin("mghubtest");
     float i = 1, bit = 1;
     entity sink = spawn(); sink.targetname = "mghub_test_sink"; sink.use = MG1_H_Sink;
     while(i <= 5) {
         entity rune = spawn(); self = rune; rune.classname = "item_sigil"; rune.spawnflags = bit; rune.target = sink.targetname;
         MG1_item_sigil(); other = p; serverflags = 0;
         rune.MG1_rune_locked = TRUE; MG1_sigil_touch();
-        MG1_H_Check(serverflags == 0 && rune.model != "","locked rune refuses collection");
+        VR_Test_Check(serverflags == 0 && rune.model != "","locked rune refuses collection");
         rune.MG1_rune_locked = FALSE; itemTouch();
-        MG1_H_Check((serverflags & 31) == bit && MG1_LastRune() == bit,"rune records owned bit plus last pickup");
-        itemTouch(); MG1_H_Check(sink.cnt == i,"rune target fires exactly once");
+        VR_Test_Check((serverflags & 31) == bit && MG1_LastRune() == bit,"rune records owned bit plus last pickup");
+        itemTouch(); VR_Test_Check(sink.cnt == i,"rune target fires exactly once");
         entity spot = MG1_ReturnSpawn();
-        MG1_H_Check(spot.netname == sprintf("start_%g", i) && MG1_LastRune() == 0 && (serverflags & 31) == bit,"return chooses authored spot and clears only last-pickup bits");
+        VR_Test_Check(spot.netname == sprintf("start_%g", i) && MG1_LastRune() == 0 && (serverflags & 31) == bit,"return chooses authored spot and clears only last-pickup bits");
         remove(rune); bit *= 2; i++;
     }
     serverflags = flags; remove(sink); self = caller;
-    dprint(sprintf("mghubtest: %g passed, %g failed\n",MG1_H_pass,MG1_H_fail));
+    VR_Test_Verdict();
 };
 void() MG1_H_PuzzleDone = {
     entity manager = self, p = self.MG1_H_player;
@@ -54,20 +49,20 @@ void() MG1_H_PuzzleDone = {
         }
         door = find(door,targetname,"rune_shell");
     }
-    MG1_H_Check(opened == 8,"all eight authored shell panels move by dest2 at speed500");
+    VR_Test_Check(opened == 8,"all eight authored shell panels move by dest2 at speed500");
     entity rune = find(world,classname,"item_sigil");
-    MG1_H_Check(!rune.MG1_rune_locked,"authored shell button unlocks physical rune pickup");
+    VR_Test_Check(!rune.MG1_rune_locked,"authored shell button unlocks physical rune pickup");
     self = rune; other = p; MG1_sigil_touch();
-    MG1_H_Check((serverflags & 2) && MG1_LastRune() == 2 && rune.model == "","unlocked physical rune awards second episode and runs targets");
-    dprint(sprintf("mghubtest: puzzle %g passed, %g failed\n",MG1_H_pass,MG1_H_fail));
+    VR_Test_Check((serverflags & 2) && MG1_LastRune() == 2 && rune.model == "","unlocked physical rune awards second episode and runs targets");
+    dprint(sprintf("mghubtest: puzzle %g passed, %g failed\n",vr_test_pass,vr_test_fail));
     remove(manager);
 };
 void() MG1_H_PuzzleOpen = {
     entity manager = self, p = self.MG1_H_player;
-    MG1_H_Check(!find(world,classname,"mge2m2_electrode_target"),"all four matched electrode endpoints removed after physical presses");
+    VR_Test_Check(!find(world,classname,"mge2m2_electrode_target"),"all four matched electrode endpoints removed after physical presses");
     entity counter = find(world,targetname,"electrode_counter");
-    MG1_H_Check(!counter || counter.count == 0,"authored delayed relays complete four-input counter");
-    MG1_H_Check(!find(world,targetname,"electrode_fx_repeater"),"counter cancels authored repeating electrode lightning");
+    VR_Test_Check(!counter || counter.count == 0,"authored delayed relays complete four-input counter");
+    VR_Test_Check(!find(world,targetname,"electrode_fx_repeater"),"counter cancels authored repeating electrode lightning");
     // This driver skips player traversal/combat. Clear living authored enemies from the egg path
     // through ordinary damage before checking exact panel displacement; gameplay collision stays intact.
     entity enemy = nextent(world);
@@ -78,7 +73,7 @@ void() MG1_H_PuzzleOpen = {
     }
     entity door = find(world,targetname,"rune_shell"); float panels = 0;
     while(door) { if(door.classname == "door" && door.use == door_use) { door.MG1_H_origin = door.origin; panels++; } door = find(door,targetname,"rune_shell"); }
-    MG1_H_Check(panels == 8,"eight authored rune egg panels retained");
+    VR_Test_Check(panels == 8,"eight authored rune egg panels retained");
     entity button = find(world,classname,"func_button");
     while(button && button.target != "open_rune_shell") button = find(button,classname,"func_button");
     self = button; other = p; button.handtouch();
@@ -86,21 +81,21 @@ void() MG1_H_PuzzleOpen = {
 };
 void() MG1_H_Puzzle = {
     if(mapname != "mge2m2") { dprint("mghubtest: puzzle needs mge2m2\n"); return; }
-    entity caller = self, p = find(world,classname,"player");
-    MG1_H_pass = MG1_H_fail = 0;
+    entity caller = self, p = VR_Player();
+    VR_Test_Begin("mghubtest");
     entity rune = find(world,classname,"item_sigil");
-    MG1_H_Check(rune.MG1_rune_locked,"rune starts locked after authored fixer delay");
+    VR_Test_Check(rune.MG1_rune_locked,"rune starts locked after authored fixer delay");
     float flags = serverflags; self = rune; other = p;
-    rune.handtouch(); MG1_H_Check(!rune.carry_player && serverflags == flags,"locked physical object cannot be grabbed or collected");
-    MG1_sigil_touch(); MG1_H_Check(serverflags == flags && rune.model != "","locked carry callback cannot bypass puzzle");
+    rune.handtouch(); VR_Test_Check(!rune.carry_player && serverflags == flags,"locked physical object cannot be grabbed or collected");
+    MG1_sigil_touch(); VR_Test_Check(serverflags == flags && rune.model != "","locked carry callback cannot bypass puzzle");
     entity b = find(world,classname,"mge2m2_electrode_button"); float buttons = 0;
     while(b) {
         self = b; other = p; buttons++;
         if(buttons == 2) b.vr_wpntouch(); else if(buttons == 3) VR_Button_PressBy(p,cVR_OffHand,b); else b.handtouch();
-        MG1_H_Check(b.MG1_electrode_pressed && b.state == STATE_UP,"physical electrode button invokes native once-only effect");
+        VR_Test_Check(b.MG1_electrode_pressed && b.state == STATE_UP,"physical electrode button invokes native once-only effect");
         b = find(b,classname,"mge2m2_electrode_button");
     }
-    MG1_H_Check(buttons == 4,"all four authored electrodes retained");
+    VR_Test_Check(buttons == 4,"all four authored electrodes retained");
     b = find(world,classname,"func_button");
     while(b && b.target != "rune_shell_plinth_unlock") b = find(b,classname,"func_button");
     self = b; other = p; b.handtouch();
@@ -137,7 +132,7 @@ entity(float alt) MG1_H_NextExit = {
 nosave float MG1_H_autoran;
 void() MG1_H_RouteAutorun = {
     float stage = cvar("vr_mg_route_stage");
-    if(!stage || MG1_H_autoran || time < 1 || !find(world, classname, "player")) return;
+    if(!stage || MG1_H_autoran || time < 1 || !VR_Player()) return;
     MG1_H_autoran = TRUE;
     localcmd(sprintf("exec %s%g.cfg\n", MG3_Campaign() ? "mg3route" : "mg1route", stage)); // (MG3: M3-29's sweep)
 };
@@ -148,7 +143,7 @@ void() MG1_H_RouteAutorun = {
 // up that press's +jump in the command buffer.
 .float MG1_H_inter, MG1_H_text;
 void() MG1_H_PresserThink = {
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     self.nextthink = time;
     if(intermission_running != self.MG1_H_inter) {
         dprint(sprintf("mghubtest: intermission %g next %s map %s\n", intermission_running, nextmap, mapname));
@@ -197,7 +192,7 @@ vector(entity t, entity p) MG1_H_SpotIn = {
 };
 void() MG1_H_After = { localcmd(sprintf("exec mghub_after%g.cfg\n", cvar("vr_mg_hub_stage"))); };
 void(float request) MG1_H_Route = {
-    entity caller = self, p = find(world,classname,"player"); other = activator = p;
+    entity caller = self, p = VR_Player(); other = activator = p;
     if(request == 4) {
         entity rune = find(world,classname,"item_sigil");
         if(rune) { self = rune; MG1_sigil_touch(); dprint(sprintf("mghubtest: actual rune %g map %s flags %g locked %g\n",rune.spawnflags,mapname,serverflags,rune.MG1_rune_locked)); }

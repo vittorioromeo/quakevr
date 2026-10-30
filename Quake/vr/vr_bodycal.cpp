@@ -281,11 +281,6 @@ void bump()
 }
 
 
-[[nodiscard]] float angleBetween(const glm::vec3& a, const glm::vec3& b)
-{
-    return still::degreesBetween(a, b);
-}
-
 // Columns: forward, left, up, from Quake angles.
 [[nodiscard]] glm::mat3 axesOf(const glm::vec3& angles)
 {
@@ -2103,7 +2098,7 @@ void finish()
     ses.todo.clear();
     if(result.valid)
     {
-        S_LocalSound("misc/talk.wav");
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Talk);
         ses.phase = Phase::Result;
         showNew = true;
         Con_Printf("Body Calibration: upper arm %.1f cm, forearm %.1f cm, reach %.1f cm; shoulders %.1f cm below the eyes, "
@@ -2113,7 +2108,7 @@ void finish()
     }
     else
     {
-        S_LocalSound("misc/menu3.wav");
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Adjust);
         ses.phase = Phase::Idle;
         ses.message = "couldn't measure: redo the poses";
         Con_Printf("Body Calibration: couldn't measure (%s)\n", result.when.cStr());
@@ -2223,25 +2218,25 @@ bool begin(za::Vector<int> todo, int returnPage)
                 {
                     return "look ahead";
                 }
-                if(angleBetween(d, {0.f, 0.f, -1.f}) > 30.f || len < 0.7f * reach)
+                if(still::degreesBetween(d, {0.f, 0.f, -1.f}) > 30.f || len < 0.7f * reach)
                 {
                     return va("%s arm: straight down at your side", sides[side]);
                 }
                 break;
             case TPose:
-                if(angleBetween(d, out) > 30.f || len < 0.6f * reach)
+                if(still::degreesBetween(d, out) > 30.f || len < 0.6f * reach)
                 {
                     return va("%s arm: straight out to the side", sides[side]);
                 }
                 break;
             case Forward:
-                if(angleBetween(d, {1.f, 0.f, 0.f}) > 30.f || len < 0.6f * reach)
+                if(still::degreesBetween(d, {1.f, 0.f, 0.f}) > 30.f || len < 0.6f * reach)
                 {
                     return va("%s arm: straight out in front", sides[side]);
                 }
                 break;
             case Up:
-                if(angleBetween(d, {0.f, 0.f, 1.f}) > 35.f || len < 0.6f * reach)
+                if(still::degreesBetween(d, {0.f, 0.f, 1.f}) > 35.f || len < 0.6f * reach)
                 {
                     return va("%s arm: straight up", sides[side]);
                 }
@@ -2715,7 +2710,7 @@ void apply()
     recordChange(before); // (Previous Calibrations)
     applied = true;
     ses.phase = Phase::Idle;
-    S_LocalSound("misc/menu2.wav");
+    qvr::menuui::uiSound(qvr::menuui::UiSound::Select);
     Con_Printf("Body Calibration: applied (upper arm %.1f cm, forearm %.1f cm)\n", result.upper, result.fore);
     bump();
     // Saved at once: the config was written only when the game quit, so a game ended otherwise (stopped from the
@@ -2843,7 +2838,7 @@ void revert(int i)
     writeHistorySettings(target);
     recordChange(before);
     applied = false;
-    S_LocalSound("misc/menu2.wav");
+    qvr::menuui::uiSound(qvr::menuui::UiSound::Select);
     Con_Printf("Body Calibration: reverted to %s (upper arm %s cm, forearm %s cm)\n", history.currentMade.cStr(),
         vr_bodycal_upper_arm.string, vr_bodycal_forearm.string);
     bump();
@@ -3032,7 +3027,7 @@ void frame()
     if(key_dest == key_menu || ses.world != worldGeneration() || cls.state != ca_connected || cl.intermission || !vrActive() ||
         cl.stats[STAT_HEALTH] <= 0)
     {
-        S_LocalSound("misc/menu3.wav");
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Adjust);
         stopCapture("stopped (the menu, the map or the game changed): Continue takes the rest");
         return;
     }
@@ -3069,7 +3064,7 @@ void frame()
     }
     else if(ses.sub == Sub::Wait && now - ses.subStart > giveUpSeconds)
     {
-        S_LocalSound("misc/menu3.wav");
+        qvr::menuui::uiSound(qvr::menuui::UiSound::Adjust);
         Con_Printf("Body Calibration: %s not taken (%s)\n", steps[step].title, ses.hint.cStr());
         nextStep(now);
         // The next pose's text and ghost this frame too (the ghost skipped a frame: VR Calibration's stickman, the
@@ -3213,7 +3208,7 @@ void viewFrame(const hands::State& s)
         }
     }
     ses.gotIt = now;
-    S_LocalSound("weapons/pkup.wav");
+    qvr::menuui::uiSound(qvr::menuui::UiSound::Pickup);
     Con_Printf("Body Calibration: %s taken\n", steps[step].title);
     nextStep(now);
 }

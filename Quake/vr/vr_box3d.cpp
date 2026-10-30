@@ -57,6 +57,7 @@
 #include "vr_box3d_internal.hpp"
 
 #include "vr_admelee.hpp"
+#include "vr_geom.hpp"
 
 namespace box3d::detail
 {
@@ -74,16 +75,8 @@ namespace box3d::detail
     default: return "none";
     }
 }
-[[nodiscard]] glm::vec3 vec(const float* v)
-{
-    return {v[0], v[1], v[2]};
-}
-void store(const glm::vec3& g, float* v)
-{
-    v[0] = g.x;
-    v[1] = g.y;
-    v[2] = g.z;
-}
+using geom::vec;
+using geom::store;
 [[nodiscard]] qmodel_t* modelOf(edict_t* ent)
 {
     const int index = static_cast<int>(ent->v.modelindex);

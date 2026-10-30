@@ -57,8 +57,6 @@ struct PlanKey
     void add(int v) { add(&v, sizeof(v)); }
     void add(const char* s);
 };
-[[nodiscard]] trace_t traceLine(const glm::vec3& a, const glm::vec3& b);
-[[nodiscard]] int contents(const glm::vec3& p);
 [[nodiscard]] const char* materialName(Material m);
 
 // What entities a piece (or a crate: vr_crates.cpp) keeps away from: their boxes, grown by a margin.

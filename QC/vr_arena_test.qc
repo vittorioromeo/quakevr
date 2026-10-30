@@ -483,7 +483,7 @@ void() VR_AT_HookCheck =
     foe.classname = "monster_army";
     foe.ar_slot = 5;
     foe.health = 30;
-    entity holder = VR_ARENA_FindPlayer();
+    entity holder = VR_PlayerAlive();
     entity held0 = world;
     if(holder) { held0 = holder.mainhand_held; holder.mainhand_held = foe; foe.carry_player = holder; }
     VR_ARENA_ClearField(5);
@@ -523,7 +523,7 @@ void() VR_AT2_Begin =
 // foe still on its way to the floor is left for the next frame. 1 when a blow landed.
 float(float xWave) VR_AT_KillOne =
 {
-    entity p = VR_ARENA_FindPlayer();
+    entity p = VR_PlayerAlive();
     if(p == world) { return 0; }
 
     entity e = findflags(world, ar_slot, xWave);
@@ -543,7 +543,7 @@ float(float xWave) VR_AT_KillOne =
 void() VR_AT2_Frame =
 {
     entity e;
-    entity p = VR_ARENA_FindPlayer();
+    entity p = VR_PlayerAlive();
 
     if(!p) { VR_AT_Check(FALSE, "test 2 needs a player in the map"); VR_AT_End(); return; }
 
@@ -1567,7 +1567,7 @@ float vr_at6_blows;
 
 float(float xWave) VR_AT6_KillOne =
 {
-    entity p = VR_ARENA_FindPlayer();
+    entity p = VR_PlayerAlive();
     if(p == world) { return 0; }
     entity e = findflags(world, ar_slot, xWave);
     while(e)
@@ -1630,7 +1630,7 @@ void() VR_AT6_Finish =
                    vr_dropcap_mended));
     // The fades' safety net (VR_EnemyWeapons_MendFades): a fade stopped midway (its think replaced) on again; one long
     // overdue gone.
-    entity pl = VR_ARENA_FindPlayer();
+    entity pl = VR_PlayerAlive();
     entity w = CreateThrownWeapon(pl, WID_SHOTGUN, 0, world, pl.origin + '64 0 16', '0 0 0', '0 0 0', '0 0 0', FALSE, FALSE, 0);
     VR_EnemyWeapons_Fade(w);
     w.think = SUB_Null;
@@ -1761,7 +1761,7 @@ void(entity p) VR_AT7_Guns =
 void() VR_AT7_Begin =
 {
     if(!ar_mgr) { VR_AT_Check(FALSE, "test 7 needs the arena (vrarena, or vr_arena 1)"); VR_AT_End(); return; }
-    entity p = VR_ARENA_FindPlayer();
+    entity p = VR_PlayerAlive();
     if(p == world) { VR_AT_Check(FALSE, "test 7 needs a player"); VR_AT_End(); return; }
 
     VR_AT7_Guns(p);
@@ -1803,7 +1803,7 @@ void() VR_AT7_Begin =
 
 void() VR_AT7_Frame =
 {
-    entity p = VR_ARENA_FindPlayer();
+    entity p = VR_PlayerAlive();
     if(vr_at_step == 1)
     {
         if(p) { p.mainhand_held = vr_at7_b0; } // (held: taken again every beat, as a held ragdoll's limb is)
@@ -1853,7 +1853,7 @@ float() VR_AT8_Bodies =
 void() VR_AT8_Begin =
 {
     if(ar_mgr) { VR_AT_Check(FALSE, "test 8 needs a map with no arena (e1m1)"); VR_AT_End(); return; }
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     if(p == world) { VR_AT_Check(FALSE, "test 8 needs a player"); VR_AT_End(); return; }
     float n = 0;
     entity e = findflags(world, flags, FL_MONSTER);
@@ -2037,7 +2037,7 @@ void(float xWave, float xBoss, float xBossWave) VR_AT10_Cell =
     float wtype = 0;
     float wpcs = pcs;
     if(xBoss) { want = c > 0 ? 1 : 0; wtype = min(3, best + 1); wpcs = min(10, pcs + AR_ARM_BOSS_PCS); }
-    else if(xBossWave && c > 0) { want = VR_ARENA_Clamp(c + AR_ARM_GUARD, 0, AR_ARM_CAP); }
+    else if(xBossWave && c > 0) { want = clamp(c + AR_ARM_GUARD, 0, AR_ARM_CAP); }
 
     float n = 0;
     float okType = TRUE;
@@ -2210,7 +2210,7 @@ void() VR_AT10_Frame =
         VR_AT_Check(boss != world && boss.vr_ar_type == 2 && VR_AT10_Plates(boss.vr_ar_mask) == 6, "the boss enforcer in yellow, 6 plates");
         if(boss != world)
         {
-            entity p = VR_ARENA_FindPlayer();
+            entity p = VR_PlayerAlive();
             vr_at10_score = ar_score;
             T_Damage(boss, p, p, boss.health + 1000);
             float want = VR_ARENA_ArmourWorth(VR_ARENA_KillScore(VR_ARENA_TierOf(boss.ar_tier), 1), 2);
@@ -2223,7 +2223,7 @@ void() VR_AT10_Frame =
         entity g = spawn();
         self = g;
         g.classname = "monster_army";
-        setorigin(g, VR_ARENA_FindPlayer().origin + '0 0 4096'); // (out of the way; it is removed at once)
+        setorigin(g, VR_PlayerAlive().origin + '0 0 4096'); // (out of the way; it is removed at once)
         monster_vr_grunt();
         self = keep;
         VR_AT_Check(vr_ar_seq == seq + 1 && g.vr_ar_type > 0 && g.ar_armour == 0, "a grunt outside the waves rolls the skill's armour as before");
@@ -2413,7 +2413,7 @@ void() VR_AT11_Plans =
 void() VR_AT11_Begin =
 {
     if(!ar_mgr) { VR_AT_Check(FALSE, "test 11 needs the arena running (vrtesthall with vr_arena 1)"); VR_AT_End(); return; }
-    entity p = VR_ARENA_FindPlayer();
+    entity p = VR_PlayerAlive();
     if(!p) { VR_AT_Check(FALSE, "test 11 needs a player"); VR_AT_End(); return; }
 
     // The normal setting for both: what falls is filtered by eligibility, which is the gate this test is about.
@@ -2434,7 +2434,7 @@ void() VR_AT11_Frame =
 {
     if(ar_wave < 20 || ar_plan_left > 0) { return; } // (the whole wave in, as test 10 waits for it)
 
-    entity p = VR_ARENA_FindPlayer();
+    entity p = VR_PlayerAlive();
     float planned = 0;
     float worn = 0;
     float hums = 0;
@@ -2640,7 +2640,7 @@ void() VR_AT13_Begin =
     if(!ar_mgr) { VR_AT_Check(FALSE, "test 13 needs the arena (vrarena)"); VR_AT_End(); return; }
     entity g = VR_ARENA_SpawnSpot(1, 0);
     entity it = VR_ARENA_ItemSpot(0);
-    entity p = VR_ARENA_FindPlayer();
+    entity p = VR_PlayerAlive();
     if(!g || !it || !p) { VR_AT_Check(FALSE, "test 13 needs vrarena's places and a player"); VR_AT_End(); return; }
 
     // The box checks: a thing on a place takes it; a drop's place with a thing on it is stepped round.
@@ -2778,7 +2778,7 @@ void(float xSeed, float xRow) VR_AT15_Picks =
 {
     cvar_set("vr_arena_seed", ftos(xSeed));
     VR_ARENA_ScatterBegin(4);
-    entity p = VR_ARENA_FindPlayer();
+    entity p = VR_PlayerAlive();
     float i;
     for(i = 0; i < AR_T15_PICKS; i++)
     {

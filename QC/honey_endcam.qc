@@ -26,11 +26,11 @@ void() clear_idlescale =
     endcam.pos1_y = cvar_hget(cvarh_v_iroll_level);
     endcam.pos1_z = cvar_hget(cvarh_v_ipitch_level);
 
-    p = find(world, classname, "player");
+    p = VR_Player();
     while (p != world)
     {
         stuffcmd(p, "v_iyaw_level 0\nv_iroll_level 0\nv_ipitch_level 0\n");
-        p = find(p, classname, "player");
+        p = VR_NextPlayer(p);
     }
 }
 
@@ -38,7 +38,7 @@ void() reset_idlescale =
 {
     entity p;
 
-    p = find(world, classname, "player");
+    p = VR_Player();
     while (p != world)
     {
         stuffcmd(p, "v_iyaw_level ");
@@ -48,7 +48,7 @@ void() reset_idlescale =
         stuffcmd(p, "\nv_ipitch_level ");
         stuffcmd_float(p, endcam.pos1_z);
         stuffcmd(p, "\n");
-        p = find(p, classname, "player");
+        p = VR_NextPlayer(p);
     }
 }
 
@@ -69,7 +69,7 @@ void() endcam_done =
 
 void() endcam_cutscene =
 {
-    other = find(world, classname, "player");
+    other = VR_Player();
     while (other != world)
     {
         other.view_ofs = '0 0 0';
@@ -83,7 +83,7 @@ void() endcam_cutscene =
         other.modelindex = 0;
         setorigin(other, endcam.origin);
 
-        other = find(other, classname, "player");
+        other = VR_NextPlayer(other);
     }
 
     WriteByte(MSG_ALL, SVC_CUTSCENE);
@@ -100,12 +100,12 @@ void() execute_endcam =
     WriteByte(MSG_ALL, 0);
     WriteByte(MSG_ALL, 0);
 
-    other = find(world, classname, "player");
+    other = VR_Player();
     while (other != world)
     {
         other.movetype = MOVETYPE_NOCLIP;
 
-        other = find(other, classname, "player");
+        other = VR_NextPlayer(other);
     }
 
 

@@ -79,7 +79,7 @@ void() lavaman_hunt =
     if(self.enemy.health <= 0)
     {
         viewPoint = self.origin + '0 0 96';
-        possibleEnemy = find(self.enemy, classname, "player");
+        possibleEnemy = VR_NextPlayer(self.enemy);
         traceline (viewPoint, possibleEnemy.origin, TRUE, world);
         if(trace_fraction == 1)
             self.enemy = possibleEnemy;

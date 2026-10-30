@@ -30,14 +30,14 @@
 void() AD_WorldDefaults =
 {
     ad_skill = skill;
-    ad_developer = cvar("developer");
+    ad_developer = cvar_hget(cvarh_developer);
     ad_engine = ad_ENG_FITZ;
     ad_player_fallspeed_reset(); // (the jump speed the boots start from; the fall rules stay Quake VR's here)
     ad_map_bleedingdmg = ad_DAMAGE_BLEEDING;
     ad_map_hazarddmg_x = ad_WATER_DAMAGE;
     ad_map_hazarddmg_y = ad_SLIME_DAMAGE;
     ad_map_hazarddmg_z = ad_LAVA_DAMAGE;
-    ad_map_gravity = cvar("sv_gravity");
+    ad_map_gravity = cvar_hget(cvarh_sv_gravity);
     ad_configflag = 0; // (AD's sprite particles off: its emitters, bursts and respawn rings)
 };
 

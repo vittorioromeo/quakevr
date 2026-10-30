@@ -1,6 +1,7 @@
 // vr_rigstudio.cpp -- the Rig Studio: see vr_rigstudio.hpp (its mode, its scene, its camera's hook, the edits, undo and
 // redo, saving, the commands). The viewport is vr_rigstudio_view.cpp's, the windows vr_rigstudio_ui.cpp's.
 
+#include "vr_testkit.hpp"
 #include "vr_rigstudio_internal.hpp"
 #include "vr_aggrip.hpp"
 #include "vr_aglegs.hpp"
@@ -17,6 +18,7 @@
 #include "vr_rigseq.hpp"
 #include "vr_toolgun.hpp"
 #include "vr_view.hpp"
+#include "vr_geom.hpp"
 
 #include "thirdparty/imgui/imgui.h"
 
@@ -61,7 +63,7 @@ Studio st;
 namespace
 {
 
-constexpr float deg = 3.14159265f / 180.f;
+using geom::deg;
 constexpr float stageAhead = 160.f; // units: the subject this far ahead of the start
 
 // The model's frame groups (made with its geometry).
@@ -72,13 +74,6 @@ struct Groups
     const qmodel_t* model{nullptr};
 };
 Groups groups;
-
-struct SvVm
-{
-    qcvm_t* old{nullptr};
-    SvVm() { PR_PushQCVM(&sv.qcvm, &old); }
-    ~SvVm() { PR_PopQCVM(old); }
-};
 
 [[nodiscard]] bool inGame()
 {
@@ -175,8 +170,8 @@ void tellAim(edict_t* e)
     if(aimFields.progs != sv.qcvm.progs)
     {
         aimFields.progs = sv.qcvm.progs;
-        aimFields.at = ED_FindFieldOffset("vr_rs_aim");
-        aimFields.on = ED_FindFieldOffset("vr_rs_aimon");
+        aimFields.at = progs::fields().vr_rs_aim;
+        aimFields.on = progs::fields().vr_rs_aimon;
     }
     progs::setFieldVec(e, aimFields.at, st.aim.at);
     progs::setFieldFloat(e, aimFields.on, st.aim.on ? 1.f : 0.f);
@@ -196,7 +191,7 @@ void removeSubject()
         st.subject = 0;
         return;
     }
-    const SvVm vm;
+    const progs::ServerVm vm;
     edict_t* e = subjectEdict();
     const func_t fn = progs::findFunction("VR_RigStudio_Remove");
     if(e && fn && st.subject > svs.maxclients)
@@ -943,7 +938,7 @@ struct AimReading
     }
     if(sv.active && st.note.prop > 0 && st.note.prop < sv.qcvm.num_edicts)
     {
-        const SvVm vm;
+        const progs::ServerVm vm;
         const edict_t* p = EDICT_NUM(st.note.prop);
         if(!p->free)
         {
@@ -1006,8 +1001,8 @@ struct Census
 [[nodiscard]] Census census()
 {
     Census c;
-    const SvVm vm;
-    const int instOfs = ED_FindFieldOffset("weaponinst");
+    const progs::ServerVm vm;
+    const int instOfs = progs::fields().weaponinst;
     const edict_t* subj = subjectEdict();
     const int sp = subj ? EDICT_TO_PROG(subj) : -1;
     for(int i = 1; i < sv.qcvm.num_edicts; i++)
@@ -1160,7 +1155,7 @@ void subjectTestTick()
     stest.step++;
     if(stest.step >= subjectStepCount)
     {
-        Con_Printf("rigstudio subjects: %d passed, %d failed\n", stest.passed, stest.failed);
+        qvr::testkit::verdict("rigstudio subjects", stest.passed, stest.failed);
         stest.step = -1;
         return;
     }
@@ -1387,7 +1382,7 @@ void aimTestTick()
     atest.step++;
     if(atest.step >= aimCaseCount)
     {
-        Con_Printf("rigstudio aim: %d passed, %d failed\n", atest.passed, atest.failed);
+        qvr::testkit::verdict("rigstudio aim", atest.passed, atest.failed);
         atest.step = -1;
         return;
     }
@@ -1695,7 +1690,7 @@ void pkTestTick()
     ptest.step++;
     if(ptest.step >= pkStepCount)
     {
-        Con_Printf("rigstudio posekeys: %d passed, %d failed\n", ptest.passed, ptest.failed);
+        qvr::testkit::verdict("rigstudio posekeys", ptest.passed, ptest.failed);
         ptest.step = -1;
         return;
     }
@@ -1864,7 +1859,7 @@ void offTestTick()
         agpose::set(otest.code, otest.key0);
         const agpose::Key k = agpose::value(otest.code);
         otCheck("the key put back", !memcmp(&k, &otest.key0, sizeof(k)), "Run's key as it was");
-        Con_Printf("rigstudio offhand: %d passed, %d failed\n", otest.passed, otest.failed);
+        qvr::testkit::verdict("rigstudio offhand", otest.passed, otest.failed);
         otest.phase = -1;
         return;
     }
@@ -2001,7 +1996,7 @@ void offModesTestTick()
             if(++omtest.frames > 900)
             {
                 omCheck("subject", false, "no single gun subject (open it with one: vr_rigstudio monster_vr_grunt 4, the shotgun)");
-                Con_Printf("rigstudio offmodes: %d passed, %d failed\n", omtest.passed, omtest.failed);
+                qvr::testkit::verdict("rigstudio offmodes", omtest.passed, omtest.failed);
                 omtest.phase = -1;
             }
             return;
@@ -2112,7 +2107,7 @@ void offModesTestTick()
         same = same && !memcmp(&k, &omtest.keys0[i], sizeof(k));
     }
     omCheck("the keys put back", same, "the text and every key as before");
-    Con_Printf("rigstudio offmodes: %d passed, %d failed\n", omtest.passed, omtest.failed);
+    qvr::testkit::verdict("rigstudio offmodes", omtest.passed, omtest.failed);
     omtest.phase = -1;
 }
 
@@ -2156,7 +2151,7 @@ void stretchTestTick()
             {
                 stCheck("subject", false, "no single gun subject (open it with one: vr_rigstudio monster_vr_grunt 4, the shotgun)");
                 sttest.phase = -1;
-                Con_Printf("rigstudio stretch: %d passed, %d failed\n", sttest.passed, sttest.failed);
+                qvr::testkit::verdict("rigstudio stretch", sttest.passed, sttest.failed);
             }
             return;
         }
@@ -2247,7 +2242,7 @@ void stretchTestTick()
     }
     q_snprintf(text, sizeof(text), "%.3f (was %.3f)", agpose::stretch(st.subjKind, st.subjClass), sttest.was);
     stCheck("the setting put back", za::abs(agpose::stretch(st.subjKind, st.subjClass) - sttest.was) < 0.0051f, text);
-    Con_Printf("rigstudio stretch: %d passed, %d failed\n", sttest.passed, sttest.failed);
+    qvr::testkit::verdict("rigstudio stretch", sttest.passed, sttest.failed);
     Cbuf_AddText("wait\necho rigstudio stretch: done\n"); // (after its last screenshot: a run's end)
     sttest.phase = -1;
 }
@@ -2792,7 +2787,7 @@ void close()
     if(inGame())
     {
         removeSubject(); // (the studio's stand-in: never left in the map, unkillable, its AI let go)
-        const SvVm vm;
+        const progs::ServerVm vm;
         edict_t* p = EDICT_NUM(1);
         p->v.flags = static_cast<float>(static_cast<int>(p->v.flags) & ~(FL_GODMODE | FL_NOTARGET));
     }
@@ -3580,7 +3575,7 @@ void serverFrame()
         return; // (the room not loaded yet)
     }
     st.wantMap = false;
-    const SvVm vm;
+    const progs::ServerVm vm;
     edict_t* p = EDICT_NUM(1);
     p->v.flags = static_cast<float>(static_cast<int>(p->v.flags) | FL_GODMODE | FL_NOTARGET);
     if(!st.staged)

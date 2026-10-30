@@ -1,5 +1,7 @@
 // vr_adguns.cpp -- see vr_adguns.hpp.
 
+#include "vr_mdlbuild.hpp"
+#include "vr_bytes.hpp"
 #include "vr_adguns.hpp"
 #include "vr_adcrossbow.hpp"
 #include "vr_modelmetadata.hpp"
@@ -77,20 +79,6 @@ constexpr Turned turnedModels[] = {
     return nullptr;
 }
 
-[[nodiscard]] int rd(const byte* b, size_t at)
-{
-    int v;
-    memcpy(&v, b + at, 4);
-    return LittleLong(v);
-}
-
-[[nodiscard]] float rdf(const byte* b, size_t at)
-{
-    float v;
-    memcpy(&v, b + at, 4);
-    return LittleFloat(v);
-}
-
 void put(za::Vector<byte>& out, int v)
 {
     const int le = LittleLong(v);
@@ -103,22 +91,6 @@ void putf(za::Vector<byte>& out, float v)
     const float le = LittleFloat(v);
     const byte* p = reinterpret_cast<const byte*>(&le);
     out.emplaceBackRange(p, 4);
-}
-
-[[nodiscard]] byte nearestNormal(const glm::vec3& d)
-{
-    int best = 0;
-    float bestDot = -2.f;
-    for(int i = 0; i < NUMVERTEXNORMALS; i++)
-    {
-        const float k = d.x * r_avertexnormals[i][0] + d.y * r_avertexnormals[i][1] + d.z * r_avertexnormals[i][2];
-        if(k > bestDot)
-        {
-            bestDot = k;
-            best = i;
-        }
-    }
-    return static_cast<byte>(best);
 }
 
 // "<base>#gun<skin>" taken apart; false if it isn't one.
@@ -179,20 +151,20 @@ bool build(const char* base, int skin, const byte* src, size_t size, Built& out,
         why = "not an AD soldier's model";
         return false;
     }
-    if(size < headerSize || rd(src, 0) != IDPOLYHEADER || rd(src, 4) != ALIAS_VERSION)
+    if(size < headerSize || qvr::bytes::le32(src, 0) != IDPOLYHEADER || qvr::bytes::le32(src, 4) != ALIAS_VERSION)
     {
         why = "not an alias model";
         return false;
     }
-    const int numSkins = rd(src, 48), skinW = rd(src, 52), skinH = rd(src, 56);
-    const int numVerts = rd(src, 60), numTris = rd(src, 64), numFrames = rd(src, 68);
+    const int numSkins = qvr::bytes::le32(src, 48), skinW = qvr::bytes::le32(src, 52), skinH = qvr::bytes::le32(src, 56);
+    const int numVerts = qvr::bytes::le32(src, 60), numTris = qvr::bytes::le32(src, 64), numFrames = qvr::bytes::le32(src, 68);
     if(numVerts != gun->numVerts || numTris != gun->numTris || numSkins < 1 || skinW <= 0 || skinH <= 0)
     {
         why = "another release of the model than the one measured";
         return false;
     }
-    const glm::vec3 scale{rdf(src, 8), rdf(src, 12), rdf(src, 16)};
-    const glm::vec3 origin{rdf(src, 20), rdf(src, 24), rdf(src, 28)};
+    const glm::vec3 scale{qvr::bytes::lef32(src, 8), qvr::bytes::lef32(src, 12), qvr::bytes::lef32(src, 16)};
+    const glm::vec3 origin{qvr::bytes::lef32(src, 20), qvr::bytes::lef32(src, 24), qvr::bytes::lef32(src, 28)};
     const size_t skinBytes = static_cast<size_t>(skinW) * static_cast<size_t>(skinH);
 
     // The skins: the one asked for (a group's first picture), else the first.
@@ -206,14 +178,14 @@ bool build(const char* base, int skin, const byte* src, size_t size, Built& out,
             return false;
         }
         const byte* picture = nullptr;
-        if(rd(src, at) == 0)
+        if(qvr::bytes::le32(src, at) == 0)
         {
             picture = src + at + 4;
             at += 4 + skinBytes;
         }
         else
         {
-            const int n = za::max(rd(src, at + 4), 1);
+            const int n = za::max(qvr::bytes::le32(src, at + 4), 1);
             picture = src + at + 8 + static_cast<size_t>(n) * 4;
             at += 8 + static_cast<size_t>(n) * 4 + static_cast<size_t>(n) * skinBytes;
         }
@@ -239,12 +211,12 @@ bool build(const char* base, int skin, const byte* src, size_t size, Built& out,
         {
             break;
         }
-        const int type = rd(src, at);
+        const int type = qvr::bytes::le32(src, at);
         at += 4;
         int members = 1;
         if(type != 0)
         {
-            members = za::max(rd(src, at), 1);
+            members = za::max(qvr::bytes::le32(src, at), 1);
             at += 4 + 8 + static_cast<size_t>(members) * 4;
         }
         for(int m = 0; m < members; m++)
@@ -286,14 +258,14 @@ bool build(const char* base, int skin, const byte* src, size_t size, Built& out,
         bool all = true;
         for(int c = 0; c < 3; c++)
         {
-            v[c] = rd(src, tAt + 4 + static_cast<size_t>(c) * 4);
+            v[c] = qvr::bytes::le32(src, tAt + 4 + static_cast<size_t>(c) * 4);
             all = all && v[c] >= 0 && v[c] < numVerts && isGunVertex(*gun, v[c]);
         }
         if(!all)
         {
             continue;
         }
-        tris.pushBack(rd(src, tAt));
+        tris.pushBack(qvr::bytes::le32(src, tAt));
         for(int c = 0; c < 3; c++)
         {
             int& k = kept[static_cast<za::SizeT>(v[c])];
@@ -427,15 +399,15 @@ bool build(const char* base, int skin, const byte* src, size_t size, Built& out,
     put(f, 1); // one frame
     put(f, 0);
     put(f, 0); // no effects
-    putf(f, rdf(src, 80));
+    putf(f, qvr::bytes::lef32(src, 80));
     put(f, 0);
     f.emplaceBackRange(chosen, skinBytes);
     for(const int v : verts)
     {
         const size_t vAt = stAt + static_cast<size_t>(v) * 12;
-        put(f, rd(src, vAt));
-        put(f, rd(src, vAt + 4));
-        put(f, rd(src, vAt + 8));
+        put(f, qvr::bytes::le32(src, vAt));
+        put(f, qvr::bytes::le32(src, vAt + 4));
+        put(f, qvr::bytes::le32(src, vAt + 8));
     }
     for(za::SizeT i = 0; i < tris.size(); i += 4)
     {
@@ -461,7 +433,7 @@ bool build(const char* base, int skin, const byte* src, size_t size, Built& out,
         const byte n = src[poseAt + static_cast<size_t>(verts[i]) * 4 + 3];
         const glm::vec3 nv = n < NUMVERTEXNORMALS ? glm::vec3{r_avertexnormals[n][0], r_avertexnormals[n][1], r_avertexnormals[n][2]}
                                                   : glm::vec3{0.f, 0.f, 1.f};
-        b[3] = nearestNormal(glm::vec3{glm::dot(nv, axis), glm::dot(nv, left), glm::dot(nv, up)});
+        b[3] = qvr::mdlbuild::nearestNormal(glm::vec3{glm::dot(nv, axis), glm::dot(nv, left), glm::dot(nv, up)});
         packed.emplaceBackRange(b, 4);
     }
     f.emplaceBackRange(bmin, 4);
@@ -481,24 +453,24 @@ namespace
 // vertices rewritten: x' = pivot.y - y, y' = x - pivot.x, z' = z - pivot.z).
 [[nodiscard]] bool turn(const Turned& t, const byte* src, size_t size, Built& out, const char*& why)
 {
-    if(size < headerSize || rd(src, 0) != IDPOLYHEADER || rd(src, 4) != ALIAS_VERSION)
+    if(size < headerSize || qvr::bytes::le32(src, 0) != IDPOLYHEADER || qvr::bytes::le32(src, 4) != ALIAS_VERSION)
     {
         why = "not an alias model";
         return false;
     }
-    const int numSkins = rd(src, 48), skinW = rd(src, 52), skinH = rd(src, 56);
-    const int numVerts = rd(src, 60), numTris = rd(src, 64), numFrames = rd(src, 68);
+    const int numSkins = qvr::bytes::le32(src, 48), skinW = qvr::bytes::le32(src, 52), skinH = qvr::bytes::le32(src, 56);
+    const int numVerts = qvr::bytes::le32(src, 60), numTris = qvr::bytes::le32(src, 64), numFrames = qvr::bytes::le32(src, 68);
     if(numSkins < 1 || skinW <= 0 || skinH <= 0 || numVerts <= 0 || numTris <= 0 || numFrames <= 0)
     {
         why = "bad header";
         return false;
     }
-    const glm::vec3 scale{rdf(src, 8), rdf(src, 12), rdf(src, 16)};
-    const glm::vec3 origin{rdf(src, 20), rdf(src, 24), rdf(src, 28)};
+    const glm::vec3 scale{qvr::bytes::lef32(src, 8), qvr::bytes::lef32(src, 12), qvr::bytes::lef32(src, 16)};
+    const glm::vec3 origin{qvr::bytes::lef32(src, 20), qvr::bytes::lef32(src, 24), qvr::bytes::lef32(src, 28)};
     const glm::vec3 c{t.pivot[0], t.pivot[1], t.pivot[2]};
     const glm::vec3 scale2{scale.y, scale.x, scale.z};
     const glm::vec3 origin2{c.y - origin.y - 255.f * scale.y, origin.x - c.x, origin.z - c.z};
-    const glm::vec3 eye{rdf(src, 36), rdf(src, 40), rdf(src, 44)};
+    const glm::vec3 eye{qvr::bytes::lef32(src, 36), qvr::bytes::lef32(src, 40), qvr::bytes::lef32(src, 44)};
 
     out.file.clear();
     out.file.emplaceBackRange(src, size);
@@ -525,13 +497,13 @@ namespace
             why = "truncated (skins)";
             return false;
         }
-        if(rd(src, at) == 0)
+        if(qvr::bytes::le32(src, at) == 0)
         {
             at += 4 + skinBytes;
         }
         else
         {
-            const int n = za::max(rd(src, at + 4), 1);
+            const int n = za::max(qvr::bytes::le32(src, at + 4), 1);
             at += 8 + static_cast<size_t>(n) * 4 + static_cast<size_t>(n) * skinBytes;
         }
     }
@@ -557,7 +529,7 @@ namespace
             why = "truncated (frames)";
             return false;
         }
-        const int type = rd(src, at);
+        const int type = qvr::bytes::le32(src, at);
         at += 4;
         int members = 1;
         if(type != 0)
@@ -567,7 +539,7 @@ namespace
                 why = "truncated (frame group)";
                 return false;
             }
-            members = za::max(rd(src, at), 1);
+            members = za::max(qvr::bytes::le32(src, at), 1);
             turnBox(at + 4);
             at += 4 + 8 + static_cast<size_t>(members) * 4;
         }
@@ -589,7 +561,7 @@ namespace
                 b[1] = x;
                 if(n < NUMVERTEXNORMALS)
                 {
-                    b[3] = nearestNormal(glm::vec3{-r_avertexnormals[n][1], r_avertexnormals[n][0], r_avertexnormals[n][2]});
+                    b[3] = qvr::mdlbuild::nearestNormal(glm::vec3{-r_avertexnormals[n][1], r_avertexnormals[n][0], r_avertexnormals[n][2]});
                 }
                 const glm::vec3 p = glm::vec3{b[0], b[1], b[2]} * scale2 + origin2;
                 radius = za::max(radius, glm::length(p));

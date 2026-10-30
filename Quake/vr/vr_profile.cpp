@@ -7,6 +7,7 @@
 // is available (a few frames later), so the CPU never waits for the GPU; only when the ring comes
 // round to a slot still pending is it read waiting (counted as a stall in the report).
 
+#include "vr_strings.hpp"
 #include "vr_profile.hpp"
 #include "vr_tracy.h"
 #include "vr_profile_systems.hpp"
@@ -792,40 +793,30 @@ struct Top
     return p;
 }
 
-void appendf(za::String& out, const char* fmt, ...)
-{
-    char buf[512];
-    va_list args;
-    va_start(args, fmt);
-    q_vsnprintf(buf, sizeof(buf), fmt, args);
-    va_end(args);
-    out += buf;
-}
-
 // Map, resolution and the graphics settings: "# key,value" lines.
 [[nodiscard]] za::String context()
 {
     za::String c;
-    appendf(c, "# map,%s\n", captureMap.cStr());
+    qvr::strings::appendf(c, "# map,%s\n", captureMap.cStr());
     int w = 0, h = 0;
     if(Backend* be = backend())
     {
         be->eyeResolution(w, h);
-        appendf(c, "# vr_backend,%s\n", be->name());
-        appendf(c, "# xr_runtime,%s\n", be->runtimeName());
+        qvr::strings::appendf(c, "# vr_backend,%s\n", be->name());
+        qvr::strings::appendf(c, "# xr_runtime,%s\n", be->runtimeName());
     }
     else
     {
-        appendf(c, "# vr_backend,off\n");
+        qvr::strings::appendf(c, "# vr_backend,off\n");
     }
-    appendf(c, "# eye_resolution,%dx%d\n", w, h);
-    appendf(c, "# window,%dx%d\n", vid.width, vid.height);
-    appendf(c, "# gl_renderer,%s\n", gl_renderer ? gl_renderer : "?");
+    qvr::strings::appendf(c, "# eye_resolution,%dx%d\n", w, h);
+    qvr::strings::appendf(c, "# window,%dx%d\n", vid.width, vid.height);
+    qvr::strings::appendf(c, "# gl_renderer,%s\n", gl_renderer ? gl_renderer : "?");
     for(const char* name : settingCvars)
     {
         if(const cvar_t* v = Cvar_FindVar(name))
         {
-            appendf(c, "# cvar,%s,%s\n", name, v->string);
+            qvr::strings::appendf(c, "# cvar,%s,%s\n", name, v->string);
         }
     }
     return c;
@@ -907,7 +898,7 @@ void writeFile(double seconds)
     za::String line;
     for(const Top& t : top(gpu, count))
     {
-        appendf(line, "%s%s %.2f", line.empty() ? "" : ", ", t.name, t.ms);
+        qvr::strings::appendf(line, "%s%s %.2f", line.empty() ? "" : ", ", t.name, t.ms);
     }
     return line;
 }

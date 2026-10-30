@@ -11,6 +11,7 @@
 #include "vr_engine.hpp"
 #include "vr_rigdata.hpp"
 #include "vr_rigpose.hpp"
+#include "vr_geom.hpp"
 
 #include "thirdparty/imgui/imgui.h"
 
@@ -37,8 +38,8 @@ using namespace qvr::rigstudio::detail;
 namespace
 {
 
-constexpr float pi = 3.14159265f;
-constexpr float deg = pi / 180.f;
+using geom::pi;
+using geom::deg;
 
 // Handle parts (dragAxis): 0..2 the axes (rings or arrows), 3 the view ring / the view plane, 4..6 the planes (yz, zx,
 // xy), 10 the rest pose's pivot, 11 its end.

@@ -90,7 +90,7 @@ void(entity p, float request) VR_MeleeArcTest_Start =
 void() VR_MeleeArcTest_Frame =
 {
     float request = cvar("vr_test_meleearc");
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     if(request)
     {
         cvar_set("vr_test_meleearc", "0");

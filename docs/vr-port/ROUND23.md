@@ -718,6 +718,61 @@ Checklist:
   back towards you after a punch does not hit or whoosh again.
 - Push a hand or a held gun slowly into a live grunt or enforcer: the drawn hand stops at its body (Debug > Show Model
   Collisions logs the push), as it does at a corpse.
+## Refactor pass, wave A2: canonical engine-access helpers (branch `agent/refaccess`)
+
+The helpers (table in CODE_STYLE.md, "Canonical helpers", "Engine access"): `progs::ServerVm`, `localPlayer`, `edictAt`,
+`forEachEdict`, `nearestBy`, `callQc/qcFloat/qcText/qcVec`, `vecParm/returnVec/setVecParm/returnedVec`, `handFields`
+(vr_progs.hpp); `worldtrace::contents/clientContents/liquidContents/isLiquid/serverLine` (vr_trace.hpp);
+`haptics::pulse` (vr_backend.hpp, vr_main.cpp); `cvars::forEach/Override/Snapshot` (vr_cvars.hpp); `client::entityNumber`
+(vr_client.hpp); 21 fields moved from `ED_FindFieldOffset("...")` at each use into vr_fields.inc (weaponflags, weapon2,
+weaponinst, handtouch, vr_drop_born, vr_kd_until, vr_ag*, vr_rigseq*, vr_rs_aim*, stl_*).
+
+Copies removed: 13 VM guard structs, 2 sets of QC-call helpers (arenacards by name, toolgun by func_t), 2 serverEdict,
+scenario's player(), 4 numberOf, 9 haptic wrappers (bladeedit, flashlight, holstersetup, posestudio, posing, motion,
+menuui, toolgun::haptic, voicenotes) plus 7 inline gated blocks, avatar/physics isLiquid, physics contentsAt,
+debris::contents, box3d_step liquidAt and its two declarations (P25), debris::traceLine and ragtest's traceLine,
+ragtest's CvarOverride, motion_play's saved-settings vector, 3 nearest-monster loops, VR cvars read by name (vr_ad,
+toolgun, toolgun_panel, menu, tracy), 69 `hand ? f.x : f.offx` pairs. The liquid wrappers that carry their own rule
+(bloodprints, bloodstream, gore, knockdown, particles, shells) stay, their bodies on the worldtrace primitives (D3).
+
+Bugs fixed: bullet time's and the gear lights' buzzes ignored vr_disablehaptics (R01 W02); vr_hit_precise is put back as
+it was after the precise-hits diagnostic (M45: it was left 0 when on but enabled() off); the menu's hipnotic/rogue
+monster choices read their always-registered cvars directly (S14).
+
+Left on purpose: vr_timescale.cpp's VmScope (switches only when another VM is current); vr_gamedir.cpp's
+`Cvar_FindVar("vr_hipnotic_available")`/`("vr_campaign")` (they run from the filesystem init, before the cvars are
+registered: not always true); engine cvars read by name (host_timescale, host_maxfps, vid_vsync, sv_friction...: no
+extern in the VR headers); ragtool's player() (EDICT_NUM(1), unguarded); climb's traceLine (its own traceBox);
+dynamic-name field lookups (box3d_api keys, edictindex, notectx) and `mangle` (portals: also read with non-VR progs).
+Inline spellings not yet on the helpers (each differs in its guards or needs a hand conversion: wave B or a follow-up):
+EDICT_NUM(1) 79 sites / 33 files, svs.clients[0].edict 27/15, manual PR_PushQCVM pairs 87/40, `num_edicts` loops
+101/55, SV_PointContents 19/7, ungated or combined-condition be->haptic 12/9, G_VECTOR(OFS_*) pointer reads 173/4.
+Behaviour notes: haptics::pulse also drops a hand number outside 0..1 (some wrappers passed it on to the backend);
+hitreact's entity number of the world reads -1 (was 0; only its prints, never for the world).
+
+## Refactor phase 4, wave A4: QC canonical helpers (branch `agent/refqc`)
+
+No behaviour change intended; CODE_STYLE.md, "Canonical helpers", "QC", lists them.
+- `vr_util.qc`: `VR_Player`/`VR_NextPlayer` (inline; 195 `find(world, classname, "player")` and 74
+  `find(x, classname, "player")` spellings replaced outside QC/ad and frikbot), `VR_PlayerAlive` (was
+  VR_ARENA_FindPlayer, VR_ARK_Player), `clamp` (was honey_subs2's, VR_ARENA_Clamp, MG_Clamp), `VR_Wrap180` (was
+  VR_AG_Wrap180), `VR_Cross` (5 copies), `VR_Lerp`/`VR_Smooth` (were VR_AGP_*), `VR_PointSegmentDistance` (walltorch's,
+  melee's), `VR_SegmentDistance`/`VR_SegmentDistanceEps` (juice's; burning's passes its own `denom > 0`). Per-file player
+  getters gone: MG3_BT/CT/MT/WT_Player, MG3_Shub_Player, VR_GPT_Player.
+- `vr_testutil.qc`: `VR_Test_Begin/Check/Verdict` with one tally replace 12 per-test checks (mg3 bestiary, chthon,
+  monsters, shub, mg3test, weapons; mg horde, hub, trigger; nail, nail pistol, revolver). Their lines are unchanged.
+- Cvars: 149 `cvar("...")` reads in game code (tests kept theirs) use handles; 26 handles added for per-frame and think
+  reads (aim cone, enemy melee arcs, AD tanks and flails, kdtrig/guard/deadanim switches, `developer`...).
+  `vr_cvars.qc` is compiled right after `defs.qc` (combat.qc, fight.qc and vr_aimcone.qc came before it).
+- `Misc/quakevr/check_builtins.py` (kit build.sh): every `= #0` prototype is bound by an engine table and every VR
+  builtin has a prototype (191 prototypes, 180 VR builtins today).
+
+Left on purpose (different results): VR_AG_SegDist (eps 0.001, `den != 0`), VR_Reload_TestSegDist (0.001 floor),
+VR_RV_AngleNorm (wraps 180 to 180, not -180), hip_mon_arma/honey_subs2's one-step +-180 wraps, VR_RV_Wrap (chambers),
+VR_AGP_Nlerp/Ease (pose only). Tests: the agtest family (VR_AGT_*, VR_AGAM/AGST/AGPT2 copies print `agtest:`-style by
+bprint), VR_FLT_Check (its tag depends on the mode), VR_ART/APK/AT/Reload checks (print only failures) keep their own
+checks. Not done: VR_HandVec (the ~120 `xHand == cVR_MainHand ? p.a : p.offa` selects), one VR_TestsFrame, generating
+vr_cvars.qc's handles from vr_cvars.inc.
 
 ## Super shotgun: a loaded one flicks shut a little more easily (branch `agent/ssgflick`)
 

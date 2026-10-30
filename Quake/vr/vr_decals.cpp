@@ -1,5 +1,6 @@
 // vr_decals.cpp -- see vr_decals.hpp.
 
+#include "vr_random.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_decals.hpp"
 #include "vr_brushes.hpp"
@@ -38,6 +39,7 @@
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
 #include "vr_zancle.hpp"
+#include "vr_geom.hpp"
 
 #include <glm/gtc/type_ptr.hpp>
 
@@ -225,8 +227,7 @@ long long bakedAtOnce = 0; // marks baked straight into the permanent layer (Mar
 thread_local unsigned rngState = 12345u; // (the atlas is made on a worker thread, and by vr_decal_atlas)
 [[nodiscard]] float frand()
 {
-    rngState = rngState * 1664525u + 1013904223u;
-    return static_cast<float>(rngState >> 8) / 16777216.f;
+    return vrand::lcg01(rngState);
 }
 
 [[nodiscard]] float hash(int i, int seed)
@@ -246,11 +247,7 @@ thread_local unsigned rngState = 12345u; // (the atlas is made on a worker threa
     return hash(((i % lobes) + lobes) % lobes, seed) * (1.f - s) + hash((((i + 1) % lobes) + lobes) % lobes, seed) * s;
 }
 
-[[nodiscard]] float smoothstep(float e0, float e1, float x)
-{
-    const float t = za::clamp((x - e0) / (e1 - e0), 0.f, 1.f);
-    return t * t * (3.f - 2.f * t);
-}
+using geom::smoothstep;
 
 // Smooth value noise over the plane, 0..1.
 [[nodiscard]] float noise(glm::vec2 p, int seed)

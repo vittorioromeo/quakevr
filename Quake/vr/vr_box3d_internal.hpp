@@ -151,8 +151,8 @@ enum class Kind : uint8_t
     Corpse,  // a dead monster lying still (vr_corpse_collide): kinematic (Fixed) or a heavy dynamic body (Pushable)
 };
 [[nodiscard]] const char* kindName(Kind k);
-[[nodiscard]] glm::vec3 vec(const float* v);
-void store(const glm::vec3& g, float* v);
+using geom::vec;
+using geom::store;
 [[nodiscard]] qmodel_t* modelOf(edict_t* ent);
 [[nodiscard]] bool hasFlag(edict_t* ent, int flag);
 void setFlag(edict_t* ent, int flag, bool on);
@@ -1223,7 +1223,6 @@ void feedRagdoll(edict_t* ent, Slot& s);
 float activeFloorBelow(const glm::vec3& at, float depth);
 bool activeOnFloor(b3BodyId body);
 
-[[nodiscard]] int liquidAt(const glm::vec3& p); // (below: "Ragdolls and corpses in water")
 
 // The liquid a drive of entity `num` feels (activeLiquidAt; a test's swim on dry land, vr_ragdoll_act: that liquid
 // everywhere for its drive, none for its buoyancy).
@@ -1278,7 +1277,6 @@ void writeCorpse(edict_t* ent, Slot& s);
 void settleCorpses();
 void keepPendingHulls();
 void syncEntities(float dt);
-[[nodiscard]] int liquidAt(const glm::vec3& p);
 [[nodiscard]] edict_t* supportOf(const Slot& s);
 void writeProp(edict_t* ent, Slot& s);
 [[nodiscard]] bool reachMeets(b3ShapeId reach, b3ShapeId other);
@@ -1299,12 +1297,6 @@ void updateSettings();
 void destroyWorld();
 void buildWorld();
 
-struct VmScope
-{
-    qcvm_t* old{nullptr};
-    VmScope() { PR_PushQCVM(&sv.qcvm, &old); }
-    ~VmScope() { PR_PopQCVM(old); }
-};
 void addProfile(b3Profile& a, const b3Profile& b);
 
 // vr_physics_player [onto <number | classname>]: the first player's origin, velocity and ground (FL_ONGROUND,

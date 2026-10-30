@@ -54,7 +54,7 @@ void() monster_check_remove_corpse =
 
     if(VR_OtherFlags() || !(self.spawnflags & SPAWNFLAG_REMOVE_CORPSE)) { return; }
 
-    player = find(world, classname, "player");
+    player = VR_Player();
     while (player)
     {
         if(canSee(player, self)) {
@@ -62,7 +62,7 @@ void() monster_check_remove_corpse =
             self.nextthink = time + 5;
             return;
         }
-        player = find(player, classname, "player");
+        player = VR_NextPlayer(player);
     }
 
     monster_SPAWNFLAG_REMOVE_CORPSE();

@@ -682,7 +682,7 @@ void() VR_TestCut_Frame =
         return;
     }
     cvar_set("vr_test_cut", "0");
-    entity pl = find(world, classname, "player");
+    entity pl = VR_Player();
     if(pl == world)
     {
         return;
@@ -763,7 +763,7 @@ void() VR_Limb_TestFrame =
         return;
     }
     cvar_set("vr_limb_test", "0");
-    entity p = find(world, classname, "player");
+    entity p = VR_Player();
     if(p == world)
     {
         return;
