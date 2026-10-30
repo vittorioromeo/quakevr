@@ -2434,7 +2434,8 @@ QVR_CVAR(vr_nailpistol_mag_pull, "0", CVAR_ARCHIVE)   // 1: its magazine pulls o
 // Its slide (vr_nailslide.cpp): back each shot and home again, locked back while the gun is empty; a magazine with
 // rounds put in closes it with a rack (vr/nailpistol_rack.wav). vr_nailpistol_slide_time (held back 0.07 s) retired.
 QVR_CVAR(vr_nailpistol_slide_travel, "1.5", CVAR_ARCHIVE) // how far it goes back, in the gun's model units (0..3: progs/v_nailpistol.mdl's frame 1 is 3 back)
-QVR_CVAR(vr_nailpistol_model, "0", CVAR_ARCHIVE)         // its look: 0 classic (a copper slide on top), 1 full slide (the whole upper receiver; v_nailpistol.mdl frames 2-3, build_nailpistol_slide.py); live
+QVR_CVAR(vr_nailpistol_model, "1", CVAR_ARCHIVE)         // its look: 1 full slide (the default since his note of 2026-10-30: the whole upper receiver; v_nailpistol.mdl frames 2-3, build_nailpistol_slide.py), 0 classic (archived: a copper slide on top; Debug > Tests > Nail Pistol); live
+QVR_CVAR(vr_nailpistol_screen_ride, "1", CVAR_ARCHIVE)   // 1: its ammo screen (on the full slide's left wall) rides back and home with the slide; 0: fixed on the gun
 // The heavy revolver (QC vr_revolver.qc; Combat > Weapon Damage > Heavy Revolver; Weapons > Reloading > Heavy
 // Revolver): one-handed, double action (a pull cocks the hammer, turns the cylinder a chamber and fires), six chambers
 // of your shells fired as slugs; immersive reloading: its cylinder swung out (a flick, B/Y), the shells dropped (the
@@ -4119,6 +4120,10 @@ QVR_CVAR(vr_flare_test, "0", CVAR_NONE) // Debug > Tests > Flare Gun: 1 its self
 QVR_CVAR(vr_rv_test, "0", CVAR_NONE) // Debug > Tests > Heavy Revolver: 1 its self-test (QC/vr_revolver_test.qc; "rvtest: N passed, M failed"), 2 one loaded in the main hand, 3 in both, 4 one swung out with live and spent shells, 5 an armed grunt with one (not archived)
 QVR_CVAR(vr_nailslide_debug, "0", CVAR_NONE) // Debug > Tests > Nail Pistol > Slide: Print: each frame the nail pistol's slide moves, "nailslide: hand H pos P (travel T) back B" (vr_nailslide.cpp; not archived)
 QVR_CVAR(vr_np_test, "0", CVAR_NONE) // Debug > Tests > Nail Pistol: 1 its self-test, 2 in your hand, 3 in both, 4 in the right hip and upper holsters (QC/vr_nailpistol_test.qc; "nptest: N passed, M failed"; not archived)
+QVR_CVAR(vr_np_probe, "0", CVAR_NONE)        // (its self-test sets it: 1, the engine writes what it draws into vr_np_seen_*: vr_nailslide.cpp probe)
+QVR_CVAR(vr_np_seen_screen, "0", CVAR_NONE)  // (written while vr_np_probe: the main hand's ammo screen moved by its slide, model units; vr_nailslide.cpp probe)
+QVR_CVAR(vr_np_seen_holster, "0", CVAR_NONE) // (and the holstered nail pistols drawn locked back + 100 x closed)
+QVR_CVAR(vr_np_seen_prop, "0", CVAR_NONE)    // (and those lying about, the same)
 QVR_CVAR(vr_nail_test, "0", CVAR_NONE) // Debug > Tests > Nail Pistol: 1 the nails' speed, hit box and drawn size test ("nailtest: N passed, M failed"), 2 three nails hung before your eyes for 30 s (QC/vr_nail_test.qc; not archived)
 QVR_CVAR(vr_mg3_wtest, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine Weapons: 1 report, 2 Super Axe blows (QC/vr_mg3_weapons_test.qc; not archived)
 QVR_CVAR(vr_mg_route_stage, "0", CVAR_NONE) // MG1/MG3 route sweep driver: each new map's first frame runs mg1route<stage>.cfg (MG3: mg3route<stage>.cfg) once (0 off; the scripts raise it); not archived

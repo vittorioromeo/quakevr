@@ -72,8 +72,18 @@ RUSTY = (IRON, DARK)
 # The classic skin's tone: its ray-traced occlusion leaves an open face at about this share of its light; its
 # texel-to-texel specks this strong (matched by Misc/quakevr scratch statistics: mean colour, spread, palette mix).
 EXPOSED = 0.85
-SPECK = 0.6
+SPECK = 0.75   # (0.6 until his note of 2026-10-30: "its colour is too uniform")
 BLUE = 0.82  # (and a yellower iron: its dark olive and grey browns, not the pink ramp)
+# Less uniform (his note 2026-10-30): the iron's tone swings wider with the noise (MOTTLE: was 0.16 mid, 0.12 fine), and
+# bare worn steel shows through in broad patches where the rust is thin (STEEL, up to STEEL_WEAR of it).
+MOTTLE = (0.76, 0.36, 0.18)  # col x (a + b * mid + c * fine)
+STEEL = (122, 120, 114)
+STEEL_WEAR = 0.45
+# The back end, steel as the classic look's rear housing was (his note 2026-10-30, "the more silvery/steel-coloured part
+# at the back end"): the full slide's and frame's texels behind REAR_X take the classic skin's texel at the same place
+# of the classic housing (x -4.6 .. -2.4, the side, back and top faces), then the serrations and worn edges over them.
+REAR_X = -2.4
+REAR_SAMPLE = None  # (main: the sampler, classic_sampler)
 RIVETS = [((6.35, SW, 4.15), 0.22), ((6.35, SW, 2.15), 0.22), ((-1.5, SW, 2.4), 0.22), ((5.9, FW, 1.35), 0.17),
           ((-3.55, FW, 1.35), 0.17)]
 
@@ -288,10 +298,14 @@ def paint(p, isl, speck):
     big = noise(mul(p, 0.8))
     mid = noise(add(mul(p, 2.6), (3.1, 7.7, 1.3)))
     fine = noise(add(mul(p, 7.5), (9.2, 1.4, 5.5)))
-    if part in RUSTY:
+    classic = REAR_SAMPLE(p, n) if REAR_SAMPLE and part in RUSTY and p[0] < REAR_X else None
+    if classic:
+        col = classic  # (its own speckle, rust and occlusion baked in: none added below but the serrations and edges)
+    elif part in RUSTY:
         rust = smooth(0.05, 0.55, 0.55 * big + 0.45 * mid + 0.25 * fine)
         col = mix(col, RUST, 0.75 * rust)
-        col = mul(col, 0.88 + 0.16 * mid + 0.12 * fine)
+        col = mix(col, STEEL, STEEL_WEAR * (1.0 - rust) * smooth(0.0, 0.5, -big + 0.3 * fine))
+        col = mul(col, MOTTLE[0] + MOTTLE[1] * mid + MOTTLE[2] * fine)
         if fine > 0.45:
             col = mul(col, 0.72)
         col = (col[0], col[1], col[2] * BLUE)
@@ -300,7 +314,8 @@ def paint(p, isl, speck):
         col = mix(col, (92, 72, 44), 0.5 * smooth(0.35, 0.7, big * 0.6 + fine * 0.5))
     else:
         col = mul(col, 0.92 + 0.1 * fine)
-    col = mul(col, 1.0 + speck)
+    if not classic:
+        col = mul(col, 1.0 + speck)
     if part == SLOT and n[2] > 0.5:
         col = mul(col, 1.9)
     x, y, z = p
@@ -352,8 +367,9 @@ def paint(p, isl, speck):
                 col = mix((52, 44, 36), (196, 182, 156), max(0.0, dot(dome, light)) ** 1.5)
             elif k < 1.4 and (v[2] < 0.0 or v[0] < -0.5 * r):
                 col = mul(col, 0.55)
-    col = mul(col, 0.3 + 0.7 * ao * EXPOSED)
-    col = mul(col, 0.94 + 0.1 * n[2])
+    if not classic:
+        col = mul(col, 0.3 + 0.7 * ao * EXPOSED)
+        col = mul(col, 0.94 + 0.1 * n[2])
     return tuple(max(0, min(255, int(round(c)))) for c in col)
 
 
@@ -404,6 +420,49 @@ def bake(b, skin, w, h):
 
 
 SKIN_TOP = 256
+
+
+def classic_sampler(P0, tris, kinds, front, st, skin, w):
+    """The classic skin's colour at a point of the classic rear housing (REAR_X back): its face whose plane is nearest
+    the point (within 0.6 units, facing as the normal n does, the point inside it), its texel there."""
+    cands = []
+    for k, (t, kd) in enumerate(zip(tris, kinds)):
+        a, c, d = (P0[i] for i in t)
+        if kd != "classic" or max(a[0], c[0], d[0]) > REAR_X + 0.05:
+            continue
+        nf = cross(sub(c, a), sub(d, a))
+        if length(nf) < 1e-6:
+            continue
+        nf = norm(nf)
+        sts = []
+        for i in t:
+            onseam, s, tt = st[i]
+            sts.append((s + (w // 2 if onseam and not front[k] else 0) + 0.5, tt + 0.5))
+        cands.append((a, c, d, nf, sts))
+
+    def sample(p, n):
+        best = None
+        for a, c, d, nf, sts in cands:
+            if abs(dot(nf, n)) < 0.85:
+                continue
+            dist = dot(sub(p, a), nf)
+            if abs(dist) > 0.6 or (best and abs(dist) >= best[0]):
+                continue
+            q = sub(p, mul(nf, dist))
+            v0, v1, v2 = sub(c, a), sub(d, a), sub(q, a)
+            d00, d01, d11, d20, d21 = dot(v0, v0), dot(v0, v1), dot(v1, v1), dot(v2, v0), dot(v2, v1)
+            den = d00 * d11 - d01 * d01
+            if abs(den) < 1e-12:
+                continue
+            u = (d11 * d20 - d01 * d21) / den
+            v = (d00 * d21 - d01 * d20) / den
+            if u < -0.02 or v < -0.02 or u + v > 1.02:
+                continue
+            s = sts[0][0] + u * (sts[1][0] - sts[0][0]) + v * (sts[2][0] - sts[0][0])
+            t = sts[0][1] + u * (sts[1][1] - sts[0][1]) + v * (sts[2][1] - sts[0][1])
+            best = (abs(dist), qpal.PALETTE[skin[min(SKIN_TOP - 1, max(0, int(t))) * w + min(w - 1, max(0, int(s)))]])
+        return best[1] if best else None
+    return sample
 
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -484,6 +543,8 @@ def main():
     HEX_ROT = math.degrees(math.atan2(ring[0][1], ring[0][0]))
     print("nozzle back: %s (first corner at %.1f degrees)" % (ring, HEX_ROT))
 
+    global REAR_SAMPLE
+    REAR_SAMPLE = classic_sampler(P[0], tris, kinds, [m.tris[k][0] for k in range(nt)], m.st, m.skins[0][2][0], w)
     b = build()
     bottom_row = layout(b, w, SKIN_TOP)
     print("new parts: %d islands, %d faces, skin rows %d..%d used" % (len(b.islands), len(b.faces), SKIN_TOP, bottom_row))

@@ -1340,10 +1340,9 @@ void ikStretchReset()
         slider("Nail Pistol Slide Travel", vr_nailpistol_slide_travel, 0.f, 3.f, 0.1f, "%.1f units")
             .help("How far its slide goes back each shot, and stays back while it is empty (the gun's own units: it is "
                   "about 13 long). A magazine with rounds put in racks it closed."),
-        cycle("Nail Pistol Model", "vr_nailpistol_model", {{0.f, "Classic"}, {1.f, "Full Slide"}})
-            .help("Its look. Classic: a copper slide on top of the receiver. Full Slide: the whole upper part is the "
-                  "slide, as a real pistol's (ejection port, cocking serrations, the sights on it), the barrel showing "
-                  "when it is back. Changes at once."),
+        toggle("Nail Pistol Screen Rides Slide", vr_nailpistol_screen_ride)
+            .help("Its ammo screen, mounted on the slide's left side, goes back and home with the slide (each shot, "
+                  "locked back while empty). Off: it stays put on the gun."),
         toggle("Flares Set Things on Fire", vr_flare_burn)
             .help("A flare sets what it hits on fire (monsters, corpses, crates; Combat > Burning) and sets off "
                   "explosive boxes. Off: its hit's damage only."),
