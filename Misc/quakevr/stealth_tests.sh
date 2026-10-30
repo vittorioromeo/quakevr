@@ -27,8 +27,11 @@ W=C:/OHWorkspace/qvr-agents/$AGENT
 mkdir -p "$W/scratch"
 fail=0
 PRE="vr_fixed_frames 1;vr_fixed_frames_rate 90;sv_random_seed ${SEED:-1};map e1m1;wait60;god;vr_weapon_grip_mode 1;impulse 9;wait5"
+# Undrawn (vr_mock_fast 2: unpaced frames not drawn; their checks read the game, not the drawing) but dogs' (its drawn
+# moves are logged as drawn) and horde's (a frame-time profile); STEALTH_DRAWN=1 draws them all, as before 2026-10-30.
 run() { # <tag> <script> [extra run.sh args]
     local tag=$1 s=$2; shift 2
+    case "$tag" in dogs*|horde) ;; *) [ "${STEALTH_DRAWN:-0}" = 1 ] || s="vr_mock_fast 2;$s" ;; esac
     bash $KIT/run.sh $AGENT -Script "$s" -Filter "stealthtest:|rror|ENGINE|stealth:.*(hostile|alert)|vr_profile|stealth |drawnmove" -Timeout 600 "$@" > "$W/scratch/stealth_$tag.log" 2>&1
     grep -E "stealthtest:|ENGINE|rror" "$W/scratch/stealth_$tag.log"
     grep -qE "FAIL|ENGINE (ERROR|CRASH)|TIMEOUT" "$W/scratch/stealth_$tag.log" && fail=1
@@ -56,15 +59,15 @@ if [ "$WHICH" = kinds ] || [ "$WHICH" = all ]; then
     run kinds "$PRE;vr_stealth_test 106;wait30000;toggleconsole;quit" # (the kit's games mount hipnotic and rogue too)
 fi
 if [ "$WHICH" = gates ] || [ "$WHICH" = all ]; then
-    run gates "developer 1;vr_fixed_frames 1;vr_fixed_frames_rate 90;map vrteleporters;wait60;god;setpos -1100 1408 24 0 180 0;wait5;noclip 0;vr_stealth_test 110;wait16000;toggleconsole;quit"
+    run gates "developer 1;vr_fixed_frames 1;vr_fixed_frames_rate 90;map vrteleporters;wait60;god;setpos -1100 1408 24 0 180 0;wait5;noclip 0;vr_stealth_test 110;wait16000;toggleconsole;quit" -QuitOn "stealthtest: gates done"
     grep -q "gates done" "$W/scratch/stealth_gates.log" || { echo "stealthtest: gates FAIL (never finished)"; fail=1; }
 fi
 if [ "$WHICH" = seethrough ] || [ "$WHICH" = all ]; then
-    run seethrough "$PRE;vr_stealth_test 120;wait2000;toggleconsole;quit"
+    run seethrough "$PRE;vr_stealth_test 120;wait2000;toggleconsole;quit" -QuitOn "stealthtest: seethrough done"
     grep -q "seethrough done" "$W/scratch/stealth_seethrough.log" || { echo "stealthtest: seethrough FAIL (never finished)"; fail=1; }
 fi
 if [ "$WHICH" = hunt ] || [ "$WHICH" = all ]; then
-    run hunt "$PRE;vr_stealth_test 122;wait3000;toggleconsole;quit"
+    run hunt "$PRE;vr_stealth_test 122;wait3000;toggleconsole;quit" -QuitOn "stealthtest: hunt done"
     grep -q "hunt done" "$W/scratch/stealth_hunt.log" || { echo "stealthtest: hunt FAIL (never finished)"; fail=1; }
 fi
 if [ "$WHICH" = dogs ] || [ "$WHICH" = all ]; then
@@ -77,7 +80,7 @@ if [ "$WHICH" = dogs ] || [ "$WHICH" = all ]; then
     done
 fi
 if [ "$WHICH" = props ] || [ "$WHICH" = all ]; then
-    run props "vr_fixed_frames 1;vr_fixed_frames_rate 90;map vrteleporters;wait60;god;vr_stealth_test 124;wait3500;toggleconsole;quit"
+    run props "vr_fixed_frames 1;vr_fixed_frames_rate 90;map vrteleporters;wait60;god;vr_stealth_test 124;wait3500;toggleconsole;quit" -QuitOn "stealthtest: props done"
     grep -q "props done" "$W/scratch/stealth_props.log" || { echo "stealthtest: props FAIL (never finished)"; fail=1; }
 fi
 if [ "$WHICH" = horde ]; then

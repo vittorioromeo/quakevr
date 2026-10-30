@@ -969,3 +969,38 @@ monster test could not run here (AD's data is in neither qbase nor qrp: "no AD m
 weapon_catch, parryinterrupt, stealth, np_1, rv_1, flare_1, ragdoll_stagger/ragtest/climb/liquid_active, limb_wear,
 prop_climb): 13 as the baseline; swim_sound FAIL 9/2 -> PASS 11/0 (its known failure, the under-water punch, a mock-hand
 case: next has the mock-hand fix since the baseline).
+
+## Faster headless tests and loads, round 3 (branch `agent/harness3`)
+
+- **Timing runs no longer hold the slots while the author plays** (kit slots.sh): `acquire_exclusive` waits for his
+  game (`ps -W`, a path in `quakevr-iw\Windows`; the cleanup agent's `quakevr-iw-cleanup` is not his) before claiming
+  the exclusive slot, holding none, up to QVR_AUTHOR_WAIT (540 s, then exit 3 as run.ps1, freeing run.sh's agent lock);
+  his game started while the slots drained: the claim let go, waited for again. run.ps1's own wait only catches a game
+  started in the second between. (Was: run.ps1 waited inside the exclusive slot, every shared run behind it.)
+- **Map load** (vrtesthall, `vr_startup_times`, exclusive runs, no-LTO build, normal-map cache warm): 1.31 s -> 1.17 s;
+  entities spawned 766 -> 613 ms. Measured first with temporary sub-timers: of the 363 alias models' 700 ms, the
+  normal maps' 310 (their cache's key hash 38, reading the cache 43, mips and upload 41, authored-map lookups 47),
+  external skins 116 (PNG decodes 83), md5 hands/body 101 (3 models, 6 skins); limb models 323 (170 limbs of 22 kinds:
+  their files built one by one on the main thread 116, their skins and normal maps the rest).
+  - Limb models (vr_limbmodel.cpp prebuild): every kind's limb files built on the pool at once (startKind, as for a kind
+    first seen in play), then precached on the main thread in the same order as before: 323 -> 186 ms.
+  - The skin normal-map cache's key (vr_normalmaps.cpp): the texels and the islands' corners hashed by
+    `diskcache::wideHash` (four lanes of xxHash64's round; FNV-1a a byte was 38 ms) -> 2.5 ms; NORMALCACHE_VERSION 2
+    (the old files go once). `vr_normalmap_cache 2` on vrtesthall: 345 checked, 0 differed.
+  - Pixels: four screenshots (vrtesthall both ways, e1m3, e2m1), before vs after: 769 pixels differ, all in a particle
+    cloud; the same build twice: 573 (the particles' own randomness). Nothing else changed.
+  - Not done: the rest of the limbs' cost (their skins' uploads and normal maps on the main thread), PNG decodes of
+    external skins (vr_imgprefetch's list covers start-up and world textures, not model skins), the cache's 345 file
+    opens, view models (md5 skins) and smooth rigs (116 ms, animsmooth::prepare per kind). Quit not profiled.
+- **Critical path** (run_baseline.py): the two teleporter suites no longer lane 0 only but one at a time in any lane
+  (key `tele`, limit 1; they are lane-aware since round 2), so lane 0 is eval.sh's alone; the queue weighs a drawn
+  case's baseline seconds x4 (DRAWN_WEIGHT: 4-10x slower beside the lanes) so the long drawn scripts start first.
+  stealth_tests.sh plays its scenes undrawn (`vr_mock_fast 2`) but dogs' (drawn moves logged) and horde's (a profile;
+  STEALTH_DRAWN=1: all drawn), and gates, seethrough, hunt, props end on their `done` lines (-QuitOn): alone 59 passed,
+  0 failed as drawn, ~1.5 min. run_baseline.sh's header says the lanes (a same-length edit: it was running).
+- **Full baseline** (default, 8 lanes; another agent's full baseline ran at the same time): 29.1 min (round 2: 30.0),
+  same verdicts as baseline.tsv but next's known changes (fist_alert, melee_phase, swim_sound pass; reload 112/3,
+  parry_pose fail) and flaky counts (agrunt 63, 67, 72, 76, 86, ragdoll_ragtest). stealth 829 -> 194 s, reload 622 ->
+  188, eval 461 -> 87; the critical path is now teleporter_edges (927 s: drawn screenshot runs) and flash_grab (760 s,
+  already undrawn: its many passes beside the other games), then xr_runtime 577. Next: those three split into parallel
+  parts or undrawn steps.
