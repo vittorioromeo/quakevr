@@ -205,4 +205,13 @@ void spatterFrom(const Event& ev, int saw);
 void wetInfo(); // vr_wounds_info: the wet coat on your body, hands and what they hold (vr_wounds_wet_coat)
 void queueInfo(); // vr_wounds_info: the events waiting for a frame's budget (vr_wounds_budget)
 
+// vr_wounds.cpp: whether any of the wounds is on (vr_wounds, _burns, _wet), and an event applied (painted).
+[[nodiscard]] bool enabled();
+void apply(const Event& ev);
+
+// vr_wounds_net.cpp: the events queued (from `events`), painted within the frame's budget (how many), dropped.
+void enqueue();
+int paintQueue();
+void clearQueue();
+
 } // namespace qvr::wounds::detail
