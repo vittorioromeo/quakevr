@@ -881,21 +881,32 @@ void staggerGaitLine(const Stagger& g, const Parts& p, int num)
         g.glide / steps * m, arms * m);
 }
 
-void staggerFrame(State& s, const Parts& p, const Context& c, float t, const ClipPose& pose)
+namespace
 {
-    Stagger& g = s.stagger;
-    if(g.outcome == Outcome::Going)
-    {
-        staggerMeasure(g, s, p, t);
-    }
-    const glm::vec3 up{0.f, 0.f, 1.f};
-    const glm::vec3 pelvis = glmv(b3Body_GetWorldCenter(p.body[0]));
-    glm::vec3 comVel{0.f};
-    const glm::vec3 com = massCentre(p, &comVel);
-    // Its base: its feet where they stand, the one stepping where it goes down.
-    glm::vec3 support{0.f};
+
+// staggerFrame's working state, from phase to phase (staggerFrame below: its phases in order).
+struct StaggerWork
+{
+    Stagger* g{nullptr};
+    glm::vec3 up{};
+    glm::vec3 pelvis{};
+    glm::vec3 comVel{};
+    glm::vec3 com{};
+    glm::vec3 support{};
+    float footZ{};
+};
+
+// Its base: its feet where they stand, the one stepping where it goes down.
+void staggerBase(StaggerWork& w, State& s, const Parts& p)
+{
+    Stagger& g = *w.g;
+    glm::vec3& pelvis = w.pelvis;
+    glm::vec3& com = w.com;
+    glm::vec3& support = w.support;
+    support = glm::vec3{0.f};
     int feet = 0;
-    float footZ = 1e30f;
+    float& footZ = w.footZ;
+    footZ = 1e30f;
     for(int leg = 2; leg < 4; leg++)
     {
         if(!limbWhole(s, p, leg))
@@ -910,9 +921,20 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
     support = feet > 0 ? support / static_cast<float>(feet) : pelvis;
     footZ = feet > 0 ? footZ : pelvis.z - g.height;
     g.lean = glm::degrees(za::atan2(glm::length(level(com - support)), za::max(com.z - footZ, 0.05f)));    g.leanMost = za::max(g.leanMost, g.lean);
-    // (Its pelvis over the floor under it, against how high it stood: its feet's ends may lie below their soles.)
-    // (A step or a crate under its pelvis, higher than its feet, is not its floor: else, stepping back off it on level
-    // ground read as a drop, "no floor under it", and a sag.)
+}
+
+// (Its pelvis over the floor under it, against how high it stood: its feet's ends may lie below their soles.)
+// (A step or a crate under its pelvis, higher than its feet, is not its floor: else, stepping back off it on level
+// ground read as a drop, "no floor under it", and a sag.)
+bool staggerOutcome(StaggerWork& w, State& s, const Parts& p, const Context& c, float t)
+{
+    Stagger& g = *w.g;
+    glm::vec3& up = w.up;
+    glm::vec3& pelvis = w.pelvis;
+    glm::vec3& comVel = w.comVel;
+    glm::vec3& com = w.com;
+    glm::vec3& support = w.support;
+    float& footZ = w.footZ;
     const float rawBelow = c.floorBelow ? c.floorBelow(pelvis, 2.f) : -1e30f;
     const float below = rawBelow > -1e29f ? za::min(rawBelow, footZ + staggerFloorOverFeet / p.m2u) : rawBelow;
     const float floor = below > -1e29f ? below : footZ;
@@ -1045,7 +1067,7 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
                 staggerGaitLine(g, p, c.num);
             }
             beginFall(s, p, g.dir, 0u, 0.f, false, c.now);
-            return;
+            return false;
         }
         // (A parry's: at its time, as the old pose's stagger was, however it stands. Else its carry near over (its pin's
         // anchor easing out: the last of it a glide), not mid-step, steady and slow (vr_ragdoll_active_stagger_settle),
@@ -1069,14 +1091,26 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
             }
         }
     }
-    // Kept upright (as steady as its balance: the shove's pitch of its pelvis worked off), towards its stance.
+    return true;
+}
+
+// Kept upright (as steady as its balance: the shove's pitch of its pelvis worked off), towards its stance.
+void staggerKeepUpright(StaggerWork& w, State& s, const Parts& p, const Context& c, const ClipPose& pose)
+{
+    Stagger& g = *w.g;
     if(pose.valid)
     {
         turnWhole(p, c, glm::normalize(s.turn * pose.rot[0]), staggerUpright * (0.5f + 0.5f * g.balance) * s.base,
             staggerUprightMost, 1.f);
     }
-    // The arms thrown out to its sides against the shove and wheeling (its balance's), each at its own pace (not a
-    // mirror's), flapping a little; the more the less steady it is.
+}
+
+// The arms thrown out to its sides against the shove and wheeling (its balance's), each at its own pace (not a
+// mirror's), flapping a little; the more the less steady it is.
+void staggerArms(StaggerWork& w, State& s, const Parts& p, float t)
+{
+    Stagger& g = *w.g;
+    glm::vec3& up = w.up;
     const glm::vec3 ahead = -g.dir;
     const glm::vec3 left = s.turn * glm::vec3{0.f, 1.f, 0.f};
     for(int arm = 0; arm < 2; arm++)
@@ -1111,7 +1145,13 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
         r.weight = smooth01(t / 0.1f) * (0.55f + 0.35f * (1.f - g.balance)) * za::min(flail, 1.f);
         r.strength = 0.8f;
     }
-    // The feet: planted, or the one stepping lifted along its way.
+}
+
+// The feet: planted, or the one stepping lifted along its way.
+void staggerFeet(StaggerWork& w, State& s, const Parts& p, const Context& c)
+{
+    Stagger& g = *w.g;
+    glm::vec3& up = w.up;
     for(int leg = 2; leg < 4; leg++)
     {
         Reach& r = s.reach[static_cast<za::SizeT>(leg)];
@@ -1166,6 +1206,32 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
             }
         }
     }
+}
+
+} // namespace
+
+void staggerFrame(State& s, const Parts& p, const Context& c, float t, const ClipPose& pose)
+{
+    StaggerWork w;
+    w.g = &s.stagger;
+    Stagger& g = *w.g;
+    if(g.outcome == Outcome::Going)
+    {
+        staggerMeasure(g, s, p, t);
+    }
+    w.up = glm::vec3{0.f, 0.f, 1.f};
+    w.pelvis = glmv(b3Body_GetWorldCenter(p.body[0]));
+    glm::vec3& comVel = w.comVel;
+    comVel = glm::vec3{0.f};
+    w.com = massCentre(p, &comVel);
+    staggerBase(w, s, p);
+    if(!staggerOutcome(w, s, p, c, t))
+    {
+        return;
+    }
+    staggerKeepUpright(w, s, p, c, pose);
+    staggerArms(w, s, p, t);
+    staggerFeet(w, s, p, c);
 }
 
 // ---- Falls ----
