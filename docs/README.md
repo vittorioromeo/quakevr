@@ -26,6 +26,7 @@ happens; the durable parts belong in a guide or topic note.
 |---|---|
 | [BUILDING.md](BUILDING.md) | Building the engine, the QuakeC and the release package; the tool scripts in `Misc/quakevr/` |
 | [../Installer/README.md](../Installer/README.md) | The Windows installer (C#, WPF): layout, build, `qvr-setup`, tests, package manifests |
+| [vr-port/ARCHITECTURE.md](vr-port/ARCHITECTURE.md) | The map for anyone adding code: subsystems and their files, the QC <-> C++ bridge, a frame's flow, the canonical helpers, where new code goes, the build's checks, tests and benches |
 | [vr-port/CODE_STYLE.md](vr-port/CODE_STYLE.md) | Conventions of the VR module: state, Zancle instead of the standard library, scratch buffers and caches |
 | [vr-port/PLAYTEST.md](vr-port/PLAYTEST.md) | The playtest guide: build and install, controls, voice notes, what to try now, troubleshooting |
 | [vr-port/TESTING.md](vr-port/TESTING.md) | The testing tools: the mock headset, scripted motions, test scripts and checks, fixtures |

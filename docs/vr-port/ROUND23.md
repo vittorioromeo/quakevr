@@ -1319,3 +1319,27 @@ svs.maxclients is never under 1, so an `if(!sv.active) return;` guard followed b
 
 Checks: build 0 warnings and all checks; covering baseline cases (agrunt 1/2/12, ragdoll_*, selfchecks, reload,
 arena_1, stats_levelchange, prop_climb, teleporters, agarmor_1, rigstudio subjects/aim) vs baseline.tsv.
+
+## Refactor wrap-up: ARCHITECTURE.md, the canonical-helper guard, the baseline refreshed (branch `agent/archguard`)
+
+No code change. **docs/vr-port/ARCHITECTURE.md** (185 lines; linked from docs/README.md, CODE_STYLE.md and
+BUILDING.md): the layers, the seven areas' files, the QC <-> C++ bridge (builtins, fields, Bindings, cvar handles,
+the shared `.h` headers, the move/entity protocol hooks), a host frame from `VR_BeginFrame` to `VR_RenderView` with
+the player's physics hooks in order, the canonical helpers in one table, where new code goes, the build's checks, the
+tests, the baseline and the A/B bench method. Worker briefs point at it.
+
+**`Misc/quakevr/check_canonical.py`** (run by the kit's build.sh after the cvar-handle check; ~2 s): counts per file
+the sites of 12 families (`geom-vec`, `geom-math`, `rnd-wrapper`, `strings-copy`, `haptic-direct`, `qcvm-push`,
+`player-edict`, `cvar-by-name`, `field-by-name`, `qc-find-player`, `qc-math-copy`, `qc-test-check`; comments ignored)
+and fails when a file holds more than `Misc/quakevr/canonical_allowlist.txt` allows. The allowlist is today's tree:
+155 sites, each line with its reason (canonical, left on purpose with ROUND23's reason, or not migrated yet: 31
+manual `PR_PushQCVM` pairs, 34 player-edict reads with other guards, 11 ungated or combined `be->haptic`, the
+angleBetween/percentile/quakeFromTracking copies, 8 old per-test `_Check` functions). `--list <family>` prints the
+sites; `--tighten` lowers counts after a migration. Proven on a temp copy: one planted copy per family (a `vec(const
+float*)`, `wrap180`, a smoothstep lambda, `rnd`, `be->haptic`, `PR_PushQCVM`, `EDICT_NUM(1)`, a QC player `find`
+and `VR_Carry_Cross`) gave 8 failures and exit 1; the clean copy passed.
+
+**Baseline** (kit, `scratch/refactor/`): `baseline.tsv` is now the full run 20261030-090721 on next dbff6520c (170
+cases, pe_full.log; the bench row carried from phase 0), the old file kept as `baseline_phase0.tsv`.
+`run_baseline.py --compare` reports the cases that vary run to run (`FLAKY`: agrunt 1/47/60/63/67/71/72/76/86,
+ragdoll_ragtest/grab/guard, rv_1, judo, stealth, agarmor_5) apart as "FLAKY CHANGED", not counted in its exit status.

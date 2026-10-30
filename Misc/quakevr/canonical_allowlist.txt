@@ -1,0 +1,124 @@
+# Allowed sites of the canonical-helper families (Misc/quakevr/check_canonical.py; the kit's build.sh runs it).
+# Format: <family> <path> <count>  # reason. A file may hold at most <count> sites of that family.
+# Lower counts after migrating sites (`--tighten`); raise one only for a site that is meant, with its reason.
+# `--list <family>` shows every site. Families and what to use instead: check_canonical.py, FAMILIES.
+
+# --- geom-vec: use geom::vec / geom::store (vr_geom.hpp)
+geom-vec Quake/vr/vr_geom.hpp 1  # canonical
+
+# --- geom-math: use geom:: (vr_geom.hpp)
+geom-math Quake/vr/vr_agarmor.cpp 1  # not merged yet (inventory F2/F2b: diff its edge cases against geom:: before migrating)
+geom-math Quake/vr/vr_agglitch.cpp 1  # not merged yet (inventory F2/F2b: diff its edge cases against geom:: before migrating)
+geom-math Quake/vr/vr_anchor.cpp 1  # closestOnTriangle over dvec3 (double precision)
+geom-math Quake/vr/vr_avatar_climb.cpp 1  # not merged yet (inventory F2/F2b: diff its edge cases against geom:: before migrating)
+geom-math Quake/vr/vr_bodytrack.cpp 1  # not merged yet (inventory F2/F2b: diff its edge cases against geom:: before migrating)
+geom-math Quake/vr/vr_decals.cpp 1  # 2D segment distance with the position along (no 2D overload in geom yet)
+geom-math Quake/vr/vr_geom.hpp 11  # canonical
+geom-math Quake/vr/vr_hitmodel.cpp 1  # nearestOnTri returns a squared distance, not a point
+geom-math Quake/vr/vr_hitreact.cpp 1  # yawOf of a rigpose::Rigid, not of a direction
+geom-math Quake/vr/vr_menuui.cpp 1  # not merged yet (inventory F2/F2b: diff its edge cases against geom:: before migrating)
+geom-math Quake/vr/vr_rigstudio_aimline.cpp 1  # not merged yet (inventory F2/F2b: diff its edge cases against geom:: before migrating)
+geom-math Quake/vr/vr_sights.cpp 1  # not merged yet (inventory F2/F2b: diff its edge cases against geom:: before migrating)
+geom-math Quake/vr/vr_toolgun.cpp 1  # not merged yet (inventory F2/F2b: diff its edge cases against geom:: before migrating)
+geom-math Quake/vr/vr_twohand.cpp 1  # safeNormalize without a fallback (zero vector out): differs from geom's
+geom-math Quake/vr/vr_water.cpp 1  # 2D segment distance (no 2D overload in geom yet)
+
+# --- rnd-wrapper: use vrand::range / vrand::xorshift* / vrand::lcg* (vr_random.hpp)
+rnd-wrapper Quake/vr/vr_decals.cpp 1  # frand over C rand(): the decals' outlier stream (inventory F4)
+rnd-wrapper Quake/vr/vr_smoulder.cpp 1  # rnd() over the file's own stream (sequence kept for tests)
+
+# --- strings-copy: use strings:: (vr_strings.hpp), mdlbuild::nearestNormal, vrstats::quantileSorted
+strings-copy Quake/vr/vr_agglitch.cpp 1  # not merged yet (inventory F17: rank rule may differ from vrstats::quantileSorted)
+strings-copy Quake/vr/vr_aglegs.cpp 1  # a lambda named lower (a bone test), not string lowering
+strings-copy Quake/vr/vr_box3d_diag_perf.cpp 1  # not merged yet (inventory F17: rank rule may differ from vrstats::quantileSorted)
+strings-copy Quake/vr/vr_crash.cpp 2  # signal-safe appendf (no allocation): kept on purpose
+strings-copy Quake/vr/vr_files.cpp 1  # a char lowering lambda for glob matching
+strings-copy Quake/vr/vr_imgcache.cpp 1  # a cache's trim(cap) member, not string trimming
+strings-copy Quake/vr/vr_mdlbuild.hpp 1  # canonical
+strings-copy Quake/vr/vr_menu_help.inc 1  # a StringView trim lambda (no allocation)
+strings-copy Quake/vr/vr_relight.cpp 1  # startsWith over za::StringView
+strings-copy Quake/vr/vr_selfcollide.cpp 1  # not merged yet (inventory F17: rank rule may differ from vrstats::quantileSorted)
+strings-copy Quake/vr/vr_strings.cpp 4  # canonical
+strings-copy Quake/vr/vr_strings.hpp 6  # canonical
+
+# --- haptic-direct: use haptics::pulse(hand, seconds, amplitude, hz) (vr_backend.hpp)
+haptic-direct Quake/vr/vr_autopump.cpp 1  # ungated or combined-condition be->haptic (ROUND23 A2: not on haptics::pulse yet)
+haptic-direct Quake/vr/vr_gadget_holo.inc 1  # ungated or combined-condition be->haptic (ROUND23 A2: not on haptics::pulse yet)
+haptic-direct Quake/vr/vr_held.cpp 3  # ungated or combined-condition be->haptic (ROUND23 A2: not on haptics::pulse yet)
+haptic-direct Quake/vr/vr_main.cpp 1  # canonical
+haptic-direct Quake/vr/vr_menuui.cpp 1  # ungated or combined-condition be->haptic (ROUND23 A2: not on haptics::pulse yet)
+haptic-direct Quake/vr/vr_painknock.cpp 1  # ungated or combined-condition be->haptic (ROUND23 A2: not on haptics::pulse yet)
+haptic-direct Quake/vr/vr_shock.cpp 1  # ungated or combined-condition be->haptic (ROUND23 A2: not on haptics::pulse yet)
+haptic-direct Quake/vr/vr_twohand.cpp 1  # ungated or combined-condition be->haptic (ROUND23 A2: not on haptics::pulse yet)
+haptic-direct Quake/vr/vr_view_hands.cpp 2  # ungated or combined-condition be->haptic (ROUND23 A2: not on haptics::pulse yet)
+
+# --- qcvm-push: use progs::ServerVm vm; (vr_progs.hpp)
+qcvm-push Quake/vr/vr_agarmor.cpp 1  # manual PR_PushQCVM pair (ROUND23 A2: not on progs::ServerVm yet)
+qcvm-push Quake/vr/vr_backend_mock.cpp 8  # manual PR_PushQCVM pair (ROUND23 A2: not on progs::ServerVm yet)
+qcvm-push Quake/vr/vr_builtins.cpp 1  # manual PR_PushQCVM pair (ROUND23 A2: not on progs::ServerVm yet)
+qcvm-push Quake/vr/vr_chainsaw.cpp 1  # manual PR_PushQCVM pair (ROUND23 A2: not on progs::ServerVm yet)
+qcvm-push Quake/vr/vr_crates.cpp 1  # manual PR_PushQCVM pair (ROUND23 A2: not on progs::ServerVm yet)
+qcvm-push Quake/vr/vr_debris.cpp 1  # manual PR_PushQCVM pair (ROUND23 A2: not on progs::ServerVm yet)
+qcvm-push Quake/vr/vr_fatigue.cpp 1  # manual PR_PushQCVM pair (ROUND23 A2: not on progs::ServerVm yet)
+qcvm-push Quake/vr/vr_flashlight.cpp 1  # manual PR_PushQCVM pair (ROUND23 A2: not on progs::ServerVm yet)
+qcvm-push Quake/vr/vr_hitmodel.cpp 1  # manual PR_PushQCVM pair (ROUND23 A2: not on progs::ServerVm yet)
+qcvm-push Quake/vr/vr_hitmodel_diag.cpp 3  # manual PR_PushQCVM pair (ROUND23 A2: not on progs::ServerVm yet)
+qcvm-push Quake/vr/vr_hull_diag.cpp 3  # manual PR_PushQCVM pair (ROUND23 A2: not on progs::ServerVm yet)
+qcvm-push Quake/vr/vr_modelcollide.cpp 2  # manual PR_PushQCVM pair (ROUND23 A2: not on progs::ServerVm yet)
+qcvm-push Quake/vr/vr_motion.cpp 1  # manual PR_PushQCVM pair (ROUND23 A2: not on progs::ServerVm yet)
+qcvm-push Quake/vr/vr_progs.hpp 1  # canonical
+qcvm-push Quake/vr/vr_rigid.cpp 1  # manual PR_PushQCVM pair (ROUND23 A2: not on progs::ServerVm yet)
+qcvm-push Quake/vr/vr_server.cpp 2  # manual PR_PushQCVM pair (ROUND23 A2: not on progs::ServerVm yet)
+qcvm-push Quake/vr/vr_trace.cpp 1  # manual PR_PushQCVM pair (ROUND23 A2: not on progs::ServerVm yet)
+qcvm-push Quake/vr/vr_view_hands.cpp 1  # manual PR_PushQCVM pair (ROUND23 A2: not on progs::ServerVm yet)
+qcvm-push Quake/vr/vr_wounds.cpp 1  # manual PR_PushQCVM pair (ROUND23 A2: not on progs::ServerVm yet)
+
+# --- player-edict: use progs::localPlayer() / progs::playerEdict() (vr_progs.hpp)
+player-edict Quake/vr/vr_backend_mock.cpp 3  # guard differs (ROUND23 'player edict', Left list)
+player-edict Quake/vr/vr_box3d_presstest.cpp 1  # guard differs (ROUND23 'player edict', Left list)
+player-edict Quake/vr/vr_box3d_ragdoll.cpp 1  # guard differs (ROUND23 'player edict', Left list)
+player-edict Quake/vr/vr_box3d_striketest.cpp 4  # guard differs (ROUND23 'player edict', Left list)
+player-edict Quake/vr/vr_box3d_struggle.cpp 1  # guard differs (ROUND23 'player edict', Left list)
+player-edict Quake/vr/vr_chainsaw.cpp 1  # guard differs (ROUND23 'player edict', Left list)
+player-edict Quake/vr/vr_continue.cpp 2  # guard differs (ROUND23 'player edict', Left list)
+player-edict Quake/vr/vr_foegrab.cpp 1  # guard differs (ROUND23 'player edict', Left list)
+player-edict Quake/vr/vr_foegrab_diag.cpp 4  # guard differs (ROUND23 'player edict', Left list)
+player-edict Quake/vr/vr_held.cpp 1  # guard differs (ROUND23 'player edict', Left list)
+player-edict Quake/vr/vr_menuui.cpp 1  # guard differs (ROUND23 'player edict', Left list)
+player-edict Quake/vr/vr_portals.cpp 3  # guard differs (ROUND23 'player edict', Left list)
+player-edict Quake/vr/vr_progs.hpp 2  # canonical
+player-edict Quake/vr/vr_ragtest.cpp 4  # guard differs (ROUND23 'player edict', Left list)
+player-edict Quake/vr/vr_ragtool.cpp 1  # guard differs (ROUND23 'player edict', Left list)
+player-edict Quake/vr/vr_rigseq.cpp 1  # guard differs (ROUND23 'player edict', Left list)
+player-edict Quake/vr/vr_rigstudio.cpp 1  # guard differs (ROUND23 'player edict', Left list)
+player-edict Quake/vr/vr_timescale.cpp 1  # guard differs (ROUND23 'player edict', Left list)
+player-edict Quake/vr/vr_toolgun.cpp 2  # guard differs (ROUND23 'player edict', Left list)
+player-edict Quake/vr/vr_toolgun_pick.inc 1  # guard differs (ROUND23 'player edict', Left list)
+
+# --- cvar-by-name: use the cvar_t directly: vr_x.value
+
+# --- field-by-name: use progs::fields().x (add the field to vr_fields.inc)
+field-by-name Quake/vr/vr_portals.cpp 1  # `mangle`: also read with non-VR progs (ROUND23 A2, left on purpose)
+field-by-name Quake/vr/vr_progs.cpp 5  # the binder itself: mh_* fields and the isVrProgs probe
+
+# --- qc-find-player: use VR_Player() / VR_NextPlayer(p) (QC/vr_util.qc)
+qc-find-player QC/vr_util.qc 1  # canonical
+
+# --- qc-math-copy: use VR_Cross, VR_Wrap180, clamp, VR_Lerp, VR_Smooth, VR_SegmentDistance(Eps) (QC/vr_util.qc)
+qc-math-copy QC/vr_armedgrunt_play.qc 1  # VR_AG_SegDist: eps 0.001 and den != 0 (ROUND23 A4, left on purpose)
+qc-math-copy QC/vr_armedgrunt_pose.qc 2  # VR_AGP_* / swish easing: own shape, not merged yet
+qc-math-copy QC/vr_melee_bash.qc 1  # VR_AGP_* / swish easing: own shape, not merged yet
+qc-math-copy QC/vr_revolver.qc 2  # VR_RV_Wrap wraps a chamber index; VR_RV_AngleNorm not merged yet
+qc-math-copy QC/vr_util.qc 3  # canonical
+
+# --- qc-test-check: use VR_Test_Begin/Check/Verdict (QC/vr_testutil.qc) or the VR_AGT_* harness
+qc-test-check QC/vr_agarmor_test.qc 1  # a per-test Check copy from before vr_testutil.qc (argument order varies)
+qc-test-check QC/vr_arena_perks_test.qc 1  # a per-test Check copy from before vr_testutil.qc (argument order varies)
+qc-test-check QC/vr_arena_test.qc 1  # a per-test Check copy from before vr_testutil.qc (argument order varies)
+qc-test-check QC/vr_armedgrunt_ammo_test.qc 1  # a per-test Check copy from before vr_testutil.qc (argument order varies)
+qc-test-check QC/vr_armedgrunt_parry_test.qc 1  # a per-test Check copy from before vr_testutil.qc (argument order varies)
+qc-test-check QC/vr_armedgrunt_shot_test.qc 1  # a per-test Check copy from before vr_testutil.qc (argument order varies)
+qc-test-check QC/vr_armedgrunt_test.qc 1  # canonical
+qc-test-check QC/vr_flaregun_test.qc 1  # a per-test Check copy from before vr_testutil.qc (argument order varies)
+qc-test-check QC/vr_reload_test.qc 1  # a per-test Check copy from before vr_testutil.qc (argument order varies)
+qc-test-check QC/vr_testutil.qc 1  # canonical

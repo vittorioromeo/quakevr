@@ -1,7 +1,8 @@
 # Code conventions (Quake/vr)
 
 How the VR module keeps state, and what it builds on. The rest of the style (formatting, naming, comments) is the
-surrounding code's: read a neighbouring file and write like it.
+surrounding code's: read a neighbouring file and write like it. Where a feature lives, a frame's flow and where new
+code goes: [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Includes and the build's speed
 
@@ -202,6 +203,8 @@ for the development one).
 ## Canonical helpers
 
 One implementation each; new code uses these, a local copy is a review finding. Other clusters add their own lists below.
+`Misc/quakevr/check_canonical.py` (run by the kit's build.sh) fails the build on a new copy of the main families
+(ARCHITECTURE.md, "Checks the build runs"; today's left sites: `Misc/quakevr/canonical_allowlist.txt`).
 
 ### Geometry and math (`Quake/vr/vr_geom.hpp`, namespace `qvr::geom`)
 
