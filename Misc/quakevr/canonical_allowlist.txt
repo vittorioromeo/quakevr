@@ -36,7 +36,8 @@ strings-copy Quake/vr/vr_files.cpp 1  # a char lowering lambda for glob matching
 strings-copy Quake/vr/vr_imgcache.cpp 1  # a cache's trim(cap) member, not string trimming
 strings-copy Quake/vr/vr_mdlbuild.hpp 1  # canonical
 strings-copy Quake/vr/vr_menu_help.inc 1  # a StringView trim lambda (no allocation)
-strings-copy Quake/vr/vr_relight.cpp 1  # startsWith over za::StringView
+strings-copy Quake/vr/vr_relight_bsp.cpp 1  # startsWith over za::StringView
+strings-copy Quake/vr/vr_relight_internal.hpp 1  # startsWith over za::StringView: its declaration (vr_relight_bsp.cpp)
 strings-copy Quake/vr/vr_selfcollide.cpp 1  # not merged yet (inventory F17: rank rule may differ from vrstats::quantileSorted)
 strings-copy Quake/vr/vr_strings.cpp 4  # canonical
 strings-copy Quake/vr/vr_strings.hpp 6  # canonical
