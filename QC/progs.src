@@ -536,6 +536,7 @@ vr_armedgrunt_glitch_test.qc
 vr_armedgrunt_play_test.qc
 vr_armedgrunt_shot_test.qc
 vr_armedgrunt_twohand_test.qc
+vr_armedgrunt_raggrab_test.qc
 vr_armedgrunt_parry_test.qc
 vr_armedgrunt_strike_test.qc
 vr_armedgrunt_preparry_test.qc

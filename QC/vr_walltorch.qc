@@ -3,7 +3,7 @@
 //
 // With vr_walltorch on (read as the map spawns), id's wall torch (light_torch_small_walltorch) stays an entity instead
 // of a static one, so that it can be taken: grip it (the fist on it, or within vr_walltorch_reach cm of its stick: it
-// comes out at once; vr_walltorch_pull is no longer read), or force grab it (vr_walltorch_forcegrab). The same
+// comes out at once), or force grab it (vr_walltorch_forcegrab). The same
 // entity is then the torch in the hand (saves and the entities' numbers are kept; the map's baked light stays on the
 // wall, the flickering torch light goes with it). On its wall and taken it is our stick (progs/vrtorch.mdl, the wall
 // torch's own skin copied in as it loads) with the wall torch's flame over its head, drawn by the engine as big as its
@@ -399,8 +399,7 @@ float(float xHand) VR_WallTorch_GrabCandidate =
 };
 
 // Every player frame, for each hand (self is the player; W_Frame): a grip near a torch on its wall takes it (the grab
-// query's answer). (The grip on its wall, pulled out by vr_walltorch_pull, had no writer since the immediate take: gone
-// with the hand slot's fold; the cvar stays, unread.)
+// query's answer).
 void(float xHand) VR_WallTorch_HandFrame =
 {
     if(VR_Grab_Answers(xHand, VR_GRAB_TORCH))

@@ -2991,6 +2991,72 @@ Checklist lines:
 - In slow motion, punch a grunt's gun out of its hand.
 - Swing a held shotgun or a carried crate into a grunt's gun: knocked out. Throw a gun at its gun hand: knocked out.
 - Punch a grunt's legs or chest away from its gun: it is hurt, keeps its gun.
+
+## Armed humanoid disarming, part 3: an active ragdoll's weapon grabbed (branch `agent/disarm3`)
+
+His note (2026-10-30): after a shove or any other ragdoll trigger, grabbing an armed humanoid's weapon out of its hand
+seems impossible; the empty hand's grab sometimes misses the held weapon, and a grab on the weapon or its hand never
+disarms however hard you pull. Plan: `qvr-kit/scratch/disarm_plan.md` item 2 (2b, 2c).
+
+Found (test 91's first runs, before the fix): a lying grunt's grab at its grip or barrel started the tug but read no
+pull (the test's pull, below); a grab on its hand or forearm held the limb ("limb held": the body dragged about, the
+weapon never yours); a fist 5-8 cm off the gun took nothing or the arm. And the armed soldier's ragdoll weapon rides the
+model's own hidden gun (rig bone 19 `weapon`, a loose piece welded to the part holding it in the rest pose: his left
+**forearm**, `looseHolder`), so "its hand" is not the bone nearest the gun: the right hand drifts 20 units off it when
+it lies.
+
+**One arbitration, in the grab query (vr_grab.hpp):** a living ragdoll's armed weapon wins over its limbs.
+- `physics::armedAllowance` (vr_physics.cpp): the fist's allowance from an armed monster's weapon's drawn surface (bias +
+  `vr_agrunt_grab_slack` + `_leniency`, as before); on a living ragdoll at least `vr_agrunt_rag_grab_weapon` (8 cm,
+  tunable; its row "Grab: Ragdoll's Weapon Within" after Grab: Moving Weapon). The weapon's own touch (handOn), Show Disarm Volumes'
+  measure (`armedGrabGap`: it marks the 5-8 cm hover "takes") and the arbitration all read it.
+- `physics::armedWeaponOver(body, player, hand, part)`: the weapon a hand's grab on a living ragdoll takes instead of the
+  limb: the fist within that allowance (armedGrabGap's measure), or (`vr_agrunt_rag_limb_grab` 1, tunable cycle) the
+  hand on a part `box3d::ragdollWeaponHold` names: the part the weapon rides (QC `.vr_ag_rb`, now a QVR_FIELD), the
+  part holding that loose piece (`looseHolder`, moved out of its anonymous namespace) or the bone it rides, that arm's
+  hand and forearm, or the other arm's with its hand within 4 units of the grip (a gun's second hand); never a torso
+  part.
+- `grabRagdoll` (box3d) asks it before taking a limb (it replaces the old `fistOnArmedWeapon` test there; foegrab keeps
+  that one for standing grunts) and answers `RagdollGrabResult::Weapon` (QC `ragdollgrab` returns 2). QC
+  `VR_Ragdoll_Handtouch` hands that grip to the weapon: `VR_AG_RagWeaponGrab` (of two weapons, the one nearer the
+  hand) -> `VR_AG_HandGrab` (the old `VR_AG_PropHandTouch` body: empty hand, grip, speed, the dual wielder's swap, then
+  `VR_AG_GrabBy`): the usual tug (part 1's measure; a staggering or downed one's eased tug, `vr_agrunt_tug_downed_scale`;
+  two hands join). A hand already tugging that grunt's weapon takes no limb on its grip's later frames.
+- **One grip window:** on a living ragdoll the weapon's own touch also takes the limb's window (`VR_Carry_GripPressed`,
+  0.2 s or pressed this frame; `VR_AG_GripNow`); a standing grunt's weapon keeps its 0.125 s
+  (`StartedHandGrabbing`): his tuned standing grabs (tests 36, 67-69) unchanged.
+- `ragdolllimbs(e, 7, bone)`: the part holding loose piece `bone` (else `bone`): the test's "its hand".
+- Debug: `vr_debug_ragdoll 1` prints `ragdoll: N hand H on its weapon (W): the weapon's grab`; 2 each weapon weighed
+  (its gap and allowance, the part it rides, the hand's part, whether an arm holds it).
+- Removed the dead `vr_walltorch_pull` tunable (vr_tunables.inc and its Tunables row; TESTING.md's mention), left by the
+  busy-flag fold.
+
+**Test 91** (`vr_agrunt_test 91`, QC/vr_armedgrunt_raggrab_test.qc): a fresh shotgun grunt toppled by a shove (lying
+still) or staggered (about 0.3 s), the real grab (`+grabmain` with the mock hand on the point) at its grip, barrel,
+the hand holding its gun, that hand's forearm and (lying) 5.5-7.5 cm over its barrel (the hand raised until the engine
+reads that gap), then stepping back at 0.6 m/s; case 10 the main hand on its grip, the off hand on its forearm. Body
+blows' disarm off meanwhile (`tune vr_agrunt_disarm_damage 9999`, put back a frame before the verdict: the mock hand's
+jump onto the gun is a blow). Result: 9/9 won (each a tug, 1.1-1.7 s; two hands joined, 3.7 s), none "limb held", one
+staggering case "no state" (up again before the hand was there); `disarmviz: main hand takes weapon 54 (gap 6.98 cm,
+allowed 8.00 cm)` for the 6 cm case. Before the fix (the same test, first runs): lying grip/barrel STUCK, hand "limb
+held", 0/5 won. (The test steps back rather than `vr_mock_hand_pull`: the mock's pull is along the head's back, which
+after stepping in beside a lying grunt's gun ran across the tug's own way: stretch -26 units, never a pull.)
+
+**Verified:** the covering cases against baseline.tsv (run_baseline.py: the agrunt group, ragdoll_grab, flash_grab,
+walltorch_grab, carry, weapon_catch, grip_gap, judo; 93 cases): 3 changed, all FAIL -> PASS (agrunt_31 5/0, 36 4/0, 65
+6/0), the new 90-97 pass; flaky-listed 63/72/76/86 and ragdoll_grab 18/1 ("grab rag enforcer", its known flake: 19/0 on
+the rerun). eval.sh: canary 36/44, full 163/171 (the uppercut's 13.2, older than this branch, as part 2 notes). After
+merging origin/next (preparry, agknight): 31, 36, 65, 67-69, 74, 91, 92, 94, 95, 96, 98 all PASS.
+
+Checklist lines:
+- Shove an armed grunt into a stagger, or topple it, and grab its gun (on the gun, or a few cm off it): a tug, not its
+  arm; pull back steadily: within about 1-2 s the gun is yours.
+- The same, grabbing the hand or forearm holding its gun: a tug on the gun (the arm is not held); pull: yours.
+- Topple it, grab its gun with one hand and its gun forearm with the other: both pull; yours.
+- Debug > Show Disarm Volumes on, hover a fist a few cm over a downed grunt's gun: yellow (takes) up to 8 cm.
+- Grab a downed armed grunt's other arm, or its leg: that limb is held as before.
+
+
 ## Nail pistol: no flicker at the muzzle's back, a distinct steel back end (branch `agent/npslide4`)
 
 His words (2026-10-30): some triangles on the back of the muzzle flicker, seen only with the slide drawn; the

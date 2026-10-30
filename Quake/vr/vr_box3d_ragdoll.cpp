@@ -617,6 +617,42 @@ void startCutDeath(edict_t* ent, int num, RagdollBodies& r, const b3JointId* joi
                    "motion %.0f u/s\n", num, frame, di.death, r.active.death.length, glm::length(glm::vec2{deathMotion(num)}));
     }
 }
+
+// Ragdoll `r`'s loose piece `loose` welded where it is now to its part `to` (vr_knockdown_weld; createRagdoll). `held`:
+// `to` is the hand that holds it, and the piece weighs no more than that hand (a 3 kg rifle on a 0.6 kg hand: the weld
+// gave under a landing's jolt, the weapon swinging 15 units off the hand a moment).
+void weldLoose(RagdollBodies& r, int num, int loose, int to, float looseVolume, float density, bool held)
+{
+    const b3BodyId a = r.body[static_cast<za::SizeT>(to)], c = r.body[static_cast<za::SizeT>(loose)];
+    if(held && b3Body_GetMass(c) > b3Body_GetMass(a) && b3Body_GetMass(c) > 0.f)
+    {
+        b3MassData md = b3Body_GetMassData(c);
+        const float k = b3Body_GetMass(a) / md.mass;
+        md.mass *= k;
+        md.inertia.cx = b3MulSV(k, md.inertia.cx);
+        md.inertia.cy = b3MulSV(k, md.inertia.cy);
+        md.inertia.cz = b3MulSV(k, md.inertia.cz);
+        b3Body_SetMassData(c, md);
+    }
+    const b3WorldTransform xa = b3Body_GetTransform(a), xc = b3Body_GetTransform(c);
+    const glm::quat qa = fromB3(xa.q), qc = fromB3(xc.q);
+    const glm::vec3 pa = glmv(xa.p), pc = glmv(xc.p);
+    b3WeldJointDef jd = b3DefaultWeldJointDef();
+    jd.base.bodyIdA = a;
+    jd.base.bodyIdB = c;
+    jd.base.localFrameA = b3Transform{b3v(glm::inverse(qa) * (pc - pa)), toB3(glm::normalize(glm::inverse(qa) * qc))};
+    jd.base.localFrameB = b3Transform{b3Vec3_zero, b3Quat_identity};
+    jd.base.collideConnected = false;
+    (void)b3CreateWeldJoint(world->id, &jd);
+    if(vr_knockdown_debug.value >= 2.f)
+    {
+        Con_Printf("ragdoll: %d its loose piece (%.2f kg, %.2f times its body's density) welded to its %s (%.2f kg)\n", num,
+            b3Body_GetMass(c), b3Body_GetMass(c) / za::max(looseVolume, 1e-6f) / density, r.rig->bones[to].name,
+            b3Body_GetMass(a));
+    }
+}
+} // namespace
+
 // The part that holds rig `rig`'s loose piece `loose` (a monster's weapon): the part with a vertex nearest the piece's
 // middle in the rest pose (the frame its rig was measured in: the weapon in its hands; the enforcer's rifle, held in both,
 // his left forearm's). -1: none.
@@ -654,41 +690,6 @@ int looseHolder(const ragdoll::Rig& rig, int loose)
     }
     return best;
 }
-
-// Ragdoll `r`'s loose piece `loose` welded where it is now to its part `to` (vr_knockdown_weld; createRagdoll). `held`:
-// `to` is the hand that holds it, and the piece weighs no more than that hand (a 3 kg rifle on a 0.6 kg hand: the weld
-// gave under a landing's jolt, the weapon swinging 15 units off the hand a moment).
-void weldLoose(RagdollBodies& r, int num, int loose, int to, float looseVolume, float density, bool held)
-{
-    const b3BodyId a = r.body[static_cast<za::SizeT>(to)], c = r.body[static_cast<za::SizeT>(loose)];
-    if(held && b3Body_GetMass(c) > b3Body_GetMass(a) && b3Body_GetMass(c) > 0.f)
-    {
-        b3MassData md = b3Body_GetMassData(c);
-        const float k = b3Body_GetMass(a) / md.mass;
-        md.mass *= k;
-        md.inertia.cx = b3MulSV(k, md.inertia.cx);
-        md.inertia.cy = b3MulSV(k, md.inertia.cy);
-        md.inertia.cz = b3MulSV(k, md.inertia.cz);
-        b3Body_SetMassData(c, md);
-    }
-    const b3WorldTransform xa = b3Body_GetTransform(a), xc = b3Body_GetTransform(c);
-    const glm::quat qa = fromB3(xa.q), qc = fromB3(xc.q);
-    const glm::vec3 pa = glmv(xa.p), pc = glmv(xc.p);
-    b3WeldJointDef jd = b3DefaultWeldJointDef();
-    jd.base.bodyIdA = a;
-    jd.base.bodyIdB = c;
-    jd.base.localFrameA = b3Transform{b3v(glm::inverse(qa) * (pc - pa)), toB3(glm::normalize(glm::inverse(qa) * qc))};
-    jd.base.localFrameB = b3Transform{b3Vec3_zero, b3Quat_identity};
-    jd.base.collideConnected = false;
-    (void)b3CreateWeldJoint(world->id, &jd);
-    if(vr_knockdown_debug.value >= 2.f)
-    {
-        Con_Printf("ragdoll: %d its loose piece (%.2f kg, %.2f times its body's density) welded to its %s (%.2f kg)\n", num,
-            b3Body_GetMass(c), b3Body_GetMass(c) / za::max(looseVolume, 1e-6f) / density, r.rig->bones[to].name,
-            b3Body_GetMass(a));
-    }
-}
-} // namespace
 
 namespace
 {

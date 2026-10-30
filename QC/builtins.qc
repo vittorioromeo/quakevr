@@ -399,7 +399,8 @@ vector(entity e, float what, ...) ragdollcut = #0; // [float bone]: 4 and 5 the 
 // Limb gore (vr_limbs.qc; the engine's vr_box3d.cpp "Limb gore"): e's limb at joint `bone` (-1 the head) cut off as
 // ragdolldecap's head ([float settle]); ragdolllimb the joint a hit at p would cut (the head's bone for the head; -1 the
 // torso, -2 no rig); ragdolllimbs: 0 its limb joints not cut (bits, not the head's), 1 its head's bones, 2 its bones cut
-// off, 3 its head bone (-1 none), 4 what a cut at [bone] takes now, 5 [bone]'s parent; limbmodel the limb's model ("":
+// off, 3 its head bone (-1 none), 4 what a cut at [bone] takes now, 5 [bone]'s parent (7: the part holding loose piece
+// [bone], a weapon welded in that hand while down, else [bone]; the grab query's limb rule); limbmodel the limb's model ("":
 // none; just cut: the piece cut); limbplace where a limb not cut is now: 0 its model's origin, 1 its angles, 2 its
 // velocity, 3 a point on its own bone's surface (the tests' hit).
 float(entity e, float bone, vector blade, ...) ragdollcutlimb = #0;

@@ -28,6 +28,13 @@ inline constexpr int FL_FORCEGRABBABLE = 1 << 15;
 // farther than a quarter metre (or the allowance) off.
 [[nodiscard]] float armedGrabGap(edict_t* weapon, edict_t* player, int hand, float& allowed, bool& swept);
 
+// The grab query's arbitration on a living ragdoll (vr_grab.hpp): the weapon `body` holds that `player`'s hand (0 off,
+// 1 main) grabs instead of the limb under it: the fist within the weapon's allowance of its drawn surface (on a
+// ragdoll at least vr_agrunt_rag_grab_weapon; armedGrabGap's measure), or (vr_agrunt_rag_limb_grab) the hand on
+// `part` (its ragdoll's part nearest the hand, -1 none) where `part` is the part the weapon rides (QC VR_AG_RagProp),
+// the hand holding it (box3d::ragdollHoldingHand) or that hand's forearm. nullptr: the limb's (or no living ragdoll).
+[[nodiscard]] edict_t* armedWeaponOver(edict_t* body, edict_t* player, int hand, int part);
+
 // The middle of `ent`'s drawn model (turned with it), in the world: QC's modelcentre.
 [[nodiscard]] glm::vec3 modelCentre(edict_t* ent);
 

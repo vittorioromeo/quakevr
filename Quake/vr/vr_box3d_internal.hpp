@@ -1262,6 +1262,9 @@ void dropGrabsOf(int num);
 void createRagdollPack(RagdollBodies& r, edict_t* ent, int num, const Slot& s);
 [[nodiscard]] float packDistance(const RagdollBodies& r, const glm::vec3& at);
 [[nodiscard]] int nearestPart(const RagdollBodies& r, const glm::vec3& at, float& distance);
+// The part that holds rig `rig`'s loose piece `loose` (a monster's weapon, welded there while it is down or staggering:
+// vr_knockdown_weld), -1 none (vr_box3d_ragdoll.cpp).
+[[nodiscard]] int looseHolder(const ragdoll::Rig& rig, int loose);
 void syncRagdollGrabs(float dt);
 [[nodiscard]] float grabReach(int player, int hand);
 inline unsigned shapeGeneration = 1;

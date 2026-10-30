@@ -2013,7 +2013,23 @@ void() VR_Ragdoll_Handtouch =
     {
         return; // (a dead one's worn backpack: the pack's own touch takes it, vr_wornpack.qc)
     }
-    if(VR_Carry_GripPressed(other, hand) && VR_Hand_CanTake(other, hand) && ragdollgrab(self, other, hand))
+    if(!VR_Carry_GripPressed(other, hand) || !VR_Hand_CanTake(other, hand))
+    {
+        return;
+    }
+    if(self.vr_ag_tug_pl == other && (self.vr_ag_tug_hand == hand || self.vr_ag_tug_two))
+    {
+        return; // (the hand tugs at its weapon already: the grip's later frames take no limb)
+    }
+    float took = ragdollgrab(self, other, hand);
+    if(took == 2)
+    {
+        // (A living armed one's weapon, or the hand or forearm holding it: the weapon's grab, a tug. The grab query's
+        // arbitration, box3d grabRagdoll.)
+        VR_AG_RagWeaponGrab(self, other, hand);
+        return;
+    }
+    if(took)
     {
         VR_Hand_Take(other, hand, self);
         dprint("ragdoll: a limb taken by hand ");
