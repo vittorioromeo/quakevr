@@ -823,3 +823,38 @@ on builds that have it, reads only the log's new lines every 0.1 s and ends the 
 
 Left: the lane-0 scripts made lane-aware (their log path from the lane, testbatch's copies `qbase.lane<k>.<n>`),
 which would bring the wall time near the free cases' ~5-10 min; exclusive runs that don't drain behind long runs.
+
+## Refactor wave C2: the switches' old sides removed, D2's config step, one tool colour (branch `agent/refswitches`)
+
+His answers of 2026-10-29 (refactor TRIAGE.md, D1 D2 D5), his config on the new side of every switch. Retired
+(retiredCvars: a config line setting one is dropped quietly), each now always as its default was:
+vr_torso_mode (the old engine's VR_GetBodyYawAngle estimate gone, vr_torso_report's "old" column with it),
+vr_ragdoll_active_stagger_walk (the old glide: straight legs, arms wheeling ahead), vr_ragdoll_posed_arms,
+vr_box3d_hulls_ahead (with its compare mode 2; the prop hulls are built ahead whenever there is a pool),
+vr_struggle (the switch for all: each monster group's Struggle stays; a group with it off still has the lifted flail,
+struggle_test.py's `_off` cases now turn the eight struggling groups off), vr_gore_wash_once, vr_decap_own_motion,
+vr_limbs_blast (vr_limbs_blast_chance 0 turns it off), vr_water_foam_particle_spray (its "1" side, never shipped on:
+the spray branch, its atlas cell CellShoreSpray, Particle::plain and vr_water_foam_particle_retro), vr_snd_antialias,
+vr_particle_halfres_dense, vr_parallax_plane (the world at the relief's bottom, 1; the shaders' ParallaxPlane stays, 0
+for every other program), vr_parallax_depth_split, vr_magholster_chain_sim, vr_2h_grip_edge,
+vr_toolgun_physgun_ragdoll (its by-origin drag stays as the fallback when no part is hit;
+toolgun_physgun_ragdoll_test.py's --old gone), vr_autopump (autopump_test.sh's two "Auto Pump off" checks gone),
+vr_ad_death_precache. vr_knockdown_weld keeps 0/1; its 2 (welded where the frame had it) is gone, a 2 now holds it in
+the hand as 1. Their menu rows went with them (Torso Follows, Walked Backpedal in Rig Studio, Armed Ragdolls Keep Their
+Posed Arms, Prop Hulls Ahead, Struggle, Keeps Its Own Motion, Explosions Pop Limbs, Particles as Spray, Spray in Retro
+Look, HRTF Anti-Aliasing, Half-Res In Densest Frames, Parallax Surface Level, Parallax Depth Split, Simulated Chain,
+Grip Must Close On It, Auto Pump, AD Monsters' Death Assets Early); vr_menu_path_check maps/vrcalibration.map: 0 missing.
+Config rows of retired cvars dropped (148 vr_parallax_plane, 202 vr_water_foam_particle_spray).
+
+Kept, not switches with an old side: vr_decap_chance_scale (the head's counterpart of vr_limbs_chance_scale, a
+multiplier with no old branch; vr_limbs_wear_test sets it 0). vr_limbs_mass_scale keeps its multiplier, its 0 (the
+pieces weighed by their volume) gone: at least 0.05 (C++ headPropMass, QC VR_Limb_SetMass, the slider's low end).
+
+D2: configVersion 216. The rows that did nothing dropped (135 vr_suit_glow and _light "1", 146 vr_legsweep_topple
+"200", 169 vr_kdtrig_tackle_on "1"); 216 moves a config still at vr_suit_glow 2, vr_suit_glow_light 2 or
+vr_legsweep_topple 180 to today's defaults (1, 1, 200).
+
+D5: one `toolgun::toolColor(Tool)` (vr_toolgun.hpp) with the beam's values: the panel's Remove (was 1 0.3 0.2) and
+Physgun (0.45 0.6 1) icons and highlights now match the beam, and its no-tool colour is white (was 0.9 0.85 0.75). The
+physgun's and scale tool's sticks go through vr_deadzone (`input::stickAxis`, the menus' and turning's: past it
+rescaled from 0), not a fixed 0.15 with the push kept as it was.
