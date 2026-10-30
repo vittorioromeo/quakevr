@@ -301,8 +301,8 @@ def main():
     print("// grips: %d Every Weapon and %d weapon rows changed" % (len(gchanged), len(wchanged)), file=sys.stderr)
     print("// IK stretch: %d kinds and classes changed" % len(schanged), file=sys.stderr)
     if weap:
-        print("// (a weapon's own default applies with vr_agarms 0 only: vr_aggrip.cpp defaultOf; with vr_agarms 1 the "
-              "archived entry is what holds it)", file=sys.stderr)
+        print("// (a weapon's own rows: vr_aggrip.cpp defaults, found by defaultOf on top of its kind's Every Weapon one)",
+              file=sys.stderr)
 
     if args.write:
         with open(pose_path, "w", encoding="utf-8", newline="") as f:
