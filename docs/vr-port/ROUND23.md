@@ -1686,6 +1686,36 @@ speed, directionality, thickness, opacity), per-weapon multipliers, and the wisp
   of the wisps' thin strips while they show (none in combat_48 unless you fire), the particles' reverse-order pass
   clears its stencil marks every 31 draws instead of 63.
 
+### The thunderbolt's wisps and settings; wisps on guns that leave the hand (branch `agent/lgfx`)
+
+His words: the lightning gun should have a smoke wisp too and read the spark/smoke per-weapon tweaks; then the wisps
+should persist on thrown, dropped and holstered weapons.
+
+- **Thunderbolt wisps** (vr_gunfx.cpp `wispLook`): one barrel, charge 0.05 a shot (it fires every 0.1 s: 2 s of beam
+  fill them), opacity 0.2 (the shotgun's 0.32), tinted blue-grey (0.82, 0.9, 1 times the grey: `muzzlewisps::Gun::tint`,
+  taken when they start). Every wisp setting applies (vr_gunfx_wisp_*, slot 7's Muzzle Wisp Opacity `fx_gfx_wisps`).
+- **Its arcs and haze read the settings**: the energy guns' arcs (thunderbolt, laser cannon, enforcer rifle, AD plasma)
+  now take Spark Amount (count) and Spark Size (`particles::gunArcs`: Preset::ElectricSparks with a size), global times
+  the slot's; the thunderbolt's ozone haze where the beam plays (vr_impacts.cpp) takes Smoke Amount (puffs) and Smoke
+  Size (size and growth), global times slot 7's (`gunfx::boltSmoke`). The QC's GUNSMOKE puff at its muzzle each shot
+  (weapons.qc W_FireLightning, like every gun's) is not ours and untouched. Menu helps say so. `vr_debug_gunfx 1`:
+  `gunfx light .. size <spark> <smoke>` per shot, `gunfx impact .. haze N size S`.
+- **Loose guns** (vr_muzzlewisps.cpp `release`/`looseFrame`, vr_gunfx.cpp `LooseGun`): when a hand's gun changes or goes
+  (handFrame's slot change) while it still holds smoke (in the delay too), its trails, smoke and time left move to one of
+  4 loose sources (the least smoke given up); the hand starts afresh. Within 0.5 s the gun is found, the nearest to its
+  muzzle's last place within 160 units: a client entity drawn with the same weapon slot's model (QC's thrown_weapon:
+  dropped or thrown) or a holster's gun (`view::holsterGun`); then followed by entity number or holster index, its
+  muzzle found as in the hand (`muzzleOf`: the slot's Muzzle Anchor and offset on that entity, `wispGun`: the barrels).
+  Not drawn (picked up, gone): its smoke stops, what it let go fades. `vr_debug_gunfx 1`: `gunfx wisps loose hand H as
+  K`, `gunfx wisps found prop|holster N after T s D units off`; 2 also `gunfx wisps loose K at <muzzle> on <origin>`.
+  Not done: a gun taken back up keeps no smoke (the loose one stops); a hand gun invisible for one frame while held
+  would hand its smoke to a loose source that finds nothing (not seen in the tests).
+- **Tests**: gunfx_test.py `--only wisps` 8/8 (the thunderbolt's: 5 shots, 1 barrel, 0.26 s after, drawn, faded),
+  `--only slots` 10/10 (new: slot 7 at 1, 0, 2: arcs 5/0/10, sizes 1/2, haze 1/0/2 puffs, sizes 1/2; the case moved to
+  vrtesthall: a wall ahead for vr_impact_test 3), `--only loose` 4/4 (new: a shotgun dropped, a super shotgun thrown
+  (vr_mock_swing), a shotgun holstered at the right shoulder: released, found 0.00 s later 11-22 units off, followed
+  97-127 frames within 48 units of the gun's origin, the props falling 36-55 units, faded, drawn).
+
 ## Nail pistol: moving slide, slide lock, auto re-rack (branch `agent/npslide`)
 
 His words: a slide that moves with each shot, locks open on an empty magazine, closes by itself with a sound when a
