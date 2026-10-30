@@ -1004,3 +1004,41 @@ case: next has the mock-hand fix since the baseline).
   188, eval 461 -> 87; the critical path is now teleporter_edges (927 s: drawn screenshot runs) and flash_grab (760 s,
   already undrawn: its many passes beside the other games), then xr_runtime 577. Next: those three split into parallel
   parts or undrawn steps.
+
+## Refactor wave B2: C++ kits and allocations (branch `agent/refkits`)
+
+No behaviour change intended; the kits are listed in CODE_STYLE.md, "Kits (refactor B2)".
+
+- **`gfx::RenderTarget`** (vr_glutil.hpp): a texture + framebuffer made for a size from a `RenderTargetFormat`
+  (internal format, depth/shadow compare, clamp, max level 0, the framebuffer's label), completeness always checked
+  (R05). Used by bloom's chain, the shadow atlases (lighting), the stereo resample target (now checked: a warning, it
+  had none) and the half-size particles' targets (now checked: an incomplete one draws them full size from then on). The
+  GL calls per site are the old ones (same parameters, the same final labels); the only state difference is texture
+  unit 0 left unbound after making a half-size particle target (it was left bound to the new texture; the pass binds
+  what it samples). Not moved: haze's scene copies (their own unit 6 and a format key), envmap, permdecals, water,
+  wounds, upscale, stereo_single, gfx_gl's under-target (multi-attachment or other shapes).
+- **`vr_toolpanel.hpp`**: `Frame` + `Grid` + `buttonCentre`/`pressedBy`/`buttonUnder` (Holster Setup, Edit Blade Shape,
+  Pose Studio's button grids: the same float expressions), `pushUndo(stack, max, item)` (the three tools' bounded
+  stacks; Pose Studio's two stacks pushed alike), `say(line, until, tool, text, seconds)` (each tool's 2.5 / 3 s kept),
+  and the panel images' `Rect`/`fill`/`text`/`textFit` (arena cards and the toolgun panel had identical copies).
+  Not merged: the hover functions (each tool's own zones/handles), placePanel/drawPanel (different shapes), the doom
+  panel (S22) and the other tools' say lines (posing, rigstudio, relight: other signatures).
+- **`audio::playAt` / `playLocal`** (vr_audio.hpp): the client's one-shot sounds (AD crossbow bolt, auto pump, shells'
+  plips, chainsaw's weak pull, highlights' beep, vr_snd_play/_dir/_burst/bench). goresound (pitch) and bullettime
+  (S_LocalSound by cvar name) keep theirs.
+- **`SlotTable<Key, Slots, Keys>`** (vr_slottable.hpp): the weapons' and props' per-slot cvars (names kept, `define`,
+  `keyOf` for the ID-changed callbacks).
+- **Bindings**: the arena cards' 12 `VR_ARK_*` functions resolved once per map (`progs::bindings().arenaCards`), not by
+  name each frame (findFunction scans every function).
+- **VR_NewMap's prewarm** as an ordered `prewarmSteps` table (name, function, only with vr_load_prewarm).
+- **Allocations**: sweepReach's `found`/`struck` in a `mem::Scratch` ("sweepReach"; were two vectors per fast swing);
+  text3d's board/screen image lines in one kept string. Timescale's `wasFree` is a member vector (keeps its capacity: no
+  allocation once warm) and probeKinds' is once a load: left.
+- **Left for a later pass** (no row details found, or a merge would change output): R14 surfaceAbove (particles: client
+  contents, up only, 8 halvings) vs physics' surfaceOver (server contents, both ways, 12 halvings to 0.1 u, sky stops):
+  six differences, a policy object for little gain; R08, R33/R51 beyond the prewarm table, M23-M25, R38, R39, B53, C26.
+- Tests: the covering cases (arena_perks 1-5, autopump, selfchecks, weapon_catch, held_over_props, pickup_mag,
+  throw_spin, vrtrailer, stats_levelchange, teleporters_chase, explosion_debris, reload_contact, ammocolor_1, cellcord,
+  walltorch_grab) as baseline.tsv but autopump 7/7 (known); Holster Setup and Edit Blade Shape opened, pressed, undone,
+  cancelled by their commands (say lines as before).
+- Bench (LTO, exclusive, idle_e1m1 + particles_dense + explosions_3s, 3 reps; this branch, origin/next, this branch again): frame and GPU times within noise, heap allocations the same; CPU busy +3-5% in the first run and -5-14% in the rerun (order noise, benchresults/b2_new, b2_base, b2_new2). A render-scale 0.8 eyeshot printed no incomplete-framebuffer warning (its PNG hash differs between two runs of the same exe, so hashes cannot compare builds).
