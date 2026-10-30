@@ -2836,6 +2836,50 @@ Regression test: `Misc/quakevr/bodytrack_solve_test.sh <agent> [--update]`: 300 
 quakevr/scenarios/bodytrack/solve_ref.csv (0.5 units per joint, 0.02 per weight); verdict line
 `bodytrack_solve: N passed, M failed`.
 
+## His tweaks of 2026-10-30 as defaults (branch `agent/promote1030`)
+
+His "I've tweaked many values, please make them the defaults." Source: his `quakevr/ironwail.cfg` of 2026-10-30
+(sparse, configVersion 218; no `tunables.cfg`: no tuning constant changed). The game loaded the defaults, then a copy
+of his config, and `vr_config_test dumpfull` wrote each (23,072 settings): 219 vr_ settings differed. The full list,
+promoted / personal / doubtful: the kit's `scratch/promote_1030.md`.
+
+- **Promoted** (an edit of each default; no defaultChanges row, as the sparse config wants): 38 settings in
+  vr_cvars.inc (armed grunts' armour, tug, strafe turn, parry disarm, replacement chances; ammo low fraction and pouch;
+  every gun-smoke, spark and wisp setting; relight AO 1.2 and bounce on; the revolver's rod and spin; shore foam; the
+  worn backpack's rip force); 100 weapon slot values in vr_weapons.inc (recoil cm / deg / s of 27 slots and 18 Haptic
+  Punch, the revolver's flash and tracers, the AD stream gun's rumble and shake, the nailgun's third hotspot, the nail
+  pistol's two-handed mode and text panel, the AD plasma gun's text panel, the Widowmaker's stock pitch; five of them
+  on the slot's QVR_WEAPON_UNINHERITED line, which is read last and wins); the armed humanoids' 120 pose keys, 16 IK
+  stretch rows and 3 grips (pose_defaults.py --cfg --write).
+- **Weapon grips** had no default table since Refactor C1 (pose_defaults.py stopped at it): vr_aggrip.cpp `defaults[]`
+  again ({kind, weapon id, hand, ...}; `defaultOf` finds a weapon's row, on top of its kind's Every Weapon one;
+  `vr_agrunt_grip_dump all` prints them). His two: the grunt's crossbow and the enforcer's chainsaw, second hand.
+- **Recoil of a config before vr_wofs_version 74:** a slot whose old recoil was the shipped one of then (and the
+  globals 1.5 / 4) now keeps today's defaults (his) instead of its old feel converted (`takeRecoilUnits74`), as a
+  setting left alone does; a changed slot converts as before.
+- **Not promoted:** personal (body, calibration, elbow, tracker, his avatar's hands, nails, gloves and voice, toolgun
+  and its holsters, rig studio, recording, voice notes, foveation, spectator and window view, XR runtime, menu state);
+  doubtful, for him: vr_ad_upgrades 2, vr_agrunt_repl 1, vr_worn_backpacks 1 (feature switches for every map),
+  vr_reload_mode_revolver 3, vr_relight_minlight 64, vr_relight_reload 1, vr_ghost_hands 1 (fade 9),
+  vr_autosave_list_all 1, his six held-object slots with only an ID (they act as no slot), and float noise
+  (muzzle_x/z_01, w_com_35/50).
+- **Checks:** build 0 warnings; his config loaded before and after: all 23,072 values the same (0 differ); the
+  defaults now differ from his in 81 settings, all of them the skipped ones; his 120 pose keys equal the shipped rows
+  (to 0.005). config_sparse_test 16/0 (the default config and his). vr_recoil_test: the conversion checks now count
+  27 slots at his values and check the conversion's curve on the converted values (not the defaults); a converted
+  slot at the shipped recoil of then must hold today's defaults; the stream check takes slot 30's 1.25 / 1.75:
+  69/0 (it was 65/4 before those changes). tunables_test 20/0. Full baseline (`run_baseline.sh harness --no-bench`)
+  against baseline.tsv: recoil as said; nail_1 7/0 -> 11/0 and np_1 21/0 -> 35/0 (checks added on next since the
+  baseline; nail_1 8/3 once in a loaded lane, 11/0 alone); agrunt_31, 36, 65 FAIL -> PASS (rerun: the same); reload
+  111/4 once, 112/3 on the rerun (as the baseline); agrunt_76 (Aim Behind Cover) 25/0, 24/1, 22/3, 23/2 over four
+  runs, a different gun and cover failing each time (a few shots a case: noise); the other flaky ones as the run
+  listed them.
+
+Checklist:
+- Fire every gun: recoil, smoke, sparks and wisps as you had them (shotgun 10 cm / 12 deg, revolver 14.6 / 21.9).
+- Armed grunts (Combat > Armed Grunts): poses, grips (the crossbow's and the chainsaw's second hand), armour and tug as
+  you left them, with your own vr_agrunt_poses / grips / ik_stretch cleared (they now equal the defaults).
+- Relit maps: AO 1.2 and bounced light by default.
 ## Kick cancel in the poses; two-handed recoil; no ghost hands from recoil (branch `agent/recoil2h`)
 
 His words: the starter shotgun's new recoil "seems jittery" (frames still moving it); the grenade launcher "also seems to
