@@ -169,6 +169,9 @@ Shoot a grenade in flight (shotgun, nails): sparks fly out along the hit, not a 
 Punch or club a wall torch: a wooden knock; a grenade: a light metal clink (not a flesh slap); chainsaw a wall torch: no sparks.
 Swing at an armed grunt (sword, then an enforcer) so it raises its parry: its weapon sits across your blow's way, in front of its chest, not off to its right; your swing rings off it.
 Raise your weapon near a grunt (the wind-up parry) or step in close (the preventive guard): its raised weapon points at your hand, its hand still on the grip (not stretched off it).
+Hold the flashlight in one hand, point that hand at a box and pull the trigger: no force grab lock-on (the other hand locks on).
+Two-hand the super shotgun, point the fore-end hand at a pickup with the trigger: no lock-on; let go of the fore-end: it locks on and pulls.
+Force grab, weapon pickups (floor, thrown, a grunt's), the holster draw and the hand-off feel as before.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns
