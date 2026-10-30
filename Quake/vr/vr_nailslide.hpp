@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include "vr_engine.hpp"
+
 struct qmodel_s;
 
 namespace qvr::nailslide
@@ -18,5 +20,23 @@ void step(int hand, const qmodel_s* gun, int frame);
 
 // Its place in hand `hand` now: 0 home .. 1 back by the travel (tests, the debug print).
 [[nodiscard]] float position(int hand);
+
+// A holstered gun (`model`, its holster's clip and weapon flags stats; clip -1: a preview, a pose): a nail pistol with
+// no round to fire, its slide locked back as it was in the hand (QC VR_NailPistol_Empty: reloading on, its clip empty or
+// its magazine out; off, your nails spent). Drawn as frame 1 (vr_view.cpp setupHolsters).
+[[nodiscard]] bool holsterLocked(const qmodel_s* model, int clip, int flags);
+
+// A nail pistol lying about (a weapon prop, `e` a numbered client entity: U_QVR_WEAPONUID's clip, U_QVR_NOMAG) with no
+// round to fire: drawn locked back whatever its frame.
+[[nodiscard]] bool propLocked(const entity_t& e);
+
+// Where its ammo screen is moved by the slide now (vr_nailpistol_screen_ride, the full-slide look: the screen is on the
+// slide's left wall), in the model's byte space (anchor::posedAnchor's): the slide's drawn travel; 0 for anything else.
+[[nodiscard]] glm::vec3 screenShift(const entity_t& e);
+
+// The nail pistol's test (vr_np_test, QC vr_nailpistol_test.qc), each frame: what is drawn, into vr_np_seen_screen (the
+// main hand's ammo screen moved by its slide, the gun's model units), vr_np_seen_holster and vr_np_seen_prop (the nail
+// pistols drawn in the holsters and lying about: locked back + 100 x closed).
+void probe();
 
 } // namespace qvr::nailslide

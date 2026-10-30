@@ -434,6 +434,15 @@ QVR_WEAPON_KEY(HapticPunch, "fx_punch")
 // on for those two (below). New cvars: no migration.
 QVR_WEAPON_KEY(StreamShake, "fx_stream_shake")
 QVR_WEAPON_KEY(StreamHaptic, "fx_stream_haptic")
+// The weapon's gunfire particles (ROUND23.md, "Gunfire VFX settings"; Weapon Offsets > Effects; vr_gunfx.cpp emit,
+// barrelWisps): times Weapon Effects > Gunfire Particles' Spark Amount, Spark Size, Smoke Amount, Smoke Size and its
+// muzzle wisps' opacity (Wisp Amount), for this weapon's shots (yours; a monster's gun by its model, else its weapon
+// id's). 1 by default (registerCvars). New cvars: no migration.
+QVR_WEAPON_KEY(GunfxSparks, "fx_gfx_sparks")
+QVR_WEAPON_KEY(GunfxSparkSize, "fx_gfx_spark_size")
+QVR_WEAPON_KEY(GunfxSmoke, "fx_gfx_smoke")
+QVR_WEAPON_KEY(GunfxSmokeSize, "fx_gfx_smoke_size")
+QVR_WEAPON_KEY(GunfxWisps, "fx_gfx_wisps")
 #endif
 
 

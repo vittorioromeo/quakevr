@@ -49,8 +49,9 @@ struct Muzzle
 
 // A shot by weapon `wid` out of `m`. `shooter`: 0, 1 your hands, else the monster's entity (its fire rate's key).
 // `adBurst`: an AD gun's own sparks and backblast made already (vr_weaponfx.cpp adGunBurst): not again. `ports`: the
-// gun throws casings out of its port itself (vr_shells.cpp: its port's puff then), else a shotgun's puff now.
-void shot(int wid, const Muzzle& m, int shooter, bool adBurst, bool ports);
+// gun throws casings out of its port itself (vr_shells.cpp: its port's puff then), else a shotgun's puff now. `slot`: the
+// weapon settings' slot whose Gunfire multipliers apply (Weapon Offsets > Effects; -1: the weapon id's, if any).
+void shot(int wid, const Muzzle& m, int shooter, bool adBurst, bool ports, int slot = -1);
 
 // Your hand `hand` fired (vr_weaponfx.cpp): its particles at its drawn muzzle at the next handFrame.
 void playerFired(int hand);

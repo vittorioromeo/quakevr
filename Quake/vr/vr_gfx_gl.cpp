@@ -90,6 +90,9 @@ layout(location = 2) uniform vec4 Params;
 layout(location = 3) uniform vec3 Size; // Mode 4's virtual screen: pixels across, down, scanlines a pixel
 layout(location = 16) uniform float TrueColor; // Mode 4: 1 the texture's own colours, 0 its brightness in the vertex colour
 layout(location = 4) uniform int SoftOn; // State::sceneDistances on unit 1
+#if MODE == 1
+layout(location = 17) uniform vec2 Band; // the falloffs drawn: above x, up to y (State::once's bands; else all)
+#endif
 // Teleporters shown in this view (vr_portals.cpp VR_PortalFrameData; set for the particles only, else none): what lies
 // behind one, seen through its aperture from the eye, is hidden by the view through it (a translucent gate surface,
 // vr_teleporter_surface_opacity under 1, writes no depth: torch fire behind it showed over it).
@@ -361,6 +364,8 @@ void main()
 #endif
 #if MODE == 1
     float falloff = clamp(1.0 - dot(uv, uv), 0.0, 1.0);
+    if(falloff <= Band.x || falloff > Band.y)
+        discard;
     result = vec4(color.rgb, color.a * falloff);
 #elif MODE == 2
 #if RETRO
@@ -729,9 +734,9 @@ GLuint underMarkProgram = 0;
 GLuint underCompositeProgram = 0;
 bool underFailed = false; // its programs
 bool underWarned = false; // an incomplete framebuffer said once
-constexpr GLuint underStencilBits = 0xfc; // the marks' (sky 1, OIT 2: gl_sky.c, gl_rmain.c)
+constexpr GLuint underStencilBits = 0x7c; // the marks' (sky 1, OIT 2: gl_sky.c, gl_rmain.c; 0x80 State::once's)
 constexpr int underStencilShift = 2;
-constexpr int underGenerations = 63; // the marks' values, 1..63 (0: cleared)
+constexpr int underGenerations = 31; // the marks' values, 1..31 (0: cleared)
 constexpr GLenum underTextureUnit = GL_TEXTURE7;
 
 // A full-screen triangle (halfCompositeVs). Marks (the stencil bit) the pixels as opaque as Opaque.
@@ -1123,6 +1128,10 @@ namespace
         GL_Uniform1fFunc(16, state.trueColor ? 1.f : 0.f);
     }
     GL_Uniform1iFunc(4, state.sceneDistances ? 1 : 0);
+    if(state.shade == Shade::SoftEdge)
+    {
+        GL_Uniform2fFunc(17, -1.f, 2.f); // (every falloff: State::once's bands narrow it)
+    }
     if(retro)
     {
         bindRetro(state.retro);
@@ -1138,7 +1147,13 @@ namespace
     return true;
 }
 
-// `count` vertices from `buffer` at `offset`, then the blend put back as GLS_BLEND_ALPHA expects it.
+// State::once's: the stencil bit marking the pixels drawn (no one else's: sky 1, OIT 2, the particles' reverse-order
+// marks 0x7c), and the bands of Shade::SoftEdge's falloff drawn one after another, the strongest first.
+constexpr GLuint onceStencilBit = 0x80;
+constexpr int onceBands = 4;
+
+// `count` vertices from `buffer` at `offset`, then the blend put back as GLS_BLEND_ALPHA expects it. State::once: each
+// pixel drawn by one of them only (in bands, strongest first), then the marks cleared by the same vertices again.
 void drawVertices(GLuint buffer, const GLbyte* offset, za::SizeT count, const State& state)
 {
     GL_BindBuffer(GL_ARRAY_BUFFER, buffer);
@@ -1146,7 +1161,42 @@ void drawVertices(GLuint buffer, const GLbyte* offset, za::SizeT count, const St
     GL_VertexAttribPointerFunc(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), offset + offsetof(Vertex, uv));
     GL_VertexAttribPointerFunc(2, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), offset + offsetof(Vertex, color));
     GL_VertexAttribPointerFunc(3, 1, GL_FLOAT, GL_FALSE, sizeof(Vertex), offset + offsetof(Vertex, soft));
-    glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(count));
+    if(state.once)
+    {
+        glEnable(GL_STENCIL_TEST);
+        glStencilMask(onceStencilBit);
+        glStencilFunc(GL_NOTEQUAL, onceStencilBit, onceStencilBit);
+        glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+        const int bands = state.shade == Shade::SoftEdge ? onceBands : 1;
+        for(int b = 0; b < bands; b++)
+        {
+            if(bands > 1)
+            {
+                const float hi = b == 0 ? 2.f : 1.f - static_cast<float>(b) / static_cast<float>(bands);
+                const float lo = b + 1 < bands ? 1.f - static_cast<float>(b + 1) / static_cast<float>(bands) : -1.f;
+                GL_Uniform2fFunc(17, lo, hi);
+            }
+            glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(count));
+        }
+        // The marks cleared (the same fragments: the same depth test, nothing else drawn).
+        if(bands > 1)
+        {
+            GL_Uniform2fFunc(17, -1.f, 2.f);
+        }
+        glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+        glStencilFunc(GL_ALWAYS, 0, onceStencilBit);
+        glStencilOp(GL_KEEP, GL_KEEP, GL_ZERO);
+        glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(count));
+        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+        glStencilMask(~0u);
+        glStencilFunc(GL_ALWAYS, 0, ~0u);
+        glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+        glDisable(GL_STENCIL_TEST);
+    }
+    else
+    {
+        glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(count));
+    }
     GL_BindBuffer(GL_ARRAY_BUFFER, 0);
 
     if(state.blend == Blend::Premultiplied || state.blend == Blend::Modulate || state.blend == Blend::Additive)
