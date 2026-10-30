@@ -503,11 +503,21 @@ void backFlail(State& s, const Parts& p, const Context& c, const glm::vec3& pelv
     (void)pelvis;
 }
 
-void deathFrame(State& s, const Parts& p, const Context& c, float t)
+namespace
 {
-    Death& d = s.death;
-    const glm::vec3 up{0.f, 0.f, 1.f};
-    // A stumble: the leg behind steps along his motion, its foot lifted on the way.
+
+// deathFrame's working state, from phase to phase (deathFrame below: its phases in order).
+struct DeathWork
+{
+    Death* d{nullptr};
+    glm::vec3 up{};
+};
+
+// A stumble: the leg behind steps along his motion, its foot lifted on the way.
+void deathStumble(DeathWork& w, State& s, const Parts& p, const Context& c, float t)
+{
+    Death& d = *w.d;
+    glm::vec3& up = w.up;
     if(d.stepLeg >= 0)
     {
         const auto leg = static_cast<za::SizeT>(d.stepLeg);
@@ -543,7 +553,12 @@ void deathFrame(State& s, const Parts& p, const Context& c, float t)
             }
         }
     }
-    // Holding the wound: a hand to it (a little off its surface, outward), until the arms fade.
+}
+
+// Holding the wound: a hand to it (a little off its surface, outward), until the arms fade.
+void deathWound(DeathWork& w, State& s, const Parts& p, float t)
+{
+    Death& d = *w.d;
     if(d.woundArm >= 0 && d.woundPart >= 0)
     {
         Reach& r = s.reach[static_cast<za::SizeT>(d.woundArm)];
@@ -561,7 +576,13 @@ void deathFrame(State& s, const Parts& p, const Context& c, float t)
             r.strength = 0.8f;
         }
     }
-    // Crawling.
+}
+
+// Crawling.
+void deathCrawl(DeathWork& w, State& s, const Parts& p, const Context& c, float t)
+{
+    Death& d = *w.d;
+    glm::vec3& up = w.up;
     if(!d.crawl)
     {
         return;
@@ -723,6 +744,18 @@ void deathFrame(State& s, const Parts& p, const Context& c, float t)
         }
     }
     d.crawled = glm::length(glm::vec2{pelvis - d.crawlStart});
+}
+
+} // namespace
+
+void deathFrame(State& s, const Parts& p, const Context& c, float t)
+{
+    DeathWork w;
+    w.d = &s.death;
+    w.up = glm::vec3{0.f, 0.f, 1.f};
+    deathStumble(w, s, p, c, t);
+    deathWound(w, s, p, t);
+    deathCrawl(w, s, p, c, t);
 }
 
 // ---- Staggers ----
