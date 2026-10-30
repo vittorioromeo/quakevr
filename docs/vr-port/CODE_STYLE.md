@@ -270,6 +270,8 @@ Do not write a local copy (a second `rnd`, `lower`, `trim`, `startsWith`, `appen
 | per-slot cvars (`vr_<x>_<key>_NN`): storage, names, a cvar's key | `SlotTable<Key, Slots, Keys>` (`at`, `define`, `keyOf`, iteration) | `vr_slottable.hpp` |
 | QC functions the engine calls every frame | a `progs::Bindings` member resolved once per map (`bindings().arenaCards.CardSerial`), never `findFunction("...")` per frame | `vr_progs.hpp` |
 | work done at each map load, in order | a row of `prewarmSteps` (vr_main.cpp `VR_NewMap`) | `vr_main.cpp` |
+| a new view entity (hands, weapons, body parts) | a member of `Entities` listed in `Entities::members` at its place in the draw order (`zip(a, b)` for arrays visited per index); `forEachEntity` walks the list, a static_assert fails on a member left out | `vr_view_internal.hpp` |
+| client state reset when the client's state is cleared (a map, a loaded game) | a call in `VR_OnClientClearState`; per-map data rebuilt: compare `worldGeneration()` (with the world pointer) | `vr_client.cpp`, `vr_main.hpp` |
 
 ### QC (refactor A4)
 

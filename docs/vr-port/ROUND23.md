@@ -1034,9 +1034,27 @@ No behaviour change intended; the kits are listed in CODE_STYLE.md, "Kits (refac
 - **Allocations**: sweepReach's `found`/`struck` in a `mem::Scratch` ("sweepReach"; were two vectors per fast swing);
   text3d's board/screen image lines in one kept string. Timescale's `wasFree` is a member vector (keeps its capacity: no
   allocation once warm) and probeKinds' is once a load: left.
+- **Entities::members** (R08, vr_view_internal.hpp): the view entities in one list in forEachEntity's order (the draw
+  order into cl_visedicts), `zip(...)` for the arrays visited per index (pauldron cap and lames, the SSGs' frame and
+  barrels, the revolver's parts); a static_assert on the sizes catches a member left out. Checked once with both walks
+  side by side: 346 entities, the same addresses in the same order.
+- **Allocations (2)**: the decals' repack into `scratch.packed` (swapped with the settled vertices: the old buffer kept for
+  the next, released at a map change); wounds' splats (wound, bloodyHead, smearHand, splashOnto) in one `mem::Scratch`
+  ("wounds") and facingBlow writes into its `blown` (was a vector copy per blow); a brush bake's lit faces in
+  `bakeScratch` (the queue keeps its own copy); retro pick's overlay line and picked label in char buffers (were a
+  String + va + hitLabel's String each frame while picking). The brushes' autoload `text`/`warning` run once a map: left.
+- **footTrace** (B53, vr_avatar.cpp): `progs::ServerVm` + `worldtrace::serverLine(a, z, player)` for the raw push, SV_Move
+  and pop; one push per call as before (climbing.traces counts the same calls).
+- **R51 not merged**: the five sites detect five different events. view's patchModelFlags already uses the canonical
+  world + `worldGeneration()`; dynres resets after any frame gap (a hitch too, not only a map); lootbeams and highlights
+  reset when their clock runs backwards (also cl.time's snap back in CL_LerpPoint, and a loaded save's later clock is not
+  caught); temporal resets on a new world pointer only (not on the same map loaded again). Moving any of them to
+  `VR_OnClientClearState` (the de facto client registry, listed in CODE_STYLE) changes when it resets.
+- **C26 left**: VR_ARENA_Leftovers' per-frame findflags drives the fade's per-frame alpha ramp and the per-frame up-again
+  and held checks; a next-due gate would move those, so the fade timing is not provably unchanged.
 - **Left for a later pass** (no row details found, or a merge would change output): R14 surfaceAbove (particles: client
   contents, up only, 8 halvings) vs physics' surfaceOver (server contents, both ways, 12 halvings to 0.1 u, sky stops):
-  six differences, a policy object for little gain; R08, R33/R51 beyond the prewarm table, M23-M25, R38, R39, B53, C26.
+  six differences, a policy object for little gain; R33 beyond the prewarm table; R51 and C26 (above).
 - Tests: the covering cases (arena_perks 1-5, autopump, selfchecks, weapon_catch, held_over_props, pickup_mag,
   throw_spin, vrtrailer, stats_levelchange, teleporters_chase, explosion_debris, reload_contact, ammocolor_1, cellcord,
   walltorch_grab) as baseline.tsv but autopump 7/7 (known); Holster Setup and Edit Blade Shape opened, pressed, undone,
