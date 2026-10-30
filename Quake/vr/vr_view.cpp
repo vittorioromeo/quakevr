@@ -1,6 +1,7 @@
 // vr_view.cpp -- see vr_view.hpp. Ported from the old engine's view.cpp (V_RenderView_*).
 
 #include "vr_view_internal.hpp"
+#include "vr_kickcancel.hpp"
 #include "vr_holsterzones.hpp"
 #include "vr_gunsfx.hpp"
 #include "vr_holstersetup.hpp"
@@ -551,6 +552,7 @@ void view::prepareWorldWeapons()
         }
         anchor::prepare(model, weapons::anchor(slot, Key::WpnButtonAnchor));
         anchor::prepare(model, weapons::anchor(slot, Key::WpnTextAnchor));
+        kickcancel::prepare(model); // (its firing frames' kick fitted now, not as it is first drawn)
     }
 }
 

@@ -1577,9 +1577,10 @@ QVR_CVAR(vr_autopump_haptics, "1", CVAR_ARCHIVE)      // strength of the light t
 QVR_CVAR(vr_autopump_hold, "-1", CVAR_NONE)           // test: 0..1 holds every shotgun's fore-end at that point of the stroke (0.35-0.45 the back; -1 off)
 // Weapon effects (vr_weaponfx.cpp; ROUND21.md, "Weapon effects: recoil, muzzle flash, tracers"): each weapon's own
 // settings are Weapon Offsets > Effects (vr_wofs_fx_*: which weapons kick and flash, their tracers' multipliers).
-QVR_CVAR(vr_weapon_recoil, "1", CVAR_ARCHIVE)          // 0: no programmatic recoil (the models' own recoil animations stay)
-QVR_CVAR(vr_recoil_kick, "1.5", CVAR_ARCHIVE)          // cm the drawn weapon is kicked back at a weapon's Recoil Strength 1 (looks only)
-QVR_CVAR(vr_recoil_rise, "4", CVAR_ARCHIVE)            // degrees its muzzle tips up at Strength 1 (looks only: the aim stays)
+QVR_CVAR(vr_weapon_recoil, "1", CVAR_ARCHIVE)          // 0: no programmatic recoil
+QVR_CVAR(vr_recoil_amount, "1", CVAR_ARCHIVE)         // every weapon's recoil (its own Kick Back cm and Muzzle Rise degrees) times this (looks only: the aim stays; the old vr_recoil_kick and vr_recoil_rise are in each weapon's own since vr_wofs_version 74)
+QVR_CVAR(vr_debug_weapon_frame, "-1", CVAR_NONE)       // debug: the held weapons drawn at this frame of their models, whatever the game steps (-1: as it steps them; Debug > Weapons)
+QVR_CVAR(vr_weapon_kick_cancel, "1", CVAR_NONE)        // the kick baked into Quake's weapon models' firing frames taken out as they are drawn (vr_kickcancel.cpp; parts such as a pump still move); 0: the models' own kick, to compare (Debug > Weapons)
 QVR_CVAR(vr_muzzle_flash, "1", CVAR_ARCHIVE)           // 0: no programmatic muzzle flashes (the models' own stay)
 QVR_CVAR(vr_muzzle_flash_enemies, "1", CVAR_ARCHIVE)   // the grunts' and enforcers' guns flash at their muzzles as they fire
 QVR_CVAR(vr_muzzle_smoke_enemies, "1", CVAR_ARCHIVE)   // puffs of gun smoke out of an enforcer's rifle's and a grunt's gun's muzzle as they fire (as your guns'; 0 none; NOTES.md vrfiringrange_2026-10-02_01-21-23, grunts _15-52-01)

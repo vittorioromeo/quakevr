@@ -2064,6 +2064,140 @@ current one kept to fall back to.
   shakes every frame of a second of flames and trembles, under a degree, settled after, none at 0): 24/0. Not checked
   here: a real flamethrower (the kit's bases have no AD data); the network hop is two lines.
 
+## Baked kick out, procedural recoil in (branch `agent/dekick`)
+
+His words: get rid of the baked kick and muzzle raise from every weapon that has it, keep the parts' own animation
+(pump, barrels), use the procedural recoil instead, then drop the code that only existed for the baked kick.
+
+- **The cancel** (`vr_kickcancel.cpp`; the id models are never changed): for each listed weapon model (slots 1-7, 9-15:
+  Quake's guns, the laser cannon and proximity gun, Rogue's lava nailguns, multi launchers and plasma gun), at load
+  (`view::prepareWorldWeapons`, cached per model in a `mem::Cache`), each pose's rigid motion back to the rest pose
+  (frame 0) is fitted over the gun's body. The body: per pose, the motion most vertices agree on within 3 byte steps,
+  vertices near the hand counting most (the grip: the slot's Offset point), among the fit over all, none, the last
+  pose's and 96 random triples' (deterministic), rolls about the gun's length over 8 degrees refused (a drum or Gatling
+  barrels turning is a part, though it may be half the model), refitted over its inliers 3 times; the body is the
+  vertices every pose keeps. Drawn: the two drawn poses' cancels blended (slerp, as R_SetupAliasFrame blends the poses)
+  and put through the model's byte space (S^-1 T(-so) C T(so) S), the alias matrix ending with it
+  (`VR_AliasPostTransform`), and `anchor::posedAnchor/posedVertex/posedVertices` putting their points through the same
+  map, so muzzles, shell ports, mounts and the hand-on-a-part motion (`animationMotion`) follow what is drawn. The grip
+  hotspots need nothing (the body they are on holds still). `anchor::drawnPoses` is the poses-as-drawn rule, shared.
+  `rigpose::fitRigid` (Horn's quaternion) moved out of vr_hitreact_arms.cpp for it. Fit cost: 13 ms for the largest
+  model tried (4720 vertices, 36 poses), at map load.
+- What the fit found (`vr_kickcancel_info <model>`: per pose cm back at the hand, degrees up, the body's residual):
+  the shotgun 11.6 cm / 9.4 deg at frame 2, back at frame 6; the super shotgun 28.7 cm / 6.3 deg; the grenade,
+  proximity and multi grenade launchers 21 cm / 24 deg (their upper shell moves on the lower body: a part); the rocket
+  launchers 15.5 cm / 8.9 deg; the super nailguns 3.4 cm back, no rise; the lightning and plasma guns 1 cm; the nailguns
+  and lava nailgun none (their barrels only); the laser cannon hardly any. Not the Widowmaker (slot 34): its own model's
+  frames (vr0-vr8 and the spin frames) turn its barrels only, no kick (measured 0), so it is not listed.
+- **Recoil defaults** (vr_weapons.inc): Recoil on for slots 1-7, 9-15; from the measured kick toned down for a gun in
+  the hand (half the way back up to 8 cm, 0.6 of the rise up to 12 degrees, the way back from the peak up to 0.4 s), at
+  Weapon Effects' 1.5 cm and 4 degrees: shotgun Kick 3.85 Rise 1.4 Time 0.35; super shotgun 5.3 / 0.95 / 0.3; grenade,
+  proximity, multi grenade 5.3 / 3 / 0.35; rocket and multi rocket 5.2 / 1.35 / 0.3; lightning and plasma 0.4 / 0.25 /
+  0.1. The nailgun and lava nailgun, the super nailgun and lava super nailgun, the laser cannon: his own values (his
+  config: Strength 0.65, Kick 0.5, Rise 0.5; 0.785, 0.76, 0.835; 0.71, 0.835, 0.735). His config is still a full one
+  (vr_cfg_version 217: every slot's line), so its old "Recoil 0" lines would have read as his choice and left those guns
+  with no kick at all: `vr_wofs_version` 73 (takeRecoil73) turns Recoil on where it is still the old 0, with Strength,
+  Kick, Rise and Time still at the old defaults taking the new; slots he turned on are left alone. (CODE_STYLE says no
+  step for a changed default; that holds for sparse configs, where this step matches nothing.)
+- **Removed**: the weapons' blend towards frame 0 (`zb`, `zb_2h`: 97 lines of vr_weapons.inc; the two-handed steadying
+  of the baked kick: 0.75-0.8 on the shotguns and launchers), retired quietly (`VR_RetiredCvar`: `vr_wofs_zb_*`);
+  the per-slot Recoil's "Off (the model's own)" is "Off"; the help texts that said only the burst rifle needs the
+  programmatic recoil. Kept: the shader's ZeroBlend (the fingers' curl and the gadget strap use it; its muzzle-flash
+  reference vertices only mattered for the weapons' blend: dead for them now, left for a later pass) and
+  `animationMotion` (a hand on a pump or slide still follows it).
+- Debug (Debug > Tests, Weapons): "Take Out the Models' Own Kick" (`vr_weapon_kick_cancel`, 1; 0 shows the models' own
+  kick, not archived), "Hold the Weapon Frame" (`vr_debug_weapon_frame`, -1: the held weapons drawn at that frame of
+  their models), "Kick Cancel Test" (`vr_kickcancel_test`).
+- Tests: `vr_kickcancel_test` (also part of `vr_recoil_test`): every listed model found draws each frame through the
+  anchors' path with every body vertex within 4 byte steps of where frame 0 draws it, and a body of at least a fifth of
+  it; 43/0 (14 models; body after the cancel within 1-3.4 steps; the parts left moving: 12-816 vertices a model).
+  `vr_recoil_test`'s stream part now measures the shake at the held gun's own Kick and Rise 1 (the shotgun's are 3.85
+  and 1.4 now). Eyeshots (`C:/OHWorkspace/qvr-kit/scratch/dekick/`: `after_sheet1/2.png`, each gun at rest, at its peak
+  kick frame cancelled, and its own kick; `fire_sheet.png`: the shotgun and rocket launcher at rest and at the peak of
+  the procedural kick): the pixels that change from rest to the cancelled peak are 1.6-3.4% of the eye (the flash, the
+  parts) for the shotguns, nailguns and lightning gun, 7-9% for the launchers (their upper shells), against 4-17% for
+  their own kick. Covering cases vs baseline.tsv: recoil 67/0 (was 9/0: the kick checks added), shot_shape, reload*,
+  nail_1, collectfx as before, but reload_front 33/1 ("a rocket brought to the grenade launcher's muzzle stays out":
+  `impulse 178` leaves the rocket launcher in the off hand); the same on origin/next e70960216 without this branch, so
+  not this change. A/B bench, combat_48, ABBAABBAAB, ThinLTO: frame p50 11.11 both; cpu median A 2.53 ms, B 2.60 ms
+  (spread 2.41-2.92 both); two B runs (6, 7) had p99 210-250 ms hitches while the A runs around them (5, 8) were also up
+  (12-13 ms): machine noise suspected, a recheck got no result (the author's game). Worth a rerun.
+- **Recoil settings that say the same thing** (not changed; a proposal): per slot, Recoil off = Strength 0 (nothing else
+  reads the switch); Strength is a common factor of Kick Back and Muzzle Rise (only the burst cap of 2.5 strengths and
+  the AD variants' feel multiply it alone); Return Time and Recovery both stretch the way back (Recovery only after the
+  rise, which is min(35 ms, 0.3 Return Time)); the global Kick Back and Muzzle Rise are a unit and a master scale for
+  every weapon's. A simpler set: per weapon Kick Back (cm) and Muzzle Rise (deg), absolute, and Return Time (s, peak to
+  rest); globally the Programmatic Recoil switch and one Recoil Amount (x1). Migration keeping every feel: cm =
+  vr_recoil_kick x Kick x Strength (0 where Recoil off), deg = vr_recoil_rise x Rise x Strength, time = (T - min(0.035,
+  0.3 T)) x Recovery; the burst cap and the stream shake expressed in the weapon's own kick (2.5 of it; the lean 0.1).
+  His: nailgun 1.46 cm / 2.44 deg, super nailgun 2.68 / 4.92, laser cannon 2.67 / 3.91, Widowmaker 11.5 / 11.4, AD
+  plasma 5.34 / 8.74, revolver 14.6 / 21.9. (Approved and done: "Recoil in cm, degrees and seconds", below.)
+
+Checklist:
+- Each gun fires with no kick of its model's own: the body holds in the hand; the shotgun's and super shotgun's parts,
+  the nailguns' barrels and the launchers' shells still move; the procedural kick is the only one (Debug > Tests,
+  Weapons: "Take Out the Models' Own Kick" off shows the old one).
+- The muzzle flash, shells and a hand on the pump stay on the gun through a shot.
+- Recoil strengths per weapon to taste (Weapon Offsets > Effects; your global Kick Back 4.5 / Muzzle Rise 7.5 make the
+  new defaults 3x / 1.9x as strong as measured).
+
+## Recoil in cm, degrees and seconds (branch `agent/dekick`)
+
+His approval of the simplification proposed above: per weapon Kick Back (cm), Muzzle Rise (deg) and Return Time (s,
+peak to rest), all absolute; globally the Programmatic Recoil switch and one Recoil Amount.
+
+- **Settings**: Weapon Offsets > Effects: Recoil Kick Back (`vr_wofs_fx_kick_cm_NN`, 0-10 cm, extends to 40), Recoil
+  Muzzle Rise (`vr_wofs_fx_rise_deg_NN`, 0-15 deg, to 45; a quarter of it turns sideways as before), Recoil Return Time
+  (`vr_wofs_fx_return_s_NN`, s from the peak; the kick up before it is min(35 ms, 3/7 of it), which is the old curve's
+  min(35 ms, 0.3 T)); 0, 0 and 0.115 s for a slot with no default. Weapon Effects: Programmatic Recoil (as before) and
+  Recoil Amount (`vr_recoil_amount`, 1x, 0-2, to 5: every weapon's cm and degrees times it). Gone: the per-weapon Recoil
+  on/off, Recoil Strength, Recoil Recovery, the global Kick Back and Muzzle Rise (`vr_wofs_fx_recoil[_str|_kick|_rise|
+  _time|_rec]_NN`, `vr_recoil_kick`, `vr_recoil_rise`): retired quietly, an old config's lines kept for the conversion
+  (`weapons::retiredRecoilLine` from `VR_RetiredCvar`). A weapon fires a kick when the switch is on and its cm or degrees
+  are over 0.
+- **Conversion** (`vr_wofs_version` 74, `takeRecoilUnits74`; `weapons::convertRecoil`): cm = vr_recoil_kick x Kick x
+  Strength (0 where Recoil was off), deg = vr_recoil_rise x Rise x Strength, time = (T - min(0.035, 0.3 T)) x Recovery.
+  The old values are kept apart (`oldRecoil`: each slot's old shipped values, `oldRecoilDefaults`, under the config's
+  lines), and the old steps that touched them (48: the AD soldiers' guns taking the burst rifle's, the crossbow's; 53:
+  the Widowmaker's; 73: Quake's guns on) now act on those. The drawn kick is the same exactly where Recovery is 1 (every
+  shipped value, all of his) or the time is over 0.117 s; otherwise only the 35 ms kick up differs a few ms. The burst
+  cap (2.5) and the stream shake (its lean 0.1) are now in the weapon's own kick, not in strengths: the same for the
+  burst rifle and the stream guns (Strength 1). The shipped defaults converted the same way (vr_weapons.inc: the shotgun
+  5.775 cm / 5.6 deg / 0.315 s, super shotgun 7.95 / 3.8 / 0.265, launchers 7.95 / 12 / 0.315, rocket launchers 7.8 /
+  5.4 / 0.265, nailgun 0.4875 / 1.3 / 0.115, super nailgun 0.8949 / 2.6219, laser cannon 0.889 / 2.087, lightning and
+  plasma 0.6 / 1 / 0.07, burst rifle 1.5 / 4 / 0.085, Widowmaker 2.1075 / 5.62, revolver 2.4 / 6.4 / 0.125, ...).
+- **Haptic Punch** (vr_gunsfx.cpp): its tail lasts the whole kick (`weapons::recoilKickSeconds`: the old Return Time x
+  Recovery wherever Recovery is 1); its spike reads the kick in the old strength-1 units (`weapons::recoilFeel`: the
+  mean of cm / 1.5 and deg / 4), which is the old Strength x mean(Kick, Rise) for the shipped values. His global 4.5 /
+  7.5 now sit in each weapon's cm and degrees, so the conversion scales his Haptic Punch by sqrt(old / new) where the
+  spike was not at full anyway (his nailguns, lightning, laser cannon, rifles: 0.62-0.64x; the shotguns and launchers
+  were and stay at full: untouched). The toolgun (recoil off) has no kick to read: its punch goes.
+- **His values** (his config of 2026-10-30 copied in, `vr_recoil_test`): nailgun 1.4625 cm / 2.4375 deg / 0.115 s,
+  super nailgun 2.685 / 4.916, laser cannon 2.668 / 3.914, Widowmaker 11.54 / 11.43 / 0.176, AD plasma 5.344 / 8.736 /
+  0.126, revolver 14.58 / 21.94 / 0.337 (as proposed above); every other gun its new default times his 4.5 / 7.5 (the
+  shotgun 17.3 cm / 10.5 deg). 27 slots off the shipped values; 18 Haptic Punch lines.
+- **Tests**: `vr_recoil_test` 69/0 (e1m1, shotgun): the conversion part checks every slot's old defaults converted are
+  its shipped ones (51/51), draw the old kick every ms of a second within 1e-4 of the peak (the old code's curve,
+  `oldCurve`), last as long (51/51), and, where this start converted a config (the kit's old baseline config, wofs 43,
+  or his), every slot draws its old kick from the cvars (51/51; his: 27 slots printed with their old and new values);
+  Return Time 2x / 0.5x twice / half as long back (0.315 -> 0.630 / 0.1575 s), Recoil Amount 2x doubles. `vr_gunsfx_test`
+  24/0 (-Sound). Covering cases vs baseline.tsv: collectfx 9/0, mapflameburn 16/0, reload 112/3, shot_shape, reload_eject
+  28/0, nail_1 7/0 as the baseline; recoil 69/0 (was 9/0: checks added); reload_front 33/1 as on this branch before
+  (above: not this change). Menu paths 0 missing.
+- **A/B bench** (the rerun the kick cancel asked for; combat_48, ABBAABBAAB, ThinLTO, exclusive; A = origin/next
+  158faf89e, B = this branch (9c5866271) with the kick cancel and these units; `scratch/ab_run.sh`, labels
+  `dekick2_*`): frame p50 11.11 ms every run; cpu A 3.22, 3.33, 2.59, 2.47, 2.50 (median 2.59), B 2.41, 3.24, 2.56,
+  2.87, 3.05 (median 2.87). The spread is the hitches: the runs with p99 over 13 ms (A 1, 4; B 3, 7, 10: 2.87-3.33 ms
+  cpu) are the slow ones on both sides; the clean runs (p99 under 11.3 ms) are A 2.47-2.59 (mean 2.52) and B 2.41-2.56
+  (mean 2.49). No cost measured; machine hitches as before (B drew one more of them).
+
+Checklist:
+- Weapon Offsets > Effects: Recoil Kick Back (cm), Recoil Muzzle Rise (deg), Recoil Return Time (s) per gun; your
+  guns feel as before (your global 4.5 / 7.5 are now in each gun's values: the shotgun reads 17.3 cm / 10.5 deg).
+- Weapon Effects: Recoil Amount 0 / 1 / 2 scales every gun's kick; Programmatic Recoil off stops it.
+- The haptic punch of each gun feels as before (nailguns, lightning gun, laser cannon: their Haptic Punch now about
+  0.64x, which keeps the same spike).
+
 ## Settings tiers (branch `agent/tiers`; design review 2)
 
 Every Quake VR setting is now one of three tiers: a **player option** (a cvar with a menu row), a **tuning constant**
@@ -2085,14 +2219,56 @@ author's own value where he set one: the kit's `scratch/refactor/tiers.md` (made
 - **The QC** still reads constants by name: `Cvar_VariableValue`/`String` and `cvar_hmake` fall back to the
   constants' unregistered stand-in cvars (`tunableFind`). An old config's line for a constant is ignored like a retired
   setting's (`VR_RetiredCvar`).
-- **Tuning build:** `MSBuild ... -p:QvrTuning=1` (QVR_TUNING) makes every constant an archived cvar again, set from the
-  console (no menu rows: those are gone).
+- **Tuning build:** gone (`-p:QvrTuning=1`, QVR_TUNING): every development build tunes them live now ("Live tuning of
+  the tuning constants", below).
 - **Removed:** 1,094 cvars from vr_cvars.inc, about 1,000 menu rows with their help (menus 2,214 lines fewer), the
   migration rows of the constants. Not done: the test tier's few rows still on player pages (Show Melee Arcs and the
   like, 25 pages) are not yet moved to Debug pages; the "0: old side" switches he doesn't use are still options (a
   D1-style retirement is a separate pass).
 - Checks: build; `vr_menu_path_check maps/vrcalibration.map` 0 missing; `config_sparse_test.sh` 16/0 with the
   default config and with a copy of his; the full baseline (`run_baseline.sh harness --no-bench`).
+
+## Live tuning of the tuning constants (branch `agent/livetune`; his "Yes, build it")
+
+His workflow stays: find a number in the menu, tune it in the headset, keep it across sessions, and it becomes the
+shipped default. One accessor, two builds (CODE_STYLE.md, "Settings and the config"):
+
+- **Development builds** (every build but a release; the agents' and his): each `QVR_TUNABLE` name is a `constexpr`
+  reference into `tunables[]` (indexed by `TunableId`), so `name.value` stays one load from a fixed address, no lookup.
+  `tune <name> <value>` sets it (a text or vector too: the rest of the line), `tune <name>` prints its value, default,
+  range, page and help, `tune <part>` lists the names holding it, `tune` lists the changed ones; `tune_reset [name]`
+  (all without one); tab completes names. The QC's readers (`cvar()`: Cvar_VariableValue/String; `cvar_hmake`/`hget`)
+  read the stand-in cvars, kept equal on every set, so progs.dat is the same in both builds.
+- **Debug > Tunables:** every constant (1,094) as the row it had before the tiers pass (963 recovered from the tiers
+  commits' removed rows: label, range, step, format, extend, help; the 124 that never had a row get a range from their
+  default; 7 texts/vectors are console-only lines), grouped under the page they came from. Show (All / Changed Only)
+  and Page (one page's) filter it; Reset All to Defaults. The menu's **Search** finds them (one box for settings and
+  tunables): its index takes the page's every row whatever the filter, and opening a result clears the filter and puts
+  the cursor on that setting (matched by cvar, as labels like "Stiffness" repeat). The rows are data:
+  `Quake/vr/vr_tunables_rows.inc` (one `QVR_TUNABLE_SLIDER`/`_CYCLE`/`_TEXT` per constant, `QVR_TUNABLE_GROUP` per page;
+  a static_assert checks one row per constant in vr_tunables.inc's order) -- the start of design review 9's single
+  settings schema. A row sets its stand-in; Cvar_SetQuick of an unregistered cvar hands it to `VR_TunableSetVar`.
+- **tunables.cfg** (the game folder, git-ignored): `tune <name> "<value>"` for each constant off its default, written at
+  quit with the config (not by a copy that never writes its config; removed when none is changed), read once after the
+  config (`vr_migrate_config`); a console notice says how many it set ("N tuning constants set off their default").
+- **Promotion:** `python Misc/quakevr/tune_promote.py <tunables.cfg> [--inc ...] [--check]` writes the file's values
+  into vr_tunables.inc as defaults, on a worker's tree with his file read only (the game never writes a source). Then
+  his lines equal the defaults and his game drops them at the next quit.
+- **Releases** (`QVR_RELEASE`: make_release.ps1's `/p:QvrReleaseVersion`, or `/p:QvrRelease=1` to build the release
+  code as a check): `inline constexpr Tunable name{...}`, defaults folded in; no `tune`, no page, no file, no table
+  (the stand-ins stay, constant, for the QC). make_release.ps1 refuses an exe holding `tune_reset` or `tunables.cfg`.
+  The old tuning build (`-p:QvrTuning=1`, QVR_TUNING) is removed: this covers it.
+- `vr_menu_search -open <text>` opens Search's best result (scripts).
+- Checks: build 0 warnings; the release code built once (`/p:QvrRelease=1`: 0 warnings, no `tune_reset` in the exe;
+  e1m1 loads, `tune` unknown); `Misc/quakevr/tunables_test.sh <agent>`: set by tune, by a page row and a text, every
+  reader (C++, cvar(), the stand-in) sees each, set-to-default-another-way is unchanged, tunables.cfg holds exactly the
+  changed ones, read back, quit writes it, `tune_promote.py --check` would promote the 3, a new start reads them,
+  tune_reset clears them and quit removes the file (38 + 20 checks, 5 stages). Covering cases (run_baseline.sh
+  --only: slider_step, selfchecks, throw_spin, stealth, reload_contact, agrunt, arena, ragdoll, ...): 18 as baseline.tsv
+  but recoil 9 -> 24 passed (its stream part, added on next since) and ragdoll_guard flaky; config_sparse_test 16/0;
+  vr_menu_path_check 0 missing on both boards. A/B ThinLTO bench, combat_48 interleaved ABBAABBA (first pair gave no
+  result): CPU ms A 3.18 3.42 3.02, B 3.34 2.50 2.53; frame p50 11.11 both: no cost from the reads through tunables[].
+
 ## One impact-effect table (branch `agent/impacttable`; design review 4, his "perform all")
 
 The QC's hit ladders now sit on the table gunfx started (`Quake/vr/vr_impacts.cpp`): one row per material x hit kind

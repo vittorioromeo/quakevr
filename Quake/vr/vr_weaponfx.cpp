@@ -1,6 +1,7 @@
 // vr_weaponfx.cpp -- see vr_weaponfx.hpp.
 
 #include "vr_testkit.hpp"
+#include "vr_kickcancel.hpp"
 #include "vr_random.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_weaponfx.hpp"
@@ -47,15 +48,14 @@ using weapons::Key;
 constexpr const char* flashModelName = "progs/vr_muzzleflash.mdl"; // (one pointer: view::viewModel's key)
 constexpr float flashModelLength = 7.6f; // the flash's length in its model (make_muzzleflash.py's bounds)
 
-// A shot's kick: when, how hard (the weapon's Recoil Strength), how long it takes to come back, a little sideways, and
-// the weapon's Recoil Recovery (times the time back from its peak).
+// A shot's kick: when, how hard (of the weapon's own Kick Back and Muzzle Rise: 1, but an AD gun variant's feel), how
+// long it lasts (its kick up and its Return Time: weapons::recoilKickSeconds) and a little sideways.
 struct Kick
 {
     double time{-1.0};
     float strength{0.f};
     float duration{0.f};
     float sideways{0.f};
-    float recovery{1.f};
 };
 
 constexpr int maxKicks = 8; // a burst's rounds overlapping
@@ -75,8 +75,8 @@ struct HandFx
 
 // A stream's flames come every 0.1 s (vr_adgun_pyro_rate, _fumigator_rate): it is still firing this long after one.
 constexpr float streamHold = 0.16f;
-// The stream shake at Stream Shake 1 (a kick, as a shot's: times Recoil Kick Back and Muzzle Rise): a steady lean
-// (Weapon Effects' 1.5 cm and 4 degrees: 0.15 cm back, 0.4 degrees up) and a tremble around it, up and down and sideways.
+// The stream shake at Stream Shake 1 (a share of a shot's kick: times the weapon's Kick Back and Muzzle Rise): a steady
+// lean (at 1.5 cm and 4 degrees: 0.15 cm back, 0.4 degrees up) and a tremble around it, up and down and sideways.
 constexpr float streamLean = 0.1f;
 constexpr float streamTremble = 0.06f;
 constexpr float streamSideways = 1.2f;
@@ -239,9 +239,9 @@ constexpr float flashOfGun = 0.3f; // a monster's flash, as long as this share o
     return true;
 }
 
-// A kick's share now: up quickly (at most 35 ms), then smoothly back to 0 at `duration` (its way back from the peak
-// `recovery` times as long: 1, as before, ends at `duration`).
-[[nodiscard]] float envelope(float t, float duration, float recovery)
+// A kick's share now: up quickly (min(35 ms, 0.3 of it): weapons::recoilKickSeconds's kick up), then smoothly back to 0
+// at `duration`.
+[[nodiscard]] float envelope(float t, float duration)
 {
     if(t < 0.f)
     {
@@ -253,7 +253,7 @@ constexpr float flashOfGun = 0.3f; // a monster's flash, as long as this share o
         const float x = 1.f - t / rise;
         return 1.f - x * x;
     }
-    const float x = (t - rise) / ((duration - rise) * recovery);
+    const float x = (t - rise) / (duration - rise);
     if(x >= 1.f)
     {
         return 0.f;
@@ -261,15 +261,15 @@ constexpr float flashOfGun = 0.3f; // a monster's flash, as long as this share o
     return 1.f - x * x * (3.f - 2.f * x);
 }
 
-// Slot `slot`'s weapon's Recoil Recovery (1 by default), kept off 0.
-[[nodiscard]] float recoveryOf(int slot)
+// Slot `slot`'s weapon's kick, s in all: its Return Time (kept off 0) and the kick up before it.
+[[nodiscard]] float kickSeconds(int slot)
 {
-    return za::max(weapons::value(slot, Key::RecoilRecovery), 0.05f);
+    return weapons::recoilKickSeconds(za::max(weapons::value(slot, Key::RecoilReturn), 0.014f));
 }
 
 // The recoil of a kick `kick` (its shots' strengths at their envelopes, summed and capped) and `sideways` of slot
-// `slot`'s weapon: cm kicked back, degrees tipped up (pitch, negative) and turned (yaw): Weapon Effects' Kick Back and
-// Muzzle Rise times the weapon's own (Recoil Kick Back, Recoil Muzzle Rise: 1, as before, by default).
+// `slot`'s weapon: cm kicked back, degrees tipped up (pitch, negative) and turned (yaw, a quarter of the rise): its Kick
+// Back and Muzzle Rise times Weapon Effects' Recoil Amount.
 struct RecoilAmount
 {
     float backCm{0.f};
@@ -279,10 +279,10 @@ struct RecoilAmount
 
 [[nodiscard]] RecoilAmount recoilAmount(int slot, float kick, float sideways)
 {
-    const float kickX = za::max(weapons::value(slot, Key::RecoilKick), 0.f);
-    const float riseX = za::max(weapons::value(slot, Key::RecoilRise), 0.f);
-    const float rise = vr_recoil_rise.value * riseX;
-    return {vr_recoil_kick.value * kickX * kick, -rise * kick, 0.25f * rise * sideways};
+    const float amount = za::max(vr_recoil_amount.value, 0.f);
+    const float back = za::max(weapons::value(slot, Key::RecoilKick), 0.f) * amount;
+    const float rise = za::max(weapons::value(slot, Key::RecoilRise), 0.f) * amount;
+    return {back * kick, -rise * kick, 0.25f * rise * sideways};
 }
 
 void forget(int hand)
@@ -318,16 +318,16 @@ void playerFired(int hand)
     h.variant = heldVariant(hand);
     const adguns::FireFeel feel = h.variant >= 0 ? adguns::fireFeel(h.variant) : adguns::FireFeel{};
     h.burst = h.variant >= 0 && feel.burst != adguns::FireFeel::None;
-    const bool recoil = vr_weapon_recoil.value != 0.f && weapons::value(slot, Key::Recoil) != 0.f;
+    const bool recoil = vr_weapon_recoil.value != 0.f &&
+                        (weapons::value(slot, Key::RecoilKick) > 0.f || weapons::value(slot, Key::RecoilRise) > 0.f);
     if(recoil)
     {
         Kick& k = h.kicks[h.nextKick];
         h.nextKick = (h.nextKick + 1) % maxKicks;
         k.time = cl.time;
-        k.strength = za::max(weapons::value(slot, Key::RecoilStrength), 0.f) * feel.recoil;
-        k.duration = za::max(weapons::value(slot, Key::RecoilTime) * feel.recoilTime, 0.02f);
+        k.strength = za::max(feel.recoil, 0.f);
+        k.duration = za::max(kickSeconds(slot) * feel.recoilTime, 0.02f);
         k.sideways = vrand::lcg01(seed) * 2.f - 1.f;
-        k.recovery = recoveryOf(slot);
     }
     const bool flash = vr_muzzle_flash.value != 0.f && weapons::value(slot, Key::Flash) != 0.f && feel.flash > 0.f;
     if(flash)
@@ -338,10 +338,11 @@ void playerFired(int hand)
     }
     if(vr_debug_weaponfx.value)
     {
-        Con_Printf("weaponfx fired t %.3f hand %d slot %d recoil %d (%.2f, %.3f s, back %.2fx) flash %d (%.2f, %.3f s) adgun %d "
-                   "burst %d\n",
-            cl.time, hand, slot, recoil ? 1 : 0, weapons::value(slot, Key::RecoilStrength) * feel.recoil,
-            weapons::value(slot, Key::RecoilTime) * feel.recoilTime, recoveryOf(slot), flash ? 1 : 0, weapons::value(slot, Key::FlashSize) * feel.flash,
+        Con_Printf("weaponfx fired t %.3f hand %d slot %d recoil %d (%.2f cm, %.2f deg, %.3f s) flash %d (%.2f, %.3f s) "
+                   "adgun %d burst %d\n",
+            cl.time, hand, slot, recoil ? 1 : 0, weapons::value(slot, Key::RecoilKick) * feel.recoil,
+            weapons::value(slot, Key::RecoilRise) * feel.recoil, kickSeconds(slot) * feel.recoilTime, flash ? 1 : 0,
+            weapons::value(slot, Key::FlashSize) * feel.flash,
             weapons::value(slot, Key::FlashTime) * feel.flashTime, h.variant, static_cast<int>(feel.burst));
     }
 }
@@ -380,8 +381,7 @@ void streamed(int hand)
 
 // `h`'s stream shake now, a kick and its sideways share as recoilOffset sums a shot's: nothing without a stream or at
 // its weapon's Stream Shake 0 (Weapon Effects' Weapon Recoil off: recoilOffset draws none); while the flames come it leans (in over 50 ms) and trembles (three
-// waves of the clock, the same each run), and after the last it settles as a shot's kick does (its Return Time times
-// Recovery).
+// waves of the clock, the same each run), and after the last it settles over a shot's kick's time (kickSeconds).
 void streamShake(HandFx& h, float& kick, float& sideways)
 {
     if(h.streamStart < 0.0)
@@ -391,7 +391,7 @@ void streamShake(HandFx& h, float& kick, float& sideways)
     const float shake = za::max(weapons::value(h.slot, Key::StreamShake), 0.f);
     const float since = static_cast<float>(cl.time - h.streamStart);
     const float after = static_cast<float>(cl.time - h.streamLast) - streamHold;
-    const float settle = za::max(weapons::value(h.slot, Key::RecoilTime), 0.02f) * recoveryOf(h.slot);
+    const float settle = kickSeconds(h.slot);
     if(after >= settle || since < 0.f)
     {
         if(after >= settle)
@@ -699,13 +699,13 @@ void recoilOffset(int hand, const glm::vec3& handAngles, glm::vec3& pos, glm::ve
     {
         if(k.time >= 0.0)
         {
-            const float e = envelope(static_cast<float>(cl.time - k.time), k.duration, k.recovery) * k.strength;
+            const float e = envelope(static_cast<float>(cl.time - k.time), k.duration) * k.strength;
             kick += e;
             sideways += e * k.sideways;
         }
     }
     streamShake(h, kick, sideways); // (a stream weapon firing: vr_weapons.inc StreamShake)
-    // A burst's kicks adding up go no further than two and a half.
+    // A burst's kicks adding up go no further than two and a half of the weapon's own.
     if(kick > 2.5f)
     {
         sideways *= 2.5f / kick;
@@ -1045,67 +1045,148 @@ void clear()
 namespace
 {
 
-// vr_recoil_test's part on the held weapon's (the main hand's) Recoil Recovery (Key::RecoilRecovery): every slot's is 1
-// by default and at 1 the kick's curve is the one before (the envelope before it, sampled at three Return Times); at 2
-// the drawn kick (recoilOffset) takes twice as long back to rest from its peak, at 0.5 half as long, its peak the same.
-// Puts the value back.
-template <typename Check>
-void recoveryTest(const Check& check)
+// The drawn kick before vr_wofs_version 74 (the code of then): a slot's old values (weapons::OldRecoil) and the global
+// cm and degrees, `t` s after the shot: cm back, degrees up.
+void oldCurve(float t, const weapons::OldRecoil& o, const weapons::OldRecoilGlobals& g, float& cm, float& deg)
 {
-    const auto envelopeBefore = [](float t, float duration)
+    cm = deg = 0.f;
+    if(o.on == 0.f || t < 0.f)
     {
-        if(t < 0.f || t >= duration)
+        return;
+    }
+    const float duration = za::max(o.time, 0.02f);
+    const float recovery = za::max(o.recovery, 0.05f);
+    const float rise = za::min(0.035f, 0.3f * duration);
+    float e = 0.f;
+    if(t < rise)
+    {
+        const float x = 1.f - t / rise;
+        e = 1.f - x * x;
+    }
+    else
+    {
+        const float x = (t - rise) / ((duration - rise) * recovery);
+        e = x >= 1.f ? 0.f : 1.f - x * x * (3.f - 2.f * x);
+    }
+    e *= za::max(o.strength, 0.f);
+    cm = g.kickCm * za::max(o.kick, 0.f) * e;
+    deg = g.riseDeg * za::max(o.rise, 0.f) * e;
+}
+
+// Whether the old curve and the new one (`cm0`, `deg0` and Return Time `back`, drawn as recoilOffset draws a shot's
+// kick) are the same, sampled every ms over a second (within float rounding: 1e-4 of the peak).
+[[nodiscard]] bool sameCurve(const weapons::OldRecoil& o, const weapons::OldRecoilGlobals& g, float cm0, float deg0,
+    float back)
+{
+    const float duration = weapons::recoilKickSeconds(za::max(back, 0.014f));
+    const float tolCm = 1e-4f * za::max(1.f, cm0), tolDeg = 1e-4f * za::max(1.f, deg0);
+    for(int i = 0; i <= 1000; i++)
+    {
+        const float t = static_cast<float>(i) * 0.001f;
+        float cm = 0.f, deg = 0.f;
+        oldCurve(t, o, g, cm, deg);
+        const float e = envelope(t, duration);
+        if(fabsf(cm0 * e - cm) > tolCm || fabsf(deg0 * e - deg) > tolDeg)
         {
-            return 0.f;
+            return false;
         }
-        const float rise = za::min(0.035f, 0.3f * duration);
-        if(t < rise)
-        {
-            const float x = 1.f - t / rise;
-            return 1.f - x * x;
-        }
-        const float x = (t - rise) / (duration - rise);
-        return 1.f - x * x * (3.f - 2.f * x);
-    };
-    int ones = 0;
+    }
+    return true;
+}
+
+// vr_recoil_test's part on the conversion to cm, degrees and seconds (vr_wofs_version 74, weapons::convertRecoil): every
+// slot's old shipped values converted are its shipped defaults now, and draw the same kick as before (the old code's
+// curve, oldCurve); its kick lasts as long as before (the haptic punch's tail, vr_gunsfx.cpp tailOf). Where this start
+// converted a config from before 74 (the author's, copied in), every slot's kick drawn now (recoilAmount, kickSeconds:
+// the cvars) is the one its old values drew; the slots off the defaults are printed.
+template <typename Check>
+void conversionTest(const Check& check)
+{
+    const weapons::OldRecoilGlobals shipped{};
+    int asShipped = 0, same = 0, asLong = 0;
     for(int s = 0; s < weapons::numSlots; s++)
     {
-        ones += recoveryOf(s) == 1.f ? 1 : 0;
+        const weapons::OldRecoil o = weapons::oldRecoilDefault(s);
+        const weapons::NewRecoil n = weapons::convertRecoil(o, shipped);
+        const auto def = [&](Key key) { return static_cast<float>(Q_atof(weapons::cvar(s, key)->default_string)); };
+        const auto near = [](float a, float b) { return fabsf(a - b) <= 1e-5f * za::max(1.f, fabsf(b)); };
+        asShipped += near(n.kickCm, def(Key::RecoilKick)) && near(n.riseDeg, def(Key::RecoilRise)) &&
+                             near(n.returnTime, def(Key::RecoilReturn))
+                         ? 1
+                         : 0;
+        same += sameCurve(o, shipped, def(Key::RecoilKick), def(Key::RecoilRise), def(Key::RecoilReturn)) ? 1 : 0;
+        asLong += fabsf(weapons::recoilKickSeconds(def(Key::RecoilReturn)) - za::max(o.time, 0.02f) * o.recovery) < 1e-5f;
     }
-    check(ones == weapons::numSlots, "every slot's Recoil Recovery is 1 by default (slots)", static_cast<float>(ones),
-        static_cast<float>(weapons::numSlots));
-    int samples = 0, same = 0;
-    for(const float duration : {0.06f, 0.15f, 0.325f})
+    const float slots = static_cast<float>(weapons::numSlots);
+    check(asShipped == weapons::numSlots, "every slot's old defaults converted are its shipped ones (slots)",
+        static_cast<float>(asShipped), slots);
+    check(same == weapons::numSlots, "and draw the old kick, every ms of a second (slots)", static_cast<float>(same), slots);
+    check(asLong == weapons::numSlots, "its kick as long as the old Return Time (the haptic tail; slots)",
+        static_cast<float>(asLong), slots);
+
+    weapons::OldRecoil o;
+    weapons::OldRecoilGlobals g;
+    if(!weapons::recoilMigrated(0, o, g))
     {
-        for(int i = 0; i <= 400; i++)
+        Con_Printf("vr_recoil_test: this start's config was converted before (vr_wofs_version 74): no old values to compare\n");
+        return;
+    }
+    const float amount = vr_recoil_amount.value;
+    Cvar_SetValueQuick(&vr_recoil_amount, 1.f);
+    int drawnSame = 0, printed = 0;
+    for(int s = 0; s < weapons::numSlots; s++)
+    {
+        if(!weapons::recoilMigrated(s, o, g))
         {
-            const float t = static_cast<float>(i) * 0.001f;
-            samples++;
-            same += envelope(t, duration, 1.f) == envelopeBefore(t, duration) ? 1 : 0;
+            continue;
+        }
+        const RecoilAmount a = recoilAmount(s, 1.f, 0.f);
+        const float back = weapons::value(s, Key::RecoilReturn);
+        const bool ok = sameCurve(o, g, a.backCm, -a.pitch, back) &&
+                        fabsf(kickSeconds(s) - weapons::recoilKickSeconds(za::max(back, 0.014f))) == 0.f;
+        drawnSame += ok ? 1 : 0;
+        const auto changed = [&](Key key) { return strcmp(weapons::cvar(s, key)->string, weapons::cvar(s, key)->default_string); };
+        if(!ok || changed(Key::RecoilKick) || changed(Key::RecoilRise) || changed(Key::RecoilReturn) ||
+            changed(Key::HapticPunch))
+        {
+            printed++;
+            Con_Printf("vr_recoil_test: converted slot %d (vr_wofs_*_%02d): %.4g cm, %.4g deg, %.4g s (from on %g, strength "
+                       "%g, kick %g x %g cm, rise %g x %g deg, time %g s, recovery %g), haptic punch %s%s\n",
+                s, s + 1, a.backCm, -a.pitch, back, o.on, o.strength, o.kick, g.kickCm, o.rise, g.riseDeg, o.time,
+                o.recovery, weapons::cvar(s, Key::HapticPunch)->string, ok ? "" : " NOT THE SAME KICK");
         }
     }
-    check(same == samples, "at 1 the kick's curve is the one before (samples)", static_cast<float>(same),
-        static_cast<float>(samples));
+    Cvar_SetValueQuick(&vr_recoil_amount, amount);
+    check(drawnSame == weapons::numSlots, "this start's config converted: every slot draws its old kick (slots)",
+        static_cast<float>(drawnSame), slots);
+    Con_Printf("vr_recoil_test: %d slots off the shipped recoil, globals then %g cm, %g deg\n", printed, g.kickCm, g.riseDeg);
+}
 
+// vr_recoil_test's part on the held weapon's (the main hand's) Recoil Return Time (Key::RecoilReturn): at 2x the drawn
+// kick (recoilOffset) takes twice as long back to rest from its peak, at 0.5x half as long, its peak the same. Puts the
+// value back.
+template <typename Check>
+void returnTest(const Check& check)
+{
     const int hand = HAND_MAIN;
     const int held = weapons::heldSlot(hand);
-    constexpr float duration = 0.15f;
-    const float rise = za::min(0.035f, 0.3f * duration);
-    // Degrees the held weapon is tipped up `t` s after a kick (its Recoil Recovery read as playerFired reads it).
+    // Degrees the held weapon is tipped up `t` s after a kick (its Return Time read as playerFired reads it).
     const auto tipAt = [&](float t)
     {
         forget(hand);
         HandFx& h = handFx[hand];
         h.slot = held;
-        h.kicks[0] = Kick{cl.time - static_cast<double>(t), 1.f, duration, 0.5f, recoveryOf(held)};
+        h.kicks[0] = Kick{cl.time - static_cast<double>(t), 1.f, kickSeconds(held), 0.5f};
         glm::vec3 pos, angles;
         recoilOffset(hand, glm::vec3{0.f}, pos, angles);
         forget(hand);
         return -angles.x;
     };
+    const auto riseNow = [&]() { return za::min(0.035f, 0.3f * kickSeconds(held)); };
     // Seconds from the kick's peak until it is back at rest (in 0.5 ms steps).
     const auto backTime = [&]()
     {
+        const float rise = riseNow();
         for(int i = 1; i < 8000; i++)
         {
             const float t = rise + static_cast<float>(i) * 0.0005f;
@@ -1116,25 +1197,25 @@ void recoveryTest(const Check& check)
         }
         return -1.f;
     };
-    cvar_t* recVar = weapons::cvar(held, Key::RecoilRecovery);
-    const za::String oldRec{recVar->string};
-    const float peak1 = tipAt(rise), back1 = backTime();
-    check(fabsf(back1 - (duration - rise)) <= 0.001f, "at 1 the kick is back at rest at its Return Time (s from peak)",
-        back1, duration - rise);
-    Cvar_SetValueQuick(recVar, 2.f);
-    const float peak2 = tipAt(rise), back2 = backTime();
-    check(fabsf(back2 / back1 - 2.f) <= 0.02f, "Recoil Recovery 2x: twice as long back to rest (ratio)", back2 / back1, 2.f);
+    cvar_t* backVar = weapons::cvar(held, Key::RecoilReturn);
+    const za::String oldBack{backVar->string};
+    const float back0 = weapons::value(held, Key::RecoilReturn);
+    const float peak1 = tipAt(riseNow()), back1 = backTime();
+    check(fabsf(back1 - back0) <= 0.001f, "the kick is back at rest at its Return Time (s from peak)", back1, back0);
+    Cvar_SetValueQuick(backVar, 2.f * back0);
+    const float peak2 = tipAt(riseNow()), back2 = backTime();
+    check(fabsf(back2 / back1 - 2.f) <= 0.02f, "Return Time 2x: twice as long back to rest (ratio)", back2 / back1, 2.f);
     check(peak2 == peak1, "and the same peak (deg)", peak2, peak1);
-    Cvar_SetValueQuick(recVar, 0.5f);
-    const float peakHalf = tipAt(rise), backHalf = backTime();
-    check(fabsf(backHalf / back1 - 0.5f) <= 0.02f, "Recoil Recovery 0.5x: half as long back to rest (ratio)", backHalf / back1,
+    Cvar_SetValueQuick(backVar, 0.5f * back0);
+    const float peakHalf = tipAt(riseNow()), backHalf = backTime();
+    check(fabsf(backHalf / back1 - 0.5f) <= 0.02f, "Return Time 0.5x: half as long back to rest (ratio)", backHalf / back1,
         0.5f);
     check(peakHalf == peak1, "and the same peak (deg)", peakHalf, peak1);
     Con_Printf("vr_recoil_test: back to rest from the peak %.4f s at 1x, %.4f s at 2x, %.4f s at 0.5x\n", back1, back2,
         backHalf);
-    Cvar_SetQuick(recVar, oldRec.cStr());
-    check(tipAt(rise) == peak1 && fabsf(backTime() - back1) == 0.f, "value put back: the held weapon's recovery as before",
-        recoveryOf(held), 1.f);
+    Cvar_SetQuick(backVar, oldBack.cStr());
+    check(tipAt(riseNow()) == peak1 && fabsf(backTime() - back1) == 0.f, "value put back: the held weapon's as before",
+        weapons::value(held, Key::RecoilReturn), back0);
 }
 
 // vr_recoil_test's part on the stream shake (Key::StreamShake, StreamHaptic; streamed, streamShake): only the AD
@@ -1160,6 +1241,15 @@ void streamTest(const Check& check)
     cvar_t* shakeVar = weapons::cvar(held, Key::StreamShake);
     const za::String oldShake{shakeVar->string};
     Cvar_SetValueQuick(shakeVar, 1.f);
+    // (The shake is times the weapon's own Kick Back and Muzzle Rise: measured at 1.5 cm and 4 degrees, the burst rifle's
+    // and the AD stream guns', whatever the held gun's; Recoil Amount 1.)
+    cvar_t* kickVar = weapons::cvar(held, Key::RecoilKick);
+    cvar_t* riseVar = weapons::cvar(held, Key::RecoilRise);
+    const za::String oldKick{kickVar->string}, oldRise{riseVar->string};
+    const float amount = vr_recoil_amount.value;
+    Cvar_SetValueQuick(kickVar, 1.5f);
+    Cvar_SetValueQuick(riseVar, 4.f);
+    Cvar_SetValueQuick(&vr_recoil_amount, 1.f);
     const double clock = cl.time;
     forget(hand);
     streamed(hand);
@@ -1191,12 +1281,12 @@ void streamTest(const Check& check)
         tipMax, 1.f);
     Con_Printf("vr_recoil_test: stream shake: %.2f..%.2f degrees up, %.2f cm back, %.2f degrees turned at most\n", tipMin,
         tipMax, backMax, turnMax);
-    const float settle = za::max(weapons::value(held, Key::RecoilTime), 0.02f) * recoveryOf(held);
+    const float settle = kickSeconds(held);
     cl.time = handFx[hand].streamLast + static_cast<double>(streamHold + settle) + 0.01;
     glm::vec3 posEnd, angEnd;
     recoilOffset(hand, glm::vec3{0.f}, posEnd, angEnd);
     check(glm::length(posEnd) == 0.f && angEnd.x == 0.f && handFx[hand].streamStart < 0.0,
-        "settled after the last flame (Return Time x Recovery)", -angEnd.x, 0.f);
+        "settled after the last flame (a kick's time)", -angEnd.x, 0.f);
     cl.time = clock;
     Cvar_SetValueQuick(shakeVar, 0.f);
     streamed(hand);
@@ -1205,15 +1295,17 @@ void streamTest(const Check& check)
     check(glm::length(posOff) == 0.f && angOff.x == 0.f, "Stream Shake 0: none", -angOff.x, 0.f);
     forget(hand);
     Cvar_SetQuick(shakeVar, oldShake.cStr());
+    Cvar_SetQuick(kickVar, oldKick.cStr());
+    Cvar_SetQuick(riseVar, oldRise.cStr());
+    Cvar_SetValueQuick(&vr_recoil_amount, amount);
 }
 
-// vr_recoil_test: each weapon's own recoil kick and rise (Key::RecoilKick, RecoilRise) move its recoil only. At their
-// defaults every slot's recoil is Weapon Effects' Kick Back and Muzzle Rise times its strength, as before; the held
-// weapon's (the main hand's) Kick Back 2 and Muzzle Rise 0.5 double its drawn kick back and halve its tip up and turn
-// (recoilOffset, a kick put in its hand), and no other slot's recoil moves (but a slot inheriting its values); another
-// slot's own 3 and 3 leave the held weapon's as it was; then its Recoil Recovery (recoveryTest). Every value it changes
-// it puts back. Ends with
-// "vr_recoil_test: N passed, M failed".
+// vr_recoil_test: each weapon's own recoil kick and rise (Key::RecoilKick, RecoilRise: cm and degrees) move its recoil
+// only. The held weapon's (the main hand's) Kick Back 2x and Muzzle Rise 0.5x double its drawn kick back and halve its
+// tip up and turn (recoilOffset, a kick put in its hand), and no other slot's recoil moves; another slot's own 3x leaves
+// the held weapon's as it was; Recoil Amount 2 doubles the held weapon's; then its Return Time (returnTest), the stream
+// shake (streamTest), the conversion from the old multipliers (conversionTest) and the kick cancel. Every value it
+// changes it puts back. Ends with "vr_recoil_test: N passed, M failed".
 void recoilTest_f()
 {
     int passed = 0, failed = 0;
@@ -1236,31 +1328,19 @@ void recoilTest_f()
     int other = -1;
     for(int s = 0; s < weapons::numSlots && other < 0; s++)
     {
-        if(s != held && s != weapons::fistSlot() && weapons::ownerSlot(s, Key::RecoilKick) == s)
+        if(s != held && s != weapons::fistSlot() && weapons::ownerSlot(s, Key::RecoilKick) == s &&
+            weapons::value(s, Key::RecoilKick) > 0.f)
         {
             other = s;
         }
     }
 
-    // Every slot's recoil at a kick of 1 (sideways 1), before; the untuned ones' as before the per-weapon values.
+    // Every slot's recoil at a kick of 1 (sideways 1), before.
     RecoilAmount before[weapons::numSlots];
-    int untuned = 0, asBefore = 0;
     for(int s = 0; s < weapons::numSlots; s++)
     {
         before[s] = recoilAmount(s, 1.f, 1.f);
-        if(weapons::value(s, Key::RecoilKick) != 1.f || weapons::value(s, Key::RecoilRise) != 1.f)
-        {
-            continue;
-        }
-        untuned++;
-        if(before[s].backCm == vr_recoil_kick.value && before[s].pitch == -vr_recoil_rise.value &&
-            before[s].yaw == 0.25f * vr_recoil_rise.value)
-        {
-            asBefore++;
-        }
     }
-    check(untuned > 0 && asBefore == untuned, "every slot at its defaults recoils as before (slots)",
-        static_cast<float>(asBefore), static_cast<float>(untuned));
 
     // A kick in the held weapon's hand, drawn (recoilOffset).
     const auto drawn = [&](glm::vec3& pos, glm::vec3& angles)
@@ -1315,8 +1395,8 @@ void recoilTest_f()
         cvar_t* otherRise = weapons::cvar(other, Key::RecoilRise);
         const za::String oldOtherKick{otherKick->string};
         const za::String oldOtherRise{otherRise->string};
-        Cvar_SetValueQuick(otherKick, 3.f);
-        Cvar_SetValueQuick(otherRise, 3.f);
+        Cvar_SetValueQuick(otherKick, 3.f * otherKick->value);
+        Cvar_SetValueQuick(otherRise, 3.f * otherRise->value);
         glm::vec3 pos2, ang2;
         drawn(pos2, ang2);
         check(glm::length(pos2) == glm::length(pos0) && ang2.x == ang0.x && ang2.y == ang0.y,
@@ -1334,8 +1414,21 @@ void recoilTest_f()
     drawn(pos3, ang3);
     check(glm::length(pos3) == glm::length(pos0) && ang3.x == ang0.x, "values put back: the held weapon's kick as before",
         glm::length(pos3), glm::length(pos0));
-    recoveryTest(check);
+    const float amount = vr_recoil_amount.value;
+    Cvar_SetValueQuick(&vr_recoil_amount, 2.f * amount);
+    glm::vec3 pos4, ang4;
+    drawn(pos4, ang4);
+    check(approx(glm::length(pos4), 2.f * glm::length(pos0)) && approx(ang4.x, 2.f * ang0.x),
+        "Recoil Amount 2x doubles the held weapon's kick back and tip up", glm::length(pos4), 2.f * glm::length(pos0));
+    Cvar_SetValueQuick(&vr_recoil_amount, amount);
+    returnTest(check);
     streamTest(check);
+    conversionTest(check);
+    // The models' own kick taken out (vr_kickcancel.cpp): every kicking gun's body at rest on each of its frames.
+    testkit::Tally kick;
+    kickcancel::check(kick);
+    passed += kick.passed;
+    failed += kick.failed;
     qvr::testkit::verdict("vr_recoil_test", passed, failed);
 }
 

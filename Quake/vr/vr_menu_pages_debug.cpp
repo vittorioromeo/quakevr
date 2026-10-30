@@ -12,5 +12,6 @@ namespace menu_detail
 #include "vr_menu_ad_monsters.inc"
 #include "vr_menu_debug.inc"
 #include "vr_menu_debug_tests.inc"
+#include "vr_menu_tunables.inc"
 
 } // namespace menu_detail

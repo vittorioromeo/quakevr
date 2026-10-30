@@ -23,8 +23,19 @@
 namespace qvr::anchor
 {
 
+// The poses the renderer will draw the entity with this frame, as R_SetupAliasFrame blends them: from `a` to `b` at
+// `blend` (a == b: one pose).
+struct DrawnPoses
+{
+    int a{0};
+    int b{0};
+    float blend{1.f};
+};
+[[nodiscard]] DrawnPoses drawnPoses(const entity_t& e, const aliashdr_t* hdr);
+
 // Where `anchor` (the text above) is on the entity's model in the model's byte space (0..255 per axis, before
-// scale/scale_origin), for its current frame as drawn, blended towards frame 0 by `zeroBlend`.
+// scale/scale_origin), for its current frame as drawn, blended towards frame 0 by `zeroBlend`, with a weapon's baked
+// kick taken out as it is drawn (vr_kickcancel.hpp; also posedVertex's and posedVertices' now).
 [[nodiscard]] glm::vec3 posedAnchor(const entity_t& ent, const char* anchor, float zeroBlend);
 
 // The model's mesh read and `anchor` bound on it now, as posedAnchor does the first time (a map's load: the world
