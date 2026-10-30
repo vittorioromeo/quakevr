@@ -282,7 +282,7 @@ void shapes_f()
     {
         return;
     }
-    edict_t* player = EDICT_NUM(1);
+    edict_t* player = progs::playerEdict();
     for(int h = 0; h < 2; h++)
     {
         const World::HandBody& hb = world->hands[1][static_cast<size_t>(h)];
@@ -345,7 +345,7 @@ void forcegrabCheck_f()
     for(edict_t* e : entitiesNamed(Cmd_Argv(1)))
     {
         const int oldSelf = pr_global_struct->self;
-        pr_global_struct->self = EDICT_TO_PROG(EDICT_NUM(1));
+        pr_global_struct->self = EDICT_TO_PROG(progs::playerEdict());
         pr_global_struct->time = qcvm->time;
         G_INT(OFS_PARM0) = EDICT_TO_PROG(e);
         PR_ExecuteProgram(fn);
@@ -367,7 +367,7 @@ void spawn_f()
         return;
     }
     const progs::ServerVm vm;
-    edict_t* player = EDICT_NUM(1);
+    edict_t* player = progs::playerEdict();
     vec3_t yaw{0.f, player->v.angles[1], 0.f};
     vec3_t forward, right, up;
     AngleVectors(yaw, forward, right, up);
@@ -438,7 +438,7 @@ void fling_f()
         return;
     }
     const progs::ServerVm vm;
-    edict_t* player = EDICT_NUM(1);
+    edict_t* player = progs::playerEdict();
     za::Vector<edict_t*> list;
     if(!strcmp(Cmd_Argv(1), "nearest"))
     {

@@ -1040,7 +1040,7 @@ void act_f()
         return;
     }
     const progs::ServerVm vm;
-    if(EDICT_NUM(1)->free)
+    if(progs::playerEdict()->free)
     {
         Con_Printf("ragact: %s: no player\n", nameOf(*a));
         return;
@@ -1059,7 +1059,7 @@ void act_f()
         const int n = Q_atoi(Cmd_Argv(2));
         t = n > svs.maxclients && n < qcvm->num_edicts ? EDICT_NUM(n) : nullptr;
         t = t && takes(*a, t) ? t : nullptr;
-        dist = t ? glm::distance(vec(t->v.origin), vec(EDICT_NUM(1)->v.origin)) : 0.f;
+        dist = t ? glm::distance(vec(t->v.origin), vec(progs::playerEdict()->v.origin)) : 0.f;
     }
     else
     {

@@ -991,7 +991,7 @@ void propQueriesTest_f()
     physics::testModelQueries();
     float saved[OFS_PARM3 + 3 - OFS_PARM0];
     memcpy(saved, qcvm->globals + OFS_PARM0, sizeof(saved));
-    const glm::vec3 player{EDICT_NUM(1)->v.origin[0], EDICT_NUM(1)->v.origin[1], EDICT_NUM(1)->v.origin[2]};
+    const glm::vec3 player = geom::vec(progs::playerEdict()->v.origin);
     for(int k = 0; k < 96; k++)
     {
         const glm::vec3 from = player + glm::vec3{float((k % 8 - 4) * 32), float((k / 8 - 6) * 32), float(k % 3 * 16)};

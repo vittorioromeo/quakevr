@@ -1142,7 +1142,7 @@ void grabBench_f()
 void grabBench()
 {
     // The armed monsters' weapon nearest your main hand, your main fist against it (held::benchFistGap).
-    edict_t* player = sv.active && svs.maxclients > 0 ? EDICT_NUM(1) : nullptr;
+    edict_t* player = progs::playerEdict();
     if(!player || held::fist(1).empty())
     {
         Con_Printf("vr_agrunt_grab_bench: no player or no fist\n");

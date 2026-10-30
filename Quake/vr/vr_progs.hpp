@@ -231,6 +231,14 @@ struct ServerVm
     return sv.active && svs.maxclients >= 1 && svs.clients[0].active ? svs.clients[0].edict : nullptr;
 }
 
+// The local server's first player slot, client 0's edict (edict 1), whether or not a client is in it yet; null when
+// not hosting. After an `if(!sv.active) return;` guard (svs.maxclients is always at least 1) it is the old
+// `EDICT_NUM(1)` with the server's VM current, and `svs.clients[0].edict`. Any current VM.
+[[nodiscard]] inline edict_t* playerEdict()
+{
+    return sv.active && svs.maxclients >= 1 ? svs.clients[0].edict : nullptr;
+}
+
 // The local server's edict `num` in use (null: not hosting, out of range or free). Any current VM.
 [[nodiscard]] inline edict_t* edictAt(int num)
 {

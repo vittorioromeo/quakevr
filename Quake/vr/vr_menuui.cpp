@@ -49,6 +49,7 @@
 #include "vr_renderdoc.hpp"
 #include "vr_panel.hpp"
 #include "vr_propose_defaults.hpp"
+#include "vr_progs.hpp"
 #include "vr_stereo.hpp"
 #include "vr_protocol.hpp"
 #include "vr_toolgun.hpp"
@@ -759,7 +760,7 @@ QuickSaveSeen quickSaveSeen;
         {
             return "Cannot save multiplayer games";
         }
-        if(svs.clients[0].active && svs.clients[0].edict->v.health <= 0)
+        if(const edict_t* player = progs::localPlayer(); player && player->v.health <= 0)
         {
             return "Cannot save a dead player";
         }

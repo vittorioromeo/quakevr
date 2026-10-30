@@ -22,7 +22,7 @@ void player_f()
         return;
     }
     const progs::ServerVm vm;
-    edict_t* p = EDICT_NUM(1);
+    edict_t* p = progs::playerEdict();
     if(Cmd_Argc() > 2 && !strcmp(Cmd_Argv(1), "onto"))
     {
         const za::Vector<edict_t*> list = entitiesNamed(Cmd_Argv(2));
@@ -153,7 +153,7 @@ void approach_f()
         Con_Printf("vr_physics_approach: no solid prop %s\n", Cmd_Argc() > 1 ? Cmd_Argv(1) : "misc_explobox");
         return;
     }
-    edict_t* p = EDICT_NUM(1);
+    edict_t* p = progs::playerEdict();
     vec3_t mins, maxs;
     if(!VR_HullEntBox(p, p->v.mins, p->v.maxs, mins, maxs))
     {
@@ -295,7 +295,7 @@ void fire_f()
         return;
     }
     const progs::ServerVm vm;
-    edict_t* player = EDICT_NUM(1);
+    edict_t* player = progs::playerEdict();
     dfunction_t* fn = nullptr;
     for(int i = 1; i < qcvm->progs->numfunctions && !fn; i++)
     {
@@ -415,7 +415,7 @@ void knockdownTest_f()
         return;
     }
     const progs::ServerVm vm;
-    edict_t* player = EDICT_NUM(1);
+    edict_t* player = progs::playerEdict();
     dfunction_t* fn = nullptr;
     if(Cmd_Argc() >= 2 && Q_atof(Cmd_Argv(1)) == 9 && world)
     {

@@ -171,7 +171,7 @@ void cutOffSound(double seconds)
 // (in both modes: over time it is dropped).
 [[nodiscard]] edict_t* meterPlayer()
 {
-    return sv.active && svs.maxclients == 1 && svs.clients[0].edict ? svs.clients[0].edict : nullptr;
+    return svs.maxclients == 1 ? progs::playerEdict() : nullptr;
 }
 
 void readMeter()
@@ -431,7 +431,7 @@ constexpr float calmTime = 0.3f; // s
 [[nodiscard]] bool calm(const hands::State& s, int hand, const Screen& z, char* why, int whyLen)
 {
     const double now = realtime;
-    if(edict_t* player = sv.active && svs.maxclients >= 1 ? svs.clients[0].edict : nullptr)
+    if(edict_t* player = progs::playerEdict())
     {
         const float blow = progs::fieldFloatOr(player, progs::fields().vr_blow_time, 0.f);
         if(blow != state.blowField)

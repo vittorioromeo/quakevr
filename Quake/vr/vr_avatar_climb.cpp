@@ -107,7 +107,7 @@ struct FootHit
     }
     climbing.traces++;
     const progs::ServerVm vm; // (drawing: the client's VM, or none, is in)
-    const trace_t tr = worldtrace::serverLine(a, z, svs.clients[0].edict);
+    const trace_t tr = worldtrace::serverLine(a, z, progs::localPlayer());
     h.solid = tr.startsolid || tr.allsolid;
     h.hit = !h.solid && tr.fraction < 1.f;
     h.frac = tr.fraction;

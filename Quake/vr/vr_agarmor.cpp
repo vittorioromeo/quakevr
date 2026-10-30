@@ -1413,7 +1413,7 @@ void set_f()
         if(fn && !EDICT_NUM(num)->free)
         {
             pr_global_struct->time = qcvm->time;
-            pr_global_struct->self = EDICT_TO_PROG(EDICT_NUM(1));
+            pr_global_struct->self = EDICT_TO_PROG(progs::playerEdict());
             G_INT(OFS_PARM0) = EDICT_TO_PROG(EDICT_NUM(num));
             G_FLOAT(OFS_PARM1) = static_cast<float>(type);
             G_FLOAT(OFS_PARM2) = static_cast<float>(pieces);

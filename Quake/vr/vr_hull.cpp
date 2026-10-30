@@ -3183,7 +3183,7 @@ void crouchStatus_f()
         return;
     }
     progs::ServerVm vm; // a console command: no VM is current
-    edict_t* ent = EDICT_NUM(1);
+    edict_t* ent = progs::playerEdict();
     const int headOfs = progs::fields().headpos;
     const glm::vec3 head = headOfs >= 0 ? progs::fieldVec(ent, headOfs) : glm::vec3{0.f};
     const float eye = head == glm::vec3{0.f} ? 0.f : head.z - (ent->v.origin[2] + ent->v.mins[2]);

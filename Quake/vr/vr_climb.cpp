@@ -2963,7 +2963,7 @@ void try_f()
         return;
     }
     progs::ServerVm serverVm;
-    edict_t* ent = svs.clients[0].edict;
+    edict_t* ent = progs::localPlayer();
     const VrMove* move = server::clientMove(ent);
     const int h = Cmd_Argc() > 4 && !q_strcasecmp(Cmd_Argv(4), "off") ? 0 : 1;
     const glm::vec3 hand{Q_atof(Cmd_Argv(1)), Q_atof(Cmd_Argv(2)), Q_atof(Cmd_Argv(3))};
@@ -3006,7 +3006,7 @@ void probe_f()
         return;
     }
     progs::ServerVm serverVm;
-    edict_t* ent = svs.clients[0].edict;
+    edict_t* ent = progs::localPlayer();
     probe(ent, Cmd_Argc() > 1 ? Q_atof(Cmd_Argv(1)) : ent->v.angles[1]);
 }
 

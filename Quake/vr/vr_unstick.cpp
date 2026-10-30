@@ -146,7 +146,7 @@ void info_f()
         return;
     }
     progs::ServerVm vm; // a console command: no VM is current
-    edict_t* ent = EDICT_NUM(1);
+    edict_t* ent = progs::playerEdict();
     edict_t* in = SV_TestEntityPosition(ent);
     Con_Printf("vr_stuck_info: player at %.2f %.2f %.2f, in %s (#%d); freed %d times (last %.2f units, from %s), "
                "%d searches failed\n",
@@ -185,7 +185,7 @@ void test_f()
         return;
     }
     progs::ServerVm vm;
-    edict_t* ent = EDICT_NUM(1);
+    edict_t* ent = progs::playerEdict();
     for(int i = 0; i < 3; ++i)
     {
         ent->v.origin[i] = ent->v.oldorigin[i] = Q_atof(Cmd_Argv(1 + i));
@@ -253,7 +253,7 @@ void sink_f()
     const float depth = Cmd_Argc() > 2 ? Q_atof(Cmd_Argv(2)) : 24.f;
     if(num <= svs.maxclients || num >= qcvm->num_edicts)
     {
-        const edict_t* player = EDICT_NUM(1);
+        const edict_t* player = progs::playerEdict();
         float best = 1e30f;
         num = 0;
         for(int i = svs.maxclients + 1; i < qcvm->num_edicts; ++i)

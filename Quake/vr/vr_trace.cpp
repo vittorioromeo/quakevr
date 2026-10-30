@@ -24,14 +24,14 @@ za::Optional<trace_t> move(
 
     qcvm_t* oldvm = nullptr;
     PR_PushQCVM(&sv.qcvm, &oldvm);
-    edict_t* passEdict = pass > 0 && pass < qcvm->num_edicts ? EDICT_NUM(pass) : svs.clients[0].edict;
+    edict_t* passEdict = pass > 0 && pass < qcvm->num_edicts ? EDICT_NUM(pass) : progs::localPlayer();
 
     vec3_t a{start.x, start.y, start.z};
     vec3_t b{end.x, end.y, end.z};
     vec3_t lo{mins.x, mins.y, mins.z};
     vec3_t hi{maxs.x, maxs.y, maxs.z};
     trace_t tr;
-    if(!(type & MOVE_PORTALS) || !VR_PortalReachMove(svs.clients[0].edict, a, lo, hi, b, type & ~MOVE_PORTALS, &tr))
+    if(!(type & MOVE_PORTALS) || !VR_PortalReachMove(progs::localPlayer(), a, lo, hi, b, type & ~MOVE_PORTALS, &tr))
     {
         tr = SV_Move(a, lo, hi, b, type & ~MOVE_PORTALS, passEdict);
     }

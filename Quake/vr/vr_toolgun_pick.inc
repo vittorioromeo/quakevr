@@ -206,7 +206,7 @@ void armedArmour(edict_t* e)
         return;
     }
     pr_global_struct->time = qcvm->time;
-    pr_global_struct->self = EDICT_TO_PROG(EDICT_NUM(1));
+    pr_global_struct->self = EDICT_TO_PROG(progs::playerEdict());
     G_INT(OFS_PARM0) = EDICT_TO_PROG(e);
     G_FLOAT(OFS_PARM1) = static_cast<float>(za::clamp(static_cast<int>(vr_toolgun_armed_armor.value), 0, 4));
     G_FLOAT(OFS_PARM2) = static_cast<float>(za::clamp(static_cast<int>(vr_toolgun_armed_pieces.value), 0, 2));

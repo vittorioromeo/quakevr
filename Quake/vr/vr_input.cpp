@@ -470,11 +470,12 @@ void turn(float x)
 // more), the local player's on this machine's server (a coop guest's own slide is the host's to read: none here).
 [[nodiscard]] float shoveSlide()
 {
-    if(!sv.active || svs.maxclients < 1 || svs.clients[0].edict == nullptr)
+    edict_t* player = qvr::progs::playerEdict();
+    if(player == nullptr)
     {
         return 0.f;
     }
-    const float speed = qvr::progs::fieldFloatOr(svs.clients[0].edict, qvr::progs::fields().vr_eshove_speed, 0.f);
+    const float speed = qvr::progs::fieldFloatOr(player, qvr::progs::fields().vr_eshove_speed, 0.f);
     return za::min(1.f, za::max(0.f, speed / 320.f));
 }
 

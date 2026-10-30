@@ -1916,14 +1916,14 @@ namespace qvr::portals
 // front of its plane (under 0: behind it), and how many times he was got out of the wall behind a gate.
 void stuck_f()
 {
-    if(!sv.active || !enabled() || svs.maxclients < 1 || !svs.clients[0].edict)
+    edict_t* ent = progs::playerEdict();
+    if(!ent || !enabled())
     {
         Con_Printf("portal stuck: no server, or teleporters off\n");
         return;
     }
     progs::ServerVm serverVm;
     if(!current()) { build(); }
-    edict_t* ent = svs.clients[0].edict;
     vec3_t o{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]};
     const trace_t tr = SV_Move(o, ent->v.mins, ent->v.maxs, o, MOVE_NOMONSTERS, ent);
     const glm::vec3 torso = torsoOf(ent);
@@ -2567,7 +2567,7 @@ void pullTest_f()
     if(!sv.active || svs.maxclients < 1) { return; }
     progs::ServerVm serverVm;
     if(!current()) { build(); }
-    edict_t* player = EDICT_NUM(1);
+    edict_t* player = progs::playerEdict();
     const glm::vec3 origin = vec(player->v.origin);
     const Side* nearest = nullptr;
     float best = 1e30f;
@@ -3188,7 +3188,7 @@ void reachTest_f()
 {
     if(!sv.active || svs.maxclients < 1) { return; }
     progs::ServerVm serverVm;
-    edict_t* player = EDICT_NUM(1);
+    edict_t* player = progs::playerEdict();
     const VrMove* move = server::clientMove(player);
     if(move)
     {

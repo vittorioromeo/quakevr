@@ -436,7 +436,7 @@ void status_f()
         return;
     }
     progs::ServerVm vm; // a console command: no VM is current
-    edict_t* p = EDICT_NUM(1);
+    edict_t* p = progs::playerEdict();
     edict_t* best = nullptr;
     float bestDist = ZA_FLOAT_INFINITY;
     progs::forEachEdict(svs.maxclients + 1, [&](edict_t* m) {

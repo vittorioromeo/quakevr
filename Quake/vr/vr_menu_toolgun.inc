@@ -64,11 +64,11 @@ void findToolgunCheats()
     {
         return c.cvar->value != 0.f;
     }
-    if(!c.command || !sv.active || svs.maxclients < 1 || !svs.clients[0].edict)
+    const edict_t* player = progs::playerEdict();
+    if(!c.command || !player)
     {
         return false;
     }
-    const edict_t* player = svs.clients[0].edict;
     const int flags = static_cast<int>(player->v.flags);
     if(!strcmp(c.command, "god"))
     {
