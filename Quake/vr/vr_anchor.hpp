@@ -34,8 +34,8 @@ struct DrawnPoses
 [[nodiscard]] DrawnPoses drawnPoses(const entity_t& e, const aliashdr_t* hdr);
 
 // Where `anchor` (the text above) is on the entity's model in the model's byte space (0..255 per axis, before
-// scale/scale_origin), for its current frame as drawn, blended towards frame 0 by `zeroBlend`, with a weapon's baked
-// kick taken out as it is drawn (vr_kickcancel.hpp; also posedVertex's and posedVertices' now).
+// scale/scale_origin), for its current frame as drawn, blended towards frame 0 by `zeroBlend` (a weapon's baked kick is
+// out of its poses: vr_kickcancel.hpp).
 [[nodiscard]] glm::vec3 posedAnchor(const entity_t& ent, const char* anchor, float zeroBlend);
 
 // The model's mesh read and `anchor` bound on it now, as posedAnchor does the first time (a map's load: the world

@@ -531,7 +531,7 @@ void monsterFired(int ent, bool rocket)
     {
         Con_Printf("weaponfx monster fired t %.3f ent %d (%s) slot %d\n", cl.time, ent, cl_entities[ent].model->name, propSlot);
     }
-    if(vr_debug_weaponfx.value >= 3)
+    if(vr_debug_weaponfx.value == 3.f)
     {
         // Tests (Misc/quakevr/weaponfx/shots_test.sh): the eyes' view of this flash (the next frame's), once.
         Cvar_SetQuick(&vr_eyeshot, "1");
@@ -728,6 +728,35 @@ void recoilOffset(int hand, const glm::vec3& handAngles, glm::vec3& pos, glm::ve
     }
 }
 
+namespace
+{
+// vr_debug_weaponfx 4: the main hand's weapon `w` as drawn this frame, one line: its frame and drawn poses, its body's
+// centre in the world (as drawn, and where its rest pose would be drawn: the kick cancel's residual between them, cm),
+// the programmatic recoil now, and the entity's place.
+void trackDrawn(const view::ViewEntity& w)
+{
+    glm::vec3 now, rest;
+    float worst = 0.f;
+    if(!w.visible || !w.ent.model || !kickcancel::drawnBody(w.ent, now, rest, worst))
+    {
+        return;
+    }
+    const aliashdr_t* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(w.ent.model));
+    const anchor::DrawnPoses d = anchor::drawnPoses(w.ent, hdr);
+    const view::ModelSpace space{w};
+    const glm::vec3 at = space.point(now), atRest = space.point(rest);
+    glm::vec3 pos, angles;
+    recoilOffset(HAND_MAIN, glm::vec3{0.f}, pos, angles);
+    const float cm = 100.f / units::metresToUnits();
+    Con_Printf("recoiltrack gt %.5f t %.5f frame %d poses %d %d %.3f body %.3f %.3f %.3f rest %.3f %.3f %.3f resid %.3f cm worst %.3f "
+               "u recoil %.3f cm %.3f deg org %.3f %.3f %.3f ang %.3f %.3f %.3f\n",
+        vr_gametime, cl.time, w.ent.frame, d.a, d.b, d.blend, at.x, at.y, at.z, atRest.x, atRest.y, atRest.z,
+        glm::distance(at, atRest) * cm, worst,
+        glm::length(pos) * cm, angles.x, w.ent.origin[0], w.ent.origin[1], w.ent.origin[2], w.ent.angles[0],
+        w.ent.angles[1], w.ent.angles[2]);
+}
+} // namespace
+
 // An AD gun variant's shot leaving `w` (drawn; its slot `slot`): sparks and smoke out of its muzzle as it fires (a
 // launcher's a cloud and a shower, the shotgun's burning powder, the plasma guns' sparks in their colour), the rocket's
 // back-blast out of its exhaust (flames, sparks, smoke). Nothing with vr_particles 0.
@@ -799,6 +828,19 @@ void frame(const view::ViewEntity (&weapons)[2], view::ViewEntity (&flashes)[2],
     }
     lastFrame = host_framecount;
     QVR_PROFILE("weapon fx");
+
+    // The held guns' poses with their models' own kick out (or put back: vr_weapon_kick_cancel; a model read again).
+    for(const view::ViewEntity& w : weapons)
+    {
+        if(w.visible && w.ent.model)
+        {
+            kickcancel::prepare(w.ent.model);
+        }
+    }
+    if(vr_debug_weaponfx.value == 4.f)
+    {
+        trackDrawn(weapons[HAND_MAIN]);
+    }
 
     qmodel_t* model = view::viewModel(flashModelName);
     const auto place = [&](view::ViewEntity& ve, const glm::vec3& origin, const glm::vec3& fwd, const glm::vec3& upIn,
@@ -1218,6 +1260,51 @@ void returnTest(const Check& check)
         weapons::value(held, Key::RecoilReturn), back0);
 }
 
+// vr_recoil_test's part on the drawn kick's smoothness: the held weapon's kick (recoilOffset) drawn at 72 and 90 frames a
+// second rises to its peak and comes back without a step back or forth (each drawn frame on its curve: the envelope at
+// that frame's time, within 1e-4 of the peak; up, then down, never the other way).
+template <typename Check>
+void smoothTest(const Check& check)
+{
+    const int hand = HAND_MAIN;
+    const int held = weapons::heldSlot(hand);
+    const float duration = kickSeconds(held);
+    const RecoilAmount full = recoilAmount(held, 1.f, 0.f);
+    float off = 0.f;
+    int reversals = 0, frames = 0;
+    for(const float rate : {72.f, 90.f})
+    {
+        float previous = 0.f;
+        bool falling = false;
+        for(int k = 0; static_cast<float>(k) / rate <= duration + 2.f / rate; k++)
+        {
+            const float t = static_cast<float>(k) / rate;
+            forget(hand);
+            HandFx& h = handFx[hand];
+            h.slot = held;
+            h.kicks[0] = Kick{cl.time - static_cast<double>(t), 1.f, duration, 0.f};
+            glm::vec3 pos, angles;
+            recoilOffset(hand, glm::vec3{0.f}, pos, angles);
+            forget(hand);
+            const float tip = -angles.x;
+            off = za::max(off, fabsf(tip + full.pitch * envelope(t, duration)) / za::max(-full.pitch, 1e-6f));
+            if(tip < previous)
+            {
+                falling = true;
+            }
+            else if(tip > previous && falling)
+            {
+                reversals++;
+            }
+            previous = tip;
+            frames++;
+        }
+    }
+    check(off <= 1e-4f, "the drawn kick at 72 and 90 Hz is on its smooth curve (worst share of the peak off it)", off, 0.f);
+    check(reversals == 0, "and rises once, then comes back once (reversals)", static_cast<float>(reversals), 0.f);
+    Con_Printf("vr_recoil_test: smooth kick: %d frames drawn at 72 and 90 Hz over %.3f s\n", frames, duration);
+}
+
 // vr_recoil_test's part on the stream shake (Key::StreamShake, StreamHaptic; streamed, streamShake): only the AD
 // flamethrower's and poison sprayer's slots (30, 31) have it by default; the held weapon at Stream Shake 1, a flame just
 // come (streamed), trembles each frame of a second of flames (the clock stepped as frames do), subtly (under a degree
@@ -1422,6 +1509,7 @@ void recoilTest_f()
         "Recoil Amount 2x doubles the held weapon's kick back and tip up", glm::length(pos4), 2.f * glm::length(pos0));
     Cvar_SetValueQuick(&vr_recoil_amount, amount);
     returnTest(check);
+    smoothTest(check);
     streamTest(check);
     conversionTest(check);
     // The models' own kick taken out (vr_kickcancel.cpp): every kicking gun's body at rest on each of its frames.
