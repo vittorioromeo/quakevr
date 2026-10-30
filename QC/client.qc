@@ -2210,6 +2210,7 @@ void() PlayerPostThink =
     // do weapon stuff
 
     VR_HandGrabUtil_UpdateState(self);
+    VR_Hand_Frame(self); // QVR: the hand slot's check (vr_carry.qc)
 
     PlayerVRMelee();
 

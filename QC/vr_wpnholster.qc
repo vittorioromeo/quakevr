@@ -492,9 +492,7 @@ void(entity xEntPlayer, float xHand, float xHolster) VRHolsterHaptic =
         // replaces the one playing), so it is felt as one buzz dying away. (It was a faint 0.2
         // amplitude, hard to tell.)
         float t = max(0.05, cvar_hget(cvarh_vr_holster_haptic_time));
-        haptic(xHand, 0.0, t * 0.45, 80, 0.65);
-        haptic(xHand, t * 0.4, t * 0.35, 80, 0.4);
-        haptic(xHand, t * 0.7, t * 0.3, 80, 0.2);
+        VR_Haptic_HolsterHover(xHand);
         dprint("holster haptic: hand "); dprint(ftos(xHand)); dprint(", holster "); dprint(ftos(xHolster));
         dprint(", "); dprint(ftos(rint(t * 1000))); dprint(" ms\n");
     }

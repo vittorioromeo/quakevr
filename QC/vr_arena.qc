@@ -1666,7 +1666,7 @@ void(float xWave) VR_ARENA_ClearField =
 // grab or still dying is taken: its time waits on it.
 // ---------------------------------------------------------------------------
 
-// Held: carried, a hand on it (a ragdoll's limb, VR_Carry_SetHeld), or pulled by a force grab.
+// Held: carried, a hand on it (a ragdoll's limb, VR_Hand_Take), or pulled by a force grab.
 float(entity e) VR_ARENA_Held =
 {
     if(e.carry_player != world || e.fg_state != 0) { return TRUE; }

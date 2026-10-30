@@ -57,7 +57,7 @@ float(entity e) VR_IsDummy;
 
 float(entity m, float xHand, float xUnused) VR_FoeGrab_Taken =
 {
-    haptic(xHand, 0, 0.08, 120, 0.6);
+    VR_Haptic_GrabFoe(xHand);
     // (not the training dummy, nor anything with no run to hunt with: FoundTarget would set its think to a null th_run,
     // "NULL function": NOTES.md vrfiringrange_2026-10-08_22-28-01)
     if(m.enemy == world && !VR_IsDummy(m) && (m.th_run || VR_Stealth_AD(m))) // (AD support: AD's run is its own)
@@ -75,11 +75,11 @@ float(entity m, float xHand, float xWhy) VR_FoeGrab_Released =
 {
     if(xWhy == 1 || xWhy == 2)
     {
-        haptic(xHand, 0, 0.12, 60, 0.7); // torn from the hand
+        VR_Haptic_FoeTorn(xHand); // torn from the hand
     }
     else if(xWhy == 4 || xWhy == 5)
     {
-        haptic(xHand, 0, 0.18, 90, 1); // thrown down
+        VR_Haptic_FoeDown(xHand); // thrown down
     }
     // (6: its neck snapped: VR_FoeGrab_NeckSnap's own buzz)
     return 0;

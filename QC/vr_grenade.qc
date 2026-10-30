@@ -400,14 +400,7 @@ void(entity g) VR_Grenade_Detach =
     {
         return;
     }
-    if(p.mainhand_held == g)
-    {
-        p.mainhand_held = world;
-    }
-    if(p.offhand_held == g)
-    {
-        p.offhand_held = world;
-    }
+    VR_Hand_ReleaseThing(p, g, "went off");
     g.carry_player = world;
     g.carry_2h = FALSE;
 };
@@ -675,7 +668,7 @@ float(float xHand, entity g) VR_Grenade_Trap =
     g.flags = g.flags - (g.flags & FL_ONGROUND);
     VR_Grenade_TrapHold(g);
     sound(g, CHAN_VOICE, "weapons/bounce.wav", 0.35, ATTN_NORM); // (a soft slap into the palm)
-    haptic(xHand, 0.0, 0.06, 60, 0.5);
+    VR_Haptic_GrenadeTrap(xHand);
     return TRUE;
 };
 
@@ -852,11 +845,11 @@ void(float xHeld) VR_Grenade_Cue =
         self = p;
         if(p.mainhand_held == oldSelf)
         {
-            haptic(cVR_MainHand, 0.0, 0.03, 140, 0.35);
+            VR_Haptic_GrenadeTick(cVR_MainHand);
         }
         if(p.offhand_held == oldSelf)
         {
-            haptic(cVR_OffHand, 0.0, 0.03, 140, 0.35);
+            VR_Haptic_GrenadeTick(cVR_OffHand);
         }
         self = oldSelf;
     }
@@ -1213,7 +1206,7 @@ float(float xHand, entity g) VR_HandGrenade_LetGo =
         dprint("grenade: the pouch is full: the grenade drops\n");
         return FALSE;
     }
-    VR_Carry_SetHeld(self, xHand, world);
+    VR_Hand_Release(self, xHand, "grenade");
     g.carry_player = world;
     VR_HandGrenade_AmmoBack(self, g);
     VR_HandGrenade_AmmoChanged(self);
@@ -1253,7 +1246,7 @@ void() VR_HandGrenade_LevelEnd =
         if(g != world && VR_HandGrenade_Unarmed(g) && VR_HandGrenade_Ammo(self, g) < VR_HandGrenade_MaxAmmo(self, g))
         {
             VR_HandGrenade_AmmoBack(self, g);
-            VR_Carry_SetHeld(self, hand, world);
+            VR_Hand_Release(self, hand, "grenade");
             g.carry_player = world;
             remove(g);
             dprint("grenade: an unarmed hand grenade back in the pouch at the level's end\n");
