@@ -347,7 +347,6 @@ const DefaultChange defaultChanges[] = {
     {162, &vr_dmg_ad_widowmaker, "4"},               // 5
     {162, &vr_adgun_crossbow_damage, "15"},          // 30
     // 163: a projectile's kill pops a head or limb less often (his notes of 2026-10-19).
-    {163, &vr_decap_pop_projectile, "0.85"}, // 0.5
     // 164: monster groups: bosses can't be shoved, machines aren't knocked down by shoves, a skull wizard has no legs.
     {164, &vr_mgrp_boss_push, "0"},           // 1
     {164, &vr_knockdown_chance_machine, "0"}, // 0.3
@@ -564,7 +563,6 @@ const DefaultChange defaultChanges[] = {
     {216, &vr_suit_glow, "2"},                       // 1
     {216, &vr_suit_glow_light, "2"},                 // 1
     {216, &vr_legsweep_topple, "180"},               // 200
-    {217, &vr_agarms_clavicle, "0.35"},              // 0.6 (vr_rig2_clavicle's, merged: its effective value)
     {209, &vr_revolver_spin_friction, "720"},        // 760
     {209, &vr_revolver_spin_max, "1800"},            // 900
     {209, &vr_revolver_hand_reach, "3"},             // 0.25
