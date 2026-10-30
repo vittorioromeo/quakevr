@@ -549,7 +549,7 @@ float(entity p, entity r, float xHand) VR_Reload_Refund =
     VR_Reload_AmmoChanged(p);
     if(r.carry_player != world)
     {
-        VR_Carry_SetHeld(r.carry_player, xHand, world);
+        VR_Hand_Release(r.carry_player, xHand, "reload");
         r.carry_player = world;
     }
     VR_Reload_Sound(p, VRGetHandChannel(xHand), "vr/reload_pouch.wav", 0.6);
@@ -735,7 +735,7 @@ void() VR_Reload_RoundBoom =
     entity p = self.carry_player;
     if(p != world)
     {
-        VR_Carry_SetHeld(p, p.mainhand_held == self ? cVR_MainHand : cVR_OffHand, world);
+        VR_Hand_Release(p, p.mainhand_held == self ? cVR_MainHand : cVR_OffHand, "reload");
         self.carry_player = world;
     }
     VR_Reload_Log(sprintf("%s set off at %v (%s's)", VR_Reload_Desc(self), self.origin, self.owner.classname));
@@ -930,7 +930,7 @@ void(float xGunHand, entity r, float xHeld) VR_Reload_SeatMagInto =
         QVR_WPNFLAG_NOMAG));
     if(xHeld)
     {
-        VR_Carry_SetHeld(self, xHand, world);
+        VR_Hand_Release(self, xHand, "reload");
         r.carry_player = world;
     }
     if(gunHand == cVR_MainHand)
@@ -1383,7 +1383,7 @@ float(float xHand, entity box) VR_Reload_PouchTakesBox =
         return TRUE;
     }
     VR_Carry_FullCue(xHand, box); // (full up: it drops there, not a miss of the pouch)
-    VR_Carry_SetHeld(self, xHand, world);
+    VR_Hand_Release(self, xHand, "reload");
     VR_Carry_Loose(box);
     box.velocity = '0 0 0';
     return TRUE;
@@ -2117,7 +2117,7 @@ float(float xGunHand, entity r, float xHeld) VR_Reload_LoadInto =
         collectfx(xHand, r, QVR_CFX_INTO_GUN, r.modelindex, r.origin, r.angles);
         if(xHeld)
         {
-            VR_Carry_SetHeld(self, xHand, world);
+            VR_Hand_Release(self, xHand, "reload");
             r.carry_player = world;
         }
         remove(r);
@@ -2902,7 +2902,7 @@ float(entity g, entity r, entity xBy, float xHand) VR_Reload_IntoProp =
     VR_Reload_PropSlide(g, r, xHand);
     if(xBy)
     {
-        VR_Carry_SetHeld(xBy, xHand, world);
+        VR_Hand_Release(xBy, xHand, "reload");
         r.carry_player = world;
     }
     remove(r);

@@ -1545,9 +1545,9 @@ physgun get the shared throw smoothing; the haptic presets keep today's exact va
   flash_grab PASS, ragdoll grab 19/0, ragdoll climb 24/4 (its known 4), prop_climb 12/0, judo 12/4 (its known 4),
   walltorch_grab 117/120 taken (3 "knocked off first: a slap"); eval.sh 163/171 as the baseline (10 takes' numbers
   differ, the baseline's own runs 9-11). The physgun ragdoll test PASS, let go still: 0 u/s; let go while the stick
-  moves it at 256 u/s: 256 u/s. Not run: reload_gunshape, reload_magcollide, reload_pouchgren, reload_worldparts and
-  reload (their runs are --exclusive: they wait for his game to close). No A/B bench: no per-frame code changed but
-  the physgun's drag (a sample a frame while dragging).
+  moves it at 256 u/s: 256 u/s. Rerun once his game closed: reload_gunshape 24/0, reload_magcollide 11/0,
+  reload_pouchgren 15/0, reload_worldparts 6/0, reload 112/3 (its known 3): 0 of 5 changed. No A/B bench: no
+  per-frame code changed but the physgun's drag (a sample a frame while dragging).
 - **Checklist:** throw the flashlight (a flick and a lob): it flies as a thrown prop would, never over 3 m/s, then
   home; physgun swing a crate and let go at the end of the swing: it keeps the swing (before: an eased 83 ms average,
   slower); every grab, pickup, holster, lamp and foe-grab buzz feels as before.

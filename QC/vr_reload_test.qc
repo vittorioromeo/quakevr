@@ -95,7 +95,7 @@ void() VR_Reload_TestSetup =
     entity held = VR_Carry_Held(self, cVR_MainHand);
     if(held != world)
     {
-        VR_Carry_SetHeld(self, cVR_MainHand, world);
+        VR_Hand_Release(self, cVR_MainHand, "test");
         held.carry_player = world;
         remove(held);
     }
@@ -913,7 +913,7 @@ void() VR_Reload_TestReinsert =
     }
     cvar_set("vr_reload_reinsert_time", sprintf("%g", oldTime));
     cvar_set("vr_reload_reinsert_clearance", ftos(old));
-    VR_Carry_SetHeld(self, cVR_MainHand, world);
+    VR_Hand_Release(self, cVR_MainHand, "test");
     r.carry_player = world;
     remove(r);
     bprint(sprintf("reload reinsertion: %g passed, %g failed\n", vr_reload_test_pass, vr_reload_test_fail));

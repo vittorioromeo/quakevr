@@ -60,6 +60,13 @@ float(entity xPlayer, float xHand) VR_Forcegrab_IsHandBusy =
     return xPlayer.mainhand_fglocked;
 }
 
+// Whether `xHand` of `xPlayer` may take a thing into its slot (VR_Hand_Take): empty (VRIsHandEmpty), not locked on to
+// a pull. (What a carry's grab, a ragdoll grab and a foe grab's throw ask.)
+float(entity xPlayer, float xHand) VR_Hand_CanTake =
+{
+    return VRIsHandEmpty(xPlayer, xHand) && !VR_Forcegrab_IsHandBusy(xPlayer, xHand);
+}
+
 // One object at a time per hand: none while one flies to it, and none until the trigger that
 // pulled it is let go.
 float(float xHand) VR_Forcegrab_IsPulling =
@@ -126,7 +133,6 @@ vector(entity e) VR_Forcegrab_GrabPoint =
     return forcegrabpoint(e);
 }
 
-void(entity xPlayer, float xHand, entity xBox) VR_Carry_SetHeld; // (vr_carry.qc)
 
 // A weapon prop that can never be fired again: a single-use enemy gun (a grunt's burst rifle, an enforcer's laser rifle,
 // AD's soldiers' guns: VR_IsEnemyGun) dropped with its clip empty, or a chainsaw out of fuel (an ogre's: never refuelled;

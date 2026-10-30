@@ -750,7 +750,7 @@ void(float xHand, entity xItem) VR_PickupObj_Holster =
         return;
     }
 
-    VR_Carry_SetHeld(self, xHand, world);
+    VR_Hand_Release(self, xHand, "pickup");
     if(!had && xItem.vr_itemId && VR_ItemUtil_EntHasItem(self, xItem.vr_itemId))
     {
         dprint("pickup: "); dprint(xItem.netname); dprint(" taken at a holster, left for the others\n");

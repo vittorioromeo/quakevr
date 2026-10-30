@@ -400,14 +400,7 @@ void(entity g) VR_Grenade_Detach =
     {
         return;
     }
-    if(p.mainhand_held == g)
-    {
-        p.mainhand_held = world;
-    }
-    if(p.offhand_held == g)
-    {
-        p.offhand_held = world;
-    }
+    VR_Hand_ReleaseThing(p, g, "went off");
     g.carry_player = world;
     g.carry_2h = FALSE;
 };
@@ -1213,7 +1206,7 @@ float(float xHand, entity g) VR_HandGrenade_LetGo =
         dprint("grenade: the pouch is full: the grenade drops\n");
         return FALSE;
     }
-    VR_Carry_SetHeld(self, xHand, world);
+    VR_Hand_Release(self, xHand, "grenade");
     g.carry_player = world;
     VR_HandGrenade_AmmoBack(self, g);
     VR_HandGrenade_AmmoChanged(self);
@@ -1253,7 +1246,7 @@ void() VR_HandGrenade_LevelEnd =
         if(g != world && VR_HandGrenade_Unarmed(g) && VR_HandGrenade_Ammo(self, g) < VR_HandGrenade_MaxAmmo(self, g))
         {
             VR_HandGrenade_AmmoBack(self, g);
-            VR_Carry_SetHeld(self, hand, world);
+            VR_Hand_Release(self, hand, "grenade");
             g.carry_player = world;
             remove(g);
             dprint("grenade: an unarmed hand grenade back in the pouch at the level's end\n");

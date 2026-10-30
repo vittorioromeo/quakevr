@@ -110,11 +110,11 @@ float(entity m, float xYaw, float xTier) VR_FoeGrab_Throw =
 // Returns 1 held, 0 the hand is busy (a weapon, something held).
 float(entity m, float xHand, float xUnused) VR_FoeGrab_HandOver =
 {
-    if(!VRIsHandEmpty(self, xHand) || VR_Forcegrab_IsHandBusy(self, xHand) || !isragdoll(m))
+    if(!VR_Hand_CanTake(self, xHand) || !isragdoll(m))
     {
         return 0;
     }
-    VR_Carry_SetHeld(self, xHand, m);
+    VR_Hand_Take(self, xHand, m);
     return 1;
 };
 
@@ -165,11 +165,11 @@ float(entity m, float xDist, float xSound) VR_FoeGrab_BreakFree =
 {
     if(VR_Carry_Held(self, cVR_OffHand) == m)
     {
-        VR_Carry_SetHeld(self, cVR_OffHand, world);
+        VR_Hand_Release(self, cVR_OffHand, "throw");
     }
     if(VR_Carry_Held(self, cVR_MainHand) == m)
     {
-        VR_Carry_SetHeld(self, cVR_MainHand, world);
+        VR_Hand_Release(self, cVR_MainHand, "throw");
     }
     VR_EnemyShove_Push(self, self.origin - m.origin, xDist);
     if(xSound)

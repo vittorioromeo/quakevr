@@ -521,6 +521,7 @@ float cvarh_vr_debug_chainsaw;
 float cvarh_vr_carry_take;
 float cvarh_vr_carry_autocollect;
 float cvarh_vr_carry_full_cue;
+float cvarh_vr_debug_carry;
 float cvarh_vr_grapple_test_stuck;
 float cvarh_vr_debug_hitzones;
 float cvarh_vr_carry_two_hands;
@@ -1712,6 +1713,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_carry_take = cvar_hmake("vr_carry_take");
     cvarh_vr_carry_autocollect = cvar_hmake("vr_carry_autocollect");
     cvarh_vr_carry_full_cue = cvar_hmake("vr_carry_full_cue");
+    cvarh_vr_debug_carry = cvar_hmake("vr_debug_carry");
     cvarh_vr_grapple_test_stuck = cvar_hmake("vr_grapple_test_stuck");
     cvarh_vr_debug_hitzones = cvar_hmake("vr_debug_hitzones");
     cvarh_vr_carry_two_hands = cvar_hmake("vr_carry_two_hands");
