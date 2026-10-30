@@ -77,6 +77,9 @@ An armed grunt's nail pistol kicks its slide on each shot.
 Firing range: shoot the laser cannon at the floor and walls: sparks and bounces, no blood; at a monster it still bleeds.
 AD flamethrower and poison sprayer: a subtle tremble while firing that settles when you let go, plus the same light buzz (Weapon Offsets > Effects > Stream Shake / Stream Rumble per gun).
 Combat > Weapon Damage > Nail Pistol Model: Full Slide: the whole top reads as a pistol slide; fire empty: it locks open showing the copper barrel; insert a magazine: it re-racks. Classic still works the same. Tell us which to keep.
+Armed grunts and enforcers hold and fire their guns as before; ragdolls swim, grab, climb and react to cut limbs as before.
+Climbing (hang, shimmy, mantle), two-handed grips (incl. magazine and cup grips), grabbing a monster's legs (pull, lift) and the menu sticks and buttons all behave as before.
+Start the game in the headset: VR starts, the menu panel and both controllers work, and quitting closes cleanly (OpenXR backend split into files).
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns
