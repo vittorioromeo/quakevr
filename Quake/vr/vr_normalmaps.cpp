@@ -733,11 +733,11 @@ The build: NORMALCACHE_VERSION, BUMPED whenever a change could make another norm
 here (TexMgr_SkinToNormals and its constants) or the islands' mask (vr_modelload.cpp, Mod_SkinIslandsMalloc). Until
 2026-10-16 it was this file's compile time: every new build made every skin's normal map again in its first session
 (PROFILE_20261016 B6). vr_normalmap_cache 2 makes them anyway and compares (a forgotten bump shows as differing).
-The key: a hash (FNV-1a, 64 bits) of all that TexMgr_SkinToNormals reads: the texels, their size, the heights or not,
-the texels per unit, and the islands' mask.
+The key: a hash (64 bits: FNV-1a, the texels and the mask by wideHash since v2) of all that TexMgr_SkinToNormals reads:
+the texels, their size, the heights or not, the texels per unit, and the islands' mask.
 ================
 */
-#define NORMALCACHE_VERSION 1
+#define NORMALCACHE_VERSION 2 // (2: the keys' wideHash, 2026-10-30)
 
 static za::String TexMgr_MakeNormalCacheBuild (void)
 {
@@ -762,11 +762,11 @@ static unsigned long long TexMgr_SkinNormalsKey (const byte *data, int width, in
 		heightmask_corners ? heightmask_numtris : -1};
 	h = qvr::diskcache::fnv (h, params, sizeof (params));
 	h = qvr::diskcache::fnv (h, &texelsperunit, sizeof (texelsperunit));
-	h = qvr::diskcache::fnv (h, data, (size_t) width * height * 4);
+	h = qvr::diskcache::wideHash (h, data, (size_t) width * height * 4);
 	if (heightmask_corners) // the islands are made from these (VR_SetHeightMaskLazy)
-		h = qvr::diskcache::fnv (h, heightmask_corners, (size_t) heightmask_numtris * 6 * sizeof (float));
+		h = qvr::diskcache::wideHash (h, heightmask_corners, (size_t) heightmask_numtris * 6 * sizeof (float));
 	else if (heightmask)
-		h = qvr::diskcache::fnv (h, heightmask, (size_t) heightmask_width * heightmask_height);
+		h = qvr::diskcache::wideHash (h, heightmask, (size_t) heightmask_width * heightmask_height);
 	return h;
 }
 

@@ -824,6 +824,11 @@ namespace
 
 } // namespace
 
+namespace
+{
+void startKind(edict_t* ent, int index); // (below)
+} // namespace
+
 // (each kind of monster once: the first of its model's; a limb its first cut takes whole, as box3d::limbModel names it)
 void prebuild()
 {
@@ -846,7 +851,8 @@ void prebuild()
     ragdoll::warmRigs(rigged.data(), static_cast<int>(rigged.size()));
     VR_TimeAdd("  their monsters' rigs (warmRigs)", Sys_DoubleTime() - t0);
     za::Vector<int> seen;
-    int made = 0, waiting = 0;
+    za::Vector<const char*> names; // (keptName's: the precaches below, in this order)
+    int waiting = 0;
     for(int num = svs.maxclients + 1; num < qcvm->num_edicts; num++)
     {
         edict_t* ent = EDICT_NUM(num);
@@ -871,12 +877,32 @@ void prebuild()
             const char* name = (joints & (1u << bone)) ? box3d::limbModel(ent, bone) : "";
             if(name[0])
             {
-                VR_LatePrecacheModel(name);
-                made++;
+                names.pushBack(name);
             }
         }
+        // Its limbs' files built on the pool, every kind at once (one built here took 0.7 ms: 116 ms of vrtesthall's
+        // load for its 170 limbs, 2026-10-30); the precaches below take them (derivedFile), else build their own.
+        startKind(ent, index);
         ent->v.modelindex = oldIndex;
     }
+    for(LateKind& kind : late.kinds)
+    {
+        za::Vector<Built> built = kind.built.get();
+        for(za::SizeT i = 0; i < kind.names.size() && i < built.size(); i++)
+        {
+            if(!built[i].file.empty())
+            {
+                late.ready.pushBack(LateLimb{kind.names[i], kind.pathId, ZA_MOVE(built[i].file)});
+            }
+        }
+    }
+    late.kinds.clear();
+    // (the models' skins and normal maps: the main thread's, in the order the kinds and their bones come, as before)
+    for(const char* name : names)
+    {
+        VR_LatePrecacheModel(name);
+    }
+    const int made = static_cast<int>(names.size());
     VR_TimeAdd("VR after spawn: limb models", Sys_DoubleTime() - t0);
     Con_DPrintf("limb models: %d made for %d kinds of monster (%d of them not yet appeared), %.1f ms\n", made,
         static_cast<int>(seen.size()), waiting, (Sys_DoubleTime() - t0) * 1000.0);

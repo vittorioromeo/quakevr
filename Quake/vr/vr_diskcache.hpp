@@ -18,6 +18,7 @@
 #include "Zancle/String/String.hpp"
 
 #include <stddef.h>
+#include <string.h>
 
 namespace qvr::diskcache
 {
@@ -101,5 +102,30 @@ void info_f();
 }
 
 constexpr unsigned long long fnvStart = 14695981039346656037ull;
+
+// A key's hash of a large buffer (a skin's texels: FNV-1a's one multiply a byte took 38 ms of vrtesthall's load for
+// its 345 skins' normal maps): four lanes of xxHash64's round over 8-byte words, ~10x faster, then FNV-1a of the lanes,
+// the tail and the length. Another hash than fnv's: a key moved to it is a new key (its product's build bumped).
+[[nodiscard]] inline unsigned long long wideHash(unsigned long long h, const void* p, size_t n)
+{
+    constexpr unsigned long long p1 = 0x9E3779B185EBCA87ull, p2 = 0xC2B2AE3D27D4EB4Full;
+    const unsigned char* bytes = static_cast<const unsigned char*>(p);
+    unsigned long long lanes[4] = {h + p1 + p2, h + p2, h, h - p1};
+    size_t i = 0;
+    for(; i + 32 <= n; i += 32)
+    {
+        for(int k = 0; k < 4; k++)
+        {
+            unsigned long long w;
+            memcpy(&w, bytes + i + 8 * k, 8);
+            lanes[k] += w * p2;
+            lanes[k] = (lanes[k] << 31) | (lanes[k] >> 33);
+            lanes[k] *= p1;
+        }
+    }
+    h = fnv(h, lanes, sizeof(lanes));
+    h = fnv(h, bytes + i, n - i);
+    return fnv(h, &n, sizeof(n));
+}
 
 } // namespace qvr::diskcache
