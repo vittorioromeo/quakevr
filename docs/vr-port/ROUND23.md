@@ -2414,6 +2414,48 @@ Scope (his change): the armed **grunt** only (the enforcer's model already has a
   5-6 chance failures).
 - **Not done.** A corpse's pack is not torn off by hits (only taken, pulled, gibbed or landing hard); the pack doesn't
   shield the back from hits; its sound can't be heard headless.
+
+## Worn backpacks, round 2: no spin, grabbed off the living, toppling, damage pool (branch `agent/wornpack2`)
+
+His feedback (items 1-6) and the coordinator's follow-up (damage pool, flame/poison/explosions, gibbing).
+- **No spin.** The worn pack kept backpack.mdl's EF_ROTATE: the client overwrote its yaw every frame. The engine now
+  reads the pack's `vr_wp_state` (new QVR_FIELD) and sends U_QVR_NOROTATE while it is worn (1 living, 2 dead); torn off
+  it is the dropped item as before (a rigid body, no spin either). A dead one's pack lost Backpack_Setup's lying
+  `model_offset` (it was drawn off the back). Eyeshot (`scratch/wornpack/spin_before.png`, vr_wornpack_test 2): upright
+  on the back, behind and side on. Test: yaw 0.5 off its wearer's, pitch 0.8, roll 0.
+- **Its box.** The entity's size is now the level box round the turned model box (`limbpiece(g, 0, 23)`: 13 x 13 x 15
+  units at scale 0.6) instead of a 20-unit cube round its diagonal. Shots and projectiles (MOVE_HITMODEL) meet a living
+  wearer's pack at its model box as posed (`box3d::wornPackSegment` in VR_HitModelClip), the monster hit there; a shot
+  counts on the pack within 0.1 unit of its box (blows, throws, projectiles 3). Test: 29 lines across it from behind:
+  9 inside met it, 18 outside never did, 0 wrong.
+- **Grabbed off the living** (`vr_worn_backpack_tug` 1). A fist on a living wearer's pack takes the pack as a foegrab
+  hold (vr_foegrab.cpp `takePack`; the pack before the body): the palm is put on the pack's nearest face (its middle a
+  palm's sphere off it) and carried with the pack as the body is posed, so the drawn hand lies on the pack (item 5). It
+  doesn't drag the grunt (it stands its ground), never lets go by stretch below 4x vr_foegrab_break, and wakes it
+  (VR_FoeGrab_Taken: spotted). QC `VR_WP_Tug`: each hand's stretch (`ragdollbone` QVR_WORNPACK what 5) from
+  `vr_worn_backpack_tug_stretch` 10 cm counts, harder sooner, `vr_worn_backpack_tug_time` 0.6 s of it tears the pack
+  into the main hand (what 6 ends the holds, the grips the QC's at once). Test: 0.5 m/s, one hand 0.54 s, palm 3.5 cm
+  off the box throughout.
+- **Two hands** (`vr_worn_backpack_two_hand_mult` 1.5): their pulls added, times it; also for a ragdoll held by the
+  pack. Test: 0.22 s against one hand's 0.54 s.
+- **Topple** (`vr_worn_backpack_topple` 1, `_topple_push` 0.8; a ragdoll trigger): torn off a living one by a pull, it is
+  knocked down as a shove knocks it (VR_Knockdown_Start, ragdollshovetopple) along the hands' travel since they took
+  hold (`limbpiece(g, pnum, 24)`: not the spot's swing as it turns). Test: along the pull, dot 1.00 (one and two hands).
+- **Damage pool** (`vr_worn_backpack_pool` 25): a living one's pack tears off once it took that much: hits located on it,
+  `_pool_blast` 1 of an explosion's damage anywhere, `_pool_fire` 1 of fire's (vr_adflame, vr_burn); never poison
+  (vr_adpoison, poison puffs). A hit on it spots the attacker. The per-hit chance is kept as `vr_worn_backpack_hit_roll`
+  0 (renamed from `_hit_chance` 0.35 so his saved 0.35 doesn't stay on). Rip volume: `vr_worn_backpack_volume` (as
+  before). Gibbing tears it off (as before; now tested). Test: hit 15 (12 x the zone's factor), blast +8, poison +0,
+  fire: 33 of 30, torn ("fire").
+- **Menu** (Combat > Armed Grunts > Worn Backpacks): Damage That Tears It, Explosions' Share, Fire's Share, Extra Hit
+  Chance; Tearing It Off a Living One: Grab the Pack, Pull That Counts, Pull Time, Two-Hand Pull, Tearing Topples It,
+  Topple Push.
+- **Test** `vr_wornpack_test 1`: **39 passed, 0 failed** (was 17). Not done: the walk-cycle placement check (the posed
+  pack checked standing only), the flag-off covering cases (foegrab, hitmodel tests) not rerun.
+- **Checklist**: grab a living grunt's backpack from behind and pull back: it turns on you, the pack tears off into
+  your hand after about half a second and the grunt falls towards you; with both hands sooner. Your hand stays on the
+  pack while you pull. Shoot just beside a grunt's pack: no rip; shoot the pack a few times, or hit it with a rocket's
+  blast or the flamethrower: it rips off; the poison sprayer never. Packs on living and dead grunts don't spin.
 ## Backpacks' hit box (branch `agent/bpfix`)
 
 - **His report**: "backpacks dropped by enemies have a much larger hitbox than expected against player projectiles (e.g.
