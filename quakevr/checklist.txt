@@ -41,6 +41,19 @@ Push your hand or a held gun into a live grunt or enforcer: it stops at its body
 Break the super shotgun open and flick it gently without loading: it stays open. Load both barrels and flick about as gently: it shuts (Weapons > Reloading > Super Shotgun > Flick Close Leniency When Loaded 1.15; at 1 both need the same flick).
 With Disable Haptics on (vr_disablehaptics 1), bullet time's pulse and the gadget's gear-light buttons don't buzz; with it off, they and the menus, toolgun, holsters and flashlight still buzz.
 Load a map with many monsters (vrtesthall) and cut off some limbs: the cut limbs and the monsters' surface detail (normal maps) look the same as before; the map loads a little faster.
+Armed grunts and enforcers hold their weapons as before: no change in any grip, no hand off its gun (the old rigid-arm path is gone; arms fitted to the drawn mesh).
+An armed grunt raising its arms (aiming high, a shrug) moves its shoulders as before (one clavicle setting, 0.6).
+Kill an armed grunt: its ragdoll keeps its weapon in its hands.
+Your body's torso still mostly follows your head as you turn and lean.
+Shove a monster hard: it walks its backpedal (no gliding stagger).
+Shore foam on water shows as rising puffs.
+The magnetic holster's tether wraps round walls and corners.
+A two-handed weapon's second grip takes only when your off hand closes on it.
+The shotgun's auto pump always cycles after a shot.
+The toolgun panel's Remove and Physgun colours match the beam; the physgun and scale sticks respond with your normal stick deadzone.
+Water with a current (moving water) acts as water everywhere: blood drifts and splashes in it, gore and wounds treat it as water. Looking up at or near the sky never counts as being in water.
+AD spiders and scorpions get knocked down at the Spiders and Crawlers chance, and their corpses gib as a scourge's do.
+Climbing stamina and the tired walk feel the same as before.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns

@@ -40,58 +40,17 @@ void relinkArms();
 
 bool boneKicks(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* posed, rigpose::Rigid* out);
 
-// Armed grunts' arms on their weapon (vr_agrunt_ik; QC vr_armedgrunt.qc, ROUND22.md "Armed grunts: polish"): an armed
-// grunt's model (progs/vrgrunt.mdl) drawn alive, its held weapon found (the weapon model nearest its right hand with the
-// held effects bit, 128): its arms bent by two-bone IK (upper arm and forearm, the elbow kept where the animation had it)
-// so the right hand is on the weapon's grip (its handle: its origin) and the left on its second grip (its Weapon
-// Offsets' first Grip hotspot; under the right hand for a Cup), or, a one-handed or melee weapon, hanging free by its
-// side. Layered on the animation as the kicks are (and the kicks on top).
+// Armed humanoids' arms on their weapons (vr_agrunt_ik; QC vr_armedgrunt.qc, ROUND22.md "Armed humanoids' arms: posed
+// and skinned"): an armed humanoid's model drawn alive, its arms posed by its weapons and skinned (vr_agarms.cpp).
 [[nodiscard]] bool armsWanted(const entity_t* e);
 
-// Whether `e` has bone turns now (kicks or arms), and them (boneKicks' form): kickInstance's (vr_animsmooth.cpp).
-// `aliashdr`, `pose1`, `pose2`, `blend`: the poses drawn (the hands' vertices).
+// Whether `e` has bone turns now (kicks, a strike's body, its legs' and upper body's turns), and them (boneKicks' form):
+// kickInstance's (vr_animsmooth.cpp).
 [[nodiscard]] bool bonesWanted(const entity_t* e);
-bool boneTurns(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* posed, const void* aliashdr, int pose1,
-    int pose2, float blend, rigpose::Rigid* out, rigpose::Rigid* pieces = nullptr, bool* piecesOn = nullptr);
-
-// Armed monsters' rigid arms (vr_agrunt_ik_rigid): boneTurns' `pieces` (numArmPieces: the right forearm, the right hand,
-// the left forearm, the left hand; rest -> model space, each drawn whole: the shader's RigPiece) and each vertex's piece
-// (-1 none; `bone` its forearm's): read when the model's rest data is made.
-inline constexpr int numArmPieces = 4;
+bool boneTurns(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* posed, rigpose::Rigid* out);
 
 // vr_agarms: an armed humanoid's model's vertex `v`'s arm skin row (vr_agarms.hpp restRow). False: none.
 bool armSkinRow(const qmodel_t* model, const void* aliashdr, const ragdoll::Rig& rig, int v, glm::vec4& out);
-[[nodiscard]] int armedPiece(const qmodel_t* model, const void* aliashdr, const ragdoll::Rig& rig, int v, int& bone);
-
-// vr_agrunt_ik_err's arm numbers for one drawn armed monster (kickInstance, while a tag is set): each side's forearm and
-// hand vertices (armPieceVerts' order) as drawn (model space), with the bones' turns.
-void armPieceVerts(const entity_t* e, const void* aliashdr, const ragdoll::Rig& rig, int side, const int*& verts, int& n);
-void noteArmsDrawn(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid* posed, const rigpose::Rigid* kick,
-    const glm::vec3* drawnR, const glm::vec3* drawnL);
-
-// An armed monster's hand as the shader draws it (kickInstance): its vertices' places before the bones' turns, their bones'
-// share of a turn (the vertex's fit), their rig places. Drawn after a turn K: D + W * K(P) (model space, units).
-struct HandFit
-{
-    bool ok{false};
-    glm::vec3 P{0.f}; // the rig's places, weighted by their shares (W)
-    glm::vec3 D{0.f}; // the mean of (drawn - share * rig place)
-    float W{0.f};     // the mean share
-};
-
-// The hands' vertices of an armed monster's model (right: its row's; left: found once a model). False: not one.
-bool armedHandVerts(const entity_t* e, const void* aliashdr, const ragdoll::Rig& rig, const int*& right, int& numRight,
-    const int*& left, int& numLeft);
-
-// The bone an armed monster's model's vertex `v` is drawn on if it is one of its hands' (-1: not; vr_animsmooth.cpp's rest
-// data): its forearm's, wholly (the rig's fit put the left hand on its upper arm, the right's old rifle grip at a sixth of its
-// forearm's turns: the hands left their weapons as the IK bent the arms).
-[[nodiscard]] int armedHandBone(const qmodel_t* model, const void* aliashdr, const ragdoll::Rig& rig, int v);
-
-// kickInstance, before boneTurns: the hands as they will be drawn (the IK aims them so the drawn hands reach the targets,
-// whatever Model Animation and the rebuild do to them); after it: where they were drawn (vr_agrunt_ik_err's numbers).
-void setHandsDrawn(const entity_t* e, const HandFit& right, const HandFit& left);
-void noteHandsDrawn(const entity_t* e, const glm::vec3& right, const glm::vec3& left);
 
 // The whole-model tilt (models with no rig, or vr_hit_react 2): `matrix` (R_EntityMatrix's) turned about the model's
 // feet. VR_AliasPreTransform's.
@@ -105,6 +64,5 @@ bool drawnWeaponTurn(int prop, glm::vec3& turn, glm::vec3& off);
 
 // vr_hit_react_trace, vr_hit_react_info (Debug > Tests).
 void registerCommands();
-void resetModels(); // the armed rigs' models forgotten (a rig file reloaded: rig2::latch; made again as drawn)
 
 } // namespace qvr::hitreact

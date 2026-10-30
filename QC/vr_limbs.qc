@@ -8,7 +8,7 @@
 // (its model made from the monster's: limbmodel; grabbable, rigid, destroyable; at most vr_limbs_max lie about); a pop
 // bursts it (blood, small gibs; brains only for the head). The stump bleeds and spurts as the neck does
 // (VR_Decap_FountainThink). A zombie or mummy losing a limb dies for good (vr_limbs_zombies). Explosions pop the limbs
-// near them by chance (vr_limbs_blast); a body gibbed throws its own limbs (vr_gib_limbs).
+// near them by chance (vr_limbs_blast_chance); a body gibbed throws its own limbs (vr_gib_limbs).
 //
 // The arming is the head's (vr_decap.qc's globals): vr_decap_limb the joint (-1 the head). The public hooks
 // (VR_Decap_Blow, _Saw, ...) try the head first, then the limb struck.
@@ -138,14 +138,14 @@ entity(entity c, string m, float xBone, vector xAt, vector xAng, vector xVel, ve
 
 // Piece `h` (a limb or the head) cut off `c` at joint `xBone` (-1 the head) weighs its share of c's ragdoll's Mass by
 // the kind of limb (limbpiece; the engine's limbMassShare: an arm 6.3%, a forearm and hand 2.8, a hand 0.8, a leg 15.5,
-// a shin and foot 6, the head 7) times vr_limbs_mass_scale (Box3D's: .vr_prop_mass; held and thrown as that). No rig,
-// or vr_limbs_mass_scale 0: its model's hull of flesh, as before. A head thrown whole (ThrowHead) weighs the same: its
+// a shin and foot 6, the head 7) times vr_limbs_mass_scale, at least 0.05 (Box3D's: .vr_prop_mass; held and thrown as
+// that). No rig: its model's hull of flesh. A head thrown whole (ThrowHead) weighs the same: its
 // prop's Mass -1 (Held Object Offsets; the engine's headPropMass).
 void(entity h, entity c, float xBone) VR_Limb_SetMass =
 {
-    float scale = cvar_hget(cvarh_vr_limbs_mass_scale);
+    float scale = max(0.05, cvar_hget(cvarh_vr_limbs_mass_scale));
     vector piece = limbpiece(c, xBone, 0);
-    if(piece_x > 0 && scale > 0)
+    if(piece_x > 0)
     {
         h.vr_prop_mass = max(0.05, piece_x * scale);
     }
@@ -948,7 +948,7 @@ float(entity targ, entity inflictor, entity attacker, float xDamage) VR_Limb_Qua
 };
 
 // ----------------------------------------------------------------------------
-// Explosions (vr_limbs_blast) and gibbing (vr_gib_limbs).
+// Explosions (vr_limbs_blast_*) and gibbing (vr_gib_limbs).
 
 // The limb joints of `e` hanging off its torso (or off the head: none), not cut: what a whole body comes apart into.
 float(entity e) VR_Limb_TopJoints =
@@ -971,7 +971,7 @@ float(entity e) VR_Limb_TopJoints =
 // always). How many popped.
 float(entity e, float xLive) VR_Limb_BlastPops =
 {
-    if(!cvar_hget(cvarh_vr_limbs_blast) || vr_limb_blast_time != time || !VR_Limb_Allowed(e) ||
+    if(vr_limb_blast_time != time || !VR_Limb_Allowed(e) ||
        (!xLive && !cvar_hget(cvarh_vr_limbs_corpses)))
     {
         return 0;

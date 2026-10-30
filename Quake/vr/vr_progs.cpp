@@ -35,6 +35,7 @@
 #include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/String/String.hpp"
 
@@ -222,6 +223,34 @@ bool qcTestsPresent()
     return qcTestsLast.present;
 }
 
+namespace
+{
+// A QC function of one entity parameter (0: none) run for its float return, the caller's self, first parameter and
+// return kept (staminaMax, staminaLeft: asked from builtins' code too).
+[[nodiscard]] float askQc(func_t fn, edict_t* e)
+{
+    if(!fn)
+    {
+        return 0.f;
+    }
+    const int self = pr_global_struct->self;
+    const int parm = G_INT(OFS_PARM0);
+    const float ret[3]{G_FLOAT(OFS_RETURN), G_FLOAT(OFS_RETURN + 1), G_FLOAT(OFS_RETURN + 2)};
+    pr_global_struct->self = EDICT_TO_PROG(qcvm->edicts);
+    G_INT(OFS_PARM0) = e ? EDICT_TO_PROG(e) : 0;
+    PR_ExecuteProgram(fn);
+    const float out = G_FLOAT(OFS_RETURN);
+    pr_global_struct->self = self;
+    G_INT(OFS_PARM0) = parm;
+    G_FLOAT(OFS_RETURN) = ret[0], G_FLOAT(OFS_RETURN + 1) = ret[1], G_FLOAT(OFS_RETURN + 2) = ret[2];
+    return out;
+}
+} // namespace
+
+float staminaMax() { return za::max(1.f, askQc(bindings().Stamina_Max, nullptr)); }
+
+float staminaLeft(edict_t* p) { return za::clamp(askQc(bindings().Stamina_Left, p), 0.f, staminaMax()); }
+
 } // namespace qvr::progs
 
 using namespace qvr::progs;
@@ -348,6 +377,8 @@ extern "C" void VR_OnProgsLoaded()
         b.Flail_Rattle = findFunction("VR_Flail_Rattle");
         b.Monster_Fall = findFunction("VR_Monster_Fall");
         b.Knockdown_MakeRoom = findFunction("VR_Knockdown_MakeRoom");
+        b.Stamina_Max = findFunction("VR_Stamina_Max");
+        b.Stamina_Left = findFunction("VR_Stamina_Left");
         b.foegrab.HeadZone = findFunction("VR_FoeGrab_HeadZone");
         b.foegrab.HeadLeft = findFunction("VR_FoeGrab_HeadLeft");
         b.foegrab.Released = findFunction("VR_FoeGrab_Released");

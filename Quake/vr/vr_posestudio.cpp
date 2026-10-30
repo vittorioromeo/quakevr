@@ -2315,10 +2315,6 @@ bool start(int returnPage)
     {
         return refuse("start a map first");
     }
-    if(!agarms::enabled())
-    {
-        return refuse("turn on Posed Arms first (vr_agarms 1)");
-    }
     if(bladeedit::active())
     {
         bladeedit::finish(true);

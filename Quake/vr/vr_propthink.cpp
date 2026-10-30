@@ -13,6 +13,7 @@
 #include "vr_edictindex.hpp"
 #include "vr_engine.hpp"
 #include "vr_progs.hpp"
+#include "vr_trace.hpp"
 
 #include <math.h>
 #include <stddef.h>
@@ -172,7 +173,7 @@ void stabilize(edict_t* self, const progs::FieldOffsets& f)
     const float oldFlags = v.flags;
 
     // In water (not the "just spawned" waterlevel 1 of an entity never checked since).
-    if(v.waterlevel >= 1.f && v.watertype <= static_cast<float>(CONTENTS_WATER))
+    if(v.waterlevel >= 1.f && worldtrace::isLiquid(static_cast<int>(v.watertype)))
     {
         if(ammo < 2.f)
         {

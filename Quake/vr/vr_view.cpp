@@ -800,7 +800,7 @@ bool view::groundHotspotPoint(int entity, int index, glm::vec3& out)
 
 namespace
 {
-// vr_agarms_cup_handle: a Two-Handed Hand Anchor this far ahead of the handle (along the weapon's forward, units) is a
+// A Two-Handed Hand Anchor this far ahead of the handle (along the weapon's forward, units) is a
 // handle of its own (the Widowmaker's front handle: 11.7); the pistols' anchors sit at their grips (-2.4..0).
 constexpr float cupHandleAhead = 8.f;
 } // namespace
@@ -830,7 +830,7 @@ bool view::secondGrip(qmodel_t* model, glm::vec3& second, int& type)
         {
             type = 2;
             const char* anchor = weapons::anchor(slot, Key::TwoHHandAnchor);
-            if(vr_agarms_cup_handle.value != 0.f && anchor && anchor[0])
+            if(anchor && anchor[0])
             {
                 const glm::vec3 at = anchorPosition(e, false, 1.f, anchor, glm::vec3{0.f});
                 if(at.x >= cupHandleAhead)

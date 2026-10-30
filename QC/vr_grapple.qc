@@ -1594,7 +1594,7 @@ void(entity h, entity m, vector xDir, float xSpeed) VR_Grapple_MoveMonster =
         {
             return;
         }
-        if((m.flags & FL_SWIM) && pointcontents(trace_endpos) > CONTENT_WATER)
+        if((m.flags & FL_SWIM) && !VR_IsLiquid(pointcontents(trace_endpos))) // (the sky is not)
         {
             return;
         }

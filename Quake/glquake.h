@@ -477,7 +477,7 @@ typedef struct gpuframedata_s {
 	float	teleportlook[4]; // QVR: starry surface size and opacity
 	float	ambient[4];		// QVR: the baked light's own fill light (vr_ambient_light): x is the share of Quake's full light added to the lightmap before its contrast (vr/vr_lighting.cpp, vr/vr_glsl.h)
 	float	permdecals[4];	// QVR: the permanent decals' layer (vr/vr_permdecals.cpp: VR_PermDecalsFrame): on, slots a row, one over the atlas's side
-	float	parallax3[4];	// QVR: parallax mapping, more: where the surface's polygon sits in the relief (vr_parallax_plane: 0 its top, 1 its bottom), unused
+	float	parallax3[4];	// QVR: parallax mapping, more: where the surface's polygon sits in the relief (0 its top, 1 its bottom: the world's); [1] the depth write's split, unused
 	float	decalcarve[4];	// QVR: the carved decals (vr/vr_decals.cpp: VR_DecalCarveFrame): the depth's multiplier (0 off), the rim's, the most steps, flat past this far
 	float	foam[3][4];		// QVR: the shoreline foam's look, each liquid's (vr/vr_water.cpp foamLook: 0 water, 1 lava, 2 slime): opacity (0 off), frequency, strength, unused
 	float	foamcolor[3][4];	// QVR: ... its colour (rgb), unused

@@ -214,7 +214,7 @@ void struggleVoice(edict_t* ent, ragactive::Struggle& g, double now)
 void livingStruggle(RagdollBodies& r, ragactive::StruggleInput& in)
 {
     in = ragactive::StruggleInput{};
-    if(vr_struggle.value == 0.f || r.num <= 0 || !r.rig)
+    if(r.num <= 0 || !r.rig)
     {
         return;
     }

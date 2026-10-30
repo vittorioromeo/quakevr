@@ -14,6 +14,7 @@
 #include "vr_cvars.hpp"
 #include "vr_protocol.hpp"
 #include "vr_twohand.hpp"
+#include "vr_weapon_ids.h"
 
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Fmax.hpp"
@@ -26,7 +27,7 @@ namespace qvr::flick
 namespace
 {
 
-constexpr int widSuperShotgun = 5; // QC WID_SUPER_SHOTGUN
+constexpr int widSuperShotgun = WID_SUPER_SHOTGUN;
 
 bool current[2]{false, false};
 // cl.time the super shotgun that breaks open was last flicked (its bit held flickHold seconds: one frame's bit was lost

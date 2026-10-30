@@ -78,7 +78,7 @@ enum Chain : int
     ChainCount
 };
 
-// The tether as a chain of points (vr_magholster_chain_sim 1: vr_verlet.hpp, the grappling hook rope's own steps),
+// The tether as a chain of points (vr_verlet.hpp, the grappling hook rope's own steps),
 // pinned at the holster and the weapon, lying on and wrapping round the world (client-side only); its links drawn along
 // it (coil::Cord::shape).
 struct TetherSim
@@ -301,7 +301,7 @@ void hang(coil::Cord& cord, const glm::vec3& at, float length, const glm::vec3& 
            (chosen->name[n - 1] == 'x' || chosen->name[n - 1] == 'y' || chosen->name[n - 1] == 'z');
 }
 
-// The tether's chain of points (vr_magholster_chain_sim 1) stepped for this frame, `length` units long from `c.home`
+// The tether's chain of points stepped for this frame, `length` units long from `c.home`
 // to `c.gun`: its points vr_magholster_chain_spacing apart (a long one's farther: vr_magholster_chain_points at most;
 // resampled, its shape kept, as their number changes), carried by the body's movement near the holster
 // (vr_magholster_chain_carry), falling, slowed by the air (_drag), held to their spacing (_iterations, _stiffness) and
@@ -591,7 +591,7 @@ void info_f()
             const int crossing = throughWorld(tether, last);
             Con_Printf("magholster %d tether: %s, %d nodes, %d pieces through the world (the last: %d), worst piece %.0f%% "
                        "off, %d traces, step %.3f ms\n",
-                i, c.sim.time >= 0.0 && vr_magholster_chain_sim.value != 0.f ? "simulated" : "old chain",
+                i, c.sim.time >= 0.0 ? "simulated" : "not stepped yet",
                 static_cast<int>(tether.nodes().size()), crossing, last, 100.f * tether.springError(), c.sim.traces, c.sim.ms);
         }
     }
@@ -701,7 +701,7 @@ void setupView(const hands::State& s)
         const glm::vec3 rel = c.gun - c.home;
         const glm::vec3 lastRel = hands::rotateYaw(c.lastRel, s.turnYaw - c.lastTurnYaw);
         const bool jumped = glm::distance(rel, c.lastRel) > 0.15f * m2u;
-        const bool carried = vr_magholster_chain_sim.value != 0.f && vr_magholster_chain_sway.value < 1.f;
+        const bool carried = vr_magholster_chain_sway.value < 1.f;
         const bool tetherJumped = carried ? glm::distance(rel, lastRel) > 0.15f * m2u : jumped;
         if(c.where != Where::World && (jumped || tetherJumped))
         {
@@ -732,7 +732,7 @@ void setupView(const hands::State& s)
 
         // The tether, from the holster to the weapon wherever it is seen away from it (in a hand, another holster, lying
         // about, flying back): paid out of the holster, slack close by, nearly taut far off; however far (2026-10-17: "never
-        // let it disappear"). A chain of points lying on and wrapping round the world (vr_magholster_chain_sim; 2026-10-17:
+        // let it disappear"). A chain of points lying on and wrapping round the world (2026-10-17:
         // "the chain goes through the floor and walls too easily"); its links drawn up to vr_magholster_chain_lod along
         // it, a plain line on from there along the same curve (drawOpaque).
         const bool away = c.where != Where::None && !(c.where == Where::Holster && c.holster == i);
@@ -744,20 +744,9 @@ void setupView(const hands::State& s)
             // (Its links grow when the most links would not reach as far as they are drawn.)
             const float linked = za::min(length, za::max(0.f, vr_magholster_chain_lod.value));
             const coil::Style style = chainStyle(length, linked / (mostLinks * 0.016f));
-            if(vr_magholster_chain_sim.value != 0.f)
-            {
-                QVR_PROFILE("magnetic holsters tether sim");
-                stepTether(c, length * m2u, s);
-                c.cords[Tether].shape(c.sim.p.data(), c.sim.p.size(), style);
-            }
-            else
-            {
-                c.sim.time = -1.0;
-                c.sim.traces = 0;
-                glm::vec3 toHolster = c.home - c.gun;
-                toHolster = glm::length(toHolster) > 1e-3f ? glm::normalize(toHolster) : glm::vec3{0.f, 0.f, 1.f};
-                c.cords[Tether].update(c.home, down, c.gun, toHolster, style, c.home, false);
-            }
+            QVR_PROFILE("magnetic holsters tether sim");
+            stepTether(c, length * m2u, s);
+            c.cords[Tether].shape(c.sim.p.data(), c.sim.p.size(), style);
         }
         else
         {

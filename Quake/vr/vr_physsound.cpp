@@ -29,6 +29,7 @@
 #include "vr_physics.hpp"
 #include "vr_progs.hpp"
 #include "vr_profile.hpp"
+#include "vr_random.hpp"
 
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Base/Strcmp.hpp"
@@ -233,13 +234,16 @@ void precacheSet(const Set& set, Indices& out)
 }
 
 // One of a set's recordings at random, never the one played last: its precache index (0: none), its name in `name`.
+// The recordings' and pitches' picks (audible only): a stream of their own, not the C library's rand().
+za::U32 pickState = 0xC2B2AE35u;
+
 [[nodiscard]] int pick(const Set& set, Indices& ind, const char** name = nullptr)
 {
     if(set.count <= 0)
     {
         return 0;
     }
-    int k = set.count > 1 ? rand() % (ind.last >= 0 ? set.count - 1 : set.count) : 0;
+    int k = set.count > 1 ? static_cast<int>(vrand::xorshift32(pickState) % static_cast<za::U32>(ind.last >= 0 ? set.count - 1 : set.count)) : 0;
     if(ind.last >= 0 && set.count > 1 && k >= ind.last)
     {
         k++;
@@ -274,7 +278,7 @@ bool emit(int ent, int channel, int index, float volume, float attenuation, cons
 [[nodiscard]] float jitter()
 {
     const float pct = za::clamp(vr_snd_pitch_jitter.value, 0.f, 25.f);
-    return 1.f + (static_cast<float>(rand()) / static_cast<float>(RAND_MAX) * 2.f - 1.f) * pct * 0.01f;
+    return 1.f + (vrand::xorshift01(pickState) * 2.f - 1.f) * pct * 0.01f;
 }
 
 // What entity `ent` plays on `channel` stopped (svc_stopsound: an entity under 8192).

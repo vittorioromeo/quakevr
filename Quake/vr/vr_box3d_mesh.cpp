@@ -1026,17 +1026,6 @@ void noteHullBuild(const qmodel_t* model, int frame, double ms)
         hull = pending->second.get(); // (built ahead: done, or waited for, or built here if no worker came to it)
         world->pendingHulls.erase(pending);
         hullBuilds.ahead++;
-        if(vr_box3d_hulls_ahead.value >= 2.f) // (built here too and compared: Box3D's hash of the hull's contents)
-        {
-            b3HullData* here = propHullPoints(ent, points) ? propHullOf(points, isWeaponLike(ent) ? 32 : 16, world->m2u) : nullptr;
-            const bool same = (!here && !hull) || (here && hull && here->hash == hull->hash &&
-                                                    here->vertexCount == hull->vertexCount && here->faceCount == hull->faceCount);
-            (same ? hullBuilds.same : hullBuilds.differed)++;
-            if(here)
-            {
-                b3DestroyHull(here);
-            }
-        }
     }
     else if(propHullPoints(ent, points))
     {

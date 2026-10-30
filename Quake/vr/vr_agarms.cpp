@@ -3,6 +3,7 @@
 
 #include <type_traits>
 #include <string.h>
+#include "vr_mdldequant.hpp"
 #include "vr_agarms.hpp"
 #include "vr_client.hpp"
 #include "vr_agbody.hpp"
@@ -34,9 +35,7 @@ namespace
 using geom::pi;
 constexpr float wristBack = 0.34f;   // the wrist: this share of the forearm bone's length back from its end (its hand)
 constexpr float wristBand = 0.16f;   // the wrist's: this share of the forearm's, mostly on the forearm's side
-constexpr float shoulderIn = 0.12f;  // the shoulder's blend into the body: from this share of the upper arm inside it
-constexpr float shoulderOut = 0.6f;  // ... to this share along it (a shoulder pad, an enforcer's, turns partly with the chest)
-constexpr float jointIn = 0.3f;      // vr_agarms_shoulder_skin: the blend from this share of the upper arm above the joint
+constexpr float jointIn = 0.3f;      // the shoulder's blend into the body: from this share of the upper arm above the joint
 constexpr float jointOut = 0.3f;     // ... to this share below it
 constexpr float clavicleAt = 0.2f;   // vr_agarms_clavicle: its pivot this share of the way from between the shoulders to its own
 constexpr float clavicleFrom = 60.f; // ... lifted with the arm above this (degrees from hanging)
@@ -317,33 +316,12 @@ using geom::segmentDistance;
     return row.x < 0.5f ? 1.f : za::floor(row.y * 0.5f) * 0.001f;
 }
 
-[[nodiscard]] glm::vec3 restVertex(const aliashdr_t* hdr, int v)
-{
-    const auto* base = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes);
-    const trivertx_t& t = base[static_cast<za::SizeT>(v)];
-    return glm::vec3{t.v[0], t.v[1], t.v[2]} * glm::vec3{hdr->scale[0], hdr->scale[1], hdr->scale[2]} +
-           glm::vec3{hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
-}
-
 [[nodiscard]] glm::vec3 restNormal(const aliashdr_t* hdr, int v)
 {
     const auto* base = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes);
     const int n = base[static_cast<za::SizeT>(v)].lightnormalindex;
     return n < NUMVERTEXNORMALS ? glm::vec3{r_avertexnormals[n][0], r_avertexnormals[n][1], r_avertexnormals[n][2]}
                                 : glm::vec3{0.f, 0.f, 1.f};
-}
-
-[[nodiscard]] glm::vec3 poseVertex(const aliashdr_t* hdr, int pose1, int pose2, float blend, int v)
-{
-    const auto* base = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes);
-    const za::SizeT nv = static_cast<za::SizeT>(hdr->numverts);
-    const trivertx_t& a = base[static_cast<za::SizeT>(pose1) * nv + static_cast<za::SizeT>(v)];
-    const trivertx_t& b = base[static_cast<za::SizeT>(pose2) * nv + static_cast<za::SizeT>(v)];
-    const glm::vec3 scale{hdr->scale[0], hdr->scale[1], hdr->scale[2]};
-    const glm::vec3 origin{hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
-    const glm::vec3 pa = glm::vec3{a.v[0], a.v[1], a.v[2]} * scale + origin;
-    const glm::vec3 pb = glm::vec3{b.v[0], b.v[1], b.v[2]} * scale + origin;
-    return pa + (pb - pa) * blend;
 }
 
 // `model`'s skin, made once a model (null: none).
@@ -365,8 +343,8 @@ const Skin* skinOf(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll::
     Skin& m = *free;
     m = Skin{};
     m.model = model;
+    mdldequant::prepare(model); // (its rest places as drawn: dequantised, whether or not it was uploaded yet)
     const int nv = hdr->numverts;
-    const bool shoulderSkin = vr_agarms_shoulder_skin.value != 0.f;
     if(rig.numVerts != nv || rig.numPoses != hdr->numposes || spec.chest < 0)
     {
         return nullptr;
@@ -382,7 +360,7 @@ const Skin* skinOf(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll::
     m.row.resize(static_cast<za::SizeT>(nv), glm::vec4{0.f});
     for(int v = 0; v < nv; v++)
     {
-        m.rest[static_cast<za::SizeT>(v)] = restVertex(hdr, v);
+        m.rest[static_cast<za::SizeT>(v)] = mdldequant::modelVertex(hdr, 0, 0, 0.f, v);
     }
     const auto at0 = [&](int b, const glm::vec3& p) { return rigpose::apply(rigpose::key(rig, 0, b), p); };
     m.chest = spec.chest;
@@ -435,7 +413,7 @@ const Skin* skinOf(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll::
         for(int p = 0; p < rig.numPoses; p++)
         {
             const glm::vec3 d = rigpose::apply(fromRest[static_cast<za::SizeT>(p * rig.numBones + b)], m.rest[static_cast<za::SizeT>(v)]) -
-                                poseVertex(hdr, p, p, 0.f, v);
+                                mdldequant::modelVertex(hdr, p, p, 0.f, v);
             sum += glm::dot(d, d);
         }
         return za::sqrt(sum / static_cast<float>(za::max(rig.numPoses, 1)));
@@ -513,7 +491,7 @@ const Skin* skinOf(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll::
             {
                 sideOf[static_cast<za::SizeT>(v)] = static_cast<int8_t>(s);
             }
-            else if(shoulderSkin && bestBone == spec.upper[s] && shoulderOwns(along, out, sd.Lu))
+            else if(bestBone == spec.upper[s] && shoulderOwns(along, out, sd.Lu))
             {
                 // (vr_agarms_shoulder_skin: the top of the upper arm, its deltoid or pauldron, the arm's though its frames
                 // move it with the chest: the frames never raise the arm, the posed arm does)
@@ -604,11 +582,10 @@ const Skin* skinOf(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll::
         // (vr_agarms_shoulder_skin: none of the forearm's turn on the upper arm's top half: a vertex with any is drawn by
         // the elbow's blend, its share of the body moved straight towards the chest, and an arm raised folded the
         // shoulder's skin flat; the shoulder's blend turns it about the joint)
-        const float c = wH > 0.f ? 1.f + wH : wF * (shoulderSkin ? geom::smoothstep(0.45f * sd.Lu, 0.75f * sd.Lu, along, 1e-4f) : 1.f);
+        const float c = wH > 0.f ? 1.f + wH : wF * geom::smoothstep(0.45f * sd.Lu, 0.75f * sd.Lu, along, 1e-4f);
         row.x = 1.f + static_cast<float>(s) * 4.f + za::min(c, 2.f);
         // (vr_agarms_shoulder_skin: blended into the body about the joint itself, not over the upper arm's top half)
-        row.y = shoulderSkin ? 1.f - geom::smoothstep(-jointIn * sd.Lu, jointOut * sd.Lu, along, 1e-4f)
-                             : 1.f - geom::smoothstep(-shoulderIn * sd.Lu, shoulderOut * sd.Lu, along, 1e-4f);
+        row.y = 1.f - geom::smoothstep(-jointIn * sd.Lu, jointOut * sd.Lu, along, 1e-4f);
         sd.verts.pushBack(v);
         if(wH >= 1.f)
         {
@@ -781,7 +758,6 @@ const Skin* skinOf(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll::
             sd.upperIn.pushBack(byIn[i]);
         }
     }
-    if(shoulderSkin)
     {
         for(int v = 0; v < nv; v++)
         {
@@ -954,7 +930,6 @@ struct Limits
     float clavMost{0.f};
     bool limits{false};     // vr_agarms_limits: the shoulder's cone and twist (radians) kept
     float cone{0.f}, twistMost{0.f};
-    bool armClear{false};   // vr_agarms_arm_clear (`rest` the skin's rest places),
     const glm::vec3* rest{nullptr};
     bool clearWrist{true};  // ... its wrist turned out of the torso, at most clearMost degrees (a hand on a weapon or a grip: less)
     float clearMost{armClearMost};
@@ -1144,8 +1119,7 @@ ArmOut solveArmOnce(const Side& sd, int s, const glm::vec3& S0, const glm::quat&
             // bone's line: its middle kept some of its radius out of the torso)
             float dep = agbody::depth(*lim.body, E, bodyClear);
             dep = za::max(dep, agbody::depth(*lim.body, (E + W1) * 0.5f, bodyClear));
-            dep = za::max(dep, lim.armClear ? agbody::depth(*lim.body, S1 + (E - S1) * 0.6f, armClearShare * sd.armR)
-                                            : agbody::depth(*lim.body, S1 + (E - S1) * 0.75f, bodyClear));
+            dep = za::max(dep, agbody::depth(*lim.body, S1 + (E - S1) * 0.6f, armClearShare * sd.armR));
             t.body = dep > 0.f ? bodyWeight * dep * dep : 0.f;
         }
         return t;
@@ -1237,7 +1211,7 @@ ArmOut solveArmOnce(const Side& sd, int s, const glm::vec3& S0, const glm::quat&
         o.H.pos = W1 - o.H.rot * sd.W;
         o.turned = o.bend - bendMost;
     }
-    if(lim.body && lim.armClear && lim.clearWrist && lim.rest &&
+    if(lim.body && lim.clearWrist && lim.rest &&
         agbody::depth(*lim.body, S1 + (E1 - S1) * 0.6f, sd.armR + armClearSlack) > 0.f) // (its bone's middle near the body)
     {
         // (vr_agarms_arm_clear: how far the chosen upper arm's skin is still in the torso, and the way out: solveArm;
@@ -1429,8 +1403,8 @@ void noteErr(const Skin& m, const Ent& st, const aliashdr_t* hdr, int pose1, int
         for(za::SizeT i = 0; i + 1 < sd.edges.size(); i += 2)
         {
             const int u = sd.edges[i], w = sd.edges[i + 1];
-            const glm::vec3 pu = skinned(m, st.bones, chest, st.clav, st.stretch,u, poseVertex(hdr, pose1, pose2, blend, u));
-            const glm::vec3 pw = skinned(m, st.bones, chest, st.clav, st.stretch,w, poseVertex(hdr, pose1, pose2, blend, w));
+            const glm::vec3 pu = skinned(m, st.bones, chest, st.clav, st.stretch,u, mdldequant::modelVertex(hdr, pose1, pose2, blend, u));
+            const glm::vec3 pw = skinned(m, st.bones, chest, st.clav, st.stretch,w, mdldequant::modelVertex(hdr, pose1, pose2, blend, w));
             const float r0 = glm::length(m.rest[static_cast<za::SizeT>(u)] - m.rest[static_cast<za::SizeT>(w)]);
             if(r0 < 0.05f)
             {
@@ -1521,7 +1495,7 @@ void noteGlitch(const Skin& m, const Ent& st, const ragdoll::Rig& rig, const rig
         a.twist = arms[s].twist;
         for(const int v : sd.upper)
         {
-            const glm::vec3 p = skinned(m, st.bones, C, st.clav, st.stretch,v, poseVertex(hdr, pose1, pose2, blend, v));
+            const glm::vec3 p = skinned(m, st.bones, C, st.clav, st.stretch,v, mdldequant::modelVertex(hdr, pose1, pose2, blend, v));
             int part = -1;
             const float d = agbody::depth(body, p, 0.f, nullptr, &part);
             if(part == agbody::Torso && d > 0.f)
@@ -1538,8 +1512,8 @@ void noteGlitch(const Skin& m, const Ent& st, const ragdoll::Rig& rig, const rig
             {
                 continue;
             }
-            const glm::vec3 pu = skinned(m, st.bones, C, st.clav, st.stretch,u, poseVertex(hdr, pose1, pose2, blend, u));
-            const glm::vec3 pw = skinned(m, st.bones, C, st.clav, st.stretch,w, poseVertex(hdr, pose1, pose2, blend, w));
+            const glm::vec3 pu = skinned(m, st.bones, C, st.clav, st.stretch,u, mdldequant::modelVertex(hdr, pose1, pose2, blend, u));
+            const glm::vec3 pw = skinned(m, st.bones, C, st.clav, st.stretch,w, mdldequant::modelVertex(hdr, pose1, pose2, blend, w));
             const float ratio = za::max(glm::length(pu - pw), 1e-3f) / r0;
             a.stretch = za::max(a.stretch, za::max(ratio, 1.f / ratio) - 1.f);
         }
@@ -1569,15 +1543,10 @@ void noteGlitch(const Skin& m, const Ent& st, const ragdoll::Rig& rig, const rig
 namespace qvr::agarms
 {
 
-bool enabled()
-{
-    return vr_agarms.value != 0.f;
-}
-
 bool restRow(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll::Rig& rig, const Spec& spec, int v, glm::vec4& out)
 {
     out = glm::vec4{0.f};
-    const Skin* m = enabled() ? skinOf(model, hdr, rig, spec) : nullptr;
+    const Skin* m = skinOf(model, hdr, rig, spec);
     if(!m || v < 0 || static_cast<za::SizeT>(v) >= m->row.size())
     {
         return false;
@@ -1593,7 +1562,7 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
 {
     out = Placed{};
     const double solveStart = Sys_DoubleTime();
-    const Skin* m = enabled() ? skinOf(e->model, hdr, rig, spec) : nullptr;
+    const Skin* m = skinOf(e->model, hdr, rig, spec);
     const int num = client::entityNumber(e);
     Ent* st = (m && num > 0) ? entOf(num, true) : nullptr;
     if(!st)
@@ -1629,7 +1598,7 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
     bool held2 = false;
     // The robust solve's limits (ROUND22.md, "Armed humanoids in motion"): the body's proxies (vr_agarms_body), the
     // elbow's swing a frame (vr_agarms_elbow_rate).
-    const agbody::Proxies* px = vr_agarms_body.value != 0.f ? agbody::of(e->model, rig, m->chest, m->torsoSides) : nullptr;
+    const agbody::Proxies* px = agbody::of(e->model, rig, m->chest, m->torsoSides);
     const agbody::Posed bodyNow = px ? agbody::pose(*px, posed, kick) : agbody::Posed{};
     Limits lim;
     lim.body = px ? &bodyNow : nullptr;
@@ -1638,12 +1607,11 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
     lim.maxStep = vr_agarms_elbow_rate.value > 0.f && dt > 0.f ? vr_agarms_elbow_rate.value * (pi / 180.f) * dt : 0.f;
     // (the authored rig's shoulders at the arms' own joints, further out than the derived rig's: its clavicle
     // takes vr_rig2_clavicle's share, a reach across the body or up brought by the shoulder girdle as well)
-    lim.clavShare = za::clamp(rig.authored ? za::max(vr_agarms_clavicle.value, vr_rig2_clavicle.value) : vr_agarms_clavicle.value, 0.f, 1.f);
+    lim.clavShare = za::clamp(vr_agarms_clavicle.value, 0.f, 1.f);
     lim.clavMost = za::clamp(vr_agarms_clavicle_most.value, 0.f, 60.f);
-    lim.limits = vr_agarms_limits.value != 0.f && vr_agarms_shoulder_cone.value > 0.f;
+    lim.limits = vr_agarms_shoulder_cone.value > 0.f;
     lim.cone = za::clamp(vr_agarms_shoulder_cone.value, 10.f, 180.f) * (pi / 180.f);
     lim.twistMost = za::clamp(vr_agarms_shoulder_twist.value, 0.f, 180.f) * (pi / 180.f);
-    lim.armClear = vr_agarms_arm_clear.value != 0.f;
     lim.rest = m->rest.data();
     {
         // The IK stretch it may use: its kind and class's (QC sends it), eased (stretchEase: a class changing never pops)
@@ -1653,7 +1621,7 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
         lim.stretchMost = st->stretchMost;
     }
     Limits limHeld = lim; // (a hand on a weapon or its grip, a fist: turned out of the torso a little at most)
-    limHeld.clearMost = rig.authored ? za::max(vr_rig2_arm_clear.value, 0.f) : armClearHeldMost;
+    limHeld.clearMost = armClearHeldMost;
     // A hand's wrist and grip pushed out of the body (its weapon with it).
     float pushedBy[2]{0.f, 0.f}; // (the Pose Studio's: Placed::pushed)
     const auto pushOut = [&](int s, rigpose::Rigid& H) {
@@ -1703,9 +1671,8 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
         // Hanging free: its wrist low by its side, the fist forward.
         rigpose::Rigid hang;
         {
-            // (vr_agarms_arm_clear: out from the body as the rest pose's upper arm, not along the torso's side)
-            const float out = lim.armClear ? hangOut : hangDir.y;
-            const glm::vec3 wrist = S1 + C.rot * glm::normalize(glm::vec3{hangDir.x, out * sideSign, hangDir.z}) *
+            // (out from the body as the rest pose's upper arm, not along the torso's side)
+            const glm::vec3 wrist = S1 + C.rot * glm::normalize(glm::vec3{hangDir.x, hangOut * sideSign, hangDir.z}) *
                                              (0.8f * (sd.Lu + sd.Lf)); // (its elbow bent as at rest: no web stretched)
             const glm::quat hr = frameRot(C.rot * glm::vec3{0.6f, 0.f, -0.8f}, C.rot * glm::vec3{0.f, -sideSign * 0.3f, 1.f});
             hang.rot = glm::normalize(hr * glm::inverse(sd.grip.rot));
@@ -1722,7 +1689,7 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
         {
             Hm[s] = t.fkHand[s]; // (the Rig Studio's animation: the hand where its arm bones have it, vr_rigseq.cpp)
         }
-        else if(s == 0 && t.reaching && vr_agarms_reach_ease.value != 0.f)
+        else if(s == 0 && t.reaching)
         {
             // (a weapon lying out of its reach: the hand comes from hanging towards it as it nears, not stretched at
             // it from afar)
@@ -1730,11 +1697,11 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
             Hm[s] = blendAbout(S1, sd.W, hang, Hm[s], 1.f - geom::smoothstep(reachNear, reachFar, away, 1e-4f));
         }
         pushOut(s, Hm[s]);
-        // vr_agarms_jump_ease: a goal that jumps (on its chest: a weapon taken up into the carry, a kick, a key's
+        // A goal that jumps (on its chest: a weapon taken up into the carry, a kick, a key's
         // change) eased into from where the hand was drawn, round the shoulder, over a time as long as the jump.
         const rigpose::Rigid rel = compose(inverse(C), Hm[s]);
         const glm::vec3 relW = rigpose::apply(rel, sd.W);
-        if(vr_agarms_jump_ease.value != 0.f && st->relN[s] >= 2 && dt > 0.f && st->haveDrawn[s])
+        if(st->relN[s] >= 2 && dt > 0.f && st->haveDrawn[s])
         {
             const float k = (1.f / 90.f) / dt;
             const float jump = glm::length(relW - 2.f * st->relW[s][0] + st->relW[s][1]) * k * k;
@@ -1748,15 +1715,15 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
         st->relW[s][1] = st->relW[s][0];
         st->relW[s][0] = relW;
         st->relN[s] = za::min(st->relN[s] + 1, 2);
-        if(st->easeT[s] < st->easeDur[s] && vr_agarms_jump_ease.value != 0.f)
+        if(st->easeT[s] < st->easeDur[s])
         {
             st->easeT[s] += dt;
             const float w = geom::smoothstep(0.f, 1.f, st->easeT[s] / za::max(st->easeDur[s], 1e-3f), 1e-4f);
             const glm::quat turn = Hm[s].rot;
             Hm[s] = blendAbout(S1, sd.W, compose(C, st->easeFrom[s]), Hm[s], w);
-            if(vr_agarms_aim_line.value != 0.f && g == Goal::Frame && !(s == 0 && t.reaching))
+            if(g == Goal::Frame && !(s == 0 && t.reaching))
             {
-                // vr_agarms_aim_line: a weapon's turn never eased (its drawn line the server's, where its shots go): the
+                // (a weapon's turn never eased (its drawn line the server's, where its shots go): the
                 // hand's place eased, turned as its weapon wants about its grip
                 const glm::vec3 gp = rigpose::apply(Hm[s], sd.grip.pos);
                 Hm[s].rot = turn;
@@ -1822,10 +1789,9 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
     bool releasing = false;
     if(!t.second || !out.on[0])
     {
-        // (vr_agarms_second_release: QC letting the second grip go, a one-handed swing, eased out round the shoulder
+        // (QC letting the second grip go, a one-handed swing, eased out round the shoulder
         // from where the hand held it, as the hold's own letting go)
-        const bool release = vr_agarms_second_release.value != 0.f && vr_agarms_second_hold.value != 0.f && st->haveGrip2 &&
-                             st->grip2w > 0.f && dt > 0.f && t.goal[1] != Goal::Frame && !t.cup;
+        const bool release = st->haveGrip2 && st->grip2w > 0.f && dt > 0.f && t.goal[1] != Goal::Frame && !t.cup;
         st->grip2w = release ? za::max(0.f, st->grip2w - dt / secondEase) : 0.f;
         st->held2 = false;
         const float w = geom::smoothstep(0.f, 1.f, st->grip2w, 1e-4f);
@@ -1892,9 +1858,8 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
         }
         slid = atX - at.pos.x;
         const ArmOut tryL = solveArm(m->side[1], 1, S1, C.rot, hl, prevOf(1), t.pole[1], limHeld);
-        const bool hold = vr_agarms_second_hold.value != 0.f;
-        // (vr_agarms_second_hold: a grip held is let go a little further than it is taken, no toggling at its edge)
-        const bool keep = hold && st->held2;
+        // (a grip held is let go a little further than it is taken, no toggling at its edge)
+        const bool keep = st->held2;
         bool can = reach <= (vr_agarms_second.value + (keep ? secondSlack : 0.f)) * armLen &&
                    tryL.bend <= vr_agarms_wrist.value + (keep ? secondBendSlack : 0.f) + (rig.authored ? authoredWristMore : 0.f);
         if(vr_agrunt_ik_debug.value >= 4.f)
@@ -1903,7 +1868,7 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
                 reach, armLen, reach / za::max(armLen, 1e-3f), tryL.bend, atX - at.pos.x, can ? "held" : "not",
                 t.offKeyed ? "on" : "off", t.gripOff.pos.x, t.gripOff.pos.y, t.gripOff.pos.z);
         }
-        if(hold && can != st->held2)
+        if(can != st->held2)
         {
             // (... and kept taken or let go a moment before it changes again)
             if(cl.time - st->held2At < secondDwell)
@@ -1916,17 +1881,6 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
             }
         }
         st->held2 = can;
-        if(!hold)
-        {
-            held2 = can;
-            if(held2)
-            {
-                Hm[1] = hl;
-                arms[1] = tryL;
-                second = tryL.miss;
-            }
-        }
-        else
         {
             // ... and taken and let go over secondEase, the hand going round its shoulder between its free place and
             // the grip (pushed out of the body), not along the straight line through it.
@@ -1951,10 +1905,6 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
                 leftDone = true;
             }
         }
-    }
-    if(held2 && !leftDone)
-    {
-        leftDone = true; // (vr_agarms_second_hold 0: held as it was)
     }
     if(!leftDone && !held2 && t.keyGun && t.second && out.on[0])
     {
@@ -2410,7 +2360,7 @@ bool qvr::agarms::shoulderLimits(const qmodel_t* model, int bone, ShoulderInfo& 
             out.axis = glm::normalize(glm::vec3{coneAxis.x, coneAxis.y * (s == 0 ? -1.f : 1.f), coneAxis.z});
             out.cone = vr_agarms_shoulder_cone.value;
             out.twist = vr_agarms_shoulder_twist.value;
-            out.on = vr_agarms_limits.value != 0.f;
+            out.on = vr_agarms_shoulder_cone.value > 0.f;
             return true;
         }
     }

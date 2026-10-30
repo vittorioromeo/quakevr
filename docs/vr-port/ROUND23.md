@@ -824,6 +824,41 @@ on builds that have it, reads only the log's new lines every 0.1 s and ends the 
 Left: the lane-0 scripts made lane-aware (their log path from the lane, testbatch's copies `qbase.lane<k>.<n>`),
 which would bring the wall time near the free cases' ~5-10 min; exclusive runs that don't drain behind long runs.
 
+## Refactor wave C2: the switches' old sides removed, D2's config step, one tool colour (branch `agent/refswitches`)
+
+His answers of 2026-10-29 (refactor TRIAGE.md, D1 D2 D5), his config on the new side of every switch. Retired
+(retiredCvars: a config line setting one is dropped quietly), each now always as its default was:
+vr_torso_mode (the old engine's VR_GetBodyYawAngle estimate gone, vr_torso_report's "old" column with it),
+vr_ragdoll_active_stagger_walk (the old glide: straight legs, arms wheeling ahead), vr_ragdoll_posed_arms,
+vr_box3d_hulls_ahead (with its compare mode 2; the prop hulls are built ahead whenever there is a pool),
+vr_struggle (the switch for all: each monster group's Struggle stays; a group with it off still has the lifted flail,
+struggle_test.py's `_off` cases now turn the eight struggling groups off), vr_gore_wash_once, vr_decap_own_motion,
+vr_limbs_blast (vr_limbs_blast_chance 0 turns it off), vr_water_foam_particle_spray (its "1" side, never shipped on:
+the spray branch, its atlas cell CellShoreSpray, Particle::plain and vr_water_foam_particle_retro), vr_snd_antialias,
+vr_particle_halfres_dense, vr_parallax_plane (the world at the relief's bottom, 1; the shaders' ParallaxPlane stays, 0
+for every other program), vr_parallax_depth_split, vr_magholster_chain_sim, vr_2h_grip_edge,
+vr_toolgun_physgun_ragdoll (its by-origin drag stays as the fallback when no part is hit;
+toolgun_physgun_ragdoll_test.py's --old gone), vr_autopump (autopump_test.sh's two "Auto Pump off" checks gone),
+vr_ad_death_precache. vr_knockdown_weld keeps 0/1; its 2 (welded where the frame had it) is gone, a 2 now holds it in
+the hand as 1. Their menu rows went with them (Torso Follows, Walked Backpedal in Rig Studio, Armed Ragdolls Keep Their
+Posed Arms, Prop Hulls Ahead, Struggle, Keeps Its Own Motion, Explosions Pop Limbs, Particles as Spray, Spray in Retro
+Look, HRTF Anti-Aliasing, Half-Res In Densest Frames, Parallax Surface Level, Parallax Depth Split, Simulated Chain,
+Grip Must Close On It, Auto Pump, AD Monsters' Death Assets Early); vr_menu_path_check maps/vrcalibration.map: 0 missing.
+Config rows of retired cvars dropped (148 vr_parallax_plane, 202 vr_water_foam_particle_spray).
+
+Kept, not switches with an old side: vr_decap_chance_scale (the head's counterpart of vr_limbs_chance_scale, a
+multiplier with no old branch; vr_limbs_wear_test sets it 0). vr_limbs_mass_scale keeps its multiplier, its 0 (the
+pieces weighed by their volume) gone: at least 0.05 (C++ headPropMass, QC VR_Limb_SetMass, the slider's low end).
+
+D2: configVersion 216. The rows that did nothing dropped (135 vr_suit_glow and _light "1", 146 vr_legsweep_topple
+"200", 169 vr_kdtrig_tackle_on "1"); 216 moves a config still at vr_suit_glow 2, vr_suit_glow_light 2 or
+vr_legsweep_topple 180 to today's defaults (1, 1, 200).
+
+D5: one `toolgun::toolColor(Tool)` (vr_toolgun.hpp) with the beam's values: the panel's Remove (was 1 0.3 0.2) and
+Physgun (0.45 0.6 1) icons and highlights now match the beam, and its no-tool colour is white (was 0.9 0.85 0.75). The
+physgun's and scale tool's sticks go through vr_deadzone (`input::stickAxis`, the menus' and turning's: past it
+rescaled from 0), not a fixed 0.15 with the push kept as it was.
+
 ## Faster headless tests, round 2: lane-aware scripts, undrawn cases, fair exclusive runs (branch `agent/harness2`)
 
 - **Lane-aware scripts**: the suite scripts that read the agent's game folder by its path (logs, saves, screenshots,
@@ -850,6 +885,90 @@ which would bring the wall time near the free cases' ~5-10 min; exclusive runs t
   window, GL context and shaders 478 ms (shaders 290), VR init 80, input 61, filesystem 60. The map load 1.31 s:
   entities spawned 757 ms (363 alias models loaded 702 ms: their normal maps 313, skins 179, md5/md3 replacements
   looked for 127), limb models 319, view models 163, 2304 image files looked for and not found 68 ms. Not cut yet.
+## Refactor wave C1: the armed humanoids' old arms gone (branch `agent/refarms`)
+
+His D1/D7/D8 answers (scratch TRIAGE.md, 2026-10-29) for the armed humanoids. About 2200 lines gone, no new behaviour.
+
+- **D1, the vr_agarms 0 path removed.** The animation's arms bent onto the weapons and the rigid arm pieces
+  (`vr_hitreact.cpp`: findLeftHand, solveArm, armsNow, misfit, reachIn, ArmModel and its pieces, solveArmPiece,
+  relinkRigid, the hands' HandFit and the arm numbers it fed), `vr_animsmooth.cpp`'s piece and hand rows, the alias
+  shader's `RigKickOrPiece` (now `RigKick` alone), `vr_agrunt_ik_info` and `vr_agrunt_grip_fit` (the rigid solve's;
+  its Grip Editor button), the old per-weapon grip seeds (`vr_aggrip.cpp defaults`: used only with vr_agarms 0;
+  `vr_agrunt_grip_dump all` prints the global defaults now), QC's `VR_AG_PlacePropOld`. `relinkArms` and `boneTurns`
+  keep the skinned path only; `vr_agrunt_ik_err` prints the posed arms' numbers (`agarms::printErr`), `agprop`, `agrag`.
+- **The posed arms' switches' old sides gone:** vr_agarms_body, _second_hold, _reach_ease, _jump_ease, _aim_line,
+  _second_release, _shoulder_skin, _limits (the cone and twist stay: cone 0 turns the limits off), _arm_clear (QC's
+  carry too), _cup_handle; vr_rig2_arm_limits (the authored rig's limits never clamp the arms). The numeric tunings
+  stay (vr_agarms_elbow_rate, _wrist, _second, _shoulder_cone ...).
+- **Retired** (retiredCvars): vr_agarms, vr_agrunt_ik_rigid, _ik_hands, _ik_wrist, _ik_twist, _ik_elbow, _ik_second,
+  _ik_drawn, _ik_misfit, _ik_reach (the last two only tuned the old path), the vr_agarms_* switches above,
+  vr_rig2_clavicle, vr_rig2_arm_clear, vr_rig2_arm_limits. Debug menu rows gone: Shoulder Skin, Shoulder Limits, Upper
+  Arm Clear, Cup Handles; Automation: Posed Arms; Gameplay's Grip Editor: Fit Angles to Its Pose.
+- **D8:** vr_rig2_clavicle merged into vr_agarms_clavicle, default 0.35 -> 0.6 (the value both armed rigs used: both
+  have authored rigs, which took the larger of the two), config 217 (216 at first, renumbered at the wave C merge) moves a 0.35 to it. The held wrist's clearance
+  (vr_rig2_arm_clear 6 and vr_agarms' constant 6) is one constant, `armClearHeldMost`.
+- **D7:** one decode, `mdldequant::modelVertex(hdr, pose1, pose2, blend, v)` (model units, dequantised as drawn): the
+  arms' skin and solve (`vr_agarms.cpp`), the legs' rest (`vr_aglegs.cpp`) and the arm pose's gun frame and anchor
+  (`vr_hitreact.cpp`) read it instead of three raw trivertx copies; the skins call `mdldequant::prepare` first (built
+  before the model's first upload they read raw bytes before). Fits move by under half a byte step of the model's
+  scale (about 0.1 unit on the grunt).
+
+Kept, decided here: `vr_agrunt_upper` (the Rig Studio's "Upper Body Held" layer toggles it), `vr_agrunt_strike_torso`
+(a scale, with `_shoulder`; test 45's sheet sets it to 0 for its "without the body's turn" view). Left for a later pass
+(they need their tests rewritten, which compare the old side): `vr_agrunt_aim_exposed` (test vr_armedgrunt_expose_test
+runs both sides), `_aim_converge`, `_shot_drawn`, `_swing_one_hand`, `_tug_ragdoll` (tests 21, 22 run the old tug; it
+is also the fallback when the physical tug can't begin); also kept on purpose: `_elbow_rate`.
+
+- **QC's old pose branches gone** (second pass): `vr_agp_arms` and every 0 branch in `vr_armedgrunt_pose.qc` (the
+  fists', the melee weapons' and the left blade's old blends, the old gun pose `VR_AGP_Gun`/`VR_AGP_GunTurn` and its
+  `VR_AGP_LEFTMIRROR`, `VR_AGP_BladeTilt` and its `.vr_ag_tilt` fields, the old left carry `VR_AGP_CARRY_L`).
+- **B10:** `Quake/vr/vr_agpose_shared.h` (the pattern of `vr_melee_shared.h`: #defines both compilers read) holds the
+  weapons' attack classes `VR_AG_CLASS_*`, the pose keys' classes, poses, off-hand modes and code strides `VR_AGK_*`.
+  `agpose::Class`/`Pose`/`OffMode`/`code` and the toolgun's melee checks take them from it; QC includes it once
+  (`vr_armedgrunt_defs.qc`), its own float copies and `VR_AG_CLASS_MELEE_DEF` gone, the keys' pose numbers named.
+- **ragdoll_grab** "grab rag enforcer: no grab": flaky, not this branch. The same failure (knight 5.3 m/s, ogre 2.9,
+  enforcer none: one alternative outcome) is in arenamap's run of 2026-10-29 20:44; here the full script failed once
+  and passed twice, origin/next's passed twice, the `rag` case alone passed on both. The enforcer's ragdoll falls at
+  1.6 m/s when it is grabbed: near the grab's floor.
+- Second pass's run (run_baseline --only agrunt|agarmor|rigstudio|ragdoll_grab, 8 lanes): 8 of 90 changed. Better:
+  rigstudio_aim PASS, 63 (14 -> 7 fails), 71 (4 -> 3). Flaky (the known ones): 67 a timeout, 76 one more fail,
+  ragdoll_grab as above. agrunt_1 (Thunderbolt 0 shots) and agrunt_47 (mjolnir timed out, 0 blows) failed under the
+  lanes and passed alone (17/0, 77/0).
+
+Tests (run_baseline --only agrunt|agarmor|rigstudio|limb|ragdoll_grab|ragdoll_ragtest, 8 lanes, twice): same verdicts
+as baseline.tsv except: ragdoll_grab "grab rag enforcer: no grab" FAIL in both runs (open: not yet checked on next under
+lanes); agrunt_86 (AI accuracy/reaction/retreat stats) 2 to 4 fails that change between runs; agrunt_11 a timeout in
+the second run only (passed in the first); agrunt_74 failed once (downtug 20/21), passed in the second. Better: 76 and
+rigstudio_aim pass, 63/71/72/ragtest one or more checks better.
+## Refactor wave C3: his rules applied (branch `agent/refrules`)
+
+- **D3, one liquid rule** (`worldtrace::liquidKind`/`isLiquid`, vr_trace.hpp; QC `VR_IsLiquid`, vr_util.qc): water,
+  slime and lava, a current is water, the sky never. Every site uses it, client leaf or server contents: blood streams
+  and gore (they counted the sky), bloodprints, shock, the water faces, view and leaves, wounds and haze (they missed
+  currents), avatar, particles, shells, knockdown, box3d, physics (its swim check counted the sky), scenario, the rope's
+  eye check, ragtest, propthink, the AD tank's probe; QC vr_grapple's swimmer (the sky was water there).
+- **D6, gameplay randomness from the server's seed**: `srvrandom::Stream` (vr_srvrandom.hpp), each stream seeded from
+  `derivedSeed` and restarted with the server's stream at every map load, so QuakeC's random() sequence is untouched.
+  The audit found one C++ gameplay draw on libc `rand()`: the legsweep's Knockdown Chance roll (`Stream::Legsweep`).
+  Cosmetic draws moved off `rand()` to local streams: decals (turn, mirror, atlas cell; their tests restart it,
+  `markSeed`), the vr_particles 0 presets' colours, the water sounds' variants and pitch, physsound's picks and jitter.
+  Explosion debris (P51) was already seeded per map (`serverReset` runs after the map's seed: `derivedSeed`;
+  `vr_particle_seed` only for tests): left. Left on purpose: appearance random, hash and noise patterns, the
+  clock-seeded effect streams, bench and diagnostic draws.
+- **D4**: AD's spider and scorpion (QC vr_ad_monsters.qc) take the scourge's corpse health and the crawler group's
+  knockdown chance (`vr_knockdown_chance_crawler`, Spiders and Crawlers; it was the Rottweilers'), as the engine's class
+  alias has it. The boil is unchanged.
+- **D8**: QC owns the stamina pool: `progs::staminaMax/staminaLeft` call `VR_Stamina_Max/_Left` (the caller's self, first
+  parameter and return kept), for climbing and fatigue (the speed scale, vr_stamina_set, the debug hold). Weapon ids:
+  `Quake/vr/vr_weapon_ids.h` (#defines, included by QC vr_defs.qc and the C++: flick, twohand, toolgun, lootbeams,
+  box3d_hands, motion_play, notectx). notectx names the nail pistol, flare gun and revolver now; motion_play's weapon
+  classes are as they were (those three still "other").
+
+Tests: build 0 warnings. Decal stress and carve test twice with fixed seeds: identical (59 marks, 28 carved). The AD
+monster test could not run here (AD's data is in neither qbase nor qrp: "no AD monster"). Baseline cases (explosion_debris, swim_sound,
+weapon_catch, parryinterrupt, stealth, np_1, rv_1, flare_1, ragdoll_stagger/ragtest/climb/liquid_active, limb_wear,
+prop_climb): 13 as the baseline; swim_sound FAIL 9/2 -> PASS 11/0 (its known failure, the under-water punch, a mock-hand
+case: next has the mock-hand fix since the baseline).
 
 ## Faster headless tests and loads, round 3 (branch `agent/harness3`)
 

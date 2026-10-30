@@ -832,7 +832,7 @@ QVR_PARALLAX_DEPTH_OUT // QVR: pixel depth offset (vr_parallax_depth_write): PDO
 "	RetroBegin(in_retro.z, in_retro.xy, duvdx, duvdy, dpdx, dpdy, facing);\n" // QVR: retro textures (vr_retro.h; Retro 0: none); before the carved decals (their retro style's blocks)
 "#if MODE == " QS_STRINGIFY (WORLDSHADER_SOLID) "\n"
 "	bool parallax = in_pdepth > 0.; // the instance's depth: the world's, an item box's (vr_parallax_items)\n"
-"	ParallaxPlane = Parallax3.x; // QVR: where the polygon sits in the relief (vr_parallax_plane)\n"
+"	ParallaxPlane = Parallax3.x; // QVR: where the polygon sits in the relief (1: its bottom, vr_lighting.cpp)\n"
 "	if (parallax)\n"
 "		puv = ParallaxUV(NormalTex, uv, duvdx, duvdy, dpdx, dpdy, facing, in_pos - EyePos, in_pdepth, Parallax.z, in_uvclamp);\n"
 "#if QVR_PDO\n"
@@ -1024,7 +1024,7 @@ QVR_WORLD_FS_ALPHA // QVR: alpha to coverage; the liquid's alpha and refraction
 "	out_fragcolor.rgb += SUPPRESS_BANDING() * ScreenDither;\n"
 "#endif\n"
 "#if QVR_PDO\n"
-"	if (Parallax2.w > 1.5) // QVR: vr_parallax_debug 1: red how deep below the surface its depth was written, of the full depth; green how high over it (vr_parallax_plane); blue the surface's own (no hit)\n"
+"	if (Parallax2.w > 1.5) // QVR: vr_parallax_debug 1: red how deep below the surface its depth was written, of the full depth; green how high over it (ParallaxPlane); blue the surface's own (no hit)\n"
 "	{\n"
 "		float dbg_k = ParallaxDist * dot(facing, normalize(EyePos - in_pos)) / max(in_pdepth, 1e-3);\n"
 "		out_fragcolor.rgb = gl_FragDepth != gl_FragCoord.z ? vec3(dbg_k > 0. ? 0.15 + 0.85 * clamp(dbg_k, 0., 1.) : 0., dbg_k < 0. ? 0.15 + 0.85 * clamp(-dbg_k, 0., 1.) : 0., 0.) : vec3(0., 0., 0.25);\n"

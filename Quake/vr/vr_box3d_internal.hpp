@@ -266,7 +266,7 @@ struct RagdollBodies
     uint32_t lastCutBones{0};
     // Its parts' motion times this at its next step (feedRagdoll, after the frame's knocks): a head pop's body barely
     // moves (ragdollDecap's settle, vr_decap_pop_body_speed); 1 none pending. Only the knock is scaled: each part's own
-    // motion (metres, radians: the monster's walk and its animation's, or a corpse's as it lay; vr_decap_own_motion) is
+    // motion (metres, radians: the monster's walk and its animation's, or a corpse's as it lay) is
     // kept.
     float settle{1.f};
     za::Array<glm::vec3, ragdoll::maxBones> ownLin{}, ownAng{};
@@ -1005,7 +1005,6 @@ struct HullBuildStats
 {
     int built{0};
     int posted{0}, ahead{0};   // built on the pool ahead (prebuildPropHulls), and taken by propHull
-    int same{0}, differed{0}; // vr_box3d_hulls_ahead 2: built here too, compared
     double ms{0.0}, mostMs{0.0};
     struct Slow
     {

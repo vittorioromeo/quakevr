@@ -17,7 +17,9 @@
 // seed, every load of a save plays on the same; with 0, differently each time, as Quake's rand() did). Saves stay the
 // format other engines read.
 //
-// Kept on rand(): purely visual or audible picks (particles, decals, the water sounds' and knocks' variants), randmap.
+// The C++ gameplay draws have streams of their own derived from it (Stream: the legsweep's knockdown chance), restarted
+// with it. Purely visual or audible picks keep local streams of their own (decals, the water sounds' and knocks'
+// variants, Quake's particle colours: no longer the C library's rand()); randmap keeps rand().
 
 #include "vr_srvrandom.hpp"
 #include "vr_engine.hpp"
@@ -33,6 +35,9 @@ za::FastNonCryptoRng rng{1u};
 za::U64 currentSeed = 1u;
 bool nextMapArmed = false;
 za::U64 nextMapSeed = 0u;
+// The gameplay streams (Stream), each from derivedSeed(streamSalt + its index).
+constexpr za::U64 streamSalt = 0x5EED5EEDA11CE000ull;
+za::FastNonCryptoRng streams[static_cast<int>(Stream::Count)]; // (seeded at every map load: seedNow)
 
 // The seed sv_random_seed names (its string: a 64-bit seed exactly, beyond a float's 24 bits), 0 when it is 0 or unset.
 [[nodiscard]] za::U64 cvarSeed() { return static_cast<za::U64>(strtoull(sv_random_seed.string, nullptr, 0)); }
@@ -48,7 +53,13 @@ void seedNow(za::U64 seed)
 {
     currentSeed = seed;
     rng = za::FastNonCryptoRng{seed};
+    for(int i = 0; i < static_cast<int>(Stream::Count); i++)
+    {
+        streams[i] = za::FastNonCryptoRng{derivedSeed(streamSalt + static_cast<za::U64>(i))};
+    }
 }
+
+float draw01(Stream s) { return streams[static_cast<int>(s)].getF(0.f, 1.f); }
 
 void seedNextMap(za::U64 seed)
 {

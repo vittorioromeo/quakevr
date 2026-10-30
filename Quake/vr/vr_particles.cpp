@@ -107,7 +107,6 @@ enum Cell : za::U8
     CellSpray, // a cloud of fine droplets in a haze (generated)
     CellFoam,  // a patch of bubbly foam (generated), lying on a liquid
     CellFire, // generated wispy flame tongue; emission sources keep their low-poly flame models
-    CellShoreSpray, // a soft, blurry burst of spray (generated): the shore's foam particles (shoreFoam)
     CellCount
 };
 
@@ -146,7 +145,6 @@ struct Particle
     bool additive{false}; // glows: added to the scene (else alpha blended)
     bool flat{false};     // lying flat (a ripple on a liquid), not facing the view
     bool plink{false};    // a drop that leaves a little ring where it falls back into its liquid (at `floor`)
-    bool plain{false};    // its texture read smoothly, not through retro textures (the shore's spray; unless vr_water_foam_particle_retro)
     // The cosine and sine of `angle` as of `csAngle` (buildInstances, buildLying): worked out again only when it has
     // turned since (most particles never turn).
     glm::vec2 cs{1.f, 0.f};
@@ -896,55 +894,6 @@ struct CellRandom
     return dst;
 }
 
-// Shore spray (ROUND22.md, "Shore foam as spray"): a soft, blurry cloud, a few overlapping lumps in a wide haze, its
-// alpha falling smoothly to nothing well inside the cell (no rims, no hard edge, no bubbles): water thrown up off the
-// wall, not a patch of foam.
-[[nodiscard]] za::Vector<za::U8> buildShoreSpray(int size)
-{
-    struct Lump
-    {
-        float x, y, s, w;
-    };
-    za::Vector<Lump> lumps;
-    CellRandom rand{0x5b1a5u};
-    for(int i = 0; i < 9; i++)
-    {
-        const float r = za::sqrt(rand.next()) * 0.38f, t = rand.next() * 6.2831853f;
-        lumps.pushBack({za::cos(t) * r, za::sin(t) * r, 0.16f + 0.14f * rand.next(), 0.5f + 0.5f * rand.next()});
-    }
-    za::Vector<float> alpha(static_cast<za::SizeT>(size * size), 0.f);
-    const float c = (size - 1) * 0.5f;
-    float peak = 0.f;
-    for(int y = 0; y < size; y++)
-    {
-        for(int x = 0; x < size; x++)
-        {
-            const float dx = (x - c) / c, dy = (y - c) / c;
-            const float r2 = dx * dx + dy * dy;
-            float a = 0.55f * za::exp(-r2 * 4.f); // the haze
-            for(const Lump& l : lumps)
-            {
-                const float ex = dx - l.x, ey = dy - l.y;
-                a += l.w * za::exp(-(ex * ex + ey * ey) / (2.f * l.s * l.s));
-            }
-            // to nothing smoothly by the cell's edge (0.62 .. 0.98 of its radius)
-            const float r = za::sqrt(r2);
-            const float t = za::clamp((r - 0.62f) / 0.36f, 0.f, 1.f);
-            a *= 1.f - t * t * (3.f - 2.f * t);
-            alpha[static_cast<za::SizeT>(y * size + x)] = a;
-            peak = za::max(peak, a);
-        }
-    }
-    za::Vector<za::U8> dst(static_cast<za::SizeT>(size * size * 4), 255);
-    for(za::SizeT i = 0; i < alpha.size(); i++)
-    {
-        // its densest 0.8, and a gentle shoulder (more of it faint than a plain Gaussian's)
-        const float a = 0.8f * za::sqrt(za::clamp(alpha[i] / za::max(peak, 1e-4f), 0.f, 1.f)) * za::clamp(alpha[i] / za::max(peak, 1e-4f) * 4.f, 0.f, 1.f);
-        dst[i * 4 + 3] = static_cast<za::U8>(a * 255.f + 0.5f);
-    }
-    return dst;
-}
-
 bool ensureAtlas()
 {
     if(atlas || atlasFailed)
@@ -974,7 +923,6 @@ bool ensureAtlas()
     put(CellDrop, buildDrop(48).data(), 48, 48);
     put(CellSpray, buildSpray(128).data(), 128, 128);
     put(CellFoam, buildFoam(128).data(), 128, 128);
-    put(CellShoreSpray, buildShoreSpray(128).data(), 128, 128);
 
     struct File
     {
@@ -1444,8 +1392,7 @@ void teleportSplash(const glm::vec3& org)
 // The client's map's contents at `p`: a liquid's (currents are water), or 0 for anything else.
 [[nodiscard]] int liquidAt(const glm::vec3& p)
 {
-    const int c = worldtrace::liquidContents(p, true);
-    return worldtrace::isLiquid(c) ? c : worldtrace::isLiquid(c, true) ? CONTENTS_WATER : 0; // (a current: water)
+    return worldtrace::liquidKind(worldtrace::liquidContents(p, true));
 }
 
 // The liquid a splash on its surface is in (just under it): CONTENTS_WATER, _SLIME or _LAVA; water
@@ -2793,11 +2740,6 @@ constexpr float kShoreNear = 320.f;    // ... fewer past this
 constexpr float kShoreRelist = 64.f;   // the near list made again once the eye has moved this far
 constexpr float kShoreRate = 0.15f;    // particles a second for each unit of shore at 1 (15 for 100 units)
 constexpr float kShoreMaxLive = 600.f; // about this many alive at most
-// Spray (vr_water_foam_particle_spray 1): its opacity a share of the liquid's particle opacity (the cloud is bigger),
-// the share of its life it fades in over, and the share it rises for (up and back down by twice that).
-constexpr float kSprayOpacity = 0.7f;
-constexpr float kSprayFadeIn = 0.15f;
-constexpr float kSprayRise = 0.3f;
 
 struct ShoreNear
 {
@@ -2879,7 +2821,6 @@ void shoreFoam()
     }
     shoreNear.expectedLive = live;
     const float scale = live > kShoreMaxLive ? kShoreMaxLive / live : 1.f;
-    const bool spray = vr_water_foam_particle_spray.value != 0.f;
     for(const za::U32 i : shoreNear.list)
     {
         const water::ShoreSegment& s = shore[i];
@@ -2910,46 +2851,20 @@ void shoreFoam()
             p.type = Custom;
             p.liquid = water::foamContents(s.liquid); // (its light: lava's glows)
             p.die = cl.time + life;
-            if(spray)
-            {
-                // Spray (ROUND22.md, "Shore foam as spray"): water thrown up where it hits the wall. A soft blurry cloud
-                // (CellShoreSpray), bigger and fainter than the old puffs, bursts up off the shore line, slows, falls
-                // back and spreads as it goes; it fades in over its first moments and out by its end (no pop).
-                const float alpha = kSprayOpacity * l.particleOpacity * vrand::range(rng, 0.6f, 1.f);
-                p.cell = CellShoreSpray;
-                p.plain = true; // (smooth unless vr_water_foam_particle_retro: buildInstances)
-                p.color = glm::vec4{l.color * (lava ? 1.f : shadeAt(org)) * vrand::range(rng, 0.9f, 1.1f), 0.02f * alpha};
-                const float big = vrand::range(rng, 5.f, 8.f) * size; // 5 to 8 units across at 1 (half again the old puffs'), spreading
-                p.scale = 0.7f * big;
-                p.grow = 0.6f * big / life;
-                p.ramp = kSprayFadeIn * life;
-                p.fade = alpha / p.ramp;
-                p.spin = vrand::range(rng, -0.3f, 0.3f);
-                // Up to its top at kSprayRise of its life (a short burst: its height vrand::range(rng, 1.5, 3.5) x the size, at most
-                // 6 units), back at the surface by twice that, still falling as it fades; out from the wall a little.
-                const float up = za::min(vrand::range(rng, 1.5f, 3.5f) * size, 6.f);
-                const float tUp = kSprayRise * life;
-                const float g = 2.f * up / (tUp * tUp);
-                p.org = org + glm::vec3{0.f, 0.f, 0.15f * p.scale};
-                p.vel = glm::vec3{along * vrand::range(rng, -3.f, 3.f) + s.in * vrand::range(rng, 1.f, 5.f), g * tUp};
-                p.acc = glm::vec3{0.f, 0.f, -g};
-            }
-            else
-            {
-                const float alpha = l.particleOpacity * vrand::range(rng, 0.7f, 1.f);
-                p.cell = CellFoam;
-                p.color = glm::vec4{l.color * (lava ? 1.f : shadeAt(org)) * vrand::range(rng, 0.9f, 1.1f), alpha};
-                const float big = vrand::range(rng, 3.f, 5.f) * size; // 3 to 4.5 units across, growing to 7 to 11
-                p.scale = 0.6f * big;
-                p.grow = 0.9f * big / life;
-                p.fade = -alpha / life;
-                p.spin = vrand::range(rng, -0.6f, 0.6f);
-                p.drag = 0.8f;
-                // a little above the surface (the bottom in the liquid), drifting along the shore and out
-                p.org = org + glm::vec3{0.f, 0.f, vrand::range(rng, 0.1f, 0.5f) * 0.75f * p.scale};
-                const float drift = vrand::range(rng, -4.f, 4.f);
-                p.vel = glm::vec3{along * drift + s.in * vrand::range(rng, 0.5f, 2.5f), vrand::range(rng, 0.f, 1.5f)};
-            }
+            // Rising puffs of bubbly foam (the shore spray, vr_water_foam_particle_spray 1, retired in round 23).
+            const float alpha = l.particleOpacity * vrand::range(rng, 0.7f, 1.f);
+            p.cell = CellFoam;
+            p.color = glm::vec4{l.color * (lava ? 1.f : shadeAt(org)) * vrand::range(rng, 0.9f, 1.1f), alpha};
+            const float big = vrand::range(rng, 3.f, 5.f) * size; // 3 to 4.5 units across, growing to 7 to 11
+            p.scale = 0.6f * big;
+            p.grow = 0.9f * big / life;
+            p.fade = -alpha / life;
+            p.spin = vrand::range(rng, -0.6f, 0.6f);
+            p.drag = 0.8f;
+            // a little above the surface (the bottom in the liquid), drifting along the shore and out
+            p.org = org + glm::vec3{0.f, 0.f, vrand::range(rng, 0.1f, 0.5f) * 0.75f * p.scale};
+            const float drift = vrand::range(rng, -4.f, 4.f);
+            p.vel = glm::vec3{along * drift + s.in * vrand::range(rng, 0.5f, 2.5f), vrand::range(rng, 0.f, 1.5f)};
             pool.pushBack(p);
             shoreNear.spawned++;
         }
@@ -3114,7 +3029,6 @@ struct Softness
     {
         case CellRing: return {}; // (lying on a liquid)
         case CellFoam: fade = za::clamp(radius * 0.5f, 1.f, 4.f); break; // (lying: none; standing, the shore's: soft on the rock)
-        case CellShoreSpray: fade = za::clamp(radius * 0.6f, 1.5f, 6.f); break; // (soft on the rock it hits, not pulled off it)
         case CellCircle:
         case CellDrop:
         case CellSpark: fade = 1.5f; break;
@@ -3251,8 +3165,7 @@ void lieOnLiquid(const Particle& p, const glm::vec3& r, const glm::vec3& u, cons
         case CellRing: // water: ripples, drops, spray, foam
         case CellDrop:
         case CellSpray:
-        case CellFoam:
-        case CellShoreSpray: return Lighting::Lit;
+        case CellFoam: return Lighting::Lit;
         case CellCount: break;
     }
     return Lighting::Lit;
@@ -3612,7 +3525,7 @@ void drainWaste()
 }
 
 constexpr const char* cellNames[CellCount] = {"circle", "explosion", "smoke", "blood", "blood mist", "lightning",
-    "spark", "rock", "gun smoke", "glow", "ring", "drop", "spray", "foam", "fire", "shore spray"};
+    "spark", "rock", "gun smoke", "glow", "ring", "drop", "spray", "foam", "fire"};
 
 // vr_particle_waste_report: the fragments the particles shaded since the last report (vr_debug_particle_waste 1), and
 // how many showed nothing (under half a level of 255) or next to nothing (under vr_debug_particle_waste_alpha), by
@@ -3682,7 +3595,6 @@ void buildInstances()
     glm::vec3 lo{ZA_FLOAT_MAX}, hi{-ZA_FLOAT_MAX};
     gfx::ParticleInstance* out = instances.data();
     bool trim = false;
-    const bool plainOn = vr_water_foam_particle_retro.value == 0.f; // the shore's spray kept smooth (Particle::plain)
     for(za::SizeT i = 0; i < pool.size(); i++)
     {
         Particle& p = pool[i];
@@ -3717,7 +3629,7 @@ void buildInstances()
         q.flat = p.flat ? 1.f : 0.f;
         q.cell = cellTrim[p.cell] ? static_cast<float>(p.cell) : -1.f;
         q.kind = static_cast<float>(p.cell);
-        q.pad = p.plain && plainOn ? 1.f : 0.f; // (flags.w: the shader skips retro textures)
+        q.pad = 0.f; // (flags.w: the shader skips retro textures; none does since the shore's spray, round 23)
         trim |= cellTrim[p.cell];
     }
     instanceCount = static_cast<za::SizeT>(out - instances.data());
@@ -4027,12 +3939,9 @@ extern "C" void VR_DrawSceneTranslucent()
                        za::max(0.f, vr_particle_halfres_pixels.value),
         static_cast<float>(viewport[2]), static_cast<float>(viewport[3])};
     const bool allowHalf = retroSet > 0 ? vr_particle_retro_halfres.value != 0.f : vr_particle_halfres.value != 0.f;
-    // Retro, vr_particle_halfres_dense 0: not in the frames composited in reverse order (vr_particle_saturate: the
-    // densest, from 10 views of particles), as before 2026-10-17 (then 8 against 25 ms of GPU at half size; today's
-    // code at 2784 an eye: 1.4 against 5.0 ms, ROUND22.md "Half resolution in the densest frames").
-    const bool saturated = retroSet > 0 && inView && vr_particle_halfres_force.value == 0.f &&
-                           vr_particle_halfres_dense.value == 0.f && reverseOrderThisFrame(split.pixelScale, viewport);
-    const bool half = inView && allowHalf && !saturated &&
+    // (Also in the frames composited in reverse order, the densest: at 2784 an eye 1.4 against 5.0 ms at full size,
+    // ROUND22.md "Half resolution in the densest frames"; vr_particle_halfres_dense 0, full size there, retired.)
+    const bool half = inView && allowHalf &&
                       (GL_NeedsSceneEffects() || GL_NeedsPostprocess()) && halfResThisFrame(split, viewport);
     if(inView && loggedFrame != host_framecount && profile::systems::frameLogOn())
     {

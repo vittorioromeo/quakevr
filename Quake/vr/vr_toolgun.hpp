@@ -11,13 +11,14 @@
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
 #include "vr_posing.hpp"
+#include "vr_weapon_ids.h"
 
 #include "Zancle/Container/Vector.hpp"
 
 namespace qvr::toolgun
 {
 
-constexpr int weaponId = 19; // QC WID_TOOLGUN
+constexpr int weaponId = WID_TOOLGUN;
 
 // The tools (vr_toolgun_tool).
 enum class Tool : int
@@ -30,6 +31,22 @@ enum class Tool : int
     Brush, // boxes of the map's kind (vr_toolgun_brush.cpp)
     Count
 };
+
+// Each tool's colour: its beam's and aim marker's, its icon's and highlights' on the panel (one table since round 23:
+// the beam's values; the panel had a lighter Remove and Physgun and a warm white for no tool).
+[[nodiscard]] inline glm::vec4 toolColor(Tool tool)
+{
+    switch(tool)
+    {
+    case Tool::Spawn: return {0.3f, 0.9f, 1.f, 1.f};
+    case Tool::Remove: return {1.f, 0.15f, 0.1f, 1.f};
+    case Tool::Physgun: return {0.35f, 0.55f, 1.f, 1.f};
+    case Tool::Scale: return {1.f, 0.85f, 0.2f, 1.f};
+    case Tool::Joint: return {0.4f, 1.f, 0.4f, 1.f};
+    case Tool::Brush: return {1.f, 0.6f, 0.2f, 1.f};
+    default: return {1.f, 1.f, 1.f, 1.f};
+    }
+}
 
 void registerCommands();
 

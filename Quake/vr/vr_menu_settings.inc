@@ -1069,12 +1069,10 @@ za::Vector<Item> pageWeaponEffects()
             .help("How far a shot tips the muzzle up, at a weapon's Recoil Strength and Recoil Muzzle Rise 1 (Weapon "
                   "Offsets > Effects: each weapon's own)."),
         header("Shotgun Auto Pump"),
-        toggle("Auto Pump", vr_autopump)
-            .help("After each shot the shotgun cycles itself: its fore-end is driven back along the guide rods over the "
-                  "barrel and springs home, and the spent shell leaves the port as it reaches the back. Off: the fore-end "
-                  "stays and the shell leaves as before. Looks only: the fire rate is the same."),
         slider("Auto Pump Time", vr_autopump_time, 0.15f, 0.45f, 0.01f, "%.2f s").extend(0.1f, 0.48f)
-            .help("How long the stroke takes, back and home (the shotgun fires again after 0.5 s)."),
+            .help("After each shot the shotgun cycles itself: its fore-end is driven back along the guide rods over the "
+                  "barrel and springs home, and the spent shell leaves the port as it reaches the back (looks only: the "
+                  "fire rate is the same). How long the stroke takes, back and home (the shotgun fires again after 0.5 s)."),
         slider("Auto Pump Delay", vr_autopump_delay, 0.f, 0.3f, 0.01f, "%.2f s").extend(0.f, 0.38f)
             .help("How long after the shot the stroke starts: the shot, a moment, then the cycle (0: at once). Cut short so "
                   "that the stroke is home before the shotgun can fire again (0.5 s)."),

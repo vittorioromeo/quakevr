@@ -2,6 +2,7 @@
 
 #include "vr_random.hpp"
 #include "vr_modelmetadata.hpp"
+#include "vr_trace.hpp"
 #include "vr_wounds_internal.hpp"
 #include "vr_bloodprints.hpp"
 #include "vr_dents.hpp"
@@ -1627,7 +1628,7 @@ namespace
         return false;
     }
     vec3_t v{p.x, p.y, p.z};
-    return Mod_PointInLeaf(v, cl.worldmodel)->contents == CONTENTS_WATER;
+    return worldtrace::liquidKind(Mod_PointInLeaf(v, cl.worldmodel)->contents) == CONTENTS_WATER; // (a current too)
 }
 
 // The water's surface over `p`, looked for `reach` units under and over it: false if none of that is under water. Under
@@ -1702,7 +1703,7 @@ void washUnder(int layer, entity_t* e, float surface, float amount)
         return;
     }
     begin();
-    const bool once = vr_gore_wash_once.value != 0.f && ensureWashStencil();
+    const bool once = ensureWashStencil(); // (no stencil: as many times as drawn)
     if(once)
     {
         GL_FramebufferTexture2DFunc(GL_DRAW_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, washStencil, 0);

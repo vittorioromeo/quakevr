@@ -133,48 +133,8 @@ float IID_LAST               = 61; // the last item id
 // Weapon IDs
 // ----------------------------------------------------------------------------
 
-float WID_FIST             = 0;
-float WID_GRAPPLE          = 1;
-float WID_AXE              = 2;
-float WID_MJOLNIR          = 3;  // HIPNOTIC.
-float WID_SHOTGUN          = 4;
-float WID_SUPER_SHOTGUN    = 5;
-float WID_NAILGUN          = 6;
-float WID_SUPER_NAILGUN    = 7;
-float WID_GRENADE_LAUNCHER = 8;
-float WID_PROXIMITY_GUN    = 9;  // HIPNOTIC.
-float WID_ROCKET_LAUNCHER  = 10;
-float WID_LIGHTNING        = 11;
-float WID_LASER_CANNON     = 12; // HIPNOTIC.
-float WID_SWORD            = 13; // VR: a knight's sword (weaponflags QVR_WPNFLAG_USE_SECONDARY_AMMO: the hell knight's)
-float WID_CHAINSAW         = 14; // VR: an ogre's chainsaw (vr_chainsaw.qc; its clip is its fuel)
-float WID_GRUNTGUN         = 15; // VR: a grunt's shotgun (vr_enemyguns.qc; its clip is its only ammo)
-float WID_ENFRIFLE         = 16; // VR: an enforcer's laser rifle (vr_enemyguns.qc; its clip is its only ammo)
-float WID_CROWBAR          = 17; // VR: the crowbar (vr_crowbar.qc; a melee weapon, one hand or two, as the swords)
-float WID_SUPERAXE         = 18; // MG3: Dawn of the Machine's Super Axe (vr_mg3_weapons.qc; MG3's model read in place, any campaign)
-float WID_TOOLGUN          = 19; // VR: the toolgun (vr_toolgun.qc, the engine's vr_toolgun.cpp: no ammo, its tools the engine's)
-// AD support: Arcane Dimensions' armed soldiers' own guns, dropped as they die (vr_ad_enemyguns.qc; single use, their
-// clip their only ammo, as WID_GRUNTGUN's). Their models are made from AD's monster models in place (the engine's
-// vr_adguns.cpp: "<monster model>#gun<skin>"), so they exist only while AD's data is installed.
-float WID_ADROCKET         = 20; // AD: the rocket soldier's launcher
-float WID_ADGRENADE        = 21; // AD: the grenade soldier's launcher
-float WID_ADPLASMA         = 22; // AD: the plasma soldier's rifle
-float WID_ADDEFENDER       = 23; // AD: the defender's shotgun
-float WID_ADELIMINATOR     = 24; // AD: gone (an older save's eliminator's plasma gun: the centurion's, VR_ADGun_LegacyIds)
-float WID_ADCENTURION      = 25; // AD: the centurion's plasma gun
-float WID_ADPYRO           = 26; // AD: the pyro's flamethrower
-float WID_ADFUMIGATOR      = 27; // AD: the fumigator's poison sprayer
-float WID_ADCROSSBOW       = 28; // AD: the crossbow knight's crossbow (vr_ad_enemyguns.qc: AD's bolts; its own bolts only)
-// VR: the nail pistol (vr_nailpistol.qc; Misc/quakevr/models_src/nailpistol): one-handed, semi-automatic, a 12-round
-// magazine in its grip fed from your nails; weapon settings slot 36 (vr_weapons.inc); weapon_nailpistol.
-float WID_NAILPISTOL       = 29;
-// VR: the flare gun (vr_flaregun.qc; Misc/quakevr/models_src/flaregun): disposable, two flares (one a barrel), its clip
-// its only ammo (AID_NONE), thrown away spent; weapon settings slot 37 (vr_weapons.inc); weapon_flaregun.
-float WID_FLAREGUN         = 30;
-// VR: the heavy revolver (vr_revolver.qc; Misc/quakevr/models_src/revolver): one-handed, double action, six chambers
-// of shells fired as slugs; its cylinder swings out to load by hand; weapon settings slot 38 (vr_weapons.inc).
-float WID_REVOLVER         = 31;
-float WID_LAST             = 31; // the last weapon id
+// The weapon ids (WID_FIST .. WID_LAST), the engine's too: defined in the shared header only.
+#include "../Quake/vr/vr_weapon_ids.h"
 float vr_pellet_damage; // FireBulletsImpl's damage a pellet while a shotgun fires (yours, Weapon Damage; a grunt's, vr_enemyguns.qc; 0: id's 4)
 // And while a heavy revolver fires (vr_revolver.qc): its slug's damage times vr_pellet_heavy_mult into a monster of
 // vr_pellet_heavy_health or more full health (0: none). The last pellet's damage dealt, its part and what it hit (tests).

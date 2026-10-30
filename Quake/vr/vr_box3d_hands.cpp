@@ -6,6 +6,7 @@
 // vr_box3d_internal.hpp.
 
 #include "vr_box3d_internal.hpp"
+#include "vr_weapon_ids.h"
 
 namespace box3d::detail
 {
@@ -609,7 +610,7 @@ namespace
         return key; // (on a prop's ledge: none, the hand would shove what it holds; vr_climb.cpp, "Holds on props")
     }
     const float weapon = h ? player->v.weapon : fieldFloatOr(player, f.weapon2, 0.f);
-    if(weapon == 0.f) // QC's WID_FIST
+    if(weapon == static_cast<float>(WID_FIST))
     {
         if(!vr_box3d_hand_props.value)
         {

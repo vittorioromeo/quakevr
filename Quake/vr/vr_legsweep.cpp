@@ -42,6 +42,7 @@
 #include "vr_progs.hpp"
 #include "vr_ragactive.hpp"
 #include "vr_render.hpp"
+#include "vr_srvrandom.hpp"
 #include "vr_twohand.hpp"
 #include "vr_units.hpp"
 #include "vr_view.hpp"
@@ -723,8 +724,9 @@ void sweepHand(edict_t* player, int hand, const Track& was, const Held& held, co
             note(hand, m, va("%s: too slow (%.0f kg: %.2f m/s needed)", why, mass, need / units::metresToUnits()));
             continue;
         }
-        // A tough monster group (Monster Groups > Knockdown Chance below 1: the Mini Bosses) keeps its feet by chance.
-        if(const float kd = mgroups::value(m, mgroups::Param::KdScale); kd < 1.f && static_cast<float>(rand()) / RAND_MAX >= kd)
+        // A tough monster group (Monster Groups > Knockdown Chance below 1: the Mini Bosses) keeps its feet by chance
+        // (the server's seed: srvrandom's Legsweep stream).
+        if(const float kd = mgroups::value(m, mgroups::Param::KdScale); kd < 1.f && srvrandom::draw01(srvrandom::Stream::Legsweep) >= kd)
         {
             note(hand, m, va("%s: it keeps its feet (its monster group's Knockdown Chance %.2f)", why, kd));
             state.swept[state.sweptNext] = Swept{e, qcvm->time};

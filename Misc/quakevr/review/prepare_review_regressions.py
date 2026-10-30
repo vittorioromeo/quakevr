@@ -23,6 +23,7 @@ def main():
     shared = target / "Quake/vr"
     shared.mkdir(parents=True, exist_ok=True)
     shutil.copy2(root / "Quake/vr/vr_melee_shared.h", shared)
+    shutil.copy2(root / "Quake/vr/vr_agpose_shared.h", shared)
     shutil.copy2(Path(__file__).with_name("review_regressions.qc"), qc)
     hook = qc / "vr_walltorch.qc"
     text = hook.read_text()

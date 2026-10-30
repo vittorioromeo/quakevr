@@ -560,7 +560,6 @@ void resetHandMoves()
             .help("Your other hand taking hold of a weapon's foregrip clicks softly from that hand (and pulses in it); "
                   "letting go, a quieter click. How loud (0: no sound, the pulse stays)."),
         slider("2H Aiming Threshold", "vr_2h_angle_threshold", -1.f, 1.f, 0.05f, "%.2f").help("How far out of line the hands may be before two-handed aiming stops. Higher is stricter; -1 never stops."),
-        toggle("Grip Must Close On It", "vr_2h_grip_edge").help("The other hand takes a weapon's two-handed grip only by closing its grip there; a fist already closed moved onto it doesn't take hold (so a hand reloading can pass by)."),
         slider("2H Stock Factor", "vr_2h_virtual_stock_factor", 0.f, 1.f, 0.05f, "%.2f").help("How much the virtual stock matters in the final angle calculation for two-handed aiming. Decrease if you want your hands to matter more."),
         header("2H Grip Stickiness"),
         slider("Stickiness", vr_2h_sticky, 0.5f, 4.f, 0.05f, "%.2fx").extend(0.1f, 20.f)
@@ -710,11 +709,9 @@ void resetHandMoves()
         slider("Draw Sound Volume", vr_magholster_draw_volume, 0.f, 1.f, 0.05f, "%.2f")
             .help("A bound weapon drawn from its holster: the chain paid out, heard over the holster's own sound (0: none)."),
         header("Chain Physics"),
-        toggle("Simulated Chain", vr_magholster_chain_sim)
-            .help("On: the tether is a chain of points that hangs, lies on the floor and wraps round walls, never through "
-                  "them (the grappling hook rope's physics, coarser). Off: the old simple chain, through the world."),
         toggle("Chain Collision", vr_magholster_chain_collide)
-            .help("The chain's points and pieces kept out of the world (off: cheaper, through it)."),
+            .help("The tether is a chain of points that hangs, lies on the floor and wraps round walls (the grappling "
+                  "hook rope's physics, coarser): its points and pieces kept out of the world (off: cheaper, through it)."),
         slider("Chain Point Spacing", vr_magholster_chain_spacing, 0.05f, 1.f, 0.05f, "%.2f m").extend(0.02f, 4.f)
             .help("Metres between the chain's simulated points (finer: truer on edges and the floor, more work). A long "
                   "tether's are farther apart (Chain Most Points)."),
@@ -1883,7 +1880,6 @@ void resetHandMoves()
         slider("Parallax Refinement", "vr_parallax_refine", 0.f, 8.f, 1.f, "%.0f").extend().help("Steps finding exactly where your view meets the carving: smooth edges seen from the side instead of stairs and layers that slide as you move (0 none; 1 the old look; 4 the default)."),
         slider("Parallax Side Fade", "vr_parallax_grazing", 60.f, 90.f, 1.f, "%.0f").extend().help("How far round to the side, in degrees from straight on, walls still look carved before it fades out (90, the default: never fades; 86 before; 83 the old look; lower if seen-from-the-side walls swim)."),
         toggle("Parallax Depth Write", "vr_parallax_depth_write").help("The carving has real depth: monsters, items, hands, particles and water meet the sunken parts where they look to be, instead of at the flat wall. Off by default, on in the Ultra preset: costs about a millisecond a frame in big maps."),
-        slider("Parallax Surface Level", "vr_parallax_plane", 0.f, 1.f, 0.05f, "%.2f").extend().help("Where the flat surface sits in the carving. 0: at its top, everything carved down (objects on a deeply carved floor can look like they float a little). 0.5: in the middle. 1, the default: at the bottom, the relief raised, so objects sit in it (needs Parallax Depth Write to hide their bottom edge). Never lower than a texture's average height, so flat textures aren't raised."),
         slider("Parallax Items Depth", "vr_parallax_items", 0.f, 4.f, 0.25f, "%.2f").extend().help("How deep the ammo and health boxes look carved, in their own units (scaled with the box; 0 off)."),
         slider("Parallax Models Depth", "vr_parallax_models", 0.f, 2.f, 0.125f, "%.3f").extend().help("How deep monsters, pickups and weapons without baked maps look carved, their heights guessed from the skin's paint, in their own units (0 off, the default: on Quake's blocky skins it bends the texels)."),
         slider("Parallax Depth: Authored Models", "vr_parallax_authored", 0.f, 2.f, 0.25f, "%.2f").extend().help("How deep models with authored bump maps look carved (your hands and body, the gadget, the flashlight, the weapons): their real baked relief, 1 as deep as baked, 0 off."),
@@ -2302,8 +2298,6 @@ void addFoamRows(za::Vector<Item>& items, const FoamRows& r)
 {
     za::Vector<Item> items;
     items.pushBack(slider("Shoreline Foam", "vr_water_foam", 0.f, 2.f, 0.1f, "%.1f").extend().help("Every liquid's shoreline foam: how much (0 off). Teleports have none."));
-    items.pushBack(toggle("Particles as Spray", vr_water_foam_particle_spray).help("Every liquid's foam particles: checked, soft spray thrown up off the shore and falling back, as water hitting the wall; unchecked, the older rising puffs of bubbly foam (for comparison)."));
-    items.pushBack(toggle("Spray in Retro Look", vr_water_foam_particle_retro).help("Checked: the spray through Retro Textures as the other particles (palette, dither, blocks); unchecked: always smooth and soft."));
     addFoamRows(items, {vr_water_foam_on, vr_water_foam_opacity, vr_water_foam_frequency, vr_water_foam_strength,
         vr_water_foam_breathe, vr_water_foam_breathe_speed, vr_water_foam_breathe_irregularity, vr_water_foam_red,
         vr_water_foam_green, vr_water_foam_blue, vr_water_foam_particles, vr_water_foam_particle_life,

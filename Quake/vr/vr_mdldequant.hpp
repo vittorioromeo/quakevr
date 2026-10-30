@@ -19,6 +19,11 @@ void registerCommands();
 // vr_mdl_dequant is on. `aliashdr` is a PV_QUAKE1 aliashdr_t.
 [[nodiscard]] glm::vec3 poseVertex(const void* aliashdr, int pose, int vertex);
 
+// The same in model units (poseVertex times the header's scale plus scale_origin), blended from `pose1` to `pose2` by
+// `blend`: the one decode for code that fits or solves on the drawn shape (the armed humanoids' arms and legs, their
+// grips and anchor: ROUND23.md, "Refactor C1"). prepare() first where it may run before the model's first upload.
+[[nodiscard]] glm::vec3 modelVertex(const void* aliashdr, int pose1, int pose2, float blend, int vertex);
+
 // Mesh vertex `meshVertex` (of its numverts_vbo: an aliasmesh_t's) of a .mdl's rest pose (pose 0) as the alias renderer
 // draws it (gl_mesh.c, PV_QUAKE1): its place in model units (the stored bytes moved by the dequantised offset while
 // vr_mdl_dequant is on and the offsets are ready: `prepare`) and its normal, 127 long (the smoothed one then, else the

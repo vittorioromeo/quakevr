@@ -232,7 +232,7 @@ void wristTest_f()
 }
 
 // vr_gore_wash_test [amount]: `amount` (0.25) of the blood washed off your hands and body at once, as water over them
-// would (vr_gore_wash_once: each texel once).
+// would (each texel once: washUnder's stencil).
 void washTest_f()
 {
     const float amount = Cmd_Argc() > 1 ? static_cast<float>(atof(Cmd_Argv(1))) : 0.25f;
@@ -258,7 +258,7 @@ void washTest_f()
         markWashed(); // as a wash: your wounds re-open after (vr_gore_reopen_delay), bleeding back in
     }
     Con_Printf("vr_gore_wash_test: %.2f washed off %d of your masks (%s)\n", static_cast<double>(amount), washed,
-        vr_gore_wash_once.value != 0.f ? "each texel once" : "edges more");
+        "each texel once");
 }
 
 // vr_gore_hands_info: the player's wounds kept to re-open, the wash, the blood on the hands and the body (texels), and

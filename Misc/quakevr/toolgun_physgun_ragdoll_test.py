@@ -1,4 +1,4 @@
-"""toolgun_physgun_ragdoll_test.py <agent> [--old] [--parts <part>] [--knock] [--raw <file>] -- the physgun on a ragdoll
+"""toolgun_physgun_ragdoll_test.py <agent> [--parts <part>] [--knock] [--raw <file>] -- the physgun on a ragdoll
 (docs/vr-port/ROUND22.md, "The physgun on ragdolls").
 
 vrfiringrange, a grunt killed 110 units ahead (vr_test_kill; --knock: knocked down alive instead, vr_knockdown_test 0),
@@ -7,8 +7,8 @@ the trigger held, the target moved along a path by the off stick (64 u/s aside, 
 still), let go. Each frame vr_toolgun_status's "ragdoll held" line: the held part's and the root part's places.
 Prints per part: the held part's and the root's frame-to-frame jitter (the RMS of the second difference, units), their
 largest jump in a frame against the target's, how far the held part ends from the target, and the release's speed.
---old: vr_toolgun_physgun_ragdoll 0 (the entity dragged by its origin: the before numbers).
-PASS (not --old): no jump in a frame over twice the target's fastest plus 4 units, the held part within 12 units of its
+(--old, vr_toolgun_physgun_ragdoll 0, the entity dragged by its origin, went with that setting in round 23.)
+PASS: no jump in a frame over twice the target's fastest plus 4 units, the held part within 12 units of its
 target at the end, the root's jitter under 1 unit.
 """
 import math
@@ -18,7 +18,6 @@ import subprocess
 import sys
 
 agent = sys.argv[1] if len(sys.argv) > 1 else "gorefx"
-old = "--old" in sys.argv
 knock = "--knock" in sys.argv
 parts = [0, 5]
 if "--parts" in sys.argv:
@@ -34,7 +33,6 @@ path = [(1, 0, 50, 64), (0, 1, 50, 64), (-1, 0, 40, 256), (0, 0, 40, 64)]
 parts = parts[:1]
 for part in parts:
     a("sv_random_seed 7;map vrfiringrange;wait60;god;notarget;vr_crate_health 0;vr_debug_ragdoll 1")
-    a("vr_toolgun_physgun_ragdoll %d" % (0 if old else 1))
     a("impulse 169;vr_weapon_grip_mode 1;wait10;vr_toolgun_tool 2")
     a("vr_mock_hand main 0.0 1.3 -0.3 20 0 0;wait5")
     a("vr_test_spawn 0;vr_test_spawn_dist 110;impulse 241;wait40")
@@ -100,11 +98,10 @@ for i in range(1, len(blocks), 2):
     print("PART %d (%s, %d frames): held part jitter %.2f (worst %.2f), root %.2f (worst %.2f); biggest jump a frame: "
           "part %.2f, root %.2f, target %.2f; the held point %.1f behind its target at most, %.1f at the end; frames %.4f s" % (part, mode,
           len(rows), jp, jpmax, jr, jrmax, jumps(P), jumps(R), tj, max(lag), end, (t[-1] - t[0]) / (len(t) - 1)))
-    if not old:
-        bad = jumps(P) > 2 * tj + 4 or jumps(R) > 2 * tj + 4 or jr > 1.0 or end > 12.0
-        if bad:
-            print("  FAIL: jumps or jitter")
-            ok = False
+    bad = jumps(P) > 2 * tj + 4 or jumps(R) > 2 * tj + 4 or jr > 1.0 or end > 12.0
+    if bad:
+        print("  FAIL: jumps or jitter")
+        ok = False
 for l in out.splitlines():
     if "held by" in l or "ENGINE" in l or "CRASH" in l or "TIMEOUT" in l:
         print("  " + l.strip())

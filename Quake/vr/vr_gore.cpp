@@ -85,7 +85,7 @@ lightcache_t dropLight{}; // dropColor's light lookup (the client's frame)
 
 [[nodiscard]] bool inLiquid(const glm::vec3& p)
 {
-    return worldtrace::clientContents(p) < CONTENTS_SOLID; // water, slime, lava (sky, currents)
+    return worldtrace::isLiquid(worldtrace::clientContents(p)); // water, slime, lava, currents (not the sky)
 }
 
 // ---- Lines of blood flung out by a hit or a burst, traced a few a frame --------------------------

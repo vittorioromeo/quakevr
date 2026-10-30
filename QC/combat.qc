@@ -839,7 +839,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Corpse_Da
             return TRUE;
         }
     }
-    // An explosion pops a corpse's limbs near it by chance (vr_limbs_blast; vr_limbs.qc).
+    // An explosion pops a corpse's limbs near it by chance (vr_limbs_blast_chance; vr_limbs.qc).
     if(vr_hitkind == QVR_HITKIND_SPLASH)
     {
         VR_Limb_BlastPops(targ, FALSE);
@@ -2967,7 +2967,7 @@ void(entity inflictor, entity attacker, float damage, entity ignore) T_RadiusDam
     vector    org;
 
     IsExplosionDamage = 1;
-    vr_limb_blast_at = inflictor.origin; // VR: the limbs near it may pop (vr_limbs.qc, vr_limbs_blast)
+    vr_limb_blast_at = inflictor.origin; // VR: the limbs near it may pop (vr_limbs.qc, vr_limbs_blast_chance)
     vr_limb_blast_by = attacker;
     vr_limb_blast_time = time;
     float hlKills = vr_hl_kills; // VR: the highlight log: the kills it makes (vr_highlights.qc)

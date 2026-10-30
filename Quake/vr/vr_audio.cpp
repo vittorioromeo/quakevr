@@ -24,7 +24,7 @@
 //   paint buffer and added after it: VR_SndBypass), each reading its sound's band-limited copy (VR_SndBandLimit, made
 //   as it loads; between samples windowed-sinc: fullBandAt), not Quake's held samples, whose images would be hiss; their
 //   reverb anti-aliased (renderVoices). With vr_snd_fullband 0 the voices' sum (and the reverb) is low-passed before it
-//   joins Quake's paint buffer (AntiAlias, vr_snd_antialias): that lowpass keeps every fourth sample, which folded the
+//   joins Quake's paint buffer (AntiAlias): that lowpass keeps every fourth sample, which folded the
 //   HRTF's highs into the lows.
 // - The simulations (vr_audiosim.hpp): the map's scene built on the pool at each new map; doors and lifts moved in
 //   it; the direct paths 30 times a second and the reverb every vr_snd_reverb_interval, each a pool task, their
@@ -1012,7 +1012,7 @@ bool quakeLowpassOn()
 
 bool antiAliasWanted()
 {
-    return vr_snd_antialias.value != 0.f && VR_SndFullBand() == 0 && quakeLowpassOn();
+    return VR_SndFullBand() == 0 && quakeLowpassOn();
 }
 
 void renderVoices(Mixer& m, int blocks, const Listener& l, const Features& f, const IPLReflectionEffectParams* reverb,
@@ -1343,7 +1343,7 @@ struct Live
     bool haveReverbSecond{false};
 
     za::Vector<float> mixL, mixR;
-    AntiAlias antiAlias; // the voices' (vr_snd_antialias)
+    AntiAlias antiAlias; // the voices' (antiAliasWanted)
     za::Vector<portable_samplepair_t> held; // the voices, kept out of Quake's 11 kHz lowpass (vr_snd_fullband: VR_SndBypass)
     za::Vector<float> revL, revR;           // their reverb (renderVoices)
     int heldLen{0};

@@ -23,6 +23,7 @@
 // (X/A held: the one before). B/Y opens and closes its panel over the gun (vr_toolgun_panel.cpp). Single player: the
 // listen server's edicts, changed between its frames (as a console command does).
 
+#include "vr_agpose_shared.h"
 #include "vr_testkit.hpp"
 #include "vr_toolgun.hpp"
 #include "vr_toolgun_brush.hpp"
@@ -34,6 +35,7 @@
 #include "vr_bullettime.hpp"
 #include "vr_client.hpp"
 #include "vr_cvars.hpp"
+#include "vr_input.hpp"
 #include "vr_held.hpp"
 #include "vr_lines.hpp"
 #include "vr_main.hpp"
@@ -282,7 +284,7 @@ struct Drag
 {
     int num{0};
     bool prop{false};      // a rigid prop: pinned while held (its body follows)
-    // A ragdoll (vr_toolgun_physgun_ragdoll): held by a spring on its part `part` the beam hit (box3d's
+    // A ragdoll: held by a spring on its part `part` the beam hit (box3d's
     // physgunRagdollGrab), its entity left alone; the sticks move it, nothing turns it. Else (0) its entity moved, as a
     // monster's (the old way: its body set where the entity is whenever it strays, a jump; tests).
     bool ragdoll{false};
@@ -627,9 +629,8 @@ void armedRefresh()
 // The two held one in each hand (QC VR_AM_UiPairs, VR_AG_Pairs): both pair, both melee or both guns.
 [[nodiscard]] bool armedPairs(int kind, int code, int code2)
 {
-    constexpr int classMelee = 1; // (QC VR_AG_CLASS_MELEE: the fits' class, 4 x)
     const int f1 = armedFits(kind, code), f2 = armedFits(kind, code2);
-    return code > 0 && code2 > 0 && (f1 & 2) && (f2 & 2) && ((f1 >> 2) == classMelee) == ((f2 >> 2) == classMelee);
+    return code > 0 && code2 > 0 && (f1 & 2) && (f2 & 2) && ((f1 >> 2) == VR_AG_CLASS_MELEE) == ((f2 >> 2) == VR_AG_CLASS_MELEE);
 }
 
 [[nodiscard]] const char* armedCodeName(int code)
@@ -1197,8 +1198,7 @@ void dragStart(int num)
     {
         d.part = box3d::ragdollBone(num, grab); // (the old way's: the part nearest, for vr_toolgun_status)
         float along = 0.f;
-        if(vr_toolgun_physgun_ragdoll.value != 0.f &&
-            box3d::physgunRagdollGrab(num, tg.aim.from, tg.aim.dir, tg.aim.worldDistance, grab, d.part, along))
+        if(box3d::physgunRagdollGrab(num, tg.aim.from, tg.aim.dir, tg.aim.worldDistance, grab, d.part, along))
         {
             d.ragdoll = true;
             d.distance = za::max(along, 16.f);
@@ -1602,9 +1602,11 @@ void jointShot(int num, const glm::vec3& at, const glm::vec3& normal)
 // ---------------------------------------------------------------------------------------------------------------------
 // The sticks: always while the physgun holds something, else with X/A held.
 
+// (vr_deadzone's, as the menus' and turning's: past it rescaled from 0; round 23, his decision D5: was a fixed 0.15,
+// the push kept as it was past it.)
 [[nodiscard]] float deadzone(float v)
 {
-    return za::fabs(v) < 0.15f ? 0.f : v;
+    return qvr::input::stickAxis(v);
 }
 
 // The physgun holds something: both sticks are its (no X/A needed), and stick presses do nothing.
@@ -1734,16 +1736,7 @@ void ghostHoldFrame(const hands::State& s, float dt)
 
 [[nodiscard]] glm::vec4 toolColor()
 {
-    switch(currentTool())
-    {
-    case Tool::Spawn: return {0.3f, 0.9f, 1.f, 1.f};
-    case Tool::Remove: return {1.f, 0.15f, 0.1f, 1.f};
-    case Tool::Physgun: return {0.35f, 0.55f, 1.f, 1.f};
-    case Tool::Scale: return {1.f, 0.85f, 0.2f, 1.f};
-    case Tool::Joint: return {0.4f, 1.f, 0.4f, 1.f};
-    case Tool::Brush: return {1.f, 0.6f, 0.2f, 1.f};
-    default: return {1.f, 1.f, 1.f, 1.f};
-    }
+    return qvr::toolgun::toolColor(currentTool());
 }
 
 void drawLook(const hands::State& s)
