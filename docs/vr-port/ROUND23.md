@@ -1196,3 +1196,9 @@ b3_split.py / b3_qcsplit.py (moves), b3_progscmp.py (two progs.dat compared with
   handToPouchMag, handToAmmoOrLoadPort, handToNearest, handToRagdollOrBy (the locals they read passed in). Left: the
   menu page builders (one braced list each: data, long by nature), the hot per-frame climbPreThink / VR_ClientClimb /
   foegrab::serverFrame / input update / setupHand / buildMove (no proof of "unchanged" short of a bench pair each).
+- Tests: build 0 warnings and every check; 31 covering cases (reload*, autopump, pickup_mag, mapgun_*, grip_*,
+  ragdoll_grab, flash_grab, weapon_catch, held_over_props, throw_spin, slider_step, selfchecks, update_notice, arena_1,
+  stats_levelchange, limb_wear, prop_climb, walltorch_grab, collectfx, fist_alert, swim_sound, xr_runtime) as
+  baseline.tsv but the known changes (autopump 7/7, fist_alert and swim_sound pass, reload 111/4: the same four lines
+  as other branches' runs). progs.dat before and after the QC move: statements, functions, defs and globals identical
+  (b3_progscmp.py). No hot per-frame function was split, so no bench pair.
