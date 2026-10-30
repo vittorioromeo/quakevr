@@ -41,7 +41,21 @@ constexpr GlobalRow globalDefaults[] = {
     {0, aggrip::Second, -3.21f, -0.55f, -0.56f, -35.4f, 27.2f, -24.5f},
     {1, aggrip::Main, 1.71f, 0.55f, 3.13f, 15.0f, -4.2f, -2.7f},
     {1, aggrip::Off, 0.89f, -0.53f, -2.72f, -11.5f, -87.1f, -153.0f},
-    {1, aggrip::Second, 12.02f, 9.17f, -0.14f, -39.5f, 9.1f, 33.2f},
+    {1, aggrip::Second, 12.09f, 9.17f, -0.14f, -39.5f, 9.1f, 33.2f},
+};
+
+// A weapon's own shipped grips (its weapon id: Weapon Offsets' ID), on top of its kind's "All Weapons" one; the Grip
+// Editor's entries of that weapon replace them (vr_agrunt_grip_dump prints rows to paste here).
+struct Row
+{
+    int kind;
+    const char* weapon;
+    int hand;
+    float x, y, z, pitch, yaw, roll;
+};
+constexpr Row defaults[] = {
+    {0, "progs/w_dcrossbow.mdl#gun", aggrip::Second, 5.25f, 0.00f, -5.35f, 0.0f, 0.0f, 0.0f},
+    {1, "progs/v_chainsaw.mdl", aggrip::Second, -11.70f, -1.20f, 11.40f, -6.0f, -57.2f, -3.2f},
 };
 
 struct Override
@@ -160,8 +174,19 @@ void write()
                 return true;
             }
         }
+        return false;
     }
-    return false; // (a weapon's own: none shipped, its kind's global one alone)
+    const char* id = slot >= 0 ? slotId(slot) : nullptr;
+    for(const Row& r : defaults)
+    {
+        if(id && r.kind == kind && r.hand == hand && strcmp(r.weapon, id) == 0)
+        {
+            out.pos = {r.x, r.y, r.z};
+            out.angles = {r.pitch, r.yaw, r.roll};
+            return true;
+        }
+    }
+    return false; // (a weapon with no row: its kind's "All Weapons" one alone)
 }
 
 [[nodiscard]] const char* handName(int hand)
@@ -191,6 +216,11 @@ void dumpInto(za::String& out, bool all)
         {
             out += va("    {%d, aggrip::%s, %.2ff, %.2ff, %.2ff, %.1ff, %.1ff, %.1ff}, // (default: every weapon)\n", r.kind,
                 handName(r.hand), r.x, r.y, r.z, r.pitch, r.yaw, r.roll);
+        }
+        for(const Row& r : defaults)
+        {
+            out += va("    {%d, \"%s\", aggrip::%s, %.2ff, %.2ff, %.2ff, %.1ff, %.1ff, %.1ff}, // (default)\n", r.kind,
+                r.weapon, handName(r.hand), r.x, r.y, r.z, r.pitch, r.yaw, r.roll);
         }
     }
     if(state.numOver == 0 && !all)
@@ -343,7 +373,7 @@ const char* subjectLine()
         q_snprintf(state.line, sizeof(state.line), "No armed grunt near (spawn one)");
         return state.line;
     }
-    q_snprintf(state.line, sizeof(state.line), "%s: %s, %s", k.kind == 0 ? "Grunts" : "Enforcers",
+    q_snprintf(state.line, sizeof(state.line), "%s: %s, %s", agpose::kindTitle(k.kind),
         k.slot == allWeapons ? "every weapon" : slotId(k.slot),
         k.hand == Main ? "main hand" : k.hand == Off ? "off hand (dual)" : "off hand on its second grip");
     return state.line;
@@ -572,7 +602,8 @@ const HoldRow holdRows[] = {
 };
 #undef QVR_AGGUN
 #undef QVR_AGHOLD
-static_assert(agholds::numKinds == agpose::numKinds, "the Weapon Holds' kinds are the pose keys'");
+// (the knight, the pose keys' kind 2, has no Weapon Holds of its own: its one-handed sword holds as the grunt's)
+static_assert(agholds::numKinds <= agpose::numKinds, "the Weapon Holds' kinds are the pose keys' first");
 
 // Category setting `s` (0 Auto, 1.. agpose::gunCategories) as a class; Auto: `autoClass`.
 [[nodiscard]] int categoryClass(int s, int autoClass)
@@ -648,10 +679,11 @@ int hands(int kind, int code, int* settingOut)
     {
         *settingOut = 0;
     }
-    if(kind < 0 || kind >= numKinds)
+    if(kind < 0 || kind >= agpose::numKinds)
     {
         return 0;
     }
+    kind = kind < numKinds ? kind : 0; // (a kind with no holds of its own, the knight: the grunt's)
     for(const HoldRow& w : holdRows)
     {
         if(w.code == code)

@@ -1711,7 +1711,7 @@ void drawPanel()
         const int cls = classOf(n->ent);
         int count = 0;
         const int i = poseIndex(n, &count);
-        text += va("\n%s with %s%s%s", n->kind == 0 ? "Grunt" : "Enforcer", n->slot >= 0 ? slotLabel(n->slot) : "its fists",
+        text += va("\n%s with %s%s%s", agpose::kindTitle(n->kind), n->slot >= 0 ? slotLabel(n->slot) : "its fists",
             n->slotL >= 0 ? " + " : "", n->slotL >= 0 ? slotLabel(n->slotL) : "");
         if(poselive::on())
         {

@@ -2836,6 +2836,50 @@ Regression test: `Misc/quakevr/bodytrack_solve_test.sh <agent> [--update]`: 300 
 quakevr/scenarios/bodytrack/solve_ref.csv (0.5 units per joint, 0.02 per weight); verdict line
 `bodytrack_solve: N passed, M failed`.
 
+## His tweaks of 2026-10-30 as defaults (branch `agent/promote1030`)
+
+His "I've tweaked many values, please make them the defaults." Source: his `quakevr/ironwail.cfg` of 2026-10-30
+(sparse, configVersion 218; no `tunables.cfg`: no tuning constant changed). The game loaded the defaults, then a copy
+of his config, and `vr_config_test dumpfull` wrote each (23,072 settings): 219 vr_ settings differed. The full list,
+promoted / personal / doubtful: the kit's `scratch/promote_1030.md`.
+
+- **Promoted** (an edit of each default; no defaultChanges row, as the sparse config wants): 38 settings in
+  vr_cvars.inc (armed grunts' armour, tug, strafe turn, parry disarm, replacement chances; ammo low fraction and pouch;
+  every gun-smoke, spark and wisp setting; relight AO 1.2 and bounce on; the revolver's rod and spin; shore foam; the
+  worn backpack's rip force); 100 weapon slot values in vr_weapons.inc (recoil cm / deg / s of 27 slots and 18 Haptic
+  Punch, the revolver's flash and tracers, the AD stream gun's rumble and shake, the nailgun's third hotspot, the nail
+  pistol's two-handed mode and text panel, the AD plasma gun's text panel, the Widowmaker's stock pitch; five of them
+  on the slot's QVR_WEAPON_UNINHERITED line, which is read last and wins); the armed humanoids' 120 pose keys, 16 IK
+  stretch rows and 3 grips (pose_defaults.py --cfg --write).
+- **Weapon grips** had no default table since Refactor C1 (pose_defaults.py stopped at it): vr_aggrip.cpp `defaults[]`
+  again ({kind, weapon id, hand, ...}; `defaultOf` finds a weapon's row, on top of its kind's Every Weapon one;
+  `vr_agrunt_grip_dump all` prints them). His two: the grunt's crossbow and the enforcer's chainsaw, second hand.
+- **Recoil of a config before vr_wofs_version 74:** a slot whose old recoil was the shipped one of then (and the
+  globals 1.5 / 4) now keeps today's defaults (his) instead of its old feel converted (`takeRecoilUnits74`), as a
+  setting left alone does; a changed slot converts as before.
+- **Not promoted:** personal (body, calibration, elbow, tracker, his avatar's hands, nails, gloves and voice, toolgun
+  and its holsters, rig studio, recording, voice notes, foveation, spectator and window view, XR runtime, menu state);
+  doubtful, for him: vr_ad_upgrades 2, vr_agrunt_repl 1, vr_worn_backpacks 1 (feature switches for every map),
+  vr_reload_mode_revolver 3, vr_relight_minlight 64, vr_relight_reload 1, vr_ghost_hands 1 (fade 9),
+  vr_autosave_list_all 1, his six held-object slots with only an ID (they act as no slot), and float noise
+  (muzzle_x/z_01, w_com_35/50).
+- **Checks:** build 0 warnings; his config loaded before and after: all 23,072 values the same (0 differ); the
+  defaults now differ from his in 81 settings, all of them the skipped ones; his 120 pose keys equal the shipped rows
+  (to 0.005). config_sparse_test 16/0 (the default config and his). vr_recoil_test: the conversion checks now count
+  27 slots at his values and check the conversion's curve on the converted values (not the defaults); a converted
+  slot at the shipped recoil of then must hold today's defaults; the stream check takes slot 30's 1.25 / 1.75:
+  69/0 (it was 65/4 before those changes). tunables_test 20/0. Full baseline (`run_baseline.sh harness --no-bench`)
+  against baseline.tsv: recoil as said; nail_1 7/0 -> 11/0 and np_1 21/0 -> 35/0 (checks added on next since the
+  baseline; nail_1 8/3 once in a loaded lane, 11/0 alone); agrunt_31, 36, 65 FAIL -> PASS (rerun: the same); reload
+  111/4 once, 112/3 on the rerun (as the baseline); agrunt_76 (Aim Behind Cover) 25/0, 24/1, 22/3, 23/2 over four
+  runs, a different gun and cover failing each time (a few shots a case: noise); the other flaky ones as the run
+  listed them.
+
+Checklist:
+- Fire every gun: recoil, smoke, sparks and wisps as you had them (shotgun 10 cm / 12 deg, revolver 14.6 / 21.9).
+- Armed grunts (Combat > Armed Grunts): poses, grips (the crossbow's and the chainsaw's second hand), armour and tug as
+  you left them, with your own vr_agrunt_poses / grips / ik_stretch cleared (they now equal the defaults).
+- Relit maps: AO 1.2 and bounced light by default.
 ## Kick cancel in the poses; two-handed recoil; no ghost hands from recoil (branch `agent/recoil2h`)
 
 His words: the starter shotgun's new recoil "seems jittery" (frames still moving it); the grenade launcher "also seems to
@@ -3026,3 +3070,119 @@ steel/silvery back end more distinct, as in the pre-slide art.
   `npslide4_rear_before_after.png` (full slide closed, before / after), `npslide4_thumbs.png`.
 - **Tests:** `vr_np_test 1` fails on origin/next with the old model the same way (0 passed, 3 failed: "the trigger held
   0.55 s fired 0"): not this change; baseline.tsv's np_1 (21 passed) is older than the test's 35 checks.
+
+## Armed humanoids: preventive and wind-up parries; parry by what you hold (branch `agent/preparry`)
+
+His words (2026-10-30): an option (on by default) for armed humanoids to parry preventively when you get close and their
+shove is on cooldown or they wield a melee weapon, for a while, so you wait it out or bait it and strike back; the
+reactive parry kept, on by default; and when you raise a weapon or anything you can hit with overhead or to the side,
+a preventive parry after a random delay, chance-based, so you can bait it. Lots of options. The coordinator's addition:
+the mechanics depend on what you hold (a melee weapon: readier; a gun, a prop, fists: it waits for your wind-up and
+reads it less reliably).
+
+- **Its guard** (QC/vr_armedgrunt_guard.qc, class-agnostic: any armed humanoid with a weapon and `vr_agrunt_parry` on):
+  idle -> reacting (a won roll, the delay) -> raised (its parry pose towards your striking hand, for the guard time) ->
+  recovering (it can't parry at all: `VR_AGPar_Able` "its guard dropped (recovering)"; a strike on its weapon disarms, a
+  blow lands in full) -> idle. While raised, its parry counts as raised for `VR_AG_BlowOnWeapon` (the strike-first
+  roll, `vr_agrunt_strike_beat`) and the honest hit test puts its weapon in the blow's way. Raised or rising, it holds
+  its attack (`vr_agrunt_guard_holdfire`, `VR_AG_CheckAttack`).
+- **Preventive** (`vr_agrunt_preparry` 1; Combat > Armed Grunts > AI Behaviour, Parrying Your Blows): every
+  `_interval` s (0.5), you within `_range` (64 units), it able to parry you, and its shove cooling down or off
+  (`_shove` 1) or a melee weapon in its hand (`_melee` 1): a roll (`_chance` 0.5); delay `_delay_min.._max`
+  (0.1-0.35 s), guard `_guard_min.._max` (0.8-1.6 s), recovery `_recover_min.._max` (0.6-1.2 s).
+- **Wind-up** (`vr_agrunt_windup_parry` 1): your hand (a melee weapon, a gun, a carried prop, a closed fist; never an
+  open hand) within `_range` (110 units), raised over your shoulders (20 cm under the eyes) by `_high` (0.2 m), or out
+  to your side by `_side` (0.4 m) no further ahead than `_ahead` (0.15 m), or drawn back behind your head by `_back`
+  (0.15 m), and above `_low` (0.6 m under the eyes); held `_read` s (0.08): one roll (`_chance` 0.6); delay 0.08-0.3,
+  guard 0.6-1.2, recovery 0.5-1.0 s. `_rearm` 1: a raise held is read once (lower it to be read again). The player-side
+  melee code has no wind-up detector (only "drawn back" for blows), so this is a pose test against your head and the way
+  to it (`VR_AGG_RaisedHand`).
+- **Reactive** (`vr_agrunt_react_parry` 1): the old parry for a blow it sees coming; off, only the guard raises it.
+  Its chance and reaction stay the existing settings rows (`vr_agrunt_parry_chance`, `_react`); new tunable
+  `vr_agrunt_parry_react_rand` (0: as before) adds a random 0..x s.
+- **By what you hold** (`VR_AGG_Cat`: melee weapon, gun, prop (a carried thing or a club), fists): tunables
+  `vr_agrunt_pcat_<melee|gun|prop|fist>_<chance|delay|guard|range|windup|pre>`; defaults melee 1.5/0.7/1.25/1.25/0.85/1,
+  gun 0.6/1.5/0.8/0.85/1.3/0.25, prop 0.75/1.3/0.9/0.9/1.15/0.5, fist 0.9/1.15/1/0.9/1.1/0.6. Chances scale as odds
+  (`1 - (1 - c)^m`: 0 stays never, 1 always, so the old tests' chance 1 still means always); delays (the reactive
+  reaction too), guard time and ranges multiply; `windup` multiplies the wind-up's thresholds and read time (above 1 a
+  plainer raise); `pre` the preventive chance besides (a gun's holder: it mostly waits for your wind-up). The reactive
+  parry uses the striking hand's category (a monster's blow: none).
+- **Tunables page groups:** Armed Grunts - Preventive Parry, - Wind-up Parry, - Reactive Parry, - Parry by What You
+  Hold. **Show Disarm Volumes** appends the guard's state to its note: `preparry in 0.12 s`, `preparry 0.64 s`,
+  `windup 0.49 s`, `recovering 0.59 s`.
+- **Tests** (QC/vr_armedgrunt_preparry_test.qc; Debug > Tests > Armed Grunts: Preventive Parry, Wind-up Parry):
+  `vr_agrunt_test 96`, 8 cases (shove ready: none, 0 rolls; shove cooling: raised 0.208 s after the roll (0.2), guard
+  0.806 s (0.8), a fist on the barrel in it parried, in the recovery disarmed; recovery 0.611 s then raised again;
+  the melee punch through its barrel: in the guard 5 damage (parried), in the recovery 30 and disarmed; 176 units off:
+  none; chance 0: 9 rolls, no guard; a sword grunt, shove ready: raised; random ranges: 4 cycles, delays 0.139-0.389 in
+  0.1-0.4, guards and recoveries in range): 8 passed. `vr_agrunt_test 98`, 6 cases (hand at rest: none; overhead:
+  raised 0.250 s after the raise (read 0.08 + delay 0.15 + a frame), guard 0.500, labels, the bait's strike in the
+  recovery disarms; held 2 s: 1 guard, 1 roll, lowered and raised again: a second; to the side: raised; chance 0: 1 roll,
+  none; 400 bare rolls each at chance 0.5: wind-up axe 0.67 vs shotgun 0.34, mean delay 0.141 vs 0.306 s, preventive
+  0.63 vs 0.12, every delay within its range): 6 passed. Both end on `agtest: test 9N over`. (Numbered 95/96 at
+  first; next's knights took 95: now 96 and 98.)
+- **Covering** (run_baseline agrunt + suite, `agrunt|parry|melee_phase|judo`, 91 cases before merging next, then the
+  agrunt 60-69 / 90-98, parry, judo and melee_phase cases after): 31, 36, 65 FAIL -> PASS (as disarm2); 67-69 failed
+  once from a rename slip (the grab tests' dispatch), fixed; test 95 (next's armed knights, the same parry code) 7/0.
+  After the merge test 94's case 13 (the punch through the barrel, caught out) deals 0 damage with the new parries off
+  too, and passed on this branch before the merge: next's (the worn-pack/armour changes?), not this. 66 (a lying one
+  reached for) flaky: failed once, passed on rerun with the defaults; 63 and parry_pose fail as in baseline.tsv.
+  eval.sh --full 163/171, as next (the uppercut's 13.2 predates disarm1).
+
+## Knights as armed humanoids (branch `agent/agknight`)
+
+His ask: "make knights a new armed humanoid kind". The knight is the armed humanoids' third row (`VR_AM_KNIGHT` 2): it
+holds its sword as a real weapon (the player's `WID_SWORD`, the Knight's Sword), drawn in its posed, skinned hand, swung,
+parried, disarmed, tugged, grabbed and dropped by the armed layer's own code. Behind **`vr_agknight`** (default 0; Combat >
+Armed Grunts > Armed Humanoid Replacements: Armed Knights; takes effect at the next map load). Its own setting rather
+than part of `vr_agrunt_repl`'s set: the replacements' machinery is the gun holders' (native shots, ammo tiers, variety
+rolls), the knight's sword needs none of it, and he can try knights alone while the kind is new.
+
+**The plan** (each step committed and tested):
+
+1. **The model and the authored rig** (done). `progs/vrknight.mdl` (`make_vrgrunt.py` row `vrknight`: knight.mdl, Quake
+   VR's own model, without the sword's 81 triangles; its vertices kept for the line). `quakevr/rigs/vrknight.rig2.txt`
+   (`make_rig2.py knight`: `KNIGHT_SKELETON`, the 20 bones read off his mesh: mid-stride, right leg forward, the fist on
+   the grip at 12 -6.7 1.1; the helmet the head's by a rule; `max_hops` 3 and the new `weld_gun False`: the sword's weight
+   had reached the left pad and the neck, long red spikes as the arms moved). Only vrknight.rig2.txt: knight.mdl keeps
+   its derived rig, so knights are unchanged with the setting off; grunt and enforcer files byte-identical. Engine: model
+   id `VrKnight`, `monsterFiles`, its ragdoll seed row (the knight's seeds, deaths 76..96). The Rig Studio's subject:
+   with `vr_agknight 1` the Subject menu's armed kinds list Knight (the toolgun's table). Its limits are the grunt's
+   (the left upper arm's swing back to 60: he hangs it 51 back at rest). `vr_rig2_check progs/vrknight.mdl`: 12 passed,
+   23 failed (the grunt's shipped rig: 22 / 13): see-through and flips at the joints' extremes. **Left**: his Range of
+   Motion tuning, as the grunt's was.
+2. **The sword held** (done). Row `VR_AM_Row(VR_AM_KNIGHT)`: hand 106 110 114 (stillest in the sword's space over his
+   living frames, 2.3-2.9 rms), the hidden sword's pommel 568/571, tip 561/564, guard ends 537/594 (roll); frames stand
+   0..8, run 9..16 (his steps), take kneel 66..70 (a knee); melee classes only; shoulders from the rig, the grunt-made
+   poses fitted (`1 1.06 1`, `3.2 1.46 -2.2`). Engine `armedRigs` row 2 (a fifth gun range), `agpose::numKinds` 3 (his
+   own pose keys: the Pose Studio edits them, names Knight), `aggrip::numKinds` 3 (his grips: none shipped, the rest grip
+   from his own sword's place); the Weapon Holds stay two kinds (his sword holds as the grunt's: `agholds::hands`).
+   `monster_vr_knight` (default weapon the sword; any melee weapon by "weapon").
+3. **AI** (done, the layer's): `monster_knight` calls `VR_AKN_Replace` (vr_armedrepl.qc; not statues, not Honey's
+   trigger copies' maker); the layer's hunt, approach and melee (`VR_AG_Melee`, `VR_AGP_*` swings); ai.qc's and fight.qc's
+   `knight_attack` skipped for an armed one; pains, deaths, ragdolls are the knight's own. Parry: the layer's
+   (`T_Damage_VRMelee` -> `VR_Parry`, whatever agent/preparry adds there comes with it).
+4. **Disarm, tug, grab, drop** (done, the layer's): `knight_die` runs `VR_AG_Dying` first (the held sword falls, once;
+   his own `VR_DropKnightSword` only when not armed).
+5. **Tests** (done): `vr_agrunt_test 95` (QC/vr_armedknight_test.qc; Debug > Automation & Self-Tests: Armed Knights):
+   off (a plain knight), on (kind 2, vrknight.mdl, a sword 3.1 from its hand), swing (hurt you 11 in 1.5 s), disarm (its
+   sword lying by it), re-arm (took it up in 1.7 s), death (one sword lying): 7 passed, 0 failed. Test 88 with
+   `vr_agknight 1` adds the knight's stagger and topple with a sword (grip 0.00 off the hand, torso 0.63 / 0.18): 6/0.
+   `vr_agknight 1; vr_agrunt_test_kind 2; vr_agrunt_test 60` (they parry your blows): 6/0. Test 20 with kind 2: 3/0.
+   Eyeshots: qvr-kit/scratch/agknight/`knight_attacks.png` (test 14, kind 2: fists, axe, sword, crowbar at the wind-up,
+   strike, horizontal, rest; before the rig's weight fix: the red spikes), `knight_attacks2.png` (strike and rest, after).
+   Debug > Automation & Self-Tests also: "Armed Knights: Spawn One Before You" (`vr_agknight 1;
+   vr_toolgun_select_armed 2 13`; the toolgun's list is asked again when vr_agknight changes).
+- **Covering** with the setting off (vs baseline.tsv): 83 63/0, 60 5/1, 20 3/0 (as baseline); 88 4/0 and 3/1 in two runs
+  (the grunt's topple at 1.46 of the 1.5 torso limit: flaky before this). Kind loops that mean the gun holders
+  (`VR_AM_GUN_KINDS` 2: test 83's pose categories, the replacements' precaches) are unchanged; the toolgun lists the
+  knight only with the setting on.
+- **Left / next**: his rig's Range of Motion tuning (above); the knight's own pose keys and grips (none shipped: the
+  grunt-made code poses fitted); his melee frames' legs are his stand frames (his runattack and attackb frames unused);
+  trigger-spawned knights (Honey's copies) stay plain. **Hell knights** would need: hknight.mdl's sword (knownSwords:
+  42.., 332.., 525.. with the guard) in a `vrhknight` row, a rig2 skeleton (taller, pauldrons), a row 3 (his frames,
+  kneel-less: a take from painb or deathb), his magic attack kept as the native ranged attack beside the sword (the
+  layer has no "melee weapon plus spell" mode: a `vr_am_native` missile hook), `agpose::numKinds` 4.
+- Checklist: `[agknight] vr_agknight 1, a map with knights (e1m2): each holds his sword in his posed hand, swings it at
+  you, parries your blows, can be disarmed, tugged and grabbed; it falls when he dies, his ragdoll keeps it when knocked
+  down`; `[agknight] vr_agknight 0: knights as before (their own sword, attacks, drops)`.

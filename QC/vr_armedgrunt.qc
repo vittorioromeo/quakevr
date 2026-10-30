@@ -2617,6 +2617,10 @@ float() VR_AG_CheckAttack =
     {
         return FALSE; // (stepping aside, or away from a mine: VR_AG_Run)
     }
+    if(VR_AGG_HoldFire(self))
+    {
+        return FALSE; // (its guard up, or rising: vr_armedgrunt_guard.qc, vr_agrunt_guard_holdfire)
+    }
     if(VR_AG_Stream(self.vr_ag_wid) && d > 0.8 * VR_ADGun_Value(self.vr_ag_wid, "range"))
     {
         return FALSE; // (a flamethrower's stream reaches so far)
@@ -2971,6 +2975,20 @@ An armed enforcer (experimental): an enforcer holding one of your weapons (its l
 "weapon2", "weaponflags2": a second one-handed weapon in its left hand (as monster_vr_grunt's).
 */
 void() monster_vr_enforcer = { VR_AM_Spawn(VR_AM_ENFORCER); };
+
+/*QUAKED monster_vr_knight (1 0 0) (-16 -16 -24) (16 16 40) Ambush
+An armed knight (experimental): a knight holding a melee weapon as the armed humanoids hold theirs (his own sword's place).
+"weapon": its weapon (13 the sword, the default; 2 the axe, 17 the crowbar, 14 the chainsaw, AD's swords...; -1 its
+fists; only melee weapons). "weapon2": a second one-handed melee weapon in its left hand.
+*/
+void() monster_vr_knight =
+{
+    if(!self.weapon)
+    {
+        self.weapon = WID_SWORD; // (his own: the sword; not the pool's)
+    }
+    VR_AM_Spawn(VR_AM_KNIGHT);
+};
 
 // An armed monster of the table's row `kind` (vr_armedmon.qc): its weapon picked, then its monster's own spawn (its
 // classname, health, sounds, pains, deaths: that monster to the rest of the game), its gunless model, the layer's run,

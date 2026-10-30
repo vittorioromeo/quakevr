@@ -85,7 +85,7 @@ struct ArmedRig
     modelmeta::Id model;
     int numVerts;
     int rightHand[3];
-    VertRange gun[4];
+    VertRange gun[5];
     int numGun;
     int gunRear[2];
     int gunMuzzle[2];
@@ -108,6 +108,10 @@ inline constexpr ArmedRig armedRigs[] = {
         "upperarm_l", "forearm_l", 148, 1.f, 0.5f, 0.f},
     {modelmeta::Id::VrEnforcer, 479, {41, 364, 365}, {{22, 23}, {100, 100}, {400, 430}, {455, 478}}, 4, {425, 420},
         {407, 100}, 409, 412, "upperarm_r", "forearm_r", "upperarm_l", "forearm_l", 322, 0.6f, 0.5f, 20.f},
+    // (the knight, vr_agknight: his sword's pieces hidden (vr_monstermods.cpp knownSwords), its pommel 568/571, its
+    // tip 561/564, its guard's ends 537/594 the roll; his fist 106, 110, 114; the chest's front 224)
+    {modelmeta::Id::VrKnight, 655, {106, 110, 114}, {{334, 336}, {363, 365}, {524, 524}, {535, 540}, {557, 648}}, 5,
+        {568, 571}, {561, 564}, 537, 594, "upperarm_r", "forearm_r", "upperarm_l", "forearm_l", 224, 1.f, 0.5f, 0.f},
 };
 
 // `model`'s row (nullptr: not an armed monster's model).

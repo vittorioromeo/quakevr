@@ -3,7 +3,10 @@
 A monster holding one of your weapons, drawn as the weapon lying about is, fired and swung with your weapons' own code,
 disarmed, re-armed and dropping it on death (ROUND22.md, "Armed grunts" and the sections after it). The code knows
 nothing of the monster that holds the weapon: what it needs is the monster's **row** in the armed monsters' table.
-Rows now: the grunt (`monster_vr_grunt`, row 0) and the enforcer (`monster_vr_enforcer`, row 1).
+Rows now: the grunt (`monster_vr_grunt`, row 0), the enforcer (`monster_vr_enforcer`, row 1) and the knight
+(`monster_vr_knight`, row 2: melee weapons only, a sword by default; a map's knights with `vr_agknight` 1, QC
+`VR_AKN_Replace`; ROUND23.md, "Knights as armed humanoids"). `VR_AM_GUN_KINDS` (2): the kinds the gun holders' loops
+mean (pose categories, replacements); the toolgun lists the knight only with `vr_agknight` on.
 
 ## Where things are
 

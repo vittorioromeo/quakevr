@@ -22,11 +22,11 @@ float vr_agrw_kind0;     // vr_agrunt_test_kind as it was
 float vr_agrw_keep;      // vr_agrunt_fall_keep_impact as it was
 float vr_agrw_check;     // vr_agrunt_ragweapon_check as it was
 vector vr_agrw_home;
-float VR_AGRW_CASES = 4;
+float() VR_AGRW_Cases = { return cvar("vr_agknight") ? 6 : 4; }; // (the knight's with vr_agknight: kind 2, a sword)
 
 string(float c) VR_AGRW_Name =
 {
-    return strcat(floor(c / 2) == 0 ? "grunt" : "enforcer", (c & 1) ? " topple" : " stagger");
+    return strcat(floor(c / 2) == 0 ? "grunt" : floor(c / 2) == 1 ? "enforcer" : "knight", (c & 1) ? " topple" : " stagger");
 };
 
 void() VR_AGRW_Frame =
@@ -47,7 +47,7 @@ void() VR_AGRW_Frame =
                 cvar_set("vr_agrunt_ragweapon_check", "1");
             }
         }
-        if(vr_agrw_case >= VR_AGRW_CASES)
+        if(vr_agrw_case >= VR_AGRW_Cases())
         {
             localcmd("vr_agrunt_ragweapon_err done\n");
             cvar_set("vr_agrunt_test_kind", ftos(vr_agrw_kind0));
@@ -62,7 +62,7 @@ void() VR_AGRW_Frame =
         p.flags = p.flags | FL_NOTARGET;
         setorigin(p, vr_agrw_home);
         p.velocity = '0 0 0';
-        vr_agt_grunt = g = VR_AGT_Spawn(WID_SHOTGUN, 80);
+        vr_agt_grunt = g = VR_AGT_Spawn(vr_agrw_case >= 4 ? WID_SWORD : WID_SHOTGUN, 80);
         g.health = 400; // (a landing's impact damage never kills it)
         vr_agrw_t0 = time;
         vr_agrw_down = 0;
