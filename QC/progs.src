@@ -46,7 +46,9 @@ vr_scaleutil.qc
 vr_weaponutil.qc
 vr_wpnforcegrab.qc
 vr_carry.qc
+vr_melee_params.qc
 vr_melee.qc
+vr_melee_bash.qc
 vr_juice.qc
 vr_grenade.qc
 vr_reload.qc

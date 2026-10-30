@@ -1,5 +1,6 @@
 #include "vr_alloccount.h"
 #include "vr_trace.hpp"
+#include "vr_geom.hpp"
 // vr_box3d_knockdown.cpp -- knockdowns: recoveries and getting up (the pose fit, the stand spot) and the stagger,
 // topple, shove and get-up API.
 // Split from vr_box3d.cpp (see its comment for the whole); the shared declarations are in
@@ -330,7 +331,7 @@ namespace
             const trace_t box = SV_Move(o, lo, hi, o, MOVE_NORMAL, ent);
             if(!box.startsolid && !box.allsolid)
             {
-                out = glm::vec3{o[0], o[1], o[2]};
+                out = geom::vec(o);
                 return true;
             }
             if(lift >= most)

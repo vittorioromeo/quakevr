@@ -1,6 +1,7 @@
 // vr_painknock.cpp -- see vr_painknock.hpp.
 
 #include "vr_painknock.hpp"
+#include "vr_geom.hpp"
 #include "vr_blood.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -195,8 +196,8 @@ void onDamage(int armor, int blood, const float from[3])
     bool directed = glm::length(f) > noDirection;
     if(directed && cl.worldmodel)
     {
-        const glm::vec3 middle = 0.5f * (glm::vec3{cl.worldmodel->mins[0], cl.worldmodel->mins[1], cl.worldmodel->mins[2]}
-                                            + glm::vec3{cl.worldmodel->maxs[0], cl.worldmodel->maxs[1], cl.worldmodel->maxs[2]});
+        const glm::vec3 middle = 0.5f * (geom::vec(cl.worldmodel->mins)
+                                            + geom::vec(cl.worldmodel->maxs));
         directed = glm::length(f - middle) > noDirection;
     }
     hit(static_cast<float>(armor + blood), f, directed, "damage");

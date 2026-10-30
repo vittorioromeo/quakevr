@@ -1,6 +1,7 @@
 // vr_limbmodel.cpp -- see vr_limbmodel.hpp.
 
 #include "vr_mdlbuild.hpp"
+#include "vr_geom.hpp"
 #include "vr_bytes.hpp"
 #include "vr_limbmodel.hpp"
 #include "vr_box3d.hpp"
@@ -102,11 +103,11 @@ constexpr float capTexelsPerUnit = 2.5f; // the cap's flesh as fine as the body 
         {
             constexpr float sinew[3][3] = {{83.f, 55.f, 35.f}, {99.f, 63.f, 43.f}, {111.f, 71.f, 51.f}};
             const float* s = sinew[za::min(static_cast<int>((w - 0.5f) * 6.f), 2)];
-            return glm::vec3{s[0], s[1], s[2]};
+            return geom::vec(s);
         }
         constexpr float brown[5][3] = {{35.f, 19.f, 7.f}, {47.f, 23.f, 11.f}, {59.f, 31.f, 15.f}, {75.f, 35.f, 19.f}, {87.f, 43.f, 23.f}};
         const float* s = brown[za::clamp(static_cast<int>((lv * 1.4f - 0.2f + (w - 0.5f) * 0.3f) * 5.f), 0, 4)];
-        return glm::vec3{s[0], s[1], s[2]};
+        return geom::vec(s);
     }
     const int i = za::clamp(static_cast<int>(1.f + lv * lv * 12.f + (w - 0.5f) * 3.f), 1, 13);
     return glm::vec3{static_cast<float>(7 + 8 * i), 0.f, 0.f};

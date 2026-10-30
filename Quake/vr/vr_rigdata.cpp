@@ -392,7 +392,7 @@ struct Fit
     const auto* base = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes);
     const trivertx_t& t = base[static_cast<za::SizeT>(pose) * static_cast<za::SizeT>(hdr->numverts) + static_cast<za::SizeT>(v)];
     return glm::vec3{t.v[0], t.v[1], t.v[2]} * glm::vec3{hdr->scale[0], hdr->scale[1], hdr->scale[2]} +
-           glm::vec3{hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
+           geom::vec(hdr->scale_origin);
 }
 
 // The bones `changed` (bits) of `rig` fitted again to their vertices (each pose), their points (hull) and the

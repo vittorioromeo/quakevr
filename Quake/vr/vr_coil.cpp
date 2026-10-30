@@ -580,7 +580,7 @@ bool Cord::build(const glm::vec3& eye, za::Vector<gfx::TubeRing>& out, int& side
         const glm::vec3 lp{l.pos[0], l.pos[1], l.pos[2]};
         if(glm::distance(lp, centre) < l.radius + reach)
         {
-            lights.pushBack({&l, lp, glm::vec3{l.color[0], l.color[1], l.color[2]} / 128.f, l.radius});
+            lights.pushBack({&l, lp, geom::vec(l.color) / 128.f, l.radius});
         }
     }
 

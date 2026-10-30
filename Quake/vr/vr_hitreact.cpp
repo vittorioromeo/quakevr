@@ -800,7 +800,7 @@ void drawnPoses(const entity_t* e, const aliashdr_t* hdr, int& pose1, int& pose2
     const float roll = za::atan2(glm::dot(glm::cross(u0, up), fw), glm::dot(u0, up)) * (180.f / 3.14159265f);
     a[ROLL] = roll;
     AngleVectors(a, f, r, u);
-    if(glm::dot(glm::vec3{u[0], u[1], u[2]}, up) < 0.999f)
+    if(glm::dot(geom::vec(u), up) < 0.999f)
     {
         a[ROLL] = -roll;
     }
@@ -1240,7 +1240,7 @@ void noteDrawnTurn(int num, const entity_t& p, const glm::vec3& at, const glm::v
     d.num = num;
     d.time = cl.time;
     d.turn = s > 1e-5f ? k * (deg / s) : glm::vec3{0.f};
-    d.off = at - glm::vec3{p.origin[0], p.origin[1], p.origin[2]};
+    d.off = at - geom::vec(p.origin);
     for(DrawnTurn& o : drawnTurns)
     {
         if(o.num == num)
@@ -1272,7 +1272,7 @@ void noteDrawnTurn(int num, const entity_t& p, const glm::vec3& at, const glm::v
 [[nodiscard]] float viewDistance(const entity_t* e)
 {
     const glm::vec3 o = drawnOrigin(e, nullptr);
-    return glm::length(o - glm::vec3{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]});
+    return glm::length(o - geom::vec(r_refdef.vieworg));
 }
 
 [[nodiscard]] bool placeable(const rigpose::Rigid& w);
@@ -1380,8 +1380,8 @@ void ragdollProps(const ArmPose& s, const entity_t* e)
             vec3_t sa{-p.angles[0], p.angles[1], p.angles[2]}, f, r, u;
             AngleVectors(sa, f, r, u);
             const glm::vec3 fw = wr * glm::vec3{1.f, 0.f, 0.f};
-            const float off = glm::length(glm::vec3{p.origin[0], p.origin[1], p.origin[2]} - at);
-            const float turn = za::acos(za::clamp(glm::dot(fw, glm::vec3{f[0], f[1], f[2]}), -1.f, 1.f)) * (180.f / 3.14159265f);
+            const float off = glm::length(geom::vec(p.origin) - at);
+            const float turn = za::acos(za::clamp(glm::dot(fw, geom::vec(f)), -1.f, 1.f)) * (180.f / 3.14159265f);
             ragErr.n++;
             ragErr.offMax = za::max(ragErr.offMax, off);
             ragErr.offSum += off;
@@ -1413,7 +1413,7 @@ RagWeaponErr ragWeaponErr;
 {
     vec3_t a{-angles[0], angles[1], angles[2]}, f, r, u;
     AngleVectors(a, f, r, u);
-    const glm::mat3 m{glm::vec3{f[0], f[1], f[2]}, -glm::vec3{r[0], r[1], r[2]}, glm::vec3{u[0], u[1], u[2]}};
+    const glm::mat3 m{geom::vec(f), -geom::vec(r), geom::vec(u)};
     return glm::normalize(glm::quat_cast(m));
 }
 
@@ -1491,7 +1491,7 @@ void ragWeaponMeasure(const ArmPose& s, const entity_t* e)
         const rigpose::Rigid off = gripRigid(kind, weapons::slotForModel(p.model), side == 0 ? aggrip::Main : aggrip::Off);
         const glm::quat wr = rotOfAngles(p.angles);
         const glm::quat gr = glm::normalize(wr * glm::inverse(off.rot));
-        const glm::vec3 gp = glm::vec3{p.origin[0], p.origin[1], p.origin[2]} - scale * (gr * off.pos);
+        const glm::vec3 gp = geom::vec(p.origin) - scale * (gr * off.pos);
         const float d = glm::length(gp - wantPos);
         const float turn = glm::degrees(2.f * za::acos(za::clamp(za::abs(glm::dot(gr, wantRot)), 0.f, 1.f)));
         float weaponIn = 0.f;
@@ -1872,7 +1872,7 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
         if(num > 0)
         {
             const entity_t& p = cl_entities[num];
-            ragErr.propFar = za::max(ragErr.propFar, glm::length(glm::vec3{p.origin[0], p.origin[1], p.origin[2]} - drawnOrigin(e, nullptr)));
+            ragErr.propFar = za::max(ragErr.propFar, glm::length(geom::vec(p.origin) - drawnOrigin(e, nullptr)));
         }
     }
     aggrip::noteSubject(kind, slot, slotL, viewDistance(e));

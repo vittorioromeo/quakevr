@@ -3,6 +3,7 @@
 // vr_ragdoll_internal.hpp.
 
 #include "vr_modelmetadata.hpp"
+#include "vr_geom.hpp"
 #include "vr_ragdoll_internal.hpp"
 #include "vr_tracy.h"
 #include "vr_api_render.h"
@@ -183,7 +184,7 @@ void recordMotion()
     }
     const int prop = motionTest.prop;
     const bool propShown = prop > 0 && prop < cl.num_entities;
-    motionPoints.prop.pushBack(propShown ? glm::vec3{cl_entities[prop].origin[0], cl_entities[prop].origin[1], cl_entities[prop].origin[2]}
+    motionPoints.prop.pushBack(propShown ? geom::vec(cl_entities[prop].origin)
                                          : glm::vec3{0.f});
     const hands::State& hs = hands::current();
     motionPoints.hand.pushBack(hs.pos[0]);

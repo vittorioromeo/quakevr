@@ -3,6 +3,7 @@
 // Split from vr_wounds.cpp (a pure move); what they share is in vr_wounds_internal.hpp.
 
 #include "vr_modelmetadata.hpp"
+#include "vr_geom.hpp"
 #include "vr_wounds_internal.hpp"
 #include "vr_dents.hpp"
 #include "vr_bloodstream.hpp"
@@ -333,7 +334,7 @@ void handsInfo_f()
         Con_Printf("  gear #%d %s %s: blood on %d texels (%.1f)\n", m.weapon, m.model ? m.model->name : "?", where, count, sum);
         if(m.model && m.model->type == mod_brush && parkIndex(m.ent) < 0)
         {
-            printBoxCells(i, glm::vec3{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]}, "you");
+            printBoxCells(i, geom::vec(r_refdef.vieworg), "you");
         }
     }
 }
@@ -418,7 +419,7 @@ void spatterTest_f()
         {
             float c[3];
             R_BModelCentre(g, c);
-            mid = glm::vec3{c[0], c[1], c[2]};
+            mid = geom::vec(c);
         }
         const glm::vec3 toEye = glm::normalize(eye - mid);
         ev.org = mid + toEye * (modelRadius(g->model) + (Cmd_Argc() > 2 ? dist : -4.f)); // (just past its corners)
@@ -500,8 +501,8 @@ void test_f()
             {
                 continue;
             }
-            const glm::vec3 to = glm::vec3{c.origin[0], c.origin[1], c.origin[2]} - eye;
-            const float cosA = glm::dot(glm::normalize(to), glm::vec3{fwd[0], fwd[1], fwd[2]});
+            const glm::vec3 to = geom::vec(c.origin) - eye;
+            const float cosA = glm::dot(glm::normalize(to), geom::vec(fwd));
             if(vr_wounds_debug.value)
             {
                 Con_Printf("  %d %s cos %.2f dist %.0f\n", i, c.model->name, cosA, glm::length(to));
@@ -532,7 +533,7 @@ void test_f()
             {
                 continue;
             }
-            const float d = glm::distance(glm::vec3{c.origin[0], c.origin[1], c.origin[2]}, eye);
+            const float d = glm::distance(geom::vec(c.origin), eye);
             if(d < best)
             {
                 best = d;

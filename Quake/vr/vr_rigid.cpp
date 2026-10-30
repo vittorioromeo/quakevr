@@ -65,8 +65,8 @@ void makeLocalBox(edict_t* ent, glm::vec3& lo, glm::vec3& hi)
     {
         // A solid prop (.vr_rigid 2, an explosive box): its Quake box follows its turn (vr_box3d.cpp solidBox); its
         // model's own is the drawn one.
-        lo = glm::vec3{model->mins[0], model->mins[1], model->mins[2]};
-        hi = glm::vec3{model->maxs[0], model->maxs[1], model->maxs[2]};
+        lo = geom::vec(model->mins);
+        hi = geom::vec(model->maxs);
         const float size = props::drawnSize(model); // its Size (Held Object Offsets; the alias models': modelBox)
         lo *= size;
         hi *= size;

@@ -1,6 +1,7 @@
 // vr_rope.cpp -- see vr_rope.hpp.
 
 #include "vr_modelmetadata.hpp"
+#include "vr_geom.hpp"
 #include "vr_rope.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -891,7 +892,7 @@ bool hookTail(const glm::vec3& b, glm::vec3& out, glm::vec3& dir)
         {
             continue;
         }
-        const float d = glm::distance(glm::vec3{e.origin[0], e.origin[1], e.origin[2]}, b);
+        const float d = glm::distance(geom::vec(e.origin), b);
         if(d < bestD)
         {
             bestD = d;
@@ -905,7 +906,7 @@ bool hookTail(const glm::vec3& b, glm::vec3& out, glm::vec3& dir)
     vec3_t angles{-best->angles[0], best->angles[1], best->angles[2]}, f, r, u; // (alias models' pitch is the other way)
     AngleVectors(angles, f, r, u);
     const float scale = best->scale ? static_cast<float>(best->scale) / static_cast<float>(ENTSCALE_DEFAULT) : 1.f;
-    dir = glm::vec3{f[0], f[1], f[2]};
+    dir = geom::vec(f);
     const glm::vec3 back = b - dir * (tailLength * scale);
     const trace_t tr = worldtrace::world(b, back);
     if(tr.startsolid || tr.allsolid)

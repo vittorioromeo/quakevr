@@ -1202,3 +1202,39 @@ b3_split.py / b3_qcsplit.py (moves), b3_progscmp.py (two progs.dat compared with
   baseline.tsv but the known changes (autopump 7/7, fist_alert and swim_sound pass, reload 111/4: the same four lines
   as other branches' runs). progs.dat before and after the QC move: statements, functions, defs and globals identical
   (b3_progscmp.py). No hot per-frame function was split, so no bench pair.
+## Refactor wave B3, group G2: body, physics, melee (branch `agent/refb3bpm`)
+
+No behaviour change intended; areas B (body, rigs, tools), P (ragdoll, physics) and M (melee, gore) only.
+
+- **Canonical spellings** (step 1; scripts rewrote only the exact forms, the compiler rejected the rest): 14 edict
+  loops of the form `for(i = first; i < qcvm->num_edicts; i++) { e = EDICT_NUM(i); if(e->free) continue; ... }` (or
+  `if(e->free || x) continue`, `if(!e->free && x) {...}` as the whole body) -> `progs::forEachEdict(first, ...)`
+  (bodies without break/return and not using the index; their `continue` -> `return`). 15 server VM push/pop pairs ->
+  `progs::ServerVm` where the pop was the scope's last statement or right before a bare `return`. 144
+  `glm::vec3{p[0], p[1], p[2]}` of float arrays -> `geom::vec(p)` (byte arrays, e.g. trivertx `.v`, stay).
+- **Left** (not identical): the `EDICT_NUM(1)` / `svs.clients[0].edict` player reads (51; `localPlayer()` also needs
+  client 0 active and returns null, which those sites never check); loops that break, return or use the index (25);
+  push/pop pairs with code after the pop (Con_Printf, if) or the old VM read (rigid, motion, agarmor, crates, wounds,
+  hitmodel, hitmodel_diag, debris, chainsaw:402); `vec3_t v{x,y,z}` stores.
+- **Splits** (step 2, pure moves): vr_physics.cpp (2282 lines) -> vr_physics.cpp (1199) + vr_physics_water.cpp (1108:
+  splashes, sounds, wading, swimming, VR_AllowWaterSplash); the helpers both use (`active`, `f`, `vec`, `finite`,
+  `hasFlag`, `solidOf`, `isClient`) are inline in vr_physics_internal.hpp (`physics::detail`), `waterFeedback`
+  declared there. vr_melee.qc (4933) -> vr_melee_params.qc (numbers, what a hand holds), vr_melee.qc (following,
+  deciding a blow), vr_melee_bash.qc (swish, stamina/counter, stance/bash, each frame), listed in that order in
+  progs.src: progs.dat is byte-identical.
+- **Splits, second pass** (pure moves; the moved code's anonymous-namespace types go to `<file>_internal.hpp` in
+  `<ns>::detail`, the functions and state the other file uses are wrapped in `namespace detail` where they stand, so the
+  order of definitions and of static initialization in each file is unchanged; the moved state is all constant-initialized,
+  avatar's dynamic `bindPose` stays in vr_avatar.cpp behind `bind()`): vr_agarmor.cpp -> + vr_agarmor_check.cpp (the
+  vr_agarmor_check self-check); vr_motion_play.cpp -> + vr_motion_eval.cpp (vr_motion_eval, vr_motion_header_check,
+  evaluating); vr_avatar.cpp -> + vr_avatar_legs.cpp (clock, gait, water, stance, swimFoot, solveLeg) + vr_avatar_climb.cpp
+  (footTrace .. updateClimbing, logClimbing); vr_box3d_diag.cpp -> + _piles, _perf, _ragdoll, _player.cpp (commands
+  declared in vr_box3d_diag_internal.hpp); vr_wounds.cpp -> + vr_wounds_net.cpp (the event queue, queueInfo, parseEvent,
+  parseClear). Checked: 0 warnings; agarmor_1/5, ragdoll_*, prop_climb, limb_wear, selfchecks, swim_sound, slopes, judo,
+  agrunt samples, dead_gear, collectfx, melee_phase, fist_alert unchanged against baseline.tsv but for the expected passes
+  and the listed flaky ones; eval.sh full 163/171 before and after (the rows that differ, damage in the last digit, differ
+  as much between two runs of the old build).
+- **Not done**: hitreact (arms, skin) and ragactive (swim, hold, cut) splits (budget); combat.qc's
+  parry block sits between T_DamageDeal and T_Damage, so a file of its own changes the compile order (no byte-identical
+  check). Long functions (step 3): none split (derive, createRagdoll, skinOf and the plans have no comment-marked phases
+  over a context that could be proven unchanged within this pass).

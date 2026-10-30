@@ -1,6 +1,7 @@
 // vr_hull.cpp -- see vr_hull.hpp.
 
 #include "vr_hull_internal.hpp"
+#include "vr_geom.hpp"
 #include "vr_alloccount.hpp"
 #include "vr_brushes.hpp"
 #include "vr_diskcache.hpp"
@@ -3181,8 +3182,7 @@ void crouchStatus_f()
         Con_Printf("vr_crouch_status: no game\n");
         return;
     }
-    qcvm_t* oldvm = nullptr;
-    PR_PushQCVM(&sv.qcvm, &oldvm); // a console command: no VM is current
+    progs::ServerVm vm; // a console command: no VM is current
     edict_t* ent = EDICT_NUM(1);
     const int headOfs = progs::fields().headpos;
     const glm::vec3 head = headOfs >= 0 ? progs::fieldVec(ent, headOfs) : glm::vec3{0.f};
@@ -3192,7 +3192,6 @@ void crouchStatus_f()
         static_cast<double>(top), static_cast<double>(eye), static_cast<double>(crouchLevelFor(sv.worldmodel, 0.f)),
         top > 0.f ? (boxFitsAt(ent, 1, 0.f) ? 1 : 0) : 1, static_cast<double>(ent->v.origin[0]),
         static_cast<double>(ent->v.origin[1]), static_cast<double>(ent->v.origin[2]));
-    PR_PopQCVM(oldvm);
 }
 
 // The player's width against entities' boxes: 0 Quake's (off).
@@ -3959,10 +3958,8 @@ void startBackground(Tree& t)
     za::Vector<za::SizeT> subs;
     if(vr_hull_brushmodels.value != 0.f)
     {
-        qcvm_t* oldVm = nullptr;
-        PR_PushQCVM(&sv.qcvm, &oldVm);
+        progs::ServerVm vm;
         collidingSubs(subs); // (an external model's brushes added here wait for the other jobs first: subOf)
-        PR_PopQCVM(oldVm);
     }
     ++background.started;
     BackgroundTree bt;
@@ -4272,10 +4269,8 @@ void prepareBrushModels()
     const za::SizeT beforeBytes = built.bytes() + tree.bytes() + monsterTrees.bytes();
     za::Vector<za::SizeT> subs;
     {
-        qcvm_t* oldVm = nullptr;
-        PR_PushQCVM(&sv.qcvm, &oldVm);
+        progs::ServerVm vm;
         collidingSubs(subs);
-        PR_PopQCVM(oldVm);
     }
     za::Vector<Tree*> sizes;
     if(tree.forClipnodes == built.clipnodes) sizes.pushBack(&tree);
@@ -4476,7 +4471,7 @@ bool moveBox(const edict_t* passedict, const float* mins, const float* maxs, flo
         narrowBox(mins, maxs, width, boxMins, boxMaxs);
         boxMaxs[2] = mins[2] + height; // Quake's hull's height, from the box's feet as Quake places it
         // (its tree not ready yet: Quake's hull meanwhile, its compile on the pool: "Trees compiled in play")
-        return worldTreeReady((glm::vec3{boxMaxs[0], boxMaxs[1], boxMaxs[2]} - glm::vec3{boxMins[0], boxMins[1], boxMins[2]}) * 0.5f);
+        return worldTreeReady((geom::vec(boxMaxs) - geom::vec(boxMins)) * 0.5f);
     }
     const float crouch = crouchTop(passedict);
     if((vr_hull_width.value <= 0.f && crouch <= 0.f) || !sv.active || !sv.worldmodel || !isPlayerBox(passedict, mins, maxs))
@@ -4617,8 +4612,8 @@ bool clipBSP(const edict_t* ent, const float* start, const float* boxMins, const
         // A box made in the game (vr_brushes.cpp): its convex planes met directly (its model is made again in place
         // when it changes: never in the brushes kept here).
         const glm::vec3 origin{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]};
-        if(!brushes::clipBox(model, glm::vec3{start[0], start[1], start[2]} - origin, glm::vec3{boxMins[0], boxMins[1], boxMins[2]},
-               glm::vec3{boxMaxs[0], boxMaxs[1], boxMaxs[2]}, glm::vec3{end[0], end[1], end[2]} - origin, trace))
+        if(!brushes::clipBox(model, geom::vec(start) - origin, geom::vec(boxMins),
+               geom::vec(boxMaxs), geom::vec(end) - origin, trace))
         {
             return false;
         }
@@ -4639,8 +4634,8 @@ bool clipBSP(const edict_t* ent, const float* start, const float* boxMins, const
         return false;
     }
     const glm::vec3 origin{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]};
-    const glm::vec3 s = glm::vec3{start[0], start[1], start[2]} - origin;
-    const glm::vec3 e = glm::vec3{end[0], end[1], end[2]} - origin;
+    const glm::vec3 s = geom::vec(start) - origin;
+    const glm::vec3 e = geom::vec(end) - origin;
     const glm::vec3 lo{boxMins[0], boxMins[1], boxMins[2]}, hi{boxMaxs[0], boxMaxs[1], boxMaxs[2]};
     ++vr_profcounts.hullchecks;
     const glm::vec3 centre = (lo + hi) * 0.5f;
@@ -4683,8 +4678,8 @@ bool clipPortal(const edict_t* ent, const float* start, const float* mins, const
     Plane box[6]{};
     Brush br{};
     br.count = 6;
-    br.mins = origin + glm::vec3{ent->v.mins[0], ent->v.mins[1], ent->v.mins[2]};
-    br.maxs = origin + glm::vec3{ent->v.maxs[0], ent->v.maxs[1], ent->v.maxs[2]};
+    br.mins = origin + geom::vec(ent->v.mins);
+    br.maxs = origin + geom::vec(ent->v.maxs);
     for(int i = 0; i < 6; i++)
     {
         const int axis = i / 2;

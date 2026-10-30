@@ -32,6 +32,7 @@
 // frames is a few units off it at most mid-swing (vr_anim_smooth_check).
 
 #include "vr_animsmooth_internal.hpp"
+#include "vr_geom.hpp"
 #include "vr_agarms.hpp"
 #include "vr_aglegs.hpp"
 #include "vr_hitreact.hpp"
@@ -296,7 +297,7 @@ bool rigData(SmoothModel& m, qmodel_t* model, const aliashdr_t* hdr)
     m.rebuildError = rebuildError;
     m.rebuildDequant = dequant;
     m.invScale = glm::vec3{1.f / hdr->scale[0], 1.f / hdr->scale[1], 1.f / hdr->scale[2]};
-    m.origin = glm::vec3{hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
+    m.origin = geom::vec(hdr->scale_origin);
     const auto* base = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes);
     const glm::vec3 scale{hdr->scale[0], hdr->scale[1], hdr->scale[2]};
     const glm::vec3 origin{hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
@@ -401,7 +402,7 @@ bool rigData(SmoothModel& m, qmodel_t* model, const aliashdr_t* hdr)
                     const trivertx_t& t = base[static_cast<za::SizeT>(p) * nv + static_cast<za::SizeT>(v)];
                     const float* n = r_avertexnormals[za::min<int>(t.lightnormalindex, NUMVERTEXNORMALS - 1)];
                     place[static_cast<za::SizeT>(v)] += back * (x(p, v) - k.pos);
-                    normal[static_cast<za::SizeT>(v)] += back * glm::vec3{n[0], n[1], n[2]};
+                    normal[static_cast<za::SizeT>(v)] += back * geom::vec(n);
                     count[static_cast<za::SizeT>(v)]++;
                 }
             }

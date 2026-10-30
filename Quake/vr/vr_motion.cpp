@@ -1636,7 +1636,7 @@ void sampleEntities(edict_t* player)
             continue;
         }
         const float d = e == player || held ? 0.f
-                                            : glm::distance(from, glm::vec3{e->v.origin[0], e->v.origin[1], e->v.origin[2]});
+                                            : glm::distance(from, geom::vec(e->v.origin));
         if(d > entityRadius)
         {
             continue;
@@ -2294,7 +2294,7 @@ void qcValue(const char* key, const float* value)
                 static_cast<int>(ServerSample::maxValues), key);
             return;
         }
-        sampling->values.emplaceBack(key, glm::vec3{value[0], value[1], value[2]});
+        sampling->values.emplaceBack(key, geom::vec(value));
     }
 }
 

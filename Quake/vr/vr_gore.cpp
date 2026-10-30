@@ -1,6 +1,7 @@
 // vr_gore.cpp -- see vr_gore.hpp.
 
 #include "vr_random.hpp"
+#include "vr_geom.hpp"
 #include "vr_gore.hpp"
 #include "vr_trace.hpp"
 #include "vr_bloodstream.hpp"
@@ -342,7 +343,7 @@ void pool(const PendingPool& p)
     if(p.ent > 0 && p.ent < cl.num_entities && cl_entities[p.ent].model == p.model && p.model)
     {
         const entity_t& e = cl_entities[p.ent];
-        if(glm::distance(glm::vec3{e.origin[0], e.origin[1], e.origin[2]}, p.org) < 96.f)
+        if(glm::distance(geom::vec(e.origin), p.org) < 96.f)
         {
             org = {e.origin[0], e.origin[1], e.origin[2]};
         }
@@ -786,7 +787,7 @@ void test_f()
     const glm::vec3 f{fwd[0], fwd[1], 0.f};
     const glm::vec3 dir = glm::length(f) > 0.01f ? glm::normalize(f) : glm::vec3{1.f, 0.f, 0.f};
     const entity_t& pl = cl_entities[cl.viewentity];
-    const glm::vec3 org = glm::vec3{pl.origin[0], pl.origin[1], pl.origin[2]} + dir * 64.f + glm::vec3{0.f, 0.f, 8.f};
+    const glm::vec3 org = geom::vec(pl.origin) + dir * 64.f + glm::vec3{0.f, 0.f, 8.f};
     const int lvl = za::max(1, level());
     if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "burst"))
     {

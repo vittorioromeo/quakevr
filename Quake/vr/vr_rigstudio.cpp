@@ -133,7 +133,7 @@ void restoreSettings()
 void findStage()
 {
     edict_t* p = EDICT_NUM(1);
-    st.home = glm::vec3{p->v.origin[0], p->v.origin[1], p->v.origin[2]};
+    st.home = geom::vec(p->v.origin);
     const float yaw = p->v.angles[1];
     const glm::vec3 fwd{za::cos(yaw * deg), za::sin(yaw * deg), 0.f};
     vec3_t start{st.home.x, st.home.y, st.home.z}, zero{0.f, 0.f, 0.f};
@@ -944,7 +944,7 @@ struct AimReading
         {
             const float pp = p->v.angles[0] * deg, py = p->v.angles[1] * deg; // (a model's pitch: up)
             const glm::vec3 fwd{za::cos(pp) * za::cos(py), za::cos(pp) * za::sin(py), za::sin(pp)};
-            const glm::vec3 want = glm::normalize(st.aim.at - glm::vec3{p->v.origin[0], p->v.origin[1], p->v.origin[2]});
+            const glm::vec3 want = glm::normalize(st.aim.at - geom::vec(p->v.origin));
             r.server = za::acos(za::clamp(glm::dot(fwd, want), -1.f, 1.f)) / deg;
             r.serverOk = true;
         }

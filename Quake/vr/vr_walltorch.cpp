@@ -299,7 +299,7 @@ void crackles()
         {
             for(const auto& [ent, t] : taken)
             {
-                if(t.stamp == frameStamp && t.wallKnown && glm::distance(glm::vec3{ch.origin[0], ch.origin[1], ch.origin[2]}, t.wall) < 2.f)
+                if(t.stamp == frameStamp && t.wallKnown && glm::distance(geom::vec(ch.origin), t.wall) < 2.f)
                 {
                     Con_DPrintf("wall torch: its wall's crackle at %.0f %.0f %.0f silenced\n", t.wall.x, t.wall.y, t.wall.z);
                     ch.sfx = nullptr; // (static sounds are made again at the next sign-on: a load, a new map)
@@ -649,7 +649,7 @@ extern "C" void VR_WallTorchFlames(void)
                 (cl.model_precache[e.baseline.modelindex] == wallModel ||
                     (cl.model_precache[e.baseline.modelindex] == stickModel && e.baseline.frame == wallFrame)))
             {
-                t.wall = glm::vec3{e.baseline.origin[0], e.baseline.origin[1], e.baseline.origin[2]};
+                t.wall = geom::vec(e.baseline.origin);
                 t.wallKnown = true;
             }
         }
@@ -786,7 +786,7 @@ extern "C" void VR_WallTorchFlames(void)
             const entity_t& e = cl_static_entities[i];
             if(e.model == wallModel)
             {
-                wallSmoke(staticSmoke[i], glm::vec3{e.origin[0], e.origin[1], e.origin[2]}, dt, eye);
+                wallSmoke(staticSmoke[i], geom::vec(e.origin), dt, eye);
             }
         }
     }
@@ -892,17 +892,15 @@ void walltorch::restoreAfterLoad()
     }
     // The torches the save has: where they hung.
     za::Vector<glm::vec3> have;
-    for(int i = 1; i < qcvm->num_edicts; i++)
-    {
-        edict_t* e = EDICT_NUM(i);
-        if(e->free || strcmp(PR_GetString(e->v.classname), "light_torch_small_walltorch") != 0)
+    progs::forEachEdict(1, [&](edict_t* e) {
+        if(strcmp(PR_GetString(e->v.classname), "light_torch_small_walltorch") != 0)
         {
-            continue;
+            return;
         }
         const eval_t* home = GetEdictFieldValueByName(e, "wt_home");
-        have.pushBack(home ? glm::vec3{home->vector[0], home->vector[1], home->vector[2]}
-                            : glm::vec3{e->v.origin[0], e->v.origin[1], e->v.origin[2]});
-    }
+        have.pushBack(home ? geom::vec(home->vector)
+                            : geom::vec(e->v.origin));
+    });
     // The map's (its entities as they were spawned, the skill's and deathmatch's taken out as ED_LoadFromFile does).
     int restored = 0;
     const char* data = sv.worldmodel->entities;

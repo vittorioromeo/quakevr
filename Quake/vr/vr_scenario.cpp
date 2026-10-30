@@ -3,6 +3,7 @@
 // settings put back when the test ends; vr_scenario validate and runall check every file headless.
 
 #include "vr_scenario.hpp"
+#include "vr_geom.hpp"
 #include "vr_box3d.hpp"
 #include "vr_checklist.hpp"
 #include "vr_engine.hpp"
@@ -522,8 +523,8 @@ bool takeIntoHand(edict_t* p, edict_t* spawner, int hand, za::Vector<int>& taken
         {
             continue;
         }
-        const float d = glm::distance(glm::vec3{e->v.origin[0], e->v.origin[1], e->v.origin[2]},
-            glm::vec3{spawner->v.origin[0], spawner->v.origin[1], spawner->v.origin[2]});
+        const float d = glm::distance(geom::vec(e->v.origin),
+            geom::vec(spawner->v.origin));
         if(d < best)
         {
             best = d;
@@ -597,7 +598,7 @@ void place()
     bool gaveTo[2] = {false, false};
     for(const Give& g : s.gives)
     {
-        edict_t* w = toolgun::spawnEntryAt(g.entry, glm::vec3{p->v.origin[0], p->v.origin[1], p->v.origin[2]}, yaw);
+        edict_t* w = toolgun::spawnEntryAt(g.entry, geom::vec(p->v.origin), yaw);
         if(!w)
         {
             note(va("line %d: \"%s\" not available here (its pack's data missing?)", g.line, g.what.cStr()));
@@ -665,7 +666,7 @@ void place()
             continue;
         }
         made++;
-        state.placed.pushBack(Placed{NUM_FOR_EDICT(e), sp.line, e->v.classname, glm::vec3{e->v.origin[0], e->v.origin[1], e->v.origin[2]}});
+        state.placed.pushBack(Placed{NUM_FOR_EDICT(e), sp.line, e->v.classname, geom::vec(e->v.origin)});
         Con_DPrintf("vr_scenario: line %d: \"%s\" (edict %d) at %.0f %.0f %.0f\n", sp.line, sp.what.cStr(),
             NUM_FOR_EDICT(e), e->v.origin[0], e->v.origin[1], e->v.origin[2]);
     }
@@ -831,7 +832,7 @@ void where()
                 if(worldtrace::isLiquid(c) && d < best)
                 {
                     best = d;
-                    water = glm::vec3{q[0], q[1], q[2]};
+                    water = geom::vec(q);
                 }
             }
         }
@@ -1017,7 +1018,7 @@ void frame()
                 {
                     const edict_t* o = EDICT_NUM(n);
                     ok = !o->free && o != p && o->v.modelindex != 0.f &&
-                         glm::distance(glm::vec3{o->v.origin[0], o->v.origin[1], o->v.origin[2]}, pl.at) < 64.f;
+                         glm::distance(geom::vec(o->v.origin), pl.at) < 64.f;
                 }
                 there += ok ? 1 : 0;
                 if(!ok)

@@ -1771,7 +1771,7 @@ extern "C" int VR_HitModelClip(edict_t* ent, const float* start, const float* mi
     {
         VR_ProfileBegin("hit model");
     }
-    const bool hit = clip(ent, a, b, glm::vec3{mins[0], mins[1], mins[2]}, glm::vec3{maxs[0], maxs[1], maxs[2]}, tolerance, c,
+    const bool hit = clip(ent, a, b, qvr::geom::vec(mins), qvr::geom::vec(maxs), tolerance, c,
         maxfraction, h);
     if(fine)
     {

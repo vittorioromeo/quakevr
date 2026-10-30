@@ -22,6 +22,7 @@
 // they play); the recordings are precached at each map's start with Quake VR's progs (precache).
 
 #include "vr_modelmetadata.hpp"
+#include "vr_geom.hpp"
 #include "vr_physsound.hpp"
 #include "vr_cvars.hpp"
 #include "vr_debris.hpp"
@@ -400,7 +401,7 @@ const msurface_t* surfaceAlong(const qmodel_t* m, const mnode_t* node, const glm
     {
         return "";
     }
-    const glm::vec3 local = ent ? at - glm::vec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]} : at;
+    const glm::vec3 local = ent ? at - geom::vec(ent->v.origin) : at;
     const mnode_t* head = m->nodes + m->hulls[0].firstclipnode;
     // Down onto the top (the hold is on it, a little in from the lip); else in towards the face under the lip.
     const msurface_t* s = surfaceAlong(m, head, local + glm::vec3{0.f, 0.f, 4.f}, local - glm::vec3{0.f, 0.f, 12.f}, 0);

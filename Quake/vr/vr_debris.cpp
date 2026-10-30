@@ -518,13 +518,7 @@ void obstaclesOf(za::Vector<Obstacle>& out, float extra)
         const float margin = extra > 0.f && qvr::strings::startsWith(t.classname.cStr(), "func_") ? 8.f : 40.f + extra;
         out.pushBack({t.lo - glm::vec3{margin}, t.hi + glm::vec3{margin}, t.classname.cStr()});
     }
-    for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
-    {
-        edict_t* e = EDICT_NUM(i);
-        if(e->free)
-        {
-            continue;
-        }
+    progs::forEachEdict(svs.maxclients + 1, [&](edict_t* e) {
         const char* cls = PR_GetString(e->v.classname);
         glm::vec3 lo = vec(e->v.absmin), hi = vec(e->v.absmax);
         if(glm::any(glm::greaterThan(lo, hi)) || (lo == glm::vec3{0.f} && hi == glm::vec3{0.f}))
@@ -572,7 +566,7 @@ void obstaclesOf(za::Vector<Obstacle>& out, float extra)
         else if((static_cast<int>(e->v.solid) == SOLID_NOT || static_cast<int>(e->v.solid) == SOLID_TRIGGER) &&
                 static_cast<int>(e->v.movetype) == MOVETYPE_NOCLIP)
         {
-            continue; // a bubble rising (AD's misc_bubble: a noclip trigger), a spark: passing, nothing to keep off
+            return; // a bubble rising (AD's misc_bubble: a noclip trigger), a spark: passing, nothing to keep off
                       // (and where it was at the plan's moment differed from load to load: the plans and their keys,
                       // vr_place_keep, with it)
         }
@@ -582,10 +576,10 @@ void obstaclesOf(za::Vector<Obstacle>& out, float extra)
         }
         else
         {
-            continue; // lights, info_null, ambient sounds: nothing to keep off
+            return; // lights, info_null, ambient sounds: nothing to keep off
         }
         out.pushBack({lo - glm::vec3{margin + extra} - reach, hi + glm::vec3{margin + extra} + reach, why});
-    }
+    });
 }
 
 // A number the worldspawn sets for Quake VR ("_vr_debris", "_vr_crates": `absent` if it has none): 0 none in this map,
@@ -1501,7 +1495,7 @@ int putPlaced(edict_t* e)
     const glm::vec3 up{0.f, 0.f, 1.f};
     const glm::vec3 fwd{za::cos(yaw), za::sin(yaw), 0.f};
     held::anglesFromAxes(glm::mat3{fwd, glm::cross(up, fwd), up}, e->v.angles, false);
-    restOn(e, glm::vec3{e->v.origin[0], e->v.origin[1], e->v.origin[2]}, up, *m, scale);
+    restOn(e, geom::vec(e->v.origin), up, *m, scale);
     return m->kind;
 }
 
