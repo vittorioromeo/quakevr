@@ -724,7 +724,8 @@ The baseline every refactor phase is checked against (the kit's `scratch/refacto
   change; not the close shove (`vr_agrunt_shove_close 0`: the same). Whether a real pull in VR still wins needs him.
 - **Test 60 (parries), not fixed: geometry.** The grunt (kind 0) fails the ogre case 4 runs of 5: its parry's pose
   (up 1.00) holds the sword 9-11 units to its right of the blow's line (weapon middle 16 -10 22 body space, upright),
-  outside `VR_AGPAR_RMON` (5 units), "missed its weapon". The enforcer (kind 1) passed 4 of 5.
+  outside `VR_AGPAR_RMON` (5 units), "missed its weapon". The enforcer (kind 1) passed 4 of 5. Fixed since: "The
+  parry's guard meets the blow" below.
 
 Checklist:
 - Throw or slam a grunt so its right leg hits the floor (or a wall) hard: the dent and wound land, no stall.
@@ -3249,3 +3250,31 @@ the muzzle wisps' and the thunderbolt's newer changes, not impacts).
   until it breaks`; `[impactunify] shoot a grenade in flight (shotgun, nails): sparks fly out along the hit, not a
   fountain straight up`; `[impactunify] punch or club a wall torch: a wooden knock; a grenade: a light metal clink
   (not a flesh slap)`; `[impactunify] chainsaw a wall torch: no sparks`.
+
+## The parry's guard meets the blow (branch `agent/guardpose`)
+
+Test 60's ogre case: the raised parry held the weapon beside the blow's way, not in it ("missed its weapon"; his call:
+fix the pose, keep `VR_AGPAR_RMON` 5). `VR_AGPar_Pose` aims the weapon's middle at a point on the blow's way, but the
+rest of the pose then moves it: the Pose Studio's keys (`vr_agk_rp`, its hold's offset), the body's turn, the reach
+clamp. Kinds 1 and 2 held the sword up to 10-13 units to its right of the way (middle `14 -13 13`, `18 -10 26`).
+
+- **The fix (`VR_AGPar_Meet`, vr_armedgrunt_parry.qc; called by `VR_AGP_Pose` after the weapon is placed and turned):**
+  the weapon's line as the game has it (`VR_AG_WeaponLine`) is measured and the weapon (and its hand's target,
+  `vr_agp_v`) moved across onto the middle the parry aimed at, by the parry's share, only across the weapon's own line
+  (where along its line the keys hold it stays), at most `VR_AGPAR_AIM_MAX` 16 units, and never further out of the
+  arm's reach than the pose already had it. The keys stay the base, the correction lies on top; every kind and weapon,
+  the reactive parry and the guard (preventive, wind-up) alike, since they share the pose.
+- **Test 60's ogre setup:** its ogre is put back face to face with the grunt before the blow (its AI's first second
+  walked it round to its side once in 10 runs: "from behind", no parry raised). A parry that is not up prints why.
+- **Numbers (10 runs each, `vr_agrunt_test_kind`):** before: grunt 7 of 8 clean, enforcer 5 of 10 (5 "missed its
+  weapon", parry up 1.00), kind 2 6 of 7; the pose fix alone: 10/10, 19/20 (the one: the ogre from behind), 10/10;
+  with the test's setup fixed: 10/10, 10/10, 10/10 (the sword's middle now 0-4.5 units off the way across it, the
+  rest along its tilt). Regression (`--only agrunt|parry|judo|melee_phase|disarm`, 93 cases): no case worse than
+  the baseline (melee_phase, agrunt_1 failed once each and passed on a rerun; agrunt_76's cover shots flaky as
+  listed; parry_pose fails as in the baseline); eval: every verdict the same (a few damage digits jitter run to run).
+
+Checklist:
+- [guardpose] Swing at an armed grunt (sword, then an enforcer) so it raises its parry: its weapon sits across your
+  blow's way, in front of its chest, not off to its right; your swing rings off it.
+- [guardpose] Raise your weapon near a grunt (the wind-up parry) or step in close (the preventive guard): its raised
+  weapon points at your hand, its hand still on the grip (not stretched off it).
