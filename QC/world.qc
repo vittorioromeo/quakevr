@@ -172,64 +172,10 @@ void() main =
 entity lastspawn;
 
 //=======================
-/*QUAKED worldspawn (0 0 0) ?
-Only used for the world entity.
-Set message to the level name.
-Set sounds to the cd track to play.
-
-World Types:
-0: medieval
-1: metal
-2: base
-*/
-//=======================
-
-void() worldspawn =
+// Quake VR's own precaches every map has (worldspawn's, after the player's and the C physics code's sounds, in this
+// order: the precache order is the sounds' and models' indices).
+void() VR_World_Precache =
 {
-    VR_Pack_Refresh(); // (what the files on disk make available: the precaches below and every spawn function read it)
-    vr_save_campaign = cvar_hget(cvarh_vr_campaign);
-    vr_save_packmask = 1 + VR_Pack_Hipnotic() + 2 * VR_Pack_Rogue();
-    lastspawn = world;
-    vr_fire_spots = 0; // QVR: the map's flames, as they spawn (vr_walltorch.qc)
-    cvar_set("vr_recording_clean_map", "0"); // QVR: recording mode is the map's own (info_vr_trailer sets it: vr_trailer.qc)
-    if(mapname == "vrtutorial")
-    {
-        cvar_set("vr_tutorial_started", "1"); // QVR: the tutorial started once: VR starts in the hub from now on
-    }
-
-    // FRIKBOT
-    BotInit();
-
-    InitBodyQue();
-
-    // HIPNOTIC
-    //JIM
-    InitBulletHoles();
-
-    // custom map attributes
-    if(self.model == "maps/e1m8.bsp")
-    {
-        cvar_set("sv_gravity", "100");
-    }
-    else
-    {
-        cvar_set("sv_gravity", "800");
-    }
-
-    // HONEY
-    fog_global_density = world.ideal_yaw;
-    fog_global_color  = world.view_ofs;
-
-    // the area based ambient sounds MUST be the first precache_sounds
-
-    // player precaches
-    W_Precache();   // get weapon precaches
-    RunePrecache(); // precache the runes
-
-    // sounds used from C physics code
-    precache_sound("demon/dland2.wav");        // landing thud
-    precache_sound("misc/h2ohit1.wav");        // landing splash
-
     // VR: water sounds played by the engine (vr_physics.cpp: splashes, shots into water, wading,
     // swimming strokes; recordings, docs/vr-port/CREDITS.md): four of each (a hand out: one), the engine picks one
     precache_sound("vr/splash_small1.wav");
@@ -319,6 +265,67 @@ void() worldspawn =
     VR_Crates_Precache(); // VR: wooden crates (vr_crates.qc)
     VR_Reload_Precache(); // VR: immersive reloading's shells and sounds (vr_reload.qc)
     VR_AGR_Precache(); // VR: armed humanoid replacements' bodies and weapons, when on (vr_armedrepl.qc)
+};
+
+/*QUAKED worldspawn (0 0 0) ?
+Only used for the world entity.
+Set message to the level name.
+Set sounds to the cd track to play.
+
+World Types:
+0: medieval
+1: metal
+2: base
+*/
+//=======================
+
+void() worldspawn =
+{
+    VR_Pack_Refresh(); // (what the files on disk make available: the precaches below and every spawn function read it)
+    vr_save_campaign = cvar_hget(cvarh_vr_campaign);
+    vr_save_packmask = 1 + VR_Pack_Hipnotic() + 2 * VR_Pack_Rogue();
+    lastspawn = world;
+    vr_fire_spots = 0; // QVR: the map's flames, as they spawn (vr_walltorch.qc)
+    cvar_set("vr_recording_clean_map", "0"); // QVR: recording mode is the map's own (info_vr_trailer sets it: vr_trailer.qc)
+    if(mapname == "vrtutorial")
+    {
+        cvar_set("vr_tutorial_started", "1"); // QVR: the tutorial started once: VR starts in the hub from now on
+    }
+
+    // FRIKBOT
+    BotInit();
+
+    InitBodyQue();
+
+    // HIPNOTIC
+    //JIM
+    InitBulletHoles();
+
+    // custom map attributes
+    if(self.model == "maps/e1m8.bsp")
+    {
+        cvar_set("sv_gravity", "100");
+    }
+    else
+    {
+        cvar_set("sv_gravity", "800");
+    }
+
+    // HONEY
+    fog_global_density = world.ideal_yaw;
+    fog_global_color  = world.view_ofs;
+
+    // the area based ambient sounds MUST be the first precache_sounds
+
+    // player precaches
+    W_Precache();   // get weapon precaches
+    RunePrecache(); // precache the runes
+
+    // sounds used from C physics code
+    precache_sound("demon/dland2.wav");        // landing thud
+    precache_sound("misc/h2ohit1.wav");        // landing splash
+
+    VR_World_Precache(); // VR: Quake VR's own sounds and models every map has (below)
 
     // setup precaches allways needed
     precache_sound("items/itembk2.wav");        // item respawn sound
