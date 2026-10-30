@@ -32,9 +32,6 @@ namespace qvr::kickcancel
 // when there is none (not a listed weapon's model, vr_weapon_kick_cancel 0, or at rest).
 [[nodiscard]] bool byteCancel(const entity_t& e, const aliashdr_t* hdr, glm::mat4& out);
 
-// Whether `model`'s kick is taken out (a listed weapon's model, vr_weapon_kick_cancel on).
-[[nodiscard]] bool covers(const qmodel_t* model);
-
 // VR_AliasPostTransform: `matrix` (the byte space to the world) followed by `e`'s cancel, if any.
 void applyDrawn(const entity_t* e, float matrix[16]);
 

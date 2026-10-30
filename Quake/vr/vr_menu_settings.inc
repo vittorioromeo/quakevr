@@ -1060,8 +1060,8 @@ za::Vector<Item> pageWeaponEffects()
         header("Recoil"),
         toggle("Programmatic Recoil", vr_weapon_recoil)
             .help("Each shot kicks the drawn weapon back and tips it up, for the weapons whose Recoil is on (Weapon Offsets > "
-                  "Effects: the grunts' burst rifle; the others' models have their own). Looks only: the aim and the shots "
-                  "stay where your controller is."),
+                  "Effects: every gun by default; the kick in Quake's gun models is taken out). Looks only: the aim and the "
+                  "shots stay where your controller is."),
         slider("Kick Back", vr_recoil_kick, 0.f, 5.f, 0.1f, "%.1f cm").extend(0.f, 20.f)
             .help("How far a shot kicks the weapon back, at a weapon's Recoil Strength and Recoil Kick Back 1 (Weapon "
                   "Offsets > Effects: each weapon's own)."),

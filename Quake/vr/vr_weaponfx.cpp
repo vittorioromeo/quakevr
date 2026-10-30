@@ -1,6 +1,7 @@
 // vr_weaponfx.cpp -- see vr_weaponfx.hpp.
 
 #include "vr_testkit.hpp"
+#include "vr_kickcancel.hpp"
 #include "vr_random.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_weaponfx.hpp"
@@ -1147,6 +1148,12 @@ void streamTest(const Check& check)
     cvar_t* shakeVar = weapons::cvar(held, Key::StreamShake);
     const za::String oldShake{shakeVar->string};
     Cvar_SetValueQuick(shakeVar, 1.f);
+    // (The shake is times the weapon's own Kick Back and Muzzle Rise: measured at 1, whatever the held gun's.)
+    cvar_t* kickVar = weapons::cvar(held, Key::RecoilKick);
+    cvar_t* riseVar = weapons::cvar(held, Key::RecoilRise);
+    const za::String oldKick{kickVar->string}, oldRise{riseVar->string};
+    Cvar_SetValueQuick(kickVar, 1.f);
+    Cvar_SetValueQuick(riseVar, 1.f);
     const double clock = cl.time;
     forget(hand);
     streamed(hand);
@@ -1192,6 +1199,8 @@ void streamTest(const Check& check)
     check(glm::length(posOff) == 0.f && angOff.x == 0.f, "Stream Shake 0: none", -angOff.x, 0.f);
     forget(hand);
     Cvar_SetQuick(shakeVar, oldShake.cStr());
+    Cvar_SetQuick(kickVar, oldKick.cStr());
+    Cvar_SetQuick(riseVar, oldRise.cStr());
 }
 
 // vr_recoil_test: each weapon's own recoil kick and rise (Key::RecoilKick, RecoilRise) move its recoil only. At their
@@ -1323,6 +1332,11 @@ void recoilTest_f()
         glm::length(pos3), glm::length(pos0));
     recoveryTest(check);
     streamTest(check);
+    // The models' own kick taken out (vr_kickcancel.cpp): every kicking gun's body at rest on each of its frames.
+    testkit::Tally kick;
+    kickcancel::check(kick);
+    passed += kick.passed;
+    failed += kick.failed;
     qvr::testkit::verdict("vr_recoil_test", passed, failed);
 }
 

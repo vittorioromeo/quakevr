@@ -1193,6 +1193,12 @@ extern "C" const char* VR_CvarAlias(const char* name)
 
 extern "C" int VR_RetiredCvar(const char* name)
 {
+    // 2026-10-30: the weapons' blend towards frame 0 (one hand, two hands: vr_wofs_zb_NN, vr_wofs_zb_2h_NN), which
+    // steadied the models' own kick; the kick is taken out now (vr_kickcancel.cpp).
+    if(!q_strncasecmp(name, "vr_wofs_zb_", 11))
+    {
+        return 1;
+    }
     for(const char* retired : retiredCvars)
     {
         if(!q_strcasecmp(name, retired))

@@ -902,9 +902,9 @@ za::Vector<Item> pageWofsEffects()
     list.pushBackMultiple(
         // The programmatic weapon effects (vr_weaponfx.cpp; their global settings: Weapon Effects).
         header("Effects"),
-        cycle("Recoil", weapons::cvar(slot, Key::Recoil), {{0.f, "Off (the model's own)"}, {1.f, "On"}})
-            .help("Each shot kicks the drawn weapon back and tips it up, then it comes back to rest: for a model without "
-                  "a recoil animation of its own. Looks only: the aim and the shots don't move."),
+        cycle("Recoil", weapons::cvar(slot, Key::Recoil), {{0.f, "Off"}, {1.f, "On"}})
+            .help("Each shot kicks the drawn weapon back and tips it up, then it comes back to rest (Quake's guns' own "
+                  "kick in their models is taken out: this is theirs now). Looks only: the aim and the shots don't move."),
         s("Recoil Strength", Key::RecoilStrength, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
             .help("Times Weapon Effects' Kick Back and Muzzle Rise."),
         s("Recoil Kick Back", Key::RecoilKick, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
@@ -928,7 +928,7 @@ za::Vector<Item> pageWofsEffects()
         s("Stream Rumble", Key::StreamHaptic, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 5.f)
             .help("A stream weapon: how hard the controller rumbles while it fires (1: the light buzz it always had). 0: "
                   "none."),
-        cycle("Muzzle Flash", weapons::cvar(slot, Key::Flash), {{0.f, "Off (the model's own)"}, {1.f, "On"}})
+        cycle("Muzzle Flash", weapons::cvar(slot, Key::Flash), {{0.f, "Off"}, {1.f, "On"}})
             .help("The shotgun's flash at this weapon's muzzle (its Muzzle settings) for a moment at each shot, following "
                   "the gun; gone when it leaves your hand."),
         s("Flash Size", Key::FlashSize, 0.2f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f).help("Times the shotgun's flash."),

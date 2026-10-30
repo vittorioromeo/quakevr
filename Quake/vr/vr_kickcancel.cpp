@@ -590,12 +590,6 @@ bool byteCancel(const entity_t& e, const aliashdr_t* hdr, glm::mat4& out)
     return true;
 }
 
-bool covers(const qmodel_t* model)
-{
-    const aliashdr_t* hdr = vr_weapon_kick_cancel.value ? quakeHeader(model) : nullptr;
-    return hdr && kickOf(model, hdr);
-}
-
 void applyDrawn(const entity_t* e, float matrix[16])
 {
     if(!e || !e->model || e->model->type != mod_alias)

@@ -177,7 +177,8 @@ namespace
 // where the config holds the old 0 (takeWidowmakerCupAim70).
 // 71: the heavy revolver's (slot 38) longer barrel: its muzzle, length, balance and mass (takeRevolverBarrel71).
 // 72: his flare gun and heavy revolver (slots 37, 38): grip poses, cup hotspots, the revolver's Two-Handed (takeHis72).
-constexpr int settingsVersion = 72;
+// 73: Quake's guns' programmatic recoil, where a full config still holds the old "off" (takeRecoil73).
+constexpr int settingsVersion = 73;
 
 // The AD melee weapons' tips (slots 40-44) before 49.
 constexpr const char* oldAdMeleeTips[] = {"41.5783 -0.0077 82.5216", "35.5648 -0.2178 93.7809",
@@ -871,6 +872,39 @@ void takeHis72()
     Con_DPrintf("Weapon settings: the flare gun and the revolver took %d of his values, %d cup grips\n", taken, cups);
 }
 
+// 73: Quake's and the mission packs' guns (slots 1-7, 9-15) recoil by the programmatic recoil, their models' own kick taken
+// out (vr_kickcancel.cpp). A full config (written before configVersion 218: every slot's line, the author's of
+// 2026-10-29 too) holds the old defaults as if chosen, which would leave those guns with no kick at all: where a slot's
+// Recoil is still the old 0, it and its Strength, Kick Back, Muzzle Rise and Time still at their old defaults (1, 1, 1,
+// 0.15 s) take the new ones. A slot whose recoil was turned on (his nailguns' and laser cannon's) is left as it is. (A
+// sparse config has no such line: it already has the new defaults, and nothing here matches.)
+void takeRecoil73()
+{
+    constexpr int slotsTaken[] = {1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15};
+    constexpr OldValue old[] = {{0, Key::RecoilStrength, 1.f}, {0, Key::RecoilKick, 1.f}, {0, Key::RecoilRise, 1.f},
+        {0, Key::RecoilTime, 0.15f}};
+    int taken = 0;
+    for(const int slot : slotsTaken)
+    {
+        cvar_t& recoil = cvarAt(slot, Key::Recoil);
+        if(fabsf(recoil.value) >= 1e-4f)
+        {
+            continue; // (turned on already: the player's)
+        }
+        Cvar_SetQuick(&recoil, recoil.default_string);
+        for(const OldValue& o : old)
+        {
+            cvar_t& var = cvarAt(slot, o.key);
+            if(fabsf(var.value - o.value) < 1e-4f)
+            {
+                Cvar_SetQuick(&var, var.default_string);
+            }
+        }
+        taken++;
+    }
+    Con_DPrintf("Weapon settings: %d guns took the programmatic recoil (their models' kick taken out)\n", taken);
+}
+
 // The changes since 1.0.0 (vr_wofs_version 40): each runs once, for a config saved before its version.
 struct Step
 {
@@ -910,6 +944,7 @@ constexpr Step steps[] = {
     {70, takeWidowmakerCupAim70},
     {71, takeRevolverBarrel71},
     {72, takeHis72},
+    {73, takeRecoil73},
 };
 static_assert(steps[sizeof(steps) / sizeof(steps[0]) - 1].version == settingsVersion);
 
