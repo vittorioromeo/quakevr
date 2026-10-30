@@ -52,8 +52,6 @@
 // ---------------------------------------------------------------------------
 
 float vr_at_case;        // 0 idle; 1 .. 14 running
-float vr_at_pass;
-float vr_at_fail;
 float vr_at_step;
 float vr_at_until;
 float vr_at_keep[30];    // the cvars the tests set, put back at the end
@@ -137,16 +135,11 @@ void() VR_AT_SetDefaults =
     VR_AT_SetSkill(1); // (Normal, where the skill's factor is exactly 1: every family's own numbers mean the cvars)
 }
 
-void(float ok, string what) VR_AT_Check =
-{
-    if(ok) { vr_at_pass = vr_at_pass + 1; return; }
-    vr_at_fail = vr_at_fail + 1;
-    dprint(sprintf("arena: fail %s\n", what));
-}
+void(float ok, string what) VR_AT_Check = { VR_Test_Check(ok, what); }; // (`arena: FAIL <what>`)
 
 void() VR_AT_End =
 {
-    dprint(sprintf("arena: test %g over: %g passed, %g failed\n", vr_at_case, vr_at_pass, vr_at_fail));
+    dprint(sprintf("arena: test %g over: %g passed, %g failed\n", vr_at_case, vr_test_pass, vr_test_fail));
     VR_AT_Restore();
     VR_AT_SetSkill(vr_at_skill0);
     cvar_set("vr_arena_test", "0");
@@ -2968,8 +2961,7 @@ void() VR_ARENA_Test_Frame =
     if(vr_at_case == 0)
     {
         vr_at_case = c;
-        vr_at_pass = 0;
-        vr_at_fail = 0;
+        VR_Test_BeginFlags("arena", VR_TEST_QUIET);
         vr_at_step = 0;
         vr_at_until = time + 30;
         VR_AT_Save();

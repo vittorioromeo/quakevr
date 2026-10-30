@@ -60,6 +60,13 @@ From the repository root:
 - `v_nailpistol_mag.mdl`: the Magazine in its own frame.
 - `vr_nailpistol_preview.mdl`: all of it with the magazine in, scaled by `preview_scale`: for looking at it in the game.
 
+**Then run `python Misc/quakevr/models_src/nailpistol/build_nailpistol_slide.py`** (pure Python, no Blender): it adds
+the second look, a full pistol slide (`vr_nailpistol_model 1`, VR Settings > Combat > Weapon Damage > Nail Pistol
+Model), as frames 2 `slide` and 3 `slide1`: its own frame, slide (vents, ejection port, serrations, the sights on it)
+and copper barrel, generated in the script, the skin grown to 256x512 with them painted below the classic texels. The
+classic frames stay byte for byte; each look's own triangles are folded to a point in the other's frames
+(ROUND23.md, "Nail pistol: a full-slide look"). Run on its own output it writes the same file again.
+
 and `nailpistol_skin_pal.png` here. It uses `Misc/quakevr/mdlgen.py` (the generated models' MDL writer) and the
 palette in `Misc/quakevr/blender/addons/quakevr_models/qpal.py`. Art lint: `python Misc/quakevr/check_mdl_art.py
 quakevr/progs/v_nailpistol.mdl quakevr/progs/v_nailpistol_mag.mdl` (needs numpy: Blender's own Python has it).

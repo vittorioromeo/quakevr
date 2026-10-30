@@ -13,7 +13,7 @@ AGENT=$1
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 RES=${RES:-C:/OHWorkspace/qvr-agents/$AGENT/scratch/zonedrag_result.txt}
 fail=0
-check() { if [ "$1" = "1" ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi; }
+source "$(dirname "$0")/qvrtest.sh"
 P="map e1m1;wait60;god;notarget;vr_holster_zones_show 1"
 CV="vr_holster_zone_hip_x;vr_holster_zone_hip_y;vr_holster_zone_hip_z;vr_holster_zone_hip_depth;vr_holster_zone_hip_width;vr_holster_zone_hip_height"
 MARK="echo ---"
@@ -57,4 +57,5 @@ END {
 grep -v "^RESULT" $RES
 while read -r tag ok name; do check "$ok" "$name"; done < <(grep "^RESULT" $RES)
 echo "$log" | grep -i "rror" | head -3
+verdict
 exit $fail

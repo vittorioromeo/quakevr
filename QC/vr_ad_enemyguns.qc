@@ -1817,7 +1817,12 @@ void(float xHand, float xWid) VR_ADGun_FireFlame =
     f.touch = VR_ADGun_FlameTouch;
     VR_ADGun_StreamFx(f, poison);
     VR_ADGun_StreamMuzzle(org, dir, poison, water);
-    VRGunHaptic(xHand, 0.1, 40, 0.4);
+    if(self.ishuman)
+    {
+        // VR: the drawn gun trembles while the flames come and the hand buzzes lightly (its Stream Shake and Stream
+        // Rumble: vr_weaponfx.cpp streamed; the hand + 2 says a stream's flame, not a shot).
+        weaponfired(self, xHand + 2);
+    }
 };
 
 // An armed monster's stream ended (its flamethrower or sprayer firing, vr_armedgrunt.qc: `m`.vr_adgun_stream its last

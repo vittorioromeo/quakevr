@@ -10,7 +10,7 @@
 AGENT=$1; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 W=C:/OHWorkspace/qvr-agents/$AGENT
 fail=0
-check() { if [ "$1" = "1" ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi; }
+source "$(dirname "$0")/../qvrtest.sh"
 mkdir -p "$W/scratch/swimsnd"
 python -c "import os,runpy; os.chdir(r'$W/scratch/swimsnd'); runpy.run_path(r'$W/Misc/quakevr/swim/swim_plays.py', run_name='__main__')" > /dev/null
 D=$(cd "$W/scratch/swimsnd" && pwd -W 2>/dev/null || pwd)
@@ -47,4 +47,5 @@ check $([ "$hs" = "$hd" ] && echo 1 || echo 0) "under water: the open hand wakes
 check $([ -n "$hp" ] && [ "$hp" != "$hd" ] && echo 1 || echo 0) "under water: a punch counts ($hp)"
 check $(echo "$pun" | grep -q "under water" && echo 1 || echo 0) "under water: the punch doesn't whoosh"
 check $(echo "$log" | grep -q "rror" && echo 0 || echo 1) "no error"
+verdict
 exit $fail

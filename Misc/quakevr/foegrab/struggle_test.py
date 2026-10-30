@@ -37,6 +37,8 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "testbatch"))
 import testbatch  # noqa: E402
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import qvrtest  # noqa: E402  (the tests' library: Misc/quakevr/qvrtest.py)
 
 os.environ.setdefault("TB_NODRAW", "1")
 AGENT = sys.argv[1] if len(sys.argv) > 1 else "permdecals"
@@ -122,7 +124,6 @@ def down(dist=24):
 
 FILTER = os.environ.get("STRUGGLE_FILTER",
                         "struggle|lifted|leg diag|legpull|pulled down|firmed up|left behind|Player pos|MARK|[Ee]rror|CRASH")
-FAILS = 0
 NAMES = ["swat", "pry", "crunch", "claw", "brace", "kick", "thrash"]
 
 
@@ -208,11 +209,8 @@ LEAD = {"lift": "swat", "leglift": "crunch", "legdrag": "claw", "legpull": "claw
         "headlift": "pry", "armdrag": "pry"}
 
 
-def verdict(ok, what):
-    global FAILS
-    print(f"  {'PASS' if ok else 'FAIL'} {what}")
-    if not ok:
-        FAILS += 1
+TALLY = qvrtest.Tally("struggle")  # (its `struggle: PASS|FAIL <what>` lines and verdict)
+verdict = TALLY.check
 
 
 def parse(out):
@@ -280,8 +278,7 @@ def main():
     for line in summary:
         if line:
             print(line)
-    print(f"{FAILS} failed")
-    return 1 if FAILS else 0
+    return TALLY.verdict()
 
 
 def check_class(b, handles, entry):

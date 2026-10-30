@@ -40,7 +40,7 @@ S="$S;vr_mock_hand_glide 0.15;vr_mock_hand_to main screen 3 30;wait11;vr_mock_ha
 S="$S;toggleconsole;quit"
 bash $KIT/run.sh $AGENT -Script "$S" -Filter "===|screen tapped|first tap|no second|never stopped|ignored|dropped|bullet time: (on|off)|rror|no gadget|usage" -Timeout 300 "$@" 2>&1 | tr -d '\r' > "$OUT"
 fail=0
-check() { if [ "$1" = 1 ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi; }
+source "$(dirname "$0")/qvrtest.sh"
 case_of() { sed -n "/=== $1 /,/=== END/p" "$OUT"; }
 has() { case_of "$1" | grep -q "$2" && echo 1 || echo 0; }
 hasnt() { case_of "$1" | grep -q "$2" && echo 0 || echo 1; }
@@ -56,4 +56,5 @@ check $(hasnt G "double tap: screen tapped") "G the gadget's hand swung then a d
 check $(has G "gadget's hand") "G ... for the gadget's hand"
 check $(has H "double tap: screen tapped") "H the guards off: counts as before"
 grep -c "ignored\|dropped" "$OUT" | sed 's/^/taps ignored or dropped: /'
+verdict
 exit $fail
