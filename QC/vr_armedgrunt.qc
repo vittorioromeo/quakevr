@@ -2571,6 +2571,10 @@ float() VR_AG_CheckAttack =
     {
         return FALSE; // (stepping aside, or away from a mine: VR_AG_Run)
     }
+    if(VR_AGG_HoldFire(self))
+    {
+        return FALSE; // (its guard up, or rising: vr_armedgrunt_guard.qc, vr_agrunt_guard_holdfire)
+    }
     if(VR_AG_Stream(self.vr_ag_wid) && d > 0.8 * VR_ADGun_Value(self.vr_ag_wid, "range"))
     {
         return FALSE; // (a flamethrower's stream reaches so far)

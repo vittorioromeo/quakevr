@@ -88,6 +88,25 @@ float(entity g) VR_AGPar_Guards;                                           // VR
 void(entity g) VR_AGPar_Frame;                                             // VR_AG_PropThink: a blow coming
 void(entity g, entity p) VR_AGPar_Pose;                                    // VR_AGP_Pose: the parry's pose
 float(entity g) VR_AGPar_WeaponFrame;                                      // VR_AG_WeaponStruck: a blow on its weapon
+// Its guard (vr_armedgrunt_guard.qc: the preventive parry, vr_agrunt_preparry, and the wind-up parry,
+// vr_agrunt_windup_parry): raised for a while before any blow, then dropped (a recovery: the opening).
+.float vr_agg_state;       // VR_AGG_*: 0 idle, 1 reacting (raised at vr_agg_until), 2 raised, 3 recovering
+.float vr_agg_kind;        // what raised it: 1 you up close (preventive), 2 your wind-up
+.float vr_agg_until;       // the state's end
+.float vr_agg_from;        // the guard raised then
+.float vr_agg_next;        // the preventive parry's next check
+.entity vr_agg_pl;         // the player it guards against
+.float vr_agg_hand;        // ... the hand it watches (+1; 0 none)
+.float vr_agg_wup0;        // your hands' raise first seen (0: not raised); a raise read (needs lowering: rearm)
+.float vr_agg_wup1;
+.float vr_agg_wread0;
+.float vr_agg_wread1;
+float(entity g) VR_AGG_Frame;                                              // VR_AGPar_Frame: its guard's state
+float(entity g) VR_AGG_HoldFire;                                           // VR_AG_CheckAttack: guarding, no attack
+float(entity pl, float h) VR_AGG_Cat;                                      // what your hand holds (the categories)
+float(float cat, float k) VR_AGG_Mult;                                     // ... its multiplier
+float(float c, float m) VR_AGG_Odds;                                       // a chance scaled, its ends kept
+string(entity g) VR_AGG_Label;                                             // Show Disarm Volumes: its guard's state
 // A deliberate strike on its weapon or hand (vr_agrunt_strike_first; vr_armedgrunt_parry.qc):
 float(entity g, entity p, entity pl, float h) VR_AG_StrikeMeets;           // VR_AG_HandStrikeSpeed: the swept test
 float(entity g, entity p) VR_AG_StrikeFrame;                               // VR_AG_WeaponStruck: strikes, then parries

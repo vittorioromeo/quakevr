@@ -73,6 +73,11 @@ float(entity g, entity by) VR_AGPar_Able =
         vr_agpar_why = "swinging itself";
         return FALSE;
     }
+    if(g.vr_agg_state == 3) // (VR_AGG_RECOVERING: vr_armedgrunt_guard.qc)
+    {
+        vr_agpar_why = "its guard dropped (recovering)";
+        return FALSE;
+    }
     if(g.enemy != by && by.enemy != g)
     {
         vr_agpar_why = "unaware of it";
@@ -796,10 +801,13 @@ void(entity g) VR_AGPar_Frame =
         return;
     }
     float mu = VRMetersToUnits();
+    float guard = VR_AGG_Frame(g); // (its guard: the preventive and wind-up parries, vr_armedgrunt_guard.qc)
+    float react = cvar_hget(cvarh_vr_agrunt_react_parry);
     VR_AGP_Body(g);
     vector chest = g.origin + VR_AGP_ToWorld(VR_AGPar_Chest(g));
     entity by = world;
     vector at = '0 0 0';
+    float byHand = -1;
     float bestD = 100000;
     entity pl = VR_Player();
     while(pl)
@@ -843,6 +851,7 @@ void(entity g) VR_AGPar_Frame =
                     {
                         bestD = dNow;
                         by = pl;
+                        byHand = h;
                         at = (hp + tip) * 0.5;
                     }
                 }
@@ -861,6 +870,7 @@ void(entity g) VR_AGPar_Frame =
             {
                 bestD = dm;
                 by = m;
+                byHand = -1;
                 if(m.vr_ag && m.vr_ag_prop)
                 {
                     VR_AG_WeaponLine(m.vr_ag_prop);
@@ -876,17 +886,43 @@ void(entity g) VR_AGPar_Frame =
         }
         m = m.chain;
     }
-    if(by && VR_AGPar_Able(g, by))
+    // Its guard up (vr_armedgrunt_guard.qc): raised towards your striking hand (or a blow coming, below), no roll.
+    if(guard == 2 && g.vr_agg_pl && !(by && VR_AGPar_Able(g, by)))
     {
-        if(!g.vr_agpar_since || time - g.vr_agpar_seen > 0.35)
+        entity gp = g.vr_agg_pl;
+        float gh = g.vr_agg_hand ? g.vr_agg_hand - 1 : cVR_MainHand;
+        vector ghp = VRGetEntHandPos(gp, gh);
+        vector gtip = VR_HAND_FIELD(gp, gh, muzzlepos, offmuzzlepos);
+        if(VRIsHandEmpty(gp, gh) || vlen(gtip - ghp) > 48)
         {
-            // A new blow coming: will it see it in time?
+            gtip = ghp;
+        }
+        by = gp;
+        at = (ghp + gtip) * 0.5;
+    }
+    if(by && (react || guard == 2) && VR_AGPar_Able(g, by))
+    {
+        if(guard == 2)
+        {
+            g.vr_agpar_since = g.vr_agg_from;
+            g.vr_agpar_ready = g.vr_agg_from;
+        }
+        else if(!g.vr_agpar_since || time - g.vr_agpar_seen > 0.35)
+        {
+            // A new blow coming: will it see it in time? (By what strikes: VR_AGG_Mult, a monster's as a melee weapon.)
             g.vr_agpar_since = time;
-            float chance = min(1, max(0, cvar_hget(cvarh_vr_agrunt_parry_chance)) * VR_AGPar_SkillChance());
-            float react = max(0, cvar_hget(cvarh_vr_agrunt_parry_react)) * VR_AGPar_SkillReact();
-            g.vr_agpar_ready = random() < chance ? time + react : -1;
+            float cat = 0;
+            if(byHand >= 0)
+            {
+                cat = VR_AGG_Cat(by, byHand);
+            }
+            float chance = VR_AGG_Odds(min(1, max(0, cvar_hget(cvarh_vr_agrunt_parry_chance)) * VR_AGPar_SkillChance()),
+                                       byHand >= 0 ? VR_AGG_Mult(cat, 0) : 1);
+            float rt = max(0, cvar_hget(cvarh_vr_agrunt_parry_react)) + random() * max(0, cvar_hget(cvarh_vr_agrunt_parry_react_rand));
+            rt = rt * VR_AGPar_SkillReact() * (byHand >= 0 ? VR_AGG_Mult(cat, 1) : 1);
+            g.vr_agpar_ready = random() < chance ? time + rt : -1;
             VR_AG_Log(sprintf("parry: %s's blow coming: %s", by.classname,
-                g.vr_agpar_ready > 0 ? sprintf("raised in %.2f s", react) : "caught out"));
+                g.vr_agpar_ready > 0 ? sprintf("raised in %.2f s", rt) : "caught out"));
         }
         g.vr_agpar_seen = time;
         g.vr_agpar_tby = by;

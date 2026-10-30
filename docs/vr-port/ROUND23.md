@@ -3020,6 +3020,63 @@ steel/silvery back end more distinct, as in the pre-slide art.
 - **Tests:** `vr_np_test 1` fails on origin/next with the old model the same way (0 passed, 3 failed: "the trigger held
   0.55 s fired 0"): not this change; baseline.tsv's np_1 (21 passed) is older than the test's 35 checks.
 
+## Armed humanoids: preventive and wind-up parries; parry by what you hold (branch `agent/preparry`)
+
+His words (2026-10-30): an option (on by default) for armed humanoids to parry preventively when you get close and their
+shove is on cooldown or they wield a melee weapon, for a while, so you wait it out or bait it and strike back; the
+reactive parry kept, on by default; and when you raise a weapon or anything you can hit with overhead or to the side,
+a preventive parry after a random delay, chance-based, so you can bait it. Lots of options. The coordinator's addition:
+the mechanics depend on what you hold (a melee weapon: readier; a gun, a prop, fists: it waits for your wind-up and
+reads it less reliably).
+
+- **Its guard** (QC/vr_armedgrunt_guard.qc, class-agnostic: any armed humanoid with a weapon and `vr_agrunt_parry` on):
+  idle -> reacting (a won roll, the delay) -> raised (its parry pose towards your striking hand, for the guard time) ->
+  recovering (it can't parry at all: `VR_AGPar_Able` "its guard dropped (recovering)"; a strike on its weapon disarms, a
+  blow lands in full) -> idle. While raised, its parry counts as raised for `VR_AG_BlowOnWeapon` (the strike-first
+  roll, `vr_agrunt_strike_beat`) and the honest hit test puts its weapon in the blow's way. Raised or rising, it holds
+  its attack (`vr_agrunt_guard_holdfire`, `VR_AG_CheckAttack`).
+- **Preventive** (`vr_agrunt_preparry` 1; Combat > Armed Grunts > AI Behaviour, Parrying Your Blows): every
+  `_interval` s (0.5), you within `_range` (64 units), it able to parry you, and its shove cooling down or off
+  (`_shove` 1) or a melee weapon in its hand (`_melee` 1): a roll (`_chance` 0.5); delay `_delay_min.._max`
+  (0.1-0.35 s), guard `_guard_min.._max` (0.8-1.6 s), recovery `_recover_min.._max` (0.6-1.2 s).
+- **Wind-up** (`vr_agrunt_windup_parry` 1): your hand (a melee weapon, a gun, a carried prop, a closed fist; never an
+  open hand) within `_range` (110 units), raised over your shoulders (20 cm under the eyes) by `_high` (0.2 m), or out
+  to your side by `_side` (0.4 m) no further ahead than `_ahead` (0.15 m), or drawn back behind your head by `_back`
+  (0.15 m), and above `_low` (0.6 m under the eyes); held `_read` s (0.08): one roll (`_chance` 0.6); delay 0.08-0.3,
+  guard 0.6-1.2, recovery 0.5-1.0 s. `_rearm` 1: a raise held is read once (lower it to be read again). The player-side
+  melee code has no wind-up detector (only "drawn back" for blows), so this is a pose test against your head and the way
+  to it (`VR_AGG_RaisedHand`).
+- **Reactive** (`vr_agrunt_react_parry` 1): the old parry for a blow it sees coming; off, only the guard raises it.
+  Its chance and reaction stay the existing settings rows (`vr_agrunt_parry_chance`, `_react`); new tunable
+  `vr_agrunt_parry_react_rand` (0: as before) adds a random 0..x s.
+- **By what you hold** (`VR_AGG_Cat`: melee weapon, gun, prop (a carried thing or a club), fists): tunables
+  `vr_agrunt_pcat_<melee|gun|prop|fist>_<chance|delay|guard|range|windup|pre>`; defaults melee 1.5/0.7/1.25/1.25/0.85/1,
+  gun 0.6/1.5/0.8/0.85/1.3/0.25, prop 0.75/1.3/0.9/0.9/1.15/0.5, fist 0.9/1.15/1/0.9/1.1/0.6. Chances scale as odds
+  (`1 - (1 - c)^m`: 0 stays never, 1 always, so the old tests' chance 1 still means always); delays (the reactive
+  reaction too), guard time and ranges multiply; `windup` multiplies the wind-up's thresholds and read time (above 1 a
+  plainer raise); `pre` the preventive chance besides (a gun's holder: it mostly waits for your wind-up). The reactive
+  parry uses the striking hand's category (a monster's blow: none).
+- **Tunables page groups:** Armed Grunts - Preventive Parry, - Wind-up Parry, - Reactive Parry, - Parry by What You
+  Hold. **Show Disarm Volumes** appends the guard's state to its note: `preparry in 0.12 s`, `preparry 0.64 s`,
+  `windup 0.49 s`, `recovering 0.59 s`.
+- **Tests** (QC/vr_armedgrunt_preparry_test.qc; Debug > Tests > Armed Grunts: Preventive Parry, Wind-up Parry):
+  `vr_agrunt_test 96`, 8 cases (shove ready: none, 0 rolls; shove cooling: raised 0.208 s after the roll (0.2), guard
+  0.806 s (0.8), a fist on the barrel in it parried, in the recovery disarmed; recovery 0.611 s then raised again;
+  the melee punch through its barrel: in the guard 5 damage (parried), in the recovery 30 and disarmed; 176 units off:
+  none; chance 0: 9 rolls, no guard; a sword grunt, shove ready: raised; random ranges: 4 cycles, delays 0.139-0.389 in
+  0.1-0.4, guards and recoveries in range): 8 passed. `vr_agrunt_test 98`, 6 cases (hand at rest: none; overhead:
+  raised 0.250 s after the raise (read 0.08 + delay 0.15 + a frame), guard 0.500, labels, the bait's strike in the
+  recovery disarms; held 2 s: 1 guard, 1 roll, lowered and raised again: a second; to the side: raised; chance 0: 1 roll,
+  none; 400 bare rolls each at chance 0.5: wind-up axe 0.67 vs shotgun 0.34, mean delay 0.141 vs 0.306 s, preventive
+  0.63 vs 0.12, every delay within its range): 6 passed. Both end on `agtest: test 9N over`. (Numbered 95/96 at
+  first; next's knights took 95: now 96 and 98.)
+- **Covering** (run_baseline agrunt + suite, `agrunt|parry|melee_phase|judo`, 91 cases before merging next, then the
+  agrunt 60-69 / 90-98, parry, judo and melee_phase cases after): 31, 36, 65 FAIL -> PASS (as disarm2); 67-69 failed
+  once from a rename slip (the grab tests' dispatch), fixed; test 95 (next's armed knights, the same parry code) 7/0.
+  After the merge test 94's case 13 (the punch through the barrel, caught out) deals 0 damage with the new parries off
+  too, and passed on this branch before the merge: next's (the worn-pack/armour changes?), not this. 66 (a lying one
+  reached for) flaky: failed once, passed on rerun with the defaults; 63 and parry_pose fail as in baseline.tsv.
+  eval.sh --full 163/171, as next (the uppercut's 13.2 predates disarm1).
 
 ## Knights as armed humanoids (branch `agent/agknight`)
 

@@ -293,6 +293,16 @@ za::Vector<Item> pageDebugAutomation()
                   "fist, a held shotgun, a carried crate and a thrown gun, unaware, caught out or its parry raised, and "
                   "in slow motion: disarmed unless its parry was raised (parried); an open hand or a push neither; a "
                   "punch on its legs its full damage (vr_agrunt_strike_first; agtest: strike ... PASS)."),
+        command("Armed Grunts: Preventive Parry", "vr_agrunt_test 96")
+            .help("vr_agrunt_test 96 (vrtesthall; a few seconds): a grunt up close, its shove cooling down or a sword in "
+                  "its hand, raises its guard after the delay, holds it, drops it: a strike in it parried, one in the "
+                  "recovery disarms; far off, chance 0 or its shove ready: none; random times within their ranges "
+                  "(vr_agrunt_preparry; agtest: guard 96.N ... PASS)."),
+        command("Armed Grunts: Wind-up Parry", "vr_agrunt_test 98")
+            .help("vr_agrunt_test 98 (vrtesthall; a few seconds): your fist raised overhead or to the side baits its "
+                  "guard (read, delay, guard, recovery: a strike then disarms); a raise held is read once; at rest or "
+                  "chance 0 none; an axe raised is parried more often and sooner than a shotgun "
+                  "(vr_agrunt_windup_parry; agtest: guard 98.N ... PASS)."),
         command("Armed Knights: Spawn, Swing, Disarm, Death", "vr_agrunt_test 95")
             .help("vr_agrunt_test 95 (vrtesthall; a few seconds): a knight made by its own spawn function with Armed "
                   "Knights off (a plain knight) and on (an armed one holding a sword at its hand), its sword hurting "
