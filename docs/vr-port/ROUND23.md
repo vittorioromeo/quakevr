@@ -1552,6 +1552,36 @@ physgun get the shared throw smoothing; the haptic presets keep today's exact va
   home; physgun swing a crate and let go at the end of the swing: it keeps the swing (before: an eased 83 ms average,
   slower); every grab, pickup, holster, lamp and foe-grab buzz feels as before.
 
+## Design review 5 (a): the hand slot (branch `agent/heldthing`)
+
+- **The slot (QC/vr_fields.qc):** the thing a hand holds besides its weapon: `.mainhand_held`/`.offhand_held` (kept: the
+  engine and saves read them) and its kind, `.vr_hold_kind_main`/`.vr_hold_kind_off` (VR_HOLD_NONE, PROP, RAGDOLL,
+  TORCH, ROUND, GRENADE). Read with `VR_Hand_Thing(e, hand)` / `VR_Hand_Kind(e, hand)` (vr_util.qc, macros).
+- **Its only writers (vr_carry.qc):** `VR_Hand_Take(p, hand, thing)` (the kind from `VR_Hand_KindOf`),
+  `VR_Hand_Release(p, hand, why)`, `VR_Hand_ReleaseThing(p, thing, why)` (whichever hand: VR_Carry_Forget and
+  VR_Grenade_Detach each wrote that out). VR_Carry_SetHeld is gone: its 40 calls and the tests' 8 direct writes moved
+  to them (`why` a word per file: letgo, reload, grenade, throw, revolver, pickup, test). `vr_debug_carry 2` prints
+  each take and let-go (`handslot: off hand takes item_shells (kind 1)`).
+- **The per-frame check (VR_Hand_Frame, PlayerPostThink):** each hand's kind against its thing's; a kind that
+  disagrees (a write past the writers, a save from before the slot) takes its thing's, with a `handslot: mismatch`
+  line, always printed. None in any covering case below.
+- **VRIsHandEmpty** reads the slot (weaponless and no thing: the very test it was). `VR_Hand_CanTake(p, hand)`
+  (vr_wpnforcegrab.qc): empty and not locked on to a pull, the conjunction the carry grab, the ragdoll grab, the box
+  touch and the foe grab's hand-over each wrote out.
+- **Kept out (behaviour changes, his call):** folding the other busy flags (`*_fgheldfoe`, `vr_foegrab_hands`,
+  `vr_mag_rehold`, `vr_ssg_held`, `vr_gren_held`, `vr_stick_tug`, `*_wtgrip`) into the slot as kinds (Foe, Physgun,
+  Flashlight, a gripped wall torch) would make VRIsHandEmpty false for them at every caller: today each caller adds
+  its own few, so "can this hand grab?" would change answers in places (one answer for all is the review's aim; which
+  callers should see which flags is his decision). The weapon stays in `.weapon`/`.weapon2` (about 140 writers,
+  monsters' too); the C++ mirror of the kind is not added (no engine reader needs it yet: the engine's held readers
+  compare entity numbers). Not done: (c) the grab query.
+- **Verified (scratch/refactor/baseline.tsv):** 23 covering cases (suite, scripts: held_over_props 6/0, pickup_mag
+  3/0, throw_spin 1/0, weapon_catch, flash_grab, grip_gap, grip_state, mapgun_pickup 17/0, empty_melee 2/0, reload
+  112/3 and all 7 reload_* as the baseline, ragdoll_grab 19/0 on its rerun (flaky: 18/1 once), ragdoll_climb 24/4,
+  prop_climb 12/0, judo 12/4, walltorch_grab): the same but melee_phase, whose grunt_fast_on fails now and then in
+  both trees (without (a): PASS then FAIL; with: FAIL, FAIL, PASS). eval.sh 163/171, 11 differ (the baseline's own
+  runs 9-11). No `handslot: mismatch` line in any log.
+
 ## Nail pistol: a full-slide look (branch `agent/npslide2`)
 
 His words (2026-10-30): the model should have a full slide on top like an actual pistol, as a testable alternative, the
