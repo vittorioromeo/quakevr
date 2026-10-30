@@ -40,6 +40,7 @@
 #include "vr_protocol.hpp"
 #include "vr_serverrules.hpp"
 #include "vr_shells.hpp"
+#include "vr_gunsfx.hpp"
 #include "vr_autopump.hpp"
 #include "vr_explosiondebris.hpp"
 #include "vr_shock.hpp"
@@ -764,6 +765,7 @@ void init()
     teleport::init();
     Cmd_AddCommand("vr_particle_test", particleTest_f);
     shells::registerCommands();
+    gunsfx::registerCommands();
     explosiondebris::registerCommands();
     srvrandom::registerCommands();
     testbatch::registerCommands();
@@ -899,6 +901,7 @@ extern "C" void VR_OnClientClearState()
     modelcollide::reset();
     selfcollide::reset();
     shells::clear();
+    gunsfx::clear();
     goresound::clear();
     bloodprints::clear();
     autopump::clear();

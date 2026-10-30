@@ -19,6 +19,7 @@
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
 #include "vr_flick.hpp"
+#include "vr_gunsfx.hpp"
 #include "vr_hands.hpp"
 #include "vr_particles.hpp"
 #include "vr_profile.hpp"
@@ -447,7 +448,7 @@ void eject(const view::ViewEntity (&weapons)[2], const Pending& p)
     }
 }
 
-void tink(Shell& s, float impact)
+void tink(Shell& s, float impact, const glm::vec3& normal)
 {
     const float threshold = 0.7f * unitsPerMetre(); // metres per second into the surface
     if(vr_shells_sound.value <= 0.f || impact < threshold || s.tinks >= 4 || cl.time < s.nextTink || inLiquid(s.pos))
@@ -457,7 +458,10 @@ void tink(Shell& s, float impact)
     s.tinks++;
     s.nextTink = cl.time + 0.06;
 
-    sfx_t* sfx = S_PrecacheSound(tinkSounds[rng.getI(0, 2)]);
+    // Of what it landed on: metal's ring, wood's knock; stone (and the rest) the tinks (vr_gunsfx_casings).
+    const int k = rng.getI(0, 2);
+    const char* surface = gunsfx::casingSound(s.pos, normal, k);
+    sfx_t* sfx = S_PrecacheSound(surface ? surface : tinkSounds[k]);
     if(!sfx)
     {
         return;
@@ -580,7 +584,7 @@ void fly(Shell& s, float dt)
         s.vel = tangent + n * bounce;
         s.angVel = s.angVel * 0.5f + onSphere() * za::min(into / unitsPerMetre() * 6.f, 25.f);
         s.pos = worldtrace::endPos(tr) + n * restHeight();
-        tink(s, into);
+        tink(s, into, n);
 
         if(n.z > 0.7f && bounce < 0.6f * unitsPerMetre())
         {

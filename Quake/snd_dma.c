@@ -603,6 +603,9 @@ void S_StartSoundPitch (int entnum, int entchannel, sfx_t *sfx, vec3_t origin, f
 	if (nosound.value)
 		return;
 
+	if (!VR_SndShot (entnum, entchannel, sfx, origin, &fvol, attenuation, &pitch)) // QVR: a shot varied, its layers started; an empty gun's click (vr/vr_gunsfx.cpp)
+		return;
+
 // pick a channel to play on
 	target_chan = SND_PickChannel(entnum, entchannel);
 	if (!target_chan)
