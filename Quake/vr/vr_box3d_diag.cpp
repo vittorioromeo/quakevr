@@ -466,9 +466,8 @@ void hullStats_f()
 {
     const HullBuildStats& s = hullBuilds;
     Con_Printf("vr_physics_hull_stats: %d props' and actors' hulls made, %.1f ms of the sync (the slowest %.2f ms); %d "
-               "built ahead on the pool (vr_box3d_hulls_ahead %d), %d of them taken; compared (2): %d the same, %d "
-               "different\n",
-        s.built, s.ms, s.mostMs, s.posted, static_cast<int>(vr_box3d_hulls_ahead.value), s.ahead, s.same, s.differed);
+               "built ahead on the pool, %d of them taken\n",
+        s.built, s.ms, s.mostMs, s.posted, s.ahead);
     for(const HullBuildStats::Slow& slow : s.slowest)
     {
         if(slow.ms > 0.0)

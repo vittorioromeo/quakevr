@@ -783,9 +783,9 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now)
     const glm::vec3 origin = vec(ent->v.origin);
     const float k = r.scale / world->m2u; // rest units -> body metres
     const float inherit = za::clamp(tune(ent, Tune::Inherit), 0.f, 2.f) / 0.1f; // (a frame is 0.1 s)
-    // Beheaded (now: ragdollDecap) with vr_decap_own_motion: its own motion (its walk, ownMotion: a stepping monster's
+    // Beheaded (now: ragdollDecap): its own motion (its walk, ownMotion: a stepping monster's
     // velocity is none) kept apart from what this frame added to its velocity (the blow's knock), which a head pop scales.
-    const bool own = now && vr_decap_own_motion.value != 0.f && num < static_cast<int>(world->motion.size());
+    const bool own = now && num < static_cast<int>(world->motion.size());
     const glm::vec3 walk = own ? ownMotion(num) : glm::vec3{0.f};
     const glm::vec3 entVel = own ? walk + vec(ent->v.velocity) - world->motion[static_cast<za::SizeT>(num)].vel : vec(ent->v.velocity);
     // A loose piece the frame hides (all its vertices at one point: the grunt's shotgun in his death frames, dropped as
@@ -817,13 +817,11 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now)
     // where that hand holds it in the rest pose (looseHolder: the part nearest it there), not where its frame has it
     // (a pain frame swings it apart from the hands), and welded to that hand below: it follows the hand through every
     // active-ragdoll state (stagger, knockdown, lift, struggle, get-up) as a dead one's weapon is dropped.
-    // (vr_knockdown_weld 2: as before, where its frame has it, welded to the part nearest it there.)
     const bool weld = r.knocked && vr_knockdown_weld.value != 0.f;
-    const bool inHand = weld && vr_knockdown_weld.value != 2.f;
     za::Array<int, ragdoll::maxBones> heldBy{};
     for(int b = 0; b < r.count; b++)
     {
-        heldBy[static_cast<za::SizeT>(b)] = inHand && rig->bones[b].joint == ragdoll::Joint::Loose ? looseHolder(*rig, b) : -1;
+        heldBy[static_cast<za::SizeT>(b)] = weld && rig->bones[b].joint == ragdoll::Joint::Loose ? looseHolder(*rig, b) : -1;
     }
 
     // Where each bone is drawn now: its frame's, an armed humanoid's arms where its posed arms were drawn (vr_agarms: on
@@ -835,10 +833,7 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now)
         {
             return; // (where the authored rig drew it, its arms on its weapons too: vr_rig2_game.cpp)
         }
-        if(vr_ragdoll_posed_arms.value != 0.f)
-        {
-            (void)agarms::drawnArmBone(num, model, *rig, b, rot, pos);
-        }
+        (void)agarms::drawnArmBone(num, model, *rig, b, rot, pos);
     };
     for(int b = 0; b < r.count; b++)
     {
@@ -1705,16 +1700,13 @@ void driveActive(Slot& s, float dt)
     RagdollBodies& r = world->ragdolls[static_cast<za::SizeT>(s.ragdoll)];
     const int every = static_cast<int>(vr_ragdoll_active_trace.value);
     const bool trace = every > 0 && static_cast<int>(qcvm->time * 72.0 + 0.5) % every == 0;
-    // Its struggle in a player's hands (vr_struggle): what holds it, its drive begun (c.struggle below).
+    // Its struggle in a player's hands (its monster group's Struggle): what holds it, its drive begun (c.struggle below).
     ragactive::StruggleInput struggleIn;
     if(vr_ragdoll_active.value != 0.f)
     {
         livingSwim(r);
         livingClimb(r, dt);
-        if(vr_struggle.value != 0.f || r.active.struggle.on)
-        {
-            livingStruggle(r, struggleIn);
-        }
+        livingStruggle(r, struggleIn);
     }
     if(!r.active.on && !trace && !ragactive::liquidPending(r.active, qcvm->time))
     {

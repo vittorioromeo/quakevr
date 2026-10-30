@@ -75,12 +75,12 @@ void(entity xInflictor, entity xAttacker, float xTake) VR_AD_ZombiePain =
 // maps): its backpack, gibs and their sounds, the footsteps, the explosions' sprites and sounds, the projectiles. With
 // the first AD monster outside AD's maps: at the map's load for those it places (and the probes' kinds that can appear
 // later: vr_probe.qc), at the spawn for the toolgun's and the spawners' (not at its first death or step: a late precache
-// there, 25-38 ms; the steps' and the grenadier's sounds were missing). vr_ad_death_precache 0: as before.
+// there, 25-38 ms; the steps' and the grenadier's sounds were missing).
 nosave float vr_ad_deathprecached; // done this map
 
 void() VR_AD_DeathPrecache =
 {
-    if(vr_ad_deathprecached || AD_Rules() || !vr_ad_data || !cvar("vr_ad_death_precache"))
+    if(vr_ad_deathprecached || AD_Rules() || !vr_ad_data)
     {
         return;
     }

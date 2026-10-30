@@ -1981,7 +1981,7 @@ void() VR_ShotPush_Touch =
 //   head or limb it strikes is worn down (VR_Limb_CorpseWear);
 // - a kill at the head or a limb armed to pop it (VR_Decap_ProjArm: a laser's or a plasma bolt's chance
 //   vr_decap_pop_laser, any other bolt's, nail's or lump's vr_decap_pop_projectile; an explosive's are its blast's,
-//   vr_limbs_blast), ended by VR_Proj_End (VR_Decap_After).
+//   vr_limbs_blast_chance), ended by VR_Proj_End (VR_Decap_After).
 // A wall torch the hit's damage reaches comes off its wall (T_Damage: VR_WallTorch_Shot; AD's T_Damage hands ours to
 // ours, VR_AD_DamageOurs); a grenade bounces off it, knocking it off (GrenadeTouch). The projectile's move meets corpses,
 // gibs, knocked-down bodies and wall torches' shot boxes: a flying missile's always (MOVE_MISSILE), a small

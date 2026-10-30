@@ -341,10 +341,6 @@ za::Vector<Item> pageDebugViews()
             .help("vr_parallax_debug: where the walls' parallax writes the depth of the carving it shows (Graphics > Surfaces > "
                   "Parallax Depth Write): red, brighter the deeper below the surface; green, brighter the higher over it "
                   "(Parallax Surface Level); dark blue: the surface's own depth."),
-        toggle("Parallax Depth Split", "vr_parallax_depth_split")
-            .help("vr_parallax_depth_split: with Parallax Depth Write on, only the textures with relief nearer than the "
-                  "parallax's reach (vr_parallax_depth_distance) use the depth-writing shader; the rest keep the early depth "
-                  "test, which that shader loses (the same picture, about 0.8 ms less in an AD fight). Off: all of it, as before."),
         toggle("Show Entity Boxes", "r_showbboxes")
             .help("Every entity's bounding box, as the game collides with it (monsters, items, missiles, triggers), through "
                   "walls. Single player only."),
@@ -718,10 +714,6 @@ za::Vector<Item> pageDebugProfiling()
                   "dismembering's: hundreds at once) painted over the next frames where they struck their bodies, all "
                   "within vr_wounds_budget_wait (0.04 s); Off: all in the frame they came, as before. Wounds (Debug > Info) "
                   "shows the queue."),
-        toggle("AD Monsters' Death Assets Early", vr_ad_death_precache)
-            .help("vr_ad_death_precache: outside Arcane Dimensions' maps, the first AD monster loads AD's backpack, gibs, "
-                  "their sounds, footsteps, explosions and projectiles as it spawns (on: in the map's load, or at the "
-                  "toolgun's spawn), or each at its first use as before (off: a 25-38 ms hitch at the first death)."),
         toggle("Keep Crates' and Rocks' Layouts", vr_place_keep)
             .help("vr_place_keep: the crates', rocks' and bricks' last layout kept and taken again when the map, its "
                   "entities and their settings are the same (on: a restart after a death loads faster, 200-250 ms in "
@@ -845,10 +837,6 @@ za::Vector<Item> pageDebugProfiling()
         toggle("Freeze Particles", vr_particle_freeze)
             .help("vr_particle_freeze: the particles stop where they are (still drawn), to compare settings on the same "
                   "frame."),
-        toggle("Half-Res In Densest Frames", vr_particle_halfres_dense)
-            .help("vr_particle_halfres_dense: half resolution (when allowed) also in the densest frames, those Skip "
-                  "Hidden Particles composites in reverse order. Off: retro particles there at full resolution, as "
-                  "before."),
         toggle("Half-Res Particles Always", vr_particle_halfres_force)
             .help("vr_particle_halfres_force: the particles drawn at half resolution in every frame with some in view "
                   "(when Half-Res Heavy Particles or Half-Res Retro Particles allow it), not only in dense effects: to "
@@ -897,13 +885,9 @@ za::Vector<Item> pageDebugProfiling()
         toggle("Physics on Threads", vr_box3d_threads)
             .help("Box3D's step (the props' physics) shared between the thread pool and the main thread. Off: the main "
                   "thread steps it alone (the same results: Box3D is deterministic whatever its threads)."),
-        cycle("Prop Hulls Ahead", "vr_box3d_hulls_ahead", {{0.f, "Off"}, {1.f, "On"}, {2.f, "On, Checked"}})
-            .help("vr_box3d_hulls_ahead: the hulls of the props made in a frame (a gib burst's head, gibs, brains) built side "
-                  "by side on the thread pool before their bodies are made, not one after another (the same hulls). "
-                  "Checked: each built again on the main thread and compared (vr_physics_hull_stats)."),
         command("Prop Hull Stats", "vr_physics_hull_stats")
             .help("vr_physics_hull_stats: the props' and actors' hulls made this session, their main thread time, the "
-                  "slowest, how many were built ahead and taken (and, Checked, compared) (console)."),
+                  "slowest, how many were built ahead on the thread pool and taken (console)."),
         cycle("Physics Threads", vr_box3d_workers, {{0.f, "All"}, {2.f, "2"}, {3.f, "3"}, {4.f, "4"}, {6.f, "6"}, {8.f, "8"}})
             .help("With Physics on Threads: at most this many threads step Box3D, the main thread one of them (All: every "
                   "worker of the pool). Measured on a 24-core CPU: 4 is as fast as 6 or 8 up to ~500 awake bodies (and "
@@ -942,10 +926,6 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_ragdoll_hand_probe: each hand holding a ragdoll's limb: the limb's lag, the hand drawn off its "
                   "controller onto it, its palm and fingertips from the limb's mesh (cm), the fingers that met it; in a "
                   "tug-of-war, the drawn hand and the controller to its grab on the weapon as drawn."),
-        toggle("Armed Ragdolls Keep Their Posed Arms", vr_ragdoll_posed_arms)
-            .help("An armed humanoid made a ragdoll (a tug, a stagger, a death) starts with its arms where they were drawn "
-                  "holding its weapon, not its animation frame's: no jump of the weapon or of a tug's hand "
-                  "(vr_ragdoll_posed_arms; off: as before)."),
         toggle("Armed Humanoids: Shoulder Skin", vr_agarms_shoulder_skin)
             .help("The shoulders' skin from the real joint: the deltoid or pauldron on the arm, its blend into the body "
                   "about the joint, the shoulder's top on the clavicle (vr_agarms_shoulder_skin; read at a map load)."),

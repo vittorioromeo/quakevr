@@ -713,10 +713,11 @@ namespace
 // pinned; not a chunk), whose hull (propHull's key) isn't made yet: each one's built on the pool now, before the loop
 // below makes the bodies, so a gib burst's hulls (a monster's head, gibs, brains: 4-8 at once) are built side by side
 // instead of one after another in the sync (VRTRACE_20261016: 13 frames of 6-7.5 ms). The same points and the same
-// propHullOf: the same hulls. vr_box3d_hulls_ahead 0: each built as its body is made, as before.
+// propHullOf: the same hulls (round 22 compared them: Box3D's hash of every hull the same). Without a pool, each is
+// built as its body is made.
 void prebuildPropHulls(const za::Vector<uint8_t>& carried)
 {
-    if(vr_box3d_hulls_ahead.value == 0.f || !jobs::pool() || !jobs::parallel())
+    if(!jobs::pool() || !jobs::parallel())
     {
         return;
     }

@@ -300,8 +300,8 @@ def scenarios():
         + spawn_grid(16, GRUNTS, x0=100, dy=48) + waits(30) + ["vr_limb_test 4"], warm=300, body=blow("vr_limb_test 3"))
     add("gore_blast_crowd_32", ["gore", "physics"], "4 rockets' blasts in a crowd of 32 (limbs popped)", RANGE,
         "32 grunts, knights, enforcers and ogres; four 120-damage explosions among them in one frame "
-        "(vr_physics_blast, vr_limbs_blast 1): kills, limbs popped near each blast, gibs, ragdolls.",
-        setup=GORE + ["vr_ragdoll_max 32", "vr_limbs_max 64", "vr_limbs_blast 1"] + spawn_grid(32, CROWD_MIX, x0=100, dy=40),
+        "(vr_physics_blast): kills, limbs popped near each blast, gibs, ragdolls.",
+        setup=GORE + ["vr_ragdoll_max 32", "vr_limbs_max 64"] + spawn_grid(32, CROWD_MIX, x0=100, dy=40),
         warm=60, body=blow(*[f"vr_physics_blast {x} {y} 40 120" for x in (192, 96) for y in (-636, -476)]))
     for g, what in ((1, "their limbs besides Quake's gibs"), (2, "their limbs instead of the meat gibs"),
                     (0, "Quake's gibs only (control)")):

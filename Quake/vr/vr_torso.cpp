@@ -1,8 +1,8 @@
 // vr_torso.cpp -- which way the torso faces, from a headset and two controllers (ROUND21.md, "Torso direction").
 //
-// Nothing tracks the torso: it is guessed. The old engine's guess (VR_GetBodyYawAngle, vr_torso_mode 0) turned it
-// four fifths of the way towards the hands' average reach from the shoulders, every frame: one hand behind the back
-// with the other moving, or one hand swept across in front, turned the whole body after it. This one (mode 1) goes
+// Nothing tracks the torso: it is guessed. The old engine's guess (VR_GetBodyYawAngle; vr_torso_mode 0, removed in
+// round 23) turned it four fifths of the way towards the hands' average reach from the shoulders, every frame: one hand
+// behind the back with the other moving, or one hand swept across in front, turned the whole body after it. This one goes
 // mostly with the head, and with its recent past (a glance does not turn the body; facing a way for a while does);
 // the hands only pull it, and only those in front of the body and not far off to a side; both hands' midpoint only
 // when both are in front (holding a gun, reaching for something), one hand alone a little; both hands hanging by the
@@ -45,40 +45,12 @@ struct Estimate
     bool following{false};  // past the deadzone, easing to the target
 
     // For vr_torso_report.
-    float head{0.f}, legacy{0.f}, target{0.f};
+    float head{0.f}, target{0.f};
     float handsDir{0.f}, handsWeight{0.f}; // the hands' direction (from the torso) and weight
     float weight[2]{0.f, 0.f}, both{0.f}, down{0.f};
 };
 
 Estimate est;
-
-// The old engine's VR_GetBodyYawAngle (world degrees): the head's yaw, pulled 0.8 of the way towards where the hands
-// are from the shoulders (an imagined chest 10 units behind the head), hands behind it pulling only a little.
-[[nodiscard]] float legacyYaw(const hands::State& s, float headYaw)
-{
-    glm::vec3 headFwd, headRight, headUp;
-    hands::angleVectors({0.f, headYaw, 0.f}, headFwd, headRight, headUp);
-
-    const glm::vec3 chest = s.playerOrigin + s.lean - headFwd * 10.f;
-    const glm::vec3 shoulders[2]{chest - headRight * 6.5f, chest + headRight * 6.5f};
-
-    glm::vec3 handDir{0.f};
-    for(int h = 0; h < HAND_COUNT; h++)
-    {
-        glm::vec3 hand = s.pos[h];
-        hand.z = shoulders[HAND_OFF].z;
-        handDir += (hand - shoulders[h]) * 0.5f;
-    }
-    handDir /= 10.f;
-
-    if(glm::dot(handDir, headFwd) < 0.f && glm::length(handDir) > 0.1f)
-    {
-        handDir = glm::normalize(handDir) * 0.1f;
-    }
-
-    const glm::vec3 dir = glm::mix(headFwd, handDir, 0.8f);
-    return glm::length(dir) > 0.f ? yawOf(dir) : headYaw;
-}
 
 // The hands' votes for the torso's direction: adds to `sum` (each direction, play-space degrees relative to the head,
 // times its weight) and `weights`, and fills est's report fields. Hands are judged in the torso's frame (`torsoWorld`,
@@ -145,16 +117,6 @@ void handVotes(const hands::State& s, float torsoWorld, float torsoFromHead, flo
 
 float estimate(const hands::State& s, float headYaw, float turnYaw, bool handsValid)
 {
-    const float legacy = handsValid ? legacyYaw(s, headYaw) : headYaw;
-    est.legacy = yawDelta(legacy, turnYaw);
-    if(vr_torso_mode.value == 0.f)
-    {
-        est.valid = false;
-        est.head = yawDelta(headYaw, turnYaw);
-        est.yaw = est.target = est.legacy;
-        return legacy;
-    }
-
     const float head = yawDelta(headYaw, turnYaw);
     const double dtRaw = est.valid ? vr_gametime - est.time : -1.0;
     const bool restart = dtRaw < 0.0 || dtRaw > 0.5; // first, or after a pause (a load, the menu): from the head
@@ -224,7 +186,7 @@ void reset()
 void report_f()
 {
     const char* label = Cmd_Argc() >= 2 ? Cmd_Argv(1) : "";
-    Con_Printf("torso %s (t %.2f): head %.1f old %.1f new %.1f\n", label, vr_gametime, est.head, est.legacy, est.yaw);
+    Con_Printf("torso %s (t %.2f): head %.1f new %.1f\n", label, vr_gametime, est.head, est.yaw);
     Con_Printf("torso+ target %.1f hist %.1f hands %.1f weight %.2f (off %.2f main %.2f both %.2f down %.2f)\n", est.target,
         est.headHistory, est.handsDir, est.handsWeight, est.weight[0], est.weight[1], est.both, est.down);
 }

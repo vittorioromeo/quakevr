@@ -44,11 +44,6 @@ Stroke strokes[2];
 sfx_t* backSound = nullptr;
 sfx_t* homeSound = nullptr;
 
-[[nodiscard]] bool on()
-{
-    return vr_autopump.value != 0.f;
-}
-
 [[nodiscard]] float strokeTime()
 {
     return za::clamp(vr_autopump_time.value, 0.1f, 0.48f); // (the shotgun refires after 0.5 s)
@@ -119,10 +114,6 @@ void fired(int hand)
     }
     Stroke& s = strokes[hand];
     s = Stroke{};
-    if(!on())
-    {
-        return;
-    }
     s.shot = cl.time;
     s.time = strokeTime();
     s.start = cl.time + strokeDelay(s.time);
@@ -145,12 +136,12 @@ float travel(int hand)
         return position(za::min(vr_autopump_hold.value, 0.9999f)) * strokeTravel();
     }
     const Stroke& s = strokes[hand];
-    return on() && s.start >= 0.0 ? position(progress(s)) * s.travel : 0.f;
+    return s.start >= 0.0 ? position(progress(s)) * s.travel : 0.f;
 }
 
 bool rearTime(int hand, double shot, double& rear, float& backSpeed)
 {
-    if((hand != HAND_OFF && hand != HAND_MAIN) || !on())
+    if(hand != HAND_OFF && hand != HAND_MAIN)
     {
         return false;
     }
@@ -173,7 +164,7 @@ void frame(const bool (&isShotgun)[2], const float (&where)[2][3])
         {
             continue;
         }
-        if(!on() || cl.time < s.shot || cl.time > s.start + s.time + 1.0)
+        if(cl.time < s.shot || cl.time > s.start + s.time + 1.0)
         {
             s = Stroke{}; // (a time going back: a new map, a demo)
             continue;

@@ -982,7 +982,7 @@ void stop(State& s, const Context& c, float t, const char* why)
     Struggle& g = s.struggle;
     g.on = false;
     g.endedAt = c.now;
-    // A lifted one still flailing (living, the hold kept: vr_struggle turned off) flails on at the flail's strengths;
+    // A lifted one still flailing (living, the hold kept: its group's Struggle turned off) flails on at the flail's strengths;
     // else its strengths let go from what they are.
     const bool flails = s.swim.liquid == Liquid::Air && s.swim.living && c.struggle && c.struggle->health > 0.f &&
                         c.struggle->holds > 0;

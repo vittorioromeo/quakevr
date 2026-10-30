@@ -21,7 +21,7 @@ let go (ROUND22.md "Dragging by the legs").
   dead       as headdrag, its health taken at 2.5 s: its struggle ends (dead), its strengths let go
   shoulderdrag  knocked down, the main hand on its right upper arm (a shoulder hold), you walk back: not judged
              but for the drag (its weights and its head's look reported)
-Each also as <case>_off (vr_struggle 0): the holds' lag and the pose compared. PASS per case as above; the logs go to
+Each also as <case>_off (every humanoid group's Struggle off, vr_mgrp_<group>_struggle 0): the holds' lag and the pose compared. PASS per case as above; the logs go to
 <agent>/scratch/struggle_<case>.txt.
 STRUGGLE_LOOK=1 also runs each as <case>_nolook (vr_struggle_look 0) and ends with a LOOK line per case: its head's
 front from the way to your head (deg, the later two thirds' mean; with the look less, as near as its neck allows), and
@@ -247,6 +247,12 @@ def drag(flat):
     return walk, moved, "left behind" in flat
 
 
+# The _off runs: every struggling group's Struggle off (vr_struggle, the switch for all, retired in round 23); a lifted
+# one flails, a dragged one lies limp (vr_mgroups.cpp struggleBases).
+STRUGGLE_OFF = "".join(f"vr_mgrp_{g}_struggle 0;" for g in
+                       ("army", "enforcer", "knight", "hknight", "miniboss", "eliteknight", "zombie", "mummy"))
+
+
 def main():
     os.makedirs(SCRATCH, exist_ok=True)
     b = testbatch.Batch(AGENT, "struggle")
@@ -260,7 +266,7 @@ def main():
                 if (ONLY and not re.search(ONLY, case)) or (off and name in ("dead", "legyank", "legpull1")):
                     continue
                 path = motion("struggle_" + case + TAG, keys())
-                cut = {"": "", "_off": "vr_struggle 0;", "_nolook": "vr_struggle_look 0;"}[var]
+                cut = {"": "", "_off": STRUGGLE_OFF, "_nolook": "vr_struggle_look 0;"}[var]
                 script = (f"{pre(name)};{case_pre()};{os.environ.get('STRUGGLE_EXTRA', '')};{cut}"
                           f"vr_mock_play {path};wait420;-grabmain;-graboff;-back;wait5;toggleconsole;quit")
                 handles[(entry, case)] = b.case(["-Script", script, "-Filter", FILTER, "-Timeout", "240"])

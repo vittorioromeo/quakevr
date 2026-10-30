@@ -410,7 +410,7 @@ float ragdollHoldForce(edict_t* player, int hand, float force = -1.f, float hert
 // What `ent`'s ragdoll weighs (N: its parts' masses, its cut ones not, times the world's gravity); 0: no ragdoll.
 [[nodiscard]] float ragdollWeight(edict_t* ent);
 void ragdollRelease(edict_t* player, int hand, const glm::vec3& velocity);
-// The toolgun's physgun on a ragdoll (vr_toolgun.cpp; vr_toolgun_physgun_ragdoll; vr_box3d_ragparts.cpp, "The physgun's
+// The toolgun's physgun on a ragdoll (vr_toolgun.cpp; vr_box3d_ragparts.cpp, "The physgun's
 // hold"): a spring from the beam's point to the part of edict `num`'s ragdoll the beam from `from` along `dir` (unit)
 // meets first within `range` units (none: the part nearest `fallback`), at that point; the part and the distance along the
 // beam to it out. False: not a ragdoll. Move: its target each frame (units); false, the hold is over (the ragdoll gone,
@@ -495,7 +495,7 @@ bool ragdollCutLimb(edict_t* ent, int bone, const glm::vec3& blade, float settle
 [[nodiscard]] bool monsterHead(const char* model);
 // What the head `model` weighs as its monster's (its prop's Mass -1, Held Object Offsets): as that head cut off the
 // class's ragdoll, the head's 7% of vr_ragdoll_<class>_mass times vr_limbs_mass_scale (limbPiece); 0: not a monster's
-// head, or vr_limbs_mass_scale 0 (estimated).
+// head (estimated).
 [[nodiscard]] float headPropMass(const char* model);
 // Where the limb at `bone` of `ent` is now (not cut: a body gibbed whole): 0 its model's origin, 1 its angles, 2 its
 // velocity, 3 a point on its own bone's surface.

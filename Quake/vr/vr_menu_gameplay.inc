@@ -150,12 +150,6 @@
 [[nodiscard]] za::Vector<Item> pageHoldingStruggle()
 {
     return {
-        toggle("Struggle", vr_struggle)
-            .help("A knocked-down humanoid you hold (lifted, dragged, by its head, its legs or an arm) fights your hold, "
-                  "blending its moves by how you hold it and where it is: held by the body it swats at you, held by the "
-                  "head it pries at your hand, hung by the legs it bends up and reaches for you, dragged by the legs it "
-                  "turns belly down and claws at the floor, dragged by an arm its legs stiffen. Off: a lifted one flails, "
-                  "a dragged one lies limp, as before."),
         slider("Strength", vr_struggle_strength, 0.f, 2.f, 0.05f, "%.2f")
             .help("Times every struggling muscle."),
         slider("Speed", vr_struggle_speed, 0.3f, 2.f, 0.05f, "%.2f").help("Times the rate of its swings, tugs and kicks."),
@@ -933,11 +927,10 @@ void kdTrigWeightRows(za::Vector<Item>& items)
         slider("Ledge Carry Past the Edge", vr_knockdown_shove_ledge_over, 0.f, 1.f, 0.05f, "%.2fx")
             .help("Once a shove has taken it past the edge, how much of its speed it keeps as it falls: low, it just tips "
                   "over the lip and drops near the ledge's foot; 1: it flies on as it goes (as before)."),
-        cycle("Weapon Stays in Hand", vr_knockdown_weld, {{0.f, "Off"}, {1.f, "In the Hand"}, {2.f, "Where It Was (Old)"}})
+        toggle("Weapon Stays in Hand", vr_knockdown_weld)
             .help("Its weapon stays in its hand while it is down or staggering, lifted or struggling (killed there, it "
-                  "drops it as usual): held by the hand that holds it in its rest pose, following that hand. Where It "
-                  "Was (Old): fixed to the part nearest it where its frame had it (the enforcer's rifle hung at his side). "
-                  "Off: it flops loose as a dead one's."),
+                  "drops it as usual): held by the hand that holds it in its rest pose, following that hand. Off: it "
+                  "flops loose as a dead one's."),
         header("Getting Up"),
         slider("Struggling Strength", vr_knockdown_wiggle, 0.f, 3.f, 0.1f, "%.1fx")
             .help("Living knockdowns gently curl their chest and nod their head about their resting pose. Arms and legs follow physically. 0: still. Dead bodies never struggle."),
@@ -2126,11 +2119,6 @@ void ikStretchReset()
                   "binaural sounds' cues for ahead, behind, above and below are. Binaural Sounds: those skip it, each "
                   "resampled cleanly (no hiss from Quake's old 11 kHz sounds; the 22 and 44 kHz ones keep their highs). "
                   "All Sounds: the panned ones too. Off: everything through it, as Quake."),
-        toggle("HRTF Anti-Aliasing", vr_snd_antialias)
-            .help("With Full-Band Sound off and Quake's 11 kHz sound, the binaural sounds are filtered before "
-                  "Quake's own low-pass, which keeps every fourth sample and so folds their highs down into the lows: "
-                  "off, a sound at your side is far more one-sided than its HRTF and the balance near the front jumps "
-                  "about. Off only to compare."),
         slider("HRTF Volume", vr_snd_hrtf_gain, 0.5f, 2.f, 0.05f, "%.2fx").extend(0.f, 4.f)
             .help("The binaural sounds' volume against the others (1.25: as loud as Quake's panning, all round; 1.5 by default: a little louder)."),
         slider("Spatial Voices", vr_snd_voices, 4.f, 64.f, 4.f, "%.0f")

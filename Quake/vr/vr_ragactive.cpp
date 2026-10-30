@@ -1168,7 +1168,7 @@ void holdLevel(const Parts& p, const Context& c, const glm::vec3& anchor, float 
 // arc to there, one at a time, at most staggerStepsMost). Its middle leaning past vr_ragdoll_active_stagger_lean over its
 // feet, or its pelvis sagging below staggerSag of its height: it falls. Done travelling and stepping, leaning little and
 // nearly still (or after staggerMost s still up): it has recovered.
-// Walked (vr_ragdoll_active_stagger_walk, ROUND22.md "Stagger balance walk"): its pin let down (its knees bent), its
+// Walked (ROUND22.md "Stagger balance walk"): its pin let down (its knees bent), its
 // planted feet reaching for and held where they were put down (no glide) until its hip is far from them, its feet
 // stepping in turn and lifted high (vr_ragdoll_active_stagger_lift), its arms flailing out to its sides.
 constexpr float staggerStepTime = 0.22f; // s: a step
@@ -1202,20 +1202,10 @@ constexpr float staggerUprightMost = 4.f; // rad/s
     return 1.f - (1.f - u) * (1.f - u);
 }
 
-// Walked (vr_ragdoll_active_stagger_walk): its feet in turn, its knees bent, its arms flailing; else the old glide.
-[[nodiscard]] bool staggerWalks()
-{
-    return vr_ragdoll_active_stagger_walk.value != 0.f;
-}
-
 // Its pin let down at `t` (metres): its knees bent for its backpedal (vr_ragdoll_active_stagger_crouch), eased in at
 // once and out as its carry ends.
 [[nodiscard]] float staggerDip(const Stagger& g, float t)
 {
-    if(!staggerWalks())
-    {
-        return 0.f;
-    }
     // (A parry's, up at its time: risen by then, not popping up as it is handed back.)
     const float end = g.recoverAt > 0.f ? za::min(g.time, g.recoverAt - 0.35f) : g.time;
     return za::clamp(vr_ragdoll_active_stagger_crouch.value, 0.f, 0.3f) * g.height * smooth01(t / 0.15f) *
@@ -1297,7 +1287,6 @@ void staggerGaitLine(const Stagger& g, const Parts& p, int num)
 void staggerFrame(State& s, const Parts& p, const Context& c, float t, const ClipPose& pose)
 {
     Stagger& g = s.stagger;
-    const bool walks = staggerWalks();
     if(g.outcome == Outcome::Going)
     {
         staggerMeasure(g, s, p, t);
@@ -1382,8 +1371,8 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
                 const float atStep = staggerStepAt * (g.lean > staggerSteady ? 0.6f : 1.f) * len;
                 const glm::vec3 hip = worldPoint(p, s.chain[i + 2][0], p.rig->bones[s.chain[i + 2][0]].pivot);
                 const float fromHip = glm::length(level(g.planted[i] - hip)) / za::max(staggerReachStep * len, 1e-3f);
-                need[i] = walks ? za::max(d / za::max(atStep, 1e-3f), fromHip) : d / za::max(atStep, 1e-3f);
-                const float score = need[i] > 1.f ? need[i] * (walks && leg == g.lastLeg ? 0.7f : 1.f) : 0.f;
+                need[i] = za::max(d / za::max(atStep, 1e-3f), fromHip);
+                const float score = need[i] > 1.f ? need[i] * (leg == g.lastLeg ? 0.7f : 1.f) : 0.f;
                 if(score > bestD)
                 {
                     bestD = score;
@@ -1517,15 +1506,6 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
             r.strength = za::clamp(g.tugStrength * (holds ? 1.f : 0.7f), 0.f, 3.f);
             continue;
         }
-        if(!walks)
-        {
-            const float a = 2.f * 3.14159265f * 2.f * t + (arm == 0 ? 0.f : 3.14159265f);
-            r.goal = shoulder + ahead * (0.5f * len) + left * ((arm == 0 ? 0.35f : -0.35f) * len) +
-                     (ahead * za::cos(a) + up * za::sin(a)) * (0.2f * len);
-            r.weight = smooth01(t / 0.12f) * (0.4f + 0.4f * (1.f - g.balance));
-            r.strength = 0.7f;
-            continue;
-        }
         const float flail = za::clamp(vr_ragdoll_active_stagger_arms.value, 0.f, 2.f);
         const glm::vec3 side = left * (arm == 0 ? 1.f : -1.f);
         const float a = 2.f * 3.14159265f * staggerWheel * (arm == 0 ? 1.f : 1.27f) * t + (arm == 0 ? 0.f : 2.1f);
@@ -1547,11 +1527,11 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
         // (A foot not stepping reaches, staggerPlant, to where it was put down: its knee bends as its pin lets its hip
         // down (staggerDip), and the foot holds its place against the pin's carry rather than gliding; the clip's
         // straight legs alone had it on stilts. Out of its leg's reach the reach is a straight leg, as the clip's.)
-        r.weight = leg == g.stepLeg ? 1.f : walks ? staggerPlant : 0.f;
+        r.weight = leg == g.stepLeg ? 1.f : staggerPlant;
         r.strength = 1.f;
         g.planted[i] = leg == g.stepLeg ? g.planted[i] : limbEnd(s, p, leg);
-        r.goal = walks ? g.footAt[i] : g.planted[i];
-        if(walks && leg != g.stepLeg)
+        r.goal = g.footAt[i];
+        if(leg != g.stepLeg)
         {
             // (Its foot held where it was put down, its level motion worked off, while it is down and its leg reaches
             // it: the pin's carry swings the leg out over it till it steps (staggerReachStep), no glide. Past its
@@ -1573,9 +1553,8 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
             const float len = limbLength(s, p, leg);
             const float u = za::clamp(static_cast<float>(c.now - g.stepFrom) / za::max(g.stepTime, 0.05f), 0.f, 1.f);
             // (Lifted early and set down late: the knee up through the step, the foot planted at its end.)
-            const float lift = walks ? za::clamp(vr_ragdoll_active_stagger_lift.value, 0.f, 0.6f) : 0.12f;
-            r.goal = glm::mix(g.stepA, g.stepB, smooth01(u)) +
-                     up * (lift * len * za::sin(3.14159265f * (walks ? za::sqrt(u) : u)));
+            const float lift = za::clamp(vr_ragdoll_active_stagger_lift.value, 0.f, 0.6f);
+            r.goal = glm::mix(g.stepA, g.stepB, smooth01(u)) + up * (lift * len * za::sin(3.14159265f * za::sqrt(u)));
             if(u >= 1.f)
             {
                 g.footAt[i] = g.stepB;

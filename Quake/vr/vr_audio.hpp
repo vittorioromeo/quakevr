@@ -230,7 +230,7 @@ private:
     IPLCoordinateSpace3 orientation{};
 };
 
-// The voices' anti-aliasing filter (vr_snd_antialias). Quake's 11 kHz sound (sndspeed 11025, mixed at 44100) low-passes
+// The voices' anti-aliasing filter (antiAliasWanted). Quake's 11 kHz sound (sndspeed 11025, mixed at 44100) low-passes
 // the whole mix by keeping every fourth sample and filtering that (snd_mix.c, S_ApplyFilter), so whatever is above
 // 5.5 kHz folds down below it. Quake's own sounds (11 kHz, each sample held four times) come back as they were; the
 // voices' HRTF output doesn't: its highs, much louder in the nearer ear, fold into the lows and mids of that ear (a
@@ -258,14 +258,14 @@ private:
 };
 
 // Whether Quake low-passes the mix to 11 kHz (sndspeed 11025 at 44100: snd_mix.c), and the voices are to be filtered
-// for it (vr_snd_antialias; not with vr_snd_fullband, which keeps the voices out of that lowpass).
+// for it (not with vr_snd_fullband, which keeps the voices out of that lowpass).
 [[nodiscard]] bool antiAliasWanted();
 
 // Whether Quake's 11 kHz lowpass is on (sndspeed 11025 at 44100; vr_snd_fullband 2 skips it, its sounds band-limited).
 [[nodiscard]] bool quakeLowpassOn();
 
 // The voices' render (Mixer::render) into mixL/mixR (blocks x frame samples, cleared first), filtered for Quake's
-// 11 kHz lowpass: with vr_snd_fullband 0, all of it anti-aliased (vr_snd_antialias), to go through that lowpass; else
+// 11 kHz lowpass: with vr_snd_fullband 0, all of it anti-aliased, to go through that lowpass; else
 // the direct sound as it is and the reverb anti-aliased (revL/revR its room; as before: its own highs above 5.5 kHz,
 // even from Quake's 11 kHz sounds, are Steam Audio's parametric reverb's, up to -32 dB of it), to go round it.
 void renderVoices(Mixer& m, int blocks, const Listener& l, const Features& f, const IPLReflectionEffectParams* reverb,

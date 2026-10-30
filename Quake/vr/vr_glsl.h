@@ -127,7 +127,7 @@ QVR_TONE_GLSL
 "	vec4	TeleportLook; // QVR: starry surface size and opacity\n" \
 "	vec4	AmbientLight; // QVR: the baked light's own fill light (vr/vr_lighting.cpp: vr_ambient_light): x is the share of Quake's full light added to the lightmap before its contrast (0 none); yzw unused\n" \
 "	vec4	PermDecals; // QVR: the permanent decals' layer (vr/vr_permdecals.cpp, QVR_PERMDECAL_FUNCTIONS): x 1 on (0 none; 2 Quake's own textures drawn nearest, 3 every texture: TexMgr_NearestKind), y its atlas's slots a row, z one over its side in texels\n" \
-"	vec4	Parallax3; // QVR: parallax mapping, more: x where the surface's polygon sits in the relief (vr_parallax_plane: 0 its top, 1 its bottom); yzw unused\n" \
+"	vec4	Parallax3; // QVR: parallax mapping, more: x where the surface's polygon sits in the relief (0 its top, 1 its bottom: the world's); y the depth write's split\n" \
 "	vec4	DecalCarve; // QVR: the carved decals (vr/vr_decals.cpp, QVR_DECAL_FUNCTIONS' CarveAt): x the depth's multiplier (0 off), y the rim's, z the most steps a ray takes, w the distance past which they are flat\n" \
 "	vec4	Foam[3]; // QVR: the shoreline foam's look, each liquid's (vr/vr_water.cpp foamLook, LiquidFoam; 0 water, 1 lava, 2 slime): x its opacity (0 off), y how finely it is broken up, z how far it reaches (times), w its wavy edge (units, 0 off)\n" \
 "	vec4	FoamColor[3]; // QVR: ... its colour (rgb), w unused\n" \
@@ -638,7 +638,7 @@ QVR_ZFIX_FUNCTION \
 "// pixel depth offset (vr_parallax_depth_write): ParallaxUV's hit, how far past the surface along the eye's ray (0:\n"\
 "// none); ParallaxFragDepth the depth of the point that far along it (dir, a unit) from p, as the view's matrix puts\n"\
 "// it (zfix: with the vertex shader's polygon offset, QVR_ZFixDepth), never nearer than the surface's own for a hit\n"\
-"// below it (s > 0); s < 0: a raised hit, over the surface (vr_parallax_plane), nearer\n"\
+"// below it (s > 0); s < 0: a raised hit, over the surface (ParallaxPlane), nearer\n"\
 "float ParallaxDist = 0.;\n"\
 "float ParallaxFragDepth(mat4 viewproj, vec3 p, vec3 dir, float s, bool zfix)\n"\
 "{\n"\
@@ -652,10 +652,10 @@ QVR_ZFIX_FUNCTION \
 "	return s > 0. ? max(d, gl_FragCoord.z) : d;\n"\
 "#endif\n"\
 "}\n"\
-"// vr_parallax_plane: where the surface's polygon sits in the relief, 0..1 (0: at its top, the relief carved down from\n"\
-"// it; 0.5 its middle; 1 its bottom, the relief raised over it), at most at the texture's average height. Set before\n"\
-"// ParallaxUV (0 unless the world's shader sets it): the ray is walked from where it crosses the relief's top, that\n"\
-"// share of the depth over the surface\n"\
+"// Where the surface's polygon sits in the relief, 0..1 (0: at its top, the relief carved down from it; 1 its bottom,\n"\
+"// the relief raised over it), at most at the texture's average height. Set before ParallaxUV (0 unless the world's\n"\
+"// shader sets it: 1, Parallax3.x): the ray is walked from where it crosses the relief's top, that share of the depth\n"\
+"// over the surface\n"\
 "float ParallaxPlane = 0.;\n"\
 "vec2 ParallaxUV(sampler2D tex, vec2 uv, vec2 duvdx, vec2 duvdy, vec3 dpdx, vec3 dpdy, vec3 n, vec3 ray, float depth,\n"\
 "	float steps, vec4 uvclamp)\n"\
@@ -674,7 +674,7 @@ QVR_ZFIX_FUNCTION \
 "	vec2 duv = vec2(dot(shift, gu), dot(shift, gv));\n"\
 "	// the walk from uv - duv * plane (the top) to uv + duv * (1 - plane); the surface never below the texture's average\n"\
 "	// height (its smallest mip's), so a flat one (all at the top) or one mostly at the top isn't raised over the props\n"\
-"	float plane = ParallaxPlane > 0. ? min(clamp(ParallaxPlane, 0., 1.), 1.0 - textureLod(tex, uv, 16.0).a) : 0.;\n"\
+"	float plane = ParallaxPlane > 0. ? min(ParallaxPlane, 1.0 - textureLod(tex, uv, 16.0).a) : 0.;\n"\
 "	if (uvclamp.z > uvclamp.x || uvclamp.w > uvclamp.y)\n"\
 "	{\n"\
 "		vec2 margin = 0.5 / vec2(textureSize(tex, 0));\n"\
@@ -770,7 +770,7 @@ QVR_ZFIX_FUNCTION \
 // gl_FragDepth writes it for every pixel, and under foveated rendering's coarse shading one value for each block of
 // pixels, so the others keep the fixed-function depth), QVR_PDO is 1 and the shader writes gl_FragDepth on every
 // path: the surface's own (gl_FragCoord.z), or a parallax hit's (ParallaxFragDepth): further, or nearer where
-// vr_parallax_plane raises the relief over the surface, so depth_any (it was depth_less with reversed depth,
+// the world's ParallaxPlane raises the relief over the surface, so depth_any (it was depth_less with reversed depth,
 // depth_greater without, before the plane, round 22). The driver measured here (NVIDIA, 2026-10) shades every fragment
 // of such a shader either way (depth_any, less and greater timed alike): the cost of vr_parallax_depth_write (ROUND21.md).
 // Declaring the depth never nearer (depth_less/depth_greater) where nothing is raised was tried in round 22 and removed:
@@ -805,7 +805,7 @@ QVR_ZFIX_FUNCTION \
 "		vec3 ray = in_pos - EyePos;\n"\
 "		float dist = length(ray);\n"\
 "		ray /= max(dist, 1e-3);\n"\
-"		float reach = ParallaxReach(dist, -dot(ray, n), in_pdepth); // (also with vr_parallax_plane: its texture's cap unknown here)\n"\
+"		float reach = ParallaxReach(dist, -dot(ray, n), in_pdepth); // (also with ParallaxPlane: its texture's cap unknown here)\n"\
 "		if (reach > 0.)\n"\
 "			gl_FragDepth = ParallaxFragDepth(ViewProj, in_pos, normalize(in_pos - EyePos), reach * 1.01 + 0.01,\n"\
 "				(in_flags & CF_USE_POLYGON_OFFSET) != 0u);\n"\
