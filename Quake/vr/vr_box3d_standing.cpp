@@ -1110,6 +1110,45 @@ extern "C" int VR_PropShotClip(edict_t* mover, edict_t* touch, const float* star
     return 1;
 }
 
+// Whether `missile` (a flying missile: a nail, a rocket, a laser) meets `item` (a dropped pickup lying loose: a backpack, a
+// carried ammo or health box; touchable, never blocking) in its own move at the item's drawn box as it lies
+// (VR_ItemShotClip), not at the box FL_ITEM grows 15 units each way for pickups (SV_LinkEdict), which the touches of the
+// two overlapping met (vr_physics.cpp touch, vr_gameplayfix_touchsolids): a nail flying past a backpack stopped at it.
+bool qvr::box3d::missileMeetsItem(edict_t* missile, edict_t* item)
+{
+    if(!world || !vr_box3d_shot_shape.value || !missile || !item || missile == item || item->free ||
+        static_cast<int>(item->v.solid) != SOLID_NOT_BUT_TOUCHABLE || !(static_cast<int>(item->v.flags) & FL_ITEM) ||
+        static_cast<int>(missile->v.movetype) != MOVETYPE_FLYMISSILE || !flyingThing(missile))
+    {
+        return false;
+    }
+    const int g = NUM_FOR_EDICT(item);
+    return g > svs.maxclients && g < static_cast<int>(world->slots.size()) && world->slots[static_cast<size_t>(g)].kind == Kind::Prop &&
+           B3_IS_NON_NULL(world->slots[static_cast<size_t>(g)].body);
+}
+
+// SV_ClipToLinks: a flying missile's move against a dropped pickup lying loose (box3d::missileMeetsItem) meets its drawn
+// box as it lies (a backpack on its side), as a solid prop's (VR_PropShotClip); -1 not one (Quake's rules: passed).
+extern "C" int VR_ItemShotClip(edict_t* mover, edict_t* touch, const float* start, const float* mins, const float* maxs,
+    const float* end, trace_t* trace)
+{
+    if(!qvr::box3d::missileMeetsItem(mover, touch))
+    {
+        return -1;
+    }
+    const ShotShape p = shotShape(touch, world->slots[static_cast<size_t>(NUM_FOR_EDICT(touch))], mins, maxs);
+    memset(trace, 0, sizeof(*trace));
+    trace->fraction = 1.f;
+    VectorCopy(end, trace->endpos);
+    if(!traceProp(p, glm::dvec3{start[0], start[1], start[2]}, glm::dvec3{end[0], end[1], end[2]}, *trace))
+    {
+        return 0;
+    }
+    trace->ent = touch;
+    trace->inopen = !trace->allsolid;
+    return 1;
+}
+
 // SV_PushEntity, a flying thing's move that met `other` (vr_debug_missiles): what, where, the surface's normal; a solid
 // prop: its drawn box as it stands (centre, half sizes, axes).
 extern "C" void VR_MissileHitDebug(edict_t* ent, edict_t* other, const trace_t* trace)

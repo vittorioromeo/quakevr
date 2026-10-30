@@ -16,6 +16,9 @@
 //     met beyond the monster's box (16) and the tolerance (2).
 //   3 the drawn size: a nail of each model hung still ahead, `vr_physics_list spike` prints each one's "drawn x" (the
 //     client's matrix: vr_nail_scale, 1 before round 23).
+//   4 a dropped backpack lying loose: nails across and over it meet it only at its drawn box as it lies (VR_NLT_BagStep;
+//     round 23, "Backpacks' hit box"). vr_nail_test 3 runs this step alone (Debug > Tests > Nail Pistol > Nails at a
+//     Dropped Backpack).
 // vr_nail_test 2: three nails hung still 40 units before your eyes for 30 s (the nailgun's, the super nailgun's, a lava
 // nail where Dissolution of Eternity is there), to see their size in the headset.
 
@@ -163,6 +166,203 @@ void() VR_NLT_End =
     vr_nlt_step = 0;
 };
 
+// Step 4 (vr_nail_test 3 alone): a backpack lying loose (DropBackpack, as a monster drops it), settled, and nails at it one
+// at a time (no damage, no push: VR_NLT_BagTouch): across it at its middle's height at 2-unit steps (-30..30 off its
+// middle), then over it (0..24 above its middle). Its drawn box as it lies (drawnbounds, turned by its angles as the
+// engine turns a prop's: held::axesFromAngles) is where they may meet it: the middle met, none beyond the box's reach
+// (+1), each met at the box (within 1.5), none flown through it (it never moved). Before the fix FL_ITEM's box (15 units
+// wider each way, for pickups) stopped nails up to 22 units off the bag.
+entity vr_nlt_bag;
+float vr_nlt_settled;  // frames it has lain still
+float vr_nlt_axis;     // 0 the sweep across, 1 the one over it
+vector vr_nlt_bx, vr_nlt_by, vr_nlt_bz, vr_nlt_bmid, vr_nlt_bhalf; // its drawn box: axes, middle, half sizes
+vector vr_nlt_bat;     // where it lay when the sweeps began
+vector vr_nlt_dir, vr_nlt_side;
+float vr_nlt_reach, vr_nlt_reachup; // the box's reach from its middle across the nails' line, and up
+float vr_nlt_bagwide;  // nails that met it beyond its reach
+float vr_nlt_bagoff;   // ... met it away from its box
+float vr_nlt_baghits;
+float vr_nlt_bagthru;  // nails that went on past it having moved it
+float vr_nlt_uphi;     // the sweep over it: the highest that met it
+.float vr_nlt_up;      // a nail's height over the middle
+.float vr_nlt_wide;    // a nail aimed beyond the box's reach
+
+void() VR_NLT_BagShape =
+{
+    entity b = vr_nlt_bag;
+    vector a = b.angles;
+    a_x = -a_x; // (an alias model's pitch, as held::axesFromAngles)
+    makevectors(a);
+    vr_nlt_bx = v_forward;
+    vr_nlt_by = '0 0 0' - v_right;
+    vr_nlt_bz = v_up;
+    vector lo = drawnbounds(b, 0);
+    vector hi = drawnbounds(b, 1);
+    vector mid = (lo + hi) * 0.5;
+    vr_nlt_bhalf = (hi - lo) * 0.5;
+    vr_nlt_bhalf_x = max(vr_nlt_bhalf_x, 0.5);
+    vr_nlt_bhalf_y = max(vr_nlt_bhalf_y, 0.5);
+    vr_nlt_bhalf_z = max(vr_nlt_bhalf_z, 0.5);
+    vr_nlt_bmid = b.origin + vr_nlt_bx * mid_x + vr_nlt_by * mid_y + vr_nlt_bz * mid_z;
+};
+
+// The box's reach from its middle along unit `s`.
+float(vector s) VR_NLT_BagReach =
+{
+    return vr_nlt_bhalf_x * fabs(vr_nlt_bx * s) + vr_nlt_bhalf_y * fabs(vr_nlt_by * s) + vr_nlt_bhalf_z * fabs(vr_nlt_bz * s);
+};
+
+// Whether `p` is in the box grown by `xGrow`.
+float(vector p, float xGrow) VR_NLT_InBag =
+{
+    vector d = p - vr_nlt_bmid;
+    return fabs(d * vr_nlt_bx) <= vr_nlt_bhalf_x + xGrow && fabs(d * vr_nlt_by) <= vr_nlt_bhalf_y + xGrow &&
+           fabs(d * vr_nlt_bz) <= vr_nlt_bhalf_z + xGrow;
+};
+
+void() VR_NLT_BagTouch =
+{
+    if(cvar("developer") > 1)
+    {
+        dprint(sprintf("nailtest: debug bag nail %g across, %g up met %s at %v\n", self.vr_nlt_off, self.vr_nlt_up,
+            other == vr_nlt_bag ? "the bag" : other.classname, self.origin));
+    }
+    if(other == vr_nlt_bag)
+    {
+        vr_nlt_baghits++;
+        if(self.vr_nlt_wide) { vr_nlt_bagwide++; }
+        if(!VR_NLT_InBag(self.origin, 1.5)) { vr_nlt_bagoff++; }
+        if(self.vr_nlt_off == 0 && self.vr_nlt_up == 0) { vr_nlt_hit0 = TRUE; }
+        if(vr_nlt_axis == 0)
+        {
+            vr_nlt_hitlo = min(vr_nlt_hitlo, self.vr_nlt_off);
+            vr_nlt_hithi = max(vr_nlt_hithi, self.vr_nlt_off);
+        }
+        else
+        {
+            vr_nlt_uphi = max(vr_nlt_uphi, self.vr_nlt_up);
+        }
+    }
+    else if(vlen(vr_nlt_bag.origin - vr_nlt_bat) > 0.1)
+    {
+        vr_nlt_bagthru++; // (it went on, and the bag moved: its shape was met, not its box)
+        vr_nlt_bat = vr_nlt_bag.origin;
+    }
+    remove(self);
+};
+
+// A nail along the line to the bag's middle, `xOff` across it and `xUp` over its middle, from 100 units before it.
+void(float xOff, float xUp) VR_NLT_BagNail =
+{
+    entity os = self;
+    self = vr_nlt_player;
+    entity n = launch_spike(vr_nlt_bmid + '0 0 1' * xUp - vr_nlt_dir * 100 + vr_nlt_side * xOff, vr_nlt_dir);
+    self = os;
+    n.touch = VR_NLT_BagTouch;
+    n.vr_nlt_off = xOff;
+    n.vr_nlt_up = xUp;
+    n.vr_nlt_wide = ((fabs(xOff) > vr_nlt_reach + 1) || (xUp > vr_nlt_reachup + 1));
+};
+
+float() VR_NLT_BagLeft =
+{
+    float c = 0;
+    entity e = find(world, classname, "spike");
+    while(e) { if(e.touch == VR_NLT_BagTouch) { c++; } e = find(e, classname, "spike"); }
+    return c;
+};
+
+void() VR_NLT_BagStep =
+{
+    if(vr_nlt_frames == 1)
+    {
+        // Dropped as a monster drops it, a little ahead.
+        makevectors('0 1 0' * vr_nlt_player.angles_y);
+        traceline(vr_nlt_player.origin, vr_nlt_player.origin + v_forward * 160, TRUE, vr_nlt_player);
+        entity os = self;
+        self = spawn();
+        setorigin(self, trace_endpos - v_forward * 24 + '0 0 24');
+        self.flags = FL_MONSTER;
+        self.ammo_shells = 5;
+        DropBackpack();
+        remove(self);
+        self = os;
+        vr_nlt_bag = world;
+        entity nb = find(world, model, "progs/backpack.mdl");
+        while(nb) { vr_nlt_bag = nb; nb = find(nb, model, "progs/backpack.mdl"); }
+        vr_nlt_settled = 0;
+        if(!vr_nlt_bag)
+        {
+            VR_Test_Check(FALSE, "a lying backpack: none dropped");
+            VR_NLT_End();
+        }
+        return;
+    }
+    entity b = vr_nlt_bag;
+    if(vr_nlt_settled < 30)
+    {
+        // Settled: on the floor and still 30 frames.
+        if((b.flags & FL_ONGROUND) && vlen(b.velocity) < 1) { vr_nlt_settled++; } else { vr_nlt_settled = 0; }
+        if(vr_nlt_settled == 30)
+        {
+            VR_NLT_BagShape();
+            vr_nlt_dir = vr_nlt_bmid - vr_nlt_player.origin;
+            vr_nlt_dir_z = 0;
+            vr_nlt_dir = normalize(vr_nlt_dir);
+            vr_nlt_side = '0 0 0';
+            vr_nlt_side_x = -vr_nlt_dir_y;
+            vr_nlt_side_y = vr_nlt_dir_x;
+            vr_nlt_reach = VR_NLT_BagReach(vr_nlt_side);
+            vr_nlt_reachup = VR_NLT_BagReach('0 0 1');
+            vr_nlt_bat = b.origin;
+            vr_nlt_axis = 0;
+            vr_nlt_k = -30;
+            vr_nlt_hitlo = 1000;
+            vr_nlt_hithi = -1000;
+            vr_nlt_uphi = -1000;
+            vr_nlt_hit0 = FALSE;
+            vr_nlt_baghits = vr_nlt_bagwide = vr_nlt_bagoff = vr_nlt_bagthru = 0;
+            dprint(sprintf("nailtest: the backpack lies at %v, angles %v; its drawn box's middle %v, half sizes %v\n",
+                b.origin, b.angles, vr_nlt_bmid, vr_nlt_bhalf));
+        }
+        return;
+    }
+    if(VR_NLT_BagLeft())
+    {
+        return; // (its nail still flying)
+    }
+    if(vr_nlt_axis == 0 && vr_nlt_k <= 30)
+    {
+        VR_NLT_BagNail(vr_nlt_k, 0);
+        vr_nlt_k += 2;
+        return;
+    }
+    if(vr_nlt_axis == 0)
+    {
+        vr_nlt_axis = 1;
+        vr_nlt_k = 0;
+    }
+    if(vr_nlt_k <= 24)
+    {
+        VR_NLT_BagNail(0, vr_nlt_k);
+        vr_nlt_k += 2;
+        return;
+    }
+    VR_Test_Check(vr_nlt_hit0 && vr_nlt_bagwide == 0 && vr_nlt_hitlo >= -vr_nlt_reach - 1 && vr_nlt_hithi <= vr_nlt_reach + 1,
+        sprintf("a lying backpack: the nails across it met it from %g to %g units off its middle (the middle %s; its drawn box reaches %.1f; none beyond: %g did)",
+            vr_nlt_hitlo, vr_nlt_hithi, vr_nlt_hit0 ? "met" : "MISSED", vr_nlt_reach, vr_nlt_bagwide));
+    VR_Test_Check(vr_nlt_uphi >= 0 && vr_nlt_uphi <= vr_nlt_reachup + 1,
+        sprintf("a lying backpack: the nails over it met it up to %g over its middle (its drawn box reaches %.1f up)", vr_nlt_uphi,
+            vr_nlt_reachup));
+    VR_Test_Check(vr_nlt_baghits > 0 && vr_nlt_bagoff == 0,
+        sprintf("a lying backpack: each nail met it at its drawn box (%g of %g away from it)", vr_nlt_bagoff, vr_nlt_baghits));
+    VR_Test_Check(vr_nlt_bagthru == 0 && vlen(b.origin - vr_nlt_bat) <= 0.1,
+        sprintf("a lying backpack: no nail flew on through it having pushed it (%g did)", vr_nlt_bagthru));
+    remove(b);
+    vr_nlt_bag = world;
+    VR_NLT_End();
+};
+
 void() VR_NailTest_Frame =
 {
     float req = cvar("vr_nail_test");
@@ -183,6 +383,12 @@ void() VR_NailTest_Frame =
         }
         VR_Test_Begin("nailtest");
         vr_nlt_precise = cvar("vr_hit_precise");
+        if(req == 3)
+        {
+            vr_nlt_step = 4;
+            vr_nlt_frames = 0;
+            return;
+        }
         vr_nlt_player.flags = vr_nlt_player.flags | FL_NOTARGET;
         vr_npt_player = vr_nlt_player; // (VR_NPT_Grunt's: vr_nailpistol_test.qc)
         vr_nlt_g = VR_NPT_Grunt(400, WID_NAILGUN, 0);
@@ -305,8 +511,12 @@ void() VR_NailTest_Frame =
         {
             entity e = find(world, classname, "spike");
             while(e) { entity nx = find(e, classname, "spike"); if(e.movetype == MOVETYPE_NONE) { remove(e); } e = nx; }
-            VR_NLT_End();
+            VR_NLT_Next();
         }
+    }
+    else if(s == 4)
+    {
+        VR_NLT_BagStep();
     }
 };
 #endif

@@ -41,6 +41,10 @@ bool push(edict_t* ent, const glm::vec3& at, const glm::vec3& velocity, float pu
 // That prop's edict number, 0 if none.
 int shot(const glm::vec3& start, const glm::vec3& end, const glm::vec3& velocity, float pusherMass);
 
+// Whether flying missile `missile` meets dropped pickup `item` (a backpack lying loose) in its own move, at the item's drawn
+// box as it lies (VR_ItemShotClip), and not by the two touching (vr_physics.cpp touch: FL_ITEM's grown box).
+bool missileMeetsItem(edict_t* missile, edict_t* item);
+
 // Whether a monster's sight from `start` to `end` is blocked by a solid prop that blocks sight (.vr_blocksight: a crate,
 // an explosive box), met by its Box3D shape as it lies (not one in a hand: a held body). Not the edicts `ignoreA` and
 // `ignoreB` (who looks and at whom). The blocker's edict number, 0 if none.
