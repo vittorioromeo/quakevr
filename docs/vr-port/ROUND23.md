@@ -1167,3 +1167,29 @@ No behaviour change intended; the kits are listed in CODE_STYLE.md, "Kits (refac
   walltorch_grab) as baseline.tsv but autopump 7/7 (known); Holster Setup and Edit Blade Shape opened, pressed, undone,
   cancelled by their commands (say lines as before).
 - Bench (LTO, exclusive, idle_e1m1 + particles_dense + explosions_3s, 3 reps; this branch, origin/next, this branch again): frame and GPU times within noise, heap allocations the same; CPU busy +3-5% in the first run and -5-14% in the rerun (order noise, benchresults/b2_new, b2_base, b2_new2). A render-scale 0.8 eyeshot printed no incomplete-framebuffer warning (its PNG hash differs between two runs of the same exe, so hashes cannot compare builds).
+
+## Refactor wave B3, group G2: body, physics, melee (branch `agent/refb3bpm`)
+
+No behaviour change intended; areas B (body, rigs, tools), P (ragdoll, physics) and M (melee, gore) only.
+
+- **Canonical spellings** (step 1; scripts rewrote only the exact forms, the compiler rejected the rest): 14 edict
+  loops of the form `for(i = first; i < qcvm->num_edicts; i++) { e = EDICT_NUM(i); if(e->free) continue; ... }` (or
+  `if(e->free || x) continue`, `if(!e->free && x) {...}` as the whole body) -> `progs::forEachEdict(first, ...)`
+  (bodies without break/return and not using the index; their `continue` -> `return`). 15 server VM push/pop pairs ->
+  `progs::ServerVm` where the pop was the scope's last statement or right before a bare `return`. 144
+  `glm::vec3{p[0], p[1], p[2]}` of float arrays -> `geom::vec(p)` (byte arrays, e.g. trivertx `.v`, stay).
+- **Left** (not identical): the `EDICT_NUM(1)` / `svs.clients[0].edict` player reads (51; `localPlayer()` also needs
+  client 0 active and returns null, which those sites never check); loops that break, return or use the index (25);
+  push/pop pairs with code after the pop (Con_Printf, if) or the old VM read (rigid, motion, agarmor, crates, wounds,
+  hitmodel, hitmodel_diag, debris, chainsaw:402); `vec3_t v{x,y,z}` stores.
+- **Splits** (step 2, pure moves): vr_physics.cpp (2282 lines) -> vr_physics.cpp (1199) + vr_physics_water.cpp (1108:
+  splashes, sounds, wading, swimming, VR_AllowWaterSplash); the helpers both use (`active`, `f`, `vec`, `finite`,
+  `hasFlag`, `solidOf`, `isClient`) are inline in vr_physics_internal.hpp (`physics::detail`), `waterFeedback`
+  declared there. vr_melee.qc (4933) -> vr_melee_params.qc (numbers, what a hand holds), vr_melee.qc (following,
+  deciding a blow), vr_melee_bash.qc (swish, stamina/counter, stance/bash, each frame), listed in that order in
+  progs.src: progs.dat is byte-identical.
+- **Not done**: the other splits (agarmor check, motion eval, avatar climb/legs, box3d_diag, hitreact, wounds,
+  ragactive) need their anonymous-namespace types (Shell, Body, ...) moved to internal headers first; combat.qc's
+  parry block sits between T_DamageDeal and T_Damage, so a file of its own changes the compile order (no byte-identical
+  check). Long functions (step 3): none split (derive, createRagdoll, skinOf and the plans have no comment-marked phases
+  over a context that could be proven unchanged within this pass).
