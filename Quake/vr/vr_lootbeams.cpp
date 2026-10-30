@@ -6,6 +6,7 @@
 #include "vr_color.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_geom.hpp"
 #include "vr_gfx.hpp"
 #include "vr_held.hpp"
 #include "vr_mem.hpp"
@@ -19,7 +20,6 @@
 #include "vr_view.hpp"
 #include "vr_weapon_ids.h"
 
-#include "vr_geom.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
@@ -453,11 +453,9 @@ void report_f()
         int carrier = -1;
         if(sv.active && b.num < sv.qcvm.num_edicts && progs::fields().carry_player >= 0)
         {
-            qcvm_t* old = nullptr;
-            PR_PushQCVM(&sv.qcvm, &old);
+            progs::ServerVm vm;
             carrier = progs::fieldInt(EDICT_NUM(b.num), progs::fields().carry_player);
             carrier = carrier > 0 ? NUM_FOR_EDICT(PROG_TO_EDICT(carrier)) : 0;
-            PR_PopQCVM(old);
         }
         Con_Printf("lootbeam %d %s %s fade %.2f at %.0f %.0f %.0f (server's byte %d, carried by %d)", b.num,
             categoryNames[static_cast<int>(b.category)], e.model ? e.model->name : "?", static_cast<double>(b.alpha),
@@ -520,12 +518,12 @@ void test_f()
     const int gibs = za::clamp(Cmd_Argc() > 2 ? Q_atoi(Cmd_Argv(2)) : 0, 0, 256);
     glm::vec3 feet{0.f};
     float yaw = 0.f;
-    qcvm_t* old = nullptr;
-    PR_PushQCVM(&sv.qcvm, &old);
-    edict_t* player = EDICT_NUM(1);
-    feet = glm::vec3{player->v.origin[0], player->v.origin[1], player->v.origin[2] + player->v.mins[2]};
-    yaw = player->v.angles[1];
-    PR_PopQCVM(old);
+    {
+        progs::ServerVm vm;
+        edict_t* player = EDICT_NUM(1);
+        feet = glm::vec3{player->v.origin[0], player->v.origin[1], player->v.origin[2] + player->v.mins[2]};
+        yaw = player->v.angles[1];
+    }
     const float a = glm::radians(yaw);
     const glm::vec3 fwd{za::cos(a), za::sin(a), 0.f};
     const glm::vec3 side{-fwd.y, fwd.x, 0.f};
@@ -546,7 +544,7 @@ void test_f()
             made += box3d::spawnClass(thing.classname, at, angles, nullptr, thing.key, thing.value) != nullptr;
             continue;
         }
-        PR_PushQCVM(&sv.qcvm, &old);
+        progs::ServerVm vm;
         const func_t fn = progs::findFunction("VR_Reload_MakeRound");
         if(fn > 0)
         {
@@ -561,12 +559,11 @@ void test_f()
             made += PROG_TO_EDICT(G_INT(OFS_RETURN)) != qcvm->edicts;
             mags++;
         }
-        PR_PopQCVM(old);
     }
     int thrown = 0;
     if(gibs > 0)
     {
-        PR_PushQCVM(&sv.qcvm, &old);
+        progs::ServerVm vm;
         const func_t fn = progs::findFunction("ThrowGib");
         edict_t* from = fn > 0 ? ED_Alloc() : nullptr;
         if(from)
@@ -588,7 +585,6 @@ void test_f()
             }
             ED_Free(from);
         }
-        PR_PopQCVM(old);
     }
     // A toolgun among them (its own hue and a beam twice as high), nearer than the rows.
     const bool toolgunToo = Cmd_Argc() > 3 && Q_atoi(Cmd_Argv(3)) != 0;
@@ -607,33 +603,27 @@ void emptyTest_f()
         Con_Printf("vr_lootbeam_empty_test: no game running\n");
         return;
     }
-    qcvm_t* old = nullptr;
-    PR_PushQCVM(&sv.qcvm, &old);
     int seen = 0, emptied = 0;
-    for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
     {
-        edict_t* const ent = EDICT_NUM(i);
-        if(ent->free)
-        {
-            continue;
-        }
-        const int instProg = progs::fieldInt(ent, progs::fields().weaponinst);
-        if(instProg <= 0)
-        {
-            continue;
-        }
-        edict_t* const inst = PROG_TO_EDICT(instProg);
-        if(inst == qcvm->edicts || inst->free || progs::fieldFloat(inst, progs::fields().wi_clip) <= 0.f)
-        {
-            continue;
-        }
-        if(seen++ % 2 == 0)
-        {
-            progs::setFieldFloat(inst, progs::fields().wi_clip, 0.f);
-            emptied++;
-        }
+        progs::ServerVm vm;
+        progs::forEachEdict(svs.maxclients + 1, [&](edict_t* ent) {
+            const int instProg = progs::fieldInt(ent, progs::fields().weaponinst);
+            if(instProg <= 0)
+            {
+                return;
+            }
+            edict_t* const inst = PROG_TO_EDICT(instProg);
+            if(inst == qcvm->edicts || inst->free || progs::fieldFloat(inst, progs::fields().wi_clip) <= 0.f)
+            {
+                return;
+            }
+            if(seen++ % 2 == 0)
+            {
+                progs::setFieldFloat(inst, progs::fields().wi_clip, 0.f);
+                emptied++;
+            }
+        });
     }
-    PR_PopQCVM(old);
     Con_Printf("lootbeam empty test: %d of %d loaded weapons emptied\n", emptied, seen);
 }
 

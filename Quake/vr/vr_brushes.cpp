@@ -4,7 +4,9 @@
 // flat light) and the vr_brush_* commands.
 
 #include "vr_brushes_internal.hpp"
+#include "vr_geom.hpp"
 #include "vr_progs.hpp"
+#include "vr_trace.hpp"
 
 #include "vr_box3d.hpp"
 #include "vr_brushbake.hpp"
@@ -17,7 +19,6 @@
 #include "vr_mem.hpp"
 #include "vr_modelcollide.hpp"
 
-#include "vr_geom.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/InPlaceVector.hpp"
@@ -1419,9 +1420,8 @@ void here_f()
     const double yaw = glm::radians(static_cast<double>(player->v.angles[1]));
     const glm::dvec3 fwd{za::cos(yaw), za::sin(yaw), 0.0};
     glm::dvec3 centre = glm::dvec3{player->v.origin[0], player->v.origin[1], player->v.origin[2]} + fwd * distance;
-    vec3_t start{static_cast<float>(centre.x), static_cast<float>(centre.y), static_cast<float>(centre.z)};
-    vec3_t end{start[0], start[1], start[2] - 512.f};
-    const trace_t tr = SV_Move(start, vec3_origin, vec3_origin, end, MOVE_NOMONSTERS, player);
+    const glm::vec3 start{centre};
+    const trace_t tr = worldtrace::serverLine(start, start - glm::vec3{0.f, 0.f, 512.f}, player);
     const double floorZ = tr.fraction < 1.f && tr.plane.normal[2] > 0.999f ? tr.plane.dist : tr.endpos[2]; // (the floor's plane: on it)
     centre.x = za::round(centre.x / 8.0) * 8.0;
     centre.y = za::round(centre.y / 8.0) * 8.0;
@@ -3399,15 +3399,13 @@ void frame()
         registry.sweep = false;
         const progs::ServerVm vm;
         int strays = 0;
-        for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
-        {
-            edict_t* ed = EDICT_NUM(i);
-            if(!ed->free && !strcmp(PR_GetString(ed->v.classname), className) && !ofEntity(i))
+        progs::forEachEdict(svs.maxclients + 1, [&](edict_t* ed) {
+            if(!strcmp(PR_GetString(ed->v.classname), className) && !ofEntity(NUM_FOR_EDICT(ed)))
             {
                 ED_Free(ed);
                 strays++;
             }
-        }
+        });
         if(strays)
         {
             Con_Printf("brush: %d brush entities without their brush left out (a save of a build that didn't keep them)\n", strays);

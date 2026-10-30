@@ -6,6 +6,7 @@
 // over), each from a random point of its triangles as drawn now (vr_modelcollide.cpp), most from the parts facing up.
 
 #include "vr_modelmetadata.hpp"
+#include "vr_geom.hpp"
 #include "vr_smoulder.hpp"
 #include "vr_modelcollide.hpp"
 #include "vr_shock.hpp"
@@ -15,7 +16,6 @@
 #include "vr_particles.hpp"
 #include "vr_profile.hpp"
 
-#include "vr_geom.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sqrt.hpp"

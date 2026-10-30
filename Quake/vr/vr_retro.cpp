@@ -1,6 +1,7 @@
 // vr_retro.cpp -- see vr_retro.hpp (the settings, the overrides) and vr_retro.h (the shaders' side).
 
 #include "vr_strings.hpp"
+#include "vr_geom.hpp"
 #include "vr_retro.hpp"
 #include "vr_physsound.hpp"
 #include "vr_modelmetadata.hpp"
@@ -16,7 +17,6 @@
 #include "vr_view.hpp"
 #include "vr_zancle.hpp"
 
-#include "vr_geom.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/Memcpy.hpp"
 #include "Zancle/Base/Strcmp.hpp"

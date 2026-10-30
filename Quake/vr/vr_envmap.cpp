@@ -2,6 +2,7 @@
 
 #include "vr_modelmetadata.hpp"
 #include "vr_envmap.hpp"
+#include "vr_geom.hpp"
 #include "vr_main.hpp"
 #include "vr_cvars.hpp"
 #include "vr_gfx.hpp"
@@ -11,7 +12,6 @@
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
 
-#include "vr_geom.hpp"
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
 #include <SDL2/SDL.h>
 #else

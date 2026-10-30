@@ -1,6 +1,7 @@
 // vr_ao.cpp -- dynamic ambient occlusion: see vr_ao.hpp.
 
 #include "vr_diskcache.hpp"
+#include "vr_geom.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_ao.hpp"
 #include "vr_portals.hpp"
@@ -55,7 +56,6 @@
 #include <string.h>
 #include "vr_tracy.h"
 
-#include "vr_geom.hpp"
 extern "C" {
 extern cvar_t r_lerpmove; // gl_rmain.c
 #ifdef _WIN32

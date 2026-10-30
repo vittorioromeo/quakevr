@@ -4,9 +4,9 @@
 
 #include "vr_view_internal.hpp"
 #include "vr_admelee.hpp"
+#include "vr_geom.hpp"
 #include "vr_progs.hpp"
 
-#include "vr_geom.hpp"
 namespace qvr::view
 {
 void setGhost(int hand, qmodel_t* model, const glm::vec3& pos, const glm::vec3& rot, float alpha)
@@ -237,10 +237,8 @@ void ragdollHandProbe_f()
         const char* name = hand == HAND_MAIN ? "main" : "off";
         float lag = -1.f;
         {
-            qcvm_t* oldvm = nullptr;
-            PR_PushQCVM(&sv.qcvm, &oldvm);
+            progs::ServerVm vm;
             lag = box3d::ragdollHandReach(EDICT_NUM(cl.viewentity), hand);
-            PR_PopQCVM(oldvm);
         }
         const LimbEase& e = limbEase[hand];
         Con_Printf("ragdoll hand %s: edict %d part %d; the limb's held point %.1f cm from the hand (the spring's lag and sag); "
@@ -314,8 +312,7 @@ void agruntWeaponProbe_f()
         return;
     }
     const float cm = 100.f / units::metresToUnits();
-    qcvm_t* oldvm = nullptr;
-    PR_PushQCVM(&sv.qcvm, &oldvm);
+    progs::ServerVm vm;
     int n = 0;
     for(int i = 1; i < qcvm->num_edicts && i < cl.num_entities; i++)
     {
@@ -337,7 +334,6 @@ void agruntWeaponProbe_f()
             PR_GetString(ed->v.model), NUM_FOR_EDICT(PROG_TO_EDICT(ed->v.owner)), glm::distance(so, co) * cm, turn);
         n++;
     }
-    PR_PopQCVM(oldvm);
     if(n == 0)
     {
         Con_Printf("vr_agrunt_weapon_probe: no armed monster's weapon\n");

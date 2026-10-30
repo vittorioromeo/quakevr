@@ -1,12 +1,12 @@
 // vr_modellight.cpp -- see vr_modellight.hpp.
 
 #include "vr_modellight.hpp"
+#include "vr_geom.hpp"
 #include "vr_main.hpp"
 #include "vr_cvars.hpp"
 #include "vr_evict.hpp"
 #include "vr_trace.hpp"
 
-#include "vr_geom.hpp"
 #include "Zancle/Algorithm/MaxElement.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Vector.hpp"

@@ -12,6 +12,7 @@
 #include "vr_move.hpp"
 #include "vr_physics.hpp"
 #include "vr_progs.hpp"
+#include "vr_trace.hpp"
 #include "vr_protocol.hpp"
 #include "vr_server.hpp"
 #include "vr_stereo.hpp"
@@ -312,8 +313,7 @@ void build()
     {
         return;
     }
-    qcvm_t* oldVm = nullptr;
-    PR_PushQCVM(&sv.qcvm, &oldVm);
+    progs::ServerVm serverVm;
     const int mangleField = ED_FindFieldOffset("mangle");
     for(int i = 1; i < qcvm->num_edicts; i++)
     {
@@ -421,7 +421,6 @@ void build()
     {
         exits.pushBack(reverseSide(sd)); // (each made in full: `exits` still shorter than `sides`)
     }
-    PR_PopQCVM(oldVm);
     Con_DPrintf("VR portals: %d teleporter sides\n", static_cast<int>(sides.size()));
 }
 
@@ -855,8 +854,7 @@ void prepareLightViews(const glm::vec3& eye)
     add(eye, eye, -1, 0);
     if(!enabled() || vr_portals.value <= 0.f || !sv.active) { return; }
     if(!current()) { build(); }
-    qcvm_t* oldVm = nullptr;
-    PR_PushQCVM(&sv.qcvm, &oldVm);
+    progs::ServerVm serverVm;
     const int count = static_cast<int>(sides.size());
     int first = 0, last = 1; // this round's views: those added by the last
     for(int depth = 1; depth <= maxDepth() && first < last; depth++)
@@ -894,7 +892,6 @@ void prepareLightViews(const glm::vec3& eye)
         first = last;
         last = lightViewCount;
     }
-    PR_PopQCVM(oldVm);
 }
 
 float lightDistance(const glm::vec3& pos, int leaf)
@@ -915,8 +912,7 @@ int lightGates(const glm::vec3& light, float radius, LightGate* out, int capacit
 {
     if(!enabled() || vr_portals.value <= 0.f || !sv.active || !sv.worldmodel) { return 0; }
     if(!current()) { build(); }
-    qcvm_t* oldVm = nullptr;
-    PR_PushQCVM(&sv.qcvm, &oldVm);
+    progs::ServerVm serverVm;
     int count = 0;
     for(const Side& sd : sides)
     {
@@ -928,7 +924,6 @@ int lightGates(const glm::vec3& light, float radius, LightGate* out, int capacit
         }
         out[count++] = {sd.from, sd.to, sd.normal, sd.mins, sd.maxs, sd.turn, sd.dist};
     }
-    PR_PopQCVM(oldVm);
     return count;
 }
 
@@ -1926,8 +1921,7 @@ void stuck_f()
         Con_Printf("portal stuck: no server, or teleporters off\n");
         return;
     }
-    qcvm_t* oldVm = nullptr;
-    PR_PushQCVM(&sv.qcvm, &oldVm);
+    progs::ServerVm serverVm;
     if(!current()) { build(); }
     edict_t* ent = svs.clients[0].edict;
     vec3_t o{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]};
@@ -1943,7 +1937,6 @@ void stuck_f()
     }
     Con_Printf("portal stuck: %d at %.1f %.1f %.1f, side %d torso %.1f, unstuck %d\n", tr.startsolid ? 1 : 0, o[0], o[1],
         o[2], nearest, nearest >= 0 ? nearestD : 0.f, unstuckCount);
-    PR_PopQCVM(oldVm);
 }
 } // namespace qvr::portals
 
@@ -2088,12 +2081,10 @@ int aiImage(edict_t* observer, edict_t* target, const glm::vec3& from, const glm
         const glm::vec3 ray = point - exit;
         if(glm::length(ray) < 0.01f) { continue; }
         const glm::vec3 farStart = exit + glm::normalize(ray) * 0.05f;
-        vec3_t start{from.x, from.y, from.z}, end{entry.x, entry.y, entry.z};
         // Ordinary traces in each room: they cannot accidentally recurse through another gate.
-        const trace_t nearTrace = SV_Move(start, vec3_origin, vec3_origin, end, MOVE_NORMAL, observer);
+        const trace_t nearTrace = worldtrace::serverLine(from, entry, observer, MOVE_NORMAL);
         if(nearTrace.startsolid || nearTrace.fraction < 0.999f) { continue; }
-        vec3_t farOrigin{farStart.x, farStart.y, farStart.z}, targetPoint{point.x, point.y, point.z};
-        const trace_t farTrace = SV_Move(farOrigin, vec3_origin, vec3_origin, targetPoint, MOVE_NORMAL, observer);
+        const trace_t farTrace = worldtrace::serverLine(farStart, point, observer, MOVE_NORMAL);
         if(farTrace.startsolid || (farTrace.fraction < 0.999f && farTrace.ent != target)) { continue; }
         // *teleport shimmer reports water at the entry plane; it is not a water boundary.
         // Attack traces keep their ordinary contents checks in the reached room.
@@ -2142,11 +2133,9 @@ glm::vec3 pullImage(const glm::vec3& from, const glm::vec3& point, int* gate)
         const glm::vec3 entry = glm::mix(from, image, d0 / (d0 - d1));
         if(!onGate(sd, entry, 1.f)) { continue; }
         const glm::vec3 exit = carried(sd, entry) + glm::normalize(point - carried(sd, entry)) * 0.5f;
-        vec3_t a{from.x, from.y, from.z}, b{entry.x, entry.y, entry.z};
-        const trace_t first = SV_Move(a, vec3_origin, vec3_origin, b, MOVE_NOMONSTERS, qcvm->edicts);
+        const trace_t first = worldtrace::serverLine(from, entry);
         if(first.startsolid || first.fraction < 0.999f) { continue; }
-        vec3_t c{exit.x, exit.y, exit.z}, d{point.x, point.y, point.z};
-        const trace_t second = SV_Move(c, vec3_origin, vec3_origin, d, MOVE_NOMONSTERS, qcvm->edicts);
+        const trace_t second = worldtrace::serverLine(exit, point);
         if(second.startsolid || second.fraction < 0.999f) { continue; }
         result = image;
         best = distance;
@@ -2157,10 +2146,8 @@ glm::vec3 pullImage(const glm::vec3& from, const glm::vec3& point, int* gate)
 glm::vec3 pullImageSeen(const glm::vec3& from, const glm::vec3& point)
 {
     if(!walkOn()) { return point; }
-    qcvm_t* oldVm = nullptr;
-    PR_PushQCVM(&sv.qcvm, &oldVm);
+    progs::ServerVm serverVm;
     const glm::vec3 image = pullImage(from, point);
-    PR_PopQCVM(oldVm);
     return image;
 }
 } // namespace qvr::portals
@@ -2265,9 +2252,7 @@ extern "C" void VR_PortalToss(edict_t* ent)
             continue;
         }
         // Its middle's way to the plane clear (its box, wider than the gate's brush, would reach the wall behind it).
-        vec3_t start{o.x, o.y, o.z};
-        vec3_t end{c.x, c.y, c.z};
-        const trace_t tr = behind ? trace_t{} : SV_Move(start, vec3_origin, vec3_origin, end, MOVE_NOMONSTERS, ent);
+        const trace_t tr = behind ? trace_t{} : worldtrace::serverLine(o, c, ent);
         if(!behind && (tr.startsolid || tr.fraction < 1.f))
         {
             if(debug) { Con_Printf("toss %d: blocked on the way (%.2f)\n", NUM_FOR_EDICT(ent), tr.fraction); }
@@ -2503,10 +2488,8 @@ void info_f()
     {
         build();
     }
-    qcvm_t* oldVm = nullptr; // (the console's qcvm is not the server's: the sides name the server's edicts)
-    PR_PushQCVM(&sv.qcvm, &oldVm);
+    progs::ServerVm serverVm; // (the console's qcvm is not the server's: the sides name the server's edicts)
     infoBody();
-    PR_PopQCVM(oldVm);
 }
 
 // vr_portals_view (Debug > Teleporters): why this frame looks through a gate or through none - every side of every gate
@@ -2582,8 +2565,7 @@ void shot_f()
 void pullTest_f()
 {
     if(!sv.active || svs.maxclients < 1) { return; }
-    qcvm_t* oldVm = nullptr;
-    PR_PushQCVM(&sv.qcvm, &oldVm);
+    progs::ServerVm serverVm;
     if(!current()) { build(); }
     edict_t* player = EDICT_NUM(1);
     const glm::vec3 origin = vec(player->v.origin);
@@ -2607,7 +2589,6 @@ void pullTest_f()
             PR_ExecuteProgram(fn);
         }
     }
-    PR_PopQCVM(oldVm);
 }
 
 // vr_portals_lightviews [<x> <y> <z>] (Debug > Teleporters > Torch Light Views): the views whose torches light this
@@ -2858,8 +2839,7 @@ Reach reach(const glm::vec3& root, const glm::vec3& point)
         if(t >= first || !onGate(sd, glm::mix(root, point, t), 1.f) ||
            !triggerActive(EDICT_NUM(sd.trigger)) || (static_cast<int>(EDICT_NUM(sd.trigger)->v.spawnflags) & 1)) { continue; }
         const glm::vec3 on = glm::mix(root, point, t);
-        vec3_t from{root.x, root.y, root.z}, to{on.x, on.y, on.z};
-        const trace_t tr = SV_Move(from, vec3_origin, vec3_origin, to, MOVE_NOMONSTERS, qcvm->edicts);
+        const trace_t tr = worldtrace::serverLine(root, on);
         if(tr.startsolid || tr.fraction < 0.99f) { continue; }
         first = t;
         out.position = carried(sd, point);
@@ -3110,13 +3090,7 @@ bool splitBounds(const glm::vec3& lo, const glm::vec3& hi, LightGate& gate, floa
     if(!current()) { build(); }
     // The gates' triggers are the server's edicts: read under its VM, whichever side asks (the client's held objects ask
     // as it reads the server's messages, VR_RelinkHeld > holdClear, with no VM or the client's active).
-    qcvm_t* oldVm = nullptr;
-    PR_PushQCVM(&sv.qcvm, &oldVm);
-    struct PopVm
-    {
-        qcvm_t* old;
-        ~PopVm() { PR_PopQCVM(old); }
-    } popVm{oldVm};
+    progs::ServerVm serverVm;
     float nearest = 1e9f;
     bool found = false;
     const glm::vec3 centre = (lo + hi) * 0.5f;
@@ -3149,13 +3123,7 @@ bool crossedGate(const glm::vec3& from, const glm::vec3& to, LightGate& gate)
 {
     if(!walkOn()) { return false; }
     if(!current()) { build(); }
-    qcvm_t* oldVm = nullptr;
-    PR_PushQCVM(&sv.qcvm, &oldVm);
-    struct PopVm
-    {
-        qcvm_t* old;
-        ~PopVm() { PR_PopQCVM(old); }
-    } popVm{oldVm};
+    progs::ServerVm serverVm;
     for(const Side& sd : sides)
     {
         const float d0 = glm::dot(sd.normal, from) - sd.dist, d1 = glm::dot(sd.normal, to) - sd.dist;
@@ -3188,13 +3156,7 @@ bool eyeThrough(const glm::vec3& body, glm::vec3& eye, glm::vec3& angles)
 {
     if(!walkOn()) { return false; }
     if(!current()) { build(); }
-    qcvm_t* oldVm = nullptr;
-    PR_PushQCVM(&sv.qcvm, &oldVm);
-    struct PopVm
-    {
-        qcvm_t* old;
-        ~PopVm() { PR_PopQCVM(old); }
-    } popVm{oldVm};
+    progs::ServerVm serverVm;
     float first = 1.f;
     Side through{};
     bool found = false;
@@ -3225,8 +3187,7 @@ bool eyeThrough(const glm::vec3& body, glm::vec3& eye, glm::vec3& angles)
 void reachTest_f()
 {
     if(!sv.active || svs.maxclients < 1) { return; }
-    qcvm_t* old = nullptr;
-    PR_PushQCVM(&sv.qcvm, &old);
+    progs::ServerVm serverVm;
     edict_t* player = EDICT_NUM(1);
     const VrMove* move = server::clientMove(player);
     if(move)
@@ -3259,6 +3220,5 @@ void reachTest_f()
             Con_Printf("reachtest: hand_model=%s clipped_copies=%d bone_poses=%d\n", hand->model->name, copies ? 2 : 1, VR_AliasBonePoses(hand, nullptr));
         }
     }
-    PR_PopQCVM(old);
 }
 }

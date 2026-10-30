@@ -31,6 +31,7 @@
 //   results taken under a mutex.
 
 #include "vr_stats.hpp"
+#include "vr_geom.hpp"
 #include "vr_random.hpp"
 #include "vr_audio.hpp"
 #include "vr_alloccount.hpp"
@@ -68,7 +69,6 @@
 #include "Zancle/String/String.hpp"
 #include "vr_zancle.hpp"
 
-#include "vr_geom.hpp"
 #include <emmintrin.h> // (SSE2: x64's baseline)
 #include <stdio.h>
 

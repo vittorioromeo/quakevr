@@ -4,6 +4,7 @@
 #include "vr_bullettime.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_geom.hpp"
 #include "vr_gore.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_profile.hpp"
@@ -19,7 +20,6 @@
 #include "Zancle/Random/FastNonCryptoRng.hpp"
 #include "vr_zancle.hpp"
 
-#include "vr_geom.hpp"
 #include <stdlib.h>
 
 using namespace qvr;

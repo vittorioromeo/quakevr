@@ -9,6 +9,7 @@
 //     * S(model scale) * T(network model_offset)                               (post)
 
 #include "vr_modelmetadata.hpp"
+#include "vr_geom.hpp"
 #include "vr_render.hpp"
 #include "vr_engine.hpp"
 #include "vr_agarmor.hpp"
@@ -31,7 +32,6 @@
 #include "vr_walltorch.hpp"
 #include "vr_weapons.hpp"
 
-#include "vr_geom.hpp"
 #include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Algorithm/Unique.hpp"

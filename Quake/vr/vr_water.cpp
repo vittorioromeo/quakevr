@@ -1,6 +1,7 @@
 // vr_water.cpp -- see vr_water.hpp.
 
 #include "vr_water.hpp"
+#include "vr_geom.hpp"
 #include "vr_main.hpp"
 #include "vr_profile.hpp"
 #include "vr_haze.hpp"
@@ -46,7 +47,6 @@
 #include "Zancle/String/String.hpp"
 #include "vr_zancle.hpp"
 
-#include "vr_geom.hpp"
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
 #include <SDL2/SDL.h>
 #else

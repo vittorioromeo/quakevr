@@ -3,6 +3,7 @@
 #include "vr_modelmetadata.hpp"
 #include "vr_emissive.hpp"
 #include "vr_gearlights.hpp"
+#include "vr_geom.hpp"
 #include "vr_main.hpp"
 #include "vr_color.hpp"
 #include "vr_cvars.hpp"
@@ -33,7 +34,6 @@
 #include "Zancle/Math/Sqrt.hpp"
 #include "vr_zancle.hpp"
 
-#include "vr_geom.hpp"
 #include <string.h>
 
 extern "C" int* cl_efrags; // gl_refrag.c: each static entity's leaves (a count, then the leaves)

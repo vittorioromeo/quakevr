@@ -2,6 +2,7 @@
 // Split from vr_brushes.cpp (a pure move); what they share is in vr_brushes_internal.hpp.
 
 #include "vr_brushes_internal.hpp"
+#include "vr_geom.hpp"
 #include "vr_progs.hpp"
 
 #include "vr_box3d.hpp"
@@ -15,7 +16,6 @@
 #include "vr_mem.hpp"
 #include "vr_modelcollide.hpp"
 
-#include "vr_geom.hpp"
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/InPlaceVector.hpp"

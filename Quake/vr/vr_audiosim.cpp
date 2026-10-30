@@ -4,8 +4,8 @@
 #include "vr_modelmetadata.hpp"
 #include "vr_audiosim.hpp"
 #include "vr_brushes.hpp"
-
 #include "vr_geom.hpp"
+
 #include "Zancle/Algorithm/Copy.hpp"
 #include "Zancle/Algorithm/Erase.hpp"
 #include "Zancle/Algorithm/Fill.hpp"

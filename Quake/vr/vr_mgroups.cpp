@@ -257,15 +257,12 @@ void list_f()
     {
         return;
     }
-    qcvm_t* old = nullptr;
-    PR_PushQCVM(&sv.qcvm, &old);
+    progs::ServerVm vm;
     int count = 0;
-    for(int num = 1; num < qcvm->num_edicts; ++num)
-    {
-        edict_t* e = EDICT_NUM(num);
-        if(e->free || !(static_cast<int>(e->v.flags) & FL_MONSTER))
+    progs::forEachEdict(1, [&](edict_t* e) {
+        if(!(static_cast<int>(e->v.flags) & FL_MONSTER))
         {
-            continue;
+            return;
         }
         const char* c = PR_GetString(e->v.classname);
         const int g = groupOfClass(c);
@@ -274,11 +271,10 @@ void list_f()
         {
             known = known || std::strcmp(m.classname, c) == 0;
         }
-        Con_Printf("mgroup live %d %s -> %s%s\n", num, c, groupInfo[g].id, known ? "" : " (not in the table)");
+        Con_Printf("mgroup live %d %s -> %s%s\n", NUM_FOR_EDICT(e), c, groupInfo[g].id, known ? "" : " (not in the table)");
         ++count;
-    }
+    });
     Con_Printf("mgroup live: %d monsters\n", count);
-    PR_PopQCVM(old);
 }
 
 // The classes that struggle in a player's hands, each its own (STRUGGLE.md, "Classes"; vr_struggle_classes's last
@@ -758,17 +754,15 @@ extern "C" void VR_MonsterHealth_Frame(void)
     {
         return;
     }
-    for(int num = svs.maxclients + 1; num < qcvm->num_edicts; ++num)
-    {
-        edict_t* e = EDICT_NUM(num);
-        if(e->free || !(static_cast<int>(e->v.flags) & FL_MONSTER) || e->v.health <= 0.f)
+    progs::forEachEdict(svs.maxclients + 1, [&](edict_t* e) {
+        if(!(static_cast<int>(e->v.flags) & FL_MONSTER) || e->v.health <= 0.f)
         {
-            continue;
+            return;
         }
         float& done = progs::fieldFloat(e, ofs);
         if(done != 0.f)
         {
-            continue;
+            return;
         }
         const char* classname = PR_GetString(e->v.classname);
         const float full = e->v.max_health >= e->v.health ? e->v.max_health : e->v.health;
@@ -785,8 +779,8 @@ extern "C" void VR_MonsterHealth_Frame(void)
         }
         if(vr_monster_health_debug.value != 0.f)
         {
-            Con_Printf("mhealth %d %s %s: %g -> %g (full %g, x%.3f)\n", num, classname,
+            Con_Printf("mhealth %d %s %s: %g -> %g (full %g, x%.3f)\n", NUM_FOR_EDICT(e), classname,
                 mgroups::id(mgroups::groupOfClass(classname)), before, e->v.health, e->v.max_health, m);
         }
-    }
+    });
 }

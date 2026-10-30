@@ -1,13 +1,13 @@
 // vr_ambient.cpp -- see vr_ambient.hpp.
 
 #include "vr_ambient.hpp"
+#include "vr_geom.hpp"
 #include "vr_main.hpp"
 #include "vr_cvars.hpp"
 #include "vr_evict.hpp"
 #include "vr_lighting.hpp"
 #include "vr_profile.hpp"
 
-#include "vr_geom.hpp"
 #include "Zancle/Algorithm/Copy.hpp"
 #include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Algorithm/Sort.hpp"

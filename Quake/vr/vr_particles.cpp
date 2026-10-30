@@ -4,6 +4,7 @@
 // the view direction, as the old geometry shader built them.
 
 #include "vr_random.hpp"
+#include "vr_geom.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_trace.hpp"
 #include "vr_particles.hpp"
@@ -48,7 +49,6 @@
 #include "Zancle/Random/FastNonCryptoRng.hpp"
 #include "vr_zancle.hpp"
 
-#include "vr_geom.hpp"
 #include <string.h>
 
 namespace qvr::retrolight

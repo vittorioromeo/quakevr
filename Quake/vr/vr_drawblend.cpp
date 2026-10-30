@@ -16,9 +16,9 @@
 #include "vr_backend.hpp"
 #include "vr_body.hpp"
 #include "vr_cvars.hpp"
+#include "vr_geom.hpp"
 #include "vr_view.hpp"
 
-#include "vr_geom.hpp"
 #include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"

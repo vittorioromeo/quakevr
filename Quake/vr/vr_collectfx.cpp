@@ -23,12 +23,12 @@
 #include "vr_body.hpp"
 #include "vr_client.hpp"
 #include "vr_cvars.hpp"
+#include "vr_geom.hpp"
 #include "vr_held.hpp"
 #include "vr_profile.hpp"
 #include "vr_protocol.hpp"
 #include "vr_view.hpp"
 
-#include "vr_geom.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Math/Clamp.hpp"

@@ -1,6 +1,7 @@
 // vr_bttrails.cpp -- see vr_bttrails.hpp.
 
 #include "vr_random.hpp"
+#include "vr_geom.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_bttrails.hpp"
 #include "vr_bullettime.hpp"
@@ -15,7 +16,6 @@
 #include "vr_units.hpp"
 #include "vr_water.hpp"
 
-#include "vr_geom.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Ceil.hpp"

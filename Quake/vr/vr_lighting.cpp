@@ -1,6 +1,7 @@
 // vr_lighting.cpp -- see vr_lighting.hpp.
 
 #include "vr_modelmetadata.hpp"
+#include "vr_geom.hpp"
 #include "vr_lighting.hpp"
 #include "vr_tracy.h"
 #include "vr_brushes.hpp"
@@ -39,7 +40,6 @@
 #include "Zancle/Math/Sqrt.hpp"
 #include "vr_zancle.hpp"
 
-#include "vr_geom.hpp"
 #include <string.h>
 
 using namespace qvr;

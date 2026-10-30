@@ -1,6 +1,7 @@
 // vr_haze.cpp -- see vr_haze.hpp.
 
 #include "vr_glutil.hpp"
+#include "vr_geom.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_haze.hpp"
 #include "vr_bttrails.hpp"
@@ -13,7 +14,6 @@
 #include "vr_trace.hpp"
 #include "vr_water.hpp"
 
-#include "vr_geom.hpp"
 #include "Zancle/Algorithm/Erase.hpp"
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Base/Strcmp.hpp"

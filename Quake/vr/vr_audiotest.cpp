@@ -22,6 +22,7 @@
 #include "vr_audio.hpp"
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
+#include "vr_geom.hpp"
 #include "vr_hands.hpp"
 #include "vr_jobs.hpp"
 #include "vr_units.hpp"
@@ -45,7 +46,6 @@
 #include "Zancle/String/String.hpp"
 #include "vr_zancle.hpp"
 
-#include "vr_geom.hpp"
 #include <stdio.h>
 
 extern "C" int VR_SndSpatialize(channel_t* ch);
