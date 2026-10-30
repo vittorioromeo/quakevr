@@ -1364,6 +1364,7 @@ void() VR_AGSH_Frame; // (vr_armedgrunt_shove_test.qc)
 void() VR_AGMZ_Frame; // (vr_armedgrunt_muzzle_test.qc)
 void() VR_AGSC_Frame; // (vr_armedgrunt_shoveclose_test.qc)
 void() VR_AG2_Frame; // (vr_armedgrunt_twohand_test.qc)
+void() VR_AGS_ProjTestFrame; // (vr_armedgrunt_shot_test.qc)
 void() VR_AGAM_Frame; // (vr_armedgrunt_ammo_test.qc)
 void() VR_AGAM_Begin;
 
@@ -1445,6 +1446,7 @@ void() VR_AGTest_Frame =
     else if(t == 84) { VR_AGSH_Frame(); } // (their posed shove: vr_armedgrunt_shove_test.qc)
     else if(t == 85) { VR_AGMZ_Frame(); } // (dual guns: each shot from its own muzzle: vr_armedgrunt_muzzle_test.qc)
     else if(t == 89) { VR_AGSC_Frame(); } // (a gun's holder shoves up close: vr_armedgrunt_shoveclose_test.qc)
+    else if(t == 93) { VR_AGS_ProjTestFrame(); } // (projectiles' own rolls: vr_armedgrunt_shot_test.qc)
     else if(t == 92) { VR_AG2_Frame(); } // (two hands in the tug, a staggering or downed one's eased tug: vr_armedgrunt_twohand_test.qc)
     else if(t >= 6 && t <= 9) // a row of armed grunts ahead, 30 units apart (eyeshots): 6 guns, 7 melee, 8 more guns, 9 the rest
     {
