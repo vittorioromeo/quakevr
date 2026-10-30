@@ -79,7 +79,16 @@ constexpr int weaponFlagSsgOpen = 32; // QC's QVR_WPNFLAG_SSG_OPEN
         return vr_spinreload_x_angular_threshold.value;
     }
     const bool open = cl.stats[main ? STAT_QVR_WEAPONFLAGS : STAT_QVR_WEAPONFLAGS2] & weaponFlagSsgOpen;
-    return glm::radians(open ? vr_reload_ssg_flick_close_speed.value : vr_reload_ssg_flick_open_speed.value);
+    if(!open)
+    {
+        return glm::radians(vr_reload_ssg_flick_open_speed.value);
+    }
+    // Both barrels loaded, the flick shut is a little more lenient (vr_reload_ssg_close_flick_loaded divides its speed; the
+    // author: a loaded one a tiny bit easier to flick shut than one that still needs loading).
+    const int clip = cl.stats[main ? STAT_QVR_WEAPONCLIP : STAT_QVR_WEAPONCLIP2];
+    const int clipSize = cl.stats[main ? STAT_QVR_WEAPONCLIPSIZE : STAT_QVR_WEAPONCLIPSIZE2];
+    const float leniency = clipSize > 0 && clip >= clipSize ? za::fmax(vr_reload_ssg_close_flick_loaded.value, 0.1f) : 1.f;
+    return glm::radians(vr_reload_ssg_flick_close_speed.value / leniency);
 }
 
 // Under how fast (radians a second) the wrist counts as still, its up then what a flick swings the barrel towards: the

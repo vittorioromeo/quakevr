@@ -718,3 +718,20 @@ Checklist:
   back towards you after a punch does not hit or whoosh again.
 - Push a hand or a held gun slowly into a live grunt or enforcer: the drawn hand stops at its body (Debug > Show Model
   Collisions logs the push), as it does at a corpse.
+
+## Super shotgun: a loaded one flicks shut a little more easily (branch `agent/ssgflick`)
+
+The author: a loaded super shotgun should be a tiny bit easier to flick shut than one that still needs loading.
+`vr_reload_ssg_close_flick_loaded` (default 1.15; VR Settings > Weapons > Reloading > Super Shotgun, under "Close by": "Flick Close
+Leniency When Loaded", 1-2 in 0.05) divides Flick Close Speed (`vr_reload_ssg_flick_close_speed`, 400 deg/s) while the
+open gun's clip is full (both barrels loaded): 400 needs about 348 deg/s loaded. Bigger is easier; 1 is as before. Only
+the wrist speed is eased (the engine's vr_flick.cpp `flickSpeed`): the direction test (the barrel 0.6 towards the hand's
+up at rest) stays, since loosening it makes ordinary turns of the open gun shut it. The rest speed follows (at most 3/4
+of the flick's).
+
+Test: reload_test.sh section 7, a new check: the mock's 1800 deg/s flick under Flick Close Speed 1950 leaves the open
+gun open empty and loaded at leniency 1, and shuts it loaded at 1.15 (opens `110`).
+
+Checklist:
+- Break the super shotgun open, flick it gently without loading: it stays open; load both barrels and flick about as
+  gently: it shuts (Flick Close Leniency When Loaded 1.15; at 1 both need the same flick).
