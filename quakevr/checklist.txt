@@ -132,6 +132,7 @@ Grab its gun with one hand, add the other hand and pull: it gives sooner; let go
 Hold its gun with one hand and punch the gun with the other fist: the gun ends in the holding hand.
 Shove a grunt into a stagger (or floor it) and grab its gun: not yours at once; a short pull takes it (Tug Downed Scale).
 Shoot a grunt's gun with the nail pistol or nailgun: about 1 hit in 4-5 knocks it out of its hands.
+Debug > Show Disarm Volumes on, walk up to an armed grunt: its gun is outlined orange; hand on the gun: the fist and gun turn yellow; grip: green with a tug progress bar; shove it over: a white limb under the gun, the shapes stay on it; the last hit shows 2 s as parry / disarm / body / shot / blocked.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns
