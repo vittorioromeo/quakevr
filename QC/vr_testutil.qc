@@ -7,6 +7,9 @@
 string vr_test_tag;  // the running test's line prefix ("nailtest")
 float vr_test_pass;  // its checks passed so far
 float vr_test_fail;  // and failed
+float vr_test_flags; // VR_TEST_LOUD, VR_TEST_QUIET (VR_Test_BeginFlags)
+float VR_TEST_LOUD = 1;  // lines broadcast (bprint: seen with developer 0, as the armed grunts' tests print)
+float VR_TEST_QUIET = 2; // a pass prints no line (tests with very many checks: only the failures and the verdict)
 
 // A test (or one of its parts) starts: its tag, the tally cleared.
 void(string tag) VR_Test_Begin =
@@ -14,19 +17,34 @@ void(string tag) VR_Test_Begin =
     vr_test_tag = tag;
     vr_test_pass = 0;
     vr_test_fail = 0;
+    vr_test_flags = 0;
+};
+
+// The same with print modes (VR_TEST_LOUD | VR_TEST_QUIET).
+void(string tag, float flags) VR_Test_BeginFlags =
+{
+    VR_Test_Begin(tag);
+    vr_test_flags = flags;
+};
+
+// A line of the running test's (developer 1, or broadcast with VR_TEST_LOUD).
+void(string s) VR_Test_Print =
+{
+    if(vr_test_flags & VR_TEST_LOUD) bprint(s); else dprint(s);
 };
 
 // One check: counted, and its line printed (developer 1).
 void(float ok, string what) VR_Test_Check =
 {
     if(ok) vr_test_pass++; else vr_test_fail++;
-    dprint(sprintf("%s: %s %s\n", vr_test_tag, ok ? "PASS" : "FAIL", what));
+    if(!ok || !(vr_test_flags & VR_TEST_QUIET))
+        VR_Test_Print(sprintf("%s: %s %s\n", vr_test_tag, ok ? "PASS" : "FAIL", what));
 };
 
 // The test's verdict line.
 void() VR_Test_Verdict =
 {
-    dprint(sprintf("%s: %g passed, %g failed\n", vr_test_tag, vr_test_pass, vr_test_fail));
+    VR_Test_Print(sprintf("%s: %g passed, %g failed\n", vr_test_tag, vr_test_pass, vr_test_fail));
 };
 // The tests' frames (StartFrame's last step, in this order): each reads its request cvar and runs or checks its case.
 // (Tests always built: VR_DeadAnim_TestFrame, VR_KdTrig_Frame, stay in StartFrame.)
