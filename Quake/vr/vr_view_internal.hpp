@@ -952,6 +952,9 @@ bool ammoPouchCentre(glm::vec3& at);
 [[nodiscard]] int ammoPouchItemCount(); // the rounds placed in the ammo pouch last frame (setupAmmoPouchItems)
 glm::vec3 anchorPosition(const ViewEntity& ve, const char* anchor, const glm::vec3& extra);
 glm::vec3 anchorPosition(const entity_t& e, bool mirrored, float zeroBlend, const char* anchor, const glm::vec3& extra);
+// The same for a gun's ammo screen: moved with what it is mounted on (the nail pistol's slide: nailslide::screenShift).
+glm::vec3 screenPosition(const ViewEntity& ve, const char* anchor, const glm::vec3& extra);
+glm::vec3 screenPosition(const entity_t& e, bool mirrored, float zeroBlend, const char* anchor, const glm::vec3& extra);
 const ViewEntity* find(const entity_t* e);
 bool modelLoadPort(const qmodel_t* model, float ssgOpen, glm::vec3& at, glm::vec3& axis, glm::vec3& face);
 glm::vec3 modelPoint(const ViewEntity& ve, const glm::vec3& point);

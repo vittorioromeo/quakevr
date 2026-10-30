@@ -103,6 +103,10 @@ Weapon Offsets > Effects on the shotgun: Gunfire Spark/Smoke Amount 0 gives no s
 Shoot stone, dirt/ground, metal and wood walls with the shotgun: each sounds of its surface, from the wall (stone thud, dirt duller, metal ping, wood knock); a blast is one or two sounds, not a pile.
 Super nailgun on a stone or wood wall: a light thud or knock under the tink, not every nail; on metal only Quake's tink or ricochet.
 Sound > Gunfire > Surface Impacts 0: wall hits silent as before; 2: louder.
+Nail pistol: Full Slide is the default; the back end is steel like the old model's; the paint is less uniform.
+Nail pistol: the ammo screen moves back and home with the slide (Combat > Weapon Damage > Nail Pistol Screen Rides Slide).
+Nail pistol: an empty one holstered or dropped shows its slide locked open (Debug > Tests > Nail Pistol > Empty Nail Pistols: Holstered and Lying).
+Nail pistol: the re-rack after a magazine goes in is a loud, clear clack.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns

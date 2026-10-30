@@ -17,6 +17,9 @@
 //     engine reports): out empty, a new one of 12 from your nails, seated; the slide home; a shot from it.
 //   4 its damage: a grunt killed by nails at its head (each x1.5), another by nails in its body (x1): how many each.
 //   5 armed grunts: one with a nail pistol fires it; one with a pair fires both.
+//   6 what the engine draws (vr_np_probe: vr_np_seen_*): the ammo screen back with the locked slide and home after (2,
+//     3); an empty and a loaded gun in the holsters and lying ahead: the empty ones locked back, the others closed.
+//   7 the re-rack in every reload mode (vr_reload_mode_npistol 0..3): emptied, locked back; loaded again, racked once.
 
 float vr_npt_step;      // 0 idle
 float vr_npt_frames;    // frames into the step
@@ -34,6 +37,15 @@ float vr_npt_mode;      // vr_reload_mode_npistol before
 float vr_npt_grip;      // vr_weapon_grip_mode before (1 meanwhile: the mock's hands keep what they hold)
 entity vr_npt_player;
 entity vr_npt_g;
+float vr_npt_h3, vr_npt_h3f, vr_npt_h5, vr_npt_h5f; // the holsters step 11 fills, put back after
+entity vr_npt_h3i, vr_npt_h5i;
+string vr_npt_h3m, vr_npt_h5m;
+
+// Whether the ammo screen rides the slide as drawn now (vr_nailpistol_screen_ride, the full-slide look).
+float() VR_NPT_ScreenRides =
+{
+    return cvar("vr_nailpistol_screen_ride") != 0 && cvar("vr_nailpistol_model") >= 1;
+};
 
 
 // The map's own monsters stand still meanwhile (one walking into the grunts' line of fire holds their shots).
@@ -65,6 +77,7 @@ void() VR_NPT_End =
     if(vr_np_target) { remove(vr_np_target); vr_np_target = world; }
     cvar_set("vr_reload_mode_npistol", ftos(vr_npt_mode));
     cvar_set("vr_weapon_grip_mode", ftos(vr_npt_grip));
+    cvar_set("vr_np_probe", "0");
     VR_NPT_Trigger(0);
     if(!vr_npt_notarget) vr_npt_player.flags = vr_npt_player.flags - (vr_npt_player.flags & FL_NOTARGET);
     VR_Test_Verdict();
@@ -72,6 +85,35 @@ void() VR_NPT_End =
 };
 
 void() VR_NPT_Next = { vr_npt_step++; vr_npt_frames = 0; };
+
+// Empty and loaded nail pistols to look at (vr_np_test 6; the self-test's step 11): an empty one in the right hip holster,
+// a loaded one in the right upper; an empty one and a loaded one lying ahead of `p` (the empty one on its left). Their
+// slides: the empty ones locked back as in a hand (vr_nailslide.cpp holsterLocked, propLocked).
+entity vr_npt_prop_empty, vr_npt_prop_loaded;
+void(entity p) VR_NPT_EmptyShow =
+{
+    VR_WeaponUtil_EntAddWeapon(p, WID_NAILPISTOL);
+    p.holsterweapon3 = WID_NAILPISTOL;
+    p.holsterweaponflags3 = 0;
+    p.holsterweaponinst3 = WeaponInst_Carried(WID_NAILPISTOL, 0, 0);
+    p.holsterweaponmodel3 = WeaponIdToModel(WID_NAILPISTOL, 0);
+    p.holsterweapon5 = WID_NAILPISTOL;
+    p.holsterweaponflags5 = 0;
+    p.holsterweaponinst5 = WeaponInst_Carried(WID_NAILPISTOL, VR_NailPistol_MagSize(), 0);
+    p.holsterweaponmodel5 = WeaponIdToModel(WID_NAILPISTOL, 0);
+    makevectors([0, p.v_angle_y, 0]);
+    for(float k = 0; k < 2; k++)
+    {
+        entity inst = WeaponInst_New(k ? VR_NailPistol_MagSize() : 0);
+        inst.wi_clip = k ? VR_NailPistol_MagSize() : 0;
+        entity g = CreateThrownWeapon(p, WID_NAILPISTOL, 0, inst, p.origin + v_forward * 40 + v_right * (k ? 8 : -8),
+            [0, p.v_angle_y + 90, 0], '0 0 0', '0 0 0', FALSE, FALSE, 0);
+        if(k) { vr_npt_prop_loaded = g; } else { vr_npt_prop_empty = g; }
+    }
+    dprint(sprintf("nptest: empty nail pistols: the right hip holster's and one lying ahead (clips %g, %g); loaded ones in the right "
+        "upper holster and beside it\n", vr_npt_prop_empty ? vr_npt_prop_empty.weaponinst.wi_clip : -1,
+        vr_npt_prop_loaded ? vr_npt_prop_loaded.weaponinst.wi_clip : -1));
+};
 
 // The main hand's trigger, as the controller's (+attack: the client's move sets button0 next frame).
 float vr_npt_trigger;
@@ -336,6 +378,11 @@ void() VR_NailPistol_TestFrame =
             dprint("nptest: a nail pistol in the right hip and the right upper holster\n");
             return;
         }
+        if(req == 6)
+        {
+            VR_NPT_EmptyShow(vr_npt_player);
+            return;
+        }
         VR_Test_Begin("nptest");
         vr_npt_mode = cvar("vr_reload_mode_npistol");
         vr_npt_grip = cvar("vr_weapon_grip_mode");
@@ -381,6 +428,7 @@ void() VR_NailPistol_TestFrame =
     else if(s == 1)
     {
         cvar_set("vr_reload_mode_npistol", "3");
+        cvar_set("vr_np_probe", "1"); // (the engine writes what it draws: vr_np_seen_*)
         p.flags = p.flags | FL_GODMODE;
         p.ammo_nails = 100;
         VR_WeaponUtil_EntAddWeapon(p, WID_NAILPISTOL);
@@ -459,6 +507,11 @@ void() VR_NailPistol_TestFrame =
             VR_Test_Check(vr_npt_walkrun > 50 && vr_npt_walkjit == 0, sprintf(
                 "walking empty: the slide off its locked-back frame in %g of 99 frames (want 0; %g frames of the run animation)",
                 vr_npt_walkjit, vr_npt_walkrun));
+            // Its ammo screen, on the full slide's left wall, back with the locked slide (vr_nailpistol_screen_ride;
+            // the classic look's stays: its screen is on the receiver).
+            float want4 = VR_NPT_ScreenRides() ? cvar("vr_nailpistol_slide_travel") : 0;
+            VR_Test_Check(fabs(cvar("vr_np_seen_screen") - want4) < 0.02, sprintf(
+                "locked back: the ammo screen moved %.3f units with the slide (want %.3f)", cvar("vr_np_seen_screen"), want4));
             VR_NPT_Next();
         }
     }
@@ -533,6 +586,8 @@ void() VR_NailPistol_TestFrame =
         {
             VR_Test_Check(vr_np_shots == 13 && VRGetWeaponClip(cVR_MainHand) == 11,
                 sprintf("a shot from the new magazine: %g shots, clip %g", vr_np_shots, VRGetWeaponClip(cVR_MainHand)));
+            VR_Test_Check(fabs(cvar("vr_np_seen_screen")) < 0.02, sprintf(
+                "the slide home after it: the ammo screen moved %.3f units (want 0)", cvar("vr_np_seen_screen")));
             remove(vr_np_target);
             vr_np_target = world;
             // (that last nail is still flying down the aim: in a long corridor it would reach the grunts and add to their damage)
@@ -613,10 +668,73 @@ void() VR_NailPistol_TestFrame =
                     n2 - n1 == 1, sprintf("a pair of nail pistols: held %g, %g nails right, %g left", a.vr_ag_prop2 != world,
                         n1 - n0, n2 - n1));
                 VR_AGT_RemovePair(a);
-                self = os;
-                VR_NPT_End();
-                return;
+                VR_NPT_Next();
             }
+        }
+    }
+    else if(s == 11)
+    {
+        // Empty and loaded guns holstered and lying ahead: the empty ones drawn locked back, as in a hand (the engine's
+        // vr_np_seen_holster, vr_np_seen_prop: locked + 100 x closed); the frames the client needs to see them.
+        if(vr_npt_frames == 1)
+        {
+            vr_npt_h3 = p.holsterweapon3; vr_npt_h3f = p.holsterweaponflags3; vr_npt_h3i = p.holsterweaponinst3;
+            vr_npt_h3m = p.holsterweaponmodel3;
+            vr_npt_h5 = p.holsterweapon5; vr_npt_h5f = p.holsterweaponflags5; vr_npt_h5i = p.holsterweaponinst5;
+            vr_npt_h5m = p.holsterweaponmodel5;
+            VR_NPT_EmptyShow(p);
+        }
+        if(vr_npt_frames == 8)
+        {
+            VR_Test_Check(cvar("vr_np_seen_holster") == 101, sprintf("holstered: the empty one drawn locked back, the "
+                "loaded one closed (seen %g: locked + 100 x closed, want 101)", cvar("vr_np_seen_holster")));
+            VR_Test_Check(vr_npt_prop_empty && vr_npt_prop_loaded && cvar("vr_np_seen_prop") == 101, sprintf("lying "
+                "about: the empty one drawn locked back, the loaded one closed (seen %g, want 101)", cvar("vr_np_seen_prop")));
+            if(vr_npt_prop_empty) { remove(vr_npt_prop_empty); vr_npt_prop_empty = world; }
+            if(vr_npt_prop_loaded) { remove(vr_npt_prop_loaded); vr_npt_prop_loaded = world; }
+            p.holsterweapon3 = vr_npt_h3; p.holsterweaponflags3 = vr_npt_h3f; p.holsterweaponinst3 = vr_npt_h3i;
+            p.holsterweaponmodel3 = vr_npt_h3m;
+            p.holsterweapon5 = vr_npt_h5; p.holsterweaponflags5 = vr_npt_h5f; p.holsterweaponinst5 = vr_npt_h5i;
+            p.holsterweaponmodel5 = vr_npt_h5m;
+            VRGiveEntWeapon(p, cVR_MainHand, WID_NAILPISTOL, 0, VR_NailPistol_MagSize());
+            W_SetCurrentAmmoFor(cVR_MainHand);
+            VR_NPT_Next();
+        }
+    }
+    else if(s == 12)
+    {
+        // The re-rack in every reload mode (vr_reload_mode_npistol 0 off, 1, 2, 3): emptied (off: your nails spent, else its
+        // clip), locked back; loaded again (off: nails, else its clip, as each mode's reload ends): re-racked once.
+        float m = floor((vr_npt_frames - 1) / 8);
+        float ph = (vr_npt_frames - 1) - m * 8;
+        if(m >= 4)
+        {
+            cvar_set("vr_reload_mode_npistol", "3");
+            p.ammo_nails = 100;
+            self = os;
+            VR_NPT_End();
+            return;
+        }
+        if(ph == 0)
+        {
+            cvar_set("vr_reload_mode_npistol", ftos(m));
+            if(m == 0) { p.ammo_nails = 0; } else { p.ammo_nails = 100; VRSetEntWeaponClip(p, cVR_MainHand, 0); }
+            W_SetCurrentAmmoFor(cVR_MainHand);
+        }
+        else if(ph == 3)
+        {
+            VR_Test_Check(VRGetWeaponFrame(cVR_MainHand) == 1, sprintf("reload mode %g: emptied, locked back (frame %g)", m,
+                VRGetWeaponFrame(cVR_MainHand)));
+            vr_npt_racks0 = vr_np_racks;
+            if(m == 0) { p.ammo_nails = 50; } else { VRSetEntWeaponClip(p, cVR_MainHand, VR_NailPistol_MagSize()); }
+            W_SetCurrentAmmoFor(cVR_MainHand);
+        }
+        else if(ph == 6)
+        {
+            VR_Test_Check(vr_np_racks == vr_npt_racks0 + 1 && VRGetWeaponFrame(cVR_MainHand) == 0, sprintf(
+                "reload mode %g: loaded again, re-racked (%g racks, want 1; frame %g)", m, vr_np_racks - vr_npt_racks0,
+                VRGetWeaponFrame(cVR_MainHand)));
+            dprint(sprintf("nptest: the rack in reload mode %g\n", m));
         }
     }
     self = os;

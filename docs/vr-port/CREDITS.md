@@ -197,6 +197,9 @@ repository): high-passed at 30 Hz, kept at 44100 Hz 16-bit, faded, peaks rounded
 | `autopump_back.wav` | the action unlocking, the slide starting back | 0.628-0.733 |
 | `autopump_home.wav` | the slide slammed home (its loudest moment 0.053 s in) | 0.864-1.004 |
 
+The nail pistol's re-rack (`quakevr/sound/vr/nailpistol_rack.wav`, round 23) layers these two cuts (the click, then the
+slam) over our own synthesised clack: `Misc/quakevr/make_nailpistol_sounds.py`.
+
 The super shotgun broken open (phase 2b) uses two more cuts of the same pack, by `Misc/quakevr/make_reload_ssg_sounds.py`
 (same treatment, a little louder: the action is heavier); the shells' pop as they are thrown out (`reload_ssg_eject.wav`)
 is synthesised (`make_sounds.py`).

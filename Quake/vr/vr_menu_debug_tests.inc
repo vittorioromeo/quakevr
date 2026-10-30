@@ -1017,6 +1017,9 @@ za::Vector<Item> pageDebugTests()
         command("Nail Pistols in Both Hands", "vr_np_test 3").help("A loaded nail pistol in each hand."),
         command("Nail Pistols in the Holsters", "vr_np_test 4")
             .help("A loaded nail pistol in the right hip and the right upper holster (replacing what was there)."),
+        command("Empty Nail Pistols: Holstered and Lying", "vr_np_test 6")
+            .help("An empty nail pistol in the right hip holster and a loaded one in the right upper; an empty and a "
+                  "loaded one lying ahead of you: the empty ones' slides drawn locked back, as in a hand."),
         command("Nail Pistol Self-Test", "vr_np_test 1")
             .help("Headless checks: semi-automatic, the cooldown, 12 hits and a dry 13th, the slide, the magazine cycle, two headshots or three body shots a grunt, armed grunts firing one and a pair (\"nptest: N passed, M failed\")."),
         command("Hang Nails Before Your Eyes", "vr_nail_test 2")
@@ -1029,6 +1032,9 @@ za::Vector<Item> pageDebugTests()
         toggle("Slide: Print", vr_nailslide_debug)
             .help("vr_nailslide_debug: the slide's place in each hand every frame it moves (0 home .. 1 back by Slide "
                   "Travel) and its edges: a shot, the lock, the re-rack (\"nailslide: ...\")."),
+        cycle("Nail Pistol Model (Archived)", "vr_nailpistol_model", {{0.f, "Classic"}, {1.f, "Full Slide"}})
+            .help("vr_nailpistol_model: its look. Full Slide (the default): the whole upper part is the slide, as a real "
+                  "pistol's. Classic (archived, kept to compare): a copper slide on top of the receiver. Changes at once."),
         command("Nail Pistol Aim Test", "vr_np_test 5")
             .help("Headless (it moves the mock hands): its nails along the shot line (the red laser), flight and impact within "
                   "0.2 degrees, at several poses and distances, both hands (\"npaim: N passed, M failed\"). In the headset: "
