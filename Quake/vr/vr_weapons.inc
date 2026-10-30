@@ -418,6 +418,11 @@ QVR_WEAPON_KEY(BladeTipZ, "bl_tip_z")
 // migration.
 QVR_WEAPON_KEY(RecoilKick, "fx_recoil_kick")
 QVR_WEAPON_KEY(RecoilRise, "fx_recoil_rise")
+// The weapon's recoil recovery (ROUND23.md, "Per-weapon recoil recovery"; Weapon Offsets > Effects, Recoil Recovery;
+// vr_weaponfx.cpp envelope): times how long a shot's kick takes to come back to rest from its peak (its Recoil Return
+// Time less the quick kick up, which stays): above 1 slower (weightier), below 1 faster (lighter). 1 by default
+// (registerCvars): every weapon's recoil as before. New cvars: no migration.
+QVR_WEAPON_KEY(RecoilRecovery, "fx_recoil_rec")
 #endif
 
 
