@@ -11,6 +11,7 @@ vr_weaponinst.qc
 vr_util.qc
 // The hand-held things' named buzzes (VR_Haptic_*), before their callers.
 vr_haptics.qc
+vr_grab.qc
 // The QC tests' shared tally (VR_Test_Begin/Check/Verdict).
 vr_testutil.qc
 vr_handgrabutil.qc

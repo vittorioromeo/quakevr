@@ -1753,6 +1753,38 @@ physgun get the shared throw smoothing; the haptic presets keep today's exact va
   a frame).
 - **Checklist:** pick up a box, a gib, a round, a grenade and a wall torch in either hand, swap and throw them, and
   load a save made while holding one: each is held and let go as before, no `handslot: mismatch` line in the console.
+## Design review 5 (c): the grab query (branch `agent/grabquery`)
+
+- **One vocabulary and one order (Quake/vr/vr_grab.hpp):** `grab::Kind`, numbered in precedence order (smaller takes
+  the grip): the client's ZoneDrag, ChainsawCord, Lamp; the server's Climb, Foe (before the move); the touch stage's
+  Ragdoll, Prop, Round, ArmedWeapon, Weapon, Box; W_Frame's SecondHand, Torch, GrenadePouch, AmmoPouch, Holster,
+  ForceCatch. `grab::Candidate {kind, ent, distance (units), priority()}`. The header lists each stage's search and how
+  it swallows or hides the grip for the stages after it: today's order, written down in one place.
+- **The touch stage (vr_physics.cpp):** `physics::handOn`'s if-chain is a table of providers (`touchProviders`: claims +
+  on), tried in order; the first that claims a thing decides (a Weapon with no jointed fist passes to the Box test, as
+  before). `grab::touch(target, player, hand)` returns the Candidate (the armed weapon's fist gap, a weapon's distance
+  from its handle); handOn is its bool.
+- **W_Frame's searches (QC/vr_grab.qc, VR_GRAB_* = the same numbers):** `VR_Grab_Query(hand, upTo)` asks the providers in
+  order: `VR_WallTorch_GrabCandidate`, `VR_HandGrenade_GrabCandidate`, `VR_Reload_GrabCandidate` (side-effect free;
+  `vr_grab_ent`, `vr_grab_dist`). Each site takes when `VR_Grab_Answers(hand, itsKind)`. The pouches' shared "empty to
+  take" test is one function (`VR_HandGrenade_PouchHandEmpty`, written out twice before).
+- **Debug:** `vr_debug_grab` (Debug > Log Grab Query, default 0): `grabquery: main hand, torch (light_torch_small_walltorch,
+  3.2 u)` per W_Frame take.
+- **Not folded (behaviour or timing would change):** climbing, the foe grab and the lamp stay where they run (before the
+  move, or on the client: moving them to one call point changes the hand positions they see); they are stages in the
+  table, not providers called from one place. SecondHand, the holster draw (inside DoHandImpl) and the force catch (the
+  flying thing's think) likewise. The other busy flags are not touched (the fold is the next step).
+- **Old against new (a check build, not committed):** the old handOn kept beside the touch query on every call, and each
+  W_Frame site's old test beside the query's answer, printed with vr_debug_grab; the console lines starting "grab"
+  collected over the covering cases: 0 differ: the touch query against the old handOn over at least 299,993 calls (28,895 on: counted at powers of two per run, so more), every W_Frame take (79 torch, 7 grenade pouch, 63 ammo pouch) answered alike by the query, 0 MISMATCH lines. (Calling both handOn versions in one frame twice notes the fist's probe,
+  so the check build's own behaviour is not the reference; the bool answers are.)
+- **Covering cases (scratch/refactor/baseline.tsv):** the check build's run (the new answers taking): as the baseline but melee_phase (flaky, (a)'s note), ragdoll_grab 18/1 (its known flake), grip_state (below), reload_front 33/1, reload_gunshape 23/1, reload 111/4 (one failure each, low-impact runs; the clean build's rerun was still going when this was written: scratch/grabcheck_final.txt)
+- **grip_state fails on origin/next too** (off hand: swap_gripped, shotgun_pump2, shotgun_anywhere "not held by a blade",
+  "the grips reset", "taken anywhere"; the same 6 lines with this branch stashed): baseline.tsv's PASS is older. Not this
+  branch's.
+- **A/B bench:** not run yet (budget): scratch/grab_ab.sh interleaves scratch/benchA (origin/next, LTO) and scratch/benchB (this branch, LTO). The per-frame change: W_Frame asks the query at the torch site each frame (the torch provider stops at its grip test, as the old search did)
+- **Checklist:** grab a torch off its wall (near it, and closing the fist on the way), a grenade and a round from the
+  pouches, a box, a gun on the floor and in the air, an armed grunt's weapon and a ragdoll's limb: each taken as before.
 ## Sparse config: only what the player changed (branch `agent/sparsecfg`; design review proposal 1)
 
 His decision: forgotten defaults now reach players (yes).

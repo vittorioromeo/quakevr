@@ -422,21 +422,34 @@ entity(float xHand) VR_WallTorch_NearHand =
     return best;
 };
 
+// The grab query's torch (vr_grab.qc; self is the player): not quite on one, a grip near a torch on its wall takes it
+// (vr_walltorch_reach), or one closed on the way to it (vr_walltorch_grab_time). The hand empty, holding none.
+float(float xHand) VR_WallTorch_GrabCandidate =
+{
+    if(self.health <= 0 || VR_WallTorch_Gripped(self, xHand) != world || !VR_WallTorch_GripFresh(self, xHand) ||
+       !VRIsHandEmpty(self, xHand))
+    {
+        return FALSE;
+    }
+    entity t = VR_WallTorch_NearHand(xHand);
+    if(t == world || !VR_WallTorch_CanGrip(t, self, xHand))
+    {
+        return FALSE;
+    }
+    vr_grab_ent = t;
+    vr_grab_dist = vr_wt_near_dist * VRMetersToUnits() / 100;
+    return TRUE;
+};
+
 // Every player frame, for each hand (self is the player; W_Frame): a hand gripping a torch on its wall pulls it out.
 void(float xHand) VR_WallTorch_HandFrame =
 {
     entity t = VR_WallTorch_Gripped(self, xHand);
     if(t == world)
     {
-        // Not quite on one: a grip near a torch takes it (vr_walltorch_reach), or one closed on the way to it
-        // (vr_walltorch_grab_time).
-        if(self.health > 0 && VR_WallTorch_GripFresh(self, xHand) && VRIsHandEmpty(self, xHand))
+        if(VR_Grab_Answers(xHand, VR_GRAB_TORCH))
         {
-            t = VR_WallTorch_NearHand(xHand);
-            if(t != world && VR_WallTorch_CanGrip(t, self, xHand))
-            {
-                VR_WallTorch_Grip(t, self, xHand, sprintf("near, %.1f cm; %.2f s after the press, the hand at %.1f m/s", vr_wt_near_dist, time - VR_HandGrabUtil_Impl_GetLastGrabTime(self, xHand), vlen(xHand == cVR_OffHand ? self.offhandvel : self.handvel)));
-            }
+            VR_WallTorch_Grip(vr_grab_ent, self, xHand, sprintf("near, %.1f cm; %.2f s after the press, the hand at %.1f m/s", vr_wt_near_dist, time - VR_HandGrabUtil_Impl_GetLastGrabTime(self, xHand), vlen(xHand == cVR_OffHand ? self.offhandvel : self.handvel)));
         }
         return;
     }

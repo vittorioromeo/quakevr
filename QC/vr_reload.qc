@@ -1941,6 +1941,20 @@ void(float xHand) VR_Reload_SsgFrame =
 void(float xHand) VR_Reload_LooseFrame;
 void(float xHand) VR_Reload_PouchFrame;
 
+// The grab query's ammo pouch (vr_grab.qc; self is the player): an empty hand at the pouch (immersive reloads: a kind it
+// gives the other hand's gun), its grip just pressed (once a press: vr_reload_tried).
+float(float xHand) VR_Reload_GrabCandidate =
+{
+    float bit = xHand == cVR_MainHand ? 2 : 1;
+    if(!VR_Reload_AtPouch(self, xHand) || self.health <= 0 || !self.ishuman || (!deathmatch && time < readytime))
+    {
+        return FALSE;
+    }
+    float aid = VR_Reload_Immersive() ? VR_Reload_PouchKind(xHand) : -1;
+    return VR_HandGrenade_PouchHandEmpty(self, xHand) && aid >= 0 && VR_HandGrabUtil_StartedHandGrabbing(self, xHand) &&
+           !(self.vr_reload_tried & bit);
+};
+
 void(float xHand) VR_Reload_HandFrame =
 {
     float bit = xHand == cVR_MainHand ? 2 : 1;
@@ -1963,10 +1977,7 @@ void(float xHand) VR_Reload_HandFrame =
     {
         return;
     }
-    float climbing = VRHasBit(self.vrbits0, xHand == cVR_MainHand ? QVR_VRBITS0_MAINHAND_CLIMBING :
-                                                                    QVR_VRBITS0_OFFHAND_CLIMBING);
-    float emptyHand = VRIsHandEmpty(self, xHand) &&
-                      !VR_Melee_HoldsTorch(self, xHand) && !VR_Forcegrab_IsHandBusy(self, xHand) && !climbing;
+    float emptyHand = VR_HandGrenade_PouchHandEmpty(self, xHand);
     float aid = VR_Reload_Immersive() ? VR_Reload_PouchKind(xHand) : -1;
     if(!was)
     {
@@ -1980,7 +1991,7 @@ void(float xHand) VR_Reload_HandFrame =
             VR_Reload_Haptic(self, xHand, 0.04, 160, 0.35); // (to put it back)
         }
     }
-    if(emptyHand && aid >= 0 && VR_HandGrabUtil_StartedHandGrabbing(self, xHand) && !(self.vr_reload_tried & bit))
+    if(VR_Grab_Answers(xHand, VR_GRAB_AMMO_POUCH))
     {
         self.vr_reload_tried = self.vr_reload_tried | bit;
         VR_Reload_Take(xHand);
