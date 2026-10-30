@@ -697,6 +697,368 @@ void moveHandTo(int hand, const glm::vec3& target)
         mockHandPos[hand].x, mockHandPos[hand].y, mockHandPos[hand].z);
 }
 
+// vr_mock_hand_to's sub-commands (mockHandTo_f below): each moves the hand and prints what it found.
+// On the attached magazine of the other hand's gun (its box: hands::State::magBox): `along` its length (1 its feed
+// end, in the well; 0 its middle; -1 its far end), `out` units off its side (0 on it; negative: into it).
+void handToMag(int hand, bool magPalm, bool magHeld)
+{
+    const hands::State& st = hands::current();
+    const int gun = 1 - hand;
+    if(!st.magBoxValid[gun])
+    {
+        Con_Printf("vr_mock_hand_to: the other hand's gun has no magazine in\n");
+        return;
+    }
+    const glm::vec3* box = st.magBox[gun];
+    const float side = glm::length(box[2]);
+    const float out = Cmd_Argc() >= 5 ? static_cast<float>(Q_atof(Cmd_Argv(4))) : 0.f;
+    const glm::vec3 across = side > 1e-4f ? box[2] / side : glm::vec3{0.f, 0.f, 1.f};
+    Con_Printf("vr_mock_hand_to: the magazine's box %.2f by %.2f by %.2f units (length, across, through)\n",
+        2.f * glm::length(box[1]), 2.f * side, 2.f * glm::length(box[3]));
+    // ("magpalm": the palm's middle there, not the hand's point: hands::palmPoint; "magheld": the drawn middle of what
+    // it holds. The solid magazine's tests.)
+    const int heldNum = magHeld ? held::heldEntity(hand) : 0;
+    const glm::vec3 palm = magPalm   ? hands::palmPoint(st, hand) - st.pos[hand]
+                           : heldNum ? held::drawnCentre(heldNum) - st.pos[hand]
+                                     : glm::vec3{0.f};
+    moveHandTo(hand, box[0] + box[1] * static_cast<float>(Q_atof(Cmd_Argv(3))) + across * (side + out) - palm);
+}
+
+// The fingertip off the other gun's ammo button: in front of it, beside it or behind it (vr_weapon_button_cone).
+void handToWallButton(int hand)
+{
+    const char* how = Cmd_Argv(3);
+    const float angle = !q_strcasecmp(how, "front") ? 0.f
+                        : !q_strcasecmp(how, "side") ? 90.f
+                        : !q_strcasecmp(how, "back") ? 180.f
+                                                      : static_cast<float>(Q_atof(how));
+    glm::vec3 target;
+    if(!view::weaponButtonHandTarget(hand, angle, Cmd_Argc() >= 6 ? static_cast<float>(Q_atof(Cmd_Argv(5))) : 0.f,
+           Cmd_Argc() >= 5 ? static_cast<float>(Q_atof(Cmd_Argv(4))) : 2.f, target))
+    {
+        Con_Printf("vr_mock_hand_to: the other hand's gun shows no button\n");
+        return;
+    }
+    moveHandTo(hand, target);
+}
+
+// "bladehandle <index> [<along> <normal> <flat>]": at Edit Blade Shape's handle `index` (vr_bladeedit.cpp: 0 the
+// tip, 1 the near end, 2 the width, 3..7 the curve's points, 8 and 9 the head's corners, 10 the blade's start, 11
+// the line's start), plus units along the
+// blade's line, its normal in the blade's plane and the model's +y; "bladebutton <index>": at its panel button (0
+// Undo, 1 Reset Blade, 2 Straighten, 3 Head Box, 4 Cancel, 5 Done).
+void handToBladehandle(int hand)
+{
+    const bool isHandle = !q_strcasecmp(Cmd_Argv(2), "bladehandle");
+    glm::vec3 offset{0.f}, target;
+    for(int i = 0; i < 3 && Cmd_Argc() > 4 + i; i++)
+    {
+        offset[i] = static_cast<float>(Q_atof(Cmd_Argv(4 + i)));
+    }
+    if(isHandle ? !bladeedit::handlePoint(Q_atoi(Cmd_Argv(3)), offset, target)
+                : !bladeedit::buttonPoint(Q_atoi(Cmd_Argv(3)), target))
+    {
+        Con_Printf("vr_mock_hand_to: no Edit Blade Shape %s %s\n", isHandle ? "handle" : "button", Cmd_Argv(3));
+        return;
+    }
+    moveHandTo(hand, target);
+}
+
+// "posepart <index> [<dx> <dy> <dz>]": at the Pose Studio's part `index` (vr_posestudio.cpp: 0 the right weapon's
+// box's middle, 1 the left weapon's, 2 the right hand's grip, 3 the left's, 4/5 the elbows, 6 the chest, 7..11 the
+// Pickup's legs: pelvis, planted foot, kneeling knee, kneeling foot, planted knee; 99 where the controller was when
+// the grab began), plus world units; "posebutton <index>": at its panel button (0 Scope, 1 Undo, 2 Reset Grips, 3
+// Frozen, 4 Cancel, 5 Done).
+void handToPosePart(int hand)
+{
+    const bool isPart = !q_strcasecmp(Cmd_Argv(2), "posepart");
+    glm::vec3 offset{0.f}, target;
+    for(int i = 0; i < 3 && Cmd_Argc() > 4 + i; i++)
+    {
+        offset[i] = static_cast<float>(Q_atof(Cmd_Argv(4 + i)));
+    }
+    if(isPart ? !posestudio::partPoint(hand, Q_atoi(Cmd_Argv(3)), offset, target) : !posestudio::buttonPoint(Q_atoi(Cmd_Argv(3)), target))
+    {
+        Con_Printf("vr_mock_hand_to: no Pose Studio %s %s\n", isPart ? "part" : "button", Cmd_Argv(3));
+        return;
+    }
+    moveHandTo(hand, target);
+}
+
+// At zone `index`'s holster as drawn (zones::Zone: the holsters 0..5 as above, 6 the ammo pouch, 7 the grenade
+// pouch; its model's origin, the loops), `out` `outwards` `up` units off it in its frame; "zonegrip": the grip of
+// the gun the hand holds there instead, "zonepalm" its palm (vr_holster_zones tests); "zonebox": the hand at the
+// zone's box's middle, plus `out` `side` `up` along its axes; "zonehandle": at the holstered gun's grip as drawn,
+// `out` units further from the box's middle.
+void handToZone(int hand)
+{
+    const hands::State& st = hands::current();
+    const glm::vec3 off{Cmd_Argc() > 4 ? Q_atof(Cmd_Argv(4)) : 0.f, Cmd_Argc() > 5 ? Q_atof(Cmd_Argv(5)) : 0.f,
+        Cmd_Argc() > 6 ? Q_atof(Cmd_Argv(6)) : 0.f};
+    glm::vec3 target;
+    const int zone = Q_atoi(Cmd_Argv(3));
+    const bool box = !q_strcasecmp(Cmd_Argv(2), "zonebox");
+    const bool atHandle = !q_strcasecmp(Cmd_Argv(2), "zonehandle");
+    glm::vec3 mid;
+    if(atHandle ? !(zones::gripPoint(st, zone, target) && zones::boxMiddle(st, zone, mid))
+        : box ? !zones::boxMiddle(st, zone, target, off)
+              : !zones::drawnPoint(st, zone, off, target))
+    {
+        Con_Printf("vr_mock_hand_to: no zone %s%s\n", Cmd_Argv(3), atHandle ? " (or no gun holstered there)" : "");
+        return;
+    }
+    if(atHandle && glm::distance(target, mid) > 1e-4f)
+    {
+        target += glm::normalize(target - mid) * off.x;
+    }
+    glm::vec3 handle, tip;
+    if(!q_strcasecmp(Cmd_Argv(2), "zonegrip"))
+    {
+        if(!view::heldWeaponLine(hand, handle, tip))
+        {
+            Con_Printf("vr_mock_hand_to: no gun in that hand\n");
+            return;
+        }
+        target += st.pos[hand] - handle;
+    }
+    glm::vec3 palm;
+    if(!q_strcasecmp(Cmd_Argv(2), "zonepalm")) // (the palm of the hand holding a gun: the zones' hand point)
+    {
+        if(!view::heldHandPoint(hand, palm))
+        {
+            Con_Printf("vr_mock_hand_to: no gun in that hand\n");
+            return;
+        }
+        target += st.pos[hand] - palm;
+    }
+    Con_Printf("vr_mock_hand_to: %s %s: %.1f %.1f %.1f\n", Cmd_Argv(2), Cmd_Argv(3), target.x, target.y, target.z);
+    moveHandTo(hand, target);
+}
+
+// At a holster's point (body::Holster: 0 left shoulder, 1 right shoulder, 2 left hip, 3 right hip, 4 left upper,
+// 5 right upper), or the grenade pouch's (vr_handgrenade): putting away what the hand holds (vr_collect_fx tests).
+void handToHolster(int hand)
+{
+    const hands::State& st = hands::current();
+    glm::vec3 target;
+    if(Cmd_Argc() == 3)
+    {
+        if(!body::pouchEnabled())
+        {
+            Con_Printf("vr_mock_hand_to: no grenade pouch (vr_handgrenade)\n");
+            return;
+        }
+        target = body::pouchPosition(st);
+    }
+    else
+    {
+        const int h = Q_atoi(Cmd_Argv(3));
+        if(h < 0 || h >= body::HolsterCount)
+        {
+            Con_Printf("vr_mock_hand_to: holster 0..%d\n", body::HolsterCount - 1);
+            return;
+        }
+        target = body::holsterPosition(st, static_cast<body::Holster>(h));
+    }
+    // With the zones (vr_holster_zones 1): their box's middle (his zones, 2026-10-17, are moved off the reach points;
+    // a hand there is no longer in some of them).
+    glm::vec3 mid;
+    if(zones::enabled() && zones::boxMiddle(st, Cmd_Argc() == 3 ? zones::ZoneGrenadePouch : Q_atoi(Cmd_Argv(3)), mid))
+    {
+        target = mid;
+    }
+    Con_Printf("vr_mock_hand_to: %s: %.1f %.1f %.1f\n", Cmd_Argv(2), target.x, target.y, target.z);
+    moveHandTo(hand, target);
+}
+
+// Pouch reloading (vr_reload.qc VR_Reload_PouchFrame): the hand's own gun's load point on the top middle of the
+// rounds standing in the ammo pouch, `units` above it along them (negative: into them), the hand turned as it is;
+// as drawn last frame.
+void handToPouchPort(int hand)
+{
+    const hands::State& st = hands::current();
+    glm::vec3 box[4];
+    if(!st.loadPortValid[hand] || !view::ammoPouchRounds(box))
+    {
+        Con_Printf("vr_mock_hand_to: no gun with a load point in that hand, or no ammo pouch\n");
+        return;
+    }
+    const float up = glm::length(box[3]);
+    const glm::vec3 top = box[0] + box[3] +
+                          (up > 1e-4f ? box[3] / up : glm::vec3{0.f, 0.f, 1.f}) *
+                              (Cmd_Argc() == 4 ? static_cast<float>(Q_atof(Cmd_Argv(3))) : 0.f);
+    Con_Printf("vr_mock_hand_to: the pouch's rounds' top %.1f %.1f %.1f (up %.2f %.2f %.2f), the load point %.1f off the hand\n",
+        top.x, top.y, top.z, box[3].x / za::max(up, 1e-4f), box[3].y / za::max(up, 1e-4f), box[3].z / za::max(up, 1e-4f),
+        glm::distance(st.loadPort[hand], st.pos[hand]));
+    moveHandTo(hand, top - (st.loadPort[hand] - st.pos[hand]));
+}
+
+// Pouch reloading's magazine guns (vr_reload_pouch_mag_slots): the hand's own gun's load point on the top middle of
+// magazine <slot> as drawn in the pouch (view::ammoPouchMags: its mesh), moved <up> units along it, <left> to
+// the pouch's left and <out> out of the body; the hand turned as it is.
+void handToPouchMag(int hand)
+{
+    const hands::State& st = hands::current();
+    glm::vec3 top[pouchitems::magsMost], up, box[4];
+    const int n = view::ammoPouchMags(top, up);
+    const int j = Q_atoi(Cmd_Argv(3));
+    if(!st.loadPortValid[hand] || !view::ammoPouchRounds(box) || j < 0 || j >= n)
+    {
+        Con_Printf("vr_mock_hand_to: no gun with a load point in that hand, or no such magazine drawn (%d)\n", n);
+        return;
+    }
+    const auto arg = [](int i) { return Cmd_Argc() > i ? static_cast<float>(Q_atof(Cmd_Argv(i))) : 0.f; };
+    const glm::vec3 left = glm::length(box[2]) > 1e-6f ? glm::normalize(box[2]) : glm::vec3{0.f, 1.f, 0.f};
+    const glm::vec3 out = glm::length(box[1]) > 1e-6f ? glm::normalize(box[1]) : glm::vec3{1.f, 0.f, 0.f};
+    const glm::vec3 at = top[j] + up * arg(4) + left * arg(5) + out * arg(6);
+    Con_Printf("vr_mock_hand_to: magazine %d's top %.2f %.2f %.2f, the load point at %.2f %.2f %.2f\n", j, top[j].x,
+        top[j].y, top[j].z, at.x, at.y, at.z);
+    moveHandTo(hand, at - (st.loadPort[hand] - st.pos[hand]));
+}
+
+// Immersive reloading (vr_reload.qc): at the ammo pouch's reach point; or what the hand holds (a round from it)
+// brought to the loading port of the gun in the other hand, `units` short of it (along the hand's down: below
+// the port, coming up to it), as drawn last frame.
+void handToAmmoOrLoadPort(int hand, bool ammoPouch, bool loadPortMid)
+{
+    const hands::State& st = hands::current();
+    glm::vec3 target{0.f};
+    if(ammoPouch)
+    {
+        if(!body::ammoPouchEnabled())
+        {
+            Con_Printf("vr_mock_hand_to: no ammo pouch (vr_reload_mode 3, Weapon Mode Immersive)\n");
+            return;
+        }
+        target = body::ammoPouchPosition(st);
+        glm::vec3 mid; // (the zones': their box's middle, as the holsters')
+        if(zones::enabled() && zones::boxMiddle(st, zones::ZoneAmmoPouch, mid))
+        {
+            target = mid;
+        }
+        Con_Printf("vr_mock_hand_to: the ammo pouch: %.1f %.1f %.1f\n", target.x, target.y, target.z);
+    }
+    else
+    {
+        if(!st.loadPortValid[1 - hand])
+        {
+            Con_Printf("vr_mock_hand_to: the other hand holds no gun with a loading port\n");
+            return;
+        }
+        target = st.loadPort[1 - hand];
+        Con_Printf("vr_mock_hand_to: the other hand's gun's loading port: %.1f %.1f %.1f\n", target.x, target.y, target.z);
+        if(glm::vec3 ref; !loadPortMid && view::heldRoundRef(hand, ref))
+        {
+            target -= ref - st.pos[hand]; // (a magazine's top, a shell's middle)
+            if(const int num = held::heldEntity(hand); num > 0)
+            {
+                const entity_t& e = cl_entities[num];
+                Con_Printf("vr_mock_hand_to: held %d at %.1f %.1f %.1f angles %.1f %.1f %.1f, its reference %.1f %.1f %.1f\n",
+                    num, e.origin[0], e.origin[1], e.origin[2], e.angles[0], e.angles[1], e.angles[2], ref.x, ref.y, ref.z);
+            }
+        }
+        else if(const int num = held::heldEntity(hand); loadPortMid && num > 0 && num < cl_max_edicts)
+        {
+            const entity_t& e = cl_entities[num]; // (lportmid: its middle, not its reference point)
+            target -= geom::vec(e.origin) - st.pos[hand];
+        }
+        target.z -= Cmd_Argc() == 4 ? Q_atof(Cmd_Argv(3)) : 0.f;
+    }
+    moveHandTo(hand, target);
+}
+
+// The entity of that classname nearest you (a limb cut off: vr_limb), `units` over its origin (Limb gore's grab
+// test).
+void handToNearest(int hand)
+{
+    qcvm_t* oldVm = nullptr;
+    PR_PushQCVM(&sv.qcvm, &oldVm);
+    const edict_t* player = EDICT_NUM(1);
+    const glm::vec3 from{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
+    glm::vec3 target{0.f};
+    float best = 1e30f;
+    int found = 0;
+    for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
+    {
+        const edict_t* e = EDICT_NUM(i);
+        if(e->free || strcmp(PR_GetString(e->v.classname), Cmd_Argv(3)) != 0)
+        {
+            continue;
+        }
+        const glm::vec3 at{e->v.origin[0], e->v.origin[1], e->v.origin[2]};
+        if(glm::distance(at, from) < best)
+        {
+            best = glm::distance(at, from);
+            target = at;
+            found = i;
+        }
+    }
+    PR_PopQCVM(oldVm);
+    if(!found)
+    {
+        Con_Printf("vr_mock_hand_to: no %s\n", Cmd_Argv(3));
+        return;
+    }
+    // ("head": the middle of its head zone, the neck snap's: foegrab::headZoneCentre; then `units` over it.)
+    const bool head = Cmd_Argc() >= 5 && !q_strcasecmp(Cmd_Argv(4), "head");
+    if(head)
+    {
+        PR_PushQCVM(&sv.qcvm, &oldVm);
+        const bool zone = foegrab::headZoneCentre(EDICT_NUM(found), target);
+        PR_PopQCVM(oldVm);
+        if(!zone)
+        {
+            Con_Printf("vr_mock_hand_to: %s %d has no head zone\n", Cmd_Argv(3), found);
+            return;
+        }
+    }
+    target.z += Cmd_Argc() >= 5 + (head ? 1 : 0) ? Q_atof(Cmd_Argv(4 + (head ? 1 : 0))) : 0.f;
+    Con_Printf("vr_mock_hand_to: %s %d%s: %.1f %.1f %.1f\n", Cmd_Argv(3), found, head ? "'s head" : "", target.x,
+        target.y, target.z);
+    moveHandTo(hand, target);
+}
+
+// A ragdoll's limb (vr_ragdoll: the grab tests), `units` over its middle; or where the hand is moved by a
+// world offset (units).
+void handToRagdollOrBy(int hand, bool by)
+{
+    const hands::State& st = hands::current();
+    glm::vec3 target{0.f};
+    if(by)
+    {
+        target = st.pos[hand] + glm::vec3{Q_atof(Cmd_Argv(3)), Q_atof(Cmd_Argv(4)), Q_atof(Cmd_Argv(5))};
+    }
+    else if(sv.active && svs.maxclients >= 1)
+    {
+        qcvm_t* oldVm = nullptr;
+        PR_PushQCVM(&sv.qcvm, &oldVm);
+        // (Part "near": the one nearest the hand; "head": its rig's head; "neck": its head's joint; a name (its
+        // beginning, e.g. "shin_r"): the first part so named; else its number.)
+        const edict_t* player = EDICT_NUM(1);
+        const char* which = Cmd_Argv(3);
+        const bool nearest = !q_strcasecmp(which, "near");
+        const bool named = !nearest && q_strcasecmp(which, "head") && q_strcasecmp(which, "neck") &&
+                           ((which[0] >= 'a' && which[0] <= 'z') || (which[0] >= 'A' && which[0] <= 'Z'));
+        const int num = box3d::ragdollPartCentre(nearest ? hands::current().pos[hand]
+                                                         : geom::vec(player->v.origin),
+            nearest                          ? -1
+            : named                          ? -4
+            : !q_strcasecmp(which, "head") ? -2
+            : !q_strcasecmp(which, "neck") ? -3
+                                             : Q_atoi(which),
+            target, named ? which : nullptr);
+        PR_PopQCVM(oldVm);
+        if(!num)
+        {
+            Con_Printf("vr_mock_hand_to: no ragdoll, or no such part\n");
+            return;
+        }
+        target.z += Cmd_Argc() >= 5 ? Q_atof(Cmd_Argv(4)) : 0.f;
+        Con_Printf("vr_mock_hand_to: ragdoll %d, its part %s: %.1f %.1f %.1f\n", num, Cmd_Argv(3), target.x, target.y, target.z);
+    }
+    moveHandTo(hand, target);
+}
+
 void mockHandTo_f()
 {
     const int hand = Cmd_Argc() >= 2 ? mockHand(Cmd_Argv(1)) : -1;
@@ -722,46 +1084,12 @@ void mockHandTo_f()
     const bool magHeld = Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "magheld");
     if(Cmd_Argc() >= 4 && (!q_strcasecmp(Cmd_Argv(2), "mag") || magPalm || magHeld) && hand >= 0)
     {
-        // On the attached magazine of the other hand's gun (its box: hands::State::magBox): `along` its length (1 its feed
-        // end, in the well; 0 its middle; -1 its far end), `out` units off its side (0 on it; negative: into it).
-        const hands::State& st = hands::current();
-        const int gun = 1 - hand;
-        if(!st.magBoxValid[gun])
-        {
-            Con_Printf("vr_mock_hand_to: the other hand's gun has no magazine in\n");
-            return;
-        }
-        const glm::vec3* box = st.magBox[gun];
-        const float side = glm::length(box[2]);
-        const float out = Cmd_Argc() >= 5 ? static_cast<float>(Q_atof(Cmd_Argv(4))) : 0.f;
-        const glm::vec3 across = side > 1e-4f ? box[2] / side : glm::vec3{0.f, 0.f, 1.f};
-        Con_Printf("vr_mock_hand_to: the magazine's box %.2f by %.2f by %.2f units (length, across, through)\n",
-            2.f * glm::length(box[1]), 2.f * side, 2.f * glm::length(box[3]));
-        // ("magpalm": the palm's middle there, not the hand's point: hands::palmPoint; "magheld": the drawn middle of what
-        // it holds. The solid magazine's tests.)
-        const int heldNum = magHeld ? held::heldEntity(hand) : 0;
-        const glm::vec3 palm = magPalm   ? hands::palmPoint(st, hand) - st.pos[hand]
-                               : heldNum ? held::drawnCentre(heldNum) - st.pos[hand]
-                                         : glm::vec3{0.f};
-        moveHandTo(hand, box[0] + box[1] * static_cast<float>(Q_atof(Cmd_Argv(3))) + across * (side + out) - palm);
+        handToMag(hand, magPalm, magHeld);
         return;
     }
     if(Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "wbutton") && hand >= 0)
     {
-        // The fingertip off the other gun's ammo button: in front of it, beside it or behind it (vr_weapon_button_cone).
-        const char* how = Cmd_Argv(3);
-        const float angle = !q_strcasecmp(how, "front") ? 0.f
-                            : !q_strcasecmp(how, "side") ? 90.f
-                            : !q_strcasecmp(how, "back") ? 180.f
-                                                          : static_cast<float>(Q_atof(how));
-        glm::vec3 target;
-        if(!view::weaponButtonHandTarget(hand, angle, Cmd_Argc() >= 6 ? static_cast<float>(Q_atof(Cmd_Argv(5))) : 0.f,
-               Cmd_Argc() >= 5 ? static_cast<float>(Q_atof(Cmd_Argv(4))) : 2.f, target))
-        {
-            Con_Printf("vr_mock_hand_to: the other hand's gun shows no button\n");
-            return;
-        }
-        moveHandTo(hand, target);
+        handToWallButton(hand);
         return;
     }
     if(hand >= 0 && Cmd_Argc() >= 4 && !q_strcasecmp(Cmd_Argv(2), "setupbutton"))
@@ -780,45 +1108,12 @@ void mockHandTo_f()
     if(hand >= 0 && Cmd_Argc() >= 4 &&
         (!q_strcasecmp(Cmd_Argv(2), "bladehandle") || !q_strcasecmp(Cmd_Argv(2), "bladebutton")))
     {
-        // "bladehandle <index> [<along> <normal> <flat>]": at Edit Blade Shape's handle `index` (vr_bladeedit.cpp: 0 the
-        // tip, 1 the near end, 2 the width, 3..7 the curve's points, 8 and 9 the head's corners, 10 the blade's start, 11
-        // the line's start), plus units along the
-        // blade's line, its normal in the blade's plane and the model's +y; "bladebutton <index>": at its panel button (0
-        // Undo, 1 Reset Blade, 2 Straighten, 3 Head Box, 4 Cancel, 5 Done).
-        const bool isHandle = !q_strcasecmp(Cmd_Argv(2), "bladehandle");
-        glm::vec3 offset{0.f}, target;
-        for(int i = 0; i < 3 && Cmd_Argc() > 4 + i; i++)
-        {
-            offset[i] = static_cast<float>(Q_atof(Cmd_Argv(4 + i)));
-        }
-        if(isHandle ? !bladeedit::handlePoint(Q_atoi(Cmd_Argv(3)), offset, target)
-                    : !bladeedit::buttonPoint(Q_atoi(Cmd_Argv(3)), target))
-        {
-            Con_Printf("vr_mock_hand_to: no Edit Blade Shape %s %s\n", isHandle ? "handle" : "button", Cmd_Argv(3));
-            return;
-        }
-        moveHandTo(hand, target);
+        handToBladehandle(hand);
         return;
     }
     if(hand >= 0 && Cmd_Argc() >= 4 && (!q_strcasecmp(Cmd_Argv(2), "posepart") || !q_strcasecmp(Cmd_Argv(2), "posebutton")))
     {
-        // "posepart <index> [<dx> <dy> <dz>]": at the Pose Studio's part `index` (vr_posestudio.cpp: 0 the right weapon's
-        // box's middle, 1 the left weapon's, 2 the right hand's grip, 3 the left's, 4/5 the elbows, 6 the chest, 7..11 the
-        // Pickup's legs: pelvis, planted foot, kneeling knee, kneeling foot, planted knee; 99 where the controller was when
-        // the grab began), plus world units; "posebutton <index>": at its panel button (0 Scope, 1 Undo, 2 Reset Grips, 3
-        // Frozen, 4 Cancel, 5 Done).
-        const bool isPart = !q_strcasecmp(Cmd_Argv(2), "posepart");
-        glm::vec3 offset{0.f}, target;
-        for(int i = 0; i < 3 && Cmd_Argc() > 4 + i; i++)
-        {
-            offset[i] = static_cast<float>(Q_atof(Cmd_Argv(4 + i)));
-        }
-        if(isPart ? !posestudio::partPoint(hand, Q_atoi(Cmd_Argv(3)), offset, target) : !posestudio::buttonPoint(Q_atoi(Cmd_Argv(3)), target))
-        {
-            Con_Printf("vr_mock_hand_to: no Pose Studio %s %s\n", isPart ? "part" : "button", Cmd_Argv(3));
-            return;
-        }
-        moveHandTo(hand, target);
+        handToPosePart(hand);
         return;
     }
     if(hand >= 0 && Cmd_Argc() >= 4 &&
@@ -826,236 +1121,33 @@ void mockHandTo_f()
             !q_strcasecmp(Cmd_Argv(2), "zonepalm") || !q_strcasecmp(Cmd_Argv(2), "zonebox") ||
             !q_strcasecmp(Cmd_Argv(2), "zonehandle")))
     {
-        // At zone `index`'s holster as drawn (zones::Zone: the holsters 0..5 as above, 6 the ammo pouch, 7 the grenade
-        // pouch; its model's origin, the loops), `out` `outwards` `up` units off it in its frame; "zonegrip": the grip of
-        // the gun the hand holds there instead, "zonepalm" its palm (vr_holster_zones tests); "zonebox": the hand at the
-        // zone's box's middle, plus `out` `side` `up` along its axes; "zonehandle": at the holstered gun's grip as drawn,
-        // `out` units further from the box's middle.
-        const hands::State& st = hands::current();
-        const glm::vec3 off{Cmd_Argc() > 4 ? Q_atof(Cmd_Argv(4)) : 0.f, Cmd_Argc() > 5 ? Q_atof(Cmd_Argv(5)) : 0.f,
-            Cmd_Argc() > 6 ? Q_atof(Cmd_Argv(6)) : 0.f};
-        glm::vec3 target;
-        const int zone = Q_atoi(Cmd_Argv(3));
-        const bool box = !q_strcasecmp(Cmd_Argv(2), "zonebox");
-        const bool atHandle = !q_strcasecmp(Cmd_Argv(2), "zonehandle");
-        glm::vec3 mid;
-        if(atHandle ? !(zones::gripPoint(st, zone, target) && zones::boxMiddle(st, zone, mid))
-            : box ? !zones::boxMiddle(st, zone, target, off)
-                  : !zones::drawnPoint(st, zone, off, target))
-        {
-            Con_Printf("vr_mock_hand_to: no zone %s%s\n", Cmd_Argv(3), atHandle ? " (or no gun holstered there)" : "");
-            return;
-        }
-        if(atHandle && glm::distance(target, mid) > 1e-4f)
-        {
-            target += glm::normalize(target - mid) * off.x;
-        }
-        glm::vec3 handle, tip;
-        if(!q_strcasecmp(Cmd_Argv(2), "zonegrip"))
-        {
-            if(!view::heldWeaponLine(hand, handle, tip))
-            {
-                Con_Printf("vr_mock_hand_to: no gun in that hand\n");
-                return;
-            }
-            target += st.pos[hand] - handle;
-        }
-        glm::vec3 palm;
-        if(!q_strcasecmp(Cmd_Argv(2), "zonepalm")) // (the palm of the hand holding a gun: the zones' hand point)
-        {
-            if(!view::heldHandPoint(hand, palm))
-            {
-                Con_Printf("vr_mock_hand_to: no gun in that hand\n");
-                return;
-            }
-            target += st.pos[hand] - palm;
-        }
-        Con_Printf("vr_mock_hand_to: %s %s: %.1f %.1f %.1f\n", Cmd_Argv(2), Cmd_Argv(3), target.x, target.y, target.z);
-        moveHandTo(hand, target);
+        handToZone(hand);
         return;
     }
     if(hand >= 0 && ((Cmd_Argc() == 4 && !q_strcasecmp(Cmd_Argv(2), "holster")) ||
                         (Cmd_Argc() == 3 && !q_strcasecmp(Cmd_Argv(2), "grenadepouch"))))
     {
-        // At a holster's point (body::Holster: 0 left shoulder, 1 right shoulder, 2 left hip, 3 right hip, 4 left upper,
-        // 5 right upper), or the grenade pouch's (vr_handgrenade): putting away what the hand holds (vr_collect_fx tests).
-        const hands::State& st = hands::current();
-        glm::vec3 target;
-        if(Cmd_Argc() == 3)
-        {
-            if(!body::pouchEnabled())
-            {
-                Con_Printf("vr_mock_hand_to: no grenade pouch (vr_handgrenade)\n");
-                return;
-            }
-            target = body::pouchPosition(st);
-        }
-        else
-        {
-            const int h = Q_atoi(Cmd_Argv(3));
-            if(h < 0 || h >= body::HolsterCount)
-            {
-                Con_Printf("vr_mock_hand_to: holster 0..%d\n", body::HolsterCount - 1);
-                return;
-            }
-            target = body::holsterPosition(st, static_cast<body::Holster>(h));
-        }
-        // With the zones (vr_holster_zones 1): their box's middle (his zones, 2026-10-17, are moved off the reach points;
-        // a hand there is no longer in some of them).
-        glm::vec3 mid;
-        if(zones::enabled() && zones::boxMiddle(st, Cmd_Argc() == 3 ? zones::ZoneGrenadePouch : Q_atoi(Cmd_Argv(3)), mid))
-        {
-            target = mid;
-        }
-        Con_Printf("vr_mock_hand_to: %s: %.1f %.1f %.1f\n", Cmd_Argv(2), target.x, target.y, target.z);
-        moveHandTo(hand, target);
+        handToHolster(hand);
         return;
     }
     if((Cmd_Argc() == 3 || Cmd_Argc() == 4) && !q_strcasecmp(Cmd_Argv(2), "pouchport") && hand >= 0)
     {
-        // Pouch reloading (vr_reload.qc VR_Reload_PouchFrame): the hand's own gun's load point on the top middle of the
-        // rounds standing in the ammo pouch, `units` above it along them (negative: into them), the hand turned as it is;
-        // as drawn last frame.
-        const hands::State& st = hands::current();
-        glm::vec3 box[4];
-        if(!st.loadPortValid[hand] || !view::ammoPouchRounds(box))
-        {
-            Con_Printf("vr_mock_hand_to: no gun with a load point in that hand, or no ammo pouch\n");
-            return;
-        }
-        const float up = glm::length(box[3]);
-        const glm::vec3 top = box[0] + box[3] +
-                              (up > 1e-4f ? box[3] / up : glm::vec3{0.f, 0.f, 1.f}) *
-                                  (Cmd_Argc() == 4 ? static_cast<float>(Q_atof(Cmd_Argv(3))) : 0.f);
-        Con_Printf("vr_mock_hand_to: the pouch's rounds' top %.1f %.1f %.1f (up %.2f %.2f %.2f), the load point %.1f off the hand\n",
-            top.x, top.y, top.z, box[3].x / za::max(up, 1e-4f), box[3].y / za::max(up, 1e-4f), box[3].z / za::max(up, 1e-4f),
-            glm::distance(st.loadPort[hand], st.pos[hand]));
-        moveHandTo(hand, top - (st.loadPort[hand] - st.pos[hand]));
+        handToPouchPort(hand);
         return;
     }
     if(Cmd_Argc() >= 4 && Cmd_Argc() <= 7 && !q_strcasecmp(Cmd_Argv(2), "pouchmag") && hand >= 0)
     {
-        // Pouch reloading's magazine guns (vr_reload_pouch_mag_slots): the hand's own gun's load point on the top middle of
-        // magazine <slot> as drawn in the pouch (view::ammoPouchMags: its mesh), moved <up> units along it, <left> to
-        // the pouch's left and <out> out of the body; the hand turned as it is.
-        const hands::State& st = hands::current();
-        glm::vec3 top[pouchitems::magsMost], up, box[4];
-        const int n = view::ammoPouchMags(top, up);
-        const int j = Q_atoi(Cmd_Argv(3));
-        if(!st.loadPortValid[hand] || !view::ammoPouchRounds(box) || j < 0 || j >= n)
-        {
-            Con_Printf("vr_mock_hand_to: no gun with a load point in that hand, or no such magazine drawn (%d)\n", n);
-            return;
-        }
-        const auto arg = [](int i) { return Cmd_Argc() > i ? static_cast<float>(Q_atof(Cmd_Argv(i))) : 0.f; };
-        const glm::vec3 left = glm::length(box[2]) > 1e-6f ? glm::normalize(box[2]) : glm::vec3{0.f, 1.f, 0.f};
-        const glm::vec3 out = glm::length(box[1]) > 1e-6f ? glm::normalize(box[1]) : glm::vec3{1.f, 0.f, 0.f};
-        const glm::vec3 at = top[j] + up * arg(4) + left * arg(5) + out * arg(6);
-        Con_Printf("vr_mock_hand_to: magazine %d's top %.2f %.2f %.2f, the load point at %.2f %.2f %.2f\n", j, top[j].x,
-            top[j].y, top[j].z, at.x, at.y, at.z);
-        moveHandTo(hand, at - (st.loadPort[hand] - st.pos[hand]));
+        handToPouchMag(hand);
         return;
     }
     if((ammoPouch || loadPort) && hand >= 0)
     {
-        // Immersive reloading (vr_reload.qc): at the ammo pouch's reach point; or what the hand holds (a round from it)
-        // brought to the loading port of the gun in the other hand, `units` short of it (along the hand's down: below
-        // the port, coming up to it), as drawn last frame.
-        const hands::State& st = hands::current();
-        glm::vec3 target{0.f};
-        if(ammoPouch)
-        {
-            if(!body::ammoPouchEnabled())
-            {
-                Con_Printf("vr_mock_hand_to: no ammo pouch (vr_reload_mode 3, Weapon Mode Immersive)\n");
-                return;
-            }
-            target = body::ammoPouchPosition(st);
-            glm::vec3 mid; // (the zones': their box's middle, as the holsters')
-            if(zones::enabled() && zones::boxMiddle(st, zones::ZoneAmmoPouch, mid))
-            {
-                target = mid;
-            }
-            Con_Printf("vr_mock_hand_to: the ammo pouch: %.1f %.1f %.1f\n", target.x, target.y, target.z);
-        }
-        else
-        {
-            if(!st.loadPortValid[1 - hand])
-            {
-                Con_Printf("vr_mock_hand_to: the other hand holds no gun with a loading port\n");
-                return;
-            }
-            target = st.loadPort[1 - hand];
-            Con_Printf("vr_mock_hand_to: the other hand's gun's loading port: %.1f %.1f %.1f\n", target.x, target.y, target.z);
-            if(glm::vec3 ref; !loadPortMid && view::heldRoundRef(hand, ref))
-            {
-                target -= ref - st.pos[hand]; // (a magazine's top, a shell's middle)
-                if(const int num = held::heldEntity(hand); num > 0)
-                {
-                    const entity_t& e = cl_entities[num];
-                    Con_Printf("vr_mock_hand_to: held %d at %.1f %.1f %.1f angles %.1f %.1f %.1f, its reference %.1f %.1f %.1f\n",
-                        num, e.origin[0], e.origin[1], e.origin[2], e.angles[0], e.angles[1], e.angles[2], ref.x, ref.y, ref.z);
-                }
-            }
-            else if(const int num = held::heldEntity(hand); loadPortMid && num > 0 && num < cl_max_edicts)
-            {
-                const entity_t& e = cl_entities[num]; // (lportmid: its middle, not its reference point)
-                target -= geom::vec(e.origin) - st.pos[hand];
-            }
-            target.z -= Cmd_Argc() == 4 ? Q_atof(Cmd_Argv(3)) : 0.f;
-        }
-        moveHandTo(hand, target);
+        handToAmmoOrLoadPort(hand, ammoPouch, loadPortMid);
         return;
     }
     if(nearestOf && hand >= 0 && sv.active && svs.maxclients >= 1)
     {
-        // The entity of that classname nearest you (a limb cut off: vr_limb), `units` over its origin (Limb gore's grab
-        // test).
-        qcvm_t* oldVm = nullptr;
-        PR_PushQCVM(&sv.qcvm, &oldVm);
-        const edict_t* player = EDICT_NUM(1);
-        const glm::vec3 from{player->v.origin[0], player->v.origin[1], player->v.origin[2]};
-        glm::vec3 target{0.f};
-        float best = 1e30f;
-        int found = 0;
-        for(int i = svs.maxclients + 1; i < qcvm->num_edicts; i++)
-        {
-            const edict_t* e = EDICT_NUM(i);
-            if(e->free || strcmp(PR_GetString(e->v.classname), Cmd_Argv(3)) != 0)
-            {
-                continue;
-            }
-            const glm::vec3 at{e->v.origin[0], e->v.origin[1], e->v.origin[2]};
-            if(glm::distance(at, from) < best)
-            {
-                best = glm::distance(at, from);
-                target = at;
-                found = i;
-            }
-        }
-        PR_PopQCVM(oldVm);
-        if(!found)
-        {
-            Con_Printf("vr_mock_hand_to: no %s\n", Cmd_Argv(3));
-            return;
-        }
-        // ("head": the middle of its head zone, the neck snap's: foegrab::headZoneCentre; then `units` over it.)
-        const bool head = Cmd_Argc() >= 5 && !q_strcasecmp(Cmd_Argv(4), "head");
-        if(head)
-        {
-            PR_PushQCVM(&sv.qcvm, &oldVm);
-            const bool zone = foegrab::headZoneCentre(EDICT_NUM(found), target);
-            PR_PopQCVM(oldVm);
-            if(!zone)
-            {
-                Con_Printf("vr_mock_hand_to: %s %d has no head zone\n", Cmd_Argv(3), found);
-                return;
-            }
-        }
-        target.z += Cmd_Argc() >= 5 + (head ? 1 : 0) ? Q_atof(Cmd_Argv(4 + (head ? 1 : 0))) : 0.f;
-        Con_Printf("vr_mock_hand_to: %s %d%s: %.1f %.1f %.1f\n", Cmd_Argv(3), found, head ? "'s head" : "", target.x,
-            target.y, target.z);
-        moveHandTo(hand, target);
+        handToNearest(hand);
         return;
     }
     if(hand >= 0 && Cmd_Argc() >= 5 && !q_strcasecmp(Cmd_Argv(2), "touch"))
@@ -1074,43 +1166,7 @@ void mockHandTo_f()
     }
     if((ragdollPart || by) && hand >= 0)
     {
-        // A ragdoll's limb (vr_ragdoll: the grab tests), `units` over its middle; or where the hand is moved by a
-        // world offset (units).
-        const hands::State& st = hands::current();
-        glm::vec3 target{0.f};
-        if(by)
-        {
-            target = st.pos[hand] + glm::vec3{Q_atof(Cmd_Argv(3)), Q_atof(Cmd_Argv(4)), Q_atof(Cmd_Argv(5))};
-        }
-        else if(sv.active && svs.maxclients >= 1)
-        {
-            qcvm_t* oldVm = nullptr;
-            PR_PushQCVM(&sv.qcvm, &oldVm);
-            // (Part "near": the one nearest the hand; "head": its rig's head; "neck": its head's joint; a name (its
-            // beginning, e.g. "shin_r"): the first part so named; else its number.)
-            const edict_t* player = EDICT_NUM(1);
-            const char* which = Cmd_Argv(3);
-            const bool nearest = !q_strcasecmp(which, "near");
-            const bool named = !nearest && q_strcasecmp(which, "head") && q_strcasecmp(which, "neck") &&
-                               ((which[0] >= 'a' && which[0] <= 'z') || (which[0] >= 'A' && which[0] <= 'Z'));
-            const int num = box3d::ragdollPartCentre(nearest ? hands::current().pos[hand]
-                                                             : geom::vec(player->v.origin),
-                nearest                          ? -1
-                : named                          ? -4
-                : !q_strcasecmp(which, "head") ? -2
-                : !q_strcasecmp(which, "neck") ? -3
-                                                 : Q_atoi(which),
-                target, named ? which : nullptr);
-            PR_PopQCVM(oldVm);
-            if(!num)
-            {
-                Con_Printf("vr_mock_hand_to: no ragdoll, or no such part\n");
-                return;
-            }
-            target.z += Cmd_Argc() >= 5 ? Q_atof(Cmd_Argv(4)) : 0.f;
-            Con_Printf("vr_mock_hand_to: ragdoll %d, its part %s: %.1f %.1f %.1f\n", num, Cmd_Argv(3), target.x, target.y, target.z);
-        }
-        moveHandTo(hand, target);
+        handToRagdollOrBy(hand, by);
         return;
     }
     if(hand < 0 || (!weapon && !spot && !carried && !inHeld && !button && !wrist && !heldSpot && Cmd_Argc() != 5))
