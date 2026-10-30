@@ -197,7 +197,7 @@ void PF_ragdollbone()
         G_FLOAT(OFS_RETURN) = static_cast<float>(agarmor::pieceBones(G_EDICT(OFS_PARM0), static_cast<int>(p[0])));
         return;
     }
-    if(within == -1003.f) // QVR_WORNPACK: the worn backpack, [what, player, hand] (box3d::wornPack 0-3)
+    if(within == -1003.f) // QVR_WORNPACK: the worn backpack, [what, player, hand] (box3d::wornPack 0-3, 5, 6)
     {
         G_FLOAT(OFS_RETURN) = box3d::wornPack(G_EDICT(OFS_PARM0), static_cast<int>(p[0]), static_cast<int>(p[1]),
             static_cast<int>(p[2]), glm::vec3{0.f});
@@ -322,9 +322,12 @@ void PF_limbpiece()
         agarmor::plateWhere(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1)), what - 10, G_VECTOR(OFS_RETURN));
         return;
     }
-    if(what >= 20 && what <= 22) // the worn backpack (QC vr_wornpack.qc): 20 its model's origin, 21 its angles, 22 its box's middle
+    if(what >= 20 && what <= 24) // the worn backpack (QC vr_wornpack.qc): 20 its model's origin, 21 its angles, 22 its box's middle, 23 its entity's half size, 24 player (bone)'s hands' pull on it standing (foegrab::packPull)
     {
-        const glm::vec3 w = box3d::wornPackWhere(G_EDICT(OFS_PARM0), what - 20);
+        const int pnum = static_cast<int>(G_FLOAT(OFS_PARM1));
+        const glm::vec3 w = what == 24 ? (pnum >= 1 && pnum <= svs.maxclients ? foegrab::packPull(EDICT_NUM(pnum), G_EDICT(OFS_PARM0))
+                                                                              : glm::vec3{0.f})
+                                       : box3d::wornPackWhere(G_EDICT(OFS_PARM0), what - 20);
         float* o = G_VECTOR(OFS_RETURN);
         o[0] = w.x;
         o[1] = w.y;

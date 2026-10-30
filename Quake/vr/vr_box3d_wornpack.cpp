@@ -8,8 +8,10 @@
 #include "vr_box3d_internal.hpp"
 #include "vr_agarmor.hpp"
 #include "vr_held.hpp"
+#include "vr_foegrab.hpp"
 
 #include <cstring>
+#include <utility>
 
 namespace box3d::detail
 {
@@ -103,24 +105,101 @@ namespace qvr::box3d
 {
 using namespace ::box3d::detail;
 
+bool wornPackBox(edict_t* ent, glm::vec3& mid, glm::mat3& axes, glm::vec3& half)
+{
+    RagdollBodies* r = ragdollOf(NUM_FOR_EDICT(ent));
+    if(r && packOn(*r))
+    {
+        glm::quat turn;
+        packBox(*r, mid, turn);
+        axes = glm::mat3_cast(turn);
+        half = r->packHalf;
+        return true;
+    }
+    glm::vec3 origin;
+    return fieldFloatOr(ent, fields().vr_wp_worn, 0.f) == 1.f && qvr::agarmor::packWhere(ent, origin, axes, mid, half);
+}
+
+float wornPackSegment(edict_t* ent, const glm::vec3& a, const glm::vec3& b, float grow, glm::vec3& point, glm::vec3& normal)
+{
+    glm::vec3 mid, half;
+    glm::mat3 axes;
+    if(!wornPackBox(ent, mid, axes, half))
+    {
+        return -1.f;
+    }
+    // (The slabs of its box grown by `grow`, in its own frame.)
+    const glm::mat3 in = glm::transpose(axes);
+    const glm::vec3 la = in * (a - mid), d = in * (b - a), h = half + glm::vec3{za::max(grow, 0.f)};
+    float lo = 0.f, hi = 1.f;
+    int face = -1;
+    float faceSign = 0.f;
+    for(int k = 0; k < 3; k++)
+    {
+        if(za::abs(d[k]) < 1e-6f)
+        {
+            if(za::abs(la[k]) > h[k])
+            {
+                return -1.f;
+            }
+            continue;
+        }
+        float t0 = (-h[k] - la[k]) / d[k], t1 = (h[k] - la[k]) / d[k];
+        const float s = d[k] > 0.f ? -1.f : 1.f; // (the face entered: against the move)
+        if(t0 > t1)
+        {
+            std::swap(t0, t1);
+        }
+        if(t0 > lo)
+        {
+            lo = t0;
+            face = k;
+            faceSign = s;
+        }
+        hi = za::min(hi, t1);
+        if(lo > hi)
+        {
+            return -1.f;
+        }
+    }
+    point = a + (b - a) * lo;
+    glm::vec3 n{0.f};
+    if(face >= 0)
+    {
+        n[face] = faceSign;
+    }
+    normal = face >= 0 ? axes * n : -glm::normalize(b - a); // (started inside it)
+    return lo;
+}
+
 float wornPack(edict_t* ent, int what, int a, int b, const glm::vec3& p)
 {
     const int num = NUM_FOR_EDICT(ent);
     RagdollBodies* r = ragdollOf(num);
     if(what == 4)
     {
-        if(r && packOn(*r))
-        {
-            return packDistance(*r, p);
-        }
-        glm::vec3 origin, mid, half;
+        glm::vec3 mid, half;
         glm::mat3 axes;
-        if(fieldFloatOr(ent, fields().vr_wp_worn, 0.f) != 1.f || !qvr::agarmor::packWhere(ent, origin, axes, mid, half))
+        if(!wornPackBox(ent, mid, axes, half))
         {
             return -1.f;
         }
         const glm::vec3 local = glm::abs(glm::transpose(axes) * (p - mid)) - half;
         return glm::length(glm::max(local, glm::vec3{0.f}));
+    }
+    if(what == 5)
+    {
+        edict_t* player = a >= 1 && a <= svs.maxclients ? EDICT_NUM(a) : nullptr;
+        return player ? qvr::foegrab::packStretch(player, b, ent) : -1.f;
+    }
+    if(what == 7)
+    {
+        edict_t* player = a >= 1 && a <= svs.maxclients ? EDICT_NUM(a) : nullptr;
+        return player ? qvr::foegrab::packPalmGap(player, b, ent) : -1.f;
+    }
+    if(what == 6)
+    {
+        return static_cast<float>(qvr::foegrab::packTorn(ent));
     }
     if(!r)
     {
@@ -192,6 +271,22 @@ glm::vec3 wornPackWhere(edict_t* ent, int what)
         glm::vec3 angles;
         qvr::held::anglesFromAxes(axes, &angles[0], false);
         return angles;
+    }
+    if(what == 3)
+    {
+        // (Its entity's box: round the turned box, not round its diagonal's sphere.)
+        glm::vec3 boxMid, boxHalf;
+        glm::mat3 boxAxes;
+        if(!wornPackBox(ent, boxMid, boxAxes, boxHalf))
+        {
+            return glm::vec3{0.f};
+        }
+        glm::vec3 extent{0.f};
+        for(int k = 0; k < 3; k++)
+        {
+            extent += glm::abs(boxAxes[k]) * boxHalf[k];
+        }
+        return extent;
     }
     return what == 2 ? mid : origin;
 }
