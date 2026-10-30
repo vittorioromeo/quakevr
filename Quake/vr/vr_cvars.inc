@@ -841,11 +841,6 @@ QVR_CVAR(vr_hud_mode, "1", CVAR_ARCHIVE)              // 0 the status bar on a h
 QVR_CVAR(vr_death_view, "2", CVAR_ARCHIVE)           // dying (not gibbed), your body a ragdoll (vr_deathview.cpp, QC vr_deathdoll.qc): 0 off (as before: no body), 1 third person (the view stays where your eyes were, the body there to look at), 2 immersive (the view in the body's head)
 QVR_CVAR(vr_death_view_vomit, "0", CVAR_ARCHIVE)     // Vomit Mode (the author's note vrfiringrange_2026-10-23_01-18-00, a player's request): dead, the view is the ragdoll's head itself, its place and its exact turn (pitch, yaw and roll), no smoothing, your own head's turns ignored; over vr_death_view 1 or 2 (0: no body) and every Immersive setting (still out to Third Person's place for a menu)
 QVR_CVAR(vr_death_view_turn, "0", CVAR_ARCHIVE)     // immersive death view: the view turns with the body's head (its yaw only, smoothed; never pitch or roll); 0 only its place follows
-QVR_CVAR(vr_death_view_turn_speed, "30", CVAR_ARCHIVE) // ... at most this fast (degrees a second)
-QVR_CVAR(vr_death_view_smooth, "0.25", CVAR_ARCHIVE) // immersive death view: seconds the view takes to follow the head (smoothed; 0 at once)
-QVR_CVAR(vr_death_view_fade, "0.2", CVAR_ARCHIVE)    // immersive death view: the view fades in from black over this long as it goes into the head and back on respawning (0 none)
-QVR_CVAR(vr_death_view_menu_time, "0.3", CVAR_ARCHIVE) // immersive death view: seconds the view takes out to Third Person's place as a menu or the console opens, and back into the head as it closes (eased; 0 at once)
-QVR_CVAR(vr_death_ragdoll_push, "1", CVAR_ARCHIVE)   // your ragdoll body takes the killing blow's push times this (1 as Quake throws the player, 0 none: only the motion you had), at most 400 units/s (QC vr_deathdoll.qc)
 QVR_CVAR(vr_dead_hide_gear, "1", CVAR_ARCHIVE)        // dead: the holstered guns, the ammo pouch, the grenade pouch and the wrist gadget hidden (the flashlight always is), the HUD the status bar on a hand (as vr_hud_mode 0), till you respawn or load a save (body::gearHiddenForDeath)
 QVR_CVAR(vr_gadget_arm, "0", CVAR_ARCHIVE)            // the wrist gadget's arm: 0 the left, 1 the right (hands::gadgetHand)
 QVR_CVAR(vr_gadget_scale, "1.3", CVAR_ARCHIVE)          // its size
@@ -1387,7 +1382,6 @@ QVR_CVAR(vr_hip_offset_x, "-3.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_hip_offset_y, "11.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_hip_offset_z, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_hip_holster_thresh, "6.5", CVAR_ARCHIVE)
-QVR_CVAR(vr_holster_leg_follow, "0.4", CVAR_ARCHIVE) // hip holsters ride the legs' animation (full body): 0 fixed on the body, 1 all the way with the thighs
 QVR_CVAR(vr_show_shoulder_holsters, "0", CVAR_NONE)
 QVR_CVAR(vr_shoulder_holster_offset_x, "-0.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_shoulder_holster_offset_y, "2.25", CVAR_ARCHIVE)
@@ -1587,14 +1581,8 @@ QVR_CVAR(vr_body_powerups, "1", CVAR_ARCHIVE)         // and the powerups: quad 
 // Quad Damage on you (vr_view.cpp quadGlow): 0 Quake's electric arcs over the hands and forearms (the look of being
 // struck by lightning too), 1 a soft pulsing blue glow round the hands, arms and body and blue light from them, 2 both.
 QVR_CVAR(vr_quad_look, "2", CVAR_ARCHIVE)
-QVR_CVAR(vr_quad_glow, "2", CVAR_ARCHIVE)             // the glow's strength (0 none .. 2)
-QVR_CVAR(vr_quad_glow_light, "2", CVAR_ARCHIVE)       // the blue light the hands and body cast on the world (0 none .. 2)
 // The pentagram's red glow and the biosuit's green one on you (vr_view.cpp powerupGlow), like Quad's (0 none: the old
 // body tint instead .. 2), and the light they cast; with more than one power-up, the glows take turns.
-QVR_CVAR(vr_pent_glow, "2", CVAR_ARCHIVE)
-QVR_CVAR(vr_pent_glow_light, "2", CVAR_ARCHIVE)
-QVR_CVAR(vr_suit_glow, "1", CVAR_ARCHIVE)
-QVR_CVAR(vr_suit_glow_light, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_body_blood, "1.25", CVAR_ARCHIVE)            // the wounded arms and hands drip blood (vr_body_state's wounds; above 1, more drops)
 QVR_CVAR(vr_wounds, "1", CVAR_ARCHIVE)                // blood painted on models where they are hit (vr_wounds.cpp); your body and hands take it instead of the wound skins
 QVR_CVAR(vr_wounds_burns, "1", CVAR_ARCHIVE)          // burns and char painted on models (explosions, fire, lightning, lava, slime), embers while fresh
@@ -1689,50 +1677,17 @@ QVR_CVAR(vr_body_crouch_eye_up, "0", CVAR_ARCHIVE)        // and up (vr_body_eye
 // crouched pose is (vr_body_crouch_pose_*), on top of where the body carries them.
 QVR_CVAR(vr_hip_holster_crouch_x, "6", CVAR_ARCHIVE)
 QVR_CVAR(vr_hip_holster_crouch_y, "3", CVAR_ARCHIVE)
-QVR_CVAR(vr_hip_holster_crouch_z, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_hip_holster_crouch_pitch, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_hip_holster_crouch_yaw, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_hip_holster_crouch_roll, "40", CVAR_ARCHIVE)
-QVR_CVAR(vr_upper_holster_crouch_x, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_upper_holster_crouch_y, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_upper_holster_crouch_z, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_upper_holster_crouch_pitch, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_upper_holster_crouch_yaw, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_upper_holster_crouch_roll, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_shoulder_holster_crouch_x, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_shoulder_holster_crouch_y, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_shoulder_holster_crouch_z, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_shoulder_holster_crouch_pitch, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_shoulder_holster_crouch_yaw, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_shoulder_holster_crouch_roll, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_ammo_pouch_crouch_x, "2", CVAR_ARCHIVE)
-QVR_CVAR(vr_ammo_pouch_crouch_y, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_ammo_pouch_crouch_z, "7", CVAR_ARCHIVE)
 QVR_CVAR(vr_ammo_pouch_crouch_pitch, "29", CVAR_ARCHIVE)
-QVR_CVAR(vr_ammo_pouch_crouch_yaw, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_ammo_pouch_crouch_roll, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_body_torso_back, "0.07", CVAR_ARCHIVE)       // metres the torso sits further behind the neck (negative: in front)
 // Which way the torso faces (vr_torso.cpp; ROUND21.md, "Torso direction"): guessed from the head and the hands.
-QVR_CVAR(vr_torso_head, "1", CVAR_ARCHIVE)            // its weights: the head's yaw now,
-QVR_CVAR(vr_torso_head_history, "1", CVAR_ARCHIVE)    // ... where the head faced lately (a glance turns the torso less),
-QVR_CVAR(vr_torso_hands, "2.5", CVAR_ARCHIVE)         // ... both hands' midpoint, when both are in front,
-QVR_CVAR(vr_torso_one_hand, "0.3", CVAR_ARCHIVE)      // ... one hand alone in front (the other behind the back or hanging down)
-QVR_CVAR(vr_torso_hands_down, "2", CVAR_ARCHIVE)     // ... and both hands hanging by the sides (square to the line between them)
-QVR_CVAR(vr_torso_head_lag, "0.3", CVAR_ARCHIVE)      // seconds "lately" spans (the eased head's time constant)
-QVR_CVAR(vr_torso_side_angle, "45", CVAR_ARCHIVE)     // a hand further off to the torso's side than this (degrees from the chest) counts less, none 35 degrees on
-QVR_CVAR(vr_torso_deadzone, "8", CVAR_ARCHIVE)        // degrees the estimate must be off before the torso turns (then it turns all the way)
-QVR_CVAR(vr_torso_speed, "12", CVAR_ARCHIVE)          // how quickly it turns then (1/s; 0: at once)
-QVR_CVAR(vr_torso_neck_max, "70", CVAR_ARCHIVE)       // degrees the head turns from the torso at most: past it the torso turns with the head at once
 // Body tracking (vr_bodytrack.cpp: XR_FB_body_tracking + XR_META_body_tracking_full_body, Quest 3 through Virtual Desktop)
 QVR_CVAR(vr_bodytrack, "1", CVAR_ARCHIVE)             // Body > Body Tracking: the runtime's tracked body blended into the guessed one where the headset offers it (0: off, the guesses alone)
-QVR_CVAR(vr_bodytrack_torso, "1", CVAR_ARCHIVE)       // the torso's share: its lean (the spine's tilt), the chest's twist, the hips' facing, and the lean detection (0 .. 1)
 QVR_CVAR(vr_bodytrack_arms, "1", CVAR_ARCHIVE)        // the arms' share: the elbows swing to the tracked ones' side (the hands stay on the controllers) (0 .. 1)
 QVR_CVAR(vr_bodytrack_arm_fit, "1", CVAR_ARCHIVE)     // with it, how far the elbow goes onto the tracked elbow itself, not only to its side: the shoulder turned towards the tracked one, the arm's bones lengthened or shortened to put the elbow there (0: the swivel only, as before; 0 .. 1)
-QVR_CVAR(vr_bodytrack_arm_fit_stretch, "1.5", CVAR_ARCHIVE) // how far that fit may lengthen the collarbone and the arm's bones (and 1 / it shorten them) to put the shoulder and the elbow on the tracked ones (1 .. 3; was 1.25)
-QVR_CVAR(vr_bodytrack_legs, "1", CVAR_ARCHIVE)        // the legs' share: the feet and knees towards the generated legs (Quest 3 guesses them) (0 .. 1; climbing and swimming feet keep theirs)
 QVR_CVAR(vr_bodytrack_legs_walk, "1", CVAR_ARCHIVE)   // walking, running or in the air the gait drives the legs over the tracked ones (by the walk's amount); standing still the tracked legs show (0: tracked legs always)
-QVR_CVAR(vr_bodytrack_confidence, "0.5", CVAR_ARCHIVE) // below this confidence (0 .. 1) the tracking eases out to the guesses (vr_bodytrack_stats' "gate" line: when it did)
-QVR_CVAR(vr_bodytrack_smooth, "0.04", CVAR_ARCHIVE)   // seconds the tracked joints are smoothed over (0: raw)
 QVR_CVAR(vr_bodytrack_debug, "0", CVAR_NONE)          // Debug: the tracked skeleton drawn (1 on the body, 2 beside it: 60 cm to the right)
 QVR_CVAR(vr_bodytrack_debug_bones, "0", CVAR_NONE)    // which bones vr_bodytrack_debug draws: 0 the tracked (cyan, magenta), 1 our IK's untracked (orange: the avatar ignores the tracking meanwhile), 2 both overlapped, 3 the avatar's bones as posed with the tracking (yellow) over the tracked
 QVR_CVAR(vr_bodytrack_synth, "0", CVAR_NONE)          // the mock headset's synthetic tracked body (vr_bodytrack_synth_*): it moves the head as it leans; 0 none (as today)
@@ -1776,11 +1731,8 @@ QVR_CVAR(vr_body_pauldron_up, "0", CVAR_ARCHIVE)      // up,
 QVR_CVAR(vr_body_pauldron_out, "0.005", CVAR_ARCHIVE)     // and out
 // The flashlight (vr_flashlight.cpp): stored hanging on the belt, on the left or right hip (vr_flashlight_side) (round 21; on the chest before); only deliberate presses (an open, still hand) take or switch it; trigger at it switches it, an empty hand's grip takes it; held near the other hand's gun, B/Y clips it on; held at the head, B/Y clips it on there.
 QVR_CVAR(vr_flashlight, "1", CVAR_ARCHIVE)            // 0: no flashlight; 1 Immersive (on the belt: taken, clipped on a gun or the head); 2 Always on Head (patch 1.0.1: worn at the temple on vr_flashlight_side's side, never on the belt; the trigger at it switches it; on when chosen and at a fresh start)
-QVR_CVAR(vr_flashlight_brightness, "1", CVAR_ARCHIVE)
-QVR_CVAR(vr_flashlight_range, "1000", CVAR_ARCHIVE)   // units the beam reaches
 QVR_CVAR(vr_flashlight_shadows, "1", CVAR_ARCHIVE)    // its spot light casts shadows (takes one of vr_shadow_dlights: one tile, not six faces)
 QVR_CVAR(vr_flashlight_cord, "1", CVAR_ARCHIVE)      // the retracting cord from the belt clip to the torch while it is off the belt: 0 none, 1 a rusty low-poly iron chain (chunky faceted links, Quake's look; vr_coil.cpp), 2 coiled like an old telephone's
-QVR_CVAR(vr_flashlight_beam, "0.5", CVAR_ARCHIVE)    // how strong its soft cone of light in the air is, 0..1 (0: none)
 QVR_CVAR(vr_flashlight_beam_quality, "1", CVAR_ARCHIVE) // how closely the visible beam finds the walls that cut it: 0 low, 1 medium, 2 high (traces a frame, vr_flashlight.cpp)
 QVR_CVAR(vr_flashlight_tilt, "-5", CVAR_ARCHIVE)       // degrees the stored lamp (hanging on the chest, lens down) leans its lens out from the body
 QVR_CVAR(vr_flashlight_forward, "0.025", CVAR_ARCHIVE)    // metres the belt clip sits further forward,
@@ -1797,35 +1749,12 @@ QVR_CVAR(vr_flashlight_auto_gun, "1", CVAR_ARCHIVE)   // 1: the held torch let g
 // to the other grip, as B/Y does, on a sharp flick of the wrist up or down (vr_flashlight.cpp, flickFlip).
 QVR_CVAR(vr_flashlight_flick, "1", CVAR_ARCHIVE)           // 1: a sharp flick of the wrist up or down turns the held torch over (low / overhead grip); 0: B/Y only
 QVR_CVAR(vr_flashlight_flick_speed, "750", CVAR_ARCHIVE)   // degrees a second the wrist must turn up or down (about the hand's right) to count (higher: only sharper flicks)
-QVR_CVAR(vr_flashlight_flick_max_move, "1.5", CVAR_ARCHIVE) // m/s: the hand moving faster than this (a swing, a punch) never flicks
-QVR_CVAR(vr_flashlight_flick_cooldown, "0.4", CVAR_ARCHIVE) // real seconds after a flick before the next counts (the wrist coming back is not a second flick)
 QVR_CVAR(vr_flashlight_flick_debug, "0", CVAR_NONE)        // 1: prints each flick taken or refused (and why); 2: also the held hand's wrist speed every frame
 QVR_CVAR(vr_flashlight_clip_time, "0.15", CVAR_ARCHIVE) // seconds the drawn torch eases from where it was onto a gun or the head as it clips on (on at once; 0: jumps), 0..1
-QVR_CVAR(vr_flashlight_hand_forward, "-0.05", CVAR_ARCHIVE) // metres the torch sits forward in the fist (negative: back),
-QVR_CVAR(vr_flashlight_hand_up, "-0.04", CVAR_ARCHIVE)      // and up (negative: down; round 21: on top of the fitted grip)
-QVR_CVAR(vr_flashlight_gun_forward, "0", CVAR_ARCHIVE) // metres the torch clipped on a gun (B/Y) sits further forward (its lens: 1 cm behind the muzzle),
-QVR_CVAR(vr_flashlight_gun_up, "0", CVAR_ARCHIVE)      // up (from under the gun, or beside it: fitted per gun),
-QVR_CVAR(vr_flashlight_gun_out, "0", CVAR_ARCHIVE)     // and out (away from the body)
-QVR_CVAR(vr_flashlight_head_forward, "0", CVAR_ARCHIVE) // round 21: metres the torch clipped on the head (B/Y) sits further forward (its lens: level with the eyes),
-QVR_CVAR(vr_flashlight_head_up, "0", CVAR_ARCHIVE)      // up (3.5 cm over the eyes),
-QVR_CVAR(vr_flashlight_head_out, "0", CVAR_ARCHIVE)     // and out (8.5 cm to the side)
 // Round 21: the torch's place in the hand, per grip (low: the beam out of the thumb's side; high: overhead, out of the
 // little finger's), on top of vr_flashlight_hand_forward/_up: cm forward, towards the palm and up in the hand, degrees
 // of pitch, yaw (towards the palm) and roll about the grip's middle; the off hand mirrored.
-QVR_CVAR(vr_flashlight_low_x, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_flashlight_low_y, "-1.5", CVAR_ARCHIVE)
-QVR_CVAR(vr_flashlight_low_z, "-1.5", CVAR_ARCHIVE)
-QVR_CVAR(vr_flashlight_low_pitch, "-55", CVAR_ARCHIVE)
-QVR_CVAR(vr_flashlight_low_yaw, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_flashlight_low_roll, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_flashlight_high_x, "-1.5", CVAR_ARCHIVE)
-QVR_CVAR(vr_flashlight_high_y, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_flashlight_high_z, "-2.5", CVAR_ARCHIVE)
-QVR_CVAR(vr_flashlight_high_pitch, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_flashlight_high_yaw, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_flashlight_high_roll, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_flashlight_hue, "40", CVAR_ARCHIVE)        // round 21: the beam's hue (degrees; -1: the player's), with
-QVR_CVAR(vr_flashlight_saturation, "0.4", CVAR_ARCHIVE)  // its saturation (0: white, 1: full colour): the light, the visible beam and the lens
 // Round 21, the author's tuning notes: each grip's fingers on the torch, as a weapon's (Weapon Offsets > Fingers on the
 // Weapon). _fingers 0 Automatic (they wrap the torch, sinking _overlap into it: 0..1 of a centimetre), 1 Manual (each
 // finger at its _curl_*, 0 open to 1 a fist, and the thumb across the palm by _thumb_across, 0..1; no fitting); either
@@ -1876,10 +1805,6 @@ QVR_CVAR(vr_flashlight_head_zone_forward, "0.07", CVAR_ARCHIVE)
 QVR_CVAR(vr_flashlight_head_zone_up, "0.15", CVAR_ARCHIVE)
 QVR_CVAR(vr_flashlight_head_zone_out, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_flashlight_head_zone_radius, "0.125", CVAR_ARCHIVE)
-QVR_CVAR(vr_flashlight_gun_zone_forward, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_flashlight_gun_zone_up, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_flashlight_gun_zone_out, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_flashlight_gun_zone_radius, "0.12", CVAR_ARCHIVE)
 QVR_CVAR(vr_show_flashlight_zones, "0", CVAR_NONE)     // draws those zones (green where the torch or a hand is in one) and the held torch's middle
 // Spent shell casings (vr_shells.cpp): the shotgun throws one out as it cycles, the super shotgun two as it is reloaded.
 QVR_CVAR(vr_shells, "1", CVAR_ARCHIVE)                // 0: none
@@ -3641,7 +3566,6 @@ QVR_CVAR(vr_ragdoll_float_lava, "1.4", CVAR_ARCHIVE)   // ... in lava (it floats
 QVR_CVAR(vr_ragdoll_drag_water, "1.5", CVAR_ARCHIVE)   // 1/s: how fast water damps a ragdoll's motion and spin (twice that at 60 units/s, more the faster: a fall into it is braked, a sink is slow); 0: none
 QVR_CVAR(vr_ragdoll_drag_slime, "3", CVAR_ARCHIVE)     // ... slime's
 QVR_CVAR(vr_ragdoll_drag_lava, "5", CVAR_ARCHIVE)      // ... lava's
-QVR_CVAR(vr_liquid_fall_cushion, "48", CVAR_ARCHIVE)   // units of water, slime or lava over where a monster lands (standing or knocked down) that take all of its fall damage; shallower takes that share of its speed; 0: liquid takes none
 QVR_CVAR(vr_debug_ragdoll, "0", CVAR_NONE)            // print each ragdoll made, its pushes and blasts
 QVR_CVAR(vr_debug_ragdoll_look, "0", CVAR_NONE)       // each ragdoll drawn in its .mdl's rest pose where the entity stands, to compare its look with the .mdl's: 1 its skinned copy ("#rag"), 2 the .mdl itself (pose 0), 3 neither (hidden); vr_ragdoll_draw_info
 QVR_CVAR(vr_debug_ragdoll_gun, "0", CVAR_NONE)      // every 0.25 s, each ragdoll's held weapon (its loose piece) as drawn: how far from the part of it that holds it ("gun:"), beside the rest pose's
@@ -4188,9 +4112,7 @@ QVR_CVAR(vr_weapon_cycle_mode, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_melee_bloodlust, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_melee_bloodlust_mult, "0.35", CVAR_ARCHIVE)
 QVR_CVAR(vr_enemy_drops, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_enemy_drops_chance_mult, "1.0", CVAR_ARCHIVE)
 QVR_CVAR(vr_ammobox_drops, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_ammobox_drops_chance_mult, "1.0", CVAR_ARCHIVE)
 QVR_CVAR(vr_forcegrab_mode, "1", CVAR_ARCHIVE)             // force grab (QC vr_wpnforcegrab.qc): 0 off, 1 on
 QVR_CVAR(vr_forcegrab_distance, "200", CVAR_ARCHIVE)       // units objects can be pulled from,
 QVR_CVAR(vr_forcegrab_bodies_block, "1", CVAR_ARCHIVE)     // 1: a monster (alive, or a solid corpse) or a ragdoll between the hand and a thing hides it from a force grab, as a wall does (QC VR_Forcegrab_FindTarget; ROUND22.md, "Force grabs: bodies block the view"); 0: only walls do

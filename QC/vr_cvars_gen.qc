@@ -82,7 +82,6 @@ float cvarh_vr_melee_wall_hold;
 float cvarh_vr_melee_butt_run;
 float cvarh_vr_gunyaw;
 float cvarh_vr_death_view;
-float cvarh_vr_death_ragdoll_push;
 float cvarh_vr_trailer_reset;
 float cvarh_vr_trailer_log;
 float cvarh_vr_melee_dmg_multiplier;
@@ -863,9 +862,7 @@ float cvarh_vr_weapon_cycle_mode;
 float cvarh_vr_melee_bloodlust;
 float cvarh_vr_melee_bloodlust_mult;
 float cvarh_vr_enemy_drops;
-float cvarh_vr_enemy_drops_chance_mult;
 float cvarh_vr_ammobox_drops;
-float cvarh_vr_ammobox_drops_chance_mult;
 float cvarh_vr_forcegrab_mode;
 float cvarh_vr_forcegrab_distance;
 float cvarh_vr_forcegrab_bodies_block;
@@ -1190,6 +1187,9 @@ float cvarh_vr_forcegrabbable_ammo_boxes;
 float cvarh_vr_forcegrabbable_health_boxes;
 float cvarh_vr_forcegrabbable_return_time_deathmatch;
 float cvarh_vr_forcegrabbable_return_time_singleplayer;
+float cvarh_vr_death_ragdoll_push;
+float cvarh_vr_enemy_drops_chance_mult;
+float cvarh_vr_ammobox_drops_chance_mult;
 
 void() VR_CVars_InitGenerated =
 {
@@ -1273,7 +1273,6 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_melee_butt_run = cvar_hmake("vr_melee_butt_run");
     cvarh_vr_gunyaw = cvar_hmake("vr_gunyaw");
     cvarh_vr_death_view = cvar_hmake("vr_death_view");
-    cvarh_vr_death_ragdoll_push = cvar_hmake("vr_death_ragdoll_push");
     cvarh_vr_trailer_reset = cvar_hmake("vr_trailer_reset");
     cvarh_vr_trailer_log = cvar_hmake("vr_trailer_log");
     cvarh_vr_melee_dmg_multiplier = cvar_hmake("vr_melee_dmg_multiplier");
@@ -2054,9 +2053,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_melee_bloodlust = cvar_hmake("vr_melee_bloodlust");
     cvarh_vr_melee_bloodlust_mult = cvar_hmake("vr_melee_bloodlust_mult");
     cvarh_vr_enemy_drops = cvar_hmake("vr_enemy_drops");
-    cvarh_vr_enemy_drops_chance_mult = cvar_hmake("vr_enemy_drops_chance_mult");
     cvarh_vr_ammobox_drops = cvar_hmake("vr_ammobox_drops");
-    cvarh_vr_ammobox_drops_chance_mult = cvar_hmake("vr_ammobox_drops_chance_mult");
     cvarh_vr_forcegrab_mode = cvar_hmake("vr_forcegrab_mode");
     cvarh_vr_forcegrab_distance = cvar_hmake("vr_forcegrab_distance");
     cvarh_vr_forcegrab_bodies_block = cvar_hmake("vr_forcegrab_bodies_block");
@@ -2381,4 +2378,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_forcegrabbable_health_boxes = cvar_hmake("vr_forcegrabbable_health_boxes");
     cvarh_vr_forcegrabbable_return_time_deathmatch = cvar_hmake("vr_forcegrabbable_return_time_deathmatch");
     cvarh_vr_forcegrabbable_return_time_singleplayer = cvar_hmake("vr_forcegrabbable_return_time_singleplayer");
+    cvarh_vr_death_ragdoll_push = cvar_hmake("vr_death_ragdoll_push");
+    cvarh_vr_enemy_drops_chance_mult = cvar_hmake("vr_enemy_drops_chance_mult");
+    cvarh_vr_ammobox_drops_chance_mult = cvar_hmake("vr_ammobox_drops_chance_mult");
 }

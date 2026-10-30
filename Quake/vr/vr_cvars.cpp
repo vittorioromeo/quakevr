@@ -136,8 +136,6 @@ const DefaultChange defaultChanges[] = {
     {133, &vr_blood_hit_intensity, "0.22"},          // 0.4
     {133, &vr_blood_hit_size, "0.65"},               // 0.6
     {133, &vr_quad_look, "1"},                       // 2
-    {133, &vr_quad_glow, "1"},                       // 2
-    {133, &vr_quad_glow_light, "1"},                 // 2
     {133, &vr_bash_damage, "10"},                    // 5
     {133, &vr_melee_phase_time, "0.35"},             // 0.2
     {133, &vr_foegrab_lift_time, "2"},               // 3.5
@@ -275,7 +273,6 @@ const DefaultChange defaultChanges[] = {
     {150, &vr_body_blood_amount, "1"},                  // 1.25
     {150, &vr_body_blood_mark_size, "1"},               // 1.5
     // 151: tracked legs on by default (2026-10-17: his value).
-    {151, &vr_bodytrack_legs, "0"},                     // 1
     // 152: retro particles at half resolution by default (GPU: blood bursts +1.8 ms; renumber at merge).
     {152, &vr_particle_retro_halfres, "0"},             // 1
     // 153: his ammo pouch zone and magnetic holster chain offsets (2026-10-17: "I've tweaked the ammo pouch zones again";
@@ -560,8 +557,6 @@ const DefaultChange defaultChanges[] = {
     {215, &vr_nailpistol_speed, "2600"},             // 3070 (nails 18% faster)
     // 216: rows that did nothing (135's suit glow, 146's topple: their defaults went back without a row) dropped, and
     // a config still at those passing values takes today's (round 23, his decision D2).
-    {216, &vr_suit_glow, "2"},                       // 1
-    {216, &vr_suit_glow_light, "2"},                 // 1
     {216, &vr_legsweep_topple, "180"},               // 200
     {209, &vr_revolver_spin_friction, "720"},        // 760
     {209, &vr_revolver_spin_max, "1800"},            // 900

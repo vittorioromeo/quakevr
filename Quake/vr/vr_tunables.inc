@@ -136,3 +136,95 @@ QVR_TUNABLE(vr_brush_bake_ms, "3") // ... how many milliseconds a frame the bake
 QVR_TUNABLE(vr_brush_luxel, "16") // ... luxels this many texture units apart (Quake's 16; doubled for a brush whose faces don't fit its lightmap rectangle)
 QVR_TUNABLE(vr_brush_bake_fill, "1") // ... the map's light the lights don't explain (bounce, sky, glowing textures: the world's under the face less theirs) added, times this
 QVR_TUNABLE(vr_brush_bake_reach, "512") // ... a brush made, changed or removed: the brushes within this many units of it baked again (its shadows on them)
+
+// Body > Body
+QVR_TUNABLE(vr_death_view_turn_speed, "30") // ... at most this fast (degrees a second)
+QVR_TUNABLE(vr_death_view_smooth, "0.25") // immersive death view: seconds the view takes to follow the head (smoothed; 0 at once)
+QVR_TUNABLE(vr_death_view_fade, "0.2") // immersive death view: the view fades in from black over this long as it goes into the head and back on respawning (0 none)
+QVR_TUNABLE(vr_death_view_menu_time, "0.3") // immersive death view: seconds the view takes out to Third Person's place as a menu or the console opens, and back into the head as it closes (eased; 0 at once)
+QVR_TUNABLE(vr_death_ragdoll_push, "1") // your ragdoll body takes the killing blow's push times this (1 as Quake throws the player, 0 none: only the motion you had), at most 400 units/s (QC vr_deathdoll.qc)
+QVR_TUNABLE(vr_holster_leg_follow, "0.4") // hip holsters ride the legs' animation (full body): 0 fixed on the body, 1 all the way with the thighs
+QVR_TUNABLE(vr_quad_glow, "2") // the glow's strength (0 none .. 2)
+QVR_TUNABLE(vr_quad_glow_light, "2") // the blue light the hands and body cast on the world (0 none .. 2)
+QVR_TUNABLE(vr_pent_glow, "2")
+QVR_TUNABLE(vr_pent_glow_light, "2")
+QVR_TUNABLE(vr_suit_glow, "1")
+QVR_TUNABLE(vr_suit_glow_light, "1")
+QVR_TUNABLE(vr_torso_head, "1") // its weights: the head's yaw now,
+QVR_TUNABLE(vr_torso_head_history, "1") // ... where the head faced lately (a glance turns the torso less),
+QVR_TUNABLE(vr_torso_hands, "2.5") // ... both hands' midpoint, when both are in front,
+QVR_TUNABLE(vr_torso_one_hand, "0.3") // ... one hand alone in front (the other behind the back or hanging down)
+QVR_TUNABLE(vr_torso_hands_down, "2") // ... and both hands hanging by the sides (square to the line between them)
+QVR_TUNABLE(vr_torso_head_lag, "0.3") // seconds "lately" spans (the eased head's time constant)
+QVR_TUNABLE(vr_torso_side_angle, "45") // a hand further off to the torso's side than this (degrees from the chest) counts less, none 35 degrees on
+QVR_TUNABLE(vr_torso_deadzone, "8") // degrees the estimate must be off before the torso turns (then it turns all the way)
+QVR_TUNABLE(vr_torso_speed, "12") // how quickly it turns then (1/s; 0: at once)
+QVR_TUNABLE(vr_torso_neck_max, "70") // degrees the head turns from the torso at most: past it the torso turns with the head at once
+QVR_TUNABLE(vr_bodytrack_torso, "1") // the torso's share: its lean (the spine's tilt), the chest's twist, the hips' facing, and the lean detection (0 .. 1)
+QVR_TUNABLE(vr_bodytrack_arm_fit_stretch, "1.5") // how far that fit may lengthen the collarbone and the arm's bones (and 1 / it shorten them) to put the shoulder and the elbow on the tracked ones (1 .. 3; was 1.25)
+QVR_TUNABLE(vr_bodytrack_legs, "1") // the legs' share: the feet and knees towards the generated legs (Quest 3 guesses them) (0 .. 1; climbing and swimming feet keep theirs)
+QVR_TUNABLE(vr_bodytrack_confidence, "0.5") // below this confidence (0 .. 1) the tracking eases out to the guesses (vr_bodytrack_stats' "gate" line: when it did)
+QVR_TUNABLE(vr_bodytrack_smooth, "0.04") // seconds the tracked joints are smoothed over (0: raw)
+
+// Body > Body - Crouched Pose
+QVR_TUNABLE(vr_hip_holster_crouch_z, "0")
+QVR_TUNABLE(vr_hip_holster_crouch_pitch, "0")
+QVR_TUNABLE(vr_hip_holster_crouch_yaw, "0")
+QVR_TUNABLE(vr_upper_holster_crouch_x, "0")
+QVR_TUNABLE(vr_upper_holster_crouch_y, "0")
+QVR_TUNABLE(vr_upper_holster_crouch_z, "0")
+QVR_TUNABLE(vr_upper_holster_crouch_pitch, "0")
+QVR_TUNABLE(vr_upper_holster_crouch_yaw, "0")
+QVR_TUNABLE(vr_upper_holster_crouch_roll, "0")
+QVR_TUNABLE(vr_shoulder_holster_crouch_x, "0")
+QVR_TUNABLE(vr_shoulder_holster_crouch_y, "0")
+QVR_TUNABLE(vr_shoulder_holster_crouch_z, "0")
+QVR_TUNABLE(vr_shoulder_holster_crouch_pitch, "0")
+QVR_TUNABLE(vr_shoulder_holster_crouch_yaw, "0")
+QVR_TUNABLE(vr_shoulder_holster_crouch_roll, "0")
+QVR_TUNABLE(vr_ammo_pouch_crouch_y, "0")
+QVR_TUNABLE(vr_ammo_pouch_crouch_yaw, "0")
+QVR_TUNABLE(vr_ammo_pouch_crouch_roll, "0")
+
+// Flashlight > Flashlight
+QVR_TUNABLE(vr_flashlight_brightness, "1")
+QVR_TUNABLE(vr_flashlight_range, "1000") // units the beam reaches
+QVR_TUNABLE(vr_flashlight_beam, "0.5") // how strong its soft cone of light in the air is, 0..1 (0: none)
+QVR_TUNABLE(vr_flashlight_flick_max_move, "1.5") // m/s: the hand moving faster than this (a swing, a punch) never flicks
+QVR_TUNABLE(vr_flashlight_flick_cooldown, "0.4") // real seconds after a flick before the next counts (the wrist coming back is not a second flick)
+QVR_TUNABLE(vr_flashlight_hand_forward, "-0.05") // metres the torch sits forward in the fist (negative: back),
+QVR_TUNABLE(vr_flashlight_hand_up, "-0.04") // and up (negative: down; round 21: on top of the fitted grip)
+QVR_TUNABLE(vr_flashlight_saturation, "0.4") // its saturation (0: white, 1: full colour): the light, the visible beam and the lens
+
+// Flashlight > Flashlight - Low Grip
+QVR_TUNABLE(vr_flashlight_low_x, "-1")
+QVR_TUNABLE(vr_flashlight_low_y, "-1.5")
+QVR_TUNABLE(vr_flashlight_low_z, "-1.5")
+QVR_TUNABLE(vr_flashlight_low_pitch, "-55")
+QVR_TUNABLE(vr_flashlight_low_yaw, "0")
+QVR_TUNABLE(vr_flashlight_low_roll, "0")
+
+// Flashlight > Flashlight - On a Gun or Head
+QVR_TUNABLE(vr_flashlight_gun_forward, "0") // metres the torch clipped on a gun (B/Y) sits further forward (its lens: 1 cm behind the muzzle),
+QVR_TUNABLE(vr_flashlight_gun_up, "0") // up (from under the gun, or beside it: fitted per gun),
+QVR_TUNABLE(vr_flashlight_gun_out, "0") // and out (away from the body)
+QVR_TUNABLE(vr_flashlight_head_forward, "0") // round 21: metres the torch clipped on the head (B/Y) sits further forward (its lens: level with the eyes),
+QVR_TUNABLE(vr_flashlight_head_up, "0") // up (3.5 cm over the eyes),
+QVR_TUNABLE(vr_flashlight_head_out, "0") // and out (8.5 cm to the side)
+QVR_TUNABLE(vr_flashlight_gun_zone_forward, "0")
+QVR_TUNABLE(vr_flashlight_gun_zone_up, "0")
+QVR_TUNABLE(vr_flashlight_gun_zone_out, "0")
+QVR_TUNABLE(vr_flashlight_gun_zone_radius, "0.12")
+
+// Flashlight > Flashlight - Overhead Grip
+QVR_TUNABLE(vr_flashlight_high_x, "-1.5")
+QVR_TUNABLE(vr_flashlight_high_y, "-1")
+QVR_TUNABLE(vr_flashlight_high_z, "-2.5")
+QVR_TUNABLE(vr_flashlight_high_pitch, "0")
+QVR_TUNABLE(vr_flashlight_high_yaw, "0")
+QVR_TUNABLE(vr_flashlight_high_roll, "0")
+
+// World > World
+QVR_TUNABLE(vr_liquid_fall_cushion, "48") // units of water, slime or lava over where a monster lands (standing or knocked down) that take all of its fall damage; shallower takes that share of its speed; 0: liquid takes none
+QVR_TUNABLE(vr_enemy_drops_chance_mult, "1.0")
+QVR_TUNABLE(vr_ammobox_drops_chance_mult, "1.0")

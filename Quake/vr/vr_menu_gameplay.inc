@@ -7,9 +7,6 @@
     return {
         header("Monsters"),
         toggle("Enemies Hurt by Liquids", vr_enemy_liquid_damage).help("Monsters burn in slime/lava and drown after 12 seconds with their heads underwater, including knocked-down ragdolls. Fish, bosses and lava dwellers are immune."),
-        slider("Liquid Breaks Falls", vr_liquid_fall_cushion, 0.f, 128.f, 8.f, "%.0f units").extend(0.f, 512.f)
-            .help("A monster landing in water, slime or lava under this much of it (standing or knocked down) takes no fall "
-                  "damage; shallower takes some. 0: liquid breaks no fall (vr_liquid_fall_cushion)."),
         toggle("Smooth Monster Steps", vr_monster_lerp_continue)
             .help("A monster's next step is drawn on from where it is drawn, not from where its last step ends: no jump "
                   "when it moves again before the last step is drawn out (a dog's quick turns looked like teleports). "
@@ -23,9 +20,7 @@
                   "enforcers' laser rifles. Their damage and ammo."),
         header("Weapon Drops"),
         cycle("Enemy Weapon Drops", "vr_enemy_drops", {{0.f, "When Eligible"}, {1.f, "Always"}, {2.f, "Disabled"}}).help("Controls random enemy weapon drops. 'Eligible' means that the player has obtained a weapon before through a level weapon pickup."),
-        slider("Enemy Drops Chance", "vr_enemy_drops_chance_mult", 0.05f, 5.f, 0.05f, "%.2f").extend().help("Multiplier for enemy weapon drops."),
         cycle("Ammo Box Weapon Drops", "vr_ammobox_drops", {{0.f, "When Eligible"}, {1.f, "Always"}, {2.f, "Disabled"}}).help("Controls random ammo box weapon drops. 'Eligible' means that the player has obtained a weapon before through a level weapon pickup."),
-        slider("Ammo Box Drops Chance", "vr_ammobox_drops_chance_mult", 0.05f, 5.f, 0.05f, "%.2f").extend().help("Multiplier for ammo box weapon drops."),
         header("Feel"),
         toggle("Explosion Rumble", vr_explosion_rumble).help("Explosions near you rumble in your hands."),
         toggle("Low Health Heartbeat", vr_heartbeat).help("A heartbeat in your hands when your health is low."),
