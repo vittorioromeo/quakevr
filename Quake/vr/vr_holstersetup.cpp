@@ -23,6 +23,7 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/String/String.hpp"
 #include "vr_zancle.hpp"
+#include "vr_toolpanel.hpp"
 
 #include <math.h>
 #include <string.h>
@@ -173,22 +174,12 @@ void restore(const Snapshot& s)
 
 void pushUndo()
 {
-    if(static_cast<int>(ses.undo.size()) >= UNDO_MAX)
-    {
-        for(int i = 0; i + 1 < UNDO_MAX; i++)
-        {
-            ses.undo[static_cast<za::SizeT>(i)] = ses.undo[static_cast<za::SizeT>(i + 1)];
-        }
-        ses.undo.popBack();
-    }
-    ses.undo.pushBack(take());
+    toolpanel::pushUndo(ses.undo, UNDO_MAX, take());
 }
 
 void say(const za::String& text)
 {
-    ses.feedback = text;
-    ses.feedbackUntil = realtime + 2.5;
-    Con_Printf("Holster Setup: %s\n", text.cStr());
+    toolpanel::say(ses.feedback, ses.feedbackUntil, "Holster Setup", text, 2.5);
 }
 
 [[nodiscard]] bool isHolster(int zone)
@@ -638,28 +629,23 @@ void press(int b)
 }
 
 // Button `b`'s middle on the panel (3 a row: Symmetry, Undo, Reset Holster; Reset All, Cancel, Done).
+// The panel's buttons (toolpanel: their grid, the panel's frame).
+constexpr toolpanel::Grid buttonGrid{BUTTON_WIDTH, BUTTON_HEIGHT, BUTTON_GAP, BUTTON_DEPTH};
+
+[[nodiscard]] toolpanel::Frame buttonFrame()
+{
+    return toolpanel::Frame{ses.panelAt, ses.panelRight, ses.panelUp, ses.panelNormal};
+}
+
 [[nodiscard]] glm::vec3 buttonAt(int b)
 {
-    const float m2u = units::metresToUnits();
     const float col = static_cast<float>(b % 3 - 1), row = static_cast<float>(b / 3);
-    return ses.panelAt + ses.panelRight * (col * (BUTTON_WIDTH + BUTTON_GAP) * m2u) +
-           ses.panelUp * ((0.5f - row) * (BUTTON_HEIGHT + BUTTON_GAP) * m2u);
+    return toolpanel::buttonCentre(buttonFrame(), buttonGrid, col, 0.5f - row);
 }
 
 [[nodiscard]] int buttonAtHand(const glm::vec3& p)
 {
-    const float m2u = units::metresToUnits();
-    for(int b = 0; b < BtnCount; b++)
-    {
-        const glm::vec3 d = p - buttonAt(b);
-        if(za::fabs(glm::dot(d, ses.panelRight)) <= (BUTTON_WIDTH * 0.5f + 0.01f) * m2u &&
-            za::fabs(glm::dot(d, ses.panelUp)) <= (BUTTON_HEIGHT * 0.5f + 0.01f) * m2u &&
-            za::fabs(glm::dot(d, ses.panelNormal)) <= BUTTON_DEPTH * m2u)
-        {
-            return b;
-        }
-    }
-    return -1;
+    return toolpanel::buttonUnder(buttonFrame(), buttonGrid, BtnCount, p, buttonAt, [](int) { return true; });
 }
 
 // Each hand's zone (the one it is deepest in, within HOVER_RATIO) and panel button; a tick on reaching a new one.

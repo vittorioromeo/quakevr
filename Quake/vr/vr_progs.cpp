@@ -392,6 +392,18 @@ extern "C" void VR_OnProgsLoaded()
         b.foegrab.Lift = findFunction("VR_FoeGrab_Lift");
         b.foegrab.MonsterMass = findFunction("VR_Grapple_MonsterMass");
         b.foegrab.LegSweepDown = findFunction("VR_LegSweep_Down");
+        b.arenaCards.CardPick = findFunction("VR_ARK_CardPick");
+        b.arenaCards.CardSerial = findFunction("VR_ARK_CardSerial");
+        b.arenaCards.CardCount = findFunction("VR_ARK_CardCount");
+        b.arenaCards.CardBit = findFunction("VR_ARK_CardBit");
+        b.arenaCards.Name = findFunction("VR_ARK_Name");
+        b.arenaCards.What = findFunction("VR_ARK_What");
+        b.arenaCards.Model = findFunction("VR_ARK_Model");
+        b.arenaCards.Colour = findFunction("VR_ARK_Colour");
+        b.arenaCards.CardTitle = findFunction("VR_ARK_CardTitle");
+        b.arenaCards.PoolSize = findFunction("VR_ARK_PoolSize");
+        b.arenaCards.CardsSeen = findFunction("VR_ARK_CardsSeen");
+        b.arenaCards.DebugOffer = findFunction("VR_ARK_DebugOffer");
 
         const auto globalFloat = [](const char* name) -> float* {
             ddef_t* def = findGlobalDef(name);

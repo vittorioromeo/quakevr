@@ -966,6 +966,15 @@ struct ReachPose
 
 namespace
 {
+// sweepReach's buffers (the server's frame: the main thread).
+struct SweepScratch
+{
+    za::Vector<int> found;  // the props one swept piece meets
+    za::Vector<int> struck; // the props met so far (touching at the start, or struck by the sweep)
+    auto members() { return mem::list(found, struck); }
+};
+mem::Scratch<SweepScratch> sweepScratch{"sweepReach"};
+
 // A fast move of the reach body of `hb` over a step `dt` (a swing): Box3D collides once a step, at its start, so a
 // kinematic body moving further in a step than a thin thing is across jumps over it (an axe swung at 10 m/s moves 11 cm
 // a frame; a grenade is a few cm across). Its shape is swept from `from` to `to` in pieces moving no point of it more than
@@ -1026,7 +1035,7 @@ void sweepReach(const World::HandBody& hb, int player, const ReachPose& from, co
         return ReachPose{glm::mix(from.pos, to.pos, t), glm::slerp(from.rot, to.rot, t)};
     };
     // What it meets over the points of two poses (their convex hull: the swept piece), relative to the second's place.
-    za::Vector<int> found;
+    za::Vector<int>& found = sweepScratch.found;
     const uint64_t category = b3Shape_GetFilter(shapes[0]).categoryBits;
     const auto meets = [&](const ReachPose& a, const ReachPose& b) {
         za::Array<b3Vec3, 128> points;
@@ -1055,7 +1064,9 @@ void sweepReach(const World::HandBody& hb, int player, const ReachPose& from, co
             &found);
     };
     meets(from, from);
-    za::Vector<int> struck = found; // (touching it at the start: Box3D's contact)
+    za::Vector<int>& struck = sweepScratch.struck; // (touching it at the start: Box3D's contact)
+    struck.clear();
+    struck.insert(struck.end(), found.begin(), found.end());
 
     // The body's motion over the step: its origin's velocity, and its spin (m/s, rad/s).
     const glm::vec3 linear = (p1 - p0) / dt;
