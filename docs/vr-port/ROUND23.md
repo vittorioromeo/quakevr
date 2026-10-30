@@ -2091,7 +2091,11 @@ shipped default. One accessor, two builds (CODE_STYLE.md, "Settings and the conf
   e1m1 loads, `tune` unknown); `Misc/quakevr/tunables_test.sh <agent>`: set by tune, by a page row and a text, every
   reader (C++, cvar(), the stand-in) sees each, set-to-default-another-way is unchanged, tunables.cfg holds exactly the
   changed ones, read back, quit writes it, `tune_promote.py --check` would promote the 3, a new start reads them,
-  tune_reset clears them and quit removes the file (38 + 20 checks, 5 stages).
+  tune_reset clears them and quit removes the file (38 + 20 checks, 5 stages). Covering cases (run_baseline.sh
+  --only: slider_step, selfchecks, throw_spin, stealth, reload_contact, agrunt, arena, ragdoll, ...): 18 as baseline.tsv
+  but recoil 9 -> 24 passed (its stream part, added on next since) and ragdoll_guard flaky; config_sparse_test 16/0;
+  vr_menu_path_check 0 missing on both boards. A/B ThinLTO bench, combat_48 interleaved ABBAABBA (first pair gave no
+  result): CPU ms A 3.18 3.42 3.02, B 3.34 2.50 2.53; frame p50 11.11 both: no cost from the reads through tunables[].
 
 ## One impact-effect table (branch `agent/impacttable`; design review 4, his "perform all")
 
