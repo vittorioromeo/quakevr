@@ -1070,24 +1070,19 @@ void(float xCase) VR_SmallGib_TestStart =
             float ang = (i - ring * 12) * 30 + ring * 15;
             makevectors('0 1 0' * ang);
             vector at = c + v_forward * (40 + ring * 36);
-            self = spawn();
             if(i - floor(i / 3) * 3 == 2)
             {
+                self = spawn();
                 setorigin(self, at - '16 16 0'); // (a box's origin is its corner)
                 misc_explobox();
             }
             else
             {
-                entity d = self;
-                d.weapon = 0;
-                setorigin(d, at);
-                activator = p;
-                func_enemy_dispenser_use();
-                if(self != d)
+                entity made = VR_Test_Spawn(p, 0, at, -1);
+                if(made)
                 {
-                    self.angles_y = ang + 180;
+                    made.angles_y = ang + 180;
                 }
-                remove(d);
             }
             self = p;
         }

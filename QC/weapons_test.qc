@@ -450,16 +450,9 @@ void() VR_Test_CrateCover =
     vector from = player.origin + '0 0 16';
     traceline(from, from + fwd * 320, TRUE, player);
     at = trace_endpos - fwd * 32 - '0 0 16';
-    entity dispenser = spawn();
-    dispenser.weapon = 0;
-    setorigin(dispenser, at);
-    self = dispenser;
-    activator = player;
-    func_enemy_dispenser_use();
-    entity grunt = self;
+    entity grunt = VR_Test_Spawn(player, 0, at, -1);
     self = player;
-    remove(dispenser);
-    if(grunt == dispenser)
+    if(!grunt)
     {
         vr_test_cover_grunt = world;
         return;

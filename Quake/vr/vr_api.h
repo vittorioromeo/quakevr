@@ -348,6 +348,7 @@ enum { QVR_DECAL_TE_GUNSHOT, QVR_DECAL_TE_EXPLOSION, QVR_DECAL_TE_SPIKE, QVR_DEC
 void VR_DecalTempEntity (int what, const float *pos);	// cl_tent.c: a wall hit or an explosion (QVR_DECAL_TE_*) leaves a mark, carved as what made it
 void VR_ImpactTempEntity (int what, const float *pos);	// cl_tent.c: a bullet's or a nail's wall hit (QVR_DECAL_TE_*): what the surface's material throws up (vr_impacts.cpp)
 void VR_ImpactBeam (const struct qmodel_s *model, int ent, const float *start, const float *end); // CL_ParseBeam: the thunderbolt's ozone haze where it plays (vr_impacts.cpp)
+void VR_DebugImpactSound (int ent, int channel, const char *sample, int volume, float attenuation); // PF_sound: vr_debug_impacts prints it (vr_impacts.cpp)
 int VR_GibTrail (int ent, int zombie);					// CL_RelinkEntities: a gib's blood (a trail, drops on the floor, splats where it hits); nonzero if it drew the trail (not Quake's)
 void VR_ExplosionDebrisTrail (int ent);					// CL_RelinkEntities, an entity without a trail of Quake's: an explosion's chunk's fire trail (vr_explosiondebris.cpp)
 int VR_GrenadeTrail (int ent);						// CL_RelinkEntities: whether a grenade model smokes (not a hand grenade with its pin in: vr_grenade.qc)

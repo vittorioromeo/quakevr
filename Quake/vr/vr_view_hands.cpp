@@ -778,13 +778,9 @@ void pushAgainst(RigHand& rh, int hand, bool free, const entity_t& against, bool
     rh.pushed = holding ? target : rh.pushed + (target - rh.pushed) * ease;
     glm::vec3& w = weaponPressed[1 - hand];
     w = holding ? press : w + (press - w) * ease;
-    if(holding && !rh.weaponTouching && !vr_disablehaptics.value)
+    if(holding && !rh.weaponTouching)
     {
-        if(Backend* be = backend())
-        {
-            be->haptic(0, 0.04f, 120.f, 0.35f); // (meetFrame's)
-            be->haptic(1, 0.04f, 120.f, 0.35f);
-        }
+        haptics::meet();
     }
     rh.weaponTouching = glm::length(target) > 0.f;
     if(vr_debug_hand_collide.value && shape)

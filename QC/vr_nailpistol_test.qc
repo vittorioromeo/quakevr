@@ -185,7 +185,7 @@ void() VR_NPA_End =
     cvar_set("vr_nailpistol_spread", ftos(vr_npa_spread));
     cvar_set("vr_weapon_grip_mode", ftos(vr_npa_grip));
     VR_NPT_Freeze(FALSE);
-    dprint(sprintf("npaim: %g passed, %g failed\n", vr_test_pass, vr_test_fail));
+    VR_Test_Verdict();
     vr_npa_on = FALSE;
 };
 
@@ -284,7 +284,7 @@ void() VR_NailPistol_TestFrame =
         self.ammo_nails = max(self.ammo_nails, 48);
         self.flags = self.flags | FL_NOTARGET;
         self = os5;
-        VR_Test_Begin("nptest");
+        VR_Test_Begin("npaim");
         vr_npa_spread = cvar("vr_nailpistol_spread");
         vr_npa_grip = cvar("vr_weapon_grip_mode");
         cvar_set("vr_nailpistol_spread", "0");

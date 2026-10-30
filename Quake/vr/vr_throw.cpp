@@ -76,6 +76,7 @@ History histories[2];
 // The controllers' own (timescale::controllerPose), in step with `histories` (the same samples unless the slowed hand
 // lags its controller in slow motion): a throw's direction, speed and spin (strokeEstimate).
 History ownHistories[2];
+History pointHistory;   // the physgun's held point (pointSample)
 History bothHistory;    // estimateBothAt's samples (scratch: off the stack)
 History ownBothHistory; // the same of ownHistories
 
@@ -438,7 +439,7 @@ struct Gain
 // its spin's velocity there (none for two hands: their samples are the object's own). `wrist`: the estimate's flick, the
 // part of it the hand's turn gives (none for two hands).
 // `rate`: the samples' clock's seconds in one of the windows' (strokeEstimate).
-[[nodiscard]] Estimate releasePeak(const History& h, double releaseTime, float leverArm, bool wrist, double rate)
+[[nodiscard]] Estimate releasePeak(const History& h, double releaseTime, float leverArm, bool wrist, double rate, bool pitch = true)
 {
     if(h.count == 0)
     {
@@ -546,7 +547,7 @@ struct Gain
         flick = glm::vec3{0.f};
     }
 
-    return {pitched(velocity), angVel, flick, pos + lever * units::metresToUnits(), peak};
+    return {pitch ? pitched(velocity) : velocity, angVel, flick, pos + lever * units::metresToUnits(), peak};
 }
 
 // Whether two histories hold the very same samples (bit for bit: what releasePeak reads of them).
@@ -709,6 +710,59 @@ Estimate estimateBothAt(double releaseTime, const glm::vec3& centre)
     return strokeEstimate(bothHistory, ownBothHistory, releaseTime, 0.f, false, clockRate());
 }
 
+Estimate release(int handMask, double at, const glm::vec3& centre)
+{
+    if((handMask & 3) == 3)
+    {
+        return estimateBothAt(at, centre);
+    }
+    return estimateAt((handMask & 2) ? 1 : 0, at);
+}
+
+double releaseAt(int hand)
+{
+    const double latest = latestTime(hand);
+    const double released = releaseTime(hand);
+    return released >= 0.0 && latest - released >= -0.05 && latest - released < 0.25 ? released : latest;
+}
+
+namespace
+{
+struct KindLimit
+{
+    float cap;   // top speed (0: none)
+    bool metres; // `cap` in metres per second (else world units)
+};
+constexpr KindLimit kindLimits[] = {
+    {0.f, false},    // Hand
+    {3.f, true},     // Flashlight
+    {1000.f, false}, // Physgun
+};
+} // namespace
+
+glm::vec3 kindCap(Kind kind, const glm::vec3& vel)
+{
+    const KindLimit& k = kindLimits[static_cast<int>(kind)];
+    const float cap = k.metres ? k.cap * units::metresToUnits() : k.cap;
+    const float speed = glm::length(vel);
+    return cap > 0.f && speed > cap ? vel * (cap / speed) : vel;
+}
+
+void pointReset()
+{
+    pointHistory.clear();
+}
+
+void pointSample(double time, const glm::vec3& pos, const glm::vec3& vel)
+{
+    push(pointHistory, {time, pos, vel, glm::vec3{0.f}, glm::vec3{1.f, 0.f, 0.f}, time});
+}
+
+Estimate pointEstimate(double releaseTime)
+{
+    return releasePeak(pointHistory, releaseTime, 0.f, false, 1.0, false);
+}
+
 double latestTime(int hand)
 {
     const History& h = histories[hand];
@@ -785,6 +839,7 @@ void reset()
     {
         h.clear();
     }
+    pointHistory.clear();
     for(Grip& g : grips)
     {
         g = Grip{};

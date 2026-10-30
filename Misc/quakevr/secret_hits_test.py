@@ -11,7 +11,9 @@ import sys
 
 name = sys.argv[1]
 tree = Path(f"C:/OHWorkspace/qvr-agents/{name}")
-kit = "C:/OHWorkspace/qvr-kit"
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import qvrtest  # noqa: E402  (the tests' library: Misc/quakevr/qvrtest.py)
+kit = qvrtest.KIT
 steps = ["vr_enabled 1", "vr_fixed_frames 1", "developer 1", "vr_weapon_grip_mode 1",
          "vr_gunangle 0", "vr_gunyaw 0", "vr_handcal_x 0", "vr_handcal_y 0", "vr_handcal_z 0",
          "vr_handcal_roll 0", "vr_handcal_off_mirror 0", "vr_handcal_off_x 0", "vr_handcal_off_y 0",

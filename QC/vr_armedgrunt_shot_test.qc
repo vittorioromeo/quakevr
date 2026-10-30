@@ -27,8 +27,6 @@ float vr_agst_r0;       // ... vr_ags_rolls
 float vr_agst_loss;     // ... health lost in all
 float vr_agst_ab0;      // ... vr_ags_absorbed at its start
 float vr_agst_h0;       // the trial's grunt's health before its shots
-float vr_agst_passed;
-float vr_agst_failed;
 entity vr_agst_g;
 entity vr_agst_right;   // dual: its right hand's weapon at the trial's start
 float vr_agst_rate0;    // shotgun 2 m: its rate, its health lost a trial
@@ -53,7 +51,7 @@ void(string s) VR_AGST_Print = { bprint(sprintf("agshot: %s\n", s)); };
 void(string what, float ok) VR_AGST_Check =
 {
     VR_AGST_Print(sprintf("%s %s", what, ok ? "PASS" : "FAIL"));
-    if(ok) { vr_agst_passed = vr_agst_passed + 1; } else { vr_agst_failed = vr_agst_failed + 1; }
+    VR_Test_Count(ok);
 };
 
 // Case `c`'s parameters and settings (FALSE: none left).
@@ -236,14 +234,14 @@ void(float t) VR_AGS_TestFrame =
             vr_agst_keep_absorb = cvar("vr_agrunt_shotdisarm_block");
             vr_agst_keep_disarm = cvar("vr_agrunt_fall_drop");
             cvar_set("vr_agrunt_fall_drop", "0"); // (only its shots: not a knockdown's drop)
-            vr_agst_passed = 0;
-            vr_agst_failed = 0;
+            VR_Test_Nest("agshot", VR_TEST_LOUD);
         }
         if(!VR_AGST_Setup(vr_agst_case))
         {
             cvar_set("vr_agrunt_fall_drop", ftos(vr_agst_keep_disarm));
         cvar_set("vr_agrunt_shotdisarm_block", ftos(vr_agst_keep_absorb));
-            VR_AGST_Print(sprintf("done: %g passed, %g failed", vr_agst_passed, vr_agst_failed));
+            VR_Test_VerdictPart("done:");
+            VR_Test_Unnest();
             pl.flags = pl.flags - (pl.flags & FL_NOTARGET);
             vr_agst_case = 0;
             cvar_set("vr_agrunt_test", "0");

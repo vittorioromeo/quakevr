@@ -8,7 +8,9 @@
 #        python orientsum.py <tag> [<tag> ...]   the orientation grid: the elbow's swing from straight down and back
 import subprocess, sys, re, json, math, os
 
-KIT = "C:/OHWorkspace/qvr-kit"
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import qvrtest  # noqa: E402  (the tests' library: Misc/quakevr/qvrtest.py)
+KIT = qvrtest.KIT
 NAME = os.environ.get("QVR_AGENT", "elbowik")
 OUT = os.getcwd().replace("\\", "/")
 

@@ -13,6 +13,7 @@
 #include "vr_notectx.hpp"
 #include "vr_progs.hpp"
 #include "vr_setup.hpp"
+#include "vr_testbatch.hpp"
 #include "vr_toolgun.hpp"
 #include "vr_trace.hpp"
 #include "vr_zancle.hpp"
@@ -90,7 +91,7 @@ struct State
     za::Vector<Placed> placed;      // the current placing's spawn lines' entities
     Scenario run;
     za::String lastHint;            // Reset Test's hint (the checklist line's)
-    za::Vector<Setting> saved;      // each setting changed: its value before (put back)
+    testbatch::CvarSnapshot saved;  // each setting changed: its value before (put back; the tests' one snapshot)
     za::Vector<za::String> errors;  // the last file read's errors ("<line>|<message>")
     za::Vector<za::String> notes;   // the last placing's problems (an entry not available, a spot in a wall)
     za::Vector<za::String> queue;   // vr_scenario runall's ids still to run
@@ -477,17 +478,10 @@ void printErrors(const char* id)
 // The settings changed put back.
 void restoreSettings()
 {
-    for(const Setting& s : state.saved)
-    {
-        if(cvar_t* var = Cvar_FindVar(s.name.cStr()))
-        {
-            Cvar_SetQuick(var, s.value.cStr());
-        }
-    }
+    state.saved.restore();
     if(!state.saved.empty())
     {
-        Con_Printf("vr_scenario: %d setting%s put back\n", static_cast<int>(state.saved.size()),
-            state.saved.size() == 1 ? "" : "s");
+        Con_Printf("vr_scenario: %d setting%s put back\n", state.saved.size(), state.saved.size() == 1 ? "" : "s");
     }
     state.saved.clear();
 }
@@ -890,15 +884,7 @@ bool start(const char* id, const char* hint)
     for(const Setting& c : state.run.cvars)
     {
         cvar_t* var = Cvar_FindVar(c.name.cStr());
-        bool known = false;
-        for(const Setting& o : state.saved)
-        {
-            known = known || !q_strcasecmp(o.name.cStr(), c.name.cStr());
-        }
-        if(!known)
-        {
-            state.saved.pushBack(Setting{c.name, za::String{var->string}});
-        }
+        state.saved.take(var); // (its first value kept: the one before the scenario)
         Cvar_SetQuick(var, c.value.cStr());
     }
     phase = Loading;
@@ -1127,23 +1113,20 @@ extern "C" void VR_ScenarioConfigWrite(int begin)
     if(begin)
     {
         state.live.clear();
-        for(const Setting& s : state.saved)
+        for(const auto& s : state.saved.saved())
         {
-            cvar_t* var = Cvar_FindVar(s.name.cStr());
-            state.live.pushBack(var ? var->string : nullptr);
-            if(var)
-            {
-                var->string = s.value.cStr();
-            }
+            state.live.pushBack(s.var->string);
+            s.var->string = s.value.cStr();
         }
     }
     else
     {
-        for(size_t i = 0; i < state.saved.size() && i < state.live.size(); i++)
+        const auto& saved = state.saved.saved();
+        for(size_t i = 0; i < saved.size() && i < state.live.size(); i++)
         {
-            if(cvar_t* var = Cvar_FindVar(state.saved[i].name.cStr()); var && state.live[i])
+            if(state.live[i])
             {
-                var->string = state.live[i];
+                saved[i].var->string = state.live[i];
             }
         }
         state.live.clear();

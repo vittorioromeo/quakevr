@@ -1732,6 +1732,84 @@ read every pak's directory.
   70 -> 6 ms (vrtesthall), 77 -> 6 (vrstart), 16 -> 5 (e1m1), 20 -> 6 (hip2m5). Warm loads unchanged (144-293 ms: the
   models are kept). Scripts: scratch/load5_ab.sh, load5_abstats.py (not committed).
 
+## Design review 5 (b): one throw, the haptic presets (branch `agent/heldthing`)
+
+The review's proposal 5 (scratch/refactor/design_review.md), its first sub-step. His decisions: the flashlight and the
+physgun get the shared throw smoothing; the haptic presets keep today's exact values (no feel change).
+
+- **One throw (vr_throw.hpp):** `throwing::release(handMask, at, centre)`: both hands' bits, estimateBothAt; one,
+  estimateAt (the client's one-hand throw and held::bothHandsThrow go through it). `throwing::releaseAt(hand)`: the
+  grip's own release time if it is this release, else the newest sample's (was inline in vr_client.cpp; the lamp uses
+  it too). `throwing::Kind` and `kindCap(kind, vel)`: the per-kind top speeds in one table (Hand: none here, its
+  weight's; Flashlight 3 m/s; Physgun 1000 u/s), replacing the two inline caps.
+- **The flashlight** let go flies with the hand's smoothed throw (`release(1 << hand, releaseAt(hand))`: the peak in
+  vr_throw_window, as any prop) instead of the hand's raw velocity of that frame; the cap unchanged (3 m/s).
+- **The physgun** samples its held point each drag frame into a point history (`throwing::pointSample`, on the drag's
+  own clock: dragFrame's dt summed) and lets go with `pointEstimate` (the hands' releasePeak: the peak in
+  vr_throw_window fitted over vr_throw_peak_span, not pitched, no flick) instead of its own 12/s EMA; cap unchanged.
+  A swing let go just after it stops now keeps the swing (as a hand's throw does); one held still past the window
+  drops as before.
+- **Haptic presets:** QC/vr_haptics.qc (new, after vr_util.qc): 25 named pulses `VR_Haptic_*(hand)` and
+  `VR_Haptic_Both(preset)` (off hand first, as the pairs were) for the hand-held things: pickups and holsters (the
+  holster's fading triple, written twice before, in items.qc and vr_wpnholster.qc), carrying, the lamp, grenades in
+  the hand, the force grab, foe grab and its throws/neck snaps. 51 literal calls in 9 files replaced, each with the
+  very values it had. Combat, melee, burning, juice and the rest keep their calls (not the held thing's; melee QC
+  untouched). C++: `haptics::meet()` (both hands 0.04 s, 120 Hz, 0.35), the pulse vr_held.cpp and vr_view_hands.cpp
+  each wrote out.
+- **Kept out (behaviour changes the review lists that he did not decide):** two-handed ragdoll throws still get the
+  one-hand estimate; `vr_2h_throw_velocity_mult` (QC: a two-handed weapon's speed x1.3) and `vr_throw_2h_strength`
+  (C++: a two-handed prop's mass / 2) both kept, they are not one setting (merging them changes either throw); the foe
+  grab's `twoHandsOf` is a gesture measure (turn, way), not a release velocity, and stays.
+- **Not done (next sub-steps):** (a) the hand slot (`.vr_hold_kind`/`.vr_hold_ent` per hand, VR_Hand_Take/Release,
+  VR_IsHandEmpty on the slot, the per-frame flag-derivation check first), (c) the grab query.
+- **Verified (against scratch/refactor/baseline.tsv, low-impact runs while his game ran):** the same verdicts and
+  counts in held_over_props 6/0, pickup_mag 3/0, throw_spin 1/0, reload_contact 23/0, reload_eject 28/0,
+  reload_front 34/0, grip_gap, grip_state, mapgun_pickup 16/16, empty_melee 2/0, melee_phase 7/0 (one earlier run
+  6/1, dummy_fast_on's ease-out 32 frames against 27: it varies run to run), weapon_catch 3/2 (its known 2),
+  flash_grab PASS, ragdoll grab 19/0, ragdoll climb 24/4 (its known 4), prop_climb 12/0, judo 12/4 (its known 4),
+  walltorch_grab 117/120 taken (3 "knocked off first: a slap"); eval.sh 163/171 as the baseline (10 takes' numbers
+  differ, the baseline's own runs 9-11). The physgun ragdoll test PASS, let go still: 0 u/s; let go while the stick
+  moves it at 256 u/s: 256 u/s. Rerun once his game closed: reload_gunshape 24/0, reload_magcollide 11/0,
+  reload_pouchgren 15/0, reload_worldparts 6/0, reload 112/3 (its known 3): 0 of 5 changed. No A/B bench: no
+  per-frame code changed but the physgun's drag (a sample a frame while dragging).
+- **Checklist:** throw the flashlight (a flick and a lob): it flies as a thrown prop would, never over 3 m/s, then
+  home; physgun swing a crate and let go at the end of the swing: it keeps the swing (before: an eased 83 ms average,
+  slower); every grab, pickup, holster, lamp and foe-grab buzz feels as before.
+
+## Design review 5 (a): the hand slot (branch `agent/heldthing`)
+
+- **The slot (QC/vr_fields.qc):** the thing a hand holds besides its weapon: `.mainhand_held`/`.offhand_held` (kept: the
+  engine and saves read them) and its kind, `.vr_hold_kind_main`/`.vr_hold_kind_off` (VR_HOLD_NONE, PROP, RAGDOLL,
+  TORCH, ROUND, GRENADE). Read with `VR_Hand_Thing(e, hand)` / `VR_Hand_Kind(e, hand)` (vr_util.qc, macros).
+- **Its only writers (vr_carry.qc):** `VR_Hand_Take(p, hand, thing)` (the kind from `VR_Hand_KindOf`),
+  `VR_Hand_Release(p, hand, why)`, `VR_Hand_ReleaseThing(p, thing, why)` (whichever hand: VR_Carry_Forget and
+  VR_Grenade_Detach each wrote that out). VR_Carry_SetHeld is gone: its 40 calls and the tests' 8 direct writes moved
+  to them (`why` a word per file: letgo, reload, grenade, throw, revolver, pickup, test). `vr_debug_carry 2` prints
+  each take and let-go (`handslot: off hand takes item_shells (kind 1)`).
+- **The per-frame check (VR_Hand_Frame, PlayerPostThink):** each hand's kind against its thing's; a kind that
+  disagrees (a write past the writers, a save from before the slot) takes its thing's, with a `handslot: mismatch`
+  line, always printed. None in any covering case below.
+- **VRIsHandEmpty** reads the slot (weaponless and no thing: the very test it was). `VR_Hand_CanTake(p, hand)`
+  (vr_wpnforcegrab.qc): empty and not locked on to a pull, the conjunction the carry grab, the ragdoll grab, the box
+  touch and the foe grab's hand-over each wrote out.
+- **Kept out (behaviour changes, his call):** folding the other busy flags (`*_fgheldfoe`, `vr_foegrab_hands`,
+  `vr_mag_rehold`, `vr_ssg_held`, `vr_gren_held`, `vr_stick_tug`, `*_wtgrip`) into the slot as kinds (Foe, Physgun,
+  Flashlight, a gripped wall torch) would make VRIsHandEmpty false for them at every caller: today each caller adds
+  its own few, so "can this hand grab?" would change answers in places (one answer for all is the review's aim; which
+  callers should see which flags is his decision). The weapon stays in `.weapon`/`.weapon2` (about 140 writers,
+  monsters' too); the C++ mirror of the kind is not added (no engine reader needs it yet: the engine's held readers
+  compare entity numbers). Not done: (c) the grab query.
+- **Verified (scratch/refactor/baseline.tsv):** 23 covering cases (suite, scripts: held_over_props 6/0, pickup_mag
+  3/0, throw_spin 1/0, weapon_catch, flash_grab, grip_gap, grip_state, mapgun_pickup 17/0, empty_melee 2/0, reload
+  112/3 and all 7 reload_* as the baseline, ragdoll_grab 19/0 on its rerun (flaky: 18/1 once), ragdoll_climb 24/4,
+  prop_climb 12/0, judo 12/4, walltorch_grab): the same but melee_phase, whose grunt_fast_on fails now and then in
+  both trees (without (a): PASS then FAIL; with: FAIL, FAIL, PASS). eval.sh 163/171, 11 differ (the baseline's own
+  runs 9-11). No `handslot: mismatch` line in any log. A/B bench (one LTO exe, the progs before/after, interleaved,
+  scratch/dr5_ab.sh): combat_48 ABBAABBA +4.1% (sd 0.23-0.25 ms, one 3.1-3.2 ms outlier each side), then BAABBAAB
+  +0.8% (2.484 -> 2.503 ms, sd 0.03-0.04); idle_e1m1 -8.9% (noise): within noise (the check is two field reads a hand
+  a frame).
+- **Checklist:** pick up a box, a gib, a round, a grenade and a wall torch in either hand, swap and throw them, and
+  load a save made while holding one: each is held and let go as before, no `handslot: mismatch` line in the console.
 ## Sparse config: only what the player changed (branch `agent/sparsecfg`; design review proposal 1)
 
 His decision: forgotten defaults now reach players (yes).
@@ -1904,6 +1982,26 @@ current one kept to fall back to.
 - **Left (part 2)**: one spawner (impulse 241; 16 helpers), the scenario's settings on testbatch's snapshot, the 64
   QC hand-printed verdicts, 23 Python files' kit paths, the C++ `_diag` printers; the other workers' test files
   (held things, config) left alone.
+
+## One test harness, part 2: one spawner, one snapshot, the QC verdicts (branch `agent/oneharness2`; design review 7)
+
+- **QC verdicts**: 62 of the 63 hand-printed `%g passed, %g failed` lines (the 64th site is VR_Test_Verdict) now print
+  through vr_testutil (`VR_Test_Verdict`, `VR_Test_VerdictPart("caps")` for a test of parts); 14 own pass/fail
+  global pairs and 2 local ones are gone
+  (`VR_Test_Count(ok)`: a check whose line keeps the test's own format; `VR_Test_Nest/Unnest`: agtest's inner
+  tests agammo, agshot and weaponshot keep their tallies apart from agtest's "test N over", as before). Every line is
+  byte-identical (only `mgworldtest: ...; barrel test needs e5m1` became the verdict plus a line of its own), so no
+  -QuitOn or run_baseline pattern changed. `npaim`'s checks now carry its own tag (`npaim: PASS`, as its comment says).
+  Left: rigseq's `rig2anim` check (it quotes the engine's totals).
+- **One spawner**: `VR_Test_Spawn(player, kind, at, yaw)` (vr_testutil.qc) is impulse 241's dispenser spawn; the
+  MG3 tests' four `*_Spawn`, the Shub test's, `VR_STT2_Spawn`, the crate-cover and crouch tests' grunts and the small
+  gibs' crowd call it (same entity order: dispenser, then monster). New family `qc-test-spawn`. Left as they are:
+  `VR_AGT_Spawn`/`VR_ART_SpawnKind` (armed monsters, `VR_AM_Spawn`: not the dispenser's), impulse 244's grunt, the
+  C++ spawners (`vr_physics_spawn`, `vr_toolgun_spawn_test`, `grabDiagPlace`).
+- **One snapshot**: `testbatch::CvarSnapshot` (take, takeAll, restore) is vr_test_snapshot/reset's and the scenario's
+  (its settings put back, and swapped out of a config write). Checked: a scenario's setting 0 -> 1 -> 0.
+- **Python**: 17 tests read the kit from `qvrtest.KIT`. Left (the held-thing worker's): carry/grip_gap, twohand,
+  flashgrab, foegrab/gripcrowd, menu_grab, toolgun_physgun_ragdoll. Allowlist tightened after each step.
 ## Weapon fixes of 2026-10-30: laser bolts on walls, stream shake (branch `agent/wpnfix1030`)
 
 - **Laser bolts bled on walls and floors** (vrfiringrange_2026-10-30_12-16-02). Not a recent code change: the firing
@@ -1927,3 +2025,71 @@ current one kept to fall back to.
   pyro's and the fumigator's guns, 1). Test: `vr_recoil_test`'s stream part (7 checks: defaults, a flame starts it, it
   shakes every frame of a second of flames and trembles, under a degree, settled after, none at 0): 24/0. Not checked
   here: a real flamethrower (the kit's bases have no AD data); the network hop is two lines.
+
+## One impact-effect table (branch `agent/impacttable`; design review 4, his "perform all")
+
+The QC's hit ladders now sit on the table gunfx started (`Quake/vr/vr_impacts.cpp`): one row per material x hit kind
+holds the world surface's extras (the client's: dust, sparks, chips, haze), the decal (a wall hit's own `TempEntity`
+mark; none on a thing: its wound is the QC's), the thing's effect (one particle2 preset, count = amount x scale clamped,
+direction = (dir x scale + add + spray) x leaf, origin along dir) and three sound slots (the hit's own, a blunt blow's
+layer, what plays over it). Keys shared with the QC: `Quake/vr/vr_impact_shared.h` (`VR_MAT_*`: none, stone, dirt,
+metal, wood, flesh, armour, torch, grenade; `VR_HIT_*`: bullet, nail, super nail, bolt, pellet, blow, blade, splash,
+saw, bash). Builtins `impact(material, kind, org, dir, amount)` (sends the row's particle2) and
+`impactsound(material, kind, slot)` (a sample of the row's set, one random() drawn as the old picks did; "" draws
+none). QC (`vr_crates.qc`): `VR_MaterialOf(e)` (torch, grenade, metal, wood, armour, else flesh) replaces the five
+ladders' own predicate chains; `VR_ImpactFx(m, kind, targ, org, dir, amount)` sends the row, a shot's metal ring once a
+frame, and keeps the tests' counters (`vr_metal_hits`, `vr_splinters_sent`, `vr_blood_sent`) and `developer` lines.
+On it: TraceAttack, spawn_touchblood, VR_HitBlood, VR_HitNonFlesh, VR_HitBloodSplash, the chainsaw's tick, a thrown
+crate's splinters, SpawnBlood and SpawnBloodSplash (so their 14 + 9 call sites, and spawn_touchblood's 18, go through
+the table), VR_Melee_HitSoundOn, VR_Blunt_HitLayer and the box/holster knocks (impactsound). Gone: VR_Metal_Hit,
+VR_Metal_Sound, VR_METAL_*, VR_Pick4, VR_Crate_Splinters, VR_GrenShot_Sparks (gameplay QC 215 lines out, 128 in).
+check_canonical: two new families freeze what is left, `qc-hit-fx` (a hand-made particle2 of blood, sparks or wood
+dust: 41 sites, none of them a material hit) and `qc-material-ladder` (VR_Hit_Metal / VR_Crate_Wooden /
+VR_Hit_Armoured calls: 16, rules not effects).
+
+Debug > Tests: Print Impact Effects (`vr_debug_impacts 1`: every particle2 and QC sound the server sends, `impfx p2
+...`, `impfx snd ...`), Every Hit Ladder on Every Material (`vr_impact_qc_test 1`; 1-7 one ladder, 9 all, verdict
+`imptest: N calls`; QC/vr_impacts_test.qc).
+
+Left on purpose: gore's own blood (9 direct particle2 sites: player gibs, decap, limbs, Chthon, vr_carry's gore
+events: their own counts), SpawnMeatSpray (spawns gibs: gore that drives entities stays QC), the particle2 events
+40-43 and decals::fromEffect, the second material enum (physsound::Material), the muzzles (proposal 3), the other
+hit sound literals (only the metal and blunt-layer sets moved: 7 sets), AD's own ladders (ad_TraceAttack,
+ad_SpawnBlood, ad_Resist_Shells: AD code; their no-flesh hits already go through VR_HitNonFlesh, the pellet row).
+
+**Disagreement list (for him; every row keeps today's output):**
+1. Armour plate: TraceAttack, spawn_touchblood and VR_HitBloodSplash ask an armed humanoid's plate
+   (VR_AgArmor_HitFx: sparks, blood only for what gets through); VR_HitBlood does not, so a melee blow (and the
+   chainsaw) on unbroken plate bleeds in full. Suggest: VR_HitBlood asks too.
+2. Knights' armour (VR_Hit_Armoured) changes only the blunt layer's sound (light metal over a duller slap); every
+   ladder's particles on them are plain blood. The Armour rows copy Flesh's.
+3. Spray strength: sparks off metal go 0.3 x the pellet's bounce (TraceAttack), 0.2 x a blow's, 1 x a nail's;
+   splinters 0.2 / 1 / 0.7 (AD pellet) / 12 (saw). TraceAttack's blood goes 0.04 x its bounce (scaled 0.2 before
+   SpawnBlood and 0.2 inside it) where a nail's goes 0.2: hitscan blood barely sprays. Suggest one scale per material.
+4. The chainsaw's own split: flesh = a monster, a player or a gib; wood = a crate; everything else sparks (4, straight
+   up). So under the saw a torch, a grenade and anything else that takes damage without being a monster, a player, a
+   gib or a crate sparks, where the other ladders go by material (a torch nothing, a non-monster body blood). Suggest: the saw uses VR_MaterialOf.
+5. Grenade sparks are a fixed 8 straight up (at a nail's own origin, not 0.01 x its velocity along like every other
+   nail row); metal's scale with damage (3-10) and go along the hit. Suggest: the metal row.
+6. A blunt blow's layer slaps flesh on a torch and on a grenade (the layer counted them as bodies); their particles
+   are nothing (torch) and sparks (grenade). Suggest: a wooden knock for the torch, the light metal for a grenade.
+7. The world: every ladder bleeds on world (spawn_touchblood, VR_HitBlood called with it: blood); callers never pass
+   it (they check takedamage first). The blunt layer calls it stone. VR_MaterialOf(world) is flesh to keep that.
+8. Order: TraceAttack and spawn_touchblood asked metal, wood, grenade, torch; the other three torch, grenade, metal,
+   wood. No thing is two of these, so VR_MaterialOf's one order changes nothing.
+9. Sounds: shots (bullet, nail, AD pellet) ring on metal once a frame (tink, ricochets, 0.8); blows and splashes on
+   metal send sparks and leave the sound to the melee (clang or knock, VR_Melee_HitSoundOn). Same as before.
+10. A thrown thing into wood: splinters along its flight (1 x velocity); into anything else: spawn_touchblood's nail
+   row (a wall bounce's direction, a ring on metal).
+
+**Verified:** `vr_impact_qc_test 9` (7 ladders x 7 targets: the world, a crate piece, an explosive box, flesh, a
+knight, a wall torch, a grenade; `sv_random_seed 7`, vrtesthall) prints the same 49 calls and the same effect lines,
+byte for byte, before (step 0's trace on origin/next's code) and after: every particle2 (preset, count, origin,
+direction) and sound (sample, volume), so the random draws kept their order. Eyeshots of ladders 1-6 x the 7 targets
+before and after (kit `scratch/impacts/before.png`, `after.png`, `before_after.png`): the same effects in the same
+places; pixel difference 0.5-2.9 mean per ladder (particle noise). The world's rows (vr_impact_test, all four kinds,
+forced materials): the old counts. Baseline cases (run_baseline.py vs baseline.tsv): collectfx 9/0, mapflameburn
+16/0, explosion_debris 13/0, shot_shape, ragdoll_* (stagger 52/5, ragtest 30/1, climb 24/4: as the baseline), limb_wear
+9/3 (as the baseline), agarmor_1 26/0, agarmor_5 23/0 (baseline 22/1, flaky), nail_1, np_1 (23/0, baseline 21/0: the
+test's own newer checks), flare_1, walltorch_grab, empty_melee, secret_hits and dead_gear (as the baseline): no case
+changed. gunfx_test.py 29/0. Build: 0 warnings, check_canonical clean. A/B bench (LTO, exclusive, ABBA, scratch/ab_bench.sh: A = origin/next + the trace, B = the table; cpu busy ms): combat_48 A 2.64 (2.69, 2.58), B 2.44 (2.43, 2.46): -7.3%; play_gore_fight A 2.36 (2.30, 2.42), B 2.40 (2.41, 2.38): +1.4%. Both within the runs' spread (A's own runs differ 4-5%): no cost measured. (The planned ABBAABBA stopped after 4 runs: the exe was busy at the swap.)

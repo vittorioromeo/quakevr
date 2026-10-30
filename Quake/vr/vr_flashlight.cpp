@@ -21,6 +21,7 @@
 #include "vr_timescale.hpp"
 #include "vr_progs.hpp"
 #include "vr_trace.hpp"
+#include "vr_throw.hpp"
 #include "vr_units.hpp"
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
@@ -384,7 +385,6 @@ const float coreSpread = za::tan(glm::radians(innerAngle));
 
 constexpr float reach = 0.09f;         // metres from the torch's axis (tail to lens) a hand reaches it at
 constexpr float returnOmega = 14.f;    // the cord's pull (critically damped; home in about 0.4 s)
-constexpr float maxThrow = 3.f;        // metres per second the lamp keeps of the hand's at a release
 constexpr float gunReach = 0.12f;      // metres from the other hand's weapon a hand holds it with both at (the intent gate)
 constexpr float handOverTime = 0.12f;  // seconds the torch eases onto the new hand's grip (the fitted hands' own blend)
 constexpr double catchWindow = 0.4;    // seconds after a release the other hand's catch is still a hand-over
@@ -1437,12 +1437,9 @@ void letGo(const hands::State& s, const Pose& mount)
     st.flightVel = glm::vec3{0.f};
     if(hand >= 0 && s.valid)
     {
-        glm::vec3 v = s.vel[hand];
-        if(const float len = glm::length(v); len > maxThrow)
-        {
-            v *= maxThrow / len;
-        }
-        st.flightVel = v * units::metresToUnits();
+        // The hand's throw, smoothed as any (throwing: the peak before the release), the lamp's cap on it.
+        const glm::vec3 v = throwing::release(1 << hand, throwing::releaseAt(hand)).vel;
+        st.flightVel = throwing::kindCap(throwing::Kind::Flashlight, v * units::metresToUnits());
     }
     // Far away (a teleport, a respawn): straight home.
     if(glm::length(st.flightOffset) > 2.5f * units::metresToUnits())

@@ -81,17 +81,7 @@ entity(entity p) MG3_ST_Shub =
         return m;
     }
     makevectors('0 1 0' * p.v_angle_y);
-    entity d = spawn();
-    d.weapon = 60;
-    setorigin(d, p.origin + v_forward * 450);
-    entity oldself = self;
-    self = d;
-    activator = p;
-    func_enemy_dispenser_use();
-    m = self;
-    self = oldself;
-    remove(d);
-    return m;
+    return VR_Test_Spawn(p, 60, p.origin + v_forward * 450, -1);
 };
 
 // `e` (its spawn function's self) wakes at `p`.

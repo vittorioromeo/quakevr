@@ -269,7 +269,7 @@ void(float xHand) VR_MagHolster_Press =
     {
         VR_MagHolster_SetBound(self, s, 0);
         VR_SoundVaried(self, VRGetHandChannel(xHand), "vr/flashlight_detach.wav", 0.8, ATTN_NORM);
-        haptic(xHand, 0, 0.06, 90, 0.6);
+        VR_Haptic_LampDetach(xHand);
         dprint(sprintf("magholster: holster %g unbound (weapon %g)\n", s, uid));
         return;
     }
@@ -301,8 +301,7 @@ void(float xHand) VR_MagHolster_Press =
     }
     VR_MagHolster_SetBound(self, s, inst.wi_uid);
     VR_SoundVaried(self, VRGetHandChannel(xHand), "vr/flashlight_attach.wav", 1, ATTN_NORM);
-    haptic(xHand, 0, 0.05, 120, 0.8);
-    haptic(xHand, 0.09, 0.05, 160, 0.5);
+    VR_Haptic_LampAttach(xHand);
     dprint(sprintf("magholster: weapon %g bound to holster %g by the %s hand\n", inst.wi_uid, s,
         xHand == cVR_MainHand ? "main" : "off"));
 };

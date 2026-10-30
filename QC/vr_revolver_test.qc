@@ -73,7 +73,7 @@ float(entity rec, float xSpeed, float xHolding) VR_RVT_Swipe =
     entity held0 = p.offhand_held;
     p.offhandpos = vr_rv_port + vr_rv_axis * (RV_CYL_LEN * 0.5 * RV_SCALE) + radial * (RV_CYL_RADIUS * RV_SCALE);
     p.offhandvel = p.handvel + VR_Cross(vr_rv_axis, radial) * xSpeed;
-    if(xHolding) { p.offhand_held = rec; } // (any thing: a hand that holds one is not empty)
+    if(xHolding) { VR_Hand_Take(p, cVR_OffHand, rec); } // (any thing: a hand that holds one is not empty)
     float spin0 = rec.wi_rv_spin;
     rec.wi_rv_spin = 0;
     if(h) { h.rvh_spun = -10; }
@@ -82,7 +82,7 @@ float(entity rec, float xSpeed, float xHolding) VR_RVT_Swipe =
     rec.wi_rv_spin = spin0;
     p.offhandpos = pos0;
     p.offhandvel = vel0;
-    p.offhand_held = held0;
+    VR_Hand_Take(p, cVR_OffHand, held0);
     self = os;
     return ok && spun;
 };
@@ -786,7 +786,7 @@ void() VR_Revolver_TestFrame =
                     vr_rvt_n, p.vr_pouch_kind, rs ? rs.skin : -1));
             if(rs)
             {
-                VR_Carry_SetHeld(p, cVR_OffHand, world);
+                VR_Hand_Release(p, cVR_OffHand, "test");
                 rs.carry_player = world;
                 remove(rs);
             }

@@ -47,9 +47,9 @@ void(float request, entity p) AD_WorldTest =
                     prop.classname = "vr_ad_button_test_prop";
                     setsize(prop, '-4 -4 -4', '4 4 4');
                     setorigin(prop, (button.absmin + button.absmax) * 0.5);
-                    self = p; VR_Carry_SetHeld(p, cVR_MainHand, prop);
+                    self = p; VR_Hand_Take(p, cVR_MainHand, prop);
                     VR_Buttons_PropFrame(p, cVR_MainHand);
-                    VR_Carry_SetHeld(p, cVR_MainHand, world); self = button;
+                    VR_Hand_Release(p, cVR_MainHand, "test"); self = button;
                 }
                 remove(prop);
             }

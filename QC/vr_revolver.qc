@@ -604,7 +604,7 @@ float(float xGunHand, entity xRound, float xHeld) VR_Revolver_LoadInto =
         collectfx(xHand, xRound, QVR_CFX_INTO_GUN, xRound.modelindex, xRound.origin, xRound.angles);
         if(xHeld)
         {
-            VR_Carry_SetHeld(self, xHand, world);
+            VR_Hand_Release(self, xHand, "revolver");
             xRound.carry_player = world;
         }
         remove(xRound);

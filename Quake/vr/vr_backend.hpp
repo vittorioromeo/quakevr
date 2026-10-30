@@ -308,4 +308,8 @@ namespace qvr::haptics
 // `hz`. Nothing with no headset (no backend), with vr_disablehaptics or for another hand number.
 void pulse(int hand, float seconds, float amplitude, float hz = 160.f);
 
+// The named buzzes (QC's: vr_haptics.qc). `meet`: both hands, as they meet on a held thing (held::meetFrame) or a hand
+// presses on the other's weapon (the view's hands): 0.04 s at 120 Hz, 0.35.
+void meet();
+
 } // namespace qvr::haptics

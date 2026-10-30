@@ -168,7 +168,7 @@ void() VR_AGTest_Weapons =
     {
         if(vr_agt_index >= (cvar_hget(cvarh_vr_agrunt_test) == 1 ? VR_AGT_COUNT : VR_AGT_ALL))
         {
-            VR_AGT_Print(sprintf("every weapon: %g passed, %g failed", vr_test_pass, vr_test_fail));
+            VR_Test_VerdictPart("every weapon:");
             cvar_set("vr_agrunt_test", "0");
             return;
         }
@@ -265,7 +265,7 @@ void() VR_AGTest_Sequence =
         entity w2 = VR_AGT_LyingNear(at);
         VR_AGT_Check(sprintf("drop: lying %s with %g (held %g):", w2 ? w2.netname : "nothing", w2.weaponinst.wi_clip, vr_agt_clip),
             w2 && w2.weapon == WID_SHOTGUN && w2.weaponinst.wi_clip == vr_agt_clip);
-        VR_AGT_Print(sprintf("sequence: %g passed, %g failed", vr_test_pass, vr_test_fail));
+        VR_Test_VerdictPart("sequence:");
         cvar_set("vr_agrunt_reserve", "2");
         cvar_set("vr_agrunt_test", "0");
     }
@@ -628,7 +628,7 @@ void() VR_AGTest_Dual =
         VR_AGT_Check(sprintf("dual: died: %g weapons fell (your hands %s, %s):", vr_agt_count, VR_AGT_Name(p.weapon),
             VR_AGT_Name(p.weapon2)), vr_agt_count == 2);
         p.flags = p.flags - (p.flags & FL_NOTARGET);
-        VR_AGT_Print(sprintf("dual: %g passed, %g failed", vr_test_pass, vr_test_fail));
+        VR_Test_VerdictPart("dual:");
         cvar_set("vr_agrunt_test", "0");
     }
 };
@@ -1049,7 +1049,7 @@ void() VR_AGTest_DualGuns =
             l && l.weapon == WID_NAILGUN);
         cvar_set("vr_agrunt_dual_pickup", ftos(vr_agt_keep_pickup));
         p.flags = p.flags - (p.flags & FL_NOTARGET);
-        VR_AGT_Print(sprintf("guns: %g passed, %g failed", vr_test_pass, vr_test_fail));
+        VR_Test_VerdictPart("guns:");
         cvar_set("vr_agrunt_test", "0");
     }
 };
@@ -1375,8 +1375,9 @@ void() VR_AGTest_Frame =
     {
         if(vr_agt_running)
         {
+            VR_Test_Unnest(); // (a test inside it given up: agtest's tally again)
             // (Every test's last line: the runs end on it, run.sh -QuitOn "agtest: test [0-9]+ over".)
-            VR_AGT_Print(sprintf("test %g over: %g passed, %g failed", vr_agt_running, vr_test_pass, vr_test_fail));
+            VR_Test_VerdictPart(sprintf("test %g over:", vr_agt_running));
             vr_agt_running = 0;
         }
         vr_agt_player = world;
