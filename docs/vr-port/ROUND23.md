@@ -1507,3 +1507,47 @@ read every pak's directory.
   runs' +-100 ms spread; hip2m5's per-round differences -63, -11, -633, -38, +79). "Image files looked for, none found"
   70 -> 6 ms (vrtesthall), 77 -> 6 (vrstart), 16 -> 5 (e1m1), 20 -> 6 (hip2m5). Warm loads unchanged (144-293 ms: the
   models are kept). Scripts: scratch/load5_ab.sh, load5_abstats.py (not committed).
+
+## Design review 5 (b): one throw, the haptic presets (branch `agent/heldthing`)
+
+The review's proposal 5 (scratch/refactor/design_review.md), its first sub-step. His decisions: the flashlight and the
+physgun get the shared throw smoothing; the haptic presets keep today's exact values (no feel change).
+
+- **One throw (vr_throw.hpp):** `throwing::release(handMask, at, centre)`: both hands' bits, estimateBothAt; one,
+  estimateAt (the client's one-hand throw and held::bothHandsThrow go through it). `throwing::releaseAt(hand)`: the
+  grip's own release time if it is this release, else the newest sample's (was inline in vr_client.cpp; the lamp uses
+  it too). `throwing::Kind` and `kindCap(kind, vel)`: the per-kind top speeds in one table (Hand: none here, its
+  weight's; Flashlight 3 m/s; Physgun 1000 u/s), replacing the two inline caps.
+- **The flashlight** let go flies with the hand's smoothed throw (`release(1 << hand, releaseAt(hand))`: the peak in
+  vr_throw_window, as any prop) instead of the hand's raw velocity of that frame; the cap unchanged (3 m/s).
+- **The physgun** samples its held point each drag frame into a point history (`throwing::pointSample`, on the drag's
+  own clock: dragFrame's dt summed) and lets go with `pointEstimate` (the hands' releasePeak: the peak in
+  vr_throw_window fitted over vr_throw_peak_span, not pitched, no flick) instead of its own 12/s EMA; cap unchanged.
+  A swing let go just after it stops now keeps the swing (as a hand's throw does); one held still past the window
+  drops as before.
+- **Haptic presets:** QC/vr_haptics.qc (new, after vr_util.qc): 25 named pulses `VR_Haptic_*(hand)` and
+  `VR_Haptic_Both(preset)` (off hand first, as the pairs were) for the hand-held things: pickups and holsters (the
+  holster's fading triple, written twice before, in items.qc and vr_wpnholster.qc), carrying, the lamp, grenades in
+  the hand, the force grab, foe grab and its throws/neck snaps. 51 literal calls in 9 files replaced, each with the
+  very values it had. Combat, melee, burning, juice and the rest keep their calls (not the held thing's; melee QC
+  untouched). C++: `haptics::meet()` (both hands 0.04 s, 120 Hz, 0.35), the pulse vr_held.cpp and vr_view_hands.cpp
+  each wrote out.
+- **Kept out (behaviour changes the review lists that he did not decide):** two-handed ragdoll throws still get the
+  one-hand estimate; `vr_2h_throw_velocity_mult` (QC: a two-handed weapon's speed x1.3) and `vr_throw_2h_strength`
+  (C++: a two-handed prop's mass / 2) both kept, they are not one setting (merging them changes either throw); the foe
+  grab's `twoHandsOf` is a gesture measure (turn, way), not a release velocity, and stays.
+- **Not done (next sub-steps):** (a) the hand slot (`.vr_hold_kind`/`.vr_hold_ent` per hand, VR_Hand_Take/Release,
+  VR_IsHandEmpty on the slot, the per-frame flag-derivation check first), (c) the grab query.
+- **Verified (against scratch/refactor/baseline.tsv, low-impact runs while his game ran):** the same verdicts and
+  counts in held_over_props 6/0, pickup_mag 3/0, throw_spin 1/0, reload_contact 23/0, reload_eject 28/0,
+  reload_front 34/0, grip_gap, grip_state, mapgun_pickup 16/16, empty_melee 2/0, melee_phase 7/0 (one earlier run
+  6/1, dummy_fast_on's ease-out 32 frames against 27: it varies run to run), weapon_catch 3/2 (its known 2),
+  flash_grab PASS, ragdoll grab 19/0, ragdoll climb 24/4 (its known 4), prop_climb 12/0, judo 12/4 (its known 4),
+  walltorch_grab 117/120 taken (3 "knocked off first: a slap"); eval.sh 163/171 as the baseline (10 takes' numbers
+  differ, the baseline's own runs 9-11). The physgun ragdoll test PASS, let go still: 0 u/s; let go while the stick
+  moves it at 256 u/s: 256 u/s. Not run: reload_gunshape, reload_magcollide, reload_pouchgren, reload_worldparts and
+  reload (their runs are --exclusive: they wait for his game to close). No A/B bench: no per-frame code changed but
+  the physgun's drag (a sample a frame while dragging).
+- **Checklist:** throw the flashlight (a flick and a lob): it flies as a thrown prop would, never over 3 m/s, then
+  home; physgun swing a crate and let go at the end of the swing: it keeps the swing (before: an eased 83 ms average,
+  slower); every grab, pickup, holster, lamp and foe-grab buzz feels as before.
