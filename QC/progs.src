@@ -541,6 +541,7 @@ vr_armedgrunt_close_test.qc
 vr_armedgrunt_grab_test.qc
 vr_armedgrunt_downtug_test.qc
 vr_armedgrunt_ragweapon_test.qc
+vr_armedknight_test.qc
 vr_armedgrunt_range_test.qc
 vr_disarmviz_test.qc
 vr_armedgrunt_expose_test.qc
