@@ -152,6 +152,7 @@ Hold the flashlight in one hand and try a box, a pouch round and a wall torch wi
 Grab a grunt, let go, then grab a box with that hand: taken; ragdoll hand-over from a foe-grab throw as before.
 Two-hand the SSG, let go with the fore-end hand, reload it from the pouch: as before; seat a magazine and pull it straight back out without letting go (Release Seated Magazine off): as before.
 Grab a wall torch, a pouch item, a box, guns and limbs: each taken as before (one grab query now); no "handslot:" line in the console.
+Your tweaks are now the defaults: fire every gun (recoil, haptic punch, gunfire smoke/sparks/wisps as you set them), check armed grunts' poses and grips, and a relit map; everything should look and feel as in your last session.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns
