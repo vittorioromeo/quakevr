@@ -2093,7 +2093,7 @@ His words: get rid of the baked kick and muzzle raise from every weapon that has
   vr_recoil_kick x Kick x Strength (0 where Recoil off), deg = vr_recoil_rise x Rise x Strength, time = (T - min(0.035,
   0.3 T)) x Recovery; the burst cap and the stream shake expressed in the weapon's own kick (2.5 of it; the lean 0.1).
   His: nailgun 1.46 cm / 2.44 deg, super nailgun 2.68 / 4.92, laser cannon 2.67 / 3.91, Widowmaker 11.5 / 11.4, AD
-  plasma 5.34 / 8.74, revolver 14.6 / 21.9.
+  plasma 5.34 / 8.74, revolver 14.6 / 21.9. (Approved and done: "Recoil in cm, degrees and seconds", below.)
 
 Checklist:
 - Each gun fires with no kick of its model's own: the body holds in the hand; the shotgun's and super shotgun's parts,
@@ -2102,6 +2102,50 @@ Checklist:
 - The muzzle flash, shells and a hand on the pump stay on the gun through a shot.
 - Recoil strengths per weapon to taste (Weapon Offsets > Effects; your global Kick Back 4.5 / Muzzle Rise 7.5 make the
   new defaults 3x / 1.9x as strong as measured).
+
+## Recoil in cm, degrees and seconds (branch `agent/dekick`)
+
+His approval of the simplification proposed above: per weapon Kick Back (cm), Muzzle Rise (deg) and Return Time (s,
+peak to rest), all absolute; globally the Programmatic Recoil switch and one Recoil Amount.
+
+- **Settings**: Weapon Offsets > Effects: Recoil Kick Back (`vr_wofs_fx_kick_cm_NN`, 0-10 cm, extends to 40), Recoil
+  Muzzle Rise (`vr_wofs_fx_rise_deg_NN`, 0-15 deg, to 45; a quarter of it turns sideways as before), Recoil Return Time
+  (`vr_wofs_fx_return_s_NN`, s from the peak; the kick up before it is min(35 ms, 3/7 of it), which is the old curve's
+  min(35 ms, 0.3 T)); 0, 0 and 0.115 s for a slot with no default. Weapon Effects: Programmatic Recoil (as before) and
+  Recoil Amount (`vr_recoil_amount`, 1x, 0-2, to 5: every weapon's cm and degrees times it). Gone: the per-weapon Recoil
+  on/off, Recoil Strength, Recoil Recovery, the global Kick Back and Muzzle Rise (`vr_wofs_fx_recoil[_str|_kick|_rise|
+  _time|_rec]_NN`, `vr_recoil_kick`, `vr_recoil_rise`): retired quietly, an old config's lines kept for the conversion
+  (`weapons::retiredRecoilLine` from `VR_RetiredCvar`). A weapon fires a kick when the switch is on and its cm or degrees
+  are over 0.
+- **Conversion** (`vr_wofs_version` 74, `takeRecoilUnits74`; `weapons::convertRecoil`): cm = vr_recoil_kick x Kick x
+  Strength (0 where Recoil was off), deg = vr_recoil_rise x Rise x Strength, time = (T - min(0.035, 0.3 T)) x Recovery.
+  The old values are kept apart (`oldRecoil`: each slot's old shipped values, `oldRecoilDefaults`, under the config's
+  lines), and the old steps that touched them (48: the AD soldiers' guns taking the burst rifle's, the crossbow's; 53:
+  the Widowmaker's; 73: Quake's guns on) now act on those. The drawn kick is the same exactly where Recovery is 1 (every
+  shipped value, all of his) or the time is over 0.117 s; otherwise only the 35 ms kick up differs a few ms. The burst
+  cap (2.5) and the stream shake (its lean 0.1) are now in the weapon's own kick, not in strengths: the same for the
+  burst rifle and the stream guns (Strength 1). The shipped defaults converted the same way (vr_weapons.inc: the shotgun
+  5.775 cm / 5.6 deg / 0.315 s, super shotgun 7.95 / 3.8 / 0.265, launchers 7.95 / 12 / 0.315, rocket launchers 7.8 /
+  5.4 / 0.265, nailgun 0.4875 / 1.3 / 0.115, super nailgun 0.8949 / 2.6219, laser cannon 0.889 / 2.087, lightning and
+  plasma 0.6 / 1 / 0.07, burst rifle 1.5 / 4 / 0.085, Widowmaker 2.1075 / 5.62, revolver 2.4 / 6.4 / 0.125, ...).
+- **Haptic Punch** (vr_gunsfx.cpp): its tail lasts the whole kick (`weapons::recoilKickSeconds`: the old Return Time x
+  Recovery wherever Recovery is 1); its spike reads the kick in the old strength-1 units (`weapons::recoilFeel`: the
+  mean of cm / 1.5 and deg / 4), which is the old Strength x mean(Kick, Rise) for the shipped values. His global 4.5 /
+  7.5 now sit in each weapon's cm and degrees, so the conversion scales his Haptic Punch by sqrt(old / new) where the
+  spike was not at full anyway (his nailguns, lightning, laser cannon, rifles: 0.62-0.64x; the shotguns and launchers
+  were and stay at full: untouched). The toolgun (recoil off) has no kick to read: its punch goes.
+- **His values** (his config of 2026-10-30 copied in, `vr_recoil_test`): nailgun 1.4625 cm / 2.4375 deg / 0.115 s,
+  super nailgun 2.685 / 4.916, laser cannon 2.668 / 3.914, Widowmaker 11.54 / 11.43 / 0.176, AD plasma 5.344 / 8.736 /
+  0.126, revolver 14.58 / 21.94 / 0.337 (as proposed above); every other gun its new default times his 4.5 / 7.5 (the
+  shotgun 17.3 cm / 10.5 deg). 27 slots off the shipped values; 18 Haptic Punch lines.
+- **Tests**: `vr_recoil_test` 69/0 (e1m1, shotgun): the conversion part checks every slot's old defaults converted are
+  its shipped ones (51/51), draw the old kick every ms of a second within 1e-4 of the peak (the old code's curve,
+  `oldCurve`), last as long (51/51), and, where this start converted a config (the kit's old baseline config, wofs 43,
+  or his), every slot draws its old kick from the cvars (51/51; his: 27 slots printed with their old and new values);
+  Return Time 2x / 0.5x twice / half as long back (0.315 -> 0.630 / 0.1575 s), Recoil Amount 2x doubles. `vr_gunsfx_test`
+  24/0 (-Sound). Covering cases vs baseline.tsv: collectfx 9/0, mapflameburn 16/0, reload 112/3, shot_shape, reload_eject
+  28/0, nail_1 7/0 as the baseline; recoil 69/0 (was 9/0: checks added); reload_front 33/1 as on this branch before
+  (above: not this change). Menu paths 0 missing.
 
 ## Settings tiers (branch `agent/tiers`; design review 2)
 
