@@ -562,6 +562,13 @@ za::Vector<Item> pageMg3Tests();
 za::Vector<Item> pageMg3WeaponTests();
 za::Vector<Item> pageSpawnWeapons();
 extern int testsPageSpawn;
+#ifndef QVR_RELEASE
+[[nodiscard]] za::Vector<Item> pageTunables(); // (vr_menu_tunables.inc)
+extern int tunablesPageKey;
+extern bool tunablesPageUnfiltered;
+[[nodiscard]] int tunablesPageKeyNow();
+void tunablesShowAll();
+#endif
 // gameplay
 extern int armsPageCalibrated;
 extern int bodycalSeated;
