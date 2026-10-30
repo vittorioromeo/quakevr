@@ -231,7 +231,6 @@ const DefaultChange defaultChanges[] = {
     {148, &vr_relight_reload, "1"},          // 0
     // 149: his holster zones, positions, sizes and depths (2026-10-17: "I've tweaked all the holster positions and
     // sizes and depths. Make all the values the new defaults"), and the shoulder holsters' reach.
-    {149, &vr_holster_zone_scale, "1"},                  // 0.95
     {149, &vr_holster_zone_hip_y, "0"},                  // -2.25
     {149, &vr_holster_zone_hip_z, "-2"},                 // -2.25
     {149, &vr_holster_zone_hip_depth, "0.6"},            // 0.15
@@ -319,7 +318,6 @@ const DefaultChange defaultChanges[] = {
     {158, &vr_flame_lights, "3"},
     {158, &vr_flame_light_scale, "1"},
     // 159: the Widowmaker's handful his 2 (was 4), its shell port half its size (his notes 2026-10-19).
-    {159, &vr_ad_widowmaker_handful, "4"},
     {159, &vr_reload_port_widow_radius, "2.5"},
     // 160: his swing sounds and wet sheen (his config of 2026-10-19).
     {160, &vr_melee_swish_min, "0.5"},                  // 0.3
@@ -354,7 +352,6 @@ const DefaultChange defaultChanges[] = {
     {166, &vr_ghost_hands_fade_range, "4"}, // 7
     // 167: the carving quality 16 -> 8 steps (his config of 2026-10-19); the Widowmaker spins up 0.2 -> 0.75 s before its first shot.
     {167, &vr_decal_carve_steps, "16"},
-    {167, &vr_ad_widowmaker_spinup, "0.2"},
     // 168: his shallower dents (his config of 2026-10-20).
     {168, &vr_gore_dents_depth, "3"},
     // 169: his Thrown Bodies tuning (his config of 2026-10-20); the tackle redone as the shoulder charge, off for now
@@ -522,8 +519,6 @@ const DefaultChange defaultChanges[] = {
     {202, &vr_bullettime_duration, "20"},           // 15
     {202, &vr_struggle_look, "0.9"},                // 1
     {202, &vr_struggle_look_strength, "0.6"},       // 0.8
-    {202, &vr_ammo_pouch_wobble_intensity, "1"},    // 0.8
-    {202, &vr_ammo_pouch_wobble_settle, "1.3"},     // 0.5
     // 204: Model Animation Smooth by default (approved 2026-10-25; ROUND22.md, "Defaults of 2026-10-25"): a config
     // still at Quake's Blend (1) takes Smooth (3); Stepped (0) stays.
     {204, &r_lerpmodels, "1"}, // 3
@@ -553,9 +548,6 @@ const DefaultChange defaultChanges[] = {
     // 216: rows that did nothing (135's suit glow, 146's topple: their defaults went back without a row) dropped, and
     // a config still at those passing values takes today's (round 23, his decision D2).
     {216, &vr_legsweep_topple, "180"},               // 200
-    {209, &vr_revolver_spin_friction, "720"},        // 760
-    {209, &vr_revolver_spin_max, "1800"},            // 900
-    {209, &vr_revolver_hand_reach, "3"},             // 0.25
     {209, &vr_reload_port_npistol_z, "0"},           // 1.5
     {209, &vr_reload_port_npistol_radius, "1.5"},    // 1
 };

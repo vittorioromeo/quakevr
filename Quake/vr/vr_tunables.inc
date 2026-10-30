@@ -447,3 +447,221 @@ QVR_TUNABLE(vr_walltorch_reach, "15") // cm from a torch's stick (its axis, butt
 QVR_TUNABLE(vr_walltorch_hits, "5") // blows a torch lands before its fire starts dying, even held (0: blows never use it up)
 QVR_TUNABLE(vr_walltorch_damage, "12") // a torch's blow: its base damage, times the blow's strength (a gun's is 12, the axe's 20)
 QVR_TUNABLE(vr_walltorch_flame, "1") // a taken torch's flame's size (1: the wall torch's)
+
+// Weapons > Aiming
+QVR_TUNABLE(vr_weight_spring_stiffness, "1") // Spring: times the arm's and wrist's stiffness (2: 41% quicker)
+QVR_TUNABLE(vr_weight_spring_damping, "1") // Spring: the damping ratio (1 critical: settles without swinging back; less: overshoots)
+QVR_TUNABLE(vr_weight_spring_strength, "1") // Spring: times the arm's force and the wrist's torque (0: unlimited)
+QVR_TUNABLE(vr_weight_spring_sag, "1") // Spring: times the droop of heavy things under gravity (more at arm's length)
+QVR_TUNABLE(vr_weight_spring_inertia, "1") // Spring: times the swing a moving hand gives what it holds (its centre of mass trailing)
+QVR_TUNABLE(vr_weight_spring_2h, "4") // Spring: times the stiffness and strength with a two-handed grip
+QVR_TUNABLE(vr_weight_spring_roll, "2.5") // Spring: times the inertia about the forward axis (a roll of the wrist: 2, 41% slower)
+QVR_TUNABLE(vr_weight_spring_snap, "60") // Spring: cm (or 3 times as many degrees; past 165 always) off the hand beyond which it is put back in it at once
+QVR_TUNABLE(vr_weight_stamina_from, "0.5") // the stamina left (0..1) below which it starts
+QVR_TUNABLE(vr_weight_stamina_max, "2.5") // times the weight with none left
+QVR_TUNABLE(vr_weight_stamina_curve, "2") // the curve's exponent from the threshold to none (1 straight; 2 gentle at first)
+QVR_TUNABLE(vr_weight_stamina_add, "15") // kg added to what a hand holds with none left (on the same curve; with the times above)
+QVR_TUNABLE(vr_weight_stamina_empty, "15") // kg an empty hand weighs with none left (on the same curve): it follows its controller as if it held that (0: an empty hand never lags; not a hand on a hold or steadying a weapon)
+
+// Weapons > Fingers and Collisions
+QVR_TUNABLE(vr_hand_fit_palm, "5") // with it: cm the drawn hand may move off the controller to sit flush on what it holds (0: stays on the controller)
+QVR_TUNABLE(vr_hand_fit_palm_weapon, "3") // the same on a weapon (its own grip, a foregrip, a blade): cm (the weapon is placed in the hand by its settings)
+QVR_TUNABLE(vr_hand_fit_palm_turn, "20") // and degrees it may turn to face the surface it holds (0: not at all)
+QVR_TUNABLE(vr_hand_fit_overlap, "0.3") // round 21, second pass: cm the fingers and palm may sink into what they hold (snug, no gap); third pass: things only (a weapon, its hotspots: their own overlap sliders)
+QVR_TUNABLE(vr_hand_fit_overlap_hands, "0.6") // and cm a hand cupping the other (a two-handed pistol grip) may sink into it
+QVR_TUNABLE(vr_hand_walls, "1") // round 21, second pass: the jointed hand's fingers bend (curl) where they would go into walls and floors
+QVR_TUNABLE(vr_model_collide_hands, "1") // and so do empty hands (fists)
+QVR_TUNABLE(vr_model_collide_max, "20") // cm a weapon or hand is held out of a model; deeper, less and less, and none at twice as deep (it lets go and passes through)
+QVR_TUNABLE(vr_hand_fit_blend, "0.12") // seconds the fingers, thumb and palm take to move to a new grasp (0: at once)
+QVR_TUNABLE(vr_hand_fit_resolve, "0.3") // cm (and that many times 2 degrees) what the hand holds may move in it before the grasp is solved again (0: every frame)
+
+// Weapons > Hip Holsters
+QVR_TUNABLE(vr_hip_holster_pitch, "0")
+QVR_TUNABLE(vr_hip_holster_yaw, "40")
+QVR_TUNABLE(vr_hip_holster_roll, "0")
+QVR_TUNABLE(vr_grenade_pouch_pitch, "0") // degrees: its top away from the back (the holsters' axes)
+QVR_TUNABLE(vr_grenade_pouch_yaw, "0")
+QVR_TUNABLE(vr_grenade_pouch_roll, "0")
+
+// Weapons > Holster Zones
+QVR_TUNABLE(vr_holster_zone_scale, "0.95") // every zone's size, times
+QVR_TUNABLE(vr_holster_zone_hysteresis, "0.15") // the zone a hand is at keeps it this much (a share of its size) further out, and wins until another is this much deeper
+
+// Weapons > Hotspots
+QVR_TUNABLE(vr_virtual_stock_thresh, "10")
+QVR_TUNABLE(vr_shoulder_offset_x, "-1")
+QVR_TUNABLE(vr_shoulder_offset_y, "1.75")
+QVR_TUNABLE(vr_shoulder_offset_z, "16.0")
+QVR_TUNABLE(vr_upper_holster_pitch, "40")
+QVR_TUNABLE(vr_upper_holster_yaw, "20")
+QVR_TUNABLE(vr_upper_holster_roll, "-60")
+QVR_TUNABLE(vr_shoulder_holster_pitch, "0")
+QVR_TUNABLE(vr_shoulder_holster_yaw, "0")
+QVR_TUNABLE(vr_shoulder_holster_roll, "0")
+
+// Weapons > Immersion
+QVR_TUNABLE(vr_shells_life, "20") // seconds they lie on the floor before fading out
+QVR_TUNABLE(vr_shells_sound, "1") // volume of their tink as they land (0 off)
+QVR_TUNABLE(vr_holster_haptic_time, "0.25") // seconds of the buzz as a hand reaches a holster (vr_holster_haptics 2: once)
+QVR_TUNABLE(vr_weapon_throw_velocity_mult, "1.0")
+QVR_TUNABLE(vr_weapon_draw_blend, "0.3") // seconds a gun drawn from a holster takes to ease from its holstered pose into the hand (0 at once; visual only)
+QVR_TUNABLE(vr_weapon_holster_blend, "0.3") // seconds a gun put in a holster takes to ease from the hand into its holstered pose (0 at once)
+
+// Weapons > Incandescent Blades
+QVR_TUNABLE(vr_hotblade_heat_time, "2") // s the blade must stay in a flame to become incandescent (out of it, the build-up falls off as fast)
+QVR_TUNABLE(vr_hotblade_damage, "10") // base damage added to every blow of an incandescent weapon (times the blow's strength, as its own base)
+QVR_TUNABLE(vr_hotblade_light_radius, "72") // its reach in units at full glow
+QVR_TUNABLE(vr_hotblade_ember_rate, "12") // puffs of embers a second at full glow (fewer as it fades: times the glow squared)
+QVR_TUNABLE(vr_hotblade_trail_linger, "0.5") // s they linger in the air
+QVR_TUNABLE(vr_hotblade_trail_speed, "1.5") // m/s the blade's tip must move for a trail (slower: none)
+QVR_TUNABLE(vr_hotblade_hue, "18") // the glow's hue in degrees (0 red, 18 orange-red, 30 orange, 55 yellow)
+QVR_TUNABLE(vr_hotblade_sound, "1") // volume of the sizzle in a flame, the ring as it turns incandescent and the quench's hiss (0: off)
+
+// Weapons > Lightning Gun in Water
+QVR_TUNABLE(vr_lg_water_self_damage, "40") // the shock's damage to you
+QVR_TUNABLE(vr_lg_water_damage, "60") // its damage to what else is in the water, at its middle (the muzzle)
+QVR_TUNABLE(vr_lg_water_radius, "300") // how far through the water it (and the electrified water) reaches, units
+QVR_TUNABLE(vr_lg_water_falloff, "1") // how it fades out to the radius: the power of the share of the radius left (1 evenly, 2 sooner, 0 not at all)
+QVR_TUNABLE(vr_lg_water_tick_damage, "10") // each bolt into water from the open: damage at the point it goes in (fading out the same way)
+QVR_TUNABLE(vr_lg_water_flash, "1") // the shock's blue flash over the view and arcs in front of the eyes (0 none .. 1)
+
+// Weapons > Reloading
+QVR_TUNABLE(vr_ammo_pouch_counter_x, "2.25")
+QVR_TUNABLE(vr_ammo_pouch_counter_y, "0")
+QVR_TUNABLE(vr_ammo_pouch_counter_z, "2")
+QVR_TUNABLE(vr_ammo_pouch_counter_pitch, "0")
+QVR_TUNABLE(vr_ammo_pouch_counter_yaw, "0")
+QVR_TUNABLE(vr_ammo_pouch_counter_roll, "0")
+QVR_TUNABLE(vr_ammo_pouch_counter_scale, "0.6")
+QVR_TUNABLE(vr_ammo_pouch_wobble, "1")
+QVR_TUNABLE(vr_ammo_pouch_wobble_freq, "2") // springiness: how fast they sway, Hz (0.2..8)
+QVR_TUNABLE(vr_ammo_pouch_wobble_settle, "0.5") // how long a swing takes to die down to 5%, s (0.1..10) (his 0.5, 1.3 before vr_cfg_version 202)
+QVR_TUNABLE(vr_ammo_pouch_wobble_intensity, "0.8") // how hard a move swings them (0..5; Wobble caps how far) (his 0.8, 1 before vr_cfg_version 202)
+QVR_TUNABLE(vr_reload_haptics, "1") // times the reload's vibrations (taking, putting back, loading, the empty pouch); 0 none
+QVR_TUNABLE(vr_reload_volume, "1") // times the reload's sounds; 0 none
+QVR_TUNABLE(vr_reload_loose_max, "24") // rounds lying about at most (dropped, thrown): the oldest not in a hand goes for a new one
+QVR_TUNABLE(vr_reload_grab_slack, "3") // cm from a round lying about within which a gripping fist takes it (they are small and lie flat)
+QVR_TUNABLE(vr_reload_loose_time, "90") // seconds a round lies about before it fades away (0: never)
+QVR_TUNABLE(vr_reload_contact_angle, "35")
+QVR_TUNABLE(vr_reload_pouch_contact, "4")
+QVR_TUNABLE(vr_reload_pouch_angle, "35")
+QVR_TUNABLE(vr_reload_pouch_clearance, "4")
+QVR_TUNABLE(vr_reload_pouch_mag_contact, "6")
+QVR_TUNABLE(vr_reload_pouch_mag_angle, "45")
+
+// Weapons > Reloading - Cell Cords
+QVR_TUNABLE(vr_cellcord_laser_x, "0") // the cord's place on the laser cannon off its bottom, the model's units: forward
+QVR_TUNABLE(vr_cellcord_laser_y, "0") // left
+QVR_TUNABLE(vr_cellcord_laser_z, "0") // up
+QVR_TUNABLE(vr_cellcord_hammer_x, "0") // the same on Mjolnir (off the end of its handle)
+QVR_TUNABLE(vr_cellcord_hammer_y, "0")
+QVR_TUNABLE(vr_cellcord_hammer_z, "0")
+QVR_TUNABLE(vr_cellcord_superaxe_x, "0") // the same on the Super Axe (off the end of its handle)
+QVR_TUNABLE(vr_cellcord_superaxe_y, "0")
+QVR_TUNABLE(vr_cellcord_superaxe_z, "0")
+
+// Weapons > Reloading - Heavy Revolver
+QVR_TUNABLE(vr_revolver_close_flick_time, "0.25") // the same for the flick shut
+QVR_TUNABLE(vr_revolver_flick_sustain, "0.3") // a flick goes on while the roll stays above this share of its speed (both flicks)
+QVR_TUNABLE(vr_revolver_close_push_speed, "0.8") // m/s that push must reach (the hands' relative speed, along the cylinder's way home)
+QVR_TUNABLE(vr_revolver_eject_tilt, "50") // out, the muzzle tilted up this many degrees drops its shells, spent and live (0: never)
+QVR_TUNABLE(vr_revolver_spin_mult, "1") // how fast a swipe spins it, times
+QVR_TUNABLE(vr_revolver_spin_friction, "760") // degrees a second, each second, a spin slows by (it stops on a chamber)
+QVR_TUNABLE(vr_revolver_spin_max, "900") // degrees a second at most
+QVR_TUNABLE(vr_revolver_hand_reach, "0.25") // units from the swung-out cylinder's middle (beyond its radius) the other hand spins it or pushes it home within
+
+// Weapons > Reloading - Launchers
+QVR_TUNABLE(vr_reload_front_hold_yaw, "0")
+QVR_TUNABLE(vr_reload_front_hold_roll, "0")
+QVR_TUNABLE(vr_grenade_scale, "0.78")
+QVR_TUNABLE(vr_rocket_scale, "0.65")
+
+// Weapons > Reloading - Nailgun
+QVR_TUNABLE(vr_reload_pull_speed, "2") // m/s a hand holding a gun's magazine (a two-handed grip) must pull it out of its well at (along it) to take it out; or,
+QVR_TUNABLE(vr_reload_pull_snap, "225") // its wrist turning against the gun's hand at this many degrees/s or more; or the hands this much further apart:
+QVR_TUNABLE(vr_reload_pull_apart, "10") // units further apart than as it took hold (any one of the three; a gentle pull only holds it)
+
+// Weapons > Reloading - Shotgun
+QVR_TUNABLE(vr_ad_widowmaker_shot_volume, "3")
+
+// Weapons > Reloading - Super Shotgun
+QVR_TUNABLE(vr_reload_ssg_flick_rest, "180") // degrees a second under which the wrist holding it counts as still: a flick swings the barrel towards its up then (at most 3/4 of the flick's speed; the classic flick reload: 86). The gun hand still moving after a load no longer delays the flick shut (the author's note of 2026-10-08)
+QVR_TUNABLE(vr_reload_ssg_lift_speed, "250") // degrees a second it must be moving at
+QVR_TUNABLE(vr_reload_ssg_hit_reach, "6") // units from the front 40% of its barrels a hit lands within (a fist, the nearest point of a held prop's box, the other gun's line)
+QVR_TUNABLE(vr_reload_ssg_hit_open_speed, "3") // m/s a hit from above must come at to break it open (the hands' relative speed)
+QVR_TUNABLE(vr_reload_ssg_hit_open_angle, "40") // degrees off straight down (the gun's own down, as held) it may come from
+QVR_TUNABLE(vr_reload_ssg_hit_close_speed, "2.5") // m/s a hit from below must come at to snap it shut
+QVR_TUNABLE(vr_reload_ssg_hit_close_angle, "35") // degrees off straight up (the gun's own up) it may come from
+QVR_TUNABLE(vr_reload_pouch_sshot_contact, "10")
+QVR_TUNABLE(vr_reload_pouch_sshot_angle, "180")
+
+// Weapons > Reloading - Thunderbolt
+QVR_TUNABLE(vr_reload_battery_smoke_alpha, "0.45") // each wisp's opacity as it leaves the cell (0..1)
+
+// Weapons > Reloading - Widowmaker
+QVR_TUNABLE(vr_ad_widowmaker_tube, "16") // the shells its tube holds
+QVR_TUNABLE(vr_ad_widowmaker_handful, "2") // the shells the pouch gives a hand for it (all go in at once, as many as fit; his 2)
+QVR_TUNABLE(vr_ad_widowmaker_spin, "1")
+QVR_TUNABLE(vr_ad_widowmaker_spinup, "0.75") // (also the wait before the first shot: the barrels must reach firing speed; QC AD_WidowmakerSpinFrame)
+QVR_TUNABLE(vr_ad_widowmaker_spindown, "0.9")
+
+// Weapons > Weapon Effects
+QVR_TUNABLE(vr_autopump_travel, "2.5") // how far back the fore-end goes, in the gun model's units (0-3.2; about 3.8 cm each, drawn)
+QVR_TUNABLE(vr_muzzle_flash_enemy_size, "1") // their flashes' size (times a third of their gun's length)
+QVR_TUNABLE(vr_tracer_speed, "150") // m/s they fly (times a weapon's Tracer Speed)
+QVR_TUNABLE(vr_tracer_length, "1.5") // m long
+QVR_TUNABLE(vr_tracer_width, "1.2") // cm thick
+QVR_TUNABLE(vr_tracer_chance, "0.3") // the chance a pellet (or a round) shows one, 0..1 (times a weapon's)
+QVR_TUNABLE(vr_tracer_r, "1") // their colour (a weapon may have its own), 0..1
+QVR_TUNABLE(vr_tracer_g, "0.8")
+QVR_TUNABLE(vr_tracer_b, "0.45")
+QVR_TUNABLE(vr_tracer_brightness, "1") // times the colour (they add light onto the scene)
+QVR_TUNABLE(vr_gunfx_intensity, "1") // how many of them, all (0.25-3; fewer at high fire rates anyway)
+QVR_TUNABLE(vr_gunfx_turbulence, "1") // how much the gunfire smoke swirls as it spreads (0 none: straight drift; 0-3)
+QVR_TUNABLE(vr_gunfx_shell_trail, "1.6") // every spent casing's smoke trail, times (0 none; 1 the old faint one)
+
+// Weapons > Weapon Offsets - Flashlight
+QVR_TUNABLE(vr_flashlight_mount_preview, "0") // Weapon Offsets > Flashlight: the torch's place on the page's weapon drawn while the page is shown
+
+// Weapons > Weapon Offsets - Hand and Grip
+QVR_TUNABLE(vr_show_controller_x, "0")
+QVR_TUNABLE(vr_show_controller_y, "0")
+QVR_TUNABLE(vr_show_controller_z, "0")
+QVR_TUNABLE(vr_show_controller_pitch, "0")
+QVR_TUNABLE(vr_show_controller_yaw, "0")
+QVR_TUNABLE(vr_show_controller_roll, "0")
+QVR_TUNABLE(vr_show_controller_off_y, "0")
+QVR_TUNABLE(vr_show_controller_off_z, "0")
+QVR_TUNABLE(vr_show_controller_off_pitch, "0")
+QVR_TUNABLE(vr_show_controller_off_yaw, "0")
+
+// Weapons > Weapon Offsets - Muzzle and Sights
+QVR_TUNABLE(vr_sight_align_captures, "4")
+
+// Weapons > Weapon Weights
+QVR_TUNABLE(vr_weight_drop_2h, "1.5") // times the speed with the other hand on it too
+QVR_TUNABLE(vr_weight_drop_window, "0.06") // seconds the turn is measured over
+QVR_TUNABLE(vr_heavy, "1") // 0: none of it (every weapon as light)
+QVR_TUNABLE(vr_heavy_struggle, "1") // one-handed struggle: 0 off, 1 full (times the Heft)
+QVR_TUNABLE(vr_heavy_struggle_stiffness, "0.25") // the wrist's stiffness on it at Heft 1 in one hand, times (lower: lags further, slower back)
+QVR_TUNABLE(vr_heavy_struggle_damping, "0.5") // its damping at Heft 1 in one hand, times (lower: springier, overshoots)
+QVR_TUNABLE(vr_heavy_droop, "1") // 1: heavy weapons droop held in one hand
+QVR_TUNABLE(vr_heavy_droop_deg, "9") // degrees the barrel (head) sags at Heft 1 in one hand (times the weapon's Droop x)
+QVR_TUNABLE(vr_heavy_recoil, "1") // 1: heavy weapons fired in one hand kick up (the aim with them)
+QVR_TUNABLE(vr_heavy_recoil_kick, "100") // deg/s the muzzle is flung up a shot at Heft 1 in one hand (times the weapon's Heavy Recoil x)
+QVR_TUNABLE(vr_heavy_recoil_recovery, "0.5") // the wrist's stiffness on it just after a shot at Heft 1 in one hand, times (slower back)
+QVR_TUNABLE(vr_heavy_recoil_time, "0.4") // s the slower recovery fades over
+QVR_TUNABLE(vr_heavy_melee_2h, "0.45") // two-handed: the speeds a blow needs at Heft 1, times (a deliberate arc is required instead)
+QVR_TUNABLE(vr_heavy_swing_arc, "0.3") // m: the far end's smooth arc a slow two-handed blow needs (steady way, no reversal)
+QVR_TUNABLE(vr_heavy_swing_time, "0.12") // s: and how long it must have been under way
+QVR_TUNABLE(vr_heavy_swing_strength, "1.3") // the strength of a deliberate two-handed arc at Heft 1 (a blow of strength 1 is a normal one; more with a longer arc)
+
+// Weapons > Weight and Damage
+QVR_TUNABLE(vr_weight_damage_exp, "0.375") // the curve's exponent (0: mass changes no damage; 1: in proportion)
+QVR_TUNABLE(vr_weight_damage_heavy, "8") // kg: heavier things deal more damage
+QVR_TUNABLE(vr_weight_damage_light, "1.5") // kg: lighter things deal less damage
+QVR_TUNABLE(vr_weight_damage_min, "0.5") // the least multiplier
+QVR_TUNABLE(vr_weight_damage_max, "2.5") // the most multiplier
+QVR_TUNABLE(vr_weight_lenient, "0.515") // the exponent (0: off)
+QVR_TUNABLE(vr_weight_lenient_from, "5") // kg: lighter things (the fists, the axe, swords, the shotguns, the nailgun) keep the thresholds
+QVR_TUNABLE(vr_weight_lenient_min, "0.25") // the least factor
