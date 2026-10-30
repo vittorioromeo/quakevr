@@ -48,9 +48,9 @@ void test_f()
         q_snprintf(what, sizeof(what), fmt, args...);
         t.check(ok, N, what);
     };
-    if(cls.state != ca_connected || !cl.worldmodel || cl.viewentity <= 0)
+    if(cls.state != ca_connected || !cl.worldmodel || cl.viewentity <= 0 || !shm)
     {
-        check(false, "a map loaded");
+        check(false, "a map loaded, sound on (run.sh -Sound: the sounds are made as they load)");
         t.verdict(N);
         return;
     }
@@ -63,7 +63,7 @@ void test_f()
         Cvar_SetQuick(c, "1");
     }
     Cvar_SetQuick(&vr_gunsfx_vary, "4");
-    const bool sound = shm != nullptr;
+    const bool sound = true; // (checked above)
     const glm::vec3 eye = geom::vec(cl_entities[cl.viewentity].origin) + glm::vec3{0.f, 0.f, 22.f};
     const float org[3] = {eye.x, eye.y, eye.z};
 
@@ -132,13 +132,14 @@ void test_f()
     check(classify(150.f, 0.f) == RoomSmall && classify(900.f, 0.2f) == RoomLarge && classify(300.f, 0.6f) == RoomOutdoor,
         "small, large and outdoor rooms told apart");
     int longer = 0;
+    const float rate = static_cast<float>(shm->speed); // (loaded at the mix's rate)
     for(int k = 0; k < KindCount; k++)
     {
         const int a = soundLength(tailNames[k][RoomSmall]), b = soundLength(tailNames[k][RoomLarge]);
         const int c = soundLength(tailNames[k][RoomOutdoor]);
         longer += a > 0 && a < b && b < c ? 1 : 0;
         Con_Printf("%s: %s tails %.2f / %.2f / %.2f s\n", N, k == KindShot ? "shot" : k == KindLight ? "light" : "heavy",
-            a / 22050.f, b / 22050.f, c / 22050.f);
+            a / rate, b / rate, c / rate);
     }
     check(longer == KindCount, "each kind's tail longer in a large room, longest outdoors (%d of 3)", longer);
     glm::vec3 smallAt{0.f}, outAt{0.f};
