@@ -27,6 +27,7 @@ float vr_npt_slide1;    // the slide's frame just after the first shot (1 back)
 float vr_npt_n;
 float vr_npt_walkjit;   // walking empty: frames its slide was off its locked-back frame
 float vr_npt_walkrun;   // walking empty: frames of the run animation
+float vr_npt_racks0;    // re-racks by the time it was empty (want none: the first is the new magazine's)
 .float vr_npt_frozen;   // a map's monster held still for the test (its think put off)
 float vr_npt_notarget;  // the player's FL_NOTARGET before
 float vr_npt_mode;      // vr_reload_mode_npistol before
@@ -387,7 +388,7 @@ void() VR_NailPistol_TestFrame =
         W_SetCurrentAmmoFor(cVR_MainHand);
         VRSetAttackFinished(cVR_MainHand, 0);
         VR_NPT_Trigger(0);
-        vr_np_shots = vr_np_dry = 0;
+        vr_np_shots = vr_np_dry = vr_np_racks = 0;
         vr_npt_seen = 0;
         vr_npt_mingap = 1000;
         vr_npt_slide1 = -1;
@@ -440,6 +441,7 @@ void() VR_NailPistol_TestFrame =
             VR_Test_Check(VRGetWeaponClip(cVR_MainHand) == 0 && VRGetWeaponFrame(cVR_MainHand) == 1,
                 sprintf("empty: clip %g, its slide locked back (frame %g)", VRGetWeaponClip(cVR_MainHand),
                     VRGetWeaponFrame(cVR_MainHand)));
+            vr_npt_racks0 = vr_np_racks;
             vr_npt_walkjit = vr_npt_walkrun = 0;
         }
         // Walking with it empty (the run animation's think every 0.1 s, player_run): the slide stays locked back, each
@@ -522,6 +524,10 @@ void() VR_NailPistol_TestFrame =
         {
             VR_Test_Check(VRGetWeaponFrame(cVR_MainHand) == 0, sprintf("the slide home, loaded (frame %g)",
                 VRGetWeaponFrame(cVR_MainHand)));
+            // Its lock let go by the loaded magazine: re-racked once (the rack's sound), never before (vr_nailslide.cpp
+            // draws it home).
+            VR_Test_Check(vr_np_racks == 1 && vr_npt_racks0 == 0, sprintf("re-racked by the new magazine: %g racks (want 1; "
+                "%g before it, want 0)", vr_np_racks, vr_npt_racks0));
         }
         if(vr_npt_frames == 20)
         {
@@ -594,6 +600,9 @@ void() VR_NailPistol_TestFrame =
                 VR_Test_Check(a.vr_ag_prop && a.vr_ag_prop.weapon == WID_NAILPISTOL && n1 - n0 == 1,
                     sprintf("an armed grunt's nail pistol (%s): %g nails fired", a.vr_ag_prop ? a.vr_ag_prop.netname : "none",
                         n1 - n0));
+                // Its slide sent back by the shot (the prop's frame 1, drawn at the same travel: vr_nailslide.cpp).
+                VR_Test_Check(a.vr_ag_prop && a.vr_ag_prop.frame == 1 && a.vr_ag_prop.vr_np_slide > time,
+                    sprintf("the armed grunt's slide back after its shot (its frame %g)", a.vr_ag_prop ? a.vr_ag_prop.frame : -1));
                 VR_AGT_Remove(a);
                 vr_npt_g = VR_NPT_Grunt(400, WID_NAILPISTOL, WID_NAILPISTOL);
                 VR_NPT_Next();

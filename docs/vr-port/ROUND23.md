@@ -1424,6 +1424,39 @@ skins 178 / 102 / 182, md5/md3 lookups 126 / 123 / 123), limbs 198 / 22 / 196, v
   uploads and normal maps): main-thread GL work. e1m1/vrstart after-times not taken: the exclusive slot waited on the
   author's game (their before-times above; smooth rigs is per model kind, so ~60 ms off vrstart, little off e1m1's 20).
 
+## Nail pistol: moving slide, slide lock, auto re-rack (branch `agent/npslide`)
+
+His words: a slide that moves with each shot, locks open on an empty magazine, closes by itself with a sound when a
+loaded magazine goes in (no manual racking), travel and time configurable.
+
+- **Before:** QC set the weapon frame 1 for vr_nailpistol_slide_time (0.07 s) after a shot and while empty; the
+  renderer's frame lerp ran it home; frame 1 was the slide 1.0 back. Barely visible, fixed travel, silent re-close.
+- **Server (QC vr_nailpistol.qc):** a shot sends the slide back (frame 1) for the cycle's first third
+  (`VR_NailPistol_SlideBack`: vr_nailpistol_slide_cycle / 3, one frame at least); empty (`VR_NailPistol_Empty`, as
+  before: clip out of rounds, or immersive with no magazine in) holds it there. `VR_NailPistol_HandFrame` remembers
+  each hand's slide (.vr_np_lock: home/locked); locked then loaded: `VR_NailPistol_Rack` plays
+  vr/nailpistol_rack.wav (new, `make_nailpistol_sounds.py rack()`: the slide stop's tick, a short scrape, the slam home
+  and a body thunk, 0.26 s) on the hand's channel. Any reload mode loads it (a pouch magazine, a refill).
+- **Client (Quake/vr/vr_nailslide.cpp, new):** per hand, the slide's place 0..1 stepped on vr_gametime from the
+  server's frame: an edge to back sends it all the way back over cycle/3 (even if the server's moment ends sooner),
+  then home over the other two thirds; held back while frame 1 (locked); a lock let go runs home the same.
+  `VR_NailSlidePose` (r_alias.c, after the crossbow's pose override) draws any v_nailpistol.mdl as frames 0 and 1
+  blended: the hands' guns by their slide's place, any other (an armed grunt's, holstered, a viewthing) by its own
+  frame 1 share, both times vr_nailpistol_slide_travel / the model's frame-1 travel (measured from the model once).
+- **The model:** progs/v_nailpistol.mdl's frame 1 moved from 1.0 to 3.0 back (the most travel; no Blender: the slide's
+  84 vertices' offset scaled and the MDL re-quantised as mdlgen.write_mdl does, frame 0 within a quantum; measured
+  2.986). build_nailpistol.py's `travel` is 3.0 to match on the next export.
+- **Armed grunts:** `VR_AG_ShootProp` sends its prop's slide back (`VR_NailPistol_PropShot`); `VR_AG_PropThink` runs
+  `VR_NailPistol_PropFrame`: back after a shot, locked while its clip is out, the rack on a refill.
+- **Settings** (Combat > Weapon Damage, under Nail Pistol Magazine): Nail Pistol Slide Travel
+  `vr_nailpistol_slide_travel` 1.5 (model units, 0..3; the gun is ~13 long), Nail Pistol Slide Cycle
+  `vr_nailpistol_slide_cycle` 0.14 s. vr_nailpistol_slide_time retired (retiredCvars; no config step: new names).
+- **Debug:** `vr_nailslide_debug 1` (Debug > Tests > Nail Pistol > Slide: Print) prints every frame it moves.
+- **Tests:** `vr_np_test 1` (23 checks, was 21): re-racked once by the new magazine and never before; the armed
+  grunt's prop frame 1 after its shot. Console trace (vr_nailslide_debug 1, fast mode at 72 Hz, defaults): a shot
+  0 -> 1 in 4 frames (0.298 a frame), home in 7 (0.149 a frame); locked through the 99 walking frames at 1.000; the
+  re-rack line, then home in 7 frames. Eyeshots (qvr-kit/scratch/npslide/): `viewthing_closed_open_travel3.png` closed,
+  locked at 1.5, at 3.0; `closed_open_L.png` in hand.
 ## Faster map loads, round 5: the file lookups that find nothing (branch `agent/load5`)
 
 Profile (no-LTO, warm caches, `vr_startup_times`; hip2m5 is the kit base's map with the most monster kinds, 11):

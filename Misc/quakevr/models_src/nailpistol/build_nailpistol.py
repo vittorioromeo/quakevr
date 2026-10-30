@@ -459,7 +459,7 @@ def main():
     mag = build_magazine()
     for ob in (slide, trigger, mag):
         ob.parent = body
-    slide["travel"] = 1.0
+    slide["travel"] = 3.0  # (the most vr_nailpistol_slide_travel draws: the engine blends frame 1 by its share)
     body["preview_scale"] = 0.45
     for ob, text in ((body, "Quake axes: +X forward (muzzle), +Y left, +Z up. Origin: the grip's hand point."),
                      (slide, "Snaps back along its local -X by 'travel' units (export frame 1)."),

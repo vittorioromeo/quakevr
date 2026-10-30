@@ -701,6 +701,7 @@ void(entity p) VR_AG_PropWas =
 void() VR_AG_PropThink =
 {
     VR_AG_PropWas(self);
+    VR_NailPistol_PropFrame(); // (a nail pistol's slide: back after a shot, locked back empty; vr_nailpistol.qc)
     entity g = self.owner;
     if(g.MG_deferred && g.vr_ag && g.health > 0 && (g.vr_ag_prop == self || g.vr_ag_prop2 == self))
     {
@@ -1850,7 +1851,7 @@ void(entity p) VR_AG_ShootProp =
     else if(wid == WID_SUPER_SHOTGUN)   { W_FireSuperShotgun(h); }
     else if(wid == WID_NAILGUN)         { W_FireSpikes(h, (self.vr_ag_shots & 1) ? -2.35 : 2.35); }
     else if(wid == WID_SUPER_NAILGUN)   { W_FireSuperSpikes(h); }
-    else if(wid == WID_NAILPISTOL)      { W_FireNailPistol(h); } // (vr_nailpistol.qc)
+    else if(wid == WID_NAILPISTOL)      { W_FireNailPistol(h); VR_NailPistol_PropShot(p); } // (vr_nailpistol.qc: its slide)
     else if(wid == WID_FLAREGUN)        { W_FireFlareGun(h); } // (vr_flaregun.qc: the clip below)
     else if(wid == WID_REVOLVER)        { W_FireRevolver(h); } // (vr_revolver.qc: a slug a shot)
     else if(wid == WID_GRENADE_LAUNCHER)

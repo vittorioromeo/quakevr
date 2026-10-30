@@ -3,6 +3,7 @@
 // Split from vr_view.cpp (a pure move); what they share is in vr_view_internal.hpp.
 
 #include "vr_view_internal.hpp"
+#include "vr_nailslide.hpp"
 
 namespace view_detail
 {
@@ -810,6 +811,7 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
         drawnAngles += 4.f * k * glm::vec3{std::sin(t * 71.f + 0.7f), std::sin(t * 83.f + 2.9f), std::sin(t * 101.f + 4.2f)};
     }
     place(ve, model, drawnPos, drawnAngles, frame, mirrored);
+    qvr::nailslide::step(hand, model, frame); // (the nail pistol's slide: drawn back and home, vr_nailslide.cpp)
     // (The flare gun's barrels fired: its skin by its clip; floating, a pose's: loaded.)
     ve.ent.skinnum = weapons::drawnSkin(model, floating ? -1 : cl.stats[hand == HAND_MAIN ? STAT_QVR_WEAPONCLIP : STAT_QVR_WEAPONCLIP2]);
     if(!floating)
