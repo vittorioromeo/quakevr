@@ -77,6 +77,8 @@ namespace qvr::audio
 {
 using namespace detail;
 
+using namespace detail;
+
 
 // ----------------------------------------------------------------------------
 // Settings
@@ -1167,136 +1169,6 @@ void AntiAlias::applyOne(float* x, za::Vector<float>& history, int& quiet, int n
 namespace
 {
 
-constexpr int dynamicChannels = NUM_AMBIENTS + MAX_DYNAMIC_CHANNELS;
-
-// A channel following its entity (vr_snd_follow).
-struct Follow
-{
-    bool active{false};
-    int ent{0};
-    const qmodel_t* model{nullptr};
-    glm::vec3 offset{0.f};
-    glm::vec3 last{0.f};
-    glm::vec3 vel{0.f};
-    double time{0.0};
-};
-
-struct Candidate
-{
-    int channel;
-    float priority;
-};
-
-// A capture of the final mix (vr_snd_capture).
-struct Capture
-{
-    bool running{false};
-    int wanted{0};
-    za::String name;
-    za::Vector<float> left, right;
-    // The effects' sum (VR_SndBus): its loudest sample (dB of its full scale, where Quake clips it) and the samples
-    // over it. The whole mix (VR_SndLimit): its loudest sample before the limiter (dB of the output's full scale), the
-    // samples cut at full scale, and the limiter's deepest gain.
-    int busSeen{0};
-    float busPeak{0.f};
-    int busOver{0};
-    float outPeak{0.f};
-    int outClipped{0};
-    float minGain{1.f};
-};
-
-// The mix's limiter (S_PaintChannels: VR_SndBus, VR_SndLimit): Quake clips the sum of its effects hard at full scale
-// (then halves it, for the music's headroom), so loud sounds piling up (explosive boxes blowing up together) crackle
-// with the clipping. vr_snd_limiter 1: the effects keep what is over, and a look-ahead peak limiter on the whole mix
-// brings it under vr_snd_limiter_ceiling. A sample under it passes unchanged; over it, the gain comes down smoothly
-// over the look-ahead (min-hold, then a box average of the same length: the gain is never above what the sample needs
-// when it comes out of the delay) and back up over the release.
-struct BusLimiter
-{
-    static constexpr int maxLook = 512;
-    static constexpr float fullScale = 32767.f * 256.f; // (paintbuffer's units)
-    int look{0};  // samples of look-ahead (the delay, plus one)
-    int rate{0};
-    float releaseCoef{0.f};
-    long long n{0};
-    za::Array<float, maxLook> delayL{}, delayR{};
-    za::Array<float, maxLook> box{};  // the held gains, for the average
-    double boxSum{0.0};
-    za::Array<float, maxLook> dqGain{};  // the sliding minimum of the needed gains: a monotonic queue (a ring)
-    za::Array<long long, maxLook> dqAt{};
-    int dqFront{0};
-    int dqCount{0};
-    float gain{1.f};
-    float minGain{1.f};      // the deepest since vr_snd_info last said
-    long long clipped{0};    // samples the bus cut (each side), since the start
-    long long over{0};       // samples over full scale coming in
-};
-
-// The game-time render's WAV for a recording (vr_timescale_wav; VR_SndShadow, VR_SndGameMix): written as it is made,
-// 24-bit stereo, the sizes put in when it ends.
-struct GameWav
-{
-    FILE* file{nullptr};
-    za::String path;
-    long long frames{0};
-    za::Vector<unsigned char> bytes; // (a chunk's, to write)
-};
-
-// The game-time render (VR_SndShadow; vr_timescale_wav's WAV, vr_snd_capture_game): the effects mixed a second time,
-// at their normal speed on a clock of the game's time, beside the live mix (which slow motion plays slowed and lower,
-// and stays so). Its own cursors in the channels' sounds, its own voices (a second mixer: the same HRTF, reverb and
-// occlusion, rendering in the game's time), its own filters; the live channels and voices are only read. A sound
-// whose live channel ended goes on here to its own end (the live mix's ran a little ahead).
-struct ShadowChannel
-{
-    sfx_t* sfx{nullptr};
-    int pos{0};      // in the sound's cache (samples)
-    int voice{-1};   // the shadow mixer's voice playing it
-    bool done{true};
-};
-
-struct Shadow
-{
-    bool running{false};
-    Mixer mixer;
-    bool tried{false};
-    int rate{0};
-    int frame{0};
-    za::String sofa;
-    int quality{-1};
-    double owed{0.0}; // game-time samples due (the output's samples times the time scale), the fraction kept
-    za::Array<ShadowChannel, MAX_CHANNELS> channels{};
-    za::Array<int, Mixer::maxVoices> channelOf{};
-    za::Array<bool, MAX_CHANNELS> started{};  // a new sound on the channel (VR_SndStarted) since the last render
-    za::Array<int, MAX_CHANNELS> startPos{};  // its position then (Quake's start offset)
-    za::Vector<float> mixL, mixR;
-    za::Vector<float> carryL, carryR;
-    int carryLen{0};
-    AntiAlias antiAlias; // its voices' (before its own 11 kHz lowpass)
-    za::Vector<portable_samplepair_t> buffer;
-    za::Vector<portable_samplepair_t> held; // its voices, kept out of its 11 kHz lowpass (vr_snd_fullband)
-    za::Vector<float> revL, revR;           // their reverb (renderVoices)
-    double ms{0.0}; // a paint call's share of it, averaged
-};
-
-// vr_snd_bench: the scene it plays while it records (vr_audiobench.hpp has the recorder): combat's sounds started round
-// the listener at random (a fixed seed), and the listener taken round a circle (each voice moving against it: Doppler).
-struct BenchRun
-{
-    bool running{false};
-    double end{0.0};
-    double nextShot{0.0};
-    float shotsPerSecond{0.f};
-    float orbitSpeed{0.f}; // units a second
-    float orbitRadius{96.f};
-    double orbitStart{0.0};
-    unsigned rng{1};
-    za::String label;
-    Simulation::Runs runs;
-    za::Vector<float> directMs, reflectionsMs; // each simulation run's in the bench
-    int bandLimited{0};                         // VR_SndBandLimit's count and time at its start
-    double bandLimitMs{0.0};
-};
 
 } // namespace
 
@@ -1308,65 +1180,14 @@ BandLimitStats bandLimitStats; // (vr_audio_internal.hpp)
 namespace
 {
 
-struct Live
+
+} // namespace
+namespace detail
 {
-    Mixer mixer;
-    Simulation sim;
-    bool tried{false};
-    bool ok{false};
-    int rate{0};
-    int frame{0};
-    za::String sofa;
-    int quality{-1};
-    float simUpm{0.f};
-
-    za::Array<int, MAX_CHANNELS> voiceOf{};
-    za::Array<int, Mixer::maxVoices> channelOf{};
-    za::Array<unsigned, Mixer::maxVoices> serial{};
-    za::Array<unsigned, Mixer::maxVoices> guessSerial{}; // (the voice's sound its first guess is for)
-    za::Array<DirectResult, Mixer::maxVoices> guess{};  // occlusion before the simulation's first result
-    za::Array<bool, MAX_CHANNELS> fresh{};
-    za::Array<bool, MAX_CHANNELS> keep{};
-    za::Array<Follow, dynamicChannels> follow{};
-    za::Array<Candidate, MAX_CHANNELS> candidates{};
-    za::Array<Simulation::Source, Simulation::maxSources> sources{};
-    int voicesUsed{0};
-    int brushSeen{0};
-
-    Listener listener;
-    bool head{false}; // the listener is the headset's
-    glm::vec3 lastPos{0.f};
-    double lastTime{0.0};
-
-    int worldGen{-1};
-    float worldUpm{0.f};
-    bool worldNeeded{false};
-    IPLReflectionEffectParams reverb{};
-    bool haveReverb{false};
-    IPLReflectionEffectParams reverbSecond{}; // the game-time render's (Shadow)
-    bool haveReverbSecond{false};
-
-    za::Vector<float> mixL, mixR;
-    AntiAlias antiAlias; // the voices' (antiAliasWanted)
-    za::Vector<portable_samplepair_t> held; // the voices, kept out of Quake's 11 kHz lowpass (vr_snd_fullband: VR_SndBypass)
-    za::Vector<float> revL, revR;           // their reverb (renderVoices)
-    int heldLen{0};
-    za::Array<float, 1024> carryL{}, carryR{};
-    int carryStart{0};
-    int carryLen{0};
-
-    double mixMs{0.0};   // the voices' render, averaged
-    double lastReport{0.0};
-    Capture capture;
-    BusLimiter bus;
-    Capture gameCapture;  // vr_snd_capture_game
-    BusLimiter gameBus;   // the game-time mix's own limiter (its capture and WAV)
-    GameWav wav;
-    Shadow shadow;        // the game-time render (the WAV's and vr_snd_capture_game's mix)
-    BenchRun bench;       // vr_snd_bench
-};
-
 Live* live{nullptr};
+} // namespace detail
+namespace
+{
 
 // The whole mix's volume while the runtime's menu pauses the game (vr_xr_unfocused_volume; setDuck), on its way to the
 // target a tenth of a second at a time (no click), in VR_SndLimit (with or without the spatial audio).
@@ -1377,6 +1198,9 @@ struct Duck
 };
 Duck duck;
 
+} // namespace
+namespace detail
+{
 bool wanted()
 {
     if(!live || !shm || shm->channels != 2 || cls.state == ca_dedicated || vr_snd_spatial.value <= 0.f)
@@ -1390,11 +1214,20 @@ bool wanted()
     const Features f = featuresFromCvars();
     return f.hrtf || f.occlusion > 0.f || f.reverb > 0.f || f.doppler > 0.f || f.nearfield > 0.f;
 }
+} // namespace detail
+namespace
+{
 
+} // namespace
+namespace detail
+{
 bool running()
 {
     return live && live->ok && wanted();
 }
+} // namespace detail
+namespace
+{
 
 void releaseVoice(int v)
 {
@@ -1772,6 +1605,9 @@ void report()
     }
 }
 
+} // namespace
+namespace detail
+{
 // Final mix to a WAV file (16-bit stereo).
 bool writeWav16(const char* path, const za::Vector<float>& l, const za::Vector<float>& r, int rate)
 {
@@ -1804,6 +1640,9 @@ bool writeWav16(const char* path, const za::Vector<float>& l, const za::Vector<f
     fclose(f);
     return true;
 }
+} // namespace detail
+namespace
+{
 
 // The game-time WAV's header: 24-bit stereo at `rate`, `frames` long.
 void writeWav24Header(FILE* f, int rate, long long frames)
@@ -1853,250 +1692,6 @@ void finishCapture(Capture& c, bool game)
     c.right.clear();
 }
 
-// ----------------------------------------------------------------------------
-// Commands
-
-void info_f()
-{
-    Con_Printf("Spatial audio (vr_snd_spatial %g): %s\n", vr_snd_spatial.value,
-        running() ? "on" : wanted() ? "wanted, not running" : "off");
-    Con_Printf("  Steam Audio: %s\n", steamaudio::status());
-    if(!live)
-    {
-        return;
-    }
-    Live& L = *live;
-    if(L.ok)
-    {
-        const Features f = featuresFromCvars();
-        Con_Printf("  %d Hz, %d-sample frames; HRTF %s%s, voices %d of %d, mix %.3f ms a call\n", L.rate, L.frame,
-            f.hrtf ? "on" : "off", L.mixer.customHrtf() ? " (SOFA)" : "", L.voicesUsed, static_cast<int>(vr_snd_voices.value),
-            L.mixMs);
-        Con_Printf("  scene: %d triangles (%.1f ms to build), %d brush models (of %d seen); direct %.2f ms, reverb %.2f ms\n",
-            L.sim.sceneTriangles(), L.sim.sceneBuildMs(), L.sim.instanceCount(), L.brushSeen, L.sim.directMs(), L.sim.reflectionsMs());
-        if(L.haveReverb && L.reverb.type == IPL_REFLECTIONEFFECTTYPE_CONVOLUTION)
-        {
-            Con_Printf("  reverb: convolution, %d-sample response (%d channels)\n", L.reverb.irSize, L.reverb.numChannels);
-        }
-        else if(L.haveReverb)
-        {
-            Con_Printf("  reverb: RT60 %.2f %.2f %.2f s (low, mid, high)\n", L.reverb.reverbTimes[0], L.reverb.reverbTimes[1],
-                L.reverb.reverbTimes[2]);
-        }
-    }
-    Con_Printf("  mix: limiter %s (ceiling %.1f dB, %.0f ms release), deepest %.1f dB since the last info; %lld samples "
-               "over full scale, %lld clipped\n",
-        vr_snd_limiter.value != 0.f ? "on" : "off (Quake's hard clip)", za::clamp(vr_snd_limiter_ceiling.value, -12.f, 0.f),
-        za::clamp(vr_snd_limiter_release.value, 0.02f, 1.f) * 1000.f,
-        L.bus.minGain > 0.f ? 20.f * za::log10(L.bus.minGain) : -200.f, L.bus.over, L.bus.clipped);
-    L.bus.minGain = 1.f;
-    Con_Printf("  game-time render (vr_timescale_wav, vr_snd_capture_game): %s, %.3f ms a call; WAV: %s\n",
-        L.shadow.running ? (L.shadow.mixer.valid() ? "on, with its own voices" : "on, Quake's mix only") : "off",
-        L.shadow.ms, L.wav.file ? L.wav.path.cStr() : "none");
-    const mleaf_t* leaf = cl.worldmodel ? Mod_PointInLeaf(&L.listener.pos.x, cl.worldmodel) : nullptr;
-    Con_Printf("  listener: %s at %.0f %.0f %.0f (leaf contents %d), speed %.0f units/s\n", L.head ? "the head" : "the view",
-        L.listener.pos.x, L.listener.pos.y, L.listener.pos.z, leaf ? leaf->contents : 0, glm::length(L.listener.vel));
-}
-
-void startCapture(bool game)
-{
-    const char* cmd = game ? "vr_snd_capture_game" : "vr_snd_capture";
-    if(!live || !shm)
-    {
-        Con_Printf("%s: no sound (-nosound?)\n", cmd);
-        return;
-    }
-    if(Cmd_Argc() < 2)
-    {
-        Con_Printf(game ? "%s <seconds> [name]: the mix in the game's time (as at normal speed in slow motion; no music) to "
-                          "<game>/sound_tests/capture_game_<name>.wav, and its levels\n"
-                        : "%s <seconds> [name]: the final mix to <game>/sound_tests/capture_<name>.wav, and its levels\n",
-            cmd);
-        return;
-    }
-    Capture& c = game ? live->gameCapture : live->capture;
-    c.wanted = static_cast<int>(za::clamp(Q_atof(Cmd_Argv(1)), 0.05f, 60.f) * static_cast<float>(shm->speed));
-    c.name = Cmd_Argc() > 2 ? Cmd_Argv(2) : "capture";
-    c.left.clear();
-    c.right.clear();
-    c.left.reserve(c.wanted);
-    c.right.reserve(c.wanted);
-    c.busSeen = 0;
-    c.busPeak = 0.f;
-    c.busOver = 0;
-    c.outPeak = 0.f;
-    c.outClipped = 0;
-    c.minGain = 1.f;
-    c.running = true;
-    if(game)
-    {
-        live->gameBus.look = 0; // (fresh: nothing of an old mix in its delay)
-    }
-}
-
-void capture_f()
-{
-    startCapture(false);
-}
-
-void captureGame_f()
-{
-    startCapture(true);
-}
-
-// Looping sounds in a ring round the listener (static sounds, till the map changes): a load for vr_profile.
-void benchSpawn_f()
-{
-    if(!live || !shm || cls.state != ca_connected)
-    {
-        Con_Printf("vr_snd_bench_spawn: needs a map and sound\n");
-        return;
-    }
-    const int count = Cmd_Argc() > 1 ? za::clamp(Q_atoi(Cmd_Argv(1)), 1, 128) : 32;
-    const float radius = Cmd_Argc() > 2 ? Q_atof(Cmd_Argv(2)) : 200.f;
-    const char* names[] = {"ambience/fire1.wav", "ambience/hum1.wav", "ambience/drip1.wav", "ambience/comp1.wav"};
-    for(int i = 0; i < count; i++)
-    {
-        sfx_t* sfx = S_PrecacheSound(names[i % 4]);
-        const float a = static_cast<float>(i) * 2.399963f; // (the golden angle: spread round)
-        const float r = radius * (0.5f + 0.5f * static_cast<float>(i % 7) / 6.f);
-        vec3_t at{live->listener.pos.x + za::cos(a) * r, live->listener.pos.y + za::sin(a) * r,
-            live->listener.pos.z + static_cast<float>(i % 3 - 1) * 24.f};
-        S_StaticSound(sfx, at, 255.f, 1.f);
-    }
-    Con_Printf("vr_snd_bench_spawn: %d looping sounds within %.0f units\n", count, radius);
-}
-
-void sceneObj_f()
-{
-    if(!live || !live->sim.hasScene())
-    {
-        Con_Printf("vr_snd_scene_obj: no scene (spatial audio off, or no map)\n");
-        return;
-    }
-    za::String base = za::String{com_gamedir} + "/sound_tests/scene";
-    COM_CreatePath(base.data());
-    live->sim.saveObj(base.cStr());
-    Con_Printf("vr_snd_scene_obj: %s.obj (%d triangles)\n", base.cStr(), live->sim.sceneTriangles());
-}
-
-} // namespace
-
-void playAt(sfx_t* sfx, const glm::vec3& at, float volume, float attenuation, int entity)
-{
-    vec3_t org{at.x, at.y, at.z};
-    S_StartSound(entity, 0, sfx, org, volume, attenuation);
-}
-
-void playLocal(sfx_t* sfx, float volume)
-{
-    S_StartSound(cl.viewentity, -1, sfx, vec3_origin, volume, 1.f);
-}
-
-namespace
-{
-
-// A sound at a place (the world's, channel auto): vr_snd_play <sample> <x> <y> <z> [volume] [attenuation].
-void play_f()
-{
-    if(Cmd_Argc() < 5 || cls.state != ca_connected)
-    {
-        Con_Printf("vr_snd_play <sample> <x> <y> <z> [volume] [attenuation]: a sound from that place (in a map)\n");
-        return;
-    }
-    sfx_t* sfx = S_PrecacheSound(Cmd_Argv(1));
-    const glm::vec3 at{Q_atof(Cmd_Argv(2)), Q_atof(Cmd_Argv(3)), Q_atof(Cmd_Argv(4))};
-    const float volume = Cmd_Argc() > 5 ? Q_atof(Cmd_Argv(5)) : 1.f;
-    const float attenuation = Cmd_Argc() > 6 ? Q_atof(Cmd_Argv(6)) : 1.f;
-    playAt(sfx, at, volume, attenuation);
-}
-
-// A loaded sound as the mixers read it (vr_snd_dump <sample>): Quake's held samples and the band-limited copy
-// (vr_snd_fullband), each a WAV at the mix's rate in sound_tests/ (dump_<sample>_held.wav, _full.wav), at half volume.
-void dump_f()
-{
-    if(Cmd_Argc() < 2 || !shm)
-    {
-        Con_Printf("vr_snd_dump <sample>: the sound's held samples and band-limited copy to sound_tests/\n");
-        return;
-    }
-    sfx_t* sfx = S_PrecacheSound(Cmd_Argv(1));
-    const sfxcache_t* sc = sfx ? S_LoadSound(sfx) : nullptr;
-    if(!sc)
-    {
-        Con_Printf("vr_snd_dump: %s isn't loaded\n", Cmd_Argv(1));
-        return;
-    }
-    const short* full = fullBandData(sc);
-    za::Vector<float> held(static_cast<za::SizeT>(sc->length)), copy(static_cast<za::SizeT>(sc->length));
-    for(int i = 0; i < sc->length; i++)
-    {
-        // (both at the copy's scale, 1/S_FULLBAND_SCALE: its overshoot of a clipped sound not clipped in the file)
-        held[i] = (sc->width == 2 ? static_cast<float>(reinterpret_cast<const short*>(sc->data)[i])
-                                  : static_cast<float>(static_cast<signed char>(sc->data[i])) * 256.f) /
-                  S_FULLBAND_SCALE;
-        copy[i] = full ? static_cast<float>(full[i]) : held[i];
-    }
-    za::String name = Cmd_Argv(1);
-    for(char& c : name)
-    {
-        c = c == '/' || c == '\\' || c == '.' ? '_' : c;
-    }
-    const za::String base = za::String{com_gamedir} + "/sound_tests/dump_" + name;
-    COM_CreatePath((base + "_held.wav").data());
-    writeWav16((base + "_held.wav").cStr(), held, held, shm->speed);
-    writeWav16((base + "_full.wav").cStr(), copy, copy, shm->speed);
-    Con_Printf("vr_snd_dump %s: %d samples at %d Hz, %d-bit, %s (%s_held.wav, _full.wav)\n", Cmd_Argv(1), sc->length,
-        shm->speed, sc->width * 8, full ? "band-limited copy" : "no copy (loaded at the mix's rate)", base.cStr());
-}
-
-// A sound from a direction (vr_snd_play_dir <sample> <azimuth> [elevation] [metres] [volume] [attenuation]): degrees
-// clockwise from where the listener faces (90 the right), up from level, at that distance (2 m) from the listener. For
-// the left/right balance against the angle (ROUND21.md, "HRTF balance").
-void playDir_f()
-{
-    if(Cmd_Argc() < 3 || cls.state != ca_connected || !live)
-    {
-        Con_Printf("vr_snd_play_dir <sample> <azimuth> [elevation] [metres] [volume] [attenuation]: a sound from that "
-                   "direction (degrees, 90 the right) and distance (2 m)\n");
-        return;
-    }
-    sfx_t* sfx = S_PrecacheSound(Cmd_Argv(1));
-    const float a = Q_atof(Cmd_Argv(2)) * 3.14159265f / 180.f;
-    const float e = (Cmd_Argc() > 3 ? Q_atof(Cmd_Argv(3)) : 0.f) * 3.14159265f / 180.f;
-    const float distance = (Cmd_Argc() > 4 ? Q_atof(Cmd_Argv(4)) : 2.f) * units::metresToUnits();
-    const float volume = Cmd_Argc() > 5 ? Q_atof(Cmd_Argv(5)) : 1.f;
-    const float attenuation = Cmd_Argc() > 6 ? Q_atof(Cmd_Argv(6)) : 1.f;
-    const Listener& l = live->listener;
-    const glm::vec3 p =
-        l.pos + distance * (za::cos(e) * (za::cos(a) * l.fwd + za::sin(a) * l.right) + za::sin(e) * l.up);
-    playAt(sfx, p, volume, attenuation, -1);
-}
-
-// Copies of a sound at once (vr_snd_burst <sample> [count] [distance] [spread] [volume]): ahead of the listener,
-// spread round a circle, all started this frame as explosive boxes blowing up together are (Quake's S_StartSound
-// offsets identical sounds started together a little). For the effects' bus's limiter (vr_snd_limiter).
-void burst_f()
-{
-    if(cls.state != ca_connected || !live)
-    {
-        Con_Printf("vr_snd_burst <sample> [count] [distance] [spread] [volume]: copies of a sound at once, ahead of you\n");
-        return;
-    }
-    const char* name = Cmd_Argc() > 1 ? Cmd_Argv(1) : "weapons/r_exp3.wav";
-    const int count = Cmd_Argc() > 2 ? za::clamp(Q_atoi(Cmd_Argv(2)), 1, 32) : 5;
-    const float distance = Cmd_Argc() > 3 ? Q_atof(Cmd_Argv(3)) : 96.f;
-    const float spread = Cmd_Argc() > 4 ? Q_atof(Cmd_Argv(4)) : 32.f;
-    const float volume = Cmd_Argc() > 5 ? Q_atof(Cmd_Argv(5)) : 1.f;
-    sfx_t* sfx = S_PrecacheSound(name);
-    const Listener& l = live->listener;
-    for(int i = 0; i < count; i++)
-    {
-        const float a = static_cast<float>(i) * 2.399963f;
-        const glm::vec3 p = l.pos + l.fwd * distance + l.right * (za::cos(a) * spread) + l.up * (za::sin(a) * spread * 0.5f);
-        playAt(sfx, p, volume, 1.f, -1);
-    }
-}
 
 // vr_snd_bench <seconds> [label] [sounds a second] [orbit units/s]: records each sound frame's time in each stage of
 // the mix for that long (real time), playing a combat-like scene meanwhile (random sounds of id's monsters, weapons and
@@ -2124,146 +1719,6 @@ struct BenchAllocs
 namespace
 {
 
-void benchFinish()
-{
-    Live& L = *live;
-    BenchRun& b = L.bench;
-    b.running = false;
-    bench::frame();
-    bench::stop();
-    const int rate = shm ? shm->speed : 44100;
-    const long long samples = bench::samples();
-    Con_Printf("vr_snd_bench %s: %d frames, %.1f s of sound, %.1f voices (the frames that painted, mean), %d workers\n", b.label.cStr(),
-        bench::frames(), static_cast<double>(samples) / rate, bench::meanVoices(), jobs::workers());
-    Con_Printf("  %-12s %7s %7s %7s %7s  %8s\n", "stage (ms)", "median", "p95", "p99", "max", "ms/s");
-    za::String csvPath = za::String{com_gamedir} + "/sound_tests/bench.csv";
-    COM_CreatePath(csvPath.data());
-    FILE* csv = fopen(csvPath.cStr(), "ab");
-    for(int st = 0; st < bench::Count; st++)
-    {
-        const bench::Stats x = bench::stats(st, rate);
-        Con_Printf("  %-12s %7.3f %7.3f %7.3f %7.3f  %8.3f\n", bench::stageName(st), x.median, x.p95, x.p99, x.max,
-            x.perSecond);
-        if(csv)
-        {
-            fprintf(csv, "%s,%s,%d,%.4f,%.4f,%.4f,%.4f,%.4f\n", b.label.cStr(), bench::stageName(st), x.n, x.median, x.p95,
-                x.p99, x.max, x.perSecond);
-        }
-    }
-    const auto runLine = [&](const char* name, za::Vector<float>& ms) {
-        if(ms.empty())
-        {
-            Con_Printf("  sim %s: no runs\n", name);
-            return;
-        }
-        za::quickSort(ms.begin(), ms.end());
-        const int n = static_cast<int>(ms.size());
-        const auto at = [&](double q) { return vrstats::quantileSorted(ms.data(), ms.size(), q, vrstats::Rank::Nearest); };
-        Con_Printf("  sim %s (a worker): %d runs, median %.3f ms, p95 %.3f, max %.3f\n", name, n, at(0.5), at(0.95),
-            ms[n - 1]);
-        if(csv)
-        {
-            fprintf(csv, "%s,sim_%s,%d,%.4f,%.4f,%.4f,%.4f,0\n", b.label.cStr(), name, n, at(0.5), at(0.95), at(0.99),
-                ms[n - 1]);
-        }
-    };
-    runLine("direct", b.directMs);
-    runLine("reflections", b.reflectionsMs);
-    int loaded = 0;
-    int held = 0;
-    int full = 0;
-    S_SfxMemory(&loaded, &held, &full);
-    Con_Printf("  sounds: %d in the cache, %d KiB as Quake mixes them, %d KiB band-limited copies; band-limiting: %d "
-               "sounds in the bench (%.2f ms), %d since the start (%.1f ms, worst %.2f ms, %lld KiB)\n",
-        loaded, held / 1024, full / 1024, bandLimitStats.sounds - b.bandLimited, bandLimitStats.ms - b.bandLimitMs,
-        bandLimitStats.sounds, bandLimitStats.ms, bandLimitStats.worstMs, bandLimitStats.bytes / 1024);
-    if(csv)
-    {
-        fprintf(csv, "%s,memory_kib,%d,%d,%d,0,0,0\n", b.label.cStr(), loaded, held / 1024, full / 1024);
-        fprintf(csv, "%s,bandlimit_since_start,%d,%.4f,%.4f,0,0,0\n", b.label.cStr(), bandLimitStats.sounds,
-            bandLimitStats.ms, bandLimitStats.worstMs);
-        fclose(csv);
-    }
-}
-
-// The bench's sounds (id's: never shipped, played from the game's own data).
-constexpr const char* benchSounds[] = {"weapons/r_exp3.wav", "weapons/rocket1i.wav", "weapons/guncock.wav",
-    "weapons/grenade.wav", "weapons/spike2.wav", "weapons/sgun1.wav", "weapons/lhit.wav", "soldier/sight1.wav",
-    "soldier/pain1.wav", "soldier/death1.wav", "dog/dattack1.wav", "ogre/ogwake.wav", "ogre/ogsawatk.wav",
-    "ogre/ogdrag.wav", "knight/sword1.wav", "knight/khurt.wav", "zombie/z_idle.wav", "enforcer/enfire.wav",
-    "wizard/wattack.wav", "demon/dhit2.wav", "shambler/sattck1.wav", "player/pain1.wav"};
-constexpr int benchSoundCount = static_cast<int>(sizeof benchSounds / sizeof benchSounds[0]);
-
-void benchFrame()
-{
-    Live& L = *live;
-    BenchRun& b = L.bench;
-    if(!b.running)
-    {
-        return;
-    }
-    bench::frame();
-    const Simulation::Runs r = L.sim.runs();
-    if(r.direct != b.runs.direct)
-    {
-        b.directMs.pushBack(static_cast<float>(r.directMs));
-    }
-    if(r.reflections != b.runs.reflections)
-    {
-        b.reflectionsMs.pushBack(static_cast<float>(r.reflectionsMs));
-    }
-    b.runs = r;
-    if(realtime >= b.end)
-    {
-        benchFinish();
-        return;
-    }
-    // The combat: a sound every 1 / shotsPerSecond, at random, 100-900 units away.
-    const auto random = [&]() {
-        return vrand::lcg01(b.rng);
-    };
-    while(b.shotsPerSecond > 0.f && realtime >= b.nextShot && cls.state == ca_connected)
-    {
-        b.nextShot += 1.0 / b.shotsPerSecond;
-        sfx_t* sfx = S_PrecacheSound(benchSounds[za::min(benchSoundCount - 1, static_cast<int>(random() * benchSoundCount))]);
-        const float a = random() * 6.2831853f;
-        const float d = 100.f + random() * 800.f;
-        playAt(sfx, glm::vec3{L.lastPos.x + za::cos(a) * d, L.lastPos.y + za::sin(a) * d, L.lastPos.z + (random() - 0.5f) * 128.f},
-            1.f, 1.f);
-    }
-}
-
-void bench_f()
-{
-    if(!live || !shm)
-    {
-        Con_Printf("vr_snd_bench: needs sound\n");
-        return;
-    }
-    if(Cmd_Argc() < 2)
-    {
-        Con_Printf("vr_snd_bench <seconds> [label] [sounds a second] [orbit units/s]: each sound frame's time by stage "
-                   "(median, p95, p99), with a combat scene\n");
-        return;
-    }
-    BenchRun& b = live->bench;
-    const double seconds = za::clamp(static_cast<double>(Q_atof(Cmd_Argv(1))), 0.5, 600.0);
-    b.running = true;
-    b.end = realtime + seconds;
-    b.label = Cmd_Argc() > 2 ? Cmd_Argv(2) : "bench";
-    b.shotsPerSecond = Cmd_Argc() > 3 ? za::clamp(static_cast<float>(Q_atof(Cmd_Argv(3))), 0.f, 200.f) : 0.f;
-    b.orbitSpeed = Cmd_Argc() > 4 ? za::clamp(static_cast<float>(Q_atof(Cmd_Argv(4))), 0.f, 4000.f) : 0.f;
-    b.orbitStart = realtime;
-    b.nextShot = realtime;
-    b.rng = 12345u;
-    b.runs = live->sim.runs();
-    b.directMs.clear();
-    b.reflectionsMs.clear();
-    b.bandLimited = bandLimitStats.sounds;
-    b.bandLimitMs = bandLimitStats.ms;
-    bench::start(static_cast<int>(seconds * 1000.0));
-    Con_Printf("vr_snd_bench %s: %.1f s\n", b.label.cStr(), seconds);
-}
 
 } // namespace
 
