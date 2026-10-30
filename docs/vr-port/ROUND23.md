@@ -3068,7 +3068,15 @@ reads it less reliably).
   raised 0.250 s after the raise (read 0.08 + delay 0.15 + a frame), guard 0.500, labels, the bait's strike in the
   recovery disarms; held 2 s: 1 guard, 1 roll, lowered and raised again: a second; to the side: raised; chance 0: 1 roll,
   none; 400 bare rolls each at chance 0.5: wind-up axe 0.67 vs shotgun 0.34, mean delay 0.141 vs 0.306 s, preventive
-  0.63 vs 0.12, every delay within its range): 6 passed. Both end on `agtest: test 9N over`. (Numbered 95/96 at first; next's knights took 95: now 96 and 98.)
+  0.63 vs 0.12, every delay within its range): 6 passed. Both end on `agtest: test 9N over`. (Numbered 95/96 at
+  first; next's knights took 95: now 96 and 98.)
+- **Covering** (run_baseline agrunt + suite, `agrunt|parry|melee_phase|judo`, 91 cases before merging next, then the
+  agrunt 60-69 / 90-98, parry, judo and melee_phase cases after): 31, 36, 65 FAIL -> PASS (as disarm2); 67-69 failed
+  once from a rename slip (the grab tests' dispatch), fixed; test 95 (next's armed knights, the same parry code) 7/0.
+  After the merge test 94's case 13 (the punch through the barrel, caught out) deals 0 damage with the new parries off
+  too, and passed on this branch before the merge: next's (the worn-pack/armour changes?), not this. 66 (a lying one
+  reached for) flaky: failed once, passed on rerun with the defaults; 63 and parry_pose fail as in baseline.tsv.
+  eval.sh --full 163/171, as next (the uppercut's 13.2 predates disarm1).
 
 ## Knights as armed humanoids (branch `agent/agknight`)
 
