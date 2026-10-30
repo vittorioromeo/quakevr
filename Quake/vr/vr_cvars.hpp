@@ -45,6 +45,11 @@ extern cvar_t vr_backend;
 
 void registerCvars();
 
+// Two settings' values the same (as numbers when both are): what a sparse config's "changed from the default" means.
+[[nodiscard]] bool sameSettingValue(const char* a, const char* b);
+// vr_config_test: the sparse config's round trip (vr_config_diag.cpp).
+void registerConfigDiag();
+
 // The game folder's config written now if an archived setting changed since it was last read or written (not in a copy
 // started with -noconfigwrite); configFrame: so, each time the menu closes. The config was written only when the game
 // quit, and a game ended otherwise (stopped from the debugger, killed) lost the session's settings.

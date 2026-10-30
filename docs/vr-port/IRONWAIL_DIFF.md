@@ -81,7 +81,7 @@ after; `models` 0.028 / 0.026 ms.
 | `Quake/cmd.c` | +259 -49 | +163 -35 | 36 | the command buffer grows (Cbuf_Reserve) and reads from a position; lines and arguments of any length (VR_ParseToken: vr_cmdtoken.cpp); config migration; removed Quake VR settings ignored quietly (VR_RetiredCvar); counts |
 | `Quake/r_world.c` | +181 -4 | +179 -4 | 26 | depth pre-pass, deluxemaps, normal maps, parallax and detail per texture, alpha to coverage, the liquids' wave mesh and refraction |
 | `Quake/menu.c` | +151 -13 | +149 -13 | 26 | the VR menu (m_vr), VR Calibration row, list scrolling for the controllers, text outlines |
-| `Quake/cvar.c` | +93 -26 | +94 -26 | 18 | no fixed cvar count (grows), appended then sorted when needed, values of any length |
+| `Quake/cvar.c` | +93 -26 | +94 -26 | 18 | no fixed cvar count (grows), appended then sorted when needed, values of any length; a sparse config (the vr_ settings at their defaults left out: VR_ConfigSaves, +4 lines, configVersion 218) |
 | `Quake/gl_draw.c` | +111 -4 | +110 -4 | 10 | lasting run-time pics (the big font), the menu canvas in the headset, glyph size and text outline |
 | `Quake/gl_rmisc.c` | +95 -14 | +93 -14 | 14 | liquid alphas from the settings and the map's keys (R_UpdateLiquidAlpha), shader storage ranges |
 | `Quake/gl_rmain.c` | +194 -11 | +89 -11 | 47 | eye rendering: scene format and samples, post-process gamma/target, projection, shadow maps, tone, profiling scopes |
