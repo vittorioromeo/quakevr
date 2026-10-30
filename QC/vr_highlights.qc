@@ -54,8 +54,8 @@ float(entity targ, entity inflictor, entity attacker, float isVRMelee) VR_Highli
 
     float score = 1;
     string tags = "";
-    float headshot = ((vr_hitpart_target == targ && vr_hitpart_time == time && vr_hitpart == 1) ||
-                      (vr_hitpellets > 0 && vr_hitpellets_head > 0));
+    float headshot = ((VR_Hit_On(targ) && hit_zone == 1) ||
+                      (VR_Hit_Pellets() > 0 && hit_pelparts_x > 0));
     if(headshot)
     {
         score = score + 1.5;

@@ -612,7 +612,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float kind) 
     float i;
 
     // A hitscan blast (ApplyMultiDamage): its damage split by its pellets on each piece; the torso's share left.
-    if(vr_hitpellets > 0 && targ.vr_limb_wserial == vr_sgib_blastserial && targ.vr_limb_wtotal > 0)
+    if(VR_Hit_Pellets() > 0 && targ.vr_limb_wserial == vr_sgib_blastserial && targ.vr_limb_wtotal > 0)
     {
         float total = targ.vr_limb_wtotal;
         vector dir = normalize(vr_hitdir != '0 0 0' ? vr_hitdir : ((targ.absmin + targ.absmax) * 0.5 - vr_decap_src));
@@ -647,9 +647,9 @@ float(entity targ, entity inflictor, entity attacker, float damage, float kind) 
     {
         at = vr_hitpos;
     }
-    else if(vr_hitpart_target == targ && vr_hitpart_time == time && vr_hitpart_pos != '0 0 0')
+    else if(VR_Hit_On(targ) && hit_at != '0 0 0')
     {
-        at = vr_hitpart_pos;
+        at = hit_at;
     }
     else if(inflictor != attacker && inflictor != world && inflictor != targ)
     {
@@ -918,9 +918,9 @@ float(entity targ, entity inflictor, entity attacker, float xDamage) VR_Limb_Qua
     }
     vector at;
     vector dir = inflictor.velocity;
-    if(vr_hitpart_target == targ && vr_hitpart_time == time)
+    if(VR_Hit_On(targ))
     {
-        at = vr_hitpart_pos;
+        at = hit_at;
         if(inflictor == attacker || vlen(dir) < 1)
         {
             dir = at - (attacker.origin + attacker.view_ofs);
