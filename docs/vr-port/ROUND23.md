@@ -916,3 +916,10 @@ which would bring the wall time near the free cases' ~5-10 min; exclusive runs t
   file per driver, 106 programs, 15 MB) was tried: 273 ms against 296: the driver's own cache already skips the
   compile, the cost is its program creation; set aside (git stash on the branch), not committed. Next for the shaders:
   KHR_parallel_shader_compile (status read only at the end). The other load items are still open.
+- **Full baseline** (default, 8 lanes, wave B's agents running): 29.1 -> 19.5 min; teleporter_edges 927 -> 171 s,
+  flash_grab 760 -> 59, xr_runtime 577 -> 97. No case is the critical path now (the longest 185 s): the cases' summed
+  time was 6036 s (3881 in wave C's quieter run), 12.6 min of 8 lanes' work, so the rest is the shared machine's
+  throughput. Verdicts as baseline.tsv but next's known changes (fist_alert, melee_phase, swim_sound pass; reload
+  111/4, parry_pose fail), flaky counts (agrunt 63, 71, 72, 76, 86; ragdoll_ragtest passed), and two new: agarmor_5
+  22/1 (a corpse's right thigh plate worn: the engine here is next's, likely its limb-plate work) and ragdoll_guard
+  7/1 (guard stagger).
