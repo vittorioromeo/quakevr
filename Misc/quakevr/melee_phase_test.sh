@@ -19,7 +19,7 @@ printf '0.000 main -0.10 1.15 -0.20 0 0 0\n0.300 main -0.10 1.15 -0.20 0 0 0\n1.
 printf '0.000 main 0.00 1.15 -0.20 0 0 0\n0.300 main 0.00 1.15 -0.20 0 0 0\n0.450 main 0.00 1.15 -1.05 0 0 0\n1.500 main 0.00 1.15 -1.05 0 0 0\n2.300 main 0.00 1.15 -0.20 0 0 0\n' > "$OUT/grunt_fast.txt"
 P="vr_mock_play $OUT"
 CASE() { echo "echo PHASE_CASE $1;$2;$P/$3.txt;wait${4:-260};echo PHASE_END $1"; }
-S="vr_fixed_frames 1;vr_fixed_frames_rate 90;map vrmelee-recording;wait60;god;notarget;developer 1;vr_debug_model_collide 1;vr_melee_dmg_multiplier 0.25;vr_melee_push 0;vr_dummy_attacks 0;vr_melee_phase 0"
+S="vr_fixed_frames 1;vr_fixed_frames_rate 90;vr_agrunt_repl 0;map vrmelee-recording;wait60;god;notarget;developer 1;vr_debug_model_collide 1;vr_melee_dmg_multiplier 0.25;vr_melee_push 0;vr_dummy_attacks 0;vr_melee_phase 0"
 S="$S;impulse 150;wait5;setpos 3.3 -31.2 24 0 90 0;wait30;vr_mock_hand main -0.10 1.15 -0.20 0 0 0;+grabmain;vr_mock_button main grip 1;wait20"
 S="$S;$(CASE dummy_fast_off 'vr_melee_phase 0' dummy_fast)"
 S="$S;$(CASE dummy_fast_on 'vr_melee_phase 1' dummy_fast)"

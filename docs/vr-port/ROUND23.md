@@ -3249,3 +3249,29 @@ the muzzle wisps' and the thunderbolt's newer changes, not impacts).
   until it breaks`; `[impactunify] shoot a grenade in flight (shotgun, nails): sparks fly out along the hit, not a
   fountain straight up`; `[impactunify] punch or club a wall torch: a wooden knock; a grenade: a light metal clink
   (not a flesh slap)`; `[impactunify] chainsaw a wall torch: no sparks`.
+
+## Four more defaults promoted (branch `agent/promote1030b`; his decisions 2026-10-30)
+
+His words: "we need to polish the feature and ship the replacements"; the relit maps "a tiny bit brighter in general".
+`vr_cvars.inc` (sparse config: the default only, no configVersion step):
+
+| cvar | was | now |
+|---|---|---|
+| vr_agrunt_repl | 0 | 1 (Armed Humanoid Replacements: every grunt and enforcer a map spawns is armed; its rarity tuning was promoted before) |
+| vr_relight_minlight | 0 | 64 (Ambient Light Level of a relit map) |
+| vr_relight_reload | 0 | 1 (a relit map reloaded where you are) |
+| vr_ghost_hands_fade_from | 6 | 9 cm (vr_ghost_hands stays 0) |
+
+Also: `relight_maps.py --ambient` defaults to 64 (the game's `vr_relight_defaults` says its defaults are the script's
+look); RELIGHTING.md and ARMED_MONSTERS.md state the new defaults. The menus' help names no default values.
+
+**Tests pinned to the old values** (each assumed plain grunts; no assertion changed), `vr_agrunt_repl 0` in:
+mapflameburn (the dropped torch's edict number on e1m2), melee_phase (its grunt cases), weapon_catch (e1m1),
+animsmooth (the soldier's model and edict numbers), teleporters chase (the grunt's ranged chase), ragdoll guard (the
+grunt's guard), agrunt test 20 (`VR_AGPT_Ragdoll`: the armed grunt against a plain one), and
+`vr_rigstudio_test_subjects` (step 7, `monster_army` as an unarmed rigged subject). ghost_recoil_test.sh pins
+`vr_ghost_hands_fade_from 6` (its 17 cm kick against 6 cm). No test used the relight values.
+
+**Possible issue in the replacements (not fixed):** the Rig Studio's `monster_army` subject (and the debug spawner's
+`vr_test_spawn 0`) now comes armed: with replacements on, the studio can no longer show a plain rigged grunt. Tool
+spawns may want to skip the replacement (`vr_agr_hold`).

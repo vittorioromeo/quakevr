@@ -2293,6 +2293,7 @@ void testSubjects_f()
         return;
     }
     stest = SubjectTest{};
+    Cvar_SetQuick(&vr_agrunt_repl, "0"); // (step 7's monster_army a plain grunt, not its armed replacement)
     stest.step = 0;
     stest.started = false; // (its first change once the first subject stands)
 }

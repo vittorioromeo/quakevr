@@ -1063,7 +1063,7 @@ QVR_CVAR(vr_ghost_hands_which, "0", CVAR_ARCHIVE)          // 0 both hands, 1 th
 QVR_CVAR(vr_ghost_hands_alpha, "0.35", CVAR_ARCHIVE)       // their opacity (0..1)
 QVR_CVAR(vr_ghost_hands_lightness, "1.6", CVAR_ARCHIVE)    // times the light on them (brighter: stands out from the drawn hand)
 QVR_CVAR(vr_ghost_hands_tint, "0.6", CVAR_ARCHIVE)         // 0 the hand's own colours .. 1 a cold blue
-QVR_CVAR(vr_ghost_hands_fade_from, "6", CVAR_ARCHIVE)      // cm: no ghost while the drawn hand is within this of the real one (its grip and a point 15 cm ahead of it)
+QVR_CVAR(vr_ghost_hands_fade_from, "9", CVAR_ARCHIVE)      // cm: no ghost while the drawn hand is within this of the real one (its grip and a point 15 cm ahead of it)
 QVR_CVAR(vr_ghost_hands_fade_range, "7", CVAR_ARCHIVE)     // cm: and it fades in over this much further
 QVR_CVAR(vr_ghost_hands_ignore_recoil, "1", CVAR_ARCHIVE)  // 1: the programmatic recoil's kick of the drawn hand (vr_weaponfx.cpp) doesn't count as held off (no ghost from a shot); 0: it does
 QVR_CVAR(vr_ghost_hands_test_offset, "0", CVAR_NONE)       // test aid (Debug): cm the ghost is moved sideways, so it shows apart from the drawn hand
@@ -1760,11 +1760,11 @@ QVR_CVAR(vr_relight_maplights, "1", CVAR_ARCHIVE)    // the map's own lights (as
 QVR_CVAR(vr_relight_sunlight, "1", CVAR_ARCHIVE)     // the map's sunlight and sky light (maps that have them)
 QVR_CVAR(vr_relight_bounce, "1", CVAR_ARCHIVE)       // bounced light (light -bounce -bouncescale; 0 none, as relight_maps.py)
 QVR_CVAR(vr_relight_ao, "1.2", CVAR_ARCHIVE)         // ambient occlusion in corners (light -dirt -dirtscale; 0 none)
-QVR_CVAR(vr_relight_minlight, "0", CVAR_ARCHIVE)     // Ambient Light Level: light added everywhere (on top of the worldspawn's own minlight, not darkened by the AO; 0 the map's own)
+QVR_CVAR(vr_relight_minlight, "64", CVAR_ARCHIVE)     // Ambient Light Level: light added everywhere (on top of the worldspawn's own minlight, not darkened by the AO; 0 the map's own)
 QVR_CVAR(vr_relight_quality, "1", CVAR_ARCHIVE)      // shadows' edges: 1 smooth (-extra4, relight_maps.py's), 0 fast (-extra)
 QVR_CVAR(vr_relight_seethrough, "1", CVAR_ARCHIVE)   // id's maps relit with see-through water, slime and teleporters: VisPatch's water-vised visibility put in (vr_relight_vis.cpp; needs its data files, quakevr/tools/vispatch; 0: the map's own, liquids opaque)
 QVR_CVAR(vr_relight_vispatch_dir, "", CVAR_NONE)     // testing: the only folder the VisPatch data (id1.vis, hipnotic.vis, rogue.vis) is looked for in ("": tools/vispatch in each game folder, then QUAKEVR_VISPATCH)
-QVR_CVAR(vr_relight_reload, "0", CVAR_ARCHIVE)       // a relit map in play reloaded where you are (a save and load; the map restarted where the game can't save; 0: from its next start)
+QVR_CVAR(vr_relight_reload, "1", CVAR_ARCHIVE)       // a relit map in play reloaded where you are (a save and load; the map restarted where the game can't save; 0: from its next start)
 // Many maps at once (vr_relight_batch; Graphics > Relighting, Many Maps).
 QVR_CVAR(vr_relight_batch_set, "1", CVAR_ARCHIVE)     // the maps Relight These Maps takes: 0 the map in play, 1 its episode, 2 its game, 3 the Map Library's, 4 every map
 QVR_CVAR(vr_relight_batch_episode, "0", CVAR_ARCHIVE) // the episode: 0 the map in play's, 1..4 id's E1..E4 (5: dopa's E5)
@@ -2512,7 +2512,7 @@ QVR_CVAR(vr_agrunt_reserve, "2", CVAR_ARCHIVE)         // the clips it carries b
 // Armed humanoid replacements (QC vr_armedrepl.qc; ROUND22.md "Armed humanoid replacements"): a map's grunts and
 // enforcers as armed ones. All off by default.
 QVR_CVAR(vr_agknight, "0", CVAR_ARCHIVE)               // 1: every knight a map spawns is an armed humanoid holding a sword (QC vr_armedknight.qc; docs/vr-port/ARMED_MONSTERS.md)
-QVR_CVAR(vr_agrunt_repl, "0", CVAR_ARCHIVE)            // 1: every grunt and enforcer a map spawns is its armed version holding its own gun (its own damage, rate, aim, loot)
+QVR_CVAR(vr_agrunt_repl, "1", CVAR_ARCHIVE)            // 1: every grunt and enforcer a map spawns is its armed version holding its own gun (its own damage, rate, aim, loot)
 QVR_CVAR(vr_agrunt_repl_common, "0.5", CVAR_ARCHIVE)     // 0..1: the chance one holds a shotgun or a nail pistol instead
 QVR_CVAR(vr_agrunt_repl_uncommon, "0.25", CVAR_ARCHIVE)   // 0..1: ... a nailgun, super nailgun or super shotgun (one a player owns)
 QVR_CVAR(vr_agrunt_repl_rare, "0.15", CVAR_ARCHIVE)       // 0..1: ... a launcher, the thunderbolt, a melee weapon, a mission pack's gun (owned; from vr_agrunt_repl_rare_map on)
