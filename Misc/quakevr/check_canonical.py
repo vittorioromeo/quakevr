@@ -63,6 +63,15 @@ FAMILIES = {
     "qc-test-check": ("qc", [r"(?m)^[ \t]*void\s*\(\s*(?:float\s+\w+\s*,\s*string\s+\w+|string\s+\w+\s*,\s*float\s+\w+)"
                              r"\s*\)\s*\w+_Check\s*="],
                       "VR_Test_Begin/Check/Verdict (QC/vr_testutil.qc) or the VR_AGT_* harness"),
+    # The tests' one harness (docs/vr-port/TESTING.md, "Writing a test"; design review 7): no new hand-made tallies,
+    # verdict lines or library copies.
+    "qc-test-tally": ("qc", [r"(?m)^[ \t]*float\s+\w*_(?:pass|passed|fail|failed|fails)\s*;"],
+                      "VR_Test_Begin(Flags)/Check/Verdict's tally (QC/vr_testutil.qc)"),
+    "qc-test-verdict": ("qc", [r"\"[^\"\n]*%g passed,? %g failed"], "VR_Test_Verdict (QC/vr_testutil.qc)"),
+    "cpp-test-verdict": ("cpp", [r"\"[^\"\n]*passed,? %(?:d|i|u|zu) failed"], "testkit::Tally / testkit::verdict (vr_testkit.hpp)"),
+    "py-test-copy": ("py", [r"(?m)^def verdict\(", r"\"C:/OHWorkspace/qvr-kit\""],
+                     "qvrtest.Tally / qvrtest.KIT (Misc/quakevr/qvrtest.py)"),
+    "sh-test-copy": ("sh", [r"(?m)^[ \t]*check\s*\(\s*\)\s*\{"], "source qvrtest.sh: check / verdict (Misc/quakevr/qvrtest.sh)"),
 }
 
 
@@ -83,6 +92,11 @@ NEEDLES = {
     "qc-find-player": r"\"player\"",
     "qc-math-copy": r"(?:Cross|Wrap180|Wrap|AngleNorm|SegDist|SegmentDist|Lerp|Nlerp|Clamp|Smooth|Ease|clamp)\s*=",
     "qc-test-check": r"_Check\s*=",
+    "qc-test-tally": r"_(?:pass|fail)",
+    "qc-test-verdict": r"%g passed",
+    "cpp-test-verdict": r"passed",
+    "py-test-copy": r"def verdict\(|qvr-kit",
+    "sh-test-copy": r"check",
 }
 
 
@@ -110,7 +124,9 @@ def sources():
         cpp += glob.glob("Quake/vr/**/*." + ext, recursive=True)
     cpp = sorted(p.replace("\\", "/") for p in cpp if "/external/" not in p.replace("\\", "/"))
     qc = sorted(p.replace("\\", "/") for p in glob.glob("QC/*.qc"))
-    return {"cpp": cpp, "qc": qc}
+    misc = lambda ext: sorted(p.replace("\\", "/") for p in glob.glob("Misc/quakevr/**/*." + ext, recursive=True)
+                              if not p.replace("\\", "/").endswith(("/qvrtest.py", "/qvrtest.sh")))
+    return {"cpp": cpp, "qc": qc, "py": misc("py"), "sh": misc("sh")}
 
 
 def scan():

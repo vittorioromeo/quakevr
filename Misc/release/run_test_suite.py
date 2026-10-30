@@ -6,26 +6,30 @@ test scripts (.sh, .py, .ps1) that give a verdict, one at a time, through the ki
                                                    [--allow-flaky] [--flaky NAME,...] [--list]
 
 <agent> is a kit worktree (C:/OHWorkspace/qvr-agents/<agent>, made by the kit's new_agent.sh) holding the commit under
-test; --build builds it first (kit build.sh). A test fails on a non-zero exit, a FAIL / "FAILURES n" / "n failed" line
-in its output, or its timeout. Each test's whole output goes to <log-dir>/<name>.log (default: the agent's
-scratch/test_suite/<time>), the summary to <log-dir>/summary.txt. Exit 0 when nothing failed (with --allow-flaky, the
-known-flaky tests below and --flaky ones only warn), 1 when something did, 2 for a usage problem.
+test; --build builds it first (kit build.sh). A test fails on a non-zero exit, a FAIL / "<name>: FAIL" / "FAILURES n" /
+"n failed" line in its output (qvrtest.FAIL_LINE), or its timeout. Each test's whole output goes to <log-dir>/<name>.log
+(default: the agent's scratch/test_suite/<time>), the summary to <log-dir>/summary.txt. Exit 0 when nothing failed (with
+--allow-flaky, the known-flaky tests of Misc/quakevr/test_flaky.txt and --flaky ones only warn), 1 when something did,
+2 for a usage problem.
 """
 
 import argparse
 import datetime
 import os
 import re
-import shutil
 import subprocess
 import sys
 import time
 
-KIT = os.environ.get("QVR_KIT", "C:/OHWorkspace/qvr-kit")
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "quakevr"))
+import qvrtest  # noqa: E402  (the tests' library: run, the verdict parser, the flaky list)
 
-# name, script (under Misc/quakevr), extra arguments after the agent, timeout (s), known flaky. The scripts that give a
-# verdict (exit code or FAIL lines) and run headless on one worktree; the ones that print numbers or pictures for a
-# person, need another agent's folder, the expansions' data, two instances or a benchmark base are not here.
+KIT = qvrtest.KIT
+
+# name, script (under Misc/quakevr), extra arguments after the agent, timeout (s), known flaky (also: test_flaky.txt).
+# The scripts that give a verdict (exit code or FAIL lines) and run headless on one worktree; the ones that print
+# numbers or pictures for a person, need another agent's folder, the expansions' data, two instances or a benchmark
+# base are not here.
 SUITE = [
     ("autopump", "autopump_test.sh", [], 1200, False),
     ("cellcord", "cellcord_test.sh", [], 1200, False),
@@ -68,60 +72,21 @@ SUITE = [
     ("parry_pose", "parry_pose_test.sh", [], 3600, False),
     ("selfchecks", "selfchecks_test.sh", [], 1200, False),
     ("animsmooth", "animsmooth_test.sh", [], 1200, False),
-    # Quake's AI is random (ROUND21.md, "Test suite pass (2026-10-09)"): a dog or fiend may miss the gate in 3 runs.
-    ("teleporters_chase", "teleporters/teleporters_test.sh", ["chase"], 2400, True),
+    ("teleporters_chase", "teleporters/teleporters_test.sh", ["chase"], 2400, False),  # (flaky: test_flaky.txt)
     ("stealth", "stealth_tests.sh", [], 5400, False),
 ]
 
-FAIL_LINE = re.compile(r"^\s*(FAIL\b|PROBLEM\b)|FAILURES [1-9]|\b[1-9][0-9]* failed\b", re.M)
-
-
-def find_bash():
-    """Git's bash (never Windows' WSL bash.exe in System32)."""
-    env = os.environ.get("QVR_BASH")
-    if env and os.path.isfile(env):
-        return env
-    w = shutil.which("bash")
-    if w and "system32" not in w.lower():
-        return w
-    for p in (r"C:\Program Files\Git\bin\bash.exe", r"C:\Program Files\Git\usr\bin\bash.exe"):
-        if os.path.isfile(p):
-            return p
-    git = shutil.which("git")
-    if git:
-        p = os.path.join(os.path.dirname(os.path.dirname(git)), "bin", "bash.exe")
-        if os.path.isfile(p):
-            return p
-    return None
-
-
-def tree_of(agent):
-    return "C:/OHWorkspace/quakevr-iw-cleanup" if agent == "cleanup" else f"C:/OHWorkspace/qvr-agents/{agent}"
-
-
-def kill_tree(proc):
-    subprocess.run(["taskkill", "/T", "/F", "/PID", str(proc.pid)], capture_output=True)
+FAIL_LINE = qvrtest.FAIL_LINE  # (run_baseline.py's parted cases read it here)
+find_bash = qvrtest.find_bash
+tree_of = qvrtest.tree
 
 
 def run(argv, log_path, timeout, env=None):
-    """argv's output into log_path; (exit code or None on timeout, output, seconds)."""
-    start = time.time()
-    with open(log_path, "w", encoding="utf-8", errors="replace") as log:
-        log.write("$ " + " ".join(argv) + "\n")
-        log.flush()
-        proc = subprocess.Popen(argv, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, env=env,
-                                creationflags=getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0))
-        try:
-            out, _ = proc.communicate(timeout=timeout)
-            code = proc.returncode
-        except subprocess.TimeoutExpired:
-            kill_tree(proc)
-            out, _ = proc.communicate()
-            code = None
-        text = out.decode("utf-8", errors="replace").replace("\r\n", "\n")
-        log.write(text)
-        log.write(f"\n[exit {code if code is not None else 'TIMEOUT'} after {time.time() - start:.0f} s]\n")
-    return code, text, time.time() - start
+    """argv's output into log_path, its exit line last; (exit code or None on timeout, output, seconds)."""
+    code, text, secs = qvrtest.run(argv, log_path, timeout, env)
+    with open(log_path, "a", encoding="utf-8", errors="replace") as log:
+        log.write(f"\n[exit {code if code is not None else 'TIMEOUT'} after {secs:.0f} s]\n")
+    return code, text, secs
 
 
 def main():
@@ -142,7 +107,7 @@ def main():
     if unknown:
         print(f"--flaky: no such test: {', '.join(sorted(unknown))}")
         return 2
-    flaky = {t[0] for t in SUITE if t[4]} | extra_flaky
+    flaky = {t[0] for t in SUITE if t[4] or t[0] in qvrtest.FLAKY} | extra_flaky
     if a.list:
         for name, script, args, timeout, _ in tests:
             print(f"{name:20} Misc/quakevr/{script}{' ' + ' '.join(args) if args else ''}  (timeout {timeout // 60} min"
@@ -179,12 +144,9 @@ def main():
     total_start = time.time()
     for i, (name, script, args, timeout, _) in enumerate(tests, 1):
         path = f"{tree}/Misc/quakevr/{script}"
-        if script.endswith(".py"):
-            argv = [sys.executable, path]
-        elif script.endswith(".ps1"):
-            argv = ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", path]
-        else:
-            argv = [bash, path]
+        argv = qvrtest.script_argv(path)
+        if argv[0] == qvrtest.BASH:
+            argv[0] = bash
         argv += [a.agent] + args
         print(f"[{i:2}/{len(tests)}] {name:20} ", end="", flush=True)
         log_path = os.path.join(log_dir, f"{name}.log")

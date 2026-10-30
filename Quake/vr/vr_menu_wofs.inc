@@ -921,6 +921,13 @@ za::Vector<Item> pageWofsEffects()
         s("Haptic Punch", Key::HapticPunch, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 5.f)
             .help("How hard this weapon's shot punches the controller: a sharp spike, then a short rumble as long as its "
                   "recoil's way back (Return Time and Recovery). Times Sound: Gunfire's Haptic Punch. 0: none."),
+        s("Stream Shake", Key::StreamShake, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("A stream weapon (the flamethrower, the poison sprayer): how much the drawn weapon trembles while it "
+                  "fires, times its Recoil Kick Back and Muzzle Rise; it settles over its Return Time and Recovery as you "
+                  "let go. Looks only. 0: none."),
+        s("Stream Rumble", Key::StreamHaptic, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 5.f)
+            .help("A stream weapon: how hard the controller rumbles while it fires (1: the light buzz it always had). 0: "
+                  "none."),
         cycle("Muzzle Flash", weapons::cvar(slot, Key::Flash), {{0.f, "Off (the model's own)"}, {1.f, "On"}})
             .help("The shotgun's flash at this weapon's muzzle (its Muzzle settings) for a moment at each shot, following "
                   "the gun; gone when it leaves your hand."),

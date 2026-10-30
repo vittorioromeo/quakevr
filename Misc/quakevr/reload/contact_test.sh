@@ -14,7 +14,7 @@ export TB_NODRAW=${TB_NODRAW-1} # (batched frames not drawn: no check here reads
 # (The body: tb_main plays its runs as batches, testbatch.sh; TB_SLOW=1: each alone by run.sh, as before.)
 tb_body() {
 fail=0
-check() { if [ "$1" = "1" ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi; }
+source "$(dirname "$0")/../qvrtest.sh"
 REP="vr_reload_test 0;impulse 125;wait2"
 F="^reload: (off hand|[0-9] into|a magazine of|.*placed loose|the super shotgun open)|^  |^    "
 
@@ -79,6 +79,7 @@ check $(last "$log" | grep -q "clip 2 " && echo 1 || echo 0) "super shotgun open
 # Load Loose Rounds off: nothing goes in.
 log=$(tb_run_sh -Script "vr_reload_contact 0;$(setup 154 "80 0 0");$REP;vr_reload_test 10;impulse 125;wait40;$REP;vr_reload_contact 1;toggleconsole;quit" -Filter "$F" 2>&1)
 check $(echo "$log" | grep -q "placed loose (way 0)" && [ $(loaded "$log") = 0 ] && echo 1 || echo 0) "Load Loose Rounds off: a tossed shell stays out"
+verdict
 exit $fail
 }
 source "$(dirname "$0")/../testbatch/testbatch.sh"

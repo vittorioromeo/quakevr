@@ -28,7 +28,7 @@ S="$S;echo STEP reset;vr_trailer_reset 1;vr_mock_play;-grabmain;-graboff;vr_mock
 S="$S;vr_trailer_log 0;vr_startup_times;toggleconsole;quit"
 bash $KIT/run.sh $AGENT -Script "$S" -Filter "STEP|trailer|decap|taken into|weapon: |ENGINE|rror|map load|exit=${FILTER_EXTRA:+|$FILTER_EXTRA}" > $OUT 2>&1
 fail=0
-check() { if [ "$1" = "1" ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi; }
+source "$(dirname "$0")/qvrtest.sh"
 # the log's lines between two STEP markers
 between() { awk -v a="STEP $1" -v b="STEP $2" 'index($0,a){f=1;next} index($0,b){f=0} f' $OUT; }
 check $(grep -q "Super Axe taken into the main hand" $OUT && echo 1 || echo 0) "the Super Axe taken from the pedestal into the main hand"
@@ -53,4 +53,5 @@ check $(echo "$pos" | grep -q "player '  0.0 -444.0" && echo 1 || echo 0) "reset
 grep -m1 -A0 "the last map load" $OUT | cut -c1-120
 grep "ENGINE\|rror" $OUT | head -5
 echo "(log: $OUT)"
+verdict
 exit $fail

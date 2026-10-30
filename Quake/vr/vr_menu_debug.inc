@@ -672,6 +672,9 @@ za::Vector<Item> pageDebugProfiling()
         command("Game State Hash", "vr_bench_statehash")
             .help("vr_bench_statehash: one hash of every entity's QuakeC fields (and which are in use), printed with the "
                   "server's time: the same script on two builds gives the same hash when a change left the game the same."),
+        command("Ragdolls Hash", "vr_physics_hash ragdolls")
+            .help("vr_physics_hash ragdolls: one hash of every ragdoll part's place, turn, velocity and spin, bit for "
+                  "bit: the same script on two builds gives the same hash when a change left the ragdolls the same."),
         command("Server Random Seed", "sv_random_info")
             .help("sv_random_info: the seed the server's random numbers (QuakeC's random(), the monsters' turns) "
                   "started from at this map's load. sv_random_seed <that number> in the console before a map plays "

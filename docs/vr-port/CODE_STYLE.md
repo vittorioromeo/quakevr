@@ -316,9 +316,11 @@ Use these instead of a local copy (refactor 2026-10-29, cluster A4).
   `VR_SegmentDistance(a0, a1, b0, b1)` (closest points in `vr_seg_s`, `vr_seg_t`) and `VR_SegmentDistanceEps` (the
   same with a site's own thresholds).
 - `QC/vr_testutil.qc` (tests only): `VR_Test_Begin("tag")`, `VR_Test_Check(ok, what)` (`<tag>: PASS|FAIL <what>`),
-  `VR_Test_Verdict()` (`<tag>: <p> passed, <f> failed`), one tally (`vr_test_pass`, `vr_test_fail`). The armed grunts'
-  harness (`VR_AGT_Check/Print/Spawn/Remove/Hunt`, vr_armedgrunt_test.qc: `agtest: <what> PASS|FAIL` by bprint) is
-  the other shared one; a new test uses one of the two, never a third copy.
+  `VR_Test_Verdict()` (`<tag>: <p> passed, <f> failed`), one tally (`vr_test_pass`, `vr_test_fail`);
+  `VR_Test_BeginFlags(tag, VR_TEST_LOUD | VR_TEST_QUIET)`: lines broadcast (bprint), passes unprinted. The armed
+  grunts' harness (`VR_AGT_Check/Print/Spawn/Remove/Hunt`, vr_armedgrunt_test.qc) and the arena's `VR_AT_Check` count
+  on that tally. A new test never keeps its own pass/fail globals or verdict line (check_canonical.py's test-*
+  families). Scripts: `Misc/quakevr/qvrtest.py` / `qvrtest.sh` (TESTING.md, "Writing a test").
 - Cvars: read with a handle, `cvar_hget(cvarh_<name>)` (`QC/vr_cvars.qc`, compiled right after defs.qc so every file
   sees it); `cvar("...")` only in tests and one-off code. A vr_cvars.inc cvar's handle is generated: use
   `cvarh_<name>` and run `python Misc/quakevr/gen_vr_cvars_qc.py` (it writes `QC/vr_cvars_gen.qc`, a handle for every

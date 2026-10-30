@@ -15,7 +15,7 @@ geom-math Quake/vr/vr_bodytrack.cpp 1  # not merged yet (inventory F2/F2b: diff 
 geom-math Quake/vr/vr_decals.cpp 1  # 2D segment distance with the position along (no 2D overload in geom yet)
 geom-math Quake/vr/vr_geom.hpp 11  # canonical
 geom-math Quake/vr/vr_hitmodel.cpp 1  # nearestOnTri returns a squared distance, not a point
-geom-math Quake/vr/vr_hitreact.cpp 1  # yawOf of a rigpose::Rigid, not of a direction
+geom-math Quake/vr/vr_hitreact_skin.cpp 1  # yawOf of a rigpose::Rigid, not of a direction
 geom-math Quake/vr/vr_menuui.cpp 1  # not merged yet (inventory F2/F2b: diff its edge cases against geom:: before migrating)
 geom-math Quake/vr/vr_rigstudio_aimline.cpp 1  # not merged yet (inventory F2/F2b: diff its edge cases against geom:: before migrating)
 geom-math Quake/vr/vr_sights.cpp 1  # not merged yet (inventory F2/F2b: diff its edge cases against geom:: before migrating)
@@ -36,7 +36,8 @@ strings-copy Quake/vr/vr_files.cpp 1  # a char lowering lambda for glob matching
 strings-copy Quake/vr/vr_imgcache.cpp 1  # a cache's trim(cap) member, not string trimming
 strings-copy Quake/vr/vr_mdlbuild.hpp 1  # canonical
 strings-copy Quake/vr/vr_menu_help.inc 1  # a StringView trim lambda (no allocation)
-strings-copy Quake/vr/vr_relight.cpp 1  # startsWith over za::StringView
+strings-copy Quake/vr/vr_relight_bsp.cpp 1  # startsWith over za::StringView
+strings-copy Quake/vr/vr_relight_internal.hpp 1  # startsWith over za::StringView: its declaration (vr_relight_bsp.cpp)
 strings-copy Quake/vr/vr_selfcollide.cpp 1  # not merged yet (inventory F17: rank rule may differ from vrstats::quantileSorted)
 strings-copy Quake/vr/vr_strings.cpp 4  # canonical
 strings-copy Quake/vr/vr_strings.hpp 6  # canonical
@@ -85,7 +86,8 @@ player-edict Quake/vr/vr_foegrab.cpp 1  # guard differs (ROUND23 'player edict',
 player-edict Quake/vr/vr_foegrab_diag.cpp 4  # guard differs (ROUND23 'player edict', Left list)
 player-edict Quake/vr/vr_held.cpp 1  # guard differs (ROUND23 'player edict', Left list)
 player-edict Quake/vr/vr_menuui.cpp 1  # guard differs (ROUND23 'player edict', Left list)
-player-edict Quake/vr/vr_portals.cpp 3  # guard differs (ROUND23 'player edict', Left list)
+player-edict Quake/vr/vr_portals.cpp 2  # guard differs (ROUND23 'player edict', Left list)
+player-edict Quake/vr/vr_portals_gates.cpp 1  # guard differs (ROUND23 'player edict', Left list)
 player-edict Quake/vr/vr_progs.hpp 2  # canonical
 player-edict Quake/vr/vr_ragtest.cpp 4  # guard differs (ROUND23 'player edict', Left list)
 player-edict Quake/vr/vr_ragtool.cpp 1  # guard differs (ROUND23 'player edict', Left list)
@@ -122,3 +124,86 @@ qc-test-check QC/vr_armedgrunt_test.qc 1  # canonical
 qc-test-check QC/vr_flaregun_test.qc 1  # a per-test Check copy from before vr_testutil.qc (argument order varies)
 qc-test-check QC/vr_reload_test.qc 1  # a per-test Check copy from before vr_testutil.qc (argument order varies)
 qc-test-check QC/vr_testutil.qc 1  # canonical
+
+# --- qc-test-tally: use VR_Test_Begin(Flags)/Check/Verdict's tally (QC/vr_testutil.qc)
+qc-test-tally QC/vr_ad_enemyguns.qc 2  # not migrated yet (design review 7: one test harness)
+qc-test-tally QC/vr_armedgrunt_ammo_test.qc 2  # not migrated yet (design review 7: one test harness)
+qc-test-tally QC/vr_armedgrunt_shot_test.qc 2  # not migrated yet (design review 7: one test harness)
+qc-test-tally QC/vr_dmgcredit_test.qc 3  # not migrated yet (design review 7: one test harness)
+qc-test-tally QC/vr_melee_sweep_test.qc 1  # not migrated yet (design review 7: one test harness)
+qc-test-tally QC/vr_mg_world_test.qc 2  # not migrated yet (design review 7: one test harness)
+qc-test-tally QC/vr_propimpact_test.qc 4  # not migrated yet (design review 7: one test harness)
+qc-test-tally QC/vr_reload_test.qc 2  # not migrated yet (design review 7: one test harness)
+qc-test-tally QC/vr_stealth_test.qc 1  # not migrated yet (design review 7: one test harness)
+qc-test-tally QC/vr_stealth_test2.qc 1  # not migrated yet (design review 7: one test harness)
+qc-test-tally QC/vr_testutil.qc 2  # canonical
+
+# --- qc-test-verdict: use VR_Test_Verdict (QC/vr_testutil.qc)
+qc-test-verdict QC/vr_ad_enemyguns_test.qc 6  # not migrated yet (design review 7: one test harness)
+qc-test-verdict QC/vr_ad_shots_test.qc 2  # not migrated yet (design review 7: one test harness)
+qc-test-verdict QC/vr_ad_upgrades_test.qc 3  # not migrated yet (design review 7: one test harness)
+qc-test-verdict QC/vr_agarmor_fx_test.qc 1  # not migrated yet (design review 7: one test harness)
+qc-test-verdict QC/vr_agarmor_test.qc 1  # not migrated yet (design review 7: one test harness)
+qc-test-verdict QC/vr_ammocolor_test.qc 1  # not migrated yet (design review 7: one test harness)
+qc-test-verdict QC/vr_arena_perks_test.qc 1  # not migrated yet (design review 7: one test harness)
+qc-test-verdict QC/vr_arena_test.qc 1  # not migrated yet (design review 7: one test harness)
+qc-test-verdict QC/vr_armedgrunt_ammo_test.qc 1  # not migrated yet (design review 7: one test harness)
+qc-test-verdict QC/vr_armedgrunt_bugs_test.qc 1  # not migrated yet (design review 7: one test harness)
+qc-test-verdict QC/vr_armedgrunt_downtug_test.qc 1  # not migrated yet (design review 7: one test harness)
+qc-test-verdict QC/vr_armedgrunt_parry_test.qc 1  # not migrated yet (design review 7: one test harness)
+qc-test-verdict QC/vr_armedgrunt_shot_test.qc 1  # not migrated yet (design review 7: one test harness)
+qc-test-verdict QC/vr_armedgrunt_test.qc 5  # not migrated yet (design review 7: one test harness)
+qc-test-verdict QC/vr_dmgcredit_test.qc 1  # not migrated yet (design review 7: one test harness)
+qc-test-verdict QC/vr_flaregun_test.qc 1  # not migrated yet (design review 7: one test harness)
+qc-test-verdict QC/vr_mg3_monsters_test.qc 1  # not migrated yet (design review 7: one test harness)
+qc-test-verdict QC/vr_mg3_test.qc 11  # not migrated yet (design review 7: one test harness)
+qc-test-verdict QC/vr_mg3_weapons_test.qc 8  # not migrated yet (design review 7: one test harness)
+qc-test-verdict QC/vr_mg_activation_test.qc 1  # not migrated yet (design review 7: one test harness)
+qc-test-verdict QC/vr_mg_hub_test.qc 1  # not migrated yet (design review 7: one test harness)
+qc-test-verdict QC/vr_mg_trigger_test.qc 2  # not migrated yet (design review 7: one test harness)
+qc-test-verdict QC/vr_mg_world_test.qc 2  # not migrated yet (design review 7: one test harness)
+qc-test-verdict QC/vr_nailpistol_test.qc 1  # not migrated yet (design review 7: one test harness)
+qc-test-verdict QC/vr_propimpact_test.qc 2  # not migrated yet (design review 7: one test harness)
+qc-test-verdict QC/vr_reload_test.qc 4  # not migrated yet (design review 7: one test harness)
+qc-test-verdict QC/vr_rigseq_test.qc 3  # not migrated yet (design review 7: one test harness)
+qc-test-verdict QC/vr_testutil.qc 1  # canonical
+
+# --- cpp-test-verdict: use testkit::Tally / testkit::verdict (vr_testkit.hpp)
+cpp-test-verdict Quake/vr/vr_audiotest.cpp 1  # not migrated yet (design review 7: one test harness)
+cpp-test-verdict Quake/vr/vr_jobs_diag.cpp 1  # not migrated yet (design review 7: one test harness)
+cpp-test-verdict Quake/vr/vr_testkit.hpp 1  # canonical
+
+# --- py-test-copy: use qvrtest.Tally / qvrtest.KIT (Misc/quakevr/qvrtest.py)
+py-test-copy Misc/quakevr/armik/armsweep.py 1  # not migrated yet (design review 7: one test harness)
+py-test-copy Misc/quakevr/brush_test.py 1  # not migrated yet (design review 7: one test harness)
+py-test-copy Misc/quakevr/carry/grip_gap_test.py 2  # not migrated yet (design review 7: one test harness)
+py-test-copy Misc/quakevr/checklist_fold_check.py 1  # not migrated yet (design review 7: one test harness)
+py-test-copy Misc/quakevr/climb/mantle_height_test.py 1  # not migrated yet (design review 7: one test harness)
+py-test-copy Misc/quakevr/flashgrab/flash_grab_test.py 1  # not migrated yet (design review 7: one test harness)
+py-test-copy Misc/quakevr/foegrab/gripcrowd_test.py 1  # not migrated yet (design review 7: one test harness)
+py-test-copy Misc/quakevr/maplibrary_large_test.py 1  # not migrated yet (design review 7: one test harness)
+py-test-copy Misc/quakevr/melee_room_test.py 1  # not migrated yet (design review 7: one test harness)
+py-test-copy Misc/quakevr/menu_grab_test.py 1  # not migrated yet (design review 7: one test harness)
+py-test-copy Misc/quakevr/menu_panels_test.py 1  # not migrated yet (design review 7: one test harness)
+py-test-copy Misc/quakevr/menu_shortcuts_test.py 1  # not migrated yet (design review 7: one test harness)
+py-test-copy Misc/quakevr/obs_test.py 1  # not migrated yet (design review 7: one test harness)
+py-test-copy Misc/quakevr/parrybalance/test.py 1  # not migrated yet (design review 7: one test harness)
+py-test-copy Misc/quakevr/parryinterrupt/test.py 1  # not migrated yet (design review 7: one test harness)
+py-test-copy Misc/quakevr/secret_hits_test.py 1  # not migrated yet (design review 7: one test harness)
+py-test-copy Misc/quakevr/teleporters/teleporter_stuck_fuzz.py 1  # not migrated yet (design review 7: one test harness)
+py-test-copy Misc/quakevr/test_blood.py 1  # not migrated yet (design review 7: one test harness)
+py-test-copy Misc/quakevr/test_blood_size.py 1  # not migrated yet (design review 7: one test harness)
+py-test-copy Misc/quakevr/testbatch/testbatch.py 1  # not migrated yet (design review 7: one test harness)
+py-test-copy Misc/quakevr/toolgun_physgun_ragdoll_test.py 1  # not migrated yet (design review 7: one test harness)
+py-test-copy Misc/quakevr/twohand/grip_state_test.py 1  # not migrated yet (design review 7: one test harness)
+py-test-copy Misc/quakevr/update_notice_test.py 1  # not migrated yet (design review 7: one test harness)
+
+# --- sh-test-copy: use source qvrtest.sh: check / verdict (Misc/quakevr/qvrtest.sh)
+sh-test-copy Misc/quakevr/bodytrack_elbow_test.sh 1  # not migrated yet (design review 7: one test harness)
+sh-test-copy Misc/quakevr/holsteritems_test.sh 1  # not migrated yet (design review 7: one test harness)
+sh-test-copy Misc/quakevr/holstersetup_test.sh 1  # not migrated yet (design review 7: one test harness)
+sh-test-copy Misc/quakevr/magchain_lod_test.sh 1  # not migrated yet (design review 7: one test harness)
+sh-test-copy Misc/quakevr/pickup_mag_test.sh 1  # not migrated yet (design review 7: one test harness)
+sh-test-copy Misc/quakevr/reload/voice_20261012_test.sh 1  # not migrated yet (design review 7: one test harness)
+sh-test-copy Misc/quakevr/weapon_catch_test.sh 1  # not migrated yet (design review 7: one test harness)
+sh-test-copy Misc/quakevr/xr_runtime_test.sh 1  # not migrated yet (design review 7: one test harness)

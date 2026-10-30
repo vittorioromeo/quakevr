@@ -14,7 +14,7 @@ export TB_NODRAW=${TB_NODRAW-1} # (batched frames not drawn: no check here reads
 # (The body: tb_main plays its runs as batches, testbatch.sh; TB_SLOW=1: each alone by run.sh, as before.)
 tb_body() {
 fail=0
-check() { if [ "$1" = "1" ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi; }
+source "$(dirname "$0")/../qvrtest.sh"
 REP="vr_reload_test 0;impulse 125;wait3"
 BASE="map e1m1;wait60;developer 1;vr_reload_debug 1;vr_weapon_grip_mode 1;impulse 9;wait2"
 
@@ -43,6 +43,7 @@ for gun in 156 157 161; do for hand in off main; do for pitch in 0 30; do
     up=$(echo "$line" | sed -n "s/.*u\/s (\([-0-9.]*\) up).*/\1/p")
     check $(awk -v a="$along" -v w="$way" -v u="$up" 'BEGIN { print (a != "" && a >= 0.98 && w != "" && w >= 0.65 && u != "" && u < 0) ? 1 : 0 }') "gun $gun, the $hand hand pitched $pitch: as it sat (feed end along the seated one's $along), pushed out of its well ($way along its way out, $up u/s up)"
 done; done; done
+verdict
 exit $fail
 }
 source "$(dirname "$0")/../testbatch/testbatch.sh"

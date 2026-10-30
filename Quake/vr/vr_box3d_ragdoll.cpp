@@ -690,119 +690,134 @@ void weldLoose(RagdollBodies& r, int num, int loose, int to, float looseVolume, 
 }
 } // namespace
 
-// The ragdoll's parts made for `ent` where its frame has them; false (nothing made) without a rig. `now`: made at once
-// from whatever frame it is in (beheaded: ragdollDecap), its loose piece hidden (what it held: its death code drops it).
-bool createRagdoll(edict_t* ent, int num, Slot& s, bool now)
+namespace
 {
-    QVR_TRACY_SCOPE(tracyScope, "ragdoll create");
-    qmodel_t* model = modelOf(ent);
-    const ragdoll::Rig* rig = ragdoll::rigFor(model);
-    if(!rig)
-    {
-        return false;
-    }
-    // All deaths use the same replacement policy as knockdowns. A full pool must not
-    // strand a newly killed monster in its animated death pose.
-    if(ragdollCount() >= static_cast<int>(za::max(1.f, vr_ragdoll_max.value)))
-    {
-        if(roomRefused(num))
-        {
-            return false; // (refused once: a corpse till it is gone)
-        }
-        if(world->syncingEntities)
-        {
-            // In syncEntities' edict loop: QC (which removes and spawns edicts, and kills) runs after it; the ragdoll
-            // is made the next frame.
-            if(!za::anyOf(world->roomWanted.begin(), world->roomWanted.end(), [&](int n) { return n == num; }))
-            {
-                world->roomWanted.pushBack(num);
-            }
-            return false;
-        }
-        if(!makeRagdollRoom(ent))
-        {
-            world->roomRefused.pushBack(num);
-            return false;
-        }
-    }
-    int index = -1;
-    for(int i = 0; i < static_cast<int>(world->ragdolls.size()); i++)
-    {
-        if(world->ragdolls[static_cast<za::SizeT>(i)].num == 0)
-        {
-            index = i;
-            break;
-        }
-    }
-    if(index < 0)
-    {
-        index = static_cast<int>(world->ragdolls.size());
-        world->ragdolls.pushBack(RagdollBodies{});
-    }
-    RagdollBodies& r = world->ragdolls[static_cast<za::SizeT>(index)];
-    r = RagdollBodies{};
-    r.num = num;
-    r.rig = rig;
-    // Its model's scale (a mapper's model_scale on the monster; uniform: its x), as it is drawn.
-    r.scale = za::clamp(1.f + fieldVec(ent, fields().model_scale).x, 0.25f, 4.f);
-    r.born = qcvm->time;
-    r.knocked = knockedDown(ent);
-    const float mass = za::max(tune(ent, Tune::Mass), 1.f), friction = za::max(tune(ent, Tune::Friction), 0.f);
 
-    s.kind = Kind::Corpse;
-    s.model = model;
-    s.frame = static_cast<int>(ent->v.frame);
-    s.corpseMode = corpseMode();
-    s.corpseMask = corpseMask();
-    s.corpseFitted = true;
-    s.corpseDynamic = true;
-    s.massSetting = mass;
-    s.corpseFriction = friction;
-    s.ragdoll = index;
-    s.born = qcvm->time;
+// createRagdoll's working state, from phase to phase (createRagdoll below: its phases in the order they run).
+struct CreateWork
+{
+    qmodel_t* model{};
+    const ragdoll::Rig* rig{};
+    RagdollBodies* r{nullptr};
+    float mass{};
+    float friction{};
+    int frame{};
+    int pose{};
+    float progress{};
+    int prevPose{};
+    int drawnPose{};
+    glm::vec3 drawnOrigin{};
+    glm::quat turn{};
+    glm::vec3 origin{};
+    float k{};
+    float inherit{};
+    bool own{};
+    glm::vec3 walk{};
+    glm::vec3 entVel{};
+    bool headless{};
+    za::Array<float, ragdoll::maxBones> volumes{};
+    float volume{};
+    float density{};
+    bool weld{};
+    za::Array<int, ragdoll::maxBones> heldBy{};
+    float jointFriction{};
+    float stiffness{};
+    za::Array<b3JointId, ragdoll::maxBones> joints{};
+};
 
-    // Where the frame has each bone, and how the animation moved it over its last frame (vr_ragdoll_inherit).
-    const int frame = static_cast<int>(ent->v.frame);
-    const int pose = ragdoll::poseOfFrame(model, frame);
-    const float progress = ragdoll::deathProgress(*rig, frame);
+// Where each bone is drawn now: its frame's, an armed humanoid's arms where its posed arms were drawn (vr_agarms: on
+// its weapons, not the frame's arms; a listen server's own drawing): the weapon then stays on its drawn hand as the
+// ragdoll takes over (vr_hitreact.cpp ragdollProps), and a tug's hold on it stays under the hand that took it.
+auto drawnBoneOf(const CreateWork& w, int num)
+{
+    return [&w, num](int b, glm::quat& rot, glm::vec3& pos) {
+        ragdoll::bonePose(*w.rig, w.drawnPose, b, rot, pos);
+        if(w.rig->authored && rig2::drawnBone(num, b, rot, pos))
+        {
+            return; // (where the authored rig drew it, its arms on its weapons too: vr_rig2_game.cpp)
+        }
+        (void)agarms::drawnArmBone(num, w.model, *w.rig, b, rot, pos);
+    };
+}
+
+// Where the frame has each bone, and how the animation moved it over its last frame (vr_ragdoll_inherit).
+void createRagdollPose(CreateWork& w, edict_t* ent, int num, bool now)
+{
+    qmodel_t*& model = w.model;
+    const ragdoll::Rig*& rig = w.rig;
+    RagdollBodies& r = *w.r;
+    int& frame = w.frame;
+    frame = static_cast<int>(ent->v.frame);
+    int& pose = w.pose;
+    pose = ragdoll::poseOfFrame(model, frame);
+    float& progress = w.progress;
+    progress = ragdoll::deathProgress(*rig, frame);
     // (A mapper's corpse, or one put at its death's end, lay still: none of its animation's motion.)
     const bool still = fieldFloatOr(ent, fields().vr_corpse_placed, 0.f) != 0.f ||
                        (num < static_cast<int>(world->corpseWatch.size()) && world->corpseWatch[static_cast<za::SizeT>(num)].settled);
-    const int prevPose = progress > 0.f && !still ? ragdoll::poseOfFrame(model, frame - 1) : pose;
+    int& prevPose = w.prevPose;
+    prevPose = progress > 0.f && !still ? ragdoll::poseOfFrame(model, frame - 1) : pose;
     // Where the client draws him now: as his frame has just changed (this server frame), still the frame before (its lerp
     // to this one not begun); else this frame. The parts are made there, moving as the animation went on (the switch
     // unseen: the ragdoll's first frame is the animated mesh's last; vr_debug_ragdoll compares them).
     const bool justChanged = num < static_cast<int>(world->corpseWatch.size()) &&
                              world->corpseWatch[static_cast<za::SizeT>(num)].changed >= 0.0 &&
                              qcvm->time - world->corpseWatch[static_cast<za::SizeT>(num)].changed < 1e-6;
-    const int drawnPose = progress > 0.f && justChanged ? prevPose : pose;
+    int& drawnPose = w.drawnPose;
+    drawnPose = progress > 0.f && justChanged ? prevPose : pose;
     // (And where it was drawn: the frame before's origin, his death code may have moved him with the frame: ai_back.)
-    const glm::vec3 drawnOrigin = drawnPose != pose ? world->corpseWatch[static_cast<za::SizeT>(num)].last : vec(ent->v.origin);
-    const glm::quat turn = glm::angleAxis(glm::radians(ent->v.angles[1]), glm::vec3{0.f, 0.f, 1.f});
+    glm::vec3& drawnOrigin = w.drawnOrigin;
+    drawnOrigin = drawnPose != pose ? world->corpseWatch[static_cast<za::SizeT>(num)].last : vec(ent->v.origin);
+    glm::quat& turn = w.turn;
+    turn = glm::angleAxis(glm::radians(ent->v.angles[1]), glm::vec3{0.f, 0.f, 1.f});
     r.turn = turn;
-    const glm::vec3 origin = vec(ent->v.origin);
-    const float k = r.scale / world->m2u; // rest units -> body metres
-    const float inherit = za::clamp(tune(ent, Tune::Inherit), 0.f, 2.f) / 0.1f; // (a frame is 0.1 s)
+    glm::vec3& origin = w.origin;
+    origin = vec(ent->v.origin);
+    float& k = w.k;
+    k = r.scale / world->m2u; // rest units -> body metres
+    float& inherit = w.inherit;
+    inherit = za::clamp(tune(ent, Tune::Inherit), 0.f, 2.f) / 0.1f; // (a frame is 0.1 s)
     // Beheaded (now: ragdollDecap): its own motion (its walk, ownMotion: a stepping monster's
     // velocity is none) kept apart from what this frame added to its velocity (the blow's knock), which a head pop scales.
-    const bool own = now && num < static_cast<int>(world->motion.size());
-    const glm::vec3 walk = own ? ownMotion(num) : glm::vec3{0.f};
-    const glm::vec3 entVel = own ? walk + vec(ent->v.velocity) - world->motion[static_cast<za::SizeT>(num)].vel : vec(ent->v.velocity);
+    bool& own = w.own;
+    own = now && num < static_cast<int>(world->motion.size());
+    glm::vec3& walk = w.walk;
+    walk = own ? ownMotion(num) : glm::vec3{0.f};
+    glm::vec3& entVel = w.entVel;
+    entVel = own ? walk + vec(ent->v.velocity) - world->motion[static_cast<za::SizeT>(num)].vel : vec(ent->v.velocity);
     // A loose piece the frame hides (all its vertices at one point: the grunt's shotgun in his death frames, dropped as
     // a weapon of its own, vr_monstermods.cpp) gets no body and stays hidden (published collapsed): the last ones.
     r.count = rig->numBones;
-    const bool headless = fieldFloatOr(ent, fields().vr_headless, 0.f) != 0.f || fieldFloatOr(ent, fields().vr_limbcut, 0.f) != 0.f;
+    bool& headless = w.headless;
+    headless = fieldFloatOr(ent, fields().vr_headless, 0.f) != 0.f || fieldFloatOr(ent, fields().vr_limbcut, 0.f) != 0.f;
     while(r.count > 1 && rig->bones[r.count - 1].joint == ragdoll::Joint::Loose &&
           (now || headless || rig->hideLoose || ragdoll::collapsed(*rig, pose, r.count - 1)))
     {
         r.count--;
     }
+}
 
-    // The parts' shapes and volumes first (their density: vr_ragdoll_mass over the body's; a loose piece weighs
-    // looseMass): each part's hull of its vertices (boneHull).
+// The parts' shapes and volumes first (their density: vr_ragdoll_mass over the body's; a loose piece weighs
+// looseMass): each part's hull of its vertices (boneHull).
+void createRagdollParts(CreateWork& w, edict_t* ent, int num, Slot& s, bool now)
+{
+    const ragdoll::Rig*& rig = w.rig;
+    RagdollBodies& r = *w.r;
+    float& mass = w.mass;
+    float& friction = w.friction;
+    int& pose = w.pose;
+    int& prevPose = w.prevPose;
+    glm::vec3& drawnOrigin = w.drawnOrigin;
+    glm::quat& turn = w.turn;
+    float& k = w.k;
+    float& inherit = w.inherit;
+    bool& own = w.own;
+    glm::vec3& walk = w.walk;
+    glm::vec3& entVel = w.entVel;
     za::Array<b3HullData*, ragdoll::maxBones> hulls{};
-    za::Array<float, ragdoll::maxBones> volumes{};
-    float volume = 0.f;
+    za::Array<float, ragdoll::maxBones>& volumes = w.volumes;
+    float& volume = w.volume;
+    volume = 0.f;
     for(int b = 0; b < r.count; b++)
     {
         const ragdoll::Bone& bone = rig->bones[b];
@@ -812,29 +827,21 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now)
         volume += bone.joint == ragdoll::Joint::Loose ? 0.f : v;
     }
     constexpr float looseMass = 3.f; // kg: a loose piece (his shotgun)
-    const float density = mass / za::max(volume, 1e-6f);
+    float& density = w.density;
+    density = mass / za::max(volume, 1e-6f);
     // Knocked down or staggering, alive (vr_knockdown_weld): its weapon (a loose piece) made in the hand that holds it,
     // where that hand holds it in the rest pose (looseHolder: the part nearest it there), not where its frame has it
     // (a pain frame swings it apart from the hands), and welded to that hand below: it follows the hand through every
     // active-ragdoll state (stagger, knockdown, lift, struggle, get-up) as a dead one's weapon is dropped.
-    const bool weld = r.knocked && vr_knockdown_weld.value != 0.f;
-    za::Array<int, ragdoll::maxBones> heldBy{};
+    bool& weld = w.weld;
+    weld = r.knocked && vr_knockdown_weld.value != 0.f;
+    za::Array<int, ragdoll::maxBones>& heldBy = w.heldBy;
     for(int b = 0; b < r.count; b++)
     {
         heldBy[static_cast<za::SizeT>(b)] = weld && rig->bones[b].joint == ragdoll::Joint::Loose ? looseHolder(*rig, b) : -1;
     }
 
-    // Where each bone is drawn now: its frame's, an armed humanoid's arms where its posed arms were drawn (vr_agarms: on
-    // its weapons, not the frame's arms; a listen server's own drawing): the weapon then stays on its drawn hand as the
-    // ragdoll takes over (vr_hitreact.cpp ragdollProps), and a tug's hold on it stays under the hand that took it.
-    const auto drawnBone = [&](int b, glm::quat& rot, glm::vec3& pos) {
-        ragdoll::bonePose(*rig, drawnPose, b, rot, pos);
-        if(rig->authored && rig2::drawnBone(num, b, rot, pos))
-        {
-            return; // (where the authored rig drew it, its arms on its weapons too: vr_rig2_game.cpp)
-        }
-        (void)agarms::drawnArmBone(num, model, *rig, b, rot, pos);
-    };
+    const auto drawnBone = drawnBoneOf(w, num);
     for(int b = 0; b < r.count; b++)
     {
         const ragdoll::Bone& bone = rig->bones[b];
@@ -905,14 +912,23 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now)
         }
     }
     s.body = r.body[0];
+}
 
-    // The joints, at the rig's pivots: where the parent and the child have it in this frame (between them: the
-    // animation's limbs stretch a little), in each one's rest space; their frames' z the bone's rest direction (a
-    // ball: its cone about it) or the hinge's axis.
-    const float jointFriction = za::max(tune(ent, Tune::JointFriction), 0.f);
-    const float stiffness = za::max(tune(ent, Tune::JointStiffness), 0.f);
+// The joints, at the rig's pivots: where the parent and the child have it in this frame (between them: the
+// animation's limbs stretch a little), in each one's rest space; their frames' z the bone's rest direction (a
+// ball: its cone about it) or the hinge's axis.
+void createRagdollJoints(CreateWork& w, edict_t* ent, int num)
+{
+    const ragdoll::Rig*& rig = w.rig;
+    RagdollBodies& r = *w.r;
+    float& k = w.k;
+    const auto drawnBone = drawnBoneOf(w, num);
+    float& jointFriction = w.jointFriction;
+    jointFriction = za::max(tune(ent, Tune::JointFriction), 0.f);
+    float& stiffness = w.stiffness;
+    stiffness = za::max(tune(ent, Tune::JointStiffness), 0.f);
     const float limitsAll = za::clamp(tune(ent, Tune::Limits), 0.05f, 3.f);
-    za::Array<b3JointId, ragdoll::maxBones> joints{}; // (each part's joint to its parent: an active ragdoll drives them)
+    za::Array<b3JointId, ragdoll::maxBones>& joints = w.joints;
     za::fill(joints, b3_nullJointId);
     for(int b = 0; b < r.count; b++)
     {
@@ -971,8 +987,19 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now)
             joints[static_cast<za::SizeT>(b)] = b3CreateRevoluteJoint(world->id, &jd);
         }
     }
-    // Knocked down (vr_knockdown_weld): a loose piece (his gun) welded where it is to the hand that holds it (made there
-    // above: heldBy); one with no holder found, to the part nearest it.
+}
+
+// Knocked down (vr_knockdown_weld): a loose piece (his gun) welded where it is to the hand that holds it (made there
+// above: heldBy); one with no holder found, to the part nearest it.
+void createRagdollWeld(CreateWork& w, int num)
+{
+    const ragdoll::Rig*& rig = w.rig;
+    RagdollBodies& r = *w.r;
+    int& drawnPose = w.drawnPose;
+    za::Array<float, ragdoll::maxBones>& volumes = w.volumes;
+    float& density = w.density;
+    bool& weld = w.weld;
+    za::Array<int, ragdoll::maxBones>& heldBy = w.heldBy;
     if(weld)
     {
         for(int b = 0; b < r.count; b++)
@@ -1022,7 +1049,12 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now)
             }
         }
     }
-    // Made in another ragdoll: they pass through each other until clear (ragdollsInside).
+}
+
+// Made in another ragdoll: they pass through each other until clear (ragdollsInside).
+void createRagdollOverlaps(CreateWork& w, int num, Slot& s)
+{
+    RagdollBodies& r = *w.r;
     for(const RagdollBodies& o : world->ragdolls)
     {
         if(vr_ragdoll_collide_each.value && o.num > 0 && o.num != num && ragdollIn(r, o.num))
@@ -1048,6 +1080,24 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now)
             blastRagdoll(r, rb.at, rb.damage);
         }
     }
+}
+
+void createRagdollStart(CreateWork& w, edict_t* ent, int num, Slot& s, bool now)
+{
+    const ragdoll::Rig*& rig = w.rig;
+    RagdollBodies& r = *w.r;
+    float& mass = w.mass;
+    int& frame = w.frame;
+    int& pose = w.pose;
+    float& progress = w.progress;
+    int& drawnPose = w.drawnPose;
+    glm::vec3& drawnOrigin = w.drawnOrigin;
+    glm::vec3& origin = w.origin;
+    bool& headless = w.headless;
+    float& volume = w.volume;
+    float& jointFriction = w.jointFriction;
+    float& stiffness = w.stiffness;
+    za::Array<b3JointId, ragdoll::maxBones>& joints = w.joints;
     ent->v.velocity[0] = ent->v.velocity[1] = ent->v.velocity[2] = 0.f;
     s.origin = origin;
     s.asleep = false;
@@ -1108,6 +1158,93 @@ bool createRagdoll(edict_t* ent, int num, Slot& s, bool now)
             PR_GetString(ent->v.classname), frame, progress * 100.f, drawnPose, drawnPose != pose ? ", the frame before's" : "",
             r.count, mass, volume * 1e3f, ragdollCount());
     }
+}
+
+} // namespace
+
+// The ragdoll's parts made for `ent` where its frame has them; false (nothing made) without a rig. `now`: made at once
+// from whatever frame it is in (beheaded: ragdollDecap), its loose piece hidden (what it held: its death code drops it).
+bool createRagdoll(edict_t* ent, int num, Slot& s, bool now)
+{
+    CreateWork w;
+    QVR_TRACY_SCOPE(tracyScope, "ragdoll create");
+    qmodel_t*& model = w.model;
+    model = modelOf(ent);
+    const ragdoll::Rig*& rig = w.rig;
+    rig = ragdoll::rigFor(model);
+    if(!rig)
+    {
+        return false;
+    }
+    // All deaths use the same replacement policy as knockdowns. A full pool must not
+    // strand a newly killed monster in its animated death pose.
+    if(ragdollCount() >= static_cast<int>(za::max(1.f, vr_ragdoll_max.value)))
+    {
+        if(roomRefused(num))
+        {
+            return false; // (refused once: a corpse till it is gone)
+        }
+        if(world->syncingEntities)
+        {
+            // In syncEntities' edict loop: QC (which removes and spawns edicts, and kills) runs after it; the ragdoll
+            // is made the next frame.
+            if(!za::anyOf(world->roomWanted.begin(), world->roomWanted.end(), [&](int n) { return n == num; }))
+            {
+                world->roomWanted.pushBack(num);
+            }
+            return false;
+        }
+        if(!makeRagdollRoom(ent))
+        {
+            world->roomRefused.pushBack(num);
+            return false;
+        }
+    }
+    int index = -1;
+    for(int i = 0; i < static_cast<int>(world->ragdolls.size()); i++)
+    {
+        if(world->ragdolls[static_cast<za::SizeT>(i)].num == 0)
+        {
+            index = i;
+            break;
+        }
+    }
+    if(index < 0)
+    {
+        index = static_cast<int>(world->ragdolls.size());
+        world->ragdolls.pushBack(RagdollBodies{});
+    }
+    w.r = &world->ragdolls[static_cast<za::SizeT>(index)];
+    RagdollBodies& r = *w.r;
+    r = RagdollBodies{};
+    r.num = num;
+    r.rig = rig;
+    // Its model's scale (a mapper's model_scale on the monster; uniform: its x), as it is drawn.
+    r.scale = za::clamp(1.f + fieldVec(ent, fields().model_scale).x, 0.25f, 4.f);
+    r.born = qcvm->time;
+    r.knocked = knockedDown(ent);
+    float& mass = w.mass;
+    float& friction = w.friction;
+    mass = za::max(tune(ent, Tune::Mass), 1.f);
+    friction = za::max(tune(ent, Tune::Friction), 0.f);
+
+    s.kind = Kind::Corpse;
+    s.model = model;
+    s.frame = static_cast<int>(ent->v.frame);
+    s.corpseMode = corpseMode();
+    s.corpseMask = corpseMask();
+    s.corpseFitted = true;
+    s.corpseDynamic = true;
+    s.massSetting = mass;
+    s.corpseFriction = friction;
+    s.ragdoll = index;
+    s.born = qcvm->time;
+    createRagdollPose(w, ent, num, now);
+    createRagdollParts(w, ent, num, s, now);
+    createRagdollJoints(w, ent, num);
+    createRagdollWeld(w, num);
+    createRagdollOverlaps(w, num, s);
+    createRagdollStart(w, ent, num, s, now);
     return true;
 }
 
