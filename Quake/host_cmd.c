@@ -54,8 +54,11 @@ void Host_Quit_f (void)
 		M_Menu_Quit_f ();
 		return;
 	}
+	VR_TimeQuitBegin (); // QVR: quit timing (vr_startup_times)
 	CL_Disconnect ();
+	VR_TimeQuitMark ("client disconnected"); // QVR
 	Host_ShutdownServer(false);
+	VR_TimeQuitMark ("server shut down"); // QVR
 
 	Sys_Quit ();
 }

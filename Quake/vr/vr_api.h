@@ -135,6 +135,9 @@ void VR_NoteCvarChanging (struct cvar_s *var, const char *value);	// Cvar_SetQui
 void VR_TimeMark (const char *stage);	// a stage of the start-up or of a map's load just ended
 void VR_TimeLoadBegin (const char *what);	// SV_SpawnServer, CL_ParseServerInfo: a map's load starts
 void VR_TimeLoadCommand (const char *what);	// map, changelevel, restart, load: the load's timing starts at the command (its spawn continues it)
+void VR_TimeQuitBegin (void);	// quit (Host_Quit_f), else Host_Shutdown: the quit's timing starts (vr_startup_times prints the last session's)
+void VR_TimeQuitMark (const char *stage);	// a stage of the quit just ended
+void VR_TimeQuitEnd (int error);	// Host_Shutdown's end: the quit's stages printed, kept for the next session (not after an error)
 // "Loading..." in the headset before a level change (vr_loading.cpp, vr_loading_notice).
 int VR_LoadingDefer (void);	// map, changelevel, restart, load: nonzero when the command is put off until the headset showed the notice (it runs again then)
 int VR_LoadingWaiting (void);	// nonzero while such a command is put off (Host_AutoLoad: its load waits, not failed)

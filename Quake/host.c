@@ -1934,9 +1934,11 @@ void Host_Shutdown(void)
 		return;
 	}
 	isdown = true;
+	VR_TimeQuitBegin (); // QVR: quit timing (vr_startup_times; from the quit command if it began there)
 	VR_GLStartupShutdown (host_parms->errstate != 0); // QVR: a quit or an error ends the GL start-up's log well (vr/vr_glsafe.cpp)
 	VR_LogsEnd (); // QVR: the OpenXR messages' summary (vr/vr_runlogs.cpp)
 	VR_DiagnosticsEnd (0); // QVR: diagnostics mode: the summaries, the logs copied, the folder shown (vr/vr_diagnostics.cpp)
+	VR_TimeQuitMark ("logs ended (GL start-up, OpenXR, diagnostics)"); // QVR
 
 // keep Con_Printf from trying to update the screen
 	scr_disabled_for_loading = true;
@@ -1944,15 +1946,19 @@ void Host_Shutdown(void)
 	Steam_Shutdown ();
 
 	AsyncQueue_Destroy (&async_queue);
+	VR_TimeQuitMark ("Steam, async queue"); // QVR
 
 	Host_ShutdownSave ();
+	VR_TimeQuitMark ("save on quit"); // QVR
 	Host_WriteConfiguration ();
+	VR_TimeQuitMark ("configuration written"); // QVR
 
 // stop downloads before shutting down networking
 	Modlist_ShutDown ();
 	VR_StopDownloads (); // QVR: the map index's fetch and a map install, cancelled and joined before libcurl goes
 
 	NET_Shutdown ();
+	VR_TimeQuitMark ("downloads stopped, network"); // QVR
 
 	if (cls.state != ca_dedicated)
 	{
@@ -1963,12 +1969,19 @@ void Host_Shutdown(void)
 		CDAudio_Shutdown ();
 		S_Shutdown ();
 		IN_Shutdown ();
+		VR_TimeQuitMark ("history, music, sound, input"); // QVR
 		VR_Shutdown (); // QVR
+		VR_TimeQuitMark ("VR shut down (backend, pool, caches)"); // QVR
 		VID_Shutdown();
+		VR_TimeQuitMark ("video (GL context, window)"); // QVR
 	}
 	else
+	{
 		VR_Shutdown (); // QVR: a dedicated server's worker threads joined too (the jobs pool, the image prefetch)
+		VR_TimeQuitMark ("VR shut down (backend, pool, caches)"); // QVR
+	}
 
+	VR_TimeQuitEnd (host_parms->errstate != 0); // QVR: printed while the log is open, kept for the next session
 	LOG_Close ();
 
 	LOC_Shutdown ();
