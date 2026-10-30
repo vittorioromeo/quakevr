@@ -2243,47 +2243,48 @@ void livingLedge(State& s, const Parts& p, const Context& c)
 namespace
 {
 
-// Each frame after the death's own reaches: the hands' modes kept up, the probes every few frames, the curl, and the
-// hands' (and a curl's feet's) reaches applied over the targets.
-void envFrame(State& s, const Parts& p, const Context& c, float t, za::Array<glm::vec3, ragdoll::maxBones>& spin)
+namespace
 {
-    Env& e = s.env;
-    const Death& d = s.death;
-    if(!e.started)
-    {
-        e.started = true;
-        e.floorSet = false;
-        e.on = vr_ragdoll_active_env.value != 0.f && d.on && !d.collapse && armLength(s, p) > 0.f;
-        e.seed = hash(static_cast<uint32_t>(c.num), static_cast<uint32_t>(s.begun * 72.0)) ^
-                 static_cast<uint32_t>(za::max(vr_ragdoll_active_seed.value, 0.f)) * 2246822519u;
-        e.baseAt = s.base;
-    }
-    if(!e.on)
-    {
-        return;
-    }
-    const glm::vec3 up{0.f, 0.f, 1.f};
-    const float L = armLength(s, p);
-    e.frame++;
-    const int chest = chestOf(p);
-    const glm::vec3 pelvis = glmv(b3Body_GetWorldCenter(p.body[0]));
-    const glm::vec3 chestAt = glmv(b3Body_GetWorldCenter(p.body[chest]));
-    const float m0 = b3Body_GetMass(p.body[0]), mc = b3Body_GetMass(p.body[chest]);
-    const glm::vec3 v = (glmv(b3Body_GetLinearVelocity(p.body[0])) * m0 + glmv(b3Body_GetLinearVelocity(p.body[chest])) * mc) /
-                        za::max(m0 + mc, 1e-3f);
-    const float speed = glm::length(v);
-    const glm::quat qc = bodyRot(p, chest);
-    const glm::vec3 front = qc * glm::vec3{1.f, 0.f, 0.f}, left = qc * glm::vec3{0.f, 1.f, 0.f};
-    // Done with what is round him: env off, crawling or rolling over (his own way), blasted (weaken), nothing to reach.
-    const bool off = vr_ragdoll_active_env.value == 0.f || L <= 0.f;
-    const bool done = off || d.crawlFrom >= 0.0 || d.rollFrom >= 0.0 || s.base < e.baseAt * 0.6f;
-    // (A living one's: its ledge's holds and its climb alone: livingLedge grabbed it.)
-    const bool brace = !done && !e.living && vr_ragdoll_active_env_brace.value != 0.f;
-    const bool lean = !done && !e.living && vr_ragdoll_active_env_lean.value != 0.f;
-    const bool ledge = !done && !e.living && vr_ragdoll_active_env_ledge.value != 0.f && c.ledges;
-    // (Another monster near a hand as he falls: by its chance, rolled once a death.)
-    const bool grab = !done && !e.living && e.grabs == 0 && (c.grabSure || roll(e.seed, 61u) < vr_ragdoll_active_grab.value);
-    // Each hand's mode kept up, or let go.
+
+// envFrame's working state, from phase to phase (envFrame below: its phases in order).
+struct EnvWork
+{
+    Env* e{nullptr};
+    const Death* d{nullptr};
+    glm::vec3 up{};
+    float L{};
+    int chest{};
+    glm::vec3 pelvis{};
+    glm::vec3 chestAt{};
+    float m0{};
+    float mc{};
+    glm::vec3 v{};
+    float speed{};
+    glm::vec3 front{};
+    glm::vec3 left{};
+    bool off{};
+    bool done{};
+    bool brace{};
+    bool lean{};
+    bool ledge{};
+    bool grab{};
+    float under{};
+};
+
+// Each hand's mode kept up, or let go.
+void envHands(EnvWork& wk, State& s, const Parts& p, const Context& c)
+{
+    Env& e = *wk.e;
+    const Death& d = *wk.d;
+    glm::vec3& up = wk.up;
+    float& L = wk.L;
+    int& chest = wk.chest;
+    glm::vec3& pelvis = wk.pelvis;
+    glm::vec3& chestAt = wk.chestAt;
+    float& m0 = wk.m0;
+    float& mc = wk.mc;
+    bool& off = wk.off;
+    bool& done = wk.done;
     for(int arm = 0; arm < 2; arm++)
     {
         EnvHand& h = e.hand[static_cast<za::SizeT>(arm)];
@@ -2393,8 +2394,26 @@ void envFrame(State& s, const Parts& p, const Context& c, float t, za::Array<glm
             }
         }
     }
-    // The floor under his pelvis (one query a frame: the sense's and the tumble's below).
-    const float under = c.floorBelow ? c.floorBelow(pelvis, 3.f * L) : -1e30f;
+}
+
+// The floor under his pelvis (one query a frame: the sense's and the tumble's below).
+void envSense(EnvWork& wk, State& s, const Parts& p, const Context& c, float t)
+{
+    Env& e = *wk.e;
+    glm::vec3& up = wk.up;
+    float& L = wk.L;
+    glm::vec3& pelvis = wk.pelvis;
+    glm::vec3& chestAt = wk.chestAt;
+    glm::vec3& v = wk.v;
+    float& speed = wk.speed;
+    glm::vec3& front = wk.front;
+    glm::vec3& left = wk.left;
+    bool& brace = wk.brace;
+    bool& lean = wk.lean;
+    bool& ledge = wk.ledge;
+    bool& grab = wk.grab;
+    float& under = wk.under;
+    under = c.floorBelow ? c.floorBelow(pelvis, 3.f * L) : -1e30f;
     if(!e.floorSet && under > -1e29f)
     {
         e.floorSet = true;
@@ -2470,7 +2489,18 @@ void envFrame(State& s, const Parts& p, const Context& c, float t, za::Array<glm
             findLedge(s, p, c, pelvis, chestAt, L);
         }
     }
-    // Tumbling (nothing to catch, nothing held): curled up, the arms in, the knees up.
+}
+
+// Tumbling (nothing to catch, nothing held): curled up, the arms in, the knees up.
+void envTumble(EnvWork& wk, const Parts& p, const Context& c, float t)
+{
+    Env& e = *wk.e;
+    float& L = wk.L;
+    int& chest = wk.chest;
+    glm::vec3& pelvis = wk.pelvis;
+    float& speed = wk.speed;
+    bool& brace = wk.brace;
+    float& under = wk.under;
     const glm::vec3 w = glmv(b3Body_GetAngularVelocity(p.body[chest]));
     bool busy = false;
     for(const EnvHand& h : e.hand)
@@ -2482,7 +2512,20 @@ void envFrame(State& s, const Parts& p, const Context& c, float t, za::Array<glm
     const float curlWant = brace && !busy && airborne && t > 0.3f && glm::length(w) > 5.f && speed > 2.f ? 0.8f : 0.f;
     e.curl += (curlWant - e.curl) * (1.f - za::exp(-c.dt / 0.15f));
     e.curl = e.curl < 0.01f && curlWant == 0.f ? 0.f : e.curl;
-    // The reaches: each hand's eased to what it wants, over the targets (the death's reach on that limb replaced).
+}
+
+// The reaches: each hand's eased to what it wants, over the targets (the death's reach on that limb replaced).
+void envReaches(EnvWork& wk, State& s, const Parts& p, const Context& c, za::Array<glm::vec3, ragdoll::maxBones>& spin)
+{
+    Env& e = *wk.e;
+    const Death& d = *wk.d;
+    glm::vec3& up = wk.up;
+    float& L = wk.L;
+    glm::vec3& pelvis = wk.pelvis;
+    glm::vec3& chestAt = wk.chestAt;
+    glm::vec3& front = wk.front;
+    glm::vec3& left = wk.left;
+    bool& done = wk.done;
     uint8_t reached = 0;
     const auto apply = [&](int limb, const glm::vec3& goal, float weight, float strength) {
         Reach& r = s.reach[static_cast<za::SizeT>(limb)];
@@ -2557,6 +2600,66 @@ void envFrame(State& s, const Parts& p, const Context& c, float t, za::Array<glm
         }
     }
     e.reached = reached;
+}
+
+} // namespace
+
+// Each frame after the death's own reaches: the hands' modes kept up, the probes every few frames, the curl, and the
+// hands' (and a curl's feet's) reaches applied over the targets.
+void envFrame(State& s, const Parts& p, const Context& c, float t, za::Array<glm::vec3, ragdoll::maxBones>& spin)
+{
+    EnvWork wk;
+    wk.e = &s.env;
+    Env& e = *wk.e;
+    wk.d = &s.death;
+    const Death& d = *wk.d;
+    if(!e.started)
+    {
+        e.started = true;
+        e.floorSet = false;
+        e.on = vr_ragdoll_active_env.value != 0.f && d.on && !d.collapse && armLength(s, p) > 0.f;
+        e.seed = hash(static_cast<uint32_t>(c.num), static_cast<uint32_t>(s.begun * 72.0)) ^
+                 static_cast<uint32_t>(za::max(vr_ragdoll_active_seed.value, 0.f)) * 2246822519u;
+        e.baseAt = s.base;
+    }
+    if(!e.on)
+    {
+        return;
+    }
+    wk.up = glm::vec3{0.f, 0.f, 1.f};
+    float& L = wk.L;
+    L = armLength(s, p);
+    e.frame++;
+    int& chest = wk.chest;
+    chest = chestOf(p);
+    wk.pelvis = glmv(b3Body_GetWorldCenter(p.body[0]));
+    wk.chestAt = glmv(b3Body_GetWorldCenter(p.body[chest]));
+    float& m0 = wk.m0;
+    m0 = b3Body_GetMass(p.body[0]);
+    float& mc = wk.mc;
+    mc = b3Body_GetMass(p.body[chest]);
+    glm::vec3& v = wk.v;
+    v = (glmv(b3Body_GetLinearVelocity(p.body[0])) * m0 + glmv(b3Body_GetLinearVelocity(p.body[chest])) * mc) /
+                        za::max(m0 + mc, 1e-3f);
+    wk.speed = glm::length(v);
+    const glm::quat qc = bodyRot(p, chest);
+    wk.front = qc * glm::vec3{1.f, 0.f, 0.f};
+    wk.left = qc * glm::vec3{0.f, 1.f, 0.f};
+    // Done with what is round him: env off, crawling or rolling over (his own way), blasted (weaken), nothing to reach.
+    bool& off = wk.off;
+    off = vr_ragdoll_active_env.value == 0.f || L <= 0.f;
+    bool& done = wk.done;
+    done = off || d.crawlFrom >= 0.0 || d.rollFrom >= 0.0 || s.base < e.baseAt * 0.6f;
+    // (A living one's: its ledge's holds and its climb alone: livingLedge grabbed it.)
+    wk.brace = !done && !e.living && vr_ragdoll_active_env_brace.value != 0.f;
+    wk.lean = !done && !e.living && vr_ragdoll_active_env_lean.value != 0.f;
+    wk.ledge = !done && !e.living && vr_ragdoll_active_env_ledge.value != 0.f && c.ledges;
+    // (Another monster near a hand as he falls: by its chance, rolled once a death.)
+    wk.grab = !done && !e.living && e.grabs == 0 && (c.grabSure || roll(e.seed, 61u) < vr_ragdoll_active_grab.value);
+    envHands(wk, s, p, c);
+    envSense(wk, s, p, c, t);
+    envTumble(wk, p, c, t);
+    envReaches(wk, s, p, c, spin);
 }
 
 void envEnd(State& s)
