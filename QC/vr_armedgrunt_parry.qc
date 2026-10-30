@@ -990,4 +990,38 @@ void(entity g, entity p) VR_AGPar_Pose =
     vr_agp_up = vr_agp_up - vr_agp_fw * (vr_agp_up * vr_agp_fw);
     vr_agp_up = vlen(vr_agp_up) > 0.01 ? normalize(vr_agp_up) : '0 0 1';
     vr_agp_wo = vr_agp_wo * (1 - w);
+    vr_agpar_mid = mid; // (VR_AGPar_Meet: the weapon put there after the pose's last word)
+    vr_agpar_mw = w;
+};
+
+// The parry pose's aim kept (agent/guardpose): its weapon, placed and turned by the whole pose (the targets above, then
+// the Pose Studio's keys, its body's turn, its arm's reach: VR_AGP_Pose), its middle shifted onto the middle the parry
+// aimed at (on the blow's way, VR_AGPar_Pose), across its own line only (where along its line its keys hold it stays):
+// the shift (body space, its share vr_agpar_mw; '0 0 0' none). The keys stay the pose's base, this the correction on
+// top, for every kind and weapon (a grunt's sword held 10 units to its right of the ogre's chainsaw's way: test 60).
+float VR_AGPAR_AIM_MAX = 16; // units: the most it moves its weapon
+vector(entity g, entity p) VR_AGPar_Meet =
+{
+    float w = vr_agpar_mw;
+    vr_agpar_mw = 0;
+    if(w <= 0 || !p)
+    {
+        return '0 0 0';
+    }
+    VR_AG_WeaponLine(p); // (its line as the game has it: as placed and turned this frame)
+    VR_AGP_Body(g);
+    vector wa = VR_AGP_ToLocal(vr_ag_wa - g.origin);
+    vector wb = VR_AGP_ToLocal(vr_ag_wb - g.origin);
+    vector err = vr_agpar_mid - (wa + wb) * 0.5;
+    vector ax = wb - wa;
+    if(vlen(ax) > 0.01)
+    {
+        ax = normalize(ax);
+        err = err - ax * (err * ax);
+    }
+    if(vlen(err) > VR_AGPAR_AIM_MAX)
+    {
+        err = normalize(err) * VR_AGPAR_AIM_MAX;
+    }
+    return err * w;
 };

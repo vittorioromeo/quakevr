@@ -87,6 +87,9 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_AGPar_Blo
 float(entity g) VR_AGPar_Guards;                                           // VR_Guard_Hand: it parries instead
 void(entity g) VR_AGPar_Frame;                                             // VR_AG_PropThink: a blow coming
 void(entity g, entity p) VR_AGPar_Pose;                                    // VR_AGP_Pose: the parry's pose
+vector vr_agpar_mid;       // ... its weapon's middle's target (body space), VR_AGPar_Pose's this pose
+float vr_agpar_mw;         // ... its share then (0: no parry pose this pose)
+vector(entity g, entity p) VR_AGPar_Meet;                                  // VR_AGP_Pose: its weapon put on that target
 float(entity g) VR_AGPar_WeaponFrame;                                      // VR_AG_WeaponStruck: a blow on its weapon
 // Its guard (vr_armedgrunt_guard.qc: the preventive parry, vr_agrunt_preparry, and the wind-up parry,
 // vr_agrunt_windup_parry): raised for a while before any blow, then dropped (a recovery: the opening).
