@@ -1878,6 +1878,95 @@ physgun get the shared throw smoothing; the haptic presets keep today's exact va
   a frame).
 - **Checklist:** pick up a box, a gib, a round, a grenade and a wall torch in either hand, swap and throw them, and
   load a save made while holding one: each is held and let go as before, no `handslot: mismatch` line in the console.
+## Design review 5 (c): the grab query (branch `agent/grabquery`)
+
+- **One vocabulary and one order (Quake/vr/vr_grab.hpp):** `grab::Kind`, numbered in precedence order (smaller takes
+  the grip): the client's ZoneDrag, ChainsawCord, Lamp; the server's Climb, Foe (before the move); the touch stage's
+  Ragdoll, Prop, Round, ArmedWeapon, Weapon, Box; W_Frame's SecondHand, Torch, GrenadePouch, AmmoPouch, Holster,
+  ForceCatch. `grab::Candidate {kind, ent, distance (units), priority()}`. The header lists each stage's search and how
+  it swallows or hides the grip for the stages after it: today's order, written down in one place.
+- **The touch stage (vr_physics.cpp):** `physics::handOn`'s if-chain is a table of providers (`touchProviders`: claims +
+  on), tried in order; the first that claims a thing decides (a Weapon with no jointed fist passes to the Box test, as
+  before). `grab::touch(target, player, hand)` returns the Candidate (the armed weapon's fist gap, a weapon's distance
+  from its handle); handOn is its bool.
+- **W_Frame's searches (QC/vr_grab.qc, VR_GRAB_* = the same numbers):** `VR_Grab_Query(hand, upTo)` asks the providers in
+  order: `VR_WallTorch_GrabCandidate`, `VR_HandGrenade_GrabCandidate`, `VR_Reload_GrabCandidate` (side-effect free;
+  `vr_grab_ent`, `vr_grab_dist`). Each site takes when `VR_Grab_Answers(hand, itsKind)`. The pouches' shared "empty to
+  take" test is one function (`VR_HandGrenade_PouchHandEmpty`, written out twice before).
+- **Debug:** `vr_debug_grab` (Debug > Log Grab Query, default 0): `grabquery: main hand, torch (light_torch_small_walltorch,
+  3.2 u)` per W_Frame take.
+- **Not folded (behaviour or timing would change):** climbing, the foe grab and the lamp stay where they run (before the
+  move, or on the client: moving them to one call point changes the hand positions they see); they are stages in the
+  table, not providers called from one place. SecondHand, the holster draw (inside DoHandImpl) and the force catch (the
+  flying thing's think) likewise. The other busy flags are not touched (the fold is the next step).
+- **Old against new (a check build, not committed):** the old handOn kept beside the touch query on every call, and each
+  W_Frame site's old test beside the query's answer, printed with vr_debug_grab; the console lines starting "grab"
+  collected over the covering cases: 0 differ: the touch query against the old handOn over at least 299,993 calls (28,895 on: counted at powers of two per run, so more), every W_Frame take (79 torch, 7 grenade pouch, 63 ammo pouch) answered alike by the query, 0 MISMATCH lines. (Calling both handOn versions in one frame twice notes the fist's probe,
+  so the check build's own behaviour is not the reference; the bool answers are.)
+- **Covering cases (scratch/refactor/baseline.tsv):** the check build's run (the new answers taking): as the baseline but melee_phase (flaky, (a)'s note), ragdoll_grab 18/1 (its known flake), grip_state (below), reload_front 33/1, reload_gunshape 23/1, reload 111/4 (one failure each, low-impact runs; the clean build's rerun was still going when this was written: scratch/grabcheck_final.txt)
+- **grip_state fails on origin/next too** (off hand: swap_gripped, shotgun_pump2, shotgun_anywhere "not held by a blade",
+  "the grips reset", "taken anywhere"; the same 6 lines with this branch stashed): baseline.tsv's PASS is older. Not this
+  branch's.
+- **Verified after merging origin/next (7683f75c3), the clean build:** the 36 covering cases (scratch/grabcheck_run.sh:
+  carry, held_over_props, weapon_catch, flash_grab, grip_gap, grip_state, ragdoll_grab/climb, prop_climb, judo,
+  walltorch_grab, every reload_*, the tug/disarm agrunt cases): 0 of 36 changed against baseline.tsv (ragdoll_grab 18/1,
+  its known flake; grip_state passes again on this next). Outside the baseline: foegrab/onehand_drag ALL PASS,
+  toolgun_physgun_ragdoll PASS. eval.sh: full 163/171, 9 differ from the baseline (its own spread: (a) saw 9-11), neck
+  snaps 6/6, shoulder charges 22/22, 0 false.
+- **A/B bench (scratch/grab_ab.sh, ThinLTO, A = 7683f75c3, B = this branch, ABBAABBA, run 1's warm-up gave no result):**
+  combat_48 cpu A 2.425/2.399/2.469 ms (2.431), B 2.475/2.421/2.433 (2.443, +0.5%) and one 2.834 outlier (p99 13.8: a
+  hitch); idle_e1m1 A 0.918/0.785/0.956, B 0.991/0.775/0.788: within noise. The per-frame change: W_Frame asks the
+  query at the torch site each frame (the torch provider stops at its grip test, as the old search did).
+- **Checklist:** grab a torch off its wall (near it, and closing the fist on the way), a grenade and a round from the
+  pouches, a box, a gun on the floor and in the air, an armed grunt's weapon and a ragdoll's limb: each taken as before.
+
+## Design review 5: the busy flags folded into the hand slot (branch `agent/grabquery`; his approved fold)
+
+- **The busy kinds (QC/vr_fields.qc):** after the carried kinds, `VR_HOLD_FOE` (an enemy held), `FLASHLIGHT`,
+  `SSGGRIP` (the second hand on a super shotgun), `MAGREHOLD` (still gripping the magazine it just seated), `TUG` (a
+  force grab's tug on a stuck axe; the axe in the new `.vr_hold_ent_main/off`). A busy hand carries nothing
+  (`.mainhand_held` stays world: the engine's carried-thing readers see nothing new). Writers (vr_carry.qc):
+  `VR_Hand_Busy(p, hand, kind, ent, why)` / `VR_Hand_Unbusy(p, hand, kind, why)` (only that kind); `VR_Hand_Release`
+  leaves a busy hand busy; `VR_Hand_Take` over a busy kind is told (`handslot: clash`, always; the foe grab's hand-over
+  takes the ragdoll over FOE, expected). The engine's two (`.vr_foegrab_hands`, `.vrbits0`'s `*_BUSY`) are read into
+  the slot at the top of PlayerPreThink (`VR_Hand_Derive`), before anything reads them; the frame's check
+  (`VR_Hand_Check`) ends a stale TUG/SSGGRIP (the axe no longer tugged by that hand, the gun no longer a super shotgun)
+  with a `handslot: stale` line.
+- **Flags gone:** `vr_mag_rehold`, `vr_ssg_held` (now kinds), `mainhand_wtgrip`/`offhand_wtgrip` with the torch's
+  `wt_gripper`/`wt_grip_*`, `VR_WallTorch_Gripped/SetGripped/Ungrip` and the pull-out branch: no writer had set the
+  grip on its wall since the immediate take (dead state); `vr_walltorch_pull` is no longer read (its tunable slider in
+  vr_tunables_rows.inc stays: removing it is his call). Readers now on the slot: `VR_FoeGrab_HandHolds`,
+  `VR_Melee_HoldsTorch` (pure moves: same answers), the force grab's flashlight test, `VR_Reload_SsgHit`, the magazine
+  pull's rehold. An old save's line for a removed field is skipped ("is not a field", developer only).
+- **Not folded:** `*_fgheldfoe` (a time: the force grab's pause after holding an enemy, not a busy state; its writer
+  reads the slot's FOE), `vr_gren_held` (on the grenade: its last tick's carry, an edge), `*_fglocked` (the force
+  grab's lock: the engine reads it, climb and the stats; VR_Hand_CanTake still asks it), the physgun (no QC state: the
+  toolgun is the hand's weapon, the drag the engine's), the C++ conjunction in vr_box3d_ragparts.cpp:498 (no C++
+  mirror of the kind yet).
+- **Callers whose answer changes:** VRIsHandEmpty (about 70 callers): none (a busy hand is still empty: it makes a fist,
+  grips a hotspot, steadies a gun; the super shotgun's own `holding` test needs that). `VR_Hand_CanTake` now refuses a
+  busy hand: the carry grab, the box's touch, a box's second hand (it already refused the flashlight), the ragdoll
+  grab: a hand holding an enemy, the flashlight, the super shotgun's fore-end, a just-seated magazine or an axe's tug
+  takes no box or limb now (before: it could). The foe grab's hand-over asks `VR_Hand_CanTakeFrom(.., VR_HOLD_FOE)`:
+  unchanged. Hand-written conjunctions now `VR_Hand_CanTake` (the point of the fold, one answer): the wall torch's grip
+  (adds the enemy, the flashlight, the fore-end, the magazine, the tug), the pouches' empty hand and the grenade catch
+  (they already refused the flashlight: adds the other four), the magazine pull (adds the flashlight, the enemy, the
+  fore-end, the tug). Kept as they were (his call): the force grab's start (empty and not the flashlight: a hand on
+  the fore-end or holding an enemy may still point one; the enemy has its fgheldfoe pause), items.qc's pickup (the
+  lock alone).
+- **Test:** `vr_pickup_test 7` (VR_SlotTest_Run in vr_axestick_test.qc, for the axe's fields): 16 passed, 0 failed (busy
+  empty but not taking, a release keeps it, unbusy by kind, stale fore-end and tug ended, the foe bit and the
+  flashlight bit through VR_Hand_Derive, the hand-over's exception, a tug start and end).
+- **Verified:** the covering cases (scratch/foldcheck_run.sh, 40: grabcheck's 36 plus fist_alert, parryinterrupt,
+  agrunt_2/33): 1 changed, reload 111/4 ("the ammo button from behind: 1 of 20 approaches", the same line in one of
+  (c)'s runs before the fold: a flake), agrunt_67 1/1 (listed flaky); no `handslot: clash/stale/mismatch` line in any
+  log. foegrab/onehand_drag ALL PASS, toolgun_physgun_ragdoll PASS. eval.sh full 163/171 as before the fold (differ
+  counts 10 and 17 on two runs of one build: event details, PASS -> PASS; necksnap 6/6, charges 22/22). No A/B: the
+  per-frame cost is two field reads and a compare a hand in PreThink and PostThink.
+- **Checklist:** hold the flashlight in one hand and grab a box, a pouch round and a wall torch with it: none taken
+  (the other hand takes them); the flashlight hand still punches. Grab a grunt, let it go, then grab a box with that
+  hand: taken. Two-hand the super shotgun, then reload it from the pouch with the fore-end hand (let go first): as
+  before. Seat a magazine and pull it straight out again without letting go (Release Seated Magazine off): as before.
 ## Sparse config: only what the player changed (branch `agent/sparsecfg`; design review proposal 1)
 
 His decision: forgotten defaults now reach players (yes).
@@ -2414,6 +2503,48 @@ Scope (his change): the armed **grunt** only (the enforcer's model already has a
   5-6 chance failures).
 - **Not done.** A corpse's pack is not torn off by hits (only taken, pulled, gibbed or landing hard); the pack doesn't
   shield the back from hits; its sound can't be heard headless.
+
+## Worn backpacks, round 2: no spin, grabbed off the living, toppling, damage pool (branch `agent/wornpack2`)
+
+His feedback (items 1-6) and the coordinator's follow-up (damage pool, flame/poison/explosions, gibbing).
+- **No spin.** The worn pack kept backpack.mdl's EF_ROTATE: the client overwrote its yaw every frame. The engine now
+  reads the pack's `vr_wp_state` (new QVR_FIELD) and sends U_QVR_NOROTATE while it is worn (1 living, 2 dead); torn off
+  it is the dropped item as before (a rigid body, no spin either). A dead one's pack lost Backpack_Setup's lying
+  `model_offset` (it was drawn off the back). Eyeshot (`scratch/wornpack/spin_before.png`, vr_wornpack_test 2): upright
+  on the back, behind and side on. Test: yaw 0.5 off its wearer's, pitch 0.8, roll 0.
+- **Its box.** The entity's size is now the level box round the turned model box (`limbpiece(g, 0, 23)`: 13 x 13 x 15
+  units at scale 0.6) instead of a 20-unit cube round its diagonal. Shots and projectiles (MOVE_HITMODEL) meet a living
+  wearer's pack at its model box as posed (`box3d::wornPackSegment` in VR_HitModelClip), the monster hit there; a shot
+  counts on the pack within 0.1 unit of its box (blows, throws, projectiles 3). Test: 29 lines across it from behind:
+  9 inside met it, 18 outside never did, 0 wrong.
+- **Grabbed off the living** (`vr_worn_backpack_tug` 1). A fist on a living wearer's pack takes the pack as a foegrab
+  hold (vr_foegrab.cpp `takePack`; the pack before the body): the palm is put on the pack's nearest face (its middle a
+  palm's sphere off it) and carried with the pack as the body is posed, so the drawn hand lies on the pack (item 5). It
+  doesn't drag the grunt (it stands its ground), never lets go by stretch below 4x vr_foegrab_break, and wakes it
+  (VR_FoeGrab_Taken: spotted). QC `VR_WP_Tug`: each hand's stretch (`ragdollbone` QVR_WORNPACK what 5) from
+  `vr_worn_backpack_tug_stretch` 10 cm counts, harder sooner, `vr_worn_backpack_tug_time` 0.6 s of it tears the pack
+  into the main hand (what 6 ends the holds, the grips the QC's at once). Test: 0.5 m/s, one hand 0.54 s, palm 3.5 cm
+  off the box throughout.
+- **Two hands** (`vr_worn_backpack_two_hand_mult` 1.5): their pulls added, times it; also for a ragdoll held by the
+  pack. Test: 0.22 s against one hand's 0.54 s.
+- **Topple** (`vr_worn_backpack_topple` 1, `_topple_push` 0.8; a ragdoll trigger): torn off a living one by a pull, it is
+  knocked down as a shove knocks it (VR_Knockdown_Start, ragdollshovetopple) along the hands' travel since they took
+  hold (`limbpiece(g, pnum, 24)`: not the spot's swing as it turns). Test: along the pull, dot 1.00 (one and two hands).
+- **Damage pool** (`vr_worn_backpack_pool` 25): a living one's pack tears off once it took that much: hits located on it,
+  `_pool_blast` 1 of an explosion's damage anywhere, `_pool_fire` 1 of fire's (vr_adflame, vr_burn); never poison
+  (vr_adpoison, poison puffs). A hit on it spots the attacker. The per-hit chance is kept as `vr_worn_backpack_hit_roll`
+  0 (renamed from `_hit_chance` 0.35 so his saved 0.35 doesn't stay on). Rip volume: `vr_worn_backpack_volume` (as
+  before). Gibbing tears it off (as before; now tested). Test: hit 15 (12 x the zone's factor), blast +8, poison +0,
+  fire: 33 of 30, torn ("fire").
+- **Menu** (Combat > Armed Grunts > Worn Backpacks): Damage That Tears It, Explosions' Share, Fire's Share, Extra Hit
+  Chance; Tearing It Off a Living One: Grab the Pack, Pull That Counts, Pull Time, Two-Hand Pull, Tearing Topples It,
+  Topple Push.
+- **Test** `vr_wornpack_test 1`: **39 passed, 0 failed** (was 17). Not done: the walk-cycle placement check (the posed
+  pack checked standing only), the flag-off covering cases (foegrab, hitmodel tests) not rerun.
+- **Checklist**: grab a living grunt's backpack from behind and pull back: it turns on you, the pack tears off into
+  your hand after about half a second and the grunt falls towards you; with both hands sooner. Your hand stays on the
+  pack while you pull. Shoot just beside a grunt's pack: no rip; shoot the pack a few times, or hit it with a rocket's
+  blast or the flamethrower: it rips off; the poison sprayer never. Packs on living and dead grunts don't spin.
 ## Backpacks' hit box (branch `agent/bpfix`)
 
 - **His report**: "backpacks dropped by enemies have a much larger hitbox than expected against player projectiles (e.g.
@@ -2705,6 +2836,50 @@ Regression test: `Misc/quakevr/bodytrack_solve_test.sh <agent> [--update]`: 300 
 quakevr/scenarios/bodytrack/solve_ref.csv (0.5 units per joint, 0.02 per weight); verdict line
 `bodytrack_solve: N passed, M failed`.
 
+## His tweaks of 2026-10-30 as defaults (branch `agent/promote1030`)
+
+His "I've tweaked many values, please make them the defaults." Source: his `quakevr/ironwail.cfg` of 2026-10-30
+(sparse, configVersion 218; no `tunables.cfg`: no tuning constant changed). The game loaded the defaults, then a copy
+of his config, and `vr_config_test dumpfull` wrote each (23,072 settings): 219 vr_ settings differed. The full list,
+promoted / personal / doubtful: the kit's `scratch/promote_1030.md`.
+
+- **Promoted** (an edit of each default; no defaultChanges row, as the sparse config wants): 38 settings in
+  vr_cvars.inc (armed grunts' armour, tug, strafe turn, parry disarm, replacement chances; ammo low fraction and pouch;
+  every gun-smoke, spark and wisp setting; relight AO 1.2 and bounce on; the revolver's rod and spin; shore foam; the
+  worn backpack's rip force); 100 weapon slot values in vr_weapons.inc (recoil cm / deg / s of 27 slots and 18 Haptic
+  Punch, the revolver's flash and tracers, the AD stream gun's rumble and shake, the nailgun's third hotspot, the nail
+  pistol's two-handed mode and text panel, the AD plasma gun's text panel, the Widowmaker's stock pitch; five of them
+  on the slot's QVR_WEAPON_UNINHERITED line, which is read last and wins); the armed humanoids' 120 pose keys, 16 IK
+  stretch rows and 3 grips (pose_defaults.py --cfg --write).
+- **Weapon grips** had no default table since Refactor C1 (pose_defaults.py stopped at it): vr_aggrip.cpp `defaults[]`
+  again ({kind, weapon id, hand, ...}; `defaultOf` finds a weapon's row, on top of its kind's Every Weapon one;
+  `vr_agrunt_grip_dump all` prints them). His two: the grunt's crossbow and the enforcer's chainsaw, second hand.
+- **Recoil of a config before vr_wofs_version 74:** a slot whose old recoil was the shipped one of then (and the
+  globals 1.5 / 4) now keeps today's defaults (his) instead of its old feel converted (`takeRecoilUnits74`), as a
+  setting left alone does; a changed slot converts as before.
+- **Not promoted:** personal (body, calibration, elbow, tracker, his avatar's hands, nails, gloves and voice, toolgun
+  and its holsters, rig studio, recording, voice notes, foveation, spectator and window view, XR runtime, menu state);
+  doubtful, for him: vr_ad_upgrades 2, vr_agrunt_repl 1, vr_worn_backpacks 1 (feature switches for every map),
+  vr_reload_mode_revolver 3, vr_relight_minlight 64, vr_relight_reload 1, vr_ghost_hands 1 (fade 9),
+  vr_autosave_list_all 1, his six held-object slots with only an ID (they act as no slot), and float noise
+  (muzzle_x/z_01, w_com_35/50).
+- **Checks:** build 0 warnings; his config loaded before and after: all 23,072 values the same (0 differ); the
+  defaults now differ from his in 81 settings, all of them the skipped ones; his 120 pose keys equal the shipped rows
+  (to 0.005). config_sparse_test 16/0 (the default config and his). vr_recoil_test: the conversion checks now count
+  27 slots at his values and check the conversion's curve on the converted values (not the defaults); a converted
+  slot at the shipped recoil of then must hold today's defaults; the stream check takes slot 30's 1.25 / 1.75:
+  69/0 (it was 65/4 before those changes). tunables_test 20/0. Full baseline (`run_baseline.sh harness --no-bench`)
+  against baseline.tsv: recoil as said; nail_1 7/0 -> 11/0 and np_1 21/0 -> 35/0 (checks added on next since the
+  baseline; nail_1 8/3 once in a loaded lane, 11/0 alone); agrunt_31, 36, 65 FAIL -> PASS (rerun: the same); reload
+  111/4 once, 112/3 on the rerun (as the baseline); agrunt_76 (Aim Behind Cover) 25/0, 24/1, 22/3, 23/2 over four
+  runs, a different gun and cover failing each time (a few shots a case: noise); the other flaky ones as the run
+  listed them.
+
+Checklist:
+- Fire every gun: recoil, smoke, sparks and wisps as you had them (shotgun 10 cm / 12 deg, revolver 14.6 / 21.9).
+- Armed grunts (Combat > Armed Grunts): poses, grips (the crossbow's and the chainsaw's second hand), armour and tug as
+  you left them, with your own vr_agrunt_poses / grips / ik_stretch cleared (they now equal the defaults).
+- Relit maps: AO 1.2 and bounced light by default.
 ## Kick cancel in the poses; two-handed recoil; no ghost hands from recoil (branch `agent/recoil2h`)
 
 His words: the starter shotgun's new recoil "seems jittery" (frames still moving it); the grenade launcher "also seems to

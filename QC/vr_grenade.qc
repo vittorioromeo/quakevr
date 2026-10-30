@@ -605,8 +605,7 @@ float(float xHand, entity b) VR_Grenade_HandCatches =
     {
         return FALSE;
     }
-    if(VR_Melee_Thing(self, xHand) != VR_MTHING_FIST || !VRIsHandEmpty(self, xHand) ||
-       VR_Melee_HoldsTorch(self, xHand) || VR_Forcegrab_IsHandBusy(self, xHand))
+    if(VR_Melee_Thing(self, xHand) != VR_MTHING_FIST || !VR_Hand_CanTake(self, xHand))
     {
         return FALSE;
     }
@@ -1248,6 +1247,28 @@ void() VR_HandGrenade_LevelEnd =
     }
 };
 
+// Whether `p`'s hand `xHand` is empty to take from a pouch: it may take (VR_Hand_CanTake: nothing in it, not busy, no
+// force grab), not climbing.
+float(entity p, float xHand) VR_HandGrenade_PouchHandEmpty =
+{
+    float climbing = VRHasBit(p.vrbits0, xHand == cVR_MainHand ? QVR_VRBITS0_MAINHAND_CLIMBING :
+                                                                 QVR_VRBITS0_OFFHAND_CLIMBING);
+    return VR_Hand_CanTake(p, xHand) && !climbing;
+};
+
+// The grab query's grenade pouch (vr_grab.qc; self is the player): an empty hand at the pouch, its grip just pressed
+// (once a press: vr_pouch_tried).
+float(float xHand) VR_HandGrenade_GrabCandidate =
+{
+    float bit = xHand == cVR_MainHand ? 2 : 1;
+    if(self.health <= 0 || !VR_HandGrenade_AtPouch(self, xHand) || !self.ishuman || (!deathmatch && time < readytime))
+    {
+        return FALSE;
+    }
+    return VR_HandGrenade_PouchHandEmpty(self, xHand) && VR_HandGrabUtil_StartedHandGrabbing(self, xHand) &&
+           !(self.vr_pouch_tried & bit);
+};
+
 // Every player frame, for `xHand` of self (W_Frame, before the weapons' hands: DoHandImpl): at the grenade pouch, a
 // tap as the hand arrives (with a grenade to take, or an unarmed one to put back), and a grip pressed there by an empty
 // hand takes a grenade (VR_HandGrenade_Take; a multi-grenade with the hand's B/Y held).
@@ -1273,10 +1294,7 @@ void(float xHand) VR_HandGrenade_HandFrame =
     {
         return;
     }
-    float climbing = VRHasBit(self.vrbits0, xHand == cVR_MainHand ? QVR_VRBITS0_MAINHAND_CLIMBING :
-                                                                    QVR_VRBITS0_OFFHAND_CLIMBING);
-    float emptyHand = VRIsHandEmpty(self, xHand) &&
-                      !VR_Melee_HoldsTorch(self, xHand) && !VR_Forcegrab_IsHandBusy(self, xHand) && !climbing;
+    float emptyHand = VR_HandGrenade_PouchHandEmpty(self, xHand);
     if(!was)
     {
         entity held = VR_Carry_Held(self, xHand);
@@ -1289,7 +1307,7 @@ void(float xHand) VR_HandGrenade_HandFrame =
             VR_HandGrenade_Haptic(self, xHand, 0.04, 160, 0.35); // (to put it back)
         }
     }
-    if(emptyHand && VR_HandGrabUtil_StartedHandGrabbing(self, xHand) && !(self.vr_pouch_tried & bit))
+    if(VR_Grab_Answers(xHand, VR_GRAB_GRENADE_POUCH))
     {
         self.vr_pouch_tried = self.vr_pouch_tried | bit;
         VR_HandGrenade_Take(xHand);

@@ -145,6 +145,14 @@ Shotgun, super shotgun and rocket launcher fire with the gun's body perfectly st
 Grenade launcher, proximity gun and multi grenade launcher: nothing on them moves when firing; the ammo screen never goes into the gun.
 Two-Handed Recoil 0.6 (Weapon Effects; per gun in Weapon Offsets > Effects): a two-handed shot kicks less, settles sooner and punches lighter; at 1 it matches one-handed.
 Ghost Hands on: shooting shows no ghost ("No Ghost from Recoil" off shows it flash with each shot).
+Worn Backpacks on: grab a living grunt's backpack from behind and pull back: it turns on you, the pack tears into your hand in about half a second and the grunt falls towards you; with both hands it's sooner; your hand stays on the pack while you pull.
+Worn Backpacks on: shoot just beside a grunt's pack: it stays on; shoot the pack a few times, or catch it in a rocket blast or the flamethrower: it rips off; the poison sprayer never rips it.
+Worn Backpacks on: packs on living and dead grunts don't spin.
+Hold the flashlight in one hand and try a box, a pouch round and a wall torch with it: none is taken (the other hand takes them); the flashlight hand still punches.
+Grab a grunt, let go, then grab a box with that hand: taken; ragdoll hand-over from a foe-grab throw as before.
+Two-hand the SSG, let go with the fore-end hand, reload it from the pouch: as before; seat a magazine and pull it straight back out without letting go (Release Seated Magazine off): as before.
+Grab a wall torch, a pouch item, a box, guns and limbs: each taken as before (one grab query now); no "handslot:" line in the console.
+Your tweaks are now the defaults: fire every gun (recoil, haptic punch, gunfire smoke/sparks/wisps as you set them), check armed grunts' poses and grips, and a relit map; everything should look and feel as in your last session.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns

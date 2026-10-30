@@ -65,7 +65,7 @@
 .float vr_mag_pull_apart1; // the main hand's
 .float vr_mag_seated0;     // when the off hand's gun last had a magazine seated (no hit knocks it out just after)
 .float vr_mag_seated1;     // the main hand's gun's
-.float vr_mag_rehold;     // hands that just seated the magazine they held and still grip (1 off, 2 main): they hold it at
+// (A hand that just seated the magazine it held and still grips: the hand slot's VR_HOLD_MAGREHOLD.) It holds it at
                          // once, no fresh grip needed (VR_Reload_MagFrame; the author's note: pulled out, put back in
                          // without letting go, it wouldn't pull out again). Only with vr_reload_mag_release 0: by
                          // default the magazine leaves the hand as it seats (a hand moving on to the foregrip still
@@ -94,7 +94,7 @@
 .float vr_ssg_toggled_main; // and the main hand's (each its own: two of them flicked at once both toggle)
 .float vr_ssg_pry;       // and the other hand's (the pry or the lift, sent so by the engine), as each gun hand saw them
 .float vr_ssg_sec;       // and its B/Y
-.float vr_ssg_held;      // both hands on the hand's super shotgun (the two-handed hold, until the other hand lets go)
+// (Both hands on a super shotgun, the two-handed hold until the other hand lets go: that hand's slot VR_HOLD_SSGGRIP.)
 .float vr_ssg_loaded;    // when a shell last went into a super shotgun of the player's (its hand drawing back is no hit)
 .float vr_ssg_fired;     // when a super shotgun of the player's last fired (the log: how soon after it it broke open)
 
@@ -949,7 +949,7 @@ void(float xGunHand, entity r, float xHeld) VR_Reload_SeatMagInto =
         // (Release Seated Magazine off: the hand still gripping holds it on; on, it lets go: a fresh grip pulls it out.)
         if(!cvar_hget(cvarh_vr_reload_mag_release))
         {
-            self.vr_mag_rehold = self.vr_mag_rehold | (xHand == cVR_MainHand ? 2 : 1);
+            VR_Hand_Busy(self, xHand, VR_HOLD_MAGREHOLD, world, "seated");
         }
     }
     VR_Reload_Haptic(self, gunHand, 0.1, 60, 0.9);
@@ -1562,7 +1562,8 @@ void(float xHand) VR_Reload_MagFrame =
     if(self.health <= 0 || !self.ishuman)
     {
         self.vr_mag_pull = 0;
-        self.vr_mag_rehold = 0;
+        VR_Hand_Unbusy(self, cVR_OffHand, VR_HOLD_MAGREHOLD, "dead");
+        VR_Hand_Unbusy(self, cVR_MainHand, VR_HOLD_MAGREHOLD, "dead");
         return;
     }
     if(sec && !secWas && cvar_hget(cvarh_vr_reload_eject_button) && VR_Reload_MagIn(self, xHand))
@@ -1578,8 +1579,8 @@ void(float xHand) VR_Reload_MagFrame =
 
     float gunHand = VRGetOtherHand(xHand);
     float grabbing = VR_HandGrabUtil_IsHandGrabbing(self, xHand);
-    float rehold = (self.vr_mag_rehold & bit) != 0;
-    self.vr_mag_rehold = self.vr_mag_rehold - (self.vr_mag_rehold & bit);
+    float rehold = VR_Hand_Kind(self, xHand) == VR_HOLD_MAGREHOLD;
+    VR_Hand_Unbusy(self, xHand, VR_HOLD_MAGREHOLD, "pull frame");
     // (The nail pistol's magazine comes out only by its eject button: vr_nailpistol_mag_pull 0, his note 2026-10-29.)
     if(!grabbing || !VR_Reload_MagIn(self, gunHand) ||
        (VRGetEntWeapon(self, gunHand) == WID_NAILPISTOL && !cvar_hget(cvarh_vr_nailpistol_mag_pull)))
@@ -1596,8 +1597,7 @@ void(float xHand) VR_Reload_MagFrame =
                        ? VR_HAND_FIELD(self, xHand, mainhand_hotspot, offhand_hotspot) == QVR_HS_MAGAZINE
                        : VR_Reload_MagDist(self, gunHand, VRGetEntHandPos(self, xHand)) <= cvar_hget(cvarh_vr_reload_pull_reach);
         // (Or the hand still gripping the magazine it just seated: it holds it on, to pull out again.)
-        if(((VR_HandGrabUtil_StartedHandGrabbing(self, xHand) && on) || rehold) && VRIsHandEmpty(self, xHand) &&
-           !VR_Forcegrab_IsHandBusy(self, xHand))
+        if(((VR_HandGrabUtil_StartedHandGrabbing(self, xHand) && on) || rehold) && VR_Hand_CanTake(self, xHand))
         {
             self.vr_mag_pull = self.vr_mag_pull | bit;
             if(xHand == cVR_MainHand)
@@ -1750,7 +1750,7 @@ vector(entity r) VR_Reload_RoundRef;
 float(float xGunHand, float xSide) VR_Reload_SsgHit =
 {
     float other = VRGetOtherHand(xGunHand);
-    if(self.vr_ssg_held & (xGunHand == cVR_MainHand ? 2 : 1))
+    if(VR_Hand_Kind(self, other) == VR_HOLD_SSGGRIP)
     {
         return FALSE;
     }
@@ -1864,16 +1864,16 @@ void(float xHand) VR_Reload_SsgFrame =
     float f = VRGetEntWeaponFlags(self, xHand);
     if(!VR_Reload_SsgBreaks(self, xHand) || self.health <= 0 || !self.ishuman || (f & QVR_WPNFLAG_FOREGRIP_CARRIED))
     {
-        self.vr_ssg_held = self.vr_ssg_held - (self.vr_ssg_held & bit);
+        VR_Hand_Unbusy(self, other, VR_HOLD_SSGGRIP, "ssg");
         return;
     }
     if(holding && VRGet2HAiming(self))
     {
-        self.vr_ssg_held = self.vr_ssg_held | bit;
+        VR_Hand_Busy(self, other, VR_HOLD_SSGGRIP, world, "ssg");
     }
     else if(!holding)
     {
-        self.vr_ssg_held = self.vr_ssg_held - (self.vr_ssg_held & bit);
+        VR_Hand_Unbusy(self, other, VR_HOLD_SSGGRIP, "ssg");
     }
     float toggled = VR_HAND_FIELD(self, xHand, vr_ssg_toggled_main, vr_ssg_toggled);
     if(time < toggled + 0.35)
@@ -1941,6 +1941,20 @@ void(float xHand) VR_Reload_SsgFrame =
 void(float xHand) VR_Reload_LooseFrame;
 void(float xHand) VR_Reload_PouchFrame;
 
+// The grab query's ammo pouch (vr_grab.qc; self is the player): an empty hand at the pouch (immersive reloads: a kind it
+// gives the other hand's gun), its grip just pressed (once a press: vr_reload_tried).
+float(float xHand) VR_Reload_GrabCandidate =
+{
+    float bit = xHand == cVR_MainHand ? 2 : 1;
+    if(!VR_Reload_AtPouch(self, xHand) || self.health <= 0 || !self.ishuman || (!deathmatch && time < readytime))
+    {
+        return FALSE;
+    }
+    float aid = VR_Reload_Immersive() ? VR_Reload_PouchKind(xHand) : -1;
+    return VR_HandGrenade_PouchHandEmpty(self, xHand) && aid >= 0 && VR_HandGrabUtil_StartedHandGrabbing(self, xHand) &&
+           !(self.vr_reload_tried & bit);
+};
+
 void(float xHand) VR_Reload_HandFrame =
 {
     float bit = xHand == cVR_MainHand ? 2 : 1;
@@ -1963,10 +1977,7 @@ void(float xHand) VR_Reload_HandFrame =
     {
         return;
     }
-    float climbing = VRHasBit(self.vrbits0, xHand == cVR_MainHand ? QVR_VRBITS0_MAINHAND_CLIMBING :
-                                                                    QVR_VRBITS0_OFFHAND_CLIMBING);
-    float emptyHand = VRIsHandEmpty(self, xHand) &&
-                      !VR_Melee_HoldsTorch(self, xHand) && !VR_Forcegrab_IsHandBusy(self, xHand) && !climbing;
+    float emptyHand = VR_HandGrenade_PouchHandEmpty(self, xHand);
     float aid = VR_Reload_Immersive() ? VR_Reload_PouchKind(xHand) : -1;
     if(!was)
     {
@@ -1980,7 +1991,7 @@ void(float xHand) VR_Reload_HandFrame =
             VR_Reload_Haptic(self, xHand, 0.04, 160, 0.35); // (to put it back)
         }
     }
-    if(emptyHand && aid >= 0 && VR_HandGrabUtil_StartedHandGrabbing(self, xHand) && !(self.vr_reload_tried & bit))
+    if(VR_Grab_Answers(xHand, VR_GRAB_AMMO_POUCH))
     {
         self.vr_reload_tried = self.vr_reload_tried | bit;
         VR_Reload_Take(xHand);
