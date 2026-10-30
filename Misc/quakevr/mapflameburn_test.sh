@@ -13,7 +13,7 @@ run_case() {
  prefix='vr_fixed_frames 1; developer 1; vr_debug_shots 1; vr_weapon_grip_mode 1; vr_body_collide 0; vr_burn_self 1; vr_burn_self_time 0.6; vr_burn_touch 1; vr_burn_drop 1; vr_walltorch 1; vr_mock_hand main 0.1 1.2 -0.35 70 0 0; vr_mock_hand off -0.1 1.2 -0.35 70 0 0'
  script="$prefix; $before; map e1m2; wait60; notarget; impulse 150; wait5; echo CASE_$label; $body; toggleconsole; quit"
  bash C:/OHWorkspace/qvr-kit/run.sh "$name" -Script "$script" -Filter 'CASE_|CHECK_|burning: map|burning: your torch|burning: player burns|walltorch grip result|taken immediately|burning: test 7|health |ENGINE|[Ee]rror' -Timeout 120 -ExtraArgs '-nomapindex -noaddons' > "scratch/mapflameburn-results/$label.stdout"
- cp C:/OHWorkspace/qvr-kit/bases/$name/qbase/qconsole.log "scratch/mapflameburn-results/$label.log"
+ cp C:/OHWorkspace/qvr-kit/bases/$name/qbase${QVR_LANE:+.lane$QVR_LANE}/qconsole.log "scratch/mapflameburn-results/$label.log"
  python - "$label" <<'PY'
 from pathlib import Path
 import sys,re

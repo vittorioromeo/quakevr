@@ -13,7 +13,7 @@ check() { if [ "$1" = "1" ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; f
 mkdir -p "$W/scratch"
 printf '0.000 main 0.00 1.15 -0.20 0 0 0\n0.300 main 0.00 1.15 -0.20 0 0 0\n0.450 main 0.00 1.15 -1.00 0 0 0\n1.200 main 0.00 1.15 -1.00 0 0 0\n' > "$W/scratch/qvr_alert_punch.txt"
 P=$(cd "$W/scratch" && pwd -W 2>/dev/null || pwd)/qvr_alert_punch.txt
-hostile() { awk 'BEGIN{RS="}"} /"classname" "player"/' "$W/quakevr/$1.sav" | grep -E '"show_hostile"' | sed -E 's/.*"([0-9.]+)"/\1/'; }
+hostile() { awk 'BEGIN{RS="}"} /"classname" "player"/' "$KIT/bases/$AGENT/qbase${QVR_LANE:+.lane$QVR_LANE}/quakevr/$1.sav" | grep -E '"show_hostile"' | sed -E 's/.*"([0-9.]+)"/\1/'; }
 S="vr_fixed_frames 1;vr_fixed_frames_rate 90;map e1m1;wait60;notarget;vr_mock_hand main 0.00 1.15 -0.20 0 0 0;wait5"
 S="$S;+grabmain;vr_mock_button main grip 1;vr_mock_button main trigger 1;+attack;wait30;save qvr_alert_close"
 S="$S;vr_mock_play $P;wait150;save qvr_alert_punch;-attack;vr_mock_button main trigger 0;vr_mock_button main grip 0;-grabmain;wait10"

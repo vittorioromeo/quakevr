@@ -17,7 +17,7 @@ D=$(cd "$W/scratch/swimsnd" && pwd -W 2>/dev/null || pwd)
 # An open main hand swung across the body, right to left, 0.7 m in 0.12 s (about 6 m/s); a closed fist punched ahead.
 printf '0.000 main 0.40 1.05 -0.35 -20 0 0\n0.300 main 0.40 1.05 -0.35 -20 0 0\n0.420 main -0.30 1.05 -0.35 -20 0 0\n1.000 main -0.30 1.05 -0.35 -20 0 0\n' > "$D/slap.txt"
 printf '0.000 main 0.20 1.05 -0.20 0 0 0\n0.300 main 0.20 1.05 -0.20 0 0 0\n0.450 main 0.20 1.05 -1.00 0 0 0\n1.200 main 0.20 1.05 -1.00 0 0 0\n' > "$D/punch.txt"
-hostile() { awk 'BEGIN{RS="}"} /"classname" "player"/' "$W/quakevr/$1.sav" | grep -E '"show_hostile"' | sed -E 's/.*"([0-9.]+)"/\1/'; }
+hostile() { awk 'BEGIN{RS="}"} /"classname" "player"/' "$KIT/bases/$AGENT/qbase${QVR_LANE:+.lane$QVR_LANE}/quakevr/$1.sav" | grep -E '"show_hostile"' | sed -E 's/.*"([0-9.]+)"/\1/'; }
 S="vr_fixed_frames 1;vr_fixed_frames_rate 90;map vrfiringrange;wait60;god;notarget;developer 2;wait5"
 S="$S;echo PHASE dry;vr_mock_play $D/slap.txt;wait120;save qvr_swim_dry"
 S="$S;sv_gravity 0;setpos 370 474 -180 0 0 0;noclip;vr_swim_stick_speed 0.001;vr_mock_stick off 0 1;wait90"

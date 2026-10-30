@@ -276,7 +276,7 @@ PY=${PY:-py -3.13}
 check $($PY Misc/quakevr/reload/ssg_checks.py ring | grep -q "ring barrels [1-9][0-9]* frame 0" && echo 1 || echo 0) "the rear sight's ring is on the barrels part (it swings open with them), none on the frame"
 # The sights' colour: recoloured (the player's hue) on the super shotgun shut, fired, open and shut again, and on the
 # shotgun's auto pump's parts (its fore-end held back), as on the gun itself.
-SHOTS=C:/OHWorkspace/qvr-kit/bases/$AGENT/qbase/quakevr/screenshots
+SHOTS=C:/OHWorkspace/qvr-kit/bases/$AGENT/qbase${QVR_LANE:+.lane$QVR_LANE}/quakevr/screenshots
 SEE="vr_weapon_screen 0;vr_shells 0;r_particles 0;vr_muzzle_flash 0;vr_mock_hand off -0.1 1.3 -0.5 0 0 0;vr_mock_hand main 0.45 0.9 -0.1 0 0 0;vr_shot_hide 5;vr_mock_camera 0.35 1.38 -0.62 8 90;wait20"
 tb_run_sh -Clean -Script "${SSG/vr_reload_debug 1/vr_reload_debug 0};$SEE;screenshot;$FIRE;screenshot;$FLICK;screenshot;$FLICK;screenshot;toggleconsole;quit" -Filter "^x" > /dev/null 2>&1
 s1=$($PY Misc/quakevr/reload/ssg_checks.py sights $(ls -tr $SHOTS/*.png | tail -4))
