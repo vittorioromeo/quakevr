@@ -823,3 +823,44 @@ on builds that have it, reads only the log's new lines every 0.1 s and ends the 
 
 Left: the lane-0 scripts made lane-aware (their log path from the lane, testbatch's copies `qbase.lane<k>.<n>`),
 which would bring the wall time near the free cases' ~5-10 min; exclusive runs that don't drain behind long runs.
+
+## Refactor wave C1: the armed humanoids' old arms gone (branch `agent/refarms`)
+
+His D1/D7/D8 answers (scratch TRIAGE.md, 2026-10-29) for the armed humanoids. About 2200 lines gone, no new behaviour.
+
+- **D1, the vr_agarms 0 path removed.** The animation's arms bent onto the weapons and the rigid arm pieces
+  (`vr_hitreact.cpp`: findLeftHand, solveArm, armsNow, misfit, reachIn, ArmModel and its pieces, solveArmPiece,
+  relinkRigid, the hands' HandFit and the arm numbers it fed), `vr_animsmooth.cpp`'s piece and hand rows, the alias
+  shader's `RigKickOrPiece` (now `RigKick` alone), `vr_agrunt_ik_info` and `vr_agrunt_grip_fit` (the rigid solve's;
+  its Grip Editor button), the old per-weapon grip seeds (`vr_aggrip.cpp defaults`: used only with vr_agarms 0;
+  `vr_agrunt_grip_dump all` prints the global defaults now), QC's `VR_AG_PlacePropOld`. `relinkArms` and `boneTurns`
+  keep the skinned path only; `vr_agrunt_ik_err` prints the posed arms' numbers (`agarms::printErr`), `agprop`, `agrag`.
+- **The posed arms' switches' old sides gone:** vr_agarms_body, _second_hold, _reach_ease, _jump_ease, _aim_line,
+  _second_release, _shoulder_skin, _limits (the cone and twist stay: cone 0 turns the limits off), _arm_clear (QC's
+  carry too), _cup_handle; vr_rig2_arm_limits (the authored rig's limits never clamp the arms). The numeric tunings
+  stay (vr_agarms_elbow_rate, _wrist, _second, _shoulder_cone ...).
+- **Retired** (retiredCvars): vr_agarms, vr_agrunt_ik_rigid, _ik_hands, _ik_wrist, _ik_twist, _ik_elbow, _ik_second,
+  _ik_drawn, _ik_misfit, _ik_reach (the last two only tuned the old path), the vr_agarms_* switches above,
+  vr_rig2_clavicle, vr_rig2_arm_clear, vr_rig2_arm_limits. Debug menu rows gone: Shoulder Skin, Shoulder Limits, Upper
+  Arm Clear, Cup Handles; Automation: Posed Arms; Gameplay's Grip Editor: Fit Angles to Its Pose.
+- **D8:** vr_rig2_clavicle merged into vr_agarms_clavicle, default 0.35 -> 0.6 (the value both armed rigs used: both
+  have authored rigs, which took the larger of the two), config 216 moves a 0.35 to it. The held wrist's clearance
+  (vr_rig2_arm_clear 6 and vr_agarms' constant 6) is one constant, `armClearHeldMost`.
+- **D7:** one decode, `mdldequant::modelVertex(hdr, pose1, pose2, blend, v)` (model units, dequantised as drawn): the
+  arms' skin and solve (`vr_agarms.cpp`), the legs' rest (`vr_aglegs.cpp`) and the arm pose's gun frame and anchor
+  (`vr_hitreact.cpp`) read it instead of three raw trivertx copies; the skins call `mdldequant::prepare` first (built
+  before the model's first upload they read raw bytes before). Fits move by under half a byte step of the model's
+  scale (about 0.1 unit on the grunt).
+
+Kept, decided here: `vr_agrunt_upper` (the Rig Studio's "Upper Body Held" layer toggles it), `vr_agrunt_strike_torso`
+(a scale, with `_shoulder`; test 45's sheet sets it to 0 for its "without the body's turn" view). Left for a later pass
+(they need their tests rewritten, which compare the old side): `vr_agrunt_aim_exposed` (test vr_armedgrunt_expose_test
+runs both sides), `_aim_converge`, `_shot_drawn`, `_swing_one_hand`, `_tug_ragdoll` (tests 21, 22 run the old tug; it
+is also the fallback when the physical tug can't begin), QC's dead `vr_agp_arms` 0 branches (vr_agp_arms is TRUE),
+B10 (the Class/Pose enums to a shared .h like `vr_melee_shared.h`).
+
+Tests (run_baseline --only agrunt|agarmor|rigstudio|limb|ragdoll_grab|ragdoll_ragtest, 8 lanes, twice): same verdicts
+as baseline.tsv except: ragdoll_grab "grab rag enforcer: no grab" FAIL in both runs (open: not yet checked on next under
+lanes); agrunt_86 (AI accuracy/reaction/retreat stats) 2 to 4 fails that change between runs; agrunt_11 a timeout in
+the second run only (passed in the first); agrunt_74 failed once (downtug 20/21), passed in the second. Better: 76 and
+rigstudio_aim pass, 63/71/72/ragtest one or more checks better.
