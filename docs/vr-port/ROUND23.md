@@ -1050,6 +1050,12 @@ No behaviour change intended; the kits are listed in CODE_STYLE.md, "Kits (refac
   reset when their clock runs backwards (also cl.time's snap back in CL_LerpPoint, and a loaded save's later clock is not
   caught); temporal resets on a new world pointer only (not on the same map loaded again). Moving any of them to
   `VR_OnClientClearState` (the de facto client registry, listed in CODE_STYLE) changes when it resets.
+- Checked (second pass): the covering cases as baseline.tsv but reload 112/3 (known) and rv_1 34/1 once (a slug's damage
+  roll of 29.1 against 30; 35/0 run alone); a console check (scratch/b2check.sh: decal repack twice, wounds/spatter/
+  smear/arm tests, retro pick, a brush made and baked) printing the same lines as the base exe (the decal tallies and
+  edict numbers vary run to run on one exe: map-start chips). Bench (LTO, exclusive, idle_e1m1 + combat_48 +
+  decals_1024_stream, 3 reps; this branch, base e30e689a2, this branch again): frame p50/p99 and GPU the same; combat
+  heap allocations -5.5% (10.9 -> 10.3 a frame); idle CPU busy +3.7% / +5.2% (0.03 ms; combat -3.8% / -0.4%, decals -0..-6%).
 - **C26 left**: VR_ARENA_Leftovers' per-frame findflags drives the fade's per-frame alpha ramp and the per-frame up-again
   and held checks; a next-due gate would move those, so the fade timing is not provably unchanged.
 - **Left for a later pass** (no row details found, or a merge would change output): R14 surfaceAbove (particles: client
