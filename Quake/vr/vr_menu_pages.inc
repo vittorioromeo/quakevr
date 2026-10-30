@@ -482,8 +482,6 @@ void resetHandMoves()
         slider("Most Blow Damage", "vr_melee_dmg_max", 1.f, 4.f, 0.05f, "x%.2f").extend(1.f, 10.f).help("The hardest blow deals at most this much of its weapon's base damage: the swing's speed times the zone's multiplier (a head hit) is capped here, so a fast head hit counts near its full speed and no more. Before the Damage Multiplier and the punch multiplier."),
         slider("Range Multiplier", "vr_melee_range_multiplier", 0.25f, 15.f, 0.25f, "%.1f").extend().help("Range multiplier for melee attacks."),
         slider("Wall Hit Window", "vr_melee_wall_hold", 0.f, 0.5f, 0.05f, "%.2f s").help("A weapon swung into a wall or the floor is held off it, and slows down there: for this long after it met the surface, while it stays against it, the blow is still judged, at the speed it came in at, so a deliberate swing at a wall or the floor registers (sound, sparks, mark). A light brush along a wall still doesn't. 0: only in the frame the weapon crosses the surface, and never chopping down at the floor (as before)."),
-        slider("Quad: Extra Melee Damage", "vr_quad_melee_damage", 1.f, 4.f, 0.05f, "x%.2f").extend().help("With Quad Damage, melee does this much more on top of the x4 every weapon gets. 1: like any weapon (x4 in all); the old Quake VR had 2.75 (x11 in all)."),
-        slider("Quad: Extra Melee Reach", "vr_quad_melee_range", 1.f, 1.5f, 0.01f, "x%.2f").extend().help("With Quad Damage, melee reaches this much further. 1: the same reach as without Quad; the old Quake VR had 1.23."),
         cycle("Melee Bloodlust", "vr_melee_bloodlust", {{0.f, "On"}, {1.f, "Off"}}).help("When enabled, restores the player's health when performing melee attacks on enemies."),
         slider("Melee Bloodlust Mult.", "vr_melee_bloodlust_mult", 0.05f, 5.f, 0.05f, "%.2f").extend().help("Multiplier for melee bloodlust health restoration."),
         open("Weapon Damage", pageIndex(pageWeaponDamage))
@@ -516,7 +514,6 @@ void resetHandMoves()
         header("Headbutt"),
         toggle("Headbutt", vr_headbutt).help("Lunge your head at something to headbutt it."),
         slider("Headbutt Speed", vr_headbutt_speed, 0.4f, 3.f, 0.05f, "%.2f m/s").extend().help("How fast the head must lunge (towards where you look)."),
-        slider("Headbutt Damage", vr_headbutt_damage, 5.f, 100.f, 1.f, "%.0f").extend(),
     };
 }
 
@@ -1172,9 +1169,6 @@ void resetHandMoves()
 [[nodiscard]] za::Vector<Item> pageReloadWidowmaker()
 {
     return {
-        header("Tube"),
-        slider("Fire Rate", "vr_ad_widowmaker_refire", 0.05f, 1.f, 0.05f, "%.2f s").extend(0.02f, 3.f)
-            .help("Seconds between its shots while the trigger is held: a shell each, its spent shell out of the other side."),
         header("Barrels"),
         slider("Motor Volume", "vr_ad_widowmaker_motor", 0.f, 1.f, 0.05f, "%.2f")
             .help("The barrels' motor whine: it rises in pitch and volume as they spin up and dies as they coast down. "

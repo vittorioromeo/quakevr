@@ -659,8 +659,7 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
 // Split from Flashlight: the low grip (the one you take it in) and its fingers.
 [[nodiscard]] za::Vector<Item> pageFlashlightLowGrip()
 {
-    za::Vector<Item> list = {
-    };
+    za::Vector<Item> list;
     list.pushBack(header("Low Grip: Fingers on the Torch"));
     flashlightFingers(list,
         {vr_flashlight_low_fingers, vr_flashlight_low_overlap, vr_flashlight_low_curl_thumb, vr_flashlight_low_thumb_across,
@@ -674,8 +673,7 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
 // Split from Flashlight: the overhead grip (turned over with B or Y) and its fingers.
 [[nodiscard]] za::Vector<Item> pageFlashlightOverheadGrip()
 {
-    za::Vector<Item> list = {
-    };
+    za::Vector<Item> list;
     list.pushBack(header("Overhead Grip: Fingers on the Torch"));
     flashlightFingers(list,
         {vr_flashlight_high_fingers, vr_flashlight_high_overlap, vr_flashlight_high_curl_thumb, vr_flashlight_high_thumb_across,

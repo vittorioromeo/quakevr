@@ -212,11 +212,6 @@
         slider("Cooldown", "vr_bullettime_cooldown", 0.f, 10.f, 0.5f, "%.1f s").extend(0.f, 60.f)
             .help("Real seconds after it ends (or is stopped) before it can start again (over time, the meter waits "
                   "too)."),
-        slider("Least Meter to Start", "vr_bullettime_min", 0.05f, 1.f, 0.05f, "%.2f")
-            .help("How full the meter must be to start (it then runs until empty or stopped)."),
-        slider("End Sound Plays At Most", "vr_bullettime_sound_off_max", 0.f, 3.f, 0.25f, "%.2f s").extend(0.f, 10.f)
-            .help("The sound as it ends plays this long at most, then fades out (and stops at once if you start it "
-                  "again). 0: the whole sound."),
         toggle("Sandevistan: You at Full Speed", "vr_bullettime_sandevistan")
             .help("On: only the world slows; you move, turn, swing, throw, shoot and reload at full speed. Off: you are "
                   "slowed with the world but your view (your hands follow your controllers as the slowed world allows)."),
@@ -227,8 +222,6 @@
         slider("Look's Strength", "vr_bullettime_fx", 0.f, 1.f, 0.05f, "%.2f")
             .help("While it runs, the view drained of colour, tinted and darkened at its edges: this much (0 off). Never "
                   "with the recording's Time Scale (Graphics > Recording)."),
-        slider("Colour Drained", "vr_bullettime_fx_desat", 0.f, 1.f, 0.05f, "%.2f"),
-        slider("Darkened Edges", "vr_bullettime_fx_vignette", 0.f, 1.f, 0.05f, "%.2f"),
         header("Screen Tap"),
         toggle("Tap the Screen", "vr_bullettime_tap")
             .help("Strike the gadget's screen hard and straight with your other hand, or with the butt of the gun it "
@@ -237,13 +230,6 @@
         cycle("Gesture", "vr_bullettime_tap_gesture", {{0.f, "Single Tap"}, {1.f, "Double Tap"}})
             .help("Single Tap: one hard tap starts or stops it. Double Tap: two taps in quick succession (each may be "
                   "lighter: Double Tap Force), lifting off the screen between them; a single tap does nothing."),
-        slider("Double Tap Window", "vr_bullettime_tap_double_window", 0.2f, 1.f, 0.05f, "%.2f s").extend(0.1f, 2.f)
-            .help("Double Tap: how soon after the first tap the second must come."),
-        slider("Double Tap Least Gap", "vr_bullettime_tap_min_gap", 0.f, 0.2f, 0.01f, "%.2f s").extend(0.f, 0.5f)
-            .help("Double Tap: the least time between the two taps. A second tap sooner (an arm wiggled or flicked fast) "
-                  "counts as a new first tap, never as the double tap."),
-        slider("Double Tap Force", "vr_bullettime_tap_double_speed", 0.1f, 3.f, 0.1f, "%.1f m/s").extend(0.05f, 6.f)
-            .help("Double Tap: how fast each tap must come into the screen (Tap Force is the single tap's)."),
         slider("Quiet After Blows", "vr_bullettime_tap_blow_quiet", 0.f, 1.5f, 0.05f, "%.2f s").extend(0.f, 3.f)
             .help("Taps don't count for this long after a melee blow of yours lands, or you shove or bash (a double "
                   "tap's first is dropped too): no slow motion by accident in a melee's thick. 0: off."),
@@ -254,37 +240,8 @@
         toggle("Not While Both Hands Hold", "vr_bullettime_tap_both_held")
             .help("Taps don't count while both your hands hold an enemy or a body (fighting, pushing, shoving one): "
                   "the gadget knocked in the scuffle."),
-        slider("Tap Force", "vr_bullettime_tap_speed", 0.5f, 3.f, 0.1f, "%.1f m/s").extend(0.05f, 6.f)
-            .help("How fast your hand (or the gun's butt, or what it holds) must come into the screen (either arm may "
-                  "move). Higher: harder taps only. Single Tap's (Double Tap Force: the double tap's)."),
-        slider("Tap Straightness", "vr_bullettime_tap_angle", 10.f, 80.f, 5.f, "%.0f deg").extend(1.f, 89.f)
-            .help("How far off straight into the screen the strike may come. Lower: only straight strikes (a melee "
-                  "swing across the screen comes from the side)."),
-        slider("Tap Zone Margin", "vr_bullettime_tap_margin", 0.f, 8.f, 0.5f, "%.1f cm").extend(0.f, 20.f)
-            .help("How far past the screen's edges the strike may land too."),
-        slider("Tap Zone Depth", "vr_bullettime_tap_depth", 0.5f, 15.f, 0.5f, "%.1f cm").extend(0.5f, 30.f)
-            .help("How close over the screen your hand (any of it: palm, fingers, knuckles, its back) or the gun's "
-                  "butt must stop. Debug > Show Gadget Button: And the Screen Tap shows this zone."),
-        slider("Tap Zone Width", "vr_bullettime_tap_width", 0.5f, 2.f, 0.05f, "%.2fx").extend(0.1f, 5.f)
-            .help("The zone's width as a share of the screen's (before the margin). Debug > Show Gadget Button: And the "
-                  "Screen Tap shows the zone and what strikes (your hand's surface blue, the gun's butt orange, white on the zone)."),
-        slider("Tap Zone Height", "vr_bullettime_tap_height", 0.5f, 2.f, 0.05f, "%.2fx").extend(0.1f, 5.f)
-            .help("... and its height."),
-        slider("Tap Zone Across", "vr_bullettime_tap_x", -6.f, 6.f, 0.25f, "%.2f cm").extend(-20.f, 20.f)
-            .help("The zone moved along the screen's width (positive: to its right)."),
-        slider("Tap Zone Up", "vr_bullettime_tap_y", -6.f, 6.f, 0.25f, "%.2f cm").extend(-20.f, 20.f)
-            .help("... along its height (positive: up the screen)."),
-        slider("Tap Zone Out", "vr_bullettime_tap_z", -6.f, 6.f, 0.25f, "%.2f cm").extend(-20.f, 20.f)
-            .help("... and out of its face (negative: into your arm): Tap Zone Depth is measured from there."),
         toggle("The Gun's Butt Taps Too", "vr_bullettime_tap_butt")
             .help("On: the butt of the gun in your other hand taps the screen as your hand does. Off: only your hand."),
-        slider("Gun Butt Reach", "vr_bullettime_tap_butt_depth", 1.f, 10.f, 0.5f, "%.1f cm").extend(0.f, 30.f)
-            .help("How far from the gun's rearmost end its butt reaches: all of it within that strikes."),
-        slider("Tap Must Stop", "vr_bullettime_tap_stop", 0.1f, 1.f, 0.05f, "%.2f")
-            .help("The impact: the speed into the screen must drop to this much of its peak on it (a hand passing by "
-                  "keeps its speed). 1: counts as it arrives, stopped or not."),
-        slider("Tap Window", "vr_bullettime_tap_window", 0.05f, 1.f, 0.05f, "%.2f s")
-            .help("How soon after its fastest the strike must stop on the screen."),
         toggle("Tap While Holding", "vr_bullettime_tap_holding")
             .help("On: the tapping hand may hold a weapon or a prop. Off: only an empty hand taps."),
         toggle("Tap During Two-Handed Holds", "vr_bullettime_tap_twohanded")
@@ -292,15 +249,9 @@
                   "Moving together, the hands never tap anyway."),
         slider("Ignore Repeats For", "vr_bullettime_trigger_cooldown", 0.f, 2.f, 0.1f, "%.1f s")
             .help("After a tap counts, how long before the next one does (a bounce is one)."),
-        slider("Haptic Tick", "vr_bullettime_haptic", 0.f, 2.f, 0.25f, "%.2f")
-            .help("The tick in both hands when a tap counts (0: none)."),
         slider("Tap Click Volume", "vr_bullettime_tap_sound", 0.f, 1.f, 0.05f, "%.2f")
             .help("The gadget clicks from its screen as a tap registers: a short tick for a double tap's first, two "
                   "rising blips for the tap that starts or stops bullet time (0: silent)."),
-        slider("Tap Glitch", "vr_bullettime_tap_glitch", 0.f, 2.f, 0.1f, "%.1f")
-            .help("... and its screen glitches for a moment: bands torn sideways, the colours split (0: none)."),
-        slider("Tap Glitch Time", "vr_bullettime_tap_glitch_time", 0.05f, 0.5f, 0.01f, "%.2f s")
-            .help("How long the glitch lasts (the tap that starts or stops it a quarter longer)."),
         command("Try: First Tap", "vr_bullettime_tap_feedback_test")
             .help("vr_bullettime_tap_feedback_test: a double tap's first tap's click and glitch, without tapping."),
         command("Try: Activation Tap", "vr_bullettime_tap_feedback_test 1")
@@ -312,16 +263,6 @@
             .help("As in F.E.A.R.: a wake behind each bullet, nail, rocket, grenade and monster's shot bends the view "
                   "behind it like a rippling glass rod, fading along its length. In Bullet Time: while it runs (and "
                   "fading out after). Always: in normal time too. Off: no cost."),
-        slider("Bend", "vr_bullettime_trails_strength", 0.f, 3.f, 0.05f, "%.2f")
-            .help("How far they bend what is behind them (1: about half the trail's width)."),
-        slider("Trail Life", "vr_bullettime_trails_life", 0.1f, 3.f, 0.05f, "%.2f s").extend(0.05f, 10.f)
-            .help("Real seconds each part of a trail lasts, fading."),
-        slider("Longest Trail", "vr_bullettime_trails_length", 0.5f, 15.f, 0.5f, "%.1f m").extend(0.1f, 50.f)
-            .help("The most of a trail behind its projectile."),
-        slider("Trail Width", "vr_bullettime_trails_width", 2.f, 80.f, 1.f, "%.0f cm").extend(0.5f, 200.f)
-            .help("A bullet's and a nail's; rockets and grenades twice as wide, monsters' balls one and a half times."),
-        slider("Fade After It Ends", "vr_bullettime_trails_fade", 0.f, 3.f, 0.1f, "%.1f s")
-            .help("Real seconds the trails take to fade out as bullet time ends."),
         toggle("Behind Your Bullets", "vr_bullettime_trails_hitscan")
             .help("The shotguns' pellets and the rifles' bullets (whether their tracer is drawn or not)."),
         toggle("Behind Nails", "vr_bullettime_trails_nails"),

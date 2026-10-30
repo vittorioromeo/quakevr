@@ -6,8 +6,6 @@
 {
     return {
         slider("Two-Hand Throw Speed", vr_2h_throw_velocity_mult, 0.5f, 3.f, 0.1f, "%.1fx").extend(),
-        slider("Two-Hand Throw Damage", vr_throw_2h_damage, 0.5f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
-            .help("A weapon or prop thrown with both hands: its hits' damage times this (one hand: 1x). 1.25 as shipped."),
         toggle("Analog Release", vr_throw_release)
             .help("A throw lets go as the grip starts to open, not only once it is released."),
         slider("Slow Motion: Full Stroke Tempo", vr_throw_slowmo_stroke_time, 0.04f, 0.2f, 0.005f, "%.3f s").extend()
@@ -348,42 +346,14 @@
 [[nodiscard]] za::Vector<Item> pageBurning()
 {
     return {
-        slider("Burn Damage", vr_burn_damage, 0.f, 20.f, 0.5f, "%.1f / s").extend(0.f, 100.f)
-            .help("A fire's damage a second, however many flames it has and however often it is lit again: it never "
-                  "stacks. 0: nothing alive is set on fire."),
-        slider("Burn Time", vr_burn_time, 0.f, 10.f, 0.5f, "%.1f s").extend(0.f, 60.f)
-            .help("How long a monster burns from the last hit that lit it (a hit while it burns starts it again)."),
-        slider("Flames Spread To", vr_burn_flames, 1.f, 10.f, 1.f, "%.0f").extend(1.f, 20.f)
-            .help("A fire starts as one flame where it was struck and spreads over the body, a smaller flame at a time, "
-                  "up to this many."),
-        slider("Most Flames", vr_burn_flames_max, 1.f, 12.f, 1.f, "%.0f").extend(1.f, 30.f)
-            .help("More hits add a flame each (a few a second at most), up to this many on one body. The damage stays "
-                  "one fire's."),
-        slider("Spread Time", vr_burn_spread, 0.1f, 3.f, 0.1f, "%.1f s").extend(0.05f, 10.f)
-            .help("Time between flames spreading."),
-        slider("Flame Size", vr_burn_flame_size, 0.2f, 1.5f, 0.05f, "%.2fx").extend(0.05f, 4.f)
-            .help("The first flame's size (id's small flame: 1)."),
-        slider("Spread Flames' Size", vr_burn_flame_small, 0.2f, 1.f, 0.05f, "%.2fx").extend(0.05f, 2.f)
-            .help("The other flames' size, times the first's (each a little more or less)."),
-        slider("Spread Flames' Lean", vr_burn_flame_tilt, 0.f, 30.f, 1.f, "%.0f deg").extend(0.f, 60.f)
-            .help("How far the other flames lean, at most; they stay upright. 0: all straight up."),
         header("Corpses"),
         toggle("Corpses Burn", vr_burn_corpses)
             .help("Corpses catch fire too, and a monster that dies burning burns on as a corpse. Corpses are the ones "
                   "Gibs and Corpses' Gib Corpses keeps."),
-        slider("Corpse Burn Time", vr_burn_corpse_time, 0.f, 30.f, 0.5f, "%.1f s").extend(0.f, 120.f),
-        slider("Corpse Burn Damage", vr_burn_corpse_damage, 0.f, 2.f, 0.1f, "%.1fx").extend(0.f, 10.f)
-            .help("A burning corpse's damage, times Burn Damage: enough of it gibs it (Corpse Health). 0: it just burns."),
         toggle("Bodies Burn in Lava", vr_burn_lava_bodies)
             .help("Ragdolls, knocked-down monsters and corpses in lava catch fire there, and burn on in it."),
         slider("Burnt Through in Lava", vr_burn_lava_gib, 0.f, 15.f, 0.5f, "%.1f s").extend(0.f, 60.f)
             .help("A body this long in lava bursts into gibs (a knocked-down one is killed). 0: never."),
-        slider("You Burn After Lava", vr_burn_lava_player, 0.f, 10.f, 0.5f, "%.1f s").extend(0.f, 30.f)
-            .help("Lava sets you on fire: out of it you burn on this long (Burn Damage a second; in it, only the lava's "
-                  "own damage). Water puts it out. Not with the Pentagram or the Biosuit. 0: off."),
-        slider("Smoke After Flames", vr_smoulder_burn_time, 0.f, 15.f, 0.5f, "%.1f s").extend(0.f, 60.f)
-            .help("A burning monster or corpse smokes while it burns, and this long after its flames go out, thinning out "
-                  "(how much: Gore > Lightning Shock > Smouldering Smoke)."),
         header("What Sets Things on Fire"),
         toggle("Torch Touch", vr_burn_touch)
             .help("A lit torch, held or thrown, sets a monster or a corpse on fire just by touching it: no blow needed. "
@@ -398,8 +368,6 @@
         toggle("Nails Through Burning Things", vr_burn_nail_burning)
             .help("A burning monster's, corpse's or crate's flames turn nails into lava nails too (Nails Through a "
                   "Flame on)."),
-        slider("Flame's Reach for Nails", vr_burn_nail_reach, 2.f, 30.f, 1.f, "%.0f").extend(0.f, 80.f)
-            .help("How near a torch's flame a nail must pass, in units (a hand is about 4)."),
         slider("Nail Sizzle Volume", vr_burn_nail_sound, 0.f, 1.f, 0.1f, "%.1f")
             .help("Volume of the short fizz a nail makes as it catches fire in a torch's flame, and of fire hissing out "
                   "in water (0 off)."),
@@ -409,64 +377,23 @@
         toggle("Water Puts Fire Out", vr_burn_water_douse)
             .help("A flamethrower's flames going into water or slime go out in a puff of steam; a lava nail going in "
                   "becomes a plain nail."),
-        slider("Crackle Volume", vr_burn_sound, 0.f, 1.f, 0.1f, "%.1f")
-            .help("A burning monster, corpse or crate crackles as a wall torch does, heard close by, quieter as its flames "
-                  "die (0 off)."),
-        slider("Most Crackling", vr_burn_sound_max, 1.f, 8.f, 1.f, "%.0f").extend(1.f, 32.f)
-            .help("At most this many burning things crackle at once; the rest burn silent until one goes out."),
         header("Crates"),
         toggle("Crates Burn", vr_burn_crates)
             .help("Wooden crates catch fire: a lit torch's blow or touch, a lava nail, a burning crate touching them."),
         toggle("Wood Burns in Lava", vr_burn_lava)
             .help("Crates, barrels and their pieces dropped in lava catch fire there, and burn on in it."),
-        slider("Crate Burn Time", vr_burn_crate_time, 1.f, 60.f, 1.f, "%.0f s").extend(0.5f, 300.f)
-            .help("How long a crate burns before it breaks (or its fire goes out)."),
         toggle("Burnt Crates Break", vr_burn_crate_break)
             .help("A crate that has burnt its time breaks into its pieces. Off: its fire goes out."),
-        slider("Fire Spreads After", vr_burn_crate_spread, 0.f, 20.f, 0.5f, "%.1f s").extend(0.f, 120.f)
-            .help("How long a crate burns before the crates touching it catch fire. 0: fire never spreads."),
-        slider("Touching Within", vr_burn_crate_gap, 0.f, 16.f, 1.f, "%.0f").extend(0.f, 64.f)
-            .help("How far apart two crates still count as touching, in units."),
-        slider("Crate Flames", vr_burn_crate_flames, 1.f, 12.f, 1.f, "%.0f").extend(1.f, 30.f)
-            .help("Flames a crate's fire spreads to (Most Flames caps it)."),
-        slider("Crate Flame Size", vr_burn_crate_flame_size, 0.5f, 2.5f, 0.05f, "%.2fx").extend(0.1f, 5.f)
-            .help("A crate's flames, times a body's (Flame Size)."),
         toggle("Burnt Crates' Pieces Charred", vr_burn_crate_char)
             .help("A crate that burns through breaks into charred, blackened pieces that don't burn again. Off: plain pieces, "
                   "which burn as any other."),
         toggle("Pieces Burn", vr_burn_pieces)
             .help("The pieces of a crate you break catch fire as crates do: a lit torch's blow or touch, a lava nail, burning "
                   "crates and pieces near them. A crate broken while burning scatters burning pieces."),
-        slider("Piece Burn Time", vr_burn_piece_time, 1.f, 30.f, 0.5f, "%.1f s").extend(0.5f, 120.f)
-            .help("How long a piece burns before it burns away (charred from half of it)."),
-        slider("Pieces Catch Within", vr_burn_piece_gap, 0.f, 32.f, 1.f, "%.0f").extend(0.f, 96.f)
-            .help("How near a burning piece and another piece or a crate catch from each other, in units (Fire Spreads "
-                  "After: when)."),
-        slider("Piece Flames", vr_burn_piece_flames, 1.f, 8.f, 1.f, "%.0f").extend(1.f, 20.f)
-            .help("Flames a piece's fire spreads to (Most Flames caps it)."),
-        slider("Piece Flame Size", vr_burn_piece_flame_size, 0.3f, 2.f, 0.05f, "%.2fx").extend(0.1f, 5.f)
-            .help("A piece's flames, times a body's (Flame Size)."),
         header("Torch Flame"),
-        slider("Swing Lean", vr_walltorch_lean, 0.f, 2.f, 0.1f, "%.1fx").extend(0.f, 5.f)
-            .help("How far a swung torch's flame leans and trails behind its motion (1: the default; 0: always straight up)."),
-        slider("Flatten When Fast", vr_walltorch_flatten, 0.f, 1.5f, 0.1f, "%.1fx").extend(0.f, 1.5f)
-            .help("How much a fast swing flattens the flame and stretches it back (1: the default; 0: never)."),
-        slider("Hand Motion Strength", vr_walltorch_hand_motion, 0.f, 4.f, 0.1f, "%.1fx")
-            .help("Hand translation and rotation move the flame's attachment point and make it lean/stretch. 0: locomotion only."),
-        slider("Motion Smoothing", vr_walltorch_motion_smooth, 0.01f, 0.5f, 0.01f, "%.2f s"),
-        slider("Upside Down: Flame Height", vr_walltorch_inv_size, 0.05f, 0.3f, 0.01f, "%.2fx")
-            .help("One flame stays attached to the head. Past 90 degrees it smoothly shortens to this height at 180 degrees; fire particles continue to rise."),
         open("Fire Particles", pageIndex(pageFireParticles)),
-        slider("Upside Down: Brightness", vr_walltorch_inv_light, 0.5f, 2.f, 0.05f, "%.2fx").extend(0.f, 4.f)
-            .help("Held head down, its light's brightness, times the upright one's."),
         slider("Upside Down: Burning Drips", vr_walltorch_drips, 0.f, 20.f, 1.f, "%.0f / s").extend(0.f, 60.f)
             .help("Burning drips falling off the head of a torch held head down, a second (0: none)."),
-        slider("Upside Down: More Smoke", vr_walltorch_inv_smoke, 1.f, 5.f, 0.25f, "%.2fx").extend(0.f, 10.f)
-            .help("Held head down, a torch smokes this much more."),
-        slider("Torch Smoke", vr_walltorch_smoke, 0.f, 3.f, 0.25f, "%.2fx").extend(0.f, 10.f)
-            .help("Soot rising off every lit torch, on its wall, in your hand or lying (1: three puffs a second; 0: none)."),
-        slider("Torch Smoke Opacity", vr_walltorch_smoke_alpha, 0.f, 1.f, 0.05f, "%.2f")
-            .help("How dark the torches' smoke is."),
         header("Your Own Torch"),
         toggle("Its Flame Burns You", vr_burn_self)
             .help("The flame of the torch you hold, kept on your other hand, an arm, your body or your head, sets you on fire "
@@ -475,13 +402,9 @@
                   "the same warning and delay."),
         slider("Catch Fire After", vr_burn_self_time, 0.f, 3.f, 0.1f, "%.1f s").extend(0.f, 10.f)
             .help("How long the flame must stay on you before you catch fire (off it, it eases back twice as fast)."),
-        slider("Warning Buzz", vr_burn_self_haptic, 0.f, 2.f, 0.1f, "%.1fx")
-            .help("How hard the hand buzzes while a flame is on you, before you catch fire or drop the torch (0: none)."),
         toggle("Upside Down Burns Your Hand", vr_burn_drop)
             .help("Held head down, a torch's flame climbs the stick to your hand: kept there a moment (Drop After), it burns "
                   "your hand and you drop the torch."),
-        slider("Drop After", vr_burn_drop_time, 0.f, 5.f, 0.1f, "%.1f s").extend(0.f, 20.f)
-            .help("How long a torch held head down can burn your hand before you drop it."),
     };
 }
 
