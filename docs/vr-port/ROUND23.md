@@ -1366,8 +1366,24 @@ did the moves (not committed).
 - vr_portals.cpp (3224 -> ~2210) + vr_portals_gates.cpp (crossing for players, monsters and what flies, unstick, the
   AI's gate images/routes, pulls, tosses, VR_PortalMonsterCross); aiRoute lost its `static` (both files call it).
   Allowlist: player-edict 3 -> 2 + 1 in vr_portals_gates.cpp.
-- **Not done (budget)**: vr_audio's dump/bench commands (they read `live`, the mixer's state: a Live type in the
-  header first), vr_brushes.cpp, vr_backend_openxr.cpp by phase (one class: members out of the body first).
+- vr_brushes.cpp (3605 -> ~2180) + vr_brushes_model.cpp (polygons from planes, bevels, the brush model: hulls,
+  edges, textures, surfaces, build/apply; its anonymous namespace became `brushes::detail`) and vr_brushes_text.cpp
+  (the default alignment, box/shape/rotate/scaleTo/forEachPolygon, toText/fromText with Tokens and facePoints; its
+  own anonymous namespace kept). vr_brushes_internal.hpp gained Winding, the four epsilons/extents as
+  `inline constexpr`, and baseWinding/polygons/worldTexture/bevels' declarations.
+- vr_backend_openxr.cpp (2657 lines, one class) in two commits: first every member function's body moved out of the
+  class body below it in the same file (no other change: the declarations kept their comments and `[[nodiscard]]`/
+  `static`/`override`; the template `guarded` stays in the class; the Linux/Windows contextReady/logGlInterop pairs keep
+  their `#ifndef _WIN32` round the definitions), then by phase: the class and the fault helpers (now `inline`) in
+  vr_backend_openxr_internal.hpp, namespace `qvr::oxr` (was anonymous: a class shared by four files needs a name);
+  vr_backend_openxr.cpp (~1150: start/stop, instance, system, session, spaces, the state trail, events, the debug
+  messenger), vr_backend_openxr_frame.cpp (~700: begin/end frame, eye images, timing, hidden area, swapchains),
+  vr_backend_openxr_actions.cpp (~370: actions, bindings, profiles, input, haptics, hand poses),
+  vr_backend_openxr_panel.cpp (~70: the panel's swapchain, images and place).
+- vr_audio.cpp (~3500 -> ~2950) + vr_audio_cmds.cpp (vr_snd_info, the captures, scene_obj, the test plays with
+  playAt/playLocal, vr_snd_dump, burst, the vr_snd_bench run). The mixer's state (Follow .. BenchRun, Live) and
+  dynamicChannels (`inline constexpr`) moved to vr_audio_internal.hpp; `live`, wanted, running and writeWav16 became
+  `audio::detail` where they stand (declared in the header).
 - Checked: build 0 warnings and every check (check_canonical included); run_baseline.sh --only on collectfx,
   mapflameburn, spentshake, vrtrailer, swim_sound, flare_1, explosion_debris, selfchecks, teleporter_edges,
   walltorch_grab, teleporters_chase: 0 of 11 changed against baseline.tsv (0 flaky).
