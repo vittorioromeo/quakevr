@@ -3,7 +3,7 @@
 // - a cone of sparks out of the muzzle (each barrel of the super shotgun's; few for the launchers, small for the
 //   nailguns; the energy guns throw electric arcs instead);
 // - a fast-dissipating cone of smoke out of the muzzle, bigger than the QC's gun smoke puff, drifting with the shooter,
-//   the flash's warm glow in it for a moment (the smoke is lit by the place and the shot's light); never the energy guns';
+//   the flash's warm glow in it for a moment (the smoke drawn emissive grey: lit by the flash); never the energy guns';
 // - a smaller quick puff out of a shotgun's ejection port: as each casing leaves it (vr_shells.cpp: the shotgun's pump,
 //   the super shotgun's open breech, the Widowmaker's slot), at the shot for the guns that throw none (the grunts');
 // - the rocket launchers' backblast: smoke behind the launcher and dust off the floor under it;

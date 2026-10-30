@@ -1388,3 +1388,32 @@ skins 178 / 102 / 182, md5/md3 lookups 126 / 123 / 123), limbs 198 / 22 / 196, v
   re-reading each file and the copies); limb skin uploads (limbs 193 ms) and md5 view models (104 ms: their 6 skins'
   uploads and normal maps): main-thread GL work. e1m1/vrstart after-times not taken: the exclusive slot waited on the
   author's game (their before-times above; smooth rigs is per model kind, so ~60 ms off vrstart, little off e1m1's 20).
+
+## Punchier gunfire (agent/gunfx)
+
+Per-shot gunfire particles keyed off the weapon id (Quake/vr/vr_gunfx.cpp), one path for your guns (vr_weaponfx.cpp
+playerFired / frame: the drawn muzzle), the armed grunts' held weapons and the grunts' and enforcers' own guns
+(monsterFired: the prop's Muzzle anchor, monsterMuzzle). Table: shotguns (shotgun, grunts' gun, AD defender) sparks,
+smoke and a port puff; super shotgun / Widowmaker each barrel's sparks, smoke, the open breech's puff; revolver sparks,
+smoke; nailguns and nail pistol a few small sparks, a small quick puff, barrel heat (wisps once sustained fire passes
+0.35 heat, cooling 0.35/s); launchers a few sparks and a large cloud; rocket launchers also the backblast (smoke
+behind, dust off the floor under it: a worldtrace::line down 80 units); flare gun redder sparks, smoke; energy guns
+(thunderbolt, laser cannon, enforcer rifle, AD plasma, centurion) ElectricSparks arcs, no smoke. Excluded (kind
+none): flamethrowers, crossbow, melee, grapple, toolgun, Mjolnir. Existing effects kept, not duplicated: the QC's
+GUNSMOKE puffs, AD guns' adGunBurst (your AD guns skip our sparks/backblast), the shells' port puff and trails
+(vr_shells.cpp now also calls gunfx::portSmoke per casing, revolver excluded, and scales the trail by
+vr_gunfx_shell_trail 1.6). Budget: each shooter's time since its last shot scales its counts (1 at 0.3 s or
+slower, 0.35 at 0.1 s: the nailguns, SNG); particles come from the pool (particles::gunParticle, no allocation).
+Smoke is drawn emissive grey (lit-by-flash look; Lit smoke vanished in dark maps); a warm glow sits in the cone
+for 0.07 s; smoke inherits 0.8 of the shooter's velocity.
+
+Settings (Weapons > Weapon Effects > Gunfire Particles): vr_gunfx 1, vr_gunfx_intensity 1, vr_gunfx_sparks 1,
+vr_gunfx_smoke 1, vr_gunfx_port 1, vr_gunfx_backblast 1, vr_gunfx_heat 1, vr_gunfx_enemies 1,
+vr_gunfx_shell_trail 1.6. Debug > Tests: three vr_gunfx_test rows, Print Gunfire Particles (vr_debug_gunfx).
+Tests: python Misc/quakevr/gunfx_test.py <agent> (player 16/16, armed grunts 10/10, grunt 1/1, enforcer 1/1);
+impulse 149 gives weapon id vr_test_give_wid (any id; impulse 150+id reaches 19 only; AD ids need AD's data).
+
+Not done: idea 1 (impacts by surface material: needs a texture-to-material table, its own task); idea 5 exists
+already (vr_tracers_enemies 1); idea 6's ozone haze at lightning impacts; barrel glow (heat is wisps only); AD
+soldiers' own attacks send no weaponfired (nothing for them); an armed grunt's thunderbolt is a stream (no shot
+event). Visual tuning was from one eyeshot (sizes raised 3x after the first looked empty): judge in VR.

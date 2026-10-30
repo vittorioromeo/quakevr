@@ -217,7 +217,7 @@ void sparksAt(const glm::vec3& at, const Muzzle& m, const glm::vec3& right, cons
         g.org = at + dir * vrand::range(rng, 0.f, 1.5f);
         g.vel = dir * (look.sparkSpeed * vrand::range(rng, 0.45f, 1.2f)) + m.drift;
         g.color = glm::vec4{glm::mix(look.sparkColour, glm::vec3{1.f, 0.93f, 0.7f}, vrand::range(rng, 0.f, 0.6f)), 1.f};
-        g.scale = look.sparkSize * vrand::range(rng, 0.12f, 0.22f);
+        g.scale = look.sparkSize * vrand::range(rng, 0.35f, 0.6f);
         g.life = vrand::range(rng, 0.06f, 0.18f);
         g.drag = 3.f;
         g.gravity = 0.4f;
@@ -238,10 +238,10 @@ void smokeCone(const glm::vec3& at, const glm::vec3& dir, const glm::vec3& right
         const glm::vec3 d = inCone(dir, right, up, spread);
         g.org = at + d * vrand::range(rng, 0.f, 2.f);
         g.vel = d * (speed * vrand::range(rng, 0.35f, 1.15f)) + drift * 0.8f;
-        const float grey = vrand::range(rng, 0.55f, 0.72f);
+        const float grey = vrand::range(rng, 0.4f, 0.52f);
         g.color = glm::vec4{glm::vec3{grey, grey, grey * 0.97f} * tint, alpha * vrand::range(rng, 0.7f, 1.f)};
-        g.scale = size * vrand::range(rng, 0.55f, 0.9f);
-        g.grow = size * vrand::range(rng, 5.f, 8.f);
+        g.scale = size * vrand::range(rng, 2.5f, 4.f);
+        g.grow = size * vrand::range(rng, 18.f, 28.f);
         g.life = life * vrand::range(rng, 0.7f, 1.1f);
         g.drag = 6.f;
         g.gravity = -0.04f;
@@ -257,8 +257,8 @@ void flashGlow(const Muzzle& m, const Look& look, Counts& c)
     g.org = m.at + m.fwd * (2.f * look.smokeSize);
     g.vel = m.fwd * 30.f + m.drift;
     g.color = glm::vec4{1.f, 0.62f, 0.28f, 0.45f};
-    g.scale = 2.2f * look.smokeSize;
-    g.grow = 14.f * look.smokeSize;
+    g.scale = 6.f * look.smokeSize;
+    g.grow = 30.f * look.smokeSize;
     g.life = 0.07f;
     g.drag = 6.f;
     c.glow += put(g);
@@ -287,10 +287,10 @@ void backblast(const Muzzle& m, const glm::vec3& right, const glm::vec3& up, flo
         const glm::vec3 out = glm::vec3{za::cos(a), za::sin(a), 0.f} * 0.6f + back;
         g.org = floor + out * vrand::range(rng, 2.f, 8.f);
         g.vel = out * vrand::range(rng, 40.f, 90.f) + glm::vec3{0.f, 0.f, vrand::range(rng, 8.f, 20.f)};
-        const float k = vrand::range(rng, 0.42f, 0.52f);
+        const float k = vrand::range(rng, 0.3f, 0.38f);
         g.color = glm::vec4{k, k * 0.9f, k * 0.76f, 0.26f * vrand::range(rng, 0.7f, 1.f)};
-        g.scale = vrand::range(rng, 1.f, 1.6f);
-        g.grow = vrand::range(rng, 6.f, 9.f);
+        g.scale = vrand::range(rng, 3.f, 5.f);
+        g.grow = vrand::range(rng, 15.f, 25.f);
         g.life = vrand::range(rng, 0.8f, 1.3f);
         g.drag = 3.f;
         g.gravity = -0.01f;
@@ -383,10 +383,10 @@ void heatWisps(HandState& h, const Muzzle& m, float dt)
         g.kind = particles::GunParticle::Smoke;
         g.org = m.at + glm::vec3{vrand::range(rng, -0.4f, 0.4f), vrand::range(rng, -0.4f, 0.4f), vrand::range(rng, 0.f, 0.6f)};
         g.vel = m.fwd * vrand::range(rng, 1.f, 3.f) + glm::vec3{0.f, 0.f, vrand::range(rng, 8.f, 14.f)};
-        const float grey = vrand::range(rng, 0.62f, 0.75f);
+        const float grey = vrand::range(rng, 0.42f, 0.52f);
         g.color = glm::vec4{grey, grey, grey, 0.12f * za::min(over * 2.f + 0.4f, 1.f)};
-        g.scale = vrand::range(rng, 0.25f, 0.4f);
-        g.grow = vrand::range(rng, 1.5f, 2.5f);
+        g.scale = vrand::range(rng, 0.8f, 1.2f);
+        g.grow = vrand::range(rng, 4.f, 6.f);
         g.life = vrand::range(rng, 0.9f, 1.4f);
         g.drag = 1.5f;
         g.gravity = -0.06f;
@@ -405,7 +405,7 @@ void test_f()
     const int wid = atoi(Cmd_Argv(1));
     const int count = Cmd_Argc() > 2 ? za::clamp(atoi(Cmd_Argv(2)), 1, 64) : 1;
     vec3_t f, r, u;
-    AngleVectors(cl.viewangles, f, r, u);
+    AngleVectors(r_refdef.viewangles, f, r, u); // (the view drawn: the head's)
     Muzzle m;
     m.fwd = glm::vec3{f[0], f[1], f[2]};
     m.up = glm::vec3{u[0], u[1], u[2]};
@@ -414,7 +414,8 @@ void test_f()
     {
         (void)emit(wid, m, 2 + 4096, false, false);
     }
-    Con_Printf("vr_gunfx_test: weapon %d (%s) x%d\n", wid, kindNames[static_cast<int>(kindOf(wid))], count);
+    Con_Printf("vr_gunfx_test: weapon %d (%s) x%d at %.1f %.1f %.1f\n", wid, kindNames[static_cast<int>(kindOf(wid))], count,
+        m.at.x, m.at.y, m.at.z);
 }
 
 } // namespace

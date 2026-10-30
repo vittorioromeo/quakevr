@@ -37,8 +37,9 @@ GUNS = SHOTGUNS | SUPER | REVOLVER | NAILS | LAUNCHERS | ROCKETS | FLARE | ENERG
 # Your weapons fired (the melee weapons left out: a trigger pull fires nothing).
 # (The AD guns need AD's data: impulse 149 gives none without it; vr_agrunt_test 12 covers them with it.)
 PLAYER_WIDS = [4, 5, 6, 7, 8, 9, 10, 11, 12, 15, 16, 29, 30, 31, 1, 19]
-# The armed grunts' (vr_agrunt_test 1: indices 6..16): the thunderbolt is a stream (no weaponfired), the rest fire.
-ARMED_WIDS = [4, 5, 6, 7, 8, 9, 10, 12, 15, 16]
+# The armed grunts' (vr_agrunt_test 1: indices 6..16): the thunderbolt is a stream (no weaponfired); the proximity gun's
+# grunt keeps its distance from its mines and seldom fires in the test's 5 s (its shots, if any, are judged as every one).
+ARMED_WIDS = [4, 5, 6, 7, 8, 10, 12, 15, 16]
 
 LINE = re.compile(r"gunfx shot who (\w+) (\d+) wid (-?\d+) kind (\w+) budget ([\d.]+) sparks (\d+) smoke (\d+) glow (\d+) "
                   r"arcs (\d+) port (\d+) back (\d+) dust (\d+)")
@@ -142,13 +143,14 @@ def main():
         judge_all(found, "player", True, [w for w in PLAYER_WIDS if w in GUNS])
         check(4 in ports, "player shotgun: its casing's port puff (gunfx port)")
     if a.only in ("", "armed"):
-        lines = run(a.kit, a.agent, setup + ";vr_agrunt_test 1", "agtest: every weapon", 400)
+        # (wait: a safety net only, the run ends on its quit line)
+        lines = run(a.kit, a.agent, setup + ";vr_agrunt_test 1;wait30000", "agtest: every weapon", 400)
         check(any("agtest: every weapon" in l for l in lines), "armed: vr_agrunt_test 1 reached its end")
         judge_all(shots(lines), "enemy", False, ARMED_WIDS)
     for name, spawn, wid in (("grunt", 0, 15), ("enforcer", 8, 16)):
         if a.only not in ("", name):
             continue
-        s = setup + ";vr_test_spawn %d;vr_test_spawn_dist 200;impulse 241" % spawn
+        s = setup + ";vr_test_spawn %d;vr_test_spawn_dist 200;impulse 241;wait7200" % spawn
         lines = run(a.kit, a.agent, s, "gunfx shot who enemy .* wid %d " % wid, 120)
         judge_all(shots(lines), "enemy", False, [wid])
     print("gunfx_test: %d passed, %d failed" % (passed, failed))

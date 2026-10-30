@@ -2762,7 +2762,7 @@ bool gunParticle(const GunParticle& g)
             case GunParticle::Smoke:
                 p.cell = CellSmoke;
                 p.spin = vrand::range(rng, -1.2f, 1.2f);
-                p.lighting = Lighting::Lit;
+                p.lighting = Lighting::Emissive; // (its colour as the flash lit it: readable in the dark)
                 break;
         }
     }, false);
