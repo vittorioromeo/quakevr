@@ -158,6 +158,17 @@ static byte *Image_LoadImageRun (const char *name, int *width, int *height, enum
 	int		i;
 	if (!strncmp (name, "pbrmix/", 7)) // QVR: content companion composition, also on texture reload
 		return VR_PBRImage (name, width, height, fmt);
+	// QVR: no file of this name with any extension in the search paths: none of the five lookups below (vr_extmaps_dir's
+	// files aren't in them: its names asked as before)
+	q_snprintf (loadfilename, sizeof(loadfilename), "%s.png", name);
+	if (!VR_ExtMapsIsPath (loadfilename) && COM_StemNowhere (name))
+	{
+		static const char *const lookedfor[] = {"png", "tga", "jpg", "pcx", "lmp"};
+		if (com_lookups_noted) // (a model's load records its lookups, misses too: vr_modelkeep.cpp)
+			for (i = 0; i < (int) countof (lookedfor); i++)
+				VR_FileLookupNoted (va ("%s.%s", name, lookedfor[i]), 0);
+		return NULL;
+	}
 
 	for (i = 0; stbi_formats[i]; i++)
 	{

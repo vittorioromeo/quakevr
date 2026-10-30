@@ -154,8 +154,10 @@ void VR_TimeFrameEnd (int signedon, int idle);	// end of _Host_Frame: the first 
 
 // The loose files' presence while the game starts and a map loads (vr_fscache.cpp; COM_FindFile, Sys_fopen).
 int VR_FileCacheHas (const char *path);	// 1 a file, 0 none, -1 not known (ask the file system)
+int VR_FileCacheHasStem (const char *path);	// ... a file named `path` + "." + an extension (COM_StemNowhere)
 void VR_FileCacheEnable (int on);	// VR_TimeStart, VR_TimeLoadBegin on; the first frame drawn off
 void VR_FileCacheForget (void);	// every listing (a directory made, moved or removed; bulk work)
+unsigned long long VR_FileCacheWindow (void);	// the main thread's listings' window (a number, new at each enable and VR_FileCacheForget), 0 if not in one: what's read in it stays true until the next
 void VR_FileCacheForgetFile (const char *path);	// a file made, written or removed (after it): its directory's listing
 void VR_FileCacheRegisterCommands (void);	// vr_fscache_test
 int VR_FileCacheMissKnown (const char *name);	// COM_FindFile: `name` found nowhere earlier in this load (main thread, while loading)

@@ -70,6 +70,7 @@ Spent shells ring on metal floors and knock on wood; on stone as before.
 An empty gun's dry click gives a small tick in that hand.
 Super shotgun and revolver break-open/close and magazine in/out sound from the hinge or magazine well, not the muzzle.
 Haptic punch: a sharp spike plus a short rumble per shot, longer on guns with a longer Recoil Return Time x Recovery (Weapon Offsets > Effects > Haptic Punch per weapon; Sound > Gunfire > Haptic Punch 0 brings back the old buzz).
+Load vrstart, then hip2m5, then an MG3 map with owned MG3 monsters: textures and the MG3 monsters' skins look as before, and loads feel a little quicker.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns

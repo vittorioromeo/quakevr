@@ -1487,6 +1487,97 @@ extern "C" int VR_CampaignDataAvailable(const char* dir)
 // image lookups): it reads only what discovery found at startup, never discovering itself. A sound's name is the
 // same under sound/ ("sound/owned/mg3/rogre/ogwake.wav": precache_sound("owned/mg3/rogre/ogwake.wav"), as S_LoadSound
 // puts sound/ before it): its pack's sound/rogre/ogwake.wav.
+namespace
+{
+
+// The paks of an owned pack's folder (VR_OwnedFile): their files by name, read once a window of the file system's
+// cache (vr_fscache.cpp, VR_FileCacheWindow: the main thread while the game starts or a map loads). A load asks for
+// hundreds of an owned pack's optional files that mostly aren't there (owned/mg3/progs/rknight.mdl_0.png, its _norm,
+// _bump...), and each lookup listed the paks and read every one's directory: ~0.1 ms, 80 ms of a vrtesthall load
+// (2026-10-30). Read again in the next window (a pak added or changed meanwhile is seen as before); other threads and
+// lookups outside the windows read the paks as before.
+struct OwnedPakFile
+{
+    int pak;    // OwnedIndex::paks's
+    int offset; // in it
+    int length;
+};
+struct OwnedIndex
+{
+    unsigned long long window{0}; // VR_FileCacheWindow's when read (0: never)
+    za::String folder; // the folder read (root/folder)
+    za::Vector<za::String> paks;
+    ankerl::unordered_dense::map<za::String, OwnedPakFile> files; // by name in lower case: the highest pak's
+};
+[[nodiscard]] za::SizeT heldBytes(const OwnedIndex& i)
+{
+    return qvr::mem::heldBytes(i.folder) + qvr::mem::heldBytes(i.paks) + qvr::mem::heldBytes(i.files);
+}
+struct OwnedIndexes
+{
+    OwnedIndex campaign[countof(campaigns)];
+    auto members() { return qvr::mem::list(campaign); }
+};
+qvr::mem::Cache<OwnedIndexes> ownedIndexes{"owned pack files", qvr::mem::GameDirChange};
+
+// Campaign `c`'s folder's paks, as VR_OwnedFile looked them up: the highest first, each pak's first entry of a name
+// (case aside) taken when it is sound, a name whose first entry isn't left to the lower paks.
+void readOwnedIndex(OwnedIndex& index, const char* folder)
+{
+    index.folder = folder;
+    index.paks.clear();
+    index.files.clear();
+    char path[MAX_OSPATH];
+    for(int pak = 0; pak < 64; ++pak)
+    {
+        q_snprintf(path, sizeof(path), "%s/pak%d.pak", folder, pak);
+        if(Sys_FileType(path) != FS_ENT_FILE) { break; }
+        index.paks.pushBack(za::String{path});
+    }
+    za::Vector<PackEntry> entries;
+    ankerl::unordered_dense::set<za::String> seen; // (this pak's names)
+    char lower[sizeof(PackEntry::name)];
+    for(int pak = static_cast<int>(index.paks.size()) - 1; pak >= 0; --pak)
+    {
+        FILE* f = fopen(index.paks[pak].cStr(), "rb");
+        if(!f) { continue; }
+        fseek(f, 0, SEEK_END);
+        const long fileSize = ftell(f);
+        rewind(f);
+        struct { char id[4]; int32_t dirofs; int32_t dirlen; } header{};
+        if(fread(&header, sizeof(header), 1, f) == 1 && !memcmp(header.id, "PACK", 4))
+        {
+            const long dirOffset = LittleLong(header.dirofs), dirLength = LittleLong(header.dirlen);
+            const long count = dirLength / static_cast<long>(sizeof(PackEntry));
+            if(dirOffset >= 12 && dirLength >= 0 && dirLength % static_cast<long>(sizeof(PackEntry)) == 0 && count <= 65536 &&
+                dirOffset <= fileSize && dirLength <= fileSize - dirOffset && !fseek(f, dirOffset, SEEK_SET))
+            {
+                entries.resize(static_cast<za::SizeT>(count));
+                if(count > 0 && fread(entries.data(), sizeof(PackEntry), static_cast<size_t>(count), f) == static_cast<size_t>(count))
+                {
+                    seen.clear();
+                    for(const PackEntry& e : entries)
+                    {
+                        if(!memchr(e.name, 0, sizeof(e.name))) { continue; }
+                        q_strlcpy(lower, e.name, sizeof(lower));
+                        q_strlwr(lower);
+                        za::String key{lower};
+                        if(!seen.insert(key).second) { continue; }
+                        const long pos = LittleLong(e.offset), len = LittleLong(e.length);
+                        if(pos >= 12 && len >= 0 && pos <= fileSize && len <= fileSize - pos && index.files.find(key) == index.files.end())
+                        {
+                            index.files.emplace(ZA_MOVE(key), OwnedPakFile{pak, static_cast<int>(pos), static_cast<int>(len)});
+                        }
+                    }
+                }
+            }
+        }
+        fclose(f);
+    }
+}
+
+} // namespace
+
 extern "C" int VR_OwnedFile(const char* name, char* out, int size, int* offset, int* length, int* packed)
 {
     constexpr char soundPrefix[] = "sound/owned/";
@@ -1514,7 +1605,9 @@ extern "C" int VR_OwnedFile(const char* name, char* out, int size, int* offset, 
 
     char path[MAX_OSPATH];
     q_snprintf(path, sizeof(path), "%s/%s/%s", campaigns[c].root, campaigns[c].folder, file);
-    if(Sys_FileType(path) == FS_ENT_FILE)
+    const unsigned long long window = VR_FileCacheWindow(); // (0: not the main thread's load window: asked as before)
+    const int listed = window ? VR_FileCacheHas(path) : -1;
+    if(listed > 0 || (listed < 0 && Sys_FileType(path) == FS_ENT_FILE))
     {
         FILE* loose = fopen(path, "rb");
         if(loose)
@@ -1531,6 +1624,26 @@ extern "C" int VR_OwnedFile(const char* name, char* out, int size, int* offset, 
                 return 1;
             }
         }
+    }
+    if(window)
+    {
+        OwnedIndex& index = ownedIndexes.campaign[c];
+        q_snprintf(path, sizeof(path), "%s/%s", campaigns[c].root, campaigns[c].folder);
+        if(index.window != window || za::StringView{index.folder} != za::StringView{path})
+        {
+            readOwnedIndex(index, path);
+            index.window = window;
+        }
+        char lower[MAX_QPATH];
+        q_strlcpy(lower, file, sizeof(lower));
+        q_strlwr(lower);
+        const auto it = index.files.find(za::String{lower});
+        if(strlen(file) >= sizeof(lower) || it == index.files.end()) { return -1; }
+        q_strlcpy(out, index.paks[it->second.pak].cStr(), size);
+        *offset = it->second.offset;
+        *length = it->second.length;
+        *packed = 1;
+        return 1;
     }
     int last = -1;
     for(int pak = 0; pak < 64; ++pak)
