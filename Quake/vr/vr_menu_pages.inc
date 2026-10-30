@@ -842,6 +842,8 @@ void resetHandMoves()
         toggle("Close by Flick", "vr_reload_ssg_close_flick").help("Open, a flick snaps it shut."),
         slider("Flick Close Speed", "vr_reload_ssg_flick_close_speed", 200.f, 1500.f, 25.f, "%.0f deg/s")
             .help("How fast the wrist must turn to flick it shut."),
+        slider("Flick Close Leniency When Loaded", "vr_reload_ssg_close_flick_loaded", 1.f, 2.f, 0.05f, "%.2fx")
+            .help("Both barrels loaded, the flick shut needs this much less speed (1: the same as empty)."),
         slider("Flick Rest Speed", "vr_reload_ssg_flick_rest", 60.f, 400.f, 10.f, "%.0f deg/s")
             .help("Under this the wrist holding it counts as still: a flick is measured from how it was then. Higher: a flick "
                   "counts straight after loading even if the gun hand was still moving."),
