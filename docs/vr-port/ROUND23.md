@@ -1387,6 +1387,10 @@ did the moves (not committed).
 - Checked: build 0 warnings and every check (check_canonical included); run_baseline.sh --only on collectfx,
   mapflameburn, spentshake, vrtrailer, swim_sound, flare_1, explosion_debris, selfchecks, teleporter_edges,
   walltorch_grab, teleporters_chase: 0 of 11 changed against baseline.tsv (0 flaky).
-  No A/B bench run (budget): the particle emitters (called from spawn() and the trail hooks) and the band-limit code
-  now sit in their own TUs (ThinLTO can still inline across them; the quick build cannot), so an ABBA pair on
-  idle_e1m1/combat_48 against origin/next is still owed before this merges.
+  Second batch (brushes, openxr, audio commands): build 0 warnings, check_canonical unchanged (no allowlist
+  change); brush_test.py PASS (every check); run_baseline.sh --only xr_runtime, selfchecks, swim_sound: 0 of 3
+  changed (xr_runtime 101/2 as in baseline.tsv); vr_snd_info/vr_snd_dump run.
+  A/B bench (ThinLTO both, interleaved ABBAABBAAB, 5 reps each, the armor tree's copy of ab_bench.sh swapping only the
+  exe: the QC is the same), this branch (B) vs origin/next 9e559363a (A), CPU ms median: idle_e1m1 0.722 -> 0.734
+  (+1.7 %, sd 0.08), combat_48 2.311 -> 2.333 (+1.0 %, sd 0.17-0.37); means -3.2 % / +4.1 % (one B outlier at 3.26):
+  within the noise, no regression from the splits (particles, relight, audio, portals included).
