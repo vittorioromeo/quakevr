@@ -1580,7 +1580,12 @@ physgun get the shared throw smoothing; the haptic presets keep today's exact va
   112/3 and all 7 reload_* as the baseline, ragdoll_grab 19/0 on its rerun (flaky: 18/1 once), ragdoll_climb 24/4,
   prop_climb 12/0, judo 12/4, walltorch_grab): the same but melee_phase, whose grunt_fast_on fails now and then in
   both trees (without (a): PASS then FAIL; with: FAIL, FAIL, PASS). eval.sh 163/171, 11 differ (the baseline's own
-  runs 9-11). No `handslot: mismatch` line in any log.
+  runs 9-11). No `handslot: mismatch` line in any log. A/B bench (one LTO exe, the progs before/after, interleaved,
+  scratch/dr5_ab.sh): combat_48 ABBAABBA +4.1% (sd 0.23-0.25 ms, one 3.1-3.2 ms outlier each side), then BAABBAAB
+  +0.8% (2.484 -> 2.503 ms, sd 0.03-0.04); idle_e1m1 -8.9% (noise): within noise (the check is two field reads a hand
+  a frame).
+- **Checklist:** pick up a box, a gib, a round, a grenade and a wall torch in either hand, swap and throw them, and
+  load a save made while holding one: each is held and let go as before, no `handslot: mismatch` line in the console.
 
 ## Nail pistol: a full-slide look (branch `agent/npslide2`)
 
