@@ -1480,7 +1480,8 @@ void sendFired(edict_t* shooter, int hand)
     MSG_WriteByte(&sv.datagram, svc_quakevr);
     MSG_WriteByte(&sv.datagram, QVR_SVC_FIRED);
     MSG_WriteShort(&sv.datagram, NUM_FOR_EDICT(shooter));
-    MSG_WriteByte(&sv.datagram, hand == 0 || hand == 1 ? hand : 255); // (HAND_OFF, HAND_MAIN)
+    // (HAND_OFF, HAND_MAIN; 2 and 3 a stream weapon's flame from that hand + 2: vr_weaponfx.cpp streamed)
+    MSG_WriteByte(&sv.datagram, hand >= 0 && hand <= 3 ? hand : 255);
     VR_BroadcastMessageEnd(); // a boundary
 }
 

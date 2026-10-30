@@ -1508,6 +1508,7 @@ read every pak's directory.
   70 -> 6 ms (vrtesthall), 77 -> 6 (vrstart), 16 -> 5 (e1m1), 20 -> 6 (hip2m5). Warm loads unchanged (144-293 ms: the
   models are kept). Scripts: scratch/load5_ab.sh, load5_abstats.py (not committed).
 
+<<<<<<< HEAD
 ## One test harness, part 1: one library, one parser, one tally (branch `agent/oneharness`; design review 7)
 
 - **Library**: `Misc/quakevr/qvrtest.py` (KIT, tree, run, run_sh, lanes, `Tally`, the parser `FAIL_LINE` / `counts` /
@@ -1527,3 +1528,28 @@ read every pak's directory.
 - **Left (part 2)**: one spawner (impulse 241; 16 helpers), the scenario's settings on testbatch's snapshot, the 64
   QC hand-printed verdicts, 23 Python files' kit paths, the C++ `_diag` printers; the other workers' test files
   (held things, config) left alone.
+=======
+## Weapon fixes of 2026-10-30: laser bolts on walls, stream shake (branch `agent/wpnfix1030`)
+
+- **Laser bolts bled on walls and floors** (vrfiringrange_2026-10-30_12-16-02). Not a recent code change: the firing
+  range's worldspawn (`quakevr/maps/vrfiringrange@3647.ent`, since the map came in) carries stray `"health" "9"` (with
+  `count` and `dmg`), so `world.health` was 9 and every touch that asks `other.health` (HIP_LaserTouch, the enforcer's
+  Laser_Touch, Rogue's and MG3's shots) read the world as flesh: blood (`spawn_touchblood`) and the bolt stopped instead of
+  sparking and bouncing. Fix at the cause: `worldspawn()` (world.qc) clears `self.health`, for any map with such a key
+  (nothing reads world.health; AD's start health is its own `ad_reset_health`/`max_health`). The .ent is left as is (it
+  keeps the test honest). Test: `vr_mg3_wtest 16` in vrfiringrange (developer 1): world health 0, 12 bolts at the floor
+  ahead bleed nothing (vr_blood_sent), then one at a soldier spawned ahead bleeds it; each phase ends when its bolts are
+  gone; verdict `mg3wtest: laserblood N passed, M failed`. Before the fix: 2 FAIL (health 9, 12 blood); after 5/0.
+- **Stream shake**: the AD flamethrower and poison sprayer tremble a little while they fire, and the hand buzzes. The QC's
+  VR_ADGun_FireFlame (the player's: `self.ishuman`) sends `weaponfired(self, hand + 2)` each flame (every 0.1 s) in
+  place of its fixed `VRGunHaptic(hand, 0.1, 40, 0.4)`; sendFired passes hands 2 and 3, the client's parseFired gives
+  them to `weaponfx::streamed`, and recoilOffset adds `streamShake`: a lean (kick 0.1) and a tremble (+-0.06, three sine
+  waves of cl.time: the same each run) and a sideways wobble, through the weapon's recoil (Kick Back, Muzzle Rise and the
+  global Weapon Effects' ones), in over 50 ms and settling over Return Time x Recovery after the last flame (+0.16 s).
+  At 1: 0..0.6 degrees up, 0.23 cm back, 0.12 degrees turned. The rumble: the same 0.4 at 40 Hz each flame (0.12 s), now
+  times the weapon's Stream Rumble. New per-weapon keys (Weapon Offsets > Effects): Stream Shake
+  (`vr_wofs_fx_stream_shake_NN`) and Stream Rumble (`vr_wofs_fx_stream_haptic_NN`), 0 for every slot but 30 and 31 (the
+  pyro's and the fumigator's guns, 1). Test: `vr_recoil_test`'s stream part (7 checks: defaults, a flame starts it, it
+  shakes every frame of a second of flames and trembles, under a degree, settled after, none at 0): 24/0. Not checked
+  here: a real flamethrower (the kit's bases have no AD data); the network hop is two lines.
+>>>>>>> origin/next

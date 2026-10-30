@@ -67,7 +67,22 @@ struct HandFx
     float flashJitter{1.f};
     int variant{-1};    // an AD gun variant's (vr_adguns.hpp FireFeel), else -1
     bool burst{false};  // its shot's particles still to leave its muzzle (frame: where the gun is drawn)
+    double streamStart{-1.0}; // a stream weapon firing since (cl.time; streamed); -1 none
+    double streamLast{-1.0};  // its last flame
 };
+
+// A stream's flames come every 0.1 s (vr_adgun_pyro_rate, _fumigator_rate): it is still firing this long after one.
+constexpr float streamHold = 0.16f;
+// The stream shake at Stream Shake 1 (a kick, as a shot's: times Recoil Kick Back and Muzzle Rise): a steady lean
+// (Weapon Effects' 1.5 cm and 4 degrees: 0.15 cm back, 0.4 degrees up) and a tremble around it, up and down and sideways.
+constexpr float streamLean = 0.1f;
+constexpr float streamTremble = 0.06f;
+constexpr float streamSideways = 1.2f;
+// Its rumble at Stream Rumble 1: the light buzz each flame had (the QC's VRGunHaptic(hand, 0.1, 40, 0.4)), a flame's
+// time and a little more so the buzz is unbroken.
+constexpr float streamHapticAmplitude = 0.4f;
+constexpr float streamHapticHz = 40.f;
+constexpr float streamHapticSeconds = 0.12f;
 HandFx handFx[2];
 
 // The AD gun variant `hand` holds (vr_adgunart.cpp), else -1.
@@ -317,6 +332,75 @@ void playerFired(int hand)
     }
 }
 
+// `hand`'s stream weapon put out a flame (the QC's weaponfired hand + 2: the AD flamethrower's, the poison sprayer's):
+// it trembles while the flames come (streamShake) and the hand buzzes lightly.
+void streamed(int hand)
+{
+    const int slot = weapons::heldSlot(hand);
+    if(slot < 0 || slot == weapons::fistSlot())
+    {
+        return;
+    }
+    HandFx& h = handFx[hand];
+    if(h.slot != slot)
+    {
+        forget(hand);
+        h.slot = slot;
+    }
+    if(h.streamStart < 0.0 || cl.time - h.streamLast > static_cast<double>(streamHold))
+    {
+        h.streamStart = cl.time;
+    }
+    h.streamLast = cl.time;
+    const float rumble = za::max(weapons::value(slot, Key::StreamHaptic), 0.f);
+    if(rumble > 0.f)
+    {
+        haptics::pulse(hand, streamHapticSeconds, za::min(streamHapticAmplitude * rumble, 1.f), streamHapticHz);
+    }
+    if(vr_debug_weaponfx.value)
+    {
+        Con_Printf("weaponfx stream t %.3f hand %d slot %d shake %.2f rumble %.2f (since %.3f)\n", cl.time, hand, slot,
+            weapons::value(slot, Key::StreamShake), rumble, h.streamStart);
+    }
+}
+
+// `h`'s stream shake now, a kick and its sideways share as recoilOffset sums a shot's: nothing without a stream or at
+// its weapon's Stream Shake 0 (Weapon Effects' Weapon Recoil off: recoilOffset draws none); while the flames come it leans (in over 50 ms) and trembles (three
+// waves of the clock, the same each run), and after the last it settles as a shot's kick does (its Return Time times
+// Recovery).
+void streamShake(HandFx& h, float& kick, float& sideways)
+{
+    if(h.streamStart < 0.0)
+    {
+        return;
+    }
+    const float shake = za::max(weapons::value(h.slot, Key::StreamShake), 0.f);
+    const float since = static_cast<float>(cl.time - h.streamStart);
+    const float after = static_cast<float>(cl.time - h.streamLast) - streamHold;
+    const float settle = za::max(weapons::value(h.slot, Key::RecoilTime), 0.02f) * recoveryOf(h.slot);
+    if(after >= settle || since < 0.f)
+    {
+        if(after >= settle)
+        {
+            h.streamStart = h.streamLast = -1.0;
+        }
+        return;
+    }
+    float level = za::min(since / 0.05f, 1.f);
+    if(after > 0.f)
+    {
+        const float x = after / settle;
+        level *= 1.f - x * x * (3.f - 2.f * x);
+    }
+    const float t = static_cast<float>(cl.time);
+    constexpr float tau = 6.2831853f;
+    const float up = 0.55f * za::sin(tau * 11.3f * t) + 0.3f * za::sin(tau * 17.9f * t + 1.3f) + 0.15f * za::sin(tau * 27.1f * t + 2.1f);
+    const float side = 0.6f * za::sin(tau * 8.7f * t + 0.4f) + 0.4f * za::sin(tau * 14.3f * t + 2.6f);
+    const float k = shake * level * (streamLean + streamTremble * up);
+    kick += k;
+    sideways += shake * level * streamSideways * streamLean * side;
+}
+
 // An enforcer's rifle or a grunt's gun fired: a puff of gun smoke out of its muzzle (as your guns' make, QC particle2
 // GUNSMOKE; vr_muzzle_smoke_enemies; the grunts' since NOTES.md vrfiringrange_2026-10-02_15-52-01). Each of a burst's
 // rounds is a shot (weapons.qc), and a puff.
@@ -472,11 +556,18 @@ void parseFired()
 {
     const int ent = MSG_ReadShort();
     const int hand = MSG_ReadByte();
-    if(hand <= 1)
+    if(hand <= 3)
     {
         if(ent == cl.viewentity)
         {
-            playerFired(hand);
+            if(hand <= 1)
+            {
+                playerFired(hand);
+            }
+            else
+            {
+                streamed(hand - 2);
+            }
         }
         return;
     }
@@ -561,6 +652,7 @@ void recoilOffset(int hand, const glm::vec3& handAngles, glm::vec3& pos, glm::ve
             sideways += e * k.sideways;
         }
     }
+    streamShake(h, kick, sideways); // (a stream weapon firing: vr_weapons.inc StreamShake)
     // A burst's kicks adding up go no further than two and a half.
     if(kick > 2.5f)
     {
@@ -991,6 +1083,76 @@ void recoveryTest(const Check& check)
         recoveryOf(held), 1.f);
 }
 
+// vr_recoil_test's part on the stream shake (Key::StreamShake, StreamHaptic; streamed, streamShake): only the AD
+// flamethrower's and poison sprayer's slots (30, 31) have it by default; the held weapon at Stream Shake 1, a flame just
+// come (streamed), trembles each frame of a second of flames (the clock stepped as frames do), subtly (under a degree
+// up, a few mm back); it is gone once the last flame's settling is over, and at Stream Shake 0 there is none. Puts the
+// value and the clock back.
+template <typename Check>
+void streamTest(const Check& check)
+{
+    int with = 0;
+    for(int s = 0; s < weapons::numSlots; s++)
+    {
+        with += weapons::value(s, Key::StreamShake) > 0.f || weapons::value(s, Key::StreamHaptic) > 0.f ? 1 : 0;
+    }
+    const bool fuelled = weapons::value(30, Key::StreamShake) == 1.f && weapons::value(31, Key::StreamShake) == 1.f &&
+                         weapons::value(30, Key::StreamHaptic) == 1.f && weapons::value(31, Key::StreamHaptic) == 1.f;
+    check(fuelled && with == 2, "only the flamethrower and the poison sprayer shake and rumble by default (slots)",
+        static_cast<float>(with), 2.f);
+
+    const int hand = HAND_MAIN;
+    const int held = weapons::heldSlot(hand);
+    cvar_t* shakeVar = weapons::cvar(held, Key::StreamShake);
+    const za::String oldShake{shakeVar->string};
+    Cvar_SetValueQuick(shakeVar, 1.f);
+    const double clock = cl.time;
+    forget(hand);
+    streamed(hand);
+    check(handFx[hand].slot == held && handFx[hand].streamStart == clock, "a flame starts the held weapon's stream (s)",
+        static_cast<float>(handFx[hand].streamStart - clock), 0.f);
+    // A second of flames every 0.1 s, a frame at a time (1/72 s).
+    float tipMin = 1e9f, tipMax = -1e9f, backMax = 0.f, turnMax = 0.f;
+    int shaken = 0;
+    constexpr int frames = 72;
+    for(int i = 0; i < frames; i++)
+    {
+        cl.time = clock + static_cast<double>(i) / 72.0;
+        if(i % 7 == 0)
+        {
+            streamed(hand);
+        }
+        glm::vec3 pos, angles;
+        recoilOffset(hand, glm::vec3{0.f}, pos, angles);
+        shaken += angles.x < 0.f ? 1 : 0;
+        tipMin = za::min(tipMin, -angles.x);
+        tipMax = za::max(tipMax, -angles.x);
+        backMax = za::max(backMax, glm::length(pos) / units::metresToUnits() * 100.f);
+        turnMax = za::max(turnMax, fabsf(angles.y));
+    }
+    check(shaken >= frames - 1, "it shakes every frame the flames come (frames)", static_cast<float>(shaken),
+        static_cast<float>(frames - 1));
+    check(tipMax - tipMin > 0.1f && turnMax > 0.f, "it trembles (degrees up, most less least)", tipMax - tipMin, 0.1f);
+    check(tipMax < 1.f && backMax < 0.5f && turnMax < 0.5f, "subtly (most degrees up; cm back, degrees turned under 0.5)",
+        tipMax, 1.f);
+    Con_Printf("vr_recoil_test: stream shake: %.2f..%.2f degrees up, %.2f cm back, %.2f degrees turned at most\n", tipMin,
+        tipMax, backMax, turnMax);
+    const float settle = za::max(weapons::value(held, Key::RecoilTime), 0.02f) * recoveryOf(held);
+    cl.time = handFx[hand].streamLast + static_cast<double>(streamHold + settle) + 0.01;
+    glm::vec3 posEnd, angEnd;
+    recoilOffset(hand, glm::vec3{0.f}, posEnd, angEnd);
+    check(glm::length(posEnd) == 0.f && angEnd.x == 0.f && handFx[hand].streamStart < 0.0,
+        "settled after the last flame (Return Time x Recovery)", -angEnd.x, 0.f);
+    cl.time = clock;
+    Cvar_SetValueQuick(shakeVar, 0.f);
+    streamed(hand);
+    glm::vec3 posOff, angOff;
+    recoilOffset(hand, glm::vec3{0.f}, posOff, angOff);
+    check(glm::length(posOff) == 0.f && angOff.x == 0.f, "Stream Shake 0: none", -angOff.x, 0.f);
+    forget(hand);
+    Cvar_SetQuick(shakeVar, oldShake.cStr());
+}
+
 // vr_recoil_test: each weapon's own recoil kick and rise (Key::RecoilKick, RecoilRise) move its recoil only. At their
 // defaults every slot's recoil is Weapon Effects' Kick Back and Muzzle Rise times its strength, as before; the held
 // weapon's (the main hand's) Kick Back 2 and Muzzle Rise 0.5 double its drawn kick back and halve its tip up and turn
@@ -1119,6 +1281,7 @@ void recoilTest_f()
     check(glm::length(pos3) == glm::length(pos0) && ang3.x == ang0.x, "values put back: the held weapon's kick as before",
         glm::length(pos3), glm::length(pos0));
     recoveryTest(check);
+    streamTest(check);
     qvr::testkit::verdict("vr_recoil_test", passed, failed);
 }
 

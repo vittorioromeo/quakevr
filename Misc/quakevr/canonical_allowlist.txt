@@ -155,7 +155,7 @@ qc-test-verdict QC/vr_dmgcredit_test.qc 1  # not migrated yet (design review 7: 
 qc-test-verdict QC/vr_flaregun_test.qc 1  # not migrated yet (design review 7: one test harness)
 qc-test-verdict QC/vr_mg3_monsters_test.qc 1  # not migrated yet (design review 7: one test harness)
 qc-test-verdict QC/vr_mg3_test.qc 11  # not migrated yet (design review 7: one test harness)
-qc-test-verdict QC/vr_mg3_weapons_test.qc 7  # not migrated yet (design review 7: one test harness)
+qc-test-verdict QC/vr_mg3_weapons_test.qc 8  # not migrated yet (design review 7: one test harness)
 qc-test-verdict QC/vr_mg_activation_test.qc 1  # not migrated yet (design review 7: one test harness)
 qc-test-verdict QC/vr_mg_hub_test.qc 1  # not migrated yet (design review 7: one test harness)
 qc-test-verdict QC/vr_mg_trigger_test.qc 2  # not migrated yet (design review 7: one test harness)

@@ -427,6 +427,13 @@ QVR_WEAPON_KEY(RecoilRecovery, "fx_recoil_rec")
 // punchAt): times the shot's buzz in the hand (a sharp spike, then a short tail as long as its recoil's way back). 1 by
 // default (registerCvars). New cvars: no migration.
 QVR_WEAPON_KEY(HapticPunch, "fx_punch")
+// The weapon's stream shake (ROUND23.md, "Stream shake"; Weapon Offsets > Effects, Stream Shake and Stream Rumble;
+// vr_weaponfx.cpp streamShake): while a stream weapon fires (the AD flamethrower's and poison sprayer's flames: their
+// QC's weaponfired hand + 2 each flame), the drawn weapon trembles a little (times its Recoil Kick Back and Muzzle Rise,
+// fading out over its Return Time and Recovery as it stops) and the hand rumbles lightly. 0 by default (registerCvars):
+// on for those two (below). New cvars: no migration.
+QVR_WEAPON_KEY(StreamShake, "fx_stream_shake")
+QVR_WEAPON_KEY(StreamHaptic, "fx_stream_haptic")
 #endif
 
 
@@ -3227,6 +3234,8 @@ QVR_WEAPON_UNINHERITED(30, Balance, "35")
 QVR_WEAPON_UNINHERITED(30, Span, "80")
 QVR_WEAPON_UNINHERITED(30, Recoil, "1")
 QVR_WEAPON_UNINHERITED(30, RecoilTime, "0.12")
+QVR_WEAPON_UNINHERITED(30, StreamShake, "1")
+QVR_WEAPON_UNINHERITED(30, StreamHaptic, "1")
 QVR_WEAPON_UNINHERITED(30, Flash, "1")
 QVR_WEAPON_UNINHERITED(30, TracerChance, "3")
 QVR_WEAPON_UNINHERITED(30, StockPitch, "10")
@@ -3281,6 +3290,8 @@ QVR_WEAPON_UNINHERITED(31, Balance, "35")
 QVR_WEAPON_UNINHERITED(31, Span, "80")
 QVR_WEAPON_UNINHERITED(31, Recoil, "1")
 QVR_WEAPON_UNINHERITED(31, RecoilTime, "0.12")
+QVR_WEAPON_UNINHERITED(31, StreamShake, "1")
+QVR_WEAPON_UNINHERITED(31, StreamHaptic, "1")
 QVR_WEAPON_UNINHERITED(31, Flash, "1")
 QVR_WEAPON_UNINHERITED(31, TracerChance, "3")
 QVR_WEAPON_UNINHERITED(31, StockPitch, "10")
