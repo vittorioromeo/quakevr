@@ -8,7 +8,7 @@
 // - the Debug > Tunables page (vr_menu_tunables.inc): its rows (vr_tunables_rows.inc) set the stand-in cvars, and a set
 //   of an unregistered cvar comes here (Cvar_SetQuick: VR_TunableSetVar);
 // - tunables.cfg in the game folder: the ones off their defaults (`tune <name> "<value>"` lines), read once after the
-//   config (vr_migrate_config), written at quit with the config (Host_WriteConfiguration; not by a copy that never
+//   config (vr_migrate_config), written with the config (Host_WriteConfiguration: at quit, the menu's Save Default; not by a copy that never
 //   writes its config). A console notice says how many it set.
 // The values become the shipped defaults by Misc/quakevr/tune_promote.py (a tunables.cfg's values into vr_tunables.inc,
 // on a worker's tree); the game never writes a source file.
@@ -66,8 +66,9 @@ extern "C" int VR_TunableSetVar(cvar_t* var, const char* value)
     return 0;
 }
 
-extern "C" void VR_TunablesWrite(void)
+extern "C" int VR_TunablesWrite(void)
 {
+    return 1; // (no tunables.cfg in a release)
 }
 
 #else // development build: live tuning
@@ -604,14 +605,14 @@ void tunablesLoad()
 
 } // namespace qvr
 
-// At quit with the config (Host_WriteConfiguration): the constants off their defaults, if any was set since; none: the
-// file goes.
-extern "C" void VR_TunablesWrite(void)
+// With the config (Host_WriteConfiguration: at quit, and the menu's Save Default): the constants off their defaults, if
+// any was set since; none: the file goes. 0 when the write failed (the file kept as it was), else 1.
+extern "C" int VR_TunablesWrite(void)
 {
     using namespace qvr;
     if(!fileLoaded || !fileDirty)
     {
-        return;
+        return 1;
     }
     const za::String path = filePath();
     if(!overrideCount)
@@ -622,14 +623,14 @@ extern "C" void VR_TunablesWrite(void)
             Con_Printf("Removed tunables.cfg (no tuning constant off its default)\n");
         }
         fileDirty = false;
-        return;
+        return 1;
     }
     const za::String tmp = path + ".tmp";
     FILE* f = Sys_fopen(tmp.cStr(), "w");
     if(!f)
     {
         Con_Printf("\x02" "Couldn't write tunables.cfg\n");
-        return;
+        return 0;
     }
     fprintf(f, "// tunables.cfg -- Quake VR's tuning constants set off their defaults (tune; Debug > Tunables), written at "
                "quit\n// and read at start after the config. Misc/quakevr/tune_promote.py makes them the shipped "
@@ -645,10 +646,11 @@ extern "C" void VR_TunablesWrite(void)
     {
         Con_Printf("\x02" "Couldn't write tunables.cfg (the disk full?): the file was kept as it was\n");
         Sys_remove(tmp.cStr());
-        return;
+        return 0;
     }
     fileDirty = false;
     Con_Printf("Wrote tunables.cfg (%d tuning constant%s)\n", overrideCount, overrideCount == 1 ? "" : "s");
+    return 1;
 }
 
 // Cvar_SetQuick of a cvar never registered: a tuning constant's stand-in (a Tunables page row) sets the constant.

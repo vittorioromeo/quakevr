@@ -11,7 +11,8 @@
         command("Save My Settings as Defaults", "vr_propose_defaults")
             .help("vr_propose_defaults: every setting you changed from its shipped default (weapon and held object "
                   "slots too) written to quakevr/proposed_defaults/<date>_<time>.cfg for review, sorted by menu page, "
-                  "the personal and debug ones marked. Nothing changes in the game. Also the menu's corner button "
+                  "the personal and debug ones marked. Nothing changes in the game. Your config and tunables.cfg are "
+                  "saved to disk too, as at quit (kept should the game crash). Also the menu's corner button "
                   "Save Default (press twice)."),
 #ifndef QVR_RELEASE
         open("Tunables", pageIndex(pageTunables))

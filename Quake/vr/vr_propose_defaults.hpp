@@ -5,7 +5,9 @@
 // sorted by area (the menus' pages; the weapon slots, vr_wofs_*; the held objects' slots, vr_prop_*; the rest by their
 // names' prefix). Everything is written (debug settings too), the rows that look personal (calibration, comfort, height,
 // handedness, the hands' angles, the body's measures, the menus' own) or debug (debug, test, show, dump, profile, trace,
-// mock) tagged for the coordinator to filter. Nothing in the game changes: no default is set here.
+// mock) tagged for the coordinator to filter. Nothing in the game changes: no default is set here. First the config
+// and tunables.cfg are written as at quit (Host_WriteConfiguration; not under -noconfigwrite), so his changes survive a
+// crash; a console line names both ("Saved your settings to disk: ironwail.cfg and tunables.cfg").
 //
 // From the console (vr_propose_defaults), Debug > Save My Settings as Defaults, and the menu's corner button (Save
 // Default: at Menu Detail: Developer only; a second press within 3 seconds writes, the button then says "Saved N").

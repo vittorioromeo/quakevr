@@ -150,6 +150,22 @@ void propose_f()
 
 int write(za::String& path)
 {
+    // First the config and tunables.cfg, as quit writes them (Host_WriteConfiguration, the one path): his changes kept
+    // on disk right away, should the game crash before he quits.
+    if(Host_WriteConfiguration())
+    {
+#ifdef QVR_RELEASE
+        Con_Printf("Saved your settings to disk: %s\n", CONFIG_NAME);
+#else
+        Con_Printf("Saved your settings to disk: %s and tunables.cfg\n", CONFIG_NAME);
+#endif
+    }
+    else
+    {
+        Con_Printf("\x02" "Your settings were not saved to disk (-noconfigwrite, the config not loaded, or a write "
+                          "failed)\n");
+    }
+
     za::Vector<Row> rows;
     for(const cvar_t* var = Cvar_FindVarAfter("", 0); var; var = Cvar_FindVarAfter(var->name, 0))
     {

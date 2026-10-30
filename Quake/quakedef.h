@@ -462,7 +462,7 @@ void Host_Frame (double time);
 void Host_Quit_f (void);
 void Host_ClientCommands (const char *fmt, ...) FUNC_PRINTF(1,2);
 void Host_ShutdownServer (qboolean crash);
-void Host_WriteConfiguration (void);
+qboolean Host_WriteConfiguration (void); // QVR: true when the config and tunables.cfg are on disk as they are now
 void Host_Resetdemos (void);
 
 void Host_SavegameComment (char text[SAVEGAME_COMMENT_LENGTH + 1]);
