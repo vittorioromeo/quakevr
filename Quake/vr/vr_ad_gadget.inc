@@ -23,7 +23,7 @@ PageState pageState;
 
 [[nodiscard]] bool adPageShown()
 {
-    return pageState.page == 1 && Cvar_VariableValue("vr_ad_mounted") != 0.f;
+    return pageState.page == 1 && vr_ad_mounted.value != 0.f;
 }
 
 void adPage(const Readout& r, const Palette& pal)
@@ -152,7 +152,7 @@ void adPage(const Readout& r, const Palette& pal)
 // togglePage (vr_gadget.hpp): the AD page and back while AD's data is loaded; false (the HUD kept) without it.
 [[nodiscard]] bool adTogglePage()
 {
-    if(Cvar_VariableValue("vr_ad_mounted") == 0.f)
+    if(vr_ad_mounted.value == 0.f)
     {
         pageState.page = 0;
         return false;

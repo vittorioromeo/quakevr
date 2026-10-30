@@ -522,10 +522,9 @@ void loadTest_f()
     Con_Printf("carryloadtest: torso %s cross %.3f overlap %.3f overhead %s; scales empty %.3f 5kg %.3f 65kg/1.5m %.3f 160kg %.3f bulk2m %.3f\n",
         ok ? "PASS" : "FAIL", across.pos.y, freed.pos.y, blockedAbove ? "blocked" : "clear",
         loadScale(0.f, 0.f), loadScale(5.f, 0.5f), loadScale(65.f, 1.5f), loadScale(160.f, 1.f), loadScale(5.f, 2.f));
-    if(sv.active && svs.clients[0].active)
+    if(edict_t* player = progs::localPlayer())
     {
         progs::ServerVm serverVm;
-        edict_t* player = svs.clients[0].edict;
         Con_Printf("carryloadtest: current speed scale %.3f, horizontal speed %.3f\n", moveScale(player),
             glm::length(glm::vec2{player->v.velocity[0], player->v.velocity[1]}));
         const auto& f = progs::fields();
