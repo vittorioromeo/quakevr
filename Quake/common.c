@@ -2077,6 +2077,23 @@ static unsigned int COM_PackHash (const char *name)
 	return h;
 }
 
+// QVR: the length of `name` without its extension (up to its last '.' after its last '/'), -1 if it has none
+static int COM_StemLength (const char *name)
+{
+	const char *dot = strrchr (name, '.');
+	if (!dot || strchr (dot, '/'))
+		return -1;
+	return (int) (dot - name);
+}
+
+static unsigned int COM_PackStemHash (const char *name, int length)
+{
+	unsigned int h = 2166136261u; // FNV-1a
+	for (; length > 0; name++, length--)
+		h = (h ^ (unsigned char) *name) * 16777619u;
+	return h;
+}
+
 static void COM_PackIndex (pack_t *pack)
 {
 	unsigned int size = 16, slot;
@@ -2095,6 +2112,67 @@ static void COM_PackIndex (pack_t *pack)
 		if (!j)
 			pack->hash[slot] = i + 1;
 	}
+	// QVR: the names without their extensions, for COM_StemNowhere (an image's five lookups, png to lmp, answered at once)
+	pack->stemhash = (int *) calloc (size, sizeof (int));
+	if (!pack->stemhash)
+		Sys_Error ("COM_PackIndex: out of memory (%s)", pack->filename);
+	for (i = 0; i < pack->numfiles; i++)
+	{
+		const char *name = pack->files[i].name;
+		int length = COM_StemLength (name);
+		if (length < 0)
+			continue;
+		for (slot = COM_PackStemHash (name, length) & pack->hashmask; (j = pack->stemhash[slot]) != 0; slot = (slot + 1) & pack->hashmask)
+			if (COM_StemLength (pack->files[j - 1].name) == length && !strncmp (pack->files[j - 1].name, name, length))
+				break; // (the stem's there already)
+		if (!j)
+			pack->stemhash[slot] = i + 1;
+	}
+}
+
+// QVR: whether the pak has a file named `stem` + "." + an extension (exactly, as COM_PackFind's names)
+static qboolean COM_PackHasStem (const pack_t *pack, const char *stem, int length)
+{
+	unsigned int slot;
+	int j;
+	for (slot = COM_PackStemHash (stem, length) & pack->hashmask; (j = pack->stemhash[slot]) != 0; slot = (slot + 1) & pack->hashmask)
+		if (COM_StemLength (pack->files[j - 1].name) == length && !strncmp (pack->files[j - 1].name, stem, length))
+			return true;
+	return false;
+}
+
+/*
+QVR: COM_StemNowhere -- true when no search path has a file named `stem` + "." + any extension: Image_LoadImage's lookups
+of `stem`.png, .tga, .jpg, .pcx and .lmp would all miss, so it makes none (most of a load's lookups: 12900 misses of
+2300 images on vrtesthall, 2026-10-30). False when it can't tell: outside the file system cache's windows (the loose
+folders not listed: VR_FileCacheHas), an owned pack's name (VR_OwnedFile), or a name the paths can't be built for.
+Every search path is asked, also those a lookup skips (VR_SkipSearchPath): a superset, so "nowhere" holds for each.
+*/
+qboolean COM_StemNowhere (const char *stem)
+{
+	searchpath_t *search;
+	char netpath[MAX_OSPATH];
+	int length = (int) strlen (stem);
+	// (a file `stem`.png is a name whose part before its last '.' is `stem`, a '.' in the stem or not: progs/ogre.mdl_0)
+	if (!VR_FileCacheWindow () || !q_strncasecmp (stem, "owned/", 6) || !q_strncasecmp (stem, "sound/owned/", 12) ||
+		length + 5 >= MAX_QPATH)
+		return false;
+	for (search = com_searchpaths; search; search = search->next)
+	{
+		if (search->pack)
+		{
+			if (COM_PackHasStem (search->pack, stem, length))
+				return false;
+		}
+		else
+		{
+			if ((size_t) q_snprintf (netpath, sizeof (netpath), "%s/%s", search->filename, stem) >= sizeof (netpath))
+				return false;
+			if (VR_FileCacheHasStem (netpath) != 0)
+				return false;
+		}
+	}
+	return true;
 }
 
 // The index of the pak's first entry named `name` (exactly, as strcmp), -1 if it has none.
@@ -2183,6 +2261,7 @@ static int COM_FindFileRun (const char *filename, int *handle, FILE **file,
 		}
 		if (found < 0)
 		{
+			*nowhere = true; // (a miss too: the owned packs' folders are never written to)
 			if (handle)
 				*handle = -1;
 			if (file)
@@ -2813,6 +2892,7 @@ void COM_ResetGameDirectories(const char *newgamedirs)
 			Sys_FileClose (com_searchpaths->pack->handle);
 			Z_Free (com_searchpaths->pack->files);
 			free (com_searchpaths->pack->hash); // QVR
+			free (com_searchpaths->pack->stemhash); // QVR
 			Z_Free (com_searchpaths->pack);
 		}
 		search = com_searchpaths->next;
