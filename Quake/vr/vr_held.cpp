@@ -1956,13 +1956,9 @@ void meetFrame(const hands::State& s)
 
     // A buzz in both hands as they meet.
     const bool touching = depth > 0.f;
-    if(touching && !meet.touching && !vr_disablehaptics.value)
+    if(touching && !meet.touching)
     {
-        if(Backend* be = backend())
-        {
-            be->haptic(0, 0.04f, 120.f, 0.35f);
-            be->haptic(1, 0.04f, 120.f, 0.35f);
-        }
+        haptics::meet();
     }
     if(touching != meet.touching && vr_debug_carry.value)
     {
@@ -2522,7 +2518,7 @@ bool bothHandsThrow(int hand, double at, bool release, throwing::Estimate& out)
     {
         return false;
     }
-    out = throwing::estimateBothAt(at, bothCentre);
+    out = throwing::release(3, at, bothCentre);
     if(release)
     {
         bothRelease[hand] = {ent, at};

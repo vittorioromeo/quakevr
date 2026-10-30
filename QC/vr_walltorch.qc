@@ -463,7 +463,7 @@ void(float xHand) VR_WallTorch_HandFrame =
         vr_carry_quiet = TRUE;
         VR_Carry_Start(self, xHand, t);
         vr_carry_quiet = FALSE;
-        haptic(xHand, 0.0, 0.08, 80, 0.8);
+        VR_Haptic_GrabTorch(xHand);
         return;
     }
     // Held in its holder: a grating buzz, stronger as it comes.

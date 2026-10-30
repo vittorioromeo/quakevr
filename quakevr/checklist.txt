@@ -88,6 +88,10 @@ Fire the rocket launcher (and the AD one if available): a swirling cone out of t
 Shoot stone, dirt, metal and wood walls: grey dust, browner dust, sparks, wood chips (Impacts by Material).
 Thunderbolt on a wall: a faint bluish haze where it plays; nailgun held 2+ s: thin wisps, then a faint red glow at the muzzle.
 Grunts, enforcers and armed grunts show the same gunfire effects.
+Pick up a box, a gib, a round, a grenade and a wall torch in either hand, swap and throw them, and load a save made while holding one: each is held and let go as before (no "handslot: mismatch" line in the console).
+Throw the flashlight with a flick and with a lob: it flies like a thrown prop, never over 3 m/s, then returns home.
+Swing a crate with the physgun and let go at the end of the swing: it keeps the swing (it used to come out slower).
+Every grab, pickup, holster, lamp and foe-grab buzz feels as before.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns

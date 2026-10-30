@@ -18,7 +18,9 @@ sys.path.insert(0, HERE)
 import climb_plays  # noqa: E402
 
 AGENT = sys.argv[1] if len(sys.argv) > 1 else "fastship"
-KIT = os.environ.get("KIT", "C:/OHWorkspace/qvr-kit")
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import qvrtest  # noqa: E402  (the tests' library: Misc/quakevr/qvrtest.py)
+KIT = qvrtest.KIT
 W = f"C:/OHWorkspace/qvr-agents/{AGENT}"
 HY = 1.49
 PULLS = [0.20, 0.25, 0.30, 0.35, 0.40, 0.45, 0.50, 0.60, 0.80]

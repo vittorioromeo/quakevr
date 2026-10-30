@@ -9,6 +9,8 @@ vr_weaponinst.qc
 // First: their inline per-hand getters must precede the callers (fteqcc inlines only what it
 // has already compiled).
 vr_util.qc
+// The hand-held things' named buzzes (VR_Haptic_*), before their callers.
+vr_haptics.qc
 // The QC tests' shared tally (VR_Test_Begin/Check/Verdict).
 vr_testutil.qc
 vr_handgrabutil.qc

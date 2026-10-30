@@ -1925,8 +1925,6 @@ entity vr_adgun_test_target; // the target ahead
 #ifdef QVR_TESTS
 float vr_adgun_test_index;   // the gun being tested (0..7)
 float vr_adgun_test_step;    // its step: 0 equip and fire, 1..5 fire on (the streams), 6 read
-float vr_adgun_test_pass;
-float vr_adgun_test_fail;
 float vr_adgun_test_clip;    // the clip as the gun was given
 float vr_adgun_test_grip;    // vr_weapon_grip_mode as it was (1 for the test: the gun stays in a hand not gripping)
 #endif

@@ -14,7 +14,9 @@ import subprocess
 import sys
 
 AGENT = sys.argv[1] if len(sys.argv) > 1 else "checklist"
-KIT = os.environ.get("KIT", "C:/OHWorkspace/qvr-kit")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import qvrtest  # noqa: E402  (the tests' library: Misc/quakevr/qvrtest.py)
+KIT = qvrtest.KIT
 TREE = f"C:/OHWorkspace/qvr-agents/{AGENT}"
 GAME = f"{TREE}/quakevr"
 

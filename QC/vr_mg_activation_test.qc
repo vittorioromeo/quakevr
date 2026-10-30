@@ -4,7 +4,7 @@
 
 void() MG_ActivationTestFinish = {
     MG_TestCheck(MG_telefrag_victim.health <= 0, "activation telefrag kills overlapping monster through VR damage");
-    dprint(sprintf("mgactivationtest: %g passed, %g failed\n", MG_test_pass, MG_test_fail));
+    VR_Test_Verdict();
     remove(MG_telefrag_victim); remove(MG_telefrag_monster); remove(self);
 };
 
@@ -12,7 +12,7 @@ void() MG_ActivationTest = {
     entity oldself = self;
     entity oldact = activator;
     entity p = VR_Player();
-    MG_test_pass = MG_test_fail = 0;
+    VR_Test_Begin("mgactivationtest");
     float total = total_monsters;
     entity e = spawn();
     self = e; e.classname = "monster_army"; e.spawnflags = 4 | 8 | 16;

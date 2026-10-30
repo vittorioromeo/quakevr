@@ -28,7 +28,7 @@ float mg3mt_n;         // a count at a step's start (rockets fired)
 
 void() MG3_MT_Total =
 {
-    dprint(sprintf("mg3mtest: total %g passed, %g failed\n", vr_test_pass, vr_test_fail));
+    VR_Test_VerdictPart("total");
     VR_Test_Begin("mg3mtest");
 };
 
@@ -36,16 +36,11 @@ void() MG3_MT_Total =
 entity(entity p, float xChoice, float xDist, float xSide) MG3_MT_Spawn =
 {
     makevectors('0 1 0' * p.v_angle_y);
-    entity d = spawn();
-    d.weapon = xChoice;
-    setorigin(d, p.origin + v_forward * xDist + v_right * xSide);
-    entity oldself = self;
-    self = d;
-    activator = p;
-    func_enemy_dispenser_use();
-    entity m = self;
-    self = oldself;
-    remove(d);
+    entity m = VR_Test_Spawn(p, xChoice, p.origin + v_forward * xDist + v_right * xSide, -1);
+    if(!m)
+    {
+        return m;
+    }
     m.angles_y = p.v_angle_y + 180;
     return m;
 };

@@ -78,6 +78,8 @@ FAMILIES = {
                   "VR_ImpactFx / SpawnBlood / VR_HitBlood (QC/vr_crates.qc; the rows: Quake/vr/vr_impacts.cpp)"),
     "qc-material-ladder": ("qc", [r"\b(?:VR_Hit_Metal|VR_Crate_Wooden|VR_Hit_Armoured)\s*\("],
                            "VR_MaterialOf (QC/vr_crates.qc) and the impact table's row"),
+    "qc-test-spawn": ("qc", [r"(?m)^[ \t]*func_enemy_dispenser_use\s*\(\s*\)\s*;"],
+                      "VR_Test_Spawn (QC/vr_testutil.qc): the tests' one spawner, impulse 241's"),
 }
 
 
@@ -105,6 +107,7 @@ NEEDLES = {
     "sh-test-copy": r"check",
     "qc-hit-fx": r"particle2",
     "qc-material-ladder": r"VR_Hit_Metal|VR_Crate_Wooden|VR_Hit_Armoured",
+    "qc-test-spawn": r"func_enemy_dispenser_use",
 }
 
 

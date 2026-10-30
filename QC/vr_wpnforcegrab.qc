@@ -60,6 +60,13 @@ float(entity xPlayer, float xHand) VR_Forcegrab_IsHandBusy =
     return xPlayer.mainhand_fglocked;
 }
 
+// Whether `xHand` of `xPlayer` may take a thing into its slot (VR_Hand_Take): empty (VRIsHandEmpty), not locked on to
+// a pull. (What a carry's grab, a ragdoll grab and a foe grab's throw ask.)
+float(entity xPlayer, float xHand) VR_Hand_CanTake =
+{
+    return VRIsHandEmpty(xPlayer, xHand) && !VR_Forcegrab_IsHandBusy(xPlayer, xHand);
+}
+
 // One object at a time per hand: none while one flies to it, and none until the trigger that
 // pulled it is let go.
 float(float xHand) VR_Forcegrab_IsPulling =
@@ -126,7 +133,6 @@ vector(entity e) VR_Forcegrab_GrabPoint =
     return forcegrabpoint(e);
 }
 
-void(entity xPlayer, float xHand, entity xBox) VR_Carry_SetHeld; // (vr_carry.qc)
 
 // A weapon prop that can never be fired again: a single-use enemy gun (a grunt's burst rifle, an enforcer's laser rifle,
 // AD's soldiers' guns: VR_IsEnemyGun) dropped with its clip empty, or a chainsaw out of fuel (an ogre's: never refuelled;
@@ -424,8 +430,7 @@ void(entity e, entity xPlayer, float xHand) VR_Forcegrab_Catch =
         {
             catchblend(xHand, e, flewAt, flewAngles);
         }
-        haptic(xHand, 0.0, 0.07, 90, 0.85);
-        haptic(xHand, 0.06, 0.08, 70, 0.4);
+        VR_Haptic_ForceCatch(xHand);
         dprint("force grab: catch haptic, hand "); dprint(ftos(xHand)); dprint("\n");
     }
 
@@ -615,7 +620,7 @@ void(entity e, float xHand) VR_Forcegrab_Launch =
     setorigin(e, e.origin);
 
     sound(e, CHAN_AUTO, "forcegrab.wav", 0.65, ATTN_NORM);
-    haptic(xHand, 0.0, 0.12, 50, 0.6);
+    VR_Haptic_ForceLaunch(xHand);
     dprint("force grab: ");
     dprint(e.classname);
     dprint(" flies ");
@@ -741,7 +746,7 @@ void(float xHand) VR_Forcegrab_HandFrame =
     entity best = VR_Forcegrab_FindTarget(xHand);
     if(best != target && best != world && cvar_hget(cvarh_vr_forcegrab_eligible_haptics))
     {
-        haptic(xHand, 0.0, 0.08, 75, 0.2);
+        VR_Haptic_ForceEligible(xHand);
     }
 
     if(best == world)
@@ -753,7 +758,7 @@ void(float xHand) VR_Forcegrab_HandFrame =
     if(trigger)
     {
         VR_Forcegrab_Set(xHand, best, TRUE);
-        haptic(xHand, 0.0, 0.1, 100, 0.5);
+        VR_Haptic_ForceTarget(xHand);
         return;
     }
 
