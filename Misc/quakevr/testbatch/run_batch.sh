@@ -12,7 +12,7 @@ HERE=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 local n
 n=$(find "$DIR" -maxdepth 1 -name 'case_*.args' -size +0 | wc -l)
 [ "$n" -gt 0 ] || return 0
-AL="$KIT/agentlocks/$AGENT"
+AL="$KIT/agentlocks/$AGENT${QVR_LANE:+.lane$QVR_LANE}" # (a lane: its own lock, its copies qbase.lane<k>.<n>)
 mkdir -p "$KIT/agentlocks"
 local i
 for i in $(seq 1 9e3); do

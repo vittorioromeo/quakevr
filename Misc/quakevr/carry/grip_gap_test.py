@@ -118,7 +118,7 @@ def forcegrab_play(tries):
 
 
 def forcegrab_cfg(tries, agent):
-    path = os.path.join(KIT, "bases", agent, "qbase", "id1", "gripgap_forcegrab.txt")
+    path = os.path.join(KIT, "bases", agent, ("qbase" + (".lane" + os.environ["QVR_LANE"] if os.environ.get("QVR_LANE") else "")), "id1", "gripgap_forcegrab.txt")
     with open(path, "w", newline="\n") as f:
         f.write("\n".join(forcegrab_play(tries)) + "\n")
     # On a fixed clock (vr_fixed_frames, 4 ms a frame; the server's 72 Hz ticks under it, the hands drawn between them):
@@ -132,7 +132,7 @@ def forcegrab_cfg(tries, agent):
 
 
 def run(agent, name, cfg):
-    game = os.path.join(KIT, "bases", agent, "qbase", "id1")
+    game = os.path.join(KIT, "bases", agent, ("qbase" + (".lane" + os.environ["QVR_LANE"] if os.environ.get("QVR_LANE") else "")), "id1")
     with open(os.path.join(game, name + ".cfg"), "w", newline="\n") as f:
         f.write("\n".join(cfg) + "\n")
     script = "map vrfiringrange;wait60;god;notarget;exec %s.cfg;toggleconsole;quit" % name

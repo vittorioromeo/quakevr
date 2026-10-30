@@ -56,7 +56,7 @@ if '--check' not in sys.argv:
     if result.returncode:
         print(result.stderr)
         raise SystemExit(result.returncode)
-    log = Path(f"{kit}/bases/{name}/qbase/qconsole.log").read_text(errors="replace")
+    log = Path(f"{kit}/bases/{name}/" + ("qbase" + (".lane" + os.environ["QVR_LANE"] if os.environ.get("QVR_LANE") else "")) + "/qconsole.log").read_text(errors="replace")
     (tree / "scratch").mkdir(exist_ok=True); (tree / "scratch" / "secretfx-test.log").write_text(log)  # (scratch: git-ignored)
 else:
     log = (tree / 'scratch' / 'secretfx-test.log').read_text()

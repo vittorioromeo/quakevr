@@ -114,7 +114,9 @@ def cost(c):
 
 
 def game_dir(agent, base, k):
-    return f"{KIT}/bases/{agent}/{base}.{k}"
+    # (a lane of the agent's, QVR_LANE: its own copies, as run.ps1 -Instance names them then)
+    lane = os.environ.get("QVR_LANE", "")
+    return f"{KIT}/bases/{agent}/{base}" + (f".lane{lane}" if lane.isdigit() and lane != "0" else "") + f".{k}"
 
 
 def link_extra_games(agent, base, k):
