@@ -139,6 +139,33 @@ void explosionDebrisTrail(const glm::vec3& from, const glm::vec3& to, float size
 void shellEject(const glm::vec3& org, const glm::vec3& dir, float smoke, int sparks);
 void shellTrail(const glm::vec3& from, const glm::vec3& to, float strength);
 
+// Gunfire (vr_gunfx.cpp): one particle of a shot's muzzle sparks (streaked, glowing), smoke (lit by the place and the
+// shot's light) or glow (the flash lighting its smoke), as the caller shapes it. From the pool (no allocation), not
+// scaled by vr_particle_mult (the caller's budget). False with vr_particles 0 (nothing made).
+struct GunParticle
+{
+    enum Kind : int
+    {
+        Spark,
+        Smoke,
+        Glow,
+        Chip  // the spark's shape, not hot, drawn as its colour (wood chips: the caller shades it by the place)
+    };
+    Kind kind{Smoke};
+    glm::vec3 org{0.f};
+    glm::vec3 vel{0.f};
+    glm::vec4 color{1.f};
+    float scale{1.f};
+    float grow{0.f};    // scale a second
+    float life{0.5f};   // seconds (it fades out over them)
+    float drag{0.f};    // the part of its speed lost a second
+    float gravity{0.f}; // times Quake's (negative: it rises)
+    float streak{0.f};  // seconds of its motion it is drawn stretched along (sparks)
+    float turb{0.f};    // carried about by a swirling flow this strongly (units a second squared: smoke's turbulence)
+    float fadeIn{0.f};  // seconds it fades in over first (0: at full from the start)
+};
+bool gunParticle(const GunParticle& g);
+
 // A casing dropping into a liquid at `org` on its surface, going `dir` (`strength` 0..1: how fast): the splash
 // preset's drops, ring and foam at a casing's size (the ripple is water::addRipple's, the caller's). Nothing with
 // vr_particles 0 or vr_water_splash 0.

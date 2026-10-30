@@ -30,7 +30,9 @@ import os, re, subprocess, sys, time
 AGENT = sys.argv[1] if len(sys.argv) > 1 else "brushtool"
 SHOTS = "--shots" in sys.argv
 PERF = "--perf" in sys.argv
-KIT = os.environ.get("KIT", "C:/OHWorkspace/qvr-kit")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import qvrtest  # noqa: E402  (the tests' library: Misc/quakevr/qvrtest.py)
+KIT = qvrtest.KIT
 BASH = os.environ.get("KIT_BASH", "C:/Program Files/Git/usr/bin/bash.exe")
 if not os.path.exists(BASH):
     BASH = "bash"

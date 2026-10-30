@@ -15,7 +15,10 @@ from pathlib import Path
 NAME = sys.argv[1]
 ONLY = sys.argv[2:]
 TREE = Path("C:/OHWorkspace/qvr-agents") / NAME
-KIT = Path("C:/OHWorkspace/qvr-kit")
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import qvrtest  # noqa: E402  (the tests' library: Misc/quakevr/qvrtest.py)
+KIT = Path(qvrtest.KIT)
 BASH = "C:/Program Files/Git/bin/bash.exe"
 CFG = TREE / "quakevr/test_parrybalance.cfg"
 LOG = KIT / "bases" / NAME / "qbase/qconsole.log"

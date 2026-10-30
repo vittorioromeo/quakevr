@@ -1,9 +1,13 @@
 """Blood-feedback regression against the production engine and GLSL (local kit)."""
 import argparse,json,re,subprocess
 from pathlib import Path
+import os
+import sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import qvrtest  # noqa: E402  (the tests' library: Misc/quakevr/qvrtest.py)
 ap=argparse.ArgumentParser()
 ap.add_argument("--name",default="bloodfx")
-ap.add_argument("--kit",default="C:/OHWorkspace/qvr-kit")
+ap.add_argument("--kit",default=qvrtest.KIT)
 ap.add_argument("--images",action="store_true")
 args=ap.parse_args()
 root=Path(__file__).resolve().parents[2]

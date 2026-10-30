@@ -20,7 +20,9 @@ import subprocess
 import sys
 
 agent = sys.argv[1] if len(sys.argv) > 1 else "menuicf"
-KIT = os.environ.get("KIT", "C:/OHWorkspace/qvr-kit")
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import qvrtest  # noqa: E402  (the tests' library: Misc/quakevr/qvrtest.py)
+KIT = qvrtest.KIT
 BASH = os.environ.get("KIT_BASH", "C:/Program Files/Git/usr/bin/bash.exe")
 if not os.path.exists(BASH):
     BASH = "bash"

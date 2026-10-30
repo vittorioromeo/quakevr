@@ -1394,6 +1394,63 @@ cases, pe_full.log; the bench row carried from phase 0), the old file kept as `b
 `run_baseline.py --compare` reports the cases that vary run to run (`FLAKY`: agrunt 1/47/60/63/67/71/72/76/86,
 ragdoll_ragtest/grab/guard, rv_1, judo, stealth, agarmor_5) apart as "FLAKY CHANGED", not counted in its exit status.
 
+## Refactor leftovers L1: hitreact and ragactive splits, derive's phases (branch `agent/leftsplit1`)
+
+No behaviour change.
+
+- **vr_hitreact.cpp** (2752 lines) -> vr_hitreact.cpp (1880) + vr_hitreact_arms.cpp (450: the arm-pose slots, drawn
+  poses, placeArmPose, bodyTurn, fitRigid, specOf ...) + vr_hitreact_skin.cpp (348: relinkSkinned) +
+  vr_hitreact_internal.hpp. The anonymous namespace was at global scope, so the shared part is `hitreact_detail` at
+  global scope too, with `using namespace ::hitreact_detail;` (vr_menu_internal.hpp's pattern): name lookup is the
+  same as before. The armed monsters' table (its types, `inline constexpr armedRigs`, its four small lookups made
+  `inline`) and the arm-pose types moved to the header; the shared functions and state (`armPoses`, `ragErr`) are
+  declared there and defined where they stood, wrapped in `namespace hitreact_detail`. The canonical allowlist's
+  geom-math line moved with its site (vr_hitreact_skin.cpp).
+- **vr_ragactive.cpp** (5221) -> vr_ragactive.cpp (3617) + vr_ragactive_swim.cpp (600: the Liquids section, the living
+  swim and flail entry points) + vr_ragactive_hold.cpp (494: Grabbing others, Climbs, climbing/beginClimb) +
+  vr_ragactive_cut.cpp (695: Dismemberment) + vr_ragactive_internal.hpp (`qvr::ragactive::detail`: the shared
+  constants, SwimParts, the b3glm/geom using-declarations; the shared functions declared, defined where they stood;
+  massCentre's default argument now on its declaration). Staggers stayed in vr_ragactive.cpp (the inventory's
+  "stagger/swim/liquid" was an eighth of the file, not a section). The moved state (`envOthers`, `armPoses`) was
+  checked constant-initialized (a temporary `constinit` compiled), so no static-init order changed.
+- Both splits made by script (kit worktree arenatex `scratch/split_gen.py`, `split_hr.py`) and checked by a
+  line-multiset compare: every original line in exactly one file, the only differences the new declarations,
+  namespace lines and the moved default argument.
+- **ragdoll::derive** (420 lines) split at its five comment-marked phases over `DeriveWork` (its locals):
+  derivePieces, deriveLoose, deriveClusters, deriveBones, deriveRig; each phase's text unchanged under reference
+  aliases of DeriveWork's members, its locals' declarations turned into `resize`/assignment. Proven on the rigs
+  themselves: the old exe derived 32 rigs (vrtesthall, e1m3, e4m3, e2m6, e3m4: 23 models with MG3's) into a fresh
+  `vr_cache_dir`, the new one derived them again with `vr_ragdoll_rig_cache 2` (derive and compare every field
+  byte for byte): no "differs".
+- **Checked**: 0 warnings, all build checks. run_baseline `agrunt_|ragdoll_|limb_wear|swim_sound|agarmor` (91 cases):
+  unchanged against baseline.tsv but agrunt_11 (TIMEOUT in a run where four lanes stalled 1000+ s at once; rerun
+  alone with 36 and 86: PASS, 0 changed) and the flaky 63/71/72/ragtest. A/B (ThinLTO exes, ABBAABBAAB, 5 reps,
+  cpu_busy median): armed_16 A 3.129 / B 3.161 ms (+1.0%, sd 0.11-0.17), ragdolls_32_active A 3.207 / B 3.188 ms
+  (-0.6%; B's mean +4.5% from one 3.81 outlier): within noise.
+- **Second pass: createRagdoll and the ragactive frame functions**, each split at its comment-marked phases over a
+  context struct (`CreateWork`, `DeathWork`, `StaggerWork`, `EnvWork`, `DriveWork`, `SwimWork`, `DismemberWork`, in an
+  anonymous namespace above the function), made by one script (kit worktree arenatex `scratch/phasesplit.py`, the
+  specs `split_create.py`, `split_drive.py`, `split_frames.py`): a local used by a later phase becomes a member, its
+  declaration an assignment under a reference alias of the same name (a reference local: a pointer member); each
+  phase's text otherwise unchanged. Only by hand: createRagdoll's `drawnBone` lambda (used by two phases) is made by
+  `drawnBoneOf` (its body the same but for `w.`), mass/friction's one declaration split in two, staggerOutcome's one
+  bare `return;` (the stagger's frame over) a `return false;` that the caller acts on. createRagdoll 418 -> 82 lines
+  (6 phases), deathFrame 221 -> 9 (3), staggerFrame 286 -> 23 (5), envFrame 313 -> 55 (4), drive 322 -> 45 (6),
+  swimFrame 197 -> 59 (5), dismemberFrame 287 -> 24 (5).
+- **Proof**: `vr_physics_hash ragdolls` (new: every ragdoll part's transform, velocity and spin, FNV-1a) every 30
+  frames over seven scenes (`scratch/hashrun.py`: 32 grunts blasted, staggers/knockdown/get-up, a judo throw, four
+  drowned in vrtesthall's pool, a climb, four limb cuts (arm, leg, head, forearm), a grunt killed and landing; 193
+  checkpoints, 145 with live ragdolls): the old exe twice gives the same 193 hashes (bit for bit: the ragdolls are
+  deterministic here; `vr_bench_statehash` is not, run to run), and the split one gives them again (a no-LTO build
+  against the ThinLTO baseline: the same bits). Committed one function at a time, re-made by the same scripts; the
+  last commit's files compared equal to the tested ones.
+- **Checked**: 0 warnings, all build checks; run_baseline `agrunt_|ragdoll_|limb_wear|swim_sound|agarmor` (91 cases): 0
+  changed against baseline.tsv (flaky apart: agrunt_63, agarmor_5, ragdoll_grab).
+- **A/B** (ThinLTO exes, ABBAABBAAB, 5 reps each, cpu_busy median): ragdolls_32_active A 3.628 / B 3.568 ms (-1.6%),
+  armed_16 A 3.286 / B 3.150 ms (-4.1%; A had one 4.52 outlier): within noise.
+- **Skipped**: climbFrame (one comment-marked block of 171 lines: nothing to split on), agarms skinOf/solve and avatar
+  solveArm (budget; they need their own proof: an arm pose dump over a grunt pose sweep, and the avatar's arms).
+
 ## Refactor leftovers L4: load-time items (branch `agent/leftload`)
 
 Baseline (no-LTO, exclusive, warm caches, median of 3): vrtesthall map load 1173 ms, e1m1 879, vrstart 1484 (the big
@@ -1423,6 +1480,116 @@ skins 178 / 102 / 182, md5/md3 lookups 126 / 123 / 123), limbs 198 / 22 / 196, v
   re-reading each file and the copies); limb skin uploads (limbs 193 ms) and md5 view models (104 ms: their 6 skins'
   uploads and normal maps): main-thread GL work. e1m1/vrstart after-times not taken: the exclusive slot waited on the
   author's game (their before-times above; smooth rigs is per model kind, so ~60 ms off vrstart, little off e1m1's 20).
+
+## Punchier gunfire (agent/gunfx)
+
+Per-shot gunfire particles keyed off the weapon id (Quake/vr/vr_gunfx.cpp), one path for your guns (vr_weaponfx.cpp
+playerFired / frame: the drawn muzzle), the armed grunts' held weapons and the grunts' and enforcers' own guns
+(monsterFired: the prop's Muzzle anchor, monsterMuzzle). Table: shotguns (shotgun, grunts' gun, AD defender) sparks,
+smoke and a port puff; super shotgun / Widowmaker each barrel's sparks, smoke, the open breech's puff; revolver sparks,
+smoke; nailguns and nail pistol a few small sparks, a small quick puff, barrel heat (wisps once sustained fire passes
+0.35 heat, cooling 0.35/s); launchers a few sparks and a large cloud; rocket launchers also the backblast (smoke
+behind, dust off the floor under it: a worldtrace::line down 80 units); flare gun redder sparks, smoke; energy guns
+(thunderbolt, laser cannon, enforcer rifle, AD plasma, centurion) ElectricSparks arcs, no smoke. Excluded (kind
+none): flamethrowers, crossbow, melee, grapple, toolgun, Mjolnir. Existing effects kept, not duplicated: the QC's
+GUNSMOKE puffs, AD guns' adGunBurst (your AD guns skip our sparks/backblast), the shells' port puff and trails
+(vr_shells.cpp now also calls gunfx::portSmoke per casing, revolver excluded, and scales the trail by
+vr_gunfx_shell_trail 1.6). Budget: each shooter's time since its last shot scales its counts (1 at 0.3 s or
+slower, 0.35 at 0.1 s: the nailguns, SNG); particles come from the pool (particles::gunParticle, no allocation).
+Smoke is drawn emissive grey (lit-by-flash look; Lit smoke vanished in dark maps); a warm glow sits in the cone
+for 0.07 s; smoke inherits 0.8 of the shooter's velocity.
+
+Settings (Weapons > Weapon Effects > Gunfire Particles): vr_gunfx 1, vr_gunfx_intensity 1, vr_gunfx_sparks 1,
+vr_gunfx_smoke 1, vr_gunfx_port 1, vr_gunfx_backblast 1, vr_gunfx_heat 1, vr_gunfx_enemies 1,
+vr_gunfx_shell_trail 1.6. Debug > Tests: three vr_gunfx_test rows, Print Gunfire Particles (vr_debug_gunfx).
+Tests: python Misc/quakevr/gunfx_test.py <agent> (player 16/16, armed grunts 10/10, grunt 1/1, enforcer 1/1);
+impulse 149 gives weapon id vr_test_give_wid (any id; impulse 150+id reaches 19 only; AD ids need AD's data).
+
+Not done: idea 5 exists already (vr_tracers_enemies 1); AD soldiers' own attacks send no weaponfired (nothing for
+them); an armed grunt's thunderbolt is a stream (no shot event).
+
+### Second pass: visible smoke, impacts by material, ozone, barrel glow
+
+- Smoke now reads as a dense quick cone (it was a faint puff 5 frames after the shot): each shot's puffs are spread
+  along the cone (smokeCone: the first slow, wide and dense at the muzzle, the last fast and narrow at its tip, reach
+  about speed / 6 units), start 2-3x their size and grow 35-50x a second as they slow, alpha 0.5-0.6 (was 0.3), 14
+  puffs for the shotgun (was 7); gone in 0.4-0.6 s. Its grey takes the place's light once a shot (placeLight:
+  R_LightPoint at the muzzle, 0.3 + 0.3 x light): a lighter cloud in a lit room, a dim one in the dark, never black,
+  never glowing. Sparks 2x bigger, faster (420 u/s the shotgun's), streaked longer, shorter-lived. Port puffs and the
+  backblast use the same cone (bigger). Strips: kit `scratch/gunfx/{before,after}_<class>_{lit,dark}.png` (frames 0,
+  2, 5, 10, 20 after the shot; lit = e1m2's start, light 1.37; dark = e2m2's, 0.52), made by the tree's
+  `scratch/shots.py`. `vr_debug_gunfx 1` also prints `gunfx light <x>` per shot.
+- Impacts by material (idea 1): `Quake/vr/vr_impacts.cpp/.hpp`, ONE table `material x hit kind -> particles, decal,
+  sound` (design_review.md proposal 4: the QC ladders can move onto it later; its decal and sound columns are `Own`,
+  the hit's own, today). Materials: stone, dirt (debris' Natural), metal, wood, flesh; hit kinds: bullet (TE_GUNSHOT),
+  nail (TE_SPIKE), super nail (TE_SUPERSPIKE), bolt (the thunderbolt's beam). A world hit's material: the texture of
+  the surface nearest Quake's puff point (7 short traces, then physsound::surfaceOnSegment, debris::materialOf's name
+  table), at most 16 lookups a frame. Stone: grey dust; dirt: more, browner; metal: hot sparks glancing off; wood:
+  chips and pale dust; flesh: nothing new (the gore's blood mist, vr_gore_mist, already comes with every blood
+  burst). Dust and chips are drawn as their colour shaded once by the place's light (dim in the dark, never black).
+  Added on top of each hit's own puff, decal and tink (cl_tent.c: one hook call after each). New
+  `particles::GunParticle::Chip` (the spark's shape, not hot).
+- Ozone haze (idea 6): where the thunderbolt's beam (progs/bolt2.mdl, CL_ParseBeam) ends on a surface, a faint
+  bluish emissive puff every 0.06 s a beam, lingering 1-1.6 s and rising.
+- Barrel glow (idea 3/6): past heat 0.5 a dull red glow at the muzzle, made each frame (alpha 0.3 x heat over 0.5).
+  The nailguns' heat a shot 0.07 (was 0.05: at 10 shots a second it now passes 0.35, the wisps, after about 1 s of
+  fire and 0.5, the glow, after about 1.4 s).
+- Settings: vr_gunfx_impacts 1, vr_gunfx_ozone 1 (Weapons > Weapon Effects > Gunfire Particles: Impacts by Material,
+  Lightning Ozone Haze). Debug > Tests: Impact Where You Look (`vr_impact_test <0 bullet|1 nail|2 super nail|3 bolt>
+  [count] [material]`: on what you look at, as `material` if given; prints `gunfx impact <kind> on <material>
+  (<texture>) dust .. sparks .. chips .. haze ..`). Strips: kit `scratch/gunfx/after_impact_*.png`, `after_ozone_*`
+  (the tree's `scratch/impshots.py`).
+- Tests: gunfx_test.py 27/28 (player 16/16; armed grunts 9/10: the rocket launcher's grunt fired no judged shot in
+  that run, wid 10, AI spread or a real miss: rerun `--only armed`; grunt 1/1, enforcer 1/1).
+- Left for the next worker (out of budget): merge origin/next (10 commits behind) and rebuild; the covering suites
+  vs baseline.tsv (collectfx, shot_shape, reload_gunshape, console nail_1: run_baseline.py needs Misc/quakevr/qvrtest.py,
+  absent here, so run `Misc/release/run_test_suite.py gunfx --only ...` instead); the A/B bench (scripts ready:
+  the tree's `scratch/build_ab.sh` builds origin/next and this branch ThinLTO into scratch/benchA|B, then
+  `scratch/ab_bench.sh gfx ABBAABBAAB combat_48,play_gore_fight`; play_gore_fight is the super nailgun scenario);
+  his VR notes of 2026-10-30 12:06-12:22: (1) a few muzzle sparks per shot for every shell/nail gun he can see
+  (check the player's sparks reach the drawn muzzle and are not hidden by the flash model); (2) a turbulent frontal
+  cone synced with the flash for all guns (smokeCone is the start: more forward, less rise); (3) nail pistol smoke
+  from its side vents (model anchors), out and up, light; (4) rocket launcher rear exhaust, vent smoke facing the
+  player, a turbulent cone out of the back, AD's enemy launcher's tube too; (5) persistent thin ribbon wisps per
+  barrel after firing stops (shotgun 1, SSG and nailgun 2), following the muzzles for seconds, with fade, thickness
+  and persistence settings.
+
+### Third pass: his VR notes of 2026-10-30 (sparks, turbulent cone, nail pistol vents, rocket exhaust)
+
+- **Sparks** (he saw none): at least 3 a barrel for every shell and nail gun however fast it fires (the super
+  nailgun's budget made 2 tiny ones), 1.5-1.9 units (were 0.9-1.2), 0.12-0.28 s (were 0.05-0.16), whiter, and they
+  start 1.5-4 units ahead of the muzzle, clear of the flash model and the cone's dense core (the old strips' frame 0:
+  the cone's first puffs covered them). Counts a little lower ("a few": shotgun 10, SSG 8 a barrel, revolver 8).
+- **Turbulent frontal cone**: the muzzle's cone now fades in over ~0.035 s (with the flash, not a blob before it:
+  GunParticle::fadeIn, Custom's ramp), its puffs lead forward (the tip's start 4 units out), barely rise (only the
+  slowest, at the muzzle, rise as before) and ride a swirling flow: `particles::swirl`, a divergence-free (ABC-like)
+  field, ~55 units a swirl, changing over time, each puff its own phase (from its `die`), stored as one byte in
+  Particle's padding (`turb`: the struct is capped at 152 bytes). The QC's rising GUNSMOKE puffs and the ports'
+  rising puffs are kept. Setting: Smoke Turbulence (`vr_gunfx_turbulence 1`, 0-3; Weapons > Weapon Effects >
+  Gunfire Particles).
+- **Nail pistol vents**: the QC's random muzzle wisp (`QVR_PARTICLE_PRESET_SMOKE` after shots, vr_nailpistol.qc)
+  is gone; light pale smoke comes out of exactly its six side slots (v_nailpistol.mdl: x 4.91..7.57, z rows 3.08,
+  3.83, 4.59, the faces at y +-1.2), drifting out and up, swirling a little: 6 puffs a shot, then ~22 a second for
+  0.45 s a shot (a string: longer, up to 1.5 s), following the gun. `vr_nailpistol_smoke` (1) scales it.
+- **Rocket exhaust**: the backblast's cone (denser: 16 puffs, alpha 0.6) now comes out of the launcher's real back
+  end, `exhaustOf`: v_rock2.mdl's tube end (-6.3, -0.04, 4.78; found from the model: its back ring), an AD
+  launcher's own FireFeel exhaust, else behind the muzzle as before (Rogue's v_multi2). The exhaust then smokes
+  ~0.9 s, rising (your hand: each frame following the gun; an armed grunt's held launcher, `Muzzle::gun`: at the
+  shot, fading in one after another). The AD launcher in your hand gets the cone and exhaust smoke too now (its own
+  burst's flames and sparks stay). `vr_debug_gunfx 1` prints `gunfx exhaust at ...`, 2 also the after-smoke.
+- Not done: AD's own rocket soldier (monster_army_rocket, mon_soldier.mdl): its attack sends no weaponfired and its
+  tube's place on the monster model is unknown here (no AD data on this machine): needs a hook in
+  ad_army_fire_rocket and a monsterGuns entry with the tube's anchors. Persistent muzzle wisps: the next step.
+- Strips (kit `scratch/gunfx/`): `c1_<class>_lit.png` (shotgun, nailgun, rocket, nail pistol from the front),
+  `c1_<class>_side.png` (the gun held across the view: nail pistol, rocket launcher, shotgun; frames 0, 2, 5, 10,
+  20), made by the tree's `scratch/shots.py c1 side ...`.
+- Tests: gunfx_test.py 29/29 (now: sparks >= 3, the nail pistol's vents, a monster rocket's exhaust; the armed
+  rocket grunt alone in vrtesthall, `vr_agrunt_test 111`: on e1m1 the wall 360 units ahead brought it close and it
+  clubbed you, the failure of the second pass). Covering cases vs baseline.tsv (run_baseline.sh --only): collectfx,
+  reload_gunshape, shot_shape, console nail_1, np_1 all PASS (np_1 21 -> 23 passes: the merged slide tests).
+- A/B bench (ThinLTO, origin/next vs this branch, ABBAABBAAB, exclusive, medians of 5): combat_48 cpu 2.470 ->
+  2.478 ms, gpu 3.361 -> 3.362, p99 11.230 -> 11.217; play_gore_fight (super nailgun) cpu 2.375 -> 2.347, gpu
+  2.627 -> 2.622, p99 11.214 -> 11.234: within noise (scratch/ab_out3.txt, ab_stats.py).
 
 ## Nail pistol: moving slide, slide lock, auto re-rack (branch `agent/npslide`)
 
@@ -1586,6 +1753,121 @@ physgun get the shared throw smoothing; the haptic presets keep today's exact va
   a frame).
 - **Checklist:** pick up a box, a gib, a round, a grenade and a wall torch in either hand, swap and throw them, and
   load a save made while holding one: each is held and let go as before, no `handslot: mismatch` line in the console.
+## Sparse config: only what the player changed (branch `agent/sparsecfg`; design review proposal 1)
+
+His decision: forgotten defaults now reach players (yes).
+
+- **Before:** `Cvar_WriteVariables` wrote all ~24,000 archived cvars (19k of them weapon/prop slots): a config pinned
+  its player to the defaults of the day it was written, so every changed default needed a `defaultChanges` row and a
+  `configVersion` bump (362 rows; D2 found two forgotten).
+- **Now (cvar.c, behind `// QVR`; vr_cvars.cpp):** the config starts its settings with `vr_config_defaults` (every
+  `vr_*` setting back to its default, ROM/locked ones left), then writes every Ironwail setting as before and a `vr_*`
+  one (slots included) only when `VR_ConfigSaves`: its value differs from its default (as numbers when both are, the
+  file's `sameValue`), or it is a version marker (`vr_cfg_version`, `vr_wofs_version`, `vr_props_version`,
+  `vr_bindings_version`: a missing one would read as its default). The reset line keeps a config executed again, or
+  after a `game` switch, giving what a full one gave (no previous folder's values left over). The two-copies merge
+  (`readConfigSettings`) reads a vr_ setting with no line as its default, so another copy's "back to the default" is
+  merged too.
+- **configVersion 218**, the last: the rows apply to configs written before it, then the tables (`defaultChanges`,
+  `namedDefaultChanges`) are frozen. A changed default is now an edit of the default alone; a row only to override a
+  player's own choice on purpose. The slot tables' steps likewise only for transforms. CODE_STYLE.md "Settings and the
+  config", ARCHITECTURE.md "Where to put new code" updated.
+- **Sizes:** the run baseline config (14.5k lines, version 141) writes 466 lines (299 vr_, 282 of them slots); his
+  config (24k lines, version 215) 291 lines (124 vr_: his choices, 40 slot values; all else equals today's defaults).
+- **Test:** `Misc/quakevr/config_sparse_test.sh <agent> [full config]` (`vr_config_test`, vr_config_diag.cpp; ends on
+  `config_test: N passed, M failed`): the full config loaded with its migration; the game folder's config written,
+  edited as another copy would (a changed line removed, a line added) and written again: both merged; snap; written
+  sparse: every vr_ line changed, every changed one written, values as snapped, the reset line first; 4,854 plain vr_
+  settings scrambled, the sparse config executed: all 24,007 archived settings as snapped (0 differ; his: 2 the same
+  number in other text); three defaults moved (one unchanged, one slot, one changed), executed again: the two take the
+  new defaults, the changed one keeps its line. 16 passed, 0 failed with the baseline config and with a copy of his.
+- **Old loader vs new:** the base exe (origin/next) and this one each loaded the baseline config, then his (exec +
+  migration), and dumped every archived setting: identical but `vr_cfg_version` 217 -> 218 (24,007 settings each).
+- **Covering cases** as baseline.tsv: selfchecks (all PASS), stats_levelchange 4/0, slider_step 3/0. Build 0
+  warnings, check_canonical no new copies. (run_baseline.py needs qvrtest.py, not on origin/next: run directly.)
+## Refactor leftovers L2: render/fx/audio file splits (branch `agent/leftsplit2`)
+
+No behaviour change intended: pure moves (each moved item's text unchanged; a moved file's anonymous namespace became
+`<ns>::detail`, declared in `<file>_internal.hpp`, its variables defined where they stood; small anonymous helpers that
+the parts share moved to the header as `inline`, internal-linkage constants as `inline constexpr`/`inline const`; a
+default argument kept on the header's declaration only). The worktree's scratch/split.py, split2.py, mk_internal.py
+did the moves (not committed).
+
+- vr_particles.cpp (4162 -> 2007 lines) + vr_particles_blood.cpp (blood/smoke/spark emitters, the gore's drips and
+  droplets, chainsaw/contact/battery/torch smoke), vr_particles_trails.cpp (trails, impacts, splashes, mist, fire, AD
+  streams, tank fire, electricity, embers, shells), vr_particles_diag.cpp (the test and report commands);
+  vr_particles_internal.hpp: Particle and its enums, pool/lastRun/rng (extern; rng's dynamic initializer stays in
+  vr_particles.cpp), rndi..onSphere and make<> inline, ShoreNear/LightStats and the report's counters.
+- vr_relight.cpp (4181 -> ~2190) + vr_relight_bsp.cpp (lumps, entity text, map lights, texture rules) and
+  vr_relight_glow.cpp (faces, things, fixtures, glow images, glowLights); the glow cache (a mem::Cache) stays in
+  vr_relight.cpp. Allowlist: startsWith's strings-copy moved to vr_relight_bsp.cpp (+ its declaration in the header).
+- vr_audio.cpp (3980 -> ~3500) + vr_audio_io.cpp (derived sounds, the band-limit tables and scratch, the full-band
+  resampler; the layered sounds and readPcm went to vr_sndlayer.cpp with agent/gunsfx, kept there at the merge). The jobs-site block is `audio::detail`; BandLimitStats in the header. The two
+  mem sets (band-limit tables/scratch) now register from vr_audio_io.cpp: their place in the mem report's list moves.
+- vr_portals.cpp (3224 -> ~2210) + vr_portals_gates.cpp (crossing for players, monsters and what flies, unstick, the
+  AI's gate images/routes, pulls, tosses, VR_PortalMonsterCross); aiRoute lost its `static` (both files call it).
+  Allowlist: player-edict 3 -> 2 + 1 in vr_portals_gates.cpp.
+- vr_brushes.cpp (3605 -> ~2180) + vr_brushes_model.cpp (polygons from planes, bevels, the brush model: hulls,
+  edges, textures, surfaces, build/apply; its anonymous namespace became `brushes::detail`) and vr_brushes_text.cpp
+  (the default alignment, box/shape/rotate/scaleTo/forEachPolygon, toText/fromText with Tokens and facePoints; its
+  own anonymous namespace kept). vr_brushes_internal.hpp gained Winding, the four epsilons/extents as
+  `inline constexpr`, and baseWinding/polygons/worldTexture/bevels' declarations.
+- vr_backend_openxr.cpp (2657 lines, one class) in two commits: first every member function's body moved out of the
+  class body below it in the same file (no other change: the declarations kept their comments and `[[nodiscard]]`/
+  `static`/`override`; the template `guarded` stays in the class; the Linux/Windows contextReady/logGlInterop pairs keep
+  their `#ifndef _WIN32` round the definitions), then by phase: the class and the fault helpers (now `inline`) in
+  vr_backend_openxr_internal.hpp, namespace `qvr::oxr` (was anonymous: a class shared by four files needs a name);
+  vr_backend_openxr.cpp (~1150: start/stop, instance, system, session, spaces, the state trail, events, the debug
+  messenger), vr_backend_openxr_frame.cpp (~700: begin/end frame, eye images, timing, hidden area, swapchains),
+  vr_backend_openxr_actions.cpp (~370: actions, bindings, profiles, input, haptics, hand poses),
+  vr_backend_openxr_panel.cpp (~70: the panel's swapchain, images and place).
+- vr_audio.cpp (~3500 -> ~2950) + vr_audio_cmds.cpp (vr_snd_info, the captures, scene_obj, the test plays with
+  playAt/playLocal, vr_snd_dump, burst, the vr_snd_bench run). The mixer's state (Follow .. BenchRun, Live) and
+  dynamicChannels (`inline constexpr`) moved to vr_audio_internal.hpp; `live`, wanted, running and writeWav16 became
+  `audio::detail` where they stand (declared in the header).
+- Checked: build 0 warnings and every check (check_canonical included); run_baseline.sh --only on collectfx,
+  mapflameburn, spentshake, vrtrailer, swim_sound, flare_1, explosion_debris, selfchecks, teleporter_edges,
+  walltorch_grab, teleporters_chase: 0 of 11 changed against baseline.tsv (0 flaky).
+  Second batch (brushes, openxr, audio commands): build 0 warnings, check_canonical unchanged (no allowlist
+  change); brush_test.py PASS (every check); run_baseline.sh --only xr_runtime, selfchecks, swim_sound: 0 of 3
+  changed (xr_runtime 101/2 as in baseline.tsv); vr_snd_info/vr_snd_dump run.
+  A/B bench (ThinLTO both, interleaved ABBAABBAAB, 5 reps each, the armor tree's copy of ab_bench.sh swapping only the
+  exe: the QC is the same), this branch (B) vs origin/next 9e559363a (A), CPU ms median: idle_e1m1 0.722 -> 0.734
+  (+1.7 %, sd 0.08), combat_48 2.311 -> 2.333 (+1.0 %, sd 0.17-0.37); means -3.2 % / +4.1 % (one B outlier at 3.26):
+  within the noise, no regression from the splits (particles, relight, audio, portals included).
+## Refactor leftovers L3: the hot hands/weapons/locomotion functions split (branch `agent/lefthot`)
+
+Each split at its comment-marked phases; each body moved as it was (a tool cut the line ranges against the original
+numbering, kit-less: `scratch/splice.py` in the worktree), the shared locals bound to a context struct by reference
+where several phases share many of them, plain parameters where few. A checker (`scratch/movecheck.py`) compared every
+file's stripped lines with next's: the only lines gone are a loop body's `continue;` (now `return;`, the body being the
+whole iteration) and the declarations that became struct members; every other added line is a signature, a binding,
+a call or a brace.
+- vr_hands.cpp update (220 -> ~90 lines): easeStairs, placeTracked, placeFlat, logBodyDrift.
+- vr_client.cpp buildMove (206 -> ~60): handMove, setVrBits, setButtons, poseMove.
+- vr_input.cpp update (307 -> ~75): buttonChanged (the button's dispatch chain), routeSticks.
+- vr_climb.cpp climbPreThink (299 -> ~70): takeKnockOff, letGoIfForced, gripHand, fallFlung, hideHeldGrips;
+  VR_ClientClimb (417 -> ~75): mantleStep, then over `Hang`: hangPull, hangMove, keepWithinReach, settleOwed,
+  reachCheck, tryMantle.
+- vr_foegrab.cpp serverFrame (261 -> ~120): releaseBroken, shoveCarry, markDragging, followHands, pullToHands,
+  rememberPalms (Follow's cvar read moved before the shove's carry: a pure read); legCheck (227 -> ~140): legLog,
+  and over `LegTry` legPull, legLift.
+- vr_view_hands.cpp setupRigHand (the brief's "drawRigHand", 311 -> ~150): solveBrush, traceGrasp, over `RigFrame`
+  placePalm, poseFinger; setupHand (294 -> ~95): placeController, over `HandPose` steadyOther, heldBy.
+- vr_view_weapon.cpp setupWeapon (315 -> ~110) over `WeaponFrame`: placeLoadPort, placeHotspots, magazineSpot,
+  printGrips, placeCarried, chooseGrip, placeMorph.
+- vr_twohand.cpp applyHotspots (215 -> ~165): over `GripCheck` printGripState, reportWhyLetGo; aimCup. The two-handed
+  aim's last 16 lines left in place (they call the `aimFor` lambda: moving them changes code, not just its place).
+- Bench: new scenario `climb_shimmy` (group climb): vrclimb's long ledge, both hands take it, four shimmy strokes each
+  way, then hanging (climb_plays.py shimmy at 1.52 m: at its 1.638 m the mock's hands passed 4 units over the ledge,
+  "no hold"; checked: 15 holds taken, every stroke).
+- Tests: build 0 warnings, all checks. 42 covering cases (climb, grab, grip, reload*, mapgun, pickup, weapon_catch,
+  held_over_props, throw_spin, slider, melee, parry, recoil, judo, walltorch, selfchecks, turned_box, shot_shape, swim,
+  slopes, rigstudio_aim, autopump, fist_alert, collectfx, stats_levelchange, eval, limb_wear, teleporters_chase,
+  stealth) as baseline.tsv; reload_gunshape timed out once waiting for an exclusive run (no output), alone: PASS 24/0.
+  progs.dat unchanged.
+- A/B (LTO, ABBAABBAAB, 5 reps each, cpu_busy_ms median, A = next 2d76cbe00): climb_shimmy 0.614 -> 0.600,
+  armed_16_melee 2.549 -> 2.490, play_e1m1_fight 1.569 -> 1.527 (within noise; one A melee run at 4.5 ms).
 
 ## Nail pistol: a full-slide look (branch `agent/npslide2`)
 
@@ -1643,6 +1925,26 @@ current one kept to fall back to.
 - **Left (part 2)**: one spawner (impulse 241; 16 helpers), the scenario's settings on testbatch's snapshot, the 64
   QC hand-printed verdicts, 23 Python files' kit paths, the C++ `_diag` printers; the other workers' test files
   (held things, config) left alone.
+
+## One test harness, part 2: one spawner, one snapshot, the QC verdicts (branch `agent/oneharness2`; design review 7)
+
+- **QC verdicts**: 62 of the 63 hand-printed `%g passed, %g failed` lines (the 64th site is VR_Test_Verdict) now print
+  through vr_testutil (`VR_Test_Verdict`, `VR_Test_VerdictPart("caps")` for a test of parts); 14 own pass/fail
+  global pairs and 2 local ones are gone
+  (`VR_Test_Count(ok)`: a check whose line keeps the test's own format; `VR_Test_Nest/Unnest`: agtest's inner
+  tests agammo, agshot and weaponshot keep their tallies apart from agtest's "test N over", as before). Every line is
+  byte-identical (only `mgworldtest: ...; barrel test needs e5m1` became the verdict plus a line of its own), so no
+  -QuitOn or run_baseline pattern changed. `npaim`'s checks now carry its own tag (`npaim: PASS`, as its comment says).
+  Left: rigseq's `rig2anim` check (it quotes the engine's totals).
+- **One spawner**: `VR_Test_Spawn(player, kind, at, yaw)` (vr_testutil.qc) is impulse 241's dispenser spawn; the
+  MG3 tests' four `*_Spawn`, the Shub test's, `VR_STT2_Spawn`, the crate-cover and crouch tests' grunts and the small
+  gibs' crowd call it (same entity order: dispenser, then monster). New family `qc-test-spawn`. Left as they are:
+  `VR_AGT_Spawn`/`VR_ART_SpawnKind` (armed monsters, `VR_AM_Spawn`: not the dispenser's), impulse 244's grunt, the
+  C++ spawners (`vr_physics_spawn`, `vr_toolgun_spawn_test`, `grabDiagPlace`).
+- **One snapshot**: `testbatch::CvarSnapshot` (take, takeAll, restore) is vr_test_snapshot/reset's and the scenario's
+  (its settings put back, and swapped out of a config write). Checked: a scenario's setting 0 -> 1 -> 0.
+- **Python**: 17 tests read the kit from `qvrtest.KIT`. Left (the held-thing worker's): carry/grip_gap, twohand,
+  flashgrab, foegrab/gripcrowd, menu_grab, toolgun_physgun_ragdoll. Allowlist tightened after each step.
 ## Weapon fixes of 2026-10-30: laser bolts on walls, stream shake (branch `agent/wpnfix1030`)
 
 - **Laser bolts bled on walls and floors** (vrfiringrange_2026-10-30_12-16-02). Not a recent code change: the firing

@@ -23,7 +23,6 @@
 // vr_flare_test 5: its muzzles ("flaremuzzle: N passed, M failed"). 7: the crates' flare guns, twice from the same plan
 // ("flarecrates: ..."). 2-4, 6: test aids (in your hands, the holsters, the flares' scene).
 
-float vr_flt_pass, vr_flt_fail;
 float vr_flt_step;      // 0 idle
 float vr_flt_frames;    // frames into the step
 float vr_flt_t0;        // a step's moment (a flare stuck, drifting)
@@ -38,7 +37,7 @@ vector vr_flt_fwd0, vr_flt_up0;    // ... the shot line and the gun's up at the 
 
 void(float ok, string what) VR_FLT_Check =
 {
-    if(ok) vr_flt_pass++; else vr_flt_fail++;
+    VR_Test_Count(ok);
     dprint(sprintf("%s: %s %s\n", vr_flt_mode == 5 ? "flaremuzzle" : "flaretest", ok ? "PASS" : "FAIL", what));
 };
 
@@ -81,7 +80,7 @@ void() VR_FLT_End =
     cvar_set("vr_agrunt_flaregun", ftos(vr_flt_agfg));
     cvar_set("vr_agrunt_dual_chance", ftos(vr_flt_dual));
     if(!vr_flt_notarget) vr_flt_player.flags = vr_flt_player.flags - (vr_flt_player.flags & FL_NOTARGET);
-    dprint(sprintf("%s: %g passed, %g failed\n", vr_flt_mode == 5 ? "flaremuzzle" : "flaretest", vr_flt_pass, vr_flt_fail));
+    VR_Test_Verdict();
     vr_flt_step = 0;
 };
 
@@ -650,7 +649,7 @@ void() VR_FlareGun_TestFrame =
             VR_FLT_Scene();
             return;
         }
-        vr_flt_pass = vr_flt_fail = 0;
+        VR_Test_Begin(req == 5 ? "flaremuzzle" : "flaretest");
         vr_flt_mode = req;
         vr_flt_grip = cvar("vr_weapon_grip_mode");
         vr_flt_stick = cvar("vr_flare_stick_time");

@@ -14,19 +14,17 @@
 // with every count checked (`reload: PASS|FAIL <what>`, then the totals): the shells, the magazines (VR_Reload_MagSelfTest),
 // and the modes' rules (Off and the holsters' reload unchanged, Immersive's guns by hand only).
 
-float vr_reload_test_pass;
-float vr_reload_test_fail;
 
 void(float xOk, string xWhat) VR_Reload_Check =
 {
     if(xOk)
     {
-        vr_reload_test_pass++;
+        VR_Test_Count(TRUE);
         bprint(sprintf("reload: PASS %s\n", xWhat));
     }
     else
     {
-        vr_reload_test_fail++;
+        VR_Test_Count(FALSE);
         bprint(sprintf("reload: FAIL %s\n", xWhat));
     }
 };
@@ -304,8 +302,7 @@ void() VR_Reload_MagSelfTest =
 void() VR_Reload_SelfTest =
 {
     entity r;
-    vr_reload_test_pass = 0;
-    vr_reload_test_fail = 0;
+    VR_Test_BeginFlags("reload", VR_TEST_LOUD);
     float mode = cvar_hget(cvarh_vr_reload_mode);
     float pairs = cvar_hget(cvarh_vr_reload_shell_pairs);
     float ssgBreak = cvar_hget(cvarh_vr_reload_ssg_break);
@@ -511,7 +508,7 @@ void() VR_Reload_SelfTest =
     cvar_set("vr_reload_mode", ftos(mode));
     cvar_set("vr_reload_shell_pairs", ftos(pairs));
     cvar_set("vr_reload_ssg_break", ftos(ssgBreak));
-    bprint(sprintf("reload: %g passed, %g failed\n", vr_reload_test_pass, vr_reload_test_fail));
+    VR_Test_Verdict();
 };
 
 // Test steps 10 to 13 and 16 (loading by contact: VR_Reload_LooseFrame): a loose round for the off hand's gun (a shell;
@@ -841,8 +838,7 @@ void() VR_Reload_TestReinsert =
 {
     float old = cvar_hget(cvarh_vr_reload_reinsert_clearance);
     float oldTime = cvar_hget(cvarh_vr_reload_reinsert_time);
-    vr_reload_test_pass = 0;
-    vr_reload_test_fail = 0;
+    VR_Test_BeginFlags("reload reinsertion", VR_TEST_LOUD);
     VR_Reload_TestSetup();
     VR_WeaponUtil_EntAddWeapon(self, WID_NAILGUN);
     VRGiveEntWeapon(self, cVR_OffHand, WID_NAILGUN, QVR_WPNFLAG_NOMAG, 0);
@@ -916,7 +912,7 @@ void() VR_Reload_TestReinsert =
     VR_Hand_Release(self, cVR_MainHand, "test");
     r.carry_player = world;
     remove(r);
-    bprint(sprintf("reload reinsertion: %g passed, %g failed\n", vr_reload_test_pass, vr_reload_test_fail));
+    VR_Test_Verdict();
 };
 
 // Test step 40 (the author: "hide the top nails when a magazine is empty, show 1 nail when only one round is left"):
@@ -925,8 +921,7 @@ void() VR_Reload_TestReinsert =
 // 1 one, 2 none) each time; the thunderbolt's cell frame 0. Ends with `reload magnails: N passed, M failed`.
 void() VR_Reload_TestMagNails =
 {
-    vr_reload_test_pass = 0;
-    vr_reload_test_fail = 0;
+    VR_Test_BeginFlags("reload magnails", VR_TEST_LOUD);
     VR_Reload_TestSetup();
     float i = 0;
     while(i < 4)
@@ -958,7 +953,7 @@ void() VR_Reload_TestMagNails =
         i++;
     }
     VR_Reload_TestSetup();
-    bprint(sprintf("reload magnails: %g passed, %g failed\n", vr_reload_test_pass, vr_reload_test_fail));
+    VR_Test_Verdict();
 };
 
 // The three nail magazines (left to right the nail pistol's, the nailgun's, the super nailgun's) laid out from `xAt`
@@ -1029,7 +1024,7 @@ float(entity e) VR_Forcegrab_IsEligible;
 entity(float xHand) VR_Forcegrab_FindTarget;
 void() VR_Reload_TestMagForceGrab =
 {
-    vr_reload_test_pass = vr_reload_test_fail = 0;
+    VR_Test_BeginFlags("reload magforcegrab", VR_TEST_LOUD);
     // Each in turn put 48 units along the main hand's aim (the others far below): the force grab's pick (the one that
     // sparkles) is it only when it has rounds; then back where it lay.
     makeforward(VRGetHandRot(cVR_MainHand));
@@ -1048,7 +1043,7 @@ void() VR_Reload_TestMagForceGrab =
             picked == r, want));
         r = find(r, classname, VR_RELOAD_MAGCLASS);
     }
-    bprint(sprintf("reload magforcegrab: %g passed, %g failed\n", vr_reload_test_pass, vr_reload_test_fail));
+    VR_Test_Verdict();
 };
 
 void() VR_Reload_Test =

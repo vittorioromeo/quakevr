@@ -370,7 +370,6 @@ float vr_agws_ab0;
 float vr_agws_body;     // its body behind the weapon on the shot's way
 float vr_agws_until;
 float vr_agws_keep_block, vr_agws_keep_chance, vr_agws_keep_scale;
-float vr_agws_pass, vr_agws_fail;
 entity vr_agws_nail; // the nail fired (scratch3 1: its flight printed)
 
 float(float c) VR_AGWS_Wid =
@@ -433,15 +432,15 @@ void() VR_AGWS_Frame =
             vr_agws_keep_scale = cvar("vr_agrunt_shotdisarm_chance_scale");
             cvar_set("vr_agrunt_shotdisarm_chance", "0"); // (its weapon stays in its hand: every shot on it)
             cvar_set("vr_agrunt_shotdisarm_chance_scale", "0");
-            vr_agws_pass = 0;
-            vr_agws_fail = 0;
+            VR_Test_Nest("agtest", VR_TEST_LOUD); // (its own tally)
         }
         if(vr_agws_w > 5)
         {
             cvar_set("vr_agrunt_shotdisarm_block", ftos(vr_agws_keep_block));
             cvar_set("vr_agrunt_shotdisarm_chance", ftos(vr_agws_keep_chance));
             cvar_set("vr_agrunt_shotdisarm_chance_scale", ftos(vr_agws_keep_scale));
-            VR_AGT_Print(sprintf("weaponshot: %g passed, %g failed", vr_agws_pass, vr_agws_fail));
+            VR_Test_VerdictPart("weaponshot:");
+            VR_Test_Unnest();
             VR_AGPT_Clear();
             p.flags = p.flags - (p.flags & FL_NOTARGET);
             vr_agws_w = 0;
@@ -474,7 +473,7 @@ void() VR_AGWS_Frame =
         if(!w || !g.takedamage)
         {
             VR_AGT_Print(sprintf("weaponshot %s: no weapon", VR_AGT_Name(VR_AGWS_Wid(vr_agws_w))));
-            vr_agws_fail = vr_agws_fail + 1;
+            VR_Test_Count(FALSE);
             vr_agws_w = vr_agws_w + 1;
             vr_agt_step = 0;
             return;
@@ -549,7 +548,7 @@ void() VR_AGWS_Frame =
     if(judged)
     {
         VR_AGT_Print(strcat(strcat(a, b), ok ? ": PASS" : ": FAIL"));
-        if(ok) { vr_agws_pass = vr_agws_pass + 1; } else { vr_agws_fail = vr_agws_fail + 1; }
+        VR_Test_Count(ok);
     }
     else
     {

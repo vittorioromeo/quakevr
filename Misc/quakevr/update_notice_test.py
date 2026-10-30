@@ -22,7 +22,9 @@ import sys
 import threading
 import time
 
-KIT = "C:/OHWorkspace/qvr-kit"
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import qvrtest  # noqa: E402  (the tests' library: Misc/quakevr/qvrtest.py)
+KIT = qvrtest.KIT
 PORT = 8767
 BASH = "C:/Program Files/Git/bin/bash.exe" if os.path.isfile("C:/Program Files/Git/bin/bash.exe") else "bash"
 # The feeds' versions, from the repository's VERSION (MAJOR.MINOR.PATCH): newer (PATCH + 1), the same, older, and the

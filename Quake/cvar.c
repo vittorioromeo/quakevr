@@ -814,10 +814,13 @@ void Cvar_WriteVariables (FILE *f)
 	int i;
 
 	Cvar_EnsureSorted (); // QVR: in order first
+	// QVR: a sparse config: the Quake VR settings back to their defaults first, then only those changed from them
+	// (vr_cvars.cpp VR_ConfigSaves; docs/vr-port/CODE_STYLE.md, "Settings and the config")
+	fprintf (f, "vr_config_defaults\n");
 	for (i = 0; i < cvar_count; i++)
 	{
 		cvar_t *var = cvar_list[i];
-		if (var->flags & CVAR_ARCHIVE)
+		if ((var->flags & CVAR_ARCHIVE) && VR_ConfigSaves (var)) // QVR
 			fprintf (f, "%s \"%s\"\n", var->name, var->string);
 	}
 }

@@ -73,6 +73,7 @@ void CL_ParseBeam (qmodel_t *m)
 	end[0] = MSG_ReadCoord (cl.protocolflags);
 	end[1] = MSG_ReadCoord (cl.protocolflags);
 	end[2] = MSG_ReadCoord (cl.protocolflags);
+	VR_ImpactBeam (m, ent, start, end); // QVR: the thunderbolt's ozone haze where it plays
 
 // override any beam with the same entity
 	for (i=0, b=cl_beams ; i< MAX_BEAMS ; i++, b++)
@@ -153,6 +154,7 @@ void CL_ParseTEnt (void)
 		pos[2] = MSG_ReadCoord (cl.protocolflags);
 		VR_DecalTempEntity (QVR_DECAL_TE_SPIKE, pos); // QVR: a mark
 		R_RunParticleEffect (pos, vec3_origin, 0, 10);
+		VR_ImpactTempEntity (QVR_DECAL_TE_SPIKE, pos); // QVR: by the surface's material
 		if ( rand() % 5 )
 			S_StartSound (-1, 0, cl_sfx_tink1, pos, 1, 1);
 		else
@@ -172,6 +174,7 @@ void CL_ParseTEnt (void)
 		pos[2] = MSG_ReadCoord (cl.protocolflags);
 		VR_DecalTempEntity (QVR_DECAL_TE_SUPERSPIKE, pos); // QVR: a mark
 		R_RunParticleEffect (pos, vec3_origin, 0, 20);
+		VR_ImpactTempEntity (QVR_DECAL_TE_SUPERSPIKE, pos); // QVR: by the surface's material
 
 		if ( rand() % 5 )
 			S_StartSound (-1, 0, cl_sfx_tink1, pos, 1, 1);
@@ -193,6 +196,7 @@ void CL_ParseTEnt (void)
 		pos[2] = MSG_ReadCoord (cl.protocolflags);
 		VR_DecalTempEntity (QVR_DECAL_TE_GUNSHOT, pos); // QVR: a mark
 		R_RunParticleEffect (pos, vec3_origin, 0, 20);
+		VR_ImpactTempEntity (QVR_DECAL_TE_GUNSHOT, pos); // QVR: by the surface's material
 		break;
 
 	case TE_EXPLOSION:			// rocket explosion

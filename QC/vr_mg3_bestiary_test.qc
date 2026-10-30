@@ -37,17 +37,7 @@ void() MG3_BT_Total =
 entity(entity p, float xChoice, float xDist, float xSide, float xUp) MG3_BT_Spawn =
 {
     makevectors('0 1 0' * p.v_angle_y);
-    entity d = spawn();
-    d.weapon = xChoice;
-    setorigin(d, p.origin + v_forward * xDist + v_right * xSide + '0 0 1' * xUp);
-    entity oldself = self;
-    self = d;
-    activator = p;
-    func_enemy_dispenser_use();
-    entity m = self;
-    self = oldself;
-    remove(d);
-    return m;
+    return VR_Test_Spawn(p, xChoice, p.origin + v_forward * xDist + v_right * xSide + '0 0 1' * xUp, -1);
 };
 
 // How many `xClass` this map has: alive (mg3bt_n2: dead).

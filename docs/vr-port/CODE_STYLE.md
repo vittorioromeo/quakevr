@@ -200,6 +200,27 @@ the release packaging does), and every call or declaration of it from game code 
 wrap it, and compile once with `-DQVR_NO_TESTS` (no errors allowed; the compile writes `quakevr/progs.dat`: build again
 for the development one).
 
+## Settings and the config
+
+The config (`quakevr/ironwail.cfg`) is sparse since configVersion 218: `Cvar_WriteVariables` writes a
+`vr_config_defaults` line, then every archived Ironwail setting (`r_*`, `gl_*`, ...: all of them, as before) and only
+the Quake VR ones (`vr_*`, the weapons' `vr_wofs_*` and props' `vr_prop_*` slots too) whose value differs from their
+default (`VR_ConfigSaves`, vr_cvars.cpp; numbers compared as numbers), plus the version markers (`vr_cfg_version`,
+`vr_wofs_version`, `vr_props_version`, `vr_bindings_version`), always. `vr_config_defaults` puts every Quake VR setting
+back to its default first, so a config executed again or after a game switch gives what a full config gave. A line in
+the config is the player's choice.
+
+- **A shipped default changes: edit the default only** (`vr_cvars.inc`, `vr_defaults.cfg`, `vr_weapons.inc`,
+  `vr_props.inc`). No `defaultChanges` row and no `configVersion` bump: every player who left the setting alone gets
+  the new default. The `defaultChanges` table is frozen at 218 (it still moves configs written before then); add a row
+  only to override a player's own choice on purpose, which needs the author's say. The same for the slots' migration
+  steps (`vr_weapons.cpp` / `vr_props.cpp` `settingsVersion`): a step only to transform values (a rename, a new
+  encoding), never for a changed default.
+- **Not a default:** a value code sets at start-up after the cvar's registration looks changed and is saved; set it
+  before `host_initialized` (it becomes the default) or leave it out of `CVAR_ARCHIVE`.
+- Check: `Misc/quakevr/config_sparse_test.sh <agent> [full config]` (an old full config loaded, written sparse, read
+  back to the same values from any state; a moved default reaches it; another copy's edits merged).
+
 ## Canonical helpers
 
 One implementation each; new code uses these, a local copy is a review finding. Other clusters add their own lists below.
@@ -296,7 +317,10 @@ Use these instead of a local copy (refactor 2026-10-29, cluster A4).
   same with a site's own thresholds).
 - `QC/vr_testutil.qc` (tests only): `VR_Test_Begin("tag")`, `VR_Test_Check(ok, what)` (`<tag>: PASS|FAIL <what>`),
   `VR_Test_Verdict()` (`<tag>: <p> passed, <f> failed`), one tally (`vr_test_pass`, `vr_test_fail`);
-  `VR_Test_BeginFlags(tag, VR_TEST_LOUD | VR_TEST_QUIET)`: lines broadcast (bprint), passes unprinted. The armed
+  `VR_Test_BeginFlags(tag, VR_TEST_LOUD | VR_TEST_QUIET)`: lines broadcast (bprint), passes unprinted;
+  `VR_Test_VerdictPart("part")` (`<tag>: <part> <p> passed, <f> failed`), `VR_Test_Count(ok)` (an older test's own
+  check line, counted), `VR_Test_Nest(tag, flags)` / `VR_Test_Unnest()` (a test run inside another: agtest's agshot).
+  One spawner: `VR_Test_Spawn(player, kind, at, yaw)` (the dispenser's numbers; impulse 241's). The armed
   grunts' harness (`VR_AGT_Check/Print/Spawn/Remove/Hunt`, vr_armedgrunt_test.qc) and the arena's `VR_AT_Check` count
   on that tally. A new test never keeps its own pass/fail globals or verdict line (check_canonical.py's test-*
   families). Scripts: `Misc/quakevr/qvrtest.py` / `qvrtest.sh` (TESTING.md, "Writing a test").

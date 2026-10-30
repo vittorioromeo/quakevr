@@ -12,7 +12,6 @@
 
 entity vr_art_a, vr_art_b; // the armoured grunt, the bare one
 float vr_art_state;       // 0 idle, 1 the checks, 2 waiting for the debris to fade
-float vr_art_pass, vr_art_fail;
 float vr_art_until;       // state 2's give-up time
 float vr_art_rule, vr_art_helm, vr_art_cuts, vr_art_dtime; // the settings put back after
 
@@ -20,12 +19,12 @@ void(float ok, string what) VR_ART_Check =
 {
     if(ok)
     {
-        vr_art_pass = vr_art_pass + 1;
+        VR_Test_Count(TRUE);
         dprint(sprintf("agarmor test: PASS %s\n", what));
     }
     else
     {
-        vr_art_fail = vr_art_fail + 1;
+        VR_Test_Count(FALSE);
         dprint(sprintf("agarmor test: FAIL %s\n", what));
     }
 };
@@ -362,8 +361,7 @@ void() VR_AgArmor_TestFrame =
             }
             return;
         }
-        vr_art_pass = 0;
-        vr_art_fail = 0;
+        VR_Test_Begin("agarmor test");
         vr_art_rule = cvar("vr_agarmor_rule");
         vr_art_helm = cvar("vr_agarmor_helmet_head");
         vr_art_cuts = cvar("vr_agarmor_block_cuts");
@@ -406,5 +404,5 @@ void() VR_AgArmor_TestFrame =
     cvar_set("vr_agarmor_block_cuts", ftos(vr_art_cuts));
     cvar_set("vr_agarmor_debris_time", ftos(vr_art_dtime));
     vr_art_state = 0;
-    dprint(sprintf("agarmor test: %g passed, %g failed\n", vr_art_pass, vr_art_fail));
+    VR_Test_Verdict();
 };

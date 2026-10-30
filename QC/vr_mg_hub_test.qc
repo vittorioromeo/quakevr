@@ -54,7 +54,7 @@ void() MG1_H_PuzzleDone = {
     VR_Test_Check(!rune.MG1_rune_locked,"authored shell button unlocks physical rune pickup");
     self = rune; other = p; MG1_sigil_touch();
     VR_Test_Check((serverflags & 2) && MG1_LastRune() == 2 && rune.model == "","unlocked physical rune awards second episode and runs targets");
-    dprint(sprintf("mghubtest: puzzle %g passed, %g failed\n",vr_test_pass,vr_test_fail));
+    VR_Test_VerdictPart("puzzle");
     remove(manager);
 };
 void() MG1_H_PuzzleOpen = {
