@@ -749,6 +749,11 @@ QVR_TUNABLE(vr_agrunt_tug_pull_time, "0.5") // s you must keep pulling above tha
 QVR_TUNABLE(vr_agrunt_tug_snap, "2.5") // a yank this many times the break force tears it out at once, before that time (0: never)
 QVR_TUNABLE(vr_agrunt_tug_hurt_ease, "0.4") // how much its wounds weaken its grip (0: not at all; 1: in proportion to its health lost)
 QVR_TUNABLE(vr_agrunt_tug_won_stumble, "0.1") // s it stumbles as its weapon is torn away before it stands (as an active ragdoll; then its AI)
+QVR_TUNABLE(vr_agrunt_tug_measure, "2") // the physical tug's pull: 0 the hold's joint force, 1 its stretch (your controller from the held point) x vr_agrunt_tug_stiffness, 2 the larger
+QVR_TUNABLE(vr_agrunt_tug_stiffness, "1500") // N/m: the stretch's pull (18 cm: 270 N, the least pull that counts)
+QVR_TUNABLE(vr_agrunt_tug_two_hand_mult, "1") // both hands on its weapon: the second hand's pull counts times this (1: summed)
+QVR_TUNABLE(vr_agrunt_tug_two_hand_ease, "0.75") // ... and every threshold of the tug times this (the old tug: its time)
+QVR_TUNABLE(vr_agrunt_tug_strike_swing, "0.6") // in a tug, the other fist's strike needs this share of vr_agrunt_disarm_swing (4.5 m/s: 2.7)
 QVR_TUNABLE(vr_agrunt_shotdisarm_weapon_w, "1") // a hit on the weapon counts its damage times this
 QVR_TUNABLE(vr_agrunt_shotdisarm_hand_w, "1") // a hit on the hand or forearm counts its damage times this (the grunt is hurt as usual)
 QVR_TUNABLE(vr_agrunt_shotdisarm_near, "0") // units beyond the volumes a shot still counts, at half (0: on it only)

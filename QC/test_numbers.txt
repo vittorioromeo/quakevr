@@ -135,6 +135,7 @@ vr_agrunt_test   87       vr_armedgrunt_ai_test.qc         the strafe lean
 vr_agrunt_test   85       vr_armedgrunt_muzzle_test.qc     dual guns: each shot from its own muzzle
 vr_agrunt_test   88       vr_armedgrunt_ragweapon_test.qc  the held weapon on an active ragdoll's hand
 vr_agrunt_test   89       vr_armedgrunt_shoveclose_test.qc a gun's holder shoves up close
+vr_agrunt_test   92       vr_armedgrunt_twohand_test.qc    two hands in the tug; a staggering or downed one's eased tug
 vr_agrunt_test   100+     vr_armedgrunt_test.qc            one weapon's every-weapon test (100 + its index)
 
 vr_flare_test    1*       vr_flaregun_test.qc              (the self-test (its fall-through))

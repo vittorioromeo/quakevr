@@ -97,6 +97,7 @@ float(entity g) VR_AGPar_WeaponFrame;                                      // VR
 float vr_ag_grab_fast;     // grabs of its weapon refused as too fast (vr_agrunt_grab_speed; the tests)
 void(entity g, entity p) VR_AG_RagProp;
 void(entity g, float won, string why) VR_AG_TugEnd;
+float(entity g, string why) VR_AG_TugDisarm; // VR_AG_Disarm in a tug: into the holding hand (TRUE)
 
 // Gameplay (vr_armedgrunt_play.qc: disarming, falls, reach), called from vr_armedgrunt.qc.
 float(entity g, entity p) VR_AG_TugFrame;

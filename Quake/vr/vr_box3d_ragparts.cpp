@@ -599,6 +599,19 @@ bool holdSoft(edict_t* ent, edict_t* player, int hand, float reach, float force,
     return true;
 }
 
+// A tug's reach: hand `hand` of `player` from where `r` stands its ground (m, flat; a step up or down is no pull): its
+// pelvis pin's anchor (a slow pull drags its pelvis off it: that counts too), else its root body.
+[[nodiscard]] float tugReach(edict_t* player, int hand, const RagdollBodies& r)
+{
+    glm::vec3 at;
+    glm::quat turn;
+    handPose(player, hand, at, turn);
+    const b3BodyId base = B3_IS_NON_NULL(r.active.pin.anchor) && b3Body_IsValid(r.active.pin.anchor) ? r.active.pin.anchor : r.body[0];
+    glm::vec3 d = at - world->toU(b3Body_GetPosition(base));
+    d.z = 0.f;
+    return glm::length(d) / world->m2u;
+}
+
 // ragdolltug (QC vr_armedgrunt_play.qc, the tug-of-war): `ent` (alive, its stagger begun: standing its ground) and hand
 // `hand` of `player` on its weapon. what 0: the hand holds the limb nearest the weapon's grip `grip` (units) by a spring
 // of at most `force` N, where the hand is (the weapon's lever: no palm fit), its arm pulling at `strength`: 1 if it does;
@@ -619,11 +632,37 @@ float tugRagdoll(edict_t* ent, edict_t* player, int hand, int what, const glm::v
         }
         return glm::length(glmv(b3Joint_GetConstraintForce(g->joint)));
     }
-    if(what == 2)
+    if(what == 3)
     {
+        // The tug's stretch (m): how much further the hand is from its root body (its pelvis, pinned: standing its ground)
+        // than as it took hold, its arm drawn out (QC vr_agrunt_tug_measure: times vr_agrunt_tug_stiffness, a pull that
+        // doesn't depend on the hold spring's give: the held limb follows the hand within 2 cm, its joint force 40-100
+        // N however far the arm is drawn).
+        if(!ours || !r || r->count < 1 || B3_IS_NULL(g->joint) || !b3Joint_IsValid(g->joint))
+        {
+            return -1.f;
+        }
+        return za::max(0.f, tugReach(player, hand, *r) - g->tugReach);
+    }
+    if(what == 4)
+    {
+        // This hand lets go, the tug going on (a second hand's hold, or the first's with the second still on).
         if(ours)
         {
             endGrab(index);
+        }
+        return 1.f;
+    }
+    if(what == 2)
+    {
+        // (Every tug hold of this player's on it: both hands.)
+        for(int i = static_cast<int>(world->ragdollGrabs.size()) - 1; i >= 0; i--)
+        {
+            const World::RagdollGrab& o = world->ragdollGrabs[static_cast<za::SizeT>(i)];
+            if(o.tug && o.num == num && o.player == pnum)
+            {
+                endGrab(i);
+            }
         }
         if(r && r->active.on && r->active.stagger.on)
         {
@@ -649,25 +688,30 @@ float tugRagdoll(edict_t* ent, edict_t* player, int hand, int what, const glm::v
         return 0.f;
     }
     ragactive::Stagger& st = r->active.stagger;
-    st.tug = true;
-    st.tugStrength = za::clamp(strength, 0.f, 3.f);
-    // (Its pelvis's pin harder by its pull: it leans back against your hand rather than following it, its feet stepping
-    // after it when it must; its resistance is what your pull measures.)
-    r->active.pin.force *= 1.f + st.tugStrength;
-    st.tugArm = -1;
-    const int parent = r->rig->bones[part].parent;
-    for(int arm = 0; arm < 2; arm++)
+    if(!st.tug)
     {
-        const auto& ch = r->active.chain[static_cast<za::SizeT>(arm)];
-        if(ch[0] == part || ch[1] == part || (parent >= 0 && ch[1] == parent))
+        st.tug = true;
+        st.tugStrength = za::clamp(strength, 0.f, 3.f);
+        // (Its pelvis's pin harder by its pull: it leans back against your hand rather than following it, its feet
+        // stepping after it when it must; its resistance is what your pull measures.)
+        r->active.pin.force *= 1.f + st.tugStrength;
+        st.tugArm = -1;
+        const int parent = r->rig->bones[part].parent;
+        for(int arm = 0; arm < 2; arm++)
         {
-            st.tugArm = arm;
+            const auto& ch = r->active.chain[static_cast<za::SizeT>(arm)];
+            if(ch[0] == part || ch[1] == part || (parent >= 0 && ch[1] == parent))
+            {
+                st.tugArm = arm;
+            }
         }
     }
+    // (else: a second hand joining the tug: one more hold, its stagger and pin as they are)
     World::RagdollGrab ng;
     ng.force = za::max(force, 0.f);
     ng.stuck = 64.f;
     ng.tug = true;
+    ng.tugReach = tugReach(player, hand, *r);
     beginGrab(ng, gs, player, hand, part);
     if(vr_debug_ragdoll.value || vr_knockdown_debug.value)
     {

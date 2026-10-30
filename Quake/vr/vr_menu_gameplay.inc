@@ -1182,6 +1182,16 @@ void ikStretchReset()
                   "where it holds it, pulled away or stepped back before its grip gives; till then your hand is drawn on "
                   "the weapon. A hard yank's pull reaches about 40 cm before it tears the weapon out "
                   "(vr_agrunt_tug_let_go; 0: 2.4 m, as before)."),
+        slider("Tug: Staggering or Down", vr_agrunt_tug_downed_scale, 0.f, 1.f, 0.05f, "%.2fx").extend(0.f, 1.f)
+            .help("A staggering or knocked-down one's weapon still needs a tug, this share of a standing one's (its "
+                  "pull time, its thresholds): it comes free sooner, not at once. 0: the grab takes it at once "
+                  "(vr_agrunt_tug_downed_scale)."),
+        cycle("Tug: Your Other Hand's Grab", vr_agrunt_tug_second_grab, {{0.f, "Joins the Tug"}, {1.f, "Tears It Free"}})
+            .help("Your other hand closing on its weapon during a tug: it joins (both pulls count and it gives sooner), "
+                  "or it tears the weapon free into your first hand at once (vr_agrunt_tug_second_grab)."),
+        toggle("Tug: Other Fist Strikes It Free", vr_agrunt_tug_strike)
+            .help("In a tug, your free fist striking its weapon (at 60% of the disarm swing) tears it free into your "
+                  "holding hand; so does any blow that would knock it out of its hand (vr_agrunt_tug_strike)."),
         slider("Grab: Fastest Hand", vr_agrunt_grab_speed, 0.f, 6.f, 0.1f, "%.1f m/s").extend(0.f, 50.f)
             .help("A hand moving faster than this (a punch, a swipe) doesn't grab its weapon: its speed against you or "
                   "against the weapon (going with a swing to catch it), the lesser, in real time (bullet time too). 0: "
@@ -1202,7 +1212,7 @@ void ikStretchReset()
                   "takes it back as it gets up unless you took it (vr_agrunt_fall_drop; with Hits Disarm)."),
         toggle("Keeps It in a Gentle Fall", vr_agrunt_fall_keep)
             .help("A gentle fall (a shove's backpedal to the floor) keeps the weapon in its hand, but while it lies "
-                  "there a grab takes it at once and a blow knocks it away. A violent one (below) drops it "
+                  "there a grab takes it with a short tug (Tug: Staggering or Down) and a blow knocks it away. A violent one (below) drops it "
                   "(vr_agrunt_fall_keep)."),
         slider("Fall: Drops It on Impact", vr_agrunt_fall_keep_impact, 0.f, 20.f, 0.5f, "%.1f m/s").extend(0.f, 100.f)
             .help("Lifted, judo-thrown, shoulder-charged or shoved over, it holds on to its weapon until its body meets "
@@ -1236,6 +1246,20 @@ void ikStretchReset()
             .help("A pellet or a nail whose first hit is the held weapon (not its hand) stops there: sparks and a tink, "
                   "no damage to the one holding it (each pellet on its own). Explosions and lightning hurt it as ever. "
                   "Off: it goes on into the body behind (vr_agrunt_shotdisarm_block)."),
+        toggle("Nails and Rockets Roll Each", vr_agrunt_shotdisarm_proj)
+            .help("Each nail (the nailguns', the nail pistol's, lava nails) and rocket on or near its weapon or hand rolls "
+                  "once to knock it out: the chance below for that damage, more for more damage, less the further off. "
+                  "Off: their damage adds up to a roll as the shotguns' does (vr_agrunt_shotdisarm_proj)."),
+        slider("Projectile: Chance", vr_agrunt_shotdisarm_proj_chance, 0.f, 1.f, 0.05f, "%.2f").extend(0.f, 1.f)
+            .help("A projectile's chance on the weapon or hand at the reference damage below: a nail 0.2, a pistol nail "
+                  "0.27, a super nail 0.4 (vr_agrunt_shotdisarm_proj_chance)."),
+        slider("Projectile: Reference Damage", vr_agrunt_shotdisarm_proj_ref, 1.f, 50.f, 1.f, "%.0f").extend(0.1f, 500.f)
+            .help("The damage that chance is for; the chance grows with the damage (vr_agrunt_shotdisarm_proj_ref)."),
+        slider("Projectile: Near Miss", vr_agrunt_shotdisarm_proj_near, 0.f, 12.f, 0.5f, "%.1f units").extend(0.f, 64.f)
+            .help("A miss this close to the weapon or hand still rolls, its chance falling to 0 at this distance "
+                  "(vr_agrunt_shotdisarm_proj_near)."),
+        slider("Projectile: Most Chance", vr_agrunt_shotdisarm_proj_max, 0.f, 1.f, 0.05f, "%.2f").extend(0.f, 1.f)
+            .help("One projectile's chance at most: a rocket's direct hit (vr_agrunt_shotdisarm_proj_max)."),
         header("Their Hands"),
         toggle("Hands on the Grips", vr_agrunt_ik)
             .help("Its arms are posed so its hand holds the weapon's grip and its other hand the second grip of a "

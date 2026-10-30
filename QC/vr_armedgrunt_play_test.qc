@@ -369,8 +369,9 @@ void() VR_AGPT_RagTug =
     }
     if(g.vr_ag_tug_pl && cvar("developer") && floor(time * 4) != floor((time - frametime) * 4))
     {
-        VR_AGT_Print(sprintf("ragtug %.2f s: %.0f N, impulse %.0f, its hand %.1f from yours, standing %g", time - g.vr_ag_tug_since,
-            vr_ag_tug_force, g.vr_ag_tug_imp, ragdollreach(p, cVR_MainHand), g.vr_kd_stagger));
+        VR_AGT_Print(sprintf("ragtug %.2f s: %.0f N (joint %.0f, stretch %.0f), impulse %.0f, its hand %.1f from yours, standing %g",
+            time - g.vr_ag_tug_since, vr_ag_tug_force, vr_ag_tug_fjoint, vr_ag_tug_fstretch, g.vr_ag_tug_imp,
+            ragdollreach(p, cVR_MainHand), g.vr_kd_stagger));
         if(g.vr_ag_prop) { VR_AGT_Print(sprintf("  weapon minus hand %v, grunt minus you %v", g.vr_ag_prop.origin - p.handpos, g.origin - p.origin)); }
     }
     // (scratch4 1 or more: the drawn hand on the weapon every 0.1 s: vr_ragdoll_hand_probe's tug line.)
