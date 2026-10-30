@@ -5,6 +5,7 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
+#include "vr_impacts.hpp"
 #include "vr_particles.hpp"
 #include "vr_profile.hpp"
 #include "vr_random.hpp"
@@ -69,13 +70,13 @@ struct Look
 constexpr Look looks[] = {
     // sparks: n speed spread size colour; smoke: n size speed life alpha; arcs port back heat barrels
     {0, 0.f, 0.f, 0.f, {0.f, 0.f, 0.f}, 0, 0.f, 0.f, 0.f, 0.f, 0, false, false, 0.f, 1},                       // None
-    {12, 300.f, 0.2f, 1.f, {1.f, 0.72f, 0.35f}, 7, 1.1f, 150.f, 0.55f, 0.32f, 0, true, false, 0.12f, 1},        // Shotgun
-    {10, 300.f, 0.2f, 1.f, {1.f, 0.72f, 0.35f}, 9, 1.2f, 160.f, 0.6f, 0.34f, 0, true, false, 0.15f, 2},         // SuperShotgun
-    {10, 320.f, 0.16f, 0.9f, {1.f, 0.78f, 0.42f}, 6, 0.9f, 140.f, 0.5f, 0.3f, 0, false, false, 0.1f, 1},       // Revolver
-    {4, 220.f, 0.18f, 0.7f, {1.f, 0.8f, 0.5f}, 2, 0.6f, 90.f, 0.32f, 0.2f, 0, false, false, 0.05f, 1},          // Nail
-    {4, 160.f, 0.3f, 1.f, {1.f, 0.65f, 0.3f}, 10, 1.9f, 170.f, 0.8f, 0.3f, 0, false, false, 0.2f, 1},           // Launcher
-    {5, 200.f, 0.28f, 1.f, {1.f, 0.65f, 0.3f}, 10, 2.f, 190.f, 0.8f, 0.3f, 0, false, true, 0.2f, 1},            // Rocket
-    {10, 240.f, 0.22f, 1.f, {1.f, 0.45f, 0.25f}, 6, 1.f, 130.f, 0.55f, 0.3f, 0, false, false, 0.1f, 1},         // Flare
+    {16, 420.f, 0.18f, 1.2f, {1.f, 0.72f, 0.35f}, 14, 1.3f, 240.f, 0.5f, 0.55f, 0, true, false, 0.12f, 1},      // Shotgun
+    {14, 420.f, 0.18f, 1.2f, {1.f, 0.72f, 0.35f}, 16, 1.5f, 260.f, 0.55f, 0.6f, 0, true, false, 0.15f, 2},      // SuperShotgun
+    {12, 440.f, 0.15f, 1.1f, {1.f, 0.78f, 0.42f}, 10, 1.1f, 220.f, 0.45f, 0.5f, 0, false, false, 0.1f, 1},      // Revolver
+    {5, 300.f, 0.16f, 0.9f, {1.f, 0.8f, 0.5f}, 4, 0.7f, 130.f, 0.3f, 0.35f, 0, false, false, 0.07f, 1},         // Nail
+    {6, 220.f, 0.28f, 1.1f, {1.f, 0.65f, 0.3f}, 14, 2.1f, 200.f, 0.75f, 0.5f, 0, false, false, 0.2f, 1},        // Launcher
+    {7, 260.f, 0.26f, 1.1f, {1.f, 0.65f, 0.3f}, 14, 2.2f, 230.f, 0.75f, 0.5f, 0, false, true, 0.2f, 1},         // Rocket
+    {12, 320.f, 0.2f, 1.2f, {1.f, 0.45f, 0.25f}, 10, 1.2f, 190.f, 0.5f, 0.5f, 0, false, false, 0.1f, 1},        // Flare
     {0, 0.f, 0.f, 0.f, {0.f, 0.f, 0.f}, 0, 0.f, 0.f, 0.f, 0.f, 5, false, false, 0.f, 1},                        // Energy
 };
 static_assert(za::getArraySize(looks) == za::getArraySize(kindNames));
@@ -199,7 +200,22 @@ za::FastNonCryptoRng rng{0x9E3779B97F4A7C15ull}; // (visual only)
 struct Counts
 {
     int sparks{0}, smoke{0}, glow{0}, arcs{0}, port{0}, back{0}, dust{0};
+    float light{-1.f}; // the place's light at the muzzle (placeLight), -1 if not looked up
 };
+
+lightcache_t placeCache; // (placeLight's)
+
+// The place's light at `at` (the lightmap under it, R_LightPoint: 1 at Quake's full light), once a shot: the smoke's
+// grey follows it (drawn emissive, as the flash lit it: never black in the dark, never glowing in a lit room).
+[[nodiscard]] float placeLight(const glm::vec3& at)
+{
+    if(!cl.worldmodel)
+    {
+        return 1.f;
+    }
+    vec3_t v{at.x, at.y, at.z};
+    return za::clamp(static_cast<float>(R_LightPoint(v, 0.f, &placeCache)) / 128.f, 0.f, 1.6f);
+}
 
 int put(const particles::GunParticle& g)
 {
@@ -217,32 +233,44 @@ void sparksAt(const glm::vec3& at, const Muzzle& m, const glm::vec3& right, cons
         g.org = at + dir * vrand::range(rng, 0.f, 1.5f);
         g.vel = dir * (look.sparkSpeed * vrand::range(rng, 0.45f, 1.2f)) + m.drift;
         g.color = glm::vec4{glm::mix(look.sparkColour, glm::vec3{1.f, 0.93f, 0.7f}, vrand::range(rng, 0.f, 0.6f)), 1.f};
-        g.scale = look.sparkSize * vrand::range(rng, 0.35f, 0.6f);
-        g.life = vrand::range(rng, 0.06f, 0.18f);
+        g.scale = look.sparkSize * vrand::range(rng, 0.8f, 1.3f);
+        g.life = vrand::range(rng, 0.05f, 0.16f);
         g.drag = 3.f;
         g.gravity = 0.4f;
-        g.streak = 0.022f;
+        g.streak = 0.03f;
         c.sparks += put(g);
     }
 }
 
-// A cone of smoke out of `at` along `dir`: `n` puffs, `size`, `speed`, `life`, `alpha`, `colour` (grey by default),
-// the shooter's motion in it.
+// The smoke's grey in a place lit `light` (placeLight): it is drawn emissive, so it takes the place's light here once.
+// Lighter in a lit room, a dim grey (never black, never glowing) in the dark.
+float smokeLight = 1.f; // (this shot's: emit() sets it)
+
+[[nodiscard]] float smokeGrey()
+{
+    return vrand::range(rng, 0.9f, 1.05f) * (0.3f + 0.3f * za::min(smokeLight, 1.3f));
+}
+
+// A cone of smoke out of `at` along `dir`: `n` puffs, `size`, `speed` (the cone's reach is about speed / 6 units: the
+// drag), `life`, `alpha`, `colour` (grey by default), the shooter's motion in it. The puffs are spread along the cone:
+// the first slow, wide and dense at the muzzle, the last fast, narrow and thinner at its tip; each grows as it slows,
+// so the cone billows out and fades over its life.
 void smokeCone(const glm::vec3& at, const glm::vec3& dir, const glm::vec3& right, const glm::vec3& up, const glm::vec3& drift,
     int n, float size, float speed, float life, float alpha, float spread, int& count, const glm::vec3& tint = glm::vec3{1.f})
 {
     for(int i = 0; i < n; i++)
     {
+        const float t = n > 1 ? static_cast<float>(i) / static_cast<float>(n - 1) : 0.5f; // muzzle .. tip
         particles::GunParticle g;
         g.kind = particles::GunParticle::Smoke;
-        const glm::vec3 d = inCone(dir, right, up, spread);
+        const glm::vec3 d = inCone(dir, right, up, spread * (1.3f - 0.7f * t));
         g.org = at + d * vrand::range(rng, 0.f, 2.f);
-        g.vel = d * (speed * vrand::range(rng, 0.35f, 1.15f)) + drift * 0.8f;
-        const float grey = vrand::range(rng, 0.4f, 0.52f);
-        g.color = glm::vec4{glm::vec3{grey, grey, grey * 0.97f} * tint, alpha * vrand::range(rng, 0.7f, 1.f)};
-        g.scale = size * vrand::range(rng, 2.5f, 4.f);
-        g.grow = size * vrand::range(rng, 18.f, 28.f);
-        g.life = life * vrand::range(rng, 0.7f, 1.1f);
+        g.vel = d * (speed * (0.12f + 0.95f * t) * vrand::range(rng, 0.85f, 1.15f)) + drift * 0.8f;
+        const float grey = smokeGrey();
+        g.color = glm::vec4{glm::vec3{grey, grey, grey * 0.97f} * tint, alpha * (1.f - 0.35f * t) * vrand::range(rng, 0.8f, 1.f)};
+        g.scale = size * vrand::range(rng, 2.f, 3.f);
+        g.grow = size * vrand::range(rng, 35.f, 50.f) * (0.7f + 0.6f * t);
+        g.life = life * vrand::range(rng, 0.75f, 1.1f);
         g.drag = 6.f;
         g.gravity = -0.04f;
         count += put(g);
@@ -269,7 +297,7 @@ void backblast(const Muzzle& m, const glm::vec3& right, const glm::vec3& up, flo
 {
     const float length = m.gunLength > 0.f ? m.gunLength : 30.f;
     const glm::vec3 rear = m.at - m.fwd * length;
-    smokeCone(rear, -m.fwd, right, up, m.drift, scaled(8, budget), 1.6f, 200.f, 0.75f, 0.28f, 0.4f, c.back);
+    smokeCone(rear, -m.fwd, right, up, m.drift, scaled(10, budget), 1.8f, 220.f, 0.75f, 0.45f, 0.4f, c.back);
     const glm::vec3 below = rear - glm::vec3{0.f, 0.f, 80.f};
     const float f = worldtrace::line(rear, below);
     if(f >= 1.f)
@@ -311,6 +339,7 @@ void report(int wid, Kind kind, int shooter, float budget, const Counts& c)
         Con_Printf("gunfx shot who %s %d wid %d kind %s budget %.2f sparks %d smoke %d glow %d arcs %d port %d back %d dust %d\n",
             shooter < 2 ? "player" : "enemy", shooter, wid, kindNames[static_cast<int>(kind)], budget, c.sparks, c.smoke, c.glow,
             c.arcs, c.port, c.back, c.dust);
+        Con_Printf("gunfx light %.2f\n", c.light); // (its own line: the log wraps long ones)
     }
 }
 
@@ -332,6 +361,8 @@ Counts emit(int wid, const Muzzle& m, int shooter, bool adBurst, bool ports)
     }
     right = glm::normalize(right);
     const glm::vec3 up = glm::normalize(glm::cross(right, m.fwd));
+    c.light = placeLight(m.at);
+    smokeLight = c.light;
     if(on(vr_gunfx_sparks) && !adBurst)
     {
         for(int b = 0; b < look.barrels; b++)
@@ -356,7 +387,7 @@ Counts emit(int wid, const Muzzle& m, int shooter, bool adBurst, bool ports)
         // A gun that throws no casings (the grunts'): its port's puff now, out of its right side behind the muzzle.
         const float length = m.gunLength > 0.f ? m.gunLength * 0.6f : 16.f;
         smokeCone(m.at - m.fwd * length + right * 1.f, glm::normalize(right + up * 0.5f), m.fwd, up, m.drift,
-            scaled(3, budget), 0.5f, 40.f, 0.45f, 0.28f, 0.35f, c.port);
+            scaled(4, budget), 0.6f, 70.f, 0.45f, 0.45f, 0.35f, c.port);
     }
     if(on(vr_gunfx_backblast) && look.backblast && !adBurst)
     {
@@ -375,6 +406,19 @@ void heatWisps(HandState& h, const Muzzle& m, float dt)
     {
         h.wisps = 0.f;
         return;
+    }
+    // A faint glow at the muzzle once the barrel is hot (past 0.5: about 3 s of a nailgun's fire), a dull red brighter
+    // as it heats; made again each frame (it lives 2 or 3), so it follows the gun.
+    if(const float hot = h.heat - 0.5f; hot > 0.f)
+    {
+        particles::GunParticle g;
+        g.kind = particles::GunParticle::Glow;
+        g.org = m.at - m.fwd * 1.f;
+        g.vel = m.drift;
+        g.color = glm::vec4{1.f, 0.3f, 0.07f, 0.3f * za::min(hot, 1.f)};
+        g.scale = 1.6f;
+        g.life = 0.03f;
+        (void)particles::gunParticle(g);
     }
     h.wisps += over * 24.f * dt * za::clamp(vr_gunfx_intensity.value, 0.f, 3.f);
     for(; h.wisps >= 1.f; h.wisps -= 1.f)
@@ -538,7 +582,8 @@ void portSmoke(const glm::vec3& at, const glm::vec3& dir, bool hot)
     right = glm::dot(right, right) < 1e-6f ? glm::vec3{0.f, 1.f, 0.f} : glm::normalize(right);
     const glm::vec3 up = glm::normalize(glm::cross(right, dir));
     int n = 0;
-    smokeCone(at, dir, right, up, glm::vec3{0.f}, scaled(4, budget), 0.5f, 45.f, 0.45f, 0.3f, 0.35f, n);
+    smokeLight = placeLight(at);
+    smokeCone(at, dir, right, up, glm::vec3{0.f}, scaled(5, budget), 0.6f, 70.f, 0.45f, 0.45f, 0.35f, n);
     if(vr_debug_gunfx.value)
     {
         Con_Printf("gunfx port at %.1f %.1f %.1f smoke %d%s\n", at.x, at.y, at.z, n, hot ? " (hot)" : "");
@@ -560,11 +605,13 @@ void clear()
     {
         h = HandState{};
     }
+    impacts::clear();
 }
 
 void registerCommands()
 {
     Cmd_AddCommand("vr_gunfx_test", test_f);
+    impacts::registerCommands();
 }
 
 } // namespace qvr::gunfx

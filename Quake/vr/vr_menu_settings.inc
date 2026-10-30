@@ -1103,7 +1103,12 @@ za::Vector<Item> pageWeaponEffects()
             .help("A small quick puff out of a shotgun's port as the casing leaves it (the super shotgun's open breech)."),
         toggle("Rocket Backblast", vr_gunfx_backblast)
             .help("The rocket launchers' smoke out behind them, and dust kicked up off the floor under them."),
-        toggle("Barrel Heat", vr_gunfx_heat).help("Sustained fire (the nailguns) leaves the muzzle smoking in thin wisps until it cools."),
+        toggle("Barrel Heat", vr_gunfx_heat)
+            .help("Sustained fire (the nailguns) leaves the muzzle smoking in thin wisps and glowing faintly until it cools."),
+        toggle("Impacts by Material", vr_gunfx_impacts)
+            .help("Bullets and nails hitting walls throw up what the surface is made of: dust off stone and ground, sparks "
+                  "off metal, chips off wood (flesh has the gore's blood mist)."),
+        toggle("Lightning Ozone Haze", vr_gunfx_ozone).help("A faint bluish haze lingers where the thunderbolt's beam plays on a surface."),
         toggle("Enemies' Gunfire Particles", vr_gunfx_enemies).help("The monsters' guns make them too."),
         slider("Casing Smoke Trails", vr_gunfx_shell_trail, 0.f, 4.f, 0.1f, "%.1fx").extend(0.f, 10.f)
             .help("How strong the smoke trail every spent casing leaves as it flies (0: none; 1: the old faint one)."),

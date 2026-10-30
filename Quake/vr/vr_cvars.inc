@@ -1968,7 +1968,9 @@ QVR_CVAR(vr_gunfx_sparks, "1", CVAR_ARCHIVE)           // a cone of sparks out o
 QVR_CVAR(vr_gunfx_smoke, "1", CVAR_ARCHIVE)            // a quick cone of smoke out of the muzzle, the flash's glow in it (never the energy guns')
 QVR_CVAR(vr_gunfx_port, "1", CVAR_ARCHIVE)             // a small quick puff out of a shotgun's ejection port (the super shotgun's open breech)
 QVR_CVAR(vr_gunfx_backblast, "1", CVAR_ARCHIVE)        // a rocket launcher's backblast smoke behind it, and dust off the floor under it
-QVR_CVAR(vr_gunfx_heat, "1", CVAR_ARCHIVE)             // barrels hot after sustained fire (the nailguns'): wisps of smoke off the muzzle
+QVR_CVAR(vr_gunfx_heat, "1", CVAR_ARCHIVE)             // barrels hot after sustained fire (the nailguns'): wisps of smoke off the muzzle, a faint glow
+QVR_CVAR(vr_gunfx_impacts, "1", CVAR_ARCHIVE)          // bullets' and nails' wall hits by the surface's material (vr_impacts.cpp): dust off stone, sparks off metal, chips off wood
+QVR_CVAR(vr_gunfx_ozone, "1", CVAR_ARCHIVE)            // a faint bluish ozone haze where the thunderbolt's beam plays on a surface
 QVR_CVAR(vr_gunfx_enemies, "1", CVAR_ARCHIVE)          // the monsters' guns too (the grunts', the enforcers', the armed grunts')
 QVR_CVAR(vr_gunfx_shell_trail, "1.6", CVAR_ARCHIVE)    // every spent casing's smoke trail, times (0 none; 1 the old faint one)
 QVR_CVAR(vr_debug_gunfx, "0", CVAR_NONE)               // 1: each shot's gunfire particles ("gunfx shot ...", "gunfx port ...")

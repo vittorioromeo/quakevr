@@ -1092,7 +1092,12 @@ za::Vector<Item> pageDebugTests()
             .help("vr_gunfx_test <weapon id> [count]: a shot's gunfire particles 48 units ahead of you (4 the shotgun)."),
         command("Gunfire Particles: Rocket", "vr_gunfx_test 10").help("vr_gunfx_test 10: the rocket launcher's, with its backblast."),
         command("Gunfire Particles: Thunderbolt", "vr_gunfx_test 11").help("vr_gunfx_test 11: the energy guns' arcs (no smoke)."),
-        toggle("Print Gunfire Particles", vr_debug_gunfx).help("vr_debug_gunfx: each shot's particles (\"gunfx shot ...\", \"gunfx port ...\")."),
+        command("Impact Where You Look: Bullet", "vr_impact_test 0 3")
+            .help("vr_impact_test <0 bullet, 1 nail, 2 super nail, 3 bolt> [count]: what that hit throws up off the surface "
+                  "you look at, by its material (vr_impacts.cpp)."),
+        command("Impact Where You Look: Bolt Haze", "vr_impact_test 3 8").help("vr_impact_test 3 8: the thunderbolt's ozone haze."),
+        toggle("Print Gunfire Particles", vr_debug_gunfx)
+            .help("vr_debug_gunfx: each shot's particles (\"gunfx shot ...\", \"gunfx port ...\", \"gunfx impact ...\")."),
         command("Per-Weapon Recoil Test", "vr_recoil_test")
             .help("vr_recoil_test: the main hand's weapon's own Recoil Kick Back and Muzzle Rise move its recoil only "
                   "(no other weapon's), and its Recoil Recovery 2x / 0.5x takes twice / half as long back to rest; "

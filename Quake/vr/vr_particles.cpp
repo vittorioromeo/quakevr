@@ -2764,6 +2764,11 @@ bool gunParticle(const GunParticle& g)
                 p.spin = vrand::range(rng, -1.2f, 1.2f);
                 p.lighting = Lighting::Emissive; // (its colour as the flash lit it: readable in the dark)
                 break;
+            case GunParticle::Chip:
+                p.cell = CellSpark;
+                p.spin = vrand::range(rng, -8.f, 8.f);
+                p.lighting = Lighting::Emissive; // (shaded by the caller)
+                break;
         }
     }, false);
     return true;

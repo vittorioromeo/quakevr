@@ -148,7 +148,8 @@ struct GunParticle
     {
         Spark,
         Smoke,
-        Glow
+        Glow,
+        Chip  // the spark's shape, not hot, drawn as its colour (wood chips: the caller shades it by the place)
     };
     Kind kind{Smoke};
     glm::vec3 org{0.f};

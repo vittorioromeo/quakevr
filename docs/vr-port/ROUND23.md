@@ -1448,7 +1448,37 @@ vr_gunfx_shell_trail 1.6. Debug > Tests: three vr_gunfx_test rows, Print Gunfire
 Tests: python Misc/quakevr/gunfx_test.py <agent> (player 16/16, armed grunts 10/10, grunt 1/1, enforcer 1/1);
 impulse 149 gives weapon id vr_test_give_wid (any id; impulse 150+id reaches 19 only; AD ids need AD's data).
 
-Not done: idea 1 (impacts by surface material: needs a texture-to-material table, its own task); idea 5 exists
-already (vr_tracers_enemies 1); idea 6's ozone haze at lightning impacts; barrel glow (heat is wisps only); AD
-soldiers' own attacks send no weaponfired (nothing for them); an armed grunt's thunderbolt is a stream (no shot
-event). Visual tuning was from one eyeshot (sizes raised 3x after the first looked empty): judge in VR.
+Not done: idea 5 exists already (vr_tracers_enemies 1); AD soldiers' own attacks send no weaponfired (nothing for
+them); an armed grunt's thunderbolt is a stream (no shot event).
+
+### Second pass: visible smoke, impacts by material, ozone, barrel glow
+
+- Smoke now reads as a dense quick cone (it was a faint puff 5 frames after the shot): each shot's puffs are spread
+  along the cone (smokeCone: the first slow, wide and dense at the muzzle, the last fast and narrow at its tip, reach
+  about speed / 6 units), start 2-3x their size and grow 35-50x a second as they slow, alpha 0.5-0.6 (was 0.3), 14
+  puffs for the shotgun (was 7); gone in 0.4-0.6 s. Its grey takes the place's light once a shot (placeLight:
+  R_LightPoint at the muzzle, 0.3 + 0.3 x light): a lighter cloud in a lit room, a dim one in the dark, never black,
+  never glowing. Sparks 2x bigger, faster (420 u/s the shotgun's), streaked longer, shorter-lived. Port puffs and the
+  backblast use the same cone (bigger). Strips: kit `scratch/gunfx/{before,after}_<class>_{lit,dark}.png` (frames 0,
+  2, 5, 10, 20 after the shot; lit = e1m2's start, light 1.37; dark = e2m2's, 0.52), made by the tree's
+  `scratch/shots.py`. `vr_debug_gunfx 1` also prints `gunfx light <x>` per shot.
+- Impacts by material (idea 1): `Quake/vr/vr_impacts.cpp/.hpp`, ONE table `material x hit kind -> particles, decal,
+  sound` (design_review.md proposal 4: the QC ladders can move onto it later; its decal and sound columns are `Own`,
+  the hit's own, today). Materials: stone, dirt (debris' Natural), metal, wood, flesh; hit kinds: bullet (TE_GUNSHOT),
+  nail (TE_SPIKE), super nail (TE_SUPERSPIKE), bolt (the thunderbolt's beam). A world hit's material: the texture of
+  the surface nearest Quake's puff point (7 short traces, then physsound::surfaceOnSegment, debris::materialOf's name
+  table), at most 16 lookups a frame. Stone: grey dust; dirt: more, browner; metal: hot sparks glancing off; wood:
+  chips and pale dust; flesh: nothing new (the gore's blood mist, vr_gore_mist, already comes with every blood
+  burst). Dust and chips are drawn as their colour shaded once by the place's light (dim in the dark, never black).
+  Added on top of each hit's own puff, decal and tink (cl_tent.c: one hook call after each). New
+  `particles::GunParticle::Chip` (the spark's shape, not hot).
+- Ozone haze (idea 6): where the thunderbolt's beam (progs/bolt2.mdl, CL_ParseBeam) ends on a surface, a faint
+  bluish emissive puff every 0.06 s a beam, lingering 1-1.6 s and rising.
+- Barrel glow (idea 3/6): past heat 0.5 a dull red glow at the muzzle, made each frame (alpha 0.3 x heat over 0.5).
+  The nailguns' heat a shot 0.07 (was 0.05: at 10 shots a second it now passes 0.35, the wisps, after about 1 s of
+  fire and 0.5, the glow, after about 1.4 s).
+- Settings: vr_gunfx_impacts 1, vr_gunfx_ozone 1 (Weapons > Weapon Effects > Gunfire Particles: Impacts by Material,
+  Lightning Ozone Haze). Debug > Tests: Impact Where You Look (`vr_impact_test <0 bullet|1 nail|2 super nail|3 bolt>
+  [count] [material]`: on what you look at, as `material` if given; prints `gunfx impact <kind> on <material>
+  (<texture>) dust .. sparks .. chips .. haze ..`). Strips: kit `scratch/gunfx/after_impact_*.png`, `after_ozone_*`
+  (the tree's `scratch/impshots.py`).
