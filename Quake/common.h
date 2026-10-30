@@ -392,6 +392,7 @@ typedef struct pack_s
 	packfile_t	*files;
 	int		*hash;		// QVR: files[] by name: index + 1 of each name's first entry, 0 empty (COM_PackFind)
 	unsigned int	hashmask;	// QVR: the table's size - 1 (a power of two, at least twice numfiles)
+	int		*stemhash;	// QVR: files[] by name without its extension (COM_PackHasStem), as hash: the same size
 } pack_t;
 
 typedef struct searchpath_s
@@ -427,6 +428,7 @@ qboolean COM_WriteFile_OSPath (const char *filename, const void *data, size_t le
 int COM_OpenFile (const char *filename, int *handle, unsigned int *path_id);
 int COM_FOpenFile (const char *filename, FILE **file, unsigned int *path_id);
 qboolean COM_FileExists (const char *filename, unsigned int *path_id);
+qboolean COM_StemNowhere (const char *stem); // QVR: no `stem`.<extension> in any search path (true only when sure)
 void COM_CloseFile (int h);
 
 // these procedures open a file using COM_FindFile and loads it into a proper

@@ -1496,3 +1496,87 @@ them); an armed grunt's thunderbolt is a stream (no shot event).
   player, a turbulent cone out of the back, AD's enemy launcher's tube too; (5) persistent thin ribbon wisps per
   barrel after firing stops (shotgun 1, SSG and nailgun 2), following the muzzles for seconds, with fade, thickness
   and persistence settings.
+
+## Nail pistol: moving slide, slide lock, auto re-rack (branch `agent/npslide`)
+
+His words: a slide that moves with each shot, locks open on an empty magazine, closes by itself with a sound when a
+loaded magazine goes in (no manual racking), travel and time configurable.
+
+- **Before:** QC set the weapon frame 1 for vr_nailpistol_slide_time (0.07 s) after a shot and while empty; the
+  renderer's frame lerp ran it home; frame 1 was the slide 1.0 back. Barely visible, fixed travel, silent re-close.
+- **Server (QC vr_nailpistol.qc):** a shot sends the slide back (frame 1) for the cycle's first third
+  (`VR_NailPistol_SlideBack`: vr_nailpistol_slide_cycle / 3, one frame at least); empty (`VR_NailPistol_Empty`, as
+  before: clip out of rounds, or immersive with no magazine in) holds it there. `VR_NailPistol_HandFrame` remembers
+  each hand's slide (.vr_np_lock: home/locked); locked then loaded: `VR_NailPistol_Rack` plays
+  vr/nailpistol_rack.wav (new, `make_nailpistol_sounds.py rack()`: the slide stop's tick, a short scrape, the slam home
+  and a body thunk, 0.26 s) on the hand's channel. Any reload mode loads it (a pouch magazine, a refill).
+- **Client (Quake/vr/vr_nailslide.cpp, new):** per hand, the slide's place 0..1 stepped on vr_gametime from the
+  server's frame: an edge to back sends it all the way back over cycle/3 (even if the server's moment ends sooner),
+  then home over the other two thirds; held back while frame 1 (locked); a lock let go runs home the same.
+  `VR_NailSlidePose` (r_alias.c, after the crossbow's pose override) draws any v_nailpistol.mdl as frames 0 and 1
+  blended: the hands' guns by their slide's place, any other (an armed grunt's, holstered, a viewthing) by its own
+  frame 1 share, both times vr_nailpistol_slide_travel / the model's frame-1 travel (measured from the model once).
+- **The model:** progs/v_nailpistol.mdl's frame 1 moved from 1.0 to 3.0 back (the most travel; no Blender: the slide's
+  84 vertices' offset scaled and the MDL re-quantised as mdlgen.write_mdl does, frame 0 within a quantum; measured
+  2.986). build_nailpistol.py's `travel` is 3.0 to match on the next export.
+- **Armed grunts:** `VR_AG_ShootProp` sends its prop's slide back (`VR_NailPistol_PropShot`); `VR_AG_PropThink` runs
+  `VR_NailPistol_PropFrame`: back after a shot, locked while its clip is out, the rack on a refill.
+- **Settings** (Combat > Weapon Damage, under Nail Pistol Magazine): Nail Pistol Slide Travel
+  `vr_nailpistol_slide_travel` 1.5 (model units, 0..3; the gun is ~13 long), Nail Pistol Slide Cycle
+  `vr_nailpistol_slide_cycle` 0.14 s. vr_nailpistol_slide_time retired (retiredCvars; no config step: new names).
+- **Debug:** `vr_nailslide_debug 1` (Debug > Tests > Nail Pistol > Slide: Print) prints every frame it moves.
+- **Tests:** `vr_np_test 1` (23 checks, was 21): re-racked once by the new magazine and never before; the armed
+  grunt's prop frame 1 after its shot. Console trace (vr_nailslide_debug 1, fast mode at 72 Hz, defaults): a shot
+  0 -> 1 in 4 frames (0.298 a frame), home in 7 (0.149 a frame); locked through the 99 walking frames at 1.000; the
+  re-rack line, then home in 7 frames. Eyeshots (qvr-kit/scratch/npslide/): `viewthing_closed_open_travel3.png` closed,
+  locked at 1.5, at 3.0; `closed_open_L.png` in hand.
+## Faster map loads, round 5: the file lookups that find nothing (branch `agent/load5`)
+
+Profile (no-LTO, warm caches, `vr_startup_times`; hip2m5 is the kit base's map with the most monster kinds, 11):
+vrtesthall 1123 ms (spawn 619, alias models 662 of 363: normal maps 278, skins 178, md5/md3 lookups 126 of which md5
+hands/body loaded 123, so the failed md5/md3 lookups ~3; limbs 196, view models 164, smooth rigs 48, image lookups that
+found nothing 68 ms / 2304); e1m1 881 (misses 16 / 2036, limbs 22, rigs 8); vrstart 1427 (misses 72, limbs 193, rigs
+45); hip2m5 1096 (misses 19 / 2460, limbs 84, rigs 26). Sub-timed (temporary timers): of vrtesthall's load, 12,900
+names were looked up in every search path and found nowhere (~3 us each), and 810 lookups of an owned pack's files
+(owned/mg3/progs/rknight.mdl_0.png, its _norm, _bump...) cost ~0.1 ms each, 80 ms: each listed the folder's paks and
+read every pak's directory.
+
+- **Owned packs' files** (vr_gamedir.cpp, VR_OwnedFile): the folder's paks read once a load window into a name index
+  (`ownedIndexes`, mem::Cache, GameDirChange), on the main thread inside the file system cache's windows
+  (VR_FileCacheWindow, new at each enable and each full forget: a pak added meanwhile is seen at the next load); the
+  loose files by the window's listings (VR_FileCacheHas). Other threads and lookups outside the windows as before. A
+  temporary check ran both ways on every lookup of a vrtesthall load: 641 compared, 0 differed. COM_FindFile notes an
+  owned name not found as a miss too.
+- **An image's five lookups at once** (COM_StemNowhere, image.c): Image_LoadImage asks png, tga, jpg, pcx and lmp in
+  every search path; now, inside the windows, a name that no pak has with any extension (a stem table beside each pak's
+  name hash, COM_PackIndex) and no listed loose folder has (Listing::stems) makes none of them (model-keep's recorded
+  lookups still noted). Checked by running the five lookups anyway each time it said "nowhere": vrtesthall 2077, e1m1
+  1874, hip2m5 2284, none found a file.
+- **Misses kept when an unrelated file is written** (vr_fscache.cpp): a file written forgot every miss known; now only
+  the names its path ends with (`forgetMisses`, after folding the path: case, separators, "." levels; a name spelt
+  oddly is forgotten anyway). Sys_mkdir forgot every listing on each call, a folder made or not (every file written
+  asks for its folders: six times in a vrtesthall load, the server's 7700 misses looked up again by the client); now
+  only when it made one. `vr_fscache_test`: 22 passed (new: misses kept and forgotten by name, on another thread too).
+- **Limb models and smooth rigs, built only for what the map uses** (brief item 4): already so. Limbs are made for the
+  kinds the map's monsters are and those its triggers (probe pass 1) and, with vr_limbs_prebuild 2, its dispensers can
+  make (vrtesthall and vrstart place no monsters: their 16 kinds are the dispensers'/spawners'), and a kind first seen
+  later is built on the pool and precached one a frame (spawnFrame); smooth rigs are made for the precached alias
+  models with a rig (the same 16-18 kinds and the player). Nothing to cut without moving the author's chosen load-time
+  work (vr_limbs_prebuild 2) into play.
+- **Not done** (measured, left): a disk cache of the limb models and smooth rigs (brief item 3): the limbs' files are
+  built on the pool while the rigs warm (22 ms of vrtesthall's 137 ms limbs, sub-timed; the other 115 their 170
+  precaches on the main thread: skins, normal maps, draw lists, which a cached .mdl doesn't save), and the smooth rigs
+  are ~2-5 ms a kind (18 kinds, 42 ms): a cache would save at most ~60 ms of vrtesthall/vrstart, ~30 of hip2m5, ~10
+  of e1m1; with rigData's outputs (unfit masks, rebuilt keys, rest rows, fit statistics) and its inputs (the model's
+  poses, the derived ragdoll rig, three settings) it wasn't in this round's budget. Running each kind's rigData on the
+  pool at once (as the limbs' builds) is the cheaper next step. Item 5 (uploads off the main thread) skipped. The
+  normal maps of authored maps with heights need islands made each load (76 on vrtesthall, 24 ms).
+- **Checks**: eyeshots of vrtesthall, e1m3, e2m1, hip2m5 (dither and particles off), before vs after: 1522 pixels
+  differ, the before build twice: 2195 (the same regions). Covering cases (`run_baseline.sh --only` limb, ragdoll,
+  agrunt 1-6, animsmooth, selfchecks, stats_levelchange): 0 of 16 changed against baseline.tsv.
+- **Times** (interleaved ABBA, 5 rounds, exclusive, no-LTO, medians; cold: the session's first load, warm: the same
+  map again): vrtesthall cold 1173 -> 1147 ms (precache 164 -> 131, limbs 192 -> 148: their precaches' lookups),
+  vrstart 1536 -> 1440 (spawn 750 -> 681, limbs 213 -> 154), e1m1 916 -> 919 and hip2m5 1074 -> 1103 (within the
+  runs' +-100 ms spread; hip2m5's per-round differences -63, -11, -633, -38, +79). "Image files looked for, none found"
+  70 -> 6 ms (vrtesthall), 77 -> 6 (vrstart), 16 -> 5 (e1m1), 20 -> 6 (hip2m5). Warm loads unchanged (144-293 ms: the
+  models are kept). Scripts: scratch/load5_ab.sh, load5_abstats.py (not committed).

@@ -1026,6 +1026,9 @@ za::Vector<Item> pageDebugTests()
             .help("Headless: the nailguns', the nail pistol's and an armed grunt's nails' speed (15-20% above 1750 and "
                   "2600), a nail's hit box (a point; a grunt met only within its box and the tolerance, the middle never "
                   "missed) and the nails' drawn size (\"nailtest: N passed, M failed\")."),
+        toggle("Slide: Print", vr_nailslide_debug)
+            .help("vr_nailslide_debug: the slide's place in each hand every frame it moves (0 home .. 1 back by Slide "
+                  "Travel) and its edges: a shot, the lock, the re-rack (\"nailslide: ...\")."),
         command("Nail Pistol Aim Test", "vr_np_test 5")
             .help("Headless (it moves the mock hands): its nails along the shot line (the red laser), flight and impact within "
                   "0.2 degrees, at several poses and distances, both hands (\"npaim: N passed, M failed\"). In the headset: "

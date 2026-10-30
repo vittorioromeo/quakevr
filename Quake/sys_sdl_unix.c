@@ -833,8 +833,9 @@ void Sys_Init (void)
 
 void Sys_mkdir (const char *path)
 {
-	VR_FileCacheForget (); // QVR: the loading's listed directories (vr_fscache.cpp)
 	int rc = mkdir (path, 0777);
+	if (rc == 0)
+		VR_FileCacheForget (); // QVR: the loading's listed directories (vr_fscache.cpp), when one was made
 	if (rc != 0 && errno == EEXIST)
 	{
 		struct stat st;

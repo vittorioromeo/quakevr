@@ -1103,6 +1103,7 @@ constexpr const char* retiredCvars[] = {
     "vr_toolgun_physgun_ragdoll",     // the physgun holds a ragdoll on a spring (0: its entity dragged)
     "vr_autopump",                    // the shotgun's auto pump (0: none, the shell after 0.22 s)
     "vr_ad_death_precache",           // AD's death assets precached early outside AD (0: at first use)
+    "vr_nailpistol_slide_time",       // the nail pistol's slide held back after a shot (now vr_nailpistol_slide_cycle)
 };
 
 // Settings renamed: the old name still reads and sets the new one (Cvar_FindVar asks here when a name is not found):
