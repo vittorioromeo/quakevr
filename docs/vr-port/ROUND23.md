@@ -869,6 +869,10 @@ is also the fallback when the physical tug can't begin); also kept on purpose: `
   enforcer none: one alternative outcome) is in arenamap's run of 2026-10-29 20:44; here the full script failed once
   and passed twice, origin/next's passed twice, the `rag` case alone passed on both. The enforcer's ragdoll falls at
   1.6 m/s when it is grabbed: near the grab's floor.
+- Second pass's run (run_baseline --only agrunt|agarmor|rigstudio|ragdoll_grab, 8 lanes): 8 of 90 changed. Better:
+  rigstudio_aim PASS, 63 (14 -> 7 fails), 71 (4 -> 3). Flaky (the known ones): 67 a timeout, 76 one more fail,
+  ragdoll_grab as above. agrunt_1 (Thunderbolt 0 shots) and agrunt_47 (mjolnir timed out, 0 blows) failed under the
+  lanes and passed alone (17/0, 77/0).
 
 Tests (run_baseline --only agrunt|agarmor|rigstudio|limb|ragdoll_grab|ragdoll_ragtest, 8 lanes, twice): same verdicts
 as baseline.tsv except: ragdoll_grab "grab rag enforcer: no grab" FAIL in both runs (open: not yet checked on next under
