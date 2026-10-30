@@ -3,6 +3,7 @@
 // Split from vr_view.cpp (a pure move); what they share is in vr_view_internal.hpp.
 
 #include "vr_view_internal.hpp"
+#include "vr_kickcancel.hpp"
 #include "vr_nailslide.hpp"
 
 namespace view_detail
@@ -1071,7 +1072,7 @@ void placeMorph(const WeaponFrame& wf, int frame)
         place(old, m.from, held.pos, {-ot.x, ot.y, ot.z},
             za::clamp(frame, 0, za::max(m.from->numframes - 1, 0)), mirrored);
         const bool oldFixed2H = hasGripHotspot(oldSlot);
-        old.zeroBlend = weapons::value(oldSlot, oldFixed2H && twohand::helping(1 - hand) && !twohand::freeHelping(1 - hand) ? Key::TwoHZeroBlend : Key::ZeroBlend);
+        old.zeroBlend = kickcancel::covers(m.from) ? 0.f : weapons::value(oldSlot, oldFixed2H && twohand::helping(1 - hand) && !twohand::freeHelping(1 - hand) ? Key::TwoHZeroBlend : Key::ZeroBlend);
         ve.morph = morphValue(t, m.kind, true);
         old.morph = morphValue(t, m.kind, false);
     }
@@ -1098,6 +1099,10 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
 {
     view::ViewEntity& ve = entities.weapon[hand];
     const int slot = weapons::slotForModel(model);
+    if(vr_debug_weapon_frame.value >= 0.f && model && !floating)
+    {
+        frame = za::clamp(static_cast<int>(vr_debug_weapon_frame.value), 0, za::max(model->numframes - 1, 0)); // (Debug > Weapons)
+    }
 
     // A gun hanging from its foregrip (the hand-off, vr_twohand.cpp): drawn as the hand that let it go
     // held it, carried by this hand.
@@ -1142,7 +1147,8 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
     // own blend towards frame 0 for that grip (old engine's V_SetupHandViewEnts).
     // Not held anywhere: a hotspot's own setting (NOTES.md vrfiringrange_2026-10-01_17-13-04).
     const bool fixed2H = model && slot >= 0 && hasGripHotspot(slot);
-    ve.zeroBlend = weapons::value(slot, fixed2H && twohand::helping(1 - hand) && !twohand::freeHelping(1 - hand) ? Key::TwoHZeroBlend : Key::ZeroBlend);
+    // (None for a weapon whose baked kick is taken out: the body is at rest, the blend would only damp its parts.)
+    ve.zeroBlend = kickcancel::covers(model) ? 0.f : weapons::value(slot, fixed2H && twohand::helping(1 - hand) && !twohand::freeHelping(1 - hand) ? Key::TwoHZeroBlend : Key::ZeroBlend);
 
     // The super shotgun broken open: how far its barrels are drawn down now (its parts: setupSsgParts).
     const float ssgOpen = ssgStep(ssgHands[hand], floating ? nullptr : model,

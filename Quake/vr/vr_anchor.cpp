@@ -3,6 +3,7 @@
 
 #include "vr_anchor.hpp"
 #include "vr_engine.hpp"
+#include "vr_kickcancel.hpp"
 #include "vr_mdldequant.hpp"
 #include "vr_mem.hpp"
 
@@ -472,46 +473,43 @@ mem::Cache<AnchorCache> anchorCache{"anchors", mem::GameDirChange | mem::ModelRe
     return frame.firstpose + static_cast<int>(cl.time / interval) % frame.numposes;
 }
 
-// The vertex as the renderer will draw it this frame: R_SetupAliasFrame blends from
-// .previouspose to .currentpose over .lerptime, and a frame change only starts a new blend
-// (from the pose shown so far) when the entity is drawn. Reads the entity without changing it.
-[[nodiscard]] glm::vec3 drawnVertex(const entity_t& e, const aliashdr_t* hdr, int vertex)
+// The vertex as the renderer will draw it this frame (drawnPoses).
+[[nodiscard]] glm::vec3 drawnVertex(const entity_t& e, const aliashdr_t* hdr, const DrawnPoses& d, int vertex)
 {
-    const int pose = currentPose(e, hdr);
-    const bool lerping = r_lerpmodels.value && !(e.model->flags & MOD_NOLERP && r_lerpmodels.value != 2);
-    if(!lerping || (e.lerpflags & (LERP_RESETANIM | LERP_RESETANIM2)))
+    if(d.a == d.b)
     {
-        return poseVertex(hdr, pose, vertex);
+        return poseVertex(hdr, d.b, vertex);
     }
-
-    if(pose != e.currentpose)
-    {
-        return poseVertex(hdr, e.currentpose, vertex); // a new blend starts from here
-    }
-
-    float blend = 1.f;
-    if(e.lerpflags & LERP_FINISH && R_FrameLerpFinish(&e) > e.lerpstart)
-    {
-        blend = static_cast<float>((cl.time - e.lerpstart) / (R_FrameLerpFinish(&e) - e.lerpstart));
-    }
-    else if(e.lerptime > 0.f)
-    {
-        blend = static_cast<float>((cl.time - e.lerpstart) / e.lerptime);
-    }
-    blend = CLAMP(0.f, blend, 1.f);
-
-    return glm::mix(poseVertex(hdr, e.previouspose, vertex), poseVertex(hdr, e.currentpose, vertex), blend);
+    return glm::mix(poseVertex(hdr, d.a, vertex), poseVertex(hdr, d.b, vertex), d.blend);
 }
 
-// A vertex as drawn, blended towards the zero pose by `zeroBlend`.
-[[nodiscard]] glm::vec3 blendedVertex(const entity_t& e, const aliashdr_t* hdr, int vertex, float zeroBlend)
+// What the entity's vertices are put through as drawn: its poses, and the baked kick taken out (vr_kickcancel.hpp:
+// the alias matrix ends with the same map).
+struct Drawn
 {
-    const glm::vec3 posed = drawnVertex(e, hdr, vertex);
-    if(zeroBlend <= 0.f)
+    DrawnPoses poses;
+    bool cancel{false};
+    glm::mat4 kick{1.f};
+};
+
+[[nodiscard]] Drawn drawnOf(const entity_t& e, const aliashdr_t* hdr)
+{
+    Drawn d;
+    d.poses = drawnPoses(e, hdr);
+    d.cancel = kickcancel::byteCancel(e, hdr, d.kick);
+    return d;
+}
+
+// A vertex as drawn, blended towards the zero pose by `zeroBlend` (then the kick taken out, as the alias shader blends
+// before the matrix).
+[[nodiscard]] glm::vec3 blendedVertex(const entity_t& e, const aliashdr_t* hdr, const Drawn& d, int vertex, float zeroBlend)
+{
+    glm::vec3 posed = drawnVertex(e, hdr, d.poses, vertex);
+    if(zeroBlend > 0.f)
     {
-        return posed;
+        posed = glm::mix(posed, poseVertex(hdr, zeroPose(hdr), vertex), zeroBlend);
     }
-    return glm::mix(posed, poseVertex(hdr, zeroPose(hdr), vertex), zeroBlend);
+    return d.cancel ? glm::vec3{d.kick * glm::vec4{posed, 1.f}} : posed;
 }
 
 [[nodiscard]] const aliashdr_t* quakeHeader(const entity_t& ent)
@@ -529,6 +527,35 @@ mem::Cache<AnchorCache> anchorCache{"anchors", mem::GameDirChange | mem::ModelRe
 }
 
 } // namespace
+
+// R_SetupAliasFrame blends from .previouspose to .currentpose over .lerptime, and a frame change only starts a new
+// blend (from the pose shown so far) when the entity is drawn. Reads the entity without changing it.
+DrawnPoses drawnPoses(const entity_t& e, const aliashdr_t* hdr)
+{
+    const int pose = currentPose(e, hdr);
+    const bool lerping = r_lerpmodels.value && !(e.model->flags & MOD_NOLERP && r_lerpmodels.value != 2);
+    if(!lerping || (e.lerpflags & (LERP_RESETANIM | LERP_RESETANIM2)))
+    {
+        return {pose, pose, 1.f};
+    }
+
+    if(pose != e.currentpose)
+    {
+        return {e.currentpose, e.currentpose, 1.f}; // a new blend starts from here
+    }
+
+    float blend = 1.f;
+    if(e.lerpflags & LERP_FINISH && R_FrameLerpFinish(&e) > e.lerpstart)
+    {
+        blend = static_cast<float>((cl.time - e.lerpstart) / (R_FrameLerpFinish(&e) - e.lerpstart));
+    }
+    else if(e.lerptime > 0.f)
+    {
+        blend = static_cast<float>((cl.time - e.lerpstart) / e.lerptime);
+    }
+    blend = CLAMP(0.f, blend, 1.f);
+    return {blend >= 1.f ? e.currentpose : e.previouspose, e.currentpose, blend};
+}
 
 int zeroPose(const aliashdr_t* hdr)
 {
@@ -549,10 +576,11 @@ glm::vec3 posedAnchor(const entity_t& ent, const char* anchor, float zeroBlend)
     {
         return glm::vec3{0.f};
     }
+    const Drawn d = drawnOf(ent, hdr);
     Mesh* m = meshFor(ent.model, hdr);
     if(!m)
     {
-        return blendedVertex(ent, hdr, 0, zeroBlend);
+        return blendedVertex(ent, hdr, d, 0, zeroBlend);
     }
     const Bound& b = boundFor(*m, anchor);
     glm::vec3 p{0.f};
@@ -560,7 +588,7 @@ glm::vec3 posedAnchor(const entity_t& ent, const char* anchor, float zeroBlend)
     {
         if(b.weight[k] != 0.f)
         {
-            p += blendedVertex(ent, hdr, b.vert[k], zeroBlend) * b.weight[k];
+            p += blendedVertex(ent, hdr, d, b.vert[k], zeroBlend) * b.weight[k];
         }
     }
     return p;
@@ -586,7 +614,7 @@ glm::vec3 posedVertex(const entity_t& ent, int vertex, float zeroBlend)
     {
         return glm::vec3{0.f};
     }
-    return blendedVertex(ent, hdr, CLAMP(0, vertex, hdr->numverts - 1), zeroBlend);
+    return blendedVertex(ent, hdr, drawnOf(ent, hdr), CLAMP(0, vertex, hdr->numverts - 1), zeroBlend);
 }
 
 bool posedVertices(const entity_t& ent, float zeroBlend, za::Vector<glm::vec3>& rest, za::Vector<glm::vec3>& now)
@@ -599,12 +627,17 @@ bool posedVertices(const entity_t& ent, float zeroBlend, za::Vector<glm::vec3>& 
         return false;
     }
     const int zero = zeroPose(hdr);
+    const Drawn d = drawnOf(ent, hdr);
     rest.resize(hdr->numverts);
     now.resize(hdr->numverts);
     for(int v = 0; v < hdr->numverts; v++)
     {
         rest[v] = storedVertex(hdr, zero, v); // (the binding, kept: the stored bytes whatever vr_mdl_dequant)
-        now[v] = glm::mix(drawnVertex(ent, hdr, v), rest[v], CLAMP(0.f, zeroBlend, 1.f));
+        now[v] = glm::mix(drawnVertex(ent, hdr, d.poses, v), rest[v], CLAMP(0.f, zeroBlend, 1.f));
+        if(d.cancel)
+        {
+            now[v] = glm::vec3{d.kick * glm::vec4{now[v], 1.f}};
+        }
     }
     return true;
 }
