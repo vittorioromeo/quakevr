@@ -11,7 +11,7 @@
 # Prints PASS/FAIL per check; exits 1 on a failure.
 AGENT=$1; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 fail=0
-check() { if [ "$1" = "1" ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi; }
+source "$(dirname "$0")/qvrtest.sh"
 F="^cellcord|^cell cords|^STEP"
 log=$(bash $KIT/run.sh $AGENT -Script "map e1m1;wait60;god;notarget;vr_weapon_grip_mode 1;impulse 9;wait2;impulse 162;wait40;echo STEP1;vr_cellcord_info;give c 0;wait150;echo STEP2;vr_cellcord_info;give c 50;wait3;echo STEP3a;vr_cellcord_info;wait40;echo STEP3b;vr_cellcord_info;give c 100;impulse 182;wait40;echo STEP4;vr_cellcord_info;vr_cellcord_laser 0;wait5;echo STEP5;vr_cellcord_info;vr_cellcord_hammer 1;vr_cellcord_superaxe 1;impulse 153;wait40;echo STEP6a;vr_cellcord_info;impulse 168;wait40;echo STEP6b;vr_cellcord_info;toggleconsole;quit" -Filter "$F" 2>&1)
 echo "$log" > "${OUT:-/dev/null}"
@@ -37,4 +37,5 @@ s=$(step 6a)
 check $(echo "$s" | grep -q "^cellcord main: mjolnir plugged cell=0" && echo 1 || echo 0) "Mjolnir Cord on: plugged"
 s=$(step 6b)
 check $(echo "$s" | grep -q "^cellcord main: superaxe plugged cell=0" && echo 1 || echo 0) "Super Axe Cord on: plugged"
+verdict
 exit $fail

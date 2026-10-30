@@ -12,7 +12,7 @@ vrfiringrange through AD's campaign (AD's data linked into the agent's base, qba
            then a second one spawned for the shove (risen, one may walk off: the range's grunt would be nearest).
 
 The lift's flail: foegrab/judo_test.py adneck (its lift verdict needs "it flails in the hands" for these classes).
-Prints a PASS/FAIL line per class and check, then FAILS <n>; each class's log in scratch/ad_active_<class>.txt.
+Prints a PASS/FAIL line per class and check, then `ad_active: N passed, M failed`; each class's log in scratch/ad_active_<class>.txt.
 """
 import os
 import re
@@ -20,6 +20,8 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "testbatch"))
 import testbatch  # noqa: E402
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import qvrtest  # noqa: E402  (the tests' library: Misc/quakevr/qvrtest.py)
 
 os.environ.setdefault("TB_NODRAW", "1")
 
@@ -56,19 +58,14 @@ SAMPLES = "".join(";wait12;vr_foegrab_neck_angle" for _ in range(8))
 BODY = ("vr_foegrab_necksnap_test" + SAMPLES + ";wait30;impulse 241;wait60;vr_knockdown_chance 100;vr_knockdown_test 22;"
         "wait90;vr_knockdown_test 1;wait420;vr_knockdown_chance 1")
 FILTER = "^knockdown|^stagger|^getup|NECKANGLE|necksnap|rror|CRASH"
-FAILS = 0
 
 
-def verdict(ok, what):
-    global FAILS
-    print(f"  {'PASS' if ok else 'FAIL'} {what}")
-    if not ok:
-        FAILS += 1
+TALLY = qvrtest.Tally("ad_active")  # (its `ad_active: PASS|FAIL <what>` lines and verdict)
+verdict = TALLY.check
 
 
 def main():
-    global FAILS
-    FAILS = 0  # (testbatch.two_pass runs this twice: the first pass's verdicts mean nothing)
+    TALLY.reset()  # (testbatch.two_pass runs this twice: the first pass's verdicts mean nothing)
     os.makedirs(SCRATCH, exist_ok=True)
     for mon in PICK:
         cls = ACTIVE[mon]
@@ -105,8 +102,7 @@ def main():
         verdict(loose and flops and not bad,
                 f"{short} neck: {'loose' if loose else 'not loose'}, swing "
                 f"{min(swings) if swings else 0:.0f}-{max(swings) if swings else 0:.0f} deg")
-    print(f"FAILS {FAILS}")
-    return 1 if FAILS else 0
+    return TALLY.verdict()
 
 
 if __name__ == "__main__":

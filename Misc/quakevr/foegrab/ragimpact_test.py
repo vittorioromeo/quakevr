@@ -28,7 +28,10 @@ import re
 import subprocess
 import sys
 
-KIT = "C:/OHWorkspace/qvr-kit"
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import qvrtest  # noqa: E402  (the tests' library: Misc/quakevr/qvrtest.py)
+
+KIT = qvrtest.KIT
 AGENT = sys.argv[1] if len(sys.argv) > 1 else "voxelopt"
 TREE = f"C:/OHWorkspace/qvr-agents/{AGENT}"
 CASES = sys.argv[2:] or ["wall", "slam", "crush", "stompwear", "grab", "keep"]
@@ -48,14 +51,10 @@ GAP, NEAR = 0.09, -1.15  # (the judo test's: a hand beside the grunt's middle, o
 CRUSHED = (r"crushed \([\w ,]+\), you landing at ([\d.]+) m/s, wearing [\d.]+: ([\d.]+) damage to its (head|torso|limb \d+) "
            r"\(worn [\d.]+ of [\d.]+\)(, its head pops|, the limb pops)?")
 
-FAILS = 0
 
 
-def verdict(ok, what):
-    global FAILS
-    print(f"  {'PASS' if ok else 'FAIL'} {what}")
-    if not ok:
-        FAILS += 1
+TALLY = qvrtest.Tally("ragimpact")  # (its `ragimpact: PASS|FAIL <what>` lines and verdict)
+verdict = TALLY.check
 
 
 def run(name, script, timeout=300):
@@ -354,8 +353,7 @@ def main():
     for c in CASES:
         print(f"== {c}")
         globals()[f"case_{c}"]()
-    print(f"FAILS {FAILS}")
-    return 1 if FAILS else 0
+    return TALLY.verdict()
 
 
 if __name__ == "__main__":

@@ -19,7 +19,7 @@ export TB_NODRAW=${TB_NODRAW-1} # (batched frames not drawn: no check here reads
 # (The body: tb_main plays its runs as batches, testbatch.sh; TB_SLOW=1: each alone by run.sh, as before.)
 tb_body() {
 fail=0
-check() { if [ "$1" = "1" ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi; }
+source "$(dirname "$0")/../qvrtest.sh"
 REP="vr_reload_test 0;impulse 125;wait2"
 F="^reload: (off hand|rockets|[0-9] into)|^grenade: (hand|proximity|the proximity|grenade|vr_ammo_front|an unarmed|let go)|^ammo pouch: frame"
 POUCH="vr_mock_hand_to main ammopouch;wait5;vr_mock_hand_to main ammopouch;wait5"
@@ -94,6 +94,7 @@ p47=$(size "$(tb_run_sh -Script "$(setup 159);$BACK;$GRIP;toggleconsole;quit" -F
 p78=$(size "$(tb_run_sh -Script "vr_prox_scale 0.78;$(setup 159);$BACK;$GRIP;toggleconsole;quit" -Filter "drawn" 2>&1)" progs/proxbomb.mdl)
 g78=$(size "$(tb_run_sh -Script "$(setup 158);$BACK;$GRIP;toggleconsole;quit" -Filter "drawn" 2>&1)" progs/grenade.mdl)
 check $(awk -v a="$p47" -v b="$p78" -v g="$g78" 'BEGIN { r = a / b; print (a > 0 && b > 0 && g > 0 && r > 0.58 && r < 0.63) ? 1 : 0 }') "the proximity grenade 40% smaller than at 0.78 (drawn $p47 against $p78 units across; the grenade $g78)"
+verdict
 exit $fail
 }
 source "$(dirname "$0")/../testbatch/testbatch.sh"

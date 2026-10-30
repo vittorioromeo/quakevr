@@ -28,10 +28,12 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "testbatch"))
 import testbatch  # noqa: E402
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import qvrtest  # noqa: E402  (the tests' library: Misc/quakevr/qvrtest.py)
 
 os.environ.setdefault("TB_NODRAW", "1")  # (batched frames not drawn: no check here reads the drawing; testbatch.py)
 
-KIT = "C:/OHWorkspace/qvr-kit"
+KIT = qvrtest.KIT
 AGENT = sys.argv[1] if len(sys.argv) > 1 else "foegrab3"
 TREE = f"C:/OHWorkspace/qvr-agents/{AGENT}"
 CASES = sys.argv[2:] or ["dir"]
@@ -51,15 +53,11 @@ PULL_T = 0.15
 WAYS = {"left": (-1, 0), "right": (1, 0), "towards": (0, 1), "away": (0, -1)}  # (x, z) in tracking space
 WORDS = {"left": "to your left", "right": "to your right", "towards": "towards you", "away": "away from you"}
 
-FAILS = 0
 ONLY = os.environ.get("JUDO_ONLY", "")  # a regex: only the cases whose names (judo_<height>_<way>) match
 
 
-def verdict(ok, what):
-    global FAILS
-    print(f"  {'PASS' if ok else 'FAIL'} {what}")
-    if not ok:
-        FAILS += 1
+TALLY = qvrtest.Tally("judo")  # (its `judo: PASS|FAIL <what>` lines and verdict)
+verdict = TALLY.check
 
 
 def run(script, filt, timeout=300, extra=()):
@@ -683,14 +681,12 @@ def case_adneck():
 
 
 def main():
-    global FAILS
-    FAILS = 0  # (testbatch.two_pass runs this twice: the first pass's verdicts mean nothing)
+    TALLY.reset()  # (testbatch.two_pass runs this twice: the first pass's verdicts mean nothing)
     os.makedirs(SCRATCH, exist_ok=True)
     for c in CASES:
         print(f"== {c}")
         globals()[f"case_{c}"]()
-    print(f"FAILS {FAILS}")
-    return 1 if FAILS else 0
+    return TALLY.verdict()
 
 
 if __name__ == "__main__":

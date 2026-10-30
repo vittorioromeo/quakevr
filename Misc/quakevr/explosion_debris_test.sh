@@ -14,7 +14,7 @@
 # Prints PASS/FAIL per check; exits 1 on a failure.
 AGENT=$1; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 fail=0
-check() { if [ "$1" = "1" ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi; }
+source "$(dirname "$0")/qvrtest.sh"
 run() { bash $KIT/run.sh $AGENT -Script "$1;toggleconsole;quit" -Filter "^explosiondebris:|^chunk [0-9]|^ *[0-9]+:maps/b_bh|^vr_physics_spawn|vr_explosion_debris_launch: chunk" 2>&1 | tr -d '\r'; }
 # The n-th stats line's field `name` (live, evicted, ...).
 stat() { echo "$1" | grep "^explosiondebris:" | sed -n "${2}p" | grep -o "$3=[0-9]*" | head -1 | cut -d= -f2; }
@@ -68,4 +68,5 @@ check "$(awk -v x="$x" 'BEGIN { print (x != "" && x > -236) ? 1 : 0 }')" "1900 u
 log=$(run "$SET;map vrclimb;wait30;$L -168 72 70 0 0 0 2 30;wait144;vr_explosion_debris_list;setpos -223 72 24 0 0 0;wait576;vr_explosion_debris_list")
 c=$(nth "$log" 1); read x y z1 s st <<< "$(chunkAt "$log" 1 $c)"; read x y z2 s st2 <<< "$(chunkAt "$log" 2 $c)"; echo "  on the plat: z $z1 -> $z2 ($st2)"
 check "$(awk -v a="$z1" -v b="$z2" 'BEGIN { print (a != "" && a - b > 36 && a - b < 44) ? 1 : 0 }')" "one on the plat goes down with it (40 units)"
+verdict
 exit $fail
