@@ -676,7 +676,8 @@ against the pose set; on the page with Preview in Holster and a Holstered row ch
 Rigid bodies (round 21, Box3D, the only solver): `vr_physics_stack`, `vr_physics_pyramid`,
 `vr_physics_pile` put props (a number, a classname or `props`) in a column, a pyramid or toppling columns;
 `vr_physics_loose` makes a hanging armour or a pickup a loose prop; `vr_physics_list` and `vr_physics_hash` print
-them (the hash: determinism); `vr_debug_box3d 1|2|3` (1: bodies made, woken, asleep, the world mesh's build, frames
+them (the hash: determinism; `vr_physics_hash ragdolls`: every ragdoll part's transform, velocity and spin, bit for
+bit: two builds of a refactor print the same, ROUND23 "Refactor leftovers L1"); `vr_debug_box3d 1|2|3` (1: bodies made, woken, asleep, the world mesh's build, frames
 over 1 ms with Box3D's profile; 2: every awake body every frame; 3: frames over 0.2 ms; `developer 1` alone prints the
 slow frames). `vr_physics_blast <x> <y> <z> [<damage>]` sets off an explosion there (QC's `T_RadiusDamage` from the
 world, 120 by default, and its effect): monsters take it, props are thrown (Box3D). `vr_forcegrabbable_return 0` keeps

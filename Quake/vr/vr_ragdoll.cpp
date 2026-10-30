@@ -1067,31 +1067,32 @@ void sayLog(const DeriveLog& log)
     }
 }
 
-// Any thread: reads the model's data `hdr` (Mod_Extradata, taken on the main thread: Cache_Check relinks the cache's LRU
-// list, which a worker must never touch; the cache does not move while the pool runs this) and writes `rig` and `log`
-// only.
-bool derive(qmodel_t* model, const aliashdr_t* hdr, const SeedTable& table, Rig& rig, DeriveLog& log)
+// derive's working state, from phase to phase (derive below: its phases in the order they run).
+struct DeriveWork
 {
-    const double t0 = Sys_DoubleTime();
-    if(!hdr || hdr->poseverttype != aliashdr_t::PV_QUAKE1 || Mod_NextSurface(const_cast<aliashdr_t*>(hdr)) ||
-        hdr->numverts != table.numVerts || hdr->numposes < 2 || table.count > maxBones)
-    {
-        // (Said once a model, not only to developers: another .mdl or an .md5 in its place, a model pack's, leaves that
-        // monster's dead without ragdolls; a player's console shows why. rigFor remembers the failure.)
-        log.developer = false;
-        q_snprintf(log.text, sizeof(log.text),
-            "ragdoll: %s is not the model its seed table was made for (%d vertices, the table's %d; pose type %d; %d poses; "
-            "surfaces %s)\n",
-            model->name, hdr ? hdr->numverts : -1, table.numVerts, hdr ? static_cast<int>(hdr->poseverttype) : -1,
-            hdr ? hdr->numposes : -1, hdr && Mod_NextSurface(const_cast<aliashdr_t*>(hdr)) ? "several" : "one");
-        return false;
-    }
     Mesh m;
-    loadMesh(hdr, m);
-
-    // The pieces (welded), the largest the body; a piece some pose hides is loose.
-    za::Vector<int> piece(static_cast<za::SizeT>(m.nv), -1);
+    za::Vector<int> piece;       // each vertex's piece (welded), -1 none
     za::Vector<int> pieceSize;
+    int body{0};                 // the largest piece
+    za::Vector<int> reps;        // the welded vertices' representatives
+    za::Vector<int> loosePieces; // the loose pieces' ids
+    za::Vector<uint8_t> isLoose;
+    int looseBones{0};
+    za::Vector<int> moving;      // the representatives not in a loose piece
+    za::Vector<int> label;       // each representative's cluster, then its bone
+    int k{0};                    // the clusters
+    Transforms t;
+};
+
+// The pieces (welded), the largest the body; a piece some pose hides is loose.
+void derivePieces(DeriveWork& w)
+{
+    Mesh& m = w.m;
+    za::Vector<int>& piece = w.piece;
+    za::Vector<int>& pieceSize = w.pieceSize;
+    int& body = w.body;
+    za::Vector<int>& reps = w.reps;
+    piece.resize(static_cast<za::SizeT>(m.nv), -1);
     za::Vector<int> stack;
     for(int v = 0; v < m.nv; v++)
     {
@@ -1120,12 +1121,11 @@ bool derive(qmodel_t* model, const aliashdr_t* hdr, const SeedTable& table, Rig&
             }
         }
     }
-    int body = 0;
+    body = 0;
     for(int i = 1; i < static_cast<int>(pieceSize.size()); i++)
     {
         body = pieceSize[static_cast<za::SizeT>(i)] > pieceSize[static_cast<za::SizeT>(body)] ? i : body;
     }
-    za::Vector<int> reps;
     for(int v = 0; v < m.nv; v++)
     {
         if(m.rep[static_cast<za::SizeT>(v)] == v)
@@ -1133,12 +1133,23 @@ bool derive(qmodel_t* model, const aliashdr_t* hdr, const SeedTable& table, Rig&
             reps.pushBack(v);
         }
     }
-    // The loose pieces: those a frame hides, all of each at one point (the weapon he drops as he dies, which
-    // vr_monstermods.cpp collapses in his death frames: the grunt's shotgun, the knight's sword, the ogre's chainsaw in
-    // four pieces). One loose bone for them all, after the seeds'. A piece of the body that only parts from it (the
-    // knight's right gauntlet) is the body's: clustered with it.
-    za::Vector<int> loosePieces; // the loose pieces' ids
-    za::Vector<uint8_t> isLoose(pieceSize.size(), 0);
+}
+
+// The loose pieces: those a frame hides, all of each at one point (the weapon he drops as he dies, which
+// vr_monstermods.cpp collapses in his death frames: the grunt's shotgun, the knight's sword, the ogre's chainsaw in
+// four pieces). One loose bone for them all, after the seeds'. A piece of the body that only parts from it (the
+// knight's right gauntlet) is the body's: clustered with it.
+void deriveLoose(DeriveWork& w, const SeedTable& table)
+{
+    Mesh& m = w.m;
+    za::Vector<int>& piece = w.piece;
+    za::Vector<int>& pieceSize = w.pieceSize;
+    int& body = w.body;
+    za::Vector<int>& reps = w.reps;
+    za::Vector<int>& loosePieces = w.loosePieces;
+    za::Vector<uint8_t>& isLoose = w.isLoose;
+    int& looseBones = w.looseBones;
+    isLoose.resize(pieceSize.size(), 0);
     for(int id = 0; id < static_cast<int>(pieceSize.size()) && table.count < maxBones; id++)
     {
         if(id == body || pieceSize[static_cast<za::SizeT>(id)] < 4)
@@ -1167,12 +1178,22 @@ bool derive(qmodel_t* model, const aliashdr_t* hdr, const SeedTable& table, Rig&
     }
 
     // The loose bones: one for them all, or one each (loosePerPiece; never past maxBones).
-    const int looseBones = loosePieces.empty() ? 0
+    looseBones = loosePieces.empty() ? 0
                            : table.loosePerPiece ? za::min(static_cast<int>(loosePieces.size()), maxBones - table.count) : 1;
+}
 
-    // The motion clusters: the farthest trajectories as the first centres, then each representative to its nearest
-    // centre, then refined by the clusters' rigid motion.
-    za::Vector<int> moving; // the representatives not in a loose piece
+// The motion clusters: the farthest trajectories as the first centres, then each representative to its nearest
+// centre, then refined by the clusters' rigid motion.
+void deriveClusters(DeriveWork& w, const SeedTable& table, Rig& rig)
+{
+    Mesh& m = w.m;
+    za::Vector<int>& piece = w.piece;
+    za::Vector<int>& reps = w.reps;
+    za::Vector<uint8_t>& isLoose = w.isLoose;
+    za::Vector<int>& moving = w.moving;
+    za::Vector<int>& label = w.label;
+    int& k = w.k;
+    Transforms& t = w.t;
     for(const int v : reps)
     {
         if(!isLoose[static_cast<za::SizeT>(piece[static_cast<za::SizeT>(v)])])
@@ -1209,8 +1230,8 @@ bool derive(qmodel_t* model, const aliashdr_t* hdr, const SeedTable& table, Rig&
         }
         centres.pushBack(farthest);
     }
-    const int k = static_cast<int>(centres.size());
-    za::Vector<int> label(static_cast<za::SizeT>(m.nv), -1);
+    k = static_cast<int>(centres.size());
+    label.resize(static_cast<za::SizeT>(m.nv), -1);
     for(const int v : moving)
     {
         int best = 0;
@@ -1226,11 +1247,24 @@ bool derive(qmodel_t* model, const aliashdr_t* hdr, const SeedTable& table, Rig&
         }
         label[static_cast<za::SizeT>(v)] = best;
     }
-    Transforms t;
     rig.clusterRms = refine(m, moving, label, k, 30, t);
+}
 
-    // The clusters to the seeds' bones: each to the bone whose seed is nearest its middle in the rest pose (wholePieces:
-    // its middle in the body, and each other piece below).
+// The clusters to the seeds' bones: each to the bone whose seed is nearest its middle in the rest pose (wholePieces:
+// its middle in the body, and each other piece below).
+void deriveBones(DeriveWork& w, const SeedTable& table)
+{
+    Mesh& m = w.m;
+    za::Vector<int>& piece = w.piece;
+    za::Vector<int>& pieceSize = w.pieceSize;
+    int& body = w.body;
+    za::Vector<int>& reps = w.reps;
+    za::Vector<int>& loosePieces = w.loosePieces;
+    za::Vector<uint8_t>& isLoose = w.isLoose;
+    int& looseBones = w.looseBones;
+    za::Vector<int>& moving = w.moving;
+    za::Vector<int>& label = w.label;
+    int& k = w.k;
     const auto nearestSeed = [&](const glm::vec3& at) {
         int best = 0;
         float bestD = 1e30f;
@@ -1316,25 +1350,15 @@ bool derive(qmodel_t* model, const aliashdr_t* hdr, const SeedTable& table, Rig&
             label[static_cast<za::SizeT>(v)] = table.count + za::min(k, looseBones - 1);
         }
     }
-    // A bone no cluster went to (its seed's middle in the weapon its hand held when the table was measured, the weapon
-    // since loose: the hunter ogres' and the death guard's hands, the death knight's sword hand): its parent's
-    // vertices past its pivot (away from the parent's), the motions' refining then moving the boundary.
-    adoptPastPivot(m, moving, table, label);
-    rig.boneRms = refine(m, moving, label, table.count, 40, t);
-    const int numBones = table.count + looseBones;
-    for(int b = 0; b < table.count; b++)
-    {
-        if(t.members[static_cast<za::SizeT>(b)] < 3)
-        {
-            log.developer = false;
-            q_snprintf(log.text, sizeof(log.text), "ragdoll: %s: bone %s got %d vertices: no ragdoll\n", model->name,
-                table.seeds[b].name, t.members[static_cast<za::SizeT>(b)]);
-            return false;
-        }
-    }
-    t.fit(m, reps, label, numBones); // (the loose pieces' too)
+}
 
-    // The rig.
+// The rig.
+void deriveRig(DeriveWork& w, qmodel_t* model, const aliashdr_t* hdr, const SeedTable& table, int numBones, Rig& rig)
+{
+    Mesh& m = w.m;
+    za::Vector<int>& reps = w.reps;
+    za::Vector<int>& label = w.label;
+    Transforms& t = w.t;
     rig.model = model;
     rig.numBones = numBones;
     rig.numVerts = m.nv;
@@ -1485,6 +1509,61 @@ bool derive(qmodel_t* model, const aliashdr_t* hdr, const SeedTable& table, Rig&
         rig.deathFirst[i] = tb.deathFirst[i];
         rig.deathLast[i] = tb.deathLast[i];
     }
+}
+
+// Any thread: reads the model's data `hdr` (Mod_Extradata, taken on the main thread: Cache_Check relinks the cache's LRU
+// list, which a worker must never touch; the cache does not move while the pool runs this) and writes `rig` and `log`
+// only.
+bool derive(qmodel_t* model, const aliashdr_t* hdr, const SeedTable& table, Rig& rig, DeriveLog& log)
+{
+    const double t0 = Sys_DoubleTime();
+    if(!hdr || hdr->poseverttype != aliashdr_t::PV_QUAKE1 || Mod_NextSurface(const_cast<aliashdr_t*>(hdr)) ||
+        hdr->numverts != table.numVerts || hdr->numposes < 2 || table.count > maxBones)
+    {
+        // (Said once a model, not only to developers: another .mdl or an .md5 in its place, a model pack's, leaves that
+        // monster's dead without ragdolls; a player's console shows why. rigFor remembers the failure.)
+        log.developer = false;
+        q_snprintf(log.text, sizeof(log.text),
+            "ragdoll: %s is not the model its seed table was made for (%d vertices, the table's %d; pose type %d; %d poses; "
+            "surfaces %s)\n",
+            model->name, hdr ? hdr->numverts : -1, table.numVerts, hdr ? static_cast<int>(hdr->poseverttype) : -1,
+            hdr ? hdr->numposes : -1, hdr && Mod_NextSurface(const_cast<aliashdr_t*>(hdr)) ? "several" : "one");
+        return false;
+    }
+    DeriveWork w;
+    Mesh& m = w.m;
+    loadMesh(hdr, m);
+
+    derivePieces(w);
+    deriveLoose(w, table);
+    deriveClusters(w, table, rig);
+    deriveBones(w, table);
+    za::Vector<int>& reps = w.reps;
+    int& looseBones = w.looseBones;
+    za::Vector<int>& moving = w.moving;
+    za::Vector<int>& label = w.label;
+    Transforms& t = w.t;
+
+    // A bone no cluster went to (its seed's middle in the weapon its hand held when the table was measured, the weapon
+    // since loose: the hunter ogres' and the death guard's hands, the death knight's sword hand): its parent's
+    // vertices past its pivot (away from the parent's), the motions' refining then moving the boundary.
+    adoptPastPivot(m, moving, table, label);
+    rig.boneRms = refine(m, moving, label, table.count, 40, t);
+    const int numBones = table.count + looseBones;
+    for(int b = 0; b < table.count; b++)
+    {
+        if(t.members[static_cast<za::SizeT>(b)] < 3)
+        {
+            log.developer = false;
+            q_snprintf(log.text, sizeof(log.text), "ragdoll: %s: bone %s got %d vertices: no ragdoll\n", model->name,
+                table.seeds[b].name, t.members[static_cast<za::SizeT>(b)]);
+            return false;
+        }
+    }
+    t.fit(m, reps, label, numBones); // (the loose pieces' too)
+
+    deriveRig(w, model, hdr, table, numBones, rig);
+    za::Vector<int>& loosePieces = w.loosePieces;
     rig.deriveMs = (Sys_DoubleTime() - t0) * 1000.0;
     q_snprintf(log.text, sizeof(log.text), "ragdoll: %s rigged: %d bones (%d loose), clusters %.2f, bones %.2f units rms, %.1f ms\n",
         model->name, numBones, static_cast<int>(loosePieces.size()), rig.clusterRms, rig.boneRms, rig.deriveMs);

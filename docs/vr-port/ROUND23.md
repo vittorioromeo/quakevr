@@ -1394,6 +1394,63 @@ cases, pe_full.log; the bench row carried from phase 0), the old file kept as `b
 `run_baseline.py --compare` reports the cases that vary run to run (`FLAKY`: agrunt 1/47/60/63/67/71/72/76/86,
 ragdoll_ragtest/grab/guard, rv_1, judo, stealth, agarmor_5) apart as "FLAKY CHANGED", not counted in its exit status.
 
+## Refactor leftovers L1: hitreact and ragactive splits, derive's phases (branch `agent/leftsplit1`)
+
+No behaviour change.
+
+- **vr_hitreact.cpp** (2752 lines) -> vr_hitreact.cpp (1880) + vr_hitreact_arms.cpp (450: the arm-pose slots, drawn
+  poses, placeArmPose, bodyTurn, fitRigid, specOf ...) + vr_hitreact_skin.cpp (348: relinkSkinned) +
+  vr_hitreact_internal.hpp. The anonymous namespace was at global scope, so the shared part is `hitreact_detail` at
+  global scope too, with `using namespace ::hitreact_detail;` (vr_menu_internal.hpp's pattern): name lookup is the
+  same as before. The armed monsters' table (its types, `inline constexpr armedRigs`, its four small lookups made
+  `inline`) and the arm-pose types moved to the header; the shared functions and state (`armPoses`, `ragErr`) are
+  declared there and defined where they stood, wrapped in `namespace hitreact_detail`. The canonical allowlist's
+  geom-math line moved with its site (vr_hitreact_skin.cpp).
+- **vr_ragactive.cpp** (5221) -> vr_ragactive.cpp (3617) + vr_ragactive_swim.cpp (600: the Liquids section, the living
+  swim and flail entry points) + vr_ragactive_hold.cpp (494: Grabbing others, Climbs, climbing/beginClimb) +
+  vr_ragactive_cut.cpp (695: Dismemberment) + vr_ragactive_internal.hpp (`qvr::ragactive::detail`: the shared
+  constants, SwimParts, the b3glm/geom using-declarations; the shared functions declared, defined where they stood;
+  massCentre's default argument now on its declaration). Staggers stayed in vr_ragactive.cpp (the inventory's
+  "stagger/swim/liquid" was an eighth of the file, not a section). The moved state (`envOthers`, `armPoses`) was
+  checked constant-initialized (a temporary `constinit` compiled), so no static-init order changed.
+- Both splits made by script (kit worktree arenatex `scratch/split_gen.py`, `split_hr.py`) and checked by a
+  line-multiset compare: every original line in exactly one file, the only differences the new declarations,
+  namespace lines and the moved default argument.
+- **ragdoll::derive** (420 lines) split at its five comment-marked phases over `DeriveWork` (its locals):
+  derivePieces, deriveLoose, deriveClusters, deriveBones, deriveRig; each phase's text unchanged under reference
+  aliases of DeriveWork's members, its locals' declarations turned into `resize`/assignment. Proven on the rigs
+  themselves: the old exe derived 32 rigs (vrtesthall, e1m3, e4m3, e2m6, e3m4: 23 models with MG3's) into a fresh
+  `vr_cache_dir`, the new one derived them again with `vr_ragdoll_rig_cache 2` (derive and compare every field
+  byte for byte): no "differs".
+- **Checked**: 0 warnings, all build checks. run_baseline `agrunt_|ragdoll_|limb_wear|swim_sound|agarmor` (91 cases):
+  unchanged against baseline.tsv but agrunt_11 (TIMEOUT in a run where four lanes stalled 1000+ s at once; rerun
+  alone with 36 and 86: PASS, 0 changed) and the flaky 63/71/72/ragtest. A/B (ThinLTO exes, ABBAABBAAB, 5 reps,
+  cpu_busy median): armed_16 A 3.129 / B 3.161 ms (+1.0%, sd 0.11-0.17), ragdolls_32_active A 3.207 / B 3.188 ms
+  (-0.6%; B's mean +4.5% from one 3.81 outlier): within noise.
+- **Second pass: createRagdoll and the ragactive frame functions**, each split at its comment-marked phases over a
+  context struct (`CreateWork`, `DeathWork`, `StaggerWork`, `EnvWork`, `DriveWork`, `SwimWork`, `DismemberWork`, in an
+  anonymous namespace above the function), made by one script (kit worktree arenatex `scratch/phasesplit.py`, the
+  specs `split_create.py`, `split_drive.py`, `split_frames.py`): a local used by a later phase becomes a member, its
+  declaration an assignment under a reference alias of the same name (a reference local: a pointer member); each
+  phase's text otherwise unchanged. Only by hand: createRagdoll's `drawnBone` lambda (used by two phases) is made by
+  `drawnBoneOf` (its body the same but for `w.`), mass/friction's one declaration split in two, staggerOutcome's one
+  bare `return;` (the stagger's frame over) a `return false;` that the caller acts on. createRagdoll 418 -> 82 lines
+  (6 phases), deathFrame 221 -> 9 (3), staggerFrame 286 -> 23 (5), envFrame 313 -> 55 (4), drive 322 -> 45 (6),
+  swimFrame 197 -> 59 (5), dismemberFrame 287 -> 24 (5).
+- **Proof**: `vr_physics_hash ragdolls` (new: every ragdoll part's transform, velocity and spin, FNV-1a) every 30
+  frames over seven scenes (`scratch/hashrun.py`: 32 grunts blasted, staggers/knockdown/get-up, a judo throw, four
+  drowned in vrtesthall's pool, a climb, four limb cuts (arm, leg, head, forearm), a grunt killed and landing; 193
+  checkpoints, 145 with live ragdolls): the old exe twice gives the same 193 hashes (bit for bit: the ragdolls are
+  deterministic here; `vr_bench_statehash` is not, run to run), and the split one gives them again (a no-LTO build
+  against the ThinLTO baseline: the same bits). Committed one function at a time, re-made by the same scripts; the
+  last commit's files compared equal to the tested ones.
+- **Checked**: 0 warnings, all build checks; run_baseline `agrunt_|ragdoll_|limb_wear|swim_sound|agarmor` (91 cases): 0
+  changed against baseline.tsv (flaky apart: agrunt_63, agarmor_5, ragdoll_grab).
+- **A/B** (ThinLTO exes, ABBAABBAAB, 5 reps each, cpu_busy median): ragdolls_32_active A 3.628 / B 3.568 ms (-1.6%),
+  armed_16 A 3.286 / B 3.150 ms (-4.1%; A had one 4.52 outlier): within noise.
+- **Skipped**: climbFrame (one comment-marked block of 171 lines: nothing to split on), agarms skinOf/solve and avatar
+  solveArm (budget; they need their own proof: an arm pose dump over a grunt pose sweep, and the avatar's arms).
+
 ## Refactor leftovers L4: load-time items (branch `agent/leftload`)
 
 Baseline (no-LTO, exclusive, warm caches, median of 3): vrtesthall map load 1173 ms, e1m1 879, vrstart 1484 (the big

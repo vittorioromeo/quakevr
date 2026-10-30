@@ -15,7 +15,7 @@ geom-math Quake/vr/vr_bodytrack.cpp 1  # not merged yet (inventory F2/F2b: diff 
 geom-math Quake/vr/vr_decals.cpp 1  # 2D segment distance with the position along (no 2D overload in geom yet)
 geom-math Quake/vr/vr_geom.hpp 11  # canonical
 geom-math Quake/vr/vr_hitmodel.cpp 1  # nearestOnTri returns a squared distance, not a point
-geom-math Quake/vr/vr_hitreact.cpp 1  # yawOf of a rigpose::Rigid, not of a direction
+geom-math Quake/vr/vr_hitreact_skin.cpp 1  # yawOf of a rigpose::Rigid, not of a direction
 geom-math Quake/vr/vr_menuui.cpp 1  # not merged yet (inventory F2/F2b: diff its edge cases against geom:: before migrating)
 geom-math Quake/vr/vr_rigstudio_aimline.cpp 1  # not merged yet (inventory F2/F2b: diff its edge cases against geom:: before migrating)
 geom-math Quake/vr/vr_sights.cpp 1  # not merged yet (inventory F2/F2b: diff its edge cases against geom:: before migrating)
