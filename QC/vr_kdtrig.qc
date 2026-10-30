@@ -225,7 +225,7 @@ float(float i, entity e, entity inflictor, entity attacker, float xDamage, vecto
     }
     if(i == 3) // shotgun
     {
-        if(!(inflictor == attacker && (attacker.flags & FL_CLIENT) && vr_hitpellets > 0))
+        if(!(inflictor == attacker && (attacker.flags & FL_CLIENT) && VR_Hit_Pellets() > 0))
         {
             return FALSE;
         }
@@ -238,11 +238,11 @@ float(float i, entity e, entity inflictor, entity attacker, float xDamage, vecto
         float range = max(1, cvar_hget(cvarh_vr_kdtrig_shotgun_range));
         float dist = vr_kdt_test_dist > 0 ? vr_kdt_test_dist : vlen(vr_hr_at - (attacker.origin + attacker.view_ofs));
         float ref = max(1, cvar_hget(cvarh_vr_kdtrig_shotgun_pellets));
-        if(dist > range || vr_hitpellets * 2 < ref)
+        if(dist > range || VR_Hit_Pellets() * 2 < ref)
         {
             return FALSE;
         }
-        vr_kdt_weight = (vr_hitpellets / ref) * (1 - 0.5 * dist / range);
+        vr_kdt_weight = (VR_Hit_Pellets() / ref) * (1 - 0.5 * dist / range);
         return TRUE;
     }
     if(i == 4) // wounded
@@ -551,7 +551,7 @@ float(entity targ, entity inflictor, entity attacker, float take) VR_KdTrig_Hit 
         if(loud)
         {
             dprint(sprintf("kdtrig: %s on %s (%.0f damage, %g pellets): chance %.2f, roll %.2f: down", vr_kdt_name[i],
-                targ.classname, dmg, vr_hitpellets, chance, roll));
+                targ.classname, dmg, VR_Hit_Pellets(), chance, roll));
             dprint(sprintf(" (resistance %.2f, steps %g, fall %.0f, past %.0f, push %.2f)\n", vr_kdt_resist, vr_kdt_steps,
                 vr_kdt_fall, vr_kdt_past, push));
         }
@@ -1273,10 +1273,12 @@ void(entity pl, entity best, float xMode) VR_KdTrig_TestHit =
     {
         vr_kdt_test_weapon = 1 + (xMode == 2 ? WID_SUPER_SHOTGUN : WID_SHOTGUN);
         VR_SetHitKind(QVR_HITKIND_SHOT, cVR_MainHand, chest, dir);
-        vr_hitpellets = xMode == 2 ? 14 : 6;
-        vr_kdt_test_damage = vr_hitpellets * 4;
+        hit_blast = TRUE;
+        hit_pellets = xMode == 2 ? 14 : 6;
+        hit_pelparts = '0 0 0';
+        vr_kdt_test_damage = VR_Hit_Pellets() * 4;
         T_Damage(best, pl, pl, best.health > vr_kdt_test_damage ? vr_kdt_test_damage : 1);
-        vr_hitpellets = 0;
+        hit_blast = FALSE;
         vr_kdt_test_weapon = 0;
     }
     else if(xMode == 5 || xMode == 6)

@@ -607,6 +607,7 @@ void Host_WriteConfiguration (void)
 		return;
 	}
 	Host_WriteConfigurationToFile (CONFIG_NAME);
+	VR_TunablesWrite (); // QVR: tunables.cfg, the tuning constants set off their defaults (a development build)
 }
 
 

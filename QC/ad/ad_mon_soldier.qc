@@ -137,7 +137,8 @@ void() ad_army_fire_rocket =
 	if (self.health < 1) return;
 	
 	self.effects = self.effects | ad_EF_MUZZLEFLASH;
-	sound (self, ad_CHAN_WEAPON, "soldier/rocket_fire.wav", 1, ad_ATTN_NORM);	
+	sound (self, ad_CHAN_WEAPON, "soldier/rocket_fire.wav", 1, ad_ATTN_NORM);
+	weaponfired(self, QVR_FIRED_ROCKET); // AD support: its tube's flash, smoke and backblast (vr_weaponfx.cpp, vr_gunfx.cpp)
 
 	// Maximum speed, initial speed set in Launch_Missile
 	self.ad_attack_speed = ad_SPEED_ARMYROCKPROJ + (ad_skill * ad_SPEED_ARMYROCKPROJSKILL);

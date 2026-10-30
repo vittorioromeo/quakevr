@@ -419,10 +419,7 @@ float(entity xTarget, vector xTo, vector xDir) VR_Melee_Positional =
         return 1;
     }
 
-    vr_hitpart = region;
-    vr_hitpart_target = xTarget;
-    vr_hitpart_time = time;
-    vr_hitpart_pos = xTo;
+    VR_Hit_SetZone(xTarget, region, xTo);
     return PositionalDamageFactor(region);
 }
 
@@ -437,10 +434,7 @@ float PositionalDamage(entity xTarget, vector xEndpos, vector xDirection) =
         PositionalHeadshotFeedback(xTarget);
     }
 
-    vr_hitpart = region;
-    vr_hitpart_target = xTarget;
-    vr_hitpart_time = time;
-    vr_hitpart_pos = xEndpos;
+    VR_Hit_SetZone(xTarget, region, xEndpos);
     return max(0, region);
 }
 
@@ -1702,12 +1696,10 @@ void(vector org, vector vel) SpawnMeatSpray =
 SpawnBlood
 ================
 */
-float vr_blood_sent; // blood particles spawned (the small gibs' tests count them)
-
+// VR: the impact table's blood (vr_crates.qc VR_ImpactFx; vr_blood_sent counts it): `vel` x 0.2 its spray.
 void(vector org, vector vel, float damage) SpawnBlood =
 {
-    vr_blood_sent++;
-    particle2(org, vel * 0.2, QVR_PARTICLE_PRESET_BLOOD, damage);
+    VR_ImpactFx(VR_MAT_FLESH, VR_HIT_BLOW, world, org, vel, damage);
 };
 
 // QUAKE VR
@@ -1716,15 +1708,10 @@ void(vector org, vector vel, float damage) SpawnBlood =
 SpawnBloodSplash
 ================
 */
+// VR: the impact table's splash: sprayed every way ([crandom() * 240, crandom() * 240, random() * 120 + 100] x 0.2).
 void(vector org, float damage) SpawnBloodSplash =
 {
-    vector pvel;
-
-    pvel_x = crandom() * 240;
-    pvel_y = crandom() * 240;
-    pvel_z = random() * 120 + 100;
-
-    SpawnBlood(org, pvel, damage);
+    VR_ImpactFx(VR_MAT_FLESH, VR_HIT_SPLASH, world, org, '0 0 0', damage);
 };
 
 /*
@@ -1737,32 +1724,18 @@ void(float damage) spawn_touchblood =
     vector    vel;
 
     vel = wall_velocity () * 0.2;
-    // VR: what it touched is metal (an explosive box): sparks and a tink (vr_crates.qc).
-    if(VR_Hit_Metal(other))
+    // VR: by what it touched (VR_MaterialOf; the impact table): metal sparks and a tink, wood splinters, a grenade
+    // sparks, a wall torch nothing; flesh blood, an armed humanoid's unbroken plate sparks and blood only for what it
+    // lets through (vr_agarmor.qc). At its origin + vel x 0.01 (a grenade's sparks at its origin).
+    float m = VR_MaterialOf(other);
+    float bleed = 1;
+    if(VR_Material_Fleshy(m))
     {
-        VR_Metal_Hit(other, self.origin + vel * 0.01, vel, damage, VR_METAL_SHOT);
-        return;
+        bleed = VR_AgArmor_HitFx(other, self.origin, vel, damage);
     }
-    // VR: what it touched is wood (a crate): splinters, not blood (vr_crates.qc).
-    if(VR_Crate_Wooden(other))
-    {
-        VR_Crate_Splinters(self.origin + vel * 0.01, vel, damage);
-        return;
-    }
-    if(other.vr_shootnade) // VR: a grenade (vr_grenade.qc, "Shooting grenades"): sparks
-    {
-        VR_GrenShot_Sparks(self.origin);
-        return;
-    }
-    if(VR_WallTorch_IsTorch(other)) // the identity survives being knocked off by this hit
-    {
-        return;
-    }
-    // VR: an armed humanoid's unbroken plate: sparks, blood only for what it lets through (vr_agarmor.qc).
-    float bleed = VR_AgArmor_HitFx(other, self.origin, vel, damage);
     if(bleed > 0)
     {
-        SpawnBlood (self.origin + vel * 0.01, vel, damage * bleed);
+        VR_ImpactFx(m, VR_HIT_NAIL, other, self.origin, vel, damage * bleed);
     }
 };
 
@@ -1789,19 +1762,15 @@ Collects multiple small damages into a single damage
 entity    multi_ent;
 float    multi_damage;
 
-// VR: the pellets on multi_ent, by where they struck (PositionalDamage), for the training dummy's
-// report (vr_dummy.qc).
-float multi_pellets;
-float multi_pellets_head;
-float multi_pellets_limb;
-float multi_pellets_leg;
-
+// VR: the pellets on multi_ent, by where they struck (PositionalDamage), and their points on its flesh: the hit
+// record's (hit_pellets, hit_pelparts, hit_pelhits, combat.qc).
 void() ClearMultiDamagePellets =
 {
-    multi_pellets = 0;
-    multi_pellets_head = 0;
-    multi_pellets_limb = 0;
-    multi_pellets_leg = 0;
+    hit_pellets = 0;
+    hit_pelparts = '0 0 0';
+    hit_pelhits = 0;
+    hit_pelsum = '0 0 0';
+    hit_peldir = '0 0 0';
     VR_AgArmor_PelletsClear(); // (armour: each pellet's piece, vr_agarmor.qc)
 };
 
@@ -1817,14 +1786,11 @@ void() ApplyMultiDamage =
     if(!multi_ent)
         return;
 
-    vr_hitpellets = multi_pellets;
-    vr_hitpellets_head = multi_pellets_head;
-    vr_hitpellets_limb = multi_pellets_limb;
-    vr_hitpellets_leg = multi_pellets_leg;
+    hit_blast = TRUE;
     entity t = multi_ent;
     float pop = VR_Decap_BlastArm(t); // VR: a headshot blast pops the head if it kills (vr_decap.qc, "Head pops")
     VR_Decap_Damage(t, self, self, multi_damage, pop);
-    vr_hitpellets = 0;
+    hit_blast = FALSE;
 };
 
 float(entity hit, float damage) AddMultiDamage =
@@ -1842,13 +1808,11 @@ float(entity hit, float damage) AddMultiDamage =
     else
         multi_damage = multi_damage + damage;
 
-    multi_pellets = multi_pellets + 1;
-    if(vr_hitpart_target == hit && vr_hitpart_time == time)
-    {
-        if(vr_hitpart == 1)      multi_pellets_head = multi_pellets_head + 1;
-        else if(vr_hitpart == 2) multi_pellets_limb = multi_pellets_limb + 1;
-        else if(vr_hitpart == 3) multi_pellets_leg = multi_pellets_leg + 1;
-    }
+    hit_pellets = hit_pellets + 1;
+    float part = VR_Hit_Zone(hit);
+    if(part == 1)      hit_pelparts_x = hit_pelparts_x + 1;
+    else if(part == 2) hit_pelparts_y = hit_pelparts_y + 1;
+    else if(part == 3) hit_pelparts_z = hit_pelparts_z + 1;
     VR_AgArmor_PelletAdd(hit); // (armour: the pellet's piece, vr_agarmor.qc)
 
     // HONEY
@@ -2151,34 +2115,24 @@ void(float damage, vector dir) TraceAttack =
         VR_Decap_Pellet(trace_ent, damage, trace_endpos, dir); // VR: the blast's pellets at the head (vr_decap.qc)
         if(AddMultiDamage(trace_ent, damage) && trace_ent.classname != "hook") // (a grappling hook shot off: no blood)
         {
-            if(VR_Hit_Metal(trace_ent))
+            // VR: by what it is made of (VR_MaterialOf; the impact table): metal (an explosive box) sparks and a tink,
+            // wood (a crate) splinters, a grenade sparks, a wall torch nothing (it takes damage only so that shots meet
+            // it; its hit is VR_WallTorch_KnockOff's embers); flesh: an armed humanoid's unbroken plate sparks, blood
+            // and a wound only for what it lets through (vr_agarmor.qc), and its flinch (vr_hitreact.qc).
+            float m = VR_MaterialOf(trace_ent);
+            if(VR_Material_Fleshy(m))
             {
-                VR_Metal_Hit(trace_ent, org, vel * 0.3, damage, VR_METAL_SHOT); // VR: metal (an explosive box): sparks
-            }
-            else if(VR_Crate_Wooden(trace_ent))
-            {
-                VR_Crate_Splinters(org, vel * 0.2, damage); // VR: wood (a crate): splinters
-            }
-            else if(trace_ent.vr_shootnade)
-            {
-                VR_GrenShot_Sparks(org); // VR: a grenade (vr_grenade.qc, "Shooting grenades"): sparks
-            }
-            else if(VR_WallTorch_IsTorch(trace_ent))
-            {
-                // VR: a wall torch on its wall (vr_walltorch.qc): no blood. It takes damage only so that shots meet
-                // it; its hit is VR_WallTorch_KnockOff's embers, and a taken torch takes no damage at all.
-            }
-            else
-            {
-                // VR: an armed humanoid's unbroken plate: sparks; blood and a wound only for what it lets through
-                // (vr_agarmor.qc).
                 float through = VR_AgArmor_HitFx(trace_ent, trace_endpos, vel, damage);
                 if(through > 0)
                 {
-                    SpawnBlood (org, vel*0.2, damage * through);
+                    VR_ImpactFx(m, VR_HIT_BULLET, trace_ent, org, vel, damage * through);
                     VR_Wound_Pellet(trace_ent, trace_endpos, dir, damage); // VR: painted on its model (vr_wounds.qc)
                 }
                 VR_HitReact_Pellet(trace_ent, trace_endpos, dir); // VR: where its flinch is (vr_hitreact.qc)
+            }
+            else
+            {
+                VR_ImpactFx(m, VR_HIT_BULLET, trace_ent, org, vel, damage);
             }
             bleed = TRUE;
         }
@@ -4471,16 +4425,18 @@ void() ImpulseCommands =
     {
         float cheatHand = cVR_MainHand;
         float cheatWid = self.impulse == 149 ? rint(cvar_hget(cvarh_vr_test_give_wid)) : self.impulse - 150;
+        if(self.impulse >= 170)
+        {
+            cheatHand = cVR_OffHand;
+            cheatWid = self.impulse - 170;
+        }
+        // (The hand's own id: checked before the off hand's 170 came off, 170 + a shotgun read as an AD gun's id and gave
+        // nothing without AD's data: grip_state, reload_front.)
         if(cheatWid < 0 || (cheatWid >= WID_ADROCKET && cheatWid <= WID_ADCROSSBOW && !VR_ADGun_Available()))
         {
             // (none; an AD gun without AD's data: its model is never precached)
             self.impulse = 0;
             return;
-        }
-        if(self.impulse >= 170)
-        {
-            cheatHand = cVR_OffHand;
-            cheatWid = self.impulse - 170;
         }
         self.impulse = 0;
         if(cheatWid > WID_LAST)

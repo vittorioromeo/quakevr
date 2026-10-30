@@ -324,6 +324,8 @@ int VR_PropClip (struct edict_s *mover, struct edict_s *touch, const float *star
 	const float *boxmins, const float *boxmaxs, const float *end, trace_t *trace); // SV_ClipToLinks: a player's own box (mins, maxs; boxmins, boxmaxs as it meets entities) against a solid prop's drawn box, turned (vr_box3d_player_shape): nonzero if traced
 int VR_PropShotClip (struct edict_s *mover, struct edict_s *touch, const float *start, const float *mins, const float *maxs,
 	const float *end, int type, trace_t *trace); // SV_ClipToLinks: a shot or a missile (type: SV_Move's, with its flags; mover: the passedict) against a solid prop's drawn box, turned (vr_box3d_shot_shape; the flying grappling hook always): nonzero if traced
+int VR_ItemShotClip (struct edict_s *mover, struct edict_s *touch, const float *start, const float *mins, const float *maxs,
+	const float *end, trace_t *trace); // SV_ClipToLinks: a flying missile against a dropped pickup lying loose (a backpack: touchable, FL_ITEM) at its drawn box as it lies (vr_box3d_shot_shape): -1 not one (Quake's rules), 0 passes it, 1 met (trace filled)
 void VR_MissileHitDebug (struct edict_s *ent, struct edict_s *other, const trace_t *trace); // SV_PushEntity: a flying thing's move met other (vr_debug_missiles prints it)
 int VR_StandsOn (struct edict_s *ent, struct edict_s *ground, const float *normal);	// SV_FlyMove, a floor that isn't SOLID_BSP (met at normal): nonzero if it is ground to ent (a player on a solid Box3D prop's face no steeper than vr_box3d_player_slope)
 int VR_CorpseBox (struct edict_s *mover, struct edict_s *touch, const float *start, const float *mins, const float *maxs,
@@ -348,6 +350,7 @@ enum { QVR_DECAL_TE_GUNSHOT, QVR_DECAL_TE_EXPLOSION, QVR_DECAL_TE_SPIKE, QVR_DEC
 void VR_DecalTempEntity (int what, const float *pos);	// cl_tent.c: a wall hit or an explosion (QVR_DECAL_TE_*) leaves a mark, carved as what made it
 void VR_ImpactTempEntity (int what, const float *pos);	// cl_tent.c: a bullet's or a nail's wall hit (QVR_DECAL_TE_*): what the surface's material throws up (vr_impacts.cpp)
 void VR_ImpactBeam (const struct qmodel_s *model, int ent, const float *start, const float *end); // CL_ParseBeam: the thunderbolt's ozone haze where it plays (vr_impacts.cpp)
+void VR_DebugImpactSound (int ent, int channel, const char *sample, int volume, float attenuation); // PF_sound: vr_debug_impacts prints it (vr_impacts.cpp)
 int VR_GibTrail (int ent, int zombie);					// CL_RelinkEntities: a gib's blood (a trail, drops on the floor, splats where it hits); nonzero if it drew the trail (not Quake's)
 void VR_ExplosionDebrisTrail (int ent);					// CL_RelinkEntities, an entity without a trail of Quake's: an explosion's chunk's fire trail (vr_explosiondebris.cpp)
 int VR_GrenadeTrail (int ent);						// CL_RelinkEntities: whether a grenade model smokes (not a hand grenade with its pin in: vr_grenade.qc)
@@ -549,6 +552,9 @@ void VR_ConfigMergeOthers (const char *path);			// Host_WriteConfigurationToFile
 void VR_ConfigWritten (const char *path);				// and after writing it
 int VR_ConfigSaves (const struct cvar_s *var);			// Cvar_WriteVariables, an archived cvar: nonzero if the config gets its line (a vr_ one only if changed from its default)
 void VR_ScenarioConfigWrite (int begin);			// around Cvar_WriteVariables: a test scene's settings written as they were before it (vr_scenario.cpp)
+const struct cvar_s *VR_TunableFind (const char *name);	// Cvar_VariableValue/String, a name not found: a tuning constant's stand-in (vr_tunables.inc), or NULL
+int VR_TunableSetVar (struct cvar_s *var, const char *value);	// Cvar_SetQuick, a cvar never registered: nonzero if it is a tuning constant's stand-in, now set (a Tunables page row; vr_tunables.cpp)
+void VR_TunablesWrite (void);							// Host_WriteConfiguration: tunables.cfg, the tuning constants set off their defaults (a development build)
 int VR_RetiredCvar (const char *name);					// Cmd_ExecuteString, an unknown name: nonzero if it is a removed Quake VR setting (a config's stale line, ignored quietly)
 const char *VR_CvarAlias (const char *name);			// Cvar_FindVar, a name not found: a renamed setting's new name (vr_slipgates: vr_teleporters), or NULL
 int VR_MenuReopen (void);								// M_ToggleMenu_f, opening: nonzero if it reopened the page left

@@ -700,6 +700,12 @@ void touch(edict_t* ent, edict_t* target)
     {
         return;
     }
+    // A nail and a backpack lying loose: met in the nail's own move at the backpack's drawn box (VR_ItemShotClip), not here,
+    // where FL_ITEM's box (15 units wider each way, for pickups) overlapping the nail stopped it well wide of the bag.
+    if(box3d::missileMeetsItem(ent, target) || box3d::missileMeetsItem(target, ent))
+    {
+        return;
+    }
 
     // A gib (a head, a small gib) in another's box: nothing for its touch to do unless it is thrown (QC VR_Gib_Touch;
     // gibs meeting hard are Box3D's hits). A pile of them moving was n x n QC touches a frame.

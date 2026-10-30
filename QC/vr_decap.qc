@@ -1245,9 +1245,9 @@ float(entity targ, entity inflictor, entity attacker, float xDamage) VR_Decap_He
     }
     vector at;
     vector dir = inflictor.velocity;
-    if(vr_hitpart_target == targ && vr_hitpart_time == time)
+    if(VR_Hit_On(targ))
     {
-        at = vr_hitpart_pos;
+        at = hit_at;
         if(inflictor == attacker || vlen(dir) < 1)
         {
             dir = at - (attacker.origin + attacker.view_ofs);

@@ -688,6 +688,7 @@ static void PF_sound (void)
 	sample = G_STRING(OFS_PARM2);
 	volume = G_FLOAT(OFS_PARM3) * 255;
 	attenuation = G_FLOAT(OFS_PARM4);
+	VR_DebugImpactSound (NUM_FOR_EDICT (entity), channel, sample, volume, attenuation); // QVR: vr_debug_impacts
 
 	// QVR: a sixth argument, the pitch in percent (DP's and FTE's speedpct: 100 as recorded; 0 the same)
 	if (qcvm->argc > 5 && G_FLOAT(OFS_PARM5) > 0.f)

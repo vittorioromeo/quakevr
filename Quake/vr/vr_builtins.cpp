@@ -10,6 +10,7 @@
 #include "Zancle/Algorithm/Unique.hpp"
 #include "vr_melee_shared.h"
 #include "vr_agarmor.hpp"
+#include "vr_agarms.hpp"
 #include "vr_box3d.hpp"
 #include "vr_toolgun.hpp"
 #include "vr_carry2h.hpp"
@@ -37,6 +38,7 @@
 #include "vr_collectfx.hpp"
 #include "vr_server.hpp"
 #include "vr_shock.hpp"
+#include "vr_impacts.hpp"
 #include "vr_stealth.hpp"
 #include "vr_selfcollide.hpp"
 #include "vr_twohand.hpp"
@@ -474,9 +476,9 @@ void PF_tracebox()
 // ----------------------------------------------------------------------------
 // Cvar handles: QC resolves cvar names once per map, then reads them by index.
 
-za::Vector<cvar_t*> cvarHandles;
+za::Vector<const cvar_t*> cvarHandles; // (a tuning constant's: its stand-in, tunableFind)
 
-[[nodiscard]] cvar_t* cvarFromHandle(float handle)
+[[nodiscard]] const cvar_t* cvarFromHandle(float handle)
 {
     const int i = static_cast<int>(handle);
     if(i < 0 || i >= static_cast<int>(cvarHandles.size()))
@@ -491,7 +493,11 @@ za::Vector<cvar_t*> cvarHandles;
 void PF_cvar_hmake()
 {
     const char* name = G_STRING(OFS_PARM0);
-    cvar_t* var = Cvar_FindVar(name);
+    const cvar_t* var = Cvar_FindVar(name);
+    if(!var)
+    {
+        var = tunableFind(name); // a tuning constant (vr_tunables.inc)
+    }
     if(!var)
     {
         Con_Printf("VR: cvar_hmake: unknown cvar \"%s\"\n", name);
@@ -505,7 +511,7 @@ void PF_cvar_hmake()
 
 void PF_cvar_hget()
 {
-    cvar_t* var = cvarFromHandle(G_FLOAT(OFS_PARM0));
+    const cvar_t* var = cvarFromHandle(G_FLOAT(OFS_PARM0));
     G_FLOAT(OFS_RETURN) = var ? var->value : 0.f;
 }
 
@@ -954,6 +960,8 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"meleegripago", PF_meleegripago},
     {"meleearc", PF_meleearc},
     {"weaponheft", PF_weaponheft},
+    {"impact", impacts::PF_impact},
+    {"impactsound", impacts::PF_impactsound},
 };
 
 static_assert(firstVrBuiltin + za::getArraySize(vrBuiltins) < MAX_BUILTINS - 200,

@@ -3,7 +3,9 @@
 #include "vr_nailslide.hpp"
 
 #include "vr_view_internal.hpp"
+#include "vr_client.hpp"
 #include "vr_cvars.hpp"
+#include "vr_protocol.hpp"
 #include "vr_mdldequant.hpp"
 
 #include "Zancle/Math/Clamp.hpp"
@@ -30,6 +32,7 @@ struct ModelTravel
 {
     const void* hdr{nullptr}; // the v_nailpistol.mdl header measured
     float travel[2]{};        // per look, how far its back frame moves the slide from its rest frame (model units)
+    glm::vec3 bytes[2]{};     // and that move in the model's byte space (anchor::posedAnchor's: the screen's shift)
 };
 
 Hand hands[2];
@@ -51,6 +54,7 @@ ModelTravel measured;
         for(int k = 0; k < 2; k++)
         {
             measured.travel[k] = 0.f;
+            measured.bytes[k] = glm::vec3{0.f};
             if(hdr->numframes < 2 * k + 2)
             {
                 continue;
@@ -60,7 +64,11 @@ ModelTravel measured;
             {
                 const glm::vec3 d =
                     mdldequant::modelVertex(hdr, p0, p1, 1.f, v) - mdldequant::modelVertex(hdr, p0, p1, 0.f, v);
-                measured.travel[k] = za::max(measured.travel[k], glm::length(d));
+                if(glm::length(d) > measured.travel[k])
+                {
+                    measured.travel[k] = glm::length(d);
+                    measured.bytes[k] = d / glm::vec3{hdr->scale[0], hdr->scale[1], hdr->scale[2]};
+                }
             }
         }
     }
@@ -72,7 +80,106 @@ ModelTravel measured;
     return m && m->type == mod_alias && modelmeta::is(m, modelmeta::Id::VNailPistol);
 }
 
+// How far a look's back frame is blended for the slide back by vr_nailpistol_slide_travel. The full slide's back frame
+// is only ~0.65 units back (the model's box ends there: its scale origin, the corner the gun is scaled about, is the
+// classic one's): drawn further by blending past it (a pure translation, in whole byte steps: every vertex alike). The
+// classic back frame is the most travel.
+[[nodiscard]] float travelBlend(const aliashdr_t* hdr, int lk)
+{
+    const float full = modelTravel(hdr, lk);
+    if(full <= 1e-3f)
+    {
+        return 0.f;
+    }
+    const float most = lk ? maxTravel / full : 1.f;
+    return za::clamp(za::clamp(vr_nailpistol_slide_travel.value, 0.f, maxTravel) / full, 0.f, most);
+}
+
+// One of the guns in the hands that the slide's animation draws (step): its hand, else -1.
+[[nodiscard]] int handOf(const entity_t* e)
+{
+    for(int hand = 0; hand < 2; hand++)
+    {
+        if(e == &view_detail::entities.weapon[hand].ent && hands[hand].gun == e->model)
+        {
+            return hand;
+        }
+    }
+    return -1;
+}
+
 } // namespace
+
+bool holsterLocked(const qmodel_s* model, int clip, int flags)
+{
+    if(!isNailPistol(model) || clip < 0)
+    {
+        return false;
+    }
+    if(cl.stats[protocol::STAT_QVR_RELOADMODE] == 0)
+    {
+        return cl.stats[STAT_NAILS] < 1;
+    }
+    return clip == 0 || (flags & view_detail::weaponFlagNoMag) != 0;
+}
+
+bool propLocked(const entity_t& e)
+{
+    if(!isNailPistol(e.model) || &e < cl_entities || &e >= cl_entities + cl_max_edicts)
+    {
+        return false;
+    }
+    const client::EntityVr* net = client::entityVr(static_cast<int>(&e - cl_entities));
+    return net && net->weaponUid != 0 && net->clip >= 0 && (net->clip == 0 || net->noMag);
+}
+
+glm::vec3 screenShift(const entity_t& e)
+{
+    if(vr_nailpistol_screen_ride.value == 0.f || !isNailPistol(e.model))
+    {
+        return glm::vec3{0.f};
+    }
+    const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(e.model));
+    if(look(hdr) != 1)
+    {
+        return glm::vec3{0.f}; // (the classic look's screen is on its receiver, which stays)
+    }
+    const int hand = handOf(&e);
+    const float w = hand >= 0 ? hands[hand].pos : propLocked(e) || e.frame == 1 ? 1.f : 0.f;
+    (void)modelTravel(hdr, 1);
+    return measured.bytes[1] * (w * travelBlend(hdr, 1));
+}
+
+void probe()
+{
+    const entity_t& gun = view_detail::entities.weapon[HAND_MAIN].ent;
+    float screen = 0.f;
+    if(isNailPistol(gun.model))
+    {
+        const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(gun.model));
+        screen = glm::length(screenShift(gun) * glm::vec3{hdr->scale[0], hdr->scale[1], hdr->scale[2]});
+    }
+    int holstered = 0;
+    for(const view::ViewEntity& ve : view_detail::entities.holster)
+    {
+        if(ve.visible && isNailPistol(ve.ent.model))
+        {
+            holstered += ve.ent.frame == 1 ? 1 : 100;
+        }
+    }
+    int props = 0;
+    for(int i = 0; i < cl_numvisedicts; i++)
+    {
+        const entity_t* e = cl_visedicts[i];
+        if(e && isNailPistol(e->model) && e >= cl_entities && e < cl_entities + cl_max_edicts && e != &cl_entities[cl.viewentity])
+        {
+            props += propLocked(*e) || e->frame == 1 ? 1 : 100;
+        }
+    }
+    Cvar_SetValueQuick(&vr_np_seen_screen, screen);
+    Cvar_SetValueQuick(&vr_np_seen_holster, static_cast<float>(holstered));
+    Cvar_SetValueQuick(&vr_np_seen_prop, static_cast<float>(props));
+}
 
 void step(int hand, const qmodel_s* gun, int frame)
 {
@@ -142,25 +249,19 @@ extern "C" void VR_NailSlidePose(const entity_t* e, const void* aliashdr, short*
         return;
     }
     const int lk = nailslide::look(hdr);
-    const float full = nailslide::modelTravel(hdr, lk);
-    // The full slide's back frame is only ~0.65 units back (the model's box ends there: its scale origin, the corner the
-    // gun is scaled about, is the classic one's): drawn further by blending past it (a pure translation, in whole
-    // byte steps: every vertex alike). The classic back frame is the most travel.
-    const float most = full > 1e-3f ? (lk ? nailslide::maxTravel / full : 1.f) : 0.f;
-    const float k =
-        full > 1e-3f ? za::clamp(za::clamp(vr_nailpistol_slide_travel.value, 0.f, nailslide::maxTravel) / full, 0.f, most)
-                     : 0.f;
-    // (the server's frame 1, back: its share whichever look is drawn)
+    const float k = nailslide::travelBlend(hdr, lk);
+    // (the server's frame 1, back: its share whichever look is drawn; a gun lying about empty: locked back)
     const short back = static_cast<short>(hdr->frames[1].firstpose);
     const short f0 = static_cast<short>(hdr->frames[2 * lk].firstpose);
     const short f1 = static_cast<short>(hdr->frames[2 * lk + 1].firstpose);
     float w = (*pose1 == back ? 1.f - *blend : 0.f) + (*pose2 == back ? *blend : 0.f);
-    for(int hand = 0; hand < 2; hand++)
+    if(const int hand = nailslide::handOf(e); hand >= 0)
     {
-        if(e == &view_detail::entities.weapon[hand].ent && nailslide::hands[hand].gun == e->model)
-        {
-            w = nailslide::hands[hand].pos;
-        }
+        w = nailslide::hands[hand].pos;
+    }
+    else if(nailslide::propLocked(*e))
+    {
+        w = 1.f;
     }
     *pose1 = f0;
     *pose2 = f1;

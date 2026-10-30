@@ -143,6 +143,10 @@ One implementation each; the full tables with signatures are in CODE_STYLE.md, "
   config is sparse since configVersion 218, so it reaches every player who left the setting alone; `defaultChanges` is
   frozen: CODE_STYLE.md, "Settings and the config"). Renamed or moved menu rows: run `vr_menu_path_check maps/vrcalibration.map` and update
   `Misc/quakevr/make_vrcalibration_map.py`.
+- **Tuning constants** (numbers tuned once that no player sets): a `QVR_TUNABLE` line in vr_tunables.inc and its row
+  in vr_tunables_rows.inc, no menu row of its own; read as `name.value` everywhere. Development builds tune them live
+  (`tune`, Debug > Tunables, `tunables.cfg`; vr_tunables.cpp), releases (`QVR_RELEASE`) fold them in; tuned values
+  become defaults with `Misc/quakevr/tune_promote.py` (CODE_STYLE.md, "Settings and the config").
 - **Debug and test aids**: in the Debug menu pages; tests in QC `*_test.qc` under `#ifdef QVR_TESTS`, or C++
   `_diag.cpp` commands; a numbered test claims its number in `QC/test_numbers.txt`.
 - **Tables, not if-chains** (QC struct arrays with initializers; C++ constexpr arrays).

@@ -452,18 +452,14 @@ float(float xHand) VR_Chainsaw_Cut =
             VR_HotBlade_Struck(self, xHand, e, alive, at, dir); // an incandescent bar sets it on fire (vr_hotblade.qc)
         }
         VR_ClearHitKind();
-        if(flesh)
+        // Its own material (the impact table's saw row): blood off flesh, splinters off wood, sparks off the rest.
+        float m = flesh ? VR_MAT_FLESH : (wood ? VR_MAT_WOOD : VR_MAT_METAL);
+        vector spray = '0 0 0';
+        if(m != VR_MAT_METAL)
         {
-            SpawnBlood(at, (crandom() * v_right + v_up) * 60, dmg * 2);
+            spray = crandom() * v_right + v_up;
         }
-        else if(wood)
-        {
-            VR_Crate_Splinters(at, (crandom() * v_right + v_up) * 12, dmg * 2);
-        }
-        else
-        {
-            particle2(at, '0 0 40', QVR_PARTICLE_PRESET_SPARKS, 4);
-        }
+        VR_ImpactFx(m, VR_HIT_SAW, e, at, spray, dmg * 2);
         if(cvar_hget(cvarh_vr_debug_chainsaw))
         {
             dprint(sprintf("chainsaw: %s hand cuts %s: %g damage, health %g\n", VR_Saw_HandName(xHand), e.classname, hurt,

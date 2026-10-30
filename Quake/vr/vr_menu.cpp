@@ -891,29 +891,12 @@ void hologramTestMessage()
 {
     return {
         toggle("Force Grab", vr_forcegrab_mode).help("Pull pickups and weapons to your hand from afar."),
-        slider("Distance", vr_forcegrab_distance, 100.f, 1500.f, 25.f, "%.0f").extend(100.f, 4000.f),
-        slider("Aim Cone", vr_forcegrab_cone, 3.f, 45.f, 1.f, "%.0f deg").extend().help("How far off where the hand points an object may be."),
         toggle("Bodies Block", vr_forcegrab_bodies_block)
             .help("An enemy (or a body) between your hand and an object hides it from the force grab, as a wall does. "
                   "Off: only walls do."),
-        slider("Flick Speed", vr_forcegrab_flick_speed, 0.3f, 3.f, 0.1f, "%.1f m/s").extend()
-            .help("How fast the hand moves back or up to pull."),
-        slider("Flick Turn", vr_forcegrab_flick_turn, 50.f, 800.f, 25.f, "%.0f deg/s").extend()
-            .help("Or how fast the fingers swing back or up."),
-        slider("Flight Time", vr_forcegrab_time, 0.15f, 1.f, 0.05f, "%.2f s").extend(),
-        slider("Flight Speed", vr_forcegrab_speed, 300.f, 3000.f, 100.f, "%.0f").extend()
-            .help("Units per extra second of flight: longer pulls fly longer."),
-        slider("Arc Height", vr_forcegrab_arc, 0.f, 0.5f, 0.05f, "%.2f").extend(),
-        slider("Catch Radius", vr_forcegrab_catch_radius, 4.f, 32.f, 1.f, "%.0f").extend(),
-        slider("Catch Early", vr_forcegrab_catch_early, 0.05f, 1.f, 0.05f, "%.2f s").extend()
-            .help("How long before it arrives the grip may close to catch it."),
         slider("Catch Late", vr_forcegrab_catch_late, 0.f, 0.5f, 0.05f, "%.2f s").extend(),
-        slider("Catch Blend Time", vr_forcegrab_catch_blend, 0.f, 0.5f, 0.05f, "%.2f s").extend()
-            .help("A caught weapon eases from how it flew into your hand over this time, as one drawn from a holster (0: at "
-                  "once). It fires at once: only its look eases."),
         toggle("Pointing Particles", vr_forcegrab_eligible_particles).help("Sparkles on the object an empty hand points at, that it can pull."),
         toggle("Pointing Haptics", vr_forcegrab_eligible_haptics).help("A tick in the hand when it points at a new object it can pull."),
-        slider("Outline", "vr_forcegrab_outline", 0.f, 2.f, 0.1f, "%.1f").extend().help("The soft glow round the object a hand points at (0 off)."),
         toggle("Effects", "vr_forcegrab_fx").help("A faint beam to what you point at, a crackling tendril when locked on, a trail behind what flies to you."),
         slider("Ammo/Health Box Size", vr_forcegrabbable_box_scale, 0.1f, 1.f, 0.05f, "%.2f").extend()
             .help("Takes effect on the next map."),
@@ -1169,7 +1152,8 @@ za::Vector<Item> pageHitbox()
         toggle("Shots Meet Their Shape", vr_box3d_shot_shape)
             .help("Rockets, nails, grenades, lasers and every other missile, and the guns' shots, meet a solid prop's "
                   "shape as drawn, however it is turned: a tilted box's empty corners let them by, and they hit its real "
-                  "faces. Off: the upright box round it (the grappling hook still meets its shape) (vr_box3d_shot_shape)."),
+                  "faces. Nails, rockets and lasers meet a dropped backpack where it is drawn, not the wide pickup box "
+                  "round it. Off: the upright box round it (the grappling hook still meets its shape) (vr_box3d_shot_shape)."),
         header("Tests"),
         command("Stand on a Box", "vr_physics_player onto misc_explobox")
             .help("Puts you on top of the level's first explosive box (vr_physics_player onto <number | classname>)."),
@@ -2382,6 +2366,12 @@ void addMenuDetail(za::Vector<Item>& list, int page)
     {
         done[page] = false; // Body Calibration: its phase, its result or its poses changed
     }
+#ifndef QVR_RELEASE
+    if(page == pageIndex(pageTunables) && tunablesPageKey != tunablesPageKeyNow())
+    {
+        done[page] = false; // Show or Page changed, or Search's index (every row)
+    }
+#endif
     if(page == pageIndex(pageChecklist))
     {
         checklist::refresh(); // (the file looked at once a second)
