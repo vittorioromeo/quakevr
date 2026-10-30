@@ -717,6 +717,121 @@ bool startRetake(const hands::State& s, const glm::vec3 (&originalRots)[2], int 
     return true;
 }
 
+// applyHotspots's phases. The two-handed hold's checks, as decided this frame.
+struct GripCheck
+{
+    const hands::State& s;
+    int holding;
+    int helping;
+    bool wasHeld;
+    bool fixedMode;
+    float gripDist;
+    float keep;
+    float stick;
+    float handDist;
+    float muzzleDist;
+    bool beforeMuzzle;
+    bool goodDistance;
+    float dotNeed;
+    bool goodDot;
+    glm::vec3 handDir;
+    glm::vec3 lineAxis;
+};
+
+// vr_debug_2h_grip's lines: taken, and where the grip is.
+void printGripState(const GripCheck& gc)
+{
+    const hands::State& s = gc.s;
+    const int holding = gc.holding;
+    const int helping = gc.helping;
+    const bool wasHeld = gc.wasHeld;
+    const bool fixedMode = gc.fixedMode;
+    const float gripDist = gc.gripDist;
+    const float keep = gc.keep;
+    if(vr_debug_2h_grip.value && fixedMode && !wasHeld && shouldAim[holding])
+    {
+        Con_Printf("2h grip: %s hand took it (%.1f units off its grip)\n", holding == HAND_MAIN ? "off" : "main", gripDist);
+    }
+    if(vr_debug_2h_grip.value >= 2 && fixedMode && vr_gametime >= debugPrintAt)
+    {
+        // Where its grip is from the helping hand (units, world), to place a test's hand on it.
+        const glm::vec3 d = s.grip2H[holding] - (s.grip2HPalm[holding] ? hands::palmPoint(s, helping) : s.pos[helping]);
+        Con_Printf("2h grip: %s hand %.1f units off the grip (%.1f %.1f %.1f), held %d, keep %.1f\n",
+            holding == HAND_MAIN ? "off" : "main", gripDist, d.x, d.y, d.z, shouldAim[holding] ? 1 : 0, keep);
+        debugPrintAt = vr_gametime + 0.25;
+    }
+}
+
+// Let go: why.
+void reportWhyLetGo(const GripCheck& gc)
+{
+    const int holding = gc.holding;
+    const int helping = gc.helping;
+    const bool wasHeld = gc.wasHeld;
+    const bool fixedMode = gc.fixedMode;
+    const float gripDist = gc.gripDist;
+    const float keep = gc.keep;
+    const float stick = gc.stick;
+    const float handDist = gc.handDist;
+    const float muzzleDist = gc.muzzleDist;
+    const bool beforeMuzzle = gc.beforeMuzzle;
+    const bool goodDistance = gc.goodDistance;
+    const float dotNeed = gc.dotNeed;
+    const bool goodDot = gc.goodDot;
+    const glm::vec3& handDir = gc.handDir;
+    const glm::vec3& lineAxis = gc.lineAxis;
+    if(wasHeld && !shouldAim[holding])
+    {
+        if(!client::grabbing(helping) || !held::handEmpty(helping))
+        {
+            reportLetGo(holding, "the grip let go", 0.f, 0.f, stick);
+        }
+        else if(handpose::gunColliding(holding))
+        {
+            reportLetGo(holding, "the weapon against a wall", 0.f, 0.f, stick);
+        }
+        else if(!beforeMuzzle)
+        {
+            reportLetGo(holding, "past the muzzle", handDist, muzzleDist, stick);
+        }
+        else if(!goodDistance)
+        {
+            reportLetGo(holding, "distance", fixedMode ? gripDist : handDist, fixedMode ? keep : 25.f, stick);
+        }
+        else if(!goodDot)
+        {
+            reportLetGo(holding, "angle (cosine)", glm::dot(handDir, lineAxis), dotNeed, stick);
+        }
+        else
+        {
+            reportLetGo(holding, "no two-handed use", 0.f, 0.f, stick);
+        }
+    }
+}
+
+// A cup with the virtual stock: aimed by the shoulder as far as the stock is engaged.
+void aimCup(hands::State& s, int holding, int slot, float t, const glm::vec3& holdingPos, const glm::vec3& helpingPos,
+    const glm::vec3& shoulder, const glm::vec3& origDir, const glm::vec3& up)
+{
+    // A cup with the virtual stock (his notes 2026-10-19: the Widowmaker's): the hands don't aim it, the shoulder
+    // does as far as the stock is engaged: the holding hand's aim turned towards the line from the shoulder through
+    // the hands (vr_2h_virtual_stock_factor of the way), the slot's stock turn on top.
+    const float k = t * stockTransition[holding];
+    if(k <= 0.f)
+    {
+        return;
+    }
+    const glm::vec3 shoulderLine = safeNormalize((holdingPos + helpingPos) * 0.5f - shoulder);
+    const glm::vec3 cupDir = safeNormalize(glm::mix(origDir, shoulderLine, k * vr_2h_virtual_stock_factor.value));
+    glm::vec3 turn = glm::vec3{-1.f, 1.f, 1.f} * weapons::vec(slot, Key::StockPitch, Key::StockYaw, Key::StockRoll) * k;
+    if(holding == HAND_OFF) // mirrored
+    {
+        turn.y = -turn.y;
+        turn.z = -turn.z;
+    }
+    s.rot[holding] = hands::anglesFromVectors(cupDir, up) + turn;
+}
+
 // The other hand on a weapon `holding` carries off its handle (defined after carriedPose).
 void applyCarried(hands::State& s, int holding, int helping);
 
@@ -848,45 +963,10 @@ void applyHotspots(hands::State& s, const glm::vec3 (&originalRots)[2], int hold
         cupLine[holding] = glm::vec3{glm::dot(handDiff, origDir), glm::dot(handDiff, right), glm::dot(handDiff, up)};
         cupLineSet[holding] = true;
     }
-    if(vr_debug_2h_grip.value && fixedMode && !wasHeld && shouldAim[holding])
-    {
-        Con_Printf("2h grip: %s hand took it (%.1f units off its grip)\n", holding == HAND_MAIN ? "off" : "main", gripDist);
-    }
-    if(vr_debug_2h_grip.value >= 2 && fixedMode && vr_gametime >= debugPrintAt)
-    {
-        // Where its grip is from the helping hand (units, world), to place a test's hand on it.
-        const glm::vec3 d = s.grip2H[holding] - (s.grip2HPalm[holding] ? hands::palmPoint(s, helping) : s.pos[helping]);
-        Con_Printf("2h grip: %s hand %.1f units off the grip (%.1f %.1f %.1f), held %d, keep %.1f\n",
-            holding == HAND_MAIN ? "off" : "main", gripDist, d.x, d.y, d.z, shouldAim[holding] ? 1 : 0, keep);
-        debugPrintAt = vr_gametime + 0.25;
-    }
-    if(wasHeld && !shouldAim[holding])
-    {
-        if(!client::grabbing(helping) || !held::handEmpty(helping))
-        {
-            reportLetGo(holding, "the grip let go", 0.f, 0.f, stick);
-        }
-        else if(handpose::gunColliding(holding))
-        {
-            reportLetGo(holding, "the weapon against a wall", 0.f, 0.f, stick);
-        }
-        else if(!beforeMuzzle)
-        {
-            reportLetGo(holding, "past the muzzle", handDist, muzzleDist, stick);
-        }
-        else if(!goodDistance)
-        {
-            reportLetGo(holding, "distance", fixedMode ? gripDist : handDist, fixedMode ? keep : 25.f, stick);
-        }
-        else if(!goodDot)
-        {
-            reportLetGo(holding, "angle (cosine)", glm::dot(handDir, lineAxis), dotNeed, stick);
-        }
-        else
-        {
-            reportLetGo(holding, "no two-handed use", 0.f, 0.f, stick);
-        }
-    }
+    const GripCheck gc{s, holding, helping, wasHeld, fixedMode, gripDist, keep, stick, handDist, muzzleDist, beforeMuzzle,
+        goodDistance, dotNeed, goodDot, handDir, lineAxis};
+    printGripState(gc);
+    reportWhyLetGo(gc);
     helpingHand[helping] = shouldAim[holding];
     transition(aimTransition[holding], shouldAim[holding], 5.f);
 
@@ -899,23 +979,7 @@ void applyHotspots(hands::State& s, const glm::vec3 (&originalRots)[2], int hold
     }
     if(cup)
     {
-        // A cup with the virtual stock (his notes 2026-10-19: the Widowmaker's): the hands don't aim it, the shoulder
-        // does as far as the stock is engaged: the holding hand's aim turned towards the line from the shoulder through
-        // the hands (vr_2h_virtual_stock_factor of the way), the slot's stock turn on top.
-        const float k = t * stockTransition[holding];
-        if(k <= 0.f)
-        {
-            return;
-        }
-        const glm::vec3 shoulderLine = safeNormalize((holdingPos + helpingPos) * 0.5f - shoulder);
-        const glm::vec3 cupDir = safeNormalize(glm::mix(origDir, shoulderLine, k * vr_2h_virtual_stock_factor.value));
-        glm::vec3 turn = glm::vec3{-1.f, 1.f, 1.f} * weapons::vec(slot, Key::StockPitch, Key::StockYaw, Key::StockRoll) * k;
-        if(holding == HAND_OFF) // mirrored
-        {
-            turn.y = -turn.y;
-            turn.z = -turn.z;
-        }
-        s.rot[holding] = hands::anglesFromVectors(cupDir, up) + turn;
+        aimCup(s, holding, slot, t, holdingPos, helpingPos, shoulder, origDir, up);
         return;
     }
 
