@@ -519,6 +519,7 @@ vr_armedgrunt_pose.qc
 vr_armedgrunt_play.qc
 vr_armedgrunt_shot.qc
 vr_armedgrunt_parry.qc
+vr_disarmviz.qc // Debug > Show Disarm Volumes: the armed humanoids' disarm volumes (the engine draws them: vr_disarmviz.cpp)
 vr_armedrepl.qc
 vr_wornpack.qc // worn backpacks (experimental: vr_worn_backpacks)
 // Survival Arena: the wave director (the waves, their ladder, their boss, their drops).
@@ -540,6 +541,7 @@ vr_armedgrunt_grab_test.qc
 vr_armedgrunt_downtug_test.qc
 vr_armedgrunt_ragweapon_test.qc
 vr_armedgrunt_range_test.qc
+vr_disarmviz_test.qc
 vr_armedgrunt_expose_test.qc
 vr_armedgrunt_ai_test.qc
 vr_armedgrunt_ammo_test.qc

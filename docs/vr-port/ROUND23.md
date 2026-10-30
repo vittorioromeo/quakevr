@@ -2617,6 +2617,40 @@ Checklist lines:
 - Hold its gun with one hand, punch the gun with the other fist: the gun ends in the holding hand.
 - Shove a grunt into a stagger (or floor it) and grab its gun: it is not yours at once; a short pull takes it.
 - Shoot a grunt's gun with the nail pistol and with nails: some shots knock it out (about 1 in 4-5 on the gun).
+
+## Show Disarm Volumes: the disarm tests' shapes drawn (branch `agent/disarmviz`)
+
+His question: is there a debug view of the disarm volumes (his hands, the enemy's hands and weapon), with what is
+hovered or grabbed, alive or an active ragdoll alike? There wasn't: `vr_debug_hitzones` draws the damage regions,
+`vr_debug_carry` the grab test on carried props (not armed monsters' weapons), `vr_debug_melee_blades` the blow lines,
+`vr_agrunt_shotdisarm_debug 2` sparks along the shot volumes, `vr_debug_ragdoll` / Show Physics Shapes every body.
+
+**Debug > Show Disarm Volumes** (`vr_debug_disarm`, 0; 1 on, 2 also prints `disarmviz:` hits and hover changes). The
+QC (QC/vr_disarmviz.qc `VR_DV_Frame`, from StartFrame: before the weapons' thinks test them) sends each held weapon's
+volumes computed by the tests' own functions (builtin `debugdisarm`): its line (VR_AG_WeaponLine) with the strike and
+parry reach (5, orange), the shot volumes of the weapon and of its hand and forearm (VR_AGS_HandLine by
+`vr_agrunt_shotdisarm_parts`/`_size`, magenta and cyan; near misses faint), the grip spheres a body blow disarms within
+(VR_AG_Hit: 10, a limb hit's 16, red), on a ragdoll the limb its weapon rides (VR_AG_RagProp's bone, white: box3d
+`ragdollPartDraw`), a tug (the hand to the grip, green, and a progress bar), its state label (`debugdisarmnote`: a
+tug's share, or what a grab does now: at once and why, or a tug), and each player's strike line (hand to muzzle, white)
+and blow line (VR_Blow's, blue). The engine (Quake/vr/vr_disarmviz.cpp) measures each fist against each of those weapons
+as the grab does (`physics::armedGrabGap`: handOn's armed branch without its grip test, sweep included): the fist's
+spheres grey, yellow with the weapon when a grip would take it now (the gap and allowance in the label). The hits are
+marked 2 s where they landed (VR_DV_Mark, guarded by `vr_dv_on`: from VR_AG_Disarm, VR_AG_Hit (disarm or body blow and
+its distance from the grip), VR_AG_HandStrike, the parry (parry or disarm), VR_AGS_Add (shot) and VR_AGS_Stopped
+(blocked)). Off: one cvar read in QC, the engine returns at once; fixed arrays (no allocation per frame). Flat: the
+lines over the flat view (vr_ragtool.cpp's overlay); its labels only in the headset.
+
+Test 97 (`vr_agrunt_test 97`, QC/vr_disarmviz_test.qc): standing, hovered (`disarmviz: main hand takes weapon 256 (gap
+-0.91 cm, allowed 5.00 cm)`), tug, active ragdoll with a pellet's line through its weapon: 4 passed, 0 failed (VR and
+flat); eye images in qvr-kit/scratch/disarmviz. Test 88 with it off: unchanged (3 passed, the known grunt topple FAIL).
+Seen with it: on an active ragdoll a pellet aimed at the weapon's middle counted on its **hand** (VR_AGS_HandLine
+builds the forearm from the standing pose's shoulder, not the ragdoll's arm): a lead for the disarm work.
+
+Checklist lines:
+- Debug > Show Disarm Volumes on, walk up to an armed grunt: its gun outlined orange; put your hand on the gun: your
+  fist and the gun turn yellow; grip: green with a progress bar; shove it over: the white limb under its gun, the
+  shapes stay on it.
 ## FBT regression check (agent/fbtfix)
 
 The author (2026-10-30): with full body tracking the elbows and the body are way off; FBT off is playable. Checked:

@@ -590,6 +590,7 @@ void() VR_ARENA_PERKS_Test_Frame; // (vr_arena_perks_test.qc, after the arena's 
 void() VR_Buzzsaw_Frame; // (rogue_buzzsaw.qc: its blade cuts ragdolls)
 void() VR_DeadAnim_Frame; // (vr_deadanim.qc, after AD's files)
 void() VR_DeadAnim_TestFrame;
+void() VR_DV_Frame; // (vr_disarmviz.qc, after the armed grunts' files)
 
 void() StartFrame =
 {
@@ -601,6 +602,7 @@ void() StartFrame =
     VR_CVars_Frame();
     VR_Stealth_Frame(); // QVR: the stealth AI switched off: the monsters back to Quake's AI (vr_stealth.qc)
     VR_MeleeArc_ShowFrame(); // QVR: Show Melee Arcs: the arcs and reaches the engine draws (fight.qc)
+    VR_DV_Frame(); // QVR: Show Disarm Volumes: the armed humanoids' disarm volumes the engine draws (vr_disarmviz.qc)
     VR_AimCone_ShowFrame(); // QVR: Show Aim Cones: the ranged monsters' cones the engine draws (vr_aimcone.qc)
     VR_Tutorial_Frame(); // QVR: Debug's Go to a Lesson (vrtutorial only: vr_tutorial.qc)
     VR_Trailer_Frame(); // QVR: the trailer scene's reset and log (vrtrailer only: vr_trailer.qc)

@@ -508,6 +508,12 @@ vector(entity e, vector p) hitmodel_rest = #0;
 // yaw, y left, z up, from its origin): a box lo..hi (radius 0) or a capsule of `radius` from lo to hi. zone: 0 body, 1
 // head, 2 extremities, 3 legs, 4 melee beheading (its colour).
 void(entity e, float zone, vector lo, vector hi, float radius) debughitzone = #0;
+// Debug > Show Disarm Volumes (vr_debug_disarm; vr_disarmviz.qc, the engine's vr_disarmviz.cpp): a shape this server
+// frame (world units: a capsule of `radius` round a..b, a sphere where they meet; `kind` VR_DV_*), and a note: `what` 0
+// e's state this frame (a label at `at`), 1-5 a disarm-relevant hit there (VR_DV_PARRY...: marked a moment). Nothing
+// is kept while it is off.
+void(entity e, float kind, vector a, vector b, float radius) debugdisarm = #0;
+void(entity e, float what, vector at, string text) debugdisarmnote = #0;
 // What of you the flame of torch t, held by you, touches (single player: the client's last frame; vr_burn_self,
 // vr_burn_drop on): 1 the holding hand, 2 the other hand, 4 the holding arm, 8 the other arm, 16 the torso or legs, 32
 // the head (bits), plus 256 times the deepest contact's bit (but the holding hand's); 0 nothing. trace_endpos: where (that
