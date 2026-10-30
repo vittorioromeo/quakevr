@@ -41,6 +41,62 @@ void(entity e, vector at, vector dir) VR_HitReact_Pellet =
     }
 };
 
+// The blast's pellets' mean point and summed direction on `xTarg` ('0 0 0': none on its flesh, or not inside a blast).
+vector(entity xTarg) VR_Hit_PelletAt =
+{
+    return (hit_blast && hit_pelhits > 0 && multi_ent == xTarg) ? hit_pelsum * (1 / hit_pelhits) : '0 0 0';
+};
+
+float hit_check_n;    // step 2: checks made
+float hit_check_bad;  // and mismatches
+float hit_check_seen; // the consumers (bits) checked so far
+
+void(string xWho, string xWhat, vector xOwn, vector xRec) VR_Hit_CheckV =
+{
+    if(xOwn != xRec)
+    {
+        hit_check_bad = hit_check_bad + 1;
+        bprint(sprintf("hitcheck: MISMATCH %s %s own %v record %v (%g of %g)\n", xWho, xWhat, xOwn, xRec,
+                       hit_check_bad, hit_check_n));
+    }
+};
+
+void(float xId, string xWho, entity xTarg) VR_Hit_CheckAt =
+{
+    hit_check_n = hit_check_n + 1;
+    if(!(hit_check_seen & xId))
+    {
+        hit_check_seen = hit_check_seen | xId;
+        bprint(sprintf("hitcheck: %s checked (%s)\n", xWho, xTarg.classname));
+    }
+    float valid = vr_hitpart_target == xTarg && vr_hitpart_time == time;
+    VR_Hit_CheckV(xWho, "zone", [valid ? vr_hitpart : -1, vr_hitpart, vr_hitpart_time == time],
+                  [VR_Hit_Zone(xTarg), hit_zone, hit_time == time]);
+    if(valid)
+    {
+        VR_Hit_CheckV(xWho, "zone at", vr_hitpart_pos, hit_at);
+    }
+    VR_Hit_CheckV(xWho, "pellets", [vr_hitpellets, 0, 0], [VR_Hit_Pellets(), 0, 0]);
+    if(vr_hitpellets > 0)
+    {
+        VR_Hit_CheckV(xWho, "pellet parts", [vr_hitpellets_head, vr_hitpellets_limb, vr_hitpellets_leg], hit_pelparts);
+        vector own = '0 0 0';
+        if(vr_hr_pel_ent == xTarg && vr_hr_pel_time == time && vr_hr_pel_count > 0)
+        {
+            own = vr_hr_pel_sum * (1 / vr_hr_pel_count);
+        }
+        VR_Hit_CheckV(xWho, "pellet at", own, VR_Hit_PelletAt(xTarg));
+        if(own != '0 0 0')
+        {
+            VR_Hit_CheckV(xWho, "pellet dir", vr_hr_pel_dir, hit_peldir);
+        }
+    }
+    if(hit_check_n == 1 || (hit_check_n & (hit_check_n - 1)) == 0)
+    {
+        bprint(sprintf("hitcheck: %g checks, %g mismatches\n", hit_check_n, hit_check_bad));
+    }
+};
+
 // Its steps' scale now (1: not slowed).
 float(entity m) VR_HitReact_Scale =
 {
@@ -160,6 +216,7 @@ void(entity targ, vector at, vector dir, float part, float share) VR_HitReact_Sl
 // found) or the inflictor's and attacker's places. (The small reaction's and the situational knockdowns': vr_kdtrig.qc.)
 void(entity targ, entity inflictor, entity attacker) VR_HitReact_Where =
 {
+    VR_Hit_CheckAt(4, "hitreact where", targ); // (hit record, step 2)
     vector mid = (targ.absmin + targ.absmax) * 0.5;
     vector at = '0 0 0';
     vector dir = vr_hitdir;

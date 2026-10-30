@@ -611,6 +611,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float kind) 
     float hp = max(1, VR_Corpse_Health());
     float i;
 
+    VR_Hit_CheckAt(1024, "limb wear", targ); // (hit record, step 2)
     // A hitscan blast (ApplyMultiDamage): its damage split by its pellets on each piece; the torso's share left.
     if(vr_hitpellets > 0 && targ.vr_limb_wserial == vr_sgib_blastserial && targ.vr_limb_wtotal > 0)
     {
@@ -917,6 +918,7 @@ float(entity targ, entity inflictor, entity attacker, float xDamage) VR_Limb_Qua
         return FALSE;
     }
     vector at;
+    VR_Hit_CheckAt(1024, "limb quad pop", targ); // (hit record, step 2)
     vector dir = inflictor.velocity;
     if(vr_hitpart_target == targ && vr_hitpart_time == time)
     {

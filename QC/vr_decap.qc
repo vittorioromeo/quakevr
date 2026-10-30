@@ -1244,6 +1244,7 @@ float(entity targ, entity inflictor, entity attacker, float xDamage) VR_Decap_He
         return FALSE;
     }
     vector at;
+    VR_Hit_CheckAt(256, "decap quad pop", targ); // (hit record, step 2)
     vector dir = inflictor.velocity;
     if(vr_hitpart_target == targ && vr_hitpart_time == time)
     {

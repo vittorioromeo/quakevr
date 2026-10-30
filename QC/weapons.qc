@@ -1821,6 +1821,7 @@ float(entity hit, float damage) AddMultiDamage =
     else
         multi_damage = multi_damage + damage;
 
+    VR_Hit_CheckAt(4096, "AddMultiDamage", hit); // (hit record, step 2)
     hit_pellets = hit_pellets + 1;
     float part = VR_Hit_Zone(hit);
     if(part == 1)      hit_pelparts_x = hit_pelparts_x + 1;

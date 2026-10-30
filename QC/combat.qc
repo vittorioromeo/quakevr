@@ -87,6 +87,10 @@ float() VR_Hit_Pellets =
     return hit_blast ? hit_pellets : 0;
 };
 
+// Step 2 (temporary): the record against the old globals at a consumer `xWho` (bit `xId`) deciding for `xTarg`
+// (vr_hitreact.qc; "hitcheck:" lines).
+void(float xId, string xWho, entity xTarg) VR_Hit_CheckAt;
+
 // The part most of a blast's pellets struck: the head if half of them, else the legs if most, else a limb if most
 // (with `xLimbs`), else the body.
 float(float xLimbs) VR_Hit_PelletPart =
@@ -777,6 +781,7 @@ void(entity e) VR_Corpse_Arm =
 // low, wide box is all legs and limbs to it: the share is given back (a corpse has none).
 float(entity targ) VR_Corpse_PositionalFactor =
 {
+    VR_Hit_CheckAt(2, "corpse positional", targ); // (hit record, step 2)
     if(cvar_hget(cvarh_vr_positional_damage) == 0)
     {
         return 1;
@@ -1467,6 +1472,7 @@ void(entity p, string xWhy) VR_Climb_KnockOff =
 
 void(entity targ) VR_Ragdoll_NoteDeathHit =
 {
+    VR_Hit_CheckAt(1, "ragdoll death hit", targ); // (hit record, step 2)
     float part = -1;
     vector at = '0 0 0';
     if(vr_hitpart_target == targ && vr_hitpart_time == time)

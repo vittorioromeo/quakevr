@@ -25,6 +25,7 @@ float vr_hst_test;             // in a test (VR_HitStagger_Test): each roll prin
 // fifth of its box.
 float(entity e, vector xAt) VR_HitStagger_Head =
 {
+    VR_Hit_CheckAt(8, "stagger head", e); // (hit record, step 2)
     if(vr_hitpart_time == time && vr_hitpart_target == e)
     {
         return vr_hitpart == 1;

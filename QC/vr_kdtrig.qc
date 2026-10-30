@@ -225,6 +225,7 @@ float(float i, entity e, entity inflictor, entity attacker, float xDamage, vecto
     }
     if(i == 3) // shotgun
     {
+        VR_Hit_CheckAt(512, "kdtrig shotgun", e); // (hit record, step 2)
         if(!(inflictor == attacker && (attacker.flags & FL_CLIENT) && vr_hitpellets > 0))
         {
             return FALSE;

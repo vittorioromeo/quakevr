@@ -275,6 +275,7 @@ string(float xRegion) VR_Dummy_RegionName =
 // Where it struck, in words (starting with ", "; "" when unknown); a headshot turns the number yellow.
 string(entity targ, float isVRMelee) VR_Dummy_Part =
 {
+    VR_Hit_CheckAt(64, "dummy part", targ); // (hit record, step 2)
     if(vr_hitkind == QVR_HITKIND_SPLASH)
     {
         return "";
@@ -341,6 +342,7 @@ string(entity targ, float isVRMelee) VR_Dummy_Part =
 vector(entity targ, entity inflictor, entity attacker) VR_Dummy_HitPoint =
 {
     vector p;
+    VR_Hit_CheckAt(64, "dummy point", targ); // (hit record, step 2)
     if(vr_hitkind != QVR_HITKIND_NONE && vr_hitpos != '0 0 0')
     {
         p = vr_hitpos;
