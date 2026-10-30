@@ -2337,6 +2337,31 @@ forced materials): the old counts. Baseline cases (run_baseline.py vs baseline.t
 test's own newer checks), flare_1, walltorch_grab, empty_melee, secret_hits and dead_gear (as the baseline): no case
 changed. gunfx_test.py 29/0. Build: 0 warnings, check_canonical clean. A/B bench (LTO, exclusive, ABBA, scratch/ab_bench.sh: A = origin/next + the trace, B = the table; cpu busy ms): combat_48 A 2.64 (2.69, 2.58), B 2.44 (2.43, 2.46): -7.3%; play_gore_fight A 2.36 (2.30, 2.42), B 2.40 (2.41, 2.38): +1.4%. Both within the runs' spread (A's own runs differ 4-5%): no cost measured. (The planned ABBAABBA stopped after 4 runs: the exe was busy at the swap.)
 
+
+## Backpacks' hit box (branch `agent/bpfix`)
+
+- **His report**: "backpacks dropped by enemies have a much larger hitbox than expected against player projectiles (e.g.
+  nails)". Cause: a dropped backpack (DropBackpack) is a loose Box3D prop, `SOLID_NOT_BUT_TOUCHABLE` with `FL_ITEM`, and
+  SV_LinkEdict grows an FL_ITEM's abs box 15 units each way across (for pickups: 45 x 45 units round a 15-unit bag). The
+  nail's own move passed it (touchable, no takedamage), but with `vr_gameplayfix_touchsolids 1` (quakevr.cfg) the bag's
+  link touched every solid whose abs box overlapped that grown box (vr_physics.cpp `touch`), so the nail's touch ran with
+  the bag as `other`: stopped and puffed up to ~22 units off the bag, and where the overlap fell between two frames a nail
+  went on through the bag having pushed it (the push, `physicsshot`, meets the real shape).
+- **Fix** (engine): a flying missile (MOVETYPE_FLYMISSILE: nails, rockets, lasers) meets a dropped pickup lying loose
+  (touchable, FL_ITEM, a Box3D prop: `box3d::missileMeetsItem`) in its own move, at the item's drawn box as it lies
+  (`VR_ItemShotClip` in SV_ClipToLinks: the explosive boxes' turned shot box, `shotShape`/`traceProp`), and the touch of
+  the two overlapping no longer calls either's touch. Pickups (the player's touches and hands), grabbing, force grab, carry
+  and the bag's physics are untouched (only missile/item pairs). Under `vr_box3d_shot_shape` (Shots Meet Their Shape,
+  default 1); 0 gives the old behaviour.
+- **Test**: `vr_nail_test 3` (and vr_nail_test 1's new last step; Debug > Tests > Nail Pistol > Nails at a Dropped
+  Backpack): a backpack dropped as a monster drops it, settled 30 frames; nails one at a time across it at its middle's
+  height (-30..30, 2-unit steps) and over it (0..24 up), the drawn box computed in QC from drawnbounds and its angles as
+  held::axesFromAngles turns it. Checks: the middle met, none beyond the box's reach (+1), every hit at the box (within
+  1.5), no nail through it having moved it. After: 4/0 (met -8..8, reach 8.7; up to 8, reach 8.4; 14 hits, 0 off). With
+  `vr_box3d_shot_shape 0` (the old path): 2 FAIL (13 of 13 hits away from the bag, 2 nails through it).
+- **Checked**: the covering cases vs baseline.tsv (run_baseline.py, 12 cases): nail_1 7/0 -> 11/0 (the new step), np_1 21/0 -> 23/0 (known: its newer checks), the rest as the baseline (pickup_mag, mapgun_pickup, mapgun_transfer,
+  flash_grab, shot_shape, held_over_props, throw_spin, ragdoll_grab, prop_climb; weapon_catch 3/2 as the baseline). Build: 0 warnings, checks clean.
+- **Checklist**: shoot nails just past a backpack a grunt dropped: they fly by; at it: they hit it and nudge it; walk over it, grab it, force-grab it: as before.
 ## One hit record, part 1: where a hit struck (branch `agent/hitrecord`; design review 6)
 
 **What:** the "where did it strike" half of proposal 6, in the review's three steps (one commit each). A shot's or a

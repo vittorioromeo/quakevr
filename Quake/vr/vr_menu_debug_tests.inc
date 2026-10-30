@@ -1028,7 +1028,12 @@ za::Vector<Item> pageDebugTests()
         command("Nail Speed and Size Test", "vr_nail_test 1")
             .help("Headless: the nailguns', the nail pistol's and an armed grunt's nails' speed (15-20% above 1750 and "
                   "2600), a nail's hit box (a point; a grunt met only within its box and the tolerance, the middle never "
-                  "missed) and the nails' drawn size (\"nailtest: N passed, M failed\")."),
+                  "missed), the nails' drawn size and a dropped backpack lying ahead met only where it is drawn "
+                  "(\"nailtest: N passed, M failed\")."),
+        command("Nails at a Dropped Backpack", "vr_nail_test 3")
+            .help("Headless: a backpack dropped as a monster drops it, settled; nails across and over it meet it only at "
+                  "its drawn box as it lies, none beyond it (not the pickup box 15 units wider), none flying through it "
+                  "(\"nailtest: N passed, M failed\")."),
         toggle("Slide: Print", vr_nailslide_debug)
             .help("vr_nailslide_debug: the slide's place in each hand every frame it moves (0 home .. 1 back by Slide "
                   "Travel) and its edges: a shot, the lock, the re-rack (\"nailslide: ...\")."),

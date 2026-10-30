@@ -324,6 +324,8 @@ int VR_PropClip (struct edict_s *mover, struct edict_s *touch, const float *star
 	const float *boxmins, const float *boxmaxs, const float *end, trace_t *trace); // SV_ClipToLinks: a player's own box (mins, maxs; boxmins, boxmaxs as it meets entities) against a solid prop's drawn box, turned (vr_box3d_player_shape): nonzero if traced
 int VR_PropShotClip (struct edict_s *mover, struct edict_s *touch, const float *start, const float *mins, const float *maxs,
 	const float *end, int type, trace_t *trace); // SV_ClipToLinks: a shot or a missile (type: SV_Move's, with its flags; mover: the passedict) against a solid prop's drawn box, turned (vr_box3d_shot_shape; the flying grappling hook always): nonzero if traced
+int VR_ItemShotClip (struct edict_s *mover, struct edict_s *touch, const float *start, const float *mins, const float *maxs,
+	const float *end, trace_t *trace); // SV_ClipToLinks: a flying missile against a dropped pickup lying loose (a backpack: touchable, FL_ITEM) at its drawn box as it lies (vr_box3d_shot_shape): -1 not one (Quake's rules), 0 passes it, 1 met (trace filled)
 void VR_MissileHitDebug (struct edict_s *ent, struct edict_s *other, const trace_t *trace); // SV_PushEntity: a flying thing's move met other (vr_debug_missiles prints it)
 int VR_StandsOn (struct edict_s *ent, struct edict_s *ground, const float *normal);	// SV_FlyMove, a floor that isn't SOLID_BSP (met at normal): nonzero if it is ground to ent (a player on a solid Box3D prop's face no steeper than vr_box3d_player_slope)
 int VR_CorpseBox (struct edict_s *mover, struct edict_s *touch, const float *start, const float *mins, const float *maxs,
