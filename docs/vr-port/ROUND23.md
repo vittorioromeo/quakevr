@@ -1167,3 +1167,33 @@ No behaviour change intended; the kits are listed in CODE_STYLE.md, "Kits (refac
   walltorch_grab) as baseline.tsv but autopump 7/7 (known); Holster Setup and Edit Blade Shape opened, pressed, undone,
   cancelled by their commands (say lines as before).
 - Bench (LTO, exclusive, idle_e1m1 + particles_dense + explosions_3s, 3 reps; this branch, origin/next, this branch again): frame and GPU times within noise, heap allocations the same; CPU busy +3-5% in the first run and -5-14% in the rerun (order noise, benchresults/b2_new, b2_base, b2_new2). A render-scale 0.8 eyeshot printed no incomplete-framebuffer warning (its PNG hash differs between two runs of the same exe, so hashes cannot compare builds).
+
+## Refactor wave B3, group G3: render/fx/audio and campaigns (branch `agent/refb3rc`)
+
+No behaviour change. Steps of the brief (refactor_plan.md, TRIAGE.md wave B):
+
+1. **Inline spellings onto the canonical helpers.** 98 `glm::vec3{p[0], p[1], p[2]}` and three-line `out[i] = v.x/y/z`
+   stores in 27 R files -> `geom::vec` / `geom::store`. 14 PR_PushQCVM/PopQCVM pairs (lootbeams, mgroups, view_diag,
+   portals, and portals' three local `PopVm` structs) -> `progs::ServerVm`; 4 `num_edicts` loops -> `progs::forEachEdict`
+   (lootbeams empty test, mgroups live list and VR_MonsterHealth_Frame, brushes' stray-entity sweep); 6 point SV_Move
+   calls -> `worldtrace::serverLine` (portals x5, brushes' floor probe). QC: MGH_RespawnAllPlayers -> VR_Player /
+   VR_NextPlayer.
+   Left as they are (guards or semantics differ): `EDICT_NUM(1)` / `svs.clients[0].edict` where the guard is only
+   `sv.active && maxclients >= 1` (localPlayer() also needs client 0 active: lootbeams test, brushes, portals x4);
+   box traces (SV_Move with mins/maxs: brushes_diag, portals x4) and portals' own trace hooks (MOVE_HITPASS with
+   const inputs); loops with an early stop or a second bound (brushes' adopt loop `&& !num`, view_diag's
+   `i < cl.num_entities`, portals' trigger_teleport scan); vr_ambient's byte lightmap read and vr_lighting's matrix
+   rows; by-name lookups with no handle yet: `ED_FindFieldOffset("mangle")` (portals; needs a vr_fields.inc row, S
+   area), `Cvar_VariableValue("skill")` (voicenotes; the engine has no extern for `skill`), one-off findFunction calls
+   in test commands and VR_AD_WorldOnDemand (once a map).
+2. **File splits.** vr_glsl.h (3698 lines) -> vr_glsl_lighting.h (shadows, AO, zfix), vr_glsl_surface.h (parallax,
+   specular AA, detail, liquids), vr_glsl_world.h, vr_glsl_alias.h; vr_glsl.h keeps its head (post-process, frame data)
+   and tail (gates, sprites, cluster spots, temporal) and includes the four in the old order. Macros only, so every
+   shader's text is unchanged. Not done this round: ao cache/bake, audiotest, view body pieces, the other inventory
+   splits (particles, relight, audio, brushes, portals, vr_arena_test.qc) — each needs its anonymous-namespace state
+   moved to an `_internal.hpp`.
+3. **Long functions.** None split this round (buildMesh in vr_water.cpp 466 lines, R07/R35-R37, C30 left for a later
+   wave).
+
+Checks: build 0 warnings and all checks; covering baseline cases (teleporters, collectfx, mapflameburn, swim_sound,
+vrtrailer, selfchecks, stats_levelchange, dead_gear, explosion_debris, arena 1/5) as in baseline.tsv.
