@@ -1508,6 +1508,43 @@ read every pak's directory.
   70 -> 6 ms (vrtesthall), 77 -> 6 (vrstart), 16 -> 5 (e1m1), 20 -> 6 (hip2m5). Warm loads unchanged (144-293 ms: the
   models are kept). Scripts: scratch/load5_ab.sh, load5_abstats.py (not committed).
 
+## Nail pistol: a full-slide look (branch `agent/npslide2`)
+
+His words (2026-10-30): the model should have a full slide on top like an actual pistol, as a testable alternative, the
+current one kept to fall back to.
+
+- **The setting:** `vr_nailpistol_model` 0 (default: Classic, the copper slide on top) / 1 (Full Slide); VR Settings >
+  Combat > Weapon Damage > Nail Pistol Model, under Slide Cycle. Live: every copy of the gun (hands, holsters, armed
+  grunts' props, items, the toolgun's) changes at once.
+- **One file, two looks:** `progs/v_nailpistol.mdl` keeps its classic frames 0 `rest` / 1 `rest1` byte for byte (same
+  vertices, triangles, box, scale_origin; the skin's first 256 rows) and gains frames 2 `slide` / 3 `slide1` and 364
+  triangles. Each look's own triangles are folded to one point inside the gun in the other look's frames (zero area,
+  nothing drawn); the grip, guard, trigger, muzzle and sights are shared. `VR_NailSlidePose` (vr_nailslide.cpp) draws
+  frames 0/1 or 2/3 by the setting, with the slide logic unchanged (the server's frame 1 = back, its share either way).
+  Why not a second .mdl: the model's scale_origin is the corner the game scales the gun about (vr_render.cpp), its
+  bounds the held boxes; a first try that grew the box moved the drawn gun in the hand (seen in eyeshots), so the box
+  is the classic one. Its frame 3 can then hold the slide only 12 x steps back (0.651 units; the box ends there):
+  the game blends past frame 3 (blend up to 3 / 0.651 = 4.6, a pure translation in whole byte steps, every vertex alike;
+  `mix` in the shader extrapolates), so Slide Travel 0..3 works the same in both looks.
+- **The model** (`Misc/quakevr/models_src/nailpistol/build_nailpistol_slide.py`, new, pure Python: run after
+  export_mdl.py; on its own output it writes the same file again): a frame (lower receiver z 1.0..1.7 in design units,
+  a dust cover in front, hiding the grip's top; dark iron), a slide (x -4.6..7.3, the seam at z 1.7, walls +-1.2 to
+  4.7, chamfered to a 1.8 wide top at 5.0: the three vents as slide cuts where they were, an ejection port on the right
+  side with the copper feed block and two nails in it, rear cocking serrations both sides, two rivets a side; the
+  sights ride on it at their classic places, so the sight-alignment table holds), a copper hexagonal barrel on the
+  bore that shows when the slide is back, a ring closing the nozzle's back. Walls and caps are gridded on every break
+  (no T-junctions). The skin grows to 256x512: the new parts painted below row 256 by the script, after
+  build_nailpistol.py's painter (rust, pitting, worn edges, rivet domes; crevices by distance instead of ray-traced
+  occlusion; tone matched to the classic receiver's texels: mean colour 62 46 31 vs 65 48 33).
+- **Vents** (agent/gunfx's vent smoke): at rest exactly where they were; in the full-slide look they ride the slide
+  during a shot's cycle (0.14 s) and while locked open (Slide Travel back).
+- **Checks:** build 0 warnings, all checks. The classic look against the old file (eyeshot, same pose, the gun's
+  crop): mean 1.3 per channel (the two runs' own noise: the sky crop 0.0), drawn in the same place; before the box was
+  kept it was 36 (the gun moved). Eyeshots in qvr-kit/scratch/npslide/: `fullslide_left.png` (left side) and
+  `fullslide_right.png` (right side, the port): classic closed, full slide closed, full slide locked open (travel 1.5),
+  classic locked open; travel 3 classic, full slide.
+- **For him to try:** VR Settings > Combat > Weapon Damage > Nail Pistol Model; fire it dry to see it lock open, put a
+  magazine in to see the re-rack; Slide Travel 3 to see the barrel. If he picks Full Slide, its default becomes 1.
 ## One test harness, part 1: one library, one parser, one tally (branch `agent/oneharness`; design review 7)
 
 - **Library**: `Misc/quakevr/qvrtest.py` (KIT, tree, run, run_sh, lanes, `Tally`, the parser `FAIL_LINE` / `counts` /
