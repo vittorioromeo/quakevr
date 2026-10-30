@@ -23,23 +23,33 @@ struct qmodel_s;
 namespace qvr::impacts
 {
 
+// The table's keys, the QC's too (vr_impact_shared.h's VR_MAT_*, VR_HIT_*: the same numbers).
 enum class Material : int
 {
-    None,  // not a surface (sky, liquids, clip), or none near
-    Stone, // stone, brick, concrete, the rest
-    Dirt,  // ground, grass, mud, sand, rock faces (debris::Material::Natural)
-    Metal,
-    Wood,
-    Flesh, // (QC's living things: their blood's own path)
+    None,    // not a surface (sky, liquids, clip), or none near
+    Stone,   // stone, brick, concrete, the rest; a blunt blow on the world
+    Dirt,    // ground, grass, mud, sand, rock faces (debris::Material::Natural)
+    Metal,   // a metal surface; an explosive box, a fuel tank, a door, a lift (QC VR_Hit_Metal)
+    Wood,    // a wooden surface; a crate, its pieces (QC VR_Crate_Wooden)
+    Flesh,   // a living thing, a corpse, a gib, the rest of what takes a hit
+    Armour,  // flesh in mail or plate (QC VR_Hit_Armoured)
+    Torch,   // a wall torch (its own embers)
+    Grenade, // a grenade shots set off
     Count
 };
 
 enum class HitKind : int
 {
-    Bullet,    // a pellet, a bullet (TE_GUNSHOT)
-    Nail,      // TE_SPIKE
+    Bullet,    // a pellet, a bullet (TE_GUNSHOT; a thing's: TraceAttack)
+    Nail,      // TE_SPIKE (a thing's: a projectile's touch, spawn_touchblood)
     SuperNail, // TE_SUPERSPIKE
     Bolt,      // the thunderbolt's beam playing on it
+    Pellet,    // a projectile pellet on no flesh (QC VR_HitNonFlesh)
+    Blow,      // a melee blow (QC VR_HitBlood, SpawnBlood); a blunt blow's sounds
+    Blade,     // a blade's blow's sound
+    Splash,    // a blow sprayed every way (QC VR_HitBloodSplash, SpawnBloodSplash)
+    Saw,       // the chainsaw's tick
+    Bash,      // a blunt blow's or a thrown thing's knock; a thrown thing's splinters
     Count
 };
 
@@ -51,6 +61,13 @@ void hit(HitKind kind, const glm::vec3& org);
 
 // A beam (CL_ParseBeam) of model `model` from entity `ent`: the thunderbolt's haze where it ends on a surface.
 void beam(const qmodel_s* model, int ent, const glm::vec3& start, const glm::vec3& end);
+
+// QC: float impact(float material, float kind, vector org, vector dir, float amount): the row's effect on a thing
+// (one particle2 message; vr_debug_impacts prints it), its preset (0: none sent).
+void PF_impact();
+// QC: string impactsound(float material, float kind, float slot): a sample of the row's sound set in `slot`
+// (VR_IMPACT_SOUND, _LAYER, _OVER), picked with one of QC's random() numbers; "" when it has none (no number drawn).
+void PF_impactsound();
 
 void clear();
 void registerCommands(); // vr_impact_test

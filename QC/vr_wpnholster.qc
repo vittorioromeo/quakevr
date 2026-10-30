@@ -193,7 +193,7 @@ void() forcegrabbable_touch =
         // hit something that bleeds
         if(GetThrownWeaponDealDamage(self) && other.takedamage)
         {
-            VR_SoundVaried(self, CHAN_AUTO, VR_Hit_Metal(other) ? VR_Metal_Sound(VR_METAL_BLADE) : "fisthit.wav", 1, ATTN_NORM); // (an explosive box: a clang)
+            VR_SoundVaried(self, CHAN_AUTO, VR_Hit_Metal(other) ? impactsound(VR_MAT_METAL, VR_HIT_BLADE, VR_IMPACT_SOUND) : "fisthit.wav", 1, ATTN_NORM); // (an explosive box: a clang)
             VR_Blunt_HitLayer(self, CHAN_AUTO, other);
 
             // Where it struck, and going which way (not the trace globals, stale in a touch).

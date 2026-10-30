@@ -331,12 +331,6 @@ float(entity targ, entity inflictor, entity attacker, float damage, float xMelee
     return TRUE;
 };
 
-// Where a shot or a blow meets a grenade: sparks, not blood (TraceAttack, spawn_touchblood, VR_HitBlood).
-void(vector xAt) VR_GrenShot_Sparks =
-{
-    particle2(xAt, '0 0 40', QVR_PARTICLE_PRESET_SPARKS, 8);
-};
-
 // Whether grenades of this kind are catchable (vr_grenade_catch: 1 the ogres', 2 also the player's).
 float(float xPlayers) VR_Grenade_On =
 {
