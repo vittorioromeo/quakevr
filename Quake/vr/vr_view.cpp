@@ -1,6 +1,7 @@
 // vr_view.cpp -- see vr_view.hpp. Ported from the old engine's view.cpp (V_RenderView_*).
 
 #include "vr_view_internal.hpp"
+#include "vr_kickcancel.hpp"
 #include "vr_holsterzones.hpp"
 #include "vr_gunsfx.hpp"
 #include "vr_holstersetup.hpp"
@@ -10,6 +11,7 @@
 #include "vr_adweapons.hpp"
 #include "vr_mdldequant.hpp"
 #include "vr_meleeshow.hpp"
+#include "vr_nailslide.hpp"
 #include "vr_seated.hpp"
 #include "vr_ragtool.hpp"
 #include "vr_flatplay.hpp"
@@ -550,6 +552,7 @@ void view::prepareWorldWeapons()
         }
         anchor::prepare(model, weapons::anchor(slot, Key::WpnButtonAnchor));
         anchor::prepare(model, weapons::anchor(slot, Key::WpnTextAnchor));
+        kickcancel::prepare(model); // (its firing frames' kick fitted now, not as it is first drawn)
     }
 }
 
@@ -1573,7 +1576,7 @@ void idleAttachments(const entity_t& e, bool mirrored, int slot, view::ViewEntit
 
     if(on && queueText && vr_show_weapon_text.value && weapons::value(slot, Key::WpnTextMode) != 0.f)
     {
-        const glm::vec3 pos = view::anchorPosition(e, mirrored, 0.f,
+        const glm::vec3 pos = view::screenPosition(e, mirrored, 0.f,
             weapons::anchor(slot, Key::WpnTextAnchor),
             weapons::vec(slot, Key::WpnTextX, Key::WpnTextY, Key::WpnTextZ));
         glm::vec3 angles = weapons::vec(slot, Key::WpnTextPitch, Key::WpnTextYaw, Key::WpnTextRoll);
@@ -1722,7 +1725,11 @@ void setupHolsters(const hands::State& s, bool queueTexts)
         }
 
         view::ViewEntity& ve = entities.holster[h];
-        place(ve, model, pose.weaponPos, pose.weaponAngles, holsteredGrappleOut(model, pose.weaponPos) ? 2 : 0, mirrored);
+        // (a nail pistol put away empty: its slide locked back as in the hand, frame 1: vr_nailslide.cpp)
+        const int holsteredFrame = holsteredGrappleOut(model, pose.weaponPos)                                         ? 2
+                                   : nailslide::holsterLocked(model, clip, holsterStat(h, protocol::STAT_QVR_HOLSTERWEAPONFLAGS0)) ? 1
+                                                                                                                       : 0;
+        place(ve, model, pose.weaponPos, pose.weaponAngles, holsteredFrame, mirrored);
         ve.ent.skinnum = weapons::drawnSkin(model, clip); // (the flare gun's barrels fired)
         highlight(ve, hover || holstersetup::highlighted(static_cast<int>(bodyHolster[h])));
         // Just holstered: eased from the hand into the holster (vr_drawblend.cpp).
@@ -3701,9 +3708,8 @@ namespace
         m[2] * v.x + m[6] * v.y + m[10] * v.z + m[14]};
 }
 
-} // namespace
-
-glm::vec3 anchorPosition(const ViewEntity& ve, const char* anchor, const glm::vec3& extra)
+// anchorPosition's, the anchor moved `shift` in the model's byte space.
+[[nodiscard]] glm::vec3 shiftedAnchor(const ViewEntity& ve, const char* anchor, const glm::vec3& extra, const glm::vec3& shift)
 {
     const entity_t& e = ve.ent;
     if(!e.model || e.model->type != mod_alias)
@@ -3712,14 +3718,15 @@ glm::vec3 anchorPosition(const ViewEntity& ve, const char* anchor, const glm::ve
     }
     float m[16];
     render::anchorMatrix(ve, extra, m);
-    return bytePoint(m, anchor::posedAnchor(e, anchor, ve.zeroBlend));
+    return bytePoint(m, anchor::posedAnchor(e, anchor, ve.zeroBlend) + shift);
 }
 
-glm::vec3 anchorPosition(const entity_t& e, bool mirrored, float zeroBlend, const char* anchor, const glm::vec3& extra)
+[[nodiscard]] glm::vec3 shiftedAnchor(
+    const entity_t& e, bool mirrored, float zeroBlend, const char* anchor, const glm::vec3& extra, const glm::vec3& shift)
 {
     if(const ViewEntity* ve = find(&e))
     {
-        return anchorPosition(*ve, anchor, extra);
+        return shiftedAnchor(*ve, anchor, extra, shift);
     }
     if(!e.model || e.model->type != mod_alias)
     {
@@ -3727,7 +3734,29 @@ glm::vec3 anchorPosition(const entity_t& e, bool mirrored, float zeroBlend, cons
     }
     float m[16];
     render::entityMatrix(e, mirrored, e.scale ? e.scale : ENTSCALE_DEFAULT, extra, m);
-    return bytePoint(m, anchor::posedAnchor(e, anchor, zeroBlend));
+    return bytePoint(m, anchor::posedAnchor(e, anchor, zeroBlend) + shift);
+}
+
+} // namespace
+
+glm::vec3 anchorPosition(const ViewEntity& ve, const char* anchor, const glm::vec3& extra)
+{
+    return shiftedAnchor(ve, anchor, extra, glm::vec3{0.f});
+}
+
+glm::vec3 anchorPosition(const entity_t& e, bool mirrored, float zeroBlend, const char* anchor, const glm::vec3& extra)
+{
+    return shiftedAnchor(e, mirrored, zeroBlend, anchor, extra, glm::vec3{0.f});
+}
+
+glm::vec3 screenPosition(const ViewEntity& ve, const char* anchor, const glm::vec3& extra)
+{
+    return shiftedAnchor(ve, anchor, extra, nailslide::screenShift(ve.ent));
+}
+
+glm::vec3 screenPosition(const entity_t& e, bool mirrored, float zeroBlend, const char* anchor, const glm::vec3& extra)
+{
+    return shiftedAnchor(e, mirrored, zeroBlend, anchor, extra, nailslide::screenShift(e));
 }
 
 glm::vec3 vertexPosition(const ViewEntity& ve, int vertex)
@@ -4816,6 +4845,10 @@ extern "C" void VR_SetupViewEntities()
     {
         QVR_PROFILE("view world weapons");
         setupWorldWeapons(s, idleTexts);
+    }
+    if(idleTexts && vr_np_probe.value != 0.f)
+    {
+        nailslide::probe(); // (the nail pistol's test: what is drawn, vr_np_seen_*)
     }
     {
         QVR_PROFILE("view body");

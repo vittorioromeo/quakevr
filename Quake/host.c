@@ -459,9 +459,10 @@ void Host_Callback_Notify (cvar_t *var)
 Host_WriteConfigurationToFile
 
 Writes key bindings and archived cvars to specified file
+QVR: true when written (false: not written, the old file kept)
 ===============
 */
-void Host_WriteConfigurationToFile (const char *name)
+qboolean Host_WriteConfigurationToFile (const char *name)
 {
 	FILE	*f;
 
@@ -482,7 +483,7 @@ void Host_WriteConfigurationToFile (const char *name)
 		if (!f)
 		{
 			Con_Printf ("Couldn't write %s.\n", name);
-			return;
+			return false;
 		}
 
 		//VID_SyncCvars (); //johnfitz -- write actual current mode to config file, in case cvars were messed with
@@ -502,7 +503,7 @@ void Host_WriteConfigurationToFile (const char *name)
 		{
 			Con_Printf ("\x02" "Couldn't write %s (the disk full?): the file was kept as it was\n", name);
 			Sys_remove (tmpname);
-			return;
+			return false;
 		}
 		if (mainconfig)
 			VR_ConfigWritten (fullname);
@@ -510,7 +511,9 @@ void Host_WriteConfigurationToFile (const char *name)
 		Con_SafePrintf ("Wrote ");
 		Con_LinkPrintf (fullname, "%s", name);
 		Con_SafePrintf (".\n");
+		return true;
 	}
+	return false;
 }
 
 /*
@@ -592,21 +595,26 @@ void Host_InitLocal (void)
 Host_WriteConfiguration
 
 Writes key bindings and archived cvars to engine config file
+QVR: and tunables.cfg. The one path for quit, a game change and the menu's Save Default (vr_propose_defaults: kept on
+disk right away, should the game crash). True when both are on disk as they are now (false: -noconfigwrite, the
+config not loaded, or a write failed; each prints why but -noconfigwrite).
 ===============
 */
-void Host_WriteConfiguration (void)
+qboolean Host_WriteConfiguration (void)
 {
 	// QVR: a second copy of the game (the motion review's re-evaluation) leaves the config alone. -evalcopy implies
 	// -noconfigwrite: the copy is started with -evalcopy, so it never writes a config of its own (the line naming the
 	// implication is printed once, COM_CheckParmImplied).
 	if (COM_CheckParmImplied ("-noconfigwrite", "-evalcopy", "the evaluation's copy of the game never writes the config"))
-		return;
+		return false;
 	if (config_not_loaded) // QVR: the saved config could not be run (Cmd_Exec_f): writing this game's defaults would lose it
 	{
 		Con_Printf ("Not writing %s: it was not loaded\n", CONFIG_NAME);
-		return;
+		return false;
 	}
-	Host_WriteConfigurationToFile (CONFIG_NAME);
+	const qboolean config = Host_WriteConfigurationToFile (CONFIG_NAME);
+	const qboolean tunables = VR_TunablesWrite (); // QVR: tunables.cfg, the tuning constants set off their defaults (a development build)
+	return config && tunables;
 }
 
 

@@ -445,6 +445,9 @@ inline constexpr Page pages[] = {
     {"Graphics - Shoreline Foam", pageGraphicsFoam, pageGraphicsLiquids}, // (vr_menu_pages.inc; vr_water.cpp foamLook)
     {"Death Sergeant's Flail", pageFlail, pageMeleeSettings}, // AD support (vr_menu_ad_guns.inc; vr_box3d_flail.cpp)
     {"Survival Arena", pageArena, pageCombat}, // (vr_menu_gameplay.inc; QC vr_arena.qc, vr_arena_perks.qc)
+#ifndef QVR_RELEASE
+    {"Tunables", pageTunables, pageDebug, LevelDeveloper}, // a development build's (vr_menu_tunables.inc; vr_tunables.cpp)
+#endif
 };
 inline constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));
 

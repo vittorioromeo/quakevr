@@ -10,6 +10,7 @@
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
 #include "vr_random.hpp"
+#include "vr_sndlayer.hpp"
 #include "vr_trace.hpp"
 
 #include "Zancle/Base/GetArraySize.hpp"
@@ -53,6 +54,14 @@ enum class Sound : int
     WoodLayer,  // on wood
     FleshLayer, // on a body
     MetalLight, // armour's light metal knock over the flesh
+    // The world's surfaces hit (the client's, `surface`: made as they load, surfaceSounds):
+    StoneShot,     // a bullet on stone: a dull thud, a stony crack, a little grit after
+    DirtShot,      // on dirt: a duller, softer thud
+    MetalRicochet, // on metal: Quake's ricochets over a light metal ring
+    WoodShot,      // on wood: a hollow knock, a splinter's crack
+    StoneNail,     // a nail's: shorter, higher, lighter (Quake's own tink plays over it, cl_tent.c)
+    DirtNail,
+    WoodNail,
     Count
 };
 
@@ -61,6 +70,68 @@ struct SoundSet
     const char* samples[4];
     float below[4]; // sample i when the number is below below[i] (the last: any)
 };
+
+// The surfaces' sounds, made from the game's own as they load (vr_sndlayer.cpp VR_SndLayered: nothing shipped, his
+// rule), three takes of each.
+constexpr int takes = 3;
+constexpr int surfaceSets = 7; // (Sound::StoneShot .. WoodNail)
+constexpr const char* surfaceNames[surfaceSets][takes] = {
+    {"vr/derived/impact_stone_bullet1.wav", "vr/derived/impact_stone_bullet2.wav", "vr/derived/impact_stone_bullet3.wav"},
+    {"vr/derived/impact_dirt_bullet1.wav", "vr/derived/impact_dirt_bullet2.wav", "vr/derived/impact_dirt_bullet3.wav"},
+    {"vr/derived/impact_metal_bullet1.wav", "vr/derived/impact_metal_bullet2.wav", "vr/derived/impact_metal_bullet3.wav"},
+    {"vr/derived/impact_wood_bullet1.wav", "vr/derived/impact_wood_bullet2.wav", "vr/derived/impact_wood_bullet3.wav"},
+    {"vr/derived/impact_stone_nail1.wav", "vr/derived/impact_stone_nail2.wav", "vr/derived/impact_stone_nail3.wav"},
+    {"vr/derived/impact_dirt_nail1.wav", "vr/derived/impact_dirt_nail2.wav", "vr/derived/impact_dirt_nail3.wav"},
+    {"vr/derived/impact_wood_nail1.wav", "vr/derived/impact_wood_nail2.wav", "vr/derived/impact_wood_nail3.wav"},
+};
+
+constexpr SoundSet surfaceSet(int set)
+{
+    return {{surfaceNames[set][0], surfaceNames[set][1], surfaceNames[set][2], nullptr}, {0.34f, 0.67f, 2.f, 0.f}};
+}
+
+using sndlayer::LayeredSound;
+using sndlayer::SoundFx;
+using sndlayer::SoundLayer;
+
+constexpr const char* softH[takes] = {"vr/phys/soft_h1.wav", "vr/phys/soft_h2.wav", "vr/phys/soft_h3.wav"};
+constexpr const char* softM[takes + 1] = {"vr/phys/soft_m1.wav", "vr/phys/soft_m2.wav", "vr/phys/soft_m3.wav", "vr/phys/soft_m4.wav"};
+constexpr const char* woodH[takes] = {"vr/phys/wood_h1.wav", "vr/phys/wood_h2.wav", "vr/phys/wood_h3.wav"};
+constexpr const char* woodM[takes] = {"vr/phys/wood_m1.wav", "vr/phys/wood_m2.wav", "vr/phys/wood_m3.wav"};
+constexpr const char* metalL[takes] = {"vr/phys/metal_l1.wav", "vr/phys/metal_l2.wav", "vr/phys/metal_l3.wav"};
+constexpr const char* rics[takes] = {"weapons/ric1.wav", "weapons/ric2.wav", "weapons/ric3.wav"};
+
+constexpr std::array<LayeredSound, surfaceSets * takes> makeSurfaceSounds()
+{
+    std::array<LayeredSound, surfaceSets * takes> out{};
+    for(int i = 0; i < takes; i++)
+    {
+        const float f = static_cast<float>(i);
+        // (source, rate, gain, delay, length, fade)
+        out[0 * takes + i] = {surfaceNames[0][i],
+            {{softH[i], 1.3f + 0.06f * f, 0.9f, 0.f, 0.16f, 0.08f}, {"weapons/tink1.wav", 0.5f + 0.06f * f, 0.28f, 0.f, 0.06f, 0.04f},
+                {"weapons/bounce.wav", 1.6f, 0.3f, 0.f, 0.09f, 0.05f}, {softM[i + 1], 2.2f, 0.25f, 0.03f, 0.08f, 0.05f}},
+            0.8f, SoundFx{0.f, 0.f, 0.f, 0.f, 0.9f}};
+        out[1 * takes + i] = {surfaceNames[1][i],
+            {{softM[i], 0.9f + 0.05f * f, 1.f, 0.f, 0.2f, 0.12f}, {"weapons/bounce.wav", 1.05f, 0.45f, 0.f, 0.12f, 0.08f}}, 0.6f,
+            SoundFx{1300.f, 0.f, 0.f, 0.f, 0.85f}};
+        out[2 * takes + i] = {surfaceNames[2][i],
+            {{rics[i], 1.06f, 0.8f, 0.f, 0.f, 0.f}, {metalL[i], 1.7f, 0.35f, 0.f, 0.2f, 0.12f}}, 0.5f, SoundFx{0.f, 0.f, 0.f, 0.f, 0.9f}};
+        out[3 * takes + i] = {surfaceNames[3][i],
+            {{woodH[i], 1.4f + 0.06f * f, 0.95f, 0.f, 0.14f, 0.08f}, {"weapons/tink1.wav", 0.68f, 0.25f, 0.f, 0.05f, 0.03f}}, 0.6f,
+            SoundFx{0.f, 0.f, 0.f, 0.f, 0.9f}};
+        out[4 * takes + i] = {surfaceNames[4][i],
+            {{softM[i], 1.7f + 0.08f * f, 0.85f, 0.f, 0.09f, 0.05f}, {"weapons/tink1.wav", 0.6f, 0.18f, 0.f, 0.04f, 0.03f}}, 0.6f,
+            SoundFx{0.f, 0.f, 0.f, 0.f, 0.85f}};
+        out[5 * takes + i] = {surfaceNames[5][i], {{softM[i], 1.2f + 0.06f * f, 0.9f, 0.f, 0.11f, 0.07f}}, 0.5f,
+            SoundFx{1800.f, 0.f, 0.f, 0.f, 0.8f}};
+        out[6 * takes + i] = {surfaceNames[6][i], {{woodM[i], 1.75f + 0.08f * f, 0.9f, 0.f, 0.09f, 0.05f}}, 0.5f,
+            SoundFx{0.f, 0.f, 0.f, 0.f, 0.85f}};
+    }
+    return out;
+}
+
+constexpr std::array<LayeredSound, surfaceSets * takes> surfaceSounds = makeSurfaceSounds();
 
 constexpr SoundSet soundSets[] = {
     {{nullptr, nullptr, nullptr, nullptr}, {0.f, 0.f, 0.f, 0.f}},
@@ -71,6 +142,7 @@ constexpr SoundSet soundSets[] = {
     {{"vr/phys/wood_m1.wav", "vr/phys/wood_m2.wav", "vr/phys/wood_m3.wav", "vr/phys/wood_m4.wav"}, {0.25f, 0.5f, 0.75f, 2.f}},
     {{"vr/phys/flesh_m1.wav", "vr/phys/flesh_m2.wav", "vr/phys/flesh_m3.wav", "vr/phys/flesh_m4.wav"}, {0.25f, 0.5f, 0.75f, 2.f}},
     {{"vr/phys/metal_l1.wav", "vr/phys/metal_l2.wav", "vr/phys/metal_l3.wav", "vr/phys/metal_l4.wav"}, {0.25f, 0.5f, 0.75f, 2.f}},
+    surfaceSet(0), surfaceSet(1), surfaceSet(2), surfaceSet(3), surfaceSet(4), surfaceSet(5), surfaceSet(6),
 };
 static_assert(za::getArraySize(soundSets) == static_cast<int>(Sound::Count));
 
@@ -109,6 +181,10 @@ struct Row
     Sound sound{Sound::None}; // the hit's own (VR_IMPACT_SOUND)
     Sound layer{Sound::None}; // a blunt blow's second layer (VR_IMPACT_LAYER)
     Sound over{Sound::None};  // over the layer (VR_IMPACT_OVER)
+    // A world surface's hit (the client's, at the surface: vr_gunsfx_impacts), how loud. Not where Quake's own sound
+    // already says it: a nail's tink or ricochet on metal (cl_tent.c), the bolt's beam (its own hum).
+    Sound surface{Sound::None};
+    float surfaceGain{0.f};
 };
 
 constexpr int materials = static_cast<int>(Material::Count);
@@ -174,6 +250,19 @@ constexpr Table makeTable()
             r.haze = world[m][k][3];
             r.decal = k == static_cast<int>(K::Bolt) ? Decal::None : Decal::TempEntity;
         }
+    }
+    // Their sounds: a bullet's thud, ricochet or knock; a nail's lighter one under Quake's tink (none of ours on metal:
+    // the tink or ricochet Quake plays with every nail is metal's own); a super nail's louder.
+    const Sound bulletSounds[5] = {Sound::None, Sound::StoneShot, Sound::DirtShot, Sound::MetalRicochet, Sound::WoodShot};
+    const Sound nailSounds[5] = {Sound::None, Sound::StoneNail, Sound::DirtNail, Sound::None, Sound::WoodNail};
+    for(int m = 1; m < 5; m++)
+    {
+        t[m][static_cast<int>(K::Bullet)].surface = bulletSounds[m];
+        t[m][static_cast<int>(K::Bullet)].surfaceGain = m == static_cast<int>(M::Metal) ? 0.55f : 0.6f;
+        t[m][static_cast<int>(K::Nail)].surface = nailSounds[m];
+        t[m][static_cast<int>(K::Nail)].surfaceGain = 0.42f;
+        t[m][static_cast<int>(K::SuperNail)].surface = nailSounds[m];
+        t[m][static_cast<int>(K::SuperNail)].surfaceGain = 0.55f;
     }
     // (Flesh's wall hits: nothing new, the gore's mist comes with the blood: particles.cpp mist, vr_gore_mist.)
     for(const M fleshy : {M::Flesh, M::Armour})
@@ -252,6 +341,28 @@ struct BeamHaze
     double last{-1.0};
 };
 BeamHaze beams[8];
+
+// The surfaces' sounds' cap: at most maxSoundsPerFrame a frame (a shotgun's pellets: one or two, not a dozen), and none
+// within spotRadius of one played less than spotGap ago (a nailgun's stream on one wall: a sound per nail at most
+// every spotGap, every other nail of a super nailgun; Quake's own tink still plays with each nail).
+constexpr int maxSoundsPerFrame = 2;
+constexpr float spotRadius = 64.f;
+constexpr double spotGap = 0.12;
+
+struct SoundSpot
+{
+    glm::vec3 at{0.f};
+    double time{-1e9};
+};
+
+struct SoundCap
+{
+    double frameTime{-1.0};
+    int played{0};
+    SoundSpot spots[8]{};
+    int next{0};
+};
+SoundCap soundCap;
 
 [[nodiscard]] Material ofTexture(const char* name)
 {
@@ -420,9 +531,87 @@ Made emit(const Row& row, Material mat, const Surface& s, float k, float shade)
 // (vr_impact_test's material, -1: the surface's own)
 int forcedMaterial = -1;
 
-void at(HitKind kind, const glm::vec3& org, const glm::vec3& prefer, float reach)
+[[nodiscard]] bool soundsOn()
 {
-    if(!on(vr_gunfx) || !particles::enabled() || !lookupAllowed())
+    return on(vr_gunsfx) && vr_gunsfx_impacts.value > 0.f;
+}
+
+// Whether a sound at `at` keeps under the cap (and if so, counted).
+[[nodiscard]] bool soundAllowed(const glm::vec3& at)
+{
+    SoundCap& c = soundCap;
+    if(c.frameTime != cl.time)
+    {
+        c.frameTime = cl.time;
+        c.played = 0;
+    }
+    if(c.played >= maxSoundsPerFrame)
+    {
+        return false;
+    }
+    for(const SoundSpot& s : c.spots)
+    {
+        if(cl.time >= s.time && cl.time - s.time < spotGap && glm::length(at - s.at) < spotRadius)
+        {
+            return false;
+        }
+    }
+    c.played++;
+    c.spots[c.next] = SoundSpot{at, cl.time};
+    c.next = (c.next + 1) % static_cast<int>(za::getArraySize(c.spots));
+    return true;
+}
+
+// The row's surface sound at the surface hit: one of its takes, a little higher or lower, louder or quieter.
+void sound(HitKind kind, const Row& row, const Surface& s)
+{
+    const char* kindName = kindNames[static_cast<int>(kind)];
+    const char* matName = materialNames[static_cast<int>(s.material)];
+    if(row.surface == Sound::None)
+    {
+        if(vr_debug_gunsfx.value)
+        {
+            Con_Printf("impsnd %s on %s none\n", kindName, matName);
+        }
+        return;
+    }
+    const glm::vec3 org = s.at + s.normal * 1.f;
+    if(!soundAllowed(org))
+    {
+        if(vr_debug_gunsfx.value)
+        {
+            Con_Printf("impsnd %s on %s capped t %.3f\n", kindName, matName, cl.time);
+        }
+        return;
+    }
+    const SoundSet& set = soundSets[static_cast<int>(row.surface)];
+    int n = 0;
+    while(n < 4 && set.samples[n])
+    {
+        n++;
+    }
+    const char* sample = set.samples[za::min(n - 1, static_cast<int>(vrand::range(rng, 0.f, static_cast<float>(n))))];
+    const float vol = za::min(row.surfaceGain * za::clamp(vr_gunsfx_impacts.value, 0.f, 2.f) * vrand::range(rng, 0.82f, 1.f), 2.f);
+    const float pitch = vrand::range(rng, 0.93f, 1.07f);
+    sfx_t* sfx = S_PrecacheSound(sample); // (null without sound: -nosound)
+    if(sfx)
+    {
+        vec3_t o{org.x, org.y, org.z};
+        S_StartSoundPitch(-1, 0, sfx, o, vol, 1.f, pitch); // (spatialised, ATTN_NORM: as Quake's tink)
+    }
+    if(vr_debug_gunsfx.value)
+    {
+        const sfxcache_t* sc = sfx ? S_LoadSound(sfx) : nullptr; // (its samples: made from the game's)
+        Con_Printf("impsnd %s on %s %s vol %.2f pitch %.2f at %.1f %.1f %.1f t %.3f len %d\n", kindName, matName, sample, vol,
+            pitch, org.x, org.y, org.z, cl.time, sc ? sc->length : -1);
+    }
+}
+
+void at(HitKind kind, const glm::vec3& org, const glm::vec3& prefer, float reach, bool fx, bool snd)
+{
+    fx = fx && on(vr_gunfx) && particles::enabled();
+    snd = snd && soundsOn();
+    if((!fx && !snd) || !lookupAllowed())
     {
         return;
     }
@@ -437,6 +626,14 @@ void at(HitKind kind, const glm::vec3& org, const glm::vec3& prefer, float reach
         s.material = static_cast<Material>(forcedMaterial);
     }
     const Row& row = table[static_cast<int>(s.material)][static_cast<int>(kind)];
+    if(snd)
+    {
+        sound(kind, row, s);
+    }
+    if(!fx)
+    {
+        return;
+    }
     const float k = za::clamp(vr_gunfx_intensity.value, 0.f, 3.f);
     vec3_t lp{s.at.x + s.normal.x * 2.f, s.at.y + s.normal.y * 2.f, s.at.z + s.normal.z * 2.f};
     const float light = za::clamp(static_cast<float>(R_LightPoint(lp, 0.f, &lightCache)) / 128.f, 0.f, 1.6f);
@@ -449,8 +646,9 @@ void at(HitKind kind, const glm::vec3& org, const glm::vec3& prefer, float reach
     }
 }
 
-// vr_impact_test <kind 0..3: the world's hits> [count] [material]: a hit of that kind on what you look at (within 1024 units), as if
-// made of `material` (a name of materialNames) if given.
+// vr_impact_test <kind 0..3: the world's hits> [count] [material] [spread]: a hit of that kind on what you look at
+// (within 1024 units), as if made of `material` (a name of materialNames) if given, `count` of them in this frame
+// `spread` units apart sideways (the sounds' cap: vr_debug_gunsfx 1 prints "impsnd ...").
 void test_f()
 {
     const int kind = Cmd_Argc() > 1 ? za::clamp(atoi(Cmd_Argv(1)), 0, clientKinds - 1) : 0;
@@ -474,10 +672,13 @@ void test_f()
         return;
     }
     const glm::vec3 hitAt = worldtrace::endPos(tr) - fwd * 4.f; // (Quake's puff point: 4 units back off the wall)
+    const float spread = Cmd_Argc() > 4 ? za::clamp(static_cast<float>(atof(Cmd_Argv(4))), 0.f, 256.f) : 0.f;
+    const glm::vec3 side{r[0], r[1], r[2]};
+    soundCap = SoundCap{}; // (each test's hits on their own: the cap within its `count`, one frame's)
     for(int i = 0; i < count; i++)
     {
         frame.lookups = 0;
-        at(static_cast<HitKind>(kind), hitAt, fwd, 8.f);
+        at(static_cast<HitKind>(kind), hitAt + side * (spread * static_cast<float>(i)), fwd, 8.f, true, true);
     }
     forcedMaterial = -1;
     Con_Printf("vr_impact_test: %s x%d at %.1f %.1f %.1f\n", kindNames[kind], count, hitAt.x, hitAt.y, hitAt.z);
@@ -558,10 +759,7 @@ const char* materialName(Material m)
 
 void hit(HitKind kind, const glm::vec3& org)
 {
-    if(on(vr_gunfx_impacts))
-    {
-        at(kind, org, glm::vec3{0.f}, 8.f);
-    }
+    at(kind, org, glm::vec3{0.f}, 8.f, on(vr_gunfx_impacts), true);
 }
 
 void beam(const qmodel_s* model, int ent, const glm::vec3& start, const glm::vec3& end)
@@ -591,15 +789,36 @@ void beam(const qmodel_s* model, int ent, const glm::vec3& start, const glm::vec
     b->last = cl.time;
     const glm::vec3 d = end - start;
     const float len = glm::length(d);
-    at(HitKind::Bolt, end, len > 1e-3f ? d / len : glm::vec3{0.f}, 10.f);
+    at(HitKind::Bolt, end, len > 1e-3f ? d / len : glm::vec3{0.f}, 10.f, true, false); // (the beam's hum: no hit sound)
 }
 
 void clear()
 {
     frame = Frame{};
+    soundCap = SoundCap{};
     for(BeamHaze& b : beams)
     {
         b = BeamHaze{};
+    }
+}
+
+const sndlayer::LayeredSound* layered(const char* name)
+{
+    for(const LayeredSound& s : surfaceSounds)
+    {
+        if(!strcmp(s.name, name))
+        {
+            return &s;
+        }
+    }
+    return nullptr;
+}
+
+void prepare()
+{
+    for(const LayeredSound& s : surfaceSounds)
+    {
+        (void)S_PrecacheSound(s.name);
     }
 }
 

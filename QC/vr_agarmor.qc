@@ -509,12 +509,12 @@ void() VR_AgArmor_PelletsClear =
 
 void(entity hit) VR_AgArmor_PelletAdd =
 {
-    if(hit.vr_ar_type <= 0 || !hit.vr_ar_mask || vr_hitpart_target != hit || vr_hitpart_time != time)
+    if(hit.vr_ar_type <= 0 || !hit.vr_ar_mask || !VR_Hit_On(hit))
     {
         return;
     }
     vr_ar_pel_ent = hit;
-    float p = ragdollbone(hit, vr_hitpart_pos, QVR_ARMOR_PIECE_AT);
+    float p = ragdollbone(hit, hit_at, QVR_ARMOR_PIECE_AT);
     if(p >= 0 && p < VR_AR_PIECES)
     {
         vr_ar_pel[p] = vr_ar_pel[p] + 1;
@@ -572,28 +572,28 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     {
         vr_ar_share[i] = 0;
     }
-    if(vr_hitpellets > 0 && vr_ar_pel_ent == targ)
+    if(VR_Hit_Pellets() > 0 && vr_ar_pel_ent == targ)
     {
         // A blast of pellets: each piece its pellets' share.
         for(i = 0; i < VR_AR_PIECES; i++)
         {
-            vr_ar_share[i] = vr_ar_pel[i] / vr_hitpellets;
+            vr_ar_share[i] = vr_ar_pel[i] / VR_Hit_Pellets();
         }
-        at = vr_hitpart_pos;
+        at = hit_at;
     }
-    else if(vr_hitpart_target == targ && vr_hitpart_time == time)
+    else if(VR_Hit_On(targ))
     {
         // One hit at a point.
-        p = ragdollbone(targ, vr_hitpart_pos, QVR_ARMOR_PIECE_AT);
+        p = ragdollbone(targ, hit_at, QVR_ARMOR_PIECE_AT);
         vr_ar_last_piece = p;
-        at = vr_hitpart_pos;
+        at = hit_at;
         if(p >= 0 && p < VR_AR_PIECES)
         {
             vr_ar_share[p] = 1;
         }
         // A helmet takes half a headshot's extra off (the positional multiplier is in the damage already).
         float head = cvar_hget(cvarh_vr_headshot_mult);
-        if(p == VR_AR_HELMET && vr_hitpart == 1 && VR_AgArmor_On(targ, p) && cvar("vr_agarmor_helmet_head") &&
+        if(p == VR_AR_HELMET && hit_zone == 1 && VR_AgArmor_On(targ, p) && cvar("vr_agarmor_helmet_head") &&
            cvar_hget(cvarh_vr_positional_damage) && head > 1)
         {
             damage = damage * (1 + (head - 1) * 0.5) / head;

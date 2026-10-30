@@ -29,6 +29,10 @@ struct Rigid
     return r.rot * p + r.pos;
 }
 
+// The rigid motion taking points `a` nearest to `b` (least squares; Horn's quaternion: the largest eigenvector, by
+// Jacobi). Identity for no points.
+[[nodiscard]] Rigid fitRigid(const glm::vec3* a, const glm::vec3* b, int n);
+
 // Bone `b`'s transform from the rest pose to pose `pose` (the rig's fit).
 [[nodiscard]] Rigid key(const ragdoll::Rig& rig, int pose, int b);
 

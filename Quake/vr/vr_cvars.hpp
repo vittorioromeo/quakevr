@@ -21,9 +21,17 @@ namespace qvr
 #undef QVR_CVAR
 
 // Tuning constants (the settings' tiers, ROUND23.md "Settings tiers"): vr_tunables.inc's QVR_TUNABLE(name, default),
-// numbers tuned once that no player sets. A release build makes each a constexpr Tunable, read as a cvar is (.value,
-// .string); a tuning build (MSBuild -p:QvrTuning=1: QVR_TUNING) makes each an archived cvar again, for the console. The
-// QC reads them by name either way (cvar(), cvar_hmake: tunableFind), and an old config's line for one is ignored.
+// numbers tuned once that no player sets: no menu row of their own, not in the config. Read as a cvar is (name.value,
+// name.string), the same code in every build:
+// - A development build (every build but a release: the agents', the author's) tunes them live (vr_tunables.cpp,
+//   "Live tuning"): each name is a reference into tunables[] (by its TunableId), set by `tune <name> <value>`, the
+//   Debug > Tunables page or tunables.cfg (the changed ones, written at quit, read after the config); a read is one
+//   load from a fixed address.
+// - A release build (QVR_RELEASE: make_release.ps1's /p:QvrReleaseVersion, or /p:QvrRelease=1) makes each a constexpr
+//   Tunable, its default folded in; no tune, no page, no tunables.cfg.
+// The QC reads them by name in both (cvar(), cvar_hmake: tunableFind's stand-in cvars), so progs.dat is the same; an
+// old config's line for one is ignored. New defaults: Misc/quakevr/tune_promote.py writes a tunables.cfg's values
+// into vr_tunables.inc (a source edit, on a worker's tree; the game never writes sources).
 struct Tunable
 {
     const char* name;
@@ -67,17 +75,74 @@ struct Tunable
     return static_cast<float>(val * sign);
 }
 
-#ifdef QVR_TUNING
-#define QVR_TUNABLE(name, def) extern cvar_t name;
-#else
+// Each constant's number: its line in vr_tunables.inc (tunableId_<name>).
+enum TunableId : int
+{
+#define QVR_TUNABLE(name, def) tunableId_##name,
+#include "vr_tunables.inc"
+#undef QVR_TUNABLE
+    tunableCount
+};
+
+#ifdef QVR_RELEASE
 #define QVR_TUNABLE(name, def) inline constexpr Tunable name{#name, def, tunableValue(def)};
+#else
+extern Tunable tunables[tunableCount]; // (vr_tunables.cpp) the values now: the defaults, or what tune set
+#define QVR_TUNABLE(name, def) inline constexpr Tunable& name = tunables[tunableId_##name];
 #endif
 #include "vr_tunables.inc"
 #undef QVR_TUNABLE
 
 // A tuning constant's stand-in cvar by name (not registered: the console and the config never see it), for the QC's
-// cvar() and cvar_hmake; nullptr for any other name (and for all in a tuning build, where they are cvars).
+// cvar() and cvar_hmake (its string and value are the constant's now); nullptr for any other name.
 [[nodiscard]] const cvar_t* tunableFind(const char* name);
+
+void tunablesInit(); // the stand-ins' check; in a development build tune, tune_reset and the Tunables page's settings
+void tunablesLoad(); // tunables.cfg, once, after the config (vr_migrate_config; nothing in a release build)
+
+#ifndef QVR_RELEASE
+// Live tuning (a development build; vr_tunables.cpp).
+struct TunableChoice
+{
+    float value;
+    const char* label;
+};
+
+// A constant's row on the Tunables page (vr_tunables_rows.inc): the menu row it had, or one made from its default.
+struct TunableRow
+{
+    enum Kind : char
+    {
+        Group, // a header: the rows below came from this page ("Combat > Melee")
+        Slider,
+        Cycle,
+        Text // a text or a vector: set in the console only
+    };
+    Kind kind;
+    int id; // TunableId (-1: a Group)
+    const char* label;
+    float min, max, step;
+    const char* format;
+    float hardMin, hardMax; // left and right go on past the bar's ends as far as these
+    const char* help;
+    const TunableChoice* choices;
+    int choiceCount;
+};
+
+[[nodiscard]] int tunableIndex(const char* name);         // its TunableId, -1 if none
+[[nodiscard]] const char* tunableDefault(int id);         // its default (vr_tunables.inc)
+[[nodiscard]] bool tunableChanged(int id);                // set off its default
+[[nodiscard]] int tunablesChanged();                      // how many are
+[[nodiscard]] const TunableRow& tunableRow(int id);       // its row
+[[nodiscard]] const char* tunableGroup(int id);           // the page it came from ("Other": none)
+[[nodiscard]] const TunableRow* tunableRows(int* count);  // the whole table, groups and rows in order
+[[nodiscard]] cvar_t* tunableStandIn(int id);             // the Tunables page's rows show and set these
+void tunableSet(int id, const char* value);               // (its default: no longer changed)
+void tunableReset(int id);
+void tunablesResetAll();
+[[nodiscard]] cvar_t& tunablesPageCvar();        // vr_tunables_page: the Tunables page shows one page's (from 1; 0 all)
+[[nodiscard]] cvar_t& tunablesShowChangedCvar(); // vr_tunables_show_changed: only the ones off their defaults
+#endif
 
 extern cvar_t vr_backend;
 

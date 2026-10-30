@@ -135,6 +135,7 @@ vr_agrunt_test   87       vr_armedgrunt_ai_test.qc         the strafe lean
 vr_agrunt_test   85       vr_armedgrunt_muzzle_test.qc     dual guns: each shot from its own muzzle
 vr_agrunt_test   88       vr_armedgrunt_ragweapon_test.qc  the held weapon on an active ragdoll's hand
 vr_agrunt_test   89       vr_armedgrunt_shoveclose_test.qc a gun's holder shoves up close
+vr_agrunt_test   90       vr_armedgrunt_guard_test.qc      an unarmed enforcer's guard in game as the Pose Studio holds its Aim key
 vr_agrunt_test   100+     vr_armedgrunt_test.qc            one weapon's every-weapon test (100 + its index)
 
 vr_flare_test    1*       vr_flaregun_test.qc              (the self-test (its fall-through))
@@ -150,6 +151,7 @@ vr_np_test       2        vr_nailpistol_test.qc            (VR_WeaponUtil_EntAdd
 vr_np_test       3        vr_nailpistol_test.qc            (VR_WeaponUtil_EntAddWeapon)
 vr_np_test       4        vr_nailpistol_test.qc            (VR_WeaponUtil_EntAddWeapon)
 vr_np_test       5        vr_nailpistol_test.qc            (VR_WeaponUtil_EntAddWeapon)
+vr_np_test       6        vr_nailpistol_test.qc            (VR_NPT_EmptyShow: empty and loaded guns holstered and lying)
 
 vr_pickup_test   1        vr_pickup_test.qc                (VR_PickupTest_Row)
 vr_pickup_test   2        vr_pickup_test.qc                (VR_PickupTest_Take)
@@ -463,6 +465,7 @@ vr_mg_world_test 4+       vr_mg_world_test.qc              (MG_ProgressTest)
 
 vr_nail_test     1*       vr_nail_test.qc                  (the Debug menu runs it: the dispatcher's fall-through)
 vr_nail_test     2        vr_nail_test.qc                  (VR_NLT_Hang)
+vr_nail_test     3        vr_nail_test.qc                  (a lying backpack against nails: VR_NLT_BagStep, vr_nail_test 1's last step alone)
 
 vr_portals_ai_test 1        vr_portal_ai_test.qc             (precache_model)
 vr_portals_ai_test 2        vr_portal_ai_test.qc             (EnemyFireBullets)

@@ -267,7 +267,7 @@ void layOnChest(const ragdoll::Rig& rig, int chest, const rigpose::Rigid& corr, 
 bool placeArmPose(const entity_t* e, const aliashdr_t* hdr, int pose1, int pose2, float blend, ArmPose& s);
 [[nodiscard]] const ArmPose* armPoseNow(const entity_t* e);
 bool bodyTurn(const ragdoll::Rig& rig, const rigpose::Rigid* posed, const ArmPose& s, rigpose::Rigid* out);
-[[nodiscard]] rigpose::Rigid fitRigid(const glm::vec3* a, const glm::vec3* b, int n);
+using rigpose::fitRigid; // (vr_rigpose.hpp)
 [[nodiscard]] rigpose::Rigid inverseRigid(const rigpose::Rigid& a);
 [[nodiscard]] glm::quat frameRot(const glm::vec3& fw, const glm::vec3& upHint);
 bool specOf(const ArmedRig& a, const ragdoll::Rig& rig, const aliashdr_t* hdr, agarms::Spec& s);

@@ -2974,7 +2974,7 @@ void(entity targ, entity inflictor, float take) VR_Gore_Hit =
         {
             kind = 3;
         }
-        else if(vr_hitpellets > 1)
+        else if(VR_Hit_Pellets() > 1)
         {
             kind = 1;
         }

@@ -1062,7 +1062,7 @@ void anchorWhere_f()
             weapons::vec(slot, Key::MuzzleOffsetX, Key::MuzzleOffsetY, Key::MuzzleOffsetZ)));
         print("button", anchorPosition(ve, weapons::anchor(slot, Key::WpnButtonAnchor),
             weapons::vec(slot, Key::WpnButtonX, Key::WpnButtonY, Key::WpnButtonZ)));
-        print("text", anchorPosition(ve, weapons::anchor(slot, Key::WpnTextAnchor),
+        print("text", screenPosition(ve, weapons::anchor(slot, Key::WpnTextAnchor),
             weapons::vec(slot, Key::WpnTextX, Key::WpnTextY, Key::WpnTextZ)));
         for(const ViewEntity* part : {&entities.mag[hand], &entities.well[hand]})
         {

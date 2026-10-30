@@ -1139,6 +1139,29 @@ void SV_ClipToLinks ( areanode_t *node, moveclip_t *clip )
 				continue;
 			}
 		}
+		// QVR: a flying missile meets a dropped pickup lying loose (a backpack) at its drawn box as it lies, in its own move
+		// (VR_ItemShotClip), not where FL_ITEM's grown box overlaps it (box3d::missileMeetsItem).
+		if (touch->v.solid == SOLID_NOT_BUT_TOUCHABLE && touch != clip->passedict
+			&& clip->boxmins[0] <= touch->v.absmax[0] && clip->boxmins[1] <= touch->v.absmax[1]
+			&& clip->boxmins[2] <= touch->v.absmax[2] && clip->boxmaxs[0] >= touch->v.absmin[0]
+			&& clip->boxmaxs[1] >= touch->v.absmin[1] && clip->boxmaxs[2] >= touch->v.absmin[2])
+		{
+			shot = VR_ItemShotClip (clip->passedict, touch, clip->start, clip->mins, clip->maxs, clip->end, &trace);
+			if (shot == 0)
+				continue;
+			if (shot > 0)
+			{
+				if (clip->trace.allsolid)
+					return;
+				if (trace.fraction < clip->trace.fraction)
+				{
+					qboolean wasStartSolid = clip->trace.startsolid;
+					clip->trace = trace;
+					clip->trace.startsolid = wasStartSolid;
+				}
+				continue;
+			}
+		}
 		// QVR: touchable non-solids never block, but shots and missiles stop at gibs and heads
 		// (those that take damage: vr_gib_destroy).
 		if (touch->v.solid == SOLID_NOT_BUT_TOUCHABLE && !(clip->hitgibs && touch->v.takedamage))

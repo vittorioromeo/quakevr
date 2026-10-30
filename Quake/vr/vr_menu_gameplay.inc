@@ -1381,10 +1381,9 @@ void ikStretchReset()
         slider("Nail Pistol Slide Travel", vr_nailpistol_slide_travel, 0.f, 3.f, 0.1f, "%.1f units")
             .help("How far its slide goes back each shot, and stays back while it is empty (the gun's own units: it is "
                   "about 13 long). A magazine with rounds put in racks it closed."),
-        cycle("Nail Pistol Model", "vr_nailpistol_model", {{0.f, "Classic"}, {1.f, "Full Slide"}})
-            .help("Its look. Classic: a copper slide on top of the receiver. Full Slide: the whole upper part is the "
-                  "slide, as a real pistol's (ejection port, cocking serrations, the sights on it), the barrel showing "
-                  "when it is back. Changes at once."),
+        toggle("Nail Pistol Screen Rides Slide", vr_nailpistol_screen_ride)
+            .help("Its ammo screen, mounted on the slide's left side, goes back and home with the slide (each shot, "
+                  "locked back while empty). Off: it stays put on the gun."),
         toggle("Flares Set Things on Fire", vr_flare_burn)
             .help("A flare sets what it hits on fire (monsters, corpses, crates; Combat > Burning) and sets off "
                   "explosive boxes. Off: its hit's damage only."),
@@ -1516,6 +1515,10 @@ void ikStretchReset()
         toggle("Casings by Surface", vr_gunsfx_casings)
             .help("Spent casings ring on metal and knock on wood; stone as before, water's plips as before. Off: the one "
                   "tink everywhere."),
+        slider("Surface Impacts", vr_gunsfx_impacts, 0.f, 2.f, 0.1f, "%.1f")
+            .help("A bullet or a nail hitting a wall sounds of what it hit, from where it hit: a dull thud on stone, "
+                  "duller on dirt, a ricochet's ping on metal, a knock on wood (a nail's lighter, under its own tink). "
+                  "A shotgun's pellets or a nailgun's stream make one or two at a time, not a dozen. How loud (0 none)."),
         slider("Dry Fire Click", vr_gunsfx_dryfire, 0.f, 2.f, 0.1f, "%.1f")
             .help("An empty gun's click: how loud, with a small tick in that hand (0 silent)."),
         toggle("Actions From the Action", vr_gunsfx_action)
