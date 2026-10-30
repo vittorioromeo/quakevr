@@ -142,6 +142,7 @@
 #include "vr_mgroups.hpp"
 #include "vr_particles.hpp"
 #include "vr_shells.hpp"
+#include "vr_gunsfx.hpp"
 #include "vr_autopump.hpp"
 #include "vr_explosiondebris.hpp"
 #include "vr_weaponfx.hpp"
@@ -1914,6 +1915,7 @@ constexpr PrewarmStep prewarmSteps[] = {
     {"view models", view::prepareModels, false},
     {"torch", flashlight::prepare, false},
     {"casings", shells::prepare, false},
+    {"gunfire layers", gunsfx::prepare, false}, // (the shots' thumps, tails, casings: made as they load)
     {"gore sounds", goresound::prepare, false},
     {"auto pump", autopump::prepare, false},
     {"AD crossbow", adcrossbow::prepare, false}, // AD support: its next bolt's sound
