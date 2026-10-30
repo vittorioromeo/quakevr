@@ -36,6 +36,7 @@
 #include "vr_agarms.hpp"
 #include "vr_aglegs.hpp"
 #include "vr_hitreact.hpp"
+#include "vr_jobs.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
 #include "vr_mdldequant.hpp"
@@ -144,6 +145,9 @@ struct SmoothMemos
     auto members() { return mem::list(entities); }
 };
 mem::Cache<SmoothMemos> memos{"anim smooth entities", mem::MapChange | mem::ModelReload};
+// The rig data's rebuild (rigData) on the pool: its places by vertex, its refits by pose (vr_jobs_sites).
+jobs::Site placesSite{"anim smooth rebuild places"};
+jobs::Site refitSite{"anim smooth rebuild refits"};
 
 // A frame's name split into its animation's name and its number in it ("run12": "run", 12; none: -1).
 void splitName(const char* name, char* prefix, int& number)
@@ -382,72 +386,96 @@ bool rigData(SmoothModel& m, qmodel_t* model, const aliashdr_t* hdr)
         za::Vector<glm::vec3> place(nv), normal(nv);
         za::Vector<int> count(nv);
         za::Vector<float> share(nv, 1.f);
+        za::Vector<float> sum(nv);
+        // Each vertex's place, normal and share from the poses its bone fits (vertices in chunks on the pool: each
+        // vertex's sums over the poses in the same order whichever thread runs it, so the same numbers).
         const auto places = [&]() {
-            for(za::SizeT k = 0; k < nv; k++)
-            {
-                place[k] = normal[k] = glm::vec3{0.f};
-                count[k] = 0;
-            }
-            for(int p = 0; p < m.numPoses; p++)
-            {
-                for(int v = 0; v < hdr->numverts; v++)
+            jobs::parallelFor(placesSite, nv, 0, [&](za::SizeT v0, za::SizeT v1) {
+                for(za::SizeT k = v0; k < v1; k++)
                 {
-                    const int b = rig.vertBone[static_cast<za::SizeT>(v)];
-                    if(!fits(p, b))
-                    {
-                        continue;
-                    }
-                    const rigpose::Rigid& k = keys[static_cast<za::SizeT>(p * rig.numBones + b)];
-                    const glm::quat back = glm::conjugate(k.rot);
-                    const trivertx_t& t = base[static_cast<za::SizeT>(p) * nv + static_cast<za::SizeT>(v)];
-                    const float* n = r_avertexnormals[za::min<int>(t.lightnormalindex, NUMVERTEXNORMALS - 1)];
-                    place[static_cast<za::SizeT>(v)] += back * (x(p, v) - k.pos);
-                    normal[static_cast<za::SizeT>(v)] += back * geom::vec(n);
-                    count[static_cast<za::SizeT>(v)]++;
+                    place[k] = normal[k] = glm::vec3{0.f};
+                    count[k] = 0;
+                    sum[k] = 0.f;
                 }
-            }
-            za::Vector<float> sum(nv, 0.f);
+                for(int p = 0; p < m.numPoses; p++)
+                {
+                    for(int v = static_cast<int>(v0); v < static_cast<int>(v1); v++)
+                    {
+                        const int b = rig.vertBone[static_cast<za::SizeT>(v)];
+                        if(!fits(p, b))
+                        {
+                            continue;
+                        }
+                        const rigpose::Rigid& k = keys[static_cast<za::SizeT>(p * rig.numBones + b)];
+                        const glm::quat back = glm::conjugate(k.rot);
+                        const trivertx_t& t = base[static_cast<za::SizeT>(p) * nv + static_cast<za::SizeT>(v)];
+                        const float* n = r_avertexnormals[za::min<int>(t.lightnormalindex, NUMVERTEXNORMALS - 1)];
+                        place[static_cast<za::SizeT>(v)] += back * (x(p, v) - k.pos);
+                        normal[static_cast<za::SizeT>(v)] += back * geom::vec(n);
+                        count[static_cast<za::SizeT>(v)]++;
+                    }
+                }
+                for(int v = static_cast<int>(v0); v < static_cast<int>(v1); v++)
+                {
+                    const za::SizeT k = static_cast<za::SizeT>(v);
+                    place[k] = count[k] ? place[k] / static_cast<float>(count[k]) : at(0, v);
+                    const float len = za::sqrt(glm::dot(normal[k], normal[k]));
+                    normal[k] = len > 1e-4f ? normal[k] / len : glm::vec3{0.f, 0.f, 1.f};
+                }
+                for(int p = 0; p < m.numPoses; p++)
+                {
+                    for(int v = static_cast<int>(v0); v < static_cast<int>(v1); v++)
+                    {
+                        const int b = rig.vertBone[static_cast<za::SizeT>(v)];
+                        if(fits(p, b))
+                        {
+                            const glm::vec3 d = x(p, v) - rigpose::apply(keys[static_cast<za::SizeT>(p * rig.numBones + b)], place[static_cast<za::SizeT>(v)]);
+                            sum[static_cast<za::SizeT>(v)] += glm::dot(d, d);
+                        }
+                    }
+                }
+                for(za::SizeT k = v0; k < v1; k++)
+                {
+                    // (a vertex its bone fits in no pose: not rebuilt)
+                    rebuildRms[k] = count[k] ? za::sqrt(sum[k] / static_cast<float>(count[k])) : 1e9f;
+                    share[k] = za::clamp(2.f - rebuildRms[k] / rebuildError, 0.f, 1.f);
+                }
+            });
+        };
+        // Each bone's vertices, in order (boneFirst[b] .. boneFirst[b + 1] in boneVerts): refit's loops over them alone
+        // (the same sums in the same order as over every vertex, the others skipped).
+        za::Vector<int> boneFirst(static_cast<za::SizeT>(rig.numBones) + 1u, 0);
+        za::Vector<int> boneVerts(nv);
+        for(int v = 0; v < hdr->numverts; v++)
+        {
+            boneFirst[static_cast<za::SizeT>(rig.vertBone[static_cast<za::SizeT>(v)]) + 1u]++;
+        }
+        for(int b = 0; b < rig.numBones; b++)
+        {
+            boneFirst[static_cast<za::SizeT>(b) + 1u] += boneFirst[static_cast<za::SizeT>(b)];
+        }
+        {
+            za::Vector<int> fill(boneFirst.begin(), boneFirst.end() - 1);
             for(int v = 0; v < hdr->numverts; v++)
             {
-                const za::SizeT k = static_cast<za::SizeT>(v);
-                place[k] = count[k] ? place[k] / static_cast<float>(count[k]) : at(0, v);
-                const float len = za::sqrt(glm::dot(normal[k], normal[k]));
-                normal[k] = len > 1e-4f ? normal[k] / len : glm::vec3{0.f, 0.f, 1.f};
+                boneVerts[static_cast<za::SizeT>(fill[static_cast<za::SizeT>(rig.vertBone[static_cast<za::SizeT>(v)])]++)] = v;
             }
-            for(int p = 0; p < m.numPoses; p++)
-            {
-                for(int v = 0; v < hdr->numverts; v++)
-                {
-                    const int b = rig.vertBone[static_cast<za::SizeT>(v)];
-                    if(fits(p, b))
-                    {
-                        const glm::vec3 d = x(p, v) - rigpose::apply(keys[static_cast<za::SizeT>(p * rig.numBones + b)], place[static_cast<za::SizeT>(v)]);
-                        sum[static_cast<za::SizeT>(v)] += glm::dot(d, d);
-                    }
-                }
-            }
-            for(za::SizeT k = 0; k < nv; k++)
-            {
-                // (a vertex its bone fits in no pose: not rebuilt)
-                rebuildRms[k] = count[k] ? za::sqrt(sum[k] / static_cast<float>(count[k])) : 1e9f;
-                share[k] = za::clamp(2.f - rebuildRms[k] / rebuildError, 0.f, 1.f);
-            }
-        };
+        }
         // A bone's fit to its vertices' drawn places in a pose, from the fit it has: Gauss-Newton steps on its turn about
         // the places' weighted middles (a vertex rebuilt counts fully, one not a little: the joints' skin doesn't pull it).
         const auto refit = [&](int p, int b) {
             rigpose::Rigid& k = keys[static_cast<za::SizeT>(p * rig.numBones + b)];
+            const int* const vFirst = boneVerts.data() + boneFirst[static_cast<za::SizeT>(b)];
+            const int* const vEnd = boneVerts.data() + boneFirst[static_cast<za::SizeT>(b) + 1u];
             glm::vec3 cMid{0.f}, xMid{0.f};
             float wSum = 0.f;
-            for(int v = 0; v < hdr->numverts; v++)
+            for(const int* vi = vFirst; vi != vEnd; ++vi)
             {
-                if(rig.vertBone[static_cast<za::SizeT>(v)] == b)
-                {
-                    const float w = 0.05f + share[static_cast<za::SizeT>(v)];
-                    cMid += w * place[static_cast<za::SizeT>(v)];
-                    xMid += w * x(p, v);
-                    wSum += w;
-                }
+                const int v = *vi;
+                const float w = 0.05f + share[static_cast<za::SizeT>(v)];
+                cMid += w * place[static_cast<za::SizeT>(v)];
+                xMid += w * x(p, v);
+                wSum += w;
             }
             if(wSum <= 0.f)
             {
@@ -461,15 +489,13 @@ bool rigData(SmoothModel& m, qmodel_t* model, const aliashdr_t* hdr)
                 const glm::mat3 r = glm::mat3_cast(q);
                 glm::mat3 a{0.f};
                 glm::vec3 g{0.f};
-                for(int v = 0; v < hdr->numverts; v++)
+                for(const int* vi = vFirst; vi != vEnd; ++vi)
                 {
-                    if(rig.vertBone[static_cast<za::SizeT>(v)] == b)
-                    {
-                        const float w = 0.05f + share[static_cast<za::SizeT>(v)];
-                        const glm::vec3 c = r * (place[static_cast<za::SizeT>(v)] - cMid);
-                        a += w * (glm::dot(c, c) * glm::mat3{1.f} - glm::outerProduct(c, c));
-                        g += w * glm::cross(c, x(p, v) - xMid);
-                    }
+                    const int v = *vi;
+                    const float w = 0.05f + share[static_cast<za::SizeT>(v)];
+                    const glm::vec3 c = r * (place[static_cast<za::SizeT>(v)] - cMid);
+                    a += w * (glm::dot(c, c) * glm::mat3{1.f} - glm::outerProduct(c, c));
+                    g += w * glm::cross(c, x(p, v) - xMid);
                 }
                 if(za::abs(glm::determinant(a)) < 1e-6f)
                 {
@@ -483,16 +509,19 @@ bool rigData(SmoothModel& m, qmodel_t* model, const aliashdr_t* hdr)
         places();
         for(int round = 0; round < 2; round++)
         {
-            for(int p = 0; p < m.numPoses; p++)
-            {
-                for(int b = 0; b < rig.numBones; b++)
+            // (poses in chunks on the pool: each refit writes its own pose's key alone)
+            jobs::parallelFor(refitSite, static_cast<za::SizeT>(m.numPoses), 0, [&](za::SizeT p0, za::SizeT p1) {
+                for(int p = static_cast<int>(p0); p < static_cast<int>(p1); p++)
                 {
-                    if(fits(p, b))
+                    for(int b = 0; b < rig.numBones; b++)
                     {
-                        refit(p, b);
+                        if(fits(p, b))
+                        {
+                            refit(p, b);
+                        }
                     }
                 }
-            }
+            });
             places();
         }
         for(za::SizeT k = 0; k < nv; k++)
