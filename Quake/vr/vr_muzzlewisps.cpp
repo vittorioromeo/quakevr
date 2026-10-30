@@ -78,6 +78,7 @@ struct HandWisps
     float sinceEmit{0.f};
     glm::vec3 lastEmitAt{0.f};
     float light{1.f};       // the place's light where they started (their grey)
+    glm::vec3 tint{1.f};    // their gun's tint as they started (Gun::tint)
     double activeSince{-1.0}; // cl.time they started (-1: none left)
     int peakPoints{0}, peakDrawn{0};
 };
@@ -175,6 +176,7 @@ void advance(float dt)
                 s.restart = true;
             }
             h.light = placeLight(h.gun.at[0]);
+            h.tint = h.gun.tint;
             h.sinceEmit = kEmitInterval;
             h.lastEmitAt = h.gun.at[0];
             if(h.activeSince < 0.0)
@@ -248,7 +250,7 @@ int build(HandWisps& h, Strand& s, int barrel, const ribbons::View& view, za::Ve
     const float amount = za::clamp(vr_gunfx_wisp_amount.value, 0.f, 4.f);
     const float most = za::clamp(vr_gunfx_wisp_opacity.value, 0.02f, 1.f);
     const float grey = za::clamp(0.48f + 0.3f * h.light, 0.48f, 0.9f);
-    const glm::vec3 colour = glm::vec3{0.94f, 0.97f, 1.f} * grey;
+    const glm::vec3 colour = glm::vec3{0.94f, 0.97f, 1.f} * grey * h.tint;
     int drawn = 0;
     const auto flush = [&]() {
         if(points.size() >= 2)

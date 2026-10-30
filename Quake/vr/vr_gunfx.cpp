@@ -265,6 +265,7 @@ struct Counts
 {
     int sparks{0}, smoke{0}, glow{0}, arcs{0}, port{0}, back{0}, dust{0}, vent{0}, exhaust{0};
     float light{-1.f}; // the place's light at the muzzle (placeLight), -1 if not looked up
+    float sparkSize{1.f}, smokeSize{1.f}; // (the Tune's: vr_debug_gunfx prints them)
 };
 
 lightcache_t placeCache; // (placeLight's)
@@ -686,7 +687,8 @@ void report(int wid, Kind kind, int shooter, float budget, const Counts& c)
         Con_Printf("gunfx shot who %s %d wid %d kind %s budget %.2f sparks %d smoke %d glow %d arcs %d port %d back %d dust %d\n",
             shooter < 2 ? "player" : "enemy", shooter, wid, kindNames[static_cast<int>(kind)], budget, c.sparks, c.smoke, c.glow,
             c.arcs, c.port, c.back, c.dust);
-        Con_Printf("gunfx light %.2f vent %d exhaust %d\n", c.light, c.vent, c.exhaust); // (own line: long ones wrap)
+        Con_Printf("gunfx light %.2f vent %d exhaust %d size %.2f %.2f\n", c.light, c.vent, c.exhaust, c.sparkSize,
+            c.smokeSize); // (own line: long ones wrap)
     }
 }
 
@@ -697,6 +699,8 @@ Counts emit(int wid, const Muzzle& m, int shooter, bool adBurst, bool ports, int
     const Tune tune = tuneFor(slot >= 0 ? slot : slotOf(wid, nullptr));
     const Look& look = looks[static_cast<int>(kind)];
     const float budget = rateScale(shooter) * za::clamp(vr_gunfx_intensity.value, 0.f, 3.f);
+    c.sparkSize = tune.sparkSize;
+    c.smokeSize = tune.smokeSize;
     if(kind == Kind::None || budget <= 0.f || !particles::enabled())
     {
         report(wid, kind, shooter, budget, c);
@@ -722,8 +726,9 @@ Counts emit(int wid, const Muzzle& m, int shooter, bool adBurst, bool ports, int
         }
         if(look.arcs > 0)
         {
-            const int n = scaled(look.arcs, budget);
-            c.arcs += particles::spawn(m.at, m.fwd, particles::Preset::ElectricSparks, n) ? n : 0;
+            // (the energy guns' arcs: their sparks, the Spark Amount and Size settings and the weapon's own)
+            const int n = times(scaled(look.arcs, budget), tune.sparkAmount);
+            c.arcs += particles::gunArcs(m.at, m.fwd, n, tune.sparkSize) ? n : 0;
         }
     }
     if(on(vr_gunfx_smoke) && look.smoke > 0)
@@ -847,11 +852,13 @@ void afterSmoke(HandState& h, const Muzzle& m, int wid, float dt)
 }
 
 // The guns that leave smoke wisps off their barrels after firing (vr_muzzlewisps.hpp): a shot's share of full smoke (the
-// shotguns' one shot fills them, a burst of the nailguns'), the smoke's opacity at full, and their barrels.
+// shotguns' one shot fills them, a burst of the nailguns'), the smoke's opacity at full, their barrels and the smoke's
+// tint (times its grey).
 struct WispLook
 {
     float charge, alpha;
     int barrels;
+    glm::vec3 tint{1.f};
 };
 [[nodiscard]] WispLook wispLook(int wid)
 {
@@ -864,6 +871,9 @@ struct WispLook
         case WID_NAILPISTOL: return {0.2f, 0.22f, 1};
         case WID_NAILGUN: return {0.12f, 0.26f, 2};
         case WID_SUPER_NAILGUN: return {0.08f, 0.3f, 1}; // (its barrels turn: one wisp out of their middle)
+        // The thunderbolt (a stream: a shot each 0.1 s, 2 s of it fill them): a fainter, blue-grey wisp off its one
+        // barrel, the hot emitter's ozone (the per-weapon Muzzle Wisp Opacity and the global wisp settings apply).
+        case WID_LIGHTNING: return {0.05f, 0.2f, 1, {0.82f, 0.9f, 1.f}};
         default: return {0.f, 0.f, 0};
     }
 }
@@ -890,6 +900,7 @@ void barrelWisps(int hand, const Muzzle& m, int wid, bool fired)
     g.alpha = look.alpha * slotValue(hands[hand].slot, Key::GunfxWisps); // (its Weapon Offsets > Effects, Muzzle Wisp Opacity)
     g.charge = g.alpha > 0.f ? look.charge : 0.f; // (0: none at all)
     g.barrels = look.barrels;
+    g.tint = look.tint;
     g.at[0] = g.at[1] = m.at;
     if(look.barrels > 1)
     {
@@ -1088,6 +1099,13 @@ void portSmoke(const glm::vec3& at, const glm::vec3& dir, bool hot)
     {
         Con_Printf("gunfx port at %.1f %.1f %.1f smoke %d%s\n", at.x, at.y, at.z, n, hot ? " (hot)" : "");
     }
+}
+
+void boltSmoke(float& amount, float& size)
+{
+    const Tune t = tuneFor(slotOf(WID_LIGHTNING, nullptr));
+    amount = t.smokeAmount;
+    size = t.smokeSize;
 }
 
 float shellTrail()

@@ -66,6 +66,9 @@ void enemyFired(int ent, const qmodel_t* model, int wid, const Muzzle& m);
 // A casing thrown out of a shotgun's port at `at` going `dir` (vr_shells.cpp): the port's quick puff (`hot`: a flick
 // reload's, more).
 void portSmoke(const glm::vec3& at, const glm::vec3& dir, bool hot);
+// The thunderbolt's smoke multipliers: Smoke Amount and Size (Weapons > Weapon Effects > Gunfire Particles) times its
+// slot's (Weapon Offsets > Effects). Its ozone haze where the beam plays reads them (vr_impacts.cpp).
+void boltSmoke(float& amount, float& size);
 // The casings' smoke trails' strength, times (vr_gunfx_shell_trail).
 [[nodiscard]] float shellTrail();
 

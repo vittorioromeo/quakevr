@@ -5,6 +5,7 @@
 #include "vr_cvars.hpp"
 #include "vr_debris.hpp"
 #include "vr_engine.hpp"
+#include "vr_gunfx.hpp"
 #include "vr_particles.hpp"
 #include "vr_physsound.hpp"
 #include "vr_profile.hpp"
@@ -437,6 +438,7 @@ struct Surface
 struct Made
 {
     int dust{0}, sparks{0}, chips{0}, haze{0};
+    float hazeSize{1.f}; // (the thunderbolt's Smoke Size: gunfx::boltSmoke)
 };
 
 int put(const particles::GunParticle& g)
@@ -494,7 +496,14 @@ Made emit(const Row& row, Material mat, const Surface& s, float k, float shade)
         g.gravity = 1.f;
         m.chips += put(g);
     }
-    for(int i = 0, n = scaled(row.haze, k); i < n; i++)
+    // (the thunderbolt's haze: its Smoke Amount and Size, global and per weapon, as its muzzle's smoke would)
+    float hazeAmount = 1.f, hazeSize = 1.f;
+    if(row.haze > 0)
+    {
+        gunfx::boltSmoke(hazeAmount, hazeSize);
+        m.hazeSize = hazeSize;
+    }
+    for(int i = 0, n = scaled(row.haze, k * hazeAmount); i < n; i++)
     {
         // Ozone: a faint bluish haze, faintly luminous (the arc's light in it), lingering and rising slowly.
         particles::GunParticle g;
@@ -503,8 +512,8 @@ Made emit(const Row& row, Material mat, const Surface& s, float k, float shade)
         g.vel = s.normal * vrand::range(rng, 6.f, 14.f) + glm::vec3{0.f, 0.f, vrand::range(rng, 4.f, 9.f)};
         const float v = vrand::range(rng, 0.9f, 1.1f);
         g.color = glm::vec4{0.5f * v, 0.58f * v, 0.82f * v, vrand::range(rng, 0.12f, 0.2f)};
-        g.scale = vrand::range(rng, 3.f, 5.f);
-        g.grow = vrand::range(rng, 12.f, 20.f);
+        g.scale = vrand::range(rng, 3.f, 5.f) * hazeSize;
+        g.grow = vrand::range(rng, 12.f, 20.f) * hazeSize;
         g.life = vrand::range(rng, 1.f, 1.6f);
         g.drag = 2.f;
         g.gravity = -0.03f;
@@ -641,8 +650,8 @@ void at(HitKind kind, const glm::vec3& org, const glm::vec3& prefer, float reach
     const Made m = emit(row, s.material, s, k, 0.35f + 0.5f * za::min(light, 1.3f));
     if(vr_debug_gunfx.value)
     {
-        Con_Printf("gunfx impact %s on %s (%s) dust %d sparks %d chips %d haze %d\n", kindNames[static_cast<int>(kind)],
-            materialNames[static_cast<int>(s.material)], s.texture, m.dust, m.sparks, m.chips, m.haze);
+        Con_Printf("gunfx impact %s on %s (%s) dust %d sparks %d chips %d haze %d size %.2f\n", kindNames[static_cast<int>(kind)],
+            materialNames[static_cast<int>(s.material)], s.texture, m.dust, m.sparks, m.chips, m.haze, m.hazeSize);
     }
 }
 
