@@ -1373,3 +1373,49 @@ skins 178 / 102 / 182, md5/md3 lookups 126 / 123 / 123), limbs 198 / 22 / 196, v
   re-reading each file and the copies); limb skin uploads (limbs 193 ms) and md5 view models (104 ms: their 6 skins'
   uploads and normal maps): main-thread GL work. e1m1/vrstart after-times not taken: the exclusive slot waited on the
   author's game (their before-times above; smooth rigs is per model kind, so ~60 ms off vrstart, little off e1m1's 20).
+
+## Faster map loads, round 5: the file lookups that find nothing (branch `agent/load5`)
+
+Profile (no-LTO, warm caches, `vr_startup_times`; hip2m5 is the kit base's map with the most monster kinds, 11):
+vrtesthall 1123 ms (spawn 619, alias models 662 of 363: normal maps 278, skins 178, md5/md3 lookups 126 of which md5
+hands/body loaded 123, so the failed md5/md3 lookups ~3; limbs 196, view models 164, smooth rigs 48, image lookups that
+found nothing 68 ms / 2304); e1m1 881 (misses 16 / 2036, limbs 22, rigs 8); vrstart 1427 (misses 72, limbs 193, rigs
+45); hip2m5 1096 (misses 19 / 2460, limbs 84, rigs 26). Sub-timed (temporary timers): of vrtesthall's load, 12,900
+names were looked up in every search path and found nowhere (~3 us each), and 810 lookups of an owned pack's files
+(owned/mg3/progs/rknight.mdl_0.png, its _norm, _bump...) cost ~0.1 ms each, 80 ms: each listed the folder's paks and
+read every pak's directory.
+
+- **Owned packs' files** (vr_gamedir.cpp, VR_OwnedFile): the folder's paks read once a load window into a name index
+  (`ownedIndexes`, mem::Cache, GameDirChange), on the main thread inside the file system cache's windows
+  (VR_FileCacheWindow, new at each enable and each full forget: a pak added meanwhile is seen at the next load); the
+  loose files by the window's listings (VR_FileCacheHas). Other threads and lookups outside the windows as before. A
+  temporary check ran both ways on every lookup of a vrtesthall load: 641 compared, 0 differed. COM_FindFile notes an
+  owned name not found as a miss too.
+- **An image's five lookups at once** (COM_StemNowhere, image.c): Image_LoadImage asks png, tga, jpg, pcx and lmp in
+  every search path; now, inside the windows, a name that no pak has with any extension (a stem table beside each pak's
+  name hash, COM_PackIndex) and no listed loose folder has (Listing::stems) makes none of them (model-keep's recorded
+  lookups still noted). Checked by running the five lookups anyway each time it said "nowhere": vrtesthall 2077, e1m1
+  1874, hip2m5 2284, none found a file.
+- **Misses kept when an unrelated file is written** (vr_fscache.cpp): a file written forgot every miss known; now only
+  the names its path ends with (`forgetMisses`, after folding the path: case, separators, "." levels; a name spelt
+  oddly is forgotten anyway). Sys_mkdir forgot every listing on each call, a folder made or not (every file written
+  asks for its folders: six times in a vrtesthall load, the server's 7700 misses looked up again by the client); now
+  only when it made one. `vr_fscache_test`: 22 passed (new: misses kept and forgotten by name, on another thread too).
+- **Limb models and smooth rigs, built only for what the map uses** (brief item 4): already so. Limbs are made for the
+  kinds the map's monsters are and those its triggers (probe pass 1) and, with vr_limbs_prebuild 2, its dispensers can
+  make (vrtesthall and vrstart place no monsters: their 16 kinds are the dispensers'/spawners'), and a kind first seen
+  later is built on the pool and precached one a frame (spawnFrame); smooth rigs are made for the precached alias
+  models with a rig (the same 16-18 kinds and the player). Nothing to cut without moving the author's chosen load-time
+  work (vr_limbs_prebuild 2) into play.
+- **Not done** (measured, left): a disk cache of the limb models and smooth rigs (brief item 3): the limbs' files are
+  built on the pool while the rigs warm (22 ms of vrtesthall's 137 ms limbs, sub-timed; the other 115 their 170
+  precaches on the main thread: skins, normal maps, draw lists, which a cached .mdl doesn't save), and the smooth rigs
+  are ~2-5 ms a kind (18 kinds, 42 ms): a cache would save at most ~60 ms of vrtesthall/vrstart, ~30 of hip2m5, ~10
+  of e1m1; with rigData's outputs (unfit masks, rebuilt keys, rest rows, fit statistics) and its inputs (the model's
+  poses, the derived ragdoll rig, three settings) it wasn't in this round's budget. Running each kind's rigData on the
+  pool at once (as the limbs' builds) is the cheaper next step. Item 5 (uploads off the main thread) skipped. The
+  normal maps of authored maps with heights need islands made each load (76 on vrtesthall, 24 ms).
+- **Checks**: eyeshots of vrtesthall, e1m3, e2m1, hip2m5 (dither and particles off), before vs after: 1522 pixels
+  differ, the before build twice: 2195 (the same regions). Covering cases (`run_baseline.sh --only` limb, ragdoll,
+  agrunt 1-6, animsmooth, selfchecks, stats_levelchange): 0 of 16 changed against baseline.tsv.
+LOAD5_TIMES
