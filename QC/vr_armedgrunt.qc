@@ -1071,6 +1071,10 @@ void(entity g, vector dir, float speed, string why) VR_AG_Disarm =
     {
         return; // (held still: the Grip Editor, the Pose Studio, where hands reach into its weapons)
     }
+    if(vr_dv_on)
+    {
+        VR_DV_Mark(g.vr_ag_prop, g.vr_ag_prop.origin, VR_DV_DISARM, why); // (Show Disarm Volumes; where it struck: after)
+    }
     if(VR_AG_TugDisarm(g, why))
     {
         return; // (in a tug: into your holding hand, vr_agrunt_tug_strike: vr_armedgrunt_play.qc)
@@ -2738,9 +2742,16 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_AG_Hit =
     {
         VR_AG_Log(sprintf("hit %g at %.1f from its gun hand (part %g)", take, near, vr_hr_part));
     }
-    if(near <= VR_AG_DISARM_HAND || (vr_hr_part == 2 && near <= VR_AG_DISARM_HAND * 1.6))
+    entity dvp = targ.vr_ag_prop;
+    float dis = near <= VR_AG_DISARM_HAND || (vr_hr_part == 2 && near <= VR_AG_DISARM_HAND * 1.6);
+    if(dis)
     {
         VR_AG_Disarm(targ, vr_hr_dir, 150, sprintf("a blow of %g on its gun hand", take));
+    }
+    if(vr_dv_on)
+    {
+        VR_DV_Mark(dvp, vr_hr_at, dis ? VR_DV_DISARM : VR_DV_BODY, sprintf("blow %g, %.1f from its grip (part %g)", take, near,
+            vr_hr_part));
     }
 };
 

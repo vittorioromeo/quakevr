@@ -22,6 +22,12 @@ inline constexpr int FL_FORCEGRABBABLE = 1 << 15;
 // shape: vr_physics.cpp handOn). Holding enemies (vr_foegrab.cpp) leaves such a grip to the weapon's tug.
 [[nodiscard]] bool fistOnArmedWeapon(edict_t* player, int hand);
 
+// Show Disarm Volumes (vr_disarmviz.cpp): handOn's measure of `player`'s fist (hand 0 off, 1 main) on an armed monster's
+// weapon without its grip test: the gap (units; negative sunk in) to its drawn surface, its last places' sweep included
+// (`swept`: only the sweep reaches it), and the allowance a grab takes it within. ZA_FLOAT_MAX: no fist, no surface, or
+// farther than a quarter metre (or the allowance) off.
+[[nodiscard]] float armedGrabGap(edict_t* weapon, edict_t* player, int hand, float& allowed, bool& swept);
+
 // The middle of `ent`'s drawn model (turned with it), in the world: QC's modelcentre.
 [[nodiscard]] glm::vec3 modelCentre(edict_t* ent);
 

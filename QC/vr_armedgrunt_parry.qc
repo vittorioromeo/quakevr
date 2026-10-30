@@ -280,6 +280,14 @@ float(entity g, entity by, float h, float damage) VR_AGPar_Parried =
             VR_AG_Swap(g); // (the weapon that took the blow)
         }
         VR_AG_Disarm(g, away * -1, 140, "parried until its strength gave out");
+        if(vr_dv_on)
+        {
+            VR_DV_Mark(g, vr_agpar_x, VR_DV_DISARM, "parried: its strength gave out");
+        }
+    }
+    else if(vr_dv_on)
+    {
+        VR_DV_Mark(g.vr_ag_prop, vr_agpar_x, VR_DV_PARRY, sprintf("parry: stamina %.2f of %g", load, count));
     }
     return damage * kept;
 };
