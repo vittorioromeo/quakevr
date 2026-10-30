@@ -148,6 +148,19 @@ Sections fold (ROUND23.md, "Checklist: folding sections"): each header shows ope
 unfolds it, kept by name in `quakevr/checklist_sections.txt` (ignored); `vr_checklist` prints CLSEC lines,
 `vr_checklist collapse|expand <s|all>` and `folds_default`; `python Misc/quakevr/checklist_fold_check.py <agent>` tests it.
 
+### Writing a test: one verdict grammar, one library
+
+Every test, in any language, prints one line per check, `<name>: PASS <what>` or `<name>: FAIL <what>`, and ends on
+its verdict line `<name>: N passed, M failed` (the run ends there: `-QuitOn "<name>: [0-9]+ passed"`). The writers:
+QC `VR_Test_Begin/BeginFlags/Check/Verdict` (QC/vr_testutil.qc), C++ `testkit::Tally` (vr_testkit.hpp), Python
+`qvrtest.Tally` (Misc/quakevr/qvrtest.py), shell `check` / `verdict` (`source Misc/quakevr/qvrtest.sh`).
+`qvrtest.py` is the scripts' one library: `KIT`, `tree(agent)`, `run`, `run_sh`, `lane()` / `lane_env` / `game_dir`,
+the mock-file builders (`hand`, `button`, `grip`, `waits`, `motion`) and the parser the runners use
+(`FAIL_LINE`, `counts`, `verdict_near`). Known-flaky tests: one list, `Misc/quakevr/test_flaky.txt` (run_test_suite.py
+`--allow-flaky` and the refactor baseline read it). check_canonical.py's `test-*` families fail the build on a new
+hand-made tally, verdict line, `def verdict(`, spelt-out kit path or shell `check()` copy (today's sites are in its
+allowlist; migrate them when you touch a test, then `--tighten`).
+
 ### Test numbers
 
 The numbered test cvars (`vr_agrunt_test N`, `vr_ad_test N`, `vr_rv_test`, `vr_np_test`, `vr_flare_test`,
@@ -676,7 +689,8 @@ against the pose set; on the page with Preview in Holster and a Holstered row ch
 Rigid bodies (round 21, Box3D, the only solver): `vr_physics_stack`, `vr_physics_pyramid`,
 `vr_physics_pile` put props (a number, a classname or `props`) in a column, a pyramid or toppling columns;
 `vr_physics_loose` makes a hanging armour or a pickup a loose prop; `vr_physics_list` and `vr_physics_hash` print
-them (the hash: determinism); `vr_debug_box3d 1|2|3` (1: bodies made, woken, asleep, the world mesh's build, frames
+them (the hash: determinism; `vr_physics_hash ragdolls`: every ragdoll part's transform, velocity and spin, bit for
+bit: two builds of a refactor print the same, ROUND23 "Refactor leftovers L1"); `vr_debug_box3d 1|2|3` (1: bodies made, woken, asleep, the world mesh's build, frames
 over 1 ms with Box3D's profile; 2: every awake body every frame; 3: frames over 0.2 ms; `developer 1` alone prints the
 slow frames). `vr_physics_blast <x> <y> <z> [<damage>]` sets off an explosion there (QC's `T_RadiusDamage` from the
 world, 120 by default, and its effect): monsters take it, props are thrown (Box3D). `vr_forcegrabbable_return 0` keeps

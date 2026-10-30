@@ -644,6 +644,189 @@ void applyWholeOffset(int h)
     }
 }
 
+// update's phases: the stair steps' easing of the body.
+void easeStairs(const entity_t& player)
+{
+    float& smoothZ = stairSmoothZ;
+    double& lastTime = stairLastTime;
+    const float z = state.playerOrigin.z;
+    if(portalJumpPending && cl.time - portalJumpTime > 0.5)
+    {
+        portalJumpPending = false; // (no jump came: a gate leading close by)
+    }
+    if(portalJumpPending && lastRawOriginValid &&
+        glm::length(glm::vec2{state.playerOrigin.x - lastRawOrigin.x, state.playerOrigin.y - lastRawOrigin.y}) > 64.f)
+    {
+        smoothZ += z - lastRawOrigin.z; // through a teleporter: still that far under the origin
+    }
+    lastRawOrigin = state.playerOrigin;
+    lastRawOriginValid = true;
+    if(!noclip_anglehack && cl.onground && z - smoothZ > 0.f && lastTime >= 0.0)
+    {
+        if(cl.time != lastTime)
+        {
+            smoothZ += static_cast<float>(CLAMP(0.0, cl.time - lastTime, 0.1)) * 80.f;
+        }
+        smoothZ = CLAMP(z - 12.f, smoothZ, z);
+    }
+    else
+    {
+        smoothZ = z;
+    }
+    // Not eased up from where the player was before the server first placed it (the world's origin, after a
+    // loaded game or a new map): the body rose 12 units over its first frames, and a two-handed hold taken
+    // then kept the gap (vr_held.cpp).
+    lastTime = player.msgtime > 0.0 ? cl.time : -1.0;
+    state.playerOrigin.z = smoothZ;
+}
+
+// The tracked head, eyes and hands placed in the world (vrActive).
+void placeTracked(const TrackingState& t, float m2u, float seatedLift)
+{
+    updateRoomscale(t, m2u, state.playerOrigin);
+    state.lean = lean;
+    state.leanHold = vr_lean_detect.value > 0.f ? leanSense.hold : 0.f;
+    state.leanCues = leanSense.cues;
+    state.standingHeight = leanSense.valid ? leanSense.standing : units::eyeHeight();
+
+    // Positions are relative to the play-space floor below the head: the box's middle and the
+    // lean.
+    const glm::vec3 floorBelowHead{t.head.position.x, 0.f, t.head.position.z};
+    const glm::vec3 base = state.playerOrigin + lean + glm::vec3{0.f, 0.f, vr_floor_offset.value};
+    const auto toWorld = [&](const glm::vec3& trackingPos) {
+        return base + rotateYaw(quakeFromTracking(trackingPos - floorBelowHead) * m2u, turnYaw);
+    };
+
+    if(pendingYawValid)
+    {
+        // Turn the play space so that the head faces the yaw the server asked for.
+        pendingYawValid = false;
+        turnYaw = pendingYaw - anglesFromTracking(t.head.orientation, 0.f).y;
+    }
+    state.turnYaw = turnYaw;
+    state.spaceOrigin = toWorld(glm::vec3{0.f});
+    // The tracked body, as the head and hands (seated: raised as they are, the floor under it lowered).
+    bodytrack::place(base, floorBelowHead - glm::vec3{0.f, seatedLift, 0.f}, turnYaw, m2u);
+
+    state.head = toWorld(t.head.position);
+    state.headAngles = anglesFromTracking(t.head.orientation, turnYaw);
+    state.headHeight = t.head.position.y;
+
+    const FrameState& frame = frameState();
+    for(int eye = 0; eye < 2; eye++)
+    {
+        state.eyeOrigin[eye] = toWorld(frame.eyes[eye].pose.position + glm::vec3{0.f, seatedLift, 0.f});
+        state.eyeAngles[eye] = anglesFromTracking(frame.eyes[eye].pose.orientation, turnYaw);
+    }
+
+    for(int h = 0; h < HAND_COUNT; h++)
+    {
+        const GripInRaw& grip = t.gripInHand[h];
+        const glm::vec3 gripPos = t.hands[h].position + t.hands[h].orientation * grip.offset;
+        const glm::quat gripOri = t.hands[h].orientation * grip.turn;
+        // The hand on its controller: the calibration (its pitch and yaw, then its roll and move).
+        const Calibration cal = calibration(h);
+        glm::vec3 handPos = t.hands[h].position;
+        glm::quat handOri = withHandOffsets(t.hands[h].orientation, h);
+        const glm::quat unrolled = handOri;
+        calibrate(cal, gripPos, gripOri, handPos, handOri);
+        calibratedOffset[h] = handPos - t.hands[h].position;
+        state.pos[h] = toWorld(handPos);
+        state.rot[h] = anglesFromTracking(handOri, turnYaw);
+        state.calibratedPos[h] = state.pos[h];
+        state.calibratedRot[h] = state.rot[h];
+        state.calTurn[h] = cal.turn.z != 0.f ? basisOf(state.rot[h]) * glm::transpose(basisOf(anglesFromTracking(unrolled, turnYaw)))
+                                             : glm::mat3{1.f};
+        state.controllerPos[h] = toWorld(t.hands[h].position);
+        state.controllerRot[h] = anglesFromTracking(t.hands[h].orientation, turnYaw);
+        state.gripPos[h] = toWorld(gripPos);
+        state.gripRot[h] = anglesFromTracking(gripOri, turnYaw);
+        state.aimRot[h] = state.rot[h];
+        state.wholeTurn[h] = glm::mat3{1.f};
+        applyWholeOffset(h);
+        state.unresolvedPos[h] = state.pos[h];
+        state.unresolvedRot[h] = state.rot[h];
+    }
+
+    handpose::resolvePositions(state, turnYaw);
+    twohand::apply(state);
+    handpose::weightDirections(state, turnYaw);
+
+    // The server takes the aim from the move's view angles (.v_angle): the main hand.
+    for(int i = 0; i < 3; i++)
+    {
+        cl.viewangles[i] = state.rot[HAND_MAIN][i];
+    }
+}
+
+// The hands placed without a headset.
+void placeFlat(const glm::vec3& aim, float yaw)
+{
+    // Flat screen ("fake VR" in the old engine): hands held in front of the view, following
+    // its pitch too, so that looking down reaches for the floor.
+    glm::vec3 fwd, right, up;
+    angleVectors(aim, fwd, right, up);
+
+    state.lean = glm::vec3{0.f};
+    state.turnYaw = yaw;
+    state.spaceOrigin = state.playerOrigin;
+    state.leanHold = 0.f;
+    state.standingHeight = units::eyeHeight();
+    state.head = state.playerOrigin + glm::vec3{0.f, 0.f, cl.viewheight};
+    state.headAngles = aim;
+    state.headHeight = vr_height_calibration.value;
+
+    const glm::vec3 centre = state.playerOrigin + fwd * 16.5f + up * 15.5f;
+    if(flatplay::active())
+    {
+        // -flatscreenmode: the hands posed from the view, the weapon in each hand and the player's own motion
+        // (vr_flatplay.cpp); the pose below is the old one, for a flat game started without the flag.
+        flatplay::poseHands(state, aim);
+    }
+    else
+    {
+        state.pos[HAND_OFF] = centre - right * 5.5f;
+        state.pos[HAND_MAIN] = centre + right * 5.5f;
+        for(glm::vec3& rot : state.rot)
+        {
+            rot = aim + glm::vec3{0.f, 0.f, vr_fakevr_handroll.value};
+        }
+    }
+    for(int h = 0; h < HAND_COUNT; h++)
+    {
+        state.calTurn[h] = glm::mat3{1.f};
+        state.controllerPos[h] = state.calibratedPos[h] = state.pos[h];
+        state.controllerRot[h] = state.calibratedRot[h] = state.aimRot[h] = state.rot[h];
+        state.gripPos[h] = state.pos[h];
+        state.gripRot[h] = state.rot[h];
+        state.wholeTurn[h] = glm::mat3{1.f};
+        applyWholeOffset(h);
+    }
+}
+
+// Body drift's log (vr_debug_body_error).
+void logBodyDrift()
+{
+    if(vr_debug_body_error.value && vrActive())
+    {
+        if(!bodyDrift.logging || !bodyDrift.marked)
+        {
+            markBodyDrift();
+            bodyDrift.nextPrint = vr_gametime;
+        }
+        bodyDrift.logging = true;
+        if(vr_gametime >= bodyDrift.nextPrint)
+        {
+            bodyDrift.nextPrint = vr_gametime + 0.5;
+            printBodyDrift("");
+        }
+    }
+    else
+    {
+        bodyDrift.logging = false;
+    }
+}
+
 void update()
 {
     QVR_PROFILE("hands");
@@ -671,159 +854,15 @@ void update()
 
     // Stair steps: the origin rises at once, so ease the body (head, eyes, hands) up after it,
     // as V_CalcRefdef does for the flat view (80 units/s, at most 12 behind).
-    {
-        float& smoothZ = stairSmoothZ;
-        double& lastTime = stairLastTime;
-        const float z = state.playerOrigin.z;
-        if(portalJumpPending && cl.time - portalJumpTime > 0.5)
-        {
-            portalJumpPending = false; // (no jump came: a gate leading close by)
-        }
-        if(portalJumpPending && lastRawOriginValid &&
-            glm::length(glm::vec2{state.playerOrigin.x - lastRawOrigin.x, state.playerOrigin.y - lastRawOrigin.y}) > 64.f)
-        {
-            smoothZ += z - lastRawOrigin.z; // through a teleporter: still that far under the origin
-        }
-        lastRawOrigin = state.playerOrigin;
-        lastRawOriginValid = true;
-        if(!noclip_anglehack && cl.onground && z - smoothZ > 0.f && lastTime >= 0.0)
-        {
-            if(cl.time != lastTime)
-            {
-                smoothZ += static_cast<float>(CLAMP(0.0, cl.time - lastTime, 0.1)) * 80.f;
-            }
-            smoothZ = CLAMP(z - 12.f, smoothZ, z);
-        }
-        else
-        {
-            smoothZ = z;
-        }
-        // Not eased up from where the player was before the server first placed it (the world's origin, after a
-        // loaded game or a new map): the body rose 12 units over its first frames, and a two-handed hold taken
-        // then kept the gap (vr_held.cpp).
-        lastTime = player.msgtime > 0.0 ? cl.time : -1.0;
-        state.playerOrigin.z = smoothZ;
-    }
+    easeStairs(player);
 
     if(vrActive())
     {
-        updateRoomscale(t, m2u, state.playerOrigin);
-        state.lean = lean;
-        state.leanHold = vr_lean_detect.value > 0.f ? leanSense.hold : 0.f;
-        state.leanCues = leanSense.cues;
-        state.standingHeight = leanSense.valid ? leanSense.standing : units::eyeHeight();
-
-        // Positions are relative to the play-space floor below the head: the box's middle and the
-        // lean.
-        const glm::vec3 floorBelowHead{t.head.position.x, 0.f, t.head.position.z};
-        const glm::vec3 base = state.playerOrigin + lean + glm::vec3{0.f, 0.f, vr_floor_offset.value};
-        const auto toWorld = [&](const glm::vec3& trackingPos) {
-            return base + rotateYaw(quakeFromTracking(trackingPos - floorBelowHead) * m2u, turnYaw);
-        };
-
-        if(pendingYawValid)
-        {
-            // Turn the play space so that the head faces the yaw the server asked for.
-            pendingYawValid = false;
-            turnYaw = pendingYaw - anglesFromTracking(t.head.orientation, 0.f).y;
-        }
-        state.turnYaw = turnYaw;
-        state.spaceOrigin = toWorld(glm::vec3{0.f});
-        // The tracked body, as the head and hands (seated: raised as they are, the floor under it lowered).
-        bodytrack::place(base, floorBelowHead - glm::vec3{0.f, seatedLift, 0.f}, turnYaw, m2u);
-
-        state.head = toWorld(t.head.position);
-        state.headAngles = anglesFromTracking(t.head.orientation, turnYaw);
-        state.headHeight = t.head.position.y;
-
-        const FrameState& frame = frameState();
-        for(int eye = 0; eye < 2; eye++)
-        {
-            state.eyeOrigin[eye] = toWorld(frame.eyes[eye].pose.position + glm::vec3{0.f, seatedLift, 0.f});
-            state.eyeAngles[eye] = anglesFromTracking(frame.eyes[eye].pose.orientation, turnYaw);
-        }
-
-        for(int h = 0; h < HAND_COUNT; h++)
-        {
-            const GripInRaw& grip = t.gripInHand[h];
-            const glm::vec3 gripPos = t.hands[h].position + t.hands[h].orientation * grip.offset;
-            const glm::quat gripOri = t.hands[h].orientation * grip.turn;
-            // The hand on its controller: the calibration (its pitch and yaw, then its roll and move).
-            const Calibration cal = calibration(h);
-            glm::vec3 handPos = t.hands[h].position;
-            glm::quat handOri = withHandOffsets(t.hands[h].orientation, h);
-            const glm::quat unrolled = handOri;
-            calibrate(cal, gripPos, gripOri, handPos, handOri);
-            calibratedOffset[h] = handPos - t.hands[h].position;
-            state.pos[h] = toWorld(handPos);
-            state.rot[h] = anglesFromTracking(handOri, turnYaw);
-            state.calibratedPos[h] = state.pos[h];
-            state.calibratedRot[h] = state.rot[h];
-            state.calTurn[h] = cal.turn.z != 0.f ? basisOf(state.rot[h]) * glm::transpose(basisOf(anglesFromTracking(unrolled, turnYaw)))
-                                                 : glm::mat3{1.f};
-            state.controllerPos[h] = toWorld(t.hands[h].position);
-            state.controllerRot[h] = anglesFromTracking(t.hands[h].orientation, turnYaw);
-            state.gripPos[h] = toWorld(gripPos);
-            state.gripRot[h] = anglesFromTracking(gripOri, turnYaw);
-            state.aimRot[h] = state.rot[h];
-            state.wholeTurn[h] = glm::mat3{1.f};
-            applyWholeOffset(h);
-            state.unresolvedPos[h] = state.pos[h];
-            state.unresolvedRot[h] = state.rot[h];
-        }
-
-        handpose::resolvePositions(state, turnYaw);
-        twohand::apply(state);
-        handpose::weightDirections(state, turnYaw);
-
-        // The server takes the aim from the move's view angles (.v_angle): the main hand.
-        for(int i = 0; i < 3; i++)
-        {
-            cl.viewangles[i] = state.rot[HAND_MAIN][i];
-        }
+        placeTracked(t, m2u, seatedLift);
     }
     else
     {
-        // Flat screen ("fake VR" in the old engine): hands held in front of the view, following
-        // its pitch too, so that looking down reaches for the floor.
-        glm::vec3 fwd, right, up;
-        angleVectors(aim, fwd, right, up);
-
-        state.lean = glm::vec3{0.f};
-        state.turnYaw = yaw;
-        state.spaceOrigin = state.playerOrigin;
-        state.leanHold = 0.f;
-        state.standingHeight = units::eyeHeight();
-        state.head = state.playerOrigin + glm::vec3{0.f, 0.f, cl.viewheight};
-        state.headAngles = aim;
-        state.headHeight = vr_height_calibration.value;
-
-        const glm::vec3 centre = state.playerOrigin + fwd * 16.5f + up * 15.5f;
-        if(flatplay::active())
-        {
-            // -flatscreenmode: the hands posed from the view, the weapon in each hand and the player's own motion
-            // (vr_flatplay.cpp); the pose below is the old one, for a flat game started without the flag.
-            flatplay::poseHands(state, aim);
-        }
-        else
-        {
-            state.pos[HAND_OFF] = centre - right * 5.5f;
-            state.pos[HAND_MAIN] = centre + right * 5.5f;
-            for(glm::vec3& rot : state.rot)
-            {
-                rot = aim + glm::vec3{0.f, 0.f, vr_fakevr_handroll.value};
-            }
-        }
-        for(int h = 0; h < HAND_COUNT; h++)
-        {
-            state.calTurn[h] = glm::mat3{1.f};
-            state.controllerPos[h] = state.calibratedPos[h] = state.pos[h];
-            state.controllerRot[h] = state.calibratedRot[h] = state.aimRot[h] = state.rot[h];
-            state.gripPos[h] = state.pos[h];
-            state.gripRot[h] = state.rot[h];
-            state.wholeTurn[h] = glm::mat3{1.f};
-            applyWholeOffset(h);
-        }
+        placeFlat(aim, yaw);
     }
 
     updateVelocities(vrActive() ? &t : nullptr);
@@ -846,24 +885,7 @@ void update()
     state.valid = true;
 
     // Body drift's log (vr_debug_body_error): marked where the body is when turned on.
-    if(vr_debug_body_error.value && vrActive())
-    {
-        if(!bodyDrift.logging || !bodyDrift.marked)
-        {
-            markBodyDrift();
-            bodyDrift.nextPrint = vr_gametime;
-        }
-        bodyDrift.logging = true;
-        if(vr_gametime >= bodyDrift.nextPrint)
-        {
-            bodyDrift.nextPrint = vr_gametime + 0.5;
-            printBodyDrift("");
-        }
-    }
-    else
-    {
-        bodyDrift.logging = false;
-    }
+    logBodyDrift();
 }
 
 } // namespace

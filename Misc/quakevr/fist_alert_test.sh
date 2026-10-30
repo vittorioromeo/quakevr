@@ -9,7 +9,7 @@
 AGENT=$1; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 W=C:/OHWorkspace/qvr-agents/$AGENT
 fail=0
-check() { if [ "$1" = "1" ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi; }
+source "$(dirname "$0")/qvrtest.sh"
 mkdir -p "$W/scratch"
 printf '0.000 main 0.00 1.15 -0.20 0 0 0\n0.300 main 0.00 1.15 -0.20 0 0 0\n0.450 main 0.00 1.15 -1.00 0 0 0\n1.200 main 0.00 1.15 -1.00 0 0 0\n' > "$W/scratch/qvr_alert_punch.txt"
 P=$(cd "$W/scratch" && pwd -W 2>/dev/null || pwd)/qvr_alert_punch.txt
@@ -23,4 +23,5 @@ check $([ -z "$(hostile qvr_alert_close)" ] && echo 1 || echo 0) "the fist close
 check $([ -n "$(hostile qvr_alert_punch)" ] && echo 1 || echo 0) "a punch: wakes ($(hostile qvr_alert_punch))"
 check $([ -n "$(hostile qvr_alert_shot)" ] && echo 1 || echo 0) "the shotgun fired: wakes ($(hostile qvr_alert_shot))"
 check $(echo "$log" | grep -q "rror" && echo 0 || echo 1) "no error"
+verdict
 exit $fail

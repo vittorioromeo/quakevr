@@ -23,7 +23,7 @@ export TB_NODRAW=${TB_NODRAW-1} # (batched frames not drawn: no check here reads
 # (The body: tb_main plays its runs as batches, testbatch.sh; TB_SLOW=1: each alone by run.sh, as before.)
 tb_body() {
 fail=0
-check() { if [ "$1" = "1" ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi; }
+source "$(dirname "$0")/../qvrtest.sh"
 BASE="map e1m1;wait60;developer 1;vr_reload_debug 1;vr_weapon_grip_mode 1;impulse 9;wait2"
 
 # 1. The shapes.
@@ -124,6 +124,7 @@ check $(echo "$log" | grep -q "seated in the Nailgun lying about (a loose round 
 S="$BASE;impulse 154;wait3;vr_test_weaponinst 7;impulse 120;wait3;give s 30;vr_mock_hand main 0.25 1.1 -0.3 0 0 0;vr_mock_hand off -0.15 1.0 -0.40 80 0 0;wait10;vr_reload_test 5;impulse 125;wait2;vr_debug_collect_fx 1;vr_reload_test 10;impulse 125;wait150"
 log=$(tb_run_sh -Script "$S;toggleconsole;quit" -Filter "^reload: [0-9] into|^collect fx" 2>&1)
 check $(echo "$log" | grep -q "a loose round by contact" && echo "$log" | grep -q "into hotspot 240" && echo "$log" | grep -q "collect fx: progs/vr_shell_live.mdl gone in" && echo 1 || echo 0) "held shotgun: a loose shell tossed in slides in ($(echo "$log" | grep -c "in gun [01] t") frames)"
+verdict
 exit $fail
 }
 source "$(dirname "$0")/../testbatch/testbatch.sh"

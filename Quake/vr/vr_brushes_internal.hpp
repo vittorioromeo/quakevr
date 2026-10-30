@@ -1,7 +1,8 @@
 #pragma once
 
-// vr_brushes_internal.hpp -- what vr_brushes.cpp (see vr_brushes.hpp) shares with its diagnostics, vr_brushes_diag.cpp.
-// Internal: included by those two alone. What was the file's anonymous namespace and both use is namespace
+// vr_brushes_internal.hpp -- what vr_brushes.cpp (see vr_brushes.hpp) shares with its parts: the brush model
+// (vr_brushes_model.cpp), the brush and its text (vr_brushes_text.cpp) and the diagnostics (vr_brushes_diag.cpp).
+// Internal: included by those alone. What was the file's anonymous namespace and both use is namespace
 // brushes::detail: its types here, its functions declared here and defined in the file that owns them.
 
 #include "vr_brushes.hpp"
@@ -41,6 +42,23 @@
 
 namespace qvr::brushes::detail
 {
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Polygons from planes.
+
+using Winding = za::SmallVector<glm::dvec3, 16>;
+
+inline constexpr double onEpsilon = 1e-6;   // a point this near a plane is on it
+inline constexpr double weldEpsilon = 1e-4; // corners this near a 1/256 grid point are put on it
+inline constexpr double worldExtent = 32768.0;
+inline constexpr float distEpsilon = 0.03125f; // Quake's back-off from a plane hit (DIST_EPSILON)
+
+// vr_brushes_model.cpp.
+[[nodiscard]] Winding baseWinding(const glm::dvec3& n, double d);
+bool polygons(const Brush& b, za::Vector<Winding>& out);
+[[nodiscard]] texture_t* worldTexture(const char* name);
+void bevels(const za::Vector<Winding>& polys, const glm::dvec3& origin, const glm::dvec3& lo, const glm::dvec3& hi,
+            za::Vector<glm::dvec4>& planes);
 
 struct Built
 {

@@ -18,6 +18,9 @@ import subprocess
 import os
 import sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import qvrtest  # noqa: E402
+
 # Git's bash on Windows (a plain "bash" may be WSL's, which cannot run the kit).
 BASH = "C:/Program Files/Git/bin/bash.exe" if os.path.exists("C:/Program Files/Git/bin/bash.exe") else "bash"
 
@@ -127,7 +130,7 @@ def judge_all(found, who, own_hands, expect):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("agent")
-    ap.add_argument("--kit", default="C:/OHWorkspace/qvr-kit")
+    ap.add_argument("--kit", default=qvrtest.KIT)
     ap.add_argument("--only", default="")
     a = ap.parse_args()
     setup = "map e1m1;wait60;god;vr_debug_gunfx 1"

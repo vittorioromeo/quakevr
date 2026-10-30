@@ -207,8 +207,8 @@ void() VR_AGAM_Frame =
         {
             cvar_set("vr_debug_sound_log", "0");
             VR_AGAM_Print(sprintf("done: %g passed, %g failed", vr_agam_passed, vr_agam_failed));
-            vr_agt_passed = vr_agam_passed;
-            vr_agt_failed = vr_agam_failed;
+            vr_test_pass = vr_agam_passed;
+            vr_test_fail = vr_agam_failed;
             cvar_set("vr_agrunt_test", "0");
             return;
         }

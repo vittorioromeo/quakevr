@@ -12,7 +12,7 @@
 # Prints PASS/FAIL per check; exits 1 on a failure.
 AGENT=$1; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 fail=0
-check() { if [ "$1" = "1" ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi; }
+source "$(dirname "$0")/qvrtest.sh"
 S="vr_reload_mode 3;vr_handgrenade 1;vr_flashlight 1;vr_flashlight_cord 1;vr_dead_hide_gear 1;map e1m1;wait60;impulse 9;wait10"
 S="$S;save qvr_deadgear;vr_flashlight_give left;wait20;echo STEP alive;vr_gear_status;impulse 195;wait60;echo STEP dead;vr_gear_status"
 S="$S;wait150;restart;wait90;echo STEP respawned;vr_gear_status;impulse 195;wait60;echo STEP dead2;vr_gear_status"
@@ -36,4 +36,5 @@ check $(hidden dead2) "dead again: hidden"
 check $(drawn loaded) "loaded: the gear back"
 check $([ "$(field dead_settingoff "holstered guns")" -gt 0 ] && [ "$(field dead_settingoff "grenade pouch")" = "1" ] && [ "$(field dead_settingoff "ammo pouch")" = "1" ] && echo 1 || echo 0) "setting off, dead: the holsters and pouches drawn"
 check $(echo "$log" | grep -q "rror" && echo 0 || echo 1) "no error"
+verdict
 exit $fail

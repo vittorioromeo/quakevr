@@ -15,7 +15,7 @@ AGENT=$1; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 fail=0
 # (Times are printed to the millisecond: their differences are compared with half a millisecond to spare, awk's
 # 2.775 - 2.475 being 0.29999999999999982, not 0.3: the stroke home on its due time read as early.)
-check() { if [ "$1" = "1" ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi; }
+source "$(dirname "$0")/qvrtest.sh"
 SETUP="map e1m1;wait60;vr_weapon_grip_mode 1;impulse 9;wait2;impulse 154;wait3;vr_mock_hand main 0.15 1.2 -0.45 70 0 0;wait10"
 FIRE="vr_debug_weaponfx 1;+attack;wait3;-attack;wait90"
 run() { bash $KIT/run.sh $AGENT -Script "$1;toggleconsole;quit" -Filter "^autopump hand|^shells eject|^weaponfx fired" 2>&1; }
@@ -65,4 +65,5 @@ read s sr b br bd h hr hd e shot <<< "$(stroke "$log")"
 check $(awk -v s="$s" -v t="$shot" -v h="$h" -v e="$e" -v bd="$bd" 'BEGIN { d = s - t; print (t != "" && d >= 0.0295 && d < 0.0305 && h - t < 0.5 && e >= bd && e - bd < 0.015) ? 1 : 0 }') "a 0.45 s stroke: the delay cut to 0.03 s, home before the next shot ($shot -> $s -> $h), the shell at the back"
 
 [ $fail = 0 ] && echo "autopump: all passed" || echo "autopump: FAILED"
+verdict
 exit $fail

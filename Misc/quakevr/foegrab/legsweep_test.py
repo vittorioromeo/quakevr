@@ -23,7 +23,10 @@ import subprocess
 import sys
 import time
 
-KIT = "C:/OHWorkspace/qvr-kit"
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import qvrtest  # noqa: E402  (the tests' library: Misc/quakevr/qvrtest.py)
+
+KIT = qvrtest.KIT
 BASH = "C:/Program Files/Git/bin/bash.exe"
 AGENT = sys.argv[1] if len(sys.argv) > 1 else "fastship"
 ONLY = sys.argv[2] if len(sys.argv) > 2 else ""
@@ -84,7 +87,6 @@ CASES = [
 ]
 SPAWN_DIST = {"walk": 48}  # units (36: GRUNT's place); walk: 12 further, walked up to
 
-FAILS = 0
 EXTRA = os.environ.get("LS_EXTRA", "") or "echo"  # (more commands for every case: experiments)
 
 
@@ -124,11 +126,8 @@ def sweep(kind, pitch, shift=(0.0, 0.0)):
     return keys
 
 
-def verdict(ok, what):
-    global FAILS
-    print(f"  {'PASS' if ok else 'FAIL'} {what}")
-    if not ok:
-        FAILS += 1
+TALLY = qvrtest.Tally("legsweep")  # (its `legsweep: PASS|FAIL <what>` lines and verdict)
+verdict = TALLY.check
 
 
 def main():
@@ -187,8 +186,7 @@ def main():
             ok = not swept and bool(notes) and not re.search(r"\b[Ee]rror", flat)
             what = f"{name}: {'SWEPT' if swept else 'not swept'} ({last})"
         verdict(ok and "CRASH" not in flat, what)
-    print(f"{FAILS} failed")
-    return 1 if FAILS else 0
+    return TALLY.verdict()
 
 
 if __name__ == "__main__":
