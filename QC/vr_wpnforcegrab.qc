@@ -572,6 +572,7 @@ void() VR_Forcegrab_FlightThink =
 
 void(entity e, float xHand) VR_Forcegrab_Launch =
 {
+    VR_WP_Taken(e); // (a dead one's worn backpack comes off its back as it goes: vr_wornpack.qc)
     // A wall torch comes out of its holder as it goes (vr_walltorch.qc).
     if(VR_WallTorch_OnWall(e))
     {

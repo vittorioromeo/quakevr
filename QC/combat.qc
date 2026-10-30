@@ -1797,6 +1797,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     {
         VR_AG_Hit(targ, inflictor, attacker, take);
     }
+    VR_WP_Hit(targ, inflictor, attacker, take); // VR: a hit on a worn backpack may tear it off (vr_wornpack.qc)
     // VR: situational knockdowns (vr_kdtrig.qc): by stairs, a ledge, on a slope, a close shotgun blast, wounded: it may go
     // down as a ragdoll (a knockdown: its pain's sound below, not its frames).
     VR_KdTrig_Hit(targ, inflictor, attacker, take);

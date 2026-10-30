@@ -2842,7 +2842,7 @@ float() VR_AG_SoldierDrop =
     if(!(self.ammo_shells + self.ammo_nails + self.ammo_rockets + self.ammo_cells + self.ammo_lava_nails +
          self.ammo_multi_rockets + self.ammo_plasma))
     {
-        if(self.vr_agr)
+        if(self.vr_agr && !self.vr_wp_had)
         {
             return FALSE; // (a replacement with none: the loot of the monster it replaced, its chance of a weapon too)
         }
@@ -2850,6 +2850,10 @@ float() VR_AG_SoldierDrop =
         // 5 shells, an enforcer's 5 cells).
         VR_AM_Row(self.vr_ag_kind);
         VR_AmmoUtil_SetAmmoCountByAmmoId(self, vr_am_loot_aid, vr_am_loot_n);
+    }
+    if(VR_WP_DeathLoot())
+    {
+        return TRUE; // (it wears its backpack, or lost it: no other dropped; vr_wornpack.qc)
     }
     DropBackpack();
     return TRUE;
@@ -3004,6 +3008,7 @@ void(float kind) VR_AM_Spawn =
     vr_ag_arm_roll = random();
     VR_AM_ArmAll(want, flags, inst, want2, flags2);
     VR_AgArmor_Spawn(self); // (its armour by the skill: vr_agarmor.qc)
+    VR_WP_Spawn(self);      // (its backpack on its back: vr_wornpack.qc, vr_worn_backpacks)
 };
 
 // Its weapons from its keys (as VR_AM_Spawn's: "weapon" decoded to `want`, `flags`, `inst`; "weapon2" `want2`,

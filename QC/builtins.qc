@@ -407,6 +407,12 @@ float(entity e, vector p) ragdolllimb = #0;
 // own model's ("<model>#plate<piece>") origin / angles now, as drawn.
 float QVR_ARMOR_PIECE_AT = -1000;
 float QVR_ARMOR_CLIENT = -1001; // ragdollbone(e, [what, 0, 0], ...): the client's word on e's armour (the tests): 0 type, 1 pieces, 2 wear; -1 none
+// The worn backpack (vr_wornpack.qc; the engine's vr_box3d_wornpack.cpp): ragdollbone(e, [what, player's number, hand],
+// QVR_WORNPACK) 0 whether e's ragdoll wears it (1; 0 not, -1 no ragdoll), 1 torn off its ragdoll, 2 the pull (N) of that
+// hand's hold if it is on e's pack (-1 none), 3 that hold's stretch (units); ragdollbone(e, p, QVR_WORNPACK_AT) how far
+// p is from e's worn pack (-1 none worn); limbpiece(e, 0, 20 / 21 / 22) its model's origin / angles / its box's middle.
+float QVR_WORNPACK = -1003;
+float QVR_WORNPACK_AT = -1004;
 float QVR_ARMOR_PIECE_BONES = -1002; // ragdollbone(e, [piece, 0, 0], ...): the rig's bones that piece rides (bits, as ragdolllimbs'); 0 none
 float(entity e, float what, ...) ragdolllimbs = #0;
 string(entity e, float bone) limbmodel = #0;

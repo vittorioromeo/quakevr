@@ -2137,6 +2137,63 @@ void plateWhere(edict_t* ent, int piece, int what, float* out)
     held::anglesFromAxes(now, out, false);
 }
 
+namespace
+{
+// progs/backpack.mdl's bounds (id1's; units): its front (+x) against the back, upright.
+constexpr glm::vec3 packLo{-10.01f, -8.29f, 0.f}, packHi{5.23f, 8.14f, 24.78f};
+constexpr float packChest = 0.62f; // its middle this far up the cuirass's height (its upper back)
+
+[[nodiscard]] float packScale()
+{
+    return za::clamp(vr_worn_backpack_scale.value, 0.1f, 2.f);
+}
+} // namespace
+
+void packModelBox(glm::vec3& mid, glm::vec3& half)
+{
+    mid = (packLo + packHi) * 0.5f * packScale();
+    half = (packHi - packLo) * 0.5f * packScale();
+}
+
+bool packWhere(edict_t* ent, glm::vec3& origin, glm::mat3& axes, glm::vec3& mid, glm::vec3& half)
+{
+    const Shell* s = serverShell(baseOf(ent));
+    const PlateFrame pf = s ? plateFrameOf(*s, Cuirass) : PlateFrame{};
+    if(!pf.ok)
+    {
+        return false;
+    }
+    // Its back at rest: the cuirass's outer face's least x, its middle across, its height's span.
+    float back = 1e9f, lo = 1e9f, hi = -1e9f, across = 0.f;
+    int n = 0;
+    for(const Vert& v : s->verts)
+    {
+        const bool on = v.piece == Cuirass && v.layer == 0;
+        back = on ? za::min(back, v.p.x) : back;
+        lo = on ? za::min(lo, v.p.z) : lo;
+        hi = on ? za::max(hi, v.p.z) : hi;
+        across += on ? v.p.y : 0.f;
+        n += on ? 1 : 0;
+    }
+    if(n == 0)
+    {
+        return false;
+    }
+    packModelBox(mid, half);
+    const float k = packScale();
+    const glm::vec3 restOrigin{back - packHi.x * k + vr_worn_backpack_x.value, across / static_cast<float>(n) + vr_worn_backpack_y.value,
+        lo + (hi - lo) * packChest - mid.z + vr_worn_backpack_z.value};
+    const float turnAngles[3] = {vr_worn_backpack_pitch.value, vr_worn_backpack_yaw.value, vr_worn_backpack_roll.value};
+    const glm::mat3 restAxes = held::axesFromAngles(turnAngles, false);
+    glm::vec3 posed[3];
+    posedAnchors(ent, *s, pf, posed);
+    const glm::mat3 turn = frameFrom(posed[0], posed[1], posed[2]) * glm::transpose(pf.rest);
+    origin = posed[0] + turn * (restOrigin - at(s->body.mdlRest, pf.anchor[0]));
+    axes = turn * restAxes;
+    mid = origin + axes * mid;
+    return true;
+}
+
 unsigned char* derivedFile(const char* name, unsigned int* path_id)
 {
     const char* hash = strstr(name, "#plate");

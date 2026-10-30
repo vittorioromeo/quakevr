@@ -215,6 +215,10 @@ dispatch vr_portals_ai_test QC/vr_portal_ai_test.qc VR_AI_TestFrame ask loose
 dispatch vr_prop_impact_test QC/vr_propimpact_test.qc VR_PropImp_TestFrame ask loose
 dispatch vr_smallgibs_test QC/vr_smallgibs_test.qc VR_SmallGib_TestStart xCase loose
 dispatch vr_stealth_test QC/vr_stealth_test.qc VR_Stealth_TestFrame ask loose
+dispatch vr_wornpack_test QC/vr_wornpack_test.qc VR_WornPack_TestFrame request loose
+
+vr_wornpack_test 1        vr_wornpack_test.qc              (worn backpacks: on, hits, knockdowns, landings, pulls, deaths)
+vr_wornpack_test 2        vr_wornpack_test.qc              (worn backpacks: the eyeshot)
 
 vr_agarmor_test  1*       vr_agarmor_test.qc               (the Debug menu runs it: the dispatcher's fall-through)
 vr_agarmor_test  2        vr_agarmor_test.qc               (VR_AgArmor_Give)
