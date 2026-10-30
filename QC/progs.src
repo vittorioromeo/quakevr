@@ -106,6 +106,7 @@ vr_tutorial.qc
 vr_mg3_triggers.qc
 vr_mg3_items.qc
 weapons.qc
+vr_wpnholster.qc
 // The single-player test and debug impulses (ImpulseCommands calls VR_TestImpulse first).
 vr_impulse_test.qc
 weapons_test.qc

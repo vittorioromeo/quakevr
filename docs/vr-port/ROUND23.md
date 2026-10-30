@@ -1167,3 +1167,32 @@ No behaviour change intended; the kits are listed in CODE_STYLE.md, "Kits (refac
   walltorch_grab) as baseline.tsv but autopump 7/7 (known); Holster Setup and Edit Blade Shape opened, pressed, undone,
   cancelled by their commands (say lines as before).
 - Bench (LTO, exclusive, idle_e1m1 + particles_dense + explosions_3s, 3 reps; this branch, origin/next, this branch again): frame and GPU times within noise, heap allocations the same; CPU busy +3-5% in the first run and -5-14% in the rerun (order noise, benchresults/b2_new, b2_base, b2_new2). A render-scale 0.8 eyeshot printed no incomplete-framebuffer warning (its PNG hash differs between two runs of the same exe, so hashes cannot compare builds).
+
+## Refactor wave B3, group G1: hands/weapons/locomotion (W), platform/QC bridge/menus (S) (branch `agent/refb3ws`)
+
+No behaviour change intended. The scripts that did it (the worktree's scratch/, not committed): b3_scan.py (the inline
+spellings per area), b3_vm.py / b3_loop.py / b3_vec.py (conversions that refuse a site they cannot prove the same),
+b3_split.py / b3_qcsplit.py (moves), b3_progscmp.py (two progs.dat compared with string offsets resolved).
+
+- **Inline spellings**: 21 manual `PR_PushQCVM(&sv.qcvm)`/`PR_PopQCVM` pairs -> `progs::ServerVm` (only where the pop
+  closed its block, no return/break between); 7 `num_edicts` loops -> `progs::forEachEdict` (the free check folded,
+  `continue` -> `return`; no early exit, the index unused); 150 `glm::vec3{p[0], p[1], p[2]}` -> `geom::vec(p)` (float
+  operands only: 8 byte-array sites the compiler refused were put back); `vr_ad_mounted` read directly (2); carry2h's
+  test uses `progs::localPlayer()`. Left (guards differ): 26 `EDICT_NUM(1)` and 15 `svs.clients[0].edict` sites
+  (localPlayer() also wants client 0 active), 15 push/pops with code after the pop in the same block or a second push
+  (backend_mock x8, builtins, fatigue, flashlight restoreState, server x2, trace, view_hands), 31 loops with early exits or the
+  index used, 9 SV_Move calls (boxes or computed ends), by-name lookups that test registration (gamedir) or bind the
+  mock hand's fields (progs.cpp).
+- **Splits** (pure moves: each block `#include`d where it was, so the translation unit is the same text; none uses
+  `__LINE__`/`__FILE__`): vr_gadget.cpp -> vr_gadget_holo.inc, vr_gadget_fps.inc; vr_menu.cpp (6742 -> 5036 lines) ->
+  vr_menu_checklist.inc, vr_menu_help.inc, vr_menu_paths.inc, vr_menu_instances.inc; vr_builtins.cpp (3405 -> 1078) ->
+  vr_builtins_melee/ragdoll/nav/held/hitmodel.inc (the table stays: check_builtins.py reads it); vr_toolgun.cpp ->
+  vr_toolgun_pick.inc, vr_toolgun_physgun.inc. QC: weapons.qc's tail (holsters, throw/drop, give/take, the weapon
+  frame) -> vr_wpnholster.qc, listed right after it in progs.src (progs.dat compared: see the test line). Not split:
+  the OpenXR backend (one 2400-line class: by phase means moving its inline members out), vr_cvars.inc (six tools parse
+  it, and its test cvars are scattered: a vr_cvars_test.inc would reorder registration).
+- **Long functions**: mockHandTo_f (508 -> 202 lines): its 11 sub-commands' blocks (each ends in a return) are
+  handToMag, handToWallButton, handToBladehandle, handToPosePart, handToZone, handToHolster, handToPouchPort,
+  handToPouchMag, handToAmmoOrLoadPort, handToNearest, handToRagdollOrBy (the locals they read passed in). Left: the
+  menu page builders (one braced list each: data, long by nature), the hot per-frame climbPreThink / VR_ClientClimb /
+  foegrab::serverFrame / input update / setupHand / buildMove (no proof of "unchanged" short of a bench pair each).
