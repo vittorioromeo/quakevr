@@ -302,6 +302,165 @@ za::Vector<MuzzleOffset> muzzleOffsets; // slot * 2 + mirrored
 // The weapon posing mode's held move: the hands as they were when it began (buildMove, the client's frame).
 VrMove unposed;
 
+// buildMove's phases: a hand's part of the move.
+void handMove(VrMove& move, const hands::State& hs, int h)
+{
+    VrHandMove& hand = move.hands[h];
+    hand.pos = hs.pos[h];
+    hand.tracked = hs.pos[h] - handpose::wallPush(h);
+    hand.rot = hs.rot[h];
+
+    double latest = 0.0;
+    const throwing::Estimate e = throwEstimateFor(h, hs, latest);
+    hand.vel = hs.vel[h];
+    hand.ownVel = hs.ownVel[h];
+    hand.velMag = glm::length(hs.vel[h]);
+    hand.throwVel = e.vel;
+    hand.angVel = e.angVel;
+    hand.throwFlick = e.flick;
+    hand.throwPos = e.pos;
+    hand.throwAge = static_cast<float>(za::max(0.0, latest - e.time));
+
+    move.hotspots[h] = static_cast<za::U8>(hs.hotspot[h]);
+
+    // Muzzles come from the weapon models (vr_view.cpp), as of the last rendered frame, moved with the hand since;
+    // a carried gun's from where it is drawn (handMuzzle). The loading port as the muzzle.
+    move.muzzlePos[h] = handMuzzle(hs, h);
+    move.loadPort[h] = hs.loadPortValid[h] ? hs.loadPort[h] + (hs.pos[h] - hs.placedFrom[h]) : hs.pos[h];
+    move.loadPortAxis[h] = hs.loadPortValid[h] ? hs.loadPortAxis[h] : glm::vec3{0.f};
+    move.loadPortFace[h] = hs.loadPortValid[h] ? hs.loadPortFace[h] : glm::vec3{0.f};
+    move.launchOfs[h] = adcrossbow::launchOffset(h); // (the AD crossbow's bolt as drawn; zero: the muzzle)
+    // Its magazine's box the same way (none: all zero).
+    for(int i = 0; i < 4; i++)
+    {
+        move.magBox[h][i] = hs.magBoxValid[h] ? hs.magBox[h][i] : glm::vec3{0.f};
+    }
+    if(hs.magBoxValid[h])
+    {
+        move.magBox[h][0] += hs.pos[h] - hs.placedFrom[h];
+    }
+
+    // Where its shots go: the aim turned by the weapon's Shot Pitch and Yaw (the drawn weapon doesn't move).
+    move.shotRot[h] = weapons::shotAngles(hs.rot[h], weapons::heldSlot(h), h == HAND_OFF);
+}
+
+// The VR bits (current state only).
+void setVrBits(VrMove& move, const hands::State& hs)
+{
+    int bits = 0;
+    const auto set = [&](bool on, int bit) {
+        if(on)
+        {
+            bits |= bit;
+        }
+    };
+    set(gripping(HAND_OFF), VRBITS0_OFFHAND_GRABBING);
+    set(gripping(HAND_MAIN), VRBITS0_MAINHAND_GRABBING);
+    set(handButtons(HAND_OFF).reload, VRBITS0_OFFHAND_RELOADING);
+    set(handButtons(HAND_MAIN).reload, VRBITS0_MAINHAND_RELOADING);
+    // (Not with the other hand on its barrel or anywhere on it: flick::allowed.)
+    // (The super shotgun pried open or lifted shut with both hands on it: the other hand's bit, the front one's, so that
+    // the server tells it from a flick: flick::pried; QC vr_reload.qc VR_Reload_SsgFrame.)
+    set(((handButtons(HAND_OFF).flickReload || flick::flicking(HAND_OFF)) && flick::allowed(HAND_OFF)) ||
+            flick::pried(HAND_MAIN),
+        VRBITS0_OFFHAND_RELOADFLICKING);
+    set(((handButtons(HAND_MAIN).flickReload || flick::flicking(HAND_MAIN)) && flick::allowed(HAND_MAIN)) ||
+            flick::pried(HAND_OFF),
+        VRBITS0_MAINHAND_RELOADFLICKING);
+    set(twohand::aiming(), VRBITS0_2H_AIMING);
+    set(teleport::update(hs, move.teleportTarget), VRBITS0_TELEPORTING);
+    set(flatplay::active(), VRBITS0_FLATPLAY);
+    move.vrBits0 = static_cast<za::U16>(bits);
+}
+
+// The buttons: the off hand's attack, the tracked hands, busy hands, the face buttons held.
+void setButtons(VrMove& move)
+{
+    if(offhandAttack || offhandAttackImpulse)
+    {
+        move.buttons |= QVR_BUTTON_OFFHANDATTACK;
+    }
+    offhandAttackImpulse = false;
+
+    if(vrActive() || flatplay::active())
+    {
+        // -flatscreenmode too: the game code runs its VR gameplay for a player whose hands the game poses itself
+        // (QVR_VRBITS0_HANDSTRACKED; held weapons, the force grab, melee, the holsters).
+        move.buttons |= QVR_BUTTON_HANDSTRACKED;
+    }
+    // A hand holding the flashlight (or a chainsaw's cord) does not force grab.
+    move.sawCord = chainsaw::moveBits();
+    move.handDrop = weight::dropBits();
+    if(flashlight::holds(HAND_OFF) || chainsaw::holds(HAND_OFF))
+    {
+        move.buttons |= QVR_BUTTON_OFFHANDBUSY;
+    }
+    if(flashlight::holds(HAND_MAIN) || chainsaw::holds(HAND_MAIN))
+    {
+        move.buttons |= QVR_BUTTON_MAINHANDBUSY;
+    }
+    // The upper face buttons held (B/Y): the grappling hook reels in while its hand's is (QC vr_grapple.qc).
+    if(input::secondaryHeld(HAND_OFF))
+    {
+        move.buttons |= QVR_BUTTON_OFFHANDSECONDARY;
+    }
+    if(input::secondaryHeld(HAND_MAIN))
+    {
+        move.buttons |= QVR_BUTTON_MAINHANDSECONDARY;
+    }
+    // The lower ones (A/X): the hook unreels while its hand's is, in the air (QC vr_grapple.qc).
+    if(input::primaryHeld(HAND_OFF))
+    {
+        move.buttons |= QVR_BUTTON_OFFHANDPRIMARY;
+    }
+    if(input::primaryHeld(HAND_MAIN))
+    {
+        move.buttons |= QVR_BUTTON_MAINHANDPRIMARY;
+    }
+}
+
+// The weapon posing mode's held move (or this move remembered as the unposed one).
+void poseMove(VrMove& move)
+{
+    if(posing::active())
+    {
+        const glm::vec3 walked = move.origin - unposed.origin;
+        for(int h = 0; h < HAND_COUNT; h++)
+        {
+            VrHandMove& hand = move.hands[h];
+            hand = unposed.hands[h];
+            hand.pos += walked;
+            hand.tracked += walked;
+            hand.throwPos += walked;
+            hand.vel = hand.throwVel = hand.angVel = hand.throwFlick = hand.ownVel = glm::vec3{0.f};
+            hand.velMag = 0.f;
+            move.hotspots[h] = unposed.hotspots[h];
+            move.muzzlePos[h] = unposed.muzzlePos[h] + walked;
+            move.loadPort[h] = unposed.loadPort[h] + walked;
+            move.loadPortAxis[h] = unposed.loadPortAxis[h];
+            move.loadPortFace[h] = unposed.loadPortFace[h];
+            move.launchOfs[h] = unposed.launchOfs[h];
+            for(int i = 0; i < 4; i++)
+            {
+                move.magBox[h][i] = unposed.magBox[h][i];
+            }
+            if(unposed.magBox[h][1] != glm::vec3{0.f})
+            {
+                move.magBox[h][0] += walked;
+            }
+            move.shotRot[h] = unposed.shotRot[h];
+        }
+        move.vrBits0 = static_cast<za::U16>(unposed.vrBits0 & (VRBITS0_OFFHAND_GRABBING | VRBITS0_MAINHAND_GRABBING |
+                                                                     VRBITS0_OFFHAND_RELOADING | VRBITS0_MAINHAND_RELOADING));
+        move.buttons &= ~(QVR_BUTTON_OFFHANDATTACK | QVR_BUTTON_OFFHANDSECONDARY | QVR_BUTTON_MAINHANDSECONDARY |
+                          QVR_BUTTON_OFFHANDPRIMARY | QVR_BUTTON_MAINHANDPRIMARY);
+    }
+    else
+    {
+        unposed = move;
+    }
+}
+
 [[nodiscard]] VrMove buildMove()
 {
     VrMove move;
@@ -347,43 +506,7 @@ VrMove unposed;
 
     for(int h = 0; h < HAND_COUNT; h++)
     {
-        VrHandMove& hand = move.hands[h];
-        hand.pos = hs.pos[h];
-        hand.tracked = hs.pos[h] - handpose::wallPush(h);
-        hand.rot = hs.rot[h];
-
-        double latest = 0.0;
-        const throwing::Estimate e = throwEstimateFor(h, hs, latest);
-        hand.vel = hs.vel[h];
-        hand.ownVel = hs.ownVel[h];
-        hand.velMag = glm::length(hs.vel[h]);
-        hand.throwVel = e.vel;
-        hand.angVel = e.angVel;
-        hand.throwFlick = e.flick;
-        hand.throwPos = e.pos;
-        hand.throwAge = static_cast<float>(za::max(0.0, latest - e.time));
-
-        move.hotspots[h] = static_cast<za::U8>(hs.hotspot[h]);
-
-        // Muzzles come from the weapon models (vr_view.cpp), as of the last rendered frame, moved with the hand since;
-        // a carried gun's from where it is drawn (handMuzzle). The loading port as the muzzle.
-        move.muzzlePos[h] = handMuzzle(hs, h);
-        move.loadPort[h] = hs.loadPortValid[h] ? hs.loadPort[h] + (hs.pos[h] - hs.placedFrom[h]) : hs.pos[h];
-        move.loadPortAxis[h] = hs.loadPortValid[h] ? hs.loadPortAxis[h] : glm::vec3{0.f};
-        move.loadPortFace[h] = hs.loadPortValid[h] ? hs.loadPortFace[h] : glm::vec3{0.f};
-        move.launchOfs[h] = adcrossbow::launchOffset(h); // (the AD crossbow's bolt as drawn; zero: the muzzle)
-        // Its magazine's box the same way (none: all zero).
-        for(int i = 0; i < 4; i++)
-        {
-            move.magBox[h][i] = hs.magBoxValid[h] ? hs.magBox[h][i] : glm::vec3{0.f};
-        }
-        if(hs.magBoxValid[h])
-        {
-            move.magBox[h][0] += hs.pos[h] - hs.placedFrom[h];
-        }
-
-        // Where its shots go: the aim turned by the weapon's Shot Pitch and Yaw (the drawn weapon doesn't move).
-        move.shotRot[h] = weapons::shotAngles(hs.rot[h], weapons::heldSlot(h), h == HAND_OFF);
+        handMove(move, hs, h);
     }
 
     move.headVel = hs.headVel;
@@ -399,113 +522,14 @@ VrMove unposed;
 
     // VR bits: current state only. The server fills in the "PREV" bits once per server
     // frame, so that press edges survive several moves arriving in one frame.
-    int bits = 0;
-    const auto set = [&](bool on, int bit) {
-        if(on)
-        {
-            bits |= bit;
-        }
-    };
-    set(gripping(HAND_OFF), VRBITS0_OFFHAND_GRABBING);
-    set(gripping(HAND_MAIN), VRBITS0_MAINHAND_GRABBING);
-    set(handButtons(HAND_OFF).reload, VRBITS0_OFFHAND_RELOADING);
-    set(handButtons(HAND_MAIN).reload, VRBITS0_MAINHAND_RELOADING);
-    // (Not with the other hand on its barrel or anywhere on it: flick::allowed.)
-    // (The super shotgun pried open or lifted shut with both hands on it: the other hand's bit, the front one's, so that
-    // the server tells it from a flick: flick::pried; QC vr_reload.qc VR_Reload_SsgFrame.)
-    set(((handButtons(HAND_OFF).flickReload || flick::flicking(HAND_OFF)) && flick::allowed(HAND_OFF)) ||
-            flick::pried(HAND_MAIN),
-        VRBITS0_OFFHAND_RELOADFLICKING);
-    set(((handButtons(HAND_MAIN).flickReload || flick::flicking(HAND_MAIN)) && flick::allowed(HAND_MAIN)) ||
-            flick::pried(HAND_OFF),
-        VRBITS0_MAINHAND_RELOADFLICKING);
-    set(twohand::aiming(), VRBITS0_2H_AIMING);
-    set(teleport::update(hs, move.teleportTarget), VRBITS0_TELEPORTING);
-    set(flatplay::active(), VRBITS0_FLATPLAY);
-    move.vrBits0 = static_cast<za::U16>(bits);
+    setVrBits(move, hs);
 
-    if(offhandAttack || offhandAttackImpulse)
-    {
-        move.buttons |= QVR_BUTTON_OFFHANDATTACK;
-    }
-    offhandAttackImpulse = false;
-
-    if(vrActive() || flatplay::active())
-    {
-        // -flatscreenmode too: the game code runs its VR gameplay for a player whose hands the game poses itself
-        // (QVR_VRBITS0_HANDSTRACKED; held weapons, the force grab, melee, the holsters).
-        move.buttons |= QVR_BUTTON_HANDSTRACKED;
-    }
-    // A hand holding the flashlight (or a chainsaw's cord) does not force grab.
-    move.sawCord = chainsaw::moveBits();
-    move.handDrop = weight::dropBits();
-    if(flashlight::holds(HAND_OFF) || chainsaw::holds(HAND_OFF))
-    {
-        move.buttons |= QVR_BUTTON_OFFHANDBUSY;
-    }
-    if(flashlight::holds(HAND_MAIN) || chainsaw::holds(HAND_MAIN))
-    {
-        move.buttons |= QVR_BUTTON_MAINHANDBUSY;
-    }
-    // The upper face buttons held (B/Y): the grappling hook reels in while its hand's is (QC vr_grapple.qc).
-    if(input::secondaryHeld(HAND_OFF))
-    {
-        move.buttons |= QVR_BUTTON_OFFHANDSECONDARY;
-    }
-    if(input::secondaryHeld(HAND_MAIN))
-    {
-        move.buttons |= QVR_BUTTON_MAINHANDSECONDARY;
-    }
-    // The lower ones (A/X): the hook unreels while its hand's is, in the air (QC vr_grapple.qc).
-    if(input::primaryHeld(HAND_OFF))
-    {
-        move.buttons |= QVR_BUTTON_OFFHANDPRIMARY;
-    }
-    if(input::primaryHeld(HAND_MAIN))
-    {
-        move.buttons |= QVR_BUTTON_MAINHANDPRIMARY;
-    }
+    setButtons(move);
 
     // The weapon posing mode (vr_posing.cpp): the game sees the hands held still where they were when it began (with the
     // player, who may walk round the weapon), their buttons as they were, no two-handed aim, no teleport and no attack:
     // no shot, blow, grab, holster or throw while the hands pose.
-    if(posing::active())
-    {
-        const glm::vec3 walked = move.origin - unposed.origin;
-        for(int h = 0; h < HAND_COUNT; h++)
-        {
-            VrHandMove& hand = move.hands[h];
-            hand = unposed.hands[h];
-            hand.pos += walked;
-            hand.tracked += walked;
-            hand.throwPos += walked;
-            hand.vel = hand.throwVel = hand.angVel = hand.throwFlick = hand.ownVel = glm::vec3{0.f};
-            hand.velMag = 0.f;
-            move.hotspots[h] = unposed.hotspots[h];
-            move.muzzlePos[h] = unposed.muzzlePos[h] + walked;
-            move.loadPort[h] = unposed.loadPort[h] + walked;
-            move.loadPortAxis[h] = unposed.loadPortAxis[h];
-            move.loadPortFace[h] = unposed.loadPortFace[h];
-            move.launchOfs[h] = unposed.launchOfs[h];
-            for(int i = 0; i < 4; i++)
-            {
-                move.magBox[h][i] = unposed.magBox[h][i];
-            }
-            if(unposed.magBox[h][1] != glm::vec3{0.f})
-            {
-                move.magBox[h][0] += walked;
-            }
-            move.shotRot[h] = unposed.shotRot[h];
-        }
-        move.vrBits0 = static_cast<za::U16>(unposed.vrBits0 & (VRBITS0_OFFHAND_GRABBING | VRBITS0_MAINHAND_GRABBING |
-                                                                     VRBITS0_OFFHAND_RELOADING | VRBITS0_MAINHAND_RELOADING));
-        move.buttons &= ~(QVR_BUTTON_OFFHANDATTACK | QVR_BUTTON_OFFHANDSECONDARY | QVR_BUTTON_MAINHANDSECONDARY |
-                          QVR_BUTTON_OFFHANDPRIMARY | QVR_BUTTON_MAINHANDPRIMARY);
-    }
-    else
-    {
-        unposed = move;
-    }
+    poseMove(move);
 
     return move;
 }

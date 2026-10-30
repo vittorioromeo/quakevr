@@ -1022,214 +1022,147 @@ void describeBindings(char* out, size_t size)
 namespace
 {
 const InputState released; // (update: without VR, everything is released)
-} // namespace
-
-const char* menuButtonName()
+// update's phases: a hand's button changed: whatever takes it first (a menu gesture, a tool, a mode), else its key.
+void buttonChanged(const InputState& in, int h, const ButtonKeys& b, bool now)
 {
-    return vr_menu_button.value >= 1.f ? "menu button or both sticks" : "menu button";
-}
-
-void update(const InputState& tracked)
-{
-    // Without VR, everything is released (keys held when the session ends must come up).
-    const bool active = vrActive();
-    const InputState& raw = active ? tracked : released;
-    // Doom on the wrist gadget with the focus takes the gadget hand's stick and buttons (its menu button stays Quake's):
-    // Quake sees them let go meanwhile (vr_doom.hpp).
-    InputState masked;
-    const bool doomTakes = doom::takesOffHand(raw);
-    if(doomTakes)
+    // A menu gesture's button is the menu's alone (vr_menu_button: both stick clicks, Y).
+    if(menuGestureButton(in, h, b.button, now))
     {
-        masked = raw;
-        const int g = hands::gadgetHand();
-        HandInput none;
-        none.menu = raw.hands[g].menu;
-        masked.hands[g] = none;
+        logButton(h, b, now, b.key[h], "the menu gesture (vr_menu_button)");
+        return;
     }
-    const InputState& in = doomTakes ? masked : raw;
-
-    // The sticks by what they do: the moving one (vr_stick_swap: the right), the turning one.
-    const HandInput& off = in.hands[hands::moveHand()];
-    const HandInput& main = in.hands[1 - hands::moveHand()];
-
-    // Where the hands point at the menu, before the trigger clicks there.
-    menuui::update(hands::current());
-
-    // vr_menu_button's ways to the menu: Y or B held (the stick chord and Y pressed: with the buttons, below).
-    for(int h = 0; h < HAND_COUNT; h++)
+    // Holster Setup takes every button while it runs (vr_holstersetup.cpp): nothing reaches the game.
+    if(holstersetup::button(h, posingButton(b.button), now))
     {
-        menuGestures.press[h] = false;
+        logButton(h, b, now, b.key[h], "Holster Setup");
+        return;
     }
-    menuHold(secondaryDown);
-
-    for(int h = 0; h < HAND_COUNT; h++)
+    // So does Edit Blade Shape (vr_bladeedit.cpp).
+    if(bladeedit::button(h, posingButton(b.button), now))
     {
-        for(const ButtonKeys& b : buttonKeys)
+        logButton(h, b, now, b.key[h], "Edit Blade Shape");
+        return;
+    }
+    // And the Pose Studio (vr_posestudio.cpp): the grips, triggers, B/Y (not A/X or the sticks: you walk).
+    if(posestudio::button(h, posingButton(b.button), now))
+    {
+        logButton(h, b, now, b.key[h], "the Pose Studio");
+        return;
+    }
+    // The weapon posing mode takes the buttons pressed while it runs (vr_posing.cpp).
+    if(posing::button(h, posingButton(b.button), now))
+    {
+        logButton(h, b, now, b.key[h], "the weapon posing mode");
+        return;
+    }
+    // The Survival Arena's perk cards: a trigger with its laser on their panel picks (vr_arenacards.cpp).
+    if(arenacards::button(h, posingButton(b.button), now))
+    {
+        logButton(h, b, now, b.key[h], "the perk cards");
+        return;
+    }
+    // The toolgun's hand: its trigger, B/Y (its menu) and X/A (the sticks); the other trigger while its physgun
+    // holds something (vr_toolgun.cpp).
+    if(toolgun::button(h, posingButton(b.button), now))
+    {
+        logButton(h, b, now, b.key[h], "the toolgun");
+        return;
+    }
+    // The off hand's upper button at the mouth records a voice note instead (not while that hand holds
+    // the flashlight or is at it on the head: its Y turns it round in the fist, clips it on the head or
+    // takes it off; a note's release always ends it).
+    if(h == HAND_OFF && b.button == &HandInput::secondary && (!now || !flashlight::wantsSecondary(HAND_OFF)) &&
+        voicenotes::offhandButton(now))
+    {
+        logButton(h, b, now, b.key[h], "a voice note");
+        return;
+    }
+    // With the motion recorder armed, its record button (vr_motion_button) starts and ends a take instead.
+    if(motion::button(h, b.button, now))
+    {
+        logButton(h, b, now, b.key[h], "the motion recorder");
+        return;
+    }
+    // At a holster with a weapon in it (or one bound), the magnetic holsters' bind button binds it to the
+    // holster or unbinds it (vr_magholster_button; vr_magholster.cpp): its key is never sent.
+    if(magholster::button(h, b.button, now))
+    {
+        logButton(h, b, now, b.key[h], "the magnetic holsters");
+        return;
+    }
+    // A stick press chosen for the seated crouch toggle (vr_seated_crouch_button) does only that.
+    if(b.button == &HandInput::stickClick && seated::stickPress(h, now))
+    {
+        logButton(h, b, now, b.key[h], "the crouch toggle");
+        return;
+    }
+    // A stick press chosen to start bullet time (vr_bullettime_trigger) does only that in the game; its
+    // bound key (LTHUMB: +speed, RTHUMB: +reloadmain by default) is never sent.
+    if(b.button == &HandInput::stickClick && bullettime::stickPress(h, now))
+    {
+        logButton(h, b, now, b.key[h], "bullet time");
+        return;
+    }
+    // A grip in a holster zone switched to dragging takes hold of it (vr_holster_zone_<kind>_drag): never the
+    // game's (no gun drawn or put away there).
+    if(b.button == &HandInput::grip && zones::dragGrip(h, now))
+    {
+        logButton(h, b, now, b.key[h], "a holster zone's drag");
+        return;
+    }
+    // An empty hand at the cord's handle of the chainsaw in the other takes the cord (vr_chainsaw.cpp).
+    if(b.button == &HandInput::grip && chainsaw::grip(h, now))
+    {
+        return;
+    }
+    // A hand at the chest flashlight switches it (trigger) or takes it (grip) instead; the
+    // upper button (B/Y) clips it on a gun or takes it off (the flashlight's grip then).
+    if(b.button == &HandInput::trigger || b.button == &HandInput::grip || b.button == &HandInput::secondary)
+    {
+        const auto fb = b.button == &HandInput::trigger ? flashlight::Button::Trigger
+                        : b.button == &HandInput::grip  ? flashlight::Button::Grip
+                                                         : flashlight::Button::Secondary;
+        if(flashlight::button(h, fb, now))
         {
-            const bool now = in.hands[h].*b.button;
-            if(now != previous.hands[h].*b.button)
+            for(int g = 0; g < 2; g++) // (either hand: a release can pass the torch to the other one)
             {
-                // A menu gesture's button is the menu's alone (vr_menu_button: both stick clicks, Y).
-                if(menuGestureButton(in, h, b.button, now))
+                if(flashlight::tookGrip(g))
                 {
-                    logButton(h, b, now, b.key[h], "the menu gesture (vr_menu_button)");
-                    continue;
-                }
-                // Holster Setup takes every button while it runs (vr_holstersetup.cpp): nothing reaches the game.
-                if(holstersetup::button(h, posingButton(b.button), now))
-                {
-                    logButton(h, b, now, b.key[h], "Holster Setup");
-                    continue;
-                }
-                // So does Edit Blade Shape (vr_bladeedit.cpp).
-                if(bladeedit::button(h, posingButton(b.button), now))
-                {
-                    logButton(h, b, now, b.key[h], "Edit Blade Shape");
-                    continue;
-                }
-                // And the Pose Studio (vr_posestudio.cpp): the grips, triggers, B/Y (not A/X or the sticks: you walk).
-                if(posestudio::button(h, posingButton(b.button), now))
-                {
-                    logButton(h, b, now, b.key[h], "the Pose Studio");
-                    continue;
-                }
-                // The weapon posing mode takes the buttons pressed while it runs (vr_posing.cpp).
-                if(posing::button(h, posingButton(b.button), now))
-                {
-                    logButton(h, b, now, b.key[h], "the weapon posing mode");
-                    continue;
-                }
-                // The Survival Arena's perk cards: a trigger with its laser on their panel picks (vr_arenacards.cpp).
-                if(arenacards::button(h, posingButton(b.button), now))
-                {
-                    logButton(h, b, now, b.key[h], "the perk cards");
-                    continue;
-                }
-                // The toolgun's hand: its trigger, B/Y (its menu) and X/A (the sticks); the other trigger while its physgun
-                // holds something (vr_toolgun.cpp).
-                if(toolgun::button(h, posingButton(b.button), now))
-                {
-                    logButton(h, b, now, b.key[h], "the toolgun");
-                    continue;
-                }
-                // The off hand's upper button at the mouth records a voice note instead (not while that hand holds
-                // the flashlight or is at it on the head: its Y turns it round in the fist, clips it on the head or
-                // takes it off; a note's release always ends it).
-                if(h == HAND_OFF && b.button == &HandInput::secondary && (!now || !flashlight::wantsSecondary(HAND_OFF)) &&
-                    voicenotes::offhandButton(now))
-                {
-                    logButton(h, b, now, b.key[h], "a voice note");
-                    continue;
-                }
-                // With the motion recorder armed, its record button (vr_motion_button) starts and ends a take instead.
-                if(motion::button(h, b.button, now))
-                {
-                    logButton(h, b, now, b.key[h], "the motion recorder");
-                    continue;
-                }
-                // At a holster with a weapon in it (or one bound), the magnetic holsters' bind button binds it to the
-                // holster or unbinds it (vr_magholster_button; vr_magholster.cpp): its key is never sent.
-                if(magholster::button(h, b.button, now))
-                {
-                    logButton(h, b, now, b.key[h], "the magnetic holsters");
-                    continue;
-                }
-                // A stick press chosen for the seated crouch toggle (vr_seated_crouch_button) does only that.
-                if(b.button == &HandInput::stickClick && seated::stickPress(h, now))
-                {
-                    logButton(h, b, now, b.key[h], "the crouch toggle");
-                    continue;
-                }
-                // A stick press chosen to start bullet time (vr_bullettime_trigger) does only that in the game; its
-                // bound key (LTHUMB: +speed, RTHUMB: +reloadmain by default) is never sent.
-                if(b.button == &HandInput::stickClick && bullettime::stickPress(h, now))
-                {
-                    logButton(h, b, now, b.key[h], "bullet time");
-                    continue;
-                }
-                // A grip in a holster zone switched to dragging takes hold of it (vr_holster_zone_<kind>_drag): never the
-                // game's (no gun drawn or put away there).
-                if(b.button == &HandInput::grip && zones::dragGrip(h, now))
-                {
-                    logButton(h, b, now, b.key[h], "a holster zone's drag");
-                    continue;
-                }
-                // An empty hand at the cord's handle of the chainsaw in the other takes the cord (vr_chainsaw.cpp).
-                if(b.button == &HandInput::grip && chainsaw::grip(h, now))
-                {
-                    continue;
-                }
-                // A hand at the chest flashlight switches it (trigger) or takes it (grip) instead; the
-                // upper button (B/Y) clips it on a gun or takes it off (the flashlight's grip then).
-                if(b.button == &HandInput::trigger || b.button == &HandInput::grip || b.button == &HandInput::secondary)
-                {
-                    const auto fb = b.button == &HandInput::trigger ? flashlight::Button::Trigger
-                                    : b.button == &HandInput::grip  ? flashlight::Button::Grip
-                                                                     : flashlight::Button::Secondary;
-                    if(flashlight::button(h, fb, now))
-                    {
-                        for(int g = 0; g < 2; g++) // (either hand: a release can pass the torch to the other one)
-                        {
-                            if(flashlight::tookGrip(g))
-                            {
-                                keyEvent(buttonKeys[1].key[g], false); // the grip's key
-                            }
-                        }
-                        logButton(h, b, now, b.key[h], "the flashlight");
-                        continue;
-                    }
-                }
-                // A grip on the menu panel's frame takes hold of it (vr_menu_grab).
-                if(b.button == &HandInput::grip && menuui::gripButton(h, now))
-                {
-                    logButton(h, b, now, b.key[h], "the menu panel's grab");
-                    continue;
-                }
-                // A trigger pointing at the menu is its mouse button.
-                const int key = b.button == &HandInput::trigger ? menuui::triggerKey(h, now, b.key[h]) : b.key[h];
-                logButton(h, b, now, key, nullptr);
-                keyEvent(key, now);
-                if(b.button == &HandInput::secondary)
-                {
-                    secondaryDown[h] = now;
-                }
-                else if(b.button == &HandInput::primary)
-                {
-                    primaryDown[h] = now;
-                }
-                if(now && key_dest == key_menu && !vr_disablehaptics.value)
-                {
-                    // A click under the finger, as the old engine gave in menus.
-                    pendingHaptics.pushBack({realtime, h, 0.02f, 150.f, 0.3f});
+                    keyEvent(buttonKeys[1].key[g], false); // the grip's key
                 }
             }
-        }
-
-        // The menu button, or a gesture standing for it (a press for one frame).
-        const bool menuNow = in.hands[h].menu || menuGestures.press[h];
-        const bool menuBefore = menuGestures.menuWas[h];
-        menuGestures.menuWas[h] = menuNow;
-        if(menuNow == menuBefore ||
-            (!holstersetup::button(h, posing::Button::Menu, menuNow) && !bladeedit::button(h, posing::Button::Menu, menuNow) &&
-                !posestudio::button(h, posing::Button::Menu, menuNow) &&
-                !posing::button(h, posing::Button::Menu, menuNow)))
-        {
-            menuButton(h, menuNow, menuBefore, menuGestures.press[h] ? menuGestures.source[h] : "menu button");
+            logButton(h, b, now, b.key[h], "the flashlight");
+            return;
         }
     }
-
-    // A grip pressed on the way to the flashlight takes it as the hand comes to rest there: the game saw the press,
-    // it sees the grip let go now (the release is the flashlight's).
-    flashlight::lateGrips();
-    zones::dragFrame(); // (a holster zone held by a hand follows it)
-    for(int g = 0; g < HAND_COUNT; g++)
+    // A grip on the menu panel's frame takes hold of it (vr_menu_grab).
+    if(b.button == &HandInput::grip && menuui::gripButton(h, now))
     {
-        if(flashlight::tookGrip(g))
-        {
-            keyEvent(buttonKeys[1].key[g], false);
-        }
+        logButton(h, b, now, b.key[h], "the menu panel's grab");
+        return;
     }
+    // A trigger pointing at the menu is its mouse button.
+    const int key = b.button == &HandInput::trigger ? menuui::triggerKey(h, now, b.key[h]) : b.key[h];
+    logButton(h, b, now, key, nullptr);
+    keyEvent(key, now);
+    if(b.button == &HandInput::secondary)
+    {
+        secondaryDown[h] = now;
+    }
+    else if(b.button == &HandInput::primary)
+    {
+        primaryDown[h] = now;
+    }
+    if(now && key_dest == key_menu && !vr_disablehaptics.value)
+    {
+        // A click under the finger, as the old engine gave in menus.
+        pendingHaptics.pushBack({realtime, h, 0.02f, 150.f, 0.3f});
+    }
+}
 
+// The sticks: the menu's keys, a tool's or mode's, or walking and turning.
+void routeSticks(const InputState& in, const HandInput& off, const HandInput& main, bool active)
+{
     const bool menu = key_dest != key_game;
     if(menu)
     {
@@ -1326,6 +1259,85 @@ void update(const InputState& tracked)
             turn(main.stick.x);
         }
     }
+}
+
+} // namespace
+
+const char* menuButtonName()
+{
+    return vr_menu_button.value >= 1.f ? "menu button or both sticks" : "menu button";
+}
+
+void update(const InputState& tracked)
+{
+    // Without VR, everything is released (keys held when the session ends must come up).
+    const bool active = vrActive();
+    const InputState& raw = active ? tracked : released;
+    // Doom on the wrist gadget with the focus takes the gadget hand's stick and buttons (its menu button stays Quake's):
+    // Quake sees them let go meanwhile (vr_doom.hpp).
+    InputState masked;
+    const bool doomTakes = doom::takesOffHand(raw);
+    if(doomTakes)
+    {
+        masked = raw;
+        const int g = hands::gadgetHand();
+        HandInput none;
+        none.menu = raw.hands[g].menu;
+        masked.hands[g] = none;
+    }
+    const InputState& in = doomTakes ? masked : raw;
+
+    // The sticks by what they do: the moving one (vr_stick_swap: the right), the turning one.
+    const HandInput& off = in.hands[hands::moveHand()];
+    const HandInput& main = in.hands[1 - hands::moveHand()];
+
+    // Where the hands point at the menu, before the trigger clicks there.
+    menuui::update(hands::current());
+
+    // vr_menu_button's ways to the menu: Y or B held (the stick chord and Y pressed: with the buttons, below).
+    for(int h = 0; h < HAND_COUNT; h++)
+    {
+        menuGestures.press[h] = false;
+    }
+    menuHold(secondaryDown);
+
+    for(int h = 0; h < HAND_COUNT; h++)
+    {
+        for(const ButtonKeys& b : buttonKeys)
+        {
+            const bool now = in.hands[h].*b.button;
+            if(now != previous.hands[h].*b.button)
+            {
+                buttonChanged(in, h, b, now);
+            }
+        }
+
+        // The menu button, or a gesture standing for it (a press for one frame).
+        const bool menuNow = in.hands[h].menu || menuGestures.press[h];
+        const bool menuBefore = menuGestures.menuWas[h];
+        menuGestures.menuWas[h] = menuNow;
+        if(menuNow == menuBefore ||
+            (!holstersetup::button(h, posing::Button::Menu, menuNow) && !bladeedit::button(h, posing::Button::Menu, menuNow) &&
+                !posestudio::button(h, posing::Button::Menu, menuNow) &&
+                !posing::button(h, posing::Button::Menu, menuNow)))
+        {
+            menuButton(h, menuNow, menuBefore, menuGestures.press[h] ? menuGestures.source[h] : "menu button");
+        }
+    }
+
+    // A grip pressed on the way to the flashlight takes it as the hand comes to rest there: the game saw the press,
+    // it sees the grip let go now (the release is the flashlight's).
+    flashlight::lateGrips();
+    zones::dragFrame(); // (a holster zone held by a hand follows it)
+    for(int g = 0; g < HAND_COUNT; g++)
+    {
+        if(flashlight::tookGrip(g))
+        {
+            keyEvent(buttonKeys[1].key[g], false);
+        }
+    }
+
+    routeSticks(in, off, main, active);
 
     updateComfort();
     stickTestTick();
