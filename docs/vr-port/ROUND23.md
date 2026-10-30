@@ -2713,7 +2713,12 @@ parry, raised or not; the disarm test was one point per frame and ignored a carr
   alone does not meet): disarmed; gun thrown across the barrel: disarmed; gun bounced off the body by its forearm (5
   damage, under the disarming blow): disarmed; melee punch on the legs: its full 12 damage, armed; through the barrel into
   the chest, caught out: disarmed, damage not cut; into a raised parry, beat 0: parried (5 of 20); fist at vr_timescale
-  0.3: disarmed. 16 passed, 0 failed. Ends on `agtest: test 94 over`.
+  0.3: disarmed. 16 passed, 0 failed. Ends on `agtest: test 94 over`. Test 97 gained a check: the ragdoll's pellet
+  through its weapon counts on the weapon (5/0).
+- **Covering** (run_baseline agrunt + suite, `agrunt|parry|melee_phase|judo`, 89 cases): changed 31 and 36 FAIL -> PASS,
+  65 0/6 -> 5/1; 66 PASS -> FAIL and melee_phase 7/0 -> 6/1 are flaky on next too (66 with `vr_agrunt_strike_first 0`
+  failed 3 of 4 runs: the lying grunt drops its gun "as it fell", ground impact 5-12 m/s; melee_phase per the hitrecord
+  notes passes about half the time). eval.sh --full: 163/171, as next.
 - **The uppercut take (16.7 -> 13.2)** predates disarm1: eval.sh --full gives 13.2 on b2eca62bf (next before the
   disarm1 merge) and on origin/next alike (163/171 both; the same 9-15 rows differ from the baseline, by 0.1 noise
   except the uppercut and two older takes). Nothing to revert in disarm1.
