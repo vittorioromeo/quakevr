@@ -302,7 +302,7 @@ float(entity xPlayer, float xHand) VR_WallTorch_GripFresh =
 float(entity t, entity xPlayer, float xHand) VR_WallTorch_CanGrip =
 {
     return t.wt_state == 0 && // (Item Pickup Mode Vanilla too: not a pickup)
-           VR_WallTorch_GripFresh(xPlayer, xHand) && VR_Hand_CanTake(xPlayer, xHand);
+           VR_WallTorch_GripFresh(xPlayer, xHand) && VR_Hand_Free(xPlayer, xHand, 0);
 };
 
 // `xPlayer`'s hand `xHand` takes hold of torch `t` on its wall (`xHow`: the log's); pulled far enough, it comes out
@@ -380,11 +380,11 @@ entity(float xHand) VR_WallTorch_NearHand =
 };
 
 // The grab query's torch (vr_grab.qc; self is the player): not quite on one, a grip near a torch on its wall takes it
-// (vr_walltorch_reach), or one closed on the way to it (vr_walltorch_grab_time). The hand empty, holding none.
+// (vr_walltorch_reach), or one closed on the way to it (vr_walltorch_grab_time). The hand free (as its take asks).
 float(float xHand) VR_WallTorch_GrabCandidate =
 {
     if(self.health <= 0 || !VR_WallTorch_GripFresh(self, xHand) ||
-       !VRIsHandEmpty(self, xHand))
+       !VR_Hand_Free(self, xHand, 0))
     {
         return FALSE;
     }

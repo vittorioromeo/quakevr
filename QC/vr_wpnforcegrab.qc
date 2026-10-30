@@ -60,21 +60,27 @@ float(entity xPlayer, float xHand) VR_Forcegrab_IsHandBusy =
     return xPlayer.mainhand_fglocked;
 }
 
-// Whether `xHand` of `xPlayer` may take a thing into its slot (VR_Hand_Take): empty (VRIsHandEmpty), not busy (no
-// enemy, flashlight, gun's fore-end, seated magazine or tug in its slot), not locked on to a pull. The one answer to
-// "can this hand grab?": a carry's grab, a box's touch, a ragdoll grab, a wall torch, a pouch, a grenade's catch, a
-// magazine's pull.
-float(entity xPlayer, float xHand) VR_Hand_CanTake =
+// Whether `xHand` of `xPlayer` is free to grab: the one answer to "can this hand grab?", asked by every grab's start (the
+// carry grab, a box's touch, a ragdoll's limb, the foe grab's hand-over, a weapon lying, thrown or held by a grunt, the
+// holster draw and the hand-off, a wall torch, the pouches, a grenade's catch, a magazine's pull, the force grab's start,
+// catch and tug). Free: empty (VRIsHandEmpty: no weapon, its slot carries nothing), not busy (no enemy, flashlight, gun's
+// fore-end, seated magazine or tug in its slot: VR_HOLD_FOE and after) and not locked on to a force grab's pull. A
+// site's exceptions are said in `xAllow` (VR_HANDFREE_*, vr_fields.qc; 0: none), never written out beside the call
+// (check_canonical.py, qc-busy-hand). The engine's climb asks its own (vr_climb.cpp handBusy: it runs before the move,
+// with the client's flashlight bit and a pull in flight; it does not see the busy kinds), and the client's grips theirs
+// (held::handEmpty: no slot there).
+float(entity xPlayer, float xHand, float xAllow) VR_Hand_Free =
 {
-    return VRIsHandEmpty(xPlayer, xHand) && VR_Hand_Kind(xPlayer, xHand) == VR_HOLD_NONE &&
-           !VR_Forcegrab_IsHandBusy(xPlayer, xHand);
-}
-
-// VR_Hand_CanTake, or busy with `xKind` alone (what the hand takes over from: the foe grab's hand-over, the enemy).
-float(entity xPlayer, float xHand, float xKind) VR_Hand_CanTakeFrom =
-{
-    return VRIsHandEmpty(xPlayer, xHand) && (VR_Hand_Kind(xPlayer, xHand) == VR_HOLD_NONE ||
-           VR_Hand_Kind(xPlayer, xHand) == xKind) && !VR_Forcegrab_IsHandBusy(xPlayer, xHand);
+    if(!VRIsHandEmpty(xPlayer, xHand))
+    {
+        return FALSE;
+    }
+    float k = VR_Hand_Kind(xPlayer, xHand);
+    if(k != VR_HOLD_NONE && !(xAllow & VR_HANDFREE_BUSY) && !((xAllow & VR_HANDFREE_FOE) && k == VR_HOLD_FOE))
+    {
+        return FALSE;
+    }
+    return (xAllow & VR_HANDFREE_LOCKED) || !VR_Forcegrab_IsHandBusy(xPlayer, xHand);
 }
 
 // One object at a time per hand: none while one flies to it, and none until the trigger that
@@ -339,12 +345,12 @@ void() VR_Forcegrab_FlatGrab =
     }
 
     float xHand = cVR_OffHand;
-    if(!VRIsHandEmpty(self, xHand))
+    if(!VR_Hand_Free(self, xHand, VR_HANDFREE_LOCKED))
     {
         xHand = cVR_MainHand;
-        if(!VRIsHandEmpty(self, xHand))
+        if(!VR_Hand_Free(self, xHand, VR_HANDFREE_LOCKED))
         {
-            dprint("flat grab: both hands hold a weapon\n");
+            dprint("flat grab: neither hand is free\n");
             return;
         }
     }
@@ -372,10 +378,10 @@ float(entity xPlayer, float xHand, float xArrive) VR_Forcegrab_CanCatch =
     // chosen empty (VR_Forcegrab_FlatGrab), and stays empty on the way in.
     if(VR_FlatPlay(xPlayer))
     {
-        return VRIsHandEmpty(xPlayer, xHand);
+        return VR_Hand_Free(xPlayer, xHand, VR_HANDFREE_LOCKED);
     }
 
-    if(!VRIsHandEmpty(xPlayer, xHand) || !VR_HandGrabUtil_IsHandGrabbing(xPlayer, xHand))
+    if(!VR_Hand_Free(xPlayer, xHand, VR_HANDFREE_LOCKED) || !VR_HandGrabUtil_IsHandGrabbing(xPlayer, xHand))
     {
         return FALSE;
     }
@@ -699,11 +705,11 @@ void(float xHand) VR_Forcegrab_HandFrame =
         VR_Forcegrab_Set(xHand, world, FALSE);
         return;
     }
+    // A busy hand force grabs nothing either, as no grab takes with it (his note, 2026-10-30): the flashlight, a gun's
+    // fore-end, a just-seated magazine, a tug (the hand's own lock is this frame's state: VR_HANDFREE_LOCKED).
     if(!cvar_hget(cvarh_vr_forcegrab_mode) || !self.ishuman || self.health <= 0 ||
-       !VRIsHandEmpty(self, xHand) ||
-       VR_Hand_Kind(self, xHand) == VR_HOLD_FLASHLIGHT)
+       !VR_Hand_Free(self, xHand, VR_HANDFREE_LOCKED))
     {
-        // (A hand holding the engine's flashlight is busy too.)
         VR_Forcegrab_Set(xHand, world, FALSE);
         return;
     }

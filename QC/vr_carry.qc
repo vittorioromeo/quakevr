@@ -100,7 +100,7 @@ void(entity xPlayer, float xHand, entity xThing) VR_Hand_Take =
 {
     float kind = VR_Hand_KindOf(xThing);
     float was = VR_Hand_Kind(xPlayer, xHand);
-    // (A busy hand takes nothing (VR_Hand_CanTake): one taking over its kind is two things at once, always told. The foe
+    // (A busy hand takes nothing (VR_Hand_Free): one taking over its kind is two things at once, always told. The foe
     // grab's hand-over takes the ragdoll from the enemy, the one expected.)
     if(xThing != world && VR_Hand_IsBusyKind(was) && was != VR_HOLD_FOE)
     {
@@ -1789,7 +1789,7 @@ void(float xHand) VR_Carry_TrySecondHand =
     {
         return;
     }
-    if(!VR_Carry_GripPressed(self, xHand) || !VR_Hand_CanTake(self, xHand) || !VR_HandGrabUtil_IsHandGrabbing(self, other))
+    if(!VR_Carry_GripPressed(self, xHand) || !VR_Hand_Free(self, xHand, 0) || !VR_HandGrabUtil_IsHandGrabbing(self, other))
     {
         return;
     }
@@ -2013,7 +2013,7 @@ void() VR_Ragdoll_Handtouch =
     {
         return; // (a dead one's worn backpack: the pack's own touch takes it, vr_wornpack.qc)
     }
-    if(!VR_Carry_GripPressed(other, hand) || !VR_Hand_CanTake(other, hand))
+    if(!VR_Carry_GripPressed(other, hand) || !VR_Hand_Free(other, hand, 0))
     {
         return;
     }
@@ -2144,7 +2144,7 @@ void() VR_Carry_Handtouch =
     // A force grab's catch (VR_Forcegrab_Catch) has checked the grip already: its window
     // (vr_forcegrab_catch_early) is longer than a touch's.
     if((forcegrabCatching || VR_Carry_GripPressed(other, hand) || VR_Carry_FloatGraceGrip(other, hand, self)) &&
-       VR_Hand_CanTake(other, hand))
+       VR_Hand_Free(other, hand, 0))
     {
         VR_Carry_Start(other, hand, self);
         return;

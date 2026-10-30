@@ -1597,7 +1597,7 @@ void(float xHand) VR_Reload_MagFrame =
                        ? VR_HAND_FIELD(self, xHand, mainhand_hotspot, offhand_hotspot) == QVR_HS_MAGAZINE
                        : VR_Reload_MagDist(self, gunHand, VRGetEntHandPos(self, xHand)) <= cvar_hget(cvarh_vr_reload_pull_reach);
         // (Or the hand still gripping the magazine it just seated: it holds it on, to pull out again.)
-        if(((VR_HandGrabUtil_StartedHandGrabbing(self, xHand) && on) || rehold) && VR_Hand_CanTake(self, xHand))
+        if(((VR_HandGrabUtil_StartedHandGrabbing(self, xHand) && on) || rehold) && VR_Hand_Free(self, xHand, 0))
         {
             self.vr_mag_pull = self.vr_mag_pull | bit;
             if(xHand == cVR_MainHand)

@@ -192,3 +192,11 @@ qc-material-ladder QC/weapons.qc 3  # left: a predicate for a rule, not an effec
 # --- qc-test-spawn: use VR_Test_Spawn (QC/vr_testutil.qc)
 qc-test-spawn QC/vr_testutil.qc 1  # canonical
 qc-test-spawn QC/buttons_test.qc 1  # presses one of the map's own dispensers (its button's), not a test spawn
+
+# --- qc-busy-hand: use VR_Hand_Free(player, hand, VR_HANDFREE_* exceptions) (QC/vr_wpnforcegrab.qc)
+qc-busy-hand QC/vr_wpnforcegrab.qc 2  # canonical (VR_Hand_Free reads the lock), and the force grab's own lock-on state
+qc-busy-hand QC/vr_util.qc 1  # the slot's VR_Hand_IsBusyKind macro itself
+qc-busy-hand QC/vr_carry.qc 4  # the slot's writers (VR_Hand_Take/Busy/Check): a take over a busy kind is told, not a grab's check
+qc-busy-hand QC/vr_melee_params.qc 1  # VR_Melee_HoldsTorch: the flashlight hand's punch, not a grab's check
+qc-busy-hand QC/weapons.qc 2  # the trigger does not attack while the hand is locked on to a force grab: not a grab's check
+qc-busy-hand QC/vr_axestick_test.qc 5  # the hand slot's test (vr_pickup_test 7) reads the kinds it sets

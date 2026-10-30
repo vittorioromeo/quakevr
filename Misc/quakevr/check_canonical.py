@@ -80,6 +80,12 @@ FAMILIES = {
                            "VR_MaterialOf (QC/vr_crates.qc) and the impact table's row"),
     "qc-test-spawn": ("qc", [r"(?m)^[ \t]*func_enemy_dispenser_use\s*\(\s*\)\s*;"],
                       "VR_Test_Spawn (QC/vr_testutil.qc): the tests' one spawner, impulse 241's"),
+    # One "is this hand free to grab?" (ROUND23, "One busy-hand check"): a grab's start asks VR_Hand_Free with its
+    # exceptions (VR_HANDFREE_*), not its own mix of the force grab's lock, the slot's busy kinds or the flashlight's.
+    "qc-busy-hand": ("qc", [r"\bVR_Forcegrab_IsHandBusy\s*\(",
+                            r"\bVR_Hand_Kind\s*\([^()]*\)\s*[!=]=\s*VR_HOLD_(?:NONE|FLASHLIGHT)\b",
+                            r"\bVR_Hand_IsBusyKind\s*\(", r"\bVR_Hand_CanTake(?:From)?\s*\("],
+                     "VR_Hand_Free(player, hand, VR_HANDFREE_* exceptions) (QC/vr_wpnforcegrab.qc)"),
 }
 
 
@@ -108,6 +114,7 @@ NEEDLES = {
     "qc-hit-fx": r"particle2",
     "qc-material-ladder": r"VR_Hit_Metal|VR_Crate_Wooden|VR_Hit_Armoured",
     "qc-test-spawn": r"func_enemy_dispenser_use",
+    "qc-busy-hand": r"VR_Forcegrab_IsHandBusy|VR_Hand_Kind|VR_Hand_IsBusyKind|VR_Hand_CanTake",
 }
 
 

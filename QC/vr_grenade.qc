@@ -605,7 +605,7 @@ float(float xHand, entity b) VR_Grenade_HandCatches =
     {
         return FALSE;
     }
-    if(VR_Melee_Thing(self, xHand) != VR_MTHING_FIST || !VR_Hand_CanTake(self, xHand))
+    if(VR_Melee_Thing(self, xHand) != VR_MTHING_FIST || !VR_Hand_Free(self, xHand, 0))
     {
         return FALSE;
     }
@@ -1247,13 +1247,13 @@ void() VR_HandGrenade_LevelEnd =
     }
 };
 
-// Whether `p`'s hand `xHand` is empty to take from a pouch: it may take (VR_Hand_CanTake: nothing in it, not busy, no
+// Whether `p`'s hand `xHand` is empty to take from a pouch: it may take (VR_Hand_Free: nothing in it, not busy, no
 // force grab), not climbing.
 float(entity p, float xHand) VR_HandGrenade_PouchHandEmpty =
 {
     float climbing = VRHasBit(p.vrbits0, xHand == cVR_MainHand ? QVR_VRBITS0_MAINHAND_CLIMBING :
                                                                  QVR_VRBITS0_OFFHAND_CLIMBING);
-    return VR_Hand_CanTake(p, xHand) && !climbing;
+    return VR_Hand_Free(p, xHand, 0) && !climbing;
 };
 
 // The grab query's grenade pouch (vr_grab.qc; self is the player): an empty hand at the pouch, its grip just pressed
