@@ -1098,7 +1098,7 @@ bool buildShape(const entity_t& e, int frame, Shape& out)
             const auto vertex = [&](int k) {
                 const int ed = model->surfedges[surf.firstedge + k];
                 const mvertex_t& v = model->vertexes[ed >= 0 ? model->edges[ed].v[0] : model->edges[-ed].v[1]];
-                return glm::vec3{v.position[0], v.position[1], v.position[2]};
+                return vec(v.position);
             };
             for(int k = 2; k < surf.numedges; k++)
             {

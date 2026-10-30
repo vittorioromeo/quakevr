@@ -29,6 +29,7 @@
 #include "vr_twohand.hpp"
 #include "vr_units.hpp"
 #include "vr_view.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Algorithm/Fill.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
@@ -543,8 +544,8 @@ edict_t* nearestThrownWeapon(bool armed = false, int side = 0)
         {
             return;
         }
-        const float d = glm::distance(glm::vec3{e->v.origin[0], e->v.origin[1], e->v.origin[2]},
-            glm::vec3{player->v.origin[0], player->v.origin[1], player->v.origin[2]});
+        const float d = glm::distance(geom::vec(e->v.origin),
+            geom::vec(player->v.origin));
         if(!best || d < bestDist)
         {
             best = e;
@@ -999,7 +1000,7 @@ void mockHandTo_f()
             else if(const int num = held::heldEntity(hand); loadPortMid && num > 0 && num < cl_max_edicts)
             {
                 const entity_t& e = cl_entities[num]; // (lportmid: its middle, not its reference point)
-                target -= glm::vec3{e.origin[0], e.origin[1], e.origin[2]} - st.pos[hand];
+                target -= geom::vec(e.origin) - st.pos[hand];
             }
             target.z -= Cmd_Argc() == 4 ? Q_atof(Cmd_Argv(3)) : 0.f;
         }
@@ -1093,7 +1094,7 @@ void mockHandTo_f()
             const bool named = !nearest && q_strcasecmp(which, "head") && q_strcasecmp(which, "neck") &&
                                ((which[0] >= 'a' && which[0] <= 'z') || (which[0] >= 'A' && which[0] <= 'Z'));
             const int num = box3d::ragdollPartCentre(nearest ? hands::current().pos[hand]
-                                                             : glm::vec3{player->v.origin[0], player->v.origin[1], player->v.origin[2]},
+                                                             : geom::vec(player->v.origin),
                 nearest                          ? -1
                 : named                          ? -4
                 : !q_strcasecmp(which, "head") ? -2
@@ -1272,7 +1273,7 @@ bool ragdollPartTarget(int part, glm::vec3& out)
     }
     progs::ServerVm serverVm;
     const edict_t* player = EDICT_NUM(1);
-    const bool found = box3d::ragdollPartCentre(glm::vec3{player->v.origin[0], player->v.origin[1], player->v.origin[2]},
+    const bool found = box3d::ragdollPartCentre(geom::vec(player->v.origin),
                            part, out) != 0;
     return found;
 }

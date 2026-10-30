@@ -779,7 +779,7 @@ ankerl::unordered_dense::map<za::String, GunSpot> gunSpots;
         const view::ViewEntity* ve = view::find(cl_visedicts[i]);
         if(ve && ve->ent.model == m.model && ve->mirrored == m.mirrored)
         {
-            const float d = glm::distance(glm::vec3{ve->ent.origin[0], ve->ent.origin[1], ve->ent.origin[2]}, m.pos);
+            const float d = glm::distance(geom::vec(ve->ent.origin), m.pos);
             if(d < nearest)
             {
                 nearest = d;

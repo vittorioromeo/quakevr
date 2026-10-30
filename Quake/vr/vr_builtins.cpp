@@ -56,6 +56,7 @@
 #include "vr_weapons.hpp"
 #include "vr_weight.hpp"
 #include "vr_walltorch.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Base/GetArraySize.hpp"
 #include "Zancle/Base/IntTypes.hpp"
@@ -216,8 +217,8 @@ void PF_shapenearest()
     glm::vec3 best{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]};
     if(!box3d::shapeNearest(NUM_FOR_EDICT(ent), a, b, best))
     {
-        const glm::vec3 lo = best + glm::vec3{ent->v.mins[0], ent->v.mins[1], ent->v.mins[2]};
-        const glm::vec3 hi = best + glm::vec3{ent->v.maxs[0], ent->v.maxs[1], ent->v.maxs[2]};
+        const glm::vec3 lo = best + geom::vec(ent->v.mins);
+        const glm::vec3 hi = best + geom::vec(ent->v.maxs);
         float bestDist = 1e9f;
         for(int i = 0; i <= 8; i++)
         {
@@ -443,7 +444,7 @@ void PF_forcegrabpoint()
     edict_t* e = G_EDICT(OFS_PARM0);
     const int index = static_cast<int>(e->v.modelindex);
     const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
-    const glm::vec3 c = weapons::heldAtOrigin(model) ? glm::vec3{e->v.origin[0], e->v.origin[1], e->v.origin[2]}
+    const glm::vec3 c = weapons::heldAtOrigin(model) ? geom::vec(e->v.origin)
                                                     : physics::modelCentre(e);
     float* out = G_VECTOR(OFS_RETURN);
     out[0] = c.x;
@@ -886,7 +887,7 @@ void PF_mapflametouch()
     }
     const float* a = G_VECTOR(OFS_PARM1);
     const float* b = G_VECTOR(OFS_PARM2);
-    const auto t = selfcollide::flameTouch(glm::vec3{a[0], a[1], a[2]}, glm::vec3{b[0], b[1], b[2]},
+    const auto t = selfcollide::flameTouch(geom::vec(a), geom::vec(b),
         za::max(0.f, G_FLOAT(OFS_PARM3)), -1, static_cast<unsigned>(G_FLOAT(OFS_PARM4)) & 63);
     G_FLOAT(OFS_RETURN) = static_cast<float>(t.parts | (t.deepest << 8));
     if(t.parts)
@@ -1393,7 +1394,7 @@ void PF_carrygrip()
 {
     const float* o = G_VECTOR(OFS_PARM5);
     const glm::vec3 v = grip::serverTake(G_EDICT(OFS_PARM0), G_EDICT(OFS_PARM1), static_cast<int>(G_FLOAT(OFS_PARM2)),
-        G_FLOAT(OFS_PARM3) != 0.f, G_VECTOR(OFS_PARM4), glm::vec3{o[0], o[1], o[2]});
+        G_FLOAT(OFS_PARM3) != 0.f, G_VECTOR(OFS_PARM4), geom::vec(o));
     float* out = G_VECTOR(OFS_RETURN);
     out[0] = v.x;
     out[1] = v.y;
@@ -1406,7 +1407,7 @@ void PF_carrygrip()
 void PF_carrypouch()
 {
     const float* o = G_VECTOR(OFS_PARM2);
-    const glm::vec3 v = grip::serverFromPouch(G_EDICT(OFS_PARM0), G_VECTOR(OFS_PARM1), glm::vec3{o[0], o[1], o[2]});
+    const glm::vec3 v = grip::serverFromPouch(G_EDICT(OFS_PARM0), G_VECTOR(OFS_PARM1), geom::vec(o));
     float* out = G_VECTOR(OFS_RETURN);
     out[0] = v.x;
     out[1] = v.y;
@@ -1418,7 +1419,7 @@ void PF_carrypouch()
 void PF_carryfrontpouch()
 {
     const float* o = G_VECTOR(OFS_PARM2);
-    const glm::vec3 v = grip::serverFromPouch(G_EDICT(OFS_PARM0), G_VECTOR(OFS_PARM1), glm::vec3{o[0], o[1], o[2]}, true);
+    const glm::vec3 v = grip::serverFromPouch(G_EDICT(OFS_PARM0), G_VECTOR(OFS_PARM1), geom::vec(o), true);
     float* out = G_VECTOR(OFS_RETURN);
     out[0] = v.x;
     out[1] = v.y;
@@ -1431,7 +1432,7 @@ void PF_carryfrontpouch()
 void PF_carryplace()
 {
     const float* o = G_VECTOR(OFS_PARM2);
-    const glm::vec3 v = grip::serverFrame(G_EDICT(OFS_PARM0), G_VECTOR(OFS_PARM1), glm::vec3{o[0], o[1], o[2]});
+    const glm::vec3 v = grip::serverFrame(G_EDICT(OFS_PARM0), G_VECTOR(OFS_PARM1), geom::vec(o));
     float* out = G_VECTOR(OFS_RETURN);
     out[0] = v.x;
     out[1] = v.y;
@@ -1444,7 +1445,7 @@ void PF_carryfit()
 {
     const float* h = G_VECTOR(OFS_PARM1);
     const float* p = G_VECTOR(OFS_PARM2);
-    const glm::vec3 v = held::surfaceFit(G_EDICT(OFS_PARM0), glm::vec3{h[0], h[1], h[2]}, glm::vec3{p[0], p[1], p[2]});
+    const glm::vec3 v = held::surfaceFit(G_EDICT(OFS_PARM0), geom::vec(h), geom::vec(p));
     float* out = G_VECTOR(OFS_RETURN);
     out[0] = v.x;
     out[1] = v.y;
@@ -1494,7 +1495,7 @@ void PF_carry2hkeep()
 void PF_physicsblast()
 {
     const float* p = G_VECTOR(OFS_PARM0);
-    box3d::blast(glm::vec3{p[0], p[1], p[2]}, G_FLOAT(OFS_PARM1));
+    box3d::blast(geom::vec(p), G_FLOAT(OFS_PARM1));
 }
 
 // float(entity e, string key) propvalue: a setting of the prop `e` is (Held Object Offsets, vr_props.inc, by its
@@ -1559,7 +1560,7 @@ void PF_throwvelocity()
     const float* v = G_VECTOR(OFS_PARM0);
     const float* f = G_VECTOR(OFS_PARM1);
     const weight::ThrowOut out = weight::throwVelocity(
-        glm::vec3{v[0], v[1], v[2]}, glm::vec3{f[0], f[1], f[2]}, G_FLOAT(OFS_PARM2), static_cast<int>(G_FLOAT(OFS_PARM3)));
+        geom::vec(v), geom::vec(f), G_FLOAT(OFS_PARM2), static_cast<int>(G_FLOAT(OFS_PARM3)));
     float* r = G_VECTOR(OFS_RETURN);
     r[0] = out.vel.x;
     r[1] = out.vel.y;
@@ -1637,7 +1638,7 @@ void PF_modelpoint()
     // vr_debris.cpp); an unscaled model (a wall torch) as it is.
     const FieldOffsets& f = fields();
     const glm::vec3 scale = fieldVec(e, f.model_scale), about = fieldVec(e, f.model_scale_origin);
-    const glm::vec3 point = (glm::vec3{p[0], p[1], p[2]} - about) * (glm::vec3{1.f} + scale) + about;
+    const glm::vec3 point = (geom::vec(p) - about) * (glm::vec3{1.f} + scale) + about;
     const glm::vec3 v = held::axesFromAngles(angles, model && model->type == mod_brush) * point;
     float* out = G_VECTOR(OFS_RETURN);
     out[0] = v.x;
@@ -1656,7 +1657,7 @@ void PF_physicspush()
     const float mass = qcvm->argc > 3 ? G_FLOAT(OFS_PARM3) : 0.f;
     const float bounce = qcvm->argc > 4 ? G_FLOAT(OFS_PARM4) : 0.f;
     const float most = qcvm->argc > 5 ? G_FLOAT(OFS_PARM5) : 0.f;
-    G_FLOAT(OFS_RETURN) = box3d::push(G_EDICT(OFS_PARM0), glm::vec3{at[0], at[1], at[2]}, glm::vec3{v[0], v[1], v[2]}, mass,
+    G_FLOAT(OFS_RETURN) = box3d::push(G_EDICT(OFS_PARM0), geom::vec(at), geom::vec(v), mass,
                               bounce, most)
                               ? 1.f
                               : 0.f;
@@ -1669,7 +1670,7 @@ void PF_physicsshot()
     const float* a = G_VECTOR(OFS_PARM0);
     const float* b = G_VECTOR(OFS_PARM1);
     const float* v = G_VECTOR(OFS_PARM2);
-    const int num = box3d::shot(glm::vec3{a[0], a[1], a[2]}, glm::vec3{b[0], b[1], b[2]}, glm::vec3{v[0], v[1], v[2]},
+    const int num = box3d::shot(geom::vec(a), geom::vec(b), geom::vec(v),
         G_FLOAT(OFS_PARM3));
     G_INT(OFS_RETURN) = EDICT_TO_PROG(EDICT_NUM(num));
 }
@@ -1725,7 +1726,7 @@ void PF_ragdolldrown()
 void PF_ragdollguard()
 {
     const float* at = G_VECTOR(OFS_PARM1);
-    G_FLOAT(OFS_RETURN) = box3d::ragdollGuard(G_EDICT(OFS_PARM0), glm::vec3{at[0], at[1], at[2]}, G_FLOAT(OFS_PARM2)) ? 1.f : 0.f;
+    G_FLOAT(OFS_RETURN) = box3d::ragdollGuard(G_EDICT(OFS_PARM0), geom::vec(at), G_FLOAT(OFS_PARM2)) ? 1.f : 0.f;
 }
 
 // float ragdollstagger(entity e, vector dir, float push, float balance, float reach): e, just knocked down by a shove
@@ -1739,7 +1740,7 @@ void PF_ragdollstagger()
     const float recover = qcvm->argc > 5 ? G_FLOAT(OFS_PARM5) : -1.f;
     const bool sure = qcvm->argc > 6 && G_FLOAT(OFS_PARM6) != 0.f;
     const float farther = qcvm->argc > 7 ? G_FLOAT(OFS_PARM7) : 1.f;
-    G_FLOAT(OFS_RETURN) = box3d::ragdollStagger(G_EDICT(OFS_PARM0), glm::vec3{d[0], d[1], d[2]}, G_FLOAT(OFS_PARM2),
+    G_FLOAT(OFS_RETURN) = box3d::ragdollStagger(G_EDICT(OFS_PARM0), geom::vec(d), G_FLOAT(OFS_PARM2),
                               G_FLOAT(OFS_PARM3), G_FLOAT(OFS_PARM4), recover > 0.f ? recover : -1.f, sure, farther)
                               ? 1.f
                               : 0.f;
@@ -1752,7 +1753,7 @@ void PF_ragdollstaggered()
     const float* lo = G_VECTOR(OFS_PARM1);
     const float* hi = G_VECTOR(OFS_PARM2);
     G_FLOAT(OFS_RETURN) = static_cast<float>(
-        box3d::ragdollStaggered(G_EDICT(OFS_PARM0), glm::vec3{lo[0], lo[1], lo[2]}, glm::vec3{hi[0], hi[1], hi[2]}));
+        box3d::ragdollStaggered(G_EDICT(OFS_PARM0), geom::vec(lo), geom::vec(hi)));
 }
 
 // float ragdollgetup(entity e, float frameA, float frameB, vector mins, vector maxs, float range, optional float anywhere):
@@ -1766,7 +1767,7 @@ void PF_ragdollgetup()
     const float* lo = G_VECTOR(OFS_PARM3);
     const float* hi = G_VECTOR(OFS_PARM4);
     G_FLOAT(OFS_RETURN) = static_cast<float>(box3d::ragdollGetUp(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1)),
-        static_cast<int>(G_FLOAT(OFS_PARM2)), glm::vec3{lo[0], lo[1], lo[2]}, glm::vec3{hi[0], hi[1], hi[2]}, G_FLOAT(OFS_PARM5),
+        static_cast<int>(G_FLOAT(OFS_PARM2)), geom::vec(lo), geom::vec(hi), G_FLOAT(OFS_PARM5),
         qcvm->argc > 6 && G_FLOAT(OFS_PARM6) != 0.f));
 }
 
@@ -1782,7 +1783,7 @@ void PF_ragdollgrab()
     {
         const float* g = qcvm->argc > 4 ? G_VECTOR(OFS_PARM4) : nullptr;
         G_FLOAT(OFS_RETURN) = box3d::ragdollTug(G_EDICT(OFS_PARM0), G_EDICT(OFS_PARM1), static_cast<int>(G_FLOAT(OFS_PARM2)),
-            tug - 1, g ? glm::vec3{g[0], g[1], g[2]} : glm::vec3{0.f}, qcvm->argc > 5 ? G_FLOAT(OFS_PARM5) : 1.f,
+            tug - 1, g ? geom::vec(g) : glm::vec3{0.f}, qcvm->argc > 5 ? G_FLOAT(OFS_PARM5) : 1.f,
             qcvm->argc > 6 ? G_FLOAT(OFS_PARM6) : 0.f);
         return;
     }
@@ -1794,7 +1795,7 @@ void PF_ragdollgrab()
 void PF_ragdollrelease()
 {
     const float* v = G_VECTOR(OFS_PARM2);
-    box3d::ragdollRelease(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1)), glm::vec3{v[0], v[1], v[2]});
+    box3d::ragdollRelease(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1)), geom::vec(v));
 }
 
 // float ragdollfling(entity e, vector velocity): e's ragdoll thrown now, every part set going at `velocity` (units/s;
@@ -1842,7 +1843,7 @@ void PF_ragdollbone()
         return;
     }
     G_FLOAT(OFS_RETURN) =
-        static_cast<float>(box3d::ragdollBone(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), glm::vec3{p[0], p[1], p[2]}, within));
+        static_cast<float>(box3d::ragdollBone(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), geom::vec(p), within));
 }
 
 // entity ragdollinbox(vector mins, vector maxs, entity after): the next ragdoll (edict order, after `after`; world: from
@@ -1851,7 +1852,7 @@ void PF_ragdollinbox()
 {
     const float* lo = G_VECTOR(OFS_PARM0);
     const float* hi = G_VECTOR(OFS_PARM1);
-    const int num = box3d::ragdollInBox(glm::vec3{lo[0], lo[1], lo[2]}, glm::vec3{hi[0], hi[1], hi[2]},
+    const int num = box3d::ragdollInBox(geom::vec(lo), geom::vec(hi),
         NUM_FOR_EDICT(G_EDICT(OFS_PARM2)));
     G_INT(OFS_RETURN) = EDICT_TO_PROG(EDICT_NUM(num)); // (0: world)
 }
@@ -1863,8 +1864,8 @@ void PF_ragdollboxpart()
     const float* lo = G_VECTOR(OFS_PARM1);
     const float* hi = G_VECTOR(OFS_PARM2);
     glm::vec3 at{0.f};
-    const int part = box3d::ragdollPartInBox(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), glm::vec3{lo[0], lo[1], lo[2]},
-        glm::vec3{hi[0], hi[1], hi[2]}, static_cast<int>(G_FLOAT(OFS_PARM3)), at);
+    const int part = box3d::ragdollPartInBox(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), geom::vec(lo),
+        geom::vec(hi), static_cast<int>(G_FLOAT(OFS_PARM3)), at);
     if(part >= 0)
     {
         for(int i = 0; i < 3; i++)
@@ -1881,7 +1882,7 @@ void PF_ragdollpoint()
 {
     const float* p = G_VECTOR(OFS_PARM2);
     const glm::vec3 v = box3d::ragdollPoint(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), static_cast<int>(G_FLOAT(OFS_PARM1)),
-        glm::vec3{p[0], p[1], p[2]}, G_FLOAT(OFS_PARM3) != 0.f);
+        geom::vec(p), G_FLOAT(OFS_PARM3) != 0.f);
     float* out = G_VECTOR(OFS_RETURN);
     out[0] = v.x;
     out[1] = v.y;
@@ -1896,7 +1897,7 @@ void PF_ragdolldecap()
 {
     const float* v = G_VECTOR(OFS_PARM1);
     const float settle = qcvm->argc > 2 ? G_FLOAT(OFS_PARM2) : 1.f;
-    G_FLOAT(OFS_RETURN) = box3d::ragdollDecap(G_EDICT(OFS_PARM0), glm::vec3{v[0], v[1], v[2]}, settle) ? 1.f : 0.f;
+    G_FLOAT(OFS_RETURN) = box3d::ragdollDecap(G_EDICT(OFS_PARM0), geom::vec(v), settle) ? 1.f : 0.f;
 }
 
 // vector ragdollcut(entity e, float what): after the cut, 0 the head's middle, 1 its angles, 2 its velocity, 3 its
@@ -1917,7 +1918,7 @@ void PF_ragdollcutlimb()
 {
     const float* v = G_VECTOR(OFS_PARM2);
     const float settle = qcvm->argc > 3 ? G_FLOAT(OFS_PARM3) : 1.f;
-    G_FLOAT(OFS_RETURN) = box3d::ragdollCutLimb(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1)), glm::vec3{v[0], v[1], v[2]},
+    G_FLOAT(OFS_RETURN) = box3d::ragdollCutLimb(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1)), geom::vec(v),
                               settle) ? 1.f : 0.f;
 }
 
@@ -1926,7 +1927,7 @@ void PF_ragdollcutlimb()
 void PF_ragdolllimb()
 {
     const float* p = G_VECTOR(OFS_PARM1);
-    G_FLOAT(OFS_RETURN) = static_cast<float>(box3d::limbAt(G_EDICT(OFS_PARM0), glm::vec3{p[0], p[1], p[2]}));
+    G_FLOAT(OFS_RETURN) = static_cast<float>(box3d::limbAt(G_EDICT(OFS_PARM0), geom::vec(p)));
 }
 
 // float ragdolllimbs(entity e, float what, [float bone]): box3d::limbInfo (0 the limb joints not cut, bits; 1 the
@@ -1987,7 +1988,7 @@ void PF_ragdollhead()
     const float* p = G_VECTOR(OFS_PARM1);
     const float neck = qcvm->argc > 2 ? G_FLOAT(OFS_PARM2) : 0.f;
     G_FLOAT(OFS_RETURN) =
-        static_cast<float>(box3d::ragdollHeadAt(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), glm::vec3{p[0], p[1], p[2]}, neck));
+        static_cast<float>(box3d::ragdollHeadAt(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), geom::vec(p), neck));
 }
 
 // float physicsdamp(entity e, vector relativeTo, float keep, float keepSpin, float maxSpeed, vector add): the Box3D prop's
@@ -1997,8 +1998,8 @@ void PF_physicsdamp()
 {
     const float* rel = G_VECTOR(OFS_PARM1);
     const float* add = G_VECTOR(OFS_PARM5);
-    G_FLOAT(OFS_RETURN) = box3d::damp(G_EDICT(OFS_PARM0), glm::vec3{rel[0], rel[1], rel[2]}, G_FLOAT(OFS_PARM2),
-                              G_FLOAT(OFS_PARM3), G_FLOAT(OFS_PARM4), glm::vec3{add[0], add[1], add[2]})
+    G_FLOAT(OFS_RETURN) = box3d::damp(G_EDICT(OFS_PARM0), geom::vec(rel), G_FLOAT(OFS_PARM2),
+                              G_FLOAT(OFS_PARM3), G_FLOAT(OFS_PARM4), geom::vec(add))
                               ? 1.f
                               : 0.f;
 }
@@ -2010,7 +2011,7 @@ void PF_ropestep()
 {
     const auto vec = [](int ofs) {
         const float* v = G_VECTOR(ofs);
-        return glm::vec3{v[0], v[1], v[2]};
+        return geom::vec(v);
     };
     const int skipA = NUM_FOR_EDICT(G_EDICT(OFS_PARM5));
     const int skipB = NUM_FOR_EDICT(G_EDICT(OFS_PARM6));
@@ -2037,7 +2038,7 @@ void PF_roperetract()
 {
     const auto vec = [](int ofs) {
         const float* v = G_VECTOR(ofs);
-        return glm::vec3{v[0], v[1], v[2]};
+        return geom::vec(v);
     };
     const glm::vec3 p = ropesim::retract(G_EDICT(OFS_PARM0), vec(OFS_PARM1), vec(OFS_PARM2), G_FLOAT(OFS_PARM3));
     float* out = G_VECTOR(OFS_RETURN);
@@ -2774,7 +2775,7 @@ void PF_meleeshow()
     const float* a = G_VECTOR(OFS_PARM2);
     const float* b = G_VECTOR(OFS_PARM3);
     meleeshow::add(static_cast<int>(G_FLOAT(OFS_PARM0)), static_cast<int>(G_FLOAT(OFS_PARM1)),
-        glm::vec3{a[0], a[1], a[2]}, glm::vec3{b[0], b[1], b[2]}, G_FLOAT(OFS_PARM4));
+        geom::vec(a), geom::vec(b), G_FLOAT(OFS_PARM4));
 }
 
 // Magnetic holsters (QC vr_magholster.qc; vr_magholster.cpp). float(entity player) magholsterpoll: what the local
@@ -2877,7 +2878,7 @@ void PF_sightblocked()
     const float* b = G_VECTOR(OFS_PARM1);
     const int ignoreA = qcvm->argc > 2 ? NUM_FOR_EDICT(G_EDICT(OFS_PARM2)) : 0;
     const int ignoreB = qcvm->argc > 3 ? NUM_FOR_EDICT(G_EDICT(OFS_PARM3)) : 0;
-    const int num = crates::sightBlocked(glm::vec3{a[0], a[1], a[2]}, glm::vec3{b[0], b[1], b[2]}, ignoreA, ignoreB);
+    const int num = crates::sightBlocked(geom::vec(a), geom::vec(b), ignoreA, ignoreB);
     G_INT(OFS_RETURN) = EDICT_TO_PROG(EDICT_NUM(num));
 }
 
@@ -2888,8 +2889,8 @@ void PF_heldshape()
 {
     const float* a = G_VECTOR(OFS_PARM1);
     const float* b = G_VECTOR(OFS_PARM2);
-    G_FLOAT(OFS_RETURN) = box3d::heldRay(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), glm::vec3{a[0], a[1], a[2]},
-        glm::vec3{b[0], b[1], b[2]});
+    G_FLOAT(OFS_RETURN) = box3d::heldRay(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), geom::vec(a),
+        geom::vec(b));
 }
 
 // float heldbox(entity prop, vector mins, vector maxs, float reach): whether the shape of `prop` held in a hand meets the
@@ -2899,8 +2900,8 @@ void PF_heldbox()
 {
     const float* lo = G_VECTOR(OFS_PARM1);
     const float* hi = G_VECTOR(OFS_PARM2);
-    G_FLOAT(OFS_RETURN) = static_cast<float>(box3d::heldBox(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), glm::vec3{lo[0], lo[1], lo[2]},
-        glm::vec3{hi[0], hi[1], hi[2]}, G_FLOAT(OFS_PARM3)));
+    G_FLOAT(OFS_RETURN) = static_cast<float>(box3d::heldBox(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), geom::vec(lo),
+        geom::vec(hi), G_FLOAT(OFS_PARM3)));
 }
 
 // Precise hit detection (vr_hitmodel.cpp). hitmodel_target(e): whether e's model is what is hit (the option on, a
@@ -2926,7 +2927,7 @@ void PF_hitmodel_segment()
     {
         glm::vec3 at{0.f};
         float share = 0.f;
-        const int got = adtank::crossHose(NUM_FOR_EDICT(e), glm::vec3{a[0], a[1], a[2]}, glm::vec3{b[0], b[1], b[2]}, radius, at, share);
+        const int got = adtank::crossHose(NUM_FOR_EDICT(e), geom::vec(a), geom::vec(b), radius, at, share);
         if(got > 0)
         {
             for(int i = 0; i < 3; i++)
@@ -2944,7 +2945,7 @@ void PF_hitmodel_segment()
         return;
     }
     hitmodel::Hit h;
-    const bool hit = hitmodel::segment(e, glm::vec3{a[0], a[1], a[2]}, glm::vec3{b[0], b[1], b[2]}, radius + hitmodel::tolerance(c), 1.f, c, h);
+    const bool hit = hitmodel::segment(e, geom::vec(a), geom::vec(b), radius + hitmodel::tolerance(c), 1.f, c, h);
     G_FLOAT(OFS_RETURN) = hit ? h.t : -1.f;
 }
 
@@ -2967,7 +2968,7 @@ void PF_hitmodel_any()
         // a cube round its handle, which a long gun reaches well out of), else its box.
         float fraction = 1.f;
         bool body = false;
-        const bool hit = box3d::castAt(NUM_FOR_EDICT(e), glm::vec3{a[0], a[1], a[2]}, glm::vec3{b[0], b[1], b[2]}, radius,
+        const bool hit = box3d::castAt(NUM_FOR_EDICT(e), geom::vec(a), geom::vec(b), radius,
             fraction, body);
         G_FLOAT(OFS_RETURN) = hit ? fraction : body ? -1.f : -2.f;
         return;
@@ -2978,7 +2979,7 @@ void PF_hitmodel_any()
         // tilted one is much bigger than it); placed by the map, not a body yet: its box.
         float fraction = 1.f;
         bool body = false;
-        const bool hit = box3d::castAt(NUM_FOR_EDICT(e), glm::vec3{a[0], a[1], a[2]}, glm::vec3{b[0], b[1], b[2]}, radius,
+        const bool hit = box3d::castAt(NUM_FOR_EDICT(e), geom::vec(a), geom::vec(b), radius,
             fraction, body);
         G_FLOAT(OFS_RETURN) = hit ? fraction : body ? -1.f : -2.f;
         return;
@@ -2989,7 +2990,7 @@ void PF_hitmodel_any()
         return;
     }
     const bool hit =
-        hitmodel::segment(e, glm::vec3{a[0], a[1], a[2]}, glm::vec3{b[0], b[1], b[2]}, radius, 1.f, hitmodel::Class::Grapple, h);
+        hitmodel::segment(e, geom::vec(a), geom::vec(b), radius, 1.f, hitmodel::Class::Grapple, h);
     G_FLOAT(OFS_RETURN) = hit ? h.t : -1.f;
 }
 
@@ -3036,7 +3037,7 @@ void PF_modelanchor()
     r[1] = r[2] = 0.f;
     hitmodel::Hit h;
     float dist = 0.f;
-    if(!bodyModel(e) || !hitmodel::nearestAny(e, glm::vec3{p[0], p[1], p[2]}, h, dist))
+    if(!bodyModel(e) || !hitmodel::nearestAny(e, geom::vec(p), h, dist))
     {
         return;
     }
@@ -3089,8 +3090,8 @@ void PF_debughitzone()
 {
     const float* lo = G_VECTOR(OFS_PARM2);
     const float* hi = G_VECTOR(OFS_PARM3);
-    hitmodel::zoneAdd(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), static_cast<int>(G_FLOAT(OFS_PARM1)), glm::vec3{lo[0], lo[1], lo[2]},
-        glm::vec3{hi[0], hi[1], hi[2]}, G_FLOAT(OFS_PARM4));
+    hitmodel::zoneAdd(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), static_cast<int>(G_FLOAT(OFS_PARM1)), geom::vec(lo),
+        geom::vec(hi), G_FLOAT(OFS_PARM4));
 }
 
 struct VrBuiltin

@@ -65,8 +65,8 @@ struct DrawnTransform
         {
             const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(model)));
             t = weapons::modelTransform(model);
-            so = glm::vec3{hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
-            hs = glm::vec3{hdr->scale[0], hdr->scale[1], hdr->scale[2]};
+            so = geom::vec(hdr->scale_origin);
+            hs = geom::vec(hdr->scale);
         }
     }
 
@@ -149,7 +149,7 @@ bool drawnTriangles(edict_t* ent, const qmodel_t* model, za::Vector<Triangle>& o
             const auto vertex = [&](int k) {
                 const int e = model->surfedges[surf.firstedge + k];
                 const mvertex_t& v = model->vertexes[e >= 0 ? model->edges[e].v[0] : model->edges[-e].v[1]];
-                return xf.stored(glm::vec3{v.position[0], v.position[1], v.position[2]});
+                return xf.stored(geom::vec(v.position));
             };
             for(int k = 2; k < surf.numedges; k++)
             {
@@ -457,7 +457,7 @@ glm::mat3 axesFromAngles(const float* angles, bool brush)
 {
     vec3_t a{brush ? angles[0] : -angles[0], angles[1], angles[2]}, f, r, u;
     AngleVectors(a, f, r, u);
-    return glm::mat3{glm::vec3{f[0], f[1], f[2]}, -glm::vec3{r[0], r[1], r[2]}, glm::vec3{u[0], u[1], u[2]}};
+    return glm::mat3{geom::vec(f), -geom::vec(r), geom::vec(u)};
 }
 
 void anglesFromAxes(const glm::mat3& m, float* out, bool brush)
@@ -797,7 +797,7 @@ const DrawnMesh* entityMesh(edict_t* ent, glm::mat3& axes, glm::vec3& origin)
         return nullptr;
     }
     axes = axesFromAngles(ent->v.angles, model->type == mod_brush);
-    origin = glm::vec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]};
+    origin = geom::vec(ent->v.origin);
     return m;
 }
 
@@ -808,8 +808,8 @@ void drawnBox(edict_t* ent, glm::vec3& lo, glm::vec3& hi)
     const FieldOffsets& f = fields();
     const int index = static_cast<int>(ent->v.modelindex);
     const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
-    lo = glm::vec3{ent->v.mins[0], ent->v.mins[1], ent->v.mins[2]};
-    hi = glm::vec3{ent->v.maxs[0], ent->v.maxs[1], ent->v.maxs[2]};
+    lo = geom::vec(ent->v.mins);
+    hi = geom::vec(ent->v.maxs);
     if(model && (model->type == mod_alias || model->type == mod_brush))
     {
         const glm::vec3 zero{0.f};
@@ -827,7 +827,7 @@ bool nearDrawnBox(edict_t* ent, const glm::vec3& p, float margin)
     const int index = static_cast<int>(ent->v.modelindex);
     const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
     const glm::mat3 axes = axesFromAngles(ent->v.angles, model && model->type == mod_brush);
-    const glm::vec3 local = glm::transpose(axes) * (p - glm::vec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]});
+    const glm::vec3 local = glm::transpose(axes) * (p - geom::vec(ent->v.origin));
     return glm::all(glm::lessThanEqual(glm::abs(local - (lo + hi) * 0.5f), (hi - lo) * 0.5f + glm::vec3{margin}));
 }
 
@@ -1348,7 +1348,7 @@ glm::vec3 surfaceFit(edict_t* ent, const glm::vec3& hand, const glm::vec3& palm)
     const bool brush = model->type == mod_brush;
     const glm::mat3 toHand = glm::transpose(glm::mat3{forward, p, up});
     const glm::mat3 axes = toHand * axesFromAngles(ent->v.angles, brush);
-    const glm::vec3 from = toHand * (glm::vec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]} - hand);
+    const glm::vec3 from = toHand * (geom::vec(ent->v.origin) - hand);
     for(Triangle& t : triangles)
     {
         for(glm::vec3& v : t.p)
@@ -1646,7 +1646,7 @@ struct Box
     }
     else
     {
-        pos = glm::transpose(hand) * (glm::vec3{ed->v.origin[0], ed->v.origin[1], ed->v.origin[2]} - fieldVec(player, posField));
+        pos = glm::transpose(hand) * (geom::vec(ed->v.origin) - fieldVec(player, posField));
     }
     rot = glm::transpose(hand) * held::axesFromAngles(ed->v.angles, model->type == mod_brush);
     return true;
@@ -1762,7 +1762,7 @@ void localBodyFrame(int num, carry2h::Frame& to)
                       (f.offhand_held >= 0 && progs::fieldInt(player, f.offhand_held) == prog);
     if(held)
     {
-        const carry2h::Frame from{glm::vec3{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]}, to.rot};
+        const carry2h::Frame from{geom::vec(ent->v.origin), to.rot};
         carry2h::bodyClear(ent, player, from, to);
     }
 }
@@ -2219,7 +2219,7 @@ void bothFrame(const hands::State& s, int ent)
     {
         // The second hand took it: from where it is drawn now, in the hand that held it (its place this frame), or
         // where the server has it.
-        carry2h::Frame object{glm::vec3{e.msg_origins[0][0], e.msg_origins[0][1], e.msg_origins[0][2]},
+        carry2h::Frame object{geom::vec(e.msg_origins[0]),
             carry2h::fromAngles(e.msg_angles[0], brush)};
         for(int h = 0; h < 2; h++)
         {
@@ -2368,7 +2368,7 @@ void trace(const hands::State& s)
         return za::String{va(" %.4f %.4f %.4f %.7f %.7f %.7f %.7f", p.x, p.y, p.z, q.w, q.x, q.y, q.z)};
     };
     za::String line = va("%.4f %d %d", cl.time, mode, ent);
-    line += pose(glm::vec3{e.origin[0], e.origin[1], e.origin[2]}, carry2h::fromAngles(e.angles, e.model->type == mod_brush));
+    line += pose(geom::vec(e.origin), carry2h::fromAngles(e.angles, e.model->type == mod_brush));
     for(int h = 1; h >= 0; h--)
     {
         glm::vec3 pos = s.pos[h], angles = s.rot[h];
@@ -2634,7 +2634,7 @@ void carryCheck()
                        "it in the hand (listen %d, placed %d, %.3f s ago); the player's speed %.2f; drawn %.2f cm off its place from the controller\n",
                 glm::distance(want, physPos) / m2u * 100.f, glm::distance(hd.pos, glm::vec3{o.x, -o.y, o.z}) / m2u * 100.f,
                 listen ? 1 : 0, hd.placed ? 1 : 0, cl.time - hd.since,
-                glm::length(glm::vec3{player->v.velocity[0], player->v.velocity[1], player->v.velocity[2]}),
+                glm::length(geom::vec(player->v.velocity)),
                 glm::distance(drawnPos, s.pos[h] + ctrl * hd.pos) / m2u * 100.f);
             Con_Printf("carry check: the player at z %.2f, the hand at z %.2f\n", player->v.origin[2], s.pos[h].z);
         }

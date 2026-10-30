@@ -809,8 +809,8 @@ void armedChoose()
         {
             continue;
         }
-        const glm::vec3 lo = glm::vec3{e->v.absmin[0], e->v.absmin[1], e->v.absmin[2]} - glm::vec3{1.f};
-        const glm::vec3 hi = glm::vec3{e->v.absmax[0], e->v.absmax[1], e->v.absmax[2]} + glm::vec3{1.f};
+        const glm::vec3 lo = geom::vec(e->v.absmin) - glm::vec3{1.f};
+        const glm::vec3 hi = geom::vec(e->v.absmax) + glm::vec3{1.f};
         float t = 0.f;
         if(rayBox(from, dir, lo, hi, t) && t < distance && t > 0.f)
         {
@@ -890,7 +890,7 @@ void updateAim(const hands::State& s)
     a.end = a.from + a.dir * a.worldDistance;
     if(tr.fraction < 1.f)
     {
-        a.normal = glm::vec3{tr.plane.normal[0], tr.plane.normal[1], tr.plane.normal[2]};
+        a.normal = geom::vec(tr.plane.normal);
         a.hitEntity = tr.ent ? NUM_FOR_EDICT(tr.ent) : 0;
     }
     a.target = pickTarget(a.from, a.dir, a.worldDistance, a.targetDistance);
@@ -1077,8 +1077,8 @@ void probeLook()
         copyText(look.model, sizeof(look.model), model);
         look.skin = static_cast<int>(e->v.skin);
         look.frame = static_cast<int>(e->v.frame);
-        look.delta = glm::vec3{e->v.origin[0], e->v.origin[1], e->v.origin[2]} - tg.ghostOrigin;
-        look.turn = glm::vec3{e->v.angles[0], e->v.angles[1], e->v.angles[2]} - tg.ghostAngles;
+        look.delta = geom::vec(e->v.origin) - tg.ghostOrigin;
+        look.turn = geom::vec(e->v.angles) - tg.ghostAngles;
         look.vr.scale = fieldVec(e, fields().model_scale);
         look.vr.scaleOrigin = fieldVec(e, fields().model_scale_origin);
         look.vr.offset = fieldVec(e, fields().model_offset);
@@ -1180,9 +1180,9 @@ void dragStart(int num)
     d.prop = isRigidProp(e);
     d.distance = tg.aim.targetDistance;
     const glm::vec3 grab = tg.aim.from + tg.aim.dir * d.distance;
-    d.offset = glm::vec3{e->v.origin[0], e->v.origin[1], e->v.origin[2]} - grab;
-    d.angles = glm::vec3{e->v.angles[0], e->v.angles[1], e->v.angles[2]};
-    d.last = glm::vec3{e->v.origin[0], e->v.origin[1], e->v.origin[2]};
+    d.offset = geom::vec(e->v.origin) - grab;
+    d.angles = geom::vec(e->v.angles);
+    d.last = geom::vec(e->v.origin);
     const int mi = static_cast<int>(e->v.modelindex);
     d.brush = mi > 0 && mi < MAX_MODELS && sv.models[mi] && sv.models[mi]->type == mod_brush;
     d.hand0 = held::axesFromAngles(&tg.handRot[0], true);
@@ -1395,12 +1395,12 @@ void dragFrame(float dt)
     }
     const qmodel_t* m = sv.models[mi];
     const glm::vec3 k = scaleOf(e), o = fieldVec(e, fields().model_scale_origin);
-    const glm::vec3 lo = o + (glm::vec3{m->mins[0], m->mins[1], m->mins[2]} - o) * k;
-    const glm::vec3 hi = o + (glm::vec3{m->maxs[0], m->maxs[1], m->maxs[2]} - o) * k;
+    const glm::vec3 lo = o + (geom::vec(m->mins) - o) * k;
+    const glm::vec3 hi = o + (geom::vec(m->maxs) - o) * k;
     g.num = num;
     g.axes = held::axesFromAngles(e->v.angles, m->type == mod_brush);
     g.half = (hi - lo) * 0.5f;
-    g.centre = glm::vec3{e->v.origin[0], e->v.origin[1], e->v.origin[2]} + g.axes * ((lo + hi) * 0.5f);
+    g.centre = geom::vec(e->v.origin) + g.axes * ((lo + hi) * 0.5f);
     return true;
 }
 
@@ -1456,7 +1456,7 @@ void setScale(int num, const glm::vec3& k)
         // Scaled about its middle (its first scaling: as it is drawn now nothing moves).
         const qmodel_t* m = sv.models[mi];
         setFieldVec(e, fields().model_scale_origin,
-            (glm::vec3{m->mins[0], m->mins[1], m->mins[2]} + glm::vec3{m->maxs[0], m->maxs[1], m->maxs[2]}) * 0.5f);
+            (geom::vec(m->mins) + geom::vec(m->maxs)) * 0.5f);
     }
     setFieldVec(e, fields().model_scale, clamped - glm::vec3{1.f});
     e->v.flags = static_cast<float>(static_cast<int>(e->v.flags) & ~FL_ONGROUND); // (awake: it settles at its new size)
@@ -1468,7 +1468,7 @@ void setScale(int num, const glm::vec3& k)
         glm::vec3 lo{1e30f}, hi{-1e30f};
         for(int c = 0; c < 8; c++)
         {
-            const glm::vec3 p = handlePoint(g, 6 + c) - glm::vec3{e->v.origin[0], e->v.origin[1], e->v.origin[2]};
+            const glm::vec3 p = handlePoint(g, 6 + c) - geom::vec(e->v.origin);
             lo = glm::min(lo, p);
             hi = glm::max(hi, p);
         }
@@ -1591,7 +1591,7 @@ void jointShot(int num, const glm::vec3& at, const glm::vec3& normal)
         return;
     }
     edict_t* first = EDICT_NUM(tg.jointFirst);
-    const glm::vec3 atA = glm::vec3{first->v.origin[0], first->v.origin[1], first->v.origin[2]} +
+    const glm::vec3 atA = geom::vec(first->v.origin) +
                           held::axesFromAngles(first->v.angles, false) * tg.jointLocal;
     const auto kind = static_cast<box3d::ToolJoint>(jointKind());
     const bool made = box3d::addToolJoint(tg.jointFirst, num, kind, atA, at, normal);
@@ -1758,7 +1758,7 @@ void drawLook(const hands::State& s)
     if(tg.jointFirst > 0 && tg.jointFirst < qcvm->num_edicts && !EDICT_NUM(tg.jointFirst)->free)
     {
         edict_t* first = EDICT_NUM(tg.jointFirst);
-        const glm::vec3 atA = glm::vec3{first->v.origin[0], first->v.origin[1], first->v.origin[2]} +
+        const glm::vec3 atA = geom::vec(first->v.origin) +
                               held::axesFromAngles(first->v.angles, false) * tg.jointLocal;
         lines::line(atA, a.from + a.dir * distance, 0.15f, c, c);
     }
@@ -2119,8 +2119,8 @@ void frame(const hands::State& s)
             glm::vec3 normal{0.f, 0.f, 1.f};
             edict_t* e = EDICT_NUM(a.target);
             float t = 0.f;
-            (void)rayBox(a.from, a.dir, glm::vec3{e->v.absmin[0], e->v.absmin[1], e->v.absmin[2]},
-                glm::vec3{e->v.absmax[0], e->v.absmax[1], e->v.absmax[2]}, t, &normal);
+            (void)rayBox(a.from, a.dir, geom::vec(e->v.absmin),
+                geom::vec(e->v.absmax), t, &normal);
             jointShot(a.target, a.from + a.dir * a.targetDistance, normal);
         }
         break;

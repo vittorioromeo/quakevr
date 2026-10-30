@@ -66,6 +66,7 @@
 #include "vr_srvrandom.hpp"
 #include "vr_melee_shared.h"
 #include "vr_toolgun.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/SizeT.hpp"
@@ -1232,7 +1233,7 @@ void thrownGunRopeStart(int key, float* start)
             const beam_t& b = cl_beams[k];
             others = b.entity != key && b.model && b.starttime <= cl.time && b.endtime >= cl.time &&
                      (b.entity >> 16) - 1 == 2 && (b.entity & 0xFFFF) != cl.viewentity &&
-                     glm::distance(at, glm::vec3{b.start[0], b.start[1], b.start[2]}) < d;
+                     glm::distance(at, geom::vec(b.start)) < d;
         }
         if(!others)
         {
@@ -1324,7 +1325,7 @@ extern "C" int VR_UpdateBeam(int ent, float* start, float* end)
         const glm::vec3 muzzle = s.muzzle[hand] + modelcollide::drawnOffset(hand) + selfcollide::drawnOffset(hand); // as drawn (vr_model_collide, vr_body_collide)
         if(id < 2)
         {
-            const float len = glm::distance(glm::vec3{start[0], start[1], start[2]}, glm::vec3{end[0], end[1], end[2]});
+            const float len = glm::distance(geom::vec(start), geom::vec(end));
             const glm::vec3 e = muzzle + hands::forward(weapons::shotAngles(s.rot[hand], weapons::heldSlot(hand), hand == HAND_OFF)) * len;
             end[0] = e.x;
             end[1] = e.y;
@@ -1357,8 +1358,8 @@ extern "C" int VR_UpdateBeam(int ent, float* start, float* end)
         {
             continue;
         }
-        const float d = glm::distance(glm::vec3{e.msg_origins[0][0], e.msg_origins[0][1], e.msg_origins[0][2]},
-            glm::vec3{end[0], end[1], end[2]});
+        const float d = glm::distance(geom::vec(e.msg_origins[0]),
+            geom::vec(end));
         if(d < best)
         {
             best = d;

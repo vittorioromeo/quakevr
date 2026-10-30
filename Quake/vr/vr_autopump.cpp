@@ -11,6 +11,7 @@
 #include "vr_cvars.hpp"
 #include "vr_main.hpp"
 #include "vr_audio.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -101,7 +102,7 @@ void sound(sfx_t* sfx, const float (&where)[3])
     if(sfx && volume > 0.f)
     {
         // (there, as the shells' tinks: not the player's own channel)
-        audio::playAt(sfx, glm::vec3{where[0], where[1], where[2]}, volume, 1.5f);
+        audio::playAt(sfx, geom::vec(where), volume, 1.5f);
     }
 }
 

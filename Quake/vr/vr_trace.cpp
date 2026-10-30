@@ -6,6 +6,7 @@
 #include "vr_trace.hpp"
 #include "vr_engine.hpp"
 #include "vr_hull.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Vocabulary/Optional.hpp"
@@ -136,8 +137,8 @@ trace_t world(const glm::vec3& start, const glm::vec3& end, bool brushEntities, 
         }
         // (The line's box first: the cheap test that rejects nearly all of them, before the model's metadata lookup.)
         const glm::vec3 origin{e.origin[0], e.origin[1], e.origin[2]};
-        const glm::vec3 mins = origin + glm::vec3{e.model->mins[0], e.model->mins[1], e.model->mins[2]};
-        const glm::vec3 maxs = origin + glm::vec3{e.model->maxs[0], e.model->maxs[1], e.model->maxs[2]};
+        const glm::vec3 mins = origin + geom::vec(e.model->mins);
+        const glm::vec3 maxs = origin + geom::vec(e.model->maxs);
         if(glm::any(glm::lessThan(maxs, lo)) || glm::any(glm::greaterThan(mins, hi)) ||
             (!ownFiles && !qvr::modelmeta::isSubmodel(e.model)))
         {

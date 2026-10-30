@@ -14,6 +14,7 @@
 #include "vr_adguns.hpp"
 
 #include "vr_units.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Algorithm/Sort.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -100,7 +101,7 @@ struct Mdl
     [[nodiscard]] glm::vec3 normal(int v) const
     {
         const byte n = src[poseAt + static_cast<size_t>(v) * 4 + 3];
-        return n < NUMVERTEXNORMALS ? glm::vec3{r_avertexnormals[n][0], r_avertexnormals[n][1], r_avertexnormals[n][2]}
+        return n < NUMVERTEXNORMALS ? geom::vec(r_avertexnormals[n])
                                     : glm::vec3{0.f, 0.f, 1.f};
     }
     [[nodiscard]] int tri(int t, int k) const { return qvr::bytes::le32(src, triAt + static_cast<size_t>(t) * 16 + static_cast<size_t>(k) * 4); }

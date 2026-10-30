@@ -23,6 +23,7 @@
 #include "vr_units.hpp"
 #include "vr_verlet.hpp"
 #include "vr_view.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -620,7 +621,7 @@ void info_f()
         }
         Con_Printf("adgun worn tank %d on %d (gun %d): %.1f units from its wearer's origin; hose %s, %d rings\n", worn[k].tank,
             worn[k].wearer, worn[k].gun,
-            glm::distance(glm::vec3{t.origin[0], t.origin[1], t.origin[2]}, glm::vec3{m.origin[0], m.origin[1], m.origin[2]}),
+            glm::distance(geom::vec(t.origin), geom::vec(m.origin)),
             drawn ? "drawn" : "none", drawn ? static_cast<int>(drawn->hoseRings.count) : 0);
     }
     Con_Printf("adgun back tank: %s, variant %d, %d hose(s) to it, %d tank rings drawn (%d in the body's mirror image)\n",
@@ -671,8 +672,8 @@ void info_f()
         tanks, guns, paired, orphans, bare, ropes, joined);
     box3d::forEachFuelRope([&](int gun, int tank, float length, bool j) {
         const bool seen = gun > 0 && gun < cl.num_entities && tank > 0 && tank < cl.num_entities;
-        const float apart = seen ? glm::distance(glm::vec3{cl_entities[gun].origin[0], cl_entities[gun].origin[1], cl_entities[gun].origin[2]},
-                                       glm::vec3{cl_entities[tank].origin[0], cl_entities[tank].origin[1], cl_entities[tank].origin[2]})
+        const float apart = seen ? glm::distance(geom::vec(cl_entities[gun].origin),
+                                       geom::vec(cl_entities[tank].origin))
                                  : -1.f;
         const Hose* drawn = nullptr;
         for(const Hose& h : worldHoses)
@@ -999,7 +1000,7 @@ void setupWorld(const hands::State& s)
         {
             return;
         }
-        const float d = glm::distance(eye, glm::vec3{cl_entities[tank].origin[0], cl_entities[tank].origin[1], cl_entities[tank].origin[2]});
+        const float d = glm::distance(eye, geom::vec(cl_entities[tank].origin));
         if(d > worldReach)
         {
             return;
@@ -1037,7 +1038,7 @@ void setupWorld(const hands::State& s)
         {
             const entity_t& g = cl_entities[w.gun];
             const entity_t& t = cl_entities[w.tank];
-            const float apart = glm::distance(glm::vec3{g.origin[0], g.origin[1], g.origin[2]}, glm::vec3{t.origin[0], t.origin[1], t.origin[2]});
+            const float apart = glm::distance(geom::vec(g.origin), geom::vec(t.origin));
             consider(w.gun, w.tank, apart * 1.15f + 0.12f * m2u, false, w.wearer);
         }
     }
@@ -1160,7 +1161,7 @@ void updateSeen(const glm::vec3& eye)
         const int variant = adguns::tankVariantOf(e.model->name);
         view::ViewEntity ve;
         if(variant < 0 || !drawnEntity(n, ve) ||
-            glm::distance(eye, glm::vec3{e.origin[0], e.origin[1], e.origin[2]}) > 6.f * m2u || hoseCutEdict(n))
+            glm::distance(eye, geom::vec(e.origin)) > 6.f * m2u || hoseCutEdict(n))
         {
             continue;
         }
@@ -1346,7 +1347,7 @@ void setupStubs(const glm::vec3& eye)
             {
                 continue;
             }
-            const float d = glm::distance(eye, glm::vec3{e->v.origin[0], e->v.origin[1], e->v.origin[2]});
+            const float d = glm::distance(eye, geom::vec(e->v.origin));
             if(d > worldReach)
             {
                 continue;

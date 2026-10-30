@@ -41,6 +41,7 @@
 #include "Zancle/Random/FastNonCryptoRng.hpp"
 #include "vr_zancle.hpp"
 #include "vr_audio.hpp"
+#include "vr_geom.hpp"
 
 #include <string.h>
 
@@ -217,7 +218,7 @@ za::FastNonCryptoRng rng{static_cast<za::U64>(za::Clock::nowNanoseconds())}; // 
     const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(ve.ent.model));
     const glm::vec3 now = anchor::posedAnchor(ve.ent, w.anchor, ve.zeroBlend);
     const glm::vec3 rest = anchor::posedAnchor(ve.ent, w.anchor, 1.f);
-    return (now - rest) * glm::vec3{hdr->scale[0], hdr->scale[1], hdr->scale[2]};
+    return (now - rest) * geom::vec(hdr->scale);
 }
 
 // A direction in the model's space, in the world.
@@ -305,7 +306,7 @@ void trackPorts(const view::ViewEntity (&weapons)[2])
     }
     const float speed = vrand::range(rng, 1.1f, 1.7f) * upm;
     return out * speed + side * (vrand::range(rng, -0.35f, 0.35f) * upm) + glm::vec3{0.f, 0.f, vrand::range(rng, 0.3f, 0.7f) * upm} + handVel +
-           glm::vec3{cl.velocity[0], cl.velocity[1], cl.velocity[2]};
+           geom::vec(cl.velocity);
 }
 
 // Never at the face: a casing starting within an arm's length of the head does not fly towards it
