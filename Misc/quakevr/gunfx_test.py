@@ -2,13 +2,15 @@
 class, yours and the monsters': each shot makes the effects its class should (the brief's table) and the excluded
 weapons none.
 
-    python Misc/quakevr/gunfx_test.py <agent> [--kit C:/OHWorkspace/qvr-kit] [--only player|armed|grunt|enforcer]
+    python Misc/quakevr/gunfx_test.py <agent> [--kit C:/OHWorkspace/qvr-kit] [--only player|armed|grunt|enforcer|wisps|tube]
 
 Runs (the kit's run.sh, fast mode, vr_debug_gunfx 1 printing each shot's "gunfx shot who ... wid ... sparks ..."):
 - player: every weapon id in turn into the main hand (impulse 149, vr_test_give_wid), a trigger pull each; ends on
   its "gunfxtest end" echo;
 - armed: vr_agrunt_test 1 (an armed grunt with every weapon in turn, hunting you); ends on "agtest: every weapon";
-- grunt, enforcer: one of each (vr_test_spawn 0, 8) hunting you; ends on its first shot's line.
+- grunt, enforcer: one of each (vr_test_spawn 0, 8) hunting you; ends on its first shot's line;
+- wisps: the muzzle wisps (vr_muzzlewisps.cpp) of the shotguns, nailguns, revolver, none of the rocket launcher's;
+- tube: a grunt's own gun fired as a rocket tube (vr_gunfx_monster_test 1: AD's rocket soldier's path).
 Prints "PASS/FAIL <what>" lines and "gunfx_test: N passed, M failed".
 """
 
@@ -104,8 +106,8 @@ def judge(s, who, own_hands):
         ok = ok and s["back"] > 0  # (the AD launcher too now: its exhaust's cone)
         if not own_hands:
             ok = ok and s["exhaust"] > 0  # (a monster's exhaust smokes at the shot; yours each frame after)
-    if w == 29:
-        ok = ok and s["vent"] > 0  # the nail pistol's side vents
+    if w == 29 or (w == 10 and own_hands):
+        ok = ok and s["vent"] > 0  # the nail pistol's side vents; your rocket launcher's vents facing you (v_rock2.mdl)
     if w in SHOTGUNS and w != 4 or (w == 4 and not own_hands):
         ok = ok and s["port"] > 0  # (your shotgun's puff comes with its casing: a "gunfx port" line)
     if w in SUPER and not own_hands:
@@ -125,6 +127,57 @@ def judge_all(found, who, own_hands, expect):
     good = {s["wid"] for s in found if s["who"] == who and judge(s, who, own_hands)[0]}
     for w in expect:
         check(w in seen and w in good, "%s wid %d fired, its effects right" % (who, w))
+
+
+WISP_START = re.compile(r"gunfx wisps start hand \d barrels (\d) after ([\d.]+) s")
+WISP_FADED = re.compile(r"gunfx wisps faded hand \d barrels \d after [\d.]+ s charge [\d.]+ points (\d+) drawn (\d+)")
+# (weapon id, frames the trigger is held, the wisps' barrels: 0 none)
+WISP_GUNS = [(10, 4, 0), (4, 4, 1), (5, 4, 2), (6, 36, 2), (7, 36, 1), (31, 4, 1)]
+
+
+def wisps_case(a):
+    """Muzzle wisps (vr_muzzlewisps.cpp): each gun's start only after its last shot (vr_gunfx_wisp_delay 0.25 s later),
+    one a barrel, drawn, then fade; none for a launcher. Short-lived here (time 0.5 s, fade 0.4 s): each gun waits for its
+    "faded" line (vr_waitprint), the launcher its refire time (60 frames: wisps would start after 18)."""
+    s = ("map e1m1;wait60;god;notarget;vr_debug_gunfx 1;vr_gunfx_wisp_time 0.5;vr_gunfx_wisp_fade 0.4;"
+         "vr_weapon_grip_mode 1;impulse 9;wait2;vr_mock_hand main 0.15 1.2 -0.45 70 0 0;wait5")
+    for w, hold, barrels in WISP_GUNS:
+        s += ";vr_test_give_wid %d;impulse 149;wait5;echo gunfxtest wid %d;+attack;wait%d;-attack" % (w, w, hold)
+        s += ";vr_waitprint 600 gunfx wisps faded" if barrels else ";wait60"  # (its refire: 0.8 s)
+    lines = run(a.kit, a.agent, s + ";echo gunfxtest end", "gunfxtest end", 240)
+    check(any("gunfxtest end" in l for l in lines), "wisps: the run reached its end")
+    seen = {}
+    cur = -1
+    for l in lines:
+        m = re.search(r"gunfxtest wid (\d+)", l)
+        if m:
+            cur = int(m.group(1))
+            seen[cur] = {"events": []}
+            continue
+        if cur < 0:
+            continue
+        if LINE.search(l):
+            seen[cur]["events"].append(("shot",))
+        m = WISP_START.search(l)
+        if m:
+            seen[cur]["events"].append(("start", int(m.group(1)), float(m.group(2))))
+        m = WISP_FADED.search(l)
+        if m:
+            seen[cur]["events"].append(("faded", int(m.group(1)), int(m.group(2))))
+    for w, hold, barrels in WISP_GUNS:
+        ev = seen.get(w, {"events": []})["events"]
+        starts = [i for i, e in enumerate(ev) if e[0] == "start"]
+        shots_at = [i for i, e in enumerate(ev) if e[0] == "shot"]
+        if not barrels:
+            check(bool(shots_at) and not starts, "wisps wid %d: fired, no wisps (%s)" % (w, ev))
+            continue
+        ok = bool(shots_at) and len(starts) == 1 and starts[0] > shots_at[-1]
+        st = ev[starts[0]] if starts else None
+        ok = ok and st[1] == barrels and st[2] >= 0.24
+        faded = [e for e in ev if e[0] == "faded"]
+        ok = ok and len(faded) == 1 and faded[0][1] > 0 and faded[0][2] > 0
+        check(ok, "wisps wid %d: %d shot(s), %d barrel(s) after the last, drawn, faded (%s)" %
+              (w, len(shots_at), barrels, [e for e in ev if e[0] != "shot"]))
 
 
 def main():
@@ -173,6 +226,16 @@ def main():
                     "agtest: test 111 over", 200)
         check(any("agtest: test 111 over" in l for l in lines), "armed rocket: vr_agrunt_test 111 reached its end")
         judge_all(shots(lines), "enemy", False, [10])
+    if a.only in ("", "wisps"):
+        wisps_case(a)
+    if a.only in ("", "tube"):
+        # A monster's own gun as a rocket tube (AD's rocket soldier: QC weaponfired QVR_FIRED_ROCKET), a grunt's gun
+        # standing in for it (AD's soldier is its mesh): the backblast out of the gun's back, the exhaust smoking.
+        s = setup + ";notarget;vr_test_spawn 0;vr_test_spawn_dist 200;impulse 241;wait30;vr_gunfx_monster_test 1;echo gunfxtest end"
+        lines = run(a.kit, a.agent, s, "gunfxtest end", 120)
+        found = [x for x in shots(lines) if x["who"] == "enemy"]
+        check(len(found) == 1 and found[0]["wid"] == 10 and found[0]["back"] > 0 and found[0]["exhaust"] > 0,
+              "a monster's rocket tube: backblast and exhaust (%s)" % (found[:1],))
     for name, spawn, wid in (("grunt", 0, 15), ("enforcer", 8, 16)):
         if a.only not in ("", name):
             continue

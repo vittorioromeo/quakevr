@@ -167,8 +167,19 @@ constexpr const char* enforcerRear[] = {"3.6417 -8.3993 16.6348", "2.719 -7.7484
     "4.8719 -7.0975 11.3333", "4.2568 -11.9793 11.9224"};
 static_assert(za::getArraySize(soldierMuzzle) == za::getArraySize(soldierMuzzleTwins) &&
               za::getArraySize(soldierRear) == za::getArraySize(soldierRearTwins));
+// AD support: AD's soldier (progs/mon_soldier.mdl, AD's pak0) is soldier.mdl's mesh, its vertices numbered alike (the
+// gun 463..548), its frame 0 placed 0.07..0.12 further along x: the same vertices' places in its own file (found in
+// shoot5 as soldier.mdl's; its rocket soldier fires in shoot6, the gun 29.1 units long there). Its rocket soldier's
+// shots (QC ad_army_fire_rocket: weaponfired QVR_FIRED_ROCKET) come out of the gun as a rocket tube's (vr_gunfx.cpp).
+constexpr const char* adSoldierMuzzle[] = {"13.8953 14.6358 5.0417", "13.0263 14.3738 2.6583", "15.6333 13.8498 5.3065",
+    "14.4747 13.3259 1.8638", "16.7920 12.8019 4.2472", "15.9230 12.5399 1.8638"};
+constexpr const char* adSoldierRear[] = {"2.3087 -10.5149 12.1918", "3.4674 -11.3008 11.9270", "2.5984 -11.3008 9.0140",
+    "4.6260 -11.8248 11.3974"};
+static_assert(za::getArraySize(adSoldierMuzzle) == za::getArraySize(soldierMuzzleTwins) &&
+              za::getArraySize(adSoldierRear) == za::getArraySize(soldierRearTwins));
 const MonsterGun monsterGuns[] = {
     {modelmeta::Id::Soldier, 555, soldierMuzzle, soldierRear, soldierMuzzleTwins, soldierRearTwins},
+    {modelmeta::Id::AdSoldier, 555, adSoldierMuzzle, adSoldierRear, soldierMuzzleTwins, soldierRearTwins}, // AD support
     {modelmeta::Id::Enforcer, 479, enforcerMuzzle, enforcerRear, {}, {}},
 };
 constexpr float flashOfGun = 0.3f; // a monster's flash, as long as this share of its gun
@@ -446,8 +457,9 @@ void monsterSmoke(int ent)
     return slot == weapons::fistSlot() ? -1 : slot;
 }
 
-// A monster's gun fired: its gunfire particles (vr_gunfx.cpp) at its muzzle, a held weapon's (`propSlot`) or its own gun's.
-void monsterGunfx(int ent, int propSlot)
+// A monster's gun fired: its gunfire particles (vr_gunfx.cpp) at its muzzle, a held weapon's (`propSlot`) or its own gun's
+// (`rocket`: a rocket tube, AD's rocket soldier's: weaponfired QVR_FIRED_ROCKET).
+void monsterGunfx(int ent, int propSlot, bool rocket)
 {
     if(ent <= 0 || ent >= cl.num_entities)
     {
@@ -478,17 +490,18 @@ void monsterGunfx(int ent, int propSlot)
         return;
     }
     m.gunLength = gunLength;
-    gunfx::enemyFired(ent, nullptr, modelmeta::is(e.model, modelmeta::Id::Enforcer) ? WID_ENFRIFLE : WID_GRUNTGUN, m);
+    const int wid = rocket ? WID_ROCKET_LAUNCHER : modelmeta::is(e.model, modelmeta::Id::Enforcer) ? WID_ENFRIFLE : WID_GRUNTGUN;
+    gunfx::enemyFired(ent, nullptr, wid, m);
 }
 
-void monsterFired(int ent)
+void monsterFired(int ent, bool rocket)
 {
     const int propSlot = ent > 0 && ent < cl.num_entities ? heldPropSlot(cl_entities[ent]) : -1;
     if(propSlot < 0)
     {
         monsterSmoke(ent); // (a held weapon's: the QC's, at its muzzle)
     }
-    monsterGunfx(ent, propSlot);
+    monsterGunfx(ent, propSlot, rocket);
     if(!vr_muzzle_flash.value || !vr_muzzle_flash_enemies.value || ent <= 0 || ent >= cl.num_entities ||
         (propSlot < 0 && !monsterGun(cl_entities[ent])))
     {
@@ -610,7 +623,7 @@ void parseFired()
         }
         return;
     }
-    monsterFired(ent);
+    monsterFired(ent, hand == 4); // (4: its own rocket tube, QC QVR_FIRED_ROCKET)
 }
 
 void parseTracer()
@@ -1326,11 +1339,44 @@ void recoilTest_f()
     qvr::testkit::verdict("vr_recoil_test", passed, failed);
 }
 
+// vr_gunfx_monster_test [rocket]: the nearest monster with a gun of its own (a grunt, an enforcer, AD's soldiers) fires
+// it as the QC's weaponfired would (`rocket` 1: as a rocket tube, AD's rocket soldier's QVR_FIRED_ROCKET): its flash,
+// smoke and gunfire particles (vr_debug_gunfx prints them). Nothing in the game happens.
+void monsterTest_f()
+{
+    const bool rocket = Cmd_Argc() > 1 && atoi(Cmd_Argv(1)) != 0;
+    const glm::vec3 eye{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
+    int best = 0;
+    float bestDistance = 1e30f;
+    for(int i = 1; i < cl.num_entities; i++)
+    {
+        const entity_t& e = cl_entities[i];
+        if(i == cl.viewentity || !e.model || !monsterGun(e))
+        {
+            continue;
+        }
+        const float d = glm::distance(eye, glm::vec3{e.origin[0], e.origin[1], e.origin[2]});
+        if(d < bestDistance)
+        {
+            best = i;
+            bestDistance = d;
+        }
+    }
+    if(!best)
+    {
+        Con_Printf("vr_gunfx_monster_test: no monster with a gun of its own about\n");
+        return;
+    }
+    Con_Printf("vr_gunfx_monster_test: ent %d (%s)%s\n", best, cl_entities[best].model->name, rocket ? " as a rocket tube" : "");
+    monsterFired(best, rocket);
+}
+
 } // namespace
 
 void registerCommands()
 {
     Cmd_AddCommand("vr_weaponfx_test", test_f);
+    Cmd_AddCommand("vr_gunfx_monster_test", monsterTest_f);
     Cmd_AddCommand("vr_recoil_test", recoilTest_f);
     gunfx::registerCommands();
 }

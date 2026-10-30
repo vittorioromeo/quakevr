@@ -1481,7 +1481,8 @@ void sendFired(edict_t* shooter, int hand)
     MSG_WriteByte(&sv.datagram, QVR_SVC_FIRED);
     MSG_WriteShort(&sv.datagram, NUM_FOR_EDICT(shooter));
     // (HAND_OFF, HAND_MAIN; 2 and 3 a stream weapon's flame from that hand + 2: vr_weaponfx.cpp streamed)
-    MSG_WriteByte(&sv.datagram, hand >= 0 && hand <= 3 ? hand : 255);
+    // (4: a monster's own rocket tube, QC QVR_FIRED_ROCKET: AD's rocket soldier; else 255, a monster's gun)
+    MSG_WriteByte(&sv.datagram, hand >= 0 && hand <= 4 ? hand : 255);
     VR_BroadcastMessageEnd(); // a boundary
 }
 
