@@ -3291,46 +3291,31 @@ void readGroupGains()
 }
 } // namespace
 
-void drive(State& s, const Parts& p, const Context& c)
+namespace
 {
-    if(!p.rig)
-    {
-        return;
-    }
-    if(!s.on && c.liquidAt && liquidPending(s, c.now)) // (limp now, falling into a liquid: a swim wakes it)
-    {
-        const Liquid l = enteredLiquid(p, c, swimParts(p));
-        if(l != Liquid::None)
-        {
-            startSwim(s, p, c, l, static_cast<float>(c.now - s.begun));
-        }
-    }
-    if(!s.on)
-    {
-        if(c.trace)
-        {
-            trace(s, p, c, static_cast<float>(c.now - c.born)); // (limp: its motion alone)
-        }
-        return;
-    }
-    const double t0 = Sys_DoubleTime();
-    const ragdoll::Rig& rig = *p.rig;
-    const float t = static_cast<float>(c.now - s.begun);
-    // A limb a hand holds: no strength (the hand's pull isn't fought), easing back over half a second once let go of.
-    // (Struggling: only the held part and what hangs from it; the joints above it in its limb kept at a share.)
-    uint32_t partly = 0u;
-    const uint32_t slackNow = c.held | (c.now < s.slackUntil ? s.slack : 0u);
-    const uint32_t held = s.struggle.on ? struggleSlack(rig, p.count, slackNow, partly) : heldLimbs(rig, p.count, slackNow);
-    const float share = za::clamp(vr_struggle_held_share.value, 0.f, 1.f);
-    for(int b = 0; b < p.count; b++)
-    {
-        float& k = s.partScale[static_cast<za::SizeT>(b)];
-        k = (held & (1u << b)) ? 0.f : (partly & (1u << b)) ? za::min(share, k + c.dt * 2.f) : za::min(1.f, k + c.dt * 2.f);
-    }
-    // The clip's pose: each joint's target its turn there (none: as it is now).
-    ClipPose pose;
-    clipPose(s, p, c.now, pose);
+
+// drive's working state, from phase to phase (drive below: its phases in the order they run).
+struct DriveWork
+{
+    double t0{};
+    const ragdoll::Rig* rig{nullptr};
+    float t{};
+    ClipPose pose{};
     za::Array<glm::vec3, ragdoll::maxBones> spin{};
+    bool struggles{};
+    bool swimming{};
+    bool wideArms{};
+    float global{};
+    bool any{};
+};
+
+// The clip's pose: each joint's target its turn there (none: as it is now).
+void driveClipPose(DriveWork& w, State& s, const Parts& p, const Context& c)
+{
+    const ragdoll::Rig& rig = *w.rig;
+    ClipPose& pose = w.pose;
+    clipPose(s, p, c.now, pose);
+    za::Array<glm::vec3, ragdoll::maxBones>& spin = w.spin;
     for(int b = 0; b < p.count; b++)
     {
         const int parent = rig.bones[b].parent;
@@ -3350,9 +3335,16 @@ void drive(State& s, const Parts& p, const Context& c)
         }
         s.target[i] = s.animTarget[i];
     }
-    // Integration (stages 2-5): a dismemberment is a death's (cutReaction needs one), a stagger, a fall or a get-up a
-    // living monster's; should one be cut while still in those (killed in a stagger, then cut), the death leads: they
-    // end, so only the balance beat pins his pelvis. A swim leads a dismemberment too (it skips while he swims).
+}
+
+// Integration (stages 2-5): a dismemberment is a death's (cutReaction needs one), a stagger, a fall or a get-up a
+// living monster's; should one be cut while still in those (killed in a stagger, then cut), the death leads: they
+// end, so only the balance beat pins his pelvis. A swim leads a dismemberment too (it skips while he swims).
+void driveFrames(DriveWork& w, State& s, const Parts& p, const Context& c)
+{
+    float& t = w.t;
+    ClipPose& pose = w.pose;
+    za::Array<glm::vec3, ragdoll::maxBones>& spin = w.spin;
     if(s.dismember.on && (s.stagger.on || s.fall.on || s.rise.on))
     {
         s.stagger.on = false;
@@ -3376,12 +3368,14 @@ void drive(State& s, const Parts& p, const Context& c)
     // down for all of these).
     // A struggle in a player's hands (vr_struggle) leads a lifted one's flail (it stands for it), and stands down in a
     // liquid (the box3d side stops wanting it there).
-    const bool struggles = s.struggle.on && struggleFrame(s, p, c, t);
+    bool& struggles = w.struggles;
+    struggles = s.struggle.on && struggleFrame(s, p, c, t);
     if(!(struggles && s.swim.liquid == Liquid::Air))
     {
         swimFrame(s, p, c, t); // (it begins one too)
     }
-    const bool swimming = s.swim.liquid != Liquid::None;
+    bool& swimming = w.swimming;
+    swimming = s.swim.liquid != Liquid::None;
     if(s.stagger.on && !swimming)
     {
         staggerFrame(s, p, c, t, pose);
@@ -3398,9 +3392,17 @@ void drive(State& s, const Parts& p, const Context& c)
     {
         guardFrame(s, p, c); // (its arms up before its face, over the stagger's, the fall's or the get-up's)
     }
-    // The reaches over the clip's pose (and no speed fed forward where they lead). The limbs envFrame reached last frame
-    // are left to it when it leads (below): it applies their reaches itself, each arm solved once a frame (applied here
-    // too, last frame's goal first, its blend compounded).
+}
+
+// The reaches over the clip's pose (and no speed fed forward where they lead). The limbs envFrame reached last frame
+// are left to it when it leads (below): it applies their reaches itself, each arm solved once a frame (applied here
+// too, last frame's goal first, its blend compounded).
+void driveReaches(DriveWork& w, State& s, const Parts& p, const Context& c)
+{
+    float& t = w.t;
+    za::Array<glm::vec3, ragdoll::maxBones>& spin = w.spin;
+    bool& struggles = w.struggles;
+    bool& swimming = w.swimming;
     const bool envLeads = !(swimming || s.dismember.on || s.stagger.on || s.fall.on || s.rise.on || struggles);
     const uint8_t envOwns = envLeads ? s.env.reached : 0;
     for(int limb = 0; limb < limbCount; limb++)
@@ -3440,14 +3442,25 @@ void drive(State& s, const Parts& p, const Context& c)
         envFrame(s, p, c, t, spin); // (what is round him: the hands' goals over the clip's and the death's)
     }
     // Its shoulders' reach (a struggle's hands over its head), before the targets are clamped to the joints' ranges.
-    const bool wideArms = shoulderReach(s, p, c.dt);
-    // The strengths, and the joints set.
-    const float global = za::clamp(vr_ragdoll_active_strength.value, 0.f, 3.f);
+    w.wideArms = shoulderReach(s, p, c.dt);
+}
+
+// The strengths, and the joints set.
+void driveJoints(DriveWork& w, State& s, const Parts& p, const Context& c)
+{
+    const ragdoll::Rig& rig = *w.rig;
+    float& t = w.t;
+    ClipPose& pose = w.pose;
+    za::Array<glm::vec3, ragdoll::maxBones>& spin = w.spin;
+    bool& swimming = w.swimming;
+    float& global = w.global;
+    global = za::clamp(vr_ragdoll_active_strength.value, 0.f, 3.f);
     const float hertzAt1 = za::clamp(vr_ragdoll_active_hertz.value, 0.f, maxHertz);
     const float damping = za::clamp(vr_ragdoll_active_damping.value, 0.f, 4.f);
     const float torque = za::max(vr_ragdoll_active_torque.value, 0.f);
     readGroupGains();
-    bool any = false;
+    bool& any = w.any;
+    any = false;
     for(int b = 1; b < p.count; b++)
     {
         const auto i = static_cast<za::SizeT>(b);
@@ -3517,7 +3530,15 @@ void drive(State& s, const Parts& p, const Context& c)
         any = true;
         riseFrame(s, p, c, pose);
     }
-    // The pelvis pin: its anchor to the clip's pelvis (and a stumble's carried way), its pull fading.
+}
+
+// The pelvis pin: its anchor to the clip's pelvis (and a stumble's carried way), its pull fading.
+void drivePin(DriveWork& w, State& s, const Parts& p, const Context& c)
+{
+    float& t = w.t;
+    ClipPose& pose = w.pose;
+    float& global = w.global;
+    bool& any = w.any;
     const float pinNow = s.pin.force > 0.f ? fadeAt(s.pin.fade, t) * s.pin.force * s.base * global : 0.f;
     if(s.pin.force > 0.f && ((pinNow <= 1e-3f && t >= s.pin.fade.t1) || !pose.valid || cut(p, 0)))
     {
@@ -3577,7 +3598,15 @@ void drive(State& s, const Parts& p, const Context& c)
             b3MotorJoint_SetMaxSpringTorque(s.pin.joint, pinNow * weight * s.pin.turnShare);
         }
     }
-    // Its weight held up by its muscles (a living one standing or rising): a force up on each part.
+}
+
+// Its weight held up by its muscles (a living one standing or rising): a force up on each part.
+void driveWeight(DriveWork& w, State& s, const Parts& p, const Context& c)
+{
+    double& t0 = w.t0;
+    float& t = w.t;
+    bool& wideArms = w.wideArms;
+    bool& any = w.any;
     if(const float up = fadeAt(s.support, t) * s.base; up > 1e-3f)
     {
         any = true;
@@ -3612,6 +3641,54 @@ void drive(State& s, const Parts& p, const Context& c)
         cost.lastFrame = c.now;
         cost.frames++;
     }
+}
+
+} // namespace
+
+void drive(State& s, const Parts& p, const Context& c)
+{
+    DriveWork w;
+    if(!p.rig)
+    {
+        return;
+    }
+    if(!s.on && c.liquidAt && liquidPending(s, c.now)) // (limp now, falling into a liquid: a swim wakes it)
+    {
+        const Liquid l = enteredLiquid(p, c, swimParts(p));
+        if(l != Liquid::None)
+        {
+            startSwim(s, p, c, l, static_cast<float>(c.now - s.begun));
+        }
+    }
+    if(!s.on)
+    {
+        if(c.trace)
+        {
+            trace(s, p, c, static_cast<float>(c.now - c.born)); // (limp: its motion alone)
+        }
+        return;
+    }
+    w.t0 = Sys_DoubleTime();
+    w.rig = &*p.rig;
+    const ragdoll::Rig& rig = *w.rig;
+    w.t = static_cast<float>(c.now - s.begun);
+    // A limb a hand holds: no strength (the hand's pull isn't fought), easing back over half a second once let go of.
+    // (Struggling: only the held part and what hangs from it; the joints above it in its limb kept at a share.)
+    uint32_t partly = 0u;
+    const uint32_t slackNow = c.held | (c.now < s.slackUntil ? s.slack : 0u);
+    const uint32_t held = s.struggle.on ? struggleSlack(rig, p.count, slackNow, partly) : heldLimbs(rig, p.count, slackNow);
+    const float share = za::clamp(vr_struggle_held_share.value, 0.f, 1.f);
+    for(int b = 0; b < p.count; b++)
+    {
+        float& k = s.partScale[static_cast<za::SizeT>(b)];
+        k = (held & (1u << b)) ? 0.f : (partly & (1u << b)) ? za::min(share, k + c.dt * 2.f) : za::min(1.f, k + c.dt * 2.f);
+    }
+    driveClipPose(w, s, p, c);
+    driveFrames(w, s, p, c);
+    driveReaches(w, s, p, c);
+    driveJoints(w, s, p, c);
+    drivePin(w, s, p, c);
+    driveWeight(w, s, p, c);
 }
 
 void end(State& s)
