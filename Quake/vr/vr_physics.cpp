@@ -10,6 +10,7 @@
 #include "vr_climb.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_grab.hpp"
 #include "vr_physics.hpp"
 #include "vr_physics_internal.hpp"
 #include "vr_held.hpp"
@@ -243,110 +244,173 @@ constexpr float lyingSpeed = 100.f; // units/s (a thrown or dropped weapon in fl
 // How far past a hand's reach (units) a weapon's handle may be for its drawn shape to be under the hand: a sword's length.
 constexpr float weaponDrawnReach = 48.f;
 
-[[nodiscard]] bool handOn(edict_t* target, edict_t* player, int which)
+// The touch stage of the grab query (vr_grab.hpp): a provider per kind of thing a hand's .handtouch may take, tried in
+// their order of precedence; the first that claims a thing decides whether the hand is on it (Pass: the next that claims
+// it decides, a weapon a fist with no jointed model tests by its box).
+enum class TouchAnswer : za::U8
 {
-    // (An explosive box by the fist only where the fist also pushes it, vr_box3d_hand_push_fist: the listen server's own
-    // player. Another player's hand still pushes with the sphere at its point, which keeps the box off its fist.)
+    No,
+    Yes,
+    Pass,
+};
+
+struct TouchProvider
+{
+    grab::Kind kind;
+    bool (*claims)(edict_t* target, edict_t* player);
+    TouchAnswer (*on)(edict_t* target, edict_t* player, int which, grab::Candidate& out);
+};
+
+[[nodiscard]] int handPosField(int which)
+{
+    return which == HAND_OFF ? f().offhandpos : f().handpos;
+}
+
+[[nodiscard]] TouchAnswer answer(bool on)
+{
+    return on ? TouchAnswer::Yes : TouchAnswer::No;
+}
+
+// A ragdoll: a hand on one of its limbs (its box is round all of them).
+[[nodiscard]] bool claimsRagdoll(edict_t* target, edict_t*)
+{
+    return box3d::isRagdoll(NUM_FOR_EDICT(target));
+}
+
+[[nodiscard]] TouchAnswer onRagdoll(edict_t* target, edict_t* player, int which, grab::Candidate&)
+{
+    return answer(box3d::ragdollReach(NUM_FOR_EDICT(target), fieldVec(player, handPosField(which))));
+}
+
+// A prop (a force-grabbable thing), or a carried thing by the fist (an explosive box by the fist only where the fist also
+// pushes it, vr_box3d_hand_push_fist: the listen server's own player. Another player's hand still pushes with the sphere
+// at its point, which keeps the box off its fist).
+[[nodiscard]] bool claimsProp(edict_t* target, edict_t* player)
+{
     const bool byFist = vr_box3d_hand_push_fist.value && NUM_FOR_EDICT(player) == 1;
+    return hasFlag(target, physics::FL_FORCEGRABBABLE) || (byFist && carried(target));
+}
+
+[[nodiscard]] TouchAnswer onProp(edict_t* target, edict_t* player, int which, grab::Candidate& out)
+{
+    // A round lying about (a shell: QC vr_reload.qc) is small, and lies flat on the floor under the lowest the fist gets:
+    // taken within vr_reload_grab_slack of its surface.
+    const int mi = static_cast<int>(target->v.modelindex);
+    const qmodel_t* model = mi > 0 && mi < MAX_MODELS ? sv.models[mi] : nullptr;
+    const bool round = model && modelmeta::isRound(model);
+    const float slack = round ? za::max(vr_reload_grab_slack.value, 0.f) * 0.01f * units::metresToUnits() : 0.f;
+    if(round)
+    {
+        out.kind = grab::Kind::Round;
+    }
+    return answer(held::grabTouch(target, player, which == HAND_OFF ? 0 : 1, slack));
+}
+
+// An armed monster's weapon (vr_agrunt_grab_leniency: a little way off its surface counts, the fist closing round a
+// weapon that moves).
+[[nodiscard]] bool claimsArmedWeapon(edict_t* target, edict_t*)
+{
+    return armedWeapon(target);
+}
+
+[[nodiscard]] TouchAnswer onArmedWeapon(edict_t* target, edict_t* player, int which, grab::Candidate& out)
+{
     const int h = which == HAND_OFF ? 0 : 1;
-    const int handPos = which == HAND_OFF ? f().offhandpos : f().handpos; // (the hand's field)
     const float m2u = units::metresToUnits();
-    if(const int num = NUM_FOR_EDICT(target); box3d::isRagdoll(num))
+    const float slack = (vr_agrunt_grab_slack.value + za::max(vr_agrunt_grab_leniency.value, 0.f)) * 0.01f * m2u;
+    if(NUM_FOR_EDICT(player) == 1 && !held::fist(h).empty())
     {
-        // A ragdoll: a hand on one of its limbs (its box is round all of them).
-        return box3d::ragdollReach(num, fieldVec(player, handPos));
+        // The fist's spheres against the weapon's surface, by distance alone (not grabTouch's inside test: a held gun's
+        // model is open, and a fist 20 cm over a shotgun read as sunk in it). A thin weapon has no inside a fist's
+        // sphere middle sinks into without passing near its surface.
+        // Measured only for a grab (its grip held, or just pressed: QC VR_AG_PropHandTouch takes it only then) or the
+        // tests' reading (vr_agrunt_debug): an open hand by it, or a fist at rest on it, asks nothing.
+        const bool reading = vr_agrunt_debug.value && which == HAND_MAIN;
+        if(!reading && !gripStarted(player, h))
+        {
+            return TouchAnswer::No;
+        }
+        held::fistInWorld(h, fieldVec(player, handPosField(which)),
+            fieldVec(player, which == HAND_OFF ? f().offhandrot : f().handrot), armedFist);
+        const float allowed = vr_carry_grab_bias.value * 0.01f * m2u + slack;
+        bool surface = true;
+        // (within: the tests' reading wants the gap a little way out too; a grab alone is done at the first sphere on it)
+        float gap = za::min(999.f * m2u,
+            held::fistGap(target, armedFist, za::max(allowed, 0.25f * m2u), surface, reading ? -1e30f : allowed));
+        if(!surface)
+        {
+            return TouchAnswer::No; // (no surface to measure)
+        }
+        if(gap > allowed)
+        {
+            gap = za::min(gap, sweptFistGap(target, allowed));
+        }
+        if(vr_agrunt_debug.value && which == HAND_MAIN)
+        {
+            Cvar_SetValueQuick(&vr_agrunt_grab_gap, gap / m2u * 100.f); // (the tests' reading, cm)
+        }
+        out.distance = gap;
+        return answer(gap <= allowed);
     }
-    if(hasFlag(target, physics::FL_FORCEGRABBABLE) || (byFist && carried(target)))
+    // (No fist known: another player's hand, no jointed hand model) its point in the box the weapon is drawn in.
+    return answer(held::nearDrawn(target, fieldVec(player, handPosField(which)), za::max(slack, 0.f)));
+}
+
+// A weapon lying about or in the air, taken by the fist on it.
+[[nodiscard]] bool claimsWeapon(edict_t* target, edict_t*)
+{
+    return weaponByFist(target);
+}
+
+[[nodiscard]] TouchAnswer onWeapon(edict_t* target, edict_t* player, int which, grab::Candidate& out)
+{
+    // (With vr_weapon_grab_slack more if it lies on the floor or is stuck: a gun lying flat is thinner than the lowest the
+    // fist gets over the floor. Not one in the air: a catch is by the closed fist on it, as a prop's.)
+    // A hand at its handle (its origin; nearer than vr_weapon_grab_anywhere_min, where it is held by the handle and not
+    // anywhere) with vr_weapon_grab_handle_leniency more: a gun is taken by its grip from as far off it as the grip is
+    // from the fist's lowest over the floor. Not in the air: a force grab's catch takes it by its own handtouch, and a
+    // weapon flying at the hand is caught by the fist on it.
+    // In the air (tossed up to re-grip it, flipped, spinning): vr_weapon_catch_handle_leniency at its handle, a trick
+    // catch's (ROUND22.md, "Mid-air catches": the closing fist missed a falling axe's handle by a few centimetres).
+    // Not one a force grab pulls (QC fg_state 1): its catch is its own (vr_forcegrab_catch_radius).
+    const int h = which == HAND_OFF ? 0 : 1;
+    const float m2u = units::metresToUnits();
+    const glm::vec3 hand = fieldVec(player, handPosField(which));
+    const float fromHandle = glm::distance(hand, vec(target->v.origin));
+    const bool atHandle = fromHandle <= za::max(vr_weapon_grab_anywhere_min.value, 0.f) * 0.01f * m2u;
+    float slack = 0.f;
+    if(lyingWeapon(target))
     {
-        // A round lying about (a shell: QC vr_reload.qc) is small, and lies flat on the floor under the lowest the fist
-        // gets: taken within vr_reload_grab_slack of its surface.
-        const int mi = static_cast<int>(target->v.modelindex);
-        const qmodel_t* model = mi > 0 && mi < MAX_MODELS ? sv.models[mi] : nullptr;
-        const float slack = model && modelmeta::isRound(model)
-                                ? za::max(vr_reload_grab_slack.value, 0.f) * 0.01f * m2u
-                                : 0.f;
-        return held::grabTouch(target, player, h, slack);
-    }
-    if(armedWeapon(target))
-    {
-        // (vr_agrunt_grab_leniency: a little way off its surface counts, the fist closing round a weapon that moves)
-        const float slack = (vr_agrunt_grab_slack.value + za::max(vr_agrunt_grab_leniency.value, 0.f)) * 0.01f * m2u;
-        if(NUM_FOR_EDICT(player) == 1 && !held::fist(h).empty())
+        slack = za::max(vr_weapon_grab_slack.value, 0.f) * 0.01f * m2u;
+        if(atHandle)
         {
-            // The fist's spheres against the weapon's surface, by distance alone (not grabTouch's inside test: a held
-            // gun's model is open, and a fist 20 cm over a shotgun read as sunk in it). A thin weapon has no inside a
-            // fist's sphere middle sinks into without passing near its surface.
-            // Measured only for a grab (its grip held, or just pressed: QC VR_AG_PropHandTouch takes it only then) or the
-            // tests' reading (vr_agrunt_debug): an open hand by it, or a fist at rest on it, asks nothing.
-            const bool reading = vr_agrunt_debug.value && which == HAND_MAIN;
-            if(!reading && !gripStarted(player, h))
-            {
-                return false;
-            }
-            held::fistInWorld(h, fieldVec(player, handPos), fieldVec(player, which == HAND_OFF ? f().offhandrot : f().handrot),
-                armedFist);
-            const float allowed = vr_carry_grab_bias.value * 0.01f * m2u + slack;
-            bool surface = true;
-            // (within: the tests' reading wants the gap a little way out too; a grab alone is done at the first sphere on it)
-            float gap = za::min(999.f * m2u, held::fistGap(target, armedFist, za::max(allowed, 0.25f * m2u), surface,
-                                                reading ? -1e30f : allowed));
-            if(!surface)
-            {
-                return false; // (no surface to measure)
-            }
-            if(gap > allowed)
-            {
-                gap = za::min(gap, sweptFistGap(target, allowed));
-            }
-            if(vr_agrunt_debug.value && which == HAND_MAIN)
-            {
-                Cvar_SetValueQuick(&vr_agrunt_grab_gap, gap / m2u * 100.f); // (the tests' reading, cm)
-            }
-            return gap <= allowed;
-        }
-        // (No fist known: another player's hand, no jointed hand model) its point in the box the weapon is drawn in.
-        return held::nearDrawn(target, fieldVec(player, handPos), za::max(slack, 0.f));
-    }
-    if(weaponByFist(target))
-    {
-        // (With vr_weapon_grab_slack more if it lies on the floor or is stuck: a gun lying flat is thinner than the lowest
-        // the fist gets over the floor. Not one in the air: a catch is by the closed fist on it, as a prop's.)
-        // A hand at its handle (its origin; nearer than vr_weapon_grab_anywhere_min, where it is held by the handle and
-        // not anywhere) with vr_weapon_grab_handle_leniency more: a gun is taken by its grip from as far off it as the
-        // grip is from the fist's lowest over the floor. Not in the air: a force grab's catch takes it by its own
-        // handtouch, and a weapon flying at the hand is caught by the fist on it.
-        // In the air (tossed up to re-grip it, flipped, spinning): vr_weapon_catch_handle_leniency at its handle, a trick
-        // catch's (ROUND22.md, "Mid-air catches": the closing fist missed a falling axe's handle by a few centimetres).
-        // Not one a force grab pulls (QC fg_state 1): its catch is its own (vr_forcegrab_catch_radius).
-        const glm::vec3 hand = fieldVec(player, handPos);
-        const bool atHandle =
-            glm::distance(hand, vec(target->v.origin)) <= za::max(vr_weapon_grab_anywhere_min.value, 0.f) * 0.01f * m2u;
-        float slack = 0.f;
-        if(lyingWeapon(target))
-        {
-            slack = za::max(vr_weapon_grab_slack.value, 0.f) * 0.01f * m2u;
-            if(atHandle)
-            {
-                slack += za::max(vr_weapon_grab_handle_leniency.value, 0.f) * 0.01f * m2u;
-            }
-        }
-        else if(atHandle && fieldFloatOr(target, f().fg_state, 0.f) != 1.f)
-        {
-            slack = za::max(vr_weapon_catch_handle_leniency.value, 0.f) * 0.01f * m2u;
-        }
-        if(held::grabTouch(target, player, h, slack))
-        {
-            return true;
-        }
-        // Not touching it: not taken (the author's notes hip1m1_2026-10-07_22-33-15, vrfiringrange_2026-10-07_22-49-20:
-        // the hand's 5-unit box at its point against the box round the handle caught it with the fist ~20 cm off).
-        // Without a fist (no jointed hand model): by its box, as before.
-        if(!held::fist(h).empty())
-        {
-            return false;
+            slack += za::max(vr_weapon_grab_handle_leniency.value, 0.f) * 0.01f * m2u;
         }
     }
-    const glm::vec3 hand = fieldVec(player, handPos);
+    else if(atHandle && fieldFloatOr(target, f().fg_state, 0.f) != 1.f)
+    {
+        slack = za::max(vr_weapon_catch_handle_leniency.value, 0.f) * 0.01f * m2u;
+    }
+    if(held::grabTouch(target, player, h, slack))
+    {
+        out.distance = fromHandle;
+        return TouchAnswer::Yes;
+    }
+    // Not touching it: not taken (the author's notes hip1m1_2026-10-07_22-33-15, vrfiringrange_2026-10-07_22-49-20: the
+    // hand's 5-unit box at its point against the box round the handle caught it with the fist ~20 cm off). Without a fist
+    // (no jointed hand model): by its box, as before.
+    return held::fist(h).empty() ? TouchAnswer::Pass : TouchAnswer::No;
+}
+
+// Anything else with a .handtouch: the hand's box against the thing's own box (and its touch bonus).
+[[nodiscard]] bool claimsBox(edict_t*, edict_t*)
+{
+    return true;
+}
+
+[[nodiscard]] TouchAnswer onBox(edict_t* target, edict_t* player, int which, grab::Candidate&)
+{
+    const glm::vec3 hand = fieldVec(player, handPosField(which));
     const glm::vec3 extent{handHalfSize};
     const glm::vec3 bonus{handTouchBonus(target)};
     const glm::vec3 origin = vec(target->v.origin);
@@ -356,7 +420,40 @@ constexpr float weaponDrawnReach = 48.f;
     {
         debugBoxTouch(target, player, which);
     }
-    return on;
+    return answer(on);
+}
+
+constexpr TouchProvider touchProviders[] = {
+    {grab::Kind::Ragdoll, claimsRagdoll, onRagdoll},
+    {grab::Kind::Prop, claimsProp, onProp},
+    {grab::Kind::ArmedWeapon, claimsArmedWeapon, onArmedWeapon},
+    {grab::Kind::Weapon, claimsWeapon, onWeapon},
+    {grab::Kind::Box, claimsBox, onBox},
+};
+
+[[nodiscard]] grab::Candidate touchQuery(edict_t* target, edict_t* player, int which)
+{
+    for(const TouchProvider& p : touchProviders)
+    {
+        if(!p.claims(target, player))
+        {
+            continue;
+        }
+        grab::Candidate c{p.kind, target, 0.f};
+        switch(p.on(target, player, which, c))
+        {
+            case TouchAnswer::Yes: return c;
+            case TouchAnswer::No: return {};
+            case TouchAnswer::Pass: break;
+        }
+    }
+    return {};
+}
+
+// Whether `player`'s hand `which` is on `target` for its .handtouch (the touch stage's query).
+[[nodiscard]] bool handOn(edict_t* target, edict_t* player, int which)
+{
+    return static_cast<bool>(touchQuery(target, player, which));
 }
 
 [[nodiscard]] glm::vec3 forwardFromAngles(const glm::vec3& angles)
@@ -690,6 +787,11 @@ void handTouch(edict_t* ent, edict_t* target)
 }
 
 } // namespace
+
+grab::Candidate grab::touch(edict_t* target, edict_t* player, int which)
+{
+    return touchQuery(target, player, which);
+}
 
 extern "C" int VR_RunThink2(edict_t* ent)
 {

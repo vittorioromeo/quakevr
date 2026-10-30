@@ -358,6 +358,10 @@ void() VR_PickupTest_Frame =
     {
         VR_PickupTest_Float();
     }
+    else if(ask == 7)
+    {
+        VR_SlotTest_Run(); // (vr_axestick_test.qc: the hand slot's busy kinds)
+    }
     self = oself;
 };
 #endif

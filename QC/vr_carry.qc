@@ -99,6 +99,14 @@ void(entity xPlayer, float xHand, entity xThing, float xKind) VR_Hand_Set =
 void(entity xPlayer, float xHand, entity xThing) VR_Hand_Take =
 {
     float kind = VR_Hand_KindOf(xThing);
+    float was = VR_Hand_Kind(xPlayer, xHand);
+    // (A busy hand takes nothing (VR_Hand_CanTake): one taking over its kind is two things at once, always told. The foe
+    // grab's hand-over takes the ragdoll from the enemy, the one expected.)
+    if(xThing != world && VR_Hand_IsBusyKind(was) && was != VR_HOLD_FOE)
+    {
+        bprint(sprintf("handslot: clash: %s hand takes %s over busy kind %g\n", xHand == cVR_OffHand ? "off" : "main",
+            xThing.classname, was));
+    }
     if(cvar_hget(cvarh_vr_debug_carry) >= 2 && VR_Hand_Thing(xPlayer, xHand) != xThing)
     {
         bprint(sprintf("handslot: %s hand takes %s (kind %g)\n", xHand == cVR_OffHand ? "off" : "main",
@@ -107,16 +115,129 @@ void(entity xPlayer, float xHand, entity xThing) VR_Hand_Take =
     VR_Hand_Set(xPlayer, xHand, xThing, kind);
 };
 
-// `xHand` of `xPlayer` lets go of what it holds; `xWhy` (a word: "drop", "throw", "stow", "reload", ...) is only for the
-// log (vr_debug_carry 2).
+// `xHand` of `xPlayer` lets go of what it carries; `xWhy` (a word: "drop", "throw", "stow", "reload", ...) is only for the
+// log (vr_debug_carry 2). A busy hand carrying nothing stays busy (VR_Hand_Unbusy ends that).
 void(entity xPlayer, float xHand, string xWhy) VR_Hand_Release =
 {
+    if(VR_Hand_Thing(xPlayer, xHand) == world && VR_Hand_IsBusyKind(VR_Hand_Kind(xPlayer, xHand)))
+    {
+        return;
+    }
     if(cvar_hget(cvarh_vr_debug_carry) >= 2 &&VR_Hand_Thing(xPlayer, xHand) != world)
     {
         bprint(sprintf("handslot: %s hand lets go of %s (%s)\n", xHand == cVR_OffHand ? "off" : "main",
             VR_Hand_Thing(xPlayer, xHand).classname, xWhy));
     }
     VR_Hand_Set(xPlayer, xHand, world, VR_HOLD_NONE);
+};
+
+void(entity xPlayer, float xHand, entity xEnt) VR_Hand_SetBusyEnt =
+{
+    if(xHand == cVR_OffHand)
+    {
+        xPlayer.vr_hold_ent_off = xEnt;
+    }
+    else
+    {
+        xPlayer.vr_hold_ent_main = xEnt;
+    }
+};
+
+// `xHand` of `xPlayer` is busy (`xKind`: VR_HOLD_FOE and after; `xEnt` its thing, or world). A hand carrying a thing
+// keeps it and is not made busy (always told: the busy state's readers would see the hand free).
+void(entity xPlayer, float xHand, float xKind, entity xEnt, string xWhy) VR_Hand_Busy =
+{
+    float was = VR_Hand_Kind(xPlayer, xHand);
+    if(was == xKind && VR_Hand_BusyEnt(xPlayer, xHand) == xEnt)
+    {
+        return;
+    }
+    if(VR_Hand_Thing(xPlayer, xHand) != world || (VR_Hand_IsBusyKind(was) && was != xKind))
+    {
+        bprint(sprintf("handslot: clash: %s hand busy (kind %g, %s) while kind %g\n", xHand == cVR_OffHand ? "off" : "main",
+            xKind, xWhy, was));
+        if(VR_Hand_Thing(xPlayer, xHand) != world)
+        {
+            return;
+        }
+    }
+    if(cvar_hget(cvarh_vr_debug_carry) >= 2)
+    {
+        bprint(sprintf("handslot: %s hand busy (kind %g, %s)\n", xHand == cVR_OffHand ? "off" : "main", xKind, xWhy));
+    }
+    VR_Hand_Set(xPlayer, xHand, world, xKind);
+    VR_Hand_SetBusyEnt(xPlayer, xHand, xEnt);
+};
+
+// `xHand` of `xPlayer` is no longer busy with `xKind` (another kind in its slot stays).
+void(entity xPlayer, float xHand, float xKind, string xWhy) VR_Hand_Unbusy =
+{
+    if(VR_Hand_Kind(xPlayer, xHand) != xKind || VR_Hand_Thing(xPlayer, xHand) != world)
+    {
+        return;
+    }
+    if(cvar_hget(cvarh_vr_debug_carry) >= 2)
+    {
+        bprint(sprintf("handslot: %s hand free (kind %g, %s)\n", xHand == cVR_OffHand ? "off" : "main", xKind, xWhy));
+    }
+    VR_Hand_Set(xPlayer, xHand, world, VR_HOLD_NONE);
+    VR_Hand_SetBusyEnt(xPlayer, xHand, world);
+};
+
+// Each PlayerPreThink (before anything reads the slot this frame): the busy kinds the engine sets, from its fields: an
+// enemy held (.vr_foegrab_hands, written at the end of the last server frame), the flashlight in the hand (.vrbits0,
+// from this frame's move).
+void(entity xPlayer, float xHand) VR_Hand_DeriveHand =
+{
+    float foe = (xPlayer.vr_foegrab_hands & (xHand == cVR_MainHand ? 2 : 1)) != 0;
+    float lamp = VRHasBit(xPlayer.vrbits0, xHand == cVR_MainHand ? QVR_VRBITS0_MAINHAND_BUSY : QVR_VRBITS0_OFFHAND_BUSY);
+    float k = VR_Hand_Kind(xPlayer, xHand);
+    if(foe && lamp)
+    {
+        bprint(sprintf("handslot: clash: %s hand holds an enemy and the flashlight\n", xHand == cVR_OffHand ? "off" : "main"));
+    }
+    float want = foe ? VR_HOLD_FOE : lamp ? VR_HOLD_FLASHLIGHT : VR_HOLD_NONE;
+    if(want != VR_HOLD_NONE)
+    {
+        // (The foe grab's bit lasts to the end of the frame its hand-over took the ragdoll: the ragdoll stays.)
+        if(k != want && !(want == VR_HOLD_FOE && k == VR_HOLD_RAGDOLL))
+        {
+            if(k == VR_HOLD_FOE || k == VR_HOLD_FLASHLIGHT)
+            {
+                VR_Hand_Unbusy(xPlayer, xHand, k, "the engine"); // (the one engine kind for the other: no clash)
+            }
+            VR_Hand_Busy(xPlayer, xHand, want, world, "the engine");
+        }
+    }
+    else if(k == VR_HOLD_FOE || k == VR_HOLD_FLASHLIGHT)
+    {
+        VR_Hand_Unbusy(xPlayer, xHand, k, "the engine");
+    }
+};
+
+void(entity xPlayer) VR_Hand_Derive =
+{
+    VR_Hand_DeriveHand(xPlayer, cVR_OffHand);
+    VR_Hand_DeriveHand(xPlayer, cVR_MainHand);
+};
+
+float(entity p, float xHand) VR_Reload_SsgBreaks;                  // (vr_reload.qc)
+float(entity e, entity xPlayer, float xHand) VR_AxeStick_TuggedBy; // (vr_axestick.qc)
+
+// Whether the busy kind in `xHand` of `xPlayer` still holds: one its writer left (a tugged axe gone, the gun no longer a
+// super shotgun) ends, with a line.
+float(entity xPlayer, float xHand, float xKind) VR_Hand_BusyHolds =
+{
+    entity e = VR_Hand_BusyEnt(xPlayer, xHand);
+    if(xKind == VR_HOLD_TUG)
+    {
+        return VR_AxeStick_TuggedBy(e, xPlayer, xHand);
+    }
+    if(xKind == VR_HOLD_SSGGRIP)
+    {
+        return xPlayer.health > 0 && VR_Reload_SsgBreaks(xPlayer, VRGetOtherHand(xHand));
+    }
+    return TRUE;
 };
 
 // Whichever of `xPlayer`'s hands holds `xThing` lets go of it.
@@ -138,7 +259,17 @@ void(entity xPlayer, float xHand) VR_Hand_Check =
 {
     entity t = VR_Hand_Thing(xPlayer, xHand);
     float want = VR_Hand_KindOf(t);
-    if(VR_Hand_Kind(xPlayer, xHand) != want)
+    float k = VR_Hand_Kind(xPlayer, xHand);
+    if(t == world && VR_Hand_IsBusyKind(k))
+    {
+        if(!VR_Hand_BusyHolds(xPlayer, xHand, k))
+        {
+            bprint(sprintf("handslot: stale: %s hand busy (kind %g) no longer\n", xHand == cVR_OffHand ? "off" : "main", k));
+            VR_Hand_Unbusy(xPlayer, xHand, k, "stale");
+        }
+        return;
+    }
+    if(k != want)
     {
         bprint(sprintf("handslot: mismatch: %s hand holds %s, kind %g, its kind %g\n", xHand == cVR_OffHand ? "off" : "main",
             t.classname, VR_Hand_Kind(xPlayer, xHand), want));
@@ -1658,8 +1789,7 @@ void(float xHand) VR_Carry_TrySecondHand =
     {
         return;
     }
-    if(!VR_Carry_GripPressed(self, xHand) || !VR_Hand_CanTake(self, xHand) || !VR_HandGrabUtil_IsHandGrabbing(self, other) ||
-       VRHasBit(self.vrbits0, xHand == cVR_MainHand ? QVR_VRBITS0_MAINHAND_BUSY : QVR_VRBITS0_OFFHAND_BUSY))
+    if(!VR_Carry_GripPressed(self, xHand) || !VR_Hand_CanTake(self, xHand) || !VR_HandGrabUtil_IsHandGrabbing(self, other))
     {
         return;
     }

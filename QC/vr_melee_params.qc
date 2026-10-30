@@ -1287,7 +1287,7 @@ vector(float xHand) VR_Melee_Palm =
 // a fist closed round the torch.
 float(entity p, float xHand) VR_Melee_HoldsTorch =
 {
-    return VRHasBit(p.vrbits0, xHand == cVR_MainHand ? QVR_VRBITS0_MAINHAND_BUSY : QVR_VRBITS0_OFFHAND_BUSY);
+    return VR_Hand_Kind(p, xHand) == VR_HOLD_FLASHLIGHT; // (the hand slot: VR_Hand_Derive, from .vrbits0's *_BUSY)
 };
 
 // Whether `xHand` of `self` is a closed fist: the grip held, or closed round the flashlight.
