@@ -1591,6 +1591,63 @@ them); an armed grunt's thunderbolt is a stream (no shot event).
   2.478 ms, gpu 3.361 -> 3.362, p99 11.230 -> 11.217; play_gore_fight (super nailgun) cpu 2.375 -> 2.347, gpu
   2.627 -> 2.622, p99 11.214 -> 11.234: within noise (scratch/ab_out3.txt, ab_stats.py).
 
+### Persistent muzzle wisps; rocket vents; AD's rocket soldier (branch `agent/wisps`)
+
+His note: after a gun stops firing, very thin, faint, blurry lines of smoke off each barrel (the shotgun's one, the super
+shotgun's and the nailgun's two), following the muzzles, lasting a few seconds, everything adjustable.
+
+- **Technique.** What shooters do: CS:GO's barrel smoke after a burst is a particle system drawn by Source's rope
+  renderer (particles let go continuously at the muzzle attachment, joined in order into a camera-facing strip, the
+  texture scrolling along it, faded by age); Battlefield's and Tarkov's barrel smoke are likewise trail/ribbon emitters
+  (Unreal's and Frostbite's "ribbon" particles), not sprite puffs, which read as blobs, not lines. Their motion is
+  advected noise: curl noise (Bridson et al., "Curl-Noise for Procedural Fluid Flow", 2007), a divergence-free field,
+  curls the smoke without bunching or spreading it. Thin lines far off shimmer and break into dots; the usual cure is
+  "phone-wire AA" (Persson): never thinner than a pixel or so, the alpha lowered as much instead. Chosen: a ribbon of
+  points per barrel, each let go at the muzzle (30 a second, or each 2.5 units the muzzle moves), carried up by its
+  warmth and about by a slow two-octave ABC flow (divergence-free; stronger as it ages: a laminar stream breaking up),
+  the stream let go swaying a little (the air wavering at the muzzle: even a still gun's wisp snakes up); drawn as a
+  Catmull-Rom-smoothed camera-facing strip, its alpha falling to nothing at its edges (no texture: Shade::SoftEdge),
+  widening and fading with age, emerging softly out of the barrel, the newest point always at the muzzle now (the
+  trail follows the gun at frame rate). One draw for all of them; points in fixed rings, the vertices in a reused
+  scratch buffer: nothing allocated a frame.
+- **Code.** `Quake/vr/vr_ribbons.cpp/.hpp`: the reusable renderer (points with half width and colour -> triangles;
+  `sceneView(minPixels)`, `append`, `draw`). `Quake/vr/vr_muzzlewisps.cpp/.hpp`: the wisps (drawn in the scene's
+  translucent pass, vr_particles.cpp, after the loot beams; moved on once a frame there). vr_gunfx.cpp `barrelWisps`:
+  each gun's barrels (`barrelEnds`: the bores' front rings on v_shot2.mdl, y -1.53 / 1.47, and v_nail.mdl, y -3.67 /
+  3.77, found from the models; other two-barrelled guns either side of the muzzle) and charge: a shot's share of full
+  smoke (shotguns 1, revolver and flare gun 0.7, nail pistol 0.2, nailgun 0.12, super nailgun 0.08: a burst of the
+  nailguns fills them). Wisps: the shotguns, revolver, flare gun, nail pistol, nailgun (2), super nailgun (1, its
+  turning barrels' middle); none for launchers, energy guns, melee. Your guns only.
+- **Settings** (Weapons > Weapon Effects > Gunfire Particles): Muzzle Wisps `vr_gunfx_wisps 1`, Wisp Delay
+  `vr_gunfx_wisp_delay 0.25` s, Wisp Persistence `vr_gunfx_wisp_time 4` s (fewer shots: down to 0.4 of it), Wisp
+  Fade Time `vr_gunfx_wisp_fade 2.2` s (the trail's length), Wisp Thickness `vr_gunfx_wisp_width 0.6` cm, Wisp Spread
+  `vr_gunfx_wisp_spread 3`x, Wisp Amount `vr_gunfx_wisp_amount 1`x, Wisp Rise `vr_gunfx_wisp_rise 22` cm/s; Smoke
+  Turbulence (`vr_gunfx_turbulence`) curls them too; `vr_gunfx_wisp_pixels 1.5` (no row) the thinnest drawn.
+  `vr_debug_gunfx 1` prints `gunfx wisps start hand H barrels B after S s ...` and `gunfx wisps faded ... points P
+  drawn V`; 2 also `gunfx wisps stop` when a shot cuts them.
+- **Rocket vents** (his note 4): v_rock2.mdl's two slots in the back face of its head (the shoulder at x 33.3 round the
+  tube; slots y +-3.4..4.7, z 6.6..7.5: they face you) smoke lightly: 7 puffs at the shot, then one in two of the
+  exhaust's after-smoke puffs, back out at you and up, curling (`gunfx light .. vent N` counts them for a rocket too).
+- **AD's rocket soldier**: QC `ad_army_fire_rocket` now sends `weaponfired(self, QVR_FIRED_ROCKET)` (4, builtins.qc;
+  `// AD support`), the server passing hand 4 through; the client fires the monster's own gun as a rocket launcher
+  (WID_ROCKET_LAUNCHER: sparks, cone, backblast out of the gun's back, the exhaust smoking, its flash and muzzle smoke).
+  Its gun: a monsterGuns entry for AD's `mon_soldier.mdl` (read from AD's pak0 in memory, nothing extracted:
+  soldier.mdl's mesh, the gun vertices 463..548 numbered alike, frame 0 placed 0.07-0.12 further along x; the anchors
+  are those vertices' places in AD's file; in its fire frame shoot6 the gun is 29.1 units long, pointing up 16 degrees).
+  Not run with AD's data (no AD in this agent's game folder): `vr_gunfx_monster_test 1` (Debug > Tests: Nearest Monster
+  Fires a Rocket Tube) checks the same path on a grunt (the same mesh): backblast 16, exhaust 6, out of the gun's back.
+- **Strips** (kit `scratch/gunfx/`): `wisps_<shotgun|ssg|nailgun>_<lit|dark>.png`, the gun held across the view, 0.5,
+  1, 2, 3 s after the burst (lit e1m2's start, dark e2m2's); `rocket_vents_lit.png` (frames 3, 13, 33, 63 after a
+  shot; the labels say 0.5-3 s, wrongly). Made by the tree's `scratch/strips.sh` (wispshots.sh, crop.py).
+- **Tests**: gunfx_test.py `--only wisps` 7/7 (each gun's wisps start once, after its last shot, 0.26 s later, one a
+  barrel: 1, 2, 2, 1, 1; drawn and faded; none for the rocket launcher), `--only tube` 1/1, `--only player` 16/16
+  (now also your rocket launcher's vents). Covering cases vs baseline.tsv: collectfx, shot_shape, nail_1, np_1 PASS
+  (np_1 21 -> 23 as before), reload_gunshape FAIL 23/1 in the 5-lane run ("lying shotgun dropped onto: the loose round
+  slides in", 0 frames drawn going in), PASS 24/0 alone: flaky.
+- **A/B bench** (ThinLTO, origin/next vs this branch, ABBAABBAAB, exclusive, medians of 5; the tree's
+  `scratch/ab_wisps.sh`, `ab_out.txt`): combat_48 cpu 2.544 -> 2.525 ms, gpu 3D 3.200 -> 3.220 (means);
+  play_gore_fight (super nailgun) cpu 2.576 -> 2.439, gpu 2.471 -> 2.476: within noise.
+
 ## Nail pistol: moving slide, slide lock, auto re-rack (branch `agent/npslide`)
 
 His words: a slide that moves with each shot, locks open on an empty magazine, closes by itself with a sound when a
