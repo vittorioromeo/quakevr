@@ -113,6 +113,7 @@ Each id gun fires with no kick from its model: the body holds in the hand while 
 Weapon Offsets > Effects: Recoil Kick Back (cm), Muzzle Rise (deg), Return Time (s) per gun; your guns feel as before (your global 4.5 / 7.5 are now in each gun's values: the shotgun reads 17.3 cm / 10.5 deg).
 Weapon Effects: Recoil Amount 0 / 1 / 2 scales every gun's kick; Programmatic Recoil off stops it.
 Each gun's haptic punch feels as before (nailguns, lightning gun, laser cannon, rifles: Haptic Punch now about 0.64x, the same spike).
+An unarmed enforcer running at you keeps its fists at mouth level in its guard (as in Pose Studio), not raised to the brow or crossed.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns

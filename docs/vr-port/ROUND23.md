@@ -2393,3 +2393,40 @@ range; 12 pellets on one spot 1 played 11 capped; 3 pellets 70 apart 2 + 1 cappe
 played; a real SNG stream 11 hits, 6 played (no two within 0.12 s and 64 units). Baseline cases vs baseline.tsv: nail_1,
 np_1 (23/0, baseline 21/0: its newer checks), rv_1, flare_1, ammocolor_1, swim_sound: all PASS. Build: 0 warnings,
 checks clean. (vr_gunsfx_test 19/1: "a gun held in the main hand (slot 16)", its setup's held weapon, not this change.)
+
+## The fists' guard in game as the Pose Studio shows it (branch `agent/enfguard`)
+
+His report: an unarmed enforcer's guard posed with the fists at mouth level in the pose editor, but running at him in
+game the fists were at its brow and crossed a little.
+
+**Why they differed.** The pose keys are blended by the pose's weights (`VR_AGK_Keys`): the stance (Carry `1 - wa`,
+Aim/Guard `wa`), and the Run key's share (`vr_agp_runw`) laid *on top* of whichever stance. The studio previews each key
+alone: its Guard (Aim) key standing (`VR_AGK_Hold`: the stand frame, `runw` 0) and its Run key carried (no enemy:
+`readyw` 0, the fists hanging). So each Run key is authored as a change on the carried stance; the fists' Run key raises
+the hanging fists toward a guard (shipped `100020`: right +9.4 up and +9 across, left +10.7 up and -4 across; his own
+now +16.9/+18.2 up). In game a fists holder runs only at an enemy, always in its guard (`readyw` 0.75, `wa` 1), so the
+Run key was added on the raised guard: the fists up by another 9-18 units and pulled across each other. No other cause
+was found (no clavicle, aim line, arm clear or dequantisation effect: with the Run key off the drawn guard is the
+studio's within 1.3 units).
+
+**The fix.** `vr_agrunt_run_key_stance` (1, new; 0 the old way): the Run key's share is `runw * (1 - wa)` (and the
+pickup's `1 - wp` as before), the carried stance's only, as the studio previews it; running aimed or in a guard shows the
+Aim/Guard key alone. Every class (a gun's Run key, a few units, no longer laid on its aim either); the off hand's mode
+already took Aim's over Run's.
+
+**Measured** (test 90, the drawn fists' middles less the head's middle, model space; the studio's view: frozen, held in
+Aim by the studio's own path `VR_AGK_Hold`; the game's: 72 frames running at you in its guard):
+- shipped keys: before 12.45 / 12.01 units off the studio's (right / left, means; the game's fists 2.5-3.8 *above* the
+  head's middle against 5.5-6.3 below in the studio; crossed in all 72 frames); after 1.43 / 1.39 (worst frame 2.49,
+  never crossed);
+- his keys (his `vr_agrunt_poses`): before 10.36 / 11.91, after 1.27 / 1.28 (worst 2.35).
+The 1.3 left is the run frames' own hand carried by the anchor (the guard placed from the animation's hand: the run's
+sway kept on purpose) and the run's bob.
+
+**Test 90** (`vr_agrunt_test 90`, `QC/vr_armedgrunt_guard_test.qc`; Debug > Tests > Armed Grunts: Fists' Guard as
+Posed): checks each hand's mean within 2 units of the studio's, each frame within 3, never crossed; ends on `agtest:
+test 90 over`. New for it: `weapondrawnpose(e, side, 29)` (the drawn hand less the head, `agarms::drawnHandFromHead`) and
+QC `vr_agk_test_hold` (the studio's hold without the studio).
+
+Checklist line: "An unarmed enforcer running at you holds its fists where the Pose Studio's Guard key shows them (mouth
+level, not crossed)."
