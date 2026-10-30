@@ -782,6 +782,10 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
                   "it: a turn counts too)."),
         slider("Ghost Fade-In Range", vr_ghost_hands_fade_range, 0.5f, 30.f, 0.5f, "%.1f cm")
             .help("And it fades in over this much further apart."),
+        toggle("No Ghost from Recoil", vr_ghost_hands_ignore_recoil)
+            .help("A shot's recoil kicks the drawn hand back and up off your real one (Weapon Effects' Programmatic "
+                  "Recoil): on, that kick doesn't bring the ghost out (only what else holds the hand off does); off, a "
+                  "strong kick shows it for a moment."),
     };
 }
 

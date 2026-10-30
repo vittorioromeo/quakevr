@@ -1065,6 +1065,7 @@ QVR_CVAR(vr_ghost_hands_lightness, "1.6", CVAR_ARCHIVE)    // times the light on
 QVR_CVAR(vr_ghost_hands_tint, "0.6", CVAR_ARCHIVE)         // 0 the hand's own colours .. 1 a cold blue
 QVR_CVAR(vr_ghost_hands_fade_from, "6", CVAR_ARCHIVE)      // cm: no ghost while the drawn hand is within this of the real one (its grip and a point 15 cm ahead of it)
 QVR_CVAR(vr_ghost_hands_fade_range, "7", CVAR_ARCHIVE)     // cm: and it fades in over this much further
+QVR_CVAR(vr_ghost_hands_ignore_recoil, "1", CVAR_ARCHIVE)  // 1: the programmatic recoil's kick of the drawn hand (vr_weaponfx.cpp) doesn't count as held off (no ghost from a shot); 0: it does
 QVR_CVAR(vr_ghost_hands_test_offset, "0", CVAR_NONE)       // test aid (Debug): cm the ghost is moved sideways, so it shows apart from the drawn hand
 QVR_CVAR(vr_heavy_damping_min,"0.8", CVAR_ARCHIVE)        // the least damping ratio of a weapon with a Heft (the struggle's and its own Spring Damping's no lower; 1 critical)
 QVR_CVAR(vr_debug_stamina_hold, "0", CVAR_NONE)          // tests: 1 keeps the game's stamina where it is, or where vr_stamina_set put it (a local game; vr_fatigue.cpp)
