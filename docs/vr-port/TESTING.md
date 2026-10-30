@@ -939,7 +939,7 @@ grip; the mock's trigger button doesn't lock on here, `+attack` does) and 156 (2
 blow n of 5, dying at t, out at t, taken again, lit again) and `wall torch: its wall's crackle ... silenced` (with
 `-Sound`); `vr_debug_shots 1` the blows and `by vr_burn` (its fire: Burning below); `vr_debug_torch_lights 1` every torch light (radius,
 colour, taken, shadowed). A monster to strike: `vr_test_spawn 0; vr_test_spawn_dist 34; impulse 241`; `god; notarget`
-and `gl_cshiftpercent 0` keep the screenshots clear of its shots. Two torches in hand: `vr_walltorch_pull 0` (the grip alone takes one), 52 by the main
+and `gl_cshiftpercent 0` keep the screenshots clear of its shots. Two torches in hand: 52 by the main
 hand as above, then `vr_rigid_place 53 off 0 0 0; +graboff; vr_mock_button off grip 1` (taken from its wall at the off
 hand); let go of with `vr_walltorch_die_time 0.3` it goes out; taken again the same way and held at `0.2 1.3 -0.4 70 0 0`
 (the main at `0.2 1.2 -0.4`), `developer 1` prints `walltorch: lit again from a burning torch` (the kit's

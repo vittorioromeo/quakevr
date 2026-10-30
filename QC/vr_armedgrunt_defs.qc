@@ -111,6 +111,8 @@ float(entity g, entity p, vector at) VR_AG_HandLineDist;                   // VR
 .vector vr_ag_took_up;
 float vr_ag_grab_fast;     // grabs of its weapon refused as too fast (vr_agrunt_grab_speed; the tests)
 void(entity g, entity p) VR_AG_RagProp;
+void(entity g, entity pl, float h) VR_AG_RagWeaponGrab; // VR_Ragdoll_Handtouch: the grab query gave the hand to its weapon
+float vr_ag_raggrabs; // the ragdoll touches handed to the weapon's grab (the tests)
 void(entity g, float won, string why) VR_AG_TugEnd;
 float(entity g, string why) VR_AG_TugDisarm; // VR_AG_Disarm in a tug: into the holding hand (TRUE)
 

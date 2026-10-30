@@ -1112,22 +1112,37 @@ void(entity g, entity pl, float h) VR_AG_Yank =
     VR_AG_Log(sprintf("yanked out of its hand by %s (hand %g)", pl.netname, h));
 };
 
-// Your hand grabbing its weapon (the grab started now): a tug-of-war, or it is yours (VR_AG_GrabBy).
-void() VR_AG_PropHandTouch =
+// Whether `pl`'s hand `h` grabs weapon `p` now: its grip just pressed (VR_HandGrabUtil_StartedHandGrabbing). On a living
+// ragdoll the limb's own window (VR_Carry_GripPressed), so that the weapon and the limb beside it answer one grip alike
+// (the grab query: the weapon wins there, vr_grab.hpp).
+float(entity p, entity pl, float h) VR_AG_GripNow =
 {
-    entity pl = self.handtouch_ent;
+    if(VR_HandGrabUtil_StartedHandGrabbing(pl, h))
+    {
+        return TRUE;
+    }
+    entity g = p.owner;
+    return g.health > 0 && isragdoll(g) && VR_Carry_GripPressed(pl, h);
+};
+
+// `pl`'s hand `h` grabbing weapon `p` (the grab started now): a tug-of-war, or it is yours (VR_AG_GrabBy). From its own
+// touch (VR_AG_PropHandTouch), or a living ragdoll's (VR_AG_RagWeaponGrab: the hand on its weapon hand or forearm).
+void(entity p, entity pl, float h) VR_AG_HandGrab =
+{
     if(!cvar_hget(cvarh_vr_agrunt_disarm_yank) || !(pl.flags & FL_CLIENT) || pl.health <= 0)
     {
         return;
     }
-    float h = VRGetHandtouchHand(self);
+    entity self0 = self;
+    self = p;
     if(cvar_hget(cvarh_vr_agrunt_debug) >= 2)
     {
         VR_AG_Log(sprintf("a hand (%g) on its weapon: empty %g, grabbing %g", h, VRIsHandEmpty(pl, h),
-            VR_HandGrabUtil_StartedHandGrabbing(pl, h)));
+            VR_AG_GripNow(self, pl, h)));
     }
-    if(!VRIsHandEmpty(pl, h) || !VR_HandGrabUtil_StartedHandGrabbing(pl, h))
+    if(!VRIsHandEmpty(pl, h) || !VR_AG_GripNow(self, pl, h))
     {
+        self = self0;
         return;
     }
     // (A deliberate grab: the fist on the weapon itself (the engine's handOn), and not a punch or a swipe through it.)
@@ -1155,10 +1170,12 @@ void() VR_AG_PropHandTouch =
             VR_AG_Log(sprintf("a hand (%g) through its weapon at %.1f m/s: too fast to take hold (vr_agrunt_grab_speed %g)", h,
                 sp, most));
         }
+        self = self0;
         return;
     }
     entity g = self.owner;
-    if(g.vr_ag_prop2 == self)
+    self = self0;
+    if(g.vr_ag_prop2 == p)
     {
         if(g.vr_ag_tug_pl)
         {
@@ -1167,6 +1184,35 @@ void() VR_AG_PropHandTouch =
         VR_AG_Swap(g); // (its left hand's weapon grabbed: the first slot's, for the tug and the yank)
     }
     VR_AG_GrabBy(g, pl, h);
+};
+
+// Your hand grabbing its weapon (its own touch: the fist on its drawn shape, the engine's handOn).
+void() VR_AG_PropHandTouch =
+{
+    VR_AG_HandGrab(self, self.handtouch_ent, VRGetHandtouchHand(self));
+};
+
+// A living ragdoll's touch gave `pl`'s hand `h` to its weapon (the grab query: the fist on or by the weapon, or on the
+// hand or forearm holding it: box3d grabRagdoll): the weapon's grab (a tug), of the weapon nearer the hand (two held).
+void(entity g, entity pl, float h) VR_AG_RagWeaponGrab =
+{
+    entity p = g.vr_ag_prop;
+    vector at = VRGetEntHandPos(pl, h);
+    if(g.vr_ag_prop2 && (!p || vlen(g.vr_ag_prop2.origin - at) < vlen(p.origin - at)))
+    {
+        p = g.vr_ag_prop2;
+    }
+    if(!p)
+    {
+        return;
+    }
+    vr_ag_raggrabs = vr_ag_raggrabs + 1;
+    if(cvar_hget(cvarh_vr_agrunt_debug))
+    {
+        VR_AG_Log(sprintf("a hand (%g) on its ragdoll's weapon or weapon arm: the weapon's grab (%.1f units from its grip)", h,
+            vlen(at - p.origin)));
+    }
+    VR_AG_HandGrab(p, pl, h);
 };
 
 // ----------------------------------------------------------------------------

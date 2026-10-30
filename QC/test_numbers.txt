@@ -136,6 +136,7 @@ vr_agrunt_test   85       vr_armedgrunt_muzzle_test.qc     dual guns: each shot 
 vr_agrunt_test   88       vr_armedgrunt_ragweapon_test.qc  the held weapon on an active ragdoll's hand
 vr_agrunt_test   89       vr_armedgrunt_shoveclose_test.qc a gun's holder shoves up close
 vr_agrunt_test   90       vr_armedgrunt_guard_test.qc      an unarmed enforcer's guard in game as the Pose Studio holds its Aim key
+vr_agrunt_test   91       vr_armedgrunt_raggrab_test.qc    an active ragdoll's weapon grabbed at the gun, its hand or forearm: a tug, won
 vr_agrunt_test   92       vr_armedgrunt_twohand_test.qc    two hands in the tug; a staggering or downed one's eased tug
 vr_agrunt_test   93       vr_armedgrunt_shot_test.qc       projectiles' own rolls (vr_agrunt_shotdisarm_proj)
 vr_agrunt_test   94       vr_armedgrunt_strike_test.qc     a deliberate strike or throw on its weapon or hand disarms it (vr_agrunt_strike_first)

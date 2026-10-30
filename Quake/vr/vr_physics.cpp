@@ -136,6 +136,34 @@ void debugBoxTouch(edict_t* target, edict_t* player, int which)
     return !strcmp(PR_GetString(target->v.classname), "vr_ag_weapon");
 }
 
+// The armed monster holding `weapon` when it is a living ragdoll (staggering, down, in the physical tug: every
+// knockdown's active ragdoll); nullptr otherwise.
+[[nodiscard]] edict_t* armedRagdollOwner(edict_t* weapon)
+{
+    if(!weapon->v.owner)
+    {
+        return nullptr;
+    }
+    edict_t* g = PROG_TO_EDICT(weapon->v.owner);
+    return !g->free && g->v.health > 0.f && box3d::isRagdoll(NUM_FOR_EDICT(g)) ? g : nullptr;
+}
+
+// How far (units) a fist may be from an armed monster's weapon's drawn surface and still take it: vr_carry_grab_bias,
+// vr_agrunt_grab_slack and vr_agrunt_grab_leniency; on a living ragdoll at least vr_agrunt_rag_grab_weapon (the weapon
+// wins over the limb beside it: the grab query's arbitration, vr_grab.hpp; his note of 2026-10-30, "the grab does not
+// register on the held weapon" of an active ragdoll: a fist 5-8 cm off it took the arm).
+[[nodiscard]] float armedAllowance(edict_t* weapon)
+{
+    const float m2u = units::metresToUnits();
+    const float slack = (vr_agrunt_grab_slack.value + za::max(vr_agrunt_grab_leniency.value, 0.f)) * 0.01f * m2u;
+    const float allowed = vr_carry_grab_bias.value * 0.01f * m2u + slack;
+    if(!armedRagdollOwner(weapon))
+    {
+        return allowed;
+    }
+    return za::max(allowed, za::max(vr_agrunt_rag_grab_weapon.value, 0.f) * 0.01f * m2u);
+}
+
 za::Vector<glm::vec4> armedFist; // handOn's: the fist's spheres in the world, on an armed monster's weapon
 
 // An armed monster's weapon as drawn lags the server's by about a frame (the client draws the last place it was sent,
@@ -332,7 +360,7 @@ struct TouchProvider
         }
         held::fistInWorld(h, fieldVec(player, handPosField(which)),
             fieldVec(player, which == HAND_OFF ? f().offhandrot : f().handrot), armedFist);
-        const float allowed = vr_carry_grab_bias.value * 0.01f * m2u + slack;
+        const float allowed = armedAllowance(target);
         bool surface = true;
         // (within: the tests' reading wants the gap a little way out too; a grab alone is done at the first sphere on it)
         float gap = za::min(999.f * m2u,
@@ -1315,8 +1343,7 @@ float armedGrabGap(edict_t* weapon, edict_t* player, int hand, float& allowed, b
         return ZA_FLOAT_MAX;
     }
     const float m2u = units::metresToUnits();
-    const float slack = (vr_agrunt_grab_slack.value + za::max(vr_agrunt_grab_leniency.value, 0.f)) * 0.01f * m2u;
-    allowed = vr_carry_grab_bias.value * 0.01f * m2u + slack;
+    allowed = armedAllowance(weapon);
     held::fistInWorld(hand, fieldVec(player, hand == 0 ? f().offhandpos : f().handpos),
         fieldVec(player, hand == 0 ? f().offhandrot : f().handrot), armedFist);
     bool surface = true;
@@ -1332,5 +1359,60 @@ float armedGrabGap(edict_t* weapon, edict_t* player, int hand, float& allowed, b
         gap = za::min(gap, s);
     }
     return gap;
+}
+
+edict_t* armedWeaponOver(edict_t* body, edict_t* player, int hand, int part)
+{
+    if(!body || !player || hand < 0 || hand > 1 || body->v.health <= 0.f)
+    {
+        return nullptr;
+    }
+    const glm::vec3 at = fieldVec(player, hand == 0 ? f().offhandpos : f().handpos);
+    const float reach = handHalfSize + weaponDrawnReach;
+    const float lo[3] = {at.x - reach, at.y - reach, at.z - reach};
+    const float hi[3] = {at.x + reach, at.y + reach, at.z + reach};
+    const int mark = Hunk_LowMark();
+    const int space = qcvm->num_edicts;
+    edict_t** list = static_cast<edict_t**>(Hunk_AllocNoFill(space * sizeof(edict_t*)));
+    int found = 0;
+    SV_AreaEdictsUnordered(lo, hi, list, &found, space);
+    const bool byLimb = vr_agrunt_rag_limb_grab.value != 0.f && part >= 0;
+    edict_t* onWeapon = nullptr;
+    edict_t* onLimb = nullptr;
+    float least = ZA_FLOAT_MAX;
+    for(int i = 0; i < found; i++)
+    {
+        edict_t* w = list[i];
+        if(w->free || !armedWeapon(w) || PROG_TO_EDICT(w->v.owner) != body || armedRagdollOwner(w) != body)
+        {
+            continue;
+        }
+        // The fist on its drawn shape (Show Disarm Volumes' measure); no fist known: the hand's point in its drawn box.
+        float allowed = held::fist(hand).empty() ? armedAllowance(w) : 0.f;
+        bool swept = false;
+        const float gap = held::fist(hand).empty()
+                              ? (held::nearDrawn(w, at, armedAllowance(w)) ? 0.f : ZA_FLOAT_MAX)
+                              : armedGrabGap(w, player, hand, allowed, swept);
+        if(gap <= za::max(allowed, 0.f) && gap < least)
+        {
+            least = gap;
+            onWeapon = w;
+        }
+        // The part its weapon rides (QC VR_AG_RagProp: .vr_ag_rb, the bone + 1: the model's own hidden gun, a loose piece
+        // welded in the hand holding it, or a hand), that hand, or its forearm.
+        const int rides = static_cast<int>(fieldFloatOr(w, f().vr_ag_rb, 0.f)) - 1;
+        const bool onArm = byLimb && box3d::ragdollWeaponHold(NUM_FOR_EDICT(body), rides, part, vec(w->v.origin));
+        if(vr_debug_ragdoll.value >= 2.f)
+        {
+            Con_Printf("ragdoll: %d hand %d: its weapon %d %.1f units off (allowed %.1f), rides part %d; the hand on part %d%s\n",
+                NUM_FOR_EDICT(body), hand, NUM_FOR_EDICT(w), gap, allowed, rides, part, onArm ? ", an arm holding it" : "");
+        }
+        if(onArm)
+        {
+            onLimb = onLimb ? onLimb : w;
+        }
+    }
+    Hunk_FreeToLowMark(mark);
+    return onWeapon ? onWeapon : onLimb;
 }
 }

@@ -179,6 +179,7 @@ QVR_FIELD(vr_ag_was_o2)
 QVR_FIELD(vr_ag_was_a2)
 QVR_FIELD(vr_ag_was_n)
 QVR_FIELD(vr_ag_left)
+QVR_FIELD(vr_ag_rb) // its ragdoll's bone it rides + 1 (QC VR_AG_RagProp; 0 none yet): the grab query's limb rule
 QVR_FIELD(fg_player)
 QVR_FIELD(fg_hand)
 QVR_FIELD(mainhand_held) // carrying (vr_carry.qc), drawn in the hand (vr_held.cpp)

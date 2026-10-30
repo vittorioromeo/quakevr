@@ -488,32 +488,39 @@ void beginGrab(World::RagdollGrab& g, const GrabStart& gs, edict_t* player, int 
 
 // ragdollgrab: hand `hand` of `player` takes the limb of `corpse`'s ragdoll it is on (within vr_ragdoll_grab_reach of
 // its surface).
-bool grabRagdoll(edict_t* corpse, edict_t* player, int hand)
+qvr::box3d::RagdollGrabResult grabRagdoll(edict_t* corpse, edict_t* player, int hand)
 {
+    using Result = qvr::box3d::RagdollGrabResult;
     GrabStart gs;
     if(vr_ragdoll_grab.value < 1.f || !grabStart(corpse, player, hand, gs))
     {
-        return false;
-    }
-    // (A living one down, its weapon still in its hand: the fist on that weapon takes the weapon (QC VR_AG_PropHandTouch:
-    // at once while it is down), not the limb beside it. Both touches came in the same frame and the limb's could go
-    // first: the hand then held its arm, dragging the body about, the weapon never yours: "stuck in the tug". As
-    // foegrab's tryTake for one standing.)
-    if(corpse->v.health > 0.f && qvr::physics::fistOnArmedWeapon(player, hand))
-    {
-        if(vr_debug_ragdoll.value)
-        {
-            Con_Printf("ragdoll: %d hand %d on its weapon: left to the weapon's grab\n", gs.num, hand);
-        }
-        return false;
+        return Result::None;
     }
     RagdollBodies* r = gs.r;
     const int num = gs.num;
     float distance = 0.f;
     const int part = nearestPart(*r, gs.at, distance);
-    if(part < 0 || distance > za::max(vr_ragdoll_grab_reach.value, 0.f))
+    const bool onLimb = part >= 0 && distance <= za::max(vr_ragdoll_grab_reach.value, 0.f);
+    // The grab query's arbitration (vr_grab.hpp): a living armed one's weapon wins over its limbs. The fist on that weapon
+    // (within vr_agrunt_rag_grab_weapon of its drawn shape), or on the hand or forearm holding it (vr_agrunt_rag_limb_grab),
+    // is a grab on the weapon (QC VR_Ragdoll_Handtouch hands it to the weapon's grab: a tug), not a hold on the limb: held
+    // by the arm, the body was dragged about and the weapon never came out (his note of 2026-10-30). Both touches come in
+    // one frame, either first: the weapon's own takes it too, the second swallowed (the same hand's tug).
+    if(corpse->v.health > 0.f)
     {
-        return false;
+        if(edict_t* w = qvr::physics::armedWeaponOver(corpse, player, hand, onLimb ? part : -1))
+        {
+            if(vr_debug_ragdoll.value)
+            {
+                Con_Printf("ragdoll: %d hand %d on its weapon (%d)%s: the weapon's grab\n", num, hand, NUM_FOR_EDICT(w),
+                    onLimb ? "" : ", off its limbs");
+            }
+            return Result::Weapon;
+        }
+    }
+    if(!onLimb)
+    {
+        return Result::None;
     }
     World::RagdollGrab g;
     beginGrab(g, gs, player, hand, part);
@@ -533,7 +540,7 @@ bool grabRagdoll(edict_t* corpse, edict_t* player, int hand)
         Con_Printf("ragdoll: %d part %d (%s) taken by hand %d, %.1f units from its surface\n", num, part, r->rig->bones[part].name,
             hand, distance);
     }
-    return true;
+    return Result::Limb;
 }
 
 // ragdollHoldSoft: hand `hand` of `player` holds on to the limb of `ent`'s ragdoll nearest it (within `reach` units of
@@ -1121,10 +1128,59 @@ bool ragdollReach(int num, const glm::vec3& at)
     return part >= 0 && distance <= za::max(vr_ragdoll_grab_reach.value, 0.f);
 }
 
-bool ragdollGrab(edict_t* corpse, edict_t* player, int hand)
+bool ragdollWeaponHold(int num, int rides, int part, const glm::vec3& grip)
 {
-    const bool took = grabRagdoll(corpse, player, hand);
-    if(took && corpse && corpse->v.health <= 0.f)
+    const RagdollBodies* r = ragdollOf(num);
+    if(!r || !r->rig || rides < 0 || rides >= r->count || rides >= r->rig->numBones || part < 0 || part >= r->count)
+    {
+        return false;
+    }
+    const ragdoll::Rig& rig = *r->rig;
+    const int holder = rig.bones[rides].joint == ragdoll::Joint::Loose ? looseHolder(rig, rides) : rides;
+    if(part == rides || part == holder)
+    {
+        return true;
+    }
+    // Its arms: the holder's arm (its hand or forearm holds it), and the other with its hand on the grip (a gun's two
+    // hands, or one welded by its forearm, the other's hand at its grip); never a torso's part.
+    constexpr float onGrip = 4.f; // units from the grip to the hand's surface
+    for(const int limb : {0, 1})
+    {
+        const int lower = ragactive::limbJointOf(rig, limb, true);
+        if(lower < 0 || lower >= r->count)
+        {
+            continue;
+        }
+        int hand = lower;
+        for(int c = 0; c < r->count && c < rig.numBones; c++)
+        {
+            if(rig.bones[c].parent == lower)
+            {
+                hand = c;
+                break;
+            }
+        }
+        if(part != hand && part != lower)
+        {
+            continue;
+        }
+        if(holder == hand || holder == lower)
+        {
+            return true;
+        }
+        b3Vec3 closest;
+        if(b3Body_GetClosestPoint(r->body[static_cast<za::SizeT>(hand)], &closest, world->toM(grip)) * world->m2u <= onGrip)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+RagdollGrabResult ragdollGrab(edict_t* corpse, edict_t* player, int hand)
+{
+    const RagdollGrabResult took = grabRagdoll(corpse, player, hand);
+    if(took == RagdollGrabResult::Limb && corpse && corpse->v.health <= 0.f)
     {
         qvr::goresound::send(qvr::goresound::Kind::Squelch, NUM_FOR_EDICT(corpse), corpse->v.origin, 0.8f); // (a dead body)
     }
@@ -1802,6 +1858,9 @@ uint32_t limbInfo(edict_t* ent, int what, int bone)
     case 3: return static_cast<uint32_t>(rig->head);
     case 4: return bone >= 0 && bone < rig->numBones ? (bone == rig->head ? head : ragdoll::limbBones(*rig, bone)) & ~cut : 0u;
     case 5: return bone >= 0 && bone < rig->numBones ? static_cast<uint32_t>(rig->bones[bone].parent) : ~0u;
+    case 7: // the part holding loose piece `bone` (its weapon, welded there while down: looseHolder), else `bone`
+        return bone < 0 || bone >= rig->numBones ? ~0u
+               : static_cast<uint32_t>(rig->bones[bone].joint == ragdoll::Joint::Loose ? looseHolder(*rig, bone) : bone);
     case 6: // limb `bone` % 4's joint by its bones' names (0 the left shoulder, 1 the right, 2 the left hip, 3 the right;
             // 4-7 their elbow or knee), 0 none (the tests' cuts: vr_test_cut)
         return bone < 0 || bone > 7 ? 0u : static_cast<uint32_t>(za::max(ragactive::limbJointOf(*rig, bone & 3, bone >= 4), 0));

@@ -126,7 +126,9 @@ void PF_ragdollgetup()
         qcvm->argc > 6 && G_FLOAT(OFS_PARM6) != 0.f));
 }
 
-// float ragdollgrab(entity e, entity player, float hand): the hand takes the limb of e's ragdoll it is on.
+// float ragdollgrab(entity e, entity player, float hand): the hand takes the limb of e's ragdoll it is on (1); 2: it is
+// on the weapon e holds, or on its hand or forearm (living, an armed monster: the grab query's arbitration), the
+// weapon's grab to take it (QC VR_Ragdoll_Handtouch).
 // [float tug, vector grip, float strength, float force]: the armed monsters' tug-of-war instead (QC ragdolltug,
 // vr_armedgrunt_play.qc; the builtins' table is full): tug 1 the hand holds e's limb nearest the weapon's grip (e
 // staggering: standing its ground), its arm pulling at `strength`, the hold `force` N at most (1: it does); 2 the hold's
@@ -142,8 +144,8 @@ void PF_ragdollgrab()
             qcvm->argc > 6 ? G_FLOAT(OFS_PARM6) : 0.f);
         return;
     }
-    G_FLOAT(OFS_RETURN) =
-        box3d::ragdollGrab(G_EDICT(OFS_PARM0), G_EDICT(OFS_PARM1), static_cast<int>(G_FLOAT(OFS_PARM2))) ? 1.f : 0.f;
+    G_FLOAT(OFS_RETURN) = static_cast<float>(
+        box3d::ragdollGrab(G_EDICT(OFS_PARM0), G_EDICT(OFS_PARM1), static_cast<int>(G_FLOAT(OFS_PARM2))));
 }
 
 // void ragdollrelease(entity player, float hand, vector velocity): the hand lets go (a held limb keeps the velocity).
@@ -305,7 +307,7 @@ void PF_ragdolllimbs()
     const int what = static_cast<int>(G_FLOAT(OFS_PARM1));
     const int bone = qcvm->argc > 2 ? static_cast<int>(G_FLOAT(OFS_PARM2)) : -1;
     const uint32_t v = box3d::limbInfo(G_EDICT(OFS_PARM0), what, bone);
-    G_FLOAT(OFS_RETURN) = (what == 3 || what == 5) && v == ~0u ? -1.f : static_cast<float>(v);
+    G_FLOAT(OFS_RETURN) = (what == 3 || what == 5 || what == 7) && v == ~0u ? -1.f : static_cast<float>(v);
 }
 
 // vector limbpiece(entity e, float bone, float what): the piece a cut at `bone` (-1 the head) takes (box3d::limbPiece): 0

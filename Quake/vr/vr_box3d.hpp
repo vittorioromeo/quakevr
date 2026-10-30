@@ -393,10 +393,20 @@ bool ragdollShove(edict_t* ent, const glm::vec3& dir, const RagdollShove& p);
 bool ragdollStance(int num, glm::vec3& pelvis, glm::vec3& head, glm::vec3& feet);
 // Whether hand point `at` (units) is within vr_ragdoll_grab_reach of a limb of edict `num`'s ragdoll (a hand touching it).
 [[nodiscard]] bool ragdollReach(int num, const glm::vec3& at);
+// Whether a hold on part `part` of edict `num`'s ragdoll is a hold on the weapon riding its part `rides` (QC
+// VR_AG_RagProp) with its grip at `grip`: that part, the part holding it (a loose piece's holder, the gun welded there:
+// vr_knockdown_weld; else `rides`), that arm's hand or forearm, or the other arm's with its hand on the grip.
+[[nodiscard]] bool ragdollWeaponHold(int num, int rides, int part, const glm::vec3& grip);
 // The hands and the limbs (QC's builtins: ragdollgrab, ragdollrelease, ragdollheld, ragdollreach). `hand`: QC's (0 the
 // off hand, 1 the main). grab: take the limb of `corpse` the hand is on; release: let go (the limb keeps `velocity`,
-// units/s).
-bool ragdollGrab(edict_t* corpse, edict_t* player, int hand);
+// units/s). grab's answer: RagdollGrabResult (the weapon's: the grab query gave it to the armed monster's weapon).
+enum class RagdollGrabResult : int
+{
+    None = 0,
+    Limb = 1,
+    Weapon = 2,
+};
+RagdollGrabResult ragdollGrab(edict_t* corpse, edict_t* player, int hand);
 // The armed monsters' tug-of-war (QC ragdolltug; vr_box3d_ragparts.cpp tugRagdoll): what 0 begin (the hand holds the
 // limb nearest `grip` at the weapon's lever, `force` N at most, its arm pulling at `strength`), 1 the hold's pull (N; -1
 // none), 2 over (its stagger up again `strength` s on).
