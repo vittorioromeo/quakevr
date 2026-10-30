@@ -398,6 +398,26 @@ float(float kind) VR_AGR_Replace =
     return TRUE;
 };
 
+// monster_knight: its armed version in its place with a sword (vr_agknight; ROUND23.md, "Knights as armed humanoids").
+// FALSE: not replaced (off, VR_AM_Spawn's own call, a statue, Honey's trigger-spawned copies' maker, a dummy).
+float() VR_AKN_Replace =
+{
+    if(vr_am_spawning || !cvar_hget(cvarh_vr_agknight) || self.classname != "monster_knight")
+    {
+        return FALSE;
+    }
+    if(!VR_OtherFlags() && (self.spawnflags & (2 | SPAWNFLAG_TRIGGER_SPAWN | SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE)))
+    {
+        return FALSE; // (a statue; a trigger's copies: their maker keeps its own spawn)
+    }
+    if(!self.weapon)
+    {
+        self.weapon = WID_SWORD;
+    }
+    VR_AM_Spawn(VR_AM_KNIGHT);
+    return TRUE;
+};
+
 // A held weapon gone with nothing left (its record too: a loadout changed before anyone saw it).
 void(entity p) VR_AGR_Unmake =
 {
@@ -496,7 +516,7 @@ void() VR_AGR_Precache =
         return;
     }
     float k;
-    for(k = 0; k < VR_AM_COUNT; k++)
+    for(k = 0; k < VR_AM_GUN_KINDS; k++)
     {
         VR_AM_Row(k);
         precache_model(vr_am_model);

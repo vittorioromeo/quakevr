@@ -984,6 +984,14 @@ void takeRecoilUnits74()
     {
         const OldRecoil& o = oldRecoil[slot];
         const NewRecoil n = convertRecoil(o, oldRecoilGlobals);
+        // A slot whose recoil was the shipped one of then takes today's defaults (his of 2026-10-30 since then), as a
+        // setting left alone does: its keys and Haptic Punch stay as they are.
+        const NewRecoil then = convertRecoil(oldRecoilDefault(slot), OldRecoilGlobals{});
+        const auto near = [](float a, float b) { return fabsf(a - b) <= 1e-5f * za::max(1.f, fabsf(b)); };
+        if(near(n.kickCm, then.kickCm) && near(n.riseDeg, then.riseDeg) && near(n.returnTime, then.returnTime))
+        {
+            continue;
+        }
         changed += setConverted(slot, Key::RecoilKick, n.kickCm) + setConverted(slot, Key::RecoilRise, n.riseDeg) +
                    setConverted(slot, Key::RecoilReturn, n.returnTime);
         const float before = za::max(o.strength, 0.f) * 0.5f * (za::max(o.kick, 0.f) + za::max(o.rise, 0.f));

@@ -3,12 +3,12 @@
 //
 //
 // ----------------------------------------------------------------------------
-// vr_armedgrunt_preparry_test.qc -- `vr_agrunt_test 95` and `96` (Debug > Tests > Armed Grunts: Preventive Parry,
+// vr_armedgrunt_preparry_test.qc -- `vr_agrunt_test 96` and `98` (Debug > Tests > Armed Grunts: Preventive Parry,
 // Wind-up Parry): an armed humanoid's guard (vr_armedgrunt_guard.qc). In vrtesthall, you unseen, a fresh grunt ahead for
 // each case, held still and aware of you (its weapon's think runs: the guard as in play), the times exact (fixed frames).
 // The reactive parry off in both (only the guard raises its parry); your hands empty (the fists' category multipliers
 // tuned to 1, the others left as they are).
-// 95 (vr_agrunt_preparry; the wind-up parry off; chance 1, checks every 0.1 s, delay 0.2, guard 0.8, recovery 0.6):
+// 96 (vr_agrunt_preparry; the wind-up parry off; chance 1, checks every 0.1 s, delay 0.2, guard 0.8, recovery 0.6):
 //   0 a shotgun grunt 36 units off, its shove ready: no guard in 1 s, no roll;
 //   1 its shove cooling down: the guard rises 0.2 s after the roll and stays 0.8 s ("preparry" on Show Disarm Volumes);
 //     a fist on its barrel in it (strike beat 0): parried, armed; one in the recovery: disarmed;
@@ -18,7 +18,7 @@
 //   4 176 units off (range 64): no guard; 5 chance 0: rolls every check, never a guard;
 //   6 a sword grunt, its shove ready: the guard rises (a melee weapon in its hand);
 //   7 random times (delay 0.1-0.4, guard 0.3-0.6, recovery 0.2-0.5): 4 guards, each time within its range, not all equal.
-// 96 (vr_agrunt_windup_parry; the preventive off; chance 1, read 0.08 s, delay 0.15, guard 0.5, recovery 0.6, rearm 1;
+// 98 (vr_agrunt_windup_parry; the preventive off; chance 1, read 0.08 s, delay 0.15, guard 0.5, recovery 0.6, rearm 1;
 //   your main hand a closed fist placed each frame against your head and the way to it):
 //   0 the hand at rest ahead of your chest: no guard, no roll in 1 s;
 //   1 raised overhead: the guard rises 0.23 s later (read + delay), stays 0.5 s ("windup"); lowered, a fist on its
@@ -27,7 +27,7 @@
 //   3 cocked out to the side: the guard rises; 4 chance 0, held 1 s: one roll, no guard;
 //   5 by what you hold (bare rolls, 400 each, chances 0.5, delays 0.1-0.3, the default multipliers): an axe raised is
 //     parried more often and sooner than a shotgun (the wind-up's and the preventive's), each delay within its range.
-// Each case `agtest: PASS|FAIL guard <test>.<case>: ...`; ends on `agtest: test 95 over` (96).
+// Each case `agtest: PASS|FAIL guard <test>.<case>: ...`; ends on `agtest: test 96 over` (98).
 // ----------------------------------------------------------------------------
 
 float vr_agpp_case;      // the case running
@@ -41,8 +41,8 @@ float vr_agpp_tE;
 float vr_agpp_raises;    // guards raised this case
 float vr_agpp_rolls0;    // vr_agg_rolls at the case's start
 float vr_agpp_sub;       // the case's own step
-float vr_agpp_tRaise;    // when your hand was raised (96)
-float vr_agpp_pose;      // your hand's pose (96): 0 rest, 1 overhead, 2 side
+float vr_agpp_tRaise;    // when your hand was raised (98)
+float vr_agpp_pose;      // your hand's pose (98): 0 rest, 1 overhead, 2 side
 float vr_agpp_n0;
 float vr_agpp_ok;        // the case's checks so far (each printed as it is made)
 float vr_agpp_d_lo;      // case 7's least and most delay seen
@@ -105,7 +105,7 @@ void(float restore) VR_AGPP_KeepAll =
 };
 
 
-// Your hands empty, open (the main one closed for 96), each frame.
+// Your hands empty, open (the main one closed for 98), each frame.
 void(entity p, float closed) VR_AGPP_Hands =
 {
     VR_AGPT_EmptyHand(p);
@@ -143,7 +143,7 @@ string(float t, float c) VR_AGPP_Setup =
     string s = "tune vr_agrunt_pcat_fist_chance 1; tune vr_agrunt_pcat_fist_delay 1; tune vr_agrunt_pcat_fist_guard 1; "
                "tune vr_agrunt_pcat_fist_range 1; tune vr_agrunt_pcat_fist_windup 1; tune vr_agrunt_pcat_fist_pre 1; "
                "tune vr_agrunt_strike_beat 0; vr_agrunt_parry 1; vr_agrunt_react_parry 0\n";
-    if(t == 95)
+    if(t == 96)
     {
         s = strcat(s, "vr_agrunt_preparry 1; vr_agrunt_windup_parry 0; tune vr_agrunt_preparry_interval 0.1\n");
         s = strcat(s, sprintf("tune vr_agrunt_preparry_chance %g\n", c == 5 ? 0 : 1));
@@ -174,27 +174,27 @@ string(float t, float c) VR_AGPP_Setup =
                      "tune vr_agrunt_windup_recover_min 0.6; tune vr_agrunt_windup_recover_max 0.6\n");
 };
 
-float(float t) VR_AGPP_Cases = { return t == 95 ? 8 : 6; };
+float(float t) VR_AGPP_Cases = { return t == 96 ? 8 : 6; };
 
 string(float t, float c) VR_AGPP_Name =
 {
-    if(t == 95)
+    if(t == 96)
     {
-        if(c == 0) { return "95.0 shove ready: no guard"; }
-        if(c == 1) { return "95.1 shove cooling: guard 0.2 s after the roll, 0.8 s; strike in it parried, in the recovery disarms"; }
-        if(c == 2) { return "95.2 recovery 0.6 s, then the guard again"; }
-        if(c == 3) { return "95.3 punch through its barrel: in the guard parried, in the recovery disarmed in full"; }
-        if(c == 4) { return "95.4 176 units off: no guard"; }
-        if(c == 5) { return "95.5 chance 0: never"; }
-        if(c == 6) { return "95.6 a sword grunt, shove ready: guards"; }
-        return "95.7 random times within their ranges";
+        if(c == 0) { return "96.0 shove ready: no guard"; }
+        if(c == 1) { return "96.1 shove cooling: guard 0.2 s after the roll, 0.8 s; strike in it parried, in the recovery disarms"; }
+        if(c == 2) { return "96.2 recovery 0.6 s, then the guard again"; }
+        if(c == 3) { return "96.3 punch through its barrel: in the guard parried, in the recovery disarmed in full"; }
+        if(c == 4) { return "96.4 176 units off: no guard"; }
+        if(c == 5) { return "96.5 chance 0: never"; }
+        if(c == 6) { return "96.6 a sword grunt, shove ready: guards"; }
+        return "96.7 random times within their ranges";
     }
-    if(c == 0) { return "96.0 hand at rest: no guard"; }
-    if(c == 1) { return "96.1 raised overhead: guard after read + delay, 0.5 s; bait, strike in the recovery disarms"; }
-    if(c == 2) { return "96.2 held overhead: one guard; lowered and raised again: a second"; }
-    if(c == 3) { return "96.3 cocked to the side: guards"; }
-    if(c == 4) { return "96.4 chance 0: one roll, no guard"; }
-    return "96.5 an axe raised: parried more often and sooner than a shotgun";
+    if(c == 0) { return "98.0 hand at rest: no guard"; }
+    if(c == 1) { return "98.1 raised overhead: guard after read + delay, 0.5 s; bait, strike in the recovery disarms"; }
+    if(c == 2) { return "98.2 held overhead: one guard; lowered and raised again: a second"; }
+    if(c == 3) { return "98.3 cocked to the side: guards"; }
+    if(c == 4) { return "98.4 chance 0: one roll, no guard"; }
+    return "98.5 an axe raised: parried more often and sooner than a shotgun";
 };
 
 // Its guard's transitions this frame (seen a frame late: its weapon thinks after this; both ends alike).
@@ -250,7 +250,7 @@ float(entity g) VR_AGPP_Punch =
     return VR_AGST_Melee(g, VR_AGPT2_At(g, VR_AGPar_Chest(g)), normalize(b - a));
 };
 
-// 96.5's bare rolls: `wid` in your main hand, `n` rolls of kind `kind`: the share won (vr_agpp_d_lo/hi: the delays'
+// 98.5's bare rolls: `wid` in your main hand, `n` rolls of kind `kind`: the share won (vr_agpp_d_lo/hi: the delays'
 // range; returns the share, the mean delay in vr_agg_last_guard's stead: vr_agpp_tE).
 float(entity g, float wid, float kind, float n) VR_AGPP_Rolls =
 {
@@ -304,11 +304,11 @@ void(float t) VR_AGPP_Frame =
             return;
         }
         VR_AGPT_Clear();
-        VR_AGPP_Hands(p, t == 96);
+        VR_AGPP_Hands(p, t == 98);
         localcmd(VR_AGPP_Setup(t, vr_agpp_case));
         float wid = WID_SHOTGUN;
-        if(t == 95 && vr_agpp_case == 6) { wid = WID_SWORD; }
-        vr_agt_grunt = VR_AGT_Spawn(wid, (t == 95 && vr_agpp_case == 4) ? 200 : 60);
+        if(t == 96 && vr_agpp_case == 6) { wid = WID_SWORD; }
+        vr_agt_grunt = VR_AGT_Spawn(wid, (t == 96 && vr_agpp_case == 4) ? 200 : 60);
         vr_agpp_until = time + 5;
         vr_agpp_ok = TRUE;
         vr_agt_step = 1;
@@ -317,10 +317,10 @@ void(float t) VR_AGPP_Frame =
     if(vr_agt_step == 1)
     {
         // Its start done (it takes damage), its weapon placed, the case's tunables in (the fists' chance a last one).
-        VR_AGPP_Hands(p, t == 96);
-        if(t == 96) { VR_AGPP_Place(p, g, 0); }
+        VR_AGPP_Hands(p, t == 98);
+        if(t == 98) { VR_AGPP_Place(p, g, 0); }
         float tuned = cvar_hget(cvarh_vr_agrunt_pcat_fist_pre) == 1 && cvar_hget(cvarh_vr_agrunt_react_parry) == 0 &&
-                      (t == 95 ? cvar_hget(cvarh_vr_agrunt_preparry_interval) == 0.1 : cvar_hget(cvarh_vr_agrunt_windup_rearm) == 1);
+                      (t == 96 ? cvar_hget(cvarh_vr_agrunt_preparry_interval) == 0.1 : cvar_hget(cvarh_vr_agrunt_windup_rearm) == 1);
         if(!(g.takedamage && g.vr_ag_prop && g.vr_ag_prop.vr_ag_was_n >= 1 && tuned))
         {
             if(time > vr_agpp_until)
@@ -338,7 +338,7 @@ void(float t) VR_AGPP_Frame =
         g.vr_agg_wup1 = 0;
         g.vr_agg_wread0 = 0;
         g.vr_agg_wread1 = 0;
-        g.vr_eshove_next = (t == 95 && (vr_agpp_case == 0 || vr_agpp_case == 6)) ? 0 : (time + 1000);
+        g.vr_eshove_next = (t == 96 && (vr_agpp_case == 0 || vr_agpp_case == 6)) ? 0 : (time + 1000);
         vr_agpp_t0 = time;
         vr_agpp_prev = 0;
         vr_agpp_t1 = 0;
@@ -359,7 +359,7 @@ void(float t) VR_AGPP_Frame =
     }
     if(vr_agt_step == 2)
     {
-        VR_AGPP_Hands(p, t == 96);
+        VR_AGPP_Hands(p, t == 98);
         if(g.vr_ag_prop)
         {
             g.health = 1000;
@@ -371,7 +371,7 @@ void(float t) VR_AGPP_Frame =
             VR_AGPP_Note(FALSE, sprintf("timed out at its step %g (state %g)", vr_agpp_sub, g.vr_agg_state));
             vr_agt_step = 3;
         }
-        else if(t == 95)
+        else if(t == 96)
         {
             VR_AGPP_Case95(g, vr_agpp_case);
         }
@@ -392,7 +392,7 @@ void(float t) VR_AGPP_Frame =
     vr_agt_step = 0;
 };
 
-// Test 95's cases, each frame (vr_agt_step 3: done).
+// Test 96's cases, each frame (vr_agt_step 3: done).
 void(entity g, float c) VR_AGPP_Case95 =
 {
     float el = time - vr_agpp_t0;
@@ -519,7 +519,7 @@ void(entity g, float c) VR_AGPP_Case95 =
     }
 };
 
-// Test 96's cases, each frame.
+// Test 98's cases, each frame.
 void(entity g, float c) VR_AGPP_Case96 =
 {
     entity p = vr_agt_player;

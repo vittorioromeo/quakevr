@@ -19,7 +19,9 @@
 
 float VR_AM_GRUNT = 0;    // monster_vr_grunt: a grunt (monster_army)
 float VR_AM_ENFORCER = 1; // monster_vr_enforcer: an enforcer (monster_enforcer)
-float VR_AM_COUNT = 2;
+float VR_AM_KNIGHT = 2;   // monster_vr_knight: a knight (monster_knight) with a sword (vr_agknight: vr_armedknight.qc)
+float VR_AM_COUNT = 3;
+float VR_AM_GUN_KINDS = 2; // (the kinds before it: the gun holders, the replacements' and the pose categories')
 
 // Weapon classes a row may hold (vr_am_classes; VR_AG_CLASS_* bits: 1 << class).
 float VR_AM_CLASSES_ALL = 63;
@@ -71,6 +73,56 @@ float vr_am_range_threat;   // ... its least and best times this while you hold 
 void(float k) VR_AM_Row =
 {
     vr_am_kind = k;
+    if(k == VR_AM_KNIGHT)
+    {
+        // Quake VR's knight.mdl: his sword's vertices 334..336, 363..365, 524, 535..540, 557..648 (vr_monstermods.cpp
+        // knownSwords), its pommel 568/571, its tip 561/564, its guard's ends 537/594; his fist on its grip (106, 110,
+        // 114: the stillest in the sword's space over his living frames, 2.3-2.9 units rms: his frames slide it in his
+        // hand); ROUND23.md, "Knights as armed humanoids". Melee weapons only.
+        vr_am_name = "Knight";
+        vr_am_spawnname = "monster_vr_knight";
+        vr_am_classname = "monster_knight";
+        vr_am_model = "progs/vrknight.mdl";
+        vr_am_spawn = monster_knight;
+        vr_am_hand = '106 110 114';
+        vr_am_gun_rear = '568 571 0';
+        vr_am_gun_muzzle = '561 564 0';
+        vr_am_gun_roll = '537 594 0';
+        vr_am_f_stand = 0; vr_am_n_stand = 9; // stand1..9
+        vr_am_f_run = 9; // runb1..8
+        vr_am_rund[0] = 16; vr_am_rund[1] = 20; vr_am_rund[2] = 13; vr_am_rund[3] = 7;
+        vr_am_rund[4] = 16; vr_am_rund[5] = 20; vr_am_rund[6] = 14; vr_am_rund[7] = 6;
+        vr_am_f_atk = 0;     // (no gun: its stand)
+        vr_am_atk_stand = 1;
+        vr_am_f_shove = 42;  // attackb1..6 (no gun's butt: never shoves)
+        vr_am_f_reload = 0;  // (no reloads: its stand)
+        vr_am_n_reload = 9;
+        vr_am_f_take = 66;   // kneel1..5: down on a knee
+        vr_am_n_take = 5;
+        vr_am_pain1 = "knight/khurt.wav";
+        vr_am_pain2 = "knight/khurt.wav";
+        vr_am_loot_aid = AID_SHELLS;
+        vr_am_loot_n = 0;
+        vr_am_classes = 1 << VR_AG_CLASS_MELEE;
+        vr_am_back_lo = '145 172 0'; // (his back at the belt, x -2, z 1.9)
+        vr_am_back_hi = '180 320 0'; // (... at the shoulder blades, x -1.4, z 13.5)
+        vr_am_anchor = 224;
+        vr_am_anchor_at = '7.3 2 15.6';
+        // The authored rig's shoulders (quakevr/rigs/vrknight.rig2.txt: his upper arms' joints, under the pads); his
+        // right arm shoulder to wrist (upper arm 8.4, forearm 8.3).
+        vr_am_sh_r = '4 -8.5 13';
+        vr_am_sh_l = '3 11 13';
+        vr_am_arm = 16.7;
+        // The grunt-made poses moved so the grunt's shoulders land on his (his a little wider, lower and forward).
+        vr_am_fit_scale = '1 1.06 1';
+        vr_am_fit_shift = '3.2 1.46 -2.2';
+        vr_am_grip_r = '12 -6.7 1.1';
+        vr_am_grip_l = '-2.4 14.6 -1.1';
+        vr_am_gun_fw = '0.497 0.277 0.823';
+        vr_am_range = 1;
+        vr_am_range_threat = 1.2;
+        return;
+    }
     if(k == VR_AM_ENFORCER)
     {
         // Quake VR's enforcer.mdl: the laser rifle's vertices 22, 23, 100, 400..430, 455..478 (vr_monstermods.cpp);

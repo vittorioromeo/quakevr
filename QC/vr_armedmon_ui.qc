@@ -10,7 +10,7 @@
 // "weapon" key (its Right Hand and Left Hand lists), and how a row holding a loadout looks standing (the spawn ghost).
 // A new row in VR_AM_Row shows up on the page by itself.
 
-float() VR_AM_UiCount = { return VR_AM_COUNT; };
+float() VR_AM_UiCount = { return cvar_hget(cvarh_vr_agknight) ? VR_AM_COUNT : VR_AM_GUN_KINDS; }; // (the knight: vr_agknight)
 string(float k) VR_AM_UiKindName = { VR_AM_Row(k); return vr_am_name; };
 string(float k) VR_AM_UiKindSpawn = { VR_AM_Row(k); return vr_am_spawnname; };
 string(float k) VR_AM_UiKindModel = { VR_AM_Row(k); return vr_am_model; };

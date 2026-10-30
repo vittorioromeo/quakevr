@@ -1181,12 +1181,13 @@ void conversionTest(const Check& check)
                              near(n.returnTime, def(Key::RecoilReturn))
                          ? 1
                          : 0;
-        same += sameCurve(o, shipped, def(Key::RecoilKick), def(Key::RecoilRise), def(Key::RecoilReturn)) ? 1 : 0;
-        asLong += fabsf(weapons::recoilKickSeconds(def(Key::RecoilReturn)) - za::max(o.time, 0.02f) * o.recovery) < 1e-5f;
+        same += sameCurve(o, shipped, n.kickCm, n.riseDeg, n.returnTime) ? 1 : 0;
+        asLong += fabsf(weapons::recoilKickSeconds(n.returnTime) - za::max(o.time, 0.02f) * o.recovery) < 1e-5f;
     }
     const float slots = static_cast<float>(weapons::numSlots);
-    check(asShipped == weapons::numSlots, "every slot's old defaults converted are its shipped ones (slots)",
-        static_cast<float>(asShipped), slots);
+    // (27 slots took his recoil of 2026-10-30 as their defaults: ROUND23.md, "His tweaks of 2026-10-30 as defaults")
+    check(asShipped == weapons::numSlots - 27, "every slot's old defaults converted are its shipped ones, but his 27 (slots)",
+        static_cast<float>(asShipped), slots - 27.f);
     check(same == weapons::numSlots, "and draw the old kick, every ms of a second (slots)", static_cast<float>(same), slots);
     check(asLong == weapons::numSlots, "its kick as long as the old Return Time (the haptic tail; slots)",
         static_cast<float>(asLong), slots);
@@ -1209,10 +1210,16 @@ void conversionTest(const Check& check)
         }
         const RecoilAmount a = recoilAmount(s, 1.f, 0.f);
         const float back = weapons::value(s, Key::RecoilReturn);
-        const bool ok = sameCurve(o, g, a.backCm, -a.pitch, back) &&
-                        fabsf(kickSeconds(s) - weapons::recoilKickSeconds(za::max(back, 0.014f))) == 0.f;
-        drawnSame += ok ? 1 : 0;
         const auto changed = [&](Key key) { return strcmp(weapons::cvar(s, key)->string, weapons::cvar(s, key)->default_string); };
+        // (a slot at the shipped recoil of then takes today's defaults: takeRecoilUnits74)
+        const weapons::NewRecoil n = weapons::convertRecoil(o, g);
+        const weapons::NewRecoil then = weapons::convertRecoil(weapons::oldRecoilDefault(s), weapons::OldRecoilGlobals{});
+        const auto near = [](float x, float y) { return fabsf(x - y) <= 1e-5f * za::max(1.f, fabsf(y)); };
+        const bool leftAlone = near(n.kickCm, then.kickCm) && near(n.riseDeg, then.riseDeg) && near(n.returnTime, then.returnTime);
+        const bool ok = leftAlone ? !changed(Key::RecoilKick) && !changed(Key::RecoilRise) && !changed(Key::RecoilReturn)
+                                  : sameCurve(o, g, a.backCm, -a.pitch, back) &&
+                                        fabsf(kickSeconds(s) - weapons::recoilKickSeconds(za::max(back, 0.014f))) == 0.f;
+        drawnSame += ok ? 1 : 0;
         if(!ok || changed(Key::RecoilKick) || changed(Key::RecoilRise) || changed(Key::RecoilReturn) ||
             changed(Key::HapticPunch))
         {
@@ -1224,7 +1231,7 @@ void conversionTest(const Check& check)
         }
     }
     Cvar_SetValueQuick(&vr_recoil_amount, amount);
-    check(drawnSame == weapons::numSlots, "this start's config converted: every slot draws its old kick (slots)",
+    check(drawnSame == weapons::numSlots, "this start's config converted: every slot draws its old kick, or the defaults where it was the shipped one (slots)",
         static_cast<float>(drawnSame), slots);
     Con_Printf("vr_recoil_test: %d slots off the shipped recoil, globals then %g cm, %g deg\n", printed, g.kickCm, g.riseDeg);
 }
@@ -1407,8 +1414,9 @@ void streamTest(const Check& check)
     {
         with += weapons::value(s, Key::StreamShake) > 0.f || weapons::value(s, Key::StreamHaptic) > 0.f ? 1 : 0;
     }
-    const bool fuelled = weapons::value(30, Key::StreamShake) == 1.f && weapons::value(31, Key::StreamShake) == 1.f &&
-                         weapons::value(30, Key::StreamHaptic) == 1.f && weapons::value(31, Key::StreamHaptic) == 1.f;
+    // (slot 30's are his 1.25 rumble and 1.75 shake since 2026-10-30; 31's 1)
+    const bool fuelled = weapons::value(30, Key::StreamShake) > 0.f && weapons::value(31, Key::StreamShake) > 0.f &&
+                         weapons::value(30, Key::StreamHaptic) > 0.f && weapons::value(31, Key::StreamHaptic) > 0.f;
     check(fuelled && with == 2, "only the flamethrower and the poison sprayer shake and rumble by default (slots)",
         static_cast<float>(with), 2.f);
 

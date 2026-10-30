@@ -1066,7 +1066,7 @@ void() ai_run_melee =
     if(FacingIdeal())
     {
         self.vr_melee_begun = time; // VR: one attack's blows, one parry (combat.qc VR_Parry)
-        if(self.classname == "monster_knight")
+        if(self.classname == "monster_knight" && !self.vr_ag) // (an armed one: its layer's melee, vr_agknight)
             knight_attack(); // QVR: as CheckAttack's (it turned first here: melee arc)
         else
             self.th_melee();

@@ -67,7 +67,7 @@ float() CheckAttack =
                 return TRUE;
             }
             self.vr_melee_begun = time; // VR: one attack's blows, one parry (combat.qc VR_Parry)
-            if(self.classname == "monster_knight")
+            if(self.classname == "monster_knight" && !self.vr_ag) // (an armed one: its layer's, vr_agknight)
                 knight_attack();
             else
                 self.th_melee();

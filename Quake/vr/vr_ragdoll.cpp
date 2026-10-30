@@ -561,6 +561,9 @@ constexpr SeedTable seedTables[] = {
     {modelmeta::Id::Enforcer, 479, enforcerSeeds, static_cast<int>(sizeof(enforcerSeeds) / sizeof(enforcerSeeds[0])), 2, {41, 55}, {54, 65}},
     // The armed enforcer (QC vr_armedmon.qc): the enforcer's model without its rifle's triangles (as the armed grunt).
     {modelmeta::Id::VrEnforcer, 479, enforcerSeeds, static_cast<int>(sizeof(enforcerSeeds) / sizeof(enforcerSeeds[0])), 2, {41, 55}, {54, 65}},
+    // The armed knight (QC vr_armedmon.qc, vr_agknight): the knight's model without his sword's triangles (its authored rig:
+    // quakevr/rigs/vrknight.rig2.txt; knight.mdl keeps the derived one).
+    {modelmeta::Id::VrKnight, 655, knightSeeds, static_cast<int>(sizeof(knightSeeds) / sizeof(knightSeeds[0])), 2, {76, 86}, {85, 96}},
     {modelmeta::Id::Hknight, 538, hknightSeeds, static_cast<int>(sizeof(hknightSeeds) / sizeof(hknightSeeds[0])), 2, {42, 54}, {53, 62}},
     {modelmeta::Id::Dog, 655, dogSeeds, static_cast<int>(sizeof(dogSeeds) / sizeof(dogSeeds[0])), 2, {8, 17}, {16, 25}},
     {modelmeta::Id::Wizard, 310, wizardSeeds, static_cast<int>(sizeof(wizardSeeds) / sizeof(wizardSeeds[0])), 1, {46, 0}, {53, 0}},
@@ -2438,7 +2441,7 @@ const Rig* rigFor(qmodel_t* model)
         return r;
     }
     // (every model with an authored rig file: the grunt's, soldier.mdl and the armed vrgrunt.mdl; the enforcer's,
-    // enforcer.mdl and the armed vrenforcer.mdl)
+    // enforcer.mdl and the armed vrenforcer.mdl; the armed knight's vrknight.mdl)
     const rig2::Rig* a = za::find(authoredRigs.failed.begin(), authoredRigs.failed.end(), model) == authoredRigs.failed.end()
                              ? rig2::rigFor(model)
                              : nullptr;

@@ -364,4 +364,68 @@ void() VR_AxeStick_TestReport =
         dprint(sprintf("axe test:   its edge at %v facing %v\n", e.vr_stick_at, e.vr_stick_dir));
     }
 };
+
+// ----------------------------------------------------------------------------
+// The hand slot's busy kinds (vr_pickup_test 7; here for the axe's fields): self is the player, its off hand empty.
+
+void() VR_SlotTest_Run =
+{
+    float h = cVR_OffHand;
+    VR_Test_Begin("handslot test");
+    VR_Test_Check(VR_Hand_CanTake(self, h), "the off hand may take to start");
+    // A busy kind: the hand empty (a fist, a hotspot) but taking nothing; a carry's release keeps it.
+    VR_Hand_Busy(self, h, VR_HOLD_SSGGRIP, world, "test");
+    VR_Test_Check(VRIsHandEmpty(self, h), "a busy hand is empty");
+    VR_Test_Check(!VR_Hand_CanTake(self, h), "a busy hand takes nothing");
+    VR_Hand_Release(self, h, "test");
+    VR_Test_Check(VR_Hand_Kind(self, h) == VR_HOLD_SSGGRIP, "a carry's release keeps the busy kind");
+    VR_Hand_Unbusy(self, h, VR_HOLD_MAGREHOLD, "test");
+    VR_Test_Check(VR_Hand_Kind(self, h) == VR_HOLD_SSGGRIP, "another kind's unbusy keeps it");
+    VR_Hand_Unbusy(self, h, VR_HOLD_SSGGRIP, "test");
+    VR_Test_Check(VR_Hand_Kind(self, h) == VR_HOLD_NONE && VR_Hand_CanTake(self, h), "its unbusy frees it");
+    // (The main hand's gun is no super shotgun: a second hand on it is stale, ended by the frame's check.)
+    if(!VR_Reload_SsgBreaks(self, cVR_MainHand))
+    {
+        VR_Hand_Busy(self, h, VR_HOLD_SSGGRIP, world, "test");
+        VR_Hand_Check(self, h);
+        VR_Test_Check(VR_Hand_Kind(self, h) == VR_HOLD_NONE, "a stale fore-end grip ends");
+    }
+
+    // The engine's: the foe grab's bit, the flashlight's.
+    float foeWas = self.vr_foegrab_hands;
+    float bitsWas = self.vrbits0;
+    self.vr_foegrab_hands = 1;
+    VR_Hand_Derive(self);
+    VR_Test_Check(VR_FoeGrab_HandHolds(self, h) && !VR_FoeGrab_HandHolds(self, cVR_MainHand),
+        "the foe grab's bit 1: the off hand holds an enemy");
+    VR_Test_Check(!VR_Hand_CanTake(self, h) && VR_Hand_CanTakeFrom(self, h, VR_HOLD_FOE),
+        "a hand holding an enemy takes only its hand-over");
+    self.vr_foegrab_hands = 0;
+    self.vrbits0 = self.vrbits0 | QVR_VRBITS0_OFFHAND_BUSY;
+    VR_Hand_Derive(self);
+    VR_Test_Check(VR_Melee_HoldsTorch(self, h) && !VR_FoeGrab_HandHolds(self, h), "the flashlight's bit");
+    VR_Test_Check(!VR_Hand_CanTake(self, h), "a hand holding the flashlight takes nothing");
+    self.vrbits0 = self.vrbits0 - (self.vrbits0 & QVR_VRBITS0_OFFHAND_BUSY);
+    VR_Hand_Derive(self);
+    VR_Test_Check(VR_Hand_Kind(self, h) == VR_HOLD_NONE, "the bits gone: free again");
+    self.vr_foegrab_hands = foeWas;
+    self.vrbits0 = bitsWas;
+    VR_Hand_Derive(self);
+
+    // A force grab's tug on a stuck axe (a stand-in: stuck in the level).
+    entity e = spawn();
+    e.classname = "slottest_axe";
+    e.vr_stick_kind = AXESTICK_LEVEL;
+    VR_AxeStick_Tug(e, self, h);
+    VR_Test_Check(VR_Hand_Kind(self, h) == VR_HOLD_TUG && VR_Hand_BusyEnt(self, h) == e, "a tug makes the hand busy");
+    VR_Hand_Check(self, h);
+    VR_Test_Check(VR_Hand_Kind(self, h) == VR_HOLD_TUG, "the tug holds through the frame's check");
+    VR_AxeStick_EndTug(e);
+    VR_Test_Check(VR_Hand_Kind(self, h) == VR_HOLD_NONE && VR_Hand_BusyEnt(self, h) == world, "the tug over: the hand free");
+    VR_Hand_Busy(self, h, VR_HOLD_TUG, e, "test");
+    VR_Hand_Check(self, h);
+    VR_Test_Check(VR_Hand_Kind(self, h) == VR_HOLD_NONE, "a stale tug ends");
+    remove(e);
+    VR_Test_Verdict();
+};
 #endif

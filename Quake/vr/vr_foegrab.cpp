@@ -22,6 +22,7 @@ constexpr float pinInTime = 0.05f;    // s: the drawn hand settles on the spot
 constexpr float pinOutTime = 0.12f;   // and goes back to the tracked hand after letting go
 constexpr double breakGrace = 0.25;  // s: a hand pulled past vr_foegrab_break lets go after this long past it,
 constexpr float breakFar = 2.f;       // or at once this many times as far
+constexpr float packBreakFar = 4.f;   // (a hold on a worn backpack: only this many times as far; its tug tears it off first)
 constexpr float animTime = 0.12f;     // s: the held spot eases to where the model's animation has it
 constexpr float animMaxCm = 20.f;     // and is at most this far from where the body alone (origin, yaw) carries it
 constexpr float followMaxSpeed = 480.f; // units/s: a held enemy follows its hands' own move at most this fast
@@ -391,6 +392,122 @@ struct Search
     return r;
 }
 
+// Whether `m` wears its backpack now (QC vr_wornpack.qc: .vr_wp_worn 1).
+[[nodiscard]] bool wearsPack(edict_t* m)
+{
+    return m && !m->free && fieldFloatOr(m, fields().vr_wp_worn, 0.f) == 1.f;
+}
+
+// The living wearer whose worn backpack the fist's spheres (`fist`, their bounds lo, hi) touch with the least gap (no
+// more than `lenient`; vr_worn_backpack_tug on): null none.
+struct PackFound
+{
+    edict_t* m{nullptr};
+    float gap{1e30f};
+};
+
+[[nodiscard]] PackFound packSearch(const za::Vector<glm::vec4>& fist, const glm::vec3& lo, const glm::vec3& hi, float lenient)
+{
+    PackFound r;
+    if(vr_worn_backpack_tug.value == 0.f)
+    {
+        return r;
+    }
+    for(int num = svs.maxclients + 1; num < qcvm->num_edicts; num++)
+    {
+        edict_t* m = EDICT_NUM(num);
+        glm::vec3 mid{0.f}, half{0.f};
+        glm::mat3 axes{1.f};
+        if(!wearsPack(m) || !canHold(m) || !box3d::wornPackBox(m, mid, axes, half))
+        {
+            continue;
+        }
+        const float reach = glm::length(half) + lenient;
+        bool close = true;
+        for(int k = 0; k < 3; k++)
+        {
+            close = close && lo[k] <= mid[k] + reach && hi[k] >= mid[k] - reach;
+        }
+        if(!close)
+        {
+            continue;
+        }
+        const glm::mat3 in = glm::transpose(axes);
+        for(const glm::vec4& s : fist)
+        {
+            const glm::vec3 local = glm::abs(in * (glm::vec3{s} - mid)) - half;
+            const float out = glm::length(glm::max(local, glm::vec3{0.f}));
+            const float gap = (out > 0.f ? out : za::max(local.x, za::max(local.y, local.z))) - s.w;
+            if(gap <= lenient && gap < r.gap)
+            {
+                r.gap = gap;
+                r.m = m;
+            }
+        }
+    }
+    return r;
+}
+
+// Hand `h` takes hold of `m`'s worn backpack (QC vr_wornpack.qc's tug: its pull read by VR_WP_Tug, packStretch): the palm
+// put on the pack's surface where it gripped (the face nearest it, the palm's middle a palm's sphere off it), so the
+// drawn hand lies on the pack rather than over it, carried with the pack as the body is posed.
+bool takePack(edict_t* player, Holder& hd, int h, edict_t* m, const glm::vec3& palm, float gap)
+{
+    glm::vec3 mid{0.f}, half{0.f}, origin{0.f};
+    glm::mat3 axes{1.f}, body{1.f};
+    if(!box3d::wornPackBox(m, mid, axes, half) || !bodyFrame(m, origin, body))
+    {
+        return false;
+    }
+    const glm::vec3 local = glm::transpose(axes) * (palm - mid);
+    glm::vec3 surface = glm::clamp(local, -half, half);
+    glm::vec3 n{0.f};
+    if(surface == local)
+    {
+        int k = 0; // (inside it: out through its nearest face)
+        float least = 1e30f;
+        for(int j = 0; j < 3; j++)
+        {
+            const float d = half[j] - za::abs(local[j]);
+            k = d < least ? j : k;
+            least = za::min(least, d);
+        }
+        surface[k] = local[k] < 0.f ? -half[k] : half[k];
+        n[k] = local[k] < 0.f ? -1.f : 1.f;
+    }
+    else
+    {
+        n = glm::normalize(local - surface);
+    }
+    const glm::vec3 palmLocal = surface + n * (palmRadiusCm * cm());
+    const glm::vec3 spot = mid + axes * surface;
+    const glm::vec3 palmAt = mid + axes * palmLocal;
+    Hold& g = hd.holds[h];
+    g = Hold{};
+    g.active = true;
+    g.ent = NUM_FOR_EDICT(m);
+    g.modelindex = static_cast<int>(m->v.modelindex);
+    g.pack = true;
+    g.packLocal = palmLocal;
+    g.packFrom = palm;
+    g.local = glm::transpose(body) * (spot - origin);
+    g.palmOff = glm::transpose(body) * (palmAt - spot);
+    g.palmAt = palmAt;
+    g.lastPalm = palm;
+    g.since = qcvm->time;
+    g.strength = za::clamp(callQc(bindings().foegrab.Strength, player, m, static_cast<float>(h), 0.f, 0.5f), 0.f, 1.f);
+    setFieldFloat(m, fields().vr_foegrab_letgo, 0.f);
+    addFoe(m);
+    if(debug() || vr_worn_backpack_debug.value)
+    {
+        Con_Printf("foegrab: %s hand takes hold of %s (%d)'s worn backpack, %.1f cm from its fist, the palm moved %.1f units "
+                   "onto it\n",
+            handName(h), PR_GetString(m->v.classname), g.ent, gap / cm(), glm::distance(palm, palmAt));
+    }
+    (void)callQc(bindings().foegrab.Taken, player, m, static_cast<float>(h), 0.f, 0.f); // (it spots you: awake, hostile)
+    return true;
+}
+
 // The hand `h` grips: the living monster its fist touches (the least gap), its spot and hold taken. False: none.
 bool tryTake(edict_t* player, Holder& hd, int h, const VrMove& move)
 {
@@ -439,6 +556,11 @@ bool tryTake(edict_t* player, Holder& hd, int h, const VrMove& move)
             found.best ? NUM_FOR_EDICT(found.best) : 0,
             found.best ? found.hit.tri : -1, found.best ? found.hit.u : 0.f, found.best ? found.hit.v : 0.f,
             found.best ? found.bestGap : 0.f);
+    }
+    // (A fist on a living wearer's backpack takes the pack, not the back under it.)
+    if(const PackFound pack = packSearch(fist, lo, hi, lenient); pack.m)
+    {
+        return takePack(player, hd, h, pack.m, palm, pack.gap);
     }
     edict_t* const best = found.best;
     const hitmodel::Hit& bestHit = found.hit;
@@ -1705,6 +1827,14 @@ bool oneHandDrags(int c, int h, edict_t* m, const char** where)
 {
     const Holder& hd = holders[c];
     const Hold& g = hd.holds[h];
+    if(g.pack)
+    {
+        if(where)
+        {
+            *where = "its worn backpack (a tug: it stands its ground)";
+        }
+        return false;
+    }
     const Hold& other = hd.holds[1 - h];
     const float mode = vr_foegrab_drag_onehand.value;
     const char* name = "both hands";
@@ -2175,6 +2305,18 @@ void throwCheck(int c, const TwoHands& t)
 bool spotNow(Hold& g, float dt, glm::vec3& palmAt)
 {
     edict_t* m = EDICT_NUM(g.ent);
+    if(g.pack)
+    {
+        // (On its worn backpack: the palm on the pack's surface as the pack sits on the posed body now.)
+        glm::vec3 mid{0.f}, half{0.f};
+        glm::mat3 axes{1.f};
+        if(!box3d::wornPackBox(m, mid, axes, half))
+        {
+            return false;
+        }
+        palmAt = mid + axes * g.packLocal;
+        return true;
+    }
     glm::vec3 origin{0.f};
     glm::mat3 body{1.f};
     if(!bodyFrame(m, origin, body))
@@ -2405,6 +2547,10 @@ void qvr::foegrab::preThink(edict_t* ent)
             else if(!canHold(EDICT_NUM(g.ent), g.modelindex))
             {
                 release(ent, h, Why::Lost, "the enemy can't be held now");
+            }
+            else if(g.pack && !wearsPack(EDICT_NUM(g.ent)))
+            {
+                release(ent, h, Why::Lost, "its backpack is off");
             }
         }
         if(!enabled || !pressed || g.active || hd.owned[h] || climbing || hd.pressedAt[h] < 0.0 ||
@@ -2784,7 +2930,11 @@ void qvr::foegrab::afterPoses()
             }
             // Past the break for a moment (a step up a stair, a lurch: the drag may bring it back), or far past it.
             g.overSince = g.stretch <= breakAt ? -1.0 : g.overSince < 0.0 ? qcvm->time : g.overSince;
-            if(g.overSince >= 0.0 && (qcvm->time - g.overSince >= gameSeconds(breakGrace) || g.stretch > breakAt * breakFar))
+            // (Never on a worn backpack: pulled, the pack tears off instead, the QC's tug reading the stretch: VR_WP_Tug.)
+            // (Only very far off: the tug off, or a pack too strong for it.)
+            if((!g.pack && g.overSince >= 0.0 &&
+                   (qcvm->time - g.overSince >= gameSeconds(breakGrace) || g.stretch > breakAt * breakFar)) ||
+                (g.pack && g.stretch > breakAt * packBreakFar))
             {
                 release(player, h, Why::Pulled, "pulled too far from the spot");
             }
@@ -2812,6 +2962,86 @@ void qvr::foegrab::calcStats(edict_t* ent, int* statsi)
         }
     }
     statsi[STAT_QVR_FOEGRAB] = bits;
+}
+
+float qvr::foegrab::packStretch(edict_t* player, int hand, edict_t* m)
+{
+    const Holder* hd = holderOf(player);
+    if(!hd || !m || hand < 0 || hand > 1)
+    {
+        return -1.f;
+    }
+    const Hold& g = hd->holds[hand];
+    return g.active && g.pack && g.ent == NUM_FOR_EDICT(m) ? g.stretch : -1.f;
+}
+
+float qvr::foegrab::packPalmGap(edict_t* player, int hand, edict_t* m)
+{
+    glm::vec3 mid{0.f}, half{0.f};
+    glm::mat3 axes{1.f};
+    if(packStretch(player, hand, m) < 0.f || !box3d::wornPackBox(m, mid, axes, half))
+    {
+        return -1.f;
+    }
+    const glm::vec3 local = glm::abs(glm::transpose(axes) * (holderOf(player)->holds[hand].palmAt - mid)) - half;
+    return glm::length(glm::max(local, glm::vec3{0.f})) / cm();
+}
+
+glm::vec3 qvr::foegrab::packPull(edict_t* player, edict_t* m)
+{
+    const Holder* hd = holderOf(player);
+    const VrMove* move = server::clientMove(player);
+    glm::vec3 pull{0.f};
+    for(int h = 0; h < 2 && hd && move && m; h++)
+    {
+        const Hold& g = hd->holds[h];
+        // (The hand's own travel since it took hold: the way it yanks, not its spot's swing as the wearer turns.)
+        pull += g.active && g.pack && g.ent == NUM_FOR_EDICT(m) ? palmOf(player, *move, h) - g.packFrom : glm::vec3{0.f};
+    }
+    return pull;
+}
+
+int qvr::foegrab::packTorn(edict_t* m)
+{
+    if(!m || !sv.active)
+    {
+        return 0;
+    }
+    const int e = NUM_FOR_EDICT(m);
+    const int players = za::min(svs.maxclients, static_cast<int>(MAX_SCOREBOARD));
+    int n = 0;
+    for(int c = 0; c < players; c++)
+    {
+        Holder& hd = holders[c];
+        for(int h = 0; h < 2; h++)
+        {
+            Hold& g = hd.holds[h];
+            if(!g.active || !g.pack || g.ent != e)
+            {
+                continue;
+            }
+            // (Let go of quietly, the QC's call: the grip is the QC's again at once, the pack its hand's.)
+            g.active = false;
+            hd.owned[h] = hd.ownedLast[h] = false;
+            n++;
+            // (This frame's bits the QC reads too: the grip held on, not a new press.)
+            edict_t* player = EDICT_NUM(c + 1);
+            const VrMove* move = server::clientMove(player);
+            if(fields().vrbits0 >= 0 && move && (move->vrBits0 & grabBit[h]))
+            {
+                const int bits = static_cast<int>(fieldFloat(player, fields().vrbits0)) | grabBit[h] | prevGrabBit[h];
+                fieldFloat(player, fields().vrbits0) = static_cast<float>(bits);
+            }
+            const int handBits = static_cast<int>(fieldFloatOr(player, fields().vr_foegrab_hands, 0.f)) & ~(1 << h);
+            setFieldFloat(player, fields().vr_foegrab_hands, static_cast<float>(handBits));
+            if(debug() || vr_worn_backpack_debug.value)
+            {
+                Con_Printf("foegrab: %s hand's hold on %s (%d)'s backpack ends: torn off (held %.2f s)\n", handName(h),
+                    PR_GetString(m->v.classname), e, qcvm->time - g.since);
+            }
+        }
+    }
+    return n;
 }
 
 bool qvr::foegrab::holds(const edict_t* player, const edict_t* m)

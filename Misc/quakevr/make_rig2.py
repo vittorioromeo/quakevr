@@ -7,7 +7,8 @@
 #        (default all; each rig in RIGS below is built on its armed model's mesh and written for its models, which
 #        share the body vertex for vertex: grunt -> quakevr/rigs/vrgrunt.rig2.txt and soldier.rig2.txt, soldier.mdl's
 #        gun its `weapon` bone on the right hand; enforcer -> vrenforcer.rig2.txt and enforcer.rig2.txt, the laser
-#        rifle's)
+#        rifle's; knight -> vrknight.rig2.txt only, the armed knight's (vr_agknight): knight.mdl keeps its derived
+#        rig, so the knights are unchanged with the setting off)
 #
 # The method (all from the rest frame, frame 0, and the choices in each rig's skeleton below):
 # 1. Joints. Each bone's pivot and end are authored (model units, x forward, y left, z up, read off the mesh's
@@ -110,6 +111,7 @@ DEFAULTS = dict(
     ties=[],  # groups of vertices given their average weights (the back of a knee: its triangle turns as one)
     hold={},  # vertex -> the smoothing's pull to its blend there (as region_alpha, per vertex)
     pieces={},  # a vertex of a separate piece (welded mesh) -> the bone the whole piece rides, rigid (a backpack)
+    weld_gun=True,  # False: the gun's vertices welded to the body's (the knight's sword) give them none of its weights
     reach=None,  # units past a bone's capsule (its thickness) beyond which its weight is dropped (None: anywhere)
     no_skip=[],  # (end, middle, end) bone chains: an end's vertex keeps none of the other end's weight (the middle's)
     max_hops=9,  # bones further than this many joints from a vertex's own dropped (none: the fused arm's web needs the
@@ -178,7 +180,71 @@ ENFORCER_SKELETON = [
     dict(name='weapon', parent='hand_r', joint='fixed', pivot=(5.5, -9.5, 12.5), end=(5.5, 20.0, 15.0)),
 ]
 
+# Quake VR's knight (quakevr/progs/vrknight.mdl, the knight.mdl without its sword's triangles: 655 vertices; frame 0,
+# stand1): soles z -24.2, helmet top 25; his body's middle y 1.8. Mid-stride: the right leg forward (knee x 11, foot
+# x 11..17), the left back (knee x 0.5, ankle x -3.5). The right arm out to an elbow at his side (y -13, z 6) and the
+# forearm forward and in to the fist on the sword's grip (its middle 12.0 -6.7 1.1: vertices 106, 110, 114; the blade
+# up and forward from it); the left arm hanging a little back, the hand at his hip (z -2). Big shoulder pads; a skirt
+# of mail from the belt (z -2) to the thighs. The limits are the grunt's (Vittorio's tuning) until his own.
+KNIGHT_SKELETON = [
+    dict(name='pelvis', parent=None, joint='root', pivot=(3.0, 1.8, -2.0), end=(3.0, 1.8, 3.0)),
+    dict(name='spine', parent='pelvis', joint='ball', pivot=(3.0, 1.8, 3.0), end=(3.5, 1.8, 9.5), blend=3.0,
+         radius=12.0, fwd=(1, 0, 0), side=(0, 1, 0), sx=(-35, 45), sy=(-25, 25), tw=(-35, 36)),
+    dict(name='chest', parent='spine', joint='ball', pivot=(3.5, 1.8, 9.5), end=(4.5, 1.8, 16.5), blend=3.0,
+         radius=12.0, fwd=(1, 0, 0), side=(0, 1, 0), sx=(-20, 36), sy=(-20, 20), tw=(-40, 40)),
+    dict(name='neck', parent='chest', joint='ball', pivot=(4.5, 1.8, 16.5), end=(5.0, 1.8, 19.0), blend=1.2,
+         radius=6.0, fwd=(1, 0, 0), side=(0, 1, 0), sx=(-25, 35), sy=(-25, 25), tw=(-35, 35)),
+    dict(name='head', parent='neck', joint='ball', pivot=(5.0, 1.8, 19.0), end=(6.0, 1.8, 25.0), blend=1.0,
+         radius=6.0, fwd=(1, 0, 0), side=(0, 1, 0), sx=(-25, 15), sy=(-20, 20), tw=(-20, 20)),
+    dict(name='clavicle_l', parent='chest', joint='ball', pivot=(4.0, 4.0, 15.5), end=(3.0, 11.0, 13.0), blend=2.0,
+         radius=6.0, fwd=(1, 0, 0), side=(0, 0, 1), sx=(-15, 20), sy=(-10, 20), tw=(-35, 35)),
+    # (his left arm hangs 51 degrees back at rest: its swing back to 60)
+    dict(name='upperarm_l', parent='clavicle_l', joint='ball', pivot=(3.0, 11.0, 13.0), end=(-2.5, 13.5, 7.0),
+         blend=3.5, radius=7.5, neutral=(0, 0.17, -1), fwd=(1, 0, 0), side=(0, 1, 0), sx=(-60, 46),
+         sy=(-15, 50), tw=(-40, 20)),
+    dict(name='forearm_l', parent='upperarm_l', joint='hinge', pivot=(-2.5, 13.5, 7.0), end=(-3.2, 14.3, 1.0),
+         refine=True, blend=1.6, radius=4.5, range=(0, 125)),
+    dict(name='hand_l', parent='forearm_l', joint='ball', pivot=(-3.2, 14.3, 1.0), end=(-2.6, 14.6, -2.0), refine=True,
+         blend=0.6, radius=3.5, fwd=(0, 0, 1), side=(0, -1, 0), sx=(-30, 30), sy=(-30, 30), tw=(-30, 30)),
+    dict(name='clavicle_r', parent='chest', joint='ball', pivot=(4.0, -0.5, 15.5), end=(4.0, -8.5, 13.0),
+         blend=2.0, radius=6.0, fwd=(1, 0, 0), side=(0, 0, 1), sx=(-15, 20), sy=(-10, 20), tw=(-35, 35)),
+    dict(name='upperarm_r', parent='clavicle_r', joint='ball', pivot=(4.0, -8.5, 13.0), end=(5.0, -13.0, 6.0),
+         blend=3.5, radius=7.5, neutral=(0, -0.17, -1), fwd=(1, 0, 0), side=(0, -1, 0), sx=(-35, 46),
+         sy=(-15, 50), tw=(-20, 40)),
+    dict(name='forearm_r', parent='upperarm_r', joint='hinge', pivot=(5.0, -13.0, 6.0), end=(10.4, -8.2, 2.2),
+         refine=True, blend=1.6, radius=4.5, range=(0, 125)),
+    dict(name='hand_r', parent='forearm_r', joint='ball', pivot=(10.4, -8.2, 2.2), end=(13.5, -5.4, 0.0), refine=True,
+         blend=0.6, radius=3.5, fwd=(0, 0, 1), side=(0, 1, 0), sx=(-30, 30), sy=(-30, 30), tw=(-30, 30)),
+    dict(name='thigh_l', parent='pelvis', joint='ball', pivot=(2.5, 6.0, -4.0), end=(0.5, 6.0, -14.0), blend=2.6,
+         radius=8.0, neutral=(0, 0.08, -1), fwd=(1, 0, 0), side=(0, 1, 0), sx=(-30, 65), sy=(-20, 45), tw=(-30, 30)),
+    dict(name='shin_l', parent='thigh_l', joint='hinge', pivot=(0.5, 6.0, -14.0), end=(-3.5, 6.0, -20.5),
+         refine=True, blend=2.6, radius=6.0, axis=(0, 1, 0), range=(0, 130)),
+    dict(name='foot_l', parent='shin_l', joint='ball', pivot=(-3.5, 6.0, -20.5), end=(2.5, 6.0, -23.5),
+         refine=True, blend=1.0, radius=4.0, fwd=(0, 0, 1), side=(0, 1, 0), sx=(-25, 30), sy=(-10, 10),
+         tw=(-12, 12)),
+    dict(name='thigh_r', parent='pelvis', joint='ball', pivot=(3.0, -2.5, -4.0), end=(11.0, -2.5, -12.5), blend=2.6,
+         radius=8.0, neutral=(0, -0.08, -1), fwd=(1, 0, 0), side=(0, -1, 0), sx=(-30, 65), sy=(-20, 45),
+         tw=(-30, 30)),
+    dict(name='shin_r', parent='thigh_r', joint='hinge', pivot=(11.0, -2.5, -12.5), end=(11.5, -2.5, -21.0),
+         refine=True, blend=2.6, radius=6.0, axis=(0, 1, 0), range=(0, 130)),
+    dict(name='foot_r', parent='shin_r', joint='ball', pivot=(11.5, -2.5, -21.0), end=(16.5, -2.5, -23.5),
+         refine=True, blend=1.0, radius=4.0, fwd=(0, 0, 1), side=(0, -1, 0), sx=(-25, 30), sy=(-10, 10),
+         tw=(-12, 12)),
+    # (the sword's grip, the blade's way: its pommel 568 to its tip 561 at rest)
+    dict(name='weapon', parent='hand_r', joint='fixed', pivot=(12.0, -6.7, 1.1), end=(21.0, -1.7, 15.9)),
+]
+
 RIGS = {
+    'knight': dict(build='vrknight', models=['vrknight'], skeleton=KNIGHT_SKELETON,
+                   gun=[334, 335, 336, 363, 364, 365, 524] + list(range(535, 541)) + list(range(557, 649)),
+                   thick=dict(pelvis=7.0, spine=7.5, chest=7.5, neck=3.5, head=5.0, clavicle=3.5, upperarm=3.5,
+                              forearm=2.8, hand=2.0, thigh=4.0, shin=3.0, foot=2.6),
+                   # the helmet and the face (above the pads' tops, between them) the head's: the chest's thick capsule
+                   # reached up into them
+                   region_rules=[('head', lambda p, r: p[2] >= 18.0 and -2.5 <= p[1] <= 6.0 and r in ('chest', 'neck'))],
+                   # (the sword's weight was carried onto the left pad and the neck: long red spikes from the shoulder
+                   # as the arms moved)
+                   max_hops=3, weld_gun=False),
     'grunt': dict(build='vrgrunt', models=['vrgrunt', 'soldier'], skeleton=GRUNT_SKELETON,
                   gun=list(range(463, 549))),  # soldier.mdl's gun (make_vrgrunt.py's list): the `weapon` bone
     'enforcer': dict(build='vrenforcer', models=['vrenforcer', 'enforcer'], skeleton=ENFORCER_SKELETON,
@@ -568,6 +634,8 @@ def build(mesh, cfg, quiet=False):
     # 5. welds (and the tied groups: vertices given one set of weights, so their triangle turns as one piece)
     ties = [sorted({u for v in t for u in range(mesh.nv) if mesh.weld[u] == mesh.weld[v]}) for t in cfg['ties']]
     for g in mesh.groups + ties:
+        if not cfg['weld_gun']:
+            g = [v for v in g if v not in gun] if any(v not in gun for v in g) else g
         acc = {}
         for v in g:
             for bo, ww in weights[v].items():
