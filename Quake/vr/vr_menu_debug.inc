@@ -777,7 +777,8 @@ za::Vector<Item> pageDebugProfiling()
                   "(and why not), the shaders made for it, in the console."),
         command("Load Times", "vr_startup_times")
             .help("vr_startup_times: where the start-up and the last map load spent their time (from the map command to its "
-                  "first frame drawn: the stages, then the kinds of work across them), and every load's total."),
+                  "first frame drawn: the stages, then the kinds of work across them), every load's total, and the last "
+                  "session's quit (its stages)."),
         infoLine(warmup::statusLine, 0),
         toggle("Cache Warm-up", vr_cache_warmup)
             .help("On: the derived-data cache is filled in the background (every installed game's models' occlusion bakes) on "

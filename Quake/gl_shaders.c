@@ -57,6 +57,18 @@ static qboolean gl_multiview_async; // GL_CreateShader, GL_CreateProgramFromShad
 static int gl_multiview_pending; // twins compiling in the background (GL_MultiviewPending)
 qboolean gl_multiview_draw; // GL_UseProgram: the multiview pass draws (twins)
 
+// QVR: GL_CreateShaders with the driver's parallel compile (gl_parallel_compile_able): every shader compiled and every
+// program linked without waiting, their statuses read at its end in the same order (GL_DeferredCheck: the same errors).
+typedef struct {
+	GLuint		program;
+	GLuint		shaders[2];
+	int			numshaders;
+	char		name[128];
+} gldeferred_t;
+static gldeferred_t gl_deferred[256];
+static int gl_num_deferred;
+static qboolean gl_shaders_deferred;
+
 /*
 =============
 GL_InitError
@@ -180,6 +192,8 @@ static GLuint GL_CreateShader (GLenum type, const char *source, const char *extr
 	GL_CompileShaderFunc (shader);
 	if (gl_multiview_async) // QVR: a twin made in the background: not waited for (GL_MultiviewPending)
 		return shader;
+	if (gl_shaders_deferred && !gl_multiview_compile) // QVR: its status read at GL_CreateShaders' end (GL_DeferredCheck)
+		return shader;
 	GL_GetShaderivFunc (shader, GL_COMPILE_STATUS, &status);
 
 	if (status != GL_TRUE)
@@ -208,9 +222,23 @@ static GLuint GL_CreateProgramFromShaders (const GLuint *shaders, int numshaders
 {
 	GLuint program;
 	GLint status;
+	gldeferred_t *deferred = NULL; // QVR: its statuses read at GL_CreateShaders' end (GL_DeferredCheck)
 
 	program = GL_CreateProgramFunc ();
 	GL_ObjectLabelFunc (GL_PROGRAM, program, -1, name);
+
+	if (gl_shaders_deferred && !gl_multiview_compile) // QVR
+	{
+		int i;
+		if (gl_num_deferred == countof (gl_deferred) || numshaders > (int) countof (gl_deferred[0].shaders))
+			Sys_Error ("gl_deferred overflow");
+		deferred = &gl_deferred[gl_num_deferred++];
+		deferred->program = program;
+		deferred->numshaders = numshaders;
+		for (i = 0; i < numshaders; i++)
+			deferred->shaders[i] = shaders[i]; // (deleted below: kept while attached, their status still there to read)
+		q_strlcpy (deferred->name, name, sizeof (deferred->name));
+	}
 
 	while (numshaders-- > 0)
 	{
@@ -222,7 +250,7 @@ static GLuint GL_CreateProgramFromShaders (const GLuint *shaders, int numshaders
 	VR_GLStep ("link %s", name); // QVR: breadcrumbs (vr/vr_glsafe.cpp)
 	GL_LinkProgramFunc (program);
 	status = GL_TRUE;
-	if (!gl_multiview_async) // QVR: a twin made in the background: its status later (GL_MultiviewPending)
+	if (!gl_multiview_async && !deferred) // QVR: a twin made in the background: its status later (GL_MultiviewPending); deferred: GL_DeferredCheck
 		GL_GetProgramivFunc (program, GL_LINK_STATUS, &status);
 
 	if (status != GL_TRUE)
@@ -550,7 +578,58 @@ void GL_ClearCachedProgram (void)
 GL_CreateShaders
 =============
 */
+/*
+=============
+GL_DeferredCheck -- QVR
+
+The deferred programs' statuses (gl_shaders_deferred), in the order they were made: each one's shaders' compile, then
+its link; the first failure reported as GL_CreateShader and GL_CreateProgramFromShaders would have.
+=============
+*/
+static void GL_DeferredCheck (void)
+{
+	int i, j;
+	GLint status;
+	char infolog[1024];
+
+	for (i = 0; i < gl_num_deferred; i++)
+	{
+		const gldeferred_t *d = &gl_deferred[i];
+		for (j = 0; j < d->numshaders; j++)
+		{
+			GL_GetShaderivFunc (d->shaders[j], GL_COMPILE_STATUS, &status);
+			if (status != GL_TRUE)
+			{
+				GLint type = 0;
+				GL_GetShaderivFunc (d->shaders[j], GL_SHADER_TYPE, &type);
+				memset (infolog, 0, sizeof (infolog));
+				GL_GetShaderInfoLogFunc (d->shaders[j], sizeof (infolog), NULL, infolog);
+				GL_InitError ("Error compiling %s %s shader:\n\n%s", d->name,
+					type == GL_VERTEX_SHADER ? "vertex" : type == GL_FRAGMENT_SHADER ? "fragment" : "compute", infolog);
+			}
+		}
+		GL_GetProgramivFunc (d->program, GL_LINK_STATUS, &status);
+		if (status != GL_TRUE)
+		{
+			memset (infolog, 0, sizeof (infolog));
+			GL_GetProgramInfoLogFunc (d->program, sizeof (infolog), NULL, infolog);
+			GL_InitError ("Error linking %s program:\n\n%s", d->name, infolog);
+		}
+	}
+	gl_num_deferred = 0;
+}
+
+static void GL_CreateShadersAll (void);
+
 void GL_CreateShaders (void)
+{
+	gl_shaders_deferred = gl_parallel_compile_able; // QVR: the driver's threads (GL_DeferredCheck at the end)
+	GL_CreateShadersAll ();
+	GL_DeferredCheck ();
+	gl_shaders_deferred = false;
+}
+
+static void GL_CreateShadersAll (void)
 {
 	int palettize, dither, mode, alphatest, warp, oit;
 
