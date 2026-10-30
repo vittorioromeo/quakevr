@@ -1305,7 +1305,8 @@ float vr_agk_wf;
 float vr_agk_hpose;         // the studio's hold this frame (VR_AGK_Query): the pose (-1 none), its phase, Play's count
 float vr_agk_hphase;
 float vr_agk_hplay;
-.float vr_agk_held;         // held in a pose by the studio (put back when let go)
+float vr_agk_test_hold;     // test 90 (vr_armedgrunt_guard_test.qc): its pose + 1 held as the studio holds it (0 none)
+.float vr_agk_held;        // held in a pose by the studio (put back when let go)
 .float vr_agk_play;         // its Play count seen
 .float vr_agk_play_end;     // its strike played until
 entity vr_agk_tgt;          // the studio's target ahead (an aim, a guard, a strike's)
@@ -1518,7 +1519,15 @@ void(entity g, entity p) VR_AGK_Keys =
     }
     VR_AGK_Add(base, (1 - wp) * (1 - wa), FALSE);
     VR_AGK_Add(base + VR_AGK_AIM * VR_AGK_POSE, (1 - wp) * wa, FALSE);
-    VR_AGK_Add(base + VR_AGK_RUN * VR_AGK_POSE, (1 - wp) * g.vr_agp_runw, FALSE);
+    // The Run key: a change on the carried stance (the studio previews Run carried, its Aim/Guard standing), so laid on
+    // with the carried stance's share (vr_agrunt_run_key_stance; ROUND23.md, "The fists' guard in game as the Pose Studio
+    // shows it": on the guard as well it raised an unarmed enforcer's fists to its brow, crossed)
+    float wrun = (1 - wp) * g.vr_agp_runw;
+    if(cvar_hget(cvarh_vr_agrunt_run_key_stance))
+    {
+        wrun = wrun * (1 - wa);
+    }
+    VR_AGK_Add(base + VR_AGK_RUN * VR_AGK_POSE, wrun, FALSE);
     VR_AGK_Add(base + VR_AGK_PICKUP * VR_AGK_POSE, wp, FALSE);
     // The off hand's hold (a single gun's: agpose::OffMode): the Pickup's while taking a weapon up, if set; else Aim's
     // while aimed (Auto: the Weapon Holds'); else Run's while running, if set; else Carry's. (So Run's Free with Aim's
@@ -1926,6 +1935,10 @@ void(entity g, entity p) VR_AGP_Pose =
     if(!vr_agp_quiet)
     {
         VR_AGK_Query(g, p); // (the Pose Studio's hold; it learns its kind and class)
+        if(vr_agk_test_hold)
+        {
+            vr_agk_hpose = vr_agk_test_hold - 1; // (test 90: the studio's hold without the studio)
+        }
     }
     float frozen = VR_AG_Still(g);
     if(frozen)

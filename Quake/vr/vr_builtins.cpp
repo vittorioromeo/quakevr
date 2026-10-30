@@ -10,6 +10,7 @@
 #include "Zancle/Algorithm/Unique.hpp"
 #include "vr_melee_shared.h"
 #include "vr_agarmor.hpp"
+#include "vr_agarms.hpp"
 #include "vr_box3d.hpp"
 #include "vr_toolgun.hpp"
 #include "vr_carry2h.hpp"
