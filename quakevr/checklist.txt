@@ -93,6 +93,9 @@ Throw the flashlight with a flick and with a lob: it flies like a thrown prop, n
 Swing a crate with the physgun and let go at the end of the swing: it keeps the swing (it used to come out slower).
 Every grab, pickup, holster, lamp and foe-grab buzz feels as before.
 Shoot, nail and punch a crate, an explosive box, a knight, a wall torch and a grenade: same sparks, splinters, blood and sounds as before (one impact table now).
+Fire the shotgun, then the super shotgun, then a nailgun burst, and stop: thin faint wisps rise off each barrel (1, 2, 2) for a few seconds and follow the gun as you move it (Gunfire Particles > Wisp settings change delay, length, thickness, density).
+Rocket launcher: after a shot, light smoke comes out of the vents in the back of its head, toward you.
+AD: a rocket soldier's shot flashes and smokes, with backblast out of the back of its gun.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns
