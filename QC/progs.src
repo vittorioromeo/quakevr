@@ -548,6 +548,7 @@ vr_armedgrunt_posecat_test.qc
 vr_armedgrunt_shove_test.qc
 vr_armedgrunt_muzzle_test.qc
 vr_armedgrunt_shoveclose_test.qc
+vr_armedgrunt_guard_test.qc
 vr_nailpistol_test.qc
 vr_nail_test.qc
 vr_flaregun_test.qc

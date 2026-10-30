@@ -1028,7 +1028,12 @@ za::Vector<Item> pageDebugTests()
         command("Nail Speed and Size Test", "vr_nail_test 1")
             .help("Headless: the nailguns', the nail pistol's and an armed grunt's nails' speed (15-20% above 1750 and "
                   "2600), a nail's hit box (a point; a grunt met only within its box and the tolerance, the middle never "
-                  "missed) and the nails' drawn size (\"nailtest: N passed, M failed\")."),
+                  "missed), the nails' drawn size and a dropped backpack lying ahead met only where it is drawn "
+                  "(\"nailtest: N passed, M failed\")."),
+        command("Nails at a Dropped Backpack", "vr_nail_test 3")
+            .help("Headless: a backpack dropped as a monster drops it, settled; nails across and over it meet it only at "
+                  "its drawn box as it lies, none beyond it (not the pickup box 15 units wider), none flying through it "
+                  "(\"nailtest: N passed, M failed\")."),
         toggle("Slide: Print", vr_nailslide_debug)
             .help("vr_nailslide_debug: the slide's place in each hand every frame it moves (0 home .. 1 back by Slide "
                   "Travel) and its edges: a shot, the lock, the re-rack (\"nailslide: ...\")."),
@@ -1125,7 +1130,8 @@ za::Vector<Item> pageDebugTests()
                   "as before the fix: the denser creases, to compare."),
         command("Per-Weapon Recoil Test", "vr_recoil_test")
             .help("vr_recoil_test: the main hand's weapon's own Recoil Kick Back and Muzzle Rise move its recoil only "
-                  "(no other weapon's), and its Recoil Recovery 2x / 0.5x takes twice / half as long back to rest; "
+                  "(no other weapon's), Recoil Amount scales it, its Return Time 2x / 0.5x takes twice / half as long "
+                  "back to rest, and the old multipliers converted (this start's config too) draw the same kick; "
                   "prints PASS/FAIL lines and puts every value back."),
         command("Gunfire Sound and Punch Test", "vr_gunsfx_test")
             .help("vr_gunsfx_test: every shot's layers and room tail, the variation, the casings by surface, the dry "
@@ -1138,6 +1144,16 @@ za::Vector<Item> pageDebugTests()
         slider("Hold the Auto Pump", vr_autopump_hold, -0.05f, 1.f, 0.05f, "%.2f")
             .help("vr_autopump_hold: every shotgun's fore-end held at that point of its auto pump's stroke, to look at it "
                   "(0.35-0.45: at the back; below 0: off)."),
+        toggle("Take Out the Models' Own Kick", vr_weapon_kick_cancel)
+            .help("vr_weapon_kick_cancel: Quake's guns' firing frames kick the whole gun back and up in the model; that kick "
+                  "is taken out as they are drawn (their pumps, barrels and drums still move) and the programmatic recoil "
+                  "kicks them instead. Off: the models' own kick again, to compare."),
+        slider("Hold the Weapon Frame", vr_debug_weapon_frame, -1.f, 12.f, 1.f, "%.0f")
+            .help("vr_debug_weapon_frame: the held weapons drawn at this frame of their models (1-6: the firing frames of "
+                  "most), to look at a kick with and without the models' own (below 0: as the game steps them)."),
+        command("Kick Cancel Test", "vr_kickcancel_test")
+            .help("vr_kickcancel_test: every kicking gun's model drawn at each of its frames keeps its body where its rest "
+                  "frame draws it (its parts may move); prints each model's body, parts and kicked frames, and a verdict."),
         header("Flung Props"),
         slider("Fling Speed", vr_test_fling_speed, 1.f, 40.f, 1.f, "%.0f m/s").extend(),
         cycle("Fling At", vr_test_fling_at, {{0.f, "Nearest Monster"}, {1.f, "You"}}),

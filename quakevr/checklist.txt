@@ -109,6 +109,15 @@ Nail pistol: an empty one holstered or dropped shows its slide locked open (Debu
 Nail pistol: the re-rack after a magazine goes in is a loud, clear clack.
 Debug > Tunables: moving a slider changes the game at once; the Show (All / Changed Only) and Page filters work; menu Search finds a tunable (e.g. "palm fit") and opens its row.
 Tuned values survive a restart (tunables.cfg; the console says "N tuning constants set off their default"); tune_reset clears them.
+Each id gun fires with no kick from its model: the body holds in the hand while the pump, barrels and launcher shells still move (Debug > Tests > Weapons "Take Out the Models' Own Kick" off shows the old kick); the muzzle flash, shells and a hand on the pump stay on the gun through a shot.
+Weapon Offsets > Effects: Recoil Kick Back (cm), Muzzle Rise (deg), Return Time (s) per gun; your guns feel as before (your global 4.5 / 7.5 are now in each gun's values: the shotgun reads 17.3 cm / 10.5 deg).
+Weapon Effects: Recoil Amount 0 / 1 / 2 scales every gun's kick; Programmatic Recoil off stops it.
+Each gun's haptic punch feels as before (nailguns, lightning gun, laser cannon, rifles: Haptic Punch now about 0.64x, the same spike).
+An unarmed enforcer running at you keeps its fists at mouth level in its guard (as in Pose Studio), not raised to the brow or crossed.
+Shotgun blasts at grunts' heads, legs and arms: flinch, ragdoll fall, headshot highlight, armour helmet and dummy report react as before (one hit record).
+Nails just past a backpack a grunt dropped fly by; nails at it hit it and nudge it; walking over it, grabbing and force-grabbing it work as before.
+Shotgun blasts at grunts' heads, legs and arms: flinch, ragdoll fall, headshot highlight, armour helmet and dummy report react as before (one hit record).
+Nails just past a backpack a grunt dropped fly by; nails at it hit it and nudge it; walking over it, grabbing and force-grabbing it work as before.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns

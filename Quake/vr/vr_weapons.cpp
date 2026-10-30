@@ -15,9 +15,11 @@
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
+#include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
+#include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/Vocabulary/Span.hpp"
 #include "vr_zancle.hpp"
@@ -49,6 +51,48 @@ SlotTable<Key, numSlots, numKeys> slots; // vr_wofs_<key>_NN
 [[nodiscard]] cvar_t& cvarAt(int slot, Key key)
 {
     return slots.at(slot, key);
+}
+
+// The recoil settings before vr_wofs_version 74 (OldRecoil; ROUND23.md, "Recoil in cm, degrees and seconds"): each
+// slot's shipped values then (the rest: OldRecoil's), an old config's lines over them (retiredRecoilLine), the steps
+// before 74 taking theirs on them as they did on the cvars, and takeRecoilUnits74 converting them to the new keys.
+struct OldRecoilDefault
+{
+    int slot;
+    OldRecoil values;
+};
+constexpr OldRecoilDefault oldRecoilDefaults[] = {{1, {1, 1, 3.85f, 1.4f, 0.35f, 1}}, {2, {1, 1, 5.3f, 0.95f, 0.3f, 1}},
+    {3, {1, 0.65f, 0.5f, 0.5f, 0.15f, 1}}, {4, {1, 0.785f, 0.76f, 0.835f, 0.15f, 1}}, {5, {1, 1, 5.3f, 3, 0.35f, 1}},
+    {6, {1, 1, 5.2f, 1.35f, 0.3f, 1}}, {7, {1, 1, 0.4f, 0.25f, 0.1f, 1}}, {9, {1, 0.71f, 0.835f, 0.735f, 0.15f, 1}},
+    {10, {1, 1, 5.3f, 3, 0.35f, 1}}, {11, {1, 0.65f, 0.5f, 0.5f, 0.15f, 1}}, {12, {1, 0.785f, 0.76f, 0.835f, 0.15f, 1}},
+    {13, {1, 1, 5.3f, 3, 0.35f, 1}}, {14, {1, 1, 5.2f, 1.35f, 0.3f, 1}}, {15, {1, 1, 0.4f, 0.25f, 0.1f, 1}},
+    {21, {1, 1, 1, 1, 0.12f, 1}}, {22, {1, 0.5f, 1, 1, 0.15f, 1}}, {26, {0, 1, 1, 1, 0.12f, 1}},
+    {27, {1, 1, 1, 1, 0.12f, 1}}, {28, {1, 1, 1, 1, 0.12f, 1}}, {29, {1, 1, 1, 1, 0.12f, 1}},
+    {30, {1, 1, 1, 1, 0.12f, 1}}, {31, {1, 1, 1, 1, 0.12f, 1}}, {32, {1, 1.2f, 1, 1, 0.325f, 1}},
+    {34, {1, 1.405f, 1, 1, 0.15f, 1}}, {35, {1, 0.6f, 1, 1, 0.12f, 1}}, {36, {1, 0.6f, 1, 1, 0.1f, 1}},
+    {37, {1, 1, 1, 1, 0.15f, 1}}, {38, {1, 1.6f, 1, 1, 0.16f, 1}}};
+
+za::Array<OldRecoil, numSlots> oldRecoil{}; // this start's (oldRecoilDefaults, then the config's lines)
+OldRecoilGlobals oldRecoilGlobals;
+bool recoilConverted = false; // this start converted them (a config from before 74)
+
+// The retired per-slot names (vr_wofs_<name>_NN) and the value each held.
+struct OldRecoilName
+{
+    const char* name;
+    float OldRecoil::*field;
+};
+constexpr OldRecoilName oldRecoilNames[] = {{"fx_recoil", &OldRecoil::on}, {"fx_recoil_str", &OldRecoil::strength},
+    {"fx_recoil_kick", &OldRecoil::kick}, {"fx_recoil_rise", &OldRecoil::rise}, {"fx_recoil_time", &OldRecoil::time},
+    {"fx_recoil_rec", &OldRecoil::recovery}};
+
+// A step before 74 on an old recoil value: where the config still holds `before`, the slot's old shipped value.
+void takeOldRecoil(int slot, float OldRecoil::*field, float before)
+{
+    if(fabsf(oldRecoil[slot].*field - before) < 1e-4f)
+    {
+        oldRecoil[slot].*field = oldRecoilDefault(slot).*field;
+    }
 }
 
 // An inheriting slot's defaults its own (vr_weapons.inc QVR_WEAPON_OWN): at its default such a key is still the slot's,
@@ -177,7 +221,9 @@ namespace
 // where the config holds the old 0 (takeWidowmakerCupAim70).
 // 71: the heavy revolver's (slot 38) longer barrel: its muzzle, length, balance and mass (takeRevolverBarrel71).
 // 72: his flare gun and heavy revolver (slots 37, 38): grip poses, cup hotspots, the revolver's Two-Handed (takeHis72).
-constexpr int settingsVersion = 72;
+// 73: Quake's guns' programmatic recoil, where a full config still holds the old "off" (takeRecoil73).
+// 74: the recoil in cm, degrees and seconds, the old multipliers converted (takeRecoilUnits74).
+constexpr int settingsVersion = 74;
 
 // The AD melee weapons' tips (slots 40-44) before 49.
 constexpr const char* oldAdMeleeTips[] = {"41.5783 -0.0077 82.5216", "35.5648 -0.2178 93.7809",
@@ -204,7 +250,7 @@ struct SlotKey
 };
 constexpr SlotKey ownBefore48[] = {{34, Key::Hotspot1Type}, {34, Key::Hotspot1X}, {34, Key::Hotspot1Y}, {34, Key::Hotspot1Z},
     {34, Key::Hotspot1Pitch}, {34, Key::Hotspot1Yaw}, {34, Key::Hotspot1Roll}, {34, Key::Mass}, {34, Key::Balance},
-    {34, Key::Span}, {35, Key::WpnButtonMode}, {35, Key::Recoil}, {35, Key::RecoilStrength}, {35, Key::RecoilTime},
+    {34, Key::Span}, {35, Key::WpnButtonMode},
     {35, Key::Flash}, {35, Key::FlashSize}};
 
 [[nodiscard]] bool ownBefore(int slot, Key key)
@@ -231,8 +277,8 @@ constexpr OldValue changedIn48[] = {
     {0, Key::Scale, 0.36f}, {0, Key::OffsetY, 0.84f}, {0, Key::OffsetZ, -0.6f},
     // The AD crossbow: the defaults before his tweaks.
     {32, Key::Pitch, 3.801594f}, {32, Key::Roll, 3.026701f}, {32, Key::Yaw, -7.244246f}, {32, Key::ShotPitch, 7.f},
-    {32, Key::ShotYaw, 0.f}, {32, Key::Mass, 6.f}, {32, Key::Balance, 25.f}, {32, Key::RecoilStrength, 0.5f},
-    {32, Key::RecoilTime, 0.15f}, {32, Key::Flash, 1.f}, {32, Key::StockPitch, 0.f}, {32, Key::TorchForward, 0.f}};
+    {32, Key::ShotYaw, 0.f}, {32, Key::Mass, 6.f}, {32, Key::Balance, 25.f},
+    {32, Key::Flash, 1.f}, {32, Key::StockPitch, 0.f}, {32, Key::TorchForward, 0.f}};
 
 void resetSlot(int slot)
 {
@@ -241,6 +287,7 @@ void resetSlot(int slot)
         cvar_t& var = cvarAt(slot, static_cast<Key>(key));
         Cvar_SetQuick(&var, var.default_string);
     }
+    oldRecoil[slot] = oldRecoilDefault(slot); // (the recoil keys before 74: a step before it resetting the slot)
 }
 
 // Every anchor of the config that is not a point (vr_wofs_version < 41: a vertex index in the old strip order of the
@@ -341,6 +388,15 @@ void takeUninherited()
             Cvar_SetQuick(&var, cvarAt(ownerSlot(u.from, key), key).string);
             taken++;
         }
+        // The old recoil keys of then (on, strength, time; retired at 74: oldRecoil), but the plasma gun's, its own.
+        for(float OldRecoil::*field : {&OldRecoil::on, &OldRecoil::strength, &OldRecoil::time})
+        {
+            if(u.slot != 35 && oldRecoil[u.slot].*field == OldRecoil{}.*field)
+            {
+                oldRecoil[u.slot].*field = oldRecoil[u.from].*field;
+                taken++;
+            }
+        }
         Cvar_SetQuick(&inherit, inherit.default_string);
         Con_DPrintf("Weapon settings: slot %d took %d values it inherited from slot %d\n", u.slot, taken, u.from);
     }
@@ -352,6 +408,8 @@ void takeUninherited()
             Cvar_SetQuick(&var, var.default_string);
         }
     }
+    takeOldRecoil(32, &OldRecoil::strength, 0.5f); // (the crossbow's, as changedIn48's)
+    takeOldRecoil(32, &OldRecoil::time, 0.15f);
 }
 
 // AD support: the AD melee weapons' tips (49) on their models made anew, where the config holds the old tip.
@@ -459,7 +517,7 @@ void takeWidowmakerMuzzle()
 // the AD swords' poses and grips (slots 40-43: the fury's, the death knight's, the zombie knight's and the death guard's;
 // the death guard's sword the death knight's, which it inherited in his config), each value where the config still holds
 // the default before.
-constexpr OldValue adTuningBefore53[] = {{34, Key::Flash, 0.f}, {34, Key::Recoil, 0.f}, {34, Key::RecoilStrength, 1.f},
+constexpr OldValue adTuningBefore53[] = {{34, Key::Flash, 0.f},
     {40, Key::FingerIndexBias, 0.f}, {40, Key::FingerThumbBias, 0.f}, {40, Key::GripOverlap, 0.3f}, {40, Key::Pitch, 14.712841f},
     {40, Key::Roll, -1.272115f}, {40, Key::OffsetX, 4.76676f}, {40, Key::OffsetY, 0.988259f}, {40, Key::Yaw, -2.909016f},
     {40, Key::OffsetZ, 5.517184f}, {41, Key::Hotspot1Pitch, 0.f}, {41, Key::Hotspot1Roll, 0.f}, {41, Key::Hotspot1X, -2.8225f},
@@ -485,6 +543,8 @@ void takeAdTuning53()
             taken++;
         }
     }
+    takeOldRecoil(34, &OldRecoil::on, 0.f); // (its recoil on, at 1.405: retired keys since 74)
+    takeOldRecoil(34, &OldRecoil::strength, 1.f);
     Con_DPrintf("Weapon settings: the Widowmaker and the AD swords took %d of the author's values\n", taken);
 }
 
@@ -871,6 +931,75 @@ void takeHis72()
     Con_DPrintf("Weapon settings: the flare gun and the revolver took %d of his values, %d cup grips\n", taken, cups);
 }
 
+// 73: Quake's and the mission packs' guns (slots 1-7, 9-15) recoil by the programmatic recoil, their models' own kick taken
+// out (vr_kickcancel.cpp). A full config (written before configVersion 218: every slot's line, the author's of
+// 2026-10-29 too) holds the old defaults as if chosen, which would leave those guns with no kick at all: where a slot's
+// Recoil is still the old 0, it and its Strength, Kick Back, Muzzle Rise and Time still at their old defaults (1, 1, 1,
+// 0.15 s) take the new ones. A slot whose recoil was turned on (his nailguns' and laser cannon's) is left as it is. (A
+// sparse config has no such line: it already has the new defaults, and nothing here matches.)
+void takeRecoil73()
+{
+    constexpr int slotsTaken[] = {1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15};
+    int taken = 0;
+    for(const int slot : slotsTaken)
+    {
+        if(fabsf(oldRecoil[slot].on) >= 1e-4f)
+        {
+            continue; // (turned on already: the player's)
+        }
+        oldRecoil[slot].on = oldRecoilDefault(slot).on;
+        takeOldRecoil(slot, &OldRecoil::strength, 1.f);
+        takeOldRecoil(slot, &OldRecoil::kick, 1.f);
+        takeOldRecoil(slot, &OldRecoil::rise, 1.f);
+        takeOldRecoil(slot, &OldRecoil::time, 0.15f);
+        taken++;
+    }
+    Con_DPrintf("Weapon settings: %d guns took the programmatic recoil (their models' kick taken out)\n", taken);
+}
+
+// Slot `slot`'s `key` to `value`: its default where it is that (within float rounding). 1 where it is not.
+int setConverted(int slot, Key key, float value)
+{
+    cvar_t& var = cvarAt(slot, key);
+    const float def = Q_atof(var.default_string);
+    if(fabsf(value - def) <= 1e-5f * za::max(1.f, fabsf(def)))
+    {
+        Cvar_SetQuick(&var, var.default_string);
+        return 0;
+    }
+    Cvar_SetQuick(&var, va("%.6g", value));
+    return 1;
+}
+
+// 74: the recoil in cm, degrees and seconds (ROUND23.md, "Recoil in cm, degrees and seconds"; the author's approval of
+// 2026-10-30): each slot's old values (oldRecoil: its lines over the old defaults, the global vr_recoil_kick and
+// vr_recoil_rise his config held, or 1.5 and 4) converted, the drawn kick the same (convertRecoil). Its Haptic Punch,
+// which read the old multipliers (Strength times the mean of Kick Back and Muzzle Rise) and reads the new values in the
+// old units (weapons::recoilFeel) now, scaled to keep the spike as hard, where the spike was not and is not at full
+// anyway; a gun whose recoil was off has none to read (the toolgun's punch goes).
+void takeRecoilUnits74()
+{
+    int changed = 0, punched = 0;
+    for(int slot = 0; slot < numSlots; slot++)
+    {
+        const OldRecoil& o = oldRecoil[slot];
+        const NewRecoil n = convertRecoil(o, oldRecoilGlobals);
+        changed += setConverted(slot, Key::RecoilKick, n.kickCm) + setConverted(slot, Key::RecoilRise, n.riseDeg) +
+                   setConverted(slot, Key::RecoilReturn, n.returnTime);
+        const float before = za::max(o.strength, 0.f) * 0.5f * (za::max(o.kick, 0.f) + za::max(o.rise, 0.f));
+        const float now = recoilFeel(n.kickCm, n.riseDeg);
+        cvar_t& punch = cvarAt(slot, Key::HapticPunch);
+        const float full = 0.85f * za::clamp(vr_gunsfx_punch.value, 0.f, 2.f) * za::max(punch.value, 0.f);
+        if(before > 0.f && now > 0.f && fabsf(now - before) > 1e-4f * before && full * za::sqrt(za::min(before, now)) < 1.f)
+        {
+            punched += setConverted(slot, Key::HapticPunch, punch.value * za::sqrt(before / now));
+        }
+    }
+    recoilConverted = true;
+    Con_DPrintf("Weapon settings: the recoil in cm, degrees and seconds (%d values not the defaults, %d haptic punches "
+                "kept)\n", changed, punched);
+}
+
 // The changes since 1.0.0 (vr_wofs_version 40): each runs once, for a config saved before its version.
 struct Step
 {
@@ -910,6 +1039,8 @@ constexpr Step steps[] = {
     {70, takeWidowmakerCupAim70},
     {71, takeRevolverBarrel71},
     {72, takeHis72},
+    {73, takeRecoil73},
+    {74, takeRecoilUnits74},
 };
 static_assert(steps[sizeof(steps) / sizeof(steps[0]) - 1].version == settingsVersion);
 
@@ -973,16 +1104,18 @@ void registerCvars()
         }
     }
 
-    // The weapon effects' (vr_weaponfx.cpp): off, at the shotgun's strength and size; the tracers as Weapon Effects'.
+    // The weapon effects' (vr_weaponfx.cpp): no recoil (0 cm, 0 degrees: Kick Back and Muzzle Rise's "0" above), the
+    // shotgun's flash size; the tracers as Weapon Effects'. The old recoil values (oldRecoil) at their old defaults.
     for(int slot = 0; slot < numSlots; slot++)
     {
-        for(const Key key : {Key::RecoilStrength, Key::RecoilKick, Key::RecoilRise, Key::RecoilRecovery, Key::HapticPunch,
-                Key::FlashSize, Key::TracerSpeed, Key::TracerLength, Key::TracerWidth, Key::TracerChance, Key::TracerRed,
-                Key::GunfxSparks, Key::GunfxSparkSize, Key::GunfxSmoke, Key::GunfxSmokeSize, Key::GunfxWisps})
+        for(const Key key : {Key::HapticPunch, Key::FlashSize, Key::TracerSpeed, Key::TracerLength, Key::TracerWidth,
+                Key::TracerChance, Key::TracerRed, Key::GunfxSparks, Key::GunfxSparkSize, Key::GunfxSmoke, Key::GunfxSmokeSize,
+                Key::GunfxWisps})
         {
             cvarAt(slot, key).string = "1";
         }
-        cvarAt(slot, Key::RecoilTime).string = "0.15";
+        cvarAt(slot, Key::RecoilReturn).string = "0.115";
+        oldRecoil[slot] = oldRecoilDefault(slot);
         cvarAt(slot, Key::FlashTime).string = "0.06";
         cvarAt(slot, Key::TracerGreen).string = "0.8";
         cvarAt(slot, Key::TracerBlue).string = "0.45";
@@ -1066,6 +1199,74 @@ const char* anchor(int slot, Key key)
 void markCurrent()
 {
     Cvar_SetValueQuick(&vr_wofs_version, settingsVersion);
+}
+
+// The old drawn kick: strength times its curve (up in min(35 ms, 0.3 Time), back over the rest of Time times Recovery)
+// times Kick Back's and Muzzle Rise's cm and degrees. The same kick: the cm and degrees at strength 1 and the time from
+// the peak (whose kick up, min(35 ms, 3/7 of it), is the old one's where Recovery is 1, or the Time over 0.117 s).
+NewRecoil convertRecoil(const OldRecoil& old, const OldRecoilGlobals& globals)
+{
+    const float on = old.on != 0.f ? 1.f : 0.f;
+    const float strength = za::max(old.strength, 0.f) * on;
+    const float time = za::max(old.time, 0.02f);
+    return {globals.kickCm * za::max(old.kick, 0.f) * strength, globals.riseDeg * za::max(old.rise, 0.f) * strength,
+        (time - za::min(0.035f, 0.3f * time)) * za::max(old.recovery, 0.05f)};
+}
+
+OldRecoil oldRecoilDefault(int slot)
+{
+    for(const OldRecoilDefault& d : oldRecoilDefaults)
+    {
+        if(d.slot == slot)
+        {
+            return d.values;
+        }
+    }
+    return OldRecoil{};
+}
+
+bool recoilMigrated(int slot, OldRecoil& old, OldRecoilGlobals& globals)
+{
+    if(slot < 0 || slot >= numSlots)
+    {
+        return false;
+    }
+    old = oldRecoil[slot];
+    globals = oldRecoilGlobals;
+    return recoilConverted;
+}
+
+bool retiredRecoilLine(const char* name, const char* value)
+{
+    const float v = value ? Q_atof(value) : 0.f;
+    if(!q_strcasecmp(name, "vr_recoil_kick") || !q_strcasecmp(name, "vr_recoil_rise"))
+    {
+        if(value)
+        {
+            (name[10] == 'k' || name[10] == 'K' ? oldRecoilGlobals.kickCm : oldRecoilGlobals.riseDeg) = v;
+        }
+        return true;
+    }
+    // vr_wofs_<name>_NN
+    constexpr size_t prefix = 8; // "vr_wofs_"
+    const size_t len = strlen(name);
+    if(len < prefix + 4 || q_strncasecmp(name, "vr_wofs_fx_recoil", 17) != 0 || name[len - 3] != '_')
+    {
+        return false;
+    }
+    const int slot = atoi(name + len - 2) - 1;
+    for(const OldRecoilName& n : oldRecoilNames)
+    {
+        if(strlen(n.name) == len - prefix - 3 && !q_strncasecmp(name + prefix, n.name, len - prefix - 3))
+        {
+            if(value && slot >= 0 && slot < numSlots)
+            {
+                oldRecoil[slot].*n.field = v;
+            }
+            return true;
+        }
+    }
+    return false;
 }
 
 bool weightKey(Key key)

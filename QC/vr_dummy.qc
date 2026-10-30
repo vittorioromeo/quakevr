@@ -281,21 +281,21 @@ string(entity targ, float isVRMelee) VR_Dummy_Part =
     }
 
     // A shotgun blast: its pellets.
-    if(vr_hitpellets > 0)
+    if(VR_Hit_Pellets() > 0)
     {
-        string s = sprintf(", %d pellet%s", vr_hitpellets, vr_hitpellets == 1 ? "" : "s");
-        if(vr_hitpellets_head > 0)
+        string s = sprintf(", %d pellet%s", VR_Hit_Pellets(), VR_Hit_Pellets() == 1 ? "" : "s");
+        if(hit_pelparts_x > 0)
         {
-            s = sprintf("%s, %d head (x%.2f)", s, vr_hitpellets_head, PositionalDamageFactor(1));
+            s = sprintf("%s, %d head (x%.2f)", s, hit_pelparts_x, PositionalDamageFactor(1));
             vr_dummy_colour = '1 0.85 0.2';
         }
-        if(vr_hitpellets_limb > 0)
+        if(hit_pelparts_y > 0)
         {
-            s = sprintf("%s, %d limb (x%.2f)", s, vr_hitpellets_limb, PositionalDamageFactor(2));
+            s = sprintf("%s, %d limb (x%.2f)", s, hit_pelparts_y, PositionalDamageFactor(2));
         }
-        if(vr_hitpellets_leg > 0)
+        if(hit_pelparts_z > 0)
         {
-            s = sprintf("%s, %d legs (x%.2f)", s, vr_hitpellets_leg, PositionalDamageFactor(3));
+            s = sprintf("%s, %d legs (x%.2f)", s, hit_pelparts_z, PositionalDamageFactor(3));
         }
         return s;
     }
@@ -304,13 +304,13 @@ string(entity targ, float isVRMelee) VR_Dummy_Part =
     // records it as a shot's PositionalDamage does).
     if(isVRMelee || vr_hitkind == QVR_HITKIND_BASH || vr_hitkind == QVR_HITKIND_SHOVE)
     {
-        if(vr_hitpart_target == targ && vr_hitpart_time == time && vr_hitpart >= 0)
+        if(VR_Hit_On(targ) && hit_zone >= 0)
         {
-            if(vr_hitpart == 1)
+            if(hit_zone == 1)
             {
                 vr_dummy_colour = '1 0.85 0.2';
             }
-            return sprintf(", %s (x%.2f)", VR_Dummy_RegionName(vr_hitpart), PositionalDamageFactor(vr_hitpart));
+            return sprintf(", %s (x%.2f)", VR_Dummy_RegionName(hit_zone), PositionalDamageFactor(hit_zone));
         }
         if(vr_hitpos != '0 0 0' && vr_hitdir != '0 0 0')
         {
@@ -324,13 +324,13 @@ string(entity targ, float isVRMelee) VR_Dummy_Part =
     }
 
     // A shot with positional damage.
-    if(vr_hitpart_target == targ && vr_hitpart_time == time && vr_hitpart >= 0)
+    if(VR_Hit_On(targ) && hit_zone >= 0)
     {
-        if(vr_hitpart == 1)
+        if(hit_zone == 1)
         {
             vr_dummy_colour = '1 0.85 0.2';
         }
-        return sprintf(", %s (x%.2f)", VR_Dummy_RegionName(vr_hitpart), PositionalDamageFactor(vr_hitpart));
+        return sprintf(", %s (x%.2f)", VR_Dummy_RegionName(hit_zone), PositionalDamageFactor(hit_zone));
     }
 
     return "";
@@ -345,9 +345,9 @@ vector(entity targ, entity inflictor, entity attacker) VR_Dummy_HitPoint =
     {
         p = vr_hitpos;
     }
-    else if(vr_hitpart_target == targ && vr_hitpart_time == time)
+    else if(VR_Hit_On(targ))
     {
-        p = vr_hitpart_pos;
+        p = hit_at;
     }
     else if(inflictor != attacker && inflictor != world)
     {
@@ -637,7 +637,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
 
     // Nothing hurts it.
     targ.health = VR_DUMMY_HEALTH;
-    vr_hitpart_target = world;
+    hit_targ = world;
 
     v_forward = oldForward;
     v_right = oldRight;

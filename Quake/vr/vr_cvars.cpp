@@ -1111,9 +1111,21 @@ extern "C" const cvar_t* VR_TunableFind(const char* name)
 
 extern "C" int VR_RetiredCvar(const char* name)
 {
+    // 2026-10-30: the weapons' blend towards frame 0 (one hand, two hands: vr_wofs_zb_NN, vr_wofs_zb_2h_NN), which
+    // steadied the models' own kick; the kick is taken out now (vr_kickcancel.cpp).
+    if(!q_strncasecmp(name, "vr_wofs_zb_", 11))
+    {
+        return 1;
+    }
     if(qvr::tunableFind(name))
     {
         return 1; // a tuning constant now (vr_tunables.inc): an old config's line for it is ignored
+    }
+    // 2026-10-30: the recoil multipliers (vr_wofs_fx_recoil*_NN, vr_recoil_kick, vr_recoil_rise): an old config's values
+    // kept for vr_wofs_version 74's conversion to cm, degrees and seconds (vr_weapons.cpp takeRecoilUnits74).
+    if(qvr::weapons::retiredRecoilLine(name, Cmd_Argc() > 1 ? Cmd_Argv(1) : nullptr))
+    {
+        return 1;
     }
     for(const char* retired : retiredCvars)
     {

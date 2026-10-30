@@ -1152,7 +1152,8 @@ za::Vector<Item> pageHitbox()
         toggle("Shots Meet Their Shape", vr_box3d_shot_shape)
             .help("Rockets, nails, grenades, lasers and every other missile, and the guns' shots, meet a solid prop's "
                   "shape as drawn, however it is turned: a tilted box's empty corners let them by, and they hit its real "
-                  "faces. Off: the upright box round it (the grappling hook still meets its shape) (vr_box3d_shot_shape)."),
+                  "faces. Nails, rockets and lasers meet a dropped backpack where it is drawn, not the wide pickup box "
+                  "round it. Off: the upright box round it (the grappling hook still meets its shape) (vr_box3d_shot_shape)."),
         header("Tests"),
         command("Stand on a Box", "vr_physics_player onto misc_explobox")
             .help("Puts you on top of the level's first explosive box (vr_physics_player onto <number | classname>)."),
