@@ -3,9 +3,13 @@ import argparse,json,re,shutil,subprocess
 from pathlib import Path
 import numpy as np
 from PIL import Image,ImageDraw
+import os
+import sys
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import qvrtest  # noqa: E402  (the tests' library: Misc/quakevr/qvrtest.py)
 ap=argparse.ArgumentParser()
 ap.add_argument("--name",default="bloodfx")
-ap.add_argument("--kit",default="C:/OHWorkspace/qvr-kit")
+ap.add_argument("--kit",default=qvrtest.KIT)
 ap.add_argument("--tracy-smoke",action="store_true")
 args=ap.parse_args()
 root=Path(__file__).resolve().parents[2]

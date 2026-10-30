@@ -9,7 +9,9 @@ import subprocess
 import sys
 
 TREE = Path(__file__).resolve().parents[2]
-KIT = Path(os.environ.get("KIT", "C:/OHWorkspace/qvr-kit"))
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import qvrtest  # noqa: E402  (the tests' library: Misc/quakevr/qvrtest.py)
+KIT = Path(qvrtest.KIT)
 BASH = "C:/Program Files/Git/bin/bash.exe"
 NAME = "vrmelee-recording"
 OUT = TREE / "scratch" / "meleeroom_check"
