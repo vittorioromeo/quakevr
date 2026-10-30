@@ -62,6 +62,7 @@ AD upgrade pickups (Shadow Axe, Widowmaker, Plasma Gun) show their upgraded mode
 Obituary messages for monster, trap and weapon deaths read as before; power-up warnings, glows and expiry sounds as before.
 Swim and wade with your hands moving: splashes, water slosh and stroke sounds are as before.
 Wrist gadget hologram messages and the FPS counter (both modes) show as before; the menu's Search and Checklist pages and the toolgun's physgun and scale work as before.
+Load a map with many monsters: it loads a little faster, and monsters' limbs still bend smoothly as before (smooth rigs now built in parallel). vr_startup_times also shows the last quit's times.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns
