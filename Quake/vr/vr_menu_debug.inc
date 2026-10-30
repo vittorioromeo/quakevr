@@ -239,6 +239,9 @@ za::Vector<Item> pageDebugViews()
             .help("For each hand near something to carry: the box it is drawn in and the fist tested (its spheres; the nearest "
                   "bright). Logged: each grab and held prop's placing printed, carry_trace.txt written, and held props meeting each "
                   "other, a weapon or a wall; also far fists: hands not near anything too."),
+        toggle("Log Grab Query", vr_debug_grab)
+            .help("Prints each grip the grab query gives a take in the player's frame (grabquery: main hand, torch (the torch, "
+                  "3.2 u)): a torch on its wall, the grenade pouch, the ammo pouch (vr_grab.hpp: the kinds in their order)."),
         cycle("Climbing Footholds Debug", vr_debug_climb_feet, {{0.f, "Off"}, {1.f, "Log Holds"}, {2.f, "Log Each Frame"}, {3.f, "Logged and Drawn"}})
             .help("Climbing, prints each foothold a foot finds (climbfoot: where, what, how many traces); each frame's feet "
                   "(climbfeet: planted or stepping, their slip, any in a wall); drawn: each foot's hold and the search."),

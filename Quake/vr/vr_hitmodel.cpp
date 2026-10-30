@@ -5,6 +5,7 @@
 #include "vr_ad.hpp" // AD support: small pellets retain precise model/corpse impacts.
 #include "vr_engine.hpp"
 #include "vr_api.h"
+#include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
 #include "vr_held.hpp"
 #include "vr_jobs.hpp"
@@ -1771,11 +1772,30 @@ extern "C" int VR_HitModelClip(edict_t* ent, const float* start, const float* mi
     {
         VR_ProfileBegin("hit model");
     }
-    const bool hit = clip(ent, a, b, qvr::geom::vec(mins), qvr::geom::vec(maxs), tolerance, c,
+    bool hit = clip(ent, a, b, qvr::geom::vec(mins), qvr::geom::vec(maxs), tolerance, c,
         maxfraction, h);
     if(fine)
     {
         VR_ProfileEnd();
+    }
+    // A living wearer's backpack (QC vr_wornpack.qc): met at its box as it sits on the back (the model's bounds), the
+    // monster's hit there (T_Damage: VR_WP_Hit counts it on the pack).
+    if(ent->v.health > 0.f)
+    {
+        const glm::vec3 lo = qvr::geom::vec(mins), hi = qvr::geom::vec(maxs);
+        const glm::vec3 grow = glm::max(glm::abs(lo), glm::abs(hi));
+        glm::vec3 point{0.f}, normal{0.f};
+        const float t = qvr::box3d::wornPackSegment(ent, a, b, za::max(grow.x, za::max(grow.y, grow.z)), point, normal);
+        if(t >= 0.f && t < maxfraction && (!hit || t < h.t))
+        {
+            h = Hit{};
+            h.t = t;
+            h.startInside = t <= 0.f;
+            h.point = point;
+            h.surface = point;
+            h.normal = normal;
+            hit = true;
+        }
     }
     if(!hit)
     {

@@ -695,17 +695,41 @@ void armedGripsDragMode()
         toggle("Worn Backpacks", vr_worn_backpacks)
             .help("Experimental. Armed grunts wear the backpack they would drop on their back, as ragdolls too (it weighs "
                   "and collides with the body, and you can drag the body by it). It tears off with a rip on a hard pull, "
-                  "a hard landing or a hit on the pack; torn off a living one, its spare ammo goes with it. Only a dead "
-                  "one's pack can be taken. Grunts spawned after it is turned on."),
+                  "a hard landing or enough damage on the pack, or grab a living one's pack and pull; torn off a living one, "
+                  "its spare ammo goes with it. A dead one's pack is taken as an item. Grunts spawned after it is "
+                  "turned on."),
         header("Tearing Off"),
         slider("Pull That Tears It", vr_worn_backpack_rip_force, 500.f, 4000.f, 100.f, "%.0f N")
             .help("A hand holding a ragdoll by its pack and yanking this hard (kept up a moment) tears the pack off into "
                   "the hand. A slow drag pulls about 1500 N; a hold's spring gives 4000 N at most (Ragdoll Grab Force)."),
-        slider("Hit Chance", vr_worn_backpack_hit_chance, 0.f, 1.f, 0.05f, "%.2f")
-            .help("A blow, a throw, a shot or a projectile on the pack tears it off with this chance at the Hit Damage "
-                  "below (more damage: likelier)."),
+        slider("Damage That Tears It", vr_worn_backpack_pool, 0.f, 200.f, 5.f, "%.0f")
+            .help("A living one's pack tears off once it has taken this much damage: blows, throws, shots and projectiles "
+                  "on the pack, and explosions and fire on its wearer (their shares below). Poison never. 0: never by "
+                  "damage."),
+        slider("Explosions' Share", vr_worn_backpack_pool_blast, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The share of an explosion's damage to its wearer that counts on the pack."),
+        slider("Fire's Share", vr_worn_backpack_pool_fire, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The share of fire's damage (the flamethrower, burning) that counts on the pack."),
+        slider("Extra Hit Chance", vr_worn_backpack_hit_roll, 0.f, 1.f, 0.05f, "%.2f")
+            .help("Besides its damage, a hit on the pack tears it off at once with this chance at the Hit Damage below "
+                  "(more damage: likelier). 0: off."),
         slider("Hit Damage", vr_worn_backpack_hit_ref, 1.f, 100.f, 1.f, "%.0f")
-            .help("The damage of a hit whose chance is the Hit Chance."),
+            .help("The damage of a hit whose chance is the Extra Hit Chance."),
+        header("Tearing It Off a Living One"),
+        toggle("Grab the Pack", vr_worn_backpack_tug)
+            .help("A fist on a living grunt's pack takes hold of the pack (it spots you): pull and it tears off into "
+                  "your hand. Off: the hand holds its back, as any enemy."),
+        slider("Pull That Counts", vr_worn_backpack_tug_stretch, 2.f, 40.f, 1.f, "%.0f cm")
+            .help("How far your hand must pull the pack off its place for the pull to count."),
+        slider("Pull Time", vr_worn_backpack_tug_time, 0.05f, 3.f, 0.05f, "%.2f s")
+            .help("How long that pull must be kept up to tear the pack off (twice as far: half as long)."),
+        slider("Two-Hand Pull", vr_worn_backpack_two_hand_mult, 1.f, 4.f, 0.1f, "%.1fx")
+            .help("Both hands on the pack pull this many times harder together (a living one's and a ragdoll's)."),
+        toggle("Tearing Topples It", vr_worn_backpack_topple)
+            .help("A ragdoll trigger: a pack torn off a living grunt by your pull knocks it down, falling the way you "
+                  "tore."),
+        slider("Topple Push", vr_worn_backpack_topple_push, 0.1f, 2.f, 0.1f, "%.1f")
+            .help("That knockdown's push (a two-hand shove's: 1)."),
         slider("Landing That Tears It", vr_worn_backpack_impact, 2.f, 30.f, 0.5f, "%.1f m/s")
             .help("A ragdoll striking the level at least this fast loses its pack."),
         slider("Spare Ammo in It", vr_worn_backpack_reserve, 0.f, 1.f, 0.05f, "%.2f")
@@ -1202,6 +1226,11 @@ void ikStretchReset()
             .help("Only a deliberate blow knocks its weapon out: a closed fist or something held, swung over more than "
                   "a frame. An open hand reaching for it, or your idle hands jolted as you are pushed or walk into it, "
                   "never (vr_agrunt_disarm_deliberate)."),
+        toggle("Strikes on Its Weapon Disarm", vr_agrunt_strike_first)
+            .help("A deliberate strike (a fist, a held gun or prop, in slow motion too) that meets its weapon or gun "
+                  "hand knocks the weapon out unless its parry was raised for it; into a raised parry it may still "
+                  "(Strike Beats a Raised Parry, in the tunables). Off: such a blow is parried whenever it can be "
+                  "(vr_agrunt_strike_first)."),
         toggle("Tug-of-War", vr_agrunt_tug)
             .help("Grabbing its weapon starts a struggle: it holds on and pulls back, and may shove you, headbutt you or "
                   "fire. Pull your hand back far enough for long enough to take it. Staggered, knocked down, stunned "

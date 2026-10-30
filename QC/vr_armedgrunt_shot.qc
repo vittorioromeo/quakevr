@@ -143,6 +143,19 @@ void(entity g, entity p) VR_AGS_HandLine =
 {
     vector sh = '0 0 0';
     float rowed = FALSE;
+    if(p.vr_ag_rb && isragdoll(g))
+    {
+        // An active (or lying) ragdoll's: its forearm runs from the grip towards the middle of the limb its weapon rides
+        // (VR_AG_RagProp), not the standing pose's arm, which put its hand where the ragdoll's weapon was (a pellet on its
+        // weapon counted on its hand: agent/disarmviz's finding).
+        vector lm = ragdollpoint(g, p.vr_ag_rb - 1, '0 0 0', 1);
+        if(vlen(lm - p.origin) >= 3)
+        {
+            vr_ags_ha = p.origin;
+            vr_ags_hb = p.origin + normalize(lm - p.origin) * VR_AGS_FOREARM;
+            return;
+        }
+    }
     {
         // (its row's shoulder, carried by its chest's anchor as its arms are drawn from it)
         vector an = VR_AM_Anchor(g);

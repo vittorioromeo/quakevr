@@ -80,6 +80,18 @@ void calcStats(edict_t* ent, int* statsi);
 // Server: whether a hand of `player` holds `m` now (vr_bodycontact.cpp: vr_foegrab_step_in).
 [[nodiscard]] bool holds(const edict_t* player, const edict_t* m);
 
+// Server: the stretch (units: the tracked palm from its spot) of `player`'s `hand` (0 off, 1 main) holding standing `m` by
+// its worn backpack (QC vr_wornpack.qc's tug: a fist on a living wearer's pack takes the pack, vr_worn_backpack_tug);
+// -1 none.
+[[nodiscard]] float packStretch(edict_t* player, int hand, edict_t* m);
+// Server: `player`'s hands' pull on standing `m`'s worn backpack now (units: each holding palm's travel since it took
+// hold, added: the tug's way).
+[[nodiscard]] glm::vec3 packPull(edict_t* player, edict_t* m);
+// Server: how far (cm) that hold's palm (where the hand is drawn) is off the pack's box now (-1 no such hold).
+[[nodiscard]] float packPalmGap(edict_t* player, int hand, edict_t* m);
+// Server: every hand holding `m` by its worn backpack lets go (it is torn off, into a hand: the grips the QC's again at
+// once, no Released call). How many.
+int packTorn(edict_t* m);
 // Client: whether `hand` holds an enemy now.
 [[nodiscard]] bool holding(int hand);
 

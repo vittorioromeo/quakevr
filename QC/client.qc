@@ -1833,6 +1833,8 @@ void() PlayerPreThink =
     if(BotPreFrame())
         return;
 
+    VR_Hand_Derive(self); // QVR: the engine's busy kinds into the hand slot, before anything reads it (vr_carry.qc)
+
     // HONEY
     fog_updateAll();
     AD_PlayerPreThink(); // AD support: AD's ladders in an AD map (vr_ad_bridge.qc)

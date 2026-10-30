@@ -60,11 +60,21 @@ float(entity xPlayer, float xHand) VR_Forcegrab_IsHandBusy =
     return xPlayer.mainhand_fglocked;
 }
 
-// Whether `xHand` of `xPlayer` may take a thing into its slot (VR_Hand_Take): empty (VRIsHandEmpty), not locked on to
-// a pull. (What a carry's grab, a ragdoll grab and a foe grab's throw ask.)
+// Whether `xHand` of `xPlayer` may take a thing into its slot (VR_Hand_Take): empty (VRIsHandEmpty), not busy (no
+// enemy, flashlight, gun's fore-end, seated magazine or tug in its slot), not locked on to a pull. The one answer to
+// "can this hand grab?": a carry's grab, a box's touch, a ragdoll grab, a wall torch, a pouch, a grenade's catch, a
+// magazine's pull.
 float(entity xPlayer, float xHand) VR_Hand_CanTake =
 {
-    return VRIsHandEmpty(xPlayer, xHand) && !VR_Forcegrab_IsHandBusy(xPlayer, xHand);
+    return VRIsHandEmpty(xPlayer, xHand) && VR_Hand_Kind(xPlayer, xHand) == VR_HOLD_NONE &&
+           !VR_Forcegrab_IsHandBusy(xPlayer, xHand);
+}
+
+// VR_Hand_CanTake, or busy with `xKind` alone (what the hand takes over from: the foe grab's hand-over, the enemy).
+float(entity xPlayer, float xHand, float xKind) VR_Hand_CanTakeFrom =
+{
+    return VRIsHandEmpty(xPlayer, xHand) && (VR_Hand_Kind(xPlayer, xHand) == VR_HOLD_NONE ||
+           VR_Hand_Kind(xPlayer, xHand) == xKind) && !VR_Forcegrab_IsHandBusy(xPlayer, xHand);
 }
 
 // One object at a time per hand: none while one flies to it, and none until the trigger that
@@ -691,7 +701,7 @@ void(float xHand) VR_Forcegrab_HandFrame =
     }
     if(!cvar_hget(cvarh_vr_forcegrab_mode) || !self.ishuman || self.health <= 0 ||
        !VRIsHandEmpty(self, xHand) ||
-       VRHasBit(self.vrbits0, xHand == cVR_MainHand ? QVR_VRBITS0_MAINHAND_BUSY : QVR_VRBITS0_OFFHAND_BUSY))
+       VR_Hand_Kind(self, xHand) == VR_HOLD_FLASHLIGHT)
     {
         // (A hand holding the engine's flashlight is busy too.)
         VR_Forcegrab_Set(xHand, world, FALSE);

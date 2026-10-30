@@ -138,6 +138,7 @@ vr_agrunt_test   89       vr_armedgrunt_shoveclose_test.qc a gun's holder shoves
 vr_agrunt_test   90       vr_armedgrunt_guard_test.qc      an unarmed enforcer's guard in game as the Pose Studio holds its Aim key
 vr_agrunt_test   92       vr_armedgrunt_twohand_test.qc    two hands in the tug; a staggering or downed one's eased tug
 vr_agrunt_test   93       vr_armedgrunt_shot_test.qc       projectiles' own rolls (vr_agrunt_shotdisarm_proj)
+vr_agrunt_test   94       vr_armedgrunt_strike_test.qc     a deliberate strike or throw on its weapon or hand disarms it (vr_agrunt_strike_first)
 vr_agrunt_test   97       vr_disarmviz_test.qc             Show Disarm Volumes in each state (eye images)
 vr_agrunt_test   100+     vr_armedgrunt_test.qc            one weapon's every-weapon test (100 + its index)
 
@@ -162,6 +163,7 @@ vr_pickup_test   3        vr_pickup_test.qc                (VR_PickupTest_View)
 vr_pickup_test   4        vr_pickup_test.qc                (VR_PickupTest_EnemyGuns)
 vr_pickup_test   5        vr_pickup_test.qc                (VR_PickupTest_Lying)
 vr_pickup_test   6        vr_pickup_test.qc                (VR_PickupTest_Float)
+vr_pickup_test   7        vr_pickup_test.qc                the hand slot's busy kinds (VR_SlotTest_Run, vr_axestick_test.qc)
 
 vr_reload_test   1        vr_reload_test.qc                (VRIsHandEmpty)
 vr_reload_test   2        vr_reload_test.qc                (VR_Reload_IsRound)

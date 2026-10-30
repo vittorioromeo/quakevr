@@ -35,6 +35,22 @@ float(entity e) VR_AxeStick_Tugging =
     return e.vr_stick_kind > 0 && e.vr_stick_tug > 0;
 };
 
+// Whether `e` is tugged by `xPlayer`'s hand `xHand` (the hand slot's VR_HOLD_TUG, vr_carry.qc VR_Hand_BusyHolds).
+float(entity e, entity xPlayer, float xHand) VR_AxeStick_TuggedBy =
+{
+    return VR_AxeStick_Tugging(e) && e.vr_stick_tugger == xPlayer && e.vr_stick_tughand == xHand;
+};
+
+// No tug on `e` now (its hand free again).
+void(entity e) VR_AxeStick_EndTug =
+{
+    if(e.vr_stick_tug > 0 && e.vr_stick_tugger != world)
+    {
+        VR_Hand_Unbusy(e.vr_stick_tugger, e.vr_stick_tughand, VR_HOLD_TUG, "axe tug over");
+    }
+    e.vr_stick_tug = 0;
+};
+
 float(entity e) VR_AxeStick_InMonster =
 {
     return e.vr_stick_kind == AXESTICK_MODEL || e.vr_stick_kind == AXESTICK_MONSTERBOX;
@@ -104,7 +120,7 @@ void(entity e, vector xVel) VR_AxeStick_Free =
     e.vr_stick_vel = '0 0 0';
     e.vr_stick_spin = '0 0 0';
     e.vr_stick_wiggle = 0;
-    e.vr_stick_tug = 0;
+    VR_AxeStick_EndTug(e);
     e.movetype = MOVETYPE_TOSS;
     e.solid = SOLID_NOT_BUT_TOUCHABLE;
     e.throwhit = QVR_THROWHIT_HIT; // (no blow when it lands)
@@ -158,6 +174,7 @@ void(entity e, entity xPlayer, float xHand) VR_AxeStick_Tug =
     e.vr_stick_tug = time + max(0, cvar_hget(cvarh_vr_axestick_tug));
     e.vr_stick_tugger = xPlayer;
     e.vr_stick_tughand = xHand;
+    VR_Hand_Busy(xPlayer, xHand, VR_HOLD_TUG, e, "axe tug");
     haptic(xHand, 0.0, max(0.05, e.vr_stick_tug - time), 40, 0.8);
     if(cvar_hget(cvarh_vr_debug_axestick))
     {

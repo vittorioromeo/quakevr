@@ -2723,6 +2723,13 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_AG_Damage
 // T_DamageDeal: a blow on it, near its gun hand and hard enough, knocks its weapon out of it.
 void(entity targ, entity inflictor, entity attacker, float take) VR_AG_Hit =
 {
+    // A thrown thing's way in met its weapon or hand before its body (vr_agrunt_strike_first): its momentum's rule, not
+    // the damage's (vr_armedgrunt_parry.qc).
+    if(targ.vr_ag && targ.vr_ag_prop && targ.health > 0 && cvar_hget(cvarh_vr_agrunt_disarm) && !vr_agpar_now &&
+       inflictor != attacker && inflictor != world && VR_AG_ThrowOnWeapon(targ, inflictor))
+    {
+        return;
+    }
     if(!targ.vr_ag || !targ.vr_ag_prop || targ.health <= 0 || !cvar_hget(cvarh_vr_agrunt_disarm) || vr_agpar_now ||
        take < VR_AG_DisarmDamage(targ) || inflictor == world || inflictor.classname == "vr_burn")
     {
@@ -2738,6 +2745,10 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_AG_Hit =
         VR_AG_Swap(targ); // (nearer its other hand's weapon: that one's the one at stake)
     }
     float near = vlen(vr_hr_at - targ.vr_ag_prop.origin);
+    if(cvar_hget(cvarh_vr_agrunt_strike_first))
+    {
+        near = min(near, VR_AG_HandLineDist(targ, targ.vr_ag_prop, vr_hr_at)); // (its gun hand and forearm, not the grip alone)
+    }
     if(cvar_hget(cvarh_vr_agrunt_debug))
     {
         VR_AG_Log(sprintf("hit %g at %.1f from its gun hand (part %g)", take, near, vr_hr_part));
