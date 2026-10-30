@@ -146,8 +146,10 @@ WISP_GUNS = [(10, 4, 0), (4, 4, 1), (5, 4, 2), (6, 36, 2), (7, 36, 1), (31, 4, 1
 def wisps_case(a):
     """Muzzle wisps (vr_muzzlewisps.cpp): each gun's start only after its last shot (vr_gunfx_wisp_delay 0.25 s later),
     one a barrel, drawn, then fade; none for a launcher. Short-lived here (time 0.5 s, fade 0.4 s): each gun waits for its
-    "faded" line (vr_waitprint), the launcher its refire time (60 frames: wisps would start after 18)."""
-    s = ("map e1m1;wait60;god;notarget;vr_debug_gunfx 1;vr_gunfx_wisp_time 0.5;vr_gunfx_wisp_fade 0.4;"
+    "faded" line (vr_waitprint), the launcher its refire time (60 frames: wisps would start after 18). The delay is pinned
+    at 0.25 s (his promoted default is 0: wisps start with the shot, so "after the last shot" can't be told apart)."""
+    s = ("map e1m1;wait60;god;notarget;vr_debug_gunfx 1;vr_gunfx_wisp_delay 0.25;vr_gunfx_wisp_time 0.5;"
+         "vr_gunfx_wisp_fade 0.4;"
          "vr_weapon_grip_mode 1;impulse 9;wait2;vr_mock_hand main 0.15 1.2 -0.45 70 0 0;wait5")
     for w, hold, barrels in WISP_GUNS:
         s += ";vr_test_give_wid %d;impulse 149;wait5;echo gunfxtest wid %d;+attack;wait%d;-attack" % (w, w, hold)
@@ -377,7 +379,10 @@ def slots_case(a):
     def lg_slot(v):
         return ";".join("vr_wofs_%s_08 %g" % (k, v) for k in ("fx_gfx_sparks", "fx_gfx_spark_size", "fx_gfx_smoke",
                                                               "fx_gfx_smoke_size"))
-    s = "map vrtesthall;wait60;god;notarget;vr_debug_gunfx 1"  # (a wall ahead: vr_impact_test's bolt hit)
+    # (a wall ahead: vr_impact_test's bolt hit). The global amounts and sizes pinned at 1 (his promoted defaults: spark
+    # size 0.25, smoke amount 0.375 and size 1.25), so the slot's multipliers read as the sizes and counts themselves.
+    s = ("map vrtesthall;wait60;god;notarget;vr_debug_gunfx 1;vr_gunfx_spark_amount 1;vr_gunfx_spark_size 1;"
+         "vr_gunfx_smoke_amount 1;vr_gunfx_smoke_size 1;vr_gunfx_wisp_delay 0.25")
     for label, sets in (("base", slot(1)), ("zero", slot(0)), ("double", slot(2)),
                         ("half", slot(2) + ";vr_gunfx_spark_amount 0.5;vr_gunfx_smoke_amount 0.5")):
         s += ";%s;echo gunfxslot %s;vr_gunfx_test 4;wait30" % (sets, label)
