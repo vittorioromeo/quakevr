@@ -86,7 +86,8 @@ player-edict Quake/vr/vr_foegrab.cpp 1  # guard differs (ROUND23 'player edict',
 player-edict Quake/vr/vr_foegrab_diag.cpp 4  # guard differs (ROUND23 'player edict', Left list)
 player-edict Quake/vr/vr_held.cpp 1  # guard differs (ROUND23 'player edict', Left list)
 player-edict Quake/vr/vr_menuui.cpp 1  # guard differs (ROUND23 'player edict', Left list)
-player-edict Quake/vr/vr_portals.cpp 3  # guard differs (ROUND23 'player edict', Left list)
+player-edict Quake/vr/vr_portals.cpp 2  # guard differs (ROUND23 'player edict', Left list)
+player-edict Quake/vr/vr_portals_gates.cpp 1  # guard differs (ROUND23 'player edict', Left list)
 player-edict Quake/vr/vr_progs.hpp 2  # canonical
 player-edict Quake/vr/vr_ragtest.cpp 4  # guard differs (ROUND23 'player edict', Left list)
 player-edict Quake/vr/vr_ragtool.cpp 1  # guard differs (ROUND23 'player edict', Left list)
