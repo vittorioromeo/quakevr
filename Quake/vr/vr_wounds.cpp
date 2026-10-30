@@ -21,6 +21,7 @@
 #include "vr_progs.hpp"
 #include "vr_water.hpp"
 #include "vr_geom.hpp"
+#include "vr_mem.hpp"
 
 #include "Zancle/Algorithm/Copy.hpp"
 #include "Zancle/Algorithm/Remove.hpp"
@@ -103,6 +104,14 @@ struct GibSeen
     double struck{-1e9}; // cl.time it last bloodied you
 };
 ankerl::unordered_dense::map<int, GibSeen> gibsSeen; // the gibs flying round you (vr_gore_spatter_gibs)
+
+struct WoundScratch
+{
+    za::Vector<Splat> splats; // a wound's, a bloodied head's, a smear's, a splash's (each made and painted at once)
+    za::Vector<Splat> blown;  // a blow's spatter put on the side of what struck (facingBlow)
+    auto members() { return mem::list(splats, blown); }
+};
+mem::Scratch<WoundScratch> scratch{"wounds"};
 
 // Blood thrown about near things lying round (vr_gore_gear_nearby): a bleeding hit's, a gibbing's, a gib's burst. For a
 // while (a gibbed monster's gun and backpack come a moment after its burst) what lies within its reach takes it, once.
@@ -1239,7 +1248,8 @@ void wound(const Target& t, const Event& ev)
         return;
     }
     Mask& m = masks[static_cast<za::SizeT>(layer)];
-    za::Vector<Splat> splats;
+    za::Vector<Splat>& splats = scratch.splats;
+    splats.clear();
     const glm::vec3 dir = glm::length(ev.dir) > 0.1f ? glm::normalize(ev.dir) : glm::vec3{0.f, 0.f, -1.f};
 
     Surface surf;
@@ -1554,7 +1564,8 @@ void bloodyHead(entity_t& e, int num)
     {
         return;
     }
-    za::Vector<Splat> splats;
+    za::Vector<Splat>& splats = scratch.splats;
+    splats.clear();
     const float lowZ = surf.lo.z + (surf.hi.z - surf.lo.z) * 0.3f;
     for(int tries = 0; tries < 60 && splats.size() < 6; tries++)
     {
@@ -1774,7 +1785,8 @@ void smearHand(int hand, int blots, float amount, bool theirs)
     {
         return;
     }
-    za::Vector<Splat> splats;
+    za::Vector<Splat>& splats = scratch.splats;
+    splats.clear();
     const float k = za::clamp(amount, 0.f, 3.f);
     for(int i = 0; i < blots; i++)
     {
@@ -2336,13 +2348,13 @@ void gearFrame()
 // A blow's spatter for what struck (`g`, a held weapon or prop, going along `dir`): a centre inside `g`'s box (the blow's
 // contact as the server finds it: inside what struck, often on your side of its middle) faces none of its sides, or the
 // one facing you; it is put just past where the blow's line leaves the box, so the side that struck takes the blood.
-[[nodiscard]] za::Vector<Splat> facingBlow(const za::Vector<Splat>& splats, const entity_t& g, const glm::vec3& dir)
+void facingBlow(const za::Vector<Splat>& splats, const entity_t& g, const glm::vec3& dir, za::Vector<Splat>& out)
 {
-    za::Vector<Splat> out = splats;
+    out = splats;
     const float len = glm::length(dir);
     if(len < 1e-3f)
     {
-        return out;
+        return;
     }
     const glm::vec3 d = dir / len;
     for(Splat& s : out)
@@ -2365,7 +2377,6 @@ void gearFrame()
             }
         }
     }
-    return out;
 }
 
 // `splats` painted on what of you is within `reach` of `at` (your body, your hands) and, with `gear`, what they hold and
@@ -2422,7 +2433,11 @@ void paintOnYou(const za::Vector<Splat>& splats, const glm::vec3& at, float reac
         {
             bindWeapon(layer, handWeapon(hand)); // (its blood goes with the weapon)
         }
-        paint(layer, g, blow ? facingBlow(splats, *g, *blow) : splats);
+        if(blow)
+        {
+            facingBlow(splats, *g, *blow, scratch.blown);
+        }
+        paint(layer, g, blow ? scratch.blown : splats);
     }
     if(!vr_gore_gear_holstered.value)
     {
@@ -2529,7 +2544,8 @@ bool splashOnto(int num, const Splash& s)
     {
         bindWeapon(layer, weapon); // (its blood goes with the weapon)
     }
-    za::Vector<Splat> splats;
+    za::Vector<Splat>& splats = scratch.splats;
+    splats.clear();
     const bool soaked = s.soak > 0.f && d < s.core + r * 0.5f;
     if(soaked)
     {

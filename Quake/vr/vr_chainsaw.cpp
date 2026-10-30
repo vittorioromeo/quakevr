@@ -17,6 +17,7 @@
 #include "vr_units.hpp"
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
+#include "vr_audio.hpp"
 
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Base/SizeT.hpp"
@@ -786,7 +787,7 @@ void setupView(const hands::State& s)
             {
                 debugLog("pulled too slowly (a weak pull)", h, ext, st.peakSpeed);
                 // The server never hears of it: its sound here (the cord's zip, the engine turned over, not firing).
-                S_StartSound(cl.viewentity, -1, S_PrecacheSound(weakPullSound), vec3_origin, 0.7f, 1.f);
+                audio::playLocal(S_PrecacheSound(weakPullSound), 0.7f);
                 pullFeedback(sawHand, weakPullShare);
                 setPulled(true);
             }

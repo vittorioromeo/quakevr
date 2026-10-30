@@ -12,6 +12,7 @@
 #include "vr_bench.hpp"
 #include "vr_fgfx.hpp"
 #include "vr_gfx.hpp"
+#include "vr_glutil.hpp"
 #include "vr_bloom.hpp"
 #include "vr_bullettime.hpp"
 #include "vr_body.hpp"
@@ -87,10 +88,7 @@ GLuint targetFbo = 0;
 // vr_render_scale: the eyes are rendered at the scaled size, post-processed into this texture of
 // that size, and resampled (upscale::resample) into the eye image, which keeps the runtime's size.
 // At scale 1 too with vr_upscale_sharpen_native (sharpened into the image).
-GLuint resampleFbo = 0;
-GLuint resampleTex = 0;
-int resampleWidth = 0;
-int resampleHeight = 0;
+gfx::RenderTarget resample;
 bool resampling = false; // this frame's eyes are
 
 bool renderingEye = false;
@@ -100,29 +98,12 @@ bool firstEye = false; // no other eye rendered before it this frame
 
 void ensureResampleTarget(int width, int height)
 {
-    if(resampleTex && resampleWidth == width && resampleHeight == height)
+    if(!resample.ensure(width, height,
+           gfx::RenderTargetFormat{.internalFormat = GL_RGBA8, .clampToEdge = false, .maxLevel0 = true, .fboName = "vr resample"},
+           "stereo resample target"))
     {
-        return;
+        Con_Warning("VR: the stereo resample target's framebuffer is incomplete (%d x %d)\n", width, height);
     }
-    if(resampleTex)
-    {
-        GL_DeleteFramebuffersFunc(1, &resampleFbo);
-        GL_DeleteNativeTexture(resampleTex);
-    }
-    glGenTextures(1, &resampleTex);
-    GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, resampleTex);
-    GL_TexStorage2DFunc(GL_TEXTURE_2D, 1, GL_RGBA8, width, height);
-    GL_ObjectLabelFunc(GL_TEXTURE, resampleTex, -1, "stereo resample target"); // (vr_vram_report)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
-    GL_BindNative(GL_TEXTURE0, GL_TEXTURE_2D, 0);
-    GL_GenFramebuffersFunc(1, &resampleFbo);
-    GL_BindFramebufferFunc(GL_FRAMEBUFFER, resampleFbo);
-    GL_ObjectLabelFunc(GL_FRAMEBUFFER, resampleFbo, -1, "vr resample");
-    GL_FramebufferTexture2DFunc(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, resampleTex, 0);
-    resampleWidth = width;
-    resampleHeight = height;
 }
 
 // The spectator camera's MSAA (vr_spectator_aa): the window's (vid_fsaa), or none.
@@ -1071,7 +1052,7 @@ extern "C" int VR_RenderView()
         {
             // After the tone curve, grade, gamma and dither (FSR and NIS want the display's colours), before the UI.
             QVR_GPU_PROFILE("upscale");
-            upscale::resample(eye, stereo::resampleTex, stereo::resampleFbo, width, height, stereo::targetFbo,
+            upscale::resample(eye, stereo::resample.tex, stereo::resample.fbo, width, height, stereo::targetFbo,
                 imageWidth, imageHeight);
         }
         {
@@ -1247,7 +1228,7 @@ extern "C" unsigned VR_PostProcessTarget()
     {
         return 0;
     }
-    return stereo::resampling ? stereo::resampleFbo : stereo::targetFbo;
+    return stereo::resampling ? stereo::resample.fbo : stereo::targetFbo;
 }
 
 // Replaces the symmetric projection with the eye's asymmetric one. Ironwail's projection maps

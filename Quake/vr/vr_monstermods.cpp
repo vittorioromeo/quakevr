@@ -130,271 +130,105 @@ za::Vector<int> separatePieceSword(const aliashdr_t* hdr, const dtriangle_t* tri
 // (Misc/quakevr/make_chainsaw.py: vertices 416..496, a separate piece), its soldier's shotgun and its enforcer's laser
 // rifle (Misc/quakevr/make_enemyguns.py: separate pieces). The soldier's frames are not named either: its death frames
 // are id's 8..28 (death1 .. deathc11).
+struct VertRange
+{
+    int first, count; // vertices first .. first + count - 1
+};
+
+inline constexpr int knownSwordRanges = 5; // the most ranges a row has (the knight's)
+
 struct KnownSword
 {
     qvr::modelmeta::Id model;
     int numverts, numtris;
-    za::Vector<int> verts;
-    int firstDeath, lastDeath; // frame indices, or -1: by name
+    VertRange verts[knownSwordRanges]; // its vertices (a range with count 0: none)
+    int firstDeath, lastDeath;         // frame indices, or -1: by name
+    const char* dropped;               // the log's name for what it drops
 };
 
 const KnownSword knownSwords[] = {
-    {qvr::modelmeta::Id::Knight, 655, 697,
-        {334, 335, 336, 363, 364, 365, 524, 535, 536, 537, 538, 539, 540, 557, 558, 559, 560, 561, 562, 563, 564, 565,
-            566, 582, 583, 584, 585, 586, 587, 588, 589, 590, 591, 592, 593, 594, 595, 596, 597, 598, 599, 600, 601, 602,
-            603, 604, 607, 608, 609, 612, 613, 614, 615, 617, 626, 627, 628, 639, 640, 645, 646,
-            // The handle and the guard: seven small separate pieces (their own vertices, found on the blade's axis behind and
-            // across it in the idle pose, moving with it), left in his hand and lying about his corpse before.
-            567, 568, 569, 570, 571, 572, 573, 574, 575, 576, 577, 578, 579, 580, 581, 605, 606, 610, 611, 616, 618, 619, 620,
-            621, 622, 623, 624, 625, 629, 630, 631, 632, 633, 634, 635, 636, 637, 638, 641, 642, 643, 644, 647, 648},
-        76, 96},
+    // The knight's blade (334.., 363.., 524, 535..540, and in 557..648 with the handle and the guard: seven small separate
+    // pieces, their own vertices, found on the blade's axis behind and across it in the idle pose, moving with it, left in
+    // his hand and lying about his corpse before).
+    {qvr::modelmeta::Id::Knight, 655, 697, {{334, 3}, {363, 3}, {524, 1}, {535, 6}, {557, 92}}, 76, 96, "sword"},
     // (The hell knight's blade, and its guard: a piece of its own his hand holds, the dropped sword has its own hilt.)
-    {qvr::modelmeta::Id::Hknight, 538, 1000, [] {
-         za::Vector<int> v{43, 45, 46, 47, 48, 526, 527, 531, 532, 42, 44, 525, 528, 529, 530};
-         for(int i = 49; i <= 58; i++)
-         {
-             v.pushBack(i);
-         }
-         for(int i = 332; i <= 365; i++)
-         {
-             v.pushBack(i);
-         }
-         return v;
-     }(),
-        -1, -1},
-    {qvr::modelmeta::Id::Ogre, 497, 1290, [] {
-         za::Vector<int> v(81);
-         za::iota(v.begin(), v.end(), 416);
-         return v;
-     }(),
-        -1, -1},
-    {qvr::modelmeta::Id::Soldier, 555, 810, [] {
-         za::Vector<int> v(86);
-         za::iota(v.begin(), v.end(), 463);
-         return v;
-     }(),
-        8, 28},
-    {qvr::modelmeta::Id::Enforcer, 479, 984, [] {
-         za::Vector<int> v{22, 23, 100};
-         for(int i = 400; i <= 430; i++)
-         {
-             v.pushBack(i);
-         }
-         for(int i = 455; i <= 478; i++)
-         {
-             v.pushBack(i);
-         }
-         return v;
-     }(),
-        -1, -1},
+    {qvr::modelmeta::Id::Hknight, 538, 1000, {{42, 17}, {332, 34}, {525, 8}}, -1, -1, "sword"},
+    {qvr::modelmeta::Id::Ogre, 497, 1290, {{416, 81}}, -1, -1, "chainsaw"},
+    {qvr::modelmeta::Id::Soldier, 555, 810, {{463, 86}}, 8, 28, "shotgun"},
+    {qvr::modelmeta::Id::Enforcer, 479, 984, {{22, 2}, {100, 1}, {400, 31}, {455, 24}}, -1, -1, "laser rifle"},
     // Dawn of the Machine's rocket ogre (owned/mg3/progs/ogre_rocket.mdl, read in place): the chainsaw in his right hand
     // (a box and a long bar behind him, a piece of its own: 0..47, 649..652, 940..981), hidden in his deaths (frames
     // unnamed, id's ogre's order: death1-14 and bdeath1-10, 112..135); he drops one (QC ogre_die), his ragdoll holds none.
-    {qvr::modelmeta::Id::Mg3OgreRocket, 982, 1367, [] {
-         za::Vector<int> v(48);
-         za::iota(v.begin(), v.end(), 0);
-         for(int i = 649; i <= 652; i++)
-         {
-             v.pushBack(i);
-         }
-         for(int i = 940; i <= 981; i++)
-         {
-             v.pushBack(i);
-         }
-         return v;
-     }(),
-        112, 135},
+    {qvr::modelmeta::Id::Mg3OgreRocket, 982, 1367, {{0, 48}, {649, 4}, {940, 42}}, 112, 135, "chainsaw"},
     // AD support: Arcane Dimensions' armed monsters (their guns and gear, hidden in their deaths; vr_ad_monsters.qc
     // VR_AD_Dying drops them), to the Grem entry below.
-    {qvr::modelmeta::Id::AdSoldier, 555, 810, [] {
-         za::Vector<int> v(86);
-         za::iota(v.begin(), v.end(), 463);
-         return v;
-     }(), 8, 28},
-    {qvr::modelmeta::Id::AdEnforcer, 222, 424, [] {
-         za::Vector<int> v;
-         for(int i = 0; i <= 16; i++) { v.pushBack(i); }
-         for(int i = 45; i <= 60; i++) { v.pushBack(i); }
-         return v;
-     }(), 41, 65},
-    {qvr::modelmeta::Id::AdCenturion, 284, 544, [] {
-         za::Vector<int> v;
-         for(int i = 0; i <= 16; i++) { v.pushBack(i); }
-         for(int i = 45; i <= 60; i++) { v.pushBack(i); }
-         for(int i = 222; i <= 283; i++) { v.pushBack(i); }
-         return v;
-     }(), 18, 42},
-    {qvr::modelmeta::Id::AdPyro, 277, 530, [] {
-         za::Vector<int> v;
-         for(int i = 0; i <= 32; i++) { v.pushBack(i); }
-         for(int i = 194; i <= 225; i++) { v.pushBack(i); }
-         return v;
-     }(), 41, 65},
-    {qvr::modelmeta::Id::AdFumigator, 277, 530, [] {
-         za::Vector<int> v;
-         for(int i = 0; i <= 32; i++) { v.pushBack(i); }
-         for(int i = 194; i <= 225; i++) { v.pushBack(i); }
-         return v;
-     }(), 41, 65},
+    {qvr::modelmeta::Id::AdSoldier, 555, 810, {{463, 86}}, 8, 28, "burst rifle"},
+    {qvr::modelmeta::Id::AdEnforcer, 222, 424, {{0, 17}, {45, 16}}, 41, 65, "gun and muzzle effect"},
+    {qvr::modelmeta::Id::AdCenturion, 284, 544, {{0, 17}, {45, 16}, {222, 62}}, 18, 42,
+        "gun, muzzle effect and hover board"},
+    {qvr::modelmeta::Id::AdPyro, 277, 530, {{0, 33}, {194, 32}}, 41, 65, "gun, muzzle effect and hose"},
+    {qvr::modelmeta::Id::AdFumigator, 277, 530, {{0, 33}, {194, 32}}, 41, 65, "gun, muzzle effect and hose"},
     // AD's crossbow knight: the crossbow, a rigid piece (vertices 772..1119: bow, string, bolt), hidden in his deaths
     // (frames 225..255, the rig's: ragdoll_rigs); VR_ADGun_Drop drops it.
-    {qvr::modelmeta::Id::AdDcrossbow, 1120, 874, [] {
-         za::Vector<int> v(348);
-         za::iota(v.begin(), v.end(), 772);
-         return v;
-     }(), 225, 255},
+    {qvr::modelmeta::Id::AdDcrossbow, 1120, 874, {{772, 348}}, 225, 255, "crossbow"},
     // AD's melee monsters (their weapons, rigid pieces in the hand, found moving with it in every frame alive; hidden in
     // their deaths, the rigs' frames: vr_ad_rigs.inc; QC VR_ADMelee_Drop drops them, vr_admelee.cpp makes them): the death
     // fury's two swords (1240..1307 and 1308..1375), the death knight's, the death guard's sword (deaths A-D), the
     // hunter ogres' hammer and mace. (The zombie knight's falls are its knockdown's too: its rig keeps the blade a loose
     // piece instead, held alive and gone from its dead ragdoll: vr_ad_rigs.inc QVR_AD_RIG_KEPT.)
-    {qvr::modelmeta::Id::AdDfury, 1376, 1070, [] {
-         za::Vector<int> v(136);
-         za::iota(v.begin(), v.end(), 1240);
-         return v;
-     }(), 224, 254},
-    {qvr::modelmeta::Id::AdDknight, 911, 802, [] {
-         za::Vector<int> v(41);
-         za::iota(v.begin(), v.end(), 870);
-         return v;
-     }(), 212, 243},
+    {qvr::modelmeta::Id::AdDfury, 1376, 1070, {{1240, 136}}, 224, 254, "two swords"},
+    {qvr::modelmeta::Id::AdDknight, 911, 802, {{870, 41}}, 212, 243, "sword"},
     // The Dark Prince (the death knight's mesh and frames), the justice knight (its flat sword 0..91; deaths B 103..111,
     // A 112..121) and the judicator (its sword 680..779, the same deaths): their swords drop (swords4).
-    {qvr::modelmeta::Id::AdDprince, 911, 802, [] {
-         za::Vector<int> v(41);
-         za::iota(v.begin(), v.end(), 870);
-         return v;
-     }(), 212, 243},
-    {qvr::modelmeta::Id::AdJustice, 1008, 1148, [] {
-         za::Vector<int> v(92);
-         za::iota(v.begin(), v.end(), 0);
-         return v;
-     }(), 103, 121},
-    {qvr::modelmeta::Id::AdJudge, 1016, 1156, [] {
-         za::Vector<int> v(100);
-         za::iota(v.begin(), v.end(), 680);
-         return v;
-     }(), 103, 121},
-    {qvr::modelmeta::Id::AdDguard, 585, 564, [] {
-         za::Vector<int> v(41);
-         za::iota(v.begin(), v.end(), 544);
-         return v;
-     }(), 195, 255},
-    {qvr::modelmeta::Id::AdHogreham, 1306, 1012, [] {
-         za::Vector<int> v(273);
-         za::iota(v.begin(), v.end(), 210);
-         return v;
-     }(), 137, 160},
-    {qvr::modelmeta::Id::AdHogremac, 1224, 1002, [] {
-         za::Vector<int> v(191);
-         za::iota(v.begin(), v.end(), 216);
-         return v;
-     }(), 132, 155},
+    {qvr::modelmeta::Id::AdDprince, 911, 802, {{870, 41}}, 212, 243, "sword"},
+    {qvr::modelmeta::Id::AdJustice, 1008, 1148, {{0, 92}}, 103, 121, "sword"},
+    {qvr::modelmeta::Id::AdJudge, 1016, 1156, {{680, 100}}, 103, 121, "sword"},
+    {qvr::modelmeta::Id::AdDguard, 585, 564, {{544, 41}}, 195, 255, "sword"},
+    {qvr::modelmeta::Id::AdHogreham, 1306, 1012, {{210, 273}}, 137, 160, "hammer"},
+    {qvr::modelmeta::Id::AdHogremac, 1224, 1002, {{216, 191}}, 132, 155, "mace"},
     // AD's death sergeant's flail (its handle, chain and spiked head: 870..1264, the model's last pieces, AD's gib's mesh
     // w_blueflail.mdl), hidden in its deaths (223..254, the rig's: vr_ad_rigs.inc, whose seeds no longer give it a bone
     // of its own); QC VR_ADMelee_Drop drops it, vr_admelee.cpp makes it.
-    {qvr::modelmeta::Id::AdDsergeant, 1265, 1042, [] {
-         za::Vector<int> v(395);
-         za::iota(v.begin(), v.end(), 870);
-         return v;
-     }(), 223, 254},
+    {qvr::modelmeta::Id::AdDsergeant, 1265, 1042, {{870, 395}}, 223, 254, "flail"},
     // AD's chainsaw ogres (QC VR_AD_DropChainsaw: Quake VR's chainsaw, as Quake VR's ogre's): the nail, flak and marksman
     // ogre (progs/mon_ogre.mdl, id's mesh: the chainsaw its own piece, 20..51; deaths 112..135) and the hunter ogre
     // (progs/mon_hogre.mdl: 210..332; deaths S, A and B 154..187). Their grenade launchers stay.
-    {qvr::modelmeta::Id::AdOgre, 169, 326, [] {
-         za::Vector<int> v(32);
-         za::iota(v.begin(), v.end(), 20);
-         return v;
-     }(), 112, 135},
-    {qvr::modelmeta::Id::AdHogre, 1017, 820, [] {
-         za::Vector<int> v(123);
-         za::iota(v.begin(), v.end(), 210);
-         return v;
-     }(), 154, 187},
+    {qvr::modelmeta::Id::AdOgre, 169, 326, {{20, 32}}, 112, 135, "chainsaw"},
+    {qvr::modelmeta::Id::AdHogre, 1017, 820, {{210, 123}}, 154, 187, "chainsaw"},
     // AD's other sword users (QC VR_ADMelee_Drop: Quake VR's knight's and hell knight's swords): AD's knight, its hell
     // knight (id's mesh), the death lord and Quoth's death guard (Quoth's hell knight meshes); the sword a piece of its
     // own, hidden in the frames named death*.
-    {qvr::modelmeta::Id::AdKnight, 268, 376, [] {
-         za::Vector<int> v(21);
-         za::iota(v.begin(), v.end(), 247);
-         return v;
-     }(), 66, 86},
-    {qvr::modelmeta::Id::AdHknight, 250, 452, [] {
-         za::Vector<int> v(25);
-         za::iota(v.begin(), v.end(), 74);
-         return v;
-     }(), 42, 62},
-    {qvr::modelmeta::Id::AdDlord, 245, 446, [] {
-         za::Vector<int> v(25);
-         za::iota(v.begin(), v.end(), 69);
-         return v;
-     }(), 42, 62},
-    {qvr::modelmeta::Id::AdDguardq, 176, 344, [] {
-         za::Vector<int> v(25);
-         za::iota(v.begin(), v.end(), 0);
-         return v;
-     }(), 42, 62},
+    {qvr::modelmeta::Id::AdKnight, 268, 376, {{247, 21}}, 66, 86, "sword"},
+    {qvr::modelmeta::Id::AdHknight, 250, 452, {{74, 25}}, 42, 62, "sword"},
+    {qvr::modelmeta::Id::AdDlord, 245, 446, {{69, 25}}, 42, 62, "sword"},
+    {qvr::modelmeta::Id::AdDguardq, 176, 344, {{0, 25}}, 42, 62, "sword"},
     // AD's deflector: its muzzle effect (0..16, as the enforcer's) and its three field rings (222..266, tucked in its
     // chest but in its field frames), hidden in its deaths (51..75, the rig's: vr_ad_rigs.inc), so its ragdoll holds
     // none (specks: Rig::hideLoose). It keeps its gun.
-    {qvr::modelmeta::Id::AdDeflector, 267, 514, [] {
-         za::Vector<int> v;
-         for(int i = 0; i <= 16; i++) { v.pushBack(i); }
-         for(int i = 222; i <= 266; i++) { v.pushBack(i); }
-         return v;
-     }(), 51, 75},
+    {qvr::modelmeta::Id::AdDeflector, 267, 514, {{0, 17}, {222, 45}}, 51, 75, "muzzle effect and field rings"},
     // Hipnotic's gremlin: the gun he steals (its own piece, tucked inside his body but in his g* frames), hidden in his
     // deaths (death1-12, flip1-8: he drops it, gremlin_die), so his ragdoll holds none (ROUND21.md, "Ragdolls 5").
-    {qvr::modelmeta::Id::Grem, 123, 245, [] {
-         za::Vector<int> v(38);
-         za::iota(v.begin(), v.end(), 85);
-         return v;
-     }(),
-        104, 123},
+    {qvr::modelmeta::Id::Grem, 123, 245, {{85, 38}}, 104, 123, "stolen gun"},
 };
 
-// What a monster's model drops (the log's name for it).
+// A model's row by its kind alone (any vertex count), or none.
+[[nodiscard]] const KnownSword* knownSwordRow(qvr::modelmeta::Id id)
+{
+    for(const KnownSword& k : knownSwords)
+    {
+        if(k.model == id)
+        {
+            return &k;
+        }
+    }
+    return nullptr;
+}
+
+// What a monster's model drops (the log's name for it): its row's; a knight's model not Quake VR's own: a sword.
 [[nodiscard]] const char* droppedName(const char* model)
 {
-    const auto id = qvr::modelmeta::identifyPath(model);
-    switch(id)
-    {
-    case qvr::modelmeta::Id::AdDcrossbow: return "crossbow";                                   // AD support
-    case qvr::modelmeta::Id::AdDfury: return "two swords";                                     // AD support
-    case qvr::modelmeta::Id::AdDknight:                                                        // AD support
-    case qvr::modelmeta::Id::AdDprince:                                                        // AD support
-    case qvr::modelmeta::Id::AdJustice:                                                        // AD support
-    case qvr::modelmeta::Id::AdJudge:                                                          // AD support
-    case qvr::modelmeta::Id::AdDguard: return "sword";                                         // AD support
-    case qvr::modelmeta::Id::AdHogreham: return "hammer";                                      // AD support
-    case qvr::modelmeta::Id::AdHogremac: return "mace";                                        // AD support
-    case qvr::modelmeta::Id::AdDsergeant: return "flail";                                      // AD support
-    case qvr::modelmeta::Id::AdSoldier: return "burst rifle";                                 // AD support
-    case qvr::modelmeta::Id::AdEnforcer: return "gun and muzzle effect";                       // AD support
-    case qvr::modelmeta::Id::AdCenturion: return "gun, muzzle effect and hover board";         // AD support
-    case qvr::modelmeta::Id::AdPyro:                                                           // AD support
-    case qvr::modelmeta::Id::AdFumigator: return "gun, muzzle effect and hose";                // AD support
-    case qvr::modelmeta::Id::AdDeflector: return "muzzle effect and field rings";              // AD support
-    default: break;
-    }
-    if(id == qvr::modelmeta::Id::Ogre || id == qvr::modelmeta::Id::Mg3OgreRocket || id == qvr::modelmeta::Id::AdOgre ||
-        id == qvr::modelmeta::Id::AdHogre) // (AD support: AD's chainsaw ogres)
-    {
-        return "chainsaw";
-    }
-    if(id == qvr::modelmeta::Id::Soldier)
-    {
-        return "shotgun";
-    }
-    if(id == qvr::modelmeta::Id::Enforcer)
-    {
-        return "laser rifle";
-    }
-    if(id == qvr::modelmeta::Id::Grem)
-    {
-        return "stolen gun";
-    }
-    return "sword";
+    const KnownSword* k = knownSwordRow(qvr::modelmeta::identifyPath(model));
+    return k ? k->dropped : "sword";
 }
 
 // Dawn of the Machine's Super Axe (owned/mg3/progs/v_hammer.mdl and its glowing twin, read from the owned MG3 pack in
@@ -582,23 +416,9 @@ static void aliasPosesLoaded(const char* name, void* aliashdr, const stvert_t* s
     }
     const bool knight = id == qvr::modelmeta::Id::Knight;
     const bool hellKnight = id == qvr::modelmeta::Id::Hknight;
-    // The ogre, the soldier and the enforcer: only Quake VR's own models (by their known vertices); the gremlin: Hipnotic's;
-    // the rocket ogre: MG3's; Arcane Dimensions' armed monsters: AD's.
-    const bool adKnown = id == qvr::modelmeta::Id::AdSoldier || id == qvr::modelmeta::Id::AdEnforcer || // AD support
-                         id == qvr::modelmeta::Id::AdCenturion || id == qvr::modelmeta::Id::AdPyro ||  // AD support
-                         id == qvr::modelmeta::Id::AdFumigator || id == qvr::modelmeta::Id::AdDcrossbow || // AD support
-                         id == qvr::modelmeta::Id::AdDfury || id == qvr::modelmeta::Id::AdDknight ||    // AD support
-                         id == qvr::modelmeta::Id::AdDguard || id == qvr::modelmeta::Id::AdHogreham ||  // AD support
-                         id == qvr::modelmeta::Id::AdHogremac || id == qvr::modelmeta::Id::AdKnight || // AD support
-                         id == qvr::modelmeta::Id::AdDsergeant ||                                      // AD support
-                         id == qvr::modelmeta::Id::AdHknight || id == qvr::modelmeta::Id::AdDlord ||    // AD support
-                         id == qvr::modelmeta::Id::AdDguardq || id == qvr::modelmeta::Id::AdDeflector || // AD support
-                         id == qvr::modelmeta::Id::AdOgre || id == qvr::modelmeta::Id::AdHogre ||      // AD support
-                         id == qvr::modelmeta::Id::AdDprince || id == qvr::modelmeta::Id::AdJustice || // AD support
-                         id == qvr::modelmeta::Id::AdJudge;                                            // AD support
-    const bool knownOnly = id == qvr::modelmeta::Id::Ogre || id == qvr::modelmeta::Id::Soldier ||
-                           id == qvr::modelmeta::Id::Enforcer || id == qvr::modelmeta::Id::Grem ||
-                           id == qvr::modelmeta::Id::Mg3OgreRocket || adKnown;
+    // The rest of the table's kinds (the ogre, the soldier, the enforcer: Quake VR's own models; the gremlin: Hipnotic's;
+    // the rocket ogre: MG3's; Arcane Dimensions' armed monsters: AD's): only the models with their row's counts.
+    const bool knownOnly = !knight && !hellKnight && knownSwordRow(id);
     if(!knight && !hellKnight && !knownOnly)
     {
         return;
@@ -617,9 +437,12 @@ static void aliasPosesLoaded(const char* name, void* aliashdr, const stvert_t* s
     if(known)
     {
         za::Vector<char> in(hdr->numverts, 0);
-        for(int v : known->verts)
+        for(const VertRange& r : known->verts)
         {
-            in[v] = 1;
+            for(int v = r.first; v < r.first + r.count; v++)
+            {
+                in[v] = 1;
+            }
         }
         for(int i = 0; i < hdr->numtris; i++)
         {

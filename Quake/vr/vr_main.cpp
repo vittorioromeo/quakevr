@@ -1901,47 +1901,64 @@ static void testConfirm_f()
     M_Confirm("A test question: point the laser at\na button and pull the trigger.", "OK", "Cancel", 0.f, testConfirmYes);
 }
 
+namespace
+{
+// VR_NewMap's prewarm, in order: what the map's first frames, the first shot or the first hit made on first use, made
+// now, in the load: the decals' atlas (0.4 s: the first mark's frame), the view's own models (0.3 s the first time), the
+// liquids' volume and mesh (20-100 ms each map), the particles' atlas, the detail textures, the torch's shape, the
+// casings' model and sounds. `optional`: only with vr_load_prewarm (ROUND22.md "Frame spikes": each first use's frame,
+// Tracy).
+struct PrewarmStep
+{
+    const char* name;
+    void (*prepare)();
+    bool optional;
+};
+constexpr PrewarmStep prewarmSteps[] = {
+    {"decal atlas", decals::prepare, false},
+    {"particle atlas", particles::prepare, false},
+    {"detail textures", detail::prepare, false},
+    {"liquids", water::prepare, false},
+    {"view models", view::prepareModels, false},
+    {"torch", flashlight::prepare, false},
+    {"casings", shells::prepare, false},
+    {"gore sounds", goresound::prepare, false},
+    {"auto pump", autopump::prepare, false},
+    {"AD crossbow", adcrossbow::prepare, false}, // AD support: its next bolt's sound
+    {"Widowmaker", adweapons::prepare, false},   // AD support: its barrels' motor
+    {"explosion debris", explosiondebris::prepare, false},
+    {"muzzle flash", weaponfx::prepare, false},
+    {"wall torches", walltorch::prepare, false},
+    {"cords", gfx::prepareTube, false}, // (the torch's cord's first draw: 25.6 ms mid-game, Tracy qvr_gpu1)
+    {"smooth rigs", animsmooth::prepare, true},          // 6-27 ms a monster kind's first smooth draw
+    {"env cube world", envmap::prepare, true},          // 2-12 ms the first frame
+    {"gun anchors", view::prepareWorldWeapons, true},   // ~10 ms the first gun lying near
+    {"skin masks", VR_PrecacheSkinMasks, true},          // 4-9 ms the first frame (your hands' glove paint read again)
+};
+} // namespace
+
 extern "C" void VR_NewMap()
 {
     ++qvr::worldGen;
     rigdata::newMap(); // (the Rig Studio's files read again as each model is next drawn)
 
-    // What the map's first frames, the first shot or the first hit made on first use, made now, in the load: the decals'
-    // atlas (0.4 s: the first mark's frame), the view's own models (0.3 s the first time), the liquids' volume and mesh
-    // (20-100 ms each map), the particles' atlas, the detail textures, the torch's shape, the casings' model and sounds.
+    // The prewarm (prewarmSteps).
     QVR_PROFILE("vr prewarm");
     za::String times; // developer 1: what each took
     double total = 0.0;
-    const auto step = [&](const char* name, void (*prepare)()) {
-        QVR_PROFILE(name);
+    for(const PrewarmStep& step : prewarmSteps)
+    {
+        if(step.optional && vr_load_prewarm.value == 0.f)
+        {
+            continue;
+        }
+        QVR_PROFILE(step.name);
         const double start = Sys_DoubleTime();
-        prepare();
+        step.prepare();
         const double ms = (Sys_DoubleTime() - start) * 1000.0;
         total += ms;
-        times += va("%s%s %.1f", times.empty() ? "" : ", ", name, ms);
-        VR_TimeMark(va("VR_NewMap: %s", name));
-    };
-    step("decal atlas", decals::prepare);
-    step("particle atlas", particles::prepare);
-    step("detail textures", detail::prepare);
-    step("liquids", water::prepare);
-    step("view models", view::prepareModels);
-    step("torch", flashlight::prepare);
-    step("casings", shells::prepare);
-    step("gore sounds", goresound::prepare);
-    step("auto pump", autopump::prepare);
-    step("AD crossbow", adcrossbow::prepare); // AD support: its next bolt's sound
-    step("Widowmaker", adweapons::prepare);   // AD support: its barrels' motor
-    step("explosion debris", explosiondebris::prepare);
-    step("muzzle flash", weaponfx::prepare);
-    step("wall torches", walltorch::prepare);
-    step("cords", gfx::prepareTube); // (the torch's cord's first draw: 25.6 ms mid-game, Tracy qvr_gpu1)
-    if(vr_load_prewarm.value != 0.f) // (ROUND22.md "Frame spikes": each first use's frame, Tracy)
-    {
-        step("smooth rigs", animsmooth::prepare);         // 6-27 ms a monster kind's first smooth draw
-        step("env cube world", envmap::prepare);         // 2-12 ms the first frame
-        step("gun anchors", view::prepareWorldWeapons);  // ~10 ms the first gun lying near
-        step("skin masks", VR_PrecacheSkinMasks);         // 4-9 ms the first frame (your hands' glove paint read again)
+        times += va("%s%s %.1f", times.empty() ? "" : ", ", step.name, ms);
+        VR_TimeMark(va("VR_NewMap: %s", step.name));
     }
     Con_DPrintf("vr prewarm: %.1f ms (%s)\n", total, times.cStr());
 

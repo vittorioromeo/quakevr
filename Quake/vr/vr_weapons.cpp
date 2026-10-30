@@ -6,6 +6,7 @@
 #include "vr_anchor.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
+#include "vr_slottable.hpp"
 #include "vr_hands.hpp"
 #include "vr_protocol.hpp"
 
@@ -42,14 +43,12 @@ constexpr const char* keyEnumNames[numKeys] = {
 #undef QVR_WEAPON_KEY
 };
 
-// Cvar names must outlive the cvars.
-za::Array<za::String, numSlots * numKeys> names;
-za::Array<cvar_t, numSlots * numKeys> cvars{};
+SlotTable<Key, numSlots, numKeys> slots; // vr_wofs_<key>_NN
 
 
 [[nodiscard]] cvar_t& cvarAt(int slot, Key key)
 {
-    return cvars[slot * numKeys + static_cast<int>(key)];
+    return slots.at(slot, key);
 }
 
 // An inheriting slot's defaults its own (vr_weapons.inc QVR_WEAPON_OWN): at its default such a key is still the slot's,
@@ -945,11 +944,7 @@ void registerCvars()
     {
         for(int key = 0; key < numKeys; key++)
         {
-            names[slot * numKeys + key] = va("vr_wofs_%s_%02d", keyNames[key], slot + 1);
-            cvar_t& var = cvars[slot * numKeys + key];
-            var.name = names[slot * numKeys + key].cStr();
-            var.string = "0";
-            var.flags = CVAR_ARCHIVE;
+            slots.define(slot, key, va("vr_wofs_%s_%02d", keyNames[key], slot + 1), "0");
         }
     }
 
@@ -1029,7 +1024,7 @@ void registerCvars()
 #undef QVR_WEAPON_UNINHERITED
 #undef QVR_WEAPON_DEFAULT
 
-    for(cvar_t& var : cvars)
+    for(cvar_t& var : slots)
     {
         Cvar_RegisterVariable(&var);
         Cvar_SetCallback(&var, onChanged);
@@ -1602,8 +1597,7 @@ namespace
 void onChanged(cvar_t* var)
 {
     generation++;
-    const za::PtrDiffT index = var - cvars.data();
-    if(index >= 0 && index < static_cast<za::PtrDiffT>(cvars.size()) && index % numKeys == static_cast<int>(Key::ID))
+    if(slots.keyOf(var) == static_cast<int>(Key::ID))
     {
         onIdChanged(var);
     }

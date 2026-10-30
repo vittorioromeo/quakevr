@@ -311,6 +311,7 @@ bool sphereSeen(const glm::vec3& c, float r)
     return true;
 }
 za::Vector<za::StringView> textLines; // layout()'s, kept between calls
+za::String lineText; // one of textLines as a C string (the board and screen images), kept between calls
 
 void glyph(const glm::vec3& topLeft, const glm::vec3& right, const glm::vec3& down, unsigned char c, const glm::vec4& color,
     za::Vector<gfx::Vertex>& out = vertices)
@@ -849,7 +850,8 @@ void drawBoardImage(gfx::Target& target, za::StringView boardText, int columns, 
     const int top = boardPad + (rows - static_cast<int>(textLines.size())) * 4; // the page centred
     for(size_t i = 0; i < textLines.size(); i++)
     {
-        const za::String line{textLines[i]};
+        za::String& line = lineText;
+        line = textLines[i];
         const float x = static_cast<float>(boardPad) + 8.f * indent(align, static_cast<size_t>(columns), line.size());
         gfx::draw2D::text(x, static_cast<float>(top + 8 * static_cast<int>(i)), 8.f, line.cStr());
     }
@@ -1356,7 +1358,8 @@ void renderScreens()
         gadget::useBrightFont(look.trueColor);
         for(size_t i = 0; i < textLines.size(); i++)
         {
-            const za::String line{textLines[i]};
+            za::String& line = lineText;
+            line = textLines[i];
             const float x = static_cast<float>(pad) + 8.f * indent(q.align, longest, line.size());
             gfx::draw2D::text(x, static_cast<float>(pad + 8 * static_cast<int>(i)), 8.f, line.cStr());
         }

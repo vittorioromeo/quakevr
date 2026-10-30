@@ -255,8 +255,8 @@ float(float a) VR_RV_AngleNorm =
 vector vr_rv_port, vr_rv_axis, vr_rv_up, vr_rv_left;
 float(float xHand) VR_Revolver_Frame =
 {
-    vr_rv_port = xHand == cVR_MainHand ? self.loadportpos : self.offloadportpos;
-    vector ax = xHand == cVR_MainHand ? self.loadportaxis : self.offloadportaxis;
+    vr_rv_port = VR_HAND_FIELD(self, xHand, loadportpos, offloadportpos);
+    vector ax = VR_HAND_FIELD(self, xHand, loadportaxis, offloadportaxis);
     makevectors(VRGetEntHandRot(self, xHand));
     vr_rv_axis = ax == '0 0 0' ? v_forward : normalize(ax);
     vr_rv_up = normalize(v_up - vr_rv_axis * (v_up * vr_rv_axis));

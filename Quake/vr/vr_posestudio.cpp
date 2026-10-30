@@ -32,6 +32,7 @@
 #include "Zancle/String/String.hpp"
 #include "vr_zancle.hpp"
 #include "vr_geom.hpp"
+#include "vr_toolpanel.hpp"
 
 #include <glm/gtc/quaternion.hpp>
 
@@ -713,25 +714,13 @@ void weaponBox(const Note& n, int p, glm::vec3& lo, glm::vec3& hi)
 
 void say(const za::String& text)
 {
-    ses.feedback = text;
-    ses.feedbackUntil = realtime + 3.0;
-    Con_Printf("Pose Studio: %s\n", text.cStr());
+    toolpanel::say(ses.feedback, ses.feedbackUntil, "Pose Studio", text, 3.0);
 }
 
 void pushUndo()
 {
-    if(static_cast<int>(ses.undo.size()) >= UNDO_MAX)
-    {
-        for(int i = 0; i + 1 < static_cast<int>(ses.undo.size()); i++)
-        {
-            ses.undo[static_cast<za::SizeT>(i)] = ses.undo[static_cast<za::SizeT>(i + 1)];
-            ses.undoPoses[static_cast<za::SizeT>(i)] = ses.undoPoses[static_cast<za::SizeT>(i + 1)];
-        }
-        ses.undo.popBack();
-        ses.undoPoses.popBack();
-    }
-    ses.undo.pushBack(za::String{vr_agrunt_grips.string});
-    ses.undoPoses.pushBack(za::String{vr_agrunt_poses.string});
+    toolpanel::pushUndo(ses.undo, UNDO_MAX, za::String{vr_agrunt_grips.string});
+    toolpanel::pushUndo(ses.undoPoses, UNDO_MAX, za::String{vr_agrunt_poses.string}); // (the two stacks the same size)
 }
 
 // The last snapshot dropped if nothing changed since.
@@ -1586,32 +1575,23 @@ void press(int b)
 
 // --- the panel -----------------------------------------------------------------------------------------------------
 
+// The panel's buttons (toolpanel: their grid, the panel's frame).
+constexpr toolpanel::Grid buttonGrid{BUTTON_WIDTH, BUTTON_HEIGHT, BUTTON_GAP, BUTTON_DEPTH};
+
+[[nodiscard]] toolpanel::Frame buttonFrame()
+{
+    return toolpanel::Frame{ses.panelAt, ses.panelRight, ses.panelUp, ses.panelNormal};
+}
+
 [[nodiscard]] glm::vec3 buttonAt(int b)
 {
-    const float m2u = units::metresToUnits();
     const float col = static_cast<float>(buttonPlace[b].col), row = static_cast<float>(buttonPlace[b].row);
-    return ses.panelAt + ses.panelRight * (col * (BUTTON_WIDTH + BUTTON_GAP) * m2u) +
-           ses.panelUp * ((static_cast<float>(PANEL_ROWS - 1) * 0.5f - row) * (BUTTON_HEIGHT + BUTTON_GAP) * m2u);
+    return toolpanel::buttonCentre(buttonFrame(), buttonGrid, col, static_cast<float>(PANEL_ROWS - 1) * 0.5f - row);
 }
 
 [[nodiscard]] int buttonAtHand(const glm::vec3& p)
 {
-    const float m2u = units::metresToUnits();
-    for(int b = 0; b < BtnCount; b++)
-    {
-        if(!buttonShown(b))
-        {
-            continue;
-        }
-        const glm::vec3 d = p - buttonAt(b);
-        if(za::fabs(glm::dot(d, ses.panelRight)) <= (BUTTON_WIDTH * 0.5f + 0.01f) * m2u &&
-            za::fabs(glm::dot(d, ses.panelUp)) <= (BUTTON_HEIGHT * 0.5f + 0.01f) * m2u &&
-            za::fabs(glm::dot(d, ses.panelNormal)) <= BUTTON_DEPTH * m2u)
-        {
-            return b;
-        }
-    }
-    return -1;
+    return toolpanel::buttonUnder(buttonFrame(), buttonGrid, BtnCount, p, buttonAt, buttonShown);
 }
 
 // The panel's frame (world: x the way it faces, away from you; y its left; z its up), and set from one.

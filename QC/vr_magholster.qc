@@ -253,7 +253,7 @@ void(entity e, float s) VR_MagHolster_Fly =
 // A hand's bind button at a holster: binds its weapon there, or unbinds what is bound there.
 void(float xHand) VR_MagHolster_Press =
 {
-    float hs = xHand == cVR_MainHand ? self.mainhand_hotspot : self.offhand_hotspot;
+    float hs = VR_HAND_FIELD(self, xHand, mainhand_hotspot, offhand_hotspot);
     if(!isHolsterHotspot(hs))
     {
         return;

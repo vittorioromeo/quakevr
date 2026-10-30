@@ -126,7 +126,8 @@ struct DecalScratch
 {
     za::Vector<glm::vec3> poly, clipped; // a face's polygon cut to the mark (clipToWorld)
     za::Vector<Corner> tris;             // the mark's triangles (add)
-    auto members() { return qvr::mem::list(poly, clipped, tris); }
+    za::Vector<gfx::Vertex> packed;      // the settled vertices packed (swapped with staticVertices: the old kept)
+    auto members() { return qvr::mem::list(poly, clipped, tris, packed); }
 };
 mem::Scratch<DecalScratch> scratch{"decals"};
 
@@ -2452,7 +2453,8 @@ void draw()
         // Packed when more of it is gone than is left: the settled marks' triangles again, in their order.
         if(staticGone > za::max(4096, settledVertices))
         {
-            za::Vector<gfx::Vertex> packed;
+            za::Vector<gfx::Vertex>& packed = scratch.packed;
+            packed.clear();
             packed.reserve(static_cast<za::SizeT>(settledVertices));
             for(za::SizeT k = 0; k < decals.size(); k++)
             {

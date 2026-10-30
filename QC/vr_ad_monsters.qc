@@ -47,6 +47,15 @@ void(float xBits, float xForward, float xUp, float xRadius, float xCorpseH) VR_A
     self.vr_ad_corpseh = xCorpseH;
 };
 
+// Self's row with a knockdown: VR_AD_Mon's, then its chance's cvar and its deaths' frames played backwards to get up
+// (VR_Knockdown_SetupReverse: death A's last and first, death B's or -1 -1).
+void(float xBits, float xForward, float xUp, float xRadius, float xCorpseH, float xKdH, float xLastA, float xFirstA,
+     float xLastB, float xFirstB) VR_AD_MonKd =
+{
+    VR_AD_Mon(xBits, xForward, xUp, xRadius, xCorpseH);
+    VR_Knockdown_SetupReverse(xKdH, xLastA, xFirstA, xLastB, xFirstB);
+};
+
 // AD's zombie's, mummy's and zombie knight's pain (self.ad_th_pain): AD's own, and the fall it begins (paine1, painb1,
 // paind1: down to lie not solid until AD's wakeup finds room) is a knockdown's active ragdoll instead
 // (VR_Knockdown_ZombieFall; BACKLOG "Zombies stuck knocked down"). No ragdoll (ragdolls off, no room): AD's own fall.
@@ -190,15 +199,14 @@ void() VR_AD_MonsterSetup =
     // w_dprincesword.mdl, its gib).
     if(t == ad_CT_MONDKNIGHT || t == ad_CT_MONDPRINCE)
     {
-        VR_AD_Mon(VR_ADM_MELEE | VR_ADM_ARMOUR, 7, 32, 7, cvarh_vr_corpse_health_hellknight);
-        VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_hknight, 223, 212, 243, 224);
+        VR_AD_MonKd(VR_ADM_MELEE | VR_ADM_ARMOUR, 7, 32, 7, cvarh_vr_corpse_health_hellknight,
+                    cvarh_vr_knockdown_chance_hknight, 223, 212, 243, 224);
     }
     // AD's soldiers (progs/mon_soldier.mdl: Quake VR's grunt's mesh and id's frames: deaths 8-17, 18-28): the grunt's head
     // zone (PositionalHead's monster_army).
     else if(t == ad_CT_MONARMYROCKET || t == ad_CT_MONARMYGRENADE || t == ad_CT_MONARMYPLASMA || t == ad_CT_MONARMY)
     {
-        VR_AD_Mon(0, 3, 23, 7.2, cvarh_vr_corpse_health_grunt);
-        VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_army, 17, 8, 28, 18);
+        VR_AD_MonKd(0, 3, 23, 7.2, cvarh_vr_corpse_health_grunt, cvarh_vr_knockdown_chance_army, 17, 8, 28, 18);
     }
     // Zombie knight (progs/mon_zombiek.mdl): no death of its own (AD's zombies die gibbed; Quake VR's beheading or a cut
     // limb kills it for good, VR_AD_ZombieKilled). Its knockdown gets up as AD's own (paine: down at paine12, up from 13).
@@ -218,35 +226,35 @@ void() VR_AD_MonsterSetup =
     // 21.4, 6.0).
     else if(t == ad_CT_MONDCROSS)
     {
-        VR_AD_Mon(VR_ADM_MELEE | VR_ADM_ARMOUR, 4.5, 21.5, 6, cvarh_vr_corpse_health_knight);
-        VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_knight, 235, 225, 255, 236);
+        VR_AD_MonKd(VR_ADM_MELEE | VR_ADM_ARMOUR, 4.5, 21.5, 6, cvarh_vr_corpse_health_knight,
+                    cvarh_vr_knockdown_chance_knight, 235, 225, 255, 236);
     }
     // Hunter ogres: the cleaver's (progs/mon_hogre.mdl: deaths S 154-163, A 164-173, B 174-187) and the mace's
     // (progs/mon_hogremac.mdl: A 132-141, B 142-155). Head: their rigs' (10.8 -0.5 27.0; 10.3 -0.8 26.3).
     else if(t == ad_CT_MONHOGRE)
     {
-        VR_AD_Mon(VR_ADM_MELEE, 10.5, 27, 7.5, cvarh_vr_corpse_health_ogre);
-        VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_ogre, 173, 164, 187, 174);
+        VR_AD_MonKd(VR_ADM_MELEE, 10.5, 27, 7.5, cvarh_vr_corpse_health_ogre,
+                    cvarh_vr_knockdown_chance_ogre, 173, 164, 187, 174);
     }
     else if(t == ad_CT_MONHOGREMAC)
     {
-        VR_AD_Mon(VR_ADM_MELEE, 10, 26.5, 7.5, cvarh_vr_corpse_health_ogre);
-        VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_ogre, 141, 132, 155, 142);
+        VR_AD_MonKd(VR_ADM_MELEE, 10, 26.5, 7.5, cvarh_vr_corpse_health_ogre,
+                    cvarh_vr_knockdown_chance_ogre, 141, 132, 155, 142);
     }
     // Spiders, green and brown (progs/mon_spiderg.mdl, mon_spiderb.mdl: one mesh; death 114-133): its head the front of
     // its body (5.3 -0.1 -15.4), below its origin; never beheaded (its head is its body's bone: one of its own was unstable).
     // Tuned as the scourge (vr_ad_monsters.cpp's class alias): its corpse health, its group's (crawler) knockdown chance.
     else if(t == ad_CT_MONSPIDER || t == ad_CT_MINIONSPIDER)
     {
-        VR_AD_Mon(VR_ADM_MELEE | VR_ADM_NOHEAD, 6, -15, 6, cvarh_vr_corpse_health_scourge);
-        VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_crawler, 133, 114, -1, -1);
+        VR_AD_MonKd(VR_ADM_MELEE | VR_ADM_NOHEAD, 6, -15, 6, cvarh_vr_corpse_health_scourge,
+                    cvarh_vr_knockdown_chance_crawler, 133, 114, -1, -1);
     }
     // Death guard (progs/mon_dguard.mdl: deaths A 195-206, B 207-226, C 227-240, D 241-255). Head: headfit.py mon_dguard
     // 20 0 7 (5.5 -0.2 22.6, 5.1).
     else if(t == ad_CT_MONDGUARD)
     {
-        VR_AD_Mon(VR_ADM_MELEE | VR_ADM_ARMOUR, 6, 22.5, 5.5, cvarh_vr_corpse_health_hellknight);
-        VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_hknight, 206, 195, 226, 207);
+        VR_AD_MonKd(VR_ADM_MELEE | VR_ADM_ARMOUR, 6, 22.5, 5.5, cvarh_vr_corpse_health_hellknight,
+                    cvarh_vr_knockdown_chance_hknight, 206, 195, 226, 207);
     }
     // Skull wizard (progs/mon_skullwiz.mdl: its first frame its death's, 0-14; a robe, no legs). Head: its rig's 2.2 -3.3
     // 23.1, headfit.py mon_skullwiz 22 -2 7 (6.9 -1.0 27.0, 7.3).
@@ -259,29 +267,29 @@ void() VR_AD_MonsterSetup =
     // (7.0 -0.4 28.2).
     else if(t == ad_CT_MONHOGREHAM)
     {
-        VR_AD_Mon(VR_ADM_MELEE, 7, 28.5, 7.5, cvarh_vr_corpse_health_ogre);
-        VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_ogre, 146, 137, 160, 147);
+        VR_AD_MonKd(VR_ADM_MELEE, 7, 28.5, 7.5, cvarh_vr_corpse_health_ogre,
+                    cvarh_vr_knockdown_chance_ogre, 146, 137, 160, 147);
     }
     // Minotaur (progs/mon_minotaur.mdl: 86 units tall; its first frame a walk's; death 36-60). Head: its rig's 14.8 -12.5
     // 57.4 (turned to its right in that frame: a wider zone).
     else if(t == ad_CT_MONMINOTAUR)
     {
-        VR_AD_Mon(VR_ADM_MELEE, 14, 58, 11, cvarh_vr_corpse_health_shambler);
-        VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_shambler, 60, 36, -1, -1);
+        VR_AD_MonKd(VR_ADM_MELEE, 14, 58, 11, cvarh_vr_corpse_health_shambler,
+                    cvarh_vr_knockdown_chance_shambler, 60, 36, -1, -1);
     }
     // Death fury (progs/mon_dfury.mdl: two swords; deaths 224-240, 241-254). Head: headfit.py mon_dfury 30 -3 7 (3.7
     // -0.2 36.7, 8.0: its horned helmet).
     else if(t == ad_CT_MONDFURY)
     {
-        VR_AD_Mon(VR_ADM_MELEE | VR_ADM_ARMOUR, 4, 36.5, 7, cvarh_vr_corpse_health_hellknight);
-        VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_hknight, 240, 224, 254, 241);
+        VR_AD_MonKd(VR_ADM_MELEE | VR_ADM_ARMOUR, 4, 36.5, 7, cvarh_vr_corpse_health_hellknight,
+                    cvarh_vr_knockdown_chance_hknight, 240, 224, 254, 241);
     }
     // AD's enforcers, the defender and the eliminator (progs/mon_enforcer.mdl, id's: deaths 41-54, 55-65). Head: its
     // head cluster's middle (-4.5 -1.3 29.0, behind its origin).
     else if(t == ad_CT_MONDEFENDER || t == ad_CT_MONELIMATOR || t == ad_CT_MONENFORCER)
     {
-        VR_AD_Mon(VR_ADM_ARMOUR, -4, 29, 6, cvarh_vr_corpse_health_enforcer);
-        VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_enforcer, 54, 41, 65, 55);
+        VR_AD_MonKd(VR_ADM_ARMOUR, -4, 29, 6, cvarh_vr_corpse_health_enforcer,
+                    cvarh_vr_knockdown_chance_enforcer, 54, 41, 65, 55);
     }
     // Flyers (no knockdown): the gargoyle (progs/mon_gargoyle.mdl, its first frame its death's, 0-13; the minotaur's
     // minions too) and the gaunt (progs/mon_gaunt.mdl: deaths 93-100, 101-108; the judicator's minions too). Heads: their
@@ -298,8 +306,8 @@ void() VR_AD_MonsterSetup =
     // legs and a head on top; deaths 58-63, 64-70). Head: its rig's -0.5 0.0 -4.7.
     else if(t == ad_CT_MONSWAMPLING || t == ad_CT_MONVORELING || t == ad_CT_MINIONVORELING)
     {
-        VR_AD_Mon(VR_ADM_MELEE, 0, -4.5, 4, cvarh_vr_corpse_health_dog);
-        VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_dog, 63, 58, 70, 64);
+        VR_AD_MonKd(VR_ADM_MELEE, 0, -4.5, 4, cvarh_vr_corpse_health_dog,
+                    cvarh_vr_knockdown_chance_dog, 63, 58, 70, 64);
     }
     // Centurion (progs/mon_centurion.mdl: on its hover board, a flyer: no knockdown; deaths 18-31, 32-42). Head:
     // headfit.py mon_centurion 31 -5 7 (-0.2 -1.6 36.5, 5.7).
@@ -310,62 +318,62 @@ void() VR_AD_MonsterSetup =
     // Drole (progs/mon_drole.mdl: four arms; death 169-194). Head: its rig's 16.8 -0.3 51.1.
     else if(t == ad_CT_MONDROLE)
     {
-        VR_AD_Mon(VR_ADM_MELEE, 17, 51, 7, cvarh_vr_corpse_health_shambler);
-        VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_shambler, 194, 169, -1, -1);
+        VR_AD_MonKd(VR_ADM_MELEE, 17, 51, 7, cvarh_vr_corpse_health_shambler,
+                    cvarh_vr_knockdown_chance_shambler, 194, 169, -1, -1);
     }
     // Scorpion (progs/mon_scorpion.mdl: death 74-94). Head: its head cluster's 14.7 1.7 -9.7, below its origin; never
     // beheaded (its head moves with its body: no bone of its own). Tuned as the scourge, as the spider.
     else if(t == ad_CT_MONSCORPION || t == ad_CT_MINIONSCORPION)
     {
-        VR_AD_Mon(VR_ADM_MELEE | VR_ADM_NOHEAD, 14, -9.5, 6, cvarh_vr_corpse_health_scourge);
-        VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_crawler, 94, 74, -1, -1);
+        VR_AD_MonKd(VR_ADM_MELEE | VR_ADM_NOHEAD, 14, -9.5, 6, cvarh_vr_corpse_health_scourge,
+                    cvarh_vr_knockdown_chance_crawler, 94, 74, -1, -1);
     }
     // Stone golem (progs/mon_golem.mdl: 105 units tall; death 157-178). Head: headfit.py mon_golem 66 0 10 (7.6 0.4 74.3,
     // 10.2).
     else if(t == ad_CT_MONGOLEM)
     {
-        VR_AD_Mon(VR_ADM_MELEE | VR_ADM_ARMOUR, 8, 74, 10, cvarh_vr_corpse_health_shambler);
-        VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_shambler, 178, 157, -1, -1);
+        VR_AD_MonKd(VR_ADM_MELEE | VR_ADM_ARMOUR, 8, 74, 10, cvarh_vr_corpse_health_shambler,
+                    cvarh_vr_knockdown_chance_shambler, 178, 157, -1, -1);
     }
     // Death sergeant (progs/mon_dsergeant.mdl: the flail its own bone; deaths 223-234, 235-254). Head: headfit.py
     // mon_dsergeant 28 0 8 (6.6 -0.2 31.7, 7.5).
     else if(t == ad_CT_MONDSERG)
     {
-        VR_AD_Mon(VR_ADM_MELEE | VR_ADM_ARMOUR, 7, 32, 7, cvarh_vr_corpse_health_hellknight);
-        VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_hknight, 234, 223, 254, 235);
+        VR_AD_MonKd(VR_ADM_MELEE | VR_ADM_ARMOUR, 7, 32, 7, cvarh_vr_corpse_health_hellknight,
+                    cvarh_vr_knockdown_chance_hknight, 234, 223, 254, 235);
     }
     // Bog lord (progs/mon_bossboglord.mdl: the shambler's mesh 1.3 times as big, his frames: death 83-93): the shambler's
     // head zone scaled (14, 57, 12 -> 18, 81, 15.5).
     else if(t == ad_CT_MONBOGLORD)
     {
-        VR_AD_Mon(VR_ADM_MELEE, 18, 81, 15.5, cvarh_vr_corpse_health_shambler);
-        VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_shambler, 93, 83, -1, -1);
+        VR_AD_MonKd(VR_ADM_MELEE, 18, 81, 15.5, cvarh_vr_corpse_health_shambler,
+                    cvarh_vr_knockdown_chance_shambler, 93, 83, -1, -1);
     }
     // Seeker (progs/mon_seeker.mdl: a walker of metal; deaths 59-70, B 185-196 of five). Head: its rig's 23.8 3.3 48.6.
     else if(t == ad_CT_MONSEEKER)
     {
-        VR_AD_Mon(VR_ADM_ARMOUR, 24, 48.5, 5, cvarh_vr_corpse_health_enforcer);
-        VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_enforcer, 70, 59, 196, 185);
+        VR_AD_MonKd(VR_ADM_ARMOUR, 24, 48.5, 5, cvarh_vr_corpse_health_enforcer,
+                    cvarh_vr_knockdown_chance_enforcer, 70, 59, 196, 185);
     }
     // Pyro and fumigator (progs/mon_pyro.mdl, mon_fumigator.mdl: one mesh, id's enforcer's frames with a tank and its
     // hose; deaths 41-54, 55-65). Head: headfit.py mon_pyro 24 -9 6 (-4.6 -1.0 29.1, 5.5).
     else if(t == ad_CT_MONPYRO || t == ad_CT_MONFUMIGATOR)
     {
-        VR_AD_Mon(VR_ADM_ARMOUR, -4.5, 29, 5.5, cvarh_vr_corpse_health_enforcer);
-        VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_enforcer, 54, 41, 65, 55);
+        VR_AD_MonKd(VR_ADM_ARMOUR, -4.5, 29, 5.5, cvarh_vr_corpse_health_enforcer,
+                    cvarh_vr_knockdown_chance_enforcer, 54, 41, 65, 55);
     }
     // Freddie (progs/mon_freddie.mdl: an ogre on machine legs; death 112-146). Head: its rig's 7.6 2.8 49.6.
     else if(t == ad_CT_MONFREDDIE)
     {
-        VR_AD_Mon(VR_ADM_MELEE | VR_ADM_ARMOUR, 7.5, 49.5, 6, cvarh_vr_corpse_health_ogre);
-        VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_ogre, 146, 112, -1, -1);
+        VR_AD_MonKd(VR_ADM_MELEE | VR_ADM_ARMOUR, 7.5, 49.5, 6, cvarh_vr_corpse_health_ogre,
+                    cvarh_vr_knockdown_chance_ogre, 146, 112, -1, -1);
     }
     // Justice knight (progs/mon_justice.mdl: deaths A 112-121, B 103-111). Head: headfit.py mon_justice 40 -6 9 (2.6 -2.7
     // 45.7, 7.8).
     else if(t == ad_CT_MONJUSTICE)
     {
-        VR_AD_Mon(VR_ADM_MELEE | VR_ADM_ARMOUR, 3, 45.5, 7.5, cvarh_vr_corpse_health_hellknight);
-        VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_hknight, 121, 112, 111, 103);
+        VR_AD_MonKd(VR_ADM_MELEE | VR_ADM_ARMOUR, 3, 45.5, 7.5, cvarh_vr_corpse_health_hellknight,
+                    cvarh_vr_knockdown_chance_hknight, 121, 112, 111, 103);
     }
     // AD's eel (progs/mon_eel.mdl: a chain of six; death 6-20; a swimmer: no knockdown). Head: its rig's 17.6 0.0 -0.4.
     else if(t == ad_CT_MONEEL)
@@ -373,38 +381,32 @@ void() VR_AD_MonsterSetup =
         VR_AD_Mon(VR_ADM_MELEE, 18, 0, 4.5, cvarh_vr_corpse_health_eel);
     }
     // AD's hell knight (the point knight; progs/mon_hknight.mdl, id's model: deaths 42-53, 54-62). Head: its rig's 8.6
-    // -1.0 33.0 (Quake VR's own death knight's zone: 6, 33, 7.2).
-    else if(t == ad_CT_MONHELLK)
+    // -1.0 33.0 (Quake VR's own death knight's zone: 6, 33, 7.2). The death lord and Quoth's death guard
+    // (progs/mon_dlord.mdl, mon_dguardq.mdl) are id's hell knight's mesh and frames: the same row.
+    else if(t == ad_CT_MONHELLK || t == ad_CT_MONDLORD || t == ad_CT_MONDGUARDQ)
     {
-        VR_AD_Mon(VR_ADM_MELEE | VR_ADM_ARMOUR, 8, 33, 7, cvarh_vr_corpse_health_hellknight);
-        VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_hknight, 53, 42, 62, 54);
-    }
-    // The death lord and Quoth's death guard (progs/mon_dlord.mdl, mon_dguardq.mdl: id's hell knight's mesh and frames;
-    // deaths 42-53, 54-62): the hell knight's head zone.
-    else if(t == ad_CT_MONDLORD || t == ad_CT_MONDGUARDQ)
-    {
-        VR_AD_Mon(VR_ADM_MELEE | VR_ADM_ARMOUR, 8, 33, 7, cvarh_vr_corpse_health_hellknight);
-        VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_hknight, 53, 42, 62, 54);
+        VR_AD_MonKd(VR_ADM_MELEE | VR_ADM_ARMOUR, 8, 33, 7, cvarh_vr_corpse_health_hellknight,
+                    cvarh_vr_knockdown_chance_hknight, 53, 42, 62, 54);
     }
     // AD's knight (progs/mon_knight.mdl, id's: deaths 66-75, 76-86). Head: its rig's head cluster (3.0 -0.1 22.1, z 17-27;
     // headfit.py takes its raised sword).
     else if(t == ad_CT_MONKNIGHT)
     {
-        VR_AD_Mon(VR_ADM_MELEE | VR_ADM_ARMOUR, 3, 22, 5.5, cvarh_vr_corpse_health_knight);
-        VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_knight, 75, 66, 86, 76);
+        VR_AD_MonKd(VR_ADM_MELEE | VR_ADM_ARMOUR, 3, 22, 5.5, cvarh_vr_corpse_health_knight,
+                    cvarh_vr_knockdown_chance_knight, 75, 66, 86, 76);
     }
     // AD's ogres, the nail, flak and marksman ones (progs/mon_ogre.mdl, id's: deaths 112-125, 126-135). Head: its rig's
     // head cluster (11.5 -2.7 28.4), headfit.py mon_ogre 23 2 (9.8 -3.1 29.2).
     else if(t == ad_CT_MONOGRE)
     {
-        VR_AD_Mon(VR_ADM_MELEE, 10.5, 28.5, 7.5, cvarh_vr_corpse_health_ogre);
-        VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_ogre, 125, 112, 135, 126);
+        VR_AD_MonKd(VR_ADM_MELEE, 10.5, 28.5, 7.5, cvarh_vr_corpse_health_ogre,
+                    cvarh_vr_knockdown_chance_ogre, 125, 112, 135, 126);
     }
     // The deflector (progs/mon_deflector.mdl: id's enforcer's body; deaths 51-64, 65-75): the enforcer's head zone.
     else if(t == ad_CT_MONDEFLECTOR)
     {
-        VR_AD_Mon(VR_ADM_ARMOUR, -4, 29, 6, cvarh_vr_corpse_health_enforcer);
-        VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_enforcer, 64, 51, 75, 65);
+        VR_AD_MonKd(VR_ADM_ARMOUR, -4, 29, 6, cvarh_vr_corpse_health_enforcer,
+                    cvarh_vr_knockdown_chance_enforcer, 64, 51, 75, 65);
     }
     // The ones that burst or shrink away at death (no ragdoll, no corpse): the wraith (its head zone: its rig's head
     // cluster, -1.1 -0.1 36.0), the lost soul and the skull wizard's skulls, the boil, Jim and his rocket brother; and the
@@ -445,8 +447,8 @@ void() VR_AD_MonsterSetup =
     }
     else if(t == ad_CT_MONSTEELCLAW)
     {
-        VR_AD_Mon(VR_ADM_MELEE | VR_ADM_ARMOUR | VR_ADM_NOHEAD, 6, -15, 6, cvarh_vr_corpse_health_dog);
-        VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_dog, 133, 114, -1, -1);
+        VR_AD_MonKd(VR_ADM_MELEE | VR_ADM_ARMOUR | VR_ADM_NOHEAD, 6, -15, 6, cvarh_vr_corpse_health_dog,
+                    cvarh_vr_knockdown_chance_dog, 133, 114, -1, -1);
     }
     // AD's zombie and mummy (progs/mon_zombie.mdl: id's zombie, Rogue's mummy's mesh 0.83 times as big; AD's zombies die
     // gibbed, Quake VR's beheading or a cut limb kills them for good). Its knockdown gets up as AD's own (paine12, 173).

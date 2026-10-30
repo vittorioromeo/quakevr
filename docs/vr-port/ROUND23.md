@@ -1042,3 +1042,128 @@ case: next has the mock-hand fix since the baseline).
   111/4, parry_pose fail), flaky counts (agrunt 63, 71, 72, 76, 86; ragdoll_ragtest passed), and two new: agarmor_5
   22/1 (a corpse's right thigh plate worn: the engine here is next's, likely its limb-plate work) and ragdoll_guard
   7/1 (guard stagger).
+## Refactor wave B1: QC if-chains to tables (branch `agent/reftables`)
+
+No behaviour change. Each step was checked by an A/B dump: a temporary QC function (not committed) printed every answer
+of the functions touched, from the build before and the build after, and the two logs were diffed (identical, apart from
+`random()` picks that differ run to run).
+
+- **W17** `QC/vr_weaponutil.qc`: the 15 `WeaponIdTo*` chains read one table, `VR_WEAPONS[WID_LAST + 1]` (a
+  `vr_weapon_row` a weapon id: pickup classname, item, ammo and secondary ammo, model and secondary model, name, throw
+  multiplier, damage, bounds, starting ammo, clip, flags for reload / flick / secondary ammo / stabilised throw). The AD
+  guns' model, name and clip and the clips a setting sizes (grunt gun, enforcer rifle, nail pistol, flare gun,
+  revolver) stay code before the table read. Out-of-range ids still ASSERT and return the old fallback. Dumped: all 32
+  ids with and without the secondary-ammo flag, and the 17 pickup classnames.
+- **W20** `ClientObituary` (client.qc): the monster kills (`VR_OBIT_MONSTERS`), the traps (`VR_OBIT_TRAPS`) and a
+  player's weapon kills (`VR_OBIT_WEAPONS`, with secondary-ammo words) are tables; the words that depend on more (MG3's
+  variants, the vore's shove, the gib, the water, the laser's coin toss) stay code. Dumped: 33 monster classnames x 2
+  variant states, 14 traps, the water deaths and 32 weapons x 4 flag/gib states.
+- **W21** `CheckPowerups` (client.qc): `VR_Powerup_Warn/Expire/Glow(field, clock, ...)` for the seven timed powerups
+  that share Quake's pattern; the lava suit's end, the shield and the antigrav (different rules) stay inline.
+- **W19** `ImpulseCommands` (weapons.qc): `VR_Impulse_HandReady`, `VR_Impulse_CycleHand(hand, reverse)` and
+  `VR_Impulse_WeaponButton(hand)` replace the five copies of the per-hand cycling and the two button blocks.
+- **W18** `W_AttackImpl` (weapons.qc): the firing tail is `W_AttackImpl_Fire`, a dispatch to one `W_Fire_<weapon>` a
+  weapon; the checks before it are unchanged. Melee: a pure move of the untracked swings.
+- **C14** `vr_arena_perks.qc`: the perks' pool order, name, text, card model and colour are one table, `VR_ARK_PERKS`.
+
+QC globals: 55869 before, 56505 after (+636: each table value is a global; the id format's limit is 65536); statements +982 (the compiler's array readers).
+
+### Part 2
+
+- **C10** `vr_mg_horde.qc`: `MGH_SpawnSquad2` reads `MGH_SQUADS` (a row a monster in MG1's spawn order: squad, skills
+  0 / 1+ / 0 only, monster, place); the double demon's roll stays code. `MGH_SpawnWave2`'s ladders are `MGH_WAVES`
+  (army or not, category, the roll's bound, squad, spawn point type) read by `MGH_WaveRow(army, cat, random())`: one
+  `random()` at the same place, the category's last bound its range (4, 2, 3), its last row the else.
+- **C11/C12** `VR_WAVE_KINDS` (vr_arena.qc): a row an arena kind (`AR_SP_*` is the row) then the horde's others; horde
+  name, classname, the horde's spawn (id's monster) and the arena's (the armed grunt and enforcer).
+  `MGH_SpawnMonster`, `VR_ARENA_ClassName` and `VR_ARENA_CallSpawn` read it.
+- **C13** `MGH_horde_key_set_all(key, give)`; **C15** `AD_KEY_BITS` / `AD_KEY_WIDS`; **C16** `AD_UPGRADES` {weapon, AD bit,
+  VR model "#vr" (vr_adweapons.cpp keeps its own list of the three), pickup model, classname, name} read by
+  `AD_UpgradeFor`, `AD_VRModelName`, `AD_EnsureVRModel` (the made-bit is the row's) and `AD_UpgradeItem(row)`; **C17**
+  `AD_UpgradeGate()` for the pickups and the toolgun's props.
+- **C25** `AR_RING_DIRS` / `AR_ASIDE_DIRS`; **C32** `VR_AT_CVARS` {name, test value} feeds Save, Restore and SetDefaults;
+  **M53** `VR_SGIB_INFLICTORS` (+ kinds), `VR_SGIB_NAMES`, `VR_SGIB_CDMG`; **B64** `VR_AG_SAFE_DIST(_MINE)`.
+- **C04** `VR_AD_MonsterSetup`: each row one call (`VR_AD_MonKd`: VR_AD_Mon + VR_Knockdown_SetupReverse), the hell
+  knight's row shared with the death lord and Quoth's death guard. Not a QC table: ~40 rows x 11 values would cost
+  ~450-640 globals (this part's whole budget). **C06/C07** vr_monstermods.cpp `knownSwords`: vertex ranges
+  `{first, count}` (no static-init allocations) and the dropped name in the row; `knownOnly` and `droppedName` read the
+  table (the 20-term chain and the 16-case switch are gone).
+- **W26** `VR_HAND_FIELD(e, hand, mainField, offField)` (vr_util.qc, a macro: inline functions with a branch do not
+  inline in fteqcc) for the 48 `hand == cVR_MainHand ? e.a : e.offa` selects: progs.dat byte-identical. The 32
+  `hand == cVR_OffHand ? e.off : e.main` selects stay (they differ for a hand that is neither).
+- **C29** `VR_TestsFrame()` (vr_testutil.qc): the 42 QVR_TESTS frames, in their order, StartFrame's last step (they ran
+  between production frames before; production is unchanged: the test frames do nothing without their request).
+- **C30** `VR_World_Precache()`: worldspawn's Quake VR precaches, same order. No numbered-sound helper: precache_sound
+  keeps the string's pointer (pr_cmds.c) and the QC has no strzone, so names built at run time are unsafe.
+- **S01** `Misc/quakevr/gen_vr_cvars_qc.py` writes `QC/vr_cvars_gen.qc`: a handle for each literal `QVR_CVAR` of
+  vr_cvars.inc the QC uses (1188); vr_cvars.qc keeps the 46 of the engine's cvars and the macro-made ones. `--check`
+  fails a stale file: the kit's build.sh should run it.
+
+Checked: an A/B dump of every squad at skills 0, 1, 3 (identical), `MGH_WaveRow` over 65 rolls a group against a model
+of MG1's ladders (325, 0 mismatches), a seeded horde1 run with the wave monitor before and after (identical, 3 waves),
+AD upgrade readers for every weapon id, small gib kinds x 12 hit kinds x 16 inflictors, ring/aside, the knownSwords
+log on vrarena (identical). QC globals 56505 -> 56929 (+424); no AD data in the agent base (no AD run).
+
+Not done: C24 (AD death precache as name arrays: ~85 globals), C48 (the test ladders have inline bodies: a {number,
+function} table needs each its own function and two globals a row).
+## Refactor wave B2: C++ kits and allocations (branch `agent/refkits`)
+
+No behaviour change intended; the kits are listed in CODE_STYLE.md, "Kits (refactor B2)".
+
+- **`gfx::RenderTarget`** (vr_glutil.hpp): a texture + framebuffer made for a size from a `RenderTargetFormat`
+  (internal format, depth/shadow compare, clamp, max level 0, the framebuffer's label), completeness always checked
+  (R05). Used by bloom's chain, the shadow atlases (lighting), the stereo resample target (now checked: a warning, it
+  had none) and the half-size particles' targets (now checked: an incomplete one draws them full size from then on). The
+  GL calls per site are the old ones (same parameters, the same final labels); the only state difference is texture
+  unit 0 left unbound after making a half-size particle target (it was left bound to the new texture; the pass binds
+  what it samples). Not moved: haze's scene copies (their own unit 6 and a format key), envmap, permdecals, water,
+  wounds, upscale, stereo_single, gfx_gl's under-target (multi-attachment or other shapes).
+- **`vr_toolpanel.hpp`**: `Frame` + `Grid` + `buttonCentre`/`pressedBy`/`buttonUnder` (Holster Setup, Edit Blade Shape,
+  Pose Studio's button grids: the same float expressions), `pushUndo(stack, max, item)` (the three tools' bounded
+  stacks; Pose Studio's two stacks pushed alike), `say(line, until, tool, text, seconds)` (each tool's 2.5 / 3 s kept),
+  and the panel images' `Rect`/`fill`/`text`/`textFit` (arena cards and the toolgun panel had identical copies).
+  Not merged: the hover functions (each tool's own zones/handles), placePanel/drawPanel (different shapes), the doom
+  panel (S22) and the other tools' say lines (posing, rigstudio, relight: other signatures).
+- **`audio::playAt` / `playLocal`** (vr_audio.hpp): the client's one-shot sounds (AD crossbow bolt, auto pump, shells'
+  plips, chainsaw's weak pull, highlights' beep, vr_snd_play/_dir/_burst/bench). goresound (pitch) and bullettime
+  (S_LocalSound by cvar name) keep theirs.
+- **`SlotTable<Key, Slots, Keys>`** (vr_slottable.hpp): the weapons' and props' per-slot cvars (names kept, `define`,
+  `keyOf` for the ID-changed callbacks).
+- **Bindings**: the arena cards' 12 `VR_ARK_*` functions resolved once per map (`progs::bindings().arenaCards`), not by
+  name each frame (findFunction scans every function).
+- **VR_NewMap's prewarm** as an ordered `prewarmSteps` table (name, function, only with vr_load_prewarm).
+- **Allocations**: sweepReach's `found`/`struck` in a `mem::Scratch` ("sweepReach"; were two vectors per fast swing);
+  text3d's board/screen image lines in one kept string. Timescale's `wasFree` is a member vector (keeps its capacity: no
+  allocation once warm) and probeKinds' is once a load: left.
+- **Entities::members** (R08, vr_view_internal.hpp): the view entities in one list in forEachEntity's order (the draw
+  order into cl_visedicts), `zip(...)` for the arrays visited per index (pauldron cap and lames, the SSGs' frame and
+  barrels, the revolver's parts); a static_assert on the sizes catches a member left out. Checked once with both walks
+  side by side: 346 entities, the same addresses in the same order.
+- **Allocations (2)**: the decals' repack into `scratch.packed` (swapped with the settled vertices: the old buffer kept for
+  the next, released at a map change); wounds' splats (wound, bloodyHead, smearHand, splashOnto) in one `mem::Scratch`
+  ("wounds") and facingBlow writes into its `blown` (was a vector copy per blow); a brush bake's lit faces in
+  `bakeScratch` (the queue keeps its own copy); retro pick's overlay line and picked label in char buffers (were a
+  String + va + hitLabel's String each frame while picking). The brushes' autoload `text`/`warning` run once a map: left.
+- **footTrace** (B53, vr_avatar.cpp): `progs::ServerVm` + `worldtrace::serverLine(a, z, player)` for the raw push, SV_Move
+  and pop; one push per call as before (climbing.traces counts the same calls).
+- **R51 not merged**: the five sites detect five different events. view's patchModelFlags already uses the canonical
+  world + `worldGeneration()`; dynres resets after any frame gap (a hitch too, not only a map); lootbeams and highlights
+  reset when their clock runs backwards (also cl.time's snap back in CL_LerpPoint, and a loaded save's later clock is not
+  caught); temporal resets on a new world pointer only (not on the same map loaded again). Moving any of them to
+  `VR_OnClientClearState` (the de facto client registry, listed in CODE_STYLE) changes when it resets.
+- Checked (second pass): the covering cases as baseline.tsv but reload 112/3 (known) and rv_1 34/1 once (a slug's damage
+  roll of 29.1 against 30; 35/0 run alone); a console check (scratch/b2check.sh: decal repack twice, wounds/spatter/
+  smear/arm tests, retro pick, a brush made and baked) printing the same lines as the base exe (the decal tallies and
+  edict numbers vary run to run on one exe: map-start chips). Bench (LTO, exclusive, idle_e1m1 + combat_48 +
+  decals_1024_stream, 3 reps; this branch, base e30e689a2, this branch again): frame p50/p99 and GPU the same; combat
+  heap allocations -5.5% (10.9 -> 10.3 a frame); idle CPU busy +3.7% / +5.2% (0.03 ms; combat -3.8% / -0.4%, decals -0..-6%).
+- **C26 left**: VR_ARENA_Leftovers' per-frame findflags drives the fade's per-frame alpha ramp and the per-frame up-again
+  and held checks; a next-due gate would move those, so the fade timing is not provably unchanged.
+- **Left for a later pass** (no row details found, or a merge would change output): R14 surfaceAbove (particles: client
+  contents, up only, 8 halvings) vs physics' surfaceOver (server contents, both ways, 12 halvings to 0.1 u, sky stops):
+  six differences, a policy object for little gain; R33 beyond the prewarm table; R51 and C26 (above).
+- Tests: the covering cases (arena_perks 1-5, autopump, selfchecks, weapon_catch, held_over_props, pickup_mag,
+  throw_spin, vrtrailer, stats_levelchange, teleporters_chase, explosion_debris, reload_contact, ammocolor_1, cellcord,
+  walltorch_grab) as baseline.tsv but autopump 7/7 (known); Holster Setup and Edit Blade Shape opened, pressed, undone,
+  cancelled by their commands (say lines as before).
+- Bench (LTO, exclusive, idle_e1m1 + particles_dense + explosions_3s, 3 reps; this branch, origin/next, this branch again): frame and GPU times within noise, heap allocations the same; CPU busy +3-5% in the first run and -5-14% in the rerun (order noise, benchresults/b2_new, b2_base, b2_new2). A render-scale 0.8 eyeshot printed no incomplete-framebuffer warning (its PNG hash differs between two runs of the same exe, so hashes cannot compare builds).

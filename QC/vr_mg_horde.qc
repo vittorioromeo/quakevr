@@ -448,18 +448,11 @@ MGH_SpawnMonster
 entity(string class, vector org, vector temp_angles) MGH_SpawnMonster = {
  entity manager = self, monster = spawn(); self = monster;
  monster.angles = temp_angles; setorigin(monster, org + '0 0 32');
- if(class == "knight") { monster.classname = "monster_knight"; monster_knight(); }
- else if(class == "hellknight") { monster.classname = "monster_hell_knight"; monster_hell_knight(); }
- else if(class == "dog") { monster.classname = "monster_dog"; monster_dog(); }
- else if(class == "demon") { monster.classname = "monster_demon1"; monster_demon1(); }
- else if(class == "ogre") { monster.classname = "monster_ogre"; monster_ogre(); }
- else if(class == "grunt") { monster.classname = "monster_army"; monster_army(); }
- else if(class == "enforcer") { monster.classname = "monster_enforcer"; monster_enforcer(); }
- else if(class == "shambler") { monster.classname = "monster_shambler"; monster_shambler(); }
- else if(class == "shalrath") { monster.classname = "monster_shalrath"; monster_shalrath(); }
- else if(class == "wizard") { monster.classname = "monster_wizard"; monster_wizard(); }
- else if(class == "zombie") { monster.classname = "monster_zombie"; monster_zombie(); }
- else { remove(monster); self = manager; return world; }
+ float k = VR_WaveKind_ByName(class); // (the wave kinds' table, vr_arena.qc: id's monsters' spawns)
+ if(k < 0) { remove(monster); self = manager; return world; }
+ monster.classname = VR_WAVE_KINDS[k].classname;
+ void() kindSpawn = VR_WAVE_KINDS[k].spawn;
+ kindSpawn();
  monster.MGH_category = MGH_CATEGORY_MONSTER;
  monster.MGH_start = monster.think;
  monster.think = MGH_MonsterStart; monster.nextthink = time + 0.1;
@@ -623,33 +616,27 @@ void(entity temp_player) MGH_horde_set_keys =
 };
 
 
-void(float key_item) MGH_horde_key_give_all =
+// QVR: every player's key of key_item's kind given (xGive) or taken (one loop for both: MGH_horde_key_give_all and
+// MGH_horde_key_remove_all).
+void(float key_item, float xGive) MGH_horde_key_set_all =
 {
 	local entity temp_player;
 	temp_player = VR_Player();
 
 	while (temp_player)
 	{
-		VR_ItemUtil_EntAddItem(temp_player, key_item == IT_KEY1 ? IID_KEY1 : IID_KEY2);
+		if (xGive)
+			VR_ItemUtil_EntAddItem(temp_player, key_item == IT_KEY1 ? IID_KEY1 : IID_KEY2);
+		else
+			VR_ItemUtil_EntDelItem(temp_player, key_item == IT_KEY1 ? IID_KEY1 : IID_KEY2);
 		temp_player = VR_NextPlayer(temp_player);
 	}
 
 	MGH_horde_print_keys();
 };
 
-void(float key_item) MGH_horde_key_remove_all =
-{
-	local entity temp_player;
-	temp_player = VR_Player();
-
-	while (temp_player)
-	{
-		VR_ItemUtil_EntDelItem(temp_player, key_item == IT_KEY1 ? IID_KEY1 : IID_KEY2);
-		temp_player = VR_NextPlayer(temp_player);
-	}
-
-	MGH_horde_print_keys();
-};
+void(float key_item) MGH_horde_key_give_all = { MGH_horde_key_set_all(key_item, TRUE); };
+void(float key_item) MGH_horde_key_remove_all = { MGH_horde_key_set_all(key_item, FALSE); };
 
 void(float key_item)MGH_horde_key_give =
 {
@@ -1060,109 +1047,55 @@ MGH_SpawnSquad2
 
 Yoder FEB02 2022
 */
+// QVR: the squads (a row a monster, in MG1's spawn order): its squad's name, the skills it comes at (0 every skill, 1
+// skill 1 and up, -1 skill 0 only), the monster (MGH_SpawnMonster's name) and its place off the spawn point. The double
+// demon's roll (two shamblers at skill 3) stays code (MGH_SpawnSquad2).
+typedef struct
+{
+	string squad;
+	float skills;
+	string monster;
+	vector at;
+} mgh_squad_member;
+
+mgh_squad_member MGH_SQUADS[] =
+{
+	{ "3 grunts", 1, "grunt", '0 -40 0' },
+	{ "3 grunts", 1, "grunt", '40 40 0' },
+	{ "3 grunts", 1, "grunt", '-40 40 0' },
+	{ "3 grunts", -1, "grunt", '-40 0 0' },
+	{ "3 grunts", -1, "grunt", '40 0 0' },
+	{ "2 grunts, 1 dog", 0, "dog", '44 0 0' },
+	{ "2 grunts, 1 dog", 0, "grunt", '-40 -40 0' },
+	{ "2 grunts, 1 dog", 0, "grunt", '-40 40 0' },
+	{ "2 dogs", 0, "dog", '0 -44 0' },
+	{ "2 dogs", 1, "dog", '0 44 0' },
+	{ "1 enforcer", 0, "enforcer", '0 0 0' },
+	{ "2 enforcers", 1, "enforcer", '40 0 0' },
+	{ "2 enforcers", 1, "enforcer", '-40 0 0' },
+	{ "2 enforcers", -1, "enforcer", '0 0 0' },
+	{ "1 ogre", 0, "ogre", '0 0 0' },
+	{ "2 knights", 0, "knight", '40 0 0' },
+	{ "2 knights", 1, "knight", '-40 0 0' },
+	{ "2 zombies", 0, "zombie", '40 0 0' },
+	{ "2 zombies", 0, "zombie", '-40 0 0' },
+	{ "1 wizard", 0, "wizard", '0 0 0' },
+	{ "2 hellknights", 0, "hellknight", '0 40 0' },
+	{ "2 hellknights", 1, "hellknight", '0 -40 0' },
+	{ "2 knights, 1 hellknight", 0, "hellknight", '40 0 0' },
+	{ "2 knights, 1 hellknight", 0, "knight", '-40 40 0' },
+	{ "2 knights, 1 hellknight", 0, "knight", '-40 -40 0' },
+	{ "3 wizards", 0, "wizard", '40 40 40' },
+	{ "3 wizards", 0, "wizard", '-40 40 40' },
+	{ "3 wizards", 1, "wizard", '-40 -40 40' },
+	{ "shambler", 0, "shambler", '0 0 0' },
+	{ "shalrath", 0, "shalrath", '0 0 0' }
+};
+#define MGH_SQUADS_N 30
+
 void(string name, vector org, vector temp_angles) MGH_SpawnSquad2 =
 {
-	if (name == "3 grunts")
-	{
-		if (skill > 0)
-		{
-			MGH_SpawnMonster("grunt", org + '0 -40 0', temp_angles);
-			MGH_SpawnMonster("grunt", org + '40 40 0', temp_angles);
-			MGH_SpawnMonster("grunt", org + '-40 40 0', temp_angles);
-		}
-		else
-		{
-			MGH_SpawnMonster("grunt", org + '-40 0 0', temp_angles);
-			MGH_SpawnMonster("grunt", org + '40 0 0', temp_angles);
-		}
-	}
-	else if (name == "2 grunts, 1 dog")
-	{
-		MGH_SpawnMonster("dog", org + '44 0 0', temp_angles);
-		MGH_SpawnMonster("grunt", org + '-40 -40 0', temp_angles);
-		MGH_SpawnMonster("grunt", org + '-40 40 0', temp_angles);
-	}
-	else if (name == "2 dogs")
-	{
-		if (skill > 0)
-		{
-			MGH_SpawnMonster("dog", org + '-0 -44 0', temp_angles);
-			MGH_SpawnMonster("dog", org + '0 44 0', temp_angles);
-		}
-		else
-			MGH_SpawnMonster("dog", org + '-0 -44 0', temp_angles);
-	}
-	else if (name == "1 enforcer")
-	{
-		MGH_SpawnMonster("enforcer", org + '0 0 0', temp_angles);
-	}
-	else if (name == "2 enforcers")
-	{
-		if (skill > 0)
-		{
-			MGH_SpawnMonster("enforcer", org + '40 0 0', temp_angles);
-			MGH_SpawnMonster("enforcer", org + '-40 0 0', temp_angles);
-		}
-		else
-			MGH_SpawnMonster("enforcer", org + '0 0 0', temp_angles);
-	}
-	else if (name == "1 ogre")
-	{
-		MGH_SpawnMonster("ogre", org + '0 0 0', temp_angles);
-	}
-	else if (name == "2 knights")
-	{
-		if (skill > 0)
-		{
-			MGH_SpawnMonster("knight", org + '40 0 0', temp_angles);
-			MGH_SpawnMonster("knight", org + '-40 0 0', temp_angles);
-		}
-		else
-		{
-			MGH_SpawnMonster("knight", org + '40 0 0', temp_angles);
-		}
-
-	}
-	else if (name == "2 zombies")
-	{
-		MGH_SpawnMonster("zombie", org + '40 0 0', temp_angles);
-		MGH_SpawnMonster("zombie", org + '-40 0 0', temp_angles);
-	}
-	else if (name == "1 wizard")
-		MGH_SpawnMonster("wizard", org + '0 0 0', temp_angles);
-	else if (name == "2 hellknights")
-	{
-		if (skill > 0)
-		{
-			MGH_SpawnMonster("hellknight", org + '0 40 0', temp_angles);
-			MGH_SpawnMonster("hellknight", org + '0 -40 0', temp_angles);
-		}
-		else
-			MGH_SpawnMonster("hellknight", org + '0 40 0', temp_angles);
-	}
-	else if (name == "2 knights, 1 hellknight")
-	{
-		MGH_SpawnMonster("hellknight", org + '40 0 0', temp_angles);
-		MGH_SpawnMonster("knight", org + '-40 40 0', temp_angles);
-		MGH_SpawnMonster("knight", org + '-40 -40 0', temp_angles);
-	}
-	else if (name == "3 wizards")
-	{
-		if (skill > 0)
-		{
-			MGH_SpawnMonster("wizard", org + '40 40 40', temp_angles);
-			MGH_SpawnMonster("wizard", org + '-40 40 40', temp_angles);
-			MGH_SpawnMonster("wizard", org + '-40 -40 40', temp_angles);
-		}
-		else
-		{
-			MGH_SpawnMonster("wizard", org + '40 40 40', temp_angles);
-			MGH_SpawnMonster("wizard", org + '-40 40 40', temp_angles);
-		}
-	}
-	else if (name == "shambler")
-		MGH_SpawnMonster("shambler", org, temp_angles);
-	else if (name == "double demon")
+	if (name == "double demon")
 	{
 		if (skill >= 3 && random() > 0.8)
 		{
@@ -1178,10 +1111,22 @@ void(string name, vector org, vector temp_angles) MGH_SpawnSquad2 =
 		else
 			MGH_SpawnMonster("demon", org, temp_angles);
 	}
-	else if (name == "shalrath")
-		MGH_SpawnMonster("shalrath", org, temp_angles);
 	else
-		dprint("ERROR: unrecognized squad name!\n");
+	{
+		float found = FALSE;
+		for (float i = 0; i < MGH_SQUADS_N; i++)
+		{
+			if (MGH_SQUADS[i].squad == name)
+			{
+				found = TRUE;
+				float skills = MGH_SQUADS[i].skills;
+				if (!skills || (skills > 0) == (skill > 0))
+					MGH_SpawnMonster(MGH_SQUADS[i].monster, org + MGH_SQUADS[i].at, temp_angles);
+			}
+		}
+		if (!found)
+			dprint("ERROR: unrecognized squad name!\n");
+	}
 
 	spawn_tfog(org);
 };
@@ -1200,6 +1145,59 @@ float MGH_HORDE_SQUAD_CAT_ERROR = -1;
 float MGH_HORDE_SQUAD_CAT_FODDER = 0;
 float MGH_HORDE_SQUAD_CAT_ELITE = 1;
 float MGH_HORDE_SQUAD_CAT_BOSS = 2;
+
+// QVR: a wave's squad picks (MG1's SpawnWave2, a row a squad): army wave or not, the category, the roll's bound (the
+// squad when the roll is under it, after the rows before; the category's last row is its else, and its bound is the
+// roll's range: random() * 4, 2 or 3), the squad and its spawn point's type.
+typedef struct
+{
+	float army, cat, below;
+	string squad;
+	float type;
+} mgh_wave_pick;
+
+mgh_wave_pick MGH_WAVES[] =
+{
+	{ TRUE, MGH_HORDE_SQUAD_CAT_FODDER, 1, "3 grunts", MGH_HORDE_SQUAD_TYPE_NORMAL },
+	{ TRUE, MGH_HORDE_SQUAD_CAT_FODDER, 2, "2 grunts, 1 dog", MGH_HORDE_SQUAD_TYPE_NORMAL },
+	{ TRUE, MGH_HORDE_SQUAD_CAT_FODDER, 3.5, "2 dogs", MGH_HORDE_SQUAD_TYPE_NORMAL },
+	{ TRUE, MGH_HORDE_SQUAD_CAT_FODDER, 4, "1 enforcer", MGH_HORDE_SQUAD_TYPE_RANGED },
+	{ TRUE, MGH_HORDE_SQUAD_CAT_ELITE, 1.5, "2 enforcers", MGH_HORDE_SQUAD_TYPE_RANGED },
+	{ TRUE, MGH_HORDE_SQUAD_CAT_ELITE, 2, "1 ogre", MGH_HORDE_SQUAD_TYPE_RANGED },
+	{ FALSE, MGH_HORDE_SQUAD_CAT_FODDER, 2, "2 knights", MGH_HORDE_SQUAD_TYPE_NORMAL },
+	{ FALSE, MGH_HORDE_SQUAD_CAT_FODDER, 3, "2 zombies", MGH_HORDE_SQUAD_TYPE_NORMAL },
+	{ FALSE, MGH_HORDE_SQUAD_CAT_FODDER, 4, "1 wizard", MGH_HORDE_SQUAD_TYPE_FLYING },
+	{ FALSE, MGH_HORDE_SQUAD_CAT_ELITE, 1, "2 hellknights", MGH_HORDE_SQUAD_TYPE_NORMAL },
+	{ FALSE, MGH_HORDE_SQUAD_CAT_ELITE, 2, "2 knights, 1 hellknight", MGH_HORDE_SQUAD_TYPE_NORMAL },
+	{ FALSE, MGH_HORDE_SQUAD_CAT_ELITE, 3, "1 ogre", MGH_HORDE_SQUAD_TYPE_RANGED },
+	{ FALSE, MGH_HORDE_SQUAD_CAT_ELITE, 4, "3 wizards", MGH_HORDE_SQUAD_TYPE_FLYING },
+	{ FALSE, MGH_HORDE_SQUAD_CAT_BOSS, 1, "shambler", MGH_HORDE_SQUAD_TYPE_BOSS },
+	{ FALSE, MGH_HORDE_SQUAD_CAT_BOSS, 2.5, "double demon", MGH_HORDE_SQUAD_TYPE_NORMAL },
+	{ FALSE, MGH_HORDE_SQUAD_CAT_BOSS, 3, "shalrath", MGH_HORDE_SQUAD_TYPE_BOSS }
+};
+#define MGH_WAVES_N 16
+
+// The pick's row for an army wave or not and a category, from one random() roll (xRoll, 0-1).
+float(float xArmy, float xCat, float xRoll) MGH_WaveRow =
+{
+	float i, first = -1, last = -1;
+	for (i = 0; i < MGH_WAVES_N; i++)
+	{
+		if (MGH_WAVES[i].army == xArmy && MGH_WAVES[i].cat == xCat)
+		{
+			if (first < 0)
+				first = i;
+			last = i;
+		}
+	}
+	float r = xRoll * MGH_WAVES[last].below;
+	for (i = first; i < last; i++)
+	{
+		if (r < MGH_WAVES[i].below)
+			return i;
+	}
+	return last;
+};
 
 entity(float squad_type)MGH_HordeFindSpawnpoint =
 {
@@ -1325,101 +1323,26 @@ void() MGH_SpawnWave2 =
 	local entity t, oself; // t is the temp spawn, oself is for temp storage of self
 	local float squad_type = 0;
 	local string squad_name = ""; // specific squad name
-	local float r; // random roll
 	local float squad_cat = 0; //
 
-	//STEP 1: determine what kind of monster is getting spawned
-	if (self.army)
+	//STEP 1: determine what kind of monster is getting spawned (QVR: one random() roll in MGH_WAVES, as MG1's ladders)
+	if (self.fodder > 0)
+		squad_cat = MGH_HORDE_SQUAD_CAT_FODDER;
+	else if (self.elites > 0)
+		squad_cat = MGH_HORDE_SQUAD_CAT_ELITE;
+	else if (self.bosses > 0)
+		squad_cat = MGH_HORDE_SQUAD_CAT_BOSS;
+	if (self.army && squad_cat == MGH_HORDE_SQUAD_CAT_BOSS)
 	{
-
-		if (self.fodder > 0)
-		{
-			r = random() * 4;
-			if (r < 1)
-				squad_name = "3 grunts";
-			else if (r < 2)
-				squad_name = "2 grunts, 1 dog";
-			else if (r < 3.5)
-				squad_name = "2 dogs";
-			else
-			{
-				squad_name = "1 enforcer";
-				squad_type = MGH_HORDE_SQUAD_TYPE_RANGED;
-			}
-
-			squad_cat = MGH_HORDE_SQUAD_CAT_FODDER;
-		}
-		else if (self.elites > 0)
-		{
-			squad_type = MGH_HORDE_SQUAD_TYPE_RANGED;
-			r = random() * 2;
-			if (r < 1.5)
-				squad_name = "2 enforcers";
-			else
-				squad_name = "1 ogre";
-
-			squad_cat = MGH_HORDE_SQUAD_CAT_ELITE;
-		}
-		else if (self.bosses > 0)
-		{
-			dprint("ERROR: should not spawn boss squad in army wave\n");
-			self.bosses = 0;
-			squad_cat = MGH_HORDE_SQUAD_CAT_ERROR;
-		}
+		dprint("ERROR: should not spawn boss squad in army wave\n");
+		self.bosses = 0;
+		squad_cat = MGH_HORDE_SQUAD_CAT_ERROR;
 	}
-	else // NON-ARMY
+	else if (self.fodder > 0 || self.elites > 0 || self.bosses > 0)
 	{
-		if (self.fodder > 0)
-		{
-			r = random() * 4;
-			if (r < 2)
-				squad_name = "2 knights";
-			else if (r < 3)
-				squad_name = "2 zombies";
-			else
-			{
-				squad_name = "1 wizard";
-				squad_type = MGH_HORDE_SQUAD_TYPE_FLYING;
-			}
-
-			squad_cat = MGH_HORDE_SQUAD_CAT_FODDER;
-		}
-		else if (self.elites > 0)
-		{
-			r = random() * 4;
-			if (r < 1)
-				squad_name = "2 hellknights";
-			else if (r < 2)
-				squad_name = "2 knights, 1 hellknight";
-			else if (r < 3)
-			{
-				squad_name = "1 ogre";
-				squad_type = MGH_HORDE_SQUAD_TYPE_RANGED;
-			}
-			else
-			{
-				squad_name = "3 wizards";
-				squad_type = MGH_HORDE_SQUAD_TYPE_FLYING;
-			}
-
-			squad_cat = MGH_HORDE_SQUAD_CAT_ELITE;
-		}
-		else if (self.bosses > 0)
-		{
-			squad_type = MGH_HORDE_SQUAD_TYPE_BOSS;
-			r = random() * 3;
-			if (r < 1)
-				squad_name = "shambler";
-			else if (r < 2.5)
-			{
-				squad_name = "double demon";
-				squad_type = MGH_HORDE_SQUAD_TYPE_NORMAL;
-			}
-			else
-				squad_name = "shalrath";
-
-			squad_cat = MGH_HORDE_SQUAD_CAT_BOSS;
-		}
+		float row = MGH_WaveRow(self.army ? TRUE : FALSE, squad_cat, random());
+		squad_name = MGH_WAVES[row].squad;
+		squad_type = MGH_WAVES[row].type;
 	}
 
 

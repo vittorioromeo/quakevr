@@ -974,7 +974,7 @@ float(entity p, float xHand) VR_HandGrenade_AtPouch =
     {
         return FALSE;
     }
-    return (xHand == cVR_MainHand ? p.mainhand_hotspot : p.offhand_hotspot) == QVR_HS_GRENADE_POUCH;
+    return VR_HAND_FIELD(p, xHand, mainhand_hotspot, offhand_hotspot) == QVR_HS_GRENADE_POUCH;
 };
 
 // A haptic in `xHand` of the player `p`.

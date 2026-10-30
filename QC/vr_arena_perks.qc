@@ -64,75 +64,72 @@ float ARK_UNSEEN = 3;
 // The pool, and what it is called
 // ---------------------------------------------------------------------------
 
-// The pool's order. An offer walks it from a turning point, so the choice at the fifth boss is not the choice
-// at the first one, and a run whose boss waves land the same way offers the same perks.
+// The pool, in its order (C14: one row a perk). An offer walks it from a turning point, so the choice at the fifth boss is
+// not the choice at the first one, and a run whose boss waves land the same way offers the same perks.
+// Each row: its bit, its name, what it does, the picture on its card (the panel draws the model's thumbnail: a shipped
+// item's model, one per perk, no two the same) and the card's colour (its title band and edge: what the perk is about --
+// red the fight, green health, steel armour, gold supplies).
+typedef struct
+{
+    float bit;
+    string name, what, model;
+    vector colour;
+} vr_ark_perk;
+
+vr_ark_perk VR_ARK_PERKS[] =
+{
+    { ARK_QUAD, "Quad Strike", "A kill with your hands gives 2 s of quad damage", "progs/quaddama.mdl", '0.45 0.55 1' }, // (the quad's own blue)
+    { ARK_SNAP, "Neck Snapper", "Beheading a foe restores 20 health", "progs/gib1.mdl", '0.85 0.25 0.2' },
+    { ARK_IRON, "Iron Skin", "Every armour you pick up is 25 heavier", "progs/vrpauldron.mdl", '0.6 0.65 0.7' },
+    { ARK_WIND, "Second Wind", "Your health reaches 15 past its normal top", "progs/mervup.mdl", '0.3 0.8 0.4' },
+    { ARK_FEED, "Feeder", "A kill heals 5, at most once a second", "progs/gib2.mdl", '0.65 0.85 0.25' },
+    { ARK_QUART, "Quartermaster", "A wave clear tops up the ammo of the guns you hold", "progs/vrpouch_ammo.mdl", '0.9 0.7 0.25' },
+    { ARK_SPOIL, "Spoils", "Twice as many fallen foes' guns stay lying about", "progs/v_shot.mdl", '0.8 0.5 0.2' },
+    // (world.qc precaches the crowbar always: VR_Crowbar_Precache)
+    { ARK_OPEN, "Can Opener", "Your hits wear a foe's armour plates down twice as fast", "progs/v_crowbar.mdl", '0.75 0.35 0.75' }
+};
+
 float(float xIndex) VR_ARK_PoolBit =
 {
-    if(xIndex == 0) { return ARK_QUAD;  }
-    if(xIndex == 1) { return ARK_SNAP;  }
-    if(xIndex == 2) { return ARK_IRON;  }
-    if(xIndex == 3) { return ARK_WIND;  }
-    if(xIndex == 4) { return ARK_FEED;  }
-    if(xIndex == 5) { return ARK_QUART; }
-    if(xIndex == 6) { return ARK_SPOIL; }
-    if(xIndex == 7) { return ARK_OPEN;  }
+    for(float i = 0; i < ARK_POOL_N; i++)
+    {
+        if(xIndex == i) { return VR_ARK_PERKS[i].bit; }
+    }
     return 0;
+}
+
+// The pool index of the perk `xBit` (-1: none).
+float(float xBit) VR_ARK_IndexOf =
+{
+    for(float i = 0; i < ARK_POOL_N; i++)
+    {
+        if(VR_ARK_PERKS[i].bit == xBit) { return i; }
+    }
+    return -1;
 }
 
 string(float xBit) VR_ARK_Name =
 {
-    if(xBit == ARK_QUAD)  { return "Quad Strike"; }
-    if(xBit == ARK_SNAP)  { return "Neck Snapper"; }
-    if(xBit == ARK_IRON)  { return "Iron Skin"; }
-    if(xBit == ARK_WIND)  { return "Second Wind"; }
-    if(xBit == ARK_FEED)  { return "Feeder"; }
-    if(xBit == ARK_QUART) { return "Quartermaster"; }
-    if(xBit == ARK_SPOIL) { return "Spoils"; }
-    if(xBit == ARK_OPEN)  { return "Can Opener"; }
-    return "";
+    float i = VR_ARK_IndexOf(xBit);
+    return i >= 0 ? VR_ARK_PERKS[i].name : "";
 }
 
 string(float xBit) VR_ARK_What =
 {
-    if(xBit == ARK_QUAD)  { return "A kill with your hands gives 2 s of quad damage"; }
-    if(xBit == ARK_SNAP)  { return "Beheading a foe restores 20 health"; }
-    if(xBit == ARK_IRON)  { return "Every armour you pick up is 25 heavier"; }
-    if(xBit == ARK_WIND)  { return "Your health reaches 15 past its normal top"; }
-    if(xBit == ARK_FEED)  { return "A kill heals 5, at most once a second"; }
-    if(xBit == ARK_QUART) { return "A wave clear tops up the ammo of the guns you hold"; }
-    if(xBit == ARK_SPOIL) { return "Twice as many fallen foes' guns stay lying about"; }
-    if(xBit == ARK_OPEN)  { return "Your hits wear a foe's armour plates down twice as fast"; }
-    return "";
+    float i = VR_ARK_IndexOf(xBit);
+    return i >= 0 ? VR_ARK_PERKS[i].what : "";
 }
 
-// The picture on a perk's card (the panel draws the model's thumbnail): a shipped item's model, one per perk, no two
-// the same.
 string(float xBit) VR_ARK_Model =
 {
-    if(xBit == ARK_QUAD)  { return "progs/quaddama.mdl"; }
-    if(xBit == ARK_SNAP)  { return "progs/gib1.mdl"; }
-    if(xBit == ARK_IRON)  { return "progs/vrpauldron.mdl"; }
-    if(xBit == ARK_WIND)  { return "progs/mervup.mdl"; }
-    if(xBit == ARK_FEED)  { return "progs/gib2.mdl"; }
-    if(xBit == ARK_QUART) { return "progs/vrpouch_ammo.mdl"; }
-    if(xBit == ARK_SPOIL) { return "progs/v_shot.mdl"; }
-    if(xBit == ARK_OPEN)  { return "progs/v_crowbar.mdl"; } // (world.qc precaches it always: VR_Crowbar_Precache)
-    return "";
+    float i = VR_ARK_IndexOf(xBit);
+    return i >= 0 ? VR_ARK_PERKS[i].model : "";
 }
 
-// A card's colour (its title band and edge): what the perk is about -- red the fight, green health, steel armour,
-// gold supplies.
 vector(float xBit) VR_ARK_Colour =
 {
-    if(xBit == ARK_QUAD)  { return '0.45 0.55 1'; }    // (the quad's own blue)
-    if(xBit == ARK_SNAP)  { return '0.85 0.25 0.2'; }
-    if(xBit == ARK_IRON)  { return '0.6 0.65 0.7'; }
-    if(xBit == ARK_WIND)  { return '0.3 0.8 0.4'; }
-    if(xBit == ARK_FEED)  { return '0.65 0.85 0.25'; }
-    if(xBit == ARK_QUART) { return '0.9 0.7 0.25'; }
-    if(xBit == ARK_SPOIL) { return '0.8 0.5 0.2'; }
-    if(xBit == ARK_OPEN)  { return '0.75 0.35 0.75'; }
-    return '0.5 0.5 0.5';
+    float i = VR_ARK_IndexOf(xBit);
+    return i >= 0 ? VR_ARK_PERKS[i].colour : '0.5 0.5 0.5';
 }
 
 // ---------------------------------------------------------------------------

@@ -826,6 +826,14 @@ struct TextureCache
 };
 mem::Cache<TextureCache> textureCache{"brush textures", mem::MapChange | mem::GameDirChange};
 
+// A brush's lit faces as its bake is queued (frame; the queue keeps its own copy): the main thread's.
+struct BakeScratch
+{
+    za::Vector<brushlight::Face> faces;
+    auto members() { return mem::list(faces); }
+};
+mem::Scratch<BakeScratch> bakeScratch{"brush bakes"};
+
 void recordUndo(UndoStep::Kind kind, int id, const Brush* before)
 {
     if(registry.undoing)
@@ -3452,9 +3460,8 @@ void frame()
         {
             e->rebake = false;
             e->lightSerial++;
-            za::Vector<brushlight::Face> faces;
-            litFaces(*e, faces);
-            brushlight::queue(e->brush.id, e->lightSerial, faces, e->maps);
+            litFaces(*e, bakeScratch.faces);
+            brushlight::queue(e->brush.id, e->lightSerial, bakeScratch.faces, e->maps);
         }
     }
     brushlight::run(za::max(static_cast<double>(vr_brush_bake_ms.value), 0.1), [](int id, za::U32 serial, const brushlight::Texels& texels) {

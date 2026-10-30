@@ -895,24 +895,30 @@ void outline(const Hit& h, const glm::vec3& start)
     }
 }
 
-[[nodiscard]] za::String hitLabel(const Hit& h)
+// What was hit, for the pick's lines: into `out` (`size` bytes; cut short when longer).
+void writeHitLabel(const Hit& h, char* out, za::SizeT size)
 {
     if(!h.any)
     {
-        return "nothing";
+        q_strlcpy(out, "nothing", size);
     }
-    if(h.box || (h.model.size() > 0 && h.model[0] != '*'))
+    else if(h.box || (h.model.size() > 0 && h.model[0] != '*'))
     {
-        return h.model + " (" + categoryInfo[static_cast<int>(h.modelCategory)].label + ")";
+        q_snprintf(out, size, "%s (%s)", h.model.cStr(), categoryInfo[static_cast<int>(h.modelCategory)].label);
     }
-    return "texture " + h.texture + " (" + categoryInfo[static_cast<int>(h.textureCategory)].label + ")";
+    else
+    {
+        q_snprintf(out, size, "texture %s (%s)", h.texture.cStr(), categoryInfo[static_cast<int>(h.textureCategory)].label);
+    }
 }
 
 void finishPick(const Hit& h)
 {
     pick.armed = false;
     lockTarget(h);
-    Con_Printf("retro textures: picked %s\n", hitLabel(h).cStr());
+    char label[256];
+    writeHitLabel(h, label, sizeof(label));
+    Con_Printf("retro textures: picked %s\n", label);
     menu::reopen(menu::retroOverridePage());
 }
 
@@ -1429,8 +1435,10 @@ void frame()
     vec3_t a{0.f, s.headAngles.y, 0.f}, fwd, right, up;
     AngleVectors(a, fwd, right, up);
     const glm::vec3 at = s.head + glm::vec3{fwd[0], fwd[1], fwd[2]} * 28.f - glm::vec3{0.f, 0.f, 8.f};
-    const za::String text = za::String{va("Retro override: %s in %d\n", pick.fromHand ? "point" : "look",
-                                static_cast<int>(pick.at - realtime) + 1)} + hitLabel(h);
+    char text[320];
+    const int head = q_snprintf(text, sizeof(text), "Retro override: %s in %d\n", pick.fromHand ? "point" : "look",
+        static_cast<int>(pick.at - realtime) + 1);
+    writeHitLabel(h, text + head, sizeof(text) - static_cast<za::SizeT>(head));
     text3d::queueOverlay(text, at, glm::vec3{0.f, s.headAngles.y, 0.f}, 0.04f);
 }
 

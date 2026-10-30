@@ -1976,6 +1976,22 @@ void sceneObj_f()
     Con_Printf("vr_snd_scene_obj: %s.obj (%d triangles)\n", base.cStr(), live->sim.sceneTriangles());
 }
 
+} // namespace
+
+void playAt(sfx_t* sfx, const glm::vec3& at, float volume, float attenuation, int entity)
+{
+    vec3_t org{at.x, at.y, at.z};
+    S_StartSound(entity, 0, sfx, org, volume, attenuation);
+}
+
+void playLocal(sfx_t* sfx, float volume)
+{
+    S_StartSound(cl.viewentity, -1, sfx, vec3_origin, volume, 1.f);
+}
+
+namespace
+{
+
 // A sound at a place (the world's, channel auto): vr_snd_play <sample> <x> <y> <z> [volume] [attenuation].
 void play_f()
 {
@@ -1985,10 +2001,10 @@ void play_f()
         return;
     }
     sfx_t* sfx = S_PrecacheSound(Cmd_Argv(1));
-    vec3_t at{Q_atof(Cmd_Argv(2)), Q_atof(Cmd_Argv(3)), Q_atof(Cmd_Argv(4))};
+    const glm::vec3 at{Q_atof(Cmd_Argv(2)), Q_atof(Cmd_Argv(3)), Q_atof(Cmd_Argv(4))};
     const float volume = Cmd_Argc() > 5 ? Q_atof(Cmd_Argv(5)) : 1.f;
     const float attenuation = Cmd_Argc() > 6 ? Q_atof(Cmd_Argv(6)) : 1.f;
-    S_StartSound(0, 0, sfx, at, volume, attenuation);
+    playAt(sfx, at, volume, attenuation);
 }
 
 // A loaded sound as the mixers read it (vr_snd_dump <sample>): Quake's held samples and the band-limited copy
@@ -2050,8 +2066,7 @@ void playDir_f()
     const Listener& l = live->listener;
     const glm::vec3 p =
         l.pos + distance * (za::cos(e) * (za::cos(a) * l.fwd + za::sin(a) * l.right) + za::sin(e) * l.up);
-    vec3_t at{p.x, p.y, p.z};
-    S_StartSound(-1, 0, sfx, at, volume, attenuation);
+    playAt(sfx, p, volume, attenuation, -1);
 }
 
 // Copies of a sound at once (vr_snd_burst <sample> [count] [distance] [spread] [volume]): ahead of the listener,
@@ -2075,8 +2090,7 @@ void burst_f()
     {
         const float a = static_cast<float>(i) * 2.399963f;
         const glm::vec3 p = l.pos + l.fwd * distance + l.right * (za::cos(a) * spread) + l.up * (za::sin(a) * spread * 0.5f);
-        vec3_t at{p.x, p.y, p.z};
-        S_StartSound(-1, 0, sfx, at, volume, 1.f);
+        playAt(sfx, p, volume, 1.f, -1);
     }
 }
 
@@ -2210,8 +2224,8 @@ void benchFrame()
         sfx_t* sfx = S_PrecacheSound(benchSounds[za::min(benchSoundCount - 1, static_cast<int>(random() * benchSoundCount))]);
         const float a = random() * 6.2831853f;
         const float d = 100.f + random() * 800.f;
-        vec3_t at{L.lastPos.x + za::cos(a) * d, L.lastPos.y + za::sin(a) * d, L.lastPos.z + (random() - 0.5f) * 128.f};
-        S_StartSound(0, 0, sfx, at, 1.f, 1.f);
+        playAt(sfx, glm::vec3{L.lastPos.x + za::cos(a) * d, L.lastPos.y + za::sin(a) * d, L.lastPos.z + (random() - 0.5f) * 128.f},
+            1.f, 1.f);
     }
 }
 
