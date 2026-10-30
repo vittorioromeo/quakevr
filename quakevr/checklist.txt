@@ -118,6 +118,7 @@ Shotgun blasts at grunts' heads, legs and arms: flinch, ragdoll fall, headshot h
 Nails just past a backpack a grunt dropped fly by; nails at it hit it and nudge it; walking over it, grabbing and force-grabbing it work as before.
 Shotgun blasts at grunts' heads, legs and arms: flinch, ragdoll fall, headshot highlight, armour helmet and dummy report react as before (one hit record).
 Nails just past a backpack a grunt dropped fly by; nails at it hit it and nudge it; walking over it, grabbing and force-grabbing it work as before.
+Save Default (menu corner button, press twice) or Debug > Save My Settings as Defaults: the console says "Saved your settings to disk: ironwail.cfg and tunables.cfg". Change a setting and a tunable, press it, kill the game from Task Manager, restart: both changes are kept.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns
