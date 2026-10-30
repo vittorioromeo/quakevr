@@ -9,8 +9,10 @@
 //   it fades in with the flash, billows forward and swirls (a turbulent flow: particles::GunParticle::turb);
 // - the nail pistol's side vents: light smoke out of exactly its six slots, out and up, as heat leaving it;
 // - the rocket launchers' backblast: a swirling cone out of the exhaust (the model's back end), the exhaust smoking a
-//   moment after, and dust off the floor under it;
+//   moment after, light smoke out of the vents facing you (v_rock2.mdl's head), and dust off the floor under it; AD's
+//   rocket soldier's tube too (QC ad_army_fire_rocket: weaponfired QVR_FIRED_ROCKET);
 // - barrel heat: sustained fire (the nailguns) leaves the muzzle smoking in thin wisps until it cools;
+// - your guns' barrels trailing thin smoke wisps for a few seconds after you stop firing (vr_muzzlewisps.hpp);
 // - every spent casing's smoke trail stronger (vr_gunfx_shell_trail, vr_shells.cpp).
 // Per-shot budgets shrink at high fire rates (each shooter's time since its last shot); nothing allocated (the
 // particles' pool). Settings: Weapons > Weapon Effects > Gunfire Particles (vr_gunfx_*). Tests: vr_debug_gunfx 1 prints
@@ -47,8 +49,9 @@ struct Muzzle
 
 // A shot by weapon `wid` out of `m`. `shooter`: 0, 1 your hands, else the monster's entity (its fire rate's key).
 // `adBurst`: an AD gun's own sparks and backblast made already (vr_weaponfx.cpp adGunBurst): not again. `ports`: the
-// gun throws casings out of its port itself (vr_shells.cpp: its port's puff then), else a shotgun's puff now.
-void shot(int wid, const Muzzle& m, int shooter, bool adBurst, bool ports);
+// gun throws casings out of its port itself (vr_shells.cpp: its port's puff then), else a shotgun's puff now. `slot`: the
+// weapon settings' slot whose Gunfire multipliers apply (Weapon Offsets > Effects; -1: the weapon id's, if any).
+void shot(int wid, const Muzzle& m, int shooter, bool adBurst, bool ports, int slot = -1);
 
 // Your hand `hand` fired (vr_weaponfx.cpp): its particles at its drawn muzzle at the next handFrame.
 void playerFired(int hand);

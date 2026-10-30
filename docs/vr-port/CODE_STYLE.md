@@ -220,6 +220,22 @@ the config is the player's choice.
   before `host_initialized` (it becomes the default) or leave it out of `CVAR_ARCHIVE`.
 - Check: `Misc/quakevr/config_sparse_test.sh <agent> [full config]` (an old full config loaded, written sparse, read
   back to the same values from any state; a moved default reaches it; another copy's edits merged).
+- **Three tiers** (ROUND23.md, "Settings tiers"). A **player option** (comfort, look, audio, controls, a feature
+  switch, anything a test or cfg sets) is a `QVR_CVAR` in `vr_cvars.inc` with a menu row. A **tuning constant** (a
+  number tuned once that no player sets) is a `QVR_TUNABLE(name, "default")` in `vr_tunables.inc` plus its row in
+  `vr_tunables_rows.inc` (label, range, step, format, help: the build checks one a constant, in order), with no menu
+  row of its own. Read as `name.value` / `name.string` in every build (the QC by name: `cvar()` and `cvar_hmake` find
+  its stand-in, so progs.dat is the same). A **development build** (every build but a release) tunes it live: `tune
+  <name> [value]`, `tune_reset [name]`, Debug > Tunables (Search finds the rows), kept in `tunables.cfg` (only changed
+  values, written at quit, read after the config; git-ignored); `Misc/quakevr/tune_promote.py <tunables.cfg>` writes
+  those values into `vr_tunables.inc` as the new defaults (a worker's tree; the game never writes sources). A
+  **release** (`QVR_RELEASE`: make_release.ps1's `/p:QvrReleaseVersion`, or `/p:QvrRelease=1` to build its code as a
+  check) makes each a constexpr with its default folded in, and has none of the above. Code that differs between the
+  two goes under `#ifndef QVR_RELEASE` (vr_tunables.cpp, the Tunables page). An old config's line for a constant is
+  ignored. Its default is its value: changing it changes the game. A **test knob** is a `CVAR_NONE`
+  cvar (never saved) whose row, if any, belongs on a Debug page. A new number starts as a tuning constant; it becomes a
+  setting only for a player-facing reason. A constant can't be written (`&name`, `Cvar_Set`) or looked up with
+  `Cvar_FindVar`: that one stays a cvar.
 
 ## Canonical helpers
 

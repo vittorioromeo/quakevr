@@ -442,12 +442,33 @@ void qvr::menu::search_f()
 {
     if(Cmd_Argc() < 2)
     {
-        Con_Printf("vr_menu_search <text>: the VR menus' settings, actions and pages matching it, best first\n");
+        Con_Printf("vr_menu_search [-open] <text>: the VR menus' settings, actions and pages matching it, best first "
+                   "(-open: the best opened, as Search's first result picked)\n");
         return;
     }
+    const bool open = !strcmp(Cmd_Argv(1), "-open");
     buildSearchIndex();
-    search.query = Cmd_Args();
+    const char* text = Cmd_Args();
+    if(open)
+    {
+        text = strstr(text, "-open") + 5;
+        while(*text == ' ')
+        {
+            text++;
+        }
+    }
+    search.query = text;
     runSearch();
+    if(open)
+    {
+        if(!search.results.empty())
+        {
+            openResult(0);
+        }
+        Con_Printf("vr_menu_search -open \"%s\": %s\n", search.query.cStr(),
+            search.results.empty() ? "no result" : search.index[search.results[0].entry].label.cStr());
+        return;
+    }
     Con_Printf("vr_menu_search \"%s\": %d results (of %d rows and pages)\n", search.query.cStr(),
         static_cast<int>(search.results.size()), static_cast<int>(search.index.size()));
     for(int r = 0; r < static_cast<int>(search.results.size()) && r < 15; r++)

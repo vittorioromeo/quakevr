@@ -261,10 +261,12 @@ void test_f()
     {
         const float tail0 = tailOf(held), peak0 = peakOf(held);
         {
-            const KeepCvar rec{weapons::cvar(held, Key::RecoilRecovery)};
-            Cvar_SetValueQuick(weapons::cvar(held, Key::RecoilRecovery), 2.f * za::max(weapons::value(held, Key::RecoilRecovery), 0.05f));
-            check(za::abs(tailOf(held) - za::min(2.f * tail0, 1.5f)) < 1e-4f, "Recoil Recovery 2x: the tail twice as long (%.3f s, %.3f s)",
-                tailOf(held), tail0);
+            // (The tail lasts the whole kick: its kick up, min(35 ms, 3/7 of the Return Time), and the Return Time.)
+            const KeepCvar rec{weapons::cvar(held, Key::RecoilReturn)};
+            const float back2 = 2.f * za::max(weapons::value(held, Key::RecoilReturn), 0.f);
+            Cvar_SetValueQuick(weapons::cvar(held, Key::RecoilReturn), back2);
+            check(za::abs(tailOf(held) - za::min(weapons::recoilKickSeconds(back2), 1.5f)) < 1e-4f && tailOf(held) > tail0,
+                "Return Time 2x: the tail as long as the longer kick (%.3f s, %.3f s)", tailOf(held), tail0);
         }
         {
             const KeepCvar punch{weapons::cvar(held, Key::HapticPunch)};

@@ -1038,10 +1038,6 @@ za::Vector<Item> pageCarryingHub()
     return {
         open("Carrying", pageIndex(pageCarrying)).help("Ammo and health boxes, explosive boxes, armour and pickups."),
         open("Throwing and Physics", pageIndex(pageThrowing)),
-        slider("Throw Speed", vr_weapon_throw_velocity_mult, 0.5f, 3.f, 0.1f, "%.1fx").extend()
-            .help("How fast what you throw flies, times your hand's speed."),
-        cycle("Throw Gravity", vr_throw_gravity, {{9.81f, "Real"}, {0.f, "Quake"}})
-            .help("How thrown things fall: Real, as on Earth; Quake, as Quake's own gravity."),
         open("Force Grab", pageIndex(pageForceGrab)),
         open("Wall Torches", pageIndex(pageWallTorches)),
         open("Rocks and Bricks", pageIndex(pageRocksBricks)),
@@ -1059,15 +1055,12 @@ za::Vector<Item> pageWeaponEffects()
     return {
         header("Recoil"),
         toggle("Programmatic Recoil", vr_weapon_recoil)
-            .help("Each shot kicks the drawn weapon back and tips it up, for the weapons whose Recoil is on (Weapon Offsets > "
-                  "Effects: the grunts' burst rifle; the others' models have their own). Looks only: the aim and the shots "
-                  "stay where your controller is."),
-        slider("Kick Back", vr_recoil_kick, 0.f, 5.f, 0.1f, "%.1f cm").extend(0.f, 20.f)
-            .help("How far a shot kicks the weapon back, at a weapon's Recoil Strength and Recoil Kick Back 1 (Weapon "
-                  "Offsets > Effects: each weapon's own)."),
-        slider("Muzzle Rise", vr_recoil_rise, 0.f, 15.f, 0.5f, "%.1f deg").extend(0.f, 45.f)
-            .help("How far a shot tips the muzzle up, at a weapon's Recoil Strength and Recoil Muzzle Rise 1 (Weapon "
-                  "Offsets > Effects: each weapon's own)."),
+            .help("Each shot kicks the drawn weapon back and tips it up, as far as the weapon's own Recoil Kick Back and "
+                  "Muzzle Rise (Weapon Offsets > Effects: every gun has its own; the kick in Quake's gun models is taken "
+                  "out). Looks only: the aim and the shots stay where your controller is."),
+        slider("Recoil Amount", vr_recoil_amount, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 5.f)
+            .help("Every weapon's recoil times this: its kick back and its muzzle rise (each weapon's own cm and degrees: "
+                  "Weapon Offsets > Effects). 1: as each weapon is set; 0: none."),
         header("Shotgun Auto Pump"),
         slider("Auto Pump Time", vr_autopump_time, 0.15f, 0.45f, 0.01f, "%.2f s").extend(0.1f, 0.48f)
             .help("After each shot the shotgun cycles itself: its fore-end is driven back along the guide rods over the "
@@ -1076,8 +1069,6 @@ za::Vector<Item> pageWeaponEffects()
         slider("Auto Pump Delay", vr_autopump_delay, 0.f, 0.3f, 0.01f, "%.2f s").extend(0.f, 0.38f)
             .help("How long after the shot the stroke starts: the shot, a moment, then the cycle (0: at once). Cut short so "
                   "that the stroke is home before the shotgun can fire again (0.5 s)."),
-        slider("Auto Pump Travel", vr_autopump_travel, 0.5f, 3.2f, 0.1f, "%.1f units").extend(0.f, 3.2f)
-            .help("How far back the fore-end goes, in the gun model's units (about 3.8 cm each, as drawn)."),
         slider("Auto Pump Sound", vr_autopump_sound, 0.f, 1.f, 0.1f, "%.1f").help("Volume of its two clacks (0: off)."),
         slider("Auto Pump Haptics", vr_autopump_haptics, 0.f, 2.f, 0.1f, "%.1f")
             .help("Strength of the light ticks in the hand at the back of the stroke and home (0: off)."),
@@ -1087,20 +1078,32 @@ za::Vector<Item> pageWeaponEffects()
                   "grunts' burst rifle), following the gun."),
         toggle("Enemies' Muzzle Flashes", vr_muzzle_flash_enemies).help("The grunts' and enforcers' guns flash at their muzzles as they fire."),
         toggle("Enemies' Muzzle Smoke", vr_muzzle_smoke_enemies).help("Puffs of gun smoke out of an enforcer's rifle's and a grunt's gun's muzzle as they fire, as out of your guns'."),
-        slider("Enemies' Flash Size", vr_muzzle_flash_enemy_size, 0.2f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f),
         header("Gunfire Particles"),
         toggle("Gunfire Particles", vr_gunfx)
             .help("Each shot's sparks and smoke, by the weapon: yours, the armed grunts' and the grunts' and enforcers' "
                   "guns. Not the flamethrowers, the crossbow, melee weapons, the grapple or the toolgun."),
-        slider("Gunfire Intensity", vr_gunfx_intensity, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.f, 3.f)
-            .help("How many particles each shot makes, all of them (fewer at high fire rates anyway: the super nailgun)."),
         toggle("Muzzle Sparks", vr_gunfx_sparks)
             .help("A cone of sparks out of the muzzle (each barrel of the super shotgun; the energy guns throw electric arcs)."),
+        slider("Spark Amount", vr_gunfx_spark_amount, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 4.f)
+            .help("How many sparks a shot throws (each weapon's own: Weapon Offsets > Effects). 0: none."),
+        slider("Spark Size", vr_gunfx_spark_size, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.25f, 4.f).help("How big the sparks are."),
+        slider("Spark Speed", vr_gunfx_spark_speed, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.25f, 4.f)
+            .help("How fast the sparks fly out of the muzzle (so how far)."),
         toggle("Muzzle Smoke", vr_gunfx_smoke)
             .help("A cone of smoke billowing forward out of the muzzle with the flash, swirling as it spreads and fades, the "
                   "flash's glow in it; the nail pistol's side vents smoke lightly. Never the energy guns'."),
-        slider("Smoke Turbulence", vr_gunfx_turbulence, 0.f, 3.f, 0.1f, "%.1fx")
-            .help("How much the gunfire smoke swirls as it spreads (0: it drifts straight)."),
+        slider("Smoke Amount", vr_gunfx_smoke_amount, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 4.f)
+            .help("How many puffs a shot's muzzle smoke has: how thick the cloud is (each weapon's own: Weapon Offsets > "
+                  "Effects). 0: none."),
+        slider("Smoke Size", vr_gunfx_smoke_size, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.25f, 4.f)
+            .help("How big the muzzle smoke's puffs are and how much they grow."),
+        slider("Smoke Speed", vr_gunfx_smoke_speed, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.25f, 4.f)
+            .help("How fast the muzzle smoke billows out (so how far ahead the cloud reaches)."),
+        slider("Smoke Directionality", vr_gunfx_smoke_direction, 0.f, 1.f, 0.05f, "%.2f")
+            .help("1: the smoke billows forward in a cone out of the muzzle. 0: it bursts out every way. In between: more "
+                  "or less forward."),
+        slider("Smoke Opacity", vr_gunfx_smoke_alpha, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 3.f)
+            .help("How opaque the muzzle smoke is as it comes out (it fades from there)."),
         toggle("Ejection Port Smoke", vr_gunfx_port)
             .help("A small quick puff out of a shotgun's port as the casing leaves it (the super shotgun's open breech)."),
         toggle("Rocket Backblast", vr_gunfx_backblast)
@@ -1108,27 +1111,36 @@ za::Vector<Item> pageWeaponEffects()
                   "dust kicked up off the floor under it."),
         toggle("Barrel Heat", vr_gunfx_heat)
             .help("Sustained fire (the nailguns) leaves the muzzle smoking in thin wisps and glowing faintly until it cools."),
+        toggle("Muzzle Wisps", vr_gunfx_wisps)
+            .help("After you stop firing, a very thin, faint line of smoke trails off each barrel for a few seconds (the "
+                  "shotgun's one, the super shotgun's and the nailgun's two), following the muzzle as you move the gun."),
+        slider("Wisp Delay", vr_gunfx_wisp_delay, 0.f, 1.f, 0.05f, "%.2f s").extend(0.f, 3.f)
+            .help("How long after the last shot the wisps start."),
+        slider("Wisp Persistence", vr_gunfx_wisp_time, 0.5f, 10.f, 0.25f, "%.2f s").extend(0.f, 30.f)
+            .help("How long a barrel keeps smoking (after a burst; a single shot of the nailguns: less)."),
+        slider("Wisp Fade Time", vr_gunfx_wisp_fade, 0.2f, 4.f, 0.1f, "%.1f s")
+            .help("How long the smoke let go lasts, rising and fading: the trail's length."),
+        slider("Wisp Thickness", vr_gunfx_wisp_width, 0.1f, 3.f, 0.05f, "%.2f cm").extend(0.05f, 20.f)
+            .help("How thick a wisp is at the muzzle."),
+        slider("Wisp Spread", vr_gunfx_wisp_spread, 1.f, 8.f, 0.25f, "%.2fx").extend(1.f, 10.f)
+            .help("How much thicker (and fainter) a wisp gets as it fades."),
+        slider("Wisp Amount", vr_gunfx_wisp_amount, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 4.f)
+            .help("How dense the wisps are (their opacity; each weapon's own: Weapon Offsets > Effects)."),
+        slider("Wisp Max Opacity", vr_gunfx_wisp_opacity, 0.02f, 1.f, 0.02f, "%.2f")
+            .help("The most opaque a wisp gets, wherever it is (its start at the muzzle is its densest): a cap on Wisp "
+                  "Amount. 1: no cap."),
+        slider("Wisp Rise", vr_gunfx_wisp_rise, 0.f, 60.f, 1.f, "%.0f cm/s").extend(0.f, 200.f)
+            .help("How fast the smoke rises off the barrel (Smoke Turbulence curls it)."),
         toggle("Impacts by Material", vr_gunfx_impacts)
             .help("Bullets and nails hitting walls throw up what the surface is made of: dust off stone and ground, sparks "
                   "off metal, chips off wood (flesh has the gore's blood mist)."),
         toggle("Lightning Ozone Haze", vr_gunfx_ozone).help("A faint bluish haze lingers where the thunderbolt's beam plays on a surface."),
         toggle("Enemies' Gunfire Particles", vr_gunfx_enemies).help("The monsters' guns make them too."),
-        slider("Casing Smoke Trails", vr_gunfx_shell_trail, 0.f, 4.f, 0.1f, "%.1fx").extend(0.f, 10.f)
-            .help("How strong the smoke trail every spent casing leaves as it flies (0: none; 1: the old faint one)."),
         header("Bullet Tracers"),
         toggle("Bullet Tracers", vr_tracers)
             .help("Hitscan shots (the shotguns, the burst rifle) draw streaks of light flying from the muzzle to what they "
                   "hit. A weapon may differ (Weapon Offsets > Effects: Tracers, and its multipliers)."),
         toggle("Enemies' Tracers", vr_tracers_enemies).help("The grunts' shots too."),
-        slider("Tracer Speed", vr_tracer_speed, 20.f, 600.f, 10.f, "%.0f m/s").extend(1.f, 3000.f),
-        slider("Tracer Length", vr_tracer_length, 0.1f, 5.f, 0.1f, "%.1f m").extend(0.01f, 50.f),
-        slider("Tracer Thickness", vr_tracer_width, 0.2f, 5.f, 0.1f, "%.1f cm").extend(0.05f, 30.f),
-        slider("Chance a Pellet", vr_tracer_chance, 0.f, 1.f, 0.05f, "%.2f")
-            .help("The chance each pellet (or round) shows a tracer: a shotgun's 6 pellets at 0.3 show about 2."),
-        slider("Tracer Red", vr_tracer_r, 0.f, 1.f, 0.05f, "%.2f"),
-        slider("Tracer Green", vr_tracer_g, 0.f, 1.f, 0.05f, "%.2f"),
-        slider("Tracer Blue", vr_tracer_b, 0.f, 1.f, 0.05f, "%.2f"),
-        slider("Tracer Brightness", vr_tracer_brightness, 0.f, 4.f, 0.1f, "%.1fx").extend(0.f, 10.f),
         header("Each Weapon"),
         open("Weapon Offsets (Held Weapon)", pageIndex(pageWeaponOffsets))
             .help("The held weapon's own: its Effects section turns its recoil and flash on, and changes its tracers."),
@@ -1143,17 +1155,6 @@ za::Vector<Item> pageLightningWater()
     return {
         toggle("Lightning Gun in Water", vr_lg_water)
             .help("Fired with your body waist deep, or your hand or the gun's muzzle in water, the lightning gun shocks you and both hands drop what they hold; the shock spreads through the water to what is in it. Fired into water from outside, it electrifies the water round where the beam goes in. Off: Quake's discharge (every cell at once, all round you)."),
-        slider("Shock Damage to You", vr_lg_water_self_damage, 0.f, 100.f, 5.f, "%.0f").extend(0.f, 500.f),
-        slider("Shock Damage to Others", vr_lg_water_damage, 0.f, 200.f, 5.f, "%.0f").extend(0.f, 1000.f)
-            .help("What else is in the water takes this at the gun's muzzle, fading out with distance."),
-        slider("Reach", vr_lg_water_radius, 32.f, 1024.f, 16.f, "%.0f units").extend(8.f, 4096.f)
-            .help("How far through the water the shock, and the electrified water, reach."),
-        slider("Falloff", vr_lg_water_falloff, 0.f, 4.f, 0.25f, "%.2f").extend()
-            .help("How the damage fades with distance: 1 evenly to nothing at the reach, 2 and more sooner, 0 not at all."),
-        slider("Electrified Water Damage", vr_lg_water_tick_damage, 0.f, 50.f, 1.f, "%.0f").extend(0.f, 300.f)
-            .help("Each bolt fired into water from outside (ten a second): damage where it goes in, fading out the same way."),
-        slider("Shock Flash", vr_lg_water_flash, 0.f, 1.f, 0.1f, "%.1f")
-            .help("The shock's blue flash over the view and the arcs in front of your eyes (the arcs on your arms and body stay)."),
         command("Test the Shock Effect", "vr_shock_test 0").help("Shows the shock's flash and arcs, without the damage."),
         command("Test the Electrified Water", "vr_shock_test 1").help("Arcs on the water below the point ahead of you, for 3 seconds."),
     };
@@ -1192,16 +1193,10 @@ za::Vector<Item> pageHotBlades()
                   "flames) or dip it in lava: it glows red-hot for a while, hits harder and sets what it strikes on fire. "
                   "The axe (the Shadow Axe too), the knights' swords, the crowbar, the Super Axe and the chainsaw; not "
                   "Mjolnir. The heat is the weapon's: it cools held, holstered or dropped alike."),
-        slider("Heating Time", vr_hotblade_heat_time, 0.25f, 10.f, 0.25f, "%.2f s").extend(0.1f, 30.f)
-            .help("How long the blade must stay in the flame. Its glow rises meanwhile and it sizzles; taken out early, "
-                  "it cools back as fast."),
         slider("Stays Hot", vr_hotblade_time, 5.f, 120.f, 5.f, "%.0f s").extend(1.f, 600.f)
             .help("How long it stays incandescent. A flame again while it glows makes it full again."),
         slider("Fades Over", vr_hotblade_fade, 0.f, 15.f, 0.5f, "%.1f s").extend(0.f, 60.f)
             .help("Its glow is full until these last seconds, then fades out (0: full to the end)."),
-        slider("Extra Damage", vr_hotblade_damage, 0.f, 50.f, 1.f, "+%.0f").extend(0.f, 200.f)
-            .help("Added to the weapon's base damage on every blow while it glows (then times the blow's strength, as "
-                  "its own base: Weapon Damage)."),
         toggle("Sets Enemies on Fire", vr_hotblade_ignite)
             .help("Its blows set living enemies on fire (Combat > Burning: the damage and how long)."),
         toggle("Sets Corpses on Fire", vr_hotblade_ignite_corpses)
@@ -1212,26 +1207,14 @@ za::Vector<Item> pageHotBlades()
         slider("Glow Brightness", vr_hotblade_glow, 0.f, 2.f, 0.05f, "%.2f")
             .help("How brightly the heated part of the blade glows (not the handle), held, holstered or lying on the "
                   "ground, and its embers (0: no glow, no light, no embers, no trail)."),
-        slider("Glow Hue", vr_hotblade_hue, 0.f, 60.f, 1.f, "%.0f").extend(0.f, 355.f)
-            .help("The glow's colour: 0 red, 18 orange-red, 30 orange, 55 yellow."),
         slider("Light", vr_hotblade_light, 0.f, 2.f, 0.05f, "%.2f")
             .help("How bright the light the glowing blade casts round it is; it follows the glow, rising as it heats and "
                   "dying as it fades (0: none)."),
-        slider("Light Reach", vr_hotblade_light_radius, 16.f, 200.f, 4.f, "%.0f").extend(8.f, 400.f)
-            .help("How far that light reaches, in units, at full glow."),
         slider("Embers per Puff", vr_hotblade_embers, 0.f, 10.f, 1.f, "%.0f").extend(0.f, 32.f)
             .help("How many embers leave the heated part of the blade at a time, from all over it (0: none)."),
-        slider("Ember Puffs a Second", vr_hotblade_ember_rate, 1.f, 30.f, 1.f, "%.0f").extend(0.f, 60.f)
-            .help("How often they leave it at full glow; fewer as it fades."),
         slider("Swing Trail", vr_hotblade_trail, 0.f, 3.f, 0.1f, "%.1f")
             .help("How much fire and how many sparks a swung (or thrown) glowing blade leaves hanging in the air behind its "
                   "heated part; a faster swing leaves more (0: none)."),
-        slider("Trail Lingers", vr_hotblade_trail_linger, 0.1f, 2.f, 0.05f, "%.2f s").extend(0.05f, 5.f)
-            .help("How long the trail's fire and sparks hang in the air."),
-        slider("Trail From", vr_hotblade_trail_speed, 0.f, 5.f, 0.1f, "%.1f m/s")
-            .help("How fast the blade's tip must move to leave a trail (slower: none)."),
-        slider("Sounds", vr_hotblade_sound, 0.f, 1.f, 0.1f, "%.1f")
-            .help("Volume of the sizzle in the flame, the ring as it turns red-hot and the quench's hiss (0 off)."),
     };
 }
 

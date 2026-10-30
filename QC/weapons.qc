@@ -4425,16 +4425,18 @@ void() ImpulseCommands =
     {
         float cheatHand = cVR_MainHand;
         float cheatWid = self.impulse == 149 ? rint(cvar_hget(cvarh_vr_test_give_wid)) : self.impulse - 150;
+        if(self.impulse >= 170)
+        {
+            cheatHand = cVR_OffHand;
+            cheatWid = self.impulse - 170;
+        }
+        // (The hand's own id: checked before the off hand's 170 came off, 170 + a shotgun read as an AD gun's id and gave
+        // nothing without AD's data: grip_state, reload_front.)
         if(cheatWid < 0 || (cheatWid >= WID_ADROCKET && cheatWid <= WID_ADCROSSBOW && !VR_ADGun_Available()))
         {
             // (none; an AD gun without AD's data: its model is never precached)
             self.impulse = 0;
             return;
-        }
-        if(self.impulse >= 170)
-        {
-            cheatHand = cVR_OffHand;
-            cheatWid = self.impulse - 170;
         }
         self.impulse = 0;
         if(cheatWid > WID_LAST)
