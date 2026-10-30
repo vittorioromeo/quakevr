@@ -20,10 +20,13 @@ float vr_agpt2_parry;
 entity vr_agpt2_ogre;
 
 void(string s) VR_AGPT2_Print = { bprint(sprintf("agparry: %s\n", s)); };
+// One check (vr_testutil's tally, under this test's own line prefix).
 void(string what, float ok) VR_AGPT2_Check =
 {
-    VR_AGPT2_Print(sprintf("%s %s", what, ok ? "PASS" : "FAIL"));
-    if(ok) { vr_agt_passed = vr_agt_passed + 1; } else { vr_agt_failed = vr_agt_failed + 1; }
+    string tag = vr_test_tag;
+    vr_test_tag = "agparry";
+    VR_Test_Check(ok, what);
+    vr_test_tag = tag;
 };
 
 // Held still (its AI off), aware of you, healthy, not in pain.
@@ -115,7 +118,7 @@ void() VR_AGPT2_End =
         remove(vr_agpt2_ogre);
         vr_agpt2_ogre = world;
     }
-    VR_AGPT2_Print(sprintf("%g passed, %g failed", vr_agt_passed, vr_agt_failed));
+    VR_AGPT2_Print(sprintf("%g passed, %g failed", vr_test_pass, vr_test_fail));
     p.flags = p.flags - (p.flags & FL_NOTARGET);
     cvar_set("vr_agrunt_test", "0");
 };

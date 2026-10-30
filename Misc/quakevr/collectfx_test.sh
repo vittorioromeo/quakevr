@@ -15,7 +15,7 @@ export TB_NODRAW=${TB_NODRAW-1} # (batched frames not drawn: no check here reads
 # (The body: tb_main plays its runs as batches, testbatch.sh; TB_SLOW=1: each alone by run.sh, as before.)
 tb_body() {
 fail=0
-check() { if [ "$1" = "1" ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi; }
+source "$(dirname "$0")/qvrtest.sh"
 FILTER="collect fx|You got|reload: mode|rror|ERROR"
 REP="vr_reload_test 0;impulse 125;wait3"
 HOLD="map e1m1;wait60;developer 1;vr_reload_debug 1;vr_debug_collect_fx 1;vr_test_spawn_dist 48;vr_test_spawn_hold 1;vr_mock_hand main 0.25 1.1 -0.3 0 0 0;wait5;+grabmain;vr_mock_button main grip 1;wait2;vr_test_spawn 101;impulse 241;wait10"
@@ -45,6 +45,7 @@ shells=$(echo "$log" | grep "^reload: mode" | sed -E 's/.*shells ([0-9]+).*/\1/'
 check $(set -- $shells; [ $(( $2 - $1 )) = 20 ] && ! echo "$log" | grep -q "rror" && echo 1 || echo 0) "save and load while it goes in: counted once ($shells), no error"
 log=$(tb_run_sh -Script "$HOLD;$HIP;$REL;wait3;map e1m2;wait60;$REP;toggleconsole;quit" -Filter "$FILTER" 2>&1)
 check $(echo "$log" | grep -q "^reload: mode" && ! echo "$log" | grep -q "rror" && echo 1 || echo 0) "a map change while it goes in: no error"
+verdict
 exit $fail
 }
 source "$(dirname "$0")/testbatch/testbatch.sh"

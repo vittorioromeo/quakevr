@@ -26,6 +26,8 @@ import sys
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "testbatch"))
 import testbatch  # noqa: E402
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+import qvrtest  # noqa: E402  (the tests' library: Misc/quakevr/qvrtest.py)
 
 os.environ.setdefault("TB_NODRAW", "1")
 AGENT = sys.argv[1] if len(sys.argv) > 1 else "fastship"
@@ -39,7 +41,6 @@ FILTER = "foegrab|leg diag|legpull trace|leglift trace|MARK|[Ee]rror|CRASH"
 SHIN, THIGH = -21, -9  # units under its origin (its feet 24 under it; a grunt's knees 10-12 over them, the rig)
 SIDE = 0.17            # m: each leg this far from its middle (its left on your right: it faces you)
 BACK = 0.38            # m: and its left foot this far back (the rig: a grunt stands with it 12 units behind its right)
-FAILS = 0
 EXTRA = os.environ.get("LG_EXTRA", "")  # (more commands for every case: experiments)
 
 
@@ -81,11 +82,8 @@ def keys_for(cls, kind, dz, way, dist, dur, swing=False, start=0.6):
     return k
 
 
-def verdict(ok, what):
-    global FAILS
-    print(f"  {'PASS' if ok else 'FAIL'} {what}")
-    if not ok:
-        FAILS += 1
+TALLY = qvrtest.Tally("leggrab")  # (its `leggrab: PASS|FAIL <what>` lines and verdict)
+verdict = TALLY.check
 
 
 # (case, spawn, class, kind, dz, way, metres, seconds, extra commands, swing)
@@ -201,8 +199,7 @@ def main():
         else:  # heavy_gentle
             ok = not lifted
             verdict(ok and not bad, f"{name}: {'LIFTED (wrong)' if lifted else 'not lifted'} ({info})")
-    print(f"{FAILS} failed")
-    return 1 if FAILS else 0
+    return TALLY.verdict()
 
 
 if __name__ == "__main__":

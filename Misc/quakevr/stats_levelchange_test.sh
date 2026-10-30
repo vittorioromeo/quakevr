@@ -7,7 +7,7 @@
 # Prints PASS/FAIL per check; exits 1 on a failure.
 AGENT=$1; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 fail=0
-check() { if [ "$1" = "1" ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi; }
+source "$(dirname "$0")/qvrtest.sh"
 POUCH="vr_mock_hand_to main ammopouch;wait3"
 log=$(bash $KIT/run.sh $AGENT -Script "vr_holster_mode 0;vr_reload_mode 3;map e1m1;wait60;$POUCH;changelevel e1m2;wait90;$POUCH;save qvr_stats_test;wait5;load qvr_stats_test;wait90;$POUCH;toggleconsole;quit" -Filter "vr_mock_hand_to: (the|no) ammo|rror" 2>&1)
 lines=$(echo "$log" | grep -E "vr_mock_hand_to: (the|no) ammo")
@@ -15,4 +15,5 @@ check $(echo "$lines" | sed -n 1p | grep -q "the ammo pouch" && echo 1 || echo 0
 check $(echo "$lines" | sed -n 2p | grep -q "the ammo pouch" && echo 1 || echo 0) "changelevel e1m2: the ammo pouch still there"
 check $(echo "$lines" | sed -n 3p | grep -q "the ammo pouch" && echo 1 || echo 0) "save and load: the ammo pouch still there"
 check $(echo "$log" | grep -q "rror" && echo 0 || echo 1) "no error"
+verdict
 exit $fail

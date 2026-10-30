@@ -148,6 +148,19 @@ Sections fold (ROUND23.md, "Checklist: folding sections"): each header shows ope
 unfolds it, kept by name in `quakevr/checklist_sections.txt` (ignored); `vr_checklist` prints CLSEC lines,
 `vr_checklist collapse|expand <s|all>` and `folds_default`; `python Misc/quakevr/checklist_fold_check.py <agent>` tests it.
 
+### Writing a test: one verdict grammar, one library
+
+Every test, in any language, prints one line per check, `<name>: PASS <what>` or `<name>: FAIL <what>`, and ends on
+its verdict line `<name>: N passed, M failed` (the run ends there: `-QuitOn "<name>: [0-9]+ passed"`). The writers:
+QC `VR_Test_Begin/BeginFlags/Check/Verdict` (QC/vr_testutil.qc), C++ `testkit::Tally` (vr_testkit.hpp), Python
+`qvrtest.Tally` (Misc/quakevr/qvrtest.py), shell `check` / `verdict` (`source Misc/quakevr/qvrtest.sh`).
+`qvrtest.py` is the scripts' one library: `KIT`, `tree(agent)`, `run`, `run_sh`, `lane()` / `lane_env` / `game_dir`,
+the mock-file builders (`hand`, `button`, `grip`, `waits`, `motion`) and the parser the runners use
+(`FAIL_LINE`, `counts`, `verdict_near`). Known-flaky tests: one list, `Misc/quakevr/test_flaky.txt` (run_test_suite.py
+`--allow-flaky` and the refactor baseline read it). check_canonical.py's `test-*` families fail the build on a new
+hand-made tally, verdict line, `def verdict(`, spelt-out kit path or shell `check()` copy (today's sites are in its
+allowlist; migrate them when you touch a test, then `--tighten`).
+
 ### Test numbers
 
 The numbered test cvars (`vr_agrunt_test N`, `vr_ad_test N`, `vr_rv_test`, `vr_np_test`, `vr_flare_test`,

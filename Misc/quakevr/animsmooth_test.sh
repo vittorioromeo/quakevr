@@ -19,7 +19,7 @@ OUT=$(bash $KIT/run.sh $AGENT -Script "$S" -Filter "^animsmooth: (check|trace|pi
     grep -v "^$" | grep -v "^exit=0")
 echo "$OUT" | grep -E "^animsmooth: trace|median [0-9.]"
 fail=0
-check() { if [ "$1" = "1" ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi; }
+source "$(dirname "$0")/qvrtest.sh"
 check $(echo "$OUT" | grep -q "weights at the keys exact" && echo 1 || echo 0) "the spline's weights exact at the keys"
 gaps=$(echo "$OUT" | grep -o "0.001 off a key: at most [0-9.]*" | grep -o "[0-9.]*$")
 worst=$(echo "$gaps" | sort -g | tail -1)
@@ -34,4 +34,5 @@ check $(echo "$OUT" | grep -q "progs/soldier.mdl: .*poses, no rig" && echo 1 || 
 peak=$(echo "$OUT" | grep -o "one vertex's most: p95 [0-9.]*, most [0-9.]*" | grep -o "[0-9.]*$")
 check $([ -n "$peak" ] && awk "BEGIN{exit !($peak < 0.1)}" && echo 1 || echo 0) "Ease 0 idle loop has no gun pulse (peak ${peak:-none} units)"
 check $(echo "$OUT" | grep -q "ERROR\|Host_Error\|Sys_Error\|CRASH" && echo 0 || echo 1) "no error"
+verdict
 exit $fail

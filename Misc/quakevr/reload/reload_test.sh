@@ -39,7 +39,7 @@
 AGENT=$1; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 export TB_NODRAW=${TB_NODRAW-1} # (batched: no check reads the drawing; the screenshot runs go alone, drawn)
 fail=0
-check() { if [ "$1" = "1" ]; then echo "PASS $2"; else echo "FAIL $2"; fail=1; fi; }
+source "$(dirname "$0")/../qvrtest.sh"
 # (The body: tb_main plays its runs as batches, testbatch.sh; TB_SLOW=1: each alone by run.sh, as before.)
 tb_body() {
 
@@ -520,6 +520,7 @@ for MV in "+forward" "+moveright" "+back;+moveleft;+left"; do
 ' ' ')
   check $([ "$(echo "$log" | grep -c "held round")" -ge 40 ] && [ "$ds" = "12.0 " ] && echo 1 || echo 0) "on the move ($MV): the held shell 12 units off the port every frame ($ds)"
 done
+verdict
 exit $fail
 }
 source "$(dirname "$0")/../testbatch/testbatch.sh"
