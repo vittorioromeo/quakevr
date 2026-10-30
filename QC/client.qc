@@ -2472,6 +2472,80 @@ ClientObituary
 called when a player dies
 ============
 */
+// ClientObituary's tables (W20). A monster's kill: "<player><obit>" by the killer's classname (the ones whose words depend on
+// more than that are in ClientObituary). The classnames are distinct, so the order is free.
+string VR_OBIT_MONSTERS[] =
+{
+    "monster_army", " was shot by a Grunt\n",
+    "monster_demon1", " was eviscerated by a Fiend\n",
+    "monster_dragon", " was annihilated by the Dragon\n",
+    "monster_dragon_dead", " was squashed by the Dragon\n",
+    "monster_enforcer", " was blasted by an Enforcer\n",
+    "monster_fish", " was fed to the Rotfish\n",
+    "monster_hell_knight", " was slain by a Death Knight\n",
+    "monster_ranged_knight", " was slain by a Death Knight\n", // (QVR: MG3's)
+    "monster_knight", " was slashed by a Knight\n",
+    "monster_shambler", " was smashed by a Shambler\n",
+    "monster_vomit", " was vomited on by a Vomitus\n",
+    "monster_wizard", " was scragged by a Scrag\n",
+    "monster_zombie", " joins the Zombies\n",
+    // HIPNOTIC
+    "monster_gremlin", " was outsmarted by a Gremlin\n",
+    "monster_scourge", " was stung by a Centroid\n",
+    "monster_armagon", " was outgunned by Armagon\n",
+    // ROGUE
+    "monster_eel", " was electrified by an Eel\n",
+    "monster_wrath", " was disintegrated by a Wrath\n",
+    "monster_super_wrath", " was obliterated by an Overlord\n",
+    "monster_sword", " was slit open by a Phantom Swordsman\n",
+    // Dawn of the Machine
+    "monster_super_shambler", " met the blood shambler\n", // ($mg3_qc_obit_supershambler)
+    "monster_orb", " was blasted by an Orb\n", // (upstream has none)
+    "monster_morph", " was crushed by a Guardian\n",
+    "monster_mummy", " was Mummified\n"
+};
+#define VR_OBIT_MONSTERS_N 48 // (strings: pairs)
+
+// A trap's or a hazard's kill (after the crushers and the falls): "<player><obit>" by the killer's classname.
+string VR_OBIT_TRAPS[] =
+{
+    "trap_shooter", " was spiked\n",
+    "trap_spikeshooter", " was spiked\n",
+    "fireball", " ate a lavaball\n",
+    "trigger_changelevel", " tried to leave\n",
+    // ROGUE
+    "ltrail_start", " rode the lightning\n",
+    "ltrail_relay", " rode the lightning\n",
+    "pendulum", " was cleaved in two\n",
+    "buzzsaw", " was sliced to pieces\n",
+    "plasma", " was turned to plasma\n"
+};
+#define VR_OBIT_TRAPS_N 18
+
+// A player's kill by another: "<targ><a><attacker><b>" by the killer's weapon; a2, b2 with its secondary ammo ("": the
+// same). Its other words (a gib, the water, the laser's two) are ClientObituary's. A weapon not here says neither.
+typedef struct
+{
+    float wid;
+    string a, b, a2, b2;
+} vr_obit_weapon;
+
+vr_obit_weapon VR_OBIT_WEAPONS[] =
+{
+    { WID_FIST, " was punched by ", "\n", "", "" },
+    { WID_AXE, " was ax-murdered by ", "\n", "", "" },
+    { WID_GRAPPLE, " was grappled by ", "\n", "", "" }, // ZOID
+    { WID_SHOTGUN, " chewed on ", "'s boomstick\n", "", "" },
+    { WID_SUPER_SHOTGUN, " ate 2 loads of ", "'s buckshot\n", "", "" },
+    { WID_NAILGUN, " was nailed by ", "\n", " was burned by ", "\n" },
+    { WID_SUPER_NAILGUN, " was punctured by ", "\n", " was burned by ", "\n" },
+    { WID_GRENADE_LAUNCHER, " eats ", "'s pineapple\n", " was blasted to bits by ", "\n" },
+    { WID_ROCKET_LAUNCHER, " rides ", "'s rocket\n", " was blasted to bits by ", "\n" },
+    { WID_LIGHTNING, " accepts ", "'s shaft\n", " was fused by ", "\n" },
+    { WID_LASER_CANNON, " was toasted by ", "'s laser\n", "", "" }, // MED
+    { WID_MJOLNIR, " was slammed by ", "'s hammer\n", "", "" } // MED
+};
+#define VR_OBIT_WEAPONS_N 12
 void(entity targ, entity attacker) ClientObituary =
 {
     float rnum;
@@ -2602,132 +2676,29 @@ void(entity targ, entity attacker) ClientObituary =
                return;
                }
                 rnum = attacker.weapon;
-                if(rnum == WID_FIST)
+                float sec = attacker.weaponflags & QVR_WPNFLAG_USE_SECONDARY_AMMO;
+                for(float i = 0; i < VR_OBIT_WEAPONS_N; i++)
                 {
-                    deathstring = " was punched by ";
-                    deathstring2 = "\n";
-                }
-                else if(rnum == WID_AXE)
-                {
-                    deathstring = " was ax-murdered by ";
-                    deathstring2 = "\n";
-                }
-                //ZOID--
-                else if(rnum == WID_GRAPPLE)
-                {
-                    deathstring = " was grappled by ";
-                    deathstring2 = "\n";
-                }
-                //--ZOID
-                else if(rnum == WID_SHOTGUN)
-                {
-                    deathstring = " chewed on ";
-                    deathstring2 = "'s boomstick\n";
-                }
-                else if(rnum == WID_SUPER_SHOTGUN)
-                {
-                    deathstring = " ate 2 loads of ";
-                    deathstring2 = "'s buckshot\n";
-                }
-                else if(rnum == WID_NAILGUN)
-                {
-                    if(attacker.weaponflags & QVR_WPNFLAG_USE_SECONDARY_AMMO)
+                    vr_obit_weapon ow = VR_OBIT_WEAPONS[i];
+                    if(ow.wid == rnum)
                     {
-                        deathstring = " was burned by ";
-                        deathstring2 = "\n";
-                    }
-                    else
-                    {
-                        deathstring = " was nailed by ";
-                        deathstring2 = "\n";
+                        deathstring = (sec && ow.a2 != "") ? ow.a2 : ow.a;
+                        deathstring2 = (sec && ow.a2 != "") ? ow.b2 : ow.b;
+                        break;
                     }
                 }
-                else if(rnum == WID_SUPER_NAILGUN)
+                if((rnum == WID_GRENADE_LAUNCHER || rnum == WID_ROCKET_LAUNCHER) && targ.health < -40)
                 {
-                    if(attacker.weaponflags & QVR_WPNFLAG_USE_SECONDARY_AMMO)
-                    {
-                        deathstring = " was burned by ";
-                        deathstring2 = "\n";
-                    }
-                    else
-                    {
-                        deathstring = " was punctured by ";
-                        deathstring2 = "\n";
-                    }
+                    deathstring = " was gibbed by ";
+                    deathstring2 = rnum == WID_GRENADE_LAUNCHER ? "'s grenade\n" : "'s rocket\n";
                 }
-                else if(rnum == WID_GRENADE_LAUNCHER)
+                else if(rnum == WID_LIGHTNING && !sec && attacker.waterlevel > 1)
                 {
-                    if(attacker.weaponflags & QVR_WPNFLAG_USE_SECONDARY_AMMO)
-                    {
-                        deathstring = " was blasted to bits by ";
-                        deathstring2 = "\n";
-                    }
-                    else
-                    {
-                        deathstring = " eats ";
-                        deathstring2 = "'s pineapple\n";
-                    }
-
-                    if(targ.health < -40)
-                    {
-                        deathstring = " was gibbed by ";
-                        deathstring2 = "'s grenade\n";
-                    }
-
+                    deathstring2 = "'s discharge\n";
                 }
-                else if(rnum == WID_ROCKET_LAUNCHER)
+                else if(rnum == WID_LASER_CANNON && random() >= 0.5) //MED
                 {
-                    if(attacker.weaponflags & QVR_WPNFLAG_USE_SECONDARY_AMMO)
-                    {
-                        deathstring = " was blasted to bits by ";
-                        deathstring2 = "\n";
-                    }
-                    else
-                    {
-                        deathstring = " rides ";
-                        deathstring2 = "'s rocket\n";
-                    }
-
-                    if(targ.health < -40)
-                    {
-                        deathstring = " was gibbed by ";
-                        deathstring2 = "'s rocket\n" ;
-                    }
-                }
-                else if(rnum == WID_LIGHTNING)
-                {
-                    if(attacker.weaponflags & QVR_WPNFLAG_USE_SECONDARY_AMMO)
-                    {
-                        deathstring = " was fused by ";
-                        deathstring2 = "\n";
-                    }
-                    else
-                    {
-                        deathstring = " accepts ";
-                        if(attacker.waterlevel > 1)
-                            deathstring2 = "'s discharge\n";
-                        else
-                            deathstring2 = "'s shaft\n";
-                    }
-                }
-    //MED
-            else if(rnum == WID_LASER_CANNON)
-                {
-               if(random()<0.5)
-                  {
-                  deathstring = " was toasted by ";
-                  }
-               else
-                  {
-                  deathstring = " was radiated by ";
-                  }
-               deathstring2 = "'s laser\n";
-                }
-//MED
-            if(rnum == WID_MJOLNIR)
-                {
-               deathstring = " was slammed by ";
-               deathstring2 = "'s hammer\n";
+                    deathstring = " was radiated by ";
                 }
                 bprint(targ.netname);
                 bprint(deathstring);
@@ -2754,32 +2725,21 @@ void(entity targ, entity attacker) ClientObituary =
 
             if(attacker.flags & FL_MONSTER)
             {
-                if(attacker.classname == "monster_army")
-                    bprint(" was shot by a Grunt\n");
-                if(attacker.classname == "monster_demon1")
-                    bprint(" was eviscerated by a Fiend\n");
+                for(float m = 0; m < VR_OBIT_MONSTERS_N; m += 2)
+                {
+                    if(attacker.classname == VR_OBIT_MONSTERS[m])
+                    {
+                        bprint(VR_OBIT_MONSTERS[m + 1]);
+                    }
+                }
                 if(attacker.classname == "monster_dog")
                     bprint(attacker.vr_mg3_mon ? " was blown up by a demo dog\n" : " was mauled by a Rottweiler\n"); // (QVR: MG3's demo dog)
-                if(attacker.classname == "monster_dragon")
-                    bprint(" was annihilated by the Dragon\n");
-                if(attacker.classname == "monster_dragon_dead")
-                    bprint(" was squashed by the Dragon\n");
-                if(attacker.classname == "monster_enforcer")
-                    bprint(" was blasted by an Enforcer\n");
-                if(attacker.classname == "monster_fish")
-                    bprint(" was fed to the Rotfish\n");
-                if(attacker.classname == "monster_hell_knight" || attacker.classname == "monster_ranged_knight") // (QVR: MG3's too)
-                    bprint(" was slain by a Death Knight\n");
-                if(attacker.classname == "monster_knight")
-                    bprint(" was slashed by a Knight\n");
                 if(attacker.classname == "monster_ogre")
                     bprint(attacker.vr_mg3_mon ? " rode a rocket to hell\n" : " was destroyed by an Ogre\n"); // (QVR: MG3's rocket ogre)
                 if(attacker.classname == "monster_oldone" || MG3_Shub_Is(attacker) || MG3_Shub_IsChild(attacker)) // (QVR: MG3's and her eyes)
                     bprint(" became one with Shub-Niggurath\n");
                 if(attacker.classname == "monster_shalrath")
                     bprint(attacker.vr_eshove_striking ? " was swatted by a Vore\n" : " was exploded by a Vore\n"); // (QVR: its shove)
-                if(attacker.classname == "monster_shambler")
-                    bprint(" was smashed by a Shambler\n");
                 if(attacker.classname == "monster_tarbaby")
                 {
                     if(attacker.mg3_slimekin)
@@ -2787,47 +2747,13 @@ void(entity targ, entity attacker) ClientObituary =
                     else
                         bprint(" was slimed by a Spawn\n");
                 }
-                if(attacker.classname == "monster_vomit")
-                    bprint(" was vomited on by a Vomitus\n");
-                if(attacker.classname == "monster_wizard")
-                    bprint(" was scragged by a Scrag\n");
-                if(attacker.classname == "monster_zombie")
-                    bprint(" joins the Zombies\n");
-
-                // HIPNOTIC
-                if(attacker.classname == "monster_gremlin")
-                    bprint(" was outsmarted by a Gremlin\n");
-                if(attacker.classname == "monster_scourge")
-                    bprint(" was stung by a Centroid\n");
-                if(attacker.classname == "monster_armagon")
-                    bprint(" was outgunned by Armagon\n");
-
-                // ROGUE
-                if(attacker.classname == "monster_eel")
-                    bprint(" was electrified by an Eel\n");
-                if(attacker.classname == "monster_wrath")
-                    bprint(" was disintegrated by a Wrath\n");
-                if(attacker.classname == "monster_super_wrath")
-                    bprint(" was obliterated by an Overlord\n");
-                if(attacker.classname == "monster_sword")
-                    bprint(" was slit open by a Phantom Swordsman\n");
-                if(attacker.classname == "monster_lava_man")
+                if(attacker.classname == "monster_lava_man") // ROGUE
                 {
                     if(attacker.mg3_lavaman)
                         bprint(" was burned to a crisp\n"); // (Dawn of the Machine's: $mg3_qc_obit_lavaman)
                     else
                         bprint(" fries in Hephaestus' fury\n");
                 }
-
-                // Dawn of the Machine
-                if(attacker.classname == "monster_super_shambler")
-                    bprint(" met the blood shambler\n"); // ($mg3_qc_obit_supershambler)
-                if(attacker.classname == "monster_orb")
-                    bprint(" was blasted by an Orb\n"); // (upstream has none)
-                if(attacker.classname == "monster_morph")
-                    bprint(" was crushed by a Guardian\n");
-                if(attacker.classname == "monster_mummy")
-                    bprint(" was Mummified\n");
 
                 return;
             }
@@ -2849,20 +2775,13 @@ void(entity targ, entity attacker) ClientObituary =
                 bprint(" fell to his death\n");
                 return;
             }
-            if(attacker.classname == "trap_shooter" || attacker.classname == "trap_spikeshooter")
+            for(float t = 0; t < VR_OBIT_TRAPS_N; t += 2)
             {
-                bprint(" was spiked\n");
-                return;
-            }
-            if(attacker.classname == "fireball")
-            {
-                bprint(" ate a lavaball\n");
-                return;
-            }
-            if(attacker.classname == "trigger_changelevel")
-            {
-                bprint(" tried to leave\n");
-                return;
+                if(attacker.classname == VR_OBIT_TRAPS[t])
+                {
+                    bprint(VR_OBIT_TRAPS[t + 1]);
+                    return;
+                }
             }
             if(attacker.classname == "trigger_deathpit") // HONEY
             {
@@ -2873,29 +2792,6 @@ void(entity targ, entity attacker) ClientObituary =
                 }
 
                 bprint("\n");
-                return;
-            }
-
-            // ROGUE
-            if(attacker.classname == "ltrail_start" ||
-                attacker.classname == "ltrail_relay")
-            {
-                bprint(" rode the lightning\n");
-                return;
-            }
-            if(attacker.classname == "pendulum")
-            {
-                bprint(" was cleaved in two\n");
-                return;
-            }
-            if(attacker.classname == "buzzsaw")
-            {
-                bprint(" was sliced to pieces\n");
-                return;
-            }
-            if(attacker.classname == "plasma")
-            {
-                bprint(" was turned to plasma\n");
                 return;
             }
             if(attacker.classname == "Vengeance")
