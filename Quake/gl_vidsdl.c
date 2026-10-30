@@ -89,6 +89,7 @@ qboolean gl_multi_bind_able = false;
 qboolean gl_bindless_able = false;
 qboolean gl_clipcontrol_able = false;
 int gl_viewport_layer_able = 0; // QVR
+qboolean gl_parallel_compile_able = false; // QVR
 float gl_max_anisotropy; //johnfitz
 int gl_stencilbits;
 
@@ -1450,6 +1451,20 @@ static void GL_Init (void)
 	}
 	//johnfitz
 
+	// QVR: GL_KHR_parallel_shader_compile (or ARB's): the engine's shaders compiled and linked by the driver's threads,
+	// as many as it likes, every status read at GL_CreateShaders' end (not after each)
+	{
+		qboolean khr = GL_FindExtension ("GL_KHR_parallel_shader_compile");
+		if (khr || GL_FindExtension ("GL_ARB_parallel_shader_compile"))
+		{
+			void (APIENTRY *maxthreads) (GLuint count) = (void (APIENTRY *) (GLuint)) SDL_GL_GetProcAddress (khr ? "glMaxShaderCompilerThreadsKHR" : "glMaxShaderCompilerThreadsARB");
+			if (maxthreads)
+			{
+				maxthreads (0xFFFFFFFFu);
+				gl_parallel_compile_able = true;
+			}
+		}
+	}
 	VR_TIMED ("shaders compiled and linked (GL_CreateShaders)", GL_CreateShaders ()); // QVR: start-up timing (vr_startup_times)
 	VR_GLStep ("framebuffers (GL_CreateFrameBuffers)"); // QVR: breadcrumbs (vr/vr_glsafe.cpp)
 	GL_CreateFrameBuffers ();

@@ -10,6 +10,7 @@
 #include "vr_diskcache.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_files.hpp"
 
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
@@ -70,6 +71,15 @@ struct Command
     za::Vector<Mark> marks;
 };
 Command command;
+// The quit (VR_TimeQuitBegin .. VR_TimeQuitEnd): its stages, printed at its end and kept for the next session's
+// vr_startup_times (quitPath: the previous session's, read at VR_TimeInit).
+Group quit;
+za::String lastQuit; // the previous session's quit, as printed
+
+za::String quitPath()
+{
+    return za::String{com_gamedir} + "/cache/quit_times.txt";
+}
 
 double sinceProcess(double t)
 {
@@ -127,6 +137,10 @@ void times_f()
     {
         Con_Printf("%s\n", s.cStr());
     }
+    if(!lastQuit.empty())
+    {
+        Con_Printf("%s", lastQuit.cStr());
+    }
 }
 
 // vr_walltime [label]: seconds since the process started and since the last vr_walltime (the wall clock, whatever the
@@ -182,6 +196,56 @@ extern "C" void VR_TimeInit()
 {
     Cmd_AddCommand("vr_startup_times", times_f);
     Cmd_AddCommand("vr_walltime", walltime_f);
+    (void)qvr::files::readText(quitPath().cStr(), lastQuit); // (none: no line)
+}
+
+// quit (Host_Quit_f), or Host_Shutdown for any other way out: the quit's timing starts (once).
+extern "C" void VR_TimeQuitBegin()
+{
+    if(quit.open)
+    {
+        return;
+    }
+    quit = Group{};
+    quit.title = "vr_startup_times: the last session's quit, from the command to the log's close (then the process's exit)";
+    quit.start = quit.last = Sys_DoubleTime();
+    quit.open = true;
+}
+
+extern "C" void VR_TimeQuitMark(const char* stage)
+{
+    if(quit.open)
+    {
+        mark(quit, stage, Sys_DoubleTime());
+    }
+}
+
+// Host_Shutdown's end (the log still open): the quit's stages printed and kept for the next session (a temporary file
+// of this copy's own, then renamed: parallel test runs share the folder). Not after an error (its shutdown is not a quit).
+extern "C" void VR_TimeQuitEnd(int error)
+{
+    if(!quit.open)
+    {
+        return;
+    }
+    quit.open = false;
+    za::String text = quit.title + "\n";
+    for(const Mark& m : quit.marks)
+    {
+        text += va("  %-40s %8.1f ms\n", m.name.cStr(), m.ms);
+    }
+    text += va("  %-40s %8.1f ms\n", "total", (quit.last - quit.start) * 1000.0);
+    Con_Printf("%s", text.cStr());
+    if(error)
+    {
+        return;
+    }
+    qvr::files::createDirectories((za::String{com_gamedir} + "/cache").cStr());
+    const za::String path = quitPath(), tmp = path + va(".%u.tmp", static_cast<unsigned>(Sys_DoubleTime() * 1e6) & 0xffffffu);
+    if(qvr::files::writeText(tmp.cStr(), text))
+    {
+        qvr::files::rename(tmp.cStr(), path.cStr());
+    }
 }
 
 extern "C" void VR_TimeMark(const char* stage)

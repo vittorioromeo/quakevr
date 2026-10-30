@@ -32,7 +32,8 @@ that runs two ticks counts once). Server ticks (ROUND21.md, "Server tick rate"):
 over the take. Sound (off in the kit) plays at the wall clock's pace, ahead of the game.
 `vr_walltime [label]` prints the wall clock and the process's CPU time since the last call; `vr_startup_times` the
 start-up's stages and the last map load's (with the work summed across them: model loads, image decoding, normal
-maps, uploads); `vr_normalmap_cache 2` makes the cached skin normal maps anyway and warns of any that differ.
+maps, uploads) and the last session's quit (its stages, printed at the quit too and kept in `cache/quit_times.txt`);
+`vr_normalmap_cache 2` makes the cached skin normal maps anyway and warns of any that differ.
 `quakevr/cache/` (the skin normal maps, `prefetch.txt`) is made again when removed: the first start after that is
 about 0.4 s slower. A timing that compares builds must run each one twice (the second run's caches are warm).
 Unpaced frames also skip most presents (`VR_SkipSwap`: ten a second): a present waits for the display's refresh even

@@ -121,6 +121,7 @@ extern	qboolean	gl_multi_bind_able;
 extern	qboolean	gl_bindless_able;
 extern	qboolean	gl_clipcontrol_able;
 extern	int		gl_viewport_layer_able; // QVR: gl_ViewportIndex from a vertex shader: 0 no, 1 ARB_shader_viewport_layer_array, 2 AMD_vertex_shader_viewport_index, 3 NV_viewport_array2
+extern	qboolean	gl_parallel_compile_able; // QVR: GL_KHR_parallel_shader_compile (or ARB's): GL_CreateShaders reads every status at its end
 
 extern	const char	*gl_vendor;
 extern	const char	*gl_renderer;
