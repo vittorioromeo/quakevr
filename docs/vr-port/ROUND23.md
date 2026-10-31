@@ -3666,7 +3666,7 @@ Checklist:
 - [knightpose] Toolgun: an armed Knight with a nail pistol aims it in the pistol pose (off hand free or cupping), not
   shouldered as a rifle.
 
-## Death knights as armed humanoids (branch `agent/dknight`; stages 1-2 and the spell done, armour and the rest open)
+## Death knights as armed humanoids (branch `agent/dknight`; rig, kind 3, spell, grips, armour done; rig2 tuning open)
 
 His words: "Add full support for Death Knights to the armed humanoid system, including poses, melee, ranged, etc. The
 Death Knights should still be able to perform their signature fireball ranged attack." And: "Ensure that the new armed
@@ -3736,6 +3736,28 @@ humanoid Knight and Death Knight kinds also support armor."
   case flaky, failing on the base too).
 - **Open, in order:** the death knight's probe points / shin and pauldron hits (test 7's failure); eyeshots of test 8;
   eval.sh; `run_baseline --only agrunt`; his rig's remaining rig2 failures.
+
+**Part 3 (same branch).**
+- **Test 7's 13/1: the probe points were wrong, not the game.** The plates' middles (`limbpiece 10`) of the death
+  knight's left pauldron and both shins sit inside his arm / leg, nearer another bone's skin (no plate within reach);
+  shots at them strike the plates. The tests now probe a limb plate as a player's shot lands (`VR_ART_PlateShot`,
+  generic for every wearer): aimed at its middle from ahead of the wearer, then its side, the other side, behind,
+  traced with MOVE_HITMODEL (as bullets), the piece taken where it lands (`ragdollbone` QVR_ARMOR_PIECE_AT); the cuirass
+  and helmet stay their middles (pieceAt resolves them by their bones; a shot at the enforcer's chest from ahead meets
+  his hands on the gun: no plate, rightly). All ten pieces checked now (was 4). From ahead every death knight plate is
+  struck; the knight's right pauldron and left shin from their side (from ahead his thigh plate is in front of the shin's
+  middle). `vr_agarmor_test 7` **14/0**, `vr_agarmor_test 1` **26/0** (the enforcer's check is the same probe).
+  (Note: `traceline(..., MOVE_HITMODEL, world)` meets no monster: pass the player.)
+- **Test 8 (eyeshots, `map vrtesthall;wait30;vr_agarmor_test 8;wait10;screenshot`):** knight and death knight in full
+  yellow: helmet, cuirass, pauldrons, vambraces, thigh and shin plates drawn on both; nothing to fix. Seen: the
+  knight's own red shoulder caps show above his pauldron plates (his mesh's pads, weighted to the chest); the death
+  knight's upper thighs under the skirt's hem are bare (the thigh plate starts at the hem's bottom).
+- **`vr_rigstudio_rom test` no longer writes the shipped rig:** its save-and-read-back step sets `vr_rigdata_dir
+  rigstudio_test` for the save when it is empty (as the other rig tests) and puts the setting and the rig's path back:
+  9/0, saved to `quakevr/rigstudio_test/rigs/vrgrunt.rig2.txt`, `quakevr/rigs` untouched. Run it flat-screen
+  (`-flatscreenmode`: the studio's frame does not run under the mock headset; `map vrtesthall;wait30;vr_rigstudio
+  monster_vr_grunt 4;vr_rigstudio_rom test`).
+- **eval.sh:** 163/171, no verdict changes (8 takes' numbers moved, PASS -> PASS; nothing here touches melee).
 
 
 ## Directional parry (experimental; branch `agent/dirparry`)

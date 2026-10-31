@@ -400,7 +400,8 @@ rig"). The other monsters keep the rig derived from their frames.
   `hand_l`), each hand's grip frame as the rest pose's at the weapon's grip offset (the Grip Editor's).
 - Commands: `vr_rigstudio_rom [on|off] | joint <j> | set <j> <x> [y] [z] | reset | random [seed] |
   sweep <j> | limit <j> swingx|swingy|twist|range <min> <max> | pivot <j> <x y z> | save | camera <j> [yaw] [pitch]
-  [dist] | status | test [weapon]`. `vr_rigstudio_rom test` ends on `rigstudio rom test: N passed, M failed`;
+  [dist] | status | test [weapon]`. `vr_rigstudio_rom test` ends on `rigstudio rom test: N passed, M failed`
+  (its save goes to `vr_rigdata_dir`, `rigstudio_test` when unset: never the shipped rig);
   `test weapon` (the weapons on the authored rig's hands, six poses, a screenshot each; a dual-wielding subject tests
   the left hand too) on `rigstudio rom weapon: N passed, M failed`. Both wait for the subject: run them as it opens.
 - `vr_rig2_check [model] [detail lines] [joint|random|envelope]` (ends on `rig2 check: N passed, M failed`): every
