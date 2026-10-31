@@ -4,6 +4,7 @@
 
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
+#include "vr_disarmhull.hpp"
 #include "vr_geom.hpp"
 #include "vr_held.hpp"
 #include "vr_lines.hpp"
@@ -33,13 +34,15 @@ namespace
 // The QC's kinds (vr_disarmviz.qc VR_DV_*: keep in step).
 enum Kind : int
 {
-    WeaponHit = 1,    // the held weapon's line, the reach of a blow (VR_AG_HandStrikeSpeed) and a parry's sweep round it
-    WeaponShot = 2,   // ... its shot volume (VR_AGS_W_RADIUS x vr_agrunt_shotdisarm_size)
+    // (The volumes: hulls of what is drawn, vr_disarmhull.hpp; radius: the units each is grown by. A hand's: num the
+    // humanoid, a.x its side.)
+    WeaponHit = 1,    // the held weapon's strike volume (vr_agrunt_vol_strike), and its line a..b (the parry's)
+    WeaponShot = 2,   // ... its shot volume (vr_agrunt_vol_shot_weapon)
     WeaponNear = 3,   // ... a near miss's (half counts: vr_agrunt_shotdisarm_near more)
-    HandShot = 4,     // its hand and forearm's shot volume (VR_AGS_HandLine)
+    HandShot = 4,     // the hand holding it and its forearm: their shot volume (vr_agrunt_vol_shot_hand)
     HandNear = 5,     // ... a near miss's
-    GripBlow = 6,     // a body blow this near its grip knocks it out (VR_AG_Hit: VR_AG_DISARM_HAND)
-    LimbBlow = 7,     // ... a blow on a limb (positional part 2) this near
+    GripBlow = 6,     // the weapon's body blow volume (VR_AG_Hit: vr_agrunt_vol_blow)
+    LimbBlow = 7,     // ... the hand's
     RagPart = 8,      // the ragdoll limb the weapon rides (num: the humanoid; radius: the part)
     PlayerStrike = 9, // a player's hand: the line a strike on the weapon is measured from (its hand to its weapon's muzzle)
     PlayerSweep = 10, // ... its blow's line, the parry's sweep (grip to far end)
@@ -47,6 +50,7 @@ enum Kind : int
     DirYours = 12,    // the directional parry (QC vr_dirparry.qc): your weapon's parry line (radius 1: it parried)
     DirBlade = 13,    // ... its blade's line where they met
     DirWay = 14,      // ... its blade's way there
+    HandHit = 20,     // the hand holding it: its strike volume (vr_agrunt_vol_strike)
 };
 
 // The notes' kinds (debugdisarmnote): 0 a state; the hits.
@@ -117,52 +121,6 @@ void beginFrame()
 
 // ---- drawing ----
 
-void ring(const glm::vec3& c, const glm::vec3& u, const glm::vec3& v, float r, const glm::vec4& colour, float width,
-    float from = 0.f, float to = 2.f * geom::pi)
-{
-    constexpr int sides = 16;
-    for(int i = 0; i < sides; i++)
-    {
-        const float t0 = from + (to - from) * static_cast<float>(i) / sides;
-        const float t1 = from + (to - from) * static_cast<float>(i + 1) / sides;
-        lines::line(c + r * (u * za::cos(t0) + v * za::sin(t0)), c + r * (u * za::cos(t1) + v * za::sin(t1)), width, colour,
-            colour);
-    }
-}
-
-void sphere(const glm::vec3& c, float r, const glm::vec4& colour, float width)
-{
-    const glm::vec3 x{1.f, 0.f, 0.f}, y{0.f, 1.f, 0.f}, z{0.f, 0.f, 1.f};
-    ring(c, x, y, r, colour, width);
-    ring(c, x, z, r, colour, width);
-    ring(c, y, z, r, colour, width);
-}
-
-// A capsule of `r` round a..b: its end rings, their caps' half rings, four sides.
-void capsule(const glm::vec3& a, const glm::vec3& b, float r, const glm::vec4& colour, float width)
-{
-    const glm::vec3 d = b - a;
-    const float len = glm::length(d);
-    if(len < 0.01f)
-    {
-        sphere(a, r, colour, width);
-        return;
-    }
-    const glm::vec3 w = d / len;
-    const glm::vec3 u = glm::normalize(glm::cross(w, za::fabs(w.z) < 0.9f ? glm::vec3{0.f, 0.f, 1.f} : glm::vec3{1.f, 0.f, 0.f}));
-    const glm::vec3 v = glm::cross(w, u);
-    ring(a, u, v, r, colour, width);
-    ring(b, u, v, r, colour, width);
-    ring(a, u, -w, r, colour, width, 0.f, geom::pi);
-    ring(a, v, -w, r, colour, width, 0.f, geom::pi);
-    ring(b, u, w, r, colour, width, 0.f, geom::pi);
-    ring(b, v, w, r, colour, width, 0.f, geom::pi);
-    for(const glm::vec3& o : {u, -u, v, -v})
-    {
-        lines::line(a + o * r, b + o * r, width, colour, colour);
-    }
-}
-
 void label(const char* text, const glm::vec3& at, const glm::vec3& eye)
 {
     const glm::vec3 to = at - eye;
@@ -218,6 +176,26 @@ const glm::vec4 grey{0.8f, 0.8f, 0.8f, 0.35f};
     return (viz.hover[0].weapon == num && viz.hover[0].takes) || (viz.hover[1].weapon == num && viz.hover[1].takes);
 }
 
+// Weapon `num`'s volume (its drawn model's hull where it is drawn now) grown by `grow`.
+void weaponHull(int num, float grow, const glm::vec4& colour, float width)
+{
+    disarmhull::Placed p;
+    if(num > 0 && num < sv.qcvm.num_edicts && disarmhull::weapon(EDICT_NUM(num), p))
+    {
+        disarmhull::draw(p, grow, colour, width);
+    }
+}
+
+// Humanoid s.num's hand on side s.a.x (and forearm) as drawn now, its hull grown by s.radius.
+void handHull(const Shape& s, const glm::vec4& colour, float width)
+{
+    disarmhull::Placed p;
+    if(s.num > 0 && s.num < sv.qcvm.num_edicts && disarmhull::hand(EDICT_NUM(s.num), s.a.x > 0.5f ? 1 : 0, p))
+    {
+        disarmhull::draw(p, s.radius, colour, width);
+    }
+}
+
 void drawShape(const Shape& s)
 {
     constexpr float thin = 0.12f, thick = 0.3f;
@@ -225,17 +203,20 @@ void drawShape(const Shape& s)
     {
     case WeaponHit:
     {
+        // (its hull grown by the strike's units, and its line: the parry's)
         const bool tug = tugged(s.num), hover = hovered(s.num);
-        capsule(s.a, s.b, s.radius, tug ? green : hover ? yellow : orange, tug || hover ? thick : thin * 1.5f);
-        lines::line(s.a, s.b, thick, tug ? green : hover ? yellow : orange, tug ? green : hover ? yellow : orange);
+        const glm::vec4 c = tug ? green : hover ? yellow : orange;
+        weaponHull(s.num, s.radius, c, tug || hover ? thick : thin * 1.5f);
+        lines::line(s.a, s.b, thin, c, c);
         break;
     }
-    case WeaponShot: capsule(s.a, s.b, s.radius, magenta, thin); break;
-    case WeaponNear: capsule(s.a, s.b, s.radius, faint(magenta), thin); break;
-    case HandShot: capsule(s.a, s.b, s.radius, cyan, thin); break;
-    case HandNear: capsule(s.a, s.b, s.radius, faint(cyan), thin); break;
-    case GripBlow: sphere(s.a, s.radius, red, thin); break;
-    case LimbBlow: sphere(s.a, s.radius, faint(red), thin); break;
+    case HandHit: handHull(s, orange, thin * 1.5f); break;
+    case WeaponShot: weaponHull(s.num, s.radius, magenta, thin); break;
+    case WeaponNear: weaponHull(s.num, s.radius, faint(magenta), thin); break;
+    case HandShot: handHull(s, cyan, thin); break;
+    case HandNear: handHull(s, faint(cyan), thin); break;
+    case GripBlow: weaponHull(s.num, s.radius, red, thin); break;
+    case LimbBlow: handHull(s, red, thin); break;
     case RagPart: (void)box3d::ragdollPartDraw(s.num, static_cast<int>(s.radius), white, thin * 1.5f); break;
     case PlayerStrike:
         lines::line(s.a, s.b, thin * 2.f, white, white);
@@ -433,9 +414,13 @@ void draw(const glm::vec3& eye)
     }
     if(fresh(viz.time))
     {
-        for(int i = 0; i < viz.shapeCount; i++)
+        // (the hulls read the server's edicts: its progs switched in, the view's set up with the client's or none)
         {
-            drawShape(viz.shapes[static_cast<za::SizeT>(i)]);
+            const progs::ServerVm vm;
+            for(int i = 0; i < viz.shapeCount; i++)
+            {
+                drawShape(viz.shapes[static_cast<za::SizeT>(i)]);
+            }
         }
         const float cm = 100.f / units::metresToUnits();
         for(int i = 0; i < viz.labelCount; i++)

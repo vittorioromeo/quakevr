@@ -4005,6 +4005,35 @@ Checklist:
   it flails in your hand, pack still on.
 - [packragdoll] Same mode: shooting or hitting a grunt's pack still tears it off; force-grab a dead one's pack: it comes off.
 
+## Explicit climb phases (design review 8, stage 1 of 3; branch `agent/phases`)
+
+The climber (vr_climb.cpp) has one `Phase {Free, Hanging, Slipping, Mantling}` and one `transition(ent, c, to, why)`
+holding the entry/exit work that was spread over seven places: the regrab delay, the release's fling, the exhausted
+let-go's buzz, gasp and stop, the slip's start (timer, buzz, gasp), the mantle's start (grips off, owed pull cleared,
+grunt), the new hang's low-stamina breath state. `Why` (11 reasons) says which. The `mantling` and `slipping` bools are
+gone; which hands hold stays each grip's `active` (real data), and `anyHeld()` reads it where the grips change within a
+frame (the pre-think's settle, the out-of-reach check, a mover's carry). `VR_ClientClimb` and the pre-think's settle are
+`switch(phase)`; `hangFrame`, `takeHold` (out of `gripHand`, 158 -> 96 lines) and `startMantle` (out of `tryMantle`)
+are split out; no climb frame function is over 100 lines.
+
+Verified: stage A (the phase kept beside the old flags, a per-frame shadow check deriving it from them) over prop_climb
+and slopes: no mismatch, no impossible combination reached. Stage B (flags gone): prop_climb 12/0 (as baseline), slopes
+8/0, prop_grab 8 pass, prop_sides all ok, mantle_height PASS, ragdoll climb 20/4 (the 4 known "too weak to rise"); A and
+B verdicts identical. Full baseline and A/B bench skipped (velocity rule).
+
+One combination the old code could reach, by reading: `slipping` stayed set after both hands let go by the grip (no
+`letGoAll` on that path), so a later hang began slipping for its first frame (no mantle, a sink of 8 u/s for 1/72 s)
+until the stamina check cleared it. Free now means not slipping; a later hang starts clean.
+
+Next: stage 2 (foe grab's `Holder`: phases one hand, two hands, leg drag, neck, carried/lifted, with its `Why`), then
+stage 3 (ragactive `Mode` over its 10 sub-machines; about 150 `.on` reads across them to sort into own vs pairwise).
+
+Checklist:
+- [phases] Climbing: take a ledge with one hand, then both, shimmy, let go (you drop, flung by the release), take it
+  again after the short delay; pull up and over (mantle, the grunt), and on a ledge with no room (the soft buzz).
+- [phases] Stamina on, Slip on: hang until it runs out: the gasp and buzz, you sink and slip off; let go and grab again
+  once stamina is back: a normal hang (no instant slip). Slip 0: you drop at once with the gasp.
+- [phases] Hang from a moving platform or lift, and from a prop (crate): carried along; get knocked off by an explosion.
 ## Knight two-pistol hold: the knights' Main and Off grips (branch `agent/kngrip`)
 
 His ask: address knightpose's leftovers (kinds 2 and 3 had a Second grip row but no Main or Off). **Confirmed wrong.**
@@ -4158,6 +4187,91 @@ The leftovers of round 5 ("Not done": the smooth rigs one model after another, 4
   and keying (the rigs must still be found: the key holds the derived rig), and the limbs' builds already run on the pool
   beside the load (round 5: 22 ms there, not on the main thread). Under the brief's ~20 ms bar: skipped.
 
+## Disarm volumes as hulls of the drawn triangles (branch `agent/disarmhull`)
+
+His notes (2026-10-31 19:36, 19:38; a grunt with an axe, one with a Knight's Sword held level): the cyan volume floats
+above the hand, the magenta one is twice the axe and a near-sphere round half the body for the sword, the orange one
+stands upright across the level blade. "Use the triangles of the weapon ... create a convex hull ... give me some sliders".
+- **Why they were wrong:** (1) `held::drawnExtent` took the weapon model's *box in its own axes*: the line along its local
+  x from the box's least to most x, the radius half the larger of its y/z sides. A blade not along its model's x (the
+  Knight's Sword) got a line across it (14.1 long against its 38.2) and a radius of half its length (18: the near-sphere);
+  an axe's head made the radius 7.5 round a 15-unit axe, its line 44+ degrees off. (2) The hand volume was a line from the
+  weapon's origin 11 units towards a shoulder guessed from the row (VR_AM_Anchor), 3.5 round: not the drawn hand. (3) The
+  body-blow volume was a 10-unit sphere round the grip (16 on a limb). No stale frame or double offset: the drawn weapon
+  frame (hitreact::drawnWeapon) was right; test 16's hull matches the renderer's vertices exactly (0.000 out, box 1.000).
+- **Now** (Quake/vr/vr_disarmhull.cpp): the weapon's volume is the convex hull of its drawn mesh's triangles (held's
+  drawn mesh: its pose, the networked scale and offset; `held::drawnHull`, made once per mesh with Box3D's quickhull,
+  its faces pushed out to hold every vertex: slack 0.00 on every weapon), placed where it is drawn (drawnWeapon; not drawn
+  lately: the server's place). The hand's is the hull of the drawn body's vertices on its hand bone and forearm
+  (drawnpose::armedMesh; a ragdoll's skinnedVertices; else the frame's), made once a frame per hand asked for. One query,
+  `disarmhull::gap` (QC `disarmhull(e, what, a, b, grow)`, `VR_AGS_HullGap`): a path's or point's gap to a hull grown by
+  signed units (Box3D GJK: grown is the hull rounded by that; shrunk: each face moved in, a clip), and where along the
+  path it is met. Users: shots and projectiles (VR_AGS_MeetOne, VR_AGS_ProjRoll), your strikes on its weapon or hand
+  (VR_AG_StrikeGap, your sweep's own VR_AG_STRIKE_R on top), body blows (VR_AG_Hit: VR_AG_BlowGap, the nearer of the two).
+  No hull (no rig): the old lines as before.
+- **The line** (VR_AG_WeaponLine, held::drawnExtent, weapondrawnpose 33-35; the parry's and the strike point's) keeps its
+  API, now off the hull: the model's own longest axis when that is 0.85 of the hull's longest span or more (a gun's
+  barrel, the sword's blade: 36.0 of 38.2), else the span's way (its two farthest corners: the axe's slanted haft);
+  the farthest corners alone put a nail pistol's line 28 degrees off its barrel (test 99). The directional parry keeps
+  using this line (his decision); the root cause of its being off (the model box's x) is fixed in held::drawnExtent.
+- **Sliders** (Weapons > Armed Enemies, the disarm rows; signed units, default 0 = the hull itself):
+  `vr_agrunt_vol_shot_weapon` "Volume: Its Weapon", `vr_agrunt_vol_shot_hand` "Volume: Its Hand", `vr_agrunt_vol_strike`
+  "Volume: Strikes", `vr_agrunt_vol_blow` "Volume: Body Blows". Retired: `vr_agrunt_shotdisarm_size` (a multiplier of the
+  old capsules; a saved value is dropped quietly) and VR_AG_DISARM_HAND. Note: at 0 a body blow must land on the drawn
+  hand, forearm or weapon (was anywhere within 10 units of the grip): Body Blows +4..8 for the old leniency.
+- **Show Disarm Volumes** draws the hulls' edges where drawn this frame, grown by their units: orange the strike volumes
+  (weapon and hand) and the line, magenta / cyan the shot volumes, red the body-blow ones.
+- **Test 16** (`vr_agrunt_test 16`, QC/vr_disarmhull_test.qc): 4 kinds x axe, sword, mjolnir, chainsaw, shotgun, rocket
+  launcher, nail pistol, frozen in Aim: hulls hold the rendered vertices, line on the long axis, a shot across the far half
+  counts and one 2.00 units off does not, a shot down the drawn forearm counts, a blow 3 units off keeps, one on the
+  forearm disarms. Before (the old volumes): 139 passed, 85 failed (every line off: axe 44, sword 54+ degrees (a sine);
+  22 of 28 shots 2 units off counted). After: **224 passed, 0 failed**.
+- **Regressions** (run_baseline `--only 'agrunt|disarm|ragdoll_grab|tug|wornpack'`, on the first commit): 99 failed 9
+  (its axis check against the drawn forward: the farthest-corners line on guns; fixed by the model-axis rule above, NOT
+  re-run), 94 1 ("a gun thrown at its gun hand, bounced off its body": relied on the 10-unit grip sphere; at Body Blows 0
+  a throw must land on the drawn hand or weapon), 95 1 (knight death: its sword's random fall, flaky before), 78 2
+  (dirparry2's test), 67 1 (grab table bullet time, flaky as listed), 71 (fails in the baseline), ragdoll_grab 1 ("grab
+  rag enforcer: no grab": the grab code is not touched; not re-run). The full run had not ended when I stopped.
+- Not done: eval.sh (melee code not touched), the before/after mock screenshots of his two views, the grab (fist on the
+  weapon: held::fistGap on its triangles at the server's place, not where drawn: the same stale-place family; a hull
+  query there is the next step), a dual-wield case in test 16.
+
+Checklist:
+- [disarmhull] Show Disarm Volumes on a grunt with an axe and one with a Knight's Sword held level: every volume is a
+  wireframe hull on the drawn weapon (magenta, orange, red on it) and on the drawn hand and forearm (cyan), none floating
+  or larger than the weapon; the sword's line runs along its blade.
+- [disarmhull] Weapons > Armed Enemies: Volume: Its Weapon +4: the magenta hull grows 4 units all round and a shot that
+  near counts; -1 shrinks it. Same for Its Hand (cyan), Strikes (orange), Body Blows (red).
+- [disarmhull] Body Blows 0: punching its drawn hand or forearm disarms, punching its chest 5 units off does not.
+
+Part 2 (verified, finished):
+- **The line's rule, fixed:** 47718273d's "model axis when 0.85 of the span" took the Knight's Sword's model x, 20 degrees
+  off its blade (its x extent 36.0 of 38.2: a cosine), so test 16 failed its 4 sword rows (line ends off the hull). Now
+  (held::drawnExtent) the model's own axis is kept only when its line stays in the weapon: its ends no more than a unit
+  further out of the hull (its face planes) than the farthest corners' line's; else the corners' way. Guns and the axe
+  keep their model axis (test 99's axis checks 41/0), the sword's line runs along its blade (test 16 rows pass).
+  VR_AG_WeaponLine's API unchanged.
+- **The grab on the hull:** the fist on an armed monster's weapon (vr_physics onArmedWeapon, armedGrabGap: one helper,
+  armedFistGap) now measures its spheres against the same hull a shot, strike and blow use, where the weapon is drawn
+  (`disarmhull::spheresGap`; inside the hull counts as on it); its sweep over the last two server frames carries the
+  drawn hull back by the server's own moves. No hull (nothing drawn): held::fistGap as before. vr_agrunt_grab_slack /
+  _leniency stay the grab's allowance (no new slider).
+- **A real bug found by test 94:** VR_AG_ThrowOnWeapon (a thrown weapon, prop or gib's way in) called VR_AG_StrikeGap
+  without setting its globals (vr_ag_strike_g / _p): it measured the *previous strike's* grunt's hulls, so a gun thrown
+  at a grunt's hand could miss it. Fixed; logs added (vr_agrunt_debug) for a too-slow throw and a missed way in. Test 94
+  case 11 now aims at the drawn hand's volume (disarmhull 21 / 22: a volume's middle) and prints both gaps; it was never
+  the 10-unit sphere: the damage path needs vr_agrunt_disarm_damage 10 (its 5 never could), the momentum rule (56 kg m/s)
+  disarms it. 94: 16/0.
+- **Test 16** adds a grunt dual wielding two nail pistols (the right one, then a fresh grunt's left one: its left
+  hand's hull and forearm); the death knight with the Knight's Sword is the sweep's "Death Knight sword" row.
+  **242 passed, 0 failed.** Test 17 (`vr_agrunt_test 17`): an eyeshot aid, his two views (axe, Knight's Sword held
+  level) with Show Disarm Volumes on.
+- **A crash fixed:** Show Disarm Volumes on with an armed grunt in view crashed (EDICT_NUM from the view setup: part 1's
+  hull drawing read the server's edicts with no VM current); the shapes are drawn under progs::ServerVm now.
+- Runs: 16 242/0, 99 41/0, 94 16/0, ragdoll_grab 19/0; 78 (dirparry2's) 7/2 both before and after this part (its two
+  horizontal-swing cases; unchanged by the line fix). Screenshots: not taken (the mock run's `screenshot` shows the
+  console, and no eyeshots were written); test 17 sets up both views for a look. Skipped by the coordinator's rule: the wide subset, eval.sh (no melee code), the
+  before screenshots.
 ## One shared Pickup pose per kind, overrides per class (branch `agent/sharedpickup`)
 
 His ask (10-31): "one pickup pose shared across all weapons would simplify things a lot".

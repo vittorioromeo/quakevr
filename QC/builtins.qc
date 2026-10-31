@@ -517,6 +517,9 @@ void(entity e, float zone, vector lo, vector hi, float radius) debughitzone = #0
 // e's state this frame (a label at `at`), 1-5 a disarm-relevant hit there (VR_DV_PARRY...: marked a moment). Nothing
 // is kept while it is off.
 void(entity e, float kind, vector a, vector b, float radius) debugdisarm = #0;
+// The disarm volumes as drawn (vr_disarmhull.cpp PF_disarmhull): what 0 held weapon e, 1/2 humanoid e's hand on side 0/1:
+// '<gap of the path a..b to it grown by grow (0 or less: met)> <the path's share where met> <1 found>'; 10-14 the tests'.
+vector(entity e, float what, vector a, vector b, float grow) disarmhull = #0;
 void(entity e, float what, vector at, string text) debugdisarmnote = #0;
 // What of you the flame of torch t, held by you, touches (single player: the client's last frame; vr_burn_self,
 // vr_burn_drop on): 1 the holding hand, 2 the other hand, 4 the holding arm, 8 the other arm, 16 the torso or legs, 32

@@ -17,6 +17,7 @@
 #include "vr_crates.hpp"
 #include "vr_debris.hpp"
 #include "vr_disarmviz.hpp"
+#include "vr_disarmhull.hpp"
 #include "vr_drawnpose.hpp"
 #include "vr_foegrab.hpp"
 #include "vr_mgroups.hpp"
@@ -949,6 +950,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"debughitzone", PF_debughitzone},
     {"debugdisarm", disarmviz::PF_debugdisarm},
     {"debugdisarmnote", disarmviz::PF_debugdisarmnote},
+    {"disarmhull", disarmhull::PF_disarmhull},
     {"torchflametouch", PF_torchflametouch},
     {"mapflametouch", PF_mapflametouch},
     {"anglemod", PF_anglemod},

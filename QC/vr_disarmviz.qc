@@ -8,11 +8,13 @@
 // Each server frame while it is on (StartFrame, before the weapons' thinks test them), each weapon a living armed
 // humanoid holds, standing or an active ragdoll, sends the volumes its disarm tests use, computed by those tests' own
 // functions and constants (debugdisarm):
-// - its line (VR_AG_WeaponLine) and the reach round it a strike on it (VR_AG_HandStrikeSpeed: 5) and a parry's sweep
-//   (VR_AGPAR_R) meet it within;
-// - with shot disarms or blocking on (VR_AGS_Frame) and no tug: its shot volumes (VR_AGS_MeetOne: the weapon's line and
-//   its hand and forearm, VR_AGS_HandLine, by vr_agrunt_shotdisarm_parts and _size; their near misses' too);
-// - with disarms on: the spheres round its grip a body blow disarms within (VR_AG_Hit: VR_AG_DISARM_HAND, a limb's x1.6);
+// The volumes are hulls of the triangles drawn (vr_disarmhull.cpp: the weapon's model where drawn, the hand and forearm
+// holding it as drawn), each grown by its own units (Weapons > Armed Enemies' "Volume:" rows):
+// - its line (VR_AG_WeaponLine: the parry's) and the strike volumes (VR_AG_StrikeGap: vr_agrunt_vol_strike) your blow's
+//   sweep meets, its own thickness on top (VR_AG_STRIKE_R);
+// - with shot disarms or blocking on (VR_AGS_Frame) and no tug: its shot volumes (VR_AGS_MeetOne: the weapon's and the
+//   hand's, vr_agrunt_vol_shot_weapon and _hand, by vr_agrunt_shotdisarm_parts; their near misses' too);
+// - with disarms on: the volumes a body blow disarms on (VR_AG_Hit: VR_AG_BlowGap, vr_agrunt_vol_blow);
 // - a ragdoll: the limb its weapon rides (VR_AG_RagProp's bone);
 // - a tug over it: the hand to its grip, and its progress (VR_AG_TugFrame's share, or time over VR_AG_TugNeed);
 // - its state (debugdisarmnote 0): a tug, or what a grab does now (VR_AG_TugEasy: at once, or a tug).
@@ -31,7 +33,7 @@ float VR_DV_RAG = 8;
 float VR_DV_P_STRIKE = 9;
 float VR_DV_P_SWEEP = 10;
 float VR_DV_TUG = 11;
-float VR_DV_STRIKE_R = 5;  // VR_AG_HandStrikeSpeed's reach (units round the weapon's line)
+float VR_DV_H_HIT = 20;    // (12-19: the directional parry's)
 
 void(entity e, vector at, float what, string why) VR_DV_Mark =
 {
@@ -44,38 +46,43 @@ void(entity e, vector at, float what, string why) VR_DV_Mark =
 // The held weapon `p` of `g` (`pl`: the player a grab would be by).
 void(entity g, entity p, entity pl) VR_DV_Weapon =
 {
+    // (The volumes are the hulls of the weapon and of the hand holding it as drawn, each grown by its own units: the engine
+    // draws them where they are drawn this frame. The hand's: `a` its side, '0 0 0' the main weapon's.)
     VR_AG_WeaponLine(p);
     vector wa = vr_ag_wa;
     vector wb = vr_ag_wb;
-    debugdisarm(p, VR_DV_W_HIT, wa, wb, max(VR_DV_STRIKE_R, VR_AGPAR_R));
+    vector hs = p.vr_ag_left ? '1 0 0' : '0 0 0';
+    float strike = cvar_hget(cvarh_vr_agrunt_vol_strike);
+    debugdisarm(p, VR_DV_W_HIT, wa, wb, strike);
+    debugdisarm(g, VR_DV_H_HIT, hs, hs, strike);
     if((cvar_hget(cvarh_vr_agrunt_shotdisarm) || cvar_hget(cvarh_vr_agrunt_shotdisarm_block)) && !g.vr_ag_tug_pl)
     {
         float parts = cvar_hget(cvarh_vr_agrunt_shotdisarm_parts);
-        float size = max(0, cvar_hget(cvarh_vr_agrunt_shotdisarm_size));
         float near = max(0, cvar_hget(cvarh_vr_agrunt_shotdisarm_near));
+        float gw = cvar_hget(cvarh_vr_agrunt_vol_shot_weapon);
+        float gh = cvar_hget(cvarh_vr_agrunt_vol_shot_hand);
         if(parts != 1)
         {
-            debugdisarm(p, VR_DV_W_SHOT, wa, wb, vr_ag_wr * size);
+            debugdisarm(p, VR_DV_W_SHOT, wa, wb, gw);
             if(near > 0)
             {
-                debugdisarm(p, VR_DV_W_NEAR, wa, wb, vr_ag_wr * size + near);
+                debugdisarm(p, VR_DV_W_NEAR, wa, wb, gw + near);
             }
         }
         if(parts != 0)
         {
-            VR_AGS_HandLine(g, p);
-            debugdisarm(p, VR_DV_H_SHOT, vr_ags_ha, vr_ags_hb, VR_AGS_H_RADIUS * size);
+            debugdisarm(g, VR_DV_H_SHOT, hs, hs, gh);
             if(near > 0)
             {
-                debugdisarm(p, VR_DV_H_NEAR, vr_ags_ha, vr_ags_hb, VR_AGS_H_RADIUS * size + near);
+                debugdisarm(g, VR_DV_H_NEAR, hs, hs, gh + near);
             }
         }
     }
     if(cvar_hget(cvarh_vr_agrunt_disarm))
     {
-        VR_AG_DrawnFrame(p); // (round its grip as drawn: VR_AG_Hit's)
-        debugdisarm(p, VR_DV_GRIP_BLOW, vr_ag_df_o, vr_ag_df_o, VR_AG_DISARM_HAND);
-        debugdisarm(p, VR_DV_LIMB_BLOW, vr_ag_df_o, vr_ag_df_o, VR_AG_DISARM_HAND * 1.6);
+        float blow = cvar_hget(cvarh_vr_agrunt_vol_blow); // (VR_AG_Hit's: VR_AG_BlowGap)
+        debugdisarm(p, VR_DV_GRIP_BLOW, wa, wb, blow);
+        debugdisarm(g, VR_DV_LIMB_BLOW, hs, hs, blow);
     }
     float rag = isragdoll(g);
     if(rag && p.vr_ag_rb > 0)
