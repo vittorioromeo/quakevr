@@ -54,17 +54,21 @@ void createRagdollPack(RagdollBodies& r, edict_t* ent, int num, const Slot& s)
     {
         return;
     }
-    glm::vec3 origin, mid, half;
-    glm::mat3 axes;
+    glm::vec3 restOrigin, mid, half;
+    glm::mat3 restAxes;
     const int part = chestPart(r);
-    if(part < 0 || !qvr::agarmor::packWhere(ent, origin, axes, mid, half))
+    if(part < 0 || !qvr::agarmor::packRest(ent, restOrigin, restAxes, mid, half))
     {
         return;
     }
+    // On the chest part where it lies on the chest bone's rest pose: the part's body is that bone as drawn when the
+    // ragdoll began (createRagdollParts: a rest point p at the body's place + its turn * p * scale), so the pack sits on
+    // the back as drawn whatever pose the ragdoll was made from (not the frame's pose: a grunt bent to take a weapon).
     const b3BodyId body = r.body[static_cast<za::SizeT>(part)];
     const glm::quat bodyTurn = fromB3(b3Body_GetRotation(body));
-    r.packLocal = b3Transform{b3Body_GetLocalPoint(body, world->toM(mid)),
-        toB3(glm::normalize(glm::inverse(bodyTurn) * glm::quat_cast(axes)))};
+    const glm::vec3 restMid = restOrigin + restAxes * mid;
+    const glm::vec3 at = world->toU(b3Body_GetPosition(body)) + bodyTurn * (restMid * r.scale);
+    r.packLocal = b3Transform{b3Body_GetLocalPoint(body, world->toM(at)), toB3(glm::normalize(glm::quat_cast(restAxes)))};
     r.packHalf = half;
     const glm::vec3 h = half * (packShrink / world->m2u);
     const b3BoxHull box = b3MakeTransformedBoxHull(h.x, h.y, h.z, r.packLocal);

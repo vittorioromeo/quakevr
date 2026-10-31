@@ -336,6 +336,25 @@ void PF_limbpiece()
         o[2] = w.z;
         return;
     }
+    if(what == 25 || what == 26) // the worn pack's tests: 25 its box's middle as the frame poses the body (not as drawn); 26 '<drawnpose::Source of its chest bone> <its bone> 0'
+    {
+        edict_t* e = G_EDICT(OFS_PARM0);
+        glm::vec3 r{0.f}, origin, mid, half;
+        glm::mat3 axes;
+        if(what == 25 && agarmor::packWhere(e, origin, axes, mid, half, false))
+        {
+            r = mid;
+        }
+        else if(what == 26)
+        {
+            rigpose::Rigid t;
+            float s = 1.f;
+            const int b = agarmor::packBone(e);
+            r = glm::vec3{static_cast<float>(b >= 0 ? drawnpose::bone(e, b, t, s) : drawnpose::Source::None), static_cast<float>(b), 0.f};
+        }
+        progs::returnVec(r);
+        return;
+    }
     const glm::vec3 v = box3d::limbPiece(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1)), static_cast<int>(G_FLOAT(OFS_PARM2)));
     float* out = G_VECTOR(OFS_RETURN);
     out[0] = v.x;
