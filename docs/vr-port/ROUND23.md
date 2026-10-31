@@ -3810,6 +3810,22 @@ and enforcer.mdl 28/7, knight 12/23, as before):
   grip part never shown, the weapon's turn 23 deg for 20, the Pickup never settled). Something reads a bone frame from
   the vertices' weights (a heaviest-vertex pick?); not fixed (budget): either find that reader or drop 74's change in
   `make_rig2.py` (the neck+head fold may come back).
+- **Part 3: the Pose Keys regression explained, gone.** The reader is the arms' body proxies (`vr_agbody.cpp` `fit`,
+  from each bone's ragdoll hull points: the vertices weighing 0.5 or more on it, else those it is the heaviest of when
+  under 4). On origin/next's rig the death knight's chest hull had **4** such points (74 one of them, chest 0.54), under
+  the proxies' 8: `agbody::of` failed and he had **no body proxies at all** (his arms never kept out of his body). 74 to
+  the head left the chest 3, the hull fell back to the chest's heaviest vertices and he got proxies (torso 5.8 front,
+  head 6 front): the arms' pushes out of the body changed his Aim. Not a frame read from weights; the branch's rig is
+  the right one (proxies, as every other armed humanoid). With his poses shipped (origin/next, posepromo/kngrip)
+  Pose Keys + shotgun is **13/1** on the branch (the elbow step, as on the grunt); + sword 3/6 on both rigs (the test's
+  steps are a gun's: the off hand's grip, the right weapon, "never shown"). 74 kept. `agbody` now says (developer,
+  once a model) when a model gets no proxies. Not done: a sturdier proxy point set (a bone with 4-7 hull points still
+  gets none; changing the hull's fallback would change other rigs' ragdoll hulls).
+- **`vr_agarmor_test`'s lines print without `developer 1`** (VR_TEST_LOUD: its checks and verdict, every request).
+- Regression subset (`run_baseline.sh harness --no-bench --only 'ragdoll|agrunt|agarmor|rigstudio'`, 107 cases):
+  9 changed against baseline.tsv: better agrunt 31/32/36/65/70/85 (as on next); agrunt_11 a timeout under load (77 s
+  PASS rerun); ragdoll_climb a timeout under load (24/4 rerun, as the baseline); ragdoll_stagger 51/6 (52/5), the same
+  51/6 in the armor and review agents' runs of the hour (next's, not this branch's). Flaky ones only flaky.
 
 
 ## Directional parry (experimental; branch `agent/dirparry`)
