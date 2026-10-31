@@ -10,7 +10,9 @@
 // far end, measured in the hand's frame from the tracked pose). Your weapon's middle is put where its blade was at its
 // blow in that kind's first swing (cases 0 and 1: your fists, nothing parries: the reference, the blow lands):
 //   2 overhead vs your sword held level across: parried (no damage, sparks within 2 units of both lines);
-//   3 overhead vs your sword upright: the blow lands;  4 horizontal vs upright: parried;  5 horizontal vs level across:
+//   3 overhead vs your sword upright: parried (the grunt's overhead is a diagonal cut, ~30 deg off vertical, so an
+//   upright sword is across it too; his call 2026-10-31: accepted as a diagonal cut);  4 horizontal vs upright: parried;
+//   5 horizontal vs level across:
 //   lands;  6 overhead vs a shotgun's barrel level across: parried;  7 overhead vs the sword level across 40 units to
 //   the side (out of reach): lands;  8 vr_dirparry 0, horizontal vs level across: the level-across rule as before (its
 //   own verdict at the blow), no directional reading.
@@ -47,7 +49,7 @@ string(float c) VR_DRPT_Name =
     if(c == 0) { return "overhead vs your fists (reference)"; }
     if(c == 1) { return "horizontal vs your fists (reference)"; }
     if(c == 2) { return "overhead vs your sword level across"; }
-    if(c == 3) { return "overhead vs your sword upright"; }
+    if(c == 3) { return "overhead (a diagonal cut) vs your sword upright"; }
     if(c == 4) { return "horizontal vs your sword upright"; }
     if(c == 5) { return "horizontal vs your sword level across"; }
     if(c == 6) { return "overhead vs a shotgun's barrel level across"; }
@@ -56,7 +58,7 @@ string(float c) VR_DRPT_Name =
 };
 
 float(float c) VR_DRPT_Kind = { return (c == 0 || c == 2 || c == 3 || c == 6 || c == 7) ? 0 : 2; };
-float(float c) VR_DRPT_Wants = { return (c == 2) || (c == 4) || (c == 6); };
+float(float c) VR_DRPT_Wants = { return (c == 2) || (c == 3) || (c == 4) || (c == 6); };
 
 vector(vector d, vector ang) VR_DRPT_Local =
 {
