@@ -202,10 +202,18 @@ void() VR_AG2_Frame =
                 vlen(p.handpos - g.origin)));
         }
         if(g.vr_ag_tug_pl && time < vr_agt_until) { return; }
-        float won = g.vr_ag_tug_wins >= 1 && p.weapon == WID_SHOTGUN && !g.vr_ag_prop;
+        // (Both hands on, won: the weapon in the hand placed last, the off hand here; his note 2026-10-31.)
+        float got = ph == 1 ? p.weapon2 : p.weapon;
+        float won = g.vr_ag_tug_wins >= 1 && got == WID_SHOTGUN && !g.vr_ag_prop;
         float took = won ? time - vr_agt_clip : 99;
-        string what = sprintf("two %g: pulled at %.1f m/s: %s after %.2f s (peak %.0f N), your hand %s:", ph, rate,
-            won ? "won" : vr_ag_tug_why, time - vr_agt_clip, g.vr_ag_tug_peak, VR_AGT_Name(p.weapon));
+        string what = sprintf("two %g: pulled at %.1f m/s: %s after %.2f s (peak %.0f N), your %s hand %s:", ph, rate,
+            won ? "won" : vr_ag_tug_why, time - vr_agt_clip, g.vr_ag_tug_peak, ph == 1 ? "off (placed last)" : "main",
+            VR_AGT_Name(got));
+        if(ph == 1)
+        {
+            VR_AGT_Check(sprintf("two 1: the hand placed first (main) left empty: %s:", VR_AGT_Name(p.weapon)),
+                !won || p.weapon == WID_FIST);
+        }
         if(ph == 0)
         {
             vr_ag2_one = took;
