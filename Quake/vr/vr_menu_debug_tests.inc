@@ -1040,6 +1040,10 @@ za::Vector<Item> pageDebugTests()
             .help("Headless: a backpack dropped as a monster drops it, settled; nails across and over it meet it only at "
                   "its drawn box as it lies, none beyond it (not the pickup box 15 units wider), none flying through it "
                   "(\"nailtest: N passed, M failed\")."),
+        command("Nail Wounds Test", "vr_nail_test 4")
+            .help("Headless: the nailgun's, the super nailgun's, the nail pistol's and an armed grunt's nail at a grunt: "
+                  "each wound a nail's (a dent and blood), blood spawned, nothing set on fire; a lava nail's a burn "
+                  "(\"nailtest: N passed, M failed\")."),
         toggle("Slide: Print", vr_nailslide_debug)
             .help("vr_nailslide_debug: the slide's place in each hand every frame it moves (0 home .. 1 back by Slide "
                   "Travel) and its edges: a shot, the lock, the re-rack (\"nailslide: ...\")."),

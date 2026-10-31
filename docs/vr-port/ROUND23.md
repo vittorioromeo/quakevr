@@ -3353,3 +3353,22 @@ Checklist:
   blow's way, in front of its chest, not off to its right; your swing rings off it.
 - [guardpose] Raise your weapon near a grunt (the wind-up parry) or step in close (the preventive guard): its raised
   weapon points at your hand, its hand still on the grip (not stretched off it).
+
+## Nail hits bleed and dent again (branch `agent/nailburn`)
+
+His report: nail hits on an enemy left burn marks instead of a dent and blood. Cause (not the fire spots, not lava
+nails): since "Projectiles: one path" (869e5568b, 10-19) VR_Proj_Begin tags every projectile's hit QVR_HITKIND_SHOT,
+and VR_Wound_Hit read any non-pellet shot as lightning (QVR_WOUND_ZAP: a burn splat, no dent, no blood stream). The
+small gibs' and corpses' kinds (VR_SmallGib_Kind, VR_Corpse_DamageKind) and the gib speed (VR_GibKind) likewise called
+a nail's hit a hitscan's ("shots"; a plasma bolt's "light"). Fix, one vocabulary: the hit record says when a shot is a
+projectile's (`vr_hitproj`, set by `VR_SetHitProjectile`: VR_Proj_Begin, the laser's bounce), and `VR_Hit_Hitscan()`
+is the one test those four readers use. A projectile's hit takes its inflictor's kind again: a nail's wound
+QVR_WOUND_NAIL (dent + blood), a lava nail's, a laser's, a lava ball's a burn; the nails' small gibs and corpse damage
+"nails" again.
+Test `vr_nail_test 4` (Debug > Tests > Nail Pistol > Nail Wounds Test): the nailgun's, super nailgun's, nail pistol's
+and an armed grunt's real nails at a grunt: wound kind 2, blood spawned, not on fire, nail still a "spike"; a lava
+nail: kind 5.
+
+Checklist:
+- [nailburn] Shoot a grunt with the nail pistol, the nailgun and the super nailgun: each nail dents its model and
+  bleeds as a bullet does (no black burn marks); a lava nail (Dissolution of Eternity) still scorches and burns.

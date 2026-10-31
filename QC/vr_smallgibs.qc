@@ -658,7 +658,7 @@ float(entity inflictor, entity attacker) VR_SmallGib_Kind =
     {
         return QVR_SGIB_BLUNT;
     }
-    if(k == QVR_HITKIND_SHOT)
+    if(VR_Hit_Hitscan()) // (a projectile's hit: its inflictor's kind, below)
     {
         if(vr_hitweapon != "" ||
            (vr_hithand >= 0 && (attacker.flags & FL_CLIENT) && VRGetEntWeapon(attacker, vr_hithand) == WID_LIGHTNING))
@@ -753,7 +753,7 @@ float(entity inflictor, entity attacker) VR_Corpse_DamageKind =
         }
         return QVR_CDMG_BLUNT;
     }
-    if(k == QVR_HITKIND_SHOT)
+    if(VR_Hit_Hitscan())
     {
         return QVR_CDMG_LIGHTNING; // (VR_SmallGib_Kind: a hitscan's "other" is lightning: the gun's, Mjolnir's)
     }

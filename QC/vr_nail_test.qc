@@ -30,6 +30,10 @@ float vr_nlt_mode;     // step 2: 0 precise, 1 Quake's boxes
 entity vr_nlt_player;
 entity vr_nlt_nail;    // step 1: the nail measured
 entity vr_nlt_g;       // the grunt
+entity vr_nlt_t;       // vr_nail_test 4: the grunt the nails strike
+float vr_nlt_wsent;    // ... the wound events, blood particles before the case's nail
+float vr_nlt_bsent;
+string vr_nlt_nclass;  // ... its nail's class as it last flew
 vector vr_nlt_o1;      // step 1: its origin a frame after it left
 float vr_nlt_t1;
 float vr_nlt_hitlo, vr_nlt_hithi; // step 2: the lowest and highest side offsets that met the grunt
@@ -161,6 +165,7 @@ void() VR_NLT_End =
 {
     cvar_set("vr_hit_precise", ftos(vr_nlt_precise));
     if(vr_nlt_g) { VR_AGT_Remove(vr_nlt_g); vr_nlt_g = world; }
+    if(vr_nlt_t) { VR_AGT_Remove(vr_nlt_t); vr_nlt_t = world; }
     vr_nlt_player.flags = vr_nlt_player.flags - (vr_nlt_player.flags & FL_NOTARGET);
     VR_Test_Verdict();
     vr_nlt_step = 0;
@@ -363,6 +368,92 @@ void() VR_NLT_BagStep =
     VR_NLT_End();
 };
 
+// vr_nail_test 4 (Debug > Tests > Nail Pistol > Nail Wounds Test; round 23, "Nail hits bleed and dent"): each nail weapon's
+// real nail (the nailgun's, the super nailgun's, the nail pistol's, an armed grunt's nailgun's: an enemy's) set flying
+// at an unarmed grunt's chest from 48 units: its wound a nail's (a dent and blood: QVR_WOUND_NAIL), blood spawned, not set
+// on fire; then a lava nail (the nailgun's nail turned, VR_Burn_NailToLava; Dissolution of Eternity there): its wound a
+// burn. Before the fix every projectile's hit was tagged a hitscan shot (VR_Proj_Begin) and painted as lightning's (a
+// burn mark, no dent, no blood stream). Each case: fired at frame 2, then waits for its wound event (60 frames: FAIL).
+void() VR_NLT_WoundStep =
+{
+    float c = vr_nlt_case;
+    entity t = vr_nlt_t;
+    if(vr_nlt_frames == 2)
+    {
+        if(c == 4 && !vr_have_lava)
+        {
+            dprint("nailtest: no lava nails here (Dissolution of Eternity): the lava nail's case skipped\n");
+            VR_NLT_End();
+            return;
+        }
+        t.health = 1000; // (it lives through every nail)
+        if(t.burn_fire) { VR_Burn_Out(t.burn_fire, "the nail test's next case"); }
+        vr_nlt_wsent = vr_wound_sent;
+        vr_nlt_bsent = vr_blood_sent;
+        vr_wound_lastkind = 0;
+        VR_NLT_Fire(c == 4 ? 0 : c);
+        entity n = vr_nlt_nail;
+        if(!n)
+        {
+            VR_Test_Check(FALSE, sprintf("wounds: %s: no nail", c == 4 ? "a lava nail" : VR_NLT_CaseName(c)));
+            vr_nlt_frames = 100;
+        }
+        else
+        {
+            vector chest = (t.absmin + t.absmax) * 0.5 + '0 0 6';
+            vector d = chest - vr_nlt_player.origin;
+            d_z = 0;
+            d = normalize(d);
+            setorigin(n, chest - d * 48);
+            n.velocity = d * vlen(n.velocity);
+            n.angles = vectoangles(n.velocity);
+            if(c == 4) { VR_Burn_NailToLava(n, n.origin, n); }
+            vr_nlt_nclass = n.classname;
+        }
+        return;
+    }
+    if(vr_nlt_frames < 3)
+    {
+        return;
+    }
+    if(vr_nlt_nail.classname == "spike" || vr_nlt_nail.classname == "lava_spike") // (still flying: freed, it has none)
+    {
+        vr_nlt_nclass = vr_nlt_nail.classname;
+    }
+    if(vr_wound_sent == vr_nlt_wsent && vr_nlt_frames < 60)
+    {
+        return; // (in flight)
+    }
+    string nm = c == 4 ? "a lava nail" : VR_NLT_CaseName(c);
+    float k = vr_wound_lastkind;
+    float blood = vr_blood_sent - vr_nlt_bsent;
+    if(vr_nlt_frames < 100)
+    {
+        dprint(sprintf("nailtest: wounds: %s (%s, owner %s): wound kind %g, blood +%g, on fire %g, health %g\n", nm,
+            vr_nlt_nclass, c == 3 ? "the armed grunt" : "the player", k, blood, t.burn_fire != world, t.health));
+        if(c == 4)
+        {
+            VR_Test_Check(k == QVR_WOUND_BURN, sprintf("wounds: %s burns (wound kind %g, want %g)", nm, k, QVR_WOUND_BURN));
+        }
+        else
+        {
+            VR_Test_Check(vr_wound_sent > vr_nlt_wsent, sprintf("wounds: %s struck (a wound event)", nm));
+            VR_Test_Check(k == QVR_WOUND_NAIL, sprintf("wounds: %s dents and bleeds (wound kind %g, want %g)", nm, k,
+                QVR_WOUND_NAIL));
+            VR_Test_Check(blood > 0, sprintf("wounds: %s spawned blood (+%g)", nm, blood));
+            VR_Test_Check(vr_nlt_nclass == "spike" && t.burn_fire == world,
+                sprintf("wounds: %s not burnt (nail %s, on fire %g)", nm, vr_nlt_nclass, t.burn_fire != world));
+        }
+    }
+    vr_nlt_nail = world;
+    vr_nlt_case++;
+    vr_nlt_frames = 0;
+    if(vr_nlt_case > 4)
+    {
+        VR_NLT_End();
+    }
+};
+
 void() VR_NailTest_Frame =
 {
     float req = cvar("vr_nail_test");
@@ -387,6 +478,17 @@ void() VR_NailTest_Frame =
         {
             vr_nlt_step = 4;
             vr_nlt_frames = 0;
+            return;
+        }
+        if(req == 4)
+        {
+            vr_nlt_player.flags = vr_nlt_player.flags | FL_NOTARGET;
+            vr_npt_player = vr_nlt_player;
+            vr_nlt_g = VR_NPT_Grunt(400, WID_NAILGUN, 0); // (the armed grunt whose nail is the enemy's)
+            vr_nlt_t = VR_NPT_Grunt(200, -1, 0);          // (the one they strike)
+            vr_nlt_case = 0;
+            vr_nlt_step = 10;
+            vr_nlt_frames = -10;
             return;
         }
         vr_nlt_player.flags = vr_nlt_player.flags | FL_NOTARGET;
@@ -517,6 +619,10 @@ void() VR_NailTest_Frame =
     else if(s == 4)
     {
         VR_NLT_BagStep();
+    }
+    else if(s == 10)
+    {
+        VR_NLT_WoundStep();
     }
 };
 #endif

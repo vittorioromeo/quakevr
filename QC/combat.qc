@@ -32,6 +32,7 @@ float() VR_HitBloodless =
 };
 float vr_hithand;     // the hand that struck or fired (-1: unknown)
 string vr_hitweapon;  // what fired, when not the weapon in vr_hithand ("": that one)
+float vr_hitproj;     // a QVR_HITKIND_SHOT that is a projectile's hit (VR_Proj_Begin, a laser's bounce), not a hitscan's
 vector vr_hitpos;     // where it struck ('0 0 0': unknown)
 vector vr_hitdir;     // and going which way
 
@@ -106,6 +107,21 @@ void(float xKind, float xHand, vector xPos, vector xDir) VR_SetHitKind =
     vr_hithand = xHand;
     vr_hitpos = xPos;
     vr_hitdir = xDir;
+    vr_hitproj = FALSE;
+};
+
+// A projectile's hit (a nail, a laser bolt, a lava ball: VR_Proj_Begin), tagged a shot where it struck.
+void(vector xPos, vector xDir) VR_SetHitProjectile =
+{
+    VR_SetHitKind(QVR_HITKIND_SHOT, -1, xPos, xDir);
+    vr_hitproj = TRUE;
+};
+
+// The hit being dealt is a hitscan shot's (the shotguns', the guns', lightning), not a projectile's: a projectile's
+// kind is its inflictor's (a nail's wound dents and bleeds as a bullet's; the hitscan's "other" is lightning).
+float() VR_Hit_Hitscan =
+{
+    return vr_hitkind == QVR_HITKIND_SHOT && !vr_hitproj;
 };
 
 // The blow VRMeleeDmg last priced, inside a hand's VR_SetHitKind .. VR_ClearHitKind: its strength from speed alone
@@ -141,6 +157,7 @@ void() VR_ClearHitKind =
     vr_hitkind = QVR_HITKIND_NONE;
     vr_hithand = -1;
     vr_hitweapon = "";
+    vr_hitproj = FALSE;
     vr_hitpos = '0 0 0';
     vr_hitdir = '0 0 0';
 };
@@ -1384,7 +1401,7 @@ float(entity inflictor, entity attacker, float isVRMelee) VR_GibKind =
     {
         return QVR_GIBKIND_LIGHT;
     }
-    if(k == QVR_HITKIND_SHOT)
+    if(VR_Hit_Hitscan())
     {
         // Lightning (the gun's, Mjolnir's: vr_hitweapon) is heavy; the shotguns, the grunts' guns light.
         if(vr_hitweapon != "" ||
