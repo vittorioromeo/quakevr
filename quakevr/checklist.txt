@@ -171,6 +171,7 @@ Weapons > Armed Enemies > Volume sliders (Its Weapon, Its Hand, Strikes, Body Bl
 Body Blows 0: punching its drawn hand or forearm disarms it; punching its chest 5 units off does not.
 Grip an armed grunt's drawn weapon (moving or still): taken when your fist is on the weapon as drawn.
 Throw a gun at a grunt's gun hand: it is knocked out (a throw at its chest is not).
+Rig Studio > Pose Keys, grunt, Pose Pickup, Class Pistol (or Two Guns, Chainsaw): it says "Pickup (shared)" and every class takes up its weapon with the same pose.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns {test:arena_run}
