@@ -55,6 +55,10 @@ void make(const glm::vec3* points, int count, Hull& out);
 // point's, if they do not).
 [[nodiscard]] float gap(const Placed& p, const glm::vec3& a, const glm::vec3& b, float grow, float* along = nullptr);
 
+// Spheres (world centre, radius in w: a fist's) against the hull grown by `grow`: the least of each one's gap (gap() of
+// its centre less its radius; 0 or less: met), done as soon as one is `stopAt` near or nearer. The grab's (vr_physics).
+[[nodiscard]] float spheresGap(const Placed& p, const za::Vector<glm::vec4>& spheres, float grow, float stopAt = -1e30f);
+
 // Armed humanoid's held weapon `p` as drawn now (its drawn model's hull, where drawn). False: no drawn surface.
 [[nodiscard]] bool weapon(edict_t* p, Placed& out);
 

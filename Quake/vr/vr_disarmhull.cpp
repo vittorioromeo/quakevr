@@ -407,6 +407,21 @@ float gap(const Placed& p, const glm::vec3& a, const glm::vec3& b, float grow, f
     return g;
 }
 
+float spheresGap(const Placed& p, const za::Vector<glm::vec4>& spheres, float grow, float stopAt)
+{
+    float best = ZA_FLOAT_MAX;
+    for(const glm::vec4& s : spheres)
+    {
+        const glm::vec3 c{s};
+        best = za::min(best, gap(p, c, c, grow) - s.w);
+        if(best <= stopAt)
+        {
+            break;
+        }
+    }
+    return best;
+}
+
 bool weapon(edict_t* p, Placed& out)
 {
     out = Placed{};
@@ -517,6 +532,7 @@ void draw(const Placed& p, float grow, const glm::vec4& colour, float width)
 //     1 against the vertices it was made of: '<most outside> <ratio> <how many>'.
 //   what 13: weapon `e`'s volume's long axis (world, unit; its tip's way); 14: '<its length> <its corners' most distance
 //     off the line through its middle along that axis> 0'. The tests (vr_disarmhull_test.qc).
+//   what 20 / 21 / 22: volume 0 / 1 / 2's middle (its corners' mean, world; the tests aim at it).
 void PF_disarmhull()
 {
     edict_t* e = G_EDICT(OFS_PARM0);
@@ -525,10 +541,10 @@ void PF_disarmhull()
     const glm::vec3 b = geom::vec(G_VECTOR(OFS_PARM3));
     const float grow = G_FLOAT(OFS_PARM4);
     Placed p;
-    const bool found = (what == 0 || what == 10 || what == 13 || what == 14) ? weapon(e, p)
-                       : (what == 1 || what == 11)                         ? hand(e, 0, p)
-                       : (what == 2 || what == 12)                         ? hand(e, 1, p)
-                                                                           : false;
+    const bool found = (what == 0 || what == 10 || what == 13 || what == 14 || what == 20) ? weapon(e, p)
+                       : (what == 1 || what == 11 || what == 21)                         ? hand(e, 0, p)
+                       : (what == 2 || what == 12 || what == 22)                         ? hand(e, 1, p)
+                                                                                         : false;
     if(!found)
     {
         progs::returnVec(what < 10 ? glm::vec3{1e6f, 0.f, 0.f} : glm::vec3{0.f, 0.f, -1.f});
@@ -539,6 +555,18 @@ void PF_disarmhull()
         float along = 0.f;
         const float g = gap(p, a, b, grow, &along);
         progs::returnVec({g, along, 1.f});
+        return;
+    }
+    if(what >= 20)
+    {
+        // (the volume's middle: its corners' mean, world)
+        glm::vec3 mid{0.f};
+        for(const b3Vec3& c : p.hull->corners)
+        {
+            mid += gv(c);
+        }
+        mid /= static_cast<float>(za::max<za::SizeT>(p.hull->corners.size(), 1));
+        progs::returnVec(p.origin + p.axes * mid);
         return;
     }
     if(what == 13 || what == 14)

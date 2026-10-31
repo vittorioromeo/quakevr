@@ -921,35 +921,55 @@ bool drawnExtent(edict_t* ent, glm::vec3& back, glm::vec3& front, float& radius)
         return false;
     }
     dir = glm::normalize(dir);
-    // A model laid along one of its own axes (a gun's barrel along its x) keeps that axis: a stubby gun's two farthest
-    // corners lie across its box (a nail pistol's 28 degrees off its barrel). Only a weapon laid otherwise (a Knight's
-    // Sword's blade, an axe's slanted haft) takes the farthest corners' way.
-    const float span = glm::length(h->hi - h->lo);
+    // The line along `d` through `m`: from the least to the most of the corners along it, the radius their most off it;
+    // `out` the most its two ends lie outside the hull (its faces' planes).
+    const auto line = [h, &at](glm::vec3 d, const glm::vec3& m, glm::vec3& b, glm::vec3& fr, float& r, float& out) {
+        if(d.x < 0.f || (d.x == 0.f && d.z < 0.f))
+        {
+            d = -d; // (its front the one further along its model's forward: a weapon's tip)
+        }
+        float lo = ZA_FLOAT_MAX, hi = -ZA_FLOAT_MAX;
+        r = 0.f;
+        for(za::SizeT i = 0; i < h->corners.size(); i++)
+        {
+            const glm::vec3 v = at(i) - m;
+            const float t = glm::dot(v, d);
+            lo = za::min(lo, t);
+            hi = za::max(hi, t);
+            r = za::max(r, glm::length(v - d * t));
+        }
+        b = m + d * lo;
+        fr = m + d * hi;
+        out = 0.f;
+        for(const glm::vec4& pl : h->planes)
+        {
+            out = za::max(out, za::max(glm::dot(glm::vec3{pl}, b), glm::dot(glm::vec3{pl}, fr)) - pl.w);
+        }
+        return hi > lo;
+    };
+    float out = 0.f;
+    const bool ok = line(dir, mid, back, front, radius, out);
+    // A model laid along one of its own axes (a gun's barrel along its x, an axe's haft) keeps that axis: a stubby gun's
+    // two farthest corners lie across its box (a nail pistol's 28 degrees off its barrel). Only when that axis's line
+    // would leave the weapon (its ends over a unit further out of the hull than the farthest corners' line's: the Knight's
+    // Sword's blade, 20 degrees off its model's x) does it take the farthest corners' way.
     const glm::vec3 ext = h->hi - h->lo;
     const int axis = ext.x >= ext.y && ext.x >= ext.z ? 0 : ext.y >= ext.z ? 1 : 2;
-    if(ext[axis] >= 0.85f * glm::sqrt(best) && span > 0.f)
+    if(ext[axis] >= 0.85f * glm::sqrt(best))
     {
-        dir = glm::vec3{0.f};
-        dir[axis] = 1.f;
-        mid = (h->lo + h->hi) * 0.5f;
+        glm::vec3 d{0.f};
+        d[axis] = 1.f;
+        glm::vec3 b, fr;
+        float r = 0.f, outAxis = 0.f;
+        if(line(d, (h->lo + h->hi) * 0.5f, b, fr, r, outAxis) && outAxis <= out + 1.f)
+        {
+            back = b;
+            front = fr;
+            radius = r;
+            return true;
+        }
     }
-    if(dir.x < 0.f || (dir.x == 0.f && dir.z < 0.f))
-    {
-        dir = -dir; // (its front the one further along its model's forward: a weapon's tip)
-    }
-    float lo = ZA_FLOAT_MAX, hi = -ZA_FLOAT_MAX;
-    radius = 0.f;
-    for(za::SizeT i = 0; i < h->corners.size(); i++)
-    {
-        const glm::vec3 r = at(i) - mid;
-        const float t = glm::dot(r, dir);
-        lo = za::min(lo, t);
-        hi = za::max(hi, t);
-        radius = za::max(radius, glm::length(r - dir * t));
-    }
-    back = mid + dir * lo;
-    front = mid + dir * hi;
-    return hi > lo;
+    return ok;
 }
 
 float surfaceDistance(edict_t* ent, const glm::vec3& point, glm::vec3* nearest)

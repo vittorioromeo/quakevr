@@ -14,6 +14,8 @@
 // - a shot across its drawn forearm counts (its weapon or its hand);
 // - a body blow (VR_AG_Hit) on its drawn forearm disarms it; one 3 units off its hand's and weapon's hulls does not (the
 //   old 10-unit sphere round its grip took it).
+// The sword is the Knight's Sword (WID_SWORD, flags 0; his second view), the death knight's row among them. Then a grunt
+// dual wielding two nail pistols: the same for the right one, then (a fresh grunt) the left one, its left hand's hull.
 // Ends on `agtest: test 16 over: ...` (run.sh -QuitOn on it); each wait is the weapon drawn and still (or its give-up,
 // a FAIL).
 // ----------------------------------------------------------------------------
@@ -61,17 +63,17 @@ float(entity g, entity p, vector a, vector b) VR_DHT_Shot =
     return vr_ags_mp == p;
 };
 
-// A body blow by you on `g` at `at` as T_DamageDeal hands it to VR_AG_Hit (test 79's): whether its weapon is kept.
-float(entity g, vector at) VR_DHT_Blow =
+// A body blow by you on `g` at `at` as T_DamageDeal hands it to VR_AG_Hit (test 79's): whether its weapon `p` is kept
+// (in either hand).
+float(entity g, entity p, vector at) VR_DHT_Blow =
 {
     entity pl = vr_agt_player;
-    entity p = g.vr_ag_prop;
     VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, '0 0 0', '0 0 0');
     hit_blast = 0;
     VR_Hit_SetZone(g, 0, at);
     VR_AG_Hit(g, pl, pl, 1000);
     VR_ClearHitKind();
-    return g.vr_ag_prop == p && p != world;
+    return (g.vr_ag_prop == p || g.vr_ag_prop2 == p) && p != world;
 };
 
 // The path across `p`'s hull at `c`, along `w`, `s` units out along `u`: its gap to the hull (disarmhull 0).
@@ -81,15 +83,14 @@ float(entity p, vector c, vector u, vector w, float s) VR_DHT_Gap =
     return v_x;
 };
 
-void(entity g) VR_DHT_Measure =
+// `g`'s weapon `p` in its hand on `side` (0 its main weapon's, 1 the left one's: dual), named `wn`.
+void(entity g, entity p, float side, string wn) VR_DHT_Measure =
 {
-    entity p = g.vr_ag_prop;
-    string wn = sprintf("disarmhull %s %s", VR_SPT_Name(vr_dht_k), VR_DHT_WName(vr_dht_w));
     // The hulls hold what is drawn.
     vector m = disarmhull(p, 10, '0 0 0', '0 0 0', 0);
     VR_AGT_Check(sprintf("%s: its weapon's hull holds its drawn vertices (most %.3f out), its box %.3f of theirs, slack %.2f",
         wn, m_x, m_y, m_z), m_z >= 0 && m_x <= 0.05 && m_y >= 0.97 && m_y <= 1.03);
-    vector mh = disarmhull(g, 11, '0 0 0', '0 0 0', 0);
+    vector mh = disarmhull(g, 11 + side, '0 0 0', '0 0 0', 0);
     VR_AGT_Check(sprintf("%s: its hand's hull holds its drawn hand and forearm (%g vertices, most %.3f out)", wn, mh_z, mh_x),
         mh_z > 0 && mh_x <= 0.05);
     // Its line along the hull's long axis.
@@ -132,7 +133,7 @@ void(entity g) VR_DHT_Measure =
     VR_AGT_Check(sprintf("%s: a shot %.2f units off its hull does not count (part %g)", wn, g2, off ? vr_ags_mpart : 0),
         !off && g2 >= 1.8 && g2 <= 2.2);
     // A shot across its drawn forearm counts.
-    vector f = weapondrawnpose(g, 0, 37);
+    vector f = weapondrawnpose(g, side, 37);
     through = VR_DHT_Shot(g, p, f + '0 0 30', f - '0 0 30');
     VR_AGT_Check(sprintf("%s: a shot down through its drawn forearm counts (part %g)", wn, through ? vr_ags_mpart : 0),
         through);
@@ -147,12 +148,12 @@ void(entity g) VR_DHT_Measure =
         gk = VR_AG_BlowGap(g, p, at);
     }
     cvar_set("vr_agrunt_freeze", "0"); // (held still: no blow disarms, VR_AG_Still)
-    float kept = VR_DHT_Blow(g, at);
+    float kept = VR_DHT_Blow(g, p, at);
     VR_AGT_Check(sprintf("%s: a blow %.2f units off its hand and weapon keeps it", wn, gk), kept && gk >= 2.5);
     if(kept)
     {
         float gf = VR_AG_BlowGap(g, p, f);
-        float dis = !VR_DHT_Blow(g, f);
+        float dis = !VR_DHT_Blow(g, p, f);
         VR_AGT_Check(sprintf("%s: a blow on its drawn forearm (gap %.2f; struck at %v, %.1f off it) disarms it", wn, gf,
             vr_hr_at, vlen(vr_hr_at - f)), dis);
     }
@@ -174,12 +175,16 @@ void() VR_DHT_Frame =
         vr_agt_step = 1;
         return;
     }
+    // (after the kinds: a grunt dual wielding two nail pistols, vr_dht_w its weapon measured: 0 the right one, 1 the left)
+    float dual = vr_dht_k >= VR_AM_COUNT;
     if(vr_agt_step == 1)
     {
-        cvar_set("vr_agrunt_test_kind", ftos(vr_dht_k));
+        cvar_set("vr_agrunt_test_kind", ftos(dual ? 0 : vr_dht_k));
         cvar_set("vr_agrunt_freeze", "1");
         vr_agk_test_hold = VR_AGK_AIM + 1;
-        vr_agt_grunt = g = VR_AGT_Spawn(VR_DHT_Wid(vr_dht_w), 60);
+        vr_agt_weapon2 = dual ? WID_NAILPISTOL : 0;
+        vr_agt_grunt = g = VR_AGT_Spawn(dual ? WID_NAILPISTOL : VR_DHT_Wid(vr_dht_w), 60);
+        vr_agt_weapon2 = 0;
         vr_dht_still = 0;
         vr_dht_last = '0 0 0';
         vr_dht_t0 = time;
@@ -188,7 +193,9 @@ void() VR_DHT_Frame =
     }
     if(vr_agt_step == 2)
     {
-        entity p = g.vr_ag_prop;
+        entity p = (dual && vr_dht_w == 1) ? g.vr_ag_prop2 : g.vr_ag_prop;
+        string wn = dual ? sprintf("disarmhull Grunt dual nail pistols, the %s one", vr_dht_w ? "left" : "right")
+                         : sprintf("disarmhull %s %s", VR_SPT_Name(vr_dht_k), VR_DHT_WName(vr_dht_w));
         vector o = p ? weapondrawnpose(p, 0, 30) : '0 0 0';
         vr_dht_still = (o != '0 0 0' && vlen(o - vr_dht_last) < 0.05) ? vr_dht_still + 1 : 0;
         vr_dht_last = o;
@@ -196,13 +203,17 @@ void() VR_DHT_Frame =
         {
             if(t > 10)
             {
-                VR_AGT_Check(sprintf("disarmhull %s %s: timed out (its weapon never drawn and still)", VR_SPT_Name(vr_dht_k),
-                    VR_DHT_WName(vr_dht_w)), FALSE);
+                VR_AGT_Check(sprintf("%s: timed out (its weapon never drawn and still)", wn), FALSE);
                 vr_agt_step = 3;
             }
             return;
         }
-        VR_DHT_Measure(g);
+        if(dual)
+        {
+            VR_AGT_Check(sprintf("%s: held in its %s hand (left %g)", wn, vr_dht_w ? "left" : "right", p.vr_ag_left),
+                p.vr_ag_left == vr_dht_w);
+        }
+        VR_DHT_Measure(g, p, p.vr_ag_left, wn);
         vr_agt_step = 3;
         return;
     }
@@ -213,12 +224,12 @@ void() VR_DHT_Frame =
         VR_AGT_Remove(g);
         vr_agt_grunt = world;
         vr_dht_w = vr_dht_w + 1;
-        if(vr_dht_w >= VR_DHT_WEAPONS)
+        if(vr_dht_w >= (dual ? 2 : VR_DHT_WEAPONS))
         {
             vr_dht_w = 0;
             vr_dht_k = vr_dht_k + 1;
         }
-        vr_agt_step = vr_dht_k < VR_AM_COUNT ? 1 : 4;
+        vr_agt_step = vr_dht_k <= VR_AM_COUNT ? 1 : 4;
         return;
     }
     cvar_set("vr_agrunt_test_kind", ftos(vr_dht_kind));
