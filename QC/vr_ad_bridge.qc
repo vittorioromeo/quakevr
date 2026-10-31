@@ -1656,7 +1656,7 @@ float(entity victim, float serial) VR_AD_PopTopUp =
 };
 
 // (A corpse's damage from a projectile pellet or a rifle laser at its head or a limb: worn into that piece, as every
-// weapon's is: VR_Limb_CorpseWear, vr_limbs.qc. They tag the hit with VR_SetHitKind below.)
+// weapon's is: VR_Limb_CorpseWear, vr_limbs.qc. They tag the hit with VR_Hit_Begin below.)
 
 // AD projectile impacts keep the launching shot's identity across flight frames and weapon switches.
 void(entity victim, entity pellet, float damage) VR_AD_PelletHit =
@@ -1669,7 +1669,7 @@ void(entity victim, entity pellet, float damage) VR_AD_PelletHit =
     vector at = trace_ent == victim ? trace_endpos : pellet.origin;
     float part = PositionalDamage(victim, at, dir);
     damage = damage * PositionalDamageFactor(part);
-    VR_SetHitKind(QVR_HITKIND_SHOT, pellet.vr_ad_shothand, at, dir);
+    VR_Hit_Begin(QVR_HITKIND_SHOT, pellet.vr_ad_shothand, at, dir);
     float serial = vr_sgib_blastserial;
     float weapon = vr_decap_weapon;
     float pellets = vr_decap_pellets;
@@ -1727,7 +1727,7 @@ void(entity victim, entity pellet, float damage) VR_AD_PelletHit =
     vr_decap_weapon = weapon;
     vr_decap_pellets = pellets;
     vr_decap_src = src;
-    VR_ClearHitKind();
+    VR_Hit_End();
 };
 
 // Preserve AD's explosion/radius/resistance rules while using Quake VR's catching, batting and shot interception.

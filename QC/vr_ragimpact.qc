@@ -231,10 +231,9 @@ void(entity m, entity xBy, vector xAt, float xPiece, float xDamage, float xShare
         dprint(sprintf("ragimpact: %s (health %g), %s: %.1f damage", m.classname, m.health, xWhat, dmg));
         dprint(sprintf(" to its %s (worn %.1f of %.1f)%s\n", piece, worn, hp, pops));
     }
-    float oldKind = vr_hitkind;
-    vr_hitkind = QVR_HITKIND_NONE;
+    VR_Hit_BeginAs(QVR_HITKIND_NONE, FALSE); // (no kind: the ragdoll's own strike)
     T_Damage(m, world, xBy, dmg);
-    vr_hitkind = oldKind;
+    VR_Hit_End();
 };
 
 // The engine (vr_box3d.cpp callRagImpacts): ragdoll `m`'s hardest strike on the level this frame at `xAt`, its part at

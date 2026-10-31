@@ -410,16 +410,16 @@ float(entity targ, entity attacker, vector xAt, vector xVel, float xHow) VR_Deca
     return TRUE;
 };
 
-// A hand's blow about to deal its damage to `targ` (T_Damage_VRMelee; self the player, vr_hithand the hand): armed if
+// A hand's blow about to deal its damage to `targ` (T_Damage_VRMelee; self the player, hit_hand the hand): armed if
 // it is a beheading cut at a live monster's head.
 float(entity targ, entity attacker, float xDamage) VR_Decap_HeadBlow =
 {
-    if(vr_hitkind != QVR_HITKIND_MELEE || vr_hithand < 0 || attacker != self || !(self.flags & FL_CLIENT) ||
+    if(hit_kind != QVR_HITKIND_MELEE || hit_hand < 0 || attacker != self || !(self.flags & FL_CLIENT) ||
        targ.health <= 0 || !VR_Decap_Allowed(targ))
     {
         return FALSE;
     }
-    entity b = VR_Blow(vr_hithand);
+    entity b = VR_Blow(hit_hand);
     if(b.mh_kind == VR_MKIND_SLAP)
     {
         dprint(sprintf("decap: no: a slap (%s)\n", targ.classname));
@@ -436,7 +436,7 @@ float(entity targ, entity attacker, float xDamage) VR_Decap_HeadBlow =
         // A zombie's head pops only to a blow that would knock it down, as a shot's (VR_DECAP_ZOMBIE_DOWN, 25: a light
         // tap it survives keeps its head; VR_Decap_After kills an armed zombie).
         if(VR_Decap_IsZombie(targ) && xDamage < 25) { return FALSE; }
-        if(!VR_Decap_Arm(targ, attacker, b.mh_c_pos, VRGetHandVel(vr_hithand) * VRMetersToUnits(), QVR_DECAP_BLUNT))
+        if(!VR_Decap_Arm(targ, attacker, b.mh_c_pos, VRGetHandVel(hit_hand) * VRMetersToUnits(), QVR_DECAP_BLUNT))
         {
             return FALSE;
         }
@@ -453,7 +453,7 @@ float(entity targ, entity attacker, float xDamage) VR_Decap_HeadBlow =
     }
     if(VR_Decap_OnMeleeHead(targ, b.mh_c_pos, b.mh_c_dir))
     {
-        float how = VR_Decap_Slash(vr_hithand, b.mh_c_pos, TRUE);
+        float how = VR_Decap_Slash(hit_hand, b.mh_c_pos, TRUE);
         if(how && VR_Decap_Arm(targ, attacker, b.mh_c_pos, vr_decap_slashvel, how))
         {
             return TRUE;
@@ -463,7 +463,7 @@ float(entity targ, entity attacker, float xDamage) VR_Decap_HeadBlow =
     if(VR_Decap_QuadPops(attacker) && VR_Decap_OnHead(targ, b.mh_c_pos, '0 0 0') &&
        (!VR_Decap_IsZombie(targ) || xDamage >= 25))
     {
-        return VR_Decap_Arm(targ, attacker, b.mh_c_pos, VRGetHandVel(vr_hithand) * VRMetersToUnits(), QVR_DECAP_QUAD);
+        return VR_Decap_Arm(targ, attacker, b.mh_c_pos, VRGetHandVel(hit_hand) * VRMetersToUnits(), QVR_DECAP_QUAD);
     }
     return FALSE;
 };

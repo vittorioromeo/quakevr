@@ -27,13 +27,13 @@ string(entity inflictor, entity attacker) VR_Highlight_Weapon =
         }
         return VR_Dummy_ProjectileName(inflictor);
     }
-    float hand = vr_hithand >= 0 ? vr_hithand : cVR_MainHand;
-    if(vr_hitkind == QVR_HITKIND_HEADBUTT) { return "headbutt"; }
-    if(vr_hitkind == QVR_HITKIND_SHOVE)    { return "shove"; }
-    if(vr_hitkind == QVR_HITKIND_BASH)     { return sprintf("%s bash", WeaponNameOf(VRGetEntWeapon(attacker, hand), VRGetEntWeaponFlags(attacker, hand))); }
-    if(vr_hitkind == QVR_HITKIND_SPLASH)   { return "discharge"; }
-    if(vr_hitkind == QVR_HITKIND_SHOT && vr_hitweapon != "") { return vr_hitweapon; }
-    if(vr_hitkind == QVR_HITKIND_BLEED)    { return "bleeding"; }
+    float hand = hit_hand >= 0 ? hit_hand : cVR_MainHand;
+    if(hit_kind == QVR_HITKIND_HEADBUTT) { return "headbutt"; }
+    if(hit_kind == QVR_HITKIND_SHOVE)    { return "shove"; }
+    if(hit_kind == QVR_HITKIND_BASH)     { return sprintf("%s bash", WeaponNameOf(VRGetEntWeapon(attacker, hand), VRGetEntWeaponFlags(attacker, hand))); }
+    if(hit_kind == QVR_HITKIND_SPLASH)   { return "discharge"; }
+    if(hit_kind == QVR_HITKIND_SHOT && hit_weapon != "") { return hit_weapon; }
+    if(hit_kind == QVR_HITKIND_BLEED)    { return "bleeding"; }
     return WeaponNameOf(VRGetEntWeapon(attacker, hand), VRGetEntWeaponFlags(attacker, hand));
 };
 
@@ -61,9 +61,9 @@ float(entity targ, entity inflictor, entity attacker, float isVRMelee) VR_Highli
         score = score + 1.5;
         tags = " headshot";
     }
-    float melee = (isVRMelee || vr_hitkind == QVR_HITKIND_MELEE || vr_hitkind == QVR_HITKIND_BASH ||
-                   vr_hitkind == QVR_HITKIND_SHOVE || vr_hitkind == QVR_HITKIND_HEADBUTT);
-    if(vr_hitkind == QVR_HITKIND_HEADBUTT)
+    float melee = (isVRMelee || hit_kind == QVR_HITKIND_MELEE || hit_kind == QVR_HITKIND_BASH ||
+                   hit_kind == QVR_HITKIND_SHOVE || hit_kind == QVR_HITKIND_HEADBUTT);
+    if(hit_kind == QVR_HITKIND_HEADBUTT)
     {
         score = score + 2;
     }
@@ -76,7 +76,7 @@ float(entity targ, entity inflictor, entity attacker, float isVRMelee) VR_Highli
     {
         score = score + 3;
     }
-    if(vr_hitkind == QVR_HITKIND_SPLASH)
+    if(hit_kind == QVR_HITKIND_SPLASH)
     {
         tags = sprintf("%s blast", tags);
     }
@@ -157,7 +157,7 @@ void(entity g, entity attacker, string xHow) VR_Highlight_GrenShot =
     {
         return;
     }
-    if(vr_hitkind == QVR_HITKIND_SPLASH)
+    if(hit_kind == QVR_HITKIND_SPLASH)
     {
         highlight("chain", 0, g, xHow, 0);
         return;

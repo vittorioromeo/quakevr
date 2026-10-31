@@ -83,7 +83,7 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_HitReact_Hit
         return;
     }
     // (no flinch for a slow bleed, a burn's ticks, a liquid's)
-    if(vr_hitkind == QVR_HITKIND_BLEED || inflictor.classname == "vr_burn" || inflictor == world)
+    if(hit_kind == QVR_HITKIND_BLEED || inflictor.classname == "vr_burn" || inflictor == world)
     {
         return;
     }
@@ -151,7 +151,7 @@ void(entity targ, entity inflictor, entity attacker) VR_HitReact_Where =
 {
     vector mid = (targ.absmin + targ.absmax) * 0.5;
     vector at = '0 0 0';
-    vector dir = vr_hitdir;
+    vector dir = hit_dir;
     float part = -1;
     if(VR_Hit_On(targ))
     {
@@ -168,7 +168,7 @@ void(entity targ, entity inflictor, entity attacker) VR_HitReact_Where =
             dir = hit_peldir;
         }
     }
-    if(vr_hitkind == QVR_HITKIND_SPLASH)
+    if(hit_kind == QVR_HITKIND_SPLASH)
     {
         // A blast: from the nearest point of its box to the blast, pushed away from it
         at = inflictor.origin;
@@ -178,9 +178,9 @@ void(entity targ, entity inflictor, entity attacker) VR_HitReact_Where =
         dir = mid - inflictor.origin;
         part = -1;
     }
-    if(at == '0 0 0' && vr_hitpos != '0 0 0' && vlen(vr_hitpos - mid) < 96)
+    if(at == '0 0 0' && hit_pos != '0 0 0' && vlen(hit_pos - mid) < 96)
     {
-        at = vr_hitpos;
+        at = hit_pos;
     }
     if(at == '0 0 0' && inflictor != targ && !(inflictor.flags & (FL_MONSTER | FL_CLIENT)) && vlen(inflictor.origin - mid) < 96)
     {

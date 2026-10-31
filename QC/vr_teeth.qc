@@ -126,15 +126,15 @@ void(entity e, vector xDir, float xHard) VR_Teeth_Hard =
     VR_Teeth_Knock(e, xDir, n);
 };
 
-// A hand's blow about to deal `xDamage` to `targ` (T_Damage_VRMelee; self the player, vr_hithand the hand).
+// A hand's blow about to deal `xDamage` to `targ` (T_Damage_VRMelee; self the player, hit_hand the hand).
 void(entity targ, entity attacker, float xDamage) VR_Teeth_Blow =
 {
-    if(!cvar_hget(cvarh_vr_teeth) || vr_hitkind != QVR_HITKIND_MELEE || vr_hithand < 0 || attacker != self ||
+    if(!cvar_hget(cvarh_vr_teeth) || hit_kind != QVR_HITKIND_MELEE || hit_hand < 0 || attacker != self ||
        !(self.flags & FL_CLIENT) || targ.health <= 0 || !(targ.flags & FL_MONSTER) || !VR_Teeth_Humanoid(targ))
     {
         return;
     }
-    entity b = VR_Blow(vr_hithand);
+    entity b = VR_Blow(hit_hand);
     if(b.mh_kind == VR_MKIND_SLAP)
     {
         return;
@@ -146,25 +146,25 @@ void(entity targ, entity attacker, float xDamage) VR_Teeth_Blow =
     {
         return;
     }
-    if(!VR_Teeth_OnFace(targ, b.mh_c_pos, vr_hitdir))
+    if(!VR_Teeth_OnFace(targ, b.mh_c_pos, hit_dir))
     {
         return;
     }
-    VR_Teeth_Hard(targ, vr_hitdir, VR_Decap_BluntHardness(b.mh_speed, xDamage));
+    VR_Teeth_Hard(targ, hit_dir, VR_Decap_BluntHardness(b.mh_speed, xDamage));
 };
 
-// A hand's blow about to deal `xDamage` to the live `targ` (T_Damage_VRMelee; self the player, vr_hithand the hand): a
+// A hand's blow about to deal `xDamage` to the live `targ` (T_Damage_VRMelee; self the player, hit_hand the hand): a
 // heavy blow to the face (anything but a slap, at least as hard as vr_teeth_hardness's or 0.5, or one that kills it)
 // makes a mouthed monster choke instead of crying (vr_decap.qc VR_GoreSnd_Choke; the engine's vr_goresound.cpp).
 void(entity targ, entity attacker, float xDamage) VR_GoreSnd_FaceBlow =
 {
-    if(vr_hitkind != QVR_HITKIND_MELEE || vr_hithand < 0 || attacker != self || !(self.flags & FL_CLIENT) ||
+    if(hit_kind != QVR_HITKIND_MELEE || hit_hand < 0 || attacker != self || !(self.flags & FL_CLIENT) ||
        targ.health <= 0 || !(targ.flags & FL_MONSTER) || !VR_GoreSnd_Mouthed(targ))
     {
         return;
     }
-    entity b = VR_Blow(vr_hithand);
-    if(b.mh_kind == VR_MKIND_SLAP || !VR_Teeth_OnFace(targ, b.mh_c_pos, vr_hitdir))
+    entity b = VR_Blow(hit_hand);
+    if(b.mh_kind == VR_MKIND_SLAP || !VR_Teeth_OnFace(targ, b.mh_c_pos, hit_dir))
     {
         return;
     }

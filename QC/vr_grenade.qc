@@ -214,7 +214,7 @@ float VR_GRENSHOT_KNOCK_MIN = 300;  // u/s a grenade a blow bats flies at least 
 float VR_GRENSHOT_KNOCK_LIFT = 0.25; // and one lying on the floor rises at least this share of that (not a skid)
 float VR_GRENSHOT_BATTED = 0.3;     // s after it was batted (VR_Deflect_Send) a blow leaves it be (the same swing)
 
-// Whether the melee blow dealing `damage` to a grenade now (vr_hithand's, VR_Blow) sets it off; vr_grenshot_why says
+// Whether the melee blow dealing `damage` to a grenade now (hit_hand's, VR_Blow) sets it off; vr_grenshot_why says
 // how strong it was against what it needed (for the log).
 string vr_grenshot_why;
 float(float damage) VR_GrenShot_BlowSetsOff =
@@ -224,7 +224,7 @@ float(float damage) VR_GrenShot_BlowSetsOff =
         vr_grenshot_why = "a running chainsaw";
         return TRUE;
     }
-    float hand = vr_hithand;
+    float hand = hit_hand;
     if(hand != cVR_MainHand && hand != cVR_OffHand)
     {
         vr_grenshot_why = "not a hand's blow";
@@ -244,7 +244,7 @@ float(float damage) VR_GrenShot_BlowSetsOff =
 // VR_BAT_MAX_SPEED): one lying on the floor lifted a little. It is the player's then (VR_Deflect_Send).
 void(entity g) VR_GrenShot_Knock =
 {
-    float hand = vr_hithand;
+    float hand = hit_hand;
     vector v = '0 0 0';
     if(hand == cVR_MainHand || hand == cVR_OffHand)
     {
@@ -258,7 +258,7 @@ void(entity g) VR_GrenShot_Knock =
     }
     else
     {
-        v = vr_hitdir * VR_GRENSHOT_KNOCK_MIN;
+        v = hit_dir * VR_GRENSHOT_KNOCK_MIN;
     }
     float speed = vlen(v);
     if(speed < 1)
@@ -313,7 +313,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float xMelee
     }
     string how = "a hit";
     float delay = 0;
-    if(vr_hitkind == QVR_HITKIND_SPLASH)
+    if(hit_kind == QVR_HITKIND_SPLASH)
     {
         how = sprintf("a blast, %s's", inflictor.classname);
         delay = VR_GRENSHOT_CHAIN;

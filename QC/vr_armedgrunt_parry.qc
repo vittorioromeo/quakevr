@@ -750,11 +750,11 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_AGPar_Blo
     float h = -1;
     if(attacker.flags & FL_CLIENT)
     {
-        if(vr_hitkind != QVR_HITKIND_MELEE || vr_hithand < 0 || inflictor != attacker)
+        if(hit_kind != QVR_HITKIND_MELEE || hit_hand < 0 || inflictor != attacker)
         {
             return damage;
         }
-        h = vr_hithand;
+        h = hit_hand;
         if(cvar_hget(cvarh_vr_agrunt_parry_strikes_only) && !VR_AG_HandStrikes(attacker, h))
         {
             return damage; // (an open hand: no strike to parry)
@@ -768,12 +768,12 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_AGPar_Blo
         // (This motion already parried on it: its blows that get through are that parry's.)
         if(targ.vr_agpar_by == attacker && targ.vr_agpar_hand == h + 1 && time - targ.vr_agpar_last < VR_AGPAR_MARK)
         {
-            vr_agpar_x = vr_hitpos;
+            vr_agpar_x = hit_pos;
             return VR_AGPar_Parried(targ, attacker, h, damage);
         }
         // A deliberate strike that met its weapon or hand first (vr_agrunt_strike_first): disarmed, the blow going on into
         // its body as it would unparried; or into its raised parry, lost the roll: parried.
-        float strike = VR_AG_BlowOnWeapon(targ, attacker, h, vr_hitpos);
+        float strike = VR_AG_BlowOnWeapon(targ, attacker, h, hit_pos);
         if(strike == VR_AG_STRIKE_DISARM)
         {
             return damage;
@@ -787,7 +787,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_AGPar_Blo
             vr_agbc_stopped = TRUE;
             return 0;
         }
-        if(VR_AGPar_PlayerMeets(targ, attacker, h, vr_hitpos) < 0)
+        if(VR_AGPar_PlayerMeets(targ, attacker, h, hit_pos) < 0)
         {
             if(vr_agpar_why == "")
             {

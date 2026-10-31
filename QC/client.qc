@@ -2839,7 +2839,7 @@ void(float xHand) VR_Melee_Deal =
     }
     else
     {
-        VR_SetHitKind(QVR_HITKIND_MELEE, xHand, '0 0 0', '0 0 0');
+        VR_Hit_Begin(QVR_HITKIND_MELEE, xHand, '0 0 0', '0 0 0');
         vr_melee_blunt = ((b.mh_kind == VR_MKIND_POMMEL) || // its own sound (VR_Melee_HitSound)
                          ((VRGetEntWeapon(self, xHand) == WID_SWORD) && // AD support: a hammer, a mace (vr_ad_guns_defs.qc)
                           VR_ADMelee_Blunt(VR_ADMelee_Kind(VRGetEntWeaponFlags(self, xHand)))));
@@ -2858,7 +2858,7 @@ void(float xHand) VR_Melee_Deal =
         vr_melee_blunt = FALSE;
         vr_melee_slap = FALSE;
         vr_sgib_at = '0 0 0';
-        VR_ClearHitKind();
+        VR_Hit_End();
     }
 
     if(VRGetMeleeHitSoundPlayed(xHand))
@@ -2963,9 +2963,9 @@ void(float xThreshold) VR_Headbutt_Hit =
     {
         victim.axhitme = 1;
         VR_HitBloodSplash(victim, at, dmg);
-        VR_SetHitKind(QVR_HITKIND_HEADBUTT, -1, at, dir);
+        VR_Hit_Begin(QVR_HITKIND_HEADBUTT, -1, at, dir);
         T_Damage_VRMelee(victim, self, self, dmg);
-        VR_ClearHitKind();
+        VR_Hit_End();
     }
     else
     {

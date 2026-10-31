@@ -871,12 +871,12 @@ void(entity e, vector xAt, vector xForward, float xKind, float xHand, float xSca
     {
         push = push * max(0, monstergroupget(e, MGP_PUSH)); // (its monster group's Shove Push: Combat > Monster Groups)
     }
-    VR_SetHitKind(xKind, xHand, xAt, xForward);
+    VR_Hit_Begin(xKind, xHand, xAt, xForward);
     if(T_Damage(e, self, self, dmg) && dmg > 0)
     {
         VR_QuadSound(self, "a bash or shove hurt");
     }
-    VR_ClearHitKind();
+    VR_Hit_End();
     // Running into it (vr_shove_run_carry): your own speed along the shove carried into it on top of the push (yours as
     // you move, not scaled by Knockback), times its group's Shove Push over its weight (VR_Push_Mass), at most all of it:
     // a running shove sends it farther and faster; standing (under VR_SHOVE_RUN_MIN) as before.
@@ -925,7 +925,7 @@ void(entity e, vector xAt, vector xForward, float xKind, float xHand, float xSca
     vr_kd_stagger_far = 0;
     if(!(e.flags & (FL_MONSTER | FL_CLIENT)) || VR_Hit_Metal(e))
     {
-        // Wood's splinters, metal's sparks; never blood: a shove or a bash draws none (combat.qc VR_HitBloodless).
+        // Wood's splinters, metal's sparks; never blood: a shove or a bash draws none (combat.qc VR_Hit_Bloodless).
         VR_HitBloodSplash(e, e.origin + '0 0 16', 4);
     }
 };

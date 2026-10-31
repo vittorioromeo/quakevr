@@ -407,16 +407,16 @@ void(entity e) VR_Limb_Killed =
 // ----------------------------------------------------------------------------
 // The blows at a limb (the head's hooks' second half: vr_decap.qc's VR_Decap_Head* first).
 
-// A hand's blow about to deal its damage to live `targ` (T_Damage_VRMelee; self the player, vr_hithand the hand): armed if
+// A hand's blow about to deal its damage to live `targ` (T_Damage_VRMelee; self the player, hit_hand the hand): armed if
 // it strikes a limb as a cut (a blade's slash, the chainsaw) or a blunt blow (by chance), or with Quad Damage.
 float(entity targ, entity attacker, float xDamage) VR_Limb_Blow =
 {
-    if(vr_hitkind != QVR_HITKIND_MELEE || vr_hithand < 0 || attacker != self || !(self.flags & FL_CLIENT) ||
+    if(hit_kind != QVR_HITKIND_MELEE || hit_hand < 0 || attacker != self || !(self.flags & FL_CLIENT) ||
        targ.health <= 0 || !VR_Limb_Allowed(targ))
     {
         return FALSE;
     }
-    entity b = VR_Blow(vr_hithand);
+    entity b = VR_Blow(hit_hand);
     if(b.mh_kind == VR_MKIND_SLAP)
     {
         return FALSE; // a slap never takes a limb off (vr_melee_slap)
@@ -430,7 +430,7 @@ float(entity targ, entity attacker, float xDamage) VR_Limb_Blow =
     if(b.mh_kind == VR_MKIND_POMMEL || b.mh_wid == WID_MJOLNIR || b.mh_thing == VR_MTHING_FIST || b.mh_thing == VR_MTHING_GUN ||
        b.mh_thing == VR_MTHING_CROWBAR || b.mh_thing == VR_MTHING_CLUB)
     {
-        if(zombieLight || !VR_Limb_Arm(targ, attacker, b.mh_c_pos, VRGetHandVel(vr_hithand) * VRMetersToUnits(), QVR_DECAP_BLUNT, bone))
+        if(zombieLight || !VR_Limb_Arm(targ, attacker, b.mh_c_pos, VRGetHandVel(hit_hand) * VRMetersToUnits(), QVR_DECAP_BLUNT, bone))
         {
             return FALSE;
         }
@@ -444,7 +444,7 @@ float(entity targ, entity attacker, float xDamage) VR_Limb_Blow =
         return FALSE;
     }
     vr_decap_quiet = TRUE;
-    float how = VR_Decap_Slash(vr_hithand, b.mh_c_pos, TRUE);
+    float how = VR_Decap_Slash(hit_hand, b.mh_c_pos, TRUE);
     vr_decap_quiet = FALSE;
     if(how && VR_Limb_Arm(targ, attacker, b.mh_c_pos, vr_decap_slashvel, how, bone))
     {
@@ -456,7 +456,7 @@ float(entity targ, entity attacker, float xDamage) VR_Limb_Blow =
     }
     if(VR_Decap_QuadPops(attacker) && !zombieLight)
     {
-        return VR_Limb_Arm(targ, attacker, b.mh_c_pos, VRGetHandVel(vr_hithand) * VRMetersToUnits(), QVR_DECAP_QUAD, bone);
+        return VR_Limb_Arm(targ, attacker, b.mh_c_pos, VRGetHandVel(hit_hand) * VRMetersToUnits(), QVR_DECAP_QUAD, bone);
     }
     return FALSE;
 };
@@ -600,8 +600,8 @@ float(entity targ, entity attacker, float xPiece, float xDamage, vector xVel, fl
 float(entity targ, entity inflictor, entity attacker, float damage, float kind) VR_Limb_CorpseWear =
 {
     if(!VR_Limb_Allowed(targ) || !cvar_hget(cvarh_vr_limbs_corpses) || !isragdoll(targ) || damage <= 0 ||
-       kind == QVR_CDMG_EXPLOSIONS || kind == QVR_CDMG_FIRE || vr_hitkind == QVR_HITKIND_SPLASH ||
-       vr_hitkind == QVR_HITKIND_BLEED)
+       kind == QVR_CDMG_EXPLOSIONS || kind == QVR_CDMG_FIRE || hit_kind == QVR_HITKIND_SPLASH ||
+       hit_kind == QVR_HITKIND_BLEED)
     {
         return damage;
     }
@@ -615,7 +615,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float kind) 
     if(VR_Hit_Pellets() > 0 && targ.vr_limb_wserial == vr_sgib_blastserial && targ.vr_limb_wtotal > 0)
     {
         float total = targ.vr_limb_wtotal;
-        vector dir = normalize(vr_hitdir != '0 0 0' ? vr_hitdir : ((targ.absmin + targ.absmax) * 0.5 - vr_decap_src));
+        vector dir = normalize(hit_dir != '0 0 0' ? hit_dir : ((targ.absmin + targ.absmax) * 0.5 - vr_decap_src));
         float left = damage;
         for(i = 0; i < VR_LIMB_JOINTS; i++)
         {
@@ -643,9 +643,9 @@ float(entity targ, entity inflictor, entity attacker, float damage, float kind) 
     {
         at = vr_limb_wear_at;
     }
-    else if(vr_hitkind != QVR_HITKIND_NONE && vr_hitpos != '0 0 0')
+    else if(hit_kind != QVR_HITKIND_NONE && hit_pos != '0 0 0')
     {
-        at = vr_hitpos;
+        at = hit_pos;
     }
     else if(VR_Hit_On(targ) && hit_at != '0 0 0')
     {
@@ -667,13 +667,13 @@ float(entity targ, entity inflictor, entity attacker, float damage, float kind) 
     }
     // Physical flung things go their own way, as VR_Limb_ThrownArm's; else along the hit (a shot's "blade" speed).
     vector vel;
-    if(vr_hitkind == QVR_HITKIND_NONE && inflictor != attacker && inflictor != world)
+    if(hit_kind == QVR_HITKIND_NONE && inflictor != attacker && inflictor != world)
     {
         vel = inflictor.velocity;
     }
     else
     {
-        vector d = vr_hitdir;
+        vector d = hit_dir;
         if(d == '0 0 0')
         {
             d = (inflictor != attacker && inflictor != world) ? inflictor.velocity : at - (attacker.origin + attacker.view_ofs);
@@ -1017,7 +1017,7 @@ float(entity e, float xLive) VR_Limb_BlastPops =
 // ragdoll, not gibbed; a zombie or mummy for good).
 void(entity e) VR_Limb_BlastKilled =
 {
-    if(vr_hitkind != QVR_HITKIND_SPLASH || VR_Limb_BlastPops(e, TRUE) <= 0)
+    if(hit_kind != QVR_HITKIND_SPLASH || VR_Limb_BlastPops(e, TRUE) <= 0)
     {
         return;
     }

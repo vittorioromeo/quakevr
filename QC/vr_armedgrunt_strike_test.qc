@@ -110,9 +110,9 @@ float(entity g, vector at, vector dir) VR_AGST_Melee =
     float h0 = g.health;
     entity was = self;
     self = p;
-    VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, at, dir);
+    VR_Hit_Begin(QVR_HITKIND_MELEE, cVR_MainHand, at, dir);
     T_Damage_VRMelee(g, p, p, 20);
-    VR_ClearHitKind();
+    VR_Hit_End();
     self = was;
     return h0 - g.health;
 };

@@ -522,14 +522,14 @@ void() HIP_LaserTouch =
 
         // VR: every projectile's hit (VR_Proj_Begin's, its bounces its own): tagged a shot where it struck (a corpse's
         // head or limb worn), a kill at the head or a limb popped by chance (vr_decap_pop_laser).
-        VR_SetHitProjectile(at, oldvel);
+        VR_Hit_BeginProjectile(at, oldvel);
         float pop = VR_Decap_ProjArm(other, self.lastvictim, at, oldvel, adjDmg, QVR_PROJ_LASER);
         T_Damage(other, self, self.lastvictim, adjDmg);
         if(pop)
         {
             VR_Decap_After(other);
         }
-        VR_ClearHitKind();
+        VR_Hit_End();
     }
     else if((self.cnt == 3) || (random()<0.15))
     {
@@ -997,13 +997,13 @@ void() HIP_LightningThink =
    dam = VR_WpnDmg(self, cvarh_vr_dmg_mjolnir_lightning, 80); // (self: the player now)
    if(oldstate!=0)
       dam = dam * (30 / 80);
-   VR_SetHitKind(QVR_HITKIND_SHOT, -1, trace_endpos, normalize(trace_endpos - org));
-   vr_hitweapon = "Mjolnir's lightning";
+   VR_Hit_Begin(QVR_HITKIND_SHOT, -1, trace_endpos, normalize(trace_endpos - org));
+   hit_weapon = "Mjolnir's lightning";
    if(dot>0.3)
       HIP_HammerDamage(org, trace_endpos, self, dam);
    else
       HIP_HammerDamage(org, trace_endpos, self, dam*0.5);
-   VR_ClearHitKind();
+   VR_Hit_End();
    self = head;
 
    self.nextthink = time + 0.2;
@@ -1088,10 +1088,9 @@ void(float xHand, vector xAt) HIP_FireMjolnirLightning =
 // training dummy's report (vr_dummy.qc).
 void(vector xDir) VRMeleeHitAt =
 {
-    if(vr_hitkind == QVR_HITKIND_MELEE)
+    if(hit_kind == QVR_HITKIND_MELEE)
     {
-        vr_hitpos = trace_endpos;
-        vr_hitdir = xDir;
+        VR_Hit_At(trace_endpos, xDir);
     }
 };
 
@@ -1942,7 +1941,7 @@ void() VR_ShotPush_Touch =
 // - the prop, gib or ragdoll (a corpse's, a knocked-down body's) it met or flew through pushed (VR_ShotPush: a nail's
 //   push, or its own kind's, .vr_shot_push_kind); an explosive's blast pushes instead (physicsblast);
 // - where it struck, along its flight (VR_TouchTrace: vr_proj_at, vr_proj_dir), and the body's part there
-//   (PositionalDamage: vr_proj_factor, the headshot's crack); the hit tagged a shot there (VR_SetHitKind), so a corpse's
+//   (PositionalDamage: vr_proj_factor, the headshot's crack); the hit tagged a shot there (VR_Hit_Begin), so a corpse's
 //   head or limb it strikes is worn down (VR_Limb_CorpseWear);
 // - a kill at the head or a limb armed to pop it (VR_Decap_ProjArm: a laser's or a plasma bolt's chance
 //   vr_decap_pop_laser, any other bolt's, nail's or lump's vr_decap_pop_projectile; an explosive's are its blast's,
@@ -2074,7 +2073,7 @@ void(float xKind, float xDamage) VR_Proj_Begin =
     {
         return;
     }
-    VR_SetHitProjectile(vr_proj_at, dir); // (its kind its own: a nail's wound a bullet's, not lightning's: VR_Hit_Hitscan)
+    VR_Hit_BeginProjectile(vr_proj_at, dir); // (its kind its own: a nail's wound a bullet's, not lightning's: VR_Hit_Hitscan)
     vr_proj_armed = VR_Decap_ProjArm(other, self.owner, vr_proj_at, dir, xDamage, xKind);
     if(cvar_hget(cvarh_vr_debug_shots))
     {
@@ -2091,9 +2090,9 @@ void() VR_Proj_End =
         VR_Decap_After(vr_proj_target);
         vr_proj_armed = FALSE;
     }
-    if(vr_hitkind == QVR_HITKIND_SHOT && vr_hithand == -1 && vr_hitpos == vr_proj_at)
+    if(hit_kind == QVR_HITKIND_SHOT && hit_hand == -1 && hit_pos == vr_proj_at)
     {
-        VR_ClearHitKind();
+        VR_Hit_End();
     }
 };
 
@@ -2285,11 +2284,11 @@ void(float xHand, float shotcount, vector dir, vector spread) FireBullets =
         AD_FirePellets(xHand, shotcount, dir, spread, muzzle);
         return;
     }
-    VR_SetHitKind(QVR_HITKIND_SHOT, xHand, '0 0 0', dir);
+    VR_Hit_Begin(QVR_HITKIND_SHOT, xHand, '0 0 0', dir);
     vr_tracer_hand = xHand;
     vr_tracer_from = muzzle;
     FireBulletsImpl(shotcount, dir, spread, src, 2048 + vlen(muzzle - src), TRUE);
-    VR_ClearHitKind();
+    VR_Hit_End();
     // QVR: the shot's line passing near a monster alerts it (vr_stealth.qc)
     traceline(src, src + dir * 2048, FALSE, self);
     VR_Stealth_Graze(muzzle, trace_endpos, self, trace_ent);
@@ -2901,7 +2900,7 @@ void(float xHand) W_FireLightning =
     particle2(boltEnd, '0 0 0', QVR_PARTICLE_PRESET_LIGHTNING, 60);
     particle2(boltEnd, '0 0 0', QVR_PARTICLE_PRESET_SMOKE, 1);
     particle2(boltEnd, '0 0 0', QVR_PARTICLE_PRESET_SPARKS, 12);
-    VR_SetHitKind(QVR_HITKIND_SHOT, xHand, '0 0 0', boltDir);
+    VR_Hit_Begin(QVR_HITKIND_SHOT, xHand, '0 0 0', boltDir);
     vr_decap_weapon = QVR_DECAP_LIGHTNING; // (head pops)
     vr_lightning_hitpass = fromImage ? MOVE_HITPASS : 0;
     if(through)
@@ -2913,7 +2912,7 @@ void(float xHand) W_FireLightning =
     LightningDamage(from, boltEnd + boltDir*4, self, cvar_hget(cvarh_vr_dmg_lightning));
     vr_lightning_hitpass = 0;
     vr_decap_weapon = 0;
-    VR_ClearHitKind();
+    VR_Hit_End();
 
     weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
     VRGunHaptic(xHand, 0.4, 175, 1.0);

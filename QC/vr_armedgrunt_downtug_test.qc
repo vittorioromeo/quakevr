@@ -415,11 +415,11 @@ void(vector from, vector dir) VR_AGWS_Fire =
         vector spread = vr_agws_s == 3 ? '0.035 0.025 0' : '0 0 0';
         vr_pellet_damage = cvar_hget(vr_agws_s == 3 ? cvarh_vr_dmg_super_shotgun : cvarh_vr_dmg_shotgun);
         VR_DamageCredit_FromHand(pl, pl, cVR_MainHand);
-        VR_SetHitKind(QVR_HITKIND_SHOT, cVR_MainHand, '0 0 0', dir);
+        VR_Hit_Begin(QVR_HITKIND_SHOT, cVR_MainHand, '0 0 0', dir);
         vr_tracer_hand = cVR_MainHand;
         vr_tracer_from = from;
         FireBulletsImpl(n, dir, spread, from, 400, FALSE);
-        VR_ClearHitKind();
+        VR_Hit_End();
         vr_pellet_damage = 0;
     }
     self = oldself;

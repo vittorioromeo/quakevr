@@ -16,7 +16,7 @@
 // vr_dummy_gib on (the default), the hit that takes the last of it kills it as a grunt (VR_Dummy_Die; NOTES.md
 // vrfiringrange, 2026-10-06 12:28): it dies, is beheaded, has its head popped or is gibbed exactly as a grunt would be,
 // its body lies as a grunt's, and it stands again vr_dummy_gib_respawn seconds later; off, it stays at 0 ("would kill").
-// Attacks that their inflictor does not tell apart are tagged by their code (VR_SetHitKind, combat.qc).
+// Attacks that their inflictor does not tell apart are tagged by their code (VR_Hit_Begin, combat.qc).
 //
 // With vr_dummy_attacks on (the firing range's "dummy attacks" button: vr_dummy_attack_toggle, below) it
 // strikes back, for practising the parry: see "Attacks" below. Off (the default, and at every map load),
@@ -118,7 +118,7 @@ string(entity inflictor, entity attacker, float isVRMelee) VR_Dummy_Kind =
     vector cyan = '0.4 0.9 1';
     vr_dummy_colour = '1 1 1';
 
-    if(vr_hitkind == QVR_HITKIND_SPLASH)
+    if(hit_kind == QVR_HITKIND_SPLASH)
     {
         vr_dummy_colour = '1 0.35 0.25';
         if(inflictor == attacker)
@@ -129,7 +129,7 @@ string(entity inflictor, entity attacker, float isVRMelee) VR_Dummy_Kind =
         return sprintf("explosion: %s", VR_Dummy_ProjectileName(inflictor));
     }
 
-    if(vr_hitkind == QVR_HITKIND_HEADBUTT)
+    if(hit_kind == QVR_HITKIND_HEADBUTT)
     {
         vr_dummy_colour = orange;
         float lunge = vlen(attacker.headbutt_max_vec);
@@ -137,34 +137,34 @@ string(entity inflictor, entity attacker, float isVRMelee) VR_Dummy_Kind =
         return sprintf("headbutt, %.1f m/s (x%.2f)", lunge, min(3, lunge / threshold));
     }
 
-    if(vr_hitkind == QVR_HITKIND_BASH)
+    if(hit_kind == QVR_HITKIND_BASH)
     {
         vr_dummy_colour = orange;
         string bash = sprintf("bash with the %s, %s",
-                       WeaponNameOf(VRGetEntWeapon(attacker, vr_hithand >= 0 ? vr_hithand : cVR_MainHand),
-                           VRGetEntWeaponFlags(attacker, vr_hithand >= 0 ? vr_hithand : cVR_MainHand)),
+                       WeaponNameOf(VRGetEntWeapon(attacker, hit_hand >= 0 ? hit_hand : cVR_MainHand),
+                           VRGetEntWeaponFlags(attacker, hit_hand >= 0 ? hit_hand : cVR_MainHand)),
                        vr_bash_both ? "two hands" : "one hand");
         bash = vr_bash_counter ? sprintf("counter %s (x%.2f)", bash, vr_bash_counter) : bash;
         return vr_bash_exhaust_dmg > 0 ? sprintf("%s, exhausted (damage x%.2f, knockback x%.2f)", bash, vr_bash_exhaust_dmg,
             vr_bash_exhaust_push) : bash;
     }
 
-    if(vr_hitkind == QVR_HITKIND_SHOVE)
+    if(hit_kind == QVR_HITKIND_SHOVE)
     {
         vr_dummy_colour = orange;
-        string shove = vr_hithand >= 0 ? sprintf("shove with the %s", VR_Dummy_HandName(vr_hithand)) : "shove with both hands";
+        string shove = hit_hand >= 0 ? sprintf("shove with the %s", VR_Dummy_HandName(hit_hand)) : "shove with both hands";
         shove = vr_bash_counter ? sprintf("counter %s (x%.2f)", shove, vr_bash_counter) : shove;
         return vr_bash_exhaust_dmg > 0 ? sprintf("%s, exhausted (damage x%.2f, knockback x%.2f)", shove, vr_bash_exhaust_dmg,
             vr_bash_exhaust_push) : shove;
     }
 
-    if(vr_hitkind == QVR_HITKIND_MELEE)
+    if(hit_kind == QVR_HITKIND_MELEE)
     {
         vr_dummy_colour = orange;
-        float wid = VRGetEntWeapon(attacker, vr_hithand);
+        float wid = VRGetEntWeapon(attacker, hit_hand);
         entity oldSelf = self;
         self = attacker;
-        entity b = VR_Blow(vr_hithand);
+        entity b = VR_Blow(hit_hand);
         self = oldSelf;
         // What struck (the weapon, the kind of blow, how it moved, the part), with which hand, how fast the hand went
         // (a pommel strike: the pommel) and the strength (vr_melee.qc).
@@ -175,7 +175,7 @@ string(entity inflictor, entity attacker, float isVRMelee) VR_Dummy_Kind =
         }
         if(wid == WID_FIST)
         {
-            if(VR_Carry_IsHolding(attacker, vr_hithand))
+            if(VR_Carry_IsHolding(attacker, hit_hand))
             {
                 what = sprintf("%s with a box in hand", what);
             }
@@ -188,7 +188,7 @@ string(entity inflictor, entity attacker, float isVRMelee) VR_Dummy_Kind =
         {
             what = sprintf("%s with %s", what, b.mh_part);
         }
-        what = sprintf("melee: %s, %s, %.1f m/s (x%.2f)", what, VR_Dummy_HandName(vr_hithand), b.mh_dmgspeed, b.mh_strength);
+        what = sprintf("melee: %s, %s, %.1f m/s (x%.2f)", what, VR_Dummy_HandName(hit_hand), b.mh_dmgspeed, b.mh_strength);
         if(b.mh_counter > 0)
         {
             what = sprintf("%s, counter x%.2f", what, b.mh_counter); // after a parry (vr_counter)
@@ -200,12 +200,12 @@ string(entity inflictor, entity attacker, float isVRMelee) VR_Dummy_Kind =
         return what;
     }
 
-    if(vr_hitkind == QVR_HITKIND_SHOT)
+    if(hit_kind == QVR_HITKIND_SHOT)
     {
-        string weapon = vr_hitweapon;
+        string weapon = hit_weapon;
         if(weapon == "")
         {
-            weapon = vr_hithand >= 0 ? WeaponNameOf(VRGetEntWeapon(attacker, vr_hithand), VRGetEntWeaponFlags(attacker, vr_hithand)) : "hitscan";
+            weapon = hit_hand >= 0 ? WeaponNameOf(VRGetEntWeapon(attacker, hit_hand), VRGetEntWeaponFlags(attacker, hit_hand)) : "hitscan";
         }
         return sprintf("weapon fire: %s", weapon);
     }
@@ -275,7 +275,7 @@ string(float xRegion) VR_Dummy_RegionName =
 // Where it struck, in words (starting with ", "; "" when unknown); a headshot turns the number yellow.
 string(entity targ, float isVRMelee) VR_Dummy_Part =
 {
-    if(vr_hitkind == QVR_HITKIND_SPLASH)
+    if(hit_kind == QVR_HITKIND_SPLASH)
     {
         return "";
     }
@@ -302,7 +302,7 @@ string(entity targ, float isVRMelee) VR_Dummy_Part =
 
     // A melee blow: only where it landed (and its zone's multiplier, with vr_melee_positional: VR_Melee_Positional
     // records it as a shot's PositionalDamage does).
-    if(isVRMelee || vr_hitkind == QVR_HITKIND_BASH || vr_hitkind == QVR_HITKIND_SHOVE)
+    if(isVRMelee || hit_kind == QVR_HITKIND_BASH || hit_kind == QVR_HITKIND_SHOVE)
     {
         if(VR_Hit_On(targ) && hit_zone >= 0)
         {
@@ -312,9 +312,9 @@ string(entity targ, float isVRMelee) VR_Dummy_Part =
             }
             return sprintf(", %s (x%.2f)", VR_Dummy_RegionName(hit_zone), PositionalDamageFactor(hit_zone));
         }
-        if(vr_hitpos != '0 0 0' && vr_hitdir != '0 0 0')
+        if(hit_pos != '0 0 0' && hit_dir != '0 0 0')
         {
-            float region = PositionalRegion(targ, vr_hitpos, vr_hitdir);
+            float region = PositionalRegion(targ, hit_pos, hit_dir);
             if(region >= 0)
             {
                 return sprintf(", at the %s", VR_Dummy_RegionName(region));
@@ -341,9 +341,9 @@ string(entity targ, float isVRMelee) VR_Dummy_Part =
 vector(entity targ, entity inflictor, entity attacker) VR_Dummy_HitPoint =
 {
     vector p;
-    if(vr_hitkind != QVR_HITKIND_NONE && vr_hitpos != '0 0 0')
+    if(hit_kind != QVR_HITKIND_NONE && hit_pos != '0 0 0')
     {
-        p = vr_hitpos;
+        p = hit_pos;
     }
     else if(VR_Hit_On(targ))
     {
@@ -577,11 +577,11 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
 
     // A blade's blow at its head or neck (or one that would behead): whether it would behead a grunt (VR_Decap_Judge).
     string decap = "";
-    if(isVRMelee && vr_hitkind == QVR_HITKIND_MELEE && (attacker.flags & FL_CLIENT))
+    if(isVRMelee && hit_kind == QVR_HITKIND_MELEE && (attacker.flags & FL_CLIENT))
     {
         entity oldSelf2 = self;
         self = attacker;
-        float judged = VR_Decap_Judge(targ, vr_hithand);
+        float judged = VR_Decap_Judge(targ, hit_hand);
         self = oldSelf2;
         if(judged > 0 || (judged == 0 && vr_decap_judge_zone))
         {
@@ -616,7 +616,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     }
 
     // Flinch: lean away from the blow, and the pain frames.
-    vector dir = vr_hitdir;
+    vector dir = hit_dir;
     if(dir == '0 0 0')
     {
         dir = targ.origin - (inflictor != world ? (inflictor.absmin + inflictor.absmax) * 0.5 : attacker.origin);

@@ -404,7 +404,7 @@ float(entity p, float xHand) VR_Weight_HeldMass =
 };
 
 // Blows on ragdolls and corpses (ROUND22.md, "Melee on ragdolls"): `targ` struck by the blow of `attacker`'s hand
-// vr_hithand (T_Damage_VRMelee, after its damage) moves as two bodies meeting, not by vr_melee_push's knockback (a whole-
+// hit_hand (T_Damage_VRMelee, after its damage) moves as two bodies meeting, not by vr_melee_push's knockback (a whole-
 // body velocity, every part of a ragdoll given it: a strong blow's 150..300 u/s flung a corpse off): what the hand holds
 // (its Mass, and vr_box3d_weapon_arm_mass of the arm behind it; an empty hand vr_box3d_hand_mass) at the blow's speed
 // (its striking point's, mh_dmgspeed) along its way, with vr_melee_ragdoll_bounce of restitution. A ragdoll (a corpse's,
@@ -414,7 +414,7 @@ float(entity p, float xHand) VR_Weight_HeldMass =
 float(entity m) VR_Grapple_MonsterMass;
 float(entity targ, entity attacker) VR_Melee_RagdollPush =
 {
-    if(!(attacker.flags & FL_CLIENT) || vr_hitkind != QVR_HITKIND_MELEE || vr_hithand < 0 || vr_hitdir == '0 0 0')
+    if(!(attacker.flags & FL_CLIENT) || hit_kind != QVR_HITKIND_MELEE || hit_hand < 0 || hit_dir == '0 0 0')
     {
         return FALSE;
     }
@@ -425,18 +425,18 @@ float(entity targ, entity attacker) VR_Melee_RagdollPush =
     }
     entity oldSelf = self;
     self = attacker;
-    entity b = VR_Blow(vr_hithand);
+    entity b = VR_Blow(hit_hand);
     float speed = b.mh_dmgspeed > 0 ? b.mh_dmgspeed : b.mh_speed; // m/s
-    float held = max(0, VR_Weight_HeldMass(attacker, vr_hithand));
+    float held = max(0, VR_Weight_HeldMass(attacker, hit_hand));
     self = oldSelf;
     float mass = held > 0 ? held + max(0, cvar_hget(cvarh_vr_box3d_weapon_arm_mass)) : max(0.1, cvar_hget(cvarh_vr_box3d_hand_mass));
     float bounce = min(1, max(0, cvar_hget(cvarh_vr_melee_ragdoll_bounce)));
     float most = max(0, cvar_hget(cvarh_vr_melee_ragdoll_most));
-    vector dir = normalize(vr_hitdir);
+    vector dir = normalize(hit_dir);
     float m2u = VRMetersToUnits();
     if(rag)
     {
-        vector at = vr_hitpos != '0 0 0' ? vr_hitpos : targ.origin;
+        vector at = hit_pos != '0 0 0' ? hit_pos : targ.origin;
         physicspush(targ, at, dir * speed * m2u, mass, bounce, most);
         if(cvar_hget(cvarh_vr_debug_shots))
         {

@@ -428,7 +428,7 @@ float(float xHand) VR_Chainsaw_Cut =
         list = e.vr_saw_victim;
         e.vr_saw_victim = world;
         vector at = e.vr_saw_at;
-        VR_SetHitKind(QVR_HITKIND_MELEE, xHand, at, dir);
+        VR_Hit_Begin(QVR_HITKIND_MELEE, xHand, at, dir);
         VR_DamageCredit_SetWeapon(self, WID_CHAINSAW);
         float alive = e.health > 0;
         float m = VR_MaterialOf(e); // (before the damage: a gib may be gone after it)
@@ -470,7 +470,7 @@ float(float xHand) VR_Chainsaw_Cut =
         {
             VR_HotBlade_Struck(self, xHand, e, alive, at, dir); // an incandescent bar sets it on fire (vr_hotblade.qc)
         }
-        VR_ClearHitKind();
+        VR_Hit_End();
         VR_Saw_HitFx(e, m, at, dmg, bleed);
         if(cvar_hget(cvarh_vr_debug_chainsaw))
         {

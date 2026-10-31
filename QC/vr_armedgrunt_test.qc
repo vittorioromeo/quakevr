@@ -238,9 +238,9 @@ void() VR_AGTest_Sequence =
             g.vr_ag_prop.weaponinst.wi_clip, g.vr_ag_reserve), g.vr_ag_reloads >= 1 && g.vr_ag_prop.weaponinst.wi_clip > 0);
         // Struck on its gun hand.
         vr_agt_clip = g.vr_ag_prop.weaponinst.wi_clip;
-        vr_hitpos = g.vr_ag_prop.origin;
+        hit_pos = g.vr_ag_prop.origin;
         T_Damage(g, p, p, 12);
-        vr_hitpos = '0 0 0';
+        hit_pos = '0 0 0';
         entity w = VR_AGT_LyingNear(g.origin);
         VR_AGT_Check(sprintf("disarm: held %s, lying %s with %g:", g.vr_ag_prop ? "something" : "nothing",
             w ? w.netname : "nothing", w.weaponinst.wi_clip), !g.vr_ag_prop && w && w.weaponinst.wi_clip == vr_agt_clip);

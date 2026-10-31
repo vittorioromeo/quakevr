@@ -91,18 +91,18 @@ void(entity e, vector at, vector dir, float damage) VR_Wound_Pellet =
 // From T_DamageImpl, as `take` is taken: the blow's kind, where it struck and which way it went.
 void(entity targ, entity inflictor, entity attacker, float take) VR_Wound_Hit =
 {
-    if(take > 0 && inflictor != world && inflictor.classname != "vr_burn" && !VR_HitBloodless() && !targ.vr_bloodied)
+    if(take > 0 && inflictor != world && inflictor.classname != "vr_burn" && !VR_Hit_Bloodless() && !targ.vr_bloodied)
     {
         targ.vr_bloodied = TRUE;
         if(cvar_hget(cvarh_vr_knockdown_debug))
         {
             dprint(sprintf("wound: %s bled first: %g damage from %s (%s), hit kind %g, health %g\n", targ.classname, take,
-                inflictor.classname, attacker.classname, vr_hitkind, targ.health));
+                inflictor.classname, attacker.classname, hit_kind, targ.health));
         }
     }
     // (A fire paints its own burns, under its flames: vr_burning.qc.)
-    if(take <= 0 || !VR_Wound_TakesHit(targ) || vr_hitkind == QVR_HITKIND_BLEED || inflictor.classname == "vr_burn" ||
-       VR_HitBloodless())
+    if(take <= 0 || !VR_Wound_TakesHit(targ) || hit_kind == QVR_HITKIND_BLEED || inflictor.classname == "vr_burn" ||
+       VR_Hit_Bloodless())
     {
         return;
     }
@@ -133,7 +133,7 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_Wound_Hit =
     }
 
     vector org = mid;
-    vector dir = vr_hitdir;
+    vector dir = hit_dir;
     float kind = QVR_WOUND_NAIL;
     float extra = 0;
     string m = inflictor.model;
@@ -141,18 +141,18 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_Wound_Hit =
     // (extra 1: the engine's blunt dent), a blade's a cut drawn out along the swing.
     float sk = VR_SmallGib_Kind(inflictor, attacker);
 
-    if(vr_hitkind == QVR_HITKIND_SPLASH || IsExplosionDamage)
+    if(hit_kind == QVR_HITKIND_SPLASH || IsExplosionDamage)
     {
         kind = QVR_WOUND_BLAST;
         org = inflictor.origin;
         dir = mid - inflictor.origin;
     }
-    else if(vr_hitkind == QVR_HITKIND_MELEE || vr_hitkind == QVR_HITKIND_HEADBUTT || vr_hitkind == QVR_HITKIND_BASH ||
-            vr_hitkind == QVR_HITKIND_SHOVE)
+    else if(hit_kind == QVR_HITKIND_MELEE || hit_kind == QVR_HITKIND_HEADBUTT || hit_kind == QVR_HITKIND_BASH ||
+            hit_kind == QVR_HITKIND_SHOVE)
     {
         kind = QVR_WOUND_MELEE;
         extra = (sk == QVR_SGIB_BLUNT || sk == QVR_SGIB_PROPS); // a punch, a pommel, a gun, a brick in the fist
-        if(vr_hitkind == QVR_HITKIND_MELEE && (attacker.flags & FL_CLIENT))
+        if(hit_kind == QVR_HITKIND_MELEE && (attacker.flags & FL_CLIENT))
         {
             extra += extra ? QVR_WOUND_MELEE_BLUNT : QVR_WOUND_MELEE_BLADE; // your hand's blow: its blood stream's chance
         }
@@ -187,9 +187,9 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_Wound_Hit =
 
     if(kind != QVR_WOUND_BLAST)
     {
-        if(vr_hitpos != '0 0 0' && vlen(vr_hitpos - mid) < 64)
+        if(hit_pos != '0 0 0' && vlen(hit_pos - mid) < 64)
         {
-            org = vr_hitpos;
+            org = hit_pos;
         }
         else if(inflictor != targ && !(inflictor.flags & (FL_MONSTER | FL_CLIENT)) && vlen(inflictor.origin - mid) < 64)
         {
