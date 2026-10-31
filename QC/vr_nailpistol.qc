@@ -23,7 +23,9 @@
 .float vr_np_slide2;
 .float vr_np_lock;      // its slide as last seen: 0 not yet (another weapon), 1 home (rounds in), 2 locked back (empty)
 .float vr_np_lock2;
-.float vr_np_smoke;     // when the wisp of smoke after its last shot rises (0 none)
+.float vr_np_seat;      // when the slide racks closed after a magazine was seated (0 none pending): vr_nailpistol_slide_delay
+.float vr_np_seat2;
+.float vr_np_smoke;   // when the wisp of smoke after its last shot rises (0 none)
 .float vr_np_smoke2;
 .float vr_np_heat;      // its recent shots (more smoke after a quick string): decays a shot a quarter second
 .float vr_np_heat2;
@@ -267,6 +269,12 @@ void(float xHand, float xAttackFinished, float* xOutAttackFinished) VR_NailPisto
         return;
     }
     if(xHand == cVR_OffHand) { self.vr_np_rearm2 = TRUE; } else { self.vr_np_rearm = TRUE; }
+    // A magazine just seated and the slide not yet racked closed (vr_nailpistol_slide_delay): nothing happens.
+    if(cvar_hget(cvarh_vr_nailpistol_slide_delay) > 0 && VR_IMPL_SELECT(xHand, self.vr_np_lock2, self.vr_np_lock) == 2 &&
+       !VR_NailPistol_Empty(xHand))
+    {
+        return;
+    }
     float cool = max(0.02, cvar_hget(cvarh_vr_nailpistol_cooldown));
     if(!W_CheckNoAmmo(xHand))
     {
@@ -314,13 +322,33 @@ void(float xHand) VR_NailPistol_HandFrame =
     // The slide: sent back a moment by a shot, locked back while empty (frame 1; the engine draws it travelling back and
     // home: vr_nailslide.cpp, vr_nailpistol_slide_travel and _cycle). Locked back, then rounds in (a new magazine): it
     // closes by itself, with the rack (no hand racks it).
+    // A magazine seated: the slide waits vr_nailpistol_slide_delay s (still locked back, no shot), then racks closed.
     float empty = VR_NailPistol_Empty(xHand);
+    float waiting = FALSE;
     if(VR_IMPL_SELECT(xHand, self.vr_np_lock2, self.vr_np_lock) == 2 && !empty)
     {
-        VR_NailPistol_Rack(self, xHand);
+        float seat = VR_IMPL_SELECT(xHand, self.vr_np_seat2, self.vr_np_seat);
+        if(seat <= 0)
+        {
+            seat = time + max(0, cvar_hget(cvarh_vr_nailpistol_slide_delay));
+            if(xHand == cVR_OffHand) { self.vr_np_seat2 = seat; } else { self.vr_np_seat = seat; }
+        }
+        if(time >= seat)
+        {
+            VR_NailPistol_Rack(self, xHand);
+            if(xHand == cVR_OffHand) { self.vr_np_seat2 = 0; } else { self.vr_np_seat = 0; }
+        }
+        else
+        {
+            waiting = TRUE;
+        }
     }
-    if(xHand == cVR_OffHand) { self.vr_np_lock2 = empty ? 2 : 1; } else { self.vr_np_lock = empty ? 2 : 1; }
-    float back = (time < VR_IMPL_SELECT(xHand, self.vr_np_slide2, self.vr_np_slide) || empty);
+    else if(empty)
+    {
+        if(xHand == cVR_OffHand) { self.vr_np_seat2 = 0; } else { self.vr_np_seat = 0; }
+    }
+    if(xHand == cVR_OffHand) { self.vr_np_lock2 = (empty || waiting) ? 2 : 1; } else { self.vr_np_lock = (empty || waiting) ? 2 : 1; }
+    float back = (time < VR_IMPL_SELECT(xHand, self.vr_np_slide2, self.vr_np_slide) || empty || waiting);
     VRSetWeaponFrame(xHand, back ? 1 : 0);
     // (Its smoke after shots comes out of its side vents now: the engine's, vr_gunfx.cpp ventSmoke, vr_nailpistol_smoke.
     // The muzzle's random wisp that was here is gone: the author's note of 2026-10-30, "too random".)

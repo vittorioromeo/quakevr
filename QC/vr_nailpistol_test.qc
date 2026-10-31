@@ -33,7 +33,9 @@ float vr_npt_walkrun;   // walking empty: frames of the run animation
 float vr_npt_racks0;    // re-racks by the time it was empty (want none: the first is the new magazine's)
 .float vr_npt_frozen;   // a map's monster held still for the test (its think put off)
 float vr_npt_notarget;  // the player's FL_NOTARGET before
-float vr_npt_mode;      // vr_reload_mode_npistol before
+float vr_npt_delay;     // vr_nailpistol_slide_delay before (0 meanwhile for steps 1-12; step 13 sets 0.25)
+float vr_npt_shots0, vr_npt_rackf, vr_npt_dry0;
+float vr_npt_mode;   // vr_reload_mode_npistol before
 float vr_npt_grip;      // vr_weapon_grip_mode before (1 meanwhile: the mock's hands keep what they hold)
 entity vr_npt_player;
 entity vr_npt_g;
@@ -77,6 +79,7 @@ void() VR_NPT_End =
     if(vr_np_target) { remove(vr_np_target); vr_np_target = world; }
     cvar_set("vr_reload_mode_npistol", ftos(vr_npt_mode));
     cvar_set("vr_weapon_grip_mode", ftos(vr_npt_grip));
+    localcmd(sprintf("tune vr_nailpistol_slide_delay %g\n", vr_npt_delay));
     cvar_set("vr_np_probe", "0");
     VR_NPT_Trigger(0);
     if(!vr_npt_notarget) vr_npt_player.flags = vr_npt_player.flags - (vr_npt_player.flags & FL_NOTARGET);
@@ -385,6 +388,8 @@ void() VR_NailPistol_TestFrame =
         }
         VR_Test_Begin("nptest");
         vr_npt_mode = cvar("vr_reload_mode_npistol");
+        vr_npt_delay = cvar("vr_nailpistol_slide_delay");
+        localcmd("tune vr_nailpistol_slide_delay 0\n"); // (steps 1-12: the rack at once, as before the delay; step 13: 0.25)
         vr_npt_grip = cvar("vr_weapon_grip_mode");
         cvar_set("vr_weapon_grip_mode", "1");
         // (a real map's monsters must not wake, hunt or shoot meanwhile: the checks need the spawned grunts still)
@@ -711,8 +716,8 @@ void() VR_NailPistol_TestFrame =
         {
             cvar_set("vr_reload_mode_npistol", "3");
             p.ammo_nails = 100;
+            VR_NPT_Next();
             self = os;
-            VR_NPT_End();
             return;
         }
         if(ph == 0)
@@ -735,6 +740,57 @@ void() VR_NailPistol_TestFrame =
                 "reload mode %g: loaded again, re-racked (%g racks, want 1; frame %g)", m, vr_np_racks - vr_npt_racks0,
                 VRGetWeaponFrame(cVR_MainHand)));
             dprint(sprintf("nptest: the rack in reload mode %g\n", m));
+        }
+    }
+    else if(s == 13)
+    {
+        // vr_nailpistol_slide_delay 0.25: emptied, locked back; a magazine seated; the slide waits (locked back, a pull
+        // does nothing), then racks 0.25 s (18 frames) after the seat; then it fires.
+        float f = vr_npt_frames;
+        if(f == 1)
+        {
+            localcmd("tune vr_nailpistol_slide_delay 0.25\n");
+            VRSetEntWeaponClip(p, cVR_MainHand, 0);
+            W_SetCurrentAmmoFor(cVR_MainHand);
+            vr_npt_rackf = 0;
+        }
+        else if(f == 4)
+        {
+            VR_Test_Check(VRGetWeaponFrame(cVR_MainHand) == 1, sprintf("delay: emptied, locked back (frame %g)",
+                VRGetWeaponFrame(cVR_MainHand)));
+            vr_npt_racks0 = vr_np_racks;
+            vr_npt_shots0 = vr_np_shots;
+            vr_npt_dry0 = vr_np_dry;
+            VRSetEntWeaponClip(p, cVR_MainHand, VR_NailPistol_MagSize());
+            W_SetCurrentAmmoFor(cVR_MainHand);
+        }
+        else if(f > 4 && vr_npt_rackf == 0 && vr_np_racks > vr_npt_racks0)
+        {
+            vr_npt_rackf = f;
+        }
+        if(f == 7) { VR_NPT_Trigger(1); }
+        if(f == 9) { VR_NPT_Trigger(0); }
+        if(f == 14)
+        {
+            VR_Test_Check(vr_np_racks == vr_npt_racks0 && vr_np_shots == vr_npt_shots0 && vr_np_dry == vr_npt_dry0 &&
+                VRGetWeaponFrame(cVR_MainHand) == 1, sprintf("delay: 0.19 s after the seat, still locked back (frame %g), "
+                "%g racks, a pull fired %g shots, %g dry clicks (want 0, 0, 0)", VRGetWeaponFrame(cVR_MainHand),
+                vr_np_racks - vr_npt_racks0, vr_np_shots - vr_npt_shots0, vr_np_dry - vr_npt_dry0));
+        }
+        if(f == 30)
+        {
+            VR_Test_Check(vr_np_racks == vr_npt_racks0 + 1 && VRGetWeaponFrame(cVR_MainHand) == 0 && vr_npt_rackf >= 21 &&
+                vr_npt_rackf <= 24, sprintf("delay: racked once at frame %g (seated at 4; want 0.25 s = 18 frames later, "
+                "21-24), slide frame %g", vr_npt_rackf, VRGetWeaponFrame(cVR_MainHand)));
+        }
+        if(f == 32) { VR_NPT_Trigger(1); }
+        if(f == 40)
+        {
+            VR_Test_Check(vr_np_shots == vr_npt_shots0 + 1, sprintf("delay: fires once closed (%g shots, want 1)",
+                vr_np_shots - vr_npt_shots0));
+            self = os;
+            VR_NPT_End();
+            return;
         }
     }
     self = os;
