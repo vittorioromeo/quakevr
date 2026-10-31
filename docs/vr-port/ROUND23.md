@@ -4345,6 +4345,70 @@ The leftovers of round 5 ("Not done": the smooth rigs one model after another, 4
   and keying (the rigs must still be found: the key holds the derived rig), and the limbs' builds already run on the pool
   beside the load (round 5: 22 ms there, not on the main thread). Under the brief's ~20 ms bar: skipped.
 
+## Armour: the plate a shot meets, the debug view, the break sound, thrown plates (branch `agent/armorfix`, IN PROGRESS)
+
+His voice notes of 2026-10-31 ~19:55 (five items). Stopped at the tool budget; what is in and what is open:
+- **One query for every shot** (`agarmor::shotPiece`, QC `VR_AgArmor_Shot` from `PositionalDamage`, builtin
+  `ragdollbone(e, at, QVR_ARMOR_SHOT (-1005), dir)`): the first unbroken plate's triangles (outer, inner, rim) crossed on
+  the shot's line from 64 units before its point to where it first crosses the skin itself (`hitmodel::skinCrossing`,
+  no tolerance; else 4 units past the guns' tolerance). Sparks, blood, pellets, damage and armed cuts read that answer
+  (`VR_AgArmor_PieceAt`, while it is the target's this frame and within 16 units); blows with no line keep `pieceAt`.
+  Plates are posed from the drawn pose (`hitmodel::drawnVertexPoints`: an armed humanoid's authored-rig pose, as shots
+  meet it and as the client draws its armour; before, `vertexPoint`'s animation frame put the arm plates where the arms
+  were not). Plate Blocks All now stops the whole part even as the plate breaks (before: the pool's overflow went
+  through). Pellets count their damage per piece (a head pellet's three times a body pellet's), not their number.
+- **Debug view** `vr_agarmor_debug` (Debug > Show Armour Plates): every armoured body's unbroken plates' triangles,
+  posed exactly as `shotPiece` poses them, a colour per piece.
+- **Break sound**: `vr/derived/armor_break.wav` rate 0.7 -> 1.05 (vr_sndlayer.cpp; pitch rises with it). Committed.
+- **Thrown plates**: the debris gets `forcegrabbable_touch`, `throwhit`, the thrown-weapon flags (as vr_debris.qc's rocks).
+  It moves when thrown and its touch fires (test 12: 2/0, "throw hit: vr_ar_debris into monster_army ... 3.7 damage").
+- **Absorbed shot's push** `vr_agarmor_impulse` 0.5 (Combat > Armed Grunts > Armour: "Push Through Plates", 0..1): a
+  living body's flinch (`T_DamageDeal`: `VR_HitReact_Hit` gets what got through plus the plates' share times it; before,
+  a plate that took it all left `take` 0: no flinch at all), a ragdoll's or a knocked-down body's shot push
+  (`VR_ShotPush`: times it when `VR_AgArmor_PushScale`, the same plate query, finds an unbroken plate first; before, the
+  full push).
+- **Part 2 (the shot query's leaks, the tests)**:
+  - Test 10's 185 failures were the test's: `VR_ARS_Still` stopped the monsters' start think, so they never became
+    shootable (`takedamage` 0: every pellet passed by, every projectile's damage refused). Fixed in the test.
+  - The query itself: a line through a plate's vertex or a shared edge met none of its triangles by rounding (the
+    cuirass's and the shins' face points). `plateOnSegment` now takes 1e-3 barycentric slack.
+  - Splash: a projectile a plate just took (plasma, rocket) no longer hurts the body with its own blast (the plate broke
+    on its hit, the splash came after: 50 through). `VR_AgArmor_Damage` remembers the inflictor (Plate Blocks All).
+  - Left (test 10, 9 of about 190 shots fail, every one a projectile): plasma bolts at kind 0's cuirass, helmet and
+    right shin never strike the body (took 0, no record: they fly past or hit something else); plasma, nails and two
+    rocket direct hits whose touch point (`VR_Proj_Begin`'s `vr_proj_at`, the projectile's origin when the touch trace
+    misses) lies off the line, so the query from it misses the plate. Next: the query from the projectile's own flight
+    line (its last origin and velocity) rather than the touch point. Test 10 is also slow on a loaded machine (1500 s
+    reached kind 1 only); it needs a lighter frame (fewer bodies at once) before it can go in the baseline.
+  - Test 1: "rule 1: 60 past a pool" now expects 0 through (Plate Blocks All stops the whole hit as the plate breaks);
+    its pauldron place check and hits use the plate's outer face middle (limbpiece 14), not its model's origin (off the
+    plate: with plates posed as drawn the bracer's plate was nearer there).
+- **Rig Studio armour** (his "an option to toggle armor pieces in the rig studio"): Subject > Armour: None / Green /
+  Yellow / Red, a toggle per piece (10), All / No Pieces; put on the subject live (`agarmor::give`, QC
+  `VR_AgArmor_SetCmd`) and kept for the next subjects; default None. A studio subject never takes the skill's roll any
+  more (the "random armor pieces" on changing subject: its spawn ran `VR_AgArmor_Spawn`). Console:
+  `vr_rigstudio_armour [type] [pieces] | piece <i>`. Check: `vr_rigstudio_test_armour` (studio open; the roll made
+  certain meanwhile; ends on "rigstudio armour: N passed"): 25/0. Scenario `spawnarmed` monsters are bare too (the same
+  scene every time). The toolgun already passed armour 0; ragtool spawns nothing; `vr_physics_spawn` still rolls (a map
+  spawn's behaviour, left).
+- **Debug view** fixed: `debugDraw` read edicts without the server's VM (a crash the first time it was on).
+- **Part 3** (merged `next`: the new rows are schema rows, `vr_agarmor_impulse` and `vr_agarmor_debug` in vr_menu_rows.inc):
+  - Projectiles: `VR_Proj_Begin` hands the armour its flight line (`VR_AgArmor_Flight`: from a frame's flight back);
+    `VR_AgArmor_Shot` queries from there (each ask this frame near that line), not from the touch point.
+  - `shotPiece`: a line through a seam of a plate's mesh (test 10: a plate's face middle, a vertex; 0.002 units off a
+    line that met it, none) is retried nudged 0.05 four ways, then the skin it reaches under a worn plate (within the
+    plate's gap and thickness) counts as that plate.
+  - Test 10: one body at a time (10-16 s; before, four at once ran past 1500 s), at rest each shot, debris cleared,
+    `vr_hit_react 0` meanwhile (a flinch moved the plate off the aimed line), projectiles from 44 units out, the plasma
+    bolt's 0.1 s rest skipped, projectiles that never meet the body counted apart (`missed`, at most 12). It also
+    judged the next kind's first pellet against the last body (a stale projectile): fixed. Now 157/15: 12 projectile
+    leaks left, all limb plates (bracers 4/5, thighs 7, shins 9) and mostly plasma and rockets, the projectile
+    meeting the body at the plate's face middle yet the query finding no plate there while the same query from a
+    point 0.5-4 units back along the line finds it. Suspect the limb plates' "face middle" (limbpiece 14) lies on or
+    inside a wrapped plate's mesh; next: check those plates' meshes at that point.
+  - Debug view: the plate lines are `lines::line` (drawn over everything, no depth test), so they cannot hide in the
+    plate; the flatscreen Rig Studio screenshot shows the red armour but the 0.06-unit lines are too thin to see there.
+  - Test 11 timed out twice (240-300 s, no output at all) after the merge: not looked into.
 ## Directional parry 2: debug view, leniency settings, Enemy Melee Speed (branch `agent/dirparry2`)
 
 His words (10-31): a debug view for it, leniencies he can tweak, slowed enemy swings to practise with.

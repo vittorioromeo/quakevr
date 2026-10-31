@@ -189,6 +189,12 @@ void PF_ragdollbone()
         G_FLOAT(OFS_RETURN) = static_cast<float>(agarmor::pieceAt(G_EDICT(OFS_PARM0), p));
         return;
     }
+    if(within == -1005.f) // QVR_ARMOR_SHOT: the unbroken plate a shot at p going along the 4th argument met first
+    {
+        const float* dir = qcvm->argc > 3 ? G_VECTOR(OFS_PARM3) : p;
+        G_FLOAT(OFS_RETURN) = static_cast<float>(agarmor::shotPiece(G_EDICT(OFS_PARM0), p, dir));
+        return;
+    }
     if(within == -1001.f) // QVR_ARMOR_CLIENT: the client's word on e's armour (p_x: 0 type, 1 pieces, 2 wear; -1 none)
     {
         G_FLOAT(OFS_RETURN) = static_cast<float>(agarmor::clientState(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), static_cast<int>(p[0])));
