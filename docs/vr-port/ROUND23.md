@@ -3311,6 +3311,7 @@ His note (2026-10-30): the force grab should refuse a busy hand too, "one single
   changes answers (a hand on a fore-end or holding an enemy could no longer climb): his call.
 - **Open (his call):** a busy hand still takes a weapon (lying, thrown, a grunt's, the holster's): the flashlight hand
   can grab a gun. Kept as it was (VR_HANDFREE_BUSY at those sites); dropping the bit there makes them refuse.
+  (Decided 2026-10-31: refuse. See "Busy hands refuse weapon pickups too".)
 - **check_canonical.py `qc-busy-hand`:** a new read of the force grab's lock, a slot kind compared to VR_HOLD_NONE or
   VR_HOLD_FLASHLIGHT, VR_Hand_IsBusyKind or the gone VR_Hand_CanTake outside today's sites fails the build.
 - **Test:** `vr_pickup_test 8` (Misc/quakevr/carry/fgbusy_test.sh, e1m1): VR_Hand_Free's exceptions; the first
@@ -3354,6 +3355,103 @@ Checklist:
 - [guardpose] Raise your weapon near a grunt (the wind-up parry) or step in close (the preventive guard): its raised
   weapon points at your hand, its hand still on the grip (not stretched off it).
 
+## Busy hands refuse weapon pickups too (branch `agent/busyweapon`; his decision 2026-10-31: "Yes, refuse")
+
+- **Change:** a busy hand (the flashlight, an enemy held, a gun's fore-end, a just-seated magazine, a tug) takes no
+  weapon. `VR_HANDFREE_BUSY` dropped at the weapon-taking sites: weapon_touch (all four checks, the body's too), a lying
+  weapon's grab (VR_PickupObj_WeaponTouch), a thrown weapon's catch (wpnthrow_handtouch_ent_hand), an armed grunt's
+  weapon (VR_AG_HandGrab: the grab, the living ragdoll's disarm grab), the holster draw and a carried gun's handle
+  (DoHandImpl's handEmpty).
+- **New exception `VR_HANDFREE_GUNGRIP` (8):** busy on your own gun alone (VR_HOLD_SSGGRIP, VR_HOLD_MAGREHOLD) still
+  takes it. The hand-off (VRTryHandOff) uses it: two-handing the super shotgun makes the fore-end hand SSGGRIP-busy, and
+  the main hand letting go must still hand the gun over (no drop). The flashlight hand gets no hand-off.
+- **Grapple pass:** it predicts the hand-off (the hook stays in when the other hand will take the gun), so it now asks
+  exactly what VRTryHandOff asks (GUNGRIP | LOCKED); with BUSY it kept the hook in for a flashlight hand that then would
+  not take the gun.
+- **Water climb:** kept BUSY (VR_HANDFREE_BUSY is now its only user): it is a grip on the bank, not a weapon taken.
+- **Weapon swaps:** VR_Hand_Free answers FALSE for a hand holding a weapon before any busy check, so swaps, two-handing
+  and the fore-end release-then-take (VRTakeCarriedWeapon needs a fresh grip; SSGGRIP is cleared once the grip lets go)
+  are unchanged. The hand-switch hotspot (VRSwitchWeaponHands: otherHandEmpty = VRIsHandEmpty) still moves a weapon
+  into a flashlight hand: not a pickup, left as is (one line for him if he wants it refused too).
+- **Moved:** `.vr_ag_tug_pl` to vr_armedgrunt_defs.qc, with a VR_AG_HandGrab prototype (the test, compiled earlier,
+  reads them).
+- **Test:** `vr_pickup_test 8` (Misc/quakevr/carry/fgbusy_test.sh, e1m1): VR_FgBusyTest_Offer gives the off hand,
+  gripping, a weapon lying (weapon_touch), a thrown weapon (the catch) and an armed grunt's weapon (VR_AG_HandGrab, grab
+  speed limit off for the test): the flashlight hand refuses each, the free hand takes each (a tug begun counts), then
+  all put back. Plus GUNGRIP: a fore-end hand gets the hand-off, a flashlight hand not. 19 passed, 0 failed (was 11).
+- **Verified:** run_baseline.sh --only (28 cases: weapon_catch, flash_grab, mapgun_pickup/transfer, pickup_mag,
+  grip_state, ragdoll_grab, walltorch_grab, held_over_props, reload, agrunt 2/3/21/22/31-33/36/39/65-69/74/75/91/92):
+  as agent/busyhand's run: agrunt_31/36/65 FAIL -> PASS against the old baseline, agrunt_66 PASS -> FAIL (known flaky),
+  agrunt_67 TIMEOUT (listed flaky; his game was running for part of the run); the rest as the baseline.
+  holsteritems_test.sh all PASS. Build 0 warnings.
+- **Checklist:** hold the flashlight in one hand and grab a gun lying on the floor, catch a thrown gun, or grab a
+  grunt's gun with that hand: nothing happens; the free hand takes them. Two-hand the super shotgun and let go with the
+  main hand: the fore-end hand keeps it. Flashlight hand at a holster: no draw.
+## Drawn pose: worn backpacks and disarm volumes (branch `agent/drawnpose`)
+
+His notes: worn packs phase through a grunt bending to take a weapon ("where are they attached? It should be the upper
+back"); the pack's grab box bigger than the pack; Show Disarm Volumes on an active ragdoll float off the hand and weapon,
+follow the empty off hand of a toppled rocket-launcher grunt, a lying sword's angle differs from its volume; the magenta
+and orange volumes 3-4x longer than a held nail pistol.
+- **Where the pack was:** on the chest bone, but of the .mdl's animation frame (hitmodel's vertex pose: three chest
+  vertices), not of the body as drawn (the authored rig's bones: the Rig Studio's takes, arm IK, hit reactions); its
+  ragdoll box was laid on the chest part by that same frame pose. Now `drawnpose::bone` (Quake/vr/vr_drawnpose.cpp, the
+  one "where is this bone drawn now" query): a ragdoll's part as drawn (ragdoll::drawnPart), else the authored rig's
+  drawn bone (rig2::drawnBone) placed as the client draws the entity; none (dedicated server, out of view): the old frame
+  pose. `agarmor::packWhere` rides it; `packRest` gives the rest placement, which `createRagdollPack` lays on the chest
+  part's body directly (the body is the bone as drawn when the ragdoll began).
+- **Grab box:** a dead one's pack went to the generic item touch (its entity's level box plus an item's pickup bonus) and
+  the ragdoll and QC hand tests took it 3 units (11 cm) off the box; a living one's had vr_foegrab_leniency. Now a touch
+  provider for worn packs (vr_physics.cpp `onWornPack`: the fist's spheres, else the palm's 3.5 cm sphere, on the pack
+  model's box), the ragdoll's `packReach` and QC `VR_WP_HAND_REACH` the palm's 3.5 cm, no leniency. Shots: the same box.
+- **Disarm volumes:** one query, `hitreact::drawnWeapon` (QC `weapondrawnpose(p, 0, 30/31/32)`, `VR_AG_DrawnFrame`):
+  the weapon's client entity as finally drawn (after every client step), when the arms (placeProp) or a ragdoll's hand
+  (ragdollProps) placed it in the last 0.05 s. `VR_AG_WeaponLine` and `VR_AGS_HandLine` read it; a ragdoll's weapon is
+  placed there (`VR_AG_RagProp`), riding the hand bone that holds it as drawn (`weapondrawnpose(g, side, 36)`,
+  agarms::ragdollGrip), not the limb nearest it as the ragdoll began.
+- **The wrong hand (for the tug fix):** `.vr_ag_rb` (the limb a ragdoll's weapon rides; also box3d `ragdollWeaponHold`'s
+  part) was `ragdollbone(g, p.origin)`, the part nearest the server's weapon place as the ragdoll began: a two-handed
+  weapon's support (left) hand, and the soldier's hidden rig gun is welded to the left forearm (`looseHolder`). The drawn
+  weapon follows `agarms::ragdollGrip(model, side)`'s hand bone (side 0 the main weapon). Now `.vr_ag_rb` is that bone.
+- **Volume sizes:** orange is the strike/parry line (VR_AG_WeaponLine, VR_DV_STRIKE_R / VR_AGPAR_R 5 round it: the
+  sweeping fist's or weapon's own thickness, kept); magenta the shot volume (VR_AGS_W_RADIUS 3 x vr_agrunt_shotdisarm_size)
+  and its hand part (cyan). The line was 8 units behind the grip to the muzzle (24 ahead without one); now the weapon
+  model's own ends along its forward (`held::drawnExtent`, `weapondrawnpose(p, 0, 33/34/35)`), the shot radius half its
+  thickness (`vr_ag_wr`).
+- **Test 99** (`vr_agrunt_test 99`, QC/vr_drawnpose_test.qc): nail pistol, shotgun (wearing a pack), rocket launcher,
+  standing / falling / lying: volume grip < 2 units and axis < 3 degrees off the drawn weapon, length within 10% of the
+  model, the ragdoll's weapon on the hand holding it, the pack's chest bone source and its entity < 3 units off; a pellet
+  3 units past the nail pistol's front end not counted, one on its middle counted. NOT RUN YET (his game was running).
+- Not done: the drawn pack still reaches the client through the network (one frame or so behind the drawn body); the
+  hitmodel (shots on a live grunt's body) still reads the .mdl frame pose (another stale-pose reader).
+
+## Tug fixes verified; the physical downed tug (branch `agent/busyweapon`)
+
+His note (2026-10-31): grabbing a knocked-down enemy's weapon "doesn't seem to actually physically grab the enemy's
+weapon/hand and physically move it at all ... the enemy physically resists by pulling back."
+- **The wrong arm, really fixed:** `VR_AG_TugGripAt` read `ragdollpoint(g, hand, '0 0 0', 1)`, the hand part's body
+  frame origin, which lies by the spine: the hold took part 1 (spine) every time (tests 31/32 "ragtug arm" failed).
+  Now `ragdollpoint(g, bone, _, 2)`: the part's middle (its mass centre; box3d `ragdollPartMiddle`). Tests 31, 32: 6/0.
+- **Downed / staggering physical tug:** `ragdolltug(g, pl, h, 6, grip, back, force)` (box3d `tugRagdoll` what 6): the
+  hand holds the limb nearest the weapon hand's middle by the limb grab's spring (any ragdoll of it, no stagger needed),
+  its arm pulling that limb back towards its pelvis at `back` N (an internal force: the pelvis gets the opposite, so it
+  never slides the body; `World::RagdollGrab::tugBack`, applied in `syncRagdollGrabs`). `back` =
+  `VR_AG_TugDownBack`: 0.5 x Least Pull x Its Pull x Staggering or Down = 91 N as shipped. The weapon rides the hand
+  bone (VR_AG_RagProp), so pulling moves weapon, hand and arm, and the body once the arm is out. Win/lose as the physical
+  tug (`VR_AG_TugBreak`), its times (impulse, least pull time) eased by `vr_agrunt_tug_downed_scale`; the pull is the
+  stretch until your hand has drawn the arm 5 cm from the body, then the larger of stretch and hold force (the hold's
+  force alone carries its own fall: a falling sword grunt tore it out of a still hand in 0.3 s). The haptics feel its arm
+  (max of the pull and the hold's force). Such a hold lets go only at the limb grab's 64-unit lag (a falling body drags
+  the limb past Let Go Past). Up again (its ragdoll gone): the old tug goes on (`VR_AG_TugDownToOld`).
+- **Tests:** 92 phases 5 (shotgun) and 6 (sword), knocked down: physical, its arm's pull on a still hold 140 / 378 N,
+  the pull moved the weapon 14.7 / 32.6 units, won in 0.71 / 0.81 s: 22/0. Test 91: 9/9 won (case 10 now accepts the
+  off hand, the hand placed last since d6ae5f30a). Tug group 23, 29-38, 74 and ragdoll_grab as before (29: FAIL in the
+  baseline too). Test 92 phase 1 (two hands within 0.85x one hand) is borderline: 0.93-1.17 s against 1.36 s, failed
+  1 run in 3 since the grip fix.
+- **Step-1 fixes:** test 99 put its "3 units past the front end" pellet 3/length units past (`along` past 1 is a share):
+  fixed. vr_wornpack_test 1: its "on its back" check wanted the entity within 0.1 of the .mdl frame-pose place; the pack
+  rides the drawn chest bone since drawnpose (test 99: within 3 units): 3. OPEN: "dragged slowly by the pack: kept"
+  fails (the hold reads 4000 N at the grab, the 43 u/s drag 1550-1940 N, over the 1500 N rip): not investigated.
 ## Armed knights: shipped poses and every weapon class (branch `agent/knightparity`)
 
 His report (Rig Studio, armed Knight subject, `vr_agknight 1`): "the Knight has no poses at all and it doesn't support

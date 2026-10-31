@@ -144,6 +144,7 @@ vr_agrunt_test   95       vr_armedknight_test.qc           knights as armed huma
 vr_agrunt_test   96       vr_armedgrunt_preparry_test.qc   the preventive parry: its guard up close, held, dropped (vr_agrunt_preparry)
 vr_agrunt_test   97       vr_disarmviz_test.qc             Show Disarm Volumes in each state (eye images)
 vr_agrunt_test   98       vr_armedgrunt_preparry_test.qc   the wind-up parry: your raise baits its guard; by what you hold (vr_agrunt_windup_parry)
+vr_agrunt_test   99       vr_drawnpose_test.qc             the drawn pose: disarm volumes and worn packs on the body as drawn
 vr_agrunt_test   100+     vr_armedgrunt_test.qc            one weapon's every-weapon test (100 + its index)
 
 vr_flare_test    1*       vr_flaregun_test.qc              (the self-test (its fall-through))
@@ -168,7 +169,7 @@ vr_pickup_test   4        vr_pickup_test.qc                (VR_PickupTest_EnemyG
 vr_pickup_test   5        vr_pickup_test.qc                (VR_PickupTest_Lying)
 vr_pickup_test   6        vr_pickup_test.qc                (VR_PickupTest_Float)
 vr_pickup_test   7        vr_pickup_test.qc                the hand slot's busy kinds (VR_SlotTest_Run, vr_axestick_test.qc)
-vr_pickup_test   8        vr_pickup_test.qc                one busy-hand check: the force grab refuses a busy hand (VR_FgBusyTest_Run)
+vr_pickup_test   8        vr_pickup_test.qc                one busy-hand check: the force grab and the weapon grabs refuse a busy hand (VR_FgBusyTest_Run)
 
 vr_reload_test   1        vr_reload_test.qc                (VRIsHandEmpty)
 vr_reload_test   2        vr_reload_test.qc                (VR_Reload_IsRound)

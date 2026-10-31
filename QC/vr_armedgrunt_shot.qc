@@ -176,9 +176,11 @@ void(entity g, entity p) VR_AGS_HandLine =
         makevectors('0 1 0' * g.angles_y);
         sh = g.origin + v_right * (p.vr_ag_left ? -7 : 7) + '0 0 1' * (g.maxs_z * 0.45);
     }
-    vector d = sh - p.origin;
-    vr_ags_ha = p.origin;
-    vr_ags_hb = vlen(d) > 1 ? p.origin + normalize(d) * min(VR_AGS_FOREARM, vlen(d)) : p.origin;
+    // (the grip where the weapon is drawn: VR_AG_DrawnFrame)
+    VR_AG_DrawnFrame(p);
+    vector d = sh - vr_ag_df_o;
+    vr_ags_ha = vr_ag_df_o;
+    vr_ags_hb = vlen(d) > 1 ? vr_ag_df_o + normalize(d) * min(VR_AGS_FOREARM, vlen(d)) : vr_ag_df_o;
 };
 
 // Whether the path a..b meets the held weapon `p` (of `g`) or its hand before vr_ags_ms: if so, it is the one met
@@ -198,7 +200,7 @@ void(entity g, entity p, vector a, vector b) VR_AGS_MeetOne =
     {
         VR_AG_WeaponLine(p);
         d = VR_AGS_Closest(a, b, vr_ag_wa, vr_ag_wb);
-        r = VR_AGS_W_RADIUS * size;
+        r = vr_ag_wr * size; // (the weapon's own drawn thickness: VR_AG_WeaponLine)
         if(d <= r + near && vr_ags_s < vr_ags_ms)
         {
             vr_ags_mp = p;
@@ -491,7 +493,7 @@ void(entity g, entity p, entity e, float kind, vector a, vector b) VR_AGS_ProjRo
     if(parts != 1)
     {
         VR_AG_WeaponLine(p);
-        d = VR_AGS_Closest(a, b, vr_ag_wa, vr_ag_wb) - VR_AGS_W_RADIUS * size;
+        d = VR_AGS_Closest(a, b, vr_ag_wa, vr_ag_wb) - vr_ag_wr * size;
         f = d <= 0 ? 1 : (near > 0 ? max(0, 1 - d / near) : 0);
         f = f * cvar_hget(cvarh_vr_agrunt_shotdisarm_weapon_w);
         if(f > best) { best = f; part = 1; s = vr_ags_s; }

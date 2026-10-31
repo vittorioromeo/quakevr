@@ -10,11 +10,17 @@
 //     goes on on the off hand;
 //   4 a staggering grunt grabbed: not yours at once (vr_agrunt_tug_downed_scale 0.5), held still 0.4 s it keeps it,
 //     pulled at 0.6 m/s it is yours within 2 s (a standing one's: about 1.2 s at 0.4 m/s, no fight);
-//   5 the same, knocked down.
+//   5 the same, knocked down: the physical downed tug (his note 2026-10-31: the hand should "actually grab the enemy
+//     hand/weapon and move it, while the enemy physically resists by pulling back"): physical (ragdolltug 6), its arm's
+//     pull felt in the hold held still (joint force > 0), pulled its weapon moves over 8 units, won within 2 s;
+//   6 the same with a sword grunt.
 // Ends on `agtest: test 92 over: P passed, F failed`.
 
 #ifdef QVR_TESTS
 float vr_ag2_phase;
+vector vr_ag2_w0;      // phases 5, 6: its weapon's place as grabbed
+float vr_ag2_moved;    // ... how far it moved since (most)
+float vr_ag2_back;     // ... its arm's pull on the hold held still (most joint force, N)
 float vr_ag2_one;      // phase 0's win time (s; 99: kept)
 float vr_ag2_keep_drop;
 float vr_ag2_keep_scale;
@@ -38,7 +44,7 @@ void() VR_AG2_Fresh =
     p.weapon2 = WID_FIST;
     VR_AG2_Pull(0, 0);
     cvar_set("vr_mock_hand_lift", "0");
-    vr_agt_grunt = VR_AGT_Spawn(WID_SHOTGUN, 60);
+    vr_agt_grunt = VR_AGT_Spawn(vr_ag2_phase == 6 ? WID_SWORD : WID_SHOTGUN, 60);
 };
 
 // The off hand's fist striking the held weapon `p` of `g` at `sp` m/s (as test 29's blow: the melee tracker's swing,
@@ -81,7 +87,7 @@ void() VR_AG2_Frame =
         }
         // (a staggering or downed one up again in its tug fights back: not while its pull is measured)
         cvar_set("vr_agrunt_tug_fight", ph >= 4 ? "0" : ftos(vr_ag2_keep_fight));
-        if(ph > 5)
+        if(ph > 6)
         {
             cvar_set("vr_agrunt_fall_drop", ftos(vr_ag2_keep_drop));
             cvar_set("vr_agrunt_tug_downed_scale", ftos(vr_ag2_keep_scale));
@@ -109,11 +115,11 @@ void() VR_AG2_Frame =
     }
     if(vr_agt_step == 2)
     {
-        if(ph == 4 || ph == 5)
+        if(ph >= 4)
         {
             makevectors('0 1 0' * g.angles_y);
             VR_Knockdown_Stagger(g, v_forward * -1, 0.5, 0.95); // (as test 23)
-            if(ph == 5) { VR_Knockdown_Start(g); }
+            if(ph >= 5) { VR_Knockdown_Start(g); }
         }
         if(ph < 4) { VR_AGPT_ToHand(g, p); }
         else { cvar_set("vr_mock_hand_lift", "0"); localcmd("vr_mock_hand_to main agweapon 0.5\n"); }
@@ -142,6 +148,9 @@ void() VR_AG2_Frame =
                 g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing"), g.vr_ag_tug_pl == p && g.vr_ag_tug_down > 0 &&
                 g.vr_ag_prop != world);
         }
+        vr_ag2_w0 = g.vr_ag_prop ? g.vr_ag_prop.origin : '0 0 0';
+        vr_ag2_moved = 0;
+        vr_ag2_back = 0;
         vr_agt_clip = time;
         vr_agt_step = 4;
         vr_agt_until = time + (ph >= 4 ? 0.4 : 0.5);
@@ -156,6 +165,10 @@ void() VR_AG2_Frame =
                 VR_AGT_Check(sprintf("two %g: held still: kept: %s:", ph, vr_ag_tug_why), FALSE);
                 vr_agt_step = 9;
                 vr_agt_until = time;
+            }
+            if(ph >= 5 && g.vr_ag_tug_rag)
+            {
+                vr_ag2_back = max(vr_ag2_back, vr_ag_tug_fjoint);
             }
             return;
         }
@@ -182,6 +195,11 @@ void() VR_AG2_Frame =
             VR_AGT_Check(sprintf("two %g: held still 0.4 s: tug %g, it holds %s:", ph, g.vr_ag_tug_pl == p,
                 g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing"), g.vr_ag_tug_pl == p && g.vr_ag_prop != world);
         }
+        if(ph >= 5)
+        {
+            VR_AGT_Check(sprintf("two %g: downed: physical %g, its arm's pull on the still hold %.0f N (its pull back %.0f N):", ph,
+                g.vr_ag_tug_rag, vr_ag2_back, VR_AG_TugDownBack(g)), g.vr_ag_tug_rag && vr_ag2_back > 0);
+        }
         vr_agt_clip = time;
         vr_agt_step = 5;
         vr_agt_until = time + 5;
@@ -192,6 +210,10 @@ void() VR_AG2_Frame =
         float rate = ph >= 4 ? 0.6 : 0.4;
         float pull = min(0.7, (time - vr_agt_clip) * rate);
         VR_AG2_Pull(pull, ph == 1 ? pull : 0);
+        if(ph >= 5 && g.vr_ag_prop && g.vr_ag_tug_pl)
+        {
+            vr_ag2_moved = max(vr_ag2_moved, vlen(g.vr_ag_prop.origin - vr_ag2_w0));
+        }
         if(g.vr_ag_tug_pl && floor((time - vr_agt_clip) * 2) != floor((time - frametime - vr_agt_clip) * 2))
         {
             VR_AG2_Print(sprintf("two %g at %.1f s: %.0f N (joint %.0f, stretch %.0f), held %.2f s,", ph, time - vr_agt_clip,
@@ -202,10 +224,23 @@ void() VR_AG2_Frame =
                 vlen(p.handpos - g.origin)));
         }
         if(g.vr_ag_tug_pl && time < vr_agt_until) { return; }
-        float won = g.vr_ag_tug_wins >= 1 && p.weapon == WID_SHOTGUN && !g.vr_ag_prop;
+        // (Both hands on, won: the weapon in the hand placed last, the off hand here; his note 2026-10-31.)
+        float got = ph == 1 ? p.weapon2 : p.weapon;
+        float won = g.vr_ag_tug_wins >= 1 && got == (ph == 6 ? WID_SWORD : WID_SHOTGUN) && !g.vr_ag_prop;
+        if(ph >= 5)
+        {
+            VR_AGT_Check(sprintf("two %g: downed: your pull moved its weapon %.1f units (over 8):", ph, vr_ag2_moved),
+                vr_ag2_moved > 8);
+        }
         float took = won ? time - vr_agt_clip : 99;
-        string what = sprintf("two %g: pulled at %.1f m/s: %s after %.2f s (peak %.0f N), your hand %s:", ph, rate,
-            won ? "won" : vr_ag_tug_why, time - vr_agt_clip, g.vr_ag_tug_peak, VR_AGT_Name(p.weapon));
+        string what = sprintf("two %g: pulled at %.1f m/s: %s after %.2f s (peak %.0f N), your %s hand %s:", ph, rate,
+            won ? "won" : vr_ag_tug_why, time - vr_agt_clip, g.vr_ag_tug_peak, ph == 1 ? "off (placed last)" : "main",
+            VR_AGT_Name(got));
+        if(ph == 1)
+        {
+            VR_AGT_Check(sprintf("two 1: the hand placed first (main) left empty: %s:", VR_AGT_Name(p.weapon)),
+                !won || p.weapon == WID_FIST);
+        }
         if(ph == 0)
         {
             vr_ag2_one = took;

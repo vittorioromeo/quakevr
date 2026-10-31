@@ -57,11 +57,17 @@ void serverWriteAll(struct sizebuf_s* msg);
 // Where piece `piece` of `ent` is now as a model of its own ("<model>#plate<piece>", derivedFile): `what` 0 its origin,
 // 1 its angles (an alias model's), as drawn (hitmodel's poses; else its rest pose where the entity stands).
 void plateWhere(struct edict_s* ent, int piece, int what, float* out);
-// The worn backpack (QC vr_wornpack.qc; box3d's wornPack): progs/backpack.mdl on `ent`'s back as its model is drawn now
-// (the cuirass's frame: hitmodel's poses, else its rest pose where it stands), behind its back's surface at its upper
-// chest, vr_worn_backpack_scale large, moved and turned by vr_worn_backpack_x/_y/_z/_pitch/_yaw/_roll. `origin` the
-// pack model's, `axes` its forward, left, up; `mid`, `half` its box (half sizes along those axes). False: not a wearer.
-[[nodiscard]] bool packWhere(struct edict_s* ent, glm::vec3& origin, glm::mat3& axes, glm::vec3& mid, glm::vec3& half);
+// The worn backpack (QC vr_wornpack.qc; box3d's wornPack): progs/backpack.mdl on `ent`'s back as its body is drawn now
+// (its chest bone: drawnpose::bone, the authored rig's pose or its ragdoll's part as drawn; `drawn` false, or not drawn
+// lately: the chest's frame as hitmodel's frame poses it, else its rest pose where it stands), behind its back's surface at
+// its upper chest, vr_worn_backpack_scale large, moved and turned by vr_worn_backpack_x/_y/_z/_pitch/_yaw/_roll. `origin`
+// the pack model's, `axes` its forward, left, up; `mid`, `half` its box (half sizes along those axes). False: not a wearer.
+[[nodiscard]] bool packWhere(struct edict_s* ent, glm::vec3& origin, glm::mat3& axes, glm::vec3& mid, glm::vec3& half,
+    bool drawn = true);
+// ... in its rest pose (the model's rest space, units): `restOrigin`, `restAxes` the pack model's place and turn there,
+// `mid`, `half` its box in its own space (packModelBox). The bone it rides: packBone (the rig's "chest"; -1 none).
+[[nodiscard]] bool packRest(struct edict_s* ent, glm::vec3& restOrigin, glm::mat3& restAxes, glm::vec3& mid, glm::vec3& half);
+[[nodiscard]] int packBone(struct edict_s* ent);
 // The pack model's box in its own space at vr_worn_backpack_scale: its middle and half sizes (units).
 void packModelBox(glm::vec3& mid, glm::vec3& half);
 // Mod_LoadModel (VR_DerivedModelFile): "<model>#plate<piece>"'s .mdl file (VR_HeapMalloc'd), or null.

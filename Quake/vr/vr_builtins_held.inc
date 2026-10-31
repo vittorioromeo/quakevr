@@ -142,6 +142,52 @@ void PF_weapondrawnpose()
         }
         return;
     }
+    if(what >= 30 && what <= 32)
+    {
+        // weapondrawnpose(p, 0, 30 / 31 / 32): an armed humanoid's held weapon `p` as drawn lately (this listen server's own
+        // view, alive or on its ragdoll's hand: hitreact::drawnWeapon): its origin, its forward, its up (world); '0 0 0'
+        // (all): not drawn lately. QC VR_AG_DrawnFrame: the disarm volumes, a ragdoll's weapon.
+        glm::vec3 at{0.f}, fw{0.f}, up{0.f};
+        const bool local = sv.active && cls.state == ca_connected;
+        if(!local || !hitreact::drawnWeapon(NUM_FOR_EDICT(player), at, fw, up))
+        {
+            at = fw = up = glm::vec3{0.f};
+        }
+        progs::returnVec(what == 30 ? at : what == 31 ? fw : up);
+        return;
+    }
+    if(what >= 33 && what <= 35)
+    {
+        // weapondrawnpose(p, 0, 33 / 34 / 35): weapon `p`'s drawn model along its forward (held::drawnExtent), in its own
+        // axes (forward, left, up) from its origin: 33 its back end's middle, 34 its front end's, 35 '<half its thickness>
+        // <its length> 0'; '0 0 0' (all): no drawn surface. QC VR_AG_WeaponLine: its disarm volumes the weapon's own size.
+        glm::vec3 back{0.f}, front{0.f};
+        float radius = 0.f;
+        if(!held::drawnExtent(player, back, front, radius))
+        {
+            back = front = glm::vec3{0.f};
+            radius = 0.f;
+        }
+        progs::returnVec(what == 33 ? back : what == 34 ? front : glm::vec3{radius, front.x - back.x, 0.f});
+        return;
+    }
+    if(what == 36)
+    {
+        // weapondrawnpose(g, side, 36): armed humanoid `g`'s ragdoll's hand bone holding its weapon on `side` (0 the main
+        // weapon's, 1 the left one's: as ragdollProps draws it, agarms::ragdollGrip) as '<bone> 0 0'; -1 none. QC
+        // VR_AG_RagProp: the limb its weapon rides (.vr_ag_rb), not the limb nearest it as the ragdoll began (a two-handed
+        // weapon's support hand: the off hand, his rocket launcher note).
+        rigpose::Rigid grip;
+        int bone = -1;
+        const int mi = static_cast<int>(player->v.modelindex);
+        const qmodel_t* model = mi > 0 && mi < MAX_MODELS ? sv.models[mi] : nullptr;
+        if(!model || !agarms::ragdollGrip(model, hand, grip, bone))
+        {
+            bone = -1;
+        }
+        progs::returnVec({static_cast<float>(bone), 0.f, 0.f});
+        return;
+    }
     if(what == 29)
     {
         // weapondrawnpose(e, side, 29): armed humanoid `e`'s drawn hand `side` (0 right) less its head's middle (model

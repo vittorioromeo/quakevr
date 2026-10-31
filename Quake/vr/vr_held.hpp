@@ -103,6 +103,12 @@ bool bothHandsThrow(int hand, double at, bool release, throwing::Estimate& out);
 // networked scale and offset), its nearest point in `nearest`; -1 if it has no surface to measure.
 [[nodiscard]] float surfaceDistance(edict_t* ent, const glm::vec3& point, glm::vec3* nearest = nullptr);
 
+// Server side: `ent`'s drawn shape (as surfaceDistance measures it) along its own forward, in its axes relative to its
+// origin (forward, left, up): `back` and `front` its two ends' middles (its cross-section's middle at its least and
+// greatest forward), `radius` half its cross-section's larger side. An armed humanoid's held weapon's disarm volumes
+// (QC VR_AG_WeaponLine: weapondrawnpose 33-35). False: no drawn surface.
+bool drawnExtent(edict_t* ent, glm::vec3& back, glm::vec3& front, float& radius);
+
 // The gap (units) between a fist's spheres (world: middle and radius) and `ent`'s drawn surface: the least of each
 // sphere's distance less its radius; ZA_FLOAT_MAX when the fist's bounds are farther than `within` from the box it is
 // drawn in (not measured), or when it has no surface to measure (`surface` false). Its mesh is made once (the model's

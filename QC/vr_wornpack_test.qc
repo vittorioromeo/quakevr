@@ -130,8 +130,11 @@ void(entity p) VR_WPT_Standing =
     makevectors([0, a.angles_y, 0]);
     float back = (mid - a.origin) * v_forward;
     float up = mid_z - a.origin_z;
-    VR_Test_Check(back < -4 && back > -20 && up > 4 && up < 30 && vlen(pk.origin - limbpiece(a, 0, 20)) < 0.1,
-        sprintf("on its back: %.1f units behind its middle, %.1f up", back, up));
+    // (Its entity on the pack's place: limbpiece's is the .mdl frame pose's, the pack rides the chest bone as drawn since
+    // drawnpose::bone, a fraction of a unit off it: within test 99's 3 units.)
+    VR_Test_Check(back < -4 && back > -20 && up > 4 && up < 30 && vlen(pk.origin - limbpiece(a, 0, 20)) < 3,
+        sprintf("on its back: %.1f units behind its middle, %.1f up, its entity %.2f units off the pack's frame place", back, up,
+        vlen(pk.origin - limbpiece(a, 0, 20))));
     VR_Test_Check(pk.solid == SOLID_NOT && !(pk.flags & FL_FORCEGRABBABLE) && !(pk.flags & FL_ITEM) &&
         pk.handtouch != VR_Carry_Handtouch, "not takeable from the living (not touchable, not force-grabbable)");
     // A hit on its chest: the pack stays.
