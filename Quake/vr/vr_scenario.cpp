@@ -660,9 +660,12 @@ void place()
             continue;
         }
         // An armed humanoid wears the toolgun's Armed Humanoid armour when the scene sets one (`cvar
-        // vr_toolgun_armed_armor 2`); otherwise its own roll, as a map gives it.
-        if(vr_toolgun_armed_armor.value != 0.f && !strncmp(PR_GetString(e->v.classname), "monster_vr_", 11))
+        // vr_toolgun_armed_armor 2`); otherwise its own roll, as a map gives it. (Its spawn names it monster_army and
+        // the like: what was asked for says it is armed.)
+        const char* asked = sp.armed ? sp.what.cStr() : sp.entry >= 0 ? toolgun::spawnableClass(sp.entry) : "";
+        if(vr_toolgun_armed_armor.value != 0.f && !strncmp(asked, "monster_vr_", 11))
         {
+            Con_DPrintf("vr_scenario: line %d: the toolgun's armour on edict %d\n", sp.line, NUM_FOR_EDICT(e));
             toolgun::armArmedSpawn(e);
         }
         made++;
