@@ -17,6 +17,7 @@
 #include "vr_crates.hpp"
 #include "vr_debris.hpp"
 #include "vr_disarmviz.hpp"
+#include "vr_drawnpose.hpp"
 #include "vr_foegrab.hpp"
 #include "vr_mgroups.hpp"
 #include "vr_grip.hpp"

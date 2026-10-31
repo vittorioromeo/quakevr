@@ -432,6 +432,15 @@ void() VR_AGPT_RagTug =
         VR_AGT_Check(sprintf("ragtug still 1 s: it holds %s, tug %g, pull %.0f N (peak %.0f), impulse %.0f, standing %g:",
             g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing", g.vr_ag_tug_pl != world, vr_ag_tug_force, g.vr_ag_tug_peak,
             g.vr_ag_tug_imp, g.vr_kd_stagger), g.vr_ag_prop != world && g.vr_ag_tug_pl == p && g.vr_kd_stagger == 1);
+        // The arm the hold drives is the weapon's hand's (his note 2026-10-31: it was the other one): the part held is
+        // its ragdoll's hand holding the weapon as drawn (weapondrawnpose 36) or that hand's forearm.
+        if(g.vr_ag_prop)
+        {
+            vector hv = weapondrawnpose(g, g.vr_ag_prop.vr_ag_left ? 1 : 0, 36);
+            float held = ragdolltug(g, p, cVR_MainHand, 5);
+            VR_AGT_Check(sprintf("ragtug arm: the hold takes part %g, the weapon's hand %g (its parent %g):", held, hv_x,
+                ragdolllimbs(g, 5, hv_x)), hv_x >= 0 && held >= 0 && (held == hv_x || held == ragdolllimbs(g, 5, hv_x)));
+        }
         vr_agt_clip = time;
         vr_agt_step = 4;
         vr_agt_until = time + 5;

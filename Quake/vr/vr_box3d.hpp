@@ -470,6 +470,8 @@ struct RagdollHold
 // `from` (units); its edict number, 0 if none (or no such part).
 int ragdollPartCentre(const glm::vec3& from, int part, glm::vec3& out, const char* name = nullptr);
 [[nodiscard]] glm::vec3 ragdollPoint(int num, int bone, const glm::vec3& p, bool toWorld);
+// That part's middle (its mass centre) in the world (units); '0 0 0' none.
+[[nodiscard]] glm::vec3 ragdollPartMiddle(int num, int bone);
 
 // Decapitation (ROUND21.md, "Decapitation"; QC vr_decap.qc). `ent`'s ragdoll loses its head (its rig's head bone and the
 // bones on it: their bodies and joints go, the mesh's head is drawn at the neck); a dead monster with a rig and no

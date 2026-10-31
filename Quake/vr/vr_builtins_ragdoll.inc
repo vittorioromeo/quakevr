@@ -249,8 +249,12 @@ void PF_ragdollboxpart()
 void PF_ragdollpoint()
 {
     const float* p = G_VECTOR(OFS_PARM2);
-    const glm::vec3 v = box3d::ragdollPoint(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), static_cast<int>(G_FLOAT(OFS_PARM1)),
-        geom::vec(p), G_FLOAT(OFS_PARM3) != 0.f);
+    // (toWorld 2: the part's middle, its mass centre, in the world; `p` unused. A part's body frame is not its middle:
+    // '0 0 0' of a hand's lay by the spine.)
+    const glm::vec3 v = G_FLOAT(OFS_PARM3) == 2.f
+                            ? box3d::ragdollPartMiddle(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), static_cast<int>(G_FLOAT(OFS_PARM1)))
+                            : box3d::ragdollPoint(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), static_cast<int>(G_FLOAT(OFS_PARM1)),
+                                  geom::vec(p), G_FLOAT(OFS_PARM3) != 0.f);
     float* out = G_VECTOR(OFS_RETURN);
     out[0] = v.x;
     out[1] = v.y;
@@ -334,6 +338,25 @@ void PF_limbpiece()
         o[0] = w.x;
         o[1] = w.y;
         o[2] = w.z;
+        return;
+    }
+    if(what == 25 || what == 26) // the worn pack's tests: 25 its box's middle as the frame poses the body (not as drawn); 26 '<drawnpose::Source of its chest bone> <its bone> 0'
+    {
+        edict_t* e = G_EDICT(OFS_PARM0);
+        glm::vec3 r{0.f}, origin, mid, half;
+        glm::mat3 axes;
+        if(what == 25 && agarmor::packWhere(e, origin, axes, mid, half, false))
+        {
+            r = mid;
+        }
+        else if(what == 26)
+        {
+            rigpose::Rigid t;
+            float s = 1.f;
+            const int b = agarmor::packBone(e);
+            r = glm::vec3{static_cast<float>(b >= 0 ? drawnpose::bone(e, b, t, s) : drawnpose::Source::None), static_cast<float>(b), 0.f};
+        }
+        progs::returnVec(r);
         return;
     }
     const glm::vec3 v = box3d::limbPiece(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1)), static_cast<int>(G_FLOAT(OFS_PARM2)));

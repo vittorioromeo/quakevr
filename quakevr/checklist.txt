@@ -187,6 +187,17 @@ Armed Knights on, Rig Studio, Subject: the armed Knight: Pose Keys shows his pos
 Toolgun: spawn an armed Knight with a shotgun (then a nailgun, two pistols): he hunts you, aims, fires, reloads; knock the gun out of his hand: he does not go back for it (Pick Up Ranged Weapons off); with it on he does.
 Map knights (e1m2, Armed Knights on) still hold swords; the Rig Studio Subject menu's plain entries read "(plain)".
 Weapon Upgrades now defaults to Everywhere (vr_ad_upgrades 2).
+Hold the flashlight in one hand and grab a gun lying on the floor, catch a thrown gun, or grab a grunt's gun with that hand: nothing happens; the free hand takes them.
+Flashlight hand at a holster with the grip: no draw; the other hand draws.
+Two-hand the super shotgun and let go with the main hand: the fore-end hand keeps it (no drop). With the grapple gun, the hook stays in on such a pass.
+Watch a grunt wearing a backpack bend down to pick up a weapon, crouch, stagger and topple: the pack stays on its upper back and never sinks into the body.
+Reach for a grunt's worn pack, living or dead: it is taken only when your hand touches the pack itself, not a hand's width off it.
+With Debug > Show Disarm Volumes on, shove a grunt holding a rocket launcher to the ground: the volumes stay on the hand holding the launcher and on the launcher itself, not on the empty off hand.
+With Show Disarm Volumes on, look at a grunt's nail pistol: the orange and magenta volumes are as long as the pistol. Shooting just past its muzzle doesn't disarm it; shooting the pistol can.
+Shove a sword grunt (AD) or a gun grunt to the ground: once it lies still, the volume's angle matches the drawn weapon's.
+Standing tug on a grunt's or enforcer's shotgun, or a knight's sword: the arm holding the weapon is the one pulled, not its body.
+Tug with one hand, add the other, and win: the weapon lands in the hand you placed last.
+Knock an armed grunt down, grab its weapon and pull: its weapon, hand and arm follow your hand, and it pulls back; hold still and you feel it pulling; a steady pull tears the weapon out.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns

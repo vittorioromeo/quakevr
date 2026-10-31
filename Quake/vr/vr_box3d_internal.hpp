@@ -756,6 +756,9 @@ struct World
         // lever): the QC's hand holds nothing, so that never lets it go; the QC ends it.
         bool tug{false};
         float tugReach{0.f}; // ... the hand's distance from its root body as it took hold (m: ragdollTug what 3's stretch)
+        // ... a downed one's (ragdollTug what 6: lying or staggering, not standing its ground): its arm's pull (N) on the
+        // held limb towards its body's middle, the body pulled the other way (a pull within it: it doesn't slide it).
+        float tugBack{0.f};
         // The toolgun's physgun's hold (player 0, no hand: vr_box3d_ragparts.cpp, "The physgun's hold"): where its
         // anchor is driven to (units).
         glm::vec3 target{0.f};

@@ -370,7 +370,7 @@ float(entity ent, float xHand) wpnthrow_handtouch_ent_hand =
 {
     entity entPlayer = ent.handtouch_ent;
 
-    if(!VR_Hand_Free(entPlayer, xHand, VR_HANDFREE_BUSY | VR_HANDFREE_LOCKED))
+    if(!VR_Hand_Free(entPlayer, xHand, VR_HANDFREE_LOCKED)) // (a busy hand catches no weapon)
     {
         return FALSE;
     }
@@ -1346,7 +1346,7 @@ float(entity ent, float xHand, float xWeapon, float xWeaponFlags) VRTryHandOff =
        ((xWeaponFlags & QVR_WPNFLAG_FOREGRIP_CARRIED) && !anywhere) ||
        !(VRGet2HAiming(ent) || time - ent.last_2h_time < 0.1 || anywhere) ||
        !VR_HandGrabUtil_IsHandGrabbing(ent, other) ||
-       !VR_Hand_Free(ent, other, VR_HANDFREE_BUSY | VR_HANDFREE_LOCKED))
+       !VR_Hand_Free(ent, other, VR_HANDFREE_GUNGRIP | VR_HANDFREE_LOCKED)) // (on this gun's fore-end: yes; the flashlight's: no)
     {
         return FALSE;
     }
@@ -1524,10 +1524,10 @@ void(entity ent, float xHand,
     float handGrabbing = VR_HandGrabUtil_IsHandGrabbing(ent, xHand);
     float handPrevGrabbing = VR_HandGrabUtil_IsHandPrevGrabbing(ent, xHand);
     float otherHandGrabbing = VR_HandGrabUtil_IsHandGrabbing(ent, VRGetOtherHand(xHand));
-    // (No weapon: the weapon's branches below. Empty: nothing carried either, what may take a weapon: the holster's draw,
-    // a busy hand too.)
+    // (No weapon: the weapon's branches below. Empty: nothing carried either, not busy (the flashlight's hand takes no
+    // weapon), what may take a weapon: the holster's draw, a carried gun's handle.)
     float handWeaponless = VRIsHandWeaponless(ent, xHand);
-    float handEmpty = VR_Hand_Free(ent, xHand, VR_HANDFREE_BUSY | VR_HANDFREE_LOCKED);
+    float handEmpty = VR_Hand_Free(ent, xHand, VR_HANDFREE_LOCKED);
     float otherHandEmpty = VRIsHandEmpty(ent, VRGetOtherHand(xHand));
     float triggerPressed = VRGetEntFireButtonPressed(ent, xHand);
     float startedHandGrabbing = VR_HandGrabUtil_StartedHandGrabbing(ent, xHand);

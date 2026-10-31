@@ -859,6 +859,31 @@ bool nearDrawn(edict_t* ent, const glm::vec3& p, float margin)
     return nearDrawnBox(ent, p, margin);
 }
 
+bool drawnExtent(edict_t* ent, glm::vec3& back, glm::vec3& front, float& radius)
+{
+    glm::mat3 axes;
+    glm::vec3 origin;
+    const DrawnMesh* m = entityMesh(ent, axes, origin);
+    if(!m || m->tris.empty())
+    {
+        return false;
+    }
+    glm::vec3 lo{1e30f}, hi{-1e30f};
+    for(const Triangle& t : m->tris)
+    {
+        for(int i = 0; i < 3; i++)
+        {
+            lo = glm::min(lo, t.p[i]);
+            hi = glm::max(hi, t.p[i]);
+        }
+    }
+    const glm::vec3 mid = (lo + hi) * 0.5f;
+    back = glm::vec3{lo.x, mid.y, mid.z};
+    front = glm::vec3{hi.x, mid.y, mid.z};
+    radius = za::max(hi.y - lo.y, hi.z - lo.z) * 0.5f;
+    return hi.x > lo.x;
+}
+
 float surfaceDistance(edict_t* ent, const glm::vec3& point, glm::vec3* nearest)
 {
     glm::mat3 axes;

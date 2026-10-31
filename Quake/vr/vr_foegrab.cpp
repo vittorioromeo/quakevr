@@ -558,7 +558,8 @@ bool tryTake(edict_t* player, Holder& hd, int h, const VrMove& move)
             found.best ? found.bestGap : 0.f);
     }
     // (A fist on a living wearer's backpack takes the pack, not the back under it.)
-    if(const PackFound pack = packSearch(fist, lo, hi, lenient); pack.m)
+    // (Its pack's own box as drawn and the fist's spheres, no leniency: his note, the pack taken with the hand off it.)
+    if(const PackFound pack = packSearch(fist, lo, hi, 0.f); pack.m)
     {
         return takePack(player, hd, h, pack.m, palm, pack.gap);
     }

@@ -74,10 +74,13 @@ float VR_HOLD_TUG = 10;       // a force grab's tug on a stuck axe (vr_axestick.
 .entity vr_hold_ent_main;     // a busy kind's thing (the tugged axe; else world)
 .entity vr_hold_ent_off;
 // A grab site's exceptions to "free to grab" (VR_Hand_Free's `xAllow`, vr_wpnforcegrab.qc; 0: none, the usual):
-float VR_HANDFREE_BUSY = 1;   // any busy kind takes it too: a weapon's grab (lying, thrown, a grunt's, a holster's draw,
-                              // the hand-off: two hands on your own gun), as a weapon's grab always allowed
+float VR_HANDFREE_BUSY = 1;   // any busy kind takes it too: the water climb's grip on the bank (not a grab of a thing). A
+                              // weapon's grab (lying, thrown, a grunt's, a holster's draw) is refused by a busy hand like
+                              // any grab (his decision, 2026-10-31: the flashlight hand takes no weapon)
 float VR_HANDFREE_FOE = 2;    // busy with an enemy alone takes it: the foe grab's hand-over (the enemy becomes a ragdoll)
 float VR_HANDFREE_LOCKED = 4; // the force grab's lock does not refuse: its own frame and catch, a weapon's grab
+float VR_HANDFREE_GUNGRIP = 8; // busy on your own gun alone takes it (its fore-end, VR_HOLD_SSGGRIP; the magazine it just
+                               // seated, VR_HOLD_MAGREHOLD): the hand-off and the grapple's pass (two hands on that gun)
 .float vr_carry_items;   // the hands carrying a thing to put away (vr_carry.qc VR_Carry_ItemsFrame: bit 0 the off hand, 1 the main; STAT_QVR_CARRYITEM)
 .float vr_carry_fullcue; // on a player: no full cue again before then (VR_Carry_FullCue)
 .float carry_autotried;  // on a box: vr_carry_autocollect tried it this carry (VR_Carry_AutoCollect)

@@ -319,9 +319,9 @@ void() VR_PickupTest_Float =
 };
 
 // vr_pickup_test 8: one busy-hand check for every grab (his note, 2026-10-30): VR_Hand_Free's exceptions, and the force
-// grab's start asking it. The first thing on the level a force grab may take (VR_Forcegrab_IsEligible) is put 64 units
-// along the off hand's aim and the off hand's frame run with its trigger held: free, it locks on; busy (the flashlight,
-// a gun's fore-end, a just-seated magazine, a tug), it does not; locked on, a hand turning busy lets go. Then all as was.
+// grab's start asking it. A weapon offered to the off hand (VR_FgBusyTest_Offer): refused busy, taken free. The first
+// thing on the level a force grab may take (VR_Forcegrab_IsEligible) is put 64 units along the off hand's aim and the
+// off hand's frame run with its trigger held: free, it locks on; busy (the flashlight, a gun's fore-end, a just-seated magazine, a tug), it does not; locked on, a hand turning busy lets go. Then all as was.
 // The off hand must aim level and clear (the mock's: `vr_mock_hand off -0.25 1.2 -0.3 70 0 0`, its aim 70 degrees below
 // the controller's; Misc/quakevr/carry/fgbusy_test.sh).
 void(entity xThing, float xKind, string xWhat) VR_FgBusyTest_Busy =
@@ -334,6 +334,119 @@ void(entity xThing, float xKind, string xWhat) VR_FgBusyTest_Busy =
     VR_Hand_Unbusy(self, h, xKind, "test");
 };
 
+// A weapon offered to the off hand, gripping (the grip pressed now), busy with the flashlight or free (his decision,
+// 2026-10-31: a busy hand takes no weapon). xHow: 1 a pickup lying (weapon_touch), 2 a thrown weapon caught
+// (wpnthrow_handtouch_ent_hand), 3 a grunt's weapon grabbed (VR_AG_HandGrab: a tug or a yank). TRUE: the hand took it
+// (a tug begun counts); then put away again (the tug ended, the hand emptied). FALSE also when there was nothing to offer.
+float(float xHow, float xBusy) VR_FgBusyTest_Offer =
+{
+    float h = cVR_OffHand;
+    entity pl = self;
+    entity oldOther = other;
+    makevectors(pl.v_angle_y * '0 1 0');
+    vector at = pl.origin + v_forward * 32;
+    entity w = world;
+    entity g = world;
+    if(xHow == 3)
+    {
+        g = nextent(world);
+        while(g != world && !(g.vr_ag && g.vr_ag_prop && g.health > 0 && !g.vr_ag_tug_pl))
+        {
+            g = nextent(g);
+        }
+        if(g == world)
+        {
+            return FALSE;
+        }
+        w = g.vr_ag_prop;
+    }
+    else if(xHow == 2)
+    {
+        w = CreateThrownWeapon(pl, WID_NAILGUN, 0, WeaponInst_New(WeaponIdToBaseClipSize(WID_NAILGUN)), at, '0 0 0',
+            '0 0 0', '0 0 0', FALSE /* disappear on hit */, FALSE /* deal damage */, 0);
+    }
+    else
+    {
+        w = spawn();
+        setorigin(w, at);
+        self = w;
+        VR_PickupTest_SpawnFunc(WID_SUPER_SHOTGUN);
+        self = pl;
+    }
+    if(w == world)
+    {
+        return FALSE;
+    }
+    float bits = pl.vrbits0;
+    float grabT = pl.offhand_lastgrabtime;
+    float relT = pl.offhand_lastreleasetime;
+    pl.vrbits0 = (pl.vrbits0 | QVR_VRBITS0_OFFHAND_GRABBING) - (pl.vrbits0 & QVR_VRBITS0_OFFHAND_PREVGRABBING);
+    pl.offhand_lastgrabtime = time; // (the grab started now: VR_HandGrabUtil_StartedHandGrabbing)
+    pl.offhand_lastreleasetime = time - 1;
+    pl.touchinghand = h;
+    w.handtouch_ent = pl;
+    w.handtouch_hand = h;
+    if(xBusy)
+    {
+        VR_Hand_Busy(pl, h, VR_HOLD_FLASHLIGHT, world, "test");
+    }
+    if(xHow == 3)
+    {
+        VR_AG_HandGrab(w, pl, h);
+    }
+    else if(xHow == 2)
+    {
+        wpnthrow_handtouch_ent_hand(w, h);
+    }
+    else
+    {
+        self = w;
+        other = pl;
+        weapon_touch();
+    }
+    self = pl;
+    other = oldOther;
+    if(xBusy)
+    {
+        VR_Hand_Unbusy(pl, h, VR_HOLD_FLASHLIGHT, "test");
+    }
+    float took = !VRIsHandWeaponless(pl, h) || (g != world && g.vr_ag_tug_pl == pl);
+    if(g != world && g.vr_ag_tug_pl == pl)
+    {
+        VR_AG_TugEnd(g, FALSE, "test");
+    }
+    if(!VRIsHandWeaponless(pl, h))
+    {
+        VRSetHandEmpty(pl, h);
+        W_SetCurrentAmmo();
+    }
+    else if(xHow == 1 && w.model != string_null)
+    {
+        remove(w); // (refused: not left lying about)
+    }
+    else if(xHow == 2)
+    {
+        remove(w); // (refused: still here; a catch removes it)
+    }
+    pl.vrbits0 = bits;
+    pl.offhand_lastgrabtime = grabT;
+    pl.offhand_lastreleasetime = relT;
+    return took;
+};
+
+void() VR_FgBusyTest_Weapons =
+{
+    float speed = cvar("vr_agrunt_grab_speed");
+    cvar_set("vr_agrunt_grab_speed", "0"); // (any speed: the mock hand's and the grunt's own drift aside)
+    for(float i = 1; i <= 3; ++i)
+    {
+        string s = i == 1 ? "a weapon lying" : i == 2 ? "a thrown weapon" : "a grunt's weapon";
+        VR_Test_Check(!VR_FgBusyTest_Offer(i, TRUE), sprintf("the flashlight hand refuses %s", s));
+        VR_Test_Check(VR_FgBusyTest_Offer(i, FALSE), sprintf("the free hand takes %s", s));
+    }
+    cvar_set("vr_agrunt_grab_speed", ftos(speed));
+};
+
 void() VR_FgBusyTest_Run =
 {
     float h = cVR_OffHand;
@@ -342,8 +455,13 @@ void() VR_FgBusyTest_Run =
     VR_Test_Check(VR_Hand_Free(self, h, 0), "the off hand is free to start");
     VR_Hand_Busy(self, h, VR_HOLD_SSGGRIP, world, "test");
     VR_Test_Check(!VR_Hand_Free(self, h, 0) && !VR_Hand_Free(self, h, VR_HANDFREE_LOCKED | VR_HANDFREE_FOE) &&
-                  VR_Hand_Free(self, h, VR_HANDFREE_BUSY), "busy: refused, but where a busy hand may (a weapon's grab)");
+                  VR_Hand_Free(self, h, VR_HANDFREE_BUSY), "busy: refused, but where a busy hand may (the water climb)");
+    VR_Test_Check(VR_Hand_Free(self, h, VR_HANDFREE_GUNGRIP), "on a gun's fore-end: the hand-off takes it");
     VR_Hand_Unbusy(self, h, VR_HOLD_SSGGRIP, "test");
+    VR_Hand_Busy(self, h, VR_HOLD_FLASHLIGHT, world, "test");
+    VR_Test_Check(!VR_Hand_Free(self, h, VR_HANDFREE_GUNGRIP | VR_HANDFREE_LOCKED), "the flashlight: no hand-off");
+    VR_Hand_Unbusy(self, h, VR_HOLD_FLASHLIGHT, "test");
+    VR_FgBusyTest_Weapons();
     VR_Hand_Busy(self, h, VR_HOLD_FOE, world, "test");
     VR_Test_Check(!VR_Hand_Free(self, h, 0) && VR_Hand_Free(self, h, VR_HANDFREE_FOE), "holding an enemy: the hand-over only");
     VR_Hand_Unbusy(self, h, VR_HOLD_FOE, "test");

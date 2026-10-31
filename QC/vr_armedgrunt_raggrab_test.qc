@@ -352,7 +352,8 @@ void() VR_AGRB_Frame =
     float tp = time - vr_agrb_press;
     float tug = (g.vr_ag_tug_pl == p);
     float limb = !tug && ((ragdollheld(p, cVR_MainHand) == 1) || (ragdollheld(p, cVR_OffHand) == 1)); // (not the physical tug's hold)
-    float yours = (p.weapon == WID_SHOTGUN);
+    // (Case 10, both hands on: won, it goes to the hand placed last, the off hand: VR_AG_TugWinHand, d6ae5f30a.)
+    float yours = (p.weapon == WID_SHOTGUN) || (c == 10 && p.weapon2 == WID_SHOTGUN);
     p.vr_ag_knock_at = time + 0.3; // (the grab and the pull are no blow on its weapon or hand)
     p.vr_ag_knock_off = time + 0.3;
     if(tug)
