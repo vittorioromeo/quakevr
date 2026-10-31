@@ -2932,8 +2932,18 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
     return damage;
 };
 
+// The next T_Damage only deals its damage, as a blow (T_DamageImpl's melee rules): its source did its own parry,
+// beheading and push (a chainsaw's tick: VR_Chainsaw_Cut). T_Damage clears it at once, so a hit inside that one (a barrel's
+// blast it sets off) is an ordinary hit.
+float vr_dmg_dealonly;
+
 float(entity targ, entity inflictor, entity attacker, float damage) T_Damage =
 {
+    if(vr_dmg_dealonly)
+    {
+        vr_dmg_dealonly = FALSE;
+        return T_DamageImpl(targ, inflictor, attacker, damage, 1);
+    }
     float parried = VR_Parry(targ, inflictor, attacker, damage);
     // VR: an armed one parries a monster's melee blow on its weapon (vr_armedgrunt_parry.qc): cut, and no pain from it.
     float agp = FALSE;

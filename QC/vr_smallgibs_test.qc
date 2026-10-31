@@ -1279,7 +1279,8 @@ void() VR_SmallGib_TestFrame =
                 self.weapon = WID_CHAINSAW;
                 vector mid = (m.absmin + m.absmax) * 0.5;
                 VR_Hit_Begin(QVR_HITKIND_MELEE, cVR_MainHand, mid, normalize(mid - self.origin));
-                T_DamageImpl(m, self, self, cvar_hget(cvarh_vr_chainsaw_damage) * frametime, 1);
+                vr_dmg_dealonly = TRUE; // (a chainsaw's tick: VR_Chainsaw_Cut)
+                T_Damage(m, self, self, cvar_hget(cvarh_vr_chainsaw_damage) * frametime);
                 VR_Hit_End();
                 self.weapon = oldWeapon;
                 vr_sgib_test_b++;

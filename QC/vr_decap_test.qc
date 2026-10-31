@@ -572,7 +572,8 @@ void(float xTest) VR_Decap_Test =
         VR_DamageCredit_SetWeapon(self, WID_CHAINSAW);
         if(saw != 2)
         {
-            T_DamageImpl(m, self, self, 8, 1);
+            vr_dmg_dealonly = TRUE; // (a chainsaw's tick: VR_Chainsaw_Cut)
+            T_Damage(m, self, self, 8);
         }
         VR_Hit_End();
         if(saw == 1)
