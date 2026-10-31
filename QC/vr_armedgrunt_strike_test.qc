@@ -243,7 +243,8 @@ void(entity g, float c) VR_AGST_Strike =
         PositionalDamage(g, t2.origin, normalize(toBody));
         T_Damage(g, t2, p, 5);
         self = was;
-        extra = sprintf(", %g damage, %.1f kg", h0 - g.health, VR_Thrown_Mass(t2));
+        extra = sprintf(", %g damage, %.1f kg, aimed %.2f off its hand, struck %.2f off (hand hull %g)", h0 - g.health,
+            VR_Thrown_Mass(t2), VR_AG_BlowGap(g, w, c11), VR_AG_BlowGap(g, w, vr_hr_at), hq_z);
     }
     else
     {

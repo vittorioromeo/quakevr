@@ -693,6 +693,7 @@ float(entity g, entity e) VR_AG_ThrowOnWeapon =
     float spd = vlen(e.velocity);
     if(spd < 100)
     {
+        VR_AG_Log(sprintf("strike: a thrown %s too slow (%.0f)", e.classname, spd));
         return FALSE;
     }
     vector c = (e.absmin + e.absmax) * 0.5;
@@ -715,6 +716,8 @@ float(entity g, entity e) VR_AG_ThrowOnWeapon =
         {
             VR_AG_WeaponLine(q);
             VR_AGS_HandLine(g, q);
+            vr_ag_strike_g = g; // (StrikeGap's hulls: this one's, not the last strike's)
+            vr_ag_strike_p = q;
             if(VR_AG_StrikeGap(a, b, reach, 0) <= 0)
             {
                 hit = q;
@@ -725,6 +728,7 @@ float(entity g, entity e) VR_AG_ThrowOnWeapon =
     }
     if(!hit)
     {
+        VR_AG_Log(sprintf("strike: a thrown %s's way in missed its weapon and hand", e.classname));
         return FALSE;
     }
     e.vr_ag_knock_at = time;
