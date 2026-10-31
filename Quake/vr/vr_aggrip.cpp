@@ -42,6 +42,10 @@ constexpr GlobalRow globalDefaults[] = {
     {1, aggrip::Main, 1.71f, 0.55f, 3.13f, 15.0f, -4.2f, -2.7f},
     {1, aggrip::Off, 0.89f, -0.53f, -2.72f, -11.5f, -87.1f, -153.0f},
     {1, aggrip::Second, 12.09f, 9.17f, -0.14f, -39.5f, 9.1f, 33.2f},
+    // (the armed knight (agent/knightpose): his hands' grip frames are turned as his rest pose's sword, so with no Second
+    // row his off hand on a gun's second grip was turned 166 degrees off his forearm, never taken (vr_agarms_wrist): the
+    // turn that leaves his wrist straight on the shotgun's fore-end in Aim (5 degrees; the grunt's tuned one 32))
+    {2, aggrip::Second, 0.f, 0.f, 0.f, -54.5f, 176.5f, 74.0f},
 };
 
 // A weapon's own shipped grips (its weapon id: Weapon Offsets' ID), on top of its kind's "All Weapons" one; the Grip
@@ -727,6 +731,7 @@ int poseClass(int kind, int code, int* settingOut)
     {
         *settingOut = 0;
     }
+    kind = kind >= numKinds && kind < agpose::numKinds ? 0 : kind; // (the knight: the grunt's, as hands())
     for(const HoldRow& w : holdRows)
     {
         if(w.code == code && w.autoClass >= 0 && kind >= 0 && kind < numKinds)
