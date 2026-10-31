@@ -18,7 +18,7 @@ namespace qvr::agpose
 {
 
 // The armed kinds (QC vr_armedmon.qc VR_AM_*: its table's rows, VR_AM_COUNT; aggrip and agholds the same).
-inline constexpr int numKinds = 3; // 0 the grunt, 1 the enforcer, 2 the knight (vr_agknight)
+inline constexpr int numKinds = 4; // 0 the grunt, 1 the enforcer, 2 the knight (vr_agknight), 3 the death knight (vr_agdknight)
 [[nodiscard]] const char* kindName(int kind);  // "grunt", "enforcer"
 [[nodiscard]] const char* kindsName(int kind); // "grunts", "enforcers"
 [[nodiscard]] const char* kindTitle(int kind); // "Grunt", "Enforcer"

@@ -112,6 +112,11 @@ inline constexpr ArmedRig armedRigs[] = {
     // tip 561/564, its guard's ends 537/594 the roll; his fist 106, 110, 114; the chest's front 224)
     {modelmeta::Id::VrKnight, 655, {106, 110, 114}, {{334, 336}, {363, 365}, {524, 524}, {535, 540}, {557, 648}}, 5,
         {568, 571}, {561, 564}, 537, 594, "upperarm_r", "forearm_r", "upperarm_l", "forearm_l", 224, 1.f, 0.5f, 0.f},
+    // (the death knight, vr_agdknight: his sword's blade and guard hidden (knownSwords: 42.., 332.., 525..), its pommel
+    // 55/56, its tip 46/45, its guard's ends 351/342 the roll; his fist 79, 67, 75 (the stillest in the sword's space
+    // over his living frames, 2.2-2.6 rms); the chest's front 74; his torso's sides under the pauldrons, as the enforcer's)
+    {modelmeta::Id::VrHknight, 538, {79, 67, 75}, {{42, 58}, {332, 365}, {525, 532}}, 3, {55, 56}, {46, 45}, 351, 342,
+        "upperarm_r", "forearm_r", "upperarm_l", "forearm_l", 74, 0.6f, 0.5f, 0.f},
 };
 
 // `model`'s row (nullptr: not an armed monster's model).

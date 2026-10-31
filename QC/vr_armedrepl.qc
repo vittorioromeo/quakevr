@@ -398,11 +398,14 @@ float(float kind) VR_AGR_Replace =
     return TRUE;
 };
 
-// monster_knight: its armed version in its place with a sword (vr_agknight; ROUND23.md, "Knights as armed humanoids").
-// FALSE: not replaced (off, VR_AM_Spawn's own call, a statue, Honey's trigger-spawned copies' maker, a dummy).
+// monster_knight, monster_hell_knight: its armed version in its place with a sword (vr_agknight, vr_agdknight; ROUND23.md,
+// "Knights as armed humanoids", "Death knights as armed humanoids"). FALSE: not replaced (off, VR_AM_Spawn's own call, a
+// statue, Honey's trigger-spawned copies' maker, a dummy).
 float() VR_AKN_Replace =
 {
-    if(vr_am_spawning || vr_agr_hold > 0 || !cvar_hget(cvarh_vr_agknight) || self.classname != "monster_knight")
+    float kind = self.classname == "monster_knight" ? VR_AM_KNIGHT : self.classname == "monster_hell_knight" ? VR_AM_DKNIGHT : -1;
+    if(vr_am_spawning || vr_agr_hold > 0 || kind < 0 ||
+       !cvar_hget(kind == VR_AM_KNIGHT ? cvarh_vr_agknight : cvarh_vr_agdknight))
     {
         return FALSE;
     }
@@ -414,7 +417,7 @@ float() VR_AKN_Replace =
     {
         self.weapon = WID_SWORD;
     }
-    VR_AM_Spawn(VR_AM_KNIGHT);
+    VR_AM_Spawn(kind);
     return TRUE;
 };
 

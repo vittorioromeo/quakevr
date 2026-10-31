@@ -687,7 +687,7 @@ int hands(int kind, int code, int* settingOut)
     {
         return 0;
     }
-    kind = kind < numKinds ? kind : 0; // (a kind with no holds of its own, the knight: the grunt's)
+    kind = kind < numKinds ? kind : 0; // (a kind with no holds of its own, the knight, the death knight: the grunt's)
     for(const HoldRow& w : holdRows)
     {
         if(w.code == code)
@@ -731,7 +731,7 @@ int poseClass(int kind, int code, int* settingOut)
     {
         *settingOut = 0;
     }
-    kind = kind >= numKinds && kind < agpose::numKinds ? 0 : kind; // (the knight: the grunt's, as hands())
+    kind = kind >= numKinds && kind < agpose::numKinds ? 0 : kind; // (the knights: the grunt's, as hands())
     for(const HoldRow& w : holdRows)
     {
         if(w.code == code && w.autoClass >= 0 && kind >= 0 && kind < numKinds)

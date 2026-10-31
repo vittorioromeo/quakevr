@@ -476,14 +476,17 @@ constexpr ShippedRow shipped[] = {
 
 // QC's grunt-made fit of each kind (vr_armedmon.qc VR_AM_Row: vr_am_fit_scale): a place on the grunt times this is the
 // enforcer's.
+// (the death knight: his shoulders 26.5 apart (the grunt's 18.4, the enforcer's 24), his arm 16.4 (15.2, 15))
 constexpr glm::vec3 fitScale[agpose::numKinds] = {glm::vec3{1.f, 1.f, 1.f}, glm::vec3{1.f, 1.35f, 1.1f},
-    glm::vec3{1.f, 1.06f, 1.f}};
+    glm::vec3{1.f, 1.06f, 1.f}, glm::vec3{1.f, 1.44f, 1.15f}};
 
 // The kind whose shipped keys and IK stretch each kind ships (its own: itself): a kind with none of its own, the knight,
 // ships the grunt's, fitted to its body as the Pose Studio's "Copy to the other kind" fits them (fitKey: its places by
 // fitScale's ratio), until his own are tuned and shipped (ROUND23.md, "Armed knights: shipped poses and every weapon
-// class").
-constexpr int shippedFrom[agpose::numKinds] = {0, 1, 0};
+// class"). The death knight ships the grunt's too, fitted (1 1.44 1.15): measured against the enforcer's (fitted 1 1.07
+// 1.05), the grunt's rest hold put his sword 8 units from his own fist, the enforcer's 16 (test 95's spawn check; the
+// Pose Keys test 9/3 either way; ROUND23.md, "Death knights as armed humanoids").
+constexpr int shippedFrom[agpose::numKinds] = {0, 1, 0, 0};
 
 // Key `k` of code `code`, made for kind `from`'s body, fitted to kind `to`'s (its places scaled; its turns as they are).
 void fitKey(agpose::Key& k, int code, int from, int to)
@@ -1263,17 +1266,17 @@ void dumpText(za::String& out)
 
 const char* kindName(int kind)
 {
-    return kind == 0 ? "grunt" : kind == 1 ? "enforcer" : kind == 2 ? "knight" : "?";
+    return kind == 0 ? "grunt" : kind == 1 ? "enforcer" : kind == 2 ? "knight" : kind == 3 ? "death knight" : "?";
 }
 
 const char* kindsName(int kind)
 {
-    return kind == 0 ? "grunts" : kind == 1 ? "enforcers" : kind == 2 ? "knights" : "?";
+    return kind == 0 ? "grunts" : kind == 1 ? "enforcers" : kind == 2 ? "knights" : kind == 3 ? "death knights" : "?";
 }
 
 const char* kindTitle(int kind)
 {
-    return kind == 0 ? "Grunt" : kind == 1 ? "Enforcer" : kind == 2 ? "Knight" : "?";
+    return kind == 0 ? "Grunt" : kind == 1 ? "Enforcer" : kind == 2 ? "Knight" : kind == 3 ? "Death Knight" : "?";
 }
 
 const char* offModeName(int mode)

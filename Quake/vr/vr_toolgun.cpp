@@ -513,7 +513,8 @@ struct ArmedCatalogue
     char map[64]{};    // made for this map, these progs, AD's data in or out
     const void* progs{nullptr};
     float ad{-1.f};
-    float knight{-1.f}; // (vr_agknight as listed: the knight's kind listed only with it on)
+    float knight{-1.f};  // (vr_agknight as listed: the knight's kind listed only with it on)
+    float dknight{-1.f}; // (vr_agdknight as listed: the death knight's likewise)
     int kindCount{0};
     ArmedKind kinds[armedMaxKinds];
     za::InPlaceVector<ArmedWeapon, armedMaxWeapons> weapons; // by class (melee first), then code
@@ -543,7 +544,7 @@ void armedRefresh()
         return;
     }
     const float ad = vr_ad_mounted.value;
-    if(c.valid && c.progs == sv.qcvm.progs && c.ad == ad && c.knight == vr_agknight.value && !strcmp(c.map, sv.name))
+    if(c.valid && c.progs == sv.qcvm.progs && c.ad == ad && c.knight == vr_agknight.value && c.dknight == vr_agdknight.value && !strcmp(c.map, sv.name))
     {
         return;
     }
@@ -560,6 +561,7 @@ void armedRefresh()
     c.progs = sv.qcvm.progs;
     c.ad = ad;
     c.knight = vr_agknight.value;
+    c.dknight = vr_agdknight.value;
     copyText(c.map, sizeof(c.map), sv.name);
     c.kindCount = za::clamp(static_cast<int>(progs::qcFloat(count)), 0, armedMaxKinds);
     for(int k = 0; k < c.kindCount; k++)

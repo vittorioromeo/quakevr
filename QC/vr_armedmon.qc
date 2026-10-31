@@ -20,7 +20,8 @@
 float VR_AM_GRUNT = 0;    // monster_vr_grunt: a grunt (monster_army)
 float VR_AM_ENFORCER = 1; // monster_vr_enforcer: an enforcer (monster_enforcer)
 float VR_AM_KNIGHT = 2;   // monster_vr_knight: a knight (monster_knight) with a sword (vr_agknight: vr_armedknight.qc)
-float VR_AM_COUNT = 3;
+float VR_AM_DKNIGHT = 3;  // monster_vr_hknight: a death knight (monster_hell_knight) with his sword and his spell (vr_agdknight)
+float VR_AM_COUNT = 4;
 float VR_AM_GUN_KINDS = 2; // (the kinds before it: the gun holders, the replacements' and the pose categories')
 
 // Weapon classes a row may hold (vr_am_classes; VR_AG_CLASS_* bits: 1 << class).
@@ -70,10 +71,66 @@ vector vr_am_gun_fw;        // ... its own gun's way at rest
 // Its fighting distance (vr_armedgrunt.qc VR_AG_Ranges, vr_agrunt_range):
 float vr_am_range;          // its weapons' distances times this (under 1: it holds its ground nearer),
 float vr_am_range_threat;   // ... its least and best times this while you hold a melee weapon or charge it
+// Its own spell beside its weapon (the death knight's fireball volley): its monster's ranged attack, cast at range while
+// it holds a melee weapon or none (VR_AG_CheckAttack: VR_AM_SpellTry); a gun's holder uses the gun.
+var void() vr_am_spell;     // its frames' first function (SUB_Null: none)
 
 void(float k) VR_AM_Row =
 {
     vr_am_kind = k;
+    vr_am_spell = SUB_Null;
+    if(k == VR_AM_DKNIGHT)
+    {
+        // Quake VR's hknight.mdl: his sword's blade and guard 42..58, 332..365, 525..532 (vr_monstermods.cpp knownSwords),
+        // its pommel 55/56, its tip 46/45, its guard's ends 351/342; his fist on its grip (79, 67, 75: the stillest in the
+        // sword's space over his living frames, 2.2-2.6 units rms); ROUND23.md, "Death knights as armed humanoids". Every
+        // weapon class, as the knight's; his fireball volley kept (vr_am_spell: his magicc frames, his shots, his sounds).
+        vr_am_name = "Death Knight";
+        vr_am_spawnname = "monster_vr_hknight";
+        vr_am_classname = "monster_hell_knight";
+        vr_am_model = "progs/vrhknight.mdl";
+        vr_am_spawn = monster_hell_knight;
+        vr_am_hand = '79 67 75';
+        vr_am_gun_rear = '55 56 0';
+        vr_am_gun_muzzle = '46 45 0';
+        vr_am_gun_roll = '351 342 0';
+        vr_am_f_stand = 0; vr_am_n_stand = 9; // stand1..9
+        vr_am_f_run = 29; // run1..8
+        vr_am_rund[0] = 20; vr_am_rund[1] = 25; vr_am_rund[2] = 18; vr_am_rund[3] = 16;
+        vr_am_rund[4] = 14; vr_am_rund[5] = 25; vr_am_rund[6] = 21; vr_am_rund[7] = 13;
+        vr_am_f_atk = 0;     // (no aiming frames: its stand, its posed arms aim; the grunt's shot timing)
+        vr_am_atk_stand = 1;
+        vr_am_f_shove = 112; // slice1..6 (a gun's butt: his slash's lunge under his posed arms)
+        vr_am_f_reload = 0;  // (no reloads: its stand)
+        vr_am_n_reload = 9;
+        vr_am_f_take = 43;   // death2..6: down on his knees (no kneel of his own: his top 36, 31, 26, 22, 20 units; his
+        vr_am_n_take = 5;    // hand 12 units over the floor at the last)
+        vr_am_pain1 = "hknight/pain1.wav";
+        vr_am_pain2 = "hknight/pain1.wav";
+        vr_am_loot_aid = AID_SHELLS;
+        vr_am_loot_n = 0;
+        vr_am_classes = VR_AM_CLASSES_ALL;
+        vr_am_takes_ranged = cvar_hget(cvarh_vr_agknight_ranged_pickup); // (the knights' one setting: 0, a blade)
+        vr_am_back_lo = '105 106 0'; // (his back at the belt, x -5.3, z 11.8)
+        vr_am_back_hi = '327 330 0'; // (... at the shoulder blades, x -4, z 20)
+        vr_am_anchor = 74;
+        vr_am_anchor_at = '9 -0.4 20.6';
+        // The authored rig's shoulders (quakevr/rigs/vrhknight.rig2.txt: his upper arms' joints, under the pauldrons);
+        // his right arm shoulder to wrist (upper arm 8.2, forearm 8.2).
+        vr_am_sh_r = '0.5 -13.5 24';
+        vr_am_sh_l = '0.5 13 24';
+        vr_am_arm = 16.4;
+        // The grunt-made poses moved so the grunt's shoulders land on his (half as wide again, 8.8 higher).
+        vr_am_fit_scale = '1 1.44 1';
+        vr_am_fit_shift = '0.2 0.04 8.8';
+        vr_am_grip_r = '6.3 -20.3 9.3';
+        vr_am_grip_l = '6.2 14.8 8';
+        vr_am_gun_fw = '0.674 -0.376 0.636';
+        vr_am_range = 0.85; // (armoured, as the enforcer: he holds his ground)
+        vr_am_range_threat = 1.3;
+        vr_am_spell = hknight_magicc1;
+        return;
+    }
     if(k == VR_AM_KNIGHT)
     {
         // Quake VR's knight.mdl: his sword's vertices 334..336, 363..365, 524, 535..540, 557..648 (vr_monstermods.cpp

@@ -2594,6 +2594,32 @@ float() VR_AG_Idle =
     return TRUE;
 };
 
+// Its row's spell at range (the death knight's fireball volley: vr_am_spell), as id's CheckAttack casts it for a monster
+// with a melee attack: near 0.2, mid 0.05 a check (times vr_agrunt_ai_aggression), its target in a clear line, never far
+// or in reach. Its own frames, shots and sounds; after them its run (hknight_run1: the layer's). TRUE: cast.
+float(entity targ) VR_AM_SpellTry =
+{
+    VR_AM_Row(self.vr_ag_kind);
+    if(vr_am_spell == SUB_Null || enemy_range == RANGE_FAR || enemy_range == RANGE_MELEE || !enemy_vis)
+    {
+        return FALSE;
+    }
+    traceline(self.origin + self.view_ofs, VR_AI_Origin(targ) + targ.view_ofs, self.vr_ai_gate > 0 ? MOVE_PORTALS : FALSE, self);
+    if(trace_ent != targ || (trace_inopen && trace_inwater))
+    {
+        return FALSE;
+    }
+    float chance = (enemy_range == RANGE_NEAR ? 0.2 : 0.05) * VR_AGAI_Aggression();
+    if(random() >= chance)
+    {
+        return FALSE;
+    }
+    var void() spell = vr_am_spell;
+    spell();
+    SUB_AttackFinished(2 * random());
+    return TRUE;
+};
+
 // CheckAnyAttack (ai.qc): an armed grunt's attack by its weapon; its own run frames for going for a weapon or backing
 // off (the grunt's pains end in the grunt's run).
 float() VR_AG_CheckAttack =
@@ -2649,7 +2675,7 @@ float() VR_AG_CheckAttack =
             VR_AGAI_AttackFinished(0.6 + random() * 0.4); // (vr_agrunt_ai_firerate)
             return TRUE;
         }
-        return FALSE;
+        return VR_AM_SpellTry(targ); // (out of reach: its spell, if its row has one: the death knight's fireballs)
     }
 
     // The grunt's: a clear shot.
@@ -2990,6 +3016,21 @@ void() monster_vr_knight =
         self.weapon = WID_SWORD; // (his own: the sword; not the pool's)
     }
     VR_AM_Spawn(VR_AM_KNIGHT);
+};
+
+/*QUAKED monster_vr_hknight (1 0 0) (-16 -16 -24) (16 16 40) Ambush
+An armed death knight (experimental): a hell knight holding a weapon as the armed humanoids hold theirs (his own sword's
+place); at range he still casts his fireball volley while he holds a melee weapon or none.
+"weapon": its weapon (13 the sword, the default; any weapon: 2 the axe, 3 the shotgun, ...; -1 its fists). "weapon2": a
+second one in its left hand.
+*/
+void() monster_vr_hknight =
+{
+    if(!self.weapon)
+    {
+        self.weapon = WID_SWORD; // (his own: the sword; not the pool's)
+    }
+    VR_AM_Spawn(VR_AM_DKNIGHT);
 };
 
 // An armed monster of the table's row `kind` (vr_armedmon.qc): its weapon picked, then its monster's own spawn (its

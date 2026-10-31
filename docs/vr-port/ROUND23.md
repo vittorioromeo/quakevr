@@ -3665,3 +3665,44 @@ Checklist:
   wrist straight, and Pose Keys shows the "left hand: grip offset" dot; drag it: the hand follows on the gun.
 - [knightpose] Toolgun: an armed Knight with a nail pistol aims it in the pistol pose (off hand free or cupping), not
   shouldered as a rifle.
+
+## Death knights as armed humanoids (branch `agent/dknight`; stages 1-2 and the spell done, armour and the rest open)
+
+His words: "Add full support for Death Knights to the armed humanoid system, including poses, melee, ranged, etc. The
+Death Knights should still be able to perform their signature fireball ranged attack." And: "Ensure that the new armed
+humanoid Knight and Death Knight kinds also support armor."
+
+1. **Rig (done).** `progs/vrhknight.mdl` (`make_vrgrunt.py` row `vrhknight`: hknight.mdl without his sword's 110
+   triangles). `quakevr/rigs/vrhknight.rig2.txt` (`make_rig2.py hknight`: `HKNIGHT_SKELETON`, 20 bones read off his
+   mesh: the waist joint at the belt where the body's mesh overlaps the skirt; the jaw and helmet the head's, the back of
+   the neck not; each hip's hem ring, the knees' backs and the left cuff's top tied; the gauntlets' back corners the
+   hands'; no_skip on both arms; the pauldrons, their spikes, the elbow spikes rigid on the upper arms, the horns on the
+   head; knees blend 4.5; limits the grunt's). `vr_rig2_check progs/vrhknight.mdl`: **25 passed, 10 failed** (the
+   grunt's 22/13); all poses: see-through 0 (grunt 3), flipped 63 (599), collapsed 51 (49), folds 59 (522); random
+   1000: see-through 0, flipped 61 (grunt 515). Left failing: hands' stretch 0.29 (the 0.3 bar), the knees' deepest
+   bends (100-130: collapse at the back), neck+head 2 folds. Engine: model id `VrHknight`, `monsterFiles`, its ragdoll
+   row (the hell knight's seeds).
+2. **Kind 3 (done).** QC `VR_AM_DKNIGHT` 3 (`VR_AM_COUNT` 4): row (fist 79 67 75, the stillest in the sword's space,
+   2.2-2.6 rms; pommel 55/56, tip 46/45, guard ends 351/342; stand 0..8, run 29..36 with his steps, shove slice1..6,
+   take death2..6 (no kneel: down on his knees, hand 12 over the floor), back 105/106 and 327/330, anchor 74, shoulders
+   0.5 -+13.5 24, arm 16.4, fit 1 1.44 1 / 0.2 0.04 8.8). Engine: `agpose::numKinds`/`aggrip::numKinds` 4, `fitScale`
+   1 1.44 1.15, kind names (Death Knight), `armedRigs` row (torso sides 0.6, as the enforcer's pads), toolgun list
+   refresh on `vr_agdknight`. **`vr_agdknight`** (default 0; Armed Humanoid Replacements: "Armed Death Knights");
+   `monster_vr_hknight` (any weapon, the sword by default; FGD); `monster_hell_knight` calls `VR_AKN_Replace` (map death
+   knights keep their sword); `hknight_die` runs `VR_AG_Dying`; `CheckForCharge` skipped and `hknight_run1` hands over
+   to the layer's run for an armed one. Ranged pickups: the knights' one setting, `vr_agknight_ranged_pickup`, for both.
+   **Poses: the grunt's, fitted** (`shippedFrom` 0): measured both, the grunt-fitted rest hold put his sword 8.1 units
+   from his own fist, the enforcer-fitted 16 (test 95's spawn check failed at 16); Pose Keys 9/3 either way. Weapon Holds
+   the grunt's (as the knight's). The toolgun's armed list with `vr_agdknight` on lists rows 0..3 (the knight's row too).
+3. **The spell (done):** `vr_am_spell` (the row's own ranged attack: `hknight_magicc1`); `VR_AM_SpellTry` in
+   `VR_AG_CheckAttack`'s melee branch: out of reach with a melee weapon or fists, at near/mid range in a clear line, id's
+   chances (0.2 near, 0.05 mid, times vr_agrunt_ai_aggression): his magicc frames, knightspikes and sounds; with a gun
+   the gun's path. Disarmed (fists) the same branch casts.
+- **Test 95 with `vr_agrunt_test_kind 3`** (QC/vr_armedknight_test.qc, `map vrtesthall;wait30;vr_agrunt_test 95`): off,
+  on (kind 3, vrhknight.mdl), spawn (sword 8.1 from his fist), swing (hurt you 11 in 1.5 s), **spell** (moved 200-300
+  away: cast in 0.8-1.8 s, sword still held), disarm, re-arm (1.1 s), death: 8/0. Kind 2: 7/0 (as before); test 1 (kind
+  0) 17/0. Rig Studio Pose Keys, death knight + sword: 9/3 (knight + sword 10/2). Note: `god` makes the swing case fail.
+- **Open (next session, in this order):** a Second grip row for kind 3 (wrist straight on a fore-end: measure with
+  `vr_agrunt_ik_debug 4`, as the knight's), posekeys with a shotgun, `vr_rigstudio_rom test` on the subject; tests 1, 2,
+  20, 60, 99, 77 with kind 3; stage 4 (armour for kinds 2 and 3: vr_agarmor zones from their rig bones, plates, helmet,
+  blade sparks; tests for kinds 2 and 3); his rig's Range of Motion tuning; eval.sh.
