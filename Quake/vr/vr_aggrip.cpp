@@ -49,6 +49,10 @@ constexpr GlobalRow globalDefaults[] = {
     // (the armed death knight (agent/dknight): the same, read off his own rig: with no row his wrist bent 93 degrees on
     // the shotgun's fore-end in Aim; this turn (a search over the three angles, vr_agrunt_ik_debug 4) leaves it 1-3)
     {3, aggrip::Second, 0.f, 0.f, 0.f, -161.0f, 37.0f, -55.0f},
+    // (Vittorio's of 2026-10-31, set in the Rig Studio: the knight's Main and Off, the death knight's Main)
+    {2, aggrip::Main, 0.50f, 0.50f, 2.00f, 0.0f, 50.0f, 0.0f},
+    {2, aggrip::Off, 3.05f, 1.10f, -0.15f, 31.0f, 113.5f, 119.7f},
+    {3, aggrip::Main, 3.85f, 1.00f, 1.95f, 12.0f, -56.0f, -38.0f},
 };
 
 // A weapon's own shipped grips (its weapon id: Weapon Offsets' ID), on top of its kind's "All Weapons" one; the Grip
@@ -63,6 +67,9 @@ struct Row
 constexpr Row defaults[] = {
     {0, "progs/w_dcrossbow.mdl#gun", aggrip::Second, 5.25f, 0.00f, -5.35f, 0.0f, 0.0f, 0.0f},
     {1, "progs/v_chainsaw.mdl", aggrip::Second, -11.70f, -1.20f, 11.40f, -6.0f, -57.2f, -3.2f},
+    // (Vittorio's of 2026-10-31: the knight's sword's second grip, his laser cannon's)
+    {2, "progs/sword.mdl#melee", aggrip::Second, -8.50f, -5.45f, -3.65f, 0.0f, 0.0f, 0.0f},
+    {2, "progs/v_laserg.mdl", aggrip::Main, -0.40f, 0.50f, 0.00f, -22.8f, 29.5f, 0.0f},
 };
 
 struct Override
@@ -236,8 +243,38 @@ void dumpInto(za::String& out, bool all)
     }
 }
 
+// vr_agrunt_grip_dump effective: every kind's hands' grips in effect (archived, else default), raw: each kind and hand's
+// All Weapons one, then every weapon slot's own that is not zero; the same lines whether archived or shipped.
+void dumpEffective()
+{
+    for(int k = 0; k < aggrip::numKinds; k++)
+    {
+        for(int h = 0; h < aggrip::NumHands; h++)
+        {
+            const aggrip::Offset g = aggrip::global(k, h);
+            Con_Printf("grip %d * %d %g %g %g %g %g %g\n", k, h, g.pos.x, g.pos.y, g.pos.z, g.angles.x, g.angles.y,
+                g.angles.z);
+            for(int s = 0; s < weapons::numSlots; s++)
+            {
+                const aggrip::Offset o = aggrip::offset(k, s, h);
+                if(o.pos != glm::vec3{0.f} || o.angles != glm::vec3{0.f})
+                {
+                    Con_Printf("grip %d %s %d %g %g %g %g %g %g\n", k, slotId(s), h, o.pos.x, o.pos.y, o.pos.z, o.angles.x,
+                        o.angles.y, o.angles.z);
+                }
+            }
+        }
+    }
+    Con_Printf("vr_agrunt_grip_dump effective: done\n");
+}
+
 void dump_f()
 {
+    if(Cmd_Argc() > 1 && strcmp(Cmd_Argv(1), "effective") == 0)
+    {
+        dumpEffective();
+        return;
+    }
     za::String text;
     dumpInto(text, Cmd_Argc() > 1 && strcmp(Cmd_Argv(1), "all") == 0);
     Con_Printf("%s", text.cStr());
