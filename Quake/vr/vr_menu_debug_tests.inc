@@ -1143,6 +1143,10 @@ za::Vector<Item> pageDebugTests()
                   "(no other weapon's), Recoil Amount scales it, its Return Time 2x / 0.5x takes twice / half as long "
                   "back to rest, and the old multipliers converted (this start's config too) draw the same kick; "
                   "prints PASS/FAIL lines and puts every value back."),
+        command("Print Two-Handed Recoil", "vr_recoil_2h_print")
+            .help("vr_recoil_2h_print: each hand's weapon as held now: how much it is held in both hands (the other "
+                  "hand gripping it at a hotspot or anywhere on it), and the shares of kick back, muzzle rise, return "
+                  "time and haptics its next shot takes (1: one-handed)."),
         command("Gunfire Sound and Punch Test", "vr_gunsfx_test")
             .help("vr_gunsfx_test: every shot's layers and room tail, the variation, the casings by surface, the dry "
                   "click, every weapon's haptic punch curve; prints FAIL lines and a verdict, puts every setting back."),

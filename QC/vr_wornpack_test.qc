@@ -254,11 +254,15 @@ void(entity p) VR_WPT_Down =
     VR_Test_Check(c.vr_wp_pack.vr_wp_state == VR_WP_OFF && vr_wp_rip_why == "landing" && ragdollbone(c, '0 0 0', QVR_WORNPACK) == 0,
         sprintf("torn off by a hard landing (12 m/s: %s), its box off the ragdoll", vr_wp_rip_why));
     // The player beside B (within reach), the hand onto its pack.
+    // (20 units from the pack towards where you stood, on its floor: at your own height you stood in
+    // the air over its floor (it landed below you) and fell, the hand falling with you: the hold dragged the pack down at
+    // its 4000 N cap, over the rip force ("dragged slowly by the pack: kept" failed since drawnpose).)
     vr_wpt_hand = limbpiece(b, 0, 22);
     vector out = p.origin - vr_wpt_hand;
     out_z = 0;
     vector at = vr_wpt_hand + normalize(out) * 20;
-    at_z = p.origin_z;
+    traceline(b.origin, b.origin - '0 0 256', TRUE, b);
+    at_z = trace_endpos_z + 25; // (on its floor: it landed below you)
     setorigin(p, at);
     p.velocity = '0 0 0';
     cvar_set("vr_mock_hand_to_absolute", "1");

@@ -1251,6 +1251,7 @@ float cvarh_vr_flaregun_gravity;
 float cvarh_vr_flare_air_pitch;
 float cvarh_vr_nailpistol_mag;
 float cvarh_vr_nailpistol_slide_cycle;
+float cvarh_vr_nailpistol_slide_delay;
 float cvarh_vr_dmg_revolver;
 float cvarh_vr_revolver_dmg_random;
 float cvarh_vr_revolver_heavy_health;
@@ -2527,6 +2528,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_flare_air_pitch = cvar_hmake("vr_flare_air_pitch");
     cvarh_vr_nailpistol_mag = cvar_hmake("vr_nailpistol_mag");
     cvarh_vr_nailpistol_slide_cycle = cvar_hmake("vr_nailpistol_slide_cycle");
+    cvarh_vr_nailpistol_slide_delay = cvar_hmake("vr_nailpistol_slide_delay");
     cvarh_vr_dmg_revolver = cvar_hmake("vr_dmg_revolver");
     cvarh_vr_revolver_dmg_random = cvar_hmake("vr_revolver_dmg_random");
     cvarh_vr_revolver_heavy_health = cvar_hmake("vr_revolver_heavy_health");

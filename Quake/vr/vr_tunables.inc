@@ -758,7 +758,7 @@ QVR_TUNABLE(vr_agrunt_tug_hurt_ease, "0.4") // how much its wounds weaken its gr
 QVR_TUNABLE(vr_agrunt_tug_won_stumble, "0.1") // s it stumbles as its weapon is torn away before it stands (as an active ragdoll; then its AI)
 QVR_TUNABLE(vr_agrunt_tug_measure, "2") // the physical tug's pull: 0 the hold's joint force, 1 its stretch (your controller from the held point) x vr_agrunt_tug_stiffness, 2 the larger
 QVR_TUNABLE(vr_agrunt_tug_stiffness, "1500") // N/m: the stretch's pull (18 cm: 270 N, the least pull that counts)
-QVR_TUNABLE(vr_agrunt_tug_two_hand_mult, "1") // both hands on its weapon: the second hand's pull counts times this (1: summed)
+QVR_TUNABLE(vr_agrunt_tug_two_hand_mult, "0.6") // both hands on its weapon: the second hand's pull counts times this (1: summed; 0.6: two hands win in about 0.6-0.7x one hand's time, test 92)
 QVR_TUNABLE(vr_agrunt_tug_two_hand_ease, "0.75") // ... and every threshold of the tug times this (the old tug: its time)
 QVR_TUNABLE(vr_agrunt_tug_strike_swing, "0.6") // in a tug, the other fist's strike needs this share of vr_agrunt_disarm_swing (4.5 m/s: 2.7)
 QVR_TUNABLE(vr_agrunt_shotdisarm_weapon_w, "1") // a hit on the weapon counts its damage times this
@@ -1293,6 +1293,7 @@ QVR_TUNABLE(vr_flare_light, "1") // their lights' size and brightness (0: none)
 QVR_TUNABLE(vr_flare_sparks, "1") // their sparks and smoke (0: none)
 QVR_TUNABLE(vr_nailpistol_mag, "12") // the rounds its magazine holds (a nail each)
 QVR_TUNABLE(vr_nailpistol_slide_cycle, "0.14") // s back and home after a shot (a third back, the rest home; a re-rack closes in the home part)
+QVR_TUNABLE(vr_nailpistol_slide_delay, "0.25") // s from a magazine seated to its slide racking closed (0: at once); it cannot fire before
 QVR_TUNABLE(vr_dmg_revolver, "28") // the heavy revolver (QC vr_revolver.qc): a slug's (a grunt, 30: one in the head at x1.5, two in the body, or one when its roll reaches 30; vr_revolver_heavy_mult in a big body; his 28 of 2026-10-27, was 26)
 QVR_TUNABLE(vr_revolver_dmg_random, "0.15") // up to this share more damage at random, each slug (at damage 28 a grunt's body shot reaches its 30 about half the time)
 QVR_TUNABLE(vr_revolver_heavy_health, "150") // the full health from which a monster's body is big (vr_revolver_heavy_mult)
