@@ -291,12 +291,12 @@ void() VR_MG3_Weapons_Frame =
 // thrown or flung (a weapon, a prop, a gib: what presses a wall button by being thrown at it, buttons.qc).
 float(entity xInflictor, entity xAttacker, float xIsVRMelee) VR_IsMeleeBlow =
 {
-    if(xIsVRMelee || vr_hitkind == QVR_HITKIND_MELEE || vr_hitkind == QVR_HITKIND_HEADBUTT ||
-       vr_hitkind == QVR_HITKIND_BASH || vr_hitkind == QVR_HITKIND_SHOVE)
+    if(xIsVRMelee || hit_kind == QVR_HITKIND_MELEE || hit_kind == QVR_HITKIND_HEADBUTT ||
+       hit_kind == QVR_HITKIND_BASH || hit_kind == QVR_HITKIND_SHOVE)
     {
         return TRUE;
     }
-    if(vr_hitkind == QVR_HITKIND_SHOT || vr_hitkind == QVR_HITKIND_SPLASH || vr_hitkind == QVR_HITKIND_BLEED)
+    if(hit_kind == QVR_HITKIND_SHOT || hit_kind == QVR_HITKIND_SPLASH || hit_kind == QVR_HITKIND_BLEED)
     {
         return FALSE;
     }

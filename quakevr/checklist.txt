@@ -172,6 +172,15 @@ Body Blows 0: punching its drawn hand or forearm disarms it; punching its chest 
 Grip an armed grunt's drawn weapon (moving or still): taken when your fist is on the weapon as drawn.
 Throw a gun at a grunt's gun hand: it is knocked out (a throw at its chest is not).
 Rig Studio > Pose Keys, grunt, Pose Pickup, Class Pistol (or Two Guns, Chainsaw): it says "Pickup (shared)" and every class takes up its weapon with the same pose.
+Combat > Parry and Bash > Directional Parry > Show Directional Parry on, against a grunt with an axe, then Mjolnir, then a Knight's Sword: the blue line runs along the haft or blade from butt to far end (the head's top on an axe or hammer); after a strike the readout (score vs threshold, angle, contact, timing) stays up 3 s. (Chainsaw: its line's back end sits about 2.5 units low on the rear handle: known.) {test:dirparry}
+Directional Parry leniencies (Parry page: angle full marks, angle zero, contact distance, contact falloff, threshold, window): loosen one and a near-miss parry now counts. {test:dirparry}
+Debug > Enemy Melee Speed 0.3: armed enemies' swings slow down whole (wind-up, blow, recovery) and your parries still register. {test:dirparry}
+Rig Studio, a sword grunt, Pose Studio Data: Swing at Swing Speed 0.25 plays slowly; Stop Swing stops it.
+Judo: take a grunt with both hands, throw it (held on, dragged, let go); lift one (it flails, breaks free and shoves you back after Lift Time); lift one and kill it in your hands (no break free; let go: limp).
+Neck snap standing and on a lifted ragdoll (it goes limp, still held); manhandle a staggered grunt with one hand.
+Leg grabs: pull one down by the shins and drag it by the legs (the hold firms up once it lies); the one-hand pull; lift one by the legs; tug and lift an enforcer by its worn backpack.
+Gore, decap and wounds as before: blood and wounds on blades, punches, thrown things, shots and blasts; beheadings (slash, chainsaw, head pops); a punch to the teeth; hit reactions turn the struck part.
+Gib flight speed by weapon (melee, shotgun, rocket, thrown axe) and knockdowns from blade and blunt blows as before; the chainsaw cuts, beheads and is parried as before.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns {test:arena_run}

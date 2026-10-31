@@ -191,7 +191,7 @@ float(entity targ, entity inflictor, float damage) AD_ArtifactDamage =
     {
         return damage;
     }
-    if(vr_hitkind == QVR_HITKIND_SPLASH)
+    if(hit_kind == QVR_HITKIND_SPLASH)
     {
         if(inflictor != world && targ.movetype == MOVETYPE_WALK)
         {

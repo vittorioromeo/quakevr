@@ -51,8 +51,8 @@ float(entity targ, entity inflictor, entity attacker, float damage) MG3_LavaManD
         return 0;
     if(inflictor.classname == "hiplaser")
         return damage;
-    if(attacker.classname == "player" && vr_hitkind == QVR_HITKIND_SHOT && vr_hithand >= 0 &&
-       VRGetEntWeapon(attacker, vr_hithand) == WID_LIGHTNING)
+    if(attacker.classname == "player" && hit_kind == QVR_HITKIND_SHOT && hit_hand >= 0 &&
+       VRGetEntWeapon(attacker, hit_hand) == WID_LIGHTNING)
         return damage;
     return damage * 0.8;
 };

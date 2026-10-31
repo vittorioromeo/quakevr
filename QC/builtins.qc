@@ -517,6 +517,19 @@ void(entity e, float zone, vector lo, vector hi, float radius) debughitzone = #0
 // e's state this frame (a label at `at`), 1-5 a disarm-relevant hit there (VR_DV_PARRY...: marked a moment). Nothing
 // is kept while it is off.
 void(entity e, float kind, vector a, vector b, float radius) debugdisarm = #0;
+// Show Directional Parry (vr_dirparry_debug; vr_dirparry.qc VR_DRP_Debug, the engine's vr_dirparryviz.cpp): a line of
+// the reading being sent (kind 1 its blade then, 2 and 3 where its way's span begins and ends, 4 your parry line, 5 its
+// way, 6 the ideal, 7 the gap), then its note, which ends it: `verdict` (VR_DRP_SHOW_*), where they met, and its numbers
+// (score: the score, the threshold, a partial's cut; angle: degrees off the ideal, full marks within, none at; contact:
+// the gap, full within, none at; marks: the angle's, the contact's; more: 1 your main hand (0 the off), when on its way
+// (s), the swing's speed). 1: shown (0: off, nothing kept).
+void(float kind, vector a, vector b) debugdirparry = #0;
+// ... and each held melee weapon's line every server frame as the parry reads it (VR_AG_WeaponLine: back a, front b)
+// and last frame's (a0, b0); returns how far (units) its ends are from the drawn weapon's own butt and tip (the
+// renderer's last matrix for it), the worse; -1 not measured (off, not drawn lately).
+float(entity w, vector a, vector b, vector a0, vector b0) debugdirparryline = #0;
+float(float verdict, vector at, vector score, vector angle, vector contact, vector marks, vector more) debugdirparrynote =
+    #0;
 // The disarm volumes as drawn (vr_disarmhull.cpp PF_disarmhull): what 0 held weapon e, 1/2 humanoid e's hand on side 0/1:
 // '<gap of the path a..b to it grown by grow (0 or less: met)> <the path's share where met> <1 found>'; 10-14 the tests'.
 vector(entity e, float what, vector a, vector b, float grow) disarmhull = #0;
@@ -621,6 +634,9 @@ float(string model, optional float kick) weaponheft = #0;
 #include "../Quake/vr/vr_impact_shared.h"
 float(float material, float kind, vector org, vector dir, float amount) impact = #0;
 string(float material, float kind, float slot) impactsound = #0;
+// Where on a body a hit struck (positional damage's part, the hit record's hit_zone, the engine's hit reaction regions):
+// VR_REGION_* (one vocabulary both sides read).
+#include "../Quake/vr/vr_region_shared.h"
 float(string path) fileexists = #0; // whether a file is in the search path (data that may not be installed)
 float(string folder, float track) campaignmusic = #0; // a campaign's own CD track's number (target_vr_music), 0 if not there
 

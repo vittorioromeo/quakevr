@@ -176,17 +176,25 @@ void(entity e, vector dir) VR_KdTrig_Behind =
 
 // Whether a melee blow (its kind QVR_HITKIND_MELEE) or a flung prop (`inflictor`) by `attacker` is blunt: all but the
 // blades' edges (the axes, the swords, the chainsaw; a sword's pommel and AD's hammer and mace are blunt: vr_melee_blunt).
+// A hand's blow: not a blade (VR_Hit_Class); a flung thing is blunt here, a thrown blade too (the class calls it a blade).
 float(entity inflictor, entity attacker) VR_KdTrig_Blunt =
 {
+    float r;
     if(inflictor != attacker || vr_melee_blunt)
     {
-        return TRUE;
+        r = TRUE;
     }
-    float hand = vr_hithand >= 0 ? vr_hithand : cVR_MainHand;
-    float w = vr_kdt_test_weapon > 0 ? vr_kdt_test_weapon - 1 : VRGetEntWeapon(attacker, hand);
-    return w != WID_AXE && w != WID_SUPERAXE && w != WID_SWORD && w != WID_CHAINSAW;
+    else if(vr_kdt_test_weapon > 0 || hit_hand < 0)
+    {
+        float w = vr_kdt_test_weapon > 0 ? vr_kdt_test_weapon - 1 : VRGetEntWeapon(attacker, cVR_MainHand);
+        r = (w != WID_AXE && w != WID_SUPERAXE && w != WID_SWORD && w != WID_CHAINSAW); // (a test's weapon; no hand: the main)
+    }
+    else
+    {
+        r = VR_Hit_Class(inflictor, attacker) != QVR_HITCLASS_BLADE;
+    }
+    return r;
 };
-
 // Whether situation `i` holds for a hit on `e` of strength `xDamage` along level `dir` (vr_kdt_way, _weight set).
 float(float i, entity e, entity inflictor, entity attacker, float xDamage, vector dir) VR_KdTrig_Match =
 {
@@ -229,7 +237,7 @@ float(float i, entity e, entity inflictor, entity attacker, float xDamage, vecto
         {
             return FALSE;
         }
-        float hand = vr_hithand >= 0 ? vr_hithand : cVR_MainHand;
+        float hand = hit_hand >= 0 ? hit_hand : cVR_MainHand;
         float w = vr_kdt_test_weapon > 0 ? vr_kdt_test_weapon - 1 : VRGetEntWeapon(attacker, hand);
         if(w != WID_SHOTGUN && w != WID_GRUNTGUN && w != WID_SUPER_SHOTGUN)
         {
@@ -260,7 +268,7 @@ float(float i, entity e, entity inflictor, entity attacker, float xDamage, vecto
     if(i == 5) // blow
     {
         if(!(attacker.flags & FL_CLIENT) ||
-           !(vr_hitkind == QVR_HITKIND_MELEE || (inflictor != attacker && inflictor.vr_fling_hit == time)))
+           !(hit_kind == QVR_HITKIND_MELEE || (inflictor != attacker && inflictor.vr_fling_hit == time)))
         {
             return FALSE;
         }
@@ -270,7 +278,7 @@ float(float i, entity e, entity inflictor, entity attacker, float xDamage, vecto
     }
     if(i == 6) // blast
     {
-        if(vr_hitkind != QVR_HITKIND_SPLASH && !vr_ad_splash)
+        if(hit_kind != QVR_HITKIND_SPLASH && !vr_ad_splash)
         {
             return FALSE;
         }
@@ -476,7 +484,7 @@ float(entity m, entity p, float xHold) VR_Parry_Ragdoll =
 // T_DamageDeal's and AD's (vr_ad_bridge.qc), the hit's damage dealt, before its pain: TRUE if it went down.
 float(entity targ, entity inflictor, entity attacker, float take) VR_KdTrig_Hit =
 {
-    if(take <= 0 || inflictor == world || attacker == world || vr_hitkind == QVR_HITKIND_BLEED ||
+    if(take <= 0 || inflictor == world || attacker == world || hit_kind == QVR_HITKIND_BLEED ||
        inflictor.classname == "vr_burn" || !VR_KdTrig_Can(targ))
     {
         return FALSE;
@@ -503,8 +511,8 @@ float(entity targ, entity inflictor, entity attacker, float take) VR_KdTrig_Hit 
     // explosives stay the answer to it.
     float poiseF = 1;
     float flung = inflictor != attacker && inflictor.vr_fling_hit == time;
-    if(vr_hitkind == QVR_HITKIND_MELEE || vr_hitkind == QVR_HITKIND_HEADBUTT || vr_hitkind == QVR_HITKIND_BASH ||
-       vr_hitkind == QVR_HITKIND_SHOVE || flung)
+    if(hit_kind == QVR_HITKIND_MELEE || hit_kind == QVR_HITKIND_HEADBUTT || hit_kind == QVR_HITKIND_BASH ||
+       hit_kind == QVR_HITKIND_SHOVE || flung)
     {
         poiseF = VR_Poise_Factor(targ);
     }
@@ -1272,7 +1280,7 @@ void(entity pl, entity best, float xMode) VR_KdTrig_TestHit =
     if(xMode == 1 || xMode == 2)
     {
         vr_kdt_test_weapon = 1 + (xMode == 2 ? WID_SUPER_SHOTGUN : WID_SHOTGUN);
-        VR_SetHitKind(QVR_HITKIND_SHOT, cVR_MainHand, chest, dir);
+        VR_Hit_Begin(QVR_HITKIND_SHOT, cVR_MainHand, chest, dir);
         hit_blast = TRUE;
         hit_pellets = xMode == 2 ? 14 : 6;
         hit_pelparts = '0 0 0';
@@ -1283,7 +1291,7 @@ void(entity pl, entity best, float xMode) VR_KdTrig_TestHit =
     }
     else if(xMode == 5 || xMode == 6)
     {
-        VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, chest, dir);
+        VR_Hit_Begin(QVR_HITKIND_MELEE, cVR_MainHand, chest, dir);
         vr_kdt_test_damage = 30;
         vr_melee_blunt = xMode == 5;
         vr_kdt_test_weapon = 1 + (xMode == 5 ? WID_FIST : WID_AXE);
@@ -1296,7 +1304,7 @@ void(entity pl, entity best, float xMode) VR_KdTrig_TestHit =
         entity blast = spawn();
         blast.classname = "vr_kdtrig_testblast";
         setorigin(blast, best.origin - dir * 48);
-        VR_SetHitKind(QVR_HITKIND_SPLASH, -1, '0 0 0', '0 0 0');
+        VR_Hit_Begin(QVR_HITKIND_SPLASH, -1, '0 0 0', '0 0 0');
         vr_kdt_test_damage = 60;
         T_Damage(best, blast, pl, best.health > vr_kdt_test_damage ? vr_kdt_test_damage : 1);
         remove(blast);
@@ -1343,7 +1351,7 @@ void(entity pl, entity best, float xMode) VR_KdTrig_TestHit =
             VR_Knockdown_Start(best);
         }
     }
-    VR_ClearHitKind();
+    VR_Hit_End();
     vr_kdt_test_damage = 0;
     vr_kdt_test_strength = 0;
     vr_kdt_test_dist = 0;

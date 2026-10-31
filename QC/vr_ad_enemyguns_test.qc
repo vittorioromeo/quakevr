@@ -186,9 +186,9 @@ void() VR_ADGun_FxTestThink =
         else if(vr_adgun_test_step == 0)
         {
             vector mid = (m.absmin + m.absmax) * 0.5;
-            VR_SetHitKind(QVR_HITKIND_SHOT, cVR_MainHand, mid, '1 0 0');
+            VR_Hit_Begin(QVR_HITKIND_SHOT, cVR_MainHand, mid, '1 0 0');
             T_Damage(m, p, p, 10);
-            VR_ClearHitKind();
+            VR_Hit_End();
         }
     }
     vr_adgun_test_step = vr_adgun_test_step + 1;

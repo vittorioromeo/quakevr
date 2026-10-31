@@ -92,11 +92,11 @@ void(entity e, string xName, float xMult, float xHeft) VR_PropImp_Blow =
     b.mh_exhaust = 0;
     float dmg = cvar_hget(cvarh_vr_dmg_fist) * cvar_hget(cvarh_vr_melee_dmg_multiplier) * VRMeleeDmgQuadMult() * xHeft * xHeft;
     vector mid = (e.absmin + e.absmax) * 0.5;
-    VR_SetHitKind(QVR_HITKIND_MELEE, cVR_OffHand, mid, normalize(mid - self.origin));
+    VR_Hit_Begin(QVR_HITKIND_MELEE, cVR_OffHand, mid, normalize(mid - self.origin));
     vr_melee_blowhand = cVR_OffHand + 1; // (as PlayerVRMeleeImpl's blow)
     T_Damage_VRMelee(e, self, self, dmg);
     vr_melee_blowhand = 0;
-    VR_ClearHitKind();
+    VR_Hit_End();
     b.mh_speed = s0;
     b.mh_strength = st0;
     b.mh_counter = c0;

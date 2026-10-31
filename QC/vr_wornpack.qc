@@ -570,7 +570,7 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_WP_Hit =
     float share = 1;
     string kind = "hit";
     float d = 0;
-    if(vr_hitkind == QVR_HITKIND_SPLASH)
+    if(hit_kind == QVR_HITKIND_SPLASH)
     {
         share = min(1, max(0, cvar("vr_worn_backpack_pool_blast")));
         kind = "blast";
@@ -588,7 +588,7 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_WP_Hit =
             return; // (where it struck isn't known)
         }
         d = ragdollbone(targ, vr_hr_at, QVR_WORNPACK_AT);
-        if(d < 0 || d > (vr_hitkind == QVR_HITKIND_SHOT ? VR_WP_SHOT_REACH : VR_WP_HIT_REACH))
+        if(d < 0 || d > (hit_kind == QVR_HITKIND_SHOT ? VR_WP_SHOT_REACH : VR_WP_HIT_REACH))
         {
             return;
         }

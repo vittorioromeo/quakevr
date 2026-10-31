@@ -238,7 +238,7 @@ void(entity p, float xHand, entity t, vector xAt, vector xDir, float xSpeed, flo
     b.mh_speed = xSpeed;
     b.mh_dmgspeed = xSpeed;
     VRSetMeleeHitSoundPlayed(xHand, FALSE);
-    VR_SetHitKind(QVR_HITKIND_MELEE, xHand, '0 0 0', '0 0 0');
+    VR_Hit_Begin(QVR_HITKIND_MELEE, xHand, '0 0 0', '0 0 0');
     vr_mdmg_core = 0; // (no strength cap: its damage is its own)
     vr_melee_blunt = TRUE;
     vr_sgib_at = xAt;
@@ -251,7 +251,7 @@ void(entity p, float xHand, entity t, vector xAt, vector xDir, float xSpeed, flo
     vr_melee_blowhand = 0;
     vr_melee_blunt = FALSE;
     vr_sgib_at = '0 0 0';
-    VR_ClearHitKind();
+    VR_Hit_End();
     b.mh_c_ent = cEnt;
     b.mh_c_pos = cPos;
     b.mh_c_dir = cDir;

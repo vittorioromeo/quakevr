@@ -74,9 +74,9 @@ float(entity g, vector c0, vector c1, vector along, vector at) VR_AGPT2_Blow =
     float mult = VR_Melee_Positional(g, at, dir);
     vr_agpt2_expect = VR_Melee_CapDamage(20 * mult, mult);
     float h0 = g.health;
-    VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, at, dir);
+    VR_Hit_Begin(QVR_HITKIND_MELEE, cVR_MainHand, at, dir);
     T_Damage_VRMelee(g, p, p, 20);
-    VR_ClearHitKind();
+    VR_Hit_End();
     b.mh_n = 0;
     self = oldself;
     return h0 - g.health;

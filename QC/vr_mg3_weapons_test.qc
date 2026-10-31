@@ -272,14 +272,14 @@ void(entity p, entity b, float k) MG3_WT_HitButton =
         thing.movetype = MOVETYPE_BOUNCE;
         thing.owner = p;
     }
-    if(k == 0 || k == 1) VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, '0 0 0', '0 0 0');
-    else if(k == 4) VR_SetHitKind(QVR_HITKIND_HEADBUTT, -1, '0 0 0', '0 0 0');
-    else if(k == 5) VR_SetHitKind(QVR_HITKIND_SHOT, cVR_MainHand, '0 0 0', '0 0 0');
-    else if(k == 6) VR_SetHitKind(QVR_HITKIND_SPLASH, -1, '0 0 0', '0 0 0');
-    else VR_ClearHitKind();
+    if(k == 0 || k == 1) VR_Hit_Begin(QVR_HITKIND_MELEE, cVR_MainHand, '0 0 0', '0 0 0');
+    else if(k == 4) VR_Hit_Begin(QVR_HITKIND_HEADBUTT, -1, '0 0 0', '0 0 0');
+    else if(k == 5) VR_Hit_Begin(QVR_HITKIND_SHOT, cVR_MainHand, '0 0 0', '0 0 0');
+    else if(k == 6) VR_Hit_Begin(QVR_HITKIND_SPLASH, -1, '0 0 0', '0 0 0');
+    else VR_Hit_End();
     if(k == 0 || k == 1) T_Damage_VRMelee(b, p, p, 20);
     else T_Damage(b, thing != world ? thing : p, p, 20);
-    VR_ClearHitKind();
+    VR_Hit_End();
     if(thing) remove(thing);
     self = oldself;
 };

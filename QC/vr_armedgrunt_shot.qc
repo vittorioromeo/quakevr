@@ -438,7 +438,7 @@ float(entity targ, entity inflictor, entity attacker, float take) VR_AGS_Hit =
     {
         return FALSE;
     }
-    if(vr_hitkind == QVR_HITKIND_SPLASH)
+    if(hit_kind == QVR_HITKIND_SPLASH)
     {
         float w = cvar_hget(cvarh_vr_agrunt_shotdisarm_w_splash) * cvar_hget(cvarh_vr_agrunt_shotdisarm_weapon_w);
         if(w > 0 && targ.health > 0 && !targ.vr_ag_tug_pl && cvar_hget(cvarh_vr_agrunt_shotdisarm_parts) != 1)
@@ -457,7 +457,7 @@ float(entity targ, entity inflictor, entity attacker, float take) VR_AGS_Hit =
         }
         return FALSE;
     }
-    return vr_hitkind == QVR_HITKIND_SHOT;
+    return hit_kind == QVR_HITKIND_SHOT;
 };
 
 // A player's projectile's kind (-1: not one that counts).

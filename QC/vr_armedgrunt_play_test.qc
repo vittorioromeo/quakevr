@@ -80,11 +80,11 @@ string(entity e, float n) VR_AGPT_Shoot =
     string what = trace_ent.classname;
     entity oldself = self;
     self = p;
-    VR_SetHitKind(QVR_HITKIND_SHOT, cVR_MainHand, '0 0 0', dir);
+    VR_Hit_Begin(QVR_HITKIND_SHOT, cVR_MainHand, '0 0 0', dir);
     vr_tracer_hand = cVR_MainHand;
     vr_tracer_from = from;
     FireBulletsImpl(n, dir, '0 0 0', from, 2048, FALSE);
-    VR_ClearHitKind();
+    VR_Hit_End();
     self = oldself;
     return what;
 };
@@ -834,15 +834,15 @@ void() VR_AGPT_Blows =
     if(vr_agt_step == 1)
     {
         VR_AGT_Hunt(g);
-        vr_hitpos = g.vr_ag_prop.origin;
-        VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, '0 0 0', '0 0 0');
+        hit_pos = g.vr_ag_prop.origin;
+        VR_Hit_Begin(QVR_HITKIND_MELEE, cVR_MainHand, '0 0 0', '0 0 0');
         T_Damage(g, p, p, 6);
         float kept = g.vr_ag_prop != world;
         g.health = 8;
-        vr_hitpos = g.vr_ag_prop.origin;
+        hit_pos = g.vr_ag_prop.origin;
         T_Damage(g, p, p, 6);
-        VR_ClearHitKind();
-        vr_hitpos = '0 0 0';
+        VR_Hit_End();
+        hit_pos = '0 0 0';
         VR_AGT_Check(sprintf("blow 6 on the hand: calm %s, hurt %s:", kept ? "keeps it" : "dropped it",
             g.vr_ag_prop ? "keeps it" : "dropped it"), kept && !g.vr_ag_prop);
         VR_AGT_Remove(g);
