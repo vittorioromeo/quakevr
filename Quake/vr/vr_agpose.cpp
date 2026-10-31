@@ -479,6 +479,26 @@ constexpr ShippedRow shipped[] = {
 constexpr glm::vec3 fitScale[agpose::numKinds] = {glm::vec3{1.f, 1.f, 1.f}, glm::vec3{1.f, 1.35f, 1.1f},
     glm::vec3{1.f, 1.06f, 1.f}};
 
+// The kind whose shipped keys and IK stretch each kind ships (its own: itself): a kind with none of its own, the knight,
+// ships the grunt's, fitted to its body as the Pose Studio's "Copy to the other kind" fits them (fitKey: its places by
+// fitScale's ratio), until his own are tuned and shipped (ROUND23.md, "Armed knights: shipped poses and every weapon
+// class").
+constexpr int shippedFrom[agpose::numKinds] = {0, 1, 0};
+
+// Key `k` of code `code`, made for kind `from`'s body, fitted to kind `to`'s (its places scaled; its turns as they are).
+void fitKey(agpose::Key& k, int code, int from, int to)
+{
+    const glm::vec3 s = fitScale[to] / fitScale[from];
+    k.v[agpose::RPos] *= s;
+    k.v[agpose::LPos] *= s;
+    if(agpose::isLegCode(code))
+    {
+        k.v[agpose::LegKneelKnee] *= s; // (the legs' places: all but the pelvis's turn)
+        k.v[agpose::LegKneelFoot] *= s;
+        k.v[agpose::LegPlantKnee] *= s;
+    }
+}
+
 struct Entry
 {
     int code{-1};
@@ -601,15 +621,20 @@ void write()
                : -1;
 }
 
-// Code `code`'s shipped key: its row, else a gun category's rifle row.
+// Code `code`'s shipped key: its row, else a gun category's rifle row; a kind that ships another's (shippedFrom: the
+// knight) that kind's, fitted.
 [[nodiscard]] bool shippedOf(int code, agpose::Key& out)
 {
-    if(shippedRow(code, out))
+    const int kind = agpose::kindOf(code);
+    const int from = kind >= 0 && kind < agpose::numKinds ? shippedFrom[kind] : kind;
+    const int c = from == kind ? code : from * agpose::kindStride + agpose::withinKind(code);
+    const int rifle = rifleOf(c);
+    const bool has = shippedRow(c, out) || (rifle >= 0 && shippedRow(rifle, out));
+    if(has && from != kind)
     {
-        return true;
+        fitKey(out, code, from, kind);
     }
-    const int rifle = rifleOf(code);
-    return rifle >= 0 && shippedRow(rifle, out);
+    return has;
 }
 
 [[nodiscard]] float rounded(float f, float per)
@@ -726,9 +751,10 @@ StretchState stretchState;
 
 [[nodiscard]] float shippedStretchOf(int kind, int cls)
 {
+    const int from = kind >= 0 && kind < agpose::numKinds ? shippedFrom[kind] : kind; // (the knight: the grunt's)
     for(const StretchRow& r : shippedStretch)
     {
-        if(r.kind == kind && r.cls == cls && r.kind >= 0)
+        if(r.kind == from && r.cls == cls && r.kind >= 0)
         {
             return r.by;
         }
@@ -1004,7 +1030,8 @@ int copyKind(int from, int to)
     }
     for(const ShippedRow& r : shipped)
     {
-        if(r.code >= 0 && (kindOf(r.code) == from || kindOf(r.code) == to))
+        // (a kind that ships another's keys: that kind's rows are its)
+        if(r.code >= 0 && (kindOf(r.code) == shippedFrom[from] || kindOf(r.code) == shippedFrom[to]))
         {
             note(withinKind(r.code));
             if(classOf(r.code) == Gun)
@@ -1026,20 +1053,12 @@ int copyKind(int from, int to)
         }
     }
     int n = 0;
-    const glm::vec3 s = fitScale[to] / fitScale[from];
     for(const int within : codes)
     {
         Entry c;
         c.code = to * kindStride + within;
         const bool has = get(from * kindStride + within, c.k) && !same(c.code, c.k, Key{});
-        c.k.v[RPos] *= s;
-        c.k.v[LPos] *= s;
-        if(isLegCode(c.code))
-        {
-            c.k.v[LegKneelKnee] *= s; // (the legs' places: all but the pelvis's turn)
-            c.k.v[LegKneelFoot] *= s;
-            c.k.v[LegPlantKnee] *= s;
-        }
+        fitKey(c.k, c.code, from, to);
         Key ship;
         const bool hasShip = shippedOf(c.code, ship);
         if(!same(c.code, c.k, hasShip ? ship : Key{}) && static_cast<int>(kept.size()) < maxEntries)
