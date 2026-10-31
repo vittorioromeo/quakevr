@@ -69,6 +69,7 @@ struct ModelKick
 {
     za::String name;
     bool listed{false};
+    bool part{false}; // a piece drawn in a listed gun's place (preparePart): `slot` the gun's
     int slot{-1};
     int numverts{0};
     float step{0.f};               // the largest byte step (model units)
@@ -477,14 +478,16 @@ enum class Held
     return Held::Other;
 }
 
-// The fit of `model` made from its data now (its own poses: a fresh entry).
-[[nodiscard]] ModelKick& refit(const qmodel_t* model, const aliashdr_t* hdr)
+// The fit of `model` made from its data now (its own poses: a fresh entry); `partOf`: the slot of the gun it is a piece
+// of (preparePart; -1: its own slot's).
+[[nodiscard]] ModelKick& refit(const qmodel_t* model, const aliashdr_t* hdr, int partOf = -1)
 {
     ModelKick& m = kickCache.models[model];
     m = ModelKick{};
     m.name = model->name;
     m.numverts = hdr->numverts;
-    m.slot = weapons::slotForModel(model);
+    m.part = partOf >= 0;
+    m.slot = m.part ? partOf : weapons::slotForModel(model);
     m.listed = listedSlot(m.slot);
     if(m.listed)
     {
@@ -520,7 +523,7 @@ void ensure(qmodel_t* model, aliashdr_t* hdr)
     Held held = m ? heldNow(hdr, *m) : Held::Other;
     if(held == Held::Other)
     {
-        m = &refit(model, hdr);
+        m = &refit(model, hdr, m && m->part ? m->slot : -1); // (a gun's piece read again: still its piece)
         held = Held::Original;
     }
     if(!m->listed || m->probe < 0)
@@ -745,27 +748,30 @@ void prepare(const qmodel_t* model)
     }
 }
 
+void preparePart(const qmodel_t* part, const qmodel_t* gun)
+{
+    const aliashdr_t* hdr = quakeHeader(part);
+    const int slot = gun ? weapons::slotForModel(gun) : -1;
+    if(!hdr || !listedSlot(slot))
+    {
+        return;
+    }
+    if(const auto it = kickCache.models.find(part); it == kickCache.models.end() || it->second.name != part->name ||
+                                                    it->second.numverts != hdr->numverts || !it->second.part ||
+                                                    it->second.slot != slot)
+    {
+        // Not yet known as the gun's piece (nothing else cancels a piece: its data holds the model's own poses).
+        (void)refit(part, hdr, slot);
+    }
+    ensure(const_cast<qmodel_t*>(part), const_cast<aliashdr_t*>(hdr));
+}
+
 void check(testkit::Tally& t)
 {
     constexpr const char* name = "vr_kickcancel_test";
     int models = 0;
-    for(const int slot : bakedSlots)
-    {
-        const char* modelName = weapons::cvar(slot, Key::ID)->string;
-        const qmodel_t* model = Mod_ForName(modelName, false);
-        const aliashdr_t* hdr = quakeHeader(model);
-        if(!hdr)
-        {
-            Con_Printf("%s: slot %d's %s not here (skipped)\n", name, slot, modelName);
-            continue;
-        }
-        const ModelKick* m = kickOf(model, hdr);
-        if(!t.check(m != nullptr, name, va("slot %d's %s has no fit", slot, modelName)))
-        {
-            continue;
-        }
-        models++;
-
+    const auto checkModel = [&](const qmodel_t* model, const aliashdr_t* hdr, const ModelKick* m, int slot,
+                                const char* modelName) {
         // Its firing frames (1 up to its last kicked one, then back to 0) played as the game plays them, a frame each
         // 0.1 s, and drawn through the anchors' path as the renderer blends them, at 72 and 90 frames a second: each drawn
         // frame's body (every vertex for one drawn whole at rest) at rest, and its centre not moving from one drawn frame
@@ -833,7 +839,37 @@ void check(testkit::Tally& t)
                    "%d frames drawn at 72 and 90 Hz: body within %.3f steps of rest, its centre's step %.3f, screen %.3f\n",
             name, slot, modelName, m->bodyCount, m->numverts, wholeAtRest(slot) ? " (whole at rest)" : "",
             movingParts(hdr, *m), movedPoses, kicked, drawn, worst, jump, screen);
+    };
+    for(const int slot : bakedSlots)
+    {
+        const char* modelName = weapons::cvar(slot, Key::ID)->string;
+        const qmodel_t* model = Mod_ForName(modelName, false);
+        const aliashdr_t* hdr = quakeHeader(model);
+        if(!hdr)
+        {
+            Con_Printf("%s: slot %d's %s not here (skipped)\n", name, slot, modelName);
+            continue;
+        }
+        const ModelKick* m = kickOf(model, hdr);
+        if(!t.check(m != nullptr, name, va("slot %d's %s has no fit", slot, modelName)))
+        {
+            continue;
+        }
+        models++;
+        checkModel(model, hdr, m, slot, modelName);
     }
+    // The pieces drawn in a gun's place at its frames (preparePart: the shotgun's auto pump's, from the map's load).
+    int pieces = 0;
+    for(const auto& [model, entry] : kickCache.models)
+    {
+        const aliashdr_t* hdr = entry.part && entry.name == model->name ? quakeHeader(model) : nullptr;
+        if(const ModelKick* m = hdr ? kickOf(model, hdr) : nullptr)
+        {
+            pieces++;
+            checkModel(model, hdr, m, m->slot, model->name);
+        }
+    }
+    Con_Printf("%s: %d listed models, %d pieces drawn in a gun's place\n", name, models, pieces);
     t.check(models > 0, name, "no listed weapon's model found");
 }
 
