@@ -2817,11 +2817,20 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_AG_Hit =
     {
         return; // (where it struck isn't known, or a blast's: its box's nearest point)
     }
-    if(targ.vr_ag_prop2 && !targ.vr_ag_tug_pl && vlen(vr_hr_at - targ.vr_ag_prop2.origin) < vlen(vr_hr_at - targ.vr_ag_prop.origin))
+    // Its grips as drawn (VR_AG_DrawnFrame: on its posed hands, aiming, guarding, swinging; the server's place when not drawn
+    // lately), not the server's weapon place (ROUND23.md, "Armed humanoids: shots and grip spheres from the drawn pose").
+    if(targ.vr_ag_prop2 && !targ.vr_ag_tug_pl)
     {
-        VR_AG_Swap(targ); // (nearer its other hand's weapon: that one's the one at stake)
+        VR_AG_DrawnFrame(targ.vr_ag_prop2);
+        vector g2 = vr_ag_df_o;
+        VR_AG_DrawnFrame(targ.vr_ag_prop);
+        if(vlen(vr_hr_at - g2) < vlen(vr_hr_at - vr_ag_df_o))
+        {
+            VR_AG_Swap(targ); // (nearer its other hand's weapon: that one's the one at stake)
+        }
     }
-    float near = vlen(vr_hr_at - targ.vr_ag_prop.origin);
+    VR_AG_DrawnFrame(targ.vr_ag_prop);
+    float near = vlen(vr_hr_at - vr_ag_df_o);
     if(cvar_hget(cvarh_vr_agrunt_strike_first))
     {
         near = min(near, VR_AG_HandLineDist(targ, targ.vr_ag_prop, vr_hr_at)); // (its gun hand and forearm, not the grip alone)
