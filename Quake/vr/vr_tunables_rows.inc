@@ -1294,6 +1294,7 @@ QVR_TUNABLE_SLIDER(vr_flare_light, "Flare Light Size", 0.0f, 3.0f, 0.05f, "%.2fx
 QVR_TUNABLE_SLIDER(vr_flare_sparks, "Flare Sparks", 0.0f, 3.0f, 0.05f, "%.2fx", 0.0f, 3.0f, "Their sparks and smoke (0: none).")
 QVR_TUNABLE_SLIDER(vr_nailpistol_mag, "Nail Pistol Magazine", 1.0f, 30.0f, 1.0f, "%.0f rounds", 1.0f, 100.0f, "The rounds its magazine holds, a nail of yours each.")
 QVR_TUNABLE_SLIDER(vr_nailpistol_slide_cycle, "Nail Pistol Slide Cycle", 0.03f, 0.5f, 0.01f, "%.2f s", 0.01f, 2.0f, "How long its slide takes back and home after a shot (a third of it back); a re-rack closes in the home part.")
+QVR_TUNABLE_SLIDER(vr_nailpistol_slide_delay, "Nail Pistol Rack Delay", 0.0f, 1.0f, 0.05f, "%.2f s", 0.0f, 2.0f, "How long after a magazine is seated the locked-back slide waits before racking closed by itself (0: at once). It cannot fire until the slide has closed.")
 QVR_TUNABLE_SLIDER(vr_dmg_revolver, "Heavy Revolver", 1.0f, 100.0f, 1.0f, "%.0f a slug", 1.0f, 496.0f, "Quake VR's heavy revolver: a shell of yours fired as one slug. 26 kills a grunt (30) with one in the head (x1.5) or two in the body.")
 QVR_TUNABLE_SLIDER(vr_revolver_dmg_random, "Heavy Revolver Random", 0.0f, 1.0f, 0.05f, "%.2f", 0.0f, 1.0f, "Up to this share more damage at random, each slug (0.15: a grunt's body shot stays under its 30).")
 QVR_TUNABLE_SLIDER(vr_revolver_heavy_health, "Heavy Revolver Big Body Health", 30.0f, 1000.0f, 10.0f, "%.0f", 0.0f, 10000.0f, "The full health from which a monster's body is big.")
