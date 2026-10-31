@@ -562,6 +562,11 @@ void view::prepareWorldWeapons()
         anchor::prepare(model, weapons::anchor(slot, Key::WpnButtonAnchor));
         anchor::prepare(model, weapons::anchor(slot, Key::WpnTextAnchor));
         kickcancel::prepare(model); // (its firing frames' kick fitted now, not as it is first drawn)
+        if(modelmeta::is(model, modelmeta::Id::VShot)) // (and its auto pump's pieces: setupPumps)
+        {
+            kickcancel::preparePart(viewModel(pumpBodyModelName), model);
+            kickcancel::preparePart(viewModel(pumpModelName), model);
+        }
     }
 }
 
@@ -2283,6 +2288,9 @@ void copyLerp(entity_t& to, const entity_t& from)
 // along the gun's -x. lastModel: the gun's model, whose copy it is (setupPumps).
 void setGunPart(view::ViewEntity& part, const view::ViewEntity& gun, qmodel_t* model, float back)
 {
+    // Drawn at the gun's firing frames: their baked kick taken out as the gun's is (else the gun lurched in the hand
+    // mid-stroke, against the programmatic recoil: ROUND23.md, "Starter shotgun: the auto pump's pieces kicked").
+    kickcancel::preparePart(model, gun.ent.model);
     part = gun;
     part.ent.model = model;
     part.lastModel = gun.ent.model;
@@ -2350,6 +2358,16 @@ void setupPumps()
         if(vr_debug_weaponfx.value >= 2.f)
         {
             Con_Printf("autopump hand %d t %.3f travel %.3f\n", hand, cl.time, back);
+        }
+        // vr_debug_weaponfx 4: what is drawn in the gun's place, as weaponfx's "recoiltrack" line has the gun (its body as
+        // drawn against its rest pose, cm).
+        glm::vec3 now, rest;
+        float worst = 0.f;
+        if(vr_debug_weaponfx.value == 4.f && hand == HAND_MAIN && kickcancel::drawnBody(body.ent, now, rest, worst))
+        {
+            const view::ModelSpace space{body};
+            Con_Printf("recoiltrack part t %.5f frame %d resid %.3f cm worst %.3f u\n", cl.time, body.ent.frame,
+                glm::distance(space.point(now), space.point(rest)) * 100.f / units::metresToUnits(), worst);
         }
     }
     autopump::frame(isShotgun, where);
