@@ -1581,7 +1581,14 @@ QVR_CVAR(vr_autopump_hold, "-1", CVAR_NONE)           // test: 0..1 holds every 
 // settings are Weapon Offsets > Effects (vr_wofs_fx_*: which weapons kick and flash, their tracers' multipliers).
 QVR_CVAR(vr_weapon_recoil, "1", CVAR_ARCHIVE)          // 0: no programmatic recoil
 QVR_CVAR(vr_recoil_amount, "1", CVAR_ARCHIVE)         // every weapon's recoil (its own Kick Back cm and Muzzle Rise degrees) times this (looks only: the aim stays; the old vr_recoil_kick and vr_recoil_rise are in each weapon's own since vr_wofs_version 74)
-QVR_CVAR(vr_recoil_two_hand, "0.6", CVAR_ARCHIVE)     // a shot of a weapon held in both hands: its recoil's kick back, muzzle rise and return time (and haptic punch) times this, times the weapon's own (vr_wofs_fx_recoil_2h_NN); 1: as one-handed (weaponfx::twoHandRecoil)
+// A shot of a weapon held in both hands (weaponfx::twoHandRecoil): its recoil's kick back, muzzle rise (and sideways
+// turn), return time and haptic punch each times its slider here, times the weapon's own (vr_wofs_fx_2h_kick_NN, ...);
+// 1: as one-handed. Until 2026-10-31 one slider for all four (vr_recoil_two_hand, vr_wofs_fx_recoil_2h_NN): an old
+// config's value goes to all four (VR_RetiredCvar, weapons::retiredTwoHandLine).
+QVR_CVAR(vr_recoil_2h_kick, "0.6", CVAR_ARCHIVE)
+QVR_CVAR(vr_recoil_2h_rise, "0.6", CVAR_ARCHIVE)
+QVR_CVAR(vr_recoil_2h_time, "0.6", CVAR_ARCHIVE)
+QVR_CVAR(vr_recoil_2h_haptic, "0.6", CVAR_ARCHIVE)
 QVR_CVAR(vr_debug_weapon_frame, "-1", CVAR_NONE)       // debug: the held weapons drawn at this frame of their models, whatever the game steps (-1: as it steps them; Debug > Weapons)
 QVR_CVAR(vr_weapon_kick_cancel, "1", CVAR_NONE)        // the kick baked into Quake's weapon models' firing frames taken out of their poses (vr_kickcancel.cpp; parts such as a pump still move); 0: the models' own kick, to compare (Debug > Weapons)
 QVR_CVAR(vr_muzzle_flash, "1", CVAR_ARCHIVE)           // 0: no programmatic muzzle flashes (the models' own stay)
@@ -2760,7 +2767,8 @@ QVR_CVAR(vr_carry_full_cue, "1", CVAR_ARCHIVE)        // a box put away at a hol
 QVR_CVAR(vr_collect_fx, "1", CVAR_ARCHIVE)            // what a hand puts away at a holster or pouch (a box, a key, a power-up, a round, a grenade) is drawn shrinking into it (visual only: vr_collectfx.cpp)
 QVR_CVAR(vr_collect_fx_time, "0.25", CVAR_ARCHIVE)     // with it: seconds it takes to go in (game time: slowed in bullet time)
 QVR_CVAR(vr_collect_fx_size, "0.2", CVAR_ARCHIVE)      // with it: its size when it is gone (of its own)
-QVR_CVAR(vr_debug_collect_fx, "0", CVAR_NONE)          // 1: print each thing put away (its model, from where, the holster's hotspot) and when it is gone in; 2: also each frame's size and distance left
+QVR_CVAR(vr_test_collect_chamber_off, "-1", CVAR_NONE) // (tests: vr_revolver_test.qc) set as a shell slid into a heavy revolver's chamber ends: how far its way's end is off the axis of the shell drawn in that chamber (units; 99 not measured)
+QVR_CVAR(vr_debug_collect_fx, "0", CVAR_NONE)         // 1: print each thing put away (its model, from where, the holster's hotspot) and when it is gone in; 2: also each frame's size and distance left
 QVR_CVAR(vr_carry_local, "1", CVAR_ARCHIVE)           // what you carry is drawn in your hand as it moves this frame (0: where the server has it, a frame or a ping behind)
 QVR_CVAR(vr_held_surface_fit, "1", CVAR_ARCHIVE)      // a gripped box, gib or backpack sits against the palm, pushed out of the fist, instead of sunk into the hand (0: where it was gripped)
 QVR_CVAR(vr_held_collide, "1", CVAR_ARCHIVE)          // props held one in each hand meet, and a prop and the weapon in the other hand: drawn kept apart, each hand moved back with what it holds (looks only; vr_held.cpp meetFrame)

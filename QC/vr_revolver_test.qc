@@ -539,6 +539,7 @@ void() VR_Revolver_TestFrame =
         if(vr_rvt_frames == 6)
         {
             VR_Reload_Take(cVR_OffHand);
+            cvar_set("vr_test_collect_chamber_off", "-1"); // (the engine's, as the shell's slide into its chamber ends)
             vr_rvt_n = -1;
             for(vr_rvt_k = 1; vr_rvt_k <= 6 && vr_rvt_n < 0; vr_rvt_k++)
             {
@@ -553,11 +554,15 @@ void() VR_Revolver_TestFrame =
                 vr_rvt_frames, hr ? hr.classname : "nothing", hr ? hr.vr_ammo_count : 0,
                 hr ? vlen(VR_Reload_RoundRef(hr) - p.loadportpos) : -1, VR_HandGrabUtil_IsHandGrabbing(p, cVR_OffHand)));
         }
-        if((vr_rv_loaded >= 4 && vr_rvt_frames > 8) || vr_rvt_frames == 70)
+        float chOff = cvar("vr_test_collect_chamber_off");
+        if((vr_rv_loaded >= 4 && vr_rvt_frames > 8 && chOff >= 0) || vr_rvt_frames == 70)
         {
             VR_Test_Check(vr_rv_loaded == 4 && vr_rv_lastch == vr_rvt_n && VRGetWeaponClip(cVR_MainHand) == 4,
                 sprintf("by the hands (the off hand's shell at the load point): into chamber %g (want %g, the next to come), clip %g",
                     vr_rv_lastch, vr_rvt_n, VRGetWeaponClip(cVR_MainHand)));
+            // (The shell drawn sliding in goes into that chamber's hole, not the cylinder's middle: vr_collectfx.cpp.)
+            VR_Test_Check(chOff >= 0 && chOff <= 0.5,
+                sprintf("the shell's slide ends in its chamber's hole: %.2f units off the drawn shell's axis (want <= 0.5)", chOff));
             localcmd("vr_mock_button off grip 0; vr_mock_hand off -0.2 1.0 -0.3 70 0 0\n");
             VR_RVT_Next();
         }

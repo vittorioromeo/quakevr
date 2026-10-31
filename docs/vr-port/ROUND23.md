@@ -3387,3 +3387,113 @@ Checklist:
 - [knightparity] Toolgun: spawn an armed Knight with a shotgun (then a nailgun, two pistols): he hunts you, aims, fires,
   reloads; knock the gun out of his hand: he does not go back for it (vr_agknight_ranged_pickup 0).
 - [knightparity] Map knights (e1m2, vr_agknight 1) still hold swords; Rig Studio Subject's plain entries read "(plain)".
+## Nail hits bleed and dent again (branch `agent/nailburn`)
+
+His report: nail hits on an enemy left burn marks instead of a dent and blood. Cause (not the fire spots, not lava
+nails): since "Projectiles: one path" (869e5568b, 10-19) VR_Proj_Begin tags every projectile's hit QVR_HITKIND_SHOT,
+and VR_Wound_Hit read any non-pellet shot as lightning (QVR_WOUND_ZAP: a burn splat, no dent, no blood stream). The
+small gibs' and corpses' kinds (VR_SmallGib_Kind, VR_Corpse_DamageKind) and the gib speed (VR_GibKind) likewise called
+a nail's hit a hitscan's ("shots"; a plasma bolt's "light"). Fix, one vocabulary: the hit record says when a shot is a
+projectile's (`vr_hitproj`, set by `VR_SetHitProjectile`: VR_Proj_Begin, the laser's bounce), and `VR_Hit_Hitscan()`
+is the one test those four readers use. A projectile's hit takes its inflictor's kind again: a nail's wound
+QVR_WOUND_NAIL (dent + blood), a lava nail's, a laser's, a lava ball's a burn; the nails' small gibs and corpse damage
+"nails" again.
+Test `vr_nail_test 4` (Debug > Tests > Nail Pistol > Nail Wounds Test): the nailgun's, super nailgun's, nail pistol's
+and an armed grunt's real nails at a grunt: wound kind 2, blood spawned, not on fire, nail still a "spike"; a lava
+nail: kind 5.
+
+Checklist:
+- [nailburn] Shoot a grunt with the nail pistol, the nailgun and the super nailgun: each nail dents its model and
+  bleeds as a bullet does (no black burn marks); a lava nail (Dissolution of Eternity) still scorches and burns.
+
+## A revolver's shell slides into its own chamber (branch `agent/nailburn`)
+
+His report: a shell loaded into the heavy revolver's cylinder slid towards the cylinder's middle, not the hole it went
+into. The held shell's slide (vr_collectfx.cpp's "into the gun") followed view::loadPath, the load point on the
+cylinder's axis. Now VR_Revolver_LoadRound sends the chamber it chose (collectfx hotspot `QVR_CFX_INTO_CHAMBER` 243 +
+the chamber), and the slide follows `view::revolverChamberPath`: the same way moved off the axis to that chamber as drawn
+(the crane's swing, the cylinder's turn now: `rvChamberOff`, shared with setupRevolverParts' chambered shells).
+Check (vr_rv_test 1, step 8): the slide's end is measured against the shell then drawn in that chamber
+(`vr_test_collect_chamber_off`, a tests-only cvar the engine sets; with vr_debug_collect_fx also printed with the
+cylinder middle's distance for comparison): want at most 0.5 units off its axis. Measured: 0.00 for each of the four
+shells loaded (chambers 3, 5, 0, 2); the old way's end was 0.73 world units off them. (The way keeps the load point's
+place along the bore only: its Load Point offsets can put it off the cylinder's axis, which first left the end 0.95 off.)
+Before/after for the nails (the fix's test reverted to the old reading): wound kind 6 (lightning's burn) for all four
+nail weapons and the lava nail; after, 2 (nail) and 5 (burn). `vr_nail_test 1`'s backpack step fails (3 checks: no
+nail met the lying bag) with and without this fix: not this branch's.
+
+Checklist:
+- [nailburn] Swing the heavy revolver out and load shells one at a time: each shell slides straight into the hole it
+  ends up in (any chamber, cylinder turned or not), not towards the middle of the cylinder.
+## Starter shotgun: the auto pump's pieces kicked (branch `agent/sgrecoil`)
+
+His words: "Starter shotgun recoil is still messed up, it really feels like there's an animation frame where the gun's
+position/angle moves that conflicts with our procedural recoil."
+
+- **Guilty: the auto pump's two models.** While the fore-end strokes (vr_autopump_delay 0.25 s after the shot, for
+  vr_autopump_time 0.3 s) the shotgun is drawn as `progs/vr_pumpbody_on_v_shot.mdl` and `vr_pump_on_v_shot.mdl`
+  (setupPumps), at the gun's own frames, its entity hidden. Both are split from v_shot.mdl with its 9 poses, so both
+  carry its baked kick, and neither was in the kick cancel (not a slot's model): mid-stroke, at frames 3-6, the drawn
+  gun jumped back 9.5 / 6.7 / 3.8 / 1.3 cm and tipped up 8.6 / 6.2 / 3.3 / 0.9 degrees (`vr_kickcancel_info
+  progs/vr_pumpbody_on_v_shot.mdl`; offline the same: Kabsch fit of each pose, Python), easing back as the frames stepped,
+  under the procedural kick that was returning. The recoiltrack check of the last round read the gun's own entity (still:
+  body == rest), not what is drawn in its place.
+- **Fix** (`vr_kickcancel.cpp` `preparePart`): a model drawn in a listed gun's place at its frames is fitted and cancelled
+  as that gun's slot's (its body exactly the rest pose's bytes; its parts, the flash, through the pose's cancel); called
+  by `setGunPart` (each frame it is drawn) and at map load for the shotgun's two pieces (prepareWorldWeapons: no fit
+  hitch at the first stroke). A piece read again stays a piece. The SSG's opened parts (frame 0), magazines (their own
+  round frames) and revolver parts are not drawn at the gun's frames: not affected.
+- **Audited still** (code and numbers): v_shot.mdl's own 9 poses (all cancelled; parts left: the 55-vertex muzzle flash,
+  3 collapsed vertices), the frame lerp (body identical in every pose), QC (W_FireShotgun: punchangle -2 only; the VR
+  eye view overrides r_refdef.viewangles, so v_gunkick never reaches the headset; no velocity kick), the gun entity
+  (recoiltrack resid 0.000 cm every frame at 72 and 90 Hz). Not separately measured: two-handed (the pieces copy the gun's
+  entity, so the same), the off hand, collision push, aim filters (no frame-dependent motion found in setupWeapon).
+- **Numbers after** (`scratch/sgrecoil_track.sh`, real client path, vr_debug_weaponfx 4, a new "recoiltrack part" line):
+  72 Hz 22 stroke frames, 90 Hz 27: the drawn piece's body 0.000 cm off rest every frame (frames 2-5), the gun's 0.000.
+  `vr_kickcancel_test` 79/0 (was 71: the two pieces' 8 checks; "14 listed models, 2 pieces").
+- Open (not changed): the procedural rise is added to the controller's Euler pitch (vr_view.cpp), so with the hand rolled
+  the muzzle rises partly sideways (about the world-level right axis, not the gun's).
+
+## Two-handed recoil: one slider per value (branch `agent/sgrecoil`)
+
+His words (via the coordinator): split the two-handed recoil multiplier into one slider per value it affects.
+
+- Weapon Effects: "Two-Handed Kick Back / Muzzle Rise / Return Time / Haptics" (`vr_recoil_2h_kick`, `_rise`, `_time`,
+  `_haptic`, 0.6 each); Weapon Offsets > Effects: the same four per weapon (`vr_wofs_fx_2h_kick_NN`, `_rise`, `_time`,
+  `_haptic`, 1 each). The sideways turn goes with the rise; a burst's 2.5 cap per value. Defaults as before: nothing
+  changes until moved. `weaponfx::twoHandRecoil` returns the four (`TwoHandShares`); the haptic punch reads `.haptic`.
+- Old configs: `vr_recoil_two_hand X` and `vr_wofs_fx_recoil_2h_NN X` are retired lines (VR_RetiredCvar ->
+  `weapons::retiredTwoHandLine`): X set on all four. No version step (a sparse config holds only changed values).
+- Test (`scratch/sg2h_test.sh`): the old lines 0.4 and 0.7 land on all four each; `vr_recoil_test` 120/0 (the old
+  two-handed checks unchanged with the four alike, plus 8: each slider alone, global and own, moves only its share and
+  its drawn value, e.g. own rise 0.25: peak 1.812 deg, 3.000 cm, 0.0945 s against 3.624 deg, 3.000 cm, 0.0945 s).
+
+Checklist:
+- [sgrecoil] Fire the starter shotgun one-handed, then two-handed, and watch the gun through the auto pump's stroke: it
+  kicks once and settles smoothly; no second lurch back and up about a quarter second after the shot.
+- [sgrecoil] Weapon Effects: the four Two-Handed sliders (Kick Back, Muzzle Rise, Return Time, Haptics) each change only
+  their own part of a two-handed shot; your old Two-Handed Recoil value is on all four.
+
+## Muzzle rise about the gun's own axis (branch `agent/riseaxis`)
+
+His call (after sgrecoil noted it): the procedural recoil's rise was added to the hand's Euler pitch, so with the hand
+rolled the muzzle rose partly world-up instead of along the gun's up.
+
+- **The fix** (`vr_weaponfx.cpp` recoilOffset, new `gunLocalTurn`): the kick's pitch and yaw now turn the hand about its
+  own right and up axes (the hand's drawn angles, which carry the calibration `vr_gunangle`/`vr_gunyaw`; the pivot as
+  before, the hand's origin), returned as the Euler change the callers already add (vr_view.cpp's shakes, the ghost
+  hands' measured pose). The kick back was already along the hand's forward. Every weapon, one- and two-handed (the
+  shares scale the kick before it is turned), stream shake included; `vr_ghost_hands_ignore_recoil` unchanged (it
+  adds the same change). An unrolled hand's rise is the pitch, exactly as before; its sideways turn is now about the
+  gun's up rather than the world's (differs only with the hand pitched; the tests' unturned hand gives the same).
+- **Decision**: the hand's frame, not each weapon's small per-slot angle offsets (weaponAngleOffsets), is the gun's axis:
+  the offsets are a few degrees, and the hand frame keeps one place and the unrolled case exact.
+- **Tests**: `vr_recoil_test` 127/0 (new axis part: hands turned six ways incl. rolled 90/45, pitched+yawed+rolled: the
+  muzzle's move and the kick back in the hand's axes match the unturned hand's to 0.0000; rolled 90 the move across
+  the barrel is 0.000 world-up, rolled 45 0.707; unrolled pitched hand: the rise is its pitch). `vr_kickcancel_test`
+  79/0, `gunfx_test.py` 73/0.
+
+Checklist:
+- [riseaxis] Roll your wrist 90 degrees (gun on its side) and fire the shotgun or nailgun: the muzzle kicks toward the
+  gun's top (sideways in the world), not toward the ceiling; at 45 degrees it kicks diagonally along the gun's top.
+- [riseaxis] Upright gun, one- and two-handed: the recoil feels the same as before.

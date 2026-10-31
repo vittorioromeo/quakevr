@@ -168,9 +168,9 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_Wound_Hit =
             extra += QVR_WOUND_MELEE_THROWN; // a blade you threw: its blood stream's chance
         }
     }
-    else if(vr_hitkind == QVR_HITKIND_SHOT)
+    else if(VR_Hit_Hitscan())
     {
-        kind = QVR_WOUND_ZAP; // a hitscan shot that is not pellets: lightning
+        kind = QVR_WOUND_ZAP; // a hitscan shot that is not pellets: lightning (a projectile's hit: its own kind, below)
     }
     else if(m == "progs/lavaball.mdl" || inflictor.classname == "lava_spike" || m == "progs/laser.mdl")
     {

@@ -12,7 +12,8 @@
 // ones: nothing is undone as it is drawn.
 //
 // The weapons: the listed slots' models (bakedSlots: Quake's and the mission packs' guns; not the Widowmaker, whose own
-// model's firing frames only turn its barrels). vr_weapon_kick_cancel 0 puts their own poses back (for comparison:
+// model's firing frames only turn its barrels), and the models drawn in a listed gun's place at its frames (preparePart:
+// the shotgun's auto pump pieces; ROUND23.md, "Starter shotgun: the auto pump's pieces kicked"). vr_weapon_kick_cancel 0 puts their own poses back (for comparison:
 // Debug > Weapons; the held guns' at the next frame). vr_kickcancel_info [model] prints a model's fit (each pose's
 // motion, its body's residual); vr_kickcancel_test checks every listed model's (its firing frames drawn at 72 and 90 Hz:
 // the body still).
@@ -36,6 +37,12 @@ namespace qvr::kickcancel
 // The model's poses made ready now (fitted the first time, cancelled or put back by vr_weapon_kick_cancel): a map's load
 // (view::prepareWorldWeapons), and each frame for the held weapons (weaponfx::frame: a toggle, a model read again).
 void prepare(const qmodel_t* model);
+
+// `part`, a model drawn in place of (a piece of) the gun `gun` at the gun's own frames (the shotgun's auto pump: the gun
+// without its fore-end and the fore-end, vr_view.cpp setGunPart), made ready as prepare does, its kick fitted and taken
+// out as the gun's slot's (it carries the same baked kick: drawn uncancelled, the gun lurched up to 9 degrees in the
+// hand mid-stroke). Each frame it is drawn.
+void preparePart(const qmodel_t* part, const qmodel_t* gun);
 
 // Every listed slot's model (those found): its fit loaded, and its firing frames drawn through the anchors' path at 72
 // and 90 Hz keep its body at rest, still from one drawn frame to the next (the parts may move). vr_recoil_test's part
