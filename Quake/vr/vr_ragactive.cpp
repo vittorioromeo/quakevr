@@ -1325,6 +1325,7 @@ void fallFrame(State& s, const Parts& p, const Context& c, float t)
     if(f.landed >= 0.f && t > f.landed + 1.2f)
     {
         f.on = false;
+        setMode(s, Mode::Limp);
         for(Reach& r : s.reach)
         {
             r.weight = 0.f;
@@ -2064,7 +2065,8 @@ void guardFrame(State& s, const Parts& p, const Context& c)
     {
         return;
     }
-    if(c.now > g.until + guardOut || head < 0 || cut(p, head) || s.death.on || s.climb.on)
+    if(c.now > g.until + guardOut || head < 0 || cut(p, head) ||
+        gate(s, "guardEnds", s.death.on || s.climb.on, s.mode == Mode::Dying || s.mode == Mode::Climbing))
     {
         g.on = false;
         for(int arm = 0; arm < 2; arm++)
@@ -2147,10 +2149,133 @@ void fallEnv(State& s, const Parts& p, const Context& c)
     }
 }
 
+// Stage A's shadow log: lines printed (at most shadowLines), mismatches and impossible combinations seen.
+struct ModeShadow
+{
+    int lines{0};
+    int mismatches{0};
+    int combos{0};
+};
+ModeShadow modeShadow;
+constexpr int shadowLines = 300;
+
+// The mode the old flags imply (who led in the old checks).
+[[nodiscard]] Mode modeOfFlags(const State& s)
+{
+    if(!s.on)
+    {
+        return Mode::Limp;
+    }
+    if(s.swim.liquid != Liquid::None)
+    {
+        return Mode::Swimming;
+    }
+    if(s.struggle.on)
+    {
+        return Mode::Struggle;
+    }
+    if(s.rise.on)
+    {
+        return Mode::Rising;
+    }
+    if(s.fall.on)
+    {
+        return Mode::Falling;
+    }
+    if(s.stagger.on)
+    {
+        return Mode::Stagger;
+    }
+    if(s.climb.on)
+    {
+        return Mode::Climbing;
+    }
+    return s.death.on ? Mode::Dying : Mode::Limp;
+}
+
+void shadowLog(const char* fmt, const char* a, const char* b, const char* where, const State& s)
+{
+    if(modeShadow.lines++ < shadowLines)
+    {
+        Con_Printf(fmt, a, b, where, s.begun, s.death.on, s.dismember.on, s.struggle.on, s.rise.on, s.fall.on,
+            s.stagger.on, s.climb.on, static_cast<int>(s.swim.liquid), s.guard.on);
+        if(FILE* f = fopen("C:/OHWorkspace/qvr-agents/phases/scratch/ragmode_shadow.txt", "a"))
+        {
+            fprintf(f, fmt, a, b, where, s.begun, s.death.on, s.dismember.on, s.struggle.on, s.rise.on, s.fall.on,
+                s.stagger.on, s.climb.on, static_cast<int>(s.swim.liquid), s.guard.on);
+            fclose(f);
+        }
+    }
+}
+
+// (Stage A: which modes the runs reached, appended once each per process.)
+uint32_t modesSeen = 0u;
+void shadowSeen(Mode m)
+{
+    const uint32_t bit = 1u << static_cast<uint32_t>(m);
+    if(!(modesSeen & bit))
+    {
+        modesSeen |= bit;
+        if(FILE* f = fopen("C:/OHWorkspace/qvr-agents/phases/scratch/ragmode_shadow.txt", "a"))
+        {
+            fprintf(f, "ragmode: seen %s\n", modeName(m));
+            fclose(f);
+        }
+    }
+}
+
 } // namespace
 
 namespace detail
 {
+
+// Another machine leads from here: a struggle gives way.
+void struggleGivesWay(State& s)
+{
+    s.struggle.on = false;
+    if(s.mode == Mode::Struggle)
+    {
+        setMode(s, Mode::Limp);
+    }
+}
+
+bool gate(const State& s, const char* name, bool was, bool now)
+{
+    if(was != now)
+    {
+        modeShadow.mismatches++;
+        shadowLog("ragmode: gate %s: the flags say %s, the mode (%s) not; begun %.2f; death %d cut %d struggle %d rise %d "
+                  "fall %d stagger %d climb %d liquid %d guard %d\n",
+            name, was ? "yes" : "no", modeName(s.mode), s);
+    }
+    return was;
+}
+
+void shadowMode(const State& s, const char* where)
+{
+    if(!s.on)
+    {
+        return;
+    }
+    const Mode want = modeOfFlags(s);
+    shadowSeen(s.mode);
+    if(want != s.mode)
+    {
+        modeShadow.mismatches++;
+        shadowLog("ragmode: mode %s, the flags say %s, at %s, begun %.2f; death %d cut %d struggle %d rise %d fall %d "
+                  "stagger %d climb %d liquid %d guard %d\n",
+            modeName(s.mode), modeName(want), where, s);
+    }
+    const int leads = static_cast<int>(s.death.on) + s.struggle.on + s.rise.on + s.fall.on + s.stagger.on + s.climb.on;
+    const bool wet = s.swim.liquid != Liquid::None && s.swim.liquid != Liquid::Air;
+    if(leads > 1 || (s.dismember.on && !s.death.on) || (wet && (s.struggle.on || s.rise.on || s.stagger.on)))
+    {
+        modeShadow.combos++;
+        shadowLog("ragmode: combination in mode %s%s at %s, begun %.2f; death %d cut %d struggle %d rise %d fall %d "
+                  "stagger %d climb %d liquid %d guard %d\n",
+            modeName(s.mode), "", where, s);
+    }
+}
 
 // A living one's fall (drive(): a shove's knockdown, a stagger gone over, a throw) past a lip near a hand: it grabs it,
 // its fall over, a climb from here (vr_ragdoll_active_pullup above 0; Grab Ledges on). Once a fall.
@@ -2218,6 +2343,7 @@ void livingLedge(State& s, const Parts& p, const Context& c)
     k.lip = sum / static_cast<float>(za::max(n, 1));
     k.top = k.lip.z;
     e.on = true;
+    setMode(s, Mode::Climbing);
     // Its fall over; strong while it hangs and climbs (its arms most, its legs hanging), towards its standing frame (the
     // classes' first: stand1): straightened out, not hanging in the crouch or the pain it fell in.
     s.fall.on = false;
@@ -2901,7 +3027,7 @@ void begin(State& s, const Parts& p, const qmodel_t* model, const glm::vec3& ori
 
 void beginDeath(State& s, const Parts& p, const DeathInfo& di, double now)
 {
-    s.struggle.on = false; // (it leads from here: a struggle gives way)
+    struggleGivesWay(s);
     const ragdoll::Rig& rig = *p.rig;
     if(di.death < 0 || di.death >= rig.deaths)
     {
@@ -2910,6 +3036,7 @@ void beginDeath(State& s, const Parts& p, const DeathInfo& di, double now)
     Death& d = s.death;
     d = Death{};
     d.on = true;
+    setMode(s, Mode::Dying);
     d.collapse = di.collapse;
     const int first = rig.deathFirst[di.death], last = rig.deathLast[di.death];
     const float stretch = za::clamp(vr_ragdoll_active_fade.value, 0.1f, 5.f);
@@ -3019,12 +3146,13 @@ bool liquidPending(const State& s, double now)
 
 void beginStagger(State& s, const Parts& p, const StaggerInfo& info, double now)
 {
-    s.struggle.on = false; // (it leads from here: a struggle gives way)
+    struggleGivesWay(s);
     const ragdoll::Rig& rig = *p.rig;
     const float t = static_cast<float>(now - s.begun);
     Stagger& g = s.stagger;
     g = Stagger{};
     g.on = true;
+    setMode(s, Mode::Stagger);
     g.dir = glm::length(level(info.dir)) > 1e-3f ? glm::normalize(level(info.dir)) : glm::vec3{1.f, 0.f, 0.f};
     g.balance = za::clamp(info.balance, 0.f, 1.f);
     g.travel = za::max(info.travel, 0.f);
@@ -3106,11 +3234,12 @@ void beginStagger(State& s, const Parts& p, const StaggerInfo& info, double now)
 void beginFall(State& s, const Parts& p, const glm::vec3& dir, uint32_t slack, float slackTime, bool curl, double now,
     float legsHold)
 {
-    s.struggle.on = false; // (it leads from here: a struggle gives way)
+    struggleGivesWay(s);
     const float t = static_cast<float>(now - s.begun);
     Fall& f = s.fall;
     f = Fall{};
     f.on = true;
+    setMode(s, Mode::Falling);
     f.since = t;
     f.height = -1.f;
     f.dir = glm::length(level(dir)) > 1e-3f ? glm::normalize(level(dir)) : s.turn * glm::vec3{1.f, 0.f, 0.f};
@@ -3149,7 +3278,7 @@ void beginFall(State& s, const Parts& p, const glm::vec3& dir, uint32_t slack, f
 
 void beginRise(State& s, const Parts& p, const RiseInfo& info, double now)
 {
-    s.struggle.on = false; // (it leads from here: a struggle gives way)
+    struggleGivesWay(s);
     const float t0 = static_cast<float>(now - s.begun);
     const float prep = za::max(info.prep, 0.1f);
     const float fps = za::max(info.fps, 1.f);
@@ -3200,6 +3329,7 @@ void beginRise(State& s, const Parts& p, const RiseInfo& info, double now)
     s.pin.turnShare = 1.f;
     s.pin.offset = glm::vec3{0.f};
     r.on = true;
+    setMode(s, Mode::Rising);
     r.prep = prep;
     r.end = now + static_cast<double>(roll + prep + static_cast<float>(za::abs(info.last - info.first)) / fps);
     r.polled = now;
@@ -3345,13 +3475,15 @@ void driveFrames(DriveWork& w, State& s, const Parts& p, const Context& c)
     float& t = w.t;
     ClipPose& pose = w.pose;
     za::Array<glm::vec3, ragdoll::maxBones>& spin = w.spin;
+    shadowMode(s, "frames");
     if(s.dismember.on && (s.stagger.on || s.fall.on || s.rise.on))
     {
         s.stagger.on = false;
         s.fall.on = false;
         s.rise.on = false;
+        setMode(s, Mode::Dying);
     }
-    if(s.dismember.on && s.swim.liquid == Liquid::None)
+    if(gate(s, "dismember", s.dismember.on && s.swim.liquid == Liquid::None, s.dismember.on && s.mode != Mode::Swimming))
     {
         dismemberFrame(s, p, c, t); // (before deathFrame: it takes his hands and legs from the wound and the step)
         for(int b = 0; b < p.count; b++)
@@ -3370,25 +3502,27 @@ void driveFrames(DriveWork& w, State& s, const Parts& p, const Context& c)
     // liquid (the box3d side stops wanting it there).
     bool& struggles = w.struggles;
     struggles = s.struggle.on && struggleFrame(s, p, c, t);
-    if(!(struggles && s.swim.liquid == Liquid::Air))
+    if(gate(s, "swim", !(struggles && s.swim.liquid == Liquid::Air), !(struggles && s.mode == Mode::Swimming)))
     {
         swimFrame(s, p, c, t); // (it begins one too)
     }
+    shadowMode(s, "swim");
     bool& swimming = w.swimming;
     swimming = s.swim.liquid != Liquid::None;
-    if(s.stagger.on && !swimming)
+    if(gate(s, "stagger", s.stagger.on && !swimming, s.mode == Mode::Stagger))
     {
         staggerFrame(s, p, c, t, pose);
     }
-    if(s.fall.on && !swimming && !s.death.on && !s.dismember.on)
+    if(gate(s, "ledge", s.fall.on && !swimming && !s.death.on && !s.dismember.on, s.mode == Mode::Falling))
     {
         livingLedge(s, p, c); // (past a lip: it grabs it, its fall over, a climb)
     }
-    if(s.fall.on && !swimming)
+    if(gate(s, "fall", s.fall.on && !swimming, s.mode == Mode::Falling))
     {
         fallFrame(s, p, c, t);
     }
-    if(s.guard.on && !swimming)
+    shadowMode(s, "fall");
+    if(gate(s, "guard", s.guard.on && !swimming, s.guard.on && s.mode != Mode::Swimming))
     {
         guardFrame(s, p, c); // (its arms up before its face, over the stagger's, the fall's or the get-up's)
     }
@@ -3403,7 +3537,8 @@ void driveReaches(DriveWork& w, State& s, const Parts& p, const Context& c)
     za::Array<glm::vec3, ragdoll::maxBones>& spin = w.spin;
     bool& struggles = w.struggles;
     bool& swimming = w.swimming;
-    const bool envLeads = !(swimming || s.dismember.on || s.stagger.on || s.fall.on || s.rise.on || struggles);
+    const bool envLeads = gate(s, "envLeads", !(swimming || s.dismember.on || s.stagger.on || s.fall.on || s.rise.on || struggles),
+        (s.mode == Mode::Dying && !s.dismember.on) || s.mode == Mode::Climbing || (s.mode == Mode::Limp && !struggles));
     const uint8_t envOwns = envLeads ? s.env.reached : 0;
     for(int limb = 0; limb < limbCount; limb++)
     {
@@ -3422,7 +3557,7 @@ void driveReaches(DriveWork& w, State& s, const Parts& p, const Context& c)
             }
         }
     }
-    if(!envLeads && s.fall.on && !swimming && !s.dismember.on && !s.death.on)
+    if(gate(s, "fallEnv", !envLeads && s.fall.on && !swimming && !s.dismember.on && !s.death.on, !envLeads && s.mode == Mode::Falling))
     {
         fallEnv(s, p, c); // (a living fall: a hand may grab another; its other holds let go)
     }
@@ -3525,7 +3660,7 @@ void driveJoints(DriveWork& w, State& s, const Parts& p, const Context& c)
             b3RevoluteJoint_SetMaxMotorTorque(j, most);
         }
     }
-    if(s.rise.on && pose.valid && !swimming) // (a swim leads: see above)
+    if(gate(s, "risePose", s.rise.on && pose.valid && !swimming, s.mode == Mode::Rising && pose.valid))
     {
         any = true;
         riseFrame(s, p, c, pose);
@@ -3548,18 +3683,18 @@ void drivePin(DriveWork& w, State& s, const Parts& p, const Context& c)
     {
         any = true;
         glm::vec3 offset{0.f};
-        if(s.death.on && s.death.stumble)
+        if(gate(s, "pinStumble", s.death.on && s.death.stumble, s.mode == Mode::Dying && s.death.stumble))
         {
             offset = s.death.walk * (stumbleTau * (1.f - za::exp(-t / stumbleTau)));
         }
-        if(s.stagger.on)
+        if(gate(s, "pinStagger", s.stagger.on, s.mode == Mode::Stagger))
         {
             offset = s.stagger.lift + s.stagger.dir * (s.stagger.travel * staggerShare(s.stagger, t)) -
                      glm::vec3{0.f, 0.f, staggerDip(s.stagger, t)};
         }
         glm::vec3 at = s.origin + s.turn * (pose.pos[0] * p.k) + offset;
         glm::quat turn = glm::normalize(s.turn * pose.rot[0]);
-        if(s.climb.on && s.climb.pinned) // (a climb's: its way's point, turned to face the wall and pitched over)
+        if(gate(s, "pinClimb", s.climb.on && s.climb.pinned, s.mode == Mode::Climbing && s.climb.pinned)) // (a climb's: its way's point, turned to face the wall and pitched over)
         {
             // (Its way is its pelvis's middle's: the anchor is its body's origin, that far off it as turned.)
             turn = glm::normalize(glm::slerp(s.climb.rot0, glm::normalize(s.climb.tilt * turn), s.climb.turnBlend));
@@ -3618,8 +3753,9 @@ void driveWeight(DriveWork& w, State& s, const Parts& p, const Context& c)
             }
         }
     }
-    const bool crawlPending =
-        (s.death.on && s.death.crawl) || s.fall.on || s.stagger.on || s.rise.on || s.climb.on || s.struggle.on || wideArms;
+    const bool crawlPending = gate(s, "awake",
+        (s.death.on && s.death.crawl) || s.fall.on || s.stagger.on || s.rise.on || s.climb.on || s.struggle.on || wideArms,
+        (s.death.on && s.death.crawl) || knockdown(s.mode) || s.struggle.on || wideArms);
     if(any || crawlPending)
     {
         b3Body_SetAwake(p.body[0], true);
@@ -3668,6 +3804,7 @@ void drive(State& s, const Parts& p, const Context& c)
         }
         return;
     }
+    shadowMode(s, "drive");
     w.t0 = Sys_DoubleTime();
     w.rig = &*p.rig;
     const ragdoll::Rig& rig = *w.rig;
@@ -3689,6 +3826,19 @@ void drive(State& s, const Parts& p, const Context& c)
     driveJoints(w, s, p, c);
     drivePin(w, s, p, c);
     driveWeight(w, s, p, c);
+    shadowMode(s, "driven");
+}
+
+const char* modeName(Mode m)
+{
+    constexpr const char* names[] = {"limp", "struggle", "stagger", "falling", "rising", "dying", "climbing", "swimming"};
+    const auto i = static_cast<za::SizeT>(m);
+    return i < sizeof(names) / sizeof(names[0]) ? names[i] : "?";
+}
+
+void setMode(State& s, Mode to)
+{
+    s.mode = to;
 }
 
 void end(State& s)
@@ -3697,6 +3847,7 @@ void end(State& s)
     envEnd(s); // (its hands' holds)
     dropPin(s.pin);
     s.on = false;
+    setMode(s, Mode::Limp);
 }
 
 void release(State& s, const Parts& p)
