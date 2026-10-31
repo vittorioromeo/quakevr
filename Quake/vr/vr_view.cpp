@@ -3155,12 +3155,14 @@ bool revolverChamberPath(int hand, int chamber, glm::vec3& port, glm::vec3& deep
     {
         return false;
     }
-    // (loadPath's way runs along the cylinder's axis from its back face's middle: moved out to the chamber, parallel.)
+    // (loadPath's way runs along the bore (+x) past the load point, which its Load Point offsets may move off the
+    // cylinder's axis: kept along the bore, put on the chamber's axis as drawn: the crane swung, the cylinder turned.)
     const RevolverDrawn& st = rvHands[hand];
-    const glm::vec3 off = rvChamberOff(chamber, -st.swing + st.cyl, 0.f);
-    port += off;
-    deep += off;
-    end += off;
+    const float swing = -st.swing;
+    const glm::vec3 c = rvPivot + rvTurnX(rvCylInCrane, swing) + rvChamberOff(chamber, swing + st.cyl, 0.f);
+    port = {port.x, c.y, c.z};
+    deep = {deep.x, c.y, c.z};
+    end = {end.x, c.y, c.z};
     return true;
 }
 
@@ -3176,7 +3178,7 @@ bool revolverShellDrawn(int hand, int chamber, glm::vec3& at, glm::vec3& bore)
     {
         return false;
     }
-    at = geom::vec(sh.ent.origin);
+    at = modelPoint(sh, glm::vec3{0.f}); // (its model's origin as drawn: setRevolverPart puts it on the chamber's axis)
     bore = glm::normalize(x - o);
     return true;
 }

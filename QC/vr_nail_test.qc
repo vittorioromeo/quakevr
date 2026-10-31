@@ -486,6 +486,8 @@ void() VR_NailTest_Frame =
             vr_npt_player = vr_nlt_player;
             vr_nlt_g = VR_NPT_Grunt(400, WID_NAILGUN, 0); // (the armed grunt whose nail is the enemy's)
             vr_nlt_t = VR_NPT_Grunt(200, -1, 0);          // (the one they strike)
+            makevectors('0 1 0' * vr_nlt_player.angles_y);
+            setorigin(vr_nlt_g, vr_nlt_g.origin + v_right * 96); // (aside: the other one in its way would hold its fire)
             vr_nlt_case = 0;
             vr_nlt_step = 10;
             vr_nlt_frames = -10;

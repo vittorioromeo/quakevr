@@ -3382,7 +3382,12 @@ the chamber), and the slide follows `view::revolverChamberPath`: the same way mo
 (the crane's swing, the cylinder's turn now: `rvChamberOff`, shared with setupRevolverParts' chambered shells).
 Check (vr_rv_test 1, step 8): the slide's end is measured against the shell then drawn in that chamber
 (`vr_test_collect_chamber_off`, a tests-only cvar the engine sets; with vr_debug_collect_fx also printed with the
-cylinder middle's distance for comparison): want at most 0.5 units off its axis.
+cylinder middle's distance for comparison): want at most 0.5 units off its axis. Measured: 0.00 for each of the four
+shells loaded (chambers 3, 5, 0, 2); the old way's end was 0.73 world units off them. (The way keeps the load point's
+place along the bore only: its Load Point offsets can put it off the cylinder's axis, which first left the end 0.95 off.)
+Before/after for the nails (the fix's test reverted to the old reading): wound kind 6 (lightning's burn) for all four
+nail weapons and the lava nail; after, 2 (nail) and 5 (burn). `vr_nail_test 1`'s backpack step fails (3 checks: no
+nail met the lying bag) with and without this fix: not this branch's.
 
 Checklist:
 - [nailburn] Swing the heavy revolver out and load shells one at a time: each shell slides straight into the hole it
