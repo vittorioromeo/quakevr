@@ -3961,3 +3961,46 @@ was fixed (3 of 12 and 2 of 6 failed before). Fix (QC/vr_nail_test.qc only): VR_
 spike_touch does, and VR_NLT_BagNail starts no farther back than the player stands (min(100, his distance)), so a start
 never lands behind him near a wall. Not timing: the flakiness under parallel load was the random rest place. No gameplay
 change.
+
+## His poses of 2026-10-31 shipped; the Rig Studio's subject clear of the floating text (branch `agent/posepromo`)
+
+**The subject clear of the text.** His words: the floating texts get in the way. In vrtesthall the welcome boards
+(`func_worldtext_banner` at 0 -144 62/88) stood 16 units before the stage (0 -128), between it and the default camera:
+the board's text over the subject's head. `findStage` (vr_rigstudio.cpp) now checks the server's world texts
+(`worldtext::serverTextList`, `halfSize`): one within 320 units of the stage whose board (1.5 times its half diagonal)
+comes within 32 degrees of the default camera's line to the subject, not wholly behind the camera nor behind a wall, moves
+the stage to the nearest clear place on a 48-unit grid (forward first, back towards the start costed 4x), with room for
+a 64-unit hull at the subject and at the camera's eye and the floor within 24 units. vrtesthall: 96 forward, 48 left
+(-48 -32 0). Every test reads `st.stage`, none a fixed place. A map without a text near: unchanged. `developer 1` prints
+each place tried and why it was not taken. Screenshots (studio default camera, mock): grunt, death knight at rest and
+in Pickup: no text over any.
+
+**His pose keys, grips, IK stretch as shipped.** From his vr_agrunt_poses (186 keys: grunt 61, enforcer 59, knight 58,
+death knight 8), vr_agrunt_grips (8: 3 already shipped), vr_agrunt_ik_stretch (26: 10 new or changed, all knight's but one
+death knight's) of 2026-10-31, with `Misc/quakevr/pose_defaults.py --write`. The knights follow the grunt's keys
+(`shippedFrom`), so their own rows had nowhere to go: `shippedOf` and `shippedStretchOf` now take a kind's own row of a
+code first, else the followed kind's fitted, as an archived key does (its own rifle row is not laid on its gun
+categories, as an archived one is not); `copyKind` lists a kind's own rows too. pose_defaults.py: knight names, and an
+all-zero key (or a stretch of 1) keeps its row where dropping it would ship the followed kind's or the rifle's instead.
+Grips: knight Main and Off, death knight Main (his rows win over agent/kngrip's fit; the death knight's Off keeps the
+fit), the knight's sword Second and laser cannon Main. New: `vr_agrunt_pose_dump all` (every key and stretch in effect)
+and `vr_agrunt_grip_dump effective` (every grip in effect). **Proof:** his three lines on the old tables vs the new
+tables with the cvars empty: 476 keys, 48 stretch rows, 16 grip lines, byte for byte the same; again after merging
+agent/kngrip (empty vs his cvars). His archived text now equals the shipped (no config version: 218 is the last).
+
+**Knight rig.** His Range of Motion edits (`vrknight.rig2.txt`, as is): both clavicles swing x -15..35, y -15..35, twist
+-65..45 (were -15..20, -10..20, -35..35); make_rig2.py's knight skeleton the same (a regenerate equals his file number for
+number: only the header line and the number format differ). His rig2anim files are header-only: not added (optional).
+
+Tests: Pose Keys grunt 13/1, knight + shotgun **14/0** (13/1 before: the elbow step passes with his poses), death knight
+13/1 (the elbow step, as the grunt's). Test 85 40/0 with his knight grips (knight pistols 0.6-1.0 degrees off their pose).
+run_baseline `agrunt|rigstudio|posestudio|rig2`: no regression (agrunt 31, 36, 65 FAIL -> PASS and the new tests are
+other branches'; rigstudio cases as the baseline). eval.sh: 163/171 as origin/next; its few "differ" takes change from
+run to run on origin/next and here alike (noise, no melee number from this branch).
+
+Checklist:
+- [posepromo] Rig Studio (flat screen): open it: the subject stands clear of the hall's welcome boards; change it to
+  the knight and the death knight, Pose Keys > Pickup: no text over it.
+- [posepromo] Armed knights and death knights look as in your last session with your vr_agrunt_* settings cleared
+  (`vr_agrunt_poses ""; vr_agrunt_grips ""; vr_agrunt_ik_stretch ""`): your keys are the defaults now.
+- [posepromo] Rig Studio > Range of Motion on the knight: the clavicles' limits are yours.
