@@ -176,6 +176,10 @@ float(entity g, entity pl, float pnum, float hand) VR_WP_HandPull =
         return -1; // (not held by its pack)
     }
     float s = ragdollbone(g, [3, pnum, hand], QVR_WORNPACK);
+    if(cvar("vr_worn_backpack_debug") >= 2)
+    {
+        VR_WP_Log(sprintf("hand %g's hold: force %.0f N, the held point %.2f units off the hand", hand, f, s));
+    }
     return max(f, s * max(0, cvar("vr_worn_backpack_rip_stiffness")));
 };
 

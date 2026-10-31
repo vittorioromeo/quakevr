@@ -3595,3 +3595,47 @@ Checklist:
 - [riseaxis] Roll your wrist 90 degrees (gun on its side) and fire the shotgun or nailgun: the muzzle kicks toward the
   gun's top (sideways in the world), not toward the ceiling; at 45 degrees it kicks diagonally along the gun's top.
 - [riseaxis] Upright gun, one- and two-handed: the recoil feels the same as before.
+
+## Blade on blade (branch `agent/bladecontact`)
+
+His note (2026-10-31): a sword grunt's blade "doesn't react to any player attack ... it just goes through and nothing
+happens. There should at least be a parry or sparks + sound effects (and the enemy should not take damage). Perhaps if
+the blow is strong enough, the enemy should get briefly staggered and the arm holding the sword should react".
+- **Today's behaviour** (test 77 before the change, 4/8): your sword on its blade's middle or tip at 3 m/s, it unaware:
+  nothing (went through); at 5 or 8 m/s (a deliberate strike, 4.5+), caught out: disarmed, even on the tip; a fist at
+  5 m/s: disarmed; into its raised parry (beat 1): disarmed by the roll; the melee's cut through its blade into its
+  chest: disarmed and the full 30 damage. Aware and facing you, 4 m/s: parried (as it should).
+- **Now** (QC/vr_armedgrunt_parry.qc `VR_AG_BladeMet`, `VR_AG_BladeContact`): a blow met a melee-class weapon's line
+  further than `vr_agrunt_blade_hand_zone` (6 units) from its hand and forearm (the weapon's point met, against the hand
+  line): into its raised parry a deliberate strike is that parry (no disarm roll); aware and facing you a lesser blow
+  the parry's own rule; otherwise a blade contact: sparks (impact table metal/blow row, a metal thing in your hand) and
+  the clang (metal/blade row; a fist or club: the metal knock at half volume), haptics, your hand knocked back along
+  the blow (handimpact), the blow stopped there: no damage (T_Damage_VRMelee returns at once: `vr_agbc_stopped`), and
+  that motion's later blows on it stop too (0.3 s mark, `.vr_agbc_by/.vr_agbc_mark`). At `vr_agrunt_blade_stagger_speed`
+  (6 m/s) or faster it staggers `vr_agrunt_blade_stagger_time` (0.5 s; vr_parry_stagger's pain pose, no ragdoll) and its
+  weapon arm is knocked along the blow (hitreact on its hand, part 2, share `vr_agrunt_blade_arm` 0.5 per 10 m/s). Under
+  `vr_agrunt_blade_least` (1.5 m/s) or an open hand: no contact. The hand's disarm rules, guns' and throws' unchanged.
+- Tunables (Debug > Tunables, "Combat > Armed Grunts - Blade Contact"): Hand Zone, Least Speed, Stagger Threshold,
+  Stagger Time, Arm Impulse, Sparks and Sound (`vr_agrunt_blade_fx` 1).
+- **Test 77** (`vr_agrunt_test 77`, Debug > Tests > Armed Grunts: Blade on Blade; QC/vr_armedgrunt_blade_test.qc):
+  12/12. Regression: agrunt 31, 35, 36, 65, 94, 96, 97, 98, 99, melee_phase, empty_melee, parryinterrupt pass; 60 5/1
+  (the ogre case, as in the baseline), parry_pose times out (as in the baseline); eval.sh as before.
+- **Worn pack drag (open):** `vr_wornpack_test 1` fails "dragged slowly by the pack: kept" (1557-2045 N peak). With
+  `vr_worn_backpack_debug 2` (new: each hold's force and the held point's lag) the hold reads 0 N with the held point
+  already 3.6 units off the hand on its first frame, then the body is driven 12 units away from a still hand at the
+  hold's 4000 N cap within 10 frames, settling to 1-4 units' lag. Not self-collision (`vr_ragdoll_self_collide 0`: the
+  same), not the fist's reach body (skipping it for pack holds: the same numbers), not the test's hand going on into the
+  pack (the hand kept where the grip closed: the same). The mock controller is aimed at the box's middle while the drawn
+  hand stops a unit off the box: next, compare the grab's `handPose` (controller) with `p.handpos` and the box at the
+  grab (the hold taking a point inside the pack the controller reached).
+- **Test 92 phase 1 (open, not run):** both holds now take the same light hand part (the grip fix); two springs on one
+  part halve each one's stretch, so the summed pull (`f1 + f2 x vr_agrunt_tug_two_hand_mult`, measure 2: stretch x
+  stiffness) is about one hand's, and two hands gain only the eased thresholds (0.75): the 0.85x bar is borderline by
+  design. A fix would add the second hand's pull as its own (e.g. the arm's resistance split, or the stretch of the
+  combined hold), a design choice for the author.
+
+Checklist:
+- [bladecontact] Hold a sword and strike an armed sword grunt's blade (middle or tip): sparks and a clang, your hand
+  kicked back, it takes no damage; it keeps its sword.
+- [bladecontact] Strike its blade hard (a full swing): it staggers briefly and its sword arm is knocked along your blow.
+- [bladecontact] Strike its sword hand instead: it can still be disarmed as before.
