@@ -4131,6 +4131,29 @@ The leftovers of round 5 ("Not done": the smooth rigs one model after another, 4
   and keying (the rigs must still be found: the key holds the derived rig), and the limbs' builds already run on the pool
   beside the load (round 5: 22 ms there, not on the main thread). Under the brief's ~20 ms bar: skipped.
 
+## Checklist: cleanup pass and a Test button on most items (branch `agent/cltests`)
+
+His voice note 2026-10-31 20:01: most checklist items had no test button. Two commits: the cleanup, then the buttons.
+
+- **Cleanup** (335 items -> 272): 10 ticked items retired, 6 duplicates (the Worn Backpacks block and two hit/backpack
+  lines had been shipped twice), the Full Slide comparison (decided: Full Slide is the default); 49 items merged into
+  31 that are tested in one go (the four flashlight-hand lines, the three downed-grunt grab lines, the nail pistol's
+  empty/re-rack/rack-delay lines, the death knight Rig Studio lines, ...); "debris you can't grab" reworded (ticked:
+  debris can be picked up); one tag a line (the Pose Studio rows split in four). Recoil lines untouched
+  (agent/recoilpromo removes them); the two failed items kept.
+- **Buttons**: 212 of 272 items end in `{test:<id>}` (was 15). 34 new scenes in `quakevr/scenarios/` (shoves, dual
+  bolts, a gunfire range, enemy gunfire, a live armed squad, props, vrarena calm/run/armour, armour plates and helmets,
+  knights with guns, plain and armoured, e1m2's armed knights, death knights' swords, disarm volumes, knockouts,
+  grenades in flight, worn packs in both pull modes, directional parry, chainsaws, the laser cannon, AD's streams,
+  crawlers and rocket soldier, empty nail pistols); the rest reuse existing scenes. Untagged (60): the recoil lines,
+  the flat-screen Rig Studio lines, startup/config/menu/tunables checks, load times, late arena waves (no wave skip),
+  general "as before" play (climbing, body, obituaries) and spots no test map has (moving water, metal floors).
+- **Engine**: a scene's `cvar vr_toolgun_armed_armor <1-4>` (and `_pieces`) puts the toolgun's Armed Humanoid armour
+  on the armed humanoids it places (`toolgun::armArmedSpawn`, vr_scenario.cpp); unset, nothing changes.
+- **Line format** in TESTING.md ("Checklist scenarios") and the checklist's header: new lines get a test whenever a
+  scene fits; `vr_scenario validate` (`0 missing`) and `vr_scenario runall quit <id>` before shipping.
+- The AD-only scenes (ad_streams, ad_crawlers, ad_rocket_soldier, as ad_fog_flicker) need AD's data, absent from the
+  kit's mock base: validated only.
 ## Armed humanoids' melee spacing (branch `agent/meleereach`)
 
 His voice note 2026-10-31 19:59: a long melee weapon's holder came as close as one with its fists; a sword's holder

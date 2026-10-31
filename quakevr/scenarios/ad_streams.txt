@@ -1,0 +1,9 @@
+# ad_streams: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". AD's flamethrower and poison sprayer in hand.
+title AD flamethrower and poison sprayer in hand, a calm grunt to aim at
+map vrtesthall
+god
+notarget
+give "AD Flamethrower" main
+give "AD Poison Sprayer" off
+spawn "Grunt" 300 0
+cmd impulse 9

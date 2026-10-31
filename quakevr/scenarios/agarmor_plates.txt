@@ -1,0 +1,13 @@
+# agarmor_plates: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Armoured armed grunts and enforcers (toolgun armour: yellow, all ten pieces).
+title Armoured armed grunts and an enforcer (yellow, all plates), calm; a shotgun and a crowbar in hand
+map vrtesthall
+god
+notarget
+cvar vr_toolgun_armed_armor 2
+cvar vr_toolgun_armed_pieces 1
+give "Shotgun" main
+give "Crowbar" off
+spawn "Armed Grunt: Shotgun" 120 40
+spawn "Armed Grunt: Axe" 160 -60
+spawn "Armed Enforcer: Shotgun" 220 100
+cmd impulse 9

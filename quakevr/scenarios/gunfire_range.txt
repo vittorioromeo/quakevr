@@ -1,0 +1,14 @@
+# gunfire_range: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Every id gun in reach, full ammo, open hall and walls to shoot.
+title Gunfire range: the shotgun in hand, the other id guns at your feet, full ammo
+map vrtesthall
+god
+notarget
+give "Shotgun" main
+spawn "Super Shotgun" 50 40
+spawn "Nailgun" 50 -40
+spawn "Super Nailgun" 60 80
+spawn "Rocket Launcher" 60 -80
+spawn "Thunderbolt" 70 120
+spawn "Nail Pistol" 70 -120
+spawn "Wooden Crate" 300 0
+cmd impulse 9
