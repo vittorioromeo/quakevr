@@ -223,6 +223,39 @@ void() VR_ART_Run =
     cvar_set("vr_agarmor_rule", "0");
 };
 
+// Where a hit on plate `piece` of `c` lands, as the game resolves it (ragdollbone's QVR_ARMOR_PIECE_AT). The cuirass and
+// the helmet go by their bones (vr_agarmor.cpp pieceAt): their middle. A limb plate by a player's shot at its middle
+// (limbpiece 10), from ahead of `c`, then its side, the other side, behind, traced against the drawn model
+// (MOVE_HITMODEL, as bullets are), the piece struck where it lands. The plate's own piece if a shot finds it; else what
+// the shot from ahead struck (-1 no plate, -3 it missed `c`). (A limb plate's middle itself is no probe: a big plate's
+// sits inside the limb it wraps, nearer another bone's skin: the death knight's pauldrons, his shins under the skirt's
+// hem, found no plate there, while shots at them strike them.)
+float(entity c, float piece) VR_ART_PlateShot =
+{
+    vector mid = limbpiece(c, piece, 10);
+    if(piece <= 1)
+    {
+        return ragdollbone(c, mid, QVR_ARMOR_PIECE_AT);
+    }
+    makevectors([0, c.angles_y, 0]);
+    vector fwd = v_forward;
+    vector side = v_right * (((mid - c.origin) * v_right) < 0 ? -1 : 1);
+    entity pl = VR_Player();
+    float k, got, first = -3;
+    for(k = 0; k < 4; k++)
+    {
+        vector out = k == 0 ? fwd : k == 1 ? side : k == 2 ? -side : -fwd;
+        traceline(mid + out * 64, mid - out * 24, MOVE_HITMODEL, pl);
+        got = trace_ent == c ? ragdollbone(c, trace_endpos, QVR_ARMOR_PIECE_AT) : -3;
+        if(got == piece)
+        {
+            return got;
+        }
+        first = k == 0 ? got : first;
+    }
+    return first;
+};
+
 // P2: the enforcer: its pieces at their places, the power pack no plate, a break's debris its own, the skill's roll
 // its too; its wear set for the client's word (state 2).
 void() VR_ART_RunEnforcer =
@@ -233,13 +266,16 @@ void() VR_ART_RunEnforcer =
     vector pc = limbpiece(c, 0, 10);
     vector ph = limbpiece(c, 1, 10);
     vector pp = limbpiece(c, 3, 10);
-    vector ps = limbpiece(c, 8, 10);
-    float c0 = ragdollbone(c, pc, QVR_ARMOR_PIECE_AT);
-    float c1 = ragdollbone(c, ph, QVR_ARMOR_PIECE_AT);
-    float c3 = ragdollbone(c, pp, QVR_ARMOR_PIECE_AT);
-    float c8 = ragdollbone(c, ps, QVR_ARMOR_PIECE_AT);
-    VR_ART_Check(c.model == "progs/vrenforcer.mdl" && c0 == 0 && c1 == 1 && c3 == 3 && c8 == 8,
-        sprintf("enforcer (%s): the pieces found at their places (cuirass %g, helmet %g, pauldron %g, shin %g)", c.model, c0, c1, c3, c8));
+    float i, found, bad = 0;
+    string miss = "";
+    for(i = 0; i < VR_AR_PIECES; i++)
+    {
+        found = VR_ART_PlateShot(c, i);
+        bad = bad + (found != i);
+        miss = found != i ? strcat(miss, sprintf(" %g:%g", i, found)) : miss;
+    }
+    VR_ART_Check(c.model == "progs/vrenforcer.mdl" && bad == 0,
+        sprintf("enforcer (%s): a shot at each plate strikes that plate (wrong: %g%s)", c.model, bad, miss));
     // Its power pack (behind the cuirass's cut: rest x -20): no plate there, the whole of a hit.
     makevectors(c.angles);
     vector pack = c.origin - v_forward * 20 + v_up * 15;
@@ -293,6 +329,7 @@ void() VR_ART_RunEnforcer =
 float vr_art_mode;      // 7: the knights' run (state 1 and 2 theirs)
 entity vr_art_k, vr_art_dk; // the armed knight, the armed death knight
 float vr_art_kwear, vr_art_dkwear;
+
 float(entity c, string mdl, string who) VR_ART_RunKnight =
 {
     float d, hp, s0, b0;
@@ -300,19 +337,16 @@ float(entity c, string mdl, string who) VR_ART_RunKnight =
     vector pc = limbpiece(c, 0, 10);
     vector ph = limbpiece(c, 1, 10);
     vector pp = limbpiece(c, 3, 10);
-    vector ps = limbpiece(c, 8, 10);
-    float c0 = ragdollbone(c, pc, QVR_ARMOR_PIECE_AT);
-    float c1 = ragdollbone(c, ph, QVR_ARMOR_PIECE_AT);
-    float c3 = ragdollbone(c, pp, QVR_ARMOR_PIECE_AT);
-    float c8 = ragdollbone(c, ps, QVR_ARMOR_PIECE_AT);
-    float i;
+    float i, found, bad = 0;
+    string miss = "";
     for(i = 0; i < VR_AR_PIECES; i++)
     {
-        vector pi = limbpiece(c, i, 10);
-        dprint(sprintf("agarmor test: %s piece %g at %v (from its origin), found %g\n", who, i, pi - c.origin, ragdollbone(c, pi, QVR_ARMOR_PIECE_AT)));
+        found = VR_ART_PlateShot(c, i);
+        bad = bad + (found != i);
+        miss = found != i ? strcat(miss, sprintf(" %g:%g", i, found)) : miss;
     }
-    VR_ART_Check(c.model == mdl && c0 == 0 && c1 == 1 && c3 == 3 && c8 == 8,
-        sprintf("%s (%s): the pieces found at their places (cuirass %g, helmet %g, pauldron %g, shin %g)", who, c.model, c0, c1, c3, c8));
+    VR_ART_Check(c.model == mdl && bad == 0,
+        sprintf("%s (%s): a shot at each plate strikes that plate (wrong: %g%s)", who, c.model, bad, miss));
     cvar_set("vr_agarmor_rule", "1");
     VR_AgArmor_Give(c, 2, 1023);
     hp = c.vr_ar_hp[0];
