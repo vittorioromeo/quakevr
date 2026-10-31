@@ -659,6 +659,12 @@ void place()
             note(va("line %d: \"%s\" not made (not available here?)", sp.line, sp.what.cStr()));
             continue;
         }
+        // An armed humanoid wears the toolgun's Armed Humanoid armour when the scene sets one (`cvar
+        // vr_toolgun_armed_armor 2`); otherwise its own roll, as a map gives it.
+        if(vr_toolgun_armed_armor.value != 0.f && !strncmp(PR_GetString(e->v.classname), "monster_vr_", 11))
+        {
+            toolgun::armArmedSpawn(e);
+        }
         made++;
         state.placed.pushBack(Placed{NUM_FOR_EDICT(e), sp.line, e->v.classname, geom::vec(e->v.origin)});
         Con_DPrintf("vr_scenario: line %d: \"%s\" (edict %d) at %.0f %.0f %.0f\n", sp.line, sp.what.cStr(),

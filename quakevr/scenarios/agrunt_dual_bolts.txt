@@ -1,0 +1,6 @@
+# agrunt_dual_bolts: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Each bolt or burst should leave its own gun.
+title Dual guns: an enforcer with two laser rifles, a grunt with two burst rifles (they shoot at you; god)
+map vrtesthall
+god
+spawnarmed monster_vr_enforcer 16 16 320 60
+spawnarmed monster_vr_grunt 15 15 320 -60

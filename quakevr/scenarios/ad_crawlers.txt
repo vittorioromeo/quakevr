@@ -1,0 +1,8 @@
+# ad_crawlers: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". AD spider and scorpion to knock down and gib.
+title AD spider and scorpion coming at you; a shotgun in hand (god)
+map vrtesthall
+god
+give "Shotgun" main
+spawn "AD Spider" 300 60
+spawn "AD Scorpion" 350 -60
+cmd impulse 9

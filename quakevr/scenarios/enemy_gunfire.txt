@@ -1,0 +1,9 @@
+# enemy_gunfire: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Plain and armed gunners and an ogre shooting at you.
+title Enemy gunfire: grunts, an enforcer, an ogre and armed grunts shooting at you (god)
+map vrtesthall
+god
+spawn "Grunt" 400 60
+spawn "Enforcer" 420 -60
+spawn "Ogre" 500 0
+spawn "Armed Grunt: Shotgun" 450 150
+spawn "Armed Grunt: Nailgun" 450 -150
