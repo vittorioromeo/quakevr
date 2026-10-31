@@ -3925,3 +3925,28 @@ was fixed (3 of 12 and 2 of 6 failed before). Fix (QC/vr_nail_test.qc only): VR_
 spike_touch does, and VR_NLT_BagNail starts no farther back than the player stands (min(100, his distance)), so a start
 never lands behind him near a wall. Not timing: the flakiness under parallel load was the random rest place. No gameplay
 change.
+
+## Faster map loads, round 6: the smooth rigs at once (branch `agent/loadtime2`)
+
+The leftovers of round 5 ("Not done": the smooth rigs one model after another, 42 ms of vrtesthall's load).
+
+- **Each model's rig data on the pool at once** (vr_animsmooth.cpp): rigData split in three: `rigStale` (main thread:
+  the model's rig found by ragdoll::rigFor, whose caches aren't the pool's; the settings noted), `rigFit` (any thread:
+  each bone's fit to each pose and the rebuild, reading the model's poses and rig, writing that model's data alone) and
+  `rigRest` (main thread: the rest rows; the arm and leg skins' rows, vr_agarms/vr_aglegs, are found once a model in
+  caches that aren't the pool's). rigData runs the three in a row as before; the prewarm (`animsmooth::prepare`) runs
+  every precached model's rigStale, then all their rigFits in one parallelFor (site "anim smooth rigs"; each fit's own
+  loops nest on the pool), then their rigRests in the models' order. Headers checked again before the pool (warmRigs'
+  way). `developer 1` prints the three phases: vrtesthall 3.2 ms rigs found, 17.5 fits, 2.5 rest rows (no-LTO).
+- **Same outputs:** `vr_anim_smooth_rig_hash` (new; Debug menu, World and Physics, "Smooth Animation Rig Hashes": each rigged model's unfit masks, rebuilt keys, rest rows
+  and fit statistics hashed by name) on vrtesthall, vrstart, hip2m5, e1m1: all 62 lines the same before and after.
+- **Times** (interleaved ABBAABBAAB, exclusive, ThinLTO, one process per map so each is its first load; median
+  [min..max] of 5): the "smooth rigs" prewarm step vrtesthall 49.7 [49.4..53.8] -> 23.0 [17.9..26.0] ms, vrstart 51.1
+  [46.3..52.5] -> 19.2 [17.4..28.0], hip2m5 33.0 [30.4..34.0] -> 13.1 [12.2..16.9], e1m1 15.8 [14.5..16.6] -> 8.6
+  [8.1..9.3]. Whole loads vrtesthall 1130 [1073..1183] -> 1087 [1060..1130], vrstart 1456 [1435..1556] -> 1419
+  [1382..1486], hip2m5 1145 [1103..1198] -> 1061 [1057..1173], e1m1 983 [948..991] -> 961 [932..995] (the loads' spread
+  is wider than the step's gain).
+- **Not done: the disk cache of limb models and smooth rigs** (brief item 2, conditional): after the step above a cache
+  could save at most the fits and rest rows, ~20 ms of vrtesthall/vrstart and ~10 of hip2m5/e1m1 less its own reading
+  and keying (the rigs must still be found: the key holds the derived rig), and the limbs' builds already run on the pool
+  beside the load (round 5: 22 ms there, not on the main thread). Under the brief's ~20 ms bar: skipped.
