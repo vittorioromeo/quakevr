@@ -3758,6 +3758,10 @@ humanoid Knight and Death Knight kinds also support armor."
   (`-flatscreenmode`: the studio's frame does not run under the mock headset; `map vrtesthall;wait30;vr_rigstudio
   monster_vr_grunt 4;vr_rigstudio_rom test`).
 - **eval.sh:** 163/171, no verdict changes (8 takes' numbers moved, PASS -> PASS; nothing here touches melee).
+- **`run_baseline --only agrunt`:** 93 cases; changed vs baseline.tsv: agrunt_2 4/0 -> 2/2 (4/0 run alone: flaky under
+  load), 31/36/65 FAIL -> PASS, 32/70 one more check; flaky 63/71/86 as known. New agrunt_78 8/1 (directional parry,
+  from origin/next, fails alone too: not this branch's).
+- **Open:** the rig2 check failures on vrhknight (25/10; step 5, not started: budget).
 
 
 ## Directional parry (experimental; branch `agent/dirparry`)
