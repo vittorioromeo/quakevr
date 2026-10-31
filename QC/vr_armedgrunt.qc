@@ -2977,9 +2977,10 @@ An armed enforcer (experimental): an enforcer holding one of your weapons (its l
 void() monster_vr_enforcer = { VR_AM_Spawn(VR_AM_ENFORCER); };
 
 /*QUAKED monster_vr_knight (1 0 0) (-16 -16 -24) (16 16 40) Ambush
-An armed knight (experimental): a knight holding a melee weapon as the armed humanoids hold theirs (his own sword's place).
-"weapon": its weapon (13 the sword, the default; 2 the axe, 17 the crowbar, 14 the chainsaw, AD's swords...; -1 its
-fists; only melee weapons). "weapon2": a second one-handed melee weapon in its left hand.
+An armed knight (experimental): a knight holding one of your weapons as the armed humanoids hold theirs (his own sword's
+place). "weapon": its weapon (as monster_vr_grunt's: WID_*, any class; 13 the sword, the default; -1 its fists).
+"weaponflags": that weapon's flags. "weapon2", "weaponflags2": a second one-handed weapon in its left hand (as
+monster_vr_grunt's).
 */
 void() monster_vr_knight =
 {
