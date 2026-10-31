@@ -158,6 +158,11 @@ Armed knights and death knights look as in your last session with your vr_agrunt
 Combat > Hit Detection > Armed Bodies as Drawn on: shoot an armed grunt's raised forearm (guarding, aiming, swinging): the hit lands on the arm, not its chest or head behind it; where its arm would hang in a plain animation: a miss. Show Disarm Volumes: the grip spheres sit on its drawn hand as it swings; punching its drawn hand disarms it, punching where the old sphere was does not. {test:disarm_volumes}
 Death knight in armour (Armed Death Knights on, full yellow): his pauldron plates sit on his big pauldrons and stay there when he raises his arm or swings it across his chest, the arm's plate moving with the arm; killed, his corpse keeps its pauldron plates, no jitter or blow-up. {test:knights_armour}
 VR Settings pages and Search look and behave as before (rows, sliders, help).
+Rig Studio > Pose Keys, grunt + shotgun, Pose Pickup: it says "Pickup (shared)". Drag the weapon, then switch Class to Two-Handed Melee: it moved too. Undo.
+Rig Studio > Pose Keys: Class Pistol shows "(override)". Remove Override (use shared): the pistol takes the rifle's Pickup; Undo restores it. Make Override on the rifle and drag: only the rifle moves.
+VR Pose Studio in Pickup: the bottom-row Make/Remove Override toggles the same way.
+Rig Studio > Pose Keys, Chest Bend (standing, kneeling): a grunt taking a weapon up bends more or less.
+Your call: launcher, sprayer, laser cannon and Widowmaker keep Pickup overrides that differ from the shared one only in the off hand's place and elbow pole; remove them if the shared pose looks the same in game.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns {test:arena_run}

@@ -1458,7 +1458,7 @@ void poseDataWindow()
             }
             helpMarker("A single gun's class is its pose category (Rifle, Pistol, Shoulder Launcher, Sprayer, Laser Cannon, "
                        "Widowmaker): per weapon and kind in Combat > Armed Grunts > Weapon Holds. A category not tuned "
-                       "yet starts as the Rifle's keys.");
+                       "yet starts as the Rifle's keys (its Pickup: the kind's shared one).");
             {
                 // The IK stretch of this kind and class (agpose::stretch: every pose of it), the subject's as used
                 float by = agpose::stretch(st.pdKind, st.pdClass);
@@ -1487,16 +1487,53 @@ void poseDataWindow()
             }
             int poses[agpose::NumPoses];
             const int np = agpose::posesOf(st.pdClass, poses, agpose::NumPoses);
-            if(ImGui::BeginCombo("Pose", agpose::poseName(st.pdClass, st.pdPose)))
+            if(ImGui::BeginCombo("Pose", agpose::poseTitle(st.pdKind, st.pdClass, st.pdPose)))
             {
                 for(int i = 0; i < np; i++)
                 {
-                    if(ImGui::Selectable(agpose::poseName(st.pdClass, poses[i]), st.pdPose == poses[i]))
+                    if(ImGui::Selectable(agpose::poseTitle(st.pdKind, st.pdClass, poses[i]), st.pdPose == poses[i]))
                     {
                         st.pdPose = poses[i];
                     }
                 }
                 ImGui::EndCombo();
+            }
+            if(st.pdPose == agpose::Pickup)
+            {
+                // One Pickup per kind every class shares, a class's own only where one is set (agent/sharedpickup)
+                const bool own = agpose::hasPickupOverride(st.pdKind, st.pdClass);
+                if(own)
+                {
+                    ImGui::TextUnformatted("This class's own Pickup (an override of the shared one).");
+                    if(ImGui::Button("Remove Override (use shared)"))
+                    {
+                        pushPosesUndo("Pickup override removed");
+                        agpose::removePickupOverride(st.pdKind, st.pdClass);
+                    }
+                }
+                else
+                {
+                    ImGui::TextUnformatted(va("The shared Pickup: every %s class without an override.",
+                        agpose::kindName(st.pdKind)));
+                    if(ImGui::Button("Make Override for this class"))
+                    {
+                        pushPosesUndo("Pickup override made");
+                        agpose::makePickupOverride(st.pdKind, st.pdClass);
+                    }
+                }
+                helpMarker("Each kind has one Pickup pose every weapon class uses; a class may have its own instead (an "
+                           "override, starting as the shared one). Edits here and with the Pose Keys tool change the "
+                           "shared Pickup unless this class has an override. Print lists the shared key and the "
+                           "overrides; vr_agrunt_pose_dump pickup shows each class's in effect.");
+                float bend[2] = {vr_agrunt_take_bend.value, vr_agrunt_take_bend_kneel.value};
+                if(ImGui::DragFloat2("Chest Bend (standing, kneeling)", bend, 0.25f, 0.f, 90.f, "%.1f"))
+                {
+                    Cvar_SetValueQuick(&vr_agrunt_take_bend, bend[0]);
+                    Cvar_SetValueQuick(&vr_agrunt_take_bend_kneel, bend[1]);
+                }
+                helpMarker("Degrees the chest bends forward at the waist at the take's lowest (every kind and class): "
+                           "vr_agrunt_take_bend (28; its take frames' crouch, Legs off) and vr_agrunt_take_bend_kneel (45; "
+                           "on one knee).");
             }
             const int phases = agpose::isStrike(st.pdPose) ? agpose::numPhases : 1;
             st.pdPhase = za::clamp(st.pdPhase, 0, phases - 1);
@@ -1581,7 +1618,11 @@ void poseDataWindow()
             }
             if(ImGui::Button("Reset This Pose"))
             {
-                for(int ph = 0; ph < agpose::numPhases; ph++)
+                if(st.pdPose == agpose::Pickup)
+                {
+                    pushPosesUndo("Pickup reset"); // (its override or the shared key: the text as it is)
+                }
+                for(int ph = 0; ph < agpose::numPhases && st.pdPose != agpose::Pickup; ph++)
                 {
                     pushPoseUndo(agpose::code(st.pdKind, st.pdClass, st.pdPose, ph));
                 }

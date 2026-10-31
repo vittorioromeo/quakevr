@@ -187,6 +187,16 @@ ring, the move tool's arrows, plane squares and its centre (the view's plane); t
   data (vr_agrunt_poses, vr_agrunt_grips), drawn by the game at once; Print writes them as code (vr_agrunt_pose_dump,
   vr_agrunt_grip_dump). Undo covers them. Follow the Subject (the Pose Keys tool's key the subject's); in Pickup the
   legs' key too (the pelvis's place and turn, the feet, the knees' poles). The Pose Keys tool drags the same key.
+  **Pickup is one pose per kind every class shares** (the fists' too), named "Pickup (shared)"; a class may have its own
+  instead, "Pickup (override)" (agent/sharedpickup). Editing a class's Pickup, here or with the Pose Keys tool, edits
+  the shared key unless that class has an override. **Make Override for this class** gives it its own (starting as the
+  shared one); **Remove Override (use shared)** puts it back on the shared one (a shipped override is set aside by a
+  "no override" mark). Reset This Pose resets the key its edits keep (the override, or the shared key). Chest Bend
+  (standing, kneeling) sets `vr_agrunt_take_bend` (28) and `vr_agrunt_take_bend_kneel` (45): the chest's bend at the
+  take's lowest. Print lists the shared key (class 7) and the overrides; `vr_agrunt_pose_dump pickup` prints each
+  class's Pickup in effect and whose; `vr_agrunt_pose_override <kind> <class> [1|0]` makes or removes an override. The
+  VR Pose Studio's panel has the same toggle in Pickup (its bottom row: Make Override / Remove Override). A fists
+  subject shows no take (no weapon to take up): its Pickup edits the shared key all the same.
 - **Help**, **Preferences** (orbit, pan and zoom speeds, handle size, theme: dark, light, classic).
 
 The File menu: Save, Revert to Files, Print as Defaults, Close Studio. Edit: undo, redo, copy, paste (all bones or the
