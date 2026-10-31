@@ -4,6 +4,8 @@
 
 #include "vr_engine.hpp"
 
+#include "Zancle/Vocabulary/Span.hpp"
+
 namespace qvr::weapons
 {
 
@@ -17,7 +19,15 @@ enum class Key : int
     Count
 };
 
+// Reads quakevr/data/weapons.txt into the table (every slot's values: the defaults; design review 3, ROUND23.md "Weapons
+// as data"). No cvars: each value has a stand-in cvar_t named vr_wofs_<key>_NN (NN = slot + 1) that the menus bind and
+// the config, the console and the QC reach by that name (VR_CvarStandIn, VR_StandInSet; vr_cvars.cpp).
 void registerCvars();
+// The stand-in named `name` (vr_wofs_<key>_NN, any case), or null; `var` (a stand-in) set to `value` (false: not one);
+// every stand-in (the config's writer and its tracking: vr_cvars.cpp).
+[[nodiscard]] cvar_t* findStandIn(const char* name);
+bool setStandIn(cvar_t* var, const char* value);
+[[nodiscard]] za::Span<cvar_t> standIns();
 [[nodiscard]] int slotsUsed(); // the slots holding a model's settings (vr_limits)
 
 // Slot whose vr_wofs_id_NN names `model`, or -1.
@@ -32,6 +42,7 @@ void registerCvars();
 // none): the QC's weaponvalue builtin (vr_builtins.cpp).
 [[nodiscard]] int slotForName(const char* name);
 [[nodiscard]] Key keyByName(const char* name);
+[[nodiscard]] const char* keyName(Key key); // ("gunoff_x": weapons.txt's and the stand-ins' name)
 
 // The slot holding progs/hand.mdl: the empty hand, whose settings also place and scale the
 // hand and finger models.
