@@ -4210,6 +4210,9 @@ Part 2 (verified, finished):
   hand's hull and forearm); the death knight with the Knight's Sword is the sweep's "Death Knight sword" row.
   **242 passed, 0 failed.** Test 17 (`vr_agrunt_test 17`): an eyeshot aid, his two views (axe, Knight's Sword held
   level) with Show Disarm Volumes on.
-- Runs: 16 242/0, 99 41/0, 94 16/0; 78 (dirparry2's) 7/2 both before and after this part (its two horizontal-swing
-  cases; unchanged by the line fix). Skipped by the coordinator's rule: the wide subset, eval.sh (no melee code), the
+- **A crash fixed:** Show Disarm Volumes on with an armed grunt in view crashed (EDICT_NUM from the view setup: part 1's
+  hull drawing read the server's edicts with no VM current); the shapes are drawn under progs::ServerVm now.
+- Runs: 16 242/0, 99 41/0, 94 16/0, ragdoll_grab 19/0; 78 (dirparry2's) 7/2 both before and after this part (its two
+  horizontal-swing cases; unchanged by the line fix). Screenshots: not taken (the mock run's `screenshot` shows the
+  console, and no eyeshots were written); test 17 sets up both views for a look. Skipped by the coordinator's rule: the wide subset, eval.sh (no melee code), the
   before screenshots.
