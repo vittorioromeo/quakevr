@@ -627,7 +627,7 @@ namespace hitreact_detail
 namespace
 {
 
-void noteDrawnTurn(int num, const entity_t& p, const glm::vec3& at, const glm::vec3& fw);
+void noteDrawnTurn(int num, const entity_t& p, const glm::vec3& at, const glm::vec3& fw, const glm::vec3& up);
 
 } // namespace
 
@@ -642,11 +642,12 @@ void placeProp(entity_t& p, const entity_t* e, const rigpose::Rigid& w, const ri
     (void)drawnOrigin(e, &yaw);
     const glm::vec3 at = toWorld(e, r.pos);
     const glm::vec3 fw = turnYaw(yaw, r.rot * glm::vec3{1.f, 0.f, 0.f});
-    const glm::vec3 a = weaponAngles(fw, turnYaw(yaw, r.rot * glm::vec3{0.f, 0.f, 1.f}));
+    const glm::vec3 up = turnYaw(yaw, r.rot * glm::vec3{0.f, 0.f, 1.f});
+    const glm::vec3 a = weaponAngles(fw, up);
     const int num = static_cast<int>(&p - cl_entities);
     if(num > 0 && num < cl.num_entities)
     {
-        noteDrawnTurn(num, p, at, fw);
+        noteDrawnTurn(num, p, at, fw, up);
     }
     for(int i = 0; i < 3; i++)
     {
@@ -666,9 +667,11 @@ struct DrawnTurn
     int num{0};
     double time{0.0};
     glm::vec3 turn{0.f}, off{0.f};
+    glm::vec3 at{0.f}, fw{1.f, 0.f, 0.f}, up{0.f, 0.f, 1.f}; // where it was drawn (world): hitreact::drawnWeapon
 };
 za::Vector<DrawnTurn> drawnTurns;
 constexpr za::SizeT maxDrawnTurns = 64;
+constexpr double drawnFresh = 0.05; // s: a weapon placed by the arms this lately is drawn there (drawnWeapon)
 
 [[nodiscard]] glm::vec3 forwardOfAngles(const float* angles)
 {
@@ -678,7 +681,7 @@ constexpr za::SizeT maxDrawnTurns = 64;
 }
 
 // placeProp's: the prop `p` (still at the server's place) is about to be drawn at `at`, its forward `fw`.
-void noteDrawnTurn(int num, const entity_t& p, const glm::vec3& at, const glm::vec3& fw)
+void noteDrawnTurn(int num, const entity_t& p, const glm::vec3& at, const glm::vec3& fw, const glm::vec3& up)
 {
     const glm::vec3 f0 = glm::normalize(forwardOfAngles(p.angles));
     const glm::vec3 f1 = glm::normalize(fw);
@@ -690,6 +693,9 @@ void noteDrawnTurn(int num, const entity_t& p, const glm::vec3& at, const glm::v
     d.time = cl.time;
     d.turn = s > 1e-5f ? k * (deg / s) : glm::vec3{0.f};
     d.off = at - geom::vec(p.origin);
+    d.at = at;
+    d.fw = f1;
+    d.up = glm::normalize(up);
     for(DrawnTurn& o : drawnTurns)
     {
         if(o.num == num)
@@ -845,6 +851,7 @@ void ragdollProps(const ArmPose& s, const entity_t* e)
             ragErr.turnMax = za::max(ragErr.turnMax, turn);
             ragErr.propFar = za::max(ragErr.propFar, glm::length(at - drawnOrigin(e, nullptr)));
         }
+        noteDrawnTurn(num, p, at, wr * glm::vec3{1.f, 0.f, 0.f}, wr * glm::vec3{0.f, 0.f, 1.f}); // (hitreact::drawnWeapon)
         for(int i = 0; i < 3; i++)
         {
             p.origin[i] = at[i];
@@ -1196,6 +1203,29 @@ bool drawnWeaponTurn(int prop, glm::vec3& turn, glm::vec3& off)
         {
             turn = d.turn;
             off = d.off;
+            return true;
+        }
+    }
+    return false;
+}
+
+bool drawnWeapon(int prop, glm::vec3& at, glm::vec3& fw, glm::vec3& up)
+{
+    for(const DrawnTurn& d : drawnTurns)
+    {
+        // (Placed by the arms or a ragdoll's hand in the last frames: the weapon as it is finally drawn, its client
+        // entity after every step that moved it, read here (the server's frame, after the client's relink). Not placed
+        // so lately: the server's own place is drawn, and none is given: a ragdoll's weapon placed from what it drew
+        // would stay where it was.)
+        if(d.num == prop && cl.time - d.time <= drawnFresh && cl.time >= d.time && prop > 0 && prop < cl.num_entities &&
+            cl_entities[prop].model)
+        {
+            const entity_t& p = cl_entities[prop];
+            vec3_t a{-p.angles[0], p.angles[1], p.angles[2]}, f, r, u;
+            AngleVectors(a, f, r, u);
+            at = geom::vec(p.origin);
+            fw = geom::vec(f);
+            up = geom::vec(u);
             return true;
         }
     }

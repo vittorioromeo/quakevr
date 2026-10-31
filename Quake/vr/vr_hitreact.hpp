@@ -56,6 +56,11 @@ bool armSkinRow(const qmodel_t* model, const void* aliashdr, const ragdoll::Rig&
 // feet. VR_AliasPreTransform's.
 void tiltModel(const entity_t* e, float matrix[16]);
 
+// ... where it was drawn (world: its origin, its forward and up), alive (its posed arms' hands) or on a ragdoll (its drawn
+// hand: ragdollProps). The one "where is this monster's weapon now" (QC weapondrawnpose(p, 0, 30 / 31 / 32): the disarm
+// volumes, VR_AG_WeaponLine; a ragdoll's weapon placed there, VR_AG_RagProp). False: not drawn lately.
+bool drawnWeapon(int prop, glm::vec3& at, glm::vec3& fw, glm::vec3& up);
+
 // An armed humanoid's held weapon (entity `prop`) as the arms drew it lately (this listen server's own view, within
 // the last 0.15 s): `turn` the rotation (world; its axis times degrees) from the server's forward to the drawn one, `off`
 // the drawn origin less the server's. QC weapondrawnpose(p, 0, 21 / 22): its shots go along the drawn line
