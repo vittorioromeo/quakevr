@@ -550,6 +550,7 @@ vr_armedgrunt_downtug_test.qc
 vr_armedgrunt_ragweapon_test.qc
 vr_armedknight_test.qc
 vr_armedgrunt_range_test.qc
+vr_disarmhull_view_test.qc // test 17: his two views of Show Disarm Volumes (an eyeshot aid)
 vr_disarmviz_test.qc
 vr_drawnpose_test.qc // test 99: the drawn pose (worn packs, disarm volumes)
 vr_stalepose_test.qc // test 79: shots and grip spheres from the drawn pose
