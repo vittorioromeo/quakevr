@@ -122,7 +122,6 @@ vector hit_s_pos[8];       // point,
 vector hit_s_dir[8];       // direction,
 float hit_s_nobleed[8];    // bloodless,
 float hit_s_core[8];       // and its priced blow's strength
-float hit_check_nested;    // (debug check: plain Begins inside another record this map)
 
 void() VR_Hit_Push =
 {
@@ -150,11 +149,6 @@ void() VR_Hit_Push =
 // fired (hit_weapon), whether it bleeds and the priced blow's strength stay the outer record's until set.
 void(float xKind, float xHand, vector xPos, vector xDir) VR_Hit_Begin =
 {
-    if(hit_depth > 0 && hit_begun == time)
-    {
-        hit_check_nested = hit_check_nested + 1;
-        bprint(sprintf("hitcheck: nested begin %g in %g (depth %g)\n", xKind, hit_kind, hit_depth));
-    }
     VR_Hit_Push();
     hit_kind = xKind;
     hit_hand = xHand;
@@ -181,11 +175,6 @@ void(vector xPos, vector xDir) VR_Hit_BeginBloodless =
 // `xBloodless`, bloodless: radius damage's splash, a ragdoll's strike (no kind), a poison's tick.
 void(float xKind, float xBloodless) VR_Hit_BeginAs =
 {
-    if(xBloodless && hit_nobleed && hit_depth > 0 && hit_begun == time)
-    {
-        hit_check_nested = hit_check_nested + 1;
-        bprint("hitcheck: bloodless inside bloodless\n");
-    }
     VR_Hit_Push();
     if(xKind >= 0)
     {
