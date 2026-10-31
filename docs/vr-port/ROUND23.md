@@ -4130,3 +4130,33 @@ The leftovers of round 5 ("Not done": the smooth rigs one model after another, 4
   could save at most the fits and rest rows, ~20 ms of vrtesthall/vrstart and ~10 of hip2m5/e1m1 less its own reading
   and keying (the rigs must still be found: the key holds the derived rig), and the limbs' builds already run on the pool
   beside the load (round 5: 22 ms there, not on the main thread). Under the brief's ~20 ms bar: skipped.
+
+## One shared Pickup pose per kind, overrides per class (branch `agent/sharedpickup`)
+
+His ask (10-31): "one pickup pose shared across all weapons would simplify things a lot".
+
+- **Data** (`vr_agpose.hpp/.cpp`): each kind has a shared Pickup key, its code on class 7 (`VR_AGK_SHARED`, no
+  class's: `agpose::sharedPickupCode`, 7030 the grunt's). A class's own Pickup code (as before, e.g. 17030) is an
+  **override**, used only where set: archived, or shipped (own row, else the followed kind's, fitted: shippedOf's
+  rules; no gun category takes the rifle's Pickup row any more). `agpose::get`/`set`/`setPreview` of a class's Pickup
+  code with no override go to the shared key (`editTarget`), so QC (`VR_AGK_Keys`, unchanged), the Pose Studio, the
+  Rig Studio, the Pose Keys tool and the aim line all read and edit the right key with the codes they used. Old
+  archived per-class Pickup keys load as that class's override. "Remove Override" on a class that ships one archives a
+  "no override" mark (the class's Pickup phase 2, all zero); `pose_defaults.py` turns a mark into dropping the shipped
+  override row. `copyKind` copies the overrides as overrides; `dropShippedEqual` keeps an override that ships none.
+- **Shipped defaults:** the shared key per kind is the rifle's Pickup (his tuned rifle row: the grunt's 1030, the
+  enforcer's 101030; the class every gun used before the categories). Threshold 0.5 units / 1 degree / the off-hand
+  mode: every other grunt Pickup row differs by more, so all stay as overrides (max place / turn difference from the
+  rifle): pistol 9.55 / 36.6 and Free off hand, launcher 9.69 / 0, sprayer 3.25 / 0, laser cannon 4.39 / 0, Widowmaker
+  4.28 / 0 (the four only in the off hand's Left Place and its elbow pole: probably unused while the off hand is on
+  the gun; try Remove Override on them), two guns 25.3 / 39.8, one-handed melee 23.6 / 27.5, chainsaw 9.19 / 48.6, two
+  melee 20.7 / 29.6. Dropped: the rifle rows (now the shared ones). The knights follow the grunt's, fitted.
+- **Studios:** Pickup is listed for every class including the fists, named "Pickup (shared)" or "Pickup (override)".
+  Rig Studio Pose Keys: Make Override for this class / Remove Override (use shared) (undo: the keys' text), Reset This
+  Pose resets the key its edits keep, Chest Bend (standing, kneeling). VR Pose Studio: one more panel row, shown in
+  Pickup, Make Override / Remove Override (its undo as every edit). `vr_agrunt_pose_override <kind> <class> [1|0]`;
+  `vr_agrunt_pose_dump pickup` prints each class's Pickup in effect and whose; `dump` (Print) and `dump all` list the
+  shared key and the overrides.
+- **Bend tunables:** `vr_agrunt_take_bend` 28 and `vr_agrunt_take_bend_kneel` 45 (archived) replace QC's
+  `VR_AGP_TAKE_BEND` / `_KNEEL` constants.
+- A fists subject in the studio shows no take (no weapon to take up); its Pickup edits the shared key all the same.

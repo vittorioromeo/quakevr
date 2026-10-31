@@ -15,7 +15,7 @@
 #define VR_AG_CLASS_BURST 5     // the grunts' burst rifle: three rounds
 
 // The pose keys' weapon classes (agpose::Class). A single gun's class is its pose category (Gun the rifle, the others
-// from 17); 7..16 never a class.
+// from 17); 7..16 never a class (7 the shared Pickup key's code).
 #define VR_AGK_FISTS 0
 #define VR_AGK_GUN 1         // a rifle: one long gun
 #define VR_AGK_MELEE 2       // a one-handed melee weapon
@@ -23,6 +23,7 @@
 #define VR_AGK_SAW 4         // a chainsaw
 #define VR_AGK_TWOMELEE 5    // a melee weapon in each hand
 #define VR_AGK_TWOGUNS 6     // a gun in each hand
+#define VR_AGK_SHARED 7      // (no class: the Pickup key every class shares, agpose::sharedPickupCode)
 #define VR_AGK_PISTOL 17     // a pistol
 #define VR_AGK_LAUNCHER 18   // a shoulder launcher
 #define VR_AGK_SPRAYER 19    // a sprayer

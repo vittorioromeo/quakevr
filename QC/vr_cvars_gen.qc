@@ -337,6 +337,8 @@ float cvarh_vr_agrunt_run_key_stance;
 float cvarh_vr_agrunt_saw_reach;
 float cvarh_vr_agrunt_shot_drawn;
 float cvarh_vr_agrunt_lift_turn;
+float cvarh_vr_agrunt_take_bend;
+float cvarh_vr_agrunt_take_bend_kneel;
 float cvarh_vr_aglegs;
 float cvarh_vr_enemygun_spent_smoke;
 float cvarh_vr_enemygun_spent_crackle;
@@ -1621,6 +1623,8 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_agrunt_saw_reach = cvar_hmake("vr_agrunt_saw_reach");
     cvarh_vr_agrunt_shot_drawn = cvar_hmake("vr_agrunt_shot_drawn");
     cvarh_vr_agrunt_lift_turn = cvar_hmake("vr_agrunt_lift_turn");
+    cvarh_vr_agrunt_take_bend = cvar_hmake("vr_agrunt_take_bend");
+    cvarh_vr_agrunt_take_bend_kneel = cvar_hmake("vr_agrunt_take_bend_kneel");
     cvarh_vr_aglegs = cvar_hmake("vr_aglegs");
     cvarh_vr_enemygun_spent_smoke = cvar_hmake("vr_enemygun_spent_smoke");
     cvarh_vr_enemygun_spent_crackle = cvar_hmake("vr_enemygun_spent_crackle");

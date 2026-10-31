@@ -29,6 +29,10 @@ namespace
 // and the death knight's own keys, rows of their kinds over the grunt's they follow (shippedFrom)), written by
 // Misc/quakevr/pose_defaults.py --cfg <his ironwail.cfg> --write.
 // configVersion 202, and again 210 and 212, drop the archived keys equal to these (dropShippedEqual: his text then empty).
+// The Pickup (2026-10-31, agent/sharedpickup): each kind's shared key (class 7: the grunt's and the enforcer's his rifle
+// Pickup, the class every gun shared before) and the classes' own Pickup rows only where they differ from it (overrides:
+// agpose::hasPickupOverride; no gun category takes the rifle's Pickup row); a class's Pickup phase 2 row, all zero, would
+// say "no override" for a kind that follows another's (shippedFrom) where that kind has one.
 struct ShippedRow
 {
     int code;
@@ -75,8 +79,8 @@ constexpr ShippedRow shipped[] = {
     {1010, {1.82f, 6.76f, 6.78f, -3.1f, 1.8f, -2.1f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.15f, -0.47f, -0.88f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f}},
     // grunt, a rifle, Run
     {1020, {4.06f, 0.96f, 0.87f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
-    // grunt, a rifle, Pickup
-    {1030, {-1.29f, 5.65f, 15.86f, -6.f, 20.f, 18.2f, 4.69f, -4.99f, -9.19f, 0.f, 0.f, 0.f, 0.83f, -0.26f, 0.49f, -0.13f, 0.99f, 0.07f, 8.4f, -48.6f, 37.2f}},
+    // grunt, every weapon (the shared Pickup), Pickup
+    {7030, {-1.29f, 5.65f, 15.86f, -6.f, 20.f, 18.2f, 4.69f, -4.99f, -9.19f, 0.f, 0.f, 0.f, 0.83f, -0.26f, 0.49f, -0.13f, 0.99f, 0.07f, 8.4f, -48.6f, 37.2f}},
     // grunt, a rifle, Shove, wind-up
     {1200, {-5.f, 0.f, -3.f, 0.f, 0.f, 80.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -5.f, 0.f, 2.99f, -3.f, 0.f, 0.f, 0.f, 0.7f, 1.f, 0.f, 0.f}},
     // grunt, a rifle, Shove, push
@@ -295,8 +299,8 @@ constexpr ShippedRow shipped[] = {
     {101010, {18.43f, 6.26f, 6.46f, 3.f, 2.1f, -1.7f, 1.26f, -7.45f, -3.6f, 0.f, 13.9f, 0.f, 0.45f, -0.7f, -0.55f, -0.83f, 0.1f, -0.55f, 0.f, 0.f, 0.f}},
     // enforcer, a rifle, Run
     {101020, {-0.16f, 4.41f, -0.07f, 0.f, 0.f, 22.2f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.2f, 0.11f, 0.39f, 0.f, 0.f, 0.f, -1.f, -1.45f, -0.55f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
-    // enforcer, a rifle, Pickup
-    {101030, {0.f, -0.12f, 16.46f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -4.96f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // enforcer, every weapon (the shared Pickup), Pickup
+    {107030, {0.f, -0.12f, 16.46f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -4.96f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // enforcer, a rifle, Shove, wind-up
     {101200, {-13.3f, 8.39f, -0.1f, 0.f, 0.f, 80.f, 5.43f, 2.4f, 11.86f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.34f, -0.24f, -0.31f, 0.f, -5.f, 0.f, -14.98f, -6.f, -0.93f, 0.f, -10.5f, 0.f, 1.f, 0.f, 0.f}},
     // enforcer, a rifle, Shove, push
@@ -657,8 +661,9 @@ State state;
 
 [[nodiscard]] bool validCode(int c)
 {
-    return c >= 0 && agpose::kindOf(c) < agpose::numKinds && agpose::isClass(agpose::classOf(c)) &&
-           agpose::poseOf(c) < agpose::NumPoses && agpose::phaseOf(c) < agpose::numPhases;
+    return (c >= 0 && agpose::kindOf(c) < agpose::numKinds && agpose::isClass(agpose::classOf(c)) &&
+               agpose::poseOf(c) < agpose::NumPoses && agpose::phaseOf(c) < agpose::numPhases) ||
+           (agpose::isSharedPickup(c) && agpose::kindOf(c) < agpose::numKinds);
 }
 
 // (an old-format code read as the new: agpose::codeFromOld; written back new by the next write)
@@ -750,11 +755,12 @@ void write()
     return false;
 }
 
-// The rifle's (Gun's) code for a gun category's (the same kind, pose and phase); -1 for any other class.
+// The rifle's (Gun's) code for a gun category's (the same kind, pose and phase); -1 for any other class, and for the
+// Pickup (a class with no Pickup of its own takes the shared key: agpose::editTarget).
 [[nodiscard]] int rifleOf(int code)
 {
     const int cls = agpose::classOf(code);
-    return cls != agpose::Gun && agpose::isGunCategory(cls)
+    return cls != agpose::Gun && agpose::isGunCategory(cls) && agpose::poseOf(code) != agpose::Pickup
                ? agpose::code(agpose::kindOf(code), agpose::Gun, agpose::poseOf(code), agpose::phaseOf(code))
                : -1;
 }
@@ -832,6 +838,33 @@ void dropCode(int code)
         }
     }
     state.over = static_cast<za::Vector<Entry>&&>(kept);
+}
+
+// Whether class `cls` of `kind` ships a Pickup override (its row, else the followed kind's, fitted; none where the kind's
+// own "no override" row says so), and its key.
+[[nodiscard]] bool shippedOverride(int kind, int cls, agpose::Key& out)
+{
+    out = agpose::Key{};
+    agpose::Key mark;
+    return !shippedRow(agpose::noOverrideCode(kind, cls), mark) && shippedOf(agpose::code(kind, cls, agpose::Pickup, 0), out);
+}
+
+// A class's "no override" mark (its Pickup's phase 2: agpose::noOverrideCode).
+[[nodiscard]] bool isNoOverrideCode(int c)
+{
+    return c >= 0 && agpose::isClass(agpose::classOf(c)) && agpose::poseOf(c) == agpose::Pickup && agpose::phaseOf(c) == 2;
+}
+
+[[nodiscard]] bool archived(int c)
+{
+    for(const Entry& e : state.over)
+    {
+        if(e.code == c)
+        {
+            return true;
+        }
+    }
+    return false;
 }
 
 // QC constants that are a stance's place (the grunt's: vr_agarms' pose places them from its chest, fitted): the key's
@@ -1014,8 +1047,9 @@ void key_f()
     }
     if(Cmd_Argc() == 3 && !strcmp(Cmd_Argv(2), "reset"))
     {
+        const int t = agpose::editTarget(c); // (a class's Pickup with no override: the shared key's)
         parse();
-        dropCode(c);
+        dropCode(t);
         write();
     }
     else if(Cmd_Argc() >= 2 + agpose::numOldParts * 3)
@@ -1051,6 +1085,17 @@ void dumpAll()
     int n = 0;
     for(int k = 0; k < agpose::numKinds; k++)
     {
+        agpose::Key shared;
+        if(agpose::get(agpose::sharedPickupCode(k), shared))
+        {
+            za::String line{va("posekey %d", agpose::sharedPickupCode(k))};
+            for(int i = 0; i < agpose::NumParts * 3; i++)
+            {
+                line += va(" %g", static_cast<double>(shared.v[i / 3][i % 3]));
+            }
+            Con_Printf("%s\n", line.cStr());
+            n++;
+        }
         for(int cls = 0; cls < agpose::NumClasses; cls++)
         {
             if(!agpose::isClass(cls))
@@ -1085,11 +1130,69 @@ void dumpAll()
     Con_Printf("vr_agrunt_pose_dump all: %d keys\n", n);
 }
 
+// vr_agrunt_pose_override <kind> <class> [1 | 0]: whether class `class` of kind `kind` has its own Pickup (an override
+// of the shared key) printed; 1 makes one (starting as the shared key), 0 puts it back on the shared key.
+void override_f()
+{
+    if(Cmd_Argc() < 3)
+    {
+        Con_Printf("vr_agrunt_pose_override <kind> <class> [1 | 0]\n");
+        return;
+    }
+    const int kind = Q_atoi(Cmd_Argv(1)), cls = Q_atoi(Cmd_Argv(2));
+    if(kind < 0 || kind >= agpose::numKinds || !agpose::isClass(cls))
+    {
+        Con_Printf("vr_agrunt_pose_override: no kind %d or class %d\n", kind, cls);
+        return;
+    }
+    if(Cmd_Argc() >= 4)
+    {
+        if(Q_atoi(Cmd_Argv(3)) != 0)
+        {
+            agpose::makePickupOverride(kind, cls);
+        }
+        else
+        {
+            agpose::removePickupOverride(kind, cls);
+        }
+    }
+    Con_Printf("agpose pickup %s, %s: %s\n", agpose::kindName(kind), agpose::className(cls),
+        agpose::hasPickupOverride(kind, cls) ? "its own (override)" : "the shared key");
+}
+
+// vr_agrunt_pose_dump pickup: each kind's Pickup per class as in effect, and whose (the class's override or the shared
+// key), then the shared key's: `pickupkey <kind> <class> override|shared <30 numbers>`.
+void dumpPickup()
+{
+    for(int k = 0; k < agpose::numKinds; k++)
+    {
+        int overrides = 0;
+        for(const int cls : agpose::classOrder)
+        {
+            const bool own = agpose::hasPickupOverride(k, cls);
+            overrides += own ? 1 : 0;
+            const agpose::Key key = agpose::value(agpose::code(k, cls, agpose::Pickup, 0));
+            za::String line{va("pickupkey %d %d %s", k, cls, own ? "override" : "shared")};
+            for(int i = 0; i < agpose::NumParts * 3; i++)
+            {
+                line += va(" %g", static_cast<double>(key.v[i / 3][i % 3]));
+            }
+            Con_Printf("%s\n", line.cStr());
+        }
+        Con_Printf("pickup %s: %d overrides of %d classes\n", agpose::kindName(k), overrides, agpose::numClassOrder);
+    }
+}
+
 void dump_f()
 {
     if(Cmd_Argc() == 2 && !strcmp(Cmd_Argv(1), "all"))
     {
         dumpAll();
+        return;
+    }
+    if(Cmd_Argc() == 2 && !strcmp(Cmd_Argv(1), "pickup"))
+    {
+        dumpPickup();
         return;
     }
     za::String text;
@@ -1102,9 +1205,77 @@ void dump_f()
 namespace qvr::agpose
 {
 
+bool hasPickupOverride(int kind, int cls)
+{
+    if(kind < 0 || kind >= numKinds || !isClass(cls))
+    {
+        return false;
+    }
+    parse();
+    if(archived(code(kind, cls, Pickup, 0)))
+    {
+        return true;
+    }
+    if(archived(noOverrideCode(kind, cls)))
+    {
+        return false;
+    }
+    Key k;
+    return shippedOverride(kind, cls, k);
+}
+
+int editTarget(int c)
+{
+    return isClassPickup(c) && !hasPickupOverride(kindOf(c), classOf(c)) ? sharedPickupCode(kindOf(c)) : c;
+}
+
+void makePickupOverride(int kind, int cls)
+{
+    if(hasPickupOverride(kind, cls) || kind < 0 || kind >= numKinds || !isClass(cls))
+    {
+        return;
+    }
+    const Key shared = value(sharedPickupCode(kind)); // (as it is now: its preview too)
+    parse();
+    dropCode(noOverrideCode(kind, cls));
+    dropCode(code(kind, cls, Pickup, 0));
+    if(static_cast<int>(state.over.size()) < maxEntries)
+    {
+        state.over.pushBack(Entry{code(kind, cls, Pickup, 0), shared});
+    }
+    write();
+}
+
+void removePickupOverride(int kind, int cls)
+{
+    if(kind < 0 || kind >= numKinds || !isClass(cls))
+    {
+        return;
+    }
+    parse();
+    dropCode(code(kind, cls, Pickup, 0));
+    dropCode(noOverrideCode(kind, cls));
+    Key k;
+    if(shippedOverride(kind, cls, k) && static_cast<int>(state.over.size()) < maxEntries)
+    {
+        state.over.pushBack(Entry{noOverrideCode(kind, cls), Key{}}); // (its shipped override set aside)
+    }
+    write();
+}
+
+const char* poseTitle(int kind, int cls, int pose)
+{
+    if(pose != Pickup)
+    {
+        return poseName(cls, pose);
+    }
+    return cls == sharedClass || !hasPickupOverride(kind, cls) ? "Pickup (shared)" : "Pickup (override)";
+}
+
 bool get(int c, Key& out)
 {
     out = Key{};
+    c = editTarget(c);
     if(c == state.previewCode && c >= 0)
     {
         out = state.previewKey;
@@ -1131,7 +1302,7 @@ Key value(int c)
 
 void setPreview(int c, const Key& k)
 {
-    state.previewCode = c;
+    state.previewCode = editTarget(c);
     state.previewKey = k;
 }
 
@@ -1142,6 +1313,7 @@ void clearPreview()
 
 void set(int c, const Key& k)
 {
+    c = editTarget(c);
     if(!validCode(c))
     {
         return;
@@ -1155,10 +1327,12 @@ void set(int c, const Key& k)
             r.v[i][a] = rounded(k.v[i][a], isTurn(c, i) ? 10.f : 100.f);
         }
     }
+    // (a class's own Pickup, its override: kept whatever it is unless it ships one, and that equal to it)
     Key ship;
-    const bool hasShip = shippedOf(c, ship);
+    const bool hasShip = isClassPickup(c) ? shippedOverride(kindOf(c), classOf(c), ship) : shippedOf(c, ship);
+    const bool keep = isClassPickup(c) && !hasShip;
     dropCode(c);
-    if(!same(c, r, hasShip ? ship : Key{}) && static_cast<int>(state.over.size()) < maxEntries)
+    if((keep || !same(c, r, hasShip ? ship : Key{})) && static_cast<int>(state.over.size()) < maxEntries)
     {
         state.over.pushBack(Entry{c, r});
     }
@@ -1167,6 +1341,15 @@ void set(int c, const Key& k)
 
 void resetPose(int kind, int cls, int pose)
 {
+    if(pose == Pickup)
+    {
+        // (the key its edits keep: the class's override back to the shipped one, or none; else the shared key)
+        const int t = editTarget(code(kind, cls, Pickup, 0));
+        parse();
+        dropCode(t);
+        write();
+        return;
+    }
     parse();
     for(int ph = 0; ph < numPhases; ph++)
     {
@@ -1226,6 +1409,10 @@ int copyKind(int from, int to)
     // (each then the copy's, or none: its shipped key overridden by zeros where `from` has none).
     za::Vector<int> codes;
     const auto note = [&codes](int within) {
+        if(isClassPickup(within) || isNoOverrideCode(within))
+        {
+            return; // (the classes' Pickup overrides: below)
+        }
         for(const int c : codes)
         {
             if(c == within)
@@ -1282,6 +1469,27 @@ int copyKind(int from, int to)
         }
         n += has ? 1 : 0;
     }
+    // The Pickup overrides: `from`'s each `to`'s (fitted), and where `from` has none `to` none either (the shared key)
+    for(const int cls : classOrder)
+    {
+        const int oc = code(to, cls, Pickup, 0);
+        Key ship;
+        const bool toShips = shippedOverride(to, cls, ship);
+        if(hasPickupOverride(from, cls))
+        {
+            Entry c{oc, value(code(from, cls, Pickup, 0))};
+            fitKey(c.k, oc, from, to);
+            if((!toShips || !same(oc, c.k, ship)) && static_cast<int>(kept.size()) < maxEntries)
+            {
+                kept.pushBack(c);
+            }
+            n++;
+        }
+        else if(toShips && static_cast<int>(kept.size()) < maxEntries)
+        {
+            kept.pushBack(Entry{noOverrideCode(to, cls), Key{}});
+        }
+    }
     state.over = static_cast<za::Vector<Entry>&&>(kept);
     write();
     return n;
@@ -1333,6 +1541,16 @@ int dropShippedEqual()
     for(const Entry& e : state.over)
     {
         Key ship;
+        if(isNoOverrideCode(e.code) || isClassPickup(e.code))
+        {
+            // (a "no override" mark kept while an override ships; an override kept unless one ships equal to it)
+            const bool ships = shippedOverride(kindOf(e.code), classOf(e.code), ship);
+            if(isNoOverrideCode(e.code) ? ships : (!ships || !same(e.code, e.k, ship)))
+            {
+                kept.pushBack(e);
+            }
+            continue;
+        }
         const bool hasShip = shippedOf(e.code, ship);
         if(!same(e.code, e.k, hasShip ? ship : Key{}))
         {
@@ -1426,6 +1644,17 @@ void dumpText(za::String& out)
             out += va("}}, // %s, the pickup's legs (any weapon)\n", kindName(kind));
             continue;
         }
+        if(isNoOverrideCode(e.code))
+        {
+            out += va("}}, // %s, %s, Pickup: no override (the shared key; drop its shipped override row)\n", kindName(kind),
+                className(cls));
+            continue;
+        }
+        if(isClassPickup(e.code))
+        {
+            out += va("}}, // %s, %s, Pickup (its override of the shared key)\n", kindName(kind), className(cls));
+            continue;
+        }
         out += va("}}, // %s, %s, %s%s%s\n", kindName(kind), className(cls), poseName(cls, pose),
             isStrike(pose) ? ", " : "", isStrike(pose) ? phaseName(pose, phase) : "");
         // (a stance whose place is one QC constant: that constant moved, instead of the row; the grunt's units)
@@ -1507,6 +1736,7 @@ const char* className(int cls)
         case Saw: return "a chainsaw";
         case TwoMelee: return "two melee weapons";
         case TwoGuns: return "two guns";
+        case sharedClass: return "every weapon (the shared Pickup)";
         case Pistol: return "a pistol";
         case Launcher: return "a shoulder launcher";
         case Sprayer: return "a sprayer";
@@ -1527,6 +1757,7 @@ const char* classTitle(int cls)
         case Saw: return "Chainsaw";
         case TwoMelee: return "Two Melee Weapons";
         case TwoGuns: return "Two Guns";
+        case sharedClass: return "Every Weapon (Shared Pickup)";
         case Pistol: return "Pistol";
         case Launcher: return "Shoulder Launcher";
         case Sprayer: return "Sprayer";
@@ -1585,10 +1816,7 @@ int posesOf(int cls, int* out, int max)
     add(Carry);
     add(Aim);
     add(Run);
-    if(cls != Fists)
-    {
-        add(Pickup);
-    }
+    add(Pickup); // (every class, the fists too: the shared key, or the class's override)
     if(cls == Fists)
     {
         add(Jab);
@@ -1619,6 +1847,7 @@ void registerCommands()
 {
     Cmd_AddCommand("vr_agrunt_pose_dump", dump_f);
     Cmd_AddCommand("vr_agrunt_pose_key", key_f);
+    Cmd_AddCommand("vr_agrunt_pose_override", override_f);
 }
 
 } // namespace qvr::agpose

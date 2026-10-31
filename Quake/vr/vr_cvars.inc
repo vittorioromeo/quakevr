@@ -2707,7 +2707,9 @@ QVR_CVAR(vr_agglitch_state, "", CVAR_NONE)           // ... what it is doing now
 QVR_CVAR(vr_agglitch_shots, "2", CVAR_NONE)          // ... its worst moments per subject shot as eye images (the left eye from its front, the right from its side; 0 none)
 QVR_CVAR(vr_agglitch_metric, "", CVAR_NONE)          // ... its moments (the list, the shots) of these metrics only (names: flip wrong pen reach grip2 toggle gap aim jump shoulder); "" all
 QVR_CVAR(vr_agglitch_top, "30", CVAR_NONE)          // ... the worst moments vr_agglitch_report lists
-QVR_CVAR(vr_aglegs, "1", CVAR_NONE)                  // vr_agarms: 1: an armed humanoid taking a weapon up from the floor goes down on one knee, its legs posed (IK) and skinned (vr_aglegs.cpp); 0: its take frames' legs (both knees down)
+QVR_CVAR(vr_agrunt_take_bend, "28", CVAR_ARCHIVE)      // armed humanoids: degrees the chest bends forward at the waist taking a weapon up from the floor (its lowest frame; vr_aglegs 0: the take frames' crouch); the Rig Studio's Pose Keys > Pickup
+QVR_CVAR(vr_agrunt_take_bend_kneel, "45", CVAR_ARCHIVE) // ... on one knee (vr_aglegs 1: its pelvis higher, the rest pose's chest on it)
+QVR_CVAR(vr_aglegs, "1", CVAR_NONE)                 // vr_agarms: 1: an armed humanoid taking a weapon up from the floor goes down on one knee, its legs posed (IK) and skinned (vr_aglegs.cpp); 0: its take frames' legs (both knees down)
 QVR_CVAR(vr_posestudio_live_loop, "0", CVAR_NONE)     // the Pose Studio's Live mode (vr_poselive.hpp): the loop its subject plays (0 all, 1 aim and fire, 2 reload, 3 run, 4 strikes, 5 pickup; the panel's Loop)
 QVR_CVAR(vr_posestudio_live_speed, "1", CVAR_NONE)    // ... its speed, 0.1..1 (the panel's Speed: host_timescale while it plays)
 QVR_CVAR(vr_posestudio_live_follow, "1", CVAR_NONE)   // ... a key dragged at a paused frame: 1 moved by the drag over its share there (the part follows the hand at that frame); 0 by the drag

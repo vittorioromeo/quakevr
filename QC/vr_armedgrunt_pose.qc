@@ -30,8 +30,7 @@ float VR_AGP_FREE = 4;      // ... the Weapon Holds' one-handed hold: the off ha
 float VR_AGP_TWO = 16;      // ... their Two-Handed setting: the off hand on the weapon even with no second grip (round the hand)
 float VR_AGP_BODY = 32;     // ... its body's turns in a strike (VR_AGP_TorsoNow: the torso's, the elbows' poles)
 float VR_AGP_FIXED = 1;     // ... the body's turns alone, its hands' targets not turned with it (a take's bend)
-float VR_AGP_TAKE_BEND = 28; // degrees its chest bends forward at the waist taking a weapon up from the floor (vr_agarms; its take frames' kneel)
-float VR_AGP_TAKE_BEND_KNEEL = 45; // ... on one knee (vr_aglegs: its pelvis higher, the rest pose's chest on it)
+// (the chest's bend taking a weapon up from the floor: vr_agrunt_take_bend 28, vr_agrunt_take_bend_kneel 45 on one knee)
 float VR_AGP_ARM_REACH = 21; // a fist's reach from its shoulder (units, about the rig's arm)
 vector VR_AGP_SHOULDER_R = '0 -9.7 12';
 vector VR_AGP_SHOULDER_L = '0 9.7 12';
@@ -2149,7 +2148,7 @@ void(entity g, entity p) VR_AGP_Pose =
         float dk = (time - g.vr_ag_took_at) / max(0.01, g.vr_ag_took_grab - g.vr_ag_took_at);
         dk = min(1, max(0, dk));
         takeW = time < g.vr_ag_took_grab ? dk * dk * (3 - 2 * dk) : 1 - u;
-        takeBend = (cvar_hget(cvarh_vr_aglegs) ? VR_AGP_TAKE_BEND_KNEEL : VR_AGP_TAKE_BEND) * takeW;
+        takeBend = cvar_hget(cvar_hget(cvarh_vr_aglegs) ? cvarh_vr_agrunt_take_bend_kneel : cvarh_vr_agrunt_take_bend) * takeW;
         if(!pL && time < g.vr_ag_took_grab)
         {
             // Bending down: its hand reaches down with the bend (from where its frame has it to the weapon's grip as the
