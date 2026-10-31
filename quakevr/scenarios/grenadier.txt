@@ -1,0 +1,8 @@
+# grenadier: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". A grenade launcher grunt lobbing grenades at you to shoot in flight.
+title A grenade launcher grunt lobbing at you; a shotgun and a nailgun in hand (god)
+map vrtesthall
+god
+give "Shotgun" main
+give "Nailgun" off
+spawn "Armed Grunt: Grenade Launcher" 500 0
+cmd impulse 9

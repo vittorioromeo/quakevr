@@ -1,0 +1,6 @@
+# agrunt_chainsaw: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Chainsaw grunt and enforcer.
+title Chainsaw grunt and enforcer coming at you (god)
+map vrtesthall
+god
+spawn "Armed Grunt: Chainsaw" 350 60
+spawn "Armed Enforcer: Chainsaw" 400 -60

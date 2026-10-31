@@ -4153,3 +4153,72 @@ feel fine: make them the defaults and take the recoil items off the checklist.
   Amount, Two-Handed Recoil and its four sliders, no ghost from recoil, the starter shotgun's auto pump, the recoil along
   the gun's top, the off hand's grip anywhere, a shell against the gun, the unpromoted 4.5 / 7.5); the nail pistol's
   Rack Delay line now says its new default, 0.175 s.
+## Checklist: cleanup pass and a Test button on most items (branch `agent/cltests`)
+
+His voice note 2026-10-31 20:01: most checklist items had no test button. Two commits: the cleanup, then the buttons.
+
+- **Cleanup** (335 items -> 272): 10 ticked items retired, 6 duplicates (the Worn Backpacks block and two hit/backpack
+  lines had been shipped twice), the Full Slide comparison (decided: Full Slide is the default); 49 items merged into
+  31 that are tested in one go (the four flashlight-hand lines, the three downed-grunt grab lines, the nail pistol's
+  empty/re-rack/rack-delay lines, the death knight Rig Studio lines, ...); "debris you can't grab" reworded (ticked:
+  debris can be picked up); one tag a line (the Pose Studio rows split in four). Recoil lines untouched
+  (agent/recoilpromo removes them); the two failed items kept.
+- **Buttons**: 212 of 272 items end in `{test:<id>}` (was 15). 34 new scenes in `quakevr/scenarios/` (shoves, dual
+  bolts, a gunfire range, enemy gunfire, a live armed squad, props, vrarena calm/run/armour, armour plates and helmets,
+  knights with guns, plain and armoured, e1m2's armed knights, death knights' swords, disarm volumes, knockouts,
+  grenades in flight, worn packs in both pull modes, directional parry, chainsaws, the laser cannon, AD's streams,
+  crawlers and rocket soldier, empty nail pistols); the rest reuse existing scenes. Untagged (60): the recoil lines,
+  the flat-screen Rig Studio lines, startup/config/menu/tunables checks, load times, late arena waves (no wave skip),
+  general "as before" play (climbing, body, obituaries) and spots no test map has (moving water, metal floors).
+- **Engine**: a scene's `cvar vr_toolgun_armed_armor <1-4>` (and `_pieces`) puts the toolgun's Armed Humanoid armour
+  on the armed humanoids it places (`toolgun::armArmedSpawn`, vr_scenario.cpp); unset, nothing changes.
+- **Line format** in TESTING.md ("Checklist scenarios") and the checklist's header: new lines get a test whenever a
+  scene fits; `vr_scenario validate` (`0 missing`) and `vr_scenario runall quit <id>` before shipping.
+- The AD-only scenes (ad_streams, ad_crawlers, ad_rocket_soldier, as ad_fog_flicker) need AD's data, absent from the
+  kit's mock base: validated only.
+## Armed humanoids' melee spacing (branch `agent/meleereach`)
+
+His voice note 2026-10-31 19:59: a long melee weapon's holder came as close as one with its fists; a sword's holder
+should stand where its swing still connects, not in your face. Before: every melee holder ran its path into you
+(movetogoal, its box against yours: 30-37 units between the middles), started its swing within 62 and stepped in
+further during it (ai_charge).
+
+- **Its standoff** (QC vr_armedgrunt.qc `VR_AG_MeleeStandoff`): `12 + vr_agrunt_mspace_reach * (arm + weapon)`, flat,
+  its middle to yours. `arm`: its kind's shoulder ahead of its middle plus shoulder to wrist (`vr_am_sh_r_x + vr_am_arm`,
+  at least 12: grunt 14.9, enforcer 12, knight 20.7, death knight 16.9). `weapon`: its length from its grip
+  (`VR_AG_MeleeLen`): the further of the weapon's own muzzle offset (a blade's tip) and its drawn model's front end
+  along its forward (held::drawnExtent). The muzzle decides for the blades: the knight's sword 28, the hell knight's
+  35.4, the axe 8.5, Mjolnir 8.8. `12`: your body's front (a torso, not your 16-unit box; a monster: 0.75 of its box).
+  Two blades: the shorter. Under `vr_agrunt_mspace_min` (40): no standoff, it closes in as before (fists, the axe,
+  the hammers; the chainsaw always as before); at most `vr_agrunt_mspace_max` (88).
+- **Moving** (`VR_AG_MeleeSpaceMove`, from ai_run where a gun's holder keeps its distance, after CheckAnyAttack): within
+  its standoff + 64 it faces you and walks straight back to its standoff at `vr_agrunt_mspace_speed` (1.25) times its
+  run's step; at it or nearer (you stepped in) it holds its ground (no backing off); blocked or further: its path as
+  before. Its swing starts within its standoff + 12 (`VR_AG_MeleeStart`, at least the old 62; the two-blade follow-up
+  too) and its step into the blow (VR_AGP_Frame's ai_charge) stops at its standoff.
+- **Its blow aimed at you from its standoff** (VR_AGP_Strike): the Pose Studio keys' turn of the blow's line (vr_agk_rr)
+  swung a knight's line past you from 51-57 units (1 attack in 5 hurt nothing: its grip 29 units to your side, its line
+  going along, not across); up close it starts inside you and lands anyway. With a standoff its line goes from its keyed
+  grip to your chest.
+- **The blade's line** (`VR_AG_WeaponLine`, the disarm volumes, the blade contact) still takes a sword's length along
+  its model's forward (`weapondrawnpose` 34/35: the knight's sword 14 long, the blade being along its up). Not changed
+  here; noted.
+- **Settings**: Combat > Armed Grunts > AI Behaviour > Melee Spacing: Long Blades Keep Their Reach (`vr_agrunt_mspace`
+  1), Reach Share (`_reach` 0.8: 1 its tip just meeting your body), Shortest Standoff (`_min` 40), Longest Standoff
+  (`_max` 88), Re-Close Speed (`_speed` 1.25).
+- **Test 18** (`vr_agrunt_test 18`, QC/vr_armedgrunt_reach_test.qc; Debug > Tests > Armed Grunts: Melee Spacing): each
+  kind 0-3 with fists, axe, sword, the hell knight's long sword, Mjolnir, chainsaw from 160 units, you still with empty
+  hands: three attacks as it comes, then you 80 units back (its next attack), then (a standoff) you stepped in to 24
+  inside it (its next attack). Per trial: its standoff, where it stood as its blows landed, the re-close time, every
+  attack hurting you; PASS when all hurt you, a standoff's holder stood within 8 of it (a short weapon within 62) and
+  struck from no further than where you stepped in. 24 passed, 0 failed: standoffs grunt sword 46 / long 52, enforcer
+  44 / 50, knight 51 / 57, death knight 48 / 54, each stood at it within 0.3 as its blows landed; fists 30-37, the
+  axe, Mjolnir and the chainsaw 30-34 (as before); after you backed off 80 it came back and struck again in 0.4-2.2 s;
+  stepped in to 36 it struck from 36 (no backing off); every attack hurt you. Before the aim fix: 22/24 (a knight's
+  long blade 1 attack in 5 hurting nothing).
+- Not run (the coordinator's call, velocity first): the agrunt|arena baseline subset and eval.sh (the player's melee
+  is untouched: no file of it changed).
+- **Checklist** (suggested): "A grunt or knight with a sword or long sword stops a little out (about 45-57 units),
+  swings from there and its blows land; with fists, an axe or a hammer it still comes right up; step in on a swordsman:
+  it holds its ground; back off: it follows {test:agrunt_melee_spacing} (Debug > Tests > Armed Grunts: Melee Spacing,
+  `vr_agrunt_test 18`)."

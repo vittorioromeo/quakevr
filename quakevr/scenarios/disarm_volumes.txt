@@ -1,0 +1,13 @@
+# disarm_volumes: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Show Disarm Volumes and Show Shot Disarms on, calm armed grunts, a nail pistol in hand.
+title Disarm volumes shown: calm grunts with a nail pistol, a rocket launcher, a sword, a shotgun
+map vrtesthall
+god
+notarget
+cvar vr_debug_disarm 1
+cvar vr_agrunt_shotdisarm_debug 1
+give "Nail Pistol" main
+spawnarmed monster_vr_grunt 29 0 120 60
+spawn "Armed Grunt: Rocket Launcher" 120 -60
+spawn "Armed Grunt: Sword" 200 0
+spawn "Armed Grunt: Shotgun" 220 120
+cmd impulse 9
