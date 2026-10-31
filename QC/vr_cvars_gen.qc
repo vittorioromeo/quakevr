@@ -906,6 +906,7 @@ float cvarh_vr_ad_widowmaker_handful;
 float cvarh_vr_ad_widowmaker_spin;
 float cvarh_vr_ad_widowmaker_spinup;
 float cvarh_vr_ad_widowmaker_spindown;
+float cvarh_vr_ad_plasmagun_cell;
 float cvarh_vr_admelee_heavy_1h;
 float cvarh_vr_admelee_heavy_stamina;
 float cvarh_vr_admelee_heavy_speed;
@@ -2190,6 +2191,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_ad_widowmaker_spin = cvar_hmake("vr_ad_widowmaker_spin");
     cvarh_vr_ad_widowmaker_spinup = cvar_hmake("vr_ad_widowmaker_spinup");
     cvarh_vr_ad_widowmaker_spindown = cvar_hmake("vr_ad_widowmaker_spindown");
+    cvarh_vr_ad_plasmagun_cell = cvar_hmake("vr_ad_plasmagun_cell");
     cvarh_vr_admelee_heavy_1h = cvar_hmake("vr_admelee_heavy_1h");
     cvarh_vr_admelee_heavy_stamina = cvar_hmake("vr_admelee_heavy_stamina");
     cvarh_vr_admelee_heavy_speed = cvar_hmake("vr_admelee_heavy_speed");
