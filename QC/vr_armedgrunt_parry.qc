@@ -333,12 +333,17 @@ float vr_agbc_sparks;              // ... that sent sparks
 float vr_agbc_kicks;               // ... that staggered it and knocked its weapon arm (hitreact)
 string vr_agbc_why;                // the last one's account (the tests, vr_agrunt_debug)
 
-// The gap between the segment a..b, widened by `r` (`extra` of it a carried prop's size), and the weapon's line
-// (vr_ag_wa..wb) or its hand line (vr_ags_ha..hb); sets vr_ag_strike_part and _near.
+entity vr_ag_strike_g; // VR_AG_StrikeMeets's: the one struck
+entity vr_ag_strike_p; // ... its weapon
+
+// The gap between the segment a..b, widened by `r` (`extra` of it a carried prop's size), and the weapon or the hand
+// holding it as drawn (vr_ag_strike_g's vr_ag_strike_p: their hulls grown by vr_agrunt_vol_strike, VR_AGS_HullGap); sets
+// vr_ag_strike_part and _near (vr_ag_strike_x: along the weapon's line, vr_ag_wa..wb).
 float(vector a, vector b, float r, float extra) VR_AG_StrikeGap =
 {
-    float dw = VR_AG_SegDist(a, b, vr_ag_wa, vr_ag_wb);
-    float dh = VR_AG_SegDist(a, b, vr_ags_ha, vr_ags_hb);
+    float grow = cvar_hget(cvarh_vr_agrunt_vol_strike);
+    float dw = max(0, VR_AGS_HullGap(vr_ag_strike_g, vr_ag_strike_p, 1, a, b, grow));
+    float dh = max(0, VR_AGS_HullGap(vr_ag_strike_g, vr_ag_strike_p, 2, a, b, grow));
     vr_ag_strike_part = dh < dw ? 2 : 1;
     vr_ag_strike_near = max(0, dh - extra);
     vector w = vr_ag_wb - vr_ag_wa;
@@ -354,6 +359,8 @@ float(entity g, entity p, entity pl, float h) VR_AG_StrikeMeets =
 {
     VR_AG_WeaponLine(p);
     VR_AGS_HandLine(g, p);
+    vr_ag_strike_g = g;
+    vr_ag_strike_p = p;
     entity was = self;
     self = pl;
     entity b = VR_Blow(h);
@@ -417,11 +424,18 @@ float(entity g, entity p, entity pl, float h) VR_AG_StrikeMeets =
     return -1;
 };
 
-// `g`'s held weapon `p`'s hand line's distance from `at` (a body blow's point: VR_AG_Hit).
+// `g`'s held weapon `p`'s hand line's distance from `at` (a body blow's point: test 79).
 float(entity g, entity p, vector at) VR_AG_HandLineDist =
 {
     VR_AGS_HandLine(g, p);
     return VR_AG_SegDist(at, at, vr_ags_ha, vr_ags_hb);
+};
+
+// A body blow's point `at` (VR_AG_Hit) against `g`'s held weapon `p` and the hand holding it as drawn: the gap to the
+// nearer of their hulls (VR_AGS_HullGap; 0 or less: on them).
+float(entity g, entity p, vector at) VR_AG_BlowGap =
+{
+    return min(VR_AGS_HullGap(g, p, 1, at, at, 0), VR_AGS_HullGap(g, p, 2, at, at, 0));
 };
 
 // ----------------------------------------------------------------------------

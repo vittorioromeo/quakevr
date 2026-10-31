@@ -910,6 +910,9 @@ void registerCvars()
 // Settings removed (docs/vr-port/CVAR_AUDIT.md): a config, a shipped .cfg or a take that still sets one is not an
 // "Unknown command" (cmd.c asks here); the line is dropped quietly and the next config write leaves it out.
 constexpr const char* retiredCvars[] = {
+    // 2026-10-31: the shot volumes' size, a multiplier of the old capsules, replaced by the hulls of the drawn triangles
+    // grown by vr_agrunt_vol_* units (ROUND23.md, "Disarm volumes as hulls of the drawn triangles").
+    "vr_agrunt_shotdisarm_size",
     // 2026-10-19: the class lists replaced by the monster groups' Lift, Neck Snap, Leg Sweep, Leg Grabs, Manhandle and
     // Two-Hand Throw (vr_mgrp_<group>_*; ROUND22.md, "Monster groups").
     "vr_foegrab_lift_classes",

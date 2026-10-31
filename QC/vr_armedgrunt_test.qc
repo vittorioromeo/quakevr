@@ -1480,6 +1480,7 @@ void() VR_AGTest_Frame =
     else if(t == 96 || t == 98) { VR_AGPP_Frame(t); } // (its guard: the preventive and wind-up parries: vr_armedgrunt_preparry_test.qc)
     else if(t == 99) { VR_DPT_Frame(); } // (the drawn pose: worn packs and disarm volumes on the body as drawn: vr_drawnpose_test.qc)
     else if(t == 79) { VR_SPT_Frame(); } // (shots and grip spheres from the drawn pose: vr_stalepose_test.qc)
+    else if(t == 16) { VR_DHT_Frame(); } // (the disarm volumes as hulls of the drawn triangles: vr_disarmhull_test.qc)
     else if(t == 97) { VR_DVT_Frame(); } // (Show Disarm Volumes in each state, its eye images: vr_disarmviz_test.qc)
     else if(t == 91) { VR_AGRB_Frame(); } // (an active ragdoll's weapon grabbed at the gun or its hand: vr_armedgrunt_raggrab_test.qc)
     else if(t == 92) { VR_AG2_Frame(); } // (two hands in the tug, a staggering or downed one's eased tug: vr_armedgrunt_twohand_test.qc)

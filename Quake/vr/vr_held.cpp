@@ -2,6 +2,7 @@
 
 #include "vr_geom.hpp"
 #include "vr_held.hpp"
+#include "vr_disarmhull.hpp"
 #include "vr_climb.hpp"
 #include "vr_carry2h.hpp"
 #include "vr_client.hpp"
@@ -202,6 +203,7 @@ struct DrawnMesh
     bool ok{false};
     za::Vector<Triangle> tris;
     za::Vector<MeshNode> nodes;
+    disarmhull::Hull hull; // its triangles' convex hull (drawnHull: made the first time asked)
     DrawnMesh(const qmodel_t* m, int p, const DrawnTransform& t) : model{m}, pose{p}, xf{t} {}
 };
 
@@ -859,29 +861,83 @@ bool nearDrawn(edict_t* ent, const glm::vec3& p, float margin)
     return nearDrawnBox(ent, p, margin);
 }
 
-bool drawnExtent(edict_t* ent, glm::vec3& back, glm::vec3& front, float& radius)
+const disarmhull::Hull* drawnHull(edict_t* ent)
 {
     glm::mat3 axes;
     glm::vec3 origin;
-    const DrawnMesh* m = entityMesh(ent, axes, origin);
-    if(!m || m->tris.empty())
+    const DrawnMesh* cm = entityMesh(ent, axes, origin);
+    if(!cm || cm->tris.empty())
+    {
+        return nullptr;
+    }
+    DrawnMesh* m = const_cast<DrawnMesh*>(cm); // (the cache's own: its hull made once)
+    if(m->hull.points == 0)
+    {
+        za::Vector<glm::vec3>& points = scratch.centreVertices;
+        points.clear();
+        for(const Triangle& t : m->tris)
+        {
+            for(int i = 0; i < 3; i++)
+            {
+                points.pushBack(t.p[i]);
+            }
+        }
+        disarmhull::make(points.data(), static_cast<int>(points.size()), m->hull);
+    }
+    return m->hull.ok ? &m->hull : nullptr;
+}
+
+bool drawnExtent(edict_t* ent, glm::vec3& back, glm::vec3& front, float& radius)
+{
+    // Its hull's long axis (its two corners farthest apart: a blade's length whichever way its model has it, not its
+    // model's x), through its corners' middle, from the least to the most of them along it; the radius their most off it.
+    const disarmhull::Hull* h = drawnHull(ent);
+    if(!h || h->corners.size() < 2)
     {
         return false;
     }
-    glm::vec3 lo{1e30f}, hi{-1e30f};
-    for(const Triangle& t : m->tris)
+    const auto at = [h](za::SizeT i) { return glm::vec3{h->corners[i].x, h->corners[i].y, h->corners[i].z}; };
+    za::SizeT ia = 0, ib = 0;
+    float best = -1.f;
+    glm::vec3 mid{0.f};
+    for(za::SizeT i = 0; i < h->corners.size(); i++)
     {
-        for(int i = 0; i < 3; i++)
+        mid += at(i);
+        for(za::SizeT j = i + 1; j < h->corners.size(); j++)
         {
-            lo = glm::min(lo, t.p[i]);
-            hi = glm::max(hi, t.p[i]);
+            const float d2 = glm::dot(at(i) - at(j), at(i) - at(j));
+            if(d2 > best)
+            {
+                best = d2;
+                ia = i;
+                ib = j;
+            }
         }
     }
-    const glm::vec3 mid = (lo + hi) * 0.5f;
-    back = glm::vec3{lo.x, mid.y, mid.z};
-    front = glm::vec3{hi.x, mid.y, mid.z};
-    radius = za::max(hi.y - lo.y, hi.z - lo.z) * 0.5f;
-    return hi.x > lo.x;
+    mid /= static_cast<float>(h->corners.size());
+    glm::vec3 dir = at(ib) - at(ia);
+    if(glm::length(dir) < 1e-4f)
+    {
+        return false;
+    }
+    dir = glm::normalize(dir);
+    if(dir.x < 0.f)
+    {
+        dir = -dir; // (its front the one further along its model's forward: a weapon's tip)
+    }
+    float lo = ZA_FLOAT_MAX, hi = -ZA_FLOAT_MAX;
+    radius = 0.f;
+    for(za::SizeT i = 0; i < h->corners.size(); i++)
+    {
+        const glm::vec3 r = at(i) - mid;
+        const float t = glm::dot(r, dir);
+        lo = za::min(lo, t);
+        hi = za::max(hi, t);
+        radius = za::max(radius, glm::length(r - dir * t));
+    }
+    back = mid + dir * lo;
+    front = mid + dir * hi;
+    return hi > lo;
 }
 
 float surfaceDistance(edict_t* ent, const glm::vec3& point, glm::vec3* nearest)

@@ -1331,6 +1331,13 @@ void ikStretchReset()
             .help("One that was fighting you with a chainsaw drops it with the engine running (killed, disarmed, a tug "
                   "lost): it runs on as yours does when let go (Runs On When Let Go), so taken up meanwhile it needs no "
                   "cord pull. One that never saw you drops it off (vr_agrunt_saw_drop_running)."),
+        slider("Volume: Strikes", vr_agrunt_vol_strike, -2.f, 6.f, 0.25f, "%+.2f units").extend(-8.f, 32.f)
+            .help("Your blow strikes its weapon (or the hand holding it) when its sweep meets the hull of that weapon or "
+                  "hand as drawn grown by this many units (under 0: shrunk), your blow's own thickness on top. Drawn "
+                  "orange (vr_agrunt_vol_strike)."),
+        slider("Volume: Body Blows", vr_agrunt_vol_blow, -2.f, 12.f, 0.25f, "%+.2f units").extend(-8.f, 32.f)
+            .help("A hard blow that lands on its body this near its weapon or the hand holding it (their hulls as drawn) "
+                  "knocks the weapon out (with Hits Disarm). 0: on them only. Drawn red (vr_agrunt_vol_blow)."),
         header("Disarming: Shooting It Out"),
         toggle("Shoot Weapons Out", vr_agrunt_shotdisarm)
             .help("Your shots on the weapon an armed grunt holds, or the hand holding it, add up; each time they pass "
@@ -1340,9 +1347,13 @@ void ikStretchReset()
         cycle("What Counts", vr_agrunt_shotdisarm_parts, {{0.f, "The Weapon"}, {1.f, "The Hand"}, {2.f, "Weapon or Hand"}})
             .help("Which hits add up: on the weapon itself, on the hand and forearm holding it, or either "
                   "(vr_agrunt_shotdisarm_parts)."),
-        slider("Hit Volume Size", vr_agrunt_shotdisarm_size, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
-            .help("The weapon's and the hand's hit volumes times this: under 1 only precise shots count, over 1 near ones "
-                  "too (vr_agrunt_shotdisarm_size)."),
+        slider("Volume: Its Weapon", vr_agrunt_vol_shot_weapon, -2.f, 6.f, 0.25f, "%+.2f units").extend(-8.f, 32.f)
+            .help("A shot counts on its weapon on the hull of the weapon as drawn (its model's own triangles where it is "
+                  "drawn), grown by this many units (under 0: shrunk; 0: exactly the weapon). Debug > Show Disarm Volumes "
+                  "draws it (magenta) (vr_agrunt_vol_shot_weapon)."),
+        slider("Volume: Its Hand", vr_agrunt_vol_shot_hand, -2.f, 6.f, 0.25f, "%+.2f units").extend(-8.f, 32.f)
+            .help("A shot counts on the hand holding its weapon on the hull of that hand and forearm as drawn, grown by this "
+                  "many units (under 0: shrunk). Drawn cyan (vr_agrunt_vol_shot_hand)."),
         slider("Chance a Roll", vr_agrunt_shotdisarm_chance, 0.f, 1.f, 0.05f, "%.2f").extend(0.f, 1.f)
             .help("The roll's chance right at the threshold (vr_agrunt_shotdisarm_chance)."),
         slider("Chance Past the Threshold", vr_agrunt_shotdisarm_chance_scale, 0.f, 2.f, 0.05f, "+%.2f").extend(0.f, 10.f)
