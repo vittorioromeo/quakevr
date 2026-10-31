@@ -323,8 +323,36 @@ HEAD = """// vr_menu_rows.inc -- the settings' menu rows, each written once (des
 """
 
 
+PATH_PREFIX = re.compile(r"^(QVR_CVAR\((\w+),[^)]*\)\s*)// *([A-Z][^:>(\n]*(?: > [^:>(\n]+)+(?: \([^)\n]*\))?)(?::\s*|\s*$)")
+
+
+def strip_comments():
+    """vr_cvars.inc: a setting's comment that starts with its menu path ("Combat > Enemy Melee > Melee Arc: ...") loses
+    the path when the menus have a row for it (menu_paths.txt says where it is)."""
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import menu_paths
+    rows = {c for c, _, _, _, _ in menu_paths.load() if c and c != "@page"}
+    inc = os.path.join(VR, "vr_cvars.inc")
+    lines = open(inc, encoding="utf-8").read().split("\n")
+    done = kept = 0
+    for n, line in enumerate(lines):
+        m = PATH_PREFIX.match(line)
+        if not m:
+            continue
+        if m.group(2) not in rows:
+            kept += 1
+            continue
+        rest = line[m.end():]
+        lines[n] = (m.group(1) + "// " + rest) if rest.strip() else m.group(1).rstrip()
+        done += 1
+    open(inc, "w", encoding="utf-8", newline="\n").write("\n".join(lines))
+    print(f"vr_cvars.inc: {done} comments' menu paths taken out (menu_paths.txt has them), {kept} kept (no row)")
+
+
 def main():
     mode = sys.argv[1] if len(sys.argv) > 1 else "stats"
+    if mode == "strip-comments":
+        return strip_comments()
     dry = "--dry" in sys.argv
     globals_ = cvar_globals()
     found, fails = scan(globals_)

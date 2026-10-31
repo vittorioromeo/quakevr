@@ -236,6 +236,12 @@ the config is the player's choice.
   cvar (never saved) whose row, if any, belongs on a Debug page. A new number starts as a tuning constant; it becomes a
   setting only for a player-facing reason. A constant can't be written (`&name`, `Cvar_Set`) or looked up with
   `Cvar_FindVar`: that one stays a cvar.
+- **A setting's row is written once** (ROUND23.md, "One settings schema"): its label, range, step, format, extent,
+  help and choices are one `QVR_TOGGLE` / `QVR_SLIDER` / `QVR_CYCLE` line in `Quake/vr/vr_menu_rows.inc` (`_BYNAME`
+  when the row finds its cvar by name), and a page lists `row(opt::<cvar>)` (plus `.advanced()` / `.developer()`). A
+  row with code in it (a lambda, a computed range, `unavailableBecause`) stays written on its page. Don't write a
+  setting's menu path in its `vr_cvars.inc` comment: `vr_menu_dump_paths` prints every row's, and
+  `Misc/quakevr/menu_paths.txt` (`menu_paths.py`) keeps them for scripts; the board maps' `{menu:...}` come from it.
 
 ## Canonical helpers
 
