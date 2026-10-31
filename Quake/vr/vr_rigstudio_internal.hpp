@@ -271,6 +271,16 @@ struct Studio
     bool pdFollow{true};   // the key follows the subject: its kind, its weapon's class (the Pose Handles' default)
     int pdPart{-1};        // the Pose Handles' part picked (posestudio's numbers: 0 the right weapon .. 11; -1 none)
     int subjKind{-1}, subjClass{-1}; // the subject's, as QC tells them (rigstudio::qcHold)
+    // The data window's Swing: the subject's strike played once from its start (QC VR_AGK_Hold: Play's count), slowed
+    struct Swing
+    {
+        bool on{false};      // the subject held in the strike (pose, its kind and class) by Swing
+        bool want{false};    // a play asked, counted at the next hold query (QC plays a change of the count it saw held)
+        bool seen{false};    // the last hold query answered with a strike (QC holds it)
+        int pose{0}, kind{0}, cls{0};
+        int count{0};        // Play's count (z of the hold query)
+        float speed{0.25f};  // its playback speed (0.1..1; QC vr_ag_act_speed)
+    } swing;
     Tool lastTool{Tool::Rotate};
     double statusAt{0.0};
     // This frame's geometry (vr_rigstudio_view.cpp's)
@@ -317,6 +327,7 @@ void pushUndo(const char* what);
 void keepPreEdit();          // the frame's start (no widget held): the data kept for pushPreEditUndo
 void pushPreEditUndo(const char* what);
 void pushPoseUndo(int code);                       // a Pose Studio key about to change
+void swingPlay();  // the data window's Swing: the subject held in its strike, played once from its start (st.swing)
 void pushStretchUndo(int kind, int cls);           // ... a kind and class's IK stretch
 void pushPosesUndo(const char* what);              // ... every pose key (vr_agrunt_poses as it is)
 void pushGripUndo(int kind, int slot, int hand);   // a grip about to change

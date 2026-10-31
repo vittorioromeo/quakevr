@@ -4187,6 +4187,83 @@ The leftovers of round 5 ("Not done": the smooth rigs one model after another, 4
   and keying (the rigs must still be found: the key holds the derived rig), and the limbs' builds already run on the pool
   beside the load (round 5: 22 ms there, not on the main thread). Under the brief's ~20 ms bar: skipped.
 
+## Directional parry 2: debug view, leniency settings, Enemy Melee Speed (branch `agent/dirparry2`)
+
+His words (10-31): a debug view for it, leniencies he can tweak, slowed enemy swings to practise with.
+
+- **Show Directional Parry** (`vr_dirparry_debug`, test knob; Combat > Parry and Bash > Directional Parry and the Debug
+  page): `Quake/vr/vr_dirparryviz.cpp`, fed by QC `VR_DRP_Debug` / `VR_DRP_DebugLine` (builtins `debugdirparry`,
+  `debugdirparrynote`, `debugdirparryline`). Every server frame each held melee weapon's line as the parry reads it
+  (VR_AG_WeaponLine, both ends: blue, the front end white) and last frame's (faint, joined: the sweep), with the drawn
+  weapon's own butt and tip as magenta dots. Each reading of a swing: its blade then (white), where its way's span
+  begins and ends (grey), its way (yellow arrow), your parry line and the meeting point (verdict colour: green parried,
+  orange partial, red miss; faint while live), the ideal through your line's nearest point (cyan), the gap (thin). The
+  last strike's verdict is held 3 s with a readout facing you: verdict, score vs threshold (bar with a threshold tick),
+  angle off the ideal with its limits and marks, contact distance with its limits and marks, hand, when, speed; and
+  printed (`dirparryviz: strike ...`). `vr_dirparry_linecheck [reset]` prints the worst line-end gaps measured.
+- **Leniencies as settings** (player options, CVAR_ARCHIVE, defaults unchanged: they were tuning constants, but he tunes
+  them from the menu while playing, a player-facing reason): `vr_dirparry_angle` 40 (Angle: Full Marks Within),
+  `vr_dirparry_angle_zero` 90 (Angle: No Marks At; new, was fixed), `vr_dirparry_contact` 6 (Contact Distance),
+  `vr_dirparry_falloff` 2 (Contact Falloff; new, was fixed at 2x), `vr_dirparry_threshold` 0.75 (Score to Parry),
+  `vr_dirparry_window` 0.1 (Parry Window). `_partial` and `_opening` stay tuning constants (Debug > Tunables).
+- **Enemy Melee Speed** (`vr_agrunt_melee_speed`, test knob, 0.1..1, default 1; Parry page and Debug page): an armed
+  humanoid's swing or punch takes the speed as it begins (`.vr_ag_act_speed`, QC `VR_AGP_Speed`); `VR_AGP_Times`
+  divides every phase by it (keys, blow, hit, recovery together), its step-in distance and legs' frames are kept, and
+  the directional parry's window is divided by it. 1: the same code path as before (guarded).
+- **Rig Studio:** the Pose Studio Data window's Swing button (a strike pose: the subject plays it once from its start,
+  then holds at the phase picked), Swing Speed 0.1..1 (default 0.25), Stop Swing; `vr_rigstudio_posekey swing 1
+  swingspeed 0.5`. Through the hold query's count (QC VR_AGK_Hold), the speed by `weapondrawnpose(e, -1, 19)`.
+- **Test 78** grows to 16 cases (its swing's variation now fixed at 0.5: a random one moved case 5's blade from run to
+  run, so case 5 parried in some runs): 9 the view takes the readings and the verdict (eye image), 10 case 5 with the
+  contact distance just past its gap (15.4 units) flips to parried, 11 speed 0.5 vs fists: the blow lands as hard at
+  x1.963 the time, length x2.000, end x1.91 (its 0.1 s think), 12 speed 0.5 parried. 13-15 the line check (sword, axe,
+  knight's sword, side swing): **FAIL**, worst 18.0 / 7.5 / 18.0 units. The line's middle matches the drawn weapon's,
+  but it is far shorter (14 units for a ~38-unit sword) and along another axis than the drawn butt-to-tip
+  (view::weaponLocalGeometry by the renderer's matrix, as the Rig Studio's aim lines read it). Open: whether
+  held::drawnExtent's forward axis or the measurement is wrong; the view shows both for him to judge.
+
+### Part 3 (branch `agent/dirparry2`, brief dirparry3)
+
+- **The truth: held::drawnExtent was wrong, the measurement right.** `vr_dirparry_linecheck dump` (new) prints the next
+  measured line, the drawn butt and muzzle and the model's triangles' box, all in the weapon's own frame (the renderer's
+  matrix taken off). The line's ends were exactly the box's x ends (frames agree: the drawn origin and turn are right),
+  but the models do not lie along x: v_ksword.mdl's box is x -5.5..8.6, z -9.2..26.8, its butt (-4.7, 0, -8.9) and
+  muzzle (8.1, 0, 26.8) (its tip, the box's top): the blade runs up z, tilted ~20 deg; the "line" was its guard, 14
+  units across. Likewise v_axe.mdl (box z -3.4..11.7), v_crowbar.mdl (z -7.5..10.8), mg3 v_hammer.mdl (z -8.1..9.4).
+  The fix is agent/disarmhull's (drawnExtent along the model's own longest axis / the hull's farthest corners: the
+  coordinator's call); this branch keeps a patch of its own butt-to-muzzle version aside (scratch, not committed).
+- `vr_dirparry_linecheck look [off]` (new): the headless mock's eyes put 30 / 40 units from the next measured weapon
+  (its flat side; above it) for an eye image (the drawn model, its line, the magenta drawn ends).
+- **Test 78** grows to 20 cases: the line cases now swing all four swing kinds each (0-3; the chainsaw also its
+  thrust): 13 sword, 14 axe, 15 knight's sword, 16 Mjolnir, 17 chainsaw, 18 AD crowbar, 19 AD super axe. `scratch1 N`
+  (13 on): only the line cases from N; `scratch2 1`: a close eye image of each (dump + look).
+- **Case 12's "500 damage" was a test artifact, not a bug.** No T_Damage reached you: the counter (your posed sword's
+  pommel strike, 45 to the grunt) earned melee bloodlust, T_Heal(attacker, ..., ignore) clamps health to the megahealth
+  cap (250), and the test's 1000 health became 250, then the agrunt tests' keep-alive floor 500: read as 500 damage (its
+  "by stl_noise" was a stale inflictor field). Test 78 now turns `vr_melee_bloodlust` off while it runs (1: off; 0 is
+  on) and puts it back at its end, and judges case 12 like the rest (its "not by its blow" excuse gone).
+- Checks: test 77 12/0; `vr_menu_path_check maps/vrcalibration.map` 6 found, 0 missing. The Rig Studio Swing in the
+  mock (`vr_rigstudio monster_vr_grunt 13; vr_rigstudio_posekey kind 0 class 2 pose 14 swingspeed 0.25 swing 1`):
+  not verified, the studio had no subject attached (`subject -1 -1`, no `agk:` play line) in that script.
+
+### Part 3: the line after the hull fix (merged next with agent/disarmhull)
+
+- Test 78 after the merge: sword and Knight's Sword 0.48, the rest 1.1-6.3 units off. Two causes, per weapon:
+  - The reference: an axe's or hammer's muzzle (weapons' Muzzle offset) is where it strikes (an axe's edge, Mjolnir's
+    face beside its head), not its far end. The check's tip is now the middle of the drawn model's points within a
+    unit of its frontmost along the line (as its butt already was of the rearmost), still from the client's drawn
+    triangles and the renderer's matrix (vr_dirparryviz.cpp).
+  - The line: on the farthest-corners way (melee weapons: blades, hafts with heads) held::drawnExtent's line ran through
+    its hull corners' middle, which a one-sided head pulls off the haft (the axe's 2 units beside it, the super axe's 5).
+    On that way only, its ends are now the middles of its triangles' points within a unit of its rearmost and frontmost
+    along the axis (vr_held.cpp); the model-axis way (guns' barrels) and the rule choosing between them are unchanged.
+- Now: sword, axe, Knight's Sword, Mjolnir 0.00; AD crowbar 0.03, AD super axe 0.09. Chainsaw 2.56: not fixed. Its
+  farthest-corners axis runs 5 degrees off its bar (the model's x was rejected: through its box's middle it leaves the
+  bar), so its rear end along it is the bottom of its rear handle, 2.5 below the butt; its front is the bar's tip. The
+  fix is in the rule (place the axis candidate through the rear end before judging it: that picks x for the chainsaw,
+  but also turns the shotgun to the corners' way, test 99 18 degrees off), left for a decision.
+- Also: test 77 12/0, test 16 (disarm hulls) 242/0, test 99 (drawn pose) 41/0.
+
 ## Disarm volumes as hulls of the drawn triangles (branch `agent/disarmhull`)
 
 His notes (2026-10-31 19:36, 19:38; a grunt with an axe, one with a Knight's Sword held level): the cyan volume floats

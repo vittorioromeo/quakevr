@@ -969,7 +969,62 @@ bool drawnExtent(edict_t* ent, glm::vec3& back, glm::vec3& front, float& radius)
             return true;
         }
     }
-    return ok;
+    if(!ok)
+    {
+        return false;
+    }
+    // The farthest corners' way (a blade, a haft with its head, not a gun's barrel along its x): its ends the middles of its
+    // triangles' points within a unit of its rearmost and its frontmost along it (its butt, as view::weaponLocalGeometry
+    // has it, and its tip), not that line through its corners' middle, which a one-sided head pulls off the haft (test 78:
+    // an axe's line 2 units beside its haft, a super axe's 5; a hammer's head top's middle).
+    glm::mat3 axes;
+    glm::vec3 origin;
+    const DrawnMesh* m = entityMesh(ent, axes, origin);
+    const glm::vec3 d = glm::normalize(front - back);
+    float lo = ZA_FLOAT_MAX, hi = -ZA_FLOAT_MAX;
+    for(const Triangle& t : m->tris)
+    {
+        for(int i = 0; i < 3; i++)
+        {
+            lo = za::min(lo, glm::dot(t.p[i], d));
+            hi = za::max(hi, glm::dot(t.p[i], d));
+        }
+    }
+    glm::vec3 sb{0.f}, sf{0.f};
+    int nb = 0, nf = 0;
+    for(const Triangle& t : m->tris)
+    {
+        for(int i = 0; i < 3; i++)
+        {
+            const float s = glm::dot(t.p[i], d);
+            if(s <= lo + 1.f)
+            {
+                sb += t.p[i];
+                nb++;
+            }
+            if(s >= hi - 1.f)
+            {
+                sf += t.p[i];
+                nf++;
+            }
+        }
+    }
+    const glm::vec3 b = sb / static_cast<float>(za::max(nb, 1)), f = sf / static_cast<float>(za::max(nf, 1));
+    if(glm::dot(f - b, f - b) < 1e-6f)
+    {
+        return true; // (degenerate: the corners' line)
+    }
+    const glm::vec3 n = glm::normalize(f - b);
+    float r = 0.f;
+    for(za::SizeT i = 0; i < h->corners.size(); i++)
+    {
+        const glm::vec3 v = at(i) - b;
+        r = za::max(r, glm::length(v - n * glm::dot(v, n)));
+    }
+    back = b;
+    front = f;
+    radius = r;
+    return true;
 }
 
 float surfaceDistance(edict_t* ent, const glm::vec3& point, glm::vec3* nearest)
