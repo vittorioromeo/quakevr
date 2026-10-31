@@ -96,6 +96,14 @@ za::Vector<Item> pageDebugViews()
                   "what is held, and each holster's and pouch's reach point (units from the eyes: forward, right, up) and size."),
         row(opt::vr_debug_hitzones),
         row(opt::vr_debug_disarm),
+        toggle("Show Directional Parry", vr_dirparry_debug)
+            .help("vr_dirparry_debug: the directional parry's reading of each armed humanoid's swing (its blade, its "
+                  "way, your parry line, the ideal, the score vs threshold, the angle, the contact distance), coloured "
+                  "by the verdict, the last strike's held 3 s and printed. Settings: Combat > Parry and Bash, "
+                  "Directional Parry."),
+        slider("Enemy Melee Speed", vr_agrunt_melee_speed, 0.1f, 1.f, 0.05f, "%.2fx")
+            .help("vr_agrunt_melee_speed: armed humanoids' melee swings and punches slowed (their whole timing: keys, "
+                  "blow, parry window), for parry practice. 1: normal."),
         row(opt::vr_debug_hitzones_xray),
         cycle("Show Gadget Button", vr_debug_gadget_button,
             {{0.f, "Off"}, {1.f, "Its Hit Volume"}, {2.f, "And the Screen Tap"}, {3.f, "And Print Sync"}})

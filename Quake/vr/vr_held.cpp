@@ -2,6 +2,7 @@
 
 #include "vr_geom.hpp"
 #include "vr_held.hpp"
+#include "vr_disarmhull.hpp"
 #include "vr_climb.hpp"
 #include "vr_carry2h.hpp"
 #include "vr_client.hpp"
@@ -202,6 +203,7 @@ struct DrawnMesh
     bool ok{false};
     za::Vector<Triangle> tris;
     za::Vector<MeshNode> nodes;
+    disarmhull::Hull hull; // its triangles' convex hull (drawnHull: made the first time asked)
     DrawnMesh(const qmodel_t* m, int p, const DrawnTransform& t) : model{m}, pose{p}, xf{t} {}
 };
 
@@ -859,29 +861,170 @@ bool nearDrawn(edict_t* ent, const glm::vec3& p, float margin)
     return nearDrawnBox(ent, p, margin);
 }
 
-bool drawnExtent(edict_t* ent, glm::vec3& back, glm::vec3& front, float& radius)
+const disarmhull::Hull* drawnHull(edict_t* ent)
 {
     glm::mat3 axes;
     glm::vec3 origin;
-    const DrawnMesh* m = entityMesh(ent, axes, origin);
-    if(!m || m->tris.empty())
+    const DrawnMesh* cm = entityMesh(ent, axes, origin);
+    if(!cm || cm->tris.empty())
+    {
+        return nullptr;
+    }
+    DrawnMesh* m = const_cast<DrawnMesh*>(cm); // (the cache's own: its hull made once)
+    if(m->hull.points == 0)
+    {
+        za::Vector<glm::vec3>& points = scratch.centreVertices;
+        points.clear();
+        for(const Triangle& t : m->tris)
+        {
+            for(int i = 0; i < 3; i++)
+            {
+                points.pushBack(t.p[i]);
+            }
+        }
+        disarmhull::make(points.data(), static_cast<int>(points.size()), m->hull);
+    }
+    return m->hull.ok ? &m->hull : nullptr;
+}
+
+bool drawnExtent(edict_t* ent, glm::vec3& back, glm::vec3& front, float& radius)
+{
+    // Its hull's long axis (its two corners farthest apart: a blade's length whichever way its model has it, not its
+    // model's x), through its corners' middle, from the least to the most of them along it; the radius their most off it.
+    const disarmhull::Hull* h = drawnHull(ent);
+    if(!h || h->corners.size() < 2)
     {
         return false;
     }
-    glm::vec3 lo{1e30f}, hi{-1e30f};
+    const auto at = [h](za::SizeT i) { return glm::vec3{h->corners[i].x, h->corners[i].y, h->corners[i].z}; };
+    za::SizeT ia = 0, ib = 0;
+    float best = -1.f;
+    glm::vec3 mid{0.f};
+    for(za::SizeT i = 0; i < h->corners.size(); i++)
+    {
+        mid += at(i);
+        for(za::SizeT j = i + 1; j < h->corners.size(); j++)
+        {
+            const float d2 = glm::dot(at(i) - at(j), at(i) - at(j));
+            if(d2 > best)
+            {
+                best = d2;
+                ia = i;
+                ib = j;
+            }
+        }
+    }
+    mid /= static_cast<float>(h->corners.size());
+    glm::vec3 dir = at(ib) - at(ia);
+    if(glm::length(dir) < 1e-4f)
+    {
+        return false;
+    }
+    dir = glm::normalize(dir);
+    // The line along `d` through `m`: from the least to the most of the corners along it, the radius their most off it;
+    // `out` the most its two ends lie outside the hull (its faces' planes).
+    const auto line = [h, &at](glm::vec3 d, const glm::vec3& m, glm::vec3& b, glm::vec3& fr, float& r, float& out) {
+        if(d.x < 0.f || (d.x == 0.f && d.z < 0.f))
+        {
+            d = -d; // (its front the one further along its model's forward: a weapon's tip)
+        }
+        float lo = ZA_FLOAT_MAX, hi = -ZA_FLOAT_MAX;
+        r = 0.f;
+        for(za::SizeT i = 0; i < h->corners.size(); i++)
+        {
+            const glm::vec3 v = at(i) - m;
+            const float t = glm::dot(v, d);
+            lo = za::min(lo, t);
+            hi = za::max(hi, t);
+            r = za::max(r, glm::length(v - d * t));
+        }
+        b = m + d * lo;
+        fr = m + d * hi;
+        out = 0.f;
+        for(const glm::vec4& pl : h->planes)
+        {
+            out = za::max(out, za::max(glm::dot(glm::vec3{pl}, b), glm::dot(glm::vec3{pl}, fr)) - pl.w);
+        }
+        return hi > lo;
+    };
+    float out = 0.f;
+    const bool ok = line(dir, mid, back, front, radius, out);
+    // A model laid along one of its own axes (a gun's barrel along its x, an axe's haft) keeps that axis: a stubby gun's
+    // two farthest corners lie across its box (a nail pistol's 28 degrees off its barrel). Only when that axis's line
+    // would leave the weapon (its ends over a unit further out of the hull than the farthest corners' line's: the Knight's
+    // Sword's blade, 20 degrees off its model's x) does it take the farthest corners' way.
+    const glm::vec3 ext = h->hi - h->lo;
+    const int axis = ext.x >= ext.y && ext.x >= ext.z ? 0 : ext.y >= ext.z ? 1 : 2;
+    if(ext[axis] >= 0.85f * glm::sqrt(best))
+    {
+        glm::vec3 d{0.f};
+        d[axis] = 1.f;
+        glm::vec3 b, fr;
+        float r = 0.f, outAxis = 0.f;
+        if(line(d, (h->lo + h->hi) * 0.5f, b, fr, r, outAxis) && outAxis <= out + 1.f)
+        {
+            back = b;
+            front = fr;
+            radius = r;
+            return true;
+        }
+    }
+    if(!ok)
+    {
+        return false;
+    }
+    // The farthest corners' way (a blade, a haft with its head, not a gun's barrel along its x): its ends the middles of its
+    // triangles' points within a unit of its rearmost and its frontmost along it (its butt, as view::weaponLocalGeometry
+    // has it, and its tip), not that line through its corners' middle, which a one-sided head pulls off the haft (test 78:
+    // an axe's line 2 units beside its haft, a super axe's 5; a hammer's head top's middle).
+    glm::mat3 axes;
+    glm::vec3 origin;
+    const DrawnMesh* m = entityMesh(ent, axes, origin);
+    const glm::vec3 d = glm::normalize(front - back);
+    float lo = ZA_FLOAT_MAX, hi = -ZA_FLOAT_MAX;
     for(const Triangle& t : m->tris)
     {
         for(int i = 0; i < 3; i++)
         {
-            lo = glm::min(lo, t.p[i]);
-            hi = glm::max(hi, t.p[i]);
+            lo = za::min(lo, glm::dot(t.p[i], d));
+            hi = za::max(hi, glm::dot(t.p[i], d));
         }
     }
-    const glm::vec3 mid = (lo + hi) * 0.5f;
-    back = glm::vec3{lo.x, mid.y, mid.z};
-    front = glm::vec3{hi.x, mid.y, mid.z};
-    radius = za::max(hi.y - lo.y, hi.z - lo.z) * 0.5f;
-    return hi.x > lo.x;
+    glm::vec3 sb{0.f}, sf{0.f};
+    int nb = 0, nf = 0;
+    for(const Triangle& t : m->tris)
+    {
+        for(int i = 0; i < 3; i++)
+        {
+            const float s = glm::dot(t.p[i], d);
+            if(s <= lo + 1.f)
+            {
+                sb += t.p[i];
+                nb++;
+            }
+            if(s >= hi - 1.f)
+            {
+                sf += t.p[i];
+                nf++;
+            }
+        }
+    }
+    const glm::vec3 b = sb / static_cast<float>(za::max(nb, 1)), f = sf / static_cast<float>(za::max(nf, 1));
+    if(glm::dot(f - b, f - b) < 1e-6f)
+    {
+        return true; // (degenerate: the corners' line)
+    }
+    const glm::vec3 n = glm::normalize(f - b);
+    float r = 0.f;
+    for(za::SizeT i = 0; i < h->corners.size(); i++)
+    {
+        const glm::vec3 v = at(i) - b;
+        r = za::max(r, glm::length(v - n * glm::dot(v, n)));
+    }
+    back = b;
+    front = f;
+    radius = r;
+    return true;
 }
 
 float surfaceDistance(edict_t* ent, const glm::vec3& point, glm::vec3* nearest)

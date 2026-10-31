@@ -40,7 +40,6 @@
 // (its weapon classes, VR_AG_CLASS_*: Quake/vr/vr_agpose_shared.h, included by vr_armedgrunt_defs.qc)
 float VR_AG_GRIP_REACH = 52;     // a melee attack starts this near (the boxes' middles)
 float VR_AG_PICKUP_REACH = 40;   // it takes a weapon this near
-float VR_AG_DISARM_HAND = 10;    // a blow this near its gun hand (units) disarms it
 float VR_AG_SWING_TIME = 0.4;    // a melee swing's drawn arc (seconds)
 float VR_AG_EF_HELD = 128;       // the held weapon's effects bit: a weapon in a monster's hand (the engine's vr_armik.cpp,
                                  // vr_weaponfx.cpp: the arms' grips, its muzzle flash); no other effect uses it
@@ -2935,18 +2934,15 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_AG_Hit =
             VR_AG_Swap(targ); // (nearer its other hand's weapon: that one's the one at stake)
         }
     }
-    VR_AG_DrawnFrame(targ.vr_ag_prop);
-    float near = vlen(vr_hr_at - vr_ag_df_o);
-    if(cvar_hget(cvarh_vr_agrunt_strike_first))
-    {
-        near = min(near, VR_AG_HandLineDist(targ, targ.vr_ag_prop, vr_hr_at)); // (its gun hand and forearm, not the grip alone)
-    }
+    // On its weapon or the hand holding it as drawn (their hulls: VR_AG_BlowGap), or vr_agrunt_vol_blow units off them
+    // (ROUND23.md, "Disarm volumes as hulls of the drawn triangles": was a 10-unit sphere round its grip).
+    float near = VR_AG_BlowGap(targ, targ.vr_ag_prop, vr_hr_at);
     if(cvar_hget(cvarh_vr_agrunt_debug))
     {
         VR_AG_Log(sprintf("hit %g at %.1f from its gun hand (part %g)", take, near, vr_hr_part));
     }
     entity dvp = targ.vr_ag_prop;
-    float dis = near <= VR_AG_DISARM_HAND || (vr_hr_part == 2 && near <= VR_AG_DISARM_HAND * 1.6);
+    float dis = near <= cvar_hget(cvarh_vr_agrunt_vol_blow);
     if(dis)
     {
         VR_AG_Disarm(targ, vr_hr_dir, 150, sprintf("a blow of %g on its gun hand", take));

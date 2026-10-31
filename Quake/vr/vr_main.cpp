@@ -45,6 +45,7 @@
 #include "vr_angvel.hpp"
 #include "vr_animsmooth.hpp"
 #include "vr_mdldequant.hpp"
+#include "vr_dirparryviz.hpp"
 #include "vr_hitreact.hpp"
 #include "vr_backend.hpp"
 #include "vr_throw.hpp"
@@ -2116,6 +2117,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_cache_info", diskcache::info_f); // the derived-data cache (vr_diskcache.cpp)
     warmup::registerCommands();
     hitreact::registerCommands();
+    dirparryviz::registerCommands();
     temporal::registerCommands(); // vr_temporal_error (vr_temporal.cpp)
     edictindex::registerCommands();
     weapons::registerCvars();

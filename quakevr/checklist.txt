@@ -166,6 +166,16 @@ Your call: launcher, sprayer, laser cannon and Widowmaker keep Pickup overrides 
 Climbing: take a ledge with one hand, then both, shimmy, let go (you drop, flung by the release), take it again after the short delay; pull up and over (mantle), and on a ledge with no room (the soft buzz).
 Climbing, Stamina on, Slip on: hang until it runs out: the gasp and buzz, you sink and slip off; let go and grab again once stamina is back: a normal hang (no instant slip). Slip 0: you drop at once with the gasp.
 Climbing: hang from a moving platform or lift, and from a prop (crate): carried along; get knocked off by an explosion.
+Show Disarm Volumes, axe and Knight's Sword held level (Debug > Tests: vr_agrunt_test 17 sets up both views): wireframe hulls sit on the drawn weapon (magenta, orange, red) and on the drawn hand/forearm (cyan); the sword's orange line runs along its blade; no crash with the view on.
+Weapons > Armed Enemies > Volume sliders (Its Weapon, Its Hand, Strikes, Body Blows; 0 = exact): +4 grows that hull 4 units and near hits count; -1 shrinks it.
+Body Blows 0: punching its drawn hand or forearm disarms it; punching its chest 5 units off does not.
+Grip an armed grunt's drawn weapon (moving or still): taken when your fist is on the weapon as drawn.
+Throw a gun at a grunt's gun hand: it is knocked out (a throw at its chest is not).
+Rig Studio > Pose Keys, grunt, Pose Pickup, Class Pistol (or Two Guns, Chainsaw): it says "Pickup (shared)" and every class takes up its weapon with the same pose.
+Combat > Parry and Bash > Directional Parry > Show Directional Parry on, against a grunt with an axe, then Mjolnir, then a Knight's Sword: the blue line runs along the haft or blade from butt to far end (the head's top on an axe or hammer); after a strike the readout (score vs threshold, angle, contact, timing) stays up 3 s. (Chainsaw: its line's back end sits about 2.5 units low on the rear handle: known.) {test:dirparry}
+Directional Parry leniencies (Parry page: angle full marks, angle zero, contact distance, contact falloff, threshold, window): loosen one and a near-miss parry now counts. {test:dirparry}
+Debug > Enemy Melee Speed 0.3: armed enemies' swings slow down whole (wind-up, blow, recovery) and your parries still register. {test:dirparry}
+Rig Studio, a sword grunt, Pose Studio Data: Swing at Swing Speed 0.25 plays slowly; Stop Swing stops it.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns {test:arena_run}

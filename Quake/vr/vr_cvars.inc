@@ -2570,7 +2570,11 @@ QVR_CVAR(vr_agrunt_windup_parry, "1", CVAR_ARCHIVE) // 1: you raising a weapon (
 // Shooting its weapon out of its hand (QC vr_armedgrunt_shot.qc; ROUND22.md "Armed grunts: shooting the weapon out").
 QVR_CVAR(vr_agrunt_shotdisarm, "1", CVAR_ARCHIVE)              // 1: your shots on its weapon or its weapon hand add up; past the threshold, a roll knocks it out
 QVR_CVAR(vr_agrunt_shotdisarm_parts, "2", CVAR_ARCHIVE)        // what counts: 0 the weapon only, 1 the hand (and forearm) only, 2 either
-QVR_CVAR(vr_agrunt_shotdisarm_size, "1", CVAR_ARCHIVE)         // the weapon's and hand's hit volumes times this (0.5: precise shots only; 2: generous)
+// The disarm volumes: the hulls of the triangles drawn (vr_disarmhull.hpp), each grown (or, under 0, shrunk) by these units.
+QVR_CVAR(vr_agrunt_vol_shot_weapon, "0", CVAR_ARCHIVE)         // a shot on its weapon: its drawn model's hull grown by this
+QVR_CVAR(vr_agrunt_vol_shot_hand, "0", CVAR_ARCHIVE)           // a shot on the hand holding it: its drawn hand and forearm's hull grown by this
+QVR_CVAR(vr_agrunt_vol_strike, "0", CVAR_ARCHIVE)              // your blow's sweep striking its weapon or that hand: both hulls grown by this
+QVR_CVAR(vr_agrunt_vol_blow, "0", CVAR_ARCHIVE)                // a body blow this near its weapon or that hand disarms it (was a 10-unit sphere round its grip)
 QVR_CVAR(vr_agrunt_shotdisarm_chance, "0.25", CVAR_ARCHIVE)    // the roll's chance at the threshold
 QVR_CVAR(vr_agrunt_shotdisarm_chance_scale, "0.8", CVAR_ARCHIVE) // ... plus this for each threshold past it (24 on 16: +0.4; at most 0.95)
 QVR_CVAR(vr_agrunt_shotdisarm_block, "1", CVAR_ARCHIVE)        // 1: a pellet or nail whose first hit is the weapon stops there (sparks, a tink; no damage to the holder); 0: on into the body (was vr_agrunt_shotdisarm_absorb, "0")
@@ -3428,6 +3432,14 @@ QVR_CVAR(vr_parry_reduction, "0.75", CVAR_ARCHIVE)    // share of a parried blow
 QVR_CVAR(vr_parry_drop_chance, "0", CVAR_ARCHIVE)   // chance a one-handed parry knocks the weapon out of your hand (two hands: never); not used with vr_parry_stamina on
 QVR_CVAR(vr_parry_unarmed, "1", CVAR_ARCHIVE)          // parry unarmed with the arms crossed in an X in front
 QVR_CVAR(vr_dirparry, "0", CVAR_ARCHIVE)               // experimental: an armed humanoid's melee swing is parried only by a weapon held across its blade's way, meeting it (QC vr_dirparry.qc); 0: the level-across parry as before
+QVR_CVAR(vr_dirparry_angle, "40", CVAR_ARCHIVE)         // Directional Parry: degrees your weapon may be off square to its blade and its way and still count fully
+QVR_CVAR(vr_dirparry_angle_zero, "90", CVAR_ARCHIVE)    // ... degrees off where the angle's marks reach none (from full at vr_dirparry_angle, falling evenly)
+QVR_CVAR(vr_dirparry_contact, "6", CVAR_ARCHIVE)        // ... units: its blade's line and your weapon's within this meet (full marks)
+QVR_CVAR(vr_dirparry_falloff, "2", CVAR_ARCHIVE)        // ... the meeting's marks fall to none at this times the contact distance
+QVR_CVAR(vr_dirparry_threshold, "0.75", CVAR_ARCHIVE)   // ... the score (angle x meeting, 0..1) that parries
+QVR_CVAR(vr_dirparry_window, "0.1", CVAR_ARCHIVE)       // ... s: at its blow, its blade's way followed on this long (where it would meet your weapon in the rest of the swing)
+QVR_CVAR(vr_dirparry_debug, "0", CVAR_NONE)             // debug: Show Directional Parry: each armed humanoid's swing's reading drawn (its blade, its way, your line, the ideal, the numbers), the last strike's held 3 s (vr_dirparryviz.cpp)
+QVR_CVAR(vr_agrunt_melee_speed, "1", CVAR_NONE)         // debug (parry practice): armed humanoids' melee swings and punches at this speed (0.1..1: their wind-up, strike, blow and recovery slowed together)
 QVR_CVAR(vr_bash, "1", CVAR_ARCHIVE)                   // hold a guard (a weapon across, both hands together), then push it forward to bash; or shove with one open palm
 QVR_CVAR(vr_bash_speed, "3", CVAR_ARCHIVE)             // m/s the parry stance (a weapon across) must be pushed forward to bash (the author's pushes: 3-6 m/s; his held poses settle at up to 1.6)
 QVR_CVAR(vr_shove_push_onehand, "0.7", CVAR_ARCHIVE)   // ... times this for one hand (a shove or a bash)
