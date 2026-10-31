@@ -130,10 +130,10 @@ float(float wid) VR_AG_ClipSize =
     return c > 0 ? c : 20;
 };
 
-// ... of the weapon `wid` whose record is `inst` (the Widowmaker's: its whole tube).
+// ... of the weapon `wid` whose record is `inst` (the Widowmaker's: its whole tube; the Plasma Gun's: its smaller cell).
 float(float wid, entity inst) VR_AG_ClipOf =
 {
-    if(wid == WID_SUPER_SHOTGUN && inst && AD_Widowmaker(inst))
+    if(inst && ((wid == WID_SUPER_SHOTGUN && AD_Widowmaker(inst)) || (wid == WID_LIGHTNING && AD_PlasmaGunInst(inst))))
     {
         return VR_ClipSizeOf(wid, inst);
     }

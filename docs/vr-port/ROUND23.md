@@ -4131,6 +4131,28 @@ The leftovers of round 5 ("Not done": the smooth rigs one model after another, 4
   and keying (the rigs must still be found: the key holds the derived rig), and the limbs' builds already run on the pool
   beside the load (round 5: 22 ms there, not on the main thread). Under the brief's ~20 ms bar: skipped.
 
+## The Plasma Gun's cell holds 16; his recoil values of 2026-10-31 shipped (branch `agent/recoilpromo`)
+
+His voice notes of 2026-10-31: the Plasma Gun's magazine 16 instead of 36; his recoil and two-handed recoil values
+feel fine: make them the defaults and take the recoil items off the checklist.
+
+- **The Plasma Gun's cell** (AD support: the thunderbolt with AD's upgrade, which used the thunderbolt's 36-cell): its own
+  size, the new tunable `vr_ad_plasmagun_cell` "16" (Debug > Tunables, "Weapons > Reloading - Plasma Gun"; the
+  thunderbolt keeps 36). QC `VR_ClipSizeOf` answers it (as the Widowmaker's tube), so the ammo screens, the pouch
+  touch-reload and the props' refills follow. A cell drawn from the pouch for the gun in the other hand holds the gun's
+  own size (`VR_Reload_Take`; the gun-at-the-pouch reload, `VR_Reload_PouchFrame`, too). A fuller cell (a thunderbolt's
+  36) seated in it gives it 16 and the rest back to the reserve (`VR_Reload_SeatMagInto`; a Plasma Gun lying about,
+  `VR_Reload_IntoProp`: back to the hand's player). The upgrade's pickup (`AD_UpgradeGiven`) gives back what the
+  pickup moved past 16. An armed grunt's Plasma Gun: `VR_AG_ClipOf` the same. Test 141 (adplasma) gains two checks: a
+  pouch cell holds the size; a thunderbolt's full cell seated gives the size and returns the rest.
+- **His recoil values shipped:** `vr_recoil_2h_kick` 0.6 -> 0.4, `vr_recoil_2h_rise` 0.6 -> 0.2, `vr_recoil_2h_time`
+  0.6 -> 0.725, `vr_recoil_2h_haptic` 0.6 -> 0.7; the shotgun's Recoil Muzzle Rise (slot 1, `vr_wofs_fx_rise_deg_02`) 12.08 -> 12;
+  the tunable `vr_nailpistol_slide_delay` 0.25 -> 0.175 (tune_promote). His config has no other recoil value off its
+  default (`v_gunkick` 2 is the shipped default; no `vr_recoil_*`, `*_kick*`, `*_rise*` or 2H multiplier beyond these).
+- **Checklist:** the 18 recoil items taken off (per-weapon recoil, recovery, haptic punch, the models' own kick, Recoil
+  Amount, Two-Handed Recoil and its four sliders, no ghost from recoil, the starter shotgun's auto pump, the recoil along
+  the gun's top, the off hand's grip anywhere, a shell against the gun, the unpromoted 4.5 / 7.5); the nail pistol's
+  Rack Delay line now says its new default, 0.175 s.
 ## Checklist: cleanup pass and a Test button on most items (branch `agent/cltests`)
 
 His voice note 2026-10-31 20:01: most checklist items had no test button. Two commits: the cleanup, then the buttons.

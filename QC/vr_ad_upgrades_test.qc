@@ -209,6 +209,18 @@ void() AD_PlasmaCellTestRun =
     }
     AD_PlasmaCheck("a cell brought to its load point goes in", r != world && VR_Reload_MagIn(p, h),
         sprintf("taken %g", r != world));
+    // Its cell holds vr_ad_plasmagun_cell (his 16, the thunderbolt's 36): a pouch's is that size; a thunderbolt's full
+    // one seated gives it that many, the rest back to the reserve.
+    float size = rint(cvar("vr_ad_plasmagun_cell"));
+    AD_PlasmaCheck("a cell from the pouch holds its size", VR_ClipSizeIn(p, h) == size && VRGetEntWeaponClip(p, h) == size,
+        sprintf("size %g, it holds %g, want %g", VR_ClipSizeIn(p, h), VRGetEntWeaponClip(p, h), size));
+    entity spent = VR_Reload_Eject(p, h, out * 40, -1, "test 141");
+    float before = p.ammo_cells;
+    entity full = VR_Reload_MakeRound(WID_LIGHTNING, AID_CELLS, 36, p.offloadportpos, VRGetEntHandRot(p, h));
+    VR_Reload_SeatMagInto(h, full, FALSE);
+    AD_PlasmaCheck("a thunderbolt's full cell gives it its size, the rest back",
+        spent != world && VRGetEntWeaponClip(p, h) == size && p.ammo_cells == before + 36 - size,
+        sprintf("it holds %g, the reserve %g (was %g)", VRGetEntWeaponClip(p, h), p.ammo_cells, before));
     VR_Test_Verdict();
     self = os;
     remove(self);

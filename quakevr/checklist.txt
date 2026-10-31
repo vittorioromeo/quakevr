@@ -8,8 +8,6 @@ AD: turn, snap/smooth turn and walk on ad_azad's snowfield (or load your s3 save
 AD hub, lower level: walk into each original slipgate (E1-E4, end): that episode's first map (or end) loads, AD's rules kept
 Autosaves: play a map a while: Load Autosave (main and pause menus; death menu, under Restart) lists this game's autosaves newest first
 Autosaves: none is made while monsters are on you or health is low
-Per-weapon recoil: Weapon Offsets > Effects' Recoil Kick Back and Recoil Muzzle Rise change only that weapon's kick back and muzzle rise
-Per-weapon recoil: at 1x it feels as before
 Relighting > Ambient Light Level 32, then Relight This Map: no pitch-black corners, the rest looks as before {test:vrarena_calm}
 Rig Studio off-hand (flat screen): a pistol grunt's Carry/Run set On the Gun cups the gun without the arm clipping the torso, Free hangs; a rifle grunt's Pickup On the Gun cups the right hand
 An ammo screen's warning colour fills its background, not just the numbers. {test:nailpistol}
@@ -46,13 +44,11 @@ AD upgrade pickups (Shadow Axe, Widowmaker, Plasma Gun) show their upgraded mode
 Obituary messages for monster, trap and weapon deaths read as before; power-up warnings, glows and expiry sounds as before.
 Swim and wade with your hands moving: splashes, water slosh and stroke sounds are as before. {test:foam_pool}
 Wrist gadget hologram messages and the FPS counter (both modes) show as before; the menu's Search and Checklist pages and the toolgun's physgun and scale work as before.
-Weapon Offsets > Effects > Recoil Recovery: set a gun to 2x and fire: it comes back to rest visibly slower (weightier) with the same kick; 0.5x snaps back faster; 1x feels as before.
 Gunfire: fire each gun indoors (small room), in a big hall and outdoors: each shot has a close mechanical click/clunk and a low thump, and a tail that is short indoors, long in the hall, long with an echo outside; nailgun streams don't smear (tune in Sound > Gunfire). {test:gunfire_range}
 Grunts', enforcers' and ogres' shots (armed grunts' too) get the same sound layers and room tails as yours, from where they stand, and the same gunfire effects. {test:enemy_gunfire}
 Spent shells ring on metal floors and knock on wood; on stone as before.
 An empty gun's dry click gives a small tick in that hand. {test:nailpistol}
 Super shotgun and revolver break-open/close and magazine in/out sound from the hinge or magazine well, not the muzzle. {test:revolver}
-Haptic punch: a sharp spike plus a short rumble per shot, longer on guns with a longer Recoil Return Time x Recovery (Weapon Offsets > Effects > Haptic Punch per weapon; Sound > Gunfire > Haptic Punch 0 brings back the old buzz).
 Load vrstart, then hip2m5, then an MG3 map with owned MG3 monsters: textures and the MG3 monsters' skins look as before, and loads feel a little quicker.
 Nail pistol: each shot the slide snaps back and runs home (Combat > Weapon Damage > Slide Travel and Slide Cycle change the distance and speed). {test:nailpistol}
 Nail pistol: fire until empty: the slide stays locked open; eject and seat a fresh magazine: the slide stays back about a quarter second (the trigger does nothing meanwhile), then racks closed with a loud, clear clack (Tunables > Nail Pistol Rack Delay 0: it racks the moment the magazine seats). {test:nailpistol}
@@ -85,10 +81,6 @@ Nail pistol: the ammo screen moves back and home with the slide (Combat > Weapon
 Nail pistol: an empty one holstered or dropped shows its slide locked open (Debug > Tests > Nail Pistol > Empty Nail Pistols: Holstered and Lying). {test:np_empty}
 Debug > Tunables: moving a slider changes the game at once; the Show (All / Changed Only) and Page filters work; menu Search finds a tunable (e.g. "palm fit") and opens its row.
 Tuned values survive a restart (tunables.cfg; the console says "N tuning constants set off their default"); tune_reset clears them.
-Each id gun fires with no kick from its model: the body holds in the hand while the pump, barrels and launcher shells still move (Debug > Tests > Weapons "Take Out the Models' Own Kick" off shows the old kick); the muzzle flash, shells and a hand on the pump stay on the gun through a shot.
-Weapon Offsets > Effects: Recoil Kick Back (cm), Muzzle Rise (deg), Return Time (s) per gun; your guns feel as before (your global 4.5 / 7.5 are now in each gun's values: the shotgun reads 17.3 cm / 10.5 deg).
-Weapon Effects: Recoil Amount 0 / 1 / 2 scales every gun's kick; Programmatic Recoil off stops it.
-Each gun's haptic punch feels as before (nailguns, lightning gun, laser cannon, rifles: Haptic Punch now about 0.64x, the same spike).
 An unarmed enforcer running at you keeps its fists at mouth level in its guard (as in Pose Studio), not raised to the brow or crossed. {test:enforcer_fists}
 Shotgun blasts at grunts' heads, legs and arms: flinch, ragdoll fall, headshot highlight, armour helmet and dummy report react as before (one hit record). {test:agrunt_mix}
 Nails just past a backpack a grunt dropped fly by; nails at it hit it and nudge it; walking over it, grabbing and force-grabbing it work as before. {test:agrunt_mix}
@@ -106,10 +98,7 @@ Fire the lightning gun 2 s and stop: a faint blue-grey wisp off its barrel; its 
 Punch an armed grunt's gun (or its gun hand) hard while it isn't guarding, also in slow motion: the gun flies out; into its raised guard it is usually parried, sometimes knocked out. {test:agrunt_knockout}
 Swing a held shotgun or a carried crate into a grunt's gun: knocked out; throw a gun at its gun hand: knocked out. {test:agrunt_knockout}
 Punch a grunt's legs or chest away from its gun: it is hurt and keeps its gun. {test:agrunt_knockout}
-Shotgun, super shotgun and rocket launcher fire with the gun's body perfectly still in the hand (no shimmer); only the procedural kick moves it.
 Grenade launcher, proximity gun and multi grenade launcher: nothing on them moves when firing; the ammo screen never goes into the gun.
-Two-Handed Recoil 0.6 (Weapon Effects; per gun in Weapon Offsets > Effects): a two-handed shot kicks less, settles sooner and punches lighter; at 1 it matches one-handed.
-Ghost Hands on: shooting shows no ghost ("No Ghost from Recoil" off shows it flash with each shot).
 Worn Backpacks on: grab a living grunt's backpack from behind and pull back: it turns on you, the pack tears into your hand in about half a second and the grunt falls towards you; with both hands it's sooner; your hand stays on the pack while you pull. {test:worn_packs}
 Worn Backpacks on: shoot just beside a grunt's pack: it stays on; shoot the pack a few times, or catch it in a rocket blast or the flamethrower: it rips off; the poison sprayer never rips it. {test:worn_packs}
 Worn Backpacks on: packs on living and dead grunts don't spin. {test:worn_packs}
@@ -135,12 +124,8 @@ Start any map with grunts or enforcers (e1m1, e1m2): every one is armed, holding
 Relight the map you are in: it reloads at once where you stand, without restarting the map. {test:vrarena_calm}
 With Ghost Hands on, the ghost appears only once the drawn hand is about 9 cm from your real one (was 6).
 With replacements on, a Grunt from the toolgun, the Debug menu spawner or the Rig Studio is a plain unarmed grunt; the Armed Grunt entries are still armed. {test:toolgun_bench}
-Fire the starter shotgun one-handed, then two-handed, and watch the gun through the auto pump's stroke: it kicks once and settles smoothly; no second lurch back and up about a quarter second after the shot.
-Weapon Effects: the four Two-Handed sliders (Kick Back, Muzzle Rise, Return Time, Haptics) each change only their own part of a two-handed shot; your old Two-Handed Recoil value is on all four.
 Shoot a grunt with the nail pistol, the nailgun and the super nailgun: each nail dents its model and bleeds as a bullet does (no black burn marks); a lava nail (Dissolution of Eternity) still scorches and burns. {test:nail_targets}
 Swing the heavy revolver out and load shells one at a time: each shell slides straight into the hole it ends up in (any chamber, cylinder turned or not), not towards the middle of the cylinder. {test:revolver}
-Roll your wrist 90 degrees (gun on its side) and fire the shotgun or nailgun: the muzzle kicks toward the gun's top (sideways in the world), not toward the ceiling; at 45 degrees it kicks diagonally along the gun's top.
-Upright gun, one- and two-handed: the recoil feels the same as before.
 Armed Knights on, Rig Studio, Subject: the armed Knight: Pose Keys shows his poses (the grunt's, fitted) for every class; his Right Hand list has every weapon; with a shotgun he aims and fires at the aim target.
 Toolgun: spawn an armed Knight with a shotgun (then a nailgun, two pistols): he hunts you, aims, fires, reloads; knock the gun out of his hand: he does not go back for it (Pick Up Ranged Weapons off); with it on he does. {test:knight_guns}
 Two-hand the super shotgun and let go with the main hand: the fore-end hand keeps it (no drop). With the grapple gun, the hook stays in on such a pass. {test:ssg_twohand}
@@ -152,8 +137,6 @@ Standing tug on a grunt's or enforcer's shotgun, or a knight's sword: the arm ho
 Armed Knights on, Rig Studio, Subject: armed Knight with a shotgun, Aim: his left hand holds the fore-end, wrist straight, and Pose Keys shows the "left hand: grip offset" dot; drag it: the hand follows on the gun.
 Toolgun: an armed Knight with a nail pistol aims it in the pistol pose (off hand free or cupping), not shouldered as a rifle. {test:knight_guns}
 Hold a sword and strike an armed sword grunt's blade (middle or tip): sparks and a clang, your hand kicked back, no damage, it keeps its sword; a full swing staggers it briefly, its sword arm knocked along your blow; strike its sword hand instead: it can still be disarmed. {test:agrunt_theyparry}
-Hold the shotgun (or any gun) and grip it with the off hand somewhere that is not its two-handed hotspot (e.g. its top, near the muzzle): the shots kick as little as with the hotspot (Weapon Effects' Two-Handed sliders); let go: the next shots kick one-handed again, the change smooth.
-Off hand holding a shell or magazine against the gun while firing: full one-handed kick.
 Combat > Parry: Directional Parry on. A sword grunt's side swing: hold your sword upright where its blade comes: sparks where the blades meet, no damage, it flinches; held level across instead: the blow lands (Debug > Show Disarm Volumes: your weapon's line, its blade, its way, the score). {test:dirparry}
 Its overhead swing: hold your sword or shotgun level across above your head where its blade comes down: parried, sparks at the contact. (Known: upright also parries its current overhead, a diagonal cut.) {test:dirparry}
 Worn Backpacks on, Pulling the Pack: Lifts Its Wearer. Grab a standing grunt's pack from behind and pull gently: nothing happens. Yank back hard: it goes down flailing, held by the pack on its back. Carry it, swing it and let go to throw it. Pulling never tears the pack off, and it breaks free after a few seconds. {test:worn_packs_lift}
@@ -256,7 +239,6 @@ Dual axes/swords/crowbars at the sides, blades ahead {test:dual_wield}
 Rig Studio drag edits: in Pickup, drag the pelvis and feet
 
 [5. Weapons: heavy revolver, flare gun, nail pistol]
-Not promoted, your call: vr_recoil_kick 4.5 / vr_recoil_rise 7.5 (all guns)
 
 
 
