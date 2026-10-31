@@ -55,10 +55,10 @@ void(entity g, entity p, entity pl) VR_DV_Weapon =
         float near = max(0, cvar_hget(cvarh_vr_agrunt_shotdisarm_near));
         if(parts != 1)
         {
-            debugdisarm(p, VR_DV_W_SHOT, wa, wb, VR_AGS_W_RADIUS * size);
+            debugdisarm(p, VR_DV_W_SHOT, wa, wb, vr_ag_wr * size);
             if(near > 0)
             {
-                debugdisarm(p, VR_DV_W_NEAR, wa, wb, VR_AGS_W_RADIUS * size + near);
+                debugdisarm(p, VR_DV_W_NEAR, wa, wb, vr_ag_wr * size + near);
             }
         }
         if(parts != 0)

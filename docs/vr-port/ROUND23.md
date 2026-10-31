@@ -3387,3 +3387,40 @@ Checklist:
 - **Checklist:** hold the flashlight in one hand and grab a gun lying on the floor, catch a thrown gun, or grab a
   grunt's gun with that hand: nothing happens; the free hand takes them. Two-hand the super shotgun and let go with the
   main hand: the fore-end hand keeps it. Flashlight hand at a holster: no draw.
+## Drawn pose: worn backpacks and disarm volumes (branch `agent/drawnpose`)
+
+His notes: worn packs phase through a grunt bending to take a weapon ("where are they attached? It should be the upper
+back"); the pack's grab box bigger than the pack; Show Disarm Volumes on an active ragdoll float off the hand and weapon,
+follow the empty off hand of a toppled rocket-launcher grunt, a lying sword's angle differs from its volume; the magenta
+and orange volumes 3-4x longer than a held nail pistol.
+- **Where the pack was:** on the chest bone, but of the .mdl's animation frame (hitmodel's vertex pose: three chest
+  vertices), not of the body as drawn (the authored rig's bones: the Rig Studio's takes, arm IK, hit reactions); its
+  ragdoll box was laid on the chest part by that same frame pose. Now `drawnpose::bone` (Quake/vr/vr_drawnpose.cpp, the
+  one "where is this bone drawn now" query): a ragdoll's part as drawn (ragdoll::drawnPart), else the authored rig's
+  drawn bone (rig2::drawnBone) placed as the client draws the entity; none (dedicated server, out of view): the old frame
+  pose. `agarmor::packWhere` rides it; `packRest` gives the rest placement, which `createRagdollPack` lays on the chest
+  part's body directly (the body is the bone as drawn when the ragdoll began).
+- **Grab box:** a dead one's pack went to the generic item touch (its entity's level box plus an item's pickup bonus) and
+  the ragdoll and QC hand tests took it 3 units (11 cm) off the box; a living one's had vr_foegrab_leniency. Now a touch
+  provider for worn packs (vr_physics.cpp `onWornPack`: the fist's spheres, else the palm's 3.5 cm sphere, on the pack
+  model's box), the ragdoll's `packReach` and QC `VR_WP_HAND_REACH` the palm's 3.5 cm, no leniency. Shots: the same box.
+- **Disarm volumes:** one query, `hitreact::drawnWeapon` (QC `weapondrawnpose(p, 0, 30/31/32)`, `VR_AG_DrawnFrame`):
+  the weapon's client entity as finally drawn (after every client step), when the arms (placeProp) or a ragdoll's hand
+  (ragdollProps) placed it in the last 0.05 s. `VR_AG_WeaponLine` and `VR_AGS_HandLine` read it; a ragdoll's weapon is
+  placed there (`VR_AG_RagProp`), riding the hand bone that holds it as drawn (`weapondrawnpose(g, side, 36)`,
+  agarms::ragdollGrip), not the limb nearest it as the ragdoll began.
+- **The wrong hand (for the tug fix):** `.vr_ag_rb` (the limb a ragdoll's weapon rides; also box3d `ragdollWeaponHold`'s
+  part) was `ragdollbone(g, p.origin)`, the part nearest the server's weapon place as the ragdoll began: a two-handed
+  weapon's support (left) hand, and the soldier's hidden rig gun is welded to the left forearm (`looseHolder`). The drawn
+  weapon follows `agarms::ragdollGrip(model, side)`'s hand bone (side 0 the main weapon). Now `.vr_ag_rb` is that bone.
+- **Volume sizes:** orange is the strike/parry line (VR_AG_WeaponLine, VR_DV_STRIKE_R / VR_AGPAR_R 5 round it: the
+  sweeping fist's or weapon's own thickness, kept); magenta the shot volume (VR_AGS_W_RADIUS 3 x vr_agrunt_shotdisarm_size)
+  and its hand part (cyan). The line was 8 units behind the grip to the muzzle (24 ahead without one); now the weapon
+  model's own ends along its forward (`held::drawnExtent`, `weapondrawnpose(p, 0, 33/34/35)`), the shot radius half its
+  thickness (`vr_ag_wr`).
+- **Test 99** (`vr_agrunt_test 99`, QC/vr_drawnpose_test.qc): nail pistol, shotgun (wearing a pack), rocket launcher,
+  standing / falling / lying: volume grip < 2 units and axis < 3 degrees off the drawn weapon, length within 10% of the
+  model, the ragdoll's weapon on the hand holding it, the pack's chest bone source and its entity < 3 units off; a pellet
+  3 units past the nail pistol's front end not counted, one on its middle counted. NOT RUN YET (his game was running).
+- Not done: the drawn pack still reaches the client through the network (one frame or so behind the drawn body); the
+  hitmodel (shots on a live grunt's body) still reads the .mdl frame pose (another stale-pose reader).

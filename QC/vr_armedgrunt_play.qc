@@ -499,9 +499,27 @@ void(entity g, entity p) VR_AG_RagProp =
     {
         return;
     }
-    if(!p.vr_ag_rb)
+    // Drawn on its ragdoll's hand (hitreact::drawnWeapon, the client's ragdollProps: the hand holding it, by its grip
+    // offsets): placed there, so the disarm volumes, shots, strikes and grabs meet the weapon where it is seen.
+    if(isragdoll(g) && VR_AG_DrawnFrame(p))
     {
-        float b = ragdollbone(g, p.origin);
+        // (the limb it rides: the hand holding it as drawn, not the limb nearest it as the ragdoll began: a two-handed
+        // weapon's support hand, his rocket launcher note)
+        vector hv = weapondrawnpose(g, p.vr_ag_left ? 1 : 0, 36);
+        float hb = hv_x;
+        p.vr_ag_rb = hb >= 0 ? hb + 1 : (p.vr_ag_rb ? p.vr_ag_rb : ragdollbone(g, p.origin) + 1);
+        vector da = VR_AxeStick_Angles(vr_ag_df_fw, vr_ag_df_up);
+        p.v_angle = da;
+        p.angles = da;
+        p.angles_x = -da_x;
+        setorigin(p, vr_ag_df_o);
+        p.vr_ag_rbo = '0 0 0'; // (taken again from here if it is ever not drawn)
+        p.vr_ag_rbf = '0 0 0';
+        return;
+    }
+    if(!p.vr_ag_rb || p.vr_ag_rbf == '0 0 0')
+    {
+        float b = p.vr_ag_rb ? p.vr_ag_rb - 1 : ragdollbone(g, p.origin);
         if(b < 0)
         {
             return; // (not a ragdoll: it stays)
@@ -963,9 +981,50 @@ float(vector a0, vector a1, vector b0, vector b1) VR_AG_SegDist =
     return vlen(a0 + d1 * s - (b0 + d2 * t));
 };
 
-// The held weapon `p`'s line (vr_ag_wa: 8 units behind its grip, vr_ag_wb: its muzzle; one too near: 24 ahead).
+vector vr_ag_df_o;   // VR_AG_DrawnFrame's: the held weapon's origin as drawn,
+vector vr_ag_df_fw;  // ... its forward,
+vector vr_ag_df_up;  // ... its up
+float vr_ag_wr;      // VR_AG_WeaponLine's: half the weapon's drawn thickness (its shot volume's radius)
+
+// Where the held weapon `p` is drawn now (the engine's one "where is this monster's weapon": hitreact::drawnWeapon, alive
+// on its posed hands or on its ragdoll's hand; a listen server's own view): vr_ag_df_o, _fw, _up. FALSE: not drawn
+// lately (a dedicated server, out of view): the server's own place and turn.
+float(entity p) VR_AG_DrawnFrame =
+{
+    vector fw = weapondrawnpose(p, 0, 31);
+    if(fw != '0 0 0')
+    {
+        vr_ag_df_o = weapondrawnpose(p, 0, 30);
+        vr_ag_df_fw = fw;
+        vr_ag_df_up = weapondrawnpose(p, 0, 32);
+        return TRUE;
+    }
+    makevectors(p.v_angle);
+    vr_ag_df_o = p.origin;
+    vr_ag_df_fw = v_forward;
+    vr_ag_df_up = v_up;
+    return FALSE;
+};
+
+// The held weapon `p`'s line as drawn now (VR_AG_DrawnFrame): its drawn model's two ends along its forward (vr_ag_wa
+// the back, vr_ag_wb the front: the weapon's own length, held::drawnExtent), vr_ag_wr half its thickness. No drawn
+// surface: 8 units behind its grip to its muzzle (one too near: 24 ahead), 3 thick, as before.
 void(entity p) VR_AG_WeaponLine =
 {
+    VR_AG_DrawnFrame(p);
+    vector f = vr_ag_df_fw;
+    vector u = vr_ag_df_up;
+    vector rt = [f_y * u_z - f_z * u_y, f_z * u_x - f_x * u_z, f_x * u_y - f_y * u_x]; // (forward x up: its right)
+    vector size = weapondrawnpose(p, 0, 35);
+    if(size_y > 1)
+    {
+        vector lo = weapondrawnpose(p, 0, 33);
+        vector hi = weapondrawnpose(p, 0, 34);
+        vr_ag_wa = vr_ag_df_o + vr_ag_df_fw * lo_x - rt * lo_y + vr_ag_df_up * lo_z;
+        vr_ag_wb = vr_ag_df_o + vr_ag_df_fw * hi_x - rt * hi_y + vr_ag_df_up * hi_z;
+        vr_ag_wr = max(0.5, size_x);
+        return;
+    }
     makevectors(p.v_angle);
     vector m = weaponmuzzle(p);
     if(vlen(m - p.origin) < 8 || vlen(m - p.origin) > 80)
@@ -974,6 +1033,7 @@ void(entity p) VR_AG_WeaponLine =
     }
     vr_ag_wa = p.origin - normalize(m - p.origin) * 8;
     vr_ag_wb = m;
+    vr_ag_wr = 3; // (vr_armedgrunt_shot.qc VR_AGS_W_RADIUS)
 };
 
 // `pl`'s hand `h`'s own swing now (m/s): the fastest of its grip and far end in the play space, against the head (the

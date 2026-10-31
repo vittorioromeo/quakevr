@@ -11,6 +11,7 @@
 #include "vr_backend.hpp"
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
+#include "vr_drawnpose.hpp"
 #include "vr_engine.hpp"
 #include "vr_held.hpp"
 #include "vr_hitmodel.hpp"
@@ -2163,10 +2164,9 @@ void packModelBox(glm::vec3& mid, glm::vec3& half)
     half = (packHi - packLo) * 0.5f * packScale();
 }
 
-bool packWhere(edict_t* ent, glm::vec3& origin, glm::mat3& axes, glm::vec3& mid, glm::vec3& half)
+bool packRest(edict_t* ent, glm::vec3& restOrigin, glm::mat3& restAxes, glm::vec3& mid, glm::vec3& half)
 {
-    const char* base = baseOf(ent);
-    const Shell* s = serverShell(base);
+    const Shell* s = serverShell(baseOf(ent));
     if(!s)
     {
         return false;
@@ -2201,13 +2201,42 @@ bool packWhere(edict_t* ent, glm::vec3& origin, glm::mat3& axes, glm::vec3& mid,
         return false;
     }
     const float k = packScale();
-    const glm::vec3 restOrigin{back - packHi.x * k + vr_worn_backpack_x.value, midY, midZ - mid.z};
+    restOrigin = glm::vec3{back - packHi.x * k + vr_worn_backpack_x.value, midY, midZ - mid.z};
     const float turnAngles[3] = {vr_worn_backpack_pitch.value, vr_worn_backpack_yaw.value, vr_worn_backpack_roll.value};
-    const glm::mat3 restAxes = held::axesFromAngles(turnAngles, false);
-    // It rides the chest bone (the upper back it lies on: the cuirass's own frame is the spine's, which leans less), its
-    // anchors the chest's vertices nearest the pack; the cuirass's if the rig has no chest.
-    const rig2::Rig* rig = rig2::rigFor(Mod_ForName(base, false));
-    const int chest = rig ? rig2::boneByName(*rig, "chest") : -1;
+    restAxes = held::axesFromAngles(turnAngles, false);
+    return true;
+}
+
+int packBone(edict_t* ent)
+{
+    const char* base = baseOf(ent);
+    const rig2::Rig* rig = base ? rig2::rigFor(Mod_ForName(base, false)) : nullptr;
+    return rig ? rig2::boneByName(*rig, "chest") : -1;
+}
+
+bool packWhere(edict_t* ent, glm::vec3& origin, glm::mat3& axes, glm::vec3& mid, glm::vec3& half, bool drawnOk)
+{
+    glm::vec3 restOrigin;
+    glm::mat3 restAxes;
+    if(!packRest(ent, restOrigin, restAxes, mid, half))
+    {
+        return false;
+    }
+    // It rides the chest bone (the upper back it lies on: the cuirass's own frame is the spine's, which leans less) as the
+    // body is drawn now (drawnpose::bone: a live one on the authored rig bent to take a weapon, a ragdoll's chest part)...
+    const int chest = packBone(ent);
+    rigpose::Rigid drawn;
+    float scale = 1.f;
+    if(drawnOk && chest >= 0 && drawnpose::bone(ent, chest, drawn, scale) != drawnpose::Source::None)
+    {
+        origin = drawn.pos + drawn.rot * (scale * restOrigin);
+        axes = glm::mat3_cast(drawn.rot) * restAxes;
+        mid = origin + axes * mid;
+        return true;
+    }
+    // ... else (not drawn lately: a dedicated server, out of view) as its frame poses it: its anchors the chest's vertices
+    // nearest the pack (hitmodel's pose); the cuirass's if the rig has no chest.
+    const Shell* s = serverShell(baseOf(ent));
     PlateFrame near;
     near.mid = restOrigin + restAxes * mid;
     PlateFrame pf = chest >= 0 ? frameOnBone(*s, chest, near) : PlateFrame{};

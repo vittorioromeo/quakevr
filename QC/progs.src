@@ -548,6 +548,7 @@ vr_armedgrunt_ragweapon_test.qc
 vr_armedknight_test.qc
 vr_armedgrunt_range_test.qc
 vr_disarmviz_test.qc
+vr_drawnpose_test.qc // test 99: the drawn pose (worn packs, disarm volumes)
 vr_armedgrunt_expose_test.qc
 vr_armedgrunt_ai_test.qc
 vr_armedgrunt_ammo_test.qc

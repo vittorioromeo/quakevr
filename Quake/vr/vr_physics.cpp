@@ -13,6 +13,7 @@
 #include "vr_grab.hpp"
 #include "vr_physics.hpp"
 #include "vr_physics_internal.hpp"
+#include "vr_agarmor.hpp"
 #include "vr_held.hpp"
 #include "vr_hull.hpp"
 #include "vr_progs.hpp"
@@ -251,6 +252,7 @@ constexpr float sweepFarthest = 32.f; // units
 // test's weapon left floating with no gravity rests, in the air).
 constexpr float lyingFloorReach = 8.f;
 constexpr float lyingSpeed = 100.f; // units/s (a thrown or dropped weapon in flight is far faster)
+constexpr float wornPackPalm = 3.5f; // cm: the palm's sphere where no fist is known (vr_foegrab.cpp palmRadiusCm)
 
 [[nodiscard]] bool lyingWeapon(edict_t* target)
 {
@@ -451,7 +453,44 @@ struct TouchProvider
     return answer(on);
 }
 
+// A worn backpack (QC vr_wornpack.qc: on its wearer's back, living or dead; only a dead one's has a .handtouch): the fist's
+// spheres (else the palm's) on the pack model's box as drawn, no more (not its entity's level box round it, nor an item's
+// pickup bonus: his note, the pack taken with the hand visibly off it).
+[[nodiscard]] bool claimsWornPack(edict_t* target, edict_t*)
+{
+    const float state = fieldFloatOr(target, f().vr_wp_state, 0.f);
+    return state == 1.f || state == 2.f;
+}
+
+[[nodiscard]] TouchAnswer onWornPack(edict_t* target, edict_t* player, int which, grab::Candidate& out)
+{
+    const int h = which == HAND_OFF ? 0 : 1;
+    const glm::vec3 hand = fieldVec(player, handPosField(which));
+    armedFist.clear();
+    if(NUM_FOR_EDICT(player) == 1 && !held::fist(h).empty())
+    {
+        held::fistInWorld(h, hand, fieldVec(player, which == HAND_OFF ? f().offhandrot : f().handrot), armedFist);
+    }
+    if(armedFist.empty())
+    {
+        armedFist.pushBack(glm::vec4{hand, wornPackPalm * 0.01f * units::metresToUnits()});
+    }
+    const glm::vec3 o = vec(target->v.origin);
+    const glm::mat3 axes = held::axesFromAngles(target->v.angles, false);
+    glm::vec3 mid, half;
+    agarmor::packModelBox(mid, half);
+    float best = 1e30f;
+    for(const glm::vec4& s : armedFist)
+    {
+        const glm::vec3 local = glm::abs(glm::transpose(axes) * (glm::vec3{s} - o) - mid) - half;
+        best = za::min(best, glm::length(glm::max(local, glm::vec3{0.f})) - s.w);
+    }
+    out.distance = za::max(best, 0.f);
+    return answer(best <= 0.f);
+}
+
 constexpr TouchProvider touchProviders[] = {
+    {grab::Kind::Prop, claimsWornPack, onWornPack},
     {grab::Kind::Ragdoll, claimsRagdoll, onRagdoll},
     {grab::Kind::Prop, claimsProp, onProp},
     {grab::Kind::ArmedWeapon, claimsArmedWeapon, onArmedWeapon},
