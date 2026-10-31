@@ -888,7 +888,7 @@ QVR_TOGGLE(vr_agrunt_range, "Keep Their Distance",
     "With a gun it fights at its weapon's distance: a super shotgun close but out of your reach, a "
     "shotgun near, nail guns and the enforcer's rifle further; nearer than that it backs off facing you "
     "(further while you hold a melee weapon or charge it), about it it strafes round you, further it comes "
-    "on. Off: it closes in as before. Melee weapons always close in (vr_agrunt_range).")
+    "on. Off: it closes in as before. Melee weapons: Melee Spacing below (vr_agrunt_range).")
 QVR_TOGGLE(vr_agrunt_aim_converge, "Aim From the Muzzle",
     "Its shots go from its gun's muzzle to your chest, its aim's error kept. Off: aimed from its grip and "
     "fired beside that line, a miss to one side at any distance (vr_agrunt_aim_converge).")
