@@ -176,7 +176,28 @@ void(entity e, vector dir) VR_KdTrig_Behind =
 
 // Whether a melee blow (its kind QVR_HITKIND_MELEE) or a flung prop (`inflictor`) by `attacker` is blunt: all but the
 // blades' edges (the axes, the swords, the chainsaw; a sword's pommel and AD's hammer and mace are blunt: vr_melee_blunt).
+// A hand's blow: not a blade (VR_Hit_Class); a flung thing is blunt here, a thrown blade too (the class calls it a blade).
+float(entity inflictor, entity attacker) VR_KdTrig_Blunt_Old;
 float(entity inflictor, entity attacker) VR_KdTrig_Blunt =
+{
+    float r;
+    if(inflictor != attacker || vr_melee_blunt)
+    {
+        r = TRUE;
+    }
+    else if(vr_kdt_test_weapon > 0 || hit_hand < 0)
+    {
+        float w = vr_kdt_test_weapon > 0 ? vr_kdt_test_weapon - 1 : VRGetEntWeapon(attacker, cVR_MainHand);
+        r = (w != WID_AXE && w != WID_SUPERAXE && w != WID_SWORD && w != WID_CHAINSAW); // (a test's weapon; no hand: the main)
+    }
+    else
+    {
+        r = VR_Hit_Class(inflictor, attacker) != QVR_HITCLASS_BLADE;
+    }
+    VR_Hit_ClassCheck("kdtrig blunt", VR_KdTrig_Blunt_Old(inflictor, attacker), r, inflictor);
+    return r;
+};
+float(entity inflictor, entity attacker) VR_KdTrig_Blunt_Old =
 {
     if(inflictor != attacker || vr_melee_blunt)
     {

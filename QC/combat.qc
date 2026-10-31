@@ -967,6 +967,63 @@ float QVR_CDMG_FIRE = 10;      // burning (vr_burning.qc)
 float QVR_CDMG_BASH = 11;      // bashes, shoves, headbutts
 float(entity inflictor, entity attacker) VR_Corpse_DamageKind;
 string(float xKind) VR_Corpse_DamageKindName;
+
+// The hit record's class (design review 6; ROUND23.md, "One hit record, part 4"): what the hit being dealt is, in one
+// vocabulary, for the consumers that ask what struck (the gib speed, the knockdown's blow, the wounds, the bleeding);
+// each keeps its own exceptions on top (ROUND23's disagreement list). How it came (a hand's blow, a shot, a blast's
+// splash, a thrown thing) is the record's kind (hit_kind) and VR_Hit_Hitscan, apart.
+float QVR_HITCLASS_NONE = 0;   // a monster's own blow, anything else
+float QVR_HITCLASS_BLUNT = 1;  // a fist, a crowbar, a gun or a pommel swung, a bash, a shove, a headbutt, a thrown thing
+float QVR_HITCLASS_BLADE = 2;  // an edge: the axes, the swords, the chainsaw (swung, thrown, stuck in it), a buzzsaw
+float QVR_HITCLASS_PIERCE = 3; // shotgun pellets, bullets, nails, lasers, spikes
+float QVR_HITCLASS_BLAST = 4;  // rockets, grenades, plasma, a blast's splash
+float QVR_HITCLASS_BURN = 5;   // burning (vr_burning.qc)
+float QVR_HITCLASS_SLAM = 6;   // the level's: a fall, a ragdoll struck against it (its liquids too: the wounds tell them)
+float QVR_HITCLASS_SHOCK = 7;  // lightning: the gun, Mjolnir, a discharge
+
+// The class of the hit being dealt, from the corpses' damage kind (VR_Corpse_DamageKind: the finest ladder, on the small
+// gibs' VR_SmallGib_Kind).
+float(entity inflictor, entity attacker) VR_Hit_Class =
+{
+    if(inflictor == world)
+    {
+        return QVR_HITCLASS_SLAM;
+    }
+    float c = VR_Corpse_DamageKind(inflictor, attacker);
+    if(c == QVR_CDMG_SHOTS || c == QVR_CDMG_NAILS) { return QVR_HITCLASS_PIERCE; }
+    if(c == QVR_CDMG_EXPLOSIONS) { return QVR_HITCLASS_BLAST; }
+    if(c == QVR_CDMG_LIGHTNING) { return QVR_HITCLASS_SHOCK; }
+    if(c == QVR_CDMG_BLADES || c == QVR_CDMG_CHAINSAW) { return QVR_HITCLASS_BLADE; }
+    if(c == QVR_CDMG_FIRE) { return QVR_HITCLASS_BURN; }
+    if(c == QVR_CDMG_BLUNT || c == QVR_CDMG_FISTS || c == QVR_CDMG_PROPS || c == QVR_CDMG_BASH)
+    {
+        return QVR_HITCLASS_BLUNT;
+    }
+    return QVR_HITCLASS_NONE;
+};
+
+// Whether the hit being dealt draws blood: not the level's, not bloodless (VR_Hit_Bloodless: a shove, a bash, a slap, a
+// flame's or a poison's), not a burn. (Whether the target bleeds is each consumer's: VR_Gore_Bleeds,
+// VR_SmallGib_Bleeds, VR_Wound_TakesHit.)
+float(entity inflictor, entity attacker) VR_Hit_Bleeds =
+{
+    return inflictor != world && !VR_Hit_Bloodless() && VR_Hit_Class(inflictor, attacker) != QVR_HITCLASS_BURN;
+};
+
+// (Temporary debug check, part 4 step 3: each switched consumer against its old copy.)
+void(string xWho, float xOld, float xNew, entity inflictor) VR_Hit_ClassCheck =
+{
+    if(xOld != xNew)
+    {
+        bprint(sprintf("hitclass: %s old %g new %g (kind %g, inflictor %s; debug check, engine log)\n", xWho, xOld, xNew,
+            hit_kind, inflictor.classname));
+    }
+};
+float(float xOld) VR_Hit_ClassCheck_Wound =
+{
+    bprint(sprintf("hitclass: wound other old %g new -1 (kind %g; debug check, engine log)\n", xOld, hit_kind));
+    return FALSE;
+};
 float(float xKind) VR_Corpse_DamageKindMult;
 
 float(entity targ, entity inflictor, entity attacker, float damage, float kind) VR_Limb_CorpseWear;
@@ -1509,7 +1566,54 @@ float QVR_GIBKIND_HEAVY = 0;
 float QVR_GIBKIND_MELEE = 1;
 float QVR_GIBKIND_LIGHT = 2;
 
+float(entity inflictor, entity attacker, float isVRMelee) VR_GibKind_Old;
+
+// How it came first (a blast's splash heavy, a hand's blow melee, a stuck blade's bleeding light), then what it is
+// (VR_Hit_Class): lightning and blasts heavy; pierce, blades and blunt things thrown or shot light; the rest heavy.
 float(entity inflictor, entity attacker, float isVRMelee) VR_GibKind =
+{
+    float k = hit_kind;
+    float r = QVR_GIBKIND_HEAVY;
+    if(k == QVR_HITKIND_SPLASH)
+    {
+        r = QVR_GIBKIND_HEAVY;
+    }
+    else if(isVRMelee || k == QVR_HITKIND_MELEE || k == QVR_HITKIND_HEADBUTT || k == QVR_HITKIND_BASH ||
+            k == QVR_HITKIND_SHOVE)
+    {
+        r = QVR_GIBKIND_MELEE;
+    }
+    else if(k == QVR_HITKIND_BLEED)
+    {
+        r = QVR_GIBKIND_LIGHT;
+    }
+    else if(!VR_Hit_Hitscan() && (inflictor == world || inflictor == attacker))
+    {
+        // A player's blow with nothing between (a kick, a landing): light. A monster's own: Quake's.
+        r = (attacker.flags & FL_CLIENT) ? QVR_GIBKIND_LIGHT : QVR_GIBKIND_HEAVY;
+    }
+    else
+    {
+        float c = VR_Hit_Class(inflictor, attacker);
+        string n = inflictor.classname;
+        if(c == QVR_HITCLASS_SHOCK || c == QVR_HITCLASS_BLAST)
+        {
+            r = QVR_GIBKIND_HEAVY;
+        }
+        else if(n == "hiplaser" || ((n == "knightspike" || n == "wizspike") && !(inflictor.vr_deflect_time > 0)))
+        {
+            r = QVR_GIBKIND_HEAVY; // (the gib speed's own: the small gibs call these nails)
+        }
+        else if(c == QVR_HITCLASS_PIERCE || c == QVR_HITCLASS_BLADE || c == QVR_HITCLASS_BLUNT)
+        {
+            r = QVR_GIBKIND_LIGHT; // shots, nails, an enforcer's bolt; thrown, flung or deflected things
+        }
+    }
+    VR_Hit_ClassCheck("gibkind", VR_GibKind_Old(inflictor, attacker, isVRMelee), r, inflictor);
+    return r;
+};
+
+float(entity inflictor, entity attacker, float isVRMelee) VR_GibKind_Old =
 {
     float k = hit_kind;
     if(k == QVR_HITKIND_SPLASH)
