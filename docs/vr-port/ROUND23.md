@@ -3727,3 +3727,48 @@ Checklist:
   hotspot (e.g. its top, near the muzzle): the shots kick as little as with the hotspot (Weapon Effects' Two-Handed
   sliders); let go: the next shots kick one-handed again, the change smooth.
 - [offhandrecoil] Off hand holding a shell or magazine against the gun while firing: full one-handed kick.
+
+## Worn backpack: a hard pull lifts its wearer instead of ripping (branch `agent/packragdoll`)
+
+His words: "Add an option to disable ripping out worn backpacks by tugging ... and instead make it so that pulling an
+enemy from their backpack with enough force is a ragdoll trigger that behaves similarly to a torso/leg lift ... Ensure
+the backpack stays connected to the active ragdoll and transfers the force to the active ragdoll."
+- **Setting** `vr_worn_backpack_pull` 0 (Combat > Armed Grunts > Worn Backpacks, "Pulling the Pack": Tears It Off /
+  Lifts Its Wearer; experimental). 0 is today's rip. 1: a hand's pull never tears the pack off (the standing tug's
+  stretch, a ragdoll held by the pack, living or dead); hits (shots, blows, projectiles), the damage pool, fire and
+  blasts, landings, gibbing and the force grab/taking of a dead one's pack still do.
+- **The lift** (`vr_worn_backpack_lift_force` 1500 N, "Pull That Lifts", kept up `vr_worn_backpack_rip_time`; QC
+  `VR_WP_Lift`, engine `foegrab::packLift` via `ragdollbone(g, [8, player, 0], QVR_WORNPACK)`):
+  - standing, held by the pack (the foegrab pack hold): the pull is the hands' stretch x `vr_worn_backpack_rip_stiffness`
+    (150 N a unit; two hands x `_two_hand_mult`). Past it, it is knocked down as the two-hand lift does
+    (`VR_FoeGrab_Lift`: launched up at `vr_foegrab_lift_up`, its get-up held off), and each hand on the pack holds its
+    ragdoll **by the pack** (`ragdollHoldSoft(..., pack)`: the pack shape's point nearest the hand, on the chest part
+    carrying it, the hold `onPack`; within 48 units; the lift's strength `vr_foegrab_lift_strength` x its weight at 8
+    Hz). The pack is a shape of the chest part's body (createRagdollPack), so it is welded there and the hand's pull
+    goes through it into the body. It flails, is carried and thrown as a lift's, breaks free after
+    `vr_foegrab_lift_time` (foegrab's carryStep).
+  - knocked down, held by the pack (the usual ragdoll hold): the hold's force (as the rip read it). Past it, the holds
+    go on (at Grip Strength, not softened) and it becomes a lifted one: flailing, its get-up held off, breaking free.
+    A staggering one is not lifted (a hand on it takes it down first). A gentler pull drags it as before.
+  - dead: never lifted, never torn by a pull (a hand on a dead one's pack takes the pack, as before).
+- **Test** `vr_wornpack_test 3` (Debug > Tests > "Worn Backpacks: Pulling Lifts"; e1m1, `god; notarget; developer 1`):
+  **12 passed, 0 failed**: G held by its pack standing; a gentle pull (4 units back, at most 782 N) neither lifts nor
+  tears; 1.5 m/s back lifts it after 0.22 s at 1846 N (a ragdoll, knocked down, the pack on, held by the pack at
+  2632 N); carried 25.8 of the hand's 30 units aside; thrown 41.7 units; the pack's middle 16.4 units from the chest
+  bone, 0.00 off that throughout (`ragdollbone` what 9), 0 rips; B knocked down: dragged slowly (hardest 1357 N): kept,
+  not lifted; yanked: lifted at 4000 N, never torn; A's pack hit for 40 still tears it; D dead, its pack force-grabbed
+  still comes off. Mode 0: `vr_wornpack_test 1` 39/0 (as on next); judo `lift` 9/1 (the ogre case's expected message
+  is stale: it is not lifted, "its monster group's Lift is off"); ragdoll grab_test as the baseline.
+- **Decisions** (he was asleep): the brief's "within 3 u of the chest bone" read as "within 3 units of its place on the
+  chest bone" (the pack's middle sits 16 units from that bone; it doesn't move off it: 0.00); the standing pull's force is
+  its stretch x the rip stiffness (the tug reads a stretch, not a force); one threshold for both; a knocked-down one
+  keeps the usual (stiffer) ragdoll hold when lifted; the slow drag's 1357 N is close under 1500, so a brisk drag of a
+  knocked-down one may lift it.
+
+Checklist:
+- [packragdoll] Worn Backpacks on, Pulling the Pack: Lifts Its Wearer. Grab a standing grunt's pack from behind and
+  pull gently: nothing happens; yank back hard: it goes down flailing, held by the pack on its back; carry it, swing it
+  and let go to throw it; the pack never comes off from pulling, and it breaks free after a few seconds.
+- [packragdoll] Same mode: knock a grunt down, grab its pack and drag it slowly (it slides along, pack on), then yank:
+  it flails in your hand, pack still on.
+- [packragdoll] Same mode: shooting or hitting a grunt's pack still tears it off; force-grab a dead one's pack: it comes off.
