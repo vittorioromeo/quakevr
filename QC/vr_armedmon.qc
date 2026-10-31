@@ -53,6 +53,7 @@ string vr_am_pain2;
 float vr_am_loot_aid;       // its backpack with no reserve: this ammo (AID_*),
 float vr_am_loot_n;         // ... this many
 float vr_am_classes;        // the weapon classes it may hold (VR_AM_CLASSES_ALL: any; others: its fists)
+float vr_am_takes_ranged;   // it takes up ranged weapons lying about (VR_AM_Takes; else melee ones only: spawned with a gun it holds it)
 vector vr_am_fit_scale;     // the poses' body space (vr_armedgrunt_pose.qc, made on the grunt) to its: scaled,
 vector vr_am_fit_shift;     // ... then moved (its shoulders against the grunt's)
 vector vr_am_back_lo;       // its back's vertices (two, x y: their middle) low (the waist) and high (the shoulder blades):
@@ -105,6 +106,7 @@ void(float k) VR_AM_Row =
         vr_am_loot_aid = AID_SHELLS;
         vr_am_loot_n = 0;
         vr_am_classes = VR_AM_CLASSES_ALL;
+        vr_am_takes_ranged = cvar_hget(cvarh_vr_agknight_ranged_pickup); // (0, the game's: a knight's a blade)
         vr_am_back_lo = '145 172 0'; // (his back at the belt, x -2, z 1.9)
         vr_am_back_hi = '180 320 0'; // (... at the shoulder blades, x -1.4, z 13.5)
         vr_am_anchor = 224;
@@ -154,6 +156,7 @@ void(float k) VR_AM_Row =
         vr_am_loot_aid = AID_CELLS;
         vr_am_loot_n = 5;
         vr_am_classes = VR_AM_CLASSES_ALL;
+        vr_am_takes_ranged = 1;
         vr_am_back_lo = '328 332 0'; // (its power pack's back, low: x -20.3, z 7.8, standing)
         vr_am_back_hi = '343 351 0'; // (... high: x -22.8, z 22.7)
         vr_am_anchor = 322;
@@ -203,6 +206,7 @@ void(float k) VR_AM_Row =
     vr_am_loot_aid = AID_SHELLS;
     vr_am_loot_n = 5;
     vr_am_classes = VR_AM_CLASSES_ALL;
+    vr_am_takes_ranged = 1;
     vr_am_fit_scale = '1 1 1';
     vr_am_fit_shift = '0 0 0';
     vr_am_back_lo = '93 95 0';   // (its back at the waist, x -8.9 / -8.0, z 5.3, standing)
@@ -300,6 +304,13 @@ float(entity g, float c) VR_AM_Holds =
 {
     VR_AM_Row(g.vr_ag_kind);
     return (vr_am_classes & (1 << c)) != 0;
+};
+
+// May `g` take up weapon `wid` lying about (its class held; a ranged one only by a row that takes them)?
+float(entity g, float wid) VR_AM_Takes =
+{
+    float c = VR_AG_Class(wid);
+    return VR_AM_Holds(g, c) && (c == VR_AG_CLASS_MELEE || vr_am_takes_ranged);
 };
 
 string(entity g) VR_AM_Pain =

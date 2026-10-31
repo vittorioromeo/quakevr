@@ -2299,7 +2299,7 @@ void() VR_AG_TakeBegin =
     entity w = self.vr_ag_seek;
     self.vr_ag_seek = world;
     if(!w || w.classname != "thrown_weapon" || vlen(w.origin - self.origin) > VR_AG_PICKUP_REACH * 1.5 ||
-       (self.vr_ag_prop && (self.vr_ag_prop2 || !VR_AG_PairsFor(self, self.vr_ag_wid, self.vr_ag_wflags, w.weapon, w.weaponflags))))
+       !VR_AM_Takes(self, w.weapon) || (self.vr_ag_prop && (self.vr_ag_prop2 || !VR_AG_PairsFor(self, self.vr_ag_wid, self.vr_ag_wflags, w.weapon, w.weaponflags))))
     {
         return;
     }
@@ -2414,6 +2414,7 @@ entity() VR_AG_FindWeapon =
     {
         if(e.classname == "thrown_weapon" && VR_AG_Usable(e.weapon) && !e.vr_depleted && !VR_EnemyWeapons_Spared(e) &&
            !e.vr_drop_fade && // (fading past the cap: not to be taken)
+           VR_AM_Takes(self, e.weapon) && // (its row's: a knight no gun, vr_agknight_ranged_pickup 0)
            (VR_AG_Class(e.weapon) == VR_AG_CLASS_MELEE || e.weaponinst.wi_clip > 0) &&
            (!self.vr_ag_prop || VR_AG_PairsFor(self, self.vr_ag_wid, self.vr_ag_wflags, e.weapon, e.weaponflags))) // (armed: its pair's second only)
         {
