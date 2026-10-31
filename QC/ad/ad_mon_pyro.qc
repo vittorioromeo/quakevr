@@ -102,8 +102,8 @@ void() ad_pyroflame_touch =
 	// Block sprite burst from damage again
 	self.ad_attack_finished = time + 1;
 	
-	// Quake VR: its fire or poison draws no blood, paints no wound (combat.qc VR_HitBloodless)
-	vr_hit_nobleed = ad_TRUE;
+	// Quake VR: its fire or poison draws no blood, paints no wound (combat.qc VR_Hit_Bloodless)
+	VR_Hit_BeginAs(-1, ad_TRUE);
 	// Check owner is a Pyro?
 	if (self.owner.ad_classtype == ad_CT_MONPYRO) {
 		// damage and debuff are same function
@@ -124,7 +124,7 @@ void() ad_pyroflame_touch =
 			if (other.flags & ad_FL_MONSTER) VR_ADGun_Poison(other, self, self.owner, cvar("vr_adgun_fumigator_poison"), cvar("vr_adgun_fumigator_poisontime"));
 		}
 	}
-	vr_hit_nobleed = ad_FALSE;
+	VR_Hit_End();
 };
 
 //----------------------------------------------------------------------

@@ -621,10 +621,10 @@ float VR_SGIB_INFLICTOR_KINDS[] =
 };
 #define VR_SGIB_INFLICTORS_N 13
 
-// The kind of the hit (vr_hitkind and the inflictor, as VR_GibKind; a hand's blow by the weapon and its part).
+// The kind of the hit (hit_kind and the inflictor, as VR_GibKind; a hand's blow by the weapon and its part).
 float(entity inflictor, entity attacker) VR_SmallGib_Kind =
 {
-    float k = vr_hitkind;
+    float k = hit_kind;
     if(vr_sgib_flushing)
     {
         return QVR_SGIB_SHOTS; // a shotgun blast's (a player's or a grunt's)
@@ -633,9 +633,9 @@ float(entity inflictor, entity attacker) VR_SmallGib_Kind =
     {
         return QVR_SGIB_EXPLOSIONS;
     }
-    if(k == QVR_HITKIND_MELEE && vr_hithand >= 0 && (attacker.flags & FL_CLIENT))
+    if(k == QVR_HITKIND_MELEE && hit_hand >= 0 && (attacker.flags & FL_CLIENT))
     {
-        float w = VRGetEntWeapon(attacker, vr_hithand);
+        float w = VRGetEntWeapon(attacker, hit_hand);
         if(w == WID_CHAINSAW)
         {
             return QVR_SGIB_SAW;
@@ -648,7 +648,7 @@ float(entity inflictor, entity attacker) VR_SmallGib_Kind =
         {
             return QVR_SGIB_BLADES;
         }
-        if(w == WID_FIST && VR_Carry_Held(attacker, vr_hithand) != world)
+        if(w == WID_FIST && VR_Carry_Held(attacker, hit_hand) != world)
         {
             return QVR_SGIB_PROPS; // a rock, a brick, a gib in the fist
         }
@@ -660,8 +660,8 @@ float(entity inflictor, entity attacker) VR_SmallGib_Kind =
     }
     if(VR_Hit_Hitscan()) // (a projectile's hit: its inflictor's kind, below)
     {
-        if(vr_hitweapon != "" ||
-           (vr_hithand >= 0 && (attacker.flags & FL_CLIENT) && VRGetEntWeapon(attacker, vr_hithand) == WID_LIGHTNING))
+        if(hit_weapon != "" ||
+           (hit_hand >= 0 && (attacker.flags & FL_CLIENT) && VRGetEntWeapon(attacker, hit_hand) == WID_LIGHTNING))
         {
             return QVR_SGIB_OTHER; // lightning
         }
@@ -724,7 +724,7 @@ float(float xKind) VR_SmallGib_KindMult =
 // The kind of the hit on a corpse (QVR_CDMG_*, combat.qc).
 float(entity inflictor, entity attacker) VR_Corpse_DamageKind =
 {
-    float k = vr_hitkind;
+    float k = hit_kind;
     if(k == QVR_HITKIND_HEADBUTT || k == QVR_HITKIND_BASH || k == QVR_HITKIND_SHOVE)
     {
         return QVR_CDMG_BASH;
@@ -746,8 +746,8 @@ float(entity inflictor, entity attacker) VR_Corpse_DamageKind =
     if(s == QVR_SGIB_BLUNT)
     {
         // An empty fist (a punch), not a gun, the crowbar or Mjolnir swung, nor a pommel.
-        if(k == QVR_HITKIND_MELEE && vr_hithand >= 0 && (attacker.flags & FL_CLIENT) && !vr_melee_blunt &&
-           VRGetEntWeapon(attacker, vr_hithand) == WID_FIST && VR_Carry_Held(attacker, vr_hithand) == world)
+        if(k == QVR_HITKIND_MELEE && hit_hand >= 0 && (attacker.flags & FL_CLIENT) && !vr_melee_blunt &&
+           VRGetEntWeapon(attacker, hit_hand) == WID_FIST && VR_Carry_Held(attacker, hit_hand) == world)
         {
             return QVR_CDMG_FISTS;
         }
@@ -796,10 +796,10 @@ float(float xKind) VR_Corpse_DamageKindMult =
 
 // The chance a hit of `xDamage` tears any out: none under the threshold, rising to a sure one at Full Damage (to the
 // power of vr_smallgibs_curve: light hits rarer).
-// The situation of a hit of kind `xKind` (vr_hitkind's: a hand's blow, a shot; else the kind's).
+// The situation of a hit of kind `xKind` (hit_kind's: a hand's blow, a shot; else the kind's).
 float(float xKind) VR_SmallGib_Situation =
 {
-    float k = vr_hitkind;
+    float k = hit_kind;
     if(xKind == QVR_SGIB_SAW)
     {
         return QVR_SGIB_SIT_SAW;
@@ -973,7 +973,7 @@ void(entity targ, entity inflictor, entity attacker, float xDamage, vector xAt) 
     }
     if(n > 0)
     {
-        VR_SmallGib_Tear(targ, VR_SmallGib_Where(targ, inflictor, xAt), vr_hitdir, n, sit);
+        VR_SmallGib_Tear(targ, VR_SmallGib_Where(targ, inflictor, xAt), hit_dir, n, sit);
     }
 };
 
@@ -1001,12 +1001,12 @@ void(entity targ, entity inflictor, entity attacker, float xDamage) VR_SmallGib_
         vr_sgib_blastby = attacker;
         return;
     }
-    if(VR_HitBloodless())
+    if(VR_Hit_Bloodless())
     {
-        return; // a slap, a shove or a bash tears nothing out (vr_melee_slap, combat.qc VR_HitBloodless)
+        return; // a slap, a shove or a bash tears nothing out (vr_melee_slap, combat.qc VR_Hit_Bloodless)
     }
-    vector at = vr_hitpos;
-    if(vr_hitkind == QVR_HITKIND_MELEE && vr_sgib_at != '0 0 0')
+    vector at = hit_pos;
+    if(hit_kind == QVR_HITKIND_MELEE && vr_sgib_at != '0 0 0')
     {
         at = vr_sgib_at;
     }

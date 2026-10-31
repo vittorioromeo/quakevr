@@ -122,16 +122,7 @@ float(entity m, vector xAt) VR_RagImpact_Piece =
         }
         return p;
     }
-    if(VR_Decap_Allowed(m) && ragdollhead(m, xAt, 0) > 0)
-    {
-        return 0;
-    }
-    if(!VR_Limb_Allowed(m))
-    {
-        return -1;
-    }
-    float bone = VR_Limb_At(m, xAt);
-    return (bone > 0 && bone < VR_LIMB_JOINTS) ? bone : -1;
+    return VR_Limb_PieceAt(m, xAt, VR_Decap_Allowed(m), VR_Limb_Allowed(m));
 };
 
 // The damage of a strike with `xMass` kg behind it at `xExcess` m/s past its least speed: vr_ragimpact_damage x mass x
@@ -231,10 +222,9 @@ void(entity m, entity xBy, vector xAt, float xPiece, float xDamage, float xShare
         dprint(sprintf("ragimpact: %s (health %g), %s: %.1f damage", m.classname, m.health, xWhat, dmg));
         dprint(sprintf(" to its %s (worn %.1f of %.1f)%s\n", piece, worn, hp, pops));
     }
-    float oldKind = vr_hitkind;
-    vr_hitkind = QVR_HITKIND_NONE;
+    VR_Hit_BeginAs(QVR_HITKIND_NONE, FALSE); // (no kind: the ragdoll's own strike)
     T_Damage(m, world, xBy, dmg);
-    vr_hitkind = oldKind;
+    VR_Hit_End();
 };
 
 // The engine (vr_box3d.cpp callRagImpacts): ragdoll `m`'s hardest strike on the level this frame at `xAt`, its part at

@@ -240,9 +240,9 @@ void() VR_AxeStick_Think =
             float before = h.health;
             void(entity attacker, float damage) pain = h.th_pain;
             h.th_pain = SUB_NullPain;
-            VR_SetHitKind(QVR_HITKIND_BLEED, -1, self.vr_stick_at, self.vr_stick_dir);
+            VR_Hit_Begin(QVR_HITKIND_BLEED, -1, self.vr_stick_at, self.vr_stick_dir);
             T_Damage(h, self, by, dmg);
-            VR_ClearHitKind();
+            VR_Hit_End();
             if(h.th_pain == SUB_NullPain)
             {
                 h.th_pain = pain;

@@ -117,7 +117,7 @@ void() VR_DentsTest_Frame =
     else if(n == 2 || n == 3)
     {
         what = n == 2 ? "a hand's blow" : "a pommel strike";
-        VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, vr_dtest_at, vr_dtest_dir);
+        VR_Hit_Begin(QVR_HITKIND_MELEE, cVR_MainHand, vr_dtest_at, vr_dtest_dir);
         vr_melee_blunt = n == 3;
         if(corpse)
         {
@@ -128,7 +128,7 @@ void() VR_DentsTest_Frame =
             T_Damage_VRMelee(m, p, p, 25);
         }
         vr_melee_blunt = FALSE;
-        VR_ClearHitKind();
+        VR_Hit_End();
     }
     else if(n == 6)
     {

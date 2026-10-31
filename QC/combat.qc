@@ -4,44 +4,44 @@ float IsExplosionDamage;
 
 // VR: what kind of blow the next T_Damage is, for the firing range's training dummy (vr_dummy.qc),
 // which reports every hit. Attacks that their inflictor alone does not tell apart set these just
-// before their T_Damage (VR_SetHitKind) and clear them after (VR_ClearHitKind); the rest (missiles,
+// before their T_Damage (VR_Hit_Begin) and clear them after (VR_Hit_End); the rest (missiles,
 // thrown things, deflected projectiles) the dummy works out from the inflictor.
 float QVR_HITKIND_NONE     = 0; // worked out from the inflictor
-float QVR_HITKIND_MELEE    = 1; // a swing of a hand (vr_hithand): fist, weapon or a gun used as a club
+float QVR_HITKIND_MELEE    = 1; // a swing of a hand (hit_hand): fist, weapon or a gun used as a club
 float vr_melee_slap; // the blow being struck is a slap (vr_melee.qc VR_MKIND_SLAP; set around the weapons' melee by
                      // PlayerVRMeleeImpl, client.qc): its own sound, no blood, gore or overkill (T_DamageImpl)
 float QVR_HITKIND_HEADBUTT = 2;
 float QVR_HITKIND_BASH     = 3; // a weapon's guard driven forward (vr_bash)
 float QVR_HITKIND_SHOVE    = 4; // both empty hands driven forward (vr_bash)
-float QVR_HITKIND_SHOT     = 5; // a hitscan weapon (vr_hithand's, or vr_hitweapon): shotguns, lightning
+float QVR_HITKIND_SHOT     = 5; // a hitscan weapon (hit_hand's, or hit_weapon): shotguns, lightning
 float QVR_HITKIND_SPLASH   = 6; // an explosion's (or a discharge's) radius damage
 float QVR_HITKIND_BLEED    = 7; // a thrown axe stuck in it bleeding it (vr_axestick.qc): no new wound
 
-float vr_hitkind;     // QVR_HITKIND_*
+float hit_kind;     // QVR_HITKIND_*
 
 // The blow being dealt draws no blood (ROUND22.md, "Shoves, slaps and bashes draw no blood"): a shove, a weapon's bash
 // (a parry bash) or a slap keep their damage, knockback and stagger, but spray no blood, paint no wound, send no gore
 // and tear no small gibs (VR_Gore_Hit, VR_Wound_Hit, VR_SmallGib_Hit, VR_Bash_Hit).
-// vr_hit_nobleed: set around a flame's, a poison's or a fire's T_Damage (the AD flamethrower's and poison sprayer's
+// hit_nobleed: set around a flame's, a poison's or a fire's T_Damage (the AD flamethrower's and poison sprayer's
 // streams, the poison they leave, burning: vr_ad_enemyguns.qc, vr_burning.qc): it burns or poisons, it does not bleed.
-float vr_hit_nobleed;
-float() VR_HitBloodless =
+float hit_nobleed;
+float() VR_Hit_Bloodless =
 {
-    return vr_hit_nobleed || vr_hitkind == QVR_HITKIND_BASH || vr_hitkind == QVR_HITKIND_SHOVE ||
-           (vr_hitkind == QVR_HITKIND_MELEE && vr_melee_slap);
+    return hit_nobleed || hit_kind == QVR_HITKIND_BASH || hit_kind == QVR_HITKIND_SHOVE ||
+           (hit_kind == QVR_HITKIND_MELEE && vr_melee_slap);
 };
-float vr_hithand;     // the hand that struck or fired (-1: unknown)
-string vr_hitweapon;  // what fired, when not the weapon in vr_hithand ("": that one)
-float vr_hitproj;     // a QVR_HITKIND_SHOT that is a projectile's hit (VR_Proj_Begin, a laser's bounce), not a hitscan's
-vector vr_hitpos;     // where it struck ('0 0 0': unknown)
-vector vr_hitdir;     // and going which way
+float hit_hand;     // the hand that struck or fired (-1: unknown)
+string hit_weapon;  // what fired, when not the weapon in hit_hand ("": that one)
+float hit_proj;     // a QVR_HITKIND_SHOT that is a projectile's hit (VR_Proj_Begin, a laser's bounce), not a hitscan's
+vector hit_pos;     // where it struck ('0 0 0': unknown)
+vector hit_dir;     // and going which way
 
 // A melee blow's positional damage (weapons.qc, vr_melee_positional): its damage times the zone the blow landed on.
 float(entity xTarget, vector xTo, vector xDir) VR_Melee_Positional;
 
 // The hit record (design review 6; ROUND23.md, "One hit record"): where the hit being dealt struck, written once by
 // its source and read by T_DamageDeal's consumers, in one vocabulary: the part positional damage has always used
-// (PositionalRegion: 1 the head, 2 a limb, 3 the legs, 0 the body; -1 none).
+// (PositionalRegion: a VR_REGION_*, Quake/vr/vr_region_shared.h, the engine hit reaction regions too; -1 none).
 // A shot's or a blow's zone (VR_Hit_SetZone: PositionalDamage, VR_Melee_Positional): good for `hit_targ` this frame.
 entity hit_targ;     // whom it struck (world: none)
 float hit_time;      // and when
@@ -101,33 +101,137 @@ float(float xLimbs) VR_Hit_PelletPart =
     return 0;
 };
 
-void(float xKind, float xHand, vector xPos, vector xDir) VR_SetHitKind =
+// Where the hit being dealt struck `xTarg` (the wounds, the gore, the flinch: each its own `xNear` and `xMissile`): the
+// record's point when it lies within `xNear` of xTarg's middle, else (xMissile) the inflictor's origin when it is a
+// missile within xNear (where it touched), else the middle.
+vector(entity xTarg, entity xInflictor, float xNear, float xMissile) VR_Hit_Point =
 {
-    vr_hitkind = xKind;
-    vr_hithand = xHand;
-    vr_hitpos = xPos;
-    vr_hitdir = xDir;
-    vr_hitproj = FALSE;
+    vector mid = (xTarg.absmin + xTarg.absmax) * 0.5;
+    if(hit_pos != '0 0 0' && vlen(hit_pos - mid) < xNear)
+    {
+        return hit_pos;
+    }
+    if(xMissile && xInflictor != xTarg && !(xInflictor.flags & (FL_MONSTER | FL_CLIENT)) &&
+       vlen(xInflictor.origin - mid) < xNear)
+    {
+        return xInflictor.origin;
+    }
+    return mid;
+};
+
+// Which way the hit being dealt went into `xTarg`: `xDir` (the record's, or the consumer's own) when known, else a
+// missile's flight, else from the inflictor's middle to xTarg's ('0 0 0': unknown, the inflictor xTarg itself).
+vector(entity xTarg, entity xInflictor, vector xDir) VR_Hit_Way =
+{
+    if(xDir != '0 0 0' || xInflictor == xTarg)
+    {
+        return xDir;
+    }
+    if(xInflictor.velocity != '0 0 0' && !(xInflictor.flags & (FL_MONSTER | FL_CLIENT)))
+    {
+        return xInflictor.velocity; // a missile's flight
+    }
+    return (xTarg.absmin + xTarg.absmax) * 0.5 - (xInflictor.absmin + xInflictor.absmax) * 0.5;
+};
+
+// The blow VRMeleeDmg last priced, inside a hand's VR_Hit_Begin .. VR_Hit_End: its strength from speed alone
+// (mh_core; 0: none, as a test's or a headbutt's damage) and its hand.
+float vr_mdmg_core;
+float vr_mdmg_hand;
+
+// The record's kind, hand, point and direction are written by VR_Hit_Begin (or its variants below) just before the
+// source's T_Damage and taken back by VR_Hit_End just after. A Begin inside another one (a blow kills a barrel whose
+// blast hurts the next foe; radius damage inside a shot) saves the outer record and its End puts it back, so the outer
+// hit's later consumers read their own hit again. A record begun in an earlier frame and never ended does not count as
+// an outer one (a source that returned early): the next Begin starts afresh.
+float HIT_STACK = 8;
+float hit_depth;           // records begun and not yet ended
+float hit_begun;           // the frame the innermost was begun in
+float hit_s_kind[8];       // the outer records: kind,
+float hit_s_hand[8];       // hand,
+string hit_s_weapon[8];    // what fired,
+float hit_s_proj[8];       // projectile,
+vector hit_s_pos[8];       // point,
+vector hit_s_dir[8];       // direction,
+float hit_s_nobleed[8];    // bloodless,
+float hit_s_core[8];       // and its priced blow's strength
+
+void() VR_Hit_Push =
+{
+    if(hit_depth > 0 && hit_begun != time)
+    {
+        hit_depth = 0;
+    }
+    if(hit_depth > 0 && hit_depth <= HIT_STACK)
+    {
+        float i = hit_depth - 1;
+        hit_s_kind[i] = hit_kind;
+        hit_s_hand[i] = hit_hand;
+        hit_s_weapon[i] = hit_weapon;
+        hit_s_proj[i] = hit_proj;
+        hit_s_pos[i] = hit_pos;
+        hit_s_dir[i] = hit_dir;
+        hit_s_nobleed[i] = hit_nobleed;
+        hit_s_core[i] = vr_mdmg_core;
+    }
+    hit_depth = hit_depth + 1;
+    hit_begun = time;
+};
+
+// A hit of kind `xKind` (QVR_HITKIND_*) by hand `xHand` (-1: none) at `xPos` going `xDir` ('0 0 0': unknown). What
+// fired (hit_weapon), whether it bleeds and the priced blow's strength stay the outer record's until set.
+void(float xKind, float xHand, vector xPos, vector xDir) VR_Hit_Begin =
+{
+    VR_Hit_Push();
+    hit_kind = xKind;
+    hit_hand = xHand;
+    hit_pos = xPos;
+    hit_dir = xDir;
+    hit_proj = FALSE;
 };
 
 // A projectile's hit (a nail, a laser bolt, a lava ball: VR_Proj_Begin), tagged a shot where it struck.
-void(vector xPos, vector xDir) VR_SetHitProjectile =
+void(vector xPos, vector xDir) VR_Hit_BeginProjectile =
 {
-    VR_SetHitKind(QVR_HITKIND_SHOT, -1, xPos, xDir);
-    vr_hitproj = TRUE;
+    VR_Hit_Begin(QVR_HITKIND_SHOT, -1, xPos, xDir);
+    hit_proj = TRUE;
+};
+
+// A flame's, a poison's or a fire's hit (burning, the AD flamethrower's and poison sprayer's streams): no blood.
+void(vector xPos, vector xDir) VR_Hit_BeginBloodless =
+{
+    VR_Hit_Begin(QVR_HITKIND_NONE, -1, xPos, xDir);
+    hit_nobleed = TRUE;
+};
+
+// A hit inside the current record that is the same hit but of kind `xKind` (-1: the same kind) and, with
+// `xBloodless`, bloodless: radius damage's splash, a ragdoll's strike (no kind), a poison's tick.
+void(float xKind, float xBloodless) VR_Hit_BeginAs =
+{
+    VR_Hit_Push();
+    if(xKind >= 0)
+    {
+        hit_kind = xKind;
+    }
+    if(xBloodless)
+    {
+        hit_nobleed = TRUE;
+    }
+};
+
+// Where the current record's hit struck, found after its Begin (a swing's last trace: VRMeleeHitAt).
+void(vector xPos, vector xDir) VR_Hit_At =
+{
+    hit_pos = xPos;
+    hit_dir = xDir;
 };
 
 // The hit being dealt is a hitscan shot's (the shotguns', the guns', lightning), not a projectile's: a projectile's
 // kind is its inflictor's (a nail's wound dents and bleeds as a bullet's; the hitscan's "other" is lightning).
 float() VR_Hit_Hitscan =
 {
-    return vr_hitkind == QVR_HITKIND_SHOT && !vr_hitproj;
+    return hit_kind == QVR_HITKIND_SHOT && !hit_proj;
 };
-
-// The blow VRMeleeDmg last priced, inside a hand's VR_SetHitKind .. VR_ClearHitKind: its strength from speed alone
-// (mh_core; 0: none, as a test's or a headbutt's damage) and its hand.
-float vr_mdmg_core;
-float vr_mdmg_hand;
 
 // Hard damage caps per blow (the author, round 22): a weapon's blow deals between vr_melee_dmg_min and
 // vr_melee_dmg_max times its own base damage, whatever its speed and zone: its strength from speed (mh_core) times the
@@ -137,7 +241,7 @@ float vr_mdmg_hand;
 float(float xDamage, float xZone) VR_Melee_CapDamage =
 {
     float c = vr_mdmg_core * xZone;
-    if(vr_hitkind != QVR_HITKIND_MELEE || vr_hithand != vr_mdmg_hand || c <= 0)
+    if(hit_kind != QVR_HITKIND_MELEE || hit_hand != vr_mdmg_hand || c <= 0)
     {
         return xDamage;
     }
@@ -151,15 +255,35 @@ float(float xDamage, float xZone) VR_Melee_CapDamage =
     return xDamage * capped / c;
 };
 
-void() VR_ClearHitKind =
+// The hit dealt: the outer record back, or none (also a reset outside any record).
+void() VR_Hit_End =
 {
+    if(hit_depth > 1 && hit_begun == time)
+    {
+        hit_depth = hit_depth - 1;
+        if(hit_depth <= HIT_STACK)
+        {
+            float i = hit_depth - 1;
+            hit_kind = hit_s_kind[i];
+            hit_hand = hit_s_hand[i];
+            hit_weapon = hit_s_weapon[i];
+            hit_proj = hit_s_proj[i];
+            hit_pos = hit_s_pos[i];
+            hit_dir = hit_s_dir[i];
+            hit_nobleed = hit_s_nobleed[i];
+            vr_mdmg_core = hit_s_core[i];
+            return;
+        }
+    }
+    hit_depth = 0;
     vr_mdmg_core = 0;
-    vr_hitkind = QVR_HITKIND_NONE;
-    vr_hithand = -1;
-    vr_hitweapon = "";
-    vr_hitproj = FALSE;
-    vr_hitpos = '0 0 0';
-    vr_hitdir = '0 0 0';
+    hit_kind = QVR_HITKIND_NONE;
+    hit_hand = -1;
+    hit_weapon = "";
+    hit_proj = FALSE;
+    hit_pos = '0 0 0';
+    hit_dir = '0 0 0';
+    hit_nobleed = FALSE;
 };
 
 //============================================================================
@@ -807,15 +931,15 @@ float(entity targ) VR_Corpse_PositionalFactor =
     // One shot.
     else if(VR_Hit_On(targ))
     {
-        if(hit_zone == 1)
+        if(hit_zone == VR_REGION_HEAD)
         {
             f = head;
         }
-        else if(hit_zone == 2)
+        else if(hit_zone == VR_REGION_ARM)
         {
             f = limb;
         }
-        else if(hit_zone == 3)
+        else if(hit_zone == VR_REGION_LEG)
         {
             f = leg;
         }
@@ -843,6 +967,49 @@ float QVR_CDMG_FIRE = 10;      // burning (vr_burning.qc)
 float QVR_CDMG_BASH = 11;      // bashes, shoves, headbutts
 float(entity inflictor, entity attacker) VR_Corpse_DamageKind;
 string(float xKind) VR_Corpse_DamageKindName;
+
+// The hit record's class (design review 6; ROUND23.md, "One hit record, part 4"): what the hit being dealt is, in one
+// vocabulary, for the consumers that ask what struck (the gib speed, the knockdown's blow, the wounds, the bleeding);
+// each keeps its own exceptions on top (ROUND23's disagreement list). How it came (a hand's blow, a shot, a blast's
+// splash, a thrown thing) is the record's kind (hit_kind) and VR_Hit_Hitscan, apart.
+float QVR_HITCLASS_NONE = 0;   // a monster's own blow, anything else
+float QVR_HITCLASS_BLUNT = 1;  // a fist, a crowbar, a gun or a pommel swung, a bash, a shove, a headbutt, a thrown thing
+float QVR_HITCLASS_BLADE = 2;  // an edge: the axes, the swords, the chainsaw (swung, thrown, stuck in it), a buzzsaw
+float QVR_HITCLASS_PIERCE = 3; // shotgun pellets, bullets, nails, lasers, spikes
+float QVR_HITCLASS_BLAST = 4;  // rockets, grenades, plasma, a blast's splash
+float QVR_HITCLASS_BURN = 5;   // burning (vr_burning.qc)
+float QVR_HITCLASS_SLAM = 6;   // the level's: a fall, a ragdoll struck against it (its liquids too: the wounds tell them)
+float QVR_HITCLASS_SHOCK = 7;  // lightning: the gun, Mjolnir, a discharge
+
+// The class of the hit being dealt, from the corpses' damage kind (VR_Corpse_DamageKind: the finest ladder, on the small
+// gibs' VR_SmallGib_Kind).
+float(entity inflictor, entity attacker) VR_Hit_Class =
+{
+    if(inflictor == world)
+    {
+        return QVR_HITCLASS_SLAM;
+    }
+    float c = VR_Corpse_DamageKind(inflictor, attacker);
+    if(c == QVR_CDMG_SHOTS || c == QVR_CDMG_NAILS) { return QVR_HITCLASS_PIERCE; }
+    if(c == QVR_CDMG_EXPLOSIONS) { return QVR_HITCLASS_BLAST; }
+    if(c == QVR_CDMG_LIGHTNING) { return QVR_HITCLASS_SHOCK; }
+    if(c == QVR_CDMG_BLADES || c == QVR_CDMG_CHAINSAW) { return QVR_HITCLASS_BLADE; }
+    if(c == QVR_CDMG_FIRE) { return QVR_HITCLASS_BURN; }
+    if(c == QVR_CDMG_BLUNT || c == QVR_CDMG_FISTS || c == QVR_CDMG_PROPS || c == QVR_CDMG_BASH)
+    {
+        return QVR_HITCLASS_BLUNT;
+    }
+    return QVR_HITCLASS_NONE;
+};
+
+// Whether the hit being dealt draws blood: not the level's, not bloodless (VR_Hit_Bloodless: a shove, a bash, a slap, a
+// flame's or a poison's), not a burn. (Whether the target bleeds is each consumer's: VR_Gore_Bleeds,
+// VR_SmallGib_Bleeds, VR_Wound_TakesHit.)
+float(entity inflictor, entity attacker) VR_Hit_Bleeds =
+{
+    return inflictor != world && !VR_Hit_Bloodless() && VR_Hit_Class(inflictor, attacker) != QVR_HITCLASS_BURN;
+};
+
 float(float xKind) VR_Corpse_DamageKindMult;
 
 float(entity targ, entity inflictor, entity attacker, float damage, float kind) VR_Limb_CorpseWear;
@@ -907,7 +1074,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Corpse_Da
         }
     }
     // An explosion pops a corpse's limbs near it by chance (vr_limbs_blast_chance; vr_limbs.qc).
-    if(vr_hitkind == QVR_HITKIND_SPLASH)
+    if(hit_kind == QVR_HITKIND_SPLASH)
     {
         VR_Limb_BlastPops(targ, FALSE);
     }
@@ -1061,11 +1228,11 @@ void(float xHand, entity c, vector at, vector dir, float speed, float xBlunt) VR
     haptic(xHand, 0.0, 0.1, 60, 0.7);
     SpawnBlood(at, dir * 40, dmg);
 
-    VR_SetHitKind(QVR_HITKIND_MELEE, xHand, at, dir);
+    VR_Hit_Begin(QVR_HITKIND_MELEE, xHand, at, dir);
     vr_melee_blunt = xBlunt; // a blunt blow: its corpse damage kind (VR_Corpse_DamageKind), its round dent (VR_Wound_Hit)
     T_Damage(c, self, self, dmg);
     vr_melee_blunt = FALSE;
-    VR_ClearHitKind();
+    VR_Hit_End();
 
     // A lit torch sets it on fire (vr_burning.qc).
     entity t = VR_Carry_Held(self, xHand);
@@ -1385,49 +1552,49 @@ float QVR_GIBKIND_HEAVY = 0;
 float QVR_GIBKIND_MELEE = 1;
 float QVR_GIBKIND_LIGHT = 2;
 
+
+// How it came first (a blast's splash heavy, a hand's blow melee, a stuck blade's bleeding light), then what it is
+// (VR_Hit_Class): lightning and blasts heavy; pierce, blades and blunt things thrown or shot light; the rest heavy.
 float(entity inflictor, entity attacker, float isVRMelee) VR_GibKind =
 {
-    float k = vr_hitkind;
+    float k = hit_kind;
+    float r = QVR_GIBKIND_HEAVY;
     if(k == QVR_HITKIND_SPLASH)
     {
-        return QVR_GIBKIND_HEAVY;
+        r = QVR_GIBKIND_HEAVY;
     }
-    if(isVRMelee || k == QVR_HITKIND_MELEE || k == QVR_HITKIND_HEADBUTT || k == QVR_HITKIND_BASH ||
-       k == QVR_HITKIND_SHOVE)
+    else if(isVRMelee || k == QVR_HITKIND_MELEE || k == QVR_HITKIND_HEADBUTT || k == QVR_HITKIND_BASH ||
+            k == QVR_HITKIND_SHOVE)
     {
-        return QVR_GIBKIND_MELEE;
+        r = QVR_GIBKIND_MELEE;
     }
-    if(k == QVR_HITKIND_BLEED)
+    else if(k == QVR_HITKIND_BLEED)
     {
-        return QVR_GIBKIND_LIGHT;
+        r = QVR_GIBKIND_LIGHT;
     }
-    if(VR_Hit_Hitscan())
-    {
-        // Lightning (the gun's, Mjolnir's: vr_hitweapon) is heavy; the shotguns, the grunts' guns light.
-        if(vr_hitweapon != "" ||
-           (vr_hithand >= 0 && (attacker.flags & FL_CLIENT) && VRGetEntWeapon(attacker, vr_hithand) == WID_LIGHTNING))
-        {
-            return QVR_GIBKIND_HEAVY;
-        }
-        return QVR_GIBKIND_LIGHT;
-    }
-    if(inflictor == world || inflictor == attacker)
+    else if(!VR_Hit_Hitscan() && (inflictor == world || inflictor == attacker))
     {
         // A player's blow with nothing between (a kick, a landing): light. A monster's own: Quake's.
-        return (attacker.flags & FL_CLIENT) ? QVR_GIBKIND_LIGHT : QVR_GIBKIND_HEAVY;
+        r = (attacker.flags & FL_CLIENT) ? QVR_GIBKIND_LIGHT : QVR_GIBKIND_HEAVY;
     }
-    string c = inflictor.classname;
-    if(c == "missile" || c == "grenade" || c == "MultiRocket" || c == "MiniGrenade" || c == "MultiGrenade" ||
-       c == "proximity_grenade" || c == "plasma" || c == "hiplaser")
+    else
     {
-        return QVR_GIBKIND_HEAVY;
+        float c = VR_Hit_Class(inflictor, attacker);
+        string n = inflictor.classname;
+        if(c == QVR_HITCLASS_SHOCK || c == QVR_HITCLASS_BLAST)
+        {
+            r = QVR_GIBKIND_HEAVY;
+        }
+        else if(n == "hiplaser" || ((n == "knightspike" || n == "wizspike") && !(inflictor.vr_deflect_time > 0)))
+        {
+            r = QVR_GIBKIND_HEAVY; // (the gib speed's own: the small gibs call these nails)
+        }
+        else if(c == QVR_HITCLASS_PIERCE || c == QVR_HITCLASS_BLADE || c == QVR_HITCLASS_BLUNT)
+        {
+            r = QVR_GIBKIND_LIGHT; // shots, nails, an enforcer's bolt; thrown, flung or deflected things
+        }
     }
-    if(c == "spike" || c == "lava_spike" || c == "laser" || c == "thrown_weapon" || inflictor.vr_gib ||
-       (inflictor.carry_use && !inflictor.vr_grenade) || inflictor.vr_deflect_time > 0)
-    {
-        return QVR_GIBKIND_LIGHT; // nails, an enforcer's bolt; thrown, flung or deflected things
-    }
-    return QVR_GIBKIND_HEAVY;
+    return r;
 };
 
 float(entity inflictor, entity attacker, float isVRMelee) VR_GibSpeedScale =
@@ -1489,9 +1656,9 @@ void(entity targ) VR_Ragdoll_NoteDeathHit =
     {
         part = VR_Hit_PelletPart(FALSE);
     }
-    if(at == '0 0 0' && vr_hitpos != '0 0 0' && vlen(vr_hitpos - targ.origin) < 96)
+    if(at == '0 0 0' && hit_pos != '0 0 0' && vlen(hit_pos - targ.origin) < 96)
     {
-        at = vr_hitpos;
+        at = hit_pos;
         if(part < 0)
         {
             part = 0;
@@ -1729,7 +1896,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
         }
         // VR: a blast strong enough knocks a player off a ledge or a rung, which it throws (vr_climb_blast_letgo).
         float blastLetGo = cvar_hget(cvarh_vr_climb_blast_letgo);
-        if(vr_hitkind == QVR_HITKIND_SPLASH && blastLetGo > 0 && damage >= blastLetGo)
+        if(hit_kind == QVR_HITKIND_SPLASH && blastLetGo > 0 && damage >= blastLetGo)
         {
             VR_Climb_KnockOff(targ, sprintf("a blast of %g (%s)", damage, inflictor.classname));
         }
@@ -2830,8 +2997,18 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
     return damage;
 };
 
+// The next T_Damage only deals its damage, as a blow (T_DamageImpl's melee rules): its source did its own parry,
+// beheading and push (a chainsaw's tick: VR_Chainsaw_Cut). T_Damage clears it at once, so a hit inside that one (a barrel's
+// blast it sets off) is an ordinary hit.
+float vr_dmg_dealonly;
+
 float(entity targ, entity inflictor, entity attacker, float damage) T_Damage =
 {
+    if(vr_dmg_dealonly)
+    {
+        vr_dmg_dealonly = FALSE;
+        return T_DamageImpl(targ, inflictor, attacker, damage, 1);
+    }
     float parried = VR_Parry(targ, inflictor, attacker, damage);
     // VR: an armed one parries a monster's melee blow on its weapon (vr_armedgrunt_parry.qc): cut, and no pain from it.
     float agp = FALSE;
@@ -2950,10 +3127,10 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRM
         }
     }
     float prop = -1;
-    if(vr_hitkind == QVR_HITKIND_MELEE && vr_melee_blowhand == vr_hithand + 1 && attacker == self &&
+    if(hit_kind == QVR_HITKIND_MELEE && vr_melee_blowhand == hit_hand + 1 && attacker == self &&
        (attacker.flags & FL_CLIENT))
     {
-        prop = VR_Prop_BlowDamage(targ, damage, vr_hithand);
+        prop = VR_Prop_BlowDamage(targ, damage, hit_hand);
     }
     float mult = 1;
     float pushDamage = damage;
@@ -2972,7 +3149,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRM
     }
     else if(!agp)
     {
-        mult = VR_Melee_Positional(targ, vr_hitpos, vr_hitdir);
+        mult = VR_Melee_Positional(targ, hit_pos, hit_dir);
         damage = VR_Melee_CapDamage(damage * mult, mult);
         pushDamage = damage;
     }
@@ -2984,10 +3161,10 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRM
         decap = VR_Decap_Blow(targ, attacker, damage); // VR: a beheading cut (vr_decap.qc): Killed cuts the head off
     }
     float alive = targ.health > 0 && !targ.vr_corpse && !targ.vr_corpse_dying; // (a corpse keeps its own health to gib)
-    float hotHand = vr_hitkind == QVR_HITKIND_MELEE ? vr_hithand : -1;
-    vector hotAt = vr_hitpos;
-    vector hotDir = vr_hitdir;
-    float head = agp ? FALSE : VR_HitStagger_Head(targ, vr_hitpos);
+    float hotHand = hit_kind == QVR_HITKIND_MELEE ? hit_hand : -1;
+    vector hotAt = hit_pos;
+    vector hotDir = hit_dir;
+    float head = agp ? FALSE : VR_HitStagger_Head(targ, hit_pos);
     if(agp)
     {
         agpPain = targ.pain_finished;
@@ -3019,7 +3196,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRM
     if(cvar_hget(cvarh_vr_debug_shots) && (attacker.flags & FL_CLIENT) && targ != attacker)
     {
         dprint(sprintf("damage: %s %g by a melee blow (part %g x%.2f at %v), health %g\n", targ.classname, damage,
-            hit_time == time ? hit_zone : -1, mult, vr_hitpos, targ.health));
+            hit_time == time ? hit_zone : -1, mult, hit_pos, targ.health));
     }
 
     // VR: melee blows push what they hit (vr_melee_push); a ragdoll or a corpse as two bodies meeting
@@ -3105,13 +3282,12 @@ void(entity inflictor, entity attacker, float damage, entity ignore) T_RadiusDam
                 {
                     if(CanDamage(head, inflictor))
                     {    // shambler takes half damage from all explosions
-                        float oldHitKind = vr_hitkind;
-                        vr_hitkind = QVR_HITKIND_SPLASH;
+                        VR_Hit_BeginAs(QVR_HITKIND_SPLASH, FALSE);
                         if(VR_IsShambler(head))
                             T_Damage(head, inflictor, attacker, points*0.5);
                         else
                             T_Damage(head, inflictor, attacker, points);
-                        vr_hitkind = oldHitKind;
+                        VR_Hit_End();
                     }
                 }
             }
@@ -3148,13 +3324,12 @@ void(entity attacker, float damage) T_BeamDamage =
             {
                 if(CanDamage(head, attacker))
                 {
-                    float oldHitKind = vr_hitkind;
-                    vr_hitkind = QVR_HITKIND_SPLASH;
+                    VR_Hit_BeginAs(QVR_HITKIND_SPLASH, FALSE);
                     if(VR_IsShambler(head))
                         T_Damage(head, attacker, attacker, points*0.5);
                     else
                         T_Damage(head, attacker, attacker, points);
-                    vr_hitkind = oldHitKind;
+                    VR_Hit_End();
                 }
             }
         }

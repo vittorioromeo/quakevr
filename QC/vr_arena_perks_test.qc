@@ -322,11 +322,12 @@ float(float xA, float xB) VR_APK_Near =
     return (xA > xB - 0.01) && (xA < xB + 0.01);
 }
 
-// `e` fell to `by`, worked as a swing of a hand (the quad perk reads vr_hitkind, as a real kill does).
+// `e` fell to `by`, worked as a swing of a hand (the quad perk reads hit_kind, as a real kill does).
 void(entity e, entity by, float xKind) VR_APK3_Kill =
 {
-    vr_hitkind = xKind;
+    VR_Hit_Begin(xKind, -1, '0 0 0', '0 0 0');
     VR_ARK_Kill(e, by);
+    VR_Hit_End();
 }
 
 void() VR_APK3_Off =

@@ -202,18 +202,18 @@ void(entity p) VR_WPT_Standing =
     float d1 = pk.vr_wp_dmg;
     entity blast = spawn();
     setorigin(blast, a.origin + v_right * 40);
-    vr_hitkind = QVR_HITKIND_SPLASH;
+    VR_Hit_BeginAs(QVR_HITKIND_SPLASH, FALSE);
     T_Damage(a, blast, p, 8);
-    vr_hitkind = QVR_HITKIND_NONE;
+    VR_Hit_End();
     float d2 = pk.vr_wp_dmg;
     VR_Test_Check(pk.vr_wp_state == VR_WP_WORN && d2 > d1 && d2 < 30, sprintf("an explosion's damage counts (%g of 30)", d2));
     blast.classname = "vr_adpoison";
     T_Damage(a, blast, p, 10);
     VR_Test_Check(pk.vr_wp_state == VR_WP_WORN && pk.vr_wp_dmg == d2, sprintf("poison doesn't (%g of 30)", pk.vr_wp_dmg));
     blast.classname = "vr_adflame";
-    vr_hit_nobleed = TRUE;
+    VR_Hit_BeginAs(-1, TRUE);
     T_Damage(a, blast, p, 10);
-    vr_hit_nobleed = FALSE;
+    VR_Hit_End();
     remove(blast);
     VR_Test_Check(pk.vr_wp_state == VR_WP_OFF && vr_wp_rips == vr_wpt_rips0 + 1 && vr_wp_rip_why == "fire" &&
         vr_wp_rip_sound == VR_WP_RIP_SOUND && a.vr_wp_worn == 0 && (pk.flags & FL_FORCEGRABBABLE),

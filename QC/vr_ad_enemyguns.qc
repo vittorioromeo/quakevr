@@ -993,9 +993,9 @@ void() VR_ADGun_PoisonThink =
     {
         vr_ad_ammo = AD_AMMO_CELLS;
         float before = v.health;
-        vr_hit_nobleed = TRUE; // (poison: no blood, no wound)
+        VR_Hit_BeginAs(-1, TRUE); // (poison: no blood, no wound)
         T_Damage(v, self, self.owner, self.dmg * 0.5);
-        vr_hit_nobleed = FALSE;
+        VR_Hit_End();
         vr_adgun_hits = vr_adgun_hits + max(0, before - v.health);
         vr_ad_ammo = 0;
     }
@@ -1175,9 +1175,9 @@ void(entity f) VR_TankField_Damage =
         float d = cvar_hget(cvarh_vr_burn_damage) * VR_TANKFIELD_TICK * scale;
         if(d > 0 && e.takedamage && e.health > 0 && (e.flags & (FL_CLIENT | FL_MONSTER)))
         {
-            VR_SetHitKind(QVR_HITKIND_NONE, -1, at, '0 0 1');
+            VR_Hit_Begin(QVR_HITKIND_NONE, -1, at, '0 0 1');
             T_Damage(e, f, by, d);
-            VR_ClearHitKind();
+            VR_Hit_End();
         }
     }
 };
@@ -1580,9 +1580,9 @@ void(entity t, entity xBy) VR_FuelTank_BurstNow =
         vr_fueltank_burst_hit++;
         if(blast > 0)
         {
-            VR_SetHitKind(QVR_HITKIND_NONE, -1, mid, dir);
+            VR_Hit_Begin(QVR_HITKIND_NONE, -1, mid, dir);
             T_Damage(e, t, by, blast * k);
-            VR_ClearHitKind();
+            VR_Hit_End();
         }
         if(!e.takedamage)
         {
@@ -1737,12 +1737,10 @@ void() VR_ADGun_FlameTouch =
     vector dir = normalize(self.velocity);
     vr_ad_ammo = self.vr_adgun_poison > 0 ? AD_AMMO_CELLS : AD_AMMO_ROCKETS;
     float before = other.health;
-    VR_SetHitKind(QVR_HITKIND_NONE, -1, self.origin, dir);
+    VR_Hit_BeginBloodless(self.origin, dir); // (it burns or poisons: no blood, no wound, no gore: combat.qc VR_Hit_Bloodless)
     VR_Proj_Begin(QVR_PROJ_BLAST, 0); // VR: every projectile's hit (weapons.qc VR_Proj_Begin)
-    vr_hit_nobleed = TRUE; // (it burns or poisons: no blood, no wound, no gore: combat.qc VR_HitBloodless)
     T_Damage(other, self, self.owner, self.vr_adgun_dmg);
-    vr_hit_nobleed = FALSE;
-    VR_ClearHitKind();
+    VR_Hit_End();
     vr_adgun_hits = vr_adgun_hits + max(0, before - other.health);
     vr_ad_ammo = 0;
     if(self.vr_adgun_burn > 0 && pointcontents(self.origin) > CONTENT_WATER)

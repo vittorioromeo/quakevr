@@ -367,7 +367,7 @@ The runtime's tracking (tracking space, see above):
 | `raw_m_*`, `raw_o_*` | the same for each hand's controller, and `gx/gy/gz`, `gvalid`: the palm's velocity (with `vr_controller_legacy_pose`) |
 
 For the QC side (the melee agent): the events come from `VR_Motion_Event` calls in `T_DamageImpl` (the hits: kinds
-from `VR_SetHitKind`), `PlayerVRMeleeImpl` (strokes), `VR_Bash` (pushes), `VR_Parry`, `VR_Deflect_Send` and the
+from `VR_Hit_Begin`), `PlayerVRMeleeImpl` (strokes), `VR_Bash` (pushes), `VR_Parry`, `VR_Deflect_Send` and the
 training dummy's attacks (`QC/vr_dummy.qc`: strikes), and the
 points and values from `VR_Motion_Sample` (`QC/vr_motion.qc`). Keep them when the melee changes (the evaluation's
 expectations are written in these kinds), or change both.

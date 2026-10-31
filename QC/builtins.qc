@@ -634,6 +634,9 @@ float(string model, optional float kick) weaponheft = #0;
 #include "../Quake/vr/vr_impact_shared.h"
 float(float material, float kind, vector org, vector dir, float amount) impact = #0;
 string(float material, float kind, float slot) impactsound = #0;
+// Where on a body a hit struck (positional damage's part, the hit record's hit_zone, the engine's hit reaction regions):
+// VR_REGION_* (one vocabulary both sides read).
+#include "../Quake/vr/vr_region_shared.h"
 float(string path) fileexists = #0; // whether a file is in the search path (data that may not be installed)
 float(string folder, float track) campaignmusic = #0; // a campaign's own CD track's number (target_vr_music), 0 if not there
 
