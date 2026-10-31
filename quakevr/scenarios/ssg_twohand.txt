@@ -1,0 +1,10 @@
+# ssg_twohand: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The super shotgun in hand, shells, a nail pistol and nails on the floor.
+title Super shotgun in hand; shells, a nail pistol and nails at your feet
+map vrtesthall
+god
+notarget
+give "Super Shotgun" main
+spawn "Shells" 40 30
+spawn "Shells" 40 50
+spawn "Nail Pistol" 50 -30
+spawn "Nails" 50 -60

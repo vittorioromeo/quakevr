@@ -150,7 +150,8 @@ struct Drawn
     glm::vec3 b{0.f}, invNetScale{1.f};
     // Its model's own space (units, about its origin, unturned): local = L * v + l.
     glm::vec3 L{1.f}, l{0.f};
-    // A ragdoll (vr_ragdoll.cpp): its vertices and normals as drawn, in the world (ragdollScratch); null otherwise.
+    // A ragdoll (vr_ragdoll.cpp), or an armed humanoid alive (drawnpose::armedMesh): its vertices and normals as drawn, in
+    // the world (ragdollScratch); null otherwise.
     const glm::vec3* skinned{nullptr};
     const glm::vec3* skinnedN{nullptr};
 };
@@ -195,7 +196,8 @@ struct Verts
 }
 
 const Mesh* meshOf(int index, const qmodel_t* model, const aliashdr_t*& hdr);
-bool drawnOf(edict_t* ent, Drawn& d);
+// `asDrawn` false: an armed humanoid's animation frame, not its body as drawn (drawnpose::armedMesh; vertexPoint's).
+bool drawnOf(edict_t* ent, Drawn& d, bool asDrawn = true);
 
 struct Track
 {

@@ -5,6 +5,7 @@
 #include "vr_hitreact.hpp"
 #include "vr_engine.hpp"
 #include "vr_cvars.hpp"
+#include "vr_diskcache.hpp"
 #include "vr_mdldequant.hpp"
 #include "vr_mem.hpp"
 #include "vr_ragdoll.hpp"
@@ -370,6 +371,36 @@ void check_f()
     }
 }
 
+// vr_anim_smooth_rig_hash: each rigged model's rig data as made (rigData's outputs: the unfit masks, the rebuilt keys,
+// the rest rows, the fit statistics), hashed, by the models' names: two builds' outputs compared byte for byte.
+void rigHash_f()
+{
+    za::Vector<const qmodel_t*> models;
+    for(const auto& [model, mp] : smoothCache.models)
+    {
+        if(mp && mp->rig && mp->rigError >= 0.f)
+        {
+            models.pushBack(model);
+        }
+    }
+    za::quickSort(models.begin(), models.end(), [](const qmodel_t* a, const qmodel_t* b) { return strcmp(a->name, b->name) < 0; });
+    unsigned long long all = diskcache::fnvStart;
+    for(const qmodel_t* model : models)
+    {
+        const SmoothModel& m = *smoothCache.models[model];
+        const auto bytes = [](const auto& v) { return diskcache::fnv(diskcache::fnvStart, v.data(), v.size() * sizeof(v[0])); };
+        const float stats[] = {m.rigError, m.rebuildError, static_cast<float>(m.rebuildDequant), static_cast<float>(m.swungVerts),
+            static_cast<float>(m.fadedVerts), static_cast<float>(m.rebuiltVerts), static_cast<float>(m.rebuildFaded), m.rebuildMedian,
+            m.rebuildP90, m.rebuildMost, m.rebuildOk ? 1.f : 0.f, m.armSkin ? 1.f : 0.f, m.legSkin ? 1.f : 0.f, m.invScale.x,
+            m.invScale.y, m.invScale.z, m.origin.x, m.origin.y, m.origin.z};
+        const unsigned long long h[4] = {bytes(m.unfit), bytes(m.rebuildKeys), bytes(m.rest), diskcache::fnv(diskcache::fnvStart, stats, sizeof(stats))};
+        Con_Printf("rig hash: %s unfit %016llx keys %016llx rest %016llx stats %016llx (%d rebuilt, median %.4f)\n", model->name,
+            h[0], h[1], h[2], h[3], m.rebuiltVerts, static_cast<double>(m.rebuildMedian));
+        all = diskcache::fnv(all, h, sizeof(h));
+    }
+    Con_Printf("rig hash: %d models, all %016llx\n", static_cast<int>(models.size()), all);
+}
+
 } // namespace
 
 namespace qvr::animsmooth
@@ -377,6 +408,7 @@ namespace qvr::animsmooth
 
 void registerDiagCommands()
 {
+    Cmd_AddCommand("vr_anim_smooth_rig_hash", rigHash_f);
     Cmd_AddCommand("vr_anim_smooth_pin", pin_f);
     Cmd_AddCommand("vr_anim_smooth_info", info_f);
     Cmd_AddCommand("vr_anim_smooth_check", check_f);

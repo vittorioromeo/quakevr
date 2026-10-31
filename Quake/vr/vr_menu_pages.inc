@@ -8,34 +8,34 @@
 [[nodiscard]] za::Vector<Item> pageMenuSettings()
 {
     return {
-        slider("Menu Scale", "vr_menu_scale", 0.05f, 0.6f, 0.01f, "%.2f").extend(0.02f, 1.5f).help("Scale multiplier for the menu: the size of one of its pixels, in world units."),
-        slider("Menu Distance", "vr_menu_distance", 24.f, 256.f, 1.f, "%.0f").extend(8.f, 600.f).help("Distance of the menu from the anchor point."),
-        cycle("Move the Panel", "vr_menu_grab", {{0.f, "Never"}, {1.f, "Grip on Its Frame"}, {2.f, "Grip on Frame or Face"}}).help("Point at the menu panel's frame (it lights up just outside the panel) and hold a grip: the panel follows your hand, moved and turned, until you let go; it stays there until the menus close. Frame or Face: a grip held on the panel itself takes hold too once your hand moves a few cm (a grip held still, or with a stick pushed, stays the sliders' fine step)."),
-        slider("Menu Resolution", "vr_menu_resolution", 0.f, 3.f, 0.25f, "%.2fx").help("The menus (and the text in front of you in game) are drawn at this many of their pixels to each of the headset's, then shrunk smoothly: sharp letters with even strokes at any distance and scale. 1.5 as shipped; 0: at the desktop window's size, as before (blurry when the headset's pixels are finer than the window's)."),
-        slider("Menu Sharpening", "vr_menu_sharpen", 0.f, 1.f, 0.1f, "%.1f").help("With Menu Resolution above 0: the menus shrunk less softly. Higher: crisper letters, the smallest ones shimmering a little as your head moves. 1 as shipped (0.5 before 2026-10-09)."),
-        toggle("Status Box", "vr_menu_status").help("A small box in the menus' top right corner: VR, mock VR or flat screen, the runtime (SteamVR, VDXR), the resolution rendered (the runtime's times Eye Image Size times Render Scale; against the headset panel's, with a warning when far over it), the target rate, fps, the CPU's and GPU's milliseconds a frame (and their share of the frame's budget), RAM and VRAM."),
-        toggle("Banner Beside the Buttons", "vr_menu_banner_beside").help("With the VR Menu Style: the vertical Quake VR banner stands left of the corner's shortcut buttons, its top level with theirs, so the buttons, the banner and the menu don't crowd each other. Off: under the buttons, in their column, as before (also where the panel leaves too little room left of them)."),
-        toggle("Version Label", "vr_menu_version").help("The game's name, version and author, small, in the menus' bottom right corner (where the page leaves room for it). A build not made for a release says \"dev\" after the version."),
-        toggle("Check for Updates", "vr_update_check").help("At start-up (at most once an hour) the game asks the release page whether a newer Quake VR is out, and says so above the version label: point at it and press to open its page in your desktop's browser. Only the release list is read; nothing about you or your game is sent. Off: never asked, no notice."),
-        toggle("Corner Buttons on a Flat Screen", "vr_menu_flat_shortcuts").help("With VR off: the buttons at the menus' top left (Back to Game, Main Menu, Search, Console, Advanced VR, Levels, Map Library) on the desktop menus too, for the mouse."),
-        toggle("Mods on the Main Menu", "vr_menu_main_mods").help("The main menu's Mods row (Ironwail's mods list). Off: only in Options > Mods."),
-        slider("Fine Step", "vr_menu_fine_step", 0.01f, 0.5f, 0.01f, "%.2fx").help("A slider's step while you hold a grip (Shift on a flat screen), over its own: 0.1, a tenth, for placing things precisely."),
-        slider("Section Gap", "vr_menu_section_gap", 0.f, 2.f, 0.25f, "%.2f rows").help("Space above each section's header on the settings pages (and under the page's title), so the sections stand apart. 0: none."),
-        toggle("VR Menu Style", "vr_menu_vr_style").help("The menus fill the panel with their rows spaced out, with modern sliders and switches, and a laser from your hand points at them: trigger to click and drag."),
+        row(opt::vr_menu_scale),
+        row(opt::vr_menu_distance),
+        row(opt::vr_menu_grab),
+        row(opt::vr_menu_resolution),
+        row(opt::vr_menu_sharpen),
+        row(opt::vr_menu_status),
+        row(opt::vr_menu_banner_beside),
+        row(opt::vr_menu_version),
+        row(opt::vr_update_check),
+        row(opt::vr_menu_flat_shortcuts),
+        row(opt::vr_menu_main_mods),
+        row(opt::vr_menu_fine_step),
+        row(opt::vr_menu_section_gap),
+        row(opt::vr_menu_vr_style),
         open("Laser Hue: Colours", pageIndex(pageColours)).help("Every hue is on HUD and Menus > Colours."),
-        toggle("Main Menu Lettering", "vr_menu_bigfont").help("The main menu's rows as text in Quake's own lettering (its letters cut from the menu pictures), VR Calibration among them. Off: Quake's picture of the rows, with VR Calibration above it in the console's letters."),
-        toggle("Blood Red Menus", "vr_menu_recolor").help("The menus' browns and tans (the letters, Quake's pictures, sliders, switches and panels) turned blood red, in Quake VR's colours. Off: Quake's own browns."),
-        slider("Red Strength", "vr_menu_recolor_strength", 0.f, 1.f, 0.05f, "%.2f").help("With Blood Red Menus: how far the browns turn towards the hue (1 all the way, 0.5 halfway: a rusty red)."),
+        row(opt::vr_menu_bigfont),
+        row(opt::vr_menu_recolor),
+        row(opt::vr_menu_recolor_strength),
         hueSlider("Red Hue", vr_menu_recolor_hue).help("With Blood Red Menus: the hue they turn to. 0 red, the banner's (as shipped); 345 crimson, 20 a fiery red-orange. Player's: the Player Effects Hue."),
-        slider("Red Saturation", "vr_menu_recolor_saturation", 0.5f, 3.f, 0.1f, "%.1fx").help("With Blood Red Menus: how colourful the red is, over Quake's browns (3 as shipped, the most; as far as the hue's colours go). Their lightness always stays: only the hue changes."),
-        slider("Row Spacing", "vr_menu_spacing", 1.f, 2.f, 0.05f, "%.2fx").extend().help("With the VR menu style: how far apart the menus' rows are, over Quake's."),
-        slider("Menu Height", "vr_menu_height", 1.f, 2.f, 0.05f, "%.2fx").extend().help("With the VR menu style: how tall the menus are, over Quake's: more rows at once. 1.35 reaches about 35 degrees up and down at the shipped distance, scale and spacing."),
-        slider("Menu Background Opacity", "scr_menubgalpha", 0.f, 1.f, 0.05f, "%.2f").help("How dark the panel behind the menus is (0.7 as shipped; the desktop menus' too): lower it to see the game while you tune the graphics. Below about 0.5 the text gets a dark outline, to stay readable."),
-        toggle("Live Preview", "ui_live_preview").help("Settings pages show their changes in the game as you make them, and in single player the game keeps running under them (paused while a monster is after you)."),
+        row(opt::vr_menu_recolor_saturation),
+        row(opt::vr_menu_spacing),
+        row(opt::vr_menu_height),
+        row(opt::scr_menubgalpha),
+        row(opt::ui_live_preview),
         cycle("Menu Button", vr_menu_button, menuButtonChoices()).help(menuButtonHelp),
-        toggle("Reopen Where Left", "vr_menu_remember").help("After Back to Game (the button at the menu's top left, or the menu button), the menu opens again on the page you left."),
-        slider("Help Reading Speed", "vr_menu_help_wpm", 100.f, 400.f, 10.f, "%.0f wpm").extend(60.f, 600.f).help("The help under a page's rows: one longer than its box shows a part at a time, the bar at its right saying which. Each part stays as long as reading it takes at this many words a minute (200: unhurried)."),
-        cycle("Drop-Down Lists", "vr_menu_dropdown", {{0.f, "Never"}, {3.f, "3+ Choices"}, {4.f, "4+ Choices"}, {5.f, "5+ Choices"}, {6.f, "6+ Choices"}, {8.f, "8+ Choices"}}).help("A setting with this many choices or more opens a list of them when clicked (or Enter / A): point at one and click. Left and right still step through them. Never: a click steps to the next."),
+        row(opt::vr_menu_remember),
+        row(opt::vr_menu_help_wpm),
+        row(opt::vr_menu_dropdown),
     };
 }
 
@@ -43,45 +43,41 @@
 {
     return {
         open("Crosshair: VR Settings", pageIndex(pageVrsHudHapticsSound)).help("The crosshair's kind is on VR Settings."),
-        slider("Crosshair Depth", "vr_crosshair_depth", 0.f, 4096.f, 16.f, "%.0f").extend().help("When zero, the crosshair will be projected to the closest wall. Otherwise, the crosshair will be projected at a fixed depth."),
-        slider("Crosshair Size", "vr_crosshair_size", 0.f, 32.f, 0.5f, "%.1f").extend().help("Size of the crosshair."),
-        slider("Crosshair Alpha", "vr_crosshair_alpha", 0.f, 1.f, 0.05f, "%.2f").help("Transparency of the crosshair. '1' means fully visible, '0' means fully transparent."),
+        row(opt::vr_crosshair_depth),
+        row(opt::vr_crosshair_size),
+        row(opt::vr_crosshair_alpha),
         open("Crosshair Hue: Colours", pageIndex(pageColours)).help("Every hue is on HUD and Menus > Colours."),
-        slider("Crosshair Z Offset", "vr_crosshairy", -10.f, 10.f, 0.05f, "%.2f").extend(-50.f, 50.f).help("Z offset applied to the crosshair. Does not affect aiming. Leave to zero unless you changed other weapon options and your aim is off."),
+        row(opt::vr_crosshairy),
     };
 }
 
 [[nodiscard]] za::Vector<Item> pageFireParticles()
 {
     return {
-        toggle("Fire Model Particles", "vr_fire_particles").help("Rising flame tongues from wall torches, map fires, candles, lanterns, burning bodies and taken torches. Keeps the low-poly flame models. Needs Quake VR Particles."),
-        slider("Particles per Emission", "vr_fire_particles_count", 0.f, 16.f, 1.f, "%.0f").help("Exact count per source per emission, independent of Particle Multiplier."),
-        slider("Emission Frequency", "vr_fire_particles_frequency", 0.f, 30.f, 1.f, "%.0f /s").extend(0.f, 60.f),
-        slider("Emission Height", "vr_fire_particles_origin", 0.f, 1.f, 0.05f, "%.2f").help("0: base of the flame; 0.5: centre; 1: tip. Also applies to held torches."),
-        slider("Minimum Outward Speed", "vr_fire_particles_speed_min", 0.f, 3.f, 0.05f, "%.2f m/s").extend(0.f, 10.f),
-        slider("Maximum Outward Speed", "vr_fire_particles_speed_max", 0.f, 3.f, 0.05f, "%.2f m/s").extend(0.f, 10.f).help("Horizontal speed, away from the flame. Endpoints may be swapped."),
-        slider("Minimum Upward Speed", "vr_fire_particles_up_min", 0.f, 3.f, 0.05f, "%.2f m/s").extend(0.f, 10.f),
-        slider("Maximum Upward Speed", "vr_fire_particles_up_max", 0.f, 3.f, 0.05f, "%.2f m/s").extend(0.f, 10.f).help("Up in the world, even when a torch is inverted."),
-        slider("Minimum Particle Life", "vr_fire_particles_life_min", 0.05f, 2.f, 0.05f, "%.2f s").extend(0.05f, 5.f),
-        slider("Maximum Particle Life", "vr_fire_particles_life_max", 0.05f, 2.f, 0.05f, "%.2f s").extend(0.05f, 5.f),
-        slider("Fire Particle Size", "vr_fire_particles_size", 0.1f, 4.f, 0.1f, "%.1fx"),
-        slider("Fire Particle Opacity", "vr_fire_particles_alpha", 0.f, 1.f, 0.05f, "%.2f"),
-        slider("Emission Distance", "vr_fire_particles_range", 0.f, 2048.f, 64.f, "%.0f units").extend(0.f, 4096.f).help("Sources beyond this distance stop emitting; limits the cost on maps with many fires."),
+        row(opt::vr_fire_particles),
+        row(opt::vr_fire_particles_count),
+        row(opt::vr_fire_particles_frequency),
+        row(opt::vr_fire_particles_origin),
+        row(opt::vr_fire_particles_speed_min),
+        row(opt::vr_fire_particles_speed_max),
+        row(opt::vr_fire_particles_up_min),
+        row(opt::vr_fire_particles_up_max),
+        row(opt::vr_fire_particles_life_min),
+        row(opt::vr_fire_particles_life_max),
+        row(opt::vr_fire_particles_size),
+        row(opt::vr_fire_particles_alpha),
+        row(opt::vr_fire_particles_range),
         header("Flames in the Air"),
-        toggle("Hands Stir Flames", "vr_flame_wobble").help("A hand passing quickly through or near a flame (torches, braziers, map fires, burning bodies, the pyro's pilot light) makes it lean the way the hand went, as if moving the air, swinging back a little as it settles; the fire and smoke particles near the hand are carried along."),
-        slider("Stir Strength", "vr_flame_wobble_strength", 0.f, 4.f, 0.05f, "%.2fx").help("How far the flames lean for a given hand speed and nearness (0 none)."),
-        slider("Stir Speed", "vr_flame_wobble_speed", 0.2f, 3.f, 0.1f, "%.1f m/s").extend(0.f, 6.f).help("How fast a hand must move to stir a flame; slower hands do nothing."),
+        row(opt::vr_flame_wobble),
+        row(opt::vr_flame_wobble_strength),
+        row(opt::vr_flame_wobble_speed),
     };
 }
 
 // Explosion chunks in multiplayer (vr_explosion_debris_mp_max), its leftmost step -1: as many as in single player.
 [[nodiscard]] Item explosionDebrisMultiplayerSlider()
 {
-    Item i = slider("Most in Multiplayer", "vr_explosion_debris_mp_max", -1.f, 96.f, 1.f, "%.0f")
-                 .extend(-1.f, 256.f)
-                 .help("The most at once in a multiplayer game (yours as the host). They are the server's: each one in sight "
-                       "costs every player's network packets (about 26 bytes a frame while it lives). Single Player's: as "
-                       "many as Maximum Active Chunks. 0: none.");
+    Item i = row(opt::vr_explosion_debris_mp_max);
     i.negativeLabel = "Single Player's";
     return i;
 }
@@ -90,21 +86,21 @@
 [[nodiscard]] za::Vector<Item> pageExplosionDebris()
 {
     return {
-        toggle("Physical Explosion Debris", "vr_explosion_debris").help("Small incandescent chunks from every ordinary, coloured or tarbaby explosion: physics objects of the game (the host's) that bounce off the level, doors, lifts, monsters and props, ride lifts, are thrown by later blasts, pass through your hands, and never cause damage."),
-        slider("Chunks per Explosion", "vr_explosion_debris_count", 0.f, 32.f, 1.f, "%.0f").extend(0.f, 64.f),
-        slider("Minimum Speed", "vr_explosion_debris_speed_min", 0.f, 20.f, 0.25f, "%.2f m/s").extend(0.f, 40.f),
-        slider("Maximum Speed", "vr_explosion_debris_speed_max", 0.f, 20.f, 0.25f, "%.2f m/s").extend(0.f, 40.f).help("Speed chosen between Minimum and Maximum; swapped endpoints are accepted."),
-        slider("Upward Direction Bias", "vr_explosion_debris_up", 0.f, 2.f, 0.05f, "%.2f").help("0: burst equally in every direction. 1: launches into the upper hemisphere. 2: a narrower upward burst. Speed stays between your chosen limits."),
-        slider("Smallest Chunk", "vr_explosion_debris_size_min", 0.8f, 8.f, 0.2f, "%.1f units"),
-        slider("Largest Chunk", "vr_explosion_debris_size_max", 0.8f, 8.f, 0.2f, "%.1f units"),
-        slider("Minimum Lifetime", "vr_explosion_debris_life_min", 0.1f, 10.f, 0.1f, "%.1f s").extend(0.1f, 30.f),
-        slider("Maximum Lifetime", "vr_explosion_debris_life_max", 0.1f, 10.f, 0.1f, "%.1f s").extend(0.1f, 30.f).help("Lifetime chosen independently for each chunk; fades out at the end, even when resting."),
-        slider("Bounciness", "vr_explosion_debris_bounce", 0.f, 1.f, 0.05f, "%.2f").help("Share of speed retained away from the surface. 0: no rebound, 1: full rebound. Surface friction also slows sliding."),
-        slider("Maximum Active Chunks", "vr_explosion_debris_max", 0.f, 128.f, 1.f, "%.0f").extend(0.f, 256.f).help("Oldest chunks go first when a blast needs room. Reducing this or disabling the effect removes the excess immediately."),
+        row(opt::vr_explosion_debris),
+        row(opt::vr_explosion_debris_count),
+        row(opt::vr_explosion_debris_speed_min),
+        row(opt::vr_explosion_debris_speed_max),
+        row(opt::vr_explosion_debris_up),
+        row(opt::vr_explosion_debris_size_min),
+        row(opt::vr_explosion_debris_size_max),
+        row(opt::vr_explosion_debris_life_min),
+        row(opt::vr_explosion_debris_life_max),
+        row(opt::vr_explosion_debris_bounce),
+        row(opt::vr_explosion_debris_max),
         explosionDebrisMultiplayerSlider(),
-        slider("Fire and Smoke Trail", "vr_explosion_debris_trail", 0.f, 3.f, 0.1f, "%.1fx").help("Trail density (0: off). Needs Quake VR Particles. Physical chunks and their lights work with particles off."),
-        slider("Maximum Glowing Lights", "vr_explosion_debris_lights", 0.f, 16.f, 1.f, "%.0f").help("Only the nearest chunks emit dynamic light, to keep many blasts inexpensive. Their model skins remain incandescent. These lights do not cast shadows."),
-        slider("Glow Light Radius", "vr_explosion_debris_light_radius", 0.f, 120.f, 4.f, "%.0f units").extend(0.f, 200.f),
+        row(opt::vr_explosion_debris_trail),
+        row(opt::vr_explosion_debris_lights),
+        row(opt::vr_explosion_debris_light_radius),
         command("Preview an Explosion", "vr_explosion_debris_test").help("Spawns an explosion effect ahead without blast damage. Requires a loaded map."),
     };
 }
@@ -114,12 +110,10 @@
     return {
         open("Explosion Debris", pageIndex(pageExplosionDebris)),
         open("Fire Particles", pageIndex(pageFireParticles)),
-        slider("Large Fireballs per Explosion", "vr_explosion_particles", 0.f, 16.f, 1.f, "%.0f").help("Exact number of large textured fireballs per explosion, independent of Particle Multiplier. Each gets its own size, rotation, position and velocity; 0 keeps the sparks and smoke."),
-        toggle("Particle Effects", "r_particles").help("Enable or disable all particle effects."),
-        toggle("Quake VR Particles", "vr_particles")
-            .help("Textured smoke, sparks, blood and explosions for Quake VR's effects. Off: Quake's own dots."),
-        slider("Particle Multiplier", "vr_particle_mult", 0.25f, 4.f, 0.25f, "%.2f").extend()
-            .help("How many particles Quake VR's effects make."),
+        row(opt::vr_explosion_particles),
+        row(opt::r_particles),
+        row(opt::vr_particles),
+        row(opt::vr_particle_mult),
     };
 }
 
@@ -127,65 +121,35 @@
 [[nodiscard]] za::Vector<Item> pageLocomotionSettings()
 {
     return {
-        cycle("Comfort", vr_comfort_preset, {{0.f, "Custom"}, {1.f, "Comfortable"}, {2.f, "Moderate"}, {3.f, "Full Freedom"}})
-            .help("Sets Turning, Teleport and Default Speed together. Comfortable: snap turns of 45 degrees, teleport, walk. "
-                  "Moderate: snap turns of 30, teleport, run. Full Freedom: smooth turning, run, no teleport. Change them after "
-                  "to taste (Custom)."),
-        cycle("Move Towards", vr_movement_mode, {{1.f, "Head"}, {0.f, "Moving stick's hand"}, {2.f, "Left hand"}, {3.f, "Right hand"}})
-            .help("Where the moving stick takes you: where you look (Head), or where a hand points. Moving stick's hand: the "
-                  "left one, or the right with Swap Stick Functions."),
-        slider("Stick Deadzone", vr_deadzone, 0.f, 50.f, 5.f, "%.0f%%")
-            .help("How far a stick must be pushed before it does anything. Raise it if you drift or turn without "
-                  "touching the stick: worn sticks often need 20-25%."),
-        slider("Stick Outer Deadzone", vr_deadzone_outer, 0.f, 30.f, 1.f, "%.0f%%")
-            .help("The last part of the moving stick's travel that already counts as a full push, so you reach full "
-                  "speed without pressing the stick hard against its edge (vr_deadzone_outer)."),
-        slider("Stick Response Curve", vr_move_curve, 1.f, 3.f, 0.1f, "%.1f")
-            .help("How the moving stick's push becomes speed. 1: straight (half the push, half the speed). Higher: "
-                  "more of the travel for slow speeds, for careful walking, the top speed still at a full push. 1.6: "
-                  "about half speed at two thirds of a push (vr_move_curve)."),
-        toggle("Walk Into Run", vr_move_autorun)
-            .help("Walking (Default Speed: Walk), pushing the moving stick all the way eases you into a run; less than "
-                  "Run From Push walks. The speed button still runs (vr_move_autorun)."),
-        slider("Run From Push", vr_move_autorun_threshold, 0.5f, 1.f, 0.05f, "%.2f")
-            .help("Walk Into Run: how far the moving stick must be pushed (past its deadzones; 1 a full push) before "
-                  "you ease into running; under it you walk, at full walking speed there (vr_move_autorun_threshold)."),
-        slider("Movement Speed", "cl_forwardspeed", 100.f, 400.f, 25.f, "%.0f").extend().help("Walking speed (running is this times the running multiplier)."),
-        cycle("Default Speed", "cl_alwaysrun", {{1.f, "Run"}, {0.f, "Walk"}}).help("The speed button switches to the other."),
-        slider("Running Mult.", "cl_movespeedkey", 1.f, 3.f, 0.05f, "%.2f").extend().help("How much faster running is than walking."),
-        toggle("Slower When Crouched", vr_crouch_speed)
-            .help("Crouched for real (your eyes a little under standing), the stick moves you at most Crouched Speed times "
-                  "your top speed, eased in and out as you crouch and stand, and always slow enough that monsters that "
-                  "haven't noticed you don't hear your steps. Jumps, falls and knockback are untouched (vr_crouch_speed)."),
-        slider("Crouched Speed", vr_crouch_speed_scale, 0.2f, 1.f, 0.05f, "%.2fx")
-            .help("Crouched, the most speed the stick moves you at, times your top speed. Whatever it is, crouched you "
-                  "stay under the speed whose steps monsters hear (Stealth AI > Running From) (vr_crouch_speed_scale)."),
-        toggle("Walk Up Slopes Slowly", vr_slope_walk)
-            .help("Standing on a slope you can walk on, gravity only presses you into it, none of it pulls you downhill: "
-                  "with the stick pushed only a little you still walk up slopes and stairs with a smooth ramp over them "
-                  "from a standstill. Off: Quake's (under about a quarter stick you never got going up one; going down "
-                  "you ran a little faster). Flat floors are the same either way (vr_slope_walk)."),
+        row(opt::vr_comfort_preset),
+        row(opt::vr_movement_mode),
+        row(opt::vr_deadzone),
+        row(opt::vr_deadzone_outer),
+        row(opt::vr_move_curve),
+        row(opt::vr_move_autorun),
+        row(opt::vr_move_autorun_threshold),
+        row(opt::cl_forwardspeed),
+        row(opt::cl_alwaysrun),
+        row(opt::cl_movespeedkey),
+        row(opt::vr_crouch_speed),
+        row(opt::vr_crouch_speed_scale),
+        row(opt::vr_slope_walk),
         header("Turning"),
-        cycle("Turning", vr_snap_turn, {{0.f, "Smooth"}, {30.f, "Snap 30"}, {45.f, "Snap 45"}, {90.f, "Snap 90"}})
-            .help("Smooth: the turning stick turns you steadily (Turn Speed). Snap: each push turns you at once by the angle."),
-        slider("Turn Speed", vr_turn_speed, 1.f, 8.f, 0.25f, "%.2f").extend().help("Smooth turning's speed."),
-        toggle("Enable Joystick Turn", "vr_enable_joystick_turn").help("Allows turning using the thumbstick. Off: the stick never turns you, in any state (menus, climbing, swimming), so you turn in real life; the stick's other uses stay. The same as VR Settings' Turning Mode: Off."),
+        row(opt::vr_snap_turn),
+        row(opt::vr_turn_speed),
+        row(opt::vr_enable_joystick_turn),
         header("Teleport"),
-        toggle("Teleport", vr_teleport_enabled).help("Jump to the spot you point at instead of walking there."),
-        slider("Teleport Range", vr_teleport_range, 100.f, 800.f, 50.f, "%.0f").extend(100.f, 3000.f)
-            .help("How far a teleport reaches, in Quake's units (one is about 3 cm)."),
+        row(opt::vr_teleport_enabled),
+        row(opt::vr_teleport_range),
         header("Leaning"),
-        slider("Lean", "vr_lean_radius", 0.f, 14.f, 1.f, "%.0f units").extend().help("How far your head may lean off the middle of your body's box before the body follows: get your face near walls and over railings. 0: the body always under the head."),
-        slider("Lean Recentre", "vr_lean_recenter", 0.f, 2.f, 0.1f, "%.1f m/s").extend().help("How fast the body slides back under your head when it can (not into walls, not over ledges), at least; with Lean Detection, faster the further off it is, and not while you lean. 0: never."),
-        slider("Lean Detection", "vr_lean_detect", 0.f, 2.f, 0.1f, "%.1fx").help("Tells a lean from walking in the room. Leaning (your head lower and tilted the way you lean, your hands left by your hips), your feet and hips stay where you stand and your back tilts; walking, the body follows your head. 0: off, the body always slides back under your head; higher: more readily a lean."),
-        cycle("Lean on Turns", vr_lean_turn, {{0.f, "Off"}, {1.f, "Round the Body"}, {2.f, "Round the Head"}})
-            .help("Turning with the stick while you lean keeps the lean on your body: the game's body stays where your real one stands. Round the Head: smooth turns keep your view where it is and swing the body round under it (where it fits), snap turns swing your head round the body. Round the Body: every turn swings your head round the body. Off: the old way (the body ended up leaning the wrong way, or off to a side, until it slid back)."),
+        row(opt::vr_lean_radius),
+        row(opt::vr_lean_recenter),
+        row(opt::vr_lean_detect),
+        row(opt::vr_lean_turn),
         header("Room Scale"),
-        slider("Room Scale", vr_roomscale_move_mult, 0.5f, 2.f, 0.1f, "%.1fx").extend(0.2f, 5.f)
-            .help("How far walking in your room moves you in the game (1: as far)."),
-        toggle("Roomscale Jump", "vr_roomscale_jump").help("Jumping in the room jumps in the game."),
-        slider("Jump Threshold", "vr_roomscale_jump_threshold", 0.3f, 2.f, 0.05f, "%.2f m/s").extend()
-            .help("How fast the head must rise above the standing height."),
+        row(opt::vr_roomscale_move_mult),
+        row(opt::vr_roomscale_jump),
+        row(opt::vr_roomscale_jump_threshold),
     };
 }
 
@@ -195,44 +159,38 @@
 [[nodiscard]] za::Vector<Item> pageClimbing()
 {
     return {
-        toggle("Climbing", "vr_climb").help("Grip a ledge or a rung with either empty hand, or both, to hang from it; pull to climb hand over hand, shimmy along a ledge, pull up onto it. Edges only, not flat walls."),
-        slider("Lowest Ledge", "vr_climb_min_height", 0.f, 64.f, 2.f, "%.0f units").extend().help("How far above your feet a ledge must be to grab it."),
-        slider("Ledge Fling", "vr_climb_fling", 0.f, 2.f, 0.1f, "%.1f").extend().help("How much letting go of a ledge flings you with your hands' motion."),
-        slider("Blasts Knock You Off", "vr_climb_blast_letgo", 0.f, 100.f, 5.f, "%.0f damage").extend(0.f, 300.f).help("Hanging from a ledge or a rung, an explosion this strong or more (its damage to you; a rocket's is up to 120) makes you let go, and throws you as it would on the ground. 0: never. A grunt's or an enforcer's shove that lands always does."),
-        slider("Grab Leniency", "vr_climb_leniency", 0.f, 30.f, 1.f, "%.0f cm").extend().help("How far from a ledge or a rung a grip still takes it: the nearest one within this distance of your hand (not through walls, behind you or below your reach). 0: only a hand touching it (Touch Distance)."),
-        slider("Mid-Air Leniency", "vr_climb_leniency_air", 0.f, 15.f, 0.5f, "+%.1f cm").extend().help("Extra Grab Leniency while you are in the air, neither on the ground nor holding on: after a jump or while falling, so a ledge you leap at is easier to catch. 0: the same as on the ground."),
-        slider("Mid-Air Grab Window", "vr_climb_air_grab_time", 0.f, 1.f, 0.05f, "%.2f s").extend().help("In the air (after a jump, falling), a grip pressed away from any ledge keeps reaching for one this long while you hold it: press at the top of a jump and your hand takes the ledge as it comes down onto it. 0: only at the moment you press."),
-        slider("Touch Distance", "vr_climb_touch", 0.f, 15.f, 0.5f, "%.1f cm").extend().help("How close your hand must be to a ledge's top, or to the face under its lip, to count as touching it: the whole reach at Grab Leniency 0 (the leniency adds its distance round this)."),
-        slider("Reach Over the Top", "vr_climb_over_top", 0.f, 40.f, 1.f, "%.0f units").extend().help("Over the top of a ledge, how far in from the drop a hand touching the top still holds it (up to how deep the top is). Less: only a hand near the edge grabs."),
-        toggle("Hands Slide Along Ledges", "vr_climb_slide").extend().help("When your body can't follow your hands along a ledge (past your arm's reach, against a wall), the hand slides along it and stays on your controller. Off: it stays where it took hold, and drifts away from your controller."),
-        slider("Grab Sound", "vr_physsound_grab", 0.f, 1.f, 0.1f, "%.1f").help("A small slap as your hand takes a hold, of what the hold is made of: wood, muted metal or stone (0 off; also Carrying: Physics Sounds)."),
-        slider("Mantle Height", "vr_climb_mantle_height", 0.f, 40.f, 1.f, "%.0f units")
-            .help("Holding a ledge, how far your head must rise above its top before you pull up onto it. Higher: you "
-                  "can lean up and down over a ledge without mantling (the old point was about 15 at a chest-high ledge; "
-                  "32 units are about a metre)."),
-        toggle("Mantle onto Slopes", "vr_climb_mantle_lenient")
-            .help("Pulling yourself up onto a ledge whose top isn't level (rising or falling away from the edge, or "
-                  "sloping along it) stands you on the slope, up to Steepest Slope. Off: only level tops, as before."),
-        slider("Steepest Slope", "vr_climb_mantle_slope", 10.f, 60.f, 5.f, "%.0f deg")
-            .help("The steepest top a mantle stands you on with Mantle onto Slopes (Quake walks up to about 45)."),
-        slider("Mantle Grunt", "vr_climb_mantle_grunt", 0.f, 1.f, 0.1f, "%.1f").help("A small grunt as you pull yourself up onto a ledge (0 off)."),
+        row(opt::vr_climb),
+        row(opt::vr_climb_min_height),
+        row(opt::vr_climb_fling),
+        row(opt::vr_climb_blast_letgo),
+        row(opt::vr_climb_leniency),
+        row(opt::vr_climb_leniency_air),
+        row(opt::vr_climb_air_grab_time),
+        row(opt::vr_climb_touch),
+        row(opt::vr_climb_over_top),
+        row(opt::vr_climb_slide).extend().help("When your body can't follow your hands along a ledge (past your arm's reach, against a wall), the hand slides along it and stays on your controller. Off: it stays where it took hold, and drifts away from your controller."),
+        row(opt::vr_physsound_grab),
+        row(opt::vr_climb_mantle_height),
+        row(opt::vr_climb_mantle_lenient),
+        row(opt::vr_climb_mantle_slope),
+        row(opt::vr_climb_mantle_grunt),
         cycle("Mantle Grunt Sound", "vr_climb_mantle_grunt_sound", gruntChoices()).help("Which grunt the mantle makes. Hard landing (the default): the strained \"oof\" of landing from a height, so it doesn't sound like a jump. The deeper ones are Quake's played slower. Hear it with Hear Mantle Grunt."),
         command("Hear Mantle Grunt", "vr_climb_mantle_grunt_test").help("Plays the mantle's grunt as set, at full volume."),
         header("Climbing Props"),
-        toggle("Climb Props", "vr_climb_props").help("The edges of crates, barrels, explosive boxes and their stacks are holds too, as they lie (on their side, tipped, on a lift), and you can pull up onto them. A heavy one holds like a wall; a light one tips or slides towards you and your hand lets go. Their lips are orange in Debug: Show Ledges."),
-        slider("Lowest Prop Ledge", "vr_climb_prop_min_height", 0.f, 96.f, 2.f, "%.0f units").extend().help("Standing on the ground, how far above your feet a prop's edge must be to climb it: lower, a grip there picks the prop up instead (a small crate is 32, a large one 48; one lying on its side 40). Hanging or in the air: Lowest Ledge, as any ledge."),
+        row(opt::vr_climb_props),
+        row(opt::vr_climb_prop_min_height),
         header("Climbing Stamina"),
         open("Climbing Stamina: Stamina", pageIndex(pageStamina)).help("What hanging from a hold costs is on Combat > Stamina."),
-        slider("Exhausted: Slip Time", "vr_climb_stamina_slip", 0.f, 5.f, 0.25f, "%.2f s").extend().help("With no stamina left: 0, your hands let go at once. More: they can't pull you up any more, you sink until your arms are straight, and they slip off after this long."),
+        row(opt::vr_climb_stamina_slip),
         open("Tired Arms (Stamina)", pageIndex(pageStamina)).help("Low on stamina, your arms shake while you hang (looks only) and your hands get heavy: on the Stamina page."),
         header("Hand on a Hold (Looks Only)"),
-        slider("Hand on Hold: Towards You", "vr_climb_hand_out", -10.f, 10.f, 0.5f, "%.1f cm").extend().help("Where your hand is drawn on a ledge or a rung: back from the lip, towards you (negative: deeper). Looks only; the climbing is the same."),
-        slider("Hand on Hold: Up", "vr_climb_hand_up", -10.f, 10.f, 0.5f, "%.1f cm").extend().help("Where your hand is drawn on a hold: up (negative: down). Looks only."),
-        slider("Hand on Hold: Sideways", "vr_climb_hand_side", -10.f, 10.f, 0.5f, "%.1f cm").extend().help("Where your hand is drawn on a hold: along the edge, outwards (negative: towards the other hand). Looks only."),
-        slider("Hold Rotation Blend", "vr_climb_hand_turn_blend", 0.f, 1.f, 0.05f, "%.2f").extend().help("How your hand is turned on a hold: 0 facing the ledge (Hand on Hold: Pitch, Yaw, Roll), 1 as your controller is. Looks only."),
-        slider("Hand on Hold: Pitch", "vr_climb_hand_pitch", -30.f, 120.f, 5.f, "%.0f deg").extend().help("The hand facing a hold, its knuckles tilted up: 0 the palm down on the top, 90 the palm against the face under the lip. Looks only."),
-        slider("Hand on Hold: Yaw", "vr_climb_hand_yaw", -60.f, 60.f, 5.f, "%.0f deg").extend().help("The hand facing a hold, its knuckles turned towards the other hand (negative: away). Looks only."),
-        slider("Hand on Hold: Roll", "vr_climb_hand_roll", -90.f, 90.f, 5.f, "%.0f deg").extend().help("The hand facing a hold, rolled about its knuckles, the thumb's side up (negative: down). Looks only."),
+        row(opt::vr_climb_hand_out),
+        row(opt::vr_climb_hand_up),
+        row(opt::vr_climb_hand_side),
+        row(opt::vr_climb_hand_turn_blend),
+        row(opt::vr_climb_hand_pitch),
+        row(opt::vr_climb_hand_yaw),
+        row(opt::vr_climb_hand_roll),
     };
 }
 
@@ -257,47 +215,34 @@ void resetSwimming()
 [[nodiscard]] za::Vector<Item> pageSwimSettings()
 {
     return {
-        toggle("Swimming", "vr_swim").help("In water the stick slows and strokes of your hands move you."),
-        slider("Stick in Shallow Water", "vr_swim_shallow_speed", 0.f, 1.f, 0.05f, "%.2f").help("The stick's speed with your feet in water."),
-        slider("Stick Wading", "vr_swim_wade_speed", 0.f, 1.f, 0.05f, "%.2f").help("Waist deep, standing on the bottom."),
-        slider("Stick Swimming", "vr_swim_stick_speed", 0.f, 1.f, 0.05f, "%.2f").help("Under water or off the bottom: swim with your hands."),
-        slider("Air Supply", "vr_air_supply", 1.f, 4.f, 0.25f, "%.2fx")
-            .help("How long you can stay under water before you start drowning: times Quake's 12 seconds (1.5x: 18 s). Once drowning, the damage comes as ever. The Biosuit's air is unchanged."),
-        toggle("Jump Out of Water", "vr_water_jump")
-            .help("On (Quake's): swimming against an edge with room above it lifts you out. Off: you climb out with your hands, grabbing the edge (needs Climbing on; with Climbing off, Quake's jump out stays)."),
+        row(opt::vr_swim),
+        row(opt::vr_swim_shallow_speed),
+        row(opt::vr_swim_wade_speed),
+        row(opt::vr_swim_stick_speed),
+        row(opt::vr_air_supply),
+        row(opt::vr_water_jump),
         header("Strokes"),
-        slider("Stroke Strength", "vr_swim_stroke", 0.f, 30.f, 1.f, "%.0f").extend().help("How far a stroke of your hand moves you."),
-        slider("Speed Curve", "vr_swim_speed_exp", 1.f, 3.f, 0.25f, "%.2f").extend()
-            .help("How the push grows with the hand's speed. 1: in proportion. 2: as water's drag, so a brisk stroke outweighs a slower return by far. 3: even more."),
-        slider("Palm Matters", "vr_swim_palm", 0.f, 1.f, 0.1f, "%.1f").help("How much more a hand meeting the water flat pushes than one meeting it at an angle. Either side of the hand: which side leads is Stroke Against Palm."),
-        slider("Stroke Against Palm", "vr_swim_against_palm", 0.f, 1.f, 0.05f, "%.2f")
-            .help("How much a stroke counts when the back of your hand leads (a backhand, or turning a hand round to reposition it) instead of the palm pushing the water. 0: ignored. 1: as a palm stroke. Blends smoothly through the hand edge-on."),
-        slider("Palm Sharpness", "vr_swim_flat_exp", 0.5f, 4.f, 0.25f, "%.2f").extend()
-            .help("How flat the palm must be to push fully. 1: pushing falls off evenly as the hand turns; 2-3: only a really flat palm pushes well."),
-        slider("Recovery Push", "vr_swim_recovery", 0.f, 1.f, 0.05f, "%.2f").help("How much a hand going edge first (bringing it back for the next stroke) pushes."),
-        slider("Push Along Palm", "vr_swim_palm_dir", 0.f, 1.f, 0.1f, "%.1f")
-            .help("0: you go against the hand's motion. 1: away from where the palm faces, so sweeping the hands in with palms facing each other pushes sideways (the two cancel), not back."),
-        slider("Slowest Push", "vr_swim_stroke_min", 0.f, 1.f, 0.05f, "%.2f m/s").help("A hand slower than this pushes nothing at all (tracking jitter, drifting hands)."),
+        row(opt::vr_swim_stroke),
+        row(opt::vr_swim_speed_exp),
+        row(opt::vr_swim_palm),
+        row(opt::vr_swim_against_palm),
+        row(opt::vr_swim_flat_exp),
+        row(opt::vr_swim_recovery),
+        row(opt::vr_swim_palm_dir),
+        row(opt::vr_swim_stroke_min),
         header("Stroke or Return?"),
-        slider("Intent Threshold", "vr_swim_power_threshold", 0.f, 3.f, 0.1f, "%.1f m/s").extend()
-            .help("A stroke moves you only if the hand's top speed during it passes this: a brisk stroke swims, a relaxed return of the arms does nothing. 0: every motion pushes."),
-        slider("Intent Fade-In", "vr_swim_power_knee", 0.f, 2.f, 0.1f, "%.1f m/s").extend()
-            .help("Above the threshold, strokes fade in to full power over this much more speed. 0: all or nothing."),
-        toggle("Whole Stroke Counts", "vr_swim_power_whole")
-            .help("On: once a stroke passes the threshold, all of it pushes, its slow start too. Off: only from the moment it passes."),
-        slider("Stroke Memory", "vr_swim_intent_memory", 0.f, 4.f, 0.25f, "%.2f s").extend()
-            .help("How long each hand remembers the way of its last full stroke, to tell the next return from a stroke back the other way. 0 off."),
-        slider("Return Damping", "vr_swim_reverse_damp", 0.f, 1.f, 0.05f, "%.2f")
-            .help("How much a stroke against the remembered one is damped when it is slower than the Reverse Stroke Speed below (0.3 slower or more: fully). A deliberate stroke back, as brisk, is not damped."),
-        slider("Reverse Stroke Speed", "vr_swim_reverse_speed", 0.5f, 2.f, 0.05f, "%.2fx").extend()
-            .help("How fast, over the stroke it reverses, a stroke the other way must be to count fully. 1: as fast. 1.2: 20% faster (returns never swim you back). 0.8: a bit slower is enough."),
+        row(opt::vr_swim_power_threshold),
+        row(opt::vr_swim_power_knee),
+        row(opt::vr_swim_power_whole),
+        row(opt::vr_swim_intent_memory),
+        row(opt::vr_swim_reverse_damp),
+        row(opt::vr_swim_reverse_speed),
         header("Direction and Speed"),
-        slider("Swim Where You Look", "vr_swim_look", 0.f, 1.f, 0.1f, "%.1f").help("You swim where you look (look up to rise): this much of a push sideways of it is lost."),
-        slider("Stroke Steering", "vr_swim_stroke_assist", 0.f, 1.f, 0.1f, "%.1f").help("Strokes push this much more towards where the stick points, and as much less against it."),
-        slider("Stroke Pitch Offset", "vr_swim_stroke_pitch", -30.f, 30.f, 1.f, "%+.0f deg").extend(-90.f, 90.f)
-            .help("Tilts every stroke's push up (positive) or down (negative), as the last adjustment: if strokes carry you upward a little too much, a few degrees down. 0: as they are."),
-        slider("Glide", "vr_swim_glide", 0.f, 1.f, 0.1f, "%.1f").help("How far you glide between strokes (less of the water's drag)."),
-        slider("Swim Top Speed", "vr_swim_max_speed", 100.f, 800.f, 25.f, "%.0f").extend(),
+        row(opt::vr_swim_look),
+        row(opt::vr_swim_stroke_assist),
+        row(opt::vr_swim_stroke_pitch),
+        row(opt::vr_swim_glide),
+        row(opt::vr_swim_max_speed),
         action("Reset Swimming to Defaults", resetSwimming).help("Every setting on this page back to its default."),
     };
 }
@@ -373,38 +318,25 @@ void resetHandMoves()
         info([]() -> const char* { return "3. Move and turn the hand until the"; }),
         info([]() -> const char* { return "controller sits in its palm, just where"; }),
         info([]() -> const char* { return "your real one is."; }),
-        toggle("Show Controller", "vr_show_controller")
-            .help("Draws each real controller, translucent, where the game tracks it, with its axes (red along the handle, "
-                  "green left, blue up) and its point (white: the middle of the handle); a yellow line to the hand's "
-                  "point when the calibration moves it. If the preview itself is off your real controller, line it up "
-                  "first (Weapon Offsets > Controller Preview). Not saved."),
-        slider("Main Hand X (forward)", "vr_handcal_x", -5.f, 5.f, 0.1f, "%+.1f cm").extend().help(moveHelp),
-        slider("Main Hand Y (left)", "vr_handcal_y", -5.f, 5.f, 0.1f, "%+.1f cm").extend().help(moveHelp),
-        slider("Main Hand Z (up)", "vr_handcal_z", -5.f, 5.f, 0.1f, "%+.1f cm").extend().help(moveHelp),
-        slider("Main Hand Pitch (Gun Angle)", vr_gunangle, -30.f, 90.f, 2.5f, "%.1f").extend(-180.f, 180.f)
-            .help("Gun Angle (vr_gunangle): how the main hand and the guns in it are tilted on the controller: set it so "
-                  "aiming feels natural. Changes where it aims."),
-        slider("Off Hand Pitch (Off Hand Angle)", vr_offhandpitch, -30.f, 90.f, 2.5f, "%.1f").extend(-180.f, 180.f)
-            .help("Off Hand Angle (vr_offhandpitch): the same for the off hand."),
-        slider("Main Hand Yaw (left)", "vr_gunyaw", -30.f, 30.f, 0.25f, "%+.2f").extend(-180.f, 180.f)
-            .help("Gun Yaw (vr_gunyaw): turns the whole hand, and what it holds, left about the controller's tracked "
-                  "point. Changes where it aims."),
-        slider("Main Hand Roll", "vr_handcal_roll", -30.f, 30.f, 0.25f, "%+.2f").extend(-180.f, 180.f).help(rollHelp),
-        cycle("Off Hand", "vr_handcal_off_mirror", {{1.f, "Mirrors the Main Hand"}, {0.f, "Its Own Values"}})
-            .help("Mirrors: the off hand takes the main hand's values mirrored (Y, Yaw and Roll the other way). Its Own "
-                  "Values: its own sliders, below."),
+        row(opt::vr_show_controller),
+        row(opt::vr_handcal_x).help(moveHelp),
+        row(opt::vr_handcal_y).help(moveHelp),
+        row(opt::vr_handcal_z).help(moveHelp),
+        row(opt::vr_gunangle),
+        row(opt::vr_offhandpitch),
+        row(opt::vr_gunyaw),
+        row(opt::vr_handcal_roll).help(rollHelp),
+        row(opt::vr_handcal_off_mirror),
     };
     handCalPageOwn = vr_handcal_off_mirror.value == 0.f ? 1 : 0;
     if(handCalPageOwn)
     {
         list.pushBackMultiple(
-            slider("Off Hand X (forward)", "vr_handcal_off_x", -5.f, 5.f, 0.1f, "%+.1f cm").extend().help(moveHelp),
-            slider("Off Hand Y (left)", "vr_handcal_off_y", -5.f, 5.f, 0.1f, "%+.1f cm").extend().help(moveHelp),
-            slider("Off Hand Z (up)", "vr_handcal_off_z", -5.f, 5.f, 0.1f, "%+.1f cm").extend().help(moveHelp),
-            slider("Off Hand Yaw (left)", "vr_offhandyaw", -30.f, 30.f, 0.25f, "%+.2f").extend(-180.f, 180.f)
-                .help("Off-Hand Yaw (vr_offhandyaw): turns the whole hand, and what it holds, left about the "
-                      "controller's tracked point. Changes where it aims."),
-            slider("Off Hand Roll", "vr_handcal_off_roll", -30.f, 30.f, 0.25f, "%+.2f").extend(-180.f, 180.f).help(rollHelp)
+            row(opt::vr_handcal_off_x).help(moveHelp),
+            row(opt::vr_handcal_off_y).help(moveHelp),
+            row(opt::vr_handcal_off_z).help(moveHelp),
+            row(opt::vr_offhandyaw),
+            row(opt::vr_handcal_off_roll).help(rollHelp)
         );
     }
     list.pushBackMultiple(
@@ -416,21 +348,14 @@ void resetHandMoves()
             .help("Both hands' X, Y, Z and Roll back to their defaults (the calibration the weapon offsets were set with). "
                   "Pitch and Yaw stay."),
         header("Guns"),
-        slider("Gun Model Scale", "vr_gunmodelscale", 0.1f, 2.f, 0.05f, "%.2f").extend(0.02f, 5.f).help("Scale multiplier for gun models. Does NOT affect aiming, but does affect muzzle position (where bullets and projectiles come from)."),
-        slider("Gun Model Z Offset", "vr_gunmodely", -10.f, 10.f, 0.1f, "%.1f").extend(-50.f, 50.f).help("Z offset for gun models. Does NOT affect aiming."),
-        slider("Gun Z Offset", "vr_gun_z_offset", -30.f, 30.f, 0.25f, "%.1f").extend(-150.f, 150.f).help("Z offset for guns/hands. Affects aiming."),
-        slider("Finger Grip Bias", "vr_finger_grip_bias", 0.f, 1.f, 0.05f, "%.2f"),
-        toggle("Auto close thumb", "vr_finger_auto_close_thumb"),
-        slider("Ammo Button Cone", "vr_weapon_button_cone", 10.f, 180.f, 5.f, "%.0f deg")
-            .help("The ammo button on a gun is pressed only by the other fingertip coming at it from its front, within "
-                  "this many degrees of the way it faces; never from behind (180: from anywhere)."),
-        slider("Ammo Button Depth", "vr_weapon_button_depth", 0.f, 3.f, 0.1f, "%.1f units").extend(0.f, 10.f)
-            .help("How far behind the button's middle the cone above starts: a fingertip coming in flat, just over the "
-                  "button's face, still presses it (0: the cone from its middle)."),
-        toggle("Ammo Switch Needs Empty Hand", "vr_ammo_switch_empty_hand")
-            .help("The ammo type switch button on a gun works only while your other hand holds nothing at all: not another "
-                  "gun (akimbo), a prop, a torch or a grabbed enemy. A refused press gives a short click and a buzz (off: "
-                  "always works).")
+        row(opt::vr_gunmodelscale),
+        row(opt::vr_gunmodely),
+        row(opt::vr_gun_z_offset),
+        row(opt::vr_finger_grip_bias),
+        row(opt::vr_finger_auto_close_thumb),
+        row(opt::vr_weapon_button_cone),
+        row(opt::vr_weapon_button_depth),
+        row(opt::vr_ammo_switch_empty_hand)
     );
     return list;
 }
@@ -440,23 +365,12 @@ void resetHandMoves()
 {
     return {
         header("Fingers"),
-        toggle("Jointed Hand", "vr_hand_rig")
-            .help("The hand as one model with three joints a finger and an opposable thumb: the fingers curl smoothly and "
-                  "wrap what they hold. Off: the palm and five finger models as before (their six curl frames)."),
-        toggle("Fit Fingers to What You Hold", "vr_hand_fit")
-            .help("With the jointed hand: the fingers close on what the hand holds (weapons, grabbed things) and stop on its "
-                  "surface, never through it and never floating off it. Off: they curl as the controller says."),
-        slider("Thumb Round In-Palm Props", "vr_hand_fit_thumb_outside", 0.f, 3.f, 0.25f, "%.2f cm").extend()
-            .help("A rock, a brick or a grenade held In the Palm has the thumb round its outside, never tucked between your "
-                  "palm and it: its base may sink into it as far as this to lie along it. 0: as any held thing."),
-        toggle("Thumb Opens Wide Round Them", "vr_hand_fit_thumb_wide")
-            .help("With Thumb Round In-Palm Props: when the thumb would sink into the thing at its usual turns (a hand "
-                  "grenade's side), it opens wider and wraps round its outside instead. Off: it lies along it, sunk in."),
+        row(opt::vr_hand_rig),
+        row(opt::vr_hand_fit),
+        row(opt::vr_hand_fit_thumb_outside),
+        row(opt::vr_hand_fit_thumb_wide),
         header("Against Monsters and Things"),
-        cycle("Weapons Stop at Models", "vr_model_collide", {{0.f, "Off"}, {1.f, "Monsters"}, {2.f, "Monsters and Objects"}})
-            .help("A weapon held into a monster, a corpse or another player (and, with Objects, a box, gib or weapon on the "
-                  "ground) is drawn stopped at its surface: the model as drawn, not its much bigger box. Drawn only: hits "
-                  "and shots still come from your hand."),
+        row(opt::vr_model_collide),
     };
 }
 
@@ -471,19 +385,19 @@ void resetHandMoves()
 [[nodiscard]] za::Vector<Item> pageMeleeSettings()
 {
     return {
-        slider("Swing Speed", "vr_melee_speed", 1.f, 8.f, 0.25f, "%.2f m/s").extend().help("How fast the striking hand must move to hit: a punch, a pommel strike; a weapon's swing a quarter faster, a stab three quarters of it. Any part of the blade then hits. At this speed a hit is weak; twice it, a full hit; faster, harder still (up to Most Blow Damage). A sword's cuts and stabs are measured at its tip, which swings about three times as fast as the hand."),
-        slider("Pommel Strike Wait", "vr_melee_pommel_wait", 0.f, 0.2f, 0.01f, "%.2f s").extend().help("How long the touch of a pommel, a handle's end or a gun's butt waits for the blade or head to reach the same thing, so a cut from close by counts as a cut. Only pommel and butt strikes wait: punches and blades land at once. Lower: pommel strikes land sooner, but close cuts count as pommel strikes more often."),
-        slider("Gun Butt Travel", "vr_melee_butt_run", 0.2f, 0.8f, 0.05f, "%.2f m").extend(0.f, 1.5f).help("How far a gun must be carried at something within 0.3 s for its butt to strike: a gun wiggled in place flings its butt fast without going anywhere. 0.2: as any blow."),
-        slider("Punch Damage Mult.", "vr_melee_punch_mult", 1.f, 3.f, 0.05f, "%.2f").extend().help("Damage of every punch: straight, hook, uppercut or overhead alike."),
-        toggle("Slaps", "vr_melee_slap").help("Swing an open hand across into an enemy to slap it: weaker than a punch, it never pops a head, cuts a limb or draws blood. Pushing an open palm out ahead is still a shove (one hand or both). Off: an open hand never strikes."),
-        slider("Slap Damage Mult.", "vr_melee_slap_mult", 0.f, 1.f, 0.05f, "x%.2f").extend(0.f, 3.f).help("A slap's damage, times a punch's."),
-        slider("Damage Multiplier", "vr_melee_dmg_multiplier", 0.25f, 15.f, 0.25f, "%.1f").extend().help("Damage multiplier for melee attacks."),
-        slider("Least Blow Damage", "vr_melee_dmg_min", 0.f, 1.f, 0.05f, "x%.2f").extend(0.f, 3.f).help("The weakest blow still deals this much of its weapon's base damage, however slow and wherever it lands (a pommel strike its own share of it). Before the Damage Multiplier and the punch multiplier."),
-        slider("Most Blow Damage", "vr_melee_dmg_max", 1.f, 4.f, 0.05f, "x%.2f").extend(1.f, 10.f).help("The hardest blow deals at most this much of its weapon's base damage: the swing's speed times the zone's multiplier (a head hit) is capped here, so a fast head hit counts near its full speed and no more. Before the Damage Multiplier and the punch multiplier."),
-        slider("Range Multiplier", "vr_melee_range_multiplier", 0.25f, 15.f, 0.25f, "%.1f").extend().help("Range multiplier for melee attacks."),
-        slider("Wall Hit Window", "vr_melee_wall_hold", 0.f, 0.5f, 0.05f, "%.2f s").help("A weapon swung into a wall or the floor is held off it, and slows down there: for this long after it met the surface, while it stays against it, the blow is still judged, at the speed it came in at, so a deliberate swing at a wall or the floor registers (sound, sparks, mark). A light brush along a wall still doesn't. 0: only in the frame the weapon crosses the surface, and never chopping down at the floor (as before)."),
-        cycle("Melee Bloodlust", "vr_melee_bloodlust", {{0.f, "On"}, {1.f, "Off"}}).help("When enabled, restores the player's health when performing melee attacks on enemies."),
-        slider("Melee Bloodlust Mult.", "vr_melee_bloodlust_mult", 0.05f, 5.f, 0.05f, "%.2f").extend().help("Multiplier for melee bloodlust health restoration."),
+        row(opt::vr_melee_speed),
+        row(opt::vr_melee_pommel_wait),
+        row(opt::vr_melee_butt_run),
+        row(opt::vr_melee_punch_mult),
+        row(opt::vr_melee_slap),
+        row(opt::vr_melee_slap_mult),
+        row(opt::vr_melee_dmg_multiplier),
+        row(opt::vr_melee_dmg_min),
+        row(opt::vr_melee_dmg_max),
+        row(opt::vr_melee_range_multiplier),
+        row(opt::vr_melee_wall_hold),
+        row(opt::vr_melee_bloodlust),
+        row(opt::vr_melee_bloodlust_mult),
         open("Weapon Damage", pageIndex(pageWeaponDamage))
             .help("Each weapon's base damage: the fist, the axe, the crowbar, Mjolnir, the swords..."),
         open("Incandescent Blades", pageIndex(pageHotBlades))
@@ -492,28 +406,28 @@ void resetHandMoves()
             .help("Arcane Dimensions' death sergeant's flail, its spiked head swinging on a chain: the chain's length, the "
                   "head's mass and air drag, its blows' damage and speeds, its rattle, its head lying about."),
         header("Swing Sounds"),
-        toggle("Whoosh by Speed", "vr_melee_swish").help("Every swing of a fist, an open hand or a melee weapon that moves air whooshes, louder the faster: softly short of a blow, a blow at full volume, the fastest blows louder still and a little higher. Off: only a blow whooshes, always at full volume. A gun's swing whooshes only as a blow."),
-        slider("Heard From", "vr_melee_swish_min", 0.2f, 0.9f, 0.05f, "%.2fx").extend(0.05f, 0.95f).help("The slowest swing heard, as a share of the speed its blow would land at (slower: silent)."),
-        slider("Short of a Blow", "vr_melee_swish_sub", 0.f, 1.f, 0.05f, "%.2f").help("Volume of the loudest swing that is not a blow, just under the speed it would land at (a blow is 1). Lower: the step to a blow stands out more."),
-        slider("Loudest Blow At", "vr_melee_swish_full", 1.2f, 3.f, 0.05f, "%.2fx").extend(1.05f, 5.f).help("The speed, times the blow's landing speed, at which its whoosh is loudest (Loudest Blow)."),
-        slider("Loudest Blow", "vr_melee_swish_gain", 1.f, 2.5f, 0.05f, "%.2fx").extend(1.f, 4.f).help("Volume of the fastest blows' whoosh, times full volume (1: every blow at full volume)."),
+        row(opt::vr_melee_swish),
+        row(opt::vr_melee_swish_min),
+        row(opt::vr_melee_swish_sub),
+        row(opt::vr_melee_swish_full),
+        row(opt::vr_melee_swish_gain),
         header("Swing Through Enemies"),
-        toggle("Swing Through Enemies", "vr_melee_phase").help("While your hand swings fast, your fist and the weapon in it pass through enemies instead of being drawn stopped at their bodies (Hands Stop at Models). Walls and things lying about still stop them. The blow is tested where your real hand goes either way: this shows the swing where it is tested. After the swing the hand is eased back out of the enemy. Off: stopped at enemies however fast (as before)."),
-        slider("Swing Through Speed", "vr_melee_phase_speed", 1.f, 6.f, 0.25f, "%.2f m/s").extend(0.25f, 10.f).help("How fast the hand must move to pass through. 4 (the default): a hard blow's speed; 2.25: a stab's least speed at Swing Speed 3 (a punch 3, a weapon's swing 3.75). Lower: slower pushes pass through too; higher: only hard blows."),
-        slider("Swing Through Follow-Through", "vr_melee_phase_time", 0.f, 0.5f, 0.01f, "%.2f s").extend(0.f, 2.f).help("How long the hand still passes through after it slowed down, so a blow's end isn't stopped inside the enemy."),
-        toggle("Swing Through: Guns and Props", "vr_melee_phase_hold").help("Also a gun or a prop held in one hand, swung as a club. Off: only fists and melee weapons (the axe, Mjolnir, the swords, the crowbar, the chainsaw)."),
+        row(opt::vr_melee_phase),
+        row(opt::vr_melee_phase_speed),
+        row(opt::vr_melee_phase_time),
+        row(opt::vr_melee_phase_hold),
         header("Strike Past the Floor"),
-        toggle("Strike Past Walls and Floor", "vr_melee_world_pass").help("While your hand swings fast at an enemy, a corpse or a ragdoll near the wall or the floor, most of your weapon is let into the level instead of being held out of it, so a cut at a body lying on the floor reaches it instead of the blade bouncing up off the floor first. Swung at the floor or a wall with no body near, it meets the level as before (sparks, marks, the wall blow). Off: always held out of the level whole."),
-        slider("Strike Past: Length Held Out", "vr_melee_world_pass_length", 0.f, 1.f, 0.05f, "%.2f").help("During such a strike, the share of the weapon (from your hand) still held out of the walls and the floor: lower lets more of the blade in. 0: only your hand; 1: all of it (as off)."),
-        slider("Strike Past: Speed", "vr_melee_world_pass_speed", 1.f, 6.f, 0.25f, "%.2f m/s").extend(0.25f, 10.f).help("How fast the hand must move for a strike to be let past the level."),
-        slider("Strike Past: Follow-Through", "vr_melee_world_pass_time", 0.f, 0.5f, 0.05f, "%.2f s").extend(0.f, 2.f).help("How long the weapon stays let in after the hand slowed (the end of the cut), before it is eased back out."),
-        slider("Strike Past: Target Reach", "vr_melee_world_pass_reach", 0.f, 32.f, 1.f, "%.0f units").extend(0.f, 64.f).help("How near the weapon's far end (and where it is going) the body must be for the strike to be let past the level."),
+        row(opt::vr_melee_world_pass),
+        row(opt::vr_melee_world_pass_length),
+        row(opt::vr_melee_world_pass_speed),
+        row(opt::vr_melee_world_pass_time),
+        row(opt::vr_melee_world_pass_reach),
         header("One Swing, Many Hits"),
-        toggle("Hit Everything the Edge Passes", "vr_melee_multi").help("A swing of a weapon strikes every enemy, corpse, ragdoll and prop its striking part passes through, each once and each by its own speed and spot, and the wall or the floor as well (sparks, marks): a blade that meets the floor first still cuts the body lying on it. Bare fists strike one thing a punch. Off: as before (the floor or a wall struck first ends the swing)."),
-        slider("Most Things a Swing", "vr_melee_multi_max", 1.f, 6.f, 1.f, "%.0f").help("How many things (not counting the wall or the floor) one swing strikes at most."),
+        row(opt::vr_melee_multi),
+        row(opt::vr_melee_multi_max),
         header("Headbutt"),
-        toggle("Headbutt", vr_headbutt).help("Lunge your head at something to headbutt it."),
-        slider("Headbutt Speed", vr_headbutt_speed, 0.4f, 3.f, 0.05f, "%.2f m/s").extend().help("How fast the head must lunge (towards where you look)."),
+        row(opt::vr_headbutt),
+        row(opt::vr_headbutt_speed),
     };
 }
 
@@ -521,31 +435,18 @@ void resetHandMoves()
 [[nodiscard]] za::Vector<Item> pageAimingSettings()
 {
     return {
-        cycle("Two-Handed", vr_2h_mode, {{0.f, "Off"}, {1.f, "Basic"}, {2.f, "Virtual stock"}})
-            .help("Hold a gun with both hands to steady it. Virtual stock: a gun brought near your shoulder also aims from it."),
-        cycle("Dominant Eye", vr_dominant_eye, {{0.f, "Right"}, {1.f, "Left"}})
-            .help("The eye that looks along the sights: pointing at something with both eyes open, the one that stays on "
-                  "it when you close the other."),
-        toggle("Two-Handed Hand-Off", vr_2h_handoff).help("Letting go with the hand holding a two-handed weapon leaves it in the other hand: a sword changes hands; a gun hangs from its foregrip until a hand takes its handle."),
-        slider("Grip Click", vr_2h_grip_sound, 0.f, 1.f, 0.1f, "%.1f")
-            .help("Your other hand taking hold of a weapon's foregrip clicks softly from that hand (and pulses in it); "
-                  "letting go, a quieter click. How loud (0: no sound, the pulse stays)."),
-        slider("2H Aiming Threshold", "vr_2h_angle_threshold", -1.f, 1.f, 0.05f, "%.2f").help("How far out of line the hands may be before two-handed aiming stops. Higher is stricter; -1 never stops."),
-        slider("2H Stock Factor", "vr_2h_virtual_stock_factor", 0.f, 1.f, 0.05f, "%.2f").help("How much the virtual stock matters in the final angle calculation for two-handed aiming. Decrease if you want your hands to matter more."),
+        row(opt::vr_2h_mode),
+        row(opt::vr_dominant_eye),
+        row(opt::vr_2h_handoff),
+        row(opt::vr_2h_grip_sound),
+        row(opt::vr_2h_angle_threshold),
+        row(opt::vr_2h_virtual_stock_factor),
         header("2H Grip Stickiness"),
-        slider("Stickiness", vr_2h_sticky, 0.5f, 4.f, 0.05f, "%.2fx").extend(0.1f, 20.f)
-            .help("Once your other hand holds a weapon's grip, how far it may go off it (20 units), how far out of line "
-                  "(2H Aiming Threshold) and past the muzzle, before it lets go: times this, always (and times the "
-                  "hotspot's own Stickiness: Weapon Offsets)."),
-        slider("While Swinging", vr_2h_sticky_fast, 0.f, 5.f, 0.1f, "+%.1fx").extend(0.f, 20.f)
-            .help("And this many times more while your hands swing (a two-handed melee blow): back to the above as they "
-                  "slow, so a weapon held still lets go as before. 0: off."),
-        slider("Swing From", vr_2h_sticky_fast_from, 0.f, 5.f, 0.1f, "%.1f m/s").extend(0.f, 20.f)
-            .help("The faster hand's speed it starts growing from."),
-        slider("Swing Full At", vr_2h_sticky_fast_full, 0.5f, 10.f, 0.1f, "%.1f m/s").extend(0.1f, 30.f)
-            .help("The faster hand's speed at which all of it applies."),
-        slider("Swing Fades Over", vr_2h_sticky_fast_hold, 0.f, 2.f, 0.05f, "%.2f s").extend(0.f, 10.f)
-            .help("How long it takes to fade once the hands slow (a swing's end and the way back)."),
+        row(opt::vr_2h_sticky),
+        row(opt::vr_2h_sticky_fast),
+        row(opt::vr_2h_sticky_fast_from),
+        row(opt::vr_2h_sticky_fast_full),
+        row(opt::vr_2h_sticky_fast_hold),
         header("Weight"),
         info([]() -> const char* {
             return "What you hold follows on a spring.";
@@ -559,8 +460,7 @@ void resetHandMoves()
         infoLine(weightReadout, 1),
         infoLine(weightReadout, 0),
         header("Tired Arms"),
-        toggle("Heavier When Tired", vr_weight_stamina)
-            .help("As your stamina (Parry Stamina) runs low, what you hold gets heavier."),
+        row(opt::vr_weight_stamina),
         open("Tired Arms Shake (Stamina)", pageIndex(pageStamina)).help("Low on stamina, your arms shake too (looks only): on the Stamina page."),
     };
 }
@@ -577,105 +477,58 @@ void resetHandMoves()
 [[nodiscard]] za::Vector<Item> pageImmersionSettings()
 {
     return {
-        toggle("Body Picks Up Items", "vr_body_interactions").help("Pick up items and level weapons by walking over them. Thrown and dropped weapons still need your hands."),
-        cycle("Haptics", vr_disablehaptics, {{0.f, "On"}, {1.f, "Off"}}).help("The controllers' vibrations, all of them."),
-        slider("Vibration Strength", vr_haptics_strength, 0.f, 1.f, 0.1f, "%.1f").extend(0.f, 2.f)
-            .help("How strongly the controllers vibrate (0: never)."),
+        row(opt::vr_body_interactions),
+        row(opt::vr_disablehaptics),
+        row(opt::vr_haptics_strength),
         header("Weapons and Holsters"),
-        cycle("Weapon Mode", "vr_holster_mode", {{0.f, "Immersive"}, {1.f, "Quick Slots"}}).help("Immersive: a holster holds one weapon, and taking it out empties it. Quick Slots: holsters never empty (with weapon cycling)."),
-        cycle("Weapon Reloading Mode", "vr_reload_mode", {{0.f, "None"}, {1.f, "All Holsters"}, {2.f, "Hip Holsters"}, {3.f, "Immersive"}}).help("Weapons have magazines. All Holsters, Hip Holsters: a gun held at a holster reloads. Immersive: the shotgun is loaded by hand, a shell at a time from the ammo pouch on your belt; the other guns reload at the hip holsters (Weapons > Reloading). Reloading only works with 'immersive' weapon mode."),
+        row(opt::vr_holster_mode),
+        row(opt::vr_reload_mode),
         open("Holster Zones", pageIndex(pageHolsterZones))
             .help("Where a hand (and the gun it holds) is at a holster or a pouch: a box at each, as drawn, their sizes and "
                   "places, and a wireframe of them."),
-        cycle("Holster Haptics", "vr_holster_haptics", {{0.f, "Off"}, {1.f, "Continuous"}, {2.f, "Once"}}).help("Haptic feedback when hovering a usable holster slot."),
-        toggle("Weapon Cycle Mode", "vr_weapon_cycle_mode").help("Allows or disallows cycling weapons using controller buttons."),
+        row(opt::vr_holster_haptics),
+        row(opt::vr_weapon_cycle_mode),
         open("Throw Damage: Weapon Damage", pageIndex(pageWeaponDamage)).help("The damage of thrown weapons is on Combat > Weapon Damage (All Throws)."),
-        toggle("Dropped Wpn Particles", "vr_weapondrop_particles").help("Enable particle effects for weapons dropped/thrown on the ground."),
+        row(opt::vr_weapondrop_particles),
         header("Magnetic Holsters"),
-        toggle("Magnetic Holsters", vr_magholster)
-            .help("As in RE4VR: with a hand at a holster that has a weapon in it, press the bind button to bind the weapon to that "
-                  "holster (press it again to unbind). Thrown or dropped, it flies back into the holster on its own. Weapon "
-                  "Mode Immersive."),
-        cycle("Bind Button", vr_magholster_button,
-            {{0.f, "Either Stick Click"}, {1.f, "Off-Hand Stick Click"}, {2.f, "Main-Hand Stick Click"}, {3.f, "Lower Face Button"}})
-            .help("Pressed by the hand at the holster. The press is taken only there (its usual action elsewhere). Lower Face "
-                  "Button: A or X."),
-        slider("Return After", vr_magholster_return_time, 0.f, 15.f, 0.5f, "%.1f s").extend(0.f, 120.f)
-            .help("Out of your hands this long, it comes back (0: never by time)."),
-        slider("Return Beyond", vr_magholster_return_distance, 0.f, 20.f, 0.5f, "%.1f m").extend(0.f, 200.f)
-            .help("This far from its holster, it comes back (0: never by distance). Either one brings it back."),
-        slider("Land First", vr_magholster_land_time, 0.f, 3.f, 0.25f, "%.2f s").extend(0.f, 10.f)
-            .help("A thrown or dropped weapon must lie still on the ground (or stuck in a wall) this long before either return "
-                  "brings it back, however far it is: a throw is let finish, never called back in the air (0: off)."),
-        slider("Flight Time", vr_magholster_flight_time, 0.1f, 1.5f, 0.05f, "%.2f s").extend(0.05f, 5.f)
-            .help("How long it takes to fly back, through walls, before it snaps in with a click. Grab it on the way to keep it."),
-        cycle("Chain", vr_magholster_style, {{0.f, "Lanyard"}, {1.f, "Tether"}, {2.f, "Both"}, {3.f, "None"}})
-            .help("Lanyard: a short chain hangs off a bound weapon, a stub of it at the empty holster. Tether: a chain from the "
-                  "holster to the weapon whenever it is out of it (in your hand too), slack close by, taut far off. Both."),
-        slider("Chain Size", vr_magholster_chain_size, 0.2f, 2.f, 0.05f, "%.2fx").extend(0.2f, 3.f)
-            .help("Its links' size, times the flashlight chain's (1.6 cm links)."),
-        slider("Chain Opacity", vr_magholster_chain_alpha, 0.f, 1.f, 0.05f, "%.2f")
-            .help("Below 1 the chain is see-through (0: not drawn)."),
-        slider("Full Chain Up To", vr_magholster_chain_lod, 0.f, 15.f, 0.5f, "%.1f m").extend(0.f, 100.f)
-            .help("The tether is drawn as links this far along it from the holster, then as a plain thin line on to the "
-                  "weapon along the same curve (cheaper, unnoticeable far off); it never disappears, however far the "
-                  "weapon goes (0: all a line)."),
-        slider("Zip Volume", vr_magholster_zip_volume, 0.f, 1.f, 0.05f, "%.2f")
-            .help("A bound weapon flying home: the reel's zip as it winds the chain back in (0: none)."),
-        slider("Draw Sound Volume", vr_magholster_draw_volume, 0.f, 1.f, 0.05f, "%.2f")
-            .help("A bound weapon drawn from its holster: the chain paid out, heard over the holster's own sound (0: none)."),
+        row(opt::vr_magholster),
+        row(opt::vr_magholster_button),
+        row(opt::vr_magholster_return_time),
+        row(opt::vr_magholster_return_distance),
+        row(opt::vr_magholster_land_time),
+        row(opt::vr_magholster_flight_time),
+        row(opt::vr_magholster_style),
+        row(opt::vr_magholster_chain_size),
+        row(opt::vr_magholster_chain_alpha),
+        row(opt::vr_magholster_chain_lod),
+        row(opt::vr_magholster_zip_volume),
+        row(opt::vr_magholster_draw_volume),
         header("Chain Physics"),
-        toggle("Chain Collision", vr_magholster_chain_collide)
-            .help("The tether is a chain of points that hangs, lies on the floor and wraps round walls (the grappling "
-                  "hook rope's physics, coarser): its points and pieces kept out of the world (off: cheaper, through it)."),
-        slider("Chain Point Spacing", vr_magholster_chain_spacing, 0.05f, 1.f, 0.05f, "%.2f m").extend(0.02f, 4.f)
-            .help("Metres between the chain's simulated points (finer: truer on edges and the floor, more work). A long "
-                  "tether's are farther apart (Chain Most Points)."),
-        slider("Chain Most Points", vr_magholster_chain_points, 4.f, 128.f, 4.f, "%.0f").extend(4.f, 256.f)
-            .help("The most pieces the chain has, however long."),
-        slider("Chain Iterations", vr_magholster_chain_iterations, 1.f, 32.f, 1.f, "%.0f").extend(1.f, 64.f)
-            .help("Passes a frame holding the pieces to their length (more: less stretch, more work)."),
-        slider("Chain Stiffness", vr_magholster_chain_stiffness, 0.05f, 1.f, 0.05f, "%.2f")
-            .help("The share of each piece's stretch a pass takes out (lower: stretchier, softer)."),
-        slider("Chain Thickness", vr_magholster_chain_radius, 0.05f, 4.f, 0.05f, "%.2f").extend(0.05f, 8.f)
-            .help("Units the chain's points keep off what they lie on."),
-        slider("Chain Air Drag", vr_magholster_chain_drag, 0.f, 10.f, 0.25f, "%.2f").extend(0.f, 20.f)
-            .help("Its speed lost to the air a second (higher: it settles from a swing sooner)."),
-        slider("Chain Floor Slide", vr_magholster_chain_slide, 0.f, 1.f, 0.05f, "%.2f")
-            .help("The share of its speed along a surface a point keeps where it touches it (lower: a rougher floor)."),
-        slider("Chain Carry", vr_magholster_chain_carry, 0.f, 1.f, 0.05f, "%.2f")
-            .help("How much your own movement carries the chain along near the holster (none of it at the weapon; 0: it is "
-                  "only pulled)."),
-        slider("Locomotion Sway", vr_magholster_chain_sway, 0.f, 1.f, 0.05f, "%.2f")
-            .help("How much the chain swings as you walk and turn with the sticks: the share of that movement it lags "
-                  "behind (0: carried along whole; 1: all of it, as before). Your real body's moves swing it as ever; "
-                  "what lies on the floor is dragged as before."),
+        row(opt::vr_magholster_chain_collide),
+        row(opt::vr_magholster_chain_spacing),
+        row(opt::vr_magholster_chain_points),
+        row(opt::vr_magholster_chain_iterations),
+        row(opt::vr_magholster_chain_stiffness),
+        row(opt::vr_magholster_chain_radius),
+        row(opt::vr_magholster_chain_drag),
+        row(opt::vr_magholster_chain_slide),
+        row(opt::vr_magholster_chain_carry),
+        row(opt::vr_magholster_chain_sway),
         header("Chain Origin"),
-        slider("All Forward", vr_magholster_chain_x, -8.f, 8.f, 0.25f, "%.2f").extend(-30.f, 30.f)
-            .help("Where the chain leaves every holster: units forward (the body's frame). Added to each kind's below."),
-        slider("All Outwards", vr_magholster_chain_y, -8.f, 8.f, 0.25f, "%.2f").extend(-30.f, 30.f)
-            .help("Units outwards (away from the body's middle: the left holsters' to the left)."),
-        slider("All Up", vr_magholster_chain_z, -8.f, 8.f, 0.25f, "%.2f").extend(-30.f, 30.f).help("Units up."),
-        slider("Hip Forward", vr_magholster_chain_hip_x, -8.f, 8.f, 0.25f, "%.2f").extend(-30.f, 30.f)
-            .help("The hip holsters' chain origin: units forward."),
-        slider("Hip Outwards", vr_magholster_chain_hip_y, -8.f, 8.f, 0.25f, "%.2f").extend(-30.f, 30.f)
-            .help("The hip holsters' chain origin: units outwards."),
-        slider("Hip Up", vr_magholster_chain_hip_z, -8.f, 8.f, 0.25f, "%.2f").extend(-30.f, 30.f)
-            .help("The hip holsters' chain origin: units up."),
-        slider("Chest Forward", vr_magholster_chain_upper_x, -8.f, 8.f, 0.25f, "%.2f").extend(-30.f, 30.f)
-            .help("The upper (chest) holsters' chain origin: units forward."),
-        slider("Chest Outwards", vr_magholster_chain_upper_y, -8.f, 8.f, 0.25f, "%.2f").extend(-30.f, 30.f)
-            .help("The upper (chest) holsters' chain origin: units outwards."),
-        slider("Chest Up", vr_magholster_chain_upper_z, -8.f, 8.f, 0.25f, "%.2f").extend(-30.f, 30.f)
-            .help("The upper (chest) holsters' chain origin: units up."),
-        slider("Shoulder Forward", vr_magholster_chain_shoulder_x, -8.f, 8.f, 0.25f, "%.2f").extend(-30.f, 30.f)
-            .help("The shoulder holsters' chain origin: units forward."),
-        slider("Shoulder Outwards", vr_magholster_chain_shoulder_y, -8.f, 8.f, 0.25f, "%.2f").extend(-30.f, 30.f)
-            .help("The shoulder holsters' chain origin: units outwards."),
-        slider("Shoulder Up", vr_magholster_chain_shoulder_z, -8.f, 8.f, 0.25f, "%.2f").extend(-30.f, 30.f)
-            .help("The shoulder holsters' chain origin: units up."),
+        row(opt::vr_magholster_chain_x),
+        row(opt::vr_magholster_chain_y),
+        row(opt::vr_magholster_chain_z),
+        row(opt::vr_magholster_chain_hip_x),
+        row(opt::vr_magholster_chain_hip_y),
+        row(opt::vr_magholster_chain_hip_z),
+        row(opt::vr_magholster_chain_upper_x),
+        row(opt::vr_magholster_chain_upper_y),
+        row(opt::vr_magholster_chain_upper_z),
+        row(opt::vr_magholster_chain_shoulder_x),
+        row(opt::vr_magholster_chain_shoulder_y),
+        row(opt::vr_magholster_chain_shoulder_z),
         header("Shell Casings"),
-        toggle("Shell Casings", "vr_shells").help("The shotgun throws out a spent shell each shot, the super shotgun its two as you reload (a flick reload flings them). They bounce, roll and lie on the floor."),
+        row(opt::vr_shells),
     };
 }
 
@@ -686,30 +539,18 @@ void resetHandMoves()
 {
     return {
         header("Shells"),
-        toggle("Shell Pairs", "vr_reload_shell_pairs")
-            .help("The pouch gives two shells taped together: both go into the shotgun at once. A single shell when only "
-                  "one is left, or the shotgun in your other hand has one place left (one goes in if only one fits)."),
+        row(opt::vr_reload_shell_pairs),
         open("Shell Pose: Held Object Offsets", pageIndex(pageHeldObjectOffsets))
             .help("How a shell sits in the fingers: take one from the pouch, then tune it there (its Grip and Fingers). "
                   "The taped pair has its own."),
         header("At the Pouch"),
-        toggle("Reload at the Pouch", "vr_reload_pouch_shot")
-            .help("Bring the port under it down onto the shells in the ammo pouch, the gun upright (its port facing down "
-                  "into the pouch, within Reloading: Pouch Angle): a shell goes in, from your shells. One a touch: take "
-                  "it away and back for the next."),
+        row(opt::vr_reload_pouch_shot),
         header("Load Point"),
-        toggle("Show Load Points", "vr_reload_show_ports")
-            .help("Draws each held gun's load point (yellow) and its radius (green), a held magazine's reference point and "
-                  "radius (orange), and an attached magazine's box (blue: where a hand holds it, within Pull Reach, and "
-                  "where a hit knocks it out), to tune the offsets live."),
-        slider("Port X", "vr_reload_port_shot_x", -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("Moves the shotgun port's load point forward (the gun's model units; negative: the other way)."),
-        slider("Port Y", "vr_reload_port_shot_y", -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("Moves the shotgun port's load point left (the gun's model units; negative: the other way)."),
-        slider("Port Z", "vr_reload_port_shot_z", -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("Moves the shotgun port's load point up (the gun's model units; negative: the other way)."),
-        slider("Port Radius", "vr_reload_port_shot_radius", 0.f, 10.f, 0.25f, "%.2f units").extend(0.f, 40.f)
-            .help("How near the shotgun port's load point a held round must come to go in (a magazine: its reference point, within this plus its own radius)."),
+        row(opt::vr_reload_show_ports),
+        row(opt::vr_reload_port_shot_x),
+        row(opt::vr_reload_port_shot_y),
+        row(opt::vr_reload_port_shot_z),
+        row(opt::vr_reload_port_shot_radius),
     };
 }
 
@@ -718,71 +559,37 @@ void resetHandMoves()
 {
     return {
         header("Break Open"),
-        toggle("Break Open", "vr_reload_ssg_break")
-            .help("With Immersive: its fired shells stay in its barrels. Break it open (the ways below) to throw them "
-                  "out, spent and live (live ones to take again); it stays open, can't fire, and its chambers take the "
-                  "pouch's taped pair at its breech (a single shell when one chamber is loaded). Off: the flick reloads it "
-                  "as before."),
-        slider("Open Angle", "vr_reload_ssg_open_angle", 0.f, 90.f, 1.f, "%.0f deg")
-            .help("How far its barrels drop about the hinge when it is open (looks; its load point goes with them)."),
-        slider("Firing Animation Speed", "vr_ssg_fire_anim_speed", 0.5f, 3.f, 0.1f, "%.1fx").extend(0.25f, 5.f)
-            .help("How fast its firing animation plays (1: id's, 0.6 s). It breaks open only once the animation is over: "
-                  "faster, it opens sooner after a shot."),
+        row(opt::vr_reload_ssg_break),
+        row(opt::vr_reload_ssg_open_angle),
+        row(opt::vr_ssg_fire_anim_speed),
         header("Open by"),
-        toggle("Open by Flick", "vr_reload_ssg_open_flick").help("A flick of the wrist (the muzzle snapped up) breaks it open."),
-        slider("Flick Open Speed", "vr_reload_ssg_flick_open_speed", 200.f, 1500.f, 25.f, "%.0f deg/s")
-            .help("How fast the wrist must turn to flick it open (higher: only a hard flick)."),
-        toggle("Open by Pry", "vr_reload_ssg_pry")
-            .help("Holding it with both hands (the two-handed grip on its fore-end), push the barrels down with the front "
-                  "hand against the back hand (or lift the stock): it breaks open."),
-        slider("Pry Angle", "vr_reload_ssg_pry_angle", 10.f, 90.f, 1.f, "%.0f deg")
-            .help("How far the front hand must go down from the back hand's aim (or the stock up) to pry it open."),
-        slider("Pry Speed", "vr_reload_ssg_pry_speed", 20.f, 600.f, 10.f, "%.0f deg/s")
-            .help("How quickly: a steady two-handed aim never pries it open."),
-        toggle("Open by a Hit from Above", "vr_reload_ssg_open_hit")
-            .help("A fist, a held thing or the other gun hitting the front of its barrels from above (the gun's own up, "
-                  "as you hold it) forces it open."),
-        toggle("Open by B/Y", "vr_reload_ssg_open_button").help("The B/Y button of the controller holding it breaks it open."),
+        row(opt::vr_reload_ssg_open_flick),
+        row(opt::vr_reload_ssg_flick_open_speed),
+        row(opt::vr_reload_ssg_pry),
+        row(opt::vr_reload_ssg_pry_angle),
+        row(opt::vr_reload_ssg_pry_speed),
+        row(opt::vr_reload_ssg_open_hit),
+        row(opt::vr_reload_ssg_open_button),
         header("Close by"),
-        toggle("Close by Flick", "vr_reload_ssg_close_flick").help("Open, a flick snaps it shut."),
-        slider("Flick Close Speed", "vr_reload_ssg_flick_close_speed", 200.f, 1500.f, 25.f, "%.0f deg/s")
-            .help("How fast the wrist must turn to flick it shut."),
-        slider("Flick Close Leniency When Loaded", "vr_reload_ssg_close_flick_loaded", 1.f, 2.f, 0.05f, "%.2fx")
-            .help("Both barrels loaded, the flick shut needs this much less speed (1: the same as empty)."),
-        toggle("Close by Lifting the Barrels", "vr_reload_ssg_close_pry")
-            .help("Open and held with both hands, the front hand lifting the barrels back up snaps it shut."),
-        slider("Lift Angle", "vr_reload_ssg_lift_angle", 10.f, 90.f, 1.f, "%.0f deg")
-            .help("How far the front hand must come back up (from its lowest) to lift it shut."),
-        slider("Lift Hold", "vr_reload_ssg_lift_hold", 0.f, 1.f, 0.05f, "%.2f s")
-            .help("How long it must stay lifted that far before it shuts (a jolt doesn't)."),
-        toggle("Close by a Hit from Below", "vr_reload_ssg_close_hit")
-            .help("Open, a fist, a held thing or the other gun hitting the front of its barrels from below snaps it shut."),
-        toggle("Close When Loaded", "vr_reload_ssg_close_auto")
-            .help("Open, it snaps shut by itself once both chambers are loaded."),
-        toggle("Close by B/Y", "vr_reload_ssg_close_button")
-            .help("Open, the B/Y button of the controller holding it snaps it shut (with Open by B/Y: opened and closed with "
-                  "the button alone, no gesture)."),
+        row(opt::vr_reload_ssg_close_flick),
+        row(opt::vr_reload_ssg_flick_close_speed),
+        row(opt::vr_reload_ssg_close_flick_loaded),
+        row(opt::vr_reload_ssg_close_pry),
+        row(opt::vr_reload_ssg_lift_angle),
+        row(opt::vr_reload_ssg_lift_hold),
+        row(opt::vr_reload_ssg_close_hit),
+        row(opt::vr_reload_ssg_close_auto),
+        row(opt::vr_reload_ssg_close_button),
         header("Hits (Above and Below)"),
-        slider("Hit After Loading", "vr_reload_ssg_hit_after_load", 0.f, 1.f, 0.01f, "%.2f s")
-            .help("How long after a shell goes in before a hit opens or shuts it (the loading hand drawing back is no hit)."),
+        row(opt::vr_reload_ssg_hit_after_load),
         header("At the Pouch"),
-        toggle("Reload at the Pouch", "vr_reload_pouch_sshot")
-            .help("Broken open, touch its open barrels to the shells in the ammo pouch: its empty chambers fill, from your "
-                  "shells. No free hand needed: two super shotguns, each reloaded at the pouch. Shut, nothing."),
+        row(opt::vr_reload_pouch_sshot),
         header("Load Point"),
-        toggle("Show Load Points", "vr_reload_show_ports")
-            .help("Draws each held gun's load point (yellow) and its radius (green), a held magazine's reference point and "
-                  "radius (orange), and an attached magazine's box (blue: where a hand holds it, within Pull Reach, and "
-                  "where a hit knocks it out), to tune the offsets live."),
-        slider("Breech X", "vr_reload_port_sshot_x", -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("Moves the super shotgun's load point (its breech face, between the chambers) forward (the gun's model "
-                  "units, as closed; it turns with the barrels open)."),
-        slider("Breech Y", "vr_reload_port_sshot_y", -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("Moves the super shotgun's load point left (the gun's model units)."),
-        slider("Breech Z", "vr_reload_port_sshot_z", -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("Moves the super shotgun's load point up (the gun's model units)."),
-        slider("Breech Radius", "vr_reload_port_sshot_radius", 0.f, 10.f, 0.25f, "%.2f units").extend(0.f, 40.f)
-            .help("How near the breech a held pair's middle must come to go in (Show Load Points draws it)."),
+        row(opt::vr_reload_show_ports),
+        row(opt::vr_reload_port_sshot_x),
+        row(opt::vr_reload_port_sshot_y),
+        row(opt::vr_reload_port_sshot_z),
+        row(opt::vr_reload_port_sshot_radius),
     };
 }
 
@@ -791,80 +598,44 @@ void resetHandMoves()
 {
     return {
         header("At the Pouch"),
-        toggle("Reload at the Pouch", "vr_reload_pouch_nail")
-            .help("With its magazine out, bring its empty well down onto the magazines standing in the ammo pouch, along "
-                  "them (Reloading: Pouch Angle): a fresh magazine seats, from your nails. With one in, nothing."),
+        row(opt::vr_reload_pouch_nail),
         header("Load Point"),
-        toggle("Show Load Points", "vr_reload_show_ports")
-            .help("Draws each held gun's load point (yellow) and its radius (green), a held magazine's reference point and "
-                  "radius (orange), and an attached magazine's box (blue: where a hand holds it, within Pull Reach, and "
-                  "where a hit knocks it out), to tune the offsets live."),
-        slider("Well X", "vr_reload_port_nail_x", -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("Moves the nailgun well's load point forward (the gun's model units; negative: the other way)."),
-        slider("Well Y", "vr_reload_port_nail_y", -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("Moves the nailgun well's load point left (the gun's model units; negative: the other way)."),
-        slider("Well Z", "vr_reload_port_nail_z", -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("Moves the nailgun well's load point up (the gun's model units; negative: the other way)."),
-        slider("Well Radius", "vr_reload_port_nail_radius", 0.f, 10.f, 0.25f, "%.2f units").extend(0.f, 40.f)
-            .help("How near the nailgun well's load point a held round must come to go in (a magazine: its reference point, within this plus its own radius)."),
+        row(opt::vr_reload_show_ports),
+        row(opt::vr_reload_port_nail_x),
+        row(opt::vr_reload_port_nail_y),
+        row(opt::vr_reload_port_nail_z),
+        row(opt::vr_reload_port_nail_radius),
         header("The Magazine's Top"),
-        slider("Top X", "vr_reload_mag_nail_x", -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("Moves the nailgun magazine's reference point (its top, its feed end) along its gun (its model units)."),
-        slider("Top Y", "vr_reload_mag_nail_y", -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("Moves the nailgun magazine's reference point (its top, its feed end) to its left (its model units)."),
-        slider("Top Z", "vr_reload_mag_nail_z", -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("Moves the nailgun magazine's reference point (its top, its feed end) up its length (its model units)."),
-        slider("Top Radius", "vr_reload_mag_nail_radius", 0.f, 6.f, 0.25f, "%.2f units").extend(0.f, 20.f)
-            .help("The nailgun magazine's own radius round its reference point (added to the well's)."),
+        row(opt::vr_reload_mag_nail_x),
+        row(opt::vr_reload_mag_nail_y),
+        row(opt::vr_reload_mag_nail_z),
+        row(opt::vr_reload_mag_nail_radius),
         open("Magazine Pose in the Hand: Held Object Offsets", pageIndex(pageHeldObjectOffsets))
             .help("How a magazine out of the gun sits in the hand: take one from the pouch, then tune it there."),
         header("Receiver (looks only)"),
-        slider("Receiver X", "vr_reload_well_nail_x", -6.f, 6.f, 0.05f, "%.2f").extend()
-            .help("Moves the nailgun receiver (the collar round the magazine's top, drawn on the gun) forward, to sit flush (the gun's model units; looks only)."),
-        slider("Receiver Y", "vr_reload_well_nail_y", -6.f, 6.f, 0.05f, "%.2f").extend()
-            .help("Moves the nailgun receiver (the collar round the magazine's top, drawn on the gun) left, to sit flush (the gun's model units; looks only)."),
-        slider("Receiver Z", "vr_reload_well_nail_z", -6.f, 6.f, 0.05f, "%.2f").extend()
-            .help("Moves the nailgun receiver (the collar round the magazine's top, drawn on the gun) up, to sit flush (the gun's model units; looks only)."),
-        slider("Receiver Pitch", "vr_reload_well_nail_pitch", -90.f, 90.f, 1.f, "%.0f").extend(-180.f, 180.f)
-            .help("Turns the nailgun receiver about its seat (looks only)."),
-        slider("Receiver Yaw", "vr_reload_well_nail_yaw", -90.f, 90.f, 1.f, "%.0f").extend(-180.f, 180.f)
-            .help("Turns the nailgun receiver about its seat (looks only)."),
-        slider("Receiver Roll", "vr_reload_well_nail_roll", -90.f, 90.f, 1.f, "%.0f").extend(-180.f, 180.f)
-            .help("Turns the nailgun receiver about its seat (looks only)."),
+        row(opt::vr_reload_well_nail_x),
+        row(opt::vr_reload_well_nail_y),
+        row(opt::vr_reload_well_nail_z),
+        row(opt::vr_reload_well_nail_pitch),
+        row(opt::vr_reload_well_nail_yaw),
+        row(opt::vr_reload_well_nail_roll),
         header("Holding the Attached Magazine"),
-        slider("Hand X", "vr_reload_hold_nail_x", -6.f, 6.f, 0.1f, "%.1f").extend()
-            .help("The other hand holding the attached magazine is drawn moved forward (units, the gun's aim; mirrored for the main hand). Looks only."),
-        slider("Hand Y", "vr_reload_hold_nail_y", -6.f, 6.f, 0.1f, "%.1f").extend()
-            .help("The other hand holding the attached magazine is drawn moved left (units, the gun's aim; mirrored for the main hand). Looks only."),
-        slider("Hand Z", "vr_reload_hold_nail_z", -6.f, 6.f, 0.1f, "%.1f").extend()
-            .help("The other hand holding the attached magazine is drawn moved up (units, the gun's aim; mirrored for the main hand). Looks only."),
-        slider("Hand Pitch", "vr_reload_hold_nail_pitch", -180.f, 180.f, 5.f, "%.0f")
-            .help("And turned (degrees), once its grip lies along the magazine where it holds it. Looks only."),
-        slider("Hand Yaw", "vr_reload_hold_nail_yaw", -180.f, 180.f, 5.f, "%.0f")
-            .help("And turned (degrees), once its grip lies along the magazine where it holds it. Looks only."),
-        slider("Hand Roll", "vr_reload_hold_nail_roll", -180.f, 180.f, 5.f, "%.0f")
-            .help("And turned (degrees), once its grip lies along the magazine where it holds it. Looks only."),
-        toggle("Fingers Set by Hand", "vr_reload_hold_nail_fingers")
-            .help("Off: the fingers close round the magazine as it is. On: each finger at its curl below."),
-        slider("Thumb Curl", "vr_reload_hold_nail_curl_thumb", 0.f, 1.f, 0.05f, "%.2f")
-            .help("0 open, 1 closed (Fingers Set by Hand)."),
-        slider("Index Curl", "vr_reload_hold_nail_curl_index", 0.f, 1.f, 0.05f, "%.2f")
-            .help("0 open, 1 closed (Fingers Set by Hand)."),
-        slider("Middle Curl", "vr_reload_hold_nail_curl_middle", 0.f, 1.f, 0.05f, "%.2f")
-            .help("0 open, 1 closed (Fingers Set by Hand)."),
-        slider("Ring Curl", "vr_reload_hold_nail_curl_ring", 0.f, 1.f, 0.05f, "%.2f")
-            .help("0 open, 1 closed (Fingers Set by Hand)."),
-        slider("Little Curl", "vr_reload_hold_nail_curl_pinky", 0.f, 1.f, 0.05f, "%.2f")
-            .help("0 open, 1 closed (Fingers Set by Hand)."),
+        row(opt::vr_reload_hold_nail_x),
+        row(opt::vr_reload_hold_nail_y),
+        row(opt::vr_reload_hold_nail_z),
+        row(opt::vr_reload_hold_nail_pitch),
+        row(opt::vr_reload_hold_nail_yaw),
+        row(opt::vr_reload_hold_nail_roll),
+        row(opt::vr_reload_hold_nail_fingers),
+        row(opt::vr_reload_hold_nail_curl_thumb),
+        row(opt::vr_reload_hold_nail_curl_index),
+        row(opt::vr_reload_hold_nail_curl_middle),
+        row(opt::vr_reload_hold_nail_curl_ring),
+        row(opt::vr_reload_hold_nail_curl_pinky),
         header("Pull and Knock Out (All Magazines)"),
-        slider("Pull Reach", "vr_reload_pull_reach", 0.f, 12.f, 0.25f, "%.2f units").extend(0.f, 40.f)
-            .help("How far off the magazine (its box, as drawn) a hand closing its grip may be and still hold it "
-                  "(0: on it). Nearer the gun's own two-handed grip, the hand takes that instead."),
-        slider("Knock Out Speed", "vr_reload_bump_speed", 0.f, 15.f, 0.1f, "%.1f m/s").extend(0.f, 50.f)
-            .help("A hit on a seated magazine this hard pops it out: a punch, a held prop, another magazine (the bump "
-                  "reload: the new one is then seated at the well), or the other gun."),
-        slider("Knock Out Reach", "vr_reload_hit_reach", 0.f, 10.f, 0.25f, "%.2f units").extend(0.f, 40.f)
-            .help("How near the magazine (anywhere on it) a hit must land."),
+        row(opt::vr_reload_pull_reach),
+        row(opt::vr_reload_bump_speed),
+        row(opt::vr_reload_hit_reach),
     };
 }
 
@@ -873,81 +644,44 @@ void resetHandMoves()
 {
     return {
         header("At the Pouch"),
-        toggle("Reload at the Pouch", "vr_reload_pouch_snail")
-            .help("With its magazine out, bring its empty well onto the magazines standing in the ammo pouch, along them "
-                  "(the gun on its side: its well is on its left; Reloading: Pouch Angle): a fresh magazine seats, from "
-                  "your nails. With one in, nothing."),
+        row(opt::vr_reload_pouch_snail),
         header("Load Point"),
-        toggle("Show Load Points", "vr_reload_show_ports")
-            .help("Draws each held gun's load point (yellow) and its radius (green), a held magazine's reference point and "
-                  "radius (orange), and an attached magazine's box (blue: where a hand holds it, within Pull Reach, and "
-                  "where a hit knocks it out), to tune the offsets live."),
-        slider("Well X", "vr_reload_port_snail_x", -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("Moves the super nailgun well's load point forward (the gun's model units; negative: the other way)."),
-        slider("Well Y", "vr_reload_port_snail_y", -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("Moves the super nailgun well's load point left (the gun's model units; negative: the other way)."),
-        slider("Well Z", "vr_reload_port_snail_z", -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("Moves the super nailgun well's load point up (the gun's model units; negative: the other way)."),
-        slider("Well Radius", "vr_reload_port_snail_radius", 0.f, 10.f, 0.25f, "%.2f units").extend(0.f, 40.f)
-            .help("How near the super nailgun well's load point a held round must come to go in (a magazine: its reference point, within this plus its own radius)."),
+        row(opt::vr_reload_show_ports),
+        row(opt::vr_reload_port_snail_x),
+        row(opt::vr_reload_port_snail_y),
+        row(opt::vr_reload_port_snail_z),
+        row(opt::vr_reload_port_snail_radius),
         header("The Magazine's Top"),
-        slider("Top X", "vr_reload_mag_snail_x", -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("Moves the super nailgun magazine's reference point (its top, its feed end) along its gun (its model units)."),
-        slider("Top Y", "vr_reload_mag_snail_y", -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("Moves the super nailgun magazine's reference point (its top, its feed end) to its left (its model units)."),
-        slider("Top Z", "vr_reload_mag_snail_z", -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("Moves the super nailgun magazine's reference point (its top, its feed end) up its length (its model units)."),
-        slider("Top Radius", "vr_reload_mag_snail_radius", 0.f, 6.f, 0.25f, "%.2f units").extend(0.f, 20.f)
-            .help("The super nailgun magazine's own radius round its reference point (added to the well's)."),
+        row(opt::vr_reload_mag_snail_x),
+        row(opt::vr_reload_mag_snail_y),
+        row(opt::vr_reload_mag_snail_z),
+        row(opt::vr_reload_mag_snail_radius),
         open("Magazine Pose in the Hand: Held Object Offsets", pageIndex(pageHeldObjectOffsets))
             .help("How a magazine out of the gun sits in the hand: take one from the pouch, then tune it there."),
         header("Receiver (looks only)"),
-        slider("Receiver X", "vr_reload_well_snail_x", -6.f, 6.f, 0.05f, "%.2f").extend()
-            .help("Moves the super nailgun receiver (the collar round the magazine's top, drawn on the gun) forward, to sit flush (the gun's model units; looks only)."),
-        slider("Receiver Y", "vr_reload_well_snail_y", -6.f, 6.f, 0.05f, "%.2f").extend()
-            .help("Moves the super nailgun receiver (the collar round the magazine's top, drawn on the gun) left, to sit flush (the gun's model units; looks only)."),
-        slider("Receiver Z", "vr_reload_well_snail_z", -6.f, 6.f, 0.05f, "%.2f").extend()
-            .help("Moves the super nailgun receiver (the collar round the magazine's top, drawn on the gun) up, to sit flush (the gun's model units; looks only)."),
-        slider("Receiver Pitch", "vr_reload_well_snail_pitch", -90.f, 90.f, 1.f, "%.0f").extend(-180.f, 180.f)
-            .help("Turns the super nailgun receiver about its seat (looks only)."),
-        slider("Receiver Yaw", "vr_reload_well_snail_yaw", -90.f, 90.f, 1.f, "%.0f").extend(-180.f, 180.f)
-            .help("Turns the super nailgun receiver about its seat (looks only)."),
-        slider("Receiver Roll", "vr_reload_well_snail_roll", -90.f, 90.f, 1.f, "%.0f").extend(-180.f, 180.f)
-            .help("Turns the super nailgun receiver about its seat (looks only)."),
+        row(opt::vr_reload_well_snail_x),
+        row(opt::vr_reload_well_snail_y),
+        row(opt::vr_reload_well_snail_z),
+        row(opt::vr_reload_well_snail_pitch),
+        row(opt::vr_reload_well_snail_yaw),
+        row(opt::vr_reload_well_snail_roll),
         header("Holding the Attached Magazine"),
-        slider("Hand X", "vr_reload_hold_snail_x", -6.f, 6.f, 0.1f, "%.1f").extend()
-            .help("The other hand holding the attached magazine is drawn moved forward (units, the gun's aim; mirrored for the main hand). Looks only."),
-        slider("Hand Y", "vr_reload_hold_snail_y", -6.f, 6.f, 0.1f, "%.1f").extend()
-            .help("The other hand holding the attached magazine is drawn moved left (units, the gun's aim; mirrored for the main hand). Looks only."),
-        slider("Hand Z", "vr_reload_hold_snail_z", -6.f, 6.f, 0.1f, "%.1f").extend()
-            .help("The other hand holding the attached magazine is drawn moved up (units, the gun's aim; mirrored for the main hand). Looks only."),
-        slider("Hand Pitch", "vr_reload_hold_snail_pitch", -180.f, 180.f, 5.f, "%.0f")
-            .help("And turned (degrees), once its grip lies along the magazine where it holds it. Looks only."),
-        slider("Hand Yaw", "vr_reload_hold_snail_yaw", -180.f, 180.f, 5.f, "%.0f")
-            .help("And turned (degrees), once its grip lies along the magazine where it holds it. Looks only."),
-        slider("Hand Roll", "vr_reload_hold_snail_roll", -180.f, 180.f, 5.f, "%.0f")
-            .help("And turned (degrees), once its grip lies along the magazine where it holds it. Looks only."),
-        toggle("Fingers Set by Hand", "vr_reload_hold_snail_fingers")
-            .help("Off: the fingers close round the magazine as it is. On: each finger at its curl below."),
-        slider("Thumb Curl", "vr_reload_hold_snail_curl_thumb", 0.f, 1.f, 0.05f, "%.2f")
-            .help("0 open, 1 closed (Fingers Set by Hand)."),
-        slider("Index Curl", "vr_reload_hold_snail_curl_index", 0.f, 1.f, 0.05f, "%.2f")
-            .help("0 open, 1 closed (Fingers Set by Hand)."),
-        slider("Middle Curl", "vr_reload_hold_snail_curl_middle", 0.f, 1.f, 0.05f, "%.2f")
-            .help("0 open, 1 closed (Fingers Set by Hand)."),
-        slider("Ring Curl", "vr_reload_hold_snail_curl_ring", 0.f, 1.f, 0.05f, "%.2f")
-            .help("0 open, 1 closed (Fingers Set by Hand)."),
-        slider("Little Curl", "vr_reload_hold_snail_curl_pinky", 0.f, 1.f, 0.05f, "%.2f")
-            .help("0 open, 1 closed (Fingers Set by Hand)."),
+        row(opt::vr_reload_hold_snail_x),
+        row(opt::vr_reload_hold_snail_y),
+        row(opt::vr_reload_hold_snail_z),
+        row(opt::vr_reload_hold_snail_pitch),
+        row(opt::vr_reload_hold_snail_yaw),
+        row(opt::vr_reload_hold_snail_roll),
+        row(opt::vr_reload_hold_snail_fingers),
+        row(opt::vr_reload_hold_snail_curl_thumb),
+        row(opt::vr_reload_hold_snail_curl_index),
+        row(opt::vr_reload_hold_snail_curl_middle),
+        row(opt::vr_reload_hold_snail_curl_ring),
+        row(opt::vr_reload_hold_snail_curl_pinky),
         header("Pull and Knock Out (All Magazines)"),
-        slider("Pull Reach", "vr_reload_pull_reach", 0.f, 12.f, 0.25f, "%.2f units").extend(0.f, 40.f)
-            .help("How far off the magazine (its box, as drawn) a hand closing its grip may be and still hold it "
-                  "(0: on it). Nearer the gun's own two-handed grip, the hand takes that instead."),
-        slider("Knock Out Speed", "vr_reload_bump_speed", 0.f, 15.f, 0.1f, "%.1f m/s").extend(0.f, 50.f)
-            .help("A hit on a seated magazine this hard pops it out: a punch, a held prop, another magazine (the bump "
-                  "reload: the new one is then seated at the well), or the other gun."),
-        slider("Knock Out Reach", "vr_reload_hit_reach", 0.f, 10.f, 0.25f, "%.2f units").extend(0.f, 40.f)
-            .help("How near the magazine (anywhere on it) a hit must land."),
+        row(opt::vr_reload_pull_reach),
+        row(opt::vr_reload_bump_speed),
+        row(opt::vr_reload_hit_reach),
     };
 }
 
@@ -956,86 +690,47 @@ void resetHandMoves()
 {
     return {
         header("At the Pouch"),
-        toggle("Reload at the Pouch", "vr_reload_pouch_light")
-            .help("With its cell out, bring its empty well down onto the cells standing in the ammo pouch, along them "
-                  "(Reloading: Pouch Angle): a fresh cell seats, from your cells. With one in, nothing."),
+        row(opt::vr_reload_pouch_light),
         header("Load Point"),
-        toggle("Show Load Points", "vr_reload_show_ports")
-            .help("Draws each held gun's load point (yellow) and its radius (green), a held magazine's reference point and "
-                  "radius (orange), and an attached magazine's box (blue: where a hand holds it, within Pull Reach, and "
-                  "where a hit knocks it out), to tune the offsets live."),
-        slider("Well X", "vr_reload_port_light_x", -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("Moves the thunderbolt well's load point forward (the gun's model units; negative: the other way)."),
-        slider("Well Y", "vr_reload_port_light_y", -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("Moves the thunderbolt well's load point left (the gun's model units; negative: the other way)."),
-        slider("Well Z", "vr_reload_port_light_z", -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("Moves the thunderbolt well's load point up (the gun's model units; negative: the other way)."),
-        slider("Well Radius", "vr_reload_port_light_radius", 0.f, 10.f, 0.25f, "%.2f units").extend(0.f, 40.f)
-            .help("How near the thunderbolt well's load point a held round must come to go in (a magazine: its reference point, within this plus its own radius)."),
+        row(opt::vr_reload_show_ports),
+        row(opt::vr_reload_port_light_x),
+        row(opt::vr_reload_port_light_y),
+        row(opt::vr_reload_port_light_z),
+        row(opt::vr_reload_port_light_radius),
         header("The Magazine's Top"),
-        slider("Top X", "vr_reload_mag_light_x", -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("Moves the thunderbolt cell's reference point (its top, its feed end) along its gun (its model units)."),
-        slider("Top Y", "vr_reload_mag_light_y", -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("Moves the thunderbolt cell's reference point (its top, its feed end) to its left (its model units)."),
-        slider("Top Z", "vr_reload_mag_light_z", -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("Moves the thunderbolt cell's reference point (its top, its feed end) up its length (its model units)."),
-        slider("Top Radius", "vr_reload_mag_light_radius", 0.f, 6.f, 0.25f, "%.2f units").extend(0.f, 20.f)
-            .help("The thunderbolt cell's own radius round its reference point (added to the well's)."),
+        row(opt::vr_reload_mag_light_x),
+        row(opt::vr_reload_mag_light_y),
+        row(opt::vr_reload_mag_light_z),
+        row(opt::vr_reload_mag_light_radius),
         header("Sparks and Smoke"),
-        slider("Contact Sparks", "vr_reload_battery_sparks", 0.f, 40.f, 1.f, "%.0f").extend(0.f, 200.f)
-            .help("Sparks a cell throws as it makes or breaks contact: seated in the gun, or taken out (0: none)."),
-        slider("Spent Cell Smoke", "vr_reload_battery_smoke_time", 0.f, 20.f, 0.5f, "%.1f s").extend(0.f, 120.f)
-            .help("Seconds a spent cell (taken out empty) smokes from its top, in the hand or lying about; a spent "
-                  "magazine of lava nails too (0: never)."),
+        row(opt::vr_reload_battery_sparks),
+        row(opt::vr_reload_battery_smoke_time),
         open("Cell Pose in the Hand: Held Object Offsets", pageIndex(pageHeldObjectOffsets))
             .help("How a cell out of the gun sits in the hand: take one from the pouch, then tune it there."),
         header("Receiver (looks only)"),
-        slider("Receiver X", "vr_reload_well_light_x", -6.f, 6.f, 0.05f, "%.2f").extend()
-            .help("Moves the thunderbolt receiver (the collar round the magazine's top, drawn on the gun) forward, to sit flush (the gun's model units; looks only)."),
-        slider("Receiver Y", "vr_reload_well_light_y", -6.f, 6.f, 0.05f, "%.2f").extend()
-            .help("Moves the thunderbolt receiver (the collar round the magazine's top, drawn on the gun) left, to sit flush (the gun's model units; looks only)."),
-        slider("Receiver Z", "vr_reload_well_light_z", -6.f, 6.f, 0.05f, "%.2f").extend()
-            .help("Moves the thunderbolt receiver (the collar round the magazine's top, drawn on the gun) up, to sit flush (the gun's model units; looks only)."),
-        slider("Receiver Pitch", "vr_reload_well_light_pitch", -90.f, 90.f, 1.f, "%.0f").extend(-180.f, 180.f)
-            .help("Turns the thunderbolt receiver about its seat (looks only)."),
-        slider("Receiver Yaw", "vr_reload_well_light_yaw", -90.f, 90.f, 1.f, "%.0f").extend(-180.f, 180.f)
-            .help("Turns the thunderbolt receiver about its seat (looks only)."),
-        slider("Receiver Roll", "vr_reload_well_light_roll", -90.f, 90.f, 1.f, "%.0f").extend(-180.f, 180.f)
-            .help("Turns the thunderbolt receiver about its seat (looks only)."),
+        row(opt::vr_reload_well_light_x),
+        row(opt::vr_reload_well_light_y),
+        row(opt::vr_reload_well_light_z),
+        row(opt::vr_reload_well_light_pitch),
+        row(opt::vr_reload_well_light_yaw),
+        row(opt::vr_reload_well_light_roll),
         header("Holding the Attached Cell"),
-        slider("Hand X", "vr_reload_hold_light_x", -6.f, 6.f, 0.1f, "%.1f").extend()
-            .help("The other hand holding the attached cell is drawn moved forward (units, the gun's aim; mirrored for the main hand). Looks only."),
-        slider("Hand Y", "vr_reload_hold_light_y", -6.f, 6.f, 0.1f, "%.1f").extend()
-            .help("The other hand holding the attached cell is drawn moved left (units, the gun's aim; mirrored for the main hand). Looks only."),
-        slider("Hand Z", "vr_reload_hold_light_z", -6.f, 6.f, 0.1f, "%.1f").extend()
-            .help("The other hand holding the attached cell is drawn moved up (units, the gun's aim; mirrored for the main hand). Looks only."),
-        slider("Hand Pitch", "vr_reload_hold_light_pitch", -180.f, 180.f, 5.f, "%.0f")
-            .help("And turned (degrees), once its grip lies along the cell where it holds it. Looks only."),
-        slider("Hand Yaw", "vr_reload_hold_light_yaw", -180.f, 180.f, 5.f, "%.0f")
-            .help("And turned (degrees), once its grip lies along the cell where it holds it. Looks only."),
-        slider("Hand Roll", "vr_reload_hold_light_roll", -180.f, 180.f, 5.f, "%.0f")
-            .help("And turned (degrees), once its grip lies along the cell where it holds it. Looks only."),
-        toggle("Fingers Set by Hand", "vr_reload_hold_light_fingers")
-            .help("Off: the fingers close round the cell as it is. On: each finger at its curl below."),
-        slider("Thumb Curl", "vr_reload_hold_light_curl_thumb", 0.f, 1.f, 0.05f, "%.2f")
-            .help("0 open, 1 closed (Fingers Set by Hand)."),
-        slider("Index Curl", "vr_reload_hold_light_curl_index", 0.f, 1.f, 0.05f, "%.2f")
-            .help("0 open, 1 closed (Fingers Set by Hand)."),
-        slider("Middle Curl", "vr_reload_hold_light_curl_middle", 0.f, 1.f, 0.05f, "%.2f")
-            .help("0 open, 1 closed (Fingers Set by Hand)."),
-        slider("Ring Curl", "vr_reload_hold_light_curl_ring", 0.f, 1.f, 0.05f, "%.2f")
-            .help("0 open, 1 closed (Fingers Set by Hand)."),
-        slider("Little Curl", "vr_reload_hold_light_curl_pinky", 0.f, 1.f, 0.05f, "%.2f")
-            .help("0 open, 1 closed (Fingers Set by Hand)."),
+        row(opt::vr_reload_hold_light_x),
+        row(opt::vr_reload_hold_light_y),
+        row(opt::vr_reload_hold_light_z),
+        row(opt::vr_reload_hold_light_pitch),
+        row(opt::vr_reload_hold_light_yaw),
+        row(opt::vr_reload_hold_light_roll),
+        row(opt::vr_reload_hold_light_fingers),
+        row(opt::vr_reload_hold_light_curl_thumb),
+        row(opt::vr_reload_hold_light_curl_index),
+        row(opt::vr_reload_hold_light_curl_middle),
+        row(opt::vr_reload_hold_light_curl_ring),
+        row(opt::vr_reload_hold_light_curl_pinky),
         header("Pull and Knock Out (All Magazines)"),
-        slider("Pull Reach", "vr_reload_pull_reach", 0.f, 12.f, 0.25f, "%.2f units").extend(0.f, 40.f)
-            .help("How far off the magazine (its box, as drawn) a hand closing its grip may be and still hold it "
-                  "(0: on it). Nearer the gun's own two-handed grip, the hand takes that instead."),
-        slider("Knock Out Speed", "vr_reload_bump_speed", 0.f, 15.f, 0.1f, "%.1f m/s").extend(0.f, 50.f)
-            .help("A hit on a seated magazine this hard pops it out: a punch, a held prop, another magazine (the bump "
-                  "reload: the new one is then seated at the well), or the other gun."),
-        slider("Knock Out Reach", "vr_reload_hit_reach", 0.f, 10.f, 0.25f, "%.2f units").extend(0.f, 40.f)
-            .help("How near the magazine (anywhere on it) a hit must land."),
+        row(opt::vr_reload_pull_reach),
+        row(opt::vr_reload_bump_speed),
+        row(opt::vr_reload_hit_reach),
     };
 }
 
@@ -1044,54 +739,31 @@ void resetHandMoves()
 {
     return {
         header("Swinging It Out"),
-        toggle("Flick to Open", "vr_revolver_open_flick")
-            .help("A flick of the wrist towards the cylinder's side (to the left in the right hand, to the right in the left) "
-                  "swings it out."),
-        slider("Flick Open Speed", "vr_revolver_open_flick_speed", 50.f, 2000.f, 25.f, "%.0f deg/s").extend(0.f, 10000.f)
-            .help("The wrist's roll speed needed to flick it open: how fast the wrist must roll that way, at its fastest."),
-        slider("Flick Open Wrist Flick", "vr_revolver_open_flick_angle", 5.f, 120.f, 5.f, "%.0f deg").extend(0.f, 360.f)
-            .help("And how far it must roll that way in one go."),
-        slider("Flick Open Time", "vr_revolver_open_flick_time", 0.05f, 1.f, 0.05f, "%.2f s").extend(0.f, 5.f)
-            .help("The wrist flick must be rolled within this long of the flick's start; a slower roll starts over (0: no limit)."),
-        toggle("Eject Button Opens", "vr_revolver_open_button")
-            .help("B/Y swings it out; out, B/Y pushes the ejector (its shells drop)."),
+        row(opt::vr_revolver_open_flick),
+        row(opt::vr_revolver_open_flick_speed),
+        row(opt::vr_revolver_open_flick_angle),
+        row(opt::vr_revolver_open_flick_time),
+        row(opt::vr_revolver_open_button),
         header("Dropping the Shells"),
-        toggle("Ejector Rod", "vr_revolver_eject_rod")
-            .help("Out, the other hand pushing the ejector rod's head (in front of the cylinder) back drops them."),
-        slider("Ejector Rod Reach", "vr_revolver_eject_rod_reach", 0.f, 8.f, 0.25f, "%.2f units").extend(0.f, 40.f)
-            .help("How near its head the other hand must be."),
-        slider("Ejector Rod Push", "vr_revolver_eject_rod_speed", 0.f, 3.f, 0.05f, "%.2f m/s").extend(0.f, 10.f)
-            .help("How fast it must push back along the cylinder."),
+        row(opt::vr_revolver_eject_rod),
+        row(opt::vr_revolver_eject_rod_reach),
+        row(opt::vr_revolver_eject_rod_speed),
         header("Spinning It"),
-        toggle("Spin by Hand", "vr_revolver_spin")
-            .help("Out, the other hand swiping across the cylinder spins it: it slows and stops on a chamber, which changes "
-                  "which chamber comes under the hammer next."),
-        slider("Swipe Speed", "vr_revolver_spin_speed", 0.f, 3.f, 0.05f, "%.2f m/s").extend(0.f, 10.f)
-            .help("How fast a swipe must cross it."),
-        slider("Wait After Loading", "vr_revolver_spin_hold", 0.f, 2.f, 0.05f, "%.2f s").extend(0.f, 10.f)
-            .help("No spin while the other hand holds a shell (or anything), nor this long after it let go or the shell "
-                  "went in: loading a chamber doesn't spin it by accident."),
+        row(opt::vr_revolver_spin),
+        row(opt::vr_revolver_spin_speed),
+        row(opt::vr_revolver_spin_hold),
         header("Swinging It Home"),
-        slider("Flick Close Speed", "vr_revolver_close_flick_speed", 50.f, 2000.f, 25.f, "%.0f deg/s").extend(0.f, 10000.f)
-            .help("Always on: a flick of the wrist the other way swings it home. The wrist's roll speed needed to flick it home, at its fastest."),
-        slider("Flick Close Wrist Flick", "vr_revolver_close_flick_angle", 5.f, 120.f, 5.f, "%.0f deg").extend(0.f, 360.f)
-            .help("And how far it must roll that way in one go."),
-        toggle("Push Home", "vr_revolver_close_push")
-            .help("The other hand pushing the swung-out cylinder up from below swings it home."),
-        toggle("Button Closes", "vr_revolver_close_button")
-            .help("Out, B/Y swings it home instead of dropping its shells (an accessibility option: the shells then drop "
-                  "by the muzzle up or the ejector rod alone)."),
+        row(opt::vr_revolver_close_flick_speed),
+        row(opt::vr_revolver_close_flick_angle),
+        row(opt::vr_revolver_close_push),
+        row(opt::vr_revolver_close_button),
         header("Load Point"),
         toggle("Show Load Points", "vr_reload_show_ports")
             .help("Draws each held gun's load point (yellow) and its radius (green), to tune the offsets live."),
-        slider("Load Point X", "vr_reload_port_revolver_x", -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("Moves its load point (the swung-out cylinder's back face's middle) forward (the gun's model units)."),
-        slider("Load Point Y", "vr_reload_port_revolver_y", -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("Moves it left (the gun's model units)."),
-        slider("Load Point Z", "vr_reload_port_revolver_z", -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("Moves it up (the gun's model units)."),
-        slider("Load Point Radius", "vr_reload_port_revolver_radius", 0.f, 10.f, 0.25f, "%.2f units").extend(0.f, 40.f)
-            .help("How near it a held shell must come to go in (into the empty chamber nearest it)."),
+        row(opt::vr_reload_port_revolver_x),
+        row(opt::vr_reload_port_revolver_y),
+        row(opt::vr_reload_port_revolver_z),
+        row(opt::vr_reload_port_revolver_radius),
     };
 }
 
@@ -1100,67 +772,37 @@ void resetHandMoves()
 {
     return {
         header("At the Pouch"),
-        toggle("Reload at the Pouch", "vr_reload_pouch_npistol")
-            .help("With its magazine out, bring its empty grip down onto the magazines standing in the ammo pouch, along them "
-                  "(Reloading: Pouch Angle): a fresh magazine seats, from your nails. With one in, nothing."),
+        row(opt::vr_reload_pouch_npistol),
         header("Load Point"),
-        toggle("Show Load Points", "vr_reload_show_ports")
-            .help("Draws each held gun's load point (yellow) and its radius (green), a held magazine's reference point and "
-                  "radius (orange), and an attached magazine's box (blue: where a hand holds it, within Pull Reach, and "
-                  "where a hit knocks it out), to tune the offsets live."),
-        slider("Well X", "vr_reload_port_npistol_x", -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("Moves the nail pistol's well's load point forward (the gun's model units; negative: the other way)."),
-        slider("Well Y", "vr_reload_port_npistol_y", -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("Moves the nail pistol's well's load point left (the gun's model units; negative: the other way)."),
-        slider("Well Z", "vr_reload_port_npistol_z", -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("Moves the nail pistol's well's load point up (the gun's model units; negative: the other way)."),
-        slider("Well Radius", "vr_reload_port_npistol_radius", 0.f, 10.f, 0.25f, "%.2f units").extend(0.f, 40.f)
-            .help("How near the nail pistol's well's load point a held round must come to go in (a magazine: its reference point, within this plus its own radius)."),
+        row(opt::vr_reload_show_ports),
+        row(opt::vr_reload_port_npistol_x),
+        row(opt::vr_reload_port_npistol_y),
+        row(opt::vr_reload_port_npistol_z),
+        row(opt::vr_reload_port_npistol_radius),
         header("The Magazine's Top"),
-        slider("Top X", "vr_reload_mag_npistol_x", -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("Moves the nail pistol's magazine's reference point (its top, its feed end) along its gun (its model units)."),
-        slider("Top Y", "vr_reload_mag_npistol_y", -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("Moves the nail pistol's magazine's reference point (its top, its feed end) to its left (its model units)."),
-        slider("Top Z", "vr_reload_mag_npistol_z", -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("Moves the nail pistol's magazine's reference point (its top, its feed end) up its length (its model units)."),
-        slider("Top Radius", "vr_reload_mag_npistol_radius", 0.f, 6.f, 0.25f, "%.2f units").extend(0.f, 20.f)
-            .help("The nail pistol's magazine's own radius round its reference point (added to the well's)."),
+        row(opt::vr_reload_mag_npistol_x),
+        row(opt::vr_reload_mag_npistol_y),
+        row(opt::vr_reload_mag_npistol_z),
+        row(opt::vr_reload_mag_npistol_radius),
         open("Magazine Pose in the Hand: Held Object Offsets", pageIndex(pageHeldObjectOffsets))
             .help("How a magazine out of the gun sits in the hand: take one from the pouch, then tune it there."),
         header("Holding the Attached Cell"),
-        slider("Hand X", "vr_reload_hold_npistol_x", -6.f, 6.f, 0.1f, "%.1f").extend()
-            .help("The other hand holding the attached magazine is drawn moved forward (units, the gun's aim; mirrored for the main hand). Looks only."),
-        slider("Hand Y", "vr_reload_hold_npistol_y", -6.f, 6.f, 0.1f, "%.1f").extend()
-            .help("The other hand holding the attached magazine is drawn moved left (units, the gun's aim; mirrored for the main hand). Looks only."),
-        slider("Hand Z", "vr_reload_hold_npistol_z", -6.f, 6.f, 0.1f, "%.1f").extend()
-            .help("The other hand holding the attached magazine is drawn moved up (units, the gun's aim; mirrored for the main hand). Looks only."),
-        slider("Hand Pitch", "vr_reload_hold_npistol_pitch", -180.f, 180.f, 5.f, "%.0f")
-            .help("And turned (degrees), once its grip lies along the magazine where it holds it. Looks only."),
-        slider("Hand Yaw", "vr_reload_hold_npistol_yaw", -180.f, 180.f, 5.f, "%.0f")
-            .help("And turned (degrees), once its grip lies along the magazine where it holds it. Looks only."),
-        slider("Hand Roll", "vr_reload_hold_npistol_roll", -180.f, 180.f, 5.f, "%.0f")
-            .help("And turned (degrees), once its grip lies along the magazine where it holds it. Looks only."),
-        toggle("Fingers Set by Hand", "vr_reload_hold_npistol_fingers")
-            .help("Off: the fingers close round the magazine as it is. On: each finger at its curl below."),
-        slider("Thumb Curl", "vr_reload_hold_npistol_curl_thumb", 0.f, 1.f, 0.05f, "%.2f")
-            .help("0 open, 1 closed (Fingers Set by Hand)."),
-        slider("Index Curl", "vr_reload_hold_npistol_curl_index", 0.f, 1.f, 0.05f, "%.2f")
-            .help("0 open, 1 closed (Fingers Set by Hand)."),
-        slider("Middle Curl", "vr_reload_hold_npistol_curl_middle", 0.f, 1.f, 0.05f, "%.2f")
-            .help("0 open, 1 closed (Fingers Set by Hand)."),
-        slider("Ring Curl", "vr_reload_hold_npistol_curl_ring", 0.f, 1.f, 0.05f, "%.2f")
-            .help("0 open, 1 closed (Fingers Set by Hand)."),
-        slider("Little Curl", "vr_reload_hold_npistol_curl_pinky", 0.f, 1.f, 0.05f, "%.2f")
-            .help("0 open, 1 closed (Fingers Set by Hand)."),
+        row(opt::vr_reload_hold_npistol_x),
+        row(opt::vr_reload_hold_npistol_y),
+        row(opt::vr_reload_hold_npistol_z),
+        row(opt::vr_reload_hold_npistol_pitch),
+        row(opt::vr_reload_hold_npistol_yaw),
+        row(opt::vr_reload_hold_npistol_roll),
+        row(opt::vr_reload_hold_npistol_fingers),
+        row(opt::vr_reload_hold_npistol_curl_thumb),
+        row(opt::vr_reload_hold_npistol_curl_index),
+        row(opt::vr_reload_hold_npistol_curl_middle),
+        row(opt::vr_reload_hold_npistol_curl_ring),
+        row(opt::vr_reload_hold_npistol_curl_pinky),
         header("Pull and Knock Out (All Magazines)"),
-        slider("Pull Reach", "vr_reload_pull_reach", 0.f, 12.f, 0.25f, "%.2f units").extend(0.f, 40.f)
-            .help("How far off the magazine (its box, as drawn) a hand closing its grip may be and still hold it "
-                  "(0: on it). Nearer the gun's own two-handed grip, the hand takes that instead."),
-        slider("Knock Out Speed", "vr_reload_bump_speed", 0.f, 15.f, 0.1f, "%.1f m/s").extend(0.f, 50.f)
-            .help("A hit on a seated magazine this hard pops it out: a punch, a held prop, another magazine (the bump "
-                  "reload: the new one is then seated at the well), or the other gun."),
-        slider("Knock Out Reach", "vr_reload_hit_reach", 0.f, 10.f, 0.25f, "%.2f units").extend(0.f, 40.f)
-            .help("How near the magazine (anywhere on it) a hit must land."),
+        row(opt::vr_reload_pull_reach),
+        row(opt::vr_reload_bump_speed),
+        row(opt::vr_reload_hit_reach),
     };
 }
 
@@ -1170,20 +812,14 @@ void resetHandMoves()
 {
     return {
         header("Barrels"),
-        slider("Motor Volume", "vr_ad_widowmaker_motor", 0.f, 1.f, 0.05f, "%.2f")
-            .help("The barrels' motor whine: it rises in pitch and volume as they spin up and dies as they coast down. "
-                  "0: silent."),
+        row(opt::vr_ad_widowmaker_motor),
         header("Load Point"),
         toggle("Show Load Points", "vr_reload_show_ports")
             .help("Draws each held gun's load point (yellow) and its radius (green), to tune the offsets live."),
-        slider("Port X", "vr_reload_port_widow_x", -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("Moves the Widowmaker port's load point forward (the gun's model units; negative: the other way)."),
-        slider("Port Y", "vr_reload_port_widow_y", -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("Moves the Widowmaker port's load point left (the gun's model units; negative: the other way)."),
-        slider("Port Z", "vr_reload_port_widow_z", -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("Moves the Widowmaker port's load point up (the gun's model units; negative: the other way)."),
-        slider("Port Radius", "vr_reload_port_widow_radius", 0.f, 10.f, 0.25f, "%.2f units").extend(0.f, 40.f)
-            .help("How near the Widowmaker port's load point a held handful's middle must come to go in."),
+        row(opt::vr_reload_port_widow_x),
+        row(opt::vr_reload_port_widow_y),
+        row(opt::vr_reload_port_widow_z),
+        row(opt::vr_reload_port_widow_radius),
     };
 }
 
@@ -1195,27 +831,17 @@ void resetHandMoves()
         toggle("Show Load Points", "vr_reload_show_ports")
             .help("Draws each held gun's load point (yellow) and its radius (green), a held magazine's reference point and "
                   "radius (orange), and an attached magazine's box (blue), to tune the offsets live."),
-        slider("Well X", "vr_reload_port_adplasma_x", -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("Moves the Plasma Gun well's load point forward (the gun's model units; negative: the other way)."),
-        slider("Well Y", "vr_reload_port_adplasma_y", -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("Moves the Plasma Gun well's load point left (the gun's model units; negative: the other way)."),
-        slider("Well Z", "vr_reload_port_adplasma_z", -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("Moves the Plasma Gun well's load point up (the gun's model units; negative: the other way)."),
-        slider("Well Radius", "vr_reload_port_adplasma_radius", 0.f, 10.f, 0.25f, "%.2f units").extend(0.f, 40.f)
-            .help("How near the Plasma Gun well's load point a held cell's reference point must come to go in (within this plus the cell's own radius)."),
+        row(opt::vr_reload_port_adplasma_x),
+        row(opt::vr_reload_port_adplasma_y),
+        row(opt::vr_reload_port_adplasma_z),
+        row(opt::vr_reload_port_adplasma_radius),
         header("Receiver (looks only)"),
-        slider("Receiver X", "vr_reload_well_adplasma_x", -6.f, 6.f, 0.05f, "%.2f").extend()
-            .help("Moves the Plasma Gun's cell collar (drawn on the gun) forward (the gun's model units; looks only)."),
-        slider("Receiver Y", "vr_reload_well_adplasma_y", -6.f, 6.f, 0.05f, "%.2f").extend()
-            .help("Moves the Plasma Gun's cell collar left (the gun's model units; looks only)."),
-        slider("Receiver Z", "vr_reload_well_adplasma_z", -6.f, 6.f, 0.05f, "%.2f").extend()
-            .help("Moves the Plasma Gun's cell collar up (the gun's model units; looks only)."),
-        slider("Receiver Pitch", "vr_reload_well_adplasma_pitch", -90.f, 90.f, 1.f, "%.0f").extend(-180.f, 180.f)
-            .help("Turns the Plasma Gun's cell collar about its seat (looks only)."),
-        slider("Receiver Yaw", "vr_reload_well_adplasma_yaw", -90.f, 90.f, 1.f, "%.0f").extend(-180.f, 180.f)
-            .help("Turns the Plasma Gun's cell collar about its seat (looks only)."),
-        slider("Receiver Roll", "vr_reload_well_adplasma_roll", -90.f, 90.f, 1.f, "%.0f").extend(-180.f, 180.f)
-            .help("Turns the Plasma Gun's cell collar about its seat (looks only)."),
+        row(opt::vr_reload_well_adplasma_x),
+        row(opt::vr_reload_well_adplasma_y),
+        row(opt::vr_reload_well_adplasma_z),
+        row(opt::vr_reload_well_adplasma_pitch),
+        row(opt::vr_reload_well_adplasma_yaw),
+        row(opt::vr_reload_well_adplasma_roll),
         open("The Cell, Holding It, Pulling It: Thunderbolt", pageIndex(pageReloadThunderbolt))
             .help("The cell is the thunderbolt's: its top, its sparks and smoke, the hand holding it and the pull are there."),
     };
@@ -1226,52 +852,31 @@ void resetHandMoves()
 [[nodiscard]] za::Vector<Item> pageReloadLaunchers()
 {
     return {
-        toggle("Load at the Muzzle", "vr_reload_front")
-            .help("Immersive: the grenade, proximity and rocket launchers take a round at a time from the ammo pouch (a "
-                  "grenade, a proximity grenade, a rocket; in their other ammo mode the multi-grenade or multi-rocket), "
-                  "put butt first into the muzzle, or thrown in, or the launcher brought to one lying about. Off: they "
-                  "reload at the hip holsters."),
-        slider("Round Angle", "vr_reload_front_angle", 5.f, 80.f, 5.f, "%.0f deg")
-            .help("How far off the barrel a rocket or grenade may lie and still go in, butt first (its nose out of the "
-                  "muzzle). The wrong way round never loads: a dull tap. A proximity grenade goes in any way round."),
-        slider("Round In Hand Pitch", "vr_reload_front_hold_pitch", -180.f, 180.f, 5.f, "%.0f deg")
-            .help("A rocket or grenade (any of them: multi, proximity) taken from the ammo pouch, the same way every time: its "
-                  "nose tipped up in your hand (negative: down), about its middle. 90: standing in the fist, nose up by the "
-                  "thumb, butt down by the little finger (thumb forward, it lies along the barrel, butt to the muzzle)."),
+        row(opt::vr_reload_front),
+        row(opt::vr_reload_front_angle),
+        row(opt::vr_reload_front_hold_pitch),
         open("Round Pose: Held Object Offsets", pageIndex(pageHeldObjectOffsets))
             .help("How a rocket or grenade sits in the hand when taken from where it lies (its Grip). From the ammo pouch, "
                   "every round sits the same way, in the fist's grip channel, turned by Round In Hand above."),
-        slider("Proximity Mine Size", "vr_prox_scale", 0.3f, 1.f, 0.01f, "%.2f").extend(0.2f, 2.f)
-            .help("The proximity grenade's own size, the same everywhere (in the hand, the pouches, its launcher, in flight "
-                  "and stuck), its hit boxes with it. 1: Quake's size; the other grenades' 0.78."),
-        slider("Nail Size in Flight", "vr_nail_scale", 0.4f, 1.f, 0.01f, "%.2f").extend(0.25f, 2.f)
-            .help("Every nail in flight (the nailguns', the nail pistol's, the monsters' and the traps'), as drawn: they "
-                  "hit as a point either way. 1: Quake's size."),
+        row(opt::vr_prox_scale),
+        row(opt::vr_nail_scale),
         toggle("Show Load Points", "vr_reload_show_ports")
             .help("Draws each held gun's load point (yellow) and its radius (green), to tune the offsets live."),
         header("Grenade Launcher"),
-        slider("Muzzle X", "vr_reload_port_gl_x", -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("Moves the grenade launcher's load point forward (the gun's model units; negative: back into the barrel). "
-                  "The multi-grenade launcher's too."),
-        slider("Muzzle Y", "vr_reload_port_gl_y", -10.f, 10.f, 0.1f, "%.1f").extend().help("Left (negative: right)."),
-        slider("Muzzle Z", "vr_reload_port_gl_z", -10.f, 10.f, 0.1f, "%.1f").extend().help("Up (negative: down)."),
-        slider("Muzzle Radius", "vr_reload_port_gl_radius", 0.f, 10.f, 0.25f, "%.2f units").extend(0.f, 40.f)
-            .help("How near the muzzle's load point a grenade's butt must come to go in."),
+        row(opt::vr_reload_port_gl_x),
+        row(opt::vr_reload_port_gl_y),
+        row(opt::vr_reload_port_gl_z),
+        row(opt::vr_reload_port_gl_radius),
         header("Proximity Launcher"),
-        slider("Muzzle X", "vr_reload_port_prox_x", -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("Moves the proximity launcher's load point forward (the gun's model units; negative: back)."),
-        slider("Muzzle Y", "vr_reload_port_prox_y", -10.f, 10.f, 0.1f, "%.1f").extend().help("Left (negative: right)."),
-        slider("Muzzle Z", "vr_reload_port_prox_z", -10.f, 10.f, 0.1f, "%.1f").extend().help("Up (negative: down)."),
-        slider("Muzzle Radius", "vr_reload_port_prox_radius", 0.f, 10.f, 0.25f, "%.2f units").extend(0.f, 40.f)
-            .help("How near the muzzle's load point a proximity grenade's middle must come to go in."),
+        row(opt::vr_reload_port_prox_x),
+        row(opt::vr_reload_port_prox_y),
+        row(opt::vr_reload_port_prox_z),
+        row(opt::vr_reload_port_prox_radius),
         header("Rocket Launcher"),
-        slider("Muzzle X", "vr_reload_port_rl_x", -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("Moves the rocket launcher's load point forward (the gun's model units; negative: back). The "
-                  "multi-rocket launcher's too."),
-        slider("Muzzle Y", "vr_reload_port_rl_y", -10.f, 10.f, 0.1f, "%.1f").extend().help("Left (negative: right)."),
-        slider("Muzzle Z", "vr_reload_port_rl_z", -10.f, 10.f, 0.1f, "%.1f").extend().help("Up (negative: down)."),
-        slider("Muzzle Radius", "vr_reload_port_rl_radius", 0.f, 10.f, 0.25f, "%.2f units").extend(0.f, 40.f)
-            .help("How near the muzzle's load point a rocket's butt must come to go in."),
+        row(opt::vr_reload_port_rl_x),
+        row(opt::vr_reload_port_rl_y),
+        row(opt::vr_reload_port_rl_z),
+        row(opt::vr_reload_port_rl_radius),
     };
 }
 
@@ -1346,58 +951,23 @@ void resetHandMoves()
         open("Widowmaker (Arcane Dimensions)", pageIndex(pageReloadWidowmaker)).help("Its tube, the handful of shells the pouch gives for it, its fire rate, its shell port's load point."),
         open("Plasma Gun (Arcane Dimensions)", pageIndex(pageReloadPlasmaGun)).help("Its cell's well on its inner side: the load point and the receiver (the cell itself: the Thunderbolt's page)."),
         header("Cell Cords"),
-        toggle("Laser Cannon Cord", "vr_cellcord_laser")
-            .help("The laser cannon held, a coiled cord (the flashlight's Coiled) from its bottom into a cell in the ammo "
-                  "pouch, as if it drew on the pouch's cells (the pouch gives and shows cells while it is held). No cells "
-                  "left: the cord comes off and hangs loose off the gun; pick up cells and it plugs back in. A laser "
-                  "cannon in each hand: two cords. Needs Reloading Immersive (the pouch)."),
-        toggle("Mjolnir Cord", "vr_cellcord_hammer")
-            .help("The same cord on Mjolnir (Hipnotic's hammer), from the end of its handle: it draws cells too."),
-        toggle("Super Axe Cord", "vr_cellcord_superaxe")
-            .help("The same cord on the Super Axe (MG3), from the end of its handle: it draws cells too."),
+        row(opt::vr_cellcord_laser),
+        row(opt::vr_cellcord_hammer),
+        row(opt::vr_cellcord_superaxe),
         open("Cord Points", pageIndex(pageReloadCellCords))
             .help("Where each cord leaves its weapon (off its lowest point), to tune."),
         header("All Guns"),
-        slider("Magazine Reinsertion Clearance", "vr_reload_reinsert_clearance", 0.f, 16.f, 0.25f, "%.2f units").extend(0.f, 64.f)
-            .help("After pulling or knocking a magazine out, withdraw this far beyond its insertion reach before it can "
-                  "go back in. Also applies to the new magazine that knocked it out. Smaller: a shorter out-and-back "
-                  "motion; 0: just outside the reach. Loose magazines also clear the collision leniency and eject cooldown."),
-        slider("Magazine Reinsertion Delay", "vr_reload_reinsert_time", 0.f, 1.f, 0.05f, "%.2f s").extend(0.f, 5.f)
-            .help("Or this long after a held magazine was pulled out, or knocked the old one out, it can go back in "
-                  "even if it never left the well by the clearance: kept close, it seats after a moment, never at "
-                  "once. Larger: more time to move it away; 0: by the clearance only. Loose magazines keep the eject "
-                  "cooldown and the clearance."),
-        toggle("Release Seated Magazine", "vr_reload_mag_release")
-            .help("On: a magazine you push into its well leaves your hand as it seats, so moving the hand on to the "
-                  "foregrip while still gripping never pulls it back out; to pull it out again, let go and grip it "
-                  "afresh. Off: the hand still gripping holds the seated magazine, so pulling it straight back out "
-                  "works without letting go."),
-        slider("Shell Slide In", "vr_reload_insert_time", 0.f, 0.5f, 0.01f, "%.2f s")
-            .help("A shell (the super shotgun's pair) let go of at a gun's load point is drawn sliding into it for this "
-                  "long, following the gun (0: gone at once). It is loaded at once all the same."),
-        toggle("Show Load Points", "vr_reload_show_ports")
-            .help("Draws each held gun's load point (yellow) and its radius (green), a held magazine's reference point and "
-                  "radius (orange), and an attached magazine's box (blue: where a hand holds it, within Pull Reach, and "
-                  "where a hit knocks it out), to tune the offsets live."),
-        slider("Collision Leniency", "vr_reload_collide_leniency", 0.f, 60.f, 1.f, "%.0f cm").extend(0.f, 200.f)
-            .help("A shell or magazine in your hand is drawn kept off the gun in the other hand (Held Things Collide): it "
-                  "may go this far into the gun's box first, to reach the port under the shotgun or a magazine well."),
-        toggle("Solid Magazines", "vr_reload_mag_collide")
-            .help("A magazine seated in a gun is solid as the gun is: the other hand stops at it, empty or holding "
-                  "something, the other gun meets it, and it pushes things about (a gun lying about too). Grabbing it "
-                  "still holds it and pulls it out. Off: they pass through it."),
-        toggle("Load Loose Rounds", "vr_reload_contact")
-            .help("A shell or magazine lying about, dropped or thrown goes into the gun it touches at its load point, lying "
-                  "the right way: drop shells into the shotgun's port or the open super shotgun's barrels, a magazine "
-                  "feed end up into its well, or bring the gun down onto one standing on a table."),
-        slider("Loose Leniency", "vr_reload_contact_leniency", 0.f, 20.f, 1.f, "%.0f cm").extend(0.f, 60.f)
-            .help("A loose round goes in this much further from the load point than one in your hand (the gun's "
-                  "collision covers its port and well), and passes through the gun within this much more again."),
-        slider("Ejected Stays Out", "vr_reload_eject_cooldown", 0.f, 2.f, 0.05f, "%.2f s")
-            .help("A magazine just ejected (or the super shotgun's live shells thrown out) goes back in by contact only "
-                  "once it has left both guns' wells and this long has passed."),
-        toggle("Eject Button", "vr_reload_eject_button")
-            .help("The B/Y button of the controller holding a nailgun, super nailgun or thunderbolt drops its magazine."),
+        row(opt::vr_reload_reinsert_clearance),
+        row(opt::vr_reload_reinsert_time),
+        row(opt::vr_reload_mag_release),
+        row(opt::vr_reload_insert_time),
+        row(opt::vr_reload_show_ports),
+        row(opt::vr_reload_collide_leniency),
+        row(opt::vr_reload_mag_collide),
+        row(opt::vr_reload_contact),
+        row(opt::vr_reload_contact_leniency),
+        row(opt::vr_reload_eject_cooldown),
+        row(opt::vr_reload_eject_button),
         header("Reloading at the Pouch"),
         toggle("Shotgun", "vr_reload_pouch_shot")
             .help("Its port brought down onto the shells in the ammo pouch, upright: a shell a touch."),
@@ -1413,36 +983,23 @@ void resetHandMoves()
             .help("Its well empty, brought down onto the cells in the pouch along them: a fresh one seats."),
         toggle("Nail Pistol", "vr_reload_pouch_npistol")
             .help("Its grip empty, brought down onto the magazines in the pouch along them: a fresh one seats."),
-        toggle("Magazines Where Drawn", "vr_reload_pouch_mag_slots")
-            .help("The nailguns' and thunderbolt's well against each magazine as drawn in the pouch (the nearest one): "
-                  "Magazine Contact and Magazine Angle. Off: anywhere along the row of rounds, by Pouch Contact and Pouch "
-                  "Angle."),
+        row(opt::vr_reload_pouch_mag_slots),
         header("Ammo Pouch"),
-        toggle("Show", "vr_ammo_pouch_show").help("Draw the pouch (off: it still works where it is)."),
-        slider("X", "vr_ammo_pouch_x", -10.f, 10.f, 0.25f, "%.2f").extend()
-            .help("Forward (negative: back, round the hips). With the body drawn, 0 is on the belly."),
-        slider("Y", "vr_ammo_pouch_y", -10.f, 10.f, 0.25f, "%.2f").extend().help("To the right (negative: left)."),
-        slider("Z", "vr_ammo_pouch_z", -10.f, 10.f, 0.25f, "%.2f").extend().help("Up, from the hip holsters' height."),
-        slider("Reach", "vr_ammo_pouch_thresh", 0.5f, 20.f, 0.25f, "%.2f").extend(0.f, 40.f)
-            .help("How near a hand must come to reach into it. The hip holsters beside it win where a hand is nearer them."),
-        slider("Pitch", "vr_ammo_pouch_pitch", -180.f, 180.f, 5.f, "%.0f")
-            .help("Its top tipped away from the body."),
-        slider("Yaw", "vr_ammo_pouch_yaw", -180.f, 180.f, 5.f, "%.0f"),
-        slider("Roll", "vr_ammo_pouch_roll", -180.f, 180.f, 5.f, "%.0f"),
-        slider("Size", "vr_ammo_pouch_scale", 0.2f, 3.f, 0.05f, "%.2fx").extend(0.05f, 10.f)
-            .help("As drawn (its reach is Reach's)."),
-        toggle("Counter", "vr_ammo_pouch_counter")
-            .help("A small screen on the pouch: how many of what it gives (shells, nails, cells) you have left."),
-        toggle("White Counter Text", "vr_ammo_screen_text_white")
-            .help("The counter's number near-white, as the wrist gadget's (the guns' ammo screens' too: the same setting)."),
-        slider("Follow Legs", "vr_ammo_pouch_leg_follow", 0.f, 1.f, 0.05f, "%.2f")
-            .help("With the full body, how much the pouch moves with your legs as you walk, as the belt does (the hip "
-                  "holsters' Follow Legs likewise). 0: fixed on the belly."),
+        row(opt::vr_ammo_pouch_show),
+        row(opt::vr_ammo_pouch_x),
+        row(opt::vr_ammo_pouch_y),
+        row(opt::vr_ammo_pouch_z),
+        row(opt::vr_ammo_pouch_thresh),
+        row(opt::vr_ammo_pouch_pitch),
+        row(opt::vr_ammo_pouch_yaw),
+        row(opt::vr_ammo_pouch_roll),
+        row(opt::vr_ammo_pouch_scale),
+        row(opt::vr_ammo_pouch_counter),
+        row(opt::vr_ammo_screen_text_white),
+        row(opt::vr_ammo_pouch_leg_follow),
         // (VR Settings had these until the author's note of 2026-10-22: "too fine-grained" for the basic settings.)
         header("Ammo Pouch Wobble"),
-        toggle("Wobble Each Round", "vr_ammo_pouch_wobble_each")
-            .help("Each shell or magazine sways on its own (a little quicker or slower than the others; lying shells "
-                  "slide and tilt), never through each other. Off: they all sway together, as one block."),
+        row(opt::vr_ammo_pouch_wobble_each),
     };
 }
 
@@ -1506,18 +1063,14 @@ void resetHandMoves()
         open("Presets", pageIndex(pageGraphicsPresets))
             .help("Off (Quake), Low, Medium, High (as shipped) and Ultra set the settings on the Graphics pages at once; My Settings sets yours back. Also on VR Settings."),
         header("Image"),
-        cycle("Anti-aliasing", "vid_fsaa", {{0.f, "Off"}, {2.f, "2x"}, {4.f, "4x"}, {8.f, "8x"}}).help("Multisampling: smoother edges; thin lines such as the gaps between planks stop crawling as your head moves. 4x (as shipped) does most of it; 8x takes nearly twice 4x's GPU time for little more."),
-        cycle("Smooth Textures", "vr_texture_smooth", {{0.f, "As gl_texturemode"}, {1.f, "Replacements"}, {2.f, "All"}})
-            .help("Smooth filtering for high-resolution replacement textures, or for all textures."),
-        cycle("Anisotropic Filtering", "gl_texture_anisotropy", {{1.f, "Off"}, {2.f, "2x"}, {4.f, "4x"}, {8.f, "8x"}, {16.f, "16x"}})
-            .help("Keeps floors and walls seen at a glancing angle sharp instead of blurry (smooth-filtered textures). "
-                  "Little GPU time; 16x is the sharpest. Capped at what the graphics card supports."),
-        toggle("Fence Coverage", "vr_alpha_coverage").help("Fences and grates keep their bars at a distance instead of thinning out and crawling; with Anti-aliasing (MSAA) their edges are smoothed too."),
-        toggle("Relit Maps", "vr_relit_maps").help("Maps re-lit with shadows, ambient occlusion and colour, if made (Misc/quakevr/relight_maps.py, or Relighting below). Next map."),
+        row(opt::vid_fsaa),
+        row(opt::vr_texture_smooth),
+        row(opt::gl_texture_anisotropy),
+        row(opt::vr_alpha_coverage),
+        row(opt::vr_relit_maps),
         open("Relighting", pageIndex(pageGraphicsRelighting)).help("Relight the map you are in, with brighter or dimmer lamps, glowing panels, lava, bounced light and ambient occlusion, and see it at once."),
-        slider("Headset Gamma", "vr_gamma", 0.5f, 1.5f, 0.02f, "%.2f").extend()
-            .help("The headset's brightness: lower is brighter (1 neutral). The desktop's gamma is not used."),
-        slider("Headset Contrast", "vr_contrast", 0.5f, 2.f, 0.02f, "%.2f").extend().help("The headset's own contrast (1 neutral)."),
+        row(opt::vr_gamma),
+        row(opt::vr_contrast),
         header("More Graphics"),
         open("Lights", pageIndex(pageGraphicsLights)),
         open("Shadows", pageIndex(pageGraphicsShadows)),
@@ -1533,10 +1086,8 @@ void resetHandMoves()
         open("Transparency", pageIndex(pageTransparencyOptions)),
         open("Recording (Window View)", pageIndex(pageRecording)),
         header("Performance"),
-        cycle("Performance Profile", "vr_profile", {{0.f, "Off"}, {1.f, "Record"}, {2.f, "Record and show"}})
-            .help("Record CPU and GPU time per effect into quakevr/profile/ every 5 seconds (and show the profiler's panel over the wrist: Debug > Profiling has more). Not kept after a restart."),
-        cycle("FPS Counter on the Gadget", "vr_gadget_fps", {{0.f, "Off"}, {1.f, "Basic"}, {2.f, "Detailed"}})
-            .help("Under the wrist gadget: the frame rate and the CPU's and GPU's milliseconds a frame (our work, the eyes' drawing; not the runtime's waits). Basic: one line, averaged over half a second. Detailed: now, the last quarter second's average, the last 5 seconds' least and most, the frames that missed a refresh (Late), and graphs of the last 3 seconds against the frame budget (the dotted line); figures over the budget are highlighted."),
+        row(opt::vr_profile),
+        row(opt::vr_gadget_fps),
     };
 }
 
@@ -1544,34 +1095,32 @@ void resetHandMoves()
 [[nodiscard]] za::Vector<Item> pageGraphicsLights()
 {
     return {
-        slider("Light Contrast", "vr_light_contrast", 1.f, 2.5f, 0.02f, "%.2f").extend().help("Darker shade, lamps as bright: the level's own light sources carry the scene (1: Quake's)."),
-        slider("Ambient Light", "vr_ambient_light", 0.f, 0.4f, 0.01f, "%.2f").extend().help("The room's own fill light: how much light the places no lamp reaches have, so a map reads clearly lit without the flashlight. A companion to Light Contrast, which still shapes the shade at any level of it (0: none)."),
-        toggle("Coloured Lights", "vr_colored_lights").help("Warm muzzle flashes, rockets and explosions; the lightning gun's blue."),
-        cycle("Dynamic Light Falloff", "vr_dlight_falloff", {{0.f, "Quake"}, {1.f, "DarkPlaces"}})
-            .help("DarkPlaces: strong lights, full near and smoothly gone at the edge. Quake: dimmer, fading linearly all the way."),
-        toggle("Uncapped Dynamic Lights", "vr_dlight_uncapped").help("Dynamic lights add fully to bright walls (Quake caps them)."),
-        toggle("Dynamic Lights on Models", "vr_dlight_models").help("Per pixel, by the angle, and shadowed (off: Quake's flat brightening)."),
-        slider("Dynamic Light Angle", "vr_dlight_angle", 0.f, 1.f, 0.25f, "%.2f")
-            .help("How much surfaces facing away from a dynamic light get less of it (0: Quake's)."),
+        row(opt::vr_light_contrast),
+        row(opt::vr_ambient_light),
+        row(opt::vr_colored_lights),
+        row(opt::vr_dlight_falloff),
+        row(opt::vr_dlight_uncapped),
+        row(opt::vr_dlight_models),
+        row(opt::vr_dlight_angle),
         header("Light Sources"),
-        slider("Muzzle Flash Light", "vr_flash_scale", 0.f, 3.f, 0.05f, "%.2fx").extend().help("How far your shots light up the room (0 off)."),
-        slider("Explosion Light", "vr_explosion_light_scale", 0.f, 3.f, 0.05f, "%.2fx").extend(),
-        slider("Projectile Light", "vr_projectile_lights", 0.f, 2.f, 0.05f, "%.2fx").extend().help("Hell knight flames, scrag spit, vore balls and lasers light up the room, and where they hit (0 off)."),
-        slider("Lava Nail Lights", "vr_lavanail_lights", 0.f, 16.f, 1.f, "%.0f").extend().help("How many lava nails light up the room at once, the nearest; sized by Projectile Light (0 none)."),
-        slider("Lava Gun Light", "vr_lavagun_light", 0.f, 3.f, 0.1f, "%.1fx").extend().help("The nailguns loaded with lava nails glow from their barrels, lighting your hand and what is near (0 off)."),
-        slider("Lava Gun Light Reach", "vr_lavagun_light_radius", 16.f, 200.f, 4.f, "%.0f").extend().help("How far the lava guns' glow reaches."),
-        slider("Lava Gun Light Flicker", "vr_lavagun_light_flicker", 0.f, 1.f, 0.05f, "%.2f").help("How much the lava guns' glow flickers (0 steady)."),
-        slider("Lava Gun Light at Rest", "vr_lavagun_light_idle", 0.f, 1.f, 0.05f, "%.2fx").help("Lava guns in your holsters or lying on the floor glow too, this much of a held one's (0 not)."),
-        slider("Lightning Beam Lights", "vr_beam_lights", 0.f, 12.f, 1.f, "%.0f").extend().help("Lightning beams light the room along their length with this many flickering lights (0 off)."),
-        slider("Flamethrower Lights", "vr_flame_lights", 0.f, 8.f, 1.f, "%.0f").extend().help("Flamethrowers' streams (your pyro gun, pyro monsters) light the room: their flames gathered into at most this many flickering lights, all streams together (0 off)."),
-        slider("Flamethrower Light Size", "vr_flame_light_scale", 0.f, 3.f, 0.05f, "%.2fx").extend().help("How far the flamethrowers' light reaches."),
-        slider("Lightning Arcs", "vr_beam_arcs", 0.f, 3.f, 0.1f, "%.1fx").extend().help("Quad Damage's electric arcs crackle along the lightning's beams (the lightning gun, shamblers, Chthon): how many (1: one every 24 units or so; 0 off)."),
-        slider("Lightning Arc Spread", "vr_beam_arcs_spread", 2.f, 32.f, 1.f, "%.0f").extend().help("How far the arcs reach from the beam, units."),
-        slider("Lightning Arc Width", "vr_beam_arcs_width", 0.5f, 4.f, 0.1f, "%.1fx").extend().help("How thick the arcs are, times Quad Damage's on the arms."),
-        slider("Torch Lights", "vr_torch_lights", 0.f, 16.f, 1.f, "%.0f").extend().help("Torches and flames flicker a small warm light onto the room: how many at once, the nearest (0 off)."),
-        slider("Torch Light Brightness", "vr_torch_light_scale", 0.f, 16.f, 0.25f, "%.2fx").extend().help("How bright the torches' flickering light is, on top of the map's own light."),
-        slider("Torch Light Shadows", "vr_torch_light_shadows", 0.f, 4.f, 1.f, "%.0f").extend().help("How many of the nearest torches cast shadows (each takes one of the dynamic lights' shadows; 0 none)."),
-        slider("Ammo Screen Light", "vr_weapon_screen_light", 0.f, 3.f, 0.1f, "%.1fx").extend().help("Your weapons' ammo screens cast a small light in their colour on what is in front of them (0 off)."),
+        row(opt::vr_flash_scale),
+        row(opt::vr_explosion_light_scale),
+        row(opt::vr_projectile_lights),
+        row(opt::vr_lavanail_lights),
+        row(opt::vr_lavagun_light),
+        row(opt::vr_lavagun_light_radius),
+        row(opt::vr_lavagun_light_flicker),
+        row(opt::vr_lavagun_light_idle),
+        row(opt::vr_beam_lights),
+        row(opt::vr_flame_lights),
+        row(opt::vr_flame_light_scale),
+        row(opt::vr_beam_arcs),
+        row(opt::vr_beam_arcs_spread),
+        row(opt::vr_beam_arcs_width),
+        row(opt::vr_torch_lights),
+        row(opt::vr_torch_light_scale),
+        row(opt::vr_torch_light_shadows),
+        row(opt::vr_weapon_screen_light),
     };
 }
 
@@ -1579,41 +1128,28 @@ void resetHandMoves()
 [[nodiscard]] za::Vector<Item> pageGraphicsShadows()
 {
     return {
-        slider("Shadowed Dynamic Lights", "vr_shadow_dlights", 0.f, 12.f, 1.f, "%.0f").extend()
-            .help("Explosions, rockets and other dynamic lights casting shadows, the most important first (0 off)."),
-        cycle("Dynamic Shadow Detail", "vr_shadow_dlight_size", {{128.f, "128"}, {256.f, "256"}, {512.f, "512"}, {1024.f, "1024"}})
-            .help("Largest shadow face size, in texels; farther lights get smaller ones."),
-        toggle("Muzzle Flash Shadows", "vr_shadow_muzzleflash").help("Your own muzzle flashes cast shadows too (brief; costs more)."),
-        slider("Map Light Shadows", "vr_shadow_maplights", 0.f, 8.f, 1.f, "%.0f").extend()
-            .help("Map lights near you casting the shadows of monsters and of you (0 off)."),
-        cycle("Map Shadow Detail", "vr_shadow_maplight_size", {{256.f, "256"}, {512.f, "512"}, {1024.f, "1024"}})
-            .help("Their shadow face size, in texels."),
-        slider("Map Shadow Strength", "vr_shadow_maplight_strength", 0.f, 1.f, 0.05f, "%.2f")
-            .help("How much of a map light those shadows take away."),
-        cycle("Your Shadow", "vr_shadow_self", {{0.f, "None"}, {1.f, "Body"}, {2.f, "Body and hands"}})
-            .help("What of you casts map lights' shadows."),
-        cycle("Shadow Softness", "vr_shadow_filter", {{0.f, "Hard (1 tap)"}, {1.f, "Soft (4 taps)"}, {2.f, "Softer (9)"}, {3.f, "Softest (16)"}}),
-        slider("Shadow Distance", "vr_shadow_distance", 256.f, 4096.f, 128.f, "%.0f").extend()
-            .help("Lights farther than this from you cast no shadows."),
-        cycle("Shadow Atlas", "vr_shadow_atlas", {{2048.f, "2048"}, {4096.f, "4096"}, {8192.f, "8192"}})
-            .help("Room for all shadows at once: 8192 holds eight lights' shadows at full size (256 MB); smaller fits fewer or halves them (64 MB at 4096)."),
-        toggle("Grow Shadow Atlas", "vr_shadow_atlas_grow")
-            .help("The shadow atlases start small (64 MB, plus a row of map light shadows) and grow as the map's lights need them, until the next map: less video memory where few lights are near. Off: their full size at once (352 MB at the defaults)."),
-        slider("Shadow Bias", "vr_shadow_bias", 0.f, 4.f, 0.25f, "%.2f").extend()
-            .help("Higher: fewer speckles on lit surfaces; lower: shadows start closer to what casts them."),
-        cycle("Shadow Statistics", "vr_shadow_stats", {{0.f, "Off"}, {1.f, "Each Second"}, {2.f, "Each Frame, Per Light"}})
-            .help("Print what is shadowed and its GPU time, once a second, to the console. Each frame: also every shadowed light and its shadow's strength (+ chosen, - fading out), to check shadows fade rather than pop."),
+        row(opt::vr_shadow_dlights),
+        row(opt::vr_shadow_dlight_size),
+        row(opt::vr_shadow_muzzleflash),
+        row(opt::vr_shadow_maplights),
+        row(opt::vr_shadow_maplight_size),
+        row(opt::vr_shadow_maplight_strength),
+        row(opt::vr_shadow_self),
+        row(opt::vr_shadow_filter),
+        row(opt::vr_shadow_distance),
+        row(opt::vr_shadow_atlas),
+        row(opt::vr_shadow_atlas_grow),
+        row(opt::vr_shadow_bias),
+        row(opt::vr_shadow_stats),
         header("Ambient Occlusion"),
-        slider("Contact Shadows", "vr_ao_dynamic", 0.f, 2.f, 0.1f, "%.1f").extend()
-            .help("Monsters, items, gibs and your body darken the floor and walls close to them, and each other: soft shadows where things touch (0 off)."),
-        slider("Contact Shadow Reach", "vr_ao_dynamic_range", 1.25f, 5.f, 0.25f, "%.2f").extend().help("How far round a thing its darkening reaches, in its own sizes."),
-        slider("Door and Lift Shadows", "vr_ao_brush", 0.f, 2.f, 0.1f, "%.1f").extend().help("Doors, lifts, platforms and the item boxes darken the walls and floors close to them (the map's light never saw them; 0 off)."),
-        slider("Model Self-Shadowing", "vr_ao_models", 0.f, 2.f, 0.1f, "%.1f").extend().help("Monsters, weapons and pickups are darker in their own creases: armpits, under guns, grooves (worked out as each model loads; 0 off)."),
+        row(opt::vr_ao_dynamic),
+        row(opt::vr_ao_dynamic_range),
+        row(opt::vr_ao_brush),
+        row(opt::vr_ao_models),
         header("Blob Shadows"),
-        cycle("Blob Shadows", "vr_blob_shadows", {{0.f, "Off"}, {1.f, "Always"}, {2.f, "Auto"}})
-            .help("Dark discs under you and things, a cheap stand-in for shadows. Auto: only where the real shadows (above) do not fall."),
-        cycle("Blob Shadows: You", "vr_player_shadows", {{0.f, "Off"}, {1.f, "Hands"}, {2.f, "Body"}, {3.f, "Both"}}),
-        toggle("Blob Shadows: Things", "vr_entity_shadows").help("Blob shadows under monsters and items, away from their light."),
+        row(opt::vr_blob_shadows),
+        row(opt::vr_player_shadows),
+        row(opt::vr_entity_shadows),
     };
 }
 
@@ -1621,36 +1157,36 @@ void resetHandMoves()
 [[nodiscard]] za::Vector<Item> pageGraphicsSurfaces()
 {
     return {
-        slider("Light Sheen", "vr_specular", 0.f, 0.5f, 0.025f, "%.3f").extend().help("Dynamic lights glint off walls and models (0 off)."),
-        toggle("Sheen Anti-Aliasing", "vr_specular_aa").help("Distant bumps' sheen and the water's glints stay steady instead of sparkling as your head moves."),
+        row(opt::vr_specular),
+        row(opt::vr_specular_aa),
         header("Bumps"),
-        toggle("Bump Maps", "vr_normalmaps").help("Bumps made from the textures, shown by the map's light and dynamic lights. Next map."),
-        slider("Bump Depth", "vr_normalmap_strength", 0.f, 3.f, 0.05f, "%.2f").extend(),
-        slider("Bumps in Map Light", "vr_normalmap_baked", 0.f, 2.f, 0.1f, "%.1f").extend().help("How much the bumps shade the map's own light, lit from where it seems to come from (0: only dynamic lights show them)."),
-        toggle("Real Light Directions", "vr_deluxemap").help("Relit maps know where their light comes from at every point (.lux): the bumps are lit from there and the lamps glint off them. Off: guessed from where the light gets brighter (always so on maps without it)."),
-        slider("Bumps on Models", "vr_normalmap_models", 0.f, 2.f, 0.1f, "%.1f").extend().help("How much the bumps shade models' own light (monsters, pickups, weapons; held ones half), lit from the map's lights (times Bumps in Map Light; 0: only dynamic lights show them)."),
-        slider("Authored Model Bumps", "vr_normalmap_authored", 0.f, 2.f, 0.1f, "%.1f").extend().help("How deep models' authored normal maps are (a skin's _norm or _bump file: a model pack's, or our own models'); 1 as made. Held ones too."),
+        row(opt::vr_normalmaps),
+        row(opt::vr_normalmap_strength),
+        row(opt::vr_normalmap_baked),
+        row(opt::vr_deluxemap),
+        row(opt::vr_normalmap_models),
+        row(opt::vr_normalmap_authored),
         header("Parallax"),
-        toggle("Parallax", "vr_parallax").help("Walls and floors look carved: their dark parts sink in and shift as you move your head (needs Bump Maps)."),
-        slider("Parallax Depth", "vr_parallax_depth", 0.5f, 6.f, 0.25f, "%.2f").extend().help("How deep the darkest parts of the textures sink, in Quake units."),
-        slider("Parallax Distance", "vr_parallax_distance", 128.f, 2048.f, 64.f, "%.0f").extend().help("How far away walls still look carved (further costs more)."),
-        slider("Parallax Refinement", "vr_parallax_refine", 0.f, 8.f, 1.f, "%.0f").extend().help("Steps finding exactly where your view meets the carving: smooth edges seen from the side instead of stairs and layers that slide as you move (0 none; 1 the old look; 4 the default)."),
-        slider("Parallax Side Fade", "vr_parallax_grazing", 60.f, 90.f, 1.f, "%.0f").extend().help("How far round to the side, in degrees from straight on, walls still look carved before it fades out (90, the default: never fades; 86 before; 83 the old look; lower if seen-from-the-side walls swim)."),
-        toggle("Parallax Depth Write", "vr_parallax_depth_write").help("The carving has real depth: monsters, items, hands, particles and water meet the sunken parts where they look to be, instead of at the flat wall. Off by default, on in the Ultra preset: costs about a millisecond a frame in big maps."),
-        slider("Parallax Items Depth", "vr_parallax_items", 0.f, 4.f, 0.25f, "%.2f").extend().help("How deep the ammo and health boxes look carved, in their own units (scaled with the box; 0 off)."),
-        slider("Parallax Models Depth", "vr_parallax_models", 0.f, 2.f, 0.125f, "%.3f").extend().help("How deep monsters, pickups and weapons without baked maps look carved, their heights guessed from the skin's paint, in their own units (0 off, the default: on Quake's blocky skins it bends the texels)."),
-        slider("Parallax Depth: Authored Models", "vr_parallax_authored", 0.f, 2.f, 0.25f, "%.2f").extend().help("How deep models with authored bump maps look carved (your hands and body, the gadget, the flashlight, the weapons): their real baked relief, 1 as deep as baked, 0 off."),
+        row(opt::vr_parallax),
+        row(opt::vr_parallax_depth),
+        row(opt::vr_parallax_distance),
+        row(opt::vr_parallax_refine),
+        row(opt::vr_parallax_grazing),
+        row(opt::vr_parallax_depth_write),
+        row(opt::vr_parallax_items),
+        row(opt::vr_parallax_models),
+        row(opt::vr_parallax_authored),
         header("External Maps"),
-        toggle("External Maps", "vr_extmaps").help("Quetoo's normal, specular and glow maps for Quake's textures (shipped: quakevr/textures_quetoo, CC BY-SA 4.0; or another pack in vr_extmaps_dir), where its pictures match the textures drawn. Next map."),
-        toggle("External Bump Maps", "vr_extmaps_normals").help("Its normal maps instead of the bumps made from the textures (where it has them)."),
-        toggle("External Specular Maps", "vr_extmaps_spec").help("Its specular maps: how much and in what colour each texel glints (Light Sheen), and each material's hardness."),
-        slider("External Specular Brightness", "vr_extmaps_spec_scale", 0.f, 8.f, 0.25f, "%.2f").extend().help("How bright its specular maps make the sheen (4: about as bright as without, on average)."),
-        toggle("External Glow Maps", "vr_extmaps_luma").help("Its glow maps on textures that have none of their own."),
-        slider("External Maps: Match", "vr_extmaps_match", 0.f, 1.f, 0.05f, "%.2f").extend().help("How closely the pack's own picture must match the texture drawn for its maps to be used (0: always; a repainted picture's bumps don't fit). Next map."),
+        row(opt::vr_extmaps),
+        row(opt::vr_extmaps_normals),
+        row(opt::vr_extmaps_spec),
+        row(opt::vr_extmaps_spec_scale),
+        row(opt::vr_extmaps_luma),
+        row(opt::vr_extmaps_match),
         header("Detail Textures"),
-        toggle("Detail Textures", "vr_detail").help("A fine grain of stone, metal, wood or grime over walls and floors close by, where Quake's textures turn into big blurry texels."),
-        slider("Detail Strength", "vr_detail_strength", 0.f, 2.f, 0.1f, "%.1f").extend().help("How strongly the detail textures show."),
-        slider("Detail Distance", "vr_detail_distance", 64.f, 384.f, 16.f, "%.0f").extend().help("How far away, in Quake units, the detail textures still show (they fade in closer than this)."),
+        row(opt::vr_detail),
+        row(opt::vr_detail_strength),
+        row(opt::vr_detail_distance),
     };
 }
 
@@ -1663,10 +1199,7 @@ void resetHandMoves()
 {
     using retro::Category;
     za::Vector<Item> items{
-        toggle("Retro Textures", vr_retro)
-            .help("High-resolution textures (QRP's, a pack's) drawn in Quake's look: on a coarse grid of blocks, each the average of "
-                  "the texels under it, with crisp edges that don't crawl as your head moves, optionally in Quake's 256 colours. "
-                  "Each kind of thing has its own settings below. Not a filter over the image: the textures themselves."),
+        row(opt::vr_retro),
     };
     const auto kind = [&items](Category c, int page) { items.pushBack(open(retro::categoryLabel(c), page).help(retro::categoryHelp(c))); };
     kind(Category::World, pageIndex(pageRetroCategory<Category::World>));
@@ -1961,38 +1494,38 @@ void retroAllUncheckCategories()
 [[nodiscard]] za::Vector<Item> pageGraphicsLootBeams()
 {
     return {
-        toggle("Loot Beams", "vr_lootbeams").help("A soft pillar of light rising from things lying about to pick up, as in Diablo or Path of Exile, so loot stands out among corpses and gibs. Never while held, holstered or flying: it fades in once the thing comes to rest. Which things: below."),
+        row(opt::vr_lootbeams),
         header("What Has One"),
-        toggle("Weapons", "vr_lootbeam_weapons").help("Weapons lying about: dropped, thrown, a map's, an enemy's dropped gun (the expansions' and Arcane Dimensions' too); an enemy's gun that is empty for good only with Spent Guns Stand Out (Enemy Weapons)."),
-        toggle("Magazines", "vr_lootbeam_mags").help("Magazines you dropped or pulled out, unless empty or nearly (Magazine Fullness)."),
-        slider("Magazine Fullness", "vr_lootbeam_mag_min", 0.f, 1.f, 0.05f, "%.2f").help("A magazine has a beam only when fuller than this share of its rounds. 0: any magazine not empty."),
-        toggle("Ammo Boxes", "vr_lootbeam_ammo"),
-        toggle("Health Boxes", "vr_lootbeam_health"),
-        toggle("Armour", "vr_lootbeam_armor"),
-        toggle("Power-ups", "vr_lootbeam_powerups").help("Quad damage, the pentagram, the ring, the suit, and the mission packs' power-ups."),
-        toggle("Keys and Runes", "vr_lootbeam_keys"),
-        toggle("Backpacks", "vr_lootbeam_backpacks"),
+        row(opt::vr_lootbeam_weapons),
+        row(opt::vr_lootbeam_mags),
+        row(opt::vr_lootbeam_mag_min),
+        row(opt::vr_lootbeam_ammo),
+        row(opt::vr_lootbeam_health),
+        row(opt::vr_lootbeam_armor),
+        row(opt::vr_lootbeam_powerups),
+        row(opt::vr_lootbeam_keys),
+        row(opt::vr_lootbeam_backpacks),
         header("Look"),
-        slider("Opacity", "vr_lootbeam_opacity", 0.f, 1.f, 0.05f, "%.2f").help("How bright the beams are."),
-        slider("Length", "vr_lootbeam_length", 0.2f, 4.f, 0.1f, "%.1f m").help("How high a beam rises from the thing's middle."),
-        slider("Thickness", "vr_lootbeam_thickness", 0.01f, 0.3f, 0.01f, "%.2f m").help("How wide its bright core is; its soft glow is three times as wide."),
-        slider("Colourfulness", "vr_lootbeam_saturation", 0.f, 1.f, 0.05f, "%.2f").help("0: all white."),
-        slider("Fade In", "vr_lootbeam_fade_in", 0.f, 2.f, 0.1f, "%.1f s").help("How long a beam takes to appear once the thing has come to rest."),
-        slider("Rest Before Showing", "vr_lootbeam_settle", 0.f, 2.f, 0.1f, "%.1f s").help("How long a thing must lie still before its beam fades in."),
-        slider("Fade Up Close", "vr_lootbeam_near", 0.f, 2.f, 0.1f, "%.1f m").help("A beam fades out as your head comes this close to it (across the floor), so it is not in your face as you pick the thing up. 0: never."),
-        slider("Fade Far Away", "vr_lootbeam_far", 0.f, 60.f, 1.f, "%.0f m").help("Beams farther than this fade out. 0: never."),
+        row(opt::vr_lootbeam_opacity),
+        row(opt::vr_lootbeam_length),
+        row(opt::vr_lootbeam_thickness),
+        row(opt::vr_lootbeam_saturation),
+        row(opt::vr_lootbeam_fade_in),
+        row(opt::vr_lootbeam_settle),
+        row(opt::vr_lootbeam_near),
+        row(opt::vr_lootbeam_far),
         header("Colours"),
-        slider("Weapons Hue", "vr_lootbeam_hue_weapons", 0.f, 355.f, 5.f, "%.0f").help("Hue in degrees: 0 red, 40 gold, 120 green, 190 cyan, 240 blue, 285 violet."),
-        slider("Empty Weapons Hue", "vr_lootbeam_hue_weapons_empty", -5.f, 355.f, 5.f, "%.0f").help("A reloadable weapon whose magazine is empty (or out): 0 red, so you know it needs ammo before you grab it. Below 0: as the other weapons."),
-        slider("Magazines Hue", "vr_lootbeam_hue_mags", 0.f, 355.f, 5.f, "%.0f"),
-        slider("Ammo Boxes Hue", "vr_lootbeam_hue_ammo", 0.f, 355.f, 5.f, "%.0f"),
-        slider("Health Boxes Hue", "vr_lootbeam_hue_health", 0.f, 355.f, 5.f, "%.0f"),
-        slider("Armour Hue", "vr_lootbeam_hue_armor", 0.f, 355.f, 5.f, "%.0f"),
-        slider("Power-ups Hue", "vr_lootbeam_hue_powerups", 0.f, 355.f, 5.f, "%.0f"),
-        slider("Keys and Runes Hue", "vr_lootbeam_hue_keys", 0.f, 355.f, 5.f, "%.0f"),
-        slider("Backpacks Hue", "vr_lootbeam_hue_backpacks", 0.f, 355.f, 5.f, "%.0f"),
-        slider("Toolgun Hue", "vr_lootbeam_hue_toolgun", 0.f, 355.f, 5.f, "%.0f").developer().help("A dropped toolgun's own colour (it is a weapon, but easy to lose among many): 305 magenta."),
-        slider("Toolgun Beam Length", "vr_lootbeam_toolgun_length", 1.f, 4.f, 0.25f, "x%.2f").developer().help("A dropped toolgun's beam this many times Length, so it stands above the weapons'."),
+        row(opt::vr_lootbeam_hue_weapons),
+        row(opt::vr_lootbeam_hue_weapons_empty),
+        row(opt::vr_lootbeam_hue_mags),
+        row(opt::vr_lootbeam_hue_ammo),
+        row(opt::vr_lootbeam_hue_health),
+        row(opt::vr_lootbeam_hue_armor),
+        row(opt::vr_lootbeam_hue_powerups),
+        row(opt::vr_lootbeam_hue_keys),
+        row(opt::vr_lootbeam_hue_backpacks),
+        row(opt::vr_lootbeam_hue_toolgun).developer(),
+        row(opt::vr_lootbeam_toolgun_length).developer(),
     };
 }
 
@@ -2001,22 +1534,22 @@ void retroAllUncheckCategories()
 [[nodiscard]] za::Vector<Item> pageGraphicsTeleporters()
 {
     return {
-        toggle("Quake VR Teleporters", "vr_teleporters").help("Teleporters show where they lead in VR, flat screen and the spectator camera. Movement, shots and dynamic light go through them. Off: Quake's plain teleporters and their starry surfaces. Takes effect at once, no map reload."),
-        slider("Teleporter Views", "vr_portals", 0.f, 1.f, 0.1f, "%.1f").extend().help("Teleporters show where they lead: the place they take you to, live, through their shimmer (the scene is drawn again for the visible teleporters). 0: Quake's plain shimmer."),
-        toggle("Seamless Teleporters", "vr_portals_walk").help("With Teleporter Views on, you walk through teleporters into the place you saw, keeping your speed and the way you face (no flash, no pause), and rockets, grenades, nails, thrown props and gunfire go through them. Off: Quake's teleport."),
-        toggle("Monsters Walk Through", "vr_portals_monsters").help("With Seamless Teleporters on, monsters walk through a teleporter that comes out of another teleporter's face as you do, coming out of that face. Off (and at other teleporters, or for a monster too big for the opening): Quake's teleport, which puts them at the destination marker, a step out."),
-        toggle("Enemies See and Shoot Through", "vr_portals_ai").help("Ranged enemies spot players through an active aperture and aim through it. The teleporter and both rooms must be clear; closing it cancels delayed shots. One teleporter per sight line. Melee and navigation stay local."),
-        toggle("Exits On Paired Teleporters", "vr_teleporter_pair_exits").help("A teleporter whose destination stands in front of another teleporter of its size (a two-way pair) brings you, props and the view out of that teleporter's face, so you are halfway through both as you cross. Off: out at the destination marker, which can stand a step out from the teleporter."),
-        toggle("Your Head In Teleporters", "vr_teleporter_self_head").help("Seeing yourself through a teleporter (the loop room's teleporters show your back), your body has its head. Your own eyes never draw it. Off: headless there too."),
-        slider("Visible Teleporters", "vr_portals_maxviews", 1.f, 8.f, 1.f, "%.0f").help("Maximum destination views drawn per camera (default 4). Each visible teleporter renders another scene; lower this for VR performance."),
-        slider("Teleporters Within Teleporters", "vr_portals_recursion", 0.f, 3.f, 1.f, "%.0f").help("A teleporter seen through a teleporter shows where it leads too, this many teleporters deep (the loop room's teleporters: you, again and again). Each costs another scene, drawn smaller. 0: teleporters seen through a teleporter are left out."),
-        slider("Teleporters In A Teleporter's View", "vr_portals_recursion_views", 1.f, 8.f, 1.f, "%.0f").help("How many of the teleporters seen through a teleporter show where they lead (the nearest and largest). Deeper, only the best one does."),
-        slider("Most Teleporters Within Teleporters", "vr_portals_recursion_max", 0.f, 16.f, 1.f, "%.0f").help("At most this many teleporters seen through teleporters show where they lead, for each eye: the teleporter you look at most first. Each costs another scene."),
-        slider("Deeper Teleporters' Resolution", "vr_portals_recursion_scale", 1.f, 4.f, 1.f, "1/%.0f").help("Each teleporter deeper is drawn with this many times fewer pixels a side (2: a quarter of the pixels, then a sixteenth). 1: all at full resolution."),
+        row(opt::vr_teleporters),
+        row(opt::vr_portals),
+        row(opt::vr_portals_walk),
+        row(opt::vr_portals_monsters),
+        row(opt::vr_portals_ai),
+        row(opt::vr_teleporter_pair_exits),
+        row(opt::vr_teleporter_self_head),
+        row(opt::vr_portals_maxviews),
+        row(opt::vr_portals_recursion),
+        row(opt::vr_portals_recursion_views),
+        row(opt::vr_portals_recursion_max),
+        row(opt::vr_portals_recursion_scale),
         header("Teleporter Stars"),
-        slider("Size", "vr_teleporter_surface_size", 1.f, 2.f, 0.02f, "%.2fx").help("Enlarges the single star layer on the entrance plane. No extra star quads are drawn inside the destination view. The collision opening keeps its size."),
-        slider("Opacity", "vr_teleporter_surface_opacity", 0.f, 1.f, 0.05f, "%.2f").help("How much entrance shimmer covers the view through the teleporter. 0: a clear view; 1: the original shimmer."),
-        slider("Fade Up Close", "vr_teleporter_surface_fade", 0.f, 1.f, 0.05f, "%.2f m").help("The shimmer over the destination view fades out as your eyes come this close to the teleporter, and is gone as you cross, so the room does not brighten in a step as you arrive. 0: it stays to the end."),
+        row(opt::vr_teleporter_surface_size),
+        row(opt::vr_teleporter_surface_opacity),
+        row(opt::vr_teleporter_surface_fade),
     };
 }
 
@@ -2053,7 +1586,7 @@ void addFoamRows(za::Vector<Item>& items, const FoamRows& r)
 [[nodiscard]] za::Vector<Item> pageGraphicsFoam()
 {
     za::Vector<Item> items;
-    items.pushBack(slider("Shoreline Foam", "vr_water_foam", 0.f, 2.f, 0.1f, "%.1f").extend().help("Every liquid's shoreline foam: how much (0 off). Teleports have none."));
+    items.pushBack(row(opt::vr_water_foam));
     addFoamRows(items, {vr_water_foam_on, vr_water_foam_opacity, vr_water_foam_frequency, vr_water_foam_strength,
         vr_water_foam_breathe, vr_water_foam_breathe_speed, vr_water_foam_breathe_irregularity, vr_water_foam_red,
         vr_water_foam_green, vr_water_foam_blue, vr_water_foam_particles, vr_water_foam_particle_life,
@@ -2084,35 +1617,35 @@ void addFoamRows(za::Vector<Item>& items, const FoamRows& r)
 [[nodiscard]] za::Vector<Item> pageGraphicsLiquids()
 {
     return {
-        slider("Waves", "vr_water_waves", 0.f, 2.f, 0.1f, "%.1f").extend().help("Waves on water, slime and lava, in the lighting (the surfaces stay flat). 0: Quake's flat liquids."),
-        slider("Water Reflection", "vr_water_fresnel", 0.f, 2.f, 0.1f, "%.1f").extend().help("Water is clearer looking straight down and reflects the room at grazing angles."),
-        slider("Reflected Room", "vr_water_reflections", 0.f, 1.f, 0.1f, "%.1f").extend().help("Water and slime mirror the room around them (walls, lights, the sky) instead of a plain sheen: a picture of the world made at the water's surface nearest you. How strongly the water reflects is Water Reflection. 0: off."),
-        slider("Water Refraction", "vr_water_refraction", 0.f, 2.f, 0.1f, "%.1f").extend().help("What is under the water is bent by the waves (needs r_oit 1)."),
-        slider("Water Glints", "vr_water_glints", 0.f, 2.f, 0.1f, "%.1f").extend().help("Light glinting off the waves."),
-        slider("Lava Glow", "vr_water_lava_glow", 0.f, 2.f, 0.1f, "%.1f").extend().help("Lava glows, its hot parts brightest, pulsing slowly."),
-        toggle("Real Waves", "vr_water_geo_waves").help("The surfaces of water, slime and lava rise and fall in long swells (still at the walls). Off: flat, the waves only in the lighting."),
-        slider("Real Wave Height", "vr_water_geo_amplitude", 0.5f, 24.f, 0.5f, "%.1f").extend().help("How high the swells rise, in units (lava's are bigger and slower, slime's smaller)."),
+        row(opt::vr_water_waves),
+        row(opt::vr_water_fresnel),
+        row(opt::vr_water_reflections),
+        row(opt::vr_water_refraction),
+        row(opt::vr_water_glints),
+        row(opt::vr_water_lava_glow),
+        row(opt::vr_water_geo_waves),
+        row(opt::vr_water_geo_amplitude),
         slider("Shoreline Foam", "vr_water_foam", 0.f, 2.f, 0.1f, "%.1f").extend().help("Foam where water meets walls, steps and things standing in it; a scum on slime, a molten crust on lava (0 off). Each liquid's look: Shoreline Foam settings."),
         open("Shoreline Foam Settings", pageIndex(pageGraphicsFoam)).help("Each liquid's shoreline foam (water, lava, slime): opacity, how fine and how far, its breathing, its colour and the foam particles along the shore."),
-        slider("Heat Haze", "vr_heat_haze", 0.f, 1.f, 0.1f, "%.1f").help("The air shimmers over lava, round explosions and over flames (0 off)."),
-        cycle("Heat Haze Detail", "vr_heat_haze_half", {{1.f, "Half Size"}, {0.f, "Full Size"}}).extend().help("What the heat haze bends: a copy of the view at half size (cheaper where the haze covers much of the view, standing in fire or over lava; a little softer inside the haze: the presets below High) or at full size (sharp: the default, High and Ultra)."),
+        row(opt::vr_heat_haze),
+        row(opt::vr_heat_haze_half).extend().help("What the heat haze bends: a copy of the view at half size (cheaper where the haze covers much of the view, standing in fire or over lava; a little softer inside the haze: the presets below High) or at full size (sharp: the default, High and Ultra)."),
         header("Under Water"),
-        slider("Caustics", "vr_water_caustics", 0.f, 1.5f, 0.05f, "%.2f").extend().help("Dappled light on floors and walls under water."),
-        slider("Underwater View", "vr_water_underwater", 0.f, 1.5f, 0.1f, "%.1f").extend().help("With your head under: the liquid's fog and tint, a little blur. 0: Quake's colour shift."),
-        slider("Underwater Wobble", "vr_water_wobble", 0.f, 2.f, 0.1f, "%.1f").extend().help("A slow wobble of the view under water. Turn it down or off if it makes you uneasy."),
+        row(opt::vr_water_caustics),
+        row(opt::vr_water_underwater),
+        row(opt::vr_water_wobble),
         header("Splashes and Ripples"),
-        slider("Splashes", "vr_water_splash", 0.f, 2.f, 0.1f, "%.1f").extend().help("Drops, foam and ripples where shots, thrown things, you and your hands hit water, slime or lava, and as you wade: how many (0 off)."),
-        slider("Splash Size", "vr_water_splash_size", 0.5f, 2.5f, 0.1f, "%.1f").extend().help("How big the splashes' drops, spray, foam and rings are."),
-        slider("Splash Ring Speed", "vr_water_splash_ring_speed", 0.3f, 2.f, 0.1f, "%.1f").extend().help("How fast the rings on the surface spread (1: riding the ripples' crest)."),
-        slider("Splash Ring Size", "vr_water_splash_ring_size", 0.f, 2.5f, 0.1f, "%.1f").extend().help("How big the rings start and how long they last, so how far they get (0: none)."),
-        toggle("Ripples", "vr_water_ripples").help("Splashes, wading and strokes send rings of waves across the surface, in its lighting and, with Real Waves' grid, its shape."),
-        slider("Ripple Height (Geometry)", "vr_water_ripple_amplitude", 0.f, 24.f, 0.5f, "%.1f").extend().help("How high a hand's slap's ripples rise in the surface itself, in units (a shot's about half, a body's two to three times)."),
-        slider("Ripple Normal Strength", "vr_water_ripple_normal", 0.f, 2.f, 0.05f, "%.2f").extend().help("How steep the ripples look in the lighting (glints, reflection, refraction), times the geometry's slope: 1 as shaped, 0 the shape only."),
-        slider("Ripple Speed", "vr_water_ripple_speed", 10.f, 100.f, 2.f, "%.0f").extend().help("How fast the rings of ripples spread, in units a second (lava's a third, slime's slower)."),
-        slider("Ripple Duration", "vr_water_ripple_decay", 0.3f, 4.f, 0.1f, "%.1f").extend().help("Seconds for the ripples to die down to a third."),
-        slider("Ripple Wavelength", "vr_water_ripple_wavelength", 16.f, 192.f, 4.f, "%.0f").extend().help("Units between the ripples' crests. In the geometry from two of its 16-unit cells up (vr_water_geo_cell), fully from three; below that in the lighting only."),
-        slider("Ripples at Once", "vr_water_ripple_max", 1.f, 32.f, 1.f, "%.0f").extend().help("How many ripples can spread at once; a new one takes the weakest's place. Fewer costs less GPU time when much is splashing."),
-        slider("Water Sounds", "vr_water_sounds", 0.f, 1.f, 0.1f, "%.1f").help("Volume of splashes, shots into water, wading and swimming strokes (0 off: Quake's own splash sounds only)."),
+        row(opt::vr_water_splash),
+        row(opt::vr_water_splash_size),
+        row(opt::vr_water_splash_ring_speed),
+        row(opt::vr_water_splash_ring_size),
+        row(opt::vr_water_ripples),
+        row(opt::vr_water_ripple_amplitude),
+        row(opt::vr_water_ripple_normal),
+        row(opt::vr_water_ripple_speed),
+        row(opt::vr_water_ripple_decay),
+        row(opt::vr_water_ripple_wavelength),
+        row(opt::vr_water_ripple_max),
+        row(opt::vr_water_sounds),
     };
 }
 
@@ -2120,21 +1653,19 @@ void addFoamRows(za::Vector<Item>& items, const FoamRows& r)
 [[nodiscard]] za::Vector<Item> pageGraphicsPost()
 {
     return {
-        slider("Bloom", "vr_bloom", 0.f, 1.5f, 0.02f, "%.2f").extend().help("Glow around lamps, glowing panels and buttons, flashes and explosions (0 off)."),
-        slider("Bloom Threshold", "vr_bloom_threshold", 0.3f, 1.f, 0.01f, "%.2f").extend().help("How bright a thing must be to glow."),
-        slider("Bloom Size", "vr_bloom_radius", 0.25f, 3.f, 0.05f, "%.2f").extend(),
-        slider("Bloom: White Lights", "vr_bloom_white", 0.f, 2.f, 0.02f, "%.2fx").extend().help("Glow of white and pale lights (lamps, flashes), times Bloom."),
-        slider("Bloom: Coloured Lights", "vr_bloom_color", 0.f, 3.f, 0.05f, "%.2fx").extend().help("Glow of coloured lights (red buttons, blue panels), times Bloom."),
-        slider("Bloom: Adapt", "vr_bloom_adapt", 0.f, 10.f, 0.25f, "%.2f").extend().help("How much bloom weakens when much of the view glows (a brightly lit map); 0: never."),
-        toggle("Bloom: Fast", "vr_bloom_fast").help("On: a cheaper glow: three glow sizes instead of four (the widest folded into the next) and the glow added with one texture read a pixel instead of four. About 0.035 ms an eye cheaper at 2784 x 2784 (a quarter of the post-processing and bloom), halo edges and lava at most about 20/255 different. Off: as before, for comparison."),
+        row(opt::vr_bloom),
+        row(opt::vr_bloom_threshold),
+        row(opt::vr_bloom_radius),
+        row(opt::vr_bloom_white),
+        row(opt::vr_bloom_color),
+        row(opt::vr_bloom_adapt),
+        row(opt::vr_bloom_fast),
         header("Tone and Colour"),
-        toggle("Tone Mapping", "vr_tonemap").help("Bright lights, flashes, lava and explosions keep their colour and detail instead of clipping to yellow and white (a filmic shoulder). The rest is unchanged. Off: Quake's."),
-        slider("Exposure", "vr_exposure", 0.5f, 2.f, 0.05f, "%.2f").extend().help("Brightness before tone mapping (1: as Quake)."),
-        cycle("Colour Grade", "vr_grade", {{0.f, "Off"}, {1.f, "Quake VR"}, {2.f, "Cold"}, {3.f, "Warm"}, {4.f, "By Episode"}})
-            .help("A subtle colour mood. Quake VR: a touch of contrast, cool shadows, warm highlights. By Episode: cold, mossy, warm, violet for episodes 1 to 4."),
-        slider("Grade Strength", "vr_grade_strength", 0.f, 1.f, 0.05f, "%.2f"),
-        cycle("Dither", "vr_dither", {{0.f, "Off"}, {1.f, "Per Eye"}, {2.f, "Per Eye, Moving"}, {3.f, "Same in Both Eyes"}})
-            .help("A faint noise of one step that hides banding in dark gradients (fog, dark rooms, under water)."),
+        row(opt::vr_tonemap),
+        row(opt::vr_exposure),
+        row(opt::vr_grade),
+        row(opt::vr_grade_strength),
+        row(opt::vr_dither),
     };
 }
 
@@ -2142,38 +1673,38 @@ void addFoamRows(za::Vector<Item>& items, const FoamRows& r)
 [[nodiscard]] za::Vector<Item> pageGraphicsModels()
 {
     return {
-        toggle("Model Lighting", "vr_model_lighting").help("Monsters, items and weapons are shaded from the map's lights, not one fixed direction."),
-        toggle("Models Lit as the World", "vr_model_light_parity").help("Monsters and items as bright as the floor they stand on (off: Quake's brighter models)."),
-        toggle("Directional Ambient", "vr_model_ambient_dir").help("Monsters, items, weapons and hands take the light around them: brighter on the side facing lit walls, darker facing shade."),
-        slider("Ambient Contrast", "vr_model_ambient_contrast", 0.f, 1.5f, 0.05f, "%.2f").extend().help("How much brighter the lit side is than the shaded one (0: one brightness all round)."),
-        cycle("Model Animation", "r_lerpmodels", {{0.f, "Stepped"}, {1.f, "Quake's Blend"}, {3.f, "Smooth"}}).help("How monsters move between the frames of their animations. Stepped: frame to frame, as DOS Quake. Quake's Blend: each point slides straight to its next place (limbs shorten mid-swing, the speed jumps at each frame). Smooth: along curves through the frames before and after, limbs swung round their joints at full length. Every frame is still shown exactly when the game shows it: only what is drawn between frames changes."),
-        slider("Animation Ease", "vr_anim_smooth_tension", 0.f, 1.f, 0.05f, "%.2f").help("Smooth: 0 keeps the speed through each frame (the smoothest; a swing may swing a little past a frame between two); 1 eases to rest at each frame."),
-        toggle("Steady Model Vertices", "vr_mdl_dequant").help("Quake's models store each point rounded to a 255th of the model's size, frame by frame, so surfaces ripple as they animate. On: each point follows the smoothest path through its animation that stays within that rounding (no point moves further than the file's own error), round the loop where an animation loops (as the game plays it); the lighting's directions likewise, within their own rounding, so the shading does not flicker. Off: the points exactly as stored."),
-        toggle("Swing Limbs", "vr_anim_smooth_rig").help("Smooth: a monster with a ragdoll rig (grunts, knights, ogres, the shambler and more) swings its limbs round their joints between frames at full length (off: the curves alone)."),
-        toggle("Rebuild From Skeleton", "vr_anim_smooth_rebuild").help("A monster with a ragdoll rig is drawn from its skeleton every frame, with any Model Animation: each point keeps one place on its bone and moves with it, so the wobble left by the file's rounding is gone; points the skeleton fits less well (round the joints) keep the frames' places. Off: the frames' points as stored (steadied by Steady Model Vertices)."),
-        slider("Rim Light", "vr_rim_light", 0.f, 1.f, 0.05f, "%.2f").help("A faint light round the edges of monsters and things, in the light around them, so they stand out from dark backgrounds (0 off)."),
-        slider("Hands' Least Light", "vr_viewmodel_minlight", 0.f, 32.f, 1.f, "%.0f").extend().help("How lit your hands and weapons stay in the dark (Quake: 24)."),
-        toggle("Weapon Reflections", "vr_weapon_reflections").help("The metal of your weapons (barrels, blades) reflects the room around you, dimmer in the dark."),
-        slider("Reflection Strength", "vr_weapon_reflections_strength", 0.f, 2.f, 0.1f, "%.1fx").extend().help("How strongly your weapons' metal reflects the room."),
+        row(opt::vr_model_lighting),
+        row(opt::vr_model_light_parity),
+        row(opt::vr_model_ambient_dir),
+        row(opt::vr_model_ambient_contrast),
+        row(opt::r_lerpmodels),
+        row(opt::vr_anim_smooth_tension),
+        row(opt::vr_mdl_dequant),
+        row(opt::vr_anim_smooth_rig),
+        row(opt::vr_anim_smooth_rebuild),
+        row(opt::vr_rim_light),
+        row(opt::vr_viewmodel_minlight),
+        row(opt::vr_weapon_reflections),
+        row(opt::vr_weapon_reflections_strength),
         header("Glow"),
         open("Screen Glow: Screens", pageIndex(pageScreens)).help("The screens' glow is on HUD and Menus > Screens."),
-        slider("Weapon Sight Glow", "vr_weapon_glow", 0.f, 3.f, 0.1f, "%.1fx").extend().help("Your weapons' glowing parts, as the shotgun's sights, shine brighter and glow (0: as Quake)."),
+        row(opt::vr_weapon_glow),
         open("Weapon Sight Hue: Colours", pageIndex(pageColours)).help("Every hue is on HUD and Menus > Colours."),
         header("Effects"),
-        toggle("Lit Particles", "vr_particle_light").help("Blood, smoke, dust, debris and water take the light where they are: dark in dark corners, lit by your flashlight, muzzle flashes and explosions. Fire, sparks and glows stay bright. Off: all as bright as their colours, as in Quake."),
-        toggle("Soft Particles", "vr_soft_particles").help("Smoke, fire, blood and explosions fade out where they meet walls and floors instead of cutting hard lines through them."),
-        slider("Soft Particle Distance", "vr_soft_particles_scale", 0.25f, 3.f, 0.25f, "%.2fx").extend().help("How far in front of walls and floors they start fading (bigger: softer, but thin puffs against a wall fainter)."),
-        slider("Particle Fade Near Eyes", "vr_particle_near_fade", 0.f, 100.f, 5.f, "%.0f cm").help("Smoke, blood and sparks fade out as they come this close to your eyes, gone at Particles Hidden Nearer: no screen-filling blot in your face (0: no fade)."),
-        slider("Particles Hidden Nearer", "vr_particle_near_cull", 0.f, 50.f, 1.f, "%.0f cm").extend().help("Particles nearer your eyes than this are not drawn at all (0: all drawn)."),
-        slider("Largest Particle", "vr_particle_max_screen", 0.f, 1.f, 0.05f, "%.2f").help("A particle is never drawn larger than this part of the view's height across: a bigger one is shrunk round its centre (cheaper on the GPU, no single puff filling the view). 0: no limit."),
-        toggle("Half-Res Heavy Particles", "vr_particle_halfres").help("When smoke, fire and blood fill much of the view, the particles are drawn at half resolution and blended in: a quarter of their cost on the GPU, a little softer."),
-        toggle("Trim Particle Margins", "vr_particle_trim").help("Trim empty margins of larger fire and smoke sprites. Off by default: the extra work can cost more than it saves for small particles. Keeps filtering and retro blocks; uncertain cases keep their full shape."),
-        toggle("Skip Hidden Particles", "vr_particle_saturate").help("Particles are composited in reverse order into a layer of their own, and where thick smoke or blood is already opaque the particles under it are skipped: the same image, less GPU work in dense effects. Off: each blended into the scene in turn, as before."),
-        toggle("Fast Retro Particles", "vr_particle_retro_fast").help("Optimize full-resolution retro particles while keeping palette, dither and edge filtering. Off compares the original full-resolution shader. Retro half resolution always uses the fast shader."),
-        toggle("Half-Res Retro Particles", "vr_particle_retro_halfres").help("Optional: render large retro particles at half resolution during heavy effects. Keeps their palette and world-space grid, with softer edges. Small particles stay at full resolution."),
-        slider("Retro Half-Res Size", "vr_particle_retro_halfres_pixels", 0.f, 256.f, 8.f, "%.0f px").help("Minimum size from particle centre to edge for half resolution. Zero draws all in their existing order; splitting sizes draws the small particles over the large ones."),
+        row(opt::vr_particle_light),
+        row(opt::vr_soft_particles),
+        row(opt::vr_soft_particles_scale),
+        row(opt::vr_particle_near_fade),
+        row(opt::vr_particle_near_cull),
+        row(opt::vr_particle_max_screen),
+        row(opt::vr_particle_halfres),
+        row(opt::vr_particle_trim),
+        row(opt::vr_particle_saturate),
+        row(opt::vr_particle_retro_fast),
+        row(opt::vr_particle_retro_halfres),
+        row(opt::vr_particle_retro_halfres_pixels),
         open("Decals and Gib Blood: Gore", pageIndex(pageGore)).help("Decals and the gibs' blood are on Gore."),
-        slider("Ammo Switch Morph", "vr_weapon_morph_time", 0.f, 1.f, 0.05f, "%.2f s").extend().help("Switching a gun's ammo with its button morphs it into its other look (lava, multi-rockets, plasma) over this long, a glowing seam sweeping over it (0: at once)."),
+        row(opt::vr_weapon_morph_time),
     };
 }
 
@@ -2181,13 +1712,13 @@ void addFoamRows(za::Vector<Item>& items, const FoamRows& r)
 {
     return {
         open("HUD and Status Bar Hand: VR Settings, Body and Display", pageIndex(pageVrsHudHapticsSound)).help("The HUD's kind is on VR Settings; the status bar's hand on Body and Display."),
-        slider("HUD Scale", "vr_hud_scale", 0.01f, 0.1f, 0.005f, "%.3f").extend(0.005f, 0.3f),
-        slider("Offset X", "vr_sbar_offset_x", -200.f, 200.f, 1.f, "%.0f").extend(-1000.f, 1000.f),
-        slider("Offset Y", "vr_sbar_offset_y", -200.f, 200.f, 1.f, "%.0f").extend(-1000.f, 1000.f),
-        slider("Offset Z", "vr_sbar_offset_z", -200.f, 200.f, 1.f, "%.0f").extend(-1000.f, 1000.f),
-        slider("Roll", "vr_sbar_offset_roll", -3.14f, 3.14f, 0.05f, "%.2f rad").extend(),
-        slider("Pitch", "vr_sbar_offset_pitch", -3.14f, 3.14f, 0.05f, "%.2f rad").extend(),
-        slider("Yaw", "vr_sbar_offset_yaw", -3.14f, 3.14f, 0.05f, "%.2f rad").extend(),
+        row(opt::vr_hud_scale),
+        row(opt::vr_sbar_offset_x),
+        row(opt::vr_sbar_offset_y),
+        row(opt::vr_sbar_offset_z),
+        row(opt::vr_sbar_offset_roll),
+        row(opt::vr_sbar_offset_pitch),
+        row(opt::vr_sbar_offset_yaw),
     };
 }
 
@@ -2196,20 +1727,19 @@ void addFoamRows(za::Vector<Item>& items, const FoamRows& r)
 {
     return {
         header("Virtual Stock"),
-        toggle("Show Virtual Stock", "vr_show_virtual_stock"),
+        row(opt::vr_show_virtual_stock),
         header("Shoulder Holsters"),
-        toggle("Show Shoulder Holst.", "vr_show_shoulder_holsters"),
-        slider("Shoulder X", "vr_shoulder_holster_offset_x", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f),
-        slider("Shoulder Y", "vr_shoulder_holster_offset_y", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f),
-        slider("Shoulder Z", "vr_shoulder_holster_offset_z", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f),
-        slider("Shoulder Threshold", "vr_shoulder_holster_thresh", 0.f, 30.f, 0.1f, "%.1f").extend(0.f, 100.f),
+        row(opt::vr_show_shoulder_holsters),
+        row(opt::vr_shoulder_holster_offset_x),
+        row(opt::vr_shoulder_holster_offset_y),
+        row(opt::vr_shoulder_holster_offset_z),
+        row(opt::vr_shoulder_holster_thresh),
         header("Upper Holsters"),
-        toggle("Show Upper Holsters", "vr_show_upper_holsters"),
-        slider("Upper X", "vr_upper_holster_offset_x", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f)
-            .help("Forward (negative: back), units. With the body drawn, the default (-4.25) is on the chest; further back, the holsters go round your ribs to your back."),
-        slider("Upper Y", "vr_upper_holster_offset_y", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f),
-        slider("Upper Z", "vr_upper_holster_offset_z", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f),
-        slider("Upper Threshold", "vr_upper_holster_thresh", 0.f, 30.f, 0.1f, "%.1f").extend(0.f, 100.f),
+        row(opt::vr_show_upper_holsters),
+        row(opt::vr_upper_holster_offset_x),
+        row(opt::vr_upper_holster_offset_y),
+        row(opt::vr_upper_holster_offset_z),
+        row(opt::vr_upper_holster_thresh),
     };
 }
 
@@ -2218,25 +1748,11 @@ void addFoamRows(za::Vector<Item>& items, const FoamRows& r)
 [[nodiscard]] za::Vector<Item> pageHolsterZones()
 {
     za::Vector<Item> items{
-        cycle("Zones", vr_holster_zones, {{1.f, "Boxes"}, {0.f, "Old Spheres"}})
-            .help("Boxes: a box at each holster and pouch where it is drawn; a gun goes in a holster when its grip or body is "
-                  "in the box, the one it is deepest in, and a pouch never takes a gun (it gives and takes rounds, "
-                  "magazines and grenades). Old Spheres: a ball round each, the hand alone (a gun let go by the ammo pouch "
-                  "fell there)."),
-        toggle("Show Zones", vr_holster_zones_show)
-            .help("Every zone as a wireframe: grey idle, blue with a gun in it, yellow a candidate, green where a hand is "
-                  "(holding a gun: where it goes when let go). Also on Debug > Views. On the body's clone beside the "
-                  "menu too."),
-        toggle("Show Item Boxes", vr_holster_zones_show_items)
-            .help("Each zone's box as for a hand carrying an ammo box, a health box or a backpack (its Item Size below), "
-                  "in magenta, on you and on the clone. Also while an Item Size is chosen."),
-        toggle("Hand Point", vr_holster_zone_hand_point)
-            .help("A hand holding a gun is tested at its palm as drawn too, beside the gun's grip and body: the hand in a "
-                  "holster puts the gun in it even when the gun's points are not (the holsters only: the pouches take an "
-                  "empty hand alone)."),
-        slider("Handle Radius", vr_holster_zone_handle_radius, 0.f, 10.f, 0.25f, "%.2f").extend(0.f, 30.f)
-            .help("A hand reaching for a holstered gun: a ball this many units round its grip as drawn is that holster's "
-                  "zone too, so a handle standing out of the box (the shoulders') can be taken. 0: the box alone."),
+        row(opt::vr_holster_zones),
+        row(opt::vr_holster_zones_show),
+        row(opt::vr_holster_zones_show_items),
+        row(opt::vr_holster_zone_hand_point),
+        row(opt::vr_holster_zone_handle_radius),
     };
     const auto kind = [&items](const char* title, cvar_t& reach, cvar_t& x, cvar_t& y, cvar_t& z, cvar_t& depth,
                           cvar_t& width, cvar_t& height, cvar_t& item, cvar_t& drag) {
@@ -2287,40 +1803,38 @@ void addFoamRows(za::Vector<Item>& items, const FoamRows& r)
 [[nodiscard]] za::Vector<Item> pageHipHolsters()
 {
     return {
-        toggle("Show Hip Holsters", "vr_show_hip_holsters"),
-        slider("Hip X", "vr_hip_offset_x", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f)
-            .help("Forward (negative: back), units. With the body drawn, the default (-3.5) is on the belly; further back, the holsters go round your hips to your back."),
-        slider("Hip Y", "vr_hip_offset_y", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f),
-        slider("Hip Z", "vr_hip_offset_z", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f),
-        slider("Hip Threshold", "vr_hip_holster_thresh", 0.f, 30.f, 0.1f, "%.1f").extend(0.f, 100.f),
+        row(opt::vr_show_hip_holsters),
+        row(opt::vr_hip_offset_x),
+        row(opt::vr_hip_offset_y),
+        row(opt::vr_hip_offset_z),
+        row(opt::vr_hip_holster_thresh),
         header("Holster Slots"),
         open("Holster Models: Body and Display", pageIndex(pageBodyDisplay)).help("Showing the holsters' models is on Body and Display."),
-        slider("Holster Slot Scale", "vr_leg_holster_model_scale", 0.1f, 2.f, 0.05f, "%.2f").extend(0.02f, 5.f),
-        slider("Holster Slot X", "vr_leg_holster_model_x_offset", -100.f, 100.f, 0.5f, "%.1f").extend(-400.f, 400.f),
-        slider("Holster Slot Y", "vr_leg_holster_model_y_offset", -100.f, 100.f, 0.5f, "%.1f").extend(-400.f, 400.f),
-        slider("Holster Slot Z", "vr_leg_holster_model_z_offset", -100.f, 100.f, 0.5f, "%.1f").extend(-400.f, 400.f),
+        row(opt::vr_leg_holster_model_scale),
+        row(opt::vr_leg_holster_model_x_offset),
+        row(opt::vr_leg_holster_model_y_offset),
+        row(opt::vr_leg_holster_model_z_offset),
         header("Grenade Pouch"),
-        toggle("Show Grenade Pouch", "vr_show_grenade_pouch").help("A marker at the pouch the size of its reach, green while a hand is there. Hand grenades, and these sliders too, are on Batting and Catching."),
-        slider("Pouch X", "vr_grenade_pouch_x", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f)
-            .help("Forward (negative: back), units. With the body drawn, the default (-7) is on the belt on your lower back; forward, it goes round your hips."),
-        slider("Pouch Y", "vr_grenade_pouch_y", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f).help("To your right (negative: left), units."),
-        slider("Pouch Z", "vr_grenade_pouch_z", -50.f, 50.f, 0.5f, "%.1f").extend(-200.f, 200.f).help("Up (negative: down), units: 0 is the hip holsters' height."),
-        slider("Pouch Threshold", "vr_grenade_pouch_thresh", 0.f, 30.f, 0.1f, "%.1f").extend(0.f, 100.f).help("How near the pouch a hand must be to take a grenade from it (or put one back)."),
-        slider("Grenade In Hand Pitch", "vr_grenade_pouch_hold_pitch", -180.f, 180.f, 5.f, "%.0f deg").help("A grenade taken from the pouch: its front tipped up in your hand (negative: down), about its middle."),
-        slider("Grenade In Hand Yaw", "vr_grenade_pouch_hold_yaw", -180.f, 180.f, 5.f, "%.0f deg").help("A grenade taken from the pouch: its front turned left in your hand (negative: right), mirrored for the left hand."),
-        slider("Grenade In Hand Roll", "vr_grenade_pouch_hold_roll", -180.f, 180.f, 5.f, "%.0f deg").help("A grenade taken from the pouch: rolled right in your hand (negative: left), mirrored for the left hand."),
+        row(opt::vr_show_grenade_pouch),
+        row(opt::vr_grenade_pouch_x),
+        row(opt::vr_grenade_pouch_y),
+        row(opt::vr_grenade_pouch_z),
+        row(opt::vr_grenade_pouch_thresh),
+        row(opt::vr_grenade_pouch_hold_pitch),
+        row(opt::vr_grenade_pouch_hold_yaw),
+        row(opt::vr_grenade_pouch_hold_roll),
     };
 }
 
 [[nodiscard]] za::Vector<Item> pageTransparencyOptions()
 {
     return {
-        toggle("(!) No Vis", "r_novis").help("NOT RECOMMENDED: water transparency in maps without vis data, by drawing the whole map every frame. Vispatch maps instead."),
-        slider("Water Alpha", "r_wateralpha", 0.f, 1.f, 0.1f, "%.1f").help("How see-through water is (1: opaque). Only in maps vised for it (the relit maps are)."),
-        slider("Lava Alpha", "r_lavaalpha", 0.f, 1.f, 0.1f, "%.1f").help("How see-through lava is (1: opaque; 0: as Water Alpha). Only in maps vised for it."),
-        slider("Tele Alpha", "r_telealpha", 0.f, 1.f, 0.1f, "%.1f").help("How see-through teleporters are (1: opaque; 0: as Water Alpha). Only in maps vised for it."),
-        slider("Slime Alpha", "r_slimealpha", 0.f, 1.f, 0.1f, "%.1f").help("How see-through slime is (1: opaque; 0: as Water Alpha). Only in maps vised for it."),
-        toggle("Map's Own Alpha", "vr_map_liquid_alpha").help("Maps that set their liquids' alpha themselves (worldspawn keys) use theirs instead of the sliders above."),
+        row(opt::r_novis),
+        row(opt::r_wateralpha),
+        row(opt::r_lavaalpha),
+        row(opt::r_telealpha),
+        row(opt::r_slimealpha),
+        row(opt::vr_map_liquid_alpha),
     };
 }
 
@@ -2346,34 +1860,30 @@ int relightToolState = -1;
         command("Relight This Map", "vr_relight").help("Relights the map you are in with the settings below (a few seconds to a minute, in the background; you can keep playing), then reloads it where you are. The result is kept: the map plays with it from now on."),
         command("Cancel", "vr_relight_cancel").help("Stops the relighting running now: the maps it finished keep their new light, the ones it was lighting keep the light they had (nothing half-made is left)."),
         command("Remove This Map's Relight", "vr_relight_revert").help("The map you are in plays with its other light from its next start: relight_maps.py's relit map, if made, else its own."),
-        toggle("Use In-game Relights", "vr_relight_use").help("Maps relit here are used over those relight_maps.py made (next map). Off: the relit maps of the script, or the maps' own light."),
-        toggle("Reload Where You Are", "vr_relight_reload").help("After relighting the map you are in, it is reloaded at once, where you are (a quick save and load; where the game can't be saved, the map restarts). Off: you see the new light from its next start."),
+        row(opt::vr_relight_use),
+        row(opt::vr_relight_reload),
         header("Many Maps"),
-        cycle("Maps", "vr_relight_batch_set", {{0.f, "This Map"}, {1.f, "An Episode"}, {2.f, "A Game"}, {3.f, "Map Library's"}, {4.f, "Every Map"}})
-            .help("What Relight These Maps relights, with the settings below: the map you are in, an episode (E1M1 to E1M8...), a whole game (Quake, a mission pack, a campaign), every map installed from the Map Library, or every map there is."),
-        cycle("Episode", "vr_relight_batch_episode", {{0.f, "The One You're In"}, {1.f, "E1"}, {2.f, "E2"}, {3.f, "E3"}, {4.f, "E4"}, {5.f, "E5 (Past)"}})
-            .help("Maps: An Episode. The one the map you are in belongs to (E1M3: E1; a mission pack's HIP2M1: its second), or one of Quake's."),
-        cycle("Game", "vr_relight_batch_game", {{0.f, "The One You're In"}, {1.f, "Quake"}, {2.f, "Armagon"}, {3.f, "Eternity"}, {4.f, "Past"}, {5.f, "Machine"}, {6.f, "Dawn"}})
-            .help("Maps: A Game. The one the map you are in is from, or Quake, Scourge of Armagon, Dissolution of Eternity, Dimension of the Past, Dimension of the Machine, Dawn of the Machine (when installed)."),
+        row(opt::vr_relight_batch_set),
+        row(opt::vr_relight_batch_episode),
+        row(opt::vr_relight_batch_game),
         command("Relight These Maps", "vr_relight_batch").help("Relights the maps chosen above one after another in the background, while you play (an episode takes a few minutes, every map an hour or more with Bounced Light). The bar above shows how far, and the time left; Cancel stops it. Maps relit with these same settings already are skipped."),
-        toggle("Relight Unchanged Maps Too", "vr_relight_batch_force").help("Off: a map relit with the same settings before (and the same map file and texture rules) is skipped. On: every map is relit again."),
-        slider("Maps at Once", "vr_relight_parallel", 0.f, 8.f, 1.f, "%.0f").help("How many maps are lit side by side (light's threads shared between them). 0: two on a computer with 8 cores or more, else one. More finishes a batch of small maps a little sooner; maps with Bounced Light gain nothing, and four are slower."),
-        cycle("Reload the Map You're In", "vr_relight_batch_reload", {{0.f, "When It's Done"}, {1.f, "At the End"}})
-            .help("When the batch relights the map you are in (it goes first) and Reload Where You Are is on: reload it as soon as it is done, or only when the whole batch is."),
-        toggle("Progress Outside the Menu", "vr_relight_indicator").help("While maps are being relit, a line on the wrist gadget's screen (on a flat screen, in the corner): maps done, percentage and the time left."),
+        row(opt::vr_relight_batch_force),
+        row(opt::vr_relight_parallel),
+        row(opt::vr_relight_batch_reload),
+        row(opt::vr_relight_indicator),
         header("Lamps and Glowing Textures"),
-        slider("Light Textures", "vr_relight_strength", 0.f, 4.f, 0.1f, "%.1fx").extend().help("How bright everything a texture lights is: lamps, light panels, glowing buttons and panels, lava (1: the relight script's)."),
-        slider("Lamps and Light Panels", "vr_relight_lamps", 0.f, 4.f, 0.1f, "%.1fx").extend().help("The light fixtures' light, times Light Textures: lamps, light panels and strips, the pyramid lanterns."),
-        slider("Glowing Panels and Buttons", "vr_relight_glows", 0.f, 4.f, 0.1f, "%.1fx").extend().help("Buttons, computer panels, runes and teleporters' glow on what is round them, times Light Textures."),
-        slider("Lava and Slime", "vr_relight_liquids", 0.f, 4.f, 0.1f, "%.1fx").extend().help("The red glow lava casts on the walls round it, and slime's faint green one, times Light Textures."),
+        row(opt::vr_relight_strength),
+        row(opt::vr_relight_lamps),
+        row(opt::vr_relight_glows),
+        row(opt::vr_relight_liquids),
         header("The Map's Light"),
-        slider("Map Lights", "vr_relight_maplights", 0.f, 4.f, 0.1f, "%.1fx").extend().help("The map's own lights (the mapper's), as far, this much brighter."),
-        slider("Sunlight", "vr_relight_sunlight", 0.f, 4.f, 0.1f, "%.1fx").extend().help("The sun and the sky's light, in maps that have them (outdoor maps; not id's)."),
-        slider("Bounced Light", "vr_relight_bounce", 0.f, 2.f, 0.1f, "%.1f").help("Light bouncing off the walls fills the shade: brighter, flatter rooms (0 none, the relight script's moodier look). Takes longer."),
-        slider("Ambient Occlusion", "vr_relight_ao", 0.f, 3.f, 0.1f, "%.1f").help("Corners and crevices darker (1.5: the relight script's; 0 none)."),
-        slider("Ambient Light Level", "vr_relight_minlight", 0.f, 64.f, 4.f, "%.0f").help("A basic ambient light added everywhere in the relit map, on top of the map's own minimum (mostly none: then no place is darker than this; in a map's light units: 32 a dim fill, 64 a clear one; 0: the map's own). Not darkened by Ambient Occlusion. An easy way out of pitch-black corners, at some cost to contrast."),
-        cycle("Shadow Quality", "vr_relight_quality", {{0.f, "Fast"}, {1.f, "Smooth"}}).help("Smooth: soft shadow edges (the relight script's). Fast: about four times quicker, harder edges."),
-        seeThrough ? toggle("See-Through Liquids", "vr_relight_seethrough").help("id's maps (Quake and its two mission packs) relit with see-through water, slime and teleporters: VisPatch's visibility data put into them, so you see what is under and beyond (how clear: Transparency's alphas). Off: their liquids stay opaque. Maps made with see-through water keep it either way.")
+        row(opt::vr_relight_maplights),
+        row(opt::vr_relight_sunlight),
+        row(opt::vr_relight_bounce),
+        row(opt::vr_relight_ao),
+        row(opt::vr_relight_minlight),
+        row(opt::vr_relight_quality),
+        seeThrough ? row(opt::vr_relight_seethrough)
                    : toggle("See-Through Liquids", "vr_relight_seethrough").unavailableBecause("Needs VisPatch's data files, not part of Quake VR: id1.vis, hipnotic.vis and rogue.vis (in id1_vis.tgz, hipnotic_vis.tgz and rogue_vis.tgz, sourceforge.net/projects/vispatch, \"vispatch data\" 1.0) in quakevr/tools/vispatch. Without them id's liquids stay opaque (except in maps relight_maps.py made see-through)."),
         command("Defaults", "vr_relight_defaults").help("Every setting on this page back to the relight script's look."),
         header("Tool"),
@@ -2419,57 +1929,35 @@ int relightToolState = -1;
                                           {2.f, "2"}, {4.f, "4"}, {8.f, "8"}, {16.f, "16"}};
     const za::Vector<Choice> cells{{1.f, "1"}, {2.f, "2"}, {4.f, "4"}};
     return {
-        toggle("Retro Lighting", "vr_retrolight")
-            .help("The light in Quake's coarse look: the baked light in a few levels (bands), the lightmap's blocky grid, "
-                  "dynamic lights in levels and on blocks, hard blocky shadows. Fixed to the surfaces, so nothing swims "
-                  "as your head moves. Goes with Retro Textures. Debug > Views > Retro Lighting A/B compares."),
-        slider("Block Edge Softness", "vr_retrolight_edge_soft", 0.f, 3.f, 0.25f, "%.2f px")
-            .help("The blocks' edges (the lightmap's, the dynamic lights', the shadows'): a ramp this many pixels wide, so they "
-                  "don't crawl as your head moves. 0: hard nearest (crawls). Blocks smaller than a pixel turn smooth."),
-        cycle("Level Spacing", "vr_retrolight_spacing", {{0.f, "Even in Light (Quake's)"}, {1.f, "Even in Brightness"}})
-            .help("How the light levels below are spread: evenly in light, as Quake's colormap (few levels crush the shade to "
-                  "black), or evenly in brightness (more levels in the shade, the bands look even)."),
+        row(opt::vr_retrolight),
+        row(opt::vr_retrolight_edge_soft),
+        row(opt::vr_retrolight_spacing),
         header("World: the Baked Light"),
-        toggle("World", "vr_retrolight_world").help("Retro lighting on the map and its brush models (doors, lifts, boxes)."),
-        slider("Light Levels", "vr_retrolight_world_steps", 0.f, 64.f, 1.f, "%.0f")
-            .help("The baked light in this many levels a unit of the lightmap (bands). 0: smooth. 64: Quake's software "
-                  "renderer's own 64 levels (subtle); 8 to 16: clear bands. Each colour keeps its hue."),
-        slider("Level Edges Softness", "vr_retrolight_world_soft", 0.f, 1.f, 0.05f, "%.2f")
-            .help("The bands' edges blurred over this share of a level: 0 hard (anti-aliased over a pixel), 1 smooth steps."),
-        slider("Dither", "vr_retrolight_world_dither", 0.f, 1.f, 0.05f, "%.2f")
-            .help("An ordered (Bayer) dither between the levels, fixed to the texels: the bands break into a pattern "
-                  "instead of a hard line. Fades out where its cells get smaller than a pixel."),
+        row(opt::vr_retrolight_world),
+        row(opt::vr_retrolight_world_steps),
+        row(opt::vr_retrolight_world_soft),
+        row(opt::vr_retrolight_world_dither),
         cycle("Dither Cell", "vr_retrolight_world_dither_size", cells).help("The dither's cells, in Quake texels."),
-        toggle("Blocky Lightmap", "vr_retrolight_world_lightmap")
-            .help("The lightmap read on its grid of blocks instead of smoothly: Quake's chunky light."),
-        cycle("Lightmap Block", "vr_retrolight_world_luxel",
-            {{1.f, "1 texel (software Quake)"}, {2.f, "2 texels"}, {4.f, "4 texels"}, {8.f, "8 texels"}, {16.f, "16 texels (a luxel)"}})
-            .help("The blocks, in Quake texels: 16 is a luxel (GLQuake with nearest filtering: big squares); 1 lights each "
-                  "texel on its own (Quake's software renderer: soft gradients in texel steps, aligned with the textures)."),
+        row(opt::vr_retrolight_world_lightmap),
+        row(opt::vr_retrolight_world_luxel),
         header("World: Dynamic Lights"),
-        slider("Dynamic Light Levels", "vr_retrolight_world_dyn_steps", 0.f, 64.f, 1.f, "%.0f")
-            .help("The flashlight, muzzle flashes, explosions and the other dynamic lights in this many levels a unit "
-                  "(their pools in rings). 0: smooth."),
+        row(opt::vr_retrolight_world_dyn_steps),
         cycle("Dynamic Light Blocks", "vr_retrolight_world_dyn_block", blocks)
             .help("Dynamic lights found once a block of this many Quake texels (aligned with the texture's blocks): "
                   "pixelated pools of light. Off: per pixel."),
         header("Models"),
-        toggle("Models", "vr_retrolight_models").help("Retro lighting on models: monsters, items, weapons, your body."),
-        slider("Model Light Levels", "vr_retrolight_model_steps", 0.f, 64.f, 1.f, "%.0f")
-            .help("A model's own light (the light grid's, per vertex) in this many levels a unit (as the world's). 0: smooth."),
-        slider("Model Level Edges Softness", "vr_retrolight_model_soft", 0.f, 1.f, 0.05f, "%.2f").help("As the world's."),
-        slider("Model Dither", "vr_retrolight_model_dither", 0.f, 1.f, 0.05f, "%.2f").help("As the world's, fixed to the skin's texels."),
+        row(opt::vr_retrolight_models),
+        row(opt::vr_retrolight_model_steps),
+        row(opt::vr_retrolight_model_soft),
+        row(opt::vr_retrolight_model_dither),
         cycle("Model Dither Cell", "vr_retrolight_model_dither_size", cells).help("The dither's cells, in the skin's Quake texels."),
-        slider("Model Dynamic Light Levels", "vr_retrolight_model_dyn_steps", 0.f, 64.f, 1.f, "%.0f").help("As the world's."),
+        row(opt::vr_retrolight_model_dyn_steps),
         cycle("Model Dynamic Light Blocks", "vr_retrolight_model_dyn_block", blocks)
             .help("Dynamic lights found once a block of the skin's texels. Off: per pixel."),
         header("Shadows"),
-        cycle("Shadow Edges", "vr_retrolight_shadow_filter", {{0.f, "As Graphics > Shadows"}, {1.f, "Hard"}, {2.f, "Blocky"}})
-            .help("Hard: one tap, no soft filtering. Blocky: the shadow map's own texels, as squares."),
-        slider("Shadow Levels", "vr_retrolight_shadow_steps", 0.f, 8.f, 1.f, "%.0f")
-            .help("A shadow's darkness in levels: 1, lit or not (a hard edge along its middle); 2 or more, steps. 0: smooth."),
-        slider("Shadow Level Softness", "vr_retrolight_shadow_soft", 0.f, 1.f, 0.05f, "%.2f")
-            .help("Those steps' edges blurred over this share of a level."),
+        row(opt::vr_retrolight_shadow_filter),
+        row(opt::vr_retrolight_shadow_steps),
+        row(opt::vr_retrolight_shadow_soft),
         cycle("Shadow Blocks", "vr_retrolight_shadow_block", shadowBlocks)
             .help("Shadows looked up once a block of this many texels (the face's or the skin's): blocky shadow edges on "
                   "the texture's grid. Off: per pixel (or the dynamic lights' blocks). 1/4 and 1/2 are sub-texel: the "

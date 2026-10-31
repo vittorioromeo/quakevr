@@ -1170,7 +1170,7 @@ int bonePoses(const entity_t* e, const float** matrices)
     return 0;
 }
 
-bool liveVertices(int num, za::Vector<glm::vec3>& out)
+bool liveVertices(int num, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>* normals)
 {
     for(const Drawn& d : drawn)
     {
@@ -1190,21 +1190,38 @@ bool liveVertices(int num, za::Vector<glm::vec3>& out)
             return glm::vec3{o[0] * r.x + o[1] * r.y + o[2] * r.z + o[3], o[4] * r.x + o[5] * r.y + o[6] * r.z + o[7],
                 o[8] * r.x + o[9] * r.y + o[10] * r.z + o[11]};
         };
+        // (a normal: the bone's linear part on the rest normal, blended as the place is; its length left to the caller)
+        const auto turn = [&](int bone, const glm::vec3& n) {
+            const float* o = d.skin + za::clamp(bone, 0, d.bones - 1) * 12;
+            return glm::vec3{o[0] * n.x + o[1] * n.y + o[2] * n.z, o[4] * n.x + o[5] * n.y + o[6] * n.z,
+                o[8] * n.x + o[9] * n.y + o[10] * n.z};
+        };
         out.resize(static_cast<za::SizeT>(sh->numverts));
+        if(normals)
+        {
+            normals->resize(static_cast<za::SizeT>(sh->numverts));
+        }
         for(int v = 0; v < sh->numverts; v++)
         {
             const trivertx_t& t = tv[v];
             const glm::vec3 r{t.v[0] * sh->scale[0] + sh->scale_origin[0], t.v[1] * sh->scale[1] + sh->scale_origin[1],
                 t.v[2] * sh->scale[2] + sh->scale_origin[2]};
+            const glm::vec3 rn{r_avertexnormals[t.lightnormalindex][0], r_avertexnormals[t.lightnormalindex][1],
+                r_avertexnormals[t.lightnormalindex][2]};
             const Weights* w = v < static_cast<int>(rig->weights.size()) ? &rig->weights[static_cast<za::SizeT>(v)] : nullptr;
-            glm::vec3 at{0.f};
+            glm::vec3 at{0.f}, n{0.f};
             float sum = 0.f;
             for(int i = 0; w && i < w->n; i++)
             {
                 at += w->w[i] * place(w->bone[i], r);
+                n += w->w[i] * turn(w->bone[i], rn);
                 sum += w->w[i];
             }
             out[static_cast<za::SizeT>(v)] = sum > 0.f ? at / sum : place(0, r); // (unweighted: bone 0, as its copy draws it)
+            if(normals)
+            {
+                (*normals)[static_cast<za::SizeT>(v)] = sum > 0.f ? n / sum : turn(0, rn);
+            }
         }
         return true;
     }

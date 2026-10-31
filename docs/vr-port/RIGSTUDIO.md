@@ -17,7 +17,10 @@ layer), `vr_imgui.cpp` (ImGui in the game); `Quake/thirdparty/imgui` (Dear ImGui
 
 or **Debug > Tools > Rig Studio (Flat Screen)**. It is flat-screen only: with a headset session up it refuses
 ("the Rig Studio is flat-screen only"). It loads `vr_rigstudio_map` (vrtesthall), makes you a god-mode, notarget
-onlooker and stands a frozen armed grunt with a shotgun in the middle of the free floor ahead. `vr_rigstudio here`
+onlooker and stands a frozen armed grunt with a shotgun in the middle of the free floor ahead (160 units ahead of the
+start; where a map's world text (a banner) would show over it from the default camera, the nearest place clear of every
+one, with room round it and the camera: in vrtesthall 96 forward and 48 left, past the welcome boards; the console says
+where, `developer 1` why each nearer place was not taken). `vr_rigstudio here`
 keeps the map you are in. `vr_rigstudio <spawn class> [weapon] [weapon2]` picks the subject (the armed list's codes:
 `vr_toolgun_armed_list`; 4 the shotgun, the default), as does the **Subject** menu (every armed humanoid kind, its right
 and left hand's weapon, dual included, and a few unarmed rigged monsters). There is only ever one subject: a change (its
@@ -112,7 +115,8 @@ ROUND22.md, "Off hand: grip offset and Free"):
   Also Combat > Armed Grunts > IK Stretch (a row per kind and class, each pick +0.05).
 
 Undo, Save, Print / `vr_agrunt_pose_dump` (a row carries 30 numbers when any off-hand part is set, else the 21 of
-before), Copy to the other kind (the grip offset as it is: the gun's frame; the free hand's place scaled by the fit) all
+before; `vr_agrunt_pose_dump all` prints every key and stretch in effect, archived or shipped alike, and
+`vr_agrunt_grip_dump effective` every grip: the check that a promotion to the shipped tables changed nothing), Copy to the other kind (the grip offset as it is: the gun's frame; the free hand's place scaled by the fit) all
 cover them. Not in the VR Pose Studio yet (its hands take the left hand on a second grip as the Grip Editor's Second grip).
 
 ImGui is made the first time the studio opens; until then nothing of it exists, and while the studio is closed none of
@@ -183,6 +187,16 @@ ring, the move tool's arrows, plane squares and its centre (the view's plane); t
   data (vr_agrunt_poses, vr_agrunt_grips), drawn by the game at once; Print writes them as code (vr_agrunt_pose_dump,
   vr_agrunt_grip_dump). Undo covers them. Follow the Subject (the Pose Keys tool's key the subject's); in Pickup the
   legs' key too (the pelvis's place and turn, the feet, the knees' poles). The Pose Keys tool drags the same key.
+  **Pickup is one pose per kind every class shares** (the fists' too), named "Pickup (shared)"; a class may have its own
+  instead, "Pickup (override)" (agent/sharedpickup). Editing a class's Pickup, here or with the Pose Keys tool, edits
+  the shared key unless that class has an override. **Make Override for this class** gives it its own (starting as the
+  shared one); **Remove Override (use shared)** puts it back on the shared one (a shipped override is set aside by a
+  "no override" mark). Reset This Pose resets the key its edits keep (the override, or the shared key). Chest Bend
+  (standing, kneeling) sets `vr_agrunt_take_bend` (28) and `vr_agrunt_take_bend_kneel` (45): the chest's bend at the
+  take's lowest. Print lists the shared key (class 7) and the overrides; `vr_agrunt_pose_dump pickup` prints each
+  class's Pickup in effect and whose; `vr_agrunt_pose_override <kind> <class> [1|0]` makes or removes an override. The
+  VR Pose Studio's panel has the same toggle in Pickup (its bottom row: Make Override / Remove Override). A fists
+  subject shows no take (no weapon to take up): its Pickup edits the shared key all the same.
 - **Help**, **Preferences** (orbit, pan and zoom speeds, handle size, theme: dark, light, classic).
 
 The File menu: Save, Revert to Files, Print as Defaults, Close Studio. Edit: undo, redo, copy, paste (all bones or the

@@ -367,4 +367,27 @@ const za::Vector<WorldText>& clientTexts()
     return clientTextList;
 }
 
+const za::Vector<WorldText>& serverTextList()
+{
+    return serverTexts;
+}
+
+glm::vec2 halfSize(const WorldText& t)
+{
+    int longest = 0, line = 0, lines = 1;
+    for(const char* c = t.text.cStr(); *c; c++)
+    {
+        if(*c == '\n')
+        {
+            lines++;
+            line = 0;
+            continue;
+        }
+        line++;
+        longest = line > longest ? line : longest;
+    }
+    const float charSize = 8.f * t.scale; // (vr_text3d.cpp's: a line 1.25 of it)
+    return glm::vec2{charSize * static_cast<float>(longest), charSize * 1.25f * static_cast<float>(lines)} * 0.5f;
+}
+
 } // namespace qvr::worldtext

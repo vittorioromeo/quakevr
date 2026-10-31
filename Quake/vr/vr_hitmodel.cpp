@@ -7,6 +7,7 @@
 #include "vr_api.h"
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
+#include "vr_drawnpose.hpp"
 #include "vr_held.hpp"
 #include "vr_jobs.hpp"
 #include "vr_lines.hpp"
@@ -323,7 +324,7 @@ mem::Scratch<RagdollScratch> ragdollScratch{"hit model ragdolls"};
 } // namespace
 namespace detail
 {
-bool drawnOf(edict_t* ent, Drawn& d)
+bool drawnOf(edict_t* ent, Drawn& d, bool asDrawn)
 {
     const int index = static_cast<int>(ent->v.modelindex);
     d.mesh = meshOf(index, modelOf(ent), d.hdr);
@@ -399,6 +400,18 @@ bool drawnOf(edict_t* ent, Drawn& d)
     // A ragdoll: its mesh as its parts carry it (the triangles tested one by one: the hierarchy's bounds are its
     // frames').
     if(ragdoll::skinnedVertices(NUM_FOR_EDICT(ent), ragdollScratch.pos, &ragdollScratch.nor) &&
+        ragdollScratch.pos.size() >= static_cast<za::SizeT>(d.mesh->numverts))
+    {
+        d.skinned = ragdollScratch.pos.data();
+        d.skinnedN = ragdollScratch.nor.data();
+        d.pose2 = d.pose1;
+        d.blend = 0.f;
+    }
+    // An armed humanoid alive: its body as drawn on the authored rig (drawnpose::armedMesh: its posed arms, its takes,
+    // its hit reactions), not its animation frame: a shot at its drawn arm meets that arm (ROUND23.md, "Armed humanoids:
+    // shots and grip spheres from the drawn pose"). Not for `asDrawn` false (vertexPoint: the frame's own vertices, its
+    // arms' inputs) nor vr_hitmodel_check's frame comparison.
+    else if(asDrawn && !checkNoLerp && vr_hit_drawn_pose.value != 0.f && drawnpose::armedMesh(ent, ragdollScratch.pos, &ragdollScratch.nor) &&
         ragdollScratch.pos.size() >= static_cast<za::SizeT>(d.mesh->numverts))
     {
         d.skinned = ragdollScratch.pos.data();
@@ -993,7 +1006,7 @@ bool surfacePoint(edict_t* ent, int tri, float u, float v, glm::vec3& point, glm
 bool vertexPoint(edict_t* ent, int vert, glm::vec3& point)
 {
     Drawn d;
-    if(vert < 0 || !drawnOf(ent, d) || vert >= d.mesh->numverts)
+    if(vert < 0 || !drawnOf(ent, d, false) || vert >= d.mesh->numverts) // (the frame's: the arms' inputs, QC modelvertex)
     {
         return false;
     }

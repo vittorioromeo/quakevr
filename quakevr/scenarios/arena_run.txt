@@ -1,0 +1,5 @@
+# arena_run: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". A fresh Survival Arena run from wave 1 at the game's difficulty.
+title Survival Arena: a fresh run from wave 1
+map vrarena
+start 0 0 120 45
+cvar vr_arena 1

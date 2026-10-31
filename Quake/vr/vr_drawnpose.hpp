@@ -4,9 +4,11 @@
 // vertex pose, hitmodel's) or the entity's origin and angles, while the body is drawn otherwise: a live grunt on the
 // authored rig with the Rig Studio's takes (bending to take a weapon), its arms' IK and its hit reactions; a ragdoll (an
 // active one too) by its parts. Its users: the worn backpack (agarmor::packWhere), the held weapons of an armed humanoid
-// (hitreact::drawnWeapon: the disarm volumes and a ragdoll's weapon, QC VR_AG_RagProp).
+// (hitreact::drawnWeapon: the disarm volumes and a ragdoll's weapon, QC VR_AG_RagProp), an armed humanoid's body as drawn
+// (armedMesh: the precise hits, vr_hitmodel.cpp).
 
 #include "vr_rigpose.hpp"
+#include "Zancle/Container/Vector.hpp"
 
 struct edict_s;
 
@@ -25,6 +27,13 @@ enum class Source : int
 // out.pos + out.rot * (scale * p). The bone's index is its rig's (the authored rig's are its ragdoll's parts too).
 // Main thread; a listen server's own view (the client's drawing of the last frame or this one).
 [[nodiscard]] Source bone(edict_s* ent, int bone, rigpose::Rigid& out, float& scale);
+
+// Armed humanoid `ent` (hitreact::armsWanted: its arms posed on its weapons) alive on the authored rig as drawn lately: its
+// .mdl's vertices (the .mdl's order) skinned with the bones it is drawn with (rig2::liveVertices), placed as bone() places
+// them (world), and their normals turned likewise (`normals`: world, unit length). Not a ragdoll's (ragdoll::
+// skinnedVertices). False: not drawn so lately (the caller's own: the frame's). The precise hits on its body (hitmodel:
+// shots, blows and holds meet the body as drawn: aiming, guarding, swinging, staggered, not its animation frame).
+[[nodiscard]] bool armedMesh(edict_s* ent, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>* normals);
 
 [[nodiscard]] const char* sourceName(Source s);
 

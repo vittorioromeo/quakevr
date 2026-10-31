@@ -13,6 +13,10 @@
 // pieces at their places on its own rig, the cuirass absorbing, a pauldron broken into its own model's debris, a blade's
 // blow on a plate sparking with no blood, the skill's roll dressing it, its wear reaching the client; the debris fading.
 // `vr_agarmor_test 8`: a knight and a death knight close ahead in full yellow (the eyeshots).
+// `vr_agarmor_test 9` (agent/hkrig): their deaths: a knight and a death knight in full yellow killed (health 1, small
+// blows), their ragdolls awaited (each a corpse, then 3 s more): each still wearing both pauldrons, its body where it
+// fell (its middle within 48 units of its death's place: no blow-up). Ends on "agarmor test: N passed, M failed" (the
+// script may then ask vr_ragdoll_speeds / vr_ragdoll_list).
 
 entity vr_art_a, vr_art_b; // the armoured grunt, the bare one
 float vr_art_state;       // 0 idle, 1 the checks, 2 waiting for the debris to fade
@@ -24,12 +28,12 @@ void(float ok, string what) VR_ART_Check =
     if(ok)
     {
         VR_Test_Count(TRUE);
-        dprint(sprintf("agarmor test: PASS %s\n", what));
+        VR_Test_Print(sprintf("agarmor test: PASS %s\n", what));
     }
     else
     {
         VR_Test_Count(FALSE);
-        dprint(sprintf("agarmor test: FAIL %s\n", what));
+        VR_Test_Print(sprintf("agarmor test: FAIL %s\n", what));
     }
 };
 
@@ -402,6 +406,68 @@ float(entity c, float wear) VR_ART_Heard =
         ragdollbone(c, '1 0 0', QVR_ARMOR_CLIENT) == c.vr_ar_mask;
 };
 
+// `vr_agarmor_test 9`'s run: state 1 the kills, 2 awaiting the ragdolls (to vr_art_until), 3 their 3 s (to vr_art_until)
+vector vr_art_kdied, vr_art_dkdied; // where each died
+
+void(entity e, entity p) VR_ART_Kill =
+{
+    float n;
+    e.health = 1;
+    for(n = 0; n < 40 && e.health > 0; n++)
+    {
+        T_Damage(e, p, p, 4); // (small blows: no gibbing; the cuirass may take some)
+    }
+};
+
+void(entity e, vector died, string what) VR_ART_CheckDead =
+{
+    VR_ART_Check(VR_AgArmor_On(e, 2) && VR_AgArmor_On(e, 3),
+        sprintf("%s's corpse wears both pauldrons (pieces %g)", what, e.vr_ar_mask));
+    float moved = vlen(e.origin - died);
+    VR_ART_Check(moved < 48, sprintf("%s's ragdoll where it fell: %.1f units from its death's place (under 48)", what, moved));
+};
+
+void() VR_ART_Deaths =
+{
+    entity p = VR_Player();
+    if(vr_art_state == 1)
+    {
+        VR_ART_Kill(vr_art_k, p);
+        VR_ART_Kill(vr_art_dk, p);
+        VR_ART_Check(vr_art_k.health <= 0 && vr_art_dk.health <= 0, sprintf("both killed (health %g, %g)", vr_art_k.health,
+            vr_art_dk.health));
+        vr_art_kdied = vr_art_k.origin;
+        vr_art_dkdied = vr_art_dk.origin;
+        vr_art_state = 2;
+        vr_art_until = time + 15;
+        return;
+    }
+    if(vr_art_state == 2)
+    {
+        float ready = isragdoll(vr_art_k) && (vr_art_k.vr_corpse == 2 || vr_art_k.vr_corpse_dying) && isragdoll(vr_art_dk) &&
+            (vr_art_dk.vr_corpse == 2 || vr_art_dk.vr_corpse_dying);
+        if(!ready && time < vr_art_until)
+        {
+            return;
+        }
+        VR_ART_Check(ready, sprintf("both ragdolls (knight %g, death knight %g; else timed out)", isragdoll(vr_art_k), isragdoll(vr_art_dk)));
+        vr_art_state = 3;
+        vr_art_until = time + 3;
+        return;
+    }
+    if(time < vr_art_until)
+    {
+        return;
+    }
+    VR_ART_CheckDead(vr_art_k, vr_art_kdied, "knight");
+    VR_ART_CheckDead(vr_art_dk, vr_art_dkdied, "death knight");
+    vr_art_mode = 0;
+    vr_art_state = 0;
+    VR_Test_Verdict();
+    // (the corpses left where they lie, to be seen; their ragdolls' fastest parts and extents, then the run's end)
+    localcmd("vr_ragdoll_speeds\nvr_ragdoll_list\necho agarmor deaths over\n");
+};
+
 float vr_aft_busy; // `vr_agarmor_test 5` (vr_agarmor_fx_test.qc) running
 void(float start) VR_AgArmor_FxTestFrame;
 
@@ -466,9 +532,20 @@ void() VR_AgArmor_TestFrame =
             VR_AgArmor_Give(VR_ART_SpawnKind(p, 44, 3, 130), 2, 1023);
             return;
         }
+        if(request == 9)
+        {
+            VR_Test_BeginFlags("agarmor test", VR_TEST_LOUD); // (its lines printed without developer 1)
+            vr_art_k = VR_ART_SpawnKind(p, -48, 2, 128);
+            vr_art_dk = VR_ART_SpawnKind(p, 48, 3, 160);
+            VR_AgArmor_Give(vr_art_k, 2, 1023);
+            VR_AgArmor_Give(vr_art_dk, 2, 1023);
+            vr_art_mode = 9;
+            vr_art_state = 1;
+            return; // (their poses first drawn)
+        }
         if(request == 7)
         {
-            VR_Test_Begin("agarmor test");
+            VR_Test_BeginFlags("agarmor test", VR_TEST_LOUD); // (its lines printed without developer 1)
             vr_art_rule = cvar("vr_agarmor_rule");
             vr_art_helm = cvar("vr_agarmor_helmet_head");
             vr_art_cuts = cvar("vr_agarmor_block_cuts");
@@ -498,7 +575,7 @@ void() VR_AgArmor_TestFrame =
             }
             return;
         }
-        VR_Test_Begin("agarmor test");
+        VR_Test_BeginFlags("agarmor test", VR_TEST_LOUD); // (its lines printed without developer 1)
         vr_art_rule = cvar("vr_agarmor_rule");
         vr_art_helm = cvar("vr_agarmor_helmet_head");
         vr_art_cuts = cvar("vr_agarmor_block_cuts");
@@ -511,6 +588,11 @@ void() VR_AgArmor_TestFrame =
         vr_art_c = VR_ART_SpawnKind(p, 0, 1, 200);
         vr_art_state = 1;
         return; // (their poses first drawn)
+    }
+    if(vr_art_mode == 9)
+    {
+        VR_ART_Deaths();
+        return;
     }
     if(vr_art_state == 1 && vr_art_mode == 7)
     {

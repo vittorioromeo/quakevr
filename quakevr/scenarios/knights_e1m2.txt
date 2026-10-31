@@ -1,0 +1,5 @@
+# knights_e1m2: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Armed Knights on in e1m2, a map with knights.
+title e1m2 with Armed Knights on: every knight holds a sword (god)
+map e1m2
+god
+cvar vr_agknight 1
