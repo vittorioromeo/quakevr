@@ -3665,3 +3665,32 @@ Checklist:
   wrist straight, and Pose Keys shows the "left hand: grip offset" dot; drag it: the hand follows on the gun.
 - [knightpose] Toolgun: an armed Knight with a nail pistol aims it in the pistol pose (off hand free or cupping), not
   shouldered as a rifle.
+
+## Two-handed tug pulls for real; the worn pack drag (branch `agent/tugpull`)
+
+His decision: a second hand on a tug adds real pull.
+- **Why two hands were no stronger:** not the shared hand part. The tug's pull is the stretch (ragdolltug 3: the hand's
+  flat distance from where it stands its ground, its pelvis pin, beyond its distance at the hold; per hand, from the
+  controller), summed over both hands (`f1 + f2 x vr_agrunt_tug_two_hand_mult`) already. Test 92's second hand holds
+  the gun's far end, by its chest, about 2 units past its pelvis from you: pulling it back shrank that distance, so its
+  stretch read 0 the whole tug and only the 0.75 eased thresholds helped (0.86x one hand's time, 3 runs in 5 over 0.85x).
+- **Now** (box3d `tugAwayOf`): a standing tug's hand past where it stands from you reads its pull towards you (the
+  stretch along the flat way from its pelvis to you); every other hand reads the reach as before. Downed/staggering
+  tugs (ragdolltug 6) keep the reach (towards you, test 91's lying grip never won: torn away). Both kinds sum the hands
+  in VR_AG_TugRagFrame (one path). `vr_agrunt_tug_two_hand_mult` 1 -> **0.6** (Debug > Tunables, "Tug: Second Hand's
+  Pull"): two hands win in 0.94 s against one hand's 1.36 s (0.69x; 1.0 gave 0.50-0.57x, 0.5 0.68x).
+- **Test 92:** bar 0.75x (was 0.85); each phase starts from phase 0's place (the player drifted ~15 units a phase and
+  seed 1's sword grunt fell off the hall's ledge, "no floor": torn away). 22/0 on seeds 1-5. Test 91 9/9 (seeds 1-3), tug
+  group 23, 30-38, 74 pass, 29 fails as in the baseline; ragdoll_grab 19/0.
+- **Worn pack drag ("dragged slowly by the pack: kept"):** the cause was the test: it put the player 20 units from the
+  pack at his own height, but B had landed below him (its pack 10 units under his feet): he fell, his hand (placed in
+  the play space) falling with him, and the hold dragged the pack down at its 4000 N cap. Now he stands on B's floor:
+  39/0, hardest pull 1385 N (rip 1500). Also fixed: a pack hold began stretched (the palm fit moved the held point 4.5
+  units back out of the pack while the joint held it at the controller); `startHold(still)` now holds the pack's point
+  where it is from the hand, so the hold starts at 0 N, 0 units. `vr_worn_backpack_debug 2` shows your fall speed.
+
+Checklist:
+- [tugpull] Grab an armed grunt's gun with one hand and pull back steadily: note how long it takes; then grab another's
+  gun with both hands (one on the barrel, one by its body) and pull: it comes out clearly sooner (about two thirds).
+- [tugpull] Grab a grunt's worn backpack (knocked down or standing) and walk slowly backwards: it is dragged by the pack, which
+  stays on; yank hard: the pack tears off into your hand.
