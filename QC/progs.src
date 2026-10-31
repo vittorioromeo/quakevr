@@ -551,9 +551,11 @@ vr_armedgrunt_downtug_test.qc
 vr_armedgrunt_ragweapon_test.qc
 vr_armedknight_test.qc
 vr_armedgrunt_range_test.qc
+vr_disarmhull_view_test.qc // test 17: his two views of Show Disarm Volumes (an eyeshot aid)
 vr_disarmviz_test.qc
 vr_drawnpose_test.qc // test 99: the drawn pose (worn packs, disarm volumes)
 vr_stalepose_test.qc // test 79: shots and grip spheres from the drawn pose
+vr_disarmhull_test.qc // test 16: the disarm volumes as hulls of the drawn triangles
 vr_armedgrunt_expose_test.qc
 vr_armedgrunt_ai_test.qc
 vr_armedgrunt_ammo_test.qc
@@ -565,6 +567,7 @@ vr_armedgrunt_posecat_test.qc
 vr_armedgrunt_shove_test.qc
 vr_armedgrunt_muzzle_test.qc
 vr_armedgrunt_shoveclose_test.qc
+vr_armedgrunt_reach_test.qc
 vr_armedgrunt_guard_test.qc
 vr_nailpistol_test.qc
 vr_nail_test.qc

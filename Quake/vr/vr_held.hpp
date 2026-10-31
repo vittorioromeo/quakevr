@@ -20,6 +20,11 @@
 
 #include "Zancle/Container/Vector.hpp"
 
+namespace qvr::disarmhull
+{
+struct Hull;
+}
+
 namespace qvr::held
 {
 
@@ -103,10 +108,15 @@ bool bothHandsThrow(int hand, double at, bool release, throwing::Estimate& out);
 // networked scale and offset), its nearest point in `nearest`; -1 if it has no surface to measure.
 [[nodiscard]] float surfaceDistance(edict_t* ent, const glm::vec3& point, glm::vec3* nearest = nullptr);
 
-// Server side: `ent`'s drawn shape (as surfaceDistance measures it) along its own forward, in its axes relative to its
-// origin (forward, left, up): `back` and `front` its two ends' middles (its cross-section's middle at its least and
-// greatest forward), `radius` half its cross-section's larger side. An armed humanoid's held weapon's disarm volumes
-// (QC VR_AG_WeaponLine: weapondrawnpose 33-35). False: no drawn surface.
+// Server side: the convex hull of `ent`'s drawn mesh's triangles (as surfaceDistance measures it), in its axes relative to
+// its origin (forward, left, up): made once per mesh (vr_disarmhull.hpp: an armed humanoid's weapon's disarm volume).
+// Null: no drawn surface.
+[[nodiscard]] const disarmhull::Hull* drawnHull(edict_t* ent);
+
+// Server side: `ent`'s drawn shape's long axis (drawnHull's two corners farthest apart: whichever way its model has it),
+// in its axes relative to its origin: `back` and `front` its ends along that axis (front: further along its forward)
+// through its corners' middle, `radius` their most off that line. An armed humanoid's held weapon's line (QC
+// VR_AG_WeaponLine: weapondrawnpose 33-35; the parry's). False: no drawn surface.
 bool drawnExtent(edict_t* ent, glm::vec3& back, glm::vec3& front, float& radius);
 
 // The gap (units) between a fist's spheres (world: middle and radius) and `ent`'s drawn surface: the least of each

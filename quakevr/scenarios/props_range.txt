@@ -1,0 +1,15 @@
+# props_range: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Props, a wall torch, guns on the floor and a calm armed grunt to grab, shoot and punch.
+title Props to grab and shoot: a crate, a box, a wall torch, guns on the floor, a calm knight and armed grunt
+map vrtesthall
+god
+notarget
+spawn "Wooden Crate" 60 40
+spawn "Wall Torch" 50 0
+spawn "Nail Pistol" 40 -60
+spawn "Shotgun" 40 100
+spawn "Chainsaw" 30 -100
+spawn "Shells" 40 70
+spawn "Explosive Box" 160 -120
+spawn "Armed Grunt: Shotgun" 120 80
+spawn "Knight" 220 0
+spawn "Grunt Corpse" 150 -40

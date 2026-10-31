@@ -5,84 +5,38 @@
 [[nodiscard]] za::Vector<Item> pageStealth()
 {
     return {
-        toggle("Enhanced AI", vr_ai_enhanced)
-            .help("Every rule on this page at once. Off: Quake's monster AI, exactly (they see you at once, hear nothing); "
-                  "switched mid-game, every monster goes back to it at once (an investigating monster stops, idle). For a "
-                  "map that doesn't play well with the stealth rules."),
+        row(opt::vr_ai_enhanced),
         header("Seeing You"),
-        toggle("Suspicion Meter", vr_stealth_meter)
-            .help("A monster that sees you fills a meter, faster the more light is on you, the nearer, the more in front "
-                  "of it, the more you move (crouching slows it). Partly full it turns to look (Alert); full, it attacks. "
-                  "Off: Quake's sight (seen at once in its view, or near)."),
-        toggle("Touching Gives You Away", vr_stealth_contact)
-            .help("Your body, either hand or a prop you hold touching a monster: it spots you at once. Off: brushing past "
-                  "one is unnoticed; taking hold of it (grabbing) still gives you away."),
-        slider("Sneak Attack Damage", vr_stealth_sneak, 1.f, 3.f, 0.05f, "x%.2f").extend(0.f, 10.f)
-            .help("Any damage you deal (a blow, a shot, an explosion) to a monster that hasn't noticed anything. 1: none."),
+        row(opt::vr_stealth_meter),
+        row(opt::vr_stealth_contact),
+        row(opt::vr_stealth_sneak),
         header("Hearing"),
-        toggle("Monsters Hear Noises", vr_stealth_noise)
-            .help("Noises draw monsters (Alert: they come to look): your running, hard landings, props knocking, blows, "
-                  "shots, explosions; louder ones farther. A noise you make in a monster's sight gives you away. Walls "
-                  "muffle them; a thrown prop draws them to where it lands, not to you."),
-        slider("Running From", vr_stealth_run_speed, 100.f, 400.f, 10.f, "%.0f u/s")
-            .help("Moving faster than this is running, and heard (full stick: 320; walking and crouching are quiet). "
-                  "Climbing and shimmying are silent."),
-        slider("Shots Heard", vr_stealth_noise_guns, 0.f, 3.f, 0.05f, "x%.2f")
-            .help("Times each weapon's reach (a shotgun 1100 units, the super shotgun 1300, nailguns 800-900)."),
-        slider("Explosions Heard", vr_stealth_noise_blasts, 0.f, 3.f, 0.05f, "x%.2f")
-            .help("Times an explosion's reach (8 units a point of its damage, at least 800: a rocket's or a grenade's 960)."),
-        toggle("Through Teleporters", vr_stealth_gates)
-            .help("Seamless teleporters that come out of another gate (Graphics > Teleporters): every monster sees you "
-                  "through them (not only ranged ones), noises carry through them as through an opening, and an Alert "
-                  "monster walks through to look (Monsters Walk Through on). Off: sight through them is ranged "
-                  "monsters' only, and noises stay in their room."),
-        toggle("See-Through Walls", vr_stealth_seethrough)
-            .help("Grates, fences, webs and glass (see-through textures and walls): monsters see you through them, your "
-                  "flashlight's beam reaches them through them, and noises carry through as in the open. Off: they block "
-                  "sight and muffle sound as solid walls."),
-        toggle("Deaf Ambushers", vr_stealth_ambush_deaf)
-            .help("Monsters a map placed in ambush don't hear noises or other monsters (Quake's meaning of the flag); "
-                  "they still see you."),
-        toggle("Senses by Kind", vr_stealth_senses)
-            .help("Dogs hear far better, fiends and shamblers better, zombies are near deaf and half blind, ogres a bit "
-                  "dull."),
+        row(opt::vr_stealth_noise),
+        row(opt::vr_stealth_run_speed),
+        row(opt::vr_stealth_noise_guns),
+        row(opt::vr_stealth_noise_blasts),
+        row(opt::vr_stealth_gates),
+        row(opt::vr_stealth_seethrough),
+        row(opt::vr_stealth_ambush_deaf),
+        row(opt::vr_stealth_senses),
         header("Investigating"),
-        toggle("Walk to It", vr_stealth_investigate)
-            .help("An Alert monster turns to what it noticed, then walks there and searches; off: it only turns and looks."),
-        toggle("Lose You", vr_stealth_lose)
-            .help("A monster hunting you that lost sight of you hunts on for a while, then gives up: it searches where "
-                  "your trail ended and goes back (Alert). Off: it hunts you for ever (Quake's)."),
-        slider("Gives Up After", vr_stealth_lose_time, 2.f, 120.f, 1.f, "%.0f s").extend(0.5f, 600.f)
-            .help("How long without seeing you before it gives up."),
-        slider("Sooner Beyond", vr_stealth_lose_far, 0.f, 6000.f, 250.f, "%.0f units")
-            .help("With you farther than this it gives up after a quarter of that time. 0: never sooner."),
-        toggle("Follows Your Trail", vr_stealth_chase_trail)
-            .help("Out of sight, it goes to where it saw you last (round the corner you went round), then on the way you "
-                  "were going, then heads for you. Off: straight at you, as Quake's monsters (they know where you are)."),
-        slider("Guesses Ahead", vr_stealth_chase_predict, 0.f, 5.f, 0.25f, "%.2f s")
-            .help("How far along your way it guesses you went: this many seconds of your speed when it last saw you."),
+        row(opt::vr_stealth_investigate),
+        row(opt::vr_stealth_lose),
+        row(opt::vr_stealth_lose_time),
+        row(opt::vr_stealth_lose_far),
+        row(opt::vr_stealth_chase_trail),
+        row(opt::vr_stealth_chase_predict),
         header("Getting Round"),
-        toggle("Round Props", vr_ai_props)
-            .help("A monster whose way is blocked by a crate, a barrel or another solid prop walks round it (to its side "
-                  "nearer where it is going). Off: Quake's way, which only steps at random and can stay stuck behind it."),
-        toggle("Push Props", vr_ai_prop_push)
-            .help("And pushes the prop as it meets it, by its own weight against the prop's: a dog hardly moves a crate, "
-                  "an ogre shoves it."),
+        row(opt::vr_ai_props),
+        row(opt::vr_ai_prop_push),
         header("Spreading the Alarm"),
-        slider("Near Monsters Join", vr_stealth_share_near, 0.f, 1000.f, 16.f, "%.0f units")
-            .help("A monster this near another that turns Alert or attacks (in line, not through a wall) does too. 0: off."),
-        slider("Monsters in Sight Join", vr_stealth_share_view, 0.f, 3000.f, 50.f, "%.0f units")
-            .help("One that sees another attack within this does too (turning Alert: within half). 0: off."),
+        row(opt::vr_stealth_share_near),
+        row(opt::vr_stealth_share_view),
         header("What Else Draws Them"),
-        toggle("Flashlight Beams", vr_stealth_flashlight)
-            .help("Your flashlight on a monster: it comes towards the light (and its glare shows you). Its beam seen "
-                  "landing nearby: it looks about for where it came from."),
+        row(opt::vr_stealth_flashlight),
         header("Showing It"),
-        toggle("Visibility Gem", vr_stealth_gem)
-            .help("A gem on the wrist gadget: its glow how visible you are (the light on you, crouching), a ring round it "
-                  "how loud your last noise was."),
-        toggle("? and ! Marks", vr_stealth_marks)
-            .help("A ? rises over a monster turning Alert, a ! over one that spots you."),
+        row(opt::vr_stealth_gem),
+        row(opt::vr_stealth_marks),
         open("Tests", pageIndex(pageStealthTests)).help("Debug > Tests > Stealth AI."),
     };
 }
@@ -134,13 +88,9 @@
         command("The Map's Light", "vr_stealth_test 26")
             .help("The light where this map's monsters and pickups stand, as a histogram (the Dark and Lit thresholds)."),
         header("Logging"),
-        toggle("Meters Over Monsters", vr_stealth_debug_meters)
-            .help("Each monster's state (idle, ALERT and its step, HOSTILE and how long it hasn't seen you) and its "
-                  "suspicion meter as a bar over it, through walls: to watch the meter rise and drain while tuning."),
-        slider("Meters Within", vr_stealth_debug_meters_range, 250.f, 6000.f, 250.f, "%.0f units"),
-        slider("Log", vr_stealth_debug, 0.f, 2.f, 1.f, "%.0f")
-            .help("1: each monster's state changes (Alert, Hostile, Idle again); 2: also each meter step and noise heard."),
-        slider("Force the Light on You", vr_stealth_light_force, -1.f, 160.f, 1.f, "%.0f")
-            .help("Tests: the light on you as this (-1: measured)."),
+        row(opt::vr_stealth_debug_meters),
+        row(opt::vr_stealth_debug_meters_range),
+        row(opt::vr_stealth_debug),
+        row(opt::vr_stealth_light_force),
     };
 }

@@ -444,7 +444,7 @@ void status_f()
     }
     for(int c = 0; c < za::min(svs.maxclients, static_cast<int>(MAX_SCOREBOARD)); c++)
     {
-        if(holders[c].twoHanded)
+        if(holders[c].twoHands())
         {
             Con_Printf("foegrab status: player %d holds it with both hands: its hardest turn %.0f deg/s, the hands at %.2f "
                        "m/s (throws at %.0f deg/s, %.2f m/s)\n",
@@ -475,7 +475,7 @@ void status_f()
         const glm::vec3 d = pelvis - vec(player->v.origin);
         Con_Printf("foegrab status: player %d holds %s (%d) on as a ragdoll (%s) with %d hand(s), %.2f s: its pelvis %.1f "
                    "ahead, %.1f to his left, %.1f up; the held limbs %.1f and %.1f units from the off and main hands\n",
-            c + 1, PR_GetString(m->v.classname), hd.carried, hd.lifted ? "lifted" : hd.snapped ? "snapped" : "thrown", carryingHands(c, m),
+            c + 1, PR_GetString(m->v.classname), hd.carried, carryName(hd.carry), carryingHands(c, m),
             qcvm->time - hd.carriedSince, glm::dot(d, ahead), glm::dot(d, glm::cross(glm::vec3{0.f, 0.f, 1.f}, ahead)), d.z,
             box3d::ragdollHandReach(player, 0), box3d::ragdollHandReach(player, 1));
     }
@@ -838,7 +838,7 @@ za::String qvr::foegrab::noteHand(int hand)
     // The two-hand moves' state (the same for both hands: on the main hand's line, or the off's when only it holds).
     if(hand == 1 || !holder.holds[1].active)
     {
-        if(holder.twoHanded)
+        if(holder.twoHands())
         {
             out += va("%sboth hands: hardest turn %.0f deg/s at %.2f m/s", out.empty() ? "" : "; ", holder.peakTwist,
                 holder.peakSpeed);
@@ -852,7 +852,7 @@ za::String qvr::foegrab::noteHand(int hand)
         {
             out += va("%scarrying %s #%d as a ragdoll for %.1f s%s%s%s", out.empty() ? "" : "; ",
                 PR_GetString(EDICT_NUM(holder.carried)->v.classname), holder.carried, qcvm->time - holder.carriedSince,
-                holder.lifted ? ", lifted" : "", holder.flailing ? ", flailing" : "", holder.snapped ? ", neck snapped" : "");
+                holder.carry == Carry::Lifted ? ", lifted" : "", holder.flailing ? ", flailing" : "", holder.carry == Carry::Snapped ? ", neck snapped" : "");
         }
     }
     return out;

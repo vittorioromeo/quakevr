@@ -1,0 +1,6 @@
+# agarmor_helmets: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Debug > Tests > Helmets There (vr_agarmor_test 6).
+title Armour helmets on a grunt and an enforcer (Debug > Tests > Helmets There)
+map vrtesthall
+god
+notarget
+cmd vr_agarmor_test 6

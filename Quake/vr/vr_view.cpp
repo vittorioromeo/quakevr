@@ -4,6 +4,7 @@
 #include "vr_agarmor.hpp"
 #include "vr_kickcancel.hpp"
 #include "vr_holsterzones.hpp"
+#include "vr_dirparryviz.hpp"
 #include "vr_disarmviz.hpp"
 #include "vr_gunsfx.hpp"
 #include "vr_holstersetup.hpp"
@@ -4886,6 +4887,7 @@ extern "C" void VR_SetupViewEntities()
         hitmodel::zonesDraw(); // vr_debug_hitzones
         agarmor::debugDraw();  // vr_agarmor_debug
         disarmviz::draw(s.head); // vr_debug_disarm
+        dirparryviz::draw(s.head); // vr_dirparry_debug
         rope::debugDraw();     // vr_debug_rope
         foegrab::neckDebugDraw(s.head); // vr_foegrab_necksnap_debug
         foegrab::grabDebugDraw(s.head); // vr_foegrab_lift_debug, vr_foegrab_throw_debug

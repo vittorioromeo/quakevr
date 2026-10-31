@@ -1,0 +1,6 @@
+# np_empty: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Debug > Tests > Nail Pistol > Empty Nail Pistols: Holstered and Lying (vr_np_test 6).
+title Empty nail pistols holstered and lying (vr_np_test 6)
+map vrtesthall
+god
+notarget
+cmd vr_np_test 6

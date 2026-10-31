@@ -55,8 +55,13 @@ void pathCheck_f();
 // index, built afresh): its cvar, the pages above it ("Advanced VR Options > Combat") and its label, nearest the roots
 // first (a setting on two pages: twice). vr_propose_defaults (vr_propose_defaults.cpp).
 void forEachSettingPath(za::FunctionRef<void(const struct cvar_s& var, const char* page, const char* label)> f);
-// vr_menu_dump [level]: the pages' texts as MD| console lines (the copy review).
+// vr_menu_dump [level] [full]: the pages' texts as MD| console lines (the copy review); full: each row's every field
+// too (cvar, range, step, format, extent, level; the settings schema's before/after check).
 void dump_f();
+// vr_menu_dump_paths: Search's index (every page and row under the menu roots, whatever Menu Detail shows) as MP| console
+// lines: "MP|<cvar, @page, or empty>|<level>|<page title>|<row label>|<path>". Misc/quakevr/menu_paths.py turns them
+// into Misc/quakevr/menu_paths.txt, which the board maps' scripts read ({menu:...} from a cvar's name).
+void dumpPaths_f();
 // vr_menu_press <page title> > <row label>: that button pressed (its command run, its function called), whatever Menu
 // Detail shows; the tests' (Misc/quakevr/ragdoll/ragtest_test.sh: each Ragdoll Behaviours button).
 void press_f();

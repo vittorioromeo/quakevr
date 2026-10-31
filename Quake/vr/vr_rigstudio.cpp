@@ -1382,8 +1382,8 @@ void armourTestTick()
     armTest.step = -1;
 }
 
-// vr_rigstudio_posekey [kind <k> | class <c> | pose <p> | phase <n> | follow 0|1 | part <n>]...: the Pose Studio Data
-// window's key (as its combos do; the Pose Keys tool's part); then its values printed.
+// vr_rigstudio_posekey [kind <k> | class <c> | pose <p> | phase <n> | follow 0|1 | part <n> | swing 0|1 | swingspeed <x>]...:
+// the Pose Studio Data window's key (as its combos do; the Pose Keys tool's part; its Swing); then its values printed.
 void posekey_f()
 {
     for(int i = 1; i + 1 < Cmd_Argc(); i += 2)
@@ -1396,6 +1396,19 @@ void posekey_f()
         else if(!strcmp(w, "phase")) { st.pdPhase = za::clamp(v, 0, agpose::numPhases - 1); }
         else if(!strcmp(w, "follow")) { st.pdFollow = v != 0; }
         else if(!strcmp(w, "part")) { st.pdPart = v; }
+        else if(!strcmp(w, "swingspeed")) { st.swing.speed = za::clamp(static_cast<float>(Q_atof(Cmd_Argv(i + 1))), 0.1f, 1.f); }
+        else if(!strcmp(w, "swing"))
+        {
+            // (1: the data window's Swing pressed, its strike played from its start; 0: Stop Swing)
+            if(v)
+            {
+                swingPlay();
+            }
+            else
+            {
+                st.swing.on = false;
+            }
+        }
         else if(!strcmp(w, "offhand"))
         {
             // (the key's off-hand hold, agpose::OffMode: as the window's combo, undoable)
@@ -2697,6 +2710,14 @@ bool swapExternal(Snapshot& s, Snapshot& back)
         st.aim.atCamera = false; // (put back where it was: no longer on the camera)
         return true;
     }
+    if(s.posesEntry)
+    {
+        back.posesEntry = true;
+        back.posesText = za::String{vr_agrunt_poses.string ? vr_agrunt_poses.string : ""};
+        back.what = s.what;
+        Cvar_SetQuick(&vr_agrunt_poses, s.posesText.cStr());
+        return true;
+    }
     if(s.poseCode >= 0)
     {
         back.poseCode = s.poseCode;
@@ -2782,6 +2803,16 @@ void pushPoseUndo(int code)
     s.poseCode = code;
     s.poseKey = agpose::value(code);
     s.what = "pose key";
+    st.undo.pushBack(ZA_MOVE(s));
+    st.redo.clear();
+}
+
+void pushPosesUndo(const char* what)
+{
+    Snapshot s;
+    s.posesEntry = true;
+    s.posesText = za::String{vr_agrunt_poses.string ? vr_agrunt_poses.string : ""};
+    s.what = what;
     st.undo.pushBack(ZA_MOVE(s));
     st.redo.clear();
 }
@@ -3753,6 +3784,16 @@ int mirrorVert(int v)
     return best;
 }
 
+void swingPlay()
+{
+    Studio::Swing& sw = st.swing;
+    sw.on = agpose::isStrike(st.pdPose);
+    sw.want = sw.on;
+    sw.pose = st.pdPose;
+    sw.kind = st.pdKind;
+    sw.cls = st.pdClass;
+}
+
 } // namespace qvr::rigstudio::detail
 
 namespace qvr::rigstudio
@@ -3837,14 +3878,33 @@ bool qcHold(int ent, int kind, int cls, glm::vec3& out)
     }
     st.subjKind = kind;
     st.subjClass = cls;
-    if(st.tool == Tool::PoseKeys && st.pdKind == kind && st.pdClass == cls)
+    Studio::Swing& sw = st.swing;
+    const bool swinging = sw.on && sw.kind == kind && sw.cls == cls;
+    if(swinging || (st.tool == Tool::PoseKeys && st.pdKind == kind && st.pdClass == cls))
     {
-        // (the Pose Keys tool: held in the window's pose, a strike at its phase; Aim at the aim target)
-        out = glm::vec3{static_cast<float>(st.pdPose), static_cast<float>(agpose::isStrike(st.pdPose) ? st.pdPhase : 0), 0.f};
+        // (the Pose Keys tool: held in the window's pose, a strike at its phase; Aim at the aim target. Swing: its
+        // strike, played once from its start when its count changes, then held at the phase picked)
+        const int pose = swinging ? sw.pose : st.pdPose;
+        if(sw.want && sw.seen)
+        {
+            sw.count++;
+            sw.want = false;
+        }
+        sw.seen = true;
+        const int phase = agpose::isStrike(pose) && pose == st.pdPose ? st.pdPhase : 0;
+        out = glm::vec3{static_cast<float>(pose), static_cast<float>(phase), static_cast<float>(sw.count)};
         return true;
     }
     out = glm::vec3{st.aim.on ? static_cast<float>(agpose::Aim) : -1.f, 0.f, 0.f};
+    sw.seen = st.aim.on;
     return true;
+}
+
+float swingSpeed(int ent)
+{
+    // (the subject held in a strike by the studio: its Swing's speed, for every play of it)
+    const bool held = st.open && ent == st.subject && st.subject > 0 && st.swing.seen;
+    return held ? za::clamp(st.swing.speed, 0.1f, 1.f) : 1.f;
 }
 
 void serverFrame()

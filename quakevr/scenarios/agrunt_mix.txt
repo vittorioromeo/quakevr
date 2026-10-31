@@ -1,0 +1,13 @@
+# agrunt_mix: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". A live mixed squad of armed humanoids, a shotgun in hand, an axe and a nailgun at your feet.
+title Armed humanoids fighting: shotgun, laser rifle, nailgun, thunderbolt, axe (god; a shotgun in hand)
+map vrtesthall
+god
+give "Shotgun" main
+spawn "Axe" 30 40
+spawn "Nailgun" 30 -40
+spawn "Armed Grunt: Shotgun" 400 0
+spawn "Armed Enforcer: Laser Rifle" 450 120
+spawn "Armed Grunt: Nailgun" 450 -120
+spawn "Armed Grunt: Axe" 300 -60
+spawn "Armed Grunt: Thunderbolt" 500 60
+cmd impulse 9

@@ -7,6 +7,7 @@
 #include "vr_ragtool.hpp"
 
 #include "vr_box3d.hpp"
+#include "vr_dirparryviz.hpp"
 #include "vr_disarmviz.hpp"
 #include "vr_cvars.hpp"
 #include "vr_lines.hpp"
@@ -1135,7 +1136,8 @@ extern "C" int VR_RagtoolView(float* origin, float* angles)
 // a headset's eye draws them in its UI pass (vr_stereo.cpp drawUi).
 extern "C" void VR_RagtoolOverlay(void)
 {
-    if((!tool.on && !disarmviz::on()) || vrActive()) // (Show Disarm Volumes' lines too)
+    if((!tool.on && !disarmviz::on() && !dirparryviz::on()) || vrActive()) // (Show Disarm Volumes', Show
+                                                                           // Directional Parry's lines too)
     {
         return;
     }

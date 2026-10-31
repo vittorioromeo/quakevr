@@ -28,9 +28,7 @@
         command("Die Now, Blown Back", "impulse 196").help("impulse 196: you die at once as by a blow from ahead: your ragdoll body (Death View) thrown back by it."),
         command("Die Now, Gibbed", "impulse 197").help("impulse 197: you die at once, gibbed (no ragdoll body: Death View or not)."),
         command("Death View Status", "vr_death_view_status").help("vr_death_view_status: your ragdoll body (its entity, whether it is a ragdoll, where its eyes are), whether the Immersive view is in its head and how far the view is from them, and whether the others are kept from seeing you."),
-        toggle("Infinite Ammo", vr_cheat_ammo)
-            .help("vr_cheat_ammo: your ammunition kept full, and the magazine of the weapon in either hand (not an enemy's "
-                  "gun's, nor the chainsaw's fuel). Not saved."),
+        row(opt::vr_cheat_ammo),
         header("Powerups"),
         command("Quad Damage", "impulse 190").help("impulse 190: Quad Damage for an hour, or, while you have it, off at once."),
         command("Pentagram of Protection", "impulse 191").help("impulse 191: the Pentagram for an hour, or off at once."),
@@ -41,9 +39,7 @@
             .help("impulse 201: Scourge of Armagon's empathy shields for 30 s (single player)."),
         header("Monsters"),
         command("Kill All Monsters", "impulse 205").help("impulse 205: every living monster killed (counted as kills). Single player."),
-        toggle("Freeze Monsters", vr_freeze_monsters)
-            .help("vr_freeze_monsters: the living monsters stand frozen mid-step, mid-swing: no thinking, no moving (their "
-                  "missiles fly on). A blow still hurts them, and kills them. Off: each goes on where it stopped. Not saved."),
+        row(opt::vr_freeze_monsters),
         cycle("Skill", "skill", {{0.f, "Easy"}, {1.f, "Normal"}, {2.f, "Hard"}, {3.f, "Nightmare"}})
             .help("skill: from the next map, or Restart the Map below."),
         header("Scene: Save and Load"),
@@ -87,15 +83,9 @@
         command("Half Speed", "vr_slowmo 0.5").help("vr_slowmo 0.5: slow motion (Graphics > Recording > Time Scale)."),
         command("Quarter Speed", "vr_slowmo 0.25").help("vr_slowmo 0.25."),
         command("Tenth Speed", "vr_slowmo 0.1").help("vr_slowmo 0.1."),
-        toggle("Pause the World", "sv_freezenonclients")
-            .help("sv_freezenonclients: everything but you stands still: monsters, missiles, gibs, physics, the game's "
-                  "clock. You move (noclip to place yourself), the world waits. Single player. Not saved."),
+        row(opt::sv_freezenonclients),
         header("Clean Shot and Recording"),
-        cycle("Hide", vr_shot_hide,
-            {{0.f, "Nothing"}, {1.f, "Gadget"}, {2.f, "Hands"}, {3.f, "Gadget and Hands"}, {4.f, "Body"},
-             {5.f, "Gadget and Body"}, {6.f, "Hands and Body"}, {7.f, "Gadget, Hands, Body"}})
-            .help("vr_shot_hide: not drawn, for a clean shot: the wrist gadget (its screen and messages), your hands and "
-                  "what they hold, your body and holsters. They work on unseen. Not saved."),
+        row(opt::vr_shot_hide),
         open("Recording: Window View, Spectator, Slow Motion", pageIndex(pageRecording))
             .help("Graphics > Recording: what the desktop window shows (the mirror, the spectator camera, their HUD), slow "
                   "motion's settings, the highlight markers."),

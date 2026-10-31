@@ -1,0 +1,7 @@
+# vrarena_calm: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The arena map without a run, to look at its light and relight it.
+title vrarena without a run: walk about, relight it (Graphics > Relighting)
+map vrarena
+start 0 0 120 45
+god
+notarget
+cvar vr_arena 0

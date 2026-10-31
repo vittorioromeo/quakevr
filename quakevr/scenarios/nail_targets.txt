@@ -1,0 +1,11 @@
+# nail_targets: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Nail guns and plain calm monsters to shoot and kill.
+title Nail pistol and super nailgun in hand; a calm grunt, enforcer and ogre
+map vrtesthall
+god
+notarget
+give "Nail Pistol" main
+give "Super Nailgun" off
+spawn "Grunt" 200 40
+spawn "Enforcer" 220 -60
+spawn "Ogre" 300 0
+cmd impulse 9
