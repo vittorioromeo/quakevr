@@ -3763,6 +3763,25 @@ humanoid Knight and Death Knight kinds also support armor."
   from origin/next, fails alone too: not this branch's).
 - **Open:** the rig2 check failures on vrhknight (25/10; step 5, not started: budget).
 
+**Rig polish (branch `agent/hkrig`).** `vr_rig2_check progs/vrhknight.mdl` **34 passed, 1 failed** (was 25/10): every
+joint and pair clean; left failing: the 1000 random poses (flipped 37, collapsed 5, folds 36, was 61/41/55: the helmet's
+rim and the right shoulder's top under the pauldron as the head and the arm move together; no limb pose). All in
+`make_rig2.py`'s hknight rig, no shared code (the other rigs' files byte-identical; grunt 22/13, soldier 22/13, enforcer
+and enforcer.mdl 28/7, knight 12/23, as before):
+- hands (stretch 0.29, fold 173): each gauntlet's cuff back (its four corners by the pommel, 464-466/473 and
+  478/484/492/494) painted hand 0.9 forearm 0.1 (half of each cuff was the forearm's, the cuff's edge squeezed as the
+  wrist turned);
+- knees (the back collapsing at 100-130): the knees' range 125 (the grunt's 130; the enforcer's 115), the left knee
+  nudged half a unit toward its back (its back's edge stretched 2.8), the back of the right knee's ring (387/389/390)
+  thigh 0.64 shin 0.36 (half and half, it rose into the hem's back);
+- neck+head (2 folds, chin and helmet rim squeezed to 0.23): the throat under the jaw (74) head 0.55 (0.39), the neck's
+  nod 25 forward / 15 back and tilt 15 (the grunt's 35 / 25 / 25), the head's 20 back (25): his helmet sits on his
+  shoulders; the right shoulder's top beside the helmet (419, 421) less the head's (0.35 / 0.27 -> 0.25 / 0.15).
+- `vr_rig2_check <model> <lines>` details print the stretched edges too (an edge past 2.5 or under 0.3, its vertices'
+  weights), as the flips and folds.
+- Tried, worse: knee blends 2-3.5, nudges past 0.5, the legs held to their blends, a reach (also only the head's),
+  smaller shoulder webs; the knees back to 130 (thigh_l+shin_l: a fold).
+
 
 ## Directional parry (experimental; branch `agent/dirparry`)
 
