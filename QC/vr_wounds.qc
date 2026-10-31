@@ -91,10 +91,7 @@ void(entity e, vector at, vector dir, float damage) VR_Wound_Pellet =
 // From T_DamageImpl, as `take` is taken: the blow's kind, where it struck and which way it went.
 void(entity targ, entity inflictor, entity attacker, float take) VR_Wound_Hit =
 {
-    float bleeds = VR_Hit_Bleeds(inflictor, attacker);
-    VR_Hit_ClassCheck("wound bleeds", inflictor != world && inflictor.classname != "vr_burn" && !VR_Hit_Bloodless(), bleeds,
-        inflictor);
-    if(take > 0 && bleeds && !targ.vr_bloodied)
+    if(take > 0 && !targ.vr_bloodied && VR_Hit_Bleeds(inflictor, attacker))
     {
         targ.vr_bloodied = TRUE;
         if(cvar_hget(cvarh_vr_knockdown_debug))
@@ -143,22 +140,6 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_Wound_Hit =
     // What struck (VR_Hit_Class): a blunt thing's blow is a round crater (extra 1: the engine's blunt dent), a blade's a
     // cut drawn out along the swing.
     float c = VR_Hit_Class(inflictor, attacker);
-    float sk = VR_SmallGib_Kind(inflictor, attacker); // (temporary: the debug check's old ladder)
-    float ok = -1;
-    float oe = 0;
-    if(hit_kind == QVR_HITKIND_SPLASH || IsExplosionDamage) { }
-    else if(hit_kind == QVR_HITKIND_MELEE || hit_kind == QVR_HITKIND_HEADBUTT || hit_kind == QVR_HITKIND_BASH ||
-            hit_kind == QVR_HITKIND_SHOVE)
-    {
-        ok = 1;
-        oe = (sk == QVR_SGIB_BLUNT || sk == QVR_SGIB_PROPS);
-    }
-    else if((sk == QVR_SGIB_PROPS && !(inflictor.vr_deflect_time > 0)) || sk == QVR_SGIB_BLADES)
-    {
-        ok = 2;
-        oe = (sk == QVR_SGIB_PROPS) + (sk == QVR_SGIB_BLADES && (attacker.flags & FL_CLIENT)) * 10;
-    }
-
     if(hit_kind == QVR_HITKIND_SPLASH || IsExplosionDamage)
     {
         kind = QVR_WOUND_BLAST;
@@ -170,7 +151,6 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_Wound_Hit =
     {
         kind = QVR_WOUND_MELEE;
         extra = (c == QVR_HITCLASS_BLUNT); // a punch, a pommel, a gun, a brick in the fist
-        VR_Hit_ClassCheck("wound melee", ok * 100 + oe, 100 + extra, inflictor);
         if(hit_kind == QVR_HITKIND_MELEE && (attacker.flags & FL_CLIENT))
         {
             extra += extra ? QVR_WOUND_MELEE_BLUNT : QVR_WOUND_MELEE_BLADE; // your hand's blow: its blood stream's chance
@@ -183,14 +163,11 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_Wound_Hit =
         // a hand's with it, not a nail's (a thrown blade cuts). (Rogue's buzzsaw: a nail's wound.)
         kind = QVR_WOUND_MELEE;
         extra = (c == QVR_HITCLASS_BLUNT);
-        VR_Hit_ClassCheck("wound thrown", ok * 100 + oe,
-            200 + extra + (c == QVR_HITCLASS_BLADE && (attacker.flags & FL_CLIENT)) * 10, inflictor);
         if(c == QVR_HITCLASS_BLADE && (attacker.flags & FL_CLIENT))
         {
             extra += QVR_WOUND_MELEE_THROWN; // a blade you threw: its blood stream's chance
         }
     }
-    else if(ok != -1 && VR_Hit_ClassCheck_Wound(ok)) { }
     else if(VR_Hit_Hitscan())
     {
         kind = QVR_WOUND_ZAP; // a hitscan shot that is not pellets: lightning (a projectile's hit: its own kind, below)

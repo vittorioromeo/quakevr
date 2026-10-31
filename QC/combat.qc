@@ -1010,20 +1010,6 @@ float(entity inflictor, entity attacker) VR_Hit_Bleeds =
     return inflictor != world && !VR_Hit_Bloodless() && VR_Hit_Class(inflictor, attacker) != QVR_HITCLASS_BURN;
 };
 
-// (Temporary debug check, part 4 step 3: each switched consumer against its old copy.)
-void(string xWho, float xOld, float xNew, entity inflictor) VR_Hit_ClassCheck =
-{
-    if(xOld != xNew)
-    {
-        bprint(sprintf("hitclass: %s old %g new %g (kind %g, inflictor %s; debug check, engine log)\n", xWho, xOld, xNew,
-            hit_kind, inflictor.classname));
-    }
-};
-float(float xOld) VR_Hit_ClassCheck_Wound =
-{
-    bprint(sprintf("hitclass: wound other old %g new -1 (kind %g; debug check, engine log)\n", xOld, hit_kind));
-    return FALSE;
-};
 float(float xKind) VR_Corpse_DamageKindMult;
 
 float(entity targ, entity inflictor, entity attacker, float damage, float kind) VR_Limb_CorpseWear;
@@ -1566,7 +1552,6 @@ float QVR_GIBKIND_HEAVY = 0;
 float QVR_GIBKIND_MELEE = 1;
 float QVR_GIBKIND_LIGHT = 2;
 
-float(entity inflictor, entity attacker, float isVRMelee) VR_GibKind_Old;
 
 // How it came first (a blast's splash heavy, a hand's blow melee, a stuck blade's bleeding light), then what it is
 // (VR_Hit_Class): lightning and blasts heavy; pierce, blades and blunt things thrown or shot light; the rest heavy.
@@ -1609,53 +1594,7 @@ float(entity inflictor, entity attacker, float isVRMelee) VR_GibKind =
             r = QVR_GIBKIND_LIGHT; // shots, nails, an enforcer's bolt; thrown, flung or deflected things
         }
     }
-    VR_Hit_ClassCheck("gibkind", VR_GibKind_Old(inflictor, attacker, isVRMelee), r, inflictor);
     return r;
-};
-
-float(entity inflictor, entity attacker, float isVRMelee) VR_GibKind_Old =
-{
-    float k = hit_kind;
-    if(k == QVR_HITKIND_SPLASH)
-    {
-        return QVR_GIBKIND_HEAVY;
-    }
-    if(isVRMelee || k == QVR_HITKIND_MELEE || k == QVR_HITKIND_HEADBUTT || k == QVR_HITKIND_BASH ||
-       k == QVR_HITKIND_SHOVE)
-    {
-        return QVR_GIBKIND_MELEE;
-    }
-    if(k == QVR_HITKIND_BLEED)
-    {
-        return QVR_GIBKIND_LIGHT;
-    }
-    if(VR_Hit_Hitscan())
-    {
-        // Lightning (the gun's, Mjolnir's: hit_weapon) is heavy; the shotguns, the grunts' guns light.
-        if(hit_weapon != "" ||
-           (hit_hand >= 0 && (attacker.flags & FL_CLIENT) && VRGetEntWeapon(attacker, hit_hand) == WID_LIGHTNING))
-        {
-            return QVR_GIBKIND_HEAVY;
-        }
-        return QVR_GIBKIND_LIGHT;
-    }
-    if(inflictor == world || inflictor == attacker)
-    {
-        // A player's blow with nothing between (a kick, a landing): light. A monster's own: Quake's.
-        return (attacker.flags & FL_CLIENT) ? QVR_GIBKIND_LIGHT : QVR_GIBKIND_HEAVY;
-    }
-    string c = inflictor.classname;
-    if(c == "missile" || c == "grenade" || c == "MultiRocket" || c == "MiniGrenade" || c == "MultiGrenade" ||
-       c == "proximity_grenade" || c == "plasma" || c == "hiplaser")
-    {
-        return QVR_GIBKIND_HEAVY;
-    }
-    if(c == "spike" || c == "lava_spike" || c == "laser" || c == "thrown_weapon" || inflictor.vr_gib ||
-       (inflictor.carry_use && !inflictor.vr_grenade) || inflictor.vr_deflect_time > 0)
-    {
-        return QVR_GIBKIND_LIGHT; // nails, an enforcer's bolt; thrown, flung or deflected things
-    }
-    return QVR_GIBKIND_HEAVY;
 };
 
 float(entity inflictor, entity attacker, float isVRMelee) VR_GibSpeedScale =
