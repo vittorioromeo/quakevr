@@ -230,6 +230,38 @@ void menuBar()
                 ImGui::EndMenu();
             }
         }
+        if(kind >= 0 && ImGui::BeginMenu("Armour"))
+        {
+            // (live on the subject; kept for the next ones: rigstudio::setArmour; never the skill's roll)
+            const char* types[] = {"None", "Green", "Yellow", "Red"};
+            for(int t = 0; t < 4; t++)
+            {
+                if(ImGui::MenuItem(types[t], nullptr, st.choice.armour == t))
+                {
+                    setArmour(t, st.choice.armourPieces);
+                }
+            }
+            ImGui::Separator();
+            const char* pieces[] = {"Cuirass", "Helmet", "Pauldron (left)", "Pauldron (right)", "Bracer (left)",
+                "Bracer (right)", "Thigh (left)", "Thigh (right)", "Shin (left)", "Shin (right)"};
+            for(int i = 0; i < 10; i++)
+            {
+                if(ImGui::MenuItem(pieces[i], nullptr, (st.choice.armourPieces >> i) & 1, st.choice.armour > 0))
+                {
+                    setArmour(st.choice.armour, st.choice.armourPieces ^ (1 << i));
+                }
+            }
+            ImGui::Separator();
+            if(ImGui::MenuItem("All Pieces", nullptr, false, st.choice.armour > 0))
+            {
+                setArmour(st.choice.armour, 1023);
+            }
+            if(ImGui::MenuItem("No Pieces", nullptr, false, st.choice.armour > 0))
+            {
+                setArmour(st.choice.armour, 0);
+            }
+            ImGui::EndMenu();
+        }
         ImGui::Separator();
         if(ImGui::MenuItem("Respawn"))
         {

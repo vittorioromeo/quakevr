@@ -90,7 +90,9 @@ void() VR_ART_Run =
     float f0 = a.frame; // (its pain frames move its arms: the places found in this one, so put back before each hit)
     vector pc = limbpiece(a, 0, 10);
     vector ph = limbpiece(a, 1, 10);
-    vector pp = limbpiece(a, 2, 10);
+    // (the pauldron at its outer face's middle: its model's origin (10) is off the plate, and with the plates posed as
+    // drawn (ROUND23.md, "Armour: the plate a shot meets") the bracer's plate was nearer there)
+    vector pp = limbpiece(a, 2, 14);
     float c0 = ragdollbone(a, pc, QVR_ARMOR_PIECE_AT);
     float c1 = ragdollbone(a, ph, QVR_ARMOR_PIECE_AT);
     float c2 = ragdollbone(a, pp, QVR_ARMOR_PIECE_AT);
@@ -115,8 +117,9 @@ void() VR_ART_Run =
     float made = vr_ar_debris_made;
     hp = a.vr_ar_hp[0];
     d = VR_ART_Hit(a, pc, 0, 60);
-    VR_ART_Check(d == 60 - hp && !VR_AgArmor_On(a, 0) && a.vr_ar_mask == 1022,
-        sprintf("rule 1: 60 past a pool of %g takes %g, the cuirass broken (mask %g)", hp, d, a.vr_ar_mask));
+    // (Plate Blocks All: the whole hit stopped even as the plate breaks; its overflow no longer goes through)
+    VR_ART_Check(d == 0 && !VR_AgArmor_On(a, 0) && a.vr_ar_mask == 1022,
+        sprintf("rule 1: 60 past a pool of %g takes %g (0), the cuirass broken (mask %g)", hp, d, a.vr_ar_mask));
     entity deb = find(world, classname, "vr_ar_debris");
     VR_ART_Check(vr_ar_debris_made == made + 1 && deb != world && deb.model == "progs/vrgrunt.mdl#plate0" && deb.vr_rigid == 1 &&
         deb.movetype == MOVETYPE_BOUNCE && !(deb.flags & FL_FORCEGRABBABLE),

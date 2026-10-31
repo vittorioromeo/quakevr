@@ -5,6 +5,7 @@
 #include "vr_scenario.hpp"
 #include "vr_geom.hpp"
 #include "vr_box3d.hpp"
+#include "vr_agarmor.hpp"
 #include "vr_checklist.hpp"
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
@@ -644,6 +645,10 @@ void place()
         {
             e = box3d::spawnClass(sp.what.cStr(), at + glm::vec3{0.f, 0.f, 25.f}, glm::vec3{0.f, faceYaw, 0.f}, nullptr,
                 "weapon", sp.code, false, 0.f, "weapon2", sp.code2);
+            if(e)
+            {
+                (void)agarmor::give(NUM_FOR_EDICT(e), 0, 0); // (the same scene every time: not the skill's armour roll)
+            }
         }
         else if(sp.entry >= 0)
         {

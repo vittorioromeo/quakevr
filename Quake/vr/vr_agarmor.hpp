@@ -96,6 +96,11 @@ void relink();
 [[nodiscard]] const struct entity_s* sourceOf(const struct entity_s* e);
 // Entity `num`'s armour: type 0 none, 1 green, 2 yellow, 3 red; `pieces` a mask of Piece bits; -1: vr_agarmor's again.
 void setWorn(int num, int type, int pieces);
+// A live game's monster `num` given armour `type` (0 none) on `pieces`, each pool full (QC VR_AgArmor_SetCmd; the server's
+// word, as vr_agarmor_set and the Rig Studio's Armour menu set it). False: not a live monster (or no QC for it).
+bool give(int num, int type, int pieces);
+// Its unbroken pieces now (QC .vr_ar_mask; 0 none, no armour or not a live entity).
+[[nodiscard]] int entityPieces(int num);
 
 void init(); // the commands (vr_agarmor_info, _check, _rebuild, _set)
 

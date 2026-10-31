@@ -4,6 +4,7 @@
 #include "vr_testkit.hpp"
 #include "vr_rigstudio_internal.hpp"
 #include "vr_aggrip.hpp"
+#include "vr_agarmor.hpp"
 #include "vr_aglegs.hpp"
 #include "vr_agpose.hpp"
 #include "vr_box3d.hpp"
@@ -370,6 +371,7 @@ void makeSubject()
     st.subject = NUM_FOR_EDICT(e);
     st.made = st.choice;
     e->v.takedamage = 0.f;
+    setArmour(st.choice.armour, st.choice.armourPieces); // (the studio's, not the skill's roll its spawn made)
     Con_Printf("rigstudio: %s spawned (entity %d)\n", st.choice.spawn, st.subject);
 }
 
@@ -1305,6 +1307,79 @@ void subjectTestTick()
         return;
     }
     subjectStepStart();
+}
+
+// vr_rigstudio_test_armour: Subject > Armour. With the skill's roll certain (vr_agarmor_skill<skill> 1 meanwhile), an
+// armed grunt spawned bare (the studio's None, not the roll); each piece toggled on in turn and off again adds or removes
+// exactly its plate (agarmor::worn), All and None, then the choice (yellow, all) kept by the next subject (an enforcer).
+struct ArmourTest
+{
+    int step{-1}; // -1 not running; 0 the bare grunt standing, 1 the enforcer standing
+    int waitFrames{0};
+    int passed{0}, failed{0};
+    float keepChance{0.f};
+    char chanceCvar[32]{};
+};
+ArmourTest armTest;
+
+void armourCheck(bool ok, const char* what)
+{
+    (ok ? armTest.passed : armTest.failed)++;
+    Con_Printf("rigstudio armour: %s: %s\n", what, ok ? "PASS" : "FAIL");
+}
+
+void armourTestTick()
+{
+    if(armTest.step < 0 || !inGame())
+    {
+        return;
+    }
+    const bool ready = st.open && st.staged && st.spawnAt < 0.0 && subjectEdict() != nullptr;
+    if(!ready || ++armTest.waitFrames < 4) // (its spawn's own roll, its weapons' first thinks)
+    {
+        return;
+    }
+    armTest.waitFrames = 0;
+    if(armTest.step == 0)
+    {
+        armourCheck(agarmor::entityPieces(st.subject) == 0, va("%s spawned with the roll certain: bare (worn %d)", st.made.spawn,
+                                                        agarmor::entityPieces(st.subject)));
+        int mask = 0;
+        setArmour(3, mask);
+        armourCheck(agarmor::entityPieces(st.subject) == 0, "red, no pieces: none worn");
+        for(int i = 0; i < agarmor::NumPieces; i++)
+        {
+            mask ^= 1 << i;
+            setArmour(3, mask);
+            const int w = agarmor::entityPieces(st.subject);
+            armourCheck(w == mask, va("piece %d on: worn %d, wanted %d", i, w, mask));
+        }
+        for(int i = 0; i < agarmor::NumPieces; i++)
+        {
+            mask ^= 1 << i;
+            setArmour(3, mask);
+            const int w = agarmor::entityPieces(st.subject);
+            armourCheck(w == mask, va("piece %d off: worn %d, wanted %d", i, w, mask));
+        }
+        setArmour(2, agarmor::allPieces);
+        armourCheck(agarmor::entityPieces(st.subject) == agarmor::allPieces, "yellow, All: all ten worn");
+        setArmour(0, agarmor::allPieces);
+        armourCheck(agarmor::entityPieces(st.subject) == 0, "None: none worn");
+        setArmour(2, agarmor::allPieces);
+        q_strlcpy(st.choice.spawn, "monster_vr_enforcer", sizeof(st.choice.spawn));
+        st.choice.weapon = 16;
+        st.choice.weapon2 = 0;
+        respawn();
+        armTest.step = 1;
+        return;
+    }
+    const int w = agarmor::entityPieces(st.subject);
+    armourCheck(w == agarmor::allPieces && st.made.armour == 2, va("the next subject (%s) keeps yellow, All (worn %d)",
+                                                                   st.made.spawn, w));
+    setArmour(0, agarmor::allPieces);
+    Cvar_SetValueQuick(Cvar_FindVar(armTest.chanceCvar), armTest.keepChance);
+    qvr::testkit::verdict("rigstudio armour", armTest.passed, armTest.failed);
+    armTest.step = -1;
 }
 
 // vr_rigstudio_posekey [kind <k> | class <c> | pose <p> | phase <n> | follow 0|1 | part <n>]...: the Pose Studio Data
@@ -2445,6 +2520,47 @@ void testSubjects_f()
     stest.started = false; // (its first change once the first subject stands)
 }
 
+void testArmour_f()
+{
+    if(!st.open)
+    {
+        Con_Printf("rigstudio armour: the studio is not open\n");
+        return;
+    }
+    armTest = ArmourTest{};
+    q_snprintf(armTest.chanceCvar, sizeof(armTest.chanceCvar), "vr_agarmor_skill%d", za::clamp(static_cast<int>(skill.value), 0, 3));
+    const cvar_t* chance = Cvar_FindVar(armTest.chanceCvar);
+    armTest.keepChance = chance ? chance->value : 0.f;
+    Cvar_Set(armTest.chanceCvar, "1"); // (every spawn's roll armours it: the studio's subject must not take it)
+    setArmour(0, agarmor::allPieces);
+    q_strlcpy(st.choice.spawn, "monster_vr_grunt", sizeof(st.choice.spawn));
+    st.choice.weapon = 4;
+    st.choice.weapon2 = 0;
+    respawn();
+    armTest.step = 0;
+}
+
+// vr_rigstudio_armour [type 0 none, 1 green, 2 yellow, 3 red] [pieces: agarmor::Piece bits, 1023 all] | piece <i>: the
+// subject's armour (Subject > Armour), put on it now and kept for the next subjects; `piece <i>` toggles plate i (0 the
+// cuirass, 1 the helmet, 2..9 the limbs'). Printed.
+void armour_f()
+{
+    if(Cmd_Argc() > 2 && !strcmp(Cmd_Argv(1), "piece"))
+    {
+        const int i = Q_atoi(Cmd_Argv(2));
+        if(i >= 0 && i < agarmor::NumPieces)
+        {
+            setArmour(st.choice.armour, st.choice.armourPieces ^ (1 << i));
+        }
+    }
+    else if(Cmd_Argc() > 1)
+    {
+        setArmour(Q_atoi(Cmd_Argv(1)), Cmd_Argc() > 2 ? Q_atoi(Cmd_Argv(2)) : st.choice.armourPieces);
+    }
+    Con_Printf("rigstudio armour: type %d, pieces %d (the subject wears %d)\n", st.choice.armour, st.choice.armourPieces,
+        st.subject > 0 ? agarmor::entityPieces(st.subject) : 0);
+}
+
 void print_f()
 {
     printDefaults();
@@ -2911,6 +3027,24 @@ void respawn()
     removeSubject(); // (it and everything it owns: its weapons, their records, a worn tank)
     Cbuf_InsertText("vr_scene_clean all\n"); // (what it left about: gibs, shells, fires)
     st.spawnAt = sv.qcvm.time + 0.25;
+}
+
+void setArmour(int type, int pieces)
+{
+    st.choice.armour = za::clamp(type, 0, 3);
+    st.choice.armourPieces = pieces & agarmor::allPieces;
+    st.made.armour = st.choice.armour;
+    st.made.armourPieces = st.choice.armourPieces;
+    if(!sv.active)
+    {
+        return;
+    }
+    const progs::ServerVm vm; // (a console command's or the menu's: EDICT_NUM needs the server's VM)
+    if(st.subject > 0 && subjectEdict())
+    {
+        const bool armed = armedClass(st.made.spawn);
+        (void)agarmor::give(st.subject, armed ? st.choice.armour : 0, armed ? st.choice.armourPieces : 0);
+    }
 }
 
 void close()
@@ -3664,6 +3798,8 @@ void init()
     Cmd_AddCommand("vr_rigstudio_print", print_f);
     Cmd_AddCommand("vr_rigstudio_play", play_f);
     Cmd_AddCommand("vr_rigstudio_respawn", respawn_f);
+    Cmd_AddCommand("vr_rigstudio_armour", armour_f);
+    Cmd_AddCommand("vr_rigstudio_test_armour", testArmour_f);
     rigdata::registerCommands();
     rig2::init(); // the authored rig's commands (vr_rig2.cpp, vr_rig2_check.cpp)
     romInit();    // the Range of Motion's (vr_rigstudio_rom.cpp)
@@ -3714,6 +3850,7 @@ bool qcHold(int ent, int kind, int cls, glm::vec3& out)
 void serverFrame()
 {
     subjectTestTick();
+    armourTestTick();
     if(!st.open || !inGame())
     {
         return;

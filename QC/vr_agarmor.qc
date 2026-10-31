@@ -517,6 +517,23 @@ void(entity targ, vector at, vector dir) VR_AgArmor_Shot =
     vr_ar_shots = vr_ar_shots + 1;
 };
 
+// A shot's push (VR_ShotPush: a ragdoll's part, a knocked-down body's) where it meets `targ` at `at` going along `dir`:
+// times vr_agarmor_impulse when an unbroken plate takes it first (the plate the same query finds), else 1. (A living
+// body's flinch: T_DamageDeal's, the plates' share times the same.)
+float(entity targ, vector at, vector dir) VR_AgArmor_PushScale =
+{
+    if(targ.vr_ar_type <= 0 || !targ.vr_ar_mask || dir == '0 0 0')
+    {
+        return 1;
+    }
+    float p = ragdollbone(targ, at, QVR_ARMOR_SHOT, normalize(dir));
+    if(p < 0 || p >= VR_AR_PIECES || !VR_AgArmor_On(targ, p))
+    {
+        return 1;
+    }
+    return max(0, cvar("vr_agarmor_impulse"));
+};
+
 float VR_AR_SHOT_NEAR = 16; // units: a point this near the shot's (a nail's own origin at its touch) is the shot's
 
 float(entity targ, vector at) VR_AgArmor_PieceAt =
@@ -608,6 +625,9 @@ void(entity hit, float damage) VR_AgArmor_PelletAdd =
 // The hit.
 float vr_ar_share[10];  // this hit's share per piece
 float vr_ar_last_save;  // the last hit's damage the plates took (the tests)
+entity vr_ar_block_inf; // a projectile a plate of vr_ar_block_ent took at vr_ar_block_time (its blast spares the body)
+entity vr_ar_block_ent;
+float vr_ar_block_time;
 float vr_ar_last_piece; // the last single hit's piece (-1 none)
 
 // A cut or a pop armed at `targ` (vr_decap_ent) under an unbroken plate is off.
@@ -646,7 +666,20 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     vr_ar_last_save = 0;
     vr_ar_last_piece = -1;
     vr_ar_plate_hit_ent = world;
-    if(targ.vr_ar_type <= 0 || !targ.vr_ar_mask || damage <= 0)
+    if(targ.vr_ar_type <= 0 || damage <= 0)
+    {
+        return damage;
+    }
+    // Plate Blocks All: a projectile whose own hit a plate of this body just took (a plasma bolt's, a rocket's) spares it
+    // its blast too (the plate met it at its face), even the plate broken by it. Before: the bolt's splash hurt the body
+    // after its plate broke (test 10: plasma at every plate let 50 through).
+    if(inflictor != world && inflictor != attacker && inflictor == vr_ar_block_inf && targ == vr_ar_block_ent &&
+       time == vr_ar_block_time && cvar("vr_agarmor_rule"))
+    {
+        vr_ar_last_save = damage;
+        return 0;
+    }
+    if(!targ.vr_ar_mask)
     {
         return damage;
     }
@@ -763,5 +796,11 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
         else sound(targ, CHAN_AUTO, "weapons/ric3.wav", 0.8, ATTN_NORM);
     }
     vr_ar_last_save = saved;
+    if(saved > 0 && vr_ar_last_piece >= 0)
+    {
+        vr_ar_block_inf = inflictor; // (its blast this frame: above)
+        vr_ar_block_ent = targ;
+        vr_ar_block_time = time;
+    }
     return damage - saved;
 };

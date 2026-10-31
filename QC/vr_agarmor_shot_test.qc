@@ -23,6 +23,7 @@ float vr_ars_fails, vr_ars_noline;
 float vr_ars_shots0; // vr_ar_shots before the shot
 vector vr_ars_dir;    // test 11: the shot's way
 float vr_ars_bone0, vr_ars_bone1;
+float vr_ars_ragact; // test 11: vr_ragdoll_active, put back after
 vector vr_ars_v0, vr_ars_v1;
 
 void(entity attacker, float damage) VR_ARS_NoPain = {};
@@ -39,6 +40,10 @@ void(entity e) VR_ARS_Still =
     e.nextthink = 0;
     e.th_pain = VR_ARS_NoPain;
     e.health = 1000;
+    // (its start never thinks now: what walkmonster_start_go would have made it, shootable; before, every hitscan shot
+    // passed it by (TraceAttack: no takedamage) and every projectile's damage was refused: test 10's 185 failures)
+    e.takedamage = DAMAGE_AIM;
+    e.flags = e.flags | FL_MONSTER;
 };
 
 float(entity e) VR_ARS_Pool =
@@ -92,9 +97,10 @@ void() VR_ARS_Judge =
     {
         vr_ars_fails = vr_ars_fails + 1;
         VR_Test_Count(FALSE);
-        VR_Test_Print(sprintf("agarmor shot test: FAIL kind %g piece %g %s: the body took %g, the plates %g (pieces %g -> %g; shot asked %g, its piece %g, %s at %v)\n",
-            b, i, VR_ARS_WeaponName(w), took, plates, vr_ars_m0, e.vr_ar_mask, vr_ars_shots - vr_ars_shots0, vr_ar_shot_piece,
-            vr_ar_shot_ent == e ? "on it" : "elsewhere", vr_ar_shot_at - limbpiece(e, i, 14)));
+        string head = sprintf("agarmor shot test: FAIL kind %g piece %g %s: the body took %g, the plates %g (pieces %g -> %g;",
+            b, i, VR_ARS_WeaponName(w), took, plates, vr_ars_m0, e.vr_ar_mask);
+        VR_Test_Print(sprintf("%s shot asked %g, its piece %g, %s at %v)\n", head, vr_ar_shots - vr_ars_shots0, vr_ar_shot_piece,
+            (vr_ar_shot_ent == e) ? "on it" : "elsewhere", vr_ar_shot_at - limbpiece(e, i, 14)));
     }
     else
     {
@@ -169,6 +175,10 @@ void() VR_ARS_End =
     cvar_set("vr_agarmor_rule", ftos(vr_ars_rule));
     cvar_set("vr_agarmor_debris_time", ftos(vr_ars_dtime));
     vr_pellet_damage = vr_ars_pdmg;
+    if(vr_ars_busy == 11)
+    {
+        cvar_set("vr_ragdoll_active", ftos(vr_ars_ragact));
+    }
     float i;
     for(i = 0; i < 4; i++)
     {
@@ -223,6 +233,10 @@ void(float request) VR_ARS_Frame =
             vr_ars_e0 = VR_ART_SpawnKind(p, -60, 0, 120);
             vr_ars_e1 = VR_ART_SpawnKind(p, 60, 0, 120);
             VR_AgArmor_Give(vr_ars_e1, 3, 1023);
+            // (limp ragdolls: an active one's death throes kept its thigh moving past the give-up time)
+            vr_ars_ragact = cvar("vr_ragdoll_active");
+            cvar_set("vr_ragdoll_active", "0");
+            vr_ars_until = time + 15;
         }
         else
         {
@@ -290,6 +304,10 @@ void(float request) VR_ARS_Frame =
                 VR_ART_Check(FALSE, "timed out: the two ragdolls at rest");
                 VR_ARS_End();
                 return;
+            }
+            if(cvar("vr_agarmor_debug"))
+            {
+                localcmd("screenshot\n"); // (the debug view on both ragdolls at rest: Debug > Show Armour Plates)
             }
             // The same slug at each one's left thigh, down the same way (from the player's side, level).
             vr_ars_dir = normalize([pa_x - p.origin_x, pa_y - p.origin_y, 0]);

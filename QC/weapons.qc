@@ -1864,6 +1864,10 @@ float(float xKind) VR_ShotPush_Momentum =
 entity(entity xHit, vector xFrom, vector xAt, vector xDir, float xKind, float xScale) VR_ShotPush =
 {
     float momentum = VR_ShotPush_Momentum(xKind) * xScale;
+    if(xHit.vr_ar_type > 0)
+    {
+        momentum = momentum * VR_AgArmor_PushScale(xHit, xAt, xDir); // (an armed humanoid's plate takes it: less push)
+    }
     float speed = cvar_hget(cvarh_vr_shot_push_speed);
     if(momentum <= 0 || speed <= 0 || xDir == '0 0 0')
     {

@@ -4147,9 +4147,34 @@ His voice notes of 2026-10-31 ~19:55 (five items). Stopped at the tool budget; w
   posed exactly as `shotPiece` poses them, a colour per piece.
 - **Break sound**: `vr/derived/armor_break.wav` rate 0.7 -> 1.05 (vr_sndlayer.cpp; pitch rises with it). Committed.
 - **Thrown plates**: the debris gets `forcegrabbable_touch`, `throwhit`, the thrown-weapon flags (as vr_debris.qc's rocks).
-- **Absorbed shot's push**: `vr_agarmor_impulse` 0.5 (cvar only; not wired, no menu row yet).
-- **Tests** `vr_agarmor_test 10/11/12` (vr_agarmor_shot_test.qc; `map vrtesthall;wait30;vr_agarmor_test N`, ends on
-  "agarmor shot test: N passed"). First run of 10: **1 passed, 185 failed** (200 real shots at every plate of kinds
-  0-3; 3 plates with no clear line) - not yet diagnosed (the FAIL lines now print the shot record: piece, point); 11:
-  0/1 (its line filtered out); 12: the thrown plate did no damage (timed out: `VR_Carry_Throw` on a Box3D debris may
-  not move it, or its touch never fires).
+  It moves when thrown and its touch fires (test 12: 2/0, "throw hit: vr_ar_debris into monster_army ... 3.7 damage").
+- **Absorbed shot's push** `vr_agarmor_impulse` 0.5 (Combat > Armed Grunts > Armour: "Push Through Plates", 0..1): a
+  living body's flinch (`T_DamageDeal`: `VR_HitReact_Hit` gets what got through plus the plates' share times it; before,
+  a plate that took it all left `take` 0: no flinch at all), a ragdoll's or a knocked-down body's shot push
+  (`VR_ShotPush`: times it when `VR_AgArmor_PushScale`, the same plate query, finds an unbroken plate first; before, the
+  full push).
+- **Part 2 (the shot query's leaks, the tests)**:
+  - Test 10's 185 failures were the test's: `VR_ARS_Still` stopped the monsters' start think, so they never became
+    shootable (`takedamage` 0: every pellet passed by, every projectile's damage refused). Fixed in the test.
+  - The query itself: a line through a plate's vertex or a shared edge met none of its triangles by rounding (the
+    cuirass's and the shins' face points). `plateOnSegment` now takes 1e-3 barycentric slack.
+  - Splash: a projectile a plate just took (plasma, rocket) no longer hurts the body with its own blast (the plate broke
+    on its hit, the splash came after: 50 through). `VR_AgArmor_Damage` remembers the inflictor (Plate Blocks All).
+  - Left (test 10, 9 of about 190 shots fail, every one a projectile): plasma bolts at kind 0's cuirass, helmet and
+    right shin never strike the body (took 0, no record: they fly past or hit something else); plasma, nails and two
+    rocket direct hits whose touch point (`VR_Proj_Begin`'s `vr_proj_at`, the projectile's origin when the touch trace
+    misses) lies off the line, so the query from it misses the plate. Next: the query from the projectile's own flight
+    line (its last origin and velocity) rather than the touch point. Test 10 is also slow on a loaded machine (1500 s
+    reached kind 1 only); it needs a lighter frame (fewer bodies at once) before it can go in the baseline.
+  - Test 1: "rule 1: 60 past a pool" now expects 0 through (Plate Blocks All stops the whole hit as the plate breaks);
+    its pauldron place check and hits use the plate's outer face middle (limbpiece 14), not its model's origin (off the
+    plate: with plates posed as drawn the bracer's plate was nearer there).
+- **Rig Studio armour** (his "an option to toggle armor pieces in the rig studio"): Subject > Armour: None / Green /
+  Yellow / Red, a toggle per piece (10), All / No Pieces; put on the subject live (`agarmor::give`, QC
+  `VR_AgArmor_SetCmd`) and kept for the next subjects; default None. A studio subject never takes the skill's roll any
+  more (the "random armor pieces" on changing subject: its spawn ran `VR_AgArmor_Spawn`). Console:
+  `vr_rigstudio_armour [type] [pieces] | piece <i>`. Check: `vr_rigstudio_test_armour` (studio open; the roll made
+  certain meanwhile; ends on "rigstudio armour: N passed"): 25/0. Scenario `spawnarmed` monsters are bare too (the same
+  scene every time). The toolgun already passed armour 0; ragtool spawns nothing; `vr_physics_spawn` still rolls (a map
+  spawn's behaviour, left).
+- **Debug view** fixed: `debugDraw` read edicts without the server's VM (a crash the first time it was on).

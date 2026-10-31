@@ -676,6 +676,9 @@ void armedGripsDragMode()
                   "absorbs, as any plate."),
         toggle("Plates Stop Cuts", vr_agarmor_block_cuts)
             .help("No limb is cut or popped off under an unbroken plate: break it first."),
+        slider("Push Through Plates", vr_agarmor_impulse, 0.f, 1.f, 0.05f, "%.2f")
+            .help("A shot or blow a plate takes still pushes the body (a living one's flinch, a ragdoll's limb) this "
+                  "much of what the same hit on a bare limb would: 0 not at all, 1 fully."),
         slider("Broken Plates Last", vr_agarmor_debris_time, 1.f, 60.f, 1.f, "%.0f s")
             .help("A broken plate falls as debris (you can't force-grab it) and fades out after this long."),
     };

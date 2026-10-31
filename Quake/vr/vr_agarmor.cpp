@@ -1538,13 +1538,25 @@ void set_f()
     }
     const int num = Q_atoi(Cmd_Argv(1)), type = Q_atoi(Cmd_Argv(2));
     const int pieces = Cmd_Argc() > 3 ? Q_atoi(Cmd_Argv(3)) : allPieces;
-    // A live game's entity: its armour in QC (pools and all: vr_agarmor.qc VR_AgArmor_SetCmd), sent back as the server's.
-    if(sv.active && num > svs.maxclients && num < sv.qcvm.num_edicts)
+    if(!give(num, type, pieces))
     {
-        qcvm_t* old = nullptr;
-        PR_PushQCVM(&sv.qcvm, &old);
+        setWorn(num, type, pieces);
+    }
+}
+
+} // namespace
+
+bool give(int num, int type, int pieces)
+{
+    // A live game's entity: its armour in QC (pools and all: vr_agarmor.qc VR_AgArmor_SetCmd), sent back as the server's.
+    if(!sv.active || num <= svs.maxclients || num >= sv.qcvm.num_edicts)
+    {
+        return false;
+    }
+    bool done = false;
+    {
+        const progs::ServerVm vm;
         const func_t fn = progs::findFunction("VR_AgArmor_SetCmd");
-        bool done = false;
         if(fn && !EDICT_NUM(num)->free)
         {
             pr_global_struct->time = qcvm->time;
@@ -1555,17 +1567,13 @@ void set_f()
             PR_ExecuteProgram(fn);
             done = G_FLOAT(OFS_RETURN) != 0.f;
         }
-        PR_PopQCVM(old);
-        if(done)
-        {
-            setWorn(num, -1, 0); // (the server's word, not a drawn-only override)
-            return;
-        }
     }
-    setWorn(num, type, pieces);
+    if(done)
+    {
+        setWorn(num, -1, 0); // (the server's word, not a drawn-only override)
+    }
+    return done;
 }
-
-} // namespace
 
 void setWorn(int num, int type, int pieces)
 {
@@ -2220,6 +2228,16 @@ void posePlates(edict_t* ent, const Shell& s, int mask, PlatePoses& out)
     return static_cast<int>(progs::fieldFloat(ent, f.vr_ar_mask)) & allPieces;
 }
 
+int entityPieces(int num)
+{
+    if(!sv.active || num <= svs.maxclients || num >= sv.qcvm.num_edicts)
+    {
+        return 0;
+    }
+    const progs::ServerVm vm; // (EDICT_NUM and the fields: the server's VM, whoever asks)
+    return wornMask(EDICT_NUM(num));
+}
+
 // The first plate of `mask` the segment a..b crosses (its triangles, outer, inner and rim, both sides): its piece and
 // `t` along it (0..1); -1 none.
 int plateOnSegment(edict_t* ent, const Shell& s, const glm::vec3& a, const glm::vec3& b, int mask, float& t)
@@ -2257,7 +2275,10 @@ int plateOnSegment(edict_t* ent, const Shell& s, const glm::vec3& a, const glm::
         const glm::vec3 qv = glm::cross(tv, e1);
         const float v = glm::dot(d, qv) * inv;
         const float tt = glm::dot(e2, qv) * inv;
-        if(u < 0.f || u > 1.f || v < 0.f || u + v > 1.f || tt < 0.f || tt >= t)
+        // (a little slack: a line through a vertex or along an edge the triangles share meets one of them, not, by
+        // rounding, none: test 10's lines at a plate's face vertex went through the cuirass and the shins)
+        constexpr float slack = 1e-3f;
+        if(u < -slack || u > 1.f + slack || v < -slack || u + v > 1.f + slack || tt < 0.f || tt >= t)
         {
             continue;
         }
@@ -2293,6 +2314,7 @@ void debugDraw()
     {
         return;
     }
+    const progs::ServerVm vm; // (the view's: EDICT_NUM and the fields need the server's VM)
     for(int i = svs.maxclients + 1; i < sv.qcvm.num_edicts; i++)
     {
         edict_t* e = EDICT_NUM(i);
