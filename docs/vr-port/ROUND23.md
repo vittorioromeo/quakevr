@@ -3912,3 +3912,52 @@ Checklist:
 - [packragdoll] Same mode: knock a grunt down, grab its pack and drag it slowly (it slides along, pack on), then yank:
   it flails in your hand, pack still on.
 - [packragdoll] Same mode: shooting or hitting a grunt's pack still tears it off; force-grab a dead one's pack: it comes off.
+
+## Knight two-pistol hold: the knights' Main and Off grips (branch `agent/kngrip`)
+
+His ask: address knightpose's leftovers (kinds 2 and 3 had a Second grip row but no Main or Off). **Confirmed wrong.**
+Measured with test 85 extended to every kind (each gun's barrel as drawn against its pose, the server's; at rest and
+aimed after its shots once the arms settle), origin/next: grunt and enforcer every pair 0.1-1.2 degrees; the knight's
+**left** pistol 27-28 degrees off at rest, 40-44 aimed (right 5.5-6.5 / 0.6-0.9); the death knight's left 21-23 at rest,
+12-13 aimed, his right 13 aimed. Cause: with no row each hand's grip frame is turned as the rest sword in his right fist,
+so a pistol sat in his hand like a sword; the left wrist went past `vr_agarms_wrist_most` (100) and the hand, and its
+gun, turned back towards the forearm.
+
+**Fix: fitted from the grunt, as the poses' shippedFrom.** `vr_aggrip.cpp`: a kind with no Main or Off row of its own
+ships the hand's row of the kind it ships its poses from (`agpose::shippedKind`, new accessor of `shippedFrom`: the
+knights the grunt's), turned by its fit (`gripFits`): the turn that keeps the weapon where it is on the hand, from each
+hand's rest frame (x from its wrist to its middle, y its elbow's hinge; `agarms::restHand`). The fits come from the new
+**`vr_agrunt_grip_fit`** (prints the rows for every kind drawn so far; test 85 runs it at its end): knight Main -10.4
+106.5 66.0, Off -27.8 89.6 127.3; death knight Main 32.1 -80.3 -92.9, Off 38.8 163.8 160.4. No knight copies of the
+grunt's rows: retuning the grunt's Main / Off moves the knights' with it; their Second rows stay their own; Grip Editor
+entries go on top as for any kind. Grunt and enforcer untouched.
+
+- **Test 85** (`map vrtesthall;wait30;vr_agrunt_test 85`, ends `test 85 over`): 5 new cases (enforcer two nail pistols,
+  knight and death knight two nail pistols and two shotguns) and a `barrel` check per case (each gun within 12 degrees of
+  its pose, rest and aimed). origin/next 36/4 (the four knight cases); now **40/0**: knights 0.4-0.5 at rest, 0.5-1.2
+  aimed; grunt and enforcer numbers as before. (Unsettled, 4 frames after the shots, every kind's left gun reads 20-35
+  off: the arms' goal ease after the aim's jump, `vr_agarms_jump_ease`; hence the settle.)
+- Covering: Pose Keys, knight + shotgun (`-flatscreenmode`; `vr_rigstudio monster_vr_knight 4;
+  vr_rigstudio_test_posekeys`) **13/1** (the grunt's elbow step, as before). Test 95 kind 2 7/0 (and 6/1 twice: "death:
+  dead (40)", the armour's cuirass absorbing the test's blow; origin/next fails it the same way: kind 3 7/1 "dead (10)"),
+  kind 3 8/0.
+
+Checklist:
+- [kngrip] vr_agknight 1, toolgun an armed Knight with two nail pistols (or Debug > Automation & Self-Tests: Armed
+  Grunts: Dual Guns' Muzzles): both pistols point where he aims, each in his fist like a grunt's (not through it like a
+  sword); the left one not turned off to the side.
+- [kngrip] vr_agdknight 1: the same for an armed Death Knight with two pistols.
+- [kngrip] vr_agknight 1 / vr_agdknight 1: a knight's and a death knight's own sword still sits in his fist as the
+  grunt holds a sword (the fitted Main row is every weapon's; test 95's sword-to-hand 3.1 / 8.3 as before, not eyeballed).
+## nail_1's backpack step: a test fault, not nails through packs (branch `agent/nail1pack`)
+
+The step drops a backpack as a monster does (random throw and spin), waits until it rests, then fires nails at its drawn
+box from 100 units before it, along the player's line to it. When the bag came to rest within 100 units of the player
+(about 1 run in 4), that start lay behind him: after a nail's first frame his body overlapped it, the body touch
+(vr_physics.cpp `touch`) called the test's own nail touch, which took the player for a hit and removed the nail. So no
+nail met the bag and the step failed 3 checks. In the game spike_touch spares the owner (VR_OwnerSpared), so nails do not
+pass through lying packs: 14 of 14 random rest poses (several different sides) were met at the drawn box once the test
+was fixed (3 of 12 and 2 of 6 failed before). Fix (QC/vr_nail_test.qc only): VR_NLT_BagTouch spares the owner as
+spike_touch does, and VR_NLT_BagNail starts no farther back than the player stands (min(100, his distance)), so a start
+never lands behind him near a wall. Not timing: the flakiness under parallel load was the random rest place. No gameplay
+change.

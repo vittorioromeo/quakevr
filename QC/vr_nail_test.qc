@@ -176,7 +176,9 @@ void() VR_NLT_End =
 // middle), then over it (0..24 above its middle). Its drawn box as it lies (drawnbounds, turned by its angles as the
 // engine turns a prop's: held::axesFromAngles) is where they may meet it: the middle met, none beyond the box's reach
 // (+1), each met at the box (within 1.5), none flown through it (it never moved). Before the fix FL_ITEM's box (15 units
-// wider each way, for pickups) stopped nails up to 22 units off the bag.
+// wider each way, for pickups) stopped nails up to 22 units off the bag. (Its rest place is random: a bag lying within
+// 100 units of the player once put the nails' start behind him, and his body's touch stopped them there: the touch now
+// spares him, as spike_touch does, and they start no farther back than he stands. Round 23, "nail1pack".)
 entity vr_nlt_bag;
 float vr_nlt_settled;  // frames it has lain still
 float vr_nlt_axis;     // 0 the sweep across, 1 the one over it
@@ -232,6 +234,10 @@ void() VR_NLT_BagTouch =
         dprint(sprintf("nailtest: debug bag nail %g across, %g up met %s at %v\n", self.vr_nlt_off, self.vr_nlt_up,
             other == vr_nlt_bag ? "the bag" : other.classname, self.origin));
     }
+    if(VR_OwnerSpared(other))
+    {
+        return; // (the player's body overlapping it, as spike_touch: a bag lying near him put the nails' start in him)
+    }
     if(other == vr_nlt_bag)
     {
         vr_nlt_baghits++;
@@ -256,12 +262,16 @@ void() VR_NLT_BagTouch =
     remove(self);
 };
 
-// A nail along the line to the bag's middle, `xOff` across it and `xUp` over its middle, from 100 units before it.
+// A nail along the line to the bag's middle, `xOff` across it and `xUp` over its middle, from 100 units before it (or from
+// the player's place, the bag lying nearer: not from behind him, where a wall may be).
 void(float xOff, float xUp) VR_NLT_BagNail =
 {
+    vector d = vr_nlt_bmid - vr_nlt_player.origin;
+    d_z = 0;
+    float back = min(100, vlen(d));
     entity os = self;
     self = vr_nlt_player;
-    entity n = launch_spike(vr_nlt_bmid + '0 0 1' * xUp - vr_nlt_dir * 100 + vr_nlt_side * xOff, vr_nlt_dir);
+    entity n = launch_spike(vr_nlt_bmid + '0 0 1' * xUp - vr_nlt_dir * back + vr_nlt_side * xOff, vr_nlt_dir);
     self = os;
     n.touch = VR_NLT_BagTouch;
     n.vr_nlt_off = xOff;
