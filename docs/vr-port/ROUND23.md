@@ -3737,6 +3737,49 @@ humanoid Knight and Death Knight kinds also support armor."
 - **Open, in order:** the death knight's probe points / shin and pauldron hits (test 7's failure); eyeshots of test 8;
   eval.sh; `run_baseline --only agrunt`; his rig's remaining rig2 failures.
 
+
+## Directional parry (experimental; branch `agent/dirparry`)
+
+His words (2026-10-31): parry armed humanoids' melee by the direction of the enemy weapon and strike: overhead strikes
+by holding your weapon horizontally, horizontal strikes by holding it vertically; no poses written in; the parrying
+weapon square to the enemy weapon, physically meeting it; sparks where they collide.
+- **`vr_dirparry`** (0, Combat > Parry: "Directional Parry (Experimental)"; QC/vr_dirparry.qc). On: an armed humanoid's
+  melee-weapon swing (VR_AGP_SWING; not the chainsaw's thrust, not punches, butts or shoves) is judged only by this rule
+  (the level-across rule still judges every other blow; fists: the crossed arms as before). Off: everything as before.
+- **Its side:** every frame of the strike its blade's line as drawn (VR_AG_WeaponLine) and last frame's: its way is the
+  turn of the blade (the plane it sweeps: the hand's own forward motion, which makes the blade go along its length at
+  the blow, is left out), else its point's motion square to it. **Yours:** each hand's weapon line from the hand to its
+  far end (VR_Parry_WeaponLine / VR_Melee_Line: a sword's blade, a gun's barrel to its tip).
+- **Score:** your line's angle off square to both its blade and its way: full marks within `vr_dirparry_angle` (40),
+  none at 90; times the meeting (1 within `vr_dirparry_contact`, 6 units, 0 at twice it). `vr_dirparry_threshold`
+  (0.75) parries: no damage, sparks (VR_ImpactFx metal) and the metal clang at the middle of the two lines' nearest
+  points, the parry's own sound, haptics, stamina, counter and stagger (VR_Parry), the swing stopped (no blow; a
+  `vr_dirparry_opening` 0.5 s flinch if the parry balance gave none). Under it: `vr_dirparry_partial` (0: off).
+- **Timing:** the AG's blow is dealt at 55% of its strike, before its blade reaches you; so with your weapon within 48
+  units of its way at the blow, the blow is held back for `vr_dirparry_window` (0.1 s) while its blade is followed
+  frame by frame: met across, parried; else it lands then (T_Damage). Met before the blow: parried there.
+- **Debug:** Show Disarm Volumes draws your line (green parried, red not), its blade where they met (white), its way
+  (yellow) and the score label (vr_disarmviz.cpp kinds 12-14). Tunables group "Combat > Directional Parry".
+- **Test 78** (`vr_agrunt_test 78`, Debug > Tests > Armed Grunts: Directional Parry; QC/vr_dirparry_test.qc): 8/1.
+  Your weapon is posed in QC each frame (hand, turn, muzzle: the mock places no weapon muzzle) at its blade's place 3/4
+  into a reference swing. Overhead vs sword level across: parried (45 deg off square, gap 5.6); horizontal vs upright:
+  parried (14 deg); horizontal vs level across: lands; shotgun level across vs overhead: parried (46 deg); 40 units
+  aside: lands; vr_dirparry 0: the old rule (no reading); sparks at the meeting, within half the contact distance of
+  both lines. **FAIL: overhead vs upright parries** (33 deg off square): the grunt's drawn "overhead" (swing kind 0) is
+  a diagonal cut where it comes onto you: its blade turns about an axis about 45 degrees between level and upright (the
+  tip goes about 10 units sideways for 17 down), so both guards are square enough. The measure is right for the swing
+  as drawn; making overheads read as overheads needs either a truer overhead animation (its keys in VR_AGP_SwingKeys) or
+  a tighter angle (about 30 deg, which the test's level guard at 45 would then fail too). Not tuned: his call.
+- Not done: the non-humanoid expansion (a knight's or ogre's swing from its animation frames): the humanoid case does not
+  pass robustly yet (above). eval.sh as before (no leg takes; melee untouched).
+- Also: `VR_AG_SegDist` now leaves its nearest points' shares in `vr_ag_seg_s`/`_t`.
+
+Checklist:
+- [dirparry] Combat > Parry: Directional Parry on. A sword grunt's horizontal swing: hold your sword upright where its
+  blade comes: sparks where the blades meet, no damage, it flinches; held level across instead: the blow lands.
+- [dirparry] Its overhead swing: hold your sword or shotgun level across above your head where its blade comes down:
+  parried, sparks at the contact. (Known: upright also parries its current overhead, a diagonal cut.)
+- [dirparry] Debug > Show Disarm Volumes during its swings: your weapon's line (green/red), its blade, its way, the score.
 ## Two-handed tug pulls for real; the worn pack drag (branch `agent/tugpull`)
 
 His decision: a second hand on a tug adds real pull.
@@ -3798,3 +3841,48 @@ Checklist:
   hotspot (e.g. its top, near the muzzle): the shots kick as little as with the hotspot (Weapon Effects' Two-Handed
   sliders); let go: the next shots kick one-handed again, the change smooth.
 - [offhandrecoil] Off hand holding a shell or magazine against the gun while firing: full one-handed kick.
+
+## Worn backpack: a hard pull lifts its wearer instead of ripping (branch `agent/packragdoll`)
+
+His words: "Add an option to disable ripping out worn backpacks by tugging ... and instead make it so that pulling an
+enemy from their backpack with enough force is a ragdoll trigger that behaves similarly to a torso/leg lift ... Ensure
+the backpack stays connected to the active ragdoll and transfers the force to the active ragdoll."
+- **Setting** `vr_worn_backpack_pull` 0 (Combat > Armed Grunts > Worn Backpacks, "Pulling the Pack": Tears It Off /
+  Lifts Its Wearer; experimental). 0 is today's rip. 1: a hand's pull never tears the pack off (the standing tug's
+  stretch, a ragdoll held by the pack, living or dead); hits (shots, blows, projectiles), the damage pool, fire and
+  blasts, landings, gibbing and the force grab/taking of a dead one's pack still do.
+- **The lift** (`vr_worn_backpack_lift_force` 1500 N, "Pull That Lifts", kept up `vr_worn_backpack_rip_time`; QC
+  `VR_WP_Lift`, engine `foegrab::packLift` via `ragdollbone(g, [8, player, 0], QVR_WORNPACK)`):
+  - standing, held by the pack (the foegrab pack hold): the pull is the hands' stretch x `vr_worn_backpack_rip_stiffness`
+    (150 N a unit; two hands x `_two_hand_mult`). Past it, it is knocked down as the two-hand lift does
+    (`VR_FoeGrab_Lift`: launched up at `vr_foegrab_lift_up`, its get-up held off), and each hand on the pack holds its
+    ragdoll **by the pack** (`ragdollHoldSoft(..., pack)`: the pack shape's point nearest the hand, on the chest part
+    carrying it, the hold `onPack`; within 48 units; the lift's strength `vr_foegrab_lift_strength` x its weight at 8
+    Hz). The pack is a shape of the chest part's body (createRagdollPack), so it is welded there and the hand's pull
+    goes through it into the body. It flails, is carried and thrown as a lift's, breaks free after
+    `vr_foegrab_lift_time` (foegrab's carryStep).
+  - knocked down, held by the pack (the usual ragdoll hold): the hold's force (as the rip read it). Past it, the holds
+    go on (at Grip Strength, not softened) and it becomes a lifted one: flailing, its get-up held off, breaking free.
+    A staggering one is not lifted (a hand on it takes it down first). A gentler pull drags it as before.
+  - dead: never lifted, never torn by a pull (a hand on a dead one's pack takes the pack, as before).
+- **Test** `vr_wornpack_test 3` (Debug > Tests > "Worn Backpacks: Pulling Lifts"; e1m1, `god; notarget; developer 1`):
+  **12 passed, 0 failed**: G held by its pack standing; a gentle pull (4 units back, at most 782 N) neither lifts nor
+  tears; 1.5 m/s back lifts it after 0.22 s at 1846 N (a ragdoll, knocked down, the pack on, held by the pack at
+  2632 N); carried 25.8 of the hand's 30 units aside; thrown 41.7 units; the pack's middle 16.4 units from the chest
+  bone, 0.00 off that throughout (`ragdollbone` what 9), 0 rips; B knocked down: dragged slowly (hardest 1357 N): kept,
+  not lifted; yanked: lifted at 4000 N, never torn; A's pack hit for 40 still tears it; D dead, its pack force-grabbed
+  still comes off. Mode 0: `vr_wornpack_test 1` 39/0 (as on next); judo `lift` 9/1 (the ogre case's expected message
+  is stale: it is not lifted, "its monster group's Lift is off"); ragdoll grab_test as the baseline.
+- **Decisions** (he was asleep): the brief's "within 3 u of the chest bone" read as "within 3 units of its place on the
+  chest bone" (the pack's middle sits 16 units from that bone; it doesn't move off it: 0.00); the standing pull's force is
+  its stretch x the rip stiffness (the tug reads a stretch, not a force); one threshold for both; a knocked-down one
+  keeps the usual (stiffer) ragdoll hold when lifted; the slow drag's 1357 N is close under 1500, so a brisk drag of a
+  knocked-down one may lift it.
+
+Checklist:
+- [packragdoll] Worn Backpacks on, Pulling the Pack: Lifts Its Wearer. Grab a standing grunt's pack from behind and
+  pull gently: nothing happens; yank back hard: it goes down flailing, held by the pack on its back; carry it, swing it
+  and let go to throw it; the pack never comes off from pulling, and it breaks free after a few seconds.
+- [packragdoll] Same mode: knock a grunt down, grab its pack and drag it slowly (it slides along, pack on), then yank:
+  it flails in your hand, pack still on.
+- [packragdoll] Same mode: shooting or hitting a grunt's pack still tears it off; force-grab a dead one's pack: it comes off.

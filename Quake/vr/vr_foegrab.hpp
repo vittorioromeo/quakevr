@@ -92,6 +92,12 @@ void calcStats(edict_t* ent, int* statsi);
 // Server: every hand holding `m` by its worn backpack lets go (it is torn off, into a hand: the grips the QC's again at
 // once, no Released call). How many.
 int packTorn(edict_t* m);
+// Server: `player` lifts living `m` by its worn backpack (vr_worn_backpack_pull 1, QC VR_WP_Lift: pulled past
+// vr_worn_backpack_lift_force): standing (his hands' pack holds), it is knocked down as a lift knocks it and each of those
+// hands holds its ragdoll by the pack (the chest part carrying it, at the lift's strength); a ragdoll already held by the
+// pack by his hands, those holds go on. Either way it is lifted: it flails and breaks free after vr_foegrab_lift_time (as
+// a two-hand lift). How many hands hold it (0: not lifted).
+int packLift(edict_t* player, edict_t* m);
 // Client: whether `hand` holds an enemy now.
 [[nodiscard]] bool holding(int hand);
 

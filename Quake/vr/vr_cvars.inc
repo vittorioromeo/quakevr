@@ -3047,10 +3047,12 @@ QVR_CVAR(vr_worn_backpack_tug_time, "0.6", CVAR_ARCHIVE) // worn backpacks: s a 
 QVR_CVAR(vr_worn_backpack_two_hand_mult, "1.5", CVAR_ARCHIVE) // worn backpacks: both hands on the pack pull this many times their pulls together (a living one's tug, a ragdoll's pull)
 QVR_CVAR(vr_worn_backpack_topple, "1", CVAR_ARCHIVE)  // worn backpacks: a pack torn off a living one by your pull knocks it down, falling the way you tore (a ragdoll trigger); 0 it stands
 QVR_CVAR(vr_worn_backpack_topple_push, "0.8", CVAR_ARCHIVE) // worn backpacks: that knockdown's push (a shove's: two hands 1)
+QVR_CVAR(vr_worn_backpack_pull, "0", CVAR_ARCHIVE)    // worn backpacks: what a hand's pull on the pack does: 0 tears it off; 1 (experimental) never tears it (shots, blows, the force grab, damage still do): past vr_worn_backpack_lift_force a living wearer is lifted by its pack (knocked down, flailing, held by the pack on its chest)
+QVR_CVAR(vr_worn_backpack_lift_force, "1500", CVAR_ARCHIVE) // worn backpacks, Pull 1: N: a pull on the pack this hard (vr_worn_backpack_rip_time) lifts a living wearer (standing: the hands' stretch x vr_worn_backpack_rip_stiffness; a ragdoll: its hold's force)
 QVR_CVAR(vr_worn_backpack_reserve, "1", CVAR_ARCHIVE) // worn backpacks: the share of an armed grunt's spare rounds in its pack (lost with it while alive)
 QVR_CVAR(vr_worn_backpack_volume, "1", CVAR_ARCHIVE)  // worn backpacks: the fabric rip's loudness
 QVR_CVAR(vr_worn_backpack_debug, "0", CVAR_NONE)      // worn backpacks: log each pack's state, pulls and rips (developer 1)
-QVR_CVAR(vr_wornpack_test, "0", CVAR_NONE)            // the QC test of worn backpacks (vr_wornpack_test.qc; Debug > Tests): 1 all, ends on "wornpack: N passed, M failed"; 2 the eyeshot's grunts (back on, side on, knocked down)
+QVR_CVAR(vr_wornpack_test, "0", CVAR_NONE)            // the QC test of worn backpacks (vr_wornpack_test.qc; Debug > Tests): 1 all, ends on "wornpack: N passed, M failed"; 2 the eyeshot's grunts (back on, side on, knocked down); 3 vr_worn_backpack_pull 1 (pulls lift), ends on "wornpull: N passed, M failed"
 QVR_CVAR(vr_agarmor_skill0, "0", CVAR_ARCHIVE)        // armour: the chance an armed grunt spawns armoured on Easy
 QVR_CVAR(vr_agarmor_skill0_type, "1", CVAR_ARCHIVE)   // armour on Easy: its best type (1 green, 2 yellow, 3 red: rolled up to it)
 QVR_CVAR(vr_agarmor_skill0_pieces, "2", CVAR_ARCHIVE) // armour on Easy: how many pieces (1 the cuirass, 2 and the helmet, more: the rest picked at random; 10 all)
@@ -3417,6 +3419,7 @@ QVR_CVAR(vr_parry_ragdoll, "1", CVAR_ARCHIVE)        // a parried humanoid (its 
 QVR_CVAR(vr_parry_reduction, "0.75", CVAR_ARCHIVE)    // share of a parried blow's damage taken away
 QVR_CVAR(vr_parry_drop_chance, "0", CVAR_ARCHIVE)   // chance a one-handed parry knocks the weapon out of your hand (two hands: never); not used with vr_parry_stamina on
 QVR_CVAR(vr_parry_unarmed, "1", CVAR_ARCHIVE)          // parry unarmed with the arms crossed in an X in front
+QVR_CVAR(vr_dirparry, "0", CVAR_ARCHIVE)               // experimental: an armed humanoid's melee swing is parried only by a weapon held across its blade's way, meeting it (QC vr_dirparry.qc); 0: the level-across parry as before
 QVR_CVAR(vr_bash, "1", CVAR_ARCHIVE)                   // hold a guard (a weapon across, both hands together), then push it forward to bash; or shove with one open palm
 QVR_CVAR(vr_bash_speed, "3", CVAR_ARCHIVE)             // m/s the parry stance (a weapon across) must be pushed forward to bash (the author's pushes: 3-6 m/s; his held poses settle at up to 1.6)
 QVR_CVAR(vr_shove_push_onehand, "0.7", CVAR_ARCHIVE)   // ... times this for one hand (a shove or a bash)

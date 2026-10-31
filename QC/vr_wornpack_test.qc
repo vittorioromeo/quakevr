@@ -502,6 +502,335 @@ void(entity p) VR_WPT_Tug =
     VR_WPT_End();
 };
 
+// ---- `vr_wornpack_test 3`: vr_worn_backpack_pull 1 (Pulling the Pack: Lifts Its Wearer). Ends on
+// `wornpull: <p> passed, <f> failed`. G standing, held by its pack: a gentle pull neither lifts nor tears; a strong one
+// lifts it (a ragdoll, the pack still on its chest part, the hand holding it by the pack); carried sideways and up, then
+// thrown: it goes with the hand, the pack on its chest throughout (its middle within 3 units of where it was from the
+// chest bone). B knocked down, held by its pack: a slow drag drags it (kept, not lifted), a yank lifts it, never tears
+// it. Then A's pack hit (a shot's or a blow's damage) and D's (dead) force grab still tear theirs off.
+float vr_wpt_old_pull;
+float vr_wpt_d0;     // the lifted one's pack's middle from its chest bone as it was lifted (units)
+float vr_wpt_lifts0; // lifts before a step
+float vr_wpt_off;    // frames the lifted one was not held by its pack
+
+void() VR_WPL_End =
+{
+    cvar_set("vr_worn_backpack_pull", ftos(vr_wpt_old_pull));
+    localcmd("-grabmain\n");
+    VR_WPT_End();
+};
+
+void(entity p) VR_WPL_Begin =
+{
+    VR_Test_Begin("wornpull");
+    vr_wpt_old_on = cvar("vr_worn_backpacks");
+    vr_wpt_old_chance = cvar("vr_worn_backpack_hit_roll");
+    vr_wpt_old_pool = cvar("vr_worn_backpack_pool");
+    vr_wpt_old_roll = vr_wpt_old_chance;
+    vr_wpt_old_ref = cvar("vr_worn_backpack_hit_ref");
+    vr_wpt_old_debug = cvar("vr_worn_backpack_debug");
+    vr_wpt_old_pull = cvar("vr_worn_backpack_pull");
+    cvar_set("vr_worn_backpack_debug", ftos(max(1, vr_wpt_old_debug)));
+    cvar_set("vr_worn_backpacks", "1");
+    cvar_set("vr_worn_backpack_pull", "1");
+    cvar_set("vr_worn_backpack_pool", "30");
+    cvar_set("vr_worn_backpack_hit_roll", "0");
+    cvar_set("vr_mock_hand_to_absolute", "1");
+    vr_wpt_rips0 = vr_wp_rips;
+    vr_wpt_frames = 0;
+    vr_wpt_state = 20;
+};
+
+// The lifted one's pack on its chest: how far its middle is now from where it was from the chest bone (the most so far
+// in vr_wpt_gapmax), and whether the hand holds it by the pack (else counted in vr_wpt_off).
+void(entity g, entity p) VR_WPL_Track =
+{
+    float d = ragdollbone(g, '9 0 0', QVR_WORNPACK);
+    vr_wpt_gapmax = max(vr_wpt_gapmax, d < 0 ? 99 : fabs(d - vr_wpt_d0));
+    if(p.mainhand_held == g && ragdollbone(g, [2, 1, cVR_MainHand], QVR_WORNPACK) < 0)
+    {
+        vr_wpt_off = vr_wpt_off + 1;
+    }
+};
+
+// States 20-24: G standing, held by its pack: a gentle pull (21), a strong one (22: lifted), carried (23), thrown (24).
+void(entity p) VR_WPL_Standing =
+{
+    vr_wpt_frames = vr_wpt_frames + 1;
+    entity g = vr_wpt_g;
+    entity pk = g.vr_wp_pack;
+    float stiff = cvar("vr_worn_backpack_rip_stiffness");
+    if(vr_wpt_state == 20)
+    {
+        if(vr_wpt_frames == 1)
+        {
+            g = VR_WPT_Spawn(p, WID_SHOTGUN, 0, 44, TRUE);
+            g.netname = "G";
+            g.enemy = world;
+            vr_wpt_g = g;
+            return;
+        }
+        VR_WPT_HandsOnPack(p, g, FALSE);
+        if(vr_wpt_frames < 4)
+        {
+            return;
+        }
+        if(vr_wpt_frames == 4)
+        {
+            localcmd("+grabmain\n");
+            return;
+        }
+        float s0 = ragdollbone(g, [5, 1, cVR_MainHand], QVR_WORNPACK);
+        if(s0 < 0 && vr_wpt_frames < 30)
+        {
+            return;
+        }
+        VR_Test_Check(s0 >= 0 && pk.vr_wp_state == VR_WP_WORN && !isragdoll(g), sprintf("G's pack held by the hand while it stands (stretch %.1f units)", s0));
+        if(s0 < 0)
+        {
+            VR_WPL_End();
+            return;
+        }
+        vr_wpt_pull = p.origin - g.origin;
+        vr_wpt_pull_z = 0;
+        vr_wpt_pull = normalize(vr_wpt_pull);
+        vr_wpt_one = 0;
+        vr_wpt_lifts0 = vr_wp_lifts;
+        vr_wpt_frames = 0;
+        vr_wpt_state = 21;
+        return;
+    }
+    float s = ragdollbone(g, [5, 1, cVR_MainHand], QVR_WORNPACK);
+    if(vr_wpt_state == 21)
+    {
+        if(vr_wpt_frames <= 18)
+        {
+            VR_WPT_HandsBack(4 / 18, FALSE); // (4 units back, then held there)
+        }
+        vr_wpt_one = max(vr_wpt_one, s * stiff);
+        if(vr_wpt_frames < 72)
+        {
+            return;
+        }
+        VR_Test_Check(!isragdoll(g) && pk.vr_wp_state == VR_WP_WORN && vr_wp_lifts == vr_wpt_lifts0 && vr_wp_rips == vr_wpt_rips0 && s >= 0,
+            sprintf("a gentle pull (4 units back, at most %.0f N of %g) neither lifts nor tears; still held", vr_wpt_one,
+            cvar("vr_worn_backpack_lift_force")));
+        vr_wpt_frames = 0;
+        vr_wpt_state = 22;
+        return;
+    }
+    if(vr_wpt_state == 22)
+    {
+        if(vr_wp_lifts == vr_wpt_lifts0 && vr_wpt_frames < 108)
+        {
+            VR_WPT_HandsBack(1.5 * VRMetersToUnits() / 72, FALSE); // (1.5 m/s)
+            return;
+        }
+        VR_Test_Check(vr_wp_lifts == vr_wpt_lifts0 + 1 && isragdoll(g) && g.vr_knockdown && g.health > 0,
+            sprintf("a strong pull (1.5 m/s) lifts it after %.2f s at %.0f N (a ragdoll %g, knocked down %g)", vr_wpt_frames / 72,
+            vr_wp_lift_pull, isragdoll(g), g.vr_knockdown));
+        float f = ragdollbone(g, [2, 1, cVR_MainHand], QVR_WORNPACK);
+        VR_Test_Check(pk.vr_wp_state == VR_WP_WORN && ragdollbone(g, '0 0 0', QVR_WORNPACK) == 1 && p.mainhand_held == g && f >= 0 &&
+            vr_wp_rips == vr_wpt_rips0, sprintf("lifted: the pack still on its ragdoll's chest, the hand holding it by the pack (%.0f N; holds %s)", f,
+            p.mainhand_held.classname));
+        if(!isragdoll(g) || p.mainhand_held != g)
+        {
+            VR_WPL_End();
+            return;
+        }
+        vr_wpt_d0 = ragdollbone(g, '9 0 0', QVR_WORNPACK);
+        vr_wpt_gapmax = 0;
+        vr_wpt_off = 0;
+        vr_wpt_b0 = limbpiece(g, 0, 22);
+        vr_wpt_frames = 0;
+        vr_wpt_state = 23;
+        return;
+    }
+    makevectors([0, vectoyaw(vr_wpt_pull), 0]);
+    VR_WPL_Track(g, p);
+    if(vr_wpt_state == 23)
+    {
+        if(vr_wpt_frames <= 72)
+        {
+            vr_wpt_hand = vr_wpt_hand + v_right * (30 / 72) + '0 0 1' * (12 / 72); // (30 units aside and 12 up in a second)
+            localcmd(sprintf("vr_mock_hand_to main %g %g %g\n", vr_wpt_hand_x, vr_wpt_hand_y, vr_wpt_hand_z));
+            return;
+        }
+        vector went = limbpiece(g, 0, 22) - vr_wpt_b0;
+        VR_Test_Check(went * v_right >= 15 && p.mainhand_held == g && vr_wpt_off == 0, sprintf("carried: it went %.1f of the hand's 30 units aside, %.1f of 12 up, held by the pack throughout (%g frames not)",
+            went * v_right, went_z, vr_wpt_off));
+        vr_wpt_b0 = limbpiece(g, 0, 22);
+        vr_wpt_frames = 0;
+        vr_wpt_state = 24;
+        return;
+    }
+    // 24: swung away from you at 4 m/s for 10 frames and let go.
+    if(vr_wpt_frames <= 10)
+    {
+        vr_wpt_hand = vr_wpt_hand - vr_wpt_pull * (4 * VRMetersToUnits() / 72) + '0 0 0.5';
+        localcmd(sprintf("vr_mock_hand_to main %g %g %g\n", vr_wpt_hand_x, vr_wpt_hand_y, vr_wpt_hand_z));
+        if(vr_wpt_frames == 10)
+        {
+            localcmd("-grabmain\n");
+        }
+        return;
+    }
+    if(vr_wpt_frames < 46)
+    {
+        return;
+    }
+    vector flew = limbpiece(g, 0, 22) - vr_wpt_b0;
+    VR_Test_Check(flew * (vr_wpt_pull * -1) >= 20 && p.mainhand_held != g, sprintf("thrown: it went %.1f units the way of the throw, let go of (holds %s)",
+        flew * (vr_wpt_pull * -1), p.mainhand_held.classname));
+    VR_Test_Check(vr_wpt_gapmax <= 3 && pk.vr_wp_state == VR_WP_WORN && vr_wp_rips == vr_wpt_rips0,
+        sprintf("the pack on its chest throughout: at most %.2f units off its place from the chest bone (%.1f), never torn (%g rips)", vr_wpt_gapmax,
+        vr_wpt_d0, vr_wp_rips - vr_wpt_rips0));
+    vr_wpt_frames = 0;
+    vr_wpt_state = 25;
+};
+
+// States 25-27: B knocked down, the player beside it on its floor, the hand on its pack (25); dragged slowly (26); yanked (27).
+void(entity p) VR_WPL_Down =
+{
+    vr_wpt_frames = vr_wpt_frames + 1;
+    entity b = vr_wpt_b;
+    entity pk = b.vr_wp_pack;
+    if(vr_wpt_state == 25)
+    {
+        if(vr_wpt_frames == 1)
+        {
+            b = VR_WPT_Spawn(p, -1, -60, 90, FALSE);
+            b.netname = "B";
+            vr_wpt_b = b;
+            return;
+        }
+        if(vr_wpt_frames == 2)
+        {
+            VR_WPT_KnockDown(b, p, 40);
+            return;
+        }
+        if(vr_wpt_frames == 38)
+        {
+            vr_wpt_hand = limbpiece(b, 0, 22);
+            vector out = p.origin - vr_wpt_hand;
+            out_z = 0;
+            vector at = vr_wpt_hand + normalize(out) * 20;
+            traceline(b.origin, b.origin - '0 0 256', TRUE, b);
+            at_z = trace_endpos_z + 25; // (on its floor, as vr_wornpack_test 1's)
+            setorigin(p, at);
+            p.velocity = '0 0 0';
+            vr_wpt_until = 0;
+        }
+        if(vr_wpt_frames < 38)
+        {
+            return;
+        }
+        float gap = ragdollbone(b, p.handpos, QVR_WORNPACK_AT);
+        if(!vr_wpt_until)
+        {
+            vr_wpt_hand = limbpiece(b, 0, 22);
+            localcmd(sprintf("vr_mock_hand_to main %g %g %g\n", vr_wpt_hand_x, vr_wpt_hand_y, vr_wpt_hand_z));
+            if(gap < 0 || gap > 2)
+            {
+                if(vr_wpt_frames < 128)
+                {
+                    return;
+                }
+                VR_Test_Check(FALSE, sprintf("the hand gets onto B's pack (%.1f units off; B a ragdoll %g)", gap, isragdoll(b)));
+                VR_WPL_End();
+                return;
+            }
+            localcmd("+grabmain\n");
+            vr_wpt_until = vr_wpt_frames;
+            return;
+        }
+        if(vr_wpt_frames < vr_wpt_until + 6)
+        {
+            return;
+        }
+        float f = ragdollbone(b, [2, 1, cVR_MainHand], QVR_WORNPACK);
+        VR_Test_Check(p.mainhand_held == b && f >= 0 && b.health > 0, sprintf("the hand holds knocked-down B by its pack (pull %.0f N)", f));
+        if(f < 0)
+        {
+            VR_WPL_End();
+            return;
+        }
+        vr_wpt_lifts0 = vr_wp_lifts;
+        pk.vr_wp_peak = 0;
+        vr_wpt_frames = 0;
+        vr_wpt_state = 26;
+        return;
+    }
+    vector away = p.origin - b.origin;
+    away_z = 0;
+    away = normalize(away);
+    if(vr_wpt_state == 26)
+    {
+        vr_wpt_hand = vr_wpt_hand + away * 0.6; // (about 43 units/s: a slow drag)
+        localcmd(sprintf("vr_mock_hand_to main %g %g %g\n", vr_wpt_hand_x, vr_wpt_hand_y, vr_wpt_hand_z));
+        if(vr_wpt_frames < 48)
+        {
+            return;
+        }
+        VR_Test_Check(pk.vr_wp_state == VR_WP_WORN && p.mainhand_held == b && vr_wp_lifts == vr_wpt_lifts0 && vr_wp_rips == vr_wpt_rips0,
+            sprintf("B dragged slowly by the pack: kept, not lifted (hardest pull %.0f N of %g)", pk.vr_wp_peak, cvar("vr_worn_backpack_lift_force")));
+        vr_wpt_hand = vr_wpt_hand + away * 30 + '0 0 20';
+        localcmd(sprintf("vr_mock_hand_to main %g %g %g\n", vr_wpt_hand_x, vr_wpt_hand_y, vr_wpt_hand_z));
+        vr_wpt_frames = 0;
+        vr_wpt_state = 27;
+        return;
+    }
+    if(vr_wp_lifts == vr_wpt_lifts0 && vr_wpt_frames < 36)
+    {
+        return;
+    }
+    VR_Test_Check(vr_wp_lifts == vr_wpt_lifts0 + 1 && pk.vr_wp_state == VR_WP_WORN && ragdollbone(b, '0 0 0', QVR_WORNPACK) == 1 &&
+        p.mainhand_held == b && vr_wp_rips == vr_wpt_rips0, sprintf("B yanked: lifted by its pack at %.0f N (hardest %.0f), never torn (%g rips), still held",
+        vr_wp_lift_pull, pk.vr_wp_peak, vr_wp_rips - vr_wpt_rips0));
+    localcmd("-grabmain\n");
+    vr_wpt_frames = 0;
+    vr_wpt_state = 28;
+};
+
+// States 28-29: A's pack hit (its pool's 30), D killed and its pack force-grabbed: both still come off.
+void(entity p) VR_WPL_Others =
+{
+    vr_wpt_frames = vr_wpt_frames + 1;
+    if(vr_wpt_frames == 1)
+    {
+        vr_wpt_a = VR_WPT_Spawn(p, WID_SHOTGUN, 60, 120, TRUE);
+        vr_wpt_a.netname = "A";
+        vr_wpt_d = VR_WPT_Spawn(p, WID_SHOTGUN, 0, 200, FALSE);
+        vr_wpt_d.netname = "D";
+        return;
+    }
+    entity pk = vr_wpt_a.vr_wp_pack;
+    entity pd = vr_wpt_d.vr_wp_pack;
+    if(vr_wpt_state == 28)
+    {
+        if(vr_wpt_frames < 3)
+        {
+            return;
+        }
+        vr_wpt_rips0 = vr_wp_rips;
+        VR_WPT_Hit(vr_wpt_a, p, limbpiece(vr_wpt_a, 0, 22), 40);
+        VR_Test_Check(pk.vr_wp_state == VR_WP_OFF && vr_wp_rips == vr_wpt_rips0 + 1, sprintf("a hit of 40 on A's pack still tears it off (%s)",
+            vr_wp_rip_why));
+        vr_wpt_d.health = 1;
+        T_Damage(vr_wpt_d, p, p, 20);
+        vr_wpt_until = time + 2;
+        vr_wpt_state = 29;
+        return;
+    }
+    if(pd.vr_wp_state != VR_WP_DEAD && time < vr_wpt_until)
+    {
+        return;
+    }
+    VR_Forcegrab_Launch(pd, cVR_OffHand);
+    VR_Test_Check(pd.vr_wp_state == VR_WP_OFF && vr_wp_rip_why == "taken", sprintf("a dead one's pack force-grabbed still comes off (%s)", vr_wp_rip_why));
+    VR_WPL_End();
+};
+
 void(entity p) VR_WPT_Eyeshot =
 {
     cvar_set("vr_worn_backpacks", "1");
@@ -532,6 +861,25 @@ void() VR_WornPack_TestFrame =
         {
             VR_WPT_Eyeshot(p);
         }
+        if(request == 3)
+        {
+            VR_WPL_Begin(p);
+        }
+        return;
+    }
+    if(vr_wpt_state >= 20 && vr_wpt_state <= 24)
+    {
+        VR_WPL_Standing(p);
+        return;
+    }
+    if(vr_wpt_state >= 25 && vr_wpt_state <= 27)
+    {
+        VR_WPL_Down(p);
+        return;
+    }
+    if(vr_wpt_state >= 28)
+    {
+        VR_WPL_Others(p);
         return;
     }
     if(vr_wpt_state == 2)

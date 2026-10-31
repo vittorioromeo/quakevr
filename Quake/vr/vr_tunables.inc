@@ -861,6 +861,14 @@ QVR_TUNABLE(vr_agrunt_blade_stagger_time, "0.5") // s that stagger lasts
 QVR_TUNABLE(vr_agrunt_blade_arm, "0.5") // the knock on its weapon arm: the hit reaction's share of its health per 10 m/s of the blow (0: none)
 QVR_TUNABLE(vr_agrunt_blade_fx, "1") // the contact's sparks and sound times this (0: none)
 
+// Combat > Directional Parry (vr_dirparry, experimental: QC vr_dirparry.qc)
+QVR_TUNABLE(vr_dirparry_window, "0.1") // s: at its blow, its blade's way followed on this long (where it would meet your weapon in the rest of the swing)
+QVR_TUNABLE(vr_dirparry_contact, "6") // units: its blade's line and your weapon's within this meet
+QVR_TUNABLE(vr_dirparry_angle, "40") // degrees: your weapon this far off square to its blade and its way still counts fully (none at 90)
+QVR_TUNABLE(vr_dirparry_threshold, "0.75") // the score (angle x meeting, 0..1) that parries
+QVR_TUNABLE(vr_dirparry_partial, "0") // under the threshold, the blow cut by this x score / threshold (0: off, the full blow)
+QVR_TUNABLE(vr_dirparry_opening, "0.5") // s: its flinch when the parry balance gave no stagger (its swing stopped: the opening)
+
 // Combat > Armed Humanoid Replacements
 QVR_TUNABLE(vr_agrunt_repl_skill0, "0.5") // the chances above times this on Easy
 QVR_TUNABLE(vr_agrunt_repl_skill1, "1") // ... on Normal

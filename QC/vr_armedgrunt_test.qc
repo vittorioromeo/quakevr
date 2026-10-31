@@ -1474,6 +1474,7 @@ void() VR_AGTest_Frame =
     else if(t == 90) { VR_AGGD_Frame(); } // (the fists' guard in game as the studio shows it: vr_armedgrunt_guard_test.qc)
     else if(t == 93) { VR_AGS_ProjTestFrame(); } // (projectiles' own rolls: vr_armedgrunt_shot_test.qc)
     else if(t == 77) { VR_AGBL_Frame(); } // (your blow on its blade away from its hand: vr_armedgrunt_blade_test.qc)
+    else if(t == 78) { VR_DRPT_Frame(); } // (the directional parry of its swing: vr_dirparry_test.qc)
     else if(t == 94) { VR_AGST_Frame(); } // (a deliberate strike or throw on its weapon or hand: vr_armedgrunt_strike_test.qc)
     else if(t == 96 || t == 98) { VR_AGPP_Frame(t); } // (its guard: the preventive and wind-up parries: vr_armedgrunt_preparry_test.qc)
     else if(t == 99) { VR_DPT_Frame(); } // (the drawn pose: worn packs and disarm volumes on the body as drawn: vr_drawnpose_test.qc)

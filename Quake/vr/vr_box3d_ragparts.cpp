@@ -554,7 +554,8 @@ qvr::box3d::RagdollGrabResult grabRagdoll(edict_t* corpse, edict_t* player, int 
 // its surface), by a spring of at most `force` N at `hertz`, let go of past `stuck` units (vr_foegrab.cpp: an enemy
 // thrown or lifted, held on). `head`: its head's part instead, if not cut off and its middle within `reach` and 12 units
 // more (a neck snapped: the hands held its head).
-bool holdSoft(edict_t* ent, edict_t* player, int hand, float reach, float force, float hertz, float stuck, bool head, bool torso)
+bool holdSoft(edict_t* ent, edict_t* player, int hand, float reach, float force, float hertz, float stuck, bool head, bool torso,
+    bool pack)
 {
     GrabStart gs;
     if(!grabStart(ent, player, hand, gs))
@@ -564,6 +565,32 @@ bool holdSoft(edict_t* ent, edict_t* player, int hand, float reach, float force,
     const RagdollBodies* r = gs.r;
     const int num = gs.num;
     const glm::vec3& at = gs.at;
+    glm::vec3 onPack{0.f};
+    if(pack)
+    {
+        // (By its worn backpack: the pack's point nearest the hand, on the chest part that carries it, pulled to the hand.)
+        if(!packNearest(*r, at, onPack) || glm::distance(onPack, at) > reach)
+        {
+            return false;
+        }
+        World::RagdollGrab g;
+        g.force = za::max(force, 0.f);
+        g.hertz = za::max(hertz, 0.1f);
+        g.stuck = za::max(stuck, 1.f);
+        g.player = gs.pnum;
+        g.hand = hand;
+        g.num = num;
+        g.part = r->packPart;
+        g.onPack = true;
+        startHold(g, player, *r, b3Body_GetLocalPoint(r->body[static_cast<za::SizeT>(g.part)], world->toM(onPack)), false);
+        world->ragdollGrabs.pushBack(g);
+        if(vr_debug_ragdoll.value || vr_worn_backpack_debug.value)
+        {
+            Con_Printf("ragdoll: %d held on by its pack (part %d) by hand %d, %.1f units from the hand (soft: %.0f N, %.1f Hz)\n",
+                num, g.part, hand, glm::distance(onPack, at), g.force, g.hertz);
+        }
+        return true;
+    }
     float distance = 0.f;
     int part = nearestPart(*r, at, distance);
     const int headPart = r->rig->head;
@@ -1284,9 +1311,9 @@ float ragdollTug(edict_t* ent, edict_t* player, int hand, int what, const glm::v
 }
 
 bool ragdollHoldSoft(edict_t* ent, edict_t* player, int hand, float reach, float force, float hertz, float stuck, bool head,
-    bool torso)
+    bool torso, bool pack)
 {
-    return ent && player && holdSoft(ent, player, hand, reach, force, hertz, stuck, head, torso);
+    return ent && player && holdSoft(ent, player, hand, reach, force, hertz, stuck, head, torso, pack);
 }
 
 float ragdollHoldForce(edict_t* player, int hand, float force, float hertz)

@@ -209,6 +209,12 @@ Hold the shotgun (or any gun) and grip it with the off hand somewhere that is no
 Off hand holding a shell or magazine against the gun while firing: full one-handed kick.
 Grab an armed grunt's gun with one hand and pull back steadily: note how long it takes; then grab another's gun with both hands (one on the barrel, one by its body) and pull: it comes out clearly sooner (about two thirds).
 Grab a grunt's worn backpack (knocked down or standing) and walk slowly backwards: it is dragged by the pack, which stays on; yank hard: the pack tears off into your hand.
+Combat > Parry: Directional Parry on. A sword grunt's side swing: hold your sword upright where its blade comes: sparks where the blades meet, no damage, it flinches; held level across instead: the blow lands.
+Its overhead swing: hold your sword or shotgun level across above your head where its blade comes down: parried, sparks at the contact. (Known: upright also parries its current overhead, a diagonal cut.)
+Debug > Show Disarm Volumes during its swings: your weapon's line (green/red), its blade, its way, the score.
+Worn Backpacks on, Pulling the Pack: Lifts Its Wearer. Grab a standing grunt's pack from behind and pull gently: nothing happens. Yank back hard: it goes down flailing, held by the pack on its back. Carry it, swing it and let go to throw it. Pulling never tears the pack off, and it breaks free after a few seconds.
+Same mode: knock a grunt down, grab its pack and drag it slowly (it slides along, pack on), then yank: it flails in your hand, pack still on.
+Same mode: shooting or hitting a grunt's pack still tears it off; force-grab a dead one's pack: it comes off.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns

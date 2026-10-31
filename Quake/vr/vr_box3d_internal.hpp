@@ -1265,6 +1265,8 @@ void dropGrabsOf(int num);
 // how far `at` (units) is from it (-1: none on).
 void createRagdollPack(RagdollBodies& r, edict_t* ent, int num, const Slot& s);
 [[nodiscard]] float packDistance(const RagdollBodies& r, const glm::vec3& at);
+// The point of its pack's shape nearest `at` (units; false: none on): a hold taken on the pack (holdSoft's `pack`).
+[[nodiscard]] bool packNearest(const RagdollBodies& r, const glm::vec3& at, glm::vec3& out);
 [[nodiscard]] int nearestPart(const RagdollBodies& r, const glm::vec3& at, float& distance);
 // The part that holds rig `rig`'s loose piece `loose` (a monster's weapon, welded there while it is down or staggering:
 // vr_knockdown_weld), -1 none (vr_box3d_ragdoll.cpp).

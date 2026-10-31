@@ -33,6 +33,7 @@ constexpr float throwAwayCos = 0.7071f; // a throw within 45 degrees of straight
 constexpr float throwWayTime = 0.04f; // s: the turn's way smoothed over about this long (a frame's jitter doesn't pick the side)
 constexpr float softReach = 16.f;     // units: a hand holds on to the ragdoll's limb nearest it within this (handOver)
 constexpr float softStuck = 72.f;     // units: and lets go of it when the limb lags this far off for half a second
+constexpr float packLiftReach = 48.f; // units: lifted by its worn backpack, a hand this near the pack holds it (pulled off it)
 constexpr float carryGrace = 0.3f;    // s: a ragdoll held on passes through the hands (box3d::ragdollGrace, kept up)
 constexpr float liftHertz = 8.f;      // Hz: a lifted one's hold's spring (a ragdoll limb's usual: carried, it sags little)
 constexpr float neckMinArm = 0.04f;   // m: hands nearer together count as this far apart (the twist's measure)
@@ -816,8 +817,10 @@ void throwTraceStep()
 // (VR_FoeGrab_HandOver: the hand's held field; the QC's VR_Ragdoll_HandFrame lets go of it as any, with the hand's throw),
 // the grip passed on to the QC; the holds let go (`why`: Why::Thrown, Why::Lifted, Why::Snapped: its neck snapped, a body
 // held by its head: each hand holds its head's part).
+// `pack` (lifted by its worn backpack: packLift): the hands holding its pack hold its ragdoll by the pack (the chest
+// part carrying it), within packLiftReach.
 // How many hands hold on (0: none could, the holds kept).
-int handOver(edict_t* player, edict_t* m, Holder& hd, float strength, float hertz, Why why)
+int handOver(edict_t* player, edict_t* m, Holder& hd, float strength, float hertz, Why why, bool pack = false)
 {
     const bool lift = why == Why::Lifted;
     const float force = za::clamp(strength, 0.f, 10.f) * box3d::ragdollWeight(m);
@@ -825,9 +828,9 @@ int handOver(edict_t* player, edict_t* m, Holder& hd, float strength, float hert
     for(int h = 0; h < 2; h++)
     {
         const Hold& g = hd.holds[h];
-        if(!g.active || g.ent != NUM_FOR_EDICT(m) ||
-            !box3d::ragdollHoldSoft(m, player, h, softReach, force, za::clamp(hertz, 0.5f, 30.f), softStuck,
-                why == Why::Snapped, lift))
+        if(!g.active || g.ent != NUM_FOR_EDICT(m) || (pack && !g.pack) ||
+            !box3d::ragdollHoldSoft(m, player, h, pack ? packLiftReach : softReach, force, za::clamp(hertz, 0.5f, 30.f),
+                softStuck, why == Why::Snapped, lift, pack))
         {
             continue;
         }
@@ -3043,6 +3046,65 @@ int qvr::foegrab::packTorn(edict_t* m)
         }
     }
     return n;
+}
+
+int qvr::foegrab::packLift(edict_t* player, edict_t* m)
+{
+    Holder* hp = holderOf(player);
+    if(!hp || !m || m->free || m->v.health <= 0.f || hp->carried > 0 || !bindings().isVrProgs)
+    {
+        return 0;
+    }
+    Holder& hd = *hp;
+    const int c = NUM_FOR_EDICT(player) - 1;
+    const int e = NUM_FOR_EDICT(m);
+    const float hold = za::clamp(vr_foegrab_lift_time.value, 0.1f, 60.f);
+    const bool standing = (hd.holds[0].active && hd.holds[0].pack && hd.holds[0].ent == e) ||
+                          (hd.holds[1].active && hd.holds[1].pack && hd.holds[1].ent == e);
+    int hands = 0;
+    if(standing)
+    {
+        // (Knocked down as a lift knocks it, its get-up held off; the pack holds become ragdoll holds on the pack.)
+        const float result =
+            callQc(bindings().foegrab.Lift, player, m, za::clamp(vr_foegrab_lift_up.value, 0.f, 1000.f), hold + 1.f, 0.f);
+        if(result != 1.f)
+        {
+            return 0; // (it can't be knocked down now, or the training dummy: it stands, the tug goes on)
+        }
+        hands = handOver(player, m, hd, vr_foegrab_lift_strength.value, liftHertz, Why::Lifted, true);
+        if(hands == 0)
+        {
+            for(int h = 0; h < 2; h++)
+            {
+                release(player, h, Why::Lifted, "lifted by its pack, nothing to hold on to");
+            }
+            return 0;
+        }
+        (void)climb::grunt(player, vr_foegrab_throw_grunt_sound.value, vr_foegrab_throw_grunt.value);
+    }
+    else
+    {
+        // (A ragdoll held by the pack by his hands already: the QC's ragdoll holds go on, now a lift's.)
+        hands = carryingHands(c, m);
+        if(hands == 0)
+        {
+            return 0;
+        }
+        hd.carried = e;
+        hd.carriedSince = qcvm->time;
+        hd.lifted = true;
+        hd.snapped = false;
+        hd.legDragFrom = -1.0;
+    }
+    hd.breakAt = qcvm->time + hold;
+    hd.flailing = box3d::ragdollFlail(m, true);
+    if(debug() || vr_worn_backpack_debug.value)
+    {
+        Con_Printf("foegrab: %s (%d) lifted by its backpack (%s) by %d hand%s, %s, breaks free in %.1f s\n",
+            PR_GetString(m->v.classname), e, standing ? "standing" : "a ragdoll", hands, hands == 1 ? "" : "s",
+            hd.flailing ? "flailing" : "not flailing", hold);
+    }
+    return hands;
 }
 
 bool qvr::foegrab::holds(const edict_t* player, const edict_t* m)
