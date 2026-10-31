@@ -101,6 +101,39 @@ float(float xLimbs) VR_Hit_PelletPart =
     return 0;
 };
 
+// Where the hit being dealt struck `xTarg` (the wounds, the gore, the flinch: each its own `xNear` and `xMissile`): the
+// record's point when it lies within `xNear` of xTarg's middle, else (xMissile) the inflictor's origin when it is a
+// missile within xNear (where it touched), else the middle.
+vector(entity xTarg, entity xInflictor, float xNear, float xMissile) VR_Hit_Point =
+{
+    vector mid = (xTarg.absmin + xTarg.absmax) * 0.5;
+    if(hit_pos != '0 0 0' && vlen(hit_pos - mid) < xNear)
+    {
+        return hit_pos;
+    }
+    if(xMissile && xInflictor != xTarg && !(xInflictor.flags & (FL_MONSTER | FL_CLIENT)) &&
+       vlen(xInflictor.origin - mid) < xNear)
+    {
+        return xInflictor.origin;
+    }
+    return mid;
+};
+
+// Which way the hit being dealt went into `xTarg`: `xDir` (the record's, or the consumer's own) when known, else a
+// missile's flight, else from the inflictor's middle to xTarg's ('0 0 0': unknown, the inflictor xTarg itself).
+vector(entity xTarg, entity xInflictor, vector xDir) VR_Hit_Way =
+{
+    if(xDir != '0 0 0' || xInflictor == xTarg)
+    {
+        return xDir;
+    }
+    if(xInflictor.velocity != '0 0 0' && !(xInflictor.flags & (FL_MONSTER | FL_CLIENT)))
+    {
+        return xInflictor.velocity; // a missile's flight
+    }
+    return (xTarg.absmin + xTarg.absmax) * 0.5 - (xInflictor.absmin + xInflictor.absmax) * 0.5;
+};
+
 // The blow VRMeleeDmg last priced, inside a hand's VR_Hit_Begin .. VR_Hit_End: its strength from speed alone
 // (mh_core; 0: none, as a test's or a headbutt's damage) and its hand.
 float vr_mdmg_core;

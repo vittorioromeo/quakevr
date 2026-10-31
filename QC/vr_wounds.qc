@@ -187,25 +187,8 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_Wound_Hit =
 
     if(kind != QVR_WOUND_BLAST)
     {
-        if(hit_pos != '0 0 0' && vlen(hit_pos - mid) < 64)
-        {
-            org = hit_pos;
-        }
-        else if(inflictor != targ && !(inflictor.flags & (FL_MONSTER | FL_CLIENT)) && vlen(inflictor.origin - mid) < 64)
-        {
-            org = inflictor.origin; // a missile where it touched
-        }
-        if(dir == '0 0 0' && inflictor != targ)
-        {
-            if(inflictor.velocity != '0 0 0' && !(inflictor.flags & (FL_MONSTER | FL_CLIENT)))
-            {
-                dir = inflictor.velocity; // a missile's flight
-            }
-            else
-            {
-                dir = mid - (inflictor.absmin + inflictor.absmax) * 0.5;
-            }
-        }
+        org = VR_Hit_Point(targ, inflictor, 64, TRUE);
+        dir = VR_Hit_Way(targ, inflictor, dir);
     }
     if(dir == '0 0 0')
     {
