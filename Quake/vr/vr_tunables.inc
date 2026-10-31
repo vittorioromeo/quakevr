@@ -853,6 +853,14 @@ QVR_TUNABLE(vr_agrunt_pcat_fist_range, "0.9") // you holding fists: the preventi
 QVR_TUNABLE(vr_agrunt_pcat_fist_windup, "1.1") // you holding fists: the wind-up's thresholds (height, side, back, read time) times this: above 1 a plainer raise
 QVR_TUNABLE(vr_agrunt_pcat_fist_pre, "0.6") // you holding fists: the preventive parry's chance besides (odds): under 1 it waits for your wind-up
 
+// Combat > Armed Grunts - Blade Contact
+QVR_TUNABLE(vr_agrunt_blade_hand_zone, "6") // units: a blow on a melee weapon met further than this from its hand and forearm is on its blade (sparks, the clang, no disarm, no damage); nearer, the hand's disarm rules
+QVR_TUNABLE(vr_agrunt_blade_least, "1.5") // m/s: a blow on its blade slower than this is no contact
+QVR_TUNABLE(vr_agrunt_blade_stagger_speed, "6") // m/s: a blow on its blade this fast staggers it, its weapon arm knocked along the blow (0: never)
+QVR_TUNABLE(vr_agrunt_blade_stagger_time, "0.5") // s that stagger lasts
+QVR_TUNABLE(vr_agrunt_blade_arm, "0.5") // the knock on its weapon arm: the hit reaction's share of its health per 10 m/s of the blow (0: none)
+QVR_TUNABLE(vr_agrunt_blade_fx, "1") // the contact's sparks and sound times this (0: none)
+
 // Combat > Armed Humanoid Replacements
 QVR_TUNABLE(vr_agrunt_repl_skill0, "0.5") // the chances above times this on Easy
 QVR_TUNABLE(vr_agrunt_repl_skill1, "1") // ... on Normal

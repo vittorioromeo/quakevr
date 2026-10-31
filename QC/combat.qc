@@ -2895,6 +2895,13 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRM
     {
         damage = VR_AGPar_Blow(targ, inflictor, attacker, damage);
         agp = vr_agpar_now;
+        if(vr_agbc_stopped)
+        {
+            // (stopped on its blade: VR_AG_BladeContact's sparks and clang already; nothing reaches its body)
+            vr_agbc_stopped = FALSE;
+            vr_agpar_now = FALSE;
+            return FALSE;
+        }
     }
     float prop = -1;
     if(vr_hitkind == QVR_HITKIND_MELEE && vr_melee_blowhand == vr_hithand + 1 && attacker == self &&

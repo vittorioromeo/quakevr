@@ -854,6 +854,14 @@ QVR_TUNABLE_SLIDER(vr_agrunt_pcat_fist_range, "Fists: Range", 0.0f, 3.0f, 0.05f,
 QVR_TUNABLE_SLIDER(vr_agrunt_pcat_fist_windup, "Fists: Wind-up Strictness", 0.0f, 3.0f, 0.05f, "%.2fx", 0.0f, 10.0f, "You holding fists: the wind-up's thresholds (height, side, back, read time) times this: above 1 a plainer raise (vr_agrunt_pcat_fist_windup).")
 QVR_TUNABLE_SLIDER(vr_agrunt_pcat_fist_pre, "Fists: Preventive Chance", 0.0f, 3.0f, 0.05f, "%.2fx", 0.0f, 10.0f, "You holding fists: the preventive parry's chance besides (odds): under 1 it waits for your wind-up (vr_agrunt_pcat_fist_pre).")
 
+QVR_TUNABLE_GROUP("Combat > Armed Grunts - Blade Contact")
+QVR_TUNABLE_SLIDER(vr_agrunt_blade_hand_zone, "Hand Zone", 0.0f, 20.0f, 0.5f, "%.1f units", 0.0f, 100.0f, "Your blow on a sword's (or any melee weapon's) blade met further than this from its hand and forearm is a blade contact: sparks, the clang, your weapon knocked back, no disarm, no damage. Nearer, the hand's disarm rules (vr_agrunt_blade_hand_zone).")
+QVR_TUNABLE_SLIDER(vr_agrunt_blade_least, "Least Speed", 0.0f, 5.0f, 0.1f, "%.1f m/s", 0.0f, 20.0f, "A blow on its blade slower than this is no contact (vr_agrunt_blade_least).")
+QVR_TUNABLE_SLIDER(vr_agrunt_blade_stagger_speed, "Stagger Threshold", 0.0f, 15.0f, 0.25f, "%.2f m/s", 0.0f, 50.0f, "A blow on its blade this fast staggers it, its weapon arm knocked along the blow. 0: never (vr_agrunt_blade_stagger_speed).")
+QVR_TUNABLE_SLIDER(vr_agrunt_blade_stagger_time, "Stagger Time", 0.05f, 2.0f, 0.05f, "%.2f s", 0.05f, 3.0f, "How long a strong blow on its blade staggers it (vr_agrunt_blade_stagger_time).")
+QVR_TUNABLE_SLIDER(vr_agrunt_blade_arm, "Arm Impulse", 0.0f, 2.0f, 0.05f, "%.2f", 0.0f, 10.0f, "How hard a staggering blow knocks its weapon arm along the blow (the hit reaction's strength per 10 m/s). 0: none (vr_agrunt_blade_arm).")
+QVR_TUNABLE_SLIDER(vr_agrunt_blade_fx, "Sparks and Sound", 0.0f, 3.0f, 0.1f, "%.1fx", 0.0f, 3.0f, "The blade contact's sparks and clang times this. 0: none (vr_agrunt_blade_fx).")
+
 QVR_TUNABLE_GROUP("Combat > Armed Humanoid Replacements")
 QVR_TUNABLE_SLIDER(vr_agrunt_repl_skill0, "Easy", 0.0f, 4.0f, 0.25f, "%.2fx", 0.0f, 4.0f, "The variety chances above times this at that skill (each chance at most 1).")
 QVR_TUNABLE_SLIDER(vr_agrunt_repl_skill1, "Normal", 0.0f, 4.0f, 0.25f, "%.2fx", 0.0f, 4.0f, "The variety chances above times this at that skill (each chance at most 1).")

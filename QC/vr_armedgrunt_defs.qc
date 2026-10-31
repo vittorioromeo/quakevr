@@ -83,6 +83,9 @@ void(entity e, vector at, float what, string why) VR_DV_Mark;
 .float vr_agpar_last;
 .float vr_agpar_hand;
 float vr_agpar_now;        // the blow being dealt was parried (T_Damage, T_Damage_VRMelee: no pain, no zone, no disarm by it)
+float vr_agbc_stopped;     // ... stopped on its blade (VR_AG_BladeContact: T_Damage_VRMelee deals nothing)
+.entity vr_agbc_by;        // the player whose blow its blade met last (VR_AG_BladeContact), and
+.vector vr_agbc_mark;      // ... [that hand + 1, when]: that motion's later blows on it stop there too
 float(entity targ, entity inflictor, entity attacker, float damage) VR_AGPar_Blow; // T_Damage, T_Damage_VRMelee
 float(entity g) VR_AGPar_Guards;                                           // VR_Guard_Hand: it parries instead
 void(entity g) VR_AGPar_Frame;                                             // VR_AG_PropThink: a blow coming
