@@ -1747,6 +1747,7 @@ void(entity g, entity p) VR_AGK_Hold =
 // Let go by the studio: its take, its attack and its target dropped.
 void(entity g) VR_AGK_Release =
 {
+    dprint("agk: the studio's hold let go (its Swing stopped, its pose dropped)\n");
     g.vr_agk_held = 0;
     g.vr_ag_took_at = 0;
     g.vr_ag_act = 0;

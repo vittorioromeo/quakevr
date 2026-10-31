@@ -4165,3 +4165,27 @@ His words (10-31): a debug view for it, leniencies he can tweak, slowed enemy sw
   but it is far shorter (14 units for a ~38-unit sword) and along another axis than the drawn butt-to-tip
   (view::weaponLocalGeometry by the renderer's matrix, as the Rig Studio's aim lines read it). Open: whether
   held::drawnExtent's forward axis or the measurement is wrong; the view shows both for him to judge.
+
+### Part 3 (branch `agent/dirparry2`, brief dirparry3)
+
+- **The truth: held::drawnExtent was wrong, the measurement right.** `vr_dirparry_linecheck dump` (new) prints the next
+  measured line, the drawn butt and muzzle and the model's triangles' box, all in the weapon's own frame (the renderer's
+  matrix taken off). The line's ends were exactly the box's x ends (frames agree: the drawn origin and turn are right),
+  but the models do not lie along x: v_ksword.mdl's box is x -5.5..8.6, z -9.2..26.8, its butt (-4.7, 0, -8.9) and
+  muzzle (8.1, 0, 26.8) (its tip, the box's top): the blade runs up z, tilted ~20 deg; the "line" was its guard, 14
+  units across. Likewise v_axe.mdl (box z -3.4..11.7), v_crowbar.mdl (z -7.5..10.8), mg3 v_hammer.mdl (z -8.1..9.4).
+  The fix is agent/disarmhull's (drawnExtent along the model's own longest axis / the hull's farthest corners: the
+  coordinator's call); this branch keeps a patch of its own butt-to-muzzle version aside (scratch, not committed).
+- `vr_dirparry_linecheck look [off]` (new): the headless mock's eyes put 30 / 40 units from the next measured weapon
+  (its flat side; above it) for an eye image (the drawn model, its line, the magenta drawn ends).
+- **Test 78** grows to 20 cases: the line cases now swing all four swing kinds each (0-3; the chainsaw also its
+  thrust): 13 sword, 14 axe, 15 knight's sword, 16 Mjolnir, 17 chainsaw, 18 AD crowbar, 19 AD super axe. `scratch1 N`
+  (13 on): only the line cases from N; `scratch2 1`: a close eye image of each (dump + look).
+- **Case 12's "500 damage" was a test artifact, not a bug.** No T_Damage reached you: the counter (your posed sword's
+  pommel strike, 45 to the grunt) earned melee bloodlust, T_Heal(attacker, ..., ignore) clamps health to the megahealth
+  cap (250), and the test's 1000 health became 250, then the agrunt tests' keep-alive floor 500: read as 500 damage (its
+  "by stl_noise" was a stale inflictor field). Test 78 now turns `vr_melee_bloodlust` off while it runs (1: off; 0 is
+  on) and puts it back at its end, and judges case 12 like the rest (its "not by its blow" excuse gone).
+- Checks: test 77 12/0; `vr_menu_path_check maps/vrcalibration.map` 6 found, 0 missing. The Rig Studio Swing in the
+  mock (`vr_rigstudio monster_vr_grunt 13; vr_rigstudio_posekey kind 0 class 2 pose 14 swingspeed 0.25 swing 1`):
+  not verified, the studio had no subject attached (`subject -1 -1`, no `agk:` play line) in that script.

@@ -25,14 +25,18 @@
 //   the swing twice as long (its times, VR_AGP_Length; and as measured, to its think's 0.1 s);  12 speed 0.5, case 2:
 //   parried as at full speed.
 // The weapon's line as the parry reads it (Show Directional Parry draws it every frame; VR_DRP_DebugLine): 13 a sword,
-//   14 an axe, 15 an armed knight's sword (vr_agknight), each swinging a side swing (its blade level) at your fists:
-//   every frame from its hold to its swing's end, the line's ends (VR_AG_WeaponLine) within 1 unit of the drawn
-//   weapon's own butt and tip (its model's, by the renderer's matrix: debugdirparryline); case 13's eye image mid-strike.
+//   14 an axe, 15 an armed knight's sword (vr_agknight), 16 Mjolnir, 17 a chainsaw (and its thrust), 18 AD's crowbar,
+//   19 AD's super axe, each swinging its four swings (kinds 0-3) at your fists: every frame from its hold to its last
+//   swing's end, the line's ends (VR_AG_WeaponLine) within 1 unit of the drawn weapon's own butt and tip (its model's,
+//   by the renderer's matrix: debugdirparryline); case 13's eye image mid-strike. `scratch1 N` (13 on): from case N;
+//   `scratch2 1`: each line case's eye image from close up (vr_dirparry_linecheck look), its line printed in its frame.
 // Each `agtest: PASS|FAIL dirparry <case>: ...`; ends on `agtest: test 78 over: P passed, F failed`.
 // ----------------------------------------------------------------------------
 
-float VR_DRPT_CASES = 16;
+float VR_DRPT_CASES = 20;
 float vr_drpt_case;      // the case running
+float vr_drpt_lk;        // a line case's swing (0-3 its kinds, 4 the chainsaw's thrust)
+float vr_drpt_keep_lust; // vr_melee_bloodlust before (off during the test)
 float vr_drpt_until;     // its give-up time (a safety net: FAIL "timed out")
 float vr_drpt_keep_on;   // cvars before (put back at the end)
 float vr_drpt_keep_parry;
@@ -88,9 +92,13 @@ string(float c) VR_DRPT_Name =
     if(c == 10) { return "contact distance past its gap: horizontal vs your sword level across"; }
     if(c == 11) { return "Enemy Melee Speed 0.5: overhead vs your fists"; }
     if(c == 12) { return "Enemy Melee Speed 0.5: overhead vs your sword level across"; }
-    if(c == 13) { return "the line on the drawn weapon: a grunt's sword, its side swing"; }
-    if(c == 14) { return "the line on the drawn weapon: a grunt's axe, its side swing"; }
-    return "the line on the drawn weapon: an armed knight's sword, its side swing";
+    if(c == 13) { return "the line on the drawn weapon: a grunt's sword, swings 0-3"; }
+    if(c == 14) { return "the line on the drawn weapon: a grunt's axe, swings 0-3"; }
+    if(c == 15) { return "the line on the drawn weapon: an armed knight's sword, swings 0-3"; }
+    if(c == 16) { return "the line on the drawn weapon: a grunt's Mjolnir, swings 0-3"; }
+    if(c == 17) { return "the line on the drawn weapon: a grunt's chainsaw, swings 0-3 and its thrust"; }
+    if(c == 18) { return "the line on the drawn weapon: a grunt's crowbar (AD), swings 0-3"; }
+    return "the line on the drawn weapon: a grunt's super axe (AD), swings 0-3";
 };
 
 // An armed knight `dist` ahead of you (vr_agknight on: monster_knight makes it an armed humanoid with a sword).
@@ -117,8 +125,20 @@ entity(float dist) VR_DRPT_Knight =
 // The case whose geometry (its swing, your weapon and its pose) case `c` takes.
 float(float c) VR_DRPT_Geo = { return ((c == 9) || (c == 12)) ? 2 : (c == 10) ? 5 : (c == 11) ? 0 : (c >= 13) ? 1 : c; };
 
+// A line case's weapon (13 on): a sword, an axe, (15 the armed knight's sword), Mjolnir, a chainsaw, AD's crowbar and
+// its super axe.
+float(float c) VR_DRPT_LineWid =
+{
+    return c == 14 ? WID_AXE : c == 16 ? WID_MJOLNIR : c == 17 ? WID_CHAINSAW : c == 18 ? WID_CROWBAR : c == 19 ?
+        WID_SUPERAXE : WID_SWORD;
+};
+
 float(float c) VR_DRPT_Kind =
 {
+    if(c >= 13)
+    {
+        return vr_drpt_lk; // (a line case: each swing kind in turn)
+    }
     float g = VR_DRPT_Geo(c);
     return (g == 0 || g == 2 || g == 3 || g == 6 || g == 7) ? 0 : 2;
 };
@@ -192,6 +212,7 @@ void() VR_DRPT_End =
     cvar_set("vr_dirparry_debug", ftos(vr_drpt_keep_debug));
     cvar_set("vr_agrunt_melee_speed", ftos(vr_drpt_keep_speed));
     cvar_set("vr_agknight", ftos(vr_drpt_keep_knight));
+    cvar_set("vr_melee_bloodlust", ftos(vr_drpt_keep_lust));
     localcmd("vr_mock_button main grip 0\n");
     VR_AGPT_Clear();
     VR_AGPT_EmptyHand(p);
@@ -212,13 +233,6 @@ void(entity g, float c) VR_DRPT_Judge =
     float ok;
     string got = sprintf("hurt %g, directional parries %g (early %g), sparks %g, readings %g", hurt, parries, vr_drp_early,
         fx, evals);
-    if(c == 12 && hurt > 0 && vr_drpt_hurt_by != g)
-    {
-        // (slowed, the judging comes later: after its parried swing your posed sword's counter (a pommel strike) and a
-        // hit from elsewhere (vr_shove) can hurt you; its own blow did not)
-        got = sprintf("%s (not by its blow: by %s)", got, vr_drpt_hurt_by.classname);
-        hurt = 0;
-    }
     if(vr_drp_hand >= 0)
     {
         got = sprintf("%s; last: score %.2f, %.0f deg off square, gap %.1f", got, vr_drp_score, vr_drp_off, vr_drp_gap);
@@ -326,10 +340,18 @@ void() VR_DRPT_Frame =
             vr_drpt_keep_debug = cvar("vr_dirparry_debug");
             vr_drpt_keep_speed = cvar("vr_agrunt_melee_speed");
             vr_drpt_keep_knight = cvar("vr_agknight");
+            vr_drpt_keep_lust = cvar("vr_melee_bloodlust");
+            // (your melee's bloodlust off: a hit of yours (case 12's counter, your posed sword's pommel) heals you, and
+            // a heal clamps your 1000 test health to the megahealth cap (T_Heal: 250): read as 750 damage)
+            cvar_set("vr_melee_bloodlust", ftos(QVR_MELEEBLOODLUST_DISABLED)); // (0 is on: QVR_MELEEBLOODLUST_ENABLED)
             cvar_set("vr_agrunt_parry", "0"); // (its own guard and parries out of it: its swing as forced)
             localcmd("vr_mock_button main grip 1\n"); // (your weapon held: not let go of)
             p.flags = p.flags | FL_NOTARGET;
             vr_drpt_home = p.origin;
+            if(rint(cvar("scratch1")) >= 13)
+            {
+                c = vr_drpt_case = rint(cvar("scratch1")); // (scratch1 N >= 13: the line cases from N; they need no reference)
+            }
         }
         setorigin(p, vr_drpt_home); // (where the reference swings found you: a blow's knockback undone)
         p.velocity = '0 0 0';
@@ -395,7 +417,8 @@ void() VR_DRPT_Frame =
             vr_drpt_posed = TRUE;
             VR_DRPT_Apply(p);
         }
-        vr_agt_grunt = c == 15 ? VR_DRPT_Knight(60) : VR_AGT_Spawn(c == 14 ? WID_AXE : WID_SWORD, 60);
+        vr_agt_grunt = c == 15 ? VR_DRPT_Knight(60) : VR_AGT_Spawn(c >= 13 ? VR_DRPT_LineWid(c) : WID_SWORD, 60);
+        vr_drpt_lk = 0;
         vr_agt_step = 2;
         return;
     }
@@ -422,6 +445,21 @@ void() VR_DRPT_Frame =
         if(c >= 11)
         {
             p.vr_stamina_used = 0; // (rested: the cases before spent none of this one's; 0-10 as they were)
+        }
+        if(c >= 13 && vr_drpt_lk > 0)
+        {
+            // (a line case's next swing: its counts go on)
+            entity was2 = self;
+            self = g;
+            g.enemy = p;
+            VR_AGP_Begin(vr_drpt_lk >= 4 ? VR_AGP_SAW : VR_AGP_SWING);
+            g.vr_ag_act_kind = min(3, vr_drpt_lk);
+            g.vr_ag_act_hand = 0;
+            g.vr_ag_act_var = 0.5;
+            self = was2;
+            vr_drpt_t0 = time;
+            vr_agt_step = 3;
+            return;
         }
         vr_drpt_ev0 = vr_drp_evals;
         vr_drpt_pr0 = vr_drp_parries;
@@ -474,11 +512,21 @@ void() VR_DRPT_Frame =
             vr_drpt_hurt_by = p.dmg_inflictor;
             vr_drpt_hurt_at = time - vr_drpt_t0;
         }
-        if(c == 13 && !vr_drpt_shot && time - vr_drpt_t0 >= vr_agp_tw + vr_agp_ts * 0.5)
+        if(c >= 13 && !vr_drpt_shot && time - vr_drpt_t0 >= vr_agp_tw + vr_agp_ts * 0.5)
         {
             vr_drpt_shot = TRUE;
-            cvar_set("vr_eyeshot", "3"); // (mid-strike: its line, last frame's and the drawn ends)
-            VR_AGT_Print("dirparryshot: the sword's line mid-strike");
+            localcmd("vr_dirparry_linecheck dump\n"); // (its line and the drawn weapon's ends in its own frame, printed)
+            if(cvar("scratch2") > 0)
+            {
+                // (scratch2 1: the eyes close to its weapon, both sides, then their image)
+                localcmd("vr_dirparry_linecheck look\nwait\nwait\nvr_eyeshot 3\n");
+                VR_AGT_Print(sprintf("dirparryshot: case %g's line mid-strike, close", c));
+            }
+            else if(c == 13)
+            {
+                cvar_set("vr_eyeshot", "3"); // (mid-strike: its line, last frame's and the drawn ends)
+                VR_AGT_Print(sprintf("dirparryshot: case %g's line mid-strike", c));
+            }
         }
         if(g.vr_ag_act == VR_AGP_SWING)
         {
@@ -488,6 +536,13 @@ void() VR_DRPT_Frame =
         // Its swing's whole length (wind-up, strike, recovery) gone by: judged.
         if(time - vr_drpt_t0 < VR_AGP_Length(g) + 0.05)
         {
+            return;
+        }
+        if(c >= 13 && vr_drpt_lk < (VR_DRPT_LineWid(c) == WID_CHAINSAW ? 4 : 3))
+        {
+            vr_drpt_lk = vr_drpt_lk + 1; // (a line case: its next swing kind, then the chainsaw's thrust)
+            vr_drpt_until = time + 5;
+            vr_agt_step = 2;
             return;
         }
         VR_DRPT_Judge(g, c);

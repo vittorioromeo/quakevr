@@ -2,15 +2,18 @@
 
 #include "vr_dirparryviz.hpp"
 
+#include "vr_backend.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_geom.hpp"
+#include "vr_grasp.hpp"
 #include "vr_lines.hpp"
 #include "vr_render.hpp"
 #include "vr_text3d.hpp"
 #include "vr_view.hpp"
 
 #include "Zancle/Container/Array.hpp"
+#include "Zancle/Math/Asin.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -99,6 +102,9 @@ struct Viz
     int trackCount{0};
     za::Array<Drawn, maxTracks> drawn{};
     Check check;
+    bool dump{false}; // vr_dirparry_linecheck dump: the next measured line printed in the weapon's own frame
+    bool look{false}; // vr_dirparry_linecheck look: the mock's eyes put close to the next measured weapon
+    bool cams{false}; // ... they are
 };
 Viz viz;
 
@@ -341,6 +347,51 @@ void PF_debugdirparryline()
         viz.check.worstBack = za::max(viz.check.worstBack, back);
         viz.check.worstFront = za::max(viz.check.worstFront, front);
         G_FLOAT(OFS_RETURN) = za::max(back, front);
+        if(viz.look)
+        {
+            // The headless mock's eyes close to it (the left from its flat side, 30 units; the right from above that
+            // side, 40): its drawn model, its line and the drawn ends in one eye image (vr_eyeshot).
+            viz.look = false;
+            viz.cams = true;
+            const glm::vec3 mid = (t.butt + t.tip) * 0.5f;
+            const glm::vec3 side = glm::normalize(glm::vec3{w[1]});
+            const glm::vec3 at[2] = {mid + side * 30.f, mid + glm::normalize(side + glm::vec3{0.f, 0.f, 1.f}) * 40.f};
+            float pitch[2], yaw[2];
+            for(int i = 0; i < 2; i++)
+            {
+                const glm::vec3 d = glm::normalize(mid - at[i]);
+                pitch[i] = -za::asin(d.z) * (180.f / 3.14159265f);
+                yaw[i] = za::atan2(d.y, d.x) * (180.f / 3.14159265f);
+            }
+            setMockEyeCameras(true, at, pitch, yaw);
+        }
+        if(viz.dump)
+        {
+            viz.dump = false;
+            const glm::mat4 inv = glm::inverse(w);
+            const glm::vec3 la{inv * glm::vec4{t.a, 1.f}}, lb{inv * glm::vec4{t.b, 1.f}};
+            glm::vec3 lo{1e30f}, hi{-1e30f};
+            entity_t at{};
+            at.model = cl_entities[t.num].model;
+            at.scale = ENTSCALE_DEFAULT;
+            if(const grasp::Shape* shape = grasp::shapeOf(at, -1))
+            {
+                const glm::mat4 m = grasp::shapeToWorld(at, false);
+                for(const grasp::Triangle& tri : shape->tris)
+                {
+                    for(const glm::vec3& p : tri.p)
+                    {
+                        const glm::vec3 v{m * glm::vec4{p, 1.f}};
+                        lo = glm::min(lo, v);
+                        hi = glm::max(hi, v);
+                    }
+                }
+            }
+            Con_Printf("dirparryviz: dump %s: in its own frame: line %.1f %.1f %.1f .. %.1f %.1f %.1f; butt %.1f %.1f %.1f, "
+                       "muzzle %.1f %.1f %.1f; its triangles' box %.1f %.1f %.1f .. %.1f %.1f %.1f\n",
+                at.model->name, la.x, la.y, la.z, lb.x, lb.y, lb.z, butt.x, butt.y, butt.z, muzzle.x, muzzle.y, muzzle.z,
+                lo.x, lo.y, lo.z, hi.x, hi.y, hi.z);
+        }
     }
 }
 
@@ -434,6 +485,22 @@ void lineCheck_f()
     if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "reset"))
     {
         viz.check = Check{};
+    }
+    if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "dump"))
+    {
+        viz.dump = true; // (printed as the next line is measured)
+        return;
+    }
+    if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "look"))
+    {
+        const bool off = Cmd_Argc() > 2 && !strcmp(Cmd_Argv(2), "off");
+        viz.look = !off;
+        if(off && viz.cams)
+        {
+            viz.cams = false;
+            setMockEyeCameras(false);
+        }
+        return;
     }
     Con_Printf("dirparryviz: line check: %d frames measured, worst back %.2f units, worst front %.2f units\n",
         viz.check.frames, static_cast<double>(viz.check.worstBack), static_cast<double>(viz.check.worstFront));
