@@ -1,0 +1,8 @@
+# grunts_to_throw: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Plain grunts and an ogre to grab, throw, slam and shove.
+title Plain grunts and an ogre close by to grab, throw, slam and shove (calm)
+map vrtesthall
+god
+notarget
+spawn "Grunt" 60 30
+spawn "Grunt" 70 -40
+spawn "Ogre" 180 0

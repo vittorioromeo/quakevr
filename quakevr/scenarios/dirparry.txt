@@ -1,0 +1,8 @@
+# dirparry: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Directional Parry on, a sword grunt swinging at you, the volumes shown.
+title Directional Parry: a sword grunt swinging at you, a sword in hand, Show Disarm Volumes on (god)
+map vrtesthall
+god
+cvar vr_dirparry 1
+cvar vr_debug_disarm 1
+give "Knight's Sword" main
+spawn "Armed Grunt: Sword" 160 0

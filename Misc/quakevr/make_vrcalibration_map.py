@@ -21,9 +21,13 @@
 #
 # The board names menu pages as {menu:<page title>} (or {menu:<title>><row>}): the engine writes each one's path from the
 # main menu as the menus are when the map loads (menu::expandPaths), and `vr_menu_path_check maps/vrcalibration.map`
-# lists them and fails on one that no longer exists. When menus change, run that check.
+# lists them and fails on one that no longer exists. The specs come from Misc/quakevr/menu_paths.txt (menu_paths.py, the
+# game's vr_menu_dump_paths): a setting's row by its cvar (its label read there), a page or a button checked there, so a
+# renamed row needs no edit here and a page or button gone stops this script. When menus change, regenerate
+# menu_paths.txt, run this, then that check.
 import argparse
 import itertools
+import menu_paths  # (beside this script)
 import math
 import os
 import re
@@ -361,11 +365,15 @@ TEXT_Y = H - 4
 board("VR CALIBRATION", 0, TEXT_Y, 140, 270, "0.7")
 board(N.join(["Stand in the middle of your play space", "and follow the words in front of you:",
               "your height, then your body."]), 0, TEXT_Y, 122, 270, "0.33")
-board(N.join(["Again later, from the menus:", "Height: {menu:VR Settings - Height and Hand Calibration>Set Height Now}",
-              "Body: {menu:Body Calibration}"]), 0, TEXT_Y, 100, 270, "0.28")
-board(N.join(["Hands: {menu:Hand/Gun Calibration}", "Seated? {menu:Body Calibration>Position}", "Look: {menu:VR Settings - Player Appearance}"]),
+MENU = menu_paths.load()
+board(N.join(["Again later, from the menus:",
+              "Height: " + menu_paths.board("VR Settings - Height and Hand Calibration", "Set Height Now", entries=MENU),
+              "Body: " + menu_paths.board("Body Calibration", entries=MENU)]), 0, TEXT_Y, 100, 270, "0.28")
+board(N.join(["Hands: " + menu_paths.board("Hand/Gun Calibration", entries=MENU),
+              "Seated? " + menu_paths.board("Body Calibration", cvar="vr_bodycal_seated", entries=MENU),
+              "Look: " + menu_paths.board("VR Settings - Player Appearance", entries=MENU)]),
       0, TEXT_Y, 78, 270, "0.28")
-board("Blood edge sizes: {menu:Blood Feedback}", 0, TEXT_Y, 60, 270, "0.23")
+board("Blood edge sizes: " + menu_paths.board("Blood Feedback", entries=MENU), 0, TEXT_Y, 60, 270, "0.23")
 # over the doorway, where it leads: "{calibration exit}" is VR TUTORIAL at a first start (QC changelevel_touch sends it
 # there until the tutorial has been started once), else VR HUB (the engine, as the room loads: vr_worldtext.cpp)
 board(N.join(["{calibration exit}", "Walk through when you are done."]), 0, -H + 7, DOOR_Z + CASE + 20, 90, "0.33")

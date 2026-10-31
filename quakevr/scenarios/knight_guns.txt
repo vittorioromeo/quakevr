@@ -1,0 +1,14 @@
+# knight_guns: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Armed knights and death knights with guns, pistols and their own swords.
+title Armed knights and death knights with a shotgun, a nail pistol, two pistols, their own swords (god)
+map vrtesthall
+god
+cvar vr_agknight 1
+cvar vr_agdknight 1
+cvar vr_agknight_ranged_pickup 0
+spawnarmed monster_vr_knight 4 0 400 0
+spawnarmed monster_vr_knight 29 0 450 120
+spawnarmed monster_vr_knight 29 29 450 -120
+spawnarmed monster_vr_hknight 29 29 520 60
+spawnarmed monster_vr_hknight 4 0 520 -60
+spawnarmed monster_vr_knight 13 0 300 200
+spawnarmed monster_vr_hknight 0 0 300 -200

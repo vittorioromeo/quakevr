@@ -137,6 +137,7 @@ vr_agrunt_test   77       vr_armedgrunt_blade_test.qc      your blow on a melee 
 vr_agrunt_test   78       vr_dirparry_test.qc              the directional parry: its overhead or side swing parried by your weapon held across its way (vr_dirparry)
 vr_agrunt_test   88       vr_armedgrunt_ragweapon_test.qc  the held weapon on an active ragdoll's hand
 vr_agrunt_test   89       vr_armedgrunt_shoveclose_test.qc a gun's holder shoves up close
+vr_agrunt_test   18       vr_armedgrunt_reach_test.qc      melee spacing: a long blade's standoff from its reach, its blows landing (vr_agrunt_mspace)
 vr_agrunt_test   90       vr_armedgrunt_guard_test.qc      an unarmed enforcer's guard in game as the Pose Studio holds its Aim key
 vr_agrunt_test   91       vr_armedgrunt_raggrab_test.qc    an active ragdoll's weapon grabbed at the gun, its hand or forearm: a tug, won
 vr_agrunt_test   92       vr_armedgrunt_twohand_test.qc    two hands in the tug; a staggering or downed one's eased tug

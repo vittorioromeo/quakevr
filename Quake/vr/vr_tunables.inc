@@ -606,6 +606,9 @@ QVR_TUNABLE(vr_ad_widowmaker_spin, "1")
 QVR_TUNABLE(vr_ad_widowmaker_spinup, "0.75") // (also the wait before the first shot: the barrels must reach firing speed; QC AD_WidowmakerSpinFrame)
 QVR_TUNABLE(vr_ad_widowmaker_spindown, "0.9")
 
+// Weapons > Reloading - Plasma Gun
+QVR_TUNABLE(vr_ad_plasmagun_cell, "16") // the cells its cell holds (the thunderbolt's holds 36; his 16, 2026-10-31; QC VR_ClipSizeOf)
+
 // Weapons > Weapon Effects
 QVR_TUNABLE(vr_autopump_travel, "2.5") // how far back the fore-end goes, in the gun model's units (0-3.2; about 3.8 cm each, drawn)
 QVR_TUNABLE(vr_muzzle_flash_enemy_size, "1") // their flashes' size (times a third of their gun's length)
@@ -1301,7 +1304,7 @@ QVR_TUNABLE(vr_flare_light, "1") // their lights' size and brightness (0: none)
 QVR_TUNABLE(vr_flare_sparks, "1") // their sparks and smoke (0: none)
 QVR_TUNABLE(vr_nailpistol_mag, "12") // the rounds its magazine holds (a nail each)
 QVR_TUNABLE(vr_nailpistol_slide_cycle, "0.14") // s back and home after a shot (a third back, the rest home; a re-rack closes in the home part)
-QVR_TUNABLE(vr_nailpistol_slide_delay, "0.25") // s from a magazine seated to its slide racking closed (0: at once); it cannot fire before
+QVR_TUNABLE(vr_nailpistol_slide_delay, "0.175") // s from a magazine seated to its slide racking closed (0: at once); it cannot fire before
 QVR_TUNABLE(vr_dmg_revolver, "28") // the heavy revolver (QC vr_revolver.qc): a slug's (a grunt, 30: one in the head at x1.5, two in the body, or one when its roll reaches 30; vr_revolver_heavy_mult in a big body; his 28 of 2026-10-27, was 26)
 QVR_TUNABLE(vr_revolver_dmg_random, "0.15") // up to this share more damage at random, each slug (at damage 28 a grunt's body shot reaches its 30 about half the time)
 QVR_TUNABLE(vr_revolver_heavy_health, "150") // the full health from which a monster's body is big (vr_revolver_heavy_mult)

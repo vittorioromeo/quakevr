@@ -2581,6 +2581,14 @@ bool swapExternal(Snapshot& s, Snapshot& back)
         st.aim.atCamera = false; // (put back where it was: no longer on the camera)
         return true;
     }
+    if(s.posesEntry)
+    {
+        back.posesEntry = true;
+        back.posesText = za::String{vr_agrunt_poses.string ? vr_agrunt_poses.string : ""};
+        back.what = s.what;
+        Cvar_SetQuick(&vr_agrunt_poses, s.posesText.cStr());
+        return true;
+    }
     if(s.poseCode >= 0)
     {
         back.poseCode = s.poseCode;
@@ -2666,6 +2674,16 @@ void pushPoseUndo(int code)
     s.poseCode = code;
     s.poseKey = agpose::value(code);
     s.what = "pose key";
+    st.undo.pushBack(ZA_MOVE(s));
+    st.redo.clear();
+}
+
+void pushPosesUndo(const char* what)
+{
+    Snapshot s;
+    s.posesEntry = true;
+    s.posesText = za::String{vr_agrunt_poses.string ? vr_agrunt_poses.string : ""};
+    s.what = what;
     st.undo.pushBack(ZA_MOVE(s));
     st.redo.clear();
 }

@@ -3933,6 +3933,33 @@ Checklist:
   sliders); let go: the next shots kick one-handed again, the change smooth.
 - [offhandrecoil] Off hand holding a shell or magazine against the gun while firing: full one-handed kick.
 
+## One settings schema (branch `agent/setschema`; design review 9)
+
+A setting's menu row is written once: `Quake/vr/vr_menu_rows.inc` holds its label, range, step, format, extent, help and
+choices (`QVR_TOGGLE` / `QVR_SLIDER` / `QVR_CYCLE`; `_BYNAME` for a row that finds its cvar by name, as Ironwail's), and
+a page lists `row(opt::<cvar>)` (`.advanced()` / `.developer()` stay on the page). `opt::Id` is an enum made from the
+table (a typo does not compile); `row()` (vr_menu.cpp) builds the same `Item` the old builder calls did. CODE_STYLE.md,
+"Settings and the config".
+
+- **Converter:** `Misc/quakevr/settings_schema.py convert` (run once; `stats` says what it would do): 2,533 rows of
+  2,513 settings, every `toggle`/`slider`/`cycle` with literal arguments and its `.extend`/`.help`. Left written on their
+  pages: a setting's second row with other texts (91; the player page's row is the schema's, Debug's stays), rows with
+  code in them (lambdas, computed ranges or choices, `unavailableBecause` keeps its tail), and the weapon/prop offset
+  and Tunables pages (design review 3's; the Tunables rows are already `vr_tunables_rows.inc`).
+- **Menu paths:** `vr_menu_dump_paths` prints Search's index (every page and row, its cvar, level, page, label and path)
+  as `MP|` lines; `Misc/quakevr/menu_paths.py <log>` keeps them in `Misc/quakevr/menu_paths.txt` (8,279). The
+  calibration board's `{menu:...}` come from it (`menu_paths.board(page, button | cvar=)`: the seated row by its cvar;
+  a page or button gone stops the script). `settings_schema.py strip-comments` took 49 "Page > Section > Row:" prefixes
+  out of vr_cvars.inc comments (20 kept: no row in the menus). `vr_menu_dump <level> full` prints every row's fields.
+- **The tools that read vr_cvars.inc** (gen_vr_cvars_qc.py, cvar_inventory.py, blade_defaults.py, the kit's run.ps1 and
+  runq2.ps1, its refactor scans) need no change: the `QVR_CVAR` lines keep their form, and the table's name matches
+  cvar_inventory's menu files (`vr_menu*.inc`). The kit's tiers_scan.py (done, one-off) read builder calls on pages.
+- **Lines:** the menu sources 6,091 removed, 2,648 added; vr_menu_rows.inc 6,755 (the help texts moved, not cut).
+- Checks: `vr_menu_dump 2 full` (46,781 lines: every page, row, label, range, step, format, extent, level, choice and
+  help) and `vr_menu_dump_paths` (8,279: Search's index) identical before/after but for the build line;
+  `vr_menu_path_check maps/vrcalibration.map` 6 found, 0 missing; the calibration .map regenerates identical; the
+  release code builds (`/p:QvrRelease=1`, separate output dir; no `tune_reset` in the exe); run_baseline.sh (below).
+
 ## Worn backpack: a hard pull lifts its wearer instead of ripping (branch `agent/packragdoll`)
 
 His words: "Add an option to disable ripping out worn backpacks by tugging ... and instead make it so that pulling an
@@ -3978,6 +4005,35 @@ Checklist:
   it flails in your hand, pack still on.
 - [packragdoll] Same mode: shooting or hitting a grunt's pack still tears it off; force-grab a dead one's pack: it comes off.
 
+## Explicit climb phases (design review 8, stage 1 of 3; branch `agent/phases`)
+
+The climber (vr_climb.cpp) has one `Phase {Free, Hanging, Slipping, Mantling}` and one `transition(ent, c, to, why)`
+holding the entry/exit work that was spread over seven places: the regrab delay, the release's fling, the exhausted
+let-go's buzz, gasp and stop, the slip's start (timer, buzz, gasp), the mantle's start (grips off, owed pull cleared,
+grunt), the new hang's low-stamina breath state. `Why` (11 reasons) says which. The `mantling` and `slipping` bools are
+gone; which hands hold stays each grip's `active` (real data), and `anyHeld()` reads it where the grips change within a
+frame (the pre-think's settle, the out-of-reach check, a mover's carry). `VR_ClientClimb` and the pre-think's settle are
+`switch(phase)`; `hangFrame`, `takeHold` (out of `gripHand`, 158 -> 96 lines) and `startMantle` (out of `tryMantle`)
+are split out; no climb frame function is over 100 lines.
+
+Verified: stage A (the phase kept beside the old flags, a per-frame shadow check deriving it from them) over prop_climb
+and slopes: no mismatch, no impossible combination reached. Stage B (flags gone): prop_climb 12/0 (as baseline), slopes
+8/0, prop_grab 8 pass, prop_sides all ok, mantle_height PASS, ragdoll climb 20/4 (the 4 known "too weak to rise"); A and
+B verdicts identical. Full baseline and A/B bench skipped (velocity rule).
+
+One combination the old code could reach, by reading: `slipping` stayed set after both hands let go by the grip (no
+`letGoAll` on that path), so a later hang began slipping for its first frame (no mantle, a sink of 8 u/s for 1/72 s)
+until the stamina check cleared it. Free now means not slipping; a later hang starts clean.
+
+Next: stage 2 (foe grab's `Holder`: phases one hand, two hands, leg drag, neck, carried/lifted, with its `Why`), then
+stage 3 (ragactive `Mode` over its 10 sub-machines; about 150 `.on` reads across them to sort into own vs pairwise).
+
+Checklist:
+- [phases] Climbing: take a ledge with one hand, then both, shimmy, let go (you drop, flung by the release), take it
+  again after the short delay; pull up and over (mantle, the grunt), and on a ledge with no room (the soft buzz).
+- [phases] Stamina on, Slip on: hang until it runs out: the gasp and buzz, you sink and slip off; let go and grab again
+  once stamina is back: a normal hang (no instant slip). Slip 0: you drop at once with the gasp.
+- [phases] Hang from a moving platform or lift, and from a prop (crate): carried along; get knocked off by an explosion.
 ## Knight two-pistol hold: the knights' Main and Off grips (branch `agent/kngrip`)
 
 His ask: address knightpose's leftovers (kinds 2 and 3 had a Second grip row but no Main or Off). **Confirmed wrong.**
@@ -4216,3 +4272,139 @@ Part 2 (verified, finished):
   horizontal-swing cases; unchanged by the line fix). Screenshots: not taken (the mock run's `screenshot` shows the
   console, and no eyeshots were written); test 17 sets up both views for a look. Skipped by the coordinator's rule: the wide subset, eval.sh (no melee code), the
   before screenshots.
+## One shared Pickup pose per kind, overrides per class (branch `agent/sharedpickup`)
+
+His ask (10-31): "one pickup pose shared across all weapons would simplify things a lot".
+
+- **Data** (`vr_agpose.hpp/.cpp`): each kind has a shared Pickup key, its code on class 7 (`VR_AGK_SHARED`, no
+  class's: `agpose::sharedPickupCode`, 7030 the grunt's). A class's own Pickup code (as before, e.g. 17030) is an
+  **override**, used only where set: archived, or shipped (own row, else the followed kind's, fitted: shippedOf's
+  rules; no gun category takes the rifle's Pickup row any more). `agpose::get`/`set`/`setPreview` of a class's Pickup
+  code with no override go to the shared key (`editTarget`), so QC (`VR_AGK_Keys`, unchanged), the Pose Studio, the
+  Rig Studio, the Pose Keys tool and the aim line all read and edit the right key with the codes they used. Old
+  archived per-class Pickup keys load as that class's override. "Remove Override" on a class that ships one archives a
+  "no override" mark (the class's Pickup phase 2, all zero); `pose_defaults.py` turns a mark into dropping the shipped
+  override row. `copyKind` copies the overrides as overrides; `dropShippedEqual` keeps an override that ships none.
+- **Shipped defaults:** the shared key per kind is the rifle's Pickup (his tuned rifle row: the grunt's 1030, the
+  enforcer's 101030; the class every gun used before the categories). Threshold 0.5 units / 1 degree / the off-hand
+  mode: every other grunt Pickup row differs by more, so all stay as overrides (max place / turn difference from the
+  rifle): pistol 9.55 / 36.6 and Free off hand, launcher 9.69 / 0, sprayer 3.25 / 0, laser cannon 4.39 / 0, Widowmaker
+  4.28 / 0 (the four only in the off hand's Left Place and its elbow pole: probably unused while the off hand is on
+  the gun; try Remove Override on them), two guns 25.3 / 39.8, one-handed melee 23.6 / 27.5, chainsaw 9.19 / 48.6, two
+  melee 20.7 / 29.6. Dropped: the rifle rows (now the shared ones). The knights follow the grunt's, fitted.
+- **Studios:** Pickup is listed for every class including the fists, named "Pickup (shared)" or "Pickup (override)".
+  Rig Studio Pose Keys: Make Override for this class / Remove Override (use shared) (undo: the keys' text), Reset This
+  Pose resets the key its edits keep, Chest Bend (standing, kneeling). VR Pose Studio: one more panel row, shown in
+  Pickup, Make Override / Remove Override (its undo as every edit). `vr_agrunt_pose_override <kind> <class> [1|0]`;
+  `vr_agrunt_pose_dump pickup` prints each class's Pickup in effect and whose; `dump` (Print) and `dump all` list the
+  shared key and the overrides.
+- **Bend tunables:** `vr_agrunt_take_bend` 28 and `vr_agrunt_take_bend_kneel` 45 (archived) replace QC's
+  `VR_AGP_TAKE_BEND` / `_KNEEL` constants.
+- A fists subject in the studio shows no take (no weapon to take up); its Pickup edits the shared key all the same.
+- **Verified:** the effective Pickup of every kind x class (`vr_agrunt_pose_dump pickup`, against the old shipped table
+  under the old rules): 36 of 48 identical, every override exactly as before; now on the shared key and different
+  (they had no Pickup row: QC's pose alone) only the two-handed melee class of every kind, the fists (never take), and
+  the enforcer's two guns, melee, two-handed melee, chainsaw and two melee classes (the enforcer's rifle key: the right
+  hand 16.46 up). Grunt 9 overrides, enforcer 0, knights 9 (the grunt's, fitted). Pose Keys test grunt 13/1, knight +
+  shotgun 14/0, death knight 13/1 (the elbow step: the known failure); test 41 0/0 (over, as the baseline). Mock
+  screenshot: test 34's grunt at the grab over its shotgun, kneeling, nothing through the floor.
+
+Checklist:
+- Rig Studio > Pose Studio Data > Pose Keys, a grunt with a shotgun, Pose Pickup: it says "Pickup (shared)"; drag the
+  weapon: every class without an override (switch Class to Two-Handed Melee) moves with it; Undo.
+- Same, Class Pistol: "Pickup (override)"; Remove Override (use shared): the pistol now takes the rifle's Pickup;
+  Undo puts the override back; Make Override on the rifle, drag: only the rifle moves.
+- VR Pose Studio in Pickup: the bottom row's Make Override / Remove Override toggles the same.
+- Chest Bend (standing, kneeling) in Pickup: a grunt taking up a weapon bends more or less.
+
+## The Plasma Gun's cell holds 16; his recoil values of 2026-10-31 shipped (branch `agent/recoilpromo`)
+
+His voice notes of 2026-10-31: the Plasma Gun's magazine 16 instead of 36; his recoil and two-handed recoil values
+feel fine: make them the defaults and take the recoil items off the checklist.
+
+- **The Plasma Gun's cell** (AD support: the thunderbolt with AD's upgrade, which used the thunderbolt's 36-cell): its own
+  size, the new tunable `vr_ad_plasmagun_cell` "16" (Debug > Tunables, "Weapons > Reloading - Plasma Gun"; the
+  thunderbolt keeps 36). QC `VR_ClipSizeOf` answers it (as the Widowmaker's tube), so the ammo screens, the pouch
+  touch-reload and the props' refills follow. A cell drawn from the pouch for the gun in the other hand holds the gun's
+  own size (`VR_Reload_Take`; the gun-at-the-pouch reload, `VR_Reload_PouchFrame`, too). A fuller cell (a thunderbolt's
+  36) seated in it gives it 16 and the rest back to the reserve (`VR_Reload_SeatMagInto`; a Plasma Gun lying about,
+  `VR_Reload_IntoProp`: back to the hand's player). The upgrade's pickup (`AD_UpgradeGiven`) gives back what the
+  pickup moved past 16. An armed grunt's Plasma Gun: `VR_AG_ClipOf` the same. Test 141 (adplasma) gains two checks: a
+  pouch cell holds the size; a thunderbolt's full cell seated gives the size and returns the rest.
+- **His recoil values shipped:** `vr_recoil_2h_kick` 0.6 -> 0.4, `vr_recoil_2h_rise` 0.6 -> 0.2, `vr_recoil_2h_time`
+  0.6 -> 0.725, `vr_recoil_2h_haptic` 0.6 -> 0.7; the shotgun's Recoil Muzzle Rise (slot 1, `vr_wofs_fx_rise_deg_02`) 12.08 -> 12;
+  the tunable `vr_nailpistol_slide_delay` 0.25 -> 0.175 (tune_promote). His config has no other recoil value off its
+  default (`v_gunkick` 2 is the shipped default; no `vr_recoil_*`, `*_kick*`, `*_rise*` or 2H multiplier beyond these).
+- **Checklist:** the 18 recoil items taken off (per-weapon recoil, recovery, haptic punch, the models' own kick, Recoil
+  Amount, Two-Handed Recoil and its four sliders, no ghost from recoil, the starter shotgun's auto pump, the recoil along
+  the gun's top, the off hand's grip anywhere, a shell against the gun, the unpromoted 4.5 / 7.5); the nail pistol's
+  Rack Delay line now says its new default, 0.175 s.
+## Checklist: cleanup pass and a Test button on most items (branch `agent/cltests`)
+
+His voice note 2026-10-31 20:01: most checklist items had no test button. Two commits: the cleanup, then the buttons.
+
+- **Cleanup** (335 items -> 272): 10 ticked items retired, 6 duplicates (the Worn Backpacks block and two hit/backpack
+  lines had been shipped twice), the Full Slide comparison (decided: Full Slide is the default); 49 items merged into
+  31 that are tested in one go (the four flashlight-hand lines, the three downed-grunt grab lines, the nail pistol's
+  empty/re-rack/rack-delay lines, the death knight Rig Studio lines, ...); "debris you can't grab" reworded (ticked:
+  debris can be picked up); one tag a line (the Pose Studio rows split in four). Recoil lines untouched
+  (agent/recoilpromo removes them); the two failed items kept.
+- **Buttons**: 212 of 272 items end in `{test:<id>}` (was 15). 34 new scenes in `quakevr/scenarios/` (shoves, dual
+  bolts, a gunfire range, enemy gunfire, a live armed squad, props, vrarena calm/run/armour, armour plates and helmets,
+  knights with guns, plain and armoured, e1m2's armed knights, death knights' swords, disarm volumes, knockouts,
+  grenades in flight, worn packs in both pull modes, directional parry, chainsaws, the laser cannon, AD's streams,
+  crawlers and rocket soldier, empty nail pistols); the rest reuse existing scenes. Untagged (60): the recoil lines,
+  the flat-screen Rig Studio lines, startup/config/menu/tunables checks, load times, late arena waves (no wave skip),
+  general "as before" play (climbing, body, obituaries) and spots no test map has (moving water, metal floors).
+- **Engine**: a scene's `cvar vr_toolgun_armed_armor <1-4>` (and `_pieces`) puts the toolgun's Armed Humanoid armour
+  on the armed humanoids it places (`toolgun::armArmedSpawn`, vr_scenario.cpp); unset, nothing changes.
+- **Line format** in TESTING.md ("Checklist scenarios") and the checklist's header: new lines get a test whenever a
+  scene fits; `vr_scenario validate` (`0 missing`) and `vr_scenario runall quit <id>` before shipping.
+- The AD-only scenes (ad_streams, ad_crawlers, ad_rocket_soldier, as ad_fog_flicker) need AD's data, absent from the
+  kit's mock base: validated only.
+## Armed humanoids' melee spacing (branch `agent/meleereach`)
+
+His voice note 2026-10-31 19:59: a long melee weapon's holder came as close as one with its fists; a sword's holder
+should stand where its swing still connects, not in your face. Before: every melee holder ran its path into you
+(movetogoal, its box against yours: 30-37 units between the middles), started its swing within 62 and stepped in
+further during it (ai_charge).
+
+- **Its standoff** (QC vr_armedgrunt.qc `VR_AG_MeleeStandoff`): `12 + vr_agrunt_mspace_reach * (arm + weapon)`, flat,
+  its middle to yours. `arm`: its kind's shoulder ahead of its middle plus shoulder to wrist (`vr_am_sh_r_x + vr_am_arm`,
+  at least 12: grunt 14.9, enforcer 12, knight 20.7, death knight 16.9). `weapon`: its length from its grip
+  (`VR_AG_MeleeLen`): the further of the weapon's own muzzle offset (a blade's tip) and its drawn model's front end
+  along its forward (held::drawnExtent). The muzzle decides for the blades: the knight's sword 28, the hell knight's
+  35.4, the axe 8.5, Mjolnir 8.8. `12`: your body's front (a torso, not your 16-unit box; a monster: 0.75 of its box).
+  Two blades: the shorter. Under `vr_agrunt_mspace_min` (40): no standoff, it closes in as before (fists, the axe,
+  the hammers; the chainsaw always as before); at most `vr_agrunt_mspace_max` (88).
+- **Moving** (`VR_AG_MeleeSpaceMove`, from ai_run where a gun's holder keeps its distance, after CheckAnyAttack): within
+  its standoff + 64 it faces you and walks straight back to its standoff at `vr_agrunt_mspace_speed` (1.25) times its
+  run's step; at it or nearer (you stepped in) it holds its ground (no backing off); blocked or further: its path as
+  before. Its swing starts within its standoff + 12 (`VR_AG_MeleeStart`, at least the old 62; the two-blade follow-up
+  too) and its step into the blow (VR_AGP_Frame's ai_charge) stops at its standoff.
+- **Its blow aimed at you from its standoff** (VR_AGP_Strike): the Pose Studio keys' turn of the blow's line (vr_agk_rr)
+  swung a knight's line past you from 51-57 units (1 attack in 5 hurt nothing: its grip 29 units to your side, its line
+  going along, not across); up close it starts inside you and lands anyway. With a standoff its line goes from its keyed
+  grip to your chest.
+- **The blade's line** (`VR_AG_WeaponLine`, the disarm volumes, the blade contact) still takes a sword's length along
+  its model's forward (`weapondrawnpose` 34/35: the knight's sword 14 long, the blade being along its up). Not changed
+  here; noted.
+- **Settings**: Combat > Armed Grunts > AI Behaviour > Melee Spacing: Long Blades Keep Their Reach (`vr_agrunt_mspace`
+  1), Reach Share (`_reach` 0.8: 1 its tip just meeting your body), Shortest Standoff (`_min` 40), Longest Standoff
+  (`_max` 88), Re-Close Speed (`_speed` 1.25).
+- **Test 18** (`vr_agrunt_test 18`, QC/vr_armedgrunt_reach_test.qc; Debug > Tests > Armed Grunts: Melee Spacing): each
+  kind 0-3 with fists, axe, sword, the hell knight's long sword, Mjolnir, chainsaw from 160 units, you still with empty
+  hands: three attacks as it comes, then you 80 units back (its next attack), then (a standoff) you stepped in to 24
+  inside it (its next attack). Per trial: its standoff, where it stood as its blows landed, the re-close time, every
+  attack hurting you; PASS when all hurt you, a standoff's holder stood within 8 of it (a short weapon within 62) and
+  struck from no further than where you stepped in. 24 passed, 0 failed: standoffs grunt sword 46 / long 52, enforcer
+  44 / 50, knight 51 / 57, death knight 48 / 54, each stood at it within 0.3 as its blows landed; fists 30-37, the
+  axe, Mjolnir and the chainsaw 30-34 (as before); after you backed off 80 it came back and struck again in 0.4-2.2 s;
+  stepped in to 36 it struck from 36 (no backing off); every attack hurt you. Before the aim fix: 22/24 (a knight's
+  long blade 1 attack in 5 hurting nothing).
+- Not run (the coordinator's call, velocity first): the agrunt|arena baseline subset and eval.sh (the player's melee
+  is untouched: no file of it changed).
+- **Checklist** (suggested): "A grunt or knight with a sword or long sword stops a little out (about 45-57 units),
+  swings from there and its blows land; with fists, an axe or a hammer it still comes right up; step in on a swordsman:
+  it holds its ground; back off: it follows {test:agrunt_melee_spacing} (Debug > Tests > Armed Grunts: Melee Spacing,
+  `vr_agrunt_test 18`)."

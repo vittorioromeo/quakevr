@@ -1,0 +1,12 @@
+# worn_packs: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Worn Backpacks on (Pulling the Pack: Tears It Off), packed grunts, one with its back to you.
+title Worn Backpacks on: calm packed grunts, one with its back to you; a shotgun in hand
+map vrtesthall
+god
+notarget
+cvar vr_worn_backpacks 1
+cvar vr_worn_backpack_pull 0
+give "Shotgun" main
+spawn "Armed Grunt: Shotgun" 70 0 0 0
+spawn "Armed Grunt: Nailgun" 200 80
+spawn "Armed Grunt: Super Shotgun" 200 -80
+cmd impulse 9
