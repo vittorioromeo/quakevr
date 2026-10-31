@@ -85,9 +85,7 @@
         command("Crossbow's Bolt and String Info", "vr_adgun_crossbow_info")
             .help("For each hand holding the crossbow: its last shot, bolts left, and the bolt in its groove from the "
                   "muzzle along the shot (where the shot leaves from: QC's VR_ADXBOW_GROOVE_*)."),
-        slider("Crossbow Held After a Shot", "vr_adgun_crossbow_anim_at", -1.f, 2.5f, 0.01f, "%.2f s")
-            .help("Holds the crossbows in your hands this long after a shot, loaded: the string's snap, the limbs' "
-                  "wobble, the draw and the next bolt's morph, frame by frame. -1: as they are."),
+        row(opt::vr_adgun_crossbow_anim_at),
         command("Freddie's Gun Arm Cut Off", "vr_ad_test 95")
             .help("Destructive: the Freddie nearest you killed and his gun arm cut off: a super nailgun of ours drops "
                   "there, loaded, and goes into your main hand; his body then gibbed drops no second one (adfred: lines)."),
@@ -113,9 +111,7 @@
             .help("vr_adgun_hose_info: in the console, each hand's hose (its gun, its ends, its length, how low it hangs), "
                   "its rings drawn (and in the body's mirror image), its cost a frame, and how deep it has lain in your "
                   "arms since the last time (the arms' capsules)."),
-        toggle("Fuel Hose Avoids the Arms", "vr_adgun_hose_arms")
-            .help("The hose kept out of your drawn arms (the upper arm and forearm as capsules), going round them. Off: "
-                  "it passes through them (to compare; Fuel Hose Info measures how deep)."),
+        row(opt::vr_adgun_hose_arms),
         command("Poison Sprayer Lying With Its Tank", "vr_ad_test 158")
             .help("A poison sprayer made lying 2 m ahead (as the toolgun's spawner makes one), its tank beside it, roped "
                   "and hosed to it (Arcane Dimensions' Guns > Tank Lying About)."),
@@ -190,13 +186,8 @@
                   "stood between the handle and the head (wrapped round a corner, or through it), its fastest, its hits; "
                   "the flails lying about: handles, heads, pairs, heads without their handle, handles without a head (both "
                   "0 when right), each rope's ends apart against its length."),
-        toggle("Flail Head in Your Frame", "vr_flail_frame")
-            .help("Debug: the held flail's head simulated in your moving frame (the stick's walk and turn carry it; Flail "
-                  "Body Inertia's share of your speeding up swings it). Off: in the world's, as before (the stick's walk "
-                  "flung it)."),
-        toggle("Flail Head Drawn Smooth", "vr_flail_smooth")
-            .help("Debug: the held flail's head drawn between the server's steps, on the hand as drawn, at the headset's "
-                  "frame rate. Off: where each 72 Hz step left it (jerky under the hand)."),
+        row(opt::vr_flail_frame),
+        row(opt::vr_flail_smooth),
         command("Flail Lying With Its Head", "vr_ad_test 169")
             .help("A death sergeant's flail made 64 units ahead (the toolgun's dispenser): its head beside it on its "
                   "chain, a body of its own you can carry; force grab the handle, the head trails it."),
@@ -222,9 +213,7 @@
         command("Fury's Sword: Drawn Spine", "vr_admelee_spine")
             .help("The sword's blade as drawn in each hand, at the points the melee checks (admelee spine: lines), to "
                   "compare with Curve Check's."),
-        toggle("Curved Blades", "vr_melee_curved_blades")
-            .help("A curved sword (the death fury's) strikes along its curve; off: along the straight line from the hand "
-                  "to its tip, as before."),
+        row(opt::vr_melee_curved_blades),
         command("Holster Refusal Check", "vr_ad_test 127")
             .help("Destructive (your left hip holster): the hammer and the mace let go at it are refused and fall; the "
                   "fury's sword goes in (admelee holster: PASS)."),

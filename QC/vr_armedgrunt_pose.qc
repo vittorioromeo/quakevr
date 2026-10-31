@@ -30,8 +30,7 @@ float VR_AGP_FREE = 4;      // ... the Weapon Holds' one-handed hold: the off ha
 float VR_AGP_TWO = 16;      // ... their Two-Handed setting: the off hand on the weapon even with no second grip (round the hand)
 float VR_AGP_BODY = 32;     // ... its body's turns in a strike (VR_AGP_TorsoNow: the torso's, the elbows' poles)
 float VR_AGP_FIXED = 1;     // ... the body's turns alone, its hands' targets not turned with it (a take's bend)
-float VR_AGP_TAKE_BEND = 28; // degrees its chest bends forward at the waist taking a weapon up from the floor (vr_agarms; its take frames' kneel)
-float VR_AGP_TAKE_BEND_KNEEL = 45; // ... on one knee (vr_aglegs: its pelvis higher, the rest pose's chest on it)
+// (the chest's bend taking a weapon up from the floor: vr_agrunt_take_bend 28, vr_agrunt_take_bend_kneel 45 on one knee)
 float VR_AGP_ARM_REACH = 21; // a fist's reach from its shoulder (units, about the rig's arm)
 vector VR_AGP_SHOULDER_R = '0 -9.7 12';
 vector VR_AGP_SHOULDER_L = '0 9.7 12';
@@ -276,6 +275,13 @@ void(entity g, entity p, vector from, vector dir) VR_AGP_Strike =
         if(vlen(kr) > 0.01)
         {
             dir = VR_AG_Rotate(dir, normalize(VR_AGP_ToWorld(kr)), vlen(kr));
+        }
+        if(p && g.enemy && VR_AG_MeleeStandoff(g) > 0)
+        {
+            // A long blade's swing from its standoff (vr_agrunt_mspace): its blow still at you from its keyed grip (the
+            // keys' turn swung a knight's line past you from there; up close it starts inside you and lands anyway).
+            entity t = g.enemy;
+            dir = normalize(VR_AI_Origin(t) + '0 0 1' * ((t.flags & FL_CLIENT) ? 8 : (t.mins_z + t.maxs_z) * 0.5) - from);
         }
     }
     entity oldself = self;
@@ -2178,7 +2184,7 @@ void(entity g, entity p) VR_AGP_Pose =
         float dk = (time - g.vr_ag_took_at) / max(0.01, g.vr_ag_took_grab - g.vr_ag_took_at);
         dk = min(1, max(0, dk));
         takeW = time < g.vr_ag_took_grab ? dk * dk * (3 - 2 * dk) : 1 - u;
-        takeBend = (cvar_hget(cvarh_vr_aglegs) ? VR_AGP_TAKE_BEND_KNEEL : VR_AGP_TAKE_BEND) * takeW;
+        takeBend = cvar_hget(cvar_hget(cvarh_vr_aglegs) ? cvarh_vr_agrunt_take_bend_kneel : cvarh_vr_agrunt_take_bend) * takeW;
         if(!pL && time < g.vr_ag_took_grab)
         {
             // Bending down: its hand reaches down with the bend (from where its frame has it to the weapon's grip as the
@@ -2644,7 +2650,19 @@ void() VR_AGP_Frame =
     }
     else if(s < vr_agp_tw + vr_agp_ts && !demo)
     {
-        ai_charge((s < vr_agp_tw ? 1 : 3) * sp);
+        // Stepping into the blow; a long blade no nearer than its standoff (vr_agrunt_mspace: its tip meets you there).
+        float step = (s < vr_agp_tw ? 1 : 3) * sp;
+        float keep = self.vr_ag_act == VR_AGP_SWING ? VR_AG_MeleeStandoff(self) : 0;
+        if(keep > 0)
+        {
+            vector to = VR_AI_Origin(self.enemy) - self.origin;
+            to_z = 0;
+            step = min(step, vlen(to) - keep);
+        }
+        if(step > 0.25)
+        {
+            ai_charge(step);
+        }
     }
     if(s < VR_AGP_Length(self) || !self.vr_ag_act)
     {
@@ -2663,7 +2681,7 @@ void() VR_AGP_Frame =
         return;
     }
     if(was == VR_AGP_SWING && self.vr_ag_prop2 && self.vr_ag_act_hand != 2 && self.enemy && self.enemy.health > 0 &&
-       random() < 0.45 && vlen(VR_AI_Origin(self.enemy) - self.origin) < VR_AG_GRIP_REACH + 10)
+       random() < 0.45 && vlen(VR_AI_Origin(self.enemy) - self.origin) < VR_AG_MeleeStart(self))
     {
         VR_AGP_Begin(VR_AGP_SWING); // (two held: the other hand follows up)
         return;

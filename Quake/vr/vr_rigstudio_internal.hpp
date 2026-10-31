@@ -92,6 +92,8 @@ struct Snapshot
     aggrip::Offset grip;
     int stretchKind{-1}, stretchClass{0}; // ... the IK stretch of a kind and class (vr_agrunt_ik_stretch)
     float stretchBy{1.f};
+    bool posesEntry{false}; // ... the whole of vr_agrunt_poses (a Pickup override made or removed, its Reset)
+    za::String posesText;
     // The aim target's place (studio-session state, never in a file): its place before
     bool aimEntry{false};
     glm::vec3 aimAt{0.f};
@@ -327,6 +329,7 @@ void pushPreEditUndo(const char* what);
 void pushPoseUndo(int code);                       // a Pose Studio key about to change
 void swingPlay();  // the data window's Swing: the subject held in its strike, played once from its start (st.swing)
 void pushStretchUndo(int kind, int cls);           // ... a kind and class's IK stretch
+void pushPosesUndo(const char* what);              // ... every pose key (vr_agrunt_poses as it is)
 void pushGripUndo(int kind, int slot, int hand);   // a grip about to change
 void pushAimUndo();                                // the aim target about to move
 void resetAim();                                   // the aim target ahead of the subject, level (undoable)

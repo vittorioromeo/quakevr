@@ -221,7 +221,20 @@ hint Swing at them: ...                             # optional; default the chec
   stays, the grip unpressed, until that hand's grip is pressed (from then on the grip holds it: let go on release);
   sticky mode lets go after a squeeze and a release as usual (QC `VRWeaponGivenHeld`). The mock's hands never grip:
   runall checks the weapons stay in both modes.
-- No scene for menu-only items (graphics presets, menu layout), calibration or seated play: leave those untagged.
+- Armour: `cvar vr_toolgun_armed_armor <1-4>` (green, yellow, red, random; `vr_toolgun_armed_pieces` 0 cuirass and
+  helmet, 1 all ten, 2 random) puts the toolgun's Armed Humanoid armour on every armed humanoid the scene places
+  (`spawn "Armed Grunt: ..."` and `spawnarmed` alike; `agarmor_plates`); unset, each wears its own roll as on a map.
+  Armed knights need `cvar vr_agknight 1` (`monster_vr_knight`), armed death knights `cvar vr_agdknight 1`
+  (`monster_vr_hknight`; weapon 0 is his own sword). A Debug > Tests setup works as a `cmd` (`cmd vr_agarmor_test 6`).
+- No scene for menu-only items (graphics presets, menu layout), calibration or seated play: leave those untagged; nor
+  for the flat-screen Rig Studio, startup and config checks, load times, or what needs late arena waves or a long play.
+
+**Every new checklist line gets a test when one makes sense.** A line is `<what to do>: <what you should see>
+{test:<id>}`; when shipping one, reuse a scene whose setup fits (`vr_scenario list`; the same id on many lines is
+normal: the line's own text is the hint) or add `quakevr/scenarios/<id>.txt`, then `vr_scenario validate` (`0 missing`)
+and `vr_scenario runall quit <id>` (`SCNRUN|<id>|OK`). Scenes on Arcane Dimensions' maps or entries (`AD ...`) need
+AD running, so the headless check skips them (`-Games "-game hipnotic -game rogue -game ad -game quakevr"` when its
+data is in the base).
 
 Stuck (ROUND21.md, "Never stuck"): `vr_stuck_info` prints the player's server position (2 decimals), what its box is
 in, the movers near it and how often `vr_unstick` freed it; `vr_stuck_test <x> <y> <z>` puts the player there as if it

@@ -18,6 +18,7 @@
 #include "vr_debris.hpp"
 #include "vr_dirparryviz.hpp"
 #include "vr_disarmviz.hpp"
+#include "vr_disarmhull.hpp"
 #include "vr_drawnpose.hpp"
 #include "vr_foegrab.hpp"
 #include "vr_mgroups.hpp"
@@ -953,6 +954,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"debugdirparry", dirparryviz::PF_debugdirparry},
     {"debugdirparryline", dirparryviz::PF_debugdirparryline},
     {"debugdirparrynote", dirparryviz::PF_debugdirparrynote},
+    {"disarmhull", disarmhull::PF_disarmhull},
     {"torchflametouch", PF_torchflametouch},
     {"mapflametouch", PF_mapflametouch},
     {"anglemod", PF_anglemod},
