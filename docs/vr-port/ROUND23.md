@@ -4160,6 +4160,21 @@ His ask (10-31): "one pickup pose shared across all weapons would simplify thing
 - **Bend tunables:** `vr_agrunt_take_bend` 28 and `vr_agrunt_take_bend_kneel` 45 (archived) replace QC's
   `VR_AGP_TAKE_BEND` / `_KNEEL` constants.
 - A fists subject in the studio shows no take (no weapon to take up); its Pickup edits the shared key all the same.
+- **Verified:** the effective Pickup of every kind x class (`vr_agrunt_pose_dump pickup`, against the old shipped table
+  under the old rules): 36 of 48 identical, every override exactly as before; now on the shared key and different
+  (they had no Pickup row: QC's pose alone) only the two-handed melee class of every kind, the fists (never take), and
+  the enforcer's two guns, melee, two-handed melee, chainsaw and two melee classes (the enforcer's rifle key: the right
+  hand 16.46 up). Grunt 9 overrides, enforcer 0, knights 9 (the grunt's, fitted). Pose Keys test grunt 13/1, knight +
+  shotgun 14/0, death knight 13/1 (the elbow step: the known failure); test 41 0/0 (over, as the baseline). Mock
+  screenshot: test 34's grunt at the grab over its shotgun, kneeling, nothing through the floor.
+
+Checklist:
+- Rig Studio > Pose Studio Data > Pose Keys, a grunt with a shotgun, Pose Pickup: it says "Pickup (shared)"; drag the
+  weapon: every class without an override (switch Class to Two-Handed Melee) moves with it; Undo.
+- Same, Class Pistol: "Pickup (override)"; Remove Override (use shared): the pistol now takes the rifle's Pickup;
+  Undo puts the override back; Make Override on the rifle, drag: only the rifle moves.
+- VR Pose Studio in Pickup: the bottom row's Make Override / Remove Override toggles the same.
+- Chest Bend (standing, kneeling) in Pickup: a grunt taking up a weapon bends more or less.
 
 ## Checklist: cleanup pass and a Test button on most items (branch `agent/cltests`)
 
