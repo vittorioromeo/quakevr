@@ -228,6 +228,9 @@ Hit an armoured Death Knight's chest plate with the sword: sparks, no blood; sho
 Armed Knights on: toolgun an armed Knight with two nail pistols (or Debug > Tests: Armed Grunts: Dual Guns' Muzzles): both pistols point where he aims, each in his fist like a grunt's; the left one not turned off to the side.
 Armed Death Knights on: the same for an armed Death Knight with two pistols.
 A knight's and a death knight's own sword still sits right in his fist (the fitted grip row applies to every weapon).
+Rig Studio (flat screen): open it: the subject stands clear of the hall's welcome boards; change it to the knight and the death knight, Pose Keys > Pickup: no text over it.
+Armed knights and death knights look as in your last session with your vr_agrunt_* settings cleared (vr_agrunt_poses ""; vr_agrunt_grips ""; vr_agrunt_ik_stretch ""): your keys are the defaults now.
+Rig Studio > Range of Motion on the knight: the clavicles' limits are yours.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns
