@@ -1581,7 +1581,14 @@ QVR_CVAR(vr_autopump_hold, "-1", CVAR_NONE)           // test: 0..1 holds every 
 // settings are Weapon Offsets > Effects (vr_wofs_fx_*: which weapons kick and flash, their tracers' multipliers).
 QVR_CVAR(vr_weapon_recoil, "1", CVAR_ARCHIVE)          // 0: no programmatic recoil
 QVR_CVAR(vr_recoil_amount, "1", CVAR_ARCHIVE)         // every weapon's recoil (its own Kick Back cm and Muzzle Rise degrees) times this (looks only: the aim stays; the old vr_recoil_kick and vr_recoil_rise are in each weapon's own since vr_wofs_version 74)
-QVR_CVAR(vr_recoil_two_hand, "0.6", CVAR_ARCHIVE)     // a shot of a weapon held in both hands: its recoil's kick back, muzzle rise and return time (and haptic punch) times this, times the weapon's own (vr_wofs_fx_recoil_2h_NN); 1: as one-handed (weaponfx::twoHandRecoil)
+// A shot of a weapon held in both hands (weaponfx::twoHandRecoil): its recoil's kick back, muzzle rise (and sideways
+// turn), return time and haptic punch each times its slider here, times the weapon's own (vr_wofs_fx_2h_kick_NN, ...);
+// 1: as one-handed. Until 2026-10-31 one slider for all four (vr_recoil_two_hand, vr_wofs_fx_recoil_2h_NN): an old
+// config's value goes to all four (VR_RetiredCvar, weapons::retiredTwoHandLine).
+QVR_CVAR(vr_recoil_2h_kick, "0.6", CVAR_ARCHIVE)
+QVR_CVAR(vr_recoil_2h_rise, "0.6", CVAR_ARCHIVE)
+QVR_CVAR(vr_recoil_2h_time, "0.6", CVAR_ARCHIVE)
+QVR_CVAR(vr_recoil_2h_haptic, "0.6", CVAR_ARCHIVE)
 QVR_CVAR(vr_debug_weapon_frame, "-1", CVAR_NONE)       // debug: the held weapons drawn at this frame of their models, whatever the game steps (-1: as it steps them; Debug > Weapons)
 QVR_CVAR(vr_weapon_kick_cancel, "1", CVAR_NONE)        // the kick baked into Quake's weapon models' firing frames taken out of their poses (vr_kickcancel.cpp; parts such as a pump still move); 0: the models' own kick, to compare (Debug > Weapons)
 QVR_CVAR(vr_muzzle_flash, "1", CVAR_ARCHIVE)           // 0: no programmatic muzzle flashes (the models' own stay)

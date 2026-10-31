@@ -3353,3 +3353,52 @@ Checklist:
   blow's way, in front of its chest, not off to its right; your swing rings off it.
 - [guardpose] Raise your weapon near a grunt (the wind-up parry) or step in close (the preventive guard): its raised
   weapon points at your hand, its hand still on the grip (not stretched off it).
+
+## Starter shotgun: the auto pump's pieces kicked (branch `agent/sgrecoil`)
+
+His words: "Starter shotgun recoil is still messed up, it really feels like there's an animation frame where the gun's
+position/angle moves that conflicts with our procedural recoil."
+
+- **Guilty: the auto pump's two models.** While the fore-end strokes (vr_autopump_delay 0.25 s after the shot, for
+  vr_autopump_time 0.3 s) the shotgun is drawn as `progs/vr_pumpbody_on_v_shot.mdl` and `vr_pump_on_v_shot.mdl`
+  (setupPumps), at the gun's own frames, its entity hidden. Both are split from v_shot.mdl with its 9 poses, so both
+  carry its baked kick, and neither was in the kick cancel (not a slot's model): mid-stroke, at frames 3-6, the drawn
+  gun jumped back 9.5 / 6.7 / 3.8 / 1.3 cm and tipped up 8.6 / 6.2 / 3.3 / 0.9 degrees (`vr_kickcancel_info
+  progs/vr_pumpbody_on_v_shot.mdl`; offline the same: Kabsch fit of each pose, Python), easing back as the frames stepped,
+  under the procedural kick that was returning. The recoiltrack check of the last round read the gun's own entity (still:
+  body == rest), not what is drawn in its place.
+- **Fix** (`vr_kickcancel.cpp` `preparePart`): a model drawn in a listed gun's place at its frames is fitted and cancelled
+  as that gun's slot's (its body exactly the rest pose's bytes; its parts, the flash, through the pose's cancel); called
+  by `setGunPart` (each frame it is drawn) and at map load for the shotgun's two pieces (prepareWorldWeapons: no fit
+  hitch at the first stroke). A piece read again stays a piece. The SSG's opened parts (frame 0), magazines (their own
+  round frames) and revolver parts are not drawn at the gun's frames: not affected.
+- **Audited still** (code and numbers): v_shot.mdl's own 9 poses (all cancelled; parts left: the 55-vertex muzzle flash,
+  3 collapsed vertices), the frame lerp (body identical in every pose), QC (W_FireShotgun: punchangle -2 only; the VR
+  eye view overrides r_refdef.viewangles, so v_gunkick never reaches the headset; no velocity kick), the gun entity
+  (recoiltrack resid 0.000 cm every frame at 72 and 90 Hz). Not separately measured: two-handed (the pieces copy the gun's
+  entity, so the same), the off hand, collision push, aim filters (no frame-dependent motion found in setupWeapon).
+- **Numbers after** (`scratch/sgrecoil_track.sh`, real client path, vr_debug_weaponfx 4, a new "recoiltrack part" line):
+  72 Hz 22 stroke frames, 90 Hz 27: the drawn piece's body 0.000 cm off rest every frame (frames 2-5), the gun's 0.000.
+  `vr_kickcancel_test` 79/0 (was 71: the two pieces' 8 checks; "14 listed models, 2 pieces").
+- Open (not changed): the procedural rise is added to the controller's Euler pitch (vr_view.cpp), so with the hand rolled
+  the muzzle rises partly sideways (about the world-level right axis, not the gun's).
+
+## Two-handed recoil: one slider per value (branch `agent/sgrecoil`)
+
+His words (via the coordinator): split the two-handed recoil multiplier into one slider per value it affects.
+
+- Weapon Effects: "Two-Handed Kick Back / Muzzle Rise / Return Time / Haptics" (`vr_recoil_2h_kick`, `_rise`, `_time`,
+  `_haptic`, 0.6 each); Weapon Offsets > Effects: the same four per weapon (`vr_wofs_fx_2h_kick_NN`, `_rise`, `_time`,
+  `_haptic`, 1 each). The sideways turn goes with the rise; a burst's 2.5 cap per value. Defaults as before: nothing
+  changes until moved. `weaponfx::twoHandRecoil` returns the four (`TwoHandShares`); the haptic punch reads `.haptic`.
+- Old configs: `vr_recoil_two_hand X` and `vr_wofs_fx_recoil_2h_NN X` are retired lines (VR_RetiredCvar ->
+  `weapons::retiredTwoHandLine`): X set on all four. No version step (a sparse config holds only changed values).
+- Test (`scratch/sg2h_test.sh`): the old lines 0.4 and 0.7 land on all four each; `vr_recoil_test` 120/0 (the old
+  two-handed checks unchanged with the four alike, plus 8: each slider alone, global and own, moves only its share and
+  its drawn value, e.g. own rise 0.25: peak 1.812 deg, 3.000 cm, 0.0945 s against 3.624 deg, 3.000 cm, 0.0945 s).
+
+Checklist:
+- [sgrecoil] Fire the starter shotgun one-handed, then two-handed, and watch the gun through the auto pump's stroke: it
+  kicks once and settles smoothly; no second lurch back and up about a quarter second after the shot.
+- [sgrecoil] Weapon Effects: the four Two-Handed sliders (Kick Back, Muzzle Rise, Return Time, Haptics) each change only
+  their own part of a two-handed shot; your old Two-Handed Recoil value is on all four.
