@@ -4130,3 +4130,36 @@ The leftovers of round 5 ("Not done": the smooth rigs one model after another, 4
   could save at most the fits and rest rows, ~20 ms of vrtesthall/vrstart and ~10 of hip2m5/e1m1 less its own reading
   and keying (the rigs must still be found: the key holds the derived rig), and the limbs' builds already run on the pool
   beside the load (round 5: 22 ms there, not on the main thread). Under the brief's ~20 ms bar: skipped.
+
+## Armed humanoids' melee spacing (branch `agent/meleereach`)
+
+His voice note 2026-10-31 19:59: a long melee weapon's holder came as close as one with its fists; a sword's holder
+should stand where its swing still connects, not in your face. Before: every melee holder ran its path into you
+(movetogoal, its box against yours: 30-37 units between the middles), started its swing within 62 and stepped in
+further during it (ai_charge).
+
+- **Its standoff** (QC vr_armedgrunt.qc `VR_AG_MeleeStandoff`): `12 + vr_agrunt_mspace_reach * (arm + weapon)`, flat,
+  its middle to yours. `arm`: its kind's shoulder ahead of its middle plus shoulder to wrist (`vr_am_sh_r_x + vr_am_arm`,
+  at least 12: grunt 14.9, enforcer 12, knight 20.7, death knight 16.9). `weapon`: its length from its grip
+  (`VR_AG_MeleeLen`): the further of the weapon's own muzzle offset (a blade's tip) and its drawn model's front end
+  along its forward (held::drawnExtent). The muzzle decides for the blades: the knight's sword 28, the hell knight's
+  35.4, the axe 8.5, Mjolnir 8.8. `12`: your body's front (a torso, not your 16-unit box; a monster: 0.75 of its box).
+  Two blades: the shorter. Under `vr_agrunt_mspace_min` (40): no standoff, it closes in as before (fists, the axe,
+  the hammers; the chainsaw always as before); at most `vr_agrunt_mspace_max` (88).
+- **Moving** (`VR_AG_MeleeSpaceMove`, from ai_run where a gun's holder keeps its distance, after CheckAnyAttack): within
+  its standoff + 64 it faces you and walks straight back to its standoff at `vr_agrunt_mspace_speed` (1.25) times its
+  run's step; at it or nearer (you stepped in) it holds its ground (no backing off); blocked or further: its path as
+  before. Its swing starts within its standoff + 12 (`VR_AG_MeleeStart`, at least the old 62; the two-blade follow-up
+  too) and its step into the blow (VR_AGP_Frame's ai_charge) stops at its standoff.
+- **The blade's line** (`VR_AG_WeaponLine`, the disarm volumes, the blade contact) still takes a sword's length along
+  its model's forward (`weapondrawnpose` 34/35: the knight's sword 14 long, the blade being along its up). Not changed
+  here; noted.
+- **Settings**: Combat > Armed Grunts > AI Behaviour > Melee Spacing: Long Blades Keep Their Reach (`vr_agrunt_mspace`
+  1), Reach Share (`_reach` 0.8: 1 its tip just meeting your body), Shortest Standoff (`_min` 40), Longest Standoff
+  (`_max` 88), Re-Close Speed (`_speed` 1.25).
+- **Test 18** (`vr_agrunt_test 18`, QC/vr_armedgrunt_reach_test.qc; Debug > Tests > Armed Grunts: Melee Spacing): each
+  kind 0-3 with fists, axe, sword, the hell knight's long sword, Mjolnir, chainsaw from 160 units, you still with empty
+  hands: three attacks as it comes, then you 80 units back (its next attack), then (a standoff) you stepped in to 24
+  inside it (its next attack). Per trial: its standoff, where it stood as its blows landed, the re-close time, every
+  attack hurting you; PASS when all hurt you, a standoff's holder stood within 8 of it (a short weapon within 62) and
+  struck from no further than where you stepped in. MEASURED_NUMBERS
