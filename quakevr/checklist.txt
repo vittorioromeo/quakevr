@@ -163,6 +163,9 @@ Rig Studio > Pose Keys: Class Pistol shows "(override)". Remove Override (use sh
 VR Pose Studio in Pickup: the bottom-row Make/Remove Override toggles the same way.
 Rig Studio > Pose Keys, Chest Bend (standing, kneeling): a grunt taking a weapon up bends more or less.
 Your call: launcher, sprayer, laser cannon and Widowmaker keep Pickup overrides that differ from the shared one only in the off hand's place and elbow pole; remove them if the shared pose looks the same in game.
+Climbing: take a ledge with one hand, then both, shimmy, let go (you drop, flung by the release), take it again after the short delay; pull up and over (mantle), and on a ledge with no room (the soft buzz).
+Climbing, Stamina on, Slip on: hang until it runs out: the gasp and buzz, you sink and slip off; let go and grab again once stamina is back: a normal hang (no instant slip). Slip 0: you drop at once with the gasp.
+Climbing: hang from a moving platform or lift, and from a prop (crate): carried along; get knocked off by an explosion.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns {test:arena_run}
