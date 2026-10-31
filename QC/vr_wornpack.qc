@@ -17,7 +17,7 @@ float VR_WP_OFF = 3;  // torn off, taken: a backpack item
 string VR_WP_RIP_SOUND = "vr/derived/fabric_rip.wav";
 float VR_WP_HIT_REACH = 3;  // units: a blow, a throw, a projectile this near the pack's box is on it
 float VR_WP_SHOT_REACH = 0.1; // and a shot (hitscan: it meets the pack's box itself, vr_hitmodel.cpp's VR_HitModelClip)
-float VR_WP_HAND_REACH = 3; // units: a hand this near a dead one's pack takes the pack, not the body
+float VR_WP_HAND_REACH = 0.92; // units: a hand this near a dead one's pack takes the pack, not the body (the palm's 3.5 cm sphere on its box: it was 3 units, 11 cm off it)
 float VR_WP_PULL_SETTLE = 0.25; // s: a hold's first moments not counted (its spring taking up the body's weight)
 .float vr_wp_hold_at;  // a pack's: since when a hand holds its ragdoll by it (0: none)
 .float vr_wp_over_at;  // and since when that pull is past vr_worn_backpack_rip_force (0: not); a living one's tug: its first counted pull

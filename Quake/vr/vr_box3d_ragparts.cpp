@@ -479,8 +479,9 @@ void beginGrab(World::RagdollGrab& g, const GrabStart& gs, edict_t* player, int 
     g.num = gs.num;
     g.part = part;
     startHold(g, player, *gs.r, b3Body_GetLocalPoint(gs.r->body[static_cast<za::SizeT>(part)], world->toM(gs.at)), !g.tug);
-    // (On its worn backpack: the pack's part, the hand within a few units of the pack's box. vr_box3d_wornpack.cpp)
-    constexpr float packReach = 3.f;
+    // (On its worn backpack: the pack's part, the hand's palm sphere on the pack's box (3.5 cm: vr_foegrab.cpp's palm; it
+    // was 3 units, 11 cm, past the box). vr_box3d_wornpack.cpp)
+    const float packReach = 0.035f * units::metresToUnits();
     const float packGap = packDistance(*gs.r, gs.at);
     g.onPack = part == gs.r->packPart && !g.tug && packGap >= 0.f && packGap <= packReach;
     world->ragdollGrabs.pushBack(g);
