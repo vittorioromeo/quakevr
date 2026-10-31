@@ -206,6 +206,7 @@ void(entity g, float won, string why) VR_AG_TugEnd =
 // up again only when the tug ends: vr_knockdown.qc), `pl`'s hand `h` holding its weapon: the hand holds its hand's limb
 // at the weapon's lever (ragdolltug), its arms pull back (vr_agrunt_tug_strength). FALSE: it can't (no ragdoll, no
 // room): the old tug.
+vector(entity g, entity p) VR_AG_TugGripAt;
 float(entity g, entity pl, float h) VR_AG_TugRagBegin =
 {
     if(g.vr_knockdown || !canragdoll(g) || !ragdollcanstagger(g) || !g.vr_ag_prop)
@@ -245,7 +246,7 @@ float(entity g, entity pl, float h) VR_AG_TugRagBegin =
     float strength = cvar_hget(cvarh_vr_agrunt_tug_strength);
     // (Your hold never gives first; at most 6000 N: a stiffer spring shakes the ragdoll apart.)
     float grip = min(6000, max(1, cvar_hget(cvarh_vr_agrunt_tug_break_force)) * 3);
-    if(!ragdolltug(g, pl, h, 0, p.origin, strength, grip))
+    if(!ragdolltug(g, pl, h, 0, VR_AG_TugGripAt(g, p), strength, grip)) // (its weapon hand's limb)
     {
         ragdolltug(g, pl, h, 2, '0 0 0', 0.1); // (up again at once; the grab takes it: staggering)
         return FALSE;
@@ -306,6 +307,20 @@ string(entity g, float f, float dt) VR_AG_TugBreak =
         return sprintf("pulled out of its hand (%.0f N s, pulled %.2f s)", g.vr_ag_tug_imp, g.vr_ag_tug_held);
     }
     return "";
+};
+
+// Where on its ragdoll a tug's hold takes it (ragdolltug's `grip`: the engine holds the limb nearest it): its hand
+// holding weapon `p` as drawn (weapondrawnpose 36, agarms::ragdollGrip: the drawnpose query), its middle. Not the weapon's
+// own place: a two-handed weapon's grip lies nearer its support hand (his note 2026-10-31: the arm pulled was the other
+// one). The weapon's place when there is no such hand.
+vector(entity g, entity p) VR_AG_TugGripAt =
+{
+    vector hv = weapondrawnpose(g, p.vr_ag_left ? 1 : 0, 36);
+    if(hv_x >= 0 && isragdoll(g))
+    {
+        return ragdollpoint(g, hv_x, '0 0 0', 1);
+    }
+    return p.origin;
 };
 
 // The other hand (cVR_MainHand / cVR_OffHand).
@@ -392,7 +407,7 @@ float(entity g, entity pl, float h) VR_AG_TugJoin =
     if(g.vr_ag_tug_rag)
     {
         float grip = min(6000, max(1, cvar_hget(cvarh_vr_agrunt_tug_break_force)) * 3);
-        if(!ragdolltug(g, pl, h, 0, p.origin, cvar_hget(cvarh_vr_agrunt_tug_strength), grip))
+        if(!ragdolltug(g, pl, h, 0, VR_AG_TugGripAt(g, p), cvar_hget(cvarh_vr_agrunt_tug_strength), grip))
         {
             return TRUE; // (no hold for it: swallowed, as before)
         }

@@ -656,6 +656,11 @@ float tugRagdoll(edict_t* ent, edict_t* player, int hand, int what, const glm::v
         }
         return za::max(0.f, tugReach(player, hand, *r) - g->tugReach);
     }
+    if(what == 5)
+    {
+        // The part this hand's hold takes (the tests: the weapon hand's limb, not the support hand's); -1 none.
+        return ours ? static_cast<float>(g->part) : -1.f;
+    }
     if(what == 4)
     {
         // This hand lets go, the tug going on (a second hand's hold, or the first's with the second still on).
