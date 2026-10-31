@@ -3354,6 +3354,39 @@ Checklist:
 - [guardpose] Raise your weapon near a grunt (the wind-up parry) or step in close (the preventive guard): its raised
   weapon points at your hand, its hand still on the grip (not stretched off it).
 
+## Armed knights: shipped poses and every weapon class (branch `agent/knightparity`)
+
+His report (Rig Studio, armed Knight subject, `vr_agknight 1`): "the Knight has no poses at all and it doesn't support
+ranged weapons at all".
+
+1. **Poses.** Why none: `agpose` had shipped rows for kinds 0 and 1 only, and `shippedOf` fell back to nothing, so every
+   knight key (kind 2) was zero in the Pose Studio, the Rig Studio's Pose Keys and in game. Now a kind with no rows of
+   its own ships another kind's: `shippedFrom[numKinds] = {0, 1, 0}` (the knight the grunt's), each row fitted to his
+   body by `fitScale`'s ratio exactly as "Copy to the other kind" fits them (one `fitKey` for both; legs' places too).
+   His IK stretch likewise (`shippedStretchOf`). No data copied: tuning the grunt moves the knight until his own rows
+   are shipped (then his rows win, code by code). Copy between kinds counts the donor kind's rows. E.g. key 201010
+   (knight, rifle, Aim) R `1.82 7.1656 6.78` = the grunt's `1.82 6.76 6.78` x `1 1.06 1`.
+2. **Every weapon class.** The knight row's `vr_am_classes` all (as the grunt's): the toolgun's and Rig Studio's armed
+   Knight list every weapon, `monster_vr_knight`'s "weapon" takes any (QUAKED and FGD say so), map knights keep the
+   sword (`VR_AKN_Replace`, unchanged). His guns use the layer's paths: the grunt's shot timing (`VR_AM_A_ATK`) over his
+   stand frames with his posed arms aiming (`vr_am_atk_stand`), reloads on his stand frames, a gun butt's shove on his
+   attackb frames. No knight-only code.
+3. **Ranged pickups** (his addition): `vr_agknight_ranged_pickup` (default 0; Combat > Armed Grunts > Replacements:
+   "Armed Knights: Pick Up Ranged Weapons"). The row's `vr_am_takes_ranged` (grunt, enforcer 1; the knight's from the
+   setting) and `VR_AM_Takes(g, wid)` gate every take path: the search (`VR_AG_FindWeapon`), its own dropped weapon
+   (`VR_AG_OwnBack`) and the take itself (`VR_AG_TakeBegin`). 0: a knight takes up only melee weapons (a gun knocked
+   out of his hand stays down); spawned with a gun he holds it either way. Test 2 checks it: `rearm (takes no guns)`.
+4. **Rig Studio**: the Subject menu's plain entries read "Grunt (plain)", "Enforcer (plain)", "Knight (plain)"; Range of
+   Motion on knight.mdl: "... : pick the armed Knight (Armed Knights on)".
+5. **`vr_ad_upgrades` default 2** (Weapon Upgrades: Everywhere; his decision). With `vr_ad_everywhere` 1 (default) the
+   scope was already 2; no test pinned 1.
+
+Checklist:
+- [knightparity] vr_agknight 1, Rig Studio, Subject: the armed Knight: Pose Keys shows his poses (the grunt's, fitted)
+  for every class; his Right Hand list has every weapon; with a shotgun he aims and fires at the aim target.
+- [knightparity] Toolgun: spawn an armed Knight with a shotgun (then a nailgun, two pistols): he hunts you, aims, fires,
+  reloads; knock the gun out of his hand: he does not go back for it (vr_agknight_ranged_pickup 0).
+- [knightparity] Map knights (e1m2, vr_agknight 1) still hold swords; Rig Studio Subject's plain entries read "(plain)".
 ## Nail hits bleed and dent again (branch `agent/nailburn`)
 
 His report: nail hits on an enemy left burn marks instead of a dent and blood. Cause (not the fire spots, not lava

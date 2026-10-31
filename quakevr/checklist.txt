@@ -183,6 +183,10 @@ Shoot a grunt with the nail pistol, the nailgun and the super nailgun: each nail
 Swing the heavy revolver out and load shells one at a time: each shell slides straight into the hole it ends up in (any chamber, cylinder turned or not), not towards the middle of the cylinder.
 Roll your wrist 90 degrees (gun on its side) and fire the shotgun or nailgun: the muzzle kicks toward the gun's top (sideways in the world), not toward the ceiling; at 45 degrees it kicks diagonally along the gun's top.
 Upright gun, one- and two-handed: the recoil feels the same as before.
+Armed Knights on, Rig Studio, Subject: the armed Knight: Pose Keys shows his poses (the grunt's, fitted) for every class; his Right Hand list has every weapon; with a shotgun he aims and fires at the aim target.
+Toolgun: spawn an armed Knight with a shotgun (then a nailgun, two pistols): he hunts you, aims, fires, reloads; knock the gun out of his hand: he does not go back for it (Pick Up Ranged Weapons off); with it on he does.
+Map knights (e1m2, Armed Knights on) still hold swords; the Rig Studio Subject menu's plain entries read "(plain)".
+Weapon Upgrades now defaults to Everywhere (vr_ad_upgrades 2).
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns

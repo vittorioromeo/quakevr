@@ -1441,7 +1441,7 @@ entity(entity g) VR_AG_OwnBack =
 {
     entity w = g.vr_ag_own;
     if(!w || w.classname != "thrown_weapon" || VR_EnemyWeapons_Spared(w) || VR_AG_Shunned(g, w) ||
-       vlen(w.origin - g.origin) > VR_AG_OWN_RANGE || !VR_AG_Reachable(g, w))
+       !VR_AM_Takes(g, w.weapon) || vlen(w.origin - g.origin) > VR_AG_OWN_RANGE || !VR_AG_Reachable(g, w))
     {
         g.vr_ag_own = world;
         return world;
