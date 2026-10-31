@@ -441,6 +441,14 @@ void measure(const rigpose::Rigid* F2, int focus, int focus2, Tally& t, const ch
         const float r = cs.s.restLen[i] > 0.05f ? len / cs.s.restLen[i] : 1.f;
         t.stretchMax = za::max(t.stretchMax, r);
         t.stretchMin = za::min(t.stretchMin, r);
+        if((r > stretchHigh || r < stretchLow) && cs.detail > 0)
+        {
+            cs.detail--;
+            Con_Printf("  [%s] stretch %.2f edge", what, r);
+            describe(rig, e.a);
+            describe(rig, e.b);
+            Con_Printf("\n");
+        }
         if(e.t1 < 0)
         {
             continue;
