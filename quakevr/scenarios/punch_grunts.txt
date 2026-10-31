@@ -1,0 +1,8 @@
+# punch_grunts: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Targets for bare-hand punches and for pushing a hand or a held gun into a body.
+title Calm armed grunt, armed enforcer and a plain grunt at arm's length, your hands empty
+map vrtesthall
+god
+notarget
+spawn "Armed Grunt: Shotgun" 60 20
+spawn "Armed Enforcer: Shotgun" 70 -60
+spawn "Grunt" 90 90

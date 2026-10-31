@@ -1,0 +1,6 @@
+# arena_armour: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". A fresh arena run with armoured foes from wave 1 (vr_arena_foe_armor_from 1).
+title Survival Arena with armoured foes from wave 1
+map vrarena
+start 0 0 120 45
+cvar vr_arena 1
+cvar vr_arena_foe_armor_from 1

@@ -1,0 +1,5 @@
+# ad_rocket_soldier: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". An AD rocket soldier firing at you.
+title An AD rocket soldier firing at you (god)
+map vrtesthall
+god
+spawn "AD Rocket Soldier" 500 0

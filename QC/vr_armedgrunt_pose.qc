@@ -257,6 +257,13 @@ void(entity g, entity p, vector from, vector dir) VR_AGP_Strike =
         {
             dir = VR_AG_Rotate(dir, normalize(VR_AGP_ToWorld(kr)), vlen(kr));
         }
+        if(p && g.enemy && VR_AG_MeleeStandoff(g) > 0)
+        {
+            // A long blade's swing from its standoff (vr_agrunt_mspace): its blow still at you from its keyed grip (the
+            // keys' turn swung a knight's line past you from there; up close it starts inside you and lands anyway).
+            entity t = g.enemy;
+            dir = normalize(VR_AI_Origin(t) + '0 0 1' * ((t.flags & FL_CLIENT) ? 8 : (t.mins_z + t.maxs_z) * 0.5) - from);
+        }
     }
     entity oldself = self;
     self = g;
@@ -2612,7 +2619,19 @@ void() VR_AGP_Frame =
     }
     else if(s < vr_agp_tw + vr_agp_ts && !demo)
     {
-        ai_charge(s < vr_agp_tw ? 1 : 3);
+        // Stepping into the blow; a long blade no nearer than its standoff (vr_agrunt_mspace: its tip meets you there).
+        float step = s < vr_agp_tw ? 1 : 3;
+        float keep = self.vr_ag_act == VR_AGP_SWING ? VR_AG_MeleeStandoff(self) : 0;
+        if(keep > 0)
+        {
+            vector to = VR_AI_Origin(self.enemy) - self.origin;
+            to_z = 0;
+            step = min(step, vlen(to) - keep);
+        }
+        if(step > 0.25)
+        {
+            ai_charge(step);
+        }
     }
     if(s < VR_AGP_Length(self) || !self.vr_ag_act)
     {
@@ -2631,7 +2650,7 @@ void() VR_AGP_Frame =
         return;
     }
     if(was == VR_AGP_SWING && self.vr_ag_prop2 && self.vr_ag_act_hand != 2 && self.enemy && self.enemy.health > 0 &&
-       random() < 0.45 && vlen(VR_AI_Origin(self.enemy) - self.origin) < VR_AG_GRIP_REACH + 10)
+       random() < 0.45 && vlen(VR_AI_Origin(self.enemy) - self.origin) < VR_AG_MeleeStart(self))
     {
         VR_AGP_Begin(VR_AGP_SWING); // (two held: the other hand follows up)
         return;
