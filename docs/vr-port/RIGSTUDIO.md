@@ -17,7 +17,10 @@ layer), `vr_imgui.cpp` (ImGui in the game); `Quake/thirdparty/imgui` (Dear ImGui
 
 or **Debug > Tools > Rig Studio (Flat Screen)**. It is flat-screen only: with a headset session up it refuses
 ("the Rig Studio is flat-screen only"). It loads `vr_rigstudio_map` (vrtesthall), makes you a god-mode, notarget
-onlooker and stands a frozen armed grunt with a shotgun in the middle of the free floor ahead. `vr_rigstudio here`
+onlooker and stands a frozen armed grunt with a shotgun in the middle of the free floor ahead (160 units ahead of the
+start; where a map's world text (a banner) would show over it from the default camera, the nearest place clear of every
+one, with room round it and the camera: in vrtesthall 96 forward and 48 left, past the welcome boards; the console says
+where, `developer 1` why each nearer place was not taken). `vr_rigstudio here`
 keeps the map you are in. `vr_rigstudio <spawn class> [weapon] [weapon2]` picks the subject (the armed list's codes:
 `vr_toolgun_armed_list`; 4 the shotgun, the default), as does the **Subject** menu (every armed humanoid kind, its right
 and left hand's weapon, dual included, and a few unarmed rigged monsters). There is only ever one subject: a change (its
@@ -112,7 +115,8 @@ ROUND22.md, "Off hand: grip offset and Free"):
   Also Combat > Armed Grunts > IK Stretch (a row per kind and class, each pick +0.05).
 
 Undo, Save, Print / `vr_agrunt_pose_dump` (a row carries 30 numbers when any off-hand part is set, else the 21 of
-before), Copy to the other kind (the grip offset as it is: the gun's frame; the free hand's place scaled by the fit) all
+before; `vr_agrunt_pose_dump all` prints every key and stretch in effect, archived or shipped alike, and
+`vr_agrunt_grip_dump effective` every grip: the check that a promotion to the shipped tables changed nothing), Copy to the other kind (the grip offset as it is: the gun's frame; the free hand's place scaled by the fit) all
 cover them. Not in the VR Pose Studio yet (its hands take the left hand on a second grip as the Grip Editor's Second grip).
 
 ImGui is made the first time the studio opens; until then nothing of it exists, and while the studio is closed none of

@@ -196,8 +196,9 @@ KNIGHT_SKELETON = [
          radius=6.0, fwd=(1, 0, 0), side=(0, 1, 0), sx=(-25, 35), sy=(-25, 25), tw=(-35, 35)),
     dict(name='head', parent='neck', joint='ball', pivot=(5.0, 1.8, 19.0), end=(6.0, 1.8, 25.0), blend=1.0,
          radius=6.0, fwd=(1, 0, 0), side=(0, 1, 0), sx=(-25, 15), sy=(-20, 20), tw=(-20, 20)),
+    # (the clavicles' range his, set in the Rig Studio's Range of Motion 2026-10-31: wider swings, a longer twist)
     dict(name='clavicle_l', parent='chest', joint='ball', pivot=(4.0, 4.0, 15.5), end=(3.0, 11.0, 13.0), blend=2.0,
-         radius=6.0, fwd=(1, 0, 0), side=(0, 0, 1), sx=(-15, 20), sy=(-10, 20), tw=(-35, 35)),
+         radius=6.0, fwd=(1, 0, 0), side=(0, 0, 1), sx=(-15, 35), sy=(-15, 35), tw=(-65, 45)),
     # (his left arm hangs 51 degrees back at rest: its swing back to 60)
     dict(name='upperarm_l', parent='clavicle_l', joint='ball', pivot=(3.0, 11.0, 13.0), end=(-2.5, 13.5, 7.0),
          blend=3.5, radius=7.5, neutral=(0, 0.17, -1), fwd=(1, 0, 0), side=(0, 1, 0), sx=(-60, 46),
@@ -207,7 +208,7 @@ KNIGHT_SKELETON = [
     dict(name='hand_l', parent='forearm_l', joint='ball', pivot=(-3.2, 14.3, 1.0), end=(-2.6, 14.6, -2.0), refine=True,
          blend=0.6, radius=3.5, fwd=(0, 0, 1), side=(0, -1, 0), sx=(-30, 30), sy=(-30, 30), tw=(-30, 30)),
     dict(name='clavicle_r', parent='chest', joint='ball', pivot=(4.0, -0.5, 15.5), end=(4.0, -8.5, 13.0),
-         blend=2.0, radius=6.0, fwd=(1, 0, 0), side=(0, 0, 1), sx=(-15, 20), sy=(-10, 20), tw=(-35, 35)),
+         blend=2.0, radius=6.0, fwd=(1, 0, 0), side=(0, 0, 1), sx=(-15, 35), sy=(-15, 35), tw=(-65, 45)),
     dict(name='upperarm_r', parent='clavicle_r', joint='ball', pivot=(4.0, -8.5, 13.0), end=(5.0, -13.0, 6.0),
          blend=3.5, radius=7.5, neutral=(0, -0.17, -1), fwd=(1, 0, 0), side=(0, -1, 0), sx=(-35, 46),
          sy=(-15, 50), tw=(-20, 40)),

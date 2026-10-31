@@ -55,6 +55,10 @@ void serverSetHAlign(int handle, HAlign hAlign);
 void serverSetScale(int handle, float scale);
 void serverWriteAll(sizebuf_t* msg); // replay for a spawning client
 void serverFloatText(const glm::vec3& pos, const char* text, const glm::vec3& color, float scale);
+// The server's texts (the Rig Studio places its subject clear of them: vr_rigstudio.cpp findStage).
+[[nodiscard]] const za::Vector<WorldText>& serverTextList();
+// A text's half size in world units (its longest line and its lines, 8 units a character at scale 1): x across, y down.
+[[nodiscard]] glm::vec2 halfSize(const WorldText& t);
 
 // Client side.
 void clientReset();
