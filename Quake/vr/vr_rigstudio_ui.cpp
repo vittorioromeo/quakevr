@@ -177,7 +177,8 @@ void menuBar()
         }
         ImGui::Separator();
         ImGui::TextDisabled("Other monsters with a rig (no weapons)");
-        const char* others[][2] = {{"Grunt", "monster_army"}, {"Enforcer", "monster_enforcer"}, {"Knight", "monster_knight"},
+        const char* others[][2] = {{"Grunt (plain)", "monster_army"}, {"Enforcer (plain)", "monster_enforcer"},
+            {"Knight (plain)", "monster_knight"},
             {"Ogre", "monster_ogre"}, {"Zombie", "monster_zombie"}};
         for(const auto& o : others)
         {
