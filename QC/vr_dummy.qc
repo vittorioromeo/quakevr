@@ -306,7 +306,7 @@ string(entity targ, float isVRMelee) VR_Dummy_Part =
     {
         if(VR_Hit_On(targ) && hit_zone >= 0)
         {
-            if(hit_zone == 1)
+            if(hit_zone == VR_REGION_HEAD)
             {
                 vr_dummy_colour = '1 0.85 0.2';
             }
@@ -326,7 +326,7 @@ string(entity targ, float isVRMelee) VR_Dummy_Part =
     // A shot with positional damage.
     if(VR_Hit_On(targ) && hit_zone >= 0)
     {
-        if(hit_zone == 1)
+        if(hit_zone == VR_REGION_HEAD)
         {
             vr_dummy_colour = '1 0.85 0.2';
         }

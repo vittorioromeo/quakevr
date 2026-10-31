@@ -41,7 +41,7 @@ float(entity xTarget, vector xTo, vector xDir) VR_Melee_Positional;
 
 // The hit record (design review 6; ROUND23.md, "One hit record"): where the hit being dealt struck, written once by
 // its source and read by T_DamageDeal's consumers, in one vocabulary: the part positional damage has always used
-// (PositionalRegion: 1 the head, 2 a limb, 3 the legs, 0 the body; -1 none).
+// (PositionalRegion: a VR_REGION_*, Quake/vr/vr_region_shared.h, the engine hit reaction regions too; -1 none).
 // A shot's or a blow's zone (VR_Hit_SetZone: PositionalDamage, VR_Melee_Positional): good for `hit_targ` this frame.
 entity hit_targ;     // whom it struck (world: none)
 float hit_time;      // and when
@@ -898,15 +898,15 @@ float(entity targ) VR_Corpse_PositionalFactor =
     // One shot.
     else if(VR_Hit_On(targ))
     {
-        if(hit_zone == 1)
+        if(hit_zone == VR_REGION_HEAD)
         {
             f = head;
         }
-        else if(hit_zone == 2)
+        else if(hit_zone == VR_REGION_ARM)
         {
             f = limb;
         }
-        else if(hit_zone == 3)
+        else if(hit_zone == VR_REGION_LEG)
         {
             f = leg;
         }

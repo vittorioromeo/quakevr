@@ -22,6 +22,7 @@
 #include "vr_render.hpp"
 #include "vr_weapons.hpp"
 #include "vr_geom.hpp"
+#include "vr_region_shared.h"
 
 #include "Zancle/Base/GetArraySize.hpp"
 
@@ -63,8 +64,15 @@ constexpr float tiltTurn = 0.12f; // rad: the whole-model tilt at size 1 (models
 constexpr glm::vec3 forward{1.f, 0.f, 0.f}; // a model's facing (Quake's: +x)
 constexpr glm::vec3 up{0.f, 0.f, 1.f};
 
-// Where a bone is on the body, by its name (the seed tables': vr_ragdoll.cpp)
-enum class Region : uint8_t { Body, Head, Arm, Leg };
+// Where a bone is on the body, by its name (the seed tables': vr_ragdoll.cpp): the QC's positional parts
+// (vr_region_shared.h), so a hit's part is its region.
+enum class Region : uint8_t
+{
+    Body = VR_REGION_BODY,
+    Head = VR_REGION_HEAD,
+    Arm = VR_REGION_ARM,
+    Leg = VR_REGION_LEG
+};
 
 [[nodiscard]] Region regionOf(const ragdoll::Bone& b)
 {
@@ -89,7 +97,7 @@ struct Kick
 {
     double start{0.0};              // cl.time it came
     glm::vec3 at{0.f}, dir{0.f};    // the point struck and the push (world, as it came)
-    int part{-1};                   // PositionalDamage's: 0 body, 1 head, 2 arm, 3 leg; -1 unknown
+    int part{VR_REGION_NONE};       // PositionalDamage's: a VR_REGION_* (vr_region_shared.h; a Region), or none
     float size{0.f};                // its turns' scale (by the share of health the blow took, vr_hit_react_strength)
     bool resolved{false};
     const qmodel_t* model{nullptr}; // the model it was resolved for (another one since: ignored)
@@ -304,10 +312,7 @@ void resolveRig(Kick& k, const entity_t* e, const ragdoll::Rig& rig, const rigpo
     glm::vec3 d = toLocal(e, k.dir, false);
     const float dl = za::sqrt(glm::dot(d, d));
     d = dl > 1e-4f ? d / dl : -forward;
-    const int want = k.part == 1 ? static_cast<int>(Region::Head) : k.part == 2 ? static_cast<int>(Region::Arm)
-                     : k.part == 3                                ? static_cast<int>(Region::Leg)
-                     : k.part == 0                                ? static_cast<int>(Region::Body)
-                                                                  : -1;
+    const int want = k.part >= 0 && k.part < VR_REGION_COUNT ? k.part : VR_REGION_NONE; // (a part is a Region)
     glm::vec3 turn[ragdoll::maxBones];
     for(glm::vec3& t : turn)
     {

@@ -58,7 +58,7 @@ float(entity e) VR_Teeth_Mouth =
     vr_teeth_side_x = -vr_teeth_facing_y;
     vr_teeth_side_y = vr_teeth_facing_x;
     vr_teeth_side_z = 0;
-    vector head = e.origin + vr_teeth_facing * xHeadForward + VR_HeadSide(vr_teeth_facing) + '0 0 1' * xHeadUp;
+    vector head = VR_HeadCentre(e);
     vr_teeth_mouth = head + vr_teeth_facing * (xHeadRadius * 0.8) - '0 0 1' * (xHeadRadius * 0.35);
     return TRUE;
 };

@@ -167,23 +167,20 @@ float(entity e, vector xAt, vector xDir) VR_Decap_OnHead =
     {
         return FALSE;
     }
-    float yaw = e.angles_y * (3.14159265 / 180);
-    vector facing;
-    facing_x = cos(yaw);
-    facing_y = sin(yaw);
-    facing_z = 0;
-    vector head = e.origin + facing * xHeadForward + VR_HeadSide(facing) + '0 0 1' * xHeadUp;
+    float r;
     if(hitmodel_target(e))
     {
-        return vlen(hitmodel_rest(e, xAt) - head) < xHeadRadius + VR_HEAD_MARGIN;
+        r = VR_HeadHolds(e, hitmodel_rest(e, xAt));
     }
-    vector d = normalize(xDir);
-    if(d == '0 0 0')
+    else
     {
-        return vlen(xAt - head) < xHeadRadius;
+        r = VR_HeadOnRay(e, xAt, normalize(xDir));
     }
-    float t = max(0, (head - xAt) * d);
-    return vlen(head - (xAt + d * t)) < xHeadRadius;
+    if(VR_Hit_On(e) && hit_at == xAt && (hit_zone == VR_REGION_HEAD) != r)
+    {
+        bprint(sprintf("hitcheck: decap head %g, record zone %g (%s; debug check, engine log)\n", r, hit_zone, e.classname));
+    }
+    return r;
 };
 
 // The melee's decapitation zone of `e` (VR_Decap_MeleeZone): the head zone grown by vr_decap_head_size (its radius,
@@ -198,12 +195,7 @@ float(entity e) VR_Decap_MeleeZone =
     {
         return FALSE;
     }
-    float yaw = e.angles_y * (3.14159265 / 180);
-    vector facing;
-    facing_x = cos(yaw);
-    facing_y = sin(yaw);
-    facing_z = 0;
-    vr_decap_zone_top = e.origin + facing * xHeadForward + VR_HeadSide(facing) + '0 0 1' * xHeadUp;
+    vr_decap_zone_top = VR_HeadCentre(e);
     vr_decap_zone_bottom = vr_decap_zone_top - '0 0 1' * max(0, cvar_hget(cvarh_vr_decap_neck));
     xHeadRadius = (xHeadRadius + (hitmodel_target(e) ? VR_HEAD_MARGIN : 0)) * max(0.1, cvar_hget(cvarh_vr_decap_head_size));
     return TRUE;

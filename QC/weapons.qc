@@ -287,6 +287,33 @@ float(entity xTarget) PositionalHead =
 
 float VR_HEAD_MARGIN = 3.5; // units: the head spheres are fitted to the top vertices' middle; a head's surface lies up to 3.5 beyond (an ogre's back of the head)
 
+// The head sphere's tests, one for every "was it the head" decider (positional damage's part, beheading, head pops:
+// VR_Decap_OnHead). Each after PositionalHead(e) (its xHead* globals).
+// Its middle (world, on its model standing, turned with its yaw).
+vector(entity e) VR_HeadCentre =
+{
+    float yaw = e.angles_y * (3.14159265 / 180);
+    vector facing = '0 0 0';
+    facing_x = cos(yaw);
+    facing_y = sin(yaw);
+    return e.origin + facing * xHeadForward + VR_HeadSide(facing) + '0 0 1' * xHeadUp;
+};
+
+// Whether `rest` (a place on its model standing: hitmodel_rest) is in it, VR_HEAD_MARGIN grown (precise hits).
+float(entity e, vector rest) VR_HeadHolds =
+{
+    return vlen(rest - VR_HeadCentre(e)) < xHeadRadius + VR_HEAD_MARGIN;
+};
+
+// Whether a ray entering at `xAt` along unit `xDir` passes through it, not behind where it entered ('0 0 0': whether the
+// point itself is in it).
+float(entity e, vector xAt, vector xDir) VR_HeadOnRay =
+{
+    vector head = VR_HeadCentre(e);
+    float t = max(0, (head - xAt) * xDir);
+    return vlen(head - (xAt + xDir * t)) < xHeadRadius;
+};
+
 // Which zone a point that lies in more than one belongs to (1 head, 2 extremities, 3 legs, 0 body). Head priority
 // (vr_hit_head_priority, Combat > Hit Detection > Head Priority): the head's zone wins the overlap - a head is a head
 // whatever else reaches it. Off: the limb and leg zones claim the point first, and the head only where nothing else
@@ -297,46 +324,43 @@ float(float inHead, float outLateral, float belowOrigin) VR_RegionPick =
     {
         if(inHead)
         {
-            return 1; // headshot
+            return VR_REGION_HEAD; // headshot
         }
         if(outLateral)
         {
-            return 2; // extremities
+            return VR_REGION_ARM; // extremities
         }
         if(belowOrigin)
         {
-            return 3; // legs
+            return VR_REGION_LEG; // legs
         }
-        return 0; // standard
+        return VR_REGION_BODY; // standard
     }
 
     if(outLateral)
     {
-        return 2; // extremities
+        return VR_REGION_ARM; // extremities
     }
     if(belowOrigin)
     {
-        return 3; // legs
+        return VR_REGION_LEG; // legs
     }
     if(inHead)
     {
-        return 1; // headshot
+        return VR_REGION_HEAD; // headshot
     }
-    return 0; // standard
+    return VR_REGION_BODY; // standard
 }
 
 // Point classification shared by precise shots, positional melee and the animated debug view's check.
 // `rest` is the contacted point mapped to the standing model, in world space (hitmodel_rest).
 float PositionalPointRegion(entity xTarget, vector rest) =
 {
-    if(!PositionalHead(xTarget)) { return -1; }
+    if(!PositionalHead(xTarget)) { return VR_REGION_NONE; }
     float yaw = xTarget.angles_y * (3.14159265 / 180);
-    vector facing = '0 0 0';
-    facing_x = cos(yaw); facing_y = sin(yaw);
-    vector head = xTarget.origin + facing * xHeadForward + VR_HeadSide(facing) + '0 0 1' * xHeadUp;
     vector side = '0 0 0';
-    side_x = -facing_y; side_y = facing_x;
-    float inHead = vlen(rest - head) < xHeadRadius + VR_HEAD_MARGIN;
+    side_x = -sin(yaw); side_y = cos(yaw);
+    float inHead = VR_HeadHolds(xTarget, rest);
     float lateral = fabs((rest - xTarget.origin) * side) > (xTarget.maxs_x - xTarget.mins_x) * 0.35;
     return VR_RegionPick(inHead, lateral, rest_z < xTarget.origin_z);
 }
@@ -353,21 +377,14 @@ float PositionalRegion(entity xTarget, vector xEndpos, vector xDirection) =
     if(cvar_hget(cvarh_vr_positional_damage) == 0 || (xTarget.vr_gib && !(xTarget.flags & FL_CLIENT)) ||
        !PositionalHead(xTarget))
     {
-        return -1;
+        return VR_REGION_NONE;
     }
 
     vector d = normalize(xDirection);
     if(d == '0 0 0')
     {
-        return -1;
+        return VR_REGION_NONE;
     }
-
-    float yaw = xTarget.angles_y * (3.14159265 / 180);
-    vector facing;
-    facing_x = cos(yaw);
-    facing_y = sin(yaw);
-    facing_z = 0;
-    vector head = xTarget.origin + facing * xHeadForward + VR_HeadSide(facing) + '0 0 1' * xHeadUp;
 
     // Precise hits (vr_hit_precise): the shot struck the model as drawn (at xEndpos, within its tolerance of it). Where
     // that place is on the model standing (hitmodel_rest: the same place of the same triangle in its stand frame, at its
@@ -380,8 +397,7 @@ float PositionalRegion(entity xTarget, vector xEndpos, vector xDirection) =
     }
 
     // The ray's closest approach to the head, not behind where it entered.
-    float t = max(0, (head - xEndpos) * d);
-    float inHead = vlen(head - (xEndpos + d * t)) < xHeadRadius;
+    float inHead = VR_HeadOnRay(xTarget, xEndpos, d);
 
     // The ray's closest approach to the target's vertical axis: how far out, and how high.
     vector dh = d;
@@ -429,7 +445,7 @@ float(entity xTarget, vector xTo, vector xDir) VR_Melee_Positional =
 float PositionalDamage(entity xTarget, vector xEndpos, vector xDirection) =
 {
     float region = PositionalRegion(xTarget, xEndpos, xDirection);
-    if(region == 1)
+    if(region == VR_REGION_HEAD)
     {
         PositionalHeadshotFeedback(xTarget);
     }
@@ -2235,7 +2251,7 @@ void(float shotcount, vector dir, vector spread, vector src, float xRange, float
         {
             posDmgType = PositionalDamage(trace_ent, trace_endpos, shotDir);
             VR_SmallGib_Pellet(trace_ent, trace_endpos);
-            if(debugShots && posDmgType == 1) { hitsHead++; }
+            if(debugShots && posDmgType == VR_REGION_HEAD) { hitsHead++; }
             adjDmg = (vr_pellet_damage ? vr_pellet_damage : 4) * PositionalDamageFactor(posDmgType);
             if(vr_pellet_heavy_mult > 0 && (trace_ent.flags & FL_MONSTER) && trace_ent.max_health >= vr_pellet_heavy_health)
             {
