@@ -2599,7 +2599,15 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
             dprint(sprintf("dirparry: %s's swing already stopped: nothing lands\n", attacker.classname));
             return 0;
         }
-        hand = VR_DRP_Blow(targ, attacker);
+        hand = VR_DRP_Blow(targ, attacker, damage);
+        if(vr_drp_deferred)
+        {
+            vr_parry_from = '0 0 0';
+            v_forward = oldForward;
+            v_right = oldRight;
+            v_up = oldUp;
+            return 0; // (held back: its blade followed on, VR_DRP_Frame)
+        }
     }
     if(hand < 0)
     {

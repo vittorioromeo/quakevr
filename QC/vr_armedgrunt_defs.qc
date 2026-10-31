@@ -96,7 +96,8 @@ float(entity g) VR_AGPar_Guards;                                           // VR
 entity vr_drp_w;           // the weapon whose blow VR_AGP_Strike deals now (world: none)
 float(entity g) VR_DRP_Applies;                                            // VR_Parry: its blow is judged by the direction
 float(entity g) VR_DRP_Done;                                               // VR_Parry: this swing was stopped already
-float(entity pl, entity g) VR_DRP_Blow;                                    // VR_Parry: the parrying hand (-1: none)
+float(entity pl, entity g, float damage) VR_DRP_Blow;                      // VR_Parry: the parrying hand (-1: none)
+float vr_drp_deferred;     // VR_DRP_Blow held the blow back (VR_Parry deals nothing now)
 void(entity pl, entity g, float h) VR_DRP_Effects;                         // VR_Parry: sparks and the clang at the meeting
 void(entity g, entity w) VR_DRP_Frame;                                     // VR_AGP_Pose: its swing met your weapon
 float vr_drp_cut;          // VR_DRP_Blow's partial parry: the share of the blow taken off (0: none)

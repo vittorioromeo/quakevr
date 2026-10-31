@@ -134,6 +134,7 @@ vr_agrunt_test   86       vr_armedgrunt_ai_test.qc         the AI behaviour knob
 vr_agrunt_test   87       vr_armedgrunt_ai_test.qc         the strafe lean
 vr_agrunt_test   85       vr_armedgrunt_muzzle_test.qc     dual guns: each shot from its own muzzle
 vr_agrunt_test   77       vr_armedgrunt_blade_test.qc      your blow on a melee weapon's blade away from its hand: sparks, the clang, no damage; a strong one staggers it
+vr_agrunt_test   78       vr_dirparry_test.qc              the directional parry: its overhead or side swing parried by your weapon held across its way (vr_dirparry)
 vr_agrunt_test   88       vr_armedgrunt_ragweapon_test.qc  the held weapon on an active ragdoll's hand
 vr_agrunt_test   89       vr_armedgrunt_shoveclose_test.qc a gun's holder shoves up close
 vr_agrunt_test   90       vr_armedgrunt_guard_test.qc      an unarmed enforcer's guard in game as the Pose Studio holds its Aim key

@@ -31,6 +31,10 @@
 float VR_DV_DIR_YOURS = 12; // Show Disarm Volumes' kinds (vr_disarmviz.cpp Kind: keep in step)
 float VR_DV_DIR_BLADE = 13;
 float VR_DV_DIR_WAY = 14;
+.float vr_drp_pend;      // (an armed humanoid) its blow held back: its damage (0: none), until when
+.float vr_drp_pend_until;
+float vr_drp_release;   // a held-back blow dealt now (VR_DRP_Blow holds it no more)
+float VR_DRP_NEAR = 48; // units: your weapon this near its blade's way at its blow holds the blow back
 float vr_drp_hand;      // the last reading's: the hand whose weapon met it best (-1: none)
 float vr_drp_score;     // ... its score (0..1)
 float vr_drp_gap;       // ... the two lines' least distance on its way (units)
@@ -48,6 +52,8 @@ float vr_drp_parries;   // directional parries (the tests)
 float vr_drp_early;     // ... of them met before its blow
 float vr_drp_fx_n;      // sparks thrown (the tests)
 vector vr_drp_fx_at;    // ... where the last were
+vector vr_drp_na;       // the last reading's blade line now (the tests' reference swings)
+vector vr_drp_nb;
 
 // Your hand `h`'s weapon's parry line into vr_drp_pa .. vr_drp_pb: the hand to its far end (FALSE: an empty hand, a fist).
 float(entity pl, float h) VR_DRP_PlayerSeg =
@@ -112,6 +118,8 @@ float(entity g, entity w, entity pl, float ahead) VR_DRP_Eval =
     {
         dt = 0;
     }
+    vr_drp_na = a1;
+    vr_drp_nb = b1;
     float contact = max(0.5, cvar_hget(cvarh_vr_dirparry_contact));
     float lenient = min(89, max(0, cvar_hget(cvarh_vr_dirparry_angle)));
     float n = 4 + 2 * ceil(max(0, ahead) * 72); // (samples along its way: two a frame)
@@ -149,8 +157,21 @@ float(entity g, entity w, entity pl, float ahead) VR_DRP_Eval =
         vector ea = a1 + va * bt;
         vector eb = b1 + vb * bt;
         vector axis = normalize(eb - ea);
-        vector v = va + (vb - va) * bs;
-        vector sw = v - axis * (v * axis);
+        // Its way: the turn of its blade over the last frame (the plane it sweeps, whatever its hand's own motion: a swing
+        // is a turn, its blade going along its own length as the hand goes in adds nothing), else its point's motion
+        // square to it.
+        vector sw = '0 0 0';
+        if(dt > 0)
+        {
+            vector turn = normalize(b1 - a1) - normalize(w.vr_drp_b0 - w.vr_drp_a0);
+            sw = turn - axis * (turn * axis);
+            sw = vlen(sw) > 0.01 ? sw * 1000 : '0 0 0';
+        }
+        if(sw == '0 0 0')
+        {
+            vector v = va + (vb - va) * bs;
+            sw = v - axis * (v * axis);
+        }
         if(vlen(sw) < 20)
         {
             sw = pl.origin - g.origin; // (its blade still: its way taken as towards you)
@@ -215,14 +236,16 @@ void(entity g, entity w) VR_DRP_Frame =
     if(!live)
     {
         w.vr_drp_t0 = 0;
+        g.vr_drp_pend = 0; // (its swing cut short: a held blow dropped)
         return;
     }
     VR_AGP_Times(g);
     float s = time - g.vr_ag_act_at;
     float left = w.vr_ag_left && g.vr_ag_prop2;
     float struck = left ? g.vr_ag_act_hitl : g.vr_ag_act_hit;
+    float pending = g.vr_drp_pend > 0;
     float parried = FALSE;
-    if((s >= vr_agp_tw) && (s < vr_agp_tw + vr_agp_ts) && !struck && !VR_DRP_Done(g) &&
+    if((s >= vr_agp_tw) && (((s < vr_agp_tw + vr_agp_ts) && !struck) || pending) && !VR_DRP_Done(g) &&
        (vlen(pl.origin - g.origin) < 150))
     {
         VR_DRP_Eval(g, w, pl, 0);
@@ -233,13 +256,25 @@ void(entity g, entity w) VR_DRP_Frame =
         {
             vr_drp_forced = TRUE;
             vr_drp_w = w;
-            VR_Parry(pl, g, g, 20); // (its damage unknown here: the parry's events' only; nothing is dealt)
+            VR_Parry(pl, g, g, pending ? g.vr_drp_pend : 20); // (nothing is dealt: the parry's events')
             vr_drp_w = world;
             vr_drp_forced = FALSE;
             vr_drp_early = vr_drp_early + 1;
             g.vr_ag_act_hit = 1; // (no blow from this swing)
             g.vr_ag_act_hitl = 1;
+            g.vr_drp_pend = 0;
         }
+    }
+    if(pending && g.vr_drp_pend > 0 && time >= g.vr_drp_pend_until)
+    {
+        // Its blow held back met no weapon of yours across its way in the window: it lands now.
+        float hurt = g.vr_drp_pend;
+        g.vr_drp_pend = 0;
+        vr_drp_release = TRUE;
+        vr_drp_w = w;
+        T_Damage(pl, g, g, hurt);
+        vr_drp_w = world;
+        vr_drp_release = FALSE;
     }
     VR_AG_WeaponLine(w);
     w.vr_drp_a0 = vr_ag_wa;
@@ -249,16 +284,30 @@ void(entity g, entity w) VR_DRP_Frame =
 
 // VR_Parry, `g`'s blow on `pl` (VR_DRP_Applies): the hand whose weapon parried it (-1: none; vr_drp_cut a partial
 // parry's share), vr_parry_at the meeting. Met before its blow (VR_DRP_Frame): that reading's.
-float(entity pl, entity g) VR_DRP_Blow =
+float(entity pl, entity g, float damage) VR_DRP_Blow =
 {
     float threshold = cvar_hget(cvarh_vr_dirparry_threshold);
+    float window = max(0, cvar_hget(cvarh_vr_dirparry_window));
+    vr_drp_deferred = FALSE;
+    vr_drp_cut = 0;
     if(!vr_drp_forced)
     {
         entity w = vr_drp_w ? vr_drp_w : g.vr_ag_prop;
-        VR_DRP_Eval(g, w, pl, max(0, cvar_hget(cvarh_vr_dirparry_window)));
+        VR_DRP_Eval(g, w, pl, window);
         VR_DRP_Show(g, w, vr_drp_score >= threshold);
+        // Your weapon near its way but not met yet (its blow is dealt before its blade gets there): the blow held back
+        // for the window, its blade followed each frame (VR_DRP_Frame): met across, parried; else it lands then.
+        if(!vr_drp_release && window > 0 && vr_drp_hand >= 0 && vr_drp_gap < VR_DRP_NEAR &&
+           !((vr_drp_gap <= max(0.5, cvar_hget(cvarh_vr_dirparry_contact))) && (vr_drp_score >= threshold)))
+        {
+            g.vr_drp_pend = max(g.vr_drp_pend, damage);
+            g.vr_drp_pend_until = time + window;
+            vr_drp_deferred = TRUE;
+            dprint(sprintf("dirparry: %s's blow held back %.2f s: your weapon %.1f units from its way\n", g.classname,
+                window, vr_drp_gap));
+            return -1;
+        }
     }
-    vr_drp_cut = 0;
     if(vr_drp_hand < 0 || vr_drp_score < threshold || vr_drp_score <= 0)
     {
         if(vr_drp_score > 0 && threshold > 0)

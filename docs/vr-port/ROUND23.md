@@ -3665,3 +3665,46 @@ Checklist:
   wrist straight, and Pose Keys shows the "left hand: grip offset" dot; drag it: the hand follows on the gun.
 - [knightpose] Toolgun: an armed Knight with a nail pistol aims it in the pistol pose (off hand free or cupping), not
   shouldered as a rifle.
+
+## Directional parry (experimental; branch `agent/dirparry`)
+
+His words (2026-10-31): parry armed humanoids' melee by the direction of the enemy weapon and strike: overhead strikes
+by holding your weapon horizontally, horizontal strikes by holding it vertically; no poses written in; the parrying
+weapon square to the enemy weapon, physically meeting it; sparks where they collide.
+- **`vr_dirparry`** (0, Combat > Parry: "Directional Parry (Experimental)"; QC/vr_dirparry.qc). On: an armed humanoid's
+  melee-weapon swing (VR_AGP_SWING; not the chainsaw's thrust, not punches, butts or shoves) is judged only by this rule
+  (the level-across rule still judges every other blow; fists: the crossed arms as before). Off: everything as before.
+- **Its side:** every frame of the strike its blade's line as drawn (VR_AG_WeaponLine) and last frame's: its way is the
+  turn of the blade (the plane it sweeps: the hand's own forward motion, which makes the blade go along its length at
+  the blow, is left out), else its point's motion square to it. **Yours:** each hand's weapon line from the hand to its
+  far end (VR_Parry_WeaponLine / VR_Melee_Line: a sword's blade, a gun's barrel to its tip).
+- **Score:** your line's angle off square to both its blade and its way: full marks within `vr_dirparry_angle` (40),
+  none at 90; times the meeting (1 within `vr_dirparry_contact`, 6 units, 0 at twice it). `vr_dirparry_threshold`
+  (0.75) parries: no damage, sparks (VR_ImpactFx metal) and the metal clang at the middle of the two lines' nearest
+  points, the parry's own sound, haptics, stamina, counter and stagger (VR_Parry), the swing stopped (no blow; a
+  `vr_dirparry_opening` 0.5 s flinch if the parry balance gave none). Under it: `vr_dirparry_partial` (0: off).
+- **Timing:** the AG's blow is dealt at 55% of its strike, before its blade reaches you; so with your weapon within 48
+  units of its way at the blow, the blow is held back for `vr_dirparry_window` (0.1 s) while its blade is followed
+  frame by frame: met across, parried; else it lands then (T_Damage). Met before the blow: parried there.
+- **Debug:** Show Disarm Volumes draws your line (green parried, red not), its blade where they met (white), its way
+  (yellow) and the score label (vr_disarmviz.cpp kinds 12-14). Tunables group "Combat > Directional Parry".
+- **Test 78** (`vr_agrunt_test 78`, Debug > Tests > Armed Grunts: Directional Parry; QC/vr_dirparry_test.qc): 8/1.
+  Your weapon is posed in QC each frame (hand, turn, muzzle: the mock places no weapon muzzle) at its blade's place 3/4
+  into a reference swing. Overhead vs sword level across: parried (45 deg off square, gap 5.6); horizontal vs upright:
+  parried (14 deg); horizontal vs level across: lands; shotgun level across vs overhead: parried (46 deg); 40 units
+  aside: lands; vr_dirparry 0: the old rule (no reading); sparks at the meeting, within half the contact distance of
+  both lines. **FAIL: overhead vs upright parries** (33 deg off square): the grunt's drawn "overhead" (swing kind 0) is
+  a diagonal cut where it comes onto you: its blade turns about an axis about 45 degrees between level and upright (the
+  tip goes about 10 units sideways for 17 down), so both guards are square enough. The measure is right for the swing
+  as drawn; making overheads read as overheads needs either a truer overhead animation (its keys in VR_AGP_SwingKeys) or
+  a tighter angle (about 30 deg, which the test's level guard at 45 would then fail too). Not tuned: his call.
+- Not done: the non-humanoid expansion (a knight's or ogre's swing from its animation frames): the humanoid case does not
+  pass robustly yet (above). eval.sh as before (no leg takes; melee untouched).
+- Also: `VR_AG_SegDist` now leaves its nearest points' shares in `vr_ag_seg_s`/`_t`.
+
+Checklist:
+- [dirparry] Combat > Parry: Directional Parry on. A sword grunt's horizontal swing: hold your sword upright where its
+  blade comes: sparks where the blades meet, no damage, it flinches; held level across instead: the blow lands.
+- [dirparry] Its overhead swing: hold your sword or shotgun level across above your head where its blade comes down:
+  parried, sparks at the contact. (Known: upright also parries its current overhead, a diagonal cut.)
+- [dirparry] Debug > Show Disarm Volumes during its swings: your weapon's line (green/red), its blade, its way, the score.
