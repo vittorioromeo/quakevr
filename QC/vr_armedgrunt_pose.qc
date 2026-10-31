@@ -1720,6 +1720,8 @@ void(entity g, entity p) VR_AGK_Hold =
     {
         g.vr_ag_act_at = time; // (Play: the strike from its start, in place)
         g.vr_agk_play_end = time + VR_AGP_Length(g) + 0.4;
+        dprint(sprintf("agk: the studio plays its strike (pose %g) at %.2fx: %.3f s\n", pose, VR_AGP_Speed(g),
+            VR_AGP_Length(g)));
     }
     g.vr_agk_play = vr_agk_hplay;
     if(time >= g.vr_agk_play_end)
