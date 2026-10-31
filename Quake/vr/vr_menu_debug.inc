@@ -52,20 +52,13 @@
 za::Vector<Item> pageDebugViews()
 {
     return {
-        cycle("Body Clone While Tweaking", vr_menu_body_clone, {{0.f, "Off"}, {1.f, "On"}, {2.f, "Every VR Page"}})
-            .help("While a page tweaks something worn on your body (the holsters, the pouches, the flashlight on your belt "
-                  "or head and its zones, the wrist gadget's mount, the virtual stock), a mirror image of your body beside "
-                  "the menu, facing you, with the zones drawn on it too. Every VR Page: on any page (a test). "
-                  "vr_menu_body_clone_info prints where it is."),
+        row(opt::vr_menu_body_clone),
         slider("Body Clone Distance", vr_menu_body_clone_distance, 0.8f, 3.f, 0.1f, "%.1f m").extend(0.5f, 5.f)
             .help("From your eyes to the image's."),
         cycle("Body Clone Side", vr_menu_body_clone_side,
             {{0.f, "Away from Main Hand"}, {1.f, "Left"}, {2.f, "Right"}, {3.f, "Straight Ahead"}})
             .help("Beside the menu panel, on this side; Straight Ahead: behind the panel (drawn over it)."),
-        toggle("Animated Surfaces", vr_anim_surface)
-            .help("On: an animated texture's frames (the wall buttons' lit and dim frames) share one surface: the same "
-                  "bumps, parallax depth, sheen and detail, only their colours and glow change. Off: each frame its own "
-                  "(the relief and sheen pulsed with the frames). At once."),
+        row(opt::vr_anim_surface),
         command("Retro Textures: List", "vr_retro_list")
             .help("vr_retro_list: prints each model drawn now with its retro textures kind (Graphics > Retro Textures), its "
                   "set and its skin's size, to the console."),
@@ -85,15 +78,9 @@ za::Vector<Item> pageDebugViews()
             .help("vr_light_probe: the baked light at six points round you, as the map has it and as it is drawn with the "
                   "current Ambient Light and Light Contrast (128 is Quake's full light). The same numbers light a model "
                   "standing there: two settings, compared without looking."),
-        toggle("Show Damage Numbers", vr_debug_damage_numbers)
-            .help("Every hit on anything that takes damage (monsters, corpses, gibs, crates, props, shootable walls): its "
-                  "damage floating where it struck, and printed as the training dummy's (what struck, where, what's left)."),
-        toggle("Show Grapple Rope", vr_debug_rope)
-            .help("Each grappling hook rope: its drawn chain (points white, pieces green), the corners it wraps round "
-                  "(red) and its taut path (yellow), the ends (orange)."),
-        toggle("Show Physics Shapes", vr_debug_physics_shapes)
-            .help("Draws the physics bodies (Box3D) as wireframes: props awake green, asleep blue, held yellow; doors purple, "
-                  "monsters orange, you cyan, hanging pickups grey; red dots where they touch. And each hand's grab reach."),
+        row(opt::vr_debug_damage_numbers),
+        row(opt::vr_debug_rope),
+        row(opt::vr_debug_physics_shapes),
         toggle("Show Holster Zones", vr_holster_zones_show)
             .help("vr_holster_zones_show: every holster's and pouch's zone as a box: grey idle, blue with a gun in it, yellow "
                   "a candidate (a hand or its gun in it, another deeper), green where a hand is (holding a gun: where it "
@@ -107,22 +94,9 @@ za::Vector<Item> pageDebugViews()
         command("Print Holster Setup", "vr_holstersetup_report")
             .help("vr_holstersetup_report: whether Holster Setup runs (VR Settings > Holster Calibration), "
                   "what is held, and each holster's and pouch's reach point (units from the eyes: forward, right, up) and size."),
-        cycle("Show Hit Zones", vr_debug_hitzones, {{0.f, "Off"}, {1.f, "Positional Damage"}, {2.f, "Decapitation"}, {3.f, "Both"}})
-            .help("Positional Damage colors the animated model surface: head red, body green, extremities yellow, legs blue. "
-                  "Uses the same standing-pose mapping and Head Priority as precise shots and positional melee. "
-                  "Precise hits off: box/ray reference zones. Decapitation colors, on the animated model too, where a "
-                  "slash beheads (magenta: the melee's zone, Head Size and Neck) and the head that shots, lasers and "
-                  "thrown axes pop (red); Both outlines the magenta over Positional Damage's colors. Every head and limb "
-                  "test maps the point struck to the standing pose, so these zones move with the model."),
-        cycle("Show Disarm Volumes", vr_debug_disarm, {{0.f, "Off"}, {1.f, "On"}, {2.f, "And Print Hits"}})
-            .help("Armed enemies, standing or an active ragdoll: their weapon's blow/parry reach (orange; yellow: your "
-                  "grip would take it now; green: in a tug, its progress bar), shot volumes (magenta weapon, cyan hand), the "
-                  "grip spheres a body blow disarms within (red; faint: a limb hit's), the ragdoll limb it rides (white). Your "
-                  "fists' grab spheres (grey; yellow touching a weapon, the gap shown), your strike lines (white) and blow "
-                  "lines (blue). The last hit is marked a moment: parry cyan, disarm red, body grey, shot magenta, blocked "
-                  "yellow."),
-        toggle("Hit Zones Through Walls", vr_debug_hitzones_xray)
-            .help("Draws the animated positional regions through walls and the back of the model. Off: only visible surfaces."),
+        row(opt::vr_debug_hitzones),
+        row(opt::vr_debug_disarm),
+        row(opt::vr_debug_hitzones_xray),
         cycle("Show Gadget Button", vr_debug_gadget_button,
             {{0.f, "Off"}, {1.f, "Its Hit Volume"}, {2.f, "And the Screen Tap"}, {3.f, "And Print Sync"}})
             .help("vr_debug_gadget_button: the wrist gadget's side button's hit volume (green ready, yellow pressed, red "
@@ -137,25 +111,10 @@ za::Vector<Item> pageDebugViews()
         command("Gear Lights Info", "vr_gear_lights_info")
             .help("vr_gear_lights_info: the gear lights' state, the side button's place and your fingertip's distance to "
                   "it, and the stealth AI's light on you now."),
-        cycle("Show Hits", vr_debug_hits, {{0.f, "Off"}, {1.f, "Hits"}, {2.f, "Hits and Misses"}})
-            .help("Precise hit detection: each hit on a monster's model drawn for a few seconds (the model as it was then, "
-                  "the triangle hit in green, the point on the model in red, where the grown model was met in yellow) and "
-                  "printed. Hits and Misses: also the shots that went through a monster's box beside its model (orange)."),
-        toggle("Show Melee Blades", vr_debug_melee_blades)
-            .help("vr_debug_melee_blades: what each hand's blows strike with, live (swords, axes, fists, guns used as clubs, "
-                  "torches): the blow line from the hand to the tip (bold; the near end behind the hand thinner), white "
-                  "idle, yellow while the hand moves fast enough to strike, red just after a blow landed; the lines the "
-                  "sweep tested and the blade's swept surface over the last third of a second, fading; a hammer's or "
-                  "mace's head as its box. A red dot where a blow landed, its damage above it."),
-        toggle("Show Armed Humanoids' Aim Points", vr_agrunt_aim_exposed_show)
-            .help("vr_agrunt_aim_exposed_show: where each armed humanoid aims on you, each time it looks (every 0.1 s): "
-                  "yellow sparks on the part of you its gun's line reaches, red where it last aimed when nothing of you "
-                  "shows (it holds fire). The setting: Armed Grunts > AI Behaviour > Aim at What They Can Hit."),
-        cycle("Show Shot Disarms", vr_agrunt_shotdisarm_debug, {{0.f, "Off"}, {1.f, "Print"}, {2.f, "Print and Volumes"}})
-            .help("vr_agrunt_shotdisarm_debug: each shot of yours on an armed grunt printed (shotdisarm: the part it hit, "
-                  "weapon, hand or body; the damage adding up; each roll, its chance and result); Print "
-                  "and Volumes also shows each held weapon's line (blue-white sparks) and its hand and forearm (sparks). "
-                  "The settings: Armed Grunts > Disarming: Shooting It Out."),
+        row(opt::vr_debug_hits),
+        row(opt::vr_debug_melee_blades),
+        row(opt::vr_agrunt_aim_exposed_show),
+        row(opt::vr_agrunt_shotdisarm_debug),
         command("Edit Blade Shape (Main Hand)", "vr_bladeedit main")
             .help("vr_bladeedit: the main hand's weapon's melee blade shaped by hand (as Weapon Offsets > Edit Blade "
                   "Shape): its tip, near end, width, curve and head box. With the hand empty: the fist's blow line."),
@@ -204,13 +163,8 @@ za::Vector<Item> pageDebugViews()
                   "see-through holes, flipped and collapsed triangles, sharp folds, stretch (the console; ends on "
                   "'rig2 check: N passed, M failed'). vr_rig2_check progs/vrgrunt.mdl 0 "
                   "envelope prints how far each joint turns cleanly."),
-        cycle("Armed Humanoids' Armour (P0)", vr_agarmor, {{0.f, "None"}, {1.f, "Green"}, {2.f, "Yellow"}, {3.f, "Red"}, {4.f, "One of Each"}})
-            .help("vr_agarmor (debug, the armour spike: drawn only, no gameplay): armour shells made from the grunt's own mesh "
-                  "(a cuirass and a helmet) on every grunt and enforcer drawn on the authored rig (the Rig Studio's "
-                  "subject too), in the player's armour colours. One of Each: green, "
-                  "yellow, red by entity number. vr_agarmor_set <entity> <type> [pieces] for one."),
-        cycle("Armour Pieces", vr_agarmor_pieces, {{3.f, "Cuirass and Helmet"}, {1.f, "Cuirass"}, {2.f, "Helmet"}})
-            .help("vr_agarmor_pieces: which pieces the armoured grunts wear (each piece hidden by collapsing its bones)."),
+        row(opt::vr_agarmor),
+        row(opt::vr_agarmor_pieces),
         command("Check the Armour's Fit", "vr_agarmor_check")
             .help("vr_agarmor_check [model] [random poses]: the armour shells made twice (alike), closed, then measured on "
                   "the authored rig's rest pose, every joint near them swept and 200 random poses: body vertices inside "
@@ -224,36 +178,14 @@ za::Vector<Item> pageDebugViews()
             .help("vr_blade_dump [slot]: the main hand's weapon's blade shape and tip as vr_weapons.inc lines (* changed)."),
         command("Print Fist Line", "vr_blade_dump fist")
             .help("vr_blade_dump fist: the empty hand's blow line (vr_melee_fist_*) as vr_cvars.inc lines (* changed)."),
-        toggle("Show Hand Bones", vr_debug_hand_bones)
-            .help("Draws both hands' joints and bones, and what they grip: the finger spheres (green touching, yellow near, red "
-                  "sunk in) and the palm's fit (white: where the hand is, cyan: where the grip moved the palm)."),
-        cycle("Show Ledges", vr_debug_ledges, {{0.f, "Off"}, {256.f, "Within 256 units"}, {1.f, "Within 512 units"}, {1024.f, "Within 1024 units"}})
-            .help("The ledge map round you, what climbing holds: lips green (on moving brushes pink; on props orange, as they "
-                  "lie now: Climb Props), a tick out every 8 units (yellow where the drop starts further out). Built even with "
-                  "climbing off."),
-        toggle("Log Empty Hand Against Held", vr_debug_hand_collide)
-            .help("Prints, each frame an empty hand meets the weapon or the thing the other hand holds, how near the real "
-                  "and the drawn hand's palm and knuckles are to its surface, how far the drawn hand and the thing are "
-                  "held back (Carrying: Empty Hand Against Held Things)."),
-        cycle("Show Grab Test", vr_debug_carry, {{0.f, "Off"}, {1.f, "Drawn"}, {2.f, "Drawn and Logged"}, {3.f, "Also Far Fists"}})
-            .help("For each hand near something to carry: the box it is drawn in and the fist tested (its spheres; the nearest "
-                  "bright). Logged: each grab and held prop's placing printed, carry_trace.txt written, and held props meeting each "
-                  "other, a weapon or a wall; also far fists: hands not near anything too."),
-        toggle("Log Grab Query", vr_debug_grab)
-            .help("Prints each grip the grab query gives a take in the player's frame (grabquery: main hand, torch (the torch, "
-                  "3.2 u)): a torch on its wall, the grenade pouch, the ammo pouch (vr_grab.hpp: the kinds in their order)."),
-        cycle("Climbing Footholds Debug", vr_debug_climb_feet, {{0.f, "Off"}, {1.f, "Log Holds"}, {2.f, "Log Each Frame"}, {3.f, "Logged and Drawn"}})
-            .help("Climbing, prints each foothold a foot finds (climbfoot: where, what, how many traces); each frame's feet "
-                  "(climbfeet: planted or stepping, their slip, any in a wall); drawn: each foot's hold and the search."),
-        cycle("Show Tracked Skeleton", vr_bodytrack_debug, {{0.f, "Off"}, {1.f, "On the Body"}, {2.f, "Beside the Body"}})
-            .help("Body tracking: the headset's tracked skeleton drawn (cyan: seen, magenta: guessed by the headset, as "
-                  "Quest 3's legs), on your body or beside it."),
-        cycle("Skeleton Bones", vr_bodytrack_debug_bones,
-            {{0.f, "Tracked"}, {1.f, "Untracked (Our IK)"}, {2.f, "Both Overlapped"}, {3.f, "Body Over Tracked"}})
-            .help("Which bones Show Tracked Skeleton draws: the headset's tracked ones (cyan, magenta); our IK's, the body "
-                  "posed without the tracking (orange: while they are drawn, the body ignores the tracking); or both "
-                  "over each other, to compare. Body Over Tracked: the body's own bones as posed with the tracking "
-                  "(yellow) over the tracked ones: the yellow elbow should sit on the magenta one."),
+        row(opt::vr_debug_hand_bones),
+        row(opt::vr_debug_ledges),
+        row(opt::vr_debug_hand_collide),
+        row(opt::vr_debug_carry),
+        row(opt::vr_debug_grab),
+        row(opt::vr_debug_climb_feet),
+        row(opt::vr_bodytrack_debug),
+        row(opt::vr_bodytrack_debug_bones),
         command("Print Body Tracking Status", "vr_bodytrack_status"),
         command("Print Seated Status", "vr_seated_status")
             .help("vr_seated_status: seated play (VR Settings > Height > Seated Play): the lift, your head and the drawn "
@@ -267,9 +199,7 @@ za::Vector<Item> pageDebugViews()
         command("Record Body Tracking (10 s)", "vr_bodytrack_dump 10")
             .help("Writes 10 seconds of the raw tracked joints, the weights, the elbow fit and the body's joints to "
                   "bodytrack_dump.csv in the game folder (Misc/quakevr/bodytrack_dump_report.py sums it up)."),
-        cycle("Show Body Skeleton", vr_body_debug,{{0.f, "Off"}, {1.f, "Skeleton"}, {2.f, "Body Facing You"}, {3.f, "Body From Its Left"}})
-            .help("Draws the body's skeleton; or shows the body in front of you, facing you or seen from its left (to check "
-                  "its pose and calibration without a mirror)."),
+        row(opt::vr_body_debug),
         cycle("Preview Crouch", vr_body_crouch_preview,
             {{-1.f, "Off"}, {0.f, "Standing"}, {0.25f, "Quarter"}, {0.5f, "Half"}, {0.75f, "Three Quarters"}, {1.f, "Full"}})
             .help("vr_body_crouch_preview: the Crouched Pose (Body) blended as if you crouched this deep, standing or not: "
@@ -281,27 +211,16 @@ za::Vector<Item> pageDebugViews()
                   "right, up."),
         command("Print Torso Direction", "vr_torso_report")
             .help("vr_torso_report: the head's yaw, the old and the new torso guesses, the hands' pull and weights."),
-        toggle("Log Body Drift", vr_debug_body_error)
-            .help("Twice a second in the console: how far the game's body (its feet) has drifted in your room since it was turned "
-                  "on (or marked), and how far its facing has turned, with your lean. Stand still in the room: leaning and "
-                  "turning or moving with the stick, both should stay near 0 (vr_body_error)."),
-        toggle("Log Body Heights", vr_debug_body_heights)
-            .help("Twice a second in the console: metres above the body's floor of your eyes (as calibrated and as learnt "
-                  "standing), the pelvis, the knees and ankles (and how straight the legs are, 1 straight), the ammo pouch "
-                  "and the hip holsters (and how far from the pelvis), the grenade pouch and the chest holsters. Standing "
-                  "still, they should stay put; a leg at 1 with its ankle off the floor is too short."),
+        row(opt::vr_debug_body_error),
+        row(opt::vr_debug_body_heights),
         command("Mark Body Drift Here", "vr_body_error mark")
             .help("vr_body_error mark: measure the body's drift from where it stands now (stand straight, your feet where they "
                   "are to stay)."),
-        cycle("Show Body Collisions", vr_debug_body_collide, {{0.f, "Off"}, {1.f, "Logged"}, {2.f, "Logged and Drawn"}})
-            .help("The drawn hands and weapons stopping at each other and the body: each contact printed (and "
-                  "body_collide_trace.txt); drawn: the capsules and the pushes."),
+        row(opt::vr_debug_body_collide),
         command("Weapons Into the Walls", "vr_gun_wall_depth")
             .help("vr_gun_wall_depth: each hand's weapon as drawn (held by its handle, by a hotspot, anywhere, two-handed): "
                   "how deep it goes into the walls and floors, and how far they hold the hand out, in the console."),
-        cycle("Log Hand Offsets", vr_debug_hand_offset, {{0.f, "Off"}, {1.f, "When Moved"}, {2.f, "Every Frame"}})
-            .help("Each hand drawn away from where it is tracked, and by what (walls, the weight's spring, models, the body, "
-                  "a held thing against a wall, the other hand's weapon or held thing), in the console."),
+        row(opt::vr_debug_hand_offset),
         open("Flashlight Zones: Flashlight - On a Gun or Head", pageIndex(pageFlashlightMounts)).help("Showing the flashlight zones is on Flashlight > On a Gun or Head."),
         command("Flashlight to Left Hand", "vr_flashlight_give left")
             .help("vr_flashlight_give left: the chest flashlight into the left controller's hand, as if gripped there (that "
@@ -333,33 +252,18 @@ za::Vector<Item> pageDebugViews()
                   "is (holstered, held, away and how far), its chains and their links."),
         command("Magnetic Holsters: All Home", "vr_magholster_return")
             .help("vr_magholster_return: every bound weapon lying about flies back to its holster now (if it is empty)."),
-        toggle("Magnetic Holster Chain Log", vr_magholster_chain_log)
-            .help("vr_magholster_chain_log: each frame, in the console, every magnetic holster chain's worst link stretch (a share), "
-                  "and its most movement and jerk off its anchor (mm); a jump that starts it afresh."),
+        row(opt::vr_magholster_chain_log),
         command("Probe Flashlight", "vr_flashlight_probe menu")
             .help("vr_flashlight_probe: in the console, where the torch is, whether each hand is at it (lit, as the game "
                   "reads the hand, still), whether B/Y would clip it on the head or a gun, and the player's speed and turn."),
-        cycle("Show Model Collisions", vr_debug_model_collide, {{0.f, "Off"}, {1.f, "Logged"}, {2.f, "Logged and Drawn"}})
-            .help("Held weapons and props stopping at the models' triangles: each hand's push printed; drawn: the rays (grey as tracked, "
-                  "green or red as drawn) and the push (yellow)."),
-        toggle("Show Foveation", vr_foveated_debug)
-            .help("The shading rates of Foveated Rendering in the eyes and the mirror (yellow 2x2, red 4x4) and the upscaler's "
-                  "sharp circle (cyan)."),
-        cycle("Show Motion Vectors", vr_temporal_debug,
-            {{0.f, "Off"}, {1.f, "Vectors"}, {2.f, "Reactive Mask"}, {3.f, "Reprojection Test"}})
-            .help("vr_temporal_debug (TAA's inputs, vr_temporal.cpp): Vectors: red/green the motion across/up the eye, blue "
-                  "a model's own; Reactive Mask: red translucency and particles, green history thrown away, blue liquids; "
-                  "Reprojection Test: the last frame moved by the vectors (it should hold still as you move; red: thrown away)."),
+        row(opt::vr_debug_model_collide),
+        row(opt::vr_foveated_debug),
+        row(opt::vr_temporal_debug),
         command("Print Reprojection Error", "vr_temporal_error")
             .help("vr_temporal_error: with Reprojection Test on, each eye's mean error of the last frame moved by the vectors, "
                   "against not moved (0-255), in the console."),
-        toggle("Show Parallax Depth", "vr_parallax_debug")
-            .help("vr_parallax_debug: where the walls' parallax writes the depth of the carving it shows (Graphics > Surfaces > "
-                  "Parallax Depth Write): red, brighter the deeper below the surface; green, brighter the higher over it "
-                  "(Parallax Surface Level); dark blue: the surface's own depth."),
-        toggle("Show Entity Boxes", "r_showbboxes")
-            .help("Every entity's bounding box, as the game collides with it (monsters, items, missiles, triggers), through "
-                  "walls. Single player only."),
+        row(opt::vr_parallax_debug),
+        row(opt::r_showbboxes),
     };
 }
 
@@ -367,105 +271,43 @@ za::Vector<Item> pageDebugViews()
 za::Vector<Item> pageDebugLogging()
 {
     return {
-        cycle("Developer Messages", "developer", {{0.f, "Off"}, {1.f, "On"}, {2.f, "Verbose"}})
-            .help("The game's developer messages: needed by Shots and Damage and the Grappling Hook's log below, and many "
-                  "others (melee events, grenades, deflections). Verbose: every frame's melee detail too."),
+        row(opt::developer),
         header("Logs"),
-        toggle("Gore Sounds", vr_gore_sound_debug)
-            .help("vr_gore_sound_debug: each gore sound played or dropped (capped, rate-limited, too far, off) and why, "
-                  "and a choking monster's cry dropped (Gore > Gore Sounds; vr_gore_sound_stats counts them)."),
-        toggle("Bloody Prints", vr_bloodprints_debug)
-            .help("vr_bloodprints_debug: each bloody footprint and handprint (where, its way, size, strength; the ankle and "
-                  "toe or the wrist it came from), each pool or body that bloodied your feet."),
-        cycle("Bullet Time", vr_debug_bullettime, {{0.f, "Off"}, {1.f, "On, Off, Refused, Refills"}, {2.f, "And the Screen Tap"}})
-            .help("Bullet time starting, stopping and refused (the meter, the cooldown), each tap and taps that never "
-                  "stopped on the screen; And the Screen Tap: every frame near the gadget's screen, how far over it your "
-                  "hand (and its gun's butt) is and how fast it comes into it."),
-        cycle("Flashlight Flicks", vr_flashlight_flick_debug, {{0.f, "Off"}, {1.f, "Each Flick and Why"}, {2.f, "And the Wrist Every Frame"}})
-            .help("vr_flashlight_flick_debug: the wrist flick that turns the held torch over, taken or refused (and why); 2: the held hand's wrist speed every frame."),
-        cycle("Chainsaw", vr_debug_chainsaw, {{0.f, "Off"}, {1.f, "Pulls and Cuts"}, {2.f, "And the Bar in Monsters"}})
-            .help("The chainsaws' cords (taken, pulled, too slow, let go), their engines (started, stalled) and cuts; "
-                  "And the Bar: also each cut's test against what is near, how deep the drawn bar sinks into a monster, "
-                  "and the cord's hole drawn. The engine and cut lines need Developer Messages."),
-        cycle("Flame Wobble", vr_debug_flame_wobble, {{0.f, "Off"}, {1.f, "Each Push"}, {2.f, "And Every Frame's Lean"}})
-            .help("Flames stirred by a fast hand (Graphics > Fire Model Particles > Flames in the Air): each push (the "
-                  "flame, the hand, how near and fast); And Every Frame's Lean: each swinging flame's lean every frame."),
-        cycle("Wall Buttons", vr_debug_wallbuttons, {{0.f, "Off"}, {1.f, "Each Press"}, {2.f, "And Weapon Lines"}})
-            .help("Each button pressed: what pressed it and how (a hand, a held weapon and its line, a thrown thing and "
-                  "its speed, stepped on), and where the hand was: how far from the button and from you (a far one is a "
-                  "stray press). And Weapon Lines: every frame, each held weapon's line that presses buttons "
-                  "(from its pommel or butt to its tip or muzzle). Needs Developer Messages."),
-        cycle("Monster Poses", vr_debug_pose_check, {{0.f, "Off"}, {1.f, "Squashed Bodies"}, {3.f, "And a Screenshot"}, {2.f, "Every Frame"}})
-            .help("vr_debug_pose_check: a monster drawn squashed between two poses for over 0.2 s (\"posecheck:\"; a "
-                  "parried ogre was, for half a second), drawn with a pose out of its model's range or a broken blend; "
-                  "And a Screenshot: a picture at each; Every Frame: each monster's drawn poses and how flat (a lot)."),
-        toggle("Shots and Damage", vr_debug_shots)
-            .help("Each hitscan shot (where it starts, its direction, what its pellets hit, headshots), each damage you deal "
-                  "(and when Quad's sound plays) and each prop a shot pushes. Needs Developer Messages."),
-        toggle("Missile Hits", vr_debug_missiles)
-            .help("Each missile's hit (rockets, nails, grenades, lasers...): what it met, where and the surface's normal; "
-                  "a solid prop: its drawn box as it stands (vr_debug_missiles)."),
-        cycle("Throws", vr_debug_throw, {{0.f, "Off"}, {1.f, "Each Throw"}, {2.f, "And Its Timing"}})
-            .help("Each throw's speed estimate from the hand's motion (and the release's timing); a thrown weapon's spin "
-                  "and how far its axis is off end over end (0: a wrist flick's, tip going down; needs Developer Messages)."),
-        toggle("Controller Spin", vr_debug_angvel)
-            .help("While a controller turns fast: which frame its angular velocity is read in (Controller Spin Frame), "
-                  "how well the runtime's and the fixed one follow the turn, the hand's speed before and after."),
-        toggle("Highlights", vr_debug_highlights)
-            .help("Each moment the highlight log takes (Graphics > Recording > Log Highlights): its time from the sync "
-                  "mark, kind, score and what it was done to and with."),
-        toggle("Axe Sticks", vr_debug_axestick)
-            .help("Each thrown axe's blade striking something: stuck (how fast, how deep, at what angles) or why it bounced; "
-                  "its bleeding, its fall, its pull. Needs Developer Messages for the last."),
-        cycle("Climbing", vr_climb_debug, {{0.f, "Off"}, {1.f, "Holds"}, {2.f, "Every Frame"}, {3.f, "And Shoulders"}})
-            .help("Holds taken, released, mantles; every frame: the body, the hands, the pull, the holds' reach (a lot)."),
-        cycle("Hands", vr_debug_hands, {{0.f, "Off"}, {1.f, "When They Change"}, {2.f, "Every Frame"}})
-            .help("Each hand's state: the grip, its weapon, what it carries, the force grab, the flashlight, the hotspot, and "
-                  "what climbing makes of a grip (holding, free, or why it takes nothing)."),
-        toggle("Swim Strokes", vr_swim_debug).help("Each stroke: its peak speed, the power gate, the reverse damping and the push it gave."),
-        cycle("Grappling Hook", vr_grapple_debug,
-            {{0.f, "Off"}, {1.f, "Bites and Reels"}, {2.f, "And the Rope"}, {3.f, "Every Frame"}, {4.f, "And Every Rope Drawn"}})
-            .help("What the hook bites and each reel (mass, class, speeds); the rope 4 times a second, or every frame; and "
-                  "each rope drawn every frame (which beam, from where to where: a rope drawn where there is none). Needs "
-                  "Developer Messages."),
-        toggle("Controller Buttons", vr_debug_buttons)
-            .help("Each controller button pressed and let go: the hand, the button, its key and binding, and what took it "
-                  "(the posing mode, a voice note, the flashlight); and the controller profile the headset's runtime "
-                  "picked for each hand (Virtual Desktop can report Index controllers). For a button that does nothing."),
+        row(opt::vr_gore_sound_debug),
+        row(opt::vr_bloodprints_debug),
+        row(opt::vr_debug_bullettime),
+        row(opt::vr_flashlight_flick_debug),
+        row(opt::vr_debug_chainsaw),
+        row(opt::vr_debug_flame_wobble),
+        row(opt::vr_debug_wallbuttons),
+        row(opt::vr_debug_pose_check),
+        row(opt::vr_debug_shots),
+        row(opt::vr_debug_missiles),
+        row(opt::vr_debug_throw),
+        row(opt::vr_debug_angvel),
+        row(opt::vr_debug_highlights),
+        row(opt::vr_debug_axestick),
+        row(opt::vr_climb_debug),
+        row(opt::vr_debug_hands),
+        row(opt::vr_swim_debug),
+        row(opt::vr_grapple_debug),
+        row(opt::vr_debug_buttons),
         command("Restore Controller Bindings", "vr_bindings_reset")
             .help("vr_bindings_reset: the controller buttons' keys bound as Quake VR ships them again (quakevr/"
                   "vr_bindings.cfg: triggers fire, grips grab, A jumps...). For controls that act as a gamepad's (the left "
                   "trigger jumping, the grips changing weapons)."),
-        toggle("Other Ports' Startup Configs", vr_foreign_configs)
-            .help("vr_foreign_configs: at the start, an autoexec.cfg or config.cfg found only outside Quake VR's own "
-                  "folder (in id1 next to a GOG or Steam Quake, a re-release folder: another source port's) runs too. Off "
-                  "(the default): only quakevr's own; a skipped one is named in the console. Exec by hand runs any."),
-        toggle("Wounds", vr_wounds_debug).help("Each wound painted on a model."),
-        cycle("Grasp", vr_debug_grasp, {{0.f, "Off"}, {1.f, "Each Solve"}, {2.f, "Each Finger"}})
-            .help("Each grasp solve of the jointed hands (and each finger's stops)."),
-        cycle("Put-Away Transition", vr_debug_collect_fx, {{0.f, "Off"}, {1.f, "Each Thing"}, {2.f, "Each Frame"}})
-            .help("Each thing put away at a holster or pouch (its model, from where, the holster) and when it has gone "
-                  "in; or also each frame's size and distance left."),
+        row(opt::vr_foreign_configs),
+        row(opt::vr_wounds_debug),
+        row(opt::vr_debug_grasp),
+        row(opt::vr_debug_collect_fx),
         command("Check Last Pose", "vr_pose_check")
             .help("vr_pose_check: after the posing mode, how far what you set is from what you get. A weapon or hotspot: "
                   "hold it. In a holster: holster it there; each holster of that kind holding it is measured."),
-        cycle("Physics Sounds", vr_debug_physsound, {{0.f, "Off"}, {1.f, "Each Sound"}, {2.f, "And Each Hit Skipped"}})
-            .help("Each knock (the prop, its material and weight, the hit's speed, the volume), each scrape starting and "
-                  "stopping and each climbing grab (the hold's texture); or also the hits too soon after the last and each "
-                  "scrape grain."),
-        cycle("Spatial Audio", vr_debug_snd, {{0.f, "Off"}, {1.f, "Each Second"}, {2.f, "And Each Voice"}})
-            .help("Each second: the voices in use, their mix's time and the simulations' (the walls, the room's reverb); or "
-                  "also each voice: its sound, distance, occlusion (low, middle, high) and Doppler."),
-        cycle("Network Messages", vr_debug_net, {{0.f, "Off"}, {1.f, "When the Broadcast Is Full"}, {2.f, "And Each Second"}})
-            .help("vr_debug_net: each frame the unreliable broadcast (particles, sounds, temp entities, wounds, tracers) "
-                  "was full: how much QuakeC's writes lost and how much a client was not sent (whole messages only); or "
-                  "also each second the most sent: the broadcast, the reliable messages, a client's own data and entities."),
-        toggle("Ragdolls", vr_debug_ragdoll)
-            .help("vr_debug_ragdoll: each ragdoll made (when it went limp, its parts), each push on it and each blast's throw."),
-        cycle("Ragdolls' Look Check", vr_debug_ragdoll_look, {{0.f, "Off"}, {1.f, "Skinned Copy at Rest"}, {2.f, "Its .mdl at Rest"}, {3.f, "Hidden"}})
-            .help("vr_debug_ragdoll_look: each ragdoll drawn in its model's rest pose where its entity stands, as its "
-                  "skinned copy or as its own .mdl (the live monster's look): the two should look the same. "
-                  "vr_ragdoll_draw_info in the console: the renderer's data for each that differ."),
+        row(opt::vr_debug_physsound),
+        row(opt::vr_debug_snd),
+        row(opt::vr_debug_net),
+        row(opt::vr_debug_ragdoll),
+        row(opt::vr_debug_ragdoll_look),
         command("Print the Authored Rig's Arms", "vr_rig2_arms")
             .help("vr_rig2_arms: how the armed grunts' and enforcers' arms sat on the authored rig since it last printed; "
                   "vr_rig2_live_check how a live one's drawn mesh follows its frames, vr_rig2_frames its frames against "
@@ -473,56 +315,21 @@ za::Vector<Item> pageDebugLogging()
         command("Print the Ragdolls' Drawing", "vr_ragdoll_draw_info")
             .help("vr_ragdoll_draw_info: each ragdoll drawn, the renderer's data for its skinned copy beside its .mdl's "
                   "(light, occlusion group, wounds, retro textures): the values that differ."),
-        toggle("Ragdolls' Weapons in Hand", vr_debug_ragdoll_gun)
-            .help("vr_debug_ragdoll_gun: every 0.25 s, each ragdoll's held weapon (an enforcer's rifle, a grunt's shotgun, "
-                  "a knight's sword, an ogre's chainsaw) as drawn: how far from the part holding it, beside the rest "
-                  "pose's (\"gun:\"; the same: in his hand)."),
-        toggle("Dead Monsters Animating", vr_debug_deadanim)
-            .help("vr_debug_deadanim: each dead monster that animates again printed (its think its AI's stand, walk, run or "
-                  "attack again, or its frame changing 3 s after its death: a corpse that gets up or runs in place). Needs "
-                  "Developer Messages."),
-        cycle("Hit Reaction Log", vr_hit_react_debug, {{0.f, "Off"}, {1.f, "Blows"}, {2.f, "Every Frame"}})
-            .help("vr_hit_react_debug: each blow a living monster flinches at printed (the bone struck, its size) and the "
-                  "server's slow-down of its steps; Every Frame: its bones' turns each frame too (hittrace lines)."),
-        toggle("Active Ragdoll Targets", vr_ragdoll_active_debug)
-            .help("vr_ragdoll_active_debug: each active ragdoll's joint targets drawn over it (green as strong as the joint "
-                  "is, grey limp), its pelvis pin (yellow) and its hands' and feet's goals (red: a wound held, a step, a "
-                  "crawl), what is round him: his probes (cyan, orange where they met something), his hands' goals and "
-                  "holds (magenta), the wall he leans on (blue). vr_ragdoll_active_list in the console: each one's "
-                  "strengths and what its death does."),
-        cycle("Physics Bodies", vr_debug_box3d, {{0.f, "Off"}, {1.f, "Made and Slept"}, {2.f, "Every Awake Body"}})
-            .help("Box3D bodies made, woken and put to sleep; or every awake body every frame (a lot). Also each throw: how "
-                  "fast, whether it passes through your hands, and how much its velocity and spin changed by the grace's end "
-                  "(with Throw Grace 0: watched 0.2 s, to compare)."),
-        cycle("Rocks and Bricks Placement", vr_debug_debris, {{0.f, "Off"}, {1.f, "A Line a Map"}, {2.f, "Each Piece"}, {3.f, "Each Spot Rejected"}})
-            .help("At the next map load: the pieces placed, the spots, the time; each piece; each spot rejected and why."),
-        cycle("Crates Placement", vr_debug_crates, {{0.f, "Off"}, {1.f, "A Line a Map"}, {2.f, "Each Crate"}, {3.f, "Each Spot Rejected"}})
-            .help("vr_debug_crates: where the crates went (and why not), each crate's clearance in front of it. Also Developer "
-                  "Messages print each crate's damage and breaking, the pieces and what it held."),
-        cycle("Arm IK", vr_debug_arm, {{0.f, "Off"}, {1.f, "Print Once"}, {2.f, "Trace File"}})
-            .help("Each drawn arm's joints once (shoulder, elbow, wrist in the body's axes, the elbow's swing, the wrist's bend "
-                  "and twist, and the swing's cost every 15 degrees: armcost); or arm_trace.txt every frame."),
-        cycle("Two-Handed Grip", vr_debug_2h_grip, {{0.f, "Off"}, {1.f, "Taken and Let Go"}, {2.f, "And Where"}})
-            .help("Each grip the helping hand takes (a sword's or the crowbar's: below the hand or along the blade) and why "
-                  "it let go of a weapon (the check, its number and limit), the stickiness then (Aiming: 2H Grip "
-                  "Stickiness), and weapons held anywhere (taken, let go, carried); And Where: also where the grip is "
-                  "from it, how far along a blade it holds it, and where an empty hand is on a weapon held, carried or "
-                  "lying about (its surface, handle and nearest hotspot: Weapons Anywhere)."),
-        toggle("Bot Chatter", vr_verbosebots).help("The bots' thoughts, with bots in the game."),
-        toggle("Graphics State", vr_debug_glstate)
-            .help("Each texture bind the engine skipped, believing the texture already bound, while the graphics card had "
-                  "another there (\"texcache: stale bind\"): a texture deleted without telling the engine's cache, its "
-                  "name given to a new one; shows as a blank or black image after a size change. And a clip rectangle "
-                  "left on at a frame's end (\"glstate:\"): the menus and console cut off in the window. And the "
-                  "framebuffers bound, against the engine's record of them (\"glstate: ... framebuffers\"), at a frame's "
-                  "end and at each eye's image acquire (vr_debug_glstate)."),
+        row(opt::vr_debug_ragdoll_gun),
+        row(opt::vr_debug_deadanim),
+        row(opt::vr_hit_react_debug),
+        row(opt::vr_ragdoll_active_debug),
+        row(opt::vr_debug_box3d),
+        row(opt::vr_debug_debris),
+        row(opt::vr_debug_crates),
+        row(opt::vr_debug_arm),
+        row(opt::vr_debug_2h_grip),
+        row(opt::vr_verbosebots),
+        row(opt::vr_debug_glstate),
         header("Trace Files (game folder)"),
-        cycle("Grasp Trace", vr_debug_grasp_trace, {{0.f, "Off"}, {1.f, "Main Hand"}, {2.f, "Off Hand"}, {3.f, "Both Hands"}})
-            .help("grasp_trace.txt: the drawn hand's joints every frame."),
-        cycle("Weight Trace", vr_debug_weight, {{0.f, "Off"}, {1.f, "File"}, {2.f, "File and Console"}})
-            .help("weight_trace.txt: each hand's target and drawn pose under the weight, every frame."),
-        toggle("Lean Trace", vr_debug_lean)
-            .help("lean_trace.txt: the head, the body's box, the lean, the pelvis and the feet every frame, and the lean's cues."),
+        row(opt::vr_debug_grasp_trace),
+        row(opt::vr_debug_weight),
+        row(opt::vr_debug_lean),
     };
 }
 
@@ -531,80 +338,39 @@ za::Vector<Item> pageDebugProfiling()
 {
     return {
         header("Profiling"),
-        cycle("Profiler Panel", vr_profile_overlay, {{0.f, "Off"}, {1.f, "Over the Wrist"}, {2.f, "In Front"}})
-            .help("Where each frame's time goes: the game's systems (Box3D, QuakeC, the world's drawing, waiting for the "
-                  "headset...), the last second's average and worst in ms, with a bar against the frame's budget; the CPU's, "
-                  "then the GPU's. Showing it runs the profiler."),
-        cycle("CSV Capture", vr_profile_csv, {{0.f, "Off"}, {1.f, "Recording"}})
-            .help("While on, a row a second (each system's time, a column each) into quakevr/profile/systems_<date>_<time>.csv, "
-                  "for a spreadsheet: turn it on, play what feels slow, turn it off."),
-        cycle("Hitch Log", vr_profile_hitch, {{0.f, "Off"}, {1.5f, "Over 1.5 Frames"}, {2.f, "Over 2 Frames"}, {3.f, "Over 3 Frames"}})
-            .help("While the profiler runs (the panel, a capture), frames that take this long go to the console and "
-                  "quakevr/profile/hitches_<date>_<time>.csv, with what took their time."),
+        row(opt::vr_profile_overlay),
+        row(opt::vr_profile_csv),
+        row(opt::vr_profile_hitch),
         command("Capture Frame (RenderDoc)", "vr_renderdoc_capture")
             .help("vr_renderdoc_capture: a RenderDoc capture of the next frame (both eyes: the desktop window's present ends "
                   "the frame), after the delay below; the console and a message show the file's path. Only when the game "
                   "runs under RenderDoc (launched from it): else the console says so. The corner's Capture Frame button "
                   "and the toolgun panel's More page do the same."),
-        cycle("Capture Delay", vr_renderdoc_delay, {{0.f, "None"}, {1.f, "1 s"}, {3.f, "3 s"}})
-            .help("vr_renderdoc_delay: seconds from the press to the capture, to close the menu or get into position."),
-        cycle("Capture Frames", vr_renderdoc_frames, {{1.f, "1 Frame"}, {2.f, "2 Frames"}, {5.f, "5 Frames"}})
-            .help("vr_renderdoc_frames: frames in the button's capture (one file)."),
-        toggle("Hide Menu While Capturing", vr_renderdoc_hide_menu)
-            .help("vr_renderdoc_hide_menu: the menu is closed (and the toolgun panel hidden) for the captured frame, the menu "
-                  "reopened on the same page after."),
+        row(opt::vr_renderdoc_delay),
+        row(opt::vr_renderdoc_frames),
+        row(opt::vr_renderdoc_hide_menu),
         command("RenderDoc Status", "vr_renderdoc_status")
             .help("vr_renderdoc_status: whether RenderDoc is attached, the captures taken and the last file's path."),
         toggle("OpenXR Timing Log", vr_xr_log_timing)
             .help("A line a second in quakevr/qvr_openxr.txt while VR runs: frames rendered or shown again, display periods "
                   "missed, each OpenXR call's time (xrWaitFrame, xrEndFrame, the images' acquire and release) and the "
                   "session's state (VISIBLE: the runtime's menu has the controllers)."),
-        toggle("Act as if the Runtime's Menu Were Open", vr_debug_runtime_menu)
-            .help("vr_debug_runtime_menu 1: the game acts as if SteamVR's dashboard (or Virtual Desktop's, Meta's menu) had "
-                  "the focus, on any backend, the mock's too: a single player game pauses and its sounds fade "
-                  "(Runtime Menu Pauses); the console says when it paused and resumed, and the game's time."),
-        toggle("Act as if the Window Lost Focus", vr_debug_window_unfocused)
-            .help("vr_debug_window_unfocused 1: the game acts as if its desktop window had lost the focus to another "
-                  "program's: the menus' warning in the top right corner; in VR the mirror presented only "
-                  "vr_mirror_unfocused_hz times a second (the headset's frames never slowed); on a flat screen the "
-                  "background sleep."),
-        cycle("Act as if the Driver Forced V-Sync", "vr_debug_mirror_vsync",
-            {{0.f, "Off"}, {60.f, "60 Hz Monitor"}, {75.f, "75 Hz Monitor"}})
-            .help("vr_debug_mirror_vsync 60 (any Hz in the console): in VR the desktop window's presents wait as on a "
-                  "monitor of that refresh with the GPU driver forcing V-Sync (or G-SYNC on the focused window; GitHub "
-                  "issue #79). With Recording > Window Frame Rate at Every Headset Frame the headset then drops to the "
-                  "monitor's rate; at Up to the Monitor's (the default) it never slows. vr_debug_clock says the frame "
-                  "period, the presents and the swap interval the driver reports."),
-        toggle("Act as if the Window Were Minimized", vr_debug_window_hidden)
-            .help("vr_debug_window_hidden 1: the game acts as if its desktop window were minimized: the Spectator "
-                  "Camera is skipped (Recording > Skip While the Window Is Minimized; the console says so with "
-                  "developer 1). vr_debug_window minimize, hide or show does it to the real window."),
+        row(opt::vr_debug_runtime_menu),
+        row(opt::vr_debug_window_unfocused),
+        row(opt::vr_debug_mirror_vsync),
+        row(opt::vr_debug_window_hidden),
         command("Minimize the Window", "vr_debug_window minimize")
             .help("vr_debug_window minimize: the desktop window really minimized (the taskbar brings it back; "
                   "vr_debug_window show)."),
-        cycle("Simulate Held Frames", vr_debug_frame_stall_ms, {{0.f, "Off"}, {40.f, "40 ms a Frame"}, {100.f, "100 ms a Frame"}})
-            .help("vr_debug_frame_stall_ms: each frame's end waits this long, as if the runtime held the frames (the "
-                  "100 ms frames of a VR drop): checks the held-frames lines in quakevr/qvr_openxr.txt (the foreground "
-                  "program, the session's state, the frame times), written once when it starts and once when it ends. "
-                  "Turn it off at once in the headset: the view stutters."),
-        cycle("Detail", vr_profile_detail, {{1.f, "Systems"}, {2.f, "Every Trace and Builtin"}})
-            .help("Every Trace and Builtin also times each collision trace and each QuakeC builtin call apart: dearer, to "
-                  "split QuakeC's time."),
-        cycle("GPU Timing", vr_profile_gpu, {{0.f, "Off"}, {1.f, "Every Frame"}, {2.f, "One Frame in 2"}, {4.f, "One Frame in 4"}, {8.f, "One Frame in 8"}})
-            .help("How often the profiler times the GPU: each timed frame stalls it a little. Off: CPU times only."),
-        slider("Report Interval", vr_profile_interval, 0.f, 30.f, 1.f, "%.0f s")
-            .help("Performance Profile (Graphics): seconds between its reports in the console and its CSV. 0: only on Dump Profile."),
-        slider("Artificial GPU Load", vr_dynres_test_load, 0.f, 200.f, 5.f, "%.0f")
-            .help("vr_dynres_test_load: extra GPU work in every pixel of each eye (it changes nothing seen), to watch "
-                  "Dynamic Resolution drop the scale and raise it back (the status box's Dynamic res line). 0: none."),
+        row(opt::vr_debug_frame_stall_ms),
+        row(opt::vr_profile_detail),
+        row(opt::vr_profile_gpu),
+        row(opt::vr_profile_interval),
+        row(opt::vr_dynres_test_load),
         cycle("Dynamic Resolution", vr_dynres, {{0.f, "Off"}, {1.f, "Headset Only"}, {2.f, "Mock Headset Too"}})
             .help("vr_dynres: 2 runs it on the mock headset too (tests); 1, the default, only with a real headset."),
-        toggle("Dynamic Resolution Log", vr_dynres_log)
-            .help("vr_dynres_log: a console line at each scale change, with the eyes' GPU time and the budget."),
-        cycle("GL Debug Groups", vr_gl_markers, {{0.f, "Off"}, {1.f, "On"}, {2.f, "With a Debugger"}})
-            .help("vr_gl_markers: each GPU profile scope (eye L/R, depth prepass, shadow maps, post, 2D, xr submit...) "
-                  "named as a GL debug group, so RenderDoc and Nsight captures show the passes. With a Debugger: only "
-                  "when one (or RenderDoc, Nsight) is in the process. Their count with GL Debug Groups Report."),
+        row(opt::vr_dynres_log),
+        row(opt::vr_gl_markers),
         command("GL Debug Groups Report", "vr_gl_markers_report")
             .help("vr_gl_markers_report: the last frame's debug groups (console): how many were opened, the deepest "
                   "nesting, and whether the GL's group stack was back to empty at the frame's start."),
@@ -655,17 +421,12 @@ za::Vector<Item> pageDebugProfiling()
             .help("profile 30: the 30 QuakeC functions that ran the most instructions (their own) since the last time, and "
                   "the total; then all are zeroed. Press it, do the thing, press it again. A call over 16 million is a "
                   "runaway loop error."),
-        toggle("Time QuakeC Functions", vr_qcprofile)
-            .help("vr_qcprofile: each server QuakeC function's time (its own, with the builtins it calls, and with its "
-                  "callees), its calls, and each builtin's, for QuakeC Time Report. Costs a little while on."),
+        row(opt::vr_qcprofile),
         command("QuakeC Time Report", "profile_qc 30")
             .help("profile_qc 30: the 30 QuakeC functions and builtins that took the most time a frame since the last "
                   "report (Time QuakeC Functions on), in the console; then all are zeroed. Press it, do the thing, press "
                   "it again."),
-        cycle("QuakeC Loop", vr_qcexec, {{0.f, "Original"}, {1.f, "Fast (goto)"}, {2.f, "Fast (switch)"}})
-            .help("vr_qcexec: the QuakeC interpreter's loop. Fast (goto), the default: the same results, errors and "
-                  "instruction counts as the original, quicker (docs/vr-port/QC_VM.md). Original: the old loop, to "
-                  "compare or to rule it out."),
+        row(opt::vr_qcexec),
         command("Edict Index Stats", "vr_edictindex_stats")
             .help("vr_edictindex_stats: the edict index (find() by classname and findflags() on monsters, clients, "
                   "items, lit torches and bodies step straight to the next match): its searches, rebuilds and edicts "
@@ -673,15 +434,8 @@ za::Vector<Item> pageDebugProfiling()
         command("Force Grab Search Stats", "vr_forcegrab_grid_stats")
             .help("vr_forcegrab_grid_stats: the force grab's target search (each hand, every frame, through the area "
                   "grid): the searches and the entities each tested since the last time."),
-        cycle("Gun Shapes on Disk", vr_gun_pieces_cache, {{0.f, "Off"}, {1.f, "On"}, {2.f, "Check"}})
-            .help("The guns' convex pieces kept on disk (cache/gunpieces) and read back the first time a gun is dropped, "
-                  "picked up or holstered in a session, instead of cut again (10-85 ms each: a hitch as the first "
-                  "grunt's gun drops). Check: read, then cut anyway and compared (Gun Shapes Stats counts them). Off: "
-                  "cut once every session (vr_gun_pieces_cache)."),
-        cycle("Gun Shapes at Load", vr_gun_pieces_ahead, {{0.f, "Off"}, {1.f, "On"}})
-            .help("A map's load makes the convex pieces of every weapon it can give (lying about, its monsters' drops, "
-                  "backpacks, your hands and holsters) from their files, or cuts them (on the job pool), so the first "
-                  "pickup mid-game is not a hitch. Off: cut at the first pickup (vr_gun_pieces_ahead)."),
+        row(opt::vr_gun_pieces_cache),
+        row(opt::vr_gun_pieces_ahead),
         command("Gun Shapes Stats", "vr_gun_pieces_cache_stats")
             .help("vr_gun_pieces_cache_stats: the guns' pieces this session read from the disk or cut, the files "
                   "written, and with Check on, how many were compared and differed."),
@@ -700,15 +454,8 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_bench_begin manual 10s: the next 10 seconds' frame times (median, 95th and 99th percentiles, worst), "
                   "each GPU pass, the heap events and what there is, into quakevr/profile/bench/manual.json and a line in "
                   "the console (docs/vr-port/BENCHMARKS.md). Stand still and press it."),
-        cycle("External Profiler Collects", vr_bench_profiler, {{0.f, "As Started"}, {1.f, "Benchmark Windows"}, {2.f, "Map Loads"}})
-            .help("For a CPU profiler run on the game (VTune started paused: -start-paused): Benchmark Windows resumes its "
-                  "collection for each Benchmark Capture (vr_bench_begin) alone, Map Loads for each load alone (the map "
-                  "command to its first frame drawn), so gameplay and loading are profiled apart (vr_bench_profiler; "
-                  "vr_profiler_collect 0|1 by hand)."),
-        toggle("Layered Shadow Casters", vr_shadow_layered)
-            .help("vr_shadow_layered: each shadow caster drawn once per light into all the faces it reaches (the GPU picks "
-                  "the face), instead of once per face: fewer draw calls, the same shadows. Off: a face at a time (also when "
-                  "the GPU lacks GL_ARB_shader_viewport_layer_array)."),
+        row(opt::vr_bench_profiler),
+        row(opt::vr_shadow_layered),
         command("Check Layered Shadows", "vr_shadow_layered_check 20")
             .help("vr_shadow_layered_check 20: this frame's shadow maps drawn both ways 20 times, timed (draw calls, CPU and "
                   "GPU ms), then read back and compared texel by texel, in the console. Stand where shadows are."),
@@ -716,70 +463,29 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_shadow_layered_check 20 cache: this frame's shadow maps drawn with each caster set up again for every "
                   "light, then once a pass over the lights (as the game draws them), 20 times each, timed, then read back "
                   "and compared texel by texel, in the console. Stand where shadows are."),
-        cycle("Second Eye's Model Set-up", vr_alias_eye_cache, {{0.f, "Made Again"}, {1.f, "First Eye's"}, {2.f, "Checked"}})
-            .help("vr_alias_eye_cache: each animated model's set-up that is the same for both eyes (its pose, place, light "
-                  "at its origin, instance data) made in the first eye and reused by the second (First Eye's), made again "
-                  "(Made Again), or made again and compared with the first eye's (Checked: see Model Set-up Stats)."),
-        toggle("Button Screens' List", vr_setup_screens_cache)
-            .help("vr_setup_screens_cache: the buttons with value screens over them (the calibration room's settings, the "
-                  "hub's campaigns and Continue) found by a walk of every entity every half second (on), or every frame "
-                  "(off, as before: 0.1-0.2 ms a frame in Arcane Dimensions' biggest maps). The same screens either way."),
-        toggle("Crates' Placing: Entities First", vr_place_entities_first)
-            .help("vr_place_entities_first: a place for a crate, barrel, rock or brick (at a map's start) tested against "
-                  "the map's entities before its traces (on), or after them (off, as before). The same places either way; "
-                  "a big map starts faster (150 ms in Arcane Dimensions' Sepulcher)."),
-        cycle("Wound Painting Budget", vr_wounds_budget, {{0.f, "Off"}, {0.5f, "0.5 ms"}, {1.f, "1 ms"}, {2.f, "2 ms"}})
-            .help("vr_wounds_budget: the wounds painted at most this long a frame, the rest of a burst (an explosion's, a "
-                  "dismembering's: hundreds at once) painted over the next frames where they struck their bodies, all "
-                  "within vr_wounds_budget_wait (0.04 s); Off: all in the frame they came, as before. Wounds (Debug > Info) "
-                  "shows the queue."),
-        toggle("Keep Crates' and Rocks' Layouts", vr_place_keep)
-            .help("vr_place_keep: the crates', rocks' and bricks' last layout kept and taken again when the map, its "
-                  "entities and their settings are the same (on: a restart after a death loads faster, 200-250 ms in "
-                  "Arcane Dimensions' big maps), or planned again at every load (off, as before). The same layout either way; "
-                  "another seed or setting plans anew."),
-        toggle("Load Prewarm", vr_load_prewarm)
-            .help("vr_load_prewarm: made in a map's load (on), or at their first use as before (off): each model's rig data "
-                  "for smooth animation (6-27 ms the first time a monster kind was seen), the reflections' world buffers, the "
-                  "guns' screen anchors (10 ms the first time a gun lay near you), your skin masks and glove paint."),
+        row(opt::vr_alias_eye_cache),
+        row(opt::vr_setup_screens_cache),
+        row(opt::vr_place_entities_first),
+        row(opt::vr_wounds_budget),
+        row(opt::vr_place_keep),
+        row(opt::vr_load_prewarm),
         command("Model Set-up Stats", "vr_alias_eye_cache_stats")
             .help("vr_alias_eye_cache_stats: since the last time, the second eyes' models found set up by the first eye (in "
                   "full, the transform only, not at all) and, while Checked, the parts that came out different (none "
                   "expected); and the first eye's models whose transform came from the shadow pass (Shadow Caster "
                   "Set-up Shared)."),
-        cycle("Cull Posed Models", vr_alias_cull_posed, {{0.f, "Off"}, {1.f, "On"}, {2.f, "Checked"}})
-            .help("vr_alias_cull_posed: your body, its mirror image, the jointed hands and the ragdolls left out of each "
-                  "eye's view and each shadow map face their bones' box does not reach (On), or drawn into all of them "
-                  "(Off, as before), or On with each one culled skinned again on the CPU and checked to lie wholly outside "
-                  "(Checked: see Model Cull Stats). The same images either way."),
-        cycle("Body Depth Pre-pass", vr_body_prepass, {{0.f, "Off"}, {1.f, "On"}})
-            .help("vr_body_prepass: your body and its mirror image drawn into the eye's depth first, then shaded once a "
-                  "pixel (On), or shaded as drawn, the arms over the torso shaded twice (Off, as before). The same image "
-                  "either way."),
-        cycle("Model Depth Pre-pass", vr_alias_prepass, {{0.f, "Off"}, {1.f, "On"}})
-            .help("vr_alias_prepass: the world's opaque models (monsters, props, gibs, items) drawn into the eye's depth "
-                  "first, each batch, then shaded once a pixel (On), or shaded as drawn (Off, as before): crowds, props "
-                  "and gore 4-23% less GPU on models at a headset's resolution. The same image either way."),
-        toggle("Lazy OIT Clear", vr_oit_lazy_clear)
-            .help("vr_oit_lazy_clear: the translucent pass's two buffers cleared at a view's first translucent draw, and "
-                  "neither cleared nor resolved in a view with nothing translucent (on), or cleared and resolved in every "
-                  "view (off, as before). The same image either way."),
+        row(opt::vr_alias_cull_posed),
+        row(opt::vr_body_prepass),
+        row(opt::vr_alias_prepass),
+        row(opt::vr_oit_lazy_clear),
         command("Lazy OIT Clear Stats", "vr_oit_stats")
             .help("vr_oit_stats: since the last time, the views with a translucent pass, how many drew something "
                   "translucent (water, slime, lava, a translucent model or particles) and how many skipped the clear."),
         command("Model Cull Stats", "vr_alias_cull_stats")
             .help("vr_alias_cull_stats: since the last time, the models drawn and culled a frame in the eyes and the "
                   "shadow faces, by model, how many of them posed, and any drawn twice in one view, in the console."),
-        cycle("Shadow Caster Set-up Shared", vr_shadow_setup_share, {{0.f, "Off"}, {1.f, "On"}, {2.f, "Checked"}})
-            .help("vr_shadow_setup_share: each animated shadow caster set up once for all the frame's shadow lights (its "
-                  "whole instance copied into each light's draw, drawn without textures) and the first eye taking the "
-                  "shadow pass's pose and transform for the same models (On); only the pose and transform shared by the "
-                  "lights (Off); or On with the first eye's worked out again and compared (Checked: see Model Set-up "
-                  "Stats). The same images either way."),
-        toggle("Keep Light Casters", vr_shadow_caster_cache)
-            .help("vr_shadow_caster_cache: each dynamic light's world shadow casters kept between frames while it stays "
-                  "where they were collected for (a moving light's collected a little wider); off: collected again every "
-                  "frame. The same images either way."),
+        row(opt::vr_shadow_setup_share),
+        row(opt::vr_shadow_caster_cache),
         command("Check Kept Light Casters", "vr_shadow_layered_check 20 casters")
             .help("vr_shadow_layered_check 20 casters: this frame's shadow maps drawn with each dynamic light's exact world "
                   "casters, then with the wider set kept for a moving light, 20 times each, timed, then read back and "
@@ -787,10 +493,7 @@ za::Vector<Item> pageDebugProfiling()
         command("Light Caster Stats", "vr_shadow_caster_stats")
             .help("vr_shadow_caster_stats: since the last time, the dynamic lights' world caster sets kept and collected, "
                   "in the console."),
-        toggle("Single-Pass Stereo (Experimental)", vr_stereo_single)
-            .help("vr_stereo_single: the opaque world, brush models and the models away from the eyes drawn once for both "
-                  "eyes (GL_OVR_multiview2) instead of once per eye; the rest is still drawn per eye. Less CPU per frame, "
-                  "the same images (docs/vr-port/STEREO.md). Off with MSAA, or when the driver lacks multiview."),
+        row(opt::vr_stereo_single),
         command("Single-Pass Stereo Info", "vr_stereo_single_info")
             .help("vr_stereo_single_info: whether the driver can, the frames drawn in a single pass since the last time "
                   "(and why not), the shaders made for it, in the console."),
@@ -799,39 +502,22 @@ za::Vector<Item> pageDebugProfiling()
                   "first frame drawn: the stages, then the kinds of work across them), every load's total, and the last "
                   "session's quit (its stages)."),
         infoLine(warmup::statusLine, 0),
-        toggle("Cache Warm-up", vr_cache_warmup)
-            .help("On: the derived-data cache is filled in the background (every installed game's models' occlusion bakes) on "
-                  "one low-priority worker, paused while a map loads or a frame runs late; it carries on next session where "
-                  "it stopped (vr_cache_warmup)."),
+        row(opt::vr_cache_warmup),
         command("Cache Info", "vr_cache_info")
             .help("vr_cache_info: each cached product (normal maps, gun pieces, hulls, occlusion, dequantised poses, rigs): its "
                   "setting, files and size on disk, and this session's reads, misses (in play: the gaps the loads didn't "
                   "prepare), writes and checks; then the warm-up's progress."),
-        toggle("Ready What Can Appear", vr_probe_kinds)
-            .help("On: the kinds of monster that can appear later on a map (the firing range's dispensers and dummies, monsters "
-                  "waiting for a trigger) are made ready as it loads: their models, sounds and compiled hull, so their first "
-                  "appearance drops no frame (15-25 ms otherwise). The next map load (vr_probe_kinds)."),
-        cycle("Ready the Debug Spawner's", "vr_probe_test_spawn", {{0.f, "Off"}, {1.f, "Its Kind"}, {2.f, "Every Kind"}})
-            .help("The debug spawner's monsters (vr_test_spawn, impulse 241) made ready as each map loads too: Its Kind the one "
-                  "vr_test_spawn names, Every Kind all 23 (a longer load). The next map load (vr_probe_test_spawn)."),
-        slider("Decoded Image Cache", vr_image_cache_mb, 0.f, 2048.f, 64.f, "%.0f MB")
-            .help("Image files decoded once are kept for later loads up to this size (a texture pack's world textures and "
-                  "material maps: QRP's E1M1 loads 0.5 s faster the second time); the least recently used go first. 0: none "
-                  "kept (vr_image_cache_mb)."),
-        toggle("Campaign Switch Keeps Models", vr_campaign_keep_models)
-            .help("On: a switch of campaign (id1 to a mission pack and back) keeps the models whose files are the same in "
-                  "its folders (each file their load looked for is found the same again), instead of loading every one "
-                  "again (vr_campaign_keep_models)."),
+        row(opt::vr_probe_kinds),
+        row(opt::vr_probe_test_spawn),
+        row(opt::vr_image_cache_mb),
+        row(opt::vr_campaign_keep_models),
         command("Kept Models Info", "vr_model_keep_info")
             .help("vr_model_keep_info: how many models the last campaign switch kept, of how many, and the time its check "
                   "took (console)."),
         command("Decoded Image Cache Info", "vr_image_cache_info")
             .help("vr_image_cache_info: the images kept, their size, and since the start how many were found there and how many "
                   "decoded (console). vr_image_cache_clear empties it."),
-        toggle("Decode Textures Ahead", vr_texture_prefetch)
-            .help("On: a map load decodes its textures' replacement images (their glows, the external pack's maps) on worker "
-                  "threads while it uploads them in order: the same pixels, QRP's E1M1 about 0.15 s faster the first time. "
-                  "Off: each decoded on the main thread as it is uploaded (vr_texture_prefetch)."),
+        row(opt::vr_texture_prefetch),
         command("Textures Decoded Ahead Info", "vr_image_prefetch_info")
             .help("vr_image_prefetch_info: the images the last loads read ahead, how many the loads took (and decoded "
                   "themselves: no worker had come to them), how many they didn't ask for (console)."),
@@ -840,49 +526,24 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_particle_saturate: in dense effects the particles are composited in reverse order into a layer of "
                   "their own, and where it is already opaque the ones under it are skipped (the same image within a "
                   "level of rounding). Off: each blended into the scene in turn, to compare with GPU Timing on."),
-        slider("Skip From Coverage", vr_particle_saturate_cover, 0.f, 50.f, 1.f, "%.0f views")
-            .help("vr_particle_saturate_cover: from how many screens' worth of particles the frame uses it (it costs a "
-                  "clear, a few full-screen marks and a blend an eye; it pays from about 7). 0: always."),
-        slider("Skip Batches", vr_particle_saturate_batches, 1.f, 32.f, 1.f, "%.0f")
-            .help("vr_particle_saturate_batches: the particles drawn in this many batches, the opaque pixels marked "
-                  "after each (more: earlier skipping, more marks). 1: nothing skipped."),
-        cycle("Opaque At", vr_particle_saturate_opacity, {{0.99f, "99%"}, {0.999f, "99.9%"}, {1.f, "Never (no skipping)"}})
-            .help("vr_particle_saturate_opacity: how opaque a pixel must be for the particles under it to be skipped."),
-        toggle("Count Wasted Particle Fill", vr_debug_particle_waste)
-            .help("vr_debug_particle_waste: the particles' shader counts the fragments it shades and those that show "
-                  "nothing or next to nothing (slower while on). Print with Particle Fill Waste Report."),
+        row(opt::vr_particle_saturate_cover),
+        row(opt::vr_particle_saturate_batches),
+        row(opt::vr_particle_saturate_opacity),
+        row(opt::vr_debug_particle_waste),
         command("Particle Fill Waste Report", "vr_particle_waste_report")
             .help("vr_particle_waste_report: since the last report, the particles' shaded fragments and the share that "
                   "were invisible or faint, by texture, for all of them and for the big ones (console)."),
-        toggle("Freeze Particles", vr_particle_freeze)
-            .help("vr_particle_freeze: the particles stop where they are (still drawn), to compare settings on the same "
-                  "frame."),
-        toggle("Half-Res Particles Always", vr_particle_halfres_force)
-            .help("vr_particle_halfres_force: the particles drawn at half resolution in every frame with some in view "
-                  "(when Half-Res Heavy Particles or Half-Res Retro Particles allow it), not only in dense effects: to "
-                  "compare with Freeze Particles."),
-        cycle("Half-Res Blend", vr_particle_halfres_upsample,
-            {{0.f, "Filtered (before)"}, {1.f, "By Depth"}, {2.f, "By Depth, Edges Shown"}})
-            .help("vr_particle_halfres_upsample: how half-resolution particles are blended into the view. By Depth: each "
-                  "pixel takes the half-size texels at its own distance (no smoke bled onto a crate's edge in front of "
-                  "it). Edges Shown: the pixels that took texels by distance in green. Filtered: the four blended, as "
-                  "before."),
+        row(opt::vr_particle_freeze),
+        row(opt::vr_particle_halfres_force),
+        row(opt::vr_particle_halfres_upsample),
         header("Server Tick"),
-        toggle("Fixed 72 Hz Server Tick", host_fixedtick)
-            .help("host_fixedtick: the server (monsters, physics, your hands' blows) runs in steady 1/72 s ticks at any "
-                  "headset rate, the leftover time carried to the next frame. Off: the old way, a server frame once 1/72 s "
-                  "had built up: 36 Hz on a 72 Hz headset, 45 at 90, 60 at 120, 48 at 144 (to compare)."),
+        row(opt::host_fixedtick),
         command("Server Tick Stats", "host_tickstats")
             .help("host_tickstats: the server's ticks since the last press (console): ticks a second, their lengths, how "
                   "many each frame ran (the last 48 frames as digits), Box3D's steps. Press it, play a while, press it again."),
         header("Threads"),
-        toggle("Split Work Between Threads", vr_jobs_parallel)
-            .help("The game's thread pool shares out the grasp solve, the liquids' volume, the decal atlas and the models' "
-                  "occlusion bakes. Off: the calling thread does all of it (the same results, slower: to compare)."),
-        toggle("Sound Mix on the Pool", snd_mixasync)
-            .help("snd_mixasync: the sound's mix-ahead painted on the thread pool while the screen updates (the spatial "
-                  "audio's voices too), joined before anything else touches the sound. Off: on the main thread in the "
-                  "render, as before (the same samples, to compare)."),
+        row(opt::vr_jobs_parallel),
+        row(opt::snd_mixasync),
         command("Sound Mix Stats", "snd_mixstats reset")
             .help("snd_mixstats: the pool's mixes since the last press (their time, the main thread's waits for them and "
                   "where), the underruns (the device past what was painted: a glitch) and the least mix-ahead left."),
@@ -891,37 +552,16 @@ za::Vector<Item> pageDebugProfiling()
                   "or for want of a free one), and how many were yours. snd_cutoffs reset zeroes them."),
         command("Log Sounds Cut Off", "snd_cutoffs log")
             .help("snd_cutoffs log: each sound cut off from now on printed to the console, with the one that cut it (again: stops)."),
-        toggle("Catch Memory Use off the Main Thread", vr_zone_threadcheck)
-            .help("The game crashes at once, with the culprit's stack (the crash report), when a thread other than the main one "
-                  "uses the hunk, the model cache or the zone (none of them is thread-safe; vr_zone_threadcheck). For "
-                  "testing: a map load's crash in its data is often one of these."),
-        toggle("Evict Models at Map Start", vr_hitmodel_cachestress)
-            .help("vr_hitmodel_cachestress: at the next map's start, each model's data is dropped from the model cache once "
-                  "the next is loaded (what a full cache does), before precise hit detection's meshes are made on the "
-                  "thread pool. They must come out the same (developer 1: the hash in the console). For testing."),
-        cycle("Worker Threads", vr_jobs_threads, {{0.f, "Auto"}, {1.f, "1"}, {2.f, "2"}, {3.f, "3"}, {4.f, "4"}, {8.f, "8"}, {16.f, "16"}})
-            .help("The thread pool's workers besides the main thread (Auto: the CPU's threads less one). Changed, the pool is "
-                  "made again. -jobs <n> on the command line sets it from the start."),
-        toggle("Physics on Threads", vr_box3d_threads)
-            .help("Box3D's step (the props' physics) shared between the thread pool and the main thread. Off: the main "
-                  "thread steps it alone (the same results: Box3D is deterministic whatever its threads)."),
+        row(opt::vr_zone_threadcheck),
+        row(opt::vr_hitmodel_cachestress),
+        row(opt::vr_jobs_threads),
+        row(opt::vr_box3d_threads),
         command("Prop Hull Stats", "vr_physics_hull_stats")
             .help("vr_physics_hull_stats: the props' and actors' hulls made this session, their main thread time, the "
                   "slowest, how many were built ahead on the thread pool and taken (console)."),
-        cycle("Physics Threads", vr_box3d_workers, {{0.f, "All"}, {2.f, "2"}, {3.f, "3"}, {4.f, "4"}, {6.f, "6"}, {8.f, "8"}})
-            .help("With Physics on Threads: at most this many threads step Box3D, the main thread one of them (All: every "
-                  "worker of the pool). Measured on a 24-core CPU: 4 is as fast as 6 or 8 up to ~500 awake bodies (and "
-                  "leaves cores to the render thread and the headset's runtime); 8 gains another 20% only from ~1000. "
-                  "All is slower than 8."),
-        toggle("Physics AVX2", vr_box3d_avx2)
-            .help("vr_box3d_avx2: Box3D's contact solver and hull contacts 8 at a time with AVX2, where the CPU has it "
-                  "(the console says which at the first map). Off (the default): 4 at a time with SSE2. The same results "
-                  "either way; measured in the game (an i9-13900K), AVX2 was no faster with 500 props and a little slower "
-                  "with 40 (Box3D alone, a box pile on a box floor, it is 20% faster). Takes effect at the next physics step."),
-        cycle("Physics Threads From", vr_box3d_threads_bodies, {{0.f, "Always"}, {100.f, "100 Bodies"}, {150.f, "150 Bodies"}, {200.f, "200 Bodies"}, {300.f, "300 Bodies"}, {500.f, "500 Bodies"}, {1000.f, "1000 Bodies"}})
-            .help("With Physics on Threads: shared out only while at least this many bodies are awake (a smaller step is "
-                  "faster on the main thread alone: handing it out costs more than it saves). Measured: even at ~100 awake, "
-                  "4 threads 15% faster at 125, 25% at 150, 40-50% at 300-500, 2-3x at 1000."),
+        row(opt::vr_box3d_workers),
+        row(opt::vr_box3d_avx2),
+        row(opt::vr_box3d_threads_bodies),
         command("Physics Step Time", "vr_physics_steptime")
             .help("vr_physics_steptime: Box3D's step time a frame since the last time (average, median, 95th and 99th "
                   "percentiles, worst, ms), the awake bodies and its threads. Run it, play, run it again."),
@@ -965,15 +605,9 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_grasp_sweep: each hand's grasp solved every way at 7 places, each on the pool and on one thread (the "
                   "same, to the last bit?), and the afresh solve timed both ways. Long output."),
         header("Memory"),
-        cycle("Memory Log", "vr_memstats_log", {{0.f, "Off"}, {30.f, "Every 30 s"}, {60.f, "Every minute"}, {300.f, "Every 5 minutes"}})
-            .help("Write memory use and the frame rate to quakevr/profile/memstats_<date>.csv, and after each map load."),
-        cycle("Memory Log: GL Count", "vr_memstats_glscan", {{0.f, "Every name"}, {1.f, "Skip free names"}, {2.f, "Both, compared"}})
-            .help("vr_memstats_glscan: the log's count of GL objects at each map load. Skip free names (5 ms): the names "
-                  "the driver hands out as free are not asked about, the same count; every name (13 ms): each asked up "
-                  "to 4096 past the last object; both: compared at every load, printed."),
-        toggle("Memory Log: GPU", vr_memstats_log_gpu)
-            .help("Also sample the GPU for the Memory Log (its clocks, slowdowns, and each program's use of it: SteamVR, "
-                  "Virtual Desktop), on a thread of its own. Off: only while profiling (Performance Profile, the Profiler Panel or its CSV Capture)."),
+        row(opt::vr_memstats_log),
+        row(opt::vr_memstats_glscan),
+        row(opt::vr_memstats_log_gpu),
         command("Print Memory Now", "vr_memstats")
             .help("vr_memstats: video and system memory, the textures and models loaded, the frame times since the last one."),
         command("Video Memory Report", "vr_vram_report diff")
@@ -993,24 +627,13 @@ za::Vector<Item> pageDebugProfiling()
         command("Heap Stress", "vr_heap stress 8 2000")
             .help("vr_heap stress [threads] [ms]: 8 threads allocating and freeing for 2 s (a quarter freed by another "
                   "thread), each block checked: million operations a second, the heap's contention. Stalls the game."),
-        cycle("Heap: Purge Delay", "vr_heap_purge_delay", {{0.f, "At once"}, {10.f, "10 ms"}, {1000.f, "1 s (mimalloc's)"}, {-1.f, "Never"}})
-            .help("vr_heap_purge_delay: how long the heap (mimalloc) keeps freed memory before giving it back to the system. "
-                  "At once: the smallest working set. 1 s, mimalloc's own default: map loads about 15% quicker, 0.3 to 1 GB "
-                  "more memory held after them."),
-        cycle("Heap: Hold During Loads", "vr_heap_load_hold", {{0.f, "Off"}, {60000.f, "On"}})
-            .help("vr_heap_load_hold: a map load keeps the memory it frees for its own later allocations, then gives it all "
-                  "back at its first frame drawn. Off: freed memory goes back as Purge Delay says (a big map's hitbox "
-                  "build much slower: its threads queue on the system's memory calls)."),
+        row(opt::vr_heap_purge_delay),
+        row(opt::vr_heap_load_hold),
         command("Heap: Return Free Memory", "vr_heap collect")
             .help("vr_heap collect: mimalloc returns the memory it holds unused to the system, then vr_heap."),
         header("Startup (GL safe mode)"),
-        toggle("GL Safe Mode", vr_glsafe)
-            .help("vr_glsafe, from the next start: the optional GL features off (persistent mapped buffers, bindless textures, "
-                  "multi-bind, clip control, layered shadow casters, debug output, MSAA, the 8192 shadow atlas), each one "
-                  "logged. Also -glsafe, and on by itself after a start that crashed before its first map."),
-        toggle("AMD Workarounds", vr_gl_workarounds)
-            .help("vr_gl_workarounds, from the next start: on AMD/ATI GPUs bindless textures off, as -nobindless (1.0.0 crashed "
-                  "in AMD's driver at start-up with them). Off: every feature the driver offers."),
+        row(opt::vr_glsafe),
+        row(opt::vr_gl_workarounds),
         command("GL Safe Mode Status", "vr_glsafe_status")
             .help("vr_glsafe_status: whether this run is in safe mode and why, each feature, and the last GL steps "
                   "(quakevr/crash/gl_startup.log has the start-up's)."),
@@ -1021,32 +644,17 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_gamecode: the folders the game reads from (its base dirs, game dirs and search path) and where its "
                   "game code (progs.dat) comes from: this build's, an older build's quakevr folder or not Quake VR's "
                   "(then weapons are only props). Said at each start too; a player's console dump has it."),
-        toggle("Diagnostics Mode", vr_diagnostics)
-            .help("vr_diagnostics, from the next start (as -diagnostics or the Diagnostics shortcut): a debug GL context and "
-                  "its messages, the OpenXR debug messenger, what is said to a debugger, the console, the crash report and "
-                  "the runtimes' logs, all in quakevr/diagnostics/<date>_<time>. Slower: for a bug report only."),
+        row(opt::vr_diagnostics),
         command("Run Logs Status", "vr_logs_status")
             .help("vr_logs_status: this run's logs folder (quakevr/logs/<date>_<time>, every run, the last 5 kept) and its "
                   "OpenXR debug messages so far. bugreport zips them (Options > Create Bug Report)."),
         command("Diagnostics Status", "vr_diagnostics_status")
             .help("vr_diagnostics_status: whether this run is in diagnostics mode, its folder and the messages so far."),
-        toggle("OpenXR Validation Layer", vr_diagnostics_xr_validation)
-            .help("vr_diagnostics_xr_validation, from the next VR start, in diagnostics mode only: Khronos' core validation "
-                  "layer checks every OpenXR call the game makes (openxr_validation.log in the diagnostics folder). Off: "
-                  "not loaded, if the runtime behaves differently with it."),
+        row(opt::vr_diagnostics_xr_validation),
         header("Startup (OpenXR runtime)"),
-        toggle("Runtime Crash Guard", vr_xr_guard)
-            .help("vr_xr_guard: a crash inside the OpenXR runtime while the game makes its eye images or stops it is caught "
-                  "and logged (qvr_openxr.txt): that VR start fails, Auto tries the next runtime, else the game plays flat. "
-                  "Off: the game crashes with its report."),
-        toggle("OpenXR API Layers", vr_xr_api_layers)
-            .help("vr_xr_api_layers, from the next VR start: off turns off every implicit OpenXR API layer installed "
-                  "(overlays, toolkits, capture tools between the game and the runtime) by its own switch. "
-                  "vr_xr_runtime_explain lists them, and the other programs' DLLs in the game."),
-        toggle("Skip Incompatible API Layers", vr_xr_skip_incompatible_layers)
-            .help("vr_xr_skip_incompatible_layers, from the next VR start: the implicit OpenXR API layers known not to "
-                  "work with this OpenGL game (OBS's OpenXR mirror: Direct3D only) are turned off by their own switch, "
-                  "each said in the console and qvr_openxr.txt. Off: allowed."),
+        row(opt::vr_xr_guard),
+        row(opt::vr_xr_api_layers),
+        row(opt::vr_xr_skip_incompatible_layers),
     };
 }
 
@@ -1058,22 +666,12 @@ za::Vector<Item> pageDebugReports()
         command("Flatscreen Play Status", "vr_flatplay_status")
             .help("-flatscreenmode: the VR gameplay on the desktop screen. Whether the mode is on, its keys, and what it "
                   "stands in for (reloading off, the flashlight worn, 1 and 2 cycling the weapons collected)."),
-        toggle("Flatscreen Play Print", vr_flatplay_debug)
-            .help("Prints each E and V press, and where the flatscreen hands are, to the console."),
-        slider("Flatscreen Hand Reach", vr_flat_reach, 0.25f, 3.f, 0.05f, "%.2f")
-            .help("How far the flatscreen hands sit from the shoulders: a held gun out in front of the chest, an empty "
-                  "hand at its side."),
-        slider("Flatscreen Move Sway", vr_flat_sway, 0.f, 3.f, 0.05f, "%.2f")
-            .help("How much the flatscreen hands lag and settle as you start, stop, jump and land (0: none). Looks only: "
-                  "the shots go along the crosshair."),
-        slider("Flatscreen Walk Bob", vr_flat_bob, 0.f, 3.f, 0.05f, "%.2f")
-            .help("How much the flatscreen hands bob as you walk (with your speed) and breathe at rest (0: none). Looks "
-                  "only."),
-        slider("Flatscreen Turn Lag", vr_flat_turnlag, 0.f, 3.f, 0.05f, "%.2f")
-            .help("How much the flatscreen hands trail a turn before catching up, as in modern shooters (0: locked to "
-                  "the view). Looks only: the shots go along the crosshair."),
-        slider("Flatscreen Turn Lag Recovery", vr_flat_turnlag_speed, 0.1f, 5.f, 0.05f, "%.2fx")
-            .help("How fast the flatscreen hands catch up with a turn: higher, quicker and less lag."),
+        row(opt::vr_flatplay_debug),
+        row(opt::vr_flat_reach),
+        row(opt::vr_flat_sway),
+        row(opt::vr_flat_bob),
+        row(opt::vr_flat_turnlag),
+        row(opt::vr_flat_turnlag_speed),
         header("The Game"),
         command("Official Campaign Status", "vr_campaign_status").help("Owned data and language readiness; active native campaign context."),
         command("Dopa Finale Text", "loc_probe $map_dopa_endtext_final").help("Preview the resolved completion text. loc_probe <key> [arguments] also checks formatted expansion strings."),
@@ -1137,8 +735,8 @@ za::Vector<Item> pageDebugReports()
         command("Trace Nearest Monster's Motion", "vr_anim_smooth_trace 180").help("vr_anim_smooth_trace <frames> [<entity> | <model>]: the nearest monster's drawn animation over the next frames (here 180): how much its points' speed changes from frame to frame (median, p95, most), printed at the end. Run it with Model Animation on Quake's Blend, then Smooth, to compare (even frames: vr_fixed_frames 1)."),
         command("Pin Nearest Monster Mid-Swing", "vr_anim_smooth_pin 41 42 0.5 -1 -1 ogre").help("vr_anim_smooth_pin <frame1> <frame2> <blend> [<frame0> <frame3> [<entity> | <model>]]: a monster (here the nearest ogre: its chainsaw swing) drawn held between two frames, to compare Model Animation's settings on it; vr_anim_smooth_pin off lets it go."),
         command("Unpin Monster", "vr_anim_smooth_pin off").help("vr_anim_smooth_pin off: the pinned monster animates again."),
-        slider("Limb Fit Limit", "vr_anim_smooth_rig_error", 0.25f, 5.f, 0.25f, "%.2f units").help("vr_anim_smooth_rig_error: a bone fitted to a frame worse than this (rms) isn't swung between it and its neighbours; a vertex further off its bone swings less (none at twice it)."),
-        slider("Rebuild Fit Limit", "vr_anim_smooth_rebuild_error", 0.1f, 2.f, 0.1f, "%.1f units").help("vr_anim_smooth_rebuild_error: with Rebuild From Skeleton, a point further than this (rms over the frames) off its bone's fits is rebuilt less (not at twice it); a model with under half its points rebuilt is drawn as before (Smooth Animation Models: each model's counts)."),
+        row(opt::vr_anim_smooth_rig_error),
+        row(opt::vr_anim_smooth_rebuild_error),
         command("Corpse Poses", "vr_corpse_poses").help("vr_corpse_poses [1]: every dead monster and placed corpse: its model, "
                                                          "frame and where that is in its death, a ragdoll or why not; those "
                                                          "drawn mid-death (upright) are counted as not lying. 1: the counts only."),
@@ -1174,7 +772,7 @@ za::Vector<Item> pageDebugReports()
         command("Model Lighting", "vr_model_ambient_show").help("vr_model_ambient_show: the six nearest entities' ambient light."),
         command("Ambient Occlusion", "vr_ao_show").help("vr_ao_show: the ambient occlusion's occluders and bake."),
         command("AO Bakes on Disk", "vr_ao_cache_info").help("vr_ao_cache_info: the models' occlusion bakes read from the disk cache (cache/ao) this session, baked, rejected and written, and the folder's files."),
-        toggle("Keep AO Bakes on Disk", vr_ao_cache).help("vr_ao_cache: the models' occlusion bakes kept on disk, so a later session's loads bake nothing (off: baked at every first load; 2 in the console: baked anyway and compared with the file)."),
+        row(opt::vr_ao_cache),
         header("Hands and Weapons"),
         command("Hand Rig", "vr_hand_rig_info").help("vr_hand_rig_info: the hand's rig against the compiled one."),
         command("Wrists (Bare Forearms)", "vr_body_wrist_info")
@@ -1231,9 +829,7 @@ za::Vector<Item> pageDebugReports()
         command("Menu Panels", "vr_menu_panels").help("vr_menu_panels: the menu panels open (MENUPANELS: each one's menu, page, selected row and its value as last drawn). vr_menu_panels open, close <n> or focus <n>: another opened (as the corner's New Panel), one closed or given the keys."),
         command("Open Another Menu Panel", "vr_menu_panels open").help("vr_menu_panels open: another menu panel beside this one, on this page (as the corner's New Panel; three at most, in the headset)."),
         command("Menu Rows", "menu_vr rows").help("menu_vr rows: this page's rows as drawn (MROW: row, top, label), the scroll, the section gap, and whether the laser and mouse find each row where it is drawn."),
-        toggle("Menu Links: Print, Do Not Open", vr_menu_link_dryrun)
-            .help("vr_menu_link_dryrun: the version box's Support on Ko-fi link (bottom right of the menus) prints its address "
-                  "in the console instead of opening the desktop's browser (tests)."),
+        row(opt::vr_menu_link_dryrun),
         command("Check for Updates Now", "vr_update_check_now")
             .help("vr_update_check_now: the release feed (latest.json) read now, whatever the hour's cache and Check for "
                   "Updates say, and what it found in the console; the notice above the version box follows. "
@@ -1245,10 +841,7 @@ za::Vector<Item> pageDebugReports()
             .help("vr_obs_status: OBS's connection (Graphics > Recording > OBS): found or not and why, the address, whether "
                   "a password is set (never the password), obs-websocket's version, the recording's state and time, and "
                   "the menus' row as it reads."),
-        cycle("OBS: Process Check", vr_obs_process_check, {{0.f, "Off (Always Connect)"}, {1.f, "On"}, {2.f, "Act as if Running"}})
-            .help("vr_obs_process_check: On (the default): on this PC the game connects only while OBS's process "
-                  "(obs64.exe) runs, and says when its WebSocket server is off. Off: always tries (a mock server's "
-                  "tests). Act as if Running: the hint's test (nothing listening reads as OBS's server off)."),
+        row(opt::vr_obs_process_check),
         command("Main Menu Lettering", "vr_bigfont").help("vr_bigfont: which of the main menu's letters were cut from the menu pictures, and which were left out (a mod's own picture: the menu then shows the picture)."),
     };
 }
@@ -1321,7 +914,7 @@ za::Vector<Item> pageDebugTools()
         command("Heavy Handling Test", "vr_heavy_test").help("vr_heavy_test: every weapon's weight class and what it makes of it (Weapon Weights > Heavy Handling): droop in one hand and two, an abrupt wrist snap's lag with the struggle and without, the extreme snap that wrenches it out, a one-handed shot's kick and recovery."),
         command("Heavy Wobble Test", "vr_heavy_wiggle").help("vr_heavy_wiggle [slot] [motion hands]: each heavy weapon's steadiness, one-handed and two: the wrist wiggled (yaw +-30..60 degrees at 2-5 Hz, roll, pitch), flicked, a blow stopped dead: its swing over the wrist's (gain), fastest turn, swings back and forth once still (ring), degrees still off 0.3 s after (late)."),
         toggle("Ghost Hands (test aid)", vr_ghost_hands).help("vr_ghost_hands: each hand drawn see-through where your real controller is when the game draws it elsewhere (Player Appearance > Ghost Hands)."),
-        slider("Ghost Hands Test Offset", vr_ghost_hands_test_offset, 0.f, 30.f, 1.f, "%.0f cm").help("vr_ghost_hands_test_offset: moves each ghost hand this far sideways, to see it apart from the drawn hand without a heavy weapon or a wall."),
+        row(opt::vr_ghost_hands_test_offset),
         header("External Map Index (vr_mapindex.cpp)"),
         command("Map Index Stats", "maps_stats")
             .help("maps_stats: how many packages the external index holds, by type / game_mode / map_size, how many carry their own progs.dat (left out unless the setting below is on), what the fetch cost, and where its cache is."),
@@ -1329,14 +922,10 @@ za::Vector<Item> pageDebugTools()
         command("List Large Maps", "maps_list type=map size=large sort=bytes limit=40").help("maps_list type=map size=large sort=bytes: the big single-player maps, largest first."),
         command("Fetch the Map Index", "maps_fetch force")
             .help("maps_fetch force: Quaddicted's index fetched again now, on its own thread (the cached copy forgotten). Nothing waits for it; maps_stats says what happened."),
-        toggle("Include Packages with progs.dat", vr_maps_allow_progs)
-            .help("vr_maps_allow_progs: packages that ship their own progs.dat replace the game's code, so they are left out of the list by default. They are in the index either way (maps_info shows them, maps_stats counts them)."),
-        slider("Download Cache Size", vr_maps_cache_mb, 0.f, 4096.f, 64.f, "%.0f MB").extend(0.f, 65536.f)
-            .help("vr_maps_cache_mb: the downloaded packages' zips (cache/maps/) kept up to this size; past it the oldest are removed (before a download, at start-up, and when this is lowered). 0: none kept once a package is installed. Installed maps are not affected."),
-        slider("Largest Download", vr_maps_max_download_mb, 0.f, 4096.f, 64.f, "%.0f MB").extend(0.f, 65536.f)
-            .help("vr_maps_max_download_mb: a package whose zip is over this size is refused (the index's size, and the bytes as they arrive). 0: no limit (the default). The free disk space is checked either way, before the download and before the unpacking."),
-        slider("Pretend Free Disk Space", vr_maps_debug_free_mb, 0.f, 4096.f, 64.f, "%.0f MB").extend(0.f, 65536.f)
-            .help("vr_maps_debug_free_mb: test aid - the map installer is told the disk has this much free (a low disk simulated: its message, before the download or the unpacking). 0: the disk's real free space."),
+        row(opt::vr_maps_allow_progs),
+        row(opt::vr_maps_cache_mb),
+        row(opt::vr_maps_max_download_mb),
+        row(opt::vr_maps_debug_free_mb),
         command("Download Cache Usage", "maps_cache")
             .help("maps_cache [trim]: the download cache's zips, oldest first (the first removed when it is over the size above), and how much of it they use. maps_cache trim: trimmed to the size now."),
         command("Map Browser Costs", "maps_page_stats")
@@ -1376,7 +965,7 @@ za::Vector<Item> pageDebugTools()
         command("Blood Streams on Monster Ahead", "vr_gore_stream_test 3").help("vr_gore_stream_test 3: three bullet holes pouring blood on the monster or corpse nearest the middle of the view."),
         command("Knock Teeth Out", "impulse 198").help("impulse 198: the monster spawned last (impulse 241) punched in the face as hard as can be: its teeth fly (Gore > Knocked-out Teeth)."),
         command("Decal Stress: Splatters", "vr_decal_stress 64 48").help("vr_decal_stress [count] [size] [splatter|pool|wall|run|stack|cluster]: 64 marks laid the same way each time (tests compare two builds' images); here splatters on the floor ahead."),
-        toggle("Show Permanent Decal Pages", vr_permdecal_show).help("vr_permdecal_show: the baked marks' pages drawn unlit and green, the marks on them (where the layer has texels; a mark on a door moves with it)."),
+        row(opt::vr_permdecal_show),
         command("Decal Stress: Pools", "vr_decal_stress 64 48 pool").help("vr_decal_stress 64 48 pool: 64 pools spreading on the floor ahead (over 6 seconds, darkening)."),
         command("Decal Stress: Wall", "vr_decal_stress 64 32 wall").help("vr_decal_stress 64 32 wall: 64 splatters on the wall ahead."),
         command("Decal Stress: Runs", "vr_decal_stress 64 16 run").help("vr_decal_stress 64 16 run: 64 runs spreading down the wall ahead (over 3 seconds)."),
@@ -1416,12 +1005,7 @@ za::Vector<Item> pageDebugTools()
         command("Test Message", "vr_message_test").help("vr_message_test: a message in the gadget's hologram (once the gadget has been drawn)."),
         command("Test Console Line", "vr_message_test console Test console log line").help("vr_message_test console <text>: an engine log line, as a warning: in the notify lines only with HUD and Menus > Screens > Console Log on the HUD (vr_hud_console_log 1)."),
         command("Notify Lines Info", "vr_notify_info").help("vr_notify_info: prints the notify lines shown now, in view and in the gadget's log (which of the game's messages and the console's log pass vr_hud_console_log)."),
-        cycle("Gadget Screen Readings", "vr_gadget_test_state",
-            {{0.f, "Real"}, {1.f, "Low"}, {2.f, "Exhausted, Counter"}, {3.f, "Hanging, Bullet Time"}, {4.f, "Relighting"}, {5.f, "Every Item"},
-             {6.f, "Arcane Dimensions Row"}})
-            .help("vr_gadget_test_state: the wrist gadget's screen shows made-up readings, to see each state of its layout: low health, ammo and "
-                  "stamina; no stamina with a counter's window open; hanging with bullet time running; maps being relit; every key, powerup and sigil; "
-                  "Arcane Dimensions' artifacts, a timer, custom keys and debuffs (its icons need its data installed)."),
+        row(opt::vr_gadget_test_state),
         command("Eject a Casing", "vr_shells_eject").help("vr_shells_eject: a spent casing out of the held weapon's port."),
         command("Lightning Shock", "vr_shock_test 0").help("vr_shock_test 0: the lightning gun's shock in water (the flash, the arcs over your arms and body), without the damage."),
         command("Lightning Strikes You", "vr_shock_self_test 10; vr_shock_self_info")
@@ -1473,22 +1057,16 @@ za::Vector<Item> pageDebugTools()
         command("Run the Calibration Here", "vr_setup here")
             .help("vr_setup here: VR Calibration's steps (height, body, main hand) in this map, now."),
         command("Skip the Calibration Step", "vr_setup_skip").help("vr_setup_skip: its next step at once (not Body Calibration's poses)."),
-        cycle("Calibration Trace", "vr_setup_debug", {{0.f, "Off"}, {1.f, "Steps"}, {2.f, "Every Frame"}})
-            .help("vr_setup_debug: each step as it starts and, at the summary, how many frames the stickman showed and "
-                  "was hidden since it first showed (a hidden frame printed as it happens). Every Frame: one line a frame."),
+        row(opt::vr_setup_debug),
         header("Toolgun"),
         command("A Toolgun in Your Hand", "impulse 169").help("impulse 169: the toolgun in the main hand (189: the off hand)."),
-        toggle("Spawn With a Toolgun", vr_debug_spawn_toolgun)
-            .help("vr_debug_spawn_toolgun: each time you spawn (a new level, a respawn), a toolgun in the first empty holster "
-                  "(the hips, the chest, the shoulders; right first) unless you carry one. Weapon Mode Immersive."),
+        row(opt::vr_debug_spawn_toolgun),
         command("Toolgun Spawn Catalog", "vr_toolgun_spawnlist").help("Lists every AD spawn entry and whether it is available in this map."), // AD support
         command("Armed Humanoid Lists", "vr_toolgun_armed_list")
             .help("vr_toolgun_armed_list: the toolgun's Armed Humanoid page's lists: the kinds (the armed monsters' table's "
                   "rows) and every weapon's code and name, held two-handed (2h), one-handed (1h: it pairs) or not (-) by "
                   "each kind (console). vr_toolgun_select_armed <kind> <weapon> <weapon2> chooses a loadout."),
-        toggle("Armed Tiles on the Spawn Grid", vr_toolgun_armed_tiles)
-            .help("vr_toolgun_armed_tiles: the Monsters tab also lists the Armed Grunt and Armed Enforcer tiles, one a weapon "
-                  "(the Armed Humanoid page makes them all)."),
+        row(opt::vr_toolgun_armed_tiles),
         command("Trace the Chosen Spawn", "vr_toolgun_spawn_trace")
             .help("vr_toolgun_spawn_trace [entry] [frames]: the spawn panel's choice made ahead of you, its model, scale, "
                   "box and place on the server and the client printed the frame it is made and the next 4 (a size that "
@@ -1523,12 +1101,8 @@ za::Vector<Item> pageDebugTools()
         command("Load This Map's Brushes", "vr_brush_load")
             .help("vr_brush_load [name] [add]: the brushes of <game folder>/brushes/<map>.brushes made, this map's own "
                   "removed first (\"add\": kept)."),
-        toggle("Load Brushes with the Map", vr_brush_autoload)
-            .help("vr_brush_autoload: a map started (not a saved game) gets the brushes of its brush file (Save This Map's "
-                  "Brushes)."),
-        toggle("Bake the Brushes' Light", vr_brush_bake)
-            .help("vr_brush_bake: each brush's faces lit from the map's lights in the game (shadows, the sun, flickering lights "
-                  "in their own lightstyle), a few ms a frame; off: the flat light where each face is."),
+        row(opt::vr_brush_autoload),
+        row(opt::vr_brush_bake),
         command("Bake Every Brush Again", "vr_brush_rebake all")
             .help("vr_brush_rebake [id | all]: the brushes' light laid out and baked again (after changing the bake's settings)."),
         command("Bake a Map Copy with Its Brushes", "vr_brush_bake_map")
@@ -1544,8 +1118,6 @@ za::Vector<Item> pageDebugTools()
         command("Remove Every Box", "vr_brush_delete all").help("vr_brush_delete all: every box made in this map, gone."),
         command("Brush Tool Status", "vr_toolgun_brush_status")
             .help("vr_toolgun_brush_status: the Brush tool's mode, grid and texture, what it holds and its ghost (console)."),
-        toggle("Shade the Boxes' Faces", vr_brush_shade)
-            .help("vr_brush_shade: a box's flat light shaded by each face's way (top full, sides 0.8, bottom 0.55); off, every "
-                  "face as the light where it is. For boxes made after the change."),
+        row(opt::vr_brush_shade),
     };
 }

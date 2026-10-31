@@ -2773,7 +2773,7 @@ QVR_WEAPON_DEFAULT(21, UpperHolsterRoll, "15")
 // multipliers of before at Weapon Effects' 1.5 cm and 4 degrees, converted: ROUND23.md, "Recoil in cm, degrees and
 // seconds").
 QVR_WEAPON_DEFAULT(1, RecoilKick, "10")
-QVR_WEAPON_DEFAULT(1, RecoilRise, "12.080001")
+QVR_WEAPON_DEFAULT(1, RecoilRise, "12") // his value of 2026-10-31, vr_wofs_fx_rise_deg_02 (was 12.08)
 QVR_WEAPON_DEFAULT(1, RecoilReturn, "0.315")
 QVR_WEAPON_DEFAULT(2, RecoilKick, "23.85")
 QVR_WEAPON_DEFAULT(2, RecoilRise, "18.25")

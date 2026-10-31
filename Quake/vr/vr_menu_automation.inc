@@ -444,21 +444,11 @@ za::Vector<Item> pageDebugAutomation()
         command("Armed Grunts: Friendly Fire", "vr_agrunt_test 63")
             .help("vr_agrunt_test 63: four gunners far ahead, their friends held still in their lines of fire, 15 s "
                   "careless (Careful of Friends 0), then 15 s careful: friendly hits each (vr_agrunt_friendly_care)."),
-        toggle("Armed Grunts: Grip Distances", vr_agrunt_ik_debug)
-            .help("Prints each armed grunt's hands' distances to its weapon's grips as drawn (agik lines; "
-                  "vr_agrunt_ik)."),
-        toggle("Armed Humanoids: Strike Demo", vr_agrunt_strike_demo)
-            .help("Armed humanoids with a melee weapon or their fists and no enemy strike the air ahead of them every "
-                  "couple of seconds, standing still: watch their wind-ups, blows and follow-throughs from afar (with "
-                  "notarget; scene agrunt_strikes; vr_agrunt_strike_demo)."),
-        toggle("Armed Grunts: Log", vr_agrunt_debug)
-            .help("Prints each armed grunt's weapon, shots, reloads, disarms and pickups (developer 1; vr_agrunt_debug)."),
-        toggle("Armed Grunts: Tests Spawn Enforcers", vr_agrunt_test_kind)
-            .help("The Armed Grunts tests above spawn armed enforcers (monster_vr_enforcer, the armed monsters' second "
-                  "row) instead of armed grunts (vr_agrunt_test_kind 1; 0 grunts)."),
-        toggle("Load Stuck", vr_grapple_test_stuck)
-            .help("What hangs on the rope (a loose hook, a hooked prop) stays where it is, as if snagged: walk away and the "
-                  "rope should hold you back."),
+        row(opt::vr_agrunt_ik_debug),
+        row(opt::vr_agrunt_strike_demo),
+        row(opt::vr_agrunt_debug),
+        row(opt::vr_agrunt_test_kind),
+        row(opt::vr_grapple_test_stuck),
         header("Player Hitbox"),
         command("Hitbox Keep Test", "vr_hull_keeptest")
             .help("Builds the map's brushes and compiled hulls again from scratch and prints whether the server's (kept "
@@ -584,8 +574,7 @@ za::Vector<Item> pageDebugAutomation()
         header("Small Gibs Tests (developer 1 for each hit)"),
         command("A Grunt Ahead", "vr_test_spawn 0; vr_test_spawn_dist 96; impulse 241").help("A grunt 96 units ahead, facing you: the tests' target (the nearest monster or corpse)."),
         command("A Grunt's Corpse Ahead", "vr_test_spawn 0; vr_test_spawn_dead 1; vr_test_spawn_dist 96; impulse 241; vr_test_spawn_dead 0"),
-        toggle("On the Training Dummy", vr_smallgibs_test_dummy)
-            .help("vr_smallgibs_test_dummy: the tests below hit the nearest training dummy instead (the firing range's), and the shotgun, nail, blow and chainsaw ones print the gore each sent (gore hits, wound events, blood particles): to compare with a grunt's."),
+        row(opt::vr_smallgibs_test_dummy),
         command("A Grunt's Ragdoll Ahead", "vr_ragdoll 1; vr_test_spawn 0; vr_test_spawn_dead 1; vr_test_spawn_dist 96; impulse 241; wait; wait; wait; wait; wait; vr_test_spawn_dead 0")
             .help("Ragdolls on (Gibs and Corpses > Ragdolls) and a grunt killed 96 units ahead: he goes limp as he falls."),
         command("Ragdolls' Fastest Since Last", "vr_ragdoll_speeds").help("vr_ragdoll_speeds: each ragdoll's fastest since the last time you asked (its middle's, and any part's, in units/s), then forgotten: strike a body, then ask, to see how far the blow launched it."),
@@ -680,8 +669,7 @@ za::Vector<Item> pageDebugAutomation()
                   "fall on you still hurts; 3 s on, the health you lost (god off)."),
         command("Throw a Gib Made 1 s Ago", "vr_smallgibs_test 18")
             .help("vr_smallgibs_test 18: a gib made at your feet, thrown at the monster nearest 1 s later: it still hurts it."),
-        toggle("Trace Small Gibs", vr_smallgibs_trace)
-            .help("vr_smallgibs_trace: each small gib's first 2.5 s in the console (sgibtrace:): where made, its speed and every jump in it, what touches, nudges or strikes it, how far it lay."),
+        row(opt::vr_smallgibs_trace),
         header("Training Dummy Tests (dummytest: ...)"),
         command("What the Dummy Is", "vr_dummy_test 1")
             .help("vr_dummy_test 1: the training dummy nearest: its enemy, model, box and health, and the zone a level shot at "
@@ -799,9 +787,7 @@ za::Vector<Item> pageDebugAutomation()
             .help("vr_limb_test 27: the axe control for the corpse limb tests cuts and keeps the struck limb."),
         command("Hand to the Last Limb", "vr_limb_test 14").help("vr_limb_test 14: the mock main hand put on the last limb thrown (then grip: vr_mock_button main grip 1; vr_limb_test 15 says if it is held)."),
         header("Crowd Gore Tests (goretest: crowd ... in the console; the benchmarks' gore scenarios)"),
-        slider("Crowd Radius", vr_gore_test_crowd, 0.f, 1024.f, 64.f, "%.0f units")
-            .help("Above 0, the limb and head tests act on every monster this near you at once, in one frame, quietly (one "
-                  "goretest: crowd line): Crowd: ... below, or any test above. 0: the nearest monster only (vr_gore_test_crowd)."),
+        row(opt::vr_gore_test_crowd),
         command("Spawn a Crowd (16 Grunts)", "vr_physics_spawn monster_army 100 -60;vr_physics_spawn monster_army 100 -20;vr_physics_spawn monster_army 100 20;vr_physics_spawn monster_army 100 60;vr_physics_spawn monster_army 148 -60;vr_physics_spawn monster_army 148 -20;vr_physics_spawn monster_army 148 20;vr_physics_spawn monster_army 148 60;vr_physics_spawn monster_army 196 -60;vr_physics_spawn monster_army 196 -20;vr_physics_spawn monster_army 196 20;vr_physics_spawn monster_army 196 60;vr_physics_spawn monster_army 244 -60;vr_physics_spawn monster_army 244 -20;vr_physics_spawn monster_army 244 20;vr_physics_spawn monster_army 244 60")
             .help("vr_physics_spawn: 16 grunts in a 4 by 4 grid ahead of you (notarget keeps them still)."),
         command("Crowd: Slash a Limb", "vr_limb_test 4").help("vr_limb_test 4 on the crowd (Crowd Radius above 0): each killed by a slash at a limb."),
@@ -809,9 +795,7 @@ za::Vector<Item> pageDebugAutomation()
         command("Crowd: Gib", "vr_limb_test 10").help("vr_limb_test 10 on the crowd: each gibbed (its limbs thrown: Gibbed Bodies Throw Limbs)."),
         command("Crowd: Head Pops", "vr_decap_test 14").help("vr_decap_test 14 on the crowd: a super shotgun headshot each (head pop by chance: vr_decap_pop_roll 0 pops all)."),
         header("Head Pop Chance Tests (poptest: ... in the console)"),
-        slider("Test Range", vr_decap_poptest_dist, 0.5f, 25.f, 0.5f, "%.1f lengths")
-            .help("The tests below shoot (or throw) from this many player lengths (56 units) off the nearest live monster's head "
-                  "(you are moved there and back; round it till the way is clear) (vr_decap_poptest_dist)."),
+        row(opt::vr_decap_poptest_dist),
         command("Chance Table", "vr_decap_test 40")
             .help("vr_decap_test 40: each weapon's head pop chance at ranges, for all, half and a fifth of the pellets at the head."),
         command("Shotgun Headshot Kill", "vr_decap_test 41").help("vr_decap_test 41: a shotgun blast (no spread) at its head at health 1, from the Test Range."),
@@ -905,10 +889,7 @@ za::Vector<Item> pageDebugAutomation()
                   "(T_RadiusDamage): what a rocket's or a grenade's explosion does to the torches near it."),
         command("Throw the Nearest Prop at It", "developer 1; vr_test_walltorch_shot 20")
             .help("vr_test_walltorch_shot 20: the loose prop nearest you sent at the wall torch nearest you, at vr_test_fling_speed m/s: it comes off its wall. Below vr_test_fling_speed, it is not a throw: the torch stays."),
-        toggle("Torch Flames to Console", vr_walltorch_debug)
-            .help("vr_walltorch_debug: each lit torch you hold or that lies about, twice a second (wtflame: how far upside "
-                  "down, its flame's foot, its speed and flattening, what of you its flame touches), and the torches' smoke "
-                  "(wtsmoke). 2: every frame."),
+        row(opt::vr_walltorch_debug),
         header("Self-Tests and Benchmarks"),
         command("Tracy Pool Self-Test", "vr_tracy_test_memory").help("Exercise realloc, cache frees, hunk reset and memory detail changes."),
         command("QuakeC Loop Bench", "vr_qcexec_bench")
@@ -932,9 +913,7 @@ za::Vector<Item> pageDebugAutomation()
         command("Heap Self-Test", "vr_heap test")
             .help("vr_heap test: every way the code allocates (malloc, calloc, realloc, strdup, new, aligned new, "
                   "_aligned_malloc) gives mimalloc's blocks, and the C runtime's own blocks go back to it; PASS or FAIL."),
-        toggle("Test: No GL Context at the Next VR Start", vr_xr_test_drop_context)
-            .help("vr_xr_test_drop_context 1: the next eye swapchain is requested with no GL context current (once): the "
-                  "game makes its context current again first and logs it in qvr_openxr.txt. Then vr_restart."),
+        row(opt::vr_xr_test_drop_context),
         header("Crashes"),
         command("Crash: Access Violation", "vr_crash_test av")
             .help("vr_crash_test av: crashes the game now, on purpose, to test the crash report: quakevr/crash/<date>_<time>.txt "

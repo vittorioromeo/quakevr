@@ -3933,6 +3933,33 @@ Checklist:
   sliders); let go: the next shots kick one-handed again, the change smooth.
 - [offhandrecoil] Off hand holding a shell or magazine against the gun while firing: full one-handed kick.
 
+## One settings schema (branch `agent/setschema`; design review 9)
+
+A setting's menu row is written once: `Quake/vr/vr_menu_rows.inc` holds its label, range, step, format, extent, help and
+choices (`QVR_TOGGLE` / `QVR_SLIDER` / `QVR_CYCLE`; `_BYNAME` for a row that finds its cvar by name, as Ironwail's), and
+a page lists `row(opt::<cvar>)` (`.advanced()` / `.developer()` stay on the page). `opt::Id` is an enum made from the
+table (a typo does not compile); `row()` (vr_menu.cpp) builds the same `Item` the old builder calls did. CODE_STYLE.md,
+"Settings and the config".
+
+- **Converter:** `Misc/quakevr/settings_schema.py convert` (run once; `stats` says what it would do): 2,533 rows of
+  2,513 settings, every `toggle`/`slider`/`cycle` with literal arguments and its `.extend`/`.help`. Left written on their
+  pages: a setting's second row with other texts (91; the player page's row is the schema's, Debug's stays), rows with
+  code in them (lambdas, computed ranges or choices, `unavailableBecause` keeps its tail), and the weapon/prop offset
+  and Tunables pages (design review 3's; the Tunables rows are already `vr_tunables_rows.inc`).
+- **Menu paths:** `vr_menu_dump_paths` prints Search's index (every page and row, its cvar, level, page, label and path)
+  as `MP|` lines; `Misc/quakevr/menu_paths.py <log>` keeps them in `Misc/quakevr/menu_paths.txt` (8,279). The
+  calibration board's `{menu:...}` come from it (`menu_paths.board(page, button | cvar=)`: the seated row by its cvar;
+  a page or button gone stops the script). `settings_schema.py strip-comments` took 49 "Page > Section > Row:" prefixes
+  out of vr_cvars.inc comments (20 kept: no row in the menus). `vr_menu_dump <level> full` prints every row's fields.
+- **The tools that read vr_cvars.inc** (gen_vr_cvars_qc.py, cvar_inventory.py, blade_defaults.py, the kit's run.ps1 and
+  runq2.ps1, its refactor scans) need no change: the `QVR_CVAR` lines keep their form, and the table's name matches
+  cvar_inventory's menu files (`vr_menu*.inc`). The kit's tiers_scan.py (done, one-off) read builder calls on pages.
+- **Lines:** the menu sources 6,091 removed, 2,648 added; vr_menu_rows.inc 6,755 (the help texts moved, not cut).
+- Checks: `vr_menu_dump 2 full` (46,781 lines: every page, row, label, range, step, format, extent, level, choice and
+  help) and `vr_menu_dump_paths` (8,279: Search's index) identical before/after but for the build line;
+  `vr_menu_path_check maps/vrcalibration.map` 6 found, 0 missing; the calibration .map regenerates identical; the
+  release code builds (`/p:QvrRelease=1`, separate output dir; no `tune_reset` in the exe); run_baseline.sh (below).
+
 ## Worn backpack: a hard pull lifts its wearer instead of ripping (branch `agent/packragdoll`)
 
 His words: "Add an option to disable ripping out worn backpacks by tugging ... and instead make it so that pulling an
@@ -4176,6 +4203,28 @@ Checklist:
 - VR Pose Studio in Pickup: the bottom row's Make Override / Remove Override toggles the same.
 - Chest Bend (standing, kneeling) in Pickup: a grunt taking up a weapon bends more or less.
 
+## The Plasma Gun's cell holds 16; his recoil values of 2026-10-31 shipped (branch `agent/recoilpromo`)
+
+His voice notes of 2026-10-31: the Plasma Gun's magazine 16 instead of 36; his recoil and two-handed recoil values
+feel fine: make them the defaults and take the recoil items off the checklist.
+
+- **The Plasma Gun's cell** (AD support: the thunderbolt with AD's upgrade, which used the thunderbolt's 36-cell): its own
+  size, the new tunable `vr_ad_plasmagun_cell` "16" (Debug > Tunables, "Weapons > Reloading - Plasma Gun"; the
+  thunderbolt keeps 36). QC `VR_ClipSizeOf` answers it (as the Widowmaker's tube), so the ammo screens, the pouch
+  touch-reload and the props' refills follow. A cell drawn from the pouch for the gun in the other hand holds the gun's
+  own size (`VR_Reload_Take`; the gun-at-the-pouch reload, `VR_Reload_PouchFrame`, too). A fuller cell (a thunderbolt's
+  36) seated in it gives it 16 and the rest back to the reserve (`VR_Reload_SeatMagInto`; a Plasma Gun lying about,
+  `VR_Reload_IntoProp`: back to the hand's player). The upgrade's pickup (`AD_UpgradeGiven`) gives back what the
+  pickup moved past 16. An armed grunt's Plasma Gun: `VR_AG_ClipOf` the same. Test 141 (adplasma) gains two checks: a
+  pouch cell holds the size; a thunderbolt's full cell seated gives the size and returns the rest.
+- **His recoil values shipped:** `vr_recoil_2h_kick` 0.6 -> 0.4, `vr_recoil_2h_rise` 0.6 -> 0.2, `vr_recoil_2h_time`
+  0.6 -> 0.725, `vr_recoil_2h_haptic` 0.6 -> 0.7; the shotgun's Recoil Muzzle Rise (slot 1, `vr_wofs_fx_rise_deg_02`) 12.08 -> 12;
+  the tunable `vr_nailpistol_slide_delay` 0.25 -> 0.175 (tune_promote). His config has no other recoil value off its
+  default (`v_gunkick` 2 is the shipped default; no `vr_recoil_*`, `*_kick*`, `*_rise*` or 2H multiplier beyond these).
+- **Checklist:** the 18 recoil items taken off (per-weapon recoil, recovery, haptic punch, the models' own kick, Recoil
+  Amount, Two-Handed Recoil and its four sliders, no ghost from recoil, the starter shotgun's auto pump, the recoil along
+  the gun's top, the off hand's grip anywhere, a shell against the gun, the unpromoted 4.5 / 7.5); the nail pistol's
+  Rack Delay line now says its new default, 0.175 s.
 ## Checklist: cleanup pass and a Test button on most items (branch `agent/cltests`)
 
 His voice note 2026-10-31 20:01: most checklist items had no test button. Two commits: the cleanup, then the buttons.
