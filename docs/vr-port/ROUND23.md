@@ -4005,3 +4005,40 @@ Checklist:
 - [posepromo] Armed knights and death knights look as in your last session with your vr_agrunt_* settings cleared
   (`vr_agrunt_poses ""; vr_agrunt_grips ""; vr_agrunt_ik_stretch ""`): your keys are the defaults now.
 - [posepromo] Rig Studio > Range of Motion on the knight: the clavicles' limits are yours.
+
+## Armed humanoids: shots and grip spheres from the drawn pose (branch `agent/stalepose`)
+
+His ask: address drawnpose's leftovers, the two consumers still reading a stale pose.
+- **Shots (and every precise hit) on a live armed humanoid:** hitmodel's `drawnOf` read the .mdl frame (its lerp), while
+  the body is drawn on the authored rig (its arms posed on its weapons, the Rig Studio's takes, hit reactions): a shot at a
+  raised guard's forearm met the frame's torso or head behind it, or nothing. Now `drawnpose::armedMesh` (the one drawn
+  pose query's: `rig2::liveVertices`, now with its normals, placed as `drawnpose::bone` places a live bone, its placement
+  shared in vr_drawnpose.cpp) gives its vertices as drawn; hitmodel tests them as it tests a ragdoll's (every triangle;
+  the hit's triangle maps to the stand frame for the zone as before). Armed humanoids only (`hitreact::armsWanted`), alive
+  (a ragdoll keeps its own), on a listen server's view (else the frame). Its users: segment/clip (shots, missiles, the
+  hook, melee blows, thrown things), restPoint (zones), nearest/pose/anchorFrame (foe grabs, stuck axes). Not
+  `vertexPoint` (QC modelvertex: the arms' own inputs stay the frame's). Setting `vr_hit_drawn_pose` (Combat > Hit
+  Detection > Armed Bodies as Drawn, default 1; 0 the frame as before).
+- **VR_AG_Hit's grip spheres** (a body blow within 10 units of its grip, 16 on a limb, disarms) were round the server's
+  `p.origin`; now round its grip as drawn (`VR_AG_DrawnFrame`, as the hand line and the disarm volumes), the other hand's
+  weapon chosen by the same; Show Disarm Volumes draws them there.
+- **Test 79** (`vr_agrunt_test 79`, QC/vr_stalepose_test.qc; Debug > Tests > "Armed Grunts: Shots on the Drawn Body"):
+  every kind (grunt, enforcer, knight, death knight). Guard (unarmed, frozen, held in Aim): a shot across the drawn
+  forearm (`weapondrawnpose(g, 0, 37)`, new: its forearm's vertices' middle as drawn; 38 the frame's) hits within 5-6
+  units of it, zone 2; one across the frame's forearm alone misses (enforcer 11.5, knights 10 units apart; the grunt's
+  guard holds it 5.6 from the frame's, so its miss is tested in its swing). Swing (a sword, each swing kind in turn until
+  met): its drawn grip 13.5-22 units from the server's weapon place at 0.38-0.40 s; a blow there keeps the weapon, one at
+  the drawn grip disarms it. **22 passed, 0 failed.**
+- **Regressions:** run_baseline `--only 'agrunt|hitmodel|disarm'`: 7 changed, all examined. 31, 36, 65 now pass; 32,
+  70 more checks. 78 failed on the old base (its fix, 0d52eef93, merged since: 9/0). 95 (knight death, the armour's
+  random break: 7/0 on a rerun), 66 (fails on origin/next too), 67/76/47/63/71 flaky as listed. 11 (blast) timed out
+  twice in 8 runs; the stuck run's log ends with the mock's Body Calibration opening its menu ("close the menu to go
+  on"), the game paused; 6 runs passed. Tests 99 41/0, 24 2/0. eval.sh did not run (its lock: `agentlocks/review`
+  missing, a kit problem).
+
+Checklist:
+- [stalepose] Combat > Hit Detection > Armed Bodies as Drawn on: shoot an armed grunt's raised forearm (guarding, aiming,
+  swinging): the hit lands on the arm (blood there, an arm hit), not its chest or head behind it; aim where its arm would
+  hang in a plain animation: a miss.
+- [stalepose] Show Disarm Volumes: the grip spheres sit on its hand as drawn while it swings; punching its drawn hand
+  disarms it, punching where the old sphere was does not.
