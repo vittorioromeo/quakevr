@@ -3,6 +3,7 @@
 #include "vr_agpose.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
+#include "vr_progs.hpp"
 
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -851,22 +852,22 @@ void dropCode(int code)
 }
 
 // QC constants that are a stance's place (the grunt's: vr_agarms' pose places them from its chest, fitted): the key's
-// part moves them by its change, exactly (its direction turned by the part's turn).
+// part moves them by its change, exactly (its direction turned by the part's turn). Their values are the QC's own,
+// read by name from the loaded progs (progs::globalVec; design review 10: one source, no copy here; FTEQCC cannot
+// build a global vector from shared #defines, ROUND23 "One hit record, part 5").
 struct QcConstant
 {
     int cls, pose, part;
     const char* name;
-    glm::vec3 value;
     const char* fwName; // ("" none)
-    glm::vec3 fw;
 };
 constexpr QcConstant qcConstants[] = {
-    {agpose::Melee, agpose::Carry, agpose::RPos, "VR_AGP_CARRY_R", {6.f, -9.f, 3.f}, "VR_AGP_CARRY_R_FW", {0.95f, -0.1f, 0.15f}},
-    {agpose::Melee2, agpose::Carry, agpose::RPos, "VR_AGP_PORT", {9.f, -5.f, 3.f}, "VR_AGP_PORT_FW", {0.35f, 0.55f, 0.75f}},
-    {agpose::Melee, agpose::Aim, agpose::RPos, "VR_AGP_READY", {10.f, -7.f, 4.f}, "VR_AGP_READY_FW", {0.3f, 0.1f, 0.95f}},
-    {agpose::Melee, agpose::Aim, agpose::LPos, "VR_AGP_FREE_L", {7.f, 9.f, 4.f}, "", {}},
-    {agpose::Fists, agpose::Aim, agpose::RPos, "VR_AGP_GUARD_R", {9.f, -5.f, 13.f}, "", {}},
-    {agpose::Fists, agpose::Aim, agpose::LPos, "VR_AGP_GUARD_L", {11.f, 5.f, 15.f}, "", {}},
+    {agpose::Melee, agpose::Carry, agpose::RPos, "VR_AGP_CARRY_R", "VR_AGP_CARRY_R_FW"},
+    {agpose::Melee2, agpose::Carry, agpose::RPos, "VR_AGP_PORT", "VR_AGP_PORT_FW"},
+    {agpose::Melee, agpose::Aim, agpose::RPos, "VR_AGP_READY", "VR_AGP_READY_FW"},
+    {agpose::Melee, agpose::Aim, agpose::LPos, "VR_AGP_FREE_L", ""},
+    {agpose::Fists, agpose::Aim, agpose::RPos, "VR_AGP_GUARD_R", ""},
+    {agpose::Fists, agpose::Aim, agpose::LPos, "VR_AGP_GUARD_L", ""},
 };
 
 [[nodiscard]] glm::vec3 turned(const glm::vec3& v, const glm::vec3& rotDeg)
@@ -1647,13 +1648,20 @@ void dumpText(za::String& out)
             {
                 continue;
             }
+            glm::vec3 value{0.f};
+            if(!progs::globalVec(q.name, value))
+            {
+                continue; // (no progs loaded, or not this one's)
+            }
             const glm::vec3 d = e.k.v[q.part] / fitScale[kind];
-            const glm::vec3 v = q.value + d;
+            const glm::vec3 v = value + d;
             out += va("    //   QC instead (%s): vector %s = '%.2f %.2f %.2f';", kindName(kind), q.name,
                 static_cast<double>(v.x), static_cast<double>(v.y), static_cast<double>(v.z));
             if(q.fwName[0])
             {
-                const glm::vec3 fw = turned(glm::normalize(q.fw), e.k.v[q.part + 1]);
+                glm::vec3 qfw{1.f, 0.f, 0.f};
+                (void)progs::globalVec(q.fwName, qfw);
+                const glm::vec3 fw = turned(glm::normalize(qfw), e.k.v[q.part + 1]);
                 out += va(" vector %s = '%.2f %.2f %.2f';", q.fwName, static_cast<double>(fw.x), static_cast<double>(fw.y),
                     static_cast<double>(fw.z));
             }
