@@ -1673,6 +1673,9 @@ void ikStretchReset()
         toggle("Precise Hit Detection", vr_hit_precise)
             .help("Shots, projectiles, the grappling hook, melee blows and thrown things hit a monster's model as you see "
                   "it, not the big box round it: aim at the body. Off: Quake's boxes."),
+        toggle("Armed Bodies as Drawn", vr_hit_drawn_pose)
+            .help("An armed enemy's body is hit where you see it: its raised guard, its swinging arm, its aimed gun "
+                  "arm. Off: where its plain animation frame has it, as before."),
         slider("Melee Tolerance", vr_hit_tolerance_melee, 0.f, 12.f, 0.5f, "%.1f units").extend()
             .help("How much bigger than the model a monster is to your melee blows and shoves."),
         toggle("Head Priority", vr_hit_head_priority)
