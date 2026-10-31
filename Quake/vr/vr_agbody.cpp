@@ -198,6 +198,10 @@ const Proxies* of(const qmodel_t* model, const ragdoll::Rig& rig, int chest, flo
         }
         else if(i == Torso)
         {
+            // (said once a model: it is kept as failed. Its arms then go unchecked against its body: origin/next's death
+            // knight, its chest's hull 4 points of weight 0.5 or more; ROUND23.md, "Rig polish")
+            Con_DPrintf("agbody: %s: no body proxies (its chest, bone %d, has %d hull points, 8 wanted): its arms not kept "
+                        "out of its body\n", model->name, bones[i], static_cast<int>(rig.bones[bones[i]].points.size()));
             return nullptr;
         }
         else

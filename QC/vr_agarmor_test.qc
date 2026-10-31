@@ -28,12 +28,12 @@ void(float ok, string what) VR_ART_Check =
     if(ok)
     {
         VR_Test_Count(TRUE);
-        dprint(sprintf("agarmor test: PASS %s\n", what));
+        VR_Test_Print(sprintf("agarmor test: PASS %s\n", what));
     }
     else
     {
         VR_Test_Count(FALSE);
-        dprint(sprintf("agarmor test: FAIL %s\n", what));
+        VR_Test_Print(sprintf("agarmor test: FAIL %s\n", what));
     }
 };
 
@@ -534,7 +534,7 @@ void() VR_AgArmor_TestFrame =
         }
         if(request == 9)
         {
-            VR_Test_Begin("agarmor test");
+            VR_Test_BeginFlags("agarmor test", VR_TEST_LOUD); // (its lines printed without developer 1)
             vr_art_k = VR_ART_SpawnKind(p, -48, 2, 128);
             vr_art_dk = VR_ART_SpawnKind(p, 48, 3, 160);
             VR_AgArmor_Give(vr_art_k, 2, 1023);
@@ -545,7 +545,7 @@ void() VR_AgArmor_TestFrame =
         }
         if(request == 7)
         {
-            VR_Test_Begin("agarmor test");
+            VR_Test_BeginFlags("agarmor test", VR_TEST_LOUD); // (its lines printed without developer 1)
             vr_art_rule = cvar("vr_agarmor_rule");
             vr_art_helm = cvar("vr_agarmor_helmet_head");
             vr_art_cuts = cvar("vr_agarmor_block_cuts");
@@ -575,7 +575,7 @@ void() VR_AgArmor_TestFrame =
             }
             return;
         }
-        VR_Test_Begin("agarmor test");
+        VR_Test_BeginFlags("agarmor test", VR_TEST_LOUD); // (its lines printed without developer 1)
         vr_art_rule = cvar("vr_agarmor_rule");
         vr_art_helm = cvar("vr_agarmor_helmet_head");
         vr_art_cuts = cvar("vr_agarmor_block_cuts");
