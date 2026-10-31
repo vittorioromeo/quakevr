@@ -122,16 +122,7 @@ float(entity m, vector xAt) VR_RagImpact_Piece =
         }
         return p;
     }
-    if(VR_Decap_Allowed(m) && ragdollhead(m, xAt, 0) > 0)
-    {
-        return 0;
-    }
-    if(!VR_Limb_Allowed(m))
-    {
-        return -1;
-    }
-    float bone = VR_Limb_At(m, xAt);
-    return (bone > 0 && bone < VR_LIMB_JOINTS) ? bone : -1;
+    return VR_Limb_PieceAt(m, xAt, VR_Decap_Allowed(m), VR_Limb_Allowed(m));
 };
 
 // The damage of a strike with `xMass` kg behind it at `xExcess` m/s past its least speed: vr_ragimpact_damage x mass x

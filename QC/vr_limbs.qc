@@ -521,15 +521,28 @@ float(entity c, float xHand, vector xAt) VR_Limb_CorpseBlow =
 // Explosions (and their splash, burning, a stuck axe's bleeding) keep the whole-body path and their blast pops
 // (VR_Limb_BlastPops), as does every hit with Limb Gore/Corpses off, a rig without limbs or a body not ragdolled.
 
-// The piece of ragdolled corpse `targ` a hit at `xAt` wears: 0 its head, a limb's joint, -1 the torso.
-float(entity targ, vector xAt) VR_Limb_WearPiece =
+// The one ragdoll-piece lookup (design review 6): the piece of ragdoll `targ` a hit at `xAt` meets: 0 its head (with
+// `xHead`: its head may come off), a limb's joint (with `xLimbs`), -1 the torso. Each caller keeps its own rules for
+// those two (ROUND23, "One hit record, part 2": they differ).
+float(entity targ, vector xAt, float xHead, float xLimbs) VR_Limb_PieceAt =
 {
-    if(!targ.vr_headless && cvar_hget(cvarh_vr_decap) && cvar_hget(cvarh_vr_decap_corpses) && ragdollhead(targ, xAt, 0) > 0)
+    if(xHead && ragdollhead(targ, xAt, 0) > 0)
     {
         return 0;
     }
+    if(!xLimbs)
+    {
+        return -1;
+    }
     float bone = VR_Limb_At(targ, xAt);
     return (bone > 0 && bone < VR_LIMB_JOINTS) ? bone : -1;
+};
+
+// The piece of ragdolled corpse `targ` a hit at `xAt` wears: 0 its head, a limb's joint, -1 the torso.
+float(entity targ, vector xAt) VR_Limb_WearPiece =
+{
+    return VR_Limb_PieceAt(targ, xAt, !targ.vr_headless && cvar_hget(cvarh_vr_decap) && cvar_hget(cvarh_vr_decap_corpses),
+        TRUE);
 };
 
 // A hitscan blast's pellet at `e` at `xAt` (VR_Decap_Pellet): counted on the piece it strikes, if `e` is a corpse.
@@ -722,12 +735,7 @@ float(entity targ, vector xAt) VR_Limb_RagdollPiece =
     {
         return VR_Limb_WearPiece(targ, xAt);
     }
-    if(!targ.vr_headless && VR_Decap_Allowed(targ) && ragdollhead(targ, xAt, 0) > 0)
-    {
-        return 0;
-    }
-    float bone = VR_Limb_At(targ, xAt);
-    return (bone > 0 && bone < VR_LIMB_JOINTS) ? bone : -1;
+    return VR_Limb_PieceAt(targ, xAt, !targ.vr_headless && VR_Decap_Allowed(targ), TRUE);
 };
 
 // A hit of `xDamage` by a blade or a trap `by` (inflictor and attacker: the buzzsaw's, rogue_buzzsaw.qc) at point `xAt` of
