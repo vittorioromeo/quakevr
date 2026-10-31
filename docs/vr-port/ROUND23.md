@@ -3939,3 +3939,16 @@ Checklist:
 - [packragdoll] Same mode: knock a grunt down, grab its pack and drag it slowly (it slides along, pack on), then yank:
   it flails in your hand, pack still on.
 - [packragdoll] Same mode: shooting or hitting a grunt's pack still tears it off; force-grab a dead one's pack: it comes off.
+
+## nail_1's backpack step: a test fault, not nails through packs (branch `agent/nail1pack`)
+
+The step drops a backpack as a monster does (random throw and spin), waits until it rests, then fires nails at its drawn
+box from 100 units before it, along the player's line to it. When the bag came to rest within 100 units of the player
+(about 1 run in 4), that start lay behind him: after a nail's first frame his body overlapped it, the body touch
+(vr_physics.cpp `touch`) called the test's own nail touch, which took the player for a hit and removed the nail. So no
+nail met the bag and the step failed 3 checks. In the game spike_touch spares the owner (VR_OwnerSpared), so nails do not
+pass through lying packs: 14 of 14 random rest poses (several different sides) were met at the drawn box once the test
+was fixed (3 of 12 and 2 of 6 failed before). Fix (QC/vr_nail_test.qc only): VR_NLT_BagTouch spares the owner as
+spike_touch does, and VR_NLT_BagNail starts no farther back than the player stands (min(100, his distance)), so a start
+never lands behind him near a wall. Not timing: the flakiness under parallel load was the random rest place. No gameplay
+change.
