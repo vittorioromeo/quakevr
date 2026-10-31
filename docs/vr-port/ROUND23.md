@@ -3913,3 +3913,95 @@ Checklist:
 - [packragdoll] Same mode: knock a grunt down, grab its pack and drag it slowly (it slides along, pack on), then yank:
   it flails in your hand, pack still on.
 - [packragdoll] Same mode: shooting or hitting a grunt's pack still tears it off; force-grab a dead one's pack: it comes off.
+
+## Knight two-pistol hold: the knights' Main and Off grips (branch `agent/kngrip`)
+
+His ask: address knightpose's leftovers (kinds 2 and 3 had a Second grip row but no Main or Off). **Confirmed wrong.**
+Measured with test 85 extended to every kind (each gun's barrel as drawn against its pose, the server's; at rest and
+aimed after its shots once the arms settle), origin/next: grunt and enforcer every pair 0.1-1.2 degrees; the knight's
+**left** pistol 27-28 degrees off at rest, 40-44 aimed (right 5.5-6.5 / 0.6-0.9); the death knight's left 21-23 at rest,
+12-13 aimed, his right 13 aimed. Cause: with no row each hand's grip frame is turned as the rest sword in his right fist,
+so a pistol sat in his hand like a sword; the left wrist went past `vr_agarms_wrist_most` (100) and the hand, and its
+gun, turned back towards the forearm.
+
+**Fix: fitted from the grunt, as the poses' shippedFrom.** `vr_aggrip.cpp`: a kind with no Main or Off row of its own
+ships the hand's row of the kind it ships its poses from (`agpose::shippedKind`, new accessor of `shippedFrom`: the
+knights the grunt's), turned by its fit (`gripFits`): the turn that keeps the weapon where it is on the hand, from each
+hand's rest frame (x from its wrist to its middle, y its elbow's hinge; `agarms::restHand`). The fits come from the new
+**`vr_agrunt_grip_fit`** (prints the rows for every kind drawn so far; test 85 runs it at its end): knight Main -10.4
+106.5 66.0, Off -27.8 89.6 127.3; death knight Main 32.1 -80.3 -92.9, Off 38.8 163.8 160.4. No knight copies of the
+grunt's rows: retuning the grunt's Main / Off moves the knights' with it; their Second rows stay their own; Grip Editor
+entries go on top as for any kind. Grunt and enforcer untouched.
+
+- **Test 85** (`map vrtesthall;wait30;vr_agrunt_test 85`, ends `test 85 over`): 5 new cases (enforcer two nail pistols,
+  knight and death knight two nail pistols and two shotguns) and a `barrel` check per case (each gun within 12 degrees of
+  its pose, rest and aimed). origin/next 36/4 (the four knight cases); now **40/0**: knights 0.4-0.5 at rest, 0.5-1.2
+  aimed; grunt and enforcer numbers as before. (Unsettled, 4 frames after the shots, every kind's left gun reads 20-35
+  off: the arms' goal ease after the aim's jump, `vr_agarms_jump_ease`; hence the settle.)
+- Covering: Pose Keys, knight + shotgun (`-flatscreenmode`; `vr_rigstudio monster_vr_knight 4;
+  vr_rigstudio_test_posekeys`) **13/1** (the grunt's elbow step, as before). Test 95 kind 2 7/0 (and 6/1 twice: "death:
+  dead (40)", the armour's cuirass absorbing the test's blow; origin/next fails it the same way: kind 3 7/1 "dead (10)"),
+  kind 3 8/0.
+
+Checklist:
+- [kngrip] vr_agknight 1, toolgun an armed Knight with two nail pistols (or Debug > Automation & Self-Tests: Armed
+  Grunts: Dual Guns' Muzzles): both pistols point where he aims, each in his fist like a grunt's (not through it like a
+  sword); the left one not turned off to the side.
+- [kngrip] vr_agdknight 1: the same for an armed Death Knight with two pistols.
+- [kngrip] vr_agknight 1 / vr_agdknight 1: a knight's and a death knight's own sword still sits in his fist as the
+  grunt holds a sword (the fitted Main row is every weapon's; test 95's sword-to-hand 3.1 / 8.3 as before, not eyeballed).
+## nail_1's backpack step: a test fault, not nails through packs (branch `agent/nail1pack`)
+
+The step drops a backpack as a monster does (random throw and spin), waits until it rests, then fires nails at its drawn
+box from 100 units before it, along the player's line to it. When the bag came to rest within 100 units of the player
+(about 1 run in 4), that start lay behind him: after a nail's first frame his body overlapped it, the body touch
+(vr_physics.cpp `touch`) called the test's own nail touch, which took the player for a hit and removed the nail. So no
+nail met the bag and the step failed 3 checks. In the game spike_touch spares the owner (VR_OwnerSpared), so nails do not
+pass through lying packs: 14 of 14 random rest poses (several different sides) were met at the drawn box once the test
+was fixed (3 of 12 and 2 of 6 failed before). Fix (QC/vr_nail_test.qc only): VR_NLT_BagTouch spares the owner as
+spike_touch does, and VR_NLT_BagNail starts no farther back than the player stands (min(100, his distance)), so a start
+never lands behind him near a wall. Not timing: the flakiness under parallel load was the random rest place. No gameplay
+change.
+
+## His poses of 2026-10-31 shipped; the Rig Studio's subject clear of the floating text (branch `agent/posepromo`)
+
+**The subject clear of the text.** His words: the floating texts get in the way. In vrtesthall the welcome boards
+(`func_worldtext_banner` at 0 -144 62/88) stood 16 units before the stage (0 -128), between it and the default camera:
+the board's text over the subject's head. `findStage` (vr_rigstudio.cpp) now checks the server's world texts
+(`worldtext::serverTextList`, `halfSize`): one within 320 units of the stage whose board (1.5 times its half diagonal)
+comes within 32 degrees of the default camera's line to the subject, not wholly behind the camera nor behind a wall, moves
+the stage to the nearest clear place on a 48-unit grid (forward first, back towards the start costed 4x), with room for
+a 64-unit hull at the subject and at the camera's eye and the floor within 24 units. vrtesthall: 96 forward, 48 left
+(-48 -32 0). Every test reads `st.stage`, none a fixed place. A map without a text near: unchanged. `developer 1` prints
+each place tried and why it was not taken. Screenshots (studio default camera, mock): grunt, death knight at rest and
+in Pickup: no text over any.
+
+**His pose keys, grips, IK stretch as shipped.** From his vr_agrunt_poses (186 keys: grunt 61, enforcer 59, knight 58,
+death knight 8), vr_agrunt_grips (8: 3 already shipped), vr_agrunt_ik_stretch (26: 10 new or changed, all knight's but one
+death knight's) of 2026-10-31, with `Misc/quakevr/pose_defaults.py --write`. The knights follow the grunt's keys
+(`shippedFrom`), so their own rows had nowhere to go: `shippedOf` and `shippedStretchOf` now take a kind's own row of a
+code first, else the followed kind's fitted, as an archived key does (its own rifle row is not laid on its gun
+categories, as an archived one is not); `copyKind` lists a kind's own rows too. pose_defaults.py: knight names, and an
+all-zero key (or a stretch of 1) keeps its row where dropping it would ship the followed kind's or the rifle's instead.
+Grips: knight Main and Off, death knight Main (his rows win over agent/kngrip's fit; the death knight's Off keeps the
+fit), the knight's sword Second and laser cannon Main. New: `vr_agrunt_pose_dump all` (every key and stretch in effect)
+and `vr_agrunt_grip_dump effective` (every grip in effect). **Proof:** his three lines on the old tables vs the new
+tables with the cvars empty: 476 keys, 48 stretch rows, 16 grip lines, byte for byte the same; again after merging
+agent/kngrip (empty vs his cvars). His archived text now equals the shipped (no config version: 218 is the last).
+
+**Knight rig.** His Range of Motion edits (`vrknight.rig2.txt`, as is): both clavicles swing x -15..35, y -15..35, twist
+-65..45 (were -15..20, -10..20, -35..35); make_rig2.py's knight skeleton the same (a regenerate equals his file number for
+number: only the header line and the number format differ). His rig2anim files are header-only: not added (optional).
+
+Tests: Pose Keys grunt 13/1, knight + shotgun **14/0** (13/1 before: the elbow step passes with his poses), death knight
+13/1 (the elbow step, as the grunt's). Test 85 40/0 with his knight grips (knight pistols 0.6-1.0 degrees off their pose).
+run_baseline `agrunt|rigstudio|posestudio|rig2`: no regression (agrunt 31, 36, 65 FAIL -> PASS and the new tests are
+other branches'; rigstudio cases as the baseline). eval.sh: 163/171 as origin/next; its few "differ" takes change from
+run to run on origin/next and here alike (noise, no melee number from this branch).
+
+Checklist:
+- [posepromo] Rig Studio (flat screen): open it: the subject stands clear of the hall's welcome boards; change it to
+  the knight and the death knight, Pose Keys > Pickup: no text over it.
+- [posepromo] Armed knights and death knights look as in your last session with your vr_agrunt_* settings cleared
+  (`vr_agrunt_poses ""; vr_agrunt_grips ""; vr_agrunt_ik_stretch ""`): your keys are the defaults now.
+- [posepromo] Rig Studio > Range of Motion on the knight: the clavicles' limits are yours.

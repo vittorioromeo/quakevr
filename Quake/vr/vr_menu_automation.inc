@@ -244,7 +244,8 @@ za::Vector<Item> pageDebugAutomation()
         command("Armed Grunts: Dual Guns' Muzzles", "vr_agrunt_test 85")
             .help("vr_agrunt_test 85 (vrtesthall's start; a few seconds): every dual-gun pair of a grunt and an enforcer "
                   "(their own guns too) fires each gun in turn: each shot leaves its own gun's drawn muzzle, the left "
-                  "gun's from the left (agtest: muzzle ... PASS)."),
+                  "gun's from the left (agtest: muzzle ... PASS); every kind's two pistols (knights too) drawn "
+                  "pointing as posed, at rest and aimed (agtest: barrel ... PASS)."),
         command("Armed Grunts: Print Their State", "vr_agrunt_test 4"),
         command("Armed Grunts: AD's Weapons", "vr_agrunt_test 12")
             .help("vr_agrunt_test 12 (with Arcane Dimensions' data): as Every Weapon, AD's soldiers' guns, the Shadow "

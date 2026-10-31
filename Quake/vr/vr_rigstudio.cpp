@@ -18,6 +18,7 @@
 #include "vr_rigseq.hpp"
 #include "vr_toolgun.hpp"
 #include "vr_view.hpp"
+#include "vr_worldtext.hpp"
 #include "vr_geom.hpp"
 
 #include "thirdparty/imgui/imgui.h"
@@ -129,7 +130,110 @@ void restoreSettings()
     }
 }
 
-// The stage: ahead of the player's start, on the floor.
+// The default camera on a stage at `stage` (the player's start facing `yaw`): its focus and its eye.
+constexpr float stageCamYaw = 20.f, stageCamPitch = 10.f, stageCamDist = 90.f, stageCamUp = 24.f;
+[[nodiscard]] glm::vec3 stageEye(const glm::vec3& stage, float yaw)
+{
+    const float y = (yaw + stageCamYaw) * deg, p = stageCamPitch * deg;
+    const glm::vec3 fwd{za::cos(p) * za::cos(y), za::cos(p) * za::sin(y), -za::sin(p)};
+    return stage + glm::vec3{0.f, 0.f, stageCamUp} - fwd * stageCamDist;
+}
+
+[[nodiscard]] trace_t traceLine(const glm::vec3& a, const glm::vec3& b, edict_t* pass)
+{
+    vec3_t from{a.x, a.y, a.z}, to{b.x, b.y, b.z}, zero{0.f, 0.f, 0.f};
+    return SV_Move(from, zero, zero, to, MOVE_NOMONSTERS, pass);
+}
+
+// Whether a world text (a map's banner: vrtesthall's welcome boards stand between the start and the old stage) shows
+// over the subject from the default camera: a text within textNear of the subject, any of it (1.5 times its half
+// diagonal round its anchor: centred across, its first line's middle the anchor) within subjectConeDeg of the camera's
+// line to the subject (all of a subject from the grunt to the death knight, its weapons, the Pickup's pelvis, at the
+// camera's 90 units), not behind the camera nor behind a wall. (Farther boards are the room's back, small and behind.)
+constexpr float subjectConeDeg = 32.f, textNear = 320.f;
+[[nodiscard]] bool textOverStage(const glm::vec3& eye, const glm::vec3& focus, edict_t* pass, glm::vec3* over = nullptr)
+{
+    const glm::vec3 line = glm::normalize(focus - eye);
+    for(const worldtext::WorldText& t : worldtext::serverTextList())
+    {
+        if(t.text.empty() || glm::length(t.pos - focus) > textNear)
+        {
+            continue;
+        }
+        const glm::vec2 half = worldtext::halfSize(t);
+        const float r = glm::length(half) * 1.5f;
+        const glm::vec3 v = t.pos - eye;
+        const float d = glm::length(v);
+        if(over)
+        {
+            *over = t.pos; // (the last one looked at: the one over it when true)
+        }
+        // (all of it behind the camera: its nearest corner's depth along the line, its board across (its yaw's right)
+        // and down, each half 1.5 times over, as r)
+        const float yaw = t.angles[1] * deg;
+        const float reach = 1.5f * (half.x * za::abs(za::sin(yaw) * line.x - za::cos(yaw) * line.y) + 2.f * half.y * za::abs(line.z));
+        if(glm::dot(v, line) + reach < 0.f)
+        {
+            continue;
+        }
+        const float off = za::acos(za::clamp(glm::dot(v / d, line), -1.f, 1.f)) / deg;
+        const float size = d <= r ? 90.f : za::asin(r / d) / deg; // (the camera in it: any way)
+        if(off - size >= subjectConeDeg)
+        {
+            continue;
+        }
+        const trace_t tr = traceLine(eye, t.pos, pass);
+        if(tr.fraction * d < d - 16.f)
+        {
+            continue; // (a wall between: not seen)
+        }
+        return true;
+    }
+    return false;
+}
+
+// Whether a box of the large hull's size (64 x 64 x 88: 32 units round) at `at` (its origin 24 over its feet) is free.
+[[nodiscard]] bool roomAt(const glm::vec3& at, edict_t* p)
+{
+    vec3_t o{at.x, at.y, at.z}, mins{-32.f, -32.f, -24.f}, maxs{32.f, 32.f, 64.f};
+    return SV_PointContents(o) == CONTENTS_EMPTY && !SV_Move(o, mins, maxs, o, MOVE_NOMONSTERS, p).startsolid;
+}
+
+// Stage `cand` (the height of `base`, the first stage's point before its floor), its floor found: 0 when it fits (reached
+// from `base` without a wall, its floor within 24 units of `floorZ` and dry, room round the subject and round the
+// default camera's eye (32 units: no wall filling the view), the eye seeing it, and no world text over it), else why not
+// (1 a wall on the way, 2 its floor, 3 no room for the subject, 4 none for the camera, 5 a world text).
+[[nodiscard]] int stageFits(const glm::vec3& base, const glm::vec3& cand, float floorZ, float yaw, edict_t* p, glm::vec3& out)
+{
+    if(traceLine(base, cand, p).fraction < 1.f)
+    {
+        return 1;
+    }
+    const trace_t down = traceLine(cand, cand - glm::vec3{0.f, 0.f, 256.f}, p);
+    if(down.fraction >= 1.f || za::abs(down.endpos[2] - floorZ) > 24.f)
+    {
+        return 2;
+    }
+    const glm::vec3 stage{cand.x, cand.y, down.endpos[2]};
+    if(!roomAt(stage + glm::vec3{0.f, 0.f, 25.f}, p))
+    {
+        return 3;
+    }
+    const glm::vec3 focus = stage + glm::vec3{0.f, 0.f, stageCamUp}, eye = stageEye(stage, yaw);
+    if(!roomAt(eye, p) || traceLine(focus, eye, p).fraction < 1.f)
+    {
+        return 4;
+    }
+    if(textOverStage(eye, focus, p))
+    {
+        return 5;
+    }
+    out = stage;
+    return 0;
+}
+
+// The stage: ahead of the player's start, on the floor; where a world text would show over the subject from the
+// default camera, the nearest place clear of every one (forward and to the sides, 48 units a step, up to 288).
 void findStage()
 {
     edict_t* p = EDICT_NUM(1);
@@ -144,12 +248,52 @@ void findStage()
     vec3_t from{at.x, at.y, at.z}, down{at.x, at.y, at.z - 256.f};
     tr = SV_Move(from, zero, zero, down, MOVE_NOMONSTERS, p);
     st.stage = glm::vec3{at.x, at.y, tr.fraction < 1.f ? tr.endpos[2] : at.z + p->v.mins[2]};
+    const glm::vec3 eye0 = stageEye(st.stage, yaw);
+    glm::vec3 over{0.f};
+    if(textOverStage(eye0, st.stage + glm::vec3{0.f, 0.f, stageCamUp}, p, &over))
+    {
+        Con_Printf("rigstudio: the world text at %.0f %.0f %.0f shows over the stage at %.0f %.0f %.0f\n", over.x, over.y,
+            over.z, st.stage.x, st.stage.y, st.stage.z);
+        const glm::vec3 left{-fwd.y, fwd.x, 0.f};
+        float best = 1e30f;
+        glm::vec3 found = st.stage;
+        int bestF = 0, bestS = 0;
+        for(int f = -2; f <= 6; f++)
+        {
+            for(int s = -6; s <= 6; s++)
+            {
+                // (forward, past what stands before it, before back towards the start, before the sides)
+                const float cost = static_cast<float>((f < 0 ? 4 : 1) * f * f + s * s);
+                glm::vec3 stage;
+                if(!(f || s) || cost >= best)
+                {
+                    continue;
+                }
+                const int why = stageFits(at, at + (fwd * static_cast<float>(f) + left * static_cast<float>(s)) * 48.f,
+                    st.stage.z, yaw, p, stage);
+                Con_DPrintf("rigstudio: stage %d forward %d left: %s\n", f * 48, s * 48,
+                    why == 0 ? "fits" : why == 1 ? "a wall on the way" : why == 2 ? "its floor" : why == 3 ? "no room" :
+                    why == 4 ? "no room for the camera" : "a world text");
+                if(why == 0)
+                {
+                    best = cost;
+                    found = stage;
+                    bestF = f * 48;
+                    bestS = s * 48;
+                }
+            }
+        }
+        Con_Printf("rigstudio: %s\n", best < 1e30f ? va("the stage moved %d forward, %d left, clear of the world texts: %.0f %.0f %.0f",
+                                                       bestF, bestS, found.x, found.y, found.z)
+                                                   : "no place near clear of the world texts: the stage kept");
+        st.stage = found;
+    }
     st.stageYaw = yaw + 180.f;
     st.staged = true;
-    st.cam.focus = st.stage + glm::vec3{0.f, 0.f, 24.f};
-    st.cam.yaw = yaw + 20.f;
-    st.cam.pitch = 10.f;
-    st.cam.dist = 90.f;
+    st.cam.focus = st.stage + glm::vec3{0.f, 0.f, stageCamUp};
+    st.cam.yaw = yaw + stageCamYaw;
+    st.cam.pitch = stageCamPitch;
+    st.cam.dist = stageCamDist;
     if(!st.aim.placed)
     {
         st.aim.at = aimDefault(); // (ahead of the subject, level; kept across its changes)

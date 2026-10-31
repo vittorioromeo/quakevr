@@ -37,6 +37,22 @@ CLASSES = {0: "fists", 1: "a rifle", 2: "a one-handed melee weapon", 3: "a two-h
            20: "the laser cannon", 21: "the Widowmaker"}
 GUN_CLASSES = (1, 6, 17, 18, 19, 20, 21)
 KIND_STRIDE = 100000  # agpose::code: kind * 100000 + class * 1000 + pose * 10 + phase (before 2026-10-27 kind * 10000)
+KIND_NAMES = ["grunt", "enforcer", "knight", "death knight"]  # (agpose::kindName)
+# vr_agpose.cpp shippedFrom: the kind whose shipped keys and IK stretch a kind follows (fitted) where it has no row of
+# its own (the knight and the death knight: the grunt's). A key or stretch of its own replaces only its own code.
+SHIPPED_FROM = [0, 1, 0, 0]
+GUN_CATEGORIES = (17, 18, 19, 20, 21)  # (agpose::gunCategories but the rifle: with no row, the rifle's row of the kind)
+
+
+def fallback_nonzero(code, shipped):
+    """Whether code `code` with no row of its own still ships a key (vr_agpose.cpp shippedOf): a kind that follows
+    another's that kind's row (or its rifle row); a gun category its kind's rifle row."""
+    kind, within = code // KIND_STRIDE, code % KIND_STRIDE
+    src = SHIPPED_FROM[kind] * KIND_STRIDE + within
+    cls = (within // 1000) % 100
+    rifle = src - cls * 1000 + 1000 if cls in GUN_CATEGORIES else -1
+    cands = [src, rifle] if src != code else [rifle]
+    return any(c in shipped and any(x != 0 for x in shipped[c]) for c in cands if c >= 0)
 
 
 def new_code(c):
@@ -85,7 +101,7 @@ def pose_name(code):
     if pose == 3 and phase == 1:
         # (vr_aglegs: the pickup's legs, agpose::legCode: pelvis place, pelvis turn, planted foot, kneeling knee's pole,
         # kneeling foot, planted knee's pole; the same 21 numbers as any key)
-        return "%s, the pickup's legs (any weapon)" % ("grunt" if kind == 0 else "enforcer")
+        return "%s, the pickup's legs (any weapon)" % KIND_NAMES[kind]
     name = POSES.get(pose, "?")
     if cls == 0 and pose == 0:
         name = "Idle"
@@ -93,7 +109,7 @@ def pose_name(code):
         name = "Port Arms"
     elif pose == 1:
         name = "Guard" if cls == 0 else "Aim" if cls in GUN_CLASSES else "Ready"
-    text = "%s, %s, %s" % ("grunt" if kind == 0 else "enforcer", CLASSES.get(cls, "?"), name)
+    text = "%s, %s, %s" % (KIND_NAMES[kind], CLASSES.get(cls, "?"), name)
     return text + (", " + (SHOVE_PHASES if pose == 20 else PHASES)[phase] if pose >= 10 and phase < 3 else "")
 
 
@@ -179,10 +195,13 @@ def pose_block(src_lines, a, b, new):
             shipped[int(m.group(1))] = padded(floats(m.group(2)))
     changed = {c for c, v in new.items() if c not in shipped or not close(shipped[c], v)}
     for c, v in new.items():
-        if all(x == 0 for x in v):
-            shipped.pop(c, None)
-        else:
-            shipped[c] = v
+        shipped[c] = v
+    # (an all-zero key drops its row, QC's pose as it is, unless the code would then ship another's: then the zero row
+    # is kept, as the archived zero key replaced that)
+    for c in [c for c, v in new.items() if all(x == 0 for x in v)]:
+        del shipped[c]
+        if fallback_nonzero(c, shipped):
+            shipped[c] = new[c]
     out = []
     for c in sorted(shipped):
         out.append("    // %s" % pose_name(c))
@@ -200,11 +219,14 @@ def stretch_block(src_lines, a, b, new):
             shipped[(int(m.group(1)), int(m.group(2)))] = float(m.group(3))
     changed = {k for k, v in new.items() if abs(shipped.get(k, 1.0) - v) > 0.004}
     for k, v in new.items():
-        if abs(v - 1.0) < 0.004:
-            shipped.pop(k, None)
-        else:
-            shipped[k] = v
-    out = ["    {%d, %d, %.2ff}, // %s, %s" % (k[0], k[1], shipped[k], "grunt" if k[0] == 0 else "enforcer",
+        shipped[k] = v
+    # (a factor of 1 drops its row, unless the kind then follows another kind's factor that is not 1: kept)
+    for k in [k for k, v in new.items() if abs(v - 1.0) < 0.004]:
+        del shipped[k]
+        src = (SHIPPED_FROM[k[0]], k[1])
+        if src != k and abs(shipped.get(src, 1.0) - 1.0) >= 0.004:
+            shipped[k] = new[k]
+    out = ["    {%d, %d, %.2ff}, // %s, %s" % (k[0], k[1], shipped[k], KIND_NAMES[k[0]],
                                               CLASSES.get(k[1], "?")) for k in sorted(shipped)]
     out.append("    {-1, -1, 1.f}, // (the end)")
     return out, changed
