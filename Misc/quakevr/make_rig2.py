@@ -332,10 +332,12 @@ RIGS = {
                     # the leg rose; the backs of the knees and the left cuff's top (folded at the knees' and elbow's most)
                     ties=[[117, 135, 136, 138, 139, 173, 174, 175, 176], [123, 133, 134, 137, 140, 153, 154, 155, 158],
                           [101, 167, 399], [387, 389, 390], [470, 449, 469]],
-                    # the horns ride the head; each pauldron and its three spikes, each elbow's spike, its upper arm
-                    pieces={0: 'head', 17: 'head', 366: 'upperarm_r', 37: 'upperarm_r', 38: 'upperarm_r',
-                            39: 'upperarm_r', 34: 'upperarm_r', 367: 'upperarm_l', 36: 'upperarm_l', 40: 'upperarm_l',
-                            41: 'upperarm_l', 35: 'upperarm_l'},
+                    # the horns ride the head; each pauldron and its three spikes its clavicle (on the upper arm it
+                    # swung and twisted with every arm move, into the head and across the chest: on the girdle it rises
+                    # with the shoulder and the arm moves under it); each elbow's spike its upper arm
+                    pieces={0: 'head', 17: 'head', 366: 'clavicle_r', 37: 'clavicle_r', 38: 'clavicle_r',
+                            39: 'clavicle_r', 34: 'upperarm_r', 367: 'clavicle_l', 36: 'clavicle_l', 40: 'clavicle_l',
+                            41: 'clavicle_l', 35: 'upperarm_l'},
                     max_hops=3, weld_gun=False),
     'knight': dict(build='vrknight', models=['vrknight'], skeleton=KNIGHT_SKELETON,
                    gun=[334, 335, 336, 363, 364, 365, 524] + list(range(535, 541)) + list(range(557, 649)),

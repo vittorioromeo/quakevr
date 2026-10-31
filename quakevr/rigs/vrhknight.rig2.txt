@@ -61,12 +61,12 @@ w 32 head 1
 w 33 head 1
 w 34 upperarm_r 1
 w 35 upperarm_l 1
-w 36 upperarm_l 1
-w 37 upperarm_r 1
-w 38 upperarm_r 1
-w 39 upperarm_r 1
-w 40 upperarm_l 1
-w 41 upperarm_l 1
+w 36 clavicle_l 1
+w 37 clavicle_r 1
+w 38 clavicle_r 1
+w 39 clavicle_r 1
+w 40 clavicle_l 1
+w 41 clavicle_l 1
 w 42 weapon 1
 w 43 weapon 1
 w 44 weapon 1
@@ -214,54 +214,54 @@ w 185 head 1
 w 186 head 1
 w 187 head 0.928 neck 0.072
 w 188 head 1
-w 189 upperarm_r 1
-w 190 upperarm_r 1
-w 191 upperarm_r 1
-w 192 upperarm_r 1
-w 193 upperarm_r 1
-w 194 upperarm_r 1
-w 195 upperarm_r 1
-w 196 upperarm_r 1
-w 197 upperarm_r 1
-w 198 upperarm_r 1
-w 199 upperarm_r 1
-w 200 upperarm_r 1
-w 201 upperarm_r 1
-w 202 upperarm_r 1
-w 203 upperarm_r 1
-w 204 upperarm_r 1
-w 205 upperarm_r 1
-w 206 upperarm_r 1
-w 207 upperarm_r 1
-w 208 upperarm_r 1
-w 209 upperarm_r 1
-w 210 upperarm_r 1
-w 211 upperarm_r 1
-w 212 upperarm_r 1
-w 213 upperarm_l 1
-w 214 upperarm_l 1
-w 215 upperarm_l 1
-w 216 upperarm_l 1
-w 217 upperarm_l 1
-w 218 upperarm_l 1
-w 219 upperarm_l 1
-w 220 upperarm_l 1
-w 221 upperarm_l 1
-w 222 upperarm_l 1
-w 223 upperarm_l 1
-w 224 upperarm_l 1
-w 225 upperarm_l 1
-w 226 upperarm_l 1
-w 227 upperarm_l 1
-w 228 upperarm_l 1
-w 229 upperarm_l 1
-w 230 upperarm_l 1
-w 231 upperarm_l 1
-w 232 upperarm_l 1
-w 233 upperarm_l 1
-w 234 upperarm_l 1
-w 235 upperarm_l 1
-w 236 upperarm_l 1
+w 189 clavicle_r 1
+w 190 clavicle_r 1
+w 191 clavicle_r 1
+w 192 clavicle_r 1
+w 193 clavicle_r 1
+w 194 clavicle_r 1
+w 195 clavicle_r 1
+w 196 clavicle_r 1
+w 197 clavicle_r 1
+w 198 clavicle_r 1
+w 199 clavicle_r 1
+w 200 clavicle_r 1
+w 201 clavicle_r 1
+w 202 clavicle_r 1
+w 203 clavicle_r 1
+w 204 clavicle_r 1
+w 205 clavicle_r 1
+w 206 clavicle_r 1
+w 207 clavicle_r 1
+w 208 clavicle_r 1
+w 209 clavicle_r 1
+w 210 clavicle_r 1
+w 211 clavicle_r 1
+w 212 clavicle_r 1
+w 213 clavicle_l 1
+w 214 clavicle_l 1
+w 215 clavicle_l 1
+w 216 clavicle_l 1
+w 217 clavicle_l 1
+w 218 clavicle_l 1
+w 219 clavicle_l 1
+w 220 clavicle_l 1
+w 221 clavicle_l 1
+w 222 clavicle_l 1
+w 223 clavicle_l 1
+w 224 clavicle_l 1
+w 225 clavicle_l 1
+w 226 clavicle_l 1
+w 227 clavicle_l 1
+w 228 clavicle_l 1
+w 229 clavicle_l 1
+w 230 clavicle_l 1
+w 231 clavicle_l 1
+w 232 clavicle_l 1
+w 233 clavicle_l 1
+w 234 clavicle_l 1
+w 235 clavicle_l 1
+w 236 clavicle_l 1
 w 237 upperarm_l 1
 w 238 upperarm_l 1
 w 239 upperarm_l 1
@@ -391,20 +391,20 @@ w 362 weapon 1
 w 363 weapon 1
 w 364 weapon 1
 w 365 weapon 1
-w 366 upperarm_r 1
-w 367 upperarm_l 1
-w 368 upperarm_l 1
-w 369 upperarm_l 1
-w 370 upperarm_r 1
-w 371 upperarm_r 1
-w 372 upperarm_r 1
-w 373 upperarm_l 1
-w 374 upperarm_l 1
-w 375 upperarm_l 1
-w 376 upperarm_r 1
-w 377 upperarm_r 1
-w 378 upperarm_l 1
-w 379 upperarm_r 1
+w 366 clavicle_r 1
+w 367 clavicle_l 1
+w 368 clavicle_l 1
+w 369 clavicle_l 1
+w 370 clavicle_r 1
+w 371 clavicle_r 1
+w 372 clavicle_r 1
+w 373 clavicle_l 1
+w 374 clavicle_l 1
+w 375 clavicle_l 1
+w 376 clavicle_r 1
+w 377 clavicle_r 1
+w 378 clavicle_l 1
+w 379 clavicle_r 1
 w 380 shin_r 0.764 thigh_r 0.199 foot_r 0.037
 w 381 shin_r 0.782 thigh_r 0.138 foot_r 0.08
 w 382 shin_r 0.799 thigh_r 0.107 foot_r 0.094
@@ -429,20 +429,20 @@ w 400 shin_l 0.578 thigh_l 0.422
 w 401 shin_l 0.639 thigh_l 0.361
 w 402 shin_l 0.783 thigh_l 0.131 foot_l 0.086
 w 403 shin_l 0.528 thigh_l 0.472
-w 404 upperarm_r 1
-w 405 upperarm_r 1
+w 404 clavicle_r 1
+w 405 clavicle_r 1
 w 406 head 0.775 clavicle_r 0.132 chest 0.093
 w 407 chest 0.365 upperarm_r 0.28 head 0.21 spine 0.145
 w 408 head 0.65 chest 0.188 clavicle_r 0.162
 w 409 upperarm_r 0.556 clavicle_r 0.205 chest 0.145 forearm_r 0.094
 w 410 upperarm_r 0.577 clavicle_r 0.327 chest 0.053 forearm_r 0.043
 w 411 head 0.594 clavicle_r 0.18 chest 0.159 spine 0.067
-w 412 upperarm_r 1
-w 413 upperarm_r 1
+w 412 clavicle_r 1
+w 413 clavicle_r 1
 w 414 upperarm_r 0.577 clavicle_r 0.327 chest 0.053 forearm_r 0.043
 w 415 upperarm_r 0.577 clavicle_r 0.327 chest 0.053 forearm_r 0.043
-w 416 upperarm_r 1
-w 417 upperarm_r 1
+w 416 clavicle_r 1
+w 417 clavicle_r 1
 w 418 upperarm_r 0.475 clavicle_r 0.24 head 0.212 chest 0.073
 w 419 upperarm_r 0.4 head 0.25 clavicle_r 0.25 chest 0.1
 w 420 upperarm_r 0.503 clavicle_r 0.272 head 0.156 chest 0.069
@@ -450,29 +450,29 @@ w 421 upperarm_r 0.45 clavicle_r 0.25 chest 0.15 head 0.15
 w 422 upperarm_r 0.577 clavicle_r 0.327 chest 0.053 forearm_r 0.043
 w 423 upperarm_r 0.577 clavicle_r 0.327 chest 0.053 forearm_r 0.043
 w 424 upperarm_r 0.577 clavicle_r 0.327 chest 0.053 forearm_r 0.043
-w 425 upperarm_r 1
-w 426 upperarm_r 1
-w 427 upperarm_r 1
-w 428 upperarm_r 1
+w 425 clavicle_r 1
+w 426 clavicle_r 1
+w 427 clavicle_r 1
+w 428 clavicle_r 1
 w 429 head 0.768 clavicle_l 0.157 chest 0.075
-w 430 upperarm_l 1
-w 431 upperarm_l 1
-w 432 upperarm_l 1
+w 430 clavicle_l 1
+w 431 clavicle_l 1
+w 432 clavicle_l 1
 w 433 head 0.618 clavicle_l 0.178 chest 0.164 spine 0.04
 w 434 chest 0.331 head 0.251 clavicle_l 0.217 upperarm_l 0.201
-w 435 upperarm_l 1
+w 435 clavicle_l 1
 w 436 head 0.568 clavicle_l 0.231 chest 0.161 spine 0.04
-w 437 upperarm_l 1
-w 438 upperarm_l 1
+w 437 clavicle_l 1
+w 438 clavicle_l 1
 w 439 clavicle_l 0.379 upperarm_l 0.325 head 0.238 chest 0.058
 w 440 clavicle_l 0.386 upperarm_l 0.293 head 0.261 chest 0.06
 w 441 clavicle_l 0.424 upperarm_l 0.355 head 0.165 chest 0.056
 w 442 clavicle_l 0.345 head 0.288 upperarm_l 0.288 chest 0.079
 w 443 clavicle_l 0.332 upperarm_l 0.308 head 0.242 chest 0.118
-w 444 upperarm_l 1
-w 445 upperarm_l 1
-w 446 upperarm_l 1
-w 447 upperarm_l 1
+w 444 clavicle_l 1
+w 445 clavicle_l 1
+w 446 clavicle_l 1
+w 447 clavicle_l 1
 w 448 upperarm_r 0.434 clavicle_r 0.251 head 0.244 chest 0.071
 w 449 forearm_l 0.81 hand_l 0.19
 w 450 upperarm_l 0.524 forearm_l 0.357 clavicle_l 0.119
@@ -559,7 +559,7 @@ w 530 weapon 1
 w 531 weapon 1
 w 532 weapon 1
 w 533 clavicle_l 0.341 upperarm_l 0.25 head 0.241 chest 0.168
-w 534 upperarm_l 1
-w 535 upperarm_r 1
-w 536 upperarm_r 1
-w 537 upperarm_l 1
+w 534 clavicle_l 1
+w 535 clavicle_r 1
+w 536 clavicle_r 1
+w 537 clavicle_l 1
