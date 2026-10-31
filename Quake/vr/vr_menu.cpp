@@ -109,10 +109,7 @@ void restartVr()
 // The training dummy's full health (vr_dummy_health), its leftmost step -1: its enemy's own ("Its Own": a grunt's 30).
 [[nodiscard]] Item dummyHealthSlider()
 {
-    Item i = slider("Dummy Health", vr_dummy_health, 0.f, 1000.f, 5.f, "%.0f")
-                 .extend(1.f, 100000.f)
-                 .help("The training dummy's full health: what its hits take away (shown over it) and, with Dummy Dies, "
-                       "what kills it. Its Own: its enemy's (a grunt's 30, an ogre's 200).");
+    Item i = row(opt::vr_dummy_health);
     i.negativeLabel = "Its Own";
     i.negativeStart = 5.f;
     return i;
@@ -121,10 +118,7 @@ void restartVr()
 // Dynamic resolution's ceiling (vr_dynres_max), its leftmost step below 0: Render Scale's (the default).
 [[nodiscard]] Item dynresMaxSlider()
 {
-    Item i = slider("Dynamic Highest Scale", vr_dynres_max, 0.45f, 1.5f, 0.05f, "%.2f")
-                 .extend(0.45f, 2.f)
-                 .help("The highest scale Dynamic Resolution goes to, with headroom. Render Scale: yours (the default), so "
-                       "with headroom nothing changes; above it, sharper while the graphics card keeps up.");
+    Item i = row(opt::vr_dynres_max);
     i.negativeLabel = "Render Scale";
     i.negativeStart = 0.5f;
     return i;
@@ -134,11 +128,7 @@ void restartVr()
 // Map, the default: the author's, 2026-10-06).
 [[nodiscard]] Item debrisMultiplayerSlider()
 {
-    Item i = slider("Most in Multiplayer", vr_debris_mp_max, -8.f, 160.f, 8.f, "%.0f")
-                 .extend(-8.f, 400.f)
-                 .help("The most in a multiplayer map (yours as the host). They are the server's, to pick up and throw: "
-                       "each one in sight costs every player's network packets (about 18 bytes a frame). Single Player's: "
-                       "as many as Most in a Map. 0: none. Next map.");
+    Item i = row(opt::vr_debris_mp_max);
     i.negativeLabel = "Single Player's";
     i.negativeStart = 0.f;
     return i;
@@ -346,9 +336,7 @@ int motionPageCategory = -1;
         header("Record Motions for the Melee"),
         command("Melee Recording Room", "map vrmelee-recording")
             .help("All melee weapons and one central training dummy, with clear room to record your motions."),
-        toggle("Arm Recorder", vr_motion_armed)
-            .help("Armed: click the Record Button to start a take of the Category, click it again to end it and save "
-                  "it (quakevr/motions). A beep and a buzz each time; REC in view."),
+        row(opt::vr_motion_armed),
         cycle("Category", vr_motion_category, ZA_MOVE(categories))
             .help("What the motion should do. It stays chosen: record many takes of it in a row. No Hit: motions that "
                   "must do nothing (wiggles, weak moves, reloading)."),
@@ -356,20 +344,13 @@ int motionPageCategory = -1;
             .help("Optional: which kind (the swing's direction, the weapon). Its takes count apart, and with the "
                   "category's."),
         info(motion::labelStatus),
-        cycle("Record Button", vr_motion_button,
-            {{0.f, "Off stick click"}, {1.f, "Main stick click"}, {2.f, "A (main lower)"}, {3.f, "B (main upper)"},
-                {4.f, "X (off lower)"}, {5.f, "Y (off upper)"}, {6.f, "Off grip"}, {7.f, "Main grip"},
-                {8.f, "Hold B + main trigger"}, {9.f, "Hold Y + off trigger"}})
-            .help("Pressed to start and to end a take, while armed. Its own action (stick clicks: run, reload; A: jump; "
-                  "B, Y: weapons; X: reload; grips: grab) rests until you disarm. Hold B or Y + trigger: the trigger "
-                  "fires as usual without it."),
+        row(opt::vr_motion_button),
         info(motionNote),
         info(motionLastSaved),
         action("Delete Last Take", motion::discardLast)
             .help("Moves the last take saved into motions/discarded (a take that went wrong). Again: the one before."),
-        slider("Lead-in", vr_motion_preroll, 0.f, 2.f, 0.1f, "%.1f s").extend()
-            .help("Kept from before the take starts (the motion's start, for the melee's trackers)."),
-        slider("Tail", vr_motion_tail, 0.f, 1.f, 0.05f, "%.2f s").extend().help("Recorded after the take ends (hits that land late)."),
+        row(opt::vr_motion_preroll),
+        row(opt::vr_motion_tail),
     };
 }
 
@@ -393,11 +374,7 @@ char reviewListHeader[64];
         info(motion::review::summary),
         info(motion::review::reviewedLine),
         info(motion::review::evalLine),
-        cycle("Show", vr_motion_review_show,
-            {{0.f, "To Review"}, {1.f, "Failing"}, {2.f, "Suspect"}, {3.f, "Not Evaluated"}, {4.f, "Reviewed"}, {5.f, "All"},
-                {6.f, "Discarded"}})
-            .help("To Review: failing or suspect, not yet kept. A take picked opens its page: play it as a ghost, "
-                  "keep, discard or relabel it."),
+        row(opt::vr_motion_review_show),
         cycle("Category", vr_motion_review_category, ZA_MOVE(categories)),
         action("Re-evaluate Shown", motion::review::reevaluateShown)
             .help("Evaluates the takes listed again, in a second copy of the game in the background (the mock "
@@ -445,7 +422,7 @@ char reviewListHeader[64];
             .help("Replays it in front of the training dummy as a ghost, looping: its weapons where they were, their "
                   "lines and striking points, the tip's trail, the head, and the events. You are not moved."),
         action("Stop Ghost", motion::review::stopGhost),
-        cycle("Ghost Speed", vr_motion_review_speed, {{1.f, "1x"}, {0.5f, "0.5x"}, {0.25f, "0.25x"}, {0.1f, "0.1x"}}),
+        row(opt::vr_motion_review_speed),
         action("Replay (Mock Headset)", motion::review::replayMock)
             .help("vr_motion_play watch: the take drives the tracking, the melee plays it again. The mock headset only."),
         header("Decide"),
@@ -574,15 +551,14 @@ template za::Vector<Item> pageMonsterParam<static_cast<int>(mgroups::Param::Thro
     return {
         open("Doom", pageIndex(pageDoom)).help("Play Doom on the gadget's screen: a touchscreen under your fingertip."),
         open("HUD and Gadget Arm: VR Settings, Body and Display", pageIndex(pageVrsHudHapticsSound)).help("The HUD's kind is on VR Settings; the gadget's arm on Body and Display."),
-        slider("Size", vr_gadget_scale, 0.5f, 2.f, 0.05f, "%.2fx").extend(0.25f, 3.f),
+        row(opt::vr_gadget_scale),
         header("Placement"),
-        slider("Along the Arm", vr_gadget_x, -15.f, 15.f, 0.5f, "%.1f cm").extend(-40.f, 40.f),
-        slider("Across the Arm", vr_gadget_y, -8.f, 8.f, 0.25f, "%.2f cm").extend(-20.f, 20.f),
-        slider("Height", vr_gadget_z, -5.f, 8.f, 0.25f, "%.2f cm").extend(-15.f, 25.f).help("How far it stands out of the forearm."),
-        slider("Pitch", vr_gadget_pitch, -90.f, 90.f, 5.f, "%.0f deg").extend(-180.f, 180.f),
-        slider("Yaw", vr_gadget_yaw, -90.f, 90.f, 5.f, "%.0f deg").extend(-180.f, 180.f),
-        slider("Roll", vr_gadget_roll, -180.f, 180.f, 15.f, "%.0f deg")
-            .help("Turns the screen: 90 reads along the arm, 180 turns the text the other way."),
+        row(opt::vr_gadget_x),
+        row(opt::vr_gadget_y),
+        row(opt::vr_gadget_z),
+        row(opt::vr_gadget_pitch),
+        row(opt::vr_gadget_yaw),
+        row(opt::vr_gadget_roll),
     };
 }
 
@@ -627,44 +603,27 @@ void hologramTestMessage()
                   "there, then Search Again."),
         command("Search Again", "vr_doom_wads").help("Looks for WADs again (the console lists them: vr_doom_wads)."),
         header("Controls"),
-        cycle("Controls", vr_doom_controls, {{0.f, "Touch Only"}, {1.f, "Controller and Touch"}, {2.f, "Controller Only"}})
-            .help("Touch Only: everything on the screen with your fingertip; the sticks and buttons stay Quake's. "
-                  "Controller and Touch: also, while Doom has the focus (the gadget raised and looked at, or touched), "
-                  "the gadget hand's stick moves and turns, trigger fires, grip uses, X next weapon, Y Doom's menu, "
-                  "stick press the map; your other hand stays Quake's. Controller Only: no touch controls."),
-        cycle("Touch Controls Shown", vr_doom_overlay, {{0.f, "When Your Finger Is Near"}, {1.f, "Always"}, {2.f, "Never"}})
-            .help("The buttons drawn over Doom's picture (with Touch Only: always, faint when your finger is away)."),
-        toggle("Hard Press Fires", vr_doom_hard_fire)
-            .help("Pressing through the screen (Hard Press Depth) while steering with the MOVE stick, or on the "
-                  "picture, fires: one finger can move and shoot."),
-        toggle("Always Run", vr_doom_always_run).help("Doom's always run (RUN on the touch bar)."),
-        slider("Look to Focus", vr_doom_focus_look, 0.f, 2.f, 0.1f, "%.1f s")
-            .help("How long you look at the raised gadget before its stick and buttons go to Doom (0: only a touch)."),
-        slider("Out of View to Unfocus", vr_doom_focus_grace, 0.1f, 3.f, 0.1f, "%.1f s")
-            .help("How long the gadget may be out of view (lowered, looked away from) before they come back to Quake."),
-        slider("Light Button Presses", vr_doom_light_presses, 0.f, 10.f, 1.f, "%.0f")
-            .help("Press the gadget's side button (the light on/off one) this many times in quick succession to open "
-                  "Doom on the gadget; one press of it then closes Doom again, without toggling the light (0: off). "
-                  "The light itself keeps toggling with each press and is put back as it was."),
-        slider("Light Press Gap", vr_doom_light_gap, 0.1f, 1.f, 0.05f, "%.2f s")
-            .help("The longest time between two of those presses."),
-        toggle("Pause When Not Focused", vr_doom_pause_unfocused)
-            .help("Off: Doom keeps running while you play Quake. On: it pauses until you look at it or touch it."),
+        row(opt::vr_doom_controls),
+        row(opt::vr_doom_overlay),
+        row(opt::vr_doom_hard_fire),
+        row(opt::vr_doom_always_run),
+        row(opt::vr_doom_focus_look),
+        row(opt::vr_doom_focus_grace),
+        row(opt::vr_doom_light_presses),
+        row(opt::vr_doom_light_gap),
+        row(opt::vr_doom_pause_unfocused),
         header("Picture and Sound"),
-        toggle("4:3 Picture", vr_doom_aspect).help("Doom's picture as it was shown (4:3, bars at the sides); off: stretched over the screen."),
-        slider("CRT Look", vr_doom_crt, 0.f, 2.f, 0.1f, "%.1fx").help("Times the gadget's CRT look (0: a clean picture)."),
-        slider("Volume", vr_doom_volume, 0.f, 1.f, 0.05f, "%.2f").help("Doom's sounds, from the gadget, against the game's."),
-        toggle("Big Floating Panel", vr_doom_panel)
-            .help("Doom on a big panel in front of you instead of the gadget (placed as you turn this on, it moves with "
-                  "you; touch it as the gadget)."),
-        slider("Panel Width", vr_doom_panel_size, 0.2f, 1.5f, 0.05f, "%.2f m"),
+        row(opt::vr_doom_aspect),
+        row(opt::vr_doom_crt),
+        row(opt::vr_doom_volume),
+        row(opt::vr_doom_panel),
+        row(opt::vr_doom_panel_size),
         command("Place the Panel in Front", "vr_doom_panel_place"),
         header("Touchscreen"),
-        slider("Touch Distance", vr_touch_press, 0.f, 2.f, 0.1f, "%.1f cm")
-            .help("How near the screen your fingertip must come for a touch (it must come from in front)."),
-        slider("Release Distance", vr_touch_release, 0.3f, 4.f, 0.1f, "%.1f cm").help("How far off it a touch ends."),
-        slider("Hard Press Depth", vr_touch_hard, 0.5f, 4.f, 0.1f, "%.1f cm").help("How far through the screen is a hard press."),
-        slider("Touch Haptics", vr_touch_haptic, 0.f, 1.f, 0.05f, "%.2f").help("Your hand's buzz as a touch begins."),
+        row(opt::vr_touch_press),
+        row(opt::vr_touch_release),
+        row(opt::vr_touch_hard),
+        row(opt::vr_touch_haptic),
     };
     for(const Item& i : rest)
     {
@@ -679,24 +638,14 @@ void hologramTestMessage()
 [[nodiscard]] za::Vector<Item> pageTips()
 {
     return {
-        cycle("Tips", vr_tips, {{0.f, "Off"}, {1.f, "Floating Panel"}, {2.f, "Wrist Gadget"}})
-            .help("Tips for new players, each shown once: the first time you come near something you can use (a wall "
-                  "torch). Floating Panel: a screen like the maps' text boards by it, with a cable to it. Wrist Gadget: in the gadget's hologram, waiting until "
-                  "you look at it (it chimes and buzzes); the panel if the HUD is not the gadget."),
-        slider("Distance", vr_tips_distance, 50.f, 400.f, 10.f, "%.0f").extend(16.f, 2000.f)
-            .help("How near you must come to what a tip is about (in Quake units: about 40 a metre)."),
-        toggle("Line of Sight", vr_tips_line_of_sight).help("Only when no wall is between your eyes and it."),
-        slider("View Angle", vr_tips_view_angle, 0.f, 90.f, 5.f, "%.0f deg").extend(0.f, 180.f)
-            .help("How far from where you look it may be (0: anywhere, even behind you)."),
-        slider("Delay", vr_tips_delay, 0.f, 3.f, 0.25f, "%.2f s").extend(0.f, 10.f)
-            .help("How long it must stay near and seen before the tip shows."),
-        slider("Time Shown", vr_tips_time, 3.f, 30.f, 1.f, "%.0f s").extend(1.f, 120.f)
-            .help("How long a tip shows (on the gadget: once you look at it)."),
-        cycle("Panel Facing", vr_tips_facing, {{0.f, "Towards Your Eyes"}, {1.f, "Square to Your View"}})
-            .help("Towards your eyes: the floating screen turns to face you and stays level. Square to your view: it is "
-                  "always flat in front of you, as if on your view, tilting as you tilt your head."),
-        slider("Panel Text Size", vr_tips_size, 0.5f, 2.f, 0.1f, "%.1fx").extend(0.25f, 4.f)
-            .help("How big the writing on a tip's floating panel is."),
+        row(opt::vr_tips),
+        row(opt::vr_tips_distance),
+        row(opt::vr_tips_line_of_sight),
+        row(opt::vr_tips_view_angle),
+        row(opt::vr_tips_delay),
+        row(opt::vr_tips_time),
+        row(opt::vr_tips_facing),
+        row(opt::vr_tips_size),
         command("Show Tips Again", "vr_tips_reset").help("Every tip as never shown: each shows again the next time."),
         command("Show the Torch Tip Now", "vr_tips_test walltorch")
             .help("The wall torch tip on the nearest wall torch in view, as soon as you close the menu (however far; it is "
@@ -712,128 +661,66 @@ void hologramTestMessage()
 {
     return {
         header("Wrist Gadget"),
-        toggle("Level and Stats", vr_gadget_show_level),
-        toggle("Hide Gear When Dead", vr_dead_hide_gear)
-            .help("While you are dead the holstered guns, the ammo pouch, the grenade pouch and the wrist gadget are hidden "
-                  "(the flashlight is, always) and the HUD is "
-                  "Quake's status bar on a hand; all back when you respawn or load a save."),
-        toggle("Stamina and Counters", vr_gadget_stamina)
-            .help("The STAMINA row shows your stamina (parries, shoves and blows spend it) and COUNTER while a counter-attack's window is open."),
-        slider("Screen Light", vr_gadget_light, 0.f, 3.f, 0.1f, "%.1fx").extend()
-            .help("The screen casts a light in its colour the way it faces, and a faint one on your hand (0 off)."),
+        row(opt::vr_gadget_show_level),
+        row(opt::vr_dead_hide_gear),
+        row(opt::vr_gadget_stamina),
+        row(opt::vr_gadget_light),
         header("Gear Lights: the Gadget's Side Button"),
-        toggle("Gear Lights", vr_gear_lights)
-            .help("Off: your gear's lights dim, for sneaking about in the dark: the light the gadget's and your guns' "
-                  "screens cast (monsters see you by it) and their glow, and the screens themselves. The button on the "
-                  "gadget's lower edge (the inner one) toggles this with a click; bindable: vr_gear_lights_toggle. The "
-                  "flashlight keeps its own switch."),
-        slider("Lights When Dimmed", vr_gear_lights_dim, 0.f, 0.5f, 0.01f, "%.2fx").extend(0.f, 1.f)
-            .help("While off: the screens' cast light and glow at this share (0: none at all)."),
-        slider("Screens When Dimmed", vr_gear_lights_screen_dim, 0.05f, 1.f, 0.05f, "%.2fx").extend(0.f, 1.f)
-            .help("While off: the screens' text, numbers and the hologram at this share of their brightness, readable "
-                  "up close."),
-        toggle("Side Button", vr_gadget_button)
-            .help("The button on the gadget's lower edge, pressed with your other hand's fingertip, toggles the gear "
-                  "lights."),
-        slider("Button Size", vr_gadget_button_size, 1.f, 8.f, 0.25f, "%.2f cm").extend(0.3f, 20.f)
-            .help("How near the button's middle your fingertip must come (from the button's side: never from over the "
-                  "screen). Show the Button shows it."),
-        slider("Button Across", vr_gadget_button_x, -6.f, 6.f, 0.25f, "%.2f cm").extend(-20.f, 20.f)
-            .help("The button's hit spot moved along the screen's width (positive: to the screen's right)."),
-        slider("Button Up", vr_gadget_button_y, -6.f, 6.f, 0.25f, "%.2f cm").extend(-20.f, 20.f)
-            .help("Moved along the screen's height (negative: further out past its lower edge)."),
-        slider("Button Out", vr_gadget_button_z, -6.f, 6.f, 0.25f, "%.2f cm").extend(-20.f, 20.f)
-            .help("Moved out of the screen's face (negative: down towards your arm)."),
-        slider("Button Tilt Out", vr_gadget_button_pitch, -90.f, 90.f, 5.f, "%.0f deg")
-            .help("The side the button is pressed from (the faint disc: no press from behind it) tilted out of the "
-                  "screen's face (negative: towards your arm)."),
-        slider("Button Tilt Across", vr_gadget_button_yaw, -90.f, 90.f, 5.f, "%.0f deg")
-            .help("... and along the screen's width (positive: to its right)."),
-        toggle("Drawn Fingertip", vr_gadget_fingertip_drawn)
-            .help("On: the fingertip that presses the button is your drawn hand's index fingertip, as the hand is posed "
-                  "(point with it). Off: Fingertip Reach ahead of your hand's point."),
-        slider("Fingertip Reach", vr_gadget_button_reach, -5.f, 15.f, 0.5f, "%.1f cm").extend(-20.f, 30.f)
-            .help("With Drawn Fingertip off (or no jointed hand): where your fingertip is taken to be, ahead of your "
-                  "hand's point."),
-        slider("Fingertip Forward", vr_gadget_fingertip_x, -6.f, 6.f, 0.25f, "%.2f cm").extend(-20.f, 20.f)
-            .help("The fingertip moved along your hand's forward (negative: back). Show the Button shows it: the drawn "
-                  "fingertip white, joined to the one that presses."),
-        slider("Fingertip Outward", vr_gadget_fingertip_y, -6.f, 6.f, 0.25f, "%.2f cm").extend(-20.f, 20.f)
-            .help("... away from your other hand (the right hand's right; negative: towards it)."),
-        slider("Fingertip Up", vr_gadget_fingertip_z, -6.f, 6.f, 0.25f, "%.2f cm").extend(-20.f, 20.f)
-            .help("... and up from the back of your hand (negative: down)."),
-        slider("Fingertip Pitch", vr_gadget_fingertip_pitch, -45.f, 45.f, 1.f, "%.0f deg").extend(-180.f, 180.f)
-            .help("The fingertip turned round your hand's point: down (negative: up), before the moves above."),
-        slider("Fingertip Yaw", vr_gadget_fingertip_yaw, -45.f, 45.f, 1.f, "%.0f deg").extend(-180.f, 180.f)
-            .help("... inward, towards your other hand (negative: outward)."),
-        slider("Fingertip Roll", vr_gadget_fingertip_roll, -45.f, 45.f, 1.f, "%.0f deg").extend(-180.f, 180.f)
-            .help("... rolled about your hand's forward (positive: its top outward)."),
-        slider("Button Cooldown", vr_gadget_button_cooldown, 0.f, 2.f, 0.1f, "%.1f s").extend(0.f, 5.f)
-            .help("After a press counts, how long before the next one does (no double toggles from a bounce)."),
-        cycle("Show the Button", vr_debug_gadget_button,
-            {{0.f, "Off"}, {1.f, "Its Hit Volume"}, {2.f, "And the Screen Tap"}, {3.f, "And Print Sync"}})
-            .help("Draws the button's hit volume (green ready, yellow pressed, red cooling down; the faint disc: no "
-                  "press from behind it, the short line the side it is pressed from) and your fingertip (the drawn "
-                  "index fingertip white, joined to the tuned one that presses); And the Screen Tap: also bullet time's "
-                  "tap zone over the screen and what strikes it (your hand's surface, the gun's butt). Presses are "
-                  "printed; And Print Sync also prints, each frame, how far the zone is from the drawn gadget."),
-        slider("CRT Look", vr_gadget_crt, 0.f, 2.f, 0.1f, "%.1fx").extend()
-            .help("Scanlines, a slight flicker, faint static and now and then a glitch (0 off)."),
-        slider("Screen Glow", vr_screen_glow, 0.f, 3.f, 0.1f, "%.1fx").extend()
-            .help("The gadget's and your weapons' screens glow softly round their edges (0 off)."),
-        slider("Text Glow", vr_screen_text_glow, 0.f, 3.f, 0.1f, "%.1fx").extend()
-            .help("The text, numbers and icons on those screens glow: bright whitish cores, a soft halo (0 off)."),
+        row(opt::vr_gear_lights),
+        row(opt::vr_gear_lights_dim),
+        row(opt::vr_gear_lights_screen_dim),
+        row(opt::vr_gadget_button),
+        row(opt::vr_gadget_button_size),
+        row(opt::vr_gadget_button_x),
+        row(opt::vr_gadget_button_y),
+        row(opt::vr_gadget_button_z),
+        row(opt::vr_gadget_button_pitch),
+        row(opt::vr_gadget_button_yaw),
+        row(opt::vr_gadget_fingertip_drawn),
+        row(opt::vr_gadget_button_reach),
+        row(opt::vr_gadget_fingertip_x),
+        row(opt::vr_gadget_fingertip_y),
+        row(opt::vr_gadget_fingertip_z),
+        row(opt::vr_gadget_fingertip_pitch),
+        row(opt::vr_gadget_fingertip_yaw),
+        row(opt::vr_gadget_fingertip_roll),
+        row(opt::vr_gadget_button_cooldown),
+        row(opt::vr_debug_gadget_button),
+        row(opt::vr_gadget_crt),
+        row(opt::vr_screen_glow),
+        row(opt::vr_screen_text_glow),
         header("Messages"),
-        toggle("Game Messages as Hologram", vr_messages_hologram)
-            .help("The game's messages (a key needed, a secret found, the map's text, pickups) float as a hologram the gadget projects over its screen, while you look at it. Else the key and map messages show in front of you."),
-        slider("Hologram Time", vr_messages_hologram_time, 2.f, 15.f, 0.5f, "%.1f s").extend().help("How long a message stays in the hologram."),
-        slider("Hologram Text Size", vr_messages_hologram_size, 0.5f, 2.f, 0.05f, "%.2fx").extend(0.25f, 4.f),
-        slider("Hologram Height", vr_messages_hologram_height, 0.f, 15.f, 0.5f, "%.1f cm").extend(0.f, 50.f)
-            .help("How high over the gadget it floats."),
-        slider("Hologram Effect", vr_messages_hologram_effect, 0.f, 2.f, 0.1f, "%.1fx").extend()
-            .help("The beam of light from the screen, scanlines, flicker, glitches and the projection as it appears (0: plain glowing text)."),
+        row(opt::vr_messages_hologram),
+        row(opt::vr_messages_hologram_time),
+        row(opt::vr_messages_hologram_size),
+        row(opt::vr_messages_hologram_height),
+        row(opt::vr_messages_hologram_effect),
         action("Show a Test Message", hologramTestMessage)
             .help("One of the game's messages in the hologram, as they come: raise the gadget to see it while you change these settings. Press again for another: they stack."),
-        toggle("Messages Only on the Gadget", vr_messages_hologram_only)
-            .help("The game's messages never show in front of you: they wait in the hologram until you look at the gadget. A new one (a key needed, a secret, the map's text; not pickups) chimes from the gadget on your wrist and buzzes it."),
+        row(opt::vr_messages_hologram_only),
         // (The author's note vrstart_2026-10-23_01-23-46: VR Calibration's texts jumped to each turn of the head.)
-        slider("Messages in View: Follow Smoothing", vr_view_text_smooth, 0.f, 0.5f, 0.02f, "%.2f s").extend(0.f, 2.f)
-            .help("The messages floating in front of you (VR Calibration's and the maps' texts, Body Calibration's poses, "
-                  "the game's messages when not on the gadget) turn after your head this smoothly: about how long they "
-                  "take to catch up. 0: fixed to your view."),
-        toggle("Console Log on the HUD", vr_hud_console_log)
-            .help("The console's log (the engine's own lines: warnings, settings changed, command output) shows with the game's messages, over the gadget or in view (and at the top of the flat screen). Off: only the game's messages (pickups, deaths, chat); the console (~) keeps everything."),
-        cycle("Console Messages", vr_notify_wrist, {{1.f, "Over the gadget"}, {2.f, "Both"}, {0.f, "In view"}})
-            .help("The console's other messages (the engine's: settings changed, cheats, errors) float in a small log over the gadget, or at the top of the view."),
-        slider("Console Message Time", vr_notify_wrist_time, 2.f, 30.f, 1.f, "%.0f s").extend()
-            .help("How long a message stays in the gadget's log."),
-        slider("Console Log Height", vr_notify_wrist_height, 0.f, 20.f, 0.5f, "%.1f cm").extend(0.f, 60.f)
-            .help("How high over the gadget the log floats (always over the hologram)."),
-        slider("Console Log Brightness", vr_notify_wrist_alpha, 0.2f, 1.f, 0.05f, "%.2f").extend(),
+        row(opt::vr_view_text_smooth),
+        row(opt::vr_hud_console_log),
+        row(opt::vr_notify_wrist),
+        row(opt::vr_notify_wrist_time),
+        row(opt::vr_notify_wrist_height),
+        row(opt::vr_notify_wrist_alpha),
         header("Weapons' Ammo Screens"),
-        toggle("Weapon Text", "vr_show_weapon_text").help("Show floating ammunition text attached to weapons"),
-        toggle("Weapon Ammo Screen", "vr_weapon_screen").help("The ammunition text on a small screen on the weapon (colours from the wrist gadget's screen)."),
-        slider("Ammo Screen Margin", "vr_weapon_screen_padding", 0.f, 2.f, 0.1f, "%.1f").extend(),
-        slider("Ammo Screen CRT Look", "vr_weapon_screen_crt", 0.f, 2.f, 0.1f, "%.1fx").extend().help("Scanlines, a slight flicker, faint static and now and then a glitch, as on the wrist gadget's screen (0 off)."),
+        row(opt::vr_show_weapon_text),
+        row(opt::vr_weapon_screen),
+        row(opt::vr_weapon_screen_padding),
+        row(opt::vr_weapon_screen_crt),
         toggle("White Ammo Screen Text", "vr_ammo_screen_text_white").help("The numbers on the ammo screens (and the ammo pouch's counter) near-white, as the wrist gadget's, for readability; their frame and glow keep the screen's colour. Off: in the screen's colour."),
-        toggle("Low Ammo Colours", vr_ammo_color_warn)
-            .help("A held gun's ammo numbers turn orange when less than a quarter of its magazine is left (Low Ammo "
-                  "Fraction), and red when it is empty (nothing loaded). With reloading off, the ammo it fires from "
-                  "against a magazine's worth. Off: always the screen's colour."),
-        slider("Low Ammo Hue", vr_ammo_color_low, 0.f, 355.f, 5.f, "%.0f")
-            .help("The numbers' colour when ammo is low: 30 orange, 55 yellow, 0 red, 200 blue (console: \"r g b\" too)."),
-        slider("Empty Ammo Hue", vr_ammo_color_empty, 0.f, 355.f, 5.f, "%.0f")
-            .help("The numbers' colour when the gun is empty: 0 red, 30 orange, 280 purple (console: \"r g b\" too)."),
-        slider("Low Ammo Fraction", vr_ammo_low_frac, 0.05f, 0.75f, 0.05f, "%.2f").extend(0.f, 1.f)
-            .help("Below this share of the magazine's capacity, the numbers turn the low colour (0.25: a quarter)."),
-        toggle("Screens on Weapons at Rest", "vr_weapon_screen_idle").help("Weapons in your holsters and lying in the world show their ammo screen and button too, not only the ones in your hands."),
-        slider("Lying Weapons' Parts Range", "vr_weapon_world_attach_range", 250.f, 5000.f, 250.f, "%.0f units").extend(0.f, 20000.f)
-            .help("How far off a weapon lying in the world still shows its magazine, ammo screen and button (Quake units: 32 is about a metre)."),
-        slider("Lying Weapons With Parts", "vr_weapon_world_attach_max", 0.f, 48.f, 1.f, "%.0f")
-            .help("How many of the weapons lying nearest show their magazine, ammo screen and button."),
+        row(opt::vr_ammo_color_warn),
+        row(opt::vr_ammo_color_low),
+        row(opt::vr_ammo_color_empty),
+        row(opt::vr_ammo_low_frac),
+        row(opt::vr_weapon_screen_idle),
+        row(opt::vr_weapon_world_attach_range),
+        row(opt::vr_weapon_world_attach_max),
         header("Map Boards"),
-        toggle("Map Boards as CRTs", "vr_worldtext_crt").help("The text boards in maps (the tutorial's, the start map's) are CRT screens with glowing text, as the wrist gadget's. Off: plain text."),
-        slider("Map Board Hue", "vr_worldtext_hue", 0.f, 355.f, 5.f, "%.0f").help("Their colour: 40 amber, 128 green, 200 blue, 0 red."),
+        row(opt::vr_worldtext_crt),
+        row(opt::vr_worldtext_hue),
     };
 }
 
@@ -841,28 +728,23 @@ void hologramTestMessage()
 [[nodiscard]] za::Vector<Item> pageColours()
 {
     return {
-        slider("Player Effects Hue", vr_player_hue, 0.f, 355.f, 5.f, "%.0f")
-            .help("One colour for all your effects: the wrist gadget's screen, your weapons' screens and sights, the force grab, the teleport arc, the crosshair, the menu laser. 128 green, 40 amber, 200 blue, 0 red."),
-        slider("Player Effects Saturation", vr_player_saturation, 0.f, 2.f, 0.05f, "%.2f")
-            .help("How colourful they are: 1 as made, 0 white."),
+        row(opt::vr_player_hue),
+        row(opt::vr_player_saturation),
         header("Wrist Gadget"),
         hueSlider("Screen Hue", vr_gadget_screen_hue)
             .help("The screen's colour (and your weapons' screens'). Player's: the Player Effects Hue."),
-        slider("Screen Brightness", vr_gadget_screen_brightness, 0.3f, 1.5f, 0.05f, "%.2f").extend(),
-        slider("Screen Background", vr_gadget_screen_background, 0.f, 4.f, 0.1f, "%.1f").extend()
-            .help("How bright the screen's dark background is in its colour (the text reads best dark: 1)."),
-        slider("Screen Text Whiteness", vr_gadget_screen_text_white, 0.f, 1.f, 0.05f, "%.2f")
-            .help("How white the screen's numbers and values are: 1 white, 0 the screen's colour (as its labels). Warnings stay red."),
-        slider("Casing Tint", vr_gadget_tint, 0.f, 1.f, 0.05f, "%.2f").help("0 keeps the casing's own olive drab."),
-        slider("Casing Tint Hue", vr_gadget_tint_hue, 0.f, 355.f, 5.f, "%.0f"),
+        row(opt::vr_gadget_screen_brightness),
+        row(opt::vr_gadget_screen_background),
+        row(opt::vr_gadget_screen_text_white),
+        row(opt::vr_gadget_tint),
+        row(opt::vr_gadget_tint_hue),
         header("Effects"),
         hueSlider("Weapon Sight Hue", vr_sight_hue)
             .help("The glowing iron sights of the shotgun and double shotgun: 30 their own orange, 0 red, 120 green, 240 blue. Player's: the Player Effects Hue."),
-        slider("Weapon Sight Saturation", vr_sight_saturation, 0.f, 2.f, 0.05f, "%.2f").help("1 their own, 0 white."),
+        row(opt::vr_sight_saturation),
         hueSlider("Force Grab Hue", vr_forcegrab_hue)
             .help("The force grab's beam, energy tendril, glow and sparkles: 215 its old blue. Player's: the Player Effects Hue."),
-        slider("Force Grab Saturation", vr_forcegrab_saturation, 0.f, 2.f, 0.05f, "%.2f")
-            .help("How colourful they are: 1 as made, 0 white, 0.7 like the wrist gadget's screen. Times the Player Effects Saturation."),
+        row(opt::vr_forcegrab_saturation),
         hueSlider("Teleport Arc Hue", vr_teleport_hue)
             .help("Where the teleport arc can land (red where it can't): 220 its old blue. Player's: the Player Effects Hue."),
         hueSlider("Crosshair Hue", vr_crosshair_hue).help("The laser crosshair: 0 its old red. Player's: the Player Effects Hue."),
@@ -890,16 +772,13 @@ void hologramTestMessage()
 [[nodiscard]] za::Vector<Item> pageForceGrab()
 {
     return {
-        toggle("Force Grab", vr_forcegrab_mode).help("Pull pickups and weapons to your hand from afar."),
-        toggle("Bodies Block", vr_forcegrab_bodies_block)
-            .help("An enemy (or a body) between your hand and an object hides it from the force grab, as a wall does. "
-                  "Off: only walls do."),
-        slider("Catch Late", vr_forcegrab_catch_late, 0.f, 0.5f, 0.05f, "%.2f s").extend(),
-        toggle("Pointing Particles", vr_forcegrab_eligible_particles).help("Sparkles on the object an empty hand points at, that it can pull."),
-        toggle("Pointing Haptics", vr_forcegrab_eligible_haptics).help("A tick in the hand when it points at a new object it can pull."),
-        toggle("Effects", "vr_forcegrab_fx").help("A faint beam to what you point at, a crackling tendril when locked on, a trail behind what flies to you."),
-        slider("Ammo/Health Box Size", vr_forcegrabbable_box_scale, 0.1f, 1.f, 0.05f, "%.2f").extend()
-            .help("Takes effect on the next map."),
+        row(opt::vr_forcegrab_mode),
+        row(opt::vr_forcegrab_bodies_block),
+        row(opt::vr_forcegrab_catch_late),
+        row(opt::vr_forcegrab_eligible_particles),
+        row(opt::vr_forcegrab_eligible_haptics),
+        row(opt::vr_forcegrab_fx),
+        row(opt::vr_forcegrabbable_box_scale),
     };
 }
 
@@ -913,34 +792,14 @@ void hologramTestMessage()
 [[nodiscard]] za::Vector<Item> pageGrapple()
 {
     return {
-        cycle("Rope", vr_grapple_rope, {{1.f, "Holds"}, {0.f, "Pulls at once"}})
-            .help("Holds: the hook bites and the rope holds you at its length (swing on it, walk closer), pulling nothing "
-                  "until you hold B or Y (either hand's, when the other has no hook of its own out); A or X in the air "
-                  "pays it out. The hook stays in when you drop the gun, holster it or pass it to the other hand. "
-                  "Pulls at once: the mission pack's grapple, pulling you in as soon as it bites."),
-        cycle("Trigger Released", vr_grapple_trigger_release,
-            {{0.f, "Hook Stays In"}, {1.f, "Hook Comes Back"}, {2.f, "Hook Comes Loose"}})
-            .help("Stays in: letting go of the trigger does nothing; the back button on the gun (over the grip) detaches "
-                  "the hook, the front one (near the muzzle) reels it straight in. Comes back: letting go brings it "
-                  "straight into the gun. Comes loose: letting go takes it off, hanging on the rope until you reel it in "
-                  "(B or Y)."),
-        slider("Drop Grace", vr_grapple_drop_grace, 0.f, 0.5f, 0.02f, "%.2f s").extend(0.f, 2.f)
-            .help("Comes Back and Comes Loose: the trigger let go waits this long before the hook comes off: dropping the "
-                  "gun, holstering it or passing it to the other hand in that time (letting go of trigger and grip "
-                  "together) keeps the hook in."),
-        slider("Longest Rope", vr_grapple_max_length, 200.f, 3000.f, 50.f, "%.0f").extend(64.f, 10000.f)
-            .help("The rope is never longer (units): the hook flies no farther, the unreel pays out no more."),
-        toggle("Shoot the Hook Off", vr_grapple_shootable)
-            .help("A hook in a wall, a floor or a door comes off when you shoot it (any weapon): get it back when it is "
-                  "stuck or its gun is out of reach."),
-        slider("Reel-In Button Time", vr_grapple_quick_time, 0.f, 2.f, 0.05f, "%.2f s").extend(0.f, 10.f)
-            .help("How long the front button takes to reel the hook in: it speeds up, then slows down into the gun (a "
-                  "short rope quicker). 0: it flies straight back at the Reel-In Button Speed."),
-        slider("Reel-In Button Speed", vr_grapple_quick_speed, 300.f, 4000.f, 100.f, "%.0f u/s").extend(100.f, 10000.f)
-            .help("The fastest the hook comes back when you press the front button (a long rope takes longer than the "
-                  "Reel-In Button Time), and its speed with that time at 0."),
-        slider("Hook Size", vr_grapple_hook_scale, 0.3f, 1.f, 0.05f, "%.2f").extend(0.2f, 2.f)
-            .help("The size of the hook the gun fires (1: the mission pack's, too big for the gun). From the next shot."),
+        row(opt::vr_grapple_rope),
+        row(opt::vr_grapple_trigger_release),
+        row(opt::vr_grapple_drop_grace),
+        row(opt::vr_grapple_max_length),
+        row(opt::vr_grapple_shootable),
+        row(opt::vr_grapple_quick_time),
+        row(opt::vr_grapple_quick_speed),
+        row(opt::vr_grapple_hook_scale),
 
         header("Buttons on the Gun"),
         slider("Back Button Along", grappleButton(weapons::Key::WpnButtonX), -20.f, 20.f, 0.1f, "%.1f").extend(-60.f, 60.f)
@@ -950,110 +809,52 @@ void hologramTestMessage()
             .help("Towards the gun's left (model units)."),
         slider("Back Button Up", grappleButton(weapons::Key::WpnButtonZ), -10.f, 10.f, 0.1f, "%.1f").extend(-40.f, 40.f)
             .help("Up (model units)."),
-        toggle("Front Button", vr_grapple_front_button)
-            .help("The gun's second button, near the muzzle: press it with the other hand's finger and the hook comes "
-                  "straight back into the gun (through anything). The back button, over the grip, only detaches it."),
-        slider("Front Button Along", vr_grapple_front_button_x, -20.f, 30.f, 0.1f, "%.1f").extend()
-            .help("Where the front button is: from the back button along the gun, towards the muzzle (model units)."),
-        slider("Front Button Side", vr_grapple_front_button_y, -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("From the back button, towards the gun's left (model units)."),
-        slider("Front Button Up", vr_grapple_front_button_z, -10.f, 10.f, 0.1f, "%.1f").extend()
-            .help("From the back button, up (model units)."),
+        row(opt::vr_grapple_front_button),
+        row(opt::vr_grapple_front_button_x),
+        row(opt::vr_grapple_front_button_y),
+        row(opt::vr_grapple_front_button_z),
 
         header("Rope"),
-        toggle("Physical Rope", vr_grapple_rope_sim)
-            .help("The rope wraps round the world and the props (a pillar's edge, a box's top), never through them, and "
-                  "pulls along where it lies; slack, it is drawn hanging from the corners it wraps and lying on the "
-                  "world. Off: a straight line, drawn sagging."),
-        slider("Rope Point Spacing", vr_grapple_rope_spacing, 4.f, 48.f, 1.f, "%.0f").extend(2.f, 256.f)
-            .help("Units between the points of the rope as drawn hanging (the physical rope): finer bends more smoothly "
-                  "and costs more (128 points at most)."),
-        slider("Rope Precision", vr_grapple_rope_iterations, 1.f, 32.f, 1.f, "%.0f").extend(1.f, 64.f)
-            .help("Passes a frame holding the drawn rope's pieces to their length: more is stiffer and truer, and costs "
-                  "more."),
-        slider("Rope Thickness", vr_grapple_rope_radius, 0.25f, 4.f, 0.25f, "%.2f").extend(0.1f, 8.f)
-            .help("Half the rope's thickness (units): how far its corners keep from the edges it wraps round, and the "
-                  "drawn rope from what it lies on."),
-        slider("Rope Straight Out of the Hook", vr_grapple_rope_tail, 0.f, 12.f, 0.5f, "%.1f").extend(0.f, 16.f)
-            .help("How far the drawn rope goes straight out of the hook's back before it bends (units, at the hook's full "
-                  "size): its last pieces point into the hook, not across it. 0: it bends right at the hook."),
-        slider("Rope Depth in the Gun", vr_grapple_rope_depth, 0.f, 8.f, 0.5f, "%.1f").extend(-1.f, 16.f)
-            .help("How far inside the muzzle the rope is drawn from (units), in the hand and with the gun lying about. "
-                  "-1: the old places."),
+        row(opt::vr_grapple_rope_sim),
+        row(opt::vr_grapple_rope_spacing),
+        row(opt::vr_grapple_rope_iterations),
+        row(opt::vr_grapple_rope_radius),
+        row(opt::vr_grapple_rope_tail),
+        row(opt::vr_grapple_rope_depth),
 
         header("What Hangs on the Rope"),
-        slider("Walking Shared", vr_grapple_move_share, 0.f, 1.f, 0.05f, "%.2f")
-            .help("How much of your walking (the thumbstick) the hook or a hooked prop hanging on the rope takes: it "
-                  "trails a little behind you instead of lagging far back and snapping forward. Lying on the floor, it "
-                  "is left alone. 0: none."),
-        slider("Air Drag", vr_grapple_load_drag, 0.f, 5.f, 0.1f, "%.1f").extend()
-            .help("How fast what swings on the rope slows down (a share of its speed a second, relative to you): a gun "
-                  "left hanging stops swinging, a flail can't wind up without end."),
-        slider("Hanging Air Drag", vr_grapple_hang_drag, 0.f, 10.f, 0.25f, "%.2f").extend()
-            .help("The same for what hangs on a rope no one holds (a gun left hanging from a ceiling, what hangs from a "
-                  "dropped gun): it stops swinging in a couple of seconds."),
-        slider("Top Speed", vr_grapple_load_max_speed, 0.f, 2000.f, 50.f, "%.0f u/s").extend(0.f, 10000.f)
-            .help("The fastest what hangs on the rope moves relative to you (no rope of death). 0: no limit."),
-        slider("Slack When Detached", vr_grapple_loose_slack, 0.f, 128.f, 4.f, "%.0f").extend(0.f, 1000.f)
-            .help("Units of slack the rope gets when the hook comes off: a loose hook lying there is not dragged by "
-                  "your next step."),
+        row(opt::vr_grapple_move_share),
+        row(opt::vr_grapple_load_drag),
+        row(opt::vr_grapple_hang_drag),
+        row(opt::vr_grapple_load_max_speed),
+        row(opt::vr_grapple_loose_slack),
 
         header("Reel"),
-        slider("Reel Speed", vr_grapple_reel_speed, 100.f, 1000.f, 25.f, "%.0f u/s").extend(25.f, 2000.f)
-            .help("How fast the reel pulls you in: to a wall or a ceiling, to a huge monster, to a prop too heavy to come."),
-        slider("Shortest Rope", vr_grapple_min_length, 16.f, 128.f, 4.f, "%.0f").extend(0.f, 400.f)
-            .help("How short the reel takes the rope (units)."),
-        slider("Loose Hook Goes In At", vr_grapple_reel_home, 0.5f, 16.f, 0.5f, "%.1f").extend(0.5f, 64.f)
-            .help("How close to the muzzle (units) you reel a loose hook's back before it goes into the gun. Smaller: you "
-                  "reel it in further."),
-        slider("Unreel Speed", vr_grapple_unreel_speed, 50.f, 800.f, 25.f, "%.0f u/s").extend(0.f, 2000.f)
-            .help("The hand's lower button (A on the right hand, X on the left) pays the rope out while held, this fast: "
-                  "you let yourself down from a ceiling, a monster or a prop can go farther. Let go and the rope keeps its "
-                  "length. 0: no unreel."),
-        slider("Unreel Slack", vr_grapple_unreel_slack, 4.f, 1000.f, 4.f, "%.0f").extend(4.f, 10000.f)
-            .help("With nothing pulling on the rope (you standing, a hooked box on the floor), the unreel lets out this "
-                  "much slack (units) beyond the hook's distance: the rope comes off the drum and lies there. Hanging, "
-                  "what pulls takes the rope out as ever. 4: no slack."),
-        toggle("Unreel Button Only When Airborne", vr_grapple_unreel_airborne)
-            .help("On: a button that jumps (A) unreels only in the air: on the ground it jumps as ever, and a press that "
-                  "jumped does not unreel until pressed again; X (the reload) unreels on the ground too. Off: either "
-                  "unreels anywhere, its key still pressed too."),
+        row(opt::vr_grapple_reel_speed),
+        row(opt::vr_grapple_min_length),
+        row(opt::vr_grapple_reel_home),
+        row(opt::vr_grapple_unreel_speed),
+        row(opt::vr_grapple_unreel_slack),
+        row(opt::vr_grapple_unreel_airborne),
 
         header("Props"),
-        slider("Prop Reel Speed", vr_grapple_prop_speed, 100.f, 1500.f, 25.f, "%.0f u/s").extend(25.f, 3000.f)
-            .help("How fast light props come in: weapons, pickups, keys, gibs. They hang at the gun, to take with the "
-                  "other hand."),
-        slider("Light Up To", vr_grapple_prop_light, 1.f, 40.f, 1.f, "%.0f kg").extend(0.1f, 200.f)
-            .help("Props up to this mass come at the Prop Reel Speed; heavier ones slower, in proportion (twice as heavy: "
-                  "half as fast). Masses: Held Object Offsets."),
-        slider("Too Heavy From", vr_grapple_prop_anchor, 10.f, 500.f, 5.f, "%.0f kg").extend(1.f, 10000.f)
-            .help("A prop this heavy does not come: the reel pulls you to it, as to a wall."),
-        slider("Dragging: Light Up To", vr_grapple_tow_light, 1.f, 100.f, 1.f, "%.0f kg").extend(0.1f, 1000.f)
-            .help("Walking away from a hooked prop on a taut rope drags it along: up to this mass, at the Dragging Speed; "
-                  "heavier, its weight holds you back, in proportion (twice as heavy: half as fast; an explosive box is "
-                  "40 kg)."),
-        slider("Dragging Speed", vr_grapple_tow_speed, 0.f, 600.f, 10.f, "%.0f u/s").extend(0.f, 2000.f)
-            .help("The fastest you walk dragging a light prop on a taut rope. 0: no limit (it comes at your speed)."),
+        row(opt::vr_grapple_prop_speed),
+        row(opt::vr_grapple_prop_light),
+        row(opt::vr_grapple_prop_anchor),
+        row(opt::vr_grapple_tow_light),
+        row(opt::vr_grapple_tow_speed),
 
         header("Monsters"),
-        slider("Small Up To", vr_grapple_small_mass, 20.f, 600.f, 10.f, "%.0f kg").extend(0.f, 10000.f)
-            .help("Monsters up to this mass are small: pulled fast and staggered (dogs 35, grunts 80, knights 90, "
-                  "enforcers 100)."),
-        slider("Huge From", vr_grapple_huge_mass, 100.f, 2000.f, 25.f, "%.0f kg").extend(0.f, 100000.f)
-            .help("Monsters this heavy are huge: the reel pulls you to them (shamblers 600, bosses). In between, medium: "
-                  "pulled slowly, not staggered (hell knights 150, ogres and fiends 250)."),
-        slider("Small Reel Speed", vr_grapple_small_speed, 50.f, 1000.f, 25.f, "%.0f u/s").extend(10.f, 2000.f),
-        slider("Medium Reel Speed", vr_grapple_medium_speed, 25.f, 600.f, 25.f, "%.0f u/s").extend(10.f, 2000.f),
-        toggle("Stagger Small Monsters", vr_grapple_stagger)
-            .help("A small monster reeled in is staggered: its pain, cutting off its attack, and again every second."),
-        slider("Stamina a Second", vr_grapple_stamina, 0.f, 50.f, 1.f, "%.0f").extend(0.f, 200.f)
-            .help("Reeling a monster in tires you (the parry, shove and strike stamina): this much a second. Short of it, "
-                  "it comes a quarter as fast. 0: free."),
+        row(opt::vr_grapple_small_mass),
+        row(opt::vr_grapple_huge_mass),
+        row(opt::vr_grapple_small_speed),
+        row(opt::vr_grapple_medium_speed),
+        row(opt::vr_grapple_stagger),
+        row(opt::vr_grapple_stamina),
 
         header("Feel"),
-        slider("Haptics", vr_grapple_haptics, 0.f, 1.f, 0.1f, "%.1f")
-            .help("The hook biting, the reel's buzz (stronger with a heavier load), the rope snapping taut."),
-        toggle("Slack Rope Hangs", vr_grapple_sag).help("A slack rope is drawn hanging (off: always straight)."),
+        row(opt::vr_grapple_haptics),
+        row(opt::vr_grapple_sag),
     };
 }
 
@@ -1073,87 +874,39 @@ za::Vector<Item> pageHitbox()
         cycle("Width Against Walls", vr_hull_width, world)
             .help("How wide you are against walls, floors, ledges, doors, lifts and other brush models. Quake's box is "
                   "32 units (you stop 16 from each wall: 0.6 m); 16 stops you 8 away (0.3 m)."),
-        toggle("Ledge Test Fix", vr_hull_edge_probe)
-            .help("Quake slows you more when the floor ahead of you drops away (an edge). On: that test looks down from "
-                  "your box's front edge (half your width ahead), and a point inside a step counts as floor. Off: "
-                  "Quake's, 16 units ahead whatever your width; stairs with a smooth ramp over them (MG1's start) then "
-                  "slowed you to a crawl, and a jump against them went nowhere (vr_hull_edge_probe)."),
-        toggle("Doors, Lifts and Walls Too", vr_hull_brushmodels)
-            .help("The width above against brush models as well (doors, lifts, trains, func_walls, the firing range's "
-                  "panels and tables). Off: only the world's walls; brush models meet Quake's box."),
+        row(opt::vr_hull_edge_probe),
+        row(opt::vr_hull_brushmodels),
         header("Monsters, Players and Boxes"),
         cycle("Width Against Them", vr_hull_ent_width, ents)
             .help("How wide you are against monsters, other players and solid boxes, both ways (you walking into them, "
                   "them walking into you). Shots and missiles hit the width below; items are picked up with Quake's 32 box."),
-        toggle("Monsters", vr_hull_monsters).help("That width between you and monsters."),
-        toggle("Other Players", vr_hull_players).help("That width between players."),
-        toggle("Solid Boxes", vr_hull_boxes).help("That width against explosive boxes and other solid boxes."),
+        row(opt::vr_hull_monsters),
+        row(opt::vr_hull_players),
+        row(opt::vr_hull_boxes),
         cycle("Width Shots Hit", vr_hull_hit_width, hits)
             .help("How wide you are to monsters' shots and missiles (bullets, nails, lasers, grenades, rockets, spit, "
                   "vore balls). Quake's box is 32; 24 still leaves them a bit of leniency. Melee blows and splash "
                   "damage go by distance, not by this box; monsters see and chase you as before."),
-        toggle("Height Shots Hit: Your Head's", vr_hull_hit_head)
-            .help("Shots and missiles meet you only up to the top of your head: crouched behind a crate, those flying "
-                  "over it miss you (Quake's box stands as tall), and monsters' bullets aim no higher than your body. "
-                  "Off: Quake's height, crouched or not (vr_hull_hit_head)."),
+        row(opt::vr_hull_hit_head),
         header("Crouching"),
-        toggle("Crouched Hitbox", vr_crouch_hull)
-            .help("Crouch in real life and your box is lower: you walk under low ceilings and through small teleporters, "
-                  "and behind cover shots meet only what shows of you. Standing up somewhere too low, you keep the low box "
-                  "until there is room. Off: always Quake's standing height (vr_crouch_hull)."),
-        slider("Lowest Crouched Height", vr_crouch_height, 24.f, 52.f, 4.f, "%.0f units")
-            .help("Your box's height with your eyes under it (Quake's standing box: 56; the crouching room's tunnel in "
-                  "the teleporter test map: 40) (vr_crouch_height)."),
-        toggle("Monsters See Your Eyes", vr_crouch_sight)
-            .help("Crouched (with the crouched hitbox), monsters look for you at your real eyes, not at a standing "
-                  "player's: crouched behind cover lower than you stand, you are out of their sight, as Arcane "
-                  "Dimensions' height-aware monsters check (vr_crouch_sight). Standing: Quake's as ever."),
-        cycle("Heights Above It", vr_crouch_step, {{0.f, "None"}, {4.f, "Every 4 units"}, {8.f, "Every 8 units"},
-                  {12.f, "Every 12 units"}})
-            .help("Taller crouched boxes up to 52, so half a crouch gets you under a ceiling that is a little low: your "
-                  "eyes under one, that box (36, 44, 52 every 8). None: the lowest only (vr_crouch_step)."),
+        row(opt::vr_crouch_hull),
+        row(opt::vr_crouch_height),
+        row(opt::vr_crouch_sight),
+        row(opt::vr_crouch_step),
         command("Crouch Status", "vr_crouch_status")
             .help("Prints your eyes' height over your feet, your box's height (0 standing) and whether you could stand."),
-        slider("Prop Push Radius", vr_box3d_player_radius, 5.f, 40.f, 1.f, "%.0f cm")
-            .help("Loose props (rocks, bricks, weapons on the floor) are pushed by a capsule this wide round your body, "
-                  "not by your box (vr_box3d_player_radius)."),
+        row(opt::vr_box3d_player_radius),
         header("Standing on Props"),
-        toggle("Stand on Boxes", vr_box3d_player_stand)
-            .help("Explosive boxes and other solid props are ground: you stand still on them, walk and jump from them, "
-                  "and ride them as they move; your body doesn't shove the one under you (vr_box3d_player_stand)."),
-        slider("Steepest Face to Stand On", vr_box3d_player_slope, 0.f, 46.f, 1.f, "%.0f deg")
-            .help("A solid prop's face tilted more than this isn't ground: you slide off it, as off a slope too steep to "
-                  "walk, and your weight doesn't press it. 46: Quake's own limit (you stood on steeper faces, creeping "
-                  "down slowly) (vr_box3d_player_slope)."),
-        slider("Your Weight on Them", vr_box3d_player_mass, 0.f, 150.f, 5.f, "%.0f kg")
-            .help("What you press the prop you stand on down with (a floating box sinks lower: at most half its own "
-                  "weight there). 0: none."),
-        slider("Jump Push", vr_box3d_player_jump_push, 0.f, 1.f, 0.05f, "%.2f")
-            .help("The share of your jump's push the prop you jump from takes (1: all of it, your weight times your "
-                  "speed). 0: none."),
-        slider("Walking Into Them", vr_box3d_player_shove, 0.f, 2.f, 0.1f, "%.1f")
-            .help("How hard you shove a solid prop you walk into, as a share of your weight: a light box goes nearly at "
-                  "your pace (at most 2.5 m/s: vr_box3d_player_push_speed), a heavy one slowly, one too heavy not at all. 0: "
-                  "they stop you like walls (vr_box3d_player_shove)."),
-        slider("Monsters Shove Them At", vr_box3d_monster_push_speed, 0.f, 10.f, 0.5f, "%.1f m/s")
-            .help("The fastest a monster walking or running into a solid prop pushes it: its steps are jumps, and a crate "
-                  "kicked at their speed broke and hurt the monster. 0: no limit (vr_box3d_monster_push_speed)."),
-        toggle("Never Trapped by Them", vr_box3d_player_unstick)
-            .help("A solid prop that ends up in your body (toppled onto you, pushed into you) never holds you: you walk out "
-                  "of it, and it is pushed out of you (vr_box3d_player_unstick)."),
-        toggle("Never Through Them", vr_box3d_player_hold)
-            .help("Inside a solid prop, you only move out of it, never deeper; with your feet a little into its top (you "
-                  "landed on it, or it rocked up into you), you are put back on top. A box you threw or let go of is solid "
-                  "to you too (vr_box3d_player_hold)."),
-        toggle("Their Real Shape", vr_box3d_player_shape)
-            .help("You meet a solid prop's shape as drawn, however it is turned, and round: as close to a box's face turned "
-                  "any way as to a wall; a tilted box is no taller than it looks. Off: the upright box round it "
-                  "(vr_box3d_player_shape)."),
-        toggle("Shots Meet Their Shape", vr_box3d_shot_shape)
-            .help("Rockets, nails, grenades, lasers and every other missile, and the guns' shots, meet a solid prop's "
-                  "shape as drawn, however it is turned: a tilted box's empty corners let them by, and they hit its real "
-                  "faces. Nails, rockets and lasers meet a dropped backpack where it is drawn, not the wide pickup box "
-                  "round it. Off: the upright box round it (the grappling hook still meets its shape) (vr_box3d_shot_shape)."),
+        row(opt::vr_box3d_player_stand),
+        row(opt::vr_box3d_player_slope),
+        row(opt::vr_box3d_player_mass),
+        row(opt::vr_box3d_player_jump_push),
+        row(opt::vr_box3d_player_shove),
+        row(opt::vr_box3d_monster_push_speed),
+        row(opt::vr_box3d_player_unstick),
+        row(opt::vr_box3d_player_hold),
+        row(opt::vr_box3d_player_shape),
+        row(opt::vr_box3d_shot_shape),
         header("Tests"),
         command("Stand on a Box", "vr_physics_player onto misc_explobox")
             .help("Puts you on top of the level's first explosive box (vr_physics_player onto <number | classname>)."),
@@ -1209,17 +962,9 @@ za::Vector<Item> pageMonsterHitbox()
     };
     return {
         header("Monsters' Widths (Prototype)"),
-        toggle("Narrower Monsters", vr_mhull)
-            .help("Quake moves monsters against walls with a 32-wide box (64 for the big ones), wider than most of their "
-                  "own boxes in Quake VR (a grunt's is 24, an ogre's 40). On: the widths below instead (a clipping hull "
-                  "compiled for each when the map loads, as yours is): they walk closer to walls and through narrower "
-                  "gaps (on by default). You and your shots meet their own boxes and models already."),
-        toggle("Against Bodies Too", vr_mhull_ents)
-            .help("A width narrower than a monster's own box meets you, other monsters and solid boxes too, both ways. "
-                  "Off: their own boxes between bodies."),
-        toggle("Ledges by Their Width", vr_mhull_ledges)
-            .help("A width narrower than a monster's own box also takes the ledge test (a monster doesn't step where "
-                  "its corners aren't over ground): it walks as close to a ledge as its width. Off: its box's corners."),
+        row(opt::vr_mhull),
+        row(opt::vr_mhull_ents),
+        row(opt::vr_mhull_ledges),
         command("All Match Their Boxes", "vr_mhull_reset").help("Every class back to its own box's width (the defaults)."),
         header("By Class (Its Box)"),
         cls("Grunt (24)", vr_mhull_army, false),
@@ -2296,10 +2041,7 @@ void addMenuDetail(za::Vector<Item>& list, int page)
                       "time within 3 seconds."));
     }
     list.pushBack(header("Menu Detail"));
-    list.pushBack(cycle("Menu Detail", vr_menu_level, {{0.f, "Standard"}, {1.f, "Advanced"}, {2.f, "Developer"}})
-            .help("How much the VR pages show. Standard: what every player sets (comfort, height, the HUD, the headset, "
-                  "volume). Advanced: every gameplay, display and graphics setting. Developer: also the tuning pages "
-                  "(weapon and prop offsets and weights, ragdolls, hitboxes), recording, debug and tests."));
+    list.pushBack(row(opt::vr_menu_level));
 }
 
 [[nodiscard]] const za::Vector<Item>& items(int page)
@@ -4031,6 +3773,59 @@ void drawItem(const Item& item, int y, bool selected)
 }
 
 #include "vr_menu_help.inc"
+
+// A slider's extent (vr_menu_rows.inc): none, Item::extend() or Item::extend(lo, hi).
+struct Extent
+{
+    int how; // 0 none, 1 four bars' widths, 2 lo..hi
+    float lo;
+    float hi;
+
+    [[nodiscard]] Item apply(const Item& i) const
+    {
+        return how == 0 ? i : how == 1 ? i.extend() : i.extend(lo, hi);
+    }
+};
+
+constexpr Extent noExt{0, 0.f, 0.f};
+
+[[nodiscard]] constexpr Extent ext()
+{
+    return {1, 0.f, 0.f};
+}
+
+[[nodiscard]] constexpr Extent ext(float lo, float hi)
+{
+    return {2, lo, hi};
+}
+
+[[nodiscard]] Item row(opt::Id id)
+{
+    switch(id)
+    {
+#define QVR_TOGGLE(name, label, text) \
+    case opt::name: return toggle(label, name).help(text);
+#define QVR_TOGGLE_BYNAME(name, label, text) \
+    case opt::name: return toggle(label, #name).help(text);
+#define QVR_SLIDER(name, label, lo, hi, step, format, extent, text) \
+    case opt::name: return extent.apply(slider(label, name, lo, hi, step, format)).help(text);
+#define QVR_SLIDER_BYNAME(name, label, lo, hi, step, format, extent, text) \
+    case opt::name: return extent.apply(slider(label, #name, lo, hi, step, format)).help(text);
+#define QVR_CYCLE(name, label, text, ...) \
+    case opt::name: return cycle(label, name, {__VA_ARGS__}).help(text);
+#define QVR_CYCLE_BYNAME(name, label, text, ...) \
+    case opt::name: return cycle(label, #name, {__VA_ARGS__}).help(text);
+#include "vr_menu_rows.inc"
+#undef QVR_TOGGLE
+#undef QVR_TOGGLE_BYNAME
+#undef QVR_SLIDER
+#undef QVR_SLIDER_BYNAME
+#undef QVR_CYCLE
+#undef QVR_CYCLE_BYNAME
+    case opt::Count: break;
+    }
+    return header("?");
+}
 } // namespace menu_detail
 
 #include "vr_menu_paths.inc"

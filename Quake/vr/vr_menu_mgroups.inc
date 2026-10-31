@@ -169,9 +169,7 @@ template <int P>
     za::Vector<Item> items;
     if constexpr(P == static_cast<int>(mgroups::Param::Resist))
     {
-        items.pushBack(slider("By Size", vr_kdtrig_resist_size, 0.f, 1.5f, 0.05f, "%.2f")
-                           .help("A group whose resistance is 0: its body's volume over a grunt's to this power (an "
-                                 "ogre's, 5.5 times: 2.3 at 0.5). 0: all alike."));
+        items.pushBack(row(opt::vr_kdtrig_resist_size));
         items.pushBack(header("Each Group"));
     }
     for(int g = 0; g < mgroups::groupCount; ++g)
@@ -227,11 +225,7 @@ void mgroupParamRowsOpen(za::Vector<Item>& items)
 [[nodiscard]] za::Vector<Item> pageMonsterHealth()
 {
     za::Vector<Item> items{
-        toggle("Cut Big Monsters' Health", vr_monster_health)
-            .help("Monsters with a big health pool (ogres, shamblers, giants, most bosses) appear with less health, by "
-                  "the curve below: a reload by hand costs time. Small ones (grunts, knights, enforcers, zombies) keep "
-                  "theirs. Monsters already about keep theirs: the next map, or a monster appearing, shows a change. "
-                  "Not the scripted bosses (Chthon, Shub, Arcane Dimensions' wave bosses)."),
+        row(opt::vr_monster_health),
         header("Curve"),
         open("Each Group's Health", pageIndex(pageMonsterParam<static_cast<int>(mgroups::Param::Health)>))
             .help("Each monster group's health times its own multiplier, on top of the curve (Monster Groups > Health)."),

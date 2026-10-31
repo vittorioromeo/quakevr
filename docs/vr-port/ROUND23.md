@@ -3933,6 +3933,33 @@ Checklist:
   sliders); let go: the next shots kick one-handed again, the change smooth.
 - [offhandrecoil] Off hand holding a shell or magazine against the gun while firing: full one-handed kick.
 
+## One settings schema (branch `agent/setschema`; design review 9)
+
+A setting's menu row is written once: `Quake/vr/vr_menu_rows.inc` holds its label, range, step, format, extent, help and
+choices (`QVR_TOGGLE` / `QVR_SLIDER` / `QVR_CYCLE`; `_BYNAME` for a row that finds its cvar by name, as Ironwail's), and
+a page lists `row(opt::<cvar>)` (`.advanced()` / `.developer()` stay on the page). `opt::Id` is an enum made from the
+table (a typo does not compile); `row()` (vr_menu.cpp) builds the same `Item` the old builder calls did. CODE_STYLE.md,
+"Settings and the config".
+
+- **Converter:** `Misc/quakevr/settings_schema.py convert` (run once; `stats` says what it would do): 2,533 rows of
+  2,513 settings, every `toggle`/`slider`/`cycle` with literal arguments and its `.extend`/`.help`. Left written on their
+  pages: a setting's second row with other texts (91; the player page's row is the schema's, Debug's stays), rows with
+  code in them (lambdas, computed ranges or choices, `unavailableBecause` keeps its tail), and the weapon/prop offset
+  and Tunables pages (design review 3's; the Tunables rows are already `vr_tunables_rows.inc`).
+- **Menu paths:** `vr_menu_dump_paths` prints Search's index (every page and row, its cvar, level, page, label and path)
+  as `MP|` lines; `Misc/quakevr/menu_paths.py <log>` keeps them in `Misc/quakevr/menu_paths.txt` (8,279). The
+  calibration board's `{menu:...}` come from it (`menu_paths.board(page, button | cvar=)`: the seated row by its cvar;
+  a page or button gone stops the script). `settings_schema.py strip-comments` took 49 "Page > Section > Row:" prefixes
+  out of vr_cvars.inc comments (20 kept: no row in the menus). `vr_menu_dump <level> full` prints every row's fields.
+- **The tools that read vr_cvars.inc** (gen_vr_cvars_qc.py, cvar_inventory.py, blade_defaults.py, the kit's run.ps1 and
+  runq2.ps1, its refactor scans) need no change: the `QVR_CVAR` lines keep their form, and the table's name matches
+  cvar_inventory's menu files (`vr_menu*.inc`). The kit's tiers_scan.py (done, one-off) read builder calls on pages.
+- **Lines:** the menu sources 6,091 removed, 2,648 added; vr_menu_rows.inc 6,755 (the help texts moved, not cut).
+- Checks: `vr_menu_dump 2 full` (46,781 lines: every page, row, label, range, step, format, extent, level, choice and
+  help) and `vr_menu_dump_paths` (8,279: Search's index) identical before/after but for the build line;
+  `vr_menu_path_check maps/vrcalibration.map` 6 found, 0 missing; the calibration .map regenerates identical; the
+  release code builds (`/p:QvrRelease=1`, separate output dir; no `tune_reset` in the exe); run_baseline.sh (below).
+
 ## Worn backpack: a hard pull lifts its wearer instead of ripping (branch `agent/packragdoll`)
 
 His words: "Add an option to disable ripping out worn backpacks by tugging ... and instead make it so that pulling an

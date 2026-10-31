@@ -537,6 +537,31 @@ void randomAppearance(); // Player Appearance > Randomize (vr_appearance_random)
 void resetHolsters();
 void restartVr();
 [[nodiscard]] Item row(const char* (*text)(int), const char* (*help)(int), void (*pick)(int), int arg, int page);
+
+// The settings' rows, each written once (vr_menu_rows.inc: label, range, step, format, extent, help, choices): a page
+// lists `row(opt::<cvar>)`, with .advanced() / .developer() where it shows them.
+namespace opt
+{
+enum Id : int
+{
+#define QVR_TOGGLE(name, ...) name,
+#define QVR_TOGGLE_BYNAME(name, ...) name,
+#define QVR_SLIDER(name, ...) name,
+#define QVR_SLIDER_BYNAME(name, ...) name,
+#define QVR_CYCLE(name, ...) name,
+#define QVR_CYCLE_BYNAME(name, ...) name,
+#include "vr_menu_rows.inc"
+#undef QVR_TOGGLE
+#undef QVR_TOGGLE_BYNAME
+#undef QVR_SLIDER
+#undef QVR_SLIDER_BYNAME
+#undef QVR_CYCLE
+#undef QVR_CYCLE_BYNAME
+    Count
+};
+} // namespace opt
+
+[[nodiscard]] Item row(opt::Id id);
 void showPage(int target);
 [[nodiscard]] Item slider(const char* label, cvar_t* cvar, float min, float max, float step, const char* format);
 [[nodiscard]] Item slider(const char* label, cvar_t& cvar, float min, float max, float step, const char* format);
