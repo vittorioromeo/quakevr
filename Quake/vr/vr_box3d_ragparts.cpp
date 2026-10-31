@@ -389,7 +389,11 @@ namespace
 // Grab `g`'s hold: its body at the hand, its joint to the limb holding the limb's point `grip` (its body's space, m) at
 // the hand, the limb turned in the hand as it is now; `grip` moved for the limb to rest on the palm (handFit; not with
 // `fit` false: a tug's, the hand on the weapon the limb holds, its lever kept).
-void startHold(World::RagdollGrab& g, edict_t* player, const RagdollBodies& r, b3Vec3 grip, bool fit = true)
+// `still`: the hold begins unstretched, the limb's point held where it is from the hand (that offset kept in the hand's
+// frame) rather than drawn onto the hand: a worn pack's (the hand reached into the pack and the fit moved its point 4.5
+// units back out: the spring began stretched by that and drove the pinned body past a still hand at its 4000 N cap,
+// ripping the pack off a slow drag: vr_wornpack_test 1).
+void startHold(World::RagdollGrab& g, edict_t* player, const RagdollBodies& r, b3Vec3 grip, bool fit = true, bool still = false)
 {
     glm::vec3 at;
     glm::quat turn;
@@ -420,7 +424,8 @@ void startHold(World::RagdollGrab& g, edict_t* player, const RagdollBodies& r, b
     b3MotorJointDef jd = b3DefaultMotorJointDef();
     jd.base.bodyIdA = g.anchor;
     jd.base.bodyIdB = part;
-    jd.base.localFrameA = b3Transform{b3Vec3_zero, b3Quat_identity};
+    const glm::vec3 offset = still ? glm::inverse(turn) * (world->toU(b3Body_GetWorldPoint(part, grip)) - at) : glm::vec3{0.f};
+    jd.base.localFrameA = b3Transform{world->toM(offset), b3Quat_identity};
     jd.base.localFrameB = b3Transform{grip, toB3(glm::normalize(glm::inverse(partTurn) * turn))};
     jd.base.collideConnected = false;
     jd.linearVelocity = b3Vec3_zero;
@@ -478,12 +483,13 @@ void beginGrab(World::RagdollGrab& g, const GrabStart& gs, edict_t* player, int 
     g.hand = hand;
     g.num = gs.num;
     g.part = part;
-    startHold(g, player, *gs.r, b3Body_GetLocalPoint(gs.r->body[static_cast<za::SizeT>(part)], world->toM(gs.at)), !g.tug);
     // (On its worn backpack: the pack's part, the hand's palm sphere on the pack's box (3.5 cm: vr_foegrab.cpp's palm; it
     // was 3 units, 11 cm, past the box). vr_box3d_wornpack.cpp)
     const float packReach = 0.035f * units::metresToUnits();
     const float packGap = packDistance(*gs.r, gs.at);
     g.onPack = part == gs.r->packPart && !g.tug && packGap >= 0.f && packGap <= packReach;
+    startHold(g, player, *gs.r, b3Body_GetLocalPoint(gs.r->body[static_cast<za::SizeT>(part)], world->toM(gs.at)), !g.tug,
+        g.onPack);
     world->ragdollGrabs.pushBack(g);
 }
 
