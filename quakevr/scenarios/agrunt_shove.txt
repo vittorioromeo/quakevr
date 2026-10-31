@@ -1,0 +1,10 @@
+# agrunt_shove: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Gun holders that step in and shove you up close, and melee ones that only strike.
+title Armed shoves: a shotgun, a nail pistol, two pistols, an enforcer's shotgun, an axe, fists (god)
+map vrtesthall
+god
+spawn "Armed Grunt: Shotgun" 160 40
+spawnarmed monster_vr_grunt 29 0 200 -60
+spawn "Armed Enforcer: Shotgun" 240 120
+spawnarmed monster_vr_grunt 29 29 260 -140
+spawn "Armed Grunt: Axe" 320 0
+spawn "Armed Grunt: Fists" 360 -200

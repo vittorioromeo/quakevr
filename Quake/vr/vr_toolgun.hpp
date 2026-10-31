@@ -105,6 +105,9 @@ void tempEntities();
 // The spawn list's entry `i` made standing at `feet` (units) turned to `yaw` (degrees), as the spawn tool makes it (the
 // ragdoll tool's subject: vr_ragtool.cpp); null if it is not available or could not be made.
 edict_t* spawnEntryAt(int i, const glm::vec3& feet, float yaw);
+// The Armed Humanoid page's armour (vr_toolgun_armed_armor, _pieces) on armed monster `e` just made, as the spawn tool
+// puts it on its armed spawns (None strips the skill's roll too): the checklist scenes' armour (vr_scenario.cpp).
+void armArmedSpawn(edict_t* e);
 [[nodiscard]] int selectedSpawnable();
 void selectSpawnable(int i, bool say = true); // (-1: nothing; say: print what is selected)
 

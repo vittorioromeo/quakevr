@@ -1,0 +1,9 @@
+# dknights_swords: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Armed death knights with their own swords; they still cast at range.
+title Armed death knights with their swords: up close and at range (god)
+map vrtesthall
+god
+cvar vr_agdknight 1
+spawnarmed monster_vr_hknight 0 0 300 0
+spawnarmed monster_vr_hknight 0 0 560 120
+give "Shotgun" main
+cmd impulse 9

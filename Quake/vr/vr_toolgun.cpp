@@ -1852,6 +1852,11 @@ edict_t* qvr::toolgun::spawnEntryAt(int i, const glm::vec3& feet, float yaw)
         s.setModel ? s.model : nullptr, s.key, s.value, false, s.weaponFlags);
 }
 
+void qvr::toolgun::armArmedSpawn(edict_t* e)
+{
+    armedArmour(e);
+}
+
 namespace
 {
 // vr_toolgun_select <n | label | clear>: the spawn list's entry n (the spawnables' order: 0 the Grunt), the entry with

@@ -130,10 +130,10 @@ float(float wid) VR_AG_ClipSize =
     return c > 0 ? c : 20;
 };
 
-// ... of the weapon `wid` whose record is `inst` (the Widowmaker's: its whole tube).
+// ... of the weapon `wid` whose record is `inst` (the Widowmaker's: its whole tube; the Plasma Gun's: its smaller cell).
 float(float wid, entity inst) VR_AG_ClipOf =
 {
-    if(wid == WID_SUPER_SHOTGUN && inst && AD_Widowmaker(inst))
+    if(inst && ((wid == WID_SUPER_SHOTGUN && AD_Widowmaker(inst)) || (wid == WID_LIGHTNING && AD_PlasmaGunInst(inst))))
     {
         return VR_ClipSizeOf(wid, inst);
     }
@@ -309,13 +309,118 @@ float(float yaw, float d) VR_AG_RangeStep =
     return walkmove(yaw, d);
 };
 
+// ----------------------------------------------------------------------------
+// A long melee weapon's standoff (vr_agrunt_mspace; his voice note 2026-10-31 19:59; ROUND23.md, "Armed humanoids'
+// melee spacing")
+// ----------------------------------------------------------------------------
+// Fists, an axe or a hammer come right up to you; a sword's holder stops where its swing's tip still meets your body:
+// its arm's reach (its kind's shoulder and arm) plus its weapon's length from its grip (held::drawnExtent's front), a
+// share of it (vr_agrunt_mspace_reach) beyond your body's front. It swings from there (VR_AG_CheckAttack, its swing's
+// steps in: VR_AGP_Frame), holds its ground when you step in (no backing off: you may close in on it), and comes back to
+// it when you back off (vr_agrunt_mspace_speed times its run's step); further off, along its path as before. A standoff
+// shorter than vr_agrunt_mspace_min: as before; never further than vr_agrunt_mspace_max. The chainsaw: as before.
+
+float VR_AG_MSP_BAND = 64; // beyond its standoff by more than this: on along its path (movetogoal), as before
+float vr_ag_msp_holds;     // run frames it held its ground at its standoff or nearer (the tests)
+float vr_ag_msp_closes;    // steps it took back to its standoff (the tests)
+float vr_ag_msp_len;       // VR_AG_MeleeStandoff's: its weapon's length from its grip,
+float vr_ag_msp_arm;       // ... its arm's reach,
+float vr_ag_msp_raw;       // ... its standoff before the least and the most
+
+// The length of held weapon `p` from its grip (its origin): the further of its muzzle (a blade's: its tip, the weapon's
+// own muzzle offset: the knight's sword 28, the hell knight's 35.4, the axe 8.5, Mjolnir 8.8) and its drawn model's
+// front end along its forward (held::drawnExtent; a sword's model has its blade along its up: 8.6 there); neither: 24.
+float(entity p) VR_AG_MeleeLen =
+{
+    float len = 0;
+    vector size = weapondrawnpose(p, 0, 35);
+    if(size_y > 1)
+    {
+        vector hi = weapondrawnpose(p, 0, 34);
+        len = max(0, hi_x);
+    }
+    float m = vlen(weaponmuzzle(p) - p.origin);
+    if(m >= 4 && m <= 80)
+    {
+        len = max(len, m);
+    }
+    return len > 0 ? len : 24;
+};
+
+// `g`'s standoff from its enemy now (flat, its middle to his; 0: none, it closes in as before): vr_ag_msp_*.
+float(entity g) VR_AG_MeleeStandoff =
+{
+    entity p = g.vr_ag_prop;
+    entity e = g.enemy;
+    if(!cvar_hget(cvarh_vr_agrunt_mspace) || !p || !e || e.health <= 0 || VR_AG_Class(g.vr_ag_wid) != VR_AG_CLASS_MELEE ||
+       g.vr_ag_wid == WID_CHAINSAW)
+    {
+        return 0;
+    }
+    float len = VR_AG_MeleeLen(p);
+    entity p2 = g.vr_ag_prop2;
+    if(p2 && VR_AG_Class(p2.weapon) == VR_AG_CLASS_MELEE && p2.weapon != WID_CHAINSAW)
+    {
+        len = min(len, VR_AG_MeleeLen(p2)); // (two blades swung in turn: the shorter's tip still meets you)
+    }
+    VR_AM_Row(g.vr_ag_kind);
+    float arm = max(12, vr_am_sh_r_x + vr_am_arm); // (its shoulder ahead of its middle, its arm to the wrist)
+    float body = (e.flags & FL_CLIENT) ? 12 : max(8, e.maxs_x * 0.75); // (your body's front: a torso, not your box's)
+    vr_ag_msp_len = len;
+    vr_ag_msp_arm = arm;
+    vr_ag_msp_raw = body + max(0, cvar_hget(cvarh_vr_agrunt_mspace_reach)) * (arm + len);
+    if(vr_ag_msp_raw < cvar_hget(cvarh_vr_agrunt_mspace_min))
+    {
+        return 0; // (a short weapon: right up to you, as before)
+    }
+    return min(vr_ag_msp_raw, max(cvar_hget(cvarh_vr_agrunt_mspace_min), cvar_hget(cvarh_vr_agrunt_mspace_max)));
+};
+
+// The distance (its middle to its enemy's) its melee attack starts within: a swing's 62 (VR_AG_GRIP_REACH + 10), from
+// its standoff a little further.
+float(entity g) VR_AG_MeleeStart =
+{
+    return max(VR_AG_GRIP_REACH + 10, VR_AG_MeleeStandoff(g) + 12);
+};
+
+// ai_run (its moves between its attacks, `dist` its run frame's): a melee holder at its standoff; FALSE: as before.
+float(float dist) VR_AG_MeleeSpaceMove =
+{
+    float s = VR_AG_MeleeStandoff(self);
+    if(s <= 0 || !enemy_vis || self.vr_ag_tug_pl)
+    {
+        return FALSE;
+    }
+    vector to = VR_AI_Origin(self.enemy) - self.origin;
+    to_z = 0;
+    float d = vlen(to);
+    if(d > s + VR_AG_MSP_BAND)
+    {
+        return FALSE; // (far: on along its path, as before)
+    }
+    self.ideal_yaw = enemy_yaw;
+    ChangeYaw(); // (facing you all the while)
+    if(d <= s + 1)
+    {
+        vr_ag_msp_holds = vr_ag_msp_holds + 1;
+        return TRUE; // (at its standoff, or you stepped in: it holds its ground)
+    }
+    float step = min(dist * max(0, cvar_hget(cvarh_vr_agrunt_mspace_speed)), d - s);
+    if(step > 0.25 && walkmove(self.ideal_yaw, step))
+    {
+        vr_ag_msp_closes = vr_ag_msp_closes + 1;
+        return TRUE;
+    }
+    return FALSE; // (blocked: its path, as before)
+};
+
 // ai_run (its moves between its attacks, `dist` its run frame's): keeping its distance; FALSE: as before.
 float(float dist) VR_AG_RangeMove =
 {
     if(!enemy_vis || !VR_AG_Ranges(self))
     {
         self.vr_ag_rback = 0;
-        return FALSE;
+        return VR_AG_MeleeSpaceMove(dist); // (a melee weapon: its standoff; vr_agrunt_mspace)
     }
     float d = vlen(VR_AI_Origin(self.enemy) - self.origin);
     if(d > vr_ag_rmax)
@@ -2663,8 +2768,9 @@ float() VR_AG_CheckAttack =
     if(c == VR_AG_CLASS_FISTS || c == VR_AG_CLASS_MELEE)
     {
         // (the chainsaw's thrust reaches less far than a swing: it closes in first, vr_agrunt_saw_start)
+        // (a long blade from its standoff: VR_AG_MeleeStart, vr_agrunt_mspace)
         float reach = self.vr_ag_wid == WID_CHAINSAW ? cvar_hget(cvarh_vr_agrunt_saw_start) :
-                      VR_AG_GRIP_REACH + (c == VR_AG_CLASS_MELEE ? 10 : 0);
+                      c == VR_AG_CLASS_MELEE ? VR_AG_MeleeStart(self) : VR_AG_GRIP_REACH;
         if(d < reach)
         {
             if(VR_AG_FriendHold(self.origin + self.view_ofs * 0.5, VR_AG_FriendSpread(self.vr_ag_wid)))

@@ -1155,6 +1155,14 @@ void(entity xPickup, entity p, float xHand) AD_UpgradeGiven =
     {
         VRSetEntWeaponClip(p, xHand, VR_ClipSizeOf(WID_SUPER_SHOTGUN, inst));
     }
+    // The Plasma Gun's cell holds fewer than the thunderbolt's (vr_ad_plasmagun_cell, his 16 of 2026-10-31): what the
+    // pickup moved from the reserve past that goes back.
+    float over = VRGetEntWeaponClip(p, xHand) - VR_ClipSizeIn(p, xHand);
+    if(VRGetEntWeapon(p, xHand) == WID_LIGHTNING && over > 0)
+    {
+        VRSetEntWeaponClip(p, xHand, VRGetEntWeaponClip(p, xHand) - over);
+        VR_AmmoUtil_AddAmmoCountByAmmoId(p, AID_CELLS, over);
+    }
     dprint(sprintf("VR: %s: the %s in hand %g (weapon %g) is upgraded\n", xPickup.netname, WeaponIdToWeaponName(VRGetEntWeapon(p, xHand)),
         xHand, inst.wi_uid));
 };

@@ -1,0 +1,8 @@
+# laser_cannon: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". SoA's laser cannon at the walls and a calm grunt.
+title The laser cannon in hand: walls and a calm grunt
+map vrtesthall
+god
+notarget
+give "SoA Laser Cannon" main
+spawn "Grunt" 300 0
+cmd impulse 9

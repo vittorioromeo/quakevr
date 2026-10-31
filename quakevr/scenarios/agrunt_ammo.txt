@@ -1,0 +1,10 @@
+# agrunt_ammo: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Magazine guns, a double-barrel and a plasma gun: reloads and ammo.
+title Armed ammo: burst rifle, laser rifle, double-barrelled shotgun, plasma gun shooting at you (god)
+map vrtesthall
+god
+give "Shotgun" main
+spawn "Armed Grunt: Grunt's Rifle" 400 0
+spawn "Armed Enforcer: Laser Rifle" 450 100
+spawn "Armed Grunt: Super Shotgun" 350 -100
+spawn "Armed Grunt: Plasma Gun" 500 -40
+cmd impulse 9

@@ -1,0 +1,5 @@
+# enforcer_fists: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". An unarmed enforcer running at you in its guard.
+title An unarmed armed enforcer running at you (god)
+map vrtesthall
+god
+spawn "Armed Enforcer: Fists" 450 0

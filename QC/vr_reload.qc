@@ -925,6 +925,13 @@ void(float xGunHand, entity r, float xHeld) VR_Reload_SeatMagInto =
 {
     float gunHand = xGunHand;
     float xHand = VRGetOtherHand(gunHand);
+    // (AD support: a fuller cell than the Plasma Gun holds, a thunderbolt's: it takes its own, the rest back to the pouch.)
+    float over = r.vr_ammo_count - VR_ClipSizeIn(self, gunHand);
+    if(over > 0)
+    {
+        r.vr_ammo_count = r.vr_ammo_count - over;
+        VR_AmmoUtil_AddAmmoCountByAmmoId(self, r.vr_ammo_aid, over);
+    }
     VRSetEntWeaponClip(self, gunHand, r.vr_ammo_count);
     VRSetEntWeaponFlags(self, gunHand, VRGetEntWeaponFlags(self, gunHand) - (VRGetEntWeaponFlags(self, gunHand) &
         QVR_WPNFLAG_NOMAG));
@@ -1305,7 +1312,10 @@ void(float xHand) VR_Reload_Take =
     }
     if(w)
     {
-        n = min(WeaponIdToBaseClipSize(w), have);
+        // (A magazine for the gun in the other hand: its own size; AD support: the Plasma Gun's cell holds fewer than the
+        // thunderbolt's, VR_ClipSizeOf.)
+        float other = VRGetOtherHand(xHand);
+        n = min(VRGetEntWeapon(self, other) == w ? VR_ClipSizeIn(self, other) : WeaponIdToBaseClipSize(w), have);
     }
     if(front)
     {
@@ -2740,7 +2750,7 @@ void(float xHand) VR_Reload_PouchFrame =
         r.classname = VR_RELOAD_MAGCLASS;
         r.vr_ammo_wid = w;
         r.vr_ammo_aid = aid;
-        r.vr_ammo_count = min(WeaponIdToBaseClipSize(w), have);
+        r.vr_ammo_count = min(size, have); // (its own size: AD support, the Plasma Gun's cell holds fewer)
         setorigin(r, top);
         VR_AmmoUtil_DelAmmoCountByAmmoId(self, aid, r.vr_ammo_count);
         vr_reload_by_pouch = TRUE;
@@ -2880,6 +2890,12 @@ float(entity g, entity r, entity xBy, float xHand) VR_Reload_IntoProp =
     string how = xBy ? "from a hand" : "a loose round by contact";
     if(r.vr_ammo_wid)
     {
+        // (AD support: a fuller cell than the Plasma Gun holds: it takes its own, the rest back to the hand's pouch.)
+        n = min(n, VR_ClipSizeOf(w, g.weaponinst));
+        if(xBy && r.vr_ammo_count > n)
+        {
+            VR_AmmoUtil_AddAmmoCountByAmmoId(xBy, r.vr_ammo_aid, r.vr_ammo_count - n);
+        }
         g.weaponinst.wi_clip = n;
         g.weaponflags = g.weaponflags - (g.weaponflags & QVR_WPNFLAG_NOMAG);
         VR_Reload_Sound(g, CHAN_AUTO, "vr/reload_mag_in.wav", 1);

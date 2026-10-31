@@ -628,6 +628,23 @@ void ikStretchReset()
             "How readily a gun's holder backs off: the distance it backs away from you nearer than (its weapon's "
             "least), times this, and the health share it turns warier below (0.35 times this). 0: it never backs "
             "off (only from its own blast) (vr_agrunt_ai_retreat)."),
+        header("Melee Spacing"),
+        toggle("Long Blades Keep Their Reach", vr_agrunt_mspace)
+            .help("One holding a long melee weapon (a sword, a long sword) stops where its swing's tip still meets your "
+                  "body, its arm's reach plus its weapon's length from its grip, and swings from there; you stepping in, "
+                  "it holds its ground; you backing off, it comes back. Fists, the axe, the hammers and the chainsaw "
+                  "come right up to you as before. Off: every melee weapon closes in (vr_agrunt_mspace)."),
+        slider("Reach Share", vr_agrunt_mspace_reach, 0.5f, 1.f, 0.05f, "%.2f").extend(0.f, 1.5f)
+            .help("Where in its swing's reach (arm plus weapon, from your body's front) it stands: 1 its tip just "
+                  "meeting you, 0.8 a fifth of its reach inside you, less nearer (vr_agrunt_mspace_reach)."),
+        slider("Shortest Standoff", vr_agrunt_mspace_min, 32.f, 96.f, 2.f, "%.0f units").extend(0.f, 160.f)
+            .help("A weapon whose standoff comes out shorter than this (its middle to yours) closes right in as before: "
+                  "the fists, the axe, the hammers (vr_agrunt_mspace_min)."),
+        slider("Longest Standoff", vr_agrunt_mspace_max, 48.f, 128.f, 2.f, "%.0f units").extend(0.f, 200.f)
+            .help("The furthest it stands from you, however long its blade (vr_agrunt_mspace_max)."),
+        slider("Re-Close Speed", vr_agrunt_mspace_speed, 0.25f, 2.f, 0.05f, "%.2fx").extend(0.f, 4.f)
+            .help("How fast it comes back to its standoff when you back off, times its run's step "
+                  "(vr_agrunt_mspace_speed)."),
         header("Aiming"),
         row(opt::vr_agrunt_aim_converge),
         row(opt::vr_agrunt_aim_exposed),

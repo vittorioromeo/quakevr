@@ -237,6 +237,12 @@ za::Vector<Item> pageDebugAutomation()
             .help("vr_agrunt_test 89 (vrtesthall's start; about 30 s): a gun's holder with you in its shove's reach and "
                   "just beyond it steps in and shoves (not backing off); a little further it backs off; far off as "
                   "before (Combat > Enemy Shoves > Armed Shove: Step In; agtest: shove close ... PASS)."),
+        command("Armed Grunts: Melee Spacing", "vr_agrunt_test 18")
+            .help("vr_agrunt_test 18 (vrtesthall's start): a grunt, an enforcer, a knight and a death knight in turn, "
+                  "each with fists, the axe, the sword, the hell knight's long sword, Mjolnir and the chainsaw, come at "
+                  "you: where each stands as its blows land (a sword's holder at its standoff, the short weapons right "
+                  "up close), you backing off and stepping in; every attack must hurt you (Combat > Armed Grunts > AI "
+                  "Behaviour > Melee Spacing; agtest: melee reach ... PASS)."),
         command("Armed Grunts: Fists' Guard as Posed", "vr_agrunt_test 90")
             .help("vr_agrunt_test 90 (vrtesthall's start; about 5 s): an unarmed enforcer held in its Guard key as the "
                   "Pose Studio holds it, then running at you: its drawn fists (less its head) within 2 units of the "

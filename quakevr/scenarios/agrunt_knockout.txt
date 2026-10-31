@@ -1,0 +1,9 @@
+# agrunt_knockout: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Knocking guns out: a held shotgun and a crate to swing, calm shotgun grunts.
+title Knock their guns out: calm shotgun grunts, a shotgun in hand, a crate beside you
+map vrtesthall
+god
+notarget
+give "Shotgun" main
+spawn "Wooden Crate" 40 -50
+spawn "Armed Grunt: Shotgun" 70 0
+spawn "Armed Grunt: Super Shotgun" 140 80
