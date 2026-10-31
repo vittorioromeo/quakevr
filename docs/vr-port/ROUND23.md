@@ -4146,7 +4146,7 @@ feel fine: make them the defaults and take the recoil items off the checklist.
   pickup moved past 16. An armed grunt's Plasma Gun: `VR_AG_ClipOf` the same. Test 141 (adplasma) gains two checks: a
   pouch cell holds the size; a thunderbolt's full cell seated gives the size and returns the rest.
 - **His recoil values shipped:** `vr_recoil_2h_kick` 0.6 -> 0.4, `vr_recoil_2h_rise` 0.6 -> 0.2, `vr_recoil_2h_time`
-  0.6 -> 0.725, `vr_recoil_2h_haptic` 0.6 -> 0.7; slot 2's Recoil Muzzle Rise (`vr_wofs_fx_rise_deg_02`) 18.25 -> 12;
+  0.6 -> 0.725, `vr_recoil_2h_haptic` 0.6 -> 0.7; the shotgun's Recoil Muzzle Rise (slot 1, `vr_wofs_fx_rise_deg_02`) 12.08 -> 12;
   the tunable `vr_nailpistol_slide_delay` 0.25 -> 0.175 (tune_promote). His config has no other recoil value off its
   default (`v_gunkick` 2 is the shipped default; no `vr_recoil_*`, `*_kick*`, `*_rise*` or 2H multiplier beyond these).
 - **Checklist:** the 18 recoil items taken off (per-weapon recoil, recovery, haptic punch, the models' own kick, Recoil
