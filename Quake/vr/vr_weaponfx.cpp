@@ -16,6 +16,7 @@
 #include "vr_anchor.hpp"
 #include "vr_backend.hpp"
 #include "vr_cvars.hpp"
+#include "vr_geom.hpp"
 #include "vr_gfx.hpp"
 #include "vr_gunsfx.hpp"
 #include "vr_hands.hpp"
@@ -704,6 +705,29 @@ void parseTracer()
     }
 }
 
+namespace
+{
+// The Euler change that turns a hand at `handAngles` (its axes `fwd`, `right`, `up`) by `kick` (pitch, yaw) about its
+// own axes, not the world's: pitch about the gun's right axis, yaw about its up (its pivot the hand's, as before). Added
+// to the hand's angles (vr_view.cpp's shakes) the muzzle rises along the gun's own up, so a rolled hand's rises
+// sideways in the world. An unrolled hand's rise is the same as adding the pitch (round 23: it was always added).
+[[nodiscard]] glm::vec3 gunLocalTurn(
+    const glm::vec3& handAngles, const glm::vec3& fwd, const glm::vec3& right, const glm::vec3& up, const glm::vec3& kick)
+{
+    if(handAngles == glm::vec3{0.f})
+    {
+        return kick; // (the hand's axes are the world's: the same, exactly)
+    }
+    glm::vec3 kf, kr, ku;
+    hands::angleVectors(kick, kf, kr, ku);
+    // The kick's axes (Quake's: x forward, y left, z up) in the hand's.
+    const auto inHand = [&](const glm::vec3& v) { return fwd * v.x - right * v.y + up * v.z; };
+    const glm::vec3 turned = hands::anglesFromVectors(inHand(kf), inHand(ku));
+    return {geom::wrap180(turned.x - handAngles.x), geom::wrap180(turned.y - handAngles.y),
+        geom::wrap180(turned.z - handAngles.z)};
+}
+} // namespace
+
 TwoHandShares twoHandRecoil(int hand, int slot)
 {
     return slot < 0 ? TwoHandShares{} : twoHandShare(slot, twohand::support(hand));
@@ -762,8 +786,7 @@ void recoilOffset(int hand, const glm::vec3& handAngles, glm::vec3& pos, glm::ve
     hands::angleVectors(handAngles, fwd, right, up);
     const RecoilAmount a = recoilAmount(h.slot, back, rise, sideways);
     pos = -fwd * (a.backCm * 0.01f * units::metresToUnits());
-    angles.x = a.pitch;
-    angles.y = a.yaw;
+    angles = gunLocalTurn(handAngles, fwd, right, up, glm::vec3{a.pitch, a.yaw, 0.f});
     if(vr_debug_weaponfx.value >= 2)
     {
         Con_Printf("weaponfx recoil t %.3f hand %d kick %.3f rise %.3f back %.3f cm pitch %.3f yaw %.3f\n", cl.time, hand,
@@ -1477,6 +1500,80 @@ void twoHandTest(const Check& check)
     }
 }
 
+// vr_recoil_test's part on the kick's axes (gunLocalTurn): the held weapon's kick drawn (recoilOffset) in hands turned
+// every way moves the muzzle the same in the hand's own axes as in an unturned hand's: its rise along the gun's up (a
+// hand rolled 90 degrees: sideways in the world, not up; 45 degrees: the same), its turn about the gun's up, its kick
+// back along the barrel; an unrolled hand's rise is its pitch's, as before.
+template <typename Check>
+void axisTest(const Check& check)
+{
+    const int hand = HAND_MAIN;
+    const int held = weapons::heldSlot(hand);
+    const auto drawn = [&](const glm::vec3& at, float sideways, glm::vec3& pos, glm::vec3& angles)
+    {
+        forget(hand);
+        handFx[hand].slot = held;
+        handFx[hand].kicks[0] = Kick{cl.time - 0.05, 1.f, 1.f, 0.15f, sideways};
+        recoilOffset(hand, at, pos, angles);
+        forget(hand);
+    };
+    // The muzzle's move (its forward's) and the kick back, in the hand's own axes (forward, right, up); and in the world,
+    // off the barrel (the move's part across it: the rise's direction).
+    struct Moved
+    {
+        glm::vec3 muzzle, back, worldMuzzle;
+    };
+    const auto moved = [&](const glm::vec3& at, float sideways)
+    {
+        glm::vec3 pos, angles, f, r, u, f2, r2, u2;
+        drawn(at, sideways, pos, angles);
+        hands::angleVectors(at, f, r, u);
+        hands::angleVectors(at + angles, f2, r2, u2);
+        const glm::vec3 d = f2 - f;
+        return Moved{{glm::dot(d, f), glm::dot(d, r), glm::dot(d, u)}, {glm::dot(pos, f), glm::dot(pos, r), glm::dot(pos, u)},
+            d - f * glm::dot(d, f)};
+    };
+    const glm::vec3 turns[]{{0.f, 0.f, 90.f}, {0.f, 0.f, 45.f}, {-20.f, 30.f, 90.f}, {25.f, -60.f, -45.f},
+        {-30.f, 10.f, 0.f}, {60.f, 170.f, 120.f}};
+    for(const float sideways : {0.f, 0.5f})
+    {
+        const Moved ref = moved(glm::vec3{0.f}, sideways);
+        float worst = 0.f, worstBack = 0.f;
+        for(const glm::vec3& t : turns)
+        {
+            const Moved m = moved(t, sideways);
+            worst = za::max(worst, glm::length(m.muzzle - ref.muzzle) / za::max(glm::length(ref.muzzle), 1e-6f));
+            worstBack = za::max(worstBack, glm::length(m.back - ref.back) / za::max(glm::length(ref.back), 1e-6f));
+        }
+        check(worst < 2e-3f && glm::length(ref.muzzle) > 0.f,
+            sideways > 0.f ? "rise and turn about the gun's own axes, the hand turned every way (worst share off)"
+                           : "rise about the gun's own axes, the hand turned every way (worst share off)",
+            worst, 2e-3f);
+        check(worstBack < 1e-4f, "kick back along the barrel, the hand turned every way (worst share off)", worstBack, 1e-4f);
+    }
+    // Rolled 90 and 45 degrees: the muzzle goes along the gun's up, not the world's.
+    const Moved r90 = moved({0.f, 0.f, 90.f}, 0.f);
+    const Moved r45 = moved({0.f, 0.f, 45.f}, 0.f);
+    glm::vec3 f, r, u;
+    hands::angleVectors({0.f, 0.f, 90.f}, f, r, u);
+    const glm::vec3 dir90 = glm::normalize(r90.worldMuzzle);
+    check(glm::dot(dir90, u) > 0.999f && fabsf(dir90.z) < 0.02f,
+        "rolled 90 degrees: the muzzle rises along the gun's up, sideways in the world (world up share)", fabsf(dir90.z),
+        0.f);
+    hands::angleVectors({0.f, 0.f, 45.f}, f, r, u);
+    const glm::vec3 dir45 = glm::normalize(r45.worldMuzzle);
+    check(glm::dot(dir45, u) > 0.999f && fabsf(dir45.z - 0.7071f) < 0.02f,
+        "rolled 45 degrees: along the gun's up, half sideways (world up share)", dir45.z, 0.7071f);
+    Con_Printf("vr_recoil_test: rolled 90: muzzle moves %.4f %.4f %.4f (world), rolled 45: %.4f %.4f %.4f\n",
+        r90.worldMuzzle.x, r90.worldMuzzle.y, r90.worldMuzzle.z, r45.worldMuzzle.x, r45.worldMuzzle.y, r45.worldMuzzle.z);
+    // An unrolled hand (pitched, turned): the same as adding the kick's pitch, as before.
+    glm::vec3 pos0, ang0, pos1, ang1;
+    drawn(glm::vec3{0.f}, 0.f, pos0, ang0);
+    drawn({-30.f, 10.f, 0.f}, 0.f, pos1, ang1);
+    check(fabsf(ang1.x - ang0.x) < 1e-3f && fabsf(ang1.y) < 1e-3f && fabsf(ang1.z) < 1e-3f,
+        "unrolled hand: the rise is its pitch, as before (pitch)", ang1.x, ang0.x);
+}
+
 // vr_recoil_test's part on the stream shake (Key::StreamShake, StreamHaptic; streamed, streamShake): only the AD
 // flamethrower's and poison sprayer's slots (30, 31) have it by default; the held weapon at Stream Shake 1, a flame just
 // come (streamed), trembles each frame of a second of flames (the clock stepped as frames do), subtly (under a degree
@@ -1684,6 +1781,7 @@ void recoilTest_f()
     returnTest(check);
     smoothTest(check);
     twoHandTest(check);
+    axisTest(check);
     streamTest(check);
     conversionTest(check);
     // The models' own kick taken out (vr_kickcancel.cpp): every kicking gun's body at rest on each of its frames.

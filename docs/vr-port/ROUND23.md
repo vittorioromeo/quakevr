@@ -3440,3 +3440,27 @@ Checklist:
   kicks once and settles smoothly; no second lurch back and up about a quarter second after the shot.
 - [sgrecoil] Weapon Effects: the four Two-Handed sliders (Kick Back, Muzzle Rise, Return Time, Haptics) each change only
   their own part of a two-handed shot; your old Two-Handed Recoil value is on all four.
+
+## Muzzle rise about the gun's own axis (branch `agent/riseaxis`)
+
+His call (after sgrecoil noted it): the procedural recoil's rise was added to the hand's Euler pitch, so with the hand
+rolled the muzzle rose partly world-up instead of along the gun's up.
+
+- **The fix** (`vr_weaponfx.cpp` recoilOffset, new `gunLocalTurn`): the kick's pitch and yaw now turn the hand about its
+  own right and up axes (the hand's drawn angles, which carry the calibration `vr_gunangle`/`vr_gunyaw`; the pivot as
+  before, the hand's origin), returned as the Euler change the callers already add (vr_view.cpp's shakes, the ghost
+  hands' measured pose). The kick back was already along the hand's forward. Every weapon, one- and two-handed (the
+  shares scale the kick before it is turned), stream shake included; `vr_ghost_hands_ignore_recoil` unchanged (it
+  adds the same change). An unrolled hand's rise is the pitch, exactly as before; its sideways turn is now about the
+  gun's up rather than the world's (differs only with the hand pitched; the tests' unturned hand gives the same).
+- **Decision**: the hand's frame, not each weapon's small per-slot angle offsets (weaponAngleOffsets), is the gun's axis:
+  the offsets are a few degrees, and the hand frame keeps one place and the unrolled case exact.
+- **Tests**: `vr_recoil_test` 127/0 (new axis part: hands turned six ways incl. rolled 90/45, pitched+yawed+rolled: the
+  muzzle's move and the kick back in the hand's axes match the unturned hand's to 0.0000; rolled 90 the move across
+  the barrel is 0.000 world-up, rolled 45 0.707; unrolled pitched hand: the rise is its pitch). `vr_kickcancel_test`
+  79/0, `gunfx_test.py` 73/0.
+
+Checklist:
+- [riseaxis] Roll your wrist 90 degrees (gun on its side) and fire the shotgun or nailgun: the muzzle kicks toward the
+  gun's top (sideways in the world), not toward the ceiling; at 45 degrees it kicks diagonally along the gun's top.
+- [riseaxis] Upright gun, one- and two-handed: the recoil feels the same as before.
