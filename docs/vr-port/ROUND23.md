@@ -4262,6 +4262,64 @@ damage) are the suspects. The A/B bench is still to run (his game was running).
 **Test in VR:** gore, decap, the armour helmet, the chainsaw (cuts, beheads, an armed grunt's chain parried), crates
 (struck, shot, burst): all as before; a grenade or barrel blast set off by a blow, then the next blow: as before.
 
+### Parts 3 and 4 (same branch)
+
+**What (one commit each):**
+- **Part 3, step 2 (part):** one head sphere (`VR_HeadCentre`/`VR_HeadHolds`/`VR_HeadOnRay`, weapons.qc) for positional
+  damage, VR_Decap_OnHead, the decap melee zone and the teeth; one Region vocabulary, `Quake/vr/vr_region_shared.h`
+  (VR_REGION_*), read by the QC and vr_hitreact.cpp. Its debug check (VR_Decap_OnHead vs the record's zone, `hitcheck:`):
+  **0 lines** over part 3's covering run and decap_test.sh live/axe/refuse/corpse/saw/thrown/monsters/pop; removed.
+- **Step 2 (rest):** `VR_Hit_Point(targ, inflictor, near, missile)` and `VR_Hit_Way(targ, inflictor, dir)` (combat.qc):
+  where the hit struck a target and which way it went, for the wounds, the gore and the flinch (each rebuilt both by
+  hand). Equal by construction.
+- **Step 3:** `VR_Hit_Class(inflictor, attacker)`: QVR_HITCLASS_NONE, BLUNT, BLADE, PIERCE, BLAST, BURN, SLAM (the
+  level's), SHOCK, read off the corpses' damage kind (the finest ladder, on the small gibs' kind); `VR_Hit_Bleeds` (not
+  the level's, not bloodless, not a burn). Switched: VR_GibKind (how it came, then the class), VR_KdTrig_Blunt (not a
+  blade), VR_Wound_Hit (its first bleeding on VR_Hit_Bleeds; its blunt dent and thrown blow on the class). Debug check
+  (each against its old copy, `hitclass:`): **0 lines** over the small gibs' tests, decap_test.sh and the covering sample;
+  removed. Not switched: VR_SmallGib_Kind and VR_Corpse_DamageKind (the ladder the class reads), VR_Decap_BluntClass and
+  VR_Limb_WearHow (already lookups: the hand's thing, the corpse kind), the gore kind and VR_Dummy_Kind (how it came,
+  not what it is).
+- Merge of next: vr_disarmhull_test.qc's blow through VR_Hit_Begin/End.
+
+**Part 3's covering run** (runs/20261031-192749, 129 cases, vs baseline.tsv): 41 TIMEOUT with empty logs (the game
+printed nothing in 420-720 s: starved lanes while his game ran, not the code; agrunt_1, 12, 70, arena_1 pass on this
+tree); agrunt_76, ragdoll_ragtest flaky; agrunt_65 and agarmor_5 FAIL -> PASS; counts grown as next (32, 70, nail_1);
+the new agrunt_78/90/92 fail as on next's runs; agrunt_79 (FAIL 21/1, "stalepose ... zone 0") passes here after the
+merge (22/0). No regression found.
+
+**Disagreements (kept as they were; his call):**
+1. Where (the record's point): the wounds and the gore take it within 64 units of the target's middle, the flinch 96.
+2. A missile's origin where it touched: the wounds and the flinch fall back to it, the gore to the middle.
+3. No way known: the wounds point down, the gore sends nothing, the flinch takes it from the attacker.
+4. A blast: the wounds at the blast's origin (splash or IsExplosionDamage), the gore at the middle (splash only), the
+   flinch at the box's point nearest it (splash only).
+5. None of the three checks the point is this target's (VR_Hit_On): another target's point this frame in reach counts.
+6. Gib speed: a knight's or a wizard's spike (not batted back) and Hipnotic's laser are heavy; the class, the small gibs
+   and the corpses call them pierce (nails).
+7. The knockdown's blow: a flung or thrown thing is blunt, a thrown axe too (the class: a blade); a blow with no hand
+   (hit_hand -1) is judged by the main hand's weapon, the class calls it blunt.
+8. Wounds: Rogue's buzzsaw a nail's wound (the class: a blade); a lava spike, a lavaball, a laser a burn (the class:
+   pierce or none); a monster's own blow a melee wound (the class: none), the shambler's from afar a zap.
+9. The discharge (the lightning gun under water): the corpses lightning (shock); the small gibs, the wounds and the gore
+   an explosion; the gib speed heavy.
+10. A stuck axe's bleeding: the corpses blades; the small gibs other; the gib speed light; the wounds none.
+11. Whether the hit bleeds: VR_Hit_Bleeds is the wounds' rule; the gore stops on the level's and bloodless hits only (a
+    burn not begun bloodless would bleed: none today), the small gibs on bloodless only (the level's damage tears them).
+12. Whether the target bleeds, three rules left as they are: VR_Gore_Bleeds (a monster or the player, not the clean dummy,
+    vr_gore), VR_SmallGib_Bleeds (not a gib or a statue, has a model, the player only with vr_smallgibs_player, corpses
+    too), VR_Wound_TakesHit (the clean dummy with its dents or streams on).
+
+**Left (next):** the impact table's VR_HIT_* from the class; VR_SmallGib_Where; a bone in the record; design review 10's
+shared constants and `QVR_FIELD`.
+
+**Verified:** build 0 warnings. `--only 'decap|limb|wound|gore|nail_1|agarmor_1'` after each step: no change vs
+baseline.tsv but nail_1 grown (as next; limb_wear 9/3 and ragdoll_climb 24/4 as the baseline). Small gibs' wound and
+gore counts as before the step. eval.sh canary 36/44, full 163/171 (as before).
+
+**Test in VR:** wounds and blood on blades, punches, thrown things, shots and blasts; gibs' flight speed by weapon; a
+knockdown by a blade's and a blunt blow: all as before.
+
 ## Faster map loads, round 6: the smooth rigs at once (branch `agent/loadtime2`)
 
 The leftovers of round 5 ("Not done": the smooth rigs one model after another, 42 ms of vrtesthall's load).
