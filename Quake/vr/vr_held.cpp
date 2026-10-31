@@ -921,7 +921,19 @@ bool drawnExtent(edict_t* ent, glm::vec3& back, glm::vec3& front, float& radius)
         return false;
     }
     dir = glm::normalize(dir);
-    if(dir.x < 0.f)
+    // A model laid along one of its own axes (a gun's barrel along its x) keeps that axis: a stubby gun's two farthest
+    // corners lie across its box (a nail pistol's 28 degrees off its barrel). Only a weapon laid otherwise (a Knight's
+    // Sword's blade, an axe's slanted haft) takes the farthest corners' way.
+    const float span = glm::length(h->hi - h->lo);
+    const glm::vec3 ext = h->hi - h->lo;
+    const int axis = ext.x >= ext.y && ext.x >= ext.z ? 0 : ext.y >= ext.z ? 1 : 2;
+    if(ext[axis] >= 0.85f * glm::sqrt(best) && span > 0.f)
+    {
+        dir = glm::vec3{0.f};
+        dir[axis] = 1.f;
+        mid = (h->lo + h->hi) * 0.5f;
+    }
+    if(dir.x < 0.f || (dir.x == 0.f && dir.z < 0.f))
     {
         dir = -dir; // (its front the one further along its model's forward: a weapon's tip)
     }

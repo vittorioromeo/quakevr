@@ -101,8 +101,14 @@ void(entity g) VR_DHT_Measure =
     float size = cvar("vr_agrunt_shotdisarm_size");
     VR_AGT_Print(sprintf("%s: the hull %.1f long, %.1f off its axis; the line %.1f long, %.1f round (x%g)", wn, ext_x, ext_y,
         vlen(ld), vr_ag_wr, size));
-    VR_AGT_Check(sprintf("%s: its line %.1f degrees off the hull's long axis, %.1f long against %.1f", wn, ang, vlen(ld), ext_x),
-        ang <= 3 && fabs(vlen(ld) - ext_x) <= 0.05 * ext_x);
+    // (Its line: the model's own longest axis when that is 0.85 of the hull's longest span or more (a gun's barrel), else
+    // that span's way (the Knight's Sword's blade: wanted on it); as long as the hull is along it.)
+    vector ga = disarmhull(p, 0, vr_ag_wa, vr_ag_wa, 0);
+    vector gb = disarmhull(p, 0, vr_ag_wb, vr_ag_wb, 0);
+    vector gl = disarmhull(p, 0, vr_ag_wa, vr_ag_wb, 0);
+    VR_AGT_Check(sprintf("%s: its line %.1f degrees off the hull's longest span, %.1f long against %.1f, through it (%.2f), "
+        "its ends %.2f and %.2f off it", wn, ang, vlen(ld), ext_x, gl_x, ga_x, gb_x),
+        vlen(ld) >= 0.85 * ext_x && vlen(ld) <= 1.02 * ext_x && gl_x <= 0 && ga_x <= 3 && gb_x <= 3);
     // A shot across its far half counts on the weapon; one 2 units off its hull does not.
     vector c = (vr_ag_wa + vr_ag_wb) * 0.5 + ax * (ext_x * 0.25);
     vector to = vr_agt_player.origin + vr_agt_player.view_ofs - c;

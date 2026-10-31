@@ -4130,3 +4130,60 @@ The leftovers of round 5 ("Not done": the smooth rigs one model after another, 4
   could save at most the fits and rest rows, ~20 ms of vrtesthall/vrstart and ~10 of hip2m5/e1m1 less its own reading
   and keying (the rigs must still be found: the key holds the derived rig), and the limbs' builds already run on the pool
   beside the load (round 5: 22 ms there, not on the main thread). Under the brief's ~20 ms bar: skipped.
+
+## Disarm volumes as hulls of the drawn triangles (branch `agent/disarmhull`)
+
+His notes (2026-10-31 19:36, 19:38; a grunt with an axe, one with a Knight's Sword held level): the cyan volume floats
+above the hand, the magenta one is twice the axe and a near-sphere round half the body for the sword, the orange one
+stands upright across the level blade. "Use the triangles of the weapon ... create a convex hull ... give me some sliders".
+- **Why they were wrong:** (1) `held::drawnExtent` took the weapon model's *box in its own axes*: the line along its local
+  x from the box's least to most x, the radius half the larger of its y/z sides. A blade not along its model's x (the
+  Knight's Sword) got a line across it (14.1 long against its 38.2) and a radius of half its length (18: the near-sphere);
+  an axe's head made the radius 7.5 round a 15-unit axe, its line 44+ degrees off. (2) The hand volume was a line from the
+  weapon's origin 11 units towards a shoulder guessed from the row (VR_AM_Anchor), 3.5 round: not the drawn hand. (3) The
+  body-blow volume was a 10-unit sphere round the grip (16 on a limb). No stale frame or double offset: the drawn weapon
+  frame (hitreact::drawnWeapon) was right; test 16's hull matches the renderer's vertices exactly (0.000 out, box 1.000).
+- **Now** (Quake/vr/vr_disarmhull.cpp): the weapon's volume is the convex hull of its drawn mesh's triangles (held's
+  drawn mesh: its pose, the networked scale and offset; `held::drawnHull`, made once per mesh with Box3D's quickhull,
+  its faces pushed out to hold every vertex: slack 0.00 on every weapon), placed where it is drawn (drawnWeapon; not drawn
+  lately: the server's place). The hand's is the hull of the drawn body's vertices on its hand bone and forearm
+  (drawnpose::armedMesh; a ragdoll's skinnedVertices; else the frame's), made once a frame per hand asked for. One query,
+  `disarmhull::gap` (QC `disarmhull(e, what, a, b, grow)`, `VR_AGS_HullGap`): a path's or point's gap to a hull grown by
+  signed units (Box3D GJK: grown is the hull rounded by that; shrunk: each face moved in, a clip), and where along the
+  path it is met. Users: shots and projectiles (VR_AGS_MeetOne, VR_AGS_ProjRoll), your strikes on its weapon or hand
+  (VR_AG_StrikeGap, your sweep's own VR_AG_STRIKE_R on top), body blows (VR_AG_Hit: VR_AG_BlowGap, the nearer of the two).
+  No hull (no rig): the old lines as before.
+- **The line** (VR_AG_WeaponLine, held::drawnExtent, weapondrawnpose 33-35; the parry's and the strike point's) keeps its
+  API, now off the hull: the model's own longest axis when that is 0.85 of the hull's longest span or more (a gun's
+  barrel, the sword's blade: 36.0 of 38.2), else the span's way (its two farthest corners: the axe's slanted haft);
+  the farthest corners alone put a nail pistol's line 28 degrees off its barrel (test 99). The directional parry keeps
+  using this line (his decision); the root cause of its being off (the model box's x) is fixed in held::drawnExtent.
+- **Sliders** (Weapons > Armed Enemies, the disarm rows; signed units, default 0 = the hull itself):
+  `vr_agrunt_vol_shot_weapon` "Volume: Its Weapon", `vr_agrunt_vol_shot_hand` "Volume: Its Hand", `vr_agrunt_vol_strike`
+  "Volume: Strikes", `vr_agrunt_vol_blow` "Volume: Body Blows". Retired: `vr_agrunt_shotdisarm_size` (a multiplier of the
+  old capsules; a saved value is dropped quietly) and VR_AG_DISARM_HAND. Note: at 0 a body blow must land on the drawn
+  hand, forearm or weapon (was anywhere within 10 units of the grip): Body Blows +4..8 for the old leniency.
+- **Show Disarm Volumes** draws the hulls' edges where drawn this frame, grown by their units: orange the strike volumes
+  (weapon and hand) and the line, magenta / cyan the shot volumes, red the body-blow ones.
+- **Test 16** (`vr_agrunt_test 16`, QC/vr_disarmhull_test.qc): 4 kinds x axe, sword, mjolnir, chainsaw, shotgun, rocket
+  launcher, nail pistol, frozen in Aim: hulls hold the rendered vertices, line on the long axis, a shot across the far half
+  counts and one 2.00 units off does not, a shot down the drawn forearm counts, a blow 3 units off keeps, one on the
+  forearm disarms. Before (the old volumes): 139 passed, 85 failed (every line off: axe 44, sword 54+ degrees (a sine);
+  22 of 28 shots 2 units off counted). After: **224 passed, 0 failed**.
+- **Regressions** (run_baseline `--only 'agrunt|disarm|ragdoll_grab|tug|wornpack'`, on the first commit): 99 failed 9
+  (its axis check against the drawn forward: the farthest-corners line on guns; fixed by the model-axis rule above, NOT
+  re-run), 94 1 ("a gun thrown at its gun hand, bounced off its body": relied on the 10-unit grip sphere; at Body Blows 0
+  a throw must land on the drawn hand or weapon), 95 1 (knight death: its sword's random fall, flaky before), 78 2
+  (dirparry2's test), 67 1 (grab table bullet time, flaky as listed), 71 (fails in the baseline), ragdoll_grab 1 ("grab
+  rag enforcer: no grab": the grab code is not touched; not re-run). The full run had not ended when I stopped.
+- Not done: eval.sh (melee code not touched), the before/after mock screenshots of his two views, the grab (fist on the
+  weapon: held::fistGap on its triangles at the server's place, not where drawn: the same stale-place family; a hull
+  query there is the next step), a dual-wield case in test 16.
+
+Checklist:
+- [disarmhull] Show Disarm Volumes on a grunt with an axe and one with a Knight's Sword held level: every volume is a
+  wireframe hull on the drawn weapon (magenta, orange, red on it) and on the drawn hand and forearm (cyan), none floating
+  or larger than the weapon; the sword's line runs along its blade.
+- [disarmhull] Weapons > Armed Enemies: Volume: Its Weapon +4: the magenta hull grows 4 units all round and a shot that
+  near counts; -1 shrinks it. Same for Its Hand (cyan), Strikes (orange), Body Blows (red).
+- [disarmhull] Body Blows 0: punching its drawn hand or forearm disarms, punching its chest 5 units off does not.
