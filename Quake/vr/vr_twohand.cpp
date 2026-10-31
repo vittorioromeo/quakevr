@@ -1353,6 +1353,7 @@ void applyCarried(hands::State& s, int holding, int helping)
         return;
     }
     g.on = false;
+    transition(g.t, false, 5.f); // (let go of: its share in support eased out, as a hotspot's)
     // The other hand taking hold of it anywhere but its handle (which takes it back: HS_CARRIED_GRIP).
     if(!vr_weapon_grab_anywhere.value || !client::grabbing(helping) || !held::handEmpty(helping) || carrying(helping) ||
         !candidate(helping) || !freshGrab(helping))
@@ -1488,8 +1489,11 @@ bool freeGripPoint(const hands::State& s, int hand, glm::vec3& out, float& t)
 
 float support(int hand)
 {
-    const FreeGrip& g = freeGrips[hand];
-    return za::max(aimTransition[hand], g.on ? g.t : 0.f);
+    // The other hand on the weapon: a hotspot's grip (its aim transition) or anywhere on it (a free grip's, the carried
+    // one's too), each blended in and, let go of, out the same way (5 a second); a hand holding something (a shell, a
+    // magazine, a weapon of its own) never grips it (held::handEmpty). Both ease out once let go (applyHand,
+    // applyCarried), so a release is as smooth as a hotspot's.
+    return za::max(aimTransition[hand], freeGrips[hand].t);
 }
 
 void setCarriedHandle(int hand, const glm::vec3& pos)

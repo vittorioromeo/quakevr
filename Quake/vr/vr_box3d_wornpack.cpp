@@ -243,10 +243,11 @@ float wornPack(edict_t* ent, int what, int a, int b, const glm::vec3& p)
         {
             return glm::length(glmv(b3Joint_GetConstraintForce(g.joint)));
         }
-        // (3: the hand from the point it holds)
+        // (3: the hand from the point it holds: the hold's own point on the hand, which begins where the pack's point was
+        // (startHold `still`))
         const b3BodyId part = r->body[static_cast<za::SizeT>(g.part)];
         const glm::vec3 held = world->toU(b3Body_GetWorldPoint(part, b3Joint_GetLocalFrameB(g.joint).p));
-        const glm::vec3 hand = world->toU(b3Body_GetPosition(g.anchor));
+        const glm::vec3 hand = world->toU(b3Body_GetWorldPoint(g.anchor, b3Joint_GetLocalFrameA(g.joint).p));
         return glm::distance(held, hand);
     }
     return -1.f;

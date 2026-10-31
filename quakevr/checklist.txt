@@ -203,6 +203,12 @@ Toolgun: an armed Knight with a nail pistol aims it in the pistol pose (off hand
 Hold a sword and strike an armed sword grunt's blade (middle or tip): sparks and a clang, your hand kicked back, it takes no damage and keeps its sword.
 Strike its blade hard (a full swing): it staggers briefly and its sword arm is knocked along your blow.
 Strike its sword hand instead: it can still be disarmed as before.
+Nail pistol: with an empty gun, seat a fresh magazine: the slide stays back for about a quarter second, then racks closed with its sound; pulling the trigger meanwhile does nothing.
+Nail pistol: Tunables > Nail Pistol Rack Delay (default 0.25 s, 0-1): at 0 the slide racks the moment the magazine seats, as before.
+Hold the shotgun (or any gun) and grip it with the off hand somewhere that is not its two-handed hotspot (e.g. its top, near the muzzle): the shots kick as little as with the hotspot (Weapon Effects' Two-Handed sliders); let go: the next shots kick one-handed again, the change smooth.
+Off hand holding a shell or magazine against the gun while firing: full one-handed kick.
+Grab an armed grunt's gun with one hand and pull back steadily: note how long it takes; then grab another's gun with both hands (one on the barrel, one by its body) and pull: it comes out clearly sooner (about two thirds).
+Grab a grunt's worn backpack (knocked down or standing) and walk slowly backwards: it is dragged by the pack, which stays on; yank hard: the pack tears off into your hand.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns

@@ -481,7 +481,7 @@ float(entity g, entity pl, float h) VR_AG_TugJoin =
     g.vr_ag_tug_two = 1;
     g.vr_ag_tug_since2 = time;
     g.vr_ag_tug_off2 = VRGetEntHandPos(pl, h) - p.origin;
-    VR_AG_Log(sprintf("tug: hand %g joins hand %g", h, g.vr_ag_tug_hand));
+    VR_AG_Log(sprintf("tug: hand %g joins hand %g, %.1f units from its weapon", h, g.vr_ag_tug_hand, vlen(g.vr_ag_tug_off2)));
     entity oldself = self;
     self = pl;
     haptic(h, 0, 0.1, 80, 0.6);
