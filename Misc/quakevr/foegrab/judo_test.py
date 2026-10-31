@@ -212,7 +212,7 @@ def lift_motion(name, down_at=None, pull_at=0.8, pull_t=0.25):
 def case_lift():
     """lift: a grunt (and an enforcer), hands at its shoulders, pulled up at 1.6 m/s: lifted (2 hands, flailing), its
     pelvis held up, then it breaks free at 2 s (vr_foegrab_lift_time) and shoves you back 24+ units. Thrown down: swung
-    down and let go at 1.8 s: let go of, no break free. An ogre (vr_test_spawn 1): not lifted (not a humanoid). Lift Reach
+    down and let go at 1.8 s: let go of, no break free. An ogre (vr_test_spawn 1): not lifted (its monster group's Lift is off). Lift Reach
     24 (it stands 36 off): not lifted. Lift off: no lift. The gesture on the player's clock, the same in slow motion
     (vr_timescale 0.3): pulled up 0.15 s after the grips (quick; the settle was 0.5 s of his then): lifted, slowed or not;
     pulled up 0.4 m in 1 s (0.4 m/s, under Lift Speed; slowed it read 1.3): not lifted, slowed or not."""
@@ -254,8 +254,9 @@ def case_lift():
             verdict(ok, f"grunt lifted and thrown down: let go of after {let.group(1) if let else '-'} s, "
                         f"{'broke free (wrong)' if broke else 'no break free'}")
         elif what == "ogre":
-            ok = not lifted and "no lift, not a humanoid" in flat and not bad
-            verdict(ok, f"ogre: {'lifted (wrong)' if lifted else 'not lifted'} ({'not a humanoid' if 'not a humanoid' in flat else '?'})")
+            groupOff = "no lift, its monster group's Lift is off" in flat
+            ok = not lifted and groupOff and not bad
+            verdict(ok, f"ogre: {'lifted (wrong)' if lifted else 'not lifted'} ({'its group Lift off' if groupOff else '?'})")
         elif what == "far":
             ok = not lifted and "no lift, too far from you" in flat and not bad
             verdict(ok, f"reach 24, it 36 off: {'lifted (wrong)' if lifted else 'not lifted'} ({'too far' if 'too far' in flat else '?'})")
