@@ -4428,3 +4428,44 @@ further during it (ai_charge).
   swings from there and its blows land; with fists, an axe or a hammer it still comes right up; step in on a swordsman:
   it holds its ground; back off: it follows {test:agrunt_melee_spacing} (Debug > Tests > Armed Grunts: Melee Spacing,
   `vr_agrunt_test 18`)."
+
+## Weapons as data (branch `agent/datatables`; design review 3, step 1: weapons)
+
+The weapons' settings (Weapon Offsets, Weapon Weights: 51 slots x 306 keys) are data, not 15,606 cvars.
+- **`quakevr/data/weapons.txt`**: a `defaults { key "value" ... }` block (every slot's value of a key; what
+  registerCvars' loops gave), then `weapon <slot> { ... }` per slot (slots from 0, as `vr_wofs_dump`; the old
+  `QVR_WEAPON_DEFAULT` and `QVR_WEAPON_UNINHERITED` rows, their comments carried along). Read at start
+  (`weapons::registerCvars`, COM_Parse; an unknown key is reported and skipped). vr_weapons.inc keeps the keys only
+  (4,444 lines of rows gone); `Quake/vr/vr_weapons_before48.inc` keeps the 352 AD defaults of before vr_wofs_version 48
+  that its migration compares (frozen).
+- **Storage**: `DataTable` (vr_slottable.hpp): each value's text, number and default in an unregistered `cvar_t`, its
+  stand-in named `vr_wofs_<key>_NN` (as the tunables' stand-ins). The menus' rows, the ~200 `->string`/`->value` reads
+  and the migrations keep working on it unchanged. Not in the cvar list: no registration, completion or `cvarlist`.
+  (Decision: stand-ins rather than bare float arrays, so the menus bind as before; thinning them to floats + text is a
+  later step with getter/setter rows.)
+- **Names kept for one release**: `Cvar_FindVar` falls back to the stand-in (`VR_CvarStandIn`), and `Cvar_SetQuick` of
+  one sets the table (`VR_StandInSet`): the console (`vr_wofs_x_05 1.2`, print), old and new configs, motion takes'
+  headers, his scripts, the tests' `cvar()`/`cvar_set()` all reach it by the old name.
+- **The config**: the player's values are sparse overrides of weapons.txt, written after the cvars, sorted, as
+  `vr_wofs_<key>_NN "value"` lines (`VR_ConfigWriteTables`; the line form kept so builds read each other's configs and
+  the config tracking, merge and `vr_config_test` see them). `vr_config_defaults` puts them back to weapons.txt's.
+- **Promoting his values**: `python Misc/quakevr/weapons_data.py promote <his ironwail.cfg> [--dry]` writes each
+  `vr_wofs_<key>_NN` line into block NN - 1 (in place, or added in key order; float noise kept as the file has it).
+  `check` validates the file; `convert` was the one-off converter. The Weapon Offsets / Weapon Weights "Print Changes"
+  and `vr_blade_dump` print weapons.txt lines.
+- **QC**: the game's QC reads it through the existing builtin `weaponvalue(model, key)` (no new builtin, no generated
+  table): the flare gun's barrel gap (was `cvar("vr_wofs_scale_38")`) and its test. The ammo-colour and armed-grunt tests
+  still set and restore by the old names (they work through the stand-ins).
+- Also: Propose Defaults lists the changed weapon values; `vr_config_test`'s iteration includes them.
+- **Checks** (before = origin/next ab0a03c68, the same tree): `vr_wofs_dump 0 .. 50` and `vr_wofs_dump` (15,612 lines)
+  identical with an empty sparse config, with his config's 17 vr_wofs_ lines (ironwail_now.cfg of 10-31) exec'd after
+  `vr_config_defaults` (a stray value set before it put back), with the kit's old full config (v141: every migration
+  step run) and with his lines typed at the console; `writeconfig` writes the same vr_wofs_ lines (1 and 17);
+  `config_sparse_test.sh` 16 passed, 0 failed, its every-setting dump after the load identical (sorted, 23,311 lines);
+  a motion take with weapon settings in its header (hilt_pommel_2026-10-12_12-32-54, the axe) replays the same, also
+  with `vr_wofs_x_01 5` set first (the take sets it back by name: "11 settings as recorded"); the reload suite
+  (`run_test_suite.py --only "reload_|holster|twohand"`: the 7 reload_ tests; none is named holster or twohand): SUITE.
+- **Next steps** (design review 3): the props (`props.txt`, the same DataTable), the monsters, the named per-weapon
+  families (`vr_reload_well_<gun>_*`, `vr_adgun_*`, ... as weapon keys); then the menus' rows on getter/setter bindings
+  (the stand-ins thinned to floats + text) and the vr_wofs_ names retired after a release (the config's lines then
+  `weapon`-keyed).

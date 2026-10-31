@@ -264,7 +264,7 @@ void() VR_FLM_Frame =
             vr_flt_barrel1 = vr_fg_lastbarrel;
             vr_flt_from1 = vr_fg_lastfrom;
             vector d = vr_flt_from0 - vr_flt_from1;
-            float want = VR_FLAREGUN_BARREL_GAP * cvar("vr_wofs_scale_38");
+            float want = VR_FLAREGUN_BARREL_GAP * weaponvalue("progs/v_flaregun.mdl", "scale");
             float along = d * vr_flt_up0;
             float across = vlen(d - vr_flt_up0 * along);
             VR_FLT_Check(vr_flt_barrel1 == 1 && fabs(along - want) < 0.05 && across < 0.05,

@@ -123,8 +123,9 @@ void dump(int slot)
         return;
     }
     const cvar_t* id = weapons::cvar(slot, Key::ID);
-    Con_Printf("// %s (slot %d, cvars _%02d): the blade's shape and tip (vr_weapons.inc lines; * changed)\n",
-        id ? id->string : "?", slot, slot + 1);
+    Con_Printf("// %s (slot %d, vr_wofs_*_%02d): the blade's shape and tip (lines of quakevr/data/weapons.txt's block "
+               "\"weapon %d\"; * changed)\n",
+        id ? id->string : "?", slot, slot + 1, slot);
     for(const Named& n : dumped)
     {
         const cvar_t* var = weapons::cvar(weapons::ownerSlot(slot, n.key), n.key);
@@ -133,7 +134,7 @@ void dump(int slot)
             continue;
         }
         const bool changed = var->default_string && strcmp(var->string, var->default_string) != 0;
-        Con_Printf("QVR_WEAPON_DEFAULT(%d, %s, \"%s\")%s\n", slot, n.name, var->string, changed ? " //*" : "");
+        Con_Printf("    %s \"%s\"%s\n", weapons::keyName(n.key), var->string, changed ? " //*" : "");
     }
 }
 
