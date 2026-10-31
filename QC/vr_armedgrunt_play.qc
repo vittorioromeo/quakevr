@@ -33,8 +33,8 @@
 //   a weapon up (VR_AG_SeekCheck) when it gets no nearer for 2.5 s or after vr_agrunt_seek_timeout s, and leaves it
 //   alone for vr_agrunt_seek_shun s.
 
-.entity vr_ag_tug_pl;     // the player tugging at its weapon (world: none)
-.float vr_ag_tug_hand;    // ... with that hand
+// (.vr_ag_tug_pl, the player tugging at its weapon: vr_armedgrunt_defs.qc)
+.float vr_ag_tug_hand;   // ... with that hand
 .float vr_ag_tug_since;   // ... since then
 .float vr_ag_tug_prog;    // the pull's time so far (s)
 .float vr_ag_tug_last;    // the tug's last frame (its step)

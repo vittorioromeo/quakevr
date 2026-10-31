@@ -76,7 +76,8 @@ float(entity xPlayer, float xHand, float xAllow) VR_Hand_Free =
         return FALSE;
     }
     float k = VR_Hand_Kind(xPlayer, xHand);
-    if(k != VR_HOLD_NONE && !(xAllow & VR_HANDFREE_BUSY) && !((xAllow & VR_HANDFREE_FOE) && k == VR_HOLD_FOE))
+    if(k != VR_HOLD_NONE && !(xAllow & VR_HANDFREE_BUSY) && !((xAllow & VR_HANDFREE_FOE) && k == VR_HOLD_FOE) &&
+       !((xAllow & VR_HANDFREE_GUNGRIP) && (k == VR_HOLD_SSGGRIP || k == VR_HOLD_MAGREHOLD)))
     {
         return FALSE;
     }

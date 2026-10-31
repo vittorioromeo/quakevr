@@ -119,6 +119,7 @@ float(entity g, entity p, vector at) VR_AG_HandLineDist;                   // VR
 // The physical tug (vr_armedgrunt_play.qc; vr_knockdown.qc keeps its stagger on while it lasts), a weapon on a ragdoll's
 // limb (VR_AG_RagProp), a weapon taken up from the floor (vr_armedgrunt.qc VR_AG_TakeBegin).
 .float vr_ag_tug_rag;      // the physical tug on: it stands as an active ragdoll, a hand holding its weapon
+.entity vr_ag_tug_pl;      // the player tugging at its weapon (world: none)
 .float vr_ag_rb;           // a held weapon's prop on a ragdoll: the limb it rides (+1; 0: none yet)
 .vector vr_ag_rbo;         // ... its origin, a point ahead and a point above it, in that limb's space
 .vector vr_ag_rbf;
@@ -142,6 +143,7 @@ float(entity g, string why) VR_AG_TugDisarm; // VR_AG_Disarm in a tug: into the 
 float(entity g, entity p) VR_AG_TugFrame;
 float(entity g) VR_AG_FallDrop;
 void(entity g, entity pl, float h) VR_AG_GrabBy;
+void(entity p, entity pl, float h) VR_AG_HandGrab; // (vr_armedgrunt.qc: a hand grabbing its weapon, refused when busy)
 float(entity g) VR_AG_DisarmDamage;
 float(entity g, entity w) VR_AG_Shunned;
 float(entity g, entity w) VR_AG_Reachable;

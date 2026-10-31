@@ -3311,6 +3311,7 @@ His note (2026-10-30): the force grab should refuse a busy hand too, "one single
   changes answers (a hand on a fore-end or holding an enemy could no longer climb): his call.
 - **Open (his call):** a busy hand still takes a weapon (lying, thrown, a grunt's, the holster's): the flashlight hand
   can grab a gun. Kept as it was (VR_HANDFREE_BUSY at those sites); dropping the bit there makes them refuse.
+  (Decided 2026-10-31: refuse. See "Busy hands refuse weapon pickups too".)
 - **check_canonical.py `qc-busy-hand`:** a new read of the force grab's lock, a slot kind compared to VR_HOLD_NONE or
   VR_HOLD_FLASHLIGHT, VR_Hand_IsBusyKind or the gone VR_Hand_CanTake outside today's sites fails the build.
 - **Test:** `vr_pickup_test 8` (Misc/quakevr/carry/fgbusy_test.sh, e1m1): VR_Hand_Free's exceptions; the first
@@ -3353,3 +3354,36 @@ Checklist:
   blow's way, in front of its chest, not off to its right; your swing rings off it.
 - [guardpose] Raise your weapon near a grunt (the wind-up parry) or step in close (the preventive guard): its raised
   weapon points at your hand, its hand still on the grip (not stretched off it).
+
+## Busy hands refuse weapon pickups too (branch `agent/busyweapon`; his decision 2026-10-31: "Yes, refuse")
+
+- **Change:** a busy hand (the flashlight, an enemy held, a gun's fore-end, a just-seated magazine, a tug) takes no
+  weapon. `VR_HANDFREE_BUSY` dropped at the weapon-taking sites: weapon_touch (all four checks, the body's too), a lying
+  weapon's grab (VR_PickupObj_WeaponTouch), a thrown weapon's catch (wpnthrow_handtouch_ent_hand), an armed grunt's
+  weapon (VR_AG_HandGrab: the grab, the living ragdoll's disarm grab), the holster draw and a carried gun's handle
+  (DoHandImpl's handEmpty).
+- **New exception `VR_HANDFREE_GUNGRIP` (8):** busy on your own gun alone (VR_HOLD_SSGGRIP, VR_HOLD_MAGREHOLD) still
+  takes it. The hand-off (VRTryHandOff) uses it: two-handing the super shotgun makes the fore-end hand SSGGRIP-busy, and
+  the main hand letting go must still hand the gun over (no drop). The flashlight hand gets no hand-off.
+- **Grapple pass:** it predicts the hand-off (the hook stays in when the other hand will take the gun), so it now asks
+  exactly what VRTryHandOff asks (GUNGRIP | LOCKED); with BUSY it kept the hook in for a flashlight hand that then would
+  not take the gun.
+- **Water climb:** kept BUSY (VR_HANDFREE_BUSY is now its only user): it is a grip on the bank, not a weapon taken.
+- **Weapon swaps:** VR_Hand_Free answers FALSE for a hand holding a weapon before any busy check, so swaps, two-handing
+  and the fore-end release-then-take (VRTakeCarriedWeapon needs a fresh grip; SSGGRIP is cleared once the grip lets go)
+  are unchanged. The hand-switch hotspot (VRSwitchWeaponHands: otherHandEmpty = VRIsHandEmpty) still moves a weapon
+  into a flashlight hand: not a pickup, left as is (one line for him if he wants it refused too).
+- **Moved:** `.vr_ag_tug_pl` to vr_armedgrunt_defs.qc, with a VR_AG_HandGrab prototype (the test, compiled earlier,
+  reads them).
+- **Test:** `vr_pickup_test 8` (Misc/quakevr/carry/fgbusy_test.sh, e1m1): VR_FgBusyTest_Offer gives the off hand,
+  gripping, a weapon lying (weapon_touch), a thrown weapon (the catch) and an armed grunt's weapon (VR_AG_HandGrab, grab
+  speed limit off for the test): the flashlight hand refuses each, the free hand takes each (a tug begun counts), then
+  all put back. Plus GUNGRIP: a fore-end hand gets the hand-off, a flashlight hand not. 19 passed, 0 failed (was 11).
+- **Verified:** run_baseline.sh --only (28 cases: weapon_catch, flash_grab, mapgun_pickup/transfer, pickup_mag,
+  grip_state, ragdoll_grab, walltorch_grab, held_over_props, reload, agrunt 2/3/21/22/31-33/36/39/65-69/74/75/91/92):
+  as agent/busyhand's run: agrunt_31/36/65 FAIL -> PASS against the old baseline, agrunt_66 PASS -> FAIL (known flaky),
+  agrunt_67 TIMEOUT (listed flaky; his game was running for part of the run); the rest as the baseline.
+  holsteritems_test.sh all PASS. Build 0 warnings.
+- **Checklist:** hold the flashlight in one hand and grab a gun lying on the floor, catch a thrown gun, or grab a
+  grunt's gun with that hand: nothing happens; the free hand takes them. Two-hand the super shotgun and let go with the
+  main hand: the fore-end hand keeps it. Flashlight hand at a holster: no draw.
