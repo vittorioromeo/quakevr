@@ -4187,3 +4187,29 @@ Checklist:
 - [disarmhull] Weapons > Armed Enemies: Volume: Its Weapon +4: the magenta hull grows 4 units all round and a shot that
   near counts; -1 shrinks it. Same for Its Hand (cyan), Strikes (orange), Body Blows (red).
 - [disarmhull] Body Blows 0: punching its drawn hand or forearm disarms, punching its chest 5 units off does not.
+
+Part 2 (verified, finished):
+- **The line's rule, fixed:** 47718273d's "model axis when 0.85 of the span" took the Knight's Sword's model x, 20 degrees
+  off its blade (its x extent 36.0 of 38.2: a cosine), so test 16 failed its 4 sword rows (line ends off the hull). Now
+  (held::drawnExtent) the model's own axis is kept only when its line stays in the weapon: its ends no more than a unit
+  further out of the hull (its face planes) than the farthest corners' line's; else the corners' way. Guns and the axe
+  keep their model axis (test 99's axis checks 41/0), the sword's line runs along its blade (test 16 rows pass).
+  VR_AG_WeaponLine's API unchanged.
+- **The grab on the hull:** the fist on an armed monster's weapon (vr_physics onArmedWeapon, armedGrabGap: one helper,
+  armedFistGap) now measures its spheres against the same hull a shot, strike and blow use, where the weapon is drawn
+  (`disarmhull::spheresGap`; inside the hull counts as on it); its sweep over the last two server frames carries the
+  drawn hull back by the server's own moves. No hull (nothing drawn): held::fistGap as before. vr_agrunt_grab_slack /
+  _leniency stay the grab's allowance (no new slider).
+- **A real bug found by test 94:** VR_AG_ThrowOnWeapon (a thrown weapon, prop or gib's way in) called VR_AG_StrikeGap
+  without setting its globals (vr_ag_strike_g / _p): it measured the *previous strike's* grunt's hulls, so a gun thrown
+  at a grunt's hand could miss it. Fixed; logs added (vr_agrunt_debug) for a too-slow throw and a missed way in. Test 94
+  case 11 now aims at the drawn hand's volume (disarmhull 21 / 22: a volume's middle) and prints both gaps; it was never
+  the 10-unit sphere: the damage path needs vr_agrunt_disarm_damage 10 (its 5 never could), the momentum rule (56 kg m/s)
+  disarms it. 94: 16/0.
+- **Test 16** adds a grunt dual wielding two nail pistols (the right one, then a fresh grunt's left one: its left
+  hand's hull and forearm); the death knight with the Knight's Sword is the sweep's "Death Knight sword" row.
+  **242 passed, 0 failed.** Test 17 (`vr_agrunt_test 17`): an eyeshot aid, his two views (axe, Knight's Sword held
+  level) with Show Disarm Volumes on.
+- Runs: 16 242/0, 99 41/0, 94 16/0; 78 (dirparry2's) 7/2 both before and after this part (its two horizontal-swing
+  cases; unchanged by the line fix). Skipped by the coordinator's rule: the wide subset, eval.sh (no melee code), the
+  before screenshots.

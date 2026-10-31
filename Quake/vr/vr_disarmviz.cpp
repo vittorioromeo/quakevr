@@ -414,9 +414,13 @@ void draw(const glm::vec3& eye)
     }
     if(fresh(viz.time))
     {
-        for(int i = 0; i < viz.shapeCount; i++)
+        // (the hulls read the server's edicts: its progs switched in, the view's set up with the client's or none)
         {
-            drawShape(viz.shapes[static_cast<za::SizeT>(i)]);
+            const progs::ServerVm vm;
+            for(int i = 0; i < viz.shapeCount; i++)
+            {
+                drawShape(viz.shapes[static_cast<za::SizeT>(i)]);
+            }
         }
         const float cm = 100.f / units::metresToUnits();
         for(int i = 0; i < viz.labelCount; i++)
