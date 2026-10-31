@@ -46,6 +46,9 @@ constexpr GlobalRow globalDefaults[] = {
     // row his off hand on a gun's second grip was turned 166 degrees off his forearm, never taken (vr_agarms_wrist): the
     // turn that leaves his wrist straight on the shotgun's fore-end in Aim (5 degrees; the grunt's tuned one 32))
     {2, aggrip::Second, 0.f, 0.f, 0.f, -54.5f, 176.5f, 74.0f},
+    // (the armed death knight (agent/dknight): the same, read off his own rig: with no row his wrist bent 93 degrees on
+    // the shotgun's fore-end in Aim; this turn (a search over the three angles, vr_agrunt_ik_debug 4) leaves it 1-3)
+    {3, aggrip::Second, 0.f, 0.f, 0.f, -161.0f, 37.0f, -55.0f},
 };
 
 // A weapon's own shipped grips (its weapon id: Weapon Offsets' ID), on top of its kind's "All Weapons" one; the Grip
