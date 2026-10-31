@@ -187,6 +187,9 @@ Armour, Plate Blocks All: shotgun, revolver, nails, plasma and rockets at a grun
 Shoot a plate on a living and a ragdolled armoured grunt: it is pushed about half as hard as a bare limb (Combat > Armed Grunts > Armour > Push Through Plates).
 Throw a broken plate at a grunt: it hurts it. The plate-break sound is quicker and punchier.
 Debug > Show Armour Plates: plate outlines over each worn plate, limbs included (say if they're too thin to see).
+Shove a grunt: it staggers and recovers, or goes over (arms braced), lies a moment, gets up; punch at its head mid-stagger (arms up to guard); kill one mid-stagger: limp.
+Knock one off a ledge: it grabs the lip, hangs, pulls itself up (or drops). Knock one into water: it swims to where it can stand; kill one standing in water: it paddles weakly, then goes limp.
+Lift a living grunt: it struggles; let go: it falls. Cut a limb off a dying one: the hand goes to the stump, the writhe.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns {test:arena_run}

@@ -88,6 +88,7 @@ void letGo(State& s, int arm, const Context* c, const char* why);
 void holdOn(State& s, const Parts& p, const Context& c, int arm, const glm::vec3& at, float cap);
 [[nodiscard]] glm::vec3 shoulderOf(const State& s, const Parts& p, int arm);
 void livingLedge(State& s, const Parts& p, const Context& c);
+void struggleGivesWay(State& s);
 
 // vr_ragactive_swim.cpp
 [[nodiscard]] SwimParts swimParts(const Parts& p);
