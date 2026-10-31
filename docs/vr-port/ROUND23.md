@@ -4274,6 +4274,23 @@ His voice notes of 2026-10-31 ~19:55 (five items). Stopped at the tool budget; w
   scene every time). The toolgun already passed armour 0; ragtool spawns nothing; `vr_physics_spawn` still rolls (a map
   spawn's behaviour, left).
 - **Debug view** fixed: `debugDraw` read edicts without the server's VM (a crash the first time it was on).
+- **Part 3** (merged `next`: the new rows are schema rows, `vr_agarmor_impulse` and `vr_agarmor_debug` in vr_menu_rows.inc):
+  - Projectiles: `VR_Proj_Begin` hands the armour its flight line (`VR_AgArmor_Flight`: from a frame's flight back);
+    `VR_AgArmor_Shot` queries from there (each ask this frame near that line), not from the touch point.
+  - `shotPiece`: a line through a seam of a plate's mesh (test 10: a plate's face middle, a vertex; 0.002 units off a
+    line that met it, none) is retried nudged 0.05 four ways, then the skin it reaches under a worn plate (within the
+    plate's gap and thickness) counts as that plate.
+  - Test 10: one body at a time (10-16 s; before, four at once ran past 1500 s), at rest each shot, debris cleared,
+    `vr_hit_react 0` meanwhile (a flinch moved the plate off the aimed line), projectiles from 44 units out, the plasma
+    bolt's 0.1 s rest skipped, projectiles that never meet the body counted apart (`missed`, at most 12). It also
+    judged the next kind's first pellet against the last body (a stale projectile): fixed. Now 157/15: 12 projectile
+    leaks left, all limb plates (bracers 4/5, thighs 7, shins 9) and mostly plasma and rockets, the projectile
+    meeting the body at the plate's face middle yet the query finding no plate there while the same query from a
+    point 0.5-4 units back along the line finds it. Suspect the limb plates' "face middle" (limbpiece 14) lies on or
+    inside a wrapped plate's mesh; next: check those plates' meshes at that point.
+  - Debug view: the plate lines are `lines::line` (drawn over everything, no depth test), so they cannot hide in the
+    plate; the flatscreen Rig Studio screenshot shows the red armour but the 0.06-unit lines are too thin to see there.
+  - Test 11 timed out twice (240-300 s, no output at all) after the merge: not looked into.
 ## Directional parry 2: debug view, leniency settings, Enemy Melee Speed (branch `agent/dirparry2`)
 
 His words (10-31): a debug view for it, leniencies he can tweak, slowed enemy swings to practise with.
