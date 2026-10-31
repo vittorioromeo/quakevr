@@ -190,6 +190,8 @@ Debug > Show Armour Plates: plate outlines over each worn plate, limbs included 
 Shove a grunt: it staggers and recovers, or goes over (arms braced), lies a moment, gets up; punch at its head mid-stagger (arms up to guard); kill one mid-stagger: limp.
 Knock one off a ledge: it grabs the lip, hangs, pulls itself up (or drops). Knock one into water: it swims to where it can stand; kill one standing in water: it paddles weakly, then goes limp.
 Lift a living grunt: it struggles; let go: it falls. Cut a limb off a dying one: the hand goes to the stump, the writhe.
+Hit rules unified (your call): blood, wounds and gore land where blades, shots and blasts hit, all at the same spot as the flinch; a blast's wounds face the blast; knight/wizard spikes gib lightly; a thrown blade knocks down as a blade; underwater lightning zaps (shock wounds and gibs); a stuck axe leaves a blade wound; gibs and statues never bleed.
+A crowbar on an explosive box now knocks (blunt) instead of clanging: say if it should clang.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns {test:arena_run}
