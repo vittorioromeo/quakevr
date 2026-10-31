@@ -1221,6 +1221,7 @@ void animsmooth::prepare()
         RigFit fit;
     };
     za::Vector<Job> work;
+    const double t0 = Sys_DoubleTime();
     for(int i = 1; i < MAX_MODELS && cl.model_precache[i]; i++)
     {
         qmodel_t* model = cl.model_precache[i];
@@ -1254,16 +1255,20 @@ void animsmooth::prepare()
             work.erase(work.begin() + static_cast<za::PtrDiffT>(k));
         }
     }
+    const double t1 = Sys_DoubleTime();
     jobs::parallelFor(rigsSite, work.size(), 1, [&work](za::SizeT k0, za::SizeT k1) {
         for(za::SizeT k = k0; k < k1; k++)
         {
             rigFit(*work[k].m, work[k].hdr, work[k].fit);
         }
     });
+    const double t2 = Sys_DoubleTime();
     for(Job& j : work)
     {
         rigRest(*j.m, j.model, j.hdr, j.fit);
     }
+    Con_DPrintf("smooth rigs: %d made: their rigs found %.1f ms, fits on the pool %.1f, rest rows %.1f\n",
+        static_cast<int>(work.size()), (t1 - t0) * 1000.0, (t2 - t1) * 1000.0, (Sys_DoubleTime() - t2) * 1000.0);
 }
 
 extern "C" int VR_AnimSmoothRows(int channel)
