@@ -261,6 +261,7 @@ void(entity g, entity p, vector from, vector dir) VR_AGP_Strike =
     }
     entity oldself = self;
     self = g;
+    vr_drp_w = p; // (the directional parry reads which weapon swings: vr_dirparry.qc)
     float h = cVR_MainHand;
     self.handpos = from;
     vector a = vectoangles(dir);
@@ -294,6 +295,7 @@ void(entity g, entity p, vector from, vector dir) VR_AGP_Strike =
     self.vr_ag_strikes = self.vr_ag_strikes + 1;
     vr_agp_events = vr_agp_events + 1;
     VR_AG_Log(sprintf("agp: %s blow (%s) at %s", p ? p.netname : "a fist's", vtos(from), self.enemy.classname));
+    vr_drp_w = world;
     self = oldself;
 };
 
@@ -2020,6 +2022,18 @@ void(entity g, entity p) VR_AGP_Pose =
     float c = p ? VR_AG_Class(p.weapon) : VR_AG_CLASS_FISTS;
     VR_AGP_Demo(g, c);
     VR_AGK_Keys(g, p); // (the Pose Studio's keys: laid on below; the blows' lines moved with them, VR_AGP_Strike)
+    if(c == VR_AG_CLASS_MELEE && !vr_agp_quiet)
+    {
+        // (the directional parry: its swinging blade as drawn met your weapon held across it: vr_dirparry.qc)
+        if(VR_AGP_RightSwings(g))
+        {
+            VR_DRP_Frame(g, p);
+        }
+        if(pL && g.vr_ag_act_hand != 0)
+        {
+            VR_DRP_Frame(g, pL);
+        }
+    }
     if(c == VR_AG_CLASS_FISTS)
     {
         VR_AGP_Fists(g, handL);

@@ -1052,7 +1052,10 @@ void(entity g, float wid) VR_AG_DisarmFeedback =
     VR_AG_Log(sprintf("disarm feedback: %s", vr_ag_feedback));
 };
 
-// The least distance between the segments a0..a1 and b0..b1.
+// The least distance between the segments a0..a1 and b0..b1 (the nearest points: a0 + (a1 - a0) x vr_ag_seg_s, b0 +
+// (b1 - b0) x vr_ag_seg_t).
+float vr_ag_seg_s;
+float vr_ag_seg_t;
 float(vector a0, vector a1, vector b0, vector b1) VR_AG_SegDist =
 {
     vector d1 = a1 - a0;
@@ -1063,6 +1066,8 @@ float(vector a0, vector a1, vector b0, vector b1) VR_AG_SegDist =
     float f = d2 * r;
     float s = 0;
     float t = 0;
+    vr_ag_seg_s = 0;
+    vr_ag_seg_t = 0;
     if(a <= 0.001 && e <= 0.001)
     {
         return vlen(r);
@@ -1096,6 +1101,8 @@ float(vector a0, vector a1, vector b0, vector b1) VR_AG_SegDist =
             }
         }
     }
+    vr_ag_seg_s = s;
+    vr_ag_seg_t = t;
     return vlen(a0 + d1 * s - (b0 + d2 * t));
 };
 

@@ -88,6 +88,18 @@ float vr_agbc_stopped;     // ... stopped on its blade (VR_AG_BladeContact: T_Da
 .vector vr_agbc_mark;      // ... [that hand + 1, when]: that motion's later blows on it stop there too
 float(entity targ, entity inflictor, entity attacker, float damage) VR_AGPar_Blow; // T_Damage, T_Damage_VRMelee
 float(entity g) VR_AGPar_Guards;                                           // VR_Guard_Hand: it parries instead
+// Directional parry (vr_dirparry.qc; vr_dirparry, experimental): your weapon held across an armed humanoid's swing.
+.vector vr_drp_a0;         // (a held weapon) its drawn line's two ends last frame, and when (0: none)
+.vector vr_drp_b0;
+.float vr_drp_t0;
+.float vr_drp_swing;       // (an armed humanoid) the swing (its vr_ag_act_at) a directional parry stopped (0: none)
+entity vr_drp_w;           // the weapon whose blow VR_AGP_Strike deals now (world: none)
+float(entity g) VR_DRP_Applies;                                            // VR_Parry: its blow is judged by the direction
+float(entity g) VR_DRP_Done;                                               // VR_Parry: this swing was stopped already
+float(entity pl, entity g) VR_DRP_Blow;                                    // VR_Parry: the parrying hand (-1: none)
+void(entity pl, entity g, float h) VR_DRP_Effects;                         // VR_Parry: sparks and the clang at the meeting
+void(entity g, entity w) VR_DRP_Frame;                                     // VR_AGP_Pose: its swing met your weapon
+float vr_drp_cut;          // VR_DRP_Blow's partial parry: the share of the blow taken off (0: none)
 void(entity g) VR_AGPar_Frame;                                             // VR_AG_PropThink: a blow coming
 void(entity g, entity p) VR_AGPar_Pose;                                    // VR_AGP_Pose: the parry's pose
 vector vr_agpar_mid;       // ... its weapon's middle's target (body space), VR_AGPar_Pose's this pose

@@ -862,6 +862,14 @@ QVR_TUNABLE_SLIDER(vr_agrunt_blade_stagger_time, "Stagger Time", 0.05f, 2.0f, 0.
 QVR_TUNABLE_SLIDER(vr_agrunt_blade_arm, "Arm Impulse", 0.0f, 2.0f, 0.05f, "%.2f", 0.0f, 10.0f, "How hard a staggering blow knocks its weapon arm along the blow (the hit reaction's strength per 10 m/s). 0: none (vr_agrunt_blade_arm).")
 QVR_TUNABLE_SLIDER(vr_agrunt_blade_fx, "Sparks and Sound", 0.0f, 3.0f, 0.1f, "%.1fx", 0.0f, 3.0f, "The blade contact's sparks and clang times this. 0: none (vr_agrunt_blade_fx).")
 
+QVR_TUNABLE_GROUP("Combat > Directional Parry")
+QVR_TUNABLE_SLIDER(vr_dirparry_window, "Window", 0.0f, 0.4f, 0.01f, "%.2f s", 0.0f, 1.0f, "Directional Parry (experimental): at an armed humanoid's blow, its blade's way is followed on this long; your weapon in it then parries (vr_dirparry_window).")
+QVR_TUNABLE_SLIDER(vr_dirparry_contact, "Contact Distance", 0.5f, 20.0f, 0.5f, "%.1f units", 0.5f, 60.0f, "Its blade's line and your weapon's within this meet (vr_dirparry_contact).")
+QVR_TUNABLE_SLIDER(vr_dirparry_angle, "Angle Leniency", 0.0f, 85.0f, 1.0f, "%.0f deg", 0.0f, 89.0f, "Your weapon this far off square to its blade and its way still counts fully; less at more, none at 90 (vr_dirparry_angle).")
+QVR_TUNABLE_SLIDER(vr_dirparry_threshold, "Score Threshold", 0.0f, 1.0f, 0.05f, "%.2f", 0.0f, 1.0f, "The score (the angle's marks times the meeting's, 0 to 1) that parries (vr_dirparry_threshold).")
+QVR_TUNABLE_SLIDER(vr_dirparry_partial, "Partial Share", 0.0f, 1.0f, 0.05f, "%.2f", 0.0f, 1.0f, "Under the threshold the blow is cut by this times score / threshold. 0: off, the full blow (vr_dirparry_partial).")
+QVR_TUNABLE_SLIDER(vr_dirparry_opening, "Opening", 0.05f, 1.5f, 0.05f, "%.2f s", 0.05f, 3.0f, "Its flinch after your directional parry when the parry balance gave it no stagger: its swing stopped (vr_dirparry_opening).")
+
 QVR_TUNABLE_GROUP("Combat > Armed Humanoid Replacements")
 QVR_TUNABLE_SLIDER(vr_agrunt_repl_skill0, "Easy", 0.0f, 4.0f, 0.25f, "%.2fx", 0.0f, 4.0f, "The variety chances above times this at that skill (each chance at most 1).")
 QVR_TUNABLE_SLIDER(vr_agrunt_repl_skill1, "Normal", 0.0f, 4.0f, 0.25f, "%.2fx", 0.0f, 4.0f, "The variety chances above times this at that skill (each chance at most 1).")
