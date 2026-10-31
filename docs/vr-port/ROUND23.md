@@ -4246,6 +4246,24 @@ His words (10-31): a debug view for it, leniencies he can tweak, slowed enemy sw
   mock (`vr_rigstudio monster_vr_grunt 13; vr_rigstudio_posekey kind 0 class 2 pose 14 swingspeed 0.25 swing 1`):
   not verified, the studio had no subject attached (`subject -1 -1`, no `agk:` play line) in that script.
 
+### Part 3: the line after the hull fix (merged next with agent/disarmhull)
+
+- Test 78 after the merge: sword and Knight's Sword 0.48, the rest 1.1-6.3 units off. Two causes, per weapon:
+  - The reference: an axe's or hammer's muzzle (weapons' Muzzle offset) is where it strikes (an axe's edge, Mjolnir's
+    face beside its head), not its far end. The check's tip is now the middle of the drawn model's points within a
+    unit of its frontmost along the line (as its butt already was of the rearmost), still from the client's drawn
+    triangles and the renderer's matrix (vr_dirparryviz.cpp).
+  - The line: on the farthest-corners way (melee weapons: blades, hafts with heads) held::drawnExtent's line ran through
+    its hull corners' middle, which a one-sided head pulls off the haft (the axe's 2 units beside it, the super axe's 5).
+    On that way only, its ends are now the middles of its triangles' points within a unit of its rearmost and frontmost
+    along the axis (vr_held.cpp); the model-axis way (guns' barrels) and the rule choosing between them are unchanged.
+- Now: sword, axe, Knight's Sword, Mjolnir 0.00; AD crowbar 0.03, AD super axe 0.09. Chainsaw 2.56: not fixed. Its
+  farthest-corners axis runs 5 degrees off its bar (the model's x was rejected: through its box's middle it leaves the
+  bar), so its rear end along it is the bottom of its rear handle, 2.5 below the butt; its front is the bar's tip. The
+  fix is in the rule (place the axis candidate through the rear end before judging it: that picks x for the chainsaw,
+  but also turns the shotgun to the corners' way, test 99 18 degrees off), left for a decision.
+- Also: test 77 12/0, test 16 (disarm hulls) 242/0, test 99 (drawn pose) 41/0.
+
 ## Disarm volumes as hulls of the drawn triangles (branch `agent/disarmhull`)
 
 His notes (2026-10-31 19:36, 19:38; a grunt with an axe, one with a Knight's Sword held level): the cyan volume floats

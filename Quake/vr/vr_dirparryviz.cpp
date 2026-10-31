@@ -342,6 +342,47 @@ void PF_debugdirparryline()
         t.measured = true;
         t.butt = glm::vec3{w * glm::vec4{butt, 1.f}};
         t.tip = glm::vec3{w * glm::vec4{muzzle, 1.f}};
+        // Its tip: the middle of its points within a unit of its frontmost along the line (as its butt is of the rearmost);
+        // its muzzle is where it strikes, not its far end, for a head on a haft (an axe's, a hammer's face beside it).
+        {
+            const glm::mat4 inv = glm::inverse(w);
+            const glm::vec3 la{inv * glm::vec4{t.a, 1.f}}, lb{inv * glm::vec4{t.b, 1.f}};
+            entity_t at{};
+            at.model = cl_entities[t.num].model;
+            at.scale = ENTSCALE_DEFAULT;
+            const grasp::Shape* shape = grasp::shapeOf(at, -1);
+            if(shape && glm::length(lb - la) > 1e-3f)
+            {
+                const glm::vec3 dl = glm::normalize(lb - la);
+                const glm::mat4 m = grasp::shapeToWorld(at, false);
+                float front = -1e30f;
+                for(const grasp::Triangle& tri : shape->tris)
+                {
+                    for(const glm::vec3& p : tri.p)
+                    {
+                        front = za::max(front, glm::dot(glm::vec3{m * glm::vec4{p, 1.f}}, dl));
+                    }
+                }
+                glm::vec3 sum{0.f};
+                int n = 0;
+                for(const grasp::Triangle& tri : shape->tris)
+                {
+                    for(const glm::vec3& p : tri.p)
+                    {
+                        const glm::vec3 v{m * glm::vec4{p, 1.f}};
+                        if(glm::dot(v, dl) >= front - 1.f)
+                        {
+                            sum += v;
+                            n++;
+                        }
+                    }
+                }
+                if(n > 0)
+                {
+                    t.tip = glm::vec3{w * glm::vec4{sum / static_cast<float>(n), 1.f}};
+                }
+            }
+        }
         const float back = glm::length(t.a - t.butt), front = glm::length(t.b - t.tip);
         viz.check.frames++;
         viz.check.worstBack = za::max(viz.check.worstBack, back);
