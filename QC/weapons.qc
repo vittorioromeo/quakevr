@@ -1751,7 +1751,7 @@ void(float damage) spawn_touchblood =
     }
     if(bleed > 0)
     {
-        VR_ImpactFx(m, VR_HIT_NAIL, other, self.origin, vel, damage * bleed);
+        VR_ImpactFx(m, VR_Hit_ShotKind(self, self.owner, VR_HIT_NAIL), other, self.origin, vel, damage * bleed);
     }
 };
 
@@ -2141,14 +2141,14 @@ void(float damage, vector dir) TraceAttack =
                 float through = VR_AgArmor_HitFx(trace_ent, trace_endpos, vel, damage);
                 if(through > 0)
                 {
-                    VR_ImpactFx(m, VR_HIT_BULLET, trace_ent, org, vel, damage * through);
+                    VR_ImpactFx(m, VR_Hit_ShotKind(self, self, VR_HIT_BULLET), trace_ent, org, vel, damage * through);
                     VR_Wound_Pellet(trace_ent, trace_endpos, dir, damage); // VR: painted on its model (vr_wounds.qc)
                 }
                 VR_HitReact_Pellet(trace_ent, trace_endpos, dir); // VR: where its flinch is (vr_hitreact.qc)
             }
             else
             {
-                VR_ImpactFx(m, VR_HIT_BULLET, trace_ent, org, vel, damage);
+                VR_ImpactFx(m, VR_Hit_ShotKind(self, self, VR_HIT_BULLET), trace_ent, org, vel, damage);
             }
             bleed = TRUE;
         }

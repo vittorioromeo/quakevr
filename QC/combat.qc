@@ -1010,6 +1010,35 @@ float(entity inflictor, entity attacker) VR_Hit_Bleeds =
     return inflictor != world && !VR_Hit_Bloodless() && VR_Hit_Class(inflictor, attacker) != QVR_HITCLASS_BURN;
 };
 
+// The impact table's kind (VR_HIT_*, vr_impact_shared.h) of a shot, from the record (design review 6): a pierce
+// (VR_Hit_Class) a bullet when hitscan, a nail when a projectile's (VR_Hit_Hitscan / hit_proj: both dent and bleed as a
+// bullet's, each its own row). Else `xElse`, the caller's: how it came where the class says nothing of it (a thrown
+// thing's splinters, a monster's own shot with no record).
+float(entity inflictor, entity attacker, float xElse) VR_Hit_ShotKind =
+{
+    if(hit_kind == QVR_HITKIND_SHOT && VR_Hit_Class(inflictor, attacker) == QVR_HITCLASS_PIERCE)
+    {
+        return hit_proj ? VR_HIT_NAIL : VR_HIT_BULLET;
+    }
+    return xElse;
+};
+
+// The impact table's kind of a blow's own sound (VR_IMPACT_SOUND: the clang or the knock on metal), from the record's
+// class: a blade's the blade's, a blunt thing's the bash. Else `xElse`, the caller's.
+float(entity inflictor, entity attacker, float xElse) VR_Hit_BlowKind =
+{
+    float c = VR_Hit_Class(inflictor, attacker);
+    if(c == QVR_HITCLASS_BLADE)
+    {
+        return VR_HIT_BLADE;
+    }
+    if(c == QVR_HITCLASS_BLUNT)
+    {
+        return VR_HIT_BASH;
+    }
+    return xElse;
+};
+
 float(float xKind) VR_Corpse_DamageKindMult;
 
 float(entity targ, entity inflictor, entity attacker, float damage, float kind) VR_Limb_CorpseWear;
