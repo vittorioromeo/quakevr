@@ -177,6 +177,8 @@ Relight a map (Graphics > Relighting > Relight This Map): it is slightly brighte
 Relight the map you are in: it reloads at once where you stand, without restarting the map.
 With Ghost Hands on, the ghost appears only once the drawn hand is about 9 cm from your real one (was 6).
 With replacements on, a Grunt from the toolgun, the Debug menu spawner or the Rig Studio is a plain unarmed grunt; the Armed Grunt entries are still armed.
+Fire the starter shotgun one-handed, then two-handed, and watch the gun through the auto pump's stroke: it kicks once and settles smoothly; no second lurch back and up about a quarter second after the shot.
+Weapon Effects: the four Two-Handed sliders (Kick Back, Muzzle Rise, Return Time, Haptics) each change only their own part of a two-handed shot; your old Two-Handed Recoil value is on all four.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns
