@@ -293,7 +293,12 @@ void PF_weapondrawnpose()
         // class): posestudio::qcHold.
         const int arg = static_cast<int>(G_FLOAT(OFS_PARM1));
         glm::vec3 out{0.f};
-        if(what == 19)
+        if(what == 19 && arg < 0)
+        {
+            // (`hand` -1: the speed the studio plays `player`'s strike at, the Rig Studio's Swing; 1 for anything else)
+            out = glm::vec3{rigstudio::swingSpeed(NUM_FOR_EDICT(player)), 0.f, 0.f};
+        }
+        else if(what == 19)
         {
             out = posestudio::qcHold(NUM_FOR_EDICT(player), arg / 100, arg % 100);
             glm::vec3 studio;

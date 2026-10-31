@@ -49,6 +49,8 @@ vector VR_AGP_PORT_FW = '0.35 0.55 0.75';
 .float vr_ag_act;      // its attack under way: VR_AGP_* (0 none)
 .float vr_ag_act_kind; // which: a punch's or a swing's variation
 .float vr_ag_act_at;   // when it began
+.float vr_ag_act_speed; // a swing's or a punch's speed, set as it began (vr_agrunt_melee_speed; the Rig Studio's
+                        // Swing; 0: 1): its times divided by it (VR_AGP_Times)
 .float vr_ag_act_tick; // its frames' last think (stale: interrupted, a pain)
 .float vr_ag_act_hit;  // its blow struck
 .float vr_ag_act_combo; // punches in a row
@@ -196,6 +198,14 @@ float VR_AGP_SHOVE_WIND = 0.18;    // the shove's wind-up (s)
 float VR_AGP_SHOVE_PUSH = 0.12;    // ... its push: the push lands as it ends
 float VR_AGP_SHOVE_RECOVER = 0.1;  // ... into its recover key
 float VR_AGP_SHOVE_BACK = 0.16;    // ... back to the stance
+
+// `g`'s attack's speed: a swing's or a punch's vr_ag_act_speed (0.1..1), 1 for anything else.
+float(entity g) VR_AGP_Speed =
+{
+    float sp = g.vr_ag_act_speed;
+    return (sp > 0 && sp < 1 && (g.vr_ag_act == VR_AGP_SWING || g.vr_ag_act == VR_AGP_PUNCH)) ? max(0.1, sp) : 1;
+};
+
 void(entity g) VR_AGP_Times =
 {
     vr_agp_th = 0;
@@ -228,6 +238,15 @@ void(entity g) VR_AGP_Times =
         vr_agp_tw = heavy ? 0.36 : 0.28;
         vr_agp_ts = heavy ? 0.18 : 0.15;
         vr_agp_tr = heavy ? 0.36 : 0.3;
+    }
+    float sp = VR_AGP_Speed(g);
+    if(sp < 1)
+    {
+        // (slowed: every phase as much, so its keys, its blow and its hit come at the same points of it)
+        vr_agp_tw = vr_agp_tw / sp;
+        vr_agp_ts = vr_agp_ts / sp;
+        vr_agp_th = vr_agp_th / sp;
+        vr_agp_tr = vr_agp_tr / sp;
     }
 };
 float(entity g) VR_AGP_Length = { VR_AGP_Times(g); return vr_agp_tw + vr_agp_ts + vr_agp_th + vr_agp_tr; };
@@ -338,7 +357,7 @@ void(entity g, vector handL) VR_AGP_Fists =
         if(s < vr_agp_tw)
         {
             fist = VR_Lerp(guard, wind, VR_Smooth(s / vr_agp_tw));
-            m = k + (1 - k) * VR_Smooth(s / 0.06);
+            m = k + (1 - k) * VR_Smooth(s * VR_AGP_Speed(g) / 0.06);
         }
         else if(s < vr_agp_tw + vr_agp_ts)
         {
@@ -1689,8 +1708,15 @@ void(entity g, entity p) VR_AGK_Hold =
     g.vr_ag_act_hit = 2; // (no blow dealt, no cut)
     g.vr_ag_act_hitl = 1;
     g.vr_ag_act_tick = time;
+    float play = was && vr_agk_hplay != g.vr_agk_play;
+    if(play || time >= g.vr_agk_play_end)
+    {
+        // (its speed as the Rig Studio's Swing plays it, 1 for anything else: taken as it starts, kept through it)
+        vector sp = weapondrawnpose(g, -1, 19);
+        g.vr_ag_act_speed = sp_x;
+    }
     VR_AGP_Times(g);
-    if(was && vr_agk_hplay != g.vr_agk_play)
+    if(play)
     {
         g.vr_ag_act_at = time; // (Play: the strike from its start, in place)
         g.vr_agk_play_end = time + VR_AGP_Length(g) + 0.4;
@@ -2528,6 +2554,7 @@ void(float act) VR_AGP_Begin =
         self.vr_ag_act_kind = 0;
     }
     self.vr_ag_act_at = time;
+    self.vr_ag_act_speed = min(1, max(0.1, cvar_hget(cvarh_vr_agrunt_melee_speed))); // (parry practice: 1 normal)
     self.vr_ag_act_var = random();
     self.vr_ag_act_hit = 0;
     self.vr_ag_act_hitl = 0;
@@ -2605,15 +2632,16 @@ void() VR_AGP_Frame =
         ai_face();
     }
     float s = time - self.vr_ag_act_at;
+    float sp = VR_AGP_Speed(self); // (slowed: its legs' frames and its step in as slow, as far in all)
     VR_AGP_Times(self);
-    self.frame = VR_AM_StandFrame(self, floor(s * 10)); // (its stand frames: its legs under the arms)
+    self.frame = VR_AM_StandFrame(self, floor(s * sp * 10)); // (its stand frames: its legs under the arms)
     if(self.vr_ag_act == VR_AGP_SHOVE)
     {
         VR_AGP_ShoveAim(self); // (no step in: the shove is from where it stands, as the model's frames were)
     }
     else if(s < vr_agp_tw + vr_agp_ts && !demo)
     {
-        ai_charge(s < vr_agp_tw ? 1 : 3);
+        ai_charge((s < vr_agp_tw ? 1 : 3) * sp);
     }
     if(s < VR_AGP_Length(self) || !self.vr_ag_act)
     {

@@ -121,6 +121,14 @@ za::Vector<Item> pageDebugViews()
                   "fists' grab spheres (grey; yellow touching a weapon, the gap shown), your strike lines (white) and blow "
                   "lines (blue). The last hit is marked a moment: parry cyan, disarm red, body grey, shot magenta, blocked "
                   "yellow."),
+        toggle("Show Directional Parry", vr_dirparry_debug)
+            .help("vr_dirparry_debug: the directional parry's reading of each armed humanoid's swing (its blade, its "
+                  "way, your parry line, the ideal, the score vs threshold, the angle, the contact distance), coloured "
+                  "by the verdict, the last strike's held 3 s and printed. Settings: Combat > Parry and Bash, "
+                  "Directional Parry."),
+        slider("Enemy Melee Speed", vr_agrunt_melee_speed, 0.1f, 1.f, 0.05f, "%.2fx")
+            .help("vr_agrunt_melee_speed: armed humanoids' melee swings and punches slowed (their whole timing: keys, "
+                  "blow, parry window), for parry practice. 1: normal."),
         toggle("Hit Zones Through Walls", vr_debug_hitzones_xray)
             .help("Draws the animated positional regions through walls and the back of the model. Off: only visible surfaces."),
         cycle("Show Gadget Button", vr_debug_gadget_button,

@@ -25,7 +25,12 @@
 //   vr_dirparry_partial x score / threshold (0: off).
 // - Met before its blow (VR_DRP_Frame, every frame of the swing's strike): parried there and then. At its blow
 //   (VR_Parry): read on along its way (the window: where it would have met your weapon in the swing's rest).
-// - Debug > Show Disarm Volumes: both lines, its way and the score (vr_disarmviz.cpp kinds 12-14).
+// - Debug > Show Disarm Volumes: both lines, its way and the score (vr_disarmviz.cpp kinds 12-14). Show Directional
+//   Parry (vr_dirparry_debug, VR_DRP_Debug: vr_dirparryviz.cpp): each reading's lines, the ideal and its numbers, the
+//   last strike's verdict held a moment.
+// - The leniencies (Combat > Parry and Bash, Directional Parry): vr_dirparry_angle (full marks within), _angle_zero (none
+//   at), _contact, _falloff (the meeting's marks none at this times the contact), _threshold, _window (divided by the
+//   swing's speed: vr_agrunt_melee_speed, VR_AGP_Speed).
 // ----------------------------------------------------------------------------
 
 float VR_DV_DIR_YOURS = 12; // Show Disarm Volumes' kinds (vr_disarmviz.cpp Kind: keep in step)
@@ -54,6 +59,19 @@ float vr_drp_fx_n;      // sparks thrown (the tests)
 vector vr_drp_fx_at;    // ... where the last were
 vector vr_drp_na;       // the last reading's blade line now (the tests' reference swings)
 vector vr_drp_nb;
+vector vr_drp_sq;       // the last reading's ideal: square to its blade and its way (unit; either way)
+vector vr_drp_lims;     // ... its limits: the angle's full marks within, none at (degrees); the contact distance
+float vr_drp_limz;      // ... the meeting's marks none at (units)
+float vr_drp_amark;     // ... the angle's marks (0..1)
+float vr_drp_cmark;     // ... the meeting's marks (0..1)
+vector vr_drp_ne;       // ... the two lines' nearest points: on its blade, on yours
+vector vr_drp_np;
+vector vr_drp_s0a;      // ... its blade where its way's span begins (last frame) and ends (its window's end)
+vector vr_drp_s0b;
+vector vr_drp_s1a;
+vector vr_drp_s1b;
+float vr_drp_dbg_n;     // Show Directional Parry's readings sent (the tests)
+float vr_drp_dbg_final; // ... of them a strike's verdict
 
 // Your hand `h`'s weapon's parry line into vr_drp_pa .. vr_drp_pb: the hand to its far end (FALSE: an empty hand, a fist).
 float(entity pl, float h) VR_DRP_PlayerSeg =
@@ -122,6 +140,8 @@ float(entity g, entity w, entity pl, float ahead) VR_DRP_Eval =
     vr_drp_nb = b1;
     float contact = max(0.5, cvar_hget(cvarh_vr_dirparry_contact));
     float lenient = min(89, max(0, cvar_hget(cvarh_vr_dirparry_angle)));
+    float zero = min(90, max(lenient + 1, cvar_hget(cvarh_vr_dirparry_angle_zero))); // (the angle's marks none)
+    float fall = contact * (max(1, cvar_hget(cvarh_vr_dirparry_falloff)) - 1); // (the meeting's marks none this past it)
     float n = 4 + 2 * ceil(max(0, ahead) * 72); // (samples along its way: two a frame)
     float span = dt + max(0, ahead);
     vector keepA = '0 0 0';
@@ -181,8 +201,8 @@ float(entity g, entity w, entity pl, float ahead) VR_DRP_Eval =
         vector sq = normalize(VR_Cross(axis, sw)); // (square to its blade and its way)
         vector px = normalize(pb - pa);
         float off = atan2(vlen(VR_Cross(px, sq)), fabs(px * sq)) * 57.29578;
-        float angleScore = off <= lenient ? 1 : max(0, (90 - off) / max(1, 90 - lenient));
-        float cs = best <= contact ? 1 : max(0, 1 - (best - contact) / contact);
+        float angleScore = off <= lenient ? 1 : max(0, (zero - off) / max(1, zero - lenient));
+        float cs = best <= contact ? 1 : fall <= 0 ? 0 : max(0, 1 - (best - contact) / fall);
         float score = angleScore * cs;
         if(vr_drp_hand < 0 || score > vr_drp_score)
         {
@@ -194,7 +214,18 @@ float(entity g, entity w, entity pl, float ahead) VR_DRP_Eval =
             vr_drp_ea = ea;
             vr_drp_eb = eb;
             vr_drp_sweep = sw;
-            vr_drp_at = (ea + (eb - ea) * bs + pa + (pb - pa) * bp) * 0.5;
+            vr_drp_ne = ea + (eb - ea) * bs;
+            vr_drp_np = pa + (pb - pa) * bp;
+            vr_drp_at = (vr_drp_ne + vr_drp_np) * 0.5;
+            vr_drp_sq = sq;
+            vr_drp_lims = [lenient, zero, contact];
+            vr_drp_limz = contact + fall;
+            vr_drp_amark = angleScore;
+            vr_drp_cmark = cs;
+            vr_drp_s0a = a1 - va * dt;
+            vr_drp_s0b = b1 - vb * dt;
+            vr_drp_s1a = a1 + va * (span - dt);
+            vr_drp_s1b = b1 + vb * (span - dt);
             keepA = pa;
             keepB = pb;
         }
@@ -220,6 +251,39 @@ void(entity g, entity w, float parried) VR_DRP_Show =
     debugdisarm(w, VR_DV_DIR_WAY, vr_drp_at, vr_drp_at + vr_drp_sweep * 12, 0);
     debugdisarmnote(w, 0, vr_drp_at + '0 0 4', sprintf("dirparry %.2f%s: %.0f deg off square, gap %.1f", vr_drp_score,
         parried ? " PARRIED" : "", vr_drp_off, vr_drp_gap));
+};
+
+float VR_DRP_SHOW_MISS = 0;    // Show Directional Parry's verdicts (vr_dirparryviz.cpp: keep in step): a strike's, held
+float VR_DRP_SHOW_PARTIAL = 1; // ... a moment: the blow lands (cut by vr_dirparry_partial), or
+float VR_DRP_SHOW_PARRIED = 2;
+float VR_DRP_SHOW_LIVE = 10;   // ... + a reading during its strike (its verdict were it the blow's)
+float VR_DRP_SHOW_HELD = 13;   // ... its blow held back for the window
+
+// Show Directional Parry (vr_dirparry_debug; the engine's vr_dirparryviz.cpp): the last reading of `g`'s swing drawn,
+// its blade then (and where its way's span began and ends), its way, your weapon's parry line, the ideal through it,
+// the gap between them, and its numbers; `verdict` VR_DRP_SHOW_*. Nothing is sent while it is off.
+void(entity g, float verdict) VR_DRP_Debug =
+{
+    if(!cvar_hget(cvarh_vr_dirparry_debug) || vr_drp_hand < 0)
+    {
+        return;
+    }
+    debugdirparry(1, vr_drp_ea, vr_drp_eb);
+    debugdirparry(2, vr_drp_s0a, vr_drp_s0b);
+    debugdirparry(3, vr_drp_s1a, vr_drp_s1b);
+    debugdirparry(4, vr_drp_pa, vr_drp_pb);
+    debugdirparry(5, vr_drp_at, vr_drp_at + vr_drp_sweep * 12);
+    float half = max(6, vlen(vr_drp_pb - vr_drp_pa) * 0.5);
+    debugdirparry(6, vr_drp_np - vr_drp_sq * half, vr_drp_np + vr_drp_sq * half);
+    debugdirparry(7, vr_drp_ne, vr_drp_np);
+    float shown = debugdirparrynote(verdict, vr_drp_at, [vr_drp_score, cvar_hget(cvarh_vr_dirparry_threshold), vr_drp_cut],
+        [vr_drp_off, vr_drp_lims_x, vr_drp_lims_y], [vr_drp_gap, vr_drp_lims_z, vr_drp_limz],
+        [vr_drp_amark, vr_drp_cmark, 0], [vr_drp_hand == cVR_MainHand ? 1 : 0, vr_drp_tau, VR_AGP_Speed(g)]);
+    vr_drp_dbg_n = vr_drp_dbg_n + shown;
+    if(verdict < VR_DRP_SHOW_LIVE)
+    {
+        vr_drp_dbg_final = vr_drp_dbg_final + shown;
+    }
 };
 
 // VR_AGP_Pose, every frame `g` holds the melee weapon `w` (before its swing's pose and blow): its swing's strike met
@@ -252,6 +316,12 @@ void(entity g, entity w) VR_DRP_Frame =
         parried = ((vr_drp_hand >= 0) && (vr_drp_gap <= max(0.5, cvar_hget(cvarh_vr_dirparry_contact))) &&
                    (vr_drp_score >= cvar_hget(cvarh_vr_dirparry_threshold)));
         VR_DRP_Show(g, w, parried);
+        if(!parried)
+        {
+            float thr = cvar_hget(cvarh_vr_dirparry_threshold);
+            VR_DRP_Debug(g, pending ? VR_DRP_SHOW_HELD : VR_DRP_SHOW_LIVE + (vr_drp_score >= thr ? VR_DRP_SHOW_PARRIED :
+                vr_drp_score > 0 ? VR_DRP_SHOW_PARTIAL : VR_DRP_SHOW_MISS));
+        }
         if(parried)
         {
             vr_drp_forced = TRUE;
@@ -287,7 +357,7 @@ void(entity g, entity w) VR_DRP_Frame =
 float(entity pl, entity g, float damage) VR_DRP_Blow =
 {
     float threshold = cvar_hget(cvarh_vr_dirparry_threshold);
-    float window = max(0, cvar_hget(cvarh_vr_dirparry_window));
+    float window = max(0, cvar_hget(cvarh_vr_dirparry_window)) / VR_AGP_Speed(g); // (a slowed swing's: as long a way)
     vr_drp_deferred = FALSE;
     vr_drp_cut = 0;
     if(!vr_drp_forced)
@@ -305,6 +375,7 @@ float(entity pl, entity g, float damage) VR_DRP_Blow =
             vr_drp_deferred = TRUE;
             dprint(sprintf("dirparry: %s's blow held back %.2f s: your weapon %.1f units from its way\n", g.classname,
                 window, vr_drp_gap));
+            VR_DRP_Debug(g, VR_DRP_SHOW_HELD);
             return -1;
         }
     }
@@ -316,6 +387,7 @@ float(entity pl, entity g, float damage) VR_DRP_Blow =
         }
         dprint(sprintf("dirparry: %s's blow lands: score %.2f (%.0f deg off square, gap %.1f units), cut %.2f\n",
             g.classname, vr_drp_score, vr_drp_off, vr_drp_gap, vr_drp_cut));
+        VR_DRP_Debug(g, vr_drp_score > 0 ? VR_DRP_SHOW_PARTIAL : VR_DRP_SHOW_MISS);
         return -1;
     }
     g.vr_drp_swing = g.vr_ag_act_at;
@@ -328,6 +400,7 @@ float(entity pl, entity g, float damage) VR_DRP_Blow =
     {
         VR_DV_Mark(vr_drp_w ? vr_drp_w : g.vr_ag_prop, vr_drp_at, VR_DV_PARRY, sprintf("dirparry %.2f", vr_drp_score));
     }
+    VR_DRP_Debug(g, VR_DRP_SHOW_PARRIED);
     return vr_drp_hand;
 };
 

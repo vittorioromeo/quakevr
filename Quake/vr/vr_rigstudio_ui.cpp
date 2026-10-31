@@ -1504,6 +1504,33 @@ void poseDataWindow()
             {
                 ImGui::SliderInt("Phase", &st.pdPhase, 0, phases - 1, agpose::phaseName(st.pdPose, st.pdPhase));
             }
+            if(phases > 1)
+            {
+                // (the subject's strike played from its start, slowed: QC vr_ag_act_speed, every phase alike)
+                if(ImGui::Button("Swing"))
+                {
+                    swingPlay();
+                }
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(ImGui::GetFontSize() * 8.f);
+                ImGui::SliderFloat("Swing Speed", &st.swing.speed, 0.1f, 1.f, "%.2fx", ImGuiSliderFlags_AlwaysClamp);
+                if(st.swing.on)
+                {
+                    ImGui::SameLine();
+                    if(ImGui::Button("Stop Swing"))
+                    {
+                        st.swing.on = false;
+                    }
+                }
+                helpMarker("Swing: the subject plays this strike once from its start at Swing Speed (its wind-up, strike, "
+                           "blow and recovery slowed together, as Enemy Melee Speed does in the game), then holds at the "
+                           "phase picked; press again to replay. Stop Swing lets it go. The subject must be of this kind "
+                           "and class (Follow the Subject).");
+                if(st.subject > 0 && (st.subjKind != st.pdKind || st.subjClass != st.pdClass))
+                {
+                    ImGui::TextDisabled("Swing: the subject holds another kind or class");
+                }
+            }
             const int code = agpose::code(st.pdKind, st.pdClass, st.pdPose, st.pdPhase);
             agpose::Key k = agpose::value(code);
             const char* parts[agpose::NumParts] = {"Right Place", "Right Turn", "Left Place", "Left Turn", "Right Elbow Pole",

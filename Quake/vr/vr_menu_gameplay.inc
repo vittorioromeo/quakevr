@@ -1747,15 +1747,43 @@ void ikStretchReset()
         slider("Parry Drop Chance", "vr_parry_drop_chance", 0.f, 1.f, 0.05f, "%.2f").help("Chance a one-handed parry knocks the weapon out of your hand (two hands: never). Not used with Parry Stamina on (Parry, Bash and Headbutt), which replaces it."),
         slider("Parry Arm Knock", "vr_parry_wobble", 0.f, 2.f, 0.1f, "%.1f").extend().help("How much a parried blow knocks your hand and arm."),
         toggle("Unarmed Parry", vr_parry_unarmed).help("Cross your arms in an X in front of you to block a blow with your forearms."),
-        toggle("Directional Parry (Experimental)", vr_dirparry)
-            .help("An armed humanoid's sword, axe or club swung at you is parried only by your weapon held across its "
-                  "blade's way where they meet: an overhead strike by a weapon held level across, a side swing by one "
-                  "held upright. Parried: no damage, sparks where the weapons met, its swing stopped. Tunables: Combat "
-                  "> Directional Parry. Off: the level-across parry for every blow."),
         toggle("Parry Cooldown: Whole Attack", vr_parry_cooldown_attack).extend()
             .help("Every blow of the attack whose blow you last parried is a cooldown blow, however long between them "
                   "(a fiend's two claws, the Overlord's double smash, a shambler's chained swings): one parry and one "
                   "stamina cost per attack. Off: only the Parry Cooldown's time."),
+        header("Directional Parry"),
+        toggle("Directional Parry (Experimental)", vr_dirparry)
+            .help("An armed humanoid's sword, axe or club swung at you is parried only by your weapon held across its "
+                  "blade's way where they meet: an overhead strike by a weapon held level across, a side swing by one "
+                  "held upright. Parried: no damage, sparks where the weapons met, its swing stopped. Its leniencies "
+                  "below. Off: the level-across parry for every blow."),
+        slider("Angle: Full Marks Within", vr_dirparry_angle, 0.f, 85.f, 1.f, "%.0f deg").extend(0.f, 89.f)
+            .help("Your weapon this far off the ideal (square to its blade and to its way) still gets the angle's full "
+                  "marks. More: more lenient. The score is the angle's marks times the contact's."),
+        slider("Angle: No Marks At", vr_dirparry_angle_zero, 10.f, 90.f, 1.f, "%.0f deg")
+            .help("This far off the ideal the angle's marks reach none, falling evenly from full at Full Marks Within "
+                  "(90: none only along its blade or its way). Less: stricter. Kept above Full Marks Within."),
+        slider("Contact Distance", vr_dirparry_contact, 0.5f, 20.f, 0.5f, "%.1f units").extend(0.5f, 60.f)
+            .help("Its blade's line and your weapon's this near (units; 1 is about 2.5 cm) meet: the contact's full "
+                  "marks, and a parry before its blow needs this. More: more lenient."),
+        slider("Contact Falloff", vr_dirparry_falloff, 1.f, 5.f, 0.25f, "%.2fx").extend(1.f, 10.f)
+            .help("The contact's marks fall from full at Contact Distance to none at this times it (2: none at twice "
+                  "it). 1: none past the contact distance."),
+        slider("Score to Parry", vr_dirparry_threshold, 0.f, 1.f, 0.05f, "%.2f")
+            .help("The score (the angle's marks times the contact's, 0 to 1) that parries. Less: more lenient. Under it "
+                  "the blow lands."),
+        slider("Parry Window", vr_dirparry_window, 0.f, 0.4f, 0.01f, "%.2f s").extend(0.f, 1.f)
+            .help("At its blow its blade's way is followed on this long: your weapon in it then, where the blade would "
+                  "meet it in the swing's rest, still parries. More: more lenient (slowed by Enemy Melee Speed)."),
+        toggle("Show Directional Parry", vr_dirparry_debug)
+            .help("Debug view: each swing's reading drawn where the weapons meet: its blade (white; faint where it was "
+                  "and where it goes in the window), its way (yellow arrow), your weapon's parry line and the ideal "
+                  "(cyan), coloured by the verdict (green parried, orange partial, red miss), and the numbers (score vs "
+                  "threshold, angle off the ideal, contact distance). The last strike's result is held 3 s. Also on the "
+                  "Debug page."),
+        slider("Enemy Melee Speed", vr_agrunt_melee_speed, 0.1f, 1.f, 0.05f, "%.2fx")
+            .help("Parry practice: armed humanoids' melee swings and punches at this speed, their wind-up, strike, "
+                  "blow, parry window and recovery slowed together. 1: normal. Not saved."),
         header("Parry Balance"),
         toggle("Parry Balance", vr_parry_balance)
             .help("A parry's strength (its tool, times its grip, times its timing) over the monster's Parry Poise (Monster "
