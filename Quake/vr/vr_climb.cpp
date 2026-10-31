@@ -1065,9 +1065,36 @@ struct Grip
     glm::vec3 holdVel{0.f};     // its velocity last frame (vr_climb_prop_letgo_speed)
 };
 
+// The climber's phase (design review 8). Which hands hold is each grip's `active`: hanging and slipping hold with one
+// hand or both, free and mantling with neither. Only transition() changes it; the frame functions switch on it.
+enum class Phase : za::U8
+{
+    Free,     // not climbing: the body moves as usual
+    Hanging,  // from one hand or both: VR_ClientClimb moves the body
+    Slipping, // hanging with no stamina left (vr_climb_stamina_slip): the body sinks, no mantle, the hands slip off
+    Mantling, // over the top of a ledge, along the mantle's way
+};
+
+// Why the phase changes (transition's entry and exit work).
+enum class Why : za::U8
+{
+    Took,       // a hand took hold (free -> hanging)
+    Released,   // the hands let go (-> free, flung by the release)
+    OutOfReach, // the body couldn't be kept within reach (-> free)
+    Forced,     // moved by something else, disabled, the hold gone, knocked off (-> free)
+    NoMove,     // no move from the client (-> free, no regrab delay)
+    Exhausted,  // no stamina left (-> free)
+    Slips,      // no stamina left, vr_climb_stamina_slip > 0 (hanging -> slipping)
+    Recovers,   // stamina back, or the feet on something (slipping -> hanging)
+    Mantles,    // pulled over the top with room on it (hanging -> mantling)
+    Mantled,    // the mantle's end (-> free)
+    CarriedOff, // a mover carried the body into something (-> free)
+};
+
 struct Climber
 {
     Grip grips[2];
+    Phase phase{Phase::Free};
     bool mantling{false};
     double mantleStart{0.0};
     glm::vec3 mantleFrom{0.f}, mantleMid{0.f}, mantleTo{0.f};
@@ -1094,7 +1121,41 @@ struct Climber
     {
         return grips[0].active || grips[1].active;
     }
+    // Any hand holds (the grips: within a frame they change before the phase follows them).
+    bool anyHeld() const
+    {
+        return grips[0].active || grips[1].active;
+    }
 };
+
+void transition(edict_t* ent, Climber& c, Phase to, Why why, const VrMove* move = nullptr, const bool* held = nullptr);
+
+// Stage A of design review 8 (temporary): the phase as the old flags make it, checked each frame's end.
+[[nodiscard]] const char* phaseName(Phase p)
+{
+    return p == Phase::Free ? "free" : p == Phase::Hanging ? "hanging" : p == Phase::Slipping ? "slipping" : "mantling";
+}
+int shadowLines = 0;
+void shadowCheck(const Climber& c, const char* where)
+{
+    const bool any = c.anyHeld();
+    const Phase derived = c.mantling ? Phase::Mantling : !any ? Phase::Free : c.slipping ? Phase::Slipping : Phase::Hanging;
+    const bool impossible = (c.mantling && any) || (c.slipping && (!any || c.mantling));
+    if((derived == c.phase && !impossible) || shadowLines >= 200)
+    {
+        return;
+    }
+    shadowLines++;
+    const char* line = va("climbphase %.4f %s: phase %s, the flags say %s%s (mantling %d slipping %d grips %d %d)\n",
+        qcvm->time, where, phaseName(c.phase), phaseName(derived), impossible ? ", IMPOSSIBLE" : "", c.mantling ? 1 : 0,
+        c.slipping ? 1 : 0, c.grips[0].active ? 1 : 0, c.grips[1].active ? 1 : 0);
+    Con_Printf("%s", line);
+    if(FILE* f = fopen("C:/OHWorkspace/qvr-agents/phases/scratch/phase_shadow.log", "a"))
+    {
+        fputs(line, f);
+        fclose(f);
+    }
+}
 
 // A fixed array (as the swimmers'): a climber is held by reference across SV_RunThink, which a growing vector could
 // move.
@@ -1786,32 +1847,16 @@ void gruntTest_f()
 }
 
 // Out of stamina: every hand lets go (no fling: they give way), a gasp and a long buzz.
-void exhaustedLetGo(edict_t* ent, Climber& c, double time)
-{
-    for(int h = 0; h < 2; h++)
-    {
-        if(c.grips[h].active)
-        {
-            server::sendHaptic(ent, h, 0.f, 0.5f, 30.f, staminaWarn());
-        }
-    }
-    staminaSound(ent, "player/gasp1.wav", staminaWarn());
-    letGoAll(c);
-    c.noGrabUntil = time + regrabDelay;
-    setVec(ent->v.velocity, glm::vec3{0.f});
-    if(debug())
-    {
-        Con_Printf("climb: no stamina left, lets go at (%.1f %.1f %.1f)\n", ent->v.origin[0], ent->v.origin[1],
-            ent->v.origin[2]);
-    }
-}
-
 // Each hanging frame, after the pull and the mantle's check: the hang's stamina (see above).
 void hangStamina(edict_t* ent, Climber& c, double time)
 {
     c.draining = false;
     if(!staminaOn(ent) || !c.hanging() || c.mantling)
     {
+        if(c.phase == Phase::Slipping)
+        {
+            transition(ent, c, Phase::Hanging, Why::Recovers);
+        }
         c.slipping = false;
         return;
     }
@@ -1841,35 +1886,27 @@ void hangStamina(edict_t* ent, Climber& c, double time)
     }
     if(standing || progs::staminaLeft(ent) > 0.f)
     {
+        if(c.phase == Phase::Slipping)
+        {
+            transition(ent, c, Phase::Hanging, Why::Recovers);
+        }
         c.slipping = false;
         return;
     }
     const float slip = za::max(0.f, vr_climb_stamina_slip.value);
     if(slip <= 0.f)
     {
-        exhaustedLetGo(ent, c, time);
+        transition(ent, c, Phase::Free, Why::Exhausted);
         return;
     }
     if(!c.slipping)
     {
         c.slipping = true;
-        c.slipStart = time;
-        for(int h = 0; h < 2; h++)
-        {
-            if(c.grips[h].active)
-            {
-                server::sendHaptic(ent, h, 0.f, 0.3f, 40.f, 0.6f * staminaWarn());
-            }
-        }
-        staminaSound(ent, "player/gasp2.wav", 0.8f * staminaWarn());
-        if(debug())
-        {
-            Con_Printf("climb: no stamina left, slipping (%.2f s)\n", slip);
-        }
+        transition(ent, c, Phase::Slipping, Why::Slips);
     }
     else if(time - c.slipStart >= slip)
     {
-        exhaustedLetGo(ent, c, time);
+        transition(ent, c, Phase::Free, Why::Exhausted);
     }
 }
 
@@ -2058,7 +2095,7 @@ void pullProps(edict_t* ent, const Climber& c)
 }
 
 // Let go of everything when moved by something else, disabled, the hold gone or knocked off.
-void letGoIfForced(edict_t* ent, Climber& c, bool enabled, bool knockedOff, double time)
+void letGoIfForced(edict_t* ent, Climber& c, bool enabled, bool knockedOff)
 {
     // Moved by something else (a teleporter, a respawn, setorigin), disabled, dead, noclipping, the
     // hold's brush model gone (freed, not solid, another model): let go, and fall as whatever moved the body has it.
@@ -2095,8 +2132,7 @@ void letGoIfForced(edict_t* ent, Climber& c, bool enabled, bool knockedOff, doub
     }
     if(forced && (c.hanging() || c.mantling))
     {
-        letGoAll(c);
-        c.noGrabUntil = time + regrabDelay;
+        transition(ent, c, Phase::Free, Why::Forced);
     }
 }
 
@@ -2263,7 +2299,7 @@ void gripHand(edict_t* ent, Climber& c, const VrMove* move, bool enabled, double
 }
 
 // Let go of everything: the fall, flung by the hands' release.
-void fallFlung(edict_t* ent, Climber& c, const VrMove* move, const bool (&held)[2], double time)
+void fallFlung(edict_t* ent, Climber& c, const VrMove* move, const bool* held, double time)
 {
     c.noGrabUntil = time + regrabDelay;
     glm::vec3 fling{0.f};
@@ -2288,6 +2324,80 @@ void fallFlung(edict_t* ent, Climber& c, const VrMove* move, const bool (&held)[
     if(debug())
     {
         Con_Printf("climb: falls, flung at (%.0f %.0f %.0f)\n", fling.x, fling.y, fling.z);
+    }
+}
+
+// The one place the phase changes, with its entry and exit work (the regrab delay, the fall, haptics, sounds). `move`
+// and `held` (the hands holding at the frame's start) only for Why::Released: the fling.
+void transition(edict_t* ent, Climber& c, Phase to, Why why, const VrMove* move, const bool* held)
+{
+    const double time = qcvm->time;
+    const Phase from = c.phase;
+    c.phase = to;
+    switch(to)
+    {
+    case Phase::Free:
+        if(why == Why::Released)
+        {
+            fallFlung(ent, c, move, held, time);
+            return;
+        }
+        if(why == Why::Exhausted)
+        {
+            for(int h = 0; h < 2; h++)
+            {
+                if(c.grips[h].active)
+                {
+                    server::sendHaptic(ent, h, 0.f, 0.5f, 30.f, staminaWarn());
+                }
+            }
+            staminaSound(ent, "player/gasp1.wav", staminaWarn());
+        }
+        letGoAll(c);
+        if(why != Why::NoMove)
+        {
+            c.noGrabUntil = time + regrabDelay;
+        }
+        if(why == Why::Exhausted)
+        {
+            setVec(ent->v.velocity, glm::vec3{0.f});
+            if(debug())
+            {
+                Con_Printf("climb: no stamina left, lets go at (%.1f %.1f %.1f)\n", ent->v.origin[0], ent->v.origin[1],
+                    ent->v.origin[2]);
+            }
+        }
+        else if(why == Why::OutOfReach && debug())
+        {
+            Con_Printf("climb: falls, flung at (0 0 0)\n");
+        }
+        return;
+    case Phase::Hanging:
+        if(from == Phase::Free && staminaOn(ent))
+        {
+            c.wasLow = staminaLow(ent); // (the breath as the hang makes it low, not for a pool low already)
+        }
+        return;
+    case Phase::Slipping:
+        c.slipStart = time;
+        for(int h = 0; h < 2; h++)
+        {
+            if(c.grips[h].active)
+            {
+                server::sendHaptic(ent, h, 0.f, 0.3f, 40.f, 0.6f * staminaWarn());
+            }
+        }
+        staminaSound(ent, "player/gasp2.wav", 0.8f * staminaWarn());
+        if(debug())
+        {
+            Con_Printf("climb: no stamina left, slipping (%.2f s)\n", za::max(0.f, vr_climb_stamina_slip.value));
+        }
+        return;
+    case Phase::Mantling:
+        c.grips[0].active = c.grips[1].active = false;
+        c.owed = glm::vec3{0.f};
+        mantleGrunt(ent);
+        return;
     }
 }
 
@@ -2357,7 +2467,7 @@ static void climbPreThink(edict_t* ent)
     const bool enabled = vr_climb.value != 0.f && tracked && static_cast<int>(ent->v.movetype) == MOVETYPE_WALK &&
                          ent->v.health > 0.f;
 
-    letGoIfForced(ent, c, enabled, knockedOff, time);
+    letGoIfForced(ent, c, enabled, knockedOff);
 
     const bool wasHanging = c.hanging();
     const bool held[2] = {c.grips[0].active, c.grips[1].active};
@@ -2367,16 +2477,17 @@ static void climbPreThink(edict_t* ent)
         gripHand(ent, c, move, enabled, time, h);
     }
 
-    if(!wasHanging && c.hanging() && staminaOn(ent))
+    if(!wasHanging && c.hanging())
     {
-        c.wasLow = staminaLow(ent); // (the breath as the hang makes it low, not for a pool low already)
+        transition(ent, c, Phase::Hanging, Why::Took);
     }
 
     // Let go of everything: fall, flung by the hands' release.
     if(wasHanging && !c.hanging() && !c.mantling)
     {
-        fallFlung(ent, c, move, held, time);
+        transition(ent, c, Phase::Free, Why::Released, move, held);
     }
+    shadowCheck(c, "prethink");
     if(enabled && !c.hanging() && !c.mantling)
     {
         traceFrame(ent, c, move, "free", glm::vec3{0.f}, glm::vec3{0.f});
@@ -2467,7 +2578,7 @@ void mantleStep(edict_t* ent, Climber& c, double time)
     if(t >= 1.f)
     {
         c.mantling = false;
-        c.noGrabUntil = time + regrabDelay;
+        transition(ent, c, Phase::Free, Why::Mantled);
         ent->v.flags = static_cast<float>(static_cast<int>(ent->v.flags) | FL_ONGROUND);
         if(onto)
         {
@@ -2837,9 +2948,7 @@ void tryMantle(Hang& hang)
             c.mantleBase = g.propOrigin;
             c.mantleTurn = g.propTurn;
         }
-        c.grips[0].active = c.grips[1].active = false;
-        c.owed = glm::vec3{0.f};
-        mantleGrunt(ent);
+        transition(ent, c, Phase::Mantling, Why::Mantles);
         if(debug())
         {
             Con_Printf("climb: mantle from (%.1f %.1f %.1f) up to %.1f, onto (%.1f %.1f %.1f), the head %.1f over the "
@@ -2897,7 +3006,8 @@ extern "C" int VR_ClientClimb(edict_t* ent)
     const VrMove* move = server::clientMove(ent);
     if(!move)
     {
-        letGoAll(c);
+        transition(ent, c, Phase::Free, Why::NoMove);
+        shadowCheck(c, "nomove");
         return 0;
     }
 
@@ -2914,12 +3024,8 @@ extern "C" int VR_ClientClimb(edict_t* ent)
     if(!c.hanging())
     {
         // Let go of everything (out of reach): fall.
-        letGoAll(c);
-        c.noGrabUntil = time + regrabDelay;
-        if(debug())
-        {
-            Con_Printf("climb: falls, flung at (0 0 0)\n");
-        }
+        transition(ent, c, Phase::Free, Why::OutOfReach);
+        shadowCheck(c, "outofreach");
         return 1;
     }
 
@@ -2930,6 +3036,7 @@ extern "C" int VR_ClientClimb(edict_t* ent)
     {
         fieldFloat(ent, fields().vr_climb_drain) = 1.f;
     }
+    shadowCheck(c, "hang");
     return 1;
 }
 
@@ -2995,9 +3102,9 @@ extern "C" int VR_ClimbCarryBlocked(edict_t* check, edict_t* pusher, const float
     c.lastOrigin = vec(check->v.origin);
     if(!c.hanging() && !c.mantling)
     {
-        letGoAll(c);
-        c.noGrabUntil = qcvm->time + regrabDelay;
+        transition(check, c, Phase::Free, Why::CarriedOff);
     }
+    shadowCheck(c, "carried");
     return 0;
 }
 
