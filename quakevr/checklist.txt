@@ -205,6 +205,8 @@ Strike its blade hard (a full swing): it staggers briefly and its sword arm is k
 Strike its sword hand instead: it can still be disarmed as before.
 Nail pistol: with an empty gun, seat a fresh magazine: the slide stays back for about a quarter second, then racks closed with its sound; pulling the trigger meanwhile does nothing.
 Nail pistol: Tunables > Nail Pistol Rack Delay (default 0.25 s, 0-1): at 0 the slide racks the moment the magazine seats, as before.
+Hold the shotgun (or any gun) and grip it with the off hand somewhere that is not its two-handed hotspot (e.g. its top, near the muzzle): the shots kick as little as with the hotspot (Weapon Effects' Two-Handed sliders); let go: the next shots kick one-handed again, the change smooth.
+Off hand holding a shell or magazine against the gun while firing: full one-handed kick.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns
