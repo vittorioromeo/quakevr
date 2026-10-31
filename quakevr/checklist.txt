@@ -231,6 +231,8 @@ A knight's and a death knight's own sword still sits right in his fist (the fitt
 Rig Studio (flat screen): open it: the subject stands clear of the hall's welcome boards; change it to the knight and the death knight, Pose Keys > Pickup: no text over it.
 Armed knights and death knights look as in your last session with your vr_agrunt_* settings cleared (vr_agrunt_poses ""; vr_agrunt_grips ""; vr_agrunt_ik_stretch ""): your keys are the defaults now.
 Rig Studio > Range of Motion on the knight: the clavicles' limits are yours.
+Combat > Hit Detection > Armed Bodies as Drawn on: shoot an armed grunt's raised forearm (guarding, aiming, swinging): the hit lands on the arm, not its chest or head behind it; aim where its arm would hang in a plain animation: a miss.
+Show Disarm Volumes: the grip spheres sit on its hand as drawn while it swings; punching its drawn hand disarms it, punching where the old sphere was does not.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns
