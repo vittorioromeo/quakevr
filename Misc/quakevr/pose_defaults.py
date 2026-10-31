@@ -19,7 +19,7 @@ Without --write the new blocks are printed for review; --write puts them into th
 cvars equal the defaults (the studio's set() drops an entry equal to its default the next time it stores one; Reset
 Pose / Reset Grips fall back to these); clearing them is his choice (vr_agrunt_poses ""; vr_agrunt_grips "").
 
-Usage: python Misc/quakevr/pose_defaults.py [--cfg quakevr/ironwail.cfg] [--done <Done file> ...] [--write]
+Usage: python Misc/quakevr/pose_defaults.py [--cfg quakevr/ironwail.cfg] [--done <Done file> ...] [--keep-pickup-overrides] [--write]
 """
 
 import argparse
@@ -201,7 +201,7 @@ def block(text, start_pat):
     sys.exit("pose_defaults.py: no block %r" % start_pat)
 
 
-def pose_block(src_lines, a, b, new):
+def pose_block(src_lines, a, b, new, keep_pickup_overrides=False):
     shipped = {}
     for line in src_lines[a:b]:
         m = POSE_ROW.match(line)
@@ -223,6 +223,12 @@ def pose_block(src_lines, a, b, new):
             shipped[c] = new[c]
     for c in [c for c in new if is_class_pickup(c) and c + 2 in shipped and c + 2 not in new]:
         del shipped[c + 2]  # (an override set again: its old mark goes)
+    if not keep_pickup_overrides:
+        # (one Pickup per kind, his ask 2026-10-31: no class ships its own Pickup row or "no override" mark; the
+        # in-game override mechanism stays, and --keep-pickup-overrides ships his overrides again)
+        for c in [c for c in shipped if is_class_pickup(c) or is_no_override(c)]:
+            del shipped[c]
+            changed.add(c)
     out = []
     for c in sorted(shipped):
         out.append("    // %s" % pose_name(c))
@@ -293,6 +299,8 @@ def main():
     ap.add_argument("--done", nargs="*", default=[], help="Pose Studio Done files (agrunt_poses_*.txt, agrunt_grips_*.txt)")
     ap.add_argument("--src", default=src, help="the Quake/vr folder")
     ap.add_argument("--write", action="store_true", help="put the new rows into vr_agpose.cpp and vr_aggrip.cpp")
+    ap.add_argument("--keep-pickup-overrides", action="store_true",
+                    help="ship the classes' own Pickup rows (by default each kind ships its shared Pickup key only)")
     args = ap.parse_args()
     if not args.cfg and not args.done:
         ap.error("give --cfg and/or --done")
@@ -318,7 +326,7 @@ def main():
         grip_text = f.read()
 
     lines, a, b = block(pose_text, r"^constexpr ShippedRow shipped\[\] = \{")
-    rows, shipped, changed = pose_block(lines, a, b, poses)
+    rows, shipped, changed = pose_block(lines, a, b, poses, args.keep_pickup_overrides)
     pose_text = "\n".join(lines[:a] + rows + lines[b:])
     lines, a, b = block(pose_text, r"^constexpr StretchRow shippedStretch\[\] = \{")
     srows, schanged = stretch_block(lines, a, b, stretch)
