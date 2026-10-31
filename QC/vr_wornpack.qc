@@ -10,6 +10,10 @@
 // Torn off a living one, the pack takes its spare rounds (vr_worn_backpack_reserve of each reserve) and its pockets: it
 // fights on with what its weapons hold, then drops them as an empty one does. Dying, its loot goes into the pack it
 // wears; a wearer drops no other backpack.
+// vr_worn_backpack_pull 1 (experimental): a hand's pull never tears it off (hits, the force grab, the damage pool,
+// landings and gibbing still do); a living wearer pulled by its pack past vr_worn_backpack_lift_force is lifted by it
+// instead (VR_WP_Lift: the engine's foegrab::packLift, as a two-hand lift: down, flailing, held by the pack on its chest
+// part, carried and thrown, breaking free after vr_foegrab_lift_time); a gentler pull drags a ragdoll as before.
 
 float VR_WP_WORN = 1; // on a living one
 float VR_WP_DEAD = 2; // on a dead one: takeable
@@ -23,6 +27,7 @@ float VR_WP_PULL_SETTLE = 0.25; // s: a hold's first moments not counted (its sp
 .float vr_wp_over_at;  // and since when that pull is past vr_worn_backpack_rip_force (0: not); a living one's tug: its first counted pull
 .float vr_wp_prog;     // a living one's tug: how far on (s of pull at vr_worn_backpack_tug_stretch: torn at vr_worn_backpack_tug_time)
 .float vr_wp_dmg;      // the damage its pack took (torn at vr_worn_backpack_pool)
+.float vr_wp_lifted;   // vr_worn_backpack_pull 1: its wearer lifted by it (since; 0: not), till it is let go of
 
 void() VR_WP_Think;
 
@@ -185,10 +190,60 @@ float(entity g, entity pl, float pnum, float hand) VR_WP_HandPull =
 };
 
 float vr_wp_two_hands; // the last pull's hands (the tests: 2 both)
+float vr_wp_lifts;     // wearers lifted by their packs (vr_worn_backpack_pull 1; the tests)
+float vr_wp_lift_pull; // and the last one's pull (N)
+
+// vr_worn_backpack_pull 1: pulls lift, never tear.
+float() VR_WP_PullLifts = { return cvar("vr_worn_backpack_pull") == 1; };
+
+// vr_worn_backpack_pull 1: player `pl` (number `pnum`) pulling living `g` by its pack `pk` at `pull` N (`hands`): past
+// vr_worn_backpack_lift_force for vr_worn_backpack_rip_time it is lifted by the pack (standing: knocked down; a ragdoll
+// held down already: its get-up held off; either way the engine's foegrab::packLift: flailing, held by the pack, breaking
+// free after vr_foegrab_lift_time). TRUE: lifted now.
+float(entity pk, entity g, entity pl, float pnum, float pull, float hands) VR_WP_Lift =
+{
+    if(g.health <= 0 || pk.vr_wp_lifted > 0 || pull < max(1, cvar("vr_worn_backpack_lift_force")))
+    {
+        pk.vr_wp_over_at = pk.vr_wp_lifted > 0 ? pk.vr_wp_over_at : 0;
+        return FALSE;
+    }
+    if(pk.vr_wp_over_at <= 0)
+    {
+        pk.vr_wp_over_at = time;
+    }
+    if(time - pk.vr_wp_over_at < max(0, cvar("vr_worn_backpack_rip_time")))
+    {
+        return FALSE;
+    }
+    float down = isragdoll(g);
+    if(down)
+    {
+        if(!g.vr_knockdown)
+        {
+            return FALSE; // (staggering: a hand on it takes it down first, then it can be lifted)
+        }
+        g.vr_kd_until = max(g.vr_kd_until, time + (max(0.1, cvar("vr_foegrab_lift_time")) + 1) * VR_KD_DownScale(g));
+    }
+    float held = ragdollbone(g, [8, pnum, 0], QVR_WORNPACK);
+    if(held < 1)
+    {
+        VR_WP_Log(sprintf("pulled at %.0f N: %s can't be lifted now", pull, g.classname));
+        pk.vr_wp_over_at = 0;
+        return FALSE;
+    }
+    pk.vr_wp_lifted = time;
+    vr_wp_lifts = vr_wp_lifts + 1;
+    vr_wp_lift_pull = pull;
+    vr_wp_two_hands = hands;
+    VR_WP_Log(sprintf("pulled at %.0f N (%g hands): %s lifted by its pack (%s), held by %g hands", pull, hands, g.classname,
+        down ? "down already" : "standing", held));
+    return TRUE;
+};
 
 // A player's pull on its ragdoll held by the pack, each frame (`pull` N, both hands' added times
 // vr_worn_backpack_two_hand_mult): past vr_worn_backpack_rip_force it tears off into `hand` (the harder pulling). TRUE: torn off.
-float(entity pk, entity g, entity pl, float hand, float pull, float hands) VR_WP_Pull =
+// (Player number `pnum`.) vr_worn_backpack_pull 1: never torn off, a living one lifted past vr_worn_backpack_lift_force.
+float(entity pk, entity g, entity pl, float pnum, float hand, float pull, float hands) VR_WP_Pull =
 {
     if(pk.vr_wp_hold_at <= 0)
     {
@@ -204,6 +259,11 @@ float(entity pk, entity g, entity pl, float hand, float pull, float hands) VR_WP
         return FALSE;
     }
     pk.vr_wp_peak = max(pk.vr_wp_peak, pull);
+    if(VR_WP_PullLifts())
+    {
+        VR_WP_Lift(pk, g, pl, pnum, pull, hands); // (never torn off by a pull: a living one lifted by it)
+        return FALSE;
+    }
     if(pull < max(1, cvar("vr_worn_backpack_rip_force")))
     {
         pk.vr_wp_over_at = 0;
@@ -253,7 +313,7 @@ void(entity pk, entity g) VR_WP_Pulls =
                 {
                     pull = pull * max(1, cvar("vr_worn_backpack_two_hand_mult"));
                 }
-                if(VR_WP_Pull(pk, g, pl, pm >= po ? cVR_MainHand : cVR_OffHand, pull, hands))
+                if(VR_WP_Pull(pk, g, pl, pnum, pm >= po ? cVR_MainHand : cVR_OffHand, pull, hands))
                 {
                     return;
                 }
@@ -266,6 +326,7 @@ void(entity pk, entity g) VR_WP_Pulls =
     {
         pk.vr_wp_hold_at = 0; // (let go of: the next hold settles again)
         pk.vr_wp_over_at = 0;
+        pk.vr_wp_lifted = 0;
     }
 };
 
@@ -332,6 +393,23 @@ void(entity pk, entity g) VR_WP_Tug =
                     pull = pull * max(1, cvar("vr_worn_backpack_two_hand_mult"));
                 }
                 pk.vr_wp_peak = max(pk.vr_wp_peak, pull);
+                if(VR_WP_PullLifts())
+                {
+                    // (Never torn off by the tug: its pull (the hands' stretch as a force) lifts it past the lift force.)
+                    float force = (max(0, sm) + max(0, so)) * max(0, cvar("vr_worn_backpack_rip_stiffness"));
+                    force = force * (hands == 2 ? max(1, cvar("vr_worn_backpack_two_hand_mult")) : 1);
+                    if(cvar("vr_worn_backpack_debug") >= 2)
+                    {
+                        VR_WP_Log(sprintf("tug (pull lifts): %.0f N (%g hands; main %.1f, off %.1f units)", force, hands, sm, so));
+                    }
+                    if(VR_WP_Lift(pk, g, pl, pnum, force, hands))
+                    {
+                        return;
+                    }
+                    pl = nextent(pl);
+                    pnum = pnum + 1;
+                    continue;
+                }
                 if(pull >= need)
                 {
                     if(pk.vr_wp_over_at <= 0)
@@ -374,6 +452,7 @@ void(entity pk, entity g) VR_WP_Tug =
     {
         pk.vr_wp_prog = 0;
         pk.vr_wp_over_at = 0;
+        pk.vr_wp_lifted = 0;
     }
 };
 

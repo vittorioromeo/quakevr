@@ -103,6 +103,20 @@ float packDistance(const RagdollBodies& r, const glm::vec3& at)
     return glm::length(glm::max(local, glm::vec3{0.f}));
 }
 
+bool packNearest(const RagdollBodies& r, const glm::vec3& at, glm::vec3& out)
+{
+    if(!packOn(r))
+    {
+        return false;
+    }
+    glm::vec3 mid;
+    glm::quat turn;
+    packBox(r, mid, turn);
+    const glm::vec3 local = glm::inverse(turn) * (at - mid);
+    out = mid + turn * glm::clamp(local, -r.packHalf * packShrink, r.packHalf * packShrink);
+    return true;
+}
+
 } // namespace box3d::detail
 
 namespace qvr::box3d
@@ -205,6 +219,11 @@ float wornPack(edict_t* ent, int what, int a, int b, const glm::vec3& p)
     {
         return static_cast<float>(qvr::foegrab::packTorn(ent));
     }
+    if(what == 8)
+    {
+        edict_t* player = a >= 1 && a <= svs.maxclients ? EDICT_NUM(a) : nullptr;
+        return player ? static_cast<float>(qvr::foegrab::packLift(player, ent)) : 0.f;
+    }
     if(!r)
     {
         return what == 0 ? -1.f : what >= 2 ? -1.f : 0.f;
@@ -212,6 +231,17 @@ float wornPack(edict_t* ent, int what, int a, int b, const glm::vec3& p)
     if(what == 0)
     {
         return packOn(*r) ? 1.f : 0.f;
+    }
+    if(what == 9)
+    {
+        if(!packOn(*r))
+        {
+            return -1.f;
+        }
+        glm::vec3 mid;
+        glm::quat turn;
+        packBox(*r, mid, turn);
+        return glm::distance(mid, world->toU(b3Body_GetPosition(r->body[static_cast<za::SizeT>(r->packPart)])));
     }
     if(what == 1)
     {

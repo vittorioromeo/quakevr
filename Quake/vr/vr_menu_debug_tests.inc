@@ -545,6 +545,10 @@ za::Vector<Item> pageDebugTests()
         command("Grunts Wearing Packs There", "vr_wornpack_test 2")
             .help("Three armed grunts ahead wearing packs (Worn Backpacks on): back on, side on and knocked down "
                   "(vr_wornpack_test 2)."),
+        command("Worn Backpacks: Pulling Lifts", "developer 1; vr_wornpack_test 3")
+            .help("Pulling the Pack: Lifts Its Wearer: a grunt held by its pack lifted by a strong pull (not a gentle one), "
+                  "carried and thrown with the pack on its chest; a knocked-down one dragged, then lifted; hits and the "
+                  "force grab still tear packs off (vr_wornpack_test 3; ends on \"wornpull: N passed, M failed\")."),
         command("Armoured Enforcers There", "vr_agarmor_test 3")
             .help("Three armed enforcers ahead in full green, yellow and red armour (vr_agarmor_test 3)."),
         command("Armour Damage Marks There", "vr_agarmor_test 4")

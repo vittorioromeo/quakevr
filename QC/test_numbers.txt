@@ -234,6 +234,7 @@ dispatch vr_wornpack_test QC/vr_wornpack_test.qc VR_WornPack_TestFrame request l
 
 vr_wornpack_test 1        vr_wornpack_test.qc              (worn backpacks: on, hits, knockdowns, landings, pulls, deaths)
 vr_wornpack_test 2        vr_wornpack_test.qc              (worn backpacks: the eyeshot)
+vr_wornpack_test 3        vr_wornpack_test.qc              (worn backpacks: Pulling the Pack lifts its wearer, vr_worn_backpack_pull 1)
 
 vr_agarmor_test  1*       vr_agarmor_test.qc               (the Debug menu runs it: the dispatcher's fall-through)
 vr_agarmor_test  2        vr_agarmor_test.qc               (VR_AgArmor_Give)

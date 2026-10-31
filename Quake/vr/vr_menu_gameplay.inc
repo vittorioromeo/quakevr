@@ -698,6 +698,14 @@ void armedGripsDragMode()
                   "a hard landing or enough damage on the pack, or grab a living one's pack and pull; torn off a living one, "
                   "its spare ammo goes with it. A dead one's pack is taken as an item. Grunts spawned after it is "
                   "turned on."),
+        cycle("Pulling the Pack", "vr_worn_backpack_pull", {{0.f, "Tears It Off"}, {1.f, "Lifts Its Wearer"}})
+            .help("Experimental. What a hand's hard pull on a worn pack does. Tears It Off: the pack rips off into the hand. "
+                  "Lifts Its Wearer: a pull never tears it (shots, blows, the force grab and damage still do); pulled hard "
+                  "enough, a living grunt is lifted by its pack as by its torso: it goes down flailing, held by the pack "
+                  "on its back, and you can carry, swing and throw it until it breaks free. A gentler pull drags it."),
+        slider("Pull That Lifts", vr_worn_backpack_lift_force, 500.f, 4000.f, 100.f, "%.0f N")
+            .help("Lifts Its Wearer: a pull on the pack this hard lifts a living grunt (standing, the hands' pull off the "
+                  "pack counts at 150 N a unit; held down by its pack, its hold's force)."),
         header("Tearing Off"),
         slider("Pull That Tears It", vr_worn_backpack_rip_force, 500.f, 4000.f, 100.f, "%.0f N")
             .help("A hand holding a ragdoll by its pack and yanking this hard (kept up a moment) tears the pack off into "
