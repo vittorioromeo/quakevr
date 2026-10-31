@@ -313,7 +313,9 @@ float(entity e, entity player, float hand, optional float tug, optional vector g
 // pulling it in at `strength` (0..3): 1 if it does (a second hand of the same player: one more hold); 1 the hold's pull
 // now (N; -1 none: let go of, torn off); 2 over (both hands let go of; its stagger up again `strength` s on); 3 the
 // tug's stretch (m: the hand's flat distance from where it stands its ground, beyond the grab's; -1 none); 4 this hand
-// lets go, the tug going on; 5 the ragdoll part the hand's hold takes (-1 none; the tests).
+// lets go, the tug going on; 5 the ragdoll part the hand's hold takes (-1 none; the tests); 6 begin on a downed or
+// staggering one (any ragdoll of it): the hand holds the limb nearest `grip` by a spring of at most `force` N, its arm
+// pulling that limb back towards its body at `strength` N (1 if it does).
 float(entity e, entity player, float hand, float what, optional vector grip, optional float strength,
       optional float force) ragdolltug =
 {
@@ -388,6 +390,7 @@ float(entity e, vector p, optional float within) ragdollbone = #0; // (within: -
 // first) in it, -1 none, trace_endpos its point nearest the box's middle.
 entity(vector mins, vector maxs, entity after) ragdollinbox = #0;
 float(entity e, vector mins, vector maxs, float after) ragdollboxpart = #0;
+// (toWorld 2: the part's middle, its mass centre, in the world, `p` unused; '0 0 0' none.)
 vector(entity e, float bone, vector p, float toWorld) ragdollpoint = #0;
 // Decapitation (vr_decap.qc; the engine's vr_box3d.cpp, "Decapitation"): e's ragdoll (made now for a dead monster with a
 // rig) loses its head, launched by `blade` (u/s): 1 if it did; after it, ragdollcut's 0 the head's middle, 1 its angles,

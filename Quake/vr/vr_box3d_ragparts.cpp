@@ -681,7 +681,7 @@ float tugRagdoll(edict_t* ent, edict_t* player, int hand, int what, const glm::v
                 endGrab(i);
             }
         }
-        if(r && r->active.on && r->active.stagger.on)
+        if(r && r->active.on && r->active.stagger.on && r->active.stagger.tug) // (a downed hold's: not its own stagger's)
         {
             ragactive::Stagger& st = r->active.stagger;
             st.tug = false;
@@ -690,6 +690,37 @@ float tugRagdoll(edict_t* ent, edict_t* player, int hand, int what, const glm::v
             {
                 st.recoverAt = static_cast<float>(qcvm->time - r->active.begun) + za::max(strength, 0.05f);
             }
+        }
+        return 1.f;
+    }
+    if(what == 6)
+    {
+        // A downed one's tug (lying, or staggering already: any ragdoll of it): the hand holds the limb nearest `grip` by
+        // a spring of at most `force` N, as a limb grab does, its arm pulling that limb back towards its body at
+        // `strength` N (syncRagdollGrabs): your pull drags the weapon, hand and arm (the body too if hard enough), its pull
+        // is felt in the hold's force (what 1). 1 if it does.
+        GrabStart dgs;
+        if(!r || !r->rig || r->count < 1 || !grabStart(ent, player, hand, dgs))
+        {
+            return 0.f;
+        }
+        float dd = 0.f;
+        const int dpart = nearestPart(*r, grip, dd);
+        if(dpart < 0)
+        {
+            return 0.f;
+        }
+        World::RagdollGrab dg;
+        dg.force = za::max(force, 0.f);
+        dg.stuck = 64.f;
+        dg.tug = true;
+        dg.tugBack = za::max(strength, 0.f);
+        dg.tugReach = tugReach(player, hand, *r);
+        beginGrab(dg, dgs, player, hand, dpart);
+        if(vr_debug_ragdoll.value || vr_knockdown_debug.value)
+        {
+            Con_Printf("tug: %d %s down: hand %d holds its part %d (%s) %.1f units from the grip, %.0f N at most, its pull back %.0f N\n",
+                num, PR_GetString(ent->v.classname), hand, dpart, r->rig->bones[dpart].name, dd, dg.force, dg.tugBack);
         }
         return 1.f;
     }
@@ -1042,7 +1073,10 @@ void syncRagdollGrabs(float dt)
         // (A tug's: its hand lets go at once once its controller is vr_agrunt_tug_let_go from where it holds the weapon:
         // pulled away or stepped back before the monster's grip gives. The QC ends the tug, lost: VR_AG_TugRagFrame.)
         const float letGo = vr_agrunt_tug_let_go.value > 0.f ? vr_agrunt_tug_let_go.value * 0.01f * world->m2u : g.stuck;
-        if(glm::distance(held, at) > (g.tug ? letGo : g.stuck > 0.f ? g.stuck : grabStuck))
+        // (A downed one's, tugBack: its body still falling or staggering drags the limb further than a standing one's
+        // pinned arm; let go only at the limb grab's own lag, `stuck`.)
+        const float tugGo = g.tugBack > 0.f ? za::max(letGo, g.stuck) : letGo;
+        if(glm::distance(held, at) > (g.tug ? tugGo : g.stuck > 0.f ? g.stuck : grabStuck))
         {
             if(g.farSince < 0.0 && !g.tug)
             {
@@ -1061,6 +1095,21 @@ void syncRagdollGrabs(float dt)
         else
         {
             g.farSince = -1.0;
+        }
+        if(g.tug && g.tugBack > 0.f && r->count > 1 && g.part != 0)
+        {
+            // A downed one's arm pulling its weapon back (ragdollTug what 6): the held limb towards its body's middle, the
+            // body the other way (its own pull: it never slides it; your hold's spring feels it).
+            const b3BodyId root = r->body[0];
+            const glm::vec3 mid = world->toU(b3Body_GetPosition(root));
+            const glm::vec3 to = mid - held;
+            const float len = glm::length(to);
+            if(len > 0.5f)
+            {
+                const glm::vec3 f = to * (g.tugBack / len);
+                b3Body_ApplyForce(part, b3v(f), b3Body_GetWorldPoint(part, frameB.p), true);
+                b3Body_ApplyForceToCenter(root, b3v(-f), true);
+            }
         }
         b3Body_SetAwake(part, true);
     }
@@ -1508,6 +1557,17 @@ int ragdollPartInBox(int num, const glm::vec3& lo, const glm::vec3& hi, int afte
 glm::vec3 ragdollPoint(int num, int bone, const glm::vec3& p, bool toWorld)
 {
     return box3dRagdollPoint(num, bone, p, toWorld);
+}
+
+glm::vec3 ragdollPartMiddle(int num, int bone)
+{
+    const RagdollBodies* r = ragdollOf(num);
+    if(!world || !r || bone < 0 || bone >= r->count)
+    {
+        return glm::vec3{0.f};
+    }
+    const b3BodyId body = r->body[static_cast<za::SizeT>(bone)];
+    return world->toU(b3Body_GetWorldPoint(body, b3Body_GetLocalCenter(body)));
 }
 
 // ---- Limb gore (ROUND21.md, "Limb gore"; QC vr_limbs.qc) ----

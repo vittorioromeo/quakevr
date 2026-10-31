@@ -74,7 +74,7 @@ float(entity g, float along) VR_DPT_Pellet =
     vector q = vr_ag_wa + (vr_ag_wb - vr_ag_wa) * along;
     if(along > 1)
     {
-        q = vr_ag_wb + ax * (along - 1);
+        q = vr_ag_wb + (vr_ag_wb - vr_ag_wa) * (along - 1); // (`along` past 1 is still a share of the line, not units)
     }
     vector side = normalize([ax_y, -ax_x, 0]);
     if(side == '0 0 0')

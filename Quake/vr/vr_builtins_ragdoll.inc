@@ -249,8 +249,12 @@ void PF_ragdollboxpart()
 void PF_ragdollpoint()
 {
     const float* p = G_VECTOR(OFS_PARM2);
-    const glm::vec3 v = box3d::ragdollPoint(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), static_cast<int>(G_FLOAT(OFS_PARM1)),
-        geom::vec(p), G_FLOAT(OFS_PARM3) != 0.f);
+    // (toWorld 2: the part's middle, its mass centre, in the world; `p` unused. A part's body frame is not its middle:
+    // '0 0 0' of a hand's lay by the spine.)
+    const glm::vec3 v = G_FLOAT(OFS_PARM3) == 2.f
+                            ? box3d::ragdollPartMiddle(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), static_cast<int>(G_FLOAT(OFS_PARM1)))
+                            : box3d::ragdollPoint(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), static_cast<int>(G_FLOAT(OFS_PARM1)),
+                                  geom::vec(p), G_FLOAT(OFS_PARM3) != 0.f);
     float* out = G_VECTOR(OFS_RETURN);
     out[0] = v.x;
     out[1] = v.y;

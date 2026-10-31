@@ -3424,3 +3424,31 @@ and orange volumes 3-4x longer than a held nail pistol.
   3 units past the nail pistol's front end not counted, one on its middle counted. NOT RUN YET (his game was running).
 - Not done: the drawn pack still reaches the client through the network (one frame or so behind the drawn body); the
   hitmodel (shots on a live grunt's body) still reads the .mdl frame pose (another stale-pose reader).
+
+## Tug fixes verified; the physical downed tug (branch `agent/busyweapon`)
+
+His note (2026-10-31): grabbing a knocked-down enemy's weapon "doesn't seem to actually physically grab the enemy's
+weapon/hand and physically move it at all ... the enemy physically resists by pulling back."
+- **The wrong arm, really fixed:** `VR_AG_TugGripAt` read `ragdollpoint(g, hand, '0 0 0', 1)`, the hand part's body
+  frame origin, which lies by the spine: the hold took part 1 (spine) every time (tests 31/32 "ragtug arm" failed).
+  Now `ragdollpoint(g, bone, _, 2)`: the part's middle (its mass centre; box3d `ragdollPartMiddle`). Tests 31, 32: 6/0.
+- **Downed / staggering physical tug:** `ragdolltug(g, pl, h, 6, grip, back, force)` (box3d `tugRagdoll` what 6): the
+  hand holds the limb nearest the weapon hand's middle by the limb grab's spring (any ragdoll of it, no stagger needed),
+  its arm pulling that limb back towards its pelvis at `back` N (an internal force: the pelvis gets the opposite, so it
+  never slides the body; `World::RagdollGrab::tugBack`, applied in `syncRagdollGrabs`). `back` =
+  `VR_AG_TugDownBack`: 0.5 x Least Pull x Its Pull x Staggering or Down = 91 N as shipped. The weapon rides the hand
+  bone (VR_AG_RagProp), so pulling moves weapon, hand and arm, and the body once the arm is out. Win/lose as the physical
+  tug (`VR_AG_TugBreak`), its times (impulse, least pull time) eased by `vr_agrunt_tug_downed_scale`; the pull is the
+  stretch until your hand has drawn the arm 5 cm from the body, then the larger of stretch and hold force (the hold's
+  force alone carries its own fall: a falling sword grunt tore it out of a still hand in 0.3 s). The haptics feel its arm
+  (max of the pull and the hold's force). Such a hold lets go only at the limb grab's 64-unit lag (a falling body drags
+  the limb past Let Go Past). Up again (its ragdoll gone): the old tug goes on (`VR_AG_TugDownToOld`).
+- **Tests:** 92 phases 5 (shotgun) and 6 (sword), knocked down: physical, its arm's pull on a still hold 140 / 378 N,
+  the pull moved the weapon 14.7 / 32.6 units, won in 0.71 / 0.81 s: 22/0. Test 91: 9/9 won (case 10 now accepts the
+  off hand, the hand placed last since d6ae5f30a). Tug group 23, 29-38, 74 and ragdoll_grab as before (29: FAIL in the
+  baseline too). Test 92 phase 1 (two hands within 0.85x one hand) is borderline: 0.93-1.17 s against 1.36 s, failed
+  1 run in 3 since the grip fix.
+- **Step-1 fixes:** test 99 put its "3 units past the front end" pellet 3/length units past (`along` past 1 is a share):
+  fixed. vr_wornpack_test 1: its "on its back" check wanted the entity within 0.1 of the .mdl frame-pose place; the pack
+  rides the drawn chest bone since drawnpose (test 99: within 3 units): 3. OPEN: "dragged slowly by the pack: kept"
+  fails (the hold reads 4000 N at the grab, the 43 u/s drag 1550-1940 N, over the 1500 N rip): not investigated.
