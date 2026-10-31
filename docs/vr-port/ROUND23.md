@@ -3423,7 +3423,8 @@ and orange volumes 3-4x longer than a held nail pistol.
   model, the ragdoll's weapon on the hand holding it, the pack's chest bone source and its entity < 3 units off; a pellet
   3 units past the nail pistol's front end not counted, one on its middle counted. NOT RUN YET (his game was running).
 - Not done: the drawn pack still reaches the client through the network (one frame or so behind the drawn body); the
-  hitmodel (shots on a live grunt's body) still reads the .mdl frame pose (another stale-pose reader).
+  hitmodel (shots on a live grunt's body) still reads the .mdl frame pose (another stale-pose reader). (Done since:
+  "Armed humanoids: shots and grip spheres from the drawn pose".)
 
 ## Tug fixes verified; the physical downed tug (branch `agent/busyweapon`)
 
