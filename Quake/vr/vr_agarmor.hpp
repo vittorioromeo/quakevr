@@ -51,6 +51,12 @@ void serverWriteAll(struct sizebuf_s* msg);
 // The piece a hit at `at` on `ent` strikes (the bone of its vertex nearest, as drawn: box3d::boneAt); -1 none (no plate
 // there: a hand, a foot, the pelvis), -2 no rig.
 [[nodiscard]] int pieceAt(struct edict_s* ent, const float* at);
+// The unbroken plate a shot that met `ent`'s model at `at` going along `dir` crossed first: on its line from before the
+// body up to where it crosses the skin, each plate posed as drawn (its triangles); -1 none (it struck bare skin), -2 no
+// shell. The one query for every shot (QC VR_AgArmor_Shot: PositionalDamage's point and direction).
+[[nodiscard]] int shotPiece(struct edict_s* ent, const float* at, const float* dir);
+// vr_agarmor_debug: every armoured body's unbroken plates drawn as shotPiece poses them (the view, each frame).
+void debugDraw();
 // The bones of `ent`'s rig piece `piece` rides (bits by its rig's index, as box3d::limbInfo's: the helmet the head, the
 // cuirass the spine and the chest, a limb's plate its bone); 0 none (no rig). A cut taking one of them dislodges it.
 [[nodiscard]] uint32_t pieceBones(struct edict_s* ent, int piece);

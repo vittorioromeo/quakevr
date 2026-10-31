@@ -210,7 +210,8 @@ void(entity e, float armour, float pieces) VR_AgArmor_Toolgun; // the toolgun's 
 float(entity targ, entity inflictor, entity attacker, float damage, float isVRMelee) VR_AgArmor_Damage; // T_DamageDeal: the damage left
 void(entity targ) VR_AgArmor_Guard;      // a cut or a pop armed at a limb or the head under an unbroken plate: off
 void() VR_AgArmor_PelletsClear;          // ClearMultiDamagePellets
-void(entity hit) VR_AgArmor_PelletAdd;   // AddMultiDamage: the pellet's piece counted
+void(entity hit, float damage) VR_AgArmor_PelletAdd; // AddMultiDamage: the pellet's damage counted on its piece
+void(entity targ, vector at, vector dir) VR_AgArmor_Shot; // PositionalDamage: the plate a shot's line met first
 void(entity e, float dm) VR_AgArmor_Shed; // gibbed (ThrowHead, VR_Corpse_Gib): every piece left flies off as debris
 void(entity e) VR_AgArmor_Spawn;         // VR_AM_Spawn: an armed grunt's armour rolled by the skill
 float(entity targ, vector org, vector vel, float damage) VR_AgArmor_HitFx; // a hit's sparks on a plate; the blood's share returned

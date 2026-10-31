@@ -1014,6 +1014,36 @@ bool vertexPoint(edict_t* ent, int vert, glm::vec3& point)
     return true;
 }
 
+bool drawnVertexPoints(edict_t* ent, const int* verts, int n, glm::vec3* out)
+{
+    Drawn d;
+    if(!drawnOf(ent, d))
+    {
+        return false;
+    }
+    const Verts vs = vertsOf(d);
+    for(int i = 0; i < n; i++)
+    {
+        if(verts[i] < 0 || verts[i] >= d.mesh->numverts)
+        {
+            return false;
+        }
+        out[i] = vs.at(d, verts[i], 0.f);
+    }
+    return true;
+}
+
+float skinCrossing(edict_t* ent, const glm::vec3& a, const glm::vec3& b)
+{
+    Drawn d;
+    if(!drawnOf(ent, d))
+    {
+        return -1.f;
+    }
+    Found f;
+    return firstCrossing(d, a, b - a, 0.f, 1.f, f) ? f.t : -1.f;
+}
+
 bool nearestAny(edict_t* ent, const glm::vec3& p, Hit& out, float& dist)
 {
     Drawn d;

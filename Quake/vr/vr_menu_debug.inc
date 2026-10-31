@@ -123,6 +123,11 @@ za::Vector<Item> pageDebugViews()
                   "yellow."),
         toggle("Hit Zones Through Walls", vr_debug_hitzones_xray)
             .help("Draws the animated positional regions through walls and the back of the model. Off: only visible surfaces."),
+        toggle("Show Armour Plates", vr_agarmor_debug)
+            .help("Armed humanoids' armour: every unbroken plate's hit shape (its triangles) exactly as the shot test "
+                  "poses it, standing or a ragdoll, a colour per plate (cuirass gold, helmet red, pauldrons blue, "
+                  "bracers green, thighs magenta, shins orange and white). A shot whose line crosses one before the "
+                  "skin strikes that plate; broken plates are not drawn."),
         cycle("Show Gadget Button", vr_debug_gadget_button,
             {{0.f, "Off"}, {1.f, "Its Hit Volume"}, {2.f, "And the Screen Tap"}, {3.f, "And Print Sync"}})
             .help("vr_debug_gadget_button: the wrist gadget's side button's hit volume (green ready, yellow pressed, red "

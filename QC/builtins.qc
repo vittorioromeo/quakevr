@@ -384,7 +384,7 @@ void(entity player, float hand, vector vel) ragdollrelease = #0;
 float(entity e, vector vel) ragdollfling = #0;
 float(entity player, float hand) ragdollheld = #0;
 float(entity player, float hand) ragdollreach = #0;
-float(entity e, vector p, optional float within) ragdollbone = #0; // (within: -1 when its surface is farther)
+float(entity e, vector p, optional float within, optional vector dir) ragdollbone = #0; // (within: -1 when its surface is farther)
 // Ragdolls in a world box (the buzzsaw's blade, rogue_buzzsaw.qc): the next ragdoll after `after` (edict order; world:
 // from the first) with a part in mins..maxs, world if none; the next part of e's ragdoll after `after` (-1: from the
 // first) in it, -1 none, trace_endpos its point nearest the box's middle.
@@ -412,6 +412,10 @@ float(entity e, vector p) ragdolllimb = #0;
 // QVR_ARMOR_PIECE_AT) the piece a hit at p strikes (-1 none there, -2 no rig); limbpiece(e, piece, 10 / 11) that piece's
 // own model's ("<model>#plate<piece>") origin / angles now, as drawn.
 float QVR_ARMOR_PIECE_AT = -1000;
+// ragdollbone(e, p, QVR_ARMOR_SHOT, dir): the unbroken plate a shot that met e's model at p going along dir crossed
+// first (vr_agarmor.cpp shotPiece: each plate's triangles as drawn, on the shot's line up to where it crosses the skin);
+// -1 none (bare skin), -2 no shell.
+float QVR_ARMOR_SHOT = -1005;
 float QVR_ARMOR_CLIENT = -1001; // ragdollbone(e, [what, 0, 0], ...): the client's word on e's armour (the tests): 0 type, 1 pieces, 2 wear; -1 none
 // The worn backpack (vr_wornpack.qc; the engine's vr_box3d_wornpack.cpp): ragdollbone(e, [what, player's number, hand],
 // QVR_WORNPACK) 0 whether e's ragdoll wears it (1; 0 not, -1 no ragdoll), 1 torn off its ragdoll, 2 the pull (N) of that

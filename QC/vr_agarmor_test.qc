@@ -470,12 +470,19 @@ void() VR_ART_Deaths =
 
 float vr_aft_busy; // `vr_agarmor_test 5` (vr_agarmor_fx_test.qc) running
 void(float start) VR_AgArmor_FxTestFrame;
+float vr_ars_busy; // `vr_agarmor_test 10`-`12` (vr_agarmor_shot_test.qc) running
+void(float request) VR_ARS_Frame;
 
 void() VR_AgArmor_TestFrame =
 {
     if(vr_aft_busy)
     {
         VR_AgArmor_FxTestFrame(0);
+        return;
+    }
+    if(vr_ars_busy)
+    {
+        VR_ARS_Frame(0); // (10-12: vr_agarmor_shot_test.qc)
         return;
     }
     if(vr_art_state == 0)
@@ -494,6 +501,11 @@ void() VR_AgArmor_TestFrame =
         if(request == 5)
         {
             VR_AgArmor_FxTestFrame(1); // (ragdolls, cuts, debris, sparks: vr_agarmor_fx_test.qc)
+            return;
+        }
+        if(request >= 10 && request <= 12)
+        {
+            VR_ARS_Frame(request); // (real shots at every plate, an absorbed shot's push, a thrown plate)
             return;
         }
         if(request == 2)

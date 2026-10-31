@@ -1,6 +1,7 @@
 // vr_view.cpp -- see vr_view.hpp. Ported from the old engine's view.cpp (V_RenderView_*).
 
 #include "vr_view_internal.hpp"
+#include "vr_agarmor.hpp"
 #include "vr_kickcancel.hpp"
 #include "vr_holsterzones.hpp"
 #include "vr_disarmviz.hpp"
@@ -4883,6 +4884,7 @@ extern "C" void VR_SetupViewEntities()
         ledges::debugDraw(); // vr_debug_ledges
         hitmodel::debugDraw(); // vr_debug_hits
         hitmodel::zonesDraw(); // vr_debug_hitzones
+        agarmor::debugDraw();  // vr_agarmor_debug
         disarmviz::draw(s.head); // vr_debug_disarm
         rope::debugDraw();     // vr_debug_rope
         foegrab::neckDebugDraw(s.head); // vr_foegrab_necksnap_debug

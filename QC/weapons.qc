@@ -435,6 +435,7 @@ float PositionalDamage(entity xTarget, vector xEndpos, vector xDirection) =
     }
 
     VR_Hit_SetZone(xTarget, region, xEndpos);
+    VR_AgArmor_Shot(xTarget, xEndpos, xDirection); // (armour: the plate its line met first, vr_agarmor.qc)
     return max(0, region);
 }
 
@@ -1814,7 +1815,7 @@ float(entity hit, float damage) AddMultiDamage =
     if(part == 1)      hit_pelparts_x = hit_pelparts_x + 1;
     else if(part == 2) hit_pelparts_y = hit_pelparts_y + 1;
     else if(part == 3) hit_pelparts_z = hit_pelparts_z + 1;
-    VR_AgArmor_PelletAdd(hit); // (armour: the pellet's piece, vr_agarmor.qc)
+    VR_AgArmor_PelletAdd(hit, damage); // (armour: the pellet's damage on its piece, vr_agarmor.qc)
 
     // HONEY
     return VR_DamageCredit_Accepts(hit, self); // (the shooter's hitscan shot: FireBullets credited him)

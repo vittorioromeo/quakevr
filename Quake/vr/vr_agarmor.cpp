@@ -22,6 +22,9 @@
 #include "vr_rigpose.hpp"
 #include "vr_geom.hpp"
 
+#include "vr_lines.hpp"
+
+#include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Acos.hpp"
@@ -2064,15 +2067,12 @@ int pieceOfBone(edict_t* ent, const float* p)
     return -1;
 }
 
-// A plate's three anchors as `ent` is drawn now (hitmodel's poses; else its rest pose where it stands).
+// A plate's three anchors as `ent` is drawn now (the pose shots meet: hitmodel's, an armed humanoid's on its authored rig
+// as the client draws its armour; its animation frame's put the arms' plates where the arms are not; else its rest pose
+// where it stands).
 void posedAnchors(edict_t* ent, const Shell& s, const PlateFrame& pf, glm::vec3* posed)
 {
-    bool drawn = true;
-    for(int i = 0; i < 3; i++)
-    {
-        drawn = drawn && hitmodel::vertexPoint(ent, pf.anchor[i], posed[i]);
-    }
-    if(!drawn)
+    if(!hitmodel::drawnVertexPoints(ent, pf.anchor, 3, posed))
     {
         const glm::mat3 axes = held::axesFromAngles(ent->v.angles, false);
         for(int i = 0; i < 3; i++)
@@ -2171,6 +2171,157 @@ int plateNear(edict_t* ent, const Shell& s, const float* p, float reach, float& 
     }
     dist = bestD;
     return best;
+}
+
+// ---- What a shot meets first (ROUND23.md, "Armour: the plate a shot meets") ----
+inline constexpr float shotBack = 64.f;      // units of its line looked along before where it met the model
+inline constexpr float shotOn = 4.f;         // and past it (beyond the guns' tolerance), unless it crosses the skin first
+inline constexpr float shotPastSkin = 0.05f; // (a plate on the skin's surface counts)
+// vr_agarmor_debug: each piece's colour (cuirass, helmet, pauldrons, bracers, thighs, shins; left and right differ).
+const za::Array<glm::vec4, NumPieces> debugColours{glm::vec4{1.f, 0.85f, 0.1f, 0.8f}, glm::vec4{1.f, 0.2f, 0.2f, 0.8f},
+    glm::vec4{0.2f, 0.6f, 1.f, 0.8f}, glm::vec4{0.1f, 0.9f, 1.f, 0.8f}, glm::vec4{0.2f, 1.f, 0.3f, 0.8f},
+    glm::vec4{0.7f, 1.f, 0.2f, 0.8f}, glm::vec4{1.f, 0.3f, 1.f, 0.8f}, glm::vec4{0.7f, 0.4f, 1.f, 0.8f},
+    glm::vec4{1.f, 0.55f, 0.1f, 0.8f}, glm::vec4{1.f, 1.f, 1.f, 0.8f}};
+
+// Each unbroken plate posed as the hit test takes it, and as the debug view draws it: its rigid frame from its three
+// anchors as drawn (posedAnchors), a rest point q at origin + turn * q in the world.
+struct PlatePoses
+{
+    bool ok[NumPieces]{};
+    glm::mat3 turn[NumPieces]{};
+    glm::vec3 origin[NumPieces]{};
+};
+
+void posePlates(edict_t* ent, const Shell& s, int mask, PlatePoses& out)
+{
+    for(int piece = 0; piece < NumPieces; piece++)
+    {
+        const PlateFrame pf = (mask & (1 << piece)) ? plateFrameOf(s, piece) : PlateFrame{};
+        if(!pf.ok)
+        {
+            continue;
+        }
+        glm::vec3 posed[3];
+        posedAnchors(ent, s, pf, posed);
+        out.turn[piece] = frameFrom(posed[0], posed[1], posed[2]) * glm::transpose(pf.rest);
+        out.origin[piece] = posed[0] - out.turn[piece] * at(s.body.mdlRest, pf.anchor[0]);
+        out.ok[piece] = true;
+    }
+}
+
+// The entity's unbroken pieces (QC .vr_ar_mask; 0 none or no armour).
+[[nodiscard]] int wornMask(edict_t* ent)
+{
+    const progs::FieldOffsets& f = progs::fields();
+    if(!ent || ent->free || f.vr_ar_type < 0 || f.vr_ar_mask < 0 || progs::fieldFloat(ent, f.vr_ar_type) <= 0.f)
+    {
+        return 0;
+    }
+    return static_cast<int>(progs::fieldFloat(ent, f.vr_ar_mask)) & allPieces;
+}
+
+// The first plate of `mask` the segment a..b crosses (its triangles, outer, inner and rim, both sides): its piece and
+// `t` along it (0..1); -1 none.
+int plateOnSegment(edict_t* ent, const Shell& s, const glm::vec3& a, const glm::vec3& b, int mask, float& t)
+{
+    PlatePoses pp;
+    posePlates(ent, s, mask, pp);
+    glm::vec3 ra[NumPieces], rd[NumPieces];
+    for(int piece = 0; piece < NumPieces; piece++)
+    {
+        const glm::mat3 back = glm::transpose(pp.turn[piece]);
+        ra[piece] = pp.ok[piece] ? back * (a - pp.origin[piece]) : glm::vec3{0.f};
+        rd[piece] = pp.ok[piece] ? back * (b - a) : glm::vec3{0.f};
+    }
+    int best = -1;
+    t = 1.f;
+    for(int k = 0; k + 2 < count(s.tris); k += 3)
+    {
+        const Vert& v0 = at(s.verts, at(s.tris, k));
+        if(v0.piece < 0 || v0.piece >= NumPieces || !pp.ok[v0.piece])
+        {
+            continue;
+        }
+        const glm::vec3& o = ra[v0.piece];
+        const glm::vec3& d = rd[v0.piece];
+        const glm::vec3 e1 = at(s.verts, at(s.tris, k + 1)).p - v0.p, e2 = at(s.verts, at(s.tris, k + 2)).p - v0.p;
+        const glm::vec3 pv = glm::cross(d, e2);
+        const float det = glm::dot(e1, pv);
+        if(za::abs(det) < 1e-9f)
+        {
+            continue;
+        }
+        const float inv = 1.f / det;
+        const glm::vec3 tv = o - v0.p;
+        const float u = glm::dot(tv, pv) * inv;
+        const glm::vec3 qv = glm::cross(tv, e1);
+        const float v = glm::dot(d, qv) * inv;
+        const float tt = glm::dot(e2, qv) * inv;
+        if(u < 0.f || u > 1.f || v < 0.f || u + v > 1.f || tt < 0.f || tt >= t)
+        {
+            continue;
+        }
+        t = tt;
+        best = v0.piece;
+    }
+    return best;
+}
+
+int shotPiece(edict_t* ent, const float* p, const float* dir)
+{
+    const Shell* s = serverShell(baseOf(ent));
+    const int mask = wornMask(ent);
+    const glm::vec3 d = geom::safeNormalize(geom::vec(dir), glm::vec3{0.f}, 1e-6f);
+    if(!s || !mask || glm::dot(d, d) < 0.5f)
+    {
+        return s ? (mask ? pieceAt(ent, p) : -1) : -2;
+    }
+    // The shot's line from well before the body to past where it met the model grown by the guns' tolerance, cut where it
+    // first crosses the skin itself: a plate on that stretch is what it met first (one beyond is on the far side).
+    const glm::vec3 at3 = geom::vec(p);
+    const glm::vec3 a = at3 - d * shotBack;
+    const glm::vec3 b = at3 + d * (hitmodel::tolerance(hitmodel::Class::Guns) + shotOn);
+    const float skin = hitmodel::skinCrossing(ent, a, b);
+    const glm::vec3 end = (skin >= 0.f ? a + (b - a) * skin : b) + d * shotPastSkin;
+    float t = 1.f;
+    return plateOnSegment(ent, *s, a, end, mask, t);
+}
+
+void debugDraw()
+{
+    if(!vr_agarmor_debug.value || !sv.active)
+    {
+        return;
+    }
+    for(int i = svs.maxclients + 1; i < sv.qcvm.num_edicts; i++)
+    {
+        edict_t* e = EDICT_NUM(i);
+        const int mask = wornMask(e);
+        const Shell* s = mask ? serverShell(baseOf(e)) : nullptr;
+        if(!s)
+        {
+            continue;
+        }
+        PlatePoses pp;
+        posePlates(e, *s, mask, pp);
+        for(int k = 0; k + 2 < count(s->tris); k += 3)
+        {
+            const int piece = at(s->verts, at(s->tris, k)).piece;
+            if(piece < 0 || piece >= NumPieces || !pp.ok[piece])
+            {
+                continue;
+            }
+            glm::vec3 w[3];
+            for(int c = 0; c < 3; c++)
+            {
+                w[c] = pp.origin[piece] + pp.turn[piece] * at(s->verts, at(s->tris, k + c)).p;
+            }
+            const glm::vec4& col = debugColours[static_cast<za::SizeT>(piece)];
+            lines::line(w[0], w[1], 0.06f, col, col);
+            lines::line(w[1], w[2], 0.06f, col, col);
+            lines::line(w[2], w[0], 0.06f, col, col);
+        }
+    }
 }
 
 int pieceAt(edict_t* ent, const float* p)

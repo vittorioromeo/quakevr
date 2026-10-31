@@ -4130,3 +4130,26 @@ The leftovers of round 5 ("Not done": the smooth rigs one model after another, 4
   could save at most the fits and rest rows, ~20 ms of vrtesthall/vrstart and ~10 of hip2m5/e1m1 less its own reading
   and keying (the rigs must still be found: the key holds the derived rig), and the limbs' builds already run on the pool
   beside the load (round 5: 22 ms there, not on the main thread). Under the brief's ~20 ms bar: skipped.
+
+## Armour: the plate a shot meets, the debug view, the break sound, thrown plates (branch `agent/armorfix`, IN PROGRESS)
+
+His voice notes of 2026-10-31 ~19:55 (five items). Stopped at the tool budget; what is in and what is open:
+- **One query for every shot** (`agarmor::shotPiece`, QC `VR_AgArmor_Shot` from `PositionalDamage`, builtin
+  `ragdollbone(e, at, QVR_ARMOR_SHOT (-1005), dir)`): the first unbroken plate's triangles (outer, inner, rim) crossed on
+  the shot's line from 64 units before its point to where it first crosses the skin itself (`hitmodel::skinCrossing`,
+  no tolerance; else 4 units past the guns' tolerance). Sparks, blood, pellets, damage and armed cuts read that answer
+  (`VR_AgArmor_PieceAt`, while it is the target's this frame and within 16 units); blows with no line keep `pieceAt`.
+  Plates are posed from the drawn pose (`hitmodel::drawnVertexPoints`: an armed humanoid's authored-rig pose, as shots
+  meet it and as the client draws its armour; before, `vertexPoint`'s animation frame put the arm plates where the arms
+  were not). Plate Blocks All now stops the whole part even as the plate breaks (before: the pool's overflow went
+  through). Pellets count their damage per piece (a head pellet's three times a body pellet's), not their number.
+- **Debug view** `vr_agarmor_debug` (Debug > Show Armour Plates): every armoured body's unbroken plates' triangles,
+  posed exactly as `shotPiece` poses them, a colour per piece.
+- **Break sound**: `vr/derived/armor_break.wav` rate 0.7 -> 1.05 (vr_sndlayer.cpp; pitch rises with it). Committed.
+- **Thrown plates**: the debris gets `forcegrabbable_touch`, `throwhit`, the thrown-weapon flags (as vr_debris.qc's rocks).
+- **Absorbed shot's push**: `vr_agarmor_impulse` 0.5 (cvar only; not wired, no menu row yet).
+- **Tests** `vr_agarmor_test 10/11/12` (vr_agarmor_shot_test.qc; `map vrtesthall;wait30;vr_agarmor_test N`, ends on
+  "agarmor shot test: N passed"). First run of 10: **1 passed, 185 failed** (200 real shots at every plate of kinds
+  0-3; 3 plates with no clear line) - not yet diagnosed (the FAIL lines now print the shot record: piece, point); 11:
+  0/1 (its line filtered out); 12: the thrown plate did no damage (timed out: `VR_Carry_Throw` on a Box3D debris may
+  not move it, or its touch never fires).
