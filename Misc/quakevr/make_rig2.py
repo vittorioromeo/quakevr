@@ -234,7 +234,90 @@ KNIGHT_SKELETON = [
     dict(name='weapon', parent='hand_r', joint='fixed', pivot=(12.0, -6.7, 1.1), end=(21.0, -1.7, 15.9)),
 ]
 
+# Quake VR's hell knight, the death knight (quakevr/progs/vrhknight.mdl, the hknight.mdl without its sword's triangles:
+# 538 vertices; frame 0, stand1): upright and big (soles z -23.8, helmet top 36, its horns 39: the enforcer's height
+# and more, the grunt's 50 well short). Two meshes: the legs and the mail skirt (z -24..15) and the body with the arms
+# and the head (z 6..36); the face juts forward (x 12). Pauldrons (pieces 366, 367: shoulder tops y +-8..16, z 20..33)
+# and spikes (three on each pauldron, one on each elbow, two horns) are separate pieces. Both arms hang a little back
+# to elbows behind him (x -5, z 15..19), the forearms forward and down to gauntlets at his hips (z 6..14); the right
+# fist on the sword's grip (its middle 5.0 -20.3 9.2: the pommel 2 -19 6.8, the guard 8 -21.6 11.7; the blade up,
+# forward and out to his right, the tip 31 -34 31.5). His legs nearly straight, feet apart (ankles y +-11).
+HKNIGHT_SKELETON = [
+    # (the waist joint at the belt, where the body's mesh overlaps the skirt's top: the skirt is the pelvis's)
+    dict(name='pelvis', parent=None, joint='root', pivot=(1.5, 0.0, 0.0), end=(1.5, 0.0, 11.0)),
+    dict(name='spine', parent='pelvis', joint='ball', pivot=(1.5, 0.0, 11.0), end=(2.0, 0.0, 17.0), blend=3.0,
+         radius=13.0, fwd=(1, 0, 0), side=(0, 1, 0), sx=(-35, 45), sy=(-25, 25), tw=(-35, 36)),
+    dict(name='chest', parent='spine', joint='ball', pivot=(2.0, 0.0, 17.0), end=(2.5, 0.0, 22.5), blend=3.0,
+         radius=13.0, fwd=(1, 0, 0), side=(0, 1, 0), sx=(-20, 36), sy=(-20, 20), tw=(-40, 40)),
+    dict(name='neck', parent='chest', joint='ball', pivot=(2.5, 0.0, 22.5), end=(3.0, 0.0, 25.0), blend=1.2,
+         radius=6.0, fwd=(1, 0, 0), side=(0, 1, 0), sx=(-25, 35), sy=(-25, 25), tw=(-35, 35)),
+    dict(name='head', parent='neck', joint='ball', pivot=(3.0, 0.0, 25.0), end=(6.0, 0.0, 35.0), blend=1.0,
+         radius=7.0, fwd=(1, 0, 0), side=(0, 1, 0), sx=(-25, 15), sy=(-20, 20), tw=(-20, 20)),
+    dict(name='clavicle_l', parent='chest', joint='ball', pivot=(2.0, 3.0, 21.5), end=(0.5, 13.0, 24.0), blend=2.0,
+         radius=6.0, fwd=(1, 0, 0), side=(0, 0, 1), sx=(-15, 20), sy=(-10, 20), tw=(-35, 35)),
+    dict(name='upperarm_l', parent='clavicle_l', joint='ball', pivot=(0.5, 13.0, 24.0), end=(-1.5, 13.5, 17.0),
+         blend=3.5, radius=7.5, neutral=(0, 0.17, -1), fwd=(1, 0, 0), side=(0, 1, 0), sx=(-35, 46),
+         sy=(-15, 50), tw=(-40, 20)),
+    dict(name='forearm_l', parent='upperarm_l', joint='hinge', pivot=(-1.5, 13.5, 17.0), end=(4.0, 14.5, 10.5),
+         refine=True, blend=1.6, radius=4.5, range=(0, 125)),
+    dict(name='hand_l', parent='forearm_l', joint='ball', pivot=(4.0, 14.5, 10.5), end=(7.5, 15.0, 7.0), refine=True,
+         blend=0.6, radius=3.5, fwd=(0, 0, 1), side=(0, -1, 0), sx=(-30, 30), sy=(-30, 30), tw=(-30, 30)),
+    dict(name='clavicle_r', parent='chest', joint='ball', pivot=(2.0, -3.0, 21.5), end=(0.5, -13.5, 24.0),
+         blend=2.0, radius=6.0, fwd=(1, 0, 0), side=(0, 0, 1), sx=(-15, 20), sy=(-10, 20), tw=(-35, 35)),
+    dict(name='upperarm_r', parent='clavicle_r', joint='ball', pivot=(0.5, -13.5, 24.0), end=(-2.5, -15.0, 15.5),
+         blend=3.5, radius=7.5, neutral=(0, -0.17, -1), fwd=(1, 0, 0), side=(0, -1, 0), sx=(-35, 46),
+         sy=(-15, 50), tw=(-20, 40)),
+    dict(name='forearm_r', parent='upperarm_r', joint='hinge', pivot=(-2.5, -15.0, 15.5), end=(4.5, -18.5, 11.0),
+         refine=True, blend=1.6, radius=4.5, range=(0, 125)),
+    dict(name='hand_r', parent='forearm_r', joint='ball', pivot=(4.5, -18.5, 11.0), end=(8.5, -21.5, 8.0), refine=True,
+         blend=0.6, radius=3.5, fwd=(0, 0, 1), side=(0, 1, 0), sx=(-30, 30), sy=(-30, 30), tw=(-30, 30)),
+    dict(name='thigh_l', parent='pelvis', joint='ball', pivot=(1.5, 5.5, -3.0), end=(3.5, 8.0, -10.0), blend=2.6,
+         radius=8.0, neutral=(0, 0.08, -1), fwd=(1, 0, 0), side=(0, 1, 0), sx=(-30, 65), sy=(-20, 45), tw=(-30, 30)),
+    dict(name='shin_l', parent='thigh_l', joint='hinge', pivot=(3.5, 8.0, -10.0), end=(0.5, 11.0, -20.0),
+         refine=True, blend=4.5, radius=6.0, axis=(0, 1, 0), range=(0, 130)),
+    dict(name='foot_l', parent='shin_l', joint='ball', pivot=(0.5, 11.0, -20.0), end=(9.0, 12.0, -23.5),
+         refine=True, blend=1.0, radius=4.0, fwd=(0, 0, 1), side=(0, 1, 0), sx=(-25, 30), sy=(-10, 10),
+         tw=(-12, 12)),
+    dict(name='thigh_r', parent='pelvis', joint='ball', pivot=(1.5, -5.5, -3.0), end=(3.5, -8.0, -10.0), blend=2.6,
+         radius=8.0, neutral=(0, -0.08, -1), fwd=(1, 0, 0), side=(0, -1, 0), sx=(-30, 65), sy=(-20, 45),
+         tw=(-30, 30)),
+    dict(name='shin_r', parent='thigh_r', joint='hinge', pivot=(3.5, -8.0, -10.0), end=(1.0, -10.5, -20.0),
+         refine=True, blend=4.5, radius=6.0, axis=(0, 1, 0), range=(0, 130)),
+    dict(name='foot_r', parent='shin_r', joint='ball', pivot=(1.0, -10.5, -20.0), end=(9.5, -11.0, -23.5),
+         refine=True, blend=1.0, radius=4.0, fwd=(0, 0, 1), side=(0, -1, 0), sx=(-25, 30), sy=(-10, 10),
+         tw=(-12, 12)),
+    # (the sword's grip, the blade's way: its pommel to its tip at rest)
+    dict(name='weapon', parent='hand_r', joint='fixed', pivot=(5.0, -20.3, 9.2), end=(31.0, -34.0, 31.5)),
+]
+
 RIGS = {
+    'hknight': dict(build='vrhknight', models=['vrhknight'], skeleton=HKNIGHT_SKELETON,
+                    gun=list(range(42, 59)) + list(range(332, 366)) + list(range(525, 533)),
+                    thick=dict(pelvis=8.0, spine=8.5, chest=8.5, neck=4.0, head=5.5, clavicle=3.5, upperarm=3.5,
+                               forearm=3.0, hand=2.3, thigh=4.2, shin=3.5, foot=2.8),
+                    # the helmet and the face the head's (the chest's thick capsule reaches up into them)
+                    # (the jaw's front, z 24, too: on the chest it turned over as the head bowed; the back of the neck below
+                    # the helmet, z 26, stays the neck's or the chest's: as the head's it pulled the shoulders' backs); the skirt's top, above
+                    # the hips, the pelvis's (as the enforcer's: on the thigh or the spine it turned back as either moved)
+                    region_rules=[('head', lambda p, r: (p[2] >= 27.5 or (p[2] >= 24.0 and p[0] >= 3.0) or (p[2] >= 23.0 and p[0] >= 7.0))
+                                   and -7.5 <= p[1] <= 7.5 and r in ('chest', 'neck')),
+                                  ('pelvis', lambda p, r: -1.0 <= p[2] <= 12.0 and (r.startswith('thigh') or
+                                                                                   r in ('spine', 'chest')))],
+                    # the gauntlets' back corners (by the pommel) the hands' (they took the upper arm's weight)
+                    region_fix=dict([(v, 'hand_r') for v in (494, 484, 479, 495, 301, 293)] +
+                                    [(v, 'hand_l') for v in (473, 464, 465, 466, 308, 310)]),
+                    no_skip=[('upperarm_r', 'forearm_r', 'hand_r'), ('upperarm_l', 'forearm_l', 'hand_l')],
+                    # (the left shoulder's back by the neck: the head's weight smoothed onto it turned it over as the head bowed)
+                    weights_fix={314: {'clavicle_l': 0.5, 'upperarm_l': 0.5}},
+                    # each hip's hem ring (the skirt's bottom, the thigh's top) turns as one: its triangles turned over as
+                    # the leg rose; the backs of the knees and the left cuff's top (folded at the knees' and elbow's most)
+                    ties=[[117, 135, 136, 138, 139, 173, 174, 175, 176], [123, 133, 134, 137, 140, 153, 154, 155, 158],
+                          [101, 167, 399], [387, 389, 390], [470, 449, 469]],
+                    # the horns ride the head; each pauldron and its three spikes, each elbow's spike, its upper arm
+                    pieces={0: 'head', 17: 'head', 366: 'upperarm_r', 37: 'upperarm_r', 38: 'upperarm_r',
+                            39: 'upperarm_r', 34: 'upperarm_r', 367: 'upperarm_l', 36: 'upperarm_l', 40: 'upperarm_l',
+                            41: 'upperarm_l', 35: 'upperarm_l'},
+                    max_hops=3, weld_gun=False),
     'knight': dict(build='vrknight', models=['vrknight'], skeleton=KNIGHT_SKELETON,
                    gun=[334, 335, 336, 363, 364, 365, 524] + list(range(535, 541)) + list(range(557, 649)),
                    thick=dict(pelvis=7.0, spine=7.5, chest=7.5, neck=3.5, head=5.0, clavicle=3.5, upperarm=3.5,

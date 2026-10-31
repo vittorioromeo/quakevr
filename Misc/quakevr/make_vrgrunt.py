@@ -4,6 +4,7 @@
 #   progs/vrgrunt.mdl     the grunt (quakevr/progs/soldier.mdl)
 #   progs/vrenforcer.mdl  the enforcer (quakevr/progs/enforcer.mdl)
 #   progs/vrknight.mdl    the knight (quakevr/progs/knight.mdl): no sword
+#   progs/vrhknight.mdl   the hell knight (quakevr/progs/hknight.mdl): no sword
 #
 # Usage: python Misc/quakevr/make_vrgrunt.py [quakevr progs folder] [model name: vrgrunt, vrenforcer; default all]
 #
@@ -29,6 +30,10 @@ MODELS = {
     'vrknight': dict(src='knight.mdl', counts=(655, 697),
                      gun=[334, 335, 336, 363, 364, 365, 524] + list(range(535, 541)) + list(range(557, 649)),
                      gun_tris=None),
+    # the hell knight (the death knight, vr_agdknight): his sword's blade and its guard (vr_monstermods.cpp knownSwords:
+    # 42.., 332.., 525..) dropped; he holds the player's sword and still casts his fireball volley
+    'vrhknight': dict(src='hknight.mdl', counts=(538, 1000),
+                      gun=list(range(42, 59)) + list(range(332, 366)) + list(range(525, 533)), gun_tris=None),
 }
 
 

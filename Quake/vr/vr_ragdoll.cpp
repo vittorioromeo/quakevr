@@ -564,6 +564,8 @@ constexpr SeedTable seedTables[] = {
     // The armed knight (QC vr_armedmon.qc, vr_agknight): the knight's model without his sword's triangles (its authored rig:
     // quakevr/rigs/vrknight.rig2.txt; knight.mdl keeps the derived one).
     {modelmeta::Id::VrKnight, 655, knightSeeds, static_cast<int>(sizeof(knightSeeds) / sizeof(knightSeeds[0])), 2, {76, 86}, {85, 96}},
+    // The armed death knight (vr_agdknight): the hell knight's model without his sword's triangles (quakevr/rigs/vrhknight.rig2.txt).
+    {modelmeta::Id::VrHknight, 538, hknightSeeds, static_cast<int>(sizeof(hknightSeeds) / sizeof(hknightSeeds[0])), 2, {42, 54}, {53, 62}},
     {modelmeta::Id::Hknight, 538, hknightSeeds, static_cast<int>(sizeof(hknightSeeds) / sizeof(hknightSeeds[0])), 2, {42, 54}, {53, 62}},
     {modelmeta::Id::Dog, 655, dogSeeds, static_cast<int>(sizeof(dogSeeds) / sizeof(dogSeeds[0])), 2, {8, 17}, {16, 25}},
     {modelmeta::Id::Wizard, 310, wizardSeeds, static_cast<int>(sizeof(wizardSeeds) / sizeof(wizardSeeds[0])), 1, {46, 0}, {53, 0}},
