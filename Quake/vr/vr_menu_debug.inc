@@ -184,7 +184,7 @@ za::Vector<Item> pageDebugViews()
                   "rig's .mdl: each model's vertices, triangles, skin and normal map, how often drawn last frame, the retro "
                   "textures' Quake skin size and lighting share (both must match: the same look)."),
         command("Print Blade Shape", "vr_blade_dump")
-            .help("vr_blade_dump [slot]: the main hand's weapon's blade shape and tip as vr_weapons.inc lines (* changed)."),
+            .help("vr_blade_dump [slot]: the main hand's weapon's blade shape and tip as quakevr/data/weapons.txt lines (* changed)."),
         command("Print Fist Line", "vr_blade_dump fist")
             .help("vr_blade_dump fist: the empty hand's blow line (vr_melee_fist_*) as vr_cvars.inc lines (* changed)."),
         row(opt::vr_debug_hand_bones),

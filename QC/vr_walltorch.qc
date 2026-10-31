@@ -263,10 +263,10 @@ float(entity targ, entity inflictor, entity attacker, float damage, float xMelee
     {
         return FALSE;
     }
-    if(xMelee && (attacker.flags & FL_CLIENT) && (vr_hithand == cVR_MainHand || vr_hithand == cVR_OffHand) &&
-       VR_WallTorch_CanGrip(targ, attacker, vr_hithand))
+    if(xMelee && (attacker.flags & FL_CLIENT) && (hit_hand == cVR_MainHand || hit_hand == cVR_OffHand) &&
+       VR_WallTorch_CanGrip(targ, attacker, hit_hand))
     {
-        VR_WallTorch_Grip(targ, attacker, vr_hithand, "a blow with the grip closed");
+        VR_WallTorch_Grip(targ, attacker, hit_hand, "a blow with the grip closed");
         return TRUE;
     }
     entity by = inflictor;

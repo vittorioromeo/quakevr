@@ -82,9 +82,9 @@ void(entity c, entity p, float xDamage, float xLightning) MG3_CT_Hit =
     if(!xLightning) { T_Damage(c, p, p, xDamage); return; }
     float w1 = p.weapon, w2 = p.weapon2;
     p.weapon = p.weapon2 = WID_LIGHTNING;
-    VR_SetHitKind(QVR_HITKIND_SHOT, cVR_MainHand, '0 0 0', '0 0 0');
+    VR_Hit_Begin(QVR_HITKIND_SHOT, cVR_MainHand, '0 0 0', '0 0 0');
     T_Damage(c, p, p, xDamage);
-    VR_ClearHitKind();
+    VR_Hit_End();
     p.weapon = w1; p.weapon2 = w2;
 };
 

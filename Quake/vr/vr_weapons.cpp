@@ -39,13 +39,9 @@ constexpr const char* keyNames[numKeys] = {
 #undef QVR_WEAPON_KEY
 };
 
-constexpr const char* keyEnumNames[numKeys] = {
-#define QVR_WEAPON_KEY(e, k) #e,
-#include "vr_weapons.inc"
-#undef QVR_WEAPON_KEY
-};
-
-SlotTable<Key, numSlots, numKeys> slots; // vr_wofs_<key>_NN
+// Every slot's values, from quakevr/data/weapons.txt (loadTable), with the player's changes over them (the config's
+// vr_wofs_<key>_NN lines): stand-ins named vr_wofs_<key>_NN, not cvars (vr_slottable.hpp DataTable).
+DataTable<Key, numSlots, numKeys> slots;
 
 
 [[nodiscard]] cvar_t& cvarAt(int slot, Key key)
@@ -238,9 +234,21 @@ struct Uninherited
 constexpr Uninherited uninherited[] = {{27, 21}, {28, 21}, {29, 21}, {30, 21}, {31, 21}, {33, 0}, {34, 2}, {35, 7}};
 constexpr int numUninherited = sizeof(uninherited) / sizeof(uninherited[0]);
 
-// Their defaults before 48 (registerCvars: vr_weapons.inc without its QVR_WEAPON_UNINHERITED lines): a config's value
+// Their defaults before 48 (weapons.txt's, but vr_weapons_before48.inc's where they changed in 48): a config's value
 // that is still one of these was a placeholder that gave way to the parent's.
 za::Array<const char*, numUninherited * numKeys> oldDefaults{};
+
+[[nodiscard]] constexpr int uninheritedIndex(int slot)
+{
+    for(int i = 0; i < numUninherited; i++)
+    {
+        if(uninherited[i].slot == slot)
+        {
+            return i;
+        }
+    }
+    return -1;
+}
 
 // Their defaults that were their own then (vr_weapons.inc QVR_WEAPON_OWN until 48): never the parent's.
 struct SlotKey
@@ -1079,101 +1087,154 @@ void migrate()
 
 } // namespace
 
+namespace
+{
+
+constexpr const char* dataFile = "data/weapons.txt";
+
+// quakevr/data/weapons.txt read into `defaults` (each key's every-slot value: its `defaults` block, "0" for a key not
+// in it) and `own` (each slot's block's values, in the file's order). False: no file. A line it can't take is reported
+// and skipped.
+struct OwnValue
+{
+    int slot;
+    int key;
+    za::String value;
+};
+bool readDataFile(za::Array<za::String, numKeys>& defaults, za::Vector<OwnValue>& own)
+{
+    for(za::String& d : defaults)
+    {
+        d = "0";
+    }
+    byte* file = COM_LoadMallocFile(dataFile, nullptr);
+    if(!file)
+    {
+        return false;
+    }
+    int problems = 0;
+    const char* data = reinterpret_cast<const char*>(file);
+    while((data = COM_Parse(data)) != nullptr)
+    {
+        int slot = -1; // (the defaults block)
+        if(!strcmp(com_token, "weapon"))
+        {
+            data = COM_Parse(data);
+            slot = data ? Q_atoi(com_token) : -1;
+            if(!data || slot < 0 || slot >= numSlots)
+            {
+                Con_Printf("\x02%s: \"weapon %s\": no such slot (0 .. %d)\n", dataFile, com_token, numSlots - 1);
+                break;
+            }
+        }
+        else if(strcmp(com_token, "defaults") != 0)
+        {
+            Con_Printf("\x02%s: \"%s\": expected \"defaults\" or \"weapon <slot>\"\n", dataFile, com_token);
+            break;
+        }
+        data = COM_Parse(data);
+        if(!data || strcmp(com_token, "{") != 0)
+        {
+            Con_Printf("\x02%s: expected \"{\" after a block's name\n", dataFile);
+            break;
+        }
+        while((data = COM_Parse(data)) != nullptr && strcmp(com_token, "}") != 0)
+        {
+            const Key key = keyByName(com_token);
+            za::String name{com_token};
+            data = COM_Parse(data);
+            if(!data)
+            {
+                break;
+            }
+            if(key == Key::Count)
+            {
+                Con_Printf("\x02%s: no key \"%s\" (vr_weapons.inc): ignored\n", dataFile, name.cStr());
+                problems++;
+                continue;
+            }
+            if(slot < 0)
+            {
+                defaults[static_cast<int>(key)] = com_token;
+            }
+            else
+            {
+                own.pushBack(OwnValue{slot, static_cast<int>(key), za::String{com_token}});
+            }
+        }
+    }
+    free(file);
+    if(problems > 0)
+    {
+        Con_Printf("\x02%s: %d line%s ignored\n", dataFile, problems, problems == 1 ? "" : "s");
+    }
+    return true;
+}
+
+} // namespace
+
 void registerCvars()
 {
+    // Every slot's values from quakevr/data/weapons.txt (the defaults; the config's lines go over them).
+    za::Array<za::String, numKeys> defaults;
+    za::Vector<OwnValue> own;
+    if(!readDataFile(defaults, own))
+    {
+        Con_Printf("\x02No %s in the game folder: every weapon's settings are 0 (reinstall the game)\n", dataFile);
+    }
+    za::Vector<const char*> value;
+    value.resize(numSlots * numKeys, nullptr);
     for(int slot = 0; slot < numSlots; slot++)
     {
         for(int key = 0; key < numKeys; key++)
         {
-            slots.define(slot, key, va("vr_wofs_%s_%02d", keyNames[key], slot + 1), "0");
+            value[slot * numKeys + key] = defaults[key].cStr();
         }
     }
-
-    // Round 21, third pass: the overlap sliders' default (weapons::defaultOverlap: the snug fit the global
-    // vr_hand_fit_overlap gave before), every slot and hotspot.
+    for(const OwnValue& o : own)
+    {
+        value[o.slot * numKeys + o.key] = o.value.cStr(); // (a key given twice: the last)
+    }
     for(int slot = 0; slot < numSlots; slot++)
     {
-        cvarAt(slot, Key::GripOverlap).string = "0.3";
-        for(int i = 0; i < maxHotspots; i++)
+        for(int key = 0; key < numKeys; key++)
         {
-            cvarAt(slot, hotspotKey(i, 9)).string = "0.3";
-            cvarAt(slot, hotspotKey(i, 23)).string = "1"; // Stickiness: as every grip
+            slots.define(slot, key, va("vr_wofs_%s_%02d", keyNames[key], slot + 1), value[slot * numKeys + key], onChanged);
         }
+        oldRecoil[slot] = oldRecoilDefault(slot); // (the old recoil values at their old defaults)
     }
 
-    // The weapon's multipliers of the spring's and the damage's global settings: 1 (as the global ones are).
-    for(int slot = 0; slot < numSlots; slot++)
-    {
-        for(const Key key : {Key::SpringStiffness, Key::SpringDamping, Key::SpringStrength, Key::SpringSag, Key::SpringSwing,
-                Key::SpringTwoHanded, Key::SpringSnap, Key::SpringRoll, Key::MeleeDamage, Key::ThrowDamage, Key::SpinAlign, Key::ThrowMinSpeed,
-                Key::ThrowCurve, Key::MeleeMinSpeed, Key::MeleeCurve})
-        {
-            cvarAt(slot, key).string = "1";
-        }
-    }
-
-    // The weapon effects' (vr_weaponfx.cpp): no recoil (0 cm, 0 degrees: Kick Back and Muzzle Rise's "0" above), the
-    // shotgun's flash size; the tracers as Weapon Effects'. The old recoil values (oldRecoil) at their old defaults.
-    for(int slot = 0; slot < numSlots; slot++)
-    {
-        for(const Key key : {Key::HapticPunch, Key::Recoil2hKick, Key::Recoil2hRise, Key::Recoil2hTime, Key::Recoil2hHaptic, Key::FlashSize, Key::TracerSpeed, Key::TracerLength, Key::TracerWidth,
-                Key::TracerChance, Key::TracerRed, Key::GunfxSparks, Key::GunfxSparkSize, Key::GunfxSmoke, Key::GunfxSmokeSize,
-                Key::GunfxWisps})
-        {
-            cvarAt(slot, key).string = "1";
-        }
-        cvarAt(slot, Key::RecoilReturn).string = "0.115";
-        oldRecoil[slot] = oldRecoilDefault(slot);
-        cvarAt(slot, Key::FlashTime).string = "0.06";
-        cvarAt(slot, Key::TracerGreen).string = "0.8";
-        cvarAt(slot, Key::TracerBlue).string = "0.45";
-    }
-
-    // The other hand anywhere on it: as the global setting (vr_weapon_anygrip_mode).
-    for(int slot = 0; slot < numSlots; slot++)
-    {
-        cvarAt(slot, Key::AnyGripMode).string = "-1";
-        cvarAt(slot, Key::TorchClip).string = "1"; // the flashlight clips on it (the melee weapons' 0: vr_weapons.inc)
-        // Heavy handling: the weight class from the mass (the weapons' own: vr_weapons.inc), its droop and kick as is.
-        cvarAt(slot, Key::Heft).string = "-1";
-        cvarAt(slot, Key::Droop).string = "1";
-        cvarAt(slot, Key::HeavyRecoil).string = "1";
-        // The blade's shape (vr_blade.hpp): the kind's own near end, the swept points' own width; the model's curve and
-        // head (Spine, Head 0).
-        cvarAt(slot, Key::BladeNear).string = "-1";
-        cvarAt(slot, Key::BladeWidth).string = "1";
-        cvarAt(slot, Key::BladeFrom).string = "-1"; // (the kind's own blade start)
-    }
-
-#define QVR_WEAPON_DEFAULT(slot, key, value) cvarAt(slot, Key::key).string = value;
-#define QVR_WEAPON_UNINHERITED(slot, key, value)
 #define QVR_WEAPON_OWN(slot, key) ownDefaults[(slot) * numKeys + static_cast<int>(Key::key)] = true;
 #include "vr_weapons.inc"
 #undef QVR_WEAPON_OWN
-#undef QVR_WEAPON_UNINHERITED
-#undef QVR_WEAPON_DEFAULT
 
-    // The AD weapons' defaults before vr_wofs_version 48 (takeUninherited), then the values they inherited until then,
-    // their own defaults now (the second pass reads only those).
+    // The AD weapons' defaults before vr_wofs_version 48 (takeUninherited): today's, but those 48 changed.
     for(int i = 0; i < numUninherited; i++)
     {
         for(int key = 0; key < numKeys; key++)
         {
-            oldDefaults[i * numKeys + key] = cvarAt(uninherited[i].slot, static_cast<Key>(key)).string;
+            oldDefaults[i * numKeys + key] = cvarAt(uninherited[i].slot, static_cast<Key>(key)).default_string;
         }
     }
-#define QVR_WEAPON_DEFAULT(slot, key, value)
-#define QVR_WEAPON_UNINHERITED(slot, key, value) cvarAt(slot, Key::key).string = value;
-#include "vr_weapons.inc"
-#undef QVR_WEAPON_UNINHERITED
-#undef QVR_WEAPON_DEFAULT
+#define QVR_WEAPON_BEFORE48(slot, key, value) \
+    oldDefaults[uninheritedIndex(slot) * numKeys + static_cast<int>(Key::key)] = value;
+#include "vr_weapons_before48.inc"
+#undef QVR_WEAPON_BEFORE48
+}
 
-    for(cvar_t& var : slots)
-    {
-        Cvar_RegisterVariable(&var);
-        Cvar_SetCallback(&var, onChanged);
-    }
+cvar_t* findStandIn(const char* name)
+{
+    return q_strncasecmp(name, "vr_wofs_", 8) == 0 ? slots.find(name) : nullptr;
+}
 
+bool setStandIn(cvar_t* var, const char* value)
+{
+    return slots.set(var, value);
+}
+
+za::Span<cvar_t> standIns()
+{
+    return {slots.begin(), static_cast<za::SizeT>(slots.end() - slots.begin())};
 }
 
 int slotsUsed()
@@ -1570,15 +1631,15 @@ void printSlot(int slot, Part part)
     {
         return;
     }
-    Con_Printf("// %s (slot %d, cvars _%02d): the settings changed from the defaults\n", cvarAt(slot, Key::ID).string, slot,
-        slot + 1);
+    Con_Printf("// %s (vr_wofs_*_%02d): the settings changed from quakevr/data/weapons.txt, as lines of its block \"weapon "
+               "%d\"\n",
+        cvarAt(slot, Key::ID).string, slot + 1, slot);
     for(int key = 0; key < numKeys; key++)
     {
         const cvar_t& var = cvarAt(slot, static_cast<Key>(key));
         if(!retired(static_cast<Key>(key)) && inPart(static_cast<Key>(key), part) && strcmp(var.string, var.default_string))
         {
-            Con_Printf("QVR_WEAPON_DEFAULT(%d, %s, \"%s\") // was %s\n", slot, keyEnumNames[key], var.string,
-                var.default_string);
+            Con_Printf("    %s \"%s\" // was \"%s\"\n", keyNames[key], var.string, var.default_string);
         }
     }
 }
@@ -1680,6 +1741,12 @@ Key keyByName(const char* name)
         }
     }
     return Key::Count;
+}
+
+const char* keyName(Key key)
+{
+    const int k = static_cast<int>(key);
+    return k >= 0 && k < numKeys ? keyNames[k] : "";
 }
 
 qmodel_t* heldModel(int hand)

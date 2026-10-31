@@ -39,39 +39,39 @@ string(float xHand) VR_Motion_HandSub =
 };
 
 // T_DamageImpl, as the damage is dealt (after quad and the damage multipliers, before armour): a hit
-// by a player's hand or head (the kinds VR_SetHitKind tags: a blow, a bash or shove, a headbutt).
+// by a player's hand or head (the kinds VR_Hit_Begin tags: a blow, a bash or shove, a headbutt).
 void(entity xTarg, entity xAttacker, float xDamage, float xIsVRMelee) VR_Motion_Hit =
 {
     if(!(xAttacker.flags & FL_CLIENT) || xTarg == xAttacker)
     {
         return;
     }
-    if(vr_hitkind == QVR_HITKIND_BASH)
+    if(hit_kind == QVR_HITKIND_BASH)
     {
-        VR_Motion_Event(vr_bash_counter ? "parrybash" : "bash", VR_Motion_HandSub(vr_hithand), vr_hithand, xDamage,
-                        vr_hitpos, xTarg, "");
+        VR_Motion_Event(vr_bash_counter ? "parrybash" : "bash", VR_Motion_HandSub(hit_hand), hit_hand, xDamage,
+                        hit_pos, xTarg, "");
         return;
     }
-    if(vr_hitkind == QVR_HITKIND_SHOVE)
+    if(hit_kind == QVR_HITKIND_SHOVE)
     {
-        VR_Motion_Event("shove", VR_Motion_HandSub(vr_hithand), vr_hithand, xDamage, vr_hitpos, xTarg, "");
+        VR_Motion_Event("shove", VR_Motion_HandSub(hit_hand), hit_hand, xDamage, hit_pos, xTarg, "");
         return;
     }
-    if(vr_hitkind == QVR_HITKIND_HEADBUTT)
+    if(hit_kind == QVR_HITKIND_HEADBUTT)
     {
-        VR_Motion_Event("headbutt", "", -1, xDamage, vr_hitpos, xTarg, "");
+        VR_Motion_Event("headbutt", "", -1, xDamage, hit_pos, xTarg, "");
         return;
     }
-    if(vr_hitkind != QVR_HITKIND_MELEE && !xIsVRMelee)
+    if(hit_kind != QVR_HITKIND_MELEE && !xIsVRMelee)
     {
         return;
     }
 
     // A hand's blow (vr_melee.qc): its category, and its kind, way and striking part.
-    float hand = vr_hitkind == QVR_HITKIND_MELEE ? vr_hithand : -1;
+    float hand = hit_kind == QVR_HITKIND_MELEE ? hit_hand : -1;
     string sub = "";
     string point = "";
-    vector at = vr_hitpos;
+    vector at = hit_pos;
     if(hand >= 0 && xAttacker.ishuman)
     {
         entity oldSelf = self;

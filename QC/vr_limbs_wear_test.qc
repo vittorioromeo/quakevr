@@ -42,11 +42,11 @@ void(float xTest, entity m) VR_Limb_WearTestHit =
     vector from = vr_wtest_from;
     vector dir = vr_wtest_dir;
     vector at = from + dir * 24;
-    VR_ClearHitKind();
+    VR_Hit_End();
     if(xTest == 30 || xTest == 31 || xTest == 37 || xTest == 38)
     {
         float ssg = xTest == 31;
-        VR_SetHitKind(QVR_HITKIND_SHOT, cVR_MainHand, '0 0 0', dir);
+        VR_Hit_Begin(QVR_HITKIND_SHOT, cVR_MainHand, '0 0 0', dir);
         vr_decap_weapon = ssg ? QVR_DECAP_SSG : QVR_DECAP_SHOTGUN;
         self.damage_weapon = IT_SHOTGUN;
         vr_pellet_damage = cvar_hget(ssg ? cvarh_vr_dmg_super_shotgun : cvarh_vr_dmg_shotgun);
@@ -58,7 +58,7 @@ void(float xTest, entity m) VR_Limb_WearTestHit =
     }
     else if(xTest == 32)
     {
-        VR_SetHitKind(QVR_HITKIND_SHOT, cVR_MainHand, '0 0 0', dir);
+        VR_Hit_Begin(QVR_HITKIND_SHOT, cVR_MainHand, '0 0 0', dir);
         vr_decap_weapon = QVR_DECAP_LIGHTNING;
         self.damage_weapon = IT_LIGHTNING;
         LightningDamage(from, at + dir * 40, self, cvar_hget(cvarh_vr_dmg_lightning));
@@ -120,11 +120,11 @@ void(float xTest, entity m) VR_Limb_WearTestHit =
     {
         float oldWeapon = VRGetEntWeapon(self, cVR_MainHand);
         VRSetEntWeapon(self, cVR_MainHand, WID_AXE);
-        VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, at, dir);
+        VR_Hit_Begin(QVR_HITKIND_MELEE, cVR_MainHand, at, dir);
         T_Damage(m, self, self, 20);
         VRSetEntWeapon(self, cVR_MainHand, oldWeapon);
     }
-    VR_ClearHitKind();
+    VR_Hit_End();
 };
 
 void(float xTest) VR_Limb_WearTest =

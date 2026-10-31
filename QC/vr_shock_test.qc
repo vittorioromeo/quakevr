@@ -58,13 +58,13 @@ void() VR_Shock_TestFrame =
     self = p;
     vector from = p.origin + p.view_ofs;
     vector to = (best.absmin + best.absmax) * 0.5;
-    VR_SetHitKind(QVR_HITKIND_SHOT, cVR_MainHand, '0 0 0', normalize(to - from));
+    VR_Hit_Begin(QVR_HITKIND_SHOT, cVR_MainHand, '0 0 0', normalize(to - from));
     vr_decap_weapon = QVR_DECAP_LIGHTNING;
     trace_endpos = to; // (struck at its middle, whatever lies between: the gun's own hit, VR_LightningHit)
     trace_ent = best;
     VR_LightningHit(best, p, damage, to - from);
     vr_decap_weapon = 0;
-    VR_ClearHitKind();
+    VR_Hit_End();
     self = oself;
     bprint(sprintf("shockhittest: target=%s at=%v alive_before=%g health=%g corpse=%g\n", best.classname, best.origin,
         alive, best.health, best.vr_corpse));

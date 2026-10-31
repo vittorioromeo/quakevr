@@ -79,8 +79,8 @@ void(entity pl, entity best, float part) VR_TestHit_One =
         at_z = lo + (hi - lo) * 0.22;
         at = at + right * ((best.maxs_y - best.mins_y) * 0.2);
     }
-    VR_ClearHitKind();
-    VR_SetHitKind(QVR_HITKIND_SHOT, -1, at, dir);
+    VR_Hit_End();
+    VR_Hit_Begin(QVR_HITKIND_SHOT, -1, at, dir);
     VR_Hit_SetZone(best, part, at);
     if(cvar("vr_test_hit_watch") > 0 && !cvar("vr_test_hit_all"))
     {
@@ -103,7 +103,7 @@ void(entity pl, entity best, float part) VR_TestHit_One =
             T_Damage(best, pl, pl, dmg);
         }
     }
-    VR_ClearHitKind();
+    VR_Hit_End();
     hit_targ = world;
 };
 #endif

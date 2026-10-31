@@ -2918,7 +2918,7 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_AG_Hit =
         return;
     }
     VR_HitReact_Where(targ, inflictor, attacker);
-    if(vr_hr_at == (targ.absmin + targ.absmax) * 0.5 || vr_hitkind == QVR_HITKIND_SPLASH)
+    if(vr_hr_at == (targ.absmin + targ.absmax) * 0.5 || hit_kind == QVR_HITKIND_SPLASH)
     {
         return; // (where it struck isn't known, or a blast's: its box's nearest point)
     }

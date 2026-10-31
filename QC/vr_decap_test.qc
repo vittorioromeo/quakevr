@@ -104,7 +104,7 @@ void(float xWeapon, vector xAt) VR_Decap_TestShot =
         src = xAt + normalize(src - xAt) * 24; // (a crowd's: from just before it, not through the others)
     }
     vector dir = normalize(xAt - src);
-    VR_SetHitKind(QVR_HITKIND_SHOT, cVR_MainHand, '0 0 0', dir);
+    VR_Hit_Begin(QVR_HITKIND_SHOT, cVR_MainHand, '0 0 0', dir);
     vr_decap_weapon = xWeapon;
     if(xWeapon == QVR_DECAP_LIGHTNING)
     {
@@ -126,7 +126,7 @@ void(float xWeapon, vector xAt) VR_Decap_TestShot =
         vr_pellet_damage = 0;
     }
     vr_decap_weapon = 0;
-    VR_ClearHitKind();
+    VR_Hit_End();
 };
 
 // A test blast's damage, all at the head (`xWeapon` as VR_Decap_TestShot's).
@@ -393,9 +393,9 @@ void(float xTest) VR_Decap_BluntTest =
                 m.health = 100000;
                 vr_decap_ent = world;
                 vr_decap_time = -1;
-                VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, at, dir);
+                VR_Hit_Begin(QVR_HITKIND_MELEE, cVR_MainHand, at, dir);
                 float yes = VR_Decap_Blow(m, self, dmg);
-                VR_ClearHitKind();
+                VR_Hit_End();
                 vr_decap_ent = world;
                 c = vr_decap_chance;
                 for(float t = 0; yes && t < n; ++t)
@@ -425,9 +425,9 @@ void(float xTest) VR_Decap_BluntTest =
         what = sprintf("a hard %s blow (%.0f damage, chance %.4f)", VR_Decap_BluntName(k), d,
             VR_Decap_BluntChance(k, VR_DECAP_TEST_SPEED[2], d * max(1, cvar_hget(cvarh_vr_headshot_mult))));
         if(m.classname == "monster_zombie") { d = max(d, 30); }
-        VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, at, dir);
+        VR_Hit_Begin(QVR_HITKIND_MELEE, cVR_MainHand, at, dir);
         T_Damage_VRMelee(m, self, self, d);
-        VR_ClearHitKind();
+        VR_Hit_End();
     }
     else
     {
@@ -554,9 +554,9 @@ void(float xTest) VR_Decap_Test =
         VR_Decap_TestBlow(at, VR_MTHING_SWORD, VR_MKIND_SLASH, 0.7, 0, 8);
         if(!VR_Decap_CorpseBlow(m, cVR_MainHand, at))
         {
-            VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, at, normalize(at - self.origin));
+            VR_Hit_Begin(QVR_HITKIND_MELEE, cVR_MainHand, at, normalize(at - self.origin));
             T_Damage(m, self, self, dmg);
-            VR_ClearHitKind();
+            VR_Hit_End();
         }
     }
     else if(xTest == 6 || xTest == 10)
@@ -568,13 +568,14 @@ void(float xTest) VR_Decap_Test =
         }
         VR_Decap_TestBlow(at, VR_MTHING_SAW, VR_MKIND_SLASH, 0.8, 0, 0.5);
         float saw = VR_Decap_Saw(m, cVR_MainHand, at);
-        VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, at, normalize(at - self.origin));
+        VR_Hit_Begin(QVR_HITKIND_MELEE, cVR_MainHand, at, normalize(at - self.origin));
         VR_DamageCredit_SetWeapon(self, WID_CHAINSAW);
         if(saw != 2)
         {
-            T_DamageImpl(m, self, self, 8, 1);
+            vr_dmg_dealonly = TRUE; // (a chainsaw's tick: VR_Chainsaw_Cut)
+            T_Damage(m, self, self, 8);
         }
-        VR_ClearHitKind();
+        VR_Hit_End();
         if(saw == 1)
         {
             VR_Decap_After(m);
@@ -613,9 +614,9 @@ void(float xTest) VR_Decap_Test =
         }
         else
         {
-            VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, at, normalize(at - self.origin));
+            VR_Hit_Begin(QVR_HITKIND_MELEE, cVR_MainHand, at, normalize(at - self.origin));
             T_Damage_VRMelee(m, self, self, dmg);
-            VR_ClearHitKind();
+            VR_Hit_End();
         }
     }
     else if(xTest >= 12 && xTest <= 18)
@@ -672,9 +673,9 @@ void(float xTest) VR_Decap_Test =
         }
         if(m != world)
         {
-            VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, at, normalize(at - self.origin));
+            VR_Hit_Begin(QVR_HITKIND_MELEE, cVR_MainHand, at, normalize(at - self.origin));
             T_Damage_VRMelee(m, self, self, dmg);
-            VR_ClearHitKind();
+            VR_Hit_End();
         }
     }
     float headsNow = VR_Decap_TestHeads(); // (not in the call's arguments: a call there overwrites the ones before it)
