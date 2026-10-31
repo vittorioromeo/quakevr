@@ -1293,6 +1293,7 @@ QVR_TUNABLE(vr_flare_light, "1") // their lights' size and brightness (0: none)
 QVR_TUNABLE(vr_flare_sparks, "1") // their sparks and smoke (0: none)
 QVR_TUNABLE(vr_nailpistol_mag, "12") // the rounds its magazine holds (a nail each)
 QVR_TUNABLE(vr_nailpistol_slide_cycle, "0.14") // s back and home after a shot (a third back, the rest home; a re-rack closes in the home part)
+QVR_TUNABLE(vr_nailpistol_slide_delay, "0.25") // s from a magazine seated to its slide racking closed (0: at once); it cannot fire before
 QVR_TUNABLE(vr_dmg_revolver, "28") // the heavy revolver (QC vr_revolver.qc): a slug's (a grunt, 30: one in the head at x1.5, two in the body, or one when its roll reaches 30; vr_revolver_heavy_mult in a big body; his 28 of 2026-10-27, was 26)
 QVR_TUNABLE(vr_revolver_dmg_random, "0.15") // up to this share more damage at random, each slug (at damage 28 a grunt's body shot reaches its 30 about half the time)
 QVR_TUNABLE(vr_revolver_heavy_health, "150") // the full health from which a monster's body is big (vr_revolver_heavy_mult)
