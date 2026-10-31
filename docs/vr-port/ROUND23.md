@@ -3372,3 +3372,18 @@ nail: kind 5.
 Checklist:
 - [nailburn] Shoot a grunt with the nail pistol, the nailgun and the super nailgun: each nail dents its model and
   bleeds as a bullet does (no black burn marks); a lava nail (Dissolution of Eternity) still scorches and burns.
+
+## A revolver's shell slides into its own chamber (branch `agent/nailburn`)
+
+His report: a shell loaded into the heavy revolver's cylinder slid towards the cylinder's middle, not the hole it went
+into. The held shell's slide (vr_collectfx.cpp's "into the gun") followed view::loadPath, the load point on the
+cylinder's axis. Now VR_Revolver_LoadRound sends the chamber it chose (collectfx hotspot `QVR_CFX_INTO_CHAMBER` 243 +
+the chamber), and the slide follows `view::revolverChamberPath`: the same way moved off the axis to that chamber as drawn
+(the crane's swing, the cylinder's turn now: `rvChamberOff`, shared with setupRevolverParts' chambered shells).
+Check (vr_rv_test 1, step 8): the slide's end is measured against the shell then drawn in that chamber
+(`vr_test_collect_chamber_off`, a tests-only cvar the engine sets; with vr_debug_collect_fx also printed with the
+cylinder middle's distance for comparison): want at most 0.5 units off its axis.
+
+Checklist:
+- [nailburn] Swing the heavy revolver out and load shells one at a time: each shell slides straight into the hole it
+  ends up in (any chamber, cylinder turned or not), not towards the middle of the cylinder.

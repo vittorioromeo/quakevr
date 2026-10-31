@@ -274,6 +274,14 @@ double rvPrinted = -1.0;                                // (setupRevolverParts' 
     return {p.x, p.y * c - p.z * s, p.y * s + p.z * c};
 }
 
+// Chamber `i`'s axis off the cylinder's (rvChamberPitch round it, `back` along it from the back face), the cylinder
+// turned `turn` (the crane's swing and its own: setupRevolverParts). QC's VR_Revolver_ChamberFor counts them alike.
+[[nodiscard]] glm::vec3 rvChamberOff(int i, float turn, float back)
+{
+    const float a = glm::radians(90.f + 60.f * static_cast<float>(i));
+    return rvTurnX({back, rvChamberPitch * std::cos(a), rvChamberPitch * std::sin(a)}, turn);
+}
+
 [[nodiscard]] bool ssgBreaks()
 {
     return cl.stats[protocol::STAT_QVR_RELOADMODE] == 3 && vr_reload_ssg_break.value != 0.f;
@@ -2133,8 +2141,7 @@ void setupRevolverParts()
                 sh.visible = false;
                 continue;
             }
-            const float a = glm::radians(90.f + 60.f * static_cast<float>(i));
-            const glm::vec3 at = cylAt + rvTurnX({rvShellProud, rvChamberPitch * std::cos(a), rvChamberPitch * std::sin(a)}, turn);
+            const glm::vec3 at = cylAt + rvChamberOff(i, turn, rvShellProud);
             err = za::max(err, setRevolverPart(sh, gun, rvShellModel, at, turn, 0, c == 2 ? 3 : 1, false));
             loaded++;
         }
@@ -3139,6 +3146,39 @@ bool loadPath(int hand, glm::vec3& port, glm::vec3& deep, glm::vec3& end)
     }
     const qmodel_t* m = entities.weapon[hand].ent.model;
     return modelLoadPath(m, modelmeta::is(m, modelmeta::Id::VRevolver) ? revolverSwing(hand) : ssgOpenAngle(hand), port, deep, end);
+}
+
+bool revolverChamberPath(int hand, int chamber, glm::vec3& port, glm::vec3& deep, glm::vec3& end)
+{
+    if(chamber < 0 || chamber > 5 || !loadPath(hand, port, deep, end) ||
+        !modelmeta::is(entities.weapon[hand].ent.model, modelmeta::Id::VRevolver))
+    {
+        return false;
+    }
+    // (loadPath's way runs along the cylinder's axis from its back face's middle: moved out to the chamber, parallel.)
+    const RevolverDrawn& st = rvHands[hand];
+    const glm::vec3 off = rvChamberOff(chamber, -st.swing + st.cyl, 0.f);
+    port += off;
+    deep += off;
+    end += off;
+    return true;
+}
+
+bool revolverShellDrawn(int hand, int chamber, glm::vec3& at, glm::vec3& bore)
+{
+    if(hand < 0 || hand > 1 || chamber < 0 || chamber > 5 || !rvHands[hand].parts)
+    {
+        return false;
+    }
+    const view::ViewEntity& sh = entities.rvShell[hand][chamber];
+    glm::vec3 o, x;
+    if(!sh.visible || !gunToWorld(hand, glm::vec3{0.f}, o) || !gunToWorld(hand, {1.f, 0.f, 0.f}, x) || glm::length(x - o) < 1e-6f)
+    {
+        return false;
+    }
+    at = geom::vec(sh.ent.origin);
+    bore = glm::normalize(x - o);
+    return true;
 }
 
 bool propGun(int num, ViewEntity& out, float& ssgOpen)

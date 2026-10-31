@@ -601,7 +601,7 @@ float(float xGunHand, entity xRound, float xHeld) VR_Revolver_LoadInto =
     }
     if(xRound.vr_ammo_count <= 0)
     {
-        collectfx(xHand, xRound, QVR_CFX_INTO_GUN, xRound.modelindex, xRound.origin, xRound.angles);
+        collectfx(xHand, xRound, QVR_CFX_INTO_CHAMBER + i, xRound.modelindex, xRound.origin, xRound.angles); // (into its hole)
         if(xHeld)
         {
             VR_Hand_Release(self, xHand, "revolver");
@@ -611,7 +611,7 @@ float(float xGunHand, entity xRound, float xHeld) VR_Revolver_LoadInto =
         return TRUE;
     }
     VR_Reload_SetModel(xRound); // (a pair's other shell, still in the fingers)
-    collectfx(xHand, world, QVR_CFX_INTO_GUN, xRound.modelindex, xRound.origin, xRound.angles);
+    collectfx(xHand, world, QVR_CFX_INTO_CHAMBER + i, xRound.modelindex, xRound.origin, xRound.angles);
     return FALSE;
 };
 
