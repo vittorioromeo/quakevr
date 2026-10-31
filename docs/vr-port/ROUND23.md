@@ -4005,6 +4005,35 @@ Checklist:
   it flails in your hand, pack still on.
 - [packragdoll] Same mode: shooting or hitting a grunt's pack still tears it off; force-grab a dead one's pack: it comes off.
 
+## Explicit climb phases (design review 8, stage 1 of 3; branch `agent/phases`)
+
+The climber (vr_climb.cpp) has one `Phase {Free, Hanging, Slipping, Mantling}` and one `transition(ent, c, to, why)`
+holding the entry/exit work that was spread over seven places: the regrab delay, the release's fling, the exhausted
+let-go's buzz, gasp and stop, the slip's start (timer, buzz, gasp), the mantle's start (grips off, owed pull cleared,
+grunt), the new hang's low-stamina breath state. `Why` (11 reasons) says which. The `mantling` and `slipping` bools are
+gone; which hands hold stays each grip's `active` (real data), and `anyHeld()` reads it where the grips change within a
+frame (the pre-think's settle, the out-of-reach check, a mover's carry). `VR_ClientClimb` and the pre-think's settle are
+`switch(phase)`; `hangFrame`, `takeHold` (out of `gripHand`, 158 -> 96 lines) and `startMantle` (out of `tryMantle`)
+are split out; no climb frame function is over 100 lines.
+
+Verified: stage A (the phase kept beside the old flags, a per-frame shadow check deriving it from them) over prop_climb
+and slopes: no mismatch, no impossible combination reached. Stage B (flags gone): prop_climb 12/0 (as baseline), slopes
+8/0, prop_grab 8 pass, prop_sides all ok, mantle_height PASS, ragdoll climb 20/4 (the 4 known "too weak to rise"); A and
+B verdicts identical. Full baseline and A/B bench skipped (velocity rule).
+
+One combination the old code could reach, by reading: `slipping` stayed set after both hands let go by the grip (no
+`letGoAll` on that path), so a later hang began slipping for its first frame (no mantle, a sink of 8 u/s for 1/72 s)
+until the stamina check cleared it. Free now means not slipping; a later hang starts clean.
+
+Next: stage 2 (foe grab's `Holder`: phases one hand, two hands, leg drag, neck, carried/lifted, with its `Why`), then
+stage 3 (ragactive `Mode` over its 10 sub-machines; about 150 `.on` reads across them to sort into own vs pairwise).
+
+Checklist:
+- [phases] Climbing: take a ledge with one hand, then both, shimmy, let go (you drop, flung by the release), take it
+  again after the short delay; pull up and over (mantle, the grunt), and on a ledge with no room (the soft buzz).
+- [phases] Stamina on, Slip on: hang until it runs out: the gasp and buzz, you sink and slip off; let go and grab again
+  once stamina is back: a normal hang (no instant slip). Slip 0: you drop at once with the gasp.
+- [phases] Hang from a moving platform or lift, and from a prop (crate): carried along; get knocked off by an explosion.
 ## Knight two-pistol hold: the knights' Main and Off grips (branch `agent/kngrip`)
 
 His ask: address knightpose's leftovers (kinds 2 and 3 had a Second grip row but no Main or Off). **Confirmed wrong.**
