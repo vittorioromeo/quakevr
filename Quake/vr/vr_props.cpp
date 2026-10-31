@@ -750,6 +750,45 @@ void heads_f()
     Con_Printf("prop heads: %d slots\n", n);
 }
 
+void dump_f()
+{
+    if(Cmd_Argc() < 2)
+    {
+        int n = 0;
+        for(int slot = 0; slot < numSlots; slot++)
+        {
+            if(freeId(cvarAt(slot, Key::ID).string))
+            {
+                continue;
+            }
+            int changed = 0;
+            for(int key = 0; key < numKeys; key++)
+            {
+                const cvar_t& var = cvarAt(slot, static_cast<Key>(key));
+                changed += strcmp(var.string, var.default_string) != 0;
+            }
+            Con_Printf("prop slot %d (_%02d) %s: %d changed\n", slot, slot + 1, cvarAt(slot, Key::ID).string, changed);
+            n++;
+        }
+        Con_Printf("props: %d slots used (vr_prop_dump <slot> ... | all prints a slot's values)\n", n);
+        return;
+    }
+    const bool all = !strcmp(Cmd_Argv(1), "all");
+    for(int arg = 1; arg < (all ? 2 : Cmd_Argc()); arg++)
+    {
+        const int from = all ? 0 : Q_atoi(Cmd_Argv(arg));
+        const int to = all ? numSlots : from + 1;
+        for(int slot = za::max(from, 0); slot < za::min(to, numSlots); slot++)
+        {
+            for(int key = 0; key < numKeys; key++)
+            {
+                const cvar_t& var = cvarAt(slot, static_cast<Key>(key));
+                Con_Printf("prop %d %s \"%s\" (default \"%s\")\n", slot, keyNames[key], var.string, var.default_string);
+            }
+        }
+    }
+}
+
 float stoneDensity(const qmodel_t* model)
 {
     if(!model || model->type != mod_alias)
