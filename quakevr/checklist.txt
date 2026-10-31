@@ -181,6 +181,15 @@ Neck snap standing and on a lifted ragdoll (it goes limp, still held); manhandle
 Leg grabs: pull one down by the shins and drag it by the legs (the hold firms up once it lies); the one-hand pull; lift one by the legs; tug and lift an enforcer by its worn backpack.
 Gore, decap and wounds as before: blood and wounds on blades, punches, thrown things, shots and blasts; beheadings (slash, chainsaw, head pops); a punch to the teeth; hit reactions turn the struck part.
 Gib flight speed by weapon (melee, shotgun, rocket, thrown axe) and knockdowns from blade and blunt blows as before; the chainsaw cuts, beheads and is parried as before.
+Weapon Offsets changes survive a restart; vr_wofs_x_05 typed in the console prints and sets it. {test:config_sparse}
+Rig Studio Subject > Armour: pick a type and toggle pieces, switch subject: the armour stays and is never random. {test:vr_rigstudio_test_armour}
+Armour, Plate Blocks All: shotgun, revolver, nails, plasma and rockets at a grunt's cuirass and helmet do no damage to the body, only sparks (limb plates: a few plasma/rocket hits still leak, known).
+Shoot a plate on a living and a ragdolled armoured grunt: it is pushed about half as hard as a bare limb (Combat > Armed Grunts > Armour > Push Through Plates).
+Throw a broken plate at a grunt: it hurts it. The plate-break sound is quicker and punchier.
+Debug > Show Armour Plates: plate outlines over each worn plate, limbs included (say if they're too thin to see).
+Shove a grunt: it staggers and recovers, or goes over (arms braced), lies a moment, gets up; punch at its head mid-stagger (arms up to guard); kill one mid-stagger: limp.
+Knock one off a ledge: it grabs the lip, hangs, pulls itself up (or drops). Knock one into water: it swims to where it can stand; kill one standing in water: it paddles weakly, then goes limp.
+Lift a living grunt: it struggles; let go: it falls. Cut a limb off a dying one: the hand goes to the stump, the writhe.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns {test:arena_run}

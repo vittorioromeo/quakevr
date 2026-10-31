@@ -39,9 +39,10 @@ constexpr LayeredSound layeredSounds[] = {
         {{"weapons/shotgn2.wav", 0.8f, 0.85f, 0.f, 0.f, 0.f}, {"weapons/r_exp3.wav", 1.35f, 0.45f, 0.f, 0.35f, 0.25f},
             {"weapons/guncock.wav", 0.72f, 0.45f, 0.f, 0.f, 0.f}},
         1.8f},
-    // An armed humanoid's plate breaking (QC vr_agarmor.qc VR_AgArmor_Break): the armour pickup's chime backwards and
-    // ~6 semitones down, so it is never taken for a pickup; barely driven (clean).
-    {"vr/derived/armor_break.wav", {{"items/armor1.wav", 0.7f, 1.f, 0.f, 0.f, 0.f, true}}, 0.1f},
+    // An armed humanoid's plate breaking (QC vr_agarmor.qc VR_AgArmor_Break): the armour pickup's chime backwards, at 1.05
+    // its rate (his note 2026-10-31: 0.7 was too slow, 50% faster sounds punchier, like armour breaking; the pitch rises
+    // with it), reversed so it is never taken for a pickup; barely driven (clean).
+    {"vr/derived/armor_break.wav", {{"items/armor1.wav", 1.05f, 1.f, 0.f, 0.f, 0.f, true}}, 0.1f},
     // A worn backpack torn off (QC vr_wornpack.qc VR_WP_Rip): the fiend's claw tearing, quicker; the gib's tear under it;
     // the lightning's hit, short and higher, for the fibres snapping. Lightly driven.
     {"vr/derived/fabric_rip.wav",

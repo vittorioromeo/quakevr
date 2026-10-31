@@ -334,6 +334,12 @@ entity(entity e, float i, vector at, vector ang, vector vel) VR_AgArmor_DebrisAt
     setsize(h, modelbounds(h, 0), modelbounds(h, 1));
     h.solid = SOLID_NOT_BUT_TOUCHABLE;
     h.handtouch = SUB_Null;
+    // Thrown hard (VR_Carry_Throw) it hurts what it meets as any thrown prop does, by its mass and speed
+    // (forcegrabbable_touch: VR_Thrown_Damage; vr_debris.qc's rocks the same); swung in the fist, a prop's blow.
+    h.touch = forcegrabbable_touch;
+    h.throwhit = QVR_THROWHIT_HIT;
+    SetThrownWeaponDealDamage(h, FALSE);
+    SetThrownWeaponDisappearOnHit(h, FALSE);
     VR_Carry_Setup(h);
     h.vr_rigid = 1;
     h.vr_prop_mass = i == 0 ? 4 : 1.5;
@@ -486,6 +492,97 @@ float(entity e, float joint) VR_AgArmor_Holds =
 };
 
 // ----------------------------------------------------------------------------
+// The plate a shot meets first (ROUND23.md, "Armour: the plate a shot meets"): every shot's and projectile's point and
+// direction pass PositionalDamage, which asks here once (QVR_ARMOR_SHOT: the plates' triangles as drawn, on the shot's
+// line before it crosses the skin). Its sparks, its blood, its pellet count, its damage, a cut it arms all read that
+// answer (VR_AgArmor_PieceAt) while it is this target's this frame and near the point they ask about; a blow or a hit
+// with no line (a blade at a ragdoll's point) asks the point alone (QVR_ARMOR_PIECE_AT).
+entity vr_ar_shot_ent;
+float vr_ar_shot_time;
+vector vr_ar_shot_at;
+float vr_ar_shot_piece;
+float vr_ar_shots; // the tests: shots asked about
+
+// A projectile's flight line (VR_Proj_Begin, before its hit asks here): the query reads the line from `from` (a frame's
+// flight back from where it touched `targ`), not from its touch point, short of the model or beside the line.
+entity vr_ar_fly_ent;
+float vr_ar_fly_time;
+vector vr_ar_fly_from;
+
+void(entity targ, vector from, vector dir) VR_AgArmor_Flight =
+{
+    vr_ar_fly_ent = targ;
+    vr_ar_fly_time = time;
+    vr_ar_fly_from = from;
+};
+
+float VR_AR_SHOT_BACK = 64; // units: how far before its point the engine's query starts (vr_agarmor.cpp shotBack)
+float VR_AR_SHOT_NEAR = 16; // units: a point this near the shot's (a nail's own origin at its touch) is the shot's
+
+void(entity targ, vector at, vector dir) VR_AgArmor_Shot =
+{
+    vr_ar_shot_ent = world;
+    if(targ.vr_ar_type <= 0 || !targ.vr_ar_mask || dir == '0 0 0')
+    {
+        return;
+    }
+    vr_ar_shot_ent = targ;
+    vr_ar_shot_time = time;
+    vr_ar_shot_at = at;
+    vector from = at;
+    vector way = normalize(dir);
+    float along = (at - vr_ar_fly_from) * way;
+    if(vr_ar_fly_ent == targ && vr_ar_fly_time == time && along >= 0 && along <= VR_AR_SHOT_BACK &&
+       vlen(at - (vr_ar_fly_from + way * along)) <= VR_AR_SHOT_NEAR)
+    {
+        // (a projectile's, each time its hit asks this frame (its touch's and its damage's): the query's line starts
+        // where it was a frame before, and runs on through the body to where that line first crosses the skin)
+        from = vr_ar_fly_from + way * VR_AR_SHOT_BACK;
+    }
+    vr_ar_shot_piece = ragdollbone(targ, from, QVR_ARMOR_SHOT, dir);
+    vr_ar_shots = vr_ar_shots + 1;
+};
+
+// A shot's push (VR_ShotPush: a ragdoll's part, a knocked-down body's) where it meets `targ` at `at` going along `dir`:
+// times vr_agarmor_impulse when an unbroken plate takes it first (the plate the same query finds), else 1. (A living
+// body's flinch: T_DamageDeal's, the plates' share times the same.)
+float(entity targ, vector at, vector dir) VR_AgArmor_PushScale =
+{
+    if(targ.vr_ar_type <= 0 || !targ.vr_ar_mask || dir == '0 0 0')
+    {
+        return 1;
+    }
+    float p = ragdollbone(targ, at, QVR_ARMOR_SHOT, normalize(dir));
+    if(p < 0 || p >= VR_AR_PIECES || !VR_AgArmor_On(targ, p))
+    {
+        return 1;
+    }
+    return max(0, cvar("vr_agarmor_impulse"));
+};
+
+
+float(entity targ, vector at) VR_AgArmor_PieceAt =
+{
+    if(vr_ar_shot_ent == targ && vr_ar_shot_time == time && vlen(at - vr_ar_shot_at) <= VR_AR_SHOT_NEAR)
+    {
+        return vr_ar_shot_piece;
+    }
+    return ragdollbone(targ, at, QVR_ARMOR_PIECE_AT);
+};
+
+// What plate `p` lets through of `damage` (`rule` vr_agarmor_rule): Plate Blocks All nothing, even as it breaks (a shot
+// that meets a plate never hurts the body); the player's rule its share past the pool.
+float(entity targ, float p, float damage, float rule) VR_AgArmor_Through =
+{
+    if(rule)
+    {
+        return 0;
+    }
+    float save = min(ceil(VR_AgArmor_Frac(targ.vr_ar_type) * damage), damage);
+    return damage - min(save, targ.vr_ar_hp[p]);
+};
+
+// ----------------------------------------------------------------------------
 // A hit's look where it struck (TraceAttack, spawn_touchblood, VR_HitBloodSplash: before its blood): on an unbroken
 // plate, sparks; the share of the blood to draw returned: 1 no plate there, 0 the plate took it all, else what it let
 // through (the rule's share of `damage`, as VR_AgArmor_Damage will take it).
@@ -500,14 +597,12 @@ float(entity targ, vector org, vector vel, float damage) VR_AgArmor_HitFx =
     {
         return 1;
     }
-    float p = ragdollbone(targ, org, QVR_ARMOR_PIECE_AT);
+    float p = VR_AgArmor_PieceAt(targ, org);
     if(p < 0 || p >= VR_AR_PIECES || !VR_AgArmor_On(targ, p))
     {
         return 1;
     }
-    float save = cvar("vr_agarmor_rule") ? damage : ceil(VR_AgArmor_Frac(targ.vr_ar_type) * damage);
-    save = min(min(save, damage), targ.vr_ar_hp[p]);
-    float through = max(0, damage - save) / damage;
+    float through = max(0, VR_AgArmor_Through(targ, p, damage, cvar("vr_agarmor_rule"))) / damage;
     vector out = vel == '0 0 0' ? '0 0 1' : normalize(vel); // (the blood's way: off the surface)
     particle2(org, (out + '0 0 0.3') * 60, QVR_PARTICLE_PRESET_SPARKS, max(6, min(16, 4 + damage)));
     vr_ar_fx_sparks = vr_ar_fx_sparks + 1;
@@ -518,32 +613,36 @@ float(entity targ, vector org, vector vel, float damage) VR_AgArmor_HitFx =
 };
 
 // ----------------------------------------------------------------------------
-// The shotgun's pellets: each counted on its own piece (AddMultiDamage), the blast shared by them (ApplyMultiDamage's
-// T_Damage).
+// The shotgun's pellets: each one's damage counted on the piece it met (AddMultiDamage; none: bare skin), the blast
+// shared by them (ApplyMultiDamage's T_Damage): a plate takes its pellets' damage, not a count's share (a headshot
+// pellet's is three of a body pellet's).
 entity vr_ar_pel_ent;
 float vr_ar_pel[10];
+float vr_ar_pel_sum; // every pellet's damage on it
 
 void() VR_AgArmor_PelletsClear =
 {
     float i;
     vr_ar_pel_ent = world;
+    vr_ar_pel_sum = 0;
     for(i = 0; i < VR_AR_PIECES; i++)
     {
         vr_ar_pel[i] = 0;
     }
 };
 
-void(entity hit) VR_AgArmor_PelletAdd =
+void(entity hit, float damage) VR_AgArmor_PelletAdd =
 {
     if(hit.vr_ar_type <= 0 || !hit.vr_ar_mask || !VR_Hit_On(hit))
     {
         return;
     }
     vr_ar_pel_ent = hit;
-    float p = ragdollbone(hit, hit_at, QVR_ARMOR_PIECE_AT);
+    vr_ar_pel_sum = vr_ar_pel_sum + damage;
+    float p = VR_AgArmor_PieceAt(hit, hit_at);
     if(p >= 0 && p < VR_AR_PIECES)
     {
-        vr_ar_pel[p] = vr_ar_pel[p] + 1;
+        vr_ar_pel[p] = vr_ar_pel[p] + damage;
     }
 };
 
@@ -551,6 +650,9 @@ void(entity hit) VR_AgArmor_PelletAdd =
 // The hit.
 float vr_ar_share[10];  // this hit's share per piece
 float vr_ar_last_save;  // the last hit's damage the plates took (the tests)
+entity vr_ar_block_inf; // a projectile a plate of vr_ar_block_ent took at vr_ar_block_time (its blast spares the body)
+entity vr_ar_block_ent;
+float vr_ar_block_time;
 float vr_ar_last_piece; // the last single hit's piece (-1 none)
 
 // A cut or a pop armed at `targ` (vr_decap_ent) under an unbroken plate is off.
@@ -573,7 +675,7 @@ void(entity targ) VR_AgArmor_Guard =
     {
         return;
     }
-    float p = ragdollbone(targ, vr_decap_at, QVR_ARMOR_PIECE_AT);
+    float p = VR_AgArmor_PieceAt(targ, vr_decap_at);
     if(p >= 2 && p < VR_AR_PIECES && VR_AgArmor_On(targ, p))
     {
         vr_decap_ent = world;
@@ -589,7 +691,20 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     vr_ar_last_save = 0;
     vr_ar_last_piece = -1;
     vr_ar_plate_hit_ent = world;
-    if(targ.vr_ar_type <= 0 || !targ.vr_ar_mask || damage <= 0)
+    if(targ.vr_ar_type <= 0 || damage <= 0)
+    {
+        return damage;
+    }
+    // Plate Blocks All: a projectile whose own hit a plate of this body just took (a plasma bolt's, a rocket's) spares it
+    // its blast too (the plate met it at its face), even the plate broken by it. Before: the bolt's splash hurt the body
+    // after its plate broke (test 10: plasma at every plate let 50 through).
+    if(inflictor != world && inflictor != attacker && inflictor == vr_ar_block_inf && targ == vr_ar_block_ent &&
+       time == vr_ar_block_time && cvar("vr_agarmor_rule"))
+    {
+        vr_ar_last_save = damage;
+        return 0;
+    }
+    if(!targ.vr_ar_mask)
     {
         return damage;
     }
@@ -598,19 +713,19 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     {
         vr_ar_share[i] = 0;
     }
-    if(VR_Hit_Pellets() > 0 && vr_ar_pel_ent == targ)
+    if(VR_Hit_Pellets() > 0 && vr_ar_pel_ent == targ && vr_ar_pel_sum > 0)
     {
-        // A blast of pellets: each piece its pellets' share.
+        // A blast of pellets: each piece its pellets' share of the blast's damage.
         for(i = 0; i < VR_AR_PIECES; i++)
         {
-            vr_ar_share[i] = vr_ar_pel[i] / VR_Hit_Pellets();
+            vr_ar_share[i] = vr_ar_pel[i] / vr_ar_pel_sum;
         }
         at = hit_at;
     }
     else if(VR_Hit_On(targ))
     {
-        // One hit at a point.
-        p = ragdollbone(targ, hit_at, QVR_ARMOR_PIECE_AT);
+        // One hit at a point (a shot's: the plate its line met first).
+        p = VR_AgArmor_PieceAt(targ, hit_at);
         vr_ar_last_piece = p;
         at = hit_at;
         if(p >= 0 && p < VR_AR_PIECES)
@@ -628,7 +743,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     else if(vr_limb_wear_ent == targ && vr_limb_wear_time == time)
     {
         // A blow or a blade at a ragdoll's point (VR_Limb_RagdollHit, the lightning gun's bolt: VR_Limb_CorpseWear's).
-        p = ragdollbone(targ, vr_limb_wear_at, QVR_ARMOR_PIECE_AT);
+        p = VR_AgArmor_PieceAt(targ, vr_limb_wear_at);
         vr_ar_last_piece = p;
         at = vr_limb_wear_at;
         if(p >= 0 && p < VR_AR_PIECES)
@@ -676,11 +791,12 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
             float part = damage * vr_ar_share[i];
             float save = rule ? part : ceil(frac * part);
             save = min(save, part);
-            if(save * cost > targ.vr_ar_hp[i])
+            // (the player's rule: no more than the pool; Plate Blocks All: the whole part, the pool or not: it breaks)
+            if(!rule && save * cost > targ.vr_ar_hp[i])
             {
                 save = targ.vr_ar_hp[i] / cost;
             }
-            targ.vr_ar_hp[i] = targ.vr_ar_hp[i] - save * cost;
+            targ.vr_ar_hp[i] = max(0, targ.vr_ar_hp[i] - save * cost);
             saved = saved + save;
             if(targ.vr_ar_hp[i] <= 0)
             {
@@ -705,5 +821,11 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
         else sound(targ, CHAN_AUTO, "weapons/ric3.wav", 0.8, ATTN_NORM);
     }
     vr_ar_last_save = saved;
+    if(saved > 0 && vr_ar_last_piece >= 0)
+    {
+        vr_ar_block_inf = inflictor; // (its blast this frame: above)
+        vr_ar_block_ent = targ;
+        vr_ar_block_time = time;
+    }
     return damage - saved;
 };

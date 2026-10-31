@@ -1916,9 +1916,11 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     VR_Motion_Hit(targ, attacker, damage, isVRMelee);
 
     // VR: an armed humanoid's plates take their share first (vr_agarmor.qc; Quad's damage included)
+    float plated = 0; // (what the plates took: the blow still pushes by vr_agarmor_impulse of it, below)
     if(targ.vr_ar_type > 0)
     {
         damage = VR_AgArmor_Damage(targ, inflictor, attacker, damage, isVRMelee);
+        plated = vr_ar_last_save;
     }
 
 // save damage based on the target's armor level
@@ -2090,7 +2092,8 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
         }
     }
 
-    VR_HitReact_Hit(targ, inflictor, attacker, take); // VR: a living monster flinches (vr_hitreact.qc)
+    // VR: a living monster flinches (vr_hitreact.qc); a blow a plate took pushes it by vr_agarmor_impulse of a bare one's
+    VR_HitReact_Hit(targ, inflictor, attacker, take + plated * max(0, cvar("vr_agarmor_impulse")));
     // VR: an armed grunt struck on its gun hand drops it (vr_armedgrunt.qc); a player's shot: the shooting rule's
     // (vr_armedgrunt_shot.qc), an explosion counting there too
     if(!VR_AGS_Hit(targ, inflictor, attacker, take))

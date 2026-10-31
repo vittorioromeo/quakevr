@@ -208,9 +208,12 @@ the Quake VR ones (`vr_*`, the weapons' `vr_wofs_*` and props' `vr_prop_*` slots
 default (`VR_ConfigSaves`, vr_cvars.cpp; numbers compared as numbers), plus the version markers (`vr_cfg_version`,
 `vr_wofs_version`, `vr_props_version`, `vr_bindings_version`), always. `vr_config_defaults` puts every Quake VR setting
 back to its default first, so a config executed again or after a game switch gives what a full config gave. A line in
-the config is the player's choice.
+the config is the player's choice. The weapons' values are data, not cvars (`quakevr/data/weapons.txt`, read at start;
+ROUND23.md, "Weapons as data"): their `vr_wofs_<key>_NN` names are stand-ins (`DataTable`, vr_slottable.hpp) that the
+config, the console, the QC's `cvar()` and the menus reach as cvars; the changed ones are written after the cvars
+(`VR_ConfigWriteTables`). His values become the defaults with `Misc/quakevr/weapons_data.py promote <config>`.
 
-- **A shipped default changes: edit the default only** (`vr_cvars.inc`, `vr_defaults.cfg`, `vr_weapons.inc`,
+- **A shipped default changes: edit the default only** (`vr_cvars.inc`, `vr_defaults.cfg`, `quakevr/data/weapons.txt`,
   `vr_props.inc`). No `defaultChanges` row and no `configVersion` bump: every player who left the setting alone gets
   the new default. The `defaultChanges` table is frozen at 218 (it still moves configs written before then); add a row
   only to override a player's own choice on purpose, which needs the author's say. The same for the slots' migration

@@ -297,7 +297,7 @@ za::Vector<Item> pageWeaponWeights()
         header("This Weapon"),
         action("Print Changes to Console", weaponWeightsPrint)
             .help("Prints this weapon's weight settings that differ from the defaults, ready to be made the shipped "
-                  "defaults (vr_weapons.inc)."),
+                  "defaults (quakevr/data/weapons.txt)."),
         action("Reset This Weapon", weaponWeightsReset)
             .help("This weapon's weight settings (this page's) back to their defaults. Its offsets stay.")
     );

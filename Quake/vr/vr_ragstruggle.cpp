@@ -981,6 +981,10 @@ void stop(State& s, const Context& c, float t, const char* why)
 {
     Struggle& g = s.struggle;
     g.on = false;
+    if(s.mode == Mode::Struggle)
+    {
+        setMode(s, Mode::Limp);
+    }
     g.endedAt = c.now;
     // A lifted one still flailing (living, the hold kept: its group's Struggle turned off) flails on at the flail's strengths;
     // else its strengths let go from what they are.
@@ -1050,6 +1054,10 @@ void beginStruggle(State& s, const Parts& p, const Context& c)
     const float tired = g.endedAt >= 0.0 ? g.fatigue * za::exp(-static_cast<float>(c.now - g.endedAt) / tireTime) : 0.f;
     g = Struggle{};
     g.on = true;
+    if(s.mode != Mode::Swimming) // (lifted: in place of the flail, a swim's)
+    {
+        setMode(s, Mode::Struggle);
+    }
     g.from = c.now;
     g.fatigue = tired;
     g.seed = mixBits(static_cast<uint32_t>(c.num) * 2654435761u ^ static_cast<uint32_t>(s.begun * 72.0),
