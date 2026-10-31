@@ -3706,6 +3706,37 @@ humanoid Knight and Death Knight kinds also support armor."
   `vr_agrunt_ik_debug 4`, as the knight's), posekeys with a shotgun, `vr_rigstudio_rom test` on the subject; tests 1, 2,
   20, 60, 99, 77 with kind 3; stage 4 (armour for kinds 2 and 3: vr_agarmor zones from their rig bones, plates, helmet,
   blade sparks; tests for kinds 2 and 3); his rig's Range of Motion tuning; eval.sh.
+
+**Part 2 (same branch).**
+- **(a) Second grip row, kind 3:** `{3, Second, 0 0 0, -161 37 -55}` (`vr_aggrip.cpp` globalDefaults): with no row his
+  wrist bent 93 degrees on the shotgun's fore-end in Aim; a search over the three angles (Rig Studio, `vr_agrunt_ik_debug
+  4`, 45 / 10 / 3 degree grids) leaves it 1 (held). Tunable in the Grip Editor.
+- **(b) Rig Studio:** Pose Keys, death knight + shotgun **13/1** (the grunt's elbow failure only; the target), + sword
+  9/3 (as before: no second grip on a sword). `vr_rigstudio_rom test` 9/0 (grunt 9/0), `rom test weapon` 6/0 with the
+  shotgun and with the sword. `vr_rig2_check progs/vrhknight.mdl` 25/10 unchanged (not tuned further: budget; the
+  failures are hand_l stretch 0.29, the knees' 100-130 degree bends collapsing the back of the knee, neck+head 2 folds).
+  Note: `vr_rigstudio_rom test` on the grunt rewrote `quakevr/rigs/vrgrunt.rig2.txt` (put back; a test side effect).
+- **(c) agrunt tests with `vr_agrunt_test_kind 3`:** 1 17/0, 2 4/0, 20 3/0, 60 5/1 (the ogre case, failing for kind 0
+  too), 77 12/0, 99 38/0 (kind 0: 41/0). No fixes needed.
+- **(d) Armour for kinds 2 and 3:** `wearers` (and the self-check's list) take `vrknight.mdl` and `vrhknight.mdl`;
+  QC `VR_AgArmor_Model` their plates, `VR_AgArmor_Spawn` rolls for kinds 0-3. The shells from their own rigs, three
+  generic fixes (the grunt's and the enforcer's shells byte-identical: hashes fa858c7f, 11cc98dc):
+  - a piece's surface keeps each edge to two triangles (the knights' meshes share edges three ways): shells closed
+    (open edges 10 / 56 -> 0);
+  - the helmet's fit only from the head proper (1.06 of the head bone's length up, 0.75 to the sides): the death
+    knight's horns had made it 16 high and 22 wide (now 11);
+  - a bone no vertex weighs half on (the knight's right upper arm, 0.38 at most) gets the region at 0.8 of its most
+    (plate anchors too): his right pauldron had no plate at all.
+  `vr_agarmor_check` 20/0 (all four wearers). **`vr_agarmor_test 7`** (rule 1; `map vrtesthall;wait30;vr_agarmor_test 7`,
+  ends on `agarmor test: N passed`): per knight kind its pieces at their places, the cuirass absorbing, a pauldron's
+  debris its own model's, a blade's blow on a plate sparking with no blood, the skill's roll, its wear reaching the
+  client, the debris fading: **13/1**: the death knight's left pauldron's and shins' plate middles (the probe points)
+  resolve to no plate (his big pauldrons' middles sit inside his arm, his shins under his skirt): open. `8`: a knight
+  and a death knight in full yellow (eyeshots). `vr_agarmor_test 1` 26/0, `5` 24/0 (its "right thigh and shin worn"
+  case flaky, failing on the base too).
+- **Open, in order:** the death knight's probe points / shin and pauldron hits (test 7's failure); eyeshots of test 8;
+  eval.sh; `run_baseline --only agrunt`; his rig's remaining rig2 failures.
+
 ## Two-handed tug pulls for real; the worn pack drag (branch `agent/tugpull`)
 
 His decision: a second hand on a tug adds real pull.
