@@ -167,20 +167,11 @@ float(entity e, vector xAt, vector xDir) VR_Decap_OnHead =
     {
         return FALSE;
     }
-    float r;
     if(hitmodel_target(e))
     {
-        r = VR_HeadHolds(e, hitmodel_rest(e, xAt));
+        return VR_HeadHolds(e, hitmodel_rest(e, xAt));
     }
-    else
-    {
-        r = VR_HeadOnRay(e, xAt, normalize(xDir));
-    }
-    if(VR_Hit_On(e) && hit_at == xAt && (hit_zone == VR_REGION_HEAD) != r)
-    {
-        bprint(sprintf("hitcheck: decap head %g, record zone %g (%s; debug check, engine log)\n", r, hit_zone, e.classname));
-    }
-    return r;
+    return VR_HeadOnRay(e, xAt, normalize(xDir));
 };
 
 // The melee's decapitation zone of `e` (VR_Decap_MeleeZone): the head zone grown by vr_decap_head_size (its radius,
