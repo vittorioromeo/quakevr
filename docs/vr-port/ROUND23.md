@@ -4464,7 +4464,8 @@ The weapons' settings (Weapon Offsets, Weapon Weights: 51 slots x 306 keys) are 
   `config_sparse_test.sh` 16 passed, 0 failed, its every-setting dump after the load identical (sorted, 23,311 lines);
   a motion take with weapon settings in its header (hilt_pommel_2026-10-12_12-32-54, the axe) replays the same, also
   with `vr_wofs_x_01 5` set first (the take sets it back by name: "11 settings as recorded"); the reload suite
-  (`run_test_suite.py --only "reload_|holster|twohand"`: the 7 reload_ tests; none is named holster or twohand): SUITE.
+  (`run_test_suite.py --only "reload_|holster|twohand"`: the 7 reload_ tests; none is named holster or twohand): 7 passed after; before 6 (reload_gunshape's "lying shotgun dropped onto: the loose
+  round slides in (0 frames drawn going in)" failed there once, on the old build: flaky, nothing of this change).
 - **Next steps** (design review 3): the props (`props.txt`, the same DataTable), the monsters, the named per-weapon
   families (`vr_reload_well_<gun>_*`, `vr_adgun_*`, ... as weapon keys); then the menus' rows on getter/setter bindings
   (the stand-ins thinned to floats + text) and the vr_wofs_ names retired after a release (the config's lines then
