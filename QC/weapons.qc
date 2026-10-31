@@ -522,7 +522,7 @@ void() HIP_LaserTouch =
 
         // VR: every projectile's hit (VR_Proj_Begin's, its bounces its own): tagged a shot where it struck (a corpse's
         // head or limb worn), a kill at the head or a limb popped by chance (vr_decap_pop_laser).
-        VR_SetHitKind(QVR_HITKIND_SHOT, -1, at, oldvel);
+        VR_SetHitProjectile(at, oldvel);
         float pop = VR_Decap_ProjArm(other, self.lastvictim, at, oldvel, adjDmg, QVR_PROJ_LASER);
         T_Damage(other, self, self.lastvictim, adjDmg);
         if(pop)
@@ -2074,7 +2074,7 @@ void(float xKind, float xDamage) VR_Proj_Begin =
     {
         return;
     }
-    VR_SetHitKind(QVR_HITKIND_SHOT, -1, vr_proj_at, dir);
+    VR_SetHitProjectile(vr_proj_at, dir); // (its kind its own: a nail's wound a bullet's, not lightning's: VR_Hit_Hitscan)
     vr_proj_armed = VR_Decap_ProjArm(other, self.owner, vr_proj_at, dir, xDamage, xKind);
     if(cvar_hget(cvarh_vr_debug_shots))
     {

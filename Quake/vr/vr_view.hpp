@@ -126,6 +126,13 @@ void bareShade(const entity_t* e, float lightdir[4], float ambient[6][4]);
 // (the shotgun: up through its loading port's well, then forward into the tube; the super shotgun: into its chambers).
 // False: no gun there with a load point.
 [[nodiscard]] bool loadPath(int hand, glm::vec3& port, glm::vec3& deep, glm::vec3& end);
+// The heavy revolver swung out in `hand`: loadPath's way moved off the cylinder's axis to chamber `chamber` (0..5) as
+// drawn now (its crane's swing, its cylinder's turn), into that chamber's hole (a shell loaded there: vr_collectfx.cpp).
+// False: no revolver there, shut, or no such chamber.
+[[nodiscard]] bool revolverChamberPath(int hand, int chamber, glm::vec3& port, glm::vec3& deep, glm::vec3& end);
+// The shell drawn in chamber `chamber` of the heavy revolver in `hand` this frame (setupRevolverParts): its origin in the
+// world, and the bore's way (a unit vector, the world's). False: none drawn there.
+[[nodiscard]] bool revolverShellDrawn(int hand, int chamber, glm::vec3& at, glm::vec3& bore);
 // The same for any gun's `model`, the super shotgun's barrels turned down `ssgOpen` degrees.
 [[nodiscard]] bool modelLoadPath(const qmodel_t* model, float ssgOpen, glm::vec3& port, glm::vec3& deep, glm::vec3& end);
 // The gun lying about as client entity `num` (a weapon prop: QC's thrown_weapon), as it is drawn this frame, in `out`

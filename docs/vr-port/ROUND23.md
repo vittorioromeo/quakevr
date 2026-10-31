@@ -3354,6 +3354,44 @@ Checklist:
 - [guardpose] Raise your weapon near a grunt (the wind-up parry) or step in close (the preventive guard): its raised
   weapon points at your hand, its hand still on the grip (not stretched off it).
 
+## Nail hits bleed and dent again (branch `agent/nailburn`)
+
+His report: nail hits on an enemy left burn marks instead of a dent and blood. Cause (not the fire spots, not lava
+nails): since "Projectiles: one path" (869e5568b, 10-19) VR_Proj_Begin tags every projectile's hit QVR_HITKIND_SHOT,
+and VR_Wound_Hit read any non-pellet shot as lightning (QVR_WOUND_ZAP: a burn splat, no dent, no blood stream). The
+small gibs' and corpses' kinds (VR_SmallGib_Kind, VR_Corpse_DamageKind) and the gib speed (VR_GibKind) likewise called
+a nail's hit a hitscan's ("shots"; a plasma bolt's "light"). Fix, one vocabulary: the hit record says when a shot is a
+projectile's (`vr_hitproj`, set by `VR_SetHitProjectile`: VR_Proj_Begin, the laser's bounce), and `VR_Hit_Hitscan()`
+is the one test those four readers use. A projectile's hit takes its inflictor's kind again: a nail's wound
+QVR_WOUND_NAIL (dent + blood), a lava nail's, a laser's, a lava ball's a burn; the nails' small gibs and corpse damage
+"nails" again.
+Test `vr_nail_test 4` (Debug > Tests > Nail Pistol > Nail Wounds Test): the nailgun's, super nailgun's, nail pistol's
+and an armed grunt's real nails at a grunt: wound kind 2, blood spawned, not on fire, nail still a "spike"; a lava
+nail: kind 5.
+
+Checklist:
+- [nailburn] Shoot a grunt with the nail pistol, the nailgun and the super nailgun: each nail dents its model and
+  bleeds as a bullet does (no black burn marks); a lava nail (Dissolution of Eternity) still scorches and burns.
+
+## A revolver's shell slides into its own chamber (branch `agent/nailburn`)
+
+His report: a shell loaded into the heavy revolver's cylinder slid towards the cylinder's middle, not the hole it went
+into. The held shell's slide (vr_collectfx.cpp's "into the gun") followed view::loadPath, the load point on the
+cylinder's axis. Now VR_Revolver_LoadRound sends the chamber it chose (collectfx hotspot `QVR_CFX_INTO_CHAMBER` 243 +
+the chamber), and the slide follows `view::revolverChamberPath`: the same way moved off the axis to that chamber as drawn
+(the crane's swing, the cylinder's turn now: `rvChamberOff`, shared with setupRevolverParts' chambered shells).
+Check (vr_rv_test 1, step 8): the slide's end is measured against the shell then drawn in that chamber
+(`vr_test_collect_chamber_off`, a tests-only cvar the engine sets; with vr_debug_collect_fx also printed with the
+cylinder middle's distance for comparison): want at most 0.5 units off its axis. Measured: 0.00 for each of the four
+shells loaded (chambers 3, 5, 0, 2); the old way's end was 0.73 world units off them. (The way keeps the load point's
+place along the bore only: its Load Point offsets can put it off the cylinder's axis, which first left the end 0.95 off.)
+Before/after for the nails (the fix's test reverted to the old reading): wound kind 6 (lightning's burn) for all four
+nail weapons and the lava nail; after, 2 (nail) and 5 (burn). `vr_nail_test 1`'s backpack step fails (3 checks: no
+nail met the lying bag) with and without this fix: not this branch's.
+
+Checklist:
+- [nailburn] Swing the heavy revolver out and load shells one at a time: each shell slides straight into the hole it
+  ends up in (any chamber, cylinder turned or not), not towards the middle of the cylinder.
 ## Starter shotgun: the auto pump's pieces kicked (branch `agent/sgrecoil`)
 
 His words: "Starter shotgun recoil is still messed up, it really feels like there's an animation frame where the gun's
