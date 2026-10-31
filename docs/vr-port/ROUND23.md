@@ -3595,3 +3595,30 @@ Checklist:
 - [riseaxis] Roll your wrist 90 degrees (gun on its side) and fire the shotgun or nailgun: the muzzle kicks toward the
   gun's top (sideways in the world), not toward the ceiling; at 45 degrees it kicks diagonally along the gun's top.
 - [riseaxis] Upright gun, one- and two-handed: the recoil feels the same as before.
+
+## The armed Knight in the Pose Studio (branch `agent/knightpose`)
+
+The Pose Keys test with the armed Knight + shotgun (`vr_rigstudio monster_vr_knight 4`) was 7/4 (the grunt 13/1). Causes:
+
+1. **No left-hand grip offset handle**: the knight (aggrip kind 2) had no "All Weapons" Second grip row, and his hands'
+   grip frames are turned as his rest pose's sword, so his off hand on the shotgun's fore-end was 166 degrees off his
+   forearm (`vr_agrunt_ik_debug 4`: "wrist bend 166 ... not"), never taken: no second grip, no handle. Now
+   `{2, Second, 0 0 0, -54.5 176.5 74}` in `globalDefaults` (`vr_aggrip.cpp`): the turn that leaves his wrist straight in
+   Aim (bend 5; the grunt's tuned row has 32). The grunt's row does not fit his rig (166 again). Tunable in the Grip Editor.
+2. **The Pickup pelvis drag "timed out"**: a test bug. The settle check measured a turn by `2 acos(dot)`, which reads
+   0.056 degrees between a turn and itself when the dot rounds to 0.99999994 (the knight's shotgun in Pickup, identical
+   frame after frame): over its 0.05 limit, never settled. `quatDeg` (`vr_rigstudio.cpp`) now takes atan2 of the
+   difference's axis part; the settle and the steps' checks share it.
+3. **The elbow step** fails for the grunt too (the known failure above): unchanged, as the target asked.
+4. `agholds::poseClass` gave kind 2 `Gun` for every gun (the knight's nail pistols posed as rifles): now the grunt's Pose
+   Category, as `agholds::hands` already did.
+
+Checked (before = origin/next): posekeys knight + shotgun 13/1 (the grunt's elbow failure), knight + sword (13) 10/2 =
+before, grunt 13/1 = before, enforcer 9/3 = before (his grip offset and weapon forward steps fail on origin/next too);
+`vr_rig2_check` 22/13, `progs/vrknight.mdl` 12/23 = before; `vr_agrunt_test` 1 17/0, 2 4/0, 20 3/0, 60 6/0, 95 7/0 = before.
+
+Checklist:
+- [knightpose] vr_agknight 1, Rig Studio, Subject: armed Knight with a shotgun, Aim: his left hand holds the fore-end,
+  wrist straight, and Pose Keys shows the "left hand: grip offset" dot; drag it: the hand follows on the gun.
+- [knightpose] Toolgun: an armed Knight with a nail pistol aims it in the pistol pose (off hand free or cupping), not
+  shouldered as a rifle.

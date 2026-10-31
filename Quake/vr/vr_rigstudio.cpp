@@ -1239,6 +1239,15 @@ void settleReset(Settle& s)
     return st.subject > 0 && st.noteFrame >= 0 && host_framecount - st.noteFrame <= 5 && st.note.ent == st.subject;
 }
 
+// The angle between two turns, degrees: from their difference's axis part (atan2), not acos of their dot, which reads
+// 0.056 degrees between a turn and itself when the dot rounds to 0.99999994 (the armed knight's shotgun in Pickup: never
+// settled).
+[[nodiscard]] float quatDeg(const glm::quat& a, const glm::quat& b)
+{
+    const glm::quat r = glm::inverse(glm::normalize(a)) * glm::normalize(b);
+    return 2.f * za::atan2(glm::length(glm::vec3{r.x, r.y, r.z}), za::abs(r.w)) / deg;
+}
+
 // True once every shown part moved under 0.01 units and 0.05 degrees a frame for 8 frames (6 at least after the reset).
 [[nodiscard]] bool settled(Settle& s)
 {
@@ -1260,8 +1269,7 @@ void settleReset(Settle& s)
         if(s.have)
         {
             const float d = glm::length(f.pos - s.last[i].pos);
-            const float a = 2.f * za::acos(za::min(1.f, za::abs(glm::dot(glm::normalize(f.rot), glm::normalize(s.last[i].rot))))) / deg;
-            still = still && d < 0.01f && a < 0.05f;
+            still = still && d < 0.01f && quatDeg(f.rot, s.last[i].rot) < 0.05f;
         }
         s.last[i] = f;
     }
@@ -1445,11 +1453,6 @@ struct PkTest
     int wait{0};
 };
 PkTest ptest;
-
-[[nodiscard]] float quatDeg(const glm::quat& a, const glm::quat& b)
-{
-    return 2.f * za::acos(za::min(1.f, za::abs(glm::dot(glm::normalize(a), glm::normalize(b))))) / deg;
-}
 
 [[nodiscard]] glm::quat rotOf(const glm::vec3& r)
 {
