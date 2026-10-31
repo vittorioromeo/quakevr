@@ -6,13 +6,18 @@
 #include "vr_engine.hpp"
 #include "vr_geom.hpp"
 #include "vr_lines.hpp"
+#include "vr_render.hpp"
 #include "vr_text3d.hpp"
+#include "vr_view.hpp"
 
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
+#include <glm/geometric.hpp>
+#include <glm/mat4x4.hpp>
+#include <glm/matrix.hpp>
 #include <glm/trigonometric.hpp>
 #include <glm/vec4.hpp>
 
@@ -57,11 +62,43 @@ constexpr double liveShown = 0.25; // s: a live reading older than this is gone
 constexpr double heldShown = 3.0;  // s: the last strike's verdict
 constexpr int columns = 40;        // the readout's lines, padded to one width (centred: a table)
 
+// Each held melee weapon's line this server frame as the parry reads it (debugdirparryline), and last frame's.
+struct Track
+{
+    int num{0};                    // the weapon's entity
+    glm::vec3 a{0.f}, b{0.f};      // its line now: its back, its front (QC VR_AG_WeaponLine)
+    glm::vec3 a0{0.f}, b0{0.f};    // ... last frame's
+    bool measured{false};          // the drawn weapon's ends found (below)
+    glm::vec3 butt{0.f}, tip{0.f}; // ... its butt and its tip (muzzle) as the renderer last drew it
+};
+
+// A weapon's model matrix as the renderer last drew it (drawnMatrix: only the weapons tracked).
+struct Drawn
+{
+    int num{0};
+    int frame{-1};
+    glm::mat4 m{1.f};
+};
+
+constexpr int maxTracks = 16;
+
+// The line check (vr_dirparry_linecheck): the line's ends against the drawn weapon's, the worst so far.
+struct Check
+{
+    int frames{0};
+    float worstBack{0.f}, worstFront{0.f};
+};
+
 struct Viz
 {
     Reading building; // the reading being sent (its lines; its note ends it)
     Reading live;     // the last reading during a strike
     Reading held;     // the last strike's verdict
+    double trackTime{-1.0};
+    za::Array<Track, maxTracks> tracks{};
+    int trackCount{0};
+    za::Array<Drawn, maxTracks> drawn{};
+    Check check;
 };
 Viz viz;
 
@@ -192,6 +229,49 @@ void drawReading(const Reading& r)
     lines::point(r.at, 1.8f, c);
 }
 
+// Weapon entity `num`'s drawn matrix from its model's own frame (x forward, y left, z up: weaponLocalGeometry's) to the
+// world, as the renderer drew it in the last two frames (the .mdl's packing taken off, as vr_rigstudio_aimline.cpp's).
+[[nodiscard]] bool drawnFrame(int num, glm::mat4& out)
+{
+    for(const Drawn& d : viz.drawn)
+    {
+        if(d.num == num && d.frame >= 0 && host_framecount - d.frame <= 2 && cl_entities && cl_entities[num].model)
+        {
+            entity_t at{};
+            at.model = cl_entities[num].model;
+            at.scale = ENTSCALE_DEFAULT;
+            float m0[16];
+            render::entityMatrix(at, false, ENTSCALE_DEFAULT, glm::vec3{0.f}, m0);
+            glm::mat4 f0;
+            for(int c = 0; c < 4; c++)
+            {
+                f0[c] = glm::vec4{m0[c * 4], m0[c * 4 + 1], m0[c * 4 + 2], m0[c * 4 + 3]};
+            }
+            out = d.m * glm::inverse(f0);
+            return true;
+        }
+    }
+    return false;
+}
+
+void drawTrack(const Track& t)
+{
+    const glm::vec4 steel{0.45f, 0.75f, 1.f, 1.f};
+    const glm::vec4 was{0.45f, 0.75f, 1.f, 0.35f};
+    lines::line(t.a, t.b, 0.3f, steel, steel); // (its line now)
+    lines::point(t.a, 1.2f, steel);
+    lines::point(t.b, 1.2f, white);
+    lines::line(t.a0, t.b0, 0.15f, was, was); // (last frame's: the sweep between)
+    lines::line(t.a0, t.a, 0.08f, was, was);
+    lines::line(t.b0, t.b, 0.08f, was, was);
+    if(t.measured)
+    {
+        const glm::vec4 magenta{1.f, 0.25f, 1.f, 1.f};
+        lines::point(t.butt, 0.8f, magenta); // (the drawn weapon's own ends: on the line's when it is right)
+        lines::point(t.tip, 0.8f, magenta);
+    }
+}
+
 void print(const Reading& r, const char* what)
 {
     Con_Printf("dirparryviz: %s %s: score %.2f (need %.2f), %.0f deg off the ideal (full within %.0f, none at %.0f: "
@@ -219,6 +299,74 @@ void PF_debugdirparry()
     l.kind = static_cast<int>(G_FLOAT(OFS_PARM0));
     l.a = geom::vec(G_VECTOR(OFS_PARM1));
     l.b = geom::vec(G_VECTOR(OFS_PARM2));
+}
+
+void PF_debugdirparryline()
+{
+    G_FLOAT(OFS_RETURN) = -1.f;
+    if(!on())
+    {
+        return;
+    }
+    const double now = sv.qcvm.time;
+    if(viz.trackTime != now)
+    {
+        viz.trackTime = now;
+        viz.trackCount = 0;
+    }
+    if(viz.trackCount >= maxTracks)
+    {
+        return;
+    }
+    Track& t = viz.tracks[static_cast<za::SizeT>(viz.trackCount++)];
+    t = Track{};
+    t.num = NUM_FOR_EDICT(G_EDICT(OFS_PARM0));
+    t.a = geom::vec(G_VECTOR(OFS_PARM1));
+    t.b = geom::vec(G_VECTOR(OFS_PARM2));
+    t.a0 = geom::vec(G_VECTOR(OFS_PARM3));
+    t.b0 = geom::vec(G_VECTOR(OFS_PARM4));
+    // The drawn weapon's own butt and tip (its model's geometry, the renderer's matrix: none of the line's code) against
+    // the line's ends: the line is read from the same drawing (hitreact::drawnWeapon, last drawn), so they meet.
+    glm::mat4 w;
+    glm::vec3 muzzle, butt, second;
+    int secondType = 0;
+    if(t.num > 0 && t.num < cl.num_entities && drawnFrame(t.num, w) &&
+       view::weaponLocalGeometry(cl_entities[t.num].model, muzzle, butt, second, secondType))
+    {
+        t.measured = true;
+        t.butt = glm::vec3{w * glm::vec4{butt, 1.f}};
+        t.tip = glm::vec3{w * glm::vec4{muzzle, 1.f}};
+        const float back = glm::length(t.a - t.butt), front = glm::length(t.b - t.tip);
+        viz.check.frames++;
+        viz.check.worstBack = za::max(viz.check.worstBack, back);
+        viz.check.worstFront = za::max(viz.check.worstFront, front);
+        G_FLOAT(OFS_RETURN) = za::max(back, front);
+    }
+}
+
+void drawnMatrix(const entity_t* e, const float* matrix)
+{
+    if(!on() || !cl_entities || e < cl_entities || e >= cl_entities + cl_max_edicts)
+    {
+        return;
+    }
+    const int num = static_cast<int>(e - cl_entities);
+    int slot = -1;
+    for(int i = 0; i < viz.trackCount; i++)
+    {
+        slot = viz.tracks[static_cast<za::SizeT>(i)].num == num ? i : slot;
+    }
+    if(slot < 0)
+    {
+        return; // (not a weapon the parry reads)
+    }
+    Drawn& d = viz.drawn[static_cast<za::SizeT>(slot)];
+    d.num = num;
+    d.frame = host_framecount;
+    for(int c = 0; c < 4; c++)
+    {
+        d.m[c] = glm::vec4{matrix[c * 4], matrix[c * 4 + 1], matrix[c * 4 + 2], matrix[c * 4 + 3]};
+    }
 }
 
 void PF_debugdirparrynote()
@@ -257,6 +405,13 @@ void draw(const glm::vec3& eye)
     {
         return;
     }
+    if(viz.trackTime >= 0.0 && sv.qcvm.time >= viz.trackTime && sv.qcvm.time - viz.trackTime <= liveShown)
+    {
+        for(int i = 0; i < viz.trackCount; i++)
+        {
+            drawTrack(viz.tracks[static_cast<za::SizeT>(i)]);
+        }
+    }
     const bool held = fresh(viz.held, heldShown);
     if(fresh(viz.live, liveShown) && (!held || viz.live.time > viz.held.time))
     {
@@ -272,6 +427,21 @@ void draw(const glm::vec3& eye)
             print(viz.held, "drawn");
         }
     }
+}
+
+void lineCheck_f()
+{
+    if(Cmd_Argc() > 1 && !strcmp(Cmd_Argv(1), "reset"))
+    {
+        viz.check = Check{};
+    }
+    Con_Printf("dirparryviz: line check: %d frames measured, worst back %.2f units, worst front %.2f units\n",
+        viz.check.frames, static_cast<double>(viz.check.worstBack), static_cast<double>(viz.check.worstFront));
+}
+
+void registerCommands()
+{
+    Cmd_AddCommand("vr_dirparry_linecheck", lineCheck_f);
 }
 
 } // namespace qvr::dirparryviz

@@ -19,19 +19,24 @@
 // Its debug view and its settings (each case as the one named, its cvars put back after):
 //   9 Show Directional Parry on (vr_dirparry_debug), case 2: parried as before; the view takes its live readings and
 //   the strike's verdict (the engine prints `dirparryviz: drawn PARRIED ...` as it draws it held; an eye image taken);
-//   10 case 5 with vr_dirparry_angle just past its angle off the ideal (5 degrees): the borderline case flips, parried;
+//   10 case 5 (its blade's way passes 16 units from your sword, out of the contact's marks) with vr_dirparry_contact
+//   just past that gap (1 unit): the borderline case flips, parried;
 //   11 Enemy Melee Speed 0.5 (vr_agrunt_melee_speed), case 0: the blow lands as hard, at twice the time into the swing,
 //   the swing twice as long (its times, VR_AGP_Length; and as measured, to its think's 0.1 s);  12 speed 0.5, case 2:
 //   parried as at full speed.
+// The weapon's line as the parry reads it (Show Directional Parry draws it every frame; VR_DRP_DebugLine): 13 a sword,
+//   14 an axe, 15 an armed knight's sword (vr_agknight), each swinging a side swing (its blade level) at your fists:
+//   every frame from its hold to its swing's end, the line's ends (VR_AG_WeaponLine) within 1 unit of the drawn
+//   weapon's own butt and tip (its model's, by the renderer's matrix: debugdirparryline); case 13's eye image mid-strike.
 // Each `agtest: PASS|FAIL dirparry <case>: ...`; ends on `agtest: test 78 over: P passed, F failed`.
 // ----------------------------------------------------------------------------
 
-float VR_DRPT_CASES = 13;
+float VR_DRPT_CASES = 16;
 float vr_drpt_case;      // the case running
 float vr_drpt_until;     // its give-up time (a safety net: FAIL "timed out")
 float vr_drpt_keep_on;   // cvars before (put back at the end)
 float vr_drpt_keep_parry;
-float vr_drpt_keep_angle;
+float vr_drpt_keep_contact;
 float vr_drpt_keep_debug;
 float vr_drpt_keep_speed;
 float vr_drpt_hurt_at;   // when you were hurt (s into its swing; 0: not)
@@ -41,9 +46,13 @@ float vr_drpt_ref_hurt;  // case 0's: the damage, when, the swing's end and leng
 float vr_drpt_ref_at;
 float vr_drpt_ref_swung;
 float vr_drpt_ref_len;
-float vr_drpt_off5;      // case 5's angle off the ideal (case 10's leniency)
+float vr_drpt_gap5;      // case 5's gap between the lines (case 10's leniency)
 float vr_drpt_dbg0;      // Show Directional Parry's counters at the swing's start
 float vr_drpt_dbgf0;
+float vr_drpt_ln0;       // the line check's frames at the case's start
+float vr_drpt_keep_knight;
+float vr_drpt_shot;      // case 13's eye image taken
+entity vr_drpt_hurt_by;  // what hurt you first in the case (its inflictor)
 vector vr_drpt_r0a;      // the reference swings' blade at their blow: overhead
 vector vr_drpt_r0b;
 vector vr_drpt_r2a;      // ... horizontal
@@ -76,20 +85,44 @@ string(float c) VR_DRPT_Name =
     if(c == 7) { return "overhead vs your sword level across, 40 units to the side"; }
     if(c == 8) { return "vr_dirparry 0: horizontal vs your sword level across (the old rule)"; }
     if(c == 9) { return "Show Directional Parry on: overhead vs your sword level across"; }
-    if(c == 10) { return "angle leniency past its angle: horizontal vs your sword level across"; }
+    if(c == 10) { return "contact distance past its gap: horizontal vs your sword level across"; }
     if(c == 11) { return "Enemy Melee Speed 0.5: overhead vs your fists"; }
-    return "Enemy Melee Speed 0.5: overhead vs your sword level across";
+    if(c == 12) { return "Enemy Melee Speed 0.5: overhead vs your sword level across"; }
+    if(c == 13) { return "the line on the drawn weapon: a grunt's sword, its side swing"; }
+    if(c == 14) { return "the line on the drawn weapon: a grunt's axe, its side swing"; }
+    return "the line on the drawn weapon: an armed knight's sword, its side swing";
+};
+
+// An armed knight `dist` ahead of you (vr_agknight on: monster_knight makes it an armed humanoid with a sword).
+entity(float dist) VR_DRPT_Knight =
+{
+    entity p = vr_agt_player;
+    makevectors(p.angles);
+    vector fw = v_forward;
+    fw_z = 0;
+    fw = normalize(fw);
+    traceline(p.origin, p.origin + fw * dist, TRUE, p);
+    vector at = trace_endpos - fw * 24;
+    entity oldself = self;
+    self = spawn();
+    self.classname = "monster_knight";
+    setorigin(self, at);
+    self.angles_y = vectoyaw(p.origin - at);
+    monster_knight();
+    entity g = self;
+    self = oldself;
+    return g;
 };
 
 // The case whose geometry (its swing, your weapon and its pose) case `c` takes.
-float(float c) VR_DRPT_Geo = { return ((c == 9) || (c == 12)) ? 2 : (c == 10) ? 5 : (c == 11) ? 0 : c; };
+float(float c) VR_DRPT_Geo = { return ((c == 9) || (c == 12)) ? 2 : (c == 10) ? 5 : (c == 11) ? 0 : (c >= 13) ? 1 : c; };
 
 float(float c) VR_DRPT_Kind =
 {
     float g = VR_DRPT_Geo(c);
     return (g == 0 || g == 2 || g == 3 || g == 6 || g == 7) ? 0 : 2;
 };
-float(float c) VR_DRPT_Wants = { return (c == 2) || (c == 3) || (c == 4) || (c == 6) || (c >= 9 && c != 11); };
+float(float c) VR_DRPT_Wants = { return (c == 2) || (c == 3) || (c == 4) || (c == 6) || (c >= 9 && c <= 12 && c != 11); };
 
 vector(vector d, vector ang) VR_DRPT_Local =
 {
@@ -155,9 +188,10 @@ void() VR_DRPT_End =
     entity p = vr_agt_player;
     cvar_set("vr_dirparry", ftos(vr_drpt_keep_on));
     cvar_set("vr_agrunt_parry", ftos(vr_drpt_keep_parry));
-    cvar_set("vr_dirparry_angle", ftos(vr_drpt_keep_angle));
+    cvar_set("vr_dirparry_contact", ftos(vr_drpt_keep_contact));
     cvar_set("vr_dirparry_debug", ftos(vr_drpt_keep_debug));
     cvar_set("vr_agrunt_melee_speed", ftos(vr_drpt_keep_speed));
+    cvar_set("vr_agknight", ftos(vr_drpt_keep_knight));
     localcmd("vr_mock_button main grip 0\n");
     VR_AGPT_Clear();
     VR_AGPT_EmptyHand(p);
@@ -178,6 +212,13 @@ void(entity g, float c) VR_DRPT_Judge =
     float ok;
     string got = sprintf("hurt %g, directional parries %g (early %g), sparks %g, readings %g", hurt, parries, vr_drp_early,
         fx, evals);
+    if(c == 12 && hurt > 0 && vr_drpt_hurt_by != g)
+    {
+        // (slowed, the judging comes later: after its parried swing your posed sword's counter (a pommel strike) and a
+        // hit from elsewhere (vr_shove) can hurt you; its own blow did not)
+        got = sprintf("%s (not by its blow: by %s)", got, vr_drpt_hurt_by.classname);
+        hurt = 0;
+    }
     if(vr_drp_hand >= 0)
     {
         got = sprintf("%s; last: score %.2f, %.0f deg off square, gap %.1f", got, vr_drp_score, vr_drp_off, vr_drp_gap);
@@ -205,7 +246,7 @@ void(entity g, float c) VR_DRPT_Judge =
     }
     if(c == 5)
     {
-        vr_drpt_off5 = vr_drp_off;
+        vr_drpt_gap5 = vr_drp_gap;
     }
     float extra = TRUE;
     if(c == 9)
@@ -219,9 +260,10 @@ void(entity g, float c) VR_DRPT_Judge =
     }
     if(c == 10)
     {
-        got = sprintf("%s; angle leniency %s (case 5: %.1f deg off)", got, ftos(cvar("vr_dirparry_angle")), vr_drpt_off5);
+        got = sprintf("%s; contact distance %s (case 5: %.1f units apart)", got, ftos(cvar("vr_dirparry_contact")),
+            vr_drpt_gap5);
     }
-    if(c >= 11)
+    if((c == 11) || (c == 12))
     {
         float lr = vr_drpt_len / max(0.001, vr_drpt_ref_len);
         float sr = vr_drpt_swung / max(0.001, vr_drpt_ref_swung);
@@ -234,7 +276,18 @@ void(entity g, float c) VR_DRPT_Judge =
             got = sprintf("%s; hurt %g at %.3f s (x%.3f; full speed: %g)", got, hurt, vr_drpt_hurt_at, ar, vr_drpt_ref_hurt);
         }
     }
-    if(c == 8)
+    if(c >= 13)
+    {
+        float ln = vr_drp_line_n - vr_drpt_ln0;
+        extra = ((ln >= 20) && (vr_drp_line_worst <= 1));
+        got = sprintf("%s; its line measured on %g frames, its ends at worst %.2f units from the drawn weapon's", got,
+            ln, vr_drp_line_worst);
+    }
+    if(c >= 13)
+    {
+        ok = extra; // (its blow lands or not: only the line is judged)
+    }
+    else if(c == 8)
     {
         // (the old rule: no directional reading; its blow parried or not by the level-across test, as before)
         ok = ((evals == 0) && (parries == 0) && (hurt > 0));
@@ -269,9 +322,10 @@ void() VR_DRPT_Frame =
         {
             vr_drpt_keep_on = cvar("vr_dirparry");
             vr_drpt_keep_parry = cvar("vr_agrunt_parry");
-            vr_drpt_keep_angle = cvar("vr_dirparry_angle");
+            vr_drpt_keep_contact = cvar("vr_dirparry_contact");
             vr_drpt_keep_debug = cvar("vr_dirparry_debug");
             vr_drpt_keep_speed = cvar("vr_agrunt_melee_speed");
+            vr_drpt_keep_knight = cvar("vr_agknight");
             cvar_set("vr_agrunt_parry", "0"); // (its own guard and parries out of it: its swing as forced)
             localcmd("vr_mock_button main grip 1\n"); // (your weapon held: not let go of)
             p.flags = p.flags | FL_NOTARGET;
@@ -285,9 +339,10 @@ void() VR_DRPT_Frame =
             return;
         }
         cvar_set("vr_dirparry", c == 8 ? "0" : "1");
-        cvar_set("vr_dirparry_debug", c == 9 ? "1" : ftos(vr_drpt_keep_debug));
-        cvar_set("vr_dirparry_angle", c == 10 ? ftos(min(89, ceil(vr_drpt_off5) + 5)) : ftos(vr_drpt_keep_angle));
-        cvar_set("vr_agrunt_melee_speed", c >= 11 ? "0.5" : ftos(vr_drpt_keep_speed));
+        cvar_set("vr_dirparry_debug", ((c == 9) || (c >= 13)) ? "1" : ftos(vr_drpt_keep_debug));
+        cvar_set("vr_agknight", c == 15 ? "1" : ftos(vr_drpt_keep_knight));
+        cvar_set("vr_dirparry_contact", c == 10 ? ftos(ceil(vr_drpt_gap5) + 1) : ftos(vr_drpt_keep_contact));
+        cvar_set("vr_agrunt_melee_speed", ((c == 11) || (c == 12)) ? "0.5" : ftos(vr_drpt_keep_speed));
         float geo = VR_DRPT_Geo(c);
         VR_AGPT_Clear();
         VR_AGPT_EmptyHand(p);
@@ -340,7 +395,7 @@ void() VR_DRPT_Frame =
             vr_drpt_posed = TRUE;
             VR_DRPT_Apply(p);
         }
-        vr_agt_grunt = VR_AGT_Spawn(WID_SWORD, 60);
+        vr_agt_grunt = c == 15 ? VR_DRPT_Knight(60) : VR_AGT_Spawn(c == 14 ? WID_AXE : WID_SWORD, 60);
         vr_agt_step = 2;
         return;
     }
@@ -364,12 +419,20 @@ void() VR_DRPT_Frame =
         VR_AGST_Hold(g, 0);
         p.health = 1000;
         p.armorvalue = 0;
+        if(c >= 11)
+        {
+            p.vr_stamina_used = 0; // (rested: the cases before spent none of this one's; 0-10 as they were)
+        }
         vr_drpt_ev0 = vr_drp_evals;
         vr_drpt_pr0 = vr_drp_parries;
         vr_drpt_fx0 = vr_drp_fx_n;
         vr_drpt_dbg0 = vr_drp_dbg_n;
         vr_drpt_dbgf0 = vr_drp_dbg_final;
+        vr_drpt_ln0 = vr_drp_line_n;
+        vr_drp_line_worst = 0;
+        vr_drpt_shot = FALSE;
         vr_drpt_hurt_at = 0;
+        vr_drpt_hurt_by = world;
         vr_drpt_swung = 0;
         vr_drpt_len = 0;
         vr_drp_hand = -1;
@@ -380,6 +443,7 @@ void() VR_DRPT_Frame =
         VR_AGP_Begin(VR_AGP_SWING);
         g.vr_ag_act_kind = VR_DRPT_Kind(c);
         g.vr_ag_act_hand = 0;
+        g.vr_ag_act_var = 0.5; // (its swing's variation fixed: a random one moved case 5's blade from run to run)
         self = was;
         vr_drpt_t0 = time;
         vr_drpt_refd = FALSE;
@@ -407,7 +471,14 @@ void() VR_DRPT_Frame =
         }
         if(!vr_drpt_hurt_at && p.health < 1000)
         {
+            vr_drpt_hurt_by = p.dmg_inflictor;
             vr_drpt_hurt_at = time - vr_drpt_t0;
+        }
+        if(c == 13 && !vr_drpt_shot && time - vr_drpt_t0 >= vr_agp_tw + vr_agp_ts * 0.5)
+        {
+            vr_drpt_shot = TRUE;
+            cvar_set("vr_eyeshot", "3"); // (mid-strike: its line, last frame's and the drawn ends)
+            VR_AGT_Print("dirparryshot: the sword's line mid-strike");
         }
         if(g.vr_ag_act == VR_AGP_SWING)
         {

@@ -286,6 +286,34 @@ void(entity g, float verdict) VR_DRP_Debug =
     }
 };
 
+.vector vr_drp_dbg_a0;  // (a held melee weapon) its line last frame, as Show Directional Parry sent it
+.vector vr_drp_dbg_b0;
+.float vr_drp_dbg_t;    // ... when (once a frame)
+float vr_drp_line_n;    // the frames whose line was measured against the drawn weapon (the tests)
+float vr_drp_line_worst; // ... the worst gap between their ends (units)
+
+// Show Directional Parry (vr_dirparry_debug), every frame `w` is held (VR_DRP_Frame): its line as the parry reads it
+// (VR_AG_WeaponLine, both ends) and last frame's, drawn; its ends measured against the drawn weapon's own butt and tip.
+void(entity w) VR_DRP_DebugLine =
+{
+    if(!cvar_hget(cvarh_vr_dirparry_debug) || w.vr_drp_dbg_t == time)
+    {
+        return;
+    }
+    VR_AG_WeaponLine(w);
+    float fresh = w.vr_drp_dbg_t > 0 && time - w.vr_drp_dbg_t < 0.1;
+    float gap = debugdirparryline(w, vr_ag_wa, vr_ag_wb, fresh ? w.vr_drp_dbg_a0 : vr_ag_wa,
+        fresh ? w.vr_drp_dbg_b0 : vr_ag_wb);
+    if(gap >= 0)
+    {
+        vr_drp_line_n = vr_drp_line_n + 1;
+        vr_drp_line_worst = max(vr_drp_line_worst, gap);
+    }
+    w.vr_drp_dbg_a0 = vr_ag_wa;
+    w.vr_drp_dbg_b0 = vr_ag_wb;
+    w.vr_drp_dbg_t = time;
+};
+
 // VR_AGP_Pose, every frame `g` holds the melee weapon `w` (before its swing's pose and blow): its swing's strike met
 // your weapon held across it: parried now (VR_Parry, forced), the swing stopped.
 void(entity g, entity w) VR_DRP_Frame =
@@ -294,6 +322,7 @@ void(entity g, entity w) VR_DRP_Frame =
     {
         return; // (once a frame)
     }
+    VR_DRP_DebugLine(w);
     entity pl = g.enemy;
     float live = cvar_hget(cvarh_vr_dirparry) && g.vr_ag_act == VR_AGP_SWING && w.weapon != WID_CHAINSAW && g.health > 0 &&
                pl && (pl.flags & FL_CLIENT) && pl.health > 0 && VRHandsTracked(pl);

@@ -524,6 +524,10 @@ void(entity e, float kind, vector a, vector b, float radius) debugdisarm = #0;
 // the gap, full within, none at; marks: the angle's, the contact's; more: 1 your main hand (0 the off), when on its way
 // (s), the swing's speed). 1: shown (0: off, nothing kept).
 void(float kind, vector a, vector b) debugdirparry = #0;
+// ... and each held melee weapon's line every server frame as the parry reads it (VR_AG_WeaponLine: back a, front b)
+// and last frame's (a0, b0); returns how far (units) its ends are from the drawn weapon's own butt and tip (the
+// renderer's last matrix for it), the worse; -1 not measured (off, not drawn lately).
+float(entity w, vector a, vector b, vector a0, vector b0) debugdirparryline = #0;
 float(float verdict, vector at, vector score, vector angle, vector contact, vector marks, vector more) debugdirparrynote =
     #0;
 void(entity e, float what, vector at, string text) debugdisarmnote = #0;

@@ -4130,3 +4130,38 @@ The leftovers of round 5 ("Not done": the smooth rigs one model after another, 4
   could save at most the fits and rest rows, ~20 ms of vrtesthall/vrstart and ~10 of hip2m5/e1m1 less its own reading
   and keying (the rigs must still be found: the key holds the derived rig), and the limbs' builds already run on the pool
   beside the load (round 5: 22 ms there, not on the main thread). Under the brief's ~20 ms bar: skipped.
+
+## Directional parry 2: debug view, leniency settings, Enemy Melee Speed (branch `agent/dirparry2`)
+
+His words (10-31): a debug view for it, leniencies he can tweak, slowed enemy swings to practise with.
+
+- **Show Directional Parry** (`vr_dirparry_debug`, test knob; Combat > Parry and Bash > Directional Parry and the Debug
+  page): `Quake/vr/vr_dirparryviz.cpp`, fed by QC `VR_DRP_Debug` / `VR_DRP_DebugLine` (builtins `debugdirparry`,
+  `debugdirparrynote`, `debugdirparryline`). Every server frame each held melee weapon's line as the parry reads it
+  (VR_AG_WeaponLine, both ends: blue, the front end white) and last frame's (faint, joined: the sweep), with the drawn
+  weapon's own butt and tip as magenta dots. Each reading of a swing: its blade then (white), where its way's span
+  begins and ends (grey), its way (yellow arrow), your parry line and the meeting point (verdict colour: green parried,
+  orange partial, red miss; faint while live), the ideal through your line's nearest point (cyan), the gap (thin). The
+  last strike's verdict is held 3 s with a readout facing you: verdict, score vs threshold (bar with a threshold tick),
+  angle off the ideal with its limits and marks, contact distance with its limits and marks, hand, when, speed; and
+  printed (`dirparryviz: strike ...`). `vr_dirparry_linecheck [reset]` prints the worst line-end gaps measured.
+- **Leniencies as settings** (player options, CVAR_ARCHIVE, defaults unchanged: they were tuning constants, but he tunes
+  them from the menu while playing, a player-facing reason): `vr_dirparry_angle` 40 (Angle: Full Marks Within),
+  `vr_dirparry_angle_zero` 90 (Angle: No Marks At; new, was fixed), `vr_dirparry_contact` 6 (Contact Distance),
+  `vr_dirparry_falloff` 2 (Contact Falloff; new, was fixed at 2x), `vr_dirparry_threshold` 0.75 (Score to Parry),
+  `vr_dirparry_window` 0.1 (Parry Window). `_partial` and `_opening` stay tuning constants (Debug > Tunables).
+- **Enemy Melee Speed** (`vr_agrunt_melee_speed`, test knob, 0.1..1, default 1; Parry page and Debug page): an armed
+  humanoid's swing or punch takes the speed as it begins (`.vr_ag_act_speed`, QC `VR_AGP_Speed`); `VR_AGP_Times`
+  divides every phase by it (keys, blow, hit, recovery together), its step-in distance and legs' frames are kept, and
+  the directional parry's window is divided by it. 1: the same code path as before (guarded).
+- **Rig Studio:** the Pose Studio Data window's Swing button (a strike pose: the subject plays it once from its start,
+  then holds at the phase picked), Swing Speed 0.1..1 (default 0.25), Stop Swing; `vr_rigstudio_posekey swing 1
+  swingspeed 0.5`. Through the hold query's count (QC VR_AGK_Hold), the speed by `weapondrawnpose(e, -1, 19)`.
+- **Test 78** grows to 16 cases (its swing's variation now fixed at 0.5: a random one moved case 5's blade from run to
+  run, so case 5 parried in some runs): 9 the view takes the readings and the verdict (eye image), 10 case 5 with the
+  contact distance just past its gap (15.4 units) flips to parried, 11 speed 0.5 vs fists: the blow lands as hard at
+  x1.963 the time, length x2.000, end x1.91 (its 0.1 s think), 12 speed 0.5 parried. 13-15 the line check (sword, axe,
+  knight's sword, side swing): **FAIL**, worst 18.0 / 7.5 / 18.0 units. The line's middle matches the drawn weapon's,
+  but it is far shorter (14 units for a ~38-unit sword) and along another axis than the drawn butt-to-tip
+  (view::weaponLocalGeometry by the renderer's matrix, as the Rig Studio's aim lines read it). Open: whether
+  held::drawnExtent's forward axis or the measurement is wrong; the view shows both for him to judge.

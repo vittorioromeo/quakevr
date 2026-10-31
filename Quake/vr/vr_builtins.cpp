@@ -951,6 +951,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"debugdisarm", disarmviz::PF_debugdisarm},
     {"debugdisarmnote", disarmviz::PF_debugdisarmnote},
     {"debugdirparry", dirparryviz::PF_debugdirparry},
+    {"debugdirparryline", dirparryviz::PF_debugdirparryline},
     {"debugdirparrynote", dirparryviz::PF_debugdirparrynote},
     {"torchflametouch", PF_torchflametouch},
     {"mapflametouch", PF_mapflametouch},
