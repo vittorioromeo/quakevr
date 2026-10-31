@@ -3,7 +3,8 @@
 // Phases, each with a fresh shotgun grunt 60 units ahead:
 //   0 one hand pulls back at 0.4 m/s: the time it takes (or 5 s: kept);
 //   1 both hands pull at 0.4 m/s: the second grab joins (hand2 set), and they win in at most 0.75 x the one hand's time
-//     (or win where one did not; 0.85: the mock's off hand reads little stretch, the eased thresholds win it);
+//     (or win where one did not; about 0.6-0.7x by vr_agrunt_tug_two_hand_mult 0.6: the off hand, on the gun's far
+//     end by its chest, pulls towards you, ragdolltug 3's tugAwayOf);
 //   2 one hand holds still, the other's fist strikes the gun at 2 m/s (kept), then at 3.5 m/s: the weapon in the
 //     holding hand;
 //   3 both hold; the off hand lets go: the tug goes on on the main; it takes hold again and the main lets go: the tug
@@ -25,6 +26,7 @@ float vr_ag2_one;      // phase 0's win time (s; 99: kept)
 float vr_ag2_keep_drop;
 float vr_ag2_keep_scale;
 float vr_ag2_keep_fight;
+vector vr_ag2_start;   // the player's place as phase 0 began (each phase starts there)
 
 void(string s) VR_AG2_Print = { bprint(sprintf("agtwo: %s\n", s)); };
 
@@ -44,7 +46,18 @@ void() VR_AG2_Fresh =
     p.weapon2 = WID_FIST;
     VR_AG2_Pull(0, 0);
     cvar_set("vr_mock_hand_lift", "0");
-    vr_agt_grunt = VR_AGT_Spawn(vr_ag2_phase == 6 ? WID_SWORD : WID_SHOTGUN, 60);
+    // (Each phase from where phase 0 began: the player drifted about 15 units a phase, and phase 6's grunt fell off the
+    // hall's ledge with no floor under its pelvis: torn away.)
+    if(vr_ag2_phase == 0)
+    {
+        vr_ag2_start = p.origin;
+    }
+    else
+    {
+        setorigin(p, vr_ag2_start);
+        p.velocity = '0 0 0';
+    }
+    vr_agt_grunt =VR_AGT_Spawn(vr_ag2_phase == 6 ? WID_SWORD : WID_SHOTGUN, 60);
 };
 
 // The off hand's fist striking the held weapon `p` of `g` at `sp` m/s (as test 29's blow: the melee tracker's swing,
@@ -220,8 +233,8 @@ void() VR_AG2_Frame =
                 vr_ag_tug_force, vr_ag_tug_fjoint, vr_ag_tug_fstretch, g.vr_ag_tug_held));
             VR_AG2_Print(sprintf("    %.0f N s, progress %.2f (old: %.1f units); the off hand: joint %.0f, stretch %.2f m",
                 g.vr_ag_tug_imp, g.vr_ag_tug_prog, vr_ag_tug_stretch, ragdolltug(g, p, cVR_OffHand, 1), ragdolltug(g, p, cVR_OffHand, 3)));
-            VR_AG2_Print(sprintf("    rag %g, knockdown %g stagger %g, hand to grunt %.1f", g.vr_ag_tug_rag, g.vr_knockdown, g.vr_kd_stagger,
-                vlen(p.handpos - g.origin)));
+            VR_AG2_Print(sprintf("    rag %g, knockdown %g stagger %g, hand to grunt %.1f (off hand %.1f)", g.vr_ag_tug_rag, g.vr_knockdown,
+                g.vr_kd_stagger, vlen(p.handpos - g.origin), vlen(p.offhandpos - g.origin)));
         }
         if(g.vr_ag_tug_pl && time < vr_agt_until) { return; }
         // (Both hands on, won: the weapon in the hand placed last, the off hand here; his note 2026-10-31.)
@@ -248,7 +261,7 @@ void() VR_AG2_Frame =
         }
         else if(ph == 1)
         {
-            VR_AGT_Check(sprintf("%s one hand's %.2f s:", what, vr_ag2_one), won && (vr_ag2_one >= 99 || took <= vr_ag2_one * 0.85));
+            VR_AGT_Check(sprintf("%s one hand's %.2f s:", what, vr_ag2_one), won && (vr_ag2_one >= 99 || took <= vr_ag2_one * 0.75));
         }
         else
         {
