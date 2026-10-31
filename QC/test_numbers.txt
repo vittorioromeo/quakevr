@@ -142,7 +142,7 @@ vr_agrunt_test   91       vr_armedgrunt_raggrab_test.qc    an active ragdoll's w
 vr_agrunt_test   92       vr_armedgrunt_twohand_test.qc    two hands in the tug; a staggering or downed one's eased tug
 vr_agrunt_test   93       vr_armedgrunt_shot_test.qc       projectiles' own rolls (vr_agrunt_shotdisarm_proj)
 vr_agrunt_test   94       vr_armedgrunt_strike_test.qc     a deliberate strike or throw on its weapon or hand disarms it (vr_agrunt_strike_first)
-vr_agrunt_test   95       vr_armedknight_test.qc           knights as armed humanoids (vr_agknight): off, spawn, swing, disarm, death
+vr_agrunt_test   95       vr_armedknight_test.qc           knights as armed humanoids (vr_agknight; kind 3 the death knight, vr_agdknight, + spell): off, spawn, swing, disarm, death
 vr_agrunt_test   96       vr_armedgrunt_preparry_test.qc   the preventive parry: its guard up close, held, dropped (vr_agrunt_preparry)
 vr_agrunt_test   97       vr_disarmviz_test.qc             Show Disarm Volumes in each state (eye images)
 vr_agrunt_test   98       vr_armedgrunt_preparry_test.qc   the wind-up parry: your raise baits its guard; by what you hold (vr_agrunt_windup_parry)
@@ -242,6 +242,8 @@ vr_agarmor_test  3        vr_agarmor_test.qc               (VR_ART_SpawnKind)
 vr_agarmor_test  4        vr_agarmor_test.qc               (VR_ART_SpawnKind)
 vr_agarmor_test  5        vr_agarmor_test.qc               (VR_AgArmor_FxTestFrame)
 vr_agarmor_test  6        vr_agarmor_test.qc               (VR_AgArmor_Give)
+vr_agarmor_test  7        vr_agarmor_test.qc               (VR_ART_RunKnight: the knights, kinds 2 and 3)
+vr_agarmor_test  8        vr_agarmor_test.qc               (VR_ART_SpawnKind: the knights in yellow)
 
 vr_ammocolor_test 1*       vr_ammocolor_test.qc             (the Debug menu runs it: the dispatcher's fall-through)
 vr_ammocolor_test 2        vr_ammocolor_test.qc             (VR_ACT_Give)

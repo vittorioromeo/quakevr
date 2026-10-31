@@ -89,6 +89,8 @@ if(self.vr_ai_gate > 0)
     return;        // seen only through a teleporter: a charge would run the long way to it
 if(time < self.attack_finished)
     return;
+if(self.vr_ag)
+    return;        // VR: an armed one's melee is its layer's (vr_agdknight)
 if(fabs(self.origin_z - self.enemy.origin_z) > 20)
     return;        // too much height change
 if(vlen(self.origin - self.enemy.origin) < 80)
@@ -154,6 +156,7 @@ void()    hknight_walk20    =[    $walk20,    hknight_walk1    ] {ai_walk(2);};
 //===========================================================================
 
 void()    hknight_run1    =[    $run1,        hknight_run2    ] {
+if(self.vr_ag) { self.th_run(); return; } // VR: an armed one's run is its layer's (after its spell, its pains: vr_agdknight)
 hk_idle_sound();
 ai_run (20); CheckForCharge(); };
 void()    hknight_run2    =[    $run2,        hknight_run3    ] {ai_run(25);};
@@ -207,8 +210,9 @@ void()    hknight_dieb9    =[    $deathb9,    hknight_dieb9    ] {monster_check_
 
 void() hknight_die =
 {
-    // VR: its sword falls from its hand (its death frames are drawn without it), gibbed or not.
-    if(!(!VR_OtherFlags() && (self.spawnflags & 2)))
+    // VR: its sword falls from its hand (its death frames are drawn without it), gibbed or not; an armed one's weapons
+    // fall (vr_agdknight).
+    if(!VR_AG_Dying() && !(!VR_OtherFlags() && (self.spawnflags & 2)))
     {
         VR_DropKnightSword(TRUE);
     }
@@ -471,6 +475,7 @@ frame: frame to be frozen in. (default 73)
 */
 void() monster_hell_knight =
 {
+    if(VR_AKN_Replace()) return; // VR: its armed version, his sword in his hand (vr_agdknight: vr_armedrepl.qc)
     if(MG_MonsterInhibited()) return;
     VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_hknight, $death12, $death1, $deathb9, $deathb1); // VR: knocked down (vr_knockdown.qc): no get-up of its own, a death backwards
     if(deathmatch)

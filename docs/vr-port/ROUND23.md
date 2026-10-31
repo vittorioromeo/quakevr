@@ -3666,6 +3666,104 @@ Checklist:
 - [knightpose] Toolgun: an armed Knight with a nail pistol aims it in the pistol pose (off hand free or cupping), not
   shouldered as a rifle.
 
+## Death knights as armed humanoids (branch `agent/dknight`; rig, kind 3, spell, grips, armour done; rig2 tuning open)
+
+His words: "Add full support for Death Knights to the armed humanoid system, including poses, melee, ranged, etc. The
+Death Knights should still be able to perform their signature fireball ranged attack." And: "Ensure that the new armed
+humanoid Knight and Death Knight kinds also support armor."
+
+1. **Rig (done).** `progs/vrhknight.mdl` (`make_vrgrunt.py` row `vrhknight`: hknight.mdl without his sword's 110
+   triangles). `quakevr/rigs/vrhknight.rig2.txt` (`make_rig2.py hknight`: `HKNIGHT_SKELETON`, 20 bones read off his
+   mesh: the waist joint at the belt where the body's mesh overlaps the skirt; the jaw and helmet the head's, the back of
+   the neck not; each hip's hem ring, the knees' backs and the left cuff's top tied; the gauntlets' back corners the
+   hands'; no_skip on both arms; the pauldrons, their spikes, the elbow spikes rigid on the upper arms, the horns on the
+   head; knees blend 4.5; limits the grunt's). `vr_rig2_check progs/vrhknight.mdl`: **25 passed, 10 failed** (the
+   grunt's 22/13); all poses: see-through 0 (grunt 3), flipped 63 (599), collapsed 51 (49), folds 59 (522); random
+   1000: see-through 0, flipped 61 (grunt 515). Left failing: hands' stretch 0.29 (the 0.3 bar), the knees' deepest
+   bends (100-130: collapse at the back), neck+head 2 folds. Engine: model id `VrHknight`, `monsterFiles`, its ragdoll
+   row (the hell knight's seeds).
+2. **Kind 3 (done).** QC `VR_AM_DKNIGHT` 3 (`VR_AM_COUNT` 4): row (fist 79 67 75, the stillest in the sword's space,
+   2.2-2.6 rms; pommel 55/56, tip 46/45, guard ends 351/342; stand 0..8, run 29..36 with his steps, shove slice1..6,
+   take death2..6 (no kneel: down on his knees, hand 12 over the floor), back 105/106 and 327/330, anchor 74, shoulders
+   0.5 -+13.5 24, arm 16.4, fit 1 1.44 1 / 0.2 0.04 8.8). Engine: `agpose::numKinds`/`aggrip::numKinds` 4, `fitScale`
+   1 1.44 1.15, kind names (Death Knight), `armedRigs` row (torso sides 0.6, as the enforcer's pads), toolgun list
+   refresh on `vr_agdknight`. **`vr_agdknight`** (default 0; Armed Humanoid Replacements: "Armed Death Knights");
+   `monster_vr_hknight` (any weapon, the sword by default; FGD); `monster_hell_knight` calls `VR_AKN_Replace` (map death
+   knights keep their sword); `hknight_die` runs `VR_AG_Dying`; `CheckForCharge` skipped and `hknight_run1` hands over
+   to the layer's run for an armed one. Ranged pickups: the knights' one setting, `vr_agknight_ranged_pickup`, for both.
+   **Poses: the grunt's, fitted** (`shippedFrom` 0): measured both, the grunt-fitted rest hold put his sword 8.1 units
+   from his own fist, the enforcer-fitted 16 (test 95's spawn check failed at 16); Pose Keys 9/3 either way. Weapon Holds
+   the grunt's (as the knight's). The toolgun's armed list with `vr_agdknight` on lists rows 0..3 (the knight's row too).
+3. **The spell (done):** `vr_am_spell` (the row's own ranged attack: `hknight_magicc1`); `VR_AM_SpellTry` in
+   `VR_AG_CheckAttack`'s melee branch: out of reach with a melee weapon or fists, at near/mid range in a clear line, id's
+   chances (0.2 near, 0.05 mid, times vr_agrunt_ai_aggression): his magicc frames, knightspikes and sounds; with a gun
+   the gun's path. Disarmed (fists) the same branch casts.
+- **Test 95 with `vr_agrunt_test_kind 3`** (QC/vr_armedknight_test.qc, `map vrtesthall;wait30;vr_agrunt_test 95`): off,
+  on (kind 3, vrhknight.mdl), spawn (sword 8.1 from his fist), swing (hurt you 11 in 1.5 s), **spell** (moved 200-300
+  away: cast in 0.8-1.8 s, sword still held), disarm, re-arm (1.1 s), death: 8/0. Kind 2: 7/0 (as before); test 1 (kind
+  0) 17/0. Rig Studio Pose Keys, death knight + sword: 9/3 (knight + sword 10/2). Note: `god` makes the swing case fail.
+- **Open (next session, in this order):** a Second grip row for kind 3 (wrist straight on a fore-end: measure with
+  `vr_agrunt_ik_debug 4`, as the knight's), posekeys with a shotgun, `vr_rigstudio_rom test` on the subject; tests 1, 2,
+  20, 60, 99, 77 with kind 3; stage 4 (armour for kinds 2 and 3: vr_agarmor zones from their rig bones, plates, helmet,
+  blade sparks; tests for kinds 2 and 3); his rig's Range of Motion tuning; eval.sh.
+
+**Part 2 (same branch).**
+- **(a) Second grip row, kind 3:** `{3, Second, 0 0 0, -161 37 -55}` (`vr_aggrip.cpp` globalDefaults): with no row his
+  wrist bent 93 degrees on the shotgun's fore-end in Aim; a search over the three angles (Rig Studio, `vr_agrunt_ik_debug
+  4`, 45 / 10 / 3 degree grids) leaves it 1 (held). Tunable in the Grip Editor.
+- **(b) Rig Studio:** Pose Keys, death knight + shotgun **13/1** (the grunt's elbow failure only; the target), + sword
+  9/3 (as before: no second grip on a sword). `vr_rigstudio_rom test` 9/0 (grunt 9/0), `rom test weapon` 6/0 with the
+  shotgun and with the sword. `vr_rig2_check progs/vrhknight.mdl` 25/10 unchanged (not tuned further: budget; the
+  failures are hand_l stretch 0.29, the knees' 100-130 degree bends collapsing the back of the knee, neck+head 2 folds).
+  Note: `vr_rigstudio_rom test` on the grunt rewrote `quakevr/rigs/vrgrunt.rig2.txt` (put back; a test side effect).
+- **(c) agrunt tests with `vr_agrunt_test_kind 3`:** 1 17/0, 2 4/0, 20 3/0, 60 5/1 (the ogre case, failing for kind 0
+  too), 77 12/0, 99 38/0 (kind 0: 41/0). No fixes needed.
+- **(d) Armour for kinds 2 and 3:** `wearers` (and the self-check's list) take `vrknight.mdl` and `vrhknight.mdl`;
+  QC `VR_AgArmor_Model` their plates, `VR_AgArmor_Spawn` rolls for kinds 0-3. The shells from their own rigs, three
+  generic fixes (the grunt's and the enforcer's shells byte-identical: hashes fa858c7f, 11cc98dc):
+  - a piece's surface keeps each edge to two triangles (the knights' meshes share edges three ways): shells closed
+    (open edges 10 / 56 -> 0);
+  - the helmet's fit only from the head proper (1.06 of the head bone's length up, 0.75 to the sides): the death
+    knight's horns had made it 16 high and 22 wide (now 11);
+  - a bone no vertex weighs half on (the knight's right upper arm, 0.38 at most) gets the region at 0.8 of its most
+    (plate anchors too): his right pauldron had no plate at all.
+  `vr_agarmor_check` 20/0 (all four wearers). **`vr_agarmor_test 7`** (rule 1; `map vrtesthall;wait30;vr_agarmor_test 7`,
+  ends on `agarmor test: N passed`): per knight kind its pieces at their places, the cuirass absorbing, a pauldron's
+  debris its own model's, a blade's blow on a plate sparking with no blood, the skill's roll, its wear reaching the
+  client, the debris fading: **13/1**: the death knight's left pauldron's and shins' plate middles (the probe points)
+  resolve to no plate (his big pauldrons' middles sit inside his arm, his shins under his skirt): open. `8`: a knight
+  and a death knight in full yellow (eyeshots). `vr_agarmor_test 1` 26/0, `5` 24/0 (its "right thigh and shin worn"
+  case flaky, failing on the base too).
+- **Open, in order:** the death knight's probe points / shin and pauldron hits (test 7's failure); eyeshots of test 8;
+  eval.sh; `run_baseline --only agrunt`; his rig's remaining rig2 failures.
+
+**Part 3 (same branch).**
+- **Test 7's 13/1: the probe points were wrong, not the game.** The plates' middles (`limbpiece 10`) of the death
+  knight's left pauldron and both shins sit inside his arm / leg, nearer another bone's skin (no plate within reach);
+  shots at them strike the plates. The tests now probe a limb plate as a player's shot lands (`VR_ART_PlateShot`,
+  generic for every wearer): aimed at its middle from ahead of the wearer, then its side, the other side, behind,
+  traced with MOVE_HITMODEL (as bullets), the piece taken where it lands (`ragdollbone` QVR_ARMOR_PIECE_AT); the cuirass
+  and helmet stay their middles (pieceAt resolves them by their bones; a shot at the enforcer's chest from ahead meets
+  his hands on the gun: no plate, rightly). All ten pieces checked now (was 4). From ahead every death knight plate is
+  struck; the knight's right pauldron and left shin from their side (from ahead his thigh plate is in front of the shin's
+  middle). `vr_agarmor_test 7` **14/0**, `vr_agarmor_test 1` **26/0** (the enforcer's check is the same probe).
+  (Note: `traceline(..., MOVE_HITMODEL, world)` meets no monster: pass the player.)
+- **Test 8 (eyeshots, `map vrtesthall;wait30;vr_agarmor_test 8;wait10;screenshot`):** knight and death knight in full
+  yellow: helmet, cuirass, pauldrons, vambraces, thigh and shin plates drawn on both; nothing to fix. Seen: the
+  knight's own red shoulder caps show above his pauldron plates (his mesh's pads, weighted to the chest); the death
+  knight's upper thighs under the skirt's hem are bare (the thigh plate starts at the hem's bottom).
+- **`vr_rigstudio_rom test` no longer writes the shipped rig:** its save-and-read-back step sets `vr_rigdata_dir
+  rigstudio_test` for the save when it is empty (as the other rig tests) and puts the setting and the rig's path back:
+  9/0, saved to `quakevr/rigstudio_test/rigs/vrgrunt.rig2.txt`, `quakevr/rigs` untouched. Run it flat-screen
+  (`-flatscreenmode`: the studio's frame does not run under the mock headset; `map vrtesthall;wait30;vr_rigstudio
+  monster_vr_grunt 4;vr_rigstudio_rom test`).
+- **eval.sh:** 163/171, no verdict changes (8 takes' numbers moved, PASS -> PASS; nothing here touches melee).
+- **`run_baseline --only agrunt`:** 93 cases; changed vs baseline.tsv: agrunt_2 4/0 -> 2/2 (4/0 run alone: flaky under
+  load), 31/36/65 FAIL -> PASS, 32/70 one more check; flaky 63/71/86 as known. New agrunt_78 8/1 (directional parry,
+  from origin/next, fails alone too: not this branch's).
+- **Open:** the rig2 check failures on vrhknight (25/10; step 5, not started: budget).
+
+
 ## Directional parry (experimental; branch `agent/dirparry`)
 
 His words (2026-10-31): parry armed humanoids' melee by the direction of the enemy weapon and strike: overhead strikes

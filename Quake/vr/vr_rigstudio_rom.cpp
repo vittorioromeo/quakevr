@@ -949,9 +949,18 @@ void romTestTick(rig2::Rig& rig)
                 }
             }
             expect(all, "50 random poses within every limit");
-            // the file written and read back
-            za::String path, text, err;
+            // the file written and read back: into the tests' own folder (vr_rigdata_dir rigstudio_test, as the other rig
+            // tests), never over the shipped rig; the setting and the rig's own path put back after
+            za::String path, text, err, dirWas, pathWas;
+            dirWas = vr_rigdata_dir.string;
+            pathWas = rig.path;
+            if(!vr_rigdata_dir.string[0])
+            {
+                Cvar_Set(vr_rigdata_dir.name, "rigstudio_test");
+            }
             const bool saved = rig2::save(rig, path);
+            Cvar_Set(vr_rigdata_dir.name, dirWas.cStr());
+            rig.path = pathWas;
             rig2::Rig back;
             const bool read = saved && files::readText(path.cStr(), text) && rig2::read(text.cStr(), back, err);
             bool same = read && back.numBones == rig.numBones && back.weights.size() == rig.weights.size();
