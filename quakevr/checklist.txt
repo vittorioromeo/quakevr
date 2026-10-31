@@ -215,6 +215,16 @@ Debug > Show Disarm Volumes during its swings: your weapon's line (green/red), i
 Worn Backpacks on, Pulling the Pack: Lifts Its Wearer. Grab a standing grunt's pack from behind and pull gently: nothing happens. Yank back hard: it goes down flailing, held by the pack on its back. Carry it, swing it and let go to throw it. Pulling never tears the pack off, and it breaks free after a few seconds.
 Same mode: knock a grunt down, grab its pack and drag it slowly (it slides along, pack on), then yank: it flails in your hand, pack still on.
 Same mode: shooting or hitting a grunt's pack still tears it off; force-grab a dead one's pack: it comes off.
+Armed Death Knights on, a map with death knights (e1m3 or e2m6): each holds his sword in his posed fist (no stretched or torn mesh as he moves), swings it at you, parries, can be disarmed, re-arms; his sword falls when he dies.
+Step back out of his reach while he holds his sword: he still casts his fireball spread (his casting frames, fireballs, sounds). Knock his sword away: at range he still casts.
+Toolgun: spawn an armed Death Knight with a shotgun: he aims and fires the shotgun and casts no fireballs.
+Armed Death Knights off: death knights as before (their own sword, charge, fireballs).
+Rig Studio, Subject: armed Death Knight (Armed Death Knights on): Range of Motion and Random Pose keep his pauldrons and skirt clean (no see-through).
+Rig Studio, Subject: armed Death Knight with a shotgun, Aim: his left hand holds the fore-end, wrist straight.
+Toolgun: an armed Knight and an armed Death Knight with Armour Full Yellow: plates on the chest, shoulders, arms and legs, a helmet that fits the head (the death knight's horns stay outside it).
+Armour rule 1: shoot a death knight's left pauldron and shins with the shotgun: sparks, less damage.
+Debug > Tests armour knights (vr_agarmor_test 8): knight and death knight in full yellow, all plates drawn; note the knight's red shoulder caps above the pauldrons and the death knight's bare upper thighs under the skirt.
+Hit an armoured Death Knight's chest plate with the sword: sparks, no blood; shoot his pauldron until it breaks: it falls off as debris you can pick up.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns
