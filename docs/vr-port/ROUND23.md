@@ -4317,6 +4317,26 @@ Checklist:
 - VR Pose Studio in Pickup: the bottom row's Make Override / Remove Override toggles the same.
 - Chest Bend (standing, kneeling) in Pickup: a grunt taking up a weapon bends more or less.
 
+## One Pickup pose: the per-class Pickup overrides dropped (branch `agent/pickupone`)
+
+His ask of 2026-10-31: "remove all existing pickup pose overrides and only keep the single one".
+- **Shipped:** the grunt's 9 per-class Pickup rows (one-handed melee 2030, chainsaw 4030, two melee 5030, two guns
+  6030, pistol 17030, launcher 18030, sprayer 19030, laser cannon 20030, Widowmaker 21030) removed from
+  `vr_agpose.cpp` `shipped[]` (the knights followed them); every kind keeps its shared key (7030, 107030) and the
+  Pickup legs (31). The override mechanism (Make / Remove Override, `vr_agrunt_pose_override`) is unchanged.
+- **`pose_defaults.py`** now drops every class's own Pickup row and "no override" mark from its output;
+  `--keep-pickup-overrides` ships them as before.
+- **`Misc/quakevr/drop_pickup_overrides.py <cfg> [--dry-run]`:** removes per-class Pickup keys and marks (any kind,
+  old or new code format; not the shared class 7, not the legs) from a config's `vr_agrunt_poses`, the rest of the
+  file byte-identical; prints each dropped code. On his config of 10-31 (a copy): 0 to drop (his saved poses have no
+  Pickup keys). Synthetic check: 1030, 17030, 101030, old 11030 and the mark 1032 dropped; 7030, 107030, 31 kept.
+- **Verified:** `vr_agrunt_pose_dump pickup` (keys reset): 0 overrides of 12 classes for each of the four kinds.
+  Pose Keys studio test, grunt: 13/1 (the known elbow step, as before).
+
+Checklist:
+- Rig Studio > Pose Keys, a grunt, Pose Pickup, Class Pistol (or Two Guns, Chainsaw): it says "Pickup (shared)" and
+  every class takes up its weapon with the same pose.
+
 ## The Plasma Gun's cell holds 16; his recoil values of 2026-10-31 shipped (branch `agent/recoilpromo`)
 
 His voice notes of 2026-10-31: the Plasma Gun's magazine 16 instead of 36; his recoil and two-handed recoil values
