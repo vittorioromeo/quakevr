@@ -44,6 +44,9 @@ enum Kind : int
     PlayerStrike = 9, // a player's hand: the line a strike on the weapon is measured from (its hand to its weapon's muzzle)
     PlayerSweep = 10, // ... its blow's line, the parry's sweep (grip to far end)
     Tug = 11,         // a tug over the weapon: a the hand, b the grip, radius its progress (0..1)
+    DirYours = 12,    // the directional parry (QC vr_dirparry.qc): your weapon's parry line (radius 1: it parried)
+    DirBlade = 13,    // ... its blade's line where they met
+    DirWay = 14,      // ... its blade's way there
 };
 
 // The notes' kinds (debugdisarmnote): 0 a state; the hits.
@@ -239,6 +242,12 @@ void drawShape(const Shape& s)
         lines::point(s.a, 1.2f, white);
         break;
     case PlayerSweep: lines::line(s.a, s.b, thin * 2.f, blue, blue); break;
+    case DirYours: lines::line(s.a, s.b, thick, s.radius > 0.5f ? green : red, s.radius > 0.5f ? green : red); break;
+    case DirBlade: lines::line(s.a, s.b, thick, white, white); break;
+    case DirWay:
+        lines::line(s.a, s.b, thin * 2.f, yellow, yellow);
+        lines::point(s.a, 1.5f, yellow);
+        break;
     case Tug:
     {
         // The hand to the grip, and its progress: a bar over the grip, filled green to the share won.

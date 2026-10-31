@@ -292,6 +292,11 @@ za::Vector<Item> pageDebugAutomation()
             .help("vr_agrunt_test 77 (vrtesthall; a few seconds): a sword grunt's blade struck away from its hand by "
                   "your sword or fist at 3 to 8 m/s: sparks, the clang, no damage, a strong blow staggers it; on its "
                   "hand: disarmed; into its raised parry: parried (agtest: ... PASS/FAIL)."),
+        command("Armed Grunts: Directional Parry", "vr_agrunt_test 78")
+            .help("vr_agrunt_test 78 (vrtesthall; a few seconds): a sword grunt's overhead and side swings met by your "
+                  "sword or shotgun held level across or upright where its blade goes: across its way parried (no "
+                  "damage, sparks where they met), along it, out of reach or with vr_dirparry 0 as before (agtest: ... "
+                  "PASS/FAIL)."),
         command("Armed Grunts: Strikes on Its Weapon Disarm", "vr_agrunt_test 94")
             .help("vr_agrunt_test 94 (vrtesthall; a few seconds): a shotgun grunt struck on its barrel or forearm by a "
                   "fist, a held shotgun, a carried crate and a thrown gun, unaware, caught out or its parry raised, and "

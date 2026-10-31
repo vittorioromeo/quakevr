@@ -1739,6 +1739,11 @@ void ikStretchReset()
         slider("Parry Drop Chance", "vr_parry_drop_chance", 0.f, 1.f, 0.05f, "%.2f").help("Chance a one-handed parry knocks the weapon out of your hand (two hands: never). Not used with Parry Stamina on (Parry, Bash and Headbutt), which replaces it."),
         slider("Parry Arm Knock", "vr_parry_wobble", 0.f, 2.f, 0.1f, "%.1f").extend().help("How much a parried blow knocks your hand and arm."),
         toggle("Unarmed Parry", vr_parry_unarmed).help("Cross your arms in an X in front of you to block a blow with your forearms."),
+        toggle("Directional Parry (Experimental)", vr_dirparry)
+            .help("An armed humanoid's sword, axe or club swung at you is parried only by your weapon held across its "
+                  "blade's way where they meet: an overhead strike by a weapon held level across, a side swing by one "
+                  "held upright. Parried: no damage, sparks where the weapons met, its swing stopped. Tunables: Combat "
+                  "> Directional Parry. Off: the level-across parry for every blow."),
         toggle("Parry Cooldown: Whole Attack", vr_parry_cooldown_attack).extend()
             .help("Every blow of the attack whose blow you last parried is a cooldown blow, however long between them "
                   "(a fiend's two claws, the Overlord's double smash, a shambler's chained swings): one parry and one "
