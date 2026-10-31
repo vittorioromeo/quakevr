@@ -540,7 +540,10 @@ void romWindow()
     rig2::Rig* rig = romRig();
     if(!rig)
     {
-        ImGui::TextWrapped("No authored rig for %s (quakevr/rigs/<model>.rig2.txt: Misc/quakevr/make_rig2.py).", st.model ? st.model->name : "-");
+        // (the plain knight's model has none: his armed one's, vrknight.mdl, has)
+        const bool plainKnight = st.model && !strcmp(st.model->name, "progs/knight.mdl");
+        ImGui::TextWrapped("No authored rig for %s (quakevr/rigs/<model>.rig2.txt: Misc/quakevr/make_rig2.py)%s.",
+            st.model ? st.model->name : "-", plainKnight ? ": pick the armed Knight (Armed Knights on)" : "");
         ImGui::End();
         return;
     }

@@ -477,6 +477,7 @@ vr_mg_world_test 4+       vr_mg_world_test.qc              (MG_ProgressTest)
 vr_nail_test     1*       vr_nail_test.qc                  (the Debug menu runs it: the dispatcher's fall-through)
 vr_nail_test     2        vr_nail_test.qc                  (VR_NLT_Hang)
 vr_nail_test     3        vr_nail_test.qc                  (a lying backpack against nails: VR_NLT_BagStep, vr_nail_test 1's last step alone)
+vr_nail_test     4        vr_nail_test.qc                  (each nail weapon's wound on a grunt: dent and blood, a lava nail's burn: VR_NLT_WoundStep)
 
 vr_portals_ai_test 1        vr_portal_ai_test.qc             (precache_model)
 vr_portals_ai_test 2        vr_portal_ai_test.qc             (EnemyFireBullets)

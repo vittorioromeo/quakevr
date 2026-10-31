@@ -1581,7 +1581,14 @@ QVR_CVAR(vr_autopump_hold, "-1", CVAR_NONE)           // test: 0..1 holds every 
 // settings are Weapon Offsets > Effects (vr_wofs_fx_*: which weapons kick and flash, their tracers' multipliers).
 QVR_CVAR(vr_weapon_recoil, "1", CVAR_ARCHIVE)          // 0: no programmatic recoil
 QVR_CVAR(vr_recoil_amount, "1", CVAR_ARCHIVE)         // every weapon's recoil (its own Kick Back cm and Muzzle Rise degrees) times this (looks only: the aim stays; the old vr_recoil_kick and vr_recoil_rise are in each weapon's own since vr_wofs_version 74)
-QVR_CVAR(vr_recoil_two_hand, "0.6", CVAR_ARCHIVE)     // a shot of a weapon held in both hands: its recoil's kick back, muzzle rise and return time (and haptic punch) times this, times the weapon's own (vr_wofs_fx_recoil_2h_NN); 1: as one-handed (weaponfx::twoHandRecoil)
+// A shot of a weapon held in both hands (weaponfx::twoHandRecoil): its recoil's kick back, muzzle rise (and sideways
+// turn), return time and haptic punch each times its slider here, times the weapon's own (vr_wofs_fx_2h_kick_NN, ...);
+// 1: as one-handed. Until 2026-10-31 one slider for all four (vr_recoil_two_hand, vr_wofs_fx_recoil_2h_NN): an old
+// config's value goes to all four (VR_RetiredCvar, weapons::retiredTwoHandLine).
+QVR_CVAR(vr_recoil_2h_kick, "0.6", CVAR_ARCHIVE)
+QVR_CVAR(vr_recoil_2h_rise, "0.6", CVAR_ARCHIVE)
+QVR_CVAR(vr_recoil_2h_time, "0.6", CVAR_ARCHIVE)
+QVR_CVAR(vr_recoil_2h_haptic, "0.6", CVAR_ARCHIVE)
 QVR_CVAR(vr_debug_weapon_frame, "-1", CVAR_NONE)       // debug: the held weapons drawn at this frame of their models, whatever the game steps (-1: as it steps them; Debug > Weapons)
 QVR_CVAR(vr_weapon_kick_cancel, "1", CVAR_NONE)        // the kick baked into Quake's weapon models' firing frames taken out of their poses (vr_kickcancel.cpp; parts such as a pump still move); 0: the models' own kick, to compare (Debug > Weapons)
 QVR_CVAR(vr_muzzle_flash, "1", CVAR_ARCHIVE)           // 0: no programmatic muzzle flashes (the models' own stay)
@@ -2512,6 +2519,7 @@ QVR_CVAR(vr_agrunt_reserve, "2", CVAR_ARCHIVE)         // the clips it carries b
 // Armed humanoid replacements (QC vr_armedrepl.qc; ROUND22.md "Armed humanoid replacements"): a map's grunts and
 // enforcers as armed ones. All off by default.
 QVR_CVAR(vr_agknight, "0", CVAR_ARCHIVE)               // 1: every knight a map spawns is an armed humanoid holding a sword (QC vr_armedknight.qc; docs/vr-port/ARMED_MONSTERS.md)
+QVR_CVAR(vr_agknight_ranged_pickup, "0", CVAR_ARCHIVE) // armed knights taking up ranged weapons lying about (their own dropped gun too): 0 never (melee ones only), 1 as grunts do; spawned with a gun they hold it either way (QC vr_armedmon.qc VR_AM_Takes)
 QVR_CVAR(vr_agrunt_repl, "1", CVAR_ARCHIVE)            // 1: every grunt and enforcer a map spawns is its armed version holding its own gun (its own damage, rate, aim, loot)
 QVR_CVAR(vr_agrunt_repl_common, "0.5", CVAR_ARCHIVE)     // 0..1: the chance one holds a shotgun or a nail pistol instead
 QVR_CVAR(vr_agrunt_repl_uncommon, "0.25", CVAR_ARCHIVE)   // 0..1: ... a nailgun, super nailgun or super shotgun (one a player owns)
@@ -2759,7 +2767,8 @@ QVR_CVAR(vr_carry_full_cue, "1", CVAR_ARCHIVE)        // a box put away at a hol
 QVR_CVAR(vr_collect_fx, "1", CVAR_ARCHIVE)            // what a hand puts away at a holster or pouch (a box, a key, a power-up, a round, a grenade) is drawn shrinking into it (visual only: vr_collectfx.cpp)
 QVR_CVAR(vr_collect_fx_time, "0.25", CVAR_ARCHIVE)     // with it: seconds it takes to go in (game time: slowed in bullet time)
 QVR_CVAR(vr_collect_fx_size, "0.2", CVAR_ARCHIVE)      // with it: its size when it is gone (of its own)
-QVR_CVAR(vr_debug_collect_fx, "0", CVAR_NONE)          // 1: print each thing put away (its model, from where, the holster's hotspot) and when it is gone in; 2: also each frame's size and distance left
+QVR_CVAR(vr_test_collect_chamber_off, "-1", CVAR_NONE) // (tests: vr_revolver_test.qc) set as a shell slid into a heavy revolver's chamber ends: how far its way's end is off the axis of the shell drawn in that chamber (units; 99 not measured)
+QVR_CVAR(vr_debug_collect_fx, "0", CVAR_NONE)         // 1: print each thing put away (its model, from where, the holster's hotspot) and when it is gone in; 2: also each frame's size and distance left
 QVR_CVAR(vr_carry_local, "1", CVAR_ARCHIVE)           // what you carry is drawn in your hand as it moves this frame (0: where the server has it, a frame or a ping behind)
 QVR_CVAR(vr_held_surface_fit, "1", CVAR_ARCHIVE)      // a gripped box, gib or backpack sits against the palm, pushed out of the fist, instead of sunk into the hand (0: where it was gripped)
 QVR_CVAR(vr_held_collide, "1", CVAR_ARCHIVE)          // props held one in each hand meet, and a prop and the weapon in the other hand: drawn kept apart, each hand moved back with what it holds (looks only; vr_held.cpp meetFrame)
@@ -4146,7 +4155,7 @@ QVR_CVAR(vr_ad_pellet_speed, "1", CVAR_ARCHIVE)   // their speed, times this (AD
 QVR_CVAR(vr_ad_pellet_damage, "1", CVAR_ARCHIVE)  // their damage, times this (AD's: 4 a pellet; the Weapon Damage settings apply too)
 QVR_CVAR(vr_ad_ammo_models, "1", CVAR_ARCHIVE) // AD support: 0 original ammo boxes, 1 AD models in AD maps, 2 everywhere; applies to newly spawned boxes
 QVR_CVAR(vr_ad_resistance, "2", CVAR_ARCHIVE) // AD support: 0 off, 1 AD maps, 2 any map; only entities with resistance keys are affected
-QVR_CVAR(vr_ad_upgrades, "1", CVAR_ARCHIVE) // AD support: 0 off, 1 with AD content (AD maps, and any map while vr_ad_everywhere is on: QC AD_UpgradeScope), 2 any map; existing upgrade ownership retained
+QVR_CVAR(vr_ad_upgrades, "2", CVAR_ARCHIVE) // AD support: 0 off, 1 with AD content (AD maps, and any map while vr_ad_everywhere is on: QC AD_UpgradeScope), 2 any map; existing upgrade ownership retained
 QVR_CVAR(vr_ad_test, "0", CVAR_NONE)            // Debug > Tests > Arcane Dimensions (AD maps): 1 play the map's first cinematic camera on you, 2 report the cinematic and player state, 3 fire the Widowmaker, 4 the Plasma Gun (they are given), 5 put a Widowmaker pickup ahead (vr_pickup_test 2 takes it), 6 report the upgrades held (QC vr_ad_bridge.qc AD_Test); in any map with AD's data, 10-27 the rules follow-ups' tests (QC vr_ad_test.qc: 10/11 artifacts, 12/13 Nail Piercer, 14-19 debuffs, 20 custom key, 21 ammo resistance, 22/23 Evil, 24 ladders, 25 player state, 26 spawnflags, 27 crouched sight; 40-42 pellet hits, 44 pellets passing, 50-57 projectile pellet flights, 58 pellet speeds, 59 ogre grenade, 60 grunt rocket (vr_ad_shots_test.qc), 61 buttons, 62 backpacks, 63 ladder movement, 64 flat ladder (vr_ad_world_test.qc), 65 scopes and ammo models, 66 AD sky and sky fog; 70-80 the soldiers' guns (70 fire each, 71 drop each, 72 their settings, 73-80 one in the main hand), 81-85 AD weapons made, fired and reported (vr_ad_enemyguns.qc), 86 the spawner's placement, 87/88 guns carried through a level change, 89 a stand-in gun model)
 QVR_CVAR(vr_ad_mtest, "0", CVAR_NONE)           // Debug > Tests > Arcane Dimensions Monsters (AD maps): 1 report the map's AD monsters (registered, rigged), 2 report the nearest one's VR state (QC vr_ad_monsters_test.qc; not archived)
 QVR_CVAR(vr_deadanim_test, "0", CVAR_NONE)       // tests: dead monsters animating again (QC vr_deadanim.qc: 1 the watch's report, 2..7 the nearest's state; Misc/quakevr/deadanim_test.sh; not archived)

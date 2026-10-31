@@ -313,8 +313,10 @@ QVR_WEAPON_KEY(MeleeCurve, "w_meleecurve")
 // cm, degrees and seconds"): how far a shot kicks it back (Kick Back, cm; 0 none), how far it tips its muzzle up (Muzzle
 // Rise, degrees, and a quarter of that turned sideways; 0 none) and the seconds from that peak back to rest (Return
 // Time; the kick up before it takes min(35 ms, 3/7 of it)), all times Weapon Effects' Recoil Amount (vr_recoil_amount);
-// 0, 0 and 0.115 s by default (registerCvars); held in both hands all three times Weapon Effects' Two-Handed Recoil
-// (vr_recoil_two_hand) times the weapon's own (RecoilTwoHand, 1: weaponfx::twoHandRecoil). Until vr_wofs_version 74
+// 0, 0 and 0.115 s by default (registerCvars); held in both hands each (and the haptic punch) times its Weapon Effects'
+// Two-Handed slider (vr_recoil_2h_kick, _rise, _time, _haptic) times the weapon's own (Recoil2hKick, ...; 1:
+// weaponfx::twoHandRecoil; until 2026-10-31 one for all four, fx_recoil_2h: an old config's value goes to all four,
+// retiredTwoHandLine). Until vr_wofs_version 74
 // these were multipliers (fx_recoil on/off,
 // fx_recoil_str, fx_recoil_kick, fx_recoil_rise, fx_recoil_time, fx_recoil_rec and the global vr_recoil_kick and
 // vr_recoil_rise): retired, an old config's values converted (vr_weapons.cpp takeRecoilUnits74). A muzzle flash at its
@@ -325,7 +327,10 @@ QVR_WEAPON_KEY(MeleeCurve, "w_meleecurve")
 QVR_WEAPON_KEY(RecoilKick, "fx_kick_cm")
 QVR_WEAPON_KEY(RecoilRise, "fx_rise_deg")
 QVR_WEAPON_KEY(RecoilReturn, "fx_return_s")
-QVR_WEAPON_KEY(RecoilTwoHand, "fx_recoil_2h")
+QVR_WEAPON_KEY(Recoil2hKick, "fx_2h_kick")
+QVR_WEAPON_KEY(Recoil2hRise, "fx_2h_rise")
+QVR_WEAPON_KEY(Recoil2hTime, "fx_2h_time")
+QVR_WEAPON_KEY(Recoil2hHaptic, "fx_2h_haptic")
 QVR_WEAPON_KEY(Flash, "fx_flash")
 QVR_WEAPON_KEY(FlashSize, "fx_flash_size")
 QVR_WEAPON_KEY(FlashTime, "fx_flash_time")

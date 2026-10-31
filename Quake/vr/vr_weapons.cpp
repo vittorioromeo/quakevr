@@ -1116,7 +1116,7 @@ void registerCvars()
     // shotgun's flash size; the tracers as Weapon Effects'. The old recoil values (oldRecoil) at their old defaults.
     for(int slot = 0; slot < numSlots; slot++)
     {
-        for(const Key key : {Key::HapticPunch, Key::RecoilTwoHand, Key::FlashSize, Key::TracerSpeed, Key::TracerLength, Key::TracerWidth,
+        for(const Key key : {Key::HapticPunch, Key::Recoil2hKick, Key::Recoil2hRise, Key::Recoil2hTime, Key::Recoil2hHaptic, Key::FlashSize, Key::TracerSpeed, Key::TracerLength, Key::TracerWidth,
                 Key::TracerChance, Key::TracerRed, Key::GunfxSparks, Key::GunfxSparkSize, Key::GunfxSmoke, Key::GunfxSmokeSize,
                 Key::GunfxWisps})
         {
@@ -1242,6 +1242,38 @@ bool recoilMigrated(int slot, OldRecoil& old, OldRecoilGlobals& globals)
     old = oldRecoil[slot];
     globals = oldRecoilGlobals;
     return recoilConverted;
+}
+
+bool retiredTwoHandLine(const char* name, const char* value)
+{
+    // vr_recoil_two_hand: Weapon Effects' sliders.
+    if(!q_strcasecmp(name, "vr_recoil_two_hand"))
+    {
+        if(value)
+        {
+            for(cvar_t* c : {&vr_recoil_2h_kick, &vr_recoil_2h_rise, &vr_recoil_2h_time, &vr_recoil_2h_haptic})
+            {
+                Cvar_SetQuick(c, value);
+            }
+        }
+        return true;
+    }
+    // vr_wofs_fx_recoil_2h_NN: the slot's own.
+    constexpr const char* prefix = "vr_wofs_fx_recoil_2h_";
+    const size_t len = strlen(name), prefixLen = strlen(prefix);
+    if(len != prefixLen + 2 || q_strncasecmp(name, prefix, prefixLen) != 0)
+    {
+        return false;
+    }
+    const int slot = atoi(name + prefixLen) - 1;
+    if(value && slot >= 0 && slot < numSlots)
+    {
+        for(const Key key : {Key::Recoil2hKick, Key::Recoil2hRise, Key::Recoil2hTime, Key::Recoil2hHaptic})
+        {
+            Cvar_SetQuick(&cvarAt(slot, key), value);
+        }
+    }
+    return true;
 }
 
 bool retiredRecoilLine(const char* name, const char* value)

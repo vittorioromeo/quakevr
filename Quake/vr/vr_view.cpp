@@ -274,6 +274,14 @@ double rvPrinted = -1.0;                                // (setupRevolverParts' 
     return {p.x, p.y * c - p.z * s, p.y * s + p.z * c};
 }
 
+// Chamber `i`'s axis off the cylinder's (rvChamberPitch round it, `back` along it from the back face), the cylinder
+// turned `turn` (the crane's swing and its own: setupRevolverParts). QC's VR_Revolver_ChamberFor counts them alike.
+[[nodiscard]] glm::vec3 rvChamberOff(int i, float turn, float back)
+{
+    const float a = glm::radians(90.f + 60.f * static_cast<float>(i));
+    return rvTurnX({back, rvChamberPitch * std::cos(a), rvChamberPitch * std::sin(a)}, turn);
+}
+
 [[nodiscard]] bool ssgBreaks()
 {
     return cl.stats[protocol::STAT_QVR_RELOADMODE] == 3 && vr_reload_ssg_break.value != 0.f;
@@ -554,6 +562,11 @@ void view::prepareWorldWeapons()
         anchor::prepare(model, weapons::anchor(slot, Key::WpnButtonAnchor));
         anchor::prepare(model, weapons::anchor(slot, Key::WpnTextAnchor));
         kickcancel::prepare(model); // (its firing frames' kick fitted now, not as it is first drawn)
+        if(modelmeta::is(model, modelmeta::Id::VShot)) // (and its auto pump's pieces: setupPumps)
+        {
+            kickcancel::preparePart(viewModel(pumpBodyModelName), model);
+            kickcancel::preparePart(viewModel(pumpModelName), model);
+        }
     }
 }
 
@@ -2133,8 +2146,7 @@ void setupRevolverParts()
                 sh.visible = false;
                 continue;
             }
-            const float a = glm::radians(90.f + 60.f * static_cast<float>(i));
-            const glm::vec3 at = cylAt + rvTurnX({rvShellProud, rvChamberPitch * std::cos(a), rvChamberPitch * std::sin(a)}, turn);
+            const glm::vec3 at = cylAt + rvChamberOff(i, turn, rvShellProud);
             err = za::max(err, setRevolverPart(sh, gun, rvShellModel, at, turn, 0, c == 2 ? 3 : 1, false));
             loaded++;
         }
@@ -2276,6 +2288,9 @@ void copyLerp(entity_t& to, const entity_t& from)
 // along the gun's -x. lastModel: the gun's model, whose copy it is (setupPumps).
 void setGunPart(view::ViewEntity& part, const view::ViewEntity& gun, qmodel_t* model, float back)
 {
+    // Drawn at the gun's firing frames: their baked kick taken out as the gun's is (else the gun lurched in the hand
+    // mid-stroke, against the programmatic recoil: ROUND23.md, "Starter shotgun: the auto pump's pieces kicked").
+    kickcancel::preparePart(model, gun.ent.model);
     part = gun;
     part.ent.model = model;
     part.lastModel = gun.ent.model;
@@ -2343,6 +2358,16 @@ void setupPumps()
         if(vr_debug_weaponfx.value >= 2.f)
         {
             Con_Printf("autopump hand %d t %.3f travel %.3f\n", hand, cl.time, back);
+        }
+        // vr_debug_weaponfx 4: what is drawn in the gun's place, as weaponfx's "recoiltrack" line has the gun (its body as
+        // drawn against its rest pose, cm).
+        glm::vec3 now, rest;
+        float worst = 0.f;
+        if(vr_debug_weaponfx.value == 4.f && hand == HAND_MAIN && kickcancel::drawnBody(body.ent, now, rest, worst))
+        {
+            const view::ModelSpace space{body};
+            Con_Printf("recoiltrack part t %.5f frame %d resid %.3f cm worst %.3f u\n", cl.time, body.ent.frame,
+                glm::distance(space.point(now), space.point(rest)) * 100.f / units::metresToUnits(), worst);
         }
     }
     autopump::frame(isShotgun, where);
@@ -3139,6 +3164,41 @@ bool loadPath(int hand, glm::vec3& port, glm::vec3& deep, glm::vec3& end)
     }
     const qmodel_t* m = entities.weapon[hand].ent.model;
     return modelLoadPath(m, modelmeta::is(m, modelmeta::Id::VRevolver) ? revolverSwing(hand) : ssgOpenAngle(hand), port, deep, end);
+}
+
+bool revolverChamberPath(int hand, int chamber, glm::vec3& port, glm::vec3& deep, glm::vec3& end)
+{
+    if(chamber < 0 || chamber > 5 || !loadPath(hand, port, deep, end) ||
+        !modelmeta::is(entities.weapon[hand].ent.model, modelmeta::Id::VRevolver))
+    {
+        return false;
+    }
+    // (loadPath's way runs along the bore (+x) past the load point, which its Load Point offsets may move off the
+    // cylinder's axis: kept along the bore, put on the chamber's axis as drawn: the crane swung, the cylinder turned.)
+    const RevolverDrawn& st = rvHands[hand];
+    const float swing = -st.swing;
+    const glm::vec3 c = rvPivot + rvTurnX(rvCylInCrane, swing) + rvChamberOff(chamber, swing + st.cyl, 0.f);
+    port = {port.x, c.y, c.z};
+    deep = {deep.x, c.y, c.z};
+    end = {end.x, c.y, c.z};
+    return true;
+}
+
+bool revolverShellDrawn(int hand, int chamber, glm::vec3& at, glm::vec3& bore)
+{
+    if(hand < 0 || hand > 1 || chamber < 0 || chamber > 5 || !rvHands[hand].parts)
+    {
+        return false;
+    }
+    const view::ViewEntity& sh = entities.rvShell[hand][chamber];
+    glm::vec3 o, x;
+    if(!sh.visible || !gunToWorld(hand, glm::vec3{0.f}, o) || !gunToWorld(hand, {1.f, 0.f, 0.f}, x) || glm::length(x - o) < 1e-6f)
+    {
+        return false;
+    }
+    at = modelPoint(sh, glm::vec3{0.f}); // (its model's origin as drawn: setRevolverPart puts it on the chamber's axis)
+    bore = glm::normalize(x - o);
+    return true;
 }
 
 bool propGun(int num, ViewEntity& out, float& ssgOpen)

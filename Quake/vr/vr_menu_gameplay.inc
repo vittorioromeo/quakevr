@@ -768,6 +768,10 @@ void armedGripsDragMode()
                   "melee, parried, disarmed, tugged and grabbed like theirs, dropped when it dies; its ragdoll keeps "
                   "hold of it. A work in progress (ROUND23.md, \"Knights as armed humanoids\"). Takes effect at the "
                   "next map load (vr_agknight)."),
+        toggle("Armed Knights: Pick Up Ranged Weapons", vr_agknight_ranged_pickup)
+            .help("Off: armed knights take up only melee weapons lying about (a gun they drop stays on the floor). On: "
+                  "they take up guns too, as grunts do (for experiments). A knight spawned holding a gun (the toolgun, "
+                  "the Rig Studio, a map's \"weapon\") holds it either way (vr_agknight_ranged_pickup)."),
         header("Weapon Variety (on top)"),
         chance("Common: Shotgun, Nail Pistol", vr_agrunt_repl_common,
             "The chance one holds a shotgun or a nail pistol instead of its own gun (vr_agrunt_repl_common)."),

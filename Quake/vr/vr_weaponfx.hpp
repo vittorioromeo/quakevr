@@ -31,14 +31,22 @@ void parseFired();
 void parseTracer();
 
 // The drawn hand `hand`'s recoil this frame (world units and degrees, as painknock::offset), `handAngles` the hand's
-// drawn angles (which way back is). Zero without one.
+// drawn angles (which way back is, and the gun's own axes: `angles`, added to them, turn the muzzle up and sideways
+// about the gun's right and up, so a rolled hand's rise follows the gun, not the world). Zero without one.
 void recoilOffset(int hand, const glm::vec3& handAngles, glm::vec3& pos, glm::vec3& angles);
 
-// The programmatic recoil's share for a shot of `hand`'s weapon (slot `slot`) as it is held now: 1 in one hand; held
-// in both (twohand::support, its grip's transition between) Weapon Effects' Two-Handed Recoil (vr_recoil_two_hand)
-// times the weapon's own (Weapon Offsets > Effects: Key::RecoilTwoHand). Its kick back, muzzle rise and return time are
-// times it, and its haptic punch follows (vr_gunsfx.cpp).
-[[nodiscard]] float twoHandRecoil(int hand, int slot);
+// The programmatic recoil's shares for a shot of `hand`'s weapon (slot `slot`) as it is held now: 1 in one hand; held
+// in both (twohand::support, its grip's transition between) each of Weapon Effects' Two-Handed Recoil sliders
+// (vr_recoil_2h_kick, _rise, _time, _haptic) times the weapon's own (Weapon Offsets > Effects: Key::Recoil2hKick, ...):
+// its kick back, its muzzle rise (and the sideways turn with it), its return time and its haptic punch (vr_gunsfx.cpp).
+struct TwoHandShares
+{
+    float kick{1.f};
+    float rise{1.f};
+    float time{1.f};
+    float haptic{1.f};
+};
+[[nodiscard]] TwoHandShares twoHandRecoil(int hand, int slot);
 
 // Once a frame, from the view's setup, the weapons placed: the muzzle flashes put on the drawn weapons' muzzles (hidden
 // when none), the grunts' on theirs; the tracers that ended forgotten.

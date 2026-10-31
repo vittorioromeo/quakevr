@@ -226,7 +226,7 @@ struct Punch
 {
     double start{-1.0};
     int slot{-1};
-    float share{1.f}; // the recoil's share (weaponfx::twoHandRecoil: less held in both hands)
+    float share{1.f}; // the punch's share (weaponfx::twoHandRecoil's haptic: less held in both hands)
 };
 
 struct GunSfxState
@@ -565,7 +565,7 @@ void fired(int hand)
     {
         return;
     }
-    const float share = weaponfx::twoHandRecoil(hand, slot);
+    const float share = weaponfx::twoHandRecoil(hand, slot).haptic;
     state.punches[hand] = Punch{cl.time, slot, share};
     sendPunch(hand); // (the spike on the shot's own frame)
     if(vr_debug_gunsfx.value)

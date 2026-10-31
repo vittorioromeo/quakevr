@@ -5,7 +5,8 @@
 //   player its enemy, for a few seconds: `agtest: <weapon>: <shots> shots, <dmg> damage to you, clip <c>, reserve <r>,
 //   <n> reloads: PASS|FAIL` (PASS: it hurt the player), then `agtest: every weapon: <p> passed, <f> failed`.
 // - 2: a shotgun grunt with half a reserve: it fires, reloads (`reload PASS`), is struck on its gun hand (`disarm PASS`:
-//   its gun lies about, its clip with it), goes back for it (`rearm PASS`), and is killed (`drop PASS`: the gun lies
+//   its gun lies about, its clip with it), goes back for it (`rearm PASS`; a knight with vr_agknight_ranged_pickup 0
+//   leaves it lying: `rearm (takes no guns) PASS`), and is killed (`drop PASS`: the gun lies
 //   where it died, its rounds in it).
 // - 3: the yank: a shotgun grunt standing ahead (the player unseen), the player's main hand (a script's vr_mock_hand)
 //   emptied, the grunt moved to it, the hand to its gun's height (vr_mock_hand_lift: each kind's own) and closed (the
@@ -257,12 +258,27 @@ void() VR_AGTest_Sequence =
             g.enemy.classname, g.health, lying ? vlen(lying.origin - g.origin) : -1, vlen(lying.velocity), lying.vr_depleted));
         VR_AGT_Print(sprintf("rearm: next think in %g, knockdown %g, movetype %g, seek %s, seek next in %g", g.nextthink - time,
             g.vr_knockdown, g.movetype, g.vr_ag_seek.classname, g.vr_ag_seek_next - time));
-        VR_AGT_Check(sprintf("rearm: %g pickups, holds %s:", g.vr_ag_pickups, g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing"),
-            g.vr_ag_pickups >= 1 && g.vr_ag_prop != world);
-        vr_agt_clip = g.vr_ag_prop.weaponinst.wi_clip;
+        // (a kind that takes no ranged weapons up, a knight with vr_agknight_ranged_pickup 0: it leaves the gun lying)
+        float takes = VR_AM_Takes(g, WID_SHOTGUN);
+        VR_AGT_Check(sprintf("rearm (%s): %g pickups, holds %s:", takes ? "takes guns" : "takes no guns", g.vr_ag_pickups,
+            g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing"),
+            takes ? (g.vr_ag_pickups >= 1 && g.vr_ag_prop != world) : (g.vr_ag_pickups == 0 && !g.vr_ag_prop));
+        if(takes)
+        {
+            vr_agt_clip = g.vr_ag_prop.weaponinst.wi_clip; // (else the clip it was knocked out with)
+        }
         vector at = g.origin;
         T_Damage(g, p, p, 200);
         entity w2 = VR_AGT_LyingNear(at);
+        if(!takes)
+        {
+            // (it never took the gun up: still lying where it fell, its clip in it)
+            w2 = find(world, classname, "thrown_weapon");
+            while(w2 && w2.weapon != WID_SHOTGUN)
+            {
+                w2 = find(w2, classname, "thrown_weapon");
+            }
+        }
         VR_AGT_Check(sprintf("drop: lying %s with %g (held %g):", w2 ? w2.netname : "nothing", w2.weaponinst.wi_clip, vr_agt_clip),
             w2 && w2.weapon == WID_SHOTGUN && w2.weaponinst.wi_clip == vr_agt_clip);
         VR_Test_VerdictPart("sequence:");

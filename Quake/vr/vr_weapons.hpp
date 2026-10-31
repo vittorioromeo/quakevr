@@ -96,6 +96,10 @@ struct NewRecoil
 // An old config's line for a retired recoil cvar (vr_wofs_fx_recoil*_NN, vr_recoil_kick, vr_recoil_rise; VR_RetiredCvar):
 // its value kept for the conversion. False: not one of them.
 [[nodiscard]] bool retiredRecoilLine(const char* name, const char* value);
+// An old config's line for the one two-handed recoil slider (vr_recoil_two_hand, vr_wofs_fx_recoil_2h_NN; until
+// 2026-10-31; VR_RetiredCvar): its value set on each of the four that split it (kick back, muzzle rise, return time,
+// haptic punch: vr_recoil_2h_*, Key::Recoil2h*). False: not one of them.
+[[nodiscard]] bool retiredTwoHandLine(const char* name, const char* value);
 
 // For the Weapon Offsets and Weapon Weights menu pages: a slot's cvar for a key, its settings back to their defaults,
 // and its settings printed as vr_weapons.inc lines (to make them the shipped defaults). Each page resets and prints its

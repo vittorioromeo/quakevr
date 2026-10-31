@@ -898,10 +898,18 @@ za::Vector<Item> pageWofsEffects()
         s("Recoil Return Time", Key::RecoilReturn, 0.02f, 0.6f, 0.005f, "%.3f s").extend(0.014f, 3.f)
             .help("How long the weapon takes from the kick's peak back to rest (the quick kick up before it takes 35 ms, "
                   "less for a very short Return Time). Longer: a weightier gun; shorter: a lighter one."),
-        s("Two-Handed Recoil", Key::RecoilTwoHand, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 5.f)
-            .help("This weapon held in both hands: its recoil (kick back, muzzle rise, return time, haptic punch) times "
-                  "Weapon Effects' Two-Handed Recoil times this. 1: as Weapon Effects' says; 0: no recoil held so; above "
-                  "1: less steadied by the second hand."),
+        s("Two-Handed Kick Back", Key::Recoil2hKick, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 5.f)
+            .help("This weapon held in both hands: its kick back times Weapon Effects' Two-Handed Kick Back times this. "
+                  "1: as Weapon Effects' says; 0: none held so; above 1: less steadied by the second hand."),
+        s("Two-Handed Muzzle Rise", Key::Recoil2hRise, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 5.f)
+            .help("This weapon held in both hands: its muzzle rise times Weapon Effects' Two-Handed Muzzle Rise times "
+                  "this. 1: as Weapon Effects' says; 0: none held so."),
+        s("Two-Handed Return Time", Key::Recoil2hTime, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 5.f)
+            .help("This weapon held in both hands: its time back to rest times Weapon Effects' Two-Handed Return Time "
+                  "times this. 1: as Weapon Effects' says."),
+        s("Two-Handed Haptics", Key::Recoil2hHaptic, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 5.f)
+            .help("This weapon held in both hands: its haptic punch times Weapon Effects' Two-Handed Haptics times this. "
+                  "1: as Weapon Effects' says; 0: none held so."),
         s("Haptic Punch", Key::HapticPunch, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 5.f)
             .help("How hard this weapon's shot punches the controller: a sharp spike as hard as its recoil, then a short "
                   "rumble as long as its kick (to the end of its Return Time). Times Sound: Gunfire's Haptic Punch. 0: none."),

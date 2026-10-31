@@ -61,6 +61,7 @@ struct Item
     int gunEnt{0};                // or the gun lying about as this client entity (QVR_CFX_INTO_PROP; 0: in a hand)
     glm::vec3 startLocal{0.f};    // its middle when let go of, in the gun's model space
     glm::mat3 axesLocal{1.f};     // its turn in the gun's (its axes')
+    int chamber{-1};              // into this chamber of a heavy revolver (intoChamberHotspot; -1: along the load path)
 };
 
 constexpr int maxItems = collectfx::maxCopies;
@@ -104,8 +105,39 @@ struct GunNow
 
 [[nodiscard]] bool gunPath(const Item& it, const GunNow& g, glm::vec3& port, glm::vec3& deep, glm::vec3& end)
 {
+    if(it.chamber >= 0)
+    {
+        return view::revolverChamberPath(it.gunHand, it.chamber, port, deep, end);
+    }
     return it.gunEnt <= 0 ? view::loadPath(it.gunHand, port, deep, end)
                           : view::modelLoadPath(g.prop.ent.model, g.open, port, deep, end);
+}
+
+// A shell gone into a revolver's chamber (its path's last point, `end` in the gun's space): how far that is off the axis
+// of the shell drawn in the chamber (and off the cylinder's: the old way's), into vr_test_collect_chamber_off (tests:
+// QC vr_revolver_test.qc) and, with vr_debug_collect_fx, the console.
+void chamberCheck(const Item& it, const glm::vec3& end)
+{
+    glm::vec3 port, deep, axisEnd, w, axisW, shell, bore;
+    if(!view::gunToWorld(it.gunHand, end, w) || !view::loadPath(it.gunHand, port, deep, axisEnd) ||
+        !view::gunToWorld(it.gunHand, axisEnd, axisW) || !view::revolverShellDrawn(it.gunHand, it.chamber, shell, bore))
+    {
+        Cvar_SetValueQuick(&vr_test_collect_chamber_off, 99.f);
+        return;
+    }
+    const auto across = [&](const glm::vec3& p)
+    {
+        const glm::vec3 d = p - shell;
+        return glm::length(d - bore * glm::dot(d, bore));
+    };
+    const float off = across(w);
+    Cvar_SetValueQuick(&vr_test_collect_chamber_off, off);
+    if(vr_debug_collect_fx.value)
+    {
+        Con_Printf("collect fx: into the revolver's chamber %d: its end %.2f off the chamber's shell's axis (the cylinder's "
+                   "middle %.2f off it)\n",
+            it.chamber, static_cast<double>(off), static_cast<double>(across(axisW)));
+    }
 }
 
 // A world point in the gun's model space.
@@ -224,7 +256,8 @@ void parse()
     }
 
     const bool intoProp = hotspot == intoPropHotspot;
-    const bool intoGun = hotspot == intoGunHotspot || intoProp;
+    const bool intoChamber = hotspot >= intoChamberHotspot && hotspot < intoChamberHotspot + collectfx::revolverChambers;
+    const bool intoGun = hotspot == intoGunHotspot || intoProp || intoChamber;
     if((intoGun ? vr_reload_insert_time.value <= 0.f : (!vr_collect_fx.value || vr_collect_fx_time.value <= 0.f)) ||
         cls.demoplayback || modelIndex <= 0 || modelIndex >= MAX_MODELS)
     {
@@ -292,6 +325,7 @@ void parse()
         it.gunHand = 1 - hand;
         it.gunEnt = intoProp ? ent : 0;
         it.entNum = intoProp ? 0 : ent;
+        it.chamber = intoChamber ? hotspot - intoChamberHotspot : -1;
         glm::mat3 gun;
         GunNow g;
         if(!gunNow(it, g) || !gunLocal(it, g, it.from, it.startLocal) || !gunTurn(it, g, gun))
@@ -323,6 +357,15 @@ void frame(const hands::State& s)
         const float t = span > 0.f ? static_cast<float>((vr_gametime - it.start) / span) : 1.f;
         if(t >= 1.f || t < 0.f || !it.ent.model)
         {
+            if(it.chamber >= 0 && it.ent.model)
+            {
+                glm::vec3 port, deep, end;
+                GunNow g;
+                if(gunNow(it, g) && gunPath(it, g, port, deep, end))
+                {
+                    chamberCheck(it, end); // (where it went: the path's end)
+                }
+            }
             if(vr_debug_collect_fx.value && it.ent.model)
             {
                 Con_Printf("collect fx: %s gone in\n", it.ent.model->name);
