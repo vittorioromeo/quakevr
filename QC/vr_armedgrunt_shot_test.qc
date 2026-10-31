@@ -171,20 +171,20 @@ void(entity g, entity p) VR_AGST_Fire =
     }
     else if(vr_agst_kind == 3)
     {
-        VR_SetHitKind(QVR_HITKIND_SHOT, cVR_MainHand, '0 0 0', dir);
+        VR_Hit_Begin(QVR_HITKIND_SHOT, cVR_MainHand, '0 0 0', dir);
         LightningDamage(from, at + dir * 64, pl, cvar_hget(cvarh_vr_dmg_lightning));
-        VR_ClearHitKind();
+        VR_Hit_End();
     }
     else
     {
         float n = vr_agst_kind == 1 ? 14 : (vr_agst_kind == 4 ? 1 : 6);
         vector spread = vr_agst_kind == 1 ? '0.035 0.025 0' : '0.01 0.01 0';
         vr_pellet_damage = cvar_hget(vr_agst_kind == 1 ? cvarh_vr_dmg_super_shotgun : cvarh_vr_dmg_shotgun);
-        VR_SetHitKind(QVR_HITKIND_SHOT, cVR_MainHand, '0 0 0', dir);
+        VR_Hit_Begin(QVR_HITKIND_SHOT, cVR_MainHand, '0 0 0', dir);
         vr_tracer_hand = cVR_MainHand;
         vr_tracer_from = from;
         FireBulletsImpl(n, dir, spread, from, 2048, FALSE);
-        VR_ClearHitKind();
+        VR_Hit_End();
         vr_pellet_damage = 0;
     }
     self = oldself;

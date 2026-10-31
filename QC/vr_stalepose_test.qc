@@ -38,11 +38,11 @@ float(entity g, vector at) VR_SPT_Blow =
 {
     entity pl = vr_agt_player;
     entity p = g.vr_ag_prop;
-    VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, '0 0 0', '0 0 0');
+    VR_Hit_Begin(QVR_HITKIND_MELEE, cVR_MainHand, '0 0 0', '0 0 0');
     hit_blast = 0;
     VR_Hit_SetZone(g, 0, at);
     VR_AG_Hit(g, pl, pl, 1000);
-    VR_ClearHitKind();
+    VR_Hit_End();
     return g.vr_ag_prop == p && p != world;
 };
 

@@ -67,18 +67,18 @@ void() VR_TestKill_Frame =
     {
         at_z = lo + (hi - lo) * 0.22;
     }
-    VR_ClearHitKind();
+    VR_Hit_End();
     hit_targ = world;
     if(part < 4)
     {
-        VR_SetHitKind(QVR_HITKIND_SHOT, -1, at, dir);
+        VR_Hit_Begin(QVR_HITKIND_SHOT, -1, at, dir);
         VR_Hit_SetZone(best, part, at);
     }
     dprint(sprintf("test kill: %s at %v struck %g at %v\n", best.classname, best.origin, part, at));
     // (A shotgun blast's worth on its last point of health: its kill push a real shot's, vr_kill_push.)
     best.health = 1;
     T_Damage(best, pl, pl, 20);
-    VR_ClearHitKind();
+    VR_Hit_End();
     hit_targ = world;
 };
 
@@ -113,7 +113,7 @@ void() VR_TestHurt_Frame =
         return;
     }
     float before = best.health;
-    VR_ClearHitKind();
+    VR_Hit_End();
     T_Damage(best, pl, pl, dmg);
     dprint(sprintf("test hurt: %s %g damage, health %g -> %g\n", best.classname, dmg, before, best.health));
 };

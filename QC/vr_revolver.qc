@@ -353,7 +353,7 @@ void() VR_Revolver_SlugEnd =
 void(vector xFrom, vector xDir, float xRange) VR_Revolver_SlugFrom =
 {
     VR_DamageCredit_FromHand(self, self, cVR_MainHand);
-    VR_SetHitKind(QVR_HITKIND_SHOT, cVR_MainHand, '0 0 0', xDir);
+    VR_Hit_Begin(QVR_HITKIND_SHOT, cVR_MainHand, '0 0 0', xDir);
     vr_tracer_hand = cVR_MainHand;
     vr_tracer_from = xFrom;
     VR_Revolver_SlugBegin();
@@ -362,7 +362,7 @@ void(vector xFrom, vector xDir, float xRange) VR_Revolver_SlugFrom =
     vr_rv_lastpart = vr_pellet_last_part;
     vr_rv_lasthit = vr_pellet_last_ent;
     VR_Revolver_SlugEnd();
-    VR_ClearHitKind();
+    VR_Hit_End();
 };
 
 // Its shot from `xHand` of self (a player, or an armed grunt: vr_armedgrunt.qc): a slug of its shells (its clip; without

@@ -428,7 +428,7 @@ float(float xHand) VR_Chainsaw_Cut =
         list = e.vr_saw_victim;
         e.vr_saw_victim = world;
         vector at = e.vr_saw_at;
-        VR_SetHitKind(QVR_HITKIND_MELEE, xHand, at, dir);
+        VR_Hit_Begin(QVR_HITKIND_MELEE, xHand, at, dir);
         VR_DamageCredit_SetWeapon(self, WID_CHAINSAW);
         float alive = e.health > 0;
         float m = VR_MaterialOf(e); // (before the damage: a gib may be gone after it)
@@ -456,7 +456,12 @@ float(float xHand) VR_Chainsaw_Cut =
             bleed = VR_AgArmor_HitFx(e, at, '0 0 0', hurt);
         }
         vr_grenshot_saw = TRUE; // (a grenade: the running chain always sets it off, VR_GrenShot_BlowSetsOff)
-        float cut = decap == 2 ? TRUE : hurt > 0 ? T_DamageImpl(e, self, self, hurt, 1) : FALSE;
+        float cut = decap == 2;
+        if(!cut && hurt > 0)
+        {
+            vr_dmg_dealonly = TRUE; // (parried, beheaded and pushed above, as the chain's own)
+            cut = T_Damage(e, self, self, hurt);
+        }
         vr_grenshot_saw = FALSE;
         if(decap == 1)
         {
@@ -470,7 +475,7 @@ float(float xHand) VR_Chainsaw_Cut =
         {
             VR_HotBlade_Struck(self, xHand, e, alive, at, dir); // an incandescent bar sets it on fire (vr_hotblade.qc)
         }
-        VR_ClearHitKind();
+        VR_Hit_End();
         VR_Saw_HitFx(e, m, at, dmg, bleed);
         if(cvar_hget(cvarh_vr_debug_chainsaw))
         {

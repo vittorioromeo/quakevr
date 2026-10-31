@@ -52,11 +52,11 @@ void() VR_WallTorch_TestShot =
     vr_wt_test_until = time + 1;
     if(kind == 23)
     {
-        VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, mid, normalize(mid - self.origin));
+        VR_Hit_Begin(QVR_HITKIND_MELEE, cVR_MainHand, mid, normalize(mid - self.origin));
         T_Damage(t, self, self, 20);
         VR_HitBloodSplash(t, mid, 20);
         VR_HitBlood(t, mid, '0 0 0', 20);
-        VR_ClearHitKind();
+        VR_Hit_End();
         return;
     }
     if(kind == 24)

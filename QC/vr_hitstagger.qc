@@ -27,7 +27,7 @@ float(entity e, vector xAt) VR_HitStagger_Head =
 {
     if(VR_Hit_On(e))
     {
-        return hit_zone == 1;
+        return hit_zone == VR_REGION_HEAD;
     }
     if(xAt == '0 0 0' || e.size_z <= 0)
     {

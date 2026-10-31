@@ -39,7 +39,7 @@
 //     units apart (a wall 220 wide); each vr_smallgibs_test_n times (keep it small: 10); after 1.5 s, stuck, burst or
 //     neither (removed then). Prints a
 //     table: per gib and hand speed, stuck/thrown (burst) and the mean release speed
-//  23 shoves, weapon bashes, slaps and punches (10 each): the gore each sent; none for the first three (VR_HitBloodless)
+//  23 shoves, weapon bashes, slaps and punches (10 each): the gore each sent; none for the first three (VR_Hit_Bloodless)
 //  24 blood streams by melee kind (ROUND22.md, "Melee opens blood streams"): one blow a frame, in turn a sword's blade,
 //     an axe's blade, the crowbar, a punch and a thrown axe, n of each; then vr_gore_streams_info (its melee line: how
 //     many of each kind's wounds opened one: vr_gore_streams_melee_blade, _melee_blunt, _thrown_blade)
@@ -116,11 +116,11 @@ void(entity m, float xPellets, float xDmg, vector xSpread, float n, string xName
     {
         vector dir = normalize((m.absmin + m.absmax) * 0.5 - src);
         float before = vr_sgib_made;
-        VR_SetHitKind(QVR_HITKIND_SHOT, cVR_MainHand, '0 0 0', dir);
+        VR_Hit_Begin(QVR_HITKIND_SHOT, cVR_MainHand, '0 0 0', dir);
         vr_pellet_damage = xDmg;
         FireBulletsImpl(xPellets, dir, xSpread, src, 2048, TRUE);
         vr_pellet_damage = 0;
-        VR_ClearHitKind();
+        VR_Hit_End();
         if(vr_sgib_made > before)
         {
             withGibs++;
@@ -154,11 +154,11 @@ void(entity m, entity inflictor, float xKind, float xWeapon, float xBlunt, float
     {
         float before = vr_sgib_made;
         self.weapon = xWeapon;
-        VR_SetHitKind(xKind, xKind == QVR_HITKIND_MELEE ? cVR_MainHand : -1, mid, normalize(mid - self.origin));
+        VR_Hit_Begin(xKind, xKind == QVR_HITKIND_MELEE ? cVR_MainHand : -1, mid, normalize(mid - self.origin));
         vr_melee_blunt = xBlunt;
         T_Damage(m, inflictor, self, xDmg);
         vr_melee_blunt = FALSE;
-        VR_ClearHitKind();
+        VR_Hit_End();
         self.weapon = oldWeapon;
         if(vr_sgib_made > before)
         {
@@ -274,11 +274,11 @@ void(entity m, float xStep) VR_SmallGib_TestSpeedLaunch =
         for(float i = 0; i < 8; i++)
         {
             m.vr_sgib_sawtime = -100;
-            VR_ClearHitKind();
+            VR_Hit_End();
             if(xStep == 1 || xStep == 2)
             {
                 self.weapon = xStep == 1 ? WID_SWORD : WID_CHAINSAW;
-                VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, mid, -side);
+                VR_Hit_Begin(QVR_HITKIND_MELEE, cVR_MainHand, mid, -side);
                 if(cvar("vr_smallgibs_test_hand"))
                 {
                     // Torn out at the main hand (vr_smallgibs_test_hand 1: put in the body), in its reach body, as at a
@@ -292,12 +292,12 @@ void(entity m, float xStep) VR_SmallGib_TestSpeedLaunch =
             }
             else if(xStep == 3)
             {
-                VR_SetHitKind(QVR_HITKIND_SHOT, cVR_MainHand, mid, -side);
+                VR_Hit_Begin(QVR_HITKIND_SHOT, cVR_MainHand, mid, -side);
                 VR_SmallGib_Hit(m, self, self, 42);
             }
             else if(xStep == 4)
             {
-                VR_SetHitKind(QVR_HITKIND_SPLASH, -1, '0 0 0', -side);
+                VR_Hit_Begin(QVR_HITKIND_SPLASH, -1, '0 0 0', -side);
                 VR_SmallGib_Hit(m, e, self, 60);
             }
             else if(xStep == 5)
@@ -308,7 +308,7 @@ void(entity m, float xStep) VR_SmallGib_TestSpeedLaunch =
             {
                 VR_SmallGib_Hit(m, e, e, 20);
             }
-            VR_ClearHitKind();
+            VR_Hit_End();
         }
     }
     if(e != world)
@@ -528,7 +528,7 @@ void(entity m, float n) VR_SmallGib_TestBloodless =
             }
             else
             {
-                VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, mid, fwd);
+                VR_Hit_Begin(QVR_HITKIND_MELEE, cVR_MainHand, mid, fwd);
                 vr_melee_slap = (kind == 2);
                 if(!vr_melee_slap)
                 {
@@ -536,7 +536,7 @@ void(entity m, float n) VR_SmallGib_TestBloodless =
                 }
                 T_Damage_VRMelee(m, self, self, 25);
                 vr_melee_slap = FALSE;
-                VR_ClearHitKind();
+                VR_Hit_End();
             }
             hurt = hurt + (100000 - m.health);
         }
@@ -751,17 +751,17 @@ void(float xCase) VR_SmallGib_TestStart =
         vector from = self.origin + '0 0 22';
         if(xCase == 16 || xCase == 19)
         {
-            VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, feet, normalize(feet - from));
+            VR_Hit_Begin(QVR_HITKIND_MELEE, cVR_MainHand, feet, normalize(feet - from));
             T_Damage(m, self, self, xCase == 19 ? max(1, m.health) : max(m.health, m.vr_corpse_hp) + 100);
-            VR_ClearHitKind();
+            VR_Hit_End();
         }
         else
         {
             // (A super shotgun's blast's damage, as a shot from you: a lying corpse's thin model under your feet is
             // missed by straight-down pellets, so the hit is dealt as the blast's.)
-            VR_SetHitKind(QVR_HITKIND_SHOT, cVR_MainHand, feet, normalize(feet - from));
+            VR_Hit_Begin(QVR_HITKIND_SHOT, cVR_MainHand, feet, normalize(feet - from));
             T_Damage(m, self, self, max(m.health, m.vr_corpse_hp) + 100);
-            VR_ClearHitKind();
+            VR_Hit_End();
         }
         bprint(sprintf("sgibtest: underfoot: gibbed %d, %d small gibs\n", m.vr_gib != 0, vr_sgib_made));
         return;
@@ -1238,15 +1238,15 @@ void() VR_SmallGib_TestFrame =
                     inf.weapon = WID_AXE;
                     setorigin(inf, hm + normalize(self.origin - hm) * 16);
                     inf.velocity = normalize(hm - self.origin) * 600;
-                    VR_SetHitKind(QVR_HITKIND_NONE, -1, hm, normalize(hm - self.origin));
+                    VR_Hit_Begin(QVR_HITKIND_NONE, -1, hm, normalize(hm - self.origin));
                 }
                 else
                 {
                     self.weapon = k == 0 ? WID_SWORD : (k == 1 ? WID_AXE : (k == 2 ? WID_CROWBAR : WID_FIST));
-                    VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, hm, normalize(hm - self.origin));
+                    VR_Hit_Begin(QVR_HITKIND_MELEE, cVR_MainHand, hm, normalize(hm - self.origin));
                 }
                 T_Damage(m, inf, self, 20);
-                VR_ClearHitKind();
+                VR_Hit_End();
                 self.weapon = ow;
                 if(inf != self)
                 {
@@ -1278,9 +1278,10 @@ void() VR_SmallGib_TestFrame =
                 float oldWeapon = self.weapon;
                 self.weapon = WID_CHAINSAW;
                 vector mid = (m.absmin + m.absmax) * 0.5;
-                VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, mid, normalize(mid - self.origin));
-                T_DamageImpl(m, self, self, cvar_hget(cvarh_vr_chainsaw_damage) * frametime, 1);
-                VR_ClearHitKind();
+                VR_Hit_Begin(QVR_HITKIND_MELEE, cVR_MainHand, mid, normalize(mid - self.origin));
+                vr_dmg_dealonly = TRUE; // (a chainsaw's tick: VR_Chainsaw_Cut)
+                T_Damage(m, self, self, cvar_hget(cvarh_vr_chainsaw_damage) * frametime);
+                VR_Hit_End();
                 self.weapon = oldWeapon;
                 vr_sgib_test_b++;
             }

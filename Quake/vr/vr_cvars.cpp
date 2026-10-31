@@ -14,9 +14,12 @@
 
 #include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
 #include "vr_zancle.hpp"
+
+#include <algorithm>
 
 extern "C" cvar_t gl_texture_anisotropy; // gl_texmgr.c
 
@@ -582,6 +585,13 @@ void configDefaults_f()
             Cvar_SetQuick(var, var->default_string);
         }
     }
+    for(cvar_t& var : weapons::standIns()) // (the weapons' values: weapons.txt's)
+    {
+        if(!sameValue(var.string, var.default_string))
+        {
+            Cvar_SetQuick(&var, var.default_string);
+        }
+    }
 }
 
 // The archived settings a config file sets (`name "value"` lines, as Cvar_WriteVariables writes them; a sparse config's
@@ -626,6 +636,10 @@ void configDefaults_f()
             settings.try_emplace(za::String{var->name}, var->default_string ? var->default_string : "");
         }
     }
+    for(const cvar_t& var : weapons::standIns()) // (the weapons' values: a line only when changed, as a vr_ setting's)
+    {
+        settings.try_emplace(za::String{var.name}, var.default_string);
+    }
     return settings;
 }
 
@@ -635,6 +649,10 @@ void configDefaults_f()
     for(const cvar_t* var = Cvar_FindVarAfter("", CVAR_ARCHIVE); var; var = Cvar_FindVarAfter(var->name, CVAR_ARCHIVE))
     {
         settings[var->name] = var->string;
+    }
+    for(const cvar_t& var : weapons::standIns())
+    {
+        settings[var.name] = var.string;
     }
     return settings;
 }
@@ -1195,6 +1213,37 @@ extern "C" int VR_ConfigSaves(const cvar_s* var)
 {
     using namespace qvr;
     return !inSparseConfig(var) || alwaysSaved(var) || !var->default_string || !sameValue(var->string, var->default_string);
+}
+
+// The data tables (design review 3; the weapons' quakevr/data/weapons.txt, vr_weapons.cpp): their values by their old
+// cvar names (vr_wofs_<key>_NN: old configs, the console, motion takes, the QC's cvar()), their sets, and the config's
+// lines for those changed from the data file (as a sparse config's vr_ settings, in the names' order).
+extern "C" cvar_s* VR_CvarStandIn(const char* name)
+{
+    return qvr::weapons::findStandIn(name);
+}
+
+extern "C" int VR_StandInSet(cvar_s* var, const char* value)
+{
+    return qvr::weapons::setStandIn(var, value) ? 1 : 0;
+}
+
+extern "C" void VR_ConfigWriteTables(FILE* f)
+{
+    using namespace qvr;
+    za::Vector<const cvar_t*> changed;
+    for(const cvar_t& var : weapons::standIns())
+    {
+        if(!sameValue(var.string, var.default_string))
+        {
+            changed.pushBack(&var);
+        }
+    }
+    std::sort(changed.begin(), changed.end(), [](const cvar_t* a, const cvar_t* b) { return strcmp(a->name, b->name) < 0; });
+    for(const cvar_t* var : changed)
+    {
+        fprintf(f, "%s \"%s\"\n", var->name, var->string);
+    }
 }
 
 namespace qvr

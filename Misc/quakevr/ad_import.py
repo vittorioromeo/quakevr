@@ -283,7 +283,7 @@ FUNC_PATCHES = [
 Q = "Quake VR"
 QVR_NAMES = {"VR_MeleeArc_Hits", "VR_MeleeReach", "VR_MeleeArc_Launch", "VR_MeleeArc_TurnBegin", "VR_MeleeArc_TurnEnd",
              "VR_MeleeSpace_Step", "vr_melee_time", "vr_spawn_live", "VR_ADGun_IsElectric", "VR_ADGun_BoltFx",
-             "VR_ADGun_BoltShock", "VR_ADGun_StreamFx", "VR_ADGun_StreamMuzzle", "VR_ADGun_Poison", "vr_hit_nobleed",
+             "VR_ADGun_BoltShock", "VR_ADGun_StreamFx", "VR_ADGun_StreamMuzzle", "VR_ADGun_Poison", "VR_Hit_BeginAs", "VR_Hit_End",
              "VR_Proj_Begin", "VR_Proj_End", "VR_Proj_Mark", "QVR_PROJ_LASER", "QVR_PROJ_BOLT", "QVR_PROJ_BLAST"}
 QVR_NAMES |= {"VR_HitReact_Dist"}  # (the hit reactions' patches above)
 QVR_NAMES |= {"VR_ADGun_FlameDoused", "VR_ADGun_FlameScorch"}  # (the pyro's flames: water, scorch)
@@ -362,9 +362,9 @@ FUNC_PATCHES += [
      "cvar(\"vr_adgun_fumigator_poison\"), cvar(\"vr_adgun_fumigator_poisontime\"));\n\t\t}\n",
      Q + ": the pyro's flames poison monsters too (the attacker credited: vr_dmgcredit.qc)"),
     ("mon_pyro.qc", "pyroflame_touch", "\t// Check owner is a Pyro?\n",
-     "\t// Quake VR: its fire or poison draws no blood, paints no wound (combat.qc VR_HitBloodless)\n"
-     "\tvr_hit_nobleed = TRUE;\n\t// Check owner is a Pyro?\n", Q + ": the pyro's and fumigator's flames draw no blood"),
-    ("mon_pyro.qc", "pyroflame_touch", "\n\t\t}\n\t}", "\n\t\t}\n\t}\n\tvr_hit_nobleed = FALSE;",
+     "\t// Quake VR: its fire or poison draws no blood, paints no wound (combat.qc VR_Hit_Bloodless)\n"
+     "\tVR_Hit_BeginAs(-1, TRUE);\n\t// Check owner is a Pyro?\n", Q + ": the pyro's and fumigator's flames draw no blood"),
+    ("mon_pyro.qc", "pyroflame_touch", "\n\t\t}\n\t}", "\n\t\t}\n\t}\n\tVR_Hit_End();",
      Q + ": the pyro's and fumigator's flames draw no blood (its end)"),
     ("mon_pyro.qc", "pyroflame_spawn", "\tnewmis.touch = pyroflame_touch;",
      "\tnewmis.touch = pyroflame_touch;\n"

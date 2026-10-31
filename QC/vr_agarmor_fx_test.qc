@@ -26,7 +26,7 @@ void(entity e, float i, float d) VR_AFT_HitUntilCut =
     for(k = 1; k <= 60 && vr_aft_cut < 0 && (e.vr_corpse == 2 || e.vr_corpse_dying); k++)
     {
         vector at = limbpiece(e, i, 10);
-        VR_ClearHitKind();
+        VR_Hit_End();
         VR_ART_Hit(e, at, 3, d);
         if(vr_aft_broke < 0 && !VR_AgArmor_On(e, i))
         {
@@ -103,7 +103,7 @@ void(entity e) VR_AFT_RightLegWear =
         float j = VR_Limb_WearPiece(e, at);
         float d0 = (j >= 0) ? e.vr_limb_corpse_dmg[j] : 0;
         float hp0 = e.vr_corpse_hp;
-        VR_ClearHitKind();
+        VR_Hit_End();
         VR_ART_Hit(e, at, 3, 3);
         float worn = (j >= 0) ? e.vr_limb_corpse_dmg[j] - d0 : 0;
         ok = ok + (j >= 16 && worn > 0 && e.vr_corpse_hp == hp0);
@@ -163,7 +163,7 @@ void(entity p) VR_AFT_Run =
     VR_AgArmor_Give(a, 1, 1 | VR_AgArmor_Bit(pa));
     at = limbpiece(a, pa, 10);
     h0 = a.vr_ar_hp[pa];
-    VR_ClearHitKind();
+    VR_Hit_End();
     VR_ART_Hit(a, at, 2, 10);
     VR_ART_Check(a.vr_ar_hp[pa] < h0, sprintf("dead ragdoll: 10 on its green plate %g: pool %g -> %g (its share saved)", pa, h0, a.vr_ar_hp[pa]));
     VR_AFT_HitUntilCut(a, pa, 12);

@@ -912,11 +912,9 @@ void() VR_Burn_Think =
     else if(dmg > 0 && v.takedamage)
     {
         dprint(sprintf("burning: %s burns for %g (%g flames, health %g)\n", v.classname, dmg, self.burn_count, v.health));
-        VR_SetHitKind(QVR_HITKIND_NONE, -1, self.burn_flames.origin, '0 0 -1');
-        vr_hit_nobleed = TRUE; // (fire burns it: its own scorches, no blood sprayed: combat.qc VR_HitBloodless)
+        VR_Hit_BeginBloodless(self.burn_flames.origin, '0 0 -1'); // (fire burns it: its own scorches, no blood sprayed)
         T_Damage(v, self, self.owner, dmg); // (vr_debug_shots logs it: "by vr_burn")
-        vr_hit_nobleed = FALSE;
-        VR_ClearHitKind();
+        VR_Hit_End();
     }
 };
 

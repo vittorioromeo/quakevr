@@ -179,6 +179,14 @@ Rig Studio, a sword grunt, Pose Studio Data: Swing at Swing Speed 0.25 plays slo
 Judo: take a grunt with both hands, throw it (held on, dragged, let go); lift one (it flails, breaks free and shoves you back after Lift Time); lift one and kill it in your hands (no break free; let go: limp).
 Neck snap standing and on a lifted ragdoll (it goes limp, still held); manhandle a staggered grunt with one hand.
 Leg grabs: pull one down by the shins and drag it by the legs (the hold firms up once it lies); the one-hand pull; lift one by the legs; tug and lift an enforcer by its worn backpack.
+Gore, decap and wounds as before: blood and wounds on blades, punches, thrown things, shots and blasts; beheadings (slash, chainsaw, head pops); a punch to the teeth; hit reactions turn the struck part.
+Gib flight speed by weapon (melee, shotgun, rocket, thrown axe) and knockdowns from blade and blunt blows as before; the chainsaw cuts, beheads and is parried as before.
+Weapon Offsets changes survive a restart; vr_wofs_x_05 typed in the console prints and sets it. {test:config_sparse}
+Rig Studio Subject > Armour: pick a type and toggle pieces, switch subject: the armour stays and is never random. {test:vr_rigstudio_test_armour}
+Armour, Plate Blocks All: shotgun, revolver, nails, plasma and rockets at a grunt's cuirass and helmet do no damage to the body, only sparks (limb plates: a few plasma/rocket hits still leak, known).
+Shoot a plate on a living and a ragdolled armoured grunt: it is pushed about half as hard as a bare limb (Combat > Armed Grunts > Armour > Push Through Plates).
+Throw a broken plate at a grunt: it hurts it. The plate-break sound is quicker and punchier.
+Debug > Show Armour Plates: plate outlines over each worn plate, limbs included (say if they're too thin to see).
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns {test:arena_run}
