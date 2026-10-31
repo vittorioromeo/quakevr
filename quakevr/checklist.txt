@@ -3,47 +3,31 @@
 # Sections run in test order: newest and most important first, dev tools last. A line's text is the key of its tick: reword a line and it is untested again.
 
 [1. New: ammo screens, grunt movement, AD]
-AD: turn, snap/smooth turn and walk on ad_azad's snowfield (or load your s3 save): no black frames, sky and lamps steady {test:ad_fog_flicker}
+AD: turn, snap/smooth turn and walk on ad_azad's snowfield (or load your s3 save): no black frames, sky steady; the lamps flicker as authored (Comfort > Soften Flickering Lights now defaults to 0; configs on beta4's 0.5 move to 0) {test:ad_fog_flicker}
 AD hub, lower level: walk into each original slipgate (E1-E4, end): that episode's first map (or end) loads, AD's rules kept
-Comfort > Soften Flickering Lights now defaults to 0 (configs on beta4's 0.5 move to 0): AD's lamps flicker as authored but no black frames
 Autosaves: play a map a while: Load Autosave (main and pause menus; death menu, under Restart) lists this game's autosaves newest first
 Autosaves: none is made while monsters are on you or health is low
 Per-weapon recoil: Weapon Offsets > Effects' Recoil Kick Back and Recoil Muzzle Rise change only that weapon's kick back and muzzle rise
 Per-weapon recoil: at 1x it feels as before
 Relighting > Ambient Light Level 32, then Relight This Map: no pitch-black corners, the rest looks as before
-Rig Studio off-hand: a pistol grunt's Carry/Run set On the Gun cups the gun without the arm clipping the torso; Free hangs
-Rig Studio off-hand: rifle Pickup On the Gun cups the right hand
+Rig Studio off-hand (flat screen): a pistol grunt's Carry/Run set On the Gun cups the gun without the arm clipping the torso, Free hangs; a rifle grunt's Pickup On the Gun cups the right hand
 An ammo screen's warning colour fills its background, not just the numbers.
 An enemy's lava nail sets you on fire.
-An empty reloadable weapon lying about has a red loot beam; a loaded one is gold.
-The nail pistol's magazine won't pull off by hand, only with the eject button.
-The held Widowmaker looks as dark as its pickup.
-The plasma gun makes a firing sound.
-The revolver's shot is its own heavy blast, not the super shotgun's.
-Shove an armed grunt and an enforcer into a stagger and over {test:agrunt_fall}: the weapon stays in the drawn hand through the stagger, the fall, lying and the get-up; never floats off it.
-Shoved over, its weapon never goes into its chest; its hand stays out of it (the grunt's may still dip in briefly).
-A downed armed grunt's weapon can still be grabbed off it {test:agrunt_fall}.
+Shove an armed grunt and an enforcer into a stagger and over: the weapon stays in the drawn hand through the stagger, the fall, lying and the get-up, never floats off it or goes into its chest (the grunt's hand may dip in briefly); a downed one's weapon can still be grabbed off it
 Armour: a plate breaking sounds like a reversed, lower armour pickup, never like picking armour up.
-Armour: shooting a plate on a dead or knocked-down armoured grunt breaks the plate first; only later hits pop that limb.
-Armour: armour debris can be picked up and thrown; it stays longer after being held; it can't be force-grabbed, worn or put away.
-Armour: cutting off or popping an armoured limb or head, or gibbing the body, throws its plates as debris; none vanish.
-Armour: shots on plates spark; blood only shows when damage got through.
 Armour helmets (Debug > Tests > Helmets There): grunt and enforcer helmets fit close to the head, eyes visible under the brow, no side flanges, head never through in ragdolls
 Armour limb plates: a hit on a thigh plate's knee end wears the thigh plate, not the shin's; a corpse's right leg wears and pops on its own
-Survival Arena supplies: after a wave clear the medkits, armour and 1-2 shards lie at random all over the arena (floor, tower tops, wall walks), never at your feet or in a wall or crate; the clear's text names them, and again after a boss wave's perk pick.
-Survival Arena countdown: a tick each second, higher for 3-2-1, a chime as the wave starts (Countdown Sound slider).
-Relighting > Ambient Light Level on vrarena: 0 vs 64 visibly brighter in its dark corners after Relight This Map.
+Survival Arena supplies: medkits after every wave clear, an armour every 4th, 1-2 shards; they lie at random all over the arena (floor, tower tops, wall walks), never at your feet or in a wall or crate; the clear's text names them, and again after a boss wave's perk pick.
+Relighting > Ambient Light Level on vrarena: Relight This Map at 0, then at 64 (the default): 64 is visibly brighter in the dark corners, the rest looks as before.
 Walk right up to a grunt holding a shotgun (or an enforcer with its rifle): it stops backing off, steps in and shoves you; a little further (about two body widths) it backs off as before (Combat > Enemy Shoves > Armed Shove: Step In).
-Dual-wielding enforcer with two laser rifles, a grunt with two of its own guns {test:agrunt_dual_guns}: each bolt or burst leaves its own gun, the left gun's from the left hand.
+Dual-wielding enforcer with two laser rifles, a grunt with two of its own guns: each bolt or burst leaves its own gun, the left gun's from the left hand.
 Throw or slam a grunt so its right leg hits the floor (or a wall) hard: the dent and wound land, no stall.
 Throw straight punches, uppercuts and hooks at a grunt: each lands and whooshes; drawing the fist back first does not count as a blow.
 Push your hand or a held gun into a live grunt or enforcer: it stops at its body instead of passing through.
 Break the super shotgun open and flick it gently without loading: it stays open. Load both barrels and flick about as gently: it shuts (Weapons > Reloading > Super Shotgun > Flick Close Leniency When Loaded 1.15; at 1 both need the same flick).
 With Disable Haptics on (vr_disablehaptics 1), bullet time's pulse and the gadget's gear-light buttons don't buzz; with it off, they and the menus, toolgun, holsters and flashlight still buzz.
-Load a map with many monsters (vrtesthall) and cut off some limbs: the cut limbs and the monsters' surface detail (normal maps) look the same as before; the map loads a little faster.
-Armed grunts and enforcers hold their weapons as before: no change in any grip, no hand off its gun (the old rigid-arm path is gone; arms fitted to the drawn mesh).
-An armed grunt raising its arms (aiming high, a shrug) moves its shoulders as before (one clavicle setting, 0.6).
-Kill an armed grunt: its ragdoll keeps its weapon in its hands.
+Load a map with many monsters (vrtesthall) and cut off some limbs: it loads a little faster; cut limbs, smooth limb bends and the monsters' surface detail (normal maps) look as before; vr_startup_times also shows the last quit's times.
+Armed grunts and enforcers hold and fire their weapons as before (no change in any grip, no hand off its gun; arms fitted to the drawn mesh); raising their arms moves their shoulders as before; their ragdolls keep their weapons in hand and swim, grab, climb and react to cut limbs as before.
 Your body's torso still mostly follows your head as you turn and lean.
 Shove a monster hard: it walks its backpedal (no gliding stagger).
 Shore foam on water shows as rising puffs.
@@ -53,60 +37,51 @@ The shotgun's auto pump always cycles after a shot.
 The toolgun panel's Remove and Physgun colours match the beam; the physgun and scale sticks respond with your normal stick deadzone.
 Water with a current (moving water) acts as water everywhere: blood drifts and splashes in it, gore and wounds treat it as water. Looking up at or near the sky never counts as being in water.
 AD spiders and scorpions get knocked down at the Spiders and Crawlers chance, and their corpses gib as a scourge's do.
-Climbing stamina and the tired walk feel the same as before.
+Climbing: stamina, the tired walk and your feet finding holds feel as before; blood on held weapons and on your hands looks as before.
 Holster Setup, Edit Blade Shape and Pose Studio: their buttons press and tick on hover as before, and Undo works.
 Arena perk cards show and can be picked as before.
-Climbing: your feet find holds as before; blood on held weapons and on your hands looks as before.
 Machine Horde: waves spawn the usual squads (grunts and dogs, knights, ogres, wizards, shamblers and demons).
-AD upgrade pickups (Shadow Axe, Widowmaker, Plasma Gun) show their upgraded models.
+AD upgrade pickups (Shadow Axe, Widowmaker, Plasma Gun) show their upgraded models; Weapon Upgrades now defaults to Everywhere (vr_ad_upgrades 2).
 Obituary messages for monster, trap and weapon deaths read as before; power-up warnings, glows and expiry sounds as before.
 Swim and wade with your hands moving: splashes, water slosh and stroke sounds are as before.
 Wrist gadget hologram messages and the FPS counter (both modes) show as before; the menu's Search and Checklist pages and the toolgun's physgun and scale work as before.
-Load a map with many monsters: it loads a little faster, and monsters' limbs still bend smoothly as before (smooth rigs now built in parallel). vr_startup_times also shows the last quit's times.
 Weapon Offsets > Effects > Recoil Recovery: set a gun to 2x and fire: it comes back to rest visibly slower (weightier) with the same kick; 0.5x snaps back faster; 1x feels as before.
 Gunfire: fire each gun indoors (small room), in a big hall and outdoors: each shot has a close mechanical click/clunk and a low thump, and a tail that is short indoors, long in the hall, long with an echo outside; nailgun streams don't smear (tune in Sound > Gunfire).
-Grunts', enforcers' and ogres' shots get the same layers and room tails, from where they stand.
+Grunts', enforcers' and ogres' shots (armed grunts' too) get the same sound layers and room tails as yours, from where they stand, and the same gunfire effects.
 Spent shells ring on metal floors and knock on wood; on stone as before.
 An empty gun's dry click gives a small tick in that hand.
 Super shotgun and revolver break-open/close and magazine in/out sound from the hinge or magazine well, not the muzzle.
 Haptic punch: a sharp spike plus a short rumble per shot, longer on guns with a longer Recoil Return Time x Recovery (Weapon Offsets > Effects > Haptic Punch per weapon; Sound > Gunfire > Haptic Punch 0 brings back the old buzz).
 Load vrstart, then hip2m5, then an MG3 map with owned MG3 monsters: textures and the MG3 monsters' skins look as before, and loads feel a little quicker.
 Nail pistol: each shot the slide snaps back and runs home (Combat > Weapon Damage > Slide Travel and Slide Cycle change the distance and speed).
-Nail pistol: fire until empty: the slide stays locked open; eject, slap in a magazine: the slide closes by itself with a rack sound.
+Nail pistol: fire until empty: the slide stays locked open; eject and seat a fresh magazine: the slide stays back about a quarter second (the trigger does nothing meanwhile), then racks closed with a loud, clear clack (Tunables > Nail Pistol Rack Delay 0: it racks the moment the magazine seats).
 An armed grunt's nail pistol kicks its slide on each shot.
 Firing range: shoot the laser cannon at the floor and walls: sparks and bounces, no blood; at a monster it still bleeds.
 AD flamethrower and poison sprayer: a subtle tremble while firing that settles when you let go, plus the same light buzz (Weapon Offsets > Effects > Stream Shake / Stream Rumble per gun).
-Combat > Weapon Damage > Nail Pistol Model: Full Slide: the whole top reads as a pistol slide; fire empty: it locks open showing the copper barrel; insert a magazine: it re-racks. Classic still works the same. Tell us which to keep.
-Armed grunts and enforcers hold and fire their guns as before; ragdolls swim, grab, climb and react to cut limbs as before.
 Climbing (hang, shimmy, mantle), two-handed grips (incl. magazine and cup grips), grabbing a monster's legs (pull, lift) and the menu sticks and buttons all behave as before.
 Start the game in the headset: VR starts, the menu panel and both controllers work, and quitting closes cleanly (OpenXR backend split into files).
 Sparse config: quit once, then check ironwail.cfg is about 300 lines (starts with vr_config_defaults) and that after a restart your settings, weapon offsets and prop tweaks are all as you left them.
 Fire the shotgun, nail pistol and super nailgun: a few bright sparks fly out of the muzzle on every shot.
 Fire any gun: the smoke cone billows forward with the flash and swirls as it spreads (Weapon Effects > Gunfire Particles > Smoke Turbulence 0 vs 2 shows the difference).
 Fire the nail pistol a few times: pale smoke rises from its six side slots, more after a quick string, no random puffs at the muzzle.
-Fire the rocket launcher (and the AD one if available): a swirling cone out of the back end, then the back keeps smoking about 1 s as you move the gun.
+Fire the rocket launcher (and the AD one if available): a swirling cone out of the back end and light smoke out of the vents in the back of its head, toward you; the back keeps smoking about 1 s as you move the gun.
 Shoot stone, dirt, metal and wood walls: grey dust, browner dust, sparks, wood chips (Impacts by Material).
 Thunderbolt on a wall: a faint bluish haze where it plays; nailgun held 2+ s: thin wisps, then a faint red glow at the muzzle.
-Grunts, enforcers and armed grunts show the same gunfire effects.
-Pick up a box, a gib, a round, a grenade and a wall torch in either hand, swap and throw them, and load a save made while holding one: each is held and let go as before (no "handslot: mismatch" line in the console).
+Pick up a box, a gib, a round, a grenade, a wall torch, guns and limbs in either hand, swap and throw them, grab a grunt, let go and grab a box with that hand, load a save made while holding one: each is held and let go as before, every grab, pickup, holster, lamp and foe-grab buzz as before; no "handslot:" line in the console.
 Throw the flashlight with a flick and with a lob: it flies like a thrown prop, never over 3 m/s, then returns home.
 Swing a crate with the physgun and let go at the end of the swing: it keeps the swing (it used to come out slower).
-Every grab, pickup, holster, lamp and foe-grab buzz feels as before.
 Shoot, nail and punch a crate, an explosive box, a knight, a wall torch and a grenade: same sparks, splinters, blood and sounds as before (one impact table now).
-Fire the shotgun, then the super shotgun, then a nailgun burst, and stop: thin faint wisps rise off each barrel (1, 2, 2) for a few seconds and follow the gun as you move it (Gunfire Particles > Wisp settings change delay, length, thickness, density).
-Rocket launcher: after a shot, light smoke comes out of the vents in the back of its head, toward you.
+Fire the shotgun, then the super shotgun, then a nailgun burst, and stop: thin faint wisps rise off each barrel (1, 2, 2) for a few seconds and follow the gun as you move, drop, throw or holster it (Gunfire Particles > Wisp settings change delay, length, thickness, density).
 AD: a rocket soldier's shot flashes and smokes, with backblast out of the back of its gun.
 Settings tiers: the Combat, Weapons and Carrying menus are much slimmer (about 1,000 tuning rows became fixed constants); every value you had changed is unchanged (review list: qvr-kit scratch/refactor/tiers.md).
 Swing a fired shotgun or nailgun quickly left-right: the wisps show no brighter knots or lines at the turns or where they cross (compare: Debug > Tests > Wisps Overlap Again).
 Weapon Effects > Gunfire Particles: each new spark and smoke slider visibly changes a shotgun shot; Smoke Directionality 0 bursts every way; Wisp Max Opacity 0.1 thins the wisps.
 Weapon Offsets > Effects on the shotgun: Gunfire Spark/Smoke Amount 0 gives no sparks or smoke, 2 about twice as many; Muzzle Wisp Opacity 0 gives no wisps; other weapons unchanged.
-Shoot stone, dirt/ground, metal and wood walls with the shotgun: each sounds of its surface, from the wall (stone thud, dirt duller, metal ping, wood knock); a blast is one or two sounds, not a pile.
+Shoot stone, dirt/ground, metal and wood walls with the shotgun: each sounds of its surface, from the wall (stone thud, dirt duller, metal ping, wood knock); a blast is one or two sounds, not a pile; Sound > Gunfire > Surface Impacts 0: silent as before, 2: louder.
 Super nailgun on a stone or wood wall: a light thud or knock under the tink, not every nail; on metal only Quake's tink or ricochet.
-Sound > Gunfire > Surface Impacts 0: wall hits silent as before; 2: louder.
-Nail pistol: Full Slide is the default; the back end is steel like the old model's; the paint is less uniform.
+Nail pistol (Full Slide, the default): the back end behind the ejection port is clearly steel with a bright rim and a crisp seam, the paint less uniform; with the slide drawn back or locked open, nothing flickers at the back of the muzzle from either side.
 Nail pistol: the ammo screen moves back and home with the slide (Combat > Weapon Damage > Nail Pistol Screen Rides Slide).
 Nail pistol: an empty one holstered or dropped shows its slide locked open (Debug > Tests > Nail Pistol > Empty Nail Pistols: Holstered and Lying).
-Nail pistol: the re-rack after a magazine goes in is a loud, clear clack.
 Debug > Tunables: moving a slider changes the game at once; the Show (All / Changed Only) and Page filters work; menu Search finds a tunable (e.g. "palm fit") and opens its row.
 Tuned values survive a restart (tunables.cfg; the console says "N tuning constants set off their default"); tune_reset clears them.
 Each id gun fires with no kick from its model: the body holds in the hand while the pump, barrels and launcher shells still move (Debug > Tests > Weapons "Take Out the Models' Own Kick" off shows the old kick); the muzzle flash, shells and a hand on the pump stay on the gun through a shot.
@@ -116,29 +91,18 @@ Each gun's haptic punch feels as before (nailguns, lightning gun, laser cannon, 
 An unarmed enforcer running at you keeps its fists at mouth level in its guard (as in Pose Studio), not raised to the brow or crossed.
 Shotgun blasts at grunts' heads, legs and arms: flinch, ragdoll fall, headshot highlight, armour helmet and dummy report react as before (one hit record).
 Nails just past a backpack a grunt dropped fly by; nails at it hit it and nudge it; walking over it, grabbing and force-grabbing it work as before.
-Shotgun blasts at grunts' heads, legs and arms: flinch, ragdoll fall, headshot highlight, armour helmet and dummy report react as before (one hit record).
-Nails just past a backpack a grunt dropped fly by; nails at it hit it and nudge it; walking over it, grabbing and force-grabbing it work as before.
 Save Default (menu corner button, press twice) or Debug > Save My Settings as Defaults: the console says "Saved your settings to disk: ironwail.cfg and tunables.cfg". Change a setting and a tunable, press it, kill the game from Task Manager, restart: both changes are kept.
 Worn Backpacks (Combat > Armed Grunts > Worn Backpacks, experimental, off by default): with it on, a grunt's pack sits on its back standing, aiming and knocked down.
-Worn Backpacks: grab a knocked-down grunt by its pack: it drags; yank hard: a rip sound and the pack in your hand.
+Worn Backpacks: grab a grunt's pack (knocked down or standing) and walk slowly backwards: it is dragged by the pack, which stays on; yank hard: a rip sound and the pack in your hand.
 Worn Backpacks: shoot a grunt's pack: it may rip off; that grunt runs dry sooner.
 Worn Backpacks: kill a packed grunt: no second backpack; grab or force-grab its pack off the corpse.
-Worn Backpacks (Combat > Armed Grunts > Worn Backpacks, experimental, off by default): with it on, a grunt's pack sits on its back standing, aiming and knocked down.
-Worn Backpacks: grab a knocked-down grunt by its pack: it drags; yank hard: a rip sound and the pack in your hand.
-Worn Backpacks: shoot a grunt's pack: it may rip off; that grunt runs dry sooner.
-Worn Backpacks: kill a packed grunt: no second backpack; grab or force-grab its pack off the corpse.
-Grab a standing armed grunt's gun and pull back steadily (not a yank): within 1-2 s it is yours.
-Grab its gun with one hand, add the other hand and pull: it gives sooner; let go with one hand and the tug goes on.
+Grab a standing armed grunt's gun and pull back steadily (not a yank): within 1-2 s it is yours; with both hands (one on the barrel, one by its body) clearly sooner (about two thirds); let go with one hand and the tug goes on; the weapon lands in the hand you placed last.
 Hold its gun with one hand and punch the gun with the other fist: the gun ends in the holding hand.
-Shove a grunt into a stagger (or floor it) and grab its gun: not yours at once; a short pull takes it (Tug Downed Scale).
+Shove an armed grunt into a stagger, or topple it, and grab its gun (on it or a few cm off): a tug, not its arm, and not yours at once; its weapon, hand and arm follow your hand and it pulls back (hold still: you feel it); a steady pull tears it out in about 1-2 s.
 Shoot a grunt's gun with the nail pistol or nailgun: about 1 hit in 4-5 knocks it out of its hands.
 Debug > Show Disarm Volumes on, walk up to an armed grunt: its gun is outlined orange; hand on the gun: the fist and gun turn yellow; grip: green with a tug progress bar; shove it over: a white limb under the gun, the shapes stay on it; the last hit shows 2 s as parry / disarm / body / shot / blocked.
-Nail pistol (Full Slide): slide drawn back or locked open, look at the back of the muzzle from both sides: nothing flickers.
-Nail pistol (Full Slide): the back end (behind the ejection port) is clearly steel with a bright rim and a crisp seam, like the old art's rear housing.
 Fire the lightning gun 2 s and stop: a faint blue-grey wisp off its barrel; its slot's Muzzle Wisp Opacity / Spark / Smoke sliders change its wisp, arcs and the haze where the beam hits.
-Fire the shotgun, then drop, throw and holster it: the wisp keeps rising off the muzzle on the floor, in flight and in the holster.
-Punch an armed grunt's gun (or its gun hand) hard while it isn't guarding: the gun flies out; into its raised guard it is usually parried, sometimes knocked out.
-In slow motion, punch a grunt's gun out of its hand.
+Punch an armed grunt's gun (or its gun hand) hard while it isn't guarding, also in slow motion: the gun flies out; into its raised guard it is usually parried, sometimes knocked out.
 Swing a held shotgun or a carried crate into a grunt's gun: knocked out; throw a gun at its gun hand: knocked out.
 Punch a grunt's legs or chest away from its gun: it is hurt and keeps its gun.
 Shotgun, super shotgun and rocket launcher fire with the gun's body perfectly still in the hand (no shimmer); only the procedural kick moves it.
@@ -148,32 +112,25 @@ Ghost Hands on: shooting shows no ghost ("No Ghost from Recoil" off shows it fla
 Worn Backpacks on: grab a living grunt's backpack from behind and pull back: it turns on you, the pack tears into your hand in about half a second and the grunt falls towards you; with both hands it's sooner; your hand stays on the pack while you pull.
 Worn Backpacks on: shoot just beside a grunt's pack: it stays on; shoot the pack a few times, or catch it in a rocket blast or the flamethrower: it rips off; the poison sprayer never rips it.
 Worn Backpacks on: packs on living and dead grunts don't spin.
-Hold the flashlight in one hand and try a box, a pouch round and a wall torch with it: none is taken (the other hand takes them); the flashlight hand still punches.
-Grab a grunt, let go, then grab a box with that hand: taken; ragdoll hand-over from a foe-grab throw as before.
+Flashlight in one hand: with that hand a box, a pouch round, a wall torch, a gun on the floor, a thrown gun or a grunt's gun is never taken, the trigger locks no force grab and the grip at a holster draws nothing; the other hand does all of these; the flashlight hand still punches.
 Two-hand the SSG, let go with the fore-end hand, reload it from the pouch: as before; seat a magazine and pull it straight back out without letting go (Release Seated Magazine off): as before.
-Grab a wall torch, a pouch item, a box, guns and limbs: each taken as before (one grab query now); no "handslot:" line in the console.
 Your tweaks are now the defaults: fire every gun (recoil, haptic punch, gunfire smoke/sparks/wisps as you set them), check armed grunts' poses and grips, and a relit map; everything should look and feel as in your last session.
-Armed Knights on (Combat > Armed Grunts > Armed Humanoid Replacements > Armed Knights), a map with knights (e1m2): each holds his sword in his posed hand, swings it at you, parries your blows, can be disarmed, tugged and grabbed; the sword falls when he dies; knocked down, his ragdoll keeps it.
-Armed Knights off: knights as before (their own sword, attacks, drops).
+Armed Knights on (Combat > Armed Grunts > Armed Humanoid Replacements > Armed Knights), a map with knights (e1m2): each holds his sword in his posed hand, swings it at you, parries your blows, can be disarmed, tugged and grabbed; the sword falls when he dies; knocked down, his ragdoll keeps it. The Rig Studio Subject menu's plain entries read "(plain)".
+Armed Knights and Armed Death Knights off: knights and death knights as before (their own swords, attacks, charge, fireballs, drops).
 Close to a gun grunt right after its shove: it raises its guard for about a second, drops it, then can't parry for a moment; strike then and it disarms (vr_agrunt_preparry).
 A sword grunt guards up close even with its shove ready.
 Raise your weapon overhead or to the side near a grunt: it parries after a short delay; wait it out and strike in the opening (vr_agrunt_windup_parry).
 With a sword it guards more often and sooner than with a shotgun (Tunables > Armed Grunts - Parry by What You Hold).
 Show Disarm Volumes shows preparry / windup / recovering on the grunt.
-Shove an armed grunt into a stagger, or topple it, and grab its gun (on the gun, or a few cm off it): a tug, not its arm; pull back steadily: within about 1-2 s the gun is yours.
-The same, grabbing the hand or forearm holding its gun: a tug on the gun (the arm is not held); pull: yours.
-Topple it, grab its gun with one hand and its gun forearm with the other: both pull; yours.
-Grab a downed armed grunt's other arm, or its leg: that limb is held as before.
+A toppled armed grunt: grab the hand or forearm holding its gun: a tug on the gun (the arm is not held), pull: yours; its gun in one hand and its gun forearm in the other: both pull; its other arm or a leg: that limb is held as before.
 Hit an armoured armed grunt's plate with a melee weapon or the chainsaw: sparks, no blood until the plate breaks.
 Shoot a grenade in flight (shotgun, nails): sparks fly out along the hit, not a fountain straight up.
 Punch or club a wall torch: a wooden knock; a grenade: a light metal clink (not a flesh slap); chainsaw a wall torch: no sparks.
 Swing at an armed grunt (sword, then an enforcer) so it raises its parry: its weapon sits across your blow's way, in front of its chest, not off to its right; your swing rings off it.
 Raise your weapon near a grunt (the wind-up parry) or step in close (the preventive guard): its raised weapon points at your hand, its hand still on the grip (not stretched off it).
-Hold the flashlight in one hand, point that hand at a box and pull the trigger: no force grab lock-on (the other hand locks on).
 Two-hand the super shotgun, point the fore-end hand at a pickup with the trigger: no lock-on; let go of the fore-end: it locks on and pulls.
 Force grab, weapon pickups (floor, thrown, a grunt's), the holster draw and the hand-off feel as before.
 Start any map with grunts or enforcers (e1m1, e1m2): every one is armed, holding its own gun.
-Relight a map (Graphics > Relighting > Relight This Map): it is slightly brighter in dark corners than before (Ambient Light Level 64).
 Relight the map you are in: it reloads at once where you stand, without restarting the map.
 With Ghost Hands on, the ghost appears only once the drawn hand is about 9 cm from your real one (was 6).
 With replacements on, a Grunt from the toolgun, the Debug menu spawner or the Rig Studio is a plain unarmed grunt; the Armed Grunt entries are still armed.
@@ -185,59 +142,37 @@ Roll your wrist 90 degrees (gun on its side) and fire the shotgun or nailgun: th
 Upright gun, one- and two-handed: the recoil feels the same as before.
 Armed Knights on, Rig Studio, Subject: the armed Knight: Pose Keys shows his poses (the grunt's, fitted) for every class; his Right Hand list has every weapon; with a shotgun he aims and fires at the aim target.
 Toolgun: spawn an armed Knight with a shotgun (then a nailgun, two pistols): he hunts you, aims, fires, reloads; knock the gun out of his hand: he does not go back for it (Pick Up Ranged Weapons off); with it on he does.
-Map knights (e1m2, Armed Knights on) still hold swords; the Rig Studio Subject menu's plain entries read "(plain)".
-Weapon Upgrades now defaults to Everywhere (vr_ad_upgrades 2).
-Hold the flashlight in one hand and grab a gun lying on the floor, catch a thrown gun, or grab a grunt's gun with that hand: nothing happens; the free hand takes them.
-Flashlight hand at a holster with the grip: no draw; the other hand draws.
 Two-hand the super shotgun and let go with the main hand: the fore-end hand keeps it (no drop). With the grapple gun, the hook stays in on such a pass.
 Watch a grunt wearing a backpack bend down to pick up a weapon, crouch, stagger and topple: the pack stays on its upper back and never sinks into the body.
 Reach for a grunt's worn pack, living or dead: it is taken only when your hand touches the pack itself, not a hand's width off it.
-With Debug > Show Disarm Volumes on, shove a grunt holding a rocket launcher to the ground: the volumes stay on the hand holding the launcher and on the launcher itself, not on the empty off hand.
+With Debug > Show Disarm Volumes on, shove a grunt holding a rocket launcher (then a sword or gun grunt) to the ground: the volumes stay on the hand holding the weapon and on the weapon, not on the empty off hand; once it lies still the volume's angle matches the drawn weapon's.
 With Show Disarm Volumes on, look at a grunt's nail pistol: the orange and magenta volumes are as long as the pistol. Shooting just past its muzzle doesn't disarm it; shooting the pistol can.
-Shove a sword grunt (AD) or a gun grunt to the ground: once it lies still, the volume's angle matches the drawn weapon's.
 Standing tug on a grunt's or enforcer's shotgun, or a knight's sword: the arm holding the weapon is the one pulled, not its body.
-Tug with one hand, add the other, and win: the weapon lands in the hand you placed last.
-Knock an armed grunt down, grab its weapon and pull: its weapon, hand and arm follow your hand, and it pulls back; hold still and you feel it pulling; a steady pull tears the weapon out.
 Armed Knights on, Rig Studio, Subject: armed Knight with a shotgun, Aim: his left hand holds the fore-end, wrist straight, and Pose Keys shows the "left hand: grip offset" dot; drag it: the hand follows on the gun.
 Toolgun: an armed Knight with a nail pistol aims it in the pistol pose (off hand free or cupping), not shouldered as a rifle.
-Hold a sword and strike an armed sword grunt's blade (middle or tip): sparks and a clang, your hand kicked back, it takes no damage and keeps its sword.
-Strike its blade hard (a full swing): it staggers briefly and its sword arm is knocked along your blow.
-Strike its sword hand instead: it can still be disarmed as before.
-Nail pistol: with an empty gun, seat a fresh magazine: the slide stays back for about a quarter second, then racks closed with its sound; pulling the trigger meanwhile does nothing.
-Nail pistol: Tunables > Nail Pistol Rack Delay (default 0.25 s, 0-1): at 0 the slide racks the moment the magazine seats, as before.
+Hold a sword and strike an armed sword grunt's blade (middle or tip): sparks and a clang, your hand kicked back, no damage, it keeps its sword; a full swing staggers it briefly, its sword arm knocked along your blow; strike its sword hand instead: it can still be disarmed.
 Hold the shotgun (or any gun) and grip it with the off hand somewhere that is not its two-handed hotspot (e.g. its top, near the muzzle): the shots kick as little as with the hotspot (Weapon Effects' Two-Handed sliders); let go: the next shots kick one-handed again, the change smooth.
 Off hand holding a shell or magazine against the gun while firing: full one-handed kick.
-Grab an armed grunt's gun with one hand and pull back steadily: note how long it takes; then grab another's gun with both hands (one on the barrel, one by its body) and pull: it comes out clearly sooner (about two thirds).
-Grab a grunt's worn backpack (knocked down or standing) and walk slowly backwards: it is dragged by the pack, which stays on; yank hard: the pack tears off into your hand.
-Combat > Parry: Directional Parry on. A sword grunt's side swing: hold your sword upright where its blade comes: sparks where the blades meet, no damage, it flinches; held level across instead: the blow lands.
+Combat > Parry: Directional Parry on. A sword grunt's side swing: hold your sword upright where its blade comes: sparks where the blades meet, no damage, it flinches; held level across instead: the blow lands (Debug > Show Disarm Volumes: your weapon's line, its blade, its way, the score).
 Its overhead swing: hold your sword or shotgun level across above your head where its blade comes down: parried, sparks at the contact. (Known: upright also parries its current overhead, a diagonal cut.)
-Debug > Show Disarm Volumes during its swings: your weapon's line (green/red), its blade, its way, the score.
 Worn Backpacks on, Pulling the Pack: Lifts Its Wearer. Grab a standing grunt's pack from behind and pull gently: nothing happens. Yank back hard: it goes down flailing, held by the pack on its back. Carry it, swing it and let go to throw it. Pulling never tears the pack off, and it breaks free after a few seconds.
 Same mode: knock a grunt down, grab its pack and drag it slowly (it slides along, pack on), then yank: it flails in your hand, pack still on.
 Same mode: shooting or hitting a grunt's pack still tears it off; force-grab a dead one's pack: it comes off.
 Armed Death Knights on, a map with death knights (e1m3 or e2m6): each holds his sword in his posed fist (no stretched or torn mesh as he moves), swings it at you, parries, can be disarmed, re-arms; his sword falls when he dies.
 Step back out of his reach while he holds his sword: he still casts his fireball spread (his casting frames, fireballs, sounds). Knock his sword away: at range he still casts.
 Toolgun: spawn an armed Death Knight with a shotgun: he aims and fires the shotgun and casts no fireballs.
-Armed Death Knights off: death knights as before (their own sword, charge, fireballs).
-Rig Studio, Subject: armed Death Knight (Armed Death Knights on): Range of Motion and Random Pose keep his pauldrons and skirt clean (no see-through).
-Rig Studio, Subject: armed Death Knight with a shotgun, Aim: his left hand holds the fore-end, wrist straight.
+Rig Studio, Subject: armed Death Knight (Armed Death Knights on), Range of Motion and Random Pose: pauldrons and skirt clean (no see-through); right arm high and across the chest: pauldrons stay on the shoulders, clear of the helmet; knee bends up to 125 don't fold into the skirt; nodding and tilting: no chin in the chest, no helmet rim in the shoulder; wrist twists clean. His neck bends less (25 forward, 15 back, 15 sideways), knees stop at 125: OK or too stiff?
+Rig Studio, Subject: armed Death Knight with a shotgun, Aim: his left hand holds the fore-end, wrist straight; his off hand and gun stay in front of his chest and helmet, not sunk into them.
 Toolgun: an armed Knight and an armed Death Knight with Armour Full Yellow: plates on the chest, shoulders, arms and legs, a helmet that fits the head (the death knight's horns stay outside it).
 Armour rule 1: shoot a death knight's left pauldron and shins with the shotgun: sparks, less damage.
 Debug > Tests armour knights (vr_agarmor_test 8): knight and death knight in full yellow, all plates drawn; note the knight's red shoulder caps above the pauldrons and the death knight's bare upper thighs under the skirt.
 Hit an armoured Death Knight's chest plate with the sword: sparks, no blood; shoot his pauldron until it breaks: it falls off as debris you can pick up.
-Armed Knights on: toolgun an armed Knight with two nail pistols (or Debug > Tests: Armed Grunts: Dual Guns' Muzzles): both pistols point where he aims, each in his fist like a grunt's; the left one not turned off to the side.
-Armed Death Knights on: the same for an armed Death Knight with two pistols.
+Armed Knights and Armed Death Knights on: an armed Knight and an armed Death Knight with two nail pistols each (or Debug > Tests: Armed Grunts: Dual Guns' Muzzles): both pistols point where he aims, each in his fist like a grunt's, the left one not turned off to the side.
 A knight's and a death knight's own sword still sits right in his fist (the fitted grip row applies to every weapon).
 Rig Studio (flat screen): open it: the subject stands clear of the hall's welcome boards; change it to the knight and the death knight, Pose Keys > Pickup: no text over it.
-Armed knights and death knights look as in your last session with your vr_agrunt_* settings cleared (vr_agrunt_poses ""; vr_agrunt_grips ""; vr_agrunt_ik_stretch ""): your keys are the defaults now.
-Rig Studio > Range of Motion on the knight: the clavicles' limits are yours.
-Combat > Hit Detection > Armed Bodies as Drawn on: shoot an armed grunt's raised forearm (guarding, aiming, swinging): the hit lands on the arm, not its chest or head behind it; aim where its arm would hang in a plain animation: a miss.
-Show Disarm Volumes: the grip spheres sit on its hand as drawn while it swings; punching its drawn hand disarms it, punching where the old sphere was does not.
-Rig Studio, Subject: armed Death Knight, Range of Motion and Random Pose: right arm raised high and across the chest: his pauldrons stay on the shoulders and don't swing into the helmet; deep knee bends up to 125 don't fold into the skirt; nodding and tilting the head: no chin in the chest, no helmet rim crushing the shoulder; wrist twists on both gauntlets clean.
-Death knight in armour (Armed Death Knights on, full yellow): his pauldron plates sit on his big pauldrons and stay there when he raises his arm or swings it across his chest; the arm's own plate moves with the arm.
-Kill an armoured death knight: the corpse keeps its pauldron plates on, no jitter or blow-up.
-Death knight with a shotgun in Rig Studio, Aim: his off hand and gun stay in front of his chest and helmet, not sunk into them.
-Feel: his neck bends less (25 forward, 15 back, 15 sideways) and his knees stop at 125: OK or too stiff?
+Armed knights and death knights look as in your last session with your vr_agrunt_* settings cleared (vr_agrunt_poses ""; vr_agrunt_grips ""; vr_agrunt_ik_stretch ""): your keys are the defaults now; Rig Studio > Range of Motion on the knight shows your clavicle limits.
+Combat > Hit Detection > Armed Bodies as Drawn on: shoot an armed grunt's raised forearm (guarding, aiming, swinging): the hit lands on the arm, not its chest or head behind it; where its arm would hang in a plain animation: a miss. Show Disarm Volumes: the grip spheres sit on its drawn hand as it swings; punching its drawn hand disarms it, punching where the old sphere was does not.
+Death knight in armour (Armed Death Knights on, full yellow): his pauldron plates sit on his big pauldrons and stay there when he raises his arm or swings it across his chest, the arm's plate moving with the arm; killed, his corpse keeps its pauldron plates, no jitter or blow-up.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns
@@ -250,10 +185,9 @@ Arrivals: every foe, medkit and pedestal comes with the teleport flash and sound
 Arrivals: on the map's own places (floor corners, tower tops, wall-walk landings; fiends and enforcers high)
 Arrivals: fall and the run says so and restarts in 10 s
 Guns arrive gradually (SSG wave 3, NG 5, SNG 7, GL 10, RL 13, LG 16 at Normal), first on 1 foe, then 2, then the pool; does it feel fair?
-Loot: from wave 8 an ogre can leave its grenade launcher, proximity gun, rocket launcher or super nailgun even while you hold only fists; a grunt's own gun still falls {test:vr_arena_test 11}
+Loot: from wave 8 an ogre can leave its grenade launcher, proximity gun, rocket launcher or super nailgun even while you hold only fists; a grunt's own gun still falls (self-test: vr_arena_test 11)
 Loot: vr_enemy_drops / vr_ammobox_drops "never" stops all of it
 Loot: is an ogre's launcher from wave 8 too generous (alternative: gate on the wave's tier)?
-Supplies: medkits after each wave, an armour every 4th
 Supplies: a boss clear offers 2 / 3 / 4 / 5 pedestals at Easy / Normal / Hard / Nightmare, the one you walk over is your perk for the run {test:arena_intro}
 Perks: the melee kill's 2 s of quad, the snapped neck's 20 health, armour worth 25 more, a wave clear topping up your gun
 Perks: a Quad Damage keeps its time through a Quad Strike kill
@@ -284,7 +218,7 @@ Armed grunts and enforcers: an axe walking at them makes them back off, still fi
 Ammo: burst rifle, enforcer rifle or AD soldier gun grunts fire a magazine, reload, fire on; its backpack holds 5 shells
 Ammo: a double-barrelled shotgun grunt fires 9 times before running dry, dies with its spare shells, disarmed 16 shells, picks its gun up and reloads
 Armour on grunts and enforcers (Combat > Armed Grunts > Armour; Normal 15% green chest+helmet, Hard 35% up to yellow, Nightmare 60% full red; vr_agarmor_set forces one)
-Armour: plates spark and ring, break off and fade as debris you can't grab; helmets stop head pops
+Armour: plates spark and ring, break off and fade as debris; helmets stop head pops
 Armour: blades don't cut a limb until its plate breaks
 Armour: dented at 2/3 (readable?), battered at 1/3
 Armour: toolgun Armed Humanoid Armour and Pieces apply to spawned ones, Reset/Clear restore
@@ -305,7 +239,7 @@ Firing range: a toolgun grunt with AD's Plasma Gun (103): its shots are heard
 
 [4. Armed humanoids: rig, arms and poses]
 Authored rig is the only rig: an old config with vr_rig2 0 loads with no error
-Authored rig: grunts and enforcers alive, hit, dead, cut, grabbed, shoved, knocked down and getting up: smooth shoulders, elbows, knees and pads, no arm through the torso, nothing flung {test:pose_grunts_guns} {test:pose_enforcers_guns}
+Authored rig: grunts and enforcers alive, hit, dead, cut, grabbed, shoved, knocked down and getting up: smooth shoulders, elbows, knees and pads, no arm through the torso, nothing flung
 Authored rig: corpses smooth, weapons in hand, off hand on the second grip, power pack on the back; say where it looks wrong
 Ragdolls look alive: kill a grunt, ogre and enforcer in a bright room: same shading, smoothness and skin as alive, darkening the floor under them
 Arms: aiming, running and firing (nail pistol, shotgun, nailgun): the pauldron turns with the raised arm, no upper arm through the torso, hands on their grips
@@ -340,7 +274,10 @@ Pose Studio drag mode: hold grip on the shotgun grunt's yellow box, turn the sho
 Pose Studio drag mode: slide its left hand along the barrel, This Weapon and a sword's hand, Done prints the lines
 Pose Studio legs: Pose > to Pickup: grab pelvis (tan), feet (pink), knees (blue-violet), each stays
 Pose Studio legs: Undo, Grab: Limbs, Copy (the enforcer kneels the same way)
-Pose all grunts' and enforcers' weapons in Pose Studio: 21 melee and 25 gun frozen grunts, 21 and 25 enforcers (every weapon, pairs): reachable and apart? {test:pose_grunts_melee} {test:pose_enforcers_melee}
+Pose Studio: the 21 frozen melee grunts (every melee weapon and pair): reachable and apart? {test:pose_grunts_melee}
+Pose Studio: the 25 frozen gun grunts (every gun and pair): reachable and apart? {test:pose_grunts_guns}
+Pose Studio: the 21 frozen melee enforcers: reachable and apart? {test:pose_enforcers_melee}
+Pose Studio: the 25 frozen gun enforcers: reachable and apart? {test:pose_enforcers_guns}
 Grip Editor (VR Settings > Armed Grunts > Grip Editor): tune each weapon's place in their hands by eye (Freeze Them, Fit Angles to Its Pose) {test:agrunt_grip_editor}
 Grip Editor: Every Weapon: one offset per humanoid kind ("Edits: Every Weapon / This Weapon Only"); Print as Defaults and send me the lines
 Blade shape editor (Weapon Offsets > Posing Mode > Edit Blade Shape): hold the Fury sword, drag the green curve points onto the drawn bow and the red tip onto its point, swing and watch the sweep follow {test:blade_editor}
