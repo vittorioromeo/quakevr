@@ -4042,3 +4042,62 @@ Checklist:
   hang in a plain animation: a miss.
 - [stalepose] Show Disarm Volumes: the grip spheres sit on its hand as drawn while it swings; punching its drawn hand
   disarms it, punching where the old sphere was does not.
+
+## One hit record, part 2: kind and bleeding in the record; the chainsaw through T_Damage (branch `agent/hitrecord2`; design review 6 and 10)
+
+**What (one commit each):**
+1. **The hit's kind in the record.** `vr_hitkind`, `vr_hithand`, `vr_hitpos`, `vr_hitdir`, `vr_hitweapon`, `vr_hitproj`
+   and `vr_hit_nobleed` are the record's `hit_kind`, `hit_hand`, `hit_pos`, `hit_dir`, `hit_weapon`, `hit_proj`,
+   `hit_nobleed` (combat.qc), written by `VR_Hit_Begin(kind, hand, pos, dir)` and taken back by `VR_Hit_End()` (the
+   old VR_SetHitKind/VR_ClearHitKind, every site). Variants: `VR_Hit_BeginProjectile` (VR_Proj_Begin's),
+   `VR_Hit_BeginBloodless` (burning, AD fire, the sprayers' streams: was a Begin plus a nobleed set/reset),
+   `VR_Hit_BeginAs(kind, bloodless)` (the same hit as another kind or bloodless: radius and beam damage's splash, the
+   ragdoll's strike, the poison ticks; was T_RadiusDamage's and T_BeamDamage's and vr_ragimpact's hand save/restores of
+   the kind, and the nobleed set/resets), `VR_Hit_At(pos, dir)` (a swing's last trace). **Records nest:** a Begin inside
+   another one this frame saves the outer (a stack of 8) and its End puts it back; before, an inner Clear wiped the
+   outer hit's kind for the rest of its T_Damage. A record begun in an earlier frame and never ended is dropped by the
+   next Begin. AD's pyro flame: ad_import.py writes the new calls.
+2. **(Part)** One ragdoll-piece lookup, `VR_Limb_PieceAt(targ, at, head, limbs)` (vr_limbs.qc), for
+   VR_Limb_WearPiece, VR_Limb_RagdollPiece and VR_RagImpact_Piece; each keeps its own head and limb rules.
+4. **The chainsaw's tick through T_Damage:** `vr_dmg_dealonly` (combat.qc) makes the next T_Damage only deal
+   (T_DamageImpl as a blow); the chain did its own parry, beheading and push, so nothing else changes. The two tests
+   that copied the tick do the same. **The crates are no bypass:** VR_CratePiece_Damage runs inside T_DamageDeal (as
+   gibs' and corpses' own damage), so it stays.
+5. **The helmet's share** reads `VR_Hit_Zone(targ) == 1`. It already sat inside `VR_Hit_On(targ)` since part 1's
+   step 3, so part 1's disagreement 2 was already fixed there: no behaviour change.
+6. **(Design review 10, part)** check_canonical.py family `cpp-qc-constant`: a C++ table row pairing a QC constant's
+   name with a number literal (`"VR_X", {1.f, ...}` or `"VR_X", 0.5f`). Its 9 current sites, qcConstants[]
+   (vr_agpose.cpp), are allowlisted: moving them to `vr_agpose_shared.h` failed, FTEQCC's preprocessor mangles a
+   #define used inside a `[x, y, z]` vector initializer (some components report `"5" - not a name`, one #define a
+   component or a list alike). Other ways: the engine reading the QC globals by name at load (findGlobalDef), or QC
+   setting them in a function from per-component floats.
+
+**Debug check (step 1):** every plain Begin while another record was open this frame printed `hitcheck:`, the only
+case where the old Clear and the new End differ. Over agrunt 1 and 12, agarmor 1 and 5, arena 1, nail 1, decap_test.sh live/corpse/saw/thrown and
+limb_wear: **0 nested Begins** (the check removed in its own commit).
+
+**Disagreements (kept as they were; his call):**
+1. Ragdoll piece, a corpse: VR_RagImpact_Piece (a ragdoll's own strike) gives a corpse's limb only with Limb Gore and
+   Corpses on (else the torso); VR_Limb_RagdollPiece (a blade's or trap's hit) gives it whatever those are.
+2. Ragdoll piece, a living ragdoll: VR_RagImpact_Piece gives a limb only if the monster may lose limbs
+   (VR_Limb_Allowed); VR_Limb_RagdollPiece always.
+3. Ragdoll piece, the head: VR_Limb_WearPiece (a corpse) asks Decapitation and its Corpses option, not
+   VR_Decap_Allowed (a monster with no head model counts).
+
+**Left (next):** step 2's other deciders onto `hit_zone` + a bone (VR_Decap_OnHead, VR_SmallGib_Where, vr_wounds' and
+vr_carry's inline rebuilds, the engine's `regionOf`, one Region vocabulary in a shared .h); step 3, `VR_Hit_Class()`
+for the 9 kind classifiers and 4 bleed predicates and the impact table's VR_HIT_* from it (VR_GibKind alone needs a
+delivery as well as a class: a thrown axe is a blade but a light gib); design review 10's shared constants (see 6)
+and `QVR_FIELD(name, owner)` with its wrong-side write check.
+
+**Verified:** build 0 warnings. Step 1, the covering cases (`--only 'agrunt|agarmor|arena|decap|limb|ragdoll|wound|gore|nail|judo|melee'`): 9 of 128 changed vs baseline.tsv, all
+as next has them (tests grown or fixed since the baseline; agrunt_11's known timeout; ragdoll_stagger 51/6 as next). The final tree, the full
+run (183 cases, no bench: his game was running): 12 changed, the same plus np_1/recoil grown, secret_hits FAIL 3/0 -> FAIL 0/0
+(its save file not written in the lane: failing before too) and **agrunt_66 PASS -> FAIL (open, see below)**. eval.sh: canary 36/44,
+full 163/171 (as next). decap_test.sh: beheadings as before. **agrunt_66 (a lying grunt keeps its weapon when you reach for it) fails on this
+branch (2 of 2: "it holds nothing, 1 dropped") and passes on the base's QC (16ada0d63, 1 of 1): not found yet;** step 2's lookup, 4 and 5
+are equal by construction, so step 1's records (the nesting, VR_Hit_BeginAs around ragimpact's strike and radius
+damage) are the suspects. The A/B bench is still to run (his game was running).
+
+**Test in VR:** gore, decap, the armour helmet, the chainsaw (cuts, beheads, an armed grunt's chain parried), crates
+(struck, shot, burst): all as before; a grenade or barrel blast set off by a blow, then the next blow: as before.
