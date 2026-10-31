@@ -3781,6 +3781,14 @@ and enforcer.mdl 28/7, knight 12/23, as before):
   weights), as the flips and folds.
 - Tried, worse: knee blends 2-3.5, nudges past 0.5, the legs held to their blends, a reach (also only the head's),
   smaller shoulder webs; the knees back to 130 (thigh_l+shin_l: a fold).
+- **Pauldrons on the clavicles** (his: "they seem to rotate too much with the arms"): each pauldron and its three
+  spikes ride the clavicle rigidly (the elbow spikes stay the upper arms'); rig check unchanged 34/1, self-intersections
+  50 -> 30. Not a bone of their own: the ragdoll turns a `fixed` bone into a loose one (dropped as the gun is), and a
+  ball bone would add two ragdoll bodies and still need a driver to move at all: on the clavicle it is the same motion.
+  Open: the armour's pauldron plates still ride the upper arms; `vr_agarmor_test 7` timed out in this session's runs
+  (no output after the map's spawn), not yet judged.
+- Tests with `vr_agrunt_test_kind 3`: 95 8/0, 1 17/0 (13/4 once under load: 4 guns 0 shots), 2 4/0, 20 3/0, 60 5/1
+  (the ogre case, as before), 77 12/0, 99 38/0.
 
 
 ## Directional parry (experimental; branch `agent/dirparry`)
