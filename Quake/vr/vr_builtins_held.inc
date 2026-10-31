@@ -188,6 +188,40 @@ void PF_weapondrawnpose()
         progs::returnVec({static_cast<float>(bone), 0.f, 0.f});
         return;
     }
+    if(what == 37 || what == 38)
+    {
+        // weapondrawnpose(g, side, 37 / 38): armed humanoid `g`'s forearm on `side` (0 right: the parent of the hand bone
+        // agarms::ragdollGrip names), the middle of its vertices (the rig's: those on that bone): 37 as its body is drawn
+        // (drawnpose::armedMesh: the shots' and blows' body), 38 as its animation frame has them (hitmodel::vertexPoint,
+        // the frame's); '0 0 0' none (not drawn lately, no rig). QC test 79 (vr_stalepose_test.qc).
+        glm::vec3 sum{0.f};
+        int n = 0;
+        rigpose::Rigid grip;
+        int handBone = -1;
+        const int mi = static_cast<int>(player->v.modelindex);
+        qmodel_t* model = mi > 0 && mi < MAX_MODELS ? sv.models[mi] : nullptr;
+        const ragdoll::Rig* rig = model ? ragdoll::rigFor(model) : nullptr;
+        const int arm = rig && agarms::ragdollGrip(model, hand, grip, handBone) && handBone >= 0 && handBone < rig->numBones
+                            ? rig->bones[handBone].parent
+                            : -1;
+        za::Vector<glm::vec3> drawn; // (a test's query: made each call)
+        if(arm >= 0 && (what == 38 || drawnpose::armedMesh(player, drawn, nullptr)))
+        {
+            for(za::SizeT v = 0; v < rig->vertBone.size(); v++)
+            {
+                glm::vec3 p;
+                if(rig->vertBone[v] != arm || (what == 37 && v >= drawn.size()) ||
+                   (what == 38 && !hitmodel::vertexPoint(player, static_cast<int>(v), p)))
+                {
+                    continue;
+                }
+                sum += what == 37 ? drawn[v] : p;
+                n++;
+            }
+        }
+        progs::returnVec(n > 0 ? sum / static_cast<float>(n) : glm::vec3{0.f});
+        return;
+    }
     if(what == 29)
     {
         // weapondrawnpose(e, side, 29): armed humanoid `e`'s drawn hand `side` (0 right) less its head's middle (model

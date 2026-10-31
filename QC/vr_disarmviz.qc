@@ -73,8 +73,9 @@ void(entity g, entity p, entity pl) VR_DV_Weapon =
     }
     if(cvar_hget(cvarh_vr_agrunt_disarm))
     {
-        debugdisarm(p, VR_DV_GRIP_BLOW, p.origin, p.origin, VR_AG_DISARM_HAND);
-        debugdisarm(p, VR_DV_LIMB_BLOW, p.origin, p.origin, VR_AG_DISARM_HAND * 1.6);
+        VR_AG_DrawnFrame(p); // (round its grip as drawn: VR_AG_Hit's)
+        debugdisarm(p, VR_DV_GRIP_BLOW, vr_ag_df_o, vr_ag_df_o, VR_AG_DISARM_HAND);
+        debugdisarm(p, VR_DV_LIMB_BLOW, vr_ag_df_o, vr_ag_df_o, VR_AG_DISARM_HAND * 1.6);
     }
     float rag = isragdoll(g);
     if(rag && p.vr_ag_rb > 0)

@@ -3423,7 +3423,8 @@ and orange volumes 3-4x longer than a held nail pistol.
   model, the ragdoll's weapon on the hand holding it, the pack's chest bone source and its entity < 3 units off; a pellet
   3 units past the nail pistol's front end not counted, one on its middle counted. NOT RUN YET (his game was running).
 - Not done: the drawn pack still reaches the client through the network (one frame or so behind the drawn body); the
-  hitmodel (shots on a live grunt's body) still reads the .mdl frame pose (another stale-pose reader).
+  hitmodel (shots on a live grunt's body) still reads the .mdl frame pose (another stale-pose reader). (Done since:
+  "Armed humanoids: shots and grip spheres from the drawn pose".)
 
 ## Tug fixes verified; the physical downed tug (branch `agent/busyweapon`)
 
@@ -3763,6 +3764,70 @@ humanoid Knight and Death Knight kinds also support armor."
   from origin/next, fails alone too: not this branch's).
 - **Open:** the rig2 check failures on vrhknight (25/10; step 5, not started: budget).
 
+**Rig polish (branch `agent/hkrig`).** `vr_rig2_check progs/vrhknight.mdl` **34 passed, 1 failed** (was 25/10): every
+joint and pair clean; left failing: the 1000 random poses (flipped 37, collapsed 5, folds 36, was 61/41/55: the helmet's
+rim and the right shoulder's top under the pauldron as the head and the arm move together; no limb pose). All in
+`make_rig2.py`'s hknight rig, no shared code (the other rigs' files byte-identical; grunt 22/13, soldier 22/13, enforcer
+and enforcer.mdl 28/7, knight 12/23, as before):
+- hands (stretch 0.29, fold 173): each gauntlet's cuff back (its four corners by the pommel, 464-466/473 and
+  478/484/492/494) painted hand 0.9 forearm 0.1 (half of each cuff was the forearm's, the cuff's edge squeezed as the
+  wrist turned);
+- knees (the back collapsing at 100-130): the knees' range 125 (the grunt's 130; the enforcer's 115), the left knee
+  nudged half a unit toward its back (its back's edge stretched 2.8), the back of the right knee's ring (387/389/390)
+  thigh 0.64 shin 0.36 (half and half, it rose into the hem's back);
+- neck+head (2 folds, chin and helmet rim squeezed to 0.23): the throat under the jaw (74) head 0.55 (0.39), the neck's
+  nod 25 forward / 15 back and tilt 15 (the grunt's 35 / 25 / 25), the head's 20 back (25): his helmet sits on his
+  shoulders; the right shoulder's top beside the helmet (419, 421) less the head's (0.35 / 0.27 -> 0.25 / 0.15).
+- `vr_rig2_check <model> <lines>` details print the stretched edges too (an edge past 2.5 or under 0.3, its vertices'
+  weights), as the flips and folds.
+- Tried, worse: knee blends 2-3.5, nudges past 0.5, the legs held to their blends, a reach (also only the head's),
+  smaller shoulder webs; the knees back to 130 (thigh_l+shin_l: a fold).
+- **Pauldrons on the clavicles** (his: "they seem to rotate too much with the arms"): each pauldron and its three
+  spikes ride the clavicle rigidly (the elbow spikes stay the upper arms'); rig check unchanged 34/1, self-intersections
+  50 -> 30. Not a bone of their own: the ragdoll turns a `fixed` bone into a loose one (dropped as the gun is), and a
+  ball bone would add two ragdoll bodies and still need a driver to move at all: on the clavicle it is the same motion.
+  `vr_agarmor_test 7` **14/0** (run with `developer 1;` first: without it the run printed nothing and timed out).
+  Open: the armour's pauldron plates still ride the upper arms.
+- Tests with `vr_agrunt_test_kind 3`: 95 8/0, 1 17/0 (13/4 once under load: 4 guns 0 shots), 2 4/0, 20 3/0, 60 5/1
+  (the ogre case, as before), 77 12/0, 99 38/0.
+- **Part 2: the pauldron plates follow the mesh pauldrons.** With his pauldrons on the clavicles they had left the upper
+  arm's plate region: his pauldron plates shrank to the arm's skin (outer vertices 112 -> 63 left, 82 -> 59 right) and
+  the mesh pauldrons went bare. `vr_agarmor.cpp` `girdleShells` (generic): a pauldron's region also takes every body
+  part (triangles joined to no other) wholly on the upper arm's parent bone with its middle nearer the shoulder than the
+  girdle's pivot; the plate there keeps those weights, so it rides the clavicle with the mesh pauldron, the arm's part
+  the arm (left plate: clavicle 0.53, upper arm 0.36). Shells: grunt fa858c7f, soldier a1488e62, enforcers 11cc98dc,
+  knight e21a7335 unchanged; death knight fd199a2c -> ee700e65 (origin/next's 1105fd08). `vr_agarmor_check` 20/0,
+  `vr_agarmor_test 7` 14/0, `1` 26/0. Shots (Rig Studio, right arm raised high and across the chest): before, his
+  plated pauldron swung up with the arm and across his chest; now it stays on the shoulder, the arm's plate moves.
+- **`vr_agarmor_test 7` never hung:** its lines are dprints and its verdict too: a run without `developer 1` prints
+  nothing and ends on its timeout. Always `developer 1;map vrtesthall;wait30;vr_agarmor_test 7`.
+- **`vr_agarmor_test 9` (new):** a knight and a death knight in full yellow killed (health 1, small blows), their
+  ragdolls awaited, then 3 s: both pauldrons still worn, each body within 48 units of where it died; then
+  `vr_ragdoll_speeds` / `vr_ragdoll_list` and "agarmor deaths over" (the run's -QuitOn). **6/0**; fastest part 270
+  (knight) / 332 (death knight) u/s, 20 parts each, no blow-up; eyeshot: the corpse's plates on.
+- **Open: Pose Keys, death knight + shotgun 6/5** (origin/next's rig 13/1; + sword 3/6). Bisected over rig variants
+  (`vr_rigdata_dir`): the knees, neck limits, cuffs, shoulder weights and pauldrons are innocent; **vertex 74's weight
+  alone** (the throat under the jaw: head 0.39 -> 0.55, part 1's neck fold fix) turns 13/1 into 6/5 (the left hand's
+  grip part never shown, the weapon's turn 23 deg for 20, the Pickup never settled). Something reads a bone frame from
+  the vertices' weights (a heaviest-vertex pick?); not fixed (budget): either find that reader or drop 74's change in
+  `make_rig2.py` (the neck+head fold may come back).
+- **Part 3: the Pose Keys regression explained, gone.** The reader is the arms' body proxies (`vr_agbody.cpp` `fit`,
+  from each bone's ragdoll hull points: the vertices weighing 0.5 or more on it, else those it is the heaviest of when
+  under 4). On origin/next's rig the death knight's chest hull had **4** such points (74 one of them, chest 0.54), under
+  the proxies' 8: `agbody::of` failed and he had **no body proxies at all** (his arms never kept out of his body). 74 to
+  the head left the chest 3, the hull fell back to the chest's heaviest vertices and he got proxies (torso 5.8 front,
+  head 6 front): the arms' pushes out of the body changed his Aim. Not a frame read from weights; the branch's rig is
+  the right one (proxies, as every other armed humanoid). With his poses shipped (origin/next, posepromo/kngrip)
+  Pose Keys + shotgun is **13/1** on the branch (the elbow step, as on the grunt); + sword 3/6 on both rigs (the test's
+  steps are a gun's: the off hand's grip, the right weapon, "never shown"). 74 kept. `agbody` now says (developer,
+  once a model) when a model gets no proxies. Not done: a sturdier proxy point set (a bone with 4-7 hull points still
+  gets none; changing the hull's fallback would change other rigs' ragdoll hulls).
+- **`vr_agarmor_test`'s lines print without `developer 1`** (VR_TEST_LOUD: its checks and verdict, every request).
+- Regression subset (`run_baseline.sh harness --no-bench --only 'ragdoll|agrunt|agarmor|rigstudio'`, 107 cases):
+  9 changed against baseline.tsv: better agrunt 31/32/36/65/70/85 (as on next); agrunt_11 a timeout under load (77 s
+  PASS rerun); ragdoll_climb a timeout under load (24/4 rerun, as the baseline); ragdoll_stagger 51/6 (52/5), the same
+  51/6 in the armor and review agents' runs of the hour (next's, not this branch's). Flaky ones only flaky.
+
 
 ## Directional parry (experimental; branch `agent/dirparry`)
 
@@ -3939,3 +4004,156 @@ Checklist:
 - [packragdoll] Same mode: knock a grunt down, grab its pack and drag it slowly (it slides along, pack on), then yank:
   it flails in your hand, pack still on.
 - [packragdoll] Same mode: shooting or hitting a grunt's pack still tears it off; force-grab a dead one's pack: it comes off.
+
+## Knight two-pistol hold: the knights' Main and Off grips (branch `agent/kngrip`)
+
+His ask: address knightpose's leftovers (kinds 2 and 3 had a Second grip row but no Main or Off). **Confirmed wrong.**
+Measured with test 85 extended to every kind (each gun's barrel as drawn against its pose, the server's; at rest and
+aimed after its shots once the arms settle), origin/next: grunt and enforcer every pair 0.1-1.2 degrees; the knight's
+**left** pistol 27-28 degrees off at rest, 40-44 aimed (right 5.5-6.5 / 0.6-0.9); the death knight's left 21-23 at rest,
+12-13 aimed, his right 13 aimed. Cause: with no row each hand's grip frame is turned as the rest sword in his right fist,
+so a pistol sat in his hand like a sword; the left wrist went past `vr_agarms_wrist_most` (100) and the hand, and its
+gun, turned back towards the forearm.
+
+**Fix: fitted from the grunt, as the poses' shippedFrom.** `vr_aggrip.cpp`: a kind with no Main or Off row of its own
+ships the hand's row of the kind it ships its poses from (`agpose::shippedKind`, new accessor of `shippedFrom`: the
+knights the grunt's), turned by its fit (`gripFits`): the turn that keeps the weapon where it is on the hand, from each
+hand's rest frame (x from its wrist to its middle, y its elbow's hinge; `agarms::restHand`). The fits come from the new
+**`vr_agrunt_grip_fit`** (prints the rows for every kind drawn so far; test 85 runs it at its end): knight Main -10.4
+106.5 66.0, Off -27.8 89.6 127.3; death knight Main 32.1 -80.3 -92.9, Off 38.8 163.8 160.4. No knight copies of the
+grunt's rows: retuning the grunt's Main / Off moves the knights' with it; their Second rows stay their own; Grip Editor
+entries go on top as for any kind. Grunt and enforcer untouched.
+
+- **Test 85** (`map vrtesthall;wait30;vr_agrunt_test 85`, ends `test 85 over`): 5 new cases (enforcer two nail pistols,
+  knight and death knight two nail pistols and two shotguns) and a `barrel` check per case (each gun within 12 degrees of
+  its pose, rest and aimed). origin/next 36/4 (the four knight cases); now **40/0**: knights 0.4-0.5 at rest, 0.5-1.2
+  aimed; grunt and enforcer numbers as before. (Unsettled, 4 frames after the shots, every kind's left gun reads 20-35
+  off: the arms' goal ease after the aim's jump, `vr_agarms_jump_ease`; hence the settle.)
+- Covering: Pose Keys, knight + shotgun (`-flatscreenmode`; `vr_rigstudio monster_vr_knight 4;
+  vr_rigstudio_test_posekeys`) **13/1** (the grunt's elbow step, as before). Test 95 kind 2 7/0 (and 6/1 twice: "death:
+  dead (40)", the armour's cuirass absorbing the test's blow; origin/next fails it the same way: kind 3 7/1 "dead (10)"),
+  kind 3 8/0.
+
+Checklist:
+- [kngrip] vr_agknight 1, toolgun an armed Knight with two nail pistols (or Debug > Automation & Self-Tests: Armed
+  Grunts: Dual Guns' Muzzles): both pistols point where he aims, each in his fist like a grunt's (not through it like a
+  sword); the left one not turned off to the side.
+- [kngrip] vr_agdknight 1: the same for an armed Death Knight with two pistols.
+- [kngrip] vr_agknight 1 / vr_agdknight 1: a knight's and a death knight's own sword still sits in his fist as the
+  grunt holds a sword (the fitted Main row is every weapon's; test 95's sword-to-hand 3.1 / 8.3 as before, not eyeballed).
+## nail_1's backpack step: a test fault, not nails through packs (branch `agent/nail1pack`)
+
+The step drops a backpack as a monster does (random throw and spin), waits until it rests, then fires nails at its drawn
+box from 100 units before it, along the player's line to it. When the bag came to rest within 100 units of the player
+(about 1 run in 4), that start lay behind him: after a nail's first frame his body overlapped it, the body touch
+(vr_physics.cpp `touch`) called the test's own nail touch, which took the player for a hit and removed the nail. So no
+nail met the bag and the step failed 3 checks. In the game spike_touch spares the owner (VR_OwnerSpared), so nails do not
+pass through lying packs: 14 of 14 random rest poses (several different sides) were met at the drawn box once the test
+was fixed (3 of 12 and 2 of 6 failed before). Fix (QC/vr_nail_test.qc only): VR_NLT_BagTouch spares the owner as
+spike_touch does, and VR_NLT_BagNail starts no farther back than the player stands (min(100, his distance)), so a start
+never lands behind him near a wall. Not timing: the flakiness under parallel load was the random rest place. No gameplay
+change.
+
+## His poses of 2026-10-31 shipped; the Rig Studio's subject clear of the floating text (branch `agent/posepromo`)
+
+**The subject clear of the text.** His words: the floating texts get in the way. In vrtesthall the welcome boards
+(`func_worldtext_banner` at 0 -144 62/88) stood 16 units before the stage (0 -128), between it and the default camera:
+the board's text over the subject's head. `findStage` (vr_rigstudio.cpp) now checks the server's world texts
+(`worldtext::serverTextList`, `halfSize`): one within 320 units of the stage whose board (1.5 times its half diagonal)
+comes within 32 degrees of the default camera's line to the subject, not wholly behind the camera nor behind a wall, moves
+the stage to the nearest clear place on a 48-unit grid (forward first, back towards the start costed 4x), with room for
+a 64-unit hull at the subject and at the camera's eye and the floor within 24 units. vrtesthall: 96 forward, 48 left
+(-48 -32 0). Every test reads `st.stage`, none a fixed place. A map without a text near: unchanged. `developer 1` prints
+each place tried and why it was not taken. Screenshots (studio default camera, mock): grunt, death knight at rest and
+in Pickup: no text over any.
+
+**His pose keys, grips, IK stretch as shipped.** From his vr_agrunt_poses (186 keys: grunt 61, enforcer 59, knight 58,
+death knight 8), vr_agrunt_grips (8: 3 already shipped), vr_agrunt_ik_stretch (26: 10 new or changed, all knight's but one
+death knight's) of 2026-10-31, with `Misc/quakevr/pose_defaults.py --write`. The knights follow the grunt's keys
+(`shippedFrom`), so their own rows had nowhere to go: `shippedOf` and `shippedStretchOf` now take a kind's own row of a
+code first, else the followed kind's fitted, as an archived key does (its own rifle row is not laid on its gun
+categories, as an archived one is not); `copyKind` lists a kind's own rows too. pose_defaults.py: knight names, and an
+all-zero key (or a stretch of 1) keeps its row where dropping it would ship the followed kind's or the rifle's instead.
+Grips: knight Main and Off, death knight Main (his rows win over agent/kngrip's fit; the death knight's Off keeps the
+fit), the knight's sword Second and laser cannon Main. New: `vr_agrunt_pose_dump all` (every key and stretch in effect)
+and `vr_agrunt_grip_dump effective` (every grip in effect). **Proof:** his three lines on the old tables vs the new
+tables with the cvars empty: 476 keys, 48 stretch rows, 16 grip lines, byte for byte the same; again after merging
+agent/kngrip (empty vs his cvars). His archived text now equals the shipped (no config version: 218 is the last).
+
+**Knight rig.** His Range of Motion edits (`vrknight.rig2.txt`, as is): both clavicles swing x -15..35, y -15..35, twist
+-65..45 (were -15..20, -10..20, -35..35); make_rig2.py's knight skeleton the same (a regenerate equals his file number for
+number: only the header line and the number format differ). His rig2anim files are header-only: not added (optional).
+
+Tests: Pose Keys grunt 13/1, knight + shotgun **14/0** (13/1 before: the elbow step passes with his poses), death knight
+13/1 (the elbow step, as the grunt's). Test 85 40/0 with his knight grips (knight pistols 0.6-1.0 degrees off their pose).
+run_baseline `agrunt|rigstudio|posestudio|rig2`: no regression (agrunt 31, 36, 65 FAIL -> PASS and the new tests are
+other branches'; rigstudio cases as the baseline). eval.sh: 163/171 as origin/next; its few "differ" takes change from
+run to run on origin/next and here alike (noise, no melee number from this branch).
+
+Checklist:
+- [posepromo] Rig Studio (flat screen): open it: the subject stands clear of the hall's welcome boards; change it to
+  the knight and the death knight, Pose Keys > Pickup: no text over it.
+- [posepromo] Armed knights and death knights look as in your last session with your vr_agrunt_* settings cleared
+  (`vr_agrunt_poses ""; vr_agrunt_grips ""; vr_agrunt_ik_stretch ""`): your keys are the defaults now.
+- [posepromo] Rig Studio > Range of Motion on the knight: the clavicles' limits are yours.
+
+## Armed humanoids: shots and grip spheres from the drawn pose (branch `agent/stalepose`)
+
+His ask: address drawnpose's leftovers, the two consumers still reading a stale pose.
+- **Shots (and every precise hit) on a live armed humanoid:** hitmodel's `drawnOf` read the .mdl frame (its lerp), while
+  the body is drawn on the authored rig (its arms posed on its weapons, the Rig Studio's takes, hit reactions): a shot at a
+  raised guard's forearm met the frame's torso or head behind it, or nothing. Now `drawnpose::armedMesh` (the one drawn
+  pose query's: `rig2::liveVertices`, now with its normals, placed as `drawnpose::bone` places a live bone, its placement
+  shared in vr_drawnpose.cpp) gives its vertices as drawn; hitmodel tests them as it tests a ragdoll's (every triangle;
+  the hit's triangle maps to the stand frame for the zone as before). Armed humanoids only (`hitreact::armsWanted`), alive
+  (a ragdoll keeps its own), on a listen server's view (else the frame). Its users: segment/clip (shots, missiles, the
+  hook, melee blows, thrown things), restPoint (zones), nearest/pose/anchorFrame (foe grabs, stuck axes). Not
+  `vertexPoint` (QC modelvertex: the arms' own inputs stay the frame's). Setting `vr_hit_drawn_pose` (Combat > Hit
+  Detection > Armed Bodies as Drawn, default 1; 0 the frame as before).
+- **VR_AG_Hit's grip spheres** (a body blow within 10 units of its grip, 16 on a limb, disarms) were round the server's
+  `p.origin`; now round its grip as drawn (`VR_AG_DrawnFrame`, as the hand line and the disarm volumes), the other hand's
+  weapon chosen by the same; Show Disarm Volumes draws them there.
+- **Test 79** (`vr_agrunt_test 79`, QC/vr_stalepose_test.qc; Debug > Tests > "Armed Grunts: Shots on the Drawn Body"):
+  every kind (grunt, enforcer, knight, death knight). Guard (unarmed, frozen, held in Aim): a shot across the drawn
+  forearm (`weapondrawnpose(g, 0, 37)`, new: its forearm's vertices' middle as drawn; 38 the frame's) hits within 5-6
+  units of it, zone 2; one across the frame's forearm alone misses (enforcer 11.5, knights 10 units apart; the grunt's
+  guard holds it 5.6 from the frame's, so its miss is tested in its swing). Swing (a sword, each swing kind in turn until
+  met): its drawn grip 13.5-22 units from the server's weapon place at 0.38-0.40 s; a blow there keeps the weapon, one at
+  the drawn grip disarms it. **22 passed, 0 failed.**
+- **Regressions:** run_baseline `--only 'agrunt|hitmodel|disarm'`: 7 changed, all examined. 31, 36, 65 now pass; 32,
+  70 more checks. 78 failed on the old base (its fix, 0d52eef93, merged since: 9/0). 95 (knight death, the armour's
+  random break: 7/0 on a rerun), 66 (fails on origin/next too), 67/76/47/63/71 flaky as listed. 11 (blast) timed out
+  twice in 8 runs; the stuck run's log ends with the mock's Body Calibration opening its menu ("close the menu to go
+  on"), the game paused; 6 runs passed. Tests 99 41/0, 24 2/0. eval.sh did not run (its lock: `agentlocks/review`
+  missing, a kit problem).
+
+Checklist:
+- [stalepose] Combat > Hit Detection > Armed Bodies as Drawn on: shoot an armed grunt's raised forearm (guarding, aiming,
+  swinging): the hit lands on the arm (blood there, an arm hit), not its chest or head behind it; aim where its arm would
+  hang in a plain animation: a miss.
+- [stalepose] Show Disarm Volumes: the grip spheres sit on its hand as drawn while it swings; punching its drawn hand
+  disarms it, punching where the old sphere was does not.
+## Faster map loads, round 6: the smooth rigs at once (branch `agent/loadtime2`)
+
+The leftovers of round 5 ("Not done": the smooth rigs one model after another, 42 ms of vrtesthall's load).
+
+- **Each model's rig data on the pool at once** (vr_animsmooth.cpp): rigData split in three: `rigStale` (main thread:
+  the model's rig found by ragdoll::rigFor, whose caches aren't the pool's; the settings noted), `rigFit` (any thread:
+  each bone's fit to each pose and the rebuild, reading the model's poses and rig, writing that model's data alone) and
+  `rigRest` (main thread: the rest rows; the arm and leg skins' rows, vr_agarms/vr_aglegs, are found once a model in
+  caches that aren't the pool's). rigData runs the three in a row as before; the prewarm (`animsmooth::prepare`) runs
+  every precached model's rigStale, then all their rigFits in one parallelFor (site "anim smooth rigs"; each fit's own
+  loops nest on the pool), then their rigRests in the models' order. Headers checked again before the pool (warmRigs'
+  way). `developer 1` prints the three phases: vrtesthall 3.2 ms rigs found, 17.5 fits, 2.5 rest rows (no-LTO).
+- **Same outputs:** `vr_anim_smooth_rig_hash` (new; Debug menu, World and Physics, "Smooth Animation Rig Hashes": each rigged model's unfit masks, rebuilt keys, rest rows
+  and fit statistics hashed by name) on vrtesthall, vrstart, hip2m5, e1m1: all 62 lines the same before and after.
+- **Times** (interleaved ABBAABBAAB, exclusive, ThinLTO, one process per map so each is its first load; median
+  [min..max] of 5): the "smooth rigs" prewarm step vrtesthall 49.7 [49.4..53.8] -> 23.0 [17.9..26.0] ms, vrstart 51.1
+  [46.3..52.5] -> 19.2 [17.4..28.0], hip2m5 33.0 [30.4..34.0] -> 13.1 [12.2..16.9], e1m1 15.8 [14.5..16.6] -> 8.6
+  [8.1..9.3]. Whole loads vrtesthall 1130 [1073..1183] -> 1087 [1060..1130], vrstart 1456 [1435..1556] -> 1419
+  [1382..1486], hip2m5 1145 [1103..1198] -> 1061 [1057..1173], e1m1 983 [948..991] -> 961 [932..995] (the loads' spread
+  is wider than the step's gain).
+- **Not done: the disk cache of limb models and smooth rigs** (brief item 2, conditional): after the step above a cache
+  could save at most the fits and rest rows, ~20 ms of vrtesthall/vrstart and ~10 of hip2m5/e1m1 less its own reading
+  and keying (the rigs must still be found: the key holds the derived rig), and the limbs' builds already run on the pool
+  beside the load (round 5: 22 ms there, not on the main thread). Under the brief's ~20 ms bar: skipped.

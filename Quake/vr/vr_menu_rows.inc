@@ -1436,6 +1436,9 @@ QVR_SLIDER(vr_blood_health_curve, "Health Scaling Curve", 0.25f, 4.f, 0.05f, "%.
 QVR_TOGGLE(vr_hit_precise, "Precise Hit Detection",
     "Shots, projectiles, the grappling hook, melee blows and thrown things hit a monster's model as you see "
     "it, not the big box round it: aim at the body. Off: Quake's boxes.")
+QVR_TOGGLE(vr_hit_drawn_pose, "Armed Bodies as Drawn",
+    "An armed enemy's body is hit where you see it: its raised guard, its swinging arm, its aimed gun "
+    "arm. Off: where its plain animation frame has it, as before.")
 QVR_SLIDER(vr_hit_tolerance_melee, "Melee Tolerance", 0.f, 12.f, 0.5f, "%.1f units", ext(),
     "How much bigger than the model a monster is to your melee blows and shoves.")
 QVR_TOGGLE(vr_hit_head_priority, "Head Priority",

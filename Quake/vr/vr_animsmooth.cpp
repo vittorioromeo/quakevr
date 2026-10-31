@@ -272,8 +272,33 @@ namespace qvr::animsmooth::detail
     return m;
 }
 
-// The model's rig data (B), made when first needed and again when vr_anim_smooth_rig_error changes; false: no rig.
-bool rigData(SmoothModel& m, qmodel_t* model, const aliashdr_t* hdr)
+namespace
+{
+// What rigFit leaves rigRest, per model vertex.
+struct RigFit
+{
+    za::Vector<float> vertSum;     // its fit's squared error summed over the poses its bone isn't folded away in ...
+    za::Vector<int> vertCount;     // ... and those poses
+    za::Vector<glm::vec4> rebuilt; // [2 v]: its rebuilt place and share, [2 v + 1]: its normal
+    za::Vector<float> rebuildRms;  // how far the drawn poses are from it rebuilt (rms)
+};
+
+// A pose's vertex in units as the file has it (not dequantised).
+[[nodiscard]] auto filePlaces(const aliashdr_t* hdr)
+{
+    const auto* base = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes);
+    const glm::vec3 scale{hdr->scale[0], hdr->scale[1], hdr->scale[2]};
+    const glm::vec3 origin{hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
+    const za::SizeT numVerts = static_cast<za::SizeT>(hdr->numverts);
+    return [base, scale, origin, numVerts](int pose, int v) {
+        const trivertx_t& t = base[static_cast<za::SizeT>(pose) * numVerts + static_cast<za::SizeT>(v)];
+        return glm::vec3{t.v[0], t.v[1], t.v[2]} * scale + origin;
+    };
+}
+
+// rigData's first step (the main thread: rigFor's caches): the model's rig found once; true when its data is to be made
+// (again), the settings it is made with then noted in `m`. `rigged`: it has a rig.
+bool rigStale(SmoothModel& m, qmodel_t* model, const aliashdr_t* hdr, bool& rigged)
 {
     const float error = za::max(vr_anim_smooth_rig_error.value, 0.01f);
     if(!m.rigTried)
@@ -286,7 +311,8 @@ bool rigData(SmoothModel& m, qmodel_t* model, const aliashdr_t* hdr)
             m.rig = rig;
         }
     }
-    if(!m.rig)
+    rigged = m.rig != nullptr;
+    if(!rigged)
     {
         return false;
     }
@@ -294,26 +320,36 @@ bool rigData(SmoothModel& m, qmodel_t* model, const aliashdr_t* hdr)
     const int dequant = hdr->dequant && hdr->dequantready && vr_mdl_dequant.value != 0.f ? 1 : 0;
     if(m.rigError == error && m.rebuildError == rebuildError && m.rebuildDequant == dequant)
     {
-        return true;
+        return false;
     }
-    const ragdoll::Rig& rig = *m.rig;
     m.rigError = error;
     m.rebuildError = rebuildError;
     m.rebuildDequant = dequant;
+    return true;
+}
+
+// Its second (any thread: reads the model's poses and rig, writes `m`'s fits and `out` alone): each bone's fit to each
+// pose and the rebuild.
+void rigFit(SmoothModel& m, const aliashdr_t* hdr, RigFit& out)
+{
+    const ragdoll::Rig& rig = *m.rig;
+    const float error = m.rigError;
+    const float rebuildError = m.rebuildError;
     m.invScale = glm::vec3{1.f / hdr->scale[0], 1.f / hdr->scale[1], 1.f / hdr->scale[2]};
     m.origin = geom::vec(hdr->scale_origin);
     const auto* base = reinterpret_cast<const trivertx_t*>(reinterpret_cast<const byte*>(hdr) + hdr->vertexes);
     const glm::vec3 scale{hdr->scale[0], hdr->scale[1], hdr->scale[2]};
     const glm::vec3 origin{hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
-    const auto at = [&](int pose, int v) {
-        const trivertx_t& t = base[static_cast<za::SizeT>(pose) * static_cast<za::SizeT>(hdr->numverts) + static_cast<za::SizeT>(v)];
-        return glm::vec3{t.v[0], t.v[1], t.v[2]} * scale + origin;
-    };
+    const auto at = filePlaces(hdr);
     // Each bone's fit in each pose, each vertex's over the poses (rms, units)
     za::Vector<float> boneSum(static_cast<za::SizeT>(rig.numBones * m.numPoses), 0.f);
     za::Vector<int> boneCount(static_cast<za::SizeT>(rig.numBones), 0);
-    za::Vector<float> vertSum(static_cast<za::SizeT>(hdr->numverts), 0.f);
-    za::Vector<int> vertCount(static_cast<za::SizeT>(hdr->numverts), 0);
+    za::Vector<float>& vertSum = out.vertSum;
+    za::Vector<int>& vertCount = out.vertCount;
+    vertSum.clear();
+    vertSum.resize(static_cast<za::SizeT>(hdr->numverts), 0.f);
+    vertCount.clear();
+    vertCount.resize(static_cast<za::SizeT>(hdr->numverts), 0);
     for(int v = 0; v < hdr->numverts; v++)
     {
         boneCount[rig.vertBone[static_cast<za::SizeT>(v)]]++;
@@ -352,14 +388,17 @@ bool rigData(SmoothModel& m, qmodel_t* model, const aliashdr_t* hdr)
             }
         }
     }
-    const auto* desc = reinterpret_cast<const aliasmesh_t*>(reinterpret_cast<const byte*>(hdr) + hdr->meshdesc);
     // The rebuild: each vertex's place on its bone (pose 0's frame) and its normal so, and each bone's fit to each pose
     // made again to the poses as drawn (dequantised: the stored fits follow the file's rounding, a turn's noise times
     // the limb's length). From the stored fits: a vertex's place the mean over the poses its bone fits of the pose's place
     // taken back by the fit; then, twice, each bone refitted to its vertices' drawn places (weighted by their shares) and
     // the places again. How far the drawn poses are from a vertex rebuilt (rms) is its share.
-    za::Vector<glm::vec4> rebuilt(static_cast<za::SizeT>(hdr->numverts) * 2u);
-    za::Vector<float> rebuildRms(static_cast<za::SizeT>(hdr->numverts), 0.f);
+    za::Vector<glm::vec4>& rebuilt = out.rebuilt;
+    za::Vector<float>& rebuildRms = out.rebuildRms;
+    rebuilt.clear();
+    rebuilt.resize(static_cast<za::SizeT>(hdr->numverts) * 2u);
+    rebuildRms.clear();
+    rebuildRms.resize(static_cast<za::SizeT>(hdr->numverts), 0.f);
     {
         const za::SizeT nv = static_cast<za::SizeT>(hdr->numverts);
         const auto drawn = [&](int p, int v) { return mdldequant::poseVertex(hdr, p, v) * scale + origin; };
@@ -530,6 +569,20 @@ bool rigData(SmoothModel& m, qmodel_t* model, const aliashdr_t* hdr)
             rebuilt[2u * k + 1u] = glm::vec4{normal[k], 0.f};
         }
     }
+}
+
+// Its third (the main thread: the arm and leg skins' rows are found once a model, in their caches): the rest rows and
+// the fit's statistics.
+void rigRest(SmoothModel& m, qmodel_t* model, const aliashdr_t* hdr, const RigFit& fit)
+{
+    const ragdoll::Rig& rig = *m.rig;
+    const float error = m.rigError;
+    const auto at = filePlaces(hdr);
+    const auto* desc = reinterpret_cast<const aliasmesh_t*>(reinterpret_cast<const byte*>(hdr) + hdr->meshdesc);
+    const za::Vector<float>& vertSum = fit.vertSum;
+    const za::Vector<int>& vertCount = fit.vertCount;
+    const za::Vector<glm::vec4>& rebuilt = fit.rebuilt;
+    const za::Vector<float>& rebuildRms = fit.rebuildRms;
     m.rest.clear();
     m.rest.resize(static_cast<za::SizeT>(hdr->numverts_vbo) * restStride);
     m.restUploaded = false;
@@ -571,7 +624,22 @@ bool rigData(SmoothModel& m, qmodel_t* model, const aliashdr_t* hdr)
     m.rebuildMost = pct(1.f);
     m.rebuildOk = hdr->numverts_vbo > 0 &&
                   static_cast<float>(m.rebuiltVerts) >= rebuildMinShare * static_cast<float>(hdr->numverts_vbo);
-    return true;
+}
+
+jobs::Site rigsSite{"anim smooth rigs"}; // (prepare's: each model's rigFit at once)
+} // namespace
+
+// The model's rig data (B), made when first needed and again when vr_anim_smooth_rig_error changes; false: no rig.
+bool rigData(SmoothModel& m, qmodel_t* model, const aliashdr_t* hdr)
+{
+    bool rigged = false;
+    if(rigStale(m, model, hdr, rigged))
+    {
+        RigFit fit;
+        rigFit(m, hdr, fit);
+        rigRest(m, model, hdr, fit);
+    }
+    return rigged;
 }
 } // namespace qvr::animsmooth::detail
 namespace
@@ -1142,6 +1210,18 @@ void animsmooth::prepare()
         return;
     }
     const bool rig = rebuildOn || vr_anim_smooth_rig.value != 0.f; // (smoothInstance's and kickInstance's rigData)
+    // Each model's rigData at once: its rig found here, every model's fit on the pool (18 kinds of 2-5 ms each were
+    // 42 ms of vrtesthall's load in a row), then their rest rows here in the models' order (the same data as one by one:
+    // each fit reads its own model alone).
+    struct Job
+    {
+        SmoothModel* m{nullptr};
+        qmodel_t* model{nullptr};
+        const aliashdr_t* hdr{nullptr};
+        RigFit fit;
+    };
+    za::Vector<Job> work;
+    const double t0 = Sys_DoubleTime();
     for(int i = 1; i < MAX_MODELS && cl.model_precache[i]; i++)
     {
         qmodel_t* model = cl.model_precache[i];
@@ -1155,11 +1235,40 @@ void animsmooth::prepare()
             continue;
         }
         SmoothModel& m = modelData(model, hdr);
-        if(rig)
+        bool rigged = false;
+        if(rig && rigStale(m, model, hdr, rigged))
         {
-            (void)rigData(m, model, hdr);
+            Job j;
+            j.m = &m;
+            j.model = model;
+            work.pushBack(ZA_MOVE(j));
         }
     }
+    // The headers once every model is looked at (a load above may have let an earlier one go from the cache: warmRigs'
+    // way); one gone is made at its first use.
+    for(za::SizeT k = work.size(); k-- > 0;)
+    {
+        work[k].hdr = static_cast<const aliashdr_t*>(Cache_Check(&work[k].model->cache));
+        if(!work[k].hdr)
+        {
+            work[k].m->rigError = -1.f;
+            work.erase(work.begin() + static_cast<za::PtrDiffT>(k));
+        }
+    }
+    const double t1 = Sys_DoubleTime();
+    jobs::parallelFor(rigsSite, work.size(), 1, [&work](za::SizeT k0, za::SizeT k1) {
+        for(za::SizeT k = k0; k < k1; k++)
+        {
+            rigFit(*work[k].m, work[k].hdr, work[k].fit);
+        }
+    });
+    const double t2 = Sys_DoubleTime();
+    for(Job& j : work)
+    {
+        rigRest(*j.m, j.model, j.hdr, j.fit);
+    }
+    Con_DPrintf("smooth rigs: %d made: their rigs found %.1f ms, fits on the pool %.1f, rest rows %.1f\n",
+        static_cast<int>(work.size()), (t1 - t0) * 1000.0, (t2 - t1) * 1000.0, (Sys_DoubleTime() - t2) * 1000.0);
 }
 
 extern "C" int VR_AnimSmoothRows(int channel)

@@ -131,6 +131,8 @@ float(entity g, entity p, entity pl, float h) VR_AG_StrikeMeets;           // VR
 float(entity g, entity p) VR_AG_StrikeFrame;                               // VR_AG_WeaponStruck: strikes, then parries
 float(entity g, entity e) VR_AG_ThrowOnWeapon;                             // VR_AG_Hit: a throw that touched its body
 float(entity g, entity p, vector at) VR_AG_HandLineDist;                   // VR_AG_Hit: a body blow by its hand
+float(entity p) VR_AG_DrawnFrame;                                          // VR_AG_Hit: its grip as drawn (vr_armedgrunt_play.qc)
+vector vr_ag_df_o;                                                         // ... VR_AG_DrawnFrame's: the weapon's origin as drawn
 
 // The physical tug (vr_armedgrunt_play.qc; vr_knockdown.qc keeps its stagger on while it lasts), a weapon on a ragdoll's
 // limb (VR_AG_RagProp), a weapon taken up from the floor (vr_armedgrunt.qc VR_AG_TakeBegin).

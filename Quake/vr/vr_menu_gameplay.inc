@@ -962,6 +962,7 @@ void ikStretchReset()
     return {
         header("Hit Detection"),
         row(opt::vr_hit_precise),
+        row(opt::vr_hit_drawn_pose),
         row(opt::vr_hit_tolerance_melee),
         row(opt::vr_hit_head_priority),
         header("Damage"),

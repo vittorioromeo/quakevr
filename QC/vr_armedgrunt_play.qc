@@ -1106,7 +1106,7 @@ float(vector a0, vector a1, vector b0, vector b1) VR_AG_SegDist =
     return vlen(a0 + d1 * s - (b0 + d2 * t));
 };
 
-vector vr_ag_df_o;   // VR_AG_DrawnFrame's: the held weapon's origin as drawn,
+// VR_AG_DrawnFrame's: the held weapon's origin as drawn (vr_ag_df_o: vr_armedgrunt_defs.qc),
 vector vr_ag_df_fw;  // ... its forward,
 vector vr_ag_df_up;  // ... its up
 float vr_ag_wr;      // VR_AG_WeaponLine's: half the weapon's drawn thickness (its shot volume's radius)

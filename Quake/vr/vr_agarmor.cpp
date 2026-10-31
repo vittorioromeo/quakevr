@@ -195,6 +195,7 @@ struct PieceFrame
     float length{1.f};
     float backCut{-1e9f}; // (the cuirass: nothing behind this model x; Wearer::backCut)
     float cut{0.5f};      // (its region: the vertices weighing more than this on its bones; regionCut)
+    const za::Vector<uint8_t>* over{nullptr}; // (a pauldron: the body's vertices in its region besides; girdleShells)
     bool ok{false};
 };
 
@@ -271,6 +272,7 @@ struct PieceFrame
     {
         region += ((f.bones >> static_cast<unsigned>(i)) & 1u) ? w.w[i] : 0.f;
     }
+    region = f.over && at(*f.over, v) ? 1.f : region;
     // (behind the back's cut: out, linear in x so the crossing lands on the cut)
     const float field = za::min(region - f.cut, (at(b.p, v).x - f.backCut) * 0.25f);
     return za::abs(field) < 1e-4f ? 1e-4f : field;
@@ -292,6 +294,63 @@ struct PieceFrame
         most = za::max(most, region);
     }
     return most >= 0.55f ? 0.5f : 0.8f * most;
+}
+
+// A pauldron covers the mesh's own shoulder shells as well as the upper arm's skin: each part of the body (its own
+// triangles, joined to no other) that rides the upper arm's parent bone alone (every vertex wholly on it; the death
+// knight's pauldrons and their spikes on his clavicles) and sits at the shoulder (its middle nearer the upper arm's
+// pivot than its parent's). Those vertices go into the plate's region; the plate there keeps their weights, so it
+// rides the bone the shell does (the girdle, not the arm). None on a mesh whose shoulders are its skin (the grunt's,
+// the enforcer's, the knight's: their plates as before).
+void girdleShells(const Body& b, const rig2::Rig& rig, int limb, za::Vector<uint8_t>& over)
+{
+    const int nv = count(b.p);
+    over.clear();
+    over.resize(static_cast<za::SizeT>(nv), uint8_t{0});
+    const int girdle = limb >= 0 && limb < rig.numBones ? rig.bones[limb].parent : -1;
+    if(girdle < 0 || girdle >= rig2::maxBones)
+    {
+        return;
+    }
+    // (the parts: union-find over the triangles' edges)
+    za::Vector<int> up(static_cast<za::SizeT>(nv), 0);
+    for(int v = 0; v < nv; v++)
+    {
+        at(up, v) = v;
+    }
+    const auto root = [&](int v) {
+        while(at(up, v) != v)
+        {
+            at(up, v) = at(up, at(up, v));
+            v = at(up, v);
+        }
+        return v;
+    };
+    for(int t = 0; t + 2 < count(b.tris); t += 3)
+    {
+        for(int k = 1; k < 3; k++)
+        {
+            const int r0 = root(at(b.tris, t)), r1 = root(at(b.tris, t + k));
+            at(up, za::max(r0, r1)) = za::min(r0, r1);
+        }
+    }
+    // (per part: its vertices, how many ride the girdle wholly, its middle)
+    za::Vector<int> size(static_cast<za::SizeT>(nv), 0), rigid(static_cast<za::SizeT>(nv), 0);
+    za::Vector<glm::vec3> mid(static_cast<za::SizeT>(nv), glm::vec3{0.f});
+    for(int v = 0; v < nv; v++)
+    {
+        const int r = root(v);
+        at(size, r)++;
+        at(rigid, r) += at(b.w, v).w[girdle] >= 0.99f ? 1 : 0;
+        at(mid, r) += at(b.p, v);
+    }
+    const glm::vec3 shoulder = rig.bones[limb].pivot, inner = rig.bones[girdle].pivot;
+    for(int v = 0; v < nv; v++)
+    {
+        const int r = root(v);
+        const glm::vec3 m = at(mid, r) / static_cast<float>(za::max(at(size, r), 1));
+        at(over, v) = at(size, r) > 0 && at(rigid, r) == at(size, r) && glm::distance(m, shoulder) < glm::distance(m, inner) ? 1 : 0;
+    }
 }
 
 // ---- The shell ----
@@ -1119,6 +1178,12 @@ bool buildShell(qmodel_t* src, Shell& s)
         PieceFrame f = frameOf(*rig, piece);
         f.backCut = backCutOf(src->name, piece);
         f.cut = regionCut(s.body.w, f.bones);
+        za::Vector<uint8_t> over;
+        if(f.ok && (piece == PauldronL || piece == PauldronR))
+        {
+            girdleShells(s.body, *rig, rig2::boneByName(*rig, limbBone[piece]), over);
+            f.over = &over;
+        }
         const int firstVert = count(s.verts), firstTri = count(s.tris);
         if(f.ok && piece == Helmet)
         {
