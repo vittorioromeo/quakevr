@@ -93,8 +93,43 @@ struct Hold
     glm::vec3 packFrom{0.f}; // the palm as it took hold (world): its travel since is the tug's way (packPull)
 };
 
+// The hands on a standing enemy (twoHandCheck, each frame; transition): none (Free), one (OneHand: or each on another
+// enemy), one alone on its leg (OneLeg: legCheck's one-hand pull), both on one (TwoHands: settling, the lift, the
+// throw), both at its head (Neck: neckCheck, the snap the only move), both on its legs (Legs: legCheck). From TwoHands
+// on, both hands hold it.
+enum class Phase : za::U8
+{
+    Free,
+    OneHand,
+    OneLeg,
+    TwoHands,
+    Neck,
+    Legs,
+};
+
+// The enemy held on as a ragdoll (handOver, carryStep; transition): none; thrown (or pulled down and not yet a leg
+// drag, or killed while lifted: a body held); lifted (it breaks free at breakAt, flailing); its neck snapped; pulled
+// down by its legs (the hold firming up to drag it: legDragStep).
+enum class Carry : za::U8
+{
+    None,
+    Thrown,
+    Lifted,
+    Snapped,
+    LegDrag,
+};
+
+// The carry's name in the log and the status ("thrown": thrown, pulled down, a body held).
+[[nodiscard]] inline const char* carryName(Carry k)
+{
+    return k == Carry::Lifted ? "lifted" : k == Carry::Snapped ? "snapped" : "thrown";
+}
+
 struct Holder
 {
+    Phase phase{Phase::Free};
+    Carry carry{Carry::None};
+    [[nodiscard]] bool twoHands() const { return phase >= Phase::TwoHands; }
     Hold holds[2];
     bool pressedLast[2]{false, false};
     double pressedAt[2]{-1.0, -1.0}; // the grip's press (-1: not pressed)
@@ -106,7 +141,6 @@ struct Holder
     // The two-hand throw (throwCheck): no try before throwAgain; both hands' hold's hardest turn so far (and the hands'
     // speed then), for tuning (vr_foegrab_debug, vr_foegrab_status).
     double throwAgain{0.0};
-    bool twoHanded{false};
     float peakTwist{0.f};
     float peakSpeed{0.f};
     glm::vec3 way{0.f}; // the turn's way (level: where it tips its top, rad/s), smoothed (throwWayTime)
@@ -119,16 +153,15 @@ struct Holder
     // Its feet held, it can't turn (legCheck): its yaw as the leg grip began (legYawEnt: whose; 0: none).
     int legYawEnt{0};
     float legYaw{0.f};
-    // The enemy held on as a ragdoll after a throw or a lift (handOver, carryStep): its entity (0: none), since when; a
-    // lift's (`lifted`), when it breaks free (breakAt).
+    // The enemy held on as a ragdoll after a throw or a lift (handOver, carryStep; `carry` not None): its entity, since
+    // when; Lifted, when it breaks free (breakAt).
     int carried{0};
     double carriedSince{0.0};
-    bool lifted{false};
-    bool flailing{false}; // its lift's flail begun (box3d::ragdollFlail): ended when let go of, even killed in the hands
-    bool snapped{false};
+    bool flailing{false}; // its lift's flail begun (box3d::ragdollFlail: not driven alive, none): over when let go of,
+                          // even killed in the hands
     double breakAt{-1.0};
-    // A leg pull's hold (legCheck's handOver): when it was handed over (-1: none). Soft while it falls (Pull Hold
-    // Strength), it firms up to Pull Drag Strength once it lies (legDragStep), to be dragged by the legs.
+    // A leg drag's hold (Carry::LegDrag): when it was handed over. Soft while it falls (Pull Hold Strength), it firms up
+    // to Pull Drag Strength once it lies (legDragStep), to be dragged by the legs.
     double legDragFrom{-1.0};
     bool legDragFull{false}; // (firmed up all the way: printed once)
     // The neck snap (neckStep, neckCheck): the enemy both hands hold by the head (0: none), how far it has turned within

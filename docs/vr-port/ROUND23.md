@@ -4034,6 +4034,46 @@ Checklist:
 - [phases] Stamina on, Slip on: hang until it runs out: the gasp and buzz, you sink and slip off; let go and grab again
   once stamina is back: a normal hang (no instant slip). Slip 0: you drop at once with the gasp.
 - [phases] Hang from a moving platform or lift, and from a prop (crate): carried along; get knocked off by an explosion.
+
+## Explicit foe grab phases (design review 8, stage 2 of 3; branch `agent/phases2`)
+
+The foe grab's `Holder` runs two machines at once (a hand can carry a ragdoll while the other holds a standing enemy),
+so it has two enums, each with its `transition()` (vr_foegrab.cpp, vr_foegrab_internal.hpp):
+- `Phase {Free, OneHand, OneLeg, TwoHands, Neck, Legs}`: the hands on a standing enemy, set by `twoHandCheck` each
+  frame from what they do (Neck: neckCheck's head hold; Legs/OneLeg: legCheck's grip, both hands or one).
+  `transition(c, to)` holds the entry/exit work: both hands' hold begun (its peak turn and way from zero), ended (the
+  "both hands' hold ended" line, the head-zone log reset), neither on a leg (the stroke, its log, the held yaw over).
+  `twoHanded` is gone (`twoHands()`: TwoHands or later).
+- `Carry {None, Thrown, Lifted, Snapped, LegDrag}`: the ragdoll held on. `transition(c, to, why, m)` holds what nine
+  places did by hand (handOver, the ragdoll neck snap, manhandle, the lift, the leg lift, the leg pull, the pack lift,
+  the break free, the let-go): a new hold's entity, time and break time; the lift's flail and `breakAt`; the leg drag's
+  start; the flail ended when the carry ends or the neck snaps. The existing `Why` says which (Lost: lifted and killed
+  in the hands, now a body held as Thrown, keeping its time and its flail until let go). `lifted` and `snapped` are
+  gone; `carried > 0` and `legDragFrom >= 0` no longer act as modes. `carryStep` is a `switch(carry)`.
+- Split at real boundaries: serverFrame's per-foe body (`foeStep`), legCheck's hands' measure (`legHandsOf`), held yaw
+  (`legHoldYaw`) and stroke (`legStrokeDrawn`). No foe grab frame function is over 100 lines (preThink 99).
+
+Verified: stage A (the phases beside the old flags; a per-frame shadow check deriving the carry from carried/lifted/
+snapped/legDragFrom, and `twoHanded` against the phase) over the judo test (dir, hold, lift, neck), the leg grabs and
+ragdoll_grab: no mismatch. Stage B (flags gone), the same verdicts as A case by case: ragdoll_grab 19/0, judo dir 12/4
+(as next's baseline), judo hold/lift/neck 46/3, leggrab 15/2. The 5 failures are the same in A and B and in code this
+doesn't touch (pp_knocked_back/neck: "a hand never took its ragdoll"; ogre; leggrab thigh, thigh_half_slow: the thigh
+bones read as below the knee, legPartAt); not checked against next. No eval.sh (no melee code changed).
+
+The one combination the old code reached: `lifted` or `snapped` left set after the carry ended (the break free and the
+let-go never cleared them: 25 times in the judo cases, 3 in the leg grabs); harmless, every reader checked `carried`
+first. By reading only (not reached): a leg drag whose ragdoll then had its neck snapped kept its `legDragFrom` (snapped
+and still firming up); no effect, since the snapping hands' holds are new ones, never the drag's soft ones. Snapped now
+ends the drag. Debug log only: on the frame both hands become one, "both hands' hold ended" prints after the one-hand
+leg check's lines.
+
+Checklist:
+- [phases2] Judo: take a grunt with both hands, throw it (held on, dragged, let go); lift one (it flails, breaks free
+  and shoves you back after Lift Time); lift one and kill it in your hands (no break free; let go: limp).
+- [phases2] Neck snap standing and on a lifted ragdoll (it goes limp, still held); manhandle a staggered grunt with one
+  hand.
+- [phases2] Leg grabs: pull one down by the shins and drag it by the legs (the hold firms up once it lies); the
+  one-hand pull; lift one by the legs; tug and lift an enforcer by its worn backpack.
 ## Knight two-pistol hold: the knights' Main and Off grips (branch `agent/kngrip`)
 
 His ask: address knightpose's leftovers (kinds 2 and 3 had a Second grip row but no Main or Off). **Confirmed wrong.**
