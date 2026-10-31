@@ -1,6 +1,7 @@
 // vr_aggrip.cpp -- armed monsters' grip offsets (vr_aggrip.hpp).
 
 #include "vr_aggrip.hpp"
+#include "vr_agarms.hpp"
 #include "vr_agpose.hpp"
 #include "vr_cvars.hpp"
 #include "vr_weapons.hpp"
@@ -49,6 +50,24 @@ constexpr GlobalRow globalDefaults[] = {
     // (the armed death knight (agent/dknight): the same, read off his own rig: with no row his wrist bent 93 degrees on
     // the shotgun's fore-end in Aim; this turn (a search over the three angles, vr_agrunt_ik_debug 4) leaves it 1-3)
     {3, aggrip::Second, 0.f, 0.f, 0.f, -161.0f, 37.0f, -55.0f},
+};
+
+// A kind with no Main or Off row of its own above ships the hand's row of the kind it ships its poses from
+// (agpose::shippedKind: the knights the grunt's), fitted to its hand: turned by its fit below (the weapon kept where it
+// is on the hand, not on the rest weapon: the knights' grip frames are turned as their rest swords, the grunt's as its
+// rifle). Each fit is vr_agrunt_grip_fit's (the turn from the grunt's hand at rest to this kind's: each hand's frame from
+// its wrist to its middle and its elbow's hinge; rows to paste here). The Grip Editor's entries go on top as for any kind.
+struct FitRow
+{
+    int kind;
+    int hand;
+    float pitch, yaw, roll;
+};
+constexpr FitRow gripFits[] = {
+    {2, aggrip::Main, -10.4f, 106.5f, 66.0f},
+    {2, aggrip::Off, -27.8f, 89.6f, 127.3f},
+    {3, aggrip::Main, 32.1f, -80.3f, -92.9f},
+    {3, aggrip::Off, 38.8f, 163.8f, 160.4f},
 };
 
 // A weapon's own shipped grips (its weapon id: Weapon Offsets' ID), on top of its kind's "All Weapons" one; the Grip
@@ -181,7 +200,21 @@ void write()
                 return true;
             }
         }
-        return false;
+        const int from = agpose::shippedKind(kind);
+        if(from == kind || hand == aggrip::Second || !defaultOf(from, slot, hand, out))
+        {
+            return false;
+        }
+        for(const FitRow& f : gripFits)
+        {
+            if(f.kind == kind && f.hand == hand)
+            {
+                const rigpose::Rigid fit = aggrip::toRigid(aggrip::Offset{glm::vec3{0.f}, glm::vec3{f.pitch, f.yaw, f.roll}});
+                const rigpose::Rigid o = aggrip::toRigid(out);
+                out = aggrip::fromRigid(rigpose::Rigid{glm::normalize(fit.rot * o.rot), fit.rot * o.pos});
+            }
+        }
+        return true;
     }
     const char* id = slot >= 0 ? slotId(slot) : nullptr;
     for(const Row& r : defaults)
@@ -241,6 +274,30 @@ void dump_f()
     za::String text;
     dumpInto(text, Cmd_Argc() > 1 && strcmp(Cmd_Argv(1), "all") == 0);
     Con_Printf("%s", text.cStr());
+}
+
+// vr_agrunt_grip_fit: gripFits' rows from the hands at rest of every kind drawn so far (each kind that ships another's
+// poses, against that kind): the turn that keeps the weapon where it is on the hand (`aggrip fit: <kind> <hand>:
+// <row>`; a kind not drawn yet: `... not drawn`).
+void fit_f()
+{
+    for(int kind = 0; kind < aggrip::numKinds; kind++)
+    {
+        const int from = agpose::shippedKind(kind);
+        for(int hand = aggrip::Main; hand <= aggrip::Off && from != kind; hand++)
+        {
+            glm::quat aK, gK, aF, gF;
+            if(!agarms::restHand(kind, hand, aK, gK) || !agarms::restHand(from, hand, aF, gF))
+            {
+                Con_Printf("aggrip fit: %d %s: kind %d or %d not drawn\n", kind, handName(hand), kind, from);
+                continue;
+            }
+            const glm::quat fit = glm::normalize(glm::inverse(gK) * aK * glm::inverse(aF) * gF);
+            const aggrip::Offset o = aggrip::fromRigid(rigpose::Rigid{fit, glm::vec3{0.f}});
+            Con_Printf("aggrip fit: %d %s:     {%d, aggrip::%s, %.1ff, %.1ff, %.1ff},\n", kind, handName(hand), kind,
+                handName(hand), o.angles.x, o.angles.y, o.angles.z);
+        }
+    }
 }
 
 // vr_agrunt_grip_reset: the edited entry back to its default (all: every change dropped).
@@ -576,6 +633,7 @@ void registerCommands()
 {
     Cmd_AddCommand("vr_agrunt_grip_dump", dump_f);
     Cmd_AddCommand("vr_agrunt_grip_reset", reset_f);
+    Cmd_AddCommand("vr_agrunt_grip_fit", fit_f);
     agholds::registerCommands();
 }
 
