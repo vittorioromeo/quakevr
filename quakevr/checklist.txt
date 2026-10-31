@@ -289,3 +289,4 @@ Blade shape editor, axe: the handle under the other hand glows yellow {test:blad
 Blade shape editor: on the shotgun, your bash tip is the default and shots leave the muzzle as before {test:blade_handles}
 Your blade edits are the defaults: fist line (punch with Show Melee Blades on: hooks, uppercuts, overheads land? re-record punch_hook, punch_overhead, two punch_uppercut and a no_hit take) {test:fist_editor}
 Your blade edits are the defaults: the fury sword's bent blade, the mace's head box, the shotgun's blade width (its muzzle stays) {test:blade_editor}
+A grunt or knight with a sword or long sword stops a little out (about 45-57 units), swings from there and its blows land; with fists, an axe or a hammer it still comes right up; step in on a swordsman: it holds its ground; back off: it follows. Knob: Combat > Armed Grunts > AI Behaviour > Melee Spacing > Reach Share (Debug > Tests > Armed Grunts: Melee Spacing, vr_agrunt_test 18).
