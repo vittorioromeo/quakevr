@@ -1095,7 +1095,6 @@ struct Climber
 {
     Grip grips[2];
     Phase phase{Phase::Free};
-    bool mantling{false};
     double mantleStart{0.0};
     glm::vec3 mantleFrom{0.f}, mantleMid{0.f}, mantleTo{0.f};
     int mantleEnt{0};           // the brush model mantled onto (0: the world): the way follows it,
@@ -1112,14 +1111,14 @@ struct Climber
     bool noRoom{false};        // pulling over the top of a ledge with no room to mantle (felt once)
     // Climbing stamina (see "Climbing stamina" below).
     bool draining{false};      // this frame's hang spent stamina
-    bool slipping{false};      // none left, vr_climb_stamina_slip > 0: the hands slip off at slipStart + that
     double slipStart{0.0};
     bool wasLow{false};        // the pool was low (the gadget's blink) at the last hanging frame: the breath once as it gets low
     double tiredAt{-1.0};      // a grip refused for want of stamina: its buzz (at most every 0.5 s)
     za::String handsLine[2];  // vr_debug_hands: the lines last printed
+    // Hanging or slipping: holding on with one hand or both.
     bool hanging() const
     {
-        return grips[0].active || grips[1].active;
+        return phase == Phase::Hanging || phase == Phase::Slipping;
     }
     // Any hand holds (the grips: within a frame they change before the phase follows them).
     bool anyHeld() const
@@ -1129,33 +1128,6 @@ struct Climber
 };
 
 void transition(edict_t* ent, Climber& c, Phase to, Why why, const VrMove* move = nullptr, const bool* held = nullptr);
-
-// Stage A of design review 8 (temporary): the phase as the old flags make it, checked each frame's end.
-[[nodiscard]] const char* phaseName(Phase p)
-{
-    return p == Phase::Free ? "free" : p == Phase::Hanging ? "hanging" : p == Phase::Slipping ? "slipping" : "mantling";
-}
-int shadowLines = 0;
-void shadowCheck(const Climber& c, const char* where)
-{
-    const bool any = c.anyHeld();
-    const Phase derived = c.mantling ? Phase::Mantling : !any ? Phase::Free : c.slipping ? Phase::Slipping : Phase::Hanging;
-    const bool impossible = (c.mantling && any) || (c.slipping && (!any || c.mantling));
-    if((derived == c.phase && !impossible) || shadowLines >= 200)
-    {
-        return;
-    }
-    shadowLines++;
-    const char* line = va("climbphase %.4f %s: phase %s, the flags say %s%s (mantling %d slipping %d grips %d %d)\n",
-        qcvm->time, where, phaseName(c.phase), phaseName(derived), impossible ? ", IMPOSSIBLE" : "", c.mantling ? 1 : 0,
-        c.slipping ? 1 : 0, c.grips[0].active ? 1 : 0, c.grips[1].active ? 1 : 0);
-    Con_Printf("%s", line);
-    if(FILE* f = fopen("C:/OHWorkspace/qvr-agents/phases/scratch/phase_shadow.log", "a"))
-    {
-        fputs(line, f);
-        fclose(f);
-    }
-}
 
 // A fixed array (as the swimmers'): a climber is held by reference across SV_RunThink, which a growing vector could
 // move.
@@ -1317,10 +1289,8 @@ Climber climbers[MAX_SCOREBOARD];
 void letGoAll(Climber& c)
 {
     c.grips[0].active = c.grips[1].active = false;
-    c.mantling = false;
     c.owed = glm::vec3{0.f};
     c.noRoom = false;
-    c.slipping = false;
 }
 
 // The arm's reach (see the top of the file), units: the shoulder joint to the palm's middle.
@@ -1851,13 +1821,12 @@ void gruntTest_f()
 void hangStamina(edict_t* ent, Climber& c, double time)
 {
     c.draining = false;
-    if(!staminaOn(ent) || !c.hanging() || c.mantling)
+    if(!staminaOn(ent) || !c.hanging())
     {
         if(c.phase == Phase::Slipping)
         {
             transition(ent, c, Phase::Hanging, Why::Recovers);
         }
-        c.slipping = false;
         return;
     }
     const int hands = (c.grips[0].active ? 1 : 0) + (c.grips[1].active ? 1 : 0);
@@ -1890,7 +1859,6 @@ void hangStamina(edict_t* ent, Climber& c, double time)
         {
             transition(ent, c, Phase::Hanging, Why::Recovers);
         }
-        c.slipping = false;
         return;
     }
     const float slip = za::max(0.f, vr_climb_stamina_slip.value);
@@ -1899,9 +1867,8 @@ void hangStamina(edict_t* ent, Climber& c, double time)
         transition(ent, c, Phase::Free, Why::Exhausted);
         return;
     }
-    if(!c.slipping)
+    if(c.phase != Phase::Slipping)
     {
-        c.slipping = true;
         transition(ent, c, Phase::Slipping, Why::Slips);
     }
     else if(time - c.slipStart >= slip)
@@ -1943,7 +1910,7 @@ void debugHands(edict_t* ent, Climber& c, const VrMove* move, double time)
                 fieldFloatOr(pulled, f.fg_hand, -1.f));
         }
         const char* climb = c.grips[h].active                      ? "holding"
-                            : c.mantling                           ? "mantling"
+                            : c.phase == Phase::Mantling           ? "mantling"
                             : busy                                 ? busy
                             : atHolster                            ? "a holster wins"
                             : time < c.noGrabUntil                 ? "too soon"
@@ -2100,7 +2067,7 @@ void letGoIfForced(edict_t* ent, Climber& c, bool enabled, bool knockedOff)
     // Moved by something else (a teleporter, a respawn, setorigin), disabled, dead, noclipping, the
     // hold's brush model gone (freed, not solid, another model): let go, and fall as whatever moved the body has it.
     bool forced = !enabled;
-    if((c.hanging() || c.mantling) && !(glm::distance(vec(ent->v.origin), c.lastOrigin) <= 2.f)) // (a NaN: let go too)
+    if(c.phase != Phase::Free && !(glm::distance(vec(ent->v.origin), c.lastOrigin) <= 2.f)) // (a NaN: let go too)
     {
         if(debug())
         {
@@ -2121,7 +2088,7 @@ void letGoIfForced(edict_t* ent, Climber& c, bool enabled, bool knockedOff)
     }
     // Knocked off (a blast of vr_climb_blast_letgo or more, an enemy's shove): let go, no fling, the velocity the blast or
     // the shove gives the body kept (letting go here, before the frame's grips, is no release: see below).
-    if(knockedOff && (c.hanging() || c.mantling))
+    if(knockedOff && c.phase != Phase::Free)
     {
         if(debug())
         {
@@ -2130,109 +2097,18 @@ void letGoIfForced(edict_t* ent, Climber& c, bool enabled, bool knockedOff)
         }
         forced = true;
     }
-    if(forced && (c.hanging() || c.mantling))
+    if(forced && c.phase != Phase::Free)
     {
         transition(ent, c, Phase::Free, Why::Forced);
     }
 }
 
-// A hand's grip this frame: letting go, refused, or taking hold.
-void gripHand(edict_t* ent, Climber& c, const VrMove* move, bool enabled, double time, int h)
+// A hand takes hold of the hold found (gripHand): the grip's state, a prop's ledge as it lies, the buzz and the slap.
+void takeHold(edict_t* ent, Climber& c, const VrMove* move, int h, const za::Optional<Ledge>& ledge, bool hanging,
+    const char* how, bool retry, double time)
 {
     Grip& g = c.grips[h];
-    const bool pressed = move && (move->vrBits0 & grabBit[h]);
-    const bool pressEdge = pressed && !c.pressedLastFrame[h];
-    c.pressedLastFrame[h] = pressed;
-    // A grip pressed in the air at no hold keeps looking while it stays pressed and the player is in the air (not
-    // holding on with the other hand), for vr_climb_air_grab_time seconds: a ledge jumped at is in the hand's reach
-    // for a frame or three as it passes the lip on the way up and again on the way down (the hand's point in front of
-    // the face: the line from the chest holds it off the top); a press anywhere in the jump takes it as it comes.
-    if(!pressed || pressEdge || g.active || !midAir(ent, c.grips[1 - h].active) ||
-        time - c.missedAt[h] > static_cast<double>(vr_climb_air_grab_time.value))
-    {
-        c.missedAt[h] = -1.0;
-    }
-    const bool retry = c.missedAt[h] >= 0.0;
-    g.ownedLastFrame = g.owned;
-    if(!pressed)
-    {
-        g.owned = false;
-    }
-
-    if(g.active && (!pressed || !handEmpty(ent, move, h)))
-    {
-        g.active = false;
-        if(debug())
-        {
-            Con_Printf("climb: %s hand lets go at (%.1f %.1f %.1f)\n", handName(h), ent->v.origin[0], ent->v.origin[1],
-                ent->v.origin[2]);
-        }
-    }
-
-    if(!enabled || !(pressEdge || retry) || g.active || c.mantling)
-    {
-        return;
-    }
-    const bool hanging = c.grips[1 - h].active;
-    const int hotspot = move->hotspots[h];
-    const bool atHolster = holsterWins(ent, hotspot, hanging);
-    const char* busy = handBusy(ent, move, h);
-    if(time < c.noGrabUntil || atHolster || busy)
-    {
-        if(debug() && pressEdge)
-        {
-            Con_Printf("climb: %s hand grips: %s%s\n", handName(h),
-                time < c.noGrabUntil ? "too soon" : atHolster ? "at a holster" : "not empty: ",
-                time < c.noGrabUntil || atHolster ? "" : busy);
-        }
-        return;
-    }
-    if(!hanging && tooTired(ent))
-    {
-        c.missedAt[h] = -1.0; // (refused: no buzz again while the grip stays pressed)
-        // Too little stamina left to hang (parries, shoves, blows, the last hang): no new hang until more comes back
-        // (a hand joining the other on a hold is let: two hands tire less). A soft buzz says why; the gadget shows it.
-        if(!(time - c.tiredAt < 0.5))
-        {
-            c.tiredAt = time;
-            server::sendHaptic(ent, h, 0.f, 0.15f, 30.f, 0.4f * staminaWarn());
-        }
-        if(debug())
-        {
-            Con_Printf("climb: %s hand grips: too tired (%.1f stamina left)\n", handName(h), progs::staminaLeft(ent));
-        }
-        return;
-    }
-
     const glm::vec3 hand = move->hands[h].pos;
-    const double t0 = Sys_DoubleTime();
-    LenientStats st;
-    const int traces0 = traceCount;
-    bool lenient = false, fromTracked = false;
-    const za::Optional<Ledge> ledge = gripHold(ent, *move, h, hanging, lenient, fromTracked, &st);
-    if(debug() && vr_climb_debug.value >= 3.f && (pressEdge || ledge))
-    {
-        Con_Printf("climb: hold search: %d ledges looked at, %d traces in %.4f ms\n", st.points, traceCount - traces0,
-            (Sys_DoubleTime() - t0) * 1000.0);
-    }
-    const char* how = lenient ? (fromTracked ? ", lenient, from the controller" : ", lenient")
-                      : fromTracked ? ", from the controller"
-                                    : "";
-    if(!ledge)
-    {
-        if(pressEdge)
-        {
-            c.missedAt[h] = time; // (in the air: it keeps looking)
-        }
-        if(debug() && pressEdge)
-        {
-            const glm::vec3 own = move->hands[h].tracked;
-            Con_Printf("climb: %s hand at (%.1f %.1f %.1f): no hold (the controller at %.1f %.1f %.1f)\n", handName(h), hand.x,
-                hand.y, hand.z, own.x, own.y, own.z);
-        }
-        return;
-    }
-
     g.active = true;
     g.owned = true;
     g.serial++;
@@ -2298,6 +2174,106 @@ void gripHand(edict_t* ent, Climber& c, const VrMove* move, bool enabled, double
     }
 }
 
+// A hand's grip this frame: letting go, refused, or taking hold.
+void gripHand(edict_t* ent, Climber& c, const VrMove* move, bool enabled, double time, int h)
+{
+    Grip& g = c.grips[h];
+    const bool pressed = move && (move->vrBits0 & grabBit[h]);
+    const bool pressEdge = pressed && !c.pressedLastFrame[h];
+    c.pressedLastFrame[h] = pressed;
+    // A grip pressed in the air at no hold keeps looking while it stays pressed and the player is in the air (not
+    // holding on with the other hand), for vr_climb_air_grab_time seconds: a ledge jumped at is in the hand's reach
+    // for a frame or three as it passes the lip on the way up and again on the way down (the hand's point in front of
+    // the face: the line from the chest holds it off the top); a press anywhere in the jump takes it as it comes.
+    if(!pressed || pressEdge || g.active || !midAir(ent, c.grips[1 - h].active) ||
+        time - c.missedAt[h] > static_cast<double>(vr_climb_air_grab_time.value))
+    {
+        c.missedAt[h] = -1.0;
+    }
+    const bool retry = c.missedAt[h] >= 0.0;
+    g.ownedLastFrame = g.owned;
+    if(!pressed)
+    {
+        g.owned = false;
+    }
+
+    if(g.active && (!pressed || !handEmpty(ent, move, h)))
+    {
+        g.active = false;
+        if(debug())
+        {
+            Con_Printf("climb: %s hand lets go at (%.1f %.1f %.1f)\n", handName(h), ent->v.origin[0], ent->v.origin[1],
+                ent->v.origin[2]);
+        }
+    }
+
+    if(!enabled || !(pressEdge || retry) || g.active || c.phase == Phase::Mantling)
+    {
+        return;
+    }
+    const bool hanging = c.grips[1 - h].active;
+    const int hotspot = move->hotspots[h];
+    const bool atHolster = holsterWins(ent, hotspot, hanging);
+    const char* busy = handBusy(ent, move, h);
+    if(time < c.noGrabUntil || atHolster || busy)
+    {
+        if(debug() && pressEdge)
+        {
+            Con_Printf("climb: %s hand grips: %s%s\n", handName(h),
+                time < c.noGrabUntil ? "too soon" : atHolster ? "at a holster" : "not empty: ",
+                time < c.noGrabUntil || atHolster ? "" : busy);
+        }
+        return;
+    }
+    if(!hanging && tooTired(ent))
+    {
+        c.missedAt[h] = -1.0; // (refused: no buzz again while the grip stays pressed)
+        // Too little stamina left to hang (parries, shoves, blows, the last hang): no new hang until more comes back
+        // (a hand joining the other on a hold is let: two hands tire less). A soft buzz says why; the gadget shows it.
+        if(!(time - c.tiredAt < 0.5))
+        {
+            c.tiredAt = time;
+            server::sendHaptic(ent, h, 0.f, 0.15f, 30.f, 0.4f * staminaWarn());
+        }
+        if(debug())
+        {
+            Con_Printf("climb: %s hand grips: too tired (%.1f stamina left)\n", handName(h), progs::staminaLeft(ent));
+        }
+        return;
+    }
+
+    const glm::vec3 hand = move->hands[h].pos;
+    const double t0 = Sys_DoubleTime();
+    LenientStats st;
+    const int traces0 = traceCount;
+    bool lenient = false, fromTracked = false;
+    const za::Optional<Ledge> ledge = gripHold(ent, *move, h, hanging, lenient, fromTracked, &st);
+    if(debug() && vr_climb_debug.value >= 3.f && (pressEdge || ledge))
+    {
+        Con_Printf("climb: hold search: %d ledges looked at, %d traces in %.4f ms\n", st.points, traceCount - traces0,
+            (Sys_DoubleTime() - t0) * 1000.0);
+    }
+    const char* how = lenient ? (fromTracked ? ", lenient, from the controller" : ", lenient")
+                      : fromTracked ? ", from the controller"
+                                    : "";
+    if(!ledge)
+    {
+        if(pressEdge)
+        {
+            c.missedAt[h] = time; // (in the air: it keeps looking)
+        }
+        if(debug() && pressEdge)
+        {
+            const glm::vec3 own = move->hands[h].tracked;
+            Con_Printf("climb: %s hand at (%.1f %.1f %.1f): no hold (the controller at %.1f %.1f %.1f)\n", handName(h), hand.x,
+                hand.y, hand.z, own.x, own.y, own.z);
+        }
+        return;
+    }
+
+    takeHold(ent, c, move, h, ledge, hanging, how, retry, time);
+}
+
 // Let go of everything: the fall, flung by the hands' release.
 void fallFlung(edict_t* ent, Climber& c, const VrMove* move, const bool* held, double time)
 {
@@ -2337,11 +2313,6 @@ void transition(edict_t* ent, Climber& c, Phase to, Why why, const VrMove* move,
     switch(to)
     {
     case Phase::Free:
-        if(why == Why::Released)
-        {
-            fallFlung(ent, c, move, held, time);
-            return;
-        }
         if(why == Why::Exhausted)
         {
             for(int h = 0; h < 2; h++)
@@ -2358,7 +2329,11 @@ void transition(edict_t* ent, Climber& c, Phase to, Why why, const VrMove* move,
         {
             c.noGrabUntil = time + regrabDelay;
         }
-        if(why == Why::Exhausted)
+        if(why == Why::Released)
+        {
+            fallFlung(ent, c, move, held, time); // (the fall, flung by the hands' release)
+        }
+        else if(why == Why::Exhausted)
         {
             setVec(ent->v.velocity, glm::vec3{0.f});
             if(debug())
@@ -2420,7 +2395,7 @@ void hideHeldGrips(edict_t* ent, const Climber& c)
                 bits &= ~prevGrabBit[h];
             }
             // (Mantling: both, its hands on the ledge though their grips have gone: no force grab, no blows.)
-            bits = g.active || c.mantling ? bits | climbingBit[h] : bits & ~climbingBit[h];
+            bits = g.active || c.phase == Phase::Mantling ? bits | climbingBit[h] : bits & ~climbingBit[h];
         }
         fieldFloat(ent, vrbits) = static_cast<float>(bits);
     }
@@ -2469,7 +2444,6 @@ static void climbPreThink(edict_t* ent)
 
     letGoIfForced(ent, c, enabled, knockedOff);
 
-    const bool wasHanging = c.hanging();
     const bool held[2] = {c.grips[0].active, c.grips[1].active};
     followProps(ent, c);
     for(int h = 0; h < 2; h++)
@@ -2477,18 +2451,26 @@ static void climbPreThink(edict_t* ent)
         gripHand(ent, c, move, enabled, time, h);
     }
 
-    if(!wasHanging && c.hanging())
+    // The phase the grips make now: a hand took hold, or the last let go (the fall, flung by the hands' release).
+    switch(c.phase)
     {
-        transition(ent, c, Phase::Hanging, Why::Took);
+    case Phase::Free:
+        if(c.anyHeld())
+        {
+            transition(ent, c, Phase::Hanging, Why::Took);
+        }
+        break;
+    case Phase::Hanging:
+    case Phase::Slipping:
+        if(!c.anyHeld())
+        {
+            transition(ent, c, Phase::Free, Why::Released, move, held);
+        }
+        break;
+    case Phase::Mantling: // (no hold is taken while mantling)
+        break;
     }
-
-    // Let go of everything: fall, flung by the hands' release.
-    if(wasHanging && !c.hanging() && !c.mantling)
-    {
-        transition(ent, c, Phase::Free, Why::Released, move, held);
-    }
-    shadowCheck(c, "prethink");
-    if(enabled && !c.hanging() && !c.mantling)
+    if(enabled && c.phase == Phase::Free)
     {
         traceFrame(ent, c, move, "free", glm::vec3{0.f}, glm::vec3{0.f});
     }
@@ -2577,7 +2559,6 @@ void mantleStep(edict_t* ent, Climber& c, double time)
     ent->v.flags = static_cast<float>(static_cast<int>(ent->v.flags) & ~FL_ONGROUND);
     if(t >= 1.f)
     {
-        c.mantling = false;
         transition(ent, c, Phase::Free, Why::Mantled);
         ent->v.flags = static_cast<float>(static_cast<int>(ent->v.flags) | FL_ONGROUND);
         if(onto)
@@ -2652,7 +2633,7 @@ void hangPull(Hang& hang)
             c.owed -= dir * used;
         }
     }
-    if(c.slipping)
+    if(c.phase == Phase::Slipping)
     {
         // No stamina left, slipping: the arms can't pull the body up; it sinks (to straight arms: the reach below).
         move3.z = za::min(move3.z, 0.f) - slipSink * static_cast<float>(host_frametime);
@@ -2875,6 +2856,34 @@ void reachCheck(Hang& hang)
     }
 }
 
+// The mantle begins (tryMantle): its way from here up to `mid` and over to `to`, following the hold's brush model or
+// prop.
+void startMantle(edict_t* ent, Climber& c, const Grip& g, const glm::vec3& mid, const glm::vec3& to, float headAbove,
+    double time)
+{
+    c.mantleStart = time;
+    c.mantleFrom = vec(ent->v.origin);
+    c.mantleMid = mid;
+    c.mantleTo = to;
+    c.mantleEnt = g.entNum;
+    c.mantleBase = c.mantleEnt > 0 ? vec(EDICT_NUM(c.mantleEnt)->v.origin) : glm::vec3{0.f};
+    c.mantleShift = glm::vec3{0.f};
+    c.mantleProp = g.prop;
+    if(g.prop)
+    {
+        c.mantleBase = g.propOrigin;
+        c.mantleTurn = g.propTurn;
+    }
+    transition(ent, c, Phase::Mantling, Why::Mantles);
+    if(debug())
+    {
+        Con_Printf("climb: mantle from (%.1f %.1f %.1f) up to %.1f, onto (%.1f %.1f %.1f), the head %.1f over the "
+                   "top (Mantle Height %.0f)\n",
+            c.mantleFrom.x, c.mantleFrom.y, c.mantleFrom.z, mid.z, to.x, to.y, to.z, headAbove,
+            vr_climb_mantle_height.value);
+    }
+}
+
 // The mantle: pulled down, the head over the ledge, and room on top.
 void tryMantle(Hang& hang)
 {
@@ -2896,7 +2905,7 @@ void tryMantle(Hang& hang)
         const float pulledDown = g.relAtGrab.z - rel[h].z;
         const float headAbove = headZ + (ent->v.origin[2] - origin.z) - topNow(g);
         // (The head's height over the top: under it, he can lean up and down over the ledge without mantling.)
-        if(pulledDown < mantlePull || headAbove < za::clamp(vr_climb_mantle_height.value, 0.f, 40.f) || c.slipping)
+        if(pulledDown < mantlePull || headAbove < za::clamp(vr_climb_mantle_height.value, 0.f, 40.f) || c.phase == Phase::Slipping)
         {
             continue;
         }
@@ -2934,31 +2943,10 @@ void tryMantle(Hang& hang)
             noRoom = true;
             continue;
         }
-        c.mantling = true;
-        c.mantleStart = time;
-        c.mantleFrom = vec(ent->v.origin);
-        c.mantleMid = mid;
-        c.mantleTo = to;
-        c.mantleEnt = g.entNum;
-        c.mantleBase = c.mantleEnt > 0 ? vec(EDICT_NUM(c.mantleEnt)->v.origin) : glm::vec3{0.f};
-        c.mantleShift = glm::vec3{0.f};
-        c.mantleProp = g.prop;
-        if(g.prop)
-        {
-            c.mantleBase = g.propOrigin;
-            c.mantleTurn = g.propTurn;
-        }
-        transition(ent, c, Phase::Mantling, Why::Mantles);
-        if(debug())
-        {
-            Con_Printf("climb: mantle from (%.1f %.1f %.1f) up to %.1f, onto (%.1f %.1f %.1f), the head %.1f over the "
-                       "top (Mantle Height %.0f)\n",
-                c.mantleFrom.x, c.mantleFrom.y, c.mantleFrom.z, mid.z, to.x, to.y, to.z, headAbove,
-                vr_climb_mantle_height.value);
-        }
+        startMantle(ent, c, g, mid, to, headAbove, time);
         break;
     }
-    if(!c.mantling)
+    if(c.phase != Phase::Mantling)
     {
         // No room on top: a soft buzz as the pull over the top starts (the body stays on the face: the pull into it
         // is owed, so the push over the top doesn't push it back off).
@@ -2982,32 +2970,16 @@ void tryMantle(Hang& hang)
 }
 } // namespace
 
-extern "C" int VR_ClientClimb(edict_t* ent)
+namespace
 {
-    Climber* cp = climberOf(ent);
-    if(!cp || (!cp->hanging() && !cp->mantling))
-    {
-        return 0;
-    }
-    Climber& c = *cp;
-    if(!SV_RunThink(ent))
-    {
-        return -1;
-    }
-
-    const double time = qcvm->time;
-    if(c.mantling)
-    {
-        mantleStep(ent, c, time);
-        return 1;
-    }
-
+// A hanging (or slipping) frame: the body moved by the holding hands; out of reach, the fall; the mantle; the stamina.
+int hangFrame(edict_t* ent, Climber& c, double time)
+{
     server::rebaseHands(ent);
     const VrMove* move = server::clientMove(ent);
     if(!move)
     {
         transition(ent, c, Phase::Free, Why::NoMove);
-        shadowCheck(c, "nomove");
         return 0;
     }
 
@@ -3025,7 +2997,6 @@ extern "C" int VR_ClientClimb(edict_t* ent)
     {
         // Let go of everything (out of reach): fall.
         transition(ent, c, Phase::Free, Why::OutOfReach);
-        shadowCheck(c, "outofreach");
         return 1;
     }
 
@@ -3036,8 +3007,35 @@ extern "C" int VR_ClientClimb(edict_t* ent)
     {
         fieldFloat(ent, fields().vr_climb_drain) = 1.f;
     }
-    shadowCheck(c, "hang");
     return 1;
+}
+} // namespace
+
+extern "C" int VR_ClientClimb(edict_t* ent)
+{
+    Climber* cp = climberOf(ent);
+    if(!cp || cp->phase == Phase::Free)
+    {
+        return 0;
+    }
+    Climber& c = *cp;
+    if(!SV_RunThink(ent))
+    {
+        return -1;
+    }
+    const double time = qcvm->time;
+    switch(c.phase)
+    {
+    case Phase::Free:
+        break;
+    case Phase::Hanging:
+    case Phase::Slipping:
+        return hangFrame(ent, c, time);
+    case Phase::Mantling:
+        mantleStep(ent, c, time);
+        return 1;
+    }
+    return 0;
 }
 
 // SV_PushMove: whether `check` (a player) hangs from the brush model `pusher` or mantles onto it: it rides it then, as
@@ -3051,7 +3049,7 @@ extern "C" int VR_ClimbHangsFrom(edict_t* check, edict_t* pusher)
     }
     const int num = NUM_FOR_EDICT(pusher);
     return (c->grips[0].active && c->grips[0].entNum == num) || (c->grips[1].active && c->grips[1].entNum == num) ||
-           (c->mantling && c->mantleEnt == num);
+           (c->phase == Phase::Mantling && c->mantleEnt == num);
 }
 
 // SV_PushMove, after moving `check` (hanging from `pusher`, VR_ClimbHangsFrom) from `from` by `move`: whether the ride
@@ -3090,21 +3088,18 @@ extern "C" int VR_ClimbCarryBlocked(edict_t* check, edict_t* pusher, const float
             server::sendHaptic(check, h, 0.f, 0.08f, 60.f, 0.5f);
         }
     }
-    if(c.mantling && c.mantleEnt == num)
-    {
-        c.mantling = false;
-    }
+    // (Off it: no hand holds any more, or the mantle was onto it.)
+    const bool off = c.phase == Phase::Mantling ? c.mantleEnt == num : !c.anyHeld();
     if(debug())
     {
         Con_Printf("climb: carried into something at (%.1f %.1f %.1f): lets go\n", check->v.origin[0], check->v.origin[1],
             check->v.origin[2]);
     }
     c.lastOrigin = vec(check->v.origin);
-    if(!c.hanging() && !c.mantling)
+    if(off)
     {
         transition(check, c, Phase::Free, Why::CarriedOff);
     }
-    shadowCheck(c, "carried");
     return 0;
 }
 
@@ -3117,7 +3112,7 @@ extern "C" void VR_ClimbCarried(edict_t* pusher, const float* move)
     for(int i = 0; i < clients; i++)
     {
         Climber& c = climbers[i];
-        bool rides = c.mantling && c.mantleEnt == num;
+        bool rides = c.phase == Phase::Mantling && c.mantleEnt == num;
         for(Grip& g : c.grips)
         {
             if(g.active && g.entNum == num)
