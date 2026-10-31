@@ -755,7 +755,8 @@ struct World
         // A tug-of-war's hold (ragdollTug: a hand on an armed monster's weapon, holding its hand's limb at the weapon's
         // lever): the QC's hand holds nothing, so that never lets it go; the QC ends it.
         bool tug{false};
-        float tugReach{0.f}; // ... the hand's distance from its root body as it took hold (m: ragdollTug what 3's stretch)
+        float tugReach{0.f}; // ... the hand's reach from its root body (along tugAway if set) as it took hold (m: ragdollTug what 3's stretch)
+        glm::vec3 tugAway{0.f}; // ... the way that hand pulls (flat, unit; zero: out through the hand: tugAwayOf)
         // ... a downed one's (ragdollTug what 6: lying or staggering, not standing its ground): its arm's pull (N) on the
         // held limb towards its body's middle, the body pulled the other way (a pull within it: it doesn't slide it).
         float tugBack{0.f};

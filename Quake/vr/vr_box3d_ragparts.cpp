@@ -611,9 +611,8 @@ bool holdSoft(edict_t* ent, edict_t* player, int hand, float reach, float force,
     return true;
 }
 
-// A tug's reach: hand `hand` of `player` from where `r` stands its ground (m, flat; a step up or down is no pull): its
-// pelvis pin's anchor (a slow pull drags its pelvis off it: that counts too), else its root body.
-[[nodiscard]] float tugReach(edict_t* player, int hand, const RagdollBodies& r)
+// Hand `hand` of `player` from where `r` stands its ground (units, flat).
+[[nodiscard]] glm::vec3 tugFromBase(edict_t* player, int hand, const RagdollBodies& r)
 {
     glm::vec3 at;
     glm::quat turn;
@@ -621,7 +620,33 @@ bool holdSoft(edict_t* ent, edict_t* player, int hand, float reach, float force,
     const b3BodyId base = B3_IS_NON_NULL(r.active.pin.anchor) && b3Body_IsValid(r.active.pin.anchor) ? r.active.pin.anchor : r.body[0];
     glm::vec3 d = at - world->toU(b3Body_GetPosition(base));
     d.z = 0.f;
-    return glm::length(d) / world->m2u;
+    return d;
+}
+
+// The way a tug's hand pulls (flat, unit), fixed as it takes hold: zero for out through the hand from where `r` stands
+// its ground (its arm drawn out: the reach's length), or towards `player` when the hand is past where it stands from you
+// (a second hand on a weapon's far end, by its chest: its distance from the pelvis shrank as it pulled, and that hand's
+// pull never counted: test 92 phase 1, two hands no stronger than one).
+[[nodiscard]] glm::vec3 tugAwayOf(edict_t* player, int hand, const RagdollBodies& r)
+{
+    const glm::vec3 d = tugFromBase(player, hand, r);
+    const b3BodyId base = B3_IS_NON_NULL(r.active.pin.anchor) && b3Body_IsValid(r.active.pin.anchor) ? r.active.pin.anchor : r.body[0];
+    glm::vec3 toPlayer = glm::vec3{player->v.origin[0], player->v.origin[1], 0.f} - world->toU(b3Body_GetPosition(base));
+    toPlayer.z = 0.f;
+    const float lp = glm::length(toPlayer);
+    toPlayer = lp > 0.01f ? toPlayer / lp : glm::vec3{1.f, 0.f, 0.f};
+    // (Only past it: a hand anywhere on your side of it draws its arm out however it pulls. A standing one's tug only:
+    // ragdollTug what 0.)
+    return glm::dot(d, toPlayer) >= 0.f ? glm::vec3{0.f} : toPlayer;
+}
+
+// A tug's reach (m): hand `hand` of `player` from where `r` stands its ground (flat: a step up or down is no pull), its
+// pelvis pin's anchor (a slow pull drags its pelvis off it: that counts too), else its root body: how far, or how far
+// along `away` when that is not zero (tugAwayOf).
+[[nodiscard]] float tugReach(edict_t* player, int hand, const RagdollBodies& r, const glm::vec3& away)
+{
+    const glm::vec3 d = tugFromBase(player, hand, r);
+    return (away == glm::vec3{0.f} ? glm::length(d) : glm::dot(d, away)) / world->m2u;
 }
 
 // ragdolltug (QC vr_armedgrunt_play.qc, the tug-of-war): `ent` (alive, its stagger begun: standing its ground) and hand
@@ -654,7 +679,7 @@ float tugRagdoll(edict_t* ent, edict_t* player, int hand, int what, const glm::v
         {
             return -1.f;
         }
-        return za::max(0.f, tugReach(player, hand, *r) - g->tugReach);
+        return za::max(0.f, tugReach(player, hand, *r, g->tugAway) - g->tugReach);
     }
     if(what == 5)
     {
@@ -715,12 +740,16 @@ float tugRagdoll(edict_t* ent, edict_t* player, int hand, int what, const glm::v
         dg.stuck = 64.f;
         dg.tug = true;
         dg.tugBack = za::max(strength, 0.f);
-        dg.tugReach = tugReach(player, hand, *r);
+        // (Out through the hand always: a lying one's limb is dragged any way, and a hand past its pelvis read towards you
+        // never won test 91's lying grip.)
+        dg.tugAway = glm::vec3{0.f};
+        dg.tugReach = tugReach(player, hand, *r, dg.tugAway);
         beginGrab(dg, dgs, player, hand, dpart);
         if(vr_debug_ragdoll.value || vr_knockdown_debug.value)
         {
-            Con_Printf("tug: %d %s down: hand %d holds its part %d (%s) %.1f units from the grip, %.0f N at most, its pull back %.0f N\n",
-                num, PR_GetString(ent->v.classname), hand, dpart, r->rig->bones[dpart].name, dd, dg.force, dg.tugBack);
+            Con_Printf("tug: %d %s down: hand %d holds its part %d (%s) %.1f units from the grip, %.0f N at most, its pull back %.0f N, pulled %s\n",
+                num, PR_GetString(ent->v.classname), hand, dpart, r->rig->bones[dpart].name, dd, dg.force, dg.tugBack,
+                dg.tugAway == glm::vec3{0.f} ? "out" : "towards you");
         }
         return 1.f;
     }
@@ -759,13 +788,14 @@ float tugRagdoll(edict_t* ent, edict_t* player, int hand, int what, const glm::v
     ng.force = za::max(force, 0.f);
     ng.stuck = 64.f;
     ng.tug = true;
-    ng.tugReach = tugReach(player, hand, *r);
+    ng.tugAway = tugAwayOf(player, hand, *r);
+    ng.tugReach = tugReach(player, hand, *r, ng.tugAway);
     beginGrab(ng, gs, player, hand, part);
     if(vr_debug_ragdoll.value || vr_knockdown_debug.value)
     {
-        Con_Printf("tug: %d %s: hand %d holds its part %d (%s, arm %d) %.1f units from the grip, %.0f N at most, its pull %.2f\n",
+        Con_Printf("tug: %d %s: hand %d holds its part %d (%s, arm %d) %.1f units from the grip, %.0f N at most, its pull %.2f, pulled %s\n",
             num, PR_GetString(ent->v.classname), hand, part, r->rig->bones[part].name, st.tugArm, distance, ng.force,
-            st.tugStrength);
+            st.tugStrength, ng.tugAway == glm::vec3{0.f} ? "out" : "towards you");
     }
     return 1.f;
 }
