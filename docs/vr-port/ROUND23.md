@@ -4151,6 +4151,10 @@ further during it (ai_charge).
   run's step; at it or nearer (you stepped in) it holds its ground (no backing off); blocked or further: its path as
   before. Its swing starts within its standoff + 12 (`VR_AG_MeleeStart`, at least the old 62; the two-blade follow-up
   too) and its step into the blow (VR_AGP_Frame's ai_charge) stops at its standoff.
+- **Its blow aimed at you from its standoff** (VR_AGP_Strike): the Pose Studio keys' turn of the blow's line (vr_agk_rr)
+  swung a knight's line past you from 51-57 units (1 attack in 5 hurt nothing: its grip 29 units to your side, its line
+  going along, not across); up close it starts inside you and lands anyway. With a standoff its line goes from its keyed
+  grip to your chest.
 - **The blade's line** (`VR_AG_WeaponLine`, the disarm volumes, the blade contact) still takes a sword's length along
   its model's forward (`weapondrawnpose` 34/35: the knight's sword 14 long, the blade being along its up). Not changed
   here; noted.
@@ -4162,4 +4166,14 @@ further during it (ai_charge).
   hands: three attacks as it comes, then you 80 units back (its next attack), then (a standoff) you stepped in to 24
   inside it (its next attack). Per trial: its standoff, where it stood as its blows landed, the re-close time, every
   attack hurting you; PASS when all hurt you, a standoff's holder stood within 8 of it (a short weapon within 62) and
-  struck from no further than where you stepped in. MEASURED_NUMBERS
+  struck from no further than where you stepped in. 24 passed, 0 failed: standoffs grunt sword 46 / long 52, enforcer
+  44 / 50, knight 51 / 57, death knight 48 / 54, each stood at it within 0.3 as its blows landed; fists 30-37, the
+  axe, Mjolnir and the chainsaw 30-34 (as before); after you backed off 80 it came back and struck again in 0.4-2.2 s;
+  stepped in to 36 it struck from 36 (no backing off); every attack hurt you. Before the aim fix: 22/24 (a knight's
+  long blade 1 attack in 5 hurting nothing).
+- Not run (the coordinator's call, velocity first): the agrunt|arena baseline subset and eval.sh (the player's melee
+  is untouched: no file of it changed).
+- **Checklist** (suggested): "A grunt or knight with a sword or long sword stops a little out (about 45-57 units),
+  swings from there and its blows land; with fists, an axe or a hammer it still comes right up; step in on a swordsman:
+  it holds its ground; back off: it follows {test:agrunt_melee_spacing} (Debug > Tests > Armed Grunts: Melee Spacing,
+  `vr_agrunt_test 18`)."
