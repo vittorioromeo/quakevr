@@ -245,6 +245,7 @@ vr_agarmor_test  5        vr_agarmor_test.qc               (VR_AgArmor_FxTestFra
 vr_agarmor_test  6        vr_agarmor_test.qc               (VR_AgArmor_Give)
 vr_agarmor_test  7        vr_agarmor_test.qc               (VR_ART_RunKnight: the knights, kinds 2 and 3)
 vr_agarmor_test  8        vr_agarmor_test.qc               (VR_ART_SpawnKind: the knights in yellow)
+vr_agarmor_test  9        vr_agarmor_test.qc               (VR_ART_Deaths: the knights killed, their ragdolls)
 
 vr_ammocolor_test 1*       vr_ammocolor_test.qc             (the Debug menu runs it: the dispatcher's fall-through)
 vr_ammocolor_test 2        vr_ammocolor_test.qc             (VR_ACT_Give)

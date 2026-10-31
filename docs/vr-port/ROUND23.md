@@ -3764,6 +3764,70 @@ humanoid Knight and Death Knight kinds also support armor."
   from origin/next, fails alone too: not this branch's).
 - **Open:** the rig2 check failures on vrhknight (25/10; step 5, not started: budget).
 
+**Rig polish (branch `agent/hkrig`).** `vr_rig2_check progs/vrhknight.mdl` **34 passed, 1 failed** (was 25/10): every
+joint and pair clean; left failing: the 1000 random poses (flipped 37, collapsed 5, folds 36, was 61/41/55: the helmet's
+rim and the right shoulder's top under the pauldron as the head and the arm move together; no limb pose). All in
+`make_rig2.py`'s hknight rig, no shared code (the other rigs' files byte-identical; grunt 22/13, soldier 22/13, enforcer
+and enforcer.mdl 28/7, knight 12/23, as before):
+- hands (stretch 0.29, fold 173): each gauntlet's cuff back (its four corners by the pommel, 464-466/473 and
+  478/484/492/494) painted hand 0.9 forearm 0.1 (half of each cuff was the forearm's, the cuff's edge squeezed as the
+  wrist turned);
+- knees (the back collapsing at 100-130): the knees' range 125 (the grunt's 130; the enforcer's 115), the left knee
+  nudged half a unit toward its back (its back's edge stretched 2.8), the back of the right knee's ring (387/389/390)
+  thigh 0.64 shin 0.36 (half and half, it rose into the hem's back);
+- neck+head (2 folds, chin and helmet rim squeezed to 0.23): the throat under the jaw (74) head 0.55 (0.39), the neck's
+  nod 25 forward / 15 back and tilt 15 (the grunt's 35 / 25 / 25), the head's 20 back (25): his helmet sits on his
+  shoulders; the right shoulder's top beside the helmet (419, 421) less the head's (0.35 / 0.27 -> 0.25 / 0.15).
+- `vr_rig2_check <model> <lines>` details print the stretched edges too (an edge past 2.5 or under 0.3, its vertices'
+  weights), as the flips and folds.
+- Tried, worse: knee blends 2-3.5, nudges past 0.5, the legs held to their blends, a reach (also only the head's),
+  smaller shoulder webs; the knees back to 130 (thigh_l+shin_l: a fold).
+- **Pauldrons on the clavicles** (his: "they seem to rotate too much with the arms"): each pauldron and its three
+  spikes ride the clavicle rigidly (the elbow spikes stay the upper arms'); rig check unchanged 34/1, self-intersections
+  50 -> 30. Not a bone of their own: the ragdoll turns a `fixed` bone into a loose one (dropped as the gun is), and a
+  ball bone would add two ragdoll bodies and still need a driver to move at all: on the clavicle it is the same motion.
+  `vr_agarmor_test 7` **14/0** (run with `developer 1;` first: without it the run printed nothing and timed out).
+  Open: the armour's pauldron plates still ride the upper arms.
+- Tests with `vr_agrunt_test_kind 3`: 95 8/0, 1 17/0 (13/4 once under load: 4 guns 0 shots), 2 4/0, 20 3/0, 60 5/1
+  (the ogre case, as before), 77 12/0, 99 38/0.
+- **Part 2: the pauldron plates follow the mesh pauldrons.** With his pauldrons on the clavicles they had left the upper
+  arm's plate region: his pauldron plates shrank to the arm's skin (outer vertices 112 -> 63 left, 82 -> 59 right) and
+  the mesh pauldrons went bare. `vr_agarmor.cpp` `girdleShells` (generic): a pauldron's region also takes every body
+  part (triangles joined to no other) wholly on the upper arm's parent bone with its middle nearer the shoulder than the
+  girdle's pivot; the plate there keeps those weights, so it rides the clavicle with the mesh pauldron, the arm's part
+  the arm (left plate: clavicle 0.53, upper arm 0.36). Shells: grunt fa858c7f, soldier a1488e62, enforcers 11cc98dc,
+  knight e21a7335 unchanged; death knight fd199a2c -> ee700e65 (origin/next's 1105fd08). `vr_agarmor_check` 20/0,
+  `vr_agarmor_test 7` 14/0, `1` 26/0. Shots (Rig Studio, right arm raised high and across the chest): before, his
+  plated pauldron swung up with the arm and across his chest; now it stays on the shoulder, the arm's plate moves.
+- **`vr_agarmor_test 7` never hung:** its lines are dprints and its verdict too: a run without `developer 1` prints
+  nothing and ends on its timeout. Always `developer 1;map vrtesthall;wait30;vr_agarmor_test 7`.
+- **`vr_agarmor_test 9` (new):** a knight and a death knight in full yellow killed (health 1, small blows), their
+  ragdolls awaited, then 3 s: both pauldrons still worn, each body within 48 units of where it died; then
+  `vr_ragdoll_speeds` / `vr_ragdoll_list` and "agarmor deaths over" (the run's -QuitOn). **6/0**; fastest part 270
+  (knight) / 332 (death knight) u/s, 20 parts each, no blow-up; eyeshot: the corpse's plates on.
+- **Open: Pose Keys, death knight + shotgun 6/5** (origin/next's rig 13/1; + sword 3/6). Bisected over rig variants
+  (`vr_rigdata_dir`): the knees, neck limits, cuffs, shoulder weights and pauldrons are innocent; **vertex 74's weight
+  alone** (the throat under the jaw: head 0.39 -> 0.55, part 1's neck fold fix) turns 13/1 into 6/5 (the left hand's
+  grip part never shown, the weapon's turn 23 deg for 20, the Pickup never settled). Something reads a bone frame from
+  the vertices' weights (a heaviest-vertex pick?); not fixed (budget): either find that reader or drop 74's change in
+  `make_rig2.py` (the neck+head fold may come back).
+- **Part 3: the Pose Keys regression explained, gone.** The reader is the arms' body proxies (`vr_agbody.cpp` `fit`,
+  from each bone's ragdoll hull points: the vertices weighing 0.5 or more on it, else those it is the heaviest of when
+  under 4). On origin/next's rig the death knight's chest hull had **4** such points (74 one of them, chest 0.54), under
+  the proxies' 8: `agbody::of` failed and he had **no body proxies at all** (his arms never kept out of his body). 74 to
+  the head left the chest 3, the hull fell back to the chest's heaviest vertices and he got proxies (torso 5.8 front,
+  head 6 front): the arms' pushes out of the body changed his Aim. Not a frame read from weights; the branch's rig is
+  the right one (proxies, as every other armed humanoid). With his poses shipped (origin/next, posepromo/kngrip)
+  Pose Keys + shotgun is **13/1** on the branch (the elbow step, as on the grunt); + sword 3/6 on both rigs (the test's
+  steps are a gun's: the off hand's grip, the right weapon, "never shown"). 74 kept. `agbody` now says (developer,
+  once a model) when a model gets no proxies. Not done: a sturdier proxy point set (a bone with 4-7 hull points still
+  gets none; changing the hull's fallback would change other rigs' ragdoll hulls).
+- **`vr_agarmor_test`'s lines print without `developer 1`** (VR_TEST_LOUD: its checks and verdict, every request).
+- Regression subset (`run_baseline.sh harness --no-bench --only 'ragdoll|agrunt|agarmor|rigstudio'`, 107 cases):
+  9 changed against baseline.tsv: better agrunt 31/32/36/65/70/85 (as on next); agrunt_11 a timeout under load (77 s
+  PASS rerun); ragdoll_climb a timeout under load (24/4 rerun, as the baseline); ragdoll_stagger 51/6 (52/5), the same
+  51/6 in the armor and review agents' runs of the hour (next's, not this branch's). Flaky ones only flaky.
+
 
 ## Directional parry (experimental; branch `agent/dirparry`)
 

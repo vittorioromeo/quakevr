@@ -250,10 +250,14 @@ HKNIGHT_SKELETON = [
          radius=13.0, fwd=(1, 0, 0), side=(0, 1, 0), sx=(-35, 45), sy=(-25, 25), tw=(-35, 36)),
     dict(name='chest', parent='spine', joint='ball', pivot=(2.0, 0.0, 17.0), end=(2.5, 0.0, 22.5), blend=3.0,
          radius=13.0, fwd=(1, 0, 0), side=(0, 1, 0), sx=(-20, 36), sy=(-20, 20), tw=(-40, 40)),
+    # (his helmet sits on his shoulders, no neck between: the neck's nod 25 forward and 15 back, the head's 20 back;
+    # the grunt's 35 and 25 with the head's 25 put his chin into his chest (squeezed to 0.23, folded 173) and the
+    # helmet's back rim onto his right pauldron (0.24); the neck's tilt to a side 15 (the grunt's 25: twice the random
+    # poses' faults, the helmet's rim into the shoulders)
     dict(name='neck', parent='chest', joint='ball', pivot=(2.5, 0.0, 22.5), end=(3.0, 0.0, 25.0), blend=1.2,
-         radius=6.0, fwd=(1, 0, 0), side=(0, 1, 0), sx=(-25, 35), sy=(-25, 25), tw=(-35, 35)),
+         radius=6.0, fwd=(1, 0, 0), side=(0, 1, 0), sx=(-15, 25), sy=(-15, 15), tw=(-35, 35)),
     dict(name='head', parent='neck', joint='ball', pivot=(3.0, 0.0, 25.0), end=(6.0, 0.0, 35.0), blend=1.0,
-         radius=7.0, fwd=(1, 0, 0), side=(0, 1, 0), sx=(-25, 15), sy=(-20, 20), tw=(-20, 20)),
+         radius=7.0, fwd=(1, 0, 0), side=(0, 1, 0), sx=(-20, 15), sy=(-20, 20), tw=(-20, 20)),
     dict(name='clavicle_l', parent='chest', joint='ball', pivot=(2.0, 3.0, 21.5), end=(0.5, 13.0, 24.0), blend=2.0,
          radius=6.0, fwd=(1, 0, 0), side=(0, 0, 1), sx=(-15, 20), sy=(-10, 20), tw=(-35, 35)),
     dict(name='upperarm_l', parent='clavicle_l', joint='ball', pivot=(0.5, 13.0, 24.0), end=(-1.5, 13.5, 17.0),
@@ -274,8 +278,10 @@ HKNIGHT_SKELETON = [
          blend=0.6, radius=3.5, fwd=(0, 0, 1), side=(0, 1, 0), sx=(-30, 30), sy=(-30, 30), tw=(-30, 30)),
     dict(name='thigh_l', parent='pelvis', joint='ball', pivot=(1.5, 5.5, -3.0), end=(3.5, 8.0, -10.0), blend=2.6,
          radius=8.0, neutral=(0, 0.08, -1), fwd=(1, 0, 0), side=(0, 1, 0), sx=(-30, 65), sy=(-20, 45), tw=(-30, 30)),
+    # (the knees to 125, the grunt's 130: the back of the knee rose into the hem's back past 125; the left knee half a
+    # unit toward its back, the back of the knee's edge stretched 2.8 times at its section's middle)
     dict(name='shin_l', parent='thigh_l', joint='hinge', pivot=(3.5, 8.0, -10.0), end=(0.5, 11.0, -20.0),
-         refine=True, blend=4.5, radius=6.0, axis=(0, 1, 0), range=(0, 130)),
+         refine=True, blend=4.5, radius=6.0, axis=(0, 1, 0), nudge=(-0.5, 0.0, 0.0), range=(0, 125)),
     dict(name='foot_l', parent='shin_l', joint='ball', pivot=(0.5, 11.0, -20.0), end=(9.0, 12.0, -23.5),
          refine=True, blend=1.0, radius=4.0, fwd=(0, 0, 1), side=(0, 1, 0), sx=(-25, 30), sy=(-10, 10),
          tw=(-12, 12)),
@@ -283,7 +289,7 @@ HKNIGHT_SKELETON = [
          radius=8.0, neutral=(0, -0.08, -1), fwd=(1, 0, 0), side=(0, -1, 0), sx=(-30, 65), sy=(-20, 45),
          tw=(-30, 30)),
     dict(name='shin_r', parent='thigh_r', joint='hinge', pivot=(3.5, -8.0, -10.0), end=(1.0, -10.5, -20.0),
-         refine=True, blend=4.5, radius=6.0, axis=(0, 1, 0), range=(0, 130)),
+         refine=True, blend=4.5, radius=6.0, axis=(0, 1, 0), range=(0, 125)),
     dict(name='foot_r', parent='shin_r', joint='ball', pivot=(1.0, -10.5, -20.0), end=(9.5, -11.0, -23.5),
          refine=True, blend=1.0, radius=4.0, fwd=(0, 0, 1), side=(0, -1, 0), sx=(-25, 30), sy=(-10, 10),
          tw=(-12, 12)),
@@ -309,15 +315,30 @@ RIGS = {
                                     [(v, 'hand_l') for v in (473, 464, 465, 466, 308, 310)]),
                     no_skip=[('upperarm_r', 'forearm_r', 'hand_r'), ('upperarm_l', 'forearm_l', 'hand_l')],
                     # (the left shoulder's back by the neck: the head's weight smoothed onto it turned it over as the head bowed)
-                    weights_fix={314: {'clavicle_l': 0.5, 'upperarm_l': 0.5}},
+                    # (the back of the right knee's ring a third the shin's: half, it rose into the hem's back at the knee's
+                    # deepest bends, the edge squeezed to 0.19 and the hem's triangle turned over; a quarter, the ring below)
+                    # (each gauntlet's cuff back, its four corners by the pommel, the hand's armour: half of it the
+                    # forearm's, the cuff's edge squeezed to 0.29 as the wrist turned and folded 173)
+                    weights_fix={314: {'clavicle_l': 0.5, 'upperarm_l': 0.5},
+                                 **{v: {'thigh_r': 0.64, 'shin_r': 0.36} for v in (387, 389, 390)},
+                                 **{v: {'hand_l': 0.9, 'forearm_l': 0.1} for v in (464, 465, 466, 473)},
+                                 **{v: {'hand_r': 0.9, 'forearm_r': 0.1} for v in (478, 484, 492, 494)},
+                                 # (the throat under the jaw more the head's: at 0.39 the chin met it as he nodded)
+                                 74: {'head': 0.55, 'chest': 0.45},
+                                 # (the right shoulder's top beside the helmet, under the pauldron, less the head's: at
+                                 # 0.27 and 0.35 it turned over as the head and the arm moved together)
+                                 421: {'upperarm_r': 0.45, 'clavicle_r': 0.25, 'chest': 0.15, 'head': 0.15},
+                                 419: {'head': 0.25, 'upperarm_r': 0.4, 'clavicle_r': 0.25, 'chest': 0.1}},
                     # each hip's hem ring (the skirt's bottom, the thigh's top) turns as one: its triangles turned over as
                     # the leg rose; the backs of the knees and the left cuff's top (folded at the knees' and elbow's most)
                     ties=[[117, 135, 136, 138, 139, 173, 174, 175, 176], [123, 133, 134, 137, 140, 153, 154, 155, 158],
                           [101, 167, 399], [387, 389, 390], [470, 449, 469]],
-                    # the horns ride the head; each pauldron and its three spikes, each elbow's spike, its upper arm
-                    pieces={0: 'head', 17: 'head', 366: 'upperarm_r', 37: 'upperarm_r', 38: 'upperarm_r',
-                            39: 'upperarm_r', 34: 'upperarm_r', 367: 'upperarm_l', 36: 'upperarm_l', 40: 'upperarm_l',
-                            41: 'upperarm_l', 35: 'upperarm_l'},
+                    # the horns ride the head; each pauldron and its three spikes its clavicle (on the upper arm it
+                    # swung and twisted with every arm move, into the head and across the chest: on the girdle it rises
+                    # with the shoulder and the arm moves under it); each elbow's spike its upper arm
+                    pieces={0: 'head', 17: 'head', 366: 'clavicle_r', 37: 'clavicle_r', 38: 'clavicle_r',
+                            39: 'clavicle_r', 34: 'upperarm_r', 367: 'clavicle_l', 36: 'clavicle_l', 40: 'clavicle_l',
+                            41: 'clavicle_l', 35: 'upperarm_l'},
                     max_hops=3, weld_gun=False),
     'knight': dict(build='vrknight', models=['vrknight'], skeleton=KNIGHT_SKELETON,
                    gun=[334, 335, 336, 363, 364, 365, 524] + list(range(535, 541)) + list(range(557, 649)),
