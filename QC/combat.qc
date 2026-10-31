@@ -2021,6 +2021,7 @@ vector vr_parry_at;
 // Where the blow comes from (world; '0 0 0': unknown, the blow's way is used): set around VR_Parry_Blocks by callers
 // that know the attacker, for the muzzle's test.
 vector vr_parry_from;
+float vr_parry_old_hand; // VR_Parry's last blow: the hand the level-across rule found (-1 none; the tests)
 
 // The weapon in `p`'s `hand`, into vr_parry_butt .. vr_parry_end (FALSE: an empty hand): its line from the near end
 // to the far end, as the melee lays it out (VR_Melee_Line, vr_melee.qc; a gun carried by its pump too).
@@ -2586,6 +2587,28 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
     float hand = -1;
     vr_parry_from = attacker.origin;
     hand = VR_Parry_HandFor(targ, to);
+    vr_parry_old_hand = hand; // (the old rule's, the tests)
+    // The directional parry (vr_dirparry, experimental; vr_dirparry.qc): an armed humanoid's melee weapon swung at you is
+    // parried only by a weapon held across its blade's way, where they meet; that swing stopped already, nothing lands.
+    float drp = VR_DRP_Applies(attacker);
+    vr_drp_cut = 0;
+    if(drp)
+    {
+        if(VR_DRP_Done(attacker))
+        {
+            dprint(sprintf("dirparry: %s's swing already stopped: nothing lands\n", attacker.classname));
+            return 0;
+        }
+        hand = VR_DRP_Blow(targ, attacker, damage);
+        if(vr_drp_deferred)
+        {
+            vr_parry_from = '0 0 0';
+            v_forward = oldForward;
+            v_right = oldRight;
+            v_up = oldUp;
+            return 0; // (held back: its blade followed on, VR_DRP_Frame)
+        }
+    }
     if(hand < 0)
     {
         // Why not (developer 1): where the blow came from (0 ahead, 90 on the left) and how far.
@@ -2682,6 +2705,11 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
         v_right = oldRight;
         v_up = oldUp;
         float cut = armsCrossed ? cvar_hget(cvarh_vr_parry_unarmed_reduction) : cvar_hget(cvarh_vr_parry_reduction);
+        if(drp && hand >= 0)
+        {
+            VR_DRP_Effects(targ, attacker, hand); // (its own meeting: sparks there, the clang; all of it stopped)
+            cut = 1;
+        }
         return damage * (1 - min(1, max(0, cut)));
     }
     if(armsCrossed)
@@ -2723,7 +2751,14 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
             sound(self, VRGetHandChannel(hand), "vr/parry.wav", min(1, parrySound), ATTN_NORM);
             VR_SoundVaried(self, VRGetHandChannel(hand), "player/axhit2.wav", 0.35 * min(1, parrySound), ATTN_NORM);
         }
-        particle2(at, (to * -1 + '0 0 0.5') * 80, QVR_PARTICLE_PRESET_SPARKS, 24);
+        if(drp)
+        {
+            VR_DRP_Effects(targ, attacker, hand); // (the sparks where the two weapons met, the clang)
+        }
+        else
+        {
+            particle2(at, (to * -1 + '0 0 0.5') * 80, QVR_PARTICLE_PRESET_SPARKS, 24);
+        }
         haptic(hand, 0.0, 0.3, 90, 1.0);
         handimpact(hand, 5, to * -1);
 
@@ -2771,12 +2806,23 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
         }
         VR_Highlight_Parry(targ, attacker, hand);
         VR_Counter_Open(targ, hand);
-        damage = damage * (1 - min(1, max(0, cvar_hget(cvarh_vr_parry_reduction))));
+        damage = damage * (1 - min(1, max(0, drp ? 1 : cvar_hget(cvarh_vr_parry_reduction))));
+    }
+    else if(drp && !armsCrossed && vr_drp_cut > 0)
+    {
+        damage = damage * (1 - min(1, vr_drp_cut)); // (a partial directional parry: vr_dirparry_partial)
     }
 
     if(vr_parried)
     {
         VR_Parry_Interrupt(attacker, targ);
+        if(drp && hand >= 0 && attacker.vr_parry_stagger_until <= time && attacker.health > 0)
+        {
+            // (its swing stopped whatever the parry balance says: a flinch on its feet, the opening)
+            vr_parry_noragdoll = TRUE;
+            VR_Parry_InterruptFor(attacker, targ, min(3, max(0.05, cvar_hget(cvarh_vr_dirparry_opening))));
+            vr_parry_noragdoll = FALSE;
+        }
     }
     v_forward = oldForward;
     v_right = oldRight;
