@@ -411,7 +411,7 @@ bool drawnOf(edict_t* ent, Drawn& d, bool asDrawn)
     // its hit reactions), not its animation frame: a shot at its drawn arm meets that arm (ROUND23.md, "Armed humanoids:
     // shots and grip spheres from the drawn pose"). Not for `asDrawn` false (vertexPoint: the frame's own vertices, its
     // arms' inputs) nor vr_hitmodel_check's frame comparison.
-    else if(asDrawn && !checkNoLerp && drawnpose::armedMesh(ent, ragdollScratch.pos, &ragdollScratch.nor) &&
+    else if(asDrawn && !checkNoLerp && vr_hit_drawn_pose.value != 0.f && drawnpose::armedMesh(ent, ragdollScratch.pos, &ragdollScratch.nor) &&
         ragdollScratch.pos.size() >= static_cast<za::SizeT>(d.mesh->numverts))
     {
         d.skinned = ragdollScratch.pos.data();
