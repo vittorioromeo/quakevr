@@ -3091,42 +3091,36 @@ float vr_gore_sent; // gore hits sent (VR_Gore_Hit: the small gibs' tests count 
 
 float(entity e) VR_Gore_Bleeds =
 {
-    return (e.flags & (FL_MONSTER | FL_CLIENT)) && !VR_Dummy_Clean(e) && cvar_hget(cvarh_vr_gore) > 0;
+    return VR_Hit_TargetBleeds(e) && cvar_hget(cvarh_vr_gore) > 0;
 };
 
 // From T_DamageImpl, as `take` is taken: the blow's way from what hit (a shot's own, a missile's
 // flight, away from an explosion), and its kind (0 a shot or a missile, 1 a shotgun blast, 2 an
 // explosion's, 3 a hand's blow). Not for damage from the world (lava, slime, drowning, falls).
-void(entity targ, entity inflictor, float take) VR_Gore_Hit =
+void(entity targ, entity inflictor, entity attacker, float take) VR_Gore_Hit =
 {
-    if(take <= 0 || inflictor == world || !VR_Gore_Bleeds(targ) || VR_Hit_Bloodless())
+    if(take <= 0 || !VR_Gore_Bleeds(targ) || !VR_Hit_Bleeds(inflictor, attacker))
     {
         return;
     }
 
-    vector mid = (targ.absmin + targ.absmax) * 0.5;
-    vector org = mid;
-    vector dir = hit_dir;
     float kind = 0;
-    if(hit_kind == QVR_HITKIND_SPLASH)
+    if(VR_Hit_Blast(inflictor, attacker))
     {
         kind = 2;
-        dir = mid - inflictor.origin;
     }
-    else
+    else if(hit_kind == QVR_HITKIND_MELEE || hit_kind == QVR_HITKIND_HEADBUTT || hit_kind == QVR_HITKIND_BASH ||
+            hit_kind == QVR_HITKIND_SHOVE)
     {
-        if(hit_kind == QVR_HITKIND_MELEE || hit_kind == QVR_HITKIND_HEADBUTT || hit_kind == QVR_HITKIND_BASH ||
-           hit_kind == QVR_HITKIND_SHOVE)
-        {
-            kind = 3;
-        }
-        else if(VR_Hit_Pellets() > 1)
-        {
-            kind = 1;
-        }
-        org = VR_Hit_Point(targ, inflictor, 64, FALSE);
-        dir = VR_Hit_Way(targ, inflictor, dir);
+        kind = 3;
     }
+    else if(VR_Hit_Pellets() > 1)
+    {
+        kind = 1;
+    }
+    VR_Hit_Where(targ, inflictor, attacker, hit_dir); // (VR_Hit_Where: the one rule)
+    vector org = hit_where;
+    vector dir = hit_whereway;
     if(dir == '0 0 0')
     {
         return;

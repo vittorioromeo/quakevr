@@ -4329,27 +4329,32 @@ tree); agrunt_76, ragdoll_ragtest flaky; agrunt_65 and agarmor_5 FAIL -> PASS; c
 the new agrunt_78/90/92 fail as on next's runs; agrunt_79 (FAIL 21/1, "stalepose ... zone 0") passes here after the
 merge (22/0). No regression found.
 
-**Disagreements (kept as they were; his call):**
-1. Where (the record's point): the wounds and the gore take it within 64 units of the target's middle, the flinch 96.
-2. A missile's origin where it touched: the wounds and the flinch fall back to it, the gore to the middle.
-3. No way known: the wounds point down, the gore sends nothing, the flinch takes it from the attacker.
-4. A blast: the wounds at the blast's origin (splash or IsExplosionDamage), the gore at the middle (splash only), the
-   flinch at the box's point nearest it (splash only).
-5. None of the three checks the point is this target's (VR_Hit_On): another target's point this frame in reach counts.
-6. Gib speed: a knight's or a wizard's spike (not batted back) and Hipnotic's laser are heavy; the class, the small gibs
-   and the corpses call them pierce (nails).
-7. The knockdown's blow: a flung or thrown thing is blunt, a thrown axe too (the class: a blade); a blow with no hand
-   (hit_hand -1) is judged by the main hand's weapon, the class calls it blunt.
-8. Wounds: Rogue's buzzsaw a nail's wound (the class: a blade); a lava spike, a lavaball, a laser a burn (the class:
-   pierce or none); a monster's own blow a melee wound (the class: none), the shambler's from afar a zap.
-9. The discharge (the lightning gun under water): the corpses lightning (shock); the small gibs, the wounds and the gore
-   an explosion; the gib speed heavy.
-10. A stuck axe's bleeding: the corpses blades; the small gibs other; the gib speed light; the wounds none.
-11. Whether the hit bleeds: VR_Hit_Bleeds is the wounds' rule; the gore stops on the level's and bloodless hits only (a
-    burn not begun bloodless would bleed: none today), the small gibs on bloodless only (the level's damage tears them).
-12. Whether the target bleeds, three rules left as they are: VR_Gore_Bleeds (a monster or the player, not the clean dummy,
-    vr_gore), VR_SmallGib_Bleeds (not a gib or a statue, has a model, the player only with vr_smallgibs_player, corpses
-    too), VR_Wound_TakesHit (the clean dummy with its dents or streams on).
+**Disagreements: unified (his call 2026-11-01; part 5, below), each through the shared helper:**
+1. Where: one radius, 96, for the wounds, the gore and the flinch (`VR_Hit_Where`).
+2. A missile's origin where it touched: the fallback for all three (the gore too).
+3. No way known: from the attacker's middle for all three (else the inflictor's; the wounds then point down, the gore
+   sends nothing, as before).
+4. A blast (a splash or IsExplosionDamage, `VR_Hit_Blast`; not the discharge): the point of the box nearest the blast,
+   away from it, for all three.
+5. The point is this target's: only this target's record (`VR_Hit_On`: its zone's point, else the record's) counts
+   (a bug fix: another target's point this frame no longer does).
+6. Gib speed: a knight's or a wizard's spike and Hipnotic's laser are pierce, light (the class's; the exception gone).
+7. The knockdown's blow: the class decides (a thrown blade is a blade; a flung thing blunt); a blow with no recorded
+   hand is judged by the hand whose blow was priced (vr_mdmg_hand) if known, else the main hand.
+8. Wounds: Rogue's buzzsaw a nail's wound, lava spikes, lavaballs, lasers a burn, a monster's own blow a melee wound:
+   **kept (intended)**.
+9. The discharge (`VR_Hit_Discharge`): a shock everywhere (the corpses lightning, the small gibs "other" = lightning,
+   the wounds a zap, the gore a plain hit, not an explosion's; gib speed heavy as before).
+10. A stuck axe's bleeding: a blade everywhere (the small gibs' blades kind; the wounds a blade's melee wound, before
+    none; the corpses blades, gib speed light as before).
+11. Whether the hit bleeds: `VR_Hit_Bleeds` for the gore, the small gibs and the wounds (the gore now stops on a burn
+    too; the small gibs on the level's damage and a burn too).
+12. Whether the target bleeds: one rule, `VR_Hit_TargetBleeds` (combat.qc), the union of the three old ones'
+    exclusions. VR_Gore_Bleeds excluded: not a monster or a player, the clean dummy. VR_SmallGib_Bleeds: a gib, no
+    model, a statue (statgib knights), the clean dummy, not a monster/corpse/player. VR_Wound_TakesHit: not a monster
+    or a player, the clean dummy (its dents and streams kept, not blood). Now all three exclude all of those (the
+    gore and the wounds stop on gibs, model-less things and statues; nothing new bleeds). Settings stay each one's
+    (vr_gore, vr_smallgibs_player).
 
 **Left (next):** the impact table's VR_HIT_* from the class; VR_SmallGib_Where; a bone in the record; design review 10's
 shared constants and `QVR_FIELD`.
@@ -4360,6 +4365,23 @@ gore counts as before the step. eval.sh canary 36/44, full 163/171 (as before).
 
 **Test in VR:** wounds and blood on blades, punches, thrown things, shots and blasts; gibs' flight speed by weapon; a
 knockdown by a blade's and a blunt blow: all as before.
+
+### Part 5 (branch `agent/hitrecord5`; design review 6 and 10)
+
+**What (one commit each):**
+- **The impact table's kind from the class:** `VR_Hit_ShotKind(inflictor, attacker, else)` (a pierce: hitscan a
+  bullet, a projectile's a nail: VR_Hit_Hitscan / hit_proj) for TraceAttack and spawn_touchblood;
+  `VR_Hit_BlowKind` (blade: the clang, blunt: the bash) for a blow's metal sound (VR_Melee_HitSoundOn, a thrown box, a
+  slam, a thrown weapon). Elsewhere the kind is how it came (a blow's blood, a splash, a pellet on no flesh, the saw):
+  kept literal. Check (old vs new, `hitkind:`) over agarmor_1/5, nail_1, empty_melee, melee_phase, throw_spin: **0
+  mismatches**; removed. (Not covered there: a crowbar on an explosive box now knocks, the class calls it blunt.)
+- **Design review 10, the shared constants:** FTEQCC (with the build's flags) still fails on a global vector from
+  scalar #defines (`[X, Y, Z]`: some components `"5" - not a name`, reproduced in a two-line file), so qcConstants[]
+  (vr_agpose.cpp) keeps only the names and reads the QC's VR_AGP_* values from the loaded progs by name
+  (`progs::globalVec`); its allowlist entry is gone. `QVR_FIELD(name, owner)`: not done (left).
+- **Unification (his call 2026-11-01, "apply all your suggestions"):** the disagreement list above, all but 8, through
+  `VR_Hit_Where`, `VR_Hit_Blast`, `VR_Hit_Discharge`, `VR_Hit_Bleeds` and `VR_Hit_TargetBleeds` (combat.qc);
+  VR_Hit_Point and VR_Hit_Way are gone. Damage is untouched (effects only).
 
 ## Faster map loads, round 6: the smooth rigs at once (branch `agent/loadtime2`)
 

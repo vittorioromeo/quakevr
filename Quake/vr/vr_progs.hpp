@@ -325,6 +325,10 @@ inline bool callQc(func_t fn, float a = 0.f, float b = 0.f, float c = 0.f)
 [[nodiscard]] float staminaMax();
 [[nodiscard]] float staminaLeft(edict_t* p);
 
+// A QC global vector's value, by its name, from the loaded progs (the current VM's): false, `out` untouched, when there
+// is none. For the engine's reads of QC constants it must not copy (design review 10: vr_agpose.cpp's qcConstants[]).
+bool globalVec(const char* name, glm::vec3& out);
+
 inline void qcText(char* dst, size_t size, func_t fn, float a = 0.f)
 {
     const char* s = callQc(fn, a) ? PR_GetString(G_INT(OFS_RETURN)) : "";

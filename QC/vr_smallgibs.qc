@@ -513,19 +513,11 @@ void() VR_SmallGib_Think =
 // vr_smallgibs_player.
 float(entity targ) VR_SmallGib_Bleeds =
 {
-    if(targ.vr_gib || targ.model == string_null || VR_Dummy_Clean(targ))
+    if(!VR_Hit_TargetBleeds(targ))
     {
-        return FALSE;
+        return FALSE; // (the one target rule: a gib, no model, a statue, the clean dummy, not a monster nor a player)
     }
-    if((targ.th_die == knight_die || targ.th_die == hknight_die) && (targ.spawnflags & 2))
-    {
-        return FALSE; // a statue (statgib)
-    }
-    if(targ.flags & FL_CLIENT)
-    {
-        return cvar_hget(cvarh_vr_smallgibs_player) != 0;
-    }
-    return (targ.flags & FL_MONSTER) || targ.vr_corpse == 2;
+    return !(targ.flags & FL_CLIENT) || cvar_hget(cvarh_vr_smallgibs_player) != 0;
 };
 
 // `e`'s count multiplier: its monster's (vr_smallgibs_mult_<monster>, or vr_smallgibs_brains_mult_<monster> with
@@ -631,7 +623,11 @@ float(entity inflictor, entity attacker) VR_SmallGib_Kind =
     }
     if(k == QVR_HITKIND_SPLASH)
     {
-        return QVR_SGIB_EXPLOSIONS;
+        return VR_Hit_Discharge(inflictor, attacker) ? QVR_SGIB_OTHER : QVR_SGIB_EXPLOSIONS; // (the discharge: lightning)
+    }
+    if(k == QVR_HITKIND_BLEED)
+    {
+        return QVR_SGIB_BLADES; // a stuck blade's bleeding (his call 2026-11-01)
     }
     if(k == QVR_HITKIND_MELEE && hit_hand >= 0 && (attacker.flags & FL_CLIENT))
     {
@@ -1001,9 +997,9 @@ void(entity targ, entity inflictor, entity attacker, float xDamage) VR_SmallGib_
         vr_sgib_blastby = attacker;
         return;
     }
-    if(VR_Hit_Bloodless())
+    if(!VR_Hit_Bleeds(inflictor, attacker))
     {
-        return; // a slap, a shove or a bash tears nothing out (vr_melee_slap, combat.qc VR_Hit_Bloodless)
+        return; // a slap, a shove or a bash, a burn, the level's tear nothing out (vr_melee_slap, combat.qc VR_Hit_Bloodless)
     }
     vector at = hit_pos;
     if(hit_kind == QVR_HITKIND_MELEE && vr_sgib_at != '0 0 0')
