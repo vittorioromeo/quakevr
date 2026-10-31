@@ -198,6 +198,8 @@ Shove a sword grunt (AD) or a gun grunt to the ground: once it lies still, the v
 Standing tug on a grunt's or enforcer's shotgun, or a knight's sword: the arm holding the weapon is the one pulled, not its body.
 Tug with one hand, add the other, and win: the weapon lands in the hand you placed last.
 Knock an armed grunt down, grab its weapon and pull: its weapon, hand and arm follow your hand, and it pulls back; hold still and you feel it pulling; a steady pull tears the weapon out.
+Armed Knights on, Rig Studio, Subject: armed Knight with a shotgun, Aim: his left hand holds the fore-end, wrist straight, and Pose Keys shows the "left hand: grip offset" dot; drag it: the hand follows on the gun.
+Toolgun: an armed Knight with a nail pistol aims it in the pistol pose (off hand free or cupping), not shouldered as a rifle.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns
