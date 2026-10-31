@@ -619,7 +619,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
         }
         // A helmet takes half a headshot's extra off (the positional multiplier is in the damage already).
         float head = cvar_hget(cvarh_vr_headshot_mult);
-        if(p == VR_AR_HELMET && hit_zone == 1 && VR_AgArmor_On(targ, p) && cvar("vr_agarmor_helmet_head") &&
+        if(p == VR_AR_HELMET && VR_Hit_Zone(targ) == 1 && VR_AgArmor_On(targ, p) && cvar("vr_agarmor_helmet_head") &&
            cvar_hget(cvarh_vr_positional_damage) && head > 1)
         {
             damage = damage * (1 + (head - 1) * 0.5) / head;
