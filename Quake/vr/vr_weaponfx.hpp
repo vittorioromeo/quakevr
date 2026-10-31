@@ -31,7 +31,8 @@ void parseFired();
 void parseTracer();
 
 // The drawn hand `hand`'s recoil this frame (world units and degrees, as painknock::offset), `handAngles` the hand's
-// drawn angles (which way back is). Zero without one.
+// drawn angles (which way back is, and the gun's own axes: `angles`, added to them, turn the muzzle up and sideways
+// about the gun's right and up, so a rolled hand's rise follows the gun, not the world). Zero without one.
 void recoilOffset(int hand, const glm::vec3& handAngles, glm::vec3& pos, glm::vec3& angles);
 
 // The programmatic recoil's shares for a shot of `hand`'s weapon (slot `slot`) as it is held now: 1 in one hand; held

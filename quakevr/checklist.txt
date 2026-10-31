@@ -181,6 +181,8 @@ Fire the starter shotgun one-handed, then two-handed, and watch the gun through 
 Weapon Effects: the four Two-Handed sliders (Kick Back, Muzzle Rise, Return Time, Haptics) each change only their own part of a two-handed shot; your old Two-Handed Recoil value is on all four.
 Shoot a grunt with the nail pistol, the nailgun and the super nailgun: each nail dents its model and bleeds as a bullet does (no black burn marks); a lava nail (Dissolution of Eternity) still scorches and burns.
 Swing the heavy revolver out and load shells one at a time: each shell slides straight into the hole it ends up in (any chamber, cylinder turned or not), not towards the middle of the cylinder.
+Roll your wrist 90 degrees (gun on its side) and fire the shotgun or nailgun: the muzzle kicks toward the gun's top (sideways in the world), not toward the ceiling; at 45 degrees it kicks diagonally along the gun's top.
+Upright gun, one- and two-handed: the recoil feels the same as before.
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns
