@@ -3789,6 +3789,27 @@ and enforcer.mdl 28/7, knight 12/23, as before):
   Open: the armour's pauldron plates still ride the upper arms.
 - Tests with `vr_agrunt_test_kind 3`: 95 8/0, 1 17/0 (13/4 once under load: 4 guns 0 shots), 2 4/0, 20 3/0, 60 5/1
   (the ogre case, as before), 77 12/0, 99 38/0.
+- **Part 2: the pauldron plates follow the mesh pauldrons.** With his pauldrons on the clavicles they had left the upper
+  arm's plate region: his pauldron plates shrank to the arm's skin (outer vertices 112 -> 63 left, 82 -> 59 right) and
+  the mesh pauldrons went bare. `vr_agarmor.cpp` `girdleShells` (generic): a pauldron's region also takes every body
+  part (triangles joined to no other) wholly on the upper arm's parent bone with its middle nearer the shoulder than the
+  girdle's pivot; the plate there keeps those weights, so it rides the clavicle with the mesh pauldron, the arm's part
+  the arm (left plate: clavicle 0.53, upper arm 0.36). Shells: grunt fa858c7f, soldier a1488e62, enforcers 11cc98dc,
+  knight e21a7335 unchanged; death knight fd199a2c -> ee700e65 (origin/next's 1105fd08). `vr_agarmor_check` 20/0,
+  `vr_agarmor_test 7` 14/0, `1` 26/0. Shots (Rig Studio, right arm raised high and across the chest): before, his
+  plated pauldron swung up with the arm and across his chest; now it stays on the shoulder, the arm's plate moves.
+- **`vr_agarmor_test 7` never hung:** its lines are dprints and its verdict too: a run without `developer 1` prints
+  nothing and ends on its timeout. Always `developer 1;map vrtesthall;wait30;vr_agarmor_test 7`.
+- **`vr_agarmor_test 9` (new):** a knight and a death knight in full yellow killed (health 1, small blows), their
+  ragdolls awaited, then 3 s: both pauldrons still worn, each body within 48 units of where it died; then
+  `vr_ragdoll_speeds` / `vr_ragdoll_list` and "agarmor deaths over" (the run's -QuitOn). **6/0**; fastest part 270
+  (knight) / 332 (death knight) u/s, 20 parts each, no blow-up; eyeshot: the corpse's plates on.
+- **Open: Pose Keys, death knight + shotgun 6/5** (origin/next's rig 13/1; + sword 3/6). Bisected over rig variants
+  (`vr_rigdata_dir`): the knees, neck limits, cuffs, shoulder weights and pauldrons are innocent; **vertex 74's weight
+  alone** (the throat under the jaw: head 0.39 -> 0.55, part 1's neck fold fix) turns 13/1 into 6/5 (the left hand's
+  grip part never shown, the weapon's turn 23 deg for 20, the Pickup never settled). Something reads a bone frame from
+  the vertices' weights (a heaviest-vertex pick?); not fixed (budget): either find that reader or drop 74's change in
+  `make_rig2.py` (the neck+head fold may come back).
 
 
 ## Directional parry (experimental; branch `agent/dirparry`)
