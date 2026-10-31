@@ -1824,10 +1824,26 @@ void monsterTest_f()
     monsterFired(best, rocket);
 }
 
+// vr_recoil_2h_print: each hand's held weapon's two-handed recoil now (twoHandRecoil, what its next shot takes): how
+// much it is held in both hands (twohand::support), the hotspot grip's share of that, how the other hand helps (0 not,
+// 1 a hotspot, 2 anywhere: twohand::helpKind) and the four shares. One "recoil2h:" line per hand.
+void recoil2hPrint_f()
+{
+    for(int hand = 0; hand < HAND_COUNT; hand++)
+    {
+        const int slot = weapons::heldSlot(hand);
+        const TwoHandShares s = twoHandRecoil(hand, slot);
+        Con_Printf("recoil2h: %s slot %d support %.3f hotspot %.3f help %d shares %.3f %.3f %.3f %.3f\n",
+            hand == HAND_MAIN ? "main" : "off", slot, twohand::support(hand), twohand::transition(hand),
+            twohand::helpKind(1 - hand), s.kick, s.rise, s.time, s.haptic);
+    }
+}
+
 } // namespace
 
 void registerCommands()
 {
+    Cmd_AddCommand("vr_recoil_2h_print", recoil2hPrint_f);
     Cmd_AddCommand("vr_weaponfx_test", test_f);
     Cmd_AddCommand("vr_gunfx_monster_test", monsterTest_f);
     Cmd_AddCommand("vr_recoil_test", recoilTest_f);

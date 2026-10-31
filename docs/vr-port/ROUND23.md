@@ -3665,3 +3665,37 @@ Checklist:
   wrist straight, and Pose Keys shows the "left hand: grip offset" dot; drag it: the hand follows on the gun.
 - [knightpose] Toolgun: an armed Knight with a nail pistol aims it in the pistol pose (off hand free or cupping), not
   shouldered as a rifle.
+
+## Two-handed recoil for any grip on the gun (branch `agent/offhandrecoil`)
+
+His words: "Ensure that the 2H recoil reduction multipliers not only apply to the 2H aiming hotspots, but also when a
+gun is held by the off-hand on any arbitrary point."
+
+- The one input is `twohand::support(hand)` (read by `weaponfx::twoHandRecoil`: kick back, muzzle rise, return time,
+  haptic punch; and by the weight's two-handed share and bullet time's two-handed test): the other hand gripping the
+  gun at a hotspot (its aim transition) or anywhere on it (a free grip, `vr_weapon_grab_anywhere`, the carried
+  weapon's too), whichever is more. A free grip already counted while held, but dropped to one-handed the frame it was
+  let go of; now it eases out as a hotspot does (5 a second: two frames after letting go 0.861, shares 0.656 at
+  0.6), also for a carried weapon (applyCarried eases its `t` out; before, a let-go carried grip's `t` stayed).
+- Decisions: a grip anywhere counts fully, however far from the barrel or the handle (as asked: any point); a weapon
+  with Two-Handed: Not Allowed held anywhere still gets the reduction (the hand holds it; only its aim and the server's
+  two-hand state ignore that grip). A hand holding something (a shell, a magazine, a gun of its own: `held::handEmpty`)
+  never grips the gun, and a hand only touching it doesn't either: one-handed. Gripping a gun's seated magazine where
+  the magazine is its two-handed grip (nailguns, thunderbolt) is that gun's hotspot: two-handed, as before. A fist
+  within `vr_weapon_grab_anywhere_min` (12 cm) of the handle that isn't a cup hotspot holds nothing (the game doesn't
+  draw it on the gun): one-handed, unchanged.
+- Debug > Tests: "Print Two-Handed Recoil" (`vr_recoil_2h_print`): each hand's support, the hotspot's share of it, how
+  the other hand helps (0, 1 hotspot, 2 anywhere) and the four shares its next shot takes.
+- Test `Misc/quakevr/twohand/offhand_recoil_test.sh <agent>` (e1m1, the shotgun in the main hand; ends on its own
+  "recoil2h done"): one-handed 1; the hotspot gripped 0.6 x4; five free grips (the shotgun's top at 0.4-0.5 of its
+  length; the thunderbolt by its muzzle, 11.8 units from the handle) the hotspot's 0.6 x4, each easing out (0.861) and
+  back to 1 when let go; the off hand on the body not gripping, and holding a shell from the pouch on the body and on
+  the hotspot: 1. "offhandrecoil: 24 passed, 0 failed". The shotgun's own hotspot is generous (most of its length takes
+  it, 2.5-5 units off its point), so the free grips are where it isn't. `vr_recoil_test` 127/0, `vr_kickcancel_test`
+  79/0, `gunfx_test.py` 73/0.
+
+Checklist:
+- [offhandrecoil] Hold the shotgun (or any gun) and grip it with the off hand somewhere that is not its two-handed
+  hotspot (e.g. its top, near the muzzle): the shots kick as little as with the hotspot (Weapon Effects' Two-Handed
+  sliders); let go: the next shots kick one-handed again, the change smooth.
+- [offhandrecoil] Off hand holding a shell or magazine against the gun while firing: full one-handed kick.
