@@ -8,7 +8,11 @@
 // muzzles of both guns (VR_AG_DrawnMuzzle): within 14 units of its own (VR_ShotPlace may start it behind what
 // its muzzle is in) and nearer its own than the other's
 // (`agtest: muzzle <case>: <n> shots, right off <r> / other <o>, left off <l> / other <o>: PASS|FAIL`; a pair it can't
-// hold: SKIP). The run ends on `agtest: test 85 over: <p> passed, <f> failed`.
+// hold: SKIP). Every kind (ROUND23.md, "Knight two-pistol hold"): also an enforcer's, a knight's and a death knight's two
+// nail pistols, the knights' two shotguns; per case each gun's barrel as drawn against its pose (the server's), at rest
+// and aimed after the shots once the arms settle: within VR_AGMZ_BARREL degrees (`agtest: barrel <case>: ...`; a hand
+// whose grip is turned wrong for its kind draws its gun elsewhere, its wrist past vr_agarms_wrist_most). At the end
+// vr_agrunt_grip_fit prints the knights' grip fits. The run ends on `agtest: test 85 over: <p> passed, <f> failed`.
 
 .float vr_agmz_seen;  // an entity of the shooter's there before the shot
 float VR_AGMZ_N = 21;

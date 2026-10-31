@@ -64,10 +64,10 @@ struct FitRow
     float pitch, yaw, roll;
 };
 constexpr FitRow gripFits[] = {
-    {2, aggrip::Main, 0.f, 0.f, 0.f},
-    {2, aggrip::Off, 0.f, 0.f, 0.f},
-    {3, aggrip::Main, 0.f, 0.f, 0.f},
-    {3, aggrip::Off, 0.f, 0.f, 0.f},
+    {2, aggrip::Main, -10.4f, 106.5f, 66.0f},
+    {2, aggrip::Off, -27.8f, 89.6f, 127.3f},
+    {3, aggrip::Main, 32.1f, -80.3f, -92.9f},
+    {3, aggrip::Off, 38.8f, 163.8f, 160.4f},
 };
 
 // A weapon's own shipped grips (its weapon id: Weapon Offsets' ID), on top of its kind's "All Weapons" one; the Grip
