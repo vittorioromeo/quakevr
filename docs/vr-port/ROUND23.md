@@ -4074,6 +4074,47 @@ Checklist:
   hand.
 - [phases2] Leg grabs: pull one down by the shins and drag it by the legs (the hold firms up once it lies); the
   one-hand pull; lift one by the legs; tug and lift an enforcer by its worn backpack.
+
+## One mode for the active ragdoll (design review 8, stage 3 of 3; branch `agent/phases3`)
+
+The active ragdoll keeps its concurrent sub-machines (each its own `on`: a guard over a stagger, a fall or a get-up; a
+dismemberment and the env's hands in a death; a struggle in place of a lifted one's flail). Above them, `State::mode`
+(`Mode {Limp, Struggle, Stagger, Falling, Rising, Dying, Climbing, Swimming}`, vr_ragactive.hpp) says who leads, set
+where a machine begins or ends (`setMode`): beginDeath/Stagger/Fall/Rise, livingLedge (a climb), startSwim (every swim
+and the flail), beginStruggle (not over a swim: a lifted one's struggle stands in for the flail, the mode stays
+Swimming), and the ends (the fall's after landing, stopSwim back to the struggle or the death, endClimb, the struggle's
+stop, `struggleGivesWay` where another machine takes over, end()). `Falling` is added to the review's list (a fall
+leads its own limbs, as a stagger does); `Limp` is also "driven, nothing leading" (lying after its fall).
+
+The checks that asked other machines' flags now ask the mode: driveFrames (the dismemberment, the swim, the stagger, the
+ledge, the fall, the guard), driveReaches (who leads the env, the fall's grab, the stand-down's reason), the get-up's
+pose, the pin's offset (stumble, stagger, climb), keeping awake (`knockdown(mode)`: a stagger, fall, get-up or climb),
+the guard's end, beginLivingSwim/beginFlail's refusals, `swimming()`, `flailing()`, `climbing()`, `beginClimb`. Counted:
+22 pairwise gates before (one of them a six-flag list, another the four-way stand-down chain), none after; the flag reads
+in the ragactive files 88 -> 35 (what remains is each machine's own, or data: a death's crawl, the struggle's slack). The
+box3d side's ~30 reads are untouched (several run with the drive off, on flags left over from the last drive: the mode
+is Limp then, so they need their own look). No function was over 300 lines (the longest, climbFrame, 227); none split.
+
+Verified: stage A (the mode beside the flags; every gate computed both ways and a per-frame check of the mode against
+the one the flags imply, plus impossible combinations: two leaders, a cut without a death, a wet swim with a struggle,
+get-up or stagger) over ragdoll_stagger, _liquid_active, _climb, _ragtest, _grab, _guard and judo: every mode reached
+(falling 32 processes, limp 31, rising 27, stagger 17, dying 17, climbing 9, swimming 8, struggle 8), **no mismatch and
+no impossible combination**. Stage B (the gates switched, the shadow gone): the same verdicts as stage A (stagger 51/6
+and once 52/5 as in A's runs: its chance rates; ragtest 28/3 against A's 29/2 and 30/1: its known "NOT begun (its
+ragdoll not driven)" flake; climb 24/4, grab 19/0, guard 8/0, liquid 1/0, judo 12/4). No bench (no frame function got
+heavier: a byte compare replaces several flag reads).
+
+Not reached by the tests (by reading): the dismemberment's "killed in a stagger, then cut" cleanup (now: a cut while a
+knockdown's machine leads ends it, the mode Dying).
+
+Checklist:
+- [phases3] Shove a grunt: it staggers and recovers, or goes over (a fall: arms braced), lies a moment, gets up; punch at
+  its head mid-stagger (the guard: arms up). Kill one mid-stagger: limp.
+- [phases3] Knock one off a ledge: it grabs the lip, hangs, pulls itself up (or drops). Knock one into water: it swims
+  to where it can stand; kill one standing in water: it paddles weakly, then limp.
+- [phases3] Lift a living grunt: it struggles (in place of the flail); let go: it falls. Cut a limb off a dying one: the
+  hand to the stump, the writhe.
+
 ## Knight two-pistol hold: the knights' Main and Off grips (branch `agent/kngrip`)
 
 His ask: address knightpose's leftovers (kinds 2 and 3 had a Second grip row but no Main or Off). **Confirmed wrong.**

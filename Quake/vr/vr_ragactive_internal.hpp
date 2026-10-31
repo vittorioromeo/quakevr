@@ -89,10 +89,6 @@ void holdOn(State& s, const Parts& p, const Context& c, int arm, const glm::vec3
 [[nodiscard]] glm::vec3 shoulderOf(const State& s, const Parts& p, int arm);
 void livingLedge(State& s, const Parts& p, const Context& c);
 void struggleGivesWay(State& s);
-// Stage A's shadow (the mode beside the old flags): a gate's old answer against the mode's (a mismatch logged; the old
-// one returned), the mode against the one the flags imply and the flags' impossible combinations.
-bool gate(const State& s, const char* name, bool was, bool now);
-void shadowMode(const State& s, const char* where);
 
 // vr_ragactive_swim.cpp
 [[nodiscard]] SwimParts swimParts(const Parts& p);

@@ -602,8 +602,7 @@ bool beginLivingSwim(State& s, const Parts& p, const Context& c)
 {
     struggleGivesWay(s);
     if(!p.rig || !c.liquidAt || !liquidsOn() ||
-        gate(s, "livingSwim", s.swim.liquid != Liquid::None || s.rise.on || s.stagger.on,
-            s.on && (s.mode == Mode::Swimming || s.mode == Mode::Rising || s.mode == Mode::Stagger)))
+        (s.on && (s.mode == Mode::Swimming || s.mode == Mode::Rising || s.mode == Mode::Stagger)))
     {
         return false;
     }
@@ -653,13 +652,12 @@ void swimDies(State& s, double now)
 
 bool swimming(const State& s)
 {
-    return gate(s, "swimming", s.on && s.swim.liquid != Liquid::None, s.on && s.mode == Mode::Swimming);
+    return s.on && s.mode == Mode::Swimming;
 }
 
 bool beginFlail(State& s, const Parts& p, const Context& c)
 {
-    if(!p.rig || gate(s, "flail", s.swim.liquid != Liquid::None || s.rise.on || s.stagger.on,
-                     s.on && (s.mode == Mode::Swimming || s.mode == Mode::Rising || s.mode == Mode::Stagger)))
+    if(!p.rig || (s.on && (s.mode == Mode::Swimming || s.mode == Mode::Rising || s.mode == Mode::Stagger)))
     {
         return false;
     }
@@ -682,6 +680,6 @@ void endFlail(State& s, const Context& c)
 
 bool flailing(const State& s)
 {
-    return gate(s, "flailing", s.on && s.swim.liquid == Liquid::Air, s.on && s.mode == Mode::Swimming && s.swim.liquid == Liquid::Air);
+    return s.on && s.mode == Mode::Swimming && s.swim.liquid == Liquid::Air;
 }
 } // namespace qvr::ragactive

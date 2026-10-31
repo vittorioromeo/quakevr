@@ -477,11 +477,11 @@ void climbFrame(State& s, const Parts& p, const Context& c, float L)
 
 bool climbing(const State& s)
 {
-    return gate(s, "climbing", s.on && s.climb.on, s.on && s.mode == Mode::Climbing);
+    return s.on && s.mode == Mode::Climbing;
 }
 bool beginClimb(State& s, const Parts& p, const Context& c)
 {
-    if(!p.rig || gate(s, "beginClimb", s.death.on || s.climb.on, s.on && (s.mode == Mode::Dying || s.mode == Mode::Climbing)))
+    if(!p.rig || (s.on && (s.mode == Mode::Dying || s.mode == Mode::Climbing)))
     {
         return false;
     }
