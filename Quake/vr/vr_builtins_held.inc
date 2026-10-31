@@ -158,8 +158,8 @@ void PF_weapondrawnpose()
     }
     if(what >= 33 && what <= 35)
     {
-        // weapondrawnpose(p, 0, 33 / 34 / 35): weapon `p`'s drawn model along its forward (held::drawnExtent), in its own
-        // axes (forward, left, up) from its origin: 33 its back end's middle, 34 its front end's, 35 '<half its thickness>
+        // weapondrawnpose(p, 0, 33 / 34 / 35): weapon `p`'s drawn model along its long axis (held::drawnExtent), in its own
+        // axes (forward, left, up) from its origin: 33 its back end, 34 its front end, 35 '<its most off that line>
         // <its length> 0'; '0 0 0' (all): no drawn surface. QC VR_AG_WeaponLine: its disarm volumes the weapon's own size.
         glm::vec3 back{0.f}, front{0.f};
         float radius = 0.f;
@@ -168,7 +168,7 @@ void PF_weapondrawnpose()
             back = front = glm::vec3{0.f};
             radius = 0.f;
         }
-        progs::returnVec(what == 33 ? back : what == 34 ? front : glm::vec3{radius, front.x - back.x, 0.f});
+        progs::returnVec(what == 33 ? back : what == 34 ? front : glm::vec3{radius, glm::distance(front, back), 0.f});
         return;
     }
     if(what == 36)
@@ -293,7 +293,12 @@ void PF_weapondrawnpose()
         // class): posestudio::qcHold.
         const int arg = static_cast<int>(G_FLOAT(OFS_PARM1));
         glm::vec3 out{0.f};
-        if(what == 19)
+        if(what == 19 && arg < 0)
+        {
+            // (`hand` -1: the speed the studio plays `player`'s strike at, the Rig Studio's Swing; 1 for anything else)
+            out = glm::vec3{rigstudio::swingSpeed(NUM_FOR_EDICT(player)), 0.f, 0.f};
+        }
+        else if(what == 19)
         {
             out = posestudio::qcHold(NUM_FOR_EDICT(player), arg / 100, arg % 100);
             glm::vec3 studio;

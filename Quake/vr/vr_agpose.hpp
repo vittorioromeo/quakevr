@@ -191,6 +191,40 @@ enum LegPart : int
     return c >= 0 && c % 10 == 1 && (c / 10) % 100 == Pickup;
 }
 
+// The Pickup's arms (2026-10-31, agent/sharedpickup; ROUND23.md, "One shared Pickup pose"): one key per kind every weapon
+// class shares (its code on class 7, no class's), and a class's own Pickup key (its code as every key's) an override,
+// used only where one is set: archived or shipped (own row, else the followed kind's, fitted), unless its "no override"
+// mark (the class's Pickup phase 2, all zero: archived, or a shipped row of the kind's own) says to use the shared one.
+// get() and set() of a class's Pickup code take the shared key when the class has no override (QC, the studios: the same
+// codes as before); old archived per-class Pickup keys are overrides as they are.
+inline constexpr int sharedClass = VR_AGK_SHARED;
+[[nodiscard]] constexpr int sharedPickupCode(int kind)
+{
+    return code(kind, sharedClass, Pickup, 0);
+}
+[[nodiscard]] constexpr int noOverrideCode(int kind, int cls)
+{
+    return code(kind, cls, Pickup, 2);
+}
+[[nodiscard]] constexpr bool isSharedPickup(int c)
+{
+    return c >= 0 && classOf(c) == sharedClass && poseOf(c) == Pickup && phaseOf(c) == 0;
+}
+// A class's own Pickup code (an override's: phase 0 of a class).
+[[nodiscard]] constexpr bool isClassPickup(int c)
+{
+    return c >= 0 && isClass(classOf(c)) && poseOf(c) == Pickup && phaseOf(c) == 0;
+}
+[[nodiscard]] bool hasPickupOverride(int kind, int cls);
+// The code an edit of code `c` keeps: a class's Pickup with no override the shared key's; any other `c` itself.
+[[nodiscard]] int editTarget(int c);
+// Class `cls`'s Pickup made its own (starting as the shared key is now), or back on the shared key.
+void makePickupOverride(int kind, int cls);
+void removePickupOverride(int kind, int cls);
+// The Pose Studio's name of pose `pose` for kind `kind` and class `cls`: poseName, the Pickup's "Pickup (shared)" or
+// "Pickup (override)".
+[[nodiscard]] const char* poseTitle(int kind, int cls, int pose);
+
 // The kind whose shipped keys `kind` ships, fitted (itself when it has its own; the knights: the grunt's). The grip
 // offsets' Every Weapon rows follow it (vr_aggrip.cpp: a kind with no Main or Off row of its own ships that kind's, fitted).
 [[nodiscard]] int shippedKind(int kind);

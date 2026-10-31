@@ -19,7 +19,7 @@ Without --write the new blocks are printed for review; --write puts them into th
 cvars equal the defaults (the studio's set() drops an entry equal to its default the next time it stores one; Reset
 Pose / Reset Grips fall back to these); clearing them is his choice (vr_agrunt_poses ""; vr_agrunt_grips "").
 
-Usage: python Misc/quakevr/pose_defaults.py [--cfg quakevr/ironwail.cfg] [--done <Done file> ...] [--write]
+Usage: python Misc/quakevr/pose_defaults.py [--cfg quakevr/ironwail.cfg] [--done <Done file> ...] [--keep-pickup-overrides] [--write]
 """
 
 import argparse
@@ -34,7 +34,19 @@ TURN_PARTS = (1, 3, 6, 8)  # RTurn, LTurn, Torso, GripTurn: degrees (a tenth); t
 # (agpose::Class: 1 the rifle, the gun categories from 17; 10..16 never a class: an old-format enforcer code's digits)
 CLASSES = {0: "fists", 1: "a rifle", 2: "a one-handed melee weapon", 3: "a two-handed melee weapon", 4: "a chainsaw",
            5: "two melee weapons", 6: "two guns", 17: "a pistol", 18: "a shoulder launcher", 19: "a sprayer",
-           20: "the laser cannon", 21: "the Widowmaker"}
+           20: "the laser cannon", 21: "the Widowmaker", 7: "every weapon (the shared Pickup)"}
+# The Pickup (agent/sharedpickup; vr_agpose.hpp): class 7 each kind's shared key; a class's own Pickup row (phase 0) an
+# override, kept even all zero; its phase 2 row (all zero) a "no override" mark: archived, it drops the class's override
+# row, and ships only for a kind that follows another (SHIPPED_FROM) where that kind ships an override.
+SHARED_CLASS = 7
+
+
+def is_class_pickup(code):
+    return (code // 10) % 100 == 3 and code % 10 == 0 and (code // 1000) % 100 != SHARED_CLASS
+
+
+def is_no_override(code):
+    return (code // 10) % 100 == 3 and code % 10 == 2
 GUN_CLASSES = (1, 6, 17, 18, 19, 20, 21)
 KIND_STRIDE = 100000  # agpose::code: kind * 100000 + class * 1000 + pose * 10 + phase (before 2026-10-27 kind * 10000)
 KIND_NAMES = ["grunt", "enforcer", "knight", "death knight"]  # (agpose::kindName)
@@ -50,7 +62,7 @@ def fallback_nonzero(code, shipped):
     kind, within = code // KIND_STRIDE, code % KIND_STRIDE
     src = SHIPPED_FROM[kind] * KIND_STRIDE + within
     cls = (within // 1000) % 100
-    rifle = src - cls * 1000 + 1000 if cls in GUN_CATEGORIES else -1
+    rifle = src - cls * 1000 + 1000 if cls in GUN_CATEGORIES and (within // 10) % 100 != 3 else -1  # (no Pickup)
     cands = [src, rifle] if src != code else [rifle]
     return any(c in shipped and any(x != 0 for x in shipped[c]) for c in cands if c >= 0)
 
@@ -102,6 +114,8 @@ def pose_name(code):
         # (vr_aglegs: the pickup's legs, agpose::legCode: pelvis place, pelvis turn, planted foot, kneeling knee's pole,
         # kneeling foot, planted knee's pole; the same 21 numbers as any key)
         return "%s, the pickup's legs (any weapon)" % KIND_NAMES[kind]
+    if pose == 3 and phase == 2:
+        return "%s, %s, Pickup: no override (the shared key)" % (KIND_NAMES[kind], CLASSES.get(cls, "?"))
     name = POSES.get(pose, "?")
     if cls == 0 and pose == 0:
         name = "Idle"
@@ -187,7 +201,7 @@ def block(text, start_pat):
     sys.exit("pose_defaults.py: no block %r" % start_pat)
 
 
-def pose_block(src_lines, a, b, new):
+def pose_block(src_lines, a, b, new, keep_pickup_overrides=False):
     shipped = {}
     for line in src_lines[a:b]:
         m = POSE_ROW.match(line)
@@ -198,10 +212,23 @@ def pose_block(src_lines, a, b, new):
         shipped[c] = v
     # (an all-zero key drops its row, QC's pose as it is, unless the code would then ship another's: then the zero row
     # is kept, as the archived zero key replaced that)
-    for c in [c for c, v in new.items() if all(x == 0 for x in v)]:
+    for c in [c for c, v in new.items() if all(x == 0 for x in v) and not is_class_pickup(c)]:
         del shipped[c]
-        if fallback_nonzero(c, shipped):
+        if is_no_override(c):
+            # (the class back on the shared key: its own override row goes; the mark ships only over a followed kind's)
+            shipped.pop(c - 2, None)
+            if c // KIND_STRIDE != SHIPPED_FROM[c // KIND_STRIDE] and fallback_nonzero(c - 2, shipped):
+                shipped[c] = new[c]
+        elif fallback_nonzero(c, shipped):
             shipped[c] = new[c]
+    for c in [c for c in new if is_class_pickup(c) and c + 2 in shipped and c + 2 not in new]:
+        del shipped[c + 2]  # (an override set again: its old mark goes)
+    if not keep_pickup_overrides:
+        # (one Pickup per kind, his ask 2026-10-31: no class ships its own Pickup row or "no override" mark; the
+        # in-game override mechanism stays, and --keep-pickup-overrides ships his overrides again)
+        for c in [c for c in shipped if is_class_pickup(c) or is_no_override(c)]:
+            del shipped[c]
+            changed.add(c)
     out = []
     for c in sorted(shipped):
         out.append("    // %s" % pose_name(c))
@@ -272,6 +299,8 @@ def main():
     ap.add_argument("--done", nargs="*", default=[], help="Pose Studio Done files (agrunt_poses_*.txt, agrunt_grips_*.txt)")
     ap.add_argument("--src", default=src, help="the Quake/vr folder")
     ap.add_argument("--write", action="store_true", help="put the new rows into vr_agpose.cpp and vr_aggrip.cpp")
+    ap.add_argument("--keep-pickup-overrides", action="store_true",
+                    help="ship the classes' own Pickup rows (by default each kind ships its shared Pickup key only)")
     args = ap.parse_args()
     if not args.cfg and not args.done:
         ap.error("give --cfg and/or --done")
@@ -297,7 +326,7 @@ def main():
         grip_text = f.read()
 
     lines, a, b = block(pose_text, r"^constexpr ShippedRow shipped\[\] = \{")
-    rows, shipped, changed = pose_block(lines, a, b, poses)
+    rows, shipped, changed = pose_block(lines, a, b, poses, args.keep_pickup_overrides)
     pose_text = "\n".join(lines[:a] + rows + lines[b:])
     lines, a, b = block(pose_text, r"^constexpr StretchRow shippedStretch\[\] = \{")
     srows, schanged = stretch_block(lines, a, b, stretch)

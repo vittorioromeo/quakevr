@@ -270,7 +270,7 @@ void checklistUndo()
 
     za::Vector<Item> items = {
         info(checklistSummary),
-        toggle("Hide Ticked", vr_checklist_hide_ticked).help("Leaves the passed items out of the list. Off: every item, the passed ones dimmed."),
+        row(opt::vr_checklist_hide_ticked),
         action("Reload List", checklistReload)
             .help("Reads quakevr/checklist.txt again (done by itself too when the file changes). Passes and fails are "
                   "kept by each item's text, in quakevr/checklist_ticks.txt."),

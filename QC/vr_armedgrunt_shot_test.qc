@@ -31,9 +31,10 @@ entity vr_agst_g;
 entity vr_agst_right;   // dual: its right hand's weapon at the trial's start
 float vr_agst_rate0;    // shotgun 2 m: its rate, its health lost a trial
 float vr_agst_loss0;
-float vr_agst_small;    // size 0.5's rate (15 m)
+float vr_agst_small;    // volumes -1's rate (15 m)
 float vr_agst_keep_parts;
-float vr_agst_keep_size;
+float vr_agst_keep_size; // vr_agrunt_vol_shot_weapon as it was
+float vr_agst_keep_hand; // vr_agrunt_vol_shot_hand as it was
 float vr_agst_keep_absorb;
 float vr_agst_keep_disarm;
 
@@ -64,7 +65,8 @@ float(float c) VR_AGST_Setup =
     vr_agst_aim = 0;
     vr_agst_dual = FALSE;
     cvar_set("vr_agrunt_shotdisarm_parts", ftos(vr_agst_keep_parts));
-    cvar_set("vr_agrunt_shotdisarm_size", ftos(vr_agst_keep_size));
+    cvar_set("vr_agrunt_vol_shot_weapon", ftos(vr_agst_keep_size));
+    cvar_set("vr_agrunt_vol_shot_hand", ftos(vr_agst_keep_hand));
     cvar_set("vr_agrunt_shotdisarm_block", "0"); // (the cases as measured: on into the body; case 14 stopped)
     if(c == 0) { vr_agst_name = "shotgun 2 m on the gun"; return TRUE; }
     if(c == 1) { vr_agst_name = "shotgun 5 m on the gun"; vr_agst_dist = 160; return TRUE; }
@@ -98,16 +100,18 @@ float(float c) VR_AGST_Setup =
     }
     if(c == 12)
     {
-        vr_agst_name = "size 0.5: shotgun 15 m on the gun";
+        vr_agst_name = "volumes -1: shotgun 15 m on the gun";
         vr_agst_dist = 480;
-        cvar_set("vr_agrunt_shotdisarm_size", "0.5");
+        cvar_set("vr_agrunt_vol_shot_weapon", "-1");
+        cvar_set("vr_agrunt_vol_shot_hand", "-1");
         return TRUE;
     }
     if(c == 13)
     {
-        vr_agst_name = "size 2: shotgun 15 m on the gun";
+        vr_agst_name = "volumes +3: shotgun 15 m on the gun";
         vr_agst_dist = 480;
-        cvar_set("vr_agrunt_shotdisarm_size", "2");
+        cvar_set("vr_agrunt_vol_shot_weapon", "3");
+        cvar_set("vr_agrunt_vol_shot_hand", "3");
         return TRUE;
     }
     if(c == 14)
@@ -213,7 +217,7 @@ void() VR_AGST_Report =
     if(c == 9) { VR_AGST_Check("hand only, the muzzle end: 0.05 at most:", rate <= 0.05); }
     if(c == 10) { VR_AGST_Check("hand only, the forearm: over 0.2:", rate > 0.2); }
     if(c == 12) { vr_agst_small = rate; }
-    if(c == 13) { VR_AGST_Check(sprintf("size 2 over size 0.5 (%.2f):", vr_agst_small), rate > vr_agst_small); }
+    if(c == 13) { VR_AGST_Check(sprintf("volumes +3 over -1 (%.2f):", vr_agst_small), rate > vr_agst_small); }
     if(c == 14)
     {
         VR_AGST_Check(sprintf("absorb: pellets stopped, no more health lost than passing through (%.1f):", vr_agst_loss0),
@@ -232,7 +236,8 @@ void(float t) VR_AGS_TestFrame =
         if(vr_agst_case == 0)
         {
             vr_agst_keep_parts = cvar("vr_agrunt_shotdisarm_parts");
-            vr_agst_keep_size = cvar("vr_agrunt_shotdisarm_size");
+            vr_agst_keep_size = cvar("vr_agrunt_vol_shot_weapon");
+            vr_agst_keep_hand = cvar("vr_agrunt_vol_shot_hand");
             vr_agst_keep_absorb = cvar("vr_agrunt_shotdisarm_block");
             vr_agst_keep_disarm = cvar("vr_agrunt_fall_drop");
             cvar_set("vr_agrunt_fall_drop", "0"); // (only its shots: not a knockdown's drop)

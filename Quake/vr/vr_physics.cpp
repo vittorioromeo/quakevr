@@ -9,6 +9,7 @@
 #include "vr_trace.hpp"
 #include "vr_climb.hpp"
 #include "vr_cvars.hpp"
+#include "vr_disarmhull.hpp"
 #include "vr_engine.hpp"
 #include "vr_grab.hpp"
 #include "vr_physics.hpp"
@@ -180,6 +181,21 @@ constexpr float sweepFarthest = 32.f; // units
     return d - 360.f * za::floor((d + 180.f) / 360.f);
 }
 
+// The fist (armedFist) against an armed monster's weapon: its volume, the hull of its drawn triangles where it is drawn
+// (disarmhull::weapon; the same hull a shot, a strike and a body blow read), the gap of the nearest of the fist's spheres
+// (inside it: under 0); done as soon as one is `stopAt` near. No hull (nothing drawn): its triangles at the server's place
+// (held::fistGap). `surface` false: nothing to measure.
+[[nodiscard]] float armedFistGap(edict_t* weapon, float within, float stopAt, bool& surface)
+{
+    surface = true;
+    disarmhull::Placed placed;
+    if(disarmhull::weapon(weapon, placed))
+    {
+        return disarmhull::spheresGap(placed, armedFist, 0.f, stopAt);
+    }
+    return held::fistGap(weapon, armedFist, within, surface, stopAt);
+}
+
 [[nodiscard]] float sweptFistGap(edict_t* target, float allowed)
 {
     const FieldOffsets& fo = f();
@@ -190,6 +206,46 @@ constexpr float sweepFarthest = 32.f; // units
     const int frames = za::min(za::min(static_cast<int>(vr_agrunt_grab_sweep.value), 2),
         static_cast<int>(fieldFloatOr(target, fo.vr_ag_was_n, 0.f)));
     const glm::vec3 keepO = vec(target->v.origin), keepA = vec(target->v.angles);
+    // (the drawn hull carried back by the server's own moves since: drawn = now's server place * offset, then = its place
+    // then * the same offset)
+    disarmhull::Placed now;
+    if(disarmhull::weapon(target, now))
+    {
+        const glm::mat3 nowAxes = held::axesFromAngles(target->v.angles, false);
+        const glm::mat3 offAxes = glm::transpose(nowAxes) * now.axes;
+        const glm::vec3 offAt = glm::transpose(nowAxes) * (now.origin - keepO);
+        glm::vec3 prevO = keepO, prevA = keepA;
+        float best = ZA_FLOAT_MAX;
+        for(int k = 0; k < frames && best > allowed; k++)
+        {
+            const glm::vec3 o = fieldVec(target, k == 0 ? fo.vr_ag_was_o1 : fo.vr_ag_was_o2);
+            const glm::vec3 a = fieldVec(target, k == 0 ? fo.vr_ag_was_a1 : fo.vr_ag_was_a2);
+            if(glm::distance(o, prevO) > sweepFarthest)
+            {
+                break;
+            }
+            for(const float t : {0.5f, 1.f})
+            {
+                float at[3];
+                for(int i = 0; i < 3; i++)
+                {
+                    at[i] = prevA[i] + angleStep(a[i] - prevA[i]) * t;
+                }
+                const glm::mat3 thenAxes = held::axesFromAngles(at, false);
+                disarmhull::Placed then = now;
+                then.axes = thenAxes * offAxes;
+                then.origin = glm::mix(prevO, o, t) + thenAxes * offAt;
+                best = za::min(best, disarmhull::spheresGap(then, armedFist, 0.f, allowed));
+                if(best <= allowed)
+                {
+                    break;
+                }
+            }
+            prevO = o;
+            prevA = a;
+        }
+        return best;
+    }
     const auto place = [target](const glm::vec3& o, const glm::vec3& a) {
         for(int i = 0; i < 3; i++)
         {
@@ -366,7 +422,7 @@ struct TouchProvider
         bool surface = true;
         // (within: the tests' reading wants the gap a little way out too; a grab alone is done at the first sphere on it)
         float gap = za::min(999.f * m2u,
-            held::fistGap(target, armedFist, za::max(allowed, 0.25f * m2u), surface, reading ? -1e30f : allowed));
+            armedFistGap(target, za::max(allowed, 0.25f * m2u), reading ? -1e30f : allowed, surface));
         if(!surface)
         {
             return TouchAnswer::No; // (no surface to measure)
@@ -1386,7 +1442,7 @@ float armedGrabGap(edict_t* weapon, edict_t* player, int hand, float& allowed, b
     held::fistInWorld(hand, fieldVec(player, hand == 0 ? f().offhandpos : f().handpos),
         fieldVec(player, hand == 0 ? f().offhandrot : f().handrot), armedFist);
     bool surface = true;
-    float gap = held::fistGap(weapon, armedFist, za::max(allowed, 0.25f * m2u), surface);
+    float gap = armedFistGap(weapon, za::max(allowed, 0.25f * m2u), -1e30f, surface);
     if(!surface)
     {
         return ZA_FLOAT_MAX;
