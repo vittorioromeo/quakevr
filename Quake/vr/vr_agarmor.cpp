@@ -60,8 +60,10 @@ struct Wearer
     const char* model;
     float backCut;
 };
+// The armed knight and death knight (vr_agknight, vr_agdknight: their swordless models on their authored rigs) wear it
+// too: every piece found on their own rigs' bones and skin weights as the grunt's are; nothing on their backs to cut round.
 constexpr Wearer wearers[] = {{"progs/vrgrunt.mdl", -1e9f}, {"progs/soldier.mdl", -1e9f}, {"progs/vrenforcer.mdl", -10.5f},
-    {"progs/enforcer.mdl", -10.5f}};
+    {"progs/enforcer.mdl", -10.5f}, {"progs/vrknight.mdl", -1e9f}, {"progs/vrhknight.mdl", -1e9f}};
 
 // The atlas (make_agarmor.py's REGIONS): texels of its 256 x 128 skins.
 struct Block
@@ -192,6 +194,7 @@ struct PieceFrame
     glm::vec3 origin{0.f}, up{0.f, 0.f, 1.f}, fwd{1.f, 0.f, 0.f}, left{0.f, 1.f, 0.f};
     float length{1.f};
     float backCut{-1e9f}; // (the cuirass: nothing behind this model x; Wearer::backCut)
+    float cut{0.5f};      // (its region: the vertices weighing more than this on its bones; regionCut)
     bool ok{false};
 };
 
@@ -269,8 +272,26 @@ struct PieceFrame
         region += ((f.bones >> static_cast<unsigned>(i)) & 1u) ? w.w[i] : 0.f;
     }
     // (behind the back's cut: out, linear in x so the crossing lands on the cut)
-    const float field = za::min(region - 0.5f, (at(b.p, v).x - f.backCut) * 0.25f);
+    const float field = za::min(region - f.cut, (at(b.p, v).x - f.backCut) * 0.25f);
     return za::abs(field) < 1e-4f ? 1e-4f : field;
+}
+
+// The weight a region's vertices weigh past: half, or for a bone no vertex weighs half on (the armed knight's right
+// upper arm, 0.38 at most: his rest pose's raised sword arm shared with his chest and forearm) 0.8 of its most, so its
+// plate covers where it weighs most rather than nothing.
+[[nodiscard]] float regionCut(const za::Vector<W>& w, uint32_t bones)
+{
+    float most = 0.f;
+    for(const W& x : w)
+    {
+        float region = 0.f;
+        for(int i = 0; i < rig2::maxBones; i++)
+        {
+            region += ((bones >> static_cast<unsigned>(i)) & 1u) ? x.w[i] : 0.f;
+        }
+        most = za::max(most, region);
+    }
+    return most >= 0.55f ? 0.5f : 0.8f * most;
 }
 
 // ---- The shell ----
@@ -343,6 +364,42 @@ void clipPiece(const Body& b, const PieceFrame& f, Local& L)
             L.tris.pushBack(poly[k]);
             L.tris.pushBack(poly[k + 1]);
         }
+    }
+    {
+        // (a surface whose every edge is one or two triangles': the knights' meshes have edges three triangles share
+        // (the death knight's skirt over his body, the knight's tabard) and triangles over others, which left the shells'
+        // layers and rims not closed; a triangle that would make an edge's third, or that repeats a vertex, is dropped)
+        za::Vector<int> kept;
+        EdgeMap uses;
+        uses.init(count(L.tris));
+        for(int t = 0; t + 2 < count(L.tris); t += 3)
+        {
+            const int a = at(L.tris, t), b = at(L.tris, t + 1), c = at(L.tris, t + 2);
+            if(a == b || b == c || c == a)
+            {
+                continue;
+            }
+            bool fresh[3] = {false, false, false};
+            int* n[3] = {&uses.get(a, b, fresh[0]), &uses.get(b, c, fresh[1]), &uses.get(c, a, fresh[2])};
+            bool full = false;
+            for(int k = 0; k < 3; k++)
+            {
+                *n[k] = fresh[k] ? 0 : *n[k];
+                full = full || *n[k] >= 2;
+            }
+            if(full)
+            {
+                continue;
+            }
+            for(int k = 0; k < 3; k++)
+            {
+                (*n[k])++;
+            }
+            kept.pushBack(a);
+            kept.pushBack(b);
+            kept.pushBack(c);
+        }
+        L.tris = ZA_MOVE(kept);
     }
     // Only its big parts (a stray patch of weight elsewhere dropped): components by shared vertices.
     const int nt = count(L.tris) / 3, lv = count(L.p);
@@ -758,6 +815,10 @@ void helmetOf(Shell& s, const Body& b, const PieceFrame& f, int headBone)
     const float gap = za::max(vr_agarmor_helmet_gap.value, 0.f), thick = za::max(vr_agarmor_helmet_thick.value, 0.05f);
     const float L = f.length;
     constexpr float root2 = 1.41421356f;
+    // (the head proper: up to this much of the head bone's length above its pivot and to its sides; the grunt's and the
+    // enforcer's heads are inside it (crown 1.02; sides 0.6, the enforcer's collar under its guards to 0.75), the death
+    // knight's horns are not)
+    constexpr float headTop = 1.06f, headSide = 0.75f;
     // The head: its surface where it is weighted to it (its neck's top too; points across each triangle, the low-poly
     // head's big triangles having no vertices between its crown and its jaw), in its frame, |y| (the helmet is symmetric).
     za::Vector<glm::vec3> pts;
@@ -782,9 +843,13 @@ void helmetOf(Shell& s, const Body& b, const PieceFrame& f, int headBone)
                 {
                     continue;
                 }
-                ptW.pushBack(wp);
                 const glm::vec3 q = at(b.p, i0) * bw + at(b.p, i1) * bu + at(b.p, i2) * bv - f.origin;
                 const glm::vec3 h{glm::dot(q, f.fwd), za::abs(glm::dot(q, f.left)), glm::dot(q, f.up)};
+                if(h.z > headTop * L || h.y > headSide * L)
+                {
+                    continue; // (past the head proper: the death knight's horns, rigid on his head, not under the helmet)
+                }
+                ptW.pushBack(wp);
                 pts.pushBack(h);
                 top = za::max(top, h.z);
             }
@@ -1053,6 +1118,7 @@ bool buildShell(qmodel_t* src, Shell& s)
     {
         PieceFrame f = frameOf(*rig, piece);
         f.backCut = backCutOf(src->name, piece);
+        f.cut = regionCut(s.body.w, f.bones);
         const int firstVert = count(s.verts), firstTri = count(s.tris);
         if(f.ok && piece == Helmet)
         {
@@ -1775,13 +1841,14 @@ struct PlateFrame
 [[nodiscard]] PlateFrame frameOnBone(const Shell& s, int bone, PlateFrame pf)
 {
     const Body& b = s.body;
+    const float cut = regionCut(b.w, 1u << static_cast<unsigned>(bone));
     int a = -1, c = -1, d = -1;
     float best = 1e9f;
     for(int v = 0; v < count(b.p); v++)
     {
         const float dist = glm::length(at(b.p, v) - pf.mid);
-        a = at(b.w, v).w[bone] > 0.5f && dist < best ? v : a;
-        best = at(b.w, v).w[bone] > 0.5f && dist < best ? dist : best;
+        a = at(b.w, v).w[bone] > cut && dist < best ? v : a;
+        best = at(b.w, v).w[bone] > cut && dist < best ? dist : best;
     }
     if(a < 0)
     {
@@ -1791,8 +1858,8 @@ struct PlateFrame
     for(int v = 0; v < count(b.p); v++)
     {
         const float dist = glm::length(at(b.p, v) - at(b.p, a));
-        c = at(b.w, v).w[bone] > 0.5f && dist > best ? v : c;
-        best = at(b.w, v).w[bone] > 0.5f && dist > best ? dist : best;
+        c = at(b.w, v).w[bone] > cut && dist > best ? v : c;
+        best = at(b.w, v).w[bone] > cut && dist > best ? dist : best;
     }
     best = -1.f;
     const glm::vec3 axis = geom::safeNormalize(at(b.p, c) - at(b.p, a), glm::vec3{1.f, 0.f, 0.f}, 1e-6f);
@@ -1800,8 +1867,8 @@ struct PlateFrame
     {
         const glm::vec3 q = at(b.p, v) - at(b.p, a);
         const float dist = glm::length(q - axis * glm::dot(q, axis));
-        d = at(b.w, v).w[bone] > 0.5f && dist > best ? v : d;
-        best = at(b.w, v).w[bone] > 0.5f && dist > best ? dist : best;
+        d = at(b.w, v).w[bone] > cut && dist > best ? v : d;
+        best = at(b.w, v).w[bone] > cut && dist > best ? dist : best;
     }
     if(c < 0 || d < 0 || c == a || d == a || best < 0.5f)
     {

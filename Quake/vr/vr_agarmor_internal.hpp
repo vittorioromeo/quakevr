@@ -21,7 +21,7 @@ namespace qvr::agarmor::detail
 constexpr int maxSlots = 128; // the armour model's bones (each piece's bones its own)
 
 // The ones with authored rigs the check runs on (no argument).
-constexpr const char* checked[] = {"progs/vrgrunt.mdl", "progs/vrenforcer.mdl"};
+constexpr const char* checked[] = {"progs/vrgrunt.mdl", "progs/vrenforcer.mdl", "progs/vrknight.mdl", "progs/vrhknight.mdl"};
 
 constexpr const char* pieceNames[NumPieces] = {"cuirass", "helmet", "pauldron_l", "pauldron_r", "bracer_l", "bracer_r", "thigh_l",
     "thigh_r", "shin_l", "shin_r"};

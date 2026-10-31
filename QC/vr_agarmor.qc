@@ -157,9 +157,9 @@ void(float sk, vector at) VR_AgArmor_Roll =
 
 void(entity e) VR_AgArmor_Spawn =
 {
-    if(e.vr_ag_kind > 1 || deathmatch || vr_ar_hold_roll) // (VR_AM_GRUNT 0, VR_AM_ENFORCER 1: vr_armedmon.qc, compiled later)
+    if(e.vr_ag_kind > 3 || deathmatch || vr_ar_hold_roll) // (VR_AM_GRUNT 0, VR_AM_ENFORCER 1, VR_AM_KNIGHT 2, VR_AM_DKNIGHT 3: vr_armedmon.qc, compiled later)
     {
-        return; // (P2: the enforcer too, by the same chances: no free set)
+        return; // (P2: the enforcer too, by the same chances: no free set; the knights too (agent/dknight))
     }
     VR_AgArmor_Roll(skill, e.origin);
     if(vr_ar_roll_type > 0)
@@ -223,6 +223,32 @@ string(entity e, float i) VR_AgArmor_Model =
         if(i == 7) return "progs/vrenforcer.mdl#plate7";
         if(i == 8) return "progs/vrenforcer.mdl#plate8";
         return "progs/vrenforcer.mdl#plate9";
+    }
+    if(e.model == "progs/vrknight.mdl")
+    {
+        if(i == 0) return "progs/vrknight.mdl#plate0";
+        if(i == 1) return "progs/vrknight.mdl#plate1";
+        if(i == 2) return "progs/vrknight.mdl#plate2";
+        if(i == 3) return "progs/vrknight.mdl#plate3";
+        if(i == 4) return "progs/vrknight.mdl#plate4";
+        if(i == 5) return "progs/vrknight.mdl#plate5";
+        if(i == 6) return "progs/vrknight.mdl#plate6";
+        if(i == 7) return "progs/vrknight.mdl#plate7";
+        if(i == 8) return "progs/vrknight.mdl#plate8";
+        return "progs/vrknight.mdl#plate9";
+    }
+    if(e.model == "progs/vrhknight.mdl")
+    {
+        if(i == 0) return "progs/vrhknight.mdl#plate0";
+        if(i == 1) return "progs/vrhknight.mdl#plate1";
+        if(i == 2) return "progs/vrhknight.mdl#plate2";
+        if(i == 3) return "progs/vrhknight.mdl#plate3";
+        if(i == 4) return "progs/vrhknight.mdl#plate4";
+        if(i == 5) return "progs/vrhknight.mdl#plate5";
+        if(i == 6) return "progs/vrhknight.mdl#plate6";
+        if(i == 7) return "progs/vrhknight.mdl#plate7";
+        if(i == 8) return "progs/vrhknight.mdl#plate8";
+        return "progs/vrhknight.mdl#plate9";
     }
     if(e.model != "progs/vrgrunt.mdl") return "";
     if(i == 0) return "progs/vrgrunt.mdl#plate0";
