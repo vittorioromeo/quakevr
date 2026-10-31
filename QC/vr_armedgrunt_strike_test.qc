@@ -223,6 +223,15 @@ void(entity g, float c) VR_AGST_Strike =
         vector toBody = (g.absmin + g.absmax) * 0.5 - vr_ags_ha;
         toBody_z = 0;
         vector c11 = vr_ags_ha + normalize(vr_ags_hb - vr_ags_ha) * 6 - normalize(toBody) * 6;
+        // (where it lands: on its drawn hand, the middle of the hand's volume (disarmhull 21 / 22); the old point was 6
+        // units off the old hand line, within the old 10-unit grip sphere but off the drawn hand: Body Blows 0 wants the
+        // hand itself)
+        float hs = w.vr_ag_left ? 2 : 1;
+        vector hq = disarmhull(g, hs, c11, c11, 0);
+        if(hq_z > 0)
+        {
+            c11 = disarmhull(g, hs + 20, '0 0 0', '0 0 0', 0);
+        }
         entity t2 = VR_AGPT_Weapon(WID_NAILGUN, c11, FALSE);
         setorigin(t2, c11);
         t2.velocity = normalize(toBody) * -14 * VRMetersToUnits();
@@ -234,7 +243,8 @@ void(entity g, float c) VR_AGST_Strike =
         PositionalDamage(g, t2.origin, normalize(toBody));
         T_Damage(g, t2, p, 5);
         self = was;
-        extra = sprintf(", %g damage, %.1f kg", h0 - g.health, VR_Thrown_Mass(t2));
+        extra = sprintf(", %g damage, %.1f kg, aimed %.2f off its hand, struck %.2f off (hand hull %g)", h0 - g.health,
+            VR_Thrown_Mass(t2), VR_AG_BlowGap(g, w, c11), VR_AG_BlowGap(g, w, vr_hr_at), hq_z);
     }
     else
     {
