@@ -624,6 +624,16 @@ void write()
                : -1;
 }
 
+} // namespace
+
+int qvr::agpose::shippedKind(int kind)
+{
+    return kind >= 0 && kind < agpose::numKinds ? shippedFrom[kind] : kind;
+}
+
+namespace
+{
+
 // Code `code`'s shipped key: its row, else a gun category's rifle row; a kind that ships another's (shippedFrom: the
 // knight) that kind's, fitted.
 [[nodiscard]] bool shippedOf(int code, agpose::Key& out)

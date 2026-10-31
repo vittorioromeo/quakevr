@@ -178,6 +178,11 @@ bool ragdollGrip(const qmodel_t* model, int side, rigpose::Rigid& grip, int& bon
 bool handSkin(const qmodel_t* model, int side, const za::Vector<int>*& verts, const za::Vector<glm::vec3>*& rest,
     rigpose::Rigid& grip);
 
+// vr_agrunt_grip_fit: kind `kind`'s hand `side` at rest (its model's skin, made once one was drawn): its own frame (x
+// from the wrist to the hand's middle, y its elbow's hinge square to that) and its grip frame's turn (the rest weapon's),
+// model space. False: no such kind drawn yet.
+bool restHand(int kind, int side, glm::quat& hand, glm::quat& grip);
+
 // vr_agrunt_ik_err with vr_agarms 1: the arm numbers under vr_agrunt_ik_tag.
 void clearErr();
 void printErr();

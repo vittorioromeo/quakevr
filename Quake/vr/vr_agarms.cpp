@@ -97,6 +97,7 @@ struct Side
 struct Skin
 {
     const qmodel_t* model{nullptr};
+    int kind{-1}; // (its Spec's: restHand)
     bool ok{false};
     Side side[2];
     za::Vector<glm::vec4> row;   // each vertex's rest row (vr_agarms.hpp restRow, w set by it)
@@ -346,6 +347,7 @@ const Skin* skinOf(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll::
     Skin& m = *free;
     m = Skin{};
     m.model = model;
+    m.kind = spec.kind;
     mdldequant::prepare(model); // (its rest places as drawn: dequantised, whether or not it was uploaded yet)
     const int nv = hdr->numverts;
     if(rig.numVerts != nv || rig.numPoses != hdr->numposes || spec.chest < 0)
@@ -2190,6 +2192,24 @@ bool handSkin(const qmodel_t* model, int side, const za::Vector<int>*& verts, co
             grip = s.side[side].grip;
             return true;
         }
+    }
+    return false;
+}
+
+bool restHand(int kind, int side, glm::quat& hand, glm::quat& grip)
+{
+    for(const Skin& s : state.skins)
+    {
+        if(s.kind != kind || !s.ok || side < 0 || side > 1)
+        {
+            continue;
+        }
+        const Side& sd = s.side[side];
+        const glm::vec3 x = norm(sd.grip.pos - sd.W, glm::normalize(sd.W - sd.E));
+        const glm::vec3 y = norm(sd.hinge - x * glm::dot(sd.hinge, x), glm::vec3{0.f, 1.f, 0.f});
+        hand = glm::normalize(glm::quat_cast(glm::mat3{x, y, glm::cross(x, y)}));
+        grip = sd.grip.rot;
+        return true;
     }
     return false;
 }

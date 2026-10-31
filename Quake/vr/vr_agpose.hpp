@@ -191,6 +191,10 @@ enum LegPart : int
     return c >= 0 && c % 10 == 1 && (c / 10) % 100 == Pickup;
 }
 
+// The kind whose shipped keys `kind` ships, fitted (itself when it has its own; the knights: the grunt's). The grip
+// offsets' Every Weapon rows follow it (vr_aggrip.cpp: a kind with no Main or Off row of its own ships that kind's, fitted).
+[[nodiscard]] int shippedKind(int kind);
+
 // Key `code` now (the studio's preview, else the archived change, else the shipped key); false: none (all zero).
 bool get(int code, Key& out);
 [[nodiscard]] Key value(int code);
