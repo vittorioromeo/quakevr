@@ -1,6 +1,6 @@
 // vr_agarmor_shot_test.qc -- armour against real shots (vr_agarmor.qc; ROUND23.md, "Armour: the plate a shot meets").
 // `vr_agarmor_test 10`: Plate Blocks All (vr_agarmor_rule 1): an armed grunt, enforcer, knight and death knight (kinds
-// 0-3) ahead in full red, still; at every plate a line that meets the plate's outer face first (a MOVE_HITMODEL trace
+// 0-3) ahead in full red, still, one at a time; at every plate a line that meets the plate's outer face first (a MOVE_HITMODEL trace
 // from outside ends at it), and down that line each weapon in turn, fired for real by the player: a shotgun pellet, a
 // revolver's slug (FireBulletsImpl), a nail (launch_spike), a plasma bolt (launch_plasma), a rocket's direct hit
 // (VR_LaunchRocket). Each: no damage to the body, the plates took it. Ends on "agarmor shot test: N passed, M failed".
@@ -16,6 +16,10 @@ float vr_ars_until; // a give-up time (FAIL "timed out")
 float vr_ars_rule, vr_ars_dtime, vr_ars_pdmg; // put back after
 entity vr_ars_e0, vr_ars_e1, vr_ars_e2, vr_ars_e3;
 float vr_ars_n;       // test 10: the shot (body x 50 + piece x 5 + weapon)
+float vr_ars_kind;    // test 10: the kind standing now (vr_ars_e0; -1 none yet)
+vector vr_ars_org;    // test 10: where it stands
+float vr_ars_missed;  // test 10: projectiles that never met the body
+float vr_ars_react;   // test 10: vr_hit_react, put back after
 entity vr_ars_proj;   // its projectile in flight
 entity vr_ars_targ;   // whom it was aimed at
 float vr_ars_h0, vr_ars_hp0, vr_ars_m0; // its health, plates' pool and pieces before
@@ -71,7 +75,8 @@ vector(entity e, float i) VR_ARS_Line =
     for(k = 0; k < 6; k++)
     {
         vector out = k == 0 ? radial : k == 1 ? v_forward : k == 2 ? v_right : k == 3 ? -v_right : k == 4 ? '0 0 1' : -v_forward;
-        traceline(at + out * 48, at - out * 8, MOVE_HITMODEL, pl);
+        // (clear from 80 units out: a projectile's armour query reads its line from a frame's flight before its touch)
+        traceline(at + out * 80, at - out * 8, MOVE_HITMODEL, pl);
         if((trace_ent == e) && (vlen(trace_endpos - at) < 3.5))
         {
             return out;
@@ -93,14 +98,29 @@ void() VR_ARS_Judge =
     float took = vr_ars_h0 - e.health;
     float plates = vr_ars_hp0 - VR_ARS_Pool(e);
     float ok = (took <= 0) && ((plates > 0) || (e.vr_ar_mask != vr_ars_m0));
+    if(!ok && w >= 2 && took <= 0 && plates <= 0 && vr_proj_target != e)
+    {
+        // (a projectile that never met the body: its line grazed past a limb its plate stands off, the bolt has no
+        // tolerance: no leak, counted apart)
+        vr_ars_missed = vr_ars_missed + 1;
+        VR_Test_Print(sprintf("agarmor shot test: kind %g piece %g %s: missed the body (met %s)\n", b, i,
+            VR_ARS_WeaponName(w), vr_proj_target.classname));
+        return;
+    }
     if(!ok)
     {
         vr_ars_fails = vr_ars_fails + 1;
         VR_Test_Count(FALSE);
         string head = sprintf("agarmor shot test: FAIL kind %g piece %g %s: the body took %g, the plates %g (pieces %g -> %g;",
             b, i, VR_ARS_WeaponName(w), took, plates, vr_ars_m0, e.vr_ar_mask);
-        VR_Test_Print(sprintf("%s shot asked %g, its piece %g, %s at %v)\n", head, vr_ar_shots - vr_ars_shots0, vr_ar_shot_piece,
-            (vr_ar_shot_ent == e) ? "on it" : "elsewhere", vr_ar_shot_at - limbpiece(e, i, 14)));
+        head = sprintf("%s shot asked %g, its piece %g, %s at %v;", head, vr_ar_shots - vr_ars_shots0, vr_ar_shot_piece,
+            (vr_ar_shot_ent == e) ? "on it" : "elsewhere", vr_ar_shot_at - limbpiece(e, i, 14));
+        VR_Test_Print(sprintf("%s projectile met %s at %v;\n", head, vr_proj_target.classname,
+            vr_proj_at - limbpiece(e, i, 14)));
+        // (the plate asked again now from that point, and from its face's middle down the aimed line; how far along it)
+        VR_Test_Print(sprintf("agarmor shot test:   asked now %g, from the face %g; %g along the line)\n",
+            ragdollbone(e, vr_proj_at, QVR_ARMOR_SHOT, vr_proj_dir),
+            ragdollbone(e, limbpiece(e, i, 14), QVR_ARMOR_SHOT, vr_ars_dir), (vr_proj_at - limbpiece(e, i, 14)) * vr_ars_dir));
     }
     else
     {
@@ -115,7 +135,34 @@ float() VR_ARS_Fire =
     while(vr_ars_n < 200)
     {
         float b = floor(vr_ars_n / 50), i = floor(vr_ars_n / 5) - b * 10, w = vr_ars_n - floor(vr_ars_n / 5) * 5;
-        entity e = VR_ARS_Body(b);
+        if(b != vr_ars_kind)
+        {
+            // One body at a time (a lighter frame: before, all four stood there through every shot, and the test ran
+            // past its 1500 s timeout on a loaded machine): the last one gone, this kind spawned, its pose drawn first.
+            if(vr_ars_e0 != world && vr_ars_e0.modelindex != 0)
+            {
+                remove(vr_ars_e0);
+            }
+            vr_ars_e0 = VR_ART_SpawnKind(p, 0, b, b == 3 ? 180 : 160);
+            VR_ARS_Still(vr_ars_e0);
+            vr_ars_org = vr_ars_e0.origin;
+            vr_ars_kind = b;
+            vr_ars_proj = world; // (the last kind's last projectile, gone, is not this shot's)
+            return TRUE; // (no projectile: the next frame fires)
+        }
+        entity e = vr_ars_e0;
+        // (at rest: a blast's knockback carried it on between shots, and the next shot's line went to a plate that was no
+        // longer there by the time its projectile arrived; where it is now is where this shot's line is drawn to)
+        e.velocity = '0 0 0';
+        vr_ars_org = e.origin;
+        // (and the last shot's broken plates gone: one falling across the line took the next projectile)
+        entity deb = find(world, classname, "vr_ar_debris");
+        while(deb != world)
+        {
+            entity debNext = find(deb, classname, "vr_ar_debris");
+            remove(deb);
+            deb = debNext;
+        }
         VR_AgArmor_Give(e, 3, 1023);
         VR_ARS_Still(e);
         vector out = VR_ARS_Line(e, i);
@@ -130,12 +177,14 @@ float() VR_ARS_Fire =
             continue;
         }
         vector at = limbpiece(e, i, 14);
+        vr_ars_dir = -out;
         vr_ars_targ = e;
         vr_ars_h0 = e.health;
         vr_ars_hp0 = VR_ARS_Pool(e);
         vr_ars_m0 = e.vr_ar_mask;
         vr_ars_shots0 = vr_ar_shots;
         vr_ar_shot_ent = world;
+        vr_proj_target = world;
         vr_ars_proj = world;
         entity oldself = self;
         self = p;
@@ -145,17 +194,24 @@ float() VR_ARS_Fire =
             FireBulletsImpl(1, -out, '0 0 0', at + out * 48, 96, 0);
             vr_pellet_damage = vr_ars_pdmg;
         }
+        // (projectiles from 44 units out, past a monster's box as a missile meets it (15 units grown): a real shot's
+        // touch, short of the model, not one inside the box from its first move)
         else if(w == 2)
         {
-            vr_ars_proj = launch_spike(at + out * 24, -out);
+            vr_ars_proj = launch_spike(at + out * 44, -out);
         }
         else if(w == 3)
         {
-            vr_ars_proj = launch_plasma(at + out * 24, -out);
+            vr_ars_proj = launch_plasma(at + out * 44, -out);
+            // (its flight at once: PlasmaLaunch's 0.1 s at rest first let the line go stale)
+            entity launcher = self;
+            self = vr_ars_proj;
+            PlasmaLaunch();
+            self = launcher;
         }
         else
         {
-            vr_ars_proj = VR_LaunchRocket(p, at + out * 24, -out);
+            vr_ars_proj = VR_LaunchRocket(p, at + out * 44, -out);
         }
         self = oldself;
         vr_ars_until = time + 1;
@@ -178,6 +234,10 @@ void() VR_ARS_End =
     if(vr_ars_busy == 11)
     {
         cvar_set("vr_ragdoll_active", ftos(vr_ars_ragact));
+    }
+    if(vr_ars_busy == 10)
+    {
+        cvar_set("vr_hit_react", ftos(vr_ars_react));
     }
     float i;
     for(i = 0; i < 4; i++)
@@ -216,17 +276,15 @@ void(float request) VR_ARS_Frame =
         vr_ars_n = 0;
         vr_ars_fails = 0;
         vr_ars_noline = 0;
+        vr_ars_missed = 0;
         vr_ars_until = time + 8;
         if(request == 10)
         {
-            vr_ars_e0 = VR_ART_SpawnKind(p, -150, 0, 160);
-            vr_ars_e1 = VR_ART_SpawnKind(p, -50, 1, 160);
-            vr_ars_e2 = VR_ART_SpawnKind(p, 50, 2, 160);
-            vr_ars_e3 = VR_ART_SpawnKind(p, 150, 3, 180);
-            for(i = 0; i < 4; i++)
-            {
-                VR_ARS_Still(VR_ARS_Body(i));
-            }
+            vr_ars_kind = -1; // (VR_ARS_Fire spawns each kind in turn)
+            // (no flinch: a hit's kick moves the drawn pose, and so the plates, for half a second; the next shot's line,
+            // aimed at the plate where it was, met skin by the time its projectile arrived)
+            vr_ars_react = cvar("vr_hit_react");
+            cvar_set("vr_hit_react", "0");
         }
         else if(request == 11)
         {
@@ -271,6 +329,7 @@ void(float request) VR_ARS_Frame =
         VR_Test_Print(sprintf("agarmor shot test: %g shots, %g let damage through; %g plates with no clear line\n",
             vr_ars_n, vr_ars_fails, vr_ars_noline));
         VR_ART_Check(vr_ars_noline <= 4, sprintf("a clear line to most plates' faces (%g of 40 without)", vr_ars_noline));
+        VR_ART_Check(vr_ars_missed <= 12, sprintf("most projectiles met the body (%g missed)", vr_ars_missed));
         VR_ARS_End();
         return;
     }

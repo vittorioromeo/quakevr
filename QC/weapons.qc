@@ -1968,6 +1968,7 @@ float vr_proj_armed;   // a pop armed (VR_Proj_End ends it)
 float vr_proj_hits;    // VR_Proj_Begin's calls (the tests)
 
 float(entity targ, entity attacker, vector xAt, vector xDir, float xDamage, float xKind) VR_Decap_ProjArm; // (vr_limbs.qc)
+void(entity targ, vector from, vector dir) VR_AgArmor_Flight; // (vr_agarmor.qc)
 
 // `e`, a projectile just launched, marked one (its move meets corpses, gibs, knocked-down bodies: the engine's
 // VR_HitModelMoveFlags), for a small MOVETYPE_FLY one (AD's bolts, lasers and plasma) or a grenade.
@@ -2067,6 +2068,10 @@ void(float xKind, float xDamage) VR_Proj_Begin =
     VR_TouchTrace(self.origin - dir * 8, self.origin + dir * 8);
     vr_proj_target = other;
     vr_proj_at = trace_ent == other ? trace_endpos : self.origin;
+    // The armour's plate query reads its own flight line, from a frame's flight back (VR_AgArmor_Shot), not this touch
+    // point: a missile's box meets a monster's 15 units early (MOVE_MISSILE) and its touch trace a limb beside the line
+    // (the projectiles' tolerance), and a query from there missed the plate the line goes on to meet (test 10's leaks).
+    VR_AgArmor_Flight(other, self.origin - dir * (vlen(self.velocity) * frametime + 2), dir);
     vr_proj_dir = dir;
     vr_proj_factor = 1;
     vr_proj_armed = FALSE;

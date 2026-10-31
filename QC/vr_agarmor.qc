@@ -503,6 +503,22 @@ vector vr_ar_shot_at;
 float vr_ar_shot_piece;
 float vr_ar_shots; // the tests: shots asked about
 
+// A projectile's flight line (VR_Proj_Begin, before its hit asks here): the query reads the line from `from` (a frame's
+// flight back from where it touched `targ`), not from its touch point, short of the model or beside the line.
+entity vr_ar_fly_ent;
+float vr_ar_fly_time;
+vector vr_ar_fly_from;
+
+void(entity targ, vector from, vector dir) VR_AgArmor_Flight =
+{
+    vr_ar_fly_ent = targ;
+    vr_ar_fly_time = time;
+    vr_ar_fly_from = from;
+};
+
+float VR_AR_SHOT_BACK = 64; // units: how far before its point the engine's query starts (vr_agarmor.cpp shotBack)
+float VR_AR_SHOT_NEAR = 16; // units: a point this near the shot's (a nail's own origin at its touch) is the shot's
+
 void(entity targ, vector at, vector dir) VR_AgArmor_Shot =
 {
     vr_ar_shot_ent = world;
@@ -513,7 +529,17 @@ void(entity targ, vector at, vector dir) VR_AgArmor_Shot =
     vr_ar_shot_ent = targ;
     vr_ar_shot_time = time;
     vr_ar_shot_at = at;
-    vr_ar_shot_piece = ragdollbone(targ, at, QVR_ARMOR_SHOT, dir);
+    vector from = at;
+    vector way = normalize(dir);
+    float along = (at - vr_ar_fly_from) * way;
+    if(vr_ar_fly_ent == targ && vr_ar_fly_time == time && along >= 0 && along <= VR_AR_SHOT_BACK &&
+       vlen(at - (vr_ar_fly_from + way * along)) <= VR_AR_SHOT_NEAR)
+    {
+        // (a projectile's, each time its hit asks this frame (its touch's and its damage's): the query's line starts
+        // where it was a frame before, and runs on through the body to where that line first crosses the skin)
+        from = vr_ar_fly_from + way * VR_AR_SHOT_BACK;
+    }
+    vr_ar_shot_piece = ragdollbone(targ, from, QVR_ARMOR_SHOT, dir);
     vr_ar_shots = vr_ar_shots + 1;
 };
 
@@ -534,7 +560,6 @@ float(entity targ, vector at, vector dir) VR_AgArmor_PushScale =
     return max(0, cvar("vr_agarmor_impulse"));
 };
 
-float VR_AR_SHOT_NEAR = 16; // units: a point this near the shot's (a nail's own origin at its touch) is the shot's
 
 float(entity targ, vector at) VR_AgArmor_PieceAt =
 {

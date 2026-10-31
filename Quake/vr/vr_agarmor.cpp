@@ -2305,7 +2305,41 @@ int shotPiece(edict_t* ent, const float* p, const float* dir)
     const float skin = hitmodel::skinCrossing(ent, a, b);
     const glm::vec3 end = (skin >= 0.f ? a + (b - a) * skin : b) + d * shotPastSkin;
     float t = 1.f;
-    return plateOnSegment(ent, *s, a, end, mask, t);
+    const int piece = plateOnSegment(ent, *s, a, end, mask, t);
+    if(piece >= 0)
+    {
+        return piece;
+    }
+    // (none crossed: the line may run through a seam of a plate's own mesh, between its triangles (test 10's nails at a
+    // plate's face middle, a vertex, 0.002 units off a line that met it, met none): the same line nudged a twentieth of
+    // a unit four ways, the first plate any of them crosses)
+    const glm::vec3 side = geom::safeNormalize(glm::cross(d, za::abs(d.z) < 0.9f ? glm::vec3{0.f, 0.f, 1.f} : glm::vec3{1.f, 0.f, 0.f}),
+                                               glm::vec3{1.f, 0.f, 0.f}, 1e-6f);
+    const glm::vec3 up = glm::cross(side, d);
+    constexpr float nudge = 0.05f;
+    const glm::vec3 nudges[4] = {side * nudge, -side * nudge, up * nudge, -up * nudge};
+    int nudged = -1;
+    float nudgedT = 1.f;
+    for(const glm::vec3& n : nudges)
+    {
+        float tn = 1.f;
+        const int pn = plateOnSegment(ent, *s, a + n, end + n, mask, tn);
+        if(pn >= 0 && tn < nudgedT)
+        {
+            nudged = pn;
+            nudgedT = tn;
+        }
+    }
+    if(nudged >= 0 || skin < 0.f)
+    {
+        return nudged;
+    }
+    // (and the skin it reaches under a worn plate, within the plate's gap and thickness: that plate)
+    const glm::vec3 skinAt = a + (b - a) * skin;
+    const float reach = za::max(vr_agarmor_gap.value, 0.f) + za::max(vr_agarmor_thick.value, 0.05f) + 0.25f;
+    float nearD = reach;
+    const int under = plateNear(ent, *s, &skinAt.x, reach, nearD);
+    return under >= 0 && (mask & (1 << under)) ? under : -1;
 }
 
 void debugDraw()
