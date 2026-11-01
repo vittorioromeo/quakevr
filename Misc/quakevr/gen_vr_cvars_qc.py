@@ -19,6 +19,7 @@ import sys
 
 INC = "Quake/vr/vr_cvars.inc"
 TUNABLES = "Quake/vr/vr_tunables.inc"
+MONSTERS = "Quake/vr/vr_monsterdata.inc"
 HAND = "QC/vr_cvars.qc"
 OUT = "QC/vr_cvars_gen.qc"
 
@@ -46,6 +47,8 @@ def generate():
     inc = re.findall(r"^QVR_CVAR\((\w+),", open(INC, encoding="utf-8").read(), re.M)
     # the tuning constants too (cvar_hmake finds their stand-ins in a release build, their cvars in a tuning build)
     inc += re.findall(r"^QVR_TUNABLE\((\w+),", open(TUNABLES, encoding="utf-8").read(), re.M)
+    # and the monsters' per-class values (cvar_hmake finds their stand-ins by their old cvar names)
+    inc += re.findall(r"^QVR_MONSTER_VALUE\((\w+),", open(MONSTERS, encoding="utf-8").read(), re.M)
     used = used_handles()
     hand = hand_handles()
     names = []

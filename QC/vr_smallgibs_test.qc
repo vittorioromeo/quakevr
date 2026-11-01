@@ -644,8 +644,53 @@ void() VR_SmallGib_TestImpact =
     }
 };
 
+// vr_smallgibs_test 27: the per-enemy multipliers (quakevr/data/monsters.txt's smallgibs, smallgibs_brains: no cvars,
+// stand-ins by their old names; ROUND23.md "Monsters as data") as VR_SmallGib_Mult reads them through its cvar
+// handles: each one's default from the file, then a value set by its old name, then its default back.
+float vr_sgib_mtest_pass, vr_sgib_mtest_fail;
+
+void(entity xE, string xName, float xBrains, float xWant) VR_SmallGib_TestMultOne =
+{
+    float got = VR_SmallGib_Mult(xE, xBrains);
+    float ok = fabs(got - xWant) < 0.001;
+    vr_sgib_mtest_pass += ok;
+    vr_sgib_mtest_fail += !ok;
+    bprint(sprintf("sgibtest: mults: %s %s: %g (want %g)\n", xName, ok ? "PASS" : "FAIL", got, xWant));
+}
+
+void(entity xE, string xName, float xDefault) VR_SmallGib_TestMultName =
+{
+    float brains = strstrofs(xName, "_brains_", 0) >= 0;
+    VR_SmallGib_TestMultOne(xE, xName, brains, xDefault); // (monsters.txt's)
+    cvar_set(xName, "2.5");
+    VR_SmallGib_TestMultOne(xE, xName, brains, 2.5);
+    cvar_set(xName, ftos(xDefault));
+    VR_SmallGib_TestMultOne(xE, xName, brains, xDefault);
+}
+
+void() VR_SmallGib_TestMults =
+{
+    vr_sgib_mtest_pass = vr_sgib_mtest_fail = 0;
+    entity e = spawn();
+    e.th_die = army_die;
+    VR_SmallGib_TestMultName(e, "vr_smallgibs_mult_grunt", 1);
+    e.th_die = enf_die;
+    VR_SmallGib_TestMultName(e, "vr_smallgibs_brains_mult_enforcer", 1.25);
+    e.th_die = sham_die;
+    VR_SmallGib_TestMultName(e, "vr_smallgibs_brains_mult_shambler", 2);
+    e.th_die = ogre_die;
+    VR_SmallGib_TestMultName(e, "vr_smallgibs_mult_ogre", 1.5);
+    remove(e);
+    bprint(sprintf("sgibtest: mults: %d passed, %d failed\n", vr_sgib_mtest_pass, vr_sgib_mtest_fail));
+}
+
 void(float xCase) VR_SmallGib_TestStart =
 {
+    if(xCase == 27)
+    {
+        VR_SmallGib_TestMults();
+        return;
+    }
     vr_sgib_test = xCase;
     vr_sgib_test_step = 0;
     vr_sgib_test_t = time;
