@@ -4491,6 +4491,32 @@ His voice notes of 2026-10-31 ~19:55 (five items). Stopped at the tool budget; w
     lines within 45 degrees of it. Not verified: his game started mid-run (see the report).
   - **Show Armour Plates**: outer-face edges 0.35 units wide and opaque, inner face and rim 0.12 at 45% alpha (were all
     0.06).
+- **Part 5** (branch `agent/armorfix4`, test only; no game code changed):
+  - **Test 10's hang**: the player died. Forty rockets' blasts 160 units off took a few points each, he died by the
+    last kind (Death menu in the log), and the test, run from his frame, stopped with him: no verdict, the run's
+    timeout. Now he is in god mode for the test (put back after). It ends on its verdict in ~10 s wall (17 s of game
+    time): **187 passed, 0 failed** (twice); 3 of 40 plates without a clear line, 0 projectiles missed.
+  - A projectile that never lands gives up after 2 s and counts as a miss (was a FAIL after 1 s); one that meets
+    something else is a miss whatever its splash did; a shot is judged the frame after its touch (was: once a rocket's
+    explosion sprite was gone, by which time its knockback had carried the body 40-100 units: the "rockets touching
+    40-90 units from the aimed plate").
+  - **The rocket "leak" was the test aiming at a plate that had moved, not a rocket bug.** A rocket's direct hit already
+    takes the plate query along its flight line (`VR_Proj_Begin` -> `VR_AgArmor_Flight`, every projectile), and its
+    splash skips the body it hit (`T_RadiusDamage(..., other)`; `vr_ar_block_*` spares a body whose plate took the
+    hit, any inflictor). Traced with per-shot prints (the face's movement between firing and the touch): (1) a blast's
+    knockback lifted the body off the floor, and it sank half a unit while the next projectile flew; (2) the last shot's
+    hit swings the struck limb's drawn pose for some frames even with `vr_hit_react 0` (the knight's right pauldron 2
+    units by the touch of a nail fired the same frame as the revolver's hit); the query at the touch was right (no plate
+    there any more). The test now drops the body to the floor before each shot and fires only once the aimed plate's
+    face has stayed put for a frame (up to 1 s).
+  - Its lines: the face's normal, then tilted 25 and 40 degrees eight ways, then the old five, at the face's middle,
+    its 15% and 85% points (limbpiece 12, 13) and halfway to each; each must have no wall or floor on it (a line from
+    below a shin began under the floor and the nails met it: most of the old "missed") and meet that plate first by
+    the shots' own query along it and half a unit beside it four ways (`VR_ARS_Meets`). 20 of 40 plates had none with
+    the normal alone (a grunt's gun before its cuirass, an arm or leg before a limb plate).
+  - Tests 1 (26/0) and 11 (4/0) pass; test 11 with `vr_agarmor_debug 1` takes the flatscreen screenshot of the
+    ragdoll with the bold outlines.
+  - Open: what swings a struck limb's pose with `vr_hit_react 0` (a living armed humanoid's; not looked into).
 ## Directional parry 2: debug view, leniency settings, Enemy Melee Speed (branch `agent/dirparry2`)
 
 His words (10-31): a debug view for it, leniencies he can tweak, slowed enemy swings to practise with.
