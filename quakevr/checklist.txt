@@ -41,6 +41,10 @@ A glowing barrel lights your hand and nearby walls (Weapon Effects > Heat Light 
 A torch-heated axe's light and embers follow it exactly when turning with the stick.
 Show Disarm Volumes on a grunt with a gun: two cyan hulls, one on its hand, one on its forearm; none round its biceps. {test:agrunt_tug}
 Show Disarm Volumes, grab a grunt's gun and tug: the readout over the gun shows your pull vs its break force, the time kept, the impulse and your hand's distance vs let-go; as it ends, TUG WON / TUG LOST with the reason stays about 4 s. {test:agrunt_tug}
+Run straight at a grunt: you slow noticeably in the last metre or so and still reach its face; strafing past it stays at almost full speed (Locomotion > Close Quarters sliders). {test:agrunt_melee_spacing}
+Ghost Hands on: grabbing an enemy, a knocked-down or a dead body shows no ghost hand; a two-handed gun still shows it (Ghost Hands > No Ghost Holding Bodies).
+Feminine voice on: an armed grunt's punch or blade hit on you plays a feminine grunt.
+Smashing a ragdoll into a wall sounds louder, and limbs pop slightly sooner (Smash Volume 1.35, Impact Multiplier 1.15). {test:vr_ragsmash_test 1}
 
 [2. Armed humanoids: disarming and armour]
 Show Disarm Volumes: the wireframe hulls sit on each drawn weapon (magenta, orange, red; the sword's orange line along its blade) and on the drawn hand and forearm (cyan). {test:disarm_hulls_melee}
