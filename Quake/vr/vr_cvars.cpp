@@ -1285,6 +1285,14 @@ void saveConfigNow()
     {
         return;
     }
+    // Nor in the kit's test runs (QVR_TEST_BACKGROUND): their settings are the test's, written only at quit (and put back
+    // by the kit at once). A save mid-run wrote them into the worktree's config, which the parallel copies of other tests
+    // read at start-up (run.ps1 -Instance): a stuck run's Position: Seated left it there 18 minutes and raised every
+    // climb test's hands by 13 units (nightly 2026-11-01, prop_climb 2/10).
+    if(getenv("QVR_TEST_BACKGROUND") != nullptr)
+    {
+        return;
+    }
     int changed = 0;
     for(const auto& [name, value] : archivedSettings())
     {

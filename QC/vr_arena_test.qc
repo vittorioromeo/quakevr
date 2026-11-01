@@ -1450,6 +1450,11 @@ float AR_T6_WAVES = 32;      // waves the soak runs through
 float AR_T6_FROM  = 16;      // the wave its edicts are counted from (the map settled)
 float AR_T6_LEAK  = 1;       // edicts a wave may leave behind on top of its own drops, on average
 float AR_T6_DROPS = 5;       // a wave clear's drops at most (two medkits, an armour and two shards, at Normal)
+float AR_T6_SPAN  = 4;       // waves in each end's window: the growth is the late window's floor less the early one's
+                             // (the edicts at a wave's start, its drops left out, swing by +-30 with the gibs and limbs
+                             // of the moment: one count against one count failed a run with no leak, nightly 2026-11-01)
+float vr_at6_lo0;            // the fewest edicts (less the drops) in the early window (waves AR_T6_FROM..), the late one
+float vr_at6_lo1;
 float vr_at6_delay;          // vr_arena_wave_rest as the run had it
 float vr_at6_wave;           // the wave the soak last saw
 float vr_at6_e0;             // the edicts at its first counted wave, and its drops then
@@ -1607,6 +1612,8 @@ void() VR_AT6_Begin =
     cvar_set("vr_arena_wave_size", "1.75"); // (the default's bigger waves: the soak is bounded with them)
     vr_at6_wave = ar_wave;
     vr_at6_e0 = 0;
+    vr_at6_lo0 = 100000;
+    vr_at6_lo1 = 100000;
     vr_at6_peak = 0;
     vr_at6_long = 0;
     vr_at_until = time + 400;
@@ -1618,14 +1625,17 @@ void() VR_AT6_Finish =
     float e1 = VR_AT6_Edicts();
     float d1 = VR_AT6_Drops();
     float waves = ar_wave - vr_at6_w0;
-    float grow = (e1 - vr_at6_e0) - (d1 - vr_at6_d0);
+    // (Between the windows' middles: AR_T6_FROM + (SPAN - 1) / 2 and AR_T6_WAVES - (SPAN - 1) / 2.)
+    float span = (AR_T6_WAVES - AR_T6_FROM) - (AR_T6_SPAN - 1);
+    float grow = vr_at6_lo1 - vr_at6_lo0;
     dprint(sprintf("arena: t6 waves %g edicts %g -> %g (peak %g) drops %g -> %g\n", waves, vr_at6_e0, e1, vr_at6_peak,
                    vr_at6_d0, d1));
+    dprint(sprintf("arena: t6 floor %g -> %g over %g waves\n", vr_at6_lo0, vr_at6_lo1, span));
     dprint(sprintf("arena: t6 bodies %g guns %g longest wave %g s\n", VR_AT6_Bodies(), VR_AT6_CountClass("thrown_weapon"),
                    vr_at6_long));
     VR_AT_Check(ar_wave >= AR_T6_WAVES, "the soak reached its last wave");
     VR_AT_Check(vr_at6_long < AR_STALL, "no wave stalled");
-    VR_AT_Check(grow <= AR_T6_LEAK * waves, "the map grows no faster than a wave clear's drops");
+    VR_AT_Check(grow <= AR_T6_LEAK * span, "the map grows no faster than a wave clear's drops");
     // The cleanup's caps (vr_arena.qc): the bodies lying (not fading), the foes' guns, a wave clear's drops.
     VR_AT_Check(VR_AT_LyingBodies() <= cvar("vr_arena_corpse_max"), "no more bodies lie than vr_arena_corpse_max");
     VR_AT_Check(VR_AT_FoeGuns() <= cvar("vr_arena_gun_max"), "no more of the foes' guns lie than vr_arena_gun_max");
@@ -1660,6 +1670,9 @@ void() VR_AT6_Frame =
         float n = VR_AT6_Edicts();
         if(n > vr_at6_peak) { vr_at6_peak = n; }
         if(ar_wave == AR_T6_FROM) { vr_at6_e0 = n; vr_at6_d0 = VR_AT6_Drops(); vr_at6_w0 = ar_wave; }
+        float net = n - VR_AT6_Drops();
+        if(ar_wave >= AR_T6_FROM && ar_wave < AR_T6_FROM + AR_T6_SPAN && net < vr_at6_lo0) { vr_at6_lo0 = net; }
+        if(ar_wave > AR_T6_WAVES - AR_T6_SPAN && net < vr_at6_lo1) { vr_at6_lo1 = net; }
         if(VR_ARENA_Mod(ar_wave, 4) == 0)
         {
             dprint(sprintf("arena: t6 wave %g edicts %g drops %g bodies %g guns %g score %g\n", ar_wave, n,
