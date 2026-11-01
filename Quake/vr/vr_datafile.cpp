@@ -34,7 +34,25 @@ bool readDataFile(const DataFileSpec& spec, za::Span<za::String> defaults, za::V
         if(!strcmp(com_token, spec.block))
         {
             data = COM_Parse(data);
-            slot = data ? Q_atoi(com_token) : -1;
+            if(data && !spec.slotNames.empty())
+            {
+                for(za::SizeT s = 0; s < spec.slotNames.size(); s++)
+                {
+                    if(!strcmp(com_token, spec.slotNames[s]))
+                    {
+                        slot = static_cast<int>(s);
+                    }
+                }
+                if(slot < 0)
+                {
+                    Con_Printf("\x02%s: \"%s %s\": no such %s (%s)\n", spec.path, spec.block, com_token, spec.block, spec.keysFile);
+                    break;
+                }
+            }
+            else
+            {
+                slot = data ? Q_atoi(com_token) : -1;
+            }
             if(!data || slot < 0 || slot >= spec.slots)
             {
                 Con_Printf("\x02%s: \"%s %s\": no such slot (0 .. %d)\n", spec.path, spec.block, com_token, spec.slots - 1);

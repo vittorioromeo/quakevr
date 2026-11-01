@@ -41,19 +41,7 @@ QVR_CVAR(vr_crouch_speed_scale, "0.75", CVAR_ARCHIVE)  // ... times the most spe
 QVR_CVAR(vr_mhull, "1", CVAR_ARCHIVE)                // monsters move against walls with the widths below (compiled hulls, vr_hull.cpp; HULLS.md "Monsters"); 0: Quake's hulls 1 and 2
 QVR_CVAR(vr_mhull_ents, "1", CVAR_ARCHIVE)              // ... and a width narrower than a monster's own box meets other bodies (the player, monsters, solid boxes) too, both ways
 QVR_CVAR(vr_mhull_ledges, "1", CVAR_ARCHIVE)            // ... and SV_CheckBottom's ledge test takes the narrow box's corners (0: Quake's box's)
-QVR_CVAR(vr_mhull_army, "-1", CVAR_ARCHIVE)            // a class's width against walls: -1 its own box's (QC setsize; the default), 0 Quake's hull, or 16 up
-QVR_CVAR(vr_mhull_dog, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_mhull_ogre, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_mhull_knight, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_mhull_hknight, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_mhull_zombie, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_mhull_wizard, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_mhull_demon, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_mhull_shambler, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_mhull_shalrath, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_mhull_enforcer, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_mhull_fish, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_mhull_tarbaby, "-1", CVAR_ARCHIVE)
+// Per class (vr_mhull_<monster>): quakevr/data/monsters.txt's hull (vr_monsterdata.inc).
 QVR_CVAR(vr_gameplayfix_tossfall, "0", CVAR_NONE)     // resting items and weapons fall when their support goes
 QVR_CVAR(vr_pickup_scale, "1", CVAR_NONE)             // weapons (classic models: vr_pickup_prop_models 0), armour, powerups and keys drawn smaller, on the floor
 QVR_CVAR(vr_pickup_prop_models, "1", CVAR_ARCHIVE)   // the map's weapons drawn as the weapons you hold and drop (their v_ models at their size, not vr_pickup_scale, spinning about their middle), 0 the classic g_ models; next map
@@ -2091,40 +2079,8 @@ QVR_CVAR(vr_smallgibs_brains_speed, "1.8", CVAR_ARCHIVE)     // m/s brain chunks
 QVR_CVAR(vr_smallgibs_brains_up, "8.2", CVAR_ARCHIVE)        // m/s up (their own Up; times vr_smallgibs_up_burst)
 QVR_CVAR(vr_smallgibs_brains_gloss, "1", CVAR_ARCHIVE)    // their wet sheen (0 none .. 2), always on: a gloss without the wet coat's darkening, a warm rim (vr_wounds.cpp VR_AliasWetCoat)
 QVR_CVAR(vr_smallgibs_brains_jiggle, "1", CVAR_ARCHIVE)     // they wobble when knocked (a landing, a bounce, a jerk): drawn squashed along the knock and bulged across, a damped spring (vr_brainjiggle.cpp); the kick times this, 0 off
-// Per enemy (VR_SmallGib_Mult, vr_smallgibs.qc; the same monsters as vr_corpse_health_<monster>): a monster's small
-// gibs and brain chunks, times these. 1 as now, 0 none, 2 twice as many (a hit's, a gibbing's, and a head's bursts).
-QVR_CVAR(vr_smallgibs_mult_grunt, "1", CVAR_ARCHIVE)       // a grunt's
-QVR_CVAR(vr_smallgibs_mult_enforcer, "1.25", CVAR_ARCHIVE)    // an enforcer's
-QVR_CVAR(vr_smallgibs_mult_dog, "1", CVAR_ARCHIVE)         // a rottweiler's
-QVR_CVAR(vr_smallgibs_mult_fiend, "1.25", CVAR_ARCHIVE)       // a fiend's
-QVR_CVAR(vr_smallgibs_mult_ogre, "1.5", CVAR_ARCHIVE)        // an ogre's
-QVR_CVAR(vr_smallgibs_mult_knight, "1", CVAR_ARCHIVE)      // a knight's
-QVR_CVAR(vr_smallgibs_mult_hellknight, "1.25", CVAR_ARCHIVE)  // a hell knight's
-QVR_CVAR(vr_smallgibs_mult_vore, "1.25", CVAR_ARCHIVE)        // a vore's
-QVR_CVAR(vr_smallgibs_mult_shambler, "1.5", CVAR_ARCHIVE)    // a shambler's
-QVR_CVAR(vr_smallgibs_mult_scrag, "1", CVAR_ARCHIVE)       // a scrag's
-QVR_CVAR(vr_smallgibs_mult_fish, "1", CVAR_ARCHIVE)        // a rotfish's
-QVR_CVAR(vr_smallgibs_mult_gremlin, "1", CVAR_ARCHIVE)     // a gremlin's (Hipnotic)
-QVR_CVAR(vr_smallgibs_mult_scourge, "1", CVAR_ARCHIVE)     // a centroid's (Rogue)
-QVR_CVAR(vr_smallgibs_mult_eel, "1", CVAR_ARCHIVE)         // an eel's (Rogue)
-QVR_CVAR(vr_smallgibs_mult_zombie, "1", CVAR_ARCHIVE)      // a zombie's (beheaded: vr_decap)
-QVR_CVAR(vr_smallgibs_mult_mummy, "1", CVAR_ARCHIVE)       // a mummy's (Rogue, beheaded)
-QVR_CVAR(vr_smallgibs_brains_mult_grunt, "1", CVAR_ARCHIVE)     // a grunt's brain chunks
-QVR_CVAR(vr_smallgibs_brains_mult_enforcer, "1.25", CVAR_ARCHIVE)  // an enforcer's
-QVR_CVAR(vr_smallgibs_brains_mult_dog, "1", CVAR_ARCHIVE)      // a rottweiler's
-QVR_CVAR(vr_smallgibs_brains_mult_fiend, "1.25", CVAR_ARCHIVE)    // a fiend's
-QVR_CVAR(vr_smallgibs_brains_mult_ogre, "1.5", CVAR_ARCHIVE)     // an ogre's
-QVR_CVAR(vr_smallgibs_brains_mult_knight, "1", CVAR_ARCHIVE)   // a knight's
-QVR_CVAR(vr_smallgibs_brains_mult_hellknight, "1", CVAR_ARCHIVE) // a hell knight's
-QVR_CVAR(vr_smallgibs_brains_mult_vore, "1.25", CVAR_ARCHIVE)     // a vore's
-QVR_CVAR(vr_smallgibs_brains_mult_shambler, "2", CVAR_ARCHIVE) // a shambler's
-QVR_CVAR(vr_smallgibs_brains_mult_scrag, "1", CVAR_ARCHIVE)    // a scrag's
-QVR_CVAR(vr_smallgibs_brains_mult_fish, "1", CVAR_ARCHIVE)     // a rotfish's
-QVR_CVAR(vr_smallgibs_brains_mult_gremlin, "1", CVAR_ARCHIVE)  // a gremlin's (Hipnotic)
-QVR_CVAR(vr_smallgibs_brains_mult_scourge, "1", CVAR_ARCHIVE)  // a centroid's (Rogue)
-QVR_CVAR(vr_smallgibs_brains_mult_eel, "1", CVAR_ARCHIVE)      // an eel's (Rogue)
-QVR_CVAR(vr_smallgibs_brains_mult_zombie, "1", CVAR_ARCHIVE)   // a zombie's (beheaded: vr_decap)
-QVR_CVAR(vr_smallgibs_brains_mult_mummy, "1", CVAR_ARCHIVE)    // a mummy's (Rogue, beheaded)
+// Per enemy (vr_smallgibs_mult_<monster>, vr_smallgibs_brains_mult_<monster>): quakevr/data/monsters.txt's smallgibs,
+// smallgibs_brains (vr_monsterdata.inc; ROUND23.md, "Monsters as data").
 QVR_CVAR(vr_gore_stick_thrown, "1", CVAR_ARCHIVE)        // a gib or head thrown into a wall or a ceiling (slower than vr_gib_splat_speed) sticks there: the chance (0 never)
 QVR_CVAR(vr_gore_stick_speed, "20", CVAR_ARCHIVE)         // units/s a gib must strike a wall or a ceiling at to stick (flung or thrown)
 QVR_CVAR(vr_test_dispenser, "0", CVAR_NONE)                // the map's n-th monster dispenser (func_enemy_dispenser) used, as its button would (buttons.qc VR_TestDispenser_Frame: test dispenser: lines, the monster's yaw); back to 0 once done
@@ -3301,134 +3257,7 @@ QVR_CVAR(vr_test_hit_damage, "8", CVAR_NONE)          // ... the shot's damage (
 QVR_CVAR(vr_test_hit_watch, "0", CVAR_NONE)           // ... s: the monster struck watched each server frame that long after (`hitwatch:` lines: frame, place, health, enemy, attack state)
 QVR_CVAR(vr_test_hit_calm, "0", CVAR_NONE)            // ... 1: the flinch alone (no pain frames, nobody's blow: it doesn't turn on you; screenshots)
 QVR_CVAR(vr_test_hit_all, "0", CVAR_NONE)             // ... 1: every live monster struck so at once (the cost tests)
-// Per monster class (Gibs and Corpses > Ragdolls > Grunt, > Knight): -1 (Global) is the setting above, any other value replaces it
-// for that class. Each class's mass is its own by default (the author, 2026-10-03: ROUND21.md, "Ragdoll masses per monster").
-QVR_CVAR(vr_ragdoll_army_start, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_army_mass, "80", CVAR_ARCHIVE)     // kg: each class its own weight (from its size and look; -1: vr_ragdoll_mass)
-QVR_CVAR(vr_ragdoll_army_friction, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_army_joint_friction, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_army_joint_stiffness, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_army_limits, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_army_damping, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_army_blast, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_army_inherit, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_knight_start, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_knight_mass, "90", CVAR_ARCHIVE)   // (in mail)
-QVR_CVAR(vr_ragdoll_knight_friction, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_knight_joint_friction, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_knight_joint_stiffness, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_knight_limits, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_knight_damping, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_knight_blast, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_knight_inherit, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_ogre_start, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_ogre_mass, "200", CVAR_ARCHIVE)    // (his ragdoll's hulls 4.8 times the grunt's; 200 so a hand still lifts him: 3000 N grip)
-QVR_CVAR(vr_ragdoll_ogre_friction, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_ogre_joint_friction, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_ogre_joint_stiffness, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_ogre_limits, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_ogre_damping, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_ogre_blast, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_ogre_inherit, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_enforcer_start, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_enforcer_mass, "100", CVAR_ARCHIVE) // (in armour)
-QVR_CVAR(vr_ragdoll_enforcer_friction, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_enforcer_joint_friction, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_enforcer_joint_stiffness, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_enforcer_limits, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_enforcer_damping, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_enforcer_blast, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_enforcer_inherit, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_hknight_start, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_hknight_mass, "130", CVAR_ARCHIVE)  // (in plate)
-QVR_CVAR(vr_ragdoll_hknight_friction, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_hknight_joint_friction, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_hknight_joint_stiffness, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_hknight_limits, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_hknight_damping, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_hknight_blast, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_hknight_inherit, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_dog_start, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_dog_mass, "40", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_dog_friction, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_dog_joint_friction, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_dog_joint_stiffness, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_dog_limits, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_dog_damping, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_dog_blast, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_dog_inherit, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_wizard_start, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_wizard_mass, "40", CVAR_ARCHIVE)   // (a scrag: wings and a tail)
-QVR_CVAR(vr_ragdoll_wizard_friction, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_wizard_joint_friction, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_wizard_joint_stiffness, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_wizard_limits, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_wizard_damping, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_wizard_blast, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_wizard_inherit, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_zombie_start, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_zombie_mass, "70", CVAR_ARCHIVE)   // (a zombie: only beheaded, ROUND21.md "Decapitation")
-QVR_CVAR(vr_ragdoll_zombie_friction, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_zombie_joint_friction, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_zombie_joint_stiffness, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_zombie_limits, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_zombie_damping, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_zombie_blast, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_zombie_inherit, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_demon_start, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_demon_mass, "140", CVAR_ARCHIVE)   // (a fiend: big and heavy-limbed)
-QVR_CVAR(vr_ragdoll_demon_friction, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_demon_joint_friction, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_demon_joint_stiffness, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_demon_limits, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_demon_damping, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_demon_blast, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_demon_inherit, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_shambler_start, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_shambler_mass, "280", CVAR_ARCHIVE)   // (a shambler: the heaviest; a hand's 3000 N grip still lifts him)
-QVR_CVAR(vr_ragdoll_shambler_friction, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_shambler_joint_friction, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_shambler_joint_stiffness, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_shambler_limits, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_shambler_damping, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_shambler_blast, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_shambler_inherit, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_gremlin_start, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_gremlin_mass, "20", CVAR_ARCHIVE)   // (a gremlin: small and light)
-QVR_CVAR(vr_ragdoll_gremlin_friction, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_gremlin_joint_friction, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_gremlin_joint_stiffness, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_gremlin_limits, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_gremlin_damping, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_gremlin_blast, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_gremlin_inherit, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_mummy_start, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_mummy_mass, "75", CVAR_ARCHIVE)   // (a mummy (Rogue): only beheaded, ROUND21.md "Ragdolls 5")
-QVR_CVAR(vr_ragdoll_mummy_friction, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_mummy_joint_friction, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_mummy_joint_stiffness, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_mummy_limits, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_mummy_damping, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_mummy_blast, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_mummy_inherit, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_vore_start, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_vore_mass, "160", CVAR_ARCHIVE)   // (a vore: tall and spindly, ogre-sized)
-QVR_CVAR(vr_ragdoll_vore_friction, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_vore_joint_friction, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_vore_joint_stiffness, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_vore_limits, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_vore_damping, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_vore_blast, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_vore_inherit, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_centroid_start, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_centroid_mass, "180", CVAR_ARCHIVE)   // (a centroid (Hipnotic): a scorpion of metal, heavy)
-QVR_CVAR(vr_ragdoll_centroid_friction, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_centroid_joint_friction, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_centroid_joint_stiffness, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_centroid_limits, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_centroid_damping, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_centroid_blast, "-1", CVAR_ARCHIVE)
-QVR_CVAR(vr_ragdoll_centroid_inherit, "-1", CVAR_ARCHIVE)
+// Per monster class (vr_ragdoll_<monster>_<key>): quakevr/data/monsters.txt's ragdoll_<key> (vr_monsterdata.inc).
 QVR_CVAR(vr_parry, "1", CVAR_ARCHIVE)                 // parry monsters' melee blows with a weapon held level across in front of you
 QVR_CVAR(vr_parry_stagger, "0.8", CVAR_ARCHIVE)      // seconds before a parried monster can recover (clamped to 0.1..3; 0.35 before config 89)
 QVR_CVAR(vr_parry_ragdoll, "1", CVAR_ARCHIVE)        // a parried humanoid (its monster group's Ragdoll Triggers on) staggers back as an active ragdoll for Parry Stagger, never down on level ground (stairs, a ledge, a slope: it may go down); 0: its pain pose's stagger (QC vr_kdtrig.qc VR_Parry_Ragdoll)
