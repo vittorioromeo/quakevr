@@ -2599,10 +2599,15 @@ QVR_CVAR(vr_arena_foe_armor, "1", CVAR_ARCHIVE)               // 1: the waves' g
 QVR_CVAR(vr_arena_foe_armor_scale, "1", CVAR_ARCHIVE)         // the arena armour's chance times this (1: 10% at its first wave at Normal, 3% more a wave, cap 85%)
 QVR_CVAR(vr_arena_foe_armor_from, "4", CVAR_ARCHIVE)          // the first wave a foe may wear armour at Normal (moved by the skill as every gate: 7 / 4 / 2 / 2)
 QVR_CVAR(vr_arena_seed, "0", CVAR_NONE)                       // the waves' rolls: 0 a different ladder every run, else that seed's ladder
+// Survival Arena's last foes seen through walls (QC VR_ARENA_XrayMark marks them, .vr_xray; vr_arenaxray.cpp draws them)
+QVR_CVAR(vr_arena_xray, "1", CVAR_ARCHIVE)                    // 1: a wave's last foes glow through walls (an outline in front of everything)
+QVR_CVAR(vr_arena_xray_left, "2", CVAR_ARCHIVE)               // ... once this many of its foes are left (up, and still to come)
+QVR_CVAR(vr_arena_xray_distance, "600", CVAR_ARCHIVE)         // ... and only those farther than this from your eyes (units; 0: at any distance)
+QVR_CVAR(vr_arena_xray_shown, "0", CVAR_ROM)                  // (read-only: the foes the last view outlined through walls; arena test 16 reads it)
 // Survival Arena's difficulty (QC/vr_arena.qc, VR_ARENA_Skill): every 1 above is today's arena at Normal skill, and
 // this moves the rest of them by the skill level -- the shape of the armed humanoids' vr_agrunt_ai_skill, its own knob.
 QVR_CVAR(vr_arena_skill_impact, "1", CVAR_ARCHIVE)           // Difficulty Impact: how much the skill level moves the arena (Easy softer, Hard and Nightmare harder); 0 skill changes nothing about it, Normal always as set
-QVR_CVAR(vr_arena_test, "0", CVAR_NONE)                       // the QC's arena tests (vr_arena_test.qc): 1 the plans, 2 the live waves, 3 a boss wave, 4 the places, 5 the difficulty scaling, 6 the long run, 7 the cleanup, 8 no cleanup off the arena (e1m1), 9 the wave flow (alive pool, burst, gaps), 10 the foes' armour, 11 the loot the waves leave behind, 12 the weapon schedule, 13 no overlapping spawns, 14 the rest and countdown (and its beeps), 15 the scattered supplies
+QVR_CVAR(vr_arena_test, "0", CVAR_NONE)                       // the QC's arena tests (vr_arena_test.qc): 1 the plans, 2 the live waves, 3 a boss wave, 4 the places, 5 the difficulty scaling, 6 the long run, 7 the cleanup, 8 no cleanup off the arena (e1m1), 9 the wave flow (alive pool, burst, gaps), 10 the foes' armour, 11 the loot the waves leave behind, 12 the weapon schedule, 13 no overlapping spawns, 14 the rest and countdown (and its beeps), 15 the scattered supplies, 16 the last foes seen through walls, 17 the walls' trim is no step (vrarena)
 // Survival Arena's cleanup (QC/vr_arena.qc, "The cleanup"): what the waves leave lying. Nothing held is ever taken.
 QVR_CVAR(vr_arena_corpse_fade, "14", CVAR_ARCHIVE)           // s a fallen foe's body lies before it fades out (give or take 3 s; 0: never by time)
 QVR_CVAR(vr_arena_corpse_max, "12", CVAR_ARCHIVE)            // fallen bodies kept at most: past it the oldest fades first (0: no limit)

@@ -93,6 +93,8 @@ int VR_WaterMeshRanges (int texnum, const unsigned **ranges);	// ... its (first 
 void VR_WaterMeshBind (void);							// ... binds its buffers, attributes 0-4 (4: the swells' pin, the foam's distance to the shore)
 void VR_DrawHeatHaze (void);								// R_RenderScene, after the translucent pass: heat haze (vr_haze.cpp)
 void VR_DrawSceneTranslucent (void);						// R_RenderScene, after the translucent pass (particles, blended 3D text)
+void VR_DrawArenaXray (void);								// R_RenderScene, after that: a Survival Arena wave's last foes outlined through walls (vr_arenaxray.cpp)
+float VR_ArenaXrayGlow (const struct entity_s *e);			// R_DrawAliasModel_Real (its outline pass): the glow it is drawn with (vr_arenaxray.cpp)
 int VR_SoftSprites (void);								// R_DrawSpriteModels: nonzero to leave the sprites to VR_DrawSceneTranslucent, soft (R_DrawSpriteModelsSoft)
 float VR_SoftSpriteFade (float radius);				// ... how close in front of the scene a sprite of that radius fades out
 

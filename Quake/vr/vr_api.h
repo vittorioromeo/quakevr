@@ -595,6 +595,9 @@ void VR_LimitHit (int limit);
 // SV_WriteEntitiesToClient: a client's entity kept from the other clients (a dead player whose ragdoll body lies there,
 // vr_deathview.cpp).
 int VR_SV_HiddenFromOthers (edict_t *ent);
+// SV_WriteEntitiesToClient: an entity sent to every client wherever it stands, past the PVS (one of a Survival Arena
+// wave's last foes, outlined through walls: vr_arenaxray.cpp).
+int VR_SV_SendPastPVS (edict_t *ent);
 // SV_WriteEntitiesToClient: the entities sent to `clent` this frame of those in its sight, their bytes, the datagram's
 // room (vr_net_stats, vr_server.cpp).
 void VR_NetStatsEntities (edict_t *clent, int sent, int insight, int bytes, int maxsize);

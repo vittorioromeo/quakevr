@@ -104,6 +104,10 @@ IDTEX = dict(floor=("ground1_2", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),      # 
              deck=("sfloor4_2", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),       # 64: the dais' top, the tower tops, decks
              deck_side=("metal4_4", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),   # 64: one plate spans a 64-thick deck
              stair=("metal1_1", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),       # 64: every step, the dais' six, the towers' sixteen
+             riser=("tech04_2", "fitv", (0, 1), 1.0, (0.0, 0.0, 0.0)),        # 128 x 16: a riveted strip, exactly one up a riser
+             riser_lit=("tlight07", "fit", (1, 1), 1.0, (0.0, 0.0, 0.0)),     # 32 x 128 turned on its side: one yellow tube
+                                                                            # along a lit riser (every few steps)
+             clip=("clip", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),            # the players' and monsters' hulls only
              cover=("crate0_side", "fit", (2, 1), 1.0, (0.0, 0.0, 0.0)),      # 64 at 0.75: 2 crates along 96, 1 up 48
              cover_top=("crate0_top", "fit", (2, 2), 1.0, (0.0, 0.0, 0.0)),   # 64 at 0.75: 2 x 2 tops on a 96 square
              pad=("plat_top1", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),        # 64: 2 plates across the 128-wide pad
@@ -124,6 +128,9 @@ DEVTEX = dict(floor=("qvr_floor", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),
               deck=("qvr_floor", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),
               deck_side=("qvr_wall", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),
               stair=("qvr_floor", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),
+              riser=("qvr_trim", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),
+              riser_lit=("qvr_light", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),
+              clip=("clip", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),
               cover=("qvr_panel", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),
               cover_top=("qvr_panel", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),
               pad=("qvrc_pad", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),
@@ -247,6 +254,9 @@ SCONCE_W, SCONCE_Z0, SCONCE_Z1 = 20, RAIL, RAIL + 48   # the wall sconces: a 40-
 SCONCE_LIGHT, SCONCE_WAIT = "155", "0.6"               # high, with a 32 square lamp on it, 8 out from the wall
 LAMP_KEYS = {"_dirt": "-1"}                 # every fixture's light carries this: -dirt would else put a lamp back out
                                             # in front of the wall it stands on (MAPPING.md, ROUND21)
+RISER_LIGHT, RISER_WAIT = "110", "0.9"      # a lit riser's own light, 12 in front of its tube (a warm tint, as the tube)
+DAIS_LAMP_X, DAIS_LAMP_Z0 = 72, 56          # the dais' lamps: either side of each flight's top, 32 square, 8 out of the
+                                            # dais' face, 56..88 (above a jump from the floor, below the dais' top)
 COFFER_R, COFFER_DROP = 650, 32               # the ceiling's coffers: 192 frames, hung 32 below the ceiling
 LIGHT_MIN = "90"                              # the worldspawn's minimum light (soft: the room seen everywhere)
 
@@ -314,18 +324,36 @@ def band(dst, poly, z0, z1, depth, role, reps=None):
         dst.append(prism([poly[i], poly[j], inner[j], inner[i]], z0, z1, spec, spec))
 
 
-def flight(dst, what, x0, y0, dx, dy, wide, steps, rise, tread):
+def flight(dst, what, x0, y0, dx, dy, wide, steps, rise, tread, lit_every, lights):
     """A straight staircase, solid from the floor up: the lowest step begins at (x0, y0) and the flight climbs along
     (dx, dy) (one of the four axis directions), `wide` across, every step `rise` high and `tread` deep (MAPPING.md: at
-    most 16 high, at least 16 deep). Each step is recorded for --check."""
+    most 16 high, at least 16 deep). Each step is recorded for --check. Every riser (the face a climber walks into) is
+    a riveted strip of id's trim; every `lit_every`-th one from the bottom is a yellow tube lamp instead, with a small
+    light of its own in front of it (appended to `lights`), so a flight reads lit every few steps (the author's ask,
+    2026-11-01: the stairs looked plain and dark)."""
+    back = (-dx, -dy, 0.0)                                   # the risers' faces look back down the flight
     for k in range(steps):
         if dx:
             a, b = (x0 + tread * k, x0 + tread * (k + 1)) if dx > 0 else (x0 - tread * (k + 1), x0 - tread * k)
-            dst.append(cuboid(a, y0, ZF, b, y0 + wide, rise * (k + 1), "stair", "stair"))
+            lo, hi = (a, y0, ZF), (b, y0 + wide, rise * (k + 1))
         else:
             a, b = (y0 + tread * k, y0 + tread * (k + 1)) if dy > 0 else (y0 - tread * (k + 1), y0 - tread * k)
-            dst.append(cuboid(x0, a, ZF, x0 + wide, b, rise * (k + 1), "stair", "stair"))
+            lo, hi = (x0, a, ZF), (x0 + wide, b, rise * (k + 1))
+        lit = k % lit_every == 0
+        # the riser laid on its visible part only (the rest stands behind the step below): the strip exactly once up
+        # it, the lamp's tube turned on its side and fitted once along it and once up it
+        shown = [(x, y, z) for x in (lo[0], hi[0]) for y in (lo[1], hi[1]) for z in (rise * k, hi[2])]
+        riser = bind(("riser_lit", dict(rot=True)) if lit else "riser", shown)
+        whole = [(x, y, z) for x in (lo[0], hi[0]) for y in (lo[1], hi[1]) for z in (lo[2], hi[2])]
+        dst.append(mg.box(*lo, *hi, roles("stair", "stair", None, whole),
+                          lambda n, c, riser=riser: riser if mg.dot(n, back) > 0.99 else None))
         STEPS.append((what, rise, tread))
+        if lit:                                              # its light, 12 out from the middle of the lamp
+            mx, my = (lo[0] + hi[0]) / 2.0, (lo[1] + hi[1]) / 2.0
+            fx = (a if dx > 0 else b) if dx else mx
+            fy = (a if dy > 0 else b) if dy else my
+            lights.append(((round(fx + back[0] * 12), round(fy + back[1] * 12), rise * k + rise // 2),
+                           RISER_LIGHT, RISER_WAIT, dict(LAMP_KEYS, _color="1 0.85 0.55")))
 
 
 def geometry(mw):
@@ -357,6 +385,11 @@ def geometry(mw):
     band(shell, oct8, ZF, SKIRT, 8, "strip")
     band(shell, oct8, SKIRT, WAIN, 4, "wainscot")
     band(shell, oct8, WAIN, RAIL, 8, "strip")
+    # ... and a clip over the wainscot (the 4 between its face and the skirting's and the rail's): the walls' trim was a
+    # step a player or a monster walked up onto (the skirting's top, 16 up and 4 deep; the author, 2026-11-01). For the
+    # players' and the monsters' hulls the wall's foot is now one flat face 8 out from the floor to the rail's top at 96,
+    # out of reach of a step or a jump; shots, hands and the look still meet the trim as it is.
+    band(shell, inset(oct8, 4), SKIRT, WAIN, 4, "clip")
     band(shell, oct8, CORN - 16, CORN, 8, "strip")
     band(shell, oct8, CORN, ZH, 16, "strip")
 
@@ -417,18 +450,31 @@ def geometry(mw):
     # staircases, one onto each cardinal face
     dais.append(prism(octagon(DAIS_A, DAIS_C), ZF, DAIS_TOP, "deck", "dais"))
     dais.append(cuboid(-64, -64, DAIS_TOP, 64, 64, DAIS_TOP + 16, "pad", "pad_side", "pad"))
-    flight(dais, "dais stair (north)", -48, 376, 0, -1, 96, 6, 16, 24)
-    flight(dais, "dais stair (south)", -48, -376, 0, 1, 96, 6, 16, 24)
-    flight(dais, "dais stair (east)", 376, -48, -1, 0, 96, 6, 16, 24)
-    flight(dais, "dais stair (west)", -376, -48, 1, 0, 96, 6, 16, 24)
+    flight(dais, "dais stair (north)", -48, 376, 0, -1, 96, 6, 16, 24, 3, lights)
+    flight(dais, "dais stair (south)", -48, -376, 0, 1, 96, 6, 16, 24, 3, lights)
+    flight(dais, "dais stair (east)", 376, -48, -1, 0, 96, 6, 16, 24, 3, lights)
+    flight(dais, "dais stair (west)", -376, -48, 1, 0, 96, 6, 16, 24, 3, lights)
+    # two lamps on the dais' face either side of each flight's top (the walls' hooded lamp, without its upright), each
+    # with its light: the flights lit from above as well as from their risers
+    for nx, ny in ((0, 1), (0, -1), (1, 0), (-1, 0)):
+        tx, ty = -ny, nx                                    # along the face
+        for side in (1, -1):
+            cx, cy = nx * DAIS_A + tx * side * DAIS_LAMP_X, ny * DAIS_A + ty * side * DAIS_LAMP_X
+            q = [(cx + tx * s + nx * d, cy + ty * s + ny * d) for s, d in ((-16, 0), (16, 0), (16, LAMP_D), (-16, LAMP_D))]
+            pts = [(x, y, z) for z in (DAIS_LAMP_Z0 + 32, DAIS_LAMP_Z0) for x, y in q]
+            lamp = laid(pts, *TEX["lamp"], u_axis=(tx, ty, 0.0))
+            dais.append(mg.hull(pts, roles("recess", "frame", "recess", pts),
+                                lambda n, c, nn=(nx, ny, 0.0), lamp=lamp: lamp if mg.dot(n, nn) > 0.9 else None))
+            lights.append(((cx + nx * (LAMP_D + LAMP_OUT), cy + ny * (LAMP_D + LAMP_OUT), DAIS_LAMP_Z0 + 16),
+                           "120", LAMP_WAIT, LAMP_KEYS))
 
     # ---- the 4 corner towers and their pinwheel staircases: each flight hugs the face its neighbour's gives
     for sx, sy in ((1, 1), (-1, 1), (-1, -1), (1, -1)):
         towers.append(cuboid(sx * TOW_A, sy * TOW_A, ZF, sx * TOW_B, sy * TOW_B, WALK_TOP, "deck", "tower"))
-    flight(towers, "tower stair (north-east)", 248, 236, 0, 1, 64, 16, 16, 16)     # up the north-east tower's west face
-    flight(towers, "tower stair (north-west)", -236, 248, -1, 0, 64, 16, 16, 16)   # up the north-west tower's south face
-    flight(towers, "tower stair (south-west)", -312, -236, 0, -1, 64, 16, 16, 16)  # up the south-west tower's east face
-    flight(towers, "tower stair (south-east)", 236, -312, 1, 0, 64, 16, 16, 16)    # up the south-east tower's north face
+    flight(towers, "tower stair (north-east)", 248, 236, 0, 1, 64, 16, 16, 16, 4, lights)    # up the NE tower's west face
+    flight(towers, "tower stair (north-west)", -236, 248, -1, 0, 64, 16, 16, 16, 4, lights)  # up the NW tower's south face
+    flight(towers, "tower stair (south-west)", -312, -236, 0, -1, 64, 16, 16, 16, 4, lights) # up the SW tower's east face
+    flight(towers, "tower stair (south-east)", 236, -312, 1, 0, 64, 16, 16, 16, 4, lights)   # up the SE tower's north face
 
     # ---- the wall walk at 256: 2 decks along the east and the west wall, and a bridge from each to the two tower
     # tops it passes (so the high ring is reached only by way of the towers, and drops 256 to the floor)

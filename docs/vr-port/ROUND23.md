@@ -40,6 +40,37 @@ missing; `bsp_holes.py`: 0 holes.
   `MAPPING.md`'s rule about committed bsps carrying id art is left as written (vrarena joins vrcalibration and the hubs).
 - **Tests:** `python Misc/quakevr/maps/vrarena_gen.py --check` (`arena_map: 12 spawns, 3 items, 0 bad steps`,
   `arena_check: done`); `vr_arena_test 4` (below) 7/0.
+- **Polish (2026-11-01, his notes 18:31/18:32; branch `agent/arenaglow`).** *Trim no step:* the skirting (16 high, 8
+  out) stood 4 in front of the wainscot, a ledge players and foes walked up onto. A `clip` band (`band(inset(oct8, 4),
+  16, 80, 4, "clip")`) fills that gap for hulls 1 and 2 only, so the wall's foot is one flat face 8 out from the floor to
+  the rail's top at 96 (out of a step's or a jump's reach); the look, shots and hands are unchanged. *Stairs:* every
+  riser is id's riveted strip (`tech04_2`, exactly one up a 16 riser); every 3rd dais riser and every 4th tower riser
+  (from the bottom) is a yellow tube lamp (`tlight07` on its side, `riser_lit`) with its own warm light 12 in front
+  (`RISER_LIGHT` 110); two hooded lamps (`tlight01`) on the dais' face either side of each flight's top (56..88 up, above
+  a jump). 270 brushes, 80 lights (+32). Before/after: `scratch/arena_before_after.png` (stairs, tower stair, overview).
+  The id WAD for a rebuild: `python Misc/trenchbroom/make_id_wad.py` (reads the Steam install), then
+  `vrarena_gen.py --check --compile --preset final --holes 400128` (5 s; 0 holes).
+- **Test 17** (`vr_arena_test 17`, vrarena, one frame): a player's and an ogre's box pushed into the middle of each of
+  the 8 walls at 1, 17, 40 and 81 up stops 8 out every time: **16/0** (the old bsp: 8/8, the player's box 4 out at 17).
+
+## 1b. Survival Arena: the last foes seen through walls (`vr_arena_xray`)
+
+His note 18:28: a wave's last foes glow through walls when far enough. QC `VR_ARENA_XrayMark` (the director's beat,
+every 0.5 s and at once after a fall) marks every foe of the wave that is up (`.vr_xray` 1) once no more than
+`vr_arena_xray_left` of it are left (up plus `ar_plan_left`), else clears them. The engine (`Quake/vr/vr_arenaxray.cpp`)
+sends the marks (`QVR_SVC_XRAY`, reliable, on a change and with the spawn state), sends a marked foe past the PVS
+(`VR_SV_SendPastPVS`, sv_main.c), and after the scene's translucent pass draws each marked foe in the view farther from
+the eyes than `vr_arena_xray_distance` again (`R_DrawAliasModels_Xray`, r_alias.c's `ALIAS_XRAY`): black skin, its rim
+glow only (the power-up glow's code: red-orange, strength 1.55 pulsing +-0.25, faded in over 96 units past the
+distance), added on (`GL_ONE, GL_ONE`, alpha untouched), the depth test turned round so only the parts behind something
+glow; no motion vectors, no depth writes. Settings (Combat > Survival Arena > The Last Foes): `vr_arena_xray` 1,
+`vr_arena_xray_left` 2 (1..8), `vr_arena_xray_distance` 600 (0..2000; 0 any). `vr_arena_xray_shown` (read-only) is the
+count the last view outlined; `developer 1` logs `arena xray: N marked, M of them drawn in this view, K outlined` on a
+change. Scenario `arena_lastfoes` (Foes Left 8: wave 1 glows at once). **Test 16** (`vr_arena_test 16`, vrarena):
+wave 6 brought down a foe at a time; three left: none marked or outlined; two left: both marked, both outlined beyond
+32, none beyond 5000; off: none marked: **9/0**. Regression: test 4 (vrarena) 8/0, test 1 (vrtesthall) 257/0.
+Open: the colour and strength (his eye in the headset); whether a foe in plain sight far off should glow too (now
+only what is hidden glows).
 
 ## 2. Survival Arena: the wave director (`QC/vr_arena.qc`, `vr_arena_perks.qc`)
 
