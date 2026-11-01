@@ -133,6 +133,7 @@
 #include "vr_vram.hpp"
 #include "vr_jobs.hpp"
 #include "vr_gfx.hpp"
+#include "vr_monsterdata.hpp"
 #include "vr_props.hpp"
 #include "vr_propthink.hpp"
 #include "vr_retro.hpp"
@@ -2108,6 +2109,7 @@ extern "C" void VR_Init()
     adtank::init(); // AD support: vr_adgun_hose_info (vr_adtank.cpp)
     Cmd_AddCommand("vr_adweapon_models", adweapons::info_f); // AD support: AD's upgraded weapons' VR models (vr_adweapons.cpp)
     Cmd_AddCommand("vr_wofs_dump", weapons::dump_f); // the weapon settings in use, per slot (vr_weapons.cpp)
+    Cmd_AddCommand("vr_prop_dump", props::dump_f); // the held objects' settings, per slot (vr_props.cpp)
     Cmd_AddCommand("vr_prop_heads", props::heads_f); // the monster heads' prop slots and their weights (vr_props.cpp)
     Cmd_AddCommand("vr_gloves_reload", render::glovesReload_f); // the gloves' painted leather read again (vr_render.cpp)
     VR_FileCacheRegisterCommands();
@@ -2122,6 +2124,7 @@ extern "C" void VR_Init()
     edictindex::registerCommands();
     weapons::registerCvars();
     props::registerCvars();
+    monsterdata::registerCvars(); // the monsters' per-class values, quakevr/data/monsters.txt; vr_monster_dump
     retro::registerCvars();
     weight::registerCommands();
     fatigue::registerCommands();

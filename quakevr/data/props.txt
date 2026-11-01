@@ -1,0 +1,772 @@
+// quakevr/data/props.txt -- every held object's settings (Held Object Offsets, Held Object Weights): read at start into
+// the prop table (Quake/vr/vr_props.cpp; the keys and what each does: vr_props.inc). Written once from the C++ defaults
+// by Misc/quakevr/props_data.py convert; edited by hand since, or by its `promote <config>` (the player's changes, saved
+// in the config as vr_prop_<key>_NN "value" lines over these, made the defaults).
+//
+// `defaults { key "value" ... }`: every slot's value of a key (a key not listed: "0"). Then `prop <slot> { ... }`: a
+// slot's own values, its `id` (the model it is for: "progs/gib1.mdl", "maps/b_explob.bsp") first. Slots from 0 (as
+// vr_prop_dump numbers them); the config's and the console's names number them from 1 (vr_prop_<key>_NN, NN = slot +
+// 1). A model with no slot has every key at its default: its mass estimated from its size and what it is made of.
+
+defaults
+{
+    id ""
+    mass "0"
+    inertia "1"
+    com_x "0"
+    com_y "0"
+    com_z "0"
+    throw "0"
+    grip "0"
+    grip_x "0"
+    grip_y "0"
+    grip_z "0"
+    grip_pitch "0"
+    grip_yaw "0"
+    grip_roll "0"
+    fgr_manual "0"
+    fgr_curl_thumb "0.6"
+    fgr_curl_index "0.6"
+    fgr_curl_middle "0.6"
+    fgr_curl_ring "0.6"
+    fgr_curl_pinky "0.6"
+    fgr_thumb_across "0"
+    overlap "-1"
+    two_hands "1"
+    forcegrab "-1"
+    tip_x "0"
+    tip_y "0"
+    tip_z "0"
+    butt_x "0"
+    butt_y "0"
+    butt_z "0"
+    stiffness "1"
+    damping "1"
+    strength "1"
+    sag "1"
+    swing "1"
+    help_2h "1"
+    snap "1"
+    melee_dmg "1"
+    throw_dmg "1"
+    handle_from "0"
+    handle_to "0"
+    handle_tilt "25"
+    size "1"
+    spin_align "1"
+    mass_scale "1"
+}
+
+// slot 0: maps/b_explob.bsp (vr_prop_*_01)
+prop 0
+{
+    // The explosive boxes (misc_explobox, misc_explobox2): physics props, heavy (a hand can carry one, two do it better),
+    // thrown only a little way, never force grabbed.
+    id "maps/b_explob.bsp"
+    mass "80.5"
+    forcegrab "0"
+}
+
+// slot 1: maps/b_exbox2.bsp (vr_prop_*_02)
+prop 1
+{
+    id "maps/b_exbox2.bsp"
+    mass "40"
+    forcegrab "0"
+}
+
+// slot 2: progs/vrflashlight.mdl (vr_prop_*_03)
+prop 2
+{
+    // The flashlight in the hand (vr_flashlight.cpp: its grip and fingers are its own page's): its weight only.
+    id "progs/vrflashlight.mdl"
+    mass "0.4"
+}
+
+// slot 3: progs/grenade.mdl (vr_prop_*_04)
+prop 3
+{
+    // The ogres' grenades (vr_grenade.qc: caught, held and thrown back): light and small in the hand, thrown with the hand's
+    // whole speed. Also their mass in Box3D (5.2 kg from their hull at 2000 kg/m^3 before: they knock boxes less now).
+    id "progs/grenade.mdl"
+    mass "1.2"
+    // In the palm (round 21, "Hand grenades from the back pouch": a grenade from the pouch, or caught): its middle over the
+    // fist's grip channel, the fingers round it. vr_props_version 44 gives these to configs saved before. In both hands too
+    // since vr_props_version 56 (ROUND21.md, "Every prop in both hands": the other hand takes it to grip it again).
+    grip "2"
+    // The author's fit (NOTES.md vrfiringrange_2026-10-01_16-53-53, the thumb round it; vr_props_version 54): turned 10
+    // degrees, 1 unit up; and his of 2026-10-08 (vrfiringrange_2026-10-08_14-16-19; vr_props_version 68): 0.3 units back,
+    // 1.1 right, the fingers sunk 0.2 cm into it (0.75 before).
+    grip_roll "10"
+    grip_x "-0.3"
+    grip_y "-1.1"
+    grip_z "1"
+    overlap "0.2"
+}
+
+// slot 4: progs/mervup.mdl (vr_prop_*_05)
+prop 4
+{
+    id "progs/mervup.mdl"
+    mass "1.2"
+    // The multi-grenade held as the grenade is (round 21, "Multi-grenades from the pouch": one from the pouch with B/Y held,
+    // or caught): in the palm. vr_props_version 53 gives these to configs saved before; both hands too since 56.
+    grip "2"
+    // The author's (NOTES.md vrfiringrange_2026-10-01_17-17-58; vr_props_version 54): turned 10 degrees, the fingers sunk
+    // 0.6 cm into it.
+    grip_yaw "10"
+    overlap "0.6"
+}
+
+// slot 5: maps/b_rock0.bsp (vr_prop_*_06)
+prop 5
+{
+    // The author's weights and sizes (NOTES.md vrfiringrange_2026-10-02_00-55-03, "make them the defaults"; vr_props_version
+    // 55 gives slots 6-16 to configs that have them free, and his new values to those that hold the old ones): the items he
+    // gave slots in Held Object Offsets (their mass estimated, times Mass x; the mission packs' two heads weighed), and below
+    // the explosive boxes, the torch (estimated), the rocks and bricks (1.25x), the crates and their boards, gibs and heads.
+    id "maps/b_rock0.bsp"
+    size "1.25"
+    mass_scale "1.25"
+}
+
+// slot 6: maps/b_plas1.bsp (vr_prop_*_07)
+prop 6
+{
+    id "maps/b_plas1.bsp"
+    mass_scale "1.25"
+}
+
+// slot 7: progs/h_grem.mdl (vr_prop_*_08)
+prop 7
+{
+    id "progs/h_grem.mdl"
+    mass "-1"
+    size "0.6"
+}
+
+// slot 8: progs/h_scourg.mdl (vr_prop_*_09)
+prop 8
+{
+    id "progs/h_scourg.mdl"
+    mass "-1"
+}
+
+// slot 9: progs/armor.mdl (vr_prop_*_10)
+prop 9
+{
+    id "progs/armor.mdl"
+    mass_scale "0.6"
+}
+
+// slot 10: maps/b_bh100.bsp (vr_prop_*_11)
+prop 10
+{
+    id "maps/b_bh100.bsp"
+    mass_scale "1.25"
+}
+
+// slot 11: maps/b_bh10.bsp (vr_prop_*_12)
+prop 11
+{
+    id "maps/b_bh10.bsp"
+    mass_scale "1.15"
+}
+
+// slot 12: maps/b_shell0.bsp (vr_prop_*_13)
+prop 12
+{
+    id "maps/b_shell0.bsp"
+    mass_scale "1.25"
+}
+
+// slot 13: maps/b_nail0.bsp (vr_prop_*_14)
+prop 13
+{
+    id "maps/b_nail0.bsp"
+    mass_scale "1.25"
+}
+
+// slot 14: maps/b_lnail0.bsp (vr_prop_*_15)
+prop 14
+{
+    id "maps/b_lnail0.bsp"
+    mass_scale "1.25"
+}
+
+// slot 15: maps/b_mrock1.bsp (vr_prop_*_16)
+prop 15
+{
+    id "maps/b_mrock1.bsp"
+    size "1.25"
+    mass_scale "1.25"
+}
+
+// slot 16: progs/vrtorch.mdl (vr_prop_*_17)
+prop 16
+{
+    // A wall torch taken off its wall (vr_walltorch.qc; ROUND21.md, "Wall torches you can take"): a wooden stick along its
+    // model's +x (the butt at -14, the handle to -7, the head to +1.8), its weight in its head; held by its handle through the
+    // fist, flame up (Along the Handle: where it was taken along the handle, leaning as taken), in either hand or both (the
+    // author's choice, 2026-09-29: Two Hands on), its head the melee's striking end. (Slot 17: apart from the next props'
+    // entries; vr_cfg_version 25 gives it to configs saved before it; vr_props_version 40 its grip, 45 its Two Hands.)
+    id "progs/vrtorch.mdl"
+    mass "0"
+    com_x "4"
+    grip "3"
+    handle_from "-12.4"
+    handle_to "-8.2"
+    tip_x "2.3"
+    butt_x "-14"
+}
+
+// slot 17: progs/vr_rock1.mdl (vr_prop_*_18)
+prop 17
+{
+    // The rocks and bricks lying about (vr_debris.cpp, QC vr_debris.qc; slots 17-25, vr_prop_*_18 to _26, after the torch's): their Mass is
+    // left estimated, stone's density times their size (vr_props.cpp stoneDensity: a rock 0.3 to 1.7 kg, a whole brick
+    // about 1.9), since each piece is sized apart. Their damage is the weight's (round 21, "Spring only; Weapon Weights and
+    // Held Object Weights; weight and damage"): a punch holding one hits Box Punch Damage (1.5) x Melee Damage 1.4 x the
+    // weight's curve by its mass (a 1 kg rock 1.79, a brick 2.1); the whole bricks (a tip: clubs, whose blows take no Box
+    // Punch Damage) Melee Damage 2.1; thrown, Thrown Box Damage x 2.1 x the curve. The whole, chipped and broken bricks (19 and
+    // 13 cm) both hands too (vr_props_version 39), then carried as a box, not a club; the rocks and the half brick too since
+    // vr_props_version 56 (every prop in both hands: the other hand takes it to grip it again).
+    // Held (round 21, "Held props: grip modes, live offsets, palm grip, torch handle"): every rock and brick In the Palm (its
+    // middle in the palm's, the fingers round it). The whole bricks and the broken piece were fixed (by an end) before the
+    // author moved them In the Palm (2026-09-29; vr_props_version 45). Their Grip X and Z (the fixed grip's, kept as an
+    // offset) went back to 0 when he found the palm needs none (NOTES.md start_2026-09-29_23-01-20; vr_props_version 48):
+    // every rock and brick In the Palm at the default offsets. Every one drawn 1.25 times its model's size (the author's,
+    // NOTES.md vrfiringrange_2026-10-01_00-25-50; vr_props_version 50), which makes its estimated mass 1.95 times its model's.
+    id "progs/vr_rock1.mdl"
+    throw_dmg "2.1"
+    melee_dmg "1.4"
+    grip "2"
+    size "1.25"
+    mass_scale "1.25"
+}
+
+// slot 18: progs/vr_rock2.mdl (vr_prop_*_19)
+prop 18
+{
+    id "progs/vr_rock2.mdl"
+    throw_dmg "2.1"
+    melee_dmg "1.4"
+    grip "2"
+    size "1.25"
+    mass_scale "1.25"
+}
+
+// slot 19: progs/vr_rock3.mdl (vr_prop_*_20)
+prop 19
+{
+    id "progs/vr_rock3.mdl"
+    throw_dmg "2.1"
+    melee_dmg "1.4"
+    grip "2"
+    size "1.25"
+    mass_scale "1.25"
+}
+
+// slot 20: progs/vr_rock4.mdl (vr_prop_*_21)
+prop 20
+{
+    id "progs/vr_rock4.mdl"
+    throw_dmg "2.1"
+    melee_dmg "1.4"
+    grip "2"
+    size "1.25"
+    mass_scale "1.25"
+}
+
+// slot 21: progs/vr_rock5.mdl (vr_prop_*_22)
+prop 21
+{
+    id "progs/vr_rock5.mdl"
+    throw_dmg "2.1"
+    melee_dmg "1.4"
+    grip "2"
+    size "1.25"
+    mass_scale "1.25"
+}
+
+// slot 22: progs/vr_brick1.mdl (vr_prop_*_23)
+prop 22
+{
+    id "progs/vr_brick1.mdl"
+    throw_dmg "2.1"
+    melee_dmg "2.1"
+    two_hands "1"
+    grip "2"
+    size "1.25"
+    mass_scale "1.25"
+    handle_tilt "0"
+    tip_x "2.4"
+    butt_x "-2.4"
+}
+
+// slot 23: progs/vr_brick2.mdl (vr_prop_*_24)
+prop 23
+{
+    id "progs/vr_brick2.mdl"
+    throw_dmg "2.1"
+    melee_dmg "2.1"
+    two_hands "1"
+    grip "2"
+    size "1.25"
+    mass_scale "1.25"
+    handle_tilt "0"
+    tip_x "2.4"
+    butt_x "-2.4"
+}
+
+// slot 24: progs/vr_brick3.mdl (vr_prop_*_25)
+prop 24
+{
+    id "progs/vr_brick3.mdl"
+    throw_dmg "2.1"
+    melee_dmg "1.4"
+    grip "2"
+    size "1.25"
+}
+
+// slot 25: progs/vr_brick4.mdl (vr_prop_*_26)
+prop 25
+{
+    id "progs/vr_brick4.mdl"
+    throw_dmg "2.1"
+    melee_dmg "2.1"
+    two_hands "1"
+    grip "2"
+    size "1.25"
+    mass_scale "1.25"
+    tip_x "1.6"
+    butt_x "-1.6"
+}
+
+// slot 26: progs/vr_crate1.mdl (vr_prop_*_27)
+prop 26
+{
+    // The wooden crates (vr_crates.qc; ROUND21.md, "Wooden crates"): as heavy as the explosive boxes of their size, carried
+    // by hand as they are, never force grabbed. What they break into: light boards, a splinter and a batten, thrown and
+    // force grabbed as any small thing (vr_props_version 49 gives these slots to configs saved before); the small ones (a
+    // broken board, the splinter, a broken batten) held in the palm, the whole board where taken (51). Every one in both
+    // hands too (56: the broken board and the splinter were one hand).
+    id "progs/vr_crate1.mdl"
+    mass "40"
+    forcegrab "0"
+}
+
+// slot 27: progs/vr_crate2.mdl (vr_prop_*_28)
+prop 27
+{
+    id "progs/vr_crate2.mdl"
+    mass "65"
+    forcegrab "0"
+}
+
+// slot 28: progs/vr_plank1.mdl (vr_prop_*_29)
+prop 28
+{
+    id "progs/vr_plank1.mdl"
+    mass "4"
+}
+
+// slot 29: progs/vr_plank2.mdl (vr_prop_*_30)
+prop 29
+{
+    id "progs/vr_plank2.mdl"
+    grip "2"
+    mass "2.5"
+}
+
+// slot 30: progs/vr_plank3.mdl (vr_prop_*_31)
+prop 30
+{
+    id "progs/vr_plank3.mdl"
+    grip "2"
+    mass "0.15"
+}
+
+// slot 31: progs/vr_plank4.mdl (vr_prop_*_32)
+prop 31
+{
+    id "progs/vr_plank4.mdl"
+    grip "2"
+    mass "3"
+}
+
+// slot 32: progs/h_dknight.mdl (vr_prop_*_33)
+prop 32
+{
+    // Arcane Dimensions' heads the author held, at his sizes (his config's slots, approved
+    // 2026-10-25). configVersion 202 gives the slots to configs saved before (takeShippedSlots: a model of another slot
+    // there moves; the head's values chosen in another slot come along). Mass -1 as every other monster's head (approved
+    // 2026-10-25; was 0, estimated, until configVersion 204): a share of the ragdoll of the class the monster is tuned as
+    // (ad::headVrClass: the death knight's the hell knight's).
+    id "progs/h_dknight.mdl"
+    size "0.6"
+    mass "-1"
+}
+
+// slot 33: progs/gib1.mdl (vr_prop_*_34)
+prop 33
+{
+    // Gibs and heads (round 21, "Spring only; Weapon Weights and Held Object Weights; weight and damage"): Box3D's estimate
+    // from their drawn hulls at flesh's density made them 18 to 405 kg (a gib2 292, a grunt's head 73), so they lagged in the
+    // hand like explosive boxes, left it at a fifth of its speed, and would strike and hit thrown several times harder by the
+    // weight's damage curve. Their masses as things of their kind weigh: the Mass is also their Box3D mass. (Slots 34..48;
+    // vr_cfg_version 27 gives them to configs saved before; props::fleshSlots.) The author's heavier
+    // masses since 2026-10-02 (vr_props_version 55): a gib 8 to 20 kg, a head 10 to 70; lighter since 2026-10-07
+    // (vr_props_version 58, his config's): a gib 8 to 15, a head 5 to 65. Since vr_props_version 59 ("bring the head's
+    // weights closer to the ragdoll's"), a monster's head Mass -1: what a head cut off its ragdoll weighs (vr_limbs.qc
+    // VR_Limb_SetMass; box3d::headPropMass), 7% of its class's vr_ragdoll_<class>_mass times vr_limbs_mass_scale, followed
+    // live (a grunt's 5.6 kg, a dog's 2.8, a shambler's 19.6). The player's head (no ragdoll class) keeps its 5 kg.
+    id "progs/gib1.mdl"
+    mass "8"
+}
+
+// slot 34: progs/gib2.mdl (vr_prop_*_35)
+prop 34
+{
+    id "progs/gib2.mdl"
+    size "0.75"
+    mass "15"
+}
+
+// slot 35: progs/gib3.mdl (vr_prop_*_36)
+prop 35
+{
+    id "progs/gib3.mdl"
+    size "0.8"
+    mass "10"
+}
+
+// slot 36: progs/h_player.mdl (vr_prop_*_37)
+prop 36
+{
+    id "progs/h_player.mdl"
+    mass "5"
+}
+
+// slot 37: progs/h_guard.mdl (vr_prop_*_38)
+prop 37
+{
+    id "progs/h_guard.mdl"
+    size "0.7"
+    mass "-1"
+}
+
+// slot 38: progs/h_dog.mdl (vr_prop_*_39)
+prop 38
+{
+    id "progs/h_dog.mdl"
+    size "0.75"
+    mass "-1"
+}
+
+// slot 39: progs/h_mega.mdl (vr_prop_*_40)
+prop 39
+{
+    id "progs/h_mega.mdl"
+    size "0.7"
+    mass "-1"
+}
+
+// slot 40: progs/h_knight.mdl (vr_prop_*_41)
+prop 40
+{
+    id "progs/h_knight.mdl"
+    size "0.7"
+    mass "-1"
+}
+
+// slot 41: progs/h_hellkn.mdl (vr_prop_*_42)
+prop 41
+{
+    id "progs/h_hellkn.mdl"
+    size "0.75"
+    mass "-1"
+}
+
+// slot 42: progs/h_ogre.mdl (vr_prop_*_43)
+prop 42
+{
+    id "progs/h_ogre.mdl"
+    size "0.65"
+    mass "-1"
+}
+
+// slot 43: progs/h_wizard.mdl (vr_prop_*_44)
+prop 43
+{
+    id "progs/h_wizard.mdl"
+    mass "-1"
+}
+
+// slot 44: progs/h_zombie.mdl (vr_prop_*_45)
+prop 44
+{
+    id "progs/h_zombie.mdl"
+    mass "-1"
+    size "0.8" // the author's (his config, approved 2026-10-25; configVersion 202)
+}
+
+// slot 45: progs/h_shal.mdl (vr_prop_*_46)
+prop 45
+{
+    id "progs/h_shal.mdl"
+    size "0.75"
+    mass "-1"
+}
+
+// slot 46: progs/h_shams.mdl (vr_prop_*_47)
+prop 46
+{
+    id "progs/h_shams.mdl"
+    size "0.9"
+    mass "-1"
+}
+
+// slot 47: progs/h_demon.mdl (vr_prop_*_48)
+prop 47
+{
+    id "progs/h_demon.mdl"
+    size "0.7"
+    mass "-1"
+}
+
+// slot 48: progs/vr_shell_live.mdl (vr_prop_*_49)
+prop 48
+{
+    // Immersive reloading's rounds (QC vr_reload.qc; docs/vr-port/RELOAD.md): a shotgun shell from the ammo pouch, and
+    // the taped pair (vr_reload_shell_pairs). Drawn at the spent shells' 1.25 (vr_shells.cpp, the guns' own oversize), light,
+    // in one hand. Held fixed at the fingertips as for loading (Grip Mode 1: along the index finger, its brass end in the
+    // fingers, its crimp forward), pinched by the thumb, the index and the middle finger, the ring finger and the pinky
+    // tucked in (Fingers: manual). The author tunes them live in Held Object Offsets (a shell in the hand). vr_props_version
+    // 60 gives these slots to configs saved before.
+    id "progs/vr_shell_live.mdl"
+    mass "0.04"
+    size "1.25"
+    two_hands "0"
+    grip "1"
+    grip_x "-0.2"
+    grip_y "0"
+    grip_z "-1"
+    fgr_manual "0"
+    fgr_curl_thumb "0.55"
+    fgr_curl_index "0.5"
+    fgr_curl_middle "0.55"
+    fgr_curl_ring "0.9"
+    fgr_curl_pinky "0.95"
+    // The shells and the magazines below are light and blunt: thrown, a quarter of a thing's damage (Throw Damage x; the
+    // author's 2026-10-22 note: a magazine broke a crate in two throws; configVersion 179 gives it to configs saved before).
+    throw_dmg "0.25"
+}
+
+// slot 49: progs/vr_shell_pair.mdl (vr_prop_*_50)
+prop 49
+{
+    throw_dmg "0.25"
+    id "progs/vr_shell_pair.mdl"
+    mass "0.08"
+    size "1.25"
+    two_hands "0"
+    grip "1"
+    grip_x "-0.2"
+    grip_y "0.15"
+    grip_z "-1.5"
+    fgr_manual "0"
+    fgr_curl_thumb "0.5"
+    fgr_curl_index "0.45"
+    fgr_curl_middle "0.5"
+    fgr_curl_ring "0.9"
+    fgr_curl_pinky "0.95"
+}
+
+// slot 50: progs/vr_mag_nail.mdl (vr_prop_*_51)
+prop 50
+{
+    throw_dmg "0.25"
+    // Immersive reloading's magazines (phase 2; make_mags.py): the nailgun's, the super nailgun's, the thunderbolt's cell.
+    // In one hand; their weights. vr_props_version 61 gave these slots to configs saved before. The author's sizes (his
+    // config, 2026-10-07: the nailgun's 0.55, the super nailgun's and the cell's 0.45) and held as for loading (his note:
+    // they came out of the pouch upside down): fixed in the fist, its length along the fist's grip channel, its top (the
+    // feed end) up out of it, the fingers fitted round it (vr_props_version 63).
+    // The nailgun's: the author's grip and both hands (his config, approved 2026-10-25; configVersion 202: -2.13, -3.05, one
+    // hand before).
+    id "progs/vr_mag_nail.mdl"
+    mass "0.45"
+    grip "1"
+    size "0.55"
+    grip_x "-2.1"
+    grip_y "0.05"
+    grip_z "-3.35"
+    overlap "0.385" // the author's (2026-10-22: the pinky kept out of it; configVersion 179)
+}
+
+// slot 51: progs/vr_mag_snail.mdl (vr_prop_*_52)
+prop 51
+{
+    throw_dmg "0.25"
+    id "progs/vr_mag_snail.mdl"
+    mass "0.7"
+    two_hands "0"
+    grip "1"
+    size "0.45"
+    grip_x "-2.6"
+    grip_y "0.07"
+    grip_z "-3.73"
+    overlap "0.4"
+}
+
+// slot 52: progs/vr_mag_light.mdl (vr_prop_*_53)
+prop 52
+{
+    throw_dmg "0.25"
+    id "progs/vr_mag_light.mdl"
+    mass "0.9"
+    two_hands "0"
+    grip "1"
+    size "0.45"
+    grip_x "-2.6"
+    grip_y "0.07"
+    grip_z "-3.73"
+    overlap "0.4"
+}
+
+// slot 53: progs/vr_round_rocket.mdl (vr_prop_*_54)
+prop 53
+{
+    // Immersive reloading's launcher rounds (QC vr_reload.qc, "Front-loaded launchers"; make_rounds.py: their own models at
+    // Size 1, so missile.mdl, grenade.mdl and proxbomb.mdl keep their sizes in flight): the rocket held along the fist (Along
+    // the Handle) by the nose half of its middle, its butt free below the little finger to go into the muzzle; the
+    // grenades in the palm, as the hand grenades. In one hand. vr_props_version 66 gives these slots to configs saved before.
+    id "progs/vr_round_rocket.mdl"
+    mass "1.5"
+    two_hands "0"
+    grip "3"
+    handle_from "0"
+    handle_to "2"
+}
+
+// slot 54: progs/vr_round_grenade.mdl (vr_prop_*_55)
+prop 54
+{
+    id "progs/vr_round_grenade.mdl"
+    mass "0.5"
+    two_hands "0"
+    grip "2"
+}
+
+// slot 55: progs/proxbomb.mdl (vr_prop_*_56)
+prop 55
+{
+    // The proximity grenade (the pouches' since 2026-10-08: Quake's progs/proxbomb.mdl again, at vr_grenade_scale; it was
+    // make_rounds.py's vr_round_prox.mdl, whose slot this was): in the palm, as the grenades (slots 4 and 5), weighing what
+    // they do. vr_props_version 67 gives it to configs saved before.
+    id "progs/proxbomb.mdl"
+    mass "1.2"
+    two_hands "0"
+    grip "2"
+}
+
+// slot 56: progs/vr_mag_npistol.mdl (vr_prop_*_57)
+prop 56
+{
+    // The nail pistol's magazine (make_nailpistol_mags.py; QC vr_nailpistol.qc): held as the nailgun's, a little smaller (the
+    // pistol's Scale 0.45 to its Size 0.52, as the nailgun's 0.48 to 0.55) and lighter. configVersion 200 gives the slot to
+    // configs saved before (vr_props.cpp shippedSlots); 201 to those where another model had taken it (that model moves).
+    // The author's size, In the Palm (Grip X..Z 0: the palm needs no offset) and handle tilt (his config, approved
+    // 2026-10-25; configVersion 202 moves configs still at 0.52, Grip Mode 1 at -1.8 0.05 -2.6, tilt 25).
+    id "progs/vr_mag_npistol.mdl"
+    mass "0.25"
+    two_hands "0"
+    // His grip of 2026-10-27 (configVersion 209 moves configs still at In the Palm, 0 0 0, overlap 0.385): Grip Mode 1 with
+    // his offsets, a little less overlap.
+    grip "1"
+    grip_x "-3.4"
+    grip_y "-0.5"
+    grip_z "-3.3"
+    size "0.55"
+    handle_tilt "30.5"
+    overlap "0.37"
+    throw_dmg "0.25"
+}
+
+// slot 57: progs/h_dcrossbow.mdl (vr_prop_*_58)
+prop 57
+{
+    id "progs/h_dcrossbow.mdl"
+    size "0.6"
+    mass "-1"
+}
+
+// slot 58: progs/h_soldier.mdl (vr_prop_*_59)
+prop 58
+{
+    id "progs/h_soldier.mdl"
+    size "0.65"
+    mass "-1"
+}
+
+// slot 59: progs/h_enforcer.mdl (vr_prop_*_60)
+prop 59
+{
+    id "progs/h_enforcer.mdl"
+    size "0.65"
+    mass "-1"
+}
+
+// slot 60: progs/vr_barrel.mdl (vr_prop_*_61)
+prop 60
+{
+    // The barrel (vrstart's: vr_barrel, a crate in all but its shape; make_crates.py): a little lighter than the small
+    // crate, carried as the crates are, never force grabbed (vr_props_version 62 gives the slot to configs saved before).
+    id "progs/vr_barrel.mdl"
+    mass "30"
+    forcegrab "0"
+}
+
+// slot 61: progs/h_hogreham.mdl (vr_prop_*_62)
+prop 61
+{
+    id "progs/h_hogreham.mdl"
+    size "0.7"
+    mass "-1"
+}
+
+// slot 62: progs/health_5.mdl (vr_prop_*_63)
+prop 62
+{
+    // Arcane Dimensions' health vial (and gem: QC vr_ad_items.qc item_healthvial, AD's progs/health_5.mdl): in the palm (the
+    // author's Held Object Offsets of 2026-10-22, his config's slot 63). configVersion 183 gives the slot to configs saved
+    // before (takeShippedSlots: only a free one, or one already the vial's).
+    id "progs/health_5.mdl"
+    grip "2"
+}
+
+// slot 63: progs/h_dguard.mdl (vr_prop_*_64)
+prop 63
+{
+    id "progs/h_dguard.mdl"
+    size "0.65"
+    mass "-1"
+}
+
+// slot 64: progs/h_dfury.mdl (vr_prop_*_65)
+prop 64
+{
+    // Arcane Dimensions' death fury's head (progs/h_dfury.mdl): 0.65 of its size to fit the monster (the author's note of
+    // 2026-10-23), a head's mass. configVersion 187 gives the slot to configs saved before (takeShippedSlots).
+    id "progs/h_dfury.mdl"
+    size "0.65"
+    mass "-1"
+}
+
+// slot 70: progs/h_hogre.mdl (vr_prop_*_71)
+prop 70
+{
+    id "progs/h_hogre.mdl" // (his was slot 56's until configVersion 201 moved it: a free slot here)
+    size "0.6"
+    mass "-1"
+}

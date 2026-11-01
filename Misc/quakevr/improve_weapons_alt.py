@@ -29,8 +29,8 @@
 # So an alternate is built by the same builder as its normal model, from its own source: first moved
 # by the offset between the two models' hand anchors' vertices (so that its hand's model space is the
 # normal one's: every part lands where it does on the normal gun, and the hand is at the same place),
-# with the builder's vertex indices translated to the alternate's (VertexMap). Then its vr_weapons.inc
-# slot is set up from the normal slot (align_slot): the same settings, but for the anchors (the
+# with the builder's vertex indices translated to the alternate's (VertexMap). Then its weapon
+# slot (quakevr/data/weapons.txt, read through weapons_data.py; vr_weapons.inc before) is set up from the normal slot (align_slot): the same settings, but for the anchors (the
 # points of the alternate's vertices matching the normal one's), the hand offsets (from its own anchor
 # to the same hand) and the weapon offsets (compensating the header's origin, about which the
 # weapon's Scale applies). Normal and alternate are then drawn in the same place, the hand on the same
@@ -38,13 +38,12 @@
 
 import math
 import os
-import re
 
+import weapons_data
 from improve_weapons import K, Mdl, fmt
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SRC = os.path.join(HERE, "src_models")
-INC = os.path.join(HERE, "..", "..", "Quake", "vr", "vr_weapons.inc")
 
 ANCHORS = ["HandAnchor", "MuzzleAnchor", "TwoHHandAnchor", "WpnButtonAnchor", "WpnTextAnchor"]
 
@@ -141,10 +140,8 @@ def prepare(normal, alt, hand_vertex):
 # Slot settings (outputs)
 
 def slot_defaults():
-    slots = {}
-    for slot, key, value in re.findall(r'QVR_WEAPON_(?:DEFAULT|UNINHERITED)\((\d+), (\w+), "([^"]*)"\)', open(INC).read()):
-        slots.setdefault(int(slot), {})[key] = value
-    return slots
+    """Each slot's own values in quakevr/data/weapons.txt, by the keys' enum names (as the builders print them)."""
+    return weapons_data.slot_values(by_enum=True)
 
 
 def _num(x):
@@ -152,7 +149,7 @@ def _num(x):
 
 
 def align_slot(out_dir, normal_name, alt_name, normal_slot, alt_slot, normal_changes, vmap, counts):
-    """The alternate's vr_weapons.inc slot from the normal one (its defaults, with `normal_changes`,
+    """The alternate's weapons.txt slot from the normal one (its defaults, with `normal_changes`,
     the settings its builder printed this run): the same, but the anchors, the hand offsets and
     the weapon offsets, so that the two models are drawn in the same place with the hand at the same
     place. `vmap` and `counts` (the two sources' vertex counts): the builders keep the old vertices'
@@ -198,6 +195,7 @@ def align_slot(out_dir, normal_name, alt_name, normal_slot, alt_slot, normal_cha
         new["Offset" + c] = _num(float(n["Offset" + c]) + (1 - sw) * (N.origin[k] - A.origin[k]))
     print("  %s (slot %d) aligned on %s (slot %d); anchors (units apart in frame 0, in any frame):"
           % (alt_name, alt_slot, normal_name, normal_slot))
+    names = weapons_data.key_names()
     print("    " + "; ".join(report))
     changed = {}
     for key, value in new.items():
@@ -208,7 +206,7 @@ def align_slot(out_dir, normal_name, alt_name, normal_slot, alt_slot, normal_cha
             except ValueError:
                 pass
             changed[key] = value
-            print('    QVR_WEAPON_DEFAULT(%d, %s, "%s") // was %s' % (alt_slot, key, value, old[key]))
+            print('    weapon %d: %s "%s" // was %s' % (alt_slot, names[key], value, old[key]))
     return changed
 
 

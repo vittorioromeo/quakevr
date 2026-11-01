@@ -54,7 +54,7 @@ float(entity e) VR_Wound_Takes =
 float QVR_WOUND_CLEAN = 64; // added to the kind
 float(entity e) VR_Wound_TakesHit =
 {
-    return VR_Wound_Takes(e) ||
+    return VR_Hit_TargetBleeds(e) ||
            (VR_Dummy_Clean(e) && (cvar_hget(cvarh_vr_dummy_dents) || cvar_hget(cvarh_vr_dummy_streams)));
 };
 float(entity e) VR_Wound_CleanFlag =
@@ -101,7 +101,7 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_Wound_Hit =
         }
     }
     // (A fire paints its own burns, under its flames: vr_burning.qc.)
-    if(take <= 0 || !VR_Wound_TakesHit(targ) || hit_kind == QVR_HITKIND_BLEED || inflictor.classname == "vr_burn" ||
+    if(take <= 0 || !VR_Wound_TakesHit(targ) || inflictor.classname == "vr_burn" ||
        VR_Hit_Bloodless())
     {
         return;
@@ -140,11 +140,17 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_Wound_Hit =
     // What struck (VR_Hit_Class): a blunt thing's blow is a round crater (extra 1: the engine's blunt dent), a blade's a
     // cut drawn out along the swing.
     float c = VR_Hit_Class(inflictor, attacker);
-    if(hit_kind == QVR_HITKIND_SPLASH || IsExplosionDamage)
+    if(VR_Hit_Discharge(inflictor, attacker))
+    {
+        kind = QVR_WOUND_ZAP; // the discharge: a shock
+    }
+    else if(VR_Hit_Blast(inflictor, attacker))
     {
         kind = QVR_WOUND_BLAST;
-        org = inflictor.origin;
-        dir = mid - inflictor.origin;
+    }
+    else if(hit_kind == QVR_HITKIND_BLEED)
+    {
+        kind = QVR_WOUND_MELEE; // a stuck blade's bleeding: a blade's wound (his call 2026-11-01)
     }
     else if(hit_kind == QVR_HITKIND_MELEE || hit_kind == QVR_HITKIND_HEADBUTT || hit_kind == QVR_HITKIND_BASH ||
             hit_kind == QVR_HITKIND_SHOVE)
@@ -185,11 +191,9 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_Wound_Hit =
         }
     }
 
-    if(kind != QVR_WOUND_BLAST)
-    {
-        org = VR_Hit_Point(targ, inflictor, 64, TRUE);
-        dir = VR_Hit_Way(targ, inflictor, dir);
-    }
+    VR_Hit_Where(targ, inflictor, attacker, dir);
+    org = hit_where;
+    dir = hit_whereway;
     if(dir == '0 0 0')
     {
         dir = '0 0 -1';

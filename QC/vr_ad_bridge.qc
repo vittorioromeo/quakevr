@@ -132,7 +132,7 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_AD_Hit =
     }
     VR_BulletTime_Earn(targ, attacker, take, targ.health + take); // (the health it had: taken already)
     VR_DamageNumber(targ, inflictor, attacker, take, 0, vr_ad_melee);
-    VR_Gore_Hit(targ, inflictor, take);
+    VR_Gore_Hit(targ, inflictor, attacker, take);
     VR_SmallGib_Hit(targ, inflictor, attacker, take);
     VR_Wound_Hit(targ, inflictor, attacker, take);
     // VR: living hit reactions (vr_hitreact.qc): it flinches where struck, a leg hit's knee buckling, its steps slowed a

@@ -159,6 +159,7 @@ void startSwim(State& s, const Parts& p, const Context& c, Liquid l, float t)
         set(Channel::Head, 0.8f, 0.3f, 0.9f);
     }
     s.on = true;
+    setMode(s, Mode::Swimming);
     if(vr_debug_ragdoll.value || (w.living && vr_knockdown_debug.value))
     {
         if(w.living)
@@ -194,6 +195,7 @@ void stopSwim(State& s, const Context& c, float t)
         Con_Printf("ragdoll: %d out of the %s after %.2f s: stops\n", c.num, liquidName(s.swim.liquid), c.now - s.swim.from);
     }
     s.swim.liquid = Liquid::None;
+    setMode(s, s.struggle.on ? Mode::Struggle : s.death.on ? Mode::Dying : Mode::Limp);
 }
 
 // A flailing limb's k-th place (its frame: x forward, y left, z up), thrown about its own side.
@@ -598,8 +600,9 @@ void holdLevel(const Parts& p, const Context& c, const glm::vec3& anchor, float 
 
 bool beginLivingSwim(State& s, const Parts& p, const Context& c)
 {
-    s.struggle.on = false; // (it leads from here: a struggle gives way)
-    if(!p.rig || !c.liquidAt || !liquidsOn() || s.swim.liquid != Liquid::None || s.rise.on || s.stagger.on)
+    struggleGivesWay(s);
+    if(!p.rig || !c.liquidAt || !liquidsOn() ||
+        (s.on && (s.mode == Mode::Swimming || s.mode == Mode::Rising || s.mode == Mode::Stagger)))
     {
         return false;
     }
@@ -649,12 +652,12 @@ void swimDies(State& s, double now)
 
 bool swimming(const State& s)
 {
-    return s.on && s.swim.liquid != Liquid::None;
+    return s.on && s.mode == Mode::Swimming;
 }
 
 bool beginFlail(State& s, const Parts& p, const Context& c)
 {
-    if(!p.rig || s.swim.liquid != Liquid::None || s.rise.on || s.stagger.on)
+    if(!p.rig || (s.on && (s.mode == Mode::Swimming || s.mode == Mode::Rising || s.mode == Mode::Stagger)))
     {
         return false;
     }
@@ -677,6 +680,6 @@ void endFlail(State& s, const Context& c)
 
 bool flailing(const State& s)
 {
-    return s.on && s.swim.liquid == Liquid::Air;
+    return s.on && s.mode == Mode::Swimming && s.swim.liquid == Liquid::Air;
 }
 } // namespace qvr::ragactive

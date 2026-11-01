@@ -404,7 +404,7 @@ cvar_t *Cvar_FindVar (const char *var_name)
 	alias = VR_CvarAlias (var_name); // QVR: a renamed setting's old name (old configs, binds, scripts) is the new one
 	if (alias)
 		return Cvar_FindVarExact (alias);
-	return VR_CvarStandIn (var_name); // QVR: a data table's value by its old cvar name (vr_wofs_<key>_NN: weapons.txt's)
+	return VR_CvarStandIn (var_name); // QVR: a data table's value by its old cvar name (vr_wofs_/vr_prop_<key>_NN)
 }
 
 cvar_t *Cvar_FindVarAfter (const char *prev_name, unsigned int with_flags)
@@ -522,7 +522,7 @@ void Cvar_SetQuick (cvar_t *var, const char *value)
 	if (!(var->flags & CVAR_REGISTERED))
 	{
 		// QVR: a tuning constant's stand-in (the Tunables page) sets the constant; a data table's (a weapon's value:
-		// Weapon Offsets, the config's vr_wofs_ lines) its value
+		// Weapon Offsets, Held Object Offsets, the config's vr_wofs_/vr_prop_ lines) its value
 		if (!VR_TunableSetVar (var, value))
 			VR_StandInSet (var, value);
 		return;
@@ -837,6 +837,6 @@ void Cvar_WriteVariables (FILE *f)
 		if ((var->flags & CVAR_ARCHIVE) && VR_ConfigSaves (var)) // QVR
 			fprintf (f, "%s \"%s\"\n", var->name, var->string);
 	}
-	VR_ConfigWriteTables (f); // QVR: the data tables' values changed from their data files (the weapons')
+	VR_ConfigWriteTables (f); // QVR: the data tables' values changed from their data files (the weapons', the props')
 }
 

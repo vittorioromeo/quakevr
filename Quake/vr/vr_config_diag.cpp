@@ -15,7 +15,6 @@
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
 #include "vr_testkit.hpp"
-#include "vr_weapons.hpp"
 
 #include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
@@ -76,16 +75,25 @@ constexpr const char* testName = "config_test";
     return Cvar_FindVarAfter("", CVAR_ARCHIVE);
 }
 
-// (After the cvars, the weapons' values: no cvars, weapons.txt's stand-ins, written in the config as the vr_ settings.)
+// (After the cvars, the data tables' values, each table's in turn: no cvars, weapons.txt's and props.txt's stand-ins,
+// written in the config as the vr_ settings.)
 [[nodiscard]] cvar_t* nextArchived(const cvar_t* var)
 {
-    const za::Span<cvar_t> table = weapons::standIns();
-    if(var >= table.data() && var < table.data() + table.size())
+    const auto tables = standInTables();
+    for(za::SizeT t = 0; t < tables.size(); t++)
     {
-        return var + 1 < table.data() + table.size() ? const_cast<cvar_t*>(var + 1) : nullptr;
+        const za::Span<cvar_t> table = tables[t];
+        if(var >= table.data() && var < table.data() + table.size())
+        {
+            if(var + 1 < table.data() + table.size())
+            {
+                return const_cast<cvar_t*>(var + 1);
+            }
+            return t + 1 < tables.size() ? tables[t + 1].data() : nullptr;
+        }
     }
     cvar_t* next = Cvar_FindVarAfter(var->name, CVAR_ARCHIVE);
-    return next ? next : table.data();
+    return next ? next : tables[0].data();
 }
 
 void snap()

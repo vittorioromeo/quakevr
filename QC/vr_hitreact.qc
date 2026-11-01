@@ -150,13 +150,13 @@ void(entity targ, vector at, vector dir, float part, float share) VR_HitReact_Sl
 void(entity targ, entity inflictor, entity attacker) VR_HitReact_Where =
 {
     vector mid = (targ.absmin + targ.absmax) * 0.5;
-    vector at = '0 0 0';
-    vector dir = hit_dir;
+    VR_Hit_Where(targ, inflictor, attacker, hit_dir); // (the one rule: the wounds' and the gore's too)
+    vector at = hit_where;
+    vector dir = hit_whereway;
     float part = -1;
     if(VR_Hit_On(targ))
     {
         part = hit_zone;
-        at = hit_at;
     }
     if(VR_Hit_Pellets() > 0)
     {
@@ -168,21 +168,10 @@ void(entity targ, entity inflictor, entity attacker) VR_HitReact_Where =
             dir = hit_peldir;
         }
     }
-    if(hit_kind == QVR_HITKIND_SPLASH)
+    if(VR_Hit_Blast(inflictor, attacker))
     {
-        // A blast: from the nearest point of its box to the blast, pushed away from it
-        at = inflictor.origin;
-        at_x = min(max(at_x, targ.absmin_x), targ.absmax_x);
-        at_y = min(max(at_y, targ.absmin_y), targ.absmax_y);
-        at_z = min(max(at_z, targ.absmin_z), targ.absmax_z);
-        dir = mid - inflictor.origin;
-        part = -1;
+        part = -1; // (a blast: VR_Hit_Where's nearest point of its box, pushed away from it)
     }
-    if(at == '0 0 0')
-    {
-        at = VR_Hit_Point(targ, inflictor, 96, TRUE);
-    }
-    dir = VR_Hit_Way(targ, inflictor, dir);
     if(dir == '0 0 0')
     {
         dir = mid - (attacker.absmin + attacker.absmax) * 0.5;

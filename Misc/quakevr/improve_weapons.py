@@ -38,6 +38,8 @@
 # old strip order then). The models' bounds grow (the grips hang lower), which moves the
 # origin their weapon Scale is applied about: the weapon offsets are compensated so that the old
 # parts stay exactly where they were. The script prints the new values for Quake/vr/vr_weapons.inc
+# (now quakevr/data/weapons.txt: block "weapon <slot>", the keys by vr_weapons.inc's names; a one-off of round 16,
+# its values shipped and tuned since: a rerun's printed values are not today's defaults)
 # (slots 2 and 6; vr_weapons.cpp's settingsVersion resets them in existing configs).
 
 import math

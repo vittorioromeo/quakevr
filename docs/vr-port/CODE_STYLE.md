@@ -208,13 +208,17 @@ the Quake VR ones (`vr_*`, the weapons' `vr_wofs_*` and props' `vr_prop_*` slots
 default (`VR_ConfigSaves`, vr_cvars.cpp; numbers compared as numbers), plus the version markers (`vr_cfg_version`,
 `vr_wofs_version`, `vr_props_version`, `vr_bindings_version`), always. `vr_config_defaults` puts every Quake VR setting
 back to its default first, so a config executed again or after a game switch gives what a full config gave. A line in
-the config is the player's choice. The weapons' values are data, not cvars (`quakevr/data/weapons.txt`, read at start;
-ROUND23.md, "Weapons as data"): their `vr_wofs_<key>_NN` names are stand-ins (`DataTable`, vr_slottable.hpp) that the
-config, the console, the QC's `cvar()` and the menus reach as cvars; the changed ones are written after the cvars
-(`VR_ConfigWriteTables`). His values become the defaults with `Misc/quakevr/weapons_data.py promote <config>`.
+the config is the player's choice. The weapons', the props' and the monsters' per-class values are data, not cvars
+(`quakevr/data/weapons.txt`, `props.txt`, `monsters.txt`, read at start; ROUND23.md, "Weapons as data", "Props as
+data", "Monsters as data"): their `vr_wofs_<key>_NN`, `vr_prop_<key>_NN` and old per-monster names (`vr_mhull_<m>`,
+`vr_smallgibs_mult_<m>`, `vr_ragdoll_<m>_<key>`: vr_monsterdata.inc) are stand-ins (`DataTable`, vr_slottable.hpp;
+`monsterValues[]`, vr_monsterdata.cpp) that the config, the console, the QC's `cvar()` and cvar handles and the menus
+reach as cvars; the changed ones are written after the cvars (`VR_ConfigWriteTables`). His values become the defaults
+with `Misc/quakevr/weapons_data.py promote <config>`, `props_data.py promote <config>` and `monsters_data.py promote
+<config>`.
 
 - **A shipped default changes: edit the default only** (`vr_cvars.inc`, `vr_defaults.cfg`, `quakevr/data/weapons.txt`,
-  `vr_props.inc`). No `defaultChanges` row and no `configVersion` bump: every player who left the setting alone gets
+  `quakevr/data/props.txt`, `quakevr/data/monsters.txt`). No `defaultChanges` row and no `configVersion` bump: every player who left the setting alone gets
   the new default. The `defaultChanges` table is frozen at 218 (it still moves configs written before then); add a row
   only to override a player's own choice on purpose, which needs the author's say. The same for the slots' migration
   steps (`vr_weapons.cpp` / `vr_props.cpp` `settingsVersion`): a step only to transform values (a rename, a new
@@ -324,7 +328,7 @@ Do not write a local copy (a second `rnd`, `lower`, `trim`, `startsWith`, `appen
 | a bounded undo stack (oldest dropped); a tool's feedback line (panel + console) | `toolpanel::pushUndo(stack, max, item)`, `toolpanel::say(line, until, tool, text, seconds)` | `vr_toolpanel.hpp` |
 | a panel image's 2D text and boxes (Quake's font, gold/white, shrunk to fit) | `toolpanel::Rect`, `fill`, `text`, `textFit` | `vr_toolpanel.hpp` |
 | a client one-shot sound at a place / on the local player | `audio::playAt(sfx, at, volume, attenuation, entity = 0)`, `audio::playLocal(sfx, volume)` | `vr_audio.hpp` |
-| per-slot cvars (`vr_<x>_<key>_NN`): storage, names, a cvar's key | `SlotTable<Key, Slots, Keys>` (`at`, `define`, `keyOf`, iteration) | `vr_slottable.hpp` |
+| per-slot values from a data file (`quakevr/data/<x>.txt`; their `vr_<x>_<key>_NN` stand-ins): storage, names, a value's key | `DataTable<Key, Slots, Keys>` (`load`, `at`, `keyOf`, `find`, `set`, iteration); every table's stand-ins: `standInTables()` (vr_cvars.hpp) | `vr_slottable.hpp` |
 | QC functions the engine calls every frame | a `progs::Bindings` member resolved once per map (`bindings().arenaCards.CardSerial`), never `findFunction("...")` per frame | `vr_progs.hpp` |
 | work done at each map load, in order | a row of `prewarmSteps` (vr_main.cpp `VR_NewMap`) | `vr_main.cpp` |
 | a new view entity (hands, weapons, body parts) | a member of `Entities` listed in `Entities::members` at its place in the draw order (`zip(a, b)` for arrays visited per index); `forEachEntity` walks the list, a static_assert fails on a member left out | `vr_view_internal.hpp` |

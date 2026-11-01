@@ -205,6 +205,7 @@ void endClimb(State& s, const Parts& p, const Context& c, bool up, const char* w
         letGo(s, arm, &c, why);
     }
     k.on = false;
+    setMode(s, Mode::Limp); // (dropped: a fall from here, below)
     k.pinned = false;
     k.phase = ClimbPhase::Done;
     k.ended = why;
@@ -476,11 +477,11 @@ void climbFrame(State& s, const Parts& p, const Context& c, float L)
 
 bool climbing(const State& s)
 {
-    return s.on && s.climb.on;
+    return s.on && s.mode == Mode::Climbing;
 }
 bool beginClimb(State& s, const Parts& p, const Context& c)
 {
-    if(!p.rig || s.death.on || s.climb.on)
+    if(!p.rig || (s.on && (s.mode == Mode::Dying || s.mode == Mode::Climbing)))
     {
         return false;
     }

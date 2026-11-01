@@ -202,4 +202,4 @@ qc-busy-hand QC/weapons.qc 2  # the trigger does not attack while the hand is lo
 qc-busy-hand QC/vr_axestick_test.qc 5  # the hand slot's test (vr_pickup_test 7) reads the kinds it sets
 
 # --- cpp-qc-constant: a QC constant is a #define in a Quake/vr/*_shared.h both include, not a literal copy
-cpp-qc-constant Quake/vr/vr_agpose.cpp 9  # left: qcConstants[] (vr_armedgrunt_pose.qc VR_AGP_*): FTEQCC 1.x mangles a #define inside a [x, y, z] vector initializer (ROUND23, "One hit record, part 2")
+# (qcConstants[], vr_agpose.cpp: no values now, read from the progs by name, progs::globalVec; ROUND23, "One hit record, part 5")

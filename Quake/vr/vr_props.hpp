@@ -1,6 +1,7 @@
-// vr_props.hpp -- per-prop settings (vr_props.inc): what each kind of thing a hand carries weighs and how it is held,
-// keyed by the model it is drawn with (a box's "maps/b_explob.bsp", a gib's "progs/gib1.mdl"). Stored as the weapons'
-// are (cvars vr_prop_<key>_NN, archived; vr_props_version for changes to the shipped defaults) and edited on the
+// vr_props.hpp -- per-prop settings (the keys: vr_props.inc; the values: quakevr/data/props.txt): what each kind of
+// thing a hand carries weighs and how it is held, keyed by the model it is drawn with (a box's "maps/b_explob.bsp", a
+// gib's "progs/gib1.mdl"). Stored as the weapons' are (a data table; the stand-ins vr_prop_<key>_NN, the player's
+// changes saved in the config; vr_props_version for changes to the shipped defaults) and edited on the
 // Held Object Offsets and Held Object Weights pages (vr_menu_props.inc). See docs/vr-port/ROUND21.md, "Weight: spring
 // model, stamina, held object offsets; explosive boxes" and "Spring only; Weapon Weights and Held Object Weights".
 //
@@ -15,6 +16,8 @@
 
 #include "vr_engine.hpp"
 
+#include "Zancle/Vocabulary/Span.hpp"
+
 namespace qvr::props
 {
 
@@ -25,13 +28,21 @@ inline constexpr int numSlots = 80;
 
 enum class Key : int
 {
-#define QVR_PROP_KEY(e, k, d) e,
+#define QVR_PROP_KEY(e, k) e,
 #include "vr_props.inc"
 #undef QVR_PROP_KEY
     Count
 };
 
+// Reads quakevr/data/props.txt into the table (every slot's values: the defaults; design review 3, ROUND23.md "Props
+// as data"). No cvars: each value has a stand-in cvar_t named vr_prop_<key>_NN (NN = slot + 1) that the menus bind and
+// the config, the console and the QC reach by that name (VR_CvarStandIn, VR_StandInSet; vr_cvars.cpp).
 void registerCvars();
+// The stand-in named `name` (vr_prop_<key>_NN, any case), or null; `var` (a stand-in) set to `value` (false: not one);
+// every stand-in (the config's writer and its tracking: vr_cvars.cpp).
+[[nodiscard]] cvar_t* findStandIn(const char* name);
+bool setStandIn(cvar_t* var, const char* value);
+[[nodiscard]] za::Span<cvar_t> standIns();
 // A config saved before configVersion `fromConfigVersion` (vr_cvars.cpp migrateConfig): the slots given shipped defaults
 // since take them (vr_props.cpp shippedSlots), with the values a player chose for the model in another slot; a slot
 // another model had taken moves that model to another slot (configVersion 201).
@@ -77,7 +88,10 @@ enum class Part
 };
 [[nodiscard]] bool weightKey(Key key); // Mass, Inertia, Com*, Throw, the spring's multipliers, the damage multipliers
 void resetSlotToDefaults(int slot, Part part = Part::All);
-void printSlot(int slot, Part part = Part::All); // the settings that differ from the defaults, as vr_props.inc lines
+void printSlot(int slot, Part part = Part::All); // the settings that differ from the defaults, as props.txt lines
+// vr_prop_dump: the slots holding a model, how many values each has changed; vr_prop_dump <slot> ... | all: every value
+// of those slots, and its default (props.txt's).
+void dump_f();
 void heads_f(); // vr_prop_heads: each monster head's slot, its Mass setting and what it weighs (Mass -1: its ragdoll's share)
 
 // Densities (kg/m^3) of what things are made of, by their model (a brush model: an ammo or health box, a crate; a

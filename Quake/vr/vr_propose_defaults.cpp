@@ -5,7 +5,7 @@
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
 #include "vr_menu.hpp"
-#include "vr_weapons.hpp"
+#include "vr_cvars.hpp"
 
 #include "Zancle/Algorithm/StableSort.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -168,15 +168,18 @@ int write(za::String& path)
     }
 
     za::Vector<Row> rows;
-    // The cvars, then the weapons' values (no cvars: weapons.txt's stand-ins, by their vr_wofs_<key>_NN names).
+    // The cvars, then the data tables' values (no cvars: weapons.txt's and props.txt's stand-ins, by their old names).
     za::Vector<const cvar_t*> vars;
     for(const cvar_t* var = Cvar_FindVarAfter("", 0); var; var = Cvar_FindVarAfter(var->name, 0))
     {
         vars.pushBack(var);
     }
-    for(const cvar_t& var : weapons::standIns())
+    for(const za::Span<cvar_t> table : standInTables())
     {
-        vars.pushBack(&var);
+        for(const cvar_t& var : table)
+        {
+            vars.pushBack(&var);
+        }
     }
     for(const cvar_t* var : vars)
     {

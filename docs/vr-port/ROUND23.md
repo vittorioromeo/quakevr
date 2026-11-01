@@ -4074,6 +4074,47 @@ Checklist:
   hand.
 - [phases2] Leg grabs: pull one down by the shins and drag it by the legs (the hold firms up once it lies); the
   one-hand pull; lift one by the legs; tug and lift an enforcer by its worn backpack.
+
+## One mode for the active ragdoll (design review 8, stage 3 of 3; branch `agent/phases3`)
+
+The active ragdoll keeps its concurrent sub-machines (each its own `on`: a guard over a stagger, a fall or a get-up; a
+dismemberment and the env's hands in a death; a struggle in place of a lifted one's flail). Above them, `State::mode`
+(`Mode {Limp, Struggle, Stagger, Falling, Rising, Dying, Climbing, Swimming}`, vr_ragactive.hpp) says who leads, set
+where a machine begins or ends (`setMode`): beginDeath/Stagger/Fall/Rise, livingLedge (a climb), startSwim (every swim
+and the flail), beginStruggle (not over a swim: a lifted one's struggle stands in for the flail, the mode stays
+Swimming), and the ends (the fall's after landing, stopSwim back to the struggle or the death, endClimb, the struggle's
+stop, `struggleGivesWay` where another machine takes over, end()). `Falling` is added to the review's list (a fall
+leads its own limbs, as a stagger does); `Limp` is also "driven, nothing leading" (lying after its fall).
+
+The checks that asked other machines' flags now ask the mode: driveFrames (the dismemberment, the swim, the stagger, the
+ledge, the fall, the guard), driveReaches (who leads the env, the fall's grab, the stand-down's reason), the get-up's
+pose, the pin's offset (stumble, stagger, climb), keeping awake (`knockdown(mode)`: a stagger, fall, get-up or climb),
+the guard's end, beginLivingSwim/beginFlail's refusals, `swimming()`, `flailing()`, `climbing()`, `beginClimb`. Counted:
+22 pairwise gates before (one of them a six-flag list, another the four-way stand-down chain), none after; the flag reads
+in the ragactive files 88 -> 35 (what remains is each machine's own, or data: a death's crawl, the struggle's slack). The
+box3d side's ~30 reads are untouched (several run with the drive off, on flags left over from the last drive: the mode
+is Limp then, so they need their own look). No function was over 300 lines (the longest, climbFrame, 227); none split.
+
+Verified: stage A (the mode beside the flags; every gate computed both ways and a per-frame check of the mode against
+the one the flags imply, plus impossible combinations: two leaders, a cut without a death, a wet swim with a struggle,
+get-up or stagger) over ragdoll_stagger, _liquid_active, _climb, _ragtest, _grab, _guard and judo: every mode reached
+(falling 32 processes, limp 31, rising 27, stagger 17, dying 17, climbing 9, swimming 8, struggle 8), **no mismatch and
+no impossible combination**. Stage B (the gates switched, the shadow gone): the same verdicts as stage A (stagger 51/6
+and once 52/5 as in A's runs: its chance rates; ragtest 28/3 against A's 29/2 and 30/1: its known "NOT begun (its
+ragdoll not driven)" flake; climb 24/4, grab 19/0, guard 8/0, liquid 1/0, judo 12/4). No bench (no frame function got
+heavier: a byte compare replaces several flag reads).
+
+Not reached by the tests (by reading): the dismemberment's "killed in a stagger, then cut" cleanup (now: a cut while a
+knockdown's machine leads ends it, the mode Dying).
+
+Checklist:
+- [phases3] Shove a grunt: it staggers and recovers, or goes over (a fall: arms braced), lies a moment, gets up; punch at
+  its head mid-stagger (the guard: arms up). Kill one mid-stagger: limp.
+- [phases3] Knock one off a ledge: it grabs the lip, hangs, pulls itself up (or drops). Knock one into water: it swims
+  to where it can stand; kill one standing in water: it paddles weakly, then limp.
+- [phases3] Lift a living grunt: it struggles (in place of the flail); let go: it falls. Cut a limb off a dying one: the
+  hand to the stump, the writhe.
+
 ## Knight two-pistol hold: the knights' Main and Off grips (branch `agent/kngrip`)
 
 His ask: address knightpose's leftovers (kinds 2 and 3 had a Second grip row but no Main or Off). **Confirmed wrong.**
@@ -4288,27 +4329,32 @@ tree); agrunt_76, ragdoll_ragtest flaky; agrunt_65 and agarmor_5 FAIL -> PASS; c
 the new agrunt_78/90/92 fail as on next's runs; agrunt_79 (FAIL 21/1, "stalepose ... zone 0") passes here after the
 merge (22/0). No regression found.
 
-**Disagreements (kept as they were; his call):**
-1. Where (the record's point): the wounds and the gore take it within 64 units of the target's middle, the flinch 96.
-2. A missile's origin where it touched: the wounds and the flinch fall back to it, the gore to the middle.
-3. No way known: the wounds point down, the gore sends nothing, the flinch takes it from the attacker.
-4. A blast: the wounds at the blast's origin (splash or IsExplosionDamage), the gore at the middle (splash only), the
-   flinch at the box's point nearest it (splash only).
-5. None of the three checks the point is this target's (VR_Hit_On): another target's point this frame in reach counts.
-6. Gib speed: a knight's or a wizard's spike (not batted back) and Hipnotic's laser are heavy; the class, the small gibs
-   and the corpses call them pierce (nails).
-7. The knockdown's blow: a flung or thrown thing is blunt, a thrown axe too (the class: a blade); a blow with no hand
-   (hit_hand -1) is judged by the main hand's weapon, the class calls it blunt.
-8. Wounds: Rogue's buzzsaw a nail's wound (the class: a blade); a lava spike, a lavaball, a laser a burn (the class:
-   pierce or none); a monster's own blow a melee wound (the class: none), the shambler's from afar a zap.
-9. The discharge (the lightning gun under water): the corpses lightning (shock); the small gibs, the wounds and the gore
-   an explosion; the gib speed heavy.
-10. A stuck axe's bleeding: the corpses blades; the small gibs other; the gib speed light; the wounds none.
-11. Whether the hit bleeds: VR_Hit_Bleeds is the wounds' rule; the gore stops on the level's and bloodless hits only (a
-    burn not begun bloodless would bleed: none today), the small gibs on bloodless only (the level's damage tears them).
-12. Whether the target bleeds, three rules left as they are: VR_Gore_Bleeds (a monster or the player, not the clean dummy,
-    vr_gore), VR_SmallGib_Bleeds (not a gib or a statue, has a model, the player only with vr_smallgibs_player, corpses
-    too), VR_Wound_TakesHit (the clean dummy with its dents or streams on).
+**Disagreements: unified (his call 2026-11-01; part 5, below), each through the shared helper:**
+1. Where: one radius, 96, for the wounds, the gore and the flinch (`VR_Hit_Where`).
+2. A missile's origin where it touched: the fallback for all three (the gore too).
+3. No way known: from the attacker's middle for all three (else the inflictor's; the wounds then point down, the gore
+   sends nothing, as before).
+4. A blast (a splash or IsExplosionDamage, `VR_Hit_Blast`; not the discharge): the point of the box nearest the blast,
+   away from it, for all three.
+5. The point is this target's: only this target's record (`VR_Hit_On`: its zone's point, else the record's) counts
+   (a bug fix: another target's point this frame no longer does).
+6. Gib speed: a knight's or a wizard's spike and Hipnotic's laser are pierce, light (the class's; the exception gone).
+7. The knockdown's blow: the class decides (a thrown blade is a blade; a flung thing blunt); a blow with no recorded
+   hand is judged by the hand whose blow was priced (vr_mdmg_hand) if known, else the main hand.
+8. Wounds: Rogue's buzzsaw a nail's wound, lava spikes, lavaballs, lasers a burn, a monster's own blow a melee wound:
+   **kept (intended)**.
+9. The discharge (`VR_Hit_Discharge`): a shock everywhere (the corpses lightning, the small gibs "other" = lightning,
+   the wounds a zap, the gore a plain hit, not an explosion's; gib speed heavy as before).
+10. A stuck axe's bleeding: a blade everywhere (the small gibs' blades kind; the wounds a blade's melee wound, before
+    none; the corpses blades, gib speed light as before).
+11. Whether the hit bleeds: `VR_Hit_Bleeds` for the gore, the small gibs and the wounds (the gore now stops on a burn
+    too; the small gibs on the level's damage and a burn too).
+12. Whether the target bleeds: one rule, `VR_Hit_TargetBleeds` (combat.qc), the union of the three old ones'
+    exclusions. VR_Gore_Bleeds excluded: not a monster or a player, the clean dummy. VR_SmallGib_Bleeds: a gib, no
+    model, a statue (statgib knights), the clean dummy, not a monster/corpse/player. VR_Wound_TakesHit: not a monster
+    or a player, the clean dummy (its dents and streams kept, not blood). Now all three exclude all of those (the
+    gore and the wounds stop on gibs, model-less things and statues; nothing new bleeds). Settings stay each one's
+    (vr_gore, vr_smallgibs_player).
 
 **Left (next):** the impact table's VR_HIT_* from the class; VR_SmallGib_Where; a bone in the record; design review 10's
 shared constants and `QVR_FIELD`.
@@ -4319,6 +4365,23 @@ gore counts as before the step. eval.sh canary 36/44, full 163/171 (as before).
 
 **Test in VR:** wounds and blood on blades, punches, thrown things, shots and blasts; gibs' flight speed by weapon; a
 knockdown by a blade's and a blunt blow: all as before.
+
+### Part 5 (branch `agent/hitrecord5`; design review 6 and 10)
+
+**What (one commit each):**
+- **The impact table's kind from the class:** `VR_Hit_ShotKind(inflictor, attacker, else)` (a pierce: hitscan a
+  bullet, a projectile's a nail: VR_Hit_Hitscan / hit_proj) for TraceAttack and spawn_touchblood;
+  `VR_Hit_BlowKind` (blade: the clang, blunt: the bash) for a blow's metal sound (VR_Melee_HitSoundOn, a thrown box, a
+  slam, a thrown weapon). Elsewhere the kind is how it came (a blow's blood, a splash, a pellet on no flesh, the saw):
+  kept literal. Check (old vs new, `hitkind:`) over agarmor_1/5, nail_1, empty_melee, melee_phase, throw_spin: **0
+  mismatches**; removed. (Not covered there: a crowbar on an explosive box now knocks, the class calls it blunt.)
+- **Design review 10, the shared constants:** FTEQCC (with the build's flags) still fails on a global vector from
+  scalar #defines (`[X, Y, Z]`: some components `"5" - not a name`, reproduced in a two-line file), so qcConstants[]
+  (vr_agpose.cpp) keeps only the names and reads the QC's VR_AGP_* values from the loaded progs by name
+  (`progs::globalVec`); its allowlist entry is gone. `QVR_FIELD(name, owner)`: not done (left).
+- **Unification (his call 2026-11-01, "apply all your suggestions"):** the disagreement list above, all but 8, through
+  `VR_Hit_Where`, `VR_Hit_Blast`, `VR_Hit_Discharge`, `VR_Hit_Bleeds` and `VR_Hit_TargetBleeds` (combat.qc);
+  VR_Hit_Point and VR_Hit_Way are gone. Damage is untouched (effects only).
 
 ## Faster map loads, round 6: the smooth rigs at once (branch `agent/loadtime2`)
 
@@ -4788,3 +4851,122 @@ The weapons' settings (Weapon Offsets, Weapon Weights: 51 slots x 306 keys) are 
   families (`vr_reload_well_<gun>_*`, `vr_adgun_*`, ... as weapon keys); then the menus' rows on getter/setter bindings
   (the stand-ins thinned to floats + text) and the vr_wofs_ names retired after a release (the config's lines then
   `weapon`-keyed).
+
+## Props as data (branch `agent/datatables2`; design review 3, step 2: props)
+
+The held objects' settings (Held Object Offsets, Held Object Weights: 80 slots x 45 keys) are data, not 3,600 cvars,
+the same way as the weapons' (above).
+- **`quakevr/data/props.txt`**: a `defaults { key "value" ... }` block (each key's every-slot value: the third column
+  `QVR_PROP_KEY` had), then `prop <slot> { ... }` per slot (slots from 0; the old `QVR_PROP_DEFAULT` rows in their
+  order, their comments carried along). vr_props.inc keeps the keys only. Read at start (`props::registerCvars`).
+- **One loader for both tables**: `readDataFile` (vr_datafile.cpp) and `DataTable::load` (vr_slottable.hpp) read
+  either file (`DataFileSpec`: path, block word, keys); the weapons' reader moved there. `SlotTable` (the props' old
+  registered cvars) is gone.
+- **Names kept for one release**: `VR_CvarStandIn` / `VR_StandInSet` try the weapons' table, then the props'
+  (`vr_prop_<key>_NN`, any case: an upper-case name typed at the console now finds it, as the vr_wofs_ ones do). Every
+  place that walked the weapons' stand-ins walks both (`standInTables()`, vr_cvars.hpp): the config's writer
+  (`VR_ConfigWriteTables`), `vr_config_defaults`, the config tracking, `vr_config_test`, Propose Defaults. The
+  configVersion steps that name `vr_prop_*` (179, 202, 204, 209) reach them by name. Not in `cvarlist` or completion.
+- **`vr_prop_dump`** (Debug menu: Held Object Slots): the slots holding a model and how many values each has changed;
+  `vr_prop_dump <slot> ... | all` every value and its default. Print Changes prints props.txt lines.
+- **`Misc/quakevr/props_data.py convert | promote <config> [--dry] | check`**: weapons_data.py's parser and promote,
+  now per table (`Table`, `slot_values`, `key_names`). His config of 10-31 has only six `vr_prop_id_NN` lines (slots his
+  hands claimed for v_axe, w_blueflail#melee, vr_fueltank#7, v_revolver, v_nailpistol, v_shot), no tuned values: not
+  promoted (`props_data.py promote` would add six id-only blocks; round-tripped and put back).
+- **His weapon values**: `weapons_data.py promote` of his ironwail.cfg (2026-10-31): the toolgun's (slot 26, `_27`) 12
+  holster values (hip and upper back: x, y, z, pitch, yaw, roll) are now weapons.txt's (his other 5 vr_wofs_ lines
+  were equal already or float noise).
+- **Scripts**: `blade_defaults.py` reads weapons.txt (the keys, the `#melee` IDs) and prints weapons.txt lines (no
+  more OldValue rows: a changed default needs no step); `improve_weapons_alt.py` reads a slot's values from weapons.txt
+  and, with `improve_weapons2.py`, prints weapons.txt lines; `improve_weapons.py` / `improve_weapons3.py` (one-offs,
+  their values shipped and tuned since) say where their printed values go now.
+- **Checks** (before = this branch with only `vr_prop_dump` added, the props still cvars): `vr_prop_dump all` and
+  `vr_prop_dump` (10,945 lines: values and defaults) identical after `vr_config_defaults`, after his config's prop lines
+  exec'd, and after console sets (`vr_prop_mass_01 12`, `vr_prop_grip_x_04 3`, `vr_prop_id_75 progs/gib1.mdl`; the one
+  difference: `VR_PROP_SIZE_10 2` now sets it, see above); `writeconfig` writes the same vr_prop_ lines;
+  `config_sparse_test.sh` 16 passed, 0 failed, its every-setting dump identical (sorted, 23,317 lines); every value in
+  the game equals its data file's (15,606 weapon values via `vr_wofs_dump`, 3,600 prop values via `vr_prop_dump`, a
+  script reading the files); `held_over_props_test.sh` (a box of shells and the wall torch held over boxes) PASS.
+- **Next steps**: the monsters' tables, the named per-weapon families as weapon keys, then getter/setter rows and the
+  old names retired after a release.
+
+## Running hitch (branch `agent/runhitch`)
+
+Vittorio (voice note 2026-11-01 01:38, vrtesthall): running with the stick held forward as hard as he can, "once every
+few steps" the player slows abruptly and resumes a split second later.
+
+- **Cause** (his note's replay, 3600 frames): no frame hitch (frames.csv: median 8.3 ms, worst 17.3, 0 hitches), the
+  head still, the speed steady whenever the stick read full. His thumb "held hard forward" reads **0.64..1.0** (the
+  recorded raw OpenXR stick: 0.93, 0.73, 0.64, 0.79, 0.93 within 0.2 s), and the speed follows it (Quake's ground
+  acceleration answers within a frame or two): 307 -> 230 -> 307. The stick response of 2026-10-25 (ROUND22.md
+  "Thumbstick locomotion response") made the run full only past a 95% push (`vr_deadzone_outer` 5) and puts the 1.6
+  curve's steepest part (1.6x) at the top; before it, running asked 400 against `sv_maxspeed` 320, so everything past
+  ~0.82 was full and those slips did nothing. Simulated on his take (Quake's ground physics on the recorded stick,
+  frames inside sustained runs): frames more than 2% under the run's speed 475 (10% under: 174) now, 134 (26) with the
+  old response, **102 (18) with an outer deadzone of 20%**, 59 (12) with 25%; a fall-rate hold on the push added
+  little (and latency), so not taken.
+- **Fix**: `vr_deadzone_outer` default **5 -> 20** (`Quake/vr/vr_cvars.inc`): full speed from an 80% push, the top
+  fifth a plateau again, as before the curve. Half speed with the 1.6 curve is now at a 55% push (was 65%); the bottom
+  is unchanged. His `ironwail.cfg` has no `vr_deadzone_outer` line, so he gets it. Takes recorded with it replay at their
+  own value (vr_motion_play's settings).
+- **Test**: `vr_stick_run_test [x y z] [outer]` (Debug > Tests > Stick: Run Steadiness): two 10 s runs (720 frames),
+  running, the head steering, put back to the start every 96 units with the velocity kept: 0 the stick fully forward,
+  1 a thumb slipping (the push 0.82..1.0, slips to 0.82 for 0.1 s every 0.55 s, the angle +-8 degrees); each must
+  keep within 2% of its top once full. `run.sh <name> -Script "map vrtesthall;wait30;vr_stick_run_test -300 -150 24"
+  -Filter "stick run" -QuitOn "stick run test:"`: **2 passed, 0 failed** (run 0 319.0..320.0, run 1 318.4..321.7);
+  with `... 24 5` (the old outer deadzone) run 1 dips **20.4%** (255.9 under 321.3): 1 passed, 1 failed.
+  `vr_stick_curve_test -300 -150 24` (its expectations to the 20% default: full from 80%, half at 55%): **115 passed,
+  0 failed**.
+- **For him in VR**: run around the test hall holding the stick forward hard; the speed should stay put. Slow walking
+  should feel as before at the bottom of the travel; the top fifth is all full speed.
+## Monsters as data (branch `agent/datatables3`; design review 3, step 3: monsters)
+
+The per-monster cvar families that are plain per-classname values are data: 171 values of 17 classnames, no cvars.
+- **`quakevr/data/monsters.txt`**: a `defaults { ... }` block, then `monster <classname> { key "value" ... }` per
+  classname (monster_army ... monster_mummy), every value of it listed, the old rows' comments carried along. Keys:
+  `hull` (was `vr_mhull_<m>`, 13 classes), `smallgibs` / `smallgibs_brains` (`vr_smallgibs_mult_<m>`,
+  `vr_smallgibs_brains_mult_<m>`, 16 each), `ragdoll_<key>` (`vr_ragdoll_<m>_<start|mass|friction|joint_friction|
+  joint_stiffness|limits|damping|blast|inherit>`, 14 classes). The families' tokens (army/grunt, demon/fiend,
+  hknight/hellknight, wizard/scrag, shalrath/vore, scourge/centroid) map to one block each.
+- **`Quake/vr/vr_monsterdata.inc`**: `QVR_MONSTER_VALUE(oldname, classname, key)` per value. Each is a stand-in `cvar_t`
+  in `monsterValues[]` (vr_monsterdata.cpp), and `vr_cvars.hpp` makes each old name a constexpr reference to it (as the
+  tunables are): the C++ (`ragdollClasses`, `monsterClasses`, the menu rows) is unchanged. Read at start
+  (`monsterdata::registerCvars`, after the props) with the shared reader: `readDataFile` takes named slots now
+  (`DataFileSpec::slotNames`). A callback set on one (vr_hull.cpp's width callbacks) is kept.
+- **Names kept**: `VR_CvarStandIn` / `VR_StandInSet` and `standInTables()` (now three tables) take the monsters'; the
+  config's sparse lines, `vr_config_defaults`, the tracking, `vr_config_test`, Propose Defaults walk them. The QC's
+  cvar handles (`cvarh_vr_smallgibs_mult_grunt`, ...) reach them by name: `gen_vr_cvars_qc.py` reads the .inc too (the
+  same 1,296 handles, reordered). Not in `cvarlist` or completion. A name typed in upper case now sets it (as the props').
+- **`vr_monster_dump`** (Debug menu: Monster Values): each classname, its values and how many changed;
+  `vr_monster_dump <classname> ... | all` every value, its old name and its default.
+- **`Misc/quakevr/monsters_data.py convert | promote <config> [--dry] | check | names`**. His config of 10-31 has no
+  monster value lines: nothing to promote.
+- **Left as they are** (not a plain per-classname value): `vr_agrunt_*` (~300: the armed grunt's behaviour settings, one
+  feature's); the monster groups (`vr_mgrp_<group>_*`, `vr_knockdown_chance_<group>`, `vr_kdtrig_resist_<group>`: per
+  group, not classname, made by the QVR_MGROUP macro, the menus build their names; a candidate `group <id>` table
+  next); the tunables `vr_corpse_health_<m>` (16) and `vr_enemy_shove_<enforcer|vore>_*` (constants, not config: a
+  release has them constexpr); single feature settings that name a monster (`vr_enemy_shove_vore`, `vr_ogre_aim_height`,
+  `vr_gruntgun_*`, `vr_grunt_burst*`, `vr_foegrab_throw_grunt`, `vr_climb_mantle_grunt`, `vr_agknight_ranged`);
+  `vr_monster_health_*` (one curve for all); the tests' and debug ones (`vr_test_spawn_*`, `vr_debug_spawn_*`, ...).
+- **Checks** (before = origin/next 663919efe, the same tree): the 171 values printed by name (a console script of every
+  old name, `monsters_data.py names`) identical after `vr_config_defaults`, after his whole config (ironwail_now.cfg of
+  10-31) exec'd, and after console sets (`vr_ragdoll_army_mass 75.5`, `vr_mhull_ogre 32`, `vr_ragdoll_centroid_limits
+  0.5`; the one difference: `VR_SMALLGIBS_MULT_FIEND 2` now sets it); `writeconfig` writes the same lines (plus that
+  one); `config_sparse_test.sh` 16 passed, 0 failed; `vr_smallgibs_test 27` (new: the QC's VR_SmallGib_Mult through its
+  cvar handles reads monsters.txt's defaults, a value set by the old name, the default back; run: `map e1m1; wait30;
+  vr_smallgibs_test 27`, -QuitOn `sgibtest: mults: N passed`) 12 passed, 0 failed.
+- **Next steps**: the monster groups as a `group <id>` table; the named per-weapon families as weapon keys.
+## Nightly regressions after the exact disarm hulls: agrunt 2 and 68 (branch `agent/hullregress`)
+
+- **Confirmed**: both pass on e54d81480 (before the disarmhull merge) and fail on its merge 59c98632a, as on next.
+- **Test 2** (disarm by a blow): the test aimed at the old volume. Its blow was at the weapon's server place, inside the
+  old 10-unit grip sphere but off the drawn weapon's hull (Body Blows 0 wants the weapon or hand itself). Now it is at
+  the drawn weapon's hull middle (disarmhull 20). On next it also needed the hit record: since "One hit record",
+  `hit_pos` alone is read only with a zone found this frame, so the point goes in through `VR_Hit_SetZone`, as test 16's.
+- **Test 68** (dual tug, right leg): the test's setup. After the first tug the humanoid staggers off to 73 units; the
+  hand stops at its arm's reach (49 units), 14 off the drawn shotgun (fist gap 37.7 cm). It is now put back where it
+  stood, facing you, before the right leg. The check is unchanged; a fail prints the hand, the volume and the places.
+- **The mock's `agweapon` / `agweaponpalm`** (vr_backend_mock.cpp `weaponPoint`) aim at the armed weapon where it is
+  drawn (`disarmhull::weapon`), not at its server place: where its grab, shot and blow volume is read.
+- **Checks**: agrunt 2 4/0, 68 4/0, 16 242/0, 94 16/0. The other `agweapon` users (the downtug, raggrab, ragweapon,
+  twohand, play, grab and disarmviz tests) not run here.
