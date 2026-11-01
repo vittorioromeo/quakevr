@@ -842,6 +842,119 @@ void(entity p) VR_WPT_Eyeshot =
     g1.netname = g2.netname = g3.netname = "eyeshot";
 };
 
+// `vr_wornpack_test 4` (his note 2026-11-01 18:55: "If I push my hand hard enough into an enemy grunt, it can actually get
+// through the grunt and then I'm able to grab the backpack while the grunt is facing me"): an unarmed packed grunt facing
+// you, your empty main hand glided slowly (about 1.4 m/s: no melee phasing) from before its chest through its body to
+// its pack's outer face, the grip pressed there: the hand went into its body (vr_modelcollide.cpp Through), drawn held
+// out of it, and the pack not taken. Then one with its back to you (in its place), the hand glided onto its pack from
+// behind: taken. Ends on `wornpack: <p> passed, <f> failed`. States 40 (facing), 41 (its back).
+float vr_wpp_glide = 0.8; // s each glide takes
+vector vr_wpp_start, vr_wpp_end;
+
+void(entity p) VR_WPP_Begin =
+{
+    VR_Test_Begin("wornpack");
+    vr_wpt_old_on = cvar("vr_worn_backpacks");
+    vr_wpt_old_chance = cvar("vr_worn_backpack_hit_roll");
+    vr_wpt_old_pool = cvar("vr_worn_backpack_pool");
+    vr_wpt_old_roll = vr_wpt_old_chance;
+    vr_wpt_old_ref = cvar("vr_worn_backpack_hit_ref");
+    vr_wpt_old_debug = cvar("vr_worn_backpack_debug");
+    cvar_set("vr_worn_backpack_debug", ftos(max(1, vr_wpt_old_debug)));
+    cvar_set("vr_worn_backpacks", "1");
+    cvar_set("vr_worn_backpack_pool", "30");
+    cvar_set("vr_worn_backpack_hit_roll", "0");
+    cvar_set("vr_mock_hand_to_absolute", "1");
+    p.flags = p.flags | FL_GODMODE | FL_NOTARGET;
+    p.weapon = WID_FIST; // (an empty main hand)
+    p.weaponinst = world;
+    p.weaponflags = 0;
+    vr_wpt_a = world;
+    vr_wpt_state = 40;
+    vr_wpt_frames = 0;
+};
+
+// The frame of state 40 / 41: spawned, the hand put before it, glided to its pack's outer face, the grip pressed there.
+void(entity p) VR_WPP_Frame =
+{
+    float behind = vr_wpt_state == 41;
+    vr_wpt_frames = vr_wpt_frames + 1;
+    float f = vr_wpt_frames;
+    float glided = 8 + ceil(vr_wpp_glide * 72) + 6; // (the glide's frames, and a few to settle)
+    if(f == 1)
+    {
+        if(vr_wpt_a)
+        {
+            remove(vr_wpt_a.vr_wp_pack); // (the one facing you gone: the next where it stood, in reach)
+            remove(vr_wpt_a);
+        }
+        vr_wpt_a = VR_WPT_Spawn(p, -1, 0, 44, behind);
+        vr_wpt_a.netname = behind ? "its back to you" : "facing you";
+        vr_wpt_a.enemy = world;
+        return;
+    }
+    entity g = vr_wpt_a;
+    if(f == 3)
+    {
+        // From 30 units before the side that faces you (its chest, or its pack) to the pack's outer face.
+        makevectors([0, g.angles_y, 0]);
+        vector pack = limbpiece(g, 0, 22);
+        vector toYou = behind ? -v_forward : v_forward;
+        vr_wpp_start = g.origin + toYou * 30;
+        vr_wpp_start_z = pack_z;
+        vr_wpp_end = pack - v_forward * 3;
+        localcmd(sprintf("vr_mock_hand_glide 0\nvr_mock_hand_to main %g %g %g\n", vr_wpp_start_x, vr_wpp_start_y,
+            vr_wpp_start_z));
+        return;
+    }
+    if(f == 8)
+    {
+        localcmd(sprintf("vr_mock_hand_glide %g\nvr_mock_hand_to main %g %g %g\n", vr_wpp_glide, vr_wpp_end_x, vr_wpp_end_y,
+            vr_wpp_end_z));
+        return;
+    }
+    if(f == glided)
+    {
+        vector th = weapondrawnpose(p, cVR_MainHand, 40);
+        if(behind)
+        {
+            VR_Test_Check(th_x == 0, sprintf("%s: the hand on its pack went into no body (%g; drawn %.1f units off)",
+                g.netname, th_x, th_y));
+        }
+        else
+        {
+            VR_Test_Check(th_x > 0 && th_y > 10, sprintf("%s: the hand pushed through its body is drawn held out of it (in %g, "
+                "drawn %.1f units off the tracked hand)", g.netname, th_x, th_y));
+        }
+        localcmd("+grabmain\n");
+        return;
+    }
+    if(f < glided + 12)
+    {
+        return;
+    }
+    float sm = ragdollbone(g, [5, 1, cVR_MainHand], QVR_WORNPACK);
+    if(behind)
+    {
+        VR_Test_Check(sm >= 0 && g.vr_wp_worn == 1, sprintf("%s: the hand on its pack takes it (stretch %.1f, worn %g)",
+            g.netname, sm, g.vr_wp_worn));
+    }
+    else
+    {
+        VR_Test_Check(sm < 0 && g.vr_wp_worn == 1, sprintf("%s: the hand pushed through its body doesn't take its pack "
+            "(held %.1f, worn %g)", g.netname, sm, g.vr_wp_worn));
+    }
+    localcmd("-grabmain\nvr_mock_hand_glide 0\n");
+    if(behind)
+    {
+        p.flags = p.flags - (p.flags & (FL_GODMODE | FL_NOTARGET));
+        VR_WPT_End();
+        return;
+    }
+    vr_wpt_state = 41;
+    vr_wpt_frames = 0;
+};
+
 void() VR_WornPack_TestFrame =
 {
     entity p = VR_Player();
@@ -865,6 +978,15 @@ void() VR_WornPack_TestFrame =
         {
             VR_WPL_Begin(p);
         }
+        if(request == 4)
+        {
+            VR_WPP_Begin(p);
+        }
+        return;
+    }
+    if(vr_wpt_state == 40 || vr_wpt_state == 41)
+    {
+        VR_WPP_Frame(p);
         return;
     }
     if(vr_wpt_state >= 20 && vr_wpt_state <= 24)

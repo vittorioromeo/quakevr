@@ -5651,3 +5651,39 @@ look like the torch-heated melee blades, fading with the same heat settings, and
 - Test: `Misc/quakevr/maps_panel_switch_test.sh <agent>`: panel 2 on the Levels, two campaign switches (hipnotic, id1),
   the menu reopened each time: PASS (2 rebuilds, 88 levels each, panel 2 still on the Levels). With the check disabled
   the same run crashes at M_Maps_Draw from drawInstance, as in his report.
+## Tug arm stretch in the physical tug; a hand through a live body (branch `agent/tugstretch`, his notes 2026-11-01 18:55)
+
+- **Tug arm stretch on the ragdoll** (the open point of "Tug readout, hand hulls"): `vr_agrunt_tug_ik_stretch` (1.2) now
+  shows in the physical tug too. Each frame of it the QC eases its factor in as before (`VR_AGK_TugStretch`, called from
+  VR_AG_TugRagFrame) and hands it to each hold (`ragdolltug(g, pl, h, 9, '0 0 0', factor)`: World::RagdollGrab::tugStretch;
+  box3d::RagdollHold carries it with the hold's target, your hand). ragdoll::drawnPose (vr_ragdoll.cpp `stretchTugArms`)
+  lays it on the drawn pose only, as the posed arms stretch: the held part's chain up to its upper arm (by name, the
+  active ragdolls' rule: `upperarm_`/`arm_`), the upper arm on its shoulder S, the forearm moved by (k - 1)(elbow - S),
+  the hand by (k - 1)(wrist - S) (a forearm with no hand bone, the grunt's right, carries it: (k - 1)(its far end - S)),
+  k as much as brings the held point nearest your hand, at most the factor. The physics is untouched; everything reading
+  the drawn pose follows (the weapon drawn on its hand bone, drawnPart/skinnedVertices: the disarm hulls, the hand drawn
+  on the limb). `weapondrawnpose(g, hand, 39)`: '<k> <held point from your hand> <the same without>'.
+- **A hand through a live body** (his 18:55): the drawn hand let go of a monster's surface at twice
+  `vr_model_collide_max`, and the hand's own ray (16 units behind it) started inside a body that deep, so a hand pushed
+  on went through, and the grab (fist spheres where the controller is) took the pack on its back. Now
+  (vr_modelcollide.cpp `Through`, every live monster, FL_MONSTER with health): the grip's way from one frame to the next
+  crossing a live monster's surface inwards (not while melee-phasing) marks the hand as gone into it; it is drawn held out
+  by the face it went in by (kept in the monster's yaw frame) however deep, until it comes back out in front of that face,
+  moves 16 units clear of the body's drawn box, goes 40 units in (a monster walking into you: let go as before), or the
+  monster dies. vr_foegrab.cpp's grab with such a hand takes hold where it is drawn (`modelcollide::throughBody`,
+  `drawnOffset`): not the pack behind the body. `weapondrawnpose(p, hand, 40)`: '<the monster> <drawn offset> 0'.
+- **Not covered**: a fast swing (vr_melee_phase, 4 m/s) still passes through a monster by design and is not followed;
+  a fist punched through a grunt and closed on its pack at once could still take it.
+- Tests: test 19 5 passed, 0 failed (new: the physical tug's arm stretch: share 1.00, its drawn arm x1.186, the held point
+  1.63 units from your hand, 2.65 without). `vr_wornpack_test 4` (new, e1m1; ends on `wornpack: N passed, M failed`):
+  4 passed, 0 failed (a hand glided at 1.4 m/s from before a facing grunt's chest to its pack's outer face: gone into it,
+  drawn 16.5 units off the tracked hand, the pack not taken; with its back to you: taken). Test 24 2 passed. Test 79 18
+  passed, 2 failed (Grunt guard: a shot across its drawn forearm hits zone 0, not the arm; Enforcer guard: a shot across
+  its frame's forearm alone hits at t 0.96): its forearm points are tugview's skin forearm now (weapondrawnpose 37/38);
+  neither query nor the posed arms are touched here.
+
+Checklist:
+- [tugstretch] Grab a grunt's gun (the physical tug) and hold it: its arm reaches a little longer toward your hand, the
+  gun nearer your hand; Tug: Arm Stretch x1.0 removes it. {test:agrunt_tug}
+- [tugstretch] Push your hand slowly into a grunt facing you, on through its body: the drawn hand stays on its chest; close
+  the hand there: its backpack is not taken. From behind, the pack is taken as before. {test:worn_packs_lift}

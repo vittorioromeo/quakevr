@@ -44,6 +44,11 @@ void endView(hands::State& s, const entity_s* const weapon[2], const bool mirror
 // what is drawn at the muzzle (a flash, a beam's start) goes there too.
 [[nodiscard]] glm::vec3 drawnOffset(int hand);
 
+// The live monster (entity number; 0 none) `hand` went into, its grip's way crossing its surface (not swinging through
+// it), and is drawn held out of by the face it went in by however deep (vr_modelcollide.cpp, Through): its grabs take
+// hold where it is drawn, drawnOffset() from where it is tracked (vr_foegrab.cpp), not through the body.
+[[nodiscard]] int throughBody(int hand);
+
 // The weapon in `hand` as it was drawn last frame, turned with the hand to `rot` (Quake angles): its points (a couple of
 // dozen of its model's vertices, spread over it; the farthest apart first) as offsets from the hand in the world, into
 // `out`; then those of the prop the hand holds alone (its model's, or its box's corners and faces' middles), as it sat

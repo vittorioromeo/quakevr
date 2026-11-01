@@ -216,6 +216,10 @@ void motionTest_f();
 // now (between its last two steps, moved with the holding hands: what is drawn this frame): p_world = rot * (scale *
 // p_rest) + pos; its rig. False: none, or hidden.
 bool drawnPart(int num, int part, glm::quat& rot, glm::vec3& pos, float& scale, const Rig** rig = nullptr);
+// A tug's held arm as drawn now (drawnPose's stretch; the local player's `hand`, QC's: 0 the off hand): the factor its
+// arm is drawn longer by (1 none), the drawn held point's distance from the hold's target (your hand) with it and without
+// it (units). False: no ragdoll.
+bool drawnTugStretch(int num, int hand, float& factor, float& gap, float& gapWithout);
 // Whether part `part` of edict `num`'s ragdoll is drawn with its body: false for a hidden bone (the gun he dropped) and
 // a cut-off one (its vertices drawn at the neck), or no ragdoll (the blood streams' rebinding: vr_bloodstream.cpp).
 [[nodiscard]] bool partShown(int num, int part);

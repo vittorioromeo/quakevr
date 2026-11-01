@@ -714,6 +714,17 @@ float tugRagdoll(edict_t* ent, edict_t* player, int hand, int what, const glm::v
         }
         return za::max(0.f, tugReach(player, hand, *r, g->tugAway) - g->tugReach);
     }
+    if(what == 9)
+    {
+        // Its held arm drawn up to `strength` times longer towards your hand (QC VR_AGK_TugStretch, eased with the tug):
+        // ragdoll::drawnPose's, the physics untouched. 1 if this hand holds it.
+        if(!ours)
+        {
+            return 0.f;
+        }
+        g->tugStretch = za::max(strength, 1.f);
+        return 1.f;
+    }
     if(what == 5)
     {
         // The part this hand's hold takes (the tests: the weapon hand's limb, not the support hand's); -1 none.
@@ -1457,6 +1468,11 @@ bool ragdollHold(int player, int hand, RagdollHold& out)
     out.at = glmv(frameB.p) * world->m2u;
     out.turn = fromB3(frameB.q);
     out.tug = g.tug;
+    if(g.tug && B3_IS_NON_NULL(g.anchor) && b3Body_IsValid(g.anchor))
+    {
+        out.stretch = g.tugStretch;
+        out.target = world->toU(b3Body_GetWorldPoint(g.anchor, b3Joint_GetLocalFrameA(g.joint).p));
+    }
     return true;
 }
 

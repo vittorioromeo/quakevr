@@ -2809,6 +2809,128 @@ namespace
 // Ragdoll `num`'s pose as drawn this frame (once a frame): between its last two steps at the client's time, as
 // CL_RelinkEntities lerps a prop between the server's last two messages (vr_ragdoll_smooth); held by the local player's
 // hands, moved with them since those steps (vr_ragdoll_held_local: a held prop is drawn in the hand each frame).
+
+// An upper arm by its name (the active ragdolls' limb chains' rule: vr_ragactive.cpp's).
+[[nodiscard]] bool upperArmBone(const char* n)
+{
+    return std::strncmp(n, "upperarm_", 9) == 0 || std::strncmp(n, "arm_", 4) == 0;
+}
+
+// A tug-of-war's held arm drawn longer (his note 2026-11-01: "a tunable IK stretch multiplier that applies to the
+// forearm/upper arm of an enemy only during a tug of war, to make the weapon look a bit more attached to the enemy"):
+// the physical tug's arms are ragdoll limbs, so the posed arms' IK stretch (agpose::stretch times
+// vr_agrunt_tug_ik_stretch, QC VR_AGK_TugStretch) is laid on its drawn pose instead, the physics untouched. As the posed
+// arms stretch (agarms::Placed::stretch): the upper arm stays on its shoulder S, each joint below it drawn k times as
+// far from S along the arm (the forearm moved by (k - 1)(elbow - S), the hand by (k - 1)(wrist - S); a forearm with no
+// hand of its own carries it: moved by (k - 1)(its far end - S)), k as much as brings the held point nearest the
+// hold's target (your hand), at most the hold's stretch (eased in and out with the tug by the QC). Everything that
+// reads the drawn pose (the drawn weapon on its hand, the disarm hulls, the hand drawn on the limb) follows it.
+void stretchTugArms(int num, Published& p)
+{
+    for(int h = 0; h < 2; h++)
+    {
+        p.tugK[h] = 1.f;
+        p.tugGap[h] = p.tugGap0[h] = 0.f;
+    }
+    if(!sv.active || cls.state != ca_connected || !p.rig)
+    {
+        return;
+    }
+    const Rig& rig = *p.rig;
+    uint32_t moved = 0; // (two hands on one arm: stretched once)
+    for(int h = 0; h < 2; h++)
+    {
+        box3d::RagdollHold hold;
+        if(!box3d::ragdollHold(cl.viewentity, h, hold) || hold.num != num || !hold.tug || hold.stretch <= 1.f ||
+           hold.part < 0 || hold.part >= p.bodies || hold.part >= rig.numBones)
+        {
+            continue;
+        }
+        // The held arm's chain from the held part up to its upper arm: [held (hand or forearm), (forearm), upper arm].
+        int chain[3]{-1, -1, -1};
+        int n = 0;
+        int upper = -1;
+        for(int b = hold.part; b >= 0 && n < 3; b = rig.bones[b].parent)
+        {
+            chain[n++] = b;
+            if(upperArmBone(rig.bones[b].name))
+            {
+                upper = b;
+                break;
+            }
+        }
+        if(upper < 0 || n < 2 || (p.cut & ((1u << chain[0]) | (1u << chain[1]))) || (moved & (1u << chain[0])))
+        {
+            continue; // (not an arm's, the upper arm itself, cut, or stretched already)
+        }
+        const auto drawnAt = [&](int b, const glm::vec3& rest) {
+            return p.drawRot[static_cast<za::SizeT>(b)] * (rest * p.scale) + p.drawPos[static_cast<za::SizeT>(b)];
+        };
+        const glm::vec3 shoulder = drawnAt(upper, rig.bones[upper].pivot);
+        const int fore = chain[n - 2];
+        const int hand = n == 3 ? chain[0] : -1;
+        const glm::vec3 foreMove = (hand >= 0 ? drawnAt(fore, rig.bones[fore].pivot) : drawnAt(fore, rig.bones[fore].end)) - shoulder;
+        const glm::vec3 handMove = hand >= 0 ? drawnAt(hand, rig.bones[hand].pivot) - shoulder : foreMove;
+        const glm::vec3 held = p.drawRot[static_cast<za::SizeT>(hold.part)] * hold.at + p.drawPos[static_cast<za::SizeT>(hold.part)];
+        const glm::vec3 target = hold.target + p.drawLead;
+        const float vv = glm::dot(handMove, handMove);
+        const float k = vv > 1e-4f ? 1.f + za::clamp(glm::dot(target - held, handMove) / vv, 0.f, hold.stretch - 1.f) : 1.f;
+        p.tugK[h] = k;
+        p.tugGap0[h] = glm::distance(held, target);
+        p.tugGap[h] = glm::distance(held + handMove * (k - 1.f), target);
+        if(k <= 1.f)
+        {
+            continue;
+        }
+        // The forearm, the hand and every part on them (by their nearest of the two up their parents).
+        for(int b = 0; b < p.bodies && b < rig.numBones; b++)
+        {
+            int a = b;
+            while(a >= 0 && a != fore && a != hand && a != upper)
+            {
+                a = rig.bones[a].parent;
+            }
+            if(a == fore || (a == hand && hand >= 0))
+            {
+                p.drawPos[static_cast<za::SizeT>(b)] += (a == fore ? foreMove : handMove) * (k - 1.f);
+                moved |= 1u << b;
+            }
+        }
+    }
+}
+
+// Each holding hand's place now from where it was as the drawn steps were (the same blend): the ragdoll moved by their
+// mean, so the limb in the hand moves with it at the frame rate. (The client's own places, then and now: the server's
+// hand and the drawn one differ by a constant offset that cancels.)
+void leadWithHands(Published& p, float f)
+{
+    const hands::State& hs = hands::current();
+    if(vr_ragdoll_held_local.value == 0.f || !p.heldBy || !hs.valid)
+    {
+        return;
+    }
+    glm::vec3 lead{0.f};
+    int n = 0;
+    for(int h = 0; h < 2; h++)
+    {
+        if(p.heldBy & (1 << h))
+        {
+            const glm::vec3 then = (p.prevHeldBy & (1 << h)) ? glm::mix(p.prevHand[h], p.hand[h], f) : p.hand[h];
+            lead += hs.pos[h] - then;
+            n++;
+        }
+    }
+    lead /= static_cast<float>(n);
+    if(glm::length(lead) > heldLeadMost)
+    {
+        return; // (a jump: a teleport, the hand taken back)
+    }
+    p.drawLead = lead;
+    for(int b = 0; b < p.bodies; b++)
+    {
+        p.drawPos[static_cast<za::SizeT>(b)] += lead;
+    }
+}
 } // namespace
 namespace detail
 {
@@ -2833,35 +2955,8 @@ void drawnPose(int num)
         p.drawPos[i] = glm::mix(p.prevPos[i], p.pos[i], f);
         p.drawRot[i] = glm::slerp(p.prevRot[i], p.rot[i], f);
     }
-    const hands::State& hs = hands::current();
-    if(vr_ragdoll_held_local.value == 0.f || !p.heldBy || !hs.valid)
-    {
-        return;
-    }
-    // Each holding hand's place now from where it was as the drawn steps were (the same blend): the ragdoll moved by
-    // their mean, so the limb in the hand moves with it at the frame rate. (The client's own places, then and now: the
-    // server's hand and the drawn one differ by a constant offset that cancels.)
-    glm::vec3 lead{0.f};
-    int n = 0;
-    for(int h = 0; h < 2; h++)
-    {
-        if(p.heldBy & (1 << h))
-        {
-            const glm::vec3 then = (p.prevHeldBy & (1 << h)) ? glm::mix(p.prevHand[h], p.hand[h], f) : p.hand[h];
-            lead += hs.pos[h] - then;
-            n++;
-        }
-    }
-    lead /= static_cast<float>(n);
-    if(glm::length(lead) > heldLeadMost)
-    {
-        return; // (a jump: a teleport, the hand taken back)
-    }
-    p.drawLead = lead;
-    for(int b = 0; b < p.bodies; b++)
-    {
-        p.drawPos[static_cast<za::SizeT>(b)] += lead;
-    }
+    leadWithHands(p, f);
+    stretchTugArms(num, p);
 }
 } // namespace detail
 namespace
@@ -3634,6 +3729,21 @@ bool drawnPart(int num, int part, glm::quat& rot, glm::vec3& pos, float& scale, 
     rot = p.drawRot[static_cast<za::SizeT>(part)];
     pos = p.drawPos[static_cast<za::SizeT>(part)];
     scale = p.scale;
+    return true;
+}
+
+bool drawnTugStretch(int num, int hand, float& factor, float& gap, float& gapWithout)
+{
+    if(num < 0 || num >= static_cast<int>(draw.byNum.size()) || !draw.byNum[static_cast<za::SizeT>(num)].rig || hand < 0 ||
+       hand > 1)
+    {
+        return false;
+    }
+    drawnPose(num);
+    const Published& p = draw.byNum[static_cast<za::SizeT>(num)];
+    factor = p.tugK[hand];
+    gap = p.tugGap[hand];
+    gapWithout = p.tugGap0[hand];
     return true;
 }
 

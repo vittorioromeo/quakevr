@@ -74,10 +74,13 @@ void() VR_AGTP_Frame =
             g.vr_ag_tug_two, g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing"), g.vr_ag_tug_pl == p && g.vr_ag_prop != world &&
             !g.vr_ag_tug_two);
         // The tug's IK stretch (vr_agrunt_tug_ik_stretch; none before the grab: step 2). The physical tug's arms are its
-        // ragdoll's limbs, not the posed arms' IK: its share stays 0 here (ROUND23.md, "Tug readout, hand hulls").
+        // ragdoll's limbs: the stretch is laid on its drawn arm (ragdolltug 9, ragdoll::drawnPose): eased in by now, the
+        // drawn held point (its hand, the weapon on it) nearer your hand than without it (ROUND23.md, "Tug arm stretch").
         VR_AGT_Check(sprintf("tugpunch: no tug IK stretch before the grab (x%.3f)", vr_agtp_s0), vr_agtp_s0 == 1);
-        VR_AGT_Print(sprintf("tugpunch: the tug's IK stretch share in the physical tug %.2f (its arms: ragdoll limbs)",
-            g.vr_agk_tugw));
+        vector ds = weapondrawnpose(g, cVR_MainHand, 39);
+        VR_AGT_Check(sprintf("tugpunch: the tug's arm stretch in the physical tug: share %.2f (x%.3f), its drawn arm x%.3f, "
+            "the held point %.2f units from your hand (%.2f without)", g.vr_agk_tugw, vr_agk_tugs, ds_x, ds_y, ds_z),
+            g.vr_agk_tugw > 0.99 && ds_x > 1 && ds_y < ds_z);
         string ro = VR_AG_TugReadout(g);
         VR_AGT_Print(sprintf("tugpunch: the tug readout: %s", ro));
         // The punch: through its drawn middle (as it is now) to 10 units past it, in 0.2 s.

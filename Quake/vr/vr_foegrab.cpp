@@ -1,6 +1,7 @@
 // vr_foegrab.cpp -- holding enemies: see vr_foegrab.hpp.
 
 #include "vr_foegrab_internal.hpp"
+#include "vr_modelcollide.hpp"
 #include "vr_progs.hpp"
 #include "vr_physics.hpp"
 #include "vr_geom.hpp"
@@ -522,12 +523,29 @@ bool tryTake(edict_t* player, Holder& hd, int h, const VrMove& move)
         }
         return false;
     }
-    const glm::vec3 palm = palmOf(player, move, h);
+    glm::vec3 palm = palmOf(player, move, h);
     za::Vector<glm::vec4>& fist = scratch.fist;
     fist.clear();
-    if(NUM_FOR_EDICT(player) == 1 && cls.state != ca_dedicated)
+    const bool local = NUM_FOR_EDICT(player) == 1 && cls.state != ca_dedicated;
+    if(local)
     {
         held::fistInWorld(h, move.hands[h].pos, move.hands[h].rot, fist);
+    }
+    // (A hand gone into a live monster's body, drawn held out of it by the face it went in by: it takes hold where it is
+    // drawn, not through the body (his note 2026-11-01 18:55: the backpack taken through a grunt facing him).)
+    if(const int in = local ? modelcollide::throughBody(h) : 0; in > 0)
+    {
+        const glm::vec3 out = modelcollide::drawnOffset(h);
+        palm += out;
+        for(glm::vec4& s : fist)
+        {
+            s += glm::vec4{out, 0.f};
+        }
+        if(debug(fabs(qcvm->time - hd.pressedAt[h]) < 1e-6 ? 1 : 3) || vr_worn_backpack_debug.value)
+        {
+            Con_Printf("foegrab: %s hand went into %d's body: takes hold where it is drawn, %.1f units out of it\n", handName(h),
+                in, glm::length(out));
+        }
     }
     fist.pushBack(glm::vec4{palm, palmRadiusCm * cm()}); // (the palm's middle too: the fist's spheres are its outside)
     glm::vec3 lo{1e30f}, hi{-1e30f};
