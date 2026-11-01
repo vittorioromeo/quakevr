@@ -1,8 +1,9 @@
 #pragma once
 
 // vr_slottable.hpp -- the data tables (design review 3): per-slot values (`Slots` slots, each with the same `Keys` keys)
-// read from a data file, with no cvars: the weapons' (quakevr/data/weapons.txt, vr_weapons.cpp) and the props'
-// (quakevr/data/props.txt, vr_props.cpp). docs/vr-port/CODE_STYLE.md, "Canonical helpers".
+// read from a data file, with no cvars: the weapons' (quakevr/data/weapons.txt, vr_weapons.cpp), the props'
+// (quakevr/data/props.txt, vr_props.cpp) and the monster groups' (quakevr/data/groups.txt, vr_mgroups.cpp).
+// docs/vr-port/CODE_STYLE.md, "Canonical helpers".
 
 #include "vr_engine.hpp"
 
@@ -27,7 +28,7 @@ struct DataFileSpec
     const char* keysFile;                     // where the keys are defined (its messages): "vr_weapons.inc"
     int slots;                                // the slots 0 .. slots - 1
     za::Span<const char* const> keyNames;     // the keys' names in the file, by key
-    za::Span<const char* const> slotNames{};  // the slots' names in the file (monsters.txt's classnames); none: numbers
+    za::Span<const char* const> slotNames{};  // the slots' names (monsters.txt's classnames, groups.txt's ids); none: 0..
 };
 
 struct DataFileValue
@@ -58,6 +59,14 @@ public:
     // `<stem><key>_NN` (NN = slot + 1), `changed` called after each change. False: no file (every value "0").
     bool load(const DataFileSpec& spec, const char* stem, cvarcallback_t changed)
     {
+        return loadNamed(
+            spec, [&](int slot, int key) { return va("%s%s_%02d", stem, spec.keyNames[key], slot + 1); }, changed);
+    }
+
+    // As load, each value named `nameOf(slot, key)` (lower case; the monster groups' old cvar names).
+    template <typename NameOf>
+    bool loadNamed(const DataFileSpec& spec, NameOf&& nameOf, cvarcallback_t changed)
+    {
         za::Vector<DataFileValue> own;
         const bool found = readDataFile(spec, {keyDefaults.data(), keyDefaults.size()}, own);
         za::Vector<const char*> value;
@@ -74,7 +83,7 @@ public:
         {
             for(int key = 0; key < Keys; key++)
             {
-                define(slot, key, va("%s%s_%02d", stem, spec.keyNames[key], slot + 1), value[slot * Keys + key], changed);
+                define(slot, key, nameOf(slot, key), value[slot * Keys + key], changed);
             }
         }
         return found;

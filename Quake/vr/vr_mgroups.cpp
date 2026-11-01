@@ -1,8 +1,9 @@
-// vr_mgroups.cpp -- monster groups (vr_mgroups.hpp; the groups and their defaults: vr_mgroups.inc).
+// vr_mgroups.cpp -- monster groups (vr_mgroups.hpp; the groups: vr_mgroups.inc; their values: quakevr/data/groups.txt).
 
 #include "vr_mgroups.hpp"
 #include "vr_cvars.hpp"
 #include "vr_progs.hpp"
+#include "vr_slottable.hpp"
 
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -125,20 +126,86 @@ constexpr GroupInfo groupInfo[] = {
 #undef QVR_MGROUP
 };
 
-// Each group's settings, in Param's order (vr_cvars.inc's QVR_MGROUP makes them).
-cvar_t* const settings[groupCount][paramCount] = {
-#define QVR_MGROUP(g, ...)                                                                                                \
-    {&vr_mgrp_##g##_kdtrig, &vr_kdtrig_resist_##g, &vr_mgrp_##g##_ledge, &vr_mgrp_##g##_stairs, &vr_mgrp_##g##_slope,    \
-        &vr_mgrp_##g##_shotgun, &vr_mgrp_##g##_wounded, &vr_mgrp_##g##_blow, &vr_mgrp_##g##_blast,                       \
-        &vr_mgrp_##g##_thrown, &vr_mgrp_##g##_tackle, &vr_knockdown_chance_##g, &vr_mgrp_##g##_push, &vr_mgrp_##g##_stagger, &vr_mgrp_##g##_sweep,                     \
-        &vr_mgrp_##g##_leggrab, &vr_mgrp_##g##_lift, &vr_mgrp_##g##_necksnap, &vr_mgrp_##g##_manhandle,                  \
-        &vr_mgrp_##g##_throw, &vr_mgrp_##g##_hold, &vr_mgrp_##g##_poise, &vr_mgrp_##g##_health,                      \
-        &vr_mgrp_##g##_kdscale, &vr_mgrp_##g##_downtime, &vr_mgrp_##g##_getup, &vr_mgrp_##g##_snapkills,               \
-        &vr_mgrp_##g##_struggle, &vr_mgrp_##g##_struggle_strength, &vr_mgrp_##g##_struggle_speed,                          \
-        &vr_mgrp_##g##_struggle_arms, &vr_mgrp_##g##_struggle_hurt},
+// The groups' ids: groups.txt's blocks' names.
+constexpr const char* groupIds[groupCount] = {
+#define QVR_MGROUP(g, ...) #g,
 #include "vr_mgroups.inc"
 #undef QVR_MGROUP
 };
+
+// Each group's values (quakevr/data/groups.txt; ROUND23.md, "Monster groups as data"): no cvars, a stand-in each
+// (vr_slottable.hpp DataTable) named as its old cvar (oldName), reached by that name by the config, the console and the
+// QC's cvar handles; the menus' rows bind them (setting).
+constexpr const char* dataPath = "data/groups.txt";
+
+// groups.txt's keys, in Param's order (Misc/quakevr/groups_data.py KEYS: keep them alike).
+constexpr const char* paramKeys[paramCount] = {"kdtrig", "resist", "ledge", "stairs", "slope", "shotgun", "wounded",
+    "blow", "blast", "thrown", "tackle", "shove", "push", "stagger", "sweep", "leggrab", "lift", "necksnap", "manhandle",
+    "throw", "hold", "poise", "health", "kdscale", "downtime", "getup", "snapkills", "struggle", "struggle_strength",
+    "struggle_speed", "struggle_arms", "struggle_hurt"};
+
+DataTable<Param, groupCount, paramCount> values;
+
+// A value's old cvar name: vr_mgrp_<id>_<key>; the resistance's vr_kdtrig_resist_<id>, the shove's
+// vr_knockdown_chance_<id> (older than the groups).
+[[nodiscard]] const char* oldName(int g, int p)
+{
+    if(p == static_cast<int>(Param::Resist))
+    {
+        return va("vr_kdtrig_resist_%s", groupIds[g]);
+    }
+    if(p == static_cast<int>(Param::Shove))
+    {
+        return va("vr_knockdown_chance_%s", groupIds[g]);
+    }
+    return va("vr_mgrp_%s_%s", groupIds[g], paramKeys[p]);
+}
+
+[[nodiscard]] bool changed(const cvar_t& v)
+{
+    return strcmp(v.string, v.default_string) != 0;
+}
+
+// vr_mgroup_dump: each group's values in groups.txt and how many of them differ from it; vr_mgroup_dump <id> ... (or
+// all): each value, its old cvar name and groups.txt's default.
+void dump_f()
+{
+    const bool list = Cmd_Argc() < 2;
+    const bool all = !list && !q_strcasecmp(Cmd_Argv(1), "all");
+    for(int g = 0; g < groupCount; g++)
+    {
+        if(list)
+        {
+            int own = 0;
+            for(int p = 0; p < paramCount; p++)
+            {
+                own += changed(values.at(g, static_cast<Param>(p)));
+            }
+            Con_Printf("%-12s %-22s %d values, %d changed\n", groupIds[g], groupInfo[g].label, paramCount, own);
+            continue;
+        }
+        bool wanted = all;
+        for(int a = 1; a < Cmd_Argc() && !wanted; a++)
+        {
+            wanted = !q_strcasecmp(Cmd_Argv(a), groupIds[g]);
+        }
+        if(!wanted)
+        {
+            continue;
+        }
+        Con_Printf("group %s // %s\n", groupIds[g], groupInfo[g].label);
+        for(int p = 0; p < paramCount; p++)
+        {
+            const cvar_t& v = values.at(g, static_cast<Param>(p));
+            Con_Printf("    %s \"%s\" // %s, default \"%s\"%s\n", paramKeys[p], v.string, v.name, v.default_string,
+                changed(v) ? " *" : "");
+        }
+    }
+    if(list)
+    {
+        Con_Printf("vr_mgroup_dump <id> ... | all: every value (%s)\n", dataPath);
+    }
+}
 
 // Monster health (healthMultiplier): the bosses whose health is not a pool to shoot down, left as they are. Killed by a
 // trick (id's Chthon by lightning, Shub by telefrag, and Arcane Dimensions' and Dawn of the Machine's own), or fought in
@@ -473,7 +540,33 @@ const char* members(int g)
 cvar_t& setting(int g, Param p)
 {
     const int gi = g >= 0 && g < groupCount ? g : static_cast<int>(otherGroup);
-    return *settings[gi][static_cast<int>(p)];
+    return values.at(gi, p);
+}
+
+void registerCvars()
+{
+    const DataFileSpec spec{
+        dataPath, "group", "vr_mgroups.inc", groupCount, {paramKeys, paramCount}, {groupIds, groupCount}};
+    if(!values.loadNamed(spec, oldName, nullptr))
+    {
+        Con_Printf("\x02No %s in the game folder: every monster group's value is 0 (reinstall the game)\n", dataPath);
+    }
+    Cmd_AddCommand("vr_mgroup_dump", dump_f);
+}
+
+cvar_t* findStandIn(const char* name)
+{
+    return values.find(name);
+}
+
+bool setStandIn(cvar_t* var, const char* text)
+{
+    return values.set(var, text);
+}
+
+za::Span<cvar_t> standIns()
+{
+    return {values.begin(), static_cast<za::SizeT>(DataTable<Param, groupCount, paramCount>::size)};
 }
 
 float value(edict_t* m, Param p)

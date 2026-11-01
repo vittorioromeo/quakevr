@@ -2830,7 +2830,7 @@ QVR_CVAR(vr_corpse_placed, "1", CVAR_ARCHIVE)         // a mapper's corpses (mis
 // ragdoll rig down as a ragdoll, alive; after a while it gets up (its own fall-and-rise frames, or its death backwards).
 QVR_CVAR(vr_knockdown, "1", CVAR_ARCHIVE)                 // the feature: 0 off (shoves stagger as before)
 QVR_CVAR(vr_knockdown_chance, "0.6", CVAR_ARCHIVE)          // every monster's chance times this (testing: 100, every shove)
-// (Each monster group's base chance, vr_knockdown_chance_<group>: QVR_MGROUP below, Combat > Monster Groups.)
+// (Each monster group's base chance, vr_knockdown_chance_<group>: quakevr/data/groups.txt, Combat > Monster Groups.)
 QVR_CVAR(vr_knockdown_onehand, "1", CVAR_ARCHIVE)         // the chance times this for a one-handed shove,
 QVR_CVAR(vr_knockdown_twohand, "1.75", CVAR_ARCHIVE)      // and this for a two-handed one
 QVR_CVAR(vr_knockdown_surprise, "1", CVAR_ARCHIVE)        // a shove of a monster unaware of you (its enemy not you: asleep, idle, fighting another) or from behind (vr_knockdown_surprise_angle) knocks it down for sure, if its monster group can go down from a shove at all (QC VR_Knockdown_Try); 0: its chance as any
@@ -2863,53 +2863,9 @@ QVR_CVAR(vr_kdtrig_tackle_runup, "0.5", CVAR_ARCHIVE)     // ... s you have run 
 QVR_CVAR(vr_kdtrig_tackle_feel, "1", CVAR_ARCHIVE)        // ... its feel: the thud on the body, both controllers' rumble and the monster's pain cry as it goes (0 silent)
 QVR_CVAR(vr_kdtrig_resist_size, "0.5", CVAR_ARCHIVE)      // monster resistance by size: its hull's volume over a grunt's to this power (an ogre's 5.5 times: 2.3), where its kind has none of its own
 // Monster groups (vr_mgroups.inc, vr_mgroups.cpp; Combat > Monster Groups; ROUND22.md, "Monster groups"): each group's
-// settings for every ragdoll trigger and action, its defaults vr_mgroups.inc's. Ragdoll triggers: _kdtrig on (needs
-// Ragdoll Triggers), vr_kdtrig_resist_<group> its resistance (every trigger's chance divided by it, its least damage
-// times it; 0: by its size), _ledge ... _blast each trigger's chance times this (0: never). Actions: vr_knockdown_chance_
-// <group> a shove's base chance to knock it down (one with a get-up of its own), _push how far shoves, bashes and
-// unbalancing hits move it (times), _stagger hits' chance to unbalance it (times), _sweep the leg sweep, _leggrab the leg
-// pull and lift, _lift the lift, _necksnap the neck snap, _manhandle grabbing it staggered or weak (each 1 on, 0 never),
-// _throw the two-hand throw (0 never, 1 only when hurt, 2 always; vr_foegrab_throw_by_mass 1: by its mass instead),
-// _hold one hand's hold on it (0..1; -1: by its size, vr_foegrab_strength_small/_medium/_large), _poise its Parry Poise
-// (a parry's strength over it: blocked, flinch or stagger; above 1 also the melee's knockdown chances over it; -1 Off:
-// a parry never staggers it; QC combat.qc VR_Parry_Outcome).
-// _kdscale every chance to knock it down times this (a sure one by this chance too), _downtime its time down times this,
-// _getup its get-up's speed times this, _snapkills the neck snap kills it (0: it only hurts: vr_foegrab_necksnap_tough).
-#define QVR_MGROUP(g, label, kdtrig, resist, shove, humanoid, throwKind, push, legs, poise, kdscale, downtime, getup, snapkills, struggle) \
-    QVR_CVAR(vr_mgrp_##g##_kdtrig, #kdtrig, CVAR_ARCHIVE) \
-    QVR_CVAR(vr_kdtrig_resist_##g, #resist, CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_ledge, "1", CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_stairs, "1", CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_slope, "1", CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_shotgun, "1", CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_wounded, "1", CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_blow, "1", CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_blast, "1", CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_thrown, "1", CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_tackle, "1", CVAR_ARCHIVE) \
-    QVR_CVAR(vr_knockdown_chance_##g, #shove, CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_push, #push, CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_stagger, "1", CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_sweep, #legs, CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_leggrab, #legs, CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_lift, #humanoid, CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_necksnap, #humanoid, CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_manhandle, #humanoid, CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_throw, #throwKind, CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_hold, "-1", CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_poise, #poise, CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_health, "1", CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_kdscale, #kdscale, CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_downtime, #downtime, CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_getup, #getup, CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_snapkills, #snapkills, CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_struggle, #struggle, CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_struggle_strength, "1", CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_struggle_speed, "1", CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_struggle_arms, "1", CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_struggle_hurt, "1", CVAR_ARCHIVE)
-#include "vr_mgroups.inc"
-#undef QVR_MGROUP
+// values for every ragdoll trigger and action are data, no cvars: quakevr/data/groups.txt (ROUND23.md, "Monster groups
+// as data"), each reached by its old cvar name (vr_mgrp_<group>_<key>, vr_kdtrig_resist_<group>,
+// vr_knockdown_chance_<group>) by the config, the console, the menus and the QC.
 // Monster health (vr_mgroups.cpp; Combat > Monster Health; ROUND22.md, "1.1 pacing: shell pairs, big monsters' health"):
 // a monster's health cut as it first appears, by its full health on a curve: none up to _from, then straight lines
 // through (_hp1, _cut1), (_hp2, _cut2), (_hp3, _cut3) (cuts in percent), _cut3 beyond, never more than _max; then times
