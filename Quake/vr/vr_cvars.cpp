@@ -585,11 +585,14 @@ void configDefaults_f()
             Cvar_SetQuick(var, var->default_string);
         }
     }
-    for(cvar_t& var : weapons::standIns()) // (the weapons' values: weapons.txt's)
+    for(const za::Span<cvar_t> table : standInTables()) // (the weapons' and props' values: their data files')
     {
-        if(!sameValue(var.string, var.default_string))
+        for(cvar_t& var : table)
         {
-            Cvar_SetQuick(&var, var.default_string);
+            if(!sameValue(var.string, var.default_string))
+            {
+                Cvar_SetQuick(&var, var.default_string);
+            }
         }
     }
 }
@@ -636,9 +639,12 @@ void configDefaults_f()
             settings.try_emplace(za::String{var->name}, var->default_string ? var->default_string : "");
         }
     }
-    for(const cvar_t& var : weapons::standIns()) // (the weapons' values: a line only when changed, as a vr_ setting's)
+    for(const za::Span<cvar_t> table : standInTables()) // (the data tables' values: a line only when changed)
     {
-        settings.try_emplace(za::String{var.name}, var.default_string);
+        for(const cvar_t& var : table)
+        {
+            settings.try_emplace(za::String{var.name}, var.default_string);
+        }
     }
     return settings;
 }
@@ -650,9 +656,12 @@ void configDefaults_f()
     {
         settings[var->name] = var->string;
     }
-    for(const cvar_t& var : weapons::standIns())
+    for(const za::Span<cvar_t> table : standInTables())
     {
-        settings[var.name] = var.string;
+        for(const cvar_t& var : table)
+        {
+            settings[var.name] = var.string;
+        }
     }
     return settings;
 }
@@ -1215,28 +1224,38 @@ extern "C" int VR_ConfigSaves(const cvar_s* var)
     return !inSparseConfig(var) || alwaysSaved(var) || !var->default_string || !sameValue(var->string, var->default_string);
 }
 
-// The data tables (design review 3; the weapons' quakevr/data/weapons.txt, vr_weapons.cpp): their values by their old
-// cvar names (vr_wofs_<key>_NN: old configs, the console, motion takes, the QC's cvar()), their sets, and the config's
-// lines for those changed from the data file (as a sparse config's vr_ settings, in the names' order).
+// The data tables (design review 3; the weapons' quakevr/data/weapons.txt, vr_weapons.cpp; the props'
+// quakevr/data/props.txt, vr_props.cpp): their values by their old cvar names (vr_wofs_<key>_NN, vr_prop_<key>_NN: old
+// configs, the console, motion takes, the QC's cvar()), their sets, and the config's lines for those changed from the
+// data file (as a sparse config's vr_ settings, in the names' order).
+za::Array<za::Span<cvar_t>, 2> qvr::standInTables()
+{
+    return {weapons::standIns(), props::standIns()};
+}
+
 extern "C" cvar_s* VR_CvarStandIn(const char* name)
 {
-    return qvr::weapons::findStandIn(name);
+    cvar_t* var = qvr::weapons::findStandIn(name);
+    return var ? var : qvr::props::findStandIn(name);
 }
 
 extern "C" int VR_StandInSet(cvar_s* var, const char* value)
 {
-    return qvr::weapons::setStandIn(var, value) ? 1 : 0;
+    return qvr::weapons::setStandIn(var, value) || qvr::props::setStandIn(var, value) ? 1 : 0;
 }
 
 extern "C" void VR_ConfigWriteTables(FILE* f)
 {
     using namespace qvr;
     za::Vector<const cvar_t*> changed;
-    for(const cvar_t& var : weapons::standIns())
+    for(const za::Span<cvar_t> table : standInTables())
     {
-        if(!sameValue(var.string, var.default_string))
+        for(const cvar_t& var : table)
         {
-            changed.pushBack(&var);
+            if(!sameValue(var.string, var.default_string))
+            {
+                changed.pushBack(&var);
+            }
         }
     }
     std::sort(changed.begin(), changed.end(), [](const cvar_t* a, const cvar_t* b) { return strcmp(a->name, b->name) < 0; });

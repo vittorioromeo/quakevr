@@ -8,8 +8,10 @@ extern "C" {
 #include "cvar.h"
 }
 
+#include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
+#include "Zancle/Vocabulary/Span.hpp"
 
 #include <initializer_list>
 
@@ -179,6 +181,10 @@ void registerConfigDiag();
 // quit, and a game ended otherwise (stopped from the debugger, killed) lost the session's settings.
 void saveConfigNow();
 void configFrame();
+
+// The data tables' values (design review 3; no cvars: the stand-ins of quakevr/data/weapons.txt's and props.txt's
+// values, vr_slottable.hpp), each table's in turn: the config's writer, its tracking and tests, Propose Defaults.
+[[nodiscard]] za::Array<za::Span<cvar_t>, 2> standInTables();
 
 } // namespace qvr
 

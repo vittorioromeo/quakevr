@@ -557,9 +557,9 @@ int VR_TunableSetVar (struct cvar_s *var, const char *value);	// Cvar_SetQuick, 
 int VR_TunablesWrite (void);							// Host_WriteConfiguration: tunables.cfg, the tuning constants set off their defaults (a development build); 0 when a write failed
 int VR_RetiredCvar (const char *name);					// Cmd_ExecuteString, an unknown name: nonzero if it is a removed Quake VR setting (a config's stale line, ignored quietly)
 const char *VR_CvarAlias (const char *name);			// Cvar_FindVar, a name not found: a renamed setting's new name (vr_slipgates: vr_teleporters), or NULL
-struct cvar_s *VR_CvarStandIn (const char *name);		// Cvar_FindVar, a name not found nor renamed: a data table value's stand-in by its old cvar name (vr_wofs_<key>_NN: quakevr/data/weapons.txt), or NULL
+struct cvar_s *VR_CvarStandIn (const char *name);		// Cvar_FindVar, a name not found nor renamed: a data table value's stand-in by its old cvar name (vr_wofs_<key>_NN, vr_prop_<key>_NN: quakevr/data/weapons.txt, props.txt), or NULL
 int VR_StandInSet (struct cvar_s *var, const char *value);	// Cvar_SetQuick, a cvar never registered nor a tuning constant's: nonzero if it is a data table value's stand-in, now set
-void VR_ConfigWriteTables (FILE *f);					// Cvar_WriteVariables, last: the data tables' values changed from their data files (`vr_wofs_<key>_NN "value"` lines)
+void VR_ConfigWriteTables (FILE *f);					// Cvar_WriteVariables, last: the data tables' values changed from their data files (`vr_wofs_<key>_NN "value"`, `vr_prop_<key>_NN "value"` lines)
 int VR_MenuReopen (void);								// M_ToggleMenu_f, opening: nonzero if it reopened the page left
 int VR_MenuToggleCloses (void);							// M_ToggleMenu_f, in a menu: nonzero if it closes from this page at once (VR Calibration waiting on Body Calibration's page), not to the main menu first
 int VR_MenuRunsGame (void);								// Host_ServerFrame: nonzero if a single player game runs on under the menu (live preview)

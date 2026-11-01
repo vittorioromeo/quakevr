@@ -1087,120 +1087,16 @@ void migrate()
 
 } // namespace
 
-namespace
-{
-
-constexpr const char* dataFile = "data/weapons.txt";
-
-// quakevr/data/weapons.txt read into `defaults` (each key's every-slot value: its `defaults` block, "0" for a key not
-// in it) and `own` (each slot's block's values, in the file's order). False: no file. A line it can't take is reported
-// and skipped.
-struct OwnValue
-{
-    int slot;
-    int key;
-    za::String value;
-};
-bool readDataFile(za::Array<za::String, numKeys>& defaults, za::Vector<OwnValue>& own)
-{
-    for(za::String& d : defaults)
-    {
-        d = "0";
-    }
-    byte* file = COM_LoadMallocFile(dataFile, nullptr);
-    if(!file)
-    {
-        return false;
-    }
-    int problems = 0;
-    const char* data = reinterpret_cast<const char*>(file);
-    while((data = COM_Parse(data)) != nullptr)
-    {
-        int slot = -1; // (the defaults block)
-        if(!strcmp(com_token, "weapon"))
-        {
-            data = COM_Parse(data);
-            slot = data ? Q_atoi(com_token) : -1;
-            if(!data || slot < 0 || slot >= numSlots)
-            {
-                Con_Printf("\x02%s: \"weapon %s\": no such slot (0 .. %d)\n", dataFile, com_token, numSlots - 1);
-                break;
-            }
-        }
-        else if(strcmp(com_token, "defaults") != 0)
-        {
-            Con_Printf("\x02%s: \"%s\": expected \"defaults\" or \"weapon <slot>\"\n", dataFile, com_token);
-            break;
-        }
-        data = COM_Parse(data);
-        if(!data || strcmp(com_token, "{") != 0)
-        {
-            Con_Printf("\x02%s: expected \"{\" after a block's name\n", dataFile);
-            break;
-        }
-        while((data = COM_Parse(data)) != nullptr && strcmp(com_token, "}") != 0)
-        {
-            const Key key = keyByName(com_token);
-            za::String name{com_token};
-            data = COM_Parse(data);
-            if(!data)
-            {
-                break;
-            }
-            if(key == Key::Count)
-            {
-                Con_Printf("\x02%s: no key \"%s\" (vr_weapons.inc): ignored\n", dataFile, name.cStr());
-                problems++;
-                continue;
-            }
-            if(slot < 0)
-            {
-                defaults[static_cast<int>(key)] = com_token;
-            }
-            else
-            {
-                own.pushBack(OwnValue{slot, static_cast<int>(key), za::String{com_token}});
-            }
-        }
-    }
-    free(file);
-    if(problems > 0)
-    {
-        Con_Printf("\x02%s: %d line%s ignored\n", dataFile, problems, problems == 1 ? "" : "s");
-    }
-    return true;
-}
-
-} // namespace
-
 void registerCvars()
 {
     // Every slot's values from quakevr/data/weapons.txt (the defaults; the config's lines go over them).
-    za::Array<za::String, numKeys> defaults;
-    za::Vector<OwnValue> own;
-    if(!readDataFile(defaults, own))
+    const DataFileSpec spec{"data/weapons.txt", "weapon", "vr_weapons.inc", numSlots, keyNames};
+    if(!slots.load(spec, "vr_wofs_", onChanged))
     {
-        Con_Printf("\x02No %s in the game folder: every weapon's settings are 0 (reinstall the game)\n", dataFile);
-    }
-    za::Vector<const char*> value;
-    value.resize(numSlots * numKeys, nullptr);
-    for(int slot = 0; slot < numSlots; slot++)
-    {
-        for(int key = 0; key < numKeys; key++)
-        {
-            value[slot * numKeys + key] = defaults[key].cStr();
-        }
-    }
-    for(const OwnValue& o : own)
-    {
-        value[o.slot * numKeys + o.key] = o.value.cStr(); // (a key given twice: the last)
+        Con_Printf("\x02No %s in the game folder: every weapon's settings are 0 (reinstall the game)\n", spec.path);
     }
     for(int slot = 0; slot < numSlots; slot++)
     {
-        for(int key = 0; key < numKeys; key++)
-        {
-            slots.define(slot, key, va("vr_wofs_%s_%02d", keyNames[key], slot + 1), value[slot * numKeys + key], onChanged);
-        }
         oldRecoil[slot] = oldRecoilDefault(slot); // (the old recoil values at their old defaults)
     }
 
