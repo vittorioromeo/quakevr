@@ -2414,11 +2414,12 @@ QVR_SLIDER(vr_deadzone, "Stick Deadzone", 0.f, 50.f, 5.f, "%.0f%%", noExt,
     "touching the stick: worn sticks often need 20-25%.")
 QVR_SLIDER(vr_deadzone_outer, "Stick Outer Deadzone", 0.f, 30.f, 1.f, "%.0f%%", noExt,
     "The last part of the moving stick's travel that already counts as a full push, so you reach full "
-    "speed without pressing the stick hard against its edge (vr_deadzone_outer).")
+    "speed without pressing the stick hard against its edge, and a thumb slipping a little off the "
+    "edge does not slow a run (vr_deadzone_outer; 20%).")
 QVR_SLIDER(vr_move_curve, "Stick Response Curve", 1.f, 3.f, 0.1f, "%.1f", noExt,
     "How the moving stick's push becomes speed. 1: straight (half the push, half the speed). Higher: "
     "more of the travel for slow speeds, for careful walking, the top speed still at a full push. 1.6: "
-    "about half speed at two thirds of a push (vr_move_curve).")
+    "about half speed at a little over half a push (vr_move_curve).")
 QVR_TOGGLE(vr_move_autorun, "Walk Into Run",
     "Walking (Default Speed: Walk), pushing the moving stick all the way eases you into a run; less than "
     "Run From Push walks. The speed button still runs (vr_move_autorun).")

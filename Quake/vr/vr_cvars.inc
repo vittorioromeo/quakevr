@@ -639,7 +639,9 @@ QVR_CVAR(vr_deadzone, "10", CVAR_ARCHIVE)
 // length (not each axis) past vr_deadzone (% inner) up to the last vr_deadzone_outer % of its travel (full) rescaled
 // onto 0..1, the direction kept; then that to the power vr_move_curve (1 linear; more: finer slow speeds) times the
 // top speed, cl_forwardspeed (times cl_movespeedkey running) but never past sv_maxspeed, so the whole travel counts.
-QVR_CVAR(vr_deadzone_outer, "5", CVAR_ARCHIVE)
+// The outer 20 %: a thumb held hard forward reads 0.7..1.0 as it slips (his take of 2026-11-01: a run's speed dipped
+// with it, "a hitch"); from 0.8 on is full, as the old response's top fifth was (running asked 400 against 320).
+QVR_CVAR(vr_deadzone_outer, "20", CVAR_ARCHIVE)
 QVR_CVAR(vr_move_curve, "1.6", CVAR_ARCHIVE)
 // 1: walking (cl_alwaysrun 0, the speed button up), the stick walks up to vr_move_autorun_threshold of its push (the
 // rescaled length, before the curve) and pushed past it eases into running in a moment; back under it, into walking.
