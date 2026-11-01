@@ -17,6 +17,9 @@
 // blows), their ragdolls awaited (each a corpse, then 3 s more): each still wearing both pauldrons, its body where it
 // fell (its middle within 48 units of its death's place: no blow-up). Ends on "agarmor test: N passed, M failed" (the
 // script may then ask vr_ragdoll_speeds / vr_ragdoll_list).
+// `vr_agarmor_test 13`: the first breaks' cost: a grunt in full green, each of its ten pieces broken in a frame of its
+// own; every plate model precached at the level's load (none late: `developer 1` prints `late precache:` lines, and
+// with `vr_profile_csv 1` a slow frame prints `vr_profile: hitch`). Ends on "agarmor test: N passed, M failed".
 
 entity vr_art_a, vr_art_b; // the armoured grunt, the bare one
 float vr_art_state;       // 0 idle, 1 the checks, 2 waiting for the debris to fade
@@ -333,7 +336,8 @@ void() VR_ART_RunEnforcer =
 // the grunt's and the enforcer's: its pieces at their places (its rig's), the cuirass taking a hit, the right pauldron
 // broken into its own debris, a blade's blow on the cuirass sparking (no blood), the skill's roll dressing it; then its
 // wear set for the client's word (state 2). The wear: yellow, the cuirass to 15 (battered), the helmet to 12 (dented).
-float vr_art_mode;      // 7: the knights' run (state 1 and 2 theirs)
+float vr_art_mode;      // 7: the knights' run (state 1 and 2 theirs); 13: the first breaks' cost
+float vr_art_frames, vr_art_pre0, vr_art_made0; // 13: its frames, the plate precaches and debris before it
 entity vr_art_k, vr_art_dk; // the armed knight, the armed death knight
 float vr_art_kwear, vr_art_dkwear;
 
@@ -558,6 +562,20 @@ void() VR_AgArmor_TestFrame =
             vr_art_state = 1;
             return; // (their poses first drawn)
         }
+        if(request == 13)
+        {
+            // The first breaks' cost: a grunt in a full green set, each piece broken in its own frame (none of its
+            // plate models loaded late: VR_AGR_PrecacheArmour at the level's load).
+            VR_Test_BeginFlags("agarmor test", VR_TEST_LOUD);
+            vr_art_pre0 = vr_ar_precached;
+            vr_art_made0 = vr_ar_debris_made;
+            vr_art_a = VR_ART_Spawn(p, 0);
+            VR_AgArmor_Give(vr_art_a, 1, 1023);
+            vr_art_frames = 0;
+            vr_art_mode = 13;
+            vr_art_state = 1;
+            return;
+        }
         if(request == 7)
         {
             VR_Test_BeginFlags("agarmor test", VR_TEST_LOUD); // (its lines printed without developer 1)
@@ -607,6 +625,32 @@ void() VR_AgArmor_TestFrame =
     if(vr_art_mode == 9)
     {
         VR_ART_Deaths();
+        return;
+    }
+    if(vr_art_mode == 13)
+    {
+        // (20 frames for its spawn to settle, then one piece broken a frame: the run's hitch log, vr_profile_csv 1,
+        // shows any break frame that loaded something late)
+        vr_art_frames = vr_art_frames + 1;
+        float bi = vr_art_frames - 20;
+        if(bi >= 0 && bi < VR_AR_PIECES)
+        {
+            dprint(sprintf("agarmor test: 13 break %g\n", bi));
+            VR_AgArmor_Break(vr_art_a, bi);
+            return;
+        }
+        if(bi < VR_AR_PIECES + 5)
+        {
+            return;
+        }
+        VR_ART_Check(vr_ar_debris_made == vr_art_made0 + VR_AR_PIECES, sprintf("every piece broke into debris (%g)",
+            vr_ar_debris_made - vr_art_made0));
+        VR_ART_Check(vr_art_pre0 >= VR_AR_PIECES * 4, sprintf("the level's load precached the armed kinds' plates (%g)",
+            vr_art_pre0));
+        remove(vr_art_a);
+        vr_art_mode = 0;
+        vr_art_state = 0;
+        VR_Test_Verdict();
         return;
     }
     if(vr_art_state == 1 && vr_art_mode == 7)
