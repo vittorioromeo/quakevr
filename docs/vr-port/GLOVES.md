@@ -1,7 +1,7 @@
 # Editing the gloves
 
 The gloves (`vr_gloves` 1 fingerless, 2 full; VR Settings > Player Appearance > Gloves) are drawn on the jointed hand
-(`vr_hand_rig 1`) by the model shader: where the skin mask says the glove covers, the skin is replaced by leather in
+by the model shader: where the skin mask says the glove covers, the skin is replaced by leather in
 the colour you pick (`vr_glove_hue`, `_saturation`, `_lightness`). On top of that colour sits a **painted layer** you
 can edit in any image editor (`vr_glove_paint 1`, the default; "Worn Leather" in the menu; 0 = plain new leather).
 
@@ -58,7 +58,7 @@ your edits (git keeps the last committed version).
 ## Painted nails
 
 `vr_nails 1` (VR Settings > Player Appearance > Nails > Painted Nails; off by default) paints the jointed hand's
-fingernails (`vr_hand_rig 1` only) in the colour you pick: `vr_nail_hue` (355), `_saturation` (0.85), `_lightness`
+fingernails in the colour you pick: `vr_nail_hue` (355), `_saturation` (0.85), `_lightness`
 (0.32: a classic deep red) and `vr_nail_gloss` (0.6; 0 matte, 1 a glassy top coat). Full gloves cover them; fingerless
 gloves leave them showing. `vr_skin_tone` tints the skin round the nail, never the polish.
 
@@ -89,4 +89,4 @@ HANDS_IN_BLENDER.md, "The feminine hand"). The feminine hand shares the standard
 gloves (their masks, painted leather, relief and shells), the nails' masks, the skins and skin tone all work on it
 unchanged: nothing here needs a second copy.
 Randomize picks it with the feminine body (Body Shape), else one time in ten. It changes at once (the
-first switch loads the model); with the older hands (`vr_hand_rig 0`) it does nothing.
+first switch loads the model).
