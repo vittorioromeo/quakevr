@@ -36,6 +36,9 @@ Hold a ragdoll (or a crate in both hands) and punch the dummy, a wall or a butto
 Ragdoll smash: slam a held grunt's limb (alive and down, or dead) into a wall and the floor: a fleshy thud, deeper when harder, blood on the surface at the contact; a gentle touch or a drag is silent and clean; sliding a body along a wall does not machine-gun. {test:vr_ragsmash_test 1}
 Weapon clash: dual swords swung into each other fast spark with a clang and tink at the crossing; a slow cross does nothing; two shotguns give a dull knock, no sparks; sword on shotgun a few sparks and a clank (Weapons > Weapon Effects > Weapon Clash). {test:vr_clash_test 2}
 Switch campaign (e.g. to Arcane Dimensions) with a menu panel open on the Levels, then play into the hub: no crash; reopened, the panel lists the new campaign's levels.
+A hot shotgun or nailgun glows like a torch-heated blade, on the metal itself: brightest at the muzzle, fading back along the barrel, red deepening to orange, fading as it cools; turning and walking with the sticks it stays exactly on the barrel. {test:barrelglow}
+A glowing barrel lights your hand and nearby walls (Weapon Effects > Heat Light Strength; 0 off); Weapon Offsets > Effects > Barrel Glow Length sets how much of each gun glows (0.5 = its front half).
+A torch-heated axe's light and embers follow it exactly when turning with the stick.
 
 [2. Armed humanoids: disarming and armour]
 Show Disarm Volumes: the wireframe hulls sit on each drawn weapon (magenta, orange, red; the sword's orange line along its blade) and on the drawn hand and forearm (cyan). {test:disarm_hulls_melee}

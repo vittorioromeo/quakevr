@@ -8,6 +8,7 @@
 #include "vr_color.hpp"
 #include "vr_cvars.hpp"
 #include "vr_emissive.hpp"
+#include "vr_gunfx.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_particles.hpp"
 #include "vr_protocol.hpp"
@@ -48,6 +49,7 @@ struct Source
     float glow{0.f};
     int kind{0}; // 0, 1 the hands; 2 + i holster i; 2 + numHolsters lying about (or flying)
     int num{0};  // a lying one's entity number
+    bool barrel{false}; // a hand's gun's hot barrel (vr_gunfx.cpp barrelHeat): its glow and light, no embers or trail
 };
 
 // The blade of a weapon drawn this frame (world): its grip (the hand), its tip (the muzzle anchor), where its heated part
@@ -83,6 +85,7 @@ struct Seen
     float light{0.f};
     float radius{0.f};
     const entity_t* e{nullptr}; // (its entity: the report counts its glowing vertices then, not every frame)
+    bool barrel{false};         // a gun's hot barrel
 };
 
 // The model's grip and tip in its pose's space (a frame's: worked out again each frame, the weapon's settings may change).
@@ -96,6 +99,16 @@ struct PoseBlade
 };
 
 float hot[2] = {0.f, 0.f}; // each hand's weapon's glow, 0..1 (STAT_QVR_HOTBLADE, eased)
+// Each hand's gun's hot barrel as queue placed its light (vr_debug_gunfx 2: how far its drawn muzzle was from it, the
+// times it was drawn glowing).
+struct BarrelSeen
+{
+    const entity_t* e{nullptr};
+    glm::vec3 tip{0.f};   // its muzzle where queue placed the light from
+    float off{0.f};       // the most its drawn muzzle was off that this frame (units)
+    int drawn{0};
+};
+BarrelSeen barrelSeen[2];
 float emberDue[maxSources] = {};
 bool lit[maxSources] = {};
 Track tracks[maxTracks];
@@ -220,6 +233,47 @@ za::FastNonCryptoRng rng{0x407B1ADEu}; // a fixed seed: the same embers every ru
     return true;
 }
 
+// The hot barrel of gun `e` drawn by `m`: from its muzzle (the tip) back along the model's +x (the way it points) its
+// weapon's Barrel Glow Length share of the grip-to-muzzle length (the root). Its mask rises from 0 at the root to 1 at
+// the muzzle: the metal glows most there, fading back along the barrel. False: no barrel to glow (not a known weapon,
+// a share of 0).
+[[nodiscard]] bool barrelBlade(const entity_t& e, const float m[16], Blade& out)
+{
+    const int slot = weapons::slotForModel(e.model);
+    const PoseBlade* p = slot >= 0 ? poseBlade(e.model) : nullptr;
+    if(!p)
+    {
+        return false;
+    }
+    const float length = za::clamp(weapons::value(slot, weapons::Key::GunfxBarrel), 0.f, 1.f) * (p->tip.x - p->grip.x);
+    if(length < 1e-3f)
+    {
+        return false;
+    }
+    out.grip = bytePoint(m, p->grip);
+    out.tip = bytePoint(m, p->tip);
+    out.root = bytePoint(m, glm::vec3{p->tip.x - length, p->tip.y, p->tip.z});
+    out.plane = glm::vec4{1.f / length, 0.f, 0.f, 1.f - p->tip.x / length};
+    out.known = true;
+    return true;
+}
+
+// Hand `hand`'s gun `e`'s hot barrel (vr_gunfx.cpp barrelHeat; all 0: none, or no barrel to glow on it).
+[[nodiscard]] gunfx::BarrelHeat barrelOf(int hand, const entity_t* e)
+{
+    if(!e || !e->model)
+    {
+        return {};
+    }
+    const int slot = weapons::slotForModel(e->model);
+    gunfx::BarrelHeat b = gunfx::barrelHeat(hand, slot);
+    if(b.share <= 0.f || za::clamp(weapons::value(slot, weapons::Key::GunfxBarrel), 0.f, 1.f) <= 0.f)
+    {
+        b.share = b.glow = 0.f;
+    }
+    return b;
+}
+
 // The matrix `e` is drawn by (its pose's space to the world), as the attachments find it.
 void matrixOf(const entity_t& e, float m[16])
 {
@@ -235,6 +289,16 @@ void matrixOf(const entity_t& e, float m[16])
 {
     const view::ViewEntity* ve = view::find(&e);
     return ve ? ve->zeroBlend : 0.f;
+}
+
+// The hand whose gun `e` is, glowing with a hot barrel (not an incandescent blade: that comes first), else -1.
+[[nodiscard]] int barrelHand(const entity_t* e)
+{
+    bool weapon = false;
+    const int hand = e && connected() ? view::handOf(e, weapon) : -1;
+    return hand >= 0 && weapon && !(hot[hand] > 0.f && vr_hotblade_glow.value > 0.f) && barrelOf(hand, e).glow > 0.f
+               ? hand
+               : -1;
 }
 
 // How `e` glows, 0..1 (0: not a glowing blade).
@@ -403,6 +467,22 @@ void carry(Track& t, const glm::vec3& from, const glm::vec3& to, float turn)
     return *oldest;
 }
 
+// Hand `hand`'s gun `e`'s hot barrel lit this frame (`b`, its light): vr_debug_gunfx 2 prints its heat, glow and light,
+// and how its last frame's draws matched its light (the times drawn glowing, the most its drawn muzzle was off where the
+// light was placed from); then this frame's is measured.
+void barrelLine(int hand, const entity_t* e, const Blade& b, float light, float radius)
+{
+    BarrelSeen& s = barrelSeen[hand];
+    if(vr_debug_gunfx.value >= 2.f)
+    {
+        const gunfx::BarrelHeat h = barrelOf(hand, e);
+        Con_Printf("gunfx barrel hand %d heat %.3f glow %.3f light %.3f reach %.1f part %.1f at %.2f %.2f %.2f drawn %d "
+                   "off %.4f\n",
+            hand, h.heat, h.glow, light, radius, glm::distance(b.root, b.tip), b.tip.x, b.tip.y, b.tip.z, s.drawn, s.off);
+    }
+    s = BarrelSeen{e, b.tip, 0.f, 0};
+}
+
 } // namespace
 
 void queue(const hands::State& s)
@@ -426,18 +506,24 @@ void queue(const hands::State& s)
         hot[hand] = want == 0.f ? 0.f : hot[hand] + (want - hot[hand]) * za::min(1.f, dt * 12.f);
     }
 
-    // The glowing blades drawn this frame: the hands', the holsters', the nearest lying about.
+    // The glowing blades drawn this frame: the hands' (else their guns' hot barrels), the holsters', the nearest lying
+    // about.
     Source src[maxSources];
     int n = 0;
+    for(int hand = 0; hand < 2 && on; hand++)
+    {
+        const view::ViewEntity* ve = view::heldWeapon(hand);
+        if(ve && hot[hand] > 0.f && vr_hotblade_glow.value > 0.f)
+        {
+            src[n++] = {&ve->ent, hot[hand], hand, 0};
+        }
+        else if(ve && barrelHand(&ve->ent) == hand)
+        {
+            src[n++] = {&ve->ent, barrelOf(hand, &ve->ent).share, hand, 0, true};
+        }
+    }
     if(on && vr_hotblade_glow.value > 0.f)
     {
-        for(int hand = 0; hand < 2; hand++)
-        {
-            if(const view::ViewEntity* ve = view::heldWeapon(hand); ve && hot[hand] > 0.f)
-            {
-                src[n++] = {&ve->ent, hot[hand], hand, 0};
-            }
-        }
         if(const int bits = cl.stats[protocol::STAT_QVR_HOTBLADEHOLSTER]; bits != 0)
         {
             for(int i = 0; i < protocol::numHolsters; i++)
@@ -489,19 +575,29 @@ void queue(const hands::State& s)
         float m[16];
         matrixOf(*src1.e, m);
         Blade b;
-        if(!bladeOf(*src1.e, m, b))
+        if(!(src1.barrel ? barrelBlade(*src1.e, m, b) : bladeOf(*src1.e, m, b)))
         {
             continue;
         }
         const float g = src1.glow;
 
-        // Its light, from the middle of the heated part, following the glow (a slight flicker: hot metal, not a flame).
+        // Its light, from the middle of the heated part (a hot barrel's: near its muzzle, in the barrel's colour, Heat
+        // Light Strength and Barrel Light Reach), following the glow (a slight flicker: hot metal, not a flame).
         const float flicker = 0.94f + 0.04f * static_cast<float>(za::sin(cl.time * 7.3 + i * 1.7)) +
                               0.02f * static_cast<float>(za::sin(cl.time * 17.9 + i * 2.9));
-        const float light = za::max(0.f, vr_hotblade_light.value) * g * flicker;
-        const float radius = za::max(0.f, vr_hotblade_light_radius.value) * (0.6f + 0.4f * g);
-        emissive::hotBladeLight(i, glm::mix(b.root, b.tip, 0.5f), color, light, radius);
+        const float light = (src1.barrel ? za::clamp(vr_gunfx_heat_light.value, 0.f, 3.f) : za::max(0.f, vr_hotblade_light.value)) * g * flicker;
+        const float radius = za::max(0.f, src1.barrel ? vr_gunfx_heat_light_radius.value : vr_hotblade_light_radius.value) * (0.6f + 0.4f * g);
+        emissive::hotBladeLight(i, glm::mix(b.root, b.tip, src1.barrel ? 0.75f : 0.5f),
+            src1.barrel ? barrelOf(src1.kind, src1.e).color : color, light, radius);
         litNow[i] = light > 0.f && radius > 0.f;
+        if(src1.barrel)
+        {
+            barrelLine(src1.kind, src1.e, b, light, radius);
+            Seen& w = seen[seenCount++];
+            w = Seen{src1.e->model, src1.kind, g, b, light, radius, src1.e, true};
+            emberDue[i] = 0.f;
+            continue; // (no embers, no trail: a barrel)
+        }
 
         // Embers off the heated part's surface: puffs of vr_hotblade_embers, vr_hotblade_ember_rate a second at full glow.
         emberDue[i] += dt * rate * g * g;
@@ -584,24 +680,48 @@ void queue(const hands::State& s)
 
 float entityGlow(const entity_t* e)
 {
+    // Its colour in 16 levels a channel, its strength 0..2 (the alias shader's QVR_ALIAS_FS_GLOW reads them back).
+    const auto coded = [](const glm::vec3& c, float strength)
+    {
+        const auto level = [](float v) { return static_cast<int>(za::clamp(v, 0.f, 1.f) * 15.f + 0.5f); };
+        const int code = level(c.r) + 16 * level(c.g) + 256 * level(c.b);
+        return 4.f + 2.f * static_cast<float>(code) + za::clamp(strength, 0.05f, 1.95f);
+    };
     const float g = glowOf(e);
     if(g <= 0.f)
     {
-        return 0.f;
+        // A hand's gun's hot barrel: its heat's glow (Heat Glow Strength at full heat), its colour.
+        const int hand = barrelHand(e);
+        const gunfx::BarrelHeat b = hand >= 0 ? barrelOf(hand, e) : gunfx::BarrelHeat{};
+        return hand >= 0 ? coded(b.color, b.glow) : 0.f;
     }
-    // Its colour in 16 levels a channel, its strength 0..2 (the alias shader's QVR_ALIAS_FS_GLOW reads them back); a
-    // low glow raised (the build-up shows).
+    // A low glow raised (the build-up shows).
     const float flicker = 0.93f + 0.07f * static_cast<float>(za::sin(realtime * 7.3));
-    const float strength = za::clamp(za::pow(g, 0.7f) * flicker * vr_hotblade_glow.value, 0.05f, 1.95f);
-    const glm::vec3 c = hsv(vr_hotblade_hue.value, 1.f, 1.f);
-    const auto level = [](float v) { return static_cast<int>(za::clamp(v, 0.f, 1.f) * 15.f + 0.5f); };
-    const int code = level(c.r) + 16 * level(c.g) + 256 * level(c.b);
-    return 4.f + 2.f * static_cast<float>(code) + strength;
+    return coded(hsv(vr_hotblade_hue.value, 1.f, 1.f), za::pow(g, 0.7f) * flicker * vr_hotblade_glow.value);
 }
 
 void bladePlane(const entity_t* e, const float matrix[16], float out[4])
 {
     out[0] = out[1] = out[2] = out[3] = 0.f;
+    if(const int hand = e && e->model && glowOf(e) <= 0.f ? barrelHand(e) : -1; hand >= 0)
+    {
+        // A hot barrel: its mask from the matrix it is drawn by (none at all if it has no barrel: not the whole gun);
+        // vr_debug_gunfx 2 measures its drawn muzzle against its light's.
+        Blade b;
+        const bool ok = barrelBlade(*e, matrix, b);
+        const glm::vec4 p = ok ? b.plane : glm::vec4{0.f, 0.f, 0.f, -1.f};
+        out[0] = p.x;
+        out[1] = p.y;
+        out[2] = p.z;
+        out[3] = p.w;
+        BarrelSeen& s = barrelSeen[hand];
+        if(ok && s.e == e)
+        {
+            s.off = za::max(s.off, glm::distance(b.tip, s.tip));
+            s.drawn++;
+        }
+        return;
+    }
     if(!e || !e->model || glowOf(e) <= 0.f)
     {
         return;
@@ -624,7 +744,8 @@ void report_f()
     {
         const Seen& w = seen[i];
         const Blade& b = w.blade;
-        const char* where = w.kind == 0 ? "off" : w.kind == 1 ? "main" : w.kind < 2 + protocol::numHolsters ? "holster" : "lying";
+        const char* where = w.barrel ? (w.kind == 0 ? "off barrel" : "main barrel")
+                            : w.kind == 0 ? "off" : w.kind == 1 ? "main" : w.kind < 2 + protocol::numHolsters ? "holster" : "lying";
         // (How much of the model glows: its vertices as the entity stands now, still the last frame's while it shows the
         // same model; posed only here, for the report.)
         int bladeVerts = 0, verts = 0;
