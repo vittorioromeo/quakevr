@@ -1,8 +1,11 @@
 // vr_carry2h.cpp -- see vr_carry2h.hpp.
 
 #include "vr_carry2h.hpp"
+#include "vr_api.h"
+#include "vr_testkit.hpp"
 #include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
+#include "vr_foegrab.hpp"
 #include "vr_grip.hpp"
 #include "vr_gripfit.hpp"
 #include "vr_held.hpp"
@@ -428,6 +431,8 @@ bool constrain(const glm::vec3& lo, const glm::vec3& hi, const Frame& from, Fram
 {
     return ent && !ent->free && progs::fieldFloatOr(ent, progs::fields().carry_rigid, 0.f) == 2.f;
 }
+
+testkit::Tally dragTally; // vr_carry_drag_test's
 }
 
 bool bodyClear(edict_t* ent, edict_t* player, const Frame& from, Frame& to)
@@ -477,6 +482,34 @@ glm::vec3 bodyPlace(edict_t* ent, edict_t* player, const glm::vec3& target)
     const Frame from{geom::vec(ent->v.origin), rot};
     bodyClear(ent, player, from, to);
     return to.pos;
+}
+
+DragLoad dragLoad(edict_t* player)
+{
+    DragLoad d;
+    if(!player || static_cast<int>(player->v.movetype) != MOVETYPE_WALK || player->v.health <= 0.f)
+    {
+        return d;
+    }
+    const int self = NUM_FOR_EDICT(player);
+    int nums[2]{0, 0};
+    for(int h = 0; h < 2; h++)
+    {
+        box3d::RagdollHold hold;
+        nums[h] = box3d::ragdollHold(self, h, hold) ? hold.num : foegrab::heldBy(player, h);
+        if(nums[h] <= 0 || nums[h] >= qcvm->num_edicts || (h && nums[h] == nums[0]))
+        {
+            continue; // (both hands on one body: it counts once, half each)
+        }
+        edict_t* const body = EDICT_NUM(nums[h]);
+        const float rag = box3d::ragdollBodyMass(nums[h]);
+        const float kg = rag > 0.f ? rag : foegrab::monsterMass(player, body);
+        d.bodies++;
+        d.mass += kg;
+        d.cut += za::max(vr_carry_drag.value, 0.f) * kg / dragGruntKg;
+    }
+    d.cut = za::clamp(d.cut, 0.f, za::clamp(vr_carry_drag_max.value, 0.f, 0.95f));
+    return d;
 }
 
 float moveScale(edict_t* player)
@@ -567,6 +600,48 @@ void loadTest_f()
         Con_Printf("carryloadtest: %d solid props, torso overlap physical %.4f drawn %.4f units, same prop in both hands scale %.3f\n",
             count, physical, drawn, bothScale);
     }
+}
+
+// vr_carry_drag_test start | held | none | end (Misc/quakevr/drag_slowdown_test.sh): "held" a hand holds one grunt's body
+// (standing, by vr_foegrab, or its ragdoll): one body of a grunt's mass (60..100 kg), the walk cut by Drag Slowdown times
+// its mass over 80 kg and VR_CarryMoveScale that much under the props' load; "none": nothing held, no cut. "end" prints
+// "vr_carry_drag_test: N passed, M failed".
+void dragTest_f()
+{
+    constexpr const char* name = "vr_carry_drag_test";
+    const char* step = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
+    const char* label = Cmd_Argc() > 2 ? Cmd_Argv(2) : step;
+    if(!strcmp(step, "start"))
+    {
+        dragTally.reset();
+        return;
+    }
+    if(!strcmp(step, "end"))
+    {
+        dragTally.verdict(name);
+        return;
+    }
+    edict_t* const player = sv.active ? progs::localPlayer() : nullptr;
+    if(!player)
+    {
+        dragTally.check(false, name, "no player");
+        return;
+    }
+    const progs::ServerVm vm;
+    const DragLoad d = dragLoad(player);
+    const float load = moveScale(player), scale = VR_CarryMoveScale(player);
+    Con_Printf("%s: %s: %d bodies, %.1f kg, cut %.3f, move scale %.3f (props' %.3f)\n", name, label, d.bodies, d.mass, d.cut,
+        scale, load);
+    if(!strcmp(step, "held"))
+    {
+        const float want = za::clamp(vr_carry_drag.value * d.mass / dragGruntKg, 0.f, vr_carry_drag_max.value);
+        dragTally.check(d.bodies == 1 && d.mass >= 60.f && d.mass <= 100.f, name, va("%s: one grunt's body (%.1f kg)", label, d.mass));
+        dragTally.check(za::abs(d.cut - want) < 0.005f && d.cut > 0.15f && d.cut < 0.35f, name,
+            va("%s: cut by its mass (%.3f, want %.3f)", label, d.cut, want));
+        dragTally.check(za::abs(scale - load * (1.f - d.cut)) < 0.005f, name, va("%s: the walk slowed by it (%.3f)", label, scale));
+        return;
+    }
+    dragTally.check(d.bodies == 0 && d.cut == 0.f && scale == load, name, va("%s: nothing held, not slowed", label));
 }
 
 bool reaches(edict_t* ent, edict_t* player, int hand)
@@ -727,5 +802,5 @@ void forgetEntity(int num)
 
 extern "C" float VR_CarryMoveScale(edict_t* player)
 {
-    return qvr::carry2h::moveScale(player);
+    return qvr::carry2h::moveScale(player) * (1.f - qvr::carry2h::dragLoad(player).cut);
 }

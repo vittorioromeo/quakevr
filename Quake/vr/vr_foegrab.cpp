@@ -3216,6 +3216,12 @@ bool qvr::foegrab::holds(const edict_t* player, const edict_t* m)
     return (hd->holds[0].active && hd->holds[0].ent == e) || (hd->holds[1].active && hd->holds[1].ent == e);
 }
 
+int qvr::foegrab::heldBy(const edict_t* player, int hand)
+{
+    const Holder* hd = player && hand >= 0 && hand <= 1 ? holderOf(const_cast<edict_t*>(player)) : nullptr;
+    return hd && hd->holds[hand].active ? hd->holds[hand].ent : 0;
+}
+
 bool qvr::foegrab::holding(int hand)
 {
     return hand >= 0 && hand <= 1 && (cl.stats[protocol::STAT_QVR_FOEGRAB] & (1 << hand)) != 0;

@@ -23,6 +23,7 @@ float VR_AGP_PUNCH = 1;
 float VR_AGP_SWING = 2;
 float VR_AGP_SAW = 3;
 float VR_AGP_SHOVE = 4; // its shove of the player up close (VR_AGP_Shove; the Shove pose's keys, agpose::Shove)
+float VR_AGP_CAST = 5;  // the death knight's spell (VR_AGP_Cast; the Cast pose's key, agpose::Cast: his off hand's palm)
 .float vr_ag_shove_s;   // its last shove's push landed this far into it (s; the tests read it)
 float VR_AGP_LEFT = 2;      // QVR_SVC_ARMPOSE flags: the left hand to its own target
 float VR_AGP_LEFTWPN = 8;   // ... holding its own weapon there (dual wielding: the message goes on with it and its turn)
@@ -216,6 +217,9 @@ float VR_AGP_SHOVE_WIND = 0.18;    // the shove's wind-up (s)
 float VR_AGP_SHOVE_PUSH = 0.12;    // ... its push: the push lands as it ends
 float VR_AGP_SHOVE_RECOVER = 0.1;  // ... into its recover key
 float VR_AGP_SHOVE_BACK = 0.16;    // ... back to the stance
+float VR_AGP_CAST_RAISE = 0.3;    // the cast's: his off hand up into the Cast key (the volley's first as it is whole)
+float VR_AGP_CAST_HOLD = 0.45;    // ... held there through the volley's sweep (its six a tenth of a second apart)
+float VR_AGP_CAST_LOWER = 0.3;    // ... back to the stance
 
 // `g`'s attack's speed: a swing's or a punch's vr_ag_act_speed (0.1..1), 1 for anything else.
 float(entity g) VR_AGP_Speed =
@@ -240,6 +244,12 @@ void(entity g) VR_AGP_Times =
         vr_agp_ts = 0.15;
         vr_agp_th = 0.7;
         vr_agp_tr = 0.3;
+    }
+    else if(g.vr_ag_act == VR_AGP_CAST)
+    {
+        vr_agp_tw = VR_AGP_CAST_RAISE;
+        vr_agp_ts = VR_AGP_CAST_HOLD;
+        vr_agp_tr = VR_AGP_CAST_LOWER;
     }
     else if(g.vr_ag_act == VR_AGP_SHOVE)
     {
@@ -281,15 +291,16 @@ vector(entity g) VR_AGP_TargetLocal =
     return VR_AGP_ToLocal(at - g.origin);
 };
 
-// The armed death knight's spell cast as an attack of its own (VR_AGP_Cast): its act's blow (a swing's, a punch's, a
-// gun's thrust) looses his fireball volley from the weapon's tip, the fist or the gun's muzzle, not his middle.
-.float vr_ag_act_cast;  // its act a cast: 1 to come, 2 cast (VR_AGP_Begin, VR_AGP_Shove: from vr_agp_cast_next)
-float vr_agp_cast_next; // the next act a cast (VR_AGP_Cast)
+// The armed death knight's spell cast as an act of its own (VR_AGP_Cast, his voice notes of 2026-11-01 23:28: "point his
+// offhand palm towards the player and the fireballs should come out of the palm"): his off hand out into the Cast
+// pose's key (shared by every class as the Pickup's is, agpose::Cast), whatever he holds (a sword kept in his hand), the
+// volley from that hand's palm as drawn.
+.float vr_ag_act_cast;  // its act a cast: 1 to come, 2 cast (VR_AGP_Cast)
 float vr_am_casts;      // the tests: volleys cast by armed death knights,
-vector vr_am_cast_org;  // ... the last one's origin,
-vector vr_am_cast_grip; // ... its hand's place then (a weapon's grip, the fist),
-vector vr_am_cast_tip;  // ... the weapon's tip then (weaponmuzzle; the fist: its origin),
-float vr_am_cast_by;    // ... how: 1 a blade's swing, 2 a fist, 3 a gun's thrust
+vector vr_am_cast_org;  // ... the last one's origin (his off hand's palm as drawn),
+vector vr_am_cast_grip; // ... his shoulder on that side then (as drawn: weapondrawnpose 42),
+vector vr_am_cast_tip;  // ... his main weapon's tip then (weaponmuzzle; none: his origin),
+float vr_am_cast_by;    // ... how: 4 his off hand's palm
 
 float vr_am_cast_shots; // ... the fireballs its volleys loosed (the tests)
 
@@ -306,10 +317,28 @@ void(entity g, vector org, float offset) VR_AGP_CastShot =
     vr_am_cast_shots = vr_am_cast_shots + 1;
 };
 
+// The cast's off hand (the side his main weapon is not in: 1 the left) and its palm as drawn (weapondrawnpose 41: the
+// hand's middle); not drawn lately (no skin), his chest's height ahead of him on that side.
+float(entity g) VR_AGP_CastSide =
+{
+    return (g.vr_ag_prop && g.vr_ag_prop.vr_ag_left) ? 0 : 1;
+};
+vector(entity g) VR_AGP_Palm =
+{
+    float side = VR_AGP_CastSide(g);
+    vector at = weapondrawnpose(g, side, 41);
+    if(at != '0 0 0')
+    {
+        return at;
+    }
+    makevectors([0, g.angles_y, 0]);
+    return g.origin + v_forward * 20 + v_right * (side ? -8 : 8) + '0 0 1' * (g.maxs_z * 0.6);
+};
+
 // The volley's sweep (a caster of its own, `owner` the death knight): his magicc frames' six, a tenth of a second apart
 // as his own spell sweeps them (all six at once came out of one point: they met each other at once and burst, two
-// left; his voice note 2026-11-01 18:27). From the blow's point as he moves (`view_ofs` from him); a gun's thrust: its
-// muzzle as drawn each time. `cnt` the next offset; done at 3, or he dies, loses his target, is disarmed of the gun.
+// left; his voice note 2026-11-01 18:27), each from his palm as drawn then. `cnt` the next offset; done at 3, or he
+// dies or loses his target.
 void() VR_AGP_CastTick =
 {
     entity g = self.owner;
@@ -318,18 +347,7 @@ void() VR_AGP_CastTick =
         remove(self);
         return;
     }
-    vector org = g.origin + self.view_ofs;
-    if(self.weapon == 3)
-    {
-        entity cg = g.vr_ag_prop;
-        if(!cg)
-        {
-            remove(self);
-            return;
-        }
-        org = VR_AG_DrawnMuzzle(cg, normalize(VR_AI_Origin(g.enemy) - cg.origin));
-    }
-    VR_AGP_CastShot(g, org, self.cnt);
+    VR_AGP_CastShot(g, VR_AGP_Palm(g), self.cnt); // (his palm as drawn now: it follows his hand)
     self.cnt = self.cnt + 1;
     self.nextthink = time + 0.1;
 };
@@ -353,24 +371,14 @@ void(entity g, vector org, vector grip, float by) VR_AGP_CastVolley =
     vr_am_casts = vr_am_casts + 1;
     vr_am_cast_org = org;
     vr_am_cast_grip = grip;
-    vr_am_cast_tip = (by != 2 && g.vr_ag_prop) ? weaponmuzzle(g.vr_ag_prop) : org;
+    vr_am_cast_tip = g.vr_ag_prop ? weaponmuzzle(g.vr_ag_prop) : g.origin;
     vr_am_cast_by = by;
-    VR_AG_Log(sprintf("agp: cast its fireballs (%s) from %v, %.0f from its hand", by == 1 ? "a swing" : by == 2 ?
-        "a fist" : "its gun", org, vlen(org - grip)));
+    VR_AG_Log(sprintf("agp: cast its fireballs from its palm at %v, %.0f from its shoulder", org, vlen(org - grip)));
 };
 
 // A blow from `from` along `dir` (world), with its weapon `p` (world: a punch): that weapon's own melee, `g` striking.
 void(entity g, entity p, vector from, vector dir) VR_AGP_Strike =
 {
-    if(g.vr_ag_act_cast)
-    {
-        // A cast: its blow's moment looses the volley from the blade's tip (or the fist); no blow of its own.
-        if(g.vr_ag_act_cast == 1)
-        {
-            VR_AGP_CastVolley(g, p ? VR_AG_DrawnMuzzle(p, dir) : from + dir * 6, p ? p.origin : from, p ? 1 : 2);
-        }
-        return;
-    }
     if(vr_agk_on)
     {
         // (the Pose Studio's keys move the blow's line with the pose: its hand's place and turn)
@@ -1625,6 +1633,14 @@ void(entity g, entity p) VR_AGK_Keys =
     float base = g.vr_ag_kind * VR_AGK_KIND + cls * VR_AGK_CLASS;
     vector st = weapondrawnpose(world, g.vr_ag_kind * 100 + cls, 28);
     vr_agk_stretch = st_x * VR_AGK_TugStretch(g);
+    float wc = 0; // (the cast's: its Cast key, his off hand's palm at you; VR_AGP_CAST)
+    if(g.vr_ag_act == VR_AGP_CAST)
+    {
+        VR_AGP_Times(g);
+        float sc = time - g.vr_ag_act_at;
+        wc = sc < vr_agp_tw ? VR_Smooth(sc / vr_agp_tw) : sc < vr_agp_tw + vr_agp_ts ? 1 :
+            1 - VR_Smooth((sc - vr_agp_tw - vr_agp_ts) / max(vr_agp_tr, 0.01));
+    }
     float wp = 0; // (the pickup's: its bend's)
     if(g.vr_ag_took_at > 0 && p)
     {
@@ -1650,6 +1666,7 @@ void(entity g, entity p) VR_AGK_Keys =
     {
         wa = VR_Smooth(g.vr_agp_rdy);
     }
+    wp = max(0, wp - wc) + wc; // (the stances under either key: the Pickup's or the Cast's, each in their place)
     VR_AGK_Add(base, (1 - wp) * (1 - wa), FALSE);
     VR_AGK_Add(base + VR_AGK_AIM * VR_AGK_POSE, (1 - wp) * wa, FALSE);
     // The Run key: a change on the carried stance (the studio previews Run carried, its Aim/Guard standing), so laid on
@@ -1661,7 +1678,8 @@ void(entity g, entity p) VR_AGK_Keys =
         wrun = wrun * (1 - wa);
     }
     VR_AGK_Add(base + VR_AGK_RUN * VR_AGK_POSE, wrun, FALSE);
-    VR_AGK_Add(base + VR_AGK_PICKUP * VR_AGK_POSE, wp, FALSE);
+    VR_AGK_Add(base + VR_AGK_PICKUP * VR_AGK_POSE, wp - wc, FALSE);
+    VR_AGK_Add(base + VR_AGK_CAST * VR_AGK_POSE, wc, FALSE);
     // The off hand's hold (a single gun's: agpose::OffMode): the Pickup's while taking a weapon up, if set; else Aim's
     // while aimed (Auto: the Weapon Holds'); else Run's while running, if set; else Carry's. (So Run's Free with Aim's
     // Auto: free running, on the gun aimed, running or not; the client eases the hand between, vr_agarms secondEase.)
@@ -1674,7 +1692,12 @@ void(entity g, entity p) VR_AGK_Keys =
     {
         float mp = VR_AGK_Mode(base + VR_AGK_PICKUP * VR_AGK_POSE);
         float mr = VR_AGK_Mode(base + VR_AGK_RUN * VR_AGK_POSE);
-        if(wp >= 0.5 && mp)
+        float mc = VR_AGK_Mode(base + VR_AGK_CAST * VR_AGK_POSE);
+        if(wc >= 0.5 && mc)
+        {
+            vr_agk_mode = mc; // (the Cast's: Free, his off hand off the gun to cast)
+        }
+        else if(wp - wc >= 0.5 && mp)
         {
             vr_agk_mode = mp;
         }
@@ -1772,7 +1795,7 @@ void(entity g, entity p) VR_AGK_Hold =
         vr_agk_tgt.classname = "vr_agk_target";
     }
     float gun = VR_AGK_IsGun(cls);
-    float aimed = pose == 1 || pose >= 10;
+    float aimed = pose == 1 || pose == VR_AGK_CAST || pose >= 10;
     setorigin(vr_agk_tgt, g.origin + v_forward * (gun ? 200 : 40) + '0 0 10');
     if(g.vr_rs_aimon)
     {
@@ -1806,6 +1829,18 @@ void(entity g, entity p) VR_AGK_Hold =
     else
     {
         g.vr_ag_took_at = 0;
+    }
+    if(pose == VR_AGK_CAST)
+    {
+        // (held whole in its Cast key: past its raise, no volley)
+        g.vr_ag_act = VR_AGP_CAST;
+        g.vr_ag_act_at = time - VR_AGP_CAST_RAISE - 0.01;
+        g.vr_ag_act_hit = 2;
+        g.vr_ag_act_tick = time;
+    }
+    else if(g.vr_ag_act == VR_AGP_CAST)
+    {
+        g.vr_ag_act = 0;
     }
     if(pose < 10)
     {
@@ -2126,6 +2161,19 @@ void(entity g, entity p) VR_AGP_Pose =
     {
         g.vr_ag_act = 0; // (its attack's frames stopped: a pain, a knockdown)
     }
+    if(g.vr_ag_act == VR_AGP_CAST && !vr_agp_quiet && !g.vr_ag_act_hit && time - g.vr_ag_act_tick < 0.15)
+    {
+        VR_AGP_Times(g);
+        if(time - g.vr_ag_act_at >= vr_agp_tw - 0.001)
+        {
+            // His off hand whole in its Cast key: the volley from its palm, as drawn.
+            g.vr_ag_act_hit = 1;
+            if(g.vr_ag_act_cast == 1 && g.enemy)
+            {
+                VR_AGP_CastVolley(g, VR_AGP_Palm(g), weapondrawnpose(g, VR_AGP_CastSide(g), 42), 4);
+            }
+        }
+    }
     if(g.vr_ag_act == VR_AGP_SHOVE && !vr_agp_quiet && !g.vr_ag_act_hit && time - g.vr_ag_act_tick < 0.15)
     {
         VR_AGP_Times(g);
@@ -2136,22 +2184,10 @@ void(entity g, entity p) VR_AGP_Pose =
             g.vr_ag_shove_s = time - g.vr_ag_act_at;
             VR_AG_Log(sprintf("agp: shove lands %.3f s in (wind-up %.2f, push %.2f)", g.vr_ag_shove_s, vr_agp_tw,
                 vr_agp_ts));
-            if(g.vr_ag_act_cast)
-            {
-                // (a gun held: the cast is its thrust, the volley from its muzzle)
-                if(g.vr_ag_act_cast == 1 && g.vr_ag_prop && g.enemy)
-                {
-                    entity cg = g.vr_ag_prop;
-                    VR_AGP_CastVolley(g, VR_AG_DrawnMuzzle(cg, normalize(VR_AI_Origin(g.enemy) - cg.origin)), cg.origin, 3);
-                }
-            }
-            else
-            {
-                entity shoveSelf = self;
-                self = g;
-                VR_EnemyShove_Hit();
-                self = shoveSelf;
-            }
+            entity shoveSelf = self;
+            self = g;
+            VR_EnemyShove_Hit();
+            self = shoveSelf;
         }
     }
     entity pL = world; // (two held: the right hand's in `p`, the left's here; the slots don't say which)
@@ -2643,8 +2679,7 @@ void(float act) VR_AGP_Begin =
 {
     float last = self.vr_ag_act_kind;
     self.vr_ag_act = act;
-    self.vr_ag_act_cast = vr_agp_cast_next; // (VR_AGP_Cast's: the blow a cast)
-    vr_agp_cast_next = 0;
+    self.vr_ag_act_cast = 0;
     if(act == VR_AGP_PUNCH)
     {
         // A jab, a cross, hooks, an uppercut; a combo goes on to the other hand.
@@ -2716,8 +2751,7 @@ void(entity g) VR_AGP_ShoveAim =
 void() VR_AGP_Shove =
 {
     self.vr_ag_act = VR_AGP_SHOVE;
-    self.vr_ag_act_cast = vr_agp_cast_next; // (VR_AGP_Cast's: a gun's thrust casting)
-    vr_agp_cast_next = 0;
+    self.vr_ag_act_cast = 0;
     self.vr_ag_act_kind = 0;
     self.vr_ag_act_hand = 0;
     self.vr_ag_act_at = time;
@@ -2731,28 +2765,27 @@ void() VR_AGP_Shove =
     vr_agp_act();
 };
 
-// The armed death knight's spell (VR_AM_SpellTry out of reach, VR_AM_GunCasts with a gun): his fireball volley cast as
-// an attack of the weapon he holds: a melee weapon's swing (from its tip at the blow), his fist's punch (from the
-// fist), a gun's thrust (the Shove pose's keys; from its muzzle as the thrust ends). No step in, no follow-up.
+// The armed death knight's spell (VR_AM_SpellTry out of reach, VR_AM_GunCasts with a gun): his fireball volley cast
+// with his off hand, whatever he holds (a sword, a gun, his fists): its arm up into the Cast pose's key over
+// VR_AGP_CAST_RAISE (his palm at you), the volley from that palm as it is whole, held through it, then back. His stand
+// frames under it, facing you; no step in, no follow-up.
 void() VR_AGP_Cast =
 {
     entity p = self.vr_ag_prop;
-    vr_agp_cast_next = 1;
-    if(p && VR_AG_Class(p.weapon) == VR_AG_CLASS_MELEE)
-    {
-        VR_AGP_Begin(VR_AGP_SWING);
-    }
-    else if(!p)
-    {
-        self.vr_ag_act_combo = 2; // (one punch: no combo)
-        VR_AGP_Begin(VR_AGP_PUNCH);
-    }
-    else
-    {
-        VR_AGP_Shove();
-    }
-    vr_agp_cast_next = 0;
+    self.vr_ag_act = VR_AGP_CAST;
+    self.vr_ag_act_cast = 1;
+    self.vr_ag_act_kind = 0;
+    self.vr_ag_act_hand = 0;
+    self.vr_ag_act_at = time;
+    self.vr_ag_act_speed = 1;
+    self.vr_ag_act_var = random();
+    self.vr_ag_act_hit = 0;
+    self.vr_ag_act_hitl = 1; // (no left blow)
+    self.vr_ag_act_tick = time;
+    self.vr_ag_demo = 0;
+    VR_AGP_ShoveAim(self); // (a gun kept at you)
     VR_AG_Log(sprintf("agp: casting (%s)", p ? p.netname : "fists"));
+    vr_agp_act();
 };
 
 // Its th_melee: a punch, a swing or the chainsaw's thrust (VR_AG_CheckAttack: its target within reach).
@@ -2790,9 +2823,9 @@ void() VR_AGP_Frame =
     float sp = VR_AGP_Speed(self); // (slowed: its legs' frames and its step in as slow, as far in all)
     VR_AGP_Times(self);
     self.frame = VR_AM_StandFrame(self, floor(s * sp * 10)); // (its stand frames: its legs under the arms)
-    if(self.vr_ag_act == VR_AGP_SHOVE)
+    if(self.vr_ag_act == VR_AGP_SHOVE || self.vr_ag_act == VR_AGP_CAST)
     {
-        VR_AGP_ShoveAim(self); // (no step in: the shove is from where it stands, as the model's frames were)
+        VR_AGP_ShoveAim(self); // (no step in: the shove and the cast are from where it stands, as the model's frames were)
     }
     else if(s < vr_agp_tw + vr_agp_ts && !demo && !self.vr_ag_act_cast)
     {

@@ -1530,33 +1530,39 @@ void poseDataWindow()
                 }
                 ImGui::EndCombo();
             }
-            if(st.pdPose == agpose::Pickup)
+            if(agpose::isSharedPose(st.pdPose))
             {
-                // One Pickup per kind every class shares, a class's own only where one is set (agent/sharedpickup)
-                const bool own = agpose::hasPickupOverride(st.pdKind, st.pdClass);
+                // One Pickup and one Cast per kind every class shares, a class's own only where one is set
+                // (agent/sharedpickup; the Cast: agent/night1101)
+                const char* pn = agpose::poseName(st.pdClass, st.pdPose);
+                const bool own = agpose::hasOverride(st.pdKind, st.pdClass, st.pdPose);
                 if(own)
                 {
-                    ImGui::TextUnformatted("This class's own Pickup (an override of the shared one).");
+                    ImGui::TextUnformatted(va("This class's own %s (an override of the shared one).", pn));
                     if(ImGui::Button("Remove Override (use shared)"))
                     {
-                        pushPosesUndo("Pickup override removed");
-                        agpose::removePickupOverride(st.pdKind, st.pdClass);
+                        pushPosesUndo(va("%s override removed", pn));
+                        agpose::removeOverride(st.pdKind, st.pdClass, st.pdPose);
                     }
                 }
                 else
                 {
-                    ImGui::TextUnformatted(va("The shared Pickup: every %s class without an override.",
+                    ImGui::TextUnformatted(va("The shared %s: every %s class without an override.", pn,
                         agpose::kindName(st.pdKind)));
                     if(ImGui::Button("Make Override for this class"))
                     {
-                        pushPosesUndo("Pickup override made");
-                        agpose::makePickupOverride(st.pdKind, st.pdClass);
+                        pushPosesUndo(va("%s override made", pn));
+                        agpose::makeOverride(st.pdKind, st.pdClass, st.pdPose);
                     }
                 }
-                helpMarker("Each kind has one Pickup pose every weapon class uses; a class may have its own instead (an "
-                           "override, starting as the shared one). Edits here and with the Pose Keys tool change the "
-                           "shared Pickup unless this class has an override. Print lists the shared key and the "
-                           "overrides; vr_agrunt_pose_dump pickup shows each class's in effect.");
+                helpMarker("Each kind has one Pickup pose and one Cast pose (the death knight's volley: his off hand's "
+                           "palm at you, the fireballs from it) every weapon class uses; a class may have its own instead "
+                           "(an override, starting as the shared one). Edits here and with the Pose Keys tool change the "
+                           "shared key unless this class has an override. Print lists the shared keys and the "
+                           "overrides; vr_agrunt_pose_dump pickup shows each class's Pickup in effect.");
+            }
+            if(st.pdPose == agpose::Pickup)
+            {
                 float bend[2] = {vr_agrunt_take_bend.value, vr_agrunt_take_bend_kneel.value};
                 if(ImGui::DragFloat2("Chest Bend (standing, kneeling)", bend, 0.25f, 0.f, 90.f, "%.1f"))
                 {

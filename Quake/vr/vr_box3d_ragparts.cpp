@@ -1388,22 +1388,15 @@ float ragdollHoldForce(edict_t* player, int hand, float force, float hertz)
     return g->force;
 }
 
+float ragdollBodyMass(int num)
+{
+    const RagdollBodies* rp = world ? ragdollOf(num) : nullptr;
+    return rp ? ragdollMass(*rp) : 0.f;
+}
+
 float ragdollWeight(edict_t* ent)
 {
-    const RagdollBodies* rp = ent && world ? ragdollOf(NUM_FOR_EDICT(ent)) : nullptr;
-    if(!rp)
-    {
-        return 0.f;
-    }
-    float mass = 0.f;
-    for(int b = 0; b < rp->count; b++)
-    {
-        if(!partCut(*rp, b))
-        {
-            mass += b3Body_GetMass(rp->body[static_cast<za::SizeT>(b)]);
-        }
-    }
-    return mass * za::max(-b3World_GetGravity(world->id).z, 0.f);
+    return ent && world ? ragdollBodyMass(NUM_FOR_EDICT(ent)) * za::max(-b3World_GetGravity(world->id).z, 0.f) : 0.f;
 }
 
 void ragdollRelease(edict_t* player, int hand, const glm::vec3& velocity)

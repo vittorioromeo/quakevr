@@ -5729,6 +5729,93 @@ where the model has a rig, through the one decider (VR_RegionPick); the point's 
   slash_backswing_up_right 26.3 -> 15.8 (now an arm), hilt_pommel 14.2 -> 23.6 (now the body: a triangle out at the
   side that is the torso's).
 
+## The punch through an armed grunt's gun (branch `agent/punchgun`, his notes 2026-11-01 22:56, 22:57, 23:08)
+
+"The fist just goes through the disarm volume without any sort of registration", held by his other hand or not, the
+grunt aware or not.
+- **Reproduced** from his 23:08 replay (the 22:56 / 22:57 replays are the 3 s and 1 s after a scenario reload: no
+  punch in them): `vr_scenario agrunt_tug; wait150; developer 1; vr_agrunt_debug 1; vr_motion_play
+  <note>_replay.csv target monster_army recorded` (the take's grunt #61 is the scenario's shotgun grunt; `target #61`
+  is another entity here). His first punch (main fist closed, 1.76 s, the melee's swing 8.8-10.6 m/s) met the gun
+  (the swept test, VR_AG_StrikeMeets) and was dropped by **VR_AG_StrikeSpeed**: "a blow of 0.3 m/s on its weapon (0.3
+  in the world): under 4.5".
+- **The gate**: the strike's speed is the lesser of the melee tracker's swing and the fist against the weapon
+  (`rel`, since 10-27: a hand going with a swing is no blow). `rel` read the hand's velocity (`.handvel`,
+  VRGetEntHandVel) as world units a second; it is metres a second against the player (vr_move.hpp; every other QC use
+  multiplies by VRMetersToUnits). So every real punch read 1/38 of its speed: never a strike, in a tug or not, aware or
+  not. The same misread: the grab's speed (vr_agrunt_grab_speed never refused a real grab), the blow's way
+  (VR_AG_DisarmBy's direction, the blade contact's, the parry's look-ahead `tip + hv * 0.25`). The mock tests set
+  `.handvel` themselves in units (test 19's note: "the mock's glide reads about 0.1 m/s ... at the server"), so they
+  passed.
+- **Fix**: `VRGetEntHandVelU(e, hand)` (vr_util.qc): the hand's velocity against its player in units a second; every
+  armed-grunt use goes through it (vr_armedgrunt.qc grab, vr_armedgrunt_play.qc VR_AG_StrikeSpeed / HandStrike,
+  vr_armedgrunt_parry.qc). One rule for every armed humanoid: a deliberate fist on its weapon or hand knocks it out
+  (unaware: caught out; raised parry: the roll), and in your other hand's tug, into the holding hand (VR_AG_TugStrike).
+- **Feedback**: the disarm's clatter and grunt as before (VR_AG_DisarmFeedback), and now a hard knock in the striking
+  hand (`VR_Haptic_KnockOut`, vr_haptics.qc) from `VR_AG_StrikeKnock` (the strike, the hand strike, the tug strike).
+- **Gate log** (`vr_agrunt_debug 1`): VR_AG_BlowOnWeapon names its refusal ("strike: none (hand h): its body met
+  first", "not a deliberate strike (swing ..)"; `vr_agrunt_debug 3` also the per-frame ones: no tug/armed/still, too
+  slow, the sweep missed with its gap), VR_AG_StrikeSpeed its 0.3 s knock cooldown.
+- **Tests**: his 23:08 replay now: "strike: disarmed (a 7.2 m/s strike on its weapon, 10.5 units from its grip or hand:
+  unaware of it)" on his first punch (and the axe grunt later, beating its raised parry). Tests 19 and 200 no longer
+  set the off hand's velocity: the engine's own glide, 6.7 / 6.1 m/s. Test 19 5/0, 200 33/0, 94 16/0, 92 22/0, 36 4/0
+  (the punch through it still refused as a grab at the real speed), 79 36/0. Test 29 0/1 as before this change (its mock
+  fist is an open hand: "not a strike (an open hand)", the deliberate rule).
+
+Checklist:
+- [punchgun] Fists in both hands, a calm grunt: punch its gun with a closed fist: it flies out of its hand with a metal
+  clatter and a hard knock in your fist; it staggers and turns on you. {test:agrunt_tug}
+- [punchgun] Hold the grunt's gun with one hand and punch it with the other fist: the gun ends in your holding hand,
+  with the clatter and the knock in your punching fist. {test:agrunt_tug}
+- [punchgun] Grab the grunt's gun by closing your hand on it as you swing through fast: no grab (a punch through it);
+  close it slowly on the gun: the tug as before. {test:agrunt_tug}
+
+## Night 11-01: live foes, drag slowdown, the death knight's Cast, armed humanoids in AD (branch `agent/night1101`)
+
+His voice notes of 2026-11-01 23:19 to 23:37.
+
+- **Close quarters only on live foes** (23:19): `vr_closequarters_live` (1; Locomotion > Close Quarters, "Only Live
+  Foes"), in the one place the slowdown picks its foe (vr_closequarters.cpp `liveEnemy`): with it on, a monster with a
+  ragdoll (`box3d::isRagdoll`: knocked down, staggering, held up, rising through its body) or `.vr_knockdown` 1 is no
+  foe.
+- **Drag slowdown** (23:22, his choice: by body weight): `vr_carry_drag` (0.25) and `vr_carry_drag_max` (0.7), Carrying
+  and Throwing > Carrying. `carry2h::dragLoad`: each hand's body (its ragdoll hold, else its foegrab hold:
+  `foegrab::heldBy`), its mass its ragdoll's (`box3d::ragdollBodyMass`, which `ragdollWeight` now uses) or QC
+  `VR_Grapple_MonsterMass`; cut = drag x mass / 80 kg (a grunt's), a body in both hands once, the bodies added, at most
+  the max; `VR_CarryMoveScale` takes 1 - cut on top of the props' load.
+- **The death knight's Cast pose and palm volley** (23:28): a pose `Cast` (VR_AGK_CAST 4, a stance key) shared by every
+  class as the Pickup is: the shared-pose code generic over both (`isSharedPose`, `sharedCode`, `hasOverride`,
+  `makeOverride`, `removeOverride` take the pose; the Pose Studio's Make Override and the Rig Studio's override box for
+  either). Shipped default 7040 (the grunt's shared Cast, the knights' fitted): the off hand Free, out ahead at shoulder
+  height, palm turned forward; a first guess for him to set in the studio. QC: the act `VR_AGP_CAST` (raise 0.3 s, hold
+  0.45 s through the volley's sweep, lower 0.3 s) for every holder, a sword kept in his hand, a gun kept at you; its
+  key laid over the stances as the Pickup's; the volley from the off hand's palm as drawn (`weapondrawnpose` 41), each
+  fireball from the palm then. The old casts as a swing, a punch or a gun's thrust are gone. `vr_agdknight_spell_share`
+  0.3 -> 0.6 (no migration row: sparse configs since 218).
+- **Armed humanoids in AD** (23:37): `vr_agrunt_repl_ad` 0 -> 1; the knights and death knights follow it in AD too
+  (`VR_AKN_Replace`), and `VR_AGR_ADVariant` skips AD's variants under a standard classname (spawnflags 8192, AD's point
+  knight; 4096, a ghost). AD's other variants have classnames of their own spawned by AD's functions, so are never
+  replaced: monster_army_rocket, _grenade, _plasma, monster_defender, monster_eliminator, monster_hell_pointknight,
+  monster_dknight, monster_death_knight, monster_dknightghost (queued for his decision). In AD maps the plain four spawn
+  through Quake VR's own functions (VR_AD_OwnsClassname), so a point knight's flag is lost there either way.
+- **Tests** (Misc/quakevr/night1101_test.sh cq | drag | dk | ad): cq 14/0 (the knockdown's mark set on the test grunt:
+  a vrtesthall/vrfiringrange spawn is no sweepable one); drag 8/0 (a grunt held standing and a dead grunt's ragdoll: 80
+  kg, cut 0.25, scale 0.75; none held 1.0); dk (test 95, kind 3) 9/1: the palm volley 19.8 ahead of his middle with the
+  sword kept, the gun share 0.582 over 2000 rolls; "knight death" fails as before these changes (his armour roll
+  absorbs the lethal blow, noted under agent/dkhelmet). ad (vr_ad_test 198): unverified, the run sees no AD data
+  (vr_ad_status 0 with `-game ad`).
+
+Checklist:
+- [night1101] Walk into a knocked-down or staggering grunt: no close-quarters slowdown; Only Live Foes off brings it
+  back. {test:closequarters}
+- [night1101] Drag a dead grunt or hold a live one: you walk about 25% slower; heavier bodies slow you more, up to 70%
+  (Carrying > Drag Slowdown).
+- [night1101] A death knight at range raises his off hand, palm at you, and the fireballs come out of the palm; with a
+  sword he keeps it in his hand; a gun holder casts about 60% of his ranged attacks.
+- [night1101] Pose Studio / Rig Studio: a "Cast (shared)" pose beside Pickup, set on the rifle, Make Override per class.
+- [night1101] AD maps: plain grunts, enforcers, knights and death knights armed; AD's rocket, grenade and plasma
+  soldiers and point knights as AD made them.
+
 ## The tug always physical; its body moves while it tugs (branch `agent/tugphys`, his note 2026-11-01 23:07)
 
 - **The old tug removed.** `vr_agrunt_tug_ragdoll` (Armed Grunts "Tug: Physical"), `vr_agrunt_tug_time` ("Tug: Pull

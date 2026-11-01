@@ -27,7 +27,8 @@
 // monsters spawn before one is in, so theirs are rolled on the first frame with one (VR_AGR_Frame), spawned holding
 // their own gun meanwhile.
 // Where: vr_agrunt_repl_id (Quake's own campaigns, their custom maps), vr_agrunt_repl_mp (the mission packs),
-// vr_agrunt_repl_ad (Arcane Dimensions' maps: its own encounters, off by default).
+// vr_agrunt_repl_ad (Arcane Dimensions' maps, on by default since 2026-11-01: his note 23:37; there only the standard
+// monster_army, monster_enforcer, monster_knight and monster_hell_knight, never AD's own variants: VR_AGR_ADVariant).
 
 .vector vr_agr_seed;       // its rolls' seed (the map's name, its spawn point and kind)
 .float vr_agr_pending;     // 1: its loadout not rolled yet (no player in yet: VR_AGR_Frame)
@@ -111,6 +112,16 @@ float() VR_AGR_InScope =
         return cvar("vr_agrunt_repl_mp") != 0;
     }
     return cvar("vr_agrunt_repl_id") != 0;
+};
+
+// One of Arcane Dimensions' own variants under a standard monster's classname, in AD's rules: a lightning point knight
+// (monster_hell_knight with spawnflags 8192, AD's MON_POINT_KNIGHT) or a ghost (4096, MON_GHOST_ONLY). AD's other
+// variants have classnames of their own, spawned by AD's functions (monster_army_rocket, _grenade, _plasma;
+// monster_defender, monster_eliminator; monster_hell_pointknight; monster_dknight, monster_death_knight): never
+// replaced, as no replacement runs there. Left as AD made them (his note 23:37: AD's own grunts to revisit).
+float(entity e) VR_AGR_ADVariant =
+{
+    return AD_Rules() && (e.spawnflags & (8192 | 4096));
 };
 
 // The map's index in its episode: the number after the last "<digit>m" of its name (e1m4: 4, hip2m3: 3); 0: none.
@@ -363,7 +374,7 @@ float(float kind) VR_AGR_Replace =
     }
     if(self.classname != (kind == VR_AM_ENFORCER ? "monster_enforcer" : "monster_army") || self.vr_mg3_infected ||
        (!VR_OtherFlags() && (self.spawnflags & (SPAWNFLAG_TRIGGER_SPAWN | SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE))) ||
-       !VR_AGR_InScope())
+       !VR_AGR_InScope() || VR_AGR_ADVariant(self))
     {
         return FALSE;
     }
@@ -412,6 +423,10 @@ float() VR_AKN_Replace =
     if(!VR_OtherFlags() && (self.spawnflags & (2 | SPAWNFLAG_TRIGGER_SPAWN | SPAWNFLAG_TRIGGER_SPAWN_MULTIPLE)))
     {
         return FALSE; // (a statue; a trigger's copies: their maker keeps its own spawn)
+    }
+    if((AD_Rules() || cvar_hget(cvarh_vr_campaign) == 6) && (!cvar("vr_agrunt_repl_ad") || VR_AGR_ADVariant(self)))
+    {
+        return FALSE; // (Arcane Dimensions' maps: vr_agrunt_repl_ad's, as the grunts; AD's own variants never)
     }
     if(!self.weapon)
     {

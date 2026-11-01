@@ -98,6 +98,9 @@ int packTorn(edict_t* m);
 // pack by his hands, those holds go on. Either way it is lifted: it flails and breaks free after vr_foegrab_lift_time (as
 // a two-hand lift). How many hands hold it (0: not lifted).
 int packLift(edict_t* player, edict_t* m);
+// Server: the enemy (edict number) `player`'s `hand` (0 off, 1 main) holds now, 0 none (the drag slowdown:
+// vr_carry2h.cpp dragScale).
+[[nodiscard]] int heldBy(const edict_t* player, int hand);
 // Client: whether `hand` holds an enemy now.
 [[nodiscard]] bool holding(int hand);
 

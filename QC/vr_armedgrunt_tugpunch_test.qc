@@ -95,10 +95,9 @@ void() VR_AGTP_Frame =
     if(vr_agt_step == 5)
     {
         vr_agtp_frames = vr_agtp_frames + 1;
-        // (the off hand's world velocity the glide's: the mock's glide reads about 0.1 m/s for the off hand at the server,
-        // its positions and the melee tracker's swing right: see ROUND23.md "Punching the gun in a tug")
-        makevectors('0 1 0' * p.angles_y);
-        p.offhandvel = v_right * (38 / 0.2);
+        // (The off hand's velocity is the engine's own, the glide's: it read "about 0.1 m/s" here only because the strike
+        // read metres a second as units, 1/38 of it, and this test once set it by hand; ROUND23.md "The punch through
+        // an armed grunt's gun".)
         if(g.vr_ag_prop && time < vr_agt_until)
         {
             return;

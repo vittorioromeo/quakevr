@@ -1129,7 +1129,6 @@ void() VR_AGPT_WeaponBlow =
     p.velocity = '0 0 0';
     float near = VR_AG_SegDist(p.handpos, p.handpos, vr_ag_wa, vr_ag_wb);
     makevectors(p.angles);
-    float m2u = VRMetersToUnits();
     float fb = vr_ag_feedbacks;
     // (The swing's speed is the melee tracker's, the hand's own in the play space: VR_AG_SwingSpeed.)
     entity was = self;
@@ -1139,11 +1138,11 @@ void() VR_AGPT_WeaponBlow =
     b.mh_thing = VR_MTHING_FIST;
     b.mh_time = time;
     b.mh_fast = 2;
-    p.handvel = v_forward * 2 * m2u;
+    p.handvel = v_forward * 2; // (metres a second)
     p.vr_ag_knock_at = 0;
     float slow = VR_AG_WeaponStruck(g, g.vr_ag_prop);
     b.mh_fast = 6;
-    p.handvel = v_forward * 6 * m2u;
+    p.handvel = v_forward * 6;
     p.vr_ag_knock_at = 0;
     float hard = VR_AG_WeaponStruck(g, g.vr_ag_prop);
     VR_AGT_Check(sprintf("weapon blow: the hand %.1f units from its line; 2 m/s %s, 6 m/s %s, %g sounds (%s):", near,
@@ -1606,7 +1605,7 @@ void() VR_AGPT_Grab =
             // A punch: the fist on it as the grip closes, moving at 3 m/s (its touch run here, with that speed: the
             // engine's tracked speed is the mock's), then gone on through it (its grip's start over).
             makevectors(p.angles);
-            p.handvel = v_forward * 3 * VRMetersToUnits();
+            p.handvel = v_forward * 3; // (metres a second)
             entity oldself = self;
             self = g.vr_ag_prop;
             self.handtouch_ent = p;

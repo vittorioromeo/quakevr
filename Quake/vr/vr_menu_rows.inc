@@ -860,10 +860,9 @@ QVR_TOGGLE(vr_agdknight, "Armed Death Knights",
     "his fireball volley. A work in progress (ROUND23.md, \"Death knights as armed humanoids\"). Takes "
     "effect at the next map load (vr_agdknight).")
 QVR_SLIDER(vr_agdknight_spell_share, "Armed Death Knights: Spell Share", 0.f, 1.f, 0.05f, "%.2f", ext(0.f, 1.f),
-    "An armed death knight holding a gun casts his fireball volley (a thrust of the gun, the fireballs from its "
-    "muzzle) for this share of his ranged attacks and fires the gun for the rest. With a blade or his fists he "
-    "casts at range as a swing or a punch, the fireballs from the blade's tip or his fist "
-    "(vr_agdknight_spell_share).")
+    "An armed death knight holding a gun casts his fireball volley (his off hand out, the fireballs from its palm: "
+    "the Cast pose) for this share of his ranged attacks and fires the gun for the rest. With a blade or his fists "
+    "he casts at range the same way, his sword kept in his hand (vr_agdknight_spell_share).")
 QVR_TOGGLE(vr_agknight_ranged_pickup, "Armed Knights: Pick Up Ranged Weapons",
     "Off: armed knights and death knights take up only melee weapons lying about (a gun they drop stays "
     "on the floor). On: they take up guns too, as grunts do (for experiments). One spawned holding a gun "
@@ -880,8 +879,9 @@ QVR_TOGGLE(vr_agrunt_repl_id, "Quake's Campaigns",
 QVR_TOGGLE(vr_agrunt_repl_mp, "Mission Packs",
     "Scourge of Armagon and Dissolution of Eternity (vr_agrunt_repl_mp).")
 QVR_TOGGLE(vr_agrunt_repl_ad, "Arcane Dimensions",
-    "Arcane Dimensions' maps too: their encounters are designed around their own monsters, so off by "
-    "default (vr_agrunt_repl_ad).")
+    "Arcane Dimensions' maps too: their plain grunts, enforcers, knights and death knights by the usual rules; AD's "
+    "own variants (rocket, grenade and plasma soldiers, defenders, eliminators, point knights) stay as AD made them "
+    "(vr_agrunt_repl_ad).")
 
 // vr_menu_gameplay.inc: pageArmedAI
 QVR_SLIDER(vr_agrunt_ai_skill, "Difficulty Impact", 0.f, 3.f, 0.1f, "%.1fx", ext(0.f, 10.f),
@@ -2476,6 +2476,9 @@ QVR_TOGGLE(vr_closequarters, "Close-Quarters Slowdown",
     "Walking straight into a live enemy's face near it slows you gradually, so a full-speed run into one doesn't "
     "end in a mess of bodies; you still get right up to it, and strafing past it keeps (nearly) full speed. Only the "
     "part of your move towards the nearest enemy is slowed (vr_closequarters).")
+QVR_TOGGLE(vr_closequarters_live, "Only Live Foes",
+    "Only an enemy fully alive on its feet slows you; one in ragdoll or active ragdoll form (knocked down, "
+    "staggering, held, getting up) doesn't (vr_closequarters_live).")
 QVR_SLIDER(vr_closequarters_start, "Start Radius", 0.5f, 4.f, 0.1f, "%.1f m", ext(0.f, 10.f),
     "How near the nearest live enemy (from your centre to its body) the slowdown starts (vr_closequarters_start).")
 QVR_SLIDER(vr_closequarters_end, "End Radius", 0.f, 2.f, 0.05f, "%.2f m", noExt,
@@ -4027,6 +4030,11 @@ QVR_SLIDER_BYNAME(vr_carry_move_size, "Carry Load: Size", 0.f, 3.f, 0.05f, "%.2f
     "Total carried length allowed without a bulk penalty; twice this halves stick walking speed. 0 disables the size penalty.")
 QVR_SLIDER_BYNAME(vr_carry_move_min, "Carry Load: Minimum Speed", 0.1f, 1.f, 0.05f, "%.2fx", noExt,
     "Minimum fraction of stick walking speed under load; 1 disables the slowdown.")
+QVR_SLIDER(vr_carry_drag, "Drag Slowdown", 0.f, 1.f, 0.05f, "%.2f", noExt,
+    "Dragging a body (a corpse, a knocked-down or held enemy) slows your walk by this much for a grunt's weight, "
+    "more for heavier ones, less for lighter; a body in both hands counts once; 0: no slowdown (vr_carry_drag).")
+QVR_SLIDER(vr_carry_drag_max, "Drag Slowdown: Most", 0.f, 0.9f, 0.05f, "%.2f", noExt,
+    "The most the bodies you hold slow your walk, together: 0.7 leaves you 30% of your speed (vr_carry_drag_max).")
 QVR_TOGGLE(vr_held_surface_fit, "Fit to the Hand",
     "A box, backpack or gib you grip sits against your curled fingers, by its drawn shape. Off: it stays where you gripped it.")
 QVR_TOGGLE(vr_grip_fit, "Keep Fingers Out of Props",

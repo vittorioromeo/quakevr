@@ -48,7 +48,8 @@ QVR_CVAR(vr_pickup_prop_models, "1", CVAR_ARCHIVE)   // the map's weapons drawn 
 QVR_CVAR(vr_item_float_height, "26", CVAR_ARCHIVE)    // units above the floor the map's weapons, armour, powerups and keys float at (0: on the floor); next map
 QVR_CVAR(vr_unstick, "1", CVAR_ARCHIVE)             // a player found inside the map or a door, button or lift is moved to the nearest free spot (vr_unstick.cpp); 0: Quake's small nudge only
 QVR_CVAR(vr_closequarters, "1", CVAR_ARCHIVE)                  // close-quarters slowdown (vr_closequarters.cpp): walking straight at a live enemy near it is gradually slowed; strafing past it keeps (nearly) full speed
-QVR_CVAR(vr_closequarters_start, "1.6", CVAR_ARCHIVE)           // metres from your centre to the nearest live enemy's box (horizontally) where it starts
+QVR_CVAR(vr_closequarters_live, "1", CVAR_ARCHIVE)             // only fully live enemies count: not one in ragdoll or active ragdoll form (knocked down, staggering, held, rising)
+QVR_CVAR(vr_closequarters_start, "1.6", CVAR_ARCHIVE)          // metres from your centre to the nearest live enemy's box (horizontally) where it starts
 QVR_CVAR(vr_closequarters_end, "0.7", CVAR_ARCHIVE)             // metres: at this and nearer it is full (your body touches a grunt at about 0.6)
 QVR_CVAR(vr_closequarters_min, "0.5", CVAR_ARCHIVE)             // the part of your move straight at it times this at End Radius (1: none)
 QVR_CVAR(vr_closequarters_strafe, "0.95", CVAR_ARCHIVE)         // the sideways part of your move times this at End Radius (1: none)
@@ -2503,7 +2504,7 @@ QVR_CVAR(vr_agrunt_reserve, "2", CVAR_ARCHIVE)         // the clips it carries b
 QVR_CVAR(vr_agknight, "0", CVAR_ARCHIVE)               // 1: every knight a map spawns is an armed humanoid holding a sword (QC vr_armedknight.qc; docs/vr-port/ARMED_MONSTERS.md)
 QVR_CVAR(vr_agknight_ranged_pickup, "0", CVAR_ARCHIVE) // armed knights and death knights taking up ranged weapons lying about (their own dropped gun too): 0 never (melee ones only), 1 as grunts do; spawned with a gun they hold it either way (QC vr_armedmon.qc VR_AM_Takes)
 QVR_CVAR(vr_agdknight, "0", CVAR_ARCHIVE)              // 1: every death knight (hell knight) a map spawns is an armed humanoid holding his sword, still casting his fireballs (QC vr_armedrepl.qc VR_AKN_Replace; docs/vr-port/ARMED_MONSTERS.md)
-QVR_CVAR(vr_agdknight_spell_share, "0.3", CVAR_ARCHIVE) // 0..1: an armed death knight holding a gun casts his fireball volley (a thrust of the gun, from its muzzle) for this share of his ranged attacks, firing the gun for the rest
+QVR_CVAR(vr_agdknight_spell_share, "0.6", CVAR_ARCHIVE) // 0..1: an armed death knight holding a gun casts his fireball volley (his off hand's palm at you, the fireballs from it: the Cast pose) for this share of his ranged attacks, firing the gun for the rest (0.3 until 2026-11-01: too rare)
 QVR_CVAR(vr_agrunt_repl, "1", CVAR_ARCHIVE)            // 1: every grunt and enforcer a map spawns is its armed version holding its own gun (its own damage, rate, aim, loot)
 QVR_CVAR(vr_agrunt_repl_common, "0.5", CVAR_ARCHIVE)     // 0..1: the chance one holds a shotgun or a nail pistol instead
 QVR_CVAR(vr_agrunt_repl_uncommon, "0.25", CVAR_ARCHIVE)   // 0..1: ... a nailgun, super nailgun or super shotgun (one a player owns)
@@ -2513,7 +2514,7 @@ QVR_CVAR(vr_agrunt_repl_dual, "0.15", CVAR_ARCHIVE)       // 0..1: the chance of
 QVR_CVAR(vr_agrunt_repl_gunaxe, "0.15", CVAR_ARCHIVE)     // 0..1: the chance of a gun and an axe (the gun, the axe up close)
 QVR_CVAR(vr_agrunt_repl_id, "1", CVAR_ARCHIVE)         // 1: in Quake's own campaigns (id1, Dimension of the Past, the Machine Games' ones) and their custom maps
 QVR_CVAR(vr_agrunt_repl_mp, "1", CVAR_ARCHIVE)         // 1: in the mission packs (Scourge of Armagon, Dissolution of Eternity)
-QVR_CVAR(vr_agrunt_repl_ad, "0", CVAR_ARCHIVE)         // 1: in Arcane Dimensions' maps too (their own designed encounters: off)
+QVR_CVAR(vr_agrunt_repl_ad, "1", CVAR_ARCHIVE)         // 1: in Arcane Dimensions' maps too: its plain grunts, enforcers, knights and death knights replaced (AD's own variants never: QC VR_AGR_ADVariant); 0 until 2026-11-01
 QVR_CVAR(vr_agrunt_repl_seed, "0", CVAR_ARCHIVE)       // shuffles every map's loadouts (the same seed: the same loadouts)
 QVR_CVAR(vr_agrunt_dual_chance, "0.1", CVAR_ARCHIVE)  // 0..1: one from the pool with a weapon that pairs (a one-handed blade or club, a gun not too big) gets a second in its left hand
 QVR_CVAR(vr_agrunt_dual_penalty, "1", CVAR_ARCHIVE)    // dual-wielded guns' penalties times this (1: yours: no two-hand spread reduction, heavy recoil kicks)
@@ -2815,7 +2816,9 @@ QVR_CVAR(vr_carry_body_collision, "1", CVAR_ARCHIVE) // solid carried crates, ba
 QVR_CVAR(vr_carry_move_mass, "100", CVAR_ARCHIVE) // kg of solid carried props which halve stick locomotion speed; 0 disables mass load
 QVR_CVAR(vr_carry_move_size, "1", CVAR_ARCHIVE) // metres of carried props' longest dimensions without bulk load; twice this halves speed; 0 disables bulk load
 QVR_CVAR(vr_carry_move_min, "0.35", CVAR_ARCHIVE) // minimum stick locomotion fraction under carry load; 1 disables carry slowdown
-QVR_CVAR(vr_carry_melee_mult, "1.5", CVAR_ARCHIVE)    // punches with a box in hand hurt this much more
+QVR_CVAR(vr_carry_drag, "0.25", CVAR_ARCHIVE) // a body held in a hand (a ragdoll, an active ragdoll, an enemy held) cuts your walk speed by this times its mass over a grunt's (80 kg: a grunt slows you 25%); 0 none
+QVR_CVAR(vr_carry_drag_max, "0.7", CVAR_ARCHIVE) // the most the bodies held cut your walk speed (0.7: to 30%)
+QVR_CVAR(vr_carry_melee_mult, "1.5", CVAR_ARCHIVE)   // punches with a box in hand hurt this much more
 // A heavy prop thrown (QC vr_carry.qc VR_Thrown_HeavyMult; NOTES.md vrfiringrange_2026-10-07_23-00-55: a barrel thrown with
 // both hands hurt for about 14, a blow with it about 90): its throw's damage times (mass / from)^exp, at most max.
 // Flung props (vr_carry.qc VR_Prop_Flung): a prop never thrown (flung on the grapple, batted, knocked flying) that meets a

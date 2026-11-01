@@ -1074,9 +1074,10 @@ float(entity g, entity p, entity pl, float h, float scale) VR_AG_StrikeSpeed =
     float last = VR_HAND_FIELD(pl, h, vr_ag_knock_at, vr_ag_knock_off);
     if(time - last < 0.3)
     {
+        VR_AG_Log(sprintf("a blow on its weapon: this hand knocked one %.2f s ago (under 0.3)", time - last));
         return FALSE;
     }
-    vector hv = VRGetEntHandVel(pl, h) - pl.velocity; // (the blow's way)
+    vector hv = VRGetEntHandVelU(pl, h); // (the blow's way: against you, units per second)
     // Its speed: the hand's (or its weapon's far end's) own swing, in your play space against your head (your melee's,
     // vr_melee.qc VR_Melee_Track), not its world velocity: a push (a blow's knockback, a parry's, a shotgun's) or a step
     // carries your idle hands along at 5 m/s and more, and the world velocity less yours (a frame behind) read as a
@@ -1086,9 +1087,11 @@ float(entity g, entity p, entity pl, float h, float scale) VR_AG_StrikeSpeed =
     {
         // A blow is the fist against the weapon: a hand going with a swing (closing on it to catch it, his notes
         // vrragtriggers_2026-10-27_01-41-43) is no blow on it however fast both go; in real time (bullet time's hands
-        // are the game's, sped up).
+        // are the game's, sped up). (The hand's velocity is metres a second against you: in world units with yours
+        // added, as the weapon's; read as units it was 1/38 of the swing, every punch "under" the need: his notes
+        // vrtesthall_2026-11-01_22-56-18 .. 23-08-32.)
         vector wv = (p.origin - p.vr_ag_was_o1) * (1 / frametime);
-        float rel = vlen(VRGetEntHandVel(pl, h) - wv) * (vr_hand_time_scale > 0 ? vr_hand_time_scale : 1) / VRMetersToUnits();
+        float rel = vlen(hv + pl.velocity - wv) * (vr_hand_time_scale > 0 ? vr_hand_time_scale : 1) / VRMetersToUnits();
         sp = min(sp, rel);
     }
     float need = cvar_hget(cvarh_vr_agrunt_disarm_swing) * scale;
@@ -1159,6 +1162,17 @@ float(entity g, entity p, entity pl, float h, float scale) VR_AG_HandStrikeSpeed
     return VR_AG_StrikeSpeed(g, p, pl, h, scale);
 };
 
+// `pl`'s hand `h` knocked a weapon out (a strike on it, a punch in a tug): its knock's time (VR_AG_StrikeSpeed's 0.3 s
+// before that hand strikes again) and the knock felt in it (the disarm's sound: VR_AG_DisarmFeedback).
+void(entity pl, float h) VR_AG_StrikeKnock =
+{
+    if(h == cVR_MainHand) { pl.vr_ag_knock_at = time; } else { pl.vr_ag_knock_off = time; }
+    entity was = self;
+    self = pl;
+    VR_Haptic_KnockOut(h);
+    self = was;
+};
+
 // A player's hand (or what it holds) striking the held weapon hard enough: knocked out along the blow. TRUE: disarmed.
 float(entity g, entity p, entity pl, float h) VR_AG_HandStrike =
 {
@@ -1167,8 +1181,8 @@ float(entity g, entity p, entity pl, float h) VR_AG_HandStrike =
     {
         return FALSE;
     }
-    if(h == cVR_MainHand) { pl.vr_ag_knock_at = time; } else { pl.vr_ag_knock_off = time; }
-    VR_AG_DisarmBy(g, pl, VRGetEntHandVel(pl, h) - pl.velocity, 100 + sp * 15, sprintf("a blow of %.1f m/s on its weapon", sp));
+    VR_AG_StrikeKnock(pl, h);
+    VR_AG_DisarmBy(g, pl, VRGetEntHandVelU(pl, h), 100 + sp * 15, sprintf("a blow of %.1f m/s on its weapon", sp));
     if(vr_dv_on)
     {
         VR_DV_Mark(p, VRGetEntHandPos(pl, h), VR_DV_DISARM, sprintf("strike %.1f m/s on its weapon", sp));
@@ -1193,9 +1207,9 @@ float(entity g, entity p) VR_AG_TugStrike =
     {
         return FALSE;
     }
-    if(oh == cVR_MainHand) { pl.vr_ag_knock_at = time; } else { pl.vr_ag_knock_off = time; }
+    VR_AG_StrikeKnock(pl, oh);
     VR_AG_TugEnd(g, TRUE, sprintf("struck free by your other fist (%.1f m/s)", sp));
-    VR_AG_Yank(g, pl, h);
+    VR_AG_Yank(g, pl, h); // (its sound: VR_AG_DisarmFeedback)
     return TRUE;
 };
 
