@@ -1603,7 +1603,11 @@ QVR_CVAR(vr_gunfx_smoke_direction, "1", CVAR_ARCHIVE)  // 1: the forward cone; 0
 QVR_CVAR(vr_gunfx_smoke_alpha, "0.6", CVAR_ARCHIVE)      // its opacity at the start (0-3)
 QVR_CVAR(vr_gunfx_port, "1", CVAR_ARCHIVE)             // a small quick puff out of a shotgun's ejection port (the super shotgun's open breech)
 QVR_CVAR(vr_gunfx_backblast, "1", CVAR_ARCHIVE)        // a rocket launcher's backblast smoke behind it, and dust off the floor under it
-QVR_CVAR(vr_gunfx_heat, "1", CVAR_ARCHIVE)             // barrels hot after sustained fire (the nailguns'): wisps of smoke off the muzzle, a faint glow
+QVR_CVAR(vr_gunfx_heat, "1", CVAR_ARCHIVE)             // barrels hot after sustained fire (every gun's, not the flamethrowers' or melee): wisps of smoke off the muzzle, a red-hot glow
+// Barrel heat (vr_gunfx.cpp heatShot / heatCool / heatGlow; each weapon's fx_gfx_heat / fx_gfx_cool multipliers):
+QVR_CVAR(vr_gunfx_heat_time, "1", CVAR_ARCHIVE)        // Heat-Up Time: seconds of sustained fire (at the gun's own rate) to full heat (a single shot: at most 0.35 of it; 0.1-10)
+QVR_CVAR(vr_gunfx_cool_time, "3", CVAR_ARCHIVE)        // Cool-Down Time: seconds a barrel at full heat takes to cool once you stop (0.1-20)
+QVR_CVAR(vr_gunfx_heat_glow, "1", CVAR_ARCHIVE)        // Glow Strength: the hot barrel's glow, times (0 none; 0-3)
 // Muzzle wisps (vr_muzzlewisps.cpp): thin soft lines of smoke trailing off your guns' barrels after you stop firing.
 QVR_CVAR(vr_gunfx_wisps, "1", CVAR_ARCHIVE)            // 0: none
 QVR_CVAR(vr_gunfx_wisp_delay, "0", CVAR_ARCHIVE)    // seconds after the last shot they start (0-3)
@@ -1618,7 +1622,7 @@ QVR_CVAR(vr_gunfx_wisp_pixels, "1.5", CVAR_ARCHIVE)    // the thinnest they are 
 QVR_CVAR(vr_gunfx_impacts, "1", CVAR_ARCHIVE)          // bullets' and nails' wall hits by the surface's material (vr_impacts.cpp): dust off stone, sparks off metal, chips off wood
 QVR_CVAR(vr_gunfx_ozone, "1", CVAR_ARCHIVE)            // a faint bluish ozone haze where the thunderbolt's beam plays on a surface
 QVR_CVAR(vr_gunfx_enemies, "1", CVAR_ARCHIVE)          // the monsters' guns too (the grunts', the enforcers', the armed grunts')
-QVR_CVAR(vr_debug_gunfx, "0", CVAR_NONE)               // 1: each shot's gunfire particles ("gunfx shot ...", "gunfx port ...")
+QVR_CVAR(vr_debug_gunfx, "0", CVAR_NONE)               // 1: each shot's gunfire particles ("gunfx shot ...", "gunfx port ...") and your barrels' heat ("gunfx heat ...")
 QVR_CVAR(vr_debug_ribbon_overlap, "0", CVAR_NONE)      // 1: the muzzle wisps' ribbons blend where they overlap themselves again (the old creases on sharp turns; vr_ribbons.cpp), to compare
 QVR_CVAR(vr_debug_impacts, "0", CVAR_NONE)             // 1: every particle2 message and QC sound the server sends ("impfx p2 ...", "impfx snd ...": the impact table's output, vr_impacts.cpp)
 QVR_CVAR(vr_impact_qc_test, "0", CVAR_NONE)            // the QC runs every hit ladder on every material once (vr_impacts_test.qc; Debug > Tests)

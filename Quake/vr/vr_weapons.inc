@@ -442,6 +442,11 @@ QVR_WEAPON_KEY(GunfxSparkSize, "fx_gfx_spark_size")
 QVR_WEAPON_KEY(GunfxSmoke, "fx_gfx_smoke")
 QVR_WEAPON_KEY(GunfxSmokeSize, "fx_gfx_smoke_size")
 QVR_WEAPON_KEY(GunfxWisps, "fx_gfx_wisps")
+// The weapon's barrel heat (ROUND23.md, "Barrel heat settings"; Weapon Offsets > Effects; vr_gunfx.cpp heatShot,
+// heatCool): times the heat its shots add (Weapon Effects' Heat-Up Time divided by it; 0: it never heats) and times
+// Weapon Effects' Cool-Down Time (0: it cools at once). 1 by default (weapons.txt's defaults). New cvars: no migration.
+QVR_WEAPON_KEY(GunfxHeat, "fx_gfx_heat")
+QVR_WEAPON_KEY(GunfxCool, "fx_gfx_cool")
 #endif
 
 
