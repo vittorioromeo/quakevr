@@ -689,8 +689,11 @@ Kept as written:
 
 Builtins:
 
-- **By name (`#0`), in `ad_builtins.qc`:** the 11 extension builtins we lack (`pointparticles`, `particleeffectnum`,
-  `addstat`, `te_particlerain`...). The engine binds them only if it has them; otherwise they error only if called.
+- **By name (`#0`), in `ad_builtins.qc`:** 11 DP/FTE extension builtins (`pointparticles`, `particleeffectnum`,
+  `addstat`, `te_particlerain`...). The engine binds all 11 now (Quake/pr_cmds.c, "AD support"; ROUND23 "AD's 10
+  unbound builtins"): `te_particlerain`/`te_particlesnow` are documented no-ops, `particleeffectnum` knows only DP's
+  names for the classic temp entities. AD calls the particle, stat and surface ones only on its extension path
+  (`VR_AD_Extensions`, FALSE). `developer 1` names any `#0` builtin left unbound (PR_WarnUnboundBuiltins).
 - **By number:** AD's own names for standard builtins (`walkmove_builtin` #32, `centerprint_msg*` #73) and different
   signatures (`ad_strcat` #115, which takes up to 8 strings; ours declares 2).
 
