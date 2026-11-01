@@ -2923,6 +2923,8 @@ QVR_CVAR(vr_kdtrig_debug, "0", CVAR_NONE)                 // 1: a line for each 
 // it, worn into its head or limb too (past the piece's health: popped); landing on one from a height crushes the part
 // under your feet. Corpses held or just thrown wear their pieces the same way.
 QVR_CVAR(vr_ragimpact, "1", CVAR_ARCHIVE)                 // on (0: only the fall damage of its landings)
+QVR_CVAR(vr_ragsmash, "1", CVAR_ARCHIVE)                  // a strike that hurts (an impact above) also sounds (a flesh hit and a thud, louder and deeper the harder) and bloodies the wall or floor struck (the gore's splotch: what bleeds, vr_gore on); held, thrown or dropped, alive or dead (QC VR_RagSmash; tunables vr_ragsmash_*); 0: silent and clean
+QVR_CVAR(vr_ragsmash_test, "0", CVAR_NONE)                // the QC test of the smash sound and blood (vr_ragsmash_test.qc; Debug > Tests): 1 a grunt's corpse flung slowly at a wall (nothing), then hard (a sound and blood at the wall), ends on "ragsmash: N passed, M failed"
 QVR_CVAR(vr_ragimpact_crush_speed, "180", CVAR_ARCHIVE)   // units/s: landing slower than this crushes nothing (a jump from the same level lands at about 270 on the floor, 200 on top of a body lying there: both crush; a stair step: 160; a 100-unit drop: 400)
 QVR_CVAR(vr_ragimpact_crush_standing, "1", CVAR_ARCHIVE)  // standing monsters are crushed too (their head, a limb or the torso under your feet, by positional damage's zones); 0: only ragdolls
 QVR_CVAR(vr_ragimpact_crush_cushion, "1", CVAR_ARCHIVE)   // a landing that crushed a monster spares you its fall damage (it broke your fall); 0: Quake's fall damage as ever

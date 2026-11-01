@@ -441,6 +441,36 @@ void hit(const glm::vec3& org, const glm::vec3& dir, int damage, int kind, int l
     }
 }
 
+// EventSmash (QC VR_RagSmash): a ragdoll's part smashed into the level at `org` (a few units out of the surface, `dir`
+// into it): a splotch of blood `size` units across on the surface there (a wall's run down it at gore 2, a hard one),
+// and the gore's wet slap, `strength` 0..1. vr_knockdown_debug prints it.
+void smash(const glm::vec3& org, const glm::vec3& dir, float size, float strength, int lvl)
+{
+    const glm::vec3 d = glm::length(dir) > 0.1f ? glm::normalize(dir) : glm::vec3{0.f, 0.f, -1.f};
+    glm::vec3 where;
+    glm::vec3 n;
+    float f = 1.f;
+    const bool found = decals::trace(org, org + d * 16.f, where, n, f);
+    bool placed = false;
+    const float s = za::clamp(size, 1.f, 128.f) * sizeMult() * (lvl >= 2 ? 1.f : 0.7f);
+    if(found)
+    {
+        goresound::play(goresound::Kind::Slap, 0, where, 0.3f + 0.7f * za::clamp(strength, 0.f, 1.f));
+        MarkOptions o;
+        o.darken = 0.2f;
+        placed = decals::place(Mark::Splotch, where, n, s, o);
+        if(placed && lvl >= 2 && strength >= 0.5f && za::fabs(n.z) < 0.35f)
+        {
+            streak(where, n, s * vrand::range(rng, 0.3f, 0.45f), 0.f);
+        }
+    }
+    if(vr_knockdown_debug.value >= 1.f)
+    {
+        Con_Printf("ragsmash: blood %.0f units at %.0f %.0f %.0f (strength %.1f): %s\n", s, found ? where.x : org.x,
+            found ? where.y : org.y, found ? where.z : org.z, strength, placed ? "placed" : (found ? "none fits" : "no surface"));
+    }
+}
+
 void burst(const glm::vec3& org, const glm::vec3& dir, float size, int lvl)
 {
     const float scale = za::clamp(size, 0.7f, 2.f);
@@ -581,7 +611,7 @@ int level()
 
 bool event(const glm::vec3& org, const glm::vec3& dir, int preset, int count)
 {
-    if(preset < EventHit || preset > EventCorpse)
+    if((preset < EventHit || preset > EventCorpse) && preset != EventSmash)
     {
         return false;
     }
@@ -610,6 +640,7 @@ bool event(const glm::vec3& org, const glm::vec3& dir, int preset, int count)
         case EventHit: hit(org, dir, count % 1000, count / 1000, lvl); break;
         case EventBurst: burst(org, dir, static_cast<float>(count) / 10.f, lvl); break;
         case EventCorpse: corpse(org, dir.x * 8.f, lvl); break;
+        case EventSmash: smash(org, dir, static_cast<float>(count % 1000), static_cast<float>(count / 1000) / 10.f, lvl); break;
         default: break;
     }
     return true;

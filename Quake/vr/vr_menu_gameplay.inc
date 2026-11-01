@@ -276,6 +276,7 @@ void kdTrigWeightRows(za::Vector<Item>& items)
         row(opt::vr_hit_stagger),
         header("Impacts"),
         row(opt::vr_ragimpact),
+        row(opt::vr_ragsmash),
         row(opt::vr_ragimpact_crush_speed),
         row(opt::vr_ragimpact_crush_push),
         row(opt::vr_ragimpact_crush_standing),
