@@ -9,7 +9,7 @@
 //   offset), the hull made once per mesh, placed each query where the weapon is drawn (hitreact::drawnWeapon: after
 //   every client step; not drawn lately: the server's place);
 // - the hand: the drawn body's vertices on its hand bone and forearm (the authored rig as drawn: drawnpose::armedMesh;
-//   a ragdoll's: ragdoll::skinnedVertices; neither: the animation frame's), its hull made once a frame.
+//   a ragdoll's: ragdoll::skinnedVertices; neither: none, never the animation frame's), its hull made once a frame.
 // One query (gap) for every user: shots (a path), melee strikes (a sweep, its own thickness) and body blows (a point),
 // each with its own signed grow (units: each face moved out, or in, by it; 0 the hull itself).
 
@@ -62,9 +62,19 @@ void make(const glm::vec3* points, int count, Hull& out);
 // Armed humanoid's held weapon `p` as drawn now (its drawn model's hull, where drawn). False: no drawn surface.
 [[nodiscard]] bool weapon(edict_t* p, Placed& out);
 
+// Where a hand's hull came from: its body as drawn on the authored rig alive (drawnpose::armedMesh), its ragdoll's.
+enum class HandSource : int
+{
+    None = 0,
+    Live = 1,
+    Ragdoll = 2,
+};
 // Armed humanoid `g`'s hand on `side` (0 the main weapon's, 1 the left one's: agarms::ragdollGrip) and its forearm as
-// drawn now (world). False: no rig, nothing drawn.
-[[nodiscard]] bool hand(edict_t* g, int side, Placed& out);
+// drawn now (world); `source` (if given) where from, `inDraw` whether it was made while its frame drew it. False: no
+// rig, not drawn lately (no hand volume: never its animation frame's).
+[[nodiscard]] bool hand(edict_t* g, int side, Placed& out, HandSource* source = nullptr, bool* inDraw = nullptr);
+// ... for Show Disarm Volumes: also kept as drawn (disarmhull 23 / 24, the tests' check of what he sees).
+[[nodiscard]] bool handShown(edict_t* g, int side, Placed& out);
 
 // The hull's edges grown by `grow` (Show Disarm Volumes).
 void draw(const Placed& p, float grow, const glm::vec4& colour, float width);

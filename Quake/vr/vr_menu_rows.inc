@@ -1209,20 +1209,25 @@ QVR_CYCLE(vr_agrunt_shotdisarm_parts, "What Counts",
     "Which hits add up: on the weapon itself, on the hand and forearm holding it, or either "
     "(vr_agrunt_shotdisarm_parts).",
     {0.f, "The Weapon"}, {1.f, "The Hand"}, {2.f, "Weapon or Hand"})
-QVR_SLIDER(vr_agrunt_vol_strike, "Volume: Strikes", -2.f, 6.f, 0.25f, "%+.2f units", ext(-8.f, 32.f),
-    "Your blow strikes its weapon (or the hand holding it) when its sweep meets the hull of that weapon or "
-    "hand as drawn grown by this many units (under 0: shrunk), your blow's own thickness on top. Drawn "
-    "orange (vr_agrunt_vol_strike).")
-QVR_SLIDER(vr_agrunt_vol_blow, "Volume: Body Blows", -2.f, 12.f, 0.25f, "%+.2f units", ext(-8.f, 32.f),
-    "A hard blow that lands on its body this near its weapon or the hand holding it (their hulls as drawn) "
-    "knocks the weapon out (with Hits Disarm). 0: on them only. Drawn red (vr_agrunt_vol_blow).")
-QVR_SLIDER(vr_agrunt_vol_shot_weapon, "Volume: Its Weapon", -2.f, 6.f, 0.25f, "%+.2f units", ext(-8.f, 32.f),
-    "A shot counts on its weapon on the hull of the weapon as drawn (its model's own triangles where it is "
-    "drawn), grown by this many units (under 0: shrunk; 0: exactly the weapon). Debug > Show Disarm Volumes "
-    "draws it (magenta) (vr_agrunt_vol_shot_weapon).")
-QVR_SLIDER(vr_agrunt_vol_shot_hand, "Volume: Its Hand", -2.f, 6.f, 0.25f, "%+.2f units", ext(-8.f, 32.f),
-    "A shot counts on the hand holding its weapon on the hull of that hand and forearm as drawn, grown by this "
-    "many units (under 0: shrunk). Drawn cyan (vr_agrunt_vol_shot_hand).")
+QVR_SLIDER(vr_agrunt_grab_leniency, "Grab Leniency", 0.f, 15.f, 0.5f, "%.1f cm", ext(0.f, 50.f),
+    "Disarming by hand: a fist closing this near an armed enemy's weapon (its surface as drawn) grabs it "
+    "(a tug): a hand on any part of an axe, a sword, a gun or a chainsaw while it attacks. 0: the fist on "
+    "it (vr_agrunt_grab_leniency).")
+QVR_SLIDER(vr_agrunt_vol_shot_weapon, "Shot Leniency: Weapon", -2.f, 6.f, 0.25f, "%+.2f units", ext(-8.f, 32.f),
+    "Disarming by shots and projectiles: one counts on its weapon on the hull of the weapon as drawn (its "
+    "model's own triangles where it is drawn), grown by this many units (under 0: shrunk; 0: exactly the "
+    "weapon). Debug > Show Disarm Volumes draws it (magenta) (vr_agrunt_vol_shot_weapon).")
+QVR_SLIDER(vr_agrunt_vol_shot_hand, "Shot Leniency: Hand", -2.f, 6.f, 0.25f, "%+.2f units", ext(-8.f, 32.f),
+    "Disarming by shots and projectiles: one counts on the hand holding its weapon on the hull of that hand "
+    "and forearm as drawn, grown by this many units (under 0: shrunk). Drawn cyan (vr_agrunt_vol_shot_hand).")
+QVR_SLIDER(vr_agrunt_vol_strike, "Melee Strike Leniency", -2.f, 6.f, 0.25f, "%+.2f units", ext(-8.f, 32.f),
+    "Disarming by melee: your blow strikes its weapon (or the hand holding it) when its sweep meets the hull "
+    "of that weapon or hand as drawn grown by this many units (under 0: shrunk), your blow's own thickness "
+    "on top. Drawn orange (vr_agrunt_vol_strike).")
+QVR_SLIDER(vr_agrunt_vol_blow, "Body Blow Leniency", -2.f, 12.f, 0.25f, "%+.2f units", ext(-8.f, 32.f),
+    "Disarming by melee: a hard blow that lands on its body this near its weapon or the hand holding it "
+    "(their hulls as drawn) knocks the weapon out (with Hits Disarm). 0: on them only. Drawn red "
+    "(vr_agrunt_vol_blow).")
 QVR_SLIDER(vr_agrunt_shotdisarm_chance, "Chance a Roll", 0.f, 1.f, 0.05f, "%.2f", ext(0.f, 1.f),
     "The roll's chance right at the threshold (vr_agrunt_shotdisarm_chance).")
 QVR_SLIDER(vr_agrunt_shotdisarm_chance_scale, "Chance Past the Threshold", 0.f, 2.f, 0.05f, "+%.2f", ext(0.f, 10.f),

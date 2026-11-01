@@ -86,7 +86,12 @@ bool armedMesh(edict_t* ent, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>* 
 {
     const int num = viewNum(ent);
     glm::mat4 m;
-    if(num <= 0 || ragdoll::published(num) || !hitreact::armsWanted(&cl_entities[num]) ||
+    // (its own .mdl: while a frame draws it, between rig2::swapModels and restoreModels, cl_entities[num].model is its
+    // skinned copy, armsWanted on which says no: Show Disarm Volumes drew its hand's hull from its animation frame then,
+    // ROUND23.md "The cyan hand hull off")
+    const qmodel_t* own = num > 0 ? rig2::sourceModel(&cl_entities[num]) : nullptr;
+    if(num <= 0 || ragdoll::published(num) ||
+        !hitreact::armsWantedAs(&cl_entities[num], own ? own : cl_entities[num].model) ||
         !rig2::liveVertices(num, out, normals) || !livePlacement(num, m))
     {
         return false;

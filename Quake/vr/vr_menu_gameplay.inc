@@ -750,6 +750,13 @@ void ikStretchReset()
         open("IK Stretch", pageIndex(pageArmedStretch))
             .help("Per pose class (rifle, pistol, shoulder launcher, ...), for grunts and for enforcers: how far their "
                   "arms may lengthen to put their hands on their weapons, as your own Arm Stretch (1: none)."),
+        // (his note 2026-11-01 02:21: one place for how near counts, a slider each for grabs, shots and melee)
+        header("Disarm Leniency"),
+        row(opt::vr_agrunt_grab_leniency),
+        row(opt::vr_agrunt_vol_shot_weapon),
+        row(opt::vr_agrunt_vol_shot_hand),
+        row(opt::vr_agrunt_vol_strike),
+        row(opt::vr_agrunt_vol_blow),
         header("Their Weapons"),
         row(opt::vr_agrunt_damage_scale),
         row(opt::vr_agrunt_reserve),
@@ -780,13 +787,9 @@ void ikStretchReset()
         row(opt::vr_agrunt_fall_keep_impact),
         row(opt::vr_agrunt_fall_keep_window),
         row(opt::vr_agrunt_saw_drop_running),
-        row(opt::vr_agrunt_vol_strike),
-        row(opt::vr_agrunt_vol_blow),
         header("Disarming: Shooting It Out"),
         row(opt::vr_agrunt_shotdisarm),
         row(opt::vr_agrunt_shotdisarm_parts),
-        row(opt::vr_agrunt_vol_shot_weapon),
-        row(opt::vr_agrunt_vol_shot_hand),
         row(opt::vr_agrunt_shotdisarm_chance),
         row(opt::vr_agrunt_shotdisarm_chance_scale),
         row(opt::vr_agrunt_shotdisarm_block),

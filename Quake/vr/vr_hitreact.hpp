@@ -43,6 +43,9 @@ bool boneKicks(const entity_t* e, const ragdoll::Rig& rig, const rigpose::Rigid*
 // Armed humanoids' arms on their weapons (vr_agrunt_ik; QC vr_armedgrunt.qc, ROUND22.md "Armed humanoids' arms: posed
 // and skinned"): an armed humanoid's model drawn alive, its arms posed by its weapons and skinned (vr_agarms.cpp).
 [[nodiscard]] bool armsWanted(const entity_t* e);
+// ... for client entity `e` drawn with `model` (its own .mdl: while a frame draws it on the authored rig, e->model is the
+// skinned copy, rig2::sourceModel gives its .mdl back; armsWanted on it then says no).
+[[nodiscard]] bool armsWantedAs(const entity_t* e, const qmodel_t* model);
 
 // Whether `e` has bone turns now (kicks, a strike's body, its legs' and upper body's turns), and them (boneKicks' form):
 // kickInstance's (vr_animsmooth.cpp).

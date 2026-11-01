@@ -750,7 +750,6 @@ QVR_TUNABLE(vr_agrunt_tug_pull, "10") // the tug: how far (units) you must pull 
 QVR_TUNABLE(vr_agrunt_tug_hurt, "0.35") // a grab takes the weapon at once from a grunt down to this share of its health (or staggered, down, stunned)
 QVR_TUNABLE(vr_agrunt_tug_hold_max, "6") // s the tug lasts at most: then it wrenches its weapon free (0: no limit)
 QVR_TUNABLE(vr_agrunt_grab_slack, "0") // cm: your fist takes its weapon within this of the weapon's drawn surface (vr_physics.cpp handOn; never by its box, nor on its arm or chest)
-QVR_TUNABLE(vr_agrunt_grab_leniency, "5") // cm more than vr_agrunt_grab_slack: your fist closing within this of its weapon's drawn surface takes it (a tug), however it moves (ROUND22.md, "Armed humanoids: grabs, holding on, running chainsaws")
 QVR_TUNABLE(vr_agrunt_grab_sweep, "2") // frames (0..2): your fist is also measured against its weapon's places this many frames back and midway (the weapon as drawn lags the server's; a swung blade moves 5-20 cm a frame)
 QVR_TUNABLE(vr_agrunt_rag_grab_weapon, "8") // cm: on a living (active) ragdoll your fist this near its weapon's drawn surface takes the weapon, not the limb beside it (the grab query: vr_physics.cpp armedAllowance, box3d grabRagdoll)
 QVR_TUNABLE(vr_agrunt_rag_limb_grab, "1") // a grab on a living ragdoll's weapon hand or forearm is a grab on its weapon (a tug); 0: the limb is held, as any
