@@ -774,6 +774,9 @@ QVR_TOGGLE(vr_agarmor_helmet_head, "Helmets Stop Headshots",
     "absorbs, as any plate.")
 QVR_TOGGLE(vr_agarmor_block_cuts, "Plates Stop Cuts",
     "No limb is cut or popped off under an unbroken plate: break it first.")
+QVR_SLIDER(vr_agarmor_impulse, "Push Through Plates", 0.f, 1.f, 0.05f, "%.2f", noExt,
+    "A shot or blow a plate takes still pushes the body (a living one's flinch, a ragdoll's limb) this "
+    "much of what the same hit on a bare limb would: 0 not at all, 1 fully.")
 QVR_SLIDER(vr_agarmor_debris_time, "Broken Plates Last", 1.f, 60.f, 1.f, "%.0f s", noExt,
     "A broken plate falls as debris (you can't force-grab it) and fades out after this long.")
 
@@ -5620,6 +5623,11 @@ QVR_CYCLE(vr_debug_disarm, "Show Disarm Volumes",
     {0.f, "Off"}, {1.f, "On"}, {2.f, "And Print Hits"})
 QVR_TOGGLE(vr_debug_hitzones_xray, "Hit Zones Through Walls",
     "Draws the animated positional regions through walls and the back of the model. Off: only visible surfaces.")
+QVR_TOGGLE(vr_agarmor_debug, "Show Armour Plates",
+    "Armed humanoids' armour: every unbroken plate's hit shape (its triangles) exactly as the shot test "
+    "poses it, standing or a ragdoll, a colour per plate (cuirass gold, helmet red, pauldrons blue, "
+    "bracers green, thighs magenta, shins orange and white). A shot whose line crosses one before the "
+    "skin strikes that plate; broken plates are not drawn.")
 QVR_CYCLE(vr_debug_hits, "Show Hits",
     "Precise hit detection: each hit on a monster's model drawn for a few seconds (the model as it was then, "
     "the triangle hit in green, the point on the model in red, where the grown model was met in yellow) and "

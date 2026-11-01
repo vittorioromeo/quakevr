@@ -164,6 +164,10 @@ struct Choice
     char spawn[64]{"monster_vr_grunt"};
     int weapon{4};  // the armed list's code (vr_toolgun_armed_list; -1 fists, 0 random): the shotgun (2 is the axe)
     int weapon2{0}; // its left hand's (0 none)
+    // Its armour (Subject > Armour, vr_rigstudio_armour; an armed humanoid's): 0 none (never the skill's roll: a spawn's
+    // own, VR_AgArmor_Spawn), 1 green, 2 yellow, 3 red; the pieces it wears (agarmor::Piece bits). Kept across subjects.
+    int armour{0};
+    int armourPieces{1023};
 };
 
 struct Camera
@@ -343,6 +347,9 @@ void save();
 void revert();
 void printDefaults();
 void respawn();
+// The subject's armour: the choice's type and pieces put on the subject standing now (live, no respawn), kept for the
+// next subjects. An unarmed subject's: none.
+void setArmour(int type, int pieces);
 void close();
 [[nodiscard]] int groupCount();
 [[nodiscard]] const rigdata::AnimGroup& groupAt(int i);

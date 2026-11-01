@@ -4074,6 +4074,47 @@ Checklist:
   hand.
 - [phases2] Leg grabs: pull one down by the shins and drag it by the legs (the hold firms up once it lies); the
   one-hand pull; lift one by the legs; tug and lift an enforcer by its worn backpack.
+
+## One mode for the active ragdoll (design review 8, stage 3 of 3; branch `agent/phases3`)
+
+The active ragdoll keeps its concurrent sub-machines (each its own `on`: a guard over a stagger, a fall or a get-up; a
+dismemberment and the env's hands in a death; a struggle in place of a lifted one's flail). Above them, `State::mode`
+(`Mode {Limp, Struggle, Stagger, Falling, Rising, Dying, Climbing, Swimming}`, vr_ragactive.hpp) says who leads, set
+where a machine begins or ends (`setMode`): beginDeath/Stagger/Fall/Rise, livingLedge (a climb), startSwim (every swim
+and the flail), beginStruggle (not over a swim: a lifted one's struggle stands in for the flail, the mode stays
+Swimming), and the ends (the fall's after landing, stopSwim back to the struggle or the death, endClimb, the struggle's
+stop, `struggleGivesWay` where another machine takes over, end()). `Falling` is added to the review's list (a fall
+leads its own limbs, as a stagger does); `Limp` is also "driven, nothing leading" (lying after its fall).
+
+The checks that asked other machines' flags now ask the mode: driveFrames (the dismemberment, the swim, the stagger, the
+ledge, the fall, the guard), driveReaches (who leads the env, the fall's grab, the stand-down's reason), the get-up's
+pose, the pin's offset (stumble, stagger, climb), keeping awake (`knockdown(mode)`: a stagger, fall, get-up or climb),
+the guard's end, beginLivingSwim/beginFlail's refusals, `swimming()`, `flailing()`, `climbing()`, `beginClimb`. Counted:
+22 pairwise gates before (one of them a six-flag list, another the four-way stand-down chain), none after; the flag reads
+in the ragactive files 88 -> 35 (what remains is each machine's own, or data: a death's crawl, the struggle's slack). The
+box3d side's ~30 reads are untouched (several run with the drive off, on flags left over from the last drive: the mode
+is Limp then, so they need their own look). No function was over 300 lines (the longest, climbFrame, 227); none split.
+
+Verified: stage A (the mode beside the flags; every gate computed both ways and a per-frame check of the mode against
+the one the flags imply, plus impossible combinations: two leaders, a cut without a death, a wet swim with a struggle,
+get-up or stagger) over ragdoll_stagger, _liquid_active, _climb, _ragtest, _grab, _guard and judo: every mode reached
+(falling 32 processes, limp 31, rising 27, stagger 17, dying 17, climbing 9, swimming 8, struggle 8), **no mismatch and
+no impossible combination**. Stage B (the gates switched, the shadow gone): the same verdicts as stage A (stagger 51/6
+and once 52/5 as in A's runs: its chance rates; ragtest 28/3 against A's 29/2 and 30/1: its known "NOT begun (its
+ragdoll not driven)" flake; climb 24/4, grab 19/0, guard 8/0, liquid 1/0, judo 12/4). No bench (no frame function got
+heavier: a byte compare replaces several flag reads).
+
+Not reached by the tests (by reading): the dismemberment's "killed in a stagger, then cut" cleanup (now: a cut while a
+knockdown's machine leads ends it, the mode Dying).
+
+Checklist:
+- [phases3] Shove a grunt: it staggers and recovers, or goes over (a fall: arms braced), lies a moment, gets up; punch at
+  its head mid-stagger (the guard: arms up). Kill one mid-stagger: limp.
+- [phases3] Knock one off a ledge: it grabs the lip, hangs, pulls itself up (or drops). Knock one into water: it swims
+  to where it can stand; kill one standing in water: it paddles weakly, then limp.
+- [phases3] Lift a living grunt: it struggles (in place of the flail); let go: it falls. Cut a limb off a dying one: the
+  hand to the stump, the writhe.
+
 ## Knight two-pistol hold: the knights' Main and Off grips (branch `agent/kngrip`)
 
 His ask: address knightpose's leftovers (kinds 2 and 3 had a Second grip row but no Main or Off). **Confirmed wrong.**
@@ -4288,27 +4329,32 @@ tree); agrunt_76, ragdoll_ragtest flaky; agrunt_65 and agarmor_5 FAIL -> PASS; c
 the new agrunt_78/90/92 fail as on next's runs; agrunt_79 (FAIL 21/1, "stalepose ... zone 0") passes here after the
 merge (22/0). No regression found.
 
-**Disagreements (kept as they were; his call):**
-1. Where (the record's point): the wounds and the gore take it within 64 units of the target's middle, the flinch 96.
-2. A missile's origin where it touched: the wounds and the flinch fall back to it, the gore to the middle.
-3. No way known: the wounds point down, the gore sends nothing, the flinch takes it from the attacker.
-4. A blast: the wounds at the blast's origin (splash or IsExplosionDamage), the gore at the middle (splash only), the
-   flinch at the box's point nearest it (splash only).
-5. None of the three checks the point is this target's (VR_Hit_On): another target's point this frame in reach counts.
-6. Gib speed: a knight's or a wizard's spike (not batted back) and Hipnotic's laser are heavy; the class, the small gibs
-   and the corpses call them pierce (nails).
-7. The knockdown's blow: a flung or thrown thing is blunt, a thrown axe too (the class: a blade); a blow with no hand
-   (hit_hand -1) is judged by the main hand's weapon, the class calls it blunt.
-8. Wounds: Rogue's buzzsaw a nail's wound (the class: a blade); a lava spike, a lavaball, a laser a burn (the class:
-   pierce or none); a monster's own blow a melee wound (the class: none), the shambler's from afar a zap.
-9. The discharge (the lightning gun under water): the corpses lightning (shock); the small gibs, the wounds and the gore
-   an explosion; the gib speed heavy.
-10. A stuck axe's bleeding: the corpses blades; the small gibs other; the gib speed light; the wounds none.
-11. Whether the hit bleeds: VR_Hit_Bleeds is the wounds' rule; the gore stops on the level's and bloodless hits only (a
-    burn not begun bloodless would bleed: none today), the small gibs on bloodless only (the level's damage tears them).
-12. Whether the target bleeds, three rules left as they are: VR_Gore_Bleeds (a monster or the player, not the clean dummy,
-    vr_gore), VR_SmallGib_Bleeds (not a gib or a statue, has a model, the player only with vr_smallgibs_player, corpses
-    too), VR_Wound_TakesHit (the clean dummy with its dents or streams on).
+**Disagreements: unified (his call 2026-11-01; part 5, below), each through the shared helper:**
+1. Where: one radius, 96, for the wounds, the gore and the flinch (`VR_Hit_Where`).
+2. A missile's origin where it touched: the fallback for all three (the gore too).
+3. No way known: from the attacker's middle for all three (else the inflictor's; the wounds then point down, the gore
+   sends nothing, as before).
+4. A blast (a splash or IsExplosionDamage, `VR_Hit_Blast`; not the discharge): the point of the box nearest the blast,
+   away from it, for all three.
+5. The point is this target's: only this target's record (`VR_Hit_On`: its zone's point, else the record's) counts
+   (a bug fix: another target's point this frame no longer does).
+6. Gib speed: a knight's or a wizard's spike and Hipnotic's laser are pierce, light (the class's; the exception gone).
+7. The knockdown's blow: the class decides (a thrown blade is a blade; a flung thing blunt); a blow with no recorded
+   hand is judged by the hand whose blow was priced (vr_mdmg_hand) if known, else the main hand.
+8. Wounds: Rogue's buzzsaw a nail's wound, lava spikes, lavaballs, lasers a burn, a monster's own blow a melee wound:
+   **kept (intended)**.
+9. The discharge (`VR_Hit_Discharge`): a shock everywhere (the corpses lightning, the small gibs "other" = lightning,
+   the wounds a zap, the gore a plain hit, not an explosion's; gib speed heavy as before).
+10. A stuck axe's bleeding: a blade everywhere (the small gibs' blades kind; the wounds a blade's melee wound, before
+    none; the corpses blades, gib speed light as before).
+11. Whether the hit bleeds: `VR_Hit_Bleeds` for the gore, the small gibs and the wounds (the gore now stops on a burn
+    too; the small gibs on the level's damage and a burn too).
+12. Whether the target bleeds: one rule, `VR_Hit_TargetBleeds` (combat.qc), the union of the three old ones'
+    exclusions. VR_Gore_Bleeds excluded: not a monster or a player, the clean dummy. VR_SmallGib_Bleeds: a gib, no
+    model, a statue (statgib knights), the clean dummy, not a monster/corpse/player. VR_Wound_TakesHit: not a monster
+    or a player, the clean dummy (its dents and streams kept, not blood). Now all three exclude all of those (the
+    gore and the wounds stop on gibs, model-less things and statues; nothing new bleeds). Settings stay each one's
+    (vr_gore, vr_smallgibs_player).
 
 **Left (next):** the impact table's VR_HIT_* from the class; VR_SmallGib_Where; a bone in the record; design review 10's
 shared constants and `QVR_FIELD`.
@@ -4319,6 +4365,23 @@ gore counts as before the step. eval.sh canary 36/44, full 163/171 (as before).
 
 **Test in VR:** wounds and blood on blades, punches, thrown things, shots and blasts; gibs' flight speed by weapon; a
 knockdown by a blade's and a blunt blow: all as before.
+
+### Part 5 (branch `agent/hitrecord5`; design review 6 and 10)
+
+**What (one commit each):**
+- **The impact table's kind from the class:** `VR_Hit_ShotKind(inflictor, attacker, else)` (a pierce: hitscan a
+  bullet, a projectile's a nail: VR_Hit_Hitscan / hit_proj) for TraceAttack and spawn_touchblood;
+  `VR_Hit_BlowKind` (blade: the clang, blunt: the bash) for a blow's metal sound (VR_Melee_HitSoundOn, a thrown box, a
+  slam, a thrown weapon). Elsewhere the kind is how it came (a blow's blood, a splash, a pellet on no flesh, the saw):
+  kept literal. Check (old vs new, `hitkind:`) over agarmor_1/5, nail_1, empty_melee, melee_phase, throw_spin: **0
+  mismatches**; removed. (Not covered there: a crowbar on an explosive box now knocks, the class calls it blunt.)
+- **Design review 10, the shared constants:** FTEQCC (with the build's flags) still fails on a global vector from
+  scalar #defines (`[X, Y, Z]`: some components `"5" - not a name`, reproduced in a two-line file), so qcConstants[]
+  (vr_agpose.cpp) keeps only the names and reads the QC's VR_AGP_* values from the loaded progs by name
+  (`progs::globalVec`); its allowlist entry is gone. `QVR_FIELD(name, owner)`: not done (left).
+- **Unification (his call 2026-11-01, "apply all your suggestions"):** the disagreement list above, all but 8, through
+  `VR_Hit_Where`, `VR_Hit_Blast`, `VR_Hit_Discharge`, `VR_Hit_Bleeds` and `VR_Hit_TargetBleeds` (combat.qc);
+  VR_Hit_Point and VR_Hit_Way are gone. Damage is untouched (effects only).
 
 ## Faster map loads, round 6: the smooth rigs at once (branch `agent/loadtime2`)
 
@@ -4345,6 +4408,70 @@ The leftovers of round 5 ("Not done": the smooth rigs one model after another, 4
   and keying (the rigs must still be found: the key holds the derived rig), and the limbs' builds already run on the pool
   beside the load (round 5: 22 ms there, not on the main thread). Under the brief's ~20 ms bar: skipped.
 
+## Armour: the plate a shot meets, the debug view, the break sound, thrown plates (branch `agent/armorfix`, IN PROGRESS)
+
+His voice notes of 2026-10-31 ~19:55 (five items). Stopped at the tool budget; what is in and what is open:
+- **One query for every shot** (`agarmor::shotPiece`, QC `VR_AgArmor_Shot` from `PositionalDamage`, builtin
+  `ragdollbone(e, at, QVR_ARMOR_SHOT (-1005), dir)`): the first unbroken plate's triangles (outer, inner, rim) crossed on
+  the shot's line from 64 units before its point to where it first crosses the skin itself (`hitmodel::skinCrossing`,
+  no tolerance; else 4 units past the guns' tolerance). Sparks, blood, pellets, damage and armed cuts read that answer
+  (`VR_AgArmor_PieceAt`, while it is the target's this frame and within 16 units); blows with no line keep `pieceAt`.
+  Plates are posed from the drawn pose (`hitmodel::drawnVertexPoints`: an armed humanoid's authored-rig pose, as shots
+  meet it and as the client draws its armour; before, `vertexPoint`'s animation frame put the arm plates where the arms
+  were not). Plate Blocks All now stops the whole part even as the plate breaks (before: the pool's overflow went
+  through). Pellets count their damage per piece (a head pellet's three times a body pellet's), not their number.
+- **Debug view** `vr_agarmor_debug` (Debug > Show Armour Plates): every armoured body's unbroken plates' triangles,
+  posed exactly as `shotPiece` poses them, a colour per piece.
+- **Break sound**: `vr/derived/armor_break.wav` rate 0.7 -> 1.05 (vr_sndlayer.cpp; pitch rises with it). Committed.
+- **Thrown plates**: the debris gets `forcegrabbable_touch`, `throwhit`, the thrown-weapon flags (as vr_debris.qc's rocks).
+  It moves when thrown and its touch fires (test 12: 2/0, "throw hit: vr_ar_debris into monster_army ... 3.7 damage").
+- **Absorbed shot's push** `vr_agarmor_impulse` 0.5 (Combat > Armed Grunts > Armour: "Push Through Plates", 0..1): a
+  living body's flinch (`T_DamageDeal`: `VR_HitReact_Hit` gets what got through plus the plates' share times it; before,
+  a plate that took it all left `take` 0: no flinch at all), a ragdoll's or a knocked-down body's shot push
+  (`VR_ShotPush`: times it when `VR_AgArmor_PushScale`, the same plate query, finds an unbroken plate first; before, the
+  full push).
+- **Part 2 (the shot query's leaks, the tests)**:
+  - Test 10's 185 failures were the test's: `VR_ARS_Still` stopped the monsters' start think, so they never became
+    shootable (`takedamage` 0: every pellet passed by, every projectile's damage refused). Fixed in the test.
+  - The query itself: a line through a plate's vertex or a shared edge met none of its triangles by rounding (the
+    cuirass's and the shins' face points). `plateOnSegment` now takes 1e-3 barycentric slack.
+  - Splash: a projectile a plate just took (plasma, rocket) no longer hurts the body with its own blast (the plate broke
+    on its hit, the splash came after: 50 through). `VR_AgArmor_Damage` remembers the inflictor (Plate Blocks All).
+  - Left (test 10, 9 of about 190 shots fail, every one a projectile): plasma bolts at kind 0's cuirass, helmet and
+    right shin never strike the body (took 0, no record: they fly past or hit something else); plasma, nails and two
+    rocket direct hits whose touch point (`VR_Proj_Begin`'s `vr_proj_at`, the projectile's origin when the touch trace
+    misses) lies off the line, so the query from it misses the plate. Next: the query from the projectile's own flight
+    line (its last origin and velocity) rather than the touch point. Test 10 is also slow on a loaded machine (1500 s
+    reached kind 1 only); it needs a lighter frame (fewer bodies at once) before it can go in the baseline.
+  - Test 1: "rule 1: 60 past a pool" now expects 0 through (Plate Blocks All stops the whole hit as the plate breaks);
+    its pauldron place check and hits use the plate's outer face middle (limbpiece 14), not its model's origin (off the
+    plate: with plates posed as drawn the bracer's plate was nearer there).
+- **Rig Studio armour** (his "an option to toggle armor pieces in the rig studio"): Subject > Armour: None / Green /
+  Yellow / Red, a toggle per piece (10), All / No Pieces; put on the subject live (`agarmor::give`, QC
+  `VR_AgArmor_SetCmd`) and kept for the next subjects; default None. A studio subject never takes the skill's roll any
+  more (the "random armor pieces" on changing subject: its spawn ran `VR_AgArmor_Spawn`). Console:
+  `vr_rigstudio_armour [type] [pieces] | piece <i>`. Check: `vr_rigstudio_test_armour` (studio open; the roll made
+  certain meanwhile; ends on "rigstudio armour: N passed"): 25/0. Scenario `spawnarmed` monsters are bare too (the same
+  scene every time). The toolgun already passed armour 0; ragtool spawns nothing; `vr_physics_spawn` still rolls (a map
+  spawn's behaviour, left).
+- **Debug view** fixed: `debugDraw` read edicts without the server's VM (a crash the first time it was on).
+- **Part 3** (merged `next`: the new rows are schema rows, `vr_agarmor_impulse` and `vr_agarmor_debug` in vr_menu_rows.inc):
+  - Projectiles: `VR_Proj_Begin` hands the armour its flight line (`VR_AgArmor_Flight`: from a frame's flight back);
+    `VR_AgArmor_Shot` queries from there (each ask this frame near that line), not from the touch point.
+  - `shotPiece`: a line through a seam of a plate's mesh (test 10: a plate's face middle, a vertex; 0.002 units off a
+    line that met it, none) is retried nudged 0.05 four ways, then the skin it reaches under a worn plate (within the
+    plate's gap and thickness) counts as that plate.
+  - Test 10: one body at a time (10-16 s; before, four at once ran past 1500 s), at rest each shot, debris cleared,
+    `vr_hit_react 0` meanwhile (a flinch moved the plate off the aimed line), projectiles from 44 units out, the plasma
+    bolt's 0.1 s rest skipped, projectiles that never meet the body counted apart (`missed`, at most 12). It also
+    judged the next kind's first pellet against the last body (a stale projectile): fixed. Now 157/15: 12 projectile
+    leaks left, all limb plates (bracers 4/5, thighs 7, shins 9) and mostly plasma and rockets, the projectile
+    meeting the body at the plate's face middle yet the query finding no plate there while the same query from a
+    point 0.5-4 units back along the line finds it. Suspect the limb plates' "face middle" (limbpiece 14) lies on or
+    inside a wrapped plate's mesh; next: check those plates' meshes at that point.
+  - Debug view: the plate lines are `lines::line` (drawn over everything, no depth test), so they cannot hide in the
+    plate; the flatscreen Rig Studio screenshot shows the red armour but the 0.06-unit lines are too thin to see there.
+  - Test 11 timed out twice (240-300 s, no output at all) after the merge: not looked into.
 ## Directional parry 2: debug view, leniency settings, Enemy Melee Speed (branch `agent/dirparry2`)
 
 His words (10-31): a debug view for it, leniencies he can tweak, slowed enemy swings to practise with.

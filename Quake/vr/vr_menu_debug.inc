@@ -105,6 +105,7 @@ za::Vector<Item> pageDebugViews()
             .help("vr_agrunt_melee_speed: armed humanoids' melee swings and punches slowed (their whole timing: keys, "
                   "blow, parry window), for parry practice. 1: normal."),
         row(opt::vr_debug_hitzones_xray),
+        row(opt::vr_agarmor_debug),
         cycle("Show Gadget Button", vr_debug_gadget_button,
             {{0.f, "Off"}, {1.f, "Its Hit Volume"}, {2.f, "And the Screen Tap"}, {3.f, "And Print Sync"}})
             .help("vr_debug_gadget_button: the wrist gadget's side button's hit volume (green ready, yellow pressed, red "

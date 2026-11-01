@@ -101,37 +101,73 @@ float(float xLimbs) VR_Hit_PelletPart =
     return 0;
 };
 
-// Where the hit being dealt struck `xTarg` (the wounds, the gore, the flinch: each its own `xNear` and `xMissile`): the
-// record's point when it lies within `xNear` of xTarg's middle, else (xMissile) the inflictor's origin when it is a
-// missile within xNear (where it touched), else the middle.
-vector(entity xTarg, entity xInflictor, float xNear, float xMissile) VR_Hit_Point =
+// The hit being dealt is the lightning gun's discharge under water (a splash its own attacker's, a player's): a shock
+// everywhere (the corpses, the small gibs, the wounds, the gore, the gib speed; his call 2026-11-01), not a blast.
+float(entity xInflictor, entity xAttacker) VR_Hit_Discharge =
 {
-    vector mid = (xTarg.absmin + xTarg.absmax) * 0.5;
-    if(hit_pos != '0 0 0' && vlen(hit_pos - mid) < xNear)
-    {
-        return hit_pos;
-    }
-    if(xMissile && xInflictor != xTarg && !(xInflictor.flags & (FL_MONSTER | FL_CLIENT)) &&
-       vlen(xInflictor.origin - mid) < xNear)
-    {
-        return xInflictor.origin;
-    }
-    return mid;
+    return hit_kind == QVR_HITKIND_SPLASH && xInflictor == xAttacker && (xAttacker.flags & FL_CLIENT);
 };
 
-// Which way the hit being dealt went into `xTarg`: `xDir` (the record's, or the consumer's own) when known, else a
-// missile's flight, else from the inflictor's middle to xTarg's ('0 0 0': unknown, the inflictor xTarg itself).
-vector(entity xTarg, entity xInflictor, vector xDir) VR_Hit_Way =
+// The hit being dealt is a blast's: its splash or an explosion's own damage (IsExplosionDamage), not the discharge.
+float(entity xInflictor, entity xAttacker) VR_Hit_Blast =
 {
-    if(xDir != '0 0 0' || xInflictor == xTarg)
+    return (hit_kind == QVR_HITKIND_SPLASH || IsExplosionDamage) && !VR_Hit_Discharge(xInflictor, xAttacker);
+};
+
+// Where the hit being dealt struck `xTarg` and which way it went: one rule for the wounds, the gore and the flinch (his
+// call 2026-11-01; ROUND23 "One hit record, part 5"). Into hit_where and hit_whereway ('0 0 0': no way known).
+// - A blast: the point of xTarg's box nearest the blast, going away from it.
+// - Else the point: this target's record (VR_Hit_On: its zone's point, else the record's) within HIT_NEAR of its
+//   middle, else a missile's origin (where it touched) within HIT_NEAR, else the middle. The way: `xDir` (the record's
+//   or the consumer's own) when known, else a missile's flight, else from the attacker's middle (else the inflictor's).
+float HIT_NEAR = 96;
+vector hit_where;
+vector hit_whereway;
+void(entity xTarg, entity xInflictor, entity xAttacker, vector xDir) VR_Hit_Where =
+{
+    vector mid = (xTarg.absmin + xTarg.absmax) * 0.5;
+    if(VR_Hit_Blast(xInflictor, xAttacker))
     {
-        return xDir;
+        vector at = xInflictor.origin;
+        at_x = min(max(at_x, xTarg.absmin_x), xTarg.absmax_x);
+        at_y = min(max(at_y, xTarg.absmin_y), xTarg.absmax_y);
+        at_z = min(max(at_z, xTarg.absmin_z), xTarg.absmax_z);
+        hit_where = at;
+        hit_whereway = mid - xInflictor.origin;
+        return;
     }
-    if(xInflictor.velocity != '0 0 0' && !(xInflictor.flags & (FL_MONSTER | FL_CLIENT)))
+    float missile = xInflictor != xTarg && xInflictor != world && !(xInflictor.flags & (FL_MONSTER | FL_CLIENT));
+    vector p = '0 0 0';
+    if(VR_Hit_On(xTarg))
     {
-        return xInflictor.velocity; // a missile's flight
+        p = hit_at != '0 0 0' ? hit_at : hit_pos;
     }
-    return (xTarg.absmin + xTarg.absmax) * 0.5 - (xInflictor.absmin + xInflictor.absmax) * 0.5;
+    hit_where = mid;
+    if(p != '0 0 0' && vlen(p - mid) < HIT_NEAR)
+    {
+        hit_where = p;
+    }
+    else if(missile && vlen(xInflictor.origin - mid) < HIT_NEAR)
+    {
+        hit_where = xInflictor.origin;
+    }
+    hit_whereway = xDir;
+    if(hit_whereway != '0 0 0')
+    {
+        return;
+    }
+    if(missile && xInflictor.velocity != '0 0 0')
+    {
+        hit_whereway = xInflictor.velocity; // a missile's flight
+    }
+    else if(xAttacker != xTarg && xAttacker != world)
+    {
+        hit_whereway = mid - (xAttacker.absmin + xAttacker.absmax) * 0.5;
+    }
+    else if(xInflictor != xTarg && xInflictor != world)
+    {
+        hit_whereway = mid - (xInflictor.absmin + xInflictor.absmax) * 0.5;
+    }
 };
 
 // The blow VRMeleeDmg last priced, inside a hand's VR_Hit_Begin .. VR_Hit_End: its strength from speed alone
@@ -1003,11 +1039,54 @@ float(entity inflictor, entity attacker) VR_Hit_Class =
 };
 
 // Whether the hit being dealt draws blood: not the level's, not bloodless (VR_Hit_Bloodless: a shove, a bash, a slap, a
-// flame's or a poison's), not a burn. (Whether the target bleeds is each consumer's: VR_Gore_Bleeds,
-// VR_SmallGib_Bleeds, VR_Wound_TakesHit.)
+// flame's or a poison's), not a burn: the gore's, the small gibs' and the wounds' (his call 2026-11-01). Whether the
+// target bleeds: VR_Hit_TargetBleeds.
 float(entity inflictor, entity attacker) VR_Hit_Bleeds =
 {
     return inflictor != world && !VR_Hit_Bloodless() && VR_Hit_Class(inflictor, attacker) != QVR_HITCLASS_BURN;
+};
+
+// Whether `e` bleeds at all: one target rule for the gore, the small gibs and the wounds (his call 2026-11-01), the
+// union of the three old ones' exclusions, so nothing that never bled starts: a monster or a player (the gore's and the
+// wounds'; a monster's corpse keeps FL_MONSTER), with a model, not a gib, not a statue (statgib), not the clean training
+// dummy (vr_dummy_gore off) (the small gibs'). Each keeps its own setting (vr_gore, vr_smallgibs_player) and the wounds
+// the clean dummy's dents and streams (not blood).
+float(entity e) VR_Hit_TargetBleeds =
+{
+    if(!(e.flags & (FL_MONSTER | FL_CLIENT)) || e.vr_gib || e.model == string_null || VR_Dummy_Clean(e))
+    {
+        return FALSE;
+    }
+    return !((e.th_die == knight_die || e.th_die == hknight_die) && (e.spawnflags & 2));
+};
+
+// The impact table's kind (VR_HIT_*, vr_impact_shared.h) of a shot, from the record (design review 6): a pierce
+// (VR_Hit_Class) a bullet when hitscan, a nail when a projectile's (VR_Hit_Hitscan / hit_proj: both dent and bleed as a
+// bullet's, each its own row). Else `xElse`, the caller's: how it came where the class says nothing of it (a thrown
+// thing's splinters, a monster's own shot with no record).
+float(entity inflictor, entity attacker, float xElse) VR_Hit_ShotKind =
+{
+    if(hit_kind == QVR_HITKIND_SHOT && VR_Hit_Class(inflictor, attacker) == QVR_HITCLASS_PIERCE)
+    {
+        return hit_proj ? VR_HIT_NAIL : VR_HIT_BULLET;
+    }
+    return xElse;
+};
+
+// The impact table's kind of a blow's own sound (VR_IMPACT_SOUND: the clang or the knock on metal), from the record's
+// class: a blade's the blade's, a blunt thing's the bash. Else `xElse`, the caller's.
+float(entity inflictor, entity attacker, float xElse) VR_Hit_BlowKind =
+{
+    float c = VR_Hit_Class(inflictor, attacker);
+    if(c == QVR_HITCLASS_BLADE)
+    {
+        return VR_HIT_BLADE;
+    }
+    if(c == QVR_HITCLASS_BLUNT)
+    {
+        return VR_HIT_BASH;
+    }
+    return xElse;
 };
 
 float(float xKind) VR_Corpse_DamageKindMult;
@@ -1580,14 +1659,9 @@ float(entity inflictor, entity attacker, float isVRMelee) VR_GibKind =
     else
     {
         float c = VR_Hit_Class(inflictor, attacker);
-        string n = inflictor.classname;
         if(c == QVR_HITCLASS_SHOCK || c == QVR_HITCLASS_BLAST)
         {
             r = QVR_GIBKIND_HEAVY;
-        }
-        else if(n == "hiplaser" || ((n == "knightspike" || n == "wizspike") && !(inflictor.vr_deflect_time > 0)))
-        {
-            r = QVR_GIBKIND_HEAVY; // (the gib speed's own: the small gibs call these nails)
         }
         else if(c == QVR_HITCLASS_PIERCE || c == QVR_HITCLASS_BLADE || c == QVR_HITCLASS_BLUNT)
         {
@@ -1842,9 +1916,11 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     VR_Motion_Hit(targ, attacker, damage, isVRMelee);
 
     // VR: an armed humanoid's plates take their share first (vr_agarmor.qc; Quad's damage included)
+    float plated = 0; // (what the plates took: the blow still pushes by vr_agarmor_impulse of it, below)
     if(targ.vr_ar_type > 0)
     {
         damage = VR_AgArmor_Damage(targ, inflictor, attacker, damage, isVRMelee);
+        plated = vr_ar_last_save;
     }
 
 // save damage based on the target's armor level
@@ -1956,7 +2032,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     // VR: gore: blood sprayed onto the walls, floor and ceiling behind the hit (vr_gore, vr_carry.qc). The training
     // dummy's too, as a grunt's (vr_dummy_gore: VR_Dummy_Clean).
     VR_DamageNumber(targ, inflictor, attacker, take, save, isVRMelee); // VR: Debug: Show Damage Numbers
-    VR_Gore_Hit(targ, inflictor, take);
+    VR_Gore_Hit(targ, inflictor, attacker, take);
     VR_SmallGib_Hit(targ, inflictor, attacker, damage); // VR: small gibs torn out (vr_smallgibs.qc)
     VR_Wound_Hit(targ, inflictor, attacker, take); // VR: painted on its model (vr_wounds.qc)
 
@@ -2016,7 +2092,8 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
         }
     }
 
-    VR_HitReact_Hit(targ, inflictor, attacker, take); // VR: a living monster flinches (vr_hitreact.qc)
+    // VR: a living monster flinches (vr_hitreact.qc); a blow a plate took pushes it by vr_agarmor_impulse of a bare one's
+    VR_HitReact_Hit(targ, inflictor, attacker, take + plated * max(0, cvar("vr_agarmor_impulse")));
     // VR: an armed grunt struck on its gun hand drops it (vr_armedgrunt.qc); a player's shot: the shooting rule's
     // (vr_armedgrunt_shot.qc), an explosion counting there too
     if(!VR_AGS_Hit(targ, inflictor, attacker, take))
