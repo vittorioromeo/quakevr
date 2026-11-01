@@ -5140,3 +5140,21 @@ too, with heat-up and dissipation times, global and per weapon. Quake/vr/vr_gunf
   cold 2.556 s after its last shot (expected 0.15 + 0.8 x 3 = 2.55). Ends on the "cold" line.
 - **Not checked**: how it looks (no screenshot with the gun in view: the mock hand pose missed the view); in VR: is
   1 s / 3 s / glow 1 right, the glow's size and colour on each gun, the super shotgun's bores.
+
+## Eval drift: the lean sense's steady rule in replays (branch `agent/evaldrift`)
+
+Two melee takes' replayed damage had moved on next (slash_backswing_up_right_2026-10-12_12-35-43 37.0 -> 16.9,
+stab_two_hands_2026-10-12_12-36-51 14.9 -> 31.2) with no melee change. First-parent bisect of next (the 3 takes, a full
+rebuild per step): first bad merge a31594d70 (agent/smallfix1027, 2026-10-27 02:49), the lean sense's "Legs too long
+at the first start" fix: the first standing height is taken only from a head held 0.5 s within 3 cm at 85-110% of the
+Height setting. vr_motion_eval loads the map afresh for each take (the lean sense with it), and a take starts in
+mid-motion: the steady head never came, the standing height stayed the Height setting's for the whole take, so the
+lean/step split placed the body otherwise than live. The replayed hands drifted from the recorded ones (hand_error_u
+slash 3.41 -> 14.81, stab 1.16 -> 1.84, punch 0.36 -> 0.68): the blow met the dummy later, with another part of the
+blade. Not a change to the player's melee (live, the standing height is learnt long before any swing).
+
+- **Fix** (vr_hands.cpp senseLean): while a take plays (motion::playing / evaluating) its first frame over 85% of the
+  Height setting is taken, as before the steady rule; live play keeps the steady rule. Eval of the 3 takes: slash 37.0
+  @0.569, stab 14.9 @0.433, hand errors 3.410 / 1.162 / 0.362: exactly the baseline's.
+- **punch_hook_2026-10-12_12-22-58** (20.1 @0.600 -> 20.0 @0.575, its hand error unchanged) is another, later change
+  (still 20.1 at ffda2d5e5, 2026-10-27 11:44).
