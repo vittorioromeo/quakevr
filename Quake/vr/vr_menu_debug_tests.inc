@@ -535,6 +535,10 @@ za::Vector<Item> pageDebugTests()
             .help("An armed grunt and an armed enforcer close ahead in full yellow armour, facing you, standing still "
                   "(vr_agarmor_test 6): the helmets' fit up close. vr_agarmor_headcam 1-4 (the mock headset) puts the "
                   "eyes on their heads: front, side, three-quarter, behind."),
+        command("Helmets There: Knight and Death Knight", "vr_agarmor_test 8")
+            .help("An armed knight and an armed death knight close ahead in full yellow armour, facing you "
+                  "(vr_agarmor_test 8): the helmets' fit up close. vr_agarmor_headcam <1-4> 26 1 (the mock headset) puts "
+                  "the eyes on their heads: front, side, three-quarter, behind."),
         command("Enemy Weapon Drop Cap","developer 1; vr_dropcap_test 1")
             .help("vr_dropcap_test 1: 60 grunts spawned ahead and killed one by one (vr_dropcap_test_n), the first one's "
                   "rifle taken into an empty hand, a chainsaw thrown up and three other weapons dropped: the burst rifles "

@@ -58,15 +58,24 @@ constexpr const char* rigSuffix = "#rig2";
 constexpr const char* skinModelName = "progs/vragarmor.mdl";
 // Who wears it, and where the cuirass stops behind (model x; -1e9 nowhere): the enforcer's power pack is its own, so its
 // cuirass is a breastplate to its back's surface (x -10: the pack from -10.5 to -23, up past its head; P2).
+// The head proper (the helmet's fit; helmetOf): up to headTop of the head bone's length above its pivot and headSide to
+// its sides. The grunt's, the enforcer's and the knight's heads are inside the default (crown 1.02; sides 0.6, the
+// enforcer's collar under its guards to 0.75).
 struct Wearer
 {
     const char* model;
     float backCut;
+    float headTop{1.06f}, headSide{0.75f};
+    float collar{0.5f}; // (the guards fit the head where it weighs this much on the head bone, not the collar)
 };
 // The armed knight and death knight (vr_agknight, vr_agdknight: their swordless models on their authored rigs) wear it
 // too: every piece found on their own rigs' bones and skin weights as the grunt's are; nothing on their backs to cut round.
+// The death knight's head proper is narrower and his crown higher: his skull 0.51 of its length to each side and 1.11
+// up, rigid on it the horns' stalks from his temples (0.55-0.62 out, up from 0.93; their roots left out with them) and
+// under it his gorget (to 0.9 out, weighing 0.52-0.78 on his head, his face 0.93 and more): fitted round, they made his
+// helmet a hat 18 wide over a skull 10.7 wide (his ask, 2026-11-01).
 constexpr Wearer wearers[] = {{"progs/vrgrunt.mdl", -1e9f}, {"progs/soldier.mdl", -1e9f}, {"progs/vrenforcer.mdl", -10.5f},
-    {"progs/enforcer.mdl", -10.5f}, {"progs/vrknight.mdl", -1e9f}, {"progs/vrhknight.mdl", -1e9f}};
+    {"progs/enforcer.mdl", -10.5f}, {"progs/vrknight.mdl", -1e9f}, {"progs/vrhknight.mdl", -1e9f, 1.12f, 0.53f, 0.8f}};
 
 // The atlas (make_agarmor.py's REGIONS): texels of its 256 x 128 skins.
 struct Block
@@ -212,6 +221,18 @@ struct PieceFrame
         }
     }
     return -1e9f;
+}
+
+[[nodiscard]] Wearer wearerOf(const char* model)
+{
+    for(const Wearer& w : wearers)
+    {
+        if(model && !strcmp(model, w.model))
+        {
+            return w;
+        }
+    }
+    return Wearer{model, -1e9f};
 }
 
 [[nodiscard]] PieceFrame frameOf(const rig2::Rig& rig, int piece)
@@ -871,27 +892,41 @@ struct HelmBuild
     }
 };
 
-void helmetOf(Shell& s, const Body& b, const PieceFrame& f, int headBone)
+void helmetOf(Shell& s, const Body& b, const PieceFrame& f, int headBone, const Wearer& who)
 {
     // (rigid on the head: closer than the body's plates, and thinner; vr_agarmor_helmet_gap, _thick)
     const float gap = za::max(vr_agarmor_helmet_gap.value, 0.f), thick = za::max(vr_agarmor_helmet_thick.value, 0.05f);
     const float L = f.length;
     constexpr float root2 = 1.41421356f;
-    // (the head proper: up to this much of the head bone's length above its pivot and to its sides; the grunt's and the
-    // enforcer's heads are inside it (crown 1.02; sides 0.6, the enforcer's collar under its guards to 0.75), the death
-    // knight's horns are not)
-    constexpr float headTop = 1.06f, headSide = 0.75f;
+    // (the head proper: up to this much of the head bone's length above its pivot and to its sides; Wearer)
+    const float headTop = who.headTop, headSide = who.headSide;
     // The head: its surface where it is weighted to it (its neck's top too; points across each triangle, the low-poly
     // head's big triangles having no vertices between its crown and its jaw), in its frame, |y| (the helmet is symmetric).
     za::Vector<glm::vec3> pts;
     za::Vector<float> ptW; // (its weight on the head)
     float top = 0.f;
     constexpr int steps = 6;
+    // (past the head proper: a triangle with a corner past its sides or its top; over its top, every triangle on that
+    // triangle's corners too: the death knight's horns, rigid on his head, and their roots, not under the helmet)
+    const auto past = [&](int i) {
+        const glm::vec3 q = at(b.p, i) - f.origin;
+        return glm::dot(q, f.up) > headTop * L || za::abs(glm::dot(q, f.left)) > headSide * L;
+    };
+    const auto over = [&](int i) { return glm::dot(at(b.p, i) - f.origin, f.up) > headTop * L; };
+    za::Vector<uint8_t> rooted(static_cast<za::SizeT>(count(b.p)), uint8_t{0});
+    for(int t = 0; t + 2 < count(b.tris); t += 3)
+    {
+        const int i0 = at(b.tris, t), i1 = at(b.tris, t + 1), i2 = at(b.tris, t + 2);
+        const bool horn = over(i0) || over(i1) || over(i2);
+        at(rooted, i0) = horn || past(i0) || at(rooted, i0);
+        at(rooted, i1) = horn || past(i1) || at(rooted, i1);
+        at(rooted, i2) = horn || past(i2) || at(rooted, i2);
+    }
     for(int t = 0; t + 2 < count(b.tris); t += 3)
     {
         const int i0 = at(b.tris, t), i1 = at(b.tris, t + 1), i2 = at(b.tris, t + 2);
         const float w0 = at(b.w, i0).w[headBone], w1 = at(b.w, i1).w[headBone], w2 = at(b.w, i2).w[headBone];
-        if(za::max(w0, w1, w2) < 0.2f)
+        if(za::max(w0, w1, w2) < 0.2f || at(rooted, i0) || at(rooted, i1) || at(rooted, i2))
         {
             continue;
         }
@@ -986,7 +1021,7 @@ void helmetOf(Shell& s, const Body& b, const PieceFrame& f, int headBone)
             const bool face = r + 1 > HLedge && p.x > 0.f && p.y < faceHalf;
             // (the guards round the head proper: not the collar's vertices blended onto it, the enforcer's out to its
             // shoulders, that made its guards flanges)
-            const bool collar = r >= HLedge && at(ptW, i) < 0.5f;
+            const bool collar = r >= HLedge && at(ptW, i) < who.collar;
             if(p.z > hi + margin || p.z < lo - margin || face || collar)
             {
                 continue;
@@ -1190,7 +1225,7 @@ bool buildShell(qmodel_t* src, Shell& s)
         const int firstVert = count(s.verts), firstTri = count(s.tris);
         if(f.ok && piece == Helmet)
         {
-            helmetOf(s, s.body, f, rig2::boneByName(*rig, "head"));
+            helmetOf(s, s.body, f, rig2::boneByName(*rig, "head"), wearerOf(src->name));
         }
         else if(f.ok)
         {
@@ -1462,8 +1497,9 @@ void info_f()
     Con_Printf("agarmor: %d drawn last frame\n", numWorn);
 }
 
-// vr_agarmor_headcam [view] [distance]: (the mock headset; the helmet's eyeshots) the eyes on two heads: the left on the
-// nearest grunt's, the right on the nearest enforcer's (vrgrunt / vrenforcer, armoured or not), `distance` units off
+// vr_agarmor_headcam [view] [distance] [set]: (the mock headset; the helmet's eyeshots) the eyes on two heads: the left on
+// the nearest grunt's, the right on the nearest enforcer's (vrgrunt / vrenforcer, armoured or not; set 1: the nearest
+// death knight's, the screenshot's eye, and knight's: vr_agarmor_test 8), `distance` units off
 // (default 22) at the helmet's middle (its rest pose where the body stands): view 1 front, 2 side (its right), 3
 // three-quarter (front right), 4 behind; 0 (or none) the eyes from the head again.
 void headcam_f()
@@ -1476,7 +1512,8 @@ void headcam_f()
         Con_Printf("agarmor headcam: off\n");
         return;
     }
-    const char* wanted[2] = {"progs/vrgrunt.mdl", "progs/vrenforcer.mdl"};
+    const bool knights = Cmd_Argc() > 3 && atoi(Cmd_Argv(3)) == 1;
+    const char* wanted[2] = {knights ? "progs/vrhknight.mdl" : "progs/vrgrunt.mdl", knights ? "progs/vrknight.mdl" : "progs/vrenforcer.mdl"};
     const glm::vec3 me = cl.viewentity > 0 && cl.viewentity < cl.num_entities ?
         glm::vec3{cl_entities[cl.viewentity].origin[0], cl_entities[cl.viewentity].origin[1], cl_entities[cl.viewentity].origin[2]} :
         glm::vec3{0.f};
