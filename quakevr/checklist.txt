@@ -64,6 +64,11 @@ Drag a dead grunt or hold a live one: you walk about 25% slower; heavier bodies 
 A death knight at range raises his off hand, palm at you, and the fireballs come from the palm; with a sword he keeps it in his hand. About 60% of his ranged attacks.
 Rig Studio / Pose Studio: a "Cast (shared)" pose next to Pickup, editable on the rifle, with Make Override per class; set its look (the default is a rough guess).
 Arcane Dimensions (unverified in tests): plain grunts, enforcers, knights and death knights are armed; AD's rocket/grenade/plasma soldiers and point knights are not.
+The shotgun's barrel keeps glowing through the pump stroke after a shot, and the pump stays cold. {test:barrelfx}
+The heavy revolver's barrel glows when hot. {test:barrelfx}
+The burst rifle and the enforcer rifle leave smoke wisps after firing; the enforcer's are blue-grey. {test:barrelfx}
+Weapon Offsets > Effects > Paint Barrel Mask: aim the other hand, trigger paints, grip erases, the stick sizes the brush; cyan shows the barrel; Done keeps it, still there after a restart.
+Each gun's pre-marked barrel looks right when hot; fix any gun with the paint mode.
 
 [2. Armed humanoids: disarming and armour]
 Show Disarm Volumes: the wireframe hulls sit on each drawn weapon (magenta, orange, red; the sword's orange line along its blade) and on the drawn hand and forearm (cyan). {test:disarm_hulls_melee}

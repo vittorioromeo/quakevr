@@ -887,31 +887,30 @@ void afterSmoke(HandState& h, const Muzzle& m, int wid, float dt)
     }
 }
 
-// The guns that leave smoke wisps off their barrels after firing (vr_muzzlewisps.hpp): a shot's share of full smoke (the
-// shotguns' one shot fills them, a burst of the nailguns'), the smoke's opacity at full, their barrels and the smoke's
-// tint (times its grey).
+// The guns that leave smoke wisps off their barrels after firing (vr_muzzlewisps.hpp), by their weapon data
+// (weapons.txt: fx_gfx_wisp_charge, fx_gfx_wisp_alpha, fx_gfx_wisp_barrels; 0 by default: none): a shot's share of full
+// smoke (the shotguns' one shot fills them, a burst of the nailguns', 2 s of the thunderbolt's stream), the smoke's
+// opacity at full and their barrels (the super nailgun's turn: one wisp out of their middle); an energy weapon's (the
+// thunderbolt's, the enforcers' rifle's) a fainter blue-grey, the hot emitter's ozone (times its grey).
 struct WispLook
 {
     float charge, alpha;
     int barrels;
     glm::vec3 tint{1.f};
 };
-[[nodiscard]] WispLook wispLook(int wid)
+[[nodiscard]] WispLook wispLook(int wid, int slot)
 {
-    switch(wid)
+    if(slot < 0)
     {
-        case WID_SHOTGUN: return {1.f, 0.32f, 1};
-        case WID_SUPER_SHOTGUN: return {1.f, 0.32f, 2};
-        case WID_REVOLVER: return {0.7f, 0.26f, 1};
-        case WID_FLAREGUN: return {0.7f, 0.26f, 1};
-        case WID_NAILPISTOL: return {0.2f, 0.22f, 1};
-        case WID_NAILGUN: return {0.12f, 0.26f, 2};
-        case WID_SUPER_NAILGUN: return {0.08f, 0.3f, 1}; // (its barrels turn: one wisp out of their middle)
-        // The thunderbolt (a stream: a shot each 0.1 s, 2 s of it fill them): a fainter, blue-grey wisp off its one
-        // barrel, the hot emitter's ozone (the per-weapon Muzzle Wisp Opacity and the global wisp settings apply).
-        case WID_LIGHTNING: return {0.05f, 0.2f, 1, {0.82f, 0.9f, 1.f}};
-        default: return {0.f, 0.f, 0};
+        return {0.f, 0.f, 0};
     }
+    WispLook w{za::max(weapons::value(slot, Key::GunfxWispCharge), 0.f), za::max(weapons::value(slot, Key::GunfxWispAlpha), 0.f),
+        za::clamp(static_cast<int>(weapons::value(slot, Key::GunfxWispBarrels)), 1, muzzlewisps::maxBarrels)};
+    if(kindOf(wid) == Kind::Energy)
+    {
+        w.tint = glm::vec3{0.82f, 0.9f, 1.f};
+    }
+    return w.charge > 0.f && w.alpha > 0.f ? w : WispLook{0.f, 0.f, 0};
 }
 
 // Where the barrels' bores end on the models with two (their own coordinates; Misc/quakevr/anchors.py's frame 0: the
@@ -929,7 +928,7 @@ constexpr ModelBarrels barrelEnds[] = {
 // A gun's barrels this frame (weapon `wid` of weapon settings `slot`, drawn at `m`), for their wisps.
 [[nodiscard]] muzzlewisps::Gun wispGun(const Muzzle& m, int wid, int slot)
 {
-    const WispLook look = wispLook(wid);
+    const WispLook look = wispLook(wid, slot);
     muzzlewisps::Gun g;
     g.fwd = m.fwd;
     g.charge = look.charge;

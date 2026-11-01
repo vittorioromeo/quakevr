@@ -443,6 +443,12 @@ QVR_WEAPON_KEY(GunfxSparkSize, "fx_gfx_spark_size")
 QVR_WEAPON_KEY(GunfxSmoke, "fx_gfx_smoke")
 QVR_WEAPON_KEY(GunfxSmokeSize, "fx_gfx_smoke_size")
 QVR_WEAPON_KEY(GunfxWisps, "fx_gfx_wisps")
+// The weapon's muzzle wisps (ROUND23.md, "Persistent muzzle wisps"; vr_gunfx.cpp wispLook): a shot's share of the full
+// wisps (0, the default: it leaves none), their opacity at full (before Muzzle Wisp Opacity) and its barrels (1 or 2:
+// one wisp each). Data only (weapons.txt), no menu row.
+QVR_WEAPON_KEY(GunfxWispCharge, "fx_gfx_wisp_charge")
+QVR_WEAPON_KEY(GunfxWispAlpha, "fx_gfx_wisp_alpha")
+QVR_WEAPON_KEY(GunfxWispBarrels, "fx_gfx_wisp_barrels")
 // The weapon's barrel heat (ROUND23.md, "Barrel heat settings"; Weapon Offsets > Effects; vr_gunfx.cpp heatShot,
 // heatCool): times the heat its shots add (Weapon Effects' Heat-Up Time divided by it; 0: it never heats) and times
 // Weapon Effects' Cool-Down Time (0: it cools at once). 1 by default (weapons.txt's defaults). New cvars: no migration.
@@ -452,6 +458,10 @@ QVR_WEAPON_KEY(GunfxCool, "fx_gfx_cool")
 // Length; vr_hotblade.cpp barrelBlade): the share of the gun's length (its grip to its muzzle, along the barrel) that
 // glows when hot, from the muzzle back, fading out towards its far end. 0.5 by default (weapons.txt's defaults).
 QVR_WEAPON_KEY(GunfxBarrel, "fx_gfx_barrel")
+// The weapon's barrel mask (ROUND23.md, "Barrel glow: the fire frames, the revolver, a painted barrel"; Weapon Offsets >
+// Effects, Paint Barrel Mask; vr_barrelmask.hpp): the triangles of its model that glow when hot, "<triangles>:<bits>"
+// (pre-marked in weapons.txt by Misc/quakevr/barrel_masks.py); "0" (the default): none, the glow's ramp alone.
+QVR_WEAPON_KEY(GunfxBarrelMask, "fx_gfx_mask")
 // Reloading (the named per-weapon values: vr_weaponvalues.inc names each gun's by its old cvar). Each gun's load
 // point moved (model units: +x forward, +y left, +z up) and its radius (world units); a magazine's reference point
 // moved (its model units) and its radius; a magazine gun's well moved and turned (visual only); the other hand

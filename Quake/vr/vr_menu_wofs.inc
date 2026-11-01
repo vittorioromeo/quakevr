@@ -233,6 +233,18 @@ void weaponOffsetsTorchReset()
     }
 }
 
+// Paint Barrel Mask (vr_barrelmask.cpp) on the page's weapon in its hand, this page reopened on leaving.
+void weaponOffsetsPaintBarrel()
+{
+    if(weapons::heldSlot(weaponOffsetsHand) != weaponOffsetsHeldSlot)
+    {
+        Con_Printf("Paint Barrel Mask: the %s hand holds another weapon now: reopen the page.\n",
+            weaponOffsetsHand == 1 ? "main" : "off");
+        return;
+    }
+    (void)barrelmask::start(weaponOffsetsHand, qvr::menu::currentPage());
+}
+
 void weaponOffsetsTestEffects()
 {
     Cbuf_AddText(va("vr_weaponfx_test %d 3\n", weaponOffsetsHand == 1 ? 1 : 0));
@@ -942,7 +954,12 @@ za::Vector<Item> pageWofsEffects()
                   "long). 0: it cools at once."),
         s("Barrel Glow Length", Key::GunfxBarrel, 0.f, 1.f, 0.05f, "%.2f").extend(0.f, 1.f)
             .help("How much of this weapon glows when its barrel is hot: a share of the gun's length from the muzzle "
-                  "back towards your hand (0.5: its front half, brightest at the muzzle and fading back). 0: none."),
+                  "back towards your hand (0.5: its front half, brightest at the muzzle and fading back), only on its "
+                  "barrel (Paint Barrel Mask). 0: none."),
+        action("Paint Barrel Mask", weaponOffsetsPaintBarrel)
+            .help("Marks which parts of this gun are its barrel (the parts that glow when hot), pre-marked for every "
+                  "gun: point your other hand at the gun, its trigger paints, its grip erases, its stick sizes the "
+                  "brush; the marked parts show in cyan. A panel ahead: Undo, Clear, Pre-marked, Cancel, Done."),
         cycle("Muzzle Flash", weapons::cvar(slot, Key::Flash), {{0.f, "Off"}, {1.f, "On"}})
             .help("The shotgun's flash at this weapon's muzzle (its Muzzle settings) for a moment at each shot, following "
                   "the gun; gone when it leaves your hand."),

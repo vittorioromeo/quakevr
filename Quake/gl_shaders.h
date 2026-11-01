@@ -1394,6 +1394,7 @@ NOISE_FUNCTIONS
 "	vec4	GloveShell; // QVR: a glove's shell (vr/vr_handrig.cpp gloveShells, vr_glove_thickness): x its thickness in the model's units (0: none drawn); y the painted leather's relief's strength (vr_glove_relief)\n"\
 "	vec4	Stump; // QVR: a ragdoll's stumps (vr/vr_ragdoll.cpp stumpLook): x its cut bones (bits 0..23), y how far round their joints the cut's flesh reaches (units; StumpFlesh)\n"\
 "	vec4	Nails; // QVR: painted nails (vr/vr_view.cpp nailLook): the polish's rgb, w 1 + its gloss (0 none; NailTex its mask)\n"\
+"	vec4	Barrel; // QVR: a hot gun barrel's glow (vr/vr_hotblade.cpp barrelInstance): x 1 (no mask) or 2 + its mask's first word in BarrelMasks (0: not a barrel), yz its ramp along the rest pose's x (x * y + z), w 1: the mask shown flat (painted)\n"\
 "	ivec4	Motion; // QVR: temporal AA (vr/vr_temporal.cpp): x its vertices' slot this frame in MotionCur, y last frame's in MotionPrev (-1 none)\n"\
 "};\n"\
 "\n"\
