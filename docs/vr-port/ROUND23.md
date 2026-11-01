@@ -5369,3 +5369,27 @@ The guns' reload load points are weapon keys: 142 values (12 guns) in quakevr/da
   `CvarSnapshot::takeAll` (vr_testbatch.cpp) now takes every stand-in of `standInTables()` too; `vr_test_reset` puts
   them back through `Cvar_SetQuick`. Checked: snapshot, `vr_reload_port_shot_radius 0.1`, reset -> 1.6 again (was 0.1);
   `vr_wofs_hol_hip_x_27 9` -> back to its value.
+## Nightly 2026-11-01 (second run): prop_climb, melee_phase, arena_6 (agent/nightfixclimb)
+
+None of the three was a regression of the suspected merges: at 5095e37b4 (next) each passes alone (prop_climb 12/0,
+melee_phase 7/0, arena 6 8/0), and before agent/ghosthand prop_climb and melee_phase behave the same.
+
+- **prop_climb 2/10**: every hold missed, the hands 12.7 units higher than in a pass. A lane-0 run (agrunt_11, which got
+  stuck in VR Calibration and timed out) set Position: Seated and closed the menu: `saveConfigNow` wrote its settings
+  into the worktree's `quakevr/ironwail.cfg` mid-run, and it stayed there 18 minutes, until the kit put the baseline back
+  after the kill. The parallel copies (`run.ps1 -Instance`, testbatch's batches) read that config at start-up: seated,
+  with no seated height measured (0.74 of the standing), the tracking is raised 0.40 m. Reproduced exactly with
+  `vr_bodycal_seated "1"` appended to the config (heavy: the same 61.4 hand height, no hold). Fix: `saveConfigNow` does
+  nothing in the kit's test runs (QVR_TEST_BACKGROUND): a test's settings are written only at quit, which the kit undoes
+  at once (vr_cvars.cpp). Why agrunt_11 opened VR Calibration in that run is not known (alone it passes 0/0, no menu).
+- **melee_phase 6/1** (grunt_fast_on: 0 hits): the grunt's idle turns came from the clock's seed; in some runs it stood
+  elsewhere and the punch missed (before ghosthand as well: 2 of 3 runs at once failed). The test seeds the server's
+  random numbers now (`sv_random_seed 7`): 3 runs at once, 7/0 each.
+- **arena_6 7/1** ("the map grows no faster than a wave clear's drops"): the check compared one edict count at wave 16
+  with one at wave 32, and that count swings by +-30 with the gibs and limbs of the moment (seeds 1..4: -38, -24, +14,
+  -35 against 16 allowed). It compares the floors now: the fewest edicts (less the drops) over waves 16..19 against
+  29..32, 13 waves apart (AR_T6_SPAN 4): seeds 1..4 +7, -24, +8, -32 against 13; 8/0 each.
+- Checks: prop_climb 12/0, heldoff_test 2/0, vr_clash_test 1 25/0; a test run closing the console after a menu change
+  saves nothing mid-run.
+- **For the kit (coordinator)**: the console cases (arena_*, agrunt_*) run with the clock's seed; `sv_random_seed 7`
+  before their map would make them repeat.
