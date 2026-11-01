@@ -79,9 +79,10 @@ inline double zonesTime{-1.0};   // its sv.qcvm.time
 
 struct ZoneVertex { glm::vec3 rest, drawn; };
 using ZonePolygon = za::Vector<ZoneVertex>;
-struct ZoneSample { int num, region; glm::vec3 rest; };
+struct ZoneSample { int num, region; glm::vec3 rest; int part; };
 inline za::Vector<ZoneSample> zoneSamples;
 inline bool zoneSampling = false; // painting positional damage's regions (animatedZones): their pieces are vr_hitzones_check's samples
+inline int zonePart = -1;         // ... the triangle being painted's body part (cornersRegion; -1 none): its samples'
 inline int zoneModels = 0, zoneFallbacks = 0;
 inline za::Array<int, 5> zonePieces{}; // (body, head, extremities, legs; melee beheading's)
 inline int zoneDecapModels = 0;        // models whose melee beheading zone is painted on as drawn
@@ -198,6 +199,9 @@ struct Verts
 const Mesh* meshOf(int index, const qmodel_t* model, const aliashdr_t*& hdr);
 // `asDrawn` false: an armed humanoid's animation frame, not its body as drawn (drawnpose::armedMesh; vertexPoint's).
 bool drawnOf(edict_t* ent, Drawn& d, bool asDrawn = true);
+// The body part (a VR_REGION_*) of the triangle with `model`'s .mdl vertices a, b, c: its rig's bones'
+// (ragdoll::triangleRegion); VR_REGION_NONE with no rig that fits (`numverts`) or no part it holds most of.
+[[nodiscard]] int cornersRegion(const qmodel_t* model, int numverts, int a, int b, int c);
 
 struct Track
 {

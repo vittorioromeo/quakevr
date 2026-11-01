@@ -353,14 +353,23 @@ float(float inHead, float outLateral, float belowOrigin) VR_RegionPick =
 }
 
 // Point classification shared by precise shots, positional melee and the animated debug view's check.
-// `rest` is the contacted point mapped to the standing model, in world space (hitmodel_rest).
-float PositionalPointRegion(entity xTarget, vector rest) =
+// `rest` is the contacted point mapped to the standing model, in world space (hitmodel_rest); `part` the struck
+// triangle's body part (hitmodel_part: its rig's bones), VR_REGION_NONE when not known. A known part decides the limbs
+// (an arm bone's triangle is an arm hit however near the body it is held: a grunt's forearm, 6.4 out, as an enforcer's
+// 10.9; a leg's a leg hit, the torso's neither); not known (a model with no rig, a triangle of no one part), the point's
+// place does: far out from its middle an arm, below its origin the legs. The head is the head sphere's either way (the
+// one head rule: beheading's and head pops' too).
+float PositionalPointRegion(entity xTarget, vector rest, float part) =
 {
     if(!PositionalHead(xTarget)) { return VR_REGION_NONE; }
+    float inHead = VR_HeadHolds(xTarget, rest);
+    if(part != VR_REGION_NONE)
+    {
+        return VR_RegionPick(inHead, part == VR_REGION_ARM, part == VR_REGION_LEG);
+    }
     float yaw = xTarget.angles_y * (3.14159265 / 180);
     vector side = '0 0 0';
     side_x = -sin(yaw); side_y = cos(yaw);
-    float inHead = VR_HeadHolds(xTarget, rest);
     float lateral = fabs((rest - xTarget.origin) * side) > (xTarget.maxs_x - xTarget.mins_x) * 0.35;
     return VR_RegionPick(inHead, lateral, rest_z < xTarget.origin_z);
 }
@@ -389,11 +398,12 @@ float PositionalRegion(entity xTarget, vector xEndpos, vector xDirection) =
     // Precise hits (vr_hit_precise): the shot struck the model as drawn (at xEndpos, within its tolerance of it). Where
     // that place is on the model standing (hitmodel_rest: the same place of the same triangle in its stand frame, at its
     // origin, turned with its yaw) decides: in the head sphere (and VR_HEAD_MARGIN: the sphere is fitted to the head's
-    // middle), far out from its middle, below its origin. A monster crouched, in pain or lying dead keeps its head.
+    // middle), and the struck triangle's part (hitmodel_part: its rig's bones; with none known, far out from its middle,
+    // below its origin). A monster crouched, in pain or lying dead keeps its head.
     if(hitmodel_target(xTarget))
     {
         vector rest = hitmodel_rest(xTarget, xEndpos);
-        return PositionalPointRegion(xTarget, rest);
+        return PositionalPointRegion(xTarget, rest, hitmodel_part(xTarget, xEndpos));
     }
 
     // The ray's closest approach to the head, not behind where it entered.

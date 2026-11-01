@@ -212,30 +212,32 @@ void PF_weapondrawnpose()
             local ? glm::length(modelcollide::drawnOffset(hand)) : 0.f, 0.f});
         return;
     }
-    if(what == 37 || what == 38)
+    if(what == 37 || what == 38 || what == 41 || what == 42)
     {
         // weapondrawnpose(g, side, 37 / 38): armed humanoid `g`'s forearm on `side` (0 right: its skin's forearm,
         // agarms::armPart 1, the cyan hull's; was the ragdoll rig's parent of the hand bone: on a rig with no hand bone
         // the upper arm), the middle of its vertices: 37 as its body is drawn (drawnpose::armedMesh: the shots' and
         // blows' body), 38 as its animation frame has them (hitmodel::vertexPoint, the frame's); '0 0 0' none (not drawn
-        // lately, no skin). QC test 79 (vr_stalepose_test.qc), 16.
+        // lately, no skin). 41 / 42: as 37, its hand (armPart 0) / its upper arm's top (armPart 2). QC test 79
+        // (vr_stalepose_test.qc), 16.
         glm::vec3 sum{0.f};
         int n = 0;
         const int mi = static_cast<int>(player->v.modelindex);
         const qmodel_t* model = mi > 0 && mi < MAX_MODELS ? sv.models[mi] : nullptr;
         const za::Vector<int>* fore = nullptr;
         za::Vector<glm::vec3> drawn; // (a test's query: made each call)
-        if(model && agarms::armPart(model, hand, 1, fore) && (what == 38 || drawnpose::armedMesh(player, drawn, nullptr)))
+        const int part = what == 41 ? 0 : what == 42 ? 2 : 1;
+        if(model && agarms::armPart(model, hand, part, fore) && (what == 38 || drawnpose::armedMesh(player, drawn, nullptr)))
         {
             for(const int v : *fore)
             {
                 glm::vec3 p;
-                if((what == 37 && (v < 0 || static_cast<za::SizeT>(v) >= drawn.size())) ||
+                if((what != 38 && (v < 0 || static_cast<za::SizeT>(v) >= drawn.size())) ||
                    (what == 38 && !hitmodel::vertexPoint(player, v, p)))
                 {
                     continue;
                 }
-                sum += what == 37 ? drawn[static_cast<za::SizeT>(v)] : p;
+                sum += what != 38 ? drawn[static_cast<za::SizeT>(v)] : p;
                 n++;
             }
         }

@@ -5702,3 +5702,29 @@ they were its upper arm. Test 79 went 18/2. No hitmodel or zone code changed: th
   m (15.2 from the drawn forearm), not a phantom arm. The miss shot now runs from in front up to m: a frame-posed
   hitmodel would meet that forearm's front.
 - Test 79 20 passed, 0 failed; test 16 274/0.
+
+## An arm is an arm hit for every humanoid: the struck part's bones decide (branch `agent/armzone`)
+
+His call (2026-11-01): a shot on a grunt's forearm is an arm hit, as on the enforcer's and the knights'. The zone of a
+precise hit (and a positional melee blow: the same PositionalRegion) now comes from the struck triangle's body part
+where the model has a rig, through the one decider (VR_RegionPick); the point's place stays the fallback.
+- Engine: `ragdoll::boneRegion(bone)` (the bone name rule hit reactions used, now shared: head/jaw head; thigh, shin,
+  leg, upperleg, lowerleg, foot legs; upperarm, forearm, lowerarm, arm, hand arms; pelvis, spine, chest, neck, clavicle
+  body; anything else, a tail, a wing, a claw, a loose weapon: none). `ragdoll::triangleRegion(rig, a, b, c)`: the
+  region holding more than half the triangle's corners' weight (an authored rig's skin weights, a derived rig's one bone
+  per vertex), else none. `hitmodel::restRegion(ent, p)` on restPoint's own triangle (the last hit's, else the nearest
+  drawn one); QC builtin `hitmodel_part(e, p)`. Hit reactions' regionOf now calls boneRegion (unknown -> body as before;
+  the "lowerarm"/"upperleg"/"lowerleg" names, once body, now arm and legs).
+- QC: `PositionalPointRegion(e, rest, part)`: a known part decides the limbs (arm bone -> arm, leg -> legs, torso ->
+  neither); none known (no rig, a three-part triangle, a box hit) the old side/below test. The head stays the head
+  sphere either way (the one head rule beheading and head pops share): a head-bone triangle outside it (the neck) is a
+  body hit as before, an arm in front of the face a headshot with head priority on, as before.
+- Debug > Show Hit Zones paints a rigged triangle by its part (bodyZones); vr_hitzones_check passes each sample's part.
+  (In the headless mock both armed guards fell back to boxes, `fallback=2`: the view's agreement is not checked here.)
+- Test 79 (vr_stalepose_test.qc): the guard's drawn-forearm shot now wants zone 2 for every kind (the grunt's too);
+  new shots at each kind's hand (from in front), upper arm (from its right), back (from behind; an enforcer's pack is
+  hit 19.6 out) and head (from above; from the side the death knight's shoulder is met first) want arm, arm, body, head.
+  New weapondrawnpose codes 41 / 42: the drawn hand / upper arm's top (agarms::armPart 0 / 2). **36 passed, 0 failed.**
+- eval.sh: 163/171 as the baseline, every verdict the same; 18 takes' damage changed (arm/body multipliers): e.g.
+  slash_backswing_up_right 26.3 -> 15.8 (now an arm), hilt_pommel 14.2 -> 23.6 (now the body: a triangle out at the
+  side that is the torso's).

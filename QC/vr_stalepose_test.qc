@@ -6,9 +6,9 @@
 // - Guard: unarmed, frozen in its stand frame and held in its Aim (guard) pose as the Pose Studio holds it (test 90's
 //   way), its forearm drawn (weapondrawnpose(g, 0, 37)) far from where its animation frame has it (38). A shot (a
 //   hitmodel_segment, the guns' class) from in front across the drawn forearm hits it, near it, on its forearm as it
-//   stands (hitmodel_rest near 38) and in that place's zone (PositionalRegion: 2 the arm, 0 for the grunt, whose stand
-//   frame holds its forearm before its body); one from in front up to the frame's forearm alone misses (the frame's
-//   arm is drawn nowhere), when the two
+//   stands (hitmodel_rest near 38) and is an arm hit (PositionalRegion 2: the struck triangle's arm bones, the grunt's
+//   too); shots at its hand and upper arm are arm hits, at its back a body hit, at its head a headshot; one from in
+//   front up to the frame's forearm alone misses (the frame's arm is drawn nowhere), when the two
 //   are VR_SPT_ARM_APART apart (the grunt's guard holds its forearm nearer its frame's: then in its swing).
 // - Swing: a sword, its swings forced at you (test 78's way; each kind in turn, overhead first, until the gaps below
 //   are met: at most four); at the first frame its drawn grip (VR_AG_DrawnFrame) is
@@ -50,6 +50,19 @@ float(entity g, vector at) VR_SPT_Blow =
 
 float VR_SPT_ARM_APART = 9; // its drawn forearm this far from its frame's: a shot across the frame's alone is a miss test
 
+// A shot (the guns' class) at `p` on `g` from `from` (unit: the side it comes from) 40 out: it hits, within
+// `near` of `p` (its own part, not one before it), in zone `want`.
+void(entity g, string wn, string what, vector p, vector from, float want, float near) VR_SPT_Zone =
+{
+    vector a = p + from * 40;
+    vector b = p - from * 8;
+    float t = (p != '0 0 0') ? hitmodel_segment(g, a, b, 0, 0) : -1;
+    vector at = a + (b - a) * max(0, t);
+    float region = t >= 0 ? PositionalRegion(g, at, b - a) : -1;
+    VR_AGT_Check(sprintf("%s: a shot at %s hits (t %.2f) %.1f from it, zone %g (want %g; part %g)", wn, what, t,
+        vlen(at - p), region, want, t >= 0 ? hitmodel_part(g, at) : -1), t >= 0 && vlen(at - p) < near && region == want);
+};
+
 // Its drawn forearm shot (in state `what`); its frame's forearm too when the two are VR_SPT_ARM_APART apart (else
 // noted): TRUE when that miss was tested.
 float(entity g, string what) VR_SPT_Arm =
@@ -68,21 +81,37 @@ float(entity g, string what) VR_SPT_Arm =
     vector at = a + (b - a) * max(0, t);
     float region = t >= 0 ? PositionalRegion(g, at, b - a) : -1;
     // (The zone: the same place on its standing pose (hitmodel_rest). The guard is frozen in its stand frame, so its
-    // frame's forearm (38) is its forearm standing: the hit must map onto it (not the chest behind) and take its zone, the
-    // arm's out at its side (enforcer, knights) or the body's where the stand frame holds the forearm in front of it (the
-    // grunt's, 6.4 out, under the 8.4 of PositionalPointRegion's side test). A swing's frame is not its standing pose.)
+    // frame's forearm (38) is its forearm standing: the hit must map onto it (not the chest behind), and it is an arm hit
+    // for every kind (hitmodel_part: the struck triangle's arm bones; the grunt's stand frame holds its forearm 6.4 out,
+    // under the 8.4 of PositionalPointRegion's side test, once a body hit). A swing's frame is not its standing pose.)
     float zoned = TRUE;
     string want = "";
     if(what == "guard")
     {
         vector rst = (t >= 0) ? hitmodel_rest(g, at) : '0 0 0';
-        float wz = PositionalPointRegion(g, m);
-        zoned = (region == wz && vlen(rst - m) < 6);
-        want = sprintf(" (want %g: its standing forearm's), %.1f from its standing forearm (want under 6)", wz,
+        zoned = (region == VR_REGION_ARM && vlen(rst - m) < 6);
+        want = sprintf(" (want %g: an arm hit), %.1f from its standing forearm (want under 6)", VR_REGION_ARM,
             vlen(rst - m));
     }
     VR_AGT_Check(sprintf("%s: a shot across its drawn forearm hits (t %.2f) %.1f units from it, zone %g%s", wn, t,
         vlen(at - f), region, want), t >= 0 && vlen(at - f) < 10 && zoned);
+    if(what == "guard")
+    {
+        // Its other parts' zones (the one zone decider, PositionalRegion): its hand (from in front) and its upper arm
+        // (between its top and its forearm, from its right) arm hits; its back (its chest's height, from behind) a body
+        // hit; its head (from above) a headshot.
+        vector up = weapondrawnpose(g, 0, 42);
+        vector lf = '0 0 0'; // (its left: it faces you)
+        lf_x = -fw_y;
+        lf_y = fw_x;
+        PositionalHead(g);
+        VR_SPT_Zone(g, wn, "its hand", weapondrawnpose(g, 0, 41), fw, VR_REGION_ARM, 10);
+        VR_SPT_Zone(g, wn, "its upper arm (from its right)", (up + f) * 0.5, -lf, VR_REGION_ARM, 10);
+        // (its back: whatever of its torso the shot meets first, an enforcer's pack 20 out)
+        VR_SPT_Zone(g, wn, "its back", g.origin + '0 0 12', -fw, VR_REGION_BODY, 30);
+        // (its head from above: a death knight's shoulders reach its side's, an enforcer's pack its back's)
+        VR_SPT_Zone(g, wn, "its head (from above)", VR_HeadCentre(g), '0 0 1', VR_REGION_HEAD, 10);
+    }
     if(vlen(f - m) < VR_SPT_ARM_APART)
     {
         VR_AGT_Print(sprintf("%s: its frame's forearm %.1f from the drawn one (under %g): no miss tested here", wn,

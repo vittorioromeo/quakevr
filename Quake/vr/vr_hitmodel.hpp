@@ -76,6 +76,10 @@ bool clip(edict_s* ent, const glm::vec3& a, const glm::vec3& b, const glm::vec3&
 // origin and turned with its yaw: the frame positional damage's head sphere and regions are measured in. The last
 // hit's triangle when `p` is its point; else the drawn triangle nearest `p`. False: `ent` is no target.
 bool restPoint(edict_s* ent, const glm::vec3& p, glm::vec3& out);
+// The body part restPoint's triangle is on (a VR_REGION_*: positional damage's struck part, QC PositionalPointRegion):
+// its rig's bones' (arm bones the arm, legs the legs, the head, the torso the body); VR_REGION_NONE when `ent` is no
+// target, its model has no rig, or the triangle is of no one part (QC then decides by the point's place).
+[[nodiscard]] int restRegion(edict_s* ent, const glm::vec3& p);
 
 // The point of `ent`'s model as drawn now nearest `p`: its triangle and where on it (out.tri, .u, .v: anchorFrame's), the
 // point (out.surface, .point), the triangle's outward normal, and how far `p` is from it (`dist`; inside or out). False:
