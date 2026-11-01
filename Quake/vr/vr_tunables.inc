@@ -623,6 +623,7 @@ QVR_TUNABLE(vr_tracer_brightness, "1") // times the colour (they add light onto 
 QVR_TUNABLE(vr_gunfx_intensity, "1") // how many of them, all (0.25-3; fewer at high fire rates anyway)
 QVR_TUNABLE(vr_gunfx_turbulence, "1") // how much the gunfire smoke swirls as it spreads (0 none: straight drift; 0-3)
 QVR_TUNABLE(vr_gunfx_shell_trail, "1.6") // every spent casing's smoke trail, times (0 none; 1 the old faint one)
+QVR_TUNABLE(vr_gunfx_heat_light_radius, "48") // a glowing barrel's light's reach in units at full heat (vr_hotblade.cpp)
 
 // Weapons > Weapon Offsets - Flashlight
 QVR_TUNABLE(vr_flashlight_mount_preview, "0") // Weapon Offsets > Flashlight: the torch's place on the page's weapon drawn while the page is shown

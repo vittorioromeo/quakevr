@@ -916,6 +916,7 @@ za::Vector<Item> pageWeaponEffects()
         row(opt::vr_gunfx_heat_time),
         row(opt::vr_gunfx_cool_time),
         row(opt::vr_gunfx_heat_glow),
+        row(opt::vr_gunfx_heat_light),
         row(opt::vr_gunfx_wisps),
         row(opt::vr_gunfx_wisp_delay),
         row(opt::vr_gunfx_wisp_time),

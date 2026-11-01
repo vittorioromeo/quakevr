@@ -624,6 +624,7 @@ QVR_TUNABLE_SLIDER(vr_tracer_brightness, "Tracer Brightness", 0.0f, 4.0f, 0.1f, 
 QVR_TUNABLE_SLIDER(vr_gunfx_intensity, "Gunfire Intensity", 0.25f, 3.0f, 0.05f, "%.2fx", 0.0f, 3.0f, "How many particles each shot makes, all of them (fewer at high fire rates anyway: the super nailgun).")
 QVR_TUNABLE_SLIDER(vr_gunfx_turbulence, "Smoke Turbulence", 0.0f, 3.0f, 0.1f, "%.1fx", 0.0f, 3.0f, "How much the gunfire smoke swirls as it spreads (0: it drifts straight).")
 QVR_TUNABLE_SLIDER(vr_gunfx_shell_trail, "Casing Smoke Trails", 0.0f, 4.0f, 0.1f, "%.1fx", 0.0f, 10.0f, "How strong the smoke trail every spent casing leaves as it flies (0: none; 1: the old faint one).")
+QVR_TUNABLE_SLIDER(vr_gunfx_heat_light_radius, "Barrel Light Reach", 8.0f, 160.0f, 4.0f, "%.0f", 4.0f, 400.0f, "How far a glowing barrel's light reaches, in units, at full heat (less as it cools).")
 
 QVR_TUNABLE_GROUP("Weapons > Weapon Offsets - Flashlight")
 QVR_TUNABLE_CYCLE(vr_flashlight_mount_preview, "Show the Flashlight's Place", "While this page is shown: the flashlight's outline and its beam's line on this weapon (cyan) and the zone that clips it on (orange), wherever the flashlight is. The flashlight must be on (Flashlight).", {0.0f, "Off"}, {1.0f, "On"})

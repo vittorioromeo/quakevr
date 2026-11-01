@@ -168,6 +168,7 @@ static const char *RightPad (const char *str, size_t minlen, char c)
 filelist_item_t *extralevels;
 filelist_item_t **extralevels_sorted;
 size_t maxlevelnamelen;
+int extralevels_generation; // QVR: bumped whenever the list is cleared or rebuilt (a game/campaign switch)
 
 static SDL_Thread*	extralevels_parsing_thread;
 static SDL_atomic_t	extralevels_cancel_parsing;
@@ -490,6 +491,7 @@ void ExtraMaps_Init (void)
 	}
 
 	ExtraMaps_Sort ();
+	extralevels_generation++; // QVR
 
 	SDL_AtomicSet (&extralevels_cancel_parsing, 0);
 	extralevels_parsing_thread = SDL_CreateThread (ExtraMaps_ParseDescriptions, "Map parser", NULL);
@@ -519,6 +521,11 @@ void ExtraMaps_Clear (void)
 	}
 
 	FileList_Clear(&extralevels);
+	// QVR: the sorted view points at the freed items: empty until ExtraMaps_Init sorts the new ones; whoever kept items
+	// from it (the Maps menu) sees the new generation and rebuilds.
+	if (extralevels_sorted)
+		extralevels_sorted[0] = NULL;
+	extralevels_generation++;
 }
 
 /*

@@ -12,7 +12,8 @@
 //   moment after, light smoke out of the vents facing you (v_rock2.mdl's head), and dust off the floor under it; AD's
 //   rocket soldier's tube too (QC ad_army_fire_rocket: weaponfired QVR_FIRED_ROCKET);
 // - barrel heat: sustained fire (every gun; Heat-Up Time, Cool-Down Time, Heat Glow Strength, each weapon's Barrel Heat
-//   and Barrel Cool-Down) leaves the muzzle glowing red-hot and smoking in thin wisps until it cools;
+//   and Barrel Cool-Down) leaves the barrel's metal glowing red-hot towards the muzzle (barrelGlow: vr_hotblade.cpp
+//   draws it, with its light) and smoking in thin wisps until it cools;
 // - your guns' barrels trailing thin smoke wisps for a few seconds after you stop firing (vr_muzzlewisps.hpp);
 // - every spent casing's smoke trail stronger (vr_gunfx_shell_trail, vr_shells.cpp).
 // Per-shot budgets shrink at high fire rates (each shooter's time since its last shot); nothing allocated (the
@@ -59,6 +60,16 @@ void playerFired(int hand);
 // Once a frame, each hand's drawn weapon `w` (vr_weaponfx.cpp frame; `slot` its weapon settings, -1 none): its shot due,
 // its barrel's heat.
 void handFrame(int hand, const view::ViewEntity& w, int slot);
+// Your hand `hand`'s barrel's heat if it holds weapon settings `slot` (else all 0): drawn on the gun's barrel by
+// vr_hotblade.cpp (the incandescent blades' glow on the model's own surface, and their light).
+struct BarrelHeat
+{
+    float heat{0.f};  // 0 cold .. 1 full
+    float share{0.f}; // of the glow's range: 0 at heat 0.15 (none below) .. 1 full
+    float glow{0.f};  // its glow's strength: share x Heat Glow Strength
+    glm::vec3 color{0.f}; // a dull red deepening to orange as it heats
+};
+[[nodiscard]] BarrelHeat barrelHeat(int hand, int slot);
 // Once a frame after both hands' handFrame: the guns that left a hand still smoking (thrown, dropped, holstered), their
 // wisps following them on the prop or in the holster (vr_muzzlewisps.hpp release).
 void looseFrame();
