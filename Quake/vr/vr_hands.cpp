@@ -10,6 +10,7 @@
 #include "vr_flatplay.hpp"
 #include "vr_handpose.hpp"
 #include "vr_main.hpp"
+#include "vr_motion.hpp"
 #include "vr_throw.hpp"
 #include "vr_timescale.hpp"
 #include "vr_torso.hpp"
@@ -256,7 +257,14 @@ void senseLean(const TrackingState& t, float m2u, const glm::vec3& step, float d
         ls.steadyAt = height;
         ls.steadyFor = 0.f;
     }
-    if(!ls.standingSeen && plausible && ls.steadyFor >= 0.5f)
+    // A take played back (vr_motion_play, vr_motion_eval: its map loaded afresh, the lean sense with it) starts in the
+    // middle of a session whose standing height was learnt long before: its first frame high enough is taken, as it was
+    // before the steady rule. Waiting for a steady head there (a take often starts already moving) left the Height
+    // setting's for the whole take: the body placed otherwise than live, the replayed hands up to 15 units off theirs
+    // (slash_backswing_up_right_2026-10-12_12-35-43: 3.4 -> 14.8), its blow's damage 37.0 -> 16.9 (ROUND23.md, "Eval
+    // drift: the lean sense's steady rule in replays").
+    const bool replay = motion::playing() || motion::evaluating();
+    if(!ls.standingSeen && (replay ? height > 0.85f * calibrated : plausible && ls.steadyFor >= 0.5f))
     {
         ls.standing = height;
         ls.standingSeen = true;
