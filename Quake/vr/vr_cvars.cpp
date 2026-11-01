@@ -9,6 +9,7 @@
 #include "vr_gfxpresets.hpp"
 #include "vr_hands.hpp"
 #include "vr_mgroups.hpp"
+#include "vr_monsterdata.hpp"
 #include "vr_props.hpp"
 #include "vr_weapons.hpp"
 
@@ -1225,23 +1226,28 @@ extern "C" int VR_ConfigSaves(const cvar_s* var)
 }
 
 // The data tables (design review 3; the weapons' quakevr/data/weapons.txt, vr_weapons.cpp; the props'
-// quakevr/data/props.txt, vr_props.cpp): their values by their old cvar names (vr_wofs_<key>_NN, vr_prop_<key>_NN: old
-// configs, the console, motion takes, the QC's cvar()), their sets, and the config's lines for those changed from the
-// data file (as a sparse config's vr_ settings, in the names' order).
-za::Array<za::Span<cvar_t>, 2> qvr::standInTables()
+// quakevr/data/props.txt, vr_props.cpp; the monsters' quakevr/data/monsters.txt, vr_monsterdata.cpp): their values by
+// their old cvar names (vr_wofs_<key>_NN, vr_prop_<key>_NN, vr_ragdoll_army_mass, ...: old configs, the console, motion
+// takes, the QC's cvar() and cvar handles), their sets, and the config's lines for those changed from the data file (as
+// a sparse config's vr_ settings, in the names' order).
+za::Array<za::Span<cvar_t>, 3> qvr::standInTables()
 {
-    return {weapons::standIns(), props::standIns()};
+    return {weapons::standIns(), props::standIns(), monsterdata::standIns()};
 }
 
 extern "C" cvar_s* VR_CvarStandIn(const char* name)
 {
     cvar_t* var = qvr::weapons::findStandIn(name);
-    return var ? var : qvr::props::findStandIn(name);
+    var = var ? var : qvr::props::findStandIn(name);
+    return var ? var : qvr::monsterdata::findStandIn(name);
 }
 
 extern "C" int VR_StandInSet(cvar_s* var, const char* value)
 {
-    return qvr::weapons::setStandIn(var, value) || qvr::props::setStandIn(var, value) ? 1 : 0;
+    return qvr::weapons::setStandIn(var, value) || qvr::props::setStandIn(var, value)
+                   || qvr::monsterdata::setStandIn(var, value)
+               ? 1
+               : 0;
 }
 
 extern "C" void VR_ConfigWriteTables(FILE* f)

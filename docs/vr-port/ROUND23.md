@@ -4903,3 +4903,109 @@ the same way as the weapons' (above).
   `vr_agrunt_test_kind 3`: the cast 28.7 from his hand along a 28.0 blade, 46 from his middle; the gun share 0.303 over
   2000 rolls; 9 passed, 1 failed: "knight death" fails the same way without these changes (health 50 after a blow of
   health + 10: absorbed, likely his armour roll; pre-existing).
+## The death knight's helmet fitted to his head (branch `agent/dkhelmet`)
+
+His ask (2026-11-01): the death knight's helmet did not follow his head (the enforcer's old problem); fit it tightly.
+- **Why it was loose** (`helmetOf`, vr_agarmor.cpp; a dump of its points and rings): his skull is 0.51 of the head bone's
+  length to each side, but the head proper (0.75 to the sides, 1.06 up) took in (a) the horns' stalks rising from his
+  temples (0.55-0.62 out) and the samples of the horn triangles inside the box, which pushed the crown ring out through
+  the cap's chamfer (crown half width 8.3 over a skull of 5.3); (b) his gorget (to 0.9 out, weighing 0.52-0.78 on his
+  head), which set the ledge and the guards (7.8 wide each side) and through the ledge the bucket. The top (1.06) also
+  cut his crown (1.11): the cranium came 0.40 through the cap's inside.
+- **Fix:** the head proper per wearer (`Wearer::headTop`, `headSide`, `collar`; defaults 1.06 / 0.75 / 0.5): the death
+  knight 1.12 / 0.53 / 0.8 (his guards fit only where his head weighs 0.8 or more: his face weighs 0.93 and more).
+  Generic: a head triangle with a corner past the head proper is left out whole (no samples clipped at its edge), and
+  a triangle with a corner over its top leaves out every triangle on its corners (the horns' roots). The grunt's,
+  the enforcer's and the knight's shells are byte-identical (hashes fa858c7f, 11cc98dc, e21a7335).
+- **Sizes** (`vr_agarmor_check`, outside deep x wide x high): death knight 14.14 x 18.05 x 11.25 -> 13.73 x 12.40 x
+  11.79 (his head proper 12.1 x 10.7, crown 11.61; higher because the cap now clears his crown by the gap, 0.15).
+  The wall's clearance from his head (sample points on his skull and face sides, per row band and wall direction;
+  `scratch/helm_gap.py` on a dump): loosest 3.28 (the bucket's sides) -> 0.76 (the face opening's chamfer: the opening
+  at least 0.4 of the head's length); bucket sides 3.28 / 2.86 -> 0.35 / 0.48, guards' sides 2.46 -> 0.15.
+  `vr_agarmor_check` 20/0, `vr_agarmor_test 7` 14/0.
+- **Debug:** `vr_agarmor_headcam <view> <distance> 1` puts the screenshot's eye on the nearest death knight (and the
+  other on the knight); Debug > Tests > Helmets There: Knight and Death Knight (`vr_agarmor_test 8`).
+- **Eyeshots:** `scratch/dkhelm_before_full.png` / `dkhelm_after_full.png` (full yellow) and `_helmetonly` (front,
+  side, three-quarter, behind; `vr_agarmor_set 62 2 2` after `vr_agarmor_test 8`).
+- **To test in VR:** a death knight in a helmet (Debug > Tests > Helmets There: Knight and Death Knight): the helmet
+  close round his skull, the horns through it, his face open.
+## Running hitch (branch `agent/runhitch`)
+
+Vittorio (voice note 2026-11-01 01:38, vrtesthall): running with the stick held forward as hard as he can, "once every
+few steps" the player slows abruptly and resumes a split second later.
+
+- **Cause** (his note's replay, 3600 frames): no frame hitch (frames.csv: median 8.3 ms, worst 17.3, 0 hitches), the
+  head still, the speed steady whenever the stick read full. His thumb "held hard forward" reads **0.64..1.0** (the
+  recorded raw OpenXR stick: 0.93, 0.73, 0.64, 0.79, 0.93 within 0.2 s), and the speed follows it (Quake's ground
+  acceleration answers within a frame or two): 307 -> 230 -> 307. The stick response of 2026-10-25 (ROUND22.md
+  "Thumbstick locomotion response") made the run full only past a 95% push (`vr_deadzone_outer` 5) and puts the 1.6
+  curve's steepest part (1.6x) at the top; before it, running asked 400 against `sv_maxspeed` 320, so everything past
+  ~0.82 was full and those slips did nothing. Simulated on his take (Quake's ground physics on the recorded stick,
+  frames inside sustained runs): frames more than 2% under the run's speed 475 (10% under: 174) now, 134 (26) with the
+  old response, **102 (18) with an outer deadzone of 20%**, 59 (12) with 25%; a fall-rate hold on the push added
+  little (and latency), so not taken.
+- **Fix**: `vr_deadzone_outer` default **5 -> 20** (`Quake/vr/vr_cvars.inc`): full speed from an 80% push, the top
+  fifth a plateau again, as before the curve. Half speed with the 1.6 curve is now at a 55% push (was 65%); the bottom
+  is unchanged. His `ironwail.cfg` has no `vr_deadzone_outer` line, so he gets it. Takes recorded with it replay at their
+  own value (vr_motion_play's settings).
+- **Test**: `vr_stick_run_test [x y z] [outer]` (Debug > Tests > Stick: Run Steadiness): two 10 s runs (720 frames),
+  running, the head steering, put back to the start every 96 units with the velocity kept: 0 the stick fully forward,
+  1 a thumb slipping (the push 0.82..1.0, slips to 0.82 for 0.1 s every 0.55 s, the angle +-8 degrees); each must
+  keep within 2% of its top once full. `run.sh <name> -Script "map vrtesthall;wait30;vr_stick_run_test -300 -150 24"
+  -Filter "stick run" -QuitOn "stick run test:"`: **2 passed, 0 failed** (run 0 319.0..320.0, run 1 318.4..321.7);
+  with `... 24 5` (the old outer deadzone) run 1 dips **20.4%** (255.9 under 321.3): 1 passed, 1 failed.
+  `vr_stick_curve_test -300 -150 24` (its expectations to the 20% default: full from 80%, half at 55%): **115 passed,
+  0 failed**.
+- **For him in VR**: run around the test hall holding the stick forward hard; the speed should stay put. Slow walking
+  should feel as before at the bottom of the travel; the top fifth is all full speed.
+## Monsters as data (branch `agent/datatables3`; design review 3, step 3: monsters)
+
+The per-monster cvar families that are plain per-classname values are data: 171 values of 17 classnames, no cvars.
+- **`quakevr/data/monsters.txt`**: a `defaults { ... }` block, then `monster <classname> { key "value" ... }` per
+  classname (monster_army ... monster_mummy), every value of it listed, the old rows' comments carried along. Keys:
+  `hull` (was `vr_mhull_<m>`, 13 classes), `smallgibs` / `smallgibs_brains` (`vr_smallgibs_mult_<m>`,
+  `vr_smallgibs_brains_mult_<m>`, 16 each), `ragdoll_<key>` (`vr_ragdoll_<m>_<start|mass|friction|joint_friction|
+  joint_stiffness|limits|damping|blast|inherit>`, 14 classes). The families' tokens (army/grunt, demon/fiend,
+  hknight/hellknight, wizard/scrag, shalrath/vore, scourge/centroid) map to one block each.
+- **`Quake/vr/vr_monsterdata.inc`**: `QVR_MONSTER_VALUE(oldname, classname, key)` per value. Each is a stand-in `cvar_t`
+  in `monsterValues[]` (vr_monsterdata.cpp), and `vr_cvars.hpp` makes each old name a constexpr reference to it (as the
+  tunables are): the C++ (`ragdollClasses`, `monsterClasses`, the menu rows) is unchanged. Read at start
+  (`monsterdata::registerCvars`, after the props) with the shared reader: `readDataFile` takes named slots now
+  (`DataFileSpec::slotNames`). A callback set on one (vr_hull.cpp's width callbacks) is kept.
+- **Names kept**: `VR_CvarStandIn` / `VR_StandInSet` and `standInTables()` (now three tables) take the monsters'; the
+  config's sparse lines, `vr_config_defaults`, the tracking, `vr_config_test`, Propose Defaults walk them. The QC's
+  cvar handles (`cvarh_vr_smallgibs_mult_grunt`, ...) reach them by name: `gen_vr_cvars_qc.py` reads the .inc too (the
+  same 1,296 handles, reordered). Not in `cvarlist` or completion. A name typed in upper case now sets it (as the props').
+- **`vr_monster_dump`** (Debug menu: Monster Values): each classname, its values and how many changed;
+  `vr_monster_dump <classname> ... | all` every value, its old name and its default.
+- **`Misc/quakevr/monsters_data.py convert | promote <config> [--dry] | check | names`**. His config of 10-31 has no
+  monster value lines: nothing to promote.
+- **Left as they are** (not a plain per-classname value): `vr_agrunt_*` (~300: the armed grunt's behaviour settings, one
+  feature's); the monster groups (`vr_mgrp_<group>_*`, `vr_knockdown_chance_<group>`, `vr_kdtrig_resist_<group>`: per
+  group, not classname, made by the QVR_MGROUP macro, the menus build their names; a candidate `group <id>` table
+  next); the tunables `vr_corpse_health_<m>` (16) and `vr_enemy_shove_<enforcer|vore>_*` (constants, not config: a
+  release has them constexpr); single feature settings that name a monster (`vr_enemy_shove_vore`, `vr_ogre_aim_height`,
+  `vr_gruntgun_*`, `vr_grunt_burst*`, `vr_foegrab_throw_grunt`, `vr_climb_mantle_grunt`, `vr_agknight_ranged`);
+  `vr_monster_health_*` (one curve for all); the tests' and debug ones (`vr_test_spawn_*`, `vr_debug_spawn_*`, ...).
+- **Checks** (before = origin/next 663919efe, the same tree): the 171 values printed by name (a console script of every
+  old name, `monsters_data.py names`) identical after `vr_config_defaults`, after his whole config (ironwail_now.cfg of
+  10-31) exec'd, and after console sets (`vr_ragdoll_army_mass 75.5`, `vr_mhull_ogre 32`, `vr_ragdoll_centroid_limits
+  0.5`; the one difference: `VR_SMALLGIBS_MULT_FIEND 2` now sets it); `writeconfig` writes the same lines (plus that
+  one); `config_sparse_test.sh` 16 passed, 0 failed; `vr_smallgibs_test 27` (new: the QC's VR_SmallGib_Mult through its
+  cvar handles reads monsters.txt's defaults, a value set by the old name, the default back; run: `map e1m1; wait30;
+  vr_smallgibs_test 27`, -QuitOn `sgibtest: mults: N passed`) 12 passed, 0 failed.
+- **Next steps**: the monster groups as a `group <id>` table; the named per-weapon families as weapon keys.
+## Nightly regressions after the exact disarm hulls: agrunt 2 and 68 (branch `agent/hullregress`)
+
+- **Confirmed**: both pass on e54d81480 (before the disarmhull merge) and fail on its merge 59c98632a, as on next.
+- **Test 2** (disarm by a blow): the test aimed at the old volume. Its blow was at the weapon's server place, inside the
+  old 10-unit grip sphere but off the drawn weapon's hull (Body Blows 0 wants the weapon or hand itself). Now it is at
+  the drawn weapon's hull middle (disarmhull 20). On next it also needed the hit record: since "One hit record",
+  `hit_pos` alone is read only with a zone found this frame, so the point goes in through `VR_Hit_SetZone`, as test 16's.
+- **Test 68** (dual tug, right leg): the test's setup. After the first tug the humanoid staggers off to 73 units; the
+  hand stops at its arm's reach (49 units), 14 off the drawn shotgun (fist gap 37.7 cm). It is now put back where it
+  stood, facing you, before the right leg. The check is unchanged; a fail prints the hand, the volume and the places.
+- **The mock's `agweapon` / `agweaponpalm`** (vr_backend_mock.cpp `weaponPoint`) aim at the armed weapon where it is
+  drawn (`disarmhull::weapon`), not at its server place: where its grab, shot and blow volume is read.
+- **Checks**: agrunt 2 4/0, 68 4/0, 16 242/0, 94 16/0. The other `agweapon` users (the downtug, raggrab, ragweapon,
+  twohand, play, grab and disarmviz tests) not run here.

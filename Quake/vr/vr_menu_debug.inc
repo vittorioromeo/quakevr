@@ -257,6 +257,10 @@ za::Vector<Item> pageDebugViews()
             .help("vr_prop_dump: in the console, the held-object slots holding a model and how many of each one's "
                   "settings differ from their defaults; vr_prop_dump <slot> ... (or all) prints every value and its "
                   "default."),
+        command("Monster Values", "vr_monster_dump")
+            .help("vr_monster_dump: in the console, each monster classname of quakevr/data/monsters.txt (its width, "
+                  "small gibs and ragdoll values) and how many differ from the file; vr_monster_dump <classname> ... "
+                  "(or all) prints every value, its old setting's name and its default."),
         command("Held Heads' Weights", "vr_prop_heads")
             .help("vr_prop_heads: in the console, each monster head's held-object slot, its Mass setting and what it "
                   "weighs (Mass -1: its share of its monster's ragdoll, an AD monster's as the class it is tuned as)."),
