@@ -238,9 +238,20 @@ void() VR_AGTest_Sequence =
             g.vr_ag_prop.weaponinst.wi_clip, g.vr_ag_reserve), g.vr_ag_reloads >= 1 && g.vr_ag_prop.weaponinst.wi_clip > 0);
         // Struck on its gun hand.
         vr_agt_clip = g.vr_ag_prop.weaponinst.wi_clip;
-        hit_pos = g.vr_ag_prop.origin;
+        // (On its weapon as drawn: its volume's middle (disarmhull 20). Its server place, the old aim, lay within the old
+        // 10-unit grip sphere but off the drawn weapon's hull, and Body Blows 0 wants the weapon or hand itself: ROUND23.md,
+        // "Disarm volumes as hulls of the drawn triangles".) The point goes in the hit record as a blow's own finding writes
+        // it (VR_Hit_SetZone, as test 16's): since the hit record (ROUND23.md, "One hit record") hit_pos alone is read only
+        // with a zone found on it this frame.
+        vector hat = g.vr_ag_prop.origin;
+        vector hq = disarmhull(g.vr_ag_prop, 0, hat, hat, 0);
+        if(hq_z > 0)
+        {
+            hat = disarmhull(g.vr_ag_prop, 20, '0 0 0', '0 0 0', 0);
+        }
+        VR_Hit_SetZone(g, 0, hat);
         T_Damage(g, p, p, 12);
-        hit_pos = '0 0 0';
+        hit_targ = world;
         entity w = VR_AGT_LyingNear(g.origin);
         VR_AGT_Check(sprintf("disarm: held %s, lying %s with %g:", g.vr_ag_prop ? "something" : "nothing",
             w ? w.netname : "nothing", w.weaponinst.wi_clip), !g.vr_ag_prop && w && w.weaponinst.wi_clip == vr_agt_clip);

@@ -343,6 +343,10 @@ za::Vector<Item> pageDebugTests()
         command("Stick: Curve Table", "vr_stick_curve_test table")
             .help("vr_stick_curve_test table: the stick's push against speed, straight and on the 1.6 curve, walking "
                   "and running, and the response's checks, on the console (the full test also drives the stick)."),
+        command("Stick: Run Steadiness", "vr_stick_run_test")
+            .help("vr_stick_run_test: two 10 s runs from where you stand (put back every 96 units, flat floor "
+                  "needed): the stick fully forward, then a thumb slipping 0.82..1.0; each must keep its full speed "
+                  "within 2%. Results on the console."),
         header("Doom"),
         command("Doom: Info", "vr_doom_info")
             .help("vr_doom_info: Doom's state (level, health, ammo, place), its focus, the screen's distance and angle "
