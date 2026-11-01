@@ -5393,3 +5393,20 @@ melee_phase 7/0, arena 6 8/0), and before agent/ghosthand prop_climb and melee_p
   saves nothing mid-run.
 - **For the kit (coordinator)**: the console cases (arena_*, agrunt_*) run with the clock's seed; `sv_random_seed 7`
   before their map would make them repeat.
+
+## Player feel batch: close quarters, ghost hands on bodies, the hit grunt's voice, ragdoll smashes (agent/feel1101)
+
+### Close-quarters slowdown
+
+His note (18:14): running full speed into an enemy is messy; still get right into its face, but straight at it near it
+gradually slower, strafing at (nearly) full speed, with sliders. ON by default, gentle (his answer).
+
+- `vr_closequarters.cpp`: `VR_CloseQuartersMove`, called once in SV_AirMove on the wish velocity after the most speed's
+  caps (stamina, carrying, heavy, crouch), walking only. The nearest live enemy (FL_MONSTER, alive, damageable, solid,
+  overlapping your height) whose box is within Start Radius of your centre horizontally: the move's part towards its
+  centre times 1 .. Min Factor (Start Radius .. End Radius), weighted by the angle (full within Angle Leniency, none past
+  Angle Falloff); the sideways part times 1 .. Strafe Factor on the same ramp. Moving away: only the sideways part.
+- Settings (Locomotion > Close Quarters): `vr_closequarters` 1, `_start` 1.6 m, `_end` 0.7 m (a grunt is touched at
+  about 0.6), `_min` 0.5, `_strafe` 0.95, `_angle` 30, `_angle_falloff` 75.
+- Test `Misc/quakevr/closequarters_test.sh` (`vr_closequarters_test start|approach|end`): a grunt 120 units ahead walked
+  into, then strafed past: 11/0 (first slowed at 1.57 m, to 0.500 at its face; the strafe 320 -> 304 u/s).

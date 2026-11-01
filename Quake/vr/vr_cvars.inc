@@ -47,6 +47,13 @@ QVR_CVAR(vr_pickup_scale, "1", CVAR_NONE)             // weapons (classic models
 QVR_CVAR(vr_pickup_prop_models, "1", CVAR_ARCHIVE)   // the map's weapons drawn as the weapons you hold and drop (their v_ models at their size, not vr_pickup_scale, spinning about their middle), 0 the classic g_ models; next map
 QVR_CVAR(vr_item_float_height, "26", CVAR_ARCHIVE)    // units above the floor the map's weapons, armour, powerups and keys float at (0: on the floor); next map
 QVR_CVAR(vr_unstick, "1", CVAR_ARCHIVE)             // a player found inside the map or a door, button or lift is moved to the nearest free spot (vr_unstick.cpp); 0: Quake's small nudge only
+QVR_CVAR(vr_closequarters, "1", CVAR_ARCHIVE)                  // close-quarters slowdown (vr_closequarters.cpp): walking straight at a live enemy near it is gradually slowed; strafing past it keeps (nearly) full speed
+QVR_CVAR(vr_closequarters_start, "1.6", CVAR_ARCHIVE)           // metres from your centre to the nearest live enemy's box (horizontally) where it starts
+QVR_CVAR(vr_closequarters_end, "0.7", CVAR_ARCHIVE)             // metres: at this and nearer it is full (your body touches a grunt at about 0.6)
+QVR_CVAR(vr_closequarters_min, "0.5", CVAR_ARCHIVE)             // the part of your move straight at it times this at End Radius (1: none)
+QVR_CVAR(vr_closequarters_strafe, "0.95", CVAR_ARCHIVE)         // the sideways part of your move times this at End Radius (1: none)
+QVR_CVAR(vr_closequarters_angle, "30", CVAR_ARCHIVE)            // degrees off straight at it still counted fully as towards it
+QVR_CVAR(vr_closequarters_angle_falloff, "75", CVAR_ARCHIVE)    // degrees off it past which a move counts as not towards it at all (between: less and less)
 QVR_CVAR(vr_slope_walk, "1", CVAR_ARCHIVE)          // standing on a walkable slope, gravity only presses you into it (none of it pulls you downhill): with the stick pushed a little you walk up slopes and stairs' ramps from a standstill (Quake: under about a quarter stick you never got going); flat floors unchanged; 0: Quake's
 QVR_CVAR(vr_unstick_monsters, "1", CVAR_ARCHIVE)     // a monster (any live walking body) inside the map or a door, lift or wall, not moving, for vr_unstick_monsters_time is moved to the nearest free spot (vr_unstick.cpp; developer 1 prints each); 0: it stays stuck
 QVR_CVAR(vr_unstick_monsters_time, "1", CVAR_ARCHIVE) // ... seconds inside before it is moved

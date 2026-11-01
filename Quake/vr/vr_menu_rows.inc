@@ -2458,6 +2458,24 @@ QVR_TOGGLE(vr_crouch_speed, "Slower When Crouched",
 QVR_SLIDER(vr_crouch_speed_scale, "Crouched Speed", 0.2f, 1.f, 0.05f, "%.2fx", noExt,
     "Crouched, the most speed the stick moves you at, times your top speed. Whatever it is, crouched you "
     "stay under the speed whose steps monsters hear (Stealth AI > Running From) (vr_crouch_speed_scale).")
+QVR_TOGGLE(vr_closequarters, "Close-Quarters Slowdown",
+    "Walking straight into a live enemy's face near it slows you gradually, so a full-speed run into one doesn't "
+    "end in a mess of bodies; you still get right up to it, and strafing past it keeps (nearly) full speed. Only the "
+    "part of your move towards the nearest enemy is slowed (vr_closequarters).")
+QVR_SLIDER(vr_closequarters_start, "Start Radius", 0.5f, 4.f, 0.1f, "%.1f m", ext(0.f, 10.f),
+    "How near the nearest live enemy (from your centre to its body) the slowdown starts (vr_closequarters_start).")
+QVR_SLIDER(vr_closequarters_end, "End Radius", 0.f, 2.f, 0.05f, "%.2f m", noExt,
+    "At this distance and nearer the slowdown is full (Min Factor); your body touches a grunt's at about 0.6 m "
+    "(vr_closequarters_end).")
+QVR_SLIDER(vr_closequarters_min, "Min Factor", 0.f, 1.f, 0.05f, "%.2fx", noExt,
+    "Your speed straight at the enemy at End Radius, times; 1: not slowed (vr_closequarters_min).")
+QVR_SLIDER(vr_closequarters_strafe, "Strafe Factor", 0.5f, 1.f, 0.05f, "%.2fx", noExt,
+    "Your speed sideways past the enemy at End Radius, times; 1: full speed (vr_closequarters_strafe).")
+QVR_SLIDER(vr_closequarters_angle, "Angle Leniency", 0.f, 90.f, 5.f, "%.0f deg", noExt,
+    "A move this far off straight at the enemy still counts fully as towards it (vr_closequarters_angle).")
+QVR_SLIDER(vr_closequarters_angle_falloff, "Angle Falloff", 0.f, 90.f, 5.f, "%.0f deg", noExt,
+    "Past this far off it a move isn't towards it at all; between Angle Leniency and this, less and less "
+    "(vr_closequarters_angle_falloff).")
 QVR_TOGGLE(vr_slope_walk, "Walk Up Slopes Slowly",
     "Standing on a slope you can walk on, gravity only presses you into it, none of it pulls you downhill: "
     "with the stick pushed only a little you still walk up slopes and stairs with a smooth ramp over them "
