@@ -59,7 +59,7 @@ for _k in ("SpringStiffness SpringDamping SpringStrength SpringSag SpringSwing S
            "TracerWidth TracerChance TracerRed GunfxSparks GunfxSparkSize GunfxSmoke GunfxSmokeSize GunfxWisps GunfxHeat GunfxCool "
            "TorchClip Droop HeavyRecoil BladeWidth").split():
     GLOBALS[_k] = "1"
-GLOBALS.update({"RecoilReturn": "0.115", "FlashTime": "0.06", "TracerGreen": "0.8", "TracerBlue": "0.45",
+GLOBALS.update({"GunfxBarrel": "0.5", "RecoilReturn": "0.115","FlashTime": "0.06", "TracerGreen": "0.8", "TracerBlue": "0.45",
                 "AnyGripMode": "-1", "Heft": "-1", "BladeNear": "-1", "BladeFrom": "-1"})
 
 HEADER = """\

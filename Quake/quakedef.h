@@ -429,6 +429,7 @@ qboolean			Download (const char *url, download_t *download);
 void				Download_KeepGlobalState (void);
 
 extern filelist_item_t **extralevels_sorted;
+extern int				extralevels_generation; // QVR: changes when extralevels_sorted's items are freed or rebuilt
 extern filelist_item_t	*modlist;
 extern filelist_item_t	*extralevels;
 extern filelist_item_t	*demolist;

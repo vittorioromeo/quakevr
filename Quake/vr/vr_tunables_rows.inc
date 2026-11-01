@@ -624,6 +624,7 @@ QVR_TUNABLE_SLIDER(vr_tracer_brightness, "Tracer Brightness", 0.0f, 4.0f, 0.1f, 
 QVR_TUNABLE_SLIDER(vr_gunfx_intensity, "Gunfire Intensity", 0.25f, 3.0f, 0.05f, "%.2fx", 0.0f, 3.0f, "How many particles each shot makes, all of them (fewer at high fire rates anyway: the super nailgun).")
 QVR_TUNABLE_SLIDER(vr_gunfx_turbulence, "Smoke Turbulence", 0.0f, 3.0f, 0.1f, "%.1fx", 0.0f, 3.0f, "How much the gunfire smoke swirls as it spreads (0: it drifts straight).")
 QVR_TUNABLE_SLIDER(vr_gunfx_shell_trail, "Casing Smoke Trails", 0.0f, 4.0f, 0.1f, "%.1fx", 0.0f, 10.0f, "How strong the smoke trail every spent casing leaves as it flies (0: none; 1: the old faint one).")
+QVR_TUNABLE_SLIDER(vr_gunfx_heat_light_radius, "Barrel Light Reach", 8.0f, 160.0f, 4.0f, "%.0f", 4.0f, 400.0f, "How far a glowing barrel's light reaches, in units, at full heat (less as it cools).")
 
 QVR_TUNABLE_GROUP("Weapons > Weapon Offsets - Flashlight")
 QVR_TUNABLE_CYCLE(vr_flashlight_mount_preview, "Show the Flashlight's Place", "While this page is shown: the flashlight's outline and its beam's line on this weapon (cyan) and the zone that clips it on (orange), wherever the flashlight is. The flashlight must be on (Flashlight).", {0.0f, "Off"}, {1.0f, "On"})
@@ -750,6 +751,7 @@ QVR_TUNABLE_SLIDER(vr_agrunt_strike_raised, "Parry Counts as Raised", 0.0f, 1.0f
 QVR_TUNABLE_SLIDER(vr_agrunt_tug_pull,"Tug: Pull Distance", 2.0f, 40.0f, 1.0f, "%.0f units", 0.0f, 200.0f, "How far you must pull your hand back from where you grabbed its weapon, away from it, to be winning (vr_agrunt_tug_pull).")
 QVR_TUNABLE_SLIDER(vr_agrunt_tug_hurt, "Tug: Lets Go When Hurt Below", 0.0f, 1.0f, 0.05f, "%.2f", 0.0f, 1.0f, "A grab takes the weapon at once from a grunt down to this share of its health (vr_agrunt_tug_hurt).")
 QVR_TUNABLE_SLIDER(vr_agrunt_tug_hold_max, "Tug: Longest", 0.0f, 20.0f, 0.5f, "%.1f s", 0.0f, 120.0f, "The physical tug lasts at most this long: then it wrenches its weapon free. 0: no limit (vr_agrunt_tug_hold_max).")
+QVR_TUNABLE_SLIDER(vr_agrunt_tug_ik_stretch, "Tug: Arm Stretch", 1.0f, 1.5f, 0.05f, "x%.2f", 1.0f, 1.5f, "While a tug is on, its arms may lengthen this much more than its usual IK stretch to keep its hand on the weapon you hold, eased in and out with the tug. 1: none (vr_agrunt_tug_ik_stretch).")
 QVR_TUNABLE_SLIDER(vr_agrunt_grab_slack, "Grab: Precision", -2.0f, 10.0f, 0.5f, "%.1f cm", -10.0f, 50.0f, "How far off its weapon's surface your fist may be and still grab it (0: touching it). Never by its arm or chest (vr_agrunt_grab_slack).")
 QVR_TUNABLE_SLIDER(vr_agrunt_grab_sweep, "Grab: Moving Weapon", 0.0f, 2.0f, 1.0f, "%.0f frames", 0.0f, 2.0f, "Your fist also counts where its weapon was this many frames ago, and midway: the weapon you see lags the game's a little, and a swung blade moves 5-20 cm a frame (vr_agrunt_grab_sweep).")
 QVR_TUNABLE_SLIDER(vr_agrunt_rag_grab_weapon, "Grab: Ragdoll's Weapon Within", 0.0f, 20.0f, 0.5f, "%.1f cm", 0.0f, 50.0f, "On a staggering or downed one (an active ragdoll), your fist this near its weapon takes the weapon, not the arm beside it (vr_agrunt_rag_grab_weapon).")

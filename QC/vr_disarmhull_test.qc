@@ -96,9 +96,14 @@ void(entity g, entity p, float side, string wn) VR_DHT_Measure =
     vector m = disarmhull(p, 10, '0 0 0', '0 0 0', 0);
     VR_AGT_Check(sprintf("%s: its weapon's hull holds its drawn vertices (most %.3f out), its box %.3f of theirs, slack %.2f",
         wn, m_x, m_y, m_z), m_z >= 0 && m_x <= 0.05 && m_y >= 0.97 && m_y <= 1.03);
+    // Its hand's volume: two hulls, its drawn hand and its drawn forearm, each holding its own vertices, neither its
+    // upper arm (his note 2026-11-01 18:02: the one hull took the biceps).
     vector mh = disarmhull(g, 11 + side, '0 0 0', '0 0 0', 0);
-    VR_AGT_Check(sprintf("%s: its hand's hull holds its drawn hand and forearm (%g vertices, most %.3f out)", wn, mh_z, mh_x),
-        mh_z > 0 && mh_x <= 0.05);
+    VR_AGT_Check(sprintf("%s: its hand's hulls hold its drawn hand (%g vertices) and forearm (%g), most %.3f out", wn, mh_y,
+        mh_z, mh_x), mh_y > 0 && mh_z > 0 && mh_x <= 0.05);
+    vector up = disarmhull(g, 17 + side, '0 0 0', '0 0 0', 0);
+    VR_AGT_Check(sprintf("%s: its hand's hulls hold none of its upper arm (%g of its top's vertices in them; the old hull's "
+        "region had %g of %g off the hand and forearm)", wn, up_x, up_y, up_z), up_x == 0);
     // Its line along the hull's long axis.
     vector ax = disarmhull(p, 13, '0 0 0', '0 0 0', 0);
     vector ext = disarmhull(p, 14, '0 0 0', '0 0 0', 0);

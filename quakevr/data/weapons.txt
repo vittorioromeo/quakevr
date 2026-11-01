@@ -317,6 +317,7 @@ defaults
     fx_gfx_wisps "1"
     fx_gfx_heat "1"
     fx_gfx_cool "1"
+    fx_gfx_barrel "0.5"
     // reloading (the guns' own values: their blocks)
     reload_port_x "0"
     reload_port_y "0"

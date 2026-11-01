@@ -21,7 +21,10 @@
 namespace qvr::hotblade
 {
 
-// Once a frame, before the eyes: the hands' glow eased, the lights, the embers and the trails.
+// Once a frame, once the view entities are set up (VR_SetupViewEntities: the weapons as drawn this frame): the hands'
+// glow eased, the lights, the embers and the trails. A hand's gun with a hot barrel (vr_gunfx.hpp barrelHeat) glows
+// the same way on its barrel (from the muzzle back its weapon's Barrel Glow Length) and casts its light, no embers or
+// trail.
 void queue(const hands::State& s);
 
 // The glow of `e` if it is a glowing blade (a hand's, a holster's, one lying about), coded for the alias shader (4 + 2 x

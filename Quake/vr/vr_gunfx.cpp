@@ -797,9 +797,10 @@ constexpr float kHeatWispsFrom = 0.3f;
     return za::clamp(vr_gunfx_heat_glow.value, 0.f, 3.f) * za::clamp((heat - kHeatGlowFrom) / (1.f - kHeatGlowFrom), 0.f, 1.f);
 }
 
-// The barrel's heat (`dt` seconds since the last frame): it cools; a hot barrel glows at each muzzle of `gun` (a dull
-// red deepening to orange, a little way down the barrel) and smokes in thin wisps (not an energy gun: no smoke).
-void heatEffects(HandState& h, const Muzzle& m, const muzzlewisps::Gun& gun, Kind kind, int slot, int hand, int wid, float dt)
+// The barrel's heat (`dt` seconds since the last frame): it cools; a hot barrel smokes in thin wisps (not an energy
+// gun: no smoke). Its glow is the metal's own, drawn with the gun (barrelGlow: vr_hotblade.cpp, the incandescent
+// blades' glow on the barrel's part of the model, and its light).
+void heatEffects(HandState& h, const Muzzle& m, Kind kind, int slot, int hand, int wid, float dt)
 {
     const bool wasHot = h.heat > 0.f;
     h.heat = heatCool(h.heat, kind, slot, static_cast<float>(cl.time - h.lastShot), dt);
@@ -811,26 +812,6 @@ void heatEffects(HandState& h, const Muzzle& m, const muzzlewisps::Gun& gun, Kin
     {
         h.wisps = 0.f;
         return;
-    }
-    // The glow: made again each frame (it lives 2 or 3), so it follows the gun.
-    if(const float glow = heatGlow(h.heat); glow > 0.f)
-    {
-        const float t = za::clamp((h.heat - kHeatGlowFrom) / (1.f - kHeatGlowFrom), 0.f, 1.f);
-        const glm::vec3 colour = glm::mix(glm::vec3{0.8f, 0.12f, 0.03f}, glm::vec3{1.f, 0.42f, 0.1f}, t);
-        for(int b = 0; b < za::max(gun.barrels, 1); b++)
-        {
-            for(int i = 0; i < 3; i++)
-            {
-                particles::GunParticle g;
-                g.kind = particles::GunParticle::Glow;
-                g.org = gun.at[b] - m.fwd * (1.f + 2.5f * static_cast<float>(i));
-                g.vel = m.drift;
-                g.color = glm::vec4{colour, za::min(0.75f * glow * (1.f - 0.3f * static_cast<float>(i)), 1.f)};
-                g.scale = 2.2f - 0.4f * static_cast<float>(i);
-                g.life = 0.03f;
-                (void)particles::gunParticle(g);
-            }
-        }
     }
     const float over = h.heat - kHeatWispsFrom;
     if(over <= 0.f || looks[static_cast<int>(kind)].smoke <= 0)
@@ -1198,6 +1179,20 @@ void playerFired(int hand)
     }
 }
 
+BarrelHeat barrelHeat(int hand, int slot)
+{
+    BarrelHeat b;
+    if(hand < 0 || hand >= 2 || slot < 0 || hands[hand].slot != slot || !on(vr_gunfx) || !on(vr_gunfx_heat))
+    {
+        return b;
+    }
+    b.heat = hands[hand].heat;
+    b.share = za::clamp((b.heat - kHeatGlowFrom) / (1.f - kHeatGlowFrom), 0.f, 1.f);
+    b.glow = heatGlow(b.heat);
+    b.color = glm::mix(glm::vec3{0.8f, 0.12f, 0.03f}, glm::vec3{1.f, 0.42f, 0.1f}, b.share); // dull red to orange
+    return b;
+}
+
 void handFrame(int hand, const view::ViewEntity& w, int slot)
 {
     HandState& h = hands[hand];
@@ -1279,7 +1274,7 @@ void handFrame(int hand, const view::ViewEntity& w, int slot)
     if(on(vr_gunfx))
     {
         const muzzlewisps::Gun gun = wispGun(m, wid, slot);
-        heatEffects(h, m, gun, kind, slot, hand, wid, dt);
+        heatEffects(h, m, kind, slot, hand, wid, dt);
         afterSmoke(h, m, wid, dt);
         muzzlewisps::handFrame(hand, gun, due);
     }
