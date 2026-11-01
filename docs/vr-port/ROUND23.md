@@ -5140,3 +5140,21 @@ too, with heat-up and dissipation times, global and per weapon. Quake/vr/vr_gunf
   cold 2.556 s after its last shot (expected 0.15 + 0.8 x 3 = 2.55). Ends on the "cold" line.
 - **Not checked**: how it looks (no screenshot with the gun in view: the mock hand pose missed the view); in VR: is
   1 s / 3 s / glow 1 right, the glow's size and colour on each gun, the super shotgun's bores.
+
+## strstrofs always "found at 0" (branch `agent/strstrofs`)
+
+- **Cause**: the engine had no `strstrofs` builtin. AD's `float(...) strstrofs = #0;` (ad_builtins.qc) bound to nothing,
+  so a call ran statement 0 and returned 0: `strstrofs(name, "_brains_", 0) >= 0` was true for every name (what
+  datatables3 saw in vr_smallgibs_test 27). Not the offset handling, temp strings or the compiler.
+- **Fix**: `PF_strstrofs` (#221, FTE_STRINGS, DP's semantics: byte offset at or after `startpos`, -1 when not there or
+  `startpos` is outside the string; an empty `sub` matches at `startpos`), Quake/pr_cmds.c.
+- **Warning**: `developer 1` now names every server-progs `= #0` builtin still unbound after the VR builtins are bound
+  (Quake/pr_edict.c, PR_WarnUnboundBuiltins). Today: AD's addstat, bitshift, getsurfacenearpoint, getsurfacetexture,
+  particleeffectnum, pointparticles, strncasecmp, te_explosion2, te_particlerain, te_particlesnow (each returns 0 /
+  does nothing; AD_IMPORT.txt lists them).
+- **Callers**: only AD's `ad_misc_camera_filewrite` (two calls): the camera export's file name was
+  `maps/<map>.bsp_cam.txt`, now `<map>_cam.txt` as AD intends. Test 27 no longer uses strstrofs (datatables3 passes
+  the brains flag in).
+- **Test**: `vr_smallgibs_test 28` (any map; -QuitOn `strstrofs: N passed`): 21 passed, 0 failed (found at 0, later, not
+  found, `>= 0` both ways, offsets at / past the match / past the end / negative, empty strings, strcat, ftos and
+  sprintf temps, two temps alive). `vr_smallgibs_test 27` 12 passed, 0 failed.

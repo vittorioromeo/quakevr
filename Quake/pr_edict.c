@@ -1988,6 +1988,28 @@ static void PR_InitBuiltins (void)
 
 /*
 ===============
+PR_WarnUnboundBuiltins
+
+QVR: a `= #0` builtin neither the engine's table nor the VR builtins (VR_OnProgsLoaded) bound stays at statement 0
+and silently returns 0 (strstrofs did, so `strstrofs(...) >= 0` was always true): name them under `developer`.
+===============
+*/
+static void PR_WarnUnboundBuiltins (void)
+{
+	int i;
+	if (qcvm != &sv.qcvm)
+		return; // (a client VM's progs never get the VR builtins: VR_OnProgsLoaded binds the server's only)
+	for (i = 1; i < qcvm->progs->numfunctions; i++)
+	{
+		const dfunction_t *func = &qcvm->functions[i];
+		const char *name = PR_GetString (func->s_name);
+		if (!func->first_statement && !func->parm_start && !func->locals && name[0])
+			Con_DWarning ("builtin \"%s\" (#0) not implemented: calls to it return 0\n", name);
+	}
+}
+
+/*
+===============
 PR_HasGlobal
 ===============
 */
@@ -2362,6 +2384,7 @@ qboolean PR_LoadProgs (const char *filename, qboolean fatal)
 	qcvm->effects_mask = PR_FindSupportedEffects ();
 
 	VR_OnProgsLoaded (); // QVR
+	PR_WarnUnboundBuiltins (); // QVR: after the VR builtins are bound
 	VR_TracyQCProgs (); // QVR: Tracy builds only; after VR_OnProgsLoaded bound the VR builtins
 
 	return true;
