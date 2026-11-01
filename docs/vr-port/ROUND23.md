@@ -4900,3 +4900,11 @@ The per-monster cvar families that are plain per-classname values are data: 171 
   release has them constexpr); single feature settings that name a monster (`vr_enemy_shove_vore`, `vr_ogre_aim_height`,
   `vr_gruntgun_*`, `vr_grunt_burst*`, `vr_foegrab_throw_grunt`, `vr_climb_mantle_grunt`, `vr_agknight_ranged`);
   `vr_monster_health_*` (one curve for all); the tests' and debug ones (`vr_test_spawn_*`, `vr_debug_spawn_*`, ...).
+- **Checks** (before = origin/next 663919efe, the same tree): the 171 values printed by name (a console script of every
+  old name, `monsters_data.py names`) identical after `vr_config_defaults`, after his whole config (ironwail_now.cfg of
+  10-31) exec'd, and after console sets (`vr_ragdoll_army_mass 75.5`, `vr_mhull_ogre 32`, `vr_ragdoll_centroid_limits
+  0.5`; the one difference: `VR_SMALLGIBS_MULT_FIEND 2` now sets it); `writeconfig` writes the same lines (plus that
+  one); `config_sparse_test.sh` 16 passed, 0 failed; `vr_smallgibs_test 27` (new: the QC's VR_SmallGib_Mult through its
+  cvar handles reads monsters.txt's defaults, a value set by the old name, the default back; run: `map e1m1; wait30;
+  vr_smallgibs_test 27`, -QuitOn `sgibtest: mults: N passed`) 12 passed, 0 failed.
+- **Next steps**: the monster groups as a `group <id>` table; the named per-weapon families as weapon keys.
