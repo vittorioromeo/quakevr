@@ -5443,3 +5443,17 @@ every player voice line.
   (mid-attack, the ring) clear `axhitme`, so a later pain of any kind (a nail) no longer plays the blade grunt.
   "Hear Voice" cycles through it too.
 - vr_voice_test (vr_voice 1, e1m1): 31/0, the new sample transformed (61% voiced) and the name check.
+
+### Ragdoll smashes: louder, and a bit more effective
+
+His notes (18:43): the smash sound 30-40% louder by default; and a tunable multiplier for an active or dead ragdoll's
+impact on walls, floors and props, on its damage and its limb-pop damage, x1.15.
+
+- `vr_ragsmash_volume` 1 -> 1.35 (Smash Volume). VR_RagSmash's volume was capped at 1 (a full-strength smash was
+  already at 1, so the setting couldn't make it louder): now up to 4 (SND_LOUD, louder than full).
+- `vr_ragimpact_mult` 1.15 (tunable, "Impact Multiplier", next to Impact Damage): in VR_RagImpact_Hit (the engine's
+  strike of a ragdoll you drive on the level), the strike's amount times it before the piece multipliers and the cap
+  (vr_ragimpact_max); the head's or limb's wear toward popping is that damage (times vr_ragimpact_wear), so both scale.
+  A landing's crush is not a strike: unchanged.
+- vr_ragsmash_test (vrfiringrange, `developer 1`: its lines are dprints) 12/0: the held slam at full strength sounds
+  at 1.350; its damage 9.60 -> 11.04 (x1.15).

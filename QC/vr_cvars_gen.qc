@@ -1071,6 +1071,7 @@ float cvarh_vr_hit_stagger_head;
 float cvarh_vr_hit_stagger_resist;
 float cvarh_vr_hit_stagger_cooldown;
 float cvarh_vr_ragimpact_damage;
+float cvarh_vr_ragimpact_mult;
 float cvarh_vr_ragimpact_min_speed;
 float cvarh_vr_ragimpact_held_speed;
 float cvarh_vr_ragimpact_dent;
@@ -2384,6 +2385,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_hit_stagger_resist = cvar_hmake("vr_hit_stagger_resist");
     cvarh_vr_hit_stagger_cooldown = cvar_hmake("vr_hit_stagger_cooldown");
     cvarh_vr_ragimpact_damage = cvar_hmake("vr_ragimpact_damage");
+    cvarh_vr_ragimpact_mult = cvar_hmake("vr_ragimpact_mult");
     cvarh_vr_ragimpact_min_speed = cvar_hmake("vr_ragimpact_min_speed");
     cvarh_vr_ragimpact_held_speed = cvar_hmake("vr_ragimpact_held_speed");
     cvarh_vr_ragimpact_dent = cvar_hmake("vr_ragimpact_dent");
