@@ -4871,6 +4871,32 @@ the same way as the weapons' (above).
 - **Next steps**: the monsters' tables, the named per-weapon families as weapon keys, then getter/setter rows and the
   old names retired after a release.
 
+## The death knight's helmet fitted to his head (branch `agent/dkhelmet`)
+
+His ask (2026-11-01): the death knight's helmet did not follow his head (the enforcer's old problem); fit it tightly.
+- **Why it was loose** (`helmetOf`, vr_agarmor.cpp; a dump of its points and rings): his skull is 0.51 of the head bone's
+  length to each side, but the head proper (0.75 to the sides, 1.06 up) took in (a) the horns' stalks rising from his
+  temples (0.55-0.62 out) and the samples of the horn triangles inside the box, which pushed the crown ring out through
+  the cap's chamfer (crown half width 8.3 over a skull of 5.3); (b) his gorget (to 0.9 out, weighing 0.52-0.78 on his
+  head), which set the ledge and the guards (7.8 wide each side) and through the ledge the bucket. The top (1.06) also
+  cut his crown (1.11): the cranium came 0.40 through the cap's inside.
+- **Fix:** the head proper per wearer (`Wearer::headTop`, `headSide`, `collar`; defaults 1.06 / 0.75 / 0.5): the death
+  knight 1.12 / 0.53 / 0.8 (his guards fit only where his head weighs 0.8 or more: his face weighs 0.93 and more).
+  Generic: a head triangle with a corner past the head proper is left out whole (no samples clipped at its edge), and
+  a triangle with a corner over its top leaves out every triangle on its corners (the horns' roots). The grunt's,
+  the enforcer's and the knight's shells are byte-identical (hashes fa858c7f, 11cc98dc, e21a7335).
+- **Sizes** (`vr_agarmor_check`, outside deep x wide x high): death knight 14.14 x 18.05 x 11.25 -> 13.73 x 12.40 x
+  11.79 (his head proper 12.1 x 10.7, crown 11.61; higher because the cap now clears his crown by the gap, 0.15).
+  The wall's clearance from his head (sample points on his skull and face sides, per row band and wall direction;
+  `scratch/helm_gap.py` on a dump): loosest 3.28 (the bucket's sides) -> 0.76 (the face opening's chamfer: the opening
+  at least 0.4 of the head's length); bucket sides 3.28 / 2.86 -> 0.35 / 0.48, guards' sides 2.46 -> 0.15.
+  `vr_agarmor_check` 20/0, `vr_agarmor_test 7` 14/0.
+- **Debug:** `vr_agarmor_headcam <view> <distance> 1` puts the screenshot's eye on the nearest death knight (and the
+  other on the knight); Debug > Tests > Helmets There: Knight and Death Knight (`vr_agarmor_test 8`).
+- **Eyeshots:** `scratch/dkhelm_before_full.png` / `dkhelm_after_full.png` (full yellow) and `_helmetonly` (front,
+  side, three-quarter, behind; `vr_agarmor_set 62 2 2` after `vr_agarmor_test 8`).
+- **To test in VR:** a death knight in a helmet (Debug > Tests > Helmets There: Knight and Death Knight): the helmet
+  close round his skull, the horns through it, his face open.
 ## Running hitch (branch `agent/runhitch`)
 
 Vittorio (voice note 2026-11-01 01:38, vrtesthall): running with the stick held forward as hard as he can, "once every
