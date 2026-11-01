@@ -4916,6 +4916,64 @@ the same way as the weapons' (above).
 - **Next steps**: the monsters' tables, the named per-weapon families as weapon keys, then getter/setter rows and the
   old names retired after a release.
 
+## Small fixes from the 2026-11-01 voice notes (branch `agent/small1101`)
+
+- **Arena foes upright** (vrarena_2026-11-01_01-36-29). `VR_ARENA_SpawnMonster` turned each foe to the player with
+  `vectoangles`, pitch included (an enforcer on a high place: pitch 323), and nothing ever cleared it (ai_face turns
+  yaw alone): its body, gun and swings drawn tilted for good. Now yaw alone. The armed humanoids' pose code already
+  works in a yaw-only body frame (`VR_AGP_Body`). Test: `vr_arena_test 4` (vrarena) now also checks the first foes in
+  the field stand upright: before the fix 2 of 2 tilted (pitch 8), after 0; 8 passed, 0 failed.
+- **Armour's first breaks** (vrtesthall_..._01-22-56: ~80 ms hitches). Each plate's debris model
+  (`progs/<body>.mdl#plateN`, made as it loads: vr_agarmor.cpp derivedFile) was precached at its first break: 40-52 ms
+  of the server's frame each (`late precache:` lines), ten per body. Now `VR_AGR_PrecacheArmour` (worldspawn) precaches
+  the four armed kinds' bodies and all their plates and the break sounds (not in deathmatch), and `VR_AgArmor_Spawn`
+  precaches a wearer's own (soldier.mdl and any other). Test: `vr_agarmor_test 13` (a grunt in full green, a piece broken
+  a frame): 2 passed; with `developer 1; vr_profile_csv 1` no `late precache: ...#plate` and no `vr_profile: hitch`
+  line after the breaks (before: ten late plates and a 533 ms hitch in test 1's checks frame, quakec 474 ms).
+  `vr_agarmor_test 1` 26/26. Not done: a monster spawned mid-game (toolgun, test scenes, arena waves) still loads its
+  `#limbN` cut models late at its spawn (~4-7 ms each, 13 per body).
+- **Tug-of-war** (vrtesthall_..._02-15-16). His tuned values are the defaults: `vr_agrunt_tug_fight` 1 -> 0.9,
+  `vr_agrunt_tug_time` 0.8 -> 0.6, `vr_agrunt_tug_strength` 1.35 -> 1.2, `vr_agrunt_tug_let_go` 50 -> 40,
+  `vr_agrunt_tug_break_force` 800 -> 750. The physical tug's least time, `vr_agrunt_tug_pull_time` (0.5 s), was a
+  tuning constant (Debug > Tunables); it is now a setting, Combat > Armed Grunts > Disarming > Tug: Least Pull Time.
+  "Tug: Pull Time" (`vr_agrunt_tug_time`) only times the older tug (Tug: Physical off) and a staggering or downed one:
+  its help says so. Test 37 (`vr_agrunt_test 37`) 8 passed, 0 failed; `vr_menu_path_check maps/vrcalibration.map`
+  0 missing; menu_paths.txt regenerated.
+- **Armed death knights' spell** (vrtesthall_..._02-05-07, _02-11-04). His volley was cast from his middle while his
+  arms held the sword still. Now `VR_AGP_Cast` makes it an attack of what he holds: a melee weapon's swing (no step
+  in), the six fireballs fanned from the blade's tip as drawn (`VR_AG_DrawnMuzzle`) at the swing's blow; empty-handed
+  a punch, from the fist; a gun a thrust (the Shove pose's keys), from its muzzle as the thrust ends (`hknight_shot`
+  takes an origin: `vr_hk_shot_from`/`vr_hk_shot_org`). A gun holder now casts for `vr_agdknight_spell_share` (0.3,
+  Armed Humanoid Replacements page) of his ranged attacks and fires the gun for the rest. Test 95 with
+  `vr_agrunt_test_kind 3`: the cast 28.7 from his hand along a 28.0 blade, 46 from his middle; the gun share 0.303 over
+  2000 rolls; 9 passed, 1 failed: "knight death" fails the same way without these changes (health 50 after a blow of
+  health + 10: absorbed, likely his armour roll; pre-existing).
+## The death knight's helmet fitted to his head (branch `agent/dkhelmet`)
+
+His ask (2026-11-01): the death knight's helmet did not follow his head (the enforcer's old problem); fit it tightly.
+- **Why it was loose** (`helmetOf`, vr_agarmor.cpp; a dump of its points and rings): his skull is 0.51 of the head bone's
+  length to each side, but the head proper (0.75 to the sides, 1.06 up) took in (a) the horns' stalks rising from his
+  temples (0.55-0.62 out) and the samples of the horn triangles inside the box, which pushed the crown ring out through
+  the cap's chamfer (crown half width 8.3 over a skull of 5.3); (b) his gorget (to 0.9 out, weighing 0.52-0.78 on his
+  head), which set the ledge and the guards (7.8 wide each side) and through the ledge the bucket. The top (1.06) also
+  cut his crown (1.11): the cranium came 0.40 through the cap's inside.
+- **Fix:** the head proper per wearer (`Wearer::headTop`, `headSide`, `collar`; defaults 1.06 / 0.75 / 0.5): the death
+  knight 1.12 / 0.53 / 0.8 (his guards fit only where his head weighs 0.8 or more: his face weighs 0.93 and more).
+  Generic: a head triangle with a corner past the head proper is left out whole (no samples clipped at its edge), and
+  a triangle with a corner over its top leaves out every triangle on its corners (the horns' roots). The grunt's,
+  the enforcer's and the knight's shells are byte-identical (hashes fa858c7f, 11cc98dc, e21a7335).
+- **Sizes** (`vr_agarmor_check`, outside deep x wide x high): death knight 14.14 x 18.05 x 11.25 -> 13.73 x 12.40 x
+  11.79 (his head proper 12.1 x 10.7, crown 11.61; higher because the cap now clears his crown by the gap, 0.15).
+  The wall's clearance from his head (sample points on his skull and face sides, per row band and wall direction;
+  `scratch/helm_gap.py` on a dump): loosest 3.28 (the bucket's sides) -> 0.76 (the face opening's chamfer: the opening
+  at least 0.4 of the head's length); bucket sides 3.28 / 2.86 -> 0.35 / 0.48, guards' sides 2.46 -> 0.15.
+  `vr_agarmor_check` 20/0, `vr_agarmor_test 7` 14/0.
+- **Debug:** `vr_agarmor_headcam <view> <distance> 1` puts the screenshot's eye on the nearest death knight (and the
+  other on the knight); Debug > Tests > Helmets There: Knight and Death Knight (`vr_agarmor_test 8`).
+- **Eyeshots:** `scratch/dkhelm_before_full.png` / `dkhelm_after_full.png` (full yellow) and `_helmetonly` (front,
+  side, three-quarter, behind; `vr_agarmor_set 62 2 2` after `vr_agarmor_test 8`).
+- **To test in VR:** a death knight in a helmet (Debug > Tests > Helmets There: Knight and Death Knight): the helmet
+  close round his skull, the horns through it, his face open.
 ## Running hitch (branch `agent/runhitch`)
 
 Vittorio (voice note 2026-11-01 01:38, vrtesthall): running with the stick held forward as hard as he can, "once every
@@ -4982,6 +5040,41 @@ The per-monster cvar families that are plain per-classname values are data: 171 
   cvar handles reads monsters.txt's defaults, a value set by the old name, the default back; run: `map e1m1; wait30;
   vr_smallgibs_test 27`, -QuitOn `sgibtest: mults: N passed`) 12 passed, 0 failed.
 - **Next steps**: the monster groups as a `group <id>` table; the named per-weapon families as weapon keys.
+
+
+## The cyan hand hull off; Disarm Leniency; punching the gun in a tug (agent/handhull, his notes 2026-11-01 02:20, 02:21)
+
+- **The cyan hand hull off** ("moves with the enemy animation ... doesn't match anything"). Cause: Show Disarm Volumes
+  makes the hand's hull while the frame draws (between rig2::swapModels and restoreModels), when `cl_entities[n].model`
+  is the authored rig's skinned copy; `drawnpose::armedMesh` asked `hitreact::armsWanted` of that copy (no armed rig:
+  no), so `handPoints` fell back to `hitmodel::vertexPoint`, the .mdl animation frame, whose arms are not posed on the
+  gun. The server's own queries (shots, test 16, frozen) ran outside the drawing and were right. Fix: armedMesh asks
+  `hitreact::armsWantedAs` of its own .mdl (`rig2::sourceModel`); the hand hull is only ever the drawn body (the rig as
+  drawn, or its ragdoll's); neither: no hand volume (the weapon's alone counts; never the animation frame).
+  `disarmhull 15/16` (its source now), `23/24` (the hull Show Disarm Volumes drew last: gap, source + 10 if made while
+  drawn, frames since). Test 16's new hunt phase (a shotgun grunt hunting you, unfrozen, 72 frames, vr_debug_disarm 1):
+  every drawn hand hull from the rig while drawn (0 of 72 not), the server's query from the rig; the drawn grip 1.44
+  units off the hull every frame (the gun's grip point just outside the palm's hull; limit 2.5). Before the fix the
+  render-time source was the frame's on every frame (a diagnostic print: 942 of 942 calls). Test 16: 244 passed, 0 failed.
+- **Disarm Leniency** (Advanced VR Options > Combat > Armed Grunts (Experimental), its first section; Search
+  "leniency"): Grab Leniency (`vr_agrunt_grab_leniency`, cm, 5; was a tunable, now a saved setting), Shot Leniency:
+  Weapon / Hand (`vr_agrunt_vol_shot_weapon` / `_hand`, units), Melee Strike Leniency (`vr_agrunt_vol_strike`), Body
+  Blow Leniency (`vr_agrunt_vol_blow`); the four moved from the Disarming sections. `vr_agrunt_grab_slack` (Grab:
+  Precision) stays a tunable. Calibration boards: 0 missing.
+- **Punching the gun in a tug** (his checklist answer: "the punch seemed to go through the gun"). Cause:
+  VR_AG_PropThink returns once VR_AG_TugFrame handles a tug, so VR_AG_WeaponStruck (where VR_AG_TugStrike was) never
+  ran in a tug; test 92 called WeaponStruck directly. Fix: VR_AG_TugFrame checks VR_AG_TugStrike after its let-go
+  checks. Test 19 (QC/vr_armedgrunt_tugpunch_test.qc): the main hand holds the gun (physical tug), the mock off fist
+  (grip closed) glides 38 units through the gun's drawn middle in 0.2 s: struck free at 6.0 m/s into the main hand,
+  3 passed. Note: the mock's glide gives the off hand about 0.1 m/s at the server (its positions and the melee
+  tracker's swing are right), so the test sets `offhandvel` to the glide's; worth a look (vr_backend_mock.cpp glide).
+- Test 24's blow aims via VR_Hit_SetZone at the gun's drawn hull middle (disarmhull 20): 2 passed. Test 92: 22 passed.
+- Checklist lines:
+  - With Debug > Show Disarm Volumes, a grunt hunting you: the cyan hull sits on its drawn gun hand and forearm as it
+    walks and aims, never floating off with its animation. {test:agrunt_tug}
+  - Combat > Armed Grunts (Experimental) > Disarm Leniency: raise Grab Leniency and grab near (not on) its gun: taken;
+    raise Shot Leniency: Weapon and shoot just past the gun: it counts (magenta hull grows).
+  - Hold its gun with one hand and punch the gun with the other fist: the gun ends in the holding hand. {test:agrunt_tug}
 ## Nightly regressions after the exact disarm hulls: agrunt 2 and 68 (branch `agent/hullregress`)
 
 - **Confirmed**: both pass on e54d81480 (before the disarmhull merge) and fail on its merge 59c98632a, as on next.

@@ -1692,6 +1692,12 @@ bool armsWanted(const entity_t* e)
     return want;
 }
 
+bool armsWantedAs(const entity_t* e, const qmodel_t* model)
+{
+    return vr_agrunt_ik.value != 0.f && e && model && model->type == mod_alias && client::entityNumber(e) > 0 &&
+           armedRigOf(model) != nullptr;
+}
+
 bool bonesWanted(const entity_t* e)
 {
     return (vr_hit_react.value == 1.f && reacting(e)) || armsWanted(e);

@@ -2480,6 +2480,7 @@ QVR_CVAR(vr_agrunt_reserve, "2", CVAR_ARCHIVE)         // the clips it carries b
 QVR_CVAR(vr_agknight, "0", CVAR_ARCHIVE)               // 1: every knight a map spawns is an armed humanoid holding a sword (QC vr_armedknight.qc; docs/vr-port/ARMED_MONSTERS.md)
 QVR_CVAR(vr_agknight_ranged_pickup, "0", CVAR_ARCHIVE) // armed knights and death knights taking up ranged weapons lying about (their own dropped gun too): 0 never (melee ones only), 1 as grunts do; spawned with a gun they hold it either way (QC vr_armedmon.qc VR_AM_Takes)
 QVR_CVAR(vr_agdknight, "0", CVAR_ARCHIVE)              // 1: every death knight (hell knight) a map spawns is an armed humanoid holding his sword, still casting his fireballs (QC vr_armedrepl.qc VR_AKN_Replace; docs/vr-port/ARMED_MONSTERS.md)
+QVR_CVAR(vr_agdknight_spell_share, "0.3", CVAR_ARCHIVE) // 0..1: an armed death knight holding a gun casts his fireball volley (a thrust of the gun, from its muzzle) for this share of his ranged attacks, firing the gun for the rest
 QVR_CVAR(vr_agrunt_repl, "1", CVAR_ARCHIVE)            // 1: every grunt and enforcer a map spawns is its armed version holding its own gun (its own damage, rate, aim, loot)
 QVR_CVAR(vr_agrunt_repl_common, "0.5", CVAR_ARCHIVE)     // 0..1: the chance one holds a shotgun or a nail pistol instead
 QVR_CVAR(vr_agrunt_repl_uncommon, "0.25", CVAR_ARCHIVE)   // 0..1: ... a nailgun, super nailgun or super shotgun (one a player owns)
@@ -2500,19 +2501,20 @@ QVR_CVAR(vr_agrunt_disarm_yank, "1", CVAR_ARCHIVE)     // 1: your empty hand gra
 QVR_CVAR(vr_agrunt_disarm_deliberate, "1", CVAR_ARCHIVE) // 1: only a deliberate blow knocks its weapon out (a closed fist or something held, swung over more than a frame; never an open hand or a jolted idle hand); 0: any hand that fast
 QVR_CVAR(vr_agrunt_strike_first, "1", CVAR_ARCHIVE) // 1: a deliberate strike (fist, held gun or prop) meeting its weapon or gun hand disarms it unless its parry was raised for it (then a roll, vr_agrunt_strike_beat); 0: such a blow parries whenever it can (the old order)
 QVR_CVAR(vr_agrunt_tug, "1", CVAR_ARCHIVE)        // 1: your empty hand closing on its weapon starts a tug-of-war (pull to win; 0: the grab takes it at once)
-QVR_CVAR(vr_agrunt_tug_time, "0.8", CVAR_ARCHIVE) // ... how long (s) you must keep it pulled that far (a calm grunt at full health; less hurt or in pain)
-QVR_CVAR(vr_agrunt_tug_fight, "1", CVAR_ARCHIVE)  // ... how often (s, about) it fights back: shoves you, headbutts you or fires (0: never)
+QVR_CVAR(vr_agrunt_tug_time, "0.6", CVAR_ARCHIVE) // ... how long (s) you must keep it pulled that far (a calm grunt at full health; less hurt or in pain)
+QVR_CVAR(vr_agrunt_tug_fight, "0.9", CVAR_ARCHIVE)  // ... how often (s, about) it fights back: shoves you, headbutts you or fires (0: never)
 QVR_CVAR(vr_agrunt_tug_ragdoll, "1", CVAR_ARCHIVE) // 1: the tug is physical: it stands as an active ragdoll, your hand holding its weapon in its hand, its arm pulling back (0: the old tug)
-QVR_CVAR(vr_agrunt_tug_break_force, "800", CVAR_ARCHIVE) // N: a pull this hard on its weapon (the hold's force) tears it out of its hand at once (a sharp yank)
+QVR_CVAR(vr_agrunt_tug_break_force, "750", CVAR_ARCHIVE) // N: a pull this hard on its weapon (the hold's force) tears it out of its hand at once (a sharp yank)
 QVR_CVAR(vr_agrunt_tug_break_impulse, "350", CVAR_ARCHIVE) // N s: the pull over time (force x time, above a tenth of the break force) that tears it out (a steady pull)
-QVR_CVAR(vr_agrunt_tug_strength, "1.35", CVAR_ARCHIVE) // its arms' pull back in the tug (0..3: its reach's strength)
+QVR_CVAR(vr_agrunt_tug_pull_time, "0.4", CVAR_ARCHIVE) // (0.5 until his ask 2026-11-01: 20% lower) s you must keep pulling above Tug: Least Pull before its weapon can come out (the physical tug's least time; a tuning constant until his ask for a slider, note 2026-11-01)
+QVR_CVAR(vr_agrunt_tug_strength, "1.2", CVAR_ARCHIVE) // its arms' pull back in the tug (0..3: its reach's strength)
 // A deliberate tug (ROUND22.md "Armed monsters: a deliberate tug-of-war"; QC vr_armedgrunt_play.qc VR_AG_TugBreak).
 QVR_CVAR(vr_agrunt_tug_hand_gap, "999", CVAR_NONE)      // (the tests' reading: vr_ragdoll_hand_probe in a tug, the main drawn hand to its grab on the weapon as drawn, cm)
 QVR_CVAR(vr_agrunt_tug_hand_reach, "999", CVAR_NONE)    // (... and its controller to it, cm)
 QVR_CVAR(vr_agrunt_grab_gap, "999", CVAR_NONE)         // (the tests' reading: with vr_agrunt_debug, the main fist's last gap to an armed monster's weapon, cm)
 QVR_CVAR(vr_agrunt_saw_drop_running, "1", CVAR_ARCHIVE) // 1: an armed humanoid that was fighting you with a chainsaw drops it running (dead, disarmed, a tug won), as yours runs on as it lies (vr_chainsaw_drop_run): taken up meanwhile, no cord to pull; one that never saw you drops it off
 QVR_CVAR(vr_agrunt_grab_speed, "1.25", CVAR_ARCHIVE)     // m/s: a hand moving faster than this (relative to you: a punch, a swipe) doesn't take hold of its weapon (0: any speed)
-QVR_CVAR(vr_agrunt_tug_let_go, "50", CVAR_ARCHIVE)      // cm: in the physical tug, your hand lets go of its weapon (lost) once its controller is this far from where it holds it (pulled away, or you stepped back) before its grip gives; till then your drawn hand stays on the weapon
+QVR_CVAR(vr_agrunt_tug_let_go, "40", CVAR_ARCHIVE)      // cm: in the physical tug, your hand lets go of its weapon (lost) once its controller is this far from where it holds it (pulled away, or you stepped back) before its grip gives; till then your drawn hand stays on the weapon
 QVR_CVAR(vr_agrunt_tug_downed_scale, "0.5", CVAR_ARCHIVE) // a staggering or downed one: its weapon still needs a tug, its time this share of a standing one's (0: the grab takes it at once, as before)
 QVR_CVAR(vr_agrunt_tug_second_grab, "0", CVAR_ARCHIVE)  // your other hand grabbing its weapon in a tug: 0 joins it (both pulls count, it gives sooner), 1 tears it free at once
 QVR_CVAR(vr_agrunt_tug_strike, "1", CVAR_ARCHIVE)       // 1: in a tug, your other fist striking its weapon (vr_agrunt_tug_strike_swing of the disarm swing) tears it free into your holding hand
@@ -2528,6 +2530,8 @@ QVR_CVAR(vr_agrunt_windup_parry, "1", CVAR_ARCHIVE) // 1: you raising a weapon (
 // Shooting its weapon out of its hand (QC vr_armedgrunt_shot.qc; ROUND22.md "Armed grunts: shooting the weapon out").
 QVR_CVAR(vr_agrunt_shotdisarm, "1", CVAR_ARCHIVE)              // 1: your shots on its weapon or its weapon hand add up; past the threshold, a roll knocks it out
 QVR_CVAR(vr_agrunt_shotdisarm_parts, "2", CVAR_ARCHIVE)        // what counts: 0 the weapon only, 1 the hand (and forearm) only, 2 either
+// The disarm leniency (Armed Grunts > Disarm Leniency): a grab's, then the volumes.
+QVR_CVAR(vr_agrunt_grab_leniency, "5", CVAR_ARCHIVE)           // cm more than vr_agrunt_grab_slack: your fist closing within this of its weapon's drawn surface takes it (a tug), however it moves (ROUND22.md, "Armed humanoids: grabs, holding on, running chainsaws"; a tunable till 2026-11-01)
 // The disarm volumes: the hulls of the triangles drawn (vr_disarmhull.hpp), each grown (or, under 0, shrunk) by these units.
 QVR_CVAR(vr_agrunt_vol_shot_weapon, "0", CVAR_ARCHIVE)         // a shot on its weapon: its drawn model's hull grown by this
 QVR_CVAR(vr_agrunt_vol_shot_hand, "0", CVAR_ARCHIVE)           // a shot on the hand holding it: its drawn hand and forearm's hull grown by this

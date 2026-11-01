@@ -190,7 +190,7 @@ void weaponHull(int num, float grow, const glm::vec4& colour, float width)
 void handHull(const Shape& s, const glm::vec4& colour, float width)
 {
     disarmhull::Placed p;
-    if(s.num > 0 && s.num < sv.qcvm.num_edicts && disarmhull::hand(EDICT_NUM(s.num), s.a.x > 0.5f ? 1 : 0, p))
+    if(s.num > 0 && s.num < sv.qcvm.num_edicts && disarmhull::handShown(EDICT_NUM(s.num), s.a.x > 0.5f ? 1 : 0, p))
     {
         disarmhull::draw(p, s.radius, colour, width);
     }

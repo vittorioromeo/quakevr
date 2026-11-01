@@ -834,15 +834,20 @@ void() VR_AGPT_Blows =
     if(vr_agt_step == 1)
     {
         VR_AGT_Hunt(g);
-        hit_pos = g.vr_ag_prop.origin;
+        // (aimed at its gun's drawn hull's middle (disarmhull 20), in the hit record as a blow's own finding writes it:
+        // VR_Hit_SetZone, as tests 2 and 16; since the hit record, hit_pos alone is read only with a zone found on it)
         VR_Hit_Begin(QVR_HITKIND_MELEE, cVR_MainHand, '0 0 0', '0 0 0');
+        VR_Hit_SetZone(g, 0, disarmhull(g.vr_ag_prop, 20, '0 0 0', '0 0 0', 0));
         T_Damage(g, p, p, 6);
         float kept = g.vr_ag_prop != world;
         g.health = 8;
-        hit_pos = g.vr_ag_prop.origin;
+        if(g.vr_ag_prop)
+        {
+            VR_Hit_SetZone(g, 0, disarmhull(g.vr_ag_prop, 20, '0 0 0', '0 0 0', 0));
+        }
         T_Damage(g, p, p, 6);
         VR_Hit_End();
-        hit_pos = '0 0 0';
+        hit_targ = world;
         VR_AGT_Check(sprintf("blow 6 on the hand: calm %s, hurt %s:", kept ? "keeps it" : "dropped it",
             g.vr_ag_prop ? "keeps it" : "dropped it"), kept && !g.vr_ag_prop);
         VR_AGT_Remove(g);

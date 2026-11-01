@@ -821,8 +821,16 @@ vr_parry_reduction|1|Parry and Bash|Parry Damage Reduction|Advanced VR Options >
 vr_parry_drop_chance|1|Parry and Bash|Parry Drop Chance|Advanced VR Options > Combat > Parry and Bash > Parry Drop 
 vr_parry_wobble|1|Parry and Bash|Parry Arm Knock|Advanced VR Options > Combat > Parry and Bash > Parry Arm Knock
 vr_parry_unarmed|1|Parry and Bash|Unarmed Parry|Advanced VR Options > Combat > Parry and Bash > Unarmed Parry
-vr_dirparry|1|Parry and Bash|Directional Parry (Experimental)|Advanced VR Options > Combat > Parry and Bash > 
 vr_parry_cooldown_attack|1|Parry and Bash|Parry Cooldown: Whole Attack|Advanced VR Options > Combat > Parry and 
+vr_dirparry|1|Parry and Bash|Directional Parry (Experimental)|Advanced VR Options > Combat > Parry and Bash > 
+vr_dirparry_angle|1|Parry and Bash|Angle: Full Marks Within|Advanced VR Options > Combat > Parry and Bash > Angle: 
+vr_dirparry_angle_zero|1|Parry and Bash|Angle: No Marks At|Advanced VR Options > Combat > Parry and Bash > Angle: 
+vr_dirparry_contact|1|Parry and Bash|Contact Distance|Advanced VR Options > Combat > Parry and Bash > Contact 
+vr_dirparry_falloff|1|Parry and Bash|Contact Falloff|Advanced VR Options > Combat > Parry and Bash > Contact Falloff
+vr_dirparry_threshold|1|Parry and Bash|Score to Parry|Advanced VR Options > Combat > Parry and Bash > Score to Parry
+vr_dirparry_window|1|Parry and Bash|Parry Window|Advanced VR Options > Combat > Parry and Bash > Parry Window
+vr_dirparry_debug|1|Parry and Bash|Show Directional Parry|Advanced VR Options > Combat > Parry and Bash > Show 
+vr_agrunt_melee_speed|1|Parry and Bash|Enemy Melee Speed|Advanced VR Options > Combat > Parry and Bash > Enemy 
 vr_parry_balance|1|Parry and Bash|Parry Balance|Advanced VR Options > Combat > Parry and Bash > Parry Balance
 vr_parry_stagger_min|1|Parry and Bash|Stagger at 1|Advanced VR Options > Combat > Parry and Bash > Stagger at 1
 vr_parry_stagger_max|1|Parry and Bash|Stagger at 2|Advanced VR Options > Combat > Parry and Bash > Stagger at 2
@@ -863,6 +871,7 @@ vr_handgrenade_arm|1|Batting and Catching|Arm Hand Grenades|Advanced VR Options 
 |1|Batting and Catching|Reset This Page|Advanced VR Options > Combat > Batting and Catching > Reset This Page
 @page|1|Damage and Knockback||Advanced VR Options > Combat > Damage and Knockback
 vr_hit_precise|1|Damage and Knockback|Precise Hit Detection|Advanced VR Options > Combat > Damage and Knockback > 
+vr_hit_drawn_pose|1|Damage and Knockback|Armed Bodies as Drawn|Advanced VR Options > Combat > Damage and Knockback 
 vr_hit_tolerance_melee|1|Damage and Knockback|Melee Tolerance|Advanced VR Options > Combat > Damage and Knockback > 
 vr_hit_head_priority|1|Damage and Knockback|Head Priority|Advanced VR Options > Combat > Damage and Knockback > 
 vr_damage_to_enemies|1|Damage and Knockback|Damage to Enemies|Advanced VR Options > Combat > Damage and Knockback > 
@@ -949,6 +958,7 @@ vr_agrunt_tug|1|Armed Grunts (Experimental)|Tug-of-War|Advanced VR Options > Com
 vr_agrunt_tug_ragdoll|1|Armed Grunts (Experimental)|Tug: Physical|Advanced VR Options > Combat > Armed Grunts 
 vr_agrunt_tug_break_force|1|Armed Grunts (Experimental)|Tug: Break Force|Advanced VR Options > Combat > Armed 
 vr_agrunt_tug_break_impulse|1|Armed Grunts (Experimental)|Tug: Break Impulse|Advanced VR Options > Combat > Armed 
+vr_agrunt_tug_pull_time|1|Armed Grunts (Experimental)|Tug: Least Pull Time|Advanced VR Options > Combat > Armed 
 vr_agrunt_tug_let_go|1|Armed Grunts (Experimental)|Tug: Let Go Past|Advanced VR Options > Combat > Armed Grunts 
 vr_agrunt_tug_downed_scale|1|Armed Grunts (Experimental)|Tug: Staggering or Down|Advanced VR Options > Combat > 
 vr_agrunt_tug_second_grab|1|Armed Grunts (Experimental)|Tug: Your Other Hand's Grab|Advanced VR Options > Combat > 
@@ -963,9 +973,12 @@ vr_agrunt_fall_keep|1|Armed Grunts (Experimental)|Keeps It in a Gentle Fall|Adva
 vr_agrunt_fall_keep_impact|1|Armed Grunts (Experimental)|Fall: Drops It on Impact|Advanced VR Options > Combat > 
 vr_agrunt_fall_keep_window|1|Armed Grunts (Experimental)|Fall: Flung Within|Advanced VR Options > Combat > Armed 
 vr_agrunt_saw_drop_running|1|Armed Grunts (Experimental)|Drops Its Chainsaw Running|Advanced VR Options > Combat > 
+vr_agrunt_vol_strike|1|Armed Grunts (Experimental)|Volume: Strikes|Advanced VR Options > Combat > Armed Grunts 
+vr_agrunt_vol_blow|1|Armed Grunts (Experimental)|Volume: Body Blows|Advanced VR Options > Combat > Armed Grunts 
 vr_agrunt_shotdisarm|1|Armed Grunts (Experimental)|Shoot Weapons Out|Advanced VR Options > Combat > Armed Grunts 
 vr_agrunt_shotdisarm_parts|1|Armed Grunts (Experimental)|What Counts|Advanced VR Options > Combat > Armed Grunts 
-vr_agrunt_shotdisarm_size|1|Armed Grunts (Experimental)|Hit Volume Size|Advanced VR Options > Combat > Armed Grunts 
+vr_agrunt_vol_shot_weapon|1|Armed Grunts (Experimental)|Volume: Its Weapon|Advanced VR Options > Combat > Armed 
+vr_agrunt_vol_shot_hand|1|Armed Grunts (Experimental)|Volume: Its Hand|Advanced VR Options > Combat > Armed Grunts 
 vr_agrunt_shotdisarm_chance|1|Armed Grunts (Experimental)|Chance a Roll|Advanced VR Options > Combat > Armed Grunts 
 vr_agrunt_shotdisarm_chance_scale|1|Armed Grunts (Experimental)|Chance Past the Threshold|Advanced VR Options > 
 vr_agrunt_shotdisarm_block|1|Armed Grunts (Experimental)|Weapon Stops the Shot|Advanced VR Options > Combat > Armed 
@@ -1012,6 +1025,7 @@ vr_agrunt_w_phantom|1|Armed Grunts (Experimental)|Phantom Sword (Rogue's Data)|A
 vr_agrunt_repl|1|Armed Humanoid Replacements|Replace All Humanoids|Advanced VR Options > Combat > Armed Humanoid 
 vr_agknight|1|Armed Humanoid Replacements|Armed Knights|Advanced VR Options > Combat > Armed Humanoid Replacements 
 vr_agdknight|1|Armed Humanoid Replacements|Armed Death Knights|Advanced VR Options > Combat > Armed Humanoid 
+vr_agdknight_spell_share|1|Armed Humanoid Replacements|Armed Death Knights: Spell Share|Advanced VR Options > 
 vr_agknight_ranged_pickup|1|Armed Humanoid Replacements|Armed Knights: Pick Up Ranged Weapons|Advanced VR Options > 
 vr_agrunt_repl_common|1|Armed Humanoid Replacements|Common: Shotgun, Nail Pistol|Advanced VR Options > Combat > 
 vr_agrunt_repl_uncommon|1|Armed Humanoid Replacements|Uncommon: Nailguns, Super Shotgun|Advanced VR Options > 
@@ -1033,6 +1047,11 @@ vr_agrunt_ai_reaction|1|Armed Grunts - AI Behaviour|Reaction Time|Advanced VR Op
 vr_agrunt_ai_firerate|1|Armed Grunts - AI Behaviour|Fire Rate|Advanced VR Options > Combat > Armed Humanoids' AI 
 vr_agrunt_range|1|Armed Grunts - AI Behaviour|Keep Their Distance|Advanced VR Options > Combat > Armed Humanoids' 
 vr_agrunt_ai_retreat|1|Armed Grunts - AI Behaviour|Retreat Readiness|Advanced VR Options > Combat > Armed 
+vr_agrunt_mspace|1|Armed Grunts - AI Behaviour|Long Blades Keep Their Reach|Advanced VR Options > Combat > Armed 
+vr_agrunt_mspace_reach|1|Armed Grunts - AI Behaviour|Reach Share|Advanced VR Options > Combat > Armed Humanoids' AI 
+vr_agrunt_mspace_min|1|Armed Grunts - AI Behaviour|Shortest Standoff|Advanced VR Options > Combat > Armed 
+vr_agrunt_mspace_max|1|Armed Grunts - AI Behaviour|Longest Standoff|Advanced VR Options > Combat > Armed Humanoids' 
+vr_agrunt_mspace_speed|1|Armed Grunts - AI Behaviour|Re-Close Speed|Advanced VR Options > Combat > Armed Humanoids' 
 vr_agrunt_aim_converge|1|Armed Grunts - AI Behaviour|Aim From the Muzzle|Advanced VR Options > Combat > Armed 
 vr_agrunt_aim_exposed|1|Armed Grunts - AI Behaviour|Aim at What They Can Hit|Advanced VR Options > Combat > Armed 
 vr_agrunt_friendly_care|1|Armed Grunts - AI Behaviour|Careful of Friends|Advanced VR Options > Combat > Armed 
@@ -2930,6 +2949,7 @@ vr_ad_widowmaker_handful|2|Tunables|Shells a Handful|Advanced VR Options > Debug
 vr_ad_widowmaker_spin|2|Tunables|Barrel Spin|Advanced VR Options > Debug > Tunables > Barrel Spin
 vr_ad_widowmaker_spinup|2|Tunables|Spin Up (Before the First Shot)|Advanced VR Options > Debug > Tunables > Spin Up 
 vr_ad_widowmaker_spindown|2|Tunables|Spin Down|Advanced VR Options > Debug > Tunables > Spin Down
+vr_ad_plasmagun_cell|2|Tunables|Cell Size|Advanced VR Options > Debug > Tunables > Cell Size
 vr_autopump_travel|2|Tunables|Auto Pump Travel|Advanced VR Options > Debug > Tunables > Auto Pump Travel
 vr_muzzle_flash_enemy_size|2|Tunables|Enemies' Flash Size|Advanced VR Options > Debug > Tunables > Enemies' Flash 
 vr_tracer_speed|2|Tunables|Tracer Speed|Advanced VR Options > Debug > Tunables > Tracer Speed
@@ -3061,7 +3081,6 @@ vr_agrunt_grab_sweep|2|Tunables|Grab: Moving Weapon|Advanced VR Options > Debug 
 vr_agrunt_rag_grab_weapon|2|Tunables|Grab: Ragdoll's Weapon Within|Advanced VR Options > Debug > Tunables > Grab: 
 vr_agrunt_rag_limb_grab|2|Tunables|Grab: Ragdoll's Weapon Hand|Advanced VR Options > Debug > Tunables > Grab: 
 vr_agrunt_tug_pull_force|2|Tunables|Tug: Least Pull|Advanced VR Options > Debug > Tunables > Tug: Least Pull
-vr_agrunt_tug_pull_time|2|Tunables|Tug: Least Pull Time|Advanced VR Options > Debug > Tunables > Tug: Least Pull 
 vr_agrunt_tug_snap|2|Tunables|Tug: Yank Tears It Out At|Advanced VR Options > Debug > Tunables > Tug: Yank Tears It 
 vr_agrunt_tug_hurt_ease|2|Tunables|Tug: Wounds Weaken Its Grip|Advanced VR Options > Debug > Tunables > Tug: Wounds 
 vr_agrunt_tug_won_stumble|2|Tunables|Tug: Stumble When Disarmed|Advanced VR Options > Debug > Tunables > Tug: 
@@ -3157,10 +3176,6 @@ vr_agrunt_blade_stagger_speed|2|Tunables|Stagger Threshold|Advanced VR Options >
 vr_agrunt_blade_stagger_time|2|Tunables|Stagger Time|Advanced VR Options > Debug > Tunables > Stagger Time
 vr_agrunt_blade_arm|2|Tunables|Arm Impulse|Advanced VR Options > Debug > Tunables > Arm Impulse
 vr_agrunt_blade_fx|2|Tunables|Sparks and Sound|Advanced VR Options > Debug > Tunables > Sparks and Sound
-vr_dirparry_window|2|Tunables|Window|Advanced VR Options > Debug > Tunables > Window
-vr_dirparry_contact|2|Tunables|Contact Distance|Advanced VR Options > Debug > Tunables > Contact Distance
-vr_dirparry_angle|2|Tunables|Angle Leniency|Advanced VR Options > Debug > Tunables > Angle Leniency
-vr_dirparry_threshold|2|Tunables|Score Threshold|Advanced VR Options > Debug > Tunables > Score Threshold
 vr_dirparry_partial|2|Tunables|Partial Share|Advanced VR Options > Debug > Tunables > Partial Share
 vr_dirparry_opening|2|Tunables|Opening|Advanced VR Options > Debug > Tunables > Opening
 vr_agrunt_repl_skill0|2|Tunables|Easy|Advanced VR Options > Debug > Tunables > Easy
@@ -3632,7 +3647,10 @@ vr_holster_zones_show_items|2|Debug - Views|Show Holster Item Boxes|Advanced VR 
 |2|Debug - Views|Print Holster Setup|Advanced VR Options > Debug > Views > Print Holster Setup
 vr_debug_hitzones|2|Debug - Views|Show Hit Zones|Advanced VR Options > Debug > Views > Show Hit Zones
 vr_debug_disarm|2|Debug - Views|Show Disarm Volumes|Advanced VR Options > Debug > Views > Show Disarm Volumes
+vr_dirparry_debug|2|Debug - Views|Show Directional Parry|Advanced VR Options > Debug > Views > Show Directional 
+vr_agrunt_melee_speed|2|Debug - Views|Enemy Melee Speed|Advanced VR Options > Debug > Views > Enemy Melee Speed
 vr_debug_hitzones_xray|2|Debug - Views|Hit Zones Through Walls|Advanced VR Options > Debug > Views > Hit Zones 
+vr_agarmor_debug|2|Debug - Views|Show Armour Plates|Advanced VR Options > Debug > Views > Show Armour Plates
 vr_debug_gadget_button|2|Debug - Views|Show Gadget Button|Advanced VR Options > Debug > Views > Show Gadget Button
 |2|Debug - Views|Press the Gadget Button|Advanced VR Options > Debug > Views > Press the Gadget Button
 |2|Debug - Views|Gear Lights Info|Advanced VR Options > Debug > Views > Gear Lights Info
@@ -3687,6 +3705,7 @@ vr_debug_hand_offset|2|Debug - Views|Log Hand Offsets|Advanced VR Options > Debu
 |2|Debug - Views|Flashlight Cord Info|Advanced VR Options > Debug > Views > Flashlight Cord Info
 |2|Debug - Views|Cell Cord Info|Advanced VR Options > Debug > Views > Cell Cord Info
 |2|Debug - Views|Weapon Settings Inheritance|Advanced VR Options > Debug > Views > Weapon Settings Inheritance
+|2|Debug - Views|Held Object Slots|Advanced VR Options > Debug > Views > Held Object Slots
 |2|Debug - Views|Held Heads' Weights|Advanced VR Options > Debug > Views > Held Heads' Weights
 |2|Debug - Views|Magnetic Holsters Info|Advanced VR Options > Debug > Views > Magnetic Holsters Info
 |2|Debug - Views|Magnetic Holsters: All Home|Advanced VR Options > Debug > Views > Magnetic Holsters: All Home
@@ -3930,6 +3949,7 @@ vr_flat_turnlag_speed|2|Debug - Reports|Flatscreen Turn Lag Recovery|Advanced VR
 |2|Debug - Reports|Grunt's Ragdoll Rig|Advanced VR Options > Debug > Reports > Grunt's Ragdoll Rig
 |2|Debug - Reports|Smooth Animation Check|Advanced VR Options > Debug > Reports > Smooth Animation Check
 |2|Debug - Reports|Steady Vertices Check|Advanced VR Options > Debug > Reports > Steady Vertices Check
+|2|Debug - Reports|Smooth Animation Rig Hashes|Advanced VR Options > Debug > Reports > Smooth Animation Rig Hashes
 |2|Debug - Reports|Smooth Animation Models|Advanced VR Options > Debug > Reports > Smooth Animation Models
 |2|Debug - Reports|Trace Nearest Monster's Motion|Advanced VR Options > Debug > Reports > Trace Nearest Monster's 
 |2|Debug - Reports|Pin Nearest Monster Mid-Swing|Advanced VR Options > Debug > Reports > Pin Nearest Monster 
@@ -4625,6 +4645,7 @@ vr_ragtool_log|2|Ragdoll Tool|Log|Advanced VR Options > Debug > Ragdoll Tool > L
 |2|Debug - Automation & Self-Tests|Armed Grunts: Spawn a Row (Melee)|Advanced VR Options > Debug > Automation & 
 |2|Debug - Automation & Self-Tests|Armed Grunts: Their Shove|Advanced VR Options > Debug > Automation & Self-Tests 
 |2|Debug - Automation & Self-Tests|Armed Grunts: Shove Up Close|Advanced VR Options > Debug > Automation & 
+|2|Debug - Automation & Self-Tests|Armed Grunts: Melee Spacing|Advanced VR Options > Debug > Automation & 
 |2|Debug - Automation & Self-Tests|Armed Grunts: Fists' Guard as Posed|Advanced VR Options > Debug > Automation & 
 |2|Debug - Automation & Self-Tests|Armed Grunts: Dual Guns' Muzzles|Advanced VR Options > Debug > Automation & 
 |2|Debug - Automation & Self-Tests|Armed Grunts: Print Their State|Advanced VR Options > Debug > Automation & 
@@ -4640,6 +4661,7 @@ vr_ragtool_log|2|Ragdoll Tool|Log|Advanced VR Options > Debug > Ragdoll Tool > L
 |2|Debug - Automation & Self-Tests|Armed Grunts: Blade on Blade|Advanced VR Options > Debug > Automation & 
 |2|Debug - Automation & Self-Tests|Armed Grunts: Directional Parry|Advanced VR Options > Debug > Automation & 
 |2|Debug - Automation & Self-Tests|Armed Grunts: Strikes on Its Weapon Disarm|Advanced VR Options > Debug > 
+|2|Debug - Automation & Self-Tests|Armed Grunts: Shots on the Drawn Body|Advanced VR Options > Debug > Automation & 
 |2|Debug - Automation & Self-Tests|Armed Grunts: Preventive Parry|Advanced VR Options > Debug > Automation & 
 |2|Debug - Automation & Self-Tests|Armed Grunts: Wind-up Parry|Advanced VR Options > Debug > Automation & 
 |2|Debug - Automation & Self-Tests|Armed Knights: Spawn, Swing, Disarm, Death|Advanced VR Options > Debug > 
@@ -4943,6 +4965,7 @@ vr_chainsaw_model_handle|2|Chainsaw Engine|Model Handle in the Hand|Advanced VR 
 vr_agarmor_rule|1|Armour|Absorb|Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour > Absorb
 vr_agarmor_helmet_head|1|Armour|Helmets Stop Headshots|Advanced VR Options > Combat > Armed Grunts (Experimental) > 
 vr_agarmor_block_cuts|1|Armour|Plates Stop Cuts|Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour 
+vr_agarmor_impulse|1|Armour|Push Through Plates|Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour 
 vr_agarmor_debris_time|1|Armour|Broken Plates Last|Advanced VR Options > Combat > Armed Grunts (Experimental) > 
 vr_agarmor_skill0|1|Armour|Chance Armoured|Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour > 
 vr_agarmor_skill0_type|1|Armour|Best Armour|Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour > 

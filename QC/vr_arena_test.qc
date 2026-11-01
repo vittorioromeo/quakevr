@@ -13,6 +13,7 @@
 // - 4 (vrarena, or any map with vr_arena 1): the places a wave comes in on: the map's ground and high places are
 //   known, each has ground under it to land on, the two kinds do not share a place, and a place already holding a
 //   foe of this wave is passed over. On a map with no info_arena_spawn of its own the same checks run on the ring.
+//   Then the first foes in the field stand upright (no pitch, no roll: they face the player by yaw alone).
 // - 5 (vrtesthall with vr_arena 1, vrarena, or any map with vr_arena 1): the difficulty scaling (vr_arena_skill_impact,
 //   VR_ARENA_Skill): the factor at each skill and at impact 0 / 1 / 2, and what it does to a wave -- its size, the
 //   field's cap, its pacing, the waves Quake's own monsters and the higher rungs join at, the unarmed share of the
@@ -724,9 +725,33 @@ void() VR_AT4_Frame =
         VR_AT_Check(VR_AT_FloorUnder(next) < 600, "the place it fell back to has ground under it");
 
         remove(dummy);
-        VR_AT_End();
+        vr_at_step = 1;
         return;
     }
+
+    // The foes come in upright, turned toward the player by yaw alone: a pitch taken from the line to the player (a
+    // foe on a high place, the player below) stayed on them for good, their guns and swings drawn tilted. Checked once
+    // two of the wave's foes are in (the first wave's opening burst).
+    float nfoes = 0;
+    float ntilted = 0;
+    entity f = nextent(world);
+    while(f)
+    {
+        if(f.ar_slot > 0 && f.health > 0 && (f.flags & FL_MONSTER))
+        {
+            nfoes = nfoes + 1;
+            if(fabs(f.angles_x) > 0.01 || fabs(f.angles_z) > 0.01)
+            {
+                ntilted = ntilted + 1;
+                dprint(sprintf("arena: t4 %s tilted: pitch %g roll %g\n", f.classname, f.angles_x, f.angles_z));
+            }
+        }
+        f = nextent(f);
+    }
+    if(nfoes < min(2, ar_plan_n)) { return; }
+    dprint(sprintf("arena: t4 foes in the field %g, tilted %g\n", nfoes, ntilted));
+    VR_AT_Check(ntilted == 0, "the wave's foes come in upright (no pitch, no roll)");
+    VR_AT_End();
 }
 
 // ---------------------------------------------------------------------------
