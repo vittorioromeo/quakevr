@@ -15,6 +15,7 @@
 #include "vr_bullettime.hpp"
 #include "vr_gearlights.hpp"
 #include "vr_cvars.hpp"
+#include "vr_disarmhull.hpp"
 #include "vr_engine.hpp"
 #include "vr_foegrab.hpp"
 #include "vr_gfx.hpp"
@@ -593,10 +594,17 @@ bool weaponPoint(float fraction, float height, glm::vec3& out, bool armed = fals
     const char* name = found ? PR_GetString(best->v.netname) : "";
     if(found)
     {
-        // (In its axes from its origin: to the world.)
-        const glm::mat3 axes = held::axesFromAngles(best->v.angles, false);
+        // (In its axes from its origin: to the world. An armed monster's: where it is drawn (disarmhull::weapon, the place
+        // its disarm and grab volume is read at: the hand goes where you see the weapon), else the server's place.)
+        glm::mat3 axes = held::axesFromAngles(best->v.angles, false);
+        glm::vec3 origin{best->v.origin[0], best->v.origin[1], best->v.origin[2]};
+        disarmhull::Placed placed;
+        if(armed && disarmhull::weapon(best, placed))
+        {
+            axes = placed.axes;
+            origin = placed.origin;
+        }
         ahead = axes[0];
-        const glm::vec3 origin{best->v.origin[0], best->v.origin[1], best->v.origin[2]};
         for(glm::vec3& v : verts)
         {
             v = origin + axes * v;

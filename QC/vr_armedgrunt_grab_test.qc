@@ -482,6 +482,11 @@ void() VR_AGGT_Dual68 =
             tug && g.vr_ag_prop.weapon == want && (vr_aggt_leg == 1 || (other == WID_SHOTGUN && g.vr_ag_prop.vr_ag_left)));
         if(!tug)
         {
+            vector hp = VRGetEntHandPos(p, cVR_MainHand);
+            vector hg = disarmhull(g.vr_ag_prop, 0, hp, hp, 0);
+            vector hm = disarmhull(g.vr_ag_prop, 20, '0 0 0', '0 0 0', 0);
+            VR_AGT_Print(sprintf("dual tug: the hand %.1f off its drawn volume (found %g), %.1f from its server place, the volume's middle %.1f from it",
+                hg_x, hg_z, vlen(hp - g.vr_ag_prop.origin), vlen(hm - g.vr_ag_prop.origin)));
             vr_agt_step = 9;
             return;
         }

@@ -238,7 +238,15 @@ void() VR_AGTest_Sequence =
             g.vr_ag_prop.weaponinst.wi_clip, g.vr_ag_reserve), g.vr_ag_reloads >= 1 && g.vr_ag_prop.weaponinst.wi_clip > 0);
         // Struck on its gun hand.
         vr_agt_clip = g.vr_ag_prop.weaponinst.wi_clip;
+        // (On its weapon as drawn: its volume's middle (disarmhull 20). Its server place, the old aim, lay within the old
+        // 10-unit grip sphere but off the drawn weapon's hull, and Body Blows 0 wants the weapon or hand itself: ROUND23.md,
+        // "Disarm volumes as hulls of the drawn triangles".)
         hit_pos = g.vr_ag_prop.origin;
+        vector hq = disarmhull(g.vr_ag_prop, 0, hit_pos, hit_pos, 0);
+        if(hq_z > 0)
+        {
+            hit_pos = disarmhull(g.vr_ag_prop, 20, '0 0 0', '0 0 0', 0);
+        }
         T_Damage(g, p, p, 12);
         hit_pos = '0 0 0';
         entity w = VR_AGT_LyingNear(g.origin);
