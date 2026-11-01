@@ -584,6 +584,7 @@ void() worldspawn =
 void() VR_DCTest_Frame; // (vr_dmgcredit_test.qc, after the weapons it fires)
 void() VR_AmmoColor_TestFrame; // (vr_ammocolor_test.qc, after the AD bridge)
 void() VR_AGTest_Frame; // (vr_armedgrunt_test.qc, after the armed grunts)
+void() VR_AGTune_TestFrame; // (vr_agtune_test.qc, after the armed grunts)
 void() VR_GibProps_TestFrame; // (vr_gibprops_test.qc, after AD's files)
 void() VR_PropImp_TestFrame; // (vr_propimpact_test.qc, after AD's files)
 void() VR_ARENA_Test_Frame; // (vr_arena_test.qc, after the arena's own file)

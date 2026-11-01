@@ -562,6 +562,7 @@ vr_stalepose_test.qc // test 79: shots and grip spheres from the drawn pose
 vr_disarmhull_test.qc // test 16: the disarm volumes as hulls of the drawn triangles
 vr_armedgrunt_expose_test.qc
 vr_armedgrunt_ai_test.qc
+vr_agtune_test.qc // the armed humanoids' tuning (vr_agtune_test)
 vr_armedgrunt_ammo_test.qc
 vr_armedrepl_test.qc
 vr_arena_test.qc // Survival Arena's tests (vr_arena_test)

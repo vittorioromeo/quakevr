@@ -896,6 +896,15 @@ QVR_SLIDER(vr_agrunt_aim_error, "Aim Error", 0.f, 15.f, 0.5f, "%.1f deg", ext(0.
 QVR_SLIDER(vr_agrunt_ai_reaction, "Reaction Time", 0.f, 3.f, 0.05f, "%.2f s", ext(0.f, 10.f),
     "From first seeing you to their first attack, at Normal (Quake's 1 s; by Difficulty Impact "
     "Nightmare none) (vr_agrunt_ai_reaction).")
+QVR_SLIDER(vr_agrunt_speed, "Movement Speed", 0.25f, 2.f, 0.05f, "%.2fx", ext(0.f, 4.f),
+    "Every step they take times this: running at you, closing in, backing off, strafing round you, walking "
+    "as they fire (vr_agrunt_speed).")
+QVR_SLIDER(vr_agrunt_speed_back, "Backpedal Speed", 0.25f, 2.f, 0.05f, "%.2fx", ext(0.f, 4.f),
+    "On top of Movement Speed: a step backwards of where they face times this (a step at a slant: its "
+    "backward part) (vr_agrunt_speed_back).")
+QVR_SLIDER(vr_agrunt_speed_strafe, "Strafe Speed", 0.25f, 2.f, 0.05f, "%.2fx", ext(0.f, 4.f),
+    "On top of Movement Speed: a step sideways of where they face times this (a step at a slant: its "
+    "sideways part) (vr_agrunt_speed_strafe).")
 QVR_TOGGLE(vr_agrunt_range, "Keep Their Distance",
     "With a gun it fights at its weapon's distance: a super shotgun close but out of your reach, a "
     "shotgun near, nail guns and the enforcer's rifle further; nearer than that it backs off facing you "

@@ -738,6 +738,7 @@ QVR_TUNABLE(vr_adgun_fx_mist, "1") // AD support: a faint green mist lingering w
 
 // Combat > Armed Grunts (Experimental)
 QVR_TUNABLE(vr_agrunt_reload_time, "1.5") // seconds a reload takes
+QVR_TUNABLE(vr_agrunt_reload_ssg, "0.85") // the double-barrelled shotgun's reload: this share of vr_agrunt_reload_time (his voice note 2026-11-01 18:11: 15% faster)
 QVR_TUNABLE(vr_agrunt_disarm_damage, "10") // a blow's least damage there to disarm it
 QVR_TUNABLE(vr_agrunt_disarm_swing, "4.5") // m/s a blow (your hand or what it holds) landing on its held weapon must reach to knock it out
 QVR_TUNABLE(vr_agrunt_disarm_throw, "20") // kg m/s a thrown weapon, prop or gib landing on its held weapon must carry (mass x speed) to knock it out

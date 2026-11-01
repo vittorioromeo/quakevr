@@ -167,7 +167,9 @@ void(entity e) VR_AgArmor_Spawn =
     {
         return; // (P2: the enforcer too, by the same chances: no free set; the knights too (agent/dknight))
     }
-    VR_AgArmor_Roll(skill, e.origin);
+    // (The server's skill, not the `skill` global: StartFrame sets that, so a map's own monsters, spawned with the map
+    // before its first frame, read 0 there: Easy's chance, none; his voice note 2026-11-01 18:52, "even in nightmare".)
+    VR_AgArmor_Roll(cvar_hget(cvarh_skill), e.origin);
     if(vr_ar_roll_type > 0)
     {
         VR_AgArmor_Give(e, vr_ar_roll_type, vr_ar_roll_mask);
