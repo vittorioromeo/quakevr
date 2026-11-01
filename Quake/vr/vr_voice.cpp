@@ -52,14 +52,17 @@ namespace
 // The player's own voice: every sound his character makes with his throat. QC: player.qc / ad_player.qc (pain,
 // death, drowning, the hard landing's "oof"), client.qc / ad_client.qc (the jump's grunt, gasps out of the water,
 // lava and slime pain), vr_burning.qc (burning), vr_melee.qc (the gasps warning of a blow); the engine: vr_climb.cpp's
-// mantle and judo-throw grunts (from these, and vr_audio.cpp's two derived from them). Not his body's other sounds
-// (the axe's axhit1/2, gibs, splashes, telefrags, the heartbeat), nor anyone else's.
+// mantle and judo-throw grunts (from these, and vr_audio.cpp's two derived from them); hit by a blade or a fist (an
+// armed grunt's melee: PainSound's axhitme, player.qc / ad_player.qc), axhit1's grunt under its own name
+// (vr/derived/axhit1_voice: axhit1 itself is also a thrown axe's and the grapple's thud). Not his body's other sounds
+// (axhit1/2 as impacts, gibs, splashes, telefrags, the heartbeat), nor anyone else's. Audited 2026-11-01 (his note
+// 18:27): no other throat sound is played on the player (monster melee goes through PainSound's pain1..6).
 constexpr const char* voiceSounds[] = {
     "player/pain1.wav", "player/pain2.wav", "player/pain3.wav", "player/pain4.wav", "player/pain5.wav",
     "player/pain6.wav", "player/death1.wav", "player/death2.wav", "player/death3.wav", "player/death4.wav",
     "player/death5.wav", "player/plyrjmp8.wav", "player/land.wav", "player/land2.wav", "player/gasp1.wav",
     "player/gasp2.wav", "player/drown1.wav", "player/drown2.wav", "player/lburn1.wav", "player/lburn2.wav", "player/slimbrn2.wav",
-    "player/h2odeath.wav", "vr/derived/plyrjmp8_low.wav", "vr/derived/land2_low.wav",
+    "player/h2odeath.wav", "vr/derived/plyrjmp8_low.wav", "vr/derived/land2_low.wav", "vr/derived/axhit1_voice.wav",
 };
 
 // The pitch search's range (its threshold, YIN's: vr_voice_voicing).
@@ -95,7 +98,8 @@ LoadStats loadStats;
 // vr_voice_hear's next sound (the main thread's).
 int hearNext{0};
 constexpr const char* hearSounds[] = {"player/pain2.wav", "player/death1.wav", "player/plyrjmp8.wav",
-    "player/pain4.wav", "player/land2.wav", "player/gasp2.wav", "player/death3.wav", "player/pain6.wav"};
+    "player/pain4.wav", "player/land2.wav", "player/gasp2.wav", "player/death3.wav", "player/pain6.wav",
+    "vr/derived/axhit1_voice.wav"};
 
 [[nodiscard]] float semitonesSetting()
 {
@@ -814,6 +818,9 @@ void test_f()
     }
     Con_Printf("vr_voice_test: the %d voice sounds: %.2f s of sound transformed in %.1f ms\n",
         static_cast<int>(sizeof voiceSounds / sizeof voiceSounds[0]), totalAudio, totalMs);
+    // A blade's or a fist's hit on the player: his grunt is his voice; axhit1 itself (a thrown axe's thud) is not.
+    check(qvr::voice::isVoice("vr/derived/axhit1_voice.wav") && !qvr::voice::isVoice("player/axhit1.wav"),
+        "hit by a blade or a fist: the grunt's copy is his voice, axhit1 itself not");
     qvr::testkit::verdict("vr_voice_test", passed, failed);
 }
 

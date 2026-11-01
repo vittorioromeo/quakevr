@@ -5424,3 +5424,22 @@ weapon in two hands); living enemies too (the foe grab, the judo), active and de
   Hands on with no fade margin: 4/0 (ghost 0.350 measured, 0.000 drawn with the option; 0.350 drawn without).
   ghost_recoil_test.sh 3/0. A held ragdoll (box3d::ragdollHold) is not covered by the test (the same query as
   limbHold's).
+
+### The hit grunt's voice, feminine too
+
+His note (18:27): hit by a fist or a melee attack, the player makes the male grunt with the feminine voice on; check
+every player voice line.
+
+- The audit: the voice is chosen by sample name as it loads (vr_voice.cpp voiceSounds), and every throat sound played on
+  the player is in it (pain1..6, death1..5, drown, lburn, slimbrn2, h2odeath, gasp, plyrjmp8, land/land2, the mantle's
+  derived grunts, the stamina gasps; AD's copies the same samples) except one: a blow by a player weapon's melee (an
+  armed grunt's fist, axe, sword, crowbar, chainsaw, gun butt, Mjolnir: `axhitme`) plays `player/axhit1.wav` in
+  PainSound (player.qc; AD's ad_player.qc), id's thud with the male grunt in it. Monster melee (knight, ogre, zombie,
+  dog, fiend, the armed grunt's tug butt and headbutt) goes through pain1..6, already feminine. No other path (foe grab,
+  choke, kick, judo) plays a sound of his throat. Telefrag and gib deaths are gore, left out.
+- Fix: axhit1 is also a thrown axe's and the grapple's thud, so it isn't listed itself: a derived copy under its own
+  name (`vr/derived/axhit1_voice.wav`, rate 1, vr_audio_io.cpp) is in voiceSounds, and PainSound / AD's
+  ad_SOUND_AXE_PLAYER play it (QC `QVR_SOUND_AXHIT_VOICE`, precached in world.qc). Also: player_pain's early returns
+  (mid-attack, the ring) clear `axhitme`, so a later pain of any kind (a nail) no longer plays the blade grunt.
+  "Hear Voice" cycles through it too.
+- vr_voice_test (vr_voice 1, e1m1): 31/0, the new sample transformed (61% voiced) and the name check.
