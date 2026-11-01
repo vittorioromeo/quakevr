@@ -5410,3 +5410,17 @@ gradually slower, strafing at (nearly) full speed, with sliders. ON by default, 
   about 0.6), `_min` 0.5, `_strafe` 0.95, `_angle` 30, `_angle_falloff` 75.
 - Test `Misc/quakevr/closequarters_test.sh` (`vr_closequarters_test start|approach|end`): a grunt 120 units ahead walked
   into, then strafed past: 11/0 (first slowed at 1.57 m, to 0.500 at its face; the strafe 320 -> 304 u/s).
+
+### Ghost hands: none while holding a body
+
+His note (18:24) and answer: an option so ghost hands don't show while handling ragdolls, only in other situations (a
+weapon in two hands); living enemies too (the foe grab, the judo), active and dead ragdolls; ON by default.
+
+- `vr_ghost_hands_ignore_bodies` 1 (Ghost Hands' page: "No Ghost Holding Bodies"): setupGhostHands skips the ghost of a
+  hand that `holdsBody` (vr_view_hands.cpp): `foegrab::holding(hand)` or `box3d::ragdollHold` (a ragdoll's limb or body,
+  knocked down or dead): the same queries the drawn hand's placement uses. Weapons, props in both hands, ledges, tugs on a
+  stuck axe, walls: unchanged.
+- Test `Misc/quakevr/ghost_body_test.sh` (`vr_ghost_body_test start|hidden|end`): a grunt held by the chest, Ghost
+  Hands on with no fade margin: 4/0 (ghost 0.350 measured, 0.000 drawn with the option; 0.350 drawn without).
+  ghost_recoil_test.sh 3/0. A held ragdoll (box3d::ragdollHold) is not covered by the test (the same query as
+  limbHold's).

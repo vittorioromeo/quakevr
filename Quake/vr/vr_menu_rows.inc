@@ -4822,6 +4822,10 @@ QVR_TOGGLE(vr_ghost_hands_ignore_recoil, "No Ghost from Recoil",
     "A shot's recoil kicks the drawn hand back and up off your real one (Weapon Effects' Programmatic "
     "Recoil): on, that kick doesn't bring the ghost out (only what else holds the hand off does); off, a "
     "strong kick shows it for a moment.")
+QVR_TOGGLE(vr_ghost_hands_ignore_bodies, "No Ghost Holding Bodies",
+    "On: a hand holding an enemy (grabbed alive, the judo) or a ragdoll (knocked down or dead) shows no ghost, "
+    "only the hand drawn on the body; the ghost still shows for a weapon in two hands, heavy weapons and walls. "
+    "Off: those holds show it too (vr_ghost_hands_ignore_bodies).")
 
 // vr_menu_settings.inc: pageBodyDisplay
 QVR_CYCLE(vr_handedness, "Handedness",
