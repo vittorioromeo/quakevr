@@ -1272,13 +1272,13 @@ void(entity p, entity pl, float h) VR_AG_HandGrab =
     // to catch it), the lesser; in real time (bullet time's hands are the game's, sped up: they read 3 times as fast at
     // 0.3, and a careful catch in it was refused as a punch).
     float most = cvar_hget(cvarh_vr_agrunt_grab_speed);
-    vector hv = VRGetEntHandVel(pl, h);
+    vector hv = VRGetEntHandVelU(pl, h); // (against you; + your velocity: in the world)
     vector wv = '0 0 0';
     if(self.vr_ag_was_n >= 1 && frametime > 0 && vlen(self.origin - self.vr_ag_was_o1) < 32)
     {
         wv = (self.origin - self.vr_ag_was_o1) * (1 / frametime);
     }
-    float sp = min(vlen(hv - pl.velocity), vlen(hv - wv)) * (vr_hand_time_scale > 0 ? vr_hand_time_scale : 1) / VRMetersToUnits();
+    float sp = min(vlen(hv), vlen(hv + pl.velocity - wv)) * (vr_hand_time_scale > 0 ? vr_hand_time_scale : 1) / VRMetersToUnits();
     if(cvar_hget(cvarh_vr_agrunt_debug) >= 2)
     {
         VR_AG_Log(sprintf("a hand (%g) takes hold of its weapon at %.2f m/s, %.1f units from its grip", h, sp,

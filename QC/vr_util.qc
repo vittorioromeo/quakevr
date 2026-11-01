@@ -265,6 +265,15 @@ inline vector(entity e, float xHand) VRGetEntHandVel =
     return VR_IMPL_SELECT(xHand, e.offhandvel, e.handvel);
 }
 
+float() VRMetersToUnits; // (vr_wpnholster.qc)
+
+// The hand's velocity against its player, in world units per second (VRGetEntHandVel is metres per second in the play
+// space, the player's own motion left out; + .velocity for its world velocity).
+vector(entity e, float xHand) VRGetEntHandVelU =
+{
+    return VRGetEntHandVel(e, xHand) * VRMetersToUnits();
+};
+
 float(float xHand) VRIsAmmolessWeapon =
 {
     return VRGetCurrentAmmo(xHand) == AID_NONE;
