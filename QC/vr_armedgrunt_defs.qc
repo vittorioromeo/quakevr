@@ -129,6 +129,7 @@ string(entity g) VR_AGG_Label;                                             // Sh
 // A deliberate strike on its weapon or hand (vr_agrunt_strike_first; vr_armedgrunt_parry.qc):
 float(entity g, entity p, entity pl, float h) VR_AG_StrikeMeets;           // VR_AG_HandStrikeSpeed: the swept test
 float(entity g, entity p) VR_AG_StrikeFrame;                               // VR_AG_WeaponStruck: strikes, then parries
+float(entity g, entity p) VR_AG_TugStrike;                                 // VR_AG_TugFrame: the other fist's strike in a tug
 float(entity g, entity e) VR_AG_ThrowOnWeapon;                             // VR_AG_Hit: a throw that touched its body
 float(entity g, entity p, vector at) VR_AG_HandLineDist;                   // VR_AG_Hit: a body blow by its hand
 float(entity p) VR_AG_DrawnFrame;                                          // VR_AG_Hit: its grip as drawn (vr_armedgrunt_play.qc)

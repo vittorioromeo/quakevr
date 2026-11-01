@@ -2530,6 +2530,8 @@ QVR_CVAR(vr_agrunt_windup_parry, "1", CVAR_ARCHIVE) // 1: you raising a weapon (
 // Shooting its weapon out of its hand (QC vr_armedgrunt_shot.qc; ROUND22.md "Armed grunts: shooting the weapon out").
 QVR_CVAR(vr_agrunt_shotdisarm, "1", CVAR_ARCHIVE)              // 1: your shots on its weapon or its weapon hand add up; past the threshold, a roll knocks it out
 QVR_CVAR(vr_agrunt_shotdisarm_parts, "2", CVAR_ARCHIVE)        // what counts: 0 the weapon only, 1 the hand (and forearm) only, 2 either
+// The disarm leniency (Armed Grunts > Disarm Leniency): a grab's, then the volumes.
+QVR_CVAR(vr_agrunt_grab_leniency, "5", CVAR_ARCHIVE)           // cm more than vr_agrunt_grab_slack: your fist closing within this of its weapon's drawn surface takes it (a tug), however it moves (ROUND22.md, "Armed humanoids: grabs, holding on, running chainsaws"; a tunable till 2026-11-01)
 // The disarm volumes: the hulls of the triangles drawn (vr_disarmhull.hpp), each grown (or, under 0, shrunk) by these units.
 QVR_CVAR(vr_agrunt_vol_shot_weapon, "0", CVAR_ARCHIVE)         // a shot on its weapon: its drawn model's hull grown by this
 QVR_CVAR(vr_agrunt_vol_shot_hand, "0", CVAR_ARCHIVE)           // a shot on the hand holding it: its drawn hand and forearm's hull grown by this

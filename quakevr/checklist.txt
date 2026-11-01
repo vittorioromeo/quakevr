@@ -26,6 +26,9 @@ Arena foes stand upright, never pitched toward you, enforcers on high places too
 The first armour plates broken after a new game cause no hitch.
 Tug-of-war with your tuned values as defaults; the tug's least time is now 0.4 s (Armed Grunts > Tug: Least Pull Time slider). {test:agrunt_tug}
 An armed death knight at range casts his fireballs with a sword swing, from the blade tip; holding a gun he sometimes (30%, Armed Humanoid Replacements > spell share) casts them from the muzzle with a thrust.
+Show Disarm Volumes, a grunt hunting you: the cyan hull sits on its drawn gun hand and forearm as it walks and aims, never floating off with its animation. {test:agrunt_tug}
+Combat > Armed Grunts (Experimental) > Disarm Leniency (Grab, Shot: Weapon, Shot: Hand, Melee Strike, Body Blow): raise Grab Leniency and grab near (not on) its gun: taken; raise Shot Leniency: Weapon and shoot just past the gun: it counts.
+(Re-test of the failed item, fixed: the punch was never checked during a tug) Hold its gun with one hand and punch the gun with the other fist: the gun ends in the holding hand. {test:agrunt_tug}
 
 [2. Armed humanoids: disarming and armour]
 Show Disarm Volumes: the wireframe hulls sit on each drawn weapon (magenta, orange, red; the sword's orange line along its blade) and on the drawn hand and forearm (cyan). {test:disarm_hulls_melee}
