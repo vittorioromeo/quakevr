@@ -433,18 +433,16 @@ float(entity pl, entity g, float damage) VR_DRP_Blow =
     return vr_drp_hand;
 };
 
-// VR_Parry's directional parry by your hand `h`: sparks where the two weapons met (vr_parry_at), off both, and the clang
-// of metal on metal (the impact table's rows, as blade on blade's).
+// VR_Parry's directional parry by your hand `h`: sparks where the two weapons met (vr_parry_at), off both, and their
+// sound: the weapon clash's table for what met what (vr_ownclash.qc VR_Clash_Row: your blade on its blade sparks, the
+// clang and a tink; your gun fewer sparks and the clank).
 void(entity pl, entity g, float h) VR_DRP_Effects =
 {
     vector x = vr_parry_at;
     vector way = vr_drp_sweep != '0 0 0' ? vr_drp_sweep : normalize(pl.origin - g.origin);
-    VR_ImpactFx(VR_MAT_METAL, VR_HIT_BLOW, g, x, way * -1 + '0 0 0.5', 60); // (sparks off both, as blade on blade's)
+    entity w = vr_drp_w ? vr_drp_w : g.vr_ag_prop;
+    VR_Clash_Fx(g, VR_Clash_MatOf(VR_Melee_Thing(pl, h)), w ? VR_Clash_MatOfWid(w.weapon) : VR_CLASH_BLADE, x,
+        way * -1 + '0 0 0.5', 60, 0.9, 1);
     vr_drp_fx_n = vr_drp_fx_n + 1;
     vr_drp_fx_at = x;
-    string snd = impactsound(VR_MAT_METAL, VR_HIT_BLADE, VR_IMPACT_SOUND);
-    if(snd != "")
-    {
-        sound(g, CHAN_AUTO, snd, 0.9, ATTN_NORM);
-    }
 };

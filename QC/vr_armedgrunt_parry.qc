@@ -472,19 +472,14 @@ void(entity g, entity p, entity pl, float h, vector x, float swing, float off) V
     float thing = b.mh_thing;
     float k = min(2, max(0.25, swing / 6)); // (the blow's strength: 1 at 6 m/s)
     float fx = max(0, cvar_hget(cvarh_vr_agrunt_blade_fx));
-    float edged = (thing == VR_MTHING_SWORD || thing == VR_MTHING_AXE || thing == VR_MTHING_SAW);
-    float metal = (edged || thing == VR_MTHING_GUN || thing == VR_MTHING_CROWBAR);
     if(fx > 0)
     {
-        if(metal)
+        // What met what: the weapon clash's table (vr_ownclash.qc VR_Clash_Row: blade on blade sparks, the clang and a
+        // tink; a gun on its blade fewer sparks and the clank; a hand the clank at half), sparks off both.
+        if(VR_Clash_Fx(p, VR_Clash_MatOf(thing), VR_Clash_MatOfWid(p.weapon), x, way * -1 + '0 0 0.5', 60 * k * fx,
+                       (0.45 + 0.35 * k) * fx, 1) > 0)
         {
-            impact(VR_MAT_METAL, VR_HIT_BLOW, x, way * -1 + '0 0 0.5', 60 * k * fx); // (sparks off both)
             vr_agbc_sparks = vr_agbc_sparks + 1;
-        }
-        string s = impactsound(VR_MAT_METAL, edged ? VR_HIT_BLADE : VR_HIT_BASH, VR_IMPACT_SOUND);
-        if(s != "")
-        {
-            sound(p, CHAN_AUTO, s, min(1, (0.45 + 0.35 * k) * fx * (metal ? 1 : 0.5)), ATTN_NORM);
         }
     }
     // Your weapon stopped there: your hand knocked back along the blow (the parry's knock), its haptics.

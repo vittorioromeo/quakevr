@@ -3021,6 +3021,7 @@ void() PlayerVRMeleeHeadbutt =
 }
 
 void() VR_KdTrig_Tackle; // (vr_kdtrig.qc)
+void() VR_Clash_Frame; // (vr_ownclash.qc)
 
 void() PlayerVRMelee =
 {
@@ -3028,6 +3029,7 @@ void() PlayerVRMelee =
     VR_Heartbeat();
     VR_Melee_Frame(); // both hands' new poses (vr_melee.qc)
     VR_HotBlade_Frame(); // the blades in a flame heat, in water cool (vr_hotblade.qc)
+    VR_Clash_Frame(); // your two weapons meeting fast: sparks and a sound by their materials (vr_ownclash.qc)
     VR_Buttons_WeaponFrame(); // a held weapon touching a wall button presses it, all of it (buttons.qc)
     VR_Gib_HeldFrame(); // a gib held in one hand struck by the other (vr_carry.qc)
     VR_Bash();

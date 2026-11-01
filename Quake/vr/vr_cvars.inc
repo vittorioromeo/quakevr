@@ -1568,6 +1568,16 @@ QVR_CVAR(vr_autopump_delay, "0.25", CVAR_ARCHIVE)     // seconds of game time fr
 QVR_CVAR(vr_autopump_sound, "0.5", CVAR_ARCHIVE)      // volume of its two clacks, the slide going back and slamming home (0 off)
 QVR_CVAR(vr_autopump_haptics, "1", CVAR_ARCHIVE)      // strength of the light ticks in the hand at the back and home (0 off)
 QVR_CVAR(vr_autopump_hold, "-1", CVAR_NONE)           // test: 0..1 holds every shotgun's fore-end at that point of the stroke (0.35-0.45 the back; -1 off)
+// Weapon clash (QC vr_ownclash.qc; ROUND23.md, "Weapon clash"): your two held weapons meeting fast enough spark and
+// sound by what they are made of (blade on blade sparks and tinks, gun on gun a dull knock). Weapons > Weapon Effects.
+QVR_CVAR(vr_clash_melee, "1", CVAR_ARCHIVE)           // your melee weapons clash (swords, axes, the crowbar, a carried club)
+QVR_CVAR(vr_clash_ranged, "1", CVAR_ARCHIVE)          // your guns clash (a pair clashes when both of its weapons do)
+QVR_CVAR(vr_clash_speed, "1.5", CVAR_ARCHIVE)         // m/s: the least speed the two weapons close on each other at to clash
+QVR_CVAR(vr_clash_sparks, "1", CVAR_ARCHIVE)          // the sparks' amount times this (0 none; their own amount by the speed and the materials)
+QVR_CVAR(vr_clash_volume, "1", CVAR_ARCHIVE)          // the clash's sound's volume times this (0 none; its own by the speed and the materials)
+QVR_CVAR(vr_clash_haptics, "1", CVAR_ARCHIVE)         // the light buzz in both hands times this (0 none)
+QVR_CVAR(vr_clash_cooldown, "0.2", CVAR_ARCHIVE)      // seconds after a clash before the pair can clash again
+QVR_CVAR(vr_clash_test, "0", CVAR_NONE)               // the QC's tests (Debug > Tests > Weapon Clash; vr_ownclash_test.qc): 1 the rule's cases on laid-out swings, 2 two swords in the mock hands swung together slowly then fast
 // Weapon effects (vr_weaponfx.cpp; ROUND21.md, "Weapon effects: recoil, muzzle flash, tracers"): each weapon's own
 // settings are Weapon Offsets > Effects (vr_wofs_fx_*: which weapons kick and flash, their tracers' multipliers).
 QVR_CVAR(vr_weapon_recoil, "1", CVAR_ARCHIVE)          // 0: no programmatic recoil
