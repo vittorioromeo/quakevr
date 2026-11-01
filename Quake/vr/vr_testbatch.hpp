@@ -13,7 +13,7 @@ namespace qvr::testbatch
 void registerCommands(); // vr_test_snapshot, vr_test_reset, vr_waituntil, vr_waitprint
 
 // The tests' one cvar snapshot (design review 7): cvars' values kept to be put back. vr_test_snapshot takes every cvar
-// (takeAll: vr_test_reset also sets the cvars made since to their defaults); a scenario takes each setting it changes
+// and every data table's value (takeAll: their stand-ins, standInTables(), as a case sets them by name; vr_test_reset also sets the cvars made since to their defaults); a scenario takes each setting it changes
 // (take: the first value kept) and puts them back when it ends (vr_scenario.cpp).
 class CvarSnapshot
 {

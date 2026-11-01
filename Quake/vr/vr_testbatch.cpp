@@ -4,7 +4,8 @@
 // quit): seconds of start-up for every case. Misc/quakevr/testbatch.sh plays a suite's cases one after another in one
 // game (and the cases split between parallel copies), with these between them (docs/vr-port/TESTING.md, "Batched test
 // cases"):
-//   vr_test_snapshot   every cvar's value now (the batch's start: the config, the autoexec's settings)
+//   vr_test_snapshot   every cvar's value now (the batch's start: the config, the autoexec's settings), and every
+//                      data table's (weapons.txt's, props.txt's, ...: their stand-ins, set by name as cvars)
 //   vr_test_reset      back to that start for the next case: the cvars a case set put back (a cvar made since: its
 //                      default), the +commands let go (+grabmain, +attack: their - command), the mock headset's poses,
 //                      buttons, sticks and scripted moves as at start-up (resetMockState), the client's rand() seeded as
@@ -68,6 +69,16 @@ void CvarSnapshot::takeAll()
 {
     clear();
     cvars::forEach([this](cvar_t* var) { take(var); });
+    // The data tables' values too (no cvars, but set as ones: a case's "vr_reload_port_shot_radius 0.1" or
+    // "vr_wofs_<key>_NN 2" sets a weapon table's stand-in, Cvar_SetQuick puts it back), or a case's setting stays for
+    // the cases after it in the same game.
+    for(const za::Span<cvar_t> table : standInTables())
+    {
+        for(cvar_t& var : table)
+        {
+            take(&var);
+        }
+    }
     all_ = true;
 }
 
