@@ -653,6 +653,12 @@ void handTouches(edict_t* ent)
 
         for(int h = 0; h < 2; h++)
         {
+            // A hand drawn off its tracked place by what it holds (a ragdoll, an enemy, a ledge, a prop in both hands:
+            // handHeldOff) touches nothing there: no press, no pickup, no nudge from its ghost (his note, 2026-11-01).
+            if(handHeldOff(ent, h == 0 ? HAND_OFF : HAND_MAIN))
+            {
+                continue;
+            }
             if(handOn(target, ent, h == 0 ? HAND_OFF : HAND_MAIN))
             {
                 setHandtouchParams(h == 0 ? HAND_OFF : HAND_MAIN, ent, target);
@@ -711,6 +717,10 @@ void weaponTouches(edict_t* ent)
     {
         const auto* tracked = server::clientMove(ent);
         const int h = i == 0 ? 1 : 0;
+        if(handHeldOff(ent, h))
+        {
+            continue; // (drawn off its tracked place by what it holds: handTouches)
+        }
         const glm::vec3 from = tracked ? tracked->hands[h].pos : fieldVec(ent, handPos[i]);
         const glm::vec3 to = tracked ? tracked->muzzlePos[h] : fieldVec(ent, muzzlePos[i]);
         if(glm::distance(from, to) > longest)
@@ -875,8 +885,9 @@ void handTouch(edict_t* ent, edict_t* target)
     // over them, which made a 6-unit ammo box grabbable from a hand's width away.
     // Each hand on it touches it (round 21, "Hands: both work"): with both on it, only the off hand's touch ran, so the
     // main hand's grip on a thing the off hand rested on (or held a gun against) did nothing.
-    const bool offHit = handOn(target, ent, HAND_OFF);
-    const bool mainHit = handOn(target, ent, HAND_MAIN);
+    // (Not a hand drawn off its tracked place by what it holds: handTouches.)
+    const bool offHit = !handHeldOff(ent, HAND_OFF) && handOn(target, ent, HAND_OFF);
+    const bool mainHit = !handHeldOff(ent, HAND_MAIN) && handOn(target, ent, HAND_MAIN);
 
     if(offHit)
     {

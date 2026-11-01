@@ -372,6 +372,15 @@ inline void returnVec(const glm::vec3& v)
     return bindings().hands[hand ? 1 : 0];
 }
 
+// Whether `player`'s hand `hand` (nonzero the main) is drawn off its tracked place by what it holds (a ragdoll, an enemy,
+// a ledge, a prop in both hands, a tug, the fore-end: QC VR_Hand_HeldOff, its answer in .vr_hand_heldoff each
+// PlayerPreThink). Its tracked place is a ghost's: it touches, presses and pushes nothing there (his note, 2026-11-01).
+[[nodiscard]] inline bool handHeldOff(edict_t* player, int hand)
+{
+    const int bits = static_cast<int>(fieldFloatOr(player, fields().vr_hand_heldoff, 0.f));
+    return (bits & (hand ? 2 : 1)) != 0;
+}
+
 // Whether the progs carry the QC tests (QC/vr_macros.qc QVR_TESTS; the release flavour leaves them out). True too while
 // no progs are loaded (the main menu before any map): unknown, so nothing is claimed missing.
 [[nodiscard]] bool qcTestsPresent();

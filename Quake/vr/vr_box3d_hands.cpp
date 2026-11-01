@@ -461,7 +461,9 @@ void syncHands(float dt)
             }
             // Armed only when empty and clear of solid props (it would shove what it is in), and not on a prop's ledge
             // (vr_climb.cpp, "Holds on props": the hand on the hold would shove what it holds).
-            bool want = !holding && climb::heldProp(player, h) == 0;
+            // Nor drawn off its tracked place by what it holds (an enemy, a ledge, the fore-end: progs::handHeldOff): no
+            // push from its ghost (his note, 2026-11-01).
+            bool want = !holding && climb::heldProp(player, h) == 0 && !progs::handHeldOff(player, h);
             if(want && !hb.armed)
             {
                 const b3Vec3 zero = b3Vec3_zero;
@@ -608,6 +610,10 @@ namespace
     if(climb::heldProp(player, h) != 0)
     {
         return key; // (on a prop's ledge: none, the hand would shove what it holds; vr_climb.cpp, "Holds on props")
+    }
+    if(progs::handHeldOff(player, h))
+    {
+        return key; // (drawn off its tracked place by what it holds: no body at its ghost)
     }
     const float weapon = h ? player->v.weapon : fieldFloatOr(player, f.weapon2, 0.f);
     if(weapon == static_cast<float>(WID_FIST))
