@@ -328,6 +328,7 @@ void() worldspawn =
 
     // sounds used from C physics code
     precache_sound("demon/dland2.wav");        // landing thud
+    precache_sound("zombie/z_hit.wav");        // QVR: a ragdoll smashed into a wall or the floor (VR_RagSmash)
     precache_sound("misc/h2ohit1.wav");        // landing splash
 
     VR_World_Precache(); // VR: Quake VR's own sounds and models every map has (below)

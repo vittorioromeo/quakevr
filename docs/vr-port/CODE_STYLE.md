@@ -208,17 +208,19 @@ the Quake VR ones (`vr_*`, the weapons' `vr_wofs_*` and props' `vr_prop_*` slots
 default (`VR_ConfigSaves`, vr_cvars.cpp; numbers compared as numbers), plus the version markers (`vr_cfg_version`,
 `vr_wofs_version`, `vr_props_version`, `vr_bindings_version`), always. `vr_config_defaults` puts every Quake VR setting
 back to its default first, so a config executed again or after a game switch gives what a full config gave. A line in
-the config is the player's choice. The weapons', the props' and the monsters' per-class values are data, not cvars
-(`quakevr/data/weapons.txt`, `props.txt`, `monsters.txt`, read at start; ROUND23.md, "Weapons as data", "Props as
-data", "Monsters as data"): their `vr_wofs_<key>_NN`, `vr_prop_<key>_NN` and old per-monster names (`vr_mhull_<m>`,
-`vr_smallgibs_mult_<m>`, `vr_ragdoll_<m>_<key>`: vr_monsterdata.inc) are stand-ins (`DataTable`, vr_slottable.hpp;
-`monsterValues[]`, vr_monsterdata.cpp) that the config, the console, the QC's `cvar()` and cvar handles and the menus
-reach as cvars; the changed ones are written after the cvars (`VR_ConfigWriteTables`). His values become the defaults
-with `Misc/quakevr/weapons_data.py promote <config>`, `props_data.py promote <config>` and `monsters_data.py promote
+the config is the player's choice. The weapons', the props', the monsters' per-class and the monster groups' values
+are data, not cvars (`quakevr/data/weapons.txt`, `props.txt`, `monsters.txt`, `groups.txt`, read at start; ROUND23.md,
+"Weapons as data", "Props as data", "Monsters as data", "Monster groups as data"): their `vr_wofs_<key>_NN`,
+`vr_prop_<key>_NN`, old per-monster names (`vr_mhull_<m>`, `vr_smallgibs_mult_<m>`, `vr_ragdoll_<m>_<key>`:
+vr_monsterdata.inc) and old per-group names (`vr_mgrp_<group>_<key>`, `vr_kdtrig_resist_<group>`,
+`vr_knockdown_chance_<group>`) are stand-ins (`DataTable`, vr_slottable.hpp; `monsterValues[]`, vr_monsterdata.cpp)
+that the config, the console, the QC's `cvar()` and cvar handles and the menus reach as cvars; the changed ones are
+written after the cvars (`VR_ConfigWriteTables`). His values become the defaults with `Misc/quakevr/weapons_data.py
+promote <config>`, `props_data.py promote <config>`, `monsters_data.py promote <config>` and `groups_data.py promote
 <config>`.
 
 - **A shipped default changes: edit the default only** (`vr_cvars.inc`, `vr_defaults.cfg`, `quakevr/data/weapons.txt`,
-  `quakevr/data/props.txt`, `quakevr/data/monsters.txt`). No `defaultChanges` row and no `configVersion` bump: every player who left the setting alone gets
+  `quakevr/data/props.txt`, `quakevr/data/monsters.txt`, `quakevr/data/groups.txt`). No `defaultChanges` row and no `configVersion` bump: every player who left the setting alone gets
   the new default. The `defaultChanges` table is frozen at 218 (it still moves configs written before then); add a row
   only to override a player's own choice on purpose, which needs the author's say. The same for the slots' migration
   steps (`vr_weapons.cpp` / `vr_props.cpp` `settingsVersion`): a step only to transform values (a rename, a new

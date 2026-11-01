@@ -934,6 +934,12 @@ za::Vector<Item> pageWofsEffects()
         s("Muzzle Wisp Opacity", Key::GunfxWisps, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
             .help("How dense the thin smoke wisps off this weapon's barrels are after it stops firing: times Gunfire "
                   "Particles' Wisp Amount (Wisp Max Opacity still caps it). 0: none."),
+        s("Barrel Heat", Key::GunfxHeat, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("How fast this weapon's barrel heats as it fires (glowing red-hot, smoking): Weapon Effects' "
+                  "Heat-Up Time divided by it (2: it heats in half the time). 0: it never heats."),
+        s("Barrel Cool-Down", Key::GunfxCool, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
+            .help("How long this weapon's hot barrel takes to cool: times Weapon Effects' Cool-Down Time (2: twice as "
+                  "long). 0: it cools at once."),
         cycle("Muzzle Flash", weapons::cvar(slot, Key::Flash), {{0.f, "Off"}, {1.f, "On"}})
             .help("The shotgun's flash at this weapon's muzzle (its Muzzle settings) for a moment at each shot, following "
                   "the gun; gone when it leaves your hand."),

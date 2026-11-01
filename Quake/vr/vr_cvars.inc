@@ -1613,7 +1613,11 @@ QVR_CVAR(vr_gunfx_smoke_direction, "1", CVAR_ARCHIVE)  // 1: the forward cone; 0
 QVR_CVAR(vr_gunfx_smoke_alpha, "0.6", CVAR_ARCHIVE)      // its opacity at the start (0-3)
 QVR_CVAR(vr_gunfx_port, "1", CVAR_ARCHIVE)             // a small quick puff out of a shotgun's ejection port (the super shotgun's open breech)
 QVR_CVAR(vr_gunfx_backblast, "1", CVAR_ARCHIVE)        // a rocket launcher's backblast smoke behind it, and dust off the floor under it
-QVR_CVAR(vr_gunfx_heat, "1", CVAR_ARCHIVE)             // barrels hot after sustained fire (the nailguns'): wisps of smoke off the muzzle, a faint glow
+QVR_CVAR(vr_gunfx_heat, "1", CVAR_ARCHIVE)             // barrels hot after sustained fire (every gun's, not the flamethrowers' or melee): wisps of smoke off the muzzle, a red-hot glow
+// Barrel heat (vr_gunfx.cpp heatShot / heatCool / heatGlow; each weapon's fx_gfx_heat / fx_gfx_cool multipliers):
+QVR_CVAR(vr_gunfx_heat_time, "1", CVAR_ARCHIVE)        // Heat-Up Time: seconds of sustained fire (at the gun's own rate) to full heat (a single shot: at most 0.35 of it; 0.1-10)
+QVR_CVAR(vr_gunfx_cool_time, "3", CVAR_ARCHIVE)        // Cool-Down Time: seconds a barrel at full heat takes to cool once you stop (0.1-20)
+QVR_CVAR(vr_gunfx_heat_glow, "1", CVAR_ARCHIVE)        // Glow Strength: the hot barrel's glow, times (0 none; 0-3)
 // Muzzle wisps (vr_muzzlewisps.cpp): thin soft lines of smoke trailing off your guns' barrels after you stop firing.
 QVR_CVAR(vr_gunfx_wisps, "1", CVAR_ARCHIVE)            // 0: none
 QVR_CVAR(vr_gunfx_wisp_delay, "0", CVAR_ARCHIVE)    // seconds after the last shot they start (0-3)
@@ -1628,7 +1632,7 @@ QVR_CVAR(vr_gunfx_wisp_pixels, "1.5", CVAR_ARCHIVE)    // the thinnest they are 
 QVR_CVAR(vr_gunfx_impacts, "1", CVAR_ARCHIVE)          // bullets' and nails' wall hits by the surface's material (vr_impacts.cpp): dust off stone, sparks off metal, chips off wood
 QVR_CVAR(vr_gunfx_ozone, "1", CVAR_ARCHIVE)            // a faint bluish ozone haze where the thunderbolt's beam plays on a surface
 QVR_CVAR(vr_gunfx_enemies, "1", CVAR_ARCHIVE)          // the monsters' guns too (the grunts', the enforcers', the armed grunts')
-QVR_CVAR(vr_debug_gunfx, "0", CVAR_NONE)               // 1: each shot's gunfire particles ("gunfx shot ...", "gunfx port ...")
+QVR_CVAR(vr_debug_gunfx, "0", CVAR_NONE)               // 1: each shot's gunfire particles ("gunfx shot ...", "gunfx port ...") and your barrels' heat ("gunfx heat ...")
 QVR_CVAR(vr_debug_ribbon_overlap, "0", CVAR_NONE)      // 1: the muzzle wisps' ribbons blend where they overlap themselves again (the old creases on sharp turns; vr_ribbons.cpp), to compare
 QVR_CVAR(vr_debug_impacts, "0", CVAR_NONE)             // 1: every particle2 message and QC sound the server sends ("impfx p2 ...", "impfx snd ...": the impact table's output, vr_impacts.cpp)
 QVR_CVAR(vr_impact_qc_test, "0", CVAR_NONE)            // the QC runs every hit ladder on every material once (vr_impacts_test.qc; Debug > Tests)
@@ -2836,7 +2840,7 @@ QVR_CVAR(vr_corpse_placed, "1", CVAR_ARCHIVE)         // a mapper's corpses (mis
 // ragdoll rig down as a ragdoll, alive; after a while it gets up (its own fall-and-rise frames, or its death backwards).
 QVR_CVAR(vr_knockdown, "1", CVAR_ARCHIVE)                 // the feature: 0 off (shoves stagger as before)
 QVR_CVAR(vr_knockdown_chance, "0.6", CVAR_ARCHIVE)          // every monster's chance times this (testing: 100, every shove)
-// (Each monster group's base chance, vr_knockdown_chance_<group>: QVR_MGROUP below, Combat > Monster Groups.)
+// (Each monster group's base chance, vr_knockdown_chance_<group>: quakevr/data/groups.txt, Combat > Monster Groups.)
 QVR_CVAR(vr_knockdown_onehand, "1", CVAR_ARCHIVE)         // the chance times this for a one-handed shove,
 QVR_CVAR(vr_knockdown_twohand, "1.75", CVAR_ARCHIVE)      // and this for a two-handed one
 QVR_CVAR(vr_knockdown_surprise, "1", CVAR_ARCHIVE)        // a shove of a monster unaware of you (its enemy not you: asleep, idle, fighting another) or from behind (vr_knockdown_surprise_angle) knocks it down for sure, if its monster group can go down from a shove at all (QC VR_Knockdown_Try); 0: its chance as any
@@ -2869,53 +2873,9 @@ QVR_CVAR(vr_kdtrig_tackle_runup, "0.5", CVAR_ARCHIVE)     // ... s you have run 
 QVR_CVAR(vr_kdtrig_tackle_feel, "1", CVAR_ARCHIVE)        // ... its feel: the thud on the body, both controllers' rumble and the monster's pain cry as it goes (0 silent)
 QVR_CVAR(vr_kdtrig_resist_size, "0.5", CVAR_ARCHIVE)      // monster resistance by size: its hull's volume over a grunt's to this power (an ogre's 5.5 times: 2.3), where its kind has none of its own
 // Monster groups (vr_mgroups.inc, vr_mgroups.cpp; Combat > Monster Groups; ROUND22.md, "Monster groups"): each group's
-// settings for every ragdoll trigger and action, its defaults vr_mgroups.inc's. Ragdoll triggers: _kdtrig on (needs
-// Ragdoll Triggers), vr_kdtrig_resist_<group> its resistance (every trigger's chance divided by it, its least damage
-// times it; 0: by its size), _ledge ... _blast each trigger's chance times this (0: never). Actions: vr_knockdown_chance_
-// <group> a shove's base chance to knock it down (one with a get-up of its own), _push how far shoves, bashes and
-// unbalancing hits move it (times), _stagger hits' chance to unbalance it (times), _sweep the leg sweep, _leggrab the leg
-// pull and lift, _lift the lift, _necksnap the neck snap, _manhandle grabbing it staggered or weak (each 1 on, 0 never),
-// _throw the two-hand throw (0 never, 1 only when hurt, 2 always; vr_foegrab_throw_by_mass 1: by its mass instead),
-// _hold one hand's hold on it (0..1; -1: by its size, vr_foegrab_strength_small/_medium/_large), _poise its Parry Poise
-// (a parry's strength over it: blocked, flinch or stagger; above 1 also the melee's knockdown chances over it; -1 Off:
-// a parry never staggers it; QC combat.qc VR_Parry_Outcome).
-// _kdscale every chance to knock it down times this (a sure one by this chance too), _downtime its time down times this,
-// _getup its get-up's speed times this, _snapkills the neck snap kills it (0: it only hurts: vr_foegrab_necksnap_tough).
-#define QVR_MGROUP(g, label, kdtrig, resist, shove, humanoid, throwKind, push, legs, poise, kdscale, downtime, getup, snapkills, struggle) \
-    QVR_CVAR(vr_mgrp_##g##_kdtrig, #kdtrig, CVAR_ARCHIVE) \
-    QVR_CVAR(vr_kdtrig_resist_##g, #resist, CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_ledge, "1", CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_stairs, "1", CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_slope, "1", CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_shotgun, "1", CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_wounded, "1", CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_blow, "1", CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_blast, "1", CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_thrown, "1", CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_tackle, "1", CVAR_ARCHIVE) \
-    QVR_CVAR(vr_knockdown_chance_##g, #shove, CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_push, #push, CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_stagger, "1", CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_sweep, #legs, CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_leggrab, #legs, CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_lift, #humanoid, CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_necksnap, #humanoid, CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_manhandle, #humanoid, CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_throw, #throwKind, CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_hold, "-1", CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_poise, #poise, CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_health, "1", CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_kdscale, #kdscale, CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_downtime, #downtime, CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_getup, #getup, CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_snapkills, #snapkills, CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_struggle, #struggle, CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_struggle_strength, "1", CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_struggle_speed, "1", CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_struggle_arms, "1", CVAR_ARCHIVE) \
-    QVR_CVAR(vr_mgrp_##g##_struggle_hurt, "1", CVAR_ARCHIVE)
-#include "vr_mgroups.inc"
-#undef QVR_MGROUP
+// values for every ragdoll trigger and action are data, no cvars: quakevr/data/groups.txt (ROUND23.md, "Monster groups
+// as data"), each reached by its old cvar name (vr_mgrp_<group>_<key>, vr_kdtrig_resist_<group>,
+// vr_knockdown_chance_<group>) by the config, the console, the menus and the QC.
 // Monster health (vr_mgroups.cpp; Combat > Monster Health; ROUND22.md, "1.1 pacing: shell pairs, big monsters' health"):
 // a monster's health cut as it first appears, by its full health on a curve: none up to _from, then straight lines
 // through (_hp1, _cut1), (_hp2, _cut2), (_hp3, _cut3) (cuts in percent), _cut3 beyond, never more than _max; then times
@@ -2929,6 +2889,8 @@ QVR_CVAR(vr_kdtrig_debug, "0", CVAR_NONE)                 // 1: a line for each 
 // it, worn into its head or limb too (past the piece's health: popped); landing on one from a height crushes the part
 // under your feet. Corpses held or just thrown wear their pieces the same way.
 QVR_CVAR(vr_ragimpact, "1", CVAR_ARCHIVE)                 // on (0: only the fall damage of its landings)
+QVR_CVAR(vr_ragsmash, "1", CVAR_ARCHIVE)                  // a strike that hurts (an impact above) also sounds (a flesh hit and a thud, louder and deeper the harder) and bloodies the wall or floor struck (the gore's splotch: what bleeds, vr_gore on); held, thrown or dropped, alive or dead (QC VR_RagSmash; tunables vr_ragsmash_*); 0: silent and clean
+QVR_CVAR(vr_ragsmash_test, "0", CVAR_NONE)                // the QC test of the smash sound and blood (vr_ragsmash_test.qc; Debug > Tests): 1 a grunt's corpse flung slowly at a wall (nothing), then hard (a sound and blood at the wall), ends on "ragsmash: N passed, M failed"
 QVR_CVAR(vr_ragimpact_crush_speed, "180", CVAR_ARCHIVE)   // units/s: landing slower than this crushes nothing (a jump from the same level lands at about 270 on the floor, 200 on top of a body lying there: both crush; a stair step: 160; a 100-unit drop: 400)
 QVR_CVAR(vr_ragimpact_crush_standing, "1", CVAR_ARCHIVE)  // standing monsters are crushed too (their head, a limb or the torso under your feet, by positional damage's zones); 0: only ragdolls
 QVR_CVAR(vr_ragimpact_crush_cushion, "1", CVAR_ARCHIVE)   // a landing that crushed a monster spares you its fall damage (it broke your fall); 0: Quake's fall damage as ever

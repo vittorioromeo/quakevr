@@ -261,6 +261,10 @@ za::Vector<Item> pageDebugViews()
             .help("vr_monster_dump: in the console, each monster classname of quakevr/data/monsters.txt (its width, "
                   "small gibs and ragdoll values) and how many differ from the file; vr_monster_dump <classname> ... "
                   "(or all) prints every value, its old setting's name and its default."),
+        command("Monster Group Values", "vr_mgroup_dump")
+            .help("vr_mgroup_dump: in the console, each monster group of quakevr/data/groups.txt (its Combat > Monster "
+                  "Groups values) and how many differ from the file; vr_mgroup_dump <id> ... (or all) prints every "
+                  "value, its old setting's name and its default."),
         command("Held Heads' Weights", "vr_prop_heads")
             .help("vr_prop_heads: in the console, each monster head's held-object slot, its Mass setting and what it "
                   "weighs (Mass -1: its share of its monster's ragdoll, an AD monster's as the class it is tuned as)."),

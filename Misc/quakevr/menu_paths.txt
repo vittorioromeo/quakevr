@@ -2022,6 +2022,9 @@ vr_gunfx_smoke_alpha|1|Weapon Effects|Smoke Opacity|Advanced VR Options > Weapon
 vr_gunfx_port|1|Weapon Effects|Ejection Port Smoke|Advanced VR Options > Weapons > Weapon Effects > Ejection Port 
 vr_gunfx_backblast|1|Weapon Effects|Rocket Backblast|Advanced VR Options > Weapons > Weapon Effects > Rocket 
 vr_gunfx_heat|1|Weapon Effects|Barrel Heat|Advanced VR Options > Weapons > Weapon Effects > Barrel Heat
+vr_gunfx_heat_time|1|Weapon Effects|Heat-Up Time|Advanced VR Options > Weapons > Weapon Effects > Heat-Up Time
+vr_gunfx_cool_time|1|Weapon Effects|Cool-Down Time|Advanced VR Options > Weapons > Weapon Effects > Cool-Down Time
+vr_gunfx_heat_glow|1|Weapon Effects|Heat Glow Strength|Advanced VR Options > Weapons > Weapon Effects > Heat Glow 
 vr_gunfx_wisps|1|Weapon Effects|Muzzle Wisps|Advanced VR Options > Weapons > Weapon Effects > Muzzle Wisps
 vr_gunfx_wisp_delay|1|Weapon Effects|Wisp Delay|Advanced VR Options > Weapons > Weapon Effects > Wisp Delay
 vr_gunfx_wisp_time|1|Weapon Effects|Wisp Persistence|Advanced VR Options > Weapons > Weapon Effects > Wisp 

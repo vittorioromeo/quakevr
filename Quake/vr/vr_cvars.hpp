@@ -197,10 +197,10 @@ void registerConfigDiag();
 void saveConfigNow();
 void configFrame();
 
-// The data tables' values (design review 3; no cvars: the stand-ins of quakevr/data/weapons.txt's, props.txt's and
-// monsters.txt's values, vr_slottable.hpp, vr_monsterdata.cpp), each table's in turn: the config's writer, its tracking
-// and tests, Propose Defaults.
-[[nodiscard]] za::Array<za::Span<cvar_t>, 3> standInTables();
+// The data tables' values (design review 3; no cvars: the stand-ins of quakevr/data/weapons.txt's, props.txt's,
+// monsters.txt's and groups.txt's values, vr_slottable.hpp, vr_monsterdata.cpp, vr_mgroups.cpp), each table's in turn:
+// the config's writer, its tracking and tests, Propose Defaults.
+[[nodiscard]] za::Array<za::Span<cvar_t>, 4> standInTables();
 
 } // namespace qvr
 

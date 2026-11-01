@@ -1,13 +1,16 @@
 #pragma once
 // vr_mgroups.hpp -- monster groups (Combat > Monster Groups; ROUND22.md, "Monster groups"): similar monsters of id1, the
-// mission packs, Dawn of the Machine and Arcane Dimensions (Quoth's through it) share a group (vr_mgroups.inc: the groups
-// and their defaults; vr_mgroups.cpp: the members, by classname), and each group has its own setting for every ragdoll
-// trigger (QC vr_kdtrig.qc) and every action on it: the shove's knockdown and push, hits unbalancing it, the leg sweep,
-// the leg grabs, the lift, the neck snap, the manhandle, the two-hand throw, one hand's hold (QC and vr_foegrab.cpp).
+// mission packs, Dawn of the Machine and Arcane Dimensions (Quoth's through it) share a group (vr_mgroups.inc: the groups;
+// quakevr/data/groups.txt: their values; vr_mgroups.cpp: the members, by classname), and each group has its own value
+// for every ragdoll trigger (QC vr_kdtrig.qc) and every action on it: the shove's knockdown and push, hits unbalancing
+// it, the leg sweep, the leg grabs, the lift, the neck snap, the manhandle, the two-hand throw, one hand's hold (QC and
+// vr_foegrab.cpp).
 // The QC asks through monstergroup and monstergroupget (its MGP_* numbers are Param's: QC builtins.qc). vr_mgroup_list
 // prints every classname's group and the map's monsters' (Debug > Combat).
 
 #include "vr_engine.hpp"
+
+#include "Zancle/Vocabulary/Span.hpp"
 
 namespace qvr::mgroups
 {
@@ -67,6 +70,16 @@ enum GroupId : int
 // Its members' classnames, comma-separated (the menu's help).
 [[nodiscard]] const char* members(int g);
 [[nodiscard]] cvar_t& setting(int g, Param p);
+
+// The groups' values as data (design review 3, step 4; ROUND23.md, "Monster groups as data"): quakevr/data/groups.txt,
+// a `group <id> { key "value" ... }` block per group (its keys: Param's, vr_mgroups.cpp paramKeys). Each is a stand-in
+// cvar_t (vr_slottable.hpp DataTable) named as its old cvar (vr_mgrp_<id>_<key>, vr_kdtrig_resist_<id>,
+// vr_knockdown_chance_<id>), never registered: setting() and the menus' rows bind it, the config, the console and the
+// QC's cvar handles reach it by that name (VR_CvarStandIn, VR_StandInSet; vr_cvars.cpp).
+void registerCvars(); // reads groups.txt (the defaults; the config's lines go over them); vr_mgroup_dump
+[[nodiscard]] cvar_t* findStandIn(const char* name); // the value by its old cvar name (any case), or null
+bool setStandIn(cvar_t* var, const char* text);     // false: `var` is not one of the groups' values
+[[nodiscard]] za::Span<cvar_t> standIns();
 [[nodiscard]] float value(edict_t* m, Param p);
 // Whether an on/off setting of `m`'s group is on.
 [[nodiscard]] bool on(edict_t* m, Param p);

@@ -227,6 +227,55 @@ void(entity m, entity xBy, vector xAt, float xPiece, float xDamage, float xShare
     VR_Hit_End();
 };
 
+// Smash sound and blood (vr_ragsmash; his voice note 2026-11-01: smashing a ragdoll's limbs into a wall or the floor
+// hurt it, with no sound of its flesh hitting and no blood on the wall). A strike that hurts (VR_RagImpact_Hit's
+// threshold; and vr_ragsmash_min_speed m/s or faster), at most once every vr_ragsmash_cooldown s a body: the zombie's
+// flesh hit and a body's thud (dland2), louder and deeper the harder (full at vr_ragsmash_full_speed m/s past the least
+// speed; vr_ragsmash_volume), and on what bleeds (VR_Gore_Bleeds: no statue, no clean dummy, gore on) a splotch of blood
+// on the surface struck (the gore's QVR_GORE_SMASH, vr_gore.cpp smash: 18..40 units across by the strike, times
+// vr_ragsmash_decal_size; with the gore's wet slap). xExcess: its speed past the least, xInto: out of the surface.
+float QVR_GORE_SMASH = 44; // org: 4 units out of the surface struck, dir: into it * 7, count: the blood's size + 1000 x the strike's strength in tenths
+.float vr_rsmash_next;     // until when a body's strike does not sound or bleed again
+float vr_rsmash_sounds;    // the tests: smashes sounded and bled, and the last one's place
+float vr_rsmash_bloods;
+vector vr_rsmash_at;
+float vr_rsmash_strikes;   // and the strikes judged (a body you drive: VR_RagImpact_Hit), the fastest of them
+float vr_rsmash_fastest;
+void(entity m, vector xAt, float xSpeed, float xExcess, vector xInto) VR_RagSmash =
+{
+    if(!cvar_hget(cvarh_vr_ragsmash) || time < m.vr_rsmash_next || xSpeed < cvar_hget(cvarh_vr_ragsmash_min_speed))
+    {
+        return;
+    }
+    m.vr_rsmash_next = time + max(0, cvar_hget(cvarh_vr_ragsmash_cooldown));
+    float t = min(1, max(0, xExcess / max(0.1, cvar_hget(cvarh_vr_ragsmash_full_speed))));
+    float vol = min(1, (0.25 + 0.75 * t) * max(0, cvar_hget(cvarh_vr_ragsmash_volume)));
+    if(vol > 0)
+    {
+        sound_pitch(m, CHAN_AUTO, "zombie/z_hit.wav", vol, ATTN_NORM, 110 - 22 * t + crandom() * 4);
+        sound_pitch(m, CHAN_AUTO, "demon/dland2.wav", vol * 0.6, ATTN_NORM, 104 - 14 * t + crandom() * 3);
+        vr_rsmash_sounds = vr_rsmash_sounds + 1;
+    }
+    float size = rint((18 + 22 * t) * min(3, max(0, cvar_hget(cvarh_vr_ragsmash_decal_size))));
+    float bleeds = size >= 1 && VR_Gore_Bleeds(m);
+    vector n = normalize(xInto);
+    if(n == '0 0 0')
+    {
+        n = '0 0 1';
+    }
+    if(bleeds)
+    {
+        particle2(xAt + n * 4, n * -7, QVR_GORE_SMASH, min(999, size) + 1000 * rint(t * 10));
+        vr_rsmash_bloods = vr_rsmash_bloods + 1;
+    }
+    vr_rsmash_at = xAt;
+    if(vr_rimp_test || cvar_hget(cvarh_vr_knockdown_debug))
+    {
+        dprint(sprintf("ragsmash: %s at %v (out %v), %.1f m/s, %.1f past the least: sound %.2f, blood %g\n", m.classname,
+            xAt, n, xSpeed, xExcess, vol, bleeds ? size : 0));
+    }
+};
+
 // The engine (vr_box3d.cpp callRagImpacts): ragdoll `m`'s hardest strike on the level this frame at `xAt`, its part at
 // xSpeed m/s (xRaw before the whip's cap), xMass kg behind it; xHeld: a hand holds the part (its least speed halved);
 // xInto the blow's way into the part (from the level struck). A strike dealing vr_ragimpact_dent or more dents and
@@ -244,16 +293,18 @@ void(entity m, vector xAt, float xSpeed, float xMass, float xRaw, float xHeld, v
     {
         return;
     }
+    vr_rsmash_strikes = vr_rsmash_strikes + 1;
+    vr_rsmash_fastest = max(vr_rsmash_fastest, xSpeed);
     float piece = VR_RagImpact_Piece(m, xAt);
     float slot = piece + 1; // (the torso 0, the head 1, a limb its joint + 1)
-    if(time < m.vr_rimp_next[slot])
-    {
-        return;
-    }
     float least = xHeld ? max(0.25, cvar_hget(cvarh_vr_ragimpact_held_speed)) :
                           max(0.5, cvar_hget(cvarh_vr_ragimpact_min_speed));
     float dmg = VR_RagImpact_Scale(VR_RagImpact_Amount(xMass, xSpeed - least), piece);
-    if(dmg < 0.5)
+    if(dmg >= 0.5)
+    {
+        VR_RagSmash(m, xAt, xSpeed, xSpeed - least, xInto); // (its sound and blood: the body's own cooldown, not the piece's gap)
+    }
+    if(time < m.vr_rimp_next[slot] || dmg < 0.5)
     {
         return;
     }

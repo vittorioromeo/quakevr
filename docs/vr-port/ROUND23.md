@@ -5131,3 +5131,130 @@ same spark effect that also happens when I'm colliding with an enemy weapon"; me
   and the chainsaw's 2.56-unit line, above; neither reaches the effects' change).
 - **For him in VR:** dual swords, clash them: sparks and a tink at the crossing; slowly crossed: nothing; two shotguns:
   a dull knock; a sword on a shotgun: a few sparks and a clank. Tune on Weapon Effects > Weapon Clash.
+## Smash sound and blood (branch `agent/ragsmash`; his voice note 2026-11-01 01:26)
+
+His words: smashing an active or dead ragdoll's limbs into a wall or the floor hurt it, with no sound of its flesh
+hitting and no blood on the wall.
+
+- **When**: every strike the impacts already judge as hurting (vr_ragimpact.qc `VR_RagImpact_Hit`: a body you hold,
+  threw or dropped within `vr_ragimpact_time`, alive and down or dead; its speed past the least speed, 2.5 m/s free,
+  1 m/s held, times the mass behind it, at least 0.5 damage). Bodies nobody drives (a death's own fall, a blast's
+  fling) stay silent, as they take no impact damage (conservative: a corpse collapsing reaches 4-6 m/s at the head).
+- **Sound** (`VR_RagSmash`, server): the zombie's flesh hit (`zombie/z_hit.wav`, now precached by worldspawn) and a
+  body's thud (`demon/dland2.wav`, 0.6 of it), volume 0.25..1 and pitch 110..88 (thud 104..90) by the strike's speed
+  past the least, full at `vr_ragsmash_full_speed`.
+- **Blood**: on what bleeds (`VR_Gore_Bleeds`: `VR_Hit_TargetBleeds` and gore on: no statue, no clean dummy, no gib) a
+  new gore event (`QVR_GORE_SMASH` = vr_gore.hpp `EventSmash` = 44: 43 is the melee marks') at the contact, 4 units out
+  along the surface normal the engine gives (`xInto`), pointing in. The client (vr_gore.cpp `smash`) traces 16 units
+  in, lays the gore's splotch (18..40 units by the strike, times `vr_ragsmash_decal_size`, then `vr_gore_size`; 0.7 at
+  gore 1), a run down a wall at gore 2 for a strike past half strength, and plays the gore's wet slap. Gore 0: nothing.
+  `vr_knockdown_debug 1` prints the server's `ragsmash: ...` and the client's `ragsmash: blood ... placed` lines.
+- **Rate**: once per `vr_ragsmash_cooldown` (0.25 s) per body (`.vr_rsmash_next`), checked before the per-piece 0.15 s
+  gap: a body sliding or bouncing along a wall does not machine-gun (the hard fling's 5 strikes in 0.2 s: one sound).
+- **Knobs**: `vr_ragsmash` 1 (setting, Combat > Knockdowns > Impacts, "Impact Sound and Blood"); tunables
+  `vr_ragsmash_min_speed` 0 (an extra least speed; 0: every strike that hurts), `vr_ragsmash_full_speed` 4,
+  `vr_ragsmash_volume` 1, `vr_ragsmash_decal_size` 1, `vr_ragsmash_cooldown` 0.25.
+- **Test** `vr_ragsmash_test 1` (vrfiringrange; Debug > Tests > Holding Enemies, "Smash a Corpse into a Wall"): a
+  grunt killed 48 units off a wall, its corpse flung at it at 9 m/s: struck at 6.8-7.6 m/s, one sound, one blood
+  placed 0.5 units off the wall's plane; a soft fling (1 m/s, 2.4 up): nothing; the engine's call itself: a 2 m/s
+  touch nothing, a 5 m/s held slam a sound and blood, again at once nothing. 10 passed, 0 failed.
+- **Not tested here**: a real held slam with the mock hands; a living knocked-down one (same code path past the
+  `VR_RagImpact_By` gate).
+## Held-off hands: no blow, touch or push from the ghost (branch `agent/ghosthand`)
+
+His note (2026-11-01 01:24): holding a ragdoll, the real (ghost) hand still punched a wall or a dummy it reached; "the
+actual drawn position of the hand should be the dominant one for all these interactions".
+
+- **One query (QC/vr_carry.qc):** `VR_Hand_HeldOff(p, hand)`: the drawn hand is held off its tracked place by what it
+  holds: climbing (the hold), an enemy (foe grab), a ragdoll (`VR_HOLD_RAGDOLL`), a tug (`VR_HOLD_TUG`), the super
+  shotgun's fore-end (`VR_HOLD_SSGGRIP`), a prop held in both hands (one thing in both slots). Its answer goes into
+  `.vr_hand_heldoff` (bit 1 off, 2 main) in `VR_Hand_Derive` each PlayerPreThink; the engine reads it through
+  `progs::handHeldOff` (vr_progs.hpp). `developer 1` prints `handslot: held off N` when it changes.
+- **What it turns off for a held-off hand:** melee (`VR_Melee_Thing` returns NONE: blows, slaps, presses by a blow,
+  shoves, parries, wall marks; it replaces the climbing and foe-grab checks there), the engine's hand touches
+  (`handTouches`, `handTouch`: button presses, pickups, nudges, grabs by touch), its weapon-line touches, and its Box3D
+  hand bodies (the fist sphere and the reach body). Free hands, one-handed props, weapons, the flashlight: unchanged.
+- **Decision (conservative):** off rather than moved to the drawn place. The drawn place of a hold is the client's
+  (vr_view_hands.cpp limbDrawnHand, vr_held.cpp drawnHand), and a hand clenched on a limb, an enemy or a crate has no
+  free fist to strike or press with. A ragdoll held and swung still hits through its own bodies; a crate in both hands
+  no longer deals the improvised punch (it did, from the tracked hands). Left out: the steadying hand of a two-handed
+  gun (its melee was NONE already; its touches unchanged), `VR_HOLD_MAGREHOLD` (a frame), the flashlight hand.
+- **Test:** `Misc/quakevr/carry/heldoff_test.sh <tree>` (vrmelee-recording, the dummy, a 5.3 m/s mock punch): the free
+  main hand 1 blow; the main hand holding a dead grunt's limb 0 blows (held off 2). Without the melee change: 1 blow
+  (FAIL). Ends on `heldoff: N passed, M failed`. eval.sh: 163/171 full; its drift from the stored baseline is the same
+  as origin/next's run beside it (punch_hook, slash_backswing_up_right: identical numbers).
+- **Not run:** a button press or a pickup by a held-off hand (the engine's touch gate: code only).
+## Barrel heat settings (branch `agent/barrelheat`, his voice note 2026-11-01 01:43)
+
+He found the barrel glow too slow (~2 s of nailgun fire before it showed) and too faint, and wanted it on the older guns
+too, with heat-up and dissipation times, global and per weapon. Quake/vr/vr_gunfx.cpp:
+- **Model** (heatShot / heatCool / heatGlow): heat 0..1 per hand (was 0..1.5, only the nailguns ever got hot: the
+  shotgun's 0.12 a shot cooled faster than it fired). A shot adds its kind's interval (the gun's seconds between shots
+  in sustained fire: shotgun 0.5, super shotgun 0.7, revolver and flare gun 0.5, nailguns 0.1, grenade launchers 0.6,
+  rocket launchers 0.8, energy guns 0.1) over **Heat-Up Time**, at most 0.35 a shot (a slow gun takes 3 shots), times the
+  weapon's **Barrel Heat** multiplier. So sustained fire reaches full heat in Heat-Up Time / multiplier whatever the
+  gun. Cooling waits 1.5 intervals after a shot (none between shots of sustained fire), then is linear: full to cold in
+  **Cool-Down Time** times the weapon's **Barrel Cool-Down** (0: at once). Every gun with gunfire particles heats now
+  (the thunderbolt too: it glows, no smoke wisps); not the flamethrowers, crossbow, melee, grapple, toolgun, Mjolnir.
+- **Glow**: from heat 0.15, strength (heat - 0.15) / 0.85 x **Heat Glow Strength**; three glow points per barrel (the
+  super shotgun's and nailgun's two bores: the wisps' barrel ends) going 6 units down the barrel, alpha up to 0.75
+  (was one point, 0.3 at most, from heat 0.5), size 2.2; a dull red deepening to orange. Wisps from heat 0.3.
+- **Settings** (Weapons > Weapon Effects, after Barrel Heat): `vr_gunfx_heat_time` 1 s (Heat-Up Time, 0.2-5, ext
+  0.1-10), `vr_gunfx_cool_time` 3 s (Cool-Down Time, 0.2-10, ext 0.1-20), `vr_gunfx_heat_glow` 1 (Heat Glow Strength,
+  0-3). Per weapon (Weapon Offsets > Effects; weapons.txt defaults 1): `fx_gfx_heat` (Barrel Heat; 0 never heats),
+  `fx_gfx_cool` (Barrel Cool-Down). New cvars: no migration.
+- **Debug**: vr_debug_gunfx 1 prints `gunfx heat hand H wid W heat X glow Y` each shot and `gunfx heat cold hand H wid W
+  after S s peak P` when a barrel has cooled.
+- **Test**: `python Misc/quakevr/barrelheat_test.py <agent>` 10/10: the nailgun at Barrel Heat 0 never heats (6 shots);
+  the shotgun 0.35 / 0.70 / 1.00 with the glow rising; the nailgun +0.1 a shot to 0.8, the glow exactly following;
+  cold 2.556 s after its last shot (expected 0.15 + 0.8 x 3 = 2.55). Ends on the "cold" line.
+- **Not checked**: how it looks (no screenshot with the gun in view: the mock hand pose missed the view); in VR: is
+  1 s / 3 s / glow 1 right, the glow's size and colour on each gun, the super shotgun's bores.
+
+## strstrofs always "found at 0" (branch `agent/strstrofs`)
+
+- **Cause**: the engine had no `strstrofs` builtin. AD's `float(...) strstrofs = #0;` (ad_builtins.qc) bound to nothing,
+  so a call ran statement 0 and returned 0: `strstrofs(name, "_brains_", 0) >= 0` was true for every name (what
+  datatables3 saw in vr_smallgibs_test 27). Not the offset handling, temp strings or the compiler.
+- **Fix**: `PF_strstrofs` (#221, FTE_STRINGS, DP's semantics: byte offset at or after `startpos`, -1 when not there or
+  `startpos` is outside the string; an empty `sub` matches at `startpos`), Quake/pr_cmds.c.
+- **Warning**: `developer 1` now names every server-progs `= #0` builtin still unbound after the VR builtins are bound
+  (Quake/pr_edict.c, PR_WarnUnboundBuiltins). Today: AD's addstat, bitshift, getsurfacenearpoint, getsurfacetexture,
+  particleeffectnum, pointparticles, strncasecmp, te_explosion2, te_particlerain, te_particlesnow (each returns 0 /
+  does nothing; AD_IMPORT.txt lists them).
+- **Callers**: only AD's `ad_misc_camera_filewrite` (two calls): the camera export's file name was
+  `maps/<map>.bsp_cam.txt`, now `<map>_cam.txt` as AD intends. Test 27 no longer uses strstrofs (datatables3 passes
+  the brains flag in).
+- **Test**: `vr_smallgibs_test 28` (any map; -QuitOn `strstrofs: N passed`): 21 passed, 0 failed (found at 0, later, not
+  found, `>= 0` both ways, offsets at / past the match / past the end / negative, empty strings, strcat, ftos and
+  sprintf temps, two temps alive). `vr_smallgibs_test 27` 12 passed, 0 failed.
+## Monster groups as data (branch `agent/datatables4`; design review 3, step 4: the monster groups)
+
+The monster groups' values are data: 768 values (24 groups x 32 keys), no cvars.
+- **`quakevr/data/groups.txt`** (not monsters.txt: a group is not a classname, its members are vr_mgroups.cpp's, and
+  the shared reader takes one block word and one `defaults` block per file; the groups' keys and defaults are their own):
+  a `defaults { ... }` block, then `group <id> { key "value" ... }` per group (the label as the line's comment), every
+  key listed. Keys, in vr_mgroups.hpp Param's order: kdtrig, resist, ledge ... tackle, shove, push, stagger, sweep,
+  leggrab, lift, necksnap, manhandle, throw, hold, poise, health, kdscale, downtime, getup, snapkills, struggle,
+  struggle_strength, _speed, _arms, _hurt. Old names kept: `vr_mgrp_<id>_<key>`, `vr_kdtrig_resist_<id>` (resist),
+  `vr_knockdown_chance_<id>` (shove).
+- **Code**: `vr_mgroups.inc` is `QVR_MGROUP(id, label)` only (its 13 default columns went to groups.txt); vr_cvars.inc's
+  QVR_MGROUP block (768 cvars) is gone. vr_mgroups.cpp keeps them in a `DataTable<Param, groupCount, paramCount>`
+  (vr_slottable.hpp, now with `loadNamed`: a namer for the old names), read by `mgroups::registerCvars` (VR_Init,
+  after the monsters); `setting(g, p)` returns its stand-in, so the menus (Combat > Monster Groups, both ways in), the
+  QC's monstergroupget and `migrateStruggleClasses` are unchanged. `standInTables()` has four tables now;
+  VR_CvarStandIn / VR_StandInSet ask the groups last. The QC's hand-written `cvarh_vr_knockdown_chance_<id>` handles
+  find them by name (no "unknown cvar" at a map load). The four 164 rows of `defaultChanges` (pointers to the group
+  cvars) moved to `namedDefaultChanges` by name, first in it (same per-setting order).
+- **`vr_mgroup_dump`** (Debug menu: Monster Group Values): each group and how many values changed;
+  `vr_mgroup_dump <id> ... | all` every value, its old name and its default.
+- **`Misc/quakevr/groups_data.py convert | promote <config> [--dry] | check | names`**. His config of 10-31 has no group
+  lines: nothing to promote.
+- **Checks** (before = origin/next 7331538ff, the same tree): the 768 values printed by name identical after
+  `vr_config_defaults`, after his whole config (ironwail_now.cfg of 10-31) exec'd, and after console sets
+  (`vr_mgrp_ogre_poise 2.5`, `vr_kdtrig_resist_ogre 3`, `vr_mgrp_boss_struggle_hurt 0`; the one difference, as step 3's:
+  `VR_KNOCKDOWN_CHANCE_ARMY 0.9` in upper case now sets it); `writeconfig` writes the same group lines (plus that one);
+  `config_sparse_test.sh` with his config 16 passed, 0 failed; the blast trials (`map vrtesthall`, `vr_kdtrig_test_n 6;
+  vr_kdtrig_blast 100; vr_kdtrig_test 37`, -QuitOn `kdtrig test:`): 6 of 6 down; with `vr_mgrp_army_blast 0` 0 of 6;
+  with `vr_mgrp_army_kdtrig 0` 0 of 6.
+- **Next steps**: the named per-weapon families as weapon keys; the aliases (old names) dropped after one release.

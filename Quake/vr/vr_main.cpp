@@ -2125,6 +2125,7 @@ extern "C" void VR_Init()
     weapons::registerCvars();
     props::registerCvars();
     monsterdata::registerCvars(); // the monsters' per-class values, quakevr/data/monsters.txt; vr_monster_dump
+    mgroups::registerCvars(); // the monster groups' values, quakevr/data/groups.txt; vr_mgroup_dump
     retro::registerCvars();
     weight::registerCommands();
     fatigue::registerCommands();

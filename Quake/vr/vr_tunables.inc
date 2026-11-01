@@ -1092,6 +1092,11 @@ QVR_TUNABLE(vr_ragimpact_curve, "1.5") // damage vs speed past the least: 1 line
 QVR_TUNABLE(vr_ragimpact_curve_ref, "4") // m/s past the least speed where every curve deals the same (slower: a steeper curve less, faster: more)
 QVR_TUNABLE(vr_ragimpact_max, "40") // most damage one strike (or a landing's crush) deals, after the head's and limbs' multipliers (0: no cap)
 QVR_TUNABLE(vr_ragimpact_limb, "1") // a strike on an arm or a leg deals this much more (the torso 1, the head vr_ragimpact_head)
+QVR_TUNABLE(vr_ragsmash_min_speed, "0") // m/s: a strike sounds and bleeds (vr_ragsmash) only this fast or faster, besides hurting (the impacts' own threshold); 0: every strike that hurts
+QVR_TUNABLE(vr_ragsmash_full_speed, "4") // m/s past the impacts' least speed: a strike this hard sounds full and deepest and bleeds its most (softer ones less, from a quarter)
+QVR_TUNABLE(vr_ragsmash_volume, "1") // the smash sound's volume, times (0: silent; blood still)
+QVR_TUNABLE(vr_ragsmash_decal_size, "1") // the smash blood's size, times (1: 18..40 units across by the strike, then the gore's size; 0: none)
+QVR_TUNABLE(vr_ragsmash_cooldown, "0.25") // s: one body sounds and bleeds at most this often (a body sliding or bouncing along a wall: no machine gun)
 QVR_TUNABLE(vr_ragimpact_wear, "1") // a head's or limb's wear from a strike: its damage times this (higher: pops sooner; 0: impacts never pop pieces)
 QVR_TUNABLE(vr_ragimpact_crush, "1.5") // landing on a living monster (standing, staggering or down as a ragdoll) from a height crushes the part under your feet, times this (0: off)
 QVR_TUNABLE(vr_ragimpact_crush_wear, "0.5") // share of a head's or limb's own health a landing at the least speed wears (a jump from the same level: ~0.55, the second pops it), rising to all of it at vr_ragimpact_crush_pop (0: landings wear nothing)

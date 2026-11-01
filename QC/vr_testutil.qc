@@ -147,6 +147,7 @@ void() VR_TestsFrame =
     VR_DropCapTest_Frame(); // VR: the cap on dropped enemy weapons' test (vr_dropcap_test, vr_dropcap_test.qc)
     VR_AgArmor_TestFrame(); // VR: armour on armed humanoids' test (vr_agarmor_test, vr_agarmor_test.qc)
     VR_WornPack_TestFrame(); // VR: worn backpacks' test (vr_wornpack_test, vr_wornpack_test.qc)
+    VR_RagSmash_TestFrame(); // VR: a ragdoll smashed into a wall: its sound and blood (vr_ragsmash_test, vr_ragsmash_test.qc)
     VR_CrouchTest_Frame(); // VR: the crouched box's shots test (vr_crouch_test, vr_crouch_test.qc)
     VR_Decap_TestFrame(); // VR: decapitation's tests (vr_decap_test, vr_decap.qc)
     VR_Melee_SweepTestFrame(); // VR: the swept blade's test (vr_melee_sweep_test, vr_melee_sweep_test.qc)

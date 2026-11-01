@@ -213,6 +213,7 @@ QVR_FIELD(vr_heavy_move) // holding a very heavy melee weapon (the hammer, the m
 QVR_FIELD(vr_climb_drain) // 1 while a hang drains the pool (the gadget shows it: VR_Melee_Hud)
 QVR_FIELD(vr_climb_knockoff) // set by the QC: a blast or a shove knocks the player off its holds (vr_climb.cpp lets go, keeps the velocity)
 QVR_FIELD(vr_foegrab_hands) // set by the engine on a player: the hands holding an enemy (vr_foegrab.cpp), bit 1 the off hand, 2 the main: no melee blows from them
+QVR_FIELD(vr_hand_heldoff) // set by the QC on a player (VR_Hand_HeldOff): the hands drawn off their tracked place by what they hold, bit 1 the off hand, 2 the main (progs::handHeldOff)
 QVR_FIELD(vr_foegrab_hold) // set by the engine on a monster: how firmly hands hold it now, 0..1 (0 not held): its shoves are resisted (QC vr_enemyshove.qc)
 QVR_FIELD(vr_foegrab_letgo) // set by the QC on a monster: every hand holding it lets go (a shove breaking free, vr_foegrab_shove 1)
 QVR_FIELD(vr_mg3_infected) // Dawn of the Machine's infected monster (QC combat.qc): the throw's "infected" kind (vr_foegrab.cpp)
