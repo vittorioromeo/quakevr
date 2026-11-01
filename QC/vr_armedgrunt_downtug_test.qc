@@ -97,7 +97,7 @@ void() VR_AGDT_Down =
     {
         if(vr_agdt_m == 0 && vr_agdt_ph == 0 && vr_agdt_try == 0 && vr_agdt_n + vr_agdt_nost == 0)
         {
-            // (the downed grab's own rules, at once or its old tug; the eased tug of vr_agrunt_tug_downed_scale: test 92)
+            // (the downed grab's own rules: at once; the eased tug of vr_agrunt_tug_downed_scale: test 92)
             vr_agdt_keep_scale = cvar("vr_agrunt_tug_downed_scale");
             cvar_set("vr_agrunt_tug_downed_scale", "0");
             vr_agdt_home = p.origin;

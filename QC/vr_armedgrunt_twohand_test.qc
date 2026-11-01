@@ -25,7 +25,6 @@ float vr_ag2_back;     // ... its arm's pull on the hold held still (most joint 
 float vr_ag2_one;      // phase 0's win time (s; 99: kept)
 float vr_ag2_keep_drop;
 float vr_ag2_keep_scale;
-float vr_ag2_keep_fight;
 vector vr_ag2_start;   // the player's place as phase 0 began (each phase starts there)
 
 void(string s) VR_AG2_Print = { bprint(sprintf("agtwo: %s\n", s)); };
@@ -96,15 +95,11 @@ void() VR_AG2_Frame =
             vr_ag2_keep_scale = cvar("vr_agrunt_tug_downed_scale");
             cvar_set("vr_agrunt_fall_drop", "0"); // (knocked down: it keeps it, for the tug)
             cvar_set("vr_agrunt_tug_downed_scale", "0.5");
-            vr_ag2_keep_fight = cvar("vr_agrunt_tug_fight");
         }
-        // (a staggering or downed one up again in its tug fights back: not while its pull is measured)
-        cvar_set("vr_agrunt_tug_fight", ph >= 4 ? "0" : ftos(vr_ag2_keep_fight));
         if(ph > 6)
         {
             cvar_set("vr_agrunt_fall_drop", ftos(vr_ag2_keep_drop));
             cvar_set("vr_agrunt_tug_downed_scale", ftos(vr_ag2_keep_scale));
-            cvar_set("vr_agrunt_tug_fight", ftos(vr_ag2_keep_fight));
             VR_AG2_Pull(0, 0);
             VR_AGPT_Clear();
             vr_ag2_phase = 0;
@@ -151,8 +146,8 @@ void() VR_AG2_Frame =
         }
         if(ph <= 3)
         {
-            VR_AGT_Check(sprintf("two %g: begun: tug %g, physical %g, second hand %g:", ph, g.vr_ag_tug_pl == p,
-                g.vr_ag_tug_rag, g.vr_ag_tug_two), g.vr_ag_tug_pl == p && g.vr_ag_tug_rag && g.vr_ag_tug_two == (ph == 1 || ph == 3));
+            VR_AGT_Check(sprintf("two %g: begun: tug %g, second hand %g:", ph, g.vr_ag_tug_pl == p,
+                g.vr_ag_tug_two), g.vr_ag_tug_pl == p && g.vr_ag_tug_two == (ph == 1 || ph == 3));
         }
         else
         {
@@ -179,7 +174,7 @@ void() VR_AG2_Frame =
                 vr_agt_step = 9;
                 vr_agt_until = time;
             }
-            if(ph >= 5 && g.vr_ag_tug_rag)
+            if(ph >= 5 && g.vr_ag_tug_pl)
             {
                 vr_ag2_back = max(vr_ag2_back, vr_ag_tug_fjoint);
             }
@@ -210,8 +205,8 @@ void() VR_AG2_Frame =
         }
         if(ph >= 5)
         {
-            VR_AGT_Check(sprintf("two %g: downed: physical %g, its arm's pull on the still hold %.0f N (its pull back %.0f N):", ph,
-                g.vr_ag_tug_rag, vr_ag2_back, VR_AG_TugDownBack(g)), g.vr_ag_tug_rag && vr_ag2_back > 0);
+            VR_AGT_Check(sprintf("two %g: downed: tug %g, its arm's pull on the still hold %.0f N (its pull back %.0f N):", ph,
+                g.vr_ag_tug_pl != world, vr_ag2_back, VR_AG_TugDownBack(g)), g.vr_ag_tug_pl && vr_ag2_back > 0);
         }
         vr_agt_clip = time;
         vr_agt_step = 5;
@@ -231,9 +226,9 @@ void() VR_AG2_Frame =
         {
             VR_AG2_Print(sprintf("two %g at %.1f s: %.0f N (joint %.0f, stretch %.0f), held %.2f s,", ph, time - vr_agt_clip,
                 vr_ag_tug_force, vr_ag_tug_fjoint, vr_ag_tug_fstretch, g.vr_ag_tug_held));
-            VR_AG2_Print(sprintf("    %.0f N s, progress %.2f (old: %.1f units); the off hand: joint %.0f, stretch %.2f m",
-                g.vr_ag_tug_imp, g.vr_ag_tug_prog, vr_ag_tug_stretch, ragdolltug(g, p, cVR_OffHand, 1), ragdolltug(g, p, cVR_OffHand, 3)));
-            VR_AG2_Print(sprintf("    rag %g, knockdown %g stagger %g, hand to grunt %.1f (off hand %.1f)", g.vr_ag_tug_rag, g.vr_knockdown,
+            VR_AG2_Print(sprintf("    %.0f N s, progress %.2f; the off hand: joint %.0f, stretch %.2f m",
+                g.vr_ag_tug_imp, g.vr_ag_tug_prog, ragdolltug(g, p, cVR_OffHand, 1), ragdolltug(g, p, cVR_OffHand, 3)));
+            VR_AG2_Print(sprintf("    tug %g, knockdown %g stagger %g, hand to grunt %.1f (off hand %.1f)", g.vr_ag_tug_pl != world, g.vr_knockdown,
                 g.vr_kd_stagger, vlen(p.handpos - g.origin), vlen(p.offhandpos - g.origin)));
         }
         if(g.vr_ag_tug_pl && time < vr_agt_until) { return; }

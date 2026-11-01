@@ -129,6 +129,7 @@ vr_ghost_hands_tint|0|VR Settings - Player Appearance|Ghost Tint|VR Settings > P
 vr_ghost_hands_fade_from|0|VR Settings - Player Appearance|Ghost Hidden Within|VR Settings > Player Appearance > 
 vr_ghost_hands_fade_range|0|VR Settings - Player Appearance|Ghost Fade-In Range|VR Settings > Player Appearance > 
 vr_ghost_hands_ignore_recoil|0|VR Settings - Player Appearance|No Ghost from Recoil|VR Settings > Player Appearance 
+vr_ghost_hands_ignore_bodies|0|VR Settings - Player Appearance|No Ghost Holding Bodies|VR Settings > Player 
 |0|VR Settings - Player Appearance|Reset This Page|VR Settings > Player Appearance > Reset This Page
 @page|0|VR Settings - HUD, Haptics and Sound||VR Settings > HUD, Haptics and Sound
 vr_hud_mode|0|VR Settings - HUD, Haptics and Sound|HUD|VR Settings > HUD, Haptics and Sound > HUD
@@ -960,7 +961,6 @@ vr_agrunt_disarm_yank|1|Armed Grunts (Experimental)|Grab Its Weapon|Advanced VR 
 vr_agrunt_disarm_deliberate|1|Armed Grunts (Experimental)|Deliberate Blows Only|Advanced VR Options > Combat > 
 vr_agrunt_strike_first|1|Armed Grunts (Experimental)|Strikes on Its Weapon Disarm|Advanced VR Options > Combat > 
 vr_agrunt_tug|1|Armed Grunts (Experimental)|Tug-of-War|Advanced VR Options > Combat > Armed Grunts (Experimental) > 
-vr_agrunt_tug_ragdoll|1|Armed Grunts (Experimental)|Tug: Physical|Advanced VR Options > Combat > Armed Grunts 
 vr_agrunt_tug_break_force|1|Armed Grunts (Experimental)|Tug: Break Force|Advanced VR Options > Combat > Armed 
 vr_agrunt_tug_break_impulse|1|Armed Grunts (Experimental)|Tug: Break Impulse|Advanced VR Options > Combat > Armed 
 vr_agrunt_tug_pull_time|1|Armed Grunts (Experimental)|Tug: Least Pull Time|Advanced VR Options > Combat > Armed 
@@ -970,8 +970,8 @@ vr_agrunt_tug_second_grab|1|Armed Grunts (Experimental)|Tug: Your Other Hand's G
 vr_agrunt_tug_strike|1|Armed Grunts (Experimental)|Tug: Other Fist Strikes It Free|Advanced VR Options > Combat > 
 vr_agrunt_grab_speed|1|Armed Grunts (Experimental)|Grab: Fastest Hand|Advanced VR Options > Combat > Armed Grunts 
 vr_agrunt_tug_strength|1|Armed Grunts (Experimental)|Tug: Its Pull|Advanced VR Options > Combat > Armed Grunts 
-vr_agrunt_tug_time|1|Armed Grunts (Experimental)|Tug: Pull Time|Advanced VR Options > Combat > Armed Grunts 
-vr_agrunt_tug_fight|1|Armed Grunts (Experimental)|Tug: It Fights Back Every|Advanced VR Options > Combat > Armed 
+vr_agrunt_tug_sway|1|Armed Grunts (Experimental)|Tug: Torso Sway|Advanced VR Options > Combat > Armed Grunts 
+vr_agrunt_tug_flail|1|Armed Grunts (Experimental)|Tug: Free Arm Flail|Advanced VR Options > Combat > Armed Grunts 
 vr_agrunt_parry_disarm|1|Armed Grunts (Experimental)|Parry Disarm Chance|Advanced VR Options > Combat > Armed 
 vr_agrunt_fall_drop|1|Armed Grunts (Experimental)|Drops It When Floored|Advanced VR Options > Combat > Armed Grunts 
 vr_agrunt_fall_keep|1|Armed Grunts (Experimental)|Keeps It in a Gentle Fall|Advanced VR Options > Combat > Armed 
@@ -1048,6 +1048,9 @@ vr_agrunt_ai_reaction|1|Armed Grunts - AI Behaviour|Reaction Time|Advanced VR Op
 vr_agrunt_ai_firerate|1|Armed Grunts - AI Behaviour|Fire Rate|Advanced VR Options > Combat > Armed Humanoids' AI 
 vr_agrunt_range|1|Armed Grunts - AI Behaviour|Keep Their Distance|Advanced VR Options > Combat > Armed Humanoids' 
 vr_agrunt_ai_retreat|1|Armed Grunts - AI Behaviour|Retreat Readiness|Advanced VR Options > Combat > Armed 
+vr_agrunt_speed|1|Armed Grunts - AI Behaviour|Movement Speed|Advanced VR Options > Combat > Armed Humanoids' AI 
+vr_agrunt_speed_back|1|Armed Grunts - AI Behaviour|Backpedal Speed|Advanced VR Options > Combat > Armed Humanoids' 
+vr_agrunt_speed_strafe|1|Armed Grunts - AI Behaviour|Strafe Speed|Advanced VR Options > Combat > Armed Humanoids' 
 vr_agrunt_mspace|1|Armed Grunts - AI Behaviour|Long Blades Keep Their Reach|Advanced VR Options > Combat > Armed 
 vr_agrunt_mspace_reach|1|Armed Grunts - AI Behaviour|Reach Share|Advanced VR Options > Combat > Armed Humanoids' AI 
 vr_agrunt_mspace_min|1|Armed Grunts - AI Behaviour|Shortest Standoff|Advanced VR Options > Combat > Armed 
@@ -1098,6 +1101,9 @@ vr_arena_armor_every|1|Survival Arena|An Armour Every|Advanced VR Options > Comb
 vr_arena_shards|1|Survival Arena|Armour Shards|Advanced VR Options > Combat > Survival Arena > Armour Shards
 vr_arena_scatter|1|Survival Arena|Supplies Anywhere|Advanced VR Options > Combat > Survival Arena > Supplies 
 vr_arena_score_kill|1|Survival Arena|Score For A Kill|Advanced VR Options > Combat > Survival Arena > Score For A 
+vr_arena_xray|1|Survival Arena|Last Foes Through Walls|Advanced VR Options > Combat > Survival Arena > Last Foes 
+vr_arena_xray_left|1|Survival Arena|Foes Left|Advanced VR Options > Combat > Survival Arena > Foes Left
+vr_arena_xray_distance|1|Survival Arena|Outline Distance|Advanced VR Options > Combat > Survival Arena > Outline 
 vr_arena_perks|1|Survival Arena|Boss Perks|Advanced VR Options > Combat > Survival Arena > Boss Perks
 vr_arena_perk_count|1|Survival Arena|Perks Offered|Advanced VR Options > Combat > Survival Arena > Perks Offered
 vr_arena_corpse_fade|1|Survival Arena|Bodies Fade After|Advanced VR Options > Combat > Survival Arena > Bodies Fade 
@@ -1319,6 +1325,13 @@ cl_movespeedkey|1|Locomotion|Running Mult.|Advanced VR Options > Movement > Loco
 vr_crouch_speed|1|Locomotion|Slower When Crouched|Advanced VR Options > Movement > Locomotion > Slower When Crouched
 vr_crouch_speed_scale|1|Locomotion|Crouched Speed|Advanced VR Options > Movement > Locomotion > Crouched Speed
 vr_slope_walk|1|Locomotion|Walk Up Slopes Slowly|Advanced VR Options > Movement > Locomotion > Walk Up Slopes Slowly
+vr_closequarters|1|Locomotion|Close-Quarters Slowdown|Advanced VR Options > Movement > Locomotion > Close-Quarters 
+vr_closequarters_start|1|Locomotion|Start Radius|Advanced VR Options > Movement > Locomotion > Start Radius
+vr_closequarters_end|1|Locomotion|End Radius|Advanced VR Options > Movement > Locomotion > End Radius
+vr_closequarters_min|1|Locomotion|Min Factor|Advanced VR Options > Movement > Locomotion > Min Factor
+vr_closequarters_strafe|1|Locomotion|Strafe Factor|Advanced VR Options > Movement > Locomotion > Strafe Factor
+vr_closequarters_angle|1|Locomotion|Angle Leniency|Advanced VR Options > Movement > Locomotion > Angle Leniency
+vr_closequarters_angle_falloff|1|Locomotion|Angle Falloff|Advanced VR Options > Movement > Locomotion > Angle 
 vr_snap_turn|1|Locomotion|Turning|Advanced VR Options > Movement > Locomotion > Turning
 vr_turn_speed|1|Locomotion|Turn Speed|Advanced VR Options > Movement > Locomotion > Turn Speed
 vr_enable_joystick_turn|1|Locomotion|Enable Joystick Turn|Advanced VR Options > Movement > Locomotion > Enable 
@@ -3078,17 +3091,19 @@ vr_adgun_fx_rate|2|Tunables|Our Fire Frequency|Advanced VR Options > Debug > Tun
 vr_adgun_fx_embers|2|Tunables|Embers and Smoke|Advanced VR Options > Debug > Tunables > Embers and Smoke
 vr_adgun_fx_mist|2|Tunables|Lingering Poison Mist|Advanced VR Options > Debug > Tunables > Lingering Poison Mist
 vr_agrunt_reload_time|2|Tunables|Reload Time|Advanced VR Options > Debug > Tunables > Reload Time
+vr_agrunt_reload_ssg|2|Tunables|Super Shotgun Reload|Advanced VR Options > Debug > Tunables > Super Shotgun Reload
 vr_agrunt_disarm_damage|2|Tunables|Disarming Blow|Advanced VR Options > Debug > Tunables > Disarming Blow
 vr_agrunt_disarm_swing|2|Tunables|Blow on Its Weapon|Advanced VR Options > Debug > Tunables > Blow on Its Weapon
+vr_agrunt_disarm_stagger|2|Tunables|Disarmed: Stagger|Advanced VR Options > Debug > Tunables > Disarmed: Stagger
 vr_agrunt_disarm_throw|2|Tunables|Throw at Its Weapon|Advanced VR Options > Debug > Tunables > Throw at Its Weapon
 vr_agrunt_down_swing|2|Tunables|Down: Blow on Its Weapon|Advanced VR Options > Debug > Tunables > Down: Blow on Its 
 vr_agrunt_strike_beat|2|Tunables|Strike Beats a Raised Parry|Advanced VR Options > Debug > Tunables > Strike Beats 
 vr_agrunt_strike_precise|2|Tunables|Precise Strike Within|Advanced VR Options > Debug > Tunables > Precise Strike 
 vr_agrunt_strike_precise_mult|2|Tunables|Precise Strike Chance|Advanced VR Options > Debug > Tunables > Precise 
 vr_agrunt_strike_raised|2|Tunables|Parry Counts as Raised|Advanced VR Options > Debug > Tunables > Parry Counts as 
-vr_agrunt_tug_pull|2|Tunables|Tug: Pull Distance|Advanced VR Options > Debug > Tunables > Tug: Pull Distance
 vr_agrunt_tug_hurt|2|Tunables|Tug: Lets Go When Hurt Below|Advanced VR Options > Debug > Tunables > Tug: Lets Go 
 vr_agrunt_tug_hold_max|2|Tunables|Tug: Longest|Advanced VR Options > Debug > Tunables > Tug: Longest
+vr_agrunt_tug_ik_stretch|2|Tunables|Tug: Arm Stretch|Advanced VR Options > Debug > Tunables > Tug: Arm Stretch
 vr_agrunt_grab_slack|2|Tunables|Grab: Precision|Advanced VR Options > Debug > Tunables > Grab: Precision
 vr_agrunt_grab_sweep|2|Tunables|Grab: Moving Weapon|Advanced VR Options > Debug > Tunables > Grab: Moving Weapon
 vr_agrunt_rag_grab_weapon|2|Tunables|Grab: Ragdoll's Weapon Within|Advanced VR Options > Debug > Tunables > Grab: 
@@ -3382,6 +3397,7 @@ vr_hit_stagger_head|2|Tunables|Head Blows|Advanced VR Options > Debug > Tunables
 vr_hit_stagger_resist|2|Tunables|Big Monsters Resist|Advanced VR Options > Debug > Tunables > Big Monsters Resist
 vr_hit_stagger_cooldown|2|Tunables|Hit Cooldown|Advanced VR Options > Debug > Tunables > Hit Cooldown
 vr_ragimpact_damage|2|Tunables|Impact Damage|Advanced VR Options > Debug > Tunables > Impact Damage
+vr_ragimpact_mult|2|Tunables|Impact Multiplier|Advanced VR Options > Debug > Tunables > Impact Multiplier
 vr_ragimpact_min_speed|2|Tunables|Least Speed|Advanced VR Options > Debug > Tunables > Least Speed
 vr_ragimpact_held_speed|2|Tunables|Held Least Speed|Advanced VR Options > Debug > Tunables > Held Least Speed
 vr_ragimpact_dent|2|Tunables|Dent From|Advanced VR Options > Debug > Tunables > Dent From
@@ -4255,6 +4271,7 @@ vr_test_spawn_yaw|2|Debug - Tests|Box Turned|Advanced VR Options > Debug > Tests
 vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Tests > Box Tilted
 |2|Debug - Tests|Put It There|Advanced VR Options > Debug > Tests > Put It There
 |2|Debug - Tests|Armour on Armed Grunts|Advanced VR Options > Debug > Tests > Armour on Armed Grunts
+|2|Debug - Tests|Armed Humanoid Tuning|Advanced VR Options > Debug > Tests > Armed Humanoid Tuning
 |2|Debug - Tests|Worn Backpacks|Advanced VR Options > Debug > Tests > Worn Backpacks
 |2|Debug - Tests|Grunts Wearing Packs There|Advanced VR Options > Debug > Tests > Grunts Wearing Packs There
 |2|Debug - Tests|Worn Backpacks: Pulling Lifts|Advanced VR Options > Debug > Tests > Worn Backpacks: Pulling Lifts

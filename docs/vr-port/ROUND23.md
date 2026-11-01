@@ -5853,3 +5853,33 @@ Checklist:
 - [night1101] Pose Studio / Rig Studio: a "Cast (shared)" pose beside Pickup, set on the rifle, Make Override per class.
 - [night1101] AD maps: plain grunts, enforcers, knights and death knights armed; AD's rocket, grenade and plasma
   soldiers and point knights as AD made them.
+
+## The tug always physical; its body moves while it tugs (branch `agent/tugphys`, his note 2026-11-01 23:07)
+
+- **The old tug removed.** `vr_agrunt_tug_ragdoll` (Armed Grunts "Tug: Physical"), `vr_agrunt_tug_time` ("Tug: Pull
+  Time"), `vr_agrunt_tug_fight` ("Tug: It Fights Back Every") and the tunable `vr_agrunt_tug_pull` are gone (in
+  vr_cvars.cpp `retiredCvars`: his config's lines are dropped quietly), with the old tug's QC: `vr_ag_tughold`,
+  `VR_AG_TugFight`, `VR_AG_TugResume`, `VR_AG_TugNeed`, `VR_AG_TugDownToOld`, the distance-and-time frame, the readout's
+  old branch, `.vr_ag_tug_rag` (a tug on is `.vr_ag_tug_pl` now; vr_knockdown.qc keeps the stagger on by it) and the
+  fields only it used. `VR_AG_TugBegin` is one path: facing you, `VR_AG_TugDownBegin` (staggering or down, eased) or
+  `VR_AG_TugRagBegin` (standing). **Decisions:** where no tug can begin (no ragdoll, no room to stand) the grab takes the
+  weapon at once (it was the old tug); a downed one getting up mid-tug: once afoot the tug goes on as a standing one's
+  (`VR_AG_TugRagBegin` again; it was the old tug), no room: it went down, the weapon yours. It no longer fights back
+  (shove, headbutt, shot) during a tug: only the old tug did.
+- **Its body in the tug** (`vr_agrunt_tug_sway`, `vr_agrunt_tug_flail`, both 1, 0..3; Armed Grunts "Tug: Torso Sway",
+  "Tug: Free Arm Flail"): each tug frame the QC hands the engine the pull's share of what breaks its grip
+  (`ragdolltug(g, pl, h, 10, _, f / brk)`; the engine takes the way from its pelvis to your hand). ragactive
+  `staggerTugSway` turns the stagger's upright (staggerKeepUpright's whole-body turn about its pelvis, feet planted):
+  leant back 0.2 rad x share (11 deg at the break force) plus a 3.5 deg rock (0.9 Hz and 2.07 Hz), its holding shoulder
+  turned back 0.17 rad x share plus a rock, all x Torso Sway, eased in over 0.3 s (out as the tug ends). Its spine's
+  joints were tried first: its arms' pull on your hold bends the spine forward to its joints' limits (the chest's 26.5 deg
+  of 28), and a lean there never showed even braced x4. `staggerArms`: the free arm's goal (the held hand) plus a
+  noise (three sines out of step, 1.1 Hz) out to its side, up and ahead, 0.45 of its arm's length x Free Arm Flail,
+  eased in. `ragdolltug 11` (the tests): its free arm's end part.
+- **Tests:** test 21 is now the body's (`VR_AGPT_TugSway`; old tests 21/22, the old tug, removed; 33's path 6 removed):
+  a still hold read as 0.6 of the break force for 1.5 s; sliders 1 vs 0: 7 passed, 0 failed (its chest 1.01 units
+  further back over its pelvis, moving 1.93 units (0: 1.61, the plain tug's stir), its free hand 4.67 (0: 2.06)). Tug cases: 31 6/0, 32 6/0, 37 8/0, 92 21/1:
+  **phase 4 fails** (a staggering one's tug: it gets up 0.25 s in, the tug goes on standing, and the test's 0.6 m/s pull
+  goes past the let-go distance at 0.64 s: "torn away"; the old tug won it by distance). His call: keep (a standing tug's
+  rules after it is up) or keep its eased times after it gets up.
+

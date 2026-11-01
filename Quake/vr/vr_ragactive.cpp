@@ -791,6 +791,16 @@ constexpr float staggerHoldTime = 0.03f;  // s: its level motion worked off over
 constexpr float staggerWheel = 1.7f;     // Hz: its arms wheeling for its balance (the other arm's a little quicker)
 constexpr float staggerUpright = 8.f;    // rad/s per radian its pelvis is pitched off its stance's, steady (turnWhole)
 constexpr float staggerUprightMost = 4.f; // rad/s
+// A tug's body (vr_agrunt_tug_sway, vr_agrunt_tug_flail at 1; his note 2026-11-01 23:07: "move their torso a bit to
+// simulate the tugging and flail the other arm a little bit ... very subtly"):
+constexpr float tugEase = 0.3f;          // s: its body's motion eased in as the tug begins (its lean out as it ends)
+constexpr float tugPullEase = 0.15f;     // s: the pull's share followed over (no jitter from frame to frame)
+constexpr float tugLean = 0.2f;          // rad: its torso leant back at its break force (11 deg), less for a lesser pull
+constexpr float tugTwist = 0.17f;        // rad: its holding shoulder turned back at its break force (10 deg)
+constexpr float tugRock = 0.06f;         // rad: its torso rocking with the struggle however hard you pull (3.5 deg)
+constexpr float tugRockHz = 0.9f;        // Hz: ... its pace (a second, quicker sway on it)
+constexpr float tugFlail = 0.45f;        // of its arm's length: its free hand's flail about the weapon
+constexpr float tugFlailHz = 1.1f;       // Hz: ... its pace (noise: three sines out of step)
 
 // The share of its travel its pin's anchor has gone at `t` (easing out: fast at first).
 [[nodiscard]] float staggerShare(const Stagger& g, float t)
@@ -1100,14 +1110,55 @@ void staggerKeepUpright(StaggerWork& w, State& s, const Parts& p, const Context&
     Stagger& g = *w.g;
     if(pose.valid)
     {
-        turnWhole(p, c, glm::normalize(s.turn * pose.rot[0]), staggerUpright * (0.5f + 0.5f * g.balance) * s.base,
+        // (A tug's lean and turn on it: staggerTugSway.)
+        turnWhole(p, c, glm::normalize(g.tugTurn * s.turn * pose.rot[0]), staggerUpright * (0.5f + 0.5f * g.balance) * s.base,
             staggerUprightMost, 1.f);
+    }
+}
+
+// A smooth noise in about -1..1 at about `hz` (three sines out of step; `seed` sets them apart).
+[[nodiscard]] float tugNoise(float t, float hz, float seed)
+{
+    const float a = 2.f * 3.14159265f * hz * t;
+    return 0.55f * za::sin(a + seed) + 0.3f * za::sin(2.31f * a + 1.7f * seed) + 0.15f * za::sin(4.13f * a + 2.9f * seed);
+}
+
+// Its body in a tug (vr_agrunt_tug_sway): leant back away from the holding hand and its holding shoulder turned back,
+// both by the pull's share of its break force (eased), rocking a little with the struggle: a turn of its upright
+// (staggerKeepUpright's turn of the whole body about its pelvis, its feet planted). Not its spine's joints: its arms'
+// pull on your hold bends its spine forward to their limits, and a lean there never showed.
+void staggerTugSway(StaggerWork& w, const Context& c, float t)
+{
+    Stagger& g = *w.g;
+    const float step = c.dt / tugEase;
+    g.tugMix = g.tug ? za::min(1.f, g.tugMix + step) : za::max(0.f, g.tugMix - step);
+    g.tugPullEased += (za::clamp(g.tugPull, 0.f, 2.f) - g.tugPullEased) * (1.f - za::exp(-c.dt / tugPullEase));
+    const float sway = za::clamp(vr_agrunt_tug_sway.value, 0.f, 3.f) * smooth01(g.tugMix);
+    g.tugTurn = glm::quat{1.f, 0.f, 0.f, 0.f};
+    if(sway <= 0.f)
+    {
+        return;
+    }
+    const float seed = static_cast<float>(c.num % 17);
+    const float k = g.tugPullEased;
+    const float lean = sway * (tugLean * k + tugRock * (0.7f * za::sin(2.f * 3.14159265f * tugRockHz * t + seed) +
+                                                         0.3f * za::sin(2.f * 3.14159265f * 2.3f * tugRockHz * t)));
+    const float side = g.tugArm == 0 ? 1.f : g.tugArm == 1 ? -1.f : 0.f; // (Limb 0 the left arm: back is a turn left)
+    const float twist = sway * (tugTwist * k * side + 0.5f * tugRock * za::sin(2.f * 3.14159265f * 0.7f * tugRockHz * t + 1.f + seed));
+    const glm::vec3 up = w.up;
+    const glm::vec3 way = glm::length(level(g.tugWay)) > 1e-3f ? glm::normalize(level(g.tugWay)) : -g.dir;
+    const glm::vec3 leanAxis = glm::cross(way, up); // (a turn about it takes its top away from your hand)
+    g.tugTurn = glm::angleAxis(twist, up) * glm::angleAxis(lean, leanAxis);
+    if(vr_knockdown_debug.value >= 2 && static_cast<int>(t * 4.f) != static_cast<int>((t - c.dt) * 4.f))
+    {
+        Con_Printf("tug: %d its body: eased in %.2f, pull %.2f (eased %.2f): lean back %.1f deg, turn %.1f deg\n", c.num,
+            g.tugMix, g.tugPull, k, lean * 57.3f, twist * 57.3f);
     }
 }
 
 // The arms thrown out to its sides against the shove and wheeling (its balance's), each at its own pace (not a
 // mirror's), flapping a little; the more the less steady it is.
-void staggerArms(StaggerWork& w, State& s, const Parts& p, float t)
+void staggerArms(StaggerWork& w, State& s, const Parts& p, const Context& c, float t)
 {
     Stagger& g = *w.g;
     glm::vec3& up = w.up;
@@ -1133,6 +1184,16 @@ void staggerArms(StaggerWork& w, State& s, const Parts& p, float t)
                 g.tugArm >= 0 && limbWhole(s, p, g.tugArm) ? limbEnd(s, p, g.tugArm) : shoulder + ahead * (0.5f * len);
             r.goal = holds ? shoulder + ahead * (0.3f * len) - up * (0.3f * len) + left * ((arm == 0 ? -0.25f : 0.25f) * len)
                            : held;
+            // (Its free hand flailing about the weapon, out to its side a little: vr_agrunt_tug_flail, eased in.)
+            const float flail = holds || g.tugArm < 0 ? 0.f : za::clamp(vr_agrunt_tug_flail.value, 0.f, 3.f) * smooth01(g.tugMix);
+            if(flail > 0.f)
+            {
+                const float seed = static_cast<float>(c.num % 13) + 3.f * static_cast<float>(arm);
+                const glm::vec3 out = left * (arm == 0 ? 1.f : -1.f);
+                r.goal += (out * (0.35f + 0.65f * tugNoise(t, tugFlailHz, seed)) + up * tugNoise(t, 0.8f * tugFlailHz, seed + 5.f) +
+                           ahead * (0.5f * tugNoise(t, 1.3f * tugFlailHz, seed + 11.f))) *
+                          (tugFlail * flail * len);
+            }
             r.weight = holds ? 1.f : 0.7f;
             r.strength = za::clamp(g.tugStrength * (holds ? 1.f : 0.7f), 0.f, 3.f);
             continue;
@@ -1229,8 +1290,9 @@ void staggerFrame(State& s, const Parts& p, const Context& c, float t, const Cli
     {
         return;
     }
+    staggerTugSway(w, c, t);
     staggerKeepUpright(w, s, p, c, pose);
-    staggerArms(w, s, p, t);
+    staggerArms(w, s, p, c, t);
     staggerFeet(w, s, p, c);
 }
 

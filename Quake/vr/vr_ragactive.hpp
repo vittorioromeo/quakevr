@@ -417,6 +417,14 @@ struct Stagger
     bool tug{false};
     int tugArm{-1};
     float tugStrength{1.f};
+    // Its body in the tug (staggerTugSway, staggerArms; vr_agrunt_tug_sway, vr_agrunt_tug_flail): the pull's share of
+    // what breaks its grip and its way (level, from it towards the holding hand; box3d ragdollTug what 10, each tug
+    // frame), that share eased, and the tug's own share eased in (and out as it ends: its torso's lean; tugEase).
+    float tugPull{0.f};
+    glm::vec3 tugWay{1.f, 0.f, 0.f};
+    float tugPullEased{0.f};
+    float tugMix{0.f};
+    glm::quat tugTurn{1.f, 0.f, 0.f, 0.f}; // its upright turned by it (world): leant back, its holding shoulder back
     // Its walk measured (vr_knockdown_debug's "gait:" line as it recovers or falls; the ragtool's checks): its knees'
     // bend (deg, least and most), each step's foot lift (m, its highest over where it rose and landed), the steps' level
     // length, the planted feet's slide (the glide), its hands' reach about its shoulders (each arm's box of them).

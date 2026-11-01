@@ -2646,10 +2646,6 @@ float() VR_AG_Seeking =
 // Its run frames: to a weapon it goes for, away from a target too near its explosive weapon, else the grunt's run.
 void(float d) VR_AG_Run =
 {
-    if(VR_AG_TugResume())
-    {
-        return; // (a tug-of-war over its weapon: its hold, vr_armedgrunt_play.qc)
-    }
     self.vr_ag_myrun = time;
     VR_AG_DrawMain(self); // (its flare gun spent and gone: its own weapon)
     if(VR_AG_Seeking())

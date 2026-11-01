@@ -1164,24 +1164,20 @@ QVR_TOGGLE(vr_agrunt_strike_first, "Strikes on Its Weapon Disarm",
     "(Strike Beats a Raised Parry, in the tunables). Off: such a blow is parried whenever it can be "
     "(vr_agrunt_strike_first).")
 QVR_TOGGLE(vr_agrunt_tug, "Tug-of-War",
-    "Grabbing its weapon starts a struggle: it holds on and pulls back, and may shove you, headbutt you or "
-    "fire. Pull your hand back far enough for long enough to take it. Staggered, knocked down, stunned "
-    "by a parry or badly hurt, it lets go at once; hurt or in pain, sooner. Off: the grab takes it at once "
-    "(vr_agrunt_tug).")
-QVR_TOGGLE(vr_agrunt_tug_ragdoll, "Tug: Physical",
-    "The tug as physics: it stands its ground as an active ragdoll, your hand holding its weapon in its "
-    "hand, its arms pulling back; pull hard enough, or long enough, and its grip breaks: the weapon is "
-    "yours, it staggers a moment and fights on unarmed. Let go first and it keeps it. Off: the old tug "
-    "(the distance and time below; it fights back) (vr_agrunt_tug_ragdoll).")
+    "Grabbing its weapon starts a struggle: it stands its ground as an active ragdoll, your hand holding "
+    "its weapon in its hand, its arms pulling back; pull hard enough, or long enough, and its grip breaks: "
+    "the weapon is yours, it staggers a moment and fights on unarmed. Let go first and it keeps it. Stunned "
+    "by a parry or badly hurt, it lets go at once; staggered or down, sooner. Off: the grab takes it at "
+    "once (vr_agrunt_tug).")
 QVR_SLIDER(vr_agrunt_tug_break_force, "Tug: Break Force", 50.f, 2000.f, 25.f, "%.0f N", ext(0.f, 20000.f),
-    "A pull this hard on its weapon tears it out of its hand at once (the physical tug; less as it is "
+    "A pull this hard on its weapon tears it out of its hand at once (less as it is "
     "hurt) (vr_agrunt_tug_break_force).")
 QVR_SLIDER(vr_agrunt_tug_break_impulse, "Tug: Break Impulse", 10.f, 1000.f, 10.f, "%.0f N s", ext(0.f, 10000.f),
     "Pulling over time: the pull's force times its time (counted above Tug: Least Pull) that tears it "
-    "out of its hand (the physical tug; less as it is hurt) (vr_agrunt_tug_break_impulse).")
+    "out of its hand (less as it is hurt) (vr_agrunt_tug_break_impulse).")
 QVR_SLIDER(vr_agrunt_tug_pull_time, "Tug: Least Pull Time", 0.f, 3.f, 0.05f, "%.2f s", ext(0.f, 30.f),
     "The shortest tug-of-war: you must keep pulling at least Tug: Least Pull this long before its weapon can "
-    "come out (the physical tug; a staggering or downed one's times Tug: Staggering or Down): a tug-of-war, "
+    "come out (a staggering or downed one's times Tug: Staggering or Down): a tug-of-war, "
     "not a sharp yank. 0: the break force tears it out at once (vr_agrunt_tug_pull_time).")
 QVR_SLIDER(vr_agrunt_tug_let_go, "Tug: Let Go Past", 20.f, 100.f, 5.f, "%.0f cm", ext(0.f, 300.f),
     "Physical tug: your hand lets go of its weapon (you lose the tug) once your real hand is this far from "
@@ -1204,15 +1200,14 @@ QVR_SLIDER(vr_agrunt_grab_speed, "Grab: Fastest Hand", 0.f, 6.f, 0.1f, "%.1f m/s
     "against the weapon (going with a swing to catch it), the lesser, in real time (bullet time too). 0: "
     "any speed (vr_agrunt_grab_speed).")
 QVR_SLIDER(vr_agrunt_tug_strength, "Tug: Its Pull", 0.f, 3.f, 0.1f, "%.1f", ext(0.f, 3.f),
-    "How hard its arms pull its weapon back in the physical tug (vr_agrunt_tug_strength).")
-QVR_SLIDER(vr_agrunt_tug_time, "Tug: Pull Time", 0.f, 5.f, 0.1f, "%.1f s", ext(0.f, 30.f),
-    "The older tug's time (Tug: Physical off, or a staggering or downed one; the physical tug's "
-    "own is Tug: Least Pull Time): how long you must keep it pulled that far against a calm grunt at full "
-    "health; less as it is hurt, "
-    "half while it flinches from a hit. 0: any pull wins (vr_agrunt_tug_time).")
-QVR_SLIDER(vr_agrunt_tug_fight, "Tug: It Fights Back Every", 0.f, 5.f, 0.1f, "%.1f s", ext(0.f, 30.f),
-    "About how often it fights back during the struggle: a shove or a headbutt breaks your grip, a gun "
-    "fires at you. 0: never (vr_agrunt_tug_fight).")
+    "How hard its arms pull its weapon back in the tug (vr_agrunt_tug_strength).")
+QVR_SLIDER(vr_agrunt_tug_sway, "Tug: Torso Sway", 0.f, 3.f, 0.1f, "%.1f", ext(0.f, 3.f),
+    "Its torso in the tug: it leans back and twists its holding shoulder away against your pull, more "
+    "the harder you pull (at 1, about 11 degrees back at its break force), rocking a little with the "
+    "struggle. 0: off (vr_agrunt_tug_sway).")
+QVR_SLIDER(vr_agrunt_tug_flail, "Tug: Free Arm Flail", 0.f, 3.f, 0.1f, "%.1f", ext(0.f, 3.f),
+    "Its free arm in the tug: it paws and flails about near the weapon instead of only reaching for it "
+    "(at 1, about a third of its arm's length). 0: off, the hand goes to the weapon (vr_agrunt_tug_flail).")
 QVR_SLIDER(vr_agrunt_parry_disarm, "Parry Disarm Chance", 0.f, 1.f, 0.05f, "%.2f", ext(0.f, 1.f),
     "The chance your weapon's parry of its melee blow knocks its weapon out of its hand; a well-timed "
     "parry's 1.5 times (vr_agrunt_parry_disarm).")
