@@ -4961,8 +4961,12 @@ QVR_SLIDER(vr_gunfx_cool_time, "Cool-Down Time", 0.2f, 10.f, 0.1f, "%.1f s", ext
     "How many seconds a barrel at full heat takes to cool down once you stop firing (its glow and wisps fading "
     "with it).")
 QVR_SLIDER(vr_gunfx_heat_glow, "Heat Glow Strength", 0.f, 3.f, 0.05f, "%.2fx", noExt,
-    "How bright a hot barrel's glow is (it deepens from a dull red to orange as it heats). 0: no glow, the wisps "
-    "only.")
+    "How bright a hot barrel's glow is: its metal glows from within like an incandescent blade, strongest at the "
+    "muzzle and fading back along the barrel (each weapon's Barrel Glow Length), deepening from a dull red to orange "
+    "as it heats. 0: no glow, the wisps only.")
+QVR_SLIDER(vr_gunfx_heat_light, "Heat Light Strength", 0.f, 3.f, 0.05f, "%.2fx", noExt,
+    "How bright the light a glowing barrel casts on your hands and the walls nearby (following its glow, its reach "
+    "shrinking as it cools). 0: none.")
 QVR_TOGGLE(vr_gunfx_wisps, "Muzzle Wisps",
     "After you stop firing, a very thin, faint line of smoke trails off each barrel for a few seconds (the "
     "shotgun's one, the super shotgun's and the nailgun's two), following the muzzle as you move the gun.")
@@ -6431,7 +6435,9 @@ QVR_TOGGLE(vr_debug_impacts, "Print Impact Effects",
     "...\", \"impfx snd ...\"): the hit ladders' output (vr_impacts.cpp).")
 QVR_TOGGLE(vr_debug_gunfx, "Print Gunfire Particles",
     "vr_debug_gunfx: each shot's particles (\"gunfx shot ...\", \"gunfx port ...\", \"gunfx impact ...\") and your "
-    "barrels' heat (\"gunfx heat hand .. heat .. glow ..\" a shot, \"gunfx heat cold ..\" once cooled).")
+    "barrels' heat (\"gunfx heat hand .. heat .. glow ..\" a shot, \"gunfx heat cold ..\" once cooled). "
+    "vr_debug_gunfx 2 (console): also each frame a hot barrel glows, \"gunfx barrel hand .. heat .. glow .. light "
+    ".. drawn .. off ..\" (off: how far its drawn muzzle was from where its light was placed).")
 QVR_TOGGLE(vr_debug_ribbon_overlap, "Wisps Overlap Again",
     "vr_debug_ribbon_overlap: the muzzle wisps blend twice where they fold over themselves (a sharp swing), "
     "as before the fix: the denser creases, to compare.")

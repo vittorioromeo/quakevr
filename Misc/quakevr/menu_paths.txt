@@ -1128,6 +1128,7 @@ vr_knockdown_surprise|1|Knockdowns|Surprise Shoves Knock Down|Advanced VR Option
 vr_knockdown_ledge|1|Knockdowns|Over a Ledge, Always|Advanced VR Options > Combat > Knockdowns > Over a Ledge, 
 vr_hit_stagger|1|Knockdowns|Strong Hits Unbalance|Advanced VR Options > Combat > Knockdowns > Strong Hits Unbalance
 vr_ragimpact|1|Knockdowns|Impacts Hurt|Advanced VR Options > Combat > Knockdowns > Impacts Hurt
+vr_ragsmash|1|Knockdowns|Impact Sound and Blood|Advanced VR Options > Combat > Knockdowns > Impact Sound and Blood
 vr_ragimpact_crush_speed|1|Knockdowns|Crush Least Speed|Advanced VR Options > Combat > Knockdowns > Crush Least 
 vr_ragimpact_crush_push|1|Knockdowns|Crush Push|Advanced VR Options > Combat > Knockdowns > Crush Push
 vr_ragimpact_crush_standing|1|Knockdowns|Crush Standing Ones|Advanced VR Options > Combat > Knockdowns > Crush 
@@ -2025,6 +2026,7 @@ vr_gunfx_heat|1|Weapon Effects|Barrel Heat|Advanced VR Options > Weapons > Weapo
 vr_gunfx_heat_time|1|Weapon Effects|Heat-Up Time|Advanced VR Options > Weapons > Weapon Effects > Heat-Up Time
 vr_gunfx_cool_time|1|Weapon Effects|Cool-Down Time|Advanced VR Options > Weapons > Weapon Effects > Cool-Down Time
 vr_gunfx_heat_glow|1|Weapon Effects|Heat Glow Strength|Advanced VR Options > Weapons > Weapon Effects > Heat Glow 
+vr_gunfx_heat_light|1|Weapon Effects|Heat Light Strength|Advanced VR Options > Weapons > Weapon Effects > Heat 
 vr_gunfx_wisps|1|Weapon Effects|Muzzle Wisps|Advanced VR Options > Weapons > Weapon Effects > Muzzle Wisps
 vr_gunfx_wisp_delay|1|Weapon Effects|Wisp Delay|Advanced VR Options > Weapons > Weapon Effects > Wisp Delay
 vr_gunfx_wisp_time|1|Weapon Effects|Wisp Persistence|Advanced VR Options > Weapons > Weapon Effects > Wisp 
@@ -2974,6 +2976,7 @@ vr_tracer_brightness|2|Tunables|Tracer Brightness|Advanced VR Options > Debug > 
 vr_gunfx_intensity|2|Tunables|Gunfire Intensity|Advanced VR Options > Debug > Tunables > Gunfire Intensity
 vr_gunfx_turbulence|2|Tunables|Smoke Turbulence|Advanced VR Options > Debug > Tunables > Smoke Turbulence
 vr_gunfx_shell_trail|2|Tunables|Casing Smoke Trails|Advanced VR Options > Debug > Tunables > Casing Smoke Trails
+vr_gunfx_heat_light_radius|2|Tunables|Barrel Light Reach|Advanced VR Options > Debug > Tunables > Barrel Light Reach
 vr_flashlight_mount_preview|2|Tunables|Show the Flashlight's Place|Advanced VR Options > Debug > Tunables > Show 
 vr_show_controller_x|2|Tunables|Preview X (red)|Advanced VR Options > Debug > Tunables > Preview X (red)
 vr_show_controller_y|2|Tunables|Preview Y (green)|Advanced VR Options > Debug > Tunables > Preview Y (green)
@@ -3389,6 +3392,11 @@ vr_ragimpact_curve|2|Tunables|Damage Curve|Advanced VR Options > Debug > Tunable
 vr_ragimpact_curve_ref|2|Tunables|Curve Pivot|Advanced VR Options > Debug > Tunables > Curve Pivot
 vr_ragimpact_max|2|Tunables|Most per Strike|Advanced VR Options > Debug > Tunables > Most per Strike
 vr_ragimpact_limb|2|Tunables|Limb Strikes|Advanced VR Options > Debug > Tunables > Limb Strikes
+vr_ragsmash_min_speed|2|Tunables|Smash Least Speed|Advanced VR Options > Debug > Tunables > Smash Least Speed
+vr_ragsmash_full_speed|2|Tunables|Smash Full Speed|Advanced VR Options > Debug > Tunables > Smash Full Speed
+vr_ragsmash_volume|2|Tunables|Smash Volume|Advanced VR Options > Debug > Tunables > Smash Volume
+vr_ragsmash_decal_size|2|Tunables|Smash Blood Size|Advanced VR Options > Debug > Tunables > Smash Blood Size
+vr_ragsmash_cooldown|2|Tunables|Smash Cooldown|Advanced VR Options > Debug > Tunables > Smash Cooldown
 vr_ragimpact_wear|2|Tunables|Head and Limb Wear|Advanced VR Options > Debug > Tunables > Head and Limb Wear
 vr_ragimpact_crush|2|Tunables|Landing Crush|Advanced VR Options > Debug > Tunables > Landing Crush
 vr_ragimpact_crush_wear|2|Tunables|Crush Wear|Advanced VR Options > Debug > Tunables > Crush Wear
@@ -3717,6 +3725,7 @@ vr_debug_hand_offset|2|Debug - Views|Log Hand Offsets|Advanced VR Options > Debu
 |2|Debug - Views|Weapon Settings Inheritance|Advanced VR Options > Debug > Views > Weapon Settings Inheritance
 |2|Debug - Views|Held Object Slots|Advanced VR Options > Debug > Views > Held Object Slots
 |2|Debug - Views|Monster Values|Advanced VR Options > Debug > Views > Monster Values
+|2|Debug - Views|Monster Group Values|Advanced VR Options > Debug > Views > Monster Group Values
 |2|Debug - Views|Held Heads' Weights|Advanced VR Options > Debug > Views > Held Heads' Weights
 |2|Debug - Views|Magnetic Holsters Info|Advanced VR Options > Debug > Views > Magnetic Holsters Info
 |2|Debug - Views|Magnetic Holsters: All Home|Advanced VR Options > Debug > Views > Magnetic Holsters: All Home
@@ -4320,6 +4329,7 @@ vr_foegrab_throw_debug|2|Debug - Tests|Judo Throw Diagnostic|Advanced VR Options
 |2|Debug - Tests|Throw the Nearest Left|Advanced VR Options > Debug > Tests > Throw the Nearest Left
 |2|Debug - Tests|Throw the Nearest Right|Advanced VR Options > Debug > Tests > Throw the Nearest Right
 |2|Debug - Tests|Throw the Nearest at You|Advanced VR Options > Debug > Tests > Throw the Nearest at You
+|2|Debug - Tests|Smash a Corpse into a Wall|Advanced VR Options > Debug > Tests > Smash a Corpse into a Wall
 |2|Debug - Tests|Shove the Nearest Monster|Advanced VR Options > Debug > Tests > Shove the Nearest Monster
 |2|Debug - Tests|Knock Down the Nearest|Advanced VR Options > Debug > Tests > Knock Down the Nearest
 |2|Debug - Tests|Shove the Nearest Down, One Hand|Advanced VR Options > Debug > Tests > Shove the Nearest Down, One 

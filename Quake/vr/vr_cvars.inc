@@ -1617,7 +1617,8 @@ QVR_CVAR(vr_gunfx_heat, "1", CVAR_ARCHIVE)             // barrels hot after sust
 // Barrel heat (vr_gunfx.cpp heatShot / heatCool / heatGlow; each weapon's fx_gfx_heat / fx_gfx_cool multipliers):
 QVR_CVAR(vr_gunfx_heat_time, "1", CVAR_ARCHIVE)        // Heat-Up Time: seconds of sustained fire (at the gun's own rate) to full heat (a single shot: at most 0.35 of it; 0.1-10)
 QVR_CVAR(vr_gunfx_cool_time, "3", CVAR_ARCHIVE)        // Cool-Down Time: seconds a barrel at full heat takes to cool once you stop (0.1-20)
-QVR_CVAR(vr_gunfx_heat_glow, "1", CVAR_ARCHIVE)        // Glow Strength: the hot barrel's glow, times (0 none; 0-3)
+QVR_CVAR(vr_gunfx_heat_glow, "1", CVAR_ARCHIVE)        // Glow Strength: the hot barrel's metal's glow (vr_hotblade.cpp), times (0 none; 0-3)
+QVR_CVAR(vr_gunfx_heat_light, "1", CVAR_ARCHIVE)       // Heat Light Strength: the light a glowing barrel casts, following its glow (0 none; 0-3)
 // Muzzle wisps (vr_muzzlewisps.cpp): thin soft lines of smoke trailing off your guns' barrels after you stop firing.
 QVR_CVAR(vr_gunfx_wisps, "1", CVAR_ARCHIVE)            // 0: none
 QVR_CVAR(vr_gunfx_wisp_delay, "0", CVAR_ARCHIVE)    // seconds after the last shot they start (0-3)

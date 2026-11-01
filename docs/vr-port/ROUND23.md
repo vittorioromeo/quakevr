@@ -5393,3 +5393,34 @@ melee_phase 7/0, arena 6 8/0), and before agent/ghosthand prop_climb and melee_p
   saves nothing mid-run.
 - **For the kit (coordinator)**: the console cases (arena_*, agrunt_*) run with the clock's seed; `sv_random_seed 7`
   before their map would make them repeat.
+
+## Barrel glow on the metal (branch `agent/barrelglow`, his note 2026-11-01 18:40)
+
+He found the barrel heat glow lagging behind or ahead of the gun while turning or moving with the stick, and wanted it to
+look like the torch-heated melee blades, fading with the same heat settings, and to cast light.
+- **The lag**: the glow was particles (3 a barrel, living 0.03 s: 2-3 frames) left in the world with the player's
+  velocity, so the old ones trailed a turning or moving gun. And vr_hotblade.cpp `queue` (the blades' light, embers and
+  trails) ran in VR_RenderView before the frame's view entities were set up: a frame behind the drawn weapon (the test
+  measured 3.2 units off while turning). It now runs in VR_SetupViewEntities after weaponfx::frame (once a frame, the
+  weapons as drawn now): the melee blades' light and embers follow exactly too.
+- **The look**: the sprite glow is retired (removed, not an option). A hot barrel glows with the incandescent blades'
+  shader glow (QVR_ALIAS_FS_GLOW: the metal from within, its bright parts most, yellower) on the gun's own surface,
+  masked to the barrel by the blades' pose-space plane (vr_hotblade.cpp `barrelBlade`): from the muzzle back the
+  weapon's **Barrel Glow Length** (`fx_gfx_barrel`, Weapon Offsets > Effects; 0.5 by default: a share of the gun's
+  grip-to-muzzle length along its +x), 1 at the muzzle fading to 0 at that far end. Strength (heat - 0.15) / 0.85 x
+  Heat Glow Strength, colour a dull red deepening to orange (vr_gunfx.cpp `barrelHeat`); so Heat-Up / Cool-Down / Glow
+  drive it as before. A hand's incandescent blade comes first (a hot melee weapon's own glow).
+- **The light**: a dlight (the blades' slots, emissive::hotBladeLight) three quarters of the way to the muzzle, the
+  barrel's colour, strength share x **Heat Light Strength** (`vr_gunfx_heat_light` 1, 0-3; Weapons > Weapon Effects after
+  Heat Glow Strength), reach `vr_gunfx_heat_light_radius` 48 units (tunable, Barrel Light Reach) x (0.6 + 0.4 share).
+  No embers or trail for a barrel.
+- **Debug**: `vr_debug_gunfx 2` prints each frame a barrel glows `gunfx barrel hand H heat X glow G light L reach R part P
+  at x y z drawn N off D` (N, D: the last frame's draws of the glowing gun, how far its drawn muzzle was from where the
+  light was placed). vr_hotblade_report lists a barrel as "main barrel" / "off barrel".
+- **Test**: `python Misc/quakevr/barrelglow_test.py <agent>` 9/9: the shotgun glows from its first shot (0.35), glow and
+  light following the heat; the nailgun fired while turning with the stick and walking: the muzzle moves up to 3.2 units a
+  frame, drawn twice a frame, off 0.0000 every frame (3.23 before the queue move); cooling fades the glow and light with
+  the heat to the "cold" line. hotblade_test.sh blade_parts, embers, trail, trail_walk pass. Eye shots (side camera) of
+  a hot shotgun (its front half orange, the tip brightest) and nailgun (its barrels red-orange fading back).
+- **Not checked**: in VR: the strength (1 may be faint on the shotgun), Barrel Glow Length per gun (the shotgun's wooden
+  pump glows too: it is in the front half), the light's reach.

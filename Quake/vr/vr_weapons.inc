@@ -448,6 +448,10 @@ QVR_WEAPON_KEY(GunfxWisps, "fx_gfx_wisps")
 // Weapon Effects' Cool-Down Time (0: it cools at once). 1 by default (weapons.txt's defaults). New cvars: no migration.
 QVR_WEAPON_KEY(GunfxHeat, "fx_gfx_heat")
 QVR_WEAPON_KEY(GunfxCool, "fx_gfx_cool")
+// The weapon's barrel glow's length (ROUND23.md, "Barrel glow on the metal"; Weapon Offsets > Effects, Barrel Glow
+// Length; vr_hotblade.cpp barrelBlade): the share of the gun's length (its grip to its muzzle, along the barrel) that
+// glows when hot, from the muzzle back, fading out towards its far end. 0.5 by default (weapons.txt's defaults).
+QVR_WEAPON_KEY(GunfxBarrel, "fx_gfx_barrel")
 // Reloading (the named per-weapon values: vr_weaponvalues.inc names each gun's by its old cvar). Each gun's load
 // point moved (model units: +x forward, +y left, +z up) and its radius (world units); a magazine's reference point
 // moved (its model units) and its radius; a magazine gun's well moved and turned (visual only); the other hand
