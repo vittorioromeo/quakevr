@@ -13,6 +13,7 @@
 #include "vr_progs.hpp"
 #include "vr_ragdoll.hpp"
 #include "vr_render.hpp"
+#include "vr_rig2.hpp"
 
 #include "Zancle/Base/Limits.hpp"
 #include "Zancle/Container/Array.hpp"
@@ -161,13 +162,26 @@ struct HandEntry
 {
     int num{0}, side{0}, frame{-1};
     bool ok{false};
+    bool inDraw{false}; // made while a frame draws it (its model the authored rig's skinned copy: rig2::sourceModel)
+    HandSource source{HandSource::None};
     Hull hull;
 };
 constexpr int maxHands = 16;
+// The hands' hulls Show Disarm Volumes drew last (handShown; the tests' check of what he sees: disarmhull 23 / 24).
+struct ShownHand
+{
+    int num{0}, side{0}, frame{-1};
+    bool inDraw{false};
+    HandSource source{HandSource::None};
+    Hull hull;
+};
+constexpr int maxShown = 8;
 struct HandHulls
 {
     za::Array<HandEntry, maxHands> entries{};
+    za::Array<ShownHand, maxShown> shown{};
     int next{0};                     // the one remade next when none is free
+    int nextShown{0};                // ... shown
     za::Vector<glm::vec3> drawn;     // the body's vertices as drawn (scratch)
     za::Vector<glm::vec3> region;    // ... those on the hand and forearm
 };
@@ -178,10 +192,15 @@ HandHulls hands;
     return sv.active && cls.state == ca_connected;
 }
 
-// The hand on `side` and its forearm's vertices of armed humanoid `g` as drawn now (world), into `out`.
-[[nodiscard]] bool handPoints(edict_t* g, int side, za::Vector<glm::vec3>& out)
+// The hand on `side` and its forearm's vertices of armed humanoid `g` as drawn now (world), into `out`; `source` where
+// they came from. Only its drawn body: on the authored rig alive (drawnpose::armedMesh), its ragdoll's; neither (not
+// drawn lately, no local view): none, no hand volume (its weapon's alone counts). Never its animation frame's
+// (hitmodel::vertexPoint): the drawn arms are posed on the weapon, the frame's are not (his note 2026-11-01 02:20: a
+// cyan hull "completely off", moving with the animation: ROUND23.md, "The cyan hand hull off").
+[[nodiscard]] bool handPoints(edict_t* g, int side, za::Vector<glm::vec3>& out, HandSource& source)
 {
     out.clear();
+    source = HandSource::None;
     const int mi = static_cast<int>(g->v.modelindex);
     qmodel_t* model = mi > 0 && mi < MAX_MODELS ? sv.models[mi] : nullptr;
     const ragdoll::Rig* rig = model ? ragdoll::rigFor(model) : nullptr;
@@ -193,32 +212,37 @@ HandHulls hands;
     }
     const int arm = rig->bones[handBone].parent;
     const int num = NUM_FOR_EDICT(g);
-    // (its body as drawn: on the authored rig alive, its ragdoll's, else its animation frame's)
     za::Vector<glm::vec3>& drawn = hands.drawn;
-    const bool posed = local() && (drawnpose::armedMesh(g, drawn, nullptr) || ragdoll::skinnedVertices(num, drawn, nullptr, true));
-    for(za::SizeT v = 0; v < rig->vertBone.size(); v++)
+    if(!local())
+    {
+        return false;
+    }
+    if(drawnpose::armedMesh(g, drawn, nullptr))
+    {
+        source = HandSource::Live;
+    }
+    else if(ragdoll::skinnedVertices(num, drawn, nullptr, true))
+    {
+        source = HandSource::Ragdoll;
+    }
+    else
+    {
+        return false;
+    }
+    for(za::SizeT v = 0; v < rig->vertBone.size() && v < drawn.size(); v++)
     {
         const int b = rig->vertBone[v];
-        if(b != handBone && b != arm)
+        if(b == handBone || b == arm)
         {
-            continue;
+            out.pushBack(drawn[v]);
         }
-        glm::vec3 p;
-        if(posed)
-        {
-            if(v >= drawn.size())
-            {
-                continue;
-            }
-            p = drawn[v];
-        }
-        else if(!hitmodel::vertexPoint(g, static_cast<int>(v), p))
-        {
-            continue;
-        }
-        out.pushBack(p);
     }
-    return !out.empty();
+    if(out.empty())
+    {
+        source = HandSource::None;
+        return false;
+    }
+    return true;
 }
 
 [[nodiscard]] glm::vec3 toLocal(const Placed& p, const glm::vec3& w)
@@ -450,7 +474,7 @@ bool weapon(edict_t* p, Placed& out)
     return true;
 }
 
-bool hand(edict_t* g, int side, Placed& out)
+bool hand(edict_t* g, int side, Placed& out, HandSource* source, bool* inDraw)
 {
     out = Placed{};
     if(!g || g->free)
@@ -485,7 +509,8 @@ bool hand(edict_t* g, int side, Placed& out)
         e->num = num;
         e->side = side;
         e->frame = host_framecount;
-        e->ok = handPoints(g, side, hands.region);
+        e->inDraw = local() && num < cl.num_entities && rig2::sourceModel(&cl_entities[num]) != nullptr;
+        e->ok = handPoints(g, side, hands.region, e->source);
         if(e->ok)
         {
             make(hands.region.data(), static_cast<int>(hands.region.size()), e->hull);
@@ -497,6 +522,50 @@ bool hand(edict_t* g, int side, Placed& out)
         return false;
     }
     out.hull = &e->hull;
+    if(source)
+    {
+        *source = e->source;
+    }
+    if(inDraw)
+    {
+        *inDraw = e->inDraw;
+    }
+    return true;
+}
+
+bool handShown(edict_t* g, int side, Placed& out)
+{
+    HandSource source = HandSource::None;
+    bool inDraw = false;
+    if(!hand(g, side, out, &source, &inDraw))
+    {
+        return false;
+    }
+    const int num = NUM_FOR_EDICT(g);
+    ShownHand* s = nullptr;
+    for(ShownHand& h : hands.shown)
+    {
+        if(h.num == num && h.side == side)
+        {
+            s = &h;
+            break;
+        }
+    }
+    if(!s)
+    {
+        s = &hands.shown[static_cast<za::SizeT>(hands.nextShown)];
+        hands.nextShown = (hands.nextShown + 1) % maxShown;
+    }
+    if(s->num == num && s->side == side && s->frame == host_framecount)
+    {
+        return true;
+    }
+    s->num = num;
+    s->side = side;
+    s->frame = host_framecount;
+    s->source = source;
+    s->inDraw = inDraw;
+    s->hull = *out.hull;
     return true;
 }
 
@@ -532,7 +601,12 @@ void draw(const Placed& p, float grow, const glm::vec4& colour, float width)
 //     1 against the vertices it was made of: '<most outside> <ratio> <how many>'.
 //   what 13: weapon `e`'s volume's long axis (world, unit; its tip's way); 14: '<its length> <its corners' most distance
 //     off the line through its middle along that axis> 0'. The tests (vr_disarmhull_test.qc).
+//   what 15 / 16: the hand on side 0 / 1 now: '<its source: 1 the authored rig as drawn, 2 its ragdoll> <its points> 0';
+//     '0 0 -1' none (not drawn lately: no hand volume).
 //   what 20 / 21 / 22: volume 0 / 1 / 2's middle (its corners' mean, world; the tests aim at it).
+//   what 23 / 24: the hand hull on side 0 / 1 Show Disarm Volumes drew last (handShown: what he sees, made while the frame
+//     drew it): '<the gap of a..b to it> <its source, plus 10 if made while its frame drew it> <frames since>'; '<huge> 0
+//     -1' none drawn.
 void PF_disarmhull()
 {
     edict_t* e = G_EDICT(OFS_PARM0);
@@ -540,6 +614,36 @@ void PF_disarmhull()
     const glm::vec3 a = geom::vec(G_VECTOR(OFS_PARM2));
     const glm::vec3 b = geom::vec(G_VECTOR(OFS_PARM3));
     const float grow = G_FLOAT(OFS_PARM4);
+    if(what == 23 || what == 24)
+    {
+        const int num = e && !e->free ? NUM_FOR_EDICT(e) : -1;
+        for(const ShownHand& s : hands.shown)
+        {
+            if(s.num == num && s.side == what - 23 && s.frame >= 0 && s.hull.ok)
+            {
+                Placed sp;
+                sp.hull = &s.hull;
+                progs::returnVec({gap(sp, a, b, grow, nullptr),
+                    static_cast<float>(static_cast<int>(s.source) + (s.inDraw ? 10 : 0)),
+                    static_cast<float>(host_framecount - s.frame)});
+                return;
+            }
+        }
+        progs::returnVec({1e6f, 0.f, -1.f});
+        return;
+    }
+    if(what == 15 || what == 16)
+    {
+        Placed hp;
+        HandSource source = HandSource::None;
+        if(!hand(e, what - 15, hp, &source, nullptr))
+        {
+            progs::returnVec({0.f, 0.f, -1.f});
+            return;
+        }
+        progs::returnVec({static_cast<float>(source), static_cast<float>(hp.hull->points), 0.f});
+        return;
+    }
     Placed p;
     const bool found = (what == 0 || what == 10 || what == 13 || what == 14 || what == 20) ? weapon(e, p)
                        : (what == 1 || what == 11 || what == 21)                         ? hand(e, 0, p)
@@ -595,7 +699,8 @@ void PF_disarmhull()
         return;
     }
     za::Vector<glm::vec3> points; // (a test's query: made each call)
-    if(what == 10 ? !renderedVertices(e, points) : !handPoints(e, what - 11, points))
+    HandSource source = HandSource::None;
+    if(what == 10 ? !renderedVertices(e, points) : !handPoints(e, what - 11, points, source))
     {
         progs::returnVec({0.f, 0.f, -1.f});
         return;

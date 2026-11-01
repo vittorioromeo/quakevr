@@ -4472,6 +4472,51 @@ His voice notes of 2026-10-31 ~19:55 (five items). Stopped at the tool budget; w
   - Debug view: the plate lines are `lines::line` (drawn over everything, no depth test), so they cannot hide in the
     plate; the flatscreen Rig Studio screenshot shows the red armour but the 0.06-unit lines are too thin to see there.
   - Test 11 timed out twice (240-300 s, no output at all) after the merge: not looked into.
+- **Part 4** (branch `agent/armorfix4`):
+  - **Test 11's hang**: under Plate Blocks All (the test sets rule 1) the armoured grunt's plates took its killing blow;
+    it lived on, beat the player to death, and the test (run from the player's frame) stopped with him: no output,
+    the run's timeout. Now one grunt, killed bare, its plates put back on its ragdoll; shot on the left thigh plate's
+    face bare, then armoured, down a clear line to it (VR_ARS_Line). It ends on its verdict (~60 s): 4/0. The push:
+    `VR_AgArmor_PushScale` 1 bare, 0.5 armoured (VR_ShotPush's log: 6.0 N s vs 3.0 N s at 10x push). The ragdoll's
+    velocity gain is printed, not judged: box3d::push gives a shot to the part whose box is nearest (a lying body's
+    boxes overlap), a part driven into the floor stops, and the ratio read 0.06 to 4.4 from run to run (0.56 last).
+  - **Test 10's last limb "leaks" were shots beside the plate.** A grid of plate queries around each failing shot's
+    "face middle" (lines parallel to the aim, 0.25 units apart) showed the point on the plate's outline as seen along
+    the aim line: plate on one side, bare skin on the other from 0.2 units off; the projectiles' lines were 0.16-0.48
+    units off the aim (spawned from 44 units out), on the bare side. A wrapped bracer, thigh or shin plate seen from
+    the side (VR_ARS_Line took the first clear of radial/ahead/sides/up) has its face's middle on its silhouette. The
+    query is right (the shot met skin). Fixed in the test: `limbpiece(e, piece, 14)` is now the outer vertex nearest
+    the outer face's centroid at mid-length (the arc's middle; before, the first vertex of that ring), new
+    `limbpiece(e, piece, 15)` the outer face's outward normal there, and VR_ARS_Line tries that normal first and only
+    lines within 45 degrees of it. Not verified: his game started mid-run (see the report).
+  - **Show Armour Plates**: outer-face edges 0.35 units wide and opaque, inner face and rim 0.12 at 45% alpha (were all
+    0.06).
+- **Part 5** (branch `agent/armorfix4`, test only; no game code changed):
+  - **Test 10's hang**: the player died. Forty rockets' blasts 160 units off took a few points each, he died by the
+    last kind (Death menu in the log), and the test, run from his frame, stopped with him: no verdict, the run's
+    timeout. Now he is in god mode for the test (put back after). It ends on its verdict in ~10 s wall (17 s of game
+    time): **187 passed, 0 failed** (twice); 3 of 40 plates without a clear line, 0 projectiles missed.
+  - A projectile that never lands gives up after 2 s and counts as a miss (was a FAIL after 1 s); one that meets
+    something else is a miss whatever its splash did; a shot is judged the frame after its touch (was: once a rocket's
+    explosion sprite was gone, by which time its knockback had carried the body 40-100 units: the "rockets touching
+    40-90 units from the aimed plate").
+  - **The rocket "leak" was the test aiming at a plate that had moved, not a rocket bug.** A rocket's direct hit already
+    takes the plate query along its flight line (`VR_Proj_Begin` -> `VR_AgArmor_Flight`, every projectile), and its
+    splash skips the body it hit (`T_RadiusDamage(..., other)`; `vr_ar_block_*` spares a body whose plate took the
+    hit, any inflictor). Traced with per-shot prints (the face's movement between firing and the touch): (1) a blast's
+    knockback lifted the body off the floor, and it sank half a unit while the next projectile flew; (2) the last shot's
+    hit swings the struck limb's drawn pose for some frames even with `vr_hit_react 0` (the knight's right pauldron 2
+    units by the touch of a nail fired the same frame as the revolver's hit); the query at the touch was right (no plate
+    there any more). The test now drops the body to the floor before each shot and fires only once the aimed plate's
+    face has stayed put for a frame (up to 1 s).
+  - Its lines: the face's normal, then tilted 25 and 40 degrees eight ways, then the old five, at the face's middle,
+    its 15% and 85% points (limbpiece 12, 13) and halfway to each; each must have no wall or floor on it (a line from
+    below a shin began under the floor and the nails met it: most of the old "missed") and meet that plate first by
+    the shots' own query along it and half a unit beside it four ways (`VR_ARS_Meets`). 20 of 40 plates had none with
+    the normal alone (a grunt's gun before its cuirass, an arm or leg before a limb plate).
+  - Tests 1 (26/0) and 11 (4/0) pass; test 11 with `vr_agarmor_debug 1` takes the flatscreen screenshot of the
+    ragdoll with the bold outlines.
+  - Open: what swings a struck limb's pose with `vr_hit_react 0` (a living armed humanoid's; not looked into).
 ## Directional parry 2: debug view, leniency settings, Enemy Melee Speed (branch `agent/dirparry2`)
 
 His words (10-31): a debug view for it, leniencies he can tweak, slowed enemy swings to practise with.
@@ -4871,6 +4916,38 @@ the same way as the weapons' (above).
 - **Next steps**: the monsters' tables, the named per-weapon families as weapon keys, then getter/setter rows and the
   old names retired after a release.
 
+## Small fixes from the 2026-11-01 voice notes (branch `agent/small1101`)
+
+- **Arena foes upright** (vrarena_2026-11-01_01-36-29). `VR_ARENA_SpawnMonster` turned each foe to the player with
+  `vectoangles`, pitch included (an enforcer on a high place: pitch 323), and nothing ever cleared it (ai_face turns
+  yaw alone): its body, gun and swings drawn tilted for good. Now yaw alone. The armed humanoids' pose code already
+  works in a yaw-only body frame (`VR_AGP_Body`). Test: `vr_arena_test 4` (vrarena) now also checks the first foes in
+  the field stand upright: before the fix 2 of 2 tilted (pitch 8), after 0; 8 passed, 0 failed.
+- **Armour's first breaks** (vrtesthall_..._01-22-56: ~80 ms hitches). Each plate's debris model
+  (`progs/<body>.mdl#plateN`, made as it loads: vr_agarmor.cpp derivedFile) was precached at its first break: 40-52 ms
+  of the server's frame each (`late precache:` lines), ten per body. Now `VR_AGR_PrecacheArmour` (worldspawn) precaches
+  the four armed kinds' bodies and all their plates and the break sounds (not in deathmatch), and `VR_AgArmor_Spawn`
+  precaches a wearer's own (soldier.mdl and any other). Test: `vr_agarmor_test 13` (a grunt in full green, a piece broken
+  a frame): 2 passed; with `developer 1; vr_profile_csv 1` no `late precache: ...#plate` and no `vr_profile: hitch`
+  line after the breaks (before: ten late plates and a 533 ms hitch in test 1's checks frame, quakec 474 ms).
+  `vr_agarmor_test 1` 26/26. Not done: a monster spawned mid-game (toolgun, test scenes, arena waves) still loads its
+  `#limbN` cut models late at its spawn (~4-7 ms each, 13 per body).
+- **Tug-of-war** (vrtesthall_..._02-15-16). His tuned values are the defaults: `vr_agrunt_tug_fight` 1 -> 0.9,
+  `vr_agrunt_tug_time` 0.8 -> 0.6, `vr_agrunt_tug_strength` 1.35 -> 1.2, `vr_agrunt_tug_let_go` 50 -> 40,
+  `vr_agrunt_tug_break_force` 800 -> 750. The physical tug's least time, `vr_agrunt_tug_pull_time` (0.5 s), was a
+  tuning constant (Debug > Tunables); it is now a setting, Combat > Armed Grunts > Disarming > Tug: Least Pull Time.
+  "Tug: Pull Time" (`vr_agrunt_tug_time`) only times the older tug (Tug: Physical off) and a staggering or downed one:
+  its help says so. Test 37 (`vr_agrunt_test 37`) 8 passed, 0 failed; `vr_menu_path_check maps/vrcalibration.map`
+  0 missing; menu_paths.txt regenerated.
+- **Armed death knights' spell** (vrtesthall_..._02-05-07, _02-11-04). His volley was cast from his middle while his
+  arms held the sword still. Now `VR_AGP_Cast` makes it an attack of what he holds: a melee weapon's swing (no step
+  in), the six fireballs fanned from the blade's tip as drawn (`VR_AG_DrawnMuzzle`) at the swing's blow; empty-handed
+  a punch, from the fist; a gun a thrust (the Shove pose's keys), from its muzzle as the thrust ends (`hknight_shot`
+  takes an origin: `vr_hk_shot_from`/`vr_hk_shot_org`). A gun holder now casts for `vr_agdknight_spell_share` (0.3,
+  Armed Humanoid Replacements page) of his ranged attacks and fires the gun for the rest. Test 95 with
+  `vr_agrunt_test_kind 3`: the cast 28.7 from his hand along a 28.0 blade, 46 from his middle; the gun share 0.303 over
+  2000 rolls; 9 passed, 1 failed: "knight death" fails the same way without these changes (health 50 after a blow of
+  health + 10: absorbed, likely his armour roll; pre-existing).
 ## The death knight's helmet fitted to his head (branch `agent/dkhelmet`)
 
 His ask (2026-11-01): the death knight's helmet did not follow his head (the enforcer's old problem); fit it tightly.
@@ -4963,6 +5040,41 @@ The per-monster cvar families that are plain per-classname values are data: 171 
   cvar handles reads monsters.txt's defaults, a value set by the old name, the default back; run: `map e1m1; wait30;
   vr_smallgibs_test 27`, -QuitOn `sgibtest: mults: N passed`) 12 passed, 0 failed.
 - **Next steps**: the monster groups as a `group <id>` table; the named per-weapon families as weapon keys.
+
+
+## The cyan hand hull off; Disarm Leniency; punching the gun in a tug (agent/handhull, his notes 2026-11-01 02:20, 02:21)
+
+- **The cyan hand hull off** ("moves with the enemy animation ... doesn't match anything"). Cause: Show Disarm Volumes
+  makes the hand's hull while the frame draws (between rig2::swapModels and restoreModels), when `cl_entities[n].model`
+  is the authored rig's skinned copy; `drawnpose::armedMesh` asked `hitreact::armsWanted` of that copy (no armed rig:
+  no), so `handPoints` fell back to `hitmodel::vertexPoint`, the .mdl animation frame, whose arms are not posed on the
+  gun. The server's own queries (shots, test 16, frozen) ran outside the drawing and were right. Fix: armedMesh asks
+  `hitreact::armsWantedAs` of its own .mdl (`rig2::sourceModel`); the hand hull is only ever the drawn body (the rig as
+  drawn, or its ragdoll's); neither: no hand volume (the weapon's alone counts; never the animation frame).
+  `disarmhull 15/16` (its source now), `23/24` (the hull Show Disarm Volumes drew last: gap, source + 10 if made while
+  drawn, frames since). Test 16's new hunt phase (a shotgun grunt hunting you, unfrozen, 72 frames, vr_debug_disarm 1):
+  every drawn hand hull from the rig while drawn (0 of 72 not), the server's query from the rig; the drawn grip 1.44
+  units off the hull every frame (the gun's grip point just outside the palm's hull; limit 2.5). Before the fix the
+  render-time source was the frame's on every frame (a diagnostic print: 942 of 942 calls). Test 16: 244 passed, 0 failed.
+- **Disarm Leniency** (Advanced VR Options > Combat > Armed Grunts (Experimental), its first section; Search
+  "leniency"): Grab Leniency (`vr_agrunt_grab_leniency`, cm, 5; was a tunable, now a saved setting), Shot Leniency:
+  Weapon / Hand (`vr_agrunt_vol_shot_weapon` / `_hand`, units), Melee Strike Leniency (`vr_agrunt_vol_strike`), Body
+  Blow Leniency (`vr_agrunt_vol_blow`); the four moved from the Disarming sections. `vr_agrunt_grab_slack` (Grab:
+  Precision) stays a tunable. Calibration boards: 0 missing.
+- **Punching the gun in a tug** (his checklist answer: "the punch seemed to go through the gun"). Cause:
+  VR_AG_PropThink returns once VR_AG_TugFrame handles a tug, so VR_AG_WeaponStruck (where VR_AG_TugStrike was) never
+  ran in a tug; test 92 called WeaponStruck directly. Fix: VR_AG_TugFrame checks VR_AG_TugStrike after its let-go
+  checks. Test 19 (QC/vr_armedgrunt_tugpunch_test.qc): the main hand holds the gun (physical tug), the mock off fist
+  (grip closed) glides 38 units through the gun's drawn middle in 0.2 s: struck free at 6.0 m/s into the main hand,
+  3 passed. Note: the mock's glide gives the off hand about 0.1 m/s at the server (its positions and the melee
+  tracker's swing are right), so the test sets `offhandvel` to the glide's; worth a look (vr_backend_mock.cpp glide).
+- Test 24's blow aims via VR_Hit_SetZone at the gun's drawn hull middle (disarmhull 20): 2 passed. Test 92: 22 passed.
+- Checklist lines:
+  - With Debug > Show Disarm Volumes, a grunt hunting you: the cyan hull sits on its drawn gun hand and forearm as it
+    walks and aims, never floating off with its animation. {test:agrunt_tug}
+  - Combat > Armed Grunts (Experimental) > Disarm Leniency: raise Grab Leniency and grab near (not on) its gun: taken;
+    raise Shot Leniency: Weapon and shoot just past the gun: it counts (magenta hull grows).
+  - Hold its gun with one hand and punch the gun with the other fist: the gun ends in the holding hand. {test:agrunt_tug}
 ## Nightly regressions after the exact disarm hulls: agrunt 2 and 68 (branch `agent/hullregress`)
 
 - **Confirmed**: both pass on e54d81480 (before the disarmhull merge) and fail on its merge 59c98632a, as on next.
@@ -5002,3 +5114,29 @@ actual drawn position of the hand should be the dominant one for all these inter
   (FAIL). Ends on `heldoff: N passed, M failed`. eval.sh: 163/171 full; its drift from the stored baseline is the same
   as origin/next's run beside it (punch_hook, slash_backswing_up_right: identical numbers).
 - **Not run:** a button press or a pickup by a held-off hand (the engine's touch gate: code only).
+## Barrel heat settings (branch `agent/barrelheat`, his voice note 2026-11-01 01:43)
+
+He found the barrel glow too slow (~2 s of nailgun fire before it showed) and too faint, and wanted it on the older guns
+too, with heat-up and dissipation times, global and per weapon. Quake/vr/vr_gunfx.cpp:
+- **Model** (heatShot / heatCool / heatGlow): heat 0..1 per hand (was 0..1.5, only the nailguns ever got hot: the
+  shotgun's 0.12 a shot cooled faster than it fired). A shot adds its kind's interval (the gun's seconds between shots
+  in sustained fire: shotgun 0.5, super shotgun 0.7, revolver and flare gun 0.5, nailguns 0.1, grenade launchers 0.6,
+  rocket launchers 0.8, energy guns 0.1) over **Heat-Up Time**, at most 0.35 a shot (a slow gun takes 3 shots), times the
+  weapon's **Barrel Heat** multiplier. So sustained fire reaches full heat in Heat-Up Time / multiplier whatever the
+  gun. Cooling waits 1.5 intervals after a shot (none between shots of sustained fire), then is linear: full to cold in
+  **Cool-Down Time** times the weapon's **Barrel Cool-Down** (0: at once). Every gun with gunfire particles heats now
+  (the thunderbolt too: it glows, no smoke wisps); not the flamethrowers, crossbow, melee, grapple, toolgun, Mjolnir.
+- **Glow**: from heat 0.15, strength (heat - 0.15) / 0.85 x **Heat Glow Strength**; three glow points per barrel (the
+  super shotgun's and nailgun's two bores: the wisps' barrel ends) going 6 units down the barrel, alpha up to 0.75
+  (was one point, 0.3 at most, from heat 0.5), size 2.2; a dull red deepening to orange. Wisps from heat 0.3.
+- **Settings** (Weapons > Weapon Effects, after Barrel Heat): `vr_gunfx_heat_time` 1 s (Heat-Up Time, 0.2-5, ext
+  0.1-10), `vr_gunfx_cool_time` 3 s (Cool-Down Time, 0.2-10, ext 0.1-20), `vr_gunfx_heat_glow` 1 (Heat Glow Strength,
+  0-3). Per weapon (Weapon Offsets > Effects; weapons.txt defaults 1): `fx_gfx_heat` (Barrel Heat; 0 never heats),
+  `fx_gfx_cool` (Barrel Cool-Down). New cvars: no migration.
+- **Debug**: vr_debug_gunfx 1 prints `gunfx heat hand H wid W heat X glow Y` each shot and `gunfx heat cold hand H wid W
+  after S s peak P` when a barrel has cooled.
+- **Test**: `python Misc/quakevr/barrelheat_test.py <agent>` 10/10: the nailgun at Barrel Heat 0 never heats (6 shots);
+  the shotgun 0.35 / 0.70 / 1.00 with the glow rising; the nailgun +0.1 a shot to 0.8, the glow exactly following;
+  cold 2.556 s after its last shot (expected 0.15 + 0.8 x 3 = 2.55). Ends on the "cold" line.
+- **Not checked**: how it looks (no screenshot with the gun in view: the mock hand pose missed the view); in VR: is
+  1 s / 3 s / glow 1 right, the glow's size and colour on each gun, the super shotgun's bores.

@@ -325,11 +325,12 @@ void PF_ragdolllimbs()
 // its model's space.
 // `what` 10 / 11 (the builtins' table being full): armour piece `bone` of an armed humanoid as its own model
 // ("<model>#plate<piece>", vr_agarmor.cpp): its origin / its angles now, as drawn; 12 / 13 / 14 a point on its outer face
-// near one end / the other / at its middle (15% / 85% / 50% along it: the tests' hits on a plate).
+// near one end / the other / at its middle (15% / 85% / 50% along it: the tests' hits on a plate); 15 the outer face's
+// outward normal at that middle (the tests' line to it).
 void PF_limbpiece()
 {
     const int what = static_cast<int>(G_FLOAT(OFS_PARM2));
-    if(what >= 10 && what <= 14)
+    if(what >= 10 && what <= 15)
     {
         agarmor::plateWhere(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1)), what - 10, G_VECTOR(OFS_RETURN));
         return;

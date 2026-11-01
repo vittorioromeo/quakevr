@@ -11,7 +11,9 @@
 //   death    killed (not gibbed): its sword falls, once (its own sword drop, VR_DropKnightSword, not as well).
 // `vr_agrunt_test_kind 3`: the same for the death knight (vr_agdknight, monster_hell_knight, progs/vrhknight.mdl), with
 //   spell    after its swing, moved out of reach (you in sight): it casts its fireball volley (its knightspikes) with
-//            its sword in its hand, and still holds it after.
+//            its sword in its hand, and still holds it after; cast as a swing, the volley from the blade's tip (its
+//            length out from his hand, away from his middle); last, a gun holder's spell share over 2000 rolls
+//            (vr_agdknight_spell_share).
 // Each prints `agtest: PASS|FAIL <what>`; the run ends on `agtest: test 95 over: N passed, M failed` (-QuitOn).
 // A case that never gets there FAILs as "timed out" (a safety net).
 // ----------------------------------------------------------------------------
@@ -176,6 +178,17 @@ void() VR_AKNT_Frame =
             VR_AGT_Check(sprintf("death knight spell: cast %g fireballs at %.0f in %.1f s%s, holding %g",
                 VR_AKNT_Spells(g), vlen(g.origin - p.origin), t, t > 15 ? " (timed out)" : "", g.vr_ag_wid),
                 VR_AKNT_Spells(g) > 0 && g.vr_ag_wid == WID_SWORD && g.vr_ag_prop != world);
+            // Cast as a swing of his sword: the volley from its tip (a frame on, the blade moved a little since), well
+            // out from his hand along the blade and away from his middle (the pelvis it used to leave).
+            vector mid = g.origin + (g.mins + g.maxs) * 0.5;
+            // (the tip as drawn, VR_AG_DrawnMuzzle: the server's undrawn muzzle is off it by the drawn turn, so the
+            // check is the blade's own length out from the hand)
+            float blade = g.vr_ag_prop ? VR_AG_MeleeLen(g.vr_ag_prop) : 0;
+            float out = vlen(vr_am_cast_org - vr_am_cast_grip);
+            VR_AGT_Check(sprintf("death knight spell from the sword's tip: by %g, %.1f from the hand (the blade %.1f long), "
+                "%.1f from the undrawn tip, %.1f from his middle", vr_am_cast_by, out, blade,
+                vlen(vr_am_cast_org - vr_am_cast_tip), vlen(vr_am_cast_org - mid)),
+                vr_am_casts > 0 && vr_am_cast_by == 1 && blade > 0 && fabs(out - blade) < 6 && vlen(vr_am_cast_org - mid) > 24);
             VR_AKNT_Disarm(g);
         }
         return;
@@ -208,6 +221,25 @@ void() VR_AKNT_Frame =
                 VR_AGT_Print(sprintf("  near: %s %s %.0f", e.classname, e.model, vlen(e.origin - g.origin)));
                 e = e.chain;
             }
+        }
+        if(VR_AKNT_Dk())
+        {
+            // A gun's holder: the spell's share of his ranged attacks (vr_agdknight_spell_share, 0.3) over 2000 rolls
+            // (last: its random() draws would move the cases' own rolls).
+            float r0 = vr_am_gun_rolls;
+            float c0 = vr_am_gun_casts;
+            float er = enemy_range;
+            enemy_range = RANGE_MID;
+            float k;
+            for(k = 0; k < 2000; k++)
+            {
+                VR_AM_GunCasts(g);
+            }
+            enemy_range = er;
+            float share = (vr_am_gun_casts - c0) / max(1, vr_am_gun_rolls - r0);
+            float want = cvar("vr_agdknight_spell_share");
+            VR_AGT_Check(sprintf("death knight with a gun: casts %.3f of his ranged attacks (vr_agdknight_spell_share %g)",
+                share, want), vr_am_gun_rolls - r0 == 2000 && fabs(share - want) < 0.04);
         }
         VR_AGT_ClearWeapons();
         p.flags = p.flags - (p.flags & FL_NOTARGET);

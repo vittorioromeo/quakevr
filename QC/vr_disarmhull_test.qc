@@ -28,6 +28,12 @@ vector vr_dht_last;  // ... its last place
 float vr_dht_kind;   // vr_agrunt_test_kind as it was
 float vr_dht_disarm; // vr_agrunt_disarm as it was
 float VR_DHT_WEAPONS = 7;
+float vr_dht_debug;  // vr_debug_disarm as it was (the hunt's phase)
+float vr_dht_n;      // ... frames measured
+float vr_dht_bad;    // ... of them its drawn hand hull not from the drawn rig while drawn
+float vr_dht_srv;    // ... the server's query not from the drawn rig
+float vr_dht_gmax;   // ... the drawn grip's most gap to it
+float vr_dht_gsum;   // ... their sum
 
 float(float w) VR_DHT_Wid =
 {
@@ -229,7 +235,65 @@ void() VR_DHT_Frame =
             vr_dht_w = 0;
             vr_dht_k = vr_dht_k + 1;
         }
-        vr_agt_step = vr_dht_k <= VR_AM_COUNT ? 1 : 4;
+        vr_agt_step = vr_dht_k <= VR_AM_COUNT ? 1 : 5;
+        return;
+    }
+    // The hand hull Show Disarm Volumes draws, on a grunt hunting you (not frozen: its arms posed on its gun as it moves;
+    // his note 2026-11-01 02:20, the cyan hull "completely off ... moves with the enemy animation": made while the frame
+    // drew it, it was the animation frame's). Each of 72 frames: the hand's hull it drew last (disarmhull 21 / 23) made
+    // from the drawn rig (source 1) while drawn (+10), the drawn grip (VR_AG_DrawnFrame) on it.
+    if(vr_agt_step == 5)
+    {
+        vr_dht_debug = cvar("vr_debug_disarm");
+        cvar_set("vr_debug_disarm", "1");
+        vr_agt_grunt = g = VR_AGT_Spawn(WID_SHOTGUN, 200);
+        vr_dht_n = vr_dht_bad = vr_dht_gmax = vr_dht_srv = vr_dht_gsum = 0;
+        vr_dht_t0 = time;
+        vr_agt_step = 6;
+        return;
+    }
+    if(vr_agt_step == 6)
+    {
+        entity hp = g.vr_ag_prop;
+        vector r = hp ? disarmhull(g, 23 + hp.vr_ag_left, '0 0 0', '0 0 0', 0) : '0 0 -1';
+        if(r_z < 0 || r_z > 2)
+        {
+            if(t > 10)
+            {
+                VR_AGT_Check("disarmhull hunt: timed out (no hand hull drawn)", FALSE);
+                vr_agt_step = 7;
+            }
+            return;
+        }
+        VR_AG_DrawnFrame(hp);
+        vector gr = disarmhull(g, 23 + hp.vr_ag_left, vr_ag_df_o, vr_ag_df_o, 0);
+        vr_dht_n = vr_dht_n + 1;
+        vr_dht_bad = vr_dht_bad + (gr_y != 11);
+        vr_dht_gmax = max(vr_dht_gmax, gr_x);
+        vr_dht_gsum = vr_dht_gsum + max(0, gr_x);
+        if(vr_dht_n < 72)
+        {
+            return;
+        }
+        // (the server's own query last: made now, the frame's drawing would reuse it)
+        vector sq = disarmhull(g, 15 + hp.vr_ag_left, '0 0 0', '0 0 0', 0);
+        vr_dht_srv = sq_x != 1;
+        vector gs = disarmhull(g, 1 + hp.vr_ag_left, vr_ag_df_o, vr_ag_df_o, 0);
+        VR_AGT_Check(sprintf("disarmhull hunt: the drawn hand hull from the drawn rig while drawn every frame (%g of %g "
+            "frames not: source+10 last %g), the server's query from the rig too (source %g)", vr_dht_bad, vr_dht_n, gr_y, sq_x),
+            vr_dht_bad == 0 && vr_dht_srv == 0);
+        VR_AGT_Check(sprintf("disarmhull hunt: the drawn grip on the drawn hand hull (most %.2f units off, mean %.2f over %g "
+            "frames; the server's hull now %.2f; %.0f from you)", vr_dht_gmax, vr_dht_gsum / vr_dht_n, vr_dht_n, gs_x,
+            vlen(g.origin - vr_agt_player.origin)), vr_dht_gmax <= 2.5); // (the shotgun's grip point 1.44 out of the palm's hull)
+        vr_agt_step = 7;
+        return;
+    }
+    if(vr_agt_step == 7)
+    {
+        cvar_set("vr_debug_disarm", ftos(vr_dht_debug));
+        VR_AGT_Remove(g);
+        vr_agt_grunt = world;
+        vr_agt_step = 4;
         return;
     }
     cvar_set("vr_agrunt_test_kind", ftos(vr_dht_kind));

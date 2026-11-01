@@ -510,6 +510,24 @@ void(float code) VR_AGR_PrecacheCode =
     precache_model(AD_WeaponModel(vr_ag_dec_wid, vr_ag_dec_flags, world));
 };
 
+// worldspawn: every armed kind's body and its armour pieces' debris models (vr_agarmor.qc VR_AgArmor_PrecacheOf), with
+// or without replacements: armour comes on the skill's roll, the arena's waves, the toolgun and the test scenes, and a
+// plate model loaded at its first break was a hitch. (In deathmatch none: no armour there.)
+void() VR_AGR_PrecacheArmour =
+{
+    if(deathmatch)
+    {
+        return;
+    }
+    float k;
+    for(k = 0; k < VR_AM_COUNT; k++)
+    {
+        VR_AM_Row(k);
+        precache_model(vr_am_model);
+        VR_AgArmor_PrecacheOf(vr_am_model);
+    }
+};
+
 // worldspawn: with replacements on, their bodies, their sounds, their own guns and every weapon the rolls may give
 // precached at the level's load (none late: a spawner's later ones too).
 void() VR_AGR_Precache =

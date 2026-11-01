@@ -155,8 +155,14 @@ void(float sk, vector at) VR_AgArmor_Roll =
     }
 };
 
+void(string base) VR_AgArmor_PrecacheOf;
+
 void(entity e) VR_AgArmor_Spawn =
 {
+    if(e.vr_ag_kind <= 3)
+    {
+        VR_AgArmor_PrecacheOf(e.model); // (its plates ahead of its first break; the level's load did the armed kinds)
+    }
     if(e.vr_ag_kind > 3 || deathmatch || vr_ar_hold_roll) // (VR_AM_GRUNT 0, VR_AM_ENFORCER 1, VR_AM_KNIGHT 2, VR_AM_DKNIGHT 3: vr_armedmon.qc, compiled later)
     {
         return; // (P2: the enforcer too, by the same chances: no free set; the knights too (agent/dknight))
@@ -196,9 +202,9 @@ void(entity e, float armour, float pieces) VR_AgArmor_Toolgun =
 float vr_ar_debris_made; // the tests' count
 
 // Its piece's model: a literal (precaches keep the string; the wearers are the engine's: vr_agarmor.cpp `wearers`).
-string(entity e, float i) VR_AgArmor_Model =
+string(string base, float i) VR_AgArmor_ModelOf =
 {
-    if(e.model == "progs/soldier.mdl")
+    if(base == "progs/soldier.mdl")
     {
         if(i == 0) return "progs/soldier.mdl#plate0";
         if(i == 1) return "progs/soldier.mdl#plate1";
@@ -211,7 +217,7 @@ string(entity e, float i) VR_AgArmor_Model =
         if(i == 8) return "progs/soldier.mdl#plate8";
         return "progs/soldier.mdl#plate9";
     }
-    if(e.model == "progs/vrenforcer.mdl")
+    if(base == "progs/vrenforcer.mdl")
     {
         if(i == 0) return "progs/vrenforcer.mdl#plate0";
         if(i == 1) return "progs/vrenforcer.mdl#plate1";
@@ -224,7 +230,7 @@ string(entity e, float i) VR_AgArmor_Model =
         if(i == 8) return "progs/vrenforcer.mdl#plate8";
         return "progs/vrenforcer.mdl#plate9";
     }
-    if(e.model == "progs/vrknight.mdl")
+    if(base == "progs/vrknight.mdl")
     {
         if(i == 0) return "progs/vrknight.mdl#plate0";
         if(i == 1) return "progs/vrknight.mdl#plate1";
@@ -237,7 +243,7 @@ string(entity e, float i) VR_AgArmor_Model =
         if(i == 8) return "progs/vrknight.mdl#plate8";
         return "progs/vrknight.mdl#plate9";
     }
-    if(e.model == "progs/vrhknight.mdl")
+    if(base == "progs/vrhknight.mdl")
     {
         if(i == 0) return "progs/vrhknight.mdl#plate0";
         if(i == 1) return "progs/vrhknight.mdl#plate1";
@@ -250,7 +256,7 @@ string(entity e, float i) VR_AgArmor_Model =
         if(i == 8) return "progs/vrhknight.mdl#plate8";
         return "progs/vrhknight.mdl#plate9";
     }
-    if(e.model != "progs/vrgrunt.mdl") return "";
+    if(base != "progs/vrgrunt.mdl") return "";
     if(i == 0) return "progs/vrgrunt.mdl#plate0";
     if(i == 1) return "progs/vrgrunt.mdl#plate1";
     if(i == 2) return "progs/vrgrunt.mdl#plate2";
@@ -263,9 +269,32 @@ string(entity e, float i) VR_AgArmor_Model =
     return "progs/vrgrunt.mdl#plate9";
 };
 
+string(entity e, float i) VR_AgArmor_Model = { return VR_AgArmor_ModelOf(e.model, i); };
+
 // A plate breaking: the armour pickup's chime backwards and lower (the engine makes it from items/armor1.wav as it loads:
 // vr_audio.cpp derivedSounds), so it is never heard as armour picked up.
 string VR_AR_BREAK_SOUND = "vr/derived/armor_break.wav";
+
+// Every piece's debris model of the wearer `base` (already precached: its plates are cut from its shell) and the break's
+// sounds, precached ahead: each plate's model is made as it loads (vr_agarmor.cpp derivedFile), and loaded late, at a
+// piece's first break, each one cost a hitch of ~80 ms (his note, 2026-11-01). Called at the level's load
+// (VR_AGR_PrecacheArmour, worldspawn) for the armed kinds' bodies and at each wearer's spawn (VR_AgArmor_Spawn).
+float vr_ar_precached; // the tests: the plate models precached so far (each call's own count)
+void(string base) VR_AgArmor_PrecacheOf =
+{
+    if(deathmatch || VR_AgArmor_ModelOf(base, 0) == "")
+    {
+        return;
+    }
+    float i;
+    for(i = 0; i < VR_AR_PIECES; i++)
+    {
+        precache_model(VR_AgArmor_ModelOf(base, i));
+        vr_ar_precached = vr_ar_precached + 1;
+    }
+    precache_sound("items/armor1.wav");
+    precache_sound(VR_AR_BREAK_SOUND);
+};
 string vr_ar_break_sound_last; // the tests: the last break's sound
 float vr_ar_debris_grabs;      // the tests: debris taken in a hand
 

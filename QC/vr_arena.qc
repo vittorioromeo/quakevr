@@ -1441,7 +1441,9 @@ entity(float xKind, float xGun, float xTier, float xBoss, float xArmour, float x
         m.weaponflags2 = 0;
     }
     entity p = VR_PlayerAlive();
-    if(p != world) { m.angles = vectoangles(p.origin - o); }
+    // (Facing the player by yaw alone: a pitch off the line to them, a foe above or below, stayed on it for good,
+    // its body, gun and swings drawn tilted; ai_face only ever turns yaw.)
+    if(p != world) { m.angles = [0, vectoyaw(p.origin - o), 0]; }
     setorigin(m, o + '0 0 32');
 
     // (the monster's own spawn, on self; its armour is the plan's, so the skill's roll is held: vr_agarmor.qc)

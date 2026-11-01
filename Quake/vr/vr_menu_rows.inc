@@ -855,6 +855,11 @@ QVR_TOGGLE(vr_agdknight, "Armed Death Knights",
     "disarmed, tugged and grabbed like the armed humanoids', dropped when he dies; at range he still casts "
     "his fireball volley. A work in progress (ROUND23.md, \"Death knights as armed humanoids\"). Takes "
     "effect at the next map load (vr_agdknight).")
+QVR_SLIDER(vr_agdknight_spell_share, "Armed Death Knights: Spell Share", 0.f, 1.f, 0.05f, "%.2f", ext(0.f, 1.f),
+    "An armed death knight holding a gun casts his fireball volley (a thrust of the gun, the fireballs from its "
+    "muzzle) for this share of his ranged attacks and fires the gun for the rest. With a blade or his fists he "
+    "casts at range as a swing or a punch, the fireballs from the blade's tip or his fist "
+    "(vr_agdknight_spell_share).")
 QVR_TOGGLE(vr_agknight_ranged_pickup, "Armed Knights: Pick Up Ranged Weapons",
     "Off: armed knights and death knights take up only melee weapons lying about (a gun they drop stays "
     "on the floor). On: they take up guns too, as grunts do (for experiments). One spawned holding a gun "
@@ -1151,6 +1156,10 @@ QVR_SLIDER(vr_agrunt_tug_break_force, "Tug: Break Force", 50.f, 2000.f, 25.f, "%
 QVR_SLIDER(vr_agrunt_tug_break_impulse, "Tug: Break Impulse", 10.f, 1000.f, 10.f, "%.0f N s", ext(0.f, 10000.f),
     "Pulling over time: the pull's force times its time (counted above Tug: Least Pull) that tears it "
     "out of its hand (the physical tug; less as it is hurt) (vr_agrunt_tug_break_impulse).")
+QVR_SLIDER(vr_agrunt_tug_pull_time, "Tug: Least Pull Time", 0.f, 3.f, 0.05f, "%.2f s", ext(0.f, 30.f),
+    "The shortest tug-of-war: you must keep pulling at least Tug: Least Pull this long before its weapon can "
+    "come out (the physical tug; a staggering or downed one's times Tug: Staggering or Down): a tug-of-war, "
+    "not a sharp yank. 0: the break force tears it out at once (vr_agrunt_tug_pull_time).")
 QVR_SLIDER(vr_agrunt_tug_let_go, "Tug: Let Go Past", 20.f, 100.f, 5.f, "%.0f cm", ext(0.f, 300.f),
     "Physical tug: your hand lets go of its weapon (you lose the tug) once your real hand is this far from "
     "where it holds it, pulled away or stepped back before its grip gives; till then your hand is drawn on "
@@ -1174,7 +1183,9 @@ QVR_SLIDER(vr_agrunt_grab_speed, "Grab: Fastest Hand", 0.f, 6.f, 0.1f, "%.1f m/s
 QVR_SLIDER(vr_agrunt_tug_strength, "Tug: Its Pull", 0.f, 3.f, 0.1f, "%.1f", ext(0.f, 3.f),
     "How hard its arms pull its weapon back in the physical tug (vr_agrunt_tug_strength).")
 QVR_SLIDER(vr_agrunt_tug_time, "Tug: Pull Time", 0.f, 5.f, 0.1f, "%.1f s", ext(0.f, 30.f),
-    "How long you must keep it pulled that far against a calm grunt at full health; less as it is hurt, "
+    "The older tug's time (Tug: Physical off, or a staggering or downed one; the physical tug's "
+    "own is Tug: Least Pull Time): how long you must keep it pulled that far against a calm grunt at full "
+    "health; less as it is hurt, "
     "half while it flinches from a hit. 0: any pull wins (vr_agrunt_tug_time).")
 QVR_SLIDER(vr_agrunt_tug_fight, "Tug: It Fights Back Every", 0.f, 5.f, 0.1f, "%.1f s", ext(0.f, 30.f),
     "About how often it fights back during the struggle: a shove or a headbutt breaks your grip, a gun "
@@ -1209,20 +1220,25 @@ QVR_CYCLE(vr_agrunt_shotdisarm_parts, "What Counts",
     "Which hits add up: on the weapon itself, on the hand and forearm holding it, or either "
     "(vr_agrunt_shotdisarm_parts).",
     {0.f, "The Weapon"}, {1.f, "The Hand"}, {2.f, "Weapon or Hand"})
-QVR_SLIDER(vr_agrunt_vol_strike, "Volume: Strikes", -2.f, 6.f, 0.25f, "%+.2f units", ext(-8.f, 32.f),
-    "Your blow strikes its weapon (or the hand holding it) when its sweep meets the hull of that weapon or "
-    "hand as drawn grown by this many units (under 0: shrunk), your blow's own thickness on top. Drawn "
-    "orange (vr_agrunt_vol_strike).")
-QVR_SLIDER(vr_agrunt_vol_blow, "Volume: Body Blows", -2.f, 12.f, 0.25f, "%+.2f units", ext(-8.f, 32.f),
-    "A hard blow that lands on its body this near its weapon or the hand holding it (their hulls as drawn) "
-    "knocks the weapon out (with Hits Disarm). 0: on them only. Drawn red (vr_agrunt_vol_blow).")
-QVR_SLIDER(vr_agrunt_vol_shot_weapon, "Volume: Its Weapon", -2.f, 6.f, 0.25f, "%+.2f units", ext(-8.f, 32.f),
-    "A shot counts on its weapon on the hull of the weapon as drawn (its model's own triangles where it is "
-    "drawn), grown by this many units (under 0: shrunk; 0: exactly the weapon). Debug > Show Disarm Volumes "
-    "draws it (magenta) (vr_agrunt_vol_shot_weapon).")
-QVR_SLIDER(vr_agrunt_vol_shot_hand, "Volume: Its Hand", -2.f, 6.f, 0.25f, "%+.2f units", ext(-8.f, 32.f),
-    "A shot counts on the hand holding its weapon on the hull of that hand and forearm as drawn, grown by this "
-    "many units (under 0: shrunk). Drawn cyan (vr_agrunt_vol_shot_hand).")
+QVR_SLIDER(vr_agrunt_grab_leniency, "Grab Leniency", 0.f, 15.f, 0.5f, "%.1f cm", ext(0.f, 50.f),
+    "Disarming by hand: a fist closing this near an armed enemy's weapon (its surface as drawn) grabs it "
+    "(a tug): a hand on any part of an axe, a sword, a gun or a chainsaw while it attacks. 0: the fist on "
+    "it (vr_agrunt_grab_leniency).")
+QVR_SLIDER(vr_agrunt_vol_shot_weapon, "Shot Leniency: Weapon", -2.f, 6.f, 0.25f, "%+.2f units", ext(-8.f, 32.f),
+    "Disarming by shots and projectiles: one counts on its weapon on the hull of the weapon as drawn (its "
+    "model's own triangles where it is drawn), grown by this many units (under 0: shrunk; 0: exactly the "
+    "weapon). Debug > Show Disarm Volumes draws it (magenta) (vr_agrunt_vol_shot_weapon).")
+QVR_SLIDER(vr_agrunt_vol_shot_hand, "Shot Leniency: Hand", -2.f, 6.f, 0.25f, "%+.2f units", ext(-8.f, 32.f),
+    "Disarming by shots and projectiles: one counts on the hand holding its weapon on the hull of that hand "
+    "and forearm as drawn, grown by this many units (under 0: shrunk). Drawn cyan (vr_agrunt_vol_shot_hand).")
+QVR_SLIDER(vr_agrunt_vol_strike, "Melee Strike Leniency", -2.f, 6.f, 0.25f, "%+.2f units", ext(-8.f, 32.f),
+    "Disarming by melee: your blow strikes its weapon (or the hand holding it) when its sweep meets the hull "
+    "of that weapon or hand as drawn grown by this many units (under 0: shrunk), your blow's own thickness "
+    "on top. Drawn orange (vr_agrunt_vol_strike).")
+QVR_SLIDER(vr_agrunt_vol_blow, "Body Blow Leniency", -2.f, 12.f, 0.25f, "%+.2f units", ext(-8.f, 32.f),
+    "Disarming by melee: a hard blow that lands on its body this near its weapon or the hand holding it "
+    "(their hulls as drawn) knocks the weapon out (with Hits Disarm). 0: on them only. Drawn red "
+    "(vr_agrunt_vol_blow).")
 QVR_SLIDER(vr_agrunt_shotdisarm_chance, "Chance a Roll", 0.f, 1.f, 0.05f, "%.2f", ext(0.f, 1.f),
     "The roll's chance right at the threshold (vr_agrunt_shotdisarm_chance).")
 QVR_SLIDER(vr_agrunt_shotdisarm_chance_scale, "Chance Past the Threshold", 0.f, 2.f, 0.05f, "+%.2f", ext(0.f, 10.f),
@@ -4914,7 +4930,18 @@ QVR_TOGGLE(vr_gunfx_backblast, "Rocket Backblast",
     "A swirling cone of smoke out of the rocket launchers' exhaust, the exhaust smoking a moment after, and "
     "dust kicked up off the floor under it.")
 QVR_TOGGLE(vr_gunfx_heat, "Barrel Heat",
-    "Sustained fire (the nailguns) leaves the muzzle smoking in thin wisps and glowing faintly until it cools.")
+    "Sustained fire heats the barrel (every gun: the shotguns, nailguns, launchers, thunderbolt...): the muzzle "
+    "glows red-hot and smokes in thin wisps until it cools. Each weapon's own Barrel Heat and Barrel Cool-Down "
+    "multipliers: Weapon Offsets > Effects.")
+QVR_SLIDER(vr_gunfx_heat_time, "Heat-Up Time", 0.2f, 5.f, 0.1f, "%.1f s", ext(0.1f, 10.f),
+    "How many seconds of sustained fire take a barrel to full heat, at the gun's own rate of fire (a single shot "
+    "of a slow gun: at most about a third of it). Shorter: it glows sooner.")
+QVR_SLIDER(vr_gunfx_cool_time, "Cool-Down Time", 0.2f, 10.f, 0.1f, "%.1f s", ext(0.1f, 20.f),
+    "How many seconds a barrel at full heat takes to cool down once you stop firing (its glow and wisps fading "
+    "with it).")
+QVR_SLIDER(vr_gunfx_heat_glow, "Heat Glow Strength", 0.f, 3.f, 0.05f, "%.2fx", noExt,
+    "How bright a hot barrel's glow is (it deepens from a dull red to orange as it heats). 0: no glow, the wisps "
+    "only.")
 QVR_TOGGLE(vr_gunfx_wisps, "Muzzle Wisps",
     "After you stop firing, a very thin, faint line of smoke trails off each barrel for a few seconds (the "
     "shotgun's one, the super shotgun's and the nailgun's two), following the muzzle as you move the gun.")
@@ -6382,7 +6409,8 @@ QVR_TOGGLE(vr_debug_impacts, "Print Impact Effects",
     "vr_debug_impacts: every particle2 message and QC sound the server sends (\"impfx p2 <preset> <count> "
     "...\", \"impfx snd ...\"): the hit ladders' output (vr_impacts.cpp).")
 QVR_TOGGLE(vr_debug_gunfx, "Print Gunfire Particles",
-    "vr_debug_gunfx: each shot's particles (\"gunfx shot ...\", \"gunfx port ...\", \"gunfx impact ...\").")
+    "vr_debug_gunfx: each shot's particles (\"gunfx shot ...\", \"gunfx port ...\", \"gunfx impact ...\") and your "
+    "barrels' heat (\"gunfx heat hand .. heat .. glow ..\" a shot, \"gunfx heat cold ..\" once cooled).")
 QVR_TOGGLE(vr_debug_ribbon_overlap, "Wisps Overlap Again",
     "vr_debug_ribbon_overlap: the muzzle wisps blend twice where they fold over themselves (a sharp swing), "
     "as before the fix: the denser creases, to compare.")
