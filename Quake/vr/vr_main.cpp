@@ -133,6 +133,7 @@
 #include "vr_vram.hpp"
 #include "vr_jobs.hpp"
 #include "vr_gfx.hpp"
+#include "vr_monsterdata.hpp"
 #include "vr_props.hpp"
 #include "vr_propthink.hpp"
 #include "vr_retro.hpp"
@@ -2123,6 +2124,7 @@ extern "C" void VR_Init()
     edictindex::registerCommands();
     weapons::registerCvars();
     props::registerCvars();
+    monsterdata::registerCvars(); // the monsters' per-class values, quakevr/data/monsters.txt; vr_monster_dump
     retro::registerCvars();
     weight::registerCommands();
     fatigue::registerCommands();

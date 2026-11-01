@@ -81,3 +81,4 @@ Blade editor, Fury sword and mace: drag the green curve onto the drawn blade and
 Blade editor, axe: the purple Blade Start (off the head's flat) sets where the striking part begins; the teal Line Start and red Tip go on the edge's corners: the white line lies along the edge. {test:blade_editor_axe}
 Blade editor at the hand: the handle under the other hand glows yellow; on the shotgun the bash tip is yours and shots still leave the muzzle. {test:blade_handles}
 Fist blow line (Show Melee Blades on): hooks, uppercuts and overheads land on the dummy; re-record punch_hook, punch_overhead, two punch_uppercut and a no_hit take. {test:fist_editor}
+Movement > Monster Hitbox, Ragdolls per class, Gore > Small Gibs per enemy: change one, quit and restart: the change sticks (these now live in quakevr/data/monsters.txt).

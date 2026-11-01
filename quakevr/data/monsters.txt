@@ -1,0 +1,266 @@
+// quakevr/data/monsters.txt -- the monsters' per-class values: read at start into the monster table
+// (Quake/vr/vr_monsterdata.cpp; which values each classname has, and their old cvar names: vr_monsterdata.inc).
+// Written once from vr_cvars.inc's defaults by Misc/quakevr/monsters_data.py convert; edited by hand since, or by its
+// `promote <config>` (the player's changes, saved in the config by the old cvar names, made the defaults).
+//
+// `defaults { key "value" ... }`: a key's value for a classname whose block leaves it out. Then `monster <classname> {
+// ... }`: its values.
+//   hull              its width against walls (vr_mhull_<m>): -1 its own box's, 0 Quake's hull, or 16 up
+//   smallgibs         its small gibs, times this (vr_smallgibs_mult_<m>)
+//   smallgibs_brains  its brain chunks, times this (vr_smallgibs_brains_mult_<m>)
+//   ragdoll_<key>     its ragdoll's (vr_ragdoll_<m>_<key>): -1 the global vr_ragdoll_<key>; mass in kg
+
+defaults
+{
+    hull "-1"
+    smallgibs "1"
+    smallgibs_brains "1"
+    ragdoll_start "-1"
+    ragdoll_mass "-1"
+    ragdoll_friction "-1"
+    ragdoll_joint_friction "-1"
+    ragdoll_joint_stiffness "-1"
+    ragdoll_limits "-1"
+    ragdoll_damping "-1"
+    ragdoll_blast "-1"
+    ragdoll_inherit "-1"
+}
+
+monster monster_army
+{
+    hull "-1"
+    smallgibs "1" // a grunt's
+    smallgibs_brains "1" // a grunt's brain chunks
+    ragdoll_start "-1"
+    ragdoll_mass "80" // kg: each class its own weight (from its size and look; -1: vr_ragdoll_mass)
+    ragdoll_friction "-1"
+    ragdoll_joint_friction "-1"
+    ragdoll_joint_stiffness "-1"
+    ragdoll_limits "-1"
+    ragdoll_damping "-1"
+    ragdoll_blast "-1"
+    ragdoll_inherit "-1"
+}
+
+monster monster_enforcer
+{
+    hull "-1"
+    smallgibs "1.25" // an enforcer's
+    smallgibs_brains "1.25" // an enforcer's
+    ragdoll_start "-1"
+    ragdoll_mass "100" // (in armour)
+    ragdoll_friction "-1"
+    ragdoll_joint_friction "-1"
+    ragdoll_joint_stiffness "-1"
+    ragdoll_limits "-1"
+    ragdoll_damping "-1"
+    ragdoll_blast "-1"
+    ragdoll_inherit "-1"
+}
+
+monster monster_dog
+{
+    hull "-1"
+    smallgibs "1" // a rottweiler's
+    smallgibs_brains "1" // a rottweiler's
+    ragdoll_start "-1"
+    ragdoll_mass "40"
+    ragdoll_friction "-1"
+    ragdoll_joint_friction "-1"
+    ragdoll_joint_stiffness "-1"
+    ragdoll_limits "-1"
+    ragdoll_damping "-1"
+    ragdoll_blast "-1"
+    ragdoll_inherit "-1"
+}
+
+monster monster_demon1
+{
+    hull "-1"
+    smallgibs "1.25" // a fiend's
+    smallgibs_brains "1.25" // a fiend's
+    ragdoll_start "-1"
+    ragdoll_mass "140" // (a fiend: big and heavy-limbed)
+    ragdoll_friction "-1"
+    ragdoll_joint_friction "-1"
+    ragdoll_joint_stiffness "-1"
+    ragdoll_limits "-1"
+    ragdoll_damping "-1"
+    ragdoll_blast "-1"
+    ragdoll_inherit "-1"
+}
+
+monster monster_ogre
+{
+    hull "-1"
+    smallgibs "1.5" // an ogre's
+    smallgibs_brains "1.5" // an ogre's
+    ragdoll_start "-1"
+    ragdoll_mass "200" // (his ragdoll's hulls 4.8 times the grunt's; 200 so a hand still lifts him: 3000 N grip)
+    ragdoll_friction "-1"
+    ragdoll_joint_friction "-1"
+    ragdoll_joint_stiffness "-1"
+    ragdoll_limits "-1"
+    ragdoll_damping "-1"
+    ragdoll_blast "-1"
+    ragdoll_inherit "-1"
+}
+
+monster monster_knight
+{
+    hull "-1"
+    smallgibs "1" // a knight's
+    smallgibs_brains "1" // a knight's
+    ragdoll_start "-1"
+    ragdoll_mass "90" // (in mail)
+    ragdoll_friction "-1"
+    ragdoll_joint_friction "-1"
+    ragdoll_joint_stiffness "-1"
+    ragdoll_limits "-1"
+    ragdoll_damping "-1"
+    ragdoll_blast "-1"
+    ragdoll_inherit "-1"
+}
+
+monster monster_hell_knight
+{
+    hull "-1"
+    smallgibs "1.25" // a hell knight's
+    smallgibs_brains "1" // a hell knight's
+    ragdoll_start "-1"
+    ragdoll_mass "130" // (in plate)
+    ragdoll_friction "-1"
+    ragdoll_joint_friction "-1"
+    ragdoll_joint_stiffness "-1"
+    ragdoll_limits "-1"
+    ragdoll_damping "-1"
+    ragdoll_blast "-1"
+    ragdoll_inherit "-1"
+}
+
+monster monster_shalrath
+{
+    hull "-1"
+    smallgibs "1.25" // a vore's
+    smallgibs_brains "1.25" // a vore's
+    ragdoll_start "-1"
+    ragdoll_mass "160" // (a vore: tall and spindly, ogre-sized)
+    ragdoll_friction "-1"
+    ragdoll_joint_friction "-1"
+    ragdoll_joint_stiffness "-1"
+    ragdoll_limits "-1"
+    ragdoll_damping "-1"
+    ragdoll_blast "-1"
+    ragdoll_inherit "-1"
+}
+
+monster monster_shambler
+{
+    hull "-1"
+    smallgibs "1.5" // a shambler's
+    smallgibs_brains "2" // a shambler's
+    ragdoll_start "-1"
+    ragdoll_mass "280" // (a shambler: the heaviest; a hand's 3000 N grip still lifts him)
+    ragdoll_friction "-1"
+    ragdoll_joint_friction "-1"
+    ragdoll_joint_stiffness "-1"
+    ragdoll_limits "-1"
+    ragdoll_damping "-1"
+    ragdoll_blast "-1"
+    ragdoll_inherit "-1"
+}
+
+monster monster_wizard
+{
+    hull "-1"
+    smallgibs "1" // a scrag's
+    smallgibs_brains "1" // a scrag's
+    ragdoll_start "-1"
+    ragdoll_mass "40" // (a scrag: wings and a tail)
+    ragdoll_friction "-1"
+    ragdoll_joint_friction "-1"
+    ragdoll_joint_stiffness "-1"
+    ragdoll_limits "-1"
+    ragdoll_damping "-1"
+    ragdoll_blast "-1"
+    ragdoll_inherit "-1"
+}
+
+monster monster_fish
+{
+    hull "-1"
+    smallgibs "1" // a rotfish's
+    smallgibs_brains "1" // a rotfish's
+}
+
+monster monster_zombie
+{
+    hull "-1"
+    smallgibs "1" // a zombie's (beheaded: vr_decap)
+    smallgibs_brains "1" // a zombie's (beheaded: vr_decap)
+    ragdoll_start "-1"
+    ragdoll_mass "70" // (a zombie: only beheaded, ROUND21.md "Decapitation")
+    ragdoll_friction "-1"
+    ragdoll_joint_friction "-1"
+    ragdoll_joint_stiffness "-1"
+    ragdoll_limits "-1"
+    ragdoll_damping "-1"
+    ragdoll_blast "-1"
+    ragdoll_inherit "-1"
+}
+
+monster monster_tarbaby
+{
+    hull "-1"
+}
+
+monster monster_gremlin
+{
+    smallgibs "1" // a gremlin's (Hipnotic)
+    smallgibs_brains "1" // a gremlin's (Hipnotic)
+    ragdoll_start "-1"
+    ragdoll_mass "20" // (a gremlin: small and light)
+    ragdoll_friction "-1"
+    ragdoll_joint_friction "-1"
+    ragdoll_joint_stiffness "-1"
+    ragdoll_limits "-1"
+    ragdoll_damping "-1"
+    ragdoll_blast "-1"
+    ragdoll_inherit "-1"
+}
+
+monster monster_scourge
+{
+    smallgibs "1" // a centroid's (Rogue)
+    smallgibs_brains "1" // a centroid's (Rogue)
+    ragdoll_start "-1"
+    ragdoll_mass "180" // (a centroid (Hipnotic): a scorpion of metal, heavy)
+    ragdoll_friction "-1"
+    ragdoll_joint_friction "-1"
+    ragdoll_joint_stiffness "-1"
+    ragdoll_limits "-1"
+    ragdoll_damping "-1"
+    ragdoll_blast "-1"
+    ragdoll_inherit "-1"
+}
+
+monster monster_eel
+{
+    smallgibs "1" // an eel's (Rogue)
+    smallgibs_brains "1" // an eel's (Rogue)
+}
+
+monster monster_mummy
+{
+    smallgibs "1" // a mummy's (Rogue, beheaded)
+    smallgibs_brains "1" // a mummy's (Rogue, beheaded)
+    ragdoll_start "-1"
+    ragdoll_mass "75" // (a mummy (Rogue): only beheaded, ROUND21.md "Ragdolls 5")
+    ragdoll_friction "-1"
+    ragdoll_joint_friction "-1"
+    ragdoll_joint_stiffness "-1"
+    ragdoll_limits "-1"
+    ragdoll_damping "-1"
+    ragdoll_blast "-1"
+    ragdoll_inherit "-1"
+}
