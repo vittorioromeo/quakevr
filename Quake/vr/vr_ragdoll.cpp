@@ -20,9 +20,11 @@
 #include "vr_protocol.hpp"
 #include "vr_rigdata.hpp"
 #include "vr_rig2.hpp"
+#include "vr_region_shared.h"
 
 #include "Zancle/Algorithm/Find.hpp"
 #include "Zancle/Base/PtrDiffT.hpp"
+#include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
@@ -2697,6 +2699,73 @@ glm::vec3 limbMiddle(const Rig& rig, uint32_t bones)
         }
     }
     return n ? sum / static_cast<float>(n) : glm::vec3{0.f};
+}
+
+int boneRegion(const Bone& b)
+{
+    const auto starts = [&](const char* p) { return ZA_STRNCMP(b.name, p, strlen(p)) == 0; };
+    if(b.joint == Joint::Loose)
+    {
+        return VR_REGION_NONE;
+    }
+    if(b.role == modelmeta::BoneRole::Head || starts("head") || starts("jaw"))
+    {
+        return VR_REGION_HEAD;
+    }
+    if(starts("thigh") || starts("shin") || starts("leg") || starts("upperleg") || starts("lowerleg") || starts("foot"))
+    {
+        return VR_REGION_LEG;
+    }
+    if(starts("upperarm") || starts("forearm") || starts("lowerarm") || starts("arm") || starts("hand"))
+    {
+        return VR_REGION_ARM;
+    }
+    if(starts("pelvis") || starts("spine") || starts("chest") || starts("neck") || starts("clavicle"))
+    {
+        return VR_REGION_BODY;
+    }
+    return VR_REGION_NONE;
+}
+
+int triangleRegion(const Rig& rig, int a, int b, int c)
+{
+    float share[VR_REGION_COUNT]{};
+    const int corners[3]{a, b, c};
+    const auto add = [&](int bone, float w) {
+        const int r = bone < rig.numBones ? boneRegion(rig.bones[bone]) : VR_REGION_NONE;
+        if(r != VR_REGION_NONE)
+        {
+            share[r] += w;
+        }
+    };
+    for(const int v : corners)
+    {
+        if(v < 0 || v >= rig.numVerts)
+        {
+            return VR_REGION_NONE;
+        }
+        const auto i = static_cast<za::SizeT>(v);
+        if(rig.authored && i < rig.weights.size())
+        {
+            const VertWeights& vw = rig.weights[i];
+            for(int k = 0; k < vw.n; k++)
+            {
+                add(vw.bone[k], vw.w[k]);
+            }
+        }
+        else if(i < rig.vertBone.size())
+        {
+            add(rig.vertBone[i], 1.f);
+        }
+    }
+    for(int r = 0; r < VR_REGION_COUNT; r++)
+    {
+        if(share[r] > 1.5f) // (more than half the triangle's corners' weight: 3 in all)
+        {
+            return r;
+        }
+    }
+    return VR_REGION_NONE;
 }
 
 int uncutParent(const Rig& rig, int b, uint32_t cut)

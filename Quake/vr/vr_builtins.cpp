@@ -949,6 +949,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"modelanchor", PF_modelanchor},
     {"modelanchorpoint", PF_modelanchorpoint},
     {"hitmodel_rest", PF_hitmodel_rest},
+    {"hitmodel_part", PF_hitmodel_part},
     {"debughitzone", PF_debughitzone},
     {"debugdisarm", disarmviz::PF_debugdisarm},
     {"debugdisarmnote", disarmviz::PF_debugdisarmnote},

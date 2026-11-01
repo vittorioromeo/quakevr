@@ -76,20 +76,9 @@ enum class Region : uint8_t
 
 [[nodiscard]] Region regionOf(const ragdoll::Bone& b)
 {
-    const auto starts = [&](const char* p) { return ZA_STRNCMP(b.name, p, strlen(p)) == 0; };
-    if(b.role == modelmeta::BoneRole::Head || starts("head") || starts("jaw"))
-    {
-        return Region::Head;
-    }
-    if(starts("thigh") || starts("shin") || starts("leg") || starts("foot"))
-    {
-        return Region::Leg;
-    }
-    if(starts("upperarm") || starts("forearm") || starts("arm") || starts("hand"))
-    {
-        return Region::Arm;
-    }
-    return Region::Body;
+    // (ragdoll::boneRegion: positional damage's struck part's too; a loose piece, a tail or a wing moves with the body)
+    const int r = ragdoll::boneRegion(b);
+    return r == VR_REGION_NONE ? Region::Body : static_cast<Region>(r);
 }
 
 // One blow (QVR_SVC_HITREACT), turned into bones' turns at its first draw (the pose then).

@@ -148,6 +148,16 @@ void bonePose(const Rig& rig, int pose, int b, glm::quat& rot, glm::vec3& pos);
 // (vr_limbmodel.cpp), its gib placed by it.
 [[nodiscard]] glm::vec3 limbMiddle(const Rig& rig, uint32_t bones);
 
+// Where bone `b` is on the body, by its name (the seed tables' and the authored rigs'): a VR_REGION_* (vr_region_shared.h:
+// head and jaw the head, thighs, shins, legs and feet the legs, upper arms, forearms and hands the arms, pelvis, spine,
+// chest, neck and clavicles the body); VR_REGION_NONE for one whose name says none (a tail, a wing, a claw, a loose piece).
+[[nodiscard]] int boneRegion(const Bone& b);
+
+// The region of the triangle with .mdl vertices a, b, c (positional damage's struck part: QC PositionalPointRegion): the
+// one its corners' bones (an authored rig's weights, a derived rig's one bone each) hold more than half of;
+// VR_REGION_NONE if none does (a triangle across the shoulder's three parts) or a corner is no vertex of the rig's.
+[[nodiscard]] int triangleRegion(const Rig& rig, int a, int b, int c);
+
 // The nearest of bone `b`'s ancestors not in `cut` (bits; -1 none): where a cut-off bone's place goes.
 [[nodiscard]] int uncutParent(const Rig& rig, int b, uint32_t cut);
 

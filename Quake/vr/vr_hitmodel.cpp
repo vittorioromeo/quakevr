@@ -17,6 +17,7 @@
 #include "vr_props.hpp"
 #include "vr_mem.hpp"
 #include "vr_ragdoll.hpp"
+#include "vr_region_shared.h"
 
 #include "Zancle/Algorithm/AnyOf.hpp"
 #include "Zancle/Algorithm/Copy.hpp"
@@ -946,20 +947,19 @@ float nearestDrawn(const Drawn& d, const glm::vec3& p, za::U32& tri, float& u, f
 
 } // namespace
 
-bool restPoint(edict_t* ent, const glm::vec3& p, glm::vec3& out)
+namespace
 {
-    if(!target(ent))
-    {
-        return false;
-    }
-    Drawn d;
-    if(!drawnOf(ent, d))
+// The triangle of `ent`'s model as drawn that the point `p` on it is on (restPoint's, restRegion's): the last hit's when
+// `p` is its point, else the drawn triangle nearest `p`. False: `ent` is no target.
+[[nodiscard]] bool struckTri(edict_t* ent, const glm::vec3& p, Drawn& d, za::U32& tri, float& u, float& v)
+{
+    if(!target(ent) || !drawnOf(ent, d))
     {
         return false;
     }
     const Mesh& m = *d.mesh;
-    za::U32 tri = 0;
-    float u = 0.f, v = 0.f;
+    tri = 0;
+    u = v = 0.f;
     const int num = NUM_FOR_EDICT(ent);
     if(last.num == num && last.time == qcvm->time &&
         (glm::length(last.point - p) < 1.f || glm::length(last.surface - p) < 1.f) && last.tri < m.tris.size())
@@ -972,6 +972,44 @@ bool restPoint(edict_t* ent, const glm::vec3& p, glm::vec3& out)
     {
         (void)nearestDrawn(d, p, tri, u, v);
     }
+    return true;
+}
+} // namespace
+
+int restRegion(edict_t* ent, const glm::vec3& p)
+{
+    Drawn d;
+    za::U32 tri = 0;
+    float u = 0.f, v = 0.f;
+    if(!struckTri(ent, p, d, tri, u, v))
+    {
+        return VR_REGION_NONE;
+    }
+    const auto& t = d.mesh->tris[tri];
+    return cornersRegion(modelOf(ent), d.mesh->numverts, t[0], t[1], t[2]);
+}
+
+int detail::cornersRegion(const qmodel_t* model, int numverts, int a, int b, int c)
+{
+    qmodel_t* mod = const_cast<qmodel_t*>(model);
+    const ragdoll::Rig* rig = mod && ragdoll::eligible(mod) ? ragdoll::rigFor(mod) : nullptr;
+    if(!rig || rig->numVerts != numverts)
+    {
+        return VR_REGION_NONE;
+    }
+    return ragdoll::triangleRegion(*rig, a, b, c);
+}
+
+bool restPoint(edict_t* ent, const glm::vec3& p, glm::vec3& out)
+{
+    Drawn d;
+    za::U32 tri = 0;
+    float u = 0.f, v = 0.f;
+    if(!struckTri(ent, p, d, tri, u, v))
+    {
+        return false;
+    }
+    const Mesh& m = *d.mesh;
     // The same place on the standing pose, in its own space, placed at its origin and turned with its yaw.
     const trivertx_t* rest = posesOf(d.hdr) + static_cast<za::SizeT>(m.restPose) * m.numverts;
     const auto& t = m.tris[tri];
@@ -1502,7 +1540,7 @@ void paintZone(const ZonePolygon& poly, int num, int region, float lift = 0.08f,
         ++zonePieces[static_cast<za::SizeT>(region)];
         if(zoneSampling && zoneSamples.size() < 32768)
         {
-            zoneSamples.pushBack({num, region, (poly[0].rest + poly[i].rest + poly[i + 1].rest) / 3.f});
+            zoneSamples.pushBack({num, region, (poly[0].rest + poly[i].rest + poly[i + 1].rest) / 3.f, zonePart});
         }
     }
     color.a = 0.8f;
@@ -1592,8 +1630,22 @@ void capsuleZone(const ZonePolygon& poly, int num, const glm::vec3& bottom, cons
     paintZone(remaining, num, 4, lift, fill);
 }
 
-void bodyZones(const ZonePolygon& poly, int num, float lateral, const glm::vec3& head, float radius, bool priority)
+// Positional damage's regions on a triangle (QC PositionalPointRegion) outside the head sphere's claim: its body part
+// `part` (cornersRegion) when known, an arm's or a leg's whole; else (and for the torso's, under the head sphere with
+// priority off) by place: out at its sides (`lateral`) the arms, below its origin the legs.
+void bodyZones(const ZonePolygon& poly, int num, float lateral, const glm::vec3& head, float radius, bool priority, int part)
 {
+    if(part == VR_REGION_ARM || part == VR_REGION_LEG)
+    {
+        paintZone(poly, num, part);
+        return;
+    }
+    if(part != VR_REGION_NONE)
+    {
+        if(priority) { paintZone(poly, num, 0); }
+        else { headZone(poly, num, head, radius, [&](const ZonePolygon& p) { paintZone(p, num, 0); }); }
+        return;
+    }
     ZonePolygon left, central, right, upper, lower, middle;
     splitZone(poly, {0.f, -1.f, 0.f}, lateral, central, left);
     splitZone(central, {0.f, 1.f, 0.f}, lateral, middle, right);
@@ -1626,16 +1678,18 @@ bool drawnZoneTriangles(int num, const entity_t& e, Each&& each)
     for(za::SizeT i = 0; i + 2 < drawn.size() && i + 2 < static_cast<za::SizeT>(d.hdr->numindexes); i += 3)
     {
         ZonePolygon triangle;
+        int corner[3]{};
         for(int k = 0; k < 3; ++k)
         {
             const za::SizeT idx = i + k;
-            triangle.pushBack({d.L * raw(rest[desc[indices[idx]].vertindex]) + d.l, drawn[idx]});
+            corner[k] = desc[indices[idx]].vertindex;
+            triangle.pushBack({d.L * raw(rest[corner[k]]) + d.l, drawn[idx]});
             for(int axis = 0; axis < 3; ++axis)
             {
                 zonePoseHash = (zonePoseHash ^ ZA_BIT_CAST(za::U32, drawn[idx][axis])) * 16777619u;
             }
         }
-        each(triangle);
+        each(triangle, cornersRegion(e.model, d.mesh->numverts, corner[0], corner[1], corner[2]));
     }
     return true;
 }
@@ -1644,12 +1698,14 @@ bool animatedZones(const Zone& body, const Zone& head, const entity_t& e)
 {
     const bool priority = vr_hit_head_priority.value != 0;
     zoneSampling = true;
-    const bool drawn = drawnZoneTriangles(body.num, e, [&](const ZonePolygon& triangle) {
-        const auto outside = [&](const ZonePolygon& p) { bodyZones(p, body.num, body.hi.y, head.lo, head.radius, priority); };
+    const bool drawn = drawnZoneTriangles(body.num, e, [&](const ZonePolygon& triangle, int part) {
+        zonePart = part;
+        const auto outside = [&](const ZonePolygon& p) { bodyZones(p, body.num, body.hi.y, head.lo, head.radius, priority, part); };
         if(priority) { headZone(triangle, body.num, head.lo, head.radius, outside); }
         else { outside(triangle); }
     });
     zoneSampling = false;
+    zonePart = VR_REGION_NONE;
     zoneModels += drawn ? 1 : 0;
     return drawn;
 }
@@ -1659,7 +1715,7 @@ bool animatedZones(const Zone& body, const Zone& head, const entity_t& e)
 bool animatedDecap(const Zone& decap, const Zone* head, const entity_t& e, bool alone)
 {
     const auto none = [](const ZonePolygon&) {};
-    const bool drawn = drawnZoneTriangles(decap.num, e, [&](const ZonePolygon& triangle) {
+    const bool drawn = drawnZoneTriangles(decap.num, e, [&](const ZonePolygon& triangle, int) {
         capsuleZone(triangle, decap.num, decap.lo, decap.hi, decap.radius, none, alone ? 0.08f : 0.16f, alone);
         if(alone && head)
         {

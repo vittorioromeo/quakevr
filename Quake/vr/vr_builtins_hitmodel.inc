@@ -112,6 +112,14 @@ void PF_hitmodel_rest()
     r[2] = out.z;
 }
 
+// hitmodel_part(e, p): the body part (a VR_REGION_*) of the triangle of e's drawn model that p is on (hitmodel_rest's):
+// its rig's bones'; -1 (VR_REGION_NONE) when e is no target, has no rig, or the triangle is of no one part.
+void PF_hitmodel_part()
+{
+    const float* p = G_VECTOR(OFS_PARM1);
+    G_FLOAT(OFS_RETURN) = static_cast<float>(hitmodel::restRegion(G_EDICT(OFS_PARM0), glm::vec3{p[0], p[1], p[2]}));
+}
+
 // The entity's own Quake .mdl, a body's (a monster's, a corpse's, a player's): not a brush model, nor a weapon drawn by
 // its Weapon Offsets (modelanchor, modelanchorpoint).
 [[nodiscard]] bool bodyModel(const edict_t* e)

@@ -514,6 +514,10 @@ vector(entity e, vector anchor) modelanchorpoint = #0;
 // The point p on e's drawn model as it is on the model standing (its stand frame), at e's origin, turned with its yaw
 // (where positional damage's head sphere and regions are); p itself if e is no target.
 vector(entity e, vector p) hitmodel_rest = #0;
+// The body part (VR_REGION_*) of the triangle of e's drawn model that p is on (hitmodel_rest's): its rig's bones' (arm
+// bones VR_REGION_ARM, legs VR_REGION_LEG, the head VR_REGION_HEAD, the torso VR_REGION_BODY); VR_REGION_NONE when e is
+// no target, its model has no rig, or the triangle is of no one part (PositionalPointRegion then decides by its place).
+float(entity e, vector p) hitmodel_part = #0;
 // Debug > Show Hit Zones (vr_debug_hitzones): a zone of e drawn this server frame, in e's own frame (x forward along its
 // yaw, y left, z up, from its origin): a box lo..hi (radius 0) or a capsule of `radius` from lo to hi. zone: 0 body, 1
 // head, 2 extremities, 3 legs, 4 melee beheading (its colour).

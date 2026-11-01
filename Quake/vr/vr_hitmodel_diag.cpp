@@ -69,6 +69,7 @@ void zonesCheck_f()
             const glm::vec3 rest = vec(ent->v.origin) + held::axesFromAngles(yaw, false) * sample.rest;
             G_INT(OFS_PARM0) = EDICT_TO_PROG(ent);
             G_FLOAT(OFS_PARM1 + 0) = rest.x; G_FLOAT(OFS_PARM1 + 1) = rest.y; G_FLOAT(OFS_PARM1 + 2) = rest.z;
+            G_FLOAT(OFS_PARM2) = static_cast<float>(sample.part); // (its triangle's body part: hitmodel_part's)
             PR_ExecuteProgram(fn);
             ++checked;
             if(static_cast<int>(G_FLOAT(OFS_RETURN)) != sample.region)
