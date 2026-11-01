@@ -631,6 +631,10 @@ void ikStretchReset()
             "How readily a gun's holder backs off: the distance it backs away from you nearer than (its weapon's "
             "least), times this, and the health share it turns warier below (0.35 times this). 0: it never backs "
             "off (only from its own blast) (vr_agrunt_ai_retreat)."),
+        header("Movement"),
+        row(opt::vr_agrunt_speed),
+        row(opt::vr_agrunt_speed_back),
+        row(opt::vr_agrunt_speed_strafe),
         header("Melee Spacing"),
         toggle("Long Blades Keep Their Reach", vr_agrunt_mspace)
             .help("One holding a long melee weapon (a sword, a long sword) stops where its swing's tip still meets your "
@@ -713,6 +717,10 @@ void ikStretchReset()
         row(opt::vr_arena_shards),
         row(opt::vr_arena_scatter),
         row(opt::vr_arena_score_kill),
+        header("The Last Foes"),
+        row(opt::vr_arena_xray),
+        row(opt::vr_arena_xray_left),
+        row(opt::vr_arena_xray_distance),
         header("Perks"),
         row(opt::vr_arena_perks),
         row(opt::vr_arena_perk_count),

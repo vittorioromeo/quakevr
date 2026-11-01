@@ -1011,6 +1011,60 @@ void ghostRecoilTest_f()
     t.verdict(name);
 }
 
+// Whether the local player's `hand` holds a body: an enemy (the foe grab, the judo: foegrab::holding) or a ragdoll's
+// limb or body, knocked down or dead (a listen server's: box3d::ragdollHold). No Ghost Holding Bodies hides its ghost.
+[[nodiscard]] bool holdsBody(int hand)
+{
+    if(foegrab::holding(hand))
+    {
+        return true;
+    }
+    box3d::RagdollHold h;
+    return sv.active && cls.state == ca_connected && box3d::ragdollHold(cl.viewentity, hand, h);
+}
+
+// The frames a hand held a body since vr_ghost_body_test start (or "hidden"): its ghost's opacity as measured (the most)
+// and as drawn (the most: 0 while hidden).
+struct GhostBody
+{
+    int frames{0};
+    float maxAlpha{0.f};
+    float maxDrawn{0.f};
+};
+GhostBody ghostBody;
+GhostBody ghostBodyHidden; // (the "hidden" phase's, kept for the verdict)
+
+// vr_ghost_body_test start | hidden | end: a hand holding an enemy brings no ghost out with vr_ghost_hands_ignore_bodies
+// 1 (the frames since "start", kept by "hidden": the hand drawn on the body far enough off its controller for a ghost,
+// none drawn) and does with it 0 (the frames since then, at "end"); prints "vr_ghost_body_test: N passed, M failed".
+// The script holds a grunt between (Misc/quakevr/ghost_body_test.sh).
+void ghostBodyTest_f()
+{
+    const char* step = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
+    if(!strcmp(step, "start"))
+    {
+        ghostBody = GhostBody{};
+        return;
+    }
+    if(!strcmp(step, "hidden"))
+    {
+        ghostBodyHidden = ghostBody;
+        ghostBody = GhostBody{};
+        return;
+    }
+    testkit::Tally t;
+    constexpr const char* name = "vr_ghost_body_test";
+    const GhostBody& a = ghostBodyHidden;
+    const GhostBody& b = ghostBody;
+    Con_Printf("%s: hidden: %d frames holding a body, ghost %.3f measured, %.3f drawn; shown: %d frames, %.3f, %.3f\n", name,
+        a.frames, a.maxAlpha, a.maxDrawn, b.frames, b.maxAlpha, b.maxDrawn);
+    t.check(a.frames > 0 && b.frames > 0, name, "a hand held a body in both phases");
+    t.check(a.maxAlpha >= 0.02f, name, va("held off its controller enough for a ghost (opacity %.3f)", a.maxAlpha));
+    t.check(a.maxDrawn < 0.02f, name, va("No Ghost Holding Bodies on: none drawn (%.3f)", a.maxDrawn));
+    t.check(b.maxDrawn >= 0.02f, name, va("off: the same hold shows it (%.3f)", b.maxDrawn));
+    t.verdict(name);
+}
+
 // Held props' grips (grip::setHandFrame): where the empty hand's palm and grip channel are in its frame (the move's place
 // and angles), every frame; not measured without the jointed hand (the default hand's are used).
 void gripFrame_f();
@@ -1026,6 +1080,7 @@ void updateGripFrame(const hands::State& s, int hand)
         Cmd_AddCommand("vr_body_wrist_info", wristInfo_f);
         Cmd_AddCommand("vr_powerup_info", powerupInfo_f);
         Cmd_AddCommand("vr_ghost_recoil_test", ghostRecoilTest_f);
+        Cmd_AddCommand("vr_ghost_body_test", ghostBodyTest_f);
     }
     grip::HandFrame f;
     qmodel_t* const model = viewModel(handrig::modelName());
@@ -2626,7 +2681,17 @@ void setupGhostHands(const hands::State& s)
             ghostRecoil.maxAlpha = za::max(ghostRecoil.maxAlpha, alpha);
             ghostRecoil.maxApart = za::max(ghostRecoil.maxApart, apart);
         }
-        if(alpha < 0.02f)
+        // Holding a body (an enemy alive, a ragdoll alive or dead): no ghost unless asked (vr_ghost_hands_ignore_bodies;
+        // his note, 2026-11-01 18:24: only in other situations, a weapon in two hands).
+        const bool onBody = holdsBody(hand);
+        const bool bodyHidden = onBody && vr_ghost_hands_ignore_bodies.value != 0.f;
+        if(onBody)
+        {
+            ghostBody.frames++;
+            ghostBody.maxAlpha = za::max(ghostBody.maxAlpha, alpha);
+            ghostBody.maxDrawn = za::max(ghostBody.maxDrawn, bodyHidden ? 0.f : alpha);
+        }
+        if(alpha < 0.02f || bodyHidden)
         {
             continue;
         }

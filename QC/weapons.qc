@@ -3662,7 +3662,7 @@ void(float xHand, float xWeaponFlags, float* xOutAttackFinished) W_Fire_Lightnin
     if(AD_PlasmaGun(xHand, xWeaponFlags)) // AD support: the Plasma Gun (vr_ad_bridge.qc)
     {
         AD_FirePlasma(xHand);
-        *xOutAttackFinished = time + 0.2;
+        *xOutAttackFinished = time + AD_PLASMAGUN_REFIRE;
         return;
     }
 

@@ -36,12 +36,13 @@ const float	r_avertexnormals[NUMVERTEXNORMALS][3] = {
 #include "anorms.h"
 };
 
-typedef enum { ALIAS_STANDARD, ALIAS_SHOWTRIS, ALIAS_SHOWSKEL, ALIAS_DEPTH, } aliasmode_t; // QVR: ALIAS_DEPTH, the shadow maps' casters (depth only: no lighting)
+typedef enum { ALIAS_STANDARD, ALIAS_SHOWTRIS, ALIAS_SHOWSKEL, ALIAS_DEPTH, ALIAS_XRAY, } aliasmode_t; // QVR: ALIAS_DEPTH, the shadow maps' casters (depth only: no lighting); ALIAS_XRAY, an outline through walls (R_DrawAliasModels_Xray)
 
 extern vec3_t	lightcolor; //johnfitz -- replaces "float shadelight" for lit support
 
 static float	entalpha; //johnfitz
 static qboolean	aliasdepth; // QVR: drawing the shadow maps' casters (R_DrawAliasModelsDepth)
+static qboolean	aliasxray; // QVR: drawing models' outlines through walls (R_DrawAliasModels_Xray)
 static int		aliasnear; // QVR: the batch's VR_AliasNearEye flags (1 depth clamp, 2 both sides)
 // QVR: a shadow map's casters drawn once into all the light's faces they reach (R_DrawAliasModelsDepthLayered): the
 // faces of the entity being added (bit f: face f, its viewport f), NULL one face at a time (R_DrawAliasModelsDepth)
@@ -737,7 +738,7 @@ void R_FlushAliasInstances (qboolean showtris)
 	poseverttype = mainhdr->poseverttype;
 
 	alphatest = model->flags & MF_HOLEY ? 1 : 0;
-	translucent = !ENTALPHA_OPAQUE (ibuf.ent->alpha);
+	translucent = !aliasxray && !ENTALPHA_OPAQUE (ibuf.ent->alpha); // QVR: (an outline through walls is its own blend)
 	oit = translucent && R_GetEffectiveAlphaMode () == ALPHAMODE_OIT;
 	if (oit) // QVR: the OIT targets cleared at their first draw (vr_oit_lazy_clear)
 		R_PrepareOITDraw (1);
@@ -798,6 +799,8 @@ void R_FlushAliasInstances (qboolean showtris)
 		-fabs (r_framedata.fogdata[3]) :
 		fabs (r_framedata.fogdata[3])
 		;
+	if (aliasxray) // QVR: an outline through walls fades into black fog, not into the fog's colour (it is added on)
+		ibuf.global.fog[0] = ibuf.global.fog[1] = ibuf.global.fog[2] = 0.f;
 	ibuf.global.dither = r_framedata.screendither;
 
 	ibuf_size = sizeof (ibuf.global) + sizeof (ibuf.inst[0]) * ibuf.count;
@@ -864,8 +867,15 @@ void R_FlushAliasInstances (qboolean showtris)
 
 	if (!translucent)
 		GL_SetState (opaque_state);
-	VR_TemporalMotionWrites (!translucent && !aliasdepth); // QVR: the opaque ones write their motion vectors (vr/vr_temporal.cpp)
-	if (!translucent && !aliasdepth && !alphatest && !showtris && !gl_multiview_draw && VR_AliasDepthPrepass (ibuf.ent))
+	if (aliasxray) // QVR: an outline through walls (R_DrawAliasModels_Xray): added onto the scene's colour (not its alpha),
+	{			   // only where something stands in front of it, writing no depth
+		GL_SetState (state | GLS_BLEND_ALPHA | GLS_NO_ZWRITE);
+		glBlendFunc (GL_ONE, GL_ONE);
+		glColorMask (GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE);
+		glDepthFunc (gl_clipcontrol_able ? GL_LESS : GL_GREATER);
+	}
+	VR_TemporalMotionWrites (!translucent && !aliasdepth && !aliasxray); // QVR: the opaque ones write their motion vectors (vr/vr_temporal.cpp)
+	if (!translucent && !aliasdepth && !aliasxray && !alphatest && !showtris && !gl_multiview_draw && VR_AliasDepthPrepass (ibuf.ent))
 	{ // QVR: your body's depth first (vr_body_prepass; the world's models too: vr_alias_prepass): its opaque skins with no fragment shader, the same instances and
 	  // the same invariant gl_Position, so that the shading below runs once a pixel (it passes the depth equal, no writes)
 		VR_GPUZoneBegin ("body depth prepass");
@@ -909,7 +919,7 @@ void R_FlushAliasInstances (qboolean showtris)
 	}
 	if (!notex)
 		VR_RetroBind (QVR_RETRO_LUT_UNIT_ALIAS); // QVR: the palette's table for retro textures (vr/vr_retro.cpp)
-	a2c = alphatest && !translucent && VR_AlphaToCoverage (); // QVR: holey skins' edges by alpha to coverage (vr_alpha_coverage, MSAA)
+	a2c = alphatest && !translucent && !aliasxray && VR_AlphaToCoverage (); // QVR: holey skins' edges by alpha to coverage (vr_alpha_coverage, MSAA)
 	if (a2c)
 	{
 		glEnable (GL_SAMPLE_ALPHA_TO_COVERAGE);
@@ -940,9 +950,10 @@ void R_FlushAliasInstances (qboolean showtris)
 		if (r_lightmap_cheatsafe) { textures[0] = greytexture; textures[1] = blacktexture; }
 		if (!textures[1]) textures[1] = blacktexture;
 		if (showtris) { textures[0] = blacktexture; textures[1] = whitetexture; }
-		textures[2] = TexMgr_NormalMap (showtris || r_lightmap_cheatsafe ? NULL : hdr->gltextures[skinnum][anim]); // QVR
+		if (aliasxray) { textures[0] = blacktexture; textures[1] = blacktexture; } // QVR: its glow only (the rest black: adds nothing)
+		textures[2] = TexMgr_NormalMap (showtris || aliasxray || r_lightmap_cheatsafe ? NULL : hdr->gltextures[skinnum][anim]); // QVR
 
-		textures[3] = showtris || r_lightmap_cheatsafe ? blacktexture : VR_AliasSkinMask (ibuf.ent);
+		textures[3] = showtris || aliasxray || r_lightmap_cheatsafe ? blacktexture : VR_AliasSkinMask (ibuf.ent);
 		GL_BindTextures (0, 3, textures); // QVR: normal map
 		GL_BindTextures (6, 1, &textures[3]); // QVR: skin mask, separate from retro LUT on unit 3
 		VR_AliasGlovePaint (ibuf.ent, glovepaint); // QVR: a glove's painted leather (GloveTex, GloveHeightTex)
@@ -951,13 +962,20 @@ void R_FlushAliasInstances (qboolean showtris)
 		rs_aliaspasses += hdr->numtris * drawcount;
 	}
 
+	if (aliasxray) // QVR: the scene's own state back (what GLS_BLEND_ALPHA and the depth test expect)
+	{
+		glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+		glColorMask (GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+		glDepthFunc (gl_clipcontrol_able ? GL_GEQUAL : GL_LEQUAL);
+	}
+
 	if (a2c) // QVR
 	{
 		glDisable (GL_SAMPLE_ALPHA_TO_COVERAGE);
 		glDisable (GL_SAMPLE_ALPHA_TO_ONE);
 	}
 
-	if (!translucent)
+	if (!translucent && !aliasxray) // QVR: (an outline through walls: the opaque skins' only)
 	{
 		GL_SetState (transparent_state);
 
@@ -1715,7 +1733,7 @@ cull:
 	//
 	rs_aliaspolys += paliashdr->numtris;
 	vr_profcounts.aliastris += paliashdr->numtris; // QVR: profile (the Tracy plot: rs_aliaspolys is cleared only under r_speeds)
-	if (mode == ALIAS_DEPTH) // QVR: a shadow map's caster: its depth only (none of the light it gets)
+	if (mode == ALIAS_DEPTH || mode == ALIAS_XRAY) // QVR: a shadow map's caster: its depth only (none of the light it gets); an outline: its glow only
 		lightcolor[0] = lightcolor[1] = lightcolor[2] = 0.f;
 	else if (eyeuse && eye->lit) // QVR: the light at its origin as the first eye found it, the rest this eye's
 	{
@@ -1739,7 +1757,7 @@ cull:
 	if (r_fullbright_cheatsafe || mode == ALIAS_SHOWTRIS)
 		lightcolor[0] = lightcolor[1] = lightcolor[2] = 0.5f;
 
-	if (mode == ALIAS_SHOWTRIS)
+	if (mode == ALIAS_SHOWTRIS || mode == ALIAS_XRAY) // QVR: (an outline is added on, whole)
 		entalpha = 1.f;
 
 	nearflags = mode == ALIAS_STANDARD ? VR_AliasNearEye (e, model_matrix, paliashdr) : 0; // QVR
@@ -1834,6 +1852,8 @@ cull:
 		cached->gen = aliasdepthgen;
 	}
 	VR_TRACY_DETAIL (vr_tracy_render_zones, "alias vr instance", VR_AliasInstance (e, model_matrix, paliashdr, mode == ALIAS_DEPTH ? 2 : mode == ALIAS_STANDARD, &instance->vr)); // QVR
+	if (mode == ALIAS_XRAY) // QVR: an outline through walls: its own glow (vr/vr_arenaxray.cpp)
+		instance->vr.glow[0] = VR_ArenaXrayGlow (e);
 	smoothbefore = ibuf.count == 1 ? 0 : VR_AnimSmoothRows (0); // (a batch's first instance starts its rows)
 	VR_TRACY_DETAIL (vr_tracy_render_zones, "alias smooth", R_AliasSmoothInstance (e, paliashdr, &lerpdata, totalverts, instance, ibuf.count - 1, 0)); // QVR: r_lerpmodels 3
 	if (cached && !cachehit && aliasdepthkeep) // QVR: its swing rows kept for the pass's other lights (vr_shadow_setup_share)
@@ -2101,6 +2121,25 @@ void R_DrawAliasModels_ShowTris (entity_t **ents, int count)
 	for (i = 0; i < count; i++)
 		R_DrawAliasModel_Real (ents[i], ALIAS_SHOWTRIS);
 	R_FlushAliasInstances (true);
+}
+
+/*
+=================
+R_DrawAliasModels_Xray -- QVR: the models drawn again as a glowing outline where something stands in front of them
+(their rim glow only, VR_ArenaXrayGlow, added onto the scene; vr/vr_arenaxray.cpp: a Survival Arena wave's last foes)
+=================
+*/
+void R_DrawAliasModels_Xray (entity_t **ents, int count)
+{
+	int i;
+	if (!count)
+		return;
+	R_FlushAliasInstances (false); // (a batch left from before is drawn as it was)
+	aliasxray = true;
+	for (i = 0; i < count; i++)
+		R_DrawAliasModel_Real (ents[i], ALIAS_XRAY);
+	R_FlushAliasInstances (false);
+	aliasxray = false;
 }
 
 /*

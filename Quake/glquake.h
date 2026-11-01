@@ -532,6 +532,7 @@ void R_DrawAliasModels (entity_t **ents, int count);
 void R_DrawSpriteModels (entity_t **ents, int count);
 void R_DrawBrushModels_ShowTris (entity_t **ents, int count);
 void R_DrawAliasModels_ShowTris (entity_t **ents, int count);
+void R_DrawAliasModels_Xray (entity_t **ents, int count); // QVR: outlined through walls (vr/vr_arenaxray.cpp)
 void R_DrawSpriteModels_ShowTris (entity_t **ents, int count);
 void R_DrawAliasModels_ShowSkel (entity_t **ents, int count);
 

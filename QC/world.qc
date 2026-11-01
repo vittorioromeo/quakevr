@@ -397,6 +397,7 @@ void() worldspawn =
     // ax sounds
     precache_sound("weapons/ax1.wav");            // ax swoosh
     precache_sound("player/axhit1.wav");        // ax hit meat
+    precache_sound(QVR_SOUND_AXHIT_VOICE);      // ... a player hit by one, his grunt (his voice: vr_voice)
     precache_sound("player/axhit2.wav");        // ax hit world
 
     precache_sound("player/h2ojump.wav");        // player jumping into water
@@ -584,6 +585,7 @@ void() worldspawn =
 void() VR_DCTest_Frame; // (vr_dmgcredit_test.qc, after the weapons it fires)
 void() VR_AmmoColor_TestFrame; // (vr_ammocolor_test.qc, after the AD bridge)
 void() VR_AGTest_Frame; // (vr_armedgrunt_test.qc, after the armed grunts)
+void() VR_AGTune_TestFrame; // (vr_agtune_test.qc, after the armed grunts)
 void() VR_GibProps_TestFrame; // (vr_gibprops_test.qc, after AD's files)
 void() VR_PropImp_TestFrame; // (vr_propimpact_test.qc, after AD's files)
 void() VR_ARENA_Test_Frame; // (vr_arena_test.qc, after the arena's own file)

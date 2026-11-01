@@ -896,6 +896,15 @@ QVR_SLIDER(vr_agrunt_aim_error, "Aim Error", 0.f, 15.f, 0.5f, "%.1f deg", ext(0.
 QVR_SLIDER(vr_agrunt_ai_reaction, "Reaction Time", 0.f, 3.f, 0.05f, "%.2f s", ext(0.f, 10.f),
     "From first seeing you to their first attack, at Normal (Quake's 1 s; by Difficulty Impact "
     "Nightmare none) (vr_agrunt_ai_reaction).")
+QVR_SLIDER(vr_agrunt_speed, "Movement Speed", 0.25f, 2.f, 0.05f, "%.2fx", ext(0.f, 4.f),
+    "Every step they take times this: running at you, closing in, backing off, strafing round you, walking "
+    "as they fire (vr_agrunt_speed).")
+QVR_SLIDER(vr_agrunt_speed_back, "Backpedal Speed", 0.25f, 2.f, 0.05f, "%.2fx", ext(0.f, 4.f),
+    "On top of Movement Speed: a step backwards of where they face times this (a step at a slant: its "
+    "backward part) (vr_agrunt_speed_back).")
+QVR_SLIDER(vr_agrunt_speed_strafe, "Strafe Speed", 0.25f, 2.f, 0.05f, "%.2fx", ext(0.f, 4.f),
+    "On top of Movement Speed: a step sideways of where they face times this (a step at a slant: its "
+    "sideways part) (vr_agrunt_speed_strafe).")
 QVR_TOGGLE(vr_agrunt_range, "Keep Their Distance",
     "With a gun it fights at its weapon's distance: a super shotgun close but out of your reach, a "
     "shotgun near, nail guns and the enforcer's rifle further; nearer than that it backs off facing you "
@@ -1089,6 +1098,16 @@ QVR_TOGGLE(vr_arena_perks, "Boss Perks",
     "1: clearing a boss wave offers your choice of perks -- cards floating in front of you, the arena "
     "waiting (no countdown, no next wave) until you point at one and pull the trigger (or press its "
     "number); that perk is yours for the rest of the run. 0: it offers nothing (vr_arena_perks).")
+QVR_TOGGLE(vr_arena_xray, "Last Foes Through Walls",
+    "1: once only a few of a wave are left (Foes Left below, counting those still to come in), each of "
+    "them glows red through walls -- an outline you see through the towers, the dais and the walk -- when "
+    "it is farther from you than Outline Distance. 0: never (vr_arena_xray).")
+QVR_SLIDER(vr_arena_xray_left, "Foes Left", 1.f, 8.f, 1.f, "%.0f", noExt,
+    "The outline comes on when this many of the wave are left, or fewer: 2 is its last two, 1 only its "
+    "very last (vr_arena_xray_left).")
+QVR_SLIDER(vr_arena_xray_distance, "Outline Distance", 0.f, 2000.f, 50.f, "%.0f units", noExt,
+    "Only a foe farther from your eyes than this glows (600: across a good part of the arena, about 15 m; "
+    "one nearer you find yourself). 0: at any distance (vr_arena_xray_distance).")
 QVR_SLIDER(vr_arena_perk_count, "Perks Offered", 1.f, 8.f, 1.f, "%.0f", noExt,
     "How many of the pool's eight a boss clear offers, at Normal -- the difficulty takes its share (3 is 2 "
     "at Easy, 4 at Hard, 5 at Nightmare); never the same perk twice (vr_arena_perk_count).")
@@ -2458,6 +2477,24 @@ QVR_TOGGLE(vr_crouch_speed, "Slower When Crouched",
 QVR_SLIDER(vr_crouch_speed_scale, "Crouched Speed", 0.2f, 1.f, 0.05f, "%.2fx", noExt,
     "Crouched, the most speed the stick moves you at, times your top speed. Whatever it is, crouched you "
     "stay under the speed whose steps monsters hear (Stealth AI > Running From) (vr_crouch_speed_scale).")
+QVR_TOGGLE(vr_closequarters, "Close-Quarters Slowdown",
+    "Walking straight into a live enemy's face near it slows you gradually, so a full-speed run into one doesn't "
+    "end in a mess of bodies; you still get right up to it, and strafing past it keeps (nearly) full speed. Only the "
+    "part of your move towards the nearest enemy is slowed (vr_closequarters).")
+QVR_SLIDER(vr_closequarters_start, "Start Radius", 0.5f, 4.f, 0.1f, "%.1f m", ext(0.f, 10.f),
+    "How near the nearest live enemy (from your centre to its body) the slowdown starts (vr_closequarters_start).")
+QVR_SLIDER(vr_closequarters_end, "End Radius", 0.f, 2.f, 0.05f, "%.2f m", noExt,
+    "At this distance and nearer the slowdown is full (Min Factor); your body touches a grunt's at about 0.6 m "
+    "(vr_closequarters_end).")
+QVR_SLIDER(vr_closequarters_min, "Min Factor", 0.f, 1.f, 0.05f, "%.2fx", noExt,
+    "Your speed straight at the enemy at End Radius, times; 1: not slowed (vr_closequarters_min).")
+QVR_SLIDER(vr_closequarters_strafe, "Strafe Factor", 0.5f, 1.f, 0.05f, "%.2fx", noExt,
+    "Your speed sideways past the enemy at End Radius, times; 1: full speed (vr_closequarters_strafe).")
+QVR_SLIDER(vr_closequarters_angle, "Angle Leniency", 0.f, 90.f, 5.f, "%.0f deg", noExt,
+    "A move this far off straight at the enemy still counts fully as towards it (vr_closequarters_angle).")
+QVR_SLIDER(vr_closequarters_angle_falloff, "Angle Falloff", 0.f, 90.f, 5.f, "%.0f deg", noExt,
+    "Past this far off it a move isn't towards it at all; between Angle Leniency and this, less and less "
+    "(vr_closequarters_angle_falloff).")
 QVR_TOGGLE(vr_slope_walk, "Walk Up Slopes Slowly",
     "Standing on a slope you can walk on, gravity only presses you into it, none of it pulls you downhill: "
     "with the stick pushed only a little you still walk up slopes and stairs with a smooth ramp over them "
@@ -4804,6 +4841,10 @@ QVR_TOGGLE(vr_ghost_hands_ignore_recoil, "No Ghost from Recoil",
     "A shot's recoil kicks the drawn hand back and up off your real one (Weapon Effects' Programmatic "
     "Recoil): on, that kick doesn't bring the ghost out (only what else holds the hand off does); off, a "
     "strong kick shows it for a moment.")
+QVR_TOGGLE(vr_ghost_hands_ignore_bodies, "No Ghost Holding Bodies",
+    "On: a hand holding an enemy (grabbed alive, the judo) or a ragdoll (knocked down or dead) shows no ghost, "
+    "only the hand drawn on the body; the ghost still shows for a weapon in two hands, heavy weapons and walls. "
+    "Off: those holds show it too (vr_ghost_hands_ignore_bodies).")
 
 // vr_menu_settings.inc: pageBodyDisplay
 QVR_CYCLE(vr_handedness, "Handedness",

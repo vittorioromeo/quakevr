@@ -437,6 +437,7 @@ float VR_CarryMoveScale (struct edict_s *ent); // solid held props: mass/bulk st
 float VR_CrouchSpeedMax (struct edict_s *ent, float maxspeed); // SV_AirMove: crouched, slower (vr_crouch_speed; vr_hull.cpp)
 float VR_StaminaSpeedScale (struct edict_s *ent);	// SV_AirMove: tired, times the most walking speed (sv_maxspeed; vr_stamina_speed)
 float VR_HeavyMoveScale (struct edict_s *ent);		// SV_AirMove: holding the hammer or the mace, times it (vr_admelee_heavy_speed)
+void VR_CloseQuartersMove (struct edict_s *ent, float *wishvel); // SV_AirMove, walking: near a live enemy, the move straight at it slowed (vr_closequarters.cpp)
 void VR_AfterWaterMove (struct edict_s *ent, float forwardmove, float sidemove, float upmove); // after SV_WaterMove: swimming strokes (the stick steering them)
 void VR_GroundPlaneMet (struct edict_s *ent, const float *normal); // SV_FlyMove, SV_WalkMove: a player met walkable floor (vr_slope_walk)
 void VR_GroundGravity (struct edict_s *ent, const float *before); // SV_Physics_Client, gravity added: on a walkable slope, only its part into the slope (vr_slope_walk)
@@ -594,6 +595,9 @@ void VR_LimitHit (int limit);
 // SV_WriteEntitiesToClient: a client's entity kept from the other clients (a dead player whose ragdoll body lies there,
 // vr_deathview.cpp).
 int VR_SV_HiddenFromOthers (edict_t *ent);
+// SV_WriteEntitiesToClient: an entity sent to every client wherever it stands, past the PVS (one of a Survival Arena
+// wave's last foes, outlined through walls: vr_arenaxray.cpp).
+int VR_SV_SendPastPVS (edict_t *ent);
 // SV_WriteEntitiesToClient: the entities sent to `clent` this frame of those in its sight, their bytes, the datagram's
 // room (vr_net_stats, vr_server.cpp).
 void VR_NetStatsEntities (edict_t *clent, int sent, int insight, int bytes, int maxsize);

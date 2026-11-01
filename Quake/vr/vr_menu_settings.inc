@@ -630,6 +630,7 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
         row(opt::vr_ghost_hands_fade_from),
         row(opt::vr_ghost_hands_fade_range),
         row(opt::vr_ghost_hands_ignore_recoil),
+        row(opt::vr_ghost_hands_ignore_bodies),
     };
 }
 

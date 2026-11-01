@@ -57,6 +57,7 @@
 
 .float kind;    // info_arena_spawn: 1 a ground point, 2 a high one (a wave's ranged and flying foes come in above the floor)
 .float ar_slot; // > 0: one of the arena's wave monsters, of the wave that number (its fall flips it to that number's negative)
+.float vr_xray; // 1: one of a wave's last foes, seen through walls (VR_ARENA_XrayMark; the engine's vr_arenaxray.cpp draws it)
 .float ar_tier; // what a wave monster is worth on the ladder: 1, 2, 3 (a boss: plus AR_BOSS_MARK)
 .float ar_armour; // the armour type the arena dressed a wave monster in (0 none): its kill pays more
 .float ar_drop; // > 0: an arena's own drop between waves: 1 a medkit, 2 an armour (or an armour shard)
@@ -1600,6 +1601,23 @@ float() VR_ARENA_CountAlive =
     return n;
 }
 
+// The wave's last foes seen through walls (vr_arena_xray, the author's ask 2026-11-01): once no more than
+// vr_arena_xray_left of the wave are left -- up, and still to come in -- those up are marked (.vr_xray), and the engine
+// outlines each one farther from the player's eyes than vr_arena_xray_distance through anything in between
+// (vr_arenaxray.cpp; it also sends a marked foe to the clients wherever it stands, past the PVS). A fall unmarks it
+// (the engine draws only the living ones too). The director's beat calls this (every 0.5 s; at once after a fall).
+void(float xAlive) VR_ARENA_XrayMark =
+{
+    float left = ar_plan_left + xAlive;
+    float on = (cvar("vr_arena_xray") != 0 && left > 0 && left <= max(cvar("vr_arena_xray_left"), 0));
+    entity e = findflags(world, ar_slot, ar_wave);
+    while(e)
+    {
+        e.vr_xray = (on && e.health > 0);
+        e = findflags(e, ar_slot, ar_wave);
+    }
+}
+
 // A wave foe whose kind's own start is through (monsters.qc: its takedamage is on) and who has not spotted anyone
 // yet: it is given the player, so a wave comes at you instead of standing where it landed. Its own run takes over
 // from there (ai.qc's FoundTarget puts it on its th_run).
@@ -2098,6 +2116,7 @@ void() VR_ARENA_ManagerThink =
     }
 
     VR_ARENA_HuntPlayer(); // (a wave foe that has come to and has not spotted anyone: it comes at you)
+    VR_ARENA_XrayMark(alive); // (the wave's last few: seen through walls)
 
     // (a foe that could not be reached: the wave lets go and the arena goes on; counted from its last foe's arrival,
     // since a big wave trickling in takes its time)

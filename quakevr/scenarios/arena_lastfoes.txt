@@ -1,0 +1,14 @@
+# arena_lastfoes: a Survival Arena wave's last foes seen through walls (vr_arena_xray; Combat > Survival Arena > The Last
+# Foes). Normal play outlines the wave's last two (Foes Left 2) when they are farther than 600 units (Outline
+# Distance); here Foes Left is 8, so wave 1's foes glow red from the moment they come in: stand on the dais and look
+# at the corner towers -- a foe behind one shows as a red outline through it, the part of it you can see directly does
+# not glow, and one nearer than 600 does not either. The wall trim is no step any more (walk into the skirting: you
+# stay on the floor), and the stairs have lit risers every few steps and lamps either side of the dais' flights.
+title Survival Arena: the last foes glow red through the walls
+map vrarena
+start 0 0 120 45
+cvar vr_arena 1
+cvar vr_arena_xray 1
+cvar vr_arena_xray_left 8
+cvar vr_arena_xray_distance 600
+hint Stand on the dais and look at the towers: a foe behind one is a red outline through it. Set Foes Left back to 2 (Combat > Survival Arena) for normal play: then only a wave's last two glow.

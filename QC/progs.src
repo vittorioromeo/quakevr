@@ -544,6 +544,7 @@ vr_armedgrunt_tugpunch_test.qc
 vr_armedgrunt_raggrab_test.qc
 vr_armedgrunt_parry_test.qc
 vr_armedgrunt_strike_test.qc
+vr_armedgrunt_aware_test.qc // test 200: disarm attempts on unaware grunts wake them; dual wield drops the struck one
 vr_armedgrunt_blade_test.qc // test 77: blade on blade
 vr_ownclash_test.qc // vr_clash_test: your two weapons clashing
 vr_dirparry_test.qc // test 78: the directional parry
@@ -562,6 +563,7 @@ vr_stalepose_test.qc // test 79: shots and grip spheres from the drawn pose
 vr_disarmhull_test.qc // test 16: the disarm volumes as hulls of the drawn triangles
 vr_armedgrunt_expose_test.qc
 vr_armedgrunt_ai_test.qc
+vr_agtune_test.qc // the armed humanoids' tuning (vr_agtune_test)
 vr_armedgrunt_ammo_test.qc
 vr_armedrepl_test.qc
 vr_arena_test.qc // Survival Arena's tests (vr_arena_test)
