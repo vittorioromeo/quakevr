@@ -33,8 +33,9 @@ void queue(const hands::State& s);
 
 // The alias instance's blade mask (vraliasinstance_t's hotblade) of `e` drawn by `matrix` (its pose's space to the
 // world): a plane in the pose's space, 0 at the blade's root rising to 1 a little past it; all zero (all of it glows)
-// for anything but a glowing blade of a known weapon.
-void bladePlane(const entity_t* e, const float matrix[16], float out[4]);
+// for anything but a glowing blade of a known weapon. A hand's gun's hot barrel (or its mask painted): `barrel`, the
+// shader's Barrel (vr_hotblade.cpp barrelInstance: its marked triangles, its glow's ramp along its rest pose), else zero.
+void bladePlane(const entity_t* e, const float matrix[16], float out[4], float barrel[4]);
 
 // vr_hotblade_report: the glowing blades this frame (where, their blade's ends, their light), the embers and trail
 // particles made in the last second (Debug > Tests > Incandescent Blades).

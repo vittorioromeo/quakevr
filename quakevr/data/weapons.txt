@@ -588,6 +588,10 @@ weapon 1
     bl_tip_y "0.1403"
     bl_tip_z "-0.0605"
     // reloading (was vr_reload_<port|mag|well|hold>_<gun>_*)
+    fx_gfx_wisp_charge "1"
+    fx_gfx_wisp_alpha "0.32"
+    fx_gfx_wisp_barrels "1"
+    fx_gfx_mask "1576:_DwYAAAAAAAAAAAAAAAAAAAAA____PAAAAAAAAA____PAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA________PAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA___________P9Pw_A_D8Pw_-_PAAAAAAAAAAAAAAAAAAAw____________DAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8DHAA8AAAwAwAwAwPAAA0_wPwPwvy___AAAAAAAAAAAAAAAAAAAAAAAAAAA"
     reload_port_x "0"
     reload_port_y "0"
     reload_port_z "0"
@@ -688,6 +692,10 @@ weapon 2
     fx_return_s "0.265"
     w_heft "0" // super shotgun
     // reloading (was vr_reload_<port|mag|well|hold>_<gun>_*)
+    fx_gfx_wisp_charge "1"
+    fx_gfx_wisp_alpha "0.32"
+    fx_gfx_wisp_barrels "2"
+    fx_gfx_mask "983:f-5__TO__gfo__Q8____________PCAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAMAAA8AwPA8gPA8DAPAQA8___________________________Bw_________PAAAAAAAAAwQPAAwQPAAAANAAAANAAw__w_B4____f"
     reload_port_x "0"
     reload_port_y "0"
     reload_port_z "0"
@@ -793,6 +801,10 @@ weapon 3
     w_heft "0" // nailgun
     fx_punch "0.640513"
     // reloading (was vr_reload_<port|mag|well|hold>_<gun>_*)
+    fx_gfx_wisp_charge "0.12"
+    fx_gfx_wisp_alpha "0.26"
+    fx_gfx_wisp_barrels "2"
+    fx_gfx_mask "888:8MwM__Dgwnn__PM8___APDzMAAAAMCDAANAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAw__AA__________________________0_w_y_______0_w_y_____AAAAAAAAAAAAAAAAAAAA"
     reload_port_x "0"
     reload_port_y "0"
     reload_port_z "0"
@@ -900,6 +912,10 @@ weapon 4
     w_heft "0" // super nailgun
     fx_punch "0.644016"
     // reloading (was vr_reload_<port|mag|well|hold>_<gun>_*)
+    fx_gfx_wisp_charge "0.08"
+    fx_gfx_wisp_alpha "0.3"
+    fx_gfx_wisp_barrels "1"
+    fx_gfx_mask "1002:AYAAAA_Jz5AAAAgBwMGAAAAAAw__DAAAAgNAwBAyPAAAAAAJnDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAE8Pw______AAAAAAAAAAAAAAAAAAAAAAwDAAAPAAA8AAAwDAAAPAAA8AAAAAAAAAAAAAAAAAAAAAA"
     reload_port_x "0"
     reload_port_y "0"
     reload_port_z "0"
@@ -1104,6 +1120,7 @@ weapon 6
     w_heft "0.6" // rocket launcher
     w_hrecoil "1.5"
     // reloading (was vr_reload_<port|mag|well|hold>_<gun>_*)
+    fx_gfx_mask "811:YAAGS4___fGY-_hH-h-BAAAAAAAAAAAAAAAAAAAAAAAA4_HAAe4________________________f-___f-_________________________________BAAAAAAAAAAAAAAAAAAAA"
     reload_port_x "0"
     reload_port_y "0"
     reload_port_z "0"
@@ -1211,6 +1228,10 @@ weapon 7
     w_heft "0" // thunderbolt
     fx_punch "0.62411"
     // reloading (was vr_reload_<port|mag|well|hold>_<gun>_*)
+    fx_gfx_wisp_charge "0.05"
+    fx_gfx_wisp_alpha "0.2"
+    fx_gfx_wisp_barrels "1"
+    fx_gfx_mask "865:AAAAAw_BIAAAAAAAAAAgPAcAAAAAAAAGA-_fAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA4___________HAAAAAAAAAAAAAAAAAAAAAAAAAA"
     reload_port_x "0"
     reload_port_y "0"
     reload_port_z "0"
@@ -1415,6 +1436,7 @@ weapon 9
     // rocket launcher's and the Widowmaker's big single shots more.
     w_hrecoil "0.5"
     fx_punch "0.635857"
+    fx_gfx_mask "1005:MA8z_MA_PMz__P_DAAAPDwM5_8P_AwAAwAwDDAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgHAAAYAJNCwAKCDixGQBFkzKHIHAAAFAAQIACBESYEEchAEAAA92DuzjAAG59AAAAAAAgCA7NgTAgMAAAAAAA"
 }
 
 // slot 10: progs/v_prox.mdl (vr_wofs_*_11)
@@ -1577,6 +1599,7 @@ weapon 11
     fx_kick_cm "1.4625"
     fx_rise_deg "2.4375"
     fx_punch "0.640513"
+    fx_gfx_mask "888:8MwM__Dgwnn__PM8___APDzMAAAAMCDAANAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAw__AA__________________________0_w_y_______0_w_y_____AAAAAAAAAAAAAAAAAAAA"
 }
 
 // slot 12: progs/v_lava2.mdl (vr_wofs_*_13)
@@ -1647,6 +1670,7 @@ weapon 12
     fx_kick_cm "2.6847"
     fx_rise_deg "4.91606"
     fx_punch "0.644016"
+    fx_gfx_mask "1148:AYAAAA_nMnDAAAAYAwMGAAAAAAA__PAAAAA8AEAyHAAAAAgkzBAAAAAOAAAAAAAAeAAAAAAAA4BAAAAAAAAAAAAAAAAAAAAAAAw_____DAAAAAAAAAAAiA_Dg_____DAAAAAAAAAAAAAAAAAAAAAwDAAwDAAwDAAwDAAwDAAwDAAAAAAAAAAAAAAAAAAAAAA"
 }
 
 // slot 13: progs/v_multi.mdl (vr_wofs_*_14)
@@ -1791,6 +1815,7 @@ weapon 14
     fx_kick_cm "23.4"
     fx_rise_deg "10.125"
     fx_return_s "0.265"
+    fx_gfx_mask "811:YAAGS4___fGY-_hH-h-BAAAAAAAAAAAAAAAAAAAAAAAA4_HAAe4________________________f-___f-_________________________________BAAAAAAAAAAAAAAAAAAAA"
 }
 
 // slot 15: progs/v_plasma.mdl (vr_wofs_*_16)
@@ -1864,6 +1889,7 @@ weapon 15
     fx_rise_deg "1.875"
     fx_return_s "0.07"
     fx_punch "0.62411"
+    fx_gfx_mask "865:AAAAAw_BIAAAAAAAAAAgPAcAAAAAAAAGA-_fAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA4___________HAAAAAAAAAAAAAAAAAAAAAAAAAA"
 }
 
 // slot 16: progs/hand.mdl (vr_wofs_*_17)
@@ -2407,6 +2433,10 @@ weapon 21
     stock_pitch "10"
     w_heft "0" // grunts' burst rifle
     fx_punch "0.640513"
+    fx_gfx_wisp_charge "0.15"
+    fx_gfx_wisp_alpha "0.26"
+    fx_gfx_wisp_barrels "1"
+    fx_gfx_mask "1190:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAA4______D"
 }
 
 // slot 22: progs/v_enfrifle.mdl (vr_wofs_*_23)
@@ -2511,6 +2541,10 @@ weapon 22
     fx_flash "1"
     w_heft "0" // enforcer's rifle
     fx_punch "0.640513"
+    fx_gfx_wisp_charge "0.25"
+    fx_gfx_wisp_alpha "0.2"
+    fx_gfx_wisp_barrels "1"
+    fx_gfx_mask "1474:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAg______P"
 }
 
 // slot 23: progs/v_crowbar.mdl (vr_wofs_*_24)
@@ -3638,6 +3672,9 @@ weapon 34
     w_heft "0.6" // Widowmaker
     w_hrecoil "1.5"
     // reloading (was vr_reload_<port|mag|well|hold>_<gun>_*)
+    fx_gfx_wisp_charge "1"
+    fx_gfx_wisp_alpha "0.32"
+    fx_gfx_wisp_barrels "2"
     reload_port_x "0"
     reload_port_y "0"
     reload_port_z "0"
@@ -3856,6 +3893,10 @@ weapon 36
     stock_pitch "0"
     w_heft "0"
     fx_punch "0.640513"
+    fx_gfx_wisp_charge "0.2"
+    fx_gfx_wisp_alpha "0.22"
+    fx_gfx_wisp_barrels "1"
+    fx_gfx_mask "841:8AAAAAAAgBAAAAAAAAAAwAwAAA-_HAAAAAAg____HAAAAAAAAAAAAAAAAAAAAAAAAAAA-HAAAAAAAAAAA4__________________________________________________________B"
 }
 
 // slot 37: progs/v_flaregun.mdl (vr_wofs_*_38)
@@ -3954,6 +3995,10 @@ weapon 37
     w_heft "0"
     fx_punch "0.640513"
     // reloading (was vr_reload_<port|mag|well|hold>_<gun>_*)
+    fx_gfx_wisp_charge "0.7"
+    fx_gfx_wisp_alpha "0.26"
+    fx_gfx_wisp_barrels "1"
+    fx_gfx_mask "860:___________________DDAAADAAAAAAAAAAAAAAADAAAAAAAAAAAAAAAAAAADgAAAwEwAAADMAAwAAwAMAMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEwLAAAAAAAAAAAAAAAAsE0DAAAAAAA"
     reload_port_x "0"
     reload_port_y "0"
     reload_port_z "0"
@@ -4061,6 +4106,10 @@ weapon 38
     fx_tr_chance "4"
     stock_pitch "0"
     w_heft "0"
+    fx_gfx_wisp_charge "0.7"
+    fx_gfx_wisp_alpha "0.26"
+    fx_gfx_wisp_barrels "1"
+    fx_gfx_mask "1021:AAAwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA8________fAgBAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAYAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA4_f4_fAAAAAAAAAAAAAAAAAAAA"
 }
 
 // slot 40: progs/w_dfurysword1.mdl#melee (vr_wofs_*_41)

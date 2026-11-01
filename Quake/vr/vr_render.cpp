@@ -504,11 +504,12 @@ extern "C" void VR_AliasInstance(const entity_t* e, const float matrix[16], cons
     }
     if(out->glow[0] > 3.5f) // an incandescent blade glows on its blade only (vr_hotblade.cpp)
     {
-        hotblade::bladePlane(e, matrix, out->hotblade);
+        hotblade::bladePlane(e, matrix, out->hotblade, out->barrel);
     }
     else
     {
         ZA_MEMSET(out->hotblade, 0, sizeof(out->hotblade));
+        ZA_MEMSET(out->barrel, 0, sizeof(out->barrel));
     }
     out->retro[3] = standard ? VR_RetroLightSkinScale(e->model, hdr, e->skinnum) : 0.f; // retro lighting (vr_retrolight.cpp): its Quake texels' share
 }

@@ -1735,7 +1735,8 @@ bool inheritable(Key key)
         case Key::MuzzleAnchor:
         case Key::TwoHHandAnchor:
         case Key::WpnTextAnchor:
-        case Key::WpnButtonAnchor: return false;
+        case Key::WpnButtonAnchor:
+        case Key::GunfxBarrelMask: return false; // (its own model's triangles)
         default: return !retired(key) && !reloadKey(key); // (a reload key: each gun's own, never a parent's)
     }
 }
