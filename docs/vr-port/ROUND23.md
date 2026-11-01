@@ -4705,3 +4705,41 @@ The weapons' settings (Weapon Offsets, Weapon Weights: 51 slots x 306 keys) are 
   families (`vr_reload_well_<gun>_*`, `vr_adgun_*`, ... as weapon keys); then the menus' rows on getter/setter bindings
   (the stand-ins thinned to floats + text) and the vr_wofs_ names retired after a release (the config's lines then
   `weapon`-keyed).
+
+## Props as data (branch `agent/datatables2`; design review 3, step 2: props)
+
+The held objects' settings (Held Object Offsets, Held Object Weights: 80 slots x 45 keys) are data, not 3,600 cvars,
+the same way as the weapons' (above).
+- **`quakevr/data/props.txt`**: a `defaults { key "value" ... }` block (each key's every-slot value: the third column
+  `QVR_PROP_KEY` had), then `prop <slot> { ... }` per slot (slots from 0; the old `QVR_PROP_DEFAULT` rows in their
+  order, their comments carried along). vr_props.inc keeps the keys only. Read at start (`props::registerCvars`).
+- **One loader for both tables**: `readDataFile` (vr_datafile.cpp) and `DataTable::load` (vr_slottable.hpp) read
+  either file (`DataFileSpec`: path, block word, keys); the weapons' reader moved there. `SlotTable` (the props' old
+  registered cvars) is gone.
+- **Names kept for one release**: `VR_CvarStandIn` / `VR_StandInSet` try the weapons' table, then the props'
+  (`vr_prop_<key>_NN`, any case: an upper-case name typed at the console now finds it, as the vr_wofs_ ones do). Every
+  place that walked the weapons' stand-ins walks both (`standInTables()`, vr_cvars.hpp): the config's writer
+  (`VR_ConfigWriteTables`), `vr_config_defaults`, the config tracking, `vr_config_test`, Propose Defaults. The
+  configVersion steps that name `vr_prop_*` (179, 202, 204, 209) reach them by name. Not in `cvarlist` or completion.
+- **`vr_prop_dump`** (Debug menu: Held Object Slots): the slots holding a model and how many values each has changed;
+  `vr_prop_dump <slot> ... | all` every value and its default. Print Changes prints props.txt lines.
+- **`Misc/quakevr/props_data.py convert | promote <config> [--dry] | check`**: weapons_data.py's parser and promote,
+  now per table (`Table`, `slot_values`, `key_names`). His config of 10-31 has only six `vr_prop_id_NN` lines (slots his
+  hands claimed for v_axe, w_blueflail#melee, vr_fueltank#7, v_revolver, v_nailpistol, v_shot), no tuned values: not
+  promoted (`props_data.py promote` would add six id-only blocks; round-tripped and put back).
+- **His weapon values**: `weapons_data.py promote` of his ironwail.cfg (2026-10-31): the toolgun's (slot 26, `_27`) 12
+  holster values (hip and upper back: x, y, z, pitch, yaw, roll) are now weapons.txt's (his other 5 vr_wofs_ lines
+  were equal already or float noise).
+- **Scripts**: `blade_defaults.py` reads weapons.txt (the keys, the `#melee` IDs) and prints weapons.txt lines (no
+  more OldValue rows: a changed default needs no step); `improve_weapons_alt.py` reads a slot's values from weapons.txt
+  and, with `improve_weapons2.py`, prints weapons.txt lines; `improve_weapons.py` / `improve_weapons3.py` (one-offs,
+  their values shipped and tuned since) say where their printed values go now.
+- **Checks** (before = this branch with only `vr_prop_dump` added, the props still cvars): `vr_prop_dump all` and
+  `vr_prop_dump` (10,945 lines: values and defaults) identical after `vr_config_defaults`, after his config's prop lines
+  exec'd, and after console sets (`vr_prop_mass_01 12`, `vr_prop_grip_x_04 3`, `vr_prop_id_75 progs/gib1.mdl`; the one
+  difference: `VR_PROP_SIZE_10 2` now sets it, see above); `writeconfig` writes the same vr_prop_ lines;
+  `config_sparse_test.sh` 16 passed, 0 failed, its every-setting dump identical (sorted, 23,317 lines); every value in
+  the game equals its data file's (15,606 weapon values via `vr_wofs_dump`, 3,600 prop values via `vr_prop_dump`, a
+  script reading the files); `held_over_props_test.sh` (a box of shells and the wall torch held over boxes) PASS.
+- **Next steps**: the monsters' tables, the named per-weapon families as weapon keys, then getter/setter rows and the
+  old names retired after a release.
