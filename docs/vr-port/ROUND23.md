@@ -5394,6 +5394,69 @@ melee_phase 7/0, arena 6 8/0), and before agent/ghosthand prop_climb and melee_p
 - **For the kit (coordinator)**: the console cases (arena_*, agrunt_*) run with the clock's seed; `sv_random_seed 7`
   before their map would make them repeat.
 
+## Player feel batch: close quarters, ghost hands on bodies, the hit grunt's voice, ragdoll smashes (agent/feel1101)
+
+### Close-quarters slowdown
+
+His note (18:14): running full speed into an enemy is messy; still get right into its face, but straight at it near it
+gradually slower, strafing at (nearly) full speed, with sliders. ON by default, gentle (his answer).
+
+- `vr_closequarters.cpp`: `VR_CloseQuartersMove`, called once in SV_AirMove on the wish velocity after the most speed's
+  caps (stamina, carrying, heavy, crouch), walking only. The nearest live enemy (FL_MONSTER, alive, damageable, solid,
+  overlapping your height) whose box is within Start Radius of your centre horizontally: the move's part towards its
+  centre times 1 .. Min Factor (Start Radius .. End Radius), weighted by the angle (full within Angle Leniency, none past
+  Angle Falloff); the sideways part times 1 .. Strafe Factor on the same ramp. Moving away: only the sideways part.
+- Settings (Locomotion > Close Quarters): `vr_closequarters` 1, `_start` 1.6 m, `_end` 0.7 m (a grunt is touched at
+  about 0.6), `_min` 0.5, `_strafe` 0.95, `_angle` 30, `_angle_falloff` 75.
+- Test `Misc/quakevr/closequarters_test.sh` (`vr_closequarters_test start|approach|end`): a grunt 120 units ahead walked
+  into, then strafed past: 11/0 (first slowed at 1.57 m, to 0.500 at its face; the strafe 320 -> 304 u/s).
+
+### Ghost hands: none while holding a body
+
+His note (18:24) and answer: an option so ghost hands don't show while handling ragdolls, only in other situations (a
+weapon in two hands); living enemies too (the foe grab, the judo), active and dead ragdolls; ON by default.
+
+- `vr_ghost_hands_ignore_bodies` 1 (Ghost Hands' page: "No Ghost Holding Bodies"): setupGhostHands skips the ghost of a
+  hand that `holdsBody` (vr_view_hands.cpp): `foegrab::holding(hand)` or `box3d::ragdollHold` (a ragdoll's limb or body,
+  knocked down or dead): the same queries the drawn hand's placement uses. Weapons, props in both hands, ledges, tugs on a
+  stuck axe, walls: unchanged.
+- Test `Misc/quakevr/ghost_body_test.sh` (`vr_ghost_body_test start|hidden|end`): a grunt held by the chest, Ghost
+  Hands on with no fade margin: 4/0 (ghost 0.350 measured, 0.000 drawn with the option; 0.350 drawn without).
+  ghost_recoil_test.sh 3/0. A held ragdoll (box3d::ragdollHold) is not covered by the test (the same query as
+  limbHold's).
+
+### The hit grunt's voice, feminine too
+
+His note (18:27): hit by a fist or a melee attack, the player makes the male grunt with the feminine voice on; check
+every player voice line.
+
+- The audit: the voice is chosen by sample name as it loads (vr_voice.cpp voiceSounds), and every throat sound played on
+  the player is in it (pain1..6, death1..5, drown, lburn, slimbrn2, h2odeath, gasp, plyrjmp8, land/land2, the mantle's
+  derived grunts, the stamina gasps; AD's copies the same samples) except one: a blow by a player weapon's melee (an
+  armed grunt's fist, axe, sword, crowbar, chainsaw, gun butt, Mjolnir: `axhitme`) plays `player/axhit1.wav` in
+  PainSound (player.qc; AD's ad_player.qc), id's thud with the male grunt in it. Monster melee (knight, ogre, zombie,
+  dog, fiend, the armed grunt's tug butt and headbutt) goes through pain1..6, already feminine. No other path (foe grab,
+  choke, kick, judo) plays a sound of his throat. Telefrag and gib deaths are gore, left out.
+- Fix: axhit1 is also a thrown axe's and the grapple's thud, so it isn't listed itself: a derived copy under its own
+  name (`vr/derived/axhit1_voice.wav`, rate 1, vr_audio_io.cpp) is in voiceSounds, and PainSound / AD's
+  ad_SOUND_AXE_PLAYER play it (QC `QVR_SOUND_AXHIT_VOICE`, precached in world.qc). Also: player_pain's early returns
+  (mid-attack, the ring) clear `axhitme`, so a later pain of any kind (a nail) no longer plays the blade grunt.
+  "Hear Voice" cycles through it too.
+- vr_voice_test (vr_voice 1, e1m1): 31/0, the new sample transformed (61% voiced) and the name check.
+
+### Ragdoll smashes: louder, and a bit more effective
+
+His notes (18:43): the smash sound 30-40% louder by default; and a tunable multiplier for an active or dead ragdoll's
+impact on walls, floors and props, on its damage and its limb-pop damage, x1.15.
+
+- `vr_ragsmash_volume` 1 -> 1.35 (Smash Volume). VR_RagSmash's volume was capped at 1 (a full-strength smash was
+  already at 1, so the setting couldn't make it louder): now up to 4 (SND_LOUD, louder than full).
+- `vr_ragimpact_mult` 1.15 (tunable, "Impact Multiplier", next to Impact Damage): in VR_RagImpact_Hit (the engine's
+  strike of a ragdoll you drive on the level), the strike's amount times it before the piece multipliers and the cap
+  (vr_ragimpact_max); the head's or limb's wear toward popping is that damage (times vr_ragimpact_wear), so both scale.
+  A landing's crush is not a strike: unchanged.
+- vr_ragsmash_test (vrfiringrange, `developer 1`: its lines are dprints) 12/0: the held slam at full strength sounds
+  at 1.350; its damage 9.60 -> 11.04 (x1.15).
 ## Tug readout, hand hulls (branch `agent/tugview`, his notes 2026-11-01 18:02, 18:35, 18:55)
 
 - **The cyan hull took the biceps (a real bug).** The hand's region was the ragdoll rig's vertices on the hand bone and

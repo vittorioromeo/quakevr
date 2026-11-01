@@ -264,7 +264,7 @@ string ad_SOUND_AXE_GLASS = "weapons/axe_glass.wav";		// glass impact
 string ad_SOUND_AXE_METAL = "weapons/axe_metal.wav";		// metal impact
 string ad_SOUND_AXE_FLESH = "weapons/axe_flesh.wav";		// Squish impact
 string ad_SOUND_AXE_CERAMIC = "weapons/axe_ceramic.wav";	// ceramic impact
-string ad_SOUND_AXE_PLAYER = "player/axhit1.wav";			// ax hit meat (another player)
+string ad_SOUND_AXE_PLAYER = "vr/derived/axhit1_voice.wav";	// ax hit meat (another player): axhit1 as the player's voice (QVR_SOUND_AXHIT_VOICE, vr_voice)
 string ad_SOUND_AXE_STONE = "player/axhit2.wav";			// stone impact
 
 //=============================================================================

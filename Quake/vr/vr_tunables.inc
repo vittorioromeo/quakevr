@@ -1084,6 +1084,7 @@ QVR_TUNABLE(vr_hit_stagger_head, "1.5") // a melee blow to the head (fist or wea
 QVR_TUNABLE(vr_hit_stagger_resist, "0.75") // big monsters resist: the chance times (30 / its full health) ^ this, above 30 health (0: none; shambler 0.1, ogre 0.24)
 QVR_TUNABLE(vr_hit_stagger_cooldown, "4") // s after an unbalancing hit before another hit can unbalance it (no stunlock)
 QVR_TUNABLE(vr_ragimpact_damage, "0.08") // damage per kg m/s past the least speed (mass behind the part x (its speed - Least Speed))
+QVR_TUNABLE(vr_ragimpact_mult, "1.15") // a ragdoll's (knocked down or dead) strike on a wall, the floor or a prop: its damage and its head's or limb's wear (pops) times this (not a landing's crush)
 QVR_TUNABLE(vr_ragimpact_min_speed, "2.5") // m/s: slower strikes do nothing
 QVR_TUNABLE(vr_ragimpact_held_speed, "1") // m/s: a part your hand holds counts from this speed (the hand slows as it drives a body: 2-4 m/s slams)
 QVR_TUNABLE(vr_ragimpact_dent, "2") // a strike dealing this much damage or more dents and wounds the part where it struck, as a blunt melee blow does (a head slammed into a wall: its face dented); 0: never
@@ -1096,7 +1097,7 @@ QVR_TUNABLE(vr_ragimpact_max, "40") // most damage one strike (or a landing's cr
 QVR_TUNABLE(vr_ragimpact_limb, "1") // a strike on an arm or a leg deals this much more (the torso 1, the head vr_ragimpact_head)
 QVR_TUNABLE(vr_ragsmash_min_speed, "0") // m/s: a strike sounds and bleeds (vr_ragsmash) only this fast or faster, besides hurting (the impacts' own threshold); 0: every strike that hurts
 QVR_TUNABLE(vr_ragsmash_full_speed, "4") // m/s past the impacts' least speed: a strike this hard sounds full and deepest and bleeds its most (softer ones less, from a quarter)
-QVR_TUNABLE(vr_ragsmash_volume, "1") // the smash sound's volume, times (0: silent; blood still)
+QVR_TUNABLE(vr_ragsmash_volume, "1.35") // the smash sound's volume, times (0: silent; blood still; over full volume past 1: his note 2026-11-01, 30-40% louder)
 QVR_TUNABLE(vr_ragsmash_decal_size, "1") // the smash blood's size, times (1: 18..40 units across by the strike, then the gore's size; 0: none)
 QVR_TUNABLE(vr_ragsmash_cooldown, "0.25") // s: one body sounds and bleeds at most this often (a body sliding or bouncing along a wall: no machine gun)
 QVR_TUNABLE(vr_ragimpact_wear, "1") // a head's or limb's wear from a strike: its damage times this (higher: pops sooner; 0: impacts never pop pieces)
