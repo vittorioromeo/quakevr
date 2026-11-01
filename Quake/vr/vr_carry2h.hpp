@@ -75,7 +75,20 @@ bool bodyClear(edict_t* ent, edict_t* player, const Frame& from, Frame& to);
 [[nodiscard]] bool bodyFits(edict_t* ent, edict_t* player, const Frame& at);
 [[nodiscard]] glm::vec3 bodyPlace(edict_t* ent, edict_t* player, const glm::vec3& target);
 [[nodiscard]] float moveScale(edict_t* player);
+// Dragging a body (vr_carry_drag; Carrying and Throwing > Carrying, "Drag Slowdown"): while a hand holds one (a dead
+// ragdoll, an active ragdoll, an enemy held standing: vr_foegrab), the walk is cut by vr_carry_drag times its mass over a
+// grunt's (its ragdoll's, else QC VR_Grapple_MonsterMass), the bodies in the two hands added (one in both counts once),
+// at most vr_carry_drag_max. VR_CarryMoveScale applies 1 - cut on top of the props' load (moveScale).
+struct DragLoad
+{
+    int bodies{0};    // distinct bodies held
+    float mass{0.f};  // kg, theirs together
+    float cut{0.f};   // the walk speed taken off (0..vr_carry_drag_max)
+};
+inline constexpr float dragGruntKg = 80.f; // a grunt's (VR_Grapple_MonsterMass's monster_army; its ragdoll's parts too)
+[[nodiscard]] DragLoad dragLoad(edict_t* player);
 void loadTest_f();
+void dragTest_f(); // vr_carry_drag_test (vr_carry2h.cpp)
 
 // Server side (QC's carryreach): whether `player`'s `hand` (0 off, 1 main) can take hold of `ent`: its fist touches the
 // thing's drawn surface, as a hand touching it can (held::grabTouch); vr_debug_carry draws the test. Or, the hand that
