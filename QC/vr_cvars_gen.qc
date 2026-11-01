@@ -882,6 +882,7 @@ float cvarh_vr_adgun_stream_fire;
 float cvarh_vr_agrunt_reload_time;
 float cvarh_vr_agrunt_disarm_damage;
 float cvarh_vr_agrunt_disarm_swing;
+float cvarh_vr_agrunt_disarm_stagger;
 float cvarh_vr_agrunt_disarm_throw;
 float cvarh_vr_agrunt_down_swing;
 float cvarh_vr_agrunt_strike_beat;
@@ -2197,6 +2198,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_agrunt_reload_time = cvar_hmake("vr_agrunt_reload_time");
     cvarh_vr_agrunt_disarm_damage = cvar_hmake("vr_agrunt_disarm_damage");
     cvarh_vr_agrunt_disarm_swing = cvar_hmake("vr_agrunt_disarm_swing");
+    cvarh_vr_agrunt_disarm_stagger = cvar_hmake("vr_agrunt_disarm_stagger");
     cvarh_vr_agrunt_disarm_throw = cvar_hmake("vr_agrunt_disarm_throw");
     cvarh_vr_agrunt_down_swing = cvar_hmake("vr_agrunt_down_swing");
     cvarh_vr_agrunt_strike_beat = cvar_hmake("vr_agrunt_strike_beat");

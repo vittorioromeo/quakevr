@@ -1405,6 +1405,7 @@ void() VR_AGBL_Frame; // (vr_armedgrunt_blade_test.qc)
 void(float t) VR_AGPP_Frame; // (vr_armedgrunt_preparry_test.qc)
 void() VR_AGAM_Frame; // (vr_armedgrunt_ammo_test.qc)
 void() VR_AGAM_Begin;
+void() VR_AGAW_Frame; // (vr_armedgrunt_aware_test.qc)
 
 float vr_agt_running; // the test running (vr_agrunt_test) last frame; 0 none
 
@@ -1439,7 +1440,7 @@ void() VR_AGTest_Frame =
         }
     }
     vr_agt_player.health = max(vr_agt_player.health, 500); // (kept alive)
-    if(t == 1 || t == 12 || t >= 100)
+    if(t == 1 || t == 12 || (t >= 100 && t <= 199))
     {
         if(t >= 100 && vr_agt_step == 0 && vr_agt_index == 0)
         {
@@ -1500,6 +1501,7 @@ void() VR_AGTest_Frame =
     else if(t == 91) { VR_AGRB_Frame(); } // (an active ragdoll's weapon grabbed at the gun or its hand: vr_armedgrunt_raggrab_test.qc)
     else if(t == 92) { VR_AG2_Frame(); } // (two hands in the tug, a staggering or downed one's eased tug: vr_armedgrunt_twohand_test.qc)
     else if(t == 19) { VR_AGTP_Frame(); } // (the other fist's real punch in a tug: vr_armedgrunt_tugpunch_test.qc)
+    else if(t == 200) { VR_AGAW_Frame(); } // (disarm attempts on unaware grunts; dual wield: vr_armedgrunt_aware_test.qc)
     else if(t >= 6 && t <= 9) // a row of armed grunts ahead, 30 units apart (eyeshots): 6 guns, 7 melee, 8 more guns, 9 the rest
     {
         float base = (t - 6) * 4;

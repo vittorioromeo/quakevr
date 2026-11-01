@@ -45,6 +45,9 @@ Run straight at a grunt: you slow noticeably in the last metre or so and still r
 Ghost Hands on: grabbing an enemy, a knocked-down or a dead body shows no ghost hand; a two-handed gun still shows it (Ghost Hands > No Ghost Holding Bodies).
 Feminine voice on: an armed grunt's punch or blade hit on you plays a feminine grunt.
 Smashing a ragdoll into a wall sounds louder, and limbs pop slightly sooner (Smash Volume 1.35, Impact Multiplier 1.15). {test:vr_ragsmash_test 1}
+notarget on, an idle shotgun grunt: punch its gun out: it staggers a moment and turns on you; shoot an idle grunt's gun: it turns on you (and staggers if it's knocked out). {test:disarm_hulls_melee}
+A grunt holding two swords or two guns: knock out one, then the other (both orders, also while it lies on the floor): only the struck weapon falls each time. {test:dual_wield}
+Strike a sword grunt's blade (away from its hand) while it hasn't seen you: sparks, no disarm, and it turns on you.
 
 [2. Armed humanoids: disarming and armour]
 Show Disarm Volumes: the wireframe hulls sit on each drawn weapon (magenta, orange, red; the sword's orange line along its blade) and on the drawn hand and forearm (cyan). {test:disarm_hulls_melee}

@@ -5394,6 +5394,56 @@ melee_phase 7/0, arena 6 8/0), and before agent/ghosthand prop_climb and melee_p
 - **For the kit (coordinator)**: the console cases (arena_*, agrunt_*) run with the clock's seed; `sv_random_seed 7`
   before their map would make them repeat.
 
+## Disarm attempts wake and stagger; a dual wielder loses only the struck weapon (branch `agent/disarmaware`)
+
+His notes 2026-11-01 18:03-18:46: a shot weapon or a parried strike left an unaware (or notarget) grunt calm; a disarm
+should always stagger it briefly; disarming a dual wielder's off hand sword dropped the other too; a punch on an unaware
+grunt's weapon "goes through".
+- **One event for every try at its weapon**, `VR_AG_DisarmTry(g, by, outcome)` (vr_armedgrunt_play.qc; outcomes
+  `VR_AG_TRY_MET` a shot counted towards a roll, `_HELD` a lost roll / a blow on its blade / a throw too light,
+  `_PARRIED`, `_DISARMED`): it turns on `by` (`VR_Provoke`, below: notarget or unseen too) and, disarmed, staggers on its
+  feet for `vr_agrunt_disarm_stagger` s (new tunable, 0.4; Armed Grunts tunables "Disarmed: Stagger"; the parry's flinch
+  `VR_Parry_InterruptFor` with `vr_parry_noragdoll`, never a ragdoll). Callers: `VR_AG_DisarmBy(g, by, ...)` (the old
+  `VR_AG_Disarm`, now its `by`-less wrapper for the tools and tests; every gameplay caller passes who knocked it: the
+  strike, the hand blow, the body blow, the throw, the shot roll, the projectile roll, the parry's spent strength, a
+  monster's blow parried), `VR_AGPar_Parried` (your blow), `VR_AG_BladeContact`, `VR_AGS_Add` (each shot on its weapon or
+  hand; the prop remembers its shooter, `.vr_ags_shooter`, for the roll), the projectile roll, the throws.
+- **`VR_Provoke(m, by)`** (combat.qc): T_DamageDeal's "get mad" block made a function (same rule: not its own kind but
+  grunts, not the dragon, not its charmer, not what it already hunts); T_DamageDeal and the worn tank's alert
+  (`VR_FuelTank_WornAlert`) use it.
+- **The dual wield drop** (his take's entities: the sword grunt knocked down at 15.6 s, both swords gone together at
+  21.2 s as it lay): not the disarm itself (strikes on either hand, either order, drop only the struck one: test 200
+  cases 5-8, with both weapons' real thinks) but the fall rule. Lying, a blow's knock on its ragdoll read as "it met the
+  ground" (`VR_AG_FallImpact`, vr_agrunt_fall_keep_impact 4.5 m/s), and `VR_AG_FallDrop` drops both hands' weapons.
+  Now a blow on it (`VR_AG_Hit`) or a try at its weapon marks `.vr_ag_struck_at`; for `VR_AG_FALL_STRUCK` (1 s) after,
+  its body's knocks are the blow's, not the ground's. Case 9 with the window off: "hardest impact 34.0 m/s", both gone;
+  on: the other kept.
+- **The punch "going through" an unaware grunt's weapon**: no awareness gate exists in the strike, punch or tug-punch
+  paths (VR_AG_StrikeFrame, VR_AG_BlowOnWeapon: unaware is "its parry caught out", a disarm). In the mock an idle grunt's
+  shotgun is punched out both across it (case 0) and straight at it into its body (case 10, by the body-blow rule). His
+  18:46 take (entities) has him 89-103 units from the idle grunts until the stealth AI found him, so it does not show the
+  miss. What was missing on an unaware one was the reaction (no anger, no stagger): fixed above. If a punch still passes
+  through in VR, a note with the grunt idle within reach would show which rule refused it (vr_agrunt_debug 1 logs it).
+- **Test 200** (`vr_agrunt_test 200`, QC/vr_armedgrunt_aware_test.qc; the every-weapon block is now 100-199): you
+  notarget, a fresh idle grunt each case: 0 a mock off-fist punch across its shotgun: disarmed, staggered, hunting you;
+  1 a shot, roll lost: armed, hunting; 2 a shot, roll won: shot out, staggered, hunting; 3 a strike into its raised
+  parry, it after nobody: parried, hunting, one try counted; 4 a blow on a sword's blade: a blade contact, hunting;
+  5-8 dual swords and dual nail pistols, left then right and right then left: the struck one alone drops; 9 dual swords
+  lying, the left one struck out and the body knocked: the other kept; 10 a straight punch. Before: 12 passed, 16 failed
+  (cases 0-9 as then); after: **33 passed, 0 failed**.
+- Checks: 19 (tug punch) 3/0, 2 4/0, 94 16/0, 77 12/0 (its two disarm cases now expect the disarm's stagger).
+- Note (the mock): the glide's off-hand world velocity still reads about 0.2 m/s at the server (test 19's note), so test
+  200's dual cases strike with test 94's blow record and run both weapons' thinks themselves.
+
+Checklist:
+- [disarmaware] notarget on, an idle shotgun grunt: punch its gun out: it staggers a moment and turns on you.
+  {test:disarm_hulls_melee}
+- [disarmaware] notarget on, shoot an idle grunt's gun (hit or not knocked out): it turns on you; knocked out: it
+  staggers too.
+- [disarmaware] A grunt holding two swords (or two guns): knock out its left one, then its right one (and the other
+  way): only the struck weapon falls each time, also when you knock one out while it lies on the floor. {test:dual_wield}
+- [disarmaware] Strike a sword grunt's blade (away from its hand) while it hasn't seen you: sparks, no disarm, and it
+  turns on you.
 ## Player feel batch: close quarters, ghost hands on bodies, the hit grunt's voice, ragdoll smashes (agent/feel1101)
 
 ### Close-quarters slowdown
