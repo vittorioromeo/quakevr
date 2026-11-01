@@ -47,6 +47,13 @@ QVR_CVAR(vr_pickup_scale, "1", CVAR_NONE)             // weapons (classic models
 QVR_CVAR(vr_pickup_prop_models, "1", CVAR_ARCHIVE)   // the map's weapons drawn as the weapons you hold and drop (their v_ models at their size, not vr_pickup_scale, spinning about their middle), 0 the classic g_ models; next map
 QVR_CVAR(vr_item_float_height, "26", CVAR_ARCHIVE)    // units above the floor the map's weapons, armour, powerups and keys float at (0: on the floor); next map
 QVR_CVAR(vr_unstick, "1", CVAR_ARCHIVE)             // a player found inside the map or a door, button or lift is moved to the nearest free spot (vr_unstick.cpp); 0: Quake's small nudge only
+QVR_CVAR(vr_closequarters, "1", CVAR_ARCHIVE)                  // close-quarters slowdown (vr_closequarters.cpp): walking straight at a live enemy near it is gradually slowed; strafing past it keeps (nearly) full speed
+QVR_CVAR(vr_closequarters_start, "1.6", CVAR_ARCHIVE)           // metres from your centre to the nearest live enemy's box (horizontally) where it starts
+QVR_CVAR(vr_closequarters_end, "0.7", CVAR_ARCHIVE)             // metres: at this and nearer it is full (your body touches a grunt at about 0.6)
+QVR_CVAR(vr_closequarters_min, "0.5", CVAR_ARCHIVE)             // the part of your move straight at it times this at End Radius (1: none)
+QVR_CVAR(vr_closequarters_strafe, "0.95", CVAR_ARCHIVE)         // the sideways part of your move times this at End Radius (1: none)
+QVR_CVAR(vr_closequarters_angle, "30", CVAR_ARCHIVE)            // degrees off straight at it still counted fully as towards it
+QVR_CVAR(vr_closequarters_angle_falloff, "75", CVAR_ARCHIVE)    // degrees off it past which a move counts as not towards it at all (between: less and less)
 QVR_CVAR(vr_slope_walk, "1", CVAR_ARCHIVE)          // standing on a walkable slope, gravity only presses you into it (none of it pulls you downhill): with the stick pushed a little you walk up slopes and stairs' ramps from a standstill (Quake: under about a quarter stick you never got going); flat floors unchanged; 0: Quake's
 QVR_CVAR(vr_unstick_monsters, "1", CVAR_ARCHIVE)     // a monster (any live walking body) inside the map or a door, lift or wall, not moving, for vr_unstick_monsters_time is moved to the nearest free spot (vr_unstick.cpp; developer 1 prints each); 0: it stays stuck
 QVR_CVAR(vr_unstick_monsters_time, "1", CVAR_ARCHIVE) // ... seconds inside before it is moved
@@ -1057,6 +1064,7 @@ QVR_CVAR(vr_ghost_hands_tint, "0.6", CVAR_ARCHIVE)         // 0 the hand's own c
 QVR_CVAR(vr_ghost_hands_fade_from, "9", CVAR_ARCHIVE)      // cm: no ghost while the drawn hand is within this of the real one (its grip and a point 15 cm ahead of it)
 QVR_CVAR(vr_ghost_hands_fade_range, "7", CVAR_ARCHIVE)     // cm: and it fades in over this much further
 QVR_CVAR(vr_ghost_hands_ignore_recoil, "1", CVAR_ARCHIVE)  // 1: the programmatic recoil's kick of the drawn hand (vr_weaponfx.cpp) doesn't count as held off (no ghost from a shot); 0: it does
+QVR_CVAR(vr_ghost_hands_ignore_bodies, "1", CVAR_ARCHIVE)  // 1: no ghost for a hand holding a body (an enemy alive: the foe grab, the judo; a ragdoll, alive or dead: its limb or body); 0: those show it too
 QVR_CVAR(vr_ghost_hands_test_offset, "0", CVAR_NONE)       // test aid (Debug): cm the ghost is moved sideways, so it shows apart from the drawn hand
 QVR_CVAR(vr_heavy_damping_min,"0.8", CVAR_ARCHIVE)        // the least damping ratio of a weapon with a Heft (the struggle's and its own Spring Damping's no lower; 1 critical)
 QVR_CVAR(vr_debug_stamina_hold, "0", CVAR_NONE)          // tests: 1 keeps the game's stamina where it is, or where vr_stamina_set put it (a local game; vr_fatigue.cpp)
@@ -1617,7 +1625,8 @@ QVR_CVAR(vr_gunfx_heat, "1", CVAR_ARCHIVE)             // barrels hot after sust
 // Barrel heat (vr_gunfx.cpp heatShot / heatCool / heatGlow; each weapon's fx_gfx_heat / fx_gfx_cool multipliers):
 QVR_CVAR(vr_gunfx_heat_time, "1", CVAR_ARCHIVE)        // Heat-Up Time: seconds of sustained fire (at the gun's own rate) to full heat (a single shot: at most 0.35 of it; 0.1-10)
 QVR_CVAR(vr_gunfx_cool_time, "3", CVAR_ARCHIVE)        // Cool-Down Time: seconds a barrel at full heat takes to cool once you stop (0.1-20)
-QVR_CVAR(vr_gunfx_heat_glow, "1", CVAR_ARCHIVE)        // Glow Strength: the hot barrel's glow, times (0 none; 0-3)
+QVR_CVAR(vr_gunfx_heat_glow, "1", CVAR_ARCHIVE)        // Glow Strength: the hot barrel's metal's glow (vr_hotblade.cpp), times (0 none; 0-3)
+QVR_CVAR(vr_gunfx_heat_light, "1", CVAR_ARCHIVE)       // Heat Light Strength: the light a glowing barrel casts, following its glow (0 none; 0-3)
 // Muzzle wisps (vr_muzzlewisps.cpp): thin soft lines of smoke trailing off your guns' barrels after you stop firing.
 QVR_CVAR(vr_gunfx_wisps, "1", CVAR_ARCHIVE)            // 0: none
 QVR_CVAR(vr_gunfx_wisp_delay, "0", CVAR_ARCHIVE)    // seconds after the last shot they start (0-3)

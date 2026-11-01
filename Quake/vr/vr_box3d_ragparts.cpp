@@ -719,6 +719,25 @@ float tugRagdoll(edict_t* ent, edict_t* player, int hand, int what, const glm::v
         // The part this hand's hold takes (the tests: the weapon hand's limb, not the support hand's); -1 none.
         return ours ? static_cast<float>(g->part) : -1.f;
     }
+    if(what == 7 || what == 8)
+    {
+        // The tug readout (Show Disarm Volumes): 7 your controller's distance from where its hold holds the limb, 8 the
+        // distance the hold lets go at (syncRagdollGrabs' tugGo; units); -1 none.
+        if(!ours || !r || g->part < 0 || g->part >= r->count || B3_IS_NULL(g->joint) || !b3Joint_IsValid(g->joint))
+        {
+            return -1.f;
+        }
+        if(what == 8)
+        {
+            const float letGo = vr_agrunt_tug_let_go.value > 0.f ? vr_agrunt_tug_let_go.value * 0.01f * world->m2u : g->stuck;
+            return g->tugBack > 0.f ? za::max(letGo, g->stuck) : letGo;
+        }
+        glm::vec3 at;
+        glm::quat turn;
+        handPose(player, g->hand, at, turn);
+        const b3Transform frameB = b3Joint_GetLocalFrameB(g->joint);
+        return glm::distance(world->toU(b3Body_GetWorldPoint(r->body[static_cast<za::SizeT>(g->part)], frameB.p)), at);
+    }
     if(what == 4)
     {
         // This hand lets go, the tug going on (a second hand's hold, or the first's with the second still on).

@@ -630,6 +630,7 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
         row(opt::vr_ghost_hands_fade_from),
         row(opt::vr_ghost_hands_fade_range),
         row(opt::vr_ghost_hands_ignore_recoil),
+        row(opt::vr_ghost_hands_ignore_bodies),
     };
 }
 
@@ -916,6 +917,7 @@ za::Vector<Item> pageWeaponEffects()
         row(opt::vr_gunfx_heat_time),
         row(opt::vr_gunfx_cool_time),
         row(opt::vr_gunfx_heat_glow),
+        row(opt::vr_gunfx_heat_light),
         row(opt::vr_gunfx_wisps),
         row(opt::vr_gunfx_wisp_delay),
         row(opt::vr_gunfx_wisp_time),

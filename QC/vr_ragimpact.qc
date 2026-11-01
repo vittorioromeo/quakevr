@@ -241,6 +241,9 @@ float vr_rsmash_bloods;
 vector vr_rsmash_at;
 float vr_rsmash_strikes;   // and the strikes judged (a body you drive: VR_RagImpact_Hit), the fastest of them
 float vr_rsmash_fastest;
+float vr_rsmash_vol;       // the last smash's volume and strength (0..1)
+float vr_rsmash_t;
+float vr_rimp_last;        // the last strike's damage judged (VR_RagImpact_Hit: Impact Multiplier in)
 void(entity m, vector xAt, float xSpeed, float xExcess, vector xInto) VR_RagSmash =
 {
     if(!cvar_hget(cvarh_vr_ragsmash) || time < m.vr_rsmash_next || xSpeed < cvar_hget(cvarh_vr_ragsmash_min_speed))
@@ -249,7 +252,10 @@ void(entity m, vector xAt, float xSpeed, float xExcess, vector xInto) VR_RagSmas
     }
     m.vr_rsmash_next = time + max(0, cvar_hget(cvarh_vr_ragsmash_cooldown));
     float t = min(1, max(0, xExcess / max(0.1, cvar_hget(cvarh_vr_ragsmash_full_speed))));
-    float vol = min(1, (0.25 + 0.75 * t) * max(0, cvar_hget(cvarh_vr_ragsmash_volume)));
+    // (Over 1 louder than full: SND_LOUD, up to 4. Smash Volume 1.35: his note 2026-11-01, "30, 40% louder".)
+    float vol = min(4, (0.25 + 0.75 * t) * max(0, cvar_hget(cvarh_vr_ragsmash_volume)));
+    vr_rsmash_vol = vol;
+    vr_rsmash_t = t;
     if(vol > 0)
     {
         sound_pitch(m, CHAN_AUTO, "zombie/z_hit.wav", vol, ATTN_NORM, 110 - 22 * t + crandom() * 4);
@@ -299,7 +305,11 @@ void(entity m, vector xAt, float xSpeed, float xMass, float xRaw, float xHeld, v
     float slot = piece + 1; // (the torso 0, the head 1, a limb its joint + 1)
     float least = xHeld ? max(0.25, cvar_hget(cvarh_vr_ragimpact_held_speed)) :
                           max(0.5, cvar_hget(cvarh_vr_ragimpact_min_speed));
-    float dmg = VR_RagImpact_Scale(VR_RagImpact_Amount(xMass, xSpeed - least), piece);
+    // (Impact Multiplier: the damage, and so the head's or limb's wear toward popping, VR_RagImpact_Deal's; his note
+    // 2026-11-01: a bit more effective, x1.15. Under the strike cap, vr_ragimpact_max.)
+    float dmg = VR_RagImpact_Scale(VR_RagImpact_Amount(xMass, xSpeed - least) * max(0, cvar_hget(cvarh_vr_ragimpact_mult)),
+        piece);
+    vr_rimp_last = dmg;
     if(dmg >= 0.5)
     {
         VR_RagSmash(m, xAt, xSpeed, xSpeed - least, xInto); // (its sound and blood: the body's own cooldown, not the piece's gap)

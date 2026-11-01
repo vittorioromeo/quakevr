@@ -12,7 +12,8 @@ namespace
 
 // Sounds made from Quake's own as they load (S_LoadSound, when no file has the name): one of id's recordings played
 // slower, so lower and a little longer. Nothing of id's is shipped or written; a file of the name wins. (The mantle's
-// deeper grunts, vr_climb_mantle_grunt_sound: vr_climb.cpp.)
+// deeper grunts, vr_climb_mantle_grunt_sound: vr_climb.cpp.) Or as it is, under a name of its own: the copy of a sound
+// that is the player's voice in one use and not in another (vr_voice.cpp voiceSounds lists the copy).
 struct DerivedSound
 {
     const char* name;
@@ -23,6 +24,8 @@ struct DerivedSound
 constexpr DerivedSound derivedSounds[] = {
     {"vr/derived/plyrjmp8_low.wav", "player/plyrjmp8.wav", 0.8f}, // the jump's grunt, ~4 semitones down
     {"vr/derived/land2_low.wav", "player/land2.wav", 0.88f},      // a hard landing's, ~2 semitones down
+    {"vr/derived/axhit1_voice.wav", "player/axhit1.wav", 1.f},    // a player hit by a blade or a fist: the thud and
+                                                                  // his grunt, his voice (QC QVR_SOUND_AXHIT_VOICE)
 };
 
 } // namespace
