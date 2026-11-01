@@ -726,6 +726,11 @@ void() VR_SmallGib_TestStrstrofs =
 
 void(float xCase) VR_SmallGib_TestStart =
 {
+    if(xCase == 29)
+    {
+        AD_BuiltinsTest(self); // the other builtins AD imports by name (vr_ad_test.qc; any map)
+        return;
+    }
     if(xCase == 28)
     {
         VR_SmallGib_TestStrstrofs(); // (any map; test 27's name matching once used it)

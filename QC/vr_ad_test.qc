@@ -129,6 +129,99 @@ void(float request, entity p) AD_HealthItemsTest =
     self = os; other = oo;
 };
 
+// vr_smallgibs_test 29 (any map, AD's data not needed: vr_ad_test runs only with it; e1m1's start pins the textures),
+// next to strstrofs' 28: the DP/FTE builtins AD imports by name (ad_builtins.qc; the engine had none, each returned 0:
+// pr_cmds.c "AD support"). One "adbuiltins:" line per case, then the verdict.
+float vr_adb_pass, vr_adb_fail;
+void(string xWhat, float xOk, string xDetail) AD_BuiltinsCheck =
+{
+    if(xOk) vr_adb_pass = vr_adb_pass + 1;
+    else vr_adb_fail = vr_adb_fail + 1;
+    bprint(sprintf("adbuiltins: %s %s: %s\n", xOk ? "PASS" : "FAIL", xWhat, xDetail));
+};
+void(string xWhat, float xGot, float xWant) AD_BuiltinsCheckF =
+{
+    AD_BuiltinsCheck(xWhat, xGot == xWant, sprintf("%g (want %g)", xGot, xWant));
+};
+
+// The world surface nearest the end of a trace from `from` along `dir`: "<texture>" (its sky test as AD's).
+string(string xWhat, vector xFrom, vector xDir, entity p) AD_BuiltinsSurface =
+{
+    traceline(xFrom, xFrom + xDir * 4096, TRUE, p);
+    float s = getsurfacenearpoint(world, trace_endpos);
+    string tex = getsurfacetexture(world, s);
+    float sky = pointcontents(trace_endpos + xDir * 2) == CONTENT_SKY;
+    AD_BuiltinsCheck(sprintf("%s surface found", xWhat), s >= 0 && tex != "",
+        sprintf("surface %g \"%s\" at %v (fraction %g)", s, tex, trace_endpos, trace_fraction));
+    AD_BuiltinsCheck(sprintf("%s sky test agrees with pointcontents", xWhat), (strncasecmp(tex, "SKY", 3) == 0) == sky,
+        sprintf("sky contents %g", sky));
+    return tex;
+};
+
+float(float xNumber, float xQuantity) AD_BuiltinsShift =
+{
+    return bitshift(xNumber, xQuantity);
+};
+
+void(entity p) AD_BuiltinsTest =
+{
+    vr_adb_pass = vr_adb_fail = 0;
+    // bitshift (FTE's): exact (through AD_BuiltinsShift: fteqcc folds a bitshift of constants itself, x86-style)
+    AD_BuiltinsCheckF("bitshift 1 << 4", AD_BuiltinsShift(1, 4), 16);
+    AD_BuiltinsCheckF("bitshift 256 >> 4", AD_BuiltinsShift(256, -4), 16);
+    AD_BuiltinsCheckF("bitshift -16 >> 2", AD_BuiltinsShift(-16, -2), -4);
+    AD_BuiltinsCheckF("bitshift by 0", AD_BuiltinsShift(3, 0), 3);
+    AD_BuiltinsCheckF("bitshift 1 << 23", AD_BuiltinsShift(1, 23), 8388608);
+    AD_BuiltinsCheckF("bitshift truncates", AD_BuiltinsShift(5.9, 1), 10);
+    AD_BuiltinsCheckF("bitshift by 40", AD_BuiltinsShift(1, 40), 0);
+    AD_BuiltinsCheckF("bitshift -1 >> 40", AD_BuiltinsShift(-1, -40), -1);
+    // strncasecmp: -1, 0, 1
+    AD_BuiltinsCheckF("strncasecmp sky1 / SKY 3", strncasecmp("sky1", "SKY", 3), 0);
+    AD_BuiltinsCheckF("strncasecmp skz / sky 3", strncasecmp("skz", "sky", 3), 1);
+    AD_BuiltinsCheckF("strncasecmp abc / abd 2", strncasecmp("abc", "abd", 2), 0);
+    AD_BuiltinsCheckF("strncasecmp abc / abd 3", strncasecmp("abc", "abd", 3), -1);
+    AD_BuiltinsCheckF("strncasecmp ab / abc 3", strncasecmp("ab", "abc", 3), -1);
+    AD_BuiltinsCheckF("strncasecmp len 0", strncasecmp("a", "b", 0), 0);
+    AD_BuiltinsCheckF("strncasecmp empty / empty", strncasecmp("", "", 3), 0);
+    AD_BuiltinsCheckF("strncasecmp *water / sky", strncasecmp("*water1", "SKY", 3), -1);
+    // particleeffectnum: the classic temp entities by DP's names (any case), 0 for the rest
+    AD_BuiltinsCheckF("particleeffectnum TE_EXPLOSION", particleeffectnum("TE_EXPLOSION"), 1);
+    AD_BuiltinsCheckF("particleeffectnum te_teleport", particleeffectnum("te_teleport"), 8);
+    AD_BuiltinsCheckF("particleeffectnum TE_PLASMA (AD's effectinfo)", particleeffectnum("TE_PLASMA"), 0);
+    AD_BuiltinsCheckF("particleeffectnum empty", particleeffectnum(""), 0);
+    // the effects themselves: sent without a crash (pointparticles of each, unknown, no count; te_*; addstat refused)
+    vector o = p.origin + '0 0 64';
+    float i;
+    for(i = 0; i <= 9; i++) pointparticles(i, o, '0 0 1', 2);
+    pointparticles(particleeffectnum("TE_GUNSHOT"), o);
+    pointparticles(particleeffectnum("TE_SPIKE"), o, '0 0 0', 0);
+    te_explosion2(o, 192, 8);
+    te_explosion2(o, 192, 0);
+    te_particlerain(o - '64 64 64', o + '64 64 64', '0 0 -800', 100, 15);
+    te_particlesnow(o - '64 64 64', o + '64 64 64', '0 0 -40', 100, 15);
+    addstat(-1, ad_EV_FLOAT, ad_moditems);
+    AD_BuiltinsCheck("effects sent", TRUE, "pointparticles 0-9, te_explosion2, te_particlerain/snow, addstat");
+    // getsurfacenearpoint / getsurfacetexture on the world: floor, a wall, the sky above
+    makevectors([0, p.angles_y, 0]);
+    string floor = AD_BuiltinsSurface("floor", p.origin, '0 0 -1', p);
+    string wall = AD_BuiltinsSurface("wall", p.origin, v_forward, p);
+    string up = AD_BuiltinsSurface("up", p.origin, '0 0 1', p);
+    if(mapname == "e1m1") // (the faces a brute-force search of e1m1.bsp finds nearest: 5048, 4024, 5036)
+    {
+        AD_BuiltinsCheck("e1m1 floor texture", floor == "+0slipbot", floor);
+        AD_BuiltinsCheck("e1m1 wall texture", wall == "tech08_1", wall);
+        AD_BuiltinsCheck("e1m1 up texture", up == "tech04_3", up);
+        // the sky, as AD's projectiles' sky test sees it: 4 units under e1m1's biggest sky face (335, sky4, z 240)
+        float s = getsurfacenearpoint(world, '160 2824 236');
+        string sky = getsurfacetexture(world, s);
+        AD_BuiltinsCheck("e1m1 sky face", s == 335 && strncasecmp(sky, "SKY", 3) == 0, sprintf("surface %g \"%s\"", s, sky));
+    }
+    AD_BuiltinsCheckF("getsurfacenearpoint on the player (no brush model)", getsurfacenearpoint(p, p.origin), -1);
+    AD_BuiltinsCheck("getsurfacetexture -1", getsurfacetexture(world, -1) == "", getsurfacetexture(world, -1));
+    AD_BuiltinsCheck("getsurfacetexture past the last", getsurfacetexture(world, 1000000) == "", getsurfacetexture(world, 1000000));
+    bprint(sprintf("adbuiltins: %d passed, %d failed\n", vr_adb_pass, vr_adb_fail));
+};
+
 void(float request, entity p) AD_RulesTest =
 {
     if(request >= 142 && request <= 144) { AD_HealthItemsTest(request, p); return; } // AD's health vials and gems

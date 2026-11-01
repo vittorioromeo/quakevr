@@ -5187,3 +5187,35 @@ too, with heat-up and dissipation times, global and per weapon. Quake/vr/vr_gunf
 - **Test**: `vr_smallgibs_test 28` (any map; -QuitOn `strstrofs: N passed`): 21 passed, 0 failed (found at 0, later, not
   found, `>= 0` both ways, offsets at / past the match / past the end / negative, empty strings, strcat, ftos and
   sprintf temps, two temps alive). `vr_smallgibs_test 27` 12 passed, 0 failed.
+
+## AD's 10 unbound builtins (branch `agent/adbuiltins`)
+
+- **What**: the 10 AD `= #0` imports PR_WarnUnboundBuiltins named (each returned 0) are bound, Quake/pr_cmds.c ("AD
+  support"), with DP's/FTE's numbers so other mods' numbered declarations bind too. AD reaches the particle, stat,
+  weather and surface ones only on its extension path (ad_world.qc behind `VR_AD_Extensions`, FALSE in the bridge, and
+  checkextension denies every extension AD asks for), so no AD map plays differently today.
+  - `addstat` (DP's name for clientstat #232): implemented (PF_clientstat; AD's CSQC HUD stats, ad_world.qc).
+  - `bitshift` #218 (FTE): implemented; shifts of 32 or more give 0 (-1 for a negative number shifted right).
+    AD's mathlib/chaos mode use their own QC shifts.
+  - `strncasecmp` #230 (FTE_STRINGS, optional offsets): -1/0/1. `getsurfacenearpoint` #438 / `getsurfacetexture` #437
+    (DP_QC_GETSURFACE, DP's semantics: the point made relative to the entity's origin, no rotation; -1 / "" when no
+    brush model): implemented on the BSP faces (box prune, then the nearest point of the polygon from its edges, so
+    no client-side polys needed). Together they are AD's projectile sky test (ad_subs_soc.qc ad_check_skycontent).
+  - `particleeffectnum` #335 / `pointparticles` #337 (DP_SV_POINTPARTICLES): implemented for DP's built-in names of
+    the classic temp entities (TE_EXPLOSION, TE_GUNSHOT, TE_SPIKE, TE_SUPERSPIKE, TE_WIZSPIKE, TE_KNIGHTSPIKE as
+    svc_particle bursts without the temp entities' sounds, as DP's pointparticles plays none; TE_LAVASPLASH,
+    TE_TELEPORT as their temp entities). Every other name (AD's effectinfo.txt effects: TE_PLASMA, TR_BLOOD,
+    DPP_ITS...) is effect 0, which pointparticles ignores: there is no effectinfo system here.
+  - `te_explosion2` #427: implemented as Quake's TE_EXPLOSION2 (colour length clamped to 1+: the client divides by
+    it). AD: the mammoth boss's explosions.
+  - `te_particlerain` #409 / `te_particlesnow` #410: documented no-ops. DP's temp entities 64/65 aren't in this
+    client or protocol (an unknown type is a Host_Error), and svc_particle can't carry rain's speed (~120 u/s max).
+- **Test**: `vr_smallgibs_test 29` (any map, no AD data needed; vr_ad_test runs only with AD's data, absent from the
+  kit; textures pinned on e1m1; -QuitOn `adbuiltins: N passed`): 34 passed, 0 failed (bitshift and strncasecmp
+  exact; particleeffectnum names; every effect sent without a crash; floor/wall/ceiling at e1m1's start give faces
+  5048 `+0slipbot`, 4024 `tech08_1`, 5036 `tech04_3` and the point under the biggest sky face gives 335 `sky4`, the
+  same faces a brute-force Python search of e1m1.bsp finds; -1 / "" for a non-brush entity and bad indices).
+  `developer 1` on e1m1: no `(#0) not implemented` line (AD's QuakeC is always in progs.dat).
+- **Not tested**: AD maps themselves (AD's data isn't in the kit) and the effects' look (they only differ from the
+  engine's own temp entities in what is sent). Note: on e1m1, pointcontents 4 units above that sky face reads SOLID,
+  not SKY (an engine/map matter, not these builtins).

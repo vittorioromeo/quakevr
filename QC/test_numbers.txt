@@ -542,5 +542,6 @@ vr_smallgibs_test 25       vr_smallgibs_test.qc             (VR_SmallGib_TestImp
 vr_smallgibs_test 26       vr_smallgibs_test.qc             (cos)
 vr_smallgibs_test 27       vr_smallgibs_test.qc             (VR_SmallGib_TestMults: monsters.txt's multipliers)
 vr_smallgibs_test 28       vr_smallgibs_test.qc             (VR_SmallGib_TestStrstrofs: the strstrofs builtin)
+vr_smallgibs_test 29       vr_smallgibs_test.qc             (AD_BuiltinsTest: the other builtins AD imports by name, vr_ad_test.qc)
 
 vr_stealth_test  1+       vr_stealth_test.qc               (findflags)

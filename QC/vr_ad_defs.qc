@@ -135,6 +135,7 @@ void() AD_ArtifactsTick;               // AD_PlayerPostThink: the artifacts' tim
 void() AD_DebuffsTick;                 // AD_PlayerPostThink: AD's debuffs (poison, bleeding; burning is ours)
 #ifdef QVR_TESTS
 void(float request, entity p) AD_RulesTest; // vr_ad_test 10 and up (AD_Test): the follow-ups' tests
+void(entity p) AD_BuiltinsTest; // vr_smallgibs_test 29 (any map, no AD data needed): the builtins AD imports by name
 #endif
 
 // AD's ammo resistance (decision 18; vr_ad_player.qc AD_Resist): the kind of ammunition the damage now dealt is, where
