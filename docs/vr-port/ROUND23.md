@@ -4908,3 +4908,38 @@ The per-monster cvar families that are plain per-classname values are data: 171 
   cvar handles reads monsters.txt's defaults, a value set by the old name, the default back; run: `map e1m1; wait30;
   vr_smallgibs_test 27`, -QuitOn `sgibtest: mults: N passed`) 12 passed, 0 failed.
 - **Next steps**: the monster groups as a `group <id>` table; the named per-weapon families as weapon keys.
+
+
+## The cyan hand hull off; Disarm Leniency; punching the gun in a tug (agent/handhull, his notes 2026-11-01 02:20, 02:21)
+
+- **The cyan hand hull off** ("moves with the enemy animation ... doesn't match anything"). Cause: Show Disarm Volumes
+  makes the hand's hull while the frame draws (between rig2::swapModels and restoreModels), when `cl_entities[n].model`
+  is the authored rig's skinned copy; `drawnpose::armedMesh` asked `hitreact::armsWanted` of that copy (no armed rig:
+  no), so `handPoints` fell back to `hitmodel::vertexPoint`, the .mdl animation frame, whose arms are not posed on the
+  gun. The server's own queries (shots, test 16, frozen) ran outside the drawing and were right. Fix: armedMesh asks
+  `hitreact::armsWantedAs` of its own .mdl (`rig2::sourceModel`); the hand hull is only ever the drawn body (the rig as
+  drawn, or its ragdoll's); neither: no hand volume (the weapon's alone counts; never the animation frame).
+  `disarmhull 15/16` (its source now), `23/24` (the hull Show Disarm Volumes drew last: gap, source + 10 if made while
+  drawn, frames since). Test 16's new hunt phase (a shotgun grunt hunting you, unfrozen, 72 frames, vr_debug_disarm 1):
+  every drawn hand hull from the rig while drawn (0 of 72 not), the server's query from the rig; the drawn grip 1.44
+  units off the hull every frame (the gun's grip point just outside the palm's hull; limit 2.5). Before the fix the
+  render-time source was the frame's on every frame (a diagnostic print: 942 of 942 calls). Test 16: 244 passed, 0 failed.
+- **Disarm Leniency** (Advanced VR Options > Combat > Armed Grunts (Experimental), its first section; Search
+  "leniency"): Grab Leniency (`vr_agrunt_grab_leniency`, cm, 5; was a tunable, now a saved setting), Shot Leniency:
+  Weapon / Hand (`vr_agrunt_vol_shot_weapon` / `_hand`, units), Melee Strike Leniency (`vr_agrunt_vol_strike`), Body
+  Blow Leniency (`vr_agrunt_vol_blow`); the four moved from the Disarming sections. `vr_agrunt_grab_slack` (Grab:
+  Precision) stays a tunable. Calibration boards: 0 missing.
+- **Punching the gun in a tug** (his checklist answer: "the punch seemed to go through the gun"). Cause:
+  VR_AG_PropThink returns once VR_AG_TugFrame handles a tug, so VR_AG_WeaponStruck (where VR_AG_TugStrike was) never
+  ran in a tug; test 92 called WeaponStruck directly. Fix: VR_AG_TugFrame checks VR_AG_TugStrike after its let-go
+  checks. Test 19 (QC/vr_armedgrunt_tugpunch_test.qc): the main hand holds the gun (physical tug), the mock off fist
+  (grip closed) glides 38 units through the gun's drawn middle in 0.2 s: struck free at 6.0 m/s into the main hand,
+  3 passed. Note: the mock's glide gives the off hand about 0.1 m/s at the server (its positions and the melee
+  tracker's swing are right), so the test sets `offhandvel` to the glide's; worth a look (vr_backend_mock.cpp glide).
+- Test 24's blow aims via VR_Hit_SetZone at the gun's drawn hull middle (disarmhull 20): 2 passed. Test 92: 22 passed.
+- Checklist lines:
+  - With Debug > Show Disarm Volumes, a grunt hunting you: the cyan hull sits on its drawn gun hand and forearm as it
+    walks and aims, never floating off with its animation. {test:agrunt_tug}
+  - Combat > Armed Grunts (Experimental) > Disarm Leniency: raise Grab Leniency and grab near (not on) its gun: taken;
+    raise Shot Leniency: Weapon and shoot just past the gun: it counts (magenta hull grows).
+  - Hold its gun with one hand and punch the gun with the other fist: the gun ends in the holding hand. {test:agrunt_tug}
