@@ -152,7 +152,8 @@ vr_agrunt_test   98       vr_armedgrunt_preparry_test.qc   the wind-up parry: yo
 vr_agrunt_test   99       vr_drawnpose_test.qc             the drawn pose: disarm volumes and worn packs on the body as drawn
 vr_agrunt_test   79       vr_stalepose_test.qc             shots on a live armed humanoid's drawn body, VR_AG_Hit's grip spheres on its drawn grip
 vr_agrunt_test   16       vr_disarmhull_test.qc            the disarm volumes as hulls of the drawn triangles: every kind and weapon class
-vr_agrunt_test   100+     vr_armedgrunt_test.qc            one weapon's every-weapon test (100 + its index)
+vr_agrunt_test   100-199  vr_armedgrunt_test.qc            one weapon's every-weapon test (100 + its index)
+vr_agrunt_test   200      vr_armedgrunt_aware_test.qc      disarm attempts on unaware grunts: punch, shots (notarget), parry, blade wake them; dual wield drops the struck one alone
 
 vr_flare_test    1*       vr_flaregun_test.qc              (the self-test (its fall-through))
 vr_flare_test    2-4      vr_flaregun_test.qc              (VR_FLT_Give)

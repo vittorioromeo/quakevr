@@ -1168,8 +1168,9 @@ entity(entity g, vector vel) VR_AG_DropHeld =
     return w;
 };
 
-// Disarmed: the weapon knocked out of its hand (`dir`: the blow's way).
-void(entity g, vector dir, float speed, string why) VR_AG_Disarm =
+// Disarmed by `by`: the weapon in its first slot knocked out of its hand (`dir`: the blow's way); its other hand's kept.
+// `by` (who knocked it, world none): the try's outcome (VR_AG_DisarmTry: it turns on them, staggers).
+void(entity g, entity by, vector dir, float speed, string why) VR_AG_DisarmBy =
 {
     if(!g.vr_ag_prop || VR_AG_Still(g))
     {
@@ -1181,6 +1182,7 @@ void(entity g, vector dir, float speed, string why) VR_AG_Disarm =
     }
     if(VR_AG_TugDisarm(g, why))
     {
+        VR_AG_DisarmTry(g, by, VR_AG_TRY_DISARMED);
         return; // (in a tug: into your holding hand, vr_agrunt_tug_strike: vr_armedgrunt_play.qc)
     }
     dir_z = 0;
@@ -1190,7 +1192,11 @@ void(entity g, vector dir, float speed, string why) VR_AG_Disarm =
     g.vr_ag_disarms = g.vr_ag_disarms + 1; // (its spare rounds: in its pockets, VR_AG_DropHeld)
     VR_AG_DisarmFeedback(g, wid); // (its clatter, its grunt: vr_armedgrunt_play.qc)
     VR_AG_Log(sprintf("disarmed (%s)", why));
+    VR_AG_DisarmTry(g, by, VR_AG_TRY_DISARMED);
 };
+
+// ... by nothing in particular (the tools', the tests' own).
+void(entity g, vector dir, float speed, string why) VR_AG_Disarm = { VR_AG_DisarmBy(g, world, dir, speed, why); };
 
 // Its weapon yours, in `pl`'s hand `h` (a grab: at once, or a tug won).
 void(entity g, entity pl, float h) VR_AG_Yank =
@@ -2931,10 +2937,11 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_AG_Damage
 // T_DamageDeal: a blow on it, near its gun hand and hard enough, knocks its weapon out of it.
 void(entity targ, entity inflictor, entity attacker, float take) VR_AG_Hit =
 {
+    targ.vr_ag_struck_at = time; // (lying: the knock it gives its body is no fall's impact, VR_AG_FallImpact)
     // A thrown thing's way in met its weapon or hand before its body (vr_agrunt_strike_first): its momentum's rule, not
     // the damage's (vr_armedgrunt_parry.qc).
     if(targ.vr_ag && targ.vr_ag_prop && targ.health > 0 && cvar_hget(cvarh_vr_agrunt_disarm) && !vr_agpar_now &&
-       inflictor != attacker && inflictor != world && VR_AG_ThrowOnWeapon(targ, inflictor))
+       inflictor != attacker && inflictor != world && VR_AG_ThrowOnWeapon(targ, inflictor, attacker))
     {
         return;
     }
@@ -2971,7 +2978,7 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_AG_Hit =
     float dis = near <= cvar_hget(cvarh_vr_agrunt_vol_blow);
     if(dis)
     {
-        VR_AG_Disarm(targ, vr_hr_dir, 150, sprintf("a blow of %g on its gun hand", take));
+        VR_AG_DisarmBy(targ, attacker, vr_hr_dir, 150, sprintf("a blow of %g on its gun hand", take));
     }
     if(vr_dv_on)
     {

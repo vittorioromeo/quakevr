@@ -740,6 +740,7 @@ QVR_TUNABLE(vr_adgun_fx_mist, "1") // AD support: a faint green mist lingering w
 QVR_TUNABLE(vr_agrunt_reload_time, "1.5") // seconds a reload takes
 QVR_TUNABLE(vr_agrunt_disarm_damage, "10") // a blow's least damage there to disarm it
 QVR_TUNABLE(vr_agrunt_disarm_swing, "4.5") // m/s a blow (your hand or what it holds) landing on its held weapon must reach to knock it out
+QVR_TUNABLE(vr_agrunt_disarm_stagger, "0.4") // s a disarm (a blow, a shot, a throw) staggers it on its feet (0 none)
 QVR_TUNABLE(vr_agrunt_disarm_throw, "20") // kg m/s a thrown weapon, prop or gib landing on its held weapon must carry (mass x speed) to knock it out
 QVR_TUNABLE(vr_agrunt_down_swing, "3.2") // m/s: lying with its weapon in its hand, a deliberate blow this fast knocks it away (with vr_agrunt_disarm_deliberate; else 0.8)
 QVR_TUNABLE(vr_agrunt_strike_beat, "0.4") // a deliberate strike on its weapon or hand into its raised parry: the chance it beats the parry and disarms it (times the two below)
