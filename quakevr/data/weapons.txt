@@ -317,6 +317,33 @@ defaults
     fx_gfx_wisps "1"
     fx_gfx_heat "1"
     fx_gfx_cool "1"
+    // reloading (the guns' own values: their blocks)
+    reload_port_x "0"
+    reload_port_y "0"
+    reload_port_z "0"
+    reload_port_radius "0"
+    reload_mag_x "0"
+    reload_mag_y "0"
+    reload_mag_z "0"
+    reload_mag_radius "0"
+    reload_well_x "0"
+    reload_well_y "0"
+    reload_well_z "0"
+    reload_well_pitch "0"
+    reload_well_yaw "0"
+    reload_well_roll "0"
+    reload_hold_x "0"
+    reload_hold_y "0"
+    reload_hold_z "0"
+    reload_hold_pitch "0"
+    reload_hold_yaw "0"
+    reload_hold_roll "0"
+    reload_hold_fingers "0"
+    reload_hold_curl_thumb "0.55"
+    reload_hold_curl_index "0.7"
+    reload_hold_curl_middle "0.75"
+    reload_hold_curl_ring "0.8"
+    reload_hold_curl_pinky "0.85"
 }
 
 // slot 0: progs/v_axe.mdl (vr_wofs_*_01)
@@ -559,6 +586,11 @@ weapon 1
     bl_tip_x "-1.0821"
     bl_tip_y "0.1403"
     bl_tip_z "-0.0605"
+    // reloading (was vr_reload_<port|mag|well|hold>_<gun>_*)
+    reload_port_x "0"
+    reload_port_y "0"
+    reload_port_z "0"
+    reload_port_radius "1.6"
 }
 
 // slot 2: progs/v_shot2.mdl (vr_wofs_*_03)
@@ -654,6 +686,11 @@ weapon 2
     fx_rise_deg "18.25"
     fx_return_s "0.265"
     w_heft "0" // super shotgun
+    // reloading (was vr_reload_<port|mag|well|hold>_<gun>_*)
+    reload_port_x "0"
+    reload_port_y "0"
+    reload_port_z "0"
+    reload_port_radius "3.15"
 }
 
 // slot 3: progs/v_nail.mdl (vr_wofs_*_04)
@@ -754,6 +791,33 @@ weapon 3
     fx_rise_deg "2.4375"
     w_heft "0" // nailgun
     fx_punch "0.640513"
+    // reloading (was vr_reload_<port|mag|well|hold>_<gun>_*)
+    reload_port_x "0"
+    reload_port_y "0"
+    reload_port_z "0"
+    reload_port_radius "1.5"
+    reload_mag_x "0"
+    reload_mag_y "0"
+    reload_mag_z "0"
+    reload_mag_radius "0.5"
+    reload_well_x "0"
+    reload_well_y "0"
+    reload_well_z "0"
+    reload_well_pitch "0"
+    reload_well_yaw "0"
+    reload_well_roll "0"
+    reload_hold_x "0"
+    reload_hold_y "0"
+    reload_hold_z "0"
+    reload_hold_pitch "0"
+    reload_hold_yaw "0"
+    reload_hold_roll "0"
+    reload_hold_fingers "0"
+    reload_hold_curl_thumb "0.55"
+    reload_hold_curl_index "0.7"
+    reload_hold_curl_middle "0.75"
+    reload_hold_curl_ring "0.8"
+    reload_hold_curl_pinky "0.85"
 }
 
 // slot 4: progs/v_nail2.mdl (vr_wofs_*_05)
@@ -834,6 +898,33 @@ weapon 4
     fx_rise_deg "4.91606"
     w_heft "0" // super nailgun
     fx_punch "0.644016"
+    // reloading (was vr_reload_<port|mag|well|hold>_<gun>_*)
+    reload_port_x "0"
+    reload_port_y "0"
+    reload_port_z "0"
+    reload_port_radius "1.5"
+    reload_mag_x "0"
+    reload_mag_y "0"
+    reload_mag_z "0"
+    reload_mag_radius "0.5"
+    reload_well_x "0"
+    reload_well_y "0"
+    reload_well_z "0"
+    reload_well_pitch "0"
+    reload_well_yaw "0"
+    reload_well_roll "0"
+    reload_hold_x "0"
+    reload_hold_y "0"
+    reload_hold_z "0"
+    reload_hold_pitch "0"
+    reload_hold_yaw "0"
+    reload_hold_roll "0"
+    reload_hold_fingers "0"
+    reload_hold_curl_thumb "0.55"
+    reload_hold_curl_index "0.7"
+    reload_hold_curl_middle "0.75"
+    reload_hold_curl_ring "0.8"
+    reload_hold_curl_pinky "0.85"
 }
 
 // slot 5: progs/v_rock.mdl (vr_wofs_*_06)
@@ -920,6 +1011,11 @@ weapon 5
     fx_rise_deg "22.5"
     fx_return_s "0.315"
     w_heft "0" // grenade launcher
+    // reloading (was vr_reload_<port|mag|well|hold>_<gun>_*)
+    reload_port_x "0"
+    reload_port_y "0"
+    reload_port_z "0"
+    reload_port_radius "2.1"
 }
 
 // slot 6: progs/v_rock2.mdl (vr_wofs_*_07)
@@ -1006,6 +1102,11 @@ weapon 6
     fx_return_s "0.265"
     w_heft "0.6" // rocket launcher
     w_hrecoil "1.5"
+    // reloading (was vr_reload_<port|mag|well|hold>_<gun>_*)
+    reload_port_x "0"
+    reload_port_y "0"
+    reload_port_z "0"
+    reload_port_radius "2.5"
 }
 
 // slot 7: progs/v_light.mdl (vr_wofs_*_08)
@@ -1108,6 +1209,33 @@ weapon 7
     fx_return_s "0.07"
     w_heft "0" // thunderbolt
     fx_punch "0.62411"
+    // reloading (was vr_reload_<port|mag|well|hold>_<gun>_*)
+    reload_port_x "0"
+    reload_port_y "0"
+    reload_port_z "0"
+    reload_port_radius "1.5"
+    reload_mag_x "0"
+    reload_mag_y "0"
+    reload_mag_z "0"
+    reload_mag_radius "0.5"
+    reload_well_x "0"
+    reload_well_y "0"
+    reload_well_z "0"
+    reload_well_pitch "0"
+    reload_well_yaw "0"
+    reload_well_roll "0"
+    reload_hold_x "0"
+    reload_hold_y "0"
+    reload_hold_z "0"
+    reload_hold_pitch "0"
+    reload_hold_yaw "0"
+    reload_hold_roll "0"
+    reload_hold_fingers "0"
+    reload_hold_curl_thumb "0.55"
+    reload_hold_curl_index "0.7"
+    reload_hold_curl_middle "0.75"
+    reload_hold_curl_ring "0.8"
+    reload_hold_curl_pinky "0.85"
 }
 
 // slot 8: progs/v_hammer.mdl (vr_wofs_*_09)
@@ -1371,6 +1499,11 @@ weapon 10
     fx_rise_deg "22.5"
     fx_return_s "0.315"
     w_heft "0" // proximity gun
+    // reloading (was vr_reload_<port|mag|well|hold>_<gun>_*)
+    reload_port_x "0"
+    reload_port_y "0"
+    reload_port_z "0"
+    reload_port_radius "2.1"
 }
 
 // slot 11: progs/v_lava.mdl (vr_wofs_*_12)
@@ -3419,6 +3552,11 @@ weapon 33
     w_len "60"
     torch_clip "0"
     w_heft "0" // Shadow Axe
+    // reloading (was vr_reload_<port|mag|well|hold>_<gun>_*)
+    reload_port_x "0"
+    reload_port_y "0"
+    reload_port_z "0"
+    reload_port_radius "1.4"
 }
 
 // slot 34: progs/v_shot3.mdl#vr (vr_wofs_*_35)
@@ -3498,6 +3636,17 @@ weapon 34
     stock_pitch "-1"
     w_heft "0.6" // Widowmaker
     w_hrecoil "1.5"
+    // reloading (was vr_reload_<port|mag|well|hold>_<gun>_*)
+    reload_port_x "0"
+    reload_port_y "0"
+    reload_port_z "0"
+    reload_port_radius "1.5"
+    reload_well_x "0"
+    reload_well_y "0"
+    reload_well_z "0"
+    reload_well_pitch "0"
+    reload_well_yaw "0"
+    reload_well_roll "0"
 }
 
 // slot 35: progs/v_plasma.mdl#vr (vr_wofs_*_36)
@@ -3571,6 +3720,33 @@ weapon 35
     fx_flash_size "0.7"
     w_heft "0" // AD plasma gun
     fx_punch "0.639799"
+    // reloading (was vr_reload_<port|mag|well|hold>_<gun>_*)
+    reload_port_x "0"
+    reload_port_y "0"
+    reload_port_z "1.5"
+    reload_port_radius "1"
+    reload_mag_x "0"
+    reload_mag_y "0"
+    reload_mag_z "0"
+    reload_mag_radius "0.5"
+    reload_well_x "0"
+    reload_well_y "0"
+    reload_well_z "0"
+    reload_well_pitch "0"
+    reload_well_yaw "0"
+    reload_well_roll "0"
+    reload_hold_x "0"
+    reload_hold_y "0"
+    reload_hold_z "0"
+    reload_hold_pitch "0"
+    reload_hold_yaw "0"
+    reload_hold_roll "0"
+    reload_hold_fingers "0"
+    reload_hold_curl_thumb "0.55"
+    reload_hold_curl_index "0.7"
+    reload_hold_curl_middle "0.75"
+    reload_hold_curl_ring "0.8"
+    reload_hold_curl_pinky "0.85"
 }
 
 // slot 36: progs/v_nailpistol.mdl (vr_wofs_*_37)
@@ -3776,6 +3952,11 @@ weapon 37
     stock_pitch "0"
     w_heft "0"
     fx_punch "0.640513"
+    // reloading (was vr_reload_<port|mag|well|hold>_<gun>_*)
+    reload_port_x "0"
+    reload_port_y "0"
+    reload_port_z "0"
+    reload_port_radius "2"
 }
 
 // slot 38: progs/v_revolver.mdl (vr_wofs_*_39)

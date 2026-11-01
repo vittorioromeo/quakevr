@@ -47,7 +47,8 @@ constexpr int settingsVersion = 68;
 
 // Every slot's values, from quakevr/data/props.txt (registerCvars), with the player's changes over them (the config's
 // vr_prop_<key>_NN lines): stand-ins, not cvars.
-DataTable<Key, numSlots, numKeys> slots;
+cvar_t standIns[numSlots * numKeys]{};
+DataTable<Key, numSlots, numKeys> slots{standIns};
 
 
 [[nodiscard]] cvar_t& cvarAt(int slot, Key key)

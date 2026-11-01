@@ -26,6 +26,11 @@
 
 #include <string.h>
 
+namespace qvr
+{
+cvar_t weaponStandIns[weaponSlotCount * weaponKeyCount]{}; // (the weapon table's: vr_cvars.hpp)
+} // namespace qvr
+
 namespace qvr::weapons
 {
 namespace
@@ -40,8 +45,24 @@ constexpr const char* keyNames[numKeys] = {
 };
 
 // Every slot's values, from quakevr/data/weapons.txt (loadTable), with the player's changes over them (the config's
-// vr_wofs_<key>_NN lines): stand-ins named vr_wofs_<key>_NN, not cvars (vr_slottable.hpp DataTable).
-DataTable<Key, numSlots, numKeys> slots;
+// vr_wofs_<key>_NN lines): stand-ins named vr_wofs_<key>_NN, not cvars (vr_slottable.hpp DataTable); the named values
+// (vr_weaponvalues.inc) by their old cvar names. Their storage is qvr::weaponStandIns (vr_cvars.hpp: those names are
+// references into it).
+static_assert(numSlots == weaponSlotCount && numKeys == weaponKeyCount);
+DataTable<Key, numSlots, numKeys> slots{weaponStandIns};
+
+// The named values (vr_weaponvalues.inc): slot, key and old cvar name.
+struct NamedValue
+{
+    int slot;
+    Key key;
+    const char* name;
+};
+constexpr NamedValue namedValues[] = {
+#define QVR_WEAPON_VALUE(name, slot, key) {slot, Key::key, #name},
+#include "vr_weaponvalues.inc"
+#undef QVR_WEAPON_VALUE
+};
 
 
 [[nodiscard]] cvar_t& cvarAt(int slot, Key key)
@@ -288,10 +309,22 @@ constexpr OldValue changedIn48[] = {
     {32, Key::ShotYaw, 0.f}, {32, Key::Mass, 6.f}, {32, Key::Balance, 25.f},
     {32, Key::Flash, 1.f}, {32, Key::StockPitch, 0.f}, {32, Key::TorchForward, 0.f}};
 
+// A reload key (the named values' keys, vr_weaponvalues.inc: each gun's load point, magazine, well and magazine grip). As
+// when they were cvars of their own, the slot's whole-slot steps leave them: no reset of the slot (a migration step, the
+// menu's reset), no inheriting.
+[[nodiscard]] bool reloadKey(Key key)
+{
+    return key >= Key::ReloadPortX && key <= Key::ReloadHoldCurlPinky;
+}
+
 void resetSlot(int slot)
 {
     for(int key = 0; key < numKeys; key++)
     {
+        if(reloadKey(static_cast<Key>(key)))
+        {
+            continue;
+        }
         cvar_t& var = cvarAt(slot, static_cast<Key>(key));
         Cvar_SetQuick(&var, var.default_string);
     }
@@ -1095,6 +1128,12 @@ void registerCvars()
     {
         Con_Printf("\x02No %s in the game folder: every weapon's settings are 0 (reinstall the game)\n", spec.path);
     }
+    // The named values go by their old cvar names (the config's lines, the menus' rows, the QC's handles); their
+    // vr_wofs_<key>_NN names still find them.
+    for(const NamedValue& v : namedValues)
+    {
+        slots.rename(v.slot, v.key, v.name);
+    }
     for(int slot = 0; slot < numSlots; slot++)
     {
         oldRecoil[slot] = oldRecoilDefault(slot); // (the old recoil values at their old defaults)
@@ -1120,7 +1159,8 @@ void registerCvars()
 
 cvar_t* findStandIn(const char* name)
 {
-    return q_strncasecmp(name, "vr_wofs_", 8) == 0 ? slots.find(name) : nullptr;
+    // (vr_wofs_<key>_NN, or a named value's old name: vr_reload_port_nail_x, ...)
+    return q_strncasecmp(name, "vr_", 3) == 0 ? slots.find(name) : nullptr;
 }
 
 bool setStandIn(cvar_t* var, const char* value)
@@ -1299,7 +1339,7 @@ namespace
 {
 [[nodiscard]] bool inPart(Key key, Part part)
 {
-    return part == Part::All || (part == Part::Weights) == weightKey(key);
+    return !reloadKey(key) && (part == Part::All || (part == Part::Weights) == weightKey(key)); // (reload keys: their own pages)
 }
 } // namespace
 
@@ -1696,7 +1736,7 @@ bool inheritable(Key key)
         case Key::TwoHHandAnchor:
         case Key::WpnTextAnchor:
         case Key::WpnButtonAnchor: return false;
-        default: return !retired(key);
+        default: return !retired(key) && !reloadKey(key); // (a reload key: each gun's own, never a parent's)
     }
 }
 
