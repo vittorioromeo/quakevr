@@ -41,6 +41,30 @@ float() VR_AGAI_Reaction = { return max(0, cvar_hget(cvarh_vr_agrunt_ai_reaction
 float() VR_AGAI_Retreat = { return max(0, cvar_hget(cvarh_vr_agrunt_ai_retreat)) * VR_AGAI_Skill(0.85, 1.15, 1.3); };
 float() VR_AGAI_FireRate = { return max(0.05, max(0, cvar_hget(cvarh_vr_agrunt_ai_firerate)) * VR_AGAI_Skill(0.9, 1.15, 1.15)); };
 
+// The movement speed sliders (his voice note 2026-11-01 18:34): every step times vr_agrunt_speed; of a step `yaw` from its
+// facing, the part backwards times vr_agrunt_speed_back and the part sideways times vr_agrunt_speed_strafe (an ellipse: a
+// step at a slant blends them; all three 1: as before).
+float() VR_AG_Speed = { return max(0, cvar_hget(cvarh_vr_agrunt_speed)); };
+float(float yaw) VR_AG_StepDir =
+{
+    if(cvar_hget(cvarh_vr_agrunt_speed_back) == 1 && cvar_hget(cvarh_vr_agrunt_speed_strafe) == 1)
+    {
+        return 1; // (exactly: its steps as before)
+    }
+    float a = (yaw - self.angles_y) * 0.017453292;
+    float f = cos(a);
+    float s = sin(a) * max(0, cvar_hget(cvarh_vr_agrunt_speed_strafe));
+    if(f < 0)
+    {
+        f = f * max(0, cvar_hget(cvarh_vr_agrunt_speed_back));
+    }
+    return sqrt(f * f + s * s);
+};
+
+// An armed humanoid's step of `d` along `yaw` by its speed sliders (walkmove's: TRUE taken; never off a ledge nor into a
+// wall). Every step of its own goes so (vr_armedgrunt.qc; ai.qc ai_run's chase and strafe by the same factors).
+float(float yaw, float d) VR_AG_Walk = { return walkmove(yaw, d * VR_AG_Speed() * VR_AG_StepDir(yaw)); };
+
 // The fighting distances' press by aggressiveness (1 at 1; nearer as it rises).
 float() VR_AGAI_Press = { return 2 / (1 + VR_AGAI_Aggression()); };
 

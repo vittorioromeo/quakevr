@@ -28,6 +28,7 @@ float VR_AGPAR_FOV = 70;         // degrees either side of its facing: an attack
 float VR_AGPAR_MARK = 0.3;       // s: a parried motion's later blows on it are that parry's
 float VR_AGPAR_SWING = 1.2;      // m/s: a held weapon swung at it this fast (closing on its chest) is a blow coming
 vector VR_AGPAR_CHEST = '2 0 14'; // its chest (the poses' body space: the grunt's)
+float VR_AGPAR_OWN_DROP = 8;     // /s: its own blow begun, a raised parry's share falls this fast (out in 0.125 s; else 3)
 // ... on its own body (body space: an enforcer's fitted, VR_AM_Fit).
 vector(entity g) VR_AGPar_Chest = { return VR_AM_Fit(g, VR_AGPAR_CHEST); };
 
@@ -1101,7 +1102,10 @@ void(entity g) VR_AGPar_Frame =
     {
         g.vr_agpar_since = 0;
     }
-    g.vr_agpar_w = VR_AGP_Ease(g.vr_agpar_w, up ? 1 : 0, up ? 9 : 3);
+    // Its own blow under way (a swing, a punch, a thrust, a cast: VR_AG_Striking): a parry raised before it goes out
+    // quickly and none rises, its weapon on the blow's keys alone (his voice note 2026-11-01 18:17: "keep the rotation
+    // of the weapon fairly stable and not try to adapt to my melee weapon orientation to parry").
+    g.vr_agpar_w = VR_AGP_Ease(g.vr_agpar_w, up ? 1 : 0, up ? 9 : VR_AG_Striking(g) ? VR_AGPAR_OWN_DROP : 3);
 };
 
 // The parry's pose (VR_AGP_Pose, after its weapon's own: before a blade's tilt), its share vr_agpar_w: the held weapon's

@@ -5394,6 +5394,40 @@ melee_phase 7/0, arena 6 8/0), and before agent/ghosthand prop_climb and melee_p
 - **For the kit (coordinator)**: the console cases (arena_*, agrunt_*) run with the clock's seed; `sv_random_seed 7`
   before their map would make them repeat.
 
+
+## Armed humanoid tuning batch (agent/agtune; his voice notes 2026-11-01 18:11-18:52)
+
+- Fire rate: an armed humanoid's AD Plasma Gun fires no faster than yours: `AD_PLASMAGUN_REFIRE` (0.2 s, vr_ad_defs.qc)
+  is now the one number for both (W_Fire_Lightning; QC `VR_AG_FireInterval` / `VR_AG_RefireReady`: a gun whose player
+  interval is longer than a fire frame's 0.1 s skips fire frames until it is due; every other gun as before).
+- Reload: `vr_agrunt_reload_ssg` (Tunables, 0.85): the double-barrelled shotgun's reload is that share of
+  vr_agrunt_reload_time (`VR_AG_ReloadTime`: the load frames and the pose's reload keys).
+- Speed sliders (Combat > Armed Humanoids' AI Behaviour > Movement): `vr_agrunt_speed`, `vr_agrunt_speed_back`,
+  `vr_agrunt_speed_strafe` (all 1). Every step of theirs goes through `VR_AG_Walk` (vr_armedgrunt_ai.qc): the step times
+  the speed, its backward part times Backpedal, its sideways part times Strafe (an ellipse); ai.qc ai_run scales the
+  chase by the speed and ai_run_slide's strafe by the same factor. At 1/1/1 the steps are exactly as before.
+- Swing steady: the parry pose could not rise during its own blow already (VR_AGPar_Able: "swinging itself"), but a
+  parry or guard raised just before its swing went out over 1/3 s (rate 3), so the slowed swing's start turned towards
+  your weapon. Now it goes out at `VR_AGPAR_OWN_DROP` (8/s: 0.125 s) once its own blow is under way.
+- Death knight's cast: the volley fires as his magicc frames sweep it, six fireballs a tenth of a second apart (a
+  caster entity, `VR_AGP_CastTick`; a gun's from its muzzle as drawn each time). All six at once from one point burst
+  on each other (two left).
+- Armour on map spawns: `VR_AgArmor_Spawn` rolled by the `skill` global, which StartFrame sets: a map's own monsters
+  spawn before the first frame and read 0 (Easy: chance 0). It reads the skill cvar now. e1m2 on Nightmare: 10 of 16
+  armoured (0.62; vr_agarmor_skill3 0.6); before: none.
+- Test: `vr_agtune_test 1` (vrtesthall; Debug > Tests > Armed Humanoid Tuning), `vr_agtune_test 2` (a loaded map's
+  armour share). The Plasma Gun case skips without AD's data (the test bases have none).
+- Checklist:
+  - Armed humanoids: an AD Plasma Gun grunt fires at your Plasma Gun's rate (5 a second), not twice that.
+    {test:agrunt_ammo}
+  - Armed humanoids: a double-barrelled shotgun grunt's reload is shorter than the others' (Debug > Tunables > Super
+    Shotgun Reload 0.85).
+  - Combat > Armed Humanoids' AI Behaviour > Movement: Movement Speed, Backpedal Speed and Strafe Speed change how fast
+    they run, back off and circle you.
+  - Enemy Melee Speed 0.3: raise your sword as a grunt starts its swing: its sword follows its own swing, not your
+    blade. {test:dirparry_show}
+  - A death knight holding a gun casts the full fan of six fireballs, one after another.
+  - Nightmare, a map with grunts (e1m2): about 6 in 10 armed humanoids wear armour.
 ## Disarm attempts wake and stagger; a dual wielder loses only the struck weapon (branch `agent/disarmaware`)
 
 His notes 2026-11-01 18:03-18:46: a shot weapon or a parried strike left an unaware (or notarget) grunt calm; a disarm

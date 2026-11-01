@@ -740,6 +740,7 @@ QVR_TUNABLE_SLIDER(vr_adgun_fx_mist, "Lingering Poison Mist", 0.0f, 3.0f, 0.25f,
 
 QVR_TUNABLE_GROUP("Combat > Armed Grunts (Experimental)")
 QVR_TUNABLE_SLIDER(vr_agrunt_reload_time, "Reload Time", 0.2f, 5.0f, 0.1f, "%.1f s", 0.0f, 20.0f, "How long it stands reloading (vr_agrunt_reload_time).")
+QVR_TUNABLE_SLIDER(vr_agrunt_reload_ssg, "Super Shotgun Reload", 0.25f, 2.0f, 0.05f, "%.2fx", 0.05f, 5.0f, "The double-barrelled shotgun's reload takes this share of the Reload Time (0.85: 15% faster) (vr_agrunt_reload_ssg).")
 QVR_TUNABLE_SLIDER(vr_agrunt_disarm_damage, "Disarming Blow", 1.0f, 50.0f, 1.0f, "%.0f damage", 0.0f, 500.0f, "A blow's least damage on its gun hand to disarm it (vr_agrunt_disarm_damage).")
 QVR_TUNABLE_SLIDER(vr_agrunt_disarm_swing, "Blow on Its Weapon", 1.0f, 10.0f, 0.25f, "%.2f m/s", 0.0f, 50.0f, "How fast your hand (a punch, or the weapon it holds) must be going when it lands on the weapon an armed grunt holds to knock it out of its hands, along the blow. A melee hit lands from 3.2 m/s (vr_melee_speed): 4.5 is a deliberate hard swing (vr_agrunt_disarm_swing).")
 QVR_TUNABLE_SLIDER(vr_agrunt_disarm_stagger, "Disarmed: Stagger", 0.0f, 2.0f, 0.05f, "%.2f s", 0.0f, 3.0f, "How long a disarm (a blow, a shot or a throw knocking its weapon away) staggers it on its feet; any try at its weapon makes it turn on you (vr_agrunt_disarm_stagger).")

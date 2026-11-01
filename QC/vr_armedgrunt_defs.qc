@@ -13,6 +13,7 @@
 .float vr_ag_reserve;      // its rounds beyond the clip in the gun (vr_agrunt_reserve clips at its spawn)
 .float vr_ag_kick;         // the held weapon's recoil, 1 at a shot, dying out (drawn: the prop)
 .float vr_ag_kick_at;      // when it last fired
+.float vr_ag_refire_at;    // (a held weapon) its next shot no sooner (VR_AG_RefireReady: the player's interval)
 .float vr_ag_swing_at;     // when its last swing (a melee blow) began
 .float vr_ag_seek_next;    // disarmed: when it next looks for a weapon
 .entity vr_ag_seek;        // the weapon lying about it goes for (world: none)
@@ -52,6 +53,8 @@ float() VR_AG_CheckAttack;                                                 // ai
 void() VR_AGAI_React;                                                      // ai.qc HuntTarget: its reaction time (vr_armedgrunt_ai.qc)
 float vr_agai_reacts;                                                      // ... the times it ran (the tests)
 float(float dist) VR_AG_RangeMove;                                         // ai.qc ai_run: its fighting distance kept (TRUE: moved)
+float() VR_AG_Speed;                                                       // ai.qc ai_run: its steps by its speed sliders (vr_armedgrunt_ai.qc)
+float(float yaw) VR_AG_StepDir;                                            // ... a step's backpedal and strafe factor
 float(entity targ, entity inflictor, entity attacker, float damage) VR_AG_DamageScale; // T_DamageDeal: its weapon's damage to players
 void(entity targ, entity inflictor, entity attacker, float take) VR_AG_Hit; // T_DamageDeal: a hit on it (disarming)
 float() VR_AG_SoldierDrop;                                                 // SoldierDrop: its own loot (TRUE: done)

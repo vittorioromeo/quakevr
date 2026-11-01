@@ -1112,7 +1112,9 @@ void() ai_run_slide =
     else
         ofs = -90;
 
-    if(walkmove(self.ideal_yaw + ofs, movedist))
+    // QVR: an armed humanoid's strafe by its strafe speed (vr_agrunt_speed_strafe: vr_armedgrunt_ai.qc VR_AG_StepDir)
+    float sideStep = self.vr_ag ? movedist * VR_AG_StepDir(self.ideal_yaw + ofs) : movedist;
+    if(walkmove(self.ideal_yaw + ofs, sideStep))
         return;
 
     // QVR: Dawn of the Machine's orb gives up a blocked strafe: the other way next time, straight at you now (upstream).
@@ -1126,7 +1128,7 @@ void() ai_run_slide =
 
     self.lefty = 1 - self.lefty;
 
-    walkmove(self.ideal_yaw - ofs, movedist);
+    walkmove(self.ideal_yaw - ofs, sideStep);
 };
 
 //MED
@@ -1304,6 +1306,12 @@ void(float dist) ai_run =
     // VR: an armed humanoid with a gun keeps its weapon's fighting distance (vr_armedgrunt.qc, vr_agrunt_range).
     if(self.vr_ag && VR_AG_RangeMove(dist))
         return;
+    if(self.vr_ag)
+    {
+        // VR: its speed sliders (vr_agrunt_speed; a strafe's own below: vr_armedgrunt_ai.qc VR_AG_Walk)
+        dist = dist * VR_AG_Speed();
+        movedist = dist;
+    }
 
     if(self.attack_state == AS_SLIDING)
     {

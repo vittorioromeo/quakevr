@@ -156,6 +156,18 @@ float(float wid, entity inst) VR_AG_SpareClips =
     return 2;
 };
 
+// How long `g`'s reload takes (its load frames, its pose's reload keys): vr_agrunt_reload_time, the double-barrelled
+// shotgun's times vr_agrunt_reload_ssg (his voice note 2026-11-01 18:11: "a little bit too long ... 15% faster").
+float(entity g) VR_AG_ReloadTime =
+{
+    float t = max(0.02, cvar_hget(cvarh_vr_agrunt_reload_time));
+    if(g.vr_ag_prop && g.vr_ag_prop.weapon == WID_SUPER_SHOTGUN)
+    {
+        t = t * max(0.05, cvar_hget(cvarh_vr_agrunt_reload_ssg));
+    }
+    return t;
+};
+
 // The rounds beyond its magazine an armed monster spawns with for `wid` (record `inst`): VR_AG_SpareClips magazines,
 // times vr_agrunt_reserve / 2. Single-use guns too: it reloads them from its own spare magazines (dropped, the gun has
 // only its clip: your ammo never fills it).
@@ -305,7 +317,7 @@ float(float yaw, float d) VR_AG_RangeStep =
     {
         return FALSE;
     }
-    return walkmove(yaw, d);
+    return VR_AG_Walk(yaw, d);
 };
 
 // ----------------------------------------------------------------------------
@@ -405,7 +417,7 @@ float(float dist) VR_AG_MeleeSpaceMove =
         return TRUE; // (at its standoff, or you stepped in: it holds its ground)
     }
     float step = min(dist * max(0, cvar_hget(cvarh_vr_agrunt_mspace_speed)), d - s);
-    if(step > 0.25 && walkmove(self.ideal_yaw, step))
+    if(step > 0.25 && VR_AG_Walk(self.ideal_yaw, step))
     {
         vr_ag_msp_closes = vr_ag_msp_closes + 1;
         return TRUE;
@@ -527,7 +539,7 @@ float(float dist) VR_AG_ShoveCloseIn =
     ChangeYaw(); // (facing you: its shove wants you ahead)
     float reach = VR_EnemyShove_Reach(self);
     float step = min(dist, d - (reach - 12)); // (into its reach, a little inside it)
-    if(step > 0.5 && walkmove(self.ideal_yaw, step))
+    if(step > 0.5 && VR_AG_Walk(self.ideal_yaw, step))
     {
         vr_ag_close_steps = vr_ag_close_steps + 1;
         self.vr_ag_rback = 0;
@@ -2272,6 +2284,34 @@ void() VR_AG_AfterAttack =
     vr_ag_run1();
 };
 
+// The player's own shot interval of the gun `p` where it is longer than a fire frame's tenth of a second (0: every fire
+// frame): AD's Plasma Gun's (his voice note 2026-11-01 18:11: "make it the same as the player").
+float(entity p) VR_AG_FireInterval =
+{
+    if(p.weapon == WID_LIGHTNING && !(p.weaponflags & QVR_WPNFLAG_USE_SECONDARY_AMMO) && AD_PlasmaGunInst(p.weaponinst))
+    {
+        return AD_PLASMAGUN_REFIRE;
+    }
+    return 0;
+};
+
+// The gun `p` may fire on this fire frame (its interval since its last shot: VR_AG_FireInterval); TRUE: its next one
+// no sooner than that.
+float(entity p) VR_AG_RefireReady =
+{
+    float iv = VR_AG_FireInterval(p);
+    if(iv <= 0)
+    {
+        return TRUE;
+    }
+    if(time < p.vr_ag_refire_at - 0.01)
+    {
+        return FALSE;
+    }
+    p.vr_ag_refire_at = time + iv;
+    return TRUE;
+};
+
 // A fire frame `n` (1..9: shoot1..9) of its attack.
 void(float n) VR_AG_AtkFrame =
 {
@@ -2289,7 +2329,10 @@ void(float n) VR_AG_AtkFrame =
     }
     if(c == VR_AG_CLASS_AUTO && n >= 4 && n <= 8)
     {
-        VR_AG_Shoot();
+        if(VR_AG_RefireReady(p))
+        {
+            VR_AG_Shoot();
+        }
     }
     else if(c == VR_AG_CLASS_BURST && n >= 5 && n <= 7)
     {
@@ -2305,8 +2348,15 @@ void(float n) VR_AG_AtkFrame =
     if(q && VR_AG_DualGuns(self))
     {
         float c2 = VR_AG_Class(q.weapon);
-        if((c2 == VR_AG_CLASS_AUTO && n >= 4 && n <= 8) || (c2 == VR_AG_CLASS_BURST && n >= 6 && n <= 8) ||
-           (n == 7 && (c2 == VR_AG_CLASS_GUN || c2 == VR_AG_CLASS_EXPLOSIVE)))
+        if(c2 == VR_AG_CLASS_AUTO && n >= 4 && n <= 8)
+        {
+            if(VR_AG_RefireReady(q))
+            {
+                VR_AG_ShootProp(q);
+            }
+        }
+        else if((c2 == VR_AG_CLASS_BURST && n >= 6 && n <= 8) ||
+                (n == 7 && (c2 == VR_AG_CLASS_GUN || c2 == VR_AG_CLASS_EXPLOSIVE)))
         {
             VR_AG_ShootProp(q);
         }
@@ -2355,7 +2405,7 @@ void() vr_ag_swing6 = { VR_AM_Anim(VR_AM_A_SHOVE, 5, vr_ag_swing6); VR_AG_AfterA
 // The reload: the grunt's load frames (unused by id's), over vr_agrunt_reload_time; a clip out of its reserve at the end.
 void() VR_AG_ReloadFrame =
 {
-    self.nextthink = time + max(0.02, cvar_hget(cvarh_vr_agrunt_reload_time)) / 11;
+    self.nextthink = time + VR_AG_ReloadTime(self) / 11;
     if(self.enemy)
     {
         VR_AG_WalkFire(self.nextthink - time, FALSE); // (stepping back as it reloads, nearer than its best)
@@ -2612,11 +2662,11 @@ void(float d) VR_AG_Run =
         }
         self.ideal_yaw = vectoyaw(w.origin - self.origin);
         ChangeYaw();
-        if(!walkmove(self.ideal_yaw, d))
+        if(!VR_AG_Walk(self.ideal_yaw, d))
         {
             entity oldGoal = self.goalentity;
             self.goalentity = w;
-            movetogoal(d);
+            movetogoal(d * VR_AG_Speed()); // (its speed: VR_AG_Walk)
             self.goalentity = oldGoal;
         }
         return;
@@ -2637,9 +2687,9 @@ void(float d) VR_AG_Run =
         // Away from a mine (its own blows at anything near).
         self.ideal_yaw = vectoyaw(self.origin - mine.origin);
         ChangeYaw();
-        if(!walkmove(self.ideal_yaw, d))
+        if(!VR_AG_Walk(self.ideal_yaw, d))
         {
-            walkmove(self.ideal_yaw + (self.lefty ? 60 : -60), d);
+            VR_AG_Walk(self.ideal_yaw + (self.lefty ? 60 : -60), d);
         }
         return;
     }
@@ -2648,10 +2698,10 @@ void(float d) VR_AG_Run =
         // A friend in its line of fire: a step aside for a clear one, facing its target (VR_AG_FriendHold); blocked, the
         // other way.
         ai_face();
-        if(!walkmove(self.angles_y + (self.lefty ? 90 : -90), d))
+        if(!VR_AG_Walk(self.angles_y + (self.lefty ? 90 : -90), d))
         {
             self.lefty = !self.lefty;
-            walkmove(self.angles_y + (self.lefty ? 90 : -90), d);
+            VR_AG_Walk(self.angles_y + (self.lefty ? 90 : -90), d);
         }
         return;
     }
@@ -2660,10 +2710,10 @@ void(float d) VR_AG_Run =
     {
         // A step aside (its last shot wasn't clear), facing its target.
         ai_face();
-        if(!walkmove(self.angles_y + (self.lefty ? 90 : -90), d))
+        if(!VR_AG_Walk(self.angles_y + (self.lefty ? 90 : -90), d))
         {
             self.lefty = !self.lefty;
-            walkmove(self.angles_y + 180, d * 0.5);
+            VR_AG_Walk(self.angles_y + 180, d * 0.5);
         }
         return;
     }
@@ -2675,11 +2725,11 @@ void(float d) VR_AG_Run =
     {
         // Backing off: its own blast would reach it (cornered: along the wall, either way).
         ai_face();
-        if(!walkmove(self.angles_y + 180 + (self.lefty ? 30 : -30), d) && safe &&
-           !walkmove(self.angles_y + 180 + (self.lefty ? -30 : 30), d))
+        if(!VR_AG_Walk(self.angles_y + 180 + (self.lefty ? 30 : -30), d) && safe &&
+           !VR_AG_Walk(self.angles_y + 180 + (self.lefty ? -30 : 30), d))
         {
             self.lefty = !self.lefty;
-            walkmove(self.angles_y + (self.lefty ? 90 : -90), d);
+            VR_AG_Walk(self.angles_y + (self.lefty ? 90 : -90), d);
         }
         if(vlen(self.enemy.origin - self.origin) < 60 && time >= self.attack_finished)
         {

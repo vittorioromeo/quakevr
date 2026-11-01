@@ -3042,6 +3042,10 @@ QVR_CVAR(vr_agrunt_ai_accuracy, "1", CVAR_ARCHIVE)    // Accuracy: their aim err
 QVR_CVAR(vr_agrunt_ai_reaction, "1", CVAR_ARCHIVE)    // Reaction Time: seconds from first seeing you to their first attack (id's 1); Nightmare's none by Difficulty Impact
 QVR_CVAR(vr_agrunt_ai_retreat, "1", CVAR_ARCHIVE)     // Retreat Readiness: the distance a gun's holder backs off from (times this) and the health share it turns wary below (0.35 times this); 0 never backs off
 QVR_CVAR(vr_agrunt_ai_firerate, "1", CVAR_ARCHIVE)    // Fire Rate: their pause between attacks divided by this; 1 as before
+QVR_CVAR(vr_agtune_test, "0", CVAR_NONE)             // the QC tests of the armed humanoids' tuning (vr_agtune_test.qc; Debug > Tests): 1 fire interval, reload, speed sliders, swing steady, death knight's sweep (vrtesthall); 2 the loaded map's armour share; ends on "agtune: N passed, M failed"
+QVR_CVAR(vr_agrunt_speed, "1", CVAR_ARCHIVE)          // Movement Speed: every step they take times this (running, closing in, backing off, strafing); 1 as before
+QVR_CVAR(vr_agrunt_speed_back, "1", CVAR_ARCHIVE)     // Backpedal Speed: the part of a step backwards of their facing times this too (on top of vr_agrunt_speed)
+QVR_CVAR(vr_agrunt_speed_strafe, "1", CVAR_ARCHIVE)   // Strafe Speed: the part of a step sideways of their facing times this too (on top of vr_agrunt_speed)
 QVR_CVAR(vr_agrunt_rearm_punch, "0", CVAR_ARCHIVE)    // units: an unarmed one with you this near fights with its fists rather than going for a weapon lying further than 64 from it; 0 off (as before)
 QVR_CVAR(vr_agrunt_strafe_lean, "5", CVAR_ARCHIVE)    // degrees: armed humanoids moving sideways tip their pelvis and legs this far toward the way they go (at 80 u/s; scaled by speed, eased), the upper body held aimed; 0 none
 QVR_CVAR(vr_agrunt_strafe_turn, "60", CVAR_ARCHIVE)   // degrees: armed humanoids moving sideways turn their pelvis and legs this far toward the way they go (at 80 u/s; scaled by sideways speed, eased; backing off: never flipped), the spine turning back so the chest and gun stay aimed; 0 none

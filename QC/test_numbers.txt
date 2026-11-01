@@ -211,6 +211,7 @@ vr_rv_test       5        vr_revolver_test.qc              (VR_NPT_Grunt)
 # The other QC test cvars' dispatchers (2026-10-29). `loose`: the dispatcher's own branches may share a
 # number (a set-up branch, then the case's), so only the registry's claims and the coverage are checked.
 dispatch vr_agarmor_test QC/vr_agarmor_test.qc VR_AgArmor_TestFrame request loose
+dispatch vr_agtune_test QC/vr_agtune_test.qc VR_AGTune_TestFrame req
 dispatch vr_ammocolor_test QC/vr_ammocolor_test.qc VR_AmmoColor_TestFrame req loose
 dispatch vr_arena_perks_test QC/vr_arena_perks_test.qc VR_ARENA_PERKS_Test_Frame c loose
 dispatch vr_arena_test QC/vr_arena_test.qc VR_ARENA_Test_Frame c loose
@@ -246,6 +247,8 @@ vr_wornpack_test 3        vr_wornpack_test.qc              (worn backpacks: Pull
 vr_ragsmash_test 1        vr_ragsmash_test.qc              (a corpse smashed into a wall: its sound and blood there; a slow touch: none)
 
 vr_agarmor_test  1*       vr_agarmor_test.qc               (the Debug menu runs it: the dispatcher's fall-through)
+vr_agtune_test   1*       vr_agtune_test.qc                the armed humanoids' tuning: fire interval, reload, speed sliders, swing steady, the death knight's sweep
+vr_agtune_test   2        vr_agtune_test.qc                the loaded map's armed humanoids' armour share by the skill
 vr_agarmor_test  2        vr_agarmor_test.qc               (VR_AgArmor_Give)
 vr_agarmor_test  3        vr_agarmor_test.qc               (VR_ART_SpawnKind)
 vr_agarmor_test  4        vr_agarmor_test.qc               (VR_ART_SpawnKind)
