@@ -1102,6 +1102,12 @@ constexpr const char* retiredCvars[] = {
     "vr_autopump",                    // the shotgun's auto pump (0: none, the shell after 0.22 s)
     "vr_ad_death_precache",           // AD's death assets precached early outside AD (0: at first use)
     "vr_nailpistol_slide_time",       // the nail pistol's slide held back after a shot (now vr_nailpistol_slide_cycle)
+    // 2026-11-01: the tug-of-war always physical (his note 23:07): the old distance-and-time tug's switch, time and
+    // fights back gone (ROUND23.md, "The tug always physical").
+    "vr_agrunt_tug_ragdoll",          // the tug physical (0: the old tug)
+    "vr_agrunt_tug_time",             // the old tug's pull time
+    "vr_agrunt_tug_fight",            // the old tug: how often it fought back
+    "vr_agrunt_tug_pull",             // the old tug's pull distance (a tuning constant)
 };
 
 // Settings renamed: the old name still reads and sets the new one (Cvar_FindVar asks here when a name is not found):

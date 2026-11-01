@@ -86,8 +86,7 @@ vr_agrunt_test   13       vr_armedgrunt_test.qc            idle re-arm
 vr_agrunt_test   14       vr_armedgrunt_test.qc            the attacks' eyeshots, held at a phase
 vr_agrunt_test   15       vr_armedgrunt_test.qc            the attacks' eyeshots (15)
 vr_agrunt_test   20       vr_armedgrunt_play_test.qc       ragdoll (VR_AGPT_Ragdoll)
-vr_agrunt_test   21       vr_armedgrunt_play_test.qc       tug (VR_AGPT_Tug)
-vr_agrunt_test   22       vr_armedgrunt_play_test.qc       tug (22) (VR_AGPT_Tug)
+vr_agrunt_test   21       vr_armedgrunt_play_test.qc       its body in the tug: torso sway, free arm flail (VR_AGPT_TugSway)
 vr_agrunt_test   23       vr_armedgrunt_play_test.qc       easy (VR_AGPT_Easy)
 vr_agrunt_test   24       vr_armedgrunt_play_test.qc       blows (VR_AGPT_Blows)
 vr_agrunt_test   25       vr_armedgrunt_play_test.qc       fall (VR_AGPT_Fall)

@@ -56,8 +56,7 @@ void() VR_AGTP_Frame =
     {
         cvar_set("vr_agrunt_disarm_yank", "1");
         VR_AG_GrabBy(g, p, cVR_MainHand);
-        VR_AGT_Check(sprintf("tugpunch: your main hand holds its gun: tug %g, physical %g", g.vr_ag_tug_pl == p,
-            g.vr_ag_tug_rag), g.vr_ag_tug_pl == p);
+        VR_AGT_Check(sprintf("tugpunch: your main hand holds its gun: tug %g", g.vr_ag_tug_pl == p), g.vr_ag_tug_pl == p);
         // The off fist closed 28 units beside the gun's drawn middle (your left of it, level).
         VR_AG_WeaponLine(g.vr_ag_prop);
         vr_agtp_mid = (vr_ag_wa + vr_ag_wb) * 0.5;

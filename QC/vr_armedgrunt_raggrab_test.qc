@@ -28,7 +28,7 @@ float vr_agrb_gap;      // ... the fist's gap read at the press (cm)
 float vr_agrb_rag;      // a ragdoll at the press
 float vr_agrb_won, vr_agrb_n, vr_agrb_bad, vr_agrb_nost;
 float vr_agrb_keep_dmg;
-float vr_agrb_keep_scale, vr_agrb_keep_fight, vr_agrb_keep_impact, vr_agrb_keep_drop, vr_agrb_keep_dbg, vr_agrb_keep_dv;
+float vr_agrb_keep_scale, vr_agrb_keep_impact, vr_agrb_keep_drop, vr_agrb_keep_dbg, vr_agrb_keep_dv;
 vector vr_agrb_home;
 
 string(float c) VR_AGRB_Trig = { return (c == 10 || floor(c / 5) == 0) ? "lying" : "staggering"; };
@@ -118,7 +118,6 @@ void() VR_AGRB_Frame =
         {
             vr_agrb_home = p.origin;
             vr_agrb_keep_scale = cvar("vr_agrunt_tug_downed_scale");
-            vr_agrb_keep_fight = cvar("vr_agrunt_tug_fight");
             vr_agrb_keep_impact = cvar("vr_agrunt_fall_keep_impact");
             vr_agrb_keep_drop = cvar("vr_agrunt_fall_drop");
             vr_agrb_keep_dbg = cvar("vr_agrunt_debug");
@@ -126,7 +125,6 @@ void() VR_AGRB_Frame =
             vr_agrb_keep_dmg = cvar_hget(cvarh_vr_agrunt_disarm_damage);
             localcmd("tune vr_agrunt_disarm_damage 9999\n"); // (a tunable: the mock hand's jump onto it is no blow that disarms)
             cvar_set("vr_agrunt_tug_downed_scale", "0.5"); // (as shipped: a downed one's weapon needs a tug)
-            cvar_set("vr_agrunt_tug_fight", "0");          // (up again mid-tug it fights back: not while it is measured)
             cvar_set("vr_agrunt_fall_keep_impact", "100"); // (its weapon kept however hard it lands)
             cvar_set("vr_agrunt_fall_drop", "0");
             if(!vr_agrb_keep_dbg)
@@ -191,7 +189,6 @@ void() VR_AGRB_Frame =
         cvar_set("vr_agrunt_debug", ftos(vr_agrb_keep_dbg));
         cvar_set("vr_agrunt_disarm_yank", "1");
         cvar_set("vr_agrunt_tug_downed_scale", ftos(vr_agrb_keep_scale));
-        cvar_set("vr_agrunt_tug_fight", ftos(vr_agrb_keep_fight));
         cvar_set("vr_agrunt_fall_keep_impact", ftos(vr_agrb_keep_impact));
         cvar_set("vr_agrunt_fall_drop", ftos(vr_agrb_keep_drop));
         cvar_set("vr_debug_disarm", ftos(vr_agrb_keep_dv));
@@ -375,13 +372,9 @@ void() VR_AGRB_Frame =
     if(tp > 0.05 && (c != 10 || (vr_agrb_press2 && time > vr_agrb_press2 + 0.1)))
     {
         // You step back at 0.6 m/s, away from it (the tug's own way: its hand to your grab), your hands drawn with you.
-        vector away = g.vr_ag_tug_away;
-        if(!tug)
-        {
-            away = p.handpos - g.origin;
-            away_z = 0;
-            away = normalize(away);
-        }
+        vector away = p.handpos - g.origin;
+        away_z = 0;
+        away = normalize(away);
         setorigin(p, p.origin + away * 0.6 * frametime * u);
         p.velocity = '0 0 0';
     }
@@ -417,7 +410,7 @@ void() VR_AGRB_Frame =
     VR_AGT_Print(strcat(s1, s2));
     if(outcome != "won")
     {
-        VR_AGT_Print(sprintf("    tug: stretch %.1f units, progress %.2f, eased %g, knockdown %g stagger %g; raggrabs %g", vr_ag_tug_stretch,
+        VR_AGT_Print(sprintf("    tug: progress %.2f, eased %g, knockdown %g stagger %g; raggrabs %g",
             g.vr_ag_tug_prog, g.vr_ag_tug_down, g.vr_knockdown, g.vr_kd_stagger, vr_ag_raggrabs));
     }
     vr_agrb_n = vr_agrb_n + 1;

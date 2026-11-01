@@ -109,7 +109,7 @@ fall. Test: `vr_agrunt_test 40`; eyeshots `vr_agrunt_test 14` with `scratch4 1` 
 
 ## The tug, its ragdoll, pickups, parries (ROUND22.md, "Armed monsters: the physical tug, ...")
 
-- The tug (`vr_agrunt_tug_ragdoll`): `VR_AG_TugRagBegin` (a sure-footed stagger, the hand holding its forearm through the
+- The tug (always physical; its body: `vr_agrunt_tug_sway`, `_flail`, ragactive `staggerTugSway`): `VR_AG_TugRagBegin` (a sure-footed stagger, the hand holding its forearm through the
   weapon: `ragdolltug`), `VR_AG_TugRagFrame` (the hold's force against `vr_agrunt_tug_break_force` / `_impulse`), the
   engine's `tugRagdoll` (vr_box3d_ragparts.cpp) and `Stagger.tug` (vr_ragactive.cpp: its arms' pull). Generic: any row
   whose monster can stagger as a ragdoll.

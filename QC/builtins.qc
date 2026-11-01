@@ -317,7 +317,9 @@ float(entity e, entity player, float hand, optional float tug, optional vector g
 // staggering one (any ragdoll of it): the hand holds the limb nearest `grip` by a spring of at most `force` N, its arm
 // pulling that limb back towards its body at `strength` N (1 if it does); 7 your controller's distance from where the
 // hold holds the limb, 8 the distance it lets go at (units; -1 none: the tug readout, VR_AG_TugReadout); 9 its held arm
-// drawn up to `strength` times longer towards the hand (VR_AGK_TugStretch; the drawn pose only): 1 if this hand holds it.
+// drawn up to `strength` times longer towards the hand (VR_AGK_TugStretch; the drawn pose only): 1 if this hand holds it;
+// 10 its body in the tug (its torso's lean, its free arm's flail: vr_agrunt_tug_sway, _flail): the pull's share of what
+// breaks its grip `strength`, its way to this hand: 1 if it stands in a tug; 11 its free arm's end part (-1 none; the tests).
 float(entity e, entity player, float hand, float what, optional vector grip, optional float strength,
       optional float force) ragdolltug =
 {

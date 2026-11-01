@@ -749,6 +749,27 @@ float tugRagdoll(edict_t* ent, edict_t* player, int hand, int what, const glm::v
         const b3Transform frameB = b3Joint_GetLocalFrameB(g->joint);
         return glm::distance(world->toU(b3Body_GetWorldPoint(r->body[static_cast<za::SizeT>(g->part)], frameB.p)), at);
     }
+    if(what == 10 || what == 11)
+    {
+        // 10: its body in the tug (ragactive staggerTugSway, staggerArms): the pull's share of what breaks its grip
+        // (`strength`) and its way, from its pelvis to this hand; 1 if it stands in a tug. 11 (the tests): the part at the
+        // end of its free arm (-1 none).
+        if(!ours || !r || !r->active.on || !r->active.stagger.on || !r->active.stagger.tug)
+        {
+            return what == 11 ? -1.f : 0.f;
+        }
+        ragactive::Stagger& st = r->active.stagger;
+        if(what == 11)
+        {
+            return st.tugArm < 0 ? -1.f : static_cast<float>(r->active.chain[static_cast<za::SizeT>(1 - st.tugArm)][1]);
+        }
+        glm::vec3 at;
+        glm::quat turn;
+        handPose(player, g->hand, at, turn);
+        st.tugPull = za::max(strength, 0.f);
+        st.tugWay = at - world->toU(b3Body_GetWorldCenter(r->body[0]));
+        return 1.f;
+    }
     if(what == 4)
     {
         // This hand lets go, the tug going on (a second hand's hold, or the first's with the second still on).

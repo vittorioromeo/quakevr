@@ -2523,13 +2523,12 @@ QVR_CVAR(vr_agrunt_disarm, "1", CVAR_ARCHIVE)          // 1: a hard hit on its g
 QVR_CVAR(vr_agrunt_disarm_yank, "1", CVAR_ARCHIVE)     // 1: your empty hand grabbing its weapon takes it out of its hand
 QVR_CVAR(vr_agrunt_disarm_deliberate, "1", CVAR_ARCHIVE) // 1: only a deliberate blow knocks its weapon out (a closed fist or something held, swung over more than a frame; never an open hand or a jolted idle hand); 0: any hand that fast
 QVR_CVAR(vr_agrunt_strike_first, "1", CVAR_ARCHIVE) // 1: a deliberate strike (fist, held gun or prop) meeting its weapon or gun hand disarms it unless its parry was raised for it (then a roll, vr_agrunt_strike_beat); 0: such a blow parries whenever it can (the old order)
-QVR_CVAR(vr_agrunt_tug, "1", CVAR_ARCHIVE)        // 1: your empty hand closing on its weapon starts a tug-of-war (pull to win; 0: the grab takes it at once)
-QVR_CVAR(vr_agrunt_tug_time, "0.6", CVAR_ARCHIVE) // ... how long (s) you must keep it pulled that far (a calm grunt at full health; less hurt or in pain)
-QVR_CVAR(vr_agrunt_tug_fight, "0.9", CVAR_ARCHIVE)  // ... how often (s, about) it fights back: shoves you, headbutts you or fires (0: never)
-QVR_CVAR(vr_agrunt_tug_ragdoll, "1", CVAR_ARCHIVE) // 1: the tug is physical: it stands as an active ragdoll, your hand holding its weapon in its hand, its arm pulling back (0: the old tug)
+QVR_CVAR(vr_agrunt_tug, "1", CVAR_ARCHIVE)        // 1: your empty hand closing on its weapon starts a tug-of-war: it stands as an active ragdoll, your hand holding its weapon in its hand, its arm pulling back (pull to win; 0: the grab takes it at once)
 QVR_CVAR(vr_agrunt_tug_break_force, "750", CVAR_ARCHIVE) // N: a pull this hard on its weapon (the hold's force) tears it out of its hand at once (a sharp yank)
 QVR_CVAR(vr_agrunt_tug_break_impulse, "350", CVAR_ARCHIVE) // N s: the pull over time (force x time, above a tenth of the break force) that tears it out (a steady pull)
 QVR_CVAR(vr_agrunt_tug_pull_time, "0.4", CVAR_ARCHIVE) // (0.5 until his ask 2026-11-01: 20% lower) s you must keep pulling above Tug: Least Pull before its weapon can come out (the physical tug's least time; a tuning constant until his ask for a slider, note 2026-11-01)
+QVR_CVAR(vr_agrunt_tug_sway, "1", CVAR_ARCHIVE)  // its torso in the tug leaning back and twisting against your pull, rocking with the struggle (0..3; 1: about 11 deg back at its break force; 0 off; vr_ragactive.cpp staggerTugSway)
+QVR_CVAR(vr_agrunt_tug_flail, "1", CVAR_ARCHIVE) // its free arm in the tug flailing about near the weapon (0..3; 1: about a third of its arm's length; 0 off: it reaches for the weapon; vr_ragactive.cpp staggerArms)
 QVR_CVAR(vr_agrunt_tug_strength, "1.2", CVAR_ARCHIVE) // its arms' pull back in the tug (0..3: its reach's strength)
 // A deliberate tug (ROUND22.md "Armed monsters: a deliberate tug-of-war"; QC vr_armedgrunt_play.qc VR_AG_TugBreak).
 QVR_CVAR(vr_agrunt_tug_hand_gap, "999", CVAR_NONE)      // (the tests' reading: vr_ragdoll_hand_probe in a tug, the main drawn hand to its grab on the weapon as drawn, cm)

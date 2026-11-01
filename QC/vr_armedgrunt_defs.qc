@@ -138,9 +138,8 @@ float(entity g, entity p, vector at) VR_AG_HandLineDist;                   // VR
 float(entity p) VR_AG_DrawnFrame;                                          // VR_AG_Hit: its grip as drawn (vr_armedgrunt_play.qc)
 vector vr_ag_df_o;                                                         // ... VR_AG_DrawnFrame's: the weapon's origin as drawn
 
-// The physical tug (vr_armedgrunt_play.qc; vr_knockdown.qc keeps its stagger on while it lasts), a weapon on a ragdoll's
+// The tug (vr_armedgrunt_play.qc; vr_knockdown.qc keeps its stagger on while it lasts), a weapon on a ragdoll's
 // limb (VR_AG_RagProp), a weapon taken up from the floor (vr_armedgrunt.qc VR_AG_TakeBegin).
-.float vr_ag_tug_rag;      // the physical tug on: it stands as an active ragdoll, a hand holding its weapon
 .entity vr_ag_tug_pl;      // the player tugging at its weapon (world: none)
 .float vr_ag_rb;           // a held weapon's prop on a ragdoll: the limb it rides (+1; 0: none yet)
 .vector vr_ag_rbo;         // ... its origin, a point ahead and a point above it, in that limb's space
@@ -173,7 +172,6 @@ float(entity g, entity w) VR_AG_Reachable;
 float(entity g) VR_AG_SeekCheck;
 entity(entity g) VR_AG_OwnBack;
 void(entity g) VR_AG_SeekStart;
-float() VR_AG_TugResume;
 void(entity g, float wid) VR_AG_DisarmFeedback;
 // A try at its weapon (a blow, a shot, a throw on its weapon or the hand holding it) by `by`, its outcome one of these:
 float VR_AG_TRY_MET = 1;      // ... met it: counts towards a roll (a shot's damage adding up)

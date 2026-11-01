@@ -749,7 +749,6 @@ QVR_TUNABLE(vr_agrunt_strike_beat, "0.4") // a deliberate strike on its weapon o
 QVR_TUNABLE(vr_agrunt_strike_precise, "4") // units: a strike that met its weapon this near its grip or its hand and forearm is a precise one
 QVR_TUNABLE(vr_agrunt_strike_precise_mult, "2") // ... its chance against a raised parry times this
 QVR_TUNABLE(vr_agrunt_strike_raised, "0.5") // the share of its parry pose that counts as raised (under it, or not yet up, a deliberate strike disarms it)
-QVR_TUNABLE(vr_agrunt_tug_pull, "10") // the tug: how far (units) you must pull your hand back from where you grabbed, away from it, to be winning
 QVR_TUNABLE(vr_agrunt_tug_hurt, "0.35") // a grab takes the weapon at once from a grunt down to this share of its health (or staggered, down, stunned)
 QVR_TUNABLE(vr_agrunt_tug_hold_max, "6") // s the tug lasts at most: then it wrenches its weapon free (0: no limit)
 QVR_TUNABLE(vr_agrunt_tug_ik_stretch, "1.2") // the tug: its arms' IK stretch (vr_agrunt_ik_stretch's) times this while a tug is on, eased in and out with it (its arm reaches for the weapon held in your hand; 1: none)
