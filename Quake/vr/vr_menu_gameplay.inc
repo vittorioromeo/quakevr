@@ -766,6 +766,7 @@ void ikStretchReset()
         row(opt::vr_agrunt_tug_ragdoll),
         row(opt::vr_agrunt_tug_break_force),
         row(opt::vr_agrunt_tug_break_impulse),
+        row(opt::vr_agrunt_tug_pull_time),
         row(opt::vr_agrunt_tug_let_go),
         row(opt::vr_agrunt_tug_downed_scale),
         row(opt::vr_agrunt_tug_second_grab),

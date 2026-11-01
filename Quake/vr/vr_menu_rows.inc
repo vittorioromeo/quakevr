@@ -1151,6 +1151,10 @@ QVR_SLIDER(vr_agrunt_tug_break_force, "Tug: Break Force", 50.f, 2000.f, 25.f, "%
 QVR_SLIDER(vr_agrunt_tug_break_impulse, "Tug: Break Impulse", 10.f, 1000.f, 10.f, "%.0f N s", ext(0.f, 10000.f),
     "Pulling over time: the pull's force times its time (counted above Tug: Least Pull) that tears it "
     "out of its hand (the physical tug; less as it is hurt) (vr_agrunt_tug_break_impulse).")
+QVR_SLIDER(vr_agrunt_tug_pull_time, "Tug: Least Pull Time", 0.f, 3.f, 0.05f, "%.2f s", ext(0.f, 30.f),
+    "The shortest tug-of-war: you must keep pulling at least Tug: Least Pull this long before its weapon can "
+    "come out (the physical tug; a staggering or downed one's times Tug: Staggering or Down): a tug-of-war, "
+    "not a sharp yank. 0: the break force tears it out at once (vr_agrunt_tug_pull_time).")
 QVR_SLIDER(vr_agrunt_tug_let_go, "Tug: Let Go Past", 20.f, 100.f, 5.f, "%.0f cm", ext(0.f, 300.f),
     "Physical tug: your hand lets go of its weapon (you lose the tug) once your real hand is this far from "
     "where it holds it, pulled away or stepped back before its grip gives; till then your hand is drawn on "
@@ -1174,7 +1178,9 @@ QVR_SLIDER(vr_agrunt_grab_speed, "Grab: Fastest Hand", 0.f, 6.f, 0.1f, "%.1f m/s
 QVR_SLIDER(vr_agrunt_tug_strength, "Tug: Its Pull", 0.f, 3.f, 0.1f, "%.1f", ext(0.f, 3.f),
     "How hard its arms pull its weapon back in the physical tug (vr_agrunt_tug_strength).")
 QVR_SLIDER(vr_agrunt_tug_time, "Tug: Pull Time", 0.f, 5.f, 0.1f, "%.1f s", ext(0.f, 30.f),
-    "How long you must keep it pulled that far against a calm grunt at full health; less as it is hurt, "
+    "The older tug's time (Tug: Physical off, or a staggering or downed one; the physical tug's "
+    "own is Tug: Least Pull Time): how long you must keep it pulled that far against a calm grunt at full "
+    "health; less as it is hurt, "
     "half while it flinches from a hit. 0: any pull wins (vr_agrunt_tug_time).")
 QVR_SLIDER(vr_agrunt_tug_fight, "Tug: It Fights Back Every", 0.f, 5.f, 0.1f, "%.1f s", ext(0.f, 30.f),
     "About how often it fights back during the struggle: a shove or a headbutt breaks your grip, a gun "

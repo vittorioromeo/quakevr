@@ -257,7 +257,7 @@ float(entity g, entity pl, float h) VR_AG_TugRagBegin =
 
 // A downed or staggering one's arm pulling its weapon back in the physical tug (N): half the least pull
 // (vr_agrunt_tug_pull_force) times its arms' pull (vr_agrunt_tug_strength) times the downed share
-// (vr_agrunt_tug_downed_scale): 91 N as shipped, under the least pull that counts (a still hold never wins it).
+// (vr_agrunt_tug_downed_scale): 81 N as shipped, under the least pull that counts (a still hold never wins it).
 float(entity g) VR_AG_TugDownBack =
 {
     return 0.5 * max(0, cvar_hget(cvarh_vr_agrunt_tug_pull_force)) * max(0, cvar_hget(cvarh_vr_agrunt_tug_strength)) *
