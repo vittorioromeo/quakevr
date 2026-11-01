@@ -519,6 +519,11 @@ za::Vector<Item> pageDebugTests()
         row(opt::vr_test_spawn_tilt),
         adSpawnRow(static_cast<int>(vr_test_spawn.value), command("Put It There", "impulse 241").help("Puts the Thing ahead of you.")) , // AD support
         command("Armour on Armed Grunts", "developer 1; vr_agarmor_test 1"),
+        command("Armed Humanoid Tuning", "vr_agtune_test 1")
+            .help("vr_agtune_test 1 (vrtesthall): the Plasma Gun's fire interval as yours, the super shotgun's reload "
+                  "(vr_agrunt_reload_ssg), the Movement / Backpedal / Strafe Speed sliders, a slowed swing's weapon "
+                  "steady with its parry dropped, an armed death knight's full fireball sweep. vr_agtune_test 2 on a "
+                  "loaded map: its armed humanoids' armour share by the skill."),
         command("Worn Backpacks", "developer 1; vr_wornpack_test 1")
             .help("Armed grunts ahead wearing packs: hits, knockdowns, landings, a pull by the pack, deaths (vr_wornpack_test "
                   "1; ends on \"wornpack: N passed, M failed\")."),

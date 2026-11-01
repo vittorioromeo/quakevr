@@ -30,20 +30,7 @@ void(entity m, entity xBy) VR_FuelTank_WornAlert =
     {
         return;
     }
-    if(m.classname == xBy.classname && m.classname != "monster_army")
-    {
-        return;
-    }
-    m.vr_oblivious = 0; // (vr_oblivious: it notices you now)
-    entity was = self;
-    self = m;
-    if(self.enemy.classname == "player")
-    {
-        self.oldenemy = self.enemy;
-    }
-    self.enemy = xBy;
-    FoundTarget();
-    self = was;
+    VR_Provoke(m, xBy); // (combat.qc: as a hit on it would)
     vr_fueltank_worn_alerts++;
 };
 

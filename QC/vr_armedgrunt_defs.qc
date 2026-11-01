@@ -13,6 +13,7 @@
 .float vr_ag_reserve;      // its rounds beyond the clip in the gun (vr_agrunt_reserve clips at its spawn)
 .float vr_ag_kick;         // the held weapon's recoil, 1 at a shot, dying out (drawn: the prop)
 .float vr_ag_kick_at;      // when it last fired
+.float vr_ag_refire_at;    // (a held weapon) its next shot no sooner (VR_AG_RefireReady: the player's interval)
 .float vr_ag_swing_at;     // when its last swing (a melee blow) began
 .float vr_ag_seek_next;    // disarmed: when it next looks for a weapon
 .entity vr_ag_seek;        // the weapon lying about it goes for (world: none)
@@ -52,6 +53,8 @@ float() VR_AG_CheckAttack;                                                 // ai
 void() VR_AGAI_React;                                                      // ai.qc HuntTarget: its reaction time (vr_armedgrunt_ai.qc)
 float vr_agai_reacts;                                                      // ... the times it ran (the tests)
 float(float dist) VR_AG_RangeMove;                                         // ai.qc ai_run: its fighting distance kept (TRUE: moved)
+float() VR_AG_Speed;                                                       // ai.qc ai_run: its steps by its speed sliders (vr_armedgrunt_ai.qc)
+float(float yaw) VR_AG_StepDir;                                            // ... a step's backpedal and strafe factor
 float(entity targ, entity inflictor, entity attacker, float damage) VR_AG_DamageScale; // T_DamageDeal: its weapon's damage to players
 void(entity targ, entity inflictor, entity attacker, float take) VR_AG_Hit; // T_DamageDeal: a hit on it (disarming)
 float() VR_AG_SoldierDrop;                                                 // SoldierDrop: its own loot (TRUE: done)
@@ -130,7 +133,7 @@ string(entity g) VR_AGG_Label;                                             // Sh
 float(entity g, entity p, entity pl, float h) VR_AG_StrikeMeets;           // VR_AG_HandStrikeSpeed: the swept test
 float(entity g, entity p) VR_AG_StrikeFrame;                               // VR_AG_WeaponStruck: strikes, then parries
 float(entity g, entity p) VR_AG_TugStrike;                                 // VR_AG_TugFrame: the other fist's strike in a tug
-float(entity g, entity e) VR_AG_ThrowOnWeapon;                             // VR_AG_Hit: a throw that touched its body
+float(entity g, entity e, entity by) VR_AG_ThrowOnWeapon;                             // VR_AG_Hit: a throw that touched its body
 float(entity g, entity p, vector at) VR_AG_HandLineDist;                   // VR_AG_Hit: a body blow by its hand
 float(entity p) VR_AG_DrawnFrame;                                          // VR_AG_Hit: its grip as drawn (vr_armedgrunt_play.qc)
 vector vr_ag_df_o;                                                         // ... VR_AG_DrawnFrame's: the weapon's origin as drawn
@@ -156,6 +159,7 @@ void(entity g, entity p) VR_AG_RagProp;
 void(entity g, entity pl, float h) VR_AG_RagWeaponGrab; // VR_Ragdoll_Handtouch: the grab query gave the hand to its weapon
 float vr_ag_raggrabs; // the ragdoll touches handed to the weapon's grab (the tests)
 void(entity g, float won, string why) VR_AG_TugEnd;
+void(entity g, entity by, vector dir, float speed, string why) VR_AG_DisarmBy; // (vr_armedgrunt.qc)
 float(entity g, string why) VR_AG_TugDisarm; // VR_AG_Disarm in a tug: into the holding hand (TRUE)
 
 // Gameplay (vr_armedgrunt_play.qc: disarming, falls, reach), called from vr_armedgrunt.qc.
@@ -171,6 +175,14 @@ entity(entity g) VR_AG_OwnBack;
 void(entity g) VR_AG_SeekStart;
 float() VR_AG_TugResume;
 void(entity g, float wid) VR_AG_DisarmFeedback;
+// A try at its weapon (a blow, a shot, a throw on its weapon or the hand holding it) by `by`, its outcome one of these:
+float VR_AG_TRY_MET = 1;      // ... met it: counts towards a roll (a shot's damage adding up)
+float VR_AG_TRY_HELD = 2;     // ... it held on (a shot's roll lost, a blow on its blade, a throw too light)
+float VR_AG_TRY_PARRIED = 3;  // ... its parry took it
+float VR_AG_TRY_DISARMED = 4; // ... knocked out of its hand (VR_AG_DisarmBy)
+void(entity g, entity by, float outcome) VR_AG_DisarmTry;
+.float vr_ag_struck_at; // a blow (any damage: VR_AG_Hit) or a try at its weapon (VR_AG_DisarmTry) on it lately: lying, its
+                        // body's knock then is the blow's, not the ground's (VR_AG_FallImpact)
 void() VR_AG_PlayPrecache;
 float(entity g, entity p) VR_AG_WeaponStruck;
 // Armed humanoid replacements (vr_armedrepl.qc; vr_agrunt_repl): a map's grunts and enforcers as armed ones.

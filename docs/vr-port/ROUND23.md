@@ -5424,3 +5424,230 @@ melee_phase 7/0, arena 6 8/0), and before agent/ghosthand prop_climb and melee_p
   saves nothing mid-run.
 - **For the kit (coordinator)**: the console cases (arena_*, agrunt_*) run with the clock's seed; `sv_random_seed 7`
   before their map would make them repeat.
+
+
+## Armed humanoid tuning batch (agent/agtune; his voice notes 2026-11-01 18:11-18:52)
+
+- Fire rate: an armed humanoid's AD Plasma Gun fires no faster than yours: `AD_PLASMAGUN_REFIRE` (0.2 s, vr_ad_defs.qc)
+  is now the one number for both (W_Fire_Lightning; QC `VR_AG_FireInterval` / `VR_AG_RefireReady`: a gun whose player
+  interval is longer than a fire frame's 0.1 s skips fire frames until it is due; every other gun as before).
+- Reload: `vr_agrunt_reload_ssg` (Tunables, 0.85): the double-barrelled shotgun's reload is that share of
+  vr_agrunt_reload_time (`VR_AG_ReloadTime`: the load frames and the pose's reload keys).
+- Speed sliders (Combat > Armed Humanoids' AI Behaviour > Movement): `vr_agrunt_speed`, `vr_agrunt_speed_back`,
+  `vr_agrunt_speed_strafe` (all 1). Every step of theirs goes through `VR_AG_Walk` (vr_armedgrunt_ai.qc): the step times
+  the speed, its backward part times Backpedal, its sideways part times Strafe (an ellipse); ai.qc ai_run scales the
+  chase by the speed and ai_run_slide's strafe by the same factor. At 1/1/1 the steps are exactly as before.
+- Swing steady: the parry pose could not rise during its own blow already (VR_AGPar_Able: "swinging itself"), but a
+  parry or guard raised just before its swing went out over 1/3 s (rate 3), so the slowed swing's start turned towards
+  your weapon. Now it goes out at `VR_AGPAR_OWN_DROP` (8/s: 0.125 s) once its own blow is under way.
+- Death knight's cast: the volley fires as his magicc frames sweep it, six fireballs a tenth of a second apart (a
+  caster entity, `VR_AGP_CastTick`; a gun's from its muzzle as drawn each time). All six at once from one point burst
+  on each other (two left).
+- Armour on map spawns: `VR_AgArmor_Spawn` rolled by the `skill` global, which StartFrame sets: a map's own monsters
+  spawn before the first frame and read 0 (Easy: chance 0). It reads the skill cvar now. e1m2 on Nightmare: 10 of 16
+  armoured (0.62; vr_agarmor_skill3 0.6); before: none.
+- Test: `vr_agtune_test 1` (vrtesthall; Debug > Tests > Armed Humanoid Tuning), `vr_agtune_test 2` (a loaded map's
+  armour share). The Plasma Gun case skips without AD's data (the test bases have none).
+- Checklist:
+  - Armed humanoids: an AD Plasma Gun grunt fires at your Plasma Gun's rate (5 a second), not twice that.
+    {test:agrunt_ammo}
+  - Armed humanoids: a double-barrelled shotgun grunt's reload is shorter than the others' (Debug > Tunables > Super
+    Shotgun Reload 0.85).
+  - Combat > Armed Humanoids' AI Behaviour > Movement: Movement Speed, Backpedal Speed and Strafe Speed change how fast
+    they run, back off and circle you.
+  - Enemy Melee Speed 0.3: raise your sword as a grunt starts its swing: its sword follows its own swing, not your
+    blade. {test:dirparry_show}
+  - A death knight holding a gun casts the full fan of six fireballs, one after another.
+  - Nightmare, a map with grunts (e1m2): about 6 in 10 armed humanoids wear armour.
+## Disarm attempts wake and stagger; a dual wielder loses only the struck weapon (branch `agent/disarmaware`)
+
+His notes 2026-11-01 18:03-18:46: a shot weapon or a parried strike left an unaware (or notarget) grunt calm; a disarm
+should always stagger it briefly; disarming a dual wielder's off hand sword dropped the other too; a punch on an unaware
+grunt's weapon "goes through".
+- **One event for every try at its weapon**, `VR_AG_DisarmTry(g, by, outcome)` (vr_armedgrunt_play.qc; outcomes
+  `VR_AG_TRY_MET` a shot counted towards a roll, `_HELD` a lost roll / a blow on its blade / a throw too light,
+  `_PARRIED`, `_DISARMED`): it turns on `by` (`VR_Provoke`, below: notarget or unseen too) and, disarmed, staggers on its
+  feet for `vr_agrunt_disarm_stagger` s (new tunable, 0.4; Armed Grunts tunables "Disarmed: Stagger"; the parry's flinch
+  `VR_Parry_InterruptFor` with `vr_parry_noragdoll`, never a ragdoll). Callers: `VR_AG_DisarmBy(g, by, ...)` (the old
+  `VR_AG_Disarm`, now its `by`-less wrapper for the tools and tests; every gameplay caller passes who knocked it: the
+  strike, the hand blow, the body blow, the throw, the shot roll, the projectile roll, the parry's spent strength, a
+  monster's blow parried), `VR_AGPar_Parried` (your blow), `VR_AG_BladeContact`, `VR_AGS_Add` (each shot on its weapon or
+  hand; the prop remembers its shooter, `.vr_ags_shooter`, for the roll), the projectile roll, the throws.
+- **`VR_Provoke(m, by)`** (combat.qc): T_DamageDeal's "get mad" block made a function (same rule: not its own kind but
+  grunts, not the dragon, not its charmer, not what it already hunts); T_DamageDeal and the worn tank's alert
+  (`VR_FuelTank_WornAlert`) use it.
+- **The dual wield drop** (his take's entities: the sword grunt knocked down at 15.6 s, both swords gone together at
+  21.2 s as it lay): not the disarm itself (strikes on either hand, either order, drop only the struck one: test 200
+  cases 5-8, with both weapons' real thinks) but the fall rule. Lying, a blow's knock on its ragdoll read as "it met the
+  ground" (`VR_AG_FallImpact`, vr_agrunt_fall_keep_impact 4.5 m/s), and `VR_AG_FallDrop` drops both hands' weapons.
+  Now a blow on it (`VR_AG_Hit`) or a try at its weapon marks `.vr_ag_struck_at`; for `VR_AG_FALL_STRUCK` (1 s) after,
+  its body's knocks are the blow's, not the ground's. Case 9 with the window off: "hardest impact 34.0 m/s", both gone;
+  on: the other kept.
+- **The punch "going through" an unaware grunt's weapon**: no awareness gate exists in the strike, punch or tug-punch
+  paths (VR_AG_StrikeFrame, VR_AG_BlowOnWeapon: unaware is "its parry caught out", a disarm). In the mock an idle grunt's
+  shotgun is punched out both across it (case 0) and straight at it into its body (case 10, by the body-blow rule). His
+  18:46 take (entities) has him 89-103 units from the idle grunts until the stealth AI found him, so it does not show the
+  miss. What was missing on an unaware one was the reaction (no anger, no stagger): fixed above. If a punch still passes
+  through in VR, a note with the grunt idle within reach would show which rule refused it (vr_agrunt_debug 1 logs it).
+- **Test 200** (`vr_agrunt_test 200`, QC/vr_armedgrunt_aware_test.qc; the every-weapon block is now 100-199): you
+  notarget, a fresh idle grunt each case: 0 a mock off-fist punch across its shotgun: disarmed, staggered, hunting you;
+  1 a shot, roll lost: armed, hunting; 2 a shot, roll won: shot out, staggered, hunting; 3 a strike into its raised
+  parry, it after nobody: parried, hunting, one try counted; 4 a blow on a sword's blade: a blade contact, hunting;
+  5-8 dual swords and dual nail pistols, left then right and right then left: the struck one alone drops; 9 dual swords
+  lying, the left one struck out and the body knocked: the other kept; 10 a straight punch. Before: 12 passed, 16 failed
+  (cases 0-9 as then); after: **33 passed, 0 failed**.
+- Checks: 19 (tug punch) 3/0, 2 4/0, 94 16/0, 77 12/0 (its two disarm cases now expect the disarm's stagger).
+- Note (the mock): the glide's off-hand world velocity still reads about 0.2 m/s at the server (test 19's note), so test
+  200's dual cases strike with test 94's blow record and run both weapons' thinks themselves.
+
+Checklist:
+- [disarmaware] notarget on, an idle shotgun grunt: punch its gun out: it staggers a moment and turns on you.
+  {test:disarm_hulls_melee}
+- [disarmaware] notarget on, shoot an idle grunt's gun (hit or not knocked out): it turns on you; knocked out: it
+  staggers too.
+- [disarmaware] A grunt holding two swords (or two guns): knock out its left one, then its right one (and the other
+  way): only the struck weapon falls each time, also when you knock one out while it lies on the floor. {test:dual_wield}
+- [disarmaware] Strike a sword grunt's blade (away from its hand) while it hasn't seen you: sparks, no disarm, and it
+  turns on you.
+## Player feel batch: close quarters, ghost hands on bodies, the hit grunt's voice, ragdoll smashes (agent/feel1101)
+
+### Close-quarters slowdown
+
+His note (18:14): running full speed into an enemy is messy; still get right into its face, but straight at it near it
+gradually slower, strafing at (nearly) full speed, with sliders. ON by default, gentle (his answer).
+
+- `vr_closequarters.cpp`: `VR_CloseQuartersMove`, called once in SV_AirMove on the wish velocity after the most speed's
+  caps (stamina, carrying, heavy, crouch), walking only. The nearest live enemy (FL_MONSTER, alive, damageable, solid,
+  overlapping your height) whose box is within Start Radius of your centre horizontally: the move's part towards its
+  centre times 1 .. Min Factor (Start Radius .. End Radius), weighted by the angle (full within Angle Leniency, none past
+  Angle Falloff); the sideways part times 1 .. Strafe Factor on the same ramp. Moving away: only the sideways part.
+- Settings (Locomotion > Close Quarters): `vr_closequarters` 1, `_start` 1.6 m, `_end` 0.7 m (a grunt is touched at
+  about 0.6), `_min` 0.5, `_strafe` 0.95, `_angle` 30, `_angle_falloff` 75.
+- Test `Misc/quakevr/closequarters_test.sh` (`vr_closequarters_test start|approach|end`): a grunt 120 units ahead walked
+  into, then strafed past: 11/0 (first slowed at 1.57 m, to 0.500 at its face; the strafe 320 -> 304 u/s).
+
+### Ghost hands: none while holding a body
+
+His note (18:24) and answer: an option so ghost hands don't show while handling ragdolls, only in other situations (a
+weapon in two hands); living enemies too (the foe grab, the judo), active and dead ragdolls; ON by default.
+
+- `vr_ghost_hands_ignore_bodies` 1 (Ghost Hands' page: "No Ghost Holding Bodies"): setupGhostHands skips the ghost of a
+  hand that `holdsBody` (vr_view_hands.cpp): `foegrab::holding(hand)` or `box3d::ragdollHold` (a ragdoll's limb or body,
+  knocked down or dead): the same queries the drawn hand's placement uses. Weapons, props in both hands, ledges, tugs on a
+  stuck axe, walls: unchanged.
+- Test `Misc/quakevr/ghost_body_test.sh` (`vr_ghost_body_test start|hidden|end`): a grunt held by the chest, Ghost
+  Hands on with no fade margin: 4/0 (ghost 0.350 measured, 0.000 drawn with the option; 0.350 drawn without).
+  ghost_recoil_test.sh 3/0. A held ragdoll (box3d::ragdollHold) is not covered by the test (the same query as
+  limbHold's).
+
+### The hit grunt's voice, feminine too
+
+His note (18:27): hit by a fist or a melee attack, the player makes the male grunt with the feminine voice on; check
+every player voice line.
+
+- The audit: the voice is chosen by sample name as it loads (vr_voice.cpp voiceSounds), and every throat sound played on
+  the player is in it (pain1..6, death1..5, drown, lburn, slimbrn2, h2odeath, gasp, plyrjmp8, land/land2, the mantle's
+  derived grunts, the stamina gasps; AD's copies the same samples) except one: a blow by a player weapon's melee (an
+  armed grunt's fist, axe, sword, crowbar, chainsaw, gun butt, Mjolnir: `axhitme`) plays `player/axhit1.wav` in
+  PainSound (player.qc; AD's ad_player.qc), id's thud with the male grunt in it. Monster melee (knight, ogre, zombie,
+  dog, fiend, the armed grunt's tug butt and headbutt) goes through pain1..6, already feminine. No other path (foe grab,
+  choke, kick, judo) plays a sound of his throat. Telefrag and gib deaths are gore, left out.
+- Fix: axhit1 is also a thrown axe's and the grapple's thud, so it isn't listed itself: a derived copy under its own
+  name (`vr/derived/axhit1_voice.wav`, rate 1, vr_audio_io.cpp) is in voiceSounds, and PainSound / AD's
+  ad_SOUND_AXE_PLAYER play it (QC `QVR_SOUND_AXHIT_VOICE`, precached in world.qc). Also: player_pain's early returns
+  (mid-attack, the ring) clear `axhitme`, so a later pain of any kind (a nail) no longer plays the blade grunt.
+  "Hear Voice" cycles through it too.
+- vr_voice_test (vr_voice 1, e1m1): 31/0, the new sample transformed (61% voiced) and the name check.
+
+### Ragdoll smashes: louder, and a bit more effective
+
+His notes (18:43): the smash sound 30-40% louder by default; and a tunable multiplier for an active or dead ragdoll's
+impact on walls, floors and props, on its damage and its limb-pop damage, x1.15.
+
+- `vr_ragsmash_volume` 1 -> 1.35 (Smash Volume). VR_RagSmash's volume was capped at 1 (a full-strength smash was
+  already at 1, so the setting couldn't make it louder): now up to 4 (SND_LOUD, louder than full).
+- `vr_ragimpact_mult` 1.15 (tunable, "Impact Multiplier", next to Impact Damage): in VR_RagImpact_Hit (the engine's
+  strike of a ragdoll you drive on the level), the strike's amount times it before the piece multipliers and the cap
+  (vr_ragimpact_max); the head's or limb's wear toward popping is that damage (times vr_ragimpact_wear), so both scale.
+  A landing's crush is not a strike: unchanged.
+- vr_ragsmash_test (vrfiringrange, `developer 1`: its lines are dprints) 12/0: the held slam at full strength sounds
+  at 1.350; its damage 9.60 -> 11.04 (x1.15).
+## Tug readout, hand hulls (branch `agent/tugview`, his notes 2026-11-01 18:02, 18:35, 18:55)
+
+- **The cyan hull took the biceps (a real bug).** The hand's region was the ragdoll rig's vertices on the hand bone and
+  its parent. The grunt's right arm has no hand bone (its hand's vertices are on its forearm's bone), so the parent was
+  the upper arm: 39 of the region's 76 vertices were neither hand nor forearm (`disarmhull 17`, test 16). The left arm
+  and the Death Knight's arms (a hand bone) were right. Now the region is the arm skin's own chain weights
+  (`agarms::armPart`: row.x's c, 0 upper arm, 1 forearm, 2 hand), not the ragdoll rig's bones.
+- **Two hulls** (his 18:35 idea): the hand's volume is two hulls, its hand (c >= 1.5) and its forearm (0.5 < c < 2: they
+  overlap at the wrist), `disarmhull::HandPlaced`. Both count alike in the one shared query (gap: the nearer; met: the one
+  the path enters first): shots (`vr_agrunt_vol_shot_hand`), strikes, body blows. Show Disarm
+  Volumes draws both in cyan (orange, red as before). `weapondrawnpose 37/38` (the drawn forearm's middle: tests 16, 79)
+  is the skin's forearm too (it was the upper arm on the grunt's right arm).
+- **Tug readout** (part of Show Disarm Volumes, `vr_debug_disarm`): over the weapon while a tug is on, every number its
+  rules read against its threshold (`VR_AG_TugReadout`): physical tug: time (and the wrench-free cap), pull N (hold,
+  stretch) / break N and yank N, the least pull and how long it has been kept against the time it needs, impulse / break
+  impulse and progress, your controller's distance from its hold / the let-go distance (cm; `ragdolltug 7/8`), its
+  grip share (health, the badly-hurt line) and state; the old tug: stretch / needed, pulled / needed s, hand off / slip.
+  As the tug ends: `TUG WON: <the rule and its numbers>` or `TUG LOST: <you opened your hand | your hand went past the
+  let-go distance | it held on to vr_agrunt_tug_hold_max> (why)` with the last readout, kept 4 s over where it ended
+  (`debugdisarmnote 6`), and printed (`disarmviz: tug on N: ...`). The thresholds are one function now
+  (`VR_AG_TugLimits`, VR_AG_TugBreak's and the readout's).
+- **Tug arm stretch** (`vr_agrunt_tug_ik_stretch`, tunable 1.2, Advanced: "Tug: Arm Stretch"): the posed arms' IK stretch
+  (agpose::stretch of its kind and class) times this while a tug is on, eased in and out over 0.25 s
+  (`VR_AGK_TugStretch`). **Open:** the physical tug (`vr_agrunt_tug_ragdoll 1`, the default) draws its arms as ragdoll
+  limbs, not the posed arms, so this shows only in the old tug and a downed one's tug once it is up (test 19: share 0.00
+  in the physical tug). Making it show there needs the ragdoll's held arm drawn (or jointed) longer: not done.
+- **Not done:** his 18:55 note (a hand pushed through a facing grunt reaches its backpack): not started (budget).
+- Tests: test 16 274 passed, 0 failed (new: the hulls hold their own vertices; none of the upper arm's top inside them);
+  test 19 4 passed, 0 failed (the readout and the verdict line printed; no tug stretch before the grab).
+
+Checklist:
+- [tugview] Show Disarm Volumes on a grunt with a gun: two cyan hulls, one on its hand, one on its forearm; none round
+  its biceps. {test:agrunt_tug}
+- [tugview] Show Disarm Volumes, grab a grunt's gun and tug: the readout over the gun shows your pull against its break
+  force, the time kept, the impulse, your hand's distance against the let-go; as it ends, TUG WON / TUG LOST with the rule
+  stays over it about 4 s. {test:agrunt_tug}
+## Barrel glow on the metal (branch `agent/barrelglow`, his note 2026-11-01 18:40)
+
+He found the barrel heat glow lagging behind or ahead of the gun while turning or moving with the stick, and wanted it to
+look like the torch-heated melee blades, fading with the same heat settings, and to cast light.
+- **The lag**: the glow was particles (3 a barrel, living 0.03 s: 2-3 frames) left in the world with the player's
+  velocity, so the old ones trailed a turning or moving gun. And vr_hotblade.cpp `queue` (the blades' light, embers and
+  trails) ran in VR_RenderView before the frame's view entities were set up: a frame behind the drawn weapon (the test
+  measured 3.2 units off while turning). It now runs in VR_SetupViewEntities after weaponfx::frame (once a frame, the
+  weapons as drawn now): the melee blades' light and embers follow exactly too.
+- **The look**: the sprite glow is retired (removed, not an option). A hot barrel glows with the incandescent blades'
+  shader glow (QVR_ALIAS_FS_GLOW: the metal from within, its bright parts most, yellower) on the gun's own surface,
+  masked to the barrel by the blades' pose-space plane (vr_hotblade.cpp `barrelBlade`): from the muzzle back the
+  weapon's **Barrel Glow Length** (`fx_gfx_barrel`, Weapon Offsets > Effects; 0.5 by default: a share of the gun's
+  grip-to-muzzle length along its +x), 1 at the muzzle fading to 0 at that far end. Strength (heat - 0.15) / 0.85 x
+  Heat Glow Strength, colour a dull red deepening to orange (vr_gunfx.cpp `barrelHeat`); so Heat-Up / Cool-Down / Glow
+  drive it as before. A hand's incandescent blade comes first (a hot melee weapon's own glow).
+- **The light**: a dlight (the blades' slots, emissive::hotBladeLight) three quarters of the way to the muzzle, the
+  barrel's colour, strength share x **Heat Light Strength** (`vr_gunfx_heat_light` 1, 0-3; Weapons > Weapon Effects after
+  Heat Glow Strength), reach `vr_gunfx_heat_light_radius` 48 units (tunable, Barrel Light Reach) x (0.6 + 0.4 share).
+  No embers or trail for a barrel.
+- **Debug**: `vr_debug_gunfx 2` prints each frame a barrel glows `gunfx barrel hand H heat X glow G light L reach R part P
+  at x y z drawn N off D` (N, D: the last frame's draws of the glowing gun, how far its drawn muzzle was from where the
+  light was placed). vr_hotblade_report lists a barrel as "main barrel" / "off barrel".
+- **Test**: `python Misc/quakevr/barrelglow_test.py <agent>` 9/9: the shotgun glows from its first shot (0.35), glow and
+  light following the heat; the nailgun fired while turning with the stick and walking: the muzzle moves up to 3.2 units a
+  frame, drawn twice a frame, off 0.0000 every frame (3.23 before the queue move); cooling fades the glow and light with
+  the heat to the "cold" line. hotblade_test.sh blade_parts, embers, trail, trail_walk pass. Eye shots (side camera) of
+  a hot shotgun (its front half orange, the tip brightest) and nailgun (its barrels red-orange fading back).
+- **Not checked**: in VR: the strength (1 may be faint on the shotgun), Barrel Glow Length per gun (the shotgun's wooden
+  pump glows too: it is in the front half), the light's reach.
+## Crash switching campaign with the Levels on a panel (branch `agent/mapscrash`)
+
+- His crash (2026-11-01 18:57, switching to Arcane Dimensions): access violation in M_Maps_Draw from a menu panel's
+  drawInstance. The Maps menu's items (mapsmenu.items) point into the level list (extralevels: names, descriptions),
+  which a game/campaign switch frees (ExtraMaps_Clear) and rebuilds (ExtraMaps_Init); a panel left on the Levels (or a
+  draw between the two, the loading frames) then read the freed items.
+- Fix: `extralevels_generation` (host_cmd.c), bumped by ExtraMaps_Clear and ExtraMaps_Init; the Levels keep the
+  generation they were built from and every entry point (Draw, Key, Char, Mousemove: M_Maps_Sync) rebuilds them when it
+  changed (cursor on the new start map; `developer 1` prints "Levels rebuilt: N levels"). ExtraMaps_Clear also empties
+  extralevels_sorted (it pointed at the freed items until Init); Enter on an empty list does nothing.
+- Test: `Misc/quakevr/maps_panel_switch_test.sh <agent>`: panel 2 on the Levels, two campaign switches (hipnotic, id1),
+  the menu reopened each time: PASS (2 rebuilds, 88 levels each, panel 2 still on the Levels). With the check disabled
+  the same run crashes at M_Maps_Draw from drawInstance, as in his report.

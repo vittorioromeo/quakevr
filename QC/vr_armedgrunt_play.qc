@@ -86,6 +86,7 @@ float vr_ag_tug_ease;     // VR_AG_TugBreak's thresholds times this (both hands 
 .float vr_ag_fall_hit;    // ... its hardest impact so far (units/s lost in a frame, coming down; vr_agrunt_fall_keep_impact)
 .float vr_ag_fall_hit_at; // ... when (the tests)
 .float vr_ag_fall_held;   // ... held by your hands last frame (the tests)
+float VR_AG_FALL_STRUCK = 1; // s after a blow on it (vr_ag_struck_at) its body's knocks are the blow's (VR_AG_FallImpact)
 float vr_ag_tug_force;    // ... the last frame's pull (N; the tests)
 float vr_ag_parried_n;    // its blows your weapons parried (VR_AG_Parried; the tests)
 float VR_AG_TUG_STAGGER = 0.35; // (was: s its stumble as you tear its weapon away; now vr_agrunt_tug_won_stumble)
@@ -160,9 +161,17 @@ float(entity g) VR_AG_TugNeed =
     return need;
 };
 
+string(entity g) VR_AG_TugReadout;
+string(string why) VR_AG_TugLostRule;
 void(entity g, float won, string why) VR_AG_TugEnd =
 {
     entity pl = g.vr_ag_tug_pl;
+    if(vr_dv_on)
+    {
+        // The verdict and the readout as it ended, kept over it a few seconds (debugdisarmnote 6; its console line).
+        debugdisarmnote(g, 6, g.origin + '0 0 40', sprintf("TUG %s: %s\n%s", won ? "WON" : "LOST",
+            won ? why : sprintf("%s (%s)", VR_AG_TugLostRule(why), why), VR_AG_TugReadout(g)));
+    }
     if(g.vr_ag_tug_rag)
     {
         // The physical tug's: your hand's hold let go, its stagger over in a moment (won: a short stumble, its grip
@@ -316,20 +325,101 @@ float(entity g) VR_AG_TugShare =
 // only a pull above vr_agrunt_tug_pull_force counts (eased off below it); kept up vr_agrunt_tug_pull_time s, a pull of
 // vr_agrunt_tug_break_force or force x time (counted above the pull force) of vr_agrunt_tug_break_impulse tears it out.
 // A yank vr_agrunt_tug_snap x the break force tears it out at once. All of them times its grip (VR_AG_TugShare).
-string(entity g, float f, float dt) VR_AG_TugBreak =
+// The physical tug's thresholds now (VR_AG_TugBreak's; the tug readout's), times its grip (VR_AG_TugShare) and `ez` (both
+// hands on: vr_agrunt_tug_two_hand_ease; else 1): vr_ag_tl_brk the break force (N), _need the break impulse (N s), _least
+// the least pull that counts (N), _hold the least pull's time (s), _snap a yank's (N; 0 none).
+float vr_ag_tl_brk, vr_ag_tl_need, vr_ag_tl_least, vr_ag_tl_hold, vr_ag_tl_snap;
+void(entity g, float ez) VR_AG_TugLimits =
 {
-    float ez = vr_ag_tug_ease > 0 ? vr_ag_tug_ease : 1;
-    float share = VR_AG_TugShare(g) * ez; // (both hands on: eased)
-    float brk = max(1, cvar_hget(cvarh_vr_agrunt_tug_break_force)) * share;
-    float need = max(0.01, cvar_hget(cvarh_vr_agrunt_tug_break_impulse)) * share;
-    float least = max(0, cvar_hget(cvarh_vr_agrunt_tug_pull_force)) * share;
-    float hold = max(0, cvar_hget(cvarh_vr_agrunt_tug_pull_time)) * ez;
+    float share = VR_AG_TugShare(g) * ez;
+    vr_ag_tl_brk = max(1, cvar_hget(cvarh_vr_agrunt_tug_break_force)) * share;
+    vr_ag_tl_need = max(0.01, cvar_hget(cvarh_vr_agrunt_tug_break_impulse)) * share;
+    vr_ag_tl_least = max(0, cvar_hget(cvarh_vr_agrunt_tug_pull_force)) * share;
+    vr_ag_tl_hold = max(0, cvar_hget(cvarh_vr_agrunt_tug_pull_time)) * ez;
     if(g.vr_ag_tug_down > 0)
     {
         // (A downed or staggering one's: its times eased, vr_agrunt_tug_downed_scale; the pulls that count as ever.)
-        need = need * g.vr_ag_tug_down;
-        hold = hold * g.vr_ag_tug_down;
+        vr_ag_tl_need = vr_ag_tl_need * g.vr_ag_tug_down;
+        vr_ag_tl_hold = vr_ag_tl_hold * g.vr_ag_tug_down;
     }
+    float snap = cvar_hget(cvarh_vr_agrunt_tug_snap);
+    vr_ag_tl_snap = snap > 0 ? vr_ag_tl_brk * snap : 0;
+};
+
+// The tug readout (Show Disarm Volumes, over its weapon while a tug is on; with the verdict for a few seconds after it
+// ends: VR_AG_TugEnd; his note 2026-11-01 18:35, "understand why sometimes it succeeds, why it fails"): every number
+// its rules read, against what each must reach.
+string(entity g) VR_AG_TugReadout =
+{
+    entity pl = g.vr_ag_tug_pl;
+    float h = g.vr_ag_tug_hand;
+    string s;
+    // (its state: the physical tug's own stagger is the tug's, not shaky)
+    string hurt = (g.vr_ag_tug_rag && g.vr_ag_tug_down <= 0 && g.vr_kd_stagger) ? "" : VR_AG_Shaky(g);
+    if(hurt == "" && g.vr_ag_tug_rag && g.vr_ag_tug_down <= 0)
+    {
+        hurt = time < g.vr_parry_stagger_until ? "stunned by a parry"
+             : VR_AG_HealthShare(g) <= cvar_hget(cvarh_vr_agrunt_tug_hurt) ? "badly hurt" : "";
+    }
+    if(hurt == "")
+    {
+        hurt = "steady";
+    }
+    if(g.vr_ag_tug_rag)
+    {
+        float cap = cvar_hget(cvarh_vr_agrunt_tug_hold_max);
+        s = sprintf("TUG physical%s%s: %.2f s%s", g.vr_ag_tug_down > 0 ? ", it downed" : "",
+            g.vr_ag_tug_two ? ", both hands" : "", time - g.vr_ag_tug_since,
+            cap > 0 ? sprintf(" (it wrenches free at %.1f)", cap) : "");
+        VR_AG_TugLimits(g, g.vr_ag_tug_two ? min(1, max(0.05, cvar_hget(cvarh_vr_agrunt_tug_two_hand_ease))) : 1);
+        s = sprintf("%s\npull %.0f N (hold %.0f, stretch %.0f) / break %.0f N%s", s, vr_ag_tug_force, vr_ag_tug_fjoint,
+            vr_ag_tug_fstretch, vr_ag_tl_brk, vr_ag_tl_snap > 0 ? sprintf(", yank %.0f", vr_ag_tl_snap) : "");
+        s = sprintf("%s\nover %.0f N: kept %.2f / %.2f s", s, vr_ag_tl_least, g.vr_ag_tug_held, vr_ag_tl_hold);
+        s = sprintf("%s\nimpulse %.0f / %.0f N s; progress %.0f%%", s, g.vr_ag_tug_imp, vr_ag_tl_need,
+            min(1, g.vr_ag_tug_prog) * 100);
+        float d = pl ? ragdolltug(g, pl, h, 7) : -1;
+        float lg = pl ? ragdolltug(g, pl, h, 8) : -1;
+        float cm = 100 / VRMetersToUnits();
+        s = sprintf("%s\nhand %.1f / let go %.1f cm", s, d >= 0 ? d * cm : -1, lg >= 0 ? lg * cm : -1);
+    }
+    else
+    {
+        float need = VR_AG_TugNeed(g) * (g.vr_ag_tug_down ? g.vr_ag_tug_down : 1);
+        s = sprintf("TUG%s: %.2f s\nstretch %.1f / %.1f units\npulled %.2f / %.2f s", g.vr_ag_tug_down > 0 ? ", it downed" : "",
+            time - g.vr_ag_tug_since, vr_ag_tug_stretch, cvar_hget(cvarh_vr_agrunt_tug_pull), g.vr_ag_tug_prog, need);
+        vector rel = pl ? VRGetEntHandPos(pl, h) - g.vr_ag_prop.origin - g.vr_ag_tug_off : '0 0 0';
+        s = sprintf("%s\nhand off %.1f / slips at %.0f units", s, vlen(rel), VR_AG_TUG_SLIP);
+    }
+    return sprintf("%s\nits grip x%.2f: health %.0f%% (badly hurt at %.0f%%), %s", s, VR_AG_TugShare(g),
+        VR_AG_HealthShare(g) * 100, cvar_hget(cvarh_vr_agrunt_tug_hurt) * 100, hurt);
+};
+
+// What a tug's end `why` (lost) means, for the verdict.
+string(string why) VR_AG_TugLostRule =
+{
+    if(why == "let go")
+    {
+        return "you opened your hand";
+    }
+    if(why == "torn away")
+    {
+        return "your hand went past the let-go distance from its hold";
+    }
+    if(why == "wrenched free")
+    {
+        return "it held on to vr_agrunt_tug_hold_max";
+    }
+    return why;
+};
+
+string(entity g, float f, float dt) VR_AG_TugBreak =
+{
+    float ez = vr_ag_tug_ease > 0 ? vr_ag_tug_ease : 1;
+    VR_AG_TugLimits(g, ez); // (both hands on: eased)
+    float brk = vr_ag_tl_brk;
+    float need = vr_ag_tl_need;
+    float least = vr_ag_tl_least;
+    float hold = vr_ag_tl_hold;
     float snap = cvar_hget(cvarh_vr_agrunt_tug_snap);
     vr_ag_tug_force = f;
     g.vr_ag_tug_peak = max(g.vr_ag_tug_peak, f);
@@ -1020,7 +1110,7 @@ void(entity attacker, entity targ) VR_AG_Parried =
         {
             VR_AG_Swap(attacker);
         }
-        VR_AG_Disarm(attacker, attacker.origin - targ.origin, 120, "its blow parried");
+        VR_AG_DisarmBy(attacker, targ, attacker.origin - targ.origin, 120, "its blow parried");
     }
 };
 
@@ -1037,6 +1127,34 @@ void() VR_AG_PlayPrecache =
         precache_sound(sprintf("vr/phys/metal_h%g.wav", i));
         precache_sound(sprintf("vr/phys/metal_m%g.wav", i));
         precache_sound(sprintf("vr/phys/wood_h%g.wav", i));
+    }
+};
+
+float vr_ag_tries; // disarm attempts (VR_AG_DisarmTry; the tests)
+
+// Who threw `e` (a weapon, a prop, a gib) at its weapon: its owner when a player (world: not known).
+entity(entity e) VR_AG_Thrower = { return (e.owner.flags & FL_CLIENT) ? e.owner : world; };
+
+// Every try at its weapon, whatever came of it (his notes 2026-11-01 18:03, 18:37: a shot or a parried strike on one
+// that hadn't seen you left it calm). It turns on whoever tried (VR_Provoke: you unseen or with notarget too, it knows
+// what was done to it); knocked out of its hand, it staggers on its feet for vr_agrunt_disarm_stagger s (the parry's
+// flinch, VR_Parry_InterruptFor; never a ragdoll: a fall drops what the other hand holds, VR_AG_FallDrop). `by` world
+// (the tools', the tests' own disarms): nothing.
+void(entity g, entity by, float outcome) VR_AG_DisarmTry =
+{
+    g.vr_ag_struck_at = time; // (lying: the blow's knock on its body is no fall's impact, VR_AG_FallImpact)
+    if(!by || by == g || g.health <= 0)
+    {
+        return;
+    }
+    vr_ag_tries = vr_ag_tries + 1;
+    VR_Provoke(g, by);
+    float stagger = min(3, max(0, cvar_hget(cvarh_vr_agrunt_disarm_stagger)));
+    if(outcome == VR_AG_TRY_DISARMED && stagger > 0)
+    {
+        vr_parry_noragdoll = TRUE;
+        VR_Parry_InterruptFor(g, by, stagger);
+        vr_parry_noragdoll = FALSE;
     }
 };
 
@@ -1306,7 +1424,7 @@ float(entity g, entity p, entity pl, float h) VR_AG_HandStrike =
         return FALSE;
     }
     if(h == cVR_MainHand) { pl.vr_ag_knock_at = time; } else { pl.vr_ag_knock_off = time; }
-    VR_AG_Disarm(g, VRGetEntHandVel(pl, h) - pl.velocity, 100 + sp * 15, sprintf("a blow of %.1f m/s on its weapon", sp));
+    VR_AG_DisarmBy(g, pl, VRGetEntHandVel(pl, h) - pl.velocity, 100 + sp * 15, sprintf("a blow of %.1f m/s on its weapon", sp));
     if(vr_dv_on)
     {
         VR_DV_Mark(p, VRGetEntHandPos(pl, h), VR_DV_DISARM, sprintf("strike %.1f m/s on its weapon", sp));
@@ -1405,11 +1523,13 @@ float(entity g, entity p) VR_AG_WeaponStruck =
                 e.vr_ag_knock_at = time;
                 if(mom >= cvar_hget(cvarh_vr_agrunt_disarm_throw))
                 {
-                    VR_AG_Disarm(g, e.velocity, 120, sprintf("a %s thrown at its weapon, %.1f kg m/s", e.classname, mom));
+                    VR_AG_DisarmBy(g, VR_AG_Thrower(e), e.velocity, 120, sprintf("a %s thrown at its weapon, %.1f kg m/s",
+                        e.classname, mom));
                     return TRUE;
                 }
                 VR_AG_Log(sprintf("a %s thrown at its weapon, %.1f kg m/s: under %g", e.classname, mom,
                     cvar_hget(cvarh_vr_agrunt_disarm_throw)));
+                VR_AG_DisarmTry(g, VR_AG_Thrower(e), VR_AG_TRY_HELD);
             }
         }
         e = e.chain;
@@ -1454,7 +1574,10 @@ string(entity g, float most) VR_AG_FallImpact =
         vector flat = v;
         flat_z = max(0, flat_z);
         g.vr_ag_fall_fling = max(g.vr_ag_fall_fling, vlen(flat));
-        if(!held && !g.vr_ag_fall_held && (was_z < 0 || vlen(was) > 3 * u))
+        // (A blow on it or a try at its weapon as it lies knocks its body: no fall's impact. A disarm of one hand's weapon
+        // lying took the other's too, his note vrragtriggers_2026-11-01_18-21-43: the punch's knock met the floor.)
+        float struck = time - g.vr_ag_struck_at < VR_AG_FALL_STRUCK;
+        if(!held && !g.vr_ag_fall_held && !struck && (was_z < 0 || vlen(was) > 3 * u))
         {
             // (coming down, or flung along the floor: a judo throw's skid into it)
             traceline(g.origin, g.origin - '0 0 24', TRUE, g);

@@ -19,7 +19,7 @@ namespace qvr::disarmviz
 {
 
 void PF_debugdisarm();     // debugdisarm(e, kind, a, b, radius): a shape this server frame (vr_disarmviz.qc's kinds)
-void PF_debugdisarmnote(); // debugdisarmnote(e, what, at, text): 0 e's state this frame; 1-5 a hit (shown a moment)
+void PF_debugdisarmnote(); // debugdisarmnote(e, what, at, text): 0 e's state this frame; 1-5 a hit (shown a moment); 6 a tug's verdict (kept tugShown s, printed)
 
 void serverFrame();                // VR_ServerFrameEnd: the fists measured against the weapons
 void draw(const glm::vec3& eye);   // the view's debug draws

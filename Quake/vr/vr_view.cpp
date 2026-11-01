@@ -8,6 +8,7 @@
 #include "vr_disarmviz.hpp"
 #include "vr_gunsfx.hpp"
 #include "vr_holstersetup.hpp"
+#include "vr_hotblade.hpp"
 #include "vr_goresound.hpp"
 #include "vr_adcrossbow.hpp"
 #include "vr_flail.hpp"
@@ -5104,6 +5105,9 @@ extern "C" void VR_SetupViewEntities()
         QVR_PROFILE("view muzzle flashes");
         weaponfx::frame(entities.weapon, entities.muzzleFlash, entities.enemyFlash);
         gunsfx::frame(); // the shots' haptic punches' tails
+        // Incandescent blades and hot barrels: their light, embers and trails from the weapons as drawn now (not before
+        // the view entities are set up: a frame behind, they trailed the gun turning or moving with the stick).
+        hotblade::queue(s);
     }
 
     {

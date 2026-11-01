@@ -106,6 +106,25 @@ vector vr_agk_gr;
 float vr_agk_mode;
 float vr_agk_gun;          // (a single gun held: its pose category's keys; the off-hand block only then)
 float vr_agk_stretch;      // its kind and class's IK stretch (agpose::stretch, weapondrawnpose(world, kind * 100 + class, 28); 1 none): sent in the off-hand block when over 1
+.float vr_agk_tugw;        // the tug's share of its IK stretch now (0..1; VR_AGK_TugStretch),
+.float vr_agk_tugt;        // ... eased last at
+float vr_agk_tugs;         // ... the last factor (the tests)
+float VR_AGK_TUG_EASE = 0.25; // s the tug's IK stretch takes to ease in or out
+
+// The tug's IK stretch (his note: "a tunable IK stretch multiplier that applies to the forearm/upper arm of an enemy only
+// during a tug of war, to make the weapon look a bit more attached to the enemy"): its kind and class's times
+// vr_agrunt_tug_ik_stretch while a tug over its weapon is on, eased in and out over VR_AGK_TUG_EASE s.
+float(entity g) VR_AGK_TugStretch =
+{
+    float dt = min(0.1, max(0, time - g.vr_agk_tugt));
+    g.vr_agk_tugt = time;
+    float want = g.vr_ag_tug_pl ? 1 : 0;
+    float step = dt / VR_AGK_TUG_EASE;
+    g.vr_agk_tugw = want > g.vr_agk_tugw ? min(want, g.vr_agk_tugw + step) : max(want, g.vr_agk_tugw - step);
+    float w = g.vr_agk_tugw * g.vr_agk_tugw * (3 - 2 * g.vr_agk_tugw); // (smooth)
+    vr_agk_tugs = 1 + (max(1, cvar_hget(cvarh_vr_agrunt_tug_ik_stretch)) - 1) * w;
+    return vr_agk_tugs;
+};
 
 void(entity g) VR_AGP_Body = { makevectors([0, g.angles_y, 0]); vr_agp_f = v_forward; vr_agp_r = v_right; };
 vector(vector l) VR_AGP_ToWorld = { return vr_agp_f * l_x - vr_agp_r * l_y + '0 0 1' * l_z; };
@@ -272,6 +291,49 @@ vector vr_am_cast_grip; // ... its hand's place then (a weapon's grip, the fist)
 vector vr_am_cast_tip;  // ... the weapon's tip then (weaponmuzzle; the fist: its origin),
 float vr_am_cast_by;    // ... how: 1 a blade's swing, 2 a fist, 3 a gun's thrust
 
+float vr_am_cast_shots; // ... the fireballs its volleys loosed (the tests)
+
+// One fireball of the volley (`offset` as his magicc frames' hknight_shot's, -2 .. 3) from `org`, `g` casting.
+void(entity g, vector org, float offset) VR_AGP_CastShot =
+{
+    entity oldself = self;
+    self = g;
+    vr_hk_shot_from = 1;
+    vr_hk_shot_org = org;
+    hknight_shot(offset);
+    vr_hk_shot_from = 0;
+    self = oldself;
+    vr_am_cast_shots = vr_am_cast_shots + 1;
+};
+
+// The volley's sweep (a caster of its own, `owner` the death knight): his magicc frames' six, a tenth of a second apart
+// as his own spell sweeps them (all six at once came out of one point: they met each other at once and burst, two
+// left; his voice note 2026-11-01 18:27). From the blow's point as he moves (`view_ofs` from him); a gun's thrust: its
+// muzzle as drawn each time. `cnt` the next offset; done at 3, or he dies, loses his target, is disarmed of the gun.
+void() VR_AGP_CastTick =
+{
+    entity g = self.owner;
+    if(!g || g.health <= 0 || !g.enemy || g.enemy.health <= 0 || self.cnt > 3)
+    {
+        remove(self);
+        return;
+    }
+    vector org = g.origin + self.view_ofs;
+    if(self.weapon == 3)
+    {
+        entity cg = g.vr_ag_prop;
+        if(!cg)
+        {
+            remove(self);
+            return;
+        }
+        org = VR_AG_DrawnMuzzle(cg, normalize(VR_AI_Origin(g.enemy) - cg.origin));
+    }
+    VR_AGP_CastShot(g, org, self.cnt);
+    self.cnt = self.cnt + 1;
+    self.nextthink = time + 0.1;
+};
+
 void(entity g, vector org, vector grip, float by) VR_AGP_CastVolley =
 {
     g.vr_ag_act_cast = 2;
@@ -279,17 +341,15 @@ void(entity g, vector org, vector grip, float by) VR_AGP_CastVolley =
     {
         return;
     }
-    entity oldself = self;
-    self = g;
-    vr_hk_shot_from = 1;
-    vr_hk_shot_org = org;
-    float i;
-    for(i = -2; i <= 3; i++)
-    {
-        hknight_shot(i); // (his six, fanned as his magicc frames fan them, all at the blow)
-    }
-    vr_hk_shot_from = 0;
-    self = oldself;
+    VR_AGP_CastShot(g, org, -2); // (the first at the blow)
+    entity c = spawn();
+    c.classname = "vr_ag_caster";
+    c.owner = g;
+    c.cnt = -1;
+    c.weapon = by;
+    c.view_ofs = org - g.origin;
+    c.think = VR_AGP_CastTick;
+    c.nextthink = time + 0.1;
     vr_am_casts = vr_am_casts + 1;
     vr_am_cast_org = org;
     vr_am_cast_grip = grip;
@@ -1082,7 +1142,7 @@ void(entity g, entity p, entity pL) VR_AGP_ArmsGun =
         upR = VR_AG_Rotate(upR, right, hk);
     }
     // A reload: the gun lowered and rolled in, the off hand to its belt and back to the gun.
-    float rl = g.vr_agp_rl_at > 0 ? (time - g.vr_agp_rl_at) / max(0.1, cvar_hget(cvarh_vr_agrunt_reload_time)) : -1;
+    float rl = g.vr_agp_rl_at > 0 ? (time - g.vr_agp_rl_at) / max(0.1, VR_AG_ReloadTime(g)) : -1;
     if((rl >= 0) && (rl <= 1) && (!pL))
     {
         float s = sin(rl * 3.14159265);
@@ -1564,7 +1624,7 @@ void(entity g, entity p) VR_AGK_Keys =
     float cls = VR_AGK_Class(g, p);
     float base = g.vr_ag_kind * VR_AGK_KIND + cls * VR_AGK_CLASS;
     vector st = weapondrawnpose(world, g.vr_ag_kind * 100 + cls, 28);
-    vr_agk_stretch = st_x;
+    vr_agk_stretch = st_x * VR_AGK_TugStretch(g);
     float wp = 0; // (the pickup's: its bend's)
     if(g.vr_ag_took_at > 0 && p)
     {
@@ -2347,7 +2407,7 @@ void(entity g, entity p) VR_AGP_Pose =
         {
             tq_y = tq_y - 3 * sin(ke / 0.4 * 3.14159265); // (back and forward again, no snap)
         }
-        float rlp = g.vr_agp_rl_at > 0 ? (time - g.vr_agp_rl_at) / max(0.1, cvar_hget(cvarh_vr_agrunt_reload_time)) : -1;
+        float rlp = g.vr_agp_rl_at > 0 ? (time - g.vr_agp_rl_at) / max(0.1, VR_AG_ReloadTime(g)) : -1;
         if(rlp >= 0 && rlp <= 1)
         {
             float rs = sin(rlp * 3.14159265);

@@ -152,7 +152,8 @@ vr_agrunt_test   98       vr_armedgrunt_preparry_test.qc   the wind-up parry: yo
 vr_agrunt_test   99       vr_drawnpose_test.qc             the drawn pose: disarm volumes and worn packs on the body as drawn
 vr_agrunt_test   79       vr_stalepose_test.qc             shots on a live armed humanoid's drawn body, VR_AG_Hit's grip spheres on its drawn grip
 vr_agrunt_test   16       vr_disarmhull_test.qc            the disarm volumes as hulls of the drawn triangles: every kind and weapon class
-vr_agrunt_test   100+     vr_armedgrunt_test.qc            one weapon's every-weapon test (100 + its index)
+vr_agrunt_test   100-199  vr_armedgrunt_test.qc            one weapon's every-weapon test (100 + its index)
+vr_agrunt_test   200      vr_armedgrunt_aware_test.qc      disarm attempts on unaware grunts: punch, shots (notarget), parry, blade wake them; dual wield drops the struck one alone
 
 vr_flare_test    1*       vr_flaregun_test.qc              (the self-test (its fall-through))
 vr_flare_test    2-4      vr_flaregun_test.qc              (VR_FLT_Give)
@@ -210,6 +211,7 @@ vr_rv_test       5        vr_revolver_test.qc              (VR_NPT_Grunt)
 # The other QC test cvars' dispatchers (2026-10-29). `loose`: the dispatcher's own branches may share a
 # number (a set-up branch, then the case's), so only the registry's claims and the coverage are checked.
 dispatch vr_agarmor_test QC/vr_agarmor_test.qc VR_AgArmor_TestFrame request loose
+dispatch vr_agtune_test QC/vr_agtune_test.qc VR_AGTune_TestFrame req
 dispatch vr_ammocolor_test QC/vr_ammocolor_test.qc VR_AmmoColor_TestFrame req loose
 dispatch vr_arena_perks_test QC/vr_arena_perks_test.qc VR_ARENA_PERKS_Test_Frame c loose
 dispatch vr_arena_test QC/vr_arena_test.qc VR_ARENA_Test_Frame c loose
@@ -245,6 +247,8 @@ vr_wornpack_test 3        vr_wornpack_test.qc              (worn backpacks: Pull
 vr_ragsmash_test 1        vr_ragsmash_test.qc              (a corpse smashed into a wall: its sound and blood there; a slow touch: none)
 
 vr_agarmor_test  1*       vr_agarmor_test.qc               (the Debug menu runs it: the dispatcher's fall-through)
+vr_agtune_test   1*       vr_agtune_test.qc                the armed humanoids' tuning: fire interval, reload, speed sliders, swing steady, the death knight's sweep
+vr_agtune_test   2        vr_agtune_test.qc                the loaded map's armed humanoids' armour share by the skill
 vr_agarmor_test  2        vr_agarmor_test.qc               (VR_AgArmor_Give)
 vr_agarmor_test  3        vr_agarmor_test.qc               (VR_ART_SpawnKind)
 vr_agarmor_test  4        vr_agarmor_test.qc               (VR_ART_SpawnKind)

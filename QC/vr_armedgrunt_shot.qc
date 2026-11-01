@@ -42,6 +42,7 @@ float VR_AGS_MAX_CHANCE = 0.95;
 .float vr_ags_cool;     // ... nothing adds up before this (a roll failed)
 .float vr_ags_shown;    // ... its volumes last shown (debug 2)
 .entity vr_ags_by;      // a projectile: the held weapon it last counted on (once each)
+.entity vr_ags_shooter; // a held weapon: who shot it last (its roll's: VR_AG_DisarmTry)
 
 float vr_ags_s;         // VR_AGS_Closest's: where along the first segment (0..1)
 vector vr_ags_ha;       // VR_AGS_HandLine's: the grip,
@@ -60,6 +61,7 @@ float vr_ags_exact;     // VR_AGS_MeetOne: the true volumes (both parts, size 1,
 float vr_ags_last_chance; // the last projectile roll's chance (vr_agrunt_shotdisarm_proj; the tests)
 float vr_ags_proj_won;  // VR_AGS_Projectiles: a projectile's roll won (VR_AGS_Frame disarms),
 vector vr_ags_proj_dir; // ... its way,
+entity vr_ags_proj_by;  // ... who fired it,
 float vr_ags_proj_dmg;  // ... its damage
 .float vr_ags_tink_at;  // a held weapon: its last blocked shot's tink (one a blast)
 
@@ -271,12 +273,14 @@ void(vector a, vector b) VR_AGS_Meet =
 };
 
 // `amount` more on the held weapon `p` (its `part`, 1 the weapon or 2 the hand, met at `at` going `dir`).
-void(entity p, float amount, vector dir, float part, vector at, float kind) VR_AGS_Add =
+void(entity p, float amount, vector dir, float part, vector at, float kind, entity by) VR_AGS_Add =
 {
     if(amount <= 0)
     {
         return;
     }
+    p.vr_ags_shooter = by;
+    VR_AG_DisarmTry(p.owner, by, VR_AG_TRY_MET); // (a shot on its weapon or hand: it turns on you)
     string what = sprintf("%s on its %s%s (%s)", VR_AGS_KindName(kind), part == 1 ? "weapon" : "hand",
         (vr_ags_mf < 1 && kind != QVR_AGS_SPLASH) ? ", near" : "", p.netname);
     if(vr_dv_on)
@@ -412,7 +416,7 @@ float(entity xFrom, vector xA, vector xB, vector xDir, float xDamage, float xKin
     {
         vector at = xA + (xB - xA) * vr_ags_ms;
         float w = vr_ags_mpart == 1 ? cvar_hget(cvarh_vr_agrunt_shotdisarm_weapon_w) : cvar_hget(cvarh_vr_agrunt_shotdisarm_hand_w);
-        VR_AGS_Add(vr_ags_mp, xDamage * VR_AGS_KindWeight(xKind) * w * vr_ags_mf, xDir, vr_ags_mpart, at, xKind);
+        VR_AGS_Add(vr_ags_mp, xDamage * VR_AGS_KindWeight(xKind) * w * vr_ags_mf, xDir, vr_ags_mpart, at, xKind, xFrom);
     }
     else if(counts && te.vr_ag && te.health > 0)
     {
@@ -447,12 +451,12 @@ float(entity targ, entity inflictor, entity attacker, float take) VR_AGS_Hit =
             if(targ.vr_ag_prop)
             {
                 VR_AGS_Add(targ.vr_ag_prop, take * w, targ.vr_ag_prop.origin - inflictor.origin, 1, targ.vr_ag_prop.origin,
-                    QVR_AGS_SPLASH);
+                    QVR_AGS_SPLASH, attacker);
             }
             if(targ.vr_ag_prop2)
             {
                 VR_AGS_Add(targ.vr_ag_prop2, take * w, targ.vr_ag_prop2.origin - inflictor.origin, 1,
-                    targ.vr_ag_prop2.origin, QVR_AGS_SPLASH);
+                    targ.vr_ag_prop2.origin, QVR_AGS_SPLASH, attacker);
             }
         }
         return FALSE;
@@ -551,11 +555,13 @@ void(entity g, entity p, entity e, float kind, vector a, vector b) VR_AGS_ProjRo
     if(r >= chance)
     {
         VR_AGS_Log(sprintf("%s: %.0f damage, chance %.2f, rolled %.2f: holds on", what, dmg, chance, r));
+        VR_AG_DisarmTry(g, e.owner, VR_AG_TRY_HELD);
         return;
     }
     VR_AGS_Log(sprintf("%s: %.0f damage, chance %.2f, rolled %.2f: shot out of its hand", what, dmg, chance, r));
     vr_ags_proj_won = TRUE;
     vr_ags_proj_dir = e.velocity;
+    vr_ags_proj_by = e.owner;
     vr_ags_proj_dmg = dmg;
 };
 
@@ -591,7 +597,7 @@ void(entity g, entity p) VR_AGS_Projectiles =
                     float w = vr_ags_mpart == 1 ? cvar_hget(cvarh_vr_agrunt_shotdisarm_weapon_w) :
                         cvar_hget(cvarh_vr_agrunt_shotdisarm_hand_w);
                     VR_AGS_Add(p, VR_AGS_ProjDamage(e, kind) * VR_AGS_KindWeight(kind) * w * vr_ags_mf, e.velocity,
-                        vr_ags_mpart, at, kind);
+                        vr_ags_mpart, at, kind, e.owner);
                 }
             }
             // A nail whose first hit is the weapon: stopped there (vr_agrunt_shotdisarm_block; its body first: the body's).
@@ -665,7 +671,7 @@ float(entity g, entity p) VR_AGS_Frame =
         // (a projectile's own roll won: VR_AGS_ProjRoll)
         vr_ags_proj_won = FALSE;
         VR_AGS_ShotOut(g, p);
-        VR_AG_Disarm(g, vr_ags_proj_dir, 150 + min(150, vr_ags_proj_dmg * 3), sprintf("shot out of its hand by a projectile, %.0f damage",
+        VR_AG_DisarmBy(g, vr_ags_proj_by, vr_ags_proj_dir, 150 + min(150, vr_ags_proj_dmg * 3), sprintf("shot out of its hand by a projectile, %.0f damage",
             vr_ags_proj_dmg));
         return TRUE;
     }
@@ -688,10 +694,11 @@ float(entity g, entity p) VR_AGS_Frame =
     {
         p.vr_ags_cool = time + max(0, cvar_hget(cvarh_vr_agrunt_shotdisarm_cooldown));
         VR_AGS_Log(sprintf("roll on %s: %.1f damage, chance %.2f, rolled %.2f: holds on", p.netname, acc, chance, r));
+        VR_AG_DisarmTry(g, p.vr_ags_shooter, VR_AG_TRY_HELD);
         return FALSE;
     }
     VR_AGS_Log(sprintf("roll on %s: %.1f damage, chance %.2f, rolled %.2f: shot out of its hand", p.netname, acc, chance, r));
     VR_AGS_ShotOut(g, p);
-    VR_AG_Disarm(g, dir, 150 + min(150, acc * 3), sprintf("shot out of its hand, %.1f damage", acc));
+    VR_AG_DisarmBy(g, p.vr_ags_shooter, dir, 150 + min(150, acc * 3), sprintf("shot out of its hand, %.1f damage", acc));
     return TRUE;
 };

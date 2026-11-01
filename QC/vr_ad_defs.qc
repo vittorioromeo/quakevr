@@ -94,6 +94,7 @@ void(float xHand) AD_FireWidowmaker; // W_Attack: its shot (a shell from its tub
 float(float xHand, float xFlags) AD_PlasmaGun; // W_Attack: the lightning gun in xHand is AD's Plasma Gun
 float(entity xInst) AD_PlasmaGunInst; // the lightning gun of record xInst is the Plasma Gun (its reload override)
 void(float xHand) AD_FirePlasma;     // W_Attack: its bolt
+float AD_PLASMAGUN_REFIRE = 0.2;     // the Plasma Gun's shot interval: yours (W_Fire_Lightning) and an armed humanoid's (VR_AG_FireInterval)
 void(entity xPickup, entity p, float xHand) AD_UpgradeGiven; // weapon_touch: its weapon given to p's hand xHand: the upgrade on it
 float(entity p) AD_PackWeaponUpgrades;   // SetChangeParms: the upgrades of p's weapons (hands, holsters) as one parm
 void(entity p, float xPacked) AD_UnpackWeaponUpgrades; // DecodeLevelParms: ... back on the weapons carried

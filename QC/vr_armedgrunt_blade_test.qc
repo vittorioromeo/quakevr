@@ -136,8 +136,9 @@ void(entity g, float c) VR_AGBL_Strike =
     float wantParry = c == 7 || c == 11;
     float wantBlade = (!wantDis && !wantParry && (c != 9));
     float wantStagger = c == 4;
+    // (a disarm staggers it too: vr_agrunt_disarm_stagger, VR_AG_DisarmTry; no arm kick)
     float ok = ((disarmed == wantDis) && ((parried > 0) == wantParry) && ((blade > 0) == wantBlade) &&
-                (staggered == wantStagger) && ((kicks > 0) == wantStagger));
+                (staggered == (wantStagger || wantDis)) && ((kicks > 0) == wantStagger));
     if(wantBlade)
     {
         ok = (ok && (hurt < 0.01) && (blade == 1) && ((sparks > 0) == (c != 5)));

@@ -8,8 +8,9 @@
 // - the weapon: its model's triangles in their own space (held's drawn mesh: its frame's pose, the networked scale and
 //   offset), the hull made once per mesh, placed each query where the weapon is drawn (hitreact::drawnWeapon: after
 //   every client step; not drawn lately: the server's place);
-// - the hand: the drawn body's vertices on its hand bone and forearm (the authored rig as drawn: drawnpose::armedMesh;
-//   a ragdoll's: ragdoll::skinnedVertices; neither: none, never the animation frame's), its hull made once a frame.
+// - the hand: two hulls, the drawn body's vertices on its hand and on its forearm (agarms::armPart: its skin's chain, not
+//   the ragdoll rig's bones; the authored rig as drawn: drawnpose::armedMesh; a ragdoll's: ragdoll::skinnedVertices;
+//   neither: none, never the animation frame's), made once a frame.
 // One query (gap) for every user: shots (a path), melee strikes (a sweep, its own thickness) and body blows (a point),
 // each with its own signed grow (units: each face moved out, or in, by it; 0 the hull itself).
 
@@ -69,15 +70,26 @@ enum class HandSource : int
     Live = 1,
     Ragdoll = 2,
 };
+// A hand's volume: two hulls, its hand and its forearm (agarms::armPart; one hull of both was a concave arm's hull, far
+// larger than either: his note 2026-11-01 18:35). Each counts alike (gap: the nearer).
+inline constexpr int handParts = 2; // 0 the hand, 1 its forearm
+struct HandPlaced
+{
+    Placed part[handParts]; // (a part with no vertices: its hull null)
+};
 // Armed humanoid `g`'s hand on `side` (0 the main weapon's, 1 the left one's: agarms::ragdollGrip) and its forearm as
 // drawn now (world); `source` (if given) where from, `inDraw` whether it was made while its frame drew it. False: no
 // rig, not drawn lately (no hand volume: never its animation frame's).
-[[nodiscard]] bool hand(edict_t* g, int side, Placed& out, HandSource* source = nullptr, bool* inDraw = nullptr);
+[[nodiscard]] bool hand(edict_t* g, int side, HandPlaced& out, HandSource* source = nullptr, bool* inDraw = nullptr);
 // ... for Show Disarm Volumes: also kept as drawn (disarmhull 23 / 24, the tests' check of what he sees).
-[[nodiscard]] bool handShown(edict_t* g, int side, Placed& out);
+[[nodiscard]] bool handShown(edict_t* g, int side, HandPlaced& out);
+// gap() of the nearer of its hulls.
+[[nodiscard]] float gap(const HandPlaced& h, const glm::vec3& a, const glm::vec3& b, float grow, float* along = nullptr);
 
 // The hull's edges grown by `grow` (Show Disarm Volumes).
 void draw(const Placed& p, float grow, const glm::vec4& colour, float width);
+// ... each of a hand's hulls.
+void draw(const HandPlaced& h, float grow, const glm::vec4& colour, float width);
 
 // vector disarmhull(entity e, float what, vector a, vector b, float grow) (QC; vr_armedgrunt_shot.qc, _parry.qc...).
 void PF_disarmhull();

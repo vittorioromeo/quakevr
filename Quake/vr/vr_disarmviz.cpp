@@ -54,7 +54,8 @@ enum Kind : int
 };
 
 // The notes' kinds (debugdisarmnote): 0 a state; the hits.
-constexpr za::Array<const char*, 6> noteNames{"state", "parry", "disarm", "body blow", "shot", "blocked"};
+constexpr za::Array<const char*, 7> noteNames{"state", "parry", "disarm", "body blow", "shot", "blocked", "tug"};
+constexpr int tugNote = 6;
 
 struct Shape
 {
@@ -68,7 +69,15 @@ struct Label
 {
     int num{0};
     glm::vec3 at{0.f};
-    char text[128]{};
+    char text[512]{}; // (a tug's readout: several lines)
+};
+
+// A tug's verdict and its last readout (debugdisarmnote 6), kept tugShown s over where it ended.
+struct Verdict
+{
+    glm::vec3 at{0.f};
+    char text[640]{};
+    double time{-1.0};
 };
 
 struct Hover
@@ -83,6 +92,8 @@ constexpr int maxShapes = 384;
 constexpr int maxLabels = 32;
 constexpr double shownFresh = 0.25; // s: a frame's shapes older than this are gone (turned off, a map change)
 constexpr double hitShown = 2.0;    // s: the last hit's mark
+constexpr double tugShown = 4.0;    // s: a tug's verdict
+constexpr int maxVerdicts = 4;
 
 struct Viz
 {
@@ -99,6 +110,8 @@ struct Viz
     glm::vec3 hitAt{0.f};
     char hitText[128]{};
     double hitTime{-1.0};
+    za::Array<Verdict, maxVerdicts> verdicts{};
+    int nextVerdict{0};
 };
 Viz viz;
 
@@ -186,10 +199,10 @@ void weaponHull(int num, float grow, const glm::vec4& colour, float width)
     }
 }
 
-// Humanoid s.num's hand on side s.a.x (and forearm) as drawn now, its hull grown by s.radius.
+// Humanoid s.num's hand on side s.a.x and its forearm as drawn now, their two hulls grown by s.radius.
 void handHull(const Shape& s, const glm::vec4& colour, float width)
 {
-    disarmhull::Placed p;
+    disarmhull::HandPlaced p;
     if(s.num > 0 && s.num < sv.qcvm.num_edicts && disarmhull::handShown(EDICT_NUM(s.num), s.a.x > 0.5f ? 1 : 0, p))
     {
         disarmhull::draw(p, s.radius, colour, width);
@@ -315,6 +328,16 @@ void PF_debugdisarmnote()
         }
         return;
     }
+    if(what == tugNote)
+    {
+        Verdict& v = viz.verdicts[static_cast<za::SizeT>(viz.nextVerdict)];
+        viz.nextVerdict = (viz.nextVerdict + 1) % maxVerdicts;
+        v.at = at;
+        v.time = sv.qcvm.time;
+        q_strlcpy(v.text, text, sizeof(v.text));
+        Con_Printf("disarmviz: tug on %d: %s\n", num, text);
+        return;
+    }
     viz.hitNum = num;
     viz.hitWhat = what;
     viz.hitAt = at;
@@ -427,7 +450,7 @@ void draw(const glm::vec3& eye)
         {
             // Its state, and each hand near it: how far its fist is, and whether a grip takes it.
             const Label& l = viz.labels[static_cast<za::SizeT>(i)];
-            char text[256];
+            char text[640];
             int n = q_snprintf(text, sizeof(text), "%s", l.text);
             for(int h = 0; h < 2 && fresh(viz.fistTime); h++)
             {
@@ -444,6 +467,13 @@ void draw(const glm::vec3& eye)
     }
     drawFists();
     const double now = sv.qcvm.time;
+    for(const Verdict& v : viz.verdicts)
+    {
+        if(v.time >= 0.0 && now >= v.time && now - v.time <= tugShown)
+        {
+            label(v.text, v.at, eye);
+        }
+    }
     if(viz.hitTime >= 0.0 && now >= viz.hitTime && now - viz.hitTime <= hitShown)
     {
         const glm::vec4 c = hitColour(viz.hitWhat);

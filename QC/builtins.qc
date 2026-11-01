@@ -315,7 +315,8 @@ float(entity e, entity player, float hand, optional float tug, optional vector g
 // tug's stretch (m: the hand's flat distance from where it stands its ground, beyond the grab's; -1 none); 4 this hand
 // lets go, the tug going on; 5 the ragdoll part the hand's hold takes (-1 none; the tests); 6 begin on a downed or
 // staggering one (any ragdoll of it): the hand holds the limb nearest `grip` by a spring of at most `force` N, its arm
-// pulling that limb back towards its body at `strength` N (1 if it does).
+// pulling that limb back towards its body at `strength` N (1 if it does); 7 your controller's distance from where the
+// hold holds the limb, 8 the distance it lets go at (units; -1 none: the tug readout, VR_AG_TugReadout).
 float(entity e, entity player, float hand, float what, optional vector grip, optional float strength,
       optional float force) ragdolltug =
 {
@@ -537,6 +538,8 @@ float(float verdict, vector at, vector score, vector angle, vector contact, vect
 // The disarm volumes as drawn (vr_disarmhull.cpp PF_disarmhull): what 0 held weapon e, 1/2 humanoid e's hand on side 0/1:
 // '<gap of the path a..b to it grown by grow (0 or less: met)> <the path's share where met> <1 found>'; 10-14 the tests'.
 vector(entity e, float what, vector a, vector b, float grow) disarmhull = #0;
+// Show Disarm Volumes' notes: what 0 e's state this frame (its label), 1-5 a hit (shown a moment), 6 a tug's verdict
+// (kept a few seconds over e, printed: VR_AG_TugEnd).
 void(entity e, float what, vector at, string text) debugdisarmnote = #0;
 // What of you the flame of torch t, held by you, touches (single player: the client's last frame; vr_burn_self,
 // vr_burn_drop on): 1 the holding hand, 2 the other hand, 4 the holding arm, 8 the other arm, 16 the torso or legs, 32

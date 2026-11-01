@@ -595,7 +595,7 @@ float        rs;
     if(self.axhitme == 1)
     {
         self.axhitme = 0;
-        VR_SoundVaried(self, CHAN_VOICE, "player/axhit1.wav", 1, ATTN_NORM);
+        VR_SoundVaried(self, CHAN_VOICE, QVR_SOUND_AXHIT_VOICE, 1, ATTN_NORM); // (his grunt: the player's voice, vr_voice)
         return;
     }
 
@@ -643,11 +643,18 @@ void()   player_hampain6 =  [  23,   player_run_no_arg  ] {};
 
 void(entity attacker, float damage) player_pain =
 {
+    // (No pain sound now: a blade's mark ends with this blow, not left for the next pain of any kind to grunt for it.)
     if(self.weaponframe || self.weaponframe2)
+    {
+        self.axhitme = 0;
         return;
+    }
 
     if(self.invisible_finished > time)
+    {
+        self.axhitme = 0;
         return;        // eyes don't have pain frames
+    }
 
     if(self.weapon == WID_AXE)
         player_axpain1();
