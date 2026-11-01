@@ -4870,3 +4870,33 @@ the same way as the weapons' (above).
   script reading the files); `held_over_props_test.sh` (a box of shells and the wall torch held over boxes) PASS.
 - **Next steps**: the monsters' tables, the named per-weapon families as weapon keys, then getter/setter rows and the
   old names retired after a release.
+
+## Monsters as data (branch `agent/datatables3`; design review 3, step 3: monsters)
+
+The per-monster cvar families that are plain per-classname values are data: 171 values of 17 classnames, no cvars.
+- **`quakevr/data/monsters.txt`**: a `defaults { ... }` block, then `monster <classname> { key "value" ... }` per
+  classname (monster_army ... monster_mummy), every value of it listed, the old rows' comments carried along. Keys:
+  `hull` (was `vr_mhull_<m>`, 13 classes), `smallgibs` / `smallgibs_brains` (`vr_smallgibs_mult_<m>`,
+  `vr_smallgibs_brains_mult_<m>`, 16 each), `ragdoll_<key>` (`vr_ragdoll_<m>_<start|mass|friction|joint_friction|
+  joint_stiffness|limits|damping|blast|inherit>`, 14 classes). The families' tokens (army/grunt, demon/fiend,
+  hknight/hellknight, wizard/scrag, shalrath/vore, scourge/centroid) map to one block each.
+- **`Quake/vr/vr_monsterdata.inc`**: `QVR_MONSTER_VALUE(oldname, classname, key)` per value. Each is a stand-in `cvar_t`
+  in `monsterValues[]` (vr_monsterdata.cpp), and `vr_cvars.hpp` makes each old name a constexpr reference to it (as the
+  tunables are): the C++ (`ragdollClasses`, `monsterClasses`, the menu rows) is unchanged. Read at start
+  (`monsterdata::registerCvars`, after the props) with the shared reader: `readDataFile` takes named slots now
+  (`DataFileSpec::slotNames`). A callback set on one (vr_hull.cpp's width callbacks) is kept.
+- **Names kept**: `VR_CvarStandIn` / `VR_StandInSet` and `standInTables()` (now three tables) take the monsters'; the
+  config's sparse lines, `vr_config_defaults`, the tracking, `vr_config_test`, Propose Defaults walk them. The QC's
+  cvar handles (`cvarh_vr_smallgibs_mult_grunt`, ...) reach them by name: `gen_vr_cvars_qc.py` reads the .inc too (the
+  same 1,296 handles, reordered). Not in `cvarlist` or completion. A name typed in upper case now sets it (as the props').
+- **`vr_monster_dump`** (Debug menu: Monster Values): each classname, its values and how many changed;
+  `vr_monster_dump <classname> ... | all` every value, its old name and its default.
+- **`Misc/quakevr/monsters_data.py convert | promote <config> [--dry] | check | names`**. His config of 10-31 has no
+  monster value lines: nothing to promote.
+- **Left as they are** (not a plain per-classname value): `vr_agrunt_*` (~300: the armed grunt's behaviour settings, one
+  feature's); the monster groups (`vr_mgrp_<group>_*`, `vr_knockdown_chance_<group>`, `vr_kdtrig_resist_<group>`: per
+  group, not classname, made by the QVR_MGROUP macro, the menus build their names; a candidate `group <id>` table
+  next); the tunables `vr_corpse_health_<m>` (16) and `vr_enemy_shove_<enforcer|vore>_*` (constants, not config: a
+  release has them constexpr); single feature settings that name a monster (`vr_enemy_shove_vore`, `vr_ogre_aim_height`,
+  `vr_gruntgun_*`, `vr_grunt_burst*`, `vr_foegrab_throw_grunt`, `vr_climb_mantle_grunt`, `vr_agknight_ranged`);
+  `vr_monster_health_*` (one curve for all); the tests' and debug ones (`vr_test_spawn_*`, `vr_debug_spawn_*`, ...).
