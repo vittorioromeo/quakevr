@@ -32,7 +32,9 @@
 #include "Zancle/Container/Array.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Exp.hpp"
+#include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Fabs.hpp"
 #include "Zancle/Math/Fmax.hpp"
 #include "Zancle/Math/Fmin.hpp"
@@ -663,6 +665,7 @@ za::Vector<Ray> rays;
 za::Vector<Plane> planes;
 za::Vector<int> nearby;     // the entities near the weapon
 za::Vector<int> monsters;   // those of them that are monsters (a chainsaw's bar sinks into them)
+za::Vector<int> liveNear;   // those of them alive (a hand's way into one: Through)
 
 // The first place `ray` goes into a triangle's front (`s` along it, 0..1), and after it the first place it comes out
 // of the same model (1: it doesn't before its end).
@@ -900,6 +903,42 @@ const za::Vector<glm::vec3>* propSamples(int num)
     return &propPoints;
 }
 
+// A hand gone into a live monster's body (his note 2026-11-01 18:55: "If I push my hand hard enough into an enemy grunt,
+// it can actually get through the grunt and then I'm able to grab the backpack while the grunt is facing me"): the push
+// lets go at twice vr_model_collide_max, and the hand's own ray (handRayLength behind it) starts inside a body deeper
+// than that, so a hand pushed on went through. Now its grip's way from one frame to the next is followed: crossing a
+// living monster's surface inwards (not swinging through it: vr_melee_phase) it is drawn held out by the face it went in
+// by (kept in the monster's frame: turning and walking with it) however deep, until it comes back out in front of that
+// face, moves throughReach clear of the body's drawn box, goes throughMost in (a monster walking into you: let go, as
+// before), or the monster dies. Its grabs take hold where it is drawn (vr_foegrab.cpp: not the backpack behind it).
+constexpr float throughReach = 16.f; // units off the body's drawn box a hand gone into it must get to be free of it
+constexpr float throughMost = 40.f;  // units: the most such a hand is drawn held out by
+struct Through
+{
+    int num{0};          // the monster (0: none)
+    glm::vec3 at{0.f};   // the face it went in by: a point on it and its outward normal, in the monster's frame (yaw)
+    glm::vec3 n{0.f};
+};
+Through through[2];
+glm::vec3 lastGrip[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // each hand's tracked grip as last tested
+bool lastGripValid[2]{false, false};
+
+[[nodiscard]] bool liveMonster(int num)
+{
+    if(num <= 0 || num >= qcvm->num_edicts)
+    {
+        return false;
+    }
+    const edict_t* ed = EDICT_NUM(num);
+    return !ed->free && (static_cast<int>(ed->v.flags) & FL_MONSTER) && ed->v.health > 0.f;
+}
+
+[[nodiscard]] glm::mat3 yawTurn(const entity_t& e)
+{
+    const float y = glm::radians(e.angles[1]);
+    return glm::mat3{glm::vec3{za::cos(y), za::sin(y), 0.f}, glm::vec3{-za::sin(y), za::cos(y), 0.f}, glm::vec3{0.f, 0.f, 1.f}};
+}
+
 // The push of `hand` out of the models near it, from its tracked pose.
 // `phase`: the hand swings (vr_melee_phase): the monsters (and corpses, other players) don't stop it; the things lying
 // about still do.
@@ -944,6 +983,16 @@ Result test(const hands::State& s, int hand, bool phase)
     {
         lo = glm::min(lo, glm::min(ray.a, ray.b));
         hi = glm::max(hi, glm::max(ray.a, ray.b));
+    }
+    // (The grip's way since the last test: into a live monster's body? Not a jump: a teleport, a hand taken back.)
+    const bool path = lastGripValid[hand] && glm::distance(lastGrip[hand], grip) < throughMost && !phase;
+    const glm::vec3 from = lastGrip[hand];
+    lastGrip[hand] = grip;
+    lastGripValid[hand] = true;
+    if(path)
+    {
+        lo = glm::min(lo, from);
+        hi = glm::max(hi, from);
     }
 
     // The entities whose boxes (all their frames', turned) are near the weapon's, pushed as far as it may be.
@@ -1010,6 +1059,34 @@ Result test(const hands::State& s, int hand, bool phase)
             }
         }
     }
+    // A hand gone into a live body (Through): still in it? (Out in front of the face it went in by, clear of the body's
+    // drawn box, or the body no more: free of it.)
+    Through& th = through[hand];
+    if(th.num > 0)
+    {
+        const entity_t& e = cl_entities[th.num];
+        const Posed* tp = hosting && liveMonster(th.num) && th.num < cl.num_entities && e.model ? posed(th.num, e) : nullptr;
+        const glm::vec3 origin{e.origin[0], e.origin[1], e.origin[2]};
+        const glm::mat3 turn = yawTurn(e);
+        const bool inFront = glm::dot(grip - (origin + turn * th.at), turn * th.n) > 0.f;
+        const bool clear = !tp || grip.x < tp->lo.x - throughReach || grip.y < tp->lo.y - throughReach ||
+                           grip.z < tp->lo.z - throughReach || grip.x > tp->hi.x + throughReach ||
+                           grip.y > tp->hi.y + throughReach || grip.z > tp->hi.z + throughReach;
+        if(inFront || clear)
+        {
+            th = Through{};
+        }
+    }
+    // (The live monsters near it, for its way into one.)
+    za::Vector<int>& live = liveNear;
+    live.clear();
+    for(const int num : monsters)
+    {
+        if(hosting && liveMonster(num))
+        {
+            live.pushBack(num);
+        }
+    }
     if(hosting)
     {
         PR_PopQCVM(oldvm);
@@ -1031,11 +1108,36 @@ Result test(const hands::State& s, int hand, bool phase)
         // The triangles near the rays as the push so far moves them (each ray then skips the runs away from it).
         result.stats.rounds++;
         gather(lo + p - glm::vec3{margin}, hi + p + glm::vec3{margin}, result.stats);
-        if(tris.empty())
+        if(round == 0)
+        {
+            // Its grip's way into a live monster's front (Through), and the face it went in by held: the first plane.
+            if(path && th.num == 0 && !live.empty() && !tris.empty())
+            {
+                const Crossing c = cross(Ray{from, grip, false});
+                if(c.in && za::find(live.begin(), live.end(), c.owner) != live.end())
+                {
+                    const entity_t& e = cl_entities[c.owner];
+                    const glm::mat3 back = glm::transpose(yawTurn(e));
+                    th.num = c.owner;
+                    th.at = back * (from + (grip - from) * c.sIn - glm::vec3{e.origin[0], e.origin[1], e.origin[2]});
+                    th.n = back * c.n;
+                }
+            }
+            if(th.num > 0)
+            {
+                const entity_t& e = cl_entities[th.num];
+                const glm::mat3 turn = yawTurn(e);
+                const glm::vec3 n = turn * th.n;
+                const glm::vec3 at = glm::vec3{e.origin[0], e.origin[1], e.origin[2]} + turn * th.at;
+                planes.pushBack(Plane{n, margin - glm::dot(grip - at, n)});
+                result.stats.entity = th.num;
+            }
+        }
+        if(tris.empty() && planes.empty())
         {
             break;
         }
-        bool found = false;
+        bool found = round == 0 && !planes.empty();
         for(const Ray& ray : rays)
         {
             const Ray moved{ray.a + p, ray.b + p, ray.hand, ray.blade};
@@ -1084,9 +1186,9 @@ Result test(const hands::State& s, int hand, bool phase)
                 break;
             }
         }
-        if(glm::length(p) >= 2.f * most)
+        if(glm::length(p) >= 2.f * most && th.num == 0)
         {
-            break; // it lets go anyway
+            break; // it lets go anyway (not a hand gone into a live body: held out of it, up to throughMost)
         }
     }
     result.stats.planes = static_cast<int>(planes.size());
@@ -1098,7 +1200,18 @@ Result test(const hands::State& s, int hand, bool phase)
     result.push = p;
     result.blocked = glm::length(p) > 0.f;
     const float len = glm::length(p);
-    const float give = len <= most ? 1.f : za::fmax(0.f, 2.f - len / most); // past it: less, then none
+    float give = len <= most ? 1.f : za::fmax(0.f, 2.f - len / most); // past it: less, then none
+    if(th.num > 0)
+    {
+        if(len > throughMost)
+        {
+            th = Through{}; // (a monster walking into you: let go, as before)
+        }
+        else
+        {
+            give = 1.f; // (gone into a live body: held out of it however deep)
+        }
+    }
     result.given = p * give;
     return result;
 }
@@ -1288,6 +1401,11 @@ void beginView(hands::State& s)
                 QVR_PROFILE("model collide");
                 res = test(s, hand, phasing[hand]);
             }
+            else
+            {
+                through[hand] = Through{};
+                lastGripValid[hand] = false;
+            }
             const glm::vec3 target = res.given;
             // Out at once (nearly), back in more slowly; a swing that passed into a monster, out of it smoothly. Phasing:
             // the push let go at once.
@@ -1455,6 +1573,11 @@ glm::vec3 drawnOffset(int hand)
     return hand == 0 || hand == 1 ? drawn[hand] + pressed[hand] : glm::vec3{0.f};
 }
 
+int throughBody(int hand)
+{
+    return hand == 0 || hand == 1 ? through[hand].num : 0;
+}
+
 void forget(const qmodel_s* model)
 {
     const auto it = modelTris.find(model);
@@ -1472,6 +1595,8 @@ void reset()
         phaseLeft[hand] = releaseLeft[hand] = 0.f;
         phasing[hand] = false;
         recorded[hand] = Recorded{};
+        through[hand] = Through{};
+        lastGripValid[hand] = false;
     }
     posedCache.clear();
     // The models' triangles and samples too, made again as needed: a brush submodel's slot and name (*N) are the next

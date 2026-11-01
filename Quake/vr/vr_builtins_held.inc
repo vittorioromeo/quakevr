@@ -202,6 +202,16 @@ void PF_weapondrawnpose()
         progs::returnVec({k, gap, gap0});
         return;
     }
+    if(what == 40)
+    {
+        // weapondrawnpose(player, hand, 40): this listen server's own `hand` (QC's) as drawn against the models
+        // (vr_modelcollide.cpp) as '<the live monster it went into (Through; 0 none)> <how far it is drawn from where it is
+        // tracked (units)> 0'. QC vr_wornpack_test 4.
+        const bool local = sv.active && cls.state == ca_connected && hand >= 0 && hand <= 1;
+        progs::returnVec({local ? static_cast<float>(modelcollide::throughBody(hand)) : 0.f,
+            local ? glm::length(modelcollide::drawnOffset(hand)) : 0.f, 0.f});
+        return;
+    }
     if(what == 37 || what == 38)
     {
         // weapondrawnpose(g, side, 37 / 38): armed humanoid `g`'s forearm on `side` (0 right: its skin's forearm,
