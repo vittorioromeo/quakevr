@@ -350,7 +350,7 @@ void(float request, entity p) AD_RulesTest =
         // campaign): the map's own grunts replaced; a plain monster_army and monster_hell_knight spawned now armed; AD's
         // own variants (a point knight: monster_hell_knight with spawnflags 8192; monster_army_rocket) left as AD made
         // them. Ends on "adrepl: N passed, M failed".
-        VR_Test_Begin("adrepl");
+        VR_Test_BeginFlags("adrepl", VR_TEST_LOUD);
         makevectors([0, p.v_angle_y, 0]);
         vector at = p.origin + v_forward * 160;
         float scope = VR_AGR_InScope();
