@@ -32,6 +32,18 @@ NUM_SLOTS = 51
 UNINHERITED_SLOTS = (27, 28, 29, 30, 31, 33, 34, 35)  # vr_weapons.cpp uninherited[]
 
 KEY_RE = re.compile(r'^QVR_WEAPON_KEY\((\w+), "([^"]+)"\)')
+
+
+class Table:
+    """A data table (props_data.py has the props'): its keys' .inc, its data file, its blocks' word, its slots and the
+    config's and console's name stem of its values (<stem><key>_NN, NN = slot + 1)."""
+
+    def __init__(self, inc, key_re, data, block, num_slots, stem):
+        self.inc, self.key_re, self.data, self.block, self.num_slots, self.stem = inc, key_re, data, block, num_slots, stem
+        self.file = os.path.basename(data)
+
+
+WEAPONS = Table(INC, KEY_RE, DATA, "weapon", NUM_SLOTS, "vr_wofs_")
 ROW_RE = re.compile(r'^QVR_WEAPON_(DEFAULT|UNINHERITED)\((\d+), (\w+), "([^"]*)"\)\s*(//.*)?$')
 
 # registerCvars' every-slot defaults before the conversion (by enum name; the rest "0").
@@ -60,10 +72,10 @@ HEADER = """\
 """
 
 
-def read_keys():
+def read_keys(table=WEAPONS):
     keys = []
-    for line in open(INC, encoding="utf-8"):
-        m = KEY_RE.match(line)
+    for line in open(table.inc, encoding="utf-8"):
+        m = table.key_re.match(line)
         if m:
             keys.append((m.group(1), m.group(2)))
     return keys
@@ -161,10 +173,11 @@ def convert():
 VALUE_RE = re.compile(r'^(\s*)(\S+) "([^"]*)"(\s*//.*)?$')
 
 
-def parse_data():
-    """weapons.txt as [(kind, slot)] blocks with their line ranges; fails on a malformed file."""
-    names = {name for _, name in read_keys()}
-    lines = open(DATA, encoding="utf-8").read().split("\n")
+def parse_data(table=WEAPONS):
+    """The data file as [(kind, slot)] blocks with their line ranges; fails on a malformed file."""
+    names = {name for _, name in read_keys(table)}
+    f = table.file
+    lines = open(table.data, encoding="utf-8").read().split("\n")
     blocks = []
     cur = None
     for i, line in enumerate(lines):
@@ -172,17 +185,17 @@ def parse_data():
         if not s:
             continue
         if cur is None:
-            m = re.match(r"^(defaults|weapon (\d+))$", s)
+            m = re.match(rf"^(defaults|{table.block} (\d+))$", s)
             if not m:
-                sys.exit(f"weapons.txt:{i + 1}: expected `defaults` or `weapon <slot>`: {line}")
+                sys.exit(f"{f}:{i + 1}: expected `defaults` or `{table.block} <slot>`: {line}")
             slot = int(m.group(2)) if m.group(2) else -1
-            if m.group(2) and not 0 <= slot < NUM_SLOTS:
-                sys.exit(f"weapons.txt:{i + 1}: bad slot {slot}")
+            if m.group(2) and not 0 <= slot < table.num_slots:
+                sys.exit(f"{f}:{i + 1}: bad slot {slot}")
             cur = {"slot": slot, "head": i, "open": None, "close": None, "keys": {}}
             continue
         if cur["open"] is None:
             if s != "{":
-                sys.exit(f"weapons.txt:{i + 1}: expected {{")
+                sys.exit(f"{f}:{i + 1}: expected {{")
             cur["open"] = i
             continue
         if s == "}":
@@ -192,11 +205,40 @@ def parse_data():
             continue
         m = VALUE_RE.match(line)
         if not m or m.group(2) not in names:
-            sys.exit(f"weapons.txt:{i + 1}: not a known key's line: {line}")
+            sys.exit(f"{f}:{i + 1}: not a known key's line: {line}")
         cur["keys"][m.group(2)] = i
     if cur is not None:
-        sys.exit("weapons.txt: a block not closed")
+        sys.exit(f"{f}: a block not closed")
     return lines, blocks
+
+
+def slot_values(table=WEAPONS, by_enum=False, with_defaults=False):
+    """The data file's values: {slot: {key: value}}, each slot's own block's (and, `with_defaults`, every key's value
+    for every slot: the defaults block's unless its own), keyed by the file's names or, `by_enum`, the .inc's enum
+    names (the C++ Key:: names the old QVR_WEAPON_DEFAULT rows used). The other scripts' reader."""
+    keys = read_keys(table)
+    to_enum = {name: enum for enum, name in keys}
+    lines, blocks = parse_data(table)
+    defaults = {name: "0" for _, name in keys}
+    own = {}
+    for b in blocks:
+        vals = {k: VALUE_RE.match(lines[i]).group(3) for k, i in b["keys"].items()}
+        if b["slot"] < 0:
+            defaults.update(vals)
+        else:
+            own.setdefault(b["slot"], {}).update(vals)
+    out = {}
+    for slot in range(table.num_slots):
+        vals = dict(defaults) if with_defaults else {}
+        vals.update(own.get(slot, {}))
+        if vals:
+            out[slot] = {to_enum[k] if by_enum else k: v for k, v in vals.items()}
+    return out
+
+
+def key_names(table=WEAPONS):
+    """{enum name: the file's name} ("GunOffsetX" -> "gunoff_x")."""
+    return dict(read_keys(table))
 
 
 def same_number(a, b):
@@ -208,14 +250,14 @@ def same_number(a, b):
     return abs(x - y) <= 1e-5 * max(1.0, abs(x))
 
 
-def promote(cfg, dry):
-    order = [name for _, name in read_keys()]
-    lines, blocks = parse_data()
+def promote(cfg, dry, table=WEAPONS):
+    order = [name for _, name in read_keys(table)]
+    lines, blocks = parse_data(table)
     by_slot = {b["slot"]: b for b in blocks}
     sets = []
     for line in open(cfg, encoding="utf-8", errors="replace"):
-        m = re.match(r'^vr_wofs_(\w+)_(\d\d) "([^"]*)"\s*$', line.strip())
-        if m and m.group(1) in order and 1 <= int(m.group(2)) <= NUM_SLOTS:
+        m = re.match(rf'^{table.stem}(\w+)_(\d\d) "([^"]*)"\s*$', line.strip())
+        if m and m.group(1) in order and 1 <= int(m.group(2)) <= table.num_slots:
             sets.append((int(m.group(2)) - 1, m.group(1), m.group(3)))
     inserts = {}  # line index -> lines to insert before it
     new_blocks = {}  # slot without a block -> {key: value}
@@ -230,7 +272,7 @@ def promote(cfg, dry):
             print(f"slot {slot} {key}: \"{m.group(3)}\" -> \"{value}\"")
             lines[i] = f'{m.group(1)}{key} "{value}"' + (m.group(4) or "")
         elif b is not None:
-            # Before the first key that comes after it in vr_weapons.inc's order, else at the block's end.
+            # Before the first key that comes after it in the .inc's order, else at the block's end.
             after = [b["keys"][k] for k in order[order.index(key) + 1:] if k in b["keys"]]
             at = min(after) if after else b["close"]
             print(f"slot {slot} {key}: added \"{value}\"")
@@ -245,19 +287,19 @@ def promote(cfg, dry):
         while at > 0 and lines[at - 1].startswith("// slot "):  # (before the next block's heading)
             at -= 1
         ins = inserts.setdefault(at, [])
-        ins.extend([f"// slot {slot} (vr_wofs_*_{slot + 1:02d})", f"weapon {slot}", "{"])
+        ins.extend([f"// slot {slot} ({table.stem}*_{slot + 1:02d})", f"{table.block} {slot}", "{"])
         ins.extend(f'    {k} "{kv[k]}"' for k in order if k in kv)
         ins.extend(["}", ""])
     if dry:
-        print(f"promote: {len(sets)} lines in {cfg}, {changed} would change (--dry: weapons.txt not written)")
+        print(f"promote: {len(sets)} lines in {cfg}, {changed} would change (--dry: {table.file} not written)")
         return
     out = []
     for i, line in enumerate(lines):
         out.extend(inserts.get(i, []))
         out.append(line)
     out.extend(inserts.get(len(lines), []))
-    open(DATA, "w", encoding="utf-8", newline="\n").write("\n".join(out))
-    print(f"promote: {len(sets)} lines in {cfg}, {changed} changed in {DATA}")
+    open(table.data, "w", encoding="utf-8", newline="\n").write("\n".join(out))
+    print(f"promote: {len(sets)} lines in {cfg}, {changed} changed in {table.data}")
 
 
 def main():

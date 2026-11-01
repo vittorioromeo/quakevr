@@ -48,7 +48,9 @@
 #   (vr_sights.cpp recolours the fullbright indices on its skin) stay the only ones.
 # - The bounds grow (the grips hang lower), moving the origin the weapon Scale is applied about:
 #   the weapon offsets are compensated so the old parts stay where they were drawn (and, where the
-#   gun moves over the hand, move by exactly that). The script prints the new vr_weapons.inc values.
+#   gun moves over the hand, move by exactly that). The script prints the new vr_weapons.inc values
+#   (now quakevr/data/weapons.txt: block "weapon <slot>", the keys by vr_weapons.inc's names; a one-off, its values
+#   shipped and tuned since: a rerun's printed values are not today's defaults).
 
 import math
 import os

@@ -20,7 +20,6 @@
 #include "Zancle/Math/Sqrt.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
-#include "Zancle/String/ToString.hpp"
 
 #include <stdlib.h>
 #include <string.h>
@@ -33,19 +32,7 @@ namespace
 constexpr int numKeys = static_cast<int>(Key::Count);
 
 constexpr const char* keyNames[numKeys] = {
-#define QVR_PROP_KEY(e, k, d) k,
-#include "vr_props.inc"
-#undef QVR_PROP_KEY
-};
-
-constexpr const char* keyEnumNames[numKeys] = {
-#define QVR_PROP_KEY(e, k, d) #e,
-#include "vr_props.inc"
-#undef QVR_PROP_KEY
-};
-
-constexpr const char* keyDefaults[numKeys] = {
-#define QVR_PROP_KEY(e, k, d) d,
+#define QVR_PROP_KEY(e, k) k,
 #include "vr_props.inc"
 #undef QVR_PROP_KEY
 };
@@ -58,7 +45,9 @@ constexpr const char* keyDefaults[numKeys] = {
 // as vr_weapons.cpp's (CODE_STYLE.md, "Settings and the config").
 constexpr int settingsVersion = 68;
 
-SlotTable<Key, numSlots, numKeys> slots; // vr_prop_<key>_NN
+// Every slot's values, from quakevr/data/props.txt (registerCvars), with the player's changes over them (the config's
+// vr_prop_<key>_NN lines): stand-ins, not cvars.
+DataTable<Key, numSlots, numKeys> slots;
 
 
 [[nodiscard]] cvar_t& cvarAt(int slot, Key key)
@@ -117,7 +106,7 @@ enum class Own : za::U8
 }
 
 // Each slot's, by its vr_prop_id_NN (size(): many times a frame for every entity drawn or touched), found again
-// whenever an ID changes (clearSlotCaches, as slotCache) and once the settings are registered: read only otherwise.
+// whenever an ID changes (clearSlotCaches, as slotCache) and once the settings are read: read only otherwise.
 za::Array<Own, numSlots> slotOwn{};
 
 void findSlotOwn()
@@ -183,7 +172,7 @@ void migrate()
 [[nodiscard]] bool atKeyDefault(int slot, int key)
 {
     const char* s = cvarAt(slot, static_cast<Key>(key)).string;
-    const char* d = keyDefaults[key];
+    const char* d = slots.keyDefault(key);
     char* endS;
     char* endD;
     const double x = strtod(s, &endS);
@@ -195,7 +184,7 @@ void migrate()
     return !strcmp(s, d);
 }
 
-// The slots given shipped defaults since a config version (vr_props.inc): {the configVersion that gives it, the slot}.
+// The slots given shipped defaults since a config version (quakevr/data/props.txt): {the configVersion that gives it, the slot}.
 struct ShippedSlot
 {
     int version;
@@ -365,23 +354,11 @@ void takeShippedSlots(int fromConfigVersion)
 
 void registerCvars()
 {
-    for(int slot = 0; slot < numSlots; slot++)
+    // Every slot's values from quakevr/data/props.txt (the defaults; the config's lines go over them).
+    const DataFileSpec spec{"data/props.txt", "prop", "vr_props.inc", numSlots, keyNames};
+    if(!slots.load(spec, "vr_prop_", onChanged))
     {
-        for(int key = 0; key < numKeys; key++)
-        {
-            slots.define(slot, key,
-                za::String("vr_prop_") + keyNames[key] + (slot + 1 < 10 ? "_0" : "_") + za::toString(slot + 1), keyDefaults[key]);
-        }
-    }
-
-#define QVR_PROP_DEFAULT(slot, key, value) cvarAt(slot, Key::key).string = value;
-#include "vr_props.inc"
-#undef QVR_PROP_DEFAULT
-
-    for(cvar_t& var : slots)
-    {
-        Cvar_RegisterVariable(&var);
-        Cvar_SetCallback(&var, onChanged);
+        Con_Printf("\x02No %s in the game folder: every held object's settings are 0 (reinstall the game)\n", spec.path);
     }
     // The grenade pouch's turn in the hand (vr_grip.cpp) places a held grenade as these settings do: its changes count
     // as theirs, so that the drawn grenade is placed again at once too (vr_held.cpp), not at its next take.
@@ -391,9 +368,24 @@ void registerCvars()
     }
     for(int key = 0; key < numKeys; key++)
     {
-        keyDefaultValues[key] = static_cast<float>(atof(keyDefaults[key]));
+        keyDefaultValues[key] = static_cast<float>(atof(slots.keyDefault(key)));
     }
-    findSlotOwn(); // (the IDs as registered: a change from now on calls onChanged)
+    findSlotOwn(); // (the IDs as read: a change from now on calls onChanged)
+}
+
+cvar_t* findStandIn(const char* name)
+{
+    return q_strncasecmp(name, "vr_prop_", 8) == 0 ? slots.find(name) : nullptr;
+}
+
+bool setStandIn(cvar_t* var, const char* value)
+{
+    return slots.set(var, value);
+}
+
+za::Span<cvar_t> standIns()
+{
+    return {slots.begin(), static_cast<za::SizeT>(slots.end() - slots.begin())};
 }
 
 int slotsUsed()
@@ -721,14 +713,15 @@ void printSlot(int slot, Part part)
     {
         return;
     }
-    Con_Printf("// %s (prop slot %d, cvars _%02d): the settings changed from the defaults\n", cvarAt(slot, Key::ID).string, slot,
-        slot + 1);
+    Con_Printf("// %s (slot %d, vr_prop_*_%02d): the settings changed from quakevr/data/props.txt, as lines of its block "
+               "\"prop %d\"\n",
+        cvarAt(slot, Key::ID).string, slot, slot + 1, slot);
     for(int key = 0; key < numKeys; key++)
     {
         const cvar_t& var = cvarAt(slot, static_cast<Key>(key));
         if(inPart(static_cast<Key>(key), part) && strcmp(var.string, var.default_string) != 0)
         {
-            Con_Printf("QVR_PROP_DEFAULT(%d, %s, \"%s\") // was %s\n", slot, keyEnumNames[key], var.string, var.default_string);
+            Con_Printf("    %s \"%s\" // was \"%s\"\n", keyNames[key], var.string, var.default_string);
         }
     }
 }

@@ -53,6 +53,7 @@ import sys
 
 import genguard
 import mdlgen
+import weapons_data
 from improve_weapons_alt import IDENTITY, align_slot, prepare
 from mdlgen import HEADER, add, sub, mul, dot, cross, norm
 
@@ -1121,7 +1122,8 @@ def main():
         if settings:
             for key, value in settings(m).items():
                 printed[name][key] = ("%.6f" % value).rstrip("0").rstrip(".")
-                print('  QVR_WEAPON_DEFAULT(%d, %s, "%s")' % (slot, key, printed[name][key]))
+                # (a line of quakevr/data/weapons.txt's block "weapon <slot>")
+                print('  weapon %d: %s "%s"' % (slot, weapons_data.key_names()[key], printed[name][key]))
 
     # Each alternate after its normal model: the same builder on its own source, moved onto the normal
     # one; its slot set up from the normal one's.
