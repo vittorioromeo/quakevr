@@ -72,6 +72,7 @@ enum Pose : int
     Aim = VR_AGK_AIM,   // an enemy ahead: a gun aimed, a melee weapon ready, the fists' guard
     Run = VR_AGK_RUN,   // on top of the stance, running (mid-stride)
     Pickup = VR_AGK_PICKUP, // taking a weapon up from the floor (its lowest frame)
+    Cast = VR_AGK_CAST,     // the death knight's fireball volley: his off hand out, its palm at you (a stance key)
     Jab = VR_AGK_JAB,
     Cross = VR_AGK_CROSS,
     Hook = VR_AGK_HOOK, // (the right's; a left hook mirrors it)
@@ -191,38 +192,44 @@ enum LegPart : int
     return c >= 0 && c % 10 == 1 && (c / 10) % 100 == Pickup;
 }
 
-// The Pickup's arms (2026-10-31, agent/sharedpickup; ROUND23.md, "One shared Pickup pose"): one key per kind every weapon
-// class shares (its code on class 7, no class's), and a class's own Pickup key (its code as every key's) an override,
+// The shared poses: the Pickup's arms (2026-10-31, agent/sharedpickup; ROUND23.md, "One shared Pickup pose") and the
+// Cast (2026-11-01, agent/night1101; ROUND23.md, "The death knight's Cast pose"): one key per kind every weapon class
+// shares (its code on class 7, no class's), and a class's own key of that pose (its code as every key's) an override,
 // used only where one is set: archived or shipped (own row, else the followed kind's, fitted), unless its "no override"
-// mark (the class's Pickup phase 2, all zero: archived, or a shipped row of the kind's own) says to use the shared one.
-// get() and set() of a class's Pickup code take the shared key when the class has no override (QC, the studios: the same
-// codes as before); old archived per-class Pickup keys are overrides as they are.
+// mark (the class's phase 2 of that pose, all zero: archived, or a shipped row of the kind's own) says to use the shared
+// one. get() and set() of a class's code of a shared pose take the shared key when the class has no override (QC, the
+// studios: the same codes as before); old archived per-class Pickup keys are overrides as they are.
 inline constexpr int sharedClass = VR_AGK_SHARED;
-[[nodiscard]] constexpr int sharedPickupCode(int kind)
+inline constexpr int sharedPoses[] = {Pickup, Cast};
+[[nodiscard]] constexpr bool isSharedPose(int pose)
 {
-    return code(kind, sharedClass, Pickup, 0);
+    return pose == Pickup || pose == Cast;
 }
-[[nodiscard]] constexpr int noOverrideCode(int kind, int cls)
+[[nodiscard]] constexpr int sharedCode(int kind, int pose)
 {
-    return code(kind, cls, Pickup, 2);
+    return code(kind, sharedClass, pose, 0);
 }
-[[nodiscard]] constexpr bool isSharedPickup(int c)
+[[nodiscard]] constexpr int noOverrideCode(int kind, int cls, int pose)
 {
-    return c >= 0 && classOf(c) == sharedClass && poseOf(c) == Pickup && phaseOf(c) == 0;
+    return code(kind, cls, pose, 2);
 }
-// A class's own Pickup code (an override's: phase 0 of a class).
-[[nodiscard]] constexpr bool isClassPickup(int c)
+[[nodiscard]] constexpr bool isSharedKey(int c)
 {
-    return c >= 0 && isClass(classOf(c)) && poseOf(c) == Pickup && phaseOf(c) == 0;
+    return c >= 0 && classOf(c) == sharedClass && isSharedPose(poseOf(c)) && phaseOf(c) == 0;
 }
-[[nodiscard]] bool hasPickupOverride(int kind, int cls);
-// The code an edit of code `c` keeps: a class's Pickup with no override the shared key's; any other `c` itself.
+// A class's own key of a shared pose (an override's: phase 0 of a class).
+[[nodiscard]] constexpr bool isClassShared(int c)
+{
+    return c >= 0 && isClass(classOf(c)) && isSharedPose(poseOf(c)) && phaseOf(c) == 0;
+}
+[[nodiscard]] bool hasOverride(int kind, int cls, int pose);
+// The code an edit of code `c` keeps: a class's shared pose with no override the shared key's; any other `c` itself.
 [[nodiscard]] int editTarget(int c);
-// Class `cls`'s Pickup made its own (starting as the shared key is now), or back on the shared key.
-void makePickupOverride(int kind, int cls);
-void removePickupOverride(int kind, int cls);
-// The Pose Studio's name of pose `pose` for kind `kind` and class `cls`: poseName, the Pickup's "Pickup (shared)" or
-// "Pickup (override)".
+// Class `cls`'s key of shared pose `pose` made its own (starting as the shared key is now), or back on the shared key.
+void makeOverride(int kind, int cls, int pose);
+void removeOverride(int kind, int cls, int pose);
+// The Pose Studio's name of pose `pose` for kind `kind` and class `cls`: poseName, a shared pose's "Pickup (shared)",
+// "Cast (override)"...
 [[nodiscard]] const char* poseTitle(int kind, int cls, int pose);
 
 // The kind whose shipped keys `kind` ships, fitted (itself when it has its own; the knights: the grunt's). The grip

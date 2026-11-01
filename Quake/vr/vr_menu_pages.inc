@@ -136,6 +136,7 @@
         row(opt::vr_slope_walk),
         header("Close Quarters"),
         row(opt::vr_closequarters),
+        row(opt::vr_closequarters_live),
         row(opt::vr_closequarters_start),
         row(opt::vr_closequarters_end),
         row(opt::vr_closequarters_min),

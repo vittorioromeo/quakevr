@@ -5769,3 +5769,49 @@ Checklist:
   with the clatter and the knock in your punching fist. {test:agrunt_tug}
 - [punchgun] Grab the grunt's gun by closing your hand on it as you swing through fast: no grab (a punch through it);
   close it slowly on the gun: the tug as before. {test:agrunt_tug}
+
+## Night 11-01: live foes, drag slowdown, the death knight's Cast, armed humanoids in AD (branch `agent/night1101`)
+
+His voice notes of 2026-11-01 23:19 to 23:37.
+
+- **Close quarters only on live foes** (23:19): `vr_closequarters_live` (1; Locomotion > Close Quarters, "Only Live
+  Foes"), in the one place the slowdown picks its foe (vr_closequarters.cpp `liveEnemy`): with it on, a monster with a
+  ragdoll (`box3d::isRagdoll`: knocked down, staggering, held up, rising through its body) or `.vr_knockdown` 1 is no
+  foe.
+- **Drag slowdown** (23:22, his choice: by body weight): `vr_carry_drag` (0.25) and `vr_carry_drag_max` (0.7), Carrying
+  and Throwing > Carrying. `carry2h::dragLoad`: each hand's body (its ragdoll hold, else its foegrab hold:
+  `foegrab::heldBy`), its mass its ragdoll's (`box3d::ragdollBodyMass`, which `ragdollWeight` now uses) or QC
+  `VR_Grapple_MonsterMass`; cut = drag x mass / 80 kg (a grunt's), a body in both hands once, the bodies added, at most
+  the max; `VR_CarryMoveScale` takes 1 - cut on top of the props' load.
+- **The death knight's Cast pose and palm volley** (23:28): a pose `Cast` (VR_AGK_CAST 4, a stance key) shared by every
+  class as the Pickup is: the shared-pose code generic over both (`isSharedPose`, `sharedCode`, `hasOverride`,
+  `makeOverride`, `removeOverride` take the pose; the Pose Studio's Make Override and the Rig Studio's override box for
+  either). Shipped default 7040 (the grunt's shared Cast, the knights' fitted): the off hand Free, out ahead at shoulder
+  height, palm turned forward; a first guess for him to set in the studio. QC: the act `VR_AGP_CAST` (raise 0.3 s, hold
+  0.45 s through the volley's sweep, lower 0.3 s) for every holder, a sword kept in his hand, a gun kept at you; its
+  key laid over the stances as the Pickup's; the volley from the off hand's palm as drawn (`weapondrawnpose` 41), each
+  fireball from the palm then. The old casts as a swing, a punch or a gun's thrust are gone. `vr_agdknight_spell_share`
+  0.3 -> 0.6 (no migration row: sparse configs since 218).
+- **Armed humanoids in AD** (23:37): `vr_agrunt_repl_ad` 0 -> 1; the knights and death knights follow it in AD too
+  (`VR_AKN_Replace`), and `VR_AGR_ADVariant` skips AD's variants under a standard classname (spawnflags 8192, AD's point
+  knight; 4096, a ghost). AD's other variants have classnames of their own spawned by AD's functions, so are never
+  replaced: monster_army_rocket, _grenade, _plasma, monster_defender, monster_eliminator, monster_hell_pointknight,
+  monster_dknight, monster_death_knight, monster_dknightghost (queued for his decision). In AD maps the plain four spawn
+  through Quake VR's own functions (VR_AD_OwnsClassname), so a point knight's flag is lost there either way.
+- **Tests** (Misc/quakevr/night1101_test.sh cq | drag | dk | ad): cq 14/0 (the knockdown's mark set on the test grunt:
+  a vrtesthall/vrfiringrange spawn is no sweepable one); drag 8/0 (a grunt held standing and a dead grunt's ragdoll: 80
+  kg, cut 0.25, scale 0.75; none held 1.0); dk (test 95, kind 3) 9/1: the palm volley 19.8 ahead of his middle with the
+  sword kept, the gun share 0.582 over 2000 rolls; "knight death" fails as before these changes (his armour roll
+  absorbs the lethal blow, noted under agent/dkhelmet). ad (vr_ad_test 198): unverified, the run sees no AD data
+  (vr_ad_status 0 with `-game ad`).
+
+Checklist:
+- [night1101] Walk into a knocked-down or staggering grunt: no close-quarters slowdown; Only Live Foes off brings it
+  back. {test:closequarters}
+- [night1101] Drag a dead grunt or hold a live one: you walk about 25% slower; heavier bodies slow you more, up to 70%
+  (Carrying > Drag Slowdown).
+- [night1101] A death knight at range raises his off hand, palm at you, and the fireballs come out of the palm; with a
+  sword he keeps it in his hand; a gun holder casts about 60% of his ranged attacks.
+- [night1101] Pose Studio / Rig Studio: a "Cast (shared)" pose beside Pickup, set on the rifle, Make Override per class.
+- [night1101] AD maps: plain grunts, enforcers, knights and death knights armed; AD's rocket, grenade and plasma
+  soldiers and point knights as AD made them.
