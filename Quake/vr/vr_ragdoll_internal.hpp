@@ -64,6 +64,10 @@ struct Published
     int drawnFrame{-1};
     float drawBlend{1.f};      // between the steps (0 the one before .. 1 the latest)
     glm::vec3 drawLead{0.f};   // moved with the holding hands (units)
+    // A tug's held arm drawn longer (drawnPose: box3d::RagdollHold::stretch), per local hand (QC's: 0 the off hand): the
+    // factor used, the drawn held point's distance from the hold's target with it and without it (units; QC test 19).
+    float tugK[2]{1.f, 1.f};
+    float tugGap[2]{0.f, 0.f}, tugGap0[2]{0.f, 0.f};
 };
 
 struct Swapped

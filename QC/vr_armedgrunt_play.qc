@@ -626,6 +626,14 @@ float(entity g, entity p, entity pl, float h) VR_AG_TugRagFrame =
         return TRUE;
     }
     VR_AG_RagProp(g, p);
+    // The tug's arm stretch (vr_agrunt_tug_ik_stretch, eased in with the tug: VR_AGK_TugStretch, the posed arms' too) on
+    // its ragdoll's drawn arm held by each hand (ragdolltug 9: the drawn pose only, ragdoll::drawnPose).
+    float ts = VR_AGK_TugStretch(g);
+    ragdolltug(g, pl, h, 9, '0 0 0', ts);
+    if(g.vr_ag_tug_two)
+    {
+        ragdolltug(g, pl, VR_AG_OtherHand(h), 9, '0 0 0', ts);
+    }
     float dt = min(0.1, time - g.vr_ag_tug_last);
     g.vr_ag_tug_last = time;
     if(vr_ag_tug_test_force > 0)

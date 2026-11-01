@@ -760,6 +760,9 @@ struct World
         // ... a downed one's (ragdollTug what 6: lying or staggering, not standing its ground): its arm's pull (N) on the
         // held limb towards its body's middle, the body pulled the other way (a pull within it: it doesn't slide it).
         float tugBack{0.f};
+        // ... its held arm drawn this much longer at most towards your hand (QC VR_AGK_TugStretch: vr_agrunt_tug_ik_stretch,
+        // eased with the tug; ragdollTug what 9): the drawn pose only (ragdoll::drawnPose), the physics never.
+        float tugStretch{1.f};
         // The toolgun's physgun's hold (player 0, no hand: vr_box3d_ragparts.cpp, "The physgun's hold"): where its
         // anchor is driven to (units).
         glm::vec3 target{0.f};

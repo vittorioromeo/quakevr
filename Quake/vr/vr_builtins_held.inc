@@ -188,6 +188,20 @@ void PF_weapondrawnpose()
         progs::returnVec({static_cast<float>(bone), 0.f, 0.f});
         return;
     }
+    if(what == 39)
+    {
+        // weapondrawnpose(g, hand, 39): armed humanoid `g`'s ragdoll's arm held by your `hand` (QC's) in a tug, as drawn
+        // now (ragdoll::drawnTugStretch: vr_agrunt_tug_ik_stretch on the physical tug's drawn pose) as '<factor> <the held
+        // point's distance from your hand> <the same without the stretch>' (units); '0 0 0' no ragdoll. QC test 19.
+        float k = 0.f, gap = 0.f, gap0 = 0.f;
+        const bool local = sv.active && cls.state == ca_connected;
+        if(!local || !ragdoll::drawnTugStretch(NUM_FOR_EDICT(player), hand, k, gap, gap0))
+        {
+            k = gap = gap0 = 0.f;
+        }
+        progs::returnVec({k, gap, gap0});
+        return;
+    }
     if(what == 37 || what == 38)
     {
         // weapondrawnpose(g, side, 37 / 38): armed humanoid `g`'s forearm on `side` (0 right: its skin's forearm,
