@@ -4472,6 +4472,51 @@ His voice notes of 2026-10-31 ~19:55 (five items). Stopped at the tool budget; w
   - Debug view: the plate lines are `lines::line` (drawn over everything, no depth test), so they cannot hide in the
     plate; the flatscreen Rig Studio screenshot shows the red armour but the 0.06-unit lines are too thin to see there.
   - Test 11 timed out twice (240-300 s, no output at all) after the merge: not looked into.
+- **Part 4** (branch `agent/armorfix4`):
+  - **Test 11's hang**: under Plate Blocks All (the test sets rule 1) the armoured grunt's plates took its killing blow;
+    it lived on, beat the player to death, and the test (run from the player's frame) stopped with him: no output,
+    the run's timeout. Now one grunt, killed bare, its plates put back on its ragdoll; shot on the left thigh plate's
+    face bare, then armoured, down a clear line to it (VR_ARS_Line). It ends on its verdict (~60 s): 4/0. The push:
+    `VR_AgArmor_PushScale` 1 bare, 0.5 armoured (VR_ShotPush's log: 6.0 N s vs 3.0 N s at 10x push). The ragdoll's
+    velocity gain is printed, not judged: box3d::push gives a shot to the part whose box is nearest (a lying body's
+    boxes overlap), a part driven into the floor stops, and the ratio read 0.06 to 4.4 from run to run (0.56 last).
+  - **Test 10's last limb "leaks" were shots beside the plate.** A grid of plate queries around each failing shot's
+    "face middle" (lines parallel to the aim, 0.25 units apart) showed the point on the plate's outline as seen along
+    the aim line: plate on one side, bare skin on the other from 0.2 units off; the projectiles' lines were 0.16-0.48
+    units off the aim (spawned from 44 units out), on the bare side. A wrapped bracer, thigh or shin plate seen from
+    the side (VR_ARS_Line took the first clear of radial/ahead/sides/up) has its face's middle on its silhouette. The
+    query is right (the shot met skin). Fixed in the test: `limbpiece(e, piece, 14)` is now the outer vertex nearest
+    the outer face's centroid at mid-length (the arc's middle; before, the first vertex of that ring), new
+    `limbpiece(e, piece, 15)` the outer face's outward normal there, and VR_ARS_Line tries that normal first and only
+    lines within 45 degrees of it. Not verified: his game started mid-run (see the report).
+  - **Show Armour Plates**: outer-face edges 0.35 units wide and opaque, inner face and rim 0.12 at 45% alpha (were all
+    0.06).
+- **Part 5** (branch `agent/armorfix4`, test only; no game code changed):
+  - **Test 10's hang**: the player died. Forty rockets' blasts 160 units off took a few points each, he died by the
+    last kind (Death menu in the log), and the test, run from his frame, stopped with him: no verdict, the run's
+    timeout. Now he is in god mode for the test (put back after). It ends on its verdict in ~10 s wall (17 s of game
+    time): **187 passed, 0 failed** (twice); 3 of 40 plates without a clear line, 0 projectiles missed.
+  - A projectile that never lands gives up after 2 s and counts as a miss (was a FAIL after 1 s); one that meets
+    something else is a miss whatever its splash did; a shot is judged the frame after its touch (was: once a rocket's
+    explosion sprite was gone, by which time its knockback had carried the body 40-100 units: the "rockets touching
+    40-90 units from the aimed plate").
+  - **The rocket "leak" was the test aiming at a plate that had moved, not a rocket bug.** A rocket's direct hit already
+    takes the plate query along its flight line (`VR_Proj_Begin` -> `VR_AgArmor_Flight`, every projectile), and its
+    splash skips the body it hit (`T_RadiusDamage(..., other)`; `vr_ar_block_*` spares a body whose plate took the
+    hit, any inflictor). Traced with per-shot prints (the face's movement between firing and the touch): (1) a blast's
+    knockback lifted the body off the floor, and it sank half a unit while the next projectile flew; (2) the last shot's
+    hit swings the struck limb's drawn pose for some frames even with `vr_hit_react 0` (the knight's right pauldron 2
+    units by the touch of a nail fired the same frame as the revolver's hit); the query at the touch was right (no plate
+    there any more). The test now drops the body to the floor before each shot and fires only once the aimed plate's
+    face has stayed put for a frame (up to 1 s).
+  - Its lines: the face's normal, then tilted 25 and 40 degrees eight ways, then the old five, at the face's middle,
+    its 15% and 85% points (limbpiece 12, 13) and halfway to each; each must have no wall or floor on it (a line from
+    below a shin began under the floor and the nails met it: most of the old "missed") and meet that plate first by
+    the shots' own query along it and half a unit beside it four ways (`VR_ARS_Meets`). 20 of 40 plates had none with
+    the normal alone (a grunt's gun before its cuirass, an arm or leg before a limb plate).
+  - Tests 1 (26/0) and 11 (4/0) pass; test 11 with `vr_agarmor_debug 1` takes the flatscreen screenshot of the
+    ragdoll with the bold outlines.
+  - Open: what swings a struck limb's pose with `vr_hit_react 0` (a living armed humanoid's; not looked into).
 ## Directional parry 2: debug view, leniency settings, Enemy Melee Speed (branch `agent/dirparry2`)
 
 His words (10-31): a debug view for it, leniencies he can tweak, slowed enemy swings to practise with.
@@ -5074,3 +5119,53 @@ hitting and no blood on the wall.
   touch nothing, a 5 m/s held slam a sound and blood, again at once nothing. 10 passed, 0 failed.
 - **Not tested here**: a real held slam with the mock hands; a living knocked-down one (same code path past the
   `VR_RagImpact_By` gate).
+## Held-off hands: no blow, touch or push from the ghost (branch `agent/ghosthand`)
+
+His note (2026-11-01 01:24): holding a ragdoll, the real (ghost) hand still punched a wall or a dummy it reached; "the
+actual drawn position of the hand should be the dominant one for all these interactions".
+
+- **One query (QC/vr_carry.qc):** `VR_Hand_HeldOff(p, hand)`: the drawn hand is held off its tracked place by what it
+  holds: climbing (the hold), an enemy (foe grab), a ragdoll (`VR_HOLD_RAGDOLL`), a tug (`VR_HOLD_TUG`), the super
+  shotgun's fore-end (`VR_HOLD_SSGGRIP`), a prop held in both hands (one thing in both slots). Its answer goes into
+  `.vr_hand_heldoff` (bit 1 off, 2 main) in `VR_Hand_Derive` each PlayerPreThink; the engine reads it through
+  `progs::handHeldOff` (vr_progs.hpp). `developer 1` prints `handslot: held off N` when it changes.
+- **What it turns off for a held-off hand:** melee (`VR_Melee_Thing` returns NONE: blows, slaps, presses by a blow,
+  shoves, parries, wall marks; it replaces the climbing and foe-grab checks there), the engine's hand touches
+  (`handTouches`, `handTouch`: button presses, pickups, nudges, grabs by touch), its weapon-line touches, and its Box3D
+  hand bodies (the fist sphere and the reach body). Free hands, one-handed props, weapons, the flashlight: unchanged.
+- **Decision (conservative):** off rather than moved to the drawn place. The drawn place of a hold is the client's
+  (vr_view_hands.cpp limbDrawnHand, vr_held.cpp drawnHand), and a hand clenched on a limb, an enemy or a crate has no
+  free fist to strike or press with. A ragdoll held and swung still hits through its own bodies; a crate in both hands
+  no longer deals the improvised punch (it did, from the tracked hands). Left out: the steadying hand of a two-handed
+  gun (its melee was NONE already; its touches unchanged), `VR_HOLD_MAGREHOLD` (a frame), the flashlight hand.
+- **Test:** `Misc/quakevr/carry/heldoff_test.sh <tree>` (vrmelee-recording, the dummy, a 5.3 m/s mock punch): the free
+  main hand 1 blow; the main hand holding a dead grunt's limb 0 blows (held off 2). Without the melee change: 1 blow
+  (FAIL). Ends on `heldoff: N passed, M failed`. eval.sh: 163/171 full; its drift from the stored baseline is the same
+  as origin/next's run beside it (punch_hook, slash_backswing_up_right: identical numbers).
+- **Not run:** a button press or a pickup by a held-off hand (the engine's touch gate: code only).
+## Barrel heat settings (branch `agent/barrelheat`, his voice note 2026-11-01 01:43)
+
+He found the barrel glow too slow (~2 s of nailgun fire before it showed) and too faint, and wanted it on the older guns
+too, with heat-up and dissipation times, global and per weapon. Quake/vr/vr_gunfx.cpp:
+- **Model** (heatShot / heatCool / heatGlow): heat 0..1 per hand (was 0..1.5, only the nailguns ever got hot: the
+  shotgun's 0.12 a shot cooled faster than it fired). A shot adds its kind's interval (the gun's seconds between shots
+  in sustained fire: shotgun 0.5, super shotgun 0.7, revolver and flare gun 0.5, nailguns 0.1, grenade launchers 0.6,
+  rocket launchers 0.8, energy guns 0.1) over **Heat-Up Time**, at most 0.35 a shot (a slow gun takes 3 shots), times the
+  weapon's **Barrel Heat** multiplier. So sustained fire reaches full heat in Heat-Up Time / multiplier whatever the
+  gun. Cooling waits 1.5 intervals after a shot (none between shots of sustained fire), then is linear: full to cold in
+  **Cool-Down Time** times the weapon's **Barrel Cool-Down** (0: at once). Every gun with gunfire particles heats now
+  (the thunderbolt too: it glows, no smoke wisps); not the flamethrowers, crossbow, melee, grapple, toolgun, Mjolnir.
+- **Glow**: from heat 0.15, strength (heat - 0.15) / 0.85 x **Heat Glow Strength**; three glow points per barrel (the
+  super shotgun's and nailgun's two bores: the wisps' barrel ends) going 6 units down the barrel, alpha up to 0.75
+  (was one point, 0.3 at most, from heat 0.5), size 2.2; a dull red deepening to orange. Wisps from heat 0.3.
+- **Settings** (Weapons > Weapon Effects, after Barrel Heat): `vr_gunfx_heat_time` 1 s (Heat-Up Time, 0.2-5, ext
+  0.1-10), `vr_gunfx_cool_time` 3 s (Cool-Down Time, 0.2-10, ext 0.1-20), `vr_gunfx_heat_glow` 1 (Heat Glow Strength,
+  0-3). Per weapon (Weapon Offsets > Effects; weapons.txt defaults 1): `fx_gfx_heat` (Barrel Heat; 0 never heats),
+  `fx_gfx_cool` (Barrel Cool-Down). New cvars: no migration.
+- **Debug**: vr_debug_gunfx 1 prints `gunfx heat hand H wid W heat X glow Y` each shot and `gunfx heat cold hand H wid W
+  after S s peak P` when a barrel has cooled.
+- **Test**: `python Misc/quakevr/barrelheat_test.py <agent>` 10/10: the nailgun at Barrel Heat 0 never heats (6 shots);
+  the shotgun 0.35 / 0.70 / 1.00 with the glow rising; the nailgun +0.1 a shot to 0.8, the glow exactly following;
+  cold 2.556 s after its last shot (expected 0.15 + 0.8 x 3 = 2.55). Ends on the "cold" line.
+- **Not checked**: how it looks (no screenshot with the gun in view: the mock hand pose missed the view); in VR: is
+  1 s / 3 s / glow 1 right, the glow's size and colour on each gun, the super shotgun's bores.

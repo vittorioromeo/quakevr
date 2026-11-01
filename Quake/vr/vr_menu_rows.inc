@@ -4934,7 +4934,18 @@ QVR_TOGGLE(vr_gunfx_backblast, "Rocket Backblast",
     "A swirling cone of smoke out of the rocket launchers' exhaust, the exhaust smoking a moment after, and "
     "dust kicked up off the floor under it.")
 QVR_TOGGLE(vr_gunfx_heat, "Barrel Heat",
-    "Sustained fire (the nailguns) leaves the muzzle smoking in thin wisps and glowing faintly until it cools.")
+    "Sustained fire heats the barrel (every gun: the shotguns, nailguns, launchers, thunderbolt...): the muzzle "
+    "glows red-hot and smokes in thin wisps until it cools. Each weapon's own Barrel Heat and Barrel Cool-Down "
+    "multipliers: Weapon Offsets > Effects.")
+QVR_SLIDER(vr_gunfx_heat_time, "Heat-Up Time", 0.2f, 5.f, 0.1f, "%.1f s", ext(0.1f, 10.f),
+    "How many seconds of sustained fire take a barrel to full heat, at the gun's own rate of fire (a single shot "
+    "of a slow gun: at most about a third of it). Shorter: it glows sooner.")
+QVR_SLIDER(vr_gunfx_cool_time, "Cool-Down Time", 0.2f, 10.f, 0.1f, "%.1f s", ext(0.1f, 20.f),
+    "How many seconds a barrel at full heat takes to cool down once you stop firing (its glow and wisps fading "
+    "with it).")
+QVR_SLIDER(vr_gunfx_heat_glow, "Heat Glow Strength", 0.f, 3.f, 0.05f, "%.2fx", noExt,
+    "How bright a hot barrel's glow is (it deepens from a dull red to orange as it heats). 0: no glow, the wisps "
+    "only.")
 QVR_TOGGLE(vr_gunfx_wisps, "Muzzle Wisps",
     "After you stop firing, a very thin, faint line of smoke trails off each barrel for a few seconds (the "
     "shotgun's one, the super shotgun's and the nailgun's two), following the muzzle as you move the gun.")
@@ -6402,7 +6413,8 @@ QVR_TOGGLE(vr_debug_impacts, "Print Impact Effects",
     "vr_debug_impacts: every particle2 message and QC sound the server sends (\"impfx p2 <preset> <count> "
     "...\", \"impfx snd ...\"): the hit ladders' output (vr_impacts.cpp).")
 QVR_TOGGLE(vr_debug_gunfx, "Print Gunfire Particles",
-    "vr_debug_gunfx: each shot's particles (\"gunfx shot ...\", \"gunfx port ...\", \"gunfx impact ...\").")
+    "vr_debug_gunfx: each shot's particles (\"gunfx shot ...\", \"gunfx port ...\", \"gunfx impact ...\") and your "
+    "barrels' heat (\"gunfx heat hand .. heat .. glow ..\" a shot, \"gunfx heat cold ..\" once cooled).")
 QVR_TOGGLE(vr_debug_ribbon_overlap, "Wisps Overlap Again",
     "vr_debug_ribbon_overlap: the muzzle wisps blend twice where they fold over themselves (a sharp swing), "
     "as before the fix: the denser creases, to compare.")

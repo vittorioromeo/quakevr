@@ -527,13 +527,12 @@ float(entity b) VR_Melee_MinSpeedOf =
 // What `xHand` of `p` holds, as a striking thing.
 float(entity p, float xHand) VR_Melee_Thing =
 {
-    if(VRHasBit(p.vrbits0, xHand == cVR_MainHand ? QVR_VRBITS0_MAINHAND_CLIMBING : QVR_VRBITS0_OFFHAND_CLIMBING))
+    if(VR_Hand_HeldOff(p, xHand))
     {
-        return VR_MTHING_NONE; // a hand holding a ledge pulls the body
-    }
-    if(VR_FoeGrab_HandHolds(p, xHand))
-    {
-        return VR_MTHING_NONE; // a hand holding an enemy holds on (vr_foegrab.qc)
+        // Drawn off its tracked place by what it holds (vr_carry.qc): a ledge it pulls the body by, an enemy it holds on
+        // to, a ragdoll, a prop in both hands, a tug, the fore-end. Its tracked place is a ghost's: no blow from it (his
+        // note, 2026-11-01).
+        return VR_MTHING_NONE;
     }
     float wid = VRGetEntWeapon(p, xHand);
     if(wid == WID_FIST)

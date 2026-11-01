@@ -315,6 +315,8 @@ defaults
     fx_gfx_smoke "1"
     fx_gfx_smoke_size "1"
     fx_gfx_wisps "1"
+    fx_gfx_heat "1"
+    fx_gfx_cool "1"
 }
 
 // slot 0: progs/v_axe.mdl (vr_wofs_*_01)
