@@ -5424,3 +5424,16 @@ look like the torch-heated melee blades, fading with the same heat settings, and
   a hot shotgun (its front half orange, the tip brightest) and nailgun (its barrels red-orange fading back).
 - **Not checked**: in VR: the strength (1 may be faint on the shotgun), Barrel Glow Length per gun (the shotgun's wooden
   pump glows too: it is in the front half), the light's reach.
+## Crash switching campaign with the Levels on a panel (branch `agent/mapscrash`)
+
+- His crash (2026-11-01 18:57, switching to Arcane Dimensions): access violation in M_Maps_Draw from a menu panel's
+  drawInstance. The Maps menu's items (mapsmenu.items) point into the level list (extralevels: names, descriptions),
+  which a game/campaign switch frees (ExtraMaps_Clear) and rebuilds (ExtraMaps_Init); a panel left on the Levels (or a
+  draw between the two, the loading frames) then read the freed items.
+- Fix: `extralevels_generation` (host_cmd.c), bumped by ExtraMaps_Clear and ExtraMaps_Init; the Levels keep the
+  generation they were built from and every entry point (Draw, Key, Char, Mousemove: M_Maps_Sync) rebuilds them when it
+  changed (cursor on the new start map; `developer 1` prints "Levels rebuilt: N levels"). ExtraMaps_Clear also empties
+  extralevels_sorted (it pointed at the freed items until Init); Enter on an empty list does nothing.
+- Test: `Misc/quakevr/maps_panel_switch_test.sh <agent>`: panel 2 on the Levels, two campaign switches (hipnotic, id1),
+  the menu reopened each time: PASS (2 rebuilds, 88 levels each, panel 2 still on the Levels). With the check disabled
+  the same run crashes at M_Maps_Draw from drawInstance, as in his report.
