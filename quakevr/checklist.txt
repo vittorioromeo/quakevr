@@ -48,6 +48,11 @@ Smashing a ragdoll into a wall sounds louder, and limbs pop slightly sooner (Sma
 notarget on, an idle shotgun grunt: punch its gun out: it staggers a moment and turns on you; shoot an idle grunt's gun: it turns on you (and staggers if it's knocked out). {test:disarm_hulls_melee}
 A grunt holding two swords or two guns: knock out one, then the other (both orders, also while it lies on the floor): only the struck weapon falls each time. {test:dual_wield}
 Strike a sword grunt's blade (away from its hand) while it hasn't seen you: sparks, no disarm, and it turns on you.
+An AD Plasma Gun grunt fires at your Plasma Gun's rate, not twice that; a super shotgun grunt reloads 15% faster. {test:agrunt_ammo}
+Armed Humanoids > AI Behaviour > Movement: Movement, Backpedal and Strafe Speed change how fast they run, back off and circle you.
+Enemy Melee Speed 0.3: raise your sword as a grunt starts its swing: its sword follows its own swing, not your blade. {test:dirparry_show}
+A death knight holding a gun casts the full fan of six fireballs, one after another.
+Nightmare on e1m2: about 6 in 10 armed humanoids wear armour (before: none, the skill was read too early).
 
 [2. Armed humanoids: disarming and armour]
 Show Disarm Volumes: the wireframe hulls sit on each drawn weapon (magenta, orange, red; the sword's orange line along its blade) and on the drawn hand and forearm (cyan). {test:disarm_hulls_melee}
