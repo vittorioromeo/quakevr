@@ -684,8 +684,53 @@ void() VR_SmallGib_TestMults =
     bprint(sprintf("sgibtest: mults: %d passed, %d failed\n", vr_sgib_mtest_pass, vr_sgib_mtest_fail));
 }
 
+// vr_smallgibs_test 28: the strstrofs builtin (AD's `= #0` import, ad_builtins.qc; the engine had none, so every call returned 0 and
+// `strstrofs(name, "_brains_", 0) >= 0` was true for any name). One "strstrofs:" line per case, then the verdict.
+float vr_sgib_sso_pass, vr_sgib_sso_fail;
+void(string xWhat, float xGot, float xWant) VR_SmallGib_TestStrstrofsCheck =
+{
+    float ok = xGot == xWant;
+    if(ok) vr_sgib_sso_pass = vr_sgib_sso_pass + 1;
+    else vr_sgib_sso_fail = vr_sgib_sso_fail + 1;
+    bprint(sprintf("strstrofs: %s %s: %g (want %g)\n", ok ? "PASS" : "FAIL", xWhat, xGot, xWant));
+};
+
+void() VR_SmallGib_TestStrstrofs =
+{
+    vr_sgib_sso_pass = vr_sgib_sso_fail = 0;
+    VR_SmallGib_TestStrstrofsCheck("found at 0", strstrofs("_brains_mult", "_brains_", 0), 0);
+    VR_SmallGib_TestStrstrofsCheck("found later", strstrofs("vr_smallgibs_brains_mult_dog", "_brains_", 0), 12);
+    VR_SmallGib_TestStrstrofsCheck("not found", strstrofs("vr_smallgibs_mult_dog", "_brains_", 0), -1);
+    VR_SmallGib_TestStrstrofsCheck("not found, >= 0 false", strstrofs("vr_smallgibs_mult_grunt", "_brains_", 0) >= 0, FALSE);
+    VR_SmallGib_TestStrstrofsCheck("found, >= 0 true", strstrofs("vr_smallgibs_brains_mult_grunt", "_brains_", 0) >= 0, TRUE);
+    VR_SmallGib_TestStrstrofsCheck("offset at the match", strstrofs("abcabc", "abc", 3), 3);
+    VR_SmallGib_TestStrstrofsCheck("offset past the first match", strstrofs("abcabc", "abc", 1), 3);
+    VR_SmallGib_TestStrstrofsCheck("offset past every match", strstrofs("abcabc", "abc", 4), -1);
+    VR_SmallGib_TestStrstrofsCheck("offset past the end", strstrofs("abc", "a", 10), -1);
+    VR_SmallGib_TestStrstrofsCheck("negative offset", strstrofs("abc", "a", -1), -1);
+    VR_SmallGib_TestStrstrofsCheck("empty in empty", strstrofs("", "", 0), 0);
+    VR_SmallGib_TestStrstrofsCheck("empty sub", strstrofs("abc", "", 0), 0);
+    VR_SmallGib_TestStrstrofsCheck("empty sub at the end", strstrofs("abc", "", 3), 3);
+    VR_SmallGib_TestStrstrofsCheck("sub in empty", strstrofs("", "a", 0), -1);
+    VR_SmallGib_TestStrstrofsCheck("sub longer than str", strstrofs("ab", "abc", 0), -1);
+    VR_SmallGib_TestStrstrofsCheck("strcat temp, not found", strstrofs(strcat("vr_smallgibs", "_mult_dog"), "_brains_", 0), -1);
+    VR_SmallGib_TestStrstrofsCheck("strcat temp, found", strstrofs(strcat("vr_smallgibs", "_brains_mult_dog"), "_brains_", 0), 12);
+    VR_SmallGib_TestStrstrofsCheck("ftos temp", strstrofs(ftos(123.5), ".", 0), 3);
+    VR_SmallGib_TestStrstrofsCheck("sprintf temps both", strstrofs(sprintf("x%sy", "ab"), sprintf("%s", "by"), 0), 2);
+    string a = ftos(7); // two temps alive at once: the first must survive the second
+    string b = strcat("q", "7");
+    VR_SmallGib_TestStrstrofsCheck("older temp", strstrofs(a, "7", 0), 0);
+    VR_SmallGib_TestStrstrofsCheck("newer temp", strstrofs(b, "7", 0), 1);
+    bprint(sprintf("strstrofs: %d passed, %d failed\n", vr_sgib_sso_pass, vr_sgib_sso_fail));
+};
+
 void(float xCase) VR_SmallGib_TestStart =
 {
+    if(xCase == 28)
+    {
+        VR_SmallGib_TestStrstrofs(); // (any map; test 27's name matching once used it)
+        return;
+    }
     if(xCase == 27)
     {
         VR_SmallGib_TestMults();

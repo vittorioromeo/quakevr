@@ -2478,6 +2478,23 @@ static void PF_strlen(void)
 	const char *s = G_STRING(OFS_PARM0);
 	G_FLOAT(OFS_RETURN) = strlen(s);
 }
+// QVR: float(string str, string sub, optional float startpos) strstrofs = #221 (FTE_STRINGS, DP's semantics): the byte
+// offset of `sub` in `str` at or after `startpos`, -1 when it isn't there or `startpos` is outside the string; an empty
+// `sub` matches at `startpos`. It was missing: a `strstrofs = #0` declaration (AD's) bound to nothing and returned 0.
+static void PF_strstrofs(void)
+{
+	const char *str = G_STRING(OFS_PARM0);
+	const char *sub = G_STRING(OFS_PARM1);
+	const int first = (qcvm->argc > 2) ? (int)G_FLOAT(OFS_PARM2) : 0;
+	const char *at;
+	if (first < 0 || first > (int)strlen(str))
+	{
+		G_FLOAT(OFS_RETURN) = -1;
+		return;
+	}
+	at = strstr(str + first, sub);
+	G_FLOAT(OFS_RETURN) = at ? (float)(at - str) : -1;
+}
 static void PF_strcat(void)
 {
 	int		i;
@@ -3441,6 +3458,7 @@ builtindef_t pr_builtindefs[] =
 	{"strzone",					PF_BOTH(PF_strzone),			118,	FRIK_FILE},	// string(string s, ...)
 	{"strunzone",				PF_BOTH(PF_strunzone),			119,	FRIK_FILE},	// void(string s)
 
+	{"strstrofs",				PF_BOTH(PF_strstrofs),			221,	FTE_STRINGS},	// float(string str, string sub, optional float startpos)
 	{"str2chr",					PF_BOTH(PF_str2chr),			222,	FTE_STRINGS},	// float(string str, float index)
 	{"chr2str",					PF_BOTH(PF_chr2str),			223,	FTE_STRINGS},	// string(float chr, ...)
 	{"strconv",					PF_BOTH(PF_strconv),			224,	FTE_STRINGS},	// string(float ccase, float redalpha, float redchars, string str, ...)
