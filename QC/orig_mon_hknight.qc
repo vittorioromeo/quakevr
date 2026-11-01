@@ -53,18 +53,22 @@ $frame w_attack21 w_attack22
 $frame magicc1 magicc2 magicc3 magicc4 magicc5 magicc6 magicc7 magicc8
 $frame magicc9 magicc10 magicc11
 
+// QVR: 1 while an armed death knight casts from vr_hk_shot_org (its blade's tip, its fist, its gun's muzzle:
+// vr_armedgrunt_pose.qc VR_AGP_CastVolley), its volley aimed from there.
+float vr_hk_shot_from;
+vector vr_hk_shot_org;
 void(float offset) hknight_shot =
 {
     vector    offang;
     vector    org, vec;
     entity     newmis;
 
-    offang = vectoangles (VR_AI_Origin(self.enemy) - self.origin);
+    offang = vectoangles (VR_AI_Origin(self.enemy) - (vr_hk_shot_from ? vr_hk_shot_org : self.origin));
     offang_y = offang_y + offset * 6;
 
     makevectors(offang);
 
-    org = self.origin + self.mins + self.size*0.5 + v_forward * 20;
+    org = vr_hk_shot_from ? vr_hk_shot_org : self.origin + self.mins + self.size*0.5 + v_forward * 20;
 
     if(!VR_AI_ShotReady(org)) { return; }
 // set missile speed

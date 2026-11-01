@@ -343,6 +343,10 @@ za::Vector<Item> pageDebugTests()
         command("Stick: Curve Table", "vr_stick_curve_test table")
             .help("vr_stick_curve_test table: the stick's push against speed, straight and on the 1.6 curve, walking "
                   "and running, and the response's checks, on the console (the full test also drives the stick)."),
+        command("Stick: Run Steadiness", "vr_stick_run_test")
+            .help("vr_stick_run_test: two 10 s runs from where you stand (put back every 96 units, flat floor "
+                  "needed): the stick fully forward, then a thumb slipping 0.82..1.0; each must keep its full speed "
+                  "within 2%. Results on the console."),
         header("Doom"),
         command("Doom: Info", "vr_doom_info")
             .help("vr_doom_info: Doom's state (level, health, ammo, place), its focus, the screen's distance and angle "
@@ -535,6 +539,10 @@ za::Vector<Item> pageDebugTests()
             .help("An armed grunt and an armed enforcer close ahead in full yellow armour, facing you, standing still "
                   "(vr_agarmor_test 6): the helmets' fit up close. vr_agarmor_headcam 1-4 (the mock headset) puts the "
                   "eyes on their heads: front, side, three-quarter, behind."),
+        command("Helmets There: Knight and Death Knight", "vr_agarmor_test 8")
+            .help("An armed knight and an armed death knight close ahead in full yellow armour, facing you "
+                  "(vr_agarmor_test 8): the helmets' fit up close. vr_agarmor_headcam <1-4> 26 1 (the mock headset) puts "
+                  "the eyes on their heads: front, side, three-quarter, behind."),
         command("Enemy Weapon Drop Cap","developer 1; vr_dropcap_test 1")
             .help("vr_dropcap_test 1: 60 grunts spawned ahead and killed one by one (vr_dropcap_test_n), the first one's "
                   "rifle taken into an empty hand, a chainsaw thrown up and three other weapons dropped: the burst rifles "

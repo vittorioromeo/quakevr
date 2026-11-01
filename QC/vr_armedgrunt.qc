@@ -2698,6 +2698,8 @@ float() VR_AG_Idle =
     return TRUE;
 };
 
+void() VR_AGP_Cast; // (vr_armedgrunt_pose.qc)
+
 // Its row's spell at range (the death knight's fireball volley: vr_am_spell), as id's CheckAttack casts it for a monster
 // with a melee attack: near 0.2, mid 0.05 a check (times vr_agrunt_ai_aggression), its target in a clear line, never far
 // or in reach. Its own frames, shots and sounds; after them its run (hknight_run1: the layer's). TRUE: cast.
@@ -2718,9 +2720,27 @@ float(entity targ) VR_AM_SpellTry =
     {
         return FALSE;
     }
-    var void() spell = vr_am_spell;
-    spell();
+    VR_AGP_Cast(); // (cast as a swing of what it holds, from the weapon's tip or its fist: vr_armedgrunt_pose.qc)
     SUB_AttackFinished(2 * random());
+    return TRUE;
+};
+
+// A gun's holder with a spell (an armed death knight holding a gun): this share of its ranged attacks
+// (vr_agdknight_spell_share) are its fireball volley, cast with a thrust of the gun, the rest the gun's shots.
+float vr_am_gun_rolls, vr_am_gun_casts; // the tests: the rolls made, the casts they gave
+float(entity g) VR_AM_GunCasts =
+{
+    VR_AM_Row(g.vr_ag_kind);
+    if(vr_am_spell == SUB_Null || enemy_range == RANGE_FAR)
+    {
+        return FALSE;
+    }
+    vr_am_gun_rolls = vr_am_gun_rolls + 1;
+    if(random() >= min(1, max(0, cvar_hget(cvarh_vr_agdknight_spell_share))))
+    {
+        return FALSE;
+    }
+    vr_am_gun_casts = vr_am_gun_casts + 1;
     return TRUE;
 };
 
@@ -2836,6 +2856,12 @@ float() VR_AG_CheckAttack =
     chance = chance * VR_AGAI_Aggression(); // (vr_agrunt_ai_aggression)
     if(random() < chance)
     {
+        if(!native && VR_AM_GunCasts(self))
+        {
+            VR_AGP_Cast(); // (its spell instead of a shot: a thrust of the gun, the volley from its muzzle)
+            VR_AGAI_AttackFinished(1 + random());
+            return TRUE;
+        }
         self.th_missile();
         if(native)
         {

@@ -754,7 +754,6 @@ QVR_TUNABLE(vr_agrunt_grab_sweep, "2") // frames (0..2): your fist is also measu
 QVR_TUNABLE(vr_agrunt_rag_grab_weapon, "8") // cm: on a living (active) ragdoll your fist this near its weapon's drawn surface takes the weapon, not the limb beside it (the grab query: vr_physics.cpp armedAllowance, box3d grabRagdoll)
 QVR_TUNABLE(vr_agrunt_rag_limb_grab, "1") // a grab on a living ragdoll's weapon hand or forearm is a grab on its weapon (a tug); 0: the limb is held, as any
 QVR_TUNABLE(vr_agrunt_tug_pull_force, "270") // N (was 200: a still hold peaked at 211): the physical tug's pull that counts: only above it does its grip give (its force x time, the time below)
-QVR_TUNABLE(vr_agrunt_tug_pull_time, "0.5") // s you must keep pulling above that before its weapon can come out (a tug-of-war, not a yank)
 QVR_TUNABLE(vr_agrunt_tug_snap, "2.5") // a yank this many times the break force tears it out at once, before that time (0: never)
 QVR_TUNABLE(vr_agrunt_tug_hurt_ease, "0.4") // how much its wounds weaken its grip (0: not at all; 1: in proportion to its health lost)
 QVR_TUNABLE(vr_agrunt_tug_won_stumble, "0.1") // s it stumbles as its weapon is torn away before it stands (as an active ragdoll; then its AI)
