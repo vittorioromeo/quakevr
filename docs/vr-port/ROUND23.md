@@ -4409,6 +4409,25 @@ His voice notes of 2026-10-31 ~19:55 (five items). Stopped at the tool budget; w
   - Debug view: the plate lines are `lines::line` (drawn over everything, no depth test), so they cannot hide in the
     plate; the flatscreen Rig Studio screenshot shows the red armour but the 0.06-unit lines are too thin to see there.
   - Test 11 timed out twice (240-300 s, no output at all) after the merge: not looked into.
+- **Part 4** (branch `agent/armorfix4`):
+  - **Test 11's hang**: under Plate Blocks All (the test sets rule 1) the armoured grunt's plates took its killing blow;
+    it lived on, beat the player to death, and the test (run from the player's frame) stopped with him: no output,
+    the run's timeout. Now one grunt, killed bare, its plates put back on its ragdoll; shot on the left thigh plate's
+    face bare, then armoured, down a clear line to it (VR_ARS_Line). It ends on its verdict (~60 s): 4/0. The push:
+    `VR_AgArmor_PushScale` 1 bare, 0.5 armoured (VR_ShotPush's log: 6.0 N s vs 3.0 N s at 10x push). The ragdoll's
+    velocity gain is printed, not judged: box3d::push gives a shot to the part whose box is nearest (a lying body's
+    boxes overlap), a part driven into the floor stops, and the ratio read 0.06 to 4.4 from run to run (0.56 last).
+  - **Test 10's last limb "leaks" were shots beside the plate.** A grid of plate queries around each failing shot's
+    "face middle" (lines parallel to the aim, 0.25 units apart) showed the point on the plate's outline as seen along
+    the aim line: plate on one side, bare skin on the other from 0.2 units off; the projectiles' lines were 0.16-0.48
+    units off the aim (spawned from 44 units out), on the bare side. A wrapped bracer, thigh or shin plate seen from
+    the side (VR_ARS_Line took the first clear of radial/ahead/sides/up) has its face's middle on its silhouette. The
+    query is right (the shot met skin). Fixed in the test: `limbpiece(e, piece, 14)` is now the outer vertex nearest
+    the outer face's centroid at mid-length (the arc's middle; before, the first vertex of that ring), new
+    `limbpiece(e, piece, 15)` the outer face's outward normal there, and VR_ARS_Line tries that normal first and only
+    lines within 45 degrees of it. Not verified: his game started mid-run (see the report).
+  - **Show Armour Plates**: outer-face edges 0.35 units wide and opaque, inner face and rim 0.12 at 45% alpha (were all
+    0.06).
 ## Directional parry 2: debug view, leniency settings, Enemy Melee Speed (branch `agent/dirparry2`)
 
 His words (10-31): a debug view for it, leniencies he can tweak, slowed enemy swings to practise with.
