@@ -2212,6 +2212,7 @@ extern "C" void VR_Init()
     view::registerDiagCommands(); // vr_dumpview, vr_grasp_*, vr_hotspot_fit... (vr_view_diag.cpp)
     Cmd_AddCommand("vr_carry_check", held::carryCheck_f);
     Cmd_AddCommand("vr_carry_load_test", carry2h::loadTest_f);
+    Cmd_AddCommand("vr_carry_drag_test", carry2h::dragTest_f);
     Cmd_AddCommand("vr_grasp_spheres", grasp::spheres_f);
     Cmd_AddCommand("vr_grip_fit_last", gripfit::last_f);
     Cmd_AddCommand("vr_grip_fit_drawn", gripfit::drawn_f);

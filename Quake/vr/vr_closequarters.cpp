@@ -10,6 +10,7 @@
 // sideways part times 1 .. Strafe Factor (vr_closequarters_strafe) on the same ramp. Moving away: only the sideways part.
 
 #include "vr_closequarters.hpp"
+#include "vr_box3d.hpp"
 #include "vr_cvars.hpp"
 #include "vr_progs.hpp"
 #include "vr_testkit.hpp"
@@ -55,12 +56,18 @@ LastMove lastMove;
     return za::clamp(vr_closequarters_end.value, 0.f, startRadius());
 }
 
-// A live enemy one can walk into: a monster alive, damageable and solid.
-[[nodiscard]] bool liveEnemy(const edict_t* e)
+// A live enemy one can walk into: a monster alive, damageable and solid; with Only Live Foes (vr_closequarters_live) not
+// a ragdoll either (knocked down, staggering, held up by a hand, getting up through its body: active ragdoll form).
+[[nodiscard]] bool liveEnemy(edict_t* e)
 {
     const int solid = static_cast<int>(e->v.solid);
-    return (static_cast<int>(e->v.flags) & FL_MONSTER) && e->v.health > 0.f &&
-           static_cast<int>(e->v.takedamage) != DAMAGE_NO && solid != SOLID_NOT && solid != SOLID_TRIGGER;
+    if(!((static_cast<int>(e->v.flags) & FL_MONSTER) && e->v.health > 0.f &&
+           static_cast<int>(e->v.takedamage) != DAMAGE_NO && solid != SOLID_NOT && solid != SOLID_TRIGGER))
+    {
+        return false;
+    }
+    return vr_closequarters_live.value == 0.f ||
+           (!box3d::isRagdoll(NUM_FOR_EDICT(e)) && progs::fieldFloatOr(e, progs::fields().vr_knockdown, 0.f) != 1.f);
 }
 
 // The horizontal distance in units from `at` to the box (`lo`, `hi`): 0 inside it.
@@ -206,6 +213,45 @@ void test_f()
         cqTally.check(za::abs(l.leastToward - minF) < 0.01f, name,
             va("straight at its face: slowed to Min Factor (%.3f, want %.2f)", l.leastToward, minF));
         l = LastMove{};
+        return;
+    }
+    if(!strcmp(step, "live"))
+    {
+        // Only Live Foes (vr_closequarters_live): the grunt standing counts; knocked down (its ragdoll made, alive) it
+        // doesn't, and does again with the option off.
+        if(!sv.active)
+        {
+            return;
+        }
+        const progs::ServerVm vm;
+        edict_t* grunt = nullptr;
+        for(int i = 1; i < qcvm->num_edicts && !grunt; i++)
+        {
+            edict_t* const e = EDICT_NUM(i);
+            grunt = !e->free && !strcmp(PR_GetString(e->v.classname), "monster_army") && e->v.health > 0.f ? e : nullptr;
+        }
+        cqTally.check(grunt != nullptr && liveEnemy(grunt), name, "the grunt standing: a live foe");
+        // (the knockdown's mark, .vr_knockdown 1: a living ragdoll's, QC vr_knockdown.qc; the test's grunts here are
+        // spawned as targets a sweep does not knock down, so the mark is set for the check and restored)
+        const int kd = progs::fields().vr_knockdown;
+        if(!grunt || kd < 0)
+        {
+            cqTally.check(false, name, "a grunt with the knockdown field");
+            return;
+        }
+        const float mark = progs::fieldFloat(grunt, kd);
+        progs::fieldFloat(grunt, kd) = 1.f;
+        const float was = vr_closequarters_live.value;
+        Cvar_SetValueQuick(&vr_closequarters_live, 1.f);
+        const bool liveOn = liveEnemy(grunt);
+        Cvar_SetValueQuick(&vr_closequarters_live, 0.f);
+        const bool liveOff = liveEnemy(grunt);
+        Cvar_SetValueQuick(&vr_closequarters_live, was);
+        progs::fieldFloat(grunt, kd) = mark;
+        Con_Printf("%s: live: knocked down (marked): a foe with Only Live Foes %d, without %d\n", name, liveOn ? 1 : 0,
+            liveOff ? 1 : 0);
+        cqTally.check(!liveOn, name, "knocked down: no foe with Only Live Foes");
+        cqTally.check(liveOff, name, "knocked down: a foe again with Only Live Foes off");
         return;
     }
     Con_Printf("%s: strafe: %d slowed moves, last at %.2f m: toward %.3f, side %.3f, speed %.0f -> %.0f\n", name, l.slowed,

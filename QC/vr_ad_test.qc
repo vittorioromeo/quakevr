@@ -344,6 +344,35 @@ void(float request, entity p) AD_RulesTest =
         self = os;
         return;
     }
+    if(request == 198)
+    {
+        // Armed humanoids in Arcane Dimensions (vr_agrunt_repl_ad, on by default; run in an AD map, or e1m1 in the AD
+        // campaign): the map's own grunts replaced; a plain monster_army and monster_hell_knight spawned now armed; AD's
+        // own variants (a point knight: monster_hell_knight with spawnflags 8192; monster_army_rocket) left as AD made
+        // them. Ends on "adrepl: N passed, M failed".
+        VR_Test_BeginFlags("adrepl", VR_TEST_LOUD);
+        makevectors([0, p.v_angle_y, 0]);
+        vector at = p.origin + v_forward * 160;
+        float scope = VR_AGR_InScope();
+        VR_Test_Check(scope && vr_agr_made > 0, sprintf("the map's own grunts replaced (AD rules %g, campaign %g, in scope %g, %g made)",
+            AD_Rules(), cvar("vr_campaign"), scope, vr_agr_made));
+        entity g1 = AD_TestSpawn("monster_army", monster_army, at);
+        VR_Test_Check(g1.vr_ag, "a plain monster_army armed");
+        entity k1 = AD_TestSpawn("monster_hell_knight", monster_hell_knight, at + v_right * 80);
+        VR_Test_Check(k1.vr_ag || !cvar("vr_agdknight"), "a plain monster_hell_knight armed");
+        entity k2 = spawn();
+        k2.classname = "monster_hell_knight";
+        k2.spawnflags = 8192; // (AD's MON_POINT_KNIGHT)
+        setorigin(k2, at - v_right * 80);
+        self = k2;
+        monster_hell_knight();
+        self = os;
+        VR_Test_Check(!k2.vr_ag, "AD's point knight (spawnflags 8192) skipped");
+        entity r1 = AD_TestSpawn("monster_army_rocket", ad_monster_army_rocket, at + v_forward * 80);
+        VR_Test_Check(!r1.vr_ag, "AD's rocket soldier (monster_army_rocket) skipped");
+        VR_Test_Verdict();
+        return;
+    }
     if(request == 44)
     {
         self = p;

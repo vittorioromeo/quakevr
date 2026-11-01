@@ -23,7 +23,7 @@
 #define VR_AGK_SAW 4         // a chainsaw
 #define VR_AGK_TWOMELEE 5    // a melee weapon in each hand
 #define VR_AGK_TWOGUNS 6     // a gun in each hand
-#define VR_AGK_SHARED 7      // (no class: the Pickup key every class shares, agpose::sharedPickupCode)
+#define VR_AGK_SHARED 7      // (no class: the Pickup and Cast keys every class shares, agpose::sharedCode)
 #define VR_AGK_PISTOL 17     // a pistol
 #define VR_AGK_LAUNCHER 18   // a shoulder launcher
 #define VR_AGK_SPRAYER 19    // a sprayer
@@ -37,6 +37,7 @@
 #define VR_AGK_AIM 1
 #define VR_AGK_RUN 2
 #define VR_AGK_PICKUP 3
+#define VR_AGK_CAST 4 // the death knight's volley: his off hand's palm at you (a stance key, shared as the Pickup)
 #define VR_AGK_JAB 10
 #define VR_AGK_CROSS 11
 #define VR_AGK_HOOK 12

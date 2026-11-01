@@ -66,6 +66,8 @@
         row(opt::vr_carry_move_mass),
         row(opt::vr_carry_move_size),
         row(opt::vr_carry_move_min),
+        row(opt::vr_carry_drag),
+        row(opt::vr_carry_drag_max),
         row(opt::vr_held_surface_fit),
         row(opt::vr_grip_fit),
         row(opt::vr_held_collide),

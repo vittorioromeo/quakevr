@@ -2776,13 +2776,13 @@ float(entity targ) VR_AM_SpellTry =
     {
         return FALSE;
     }
-    VR_AGP_Cast(); // (cast as a swing of what it holds, from the weapon's tip or its fist: vr_armedgrunt_pose.qc)
+    VR_AGP_Cast(); // (his off hand's palm at you, the volley from it, whatever he holds: vr_armedgrunt_pose.qc)
     SUB_AttackFinished(2 * random());
     return TRUE;
 };
 
 // A gun's holder with a spell (an armed death knight holding a gun): this share of its ranged attacks
-// (vr_agdknight_spell_share) are its fireball volley, cast with a thrust of the gun, the rest the gun's shots.
+// (vr_agdknight_spell_share) are its fireball volley, cast from his off hand's palm, the rest the gun's shots.
 float vr_am_gun_rolls, vr_am_gun_casts; // the tests: the rolls made, the casts they gave
 float(entity g) VR_AM_GunCasts =
 {
@@ -2914,7 +2914,7 @@ float() VR_AG_CheckAttack =
     {
         if(!native && VR_AM_GunCasts(self))
         {
-            VR_AGP_Cast(); // (its spell instead of a shot: a thrust of the gun, the volley from its muzzle)
+            VR_AGP_Cast(); // (its spell instead of a shot: his off hand's palm at you, the volley from it)
             VR_AGAI_AttackFinished(1 + random());
             return TRUE;
         }

@@ -1314,19 +1314,20 @@ void togglePickupOverride()
         return;
     }
     pushUndo();
-    const bool had = agpose::hasPickupOverride(n->kind, cls);
+    const bool had = agpose::hasOverride(n->kind, cls, ses.pose);
     if(had)
     {
-        agpose::removePickupOverride(n->kind, cls);
+        agpose::removeOverride(n->kind, cls, ses.pose);
     }
     else
     {
-        agpose::makePickupOverride(n->kind, cls);
+        agpose::makeOverride(n->kind, cls, ses.pose);
     }
     dropUnchangedUndo();
-    say(had ? va("%s with %s: the shared Pickup again", agpose::kindsName(n->kind), agpose::className(cls))
-            : va("%s with %s: a Pickup of its own (an override; edits stay on this class)", agpose::kindsName(n->kind),
-                  agpose::className(cls)));
+    const char* pn = agpose::poseName(cls, ses.pose);
+    say(had ? va("%s with %s: the shared %s again", agpose::kindsName(n->kind), agpose::className(cls), pn)
+            : va("%s with %s: a %s of its own (an override; edits stay on this class)", agpose::kindsName(n->kind),
+                  agpose::className(cls), pn));
 }
 
 // The subject's kind's pose keys and grips laid on the other kind (scaled by their fits).
@@ -1564,7 +1565,7 @@ void press(int b)
         case BtnPickupOverride:
         {
             const int cls = n ? classOf(n->ent) : -1;
-            return n && cls >= 0 && agpose::hasPickupOverride(n->kind, cls) ? "Remove Override" : "Make Override";
+            return n && cls >= 0 && agpose::hasOverride(n->kind, cls, ses.pose) ? "Remove Override" : "Make Override";
         }
         default: return va("Copy > %s", agpose::kindTitle(n ? (n->kind + 1) % agpose::numKinds : 1));
     }
@@ -1601,7 +1602,7 @@ void press(int b)
     const bool poseRow = b >= BtnPosePrev && b <= BtnKeyNext;
     if(b == BtnPickupOverride)
     {
-        return !folded() && !poselive::on() && ses.pose == agpose::Pickup;
+        return !folded() && !poselive::on() && agpose::isSharedPose(ses.pose);
     }
     if(b >= BtnFold)
     {

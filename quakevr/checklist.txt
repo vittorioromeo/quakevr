@@ -59,6 +59,11 @@ Grab a grunt's gun and hold it (the physical tug): its arm reaches a little long
 Push your hand slowly into a grunt facing you, on through its body: the drawn hand stays on its chest; close the hand there: its backpack is not taken; from behind it is. {test:worn_packs_lift}
 Shoot or strike a grunt in the forearm, upper arm or hand: each is an arm hit, as on the enforcer and the knights; chest is body, head is a headshot (Debug > Show Hit Zones shows arms in the arm colour). Melee blows on arms now deal arm damage too (your call). {test:disarm_hulls_melee}
 Hold the grunt's gun with one hand and punch it with the other fist: the gun ends in your holding hand, with a metal clatter and a hard knock in your punching fist; punch a calm grunt's gun the same way and it flies out of its hand. {test:agrunt_tug}
+Walk into a knocked-down or staggering grunt: no close-quarters slowdown; Locomotion > Close Quarters > Only Live Foes off brings it back. {test:closequarters}
+Drag a dead grunt or hold a live one: you walk about 25% slower; heavier bodies slow you more, up to 70% (Carrying and Throwing > Carrying > Drag Slowdown).
+A death knight at range raises his off hand, palm at you, and the fireballs come from the palm; with a sword he keeps it in his hand. About 60% of his ranged attacks.
+Rig Studio / Pose Studio: a "Cast (shared)" pose next to Pickup, editable on the rifle, with Make Override per class; set its look (the default is a rough guess).
+Arcane Dimensions (unverified in tests): plain grunts, enforcers, knights and death knights are armed; AD's rocket/grenade/plasma soldiers and point knights are not.
 
 [2. Armed humanoids: disarming and armour]
 Show Disarm Volumes: the wireframe hulls sit on each drawn weapon (magenta, orange, red; the sword's orange line along its blade) and on the drawn hand and forearm (cyan). {test:disarm_hulls_melee}

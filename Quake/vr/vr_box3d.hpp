@@ -428,6 +428,8 @@ bool ragdollHoldSoft(edict_t* ent, edict_t* player, int hand, float reach, float
 float ragdollHoldForce(edict_t* player, int hand, float force = -1.f, float hertz = 0.f);
 // What `ent`'s ragdoll weighs (N: its parts' masses, its cut ones not, times the world's gravity); 0: no ragdoll.
 [[nodiscard]] float ragdollWeight(edict_t* ent);
+// Its mass alone (kg: a grunt's 80), edict `num`'s; 0: no ragdoll.
+[[nodiscard]] float ragdollBodyMass(int num);
 void ragdollRelease(edict_t* player, int hand, const glm::vec3& velocity);
 // The toolgun's physgun on a ragdoll (vr_toolgun.cpp; vr_box3d_ragparts.cpp, "The physgun's
 // hold"): a spring from the beam's point to the part of edict `num`'s ragdoll the beam from `from` along `dir` (unit)
