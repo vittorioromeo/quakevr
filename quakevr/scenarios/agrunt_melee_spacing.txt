@@ -1,0 +1,8 @@
+# agrunt_melee_spacing: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Melee spacing (Combat > Armed Grunts > AI Behaviour > Melee Spacing): sword and long-sword grunts stop a little out, the axe grunt comes right up.
+title Melee spacing: a sword grunt, a long-sword grunt and an axe grunt coming at you, a sword in hand (god)
+map vrtesthall
+god
+give "Knight's Sword" main
+spawn "Armed Grunt: Sword" 320 80
+spawn "Armed Grunt: Death Knight's Sword" 320 0
+spawn "Armed Grunt: Axe" 320 -80
