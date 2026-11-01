@@ -16,7 +16,9 @@
 //   hand's, vr_agrunt_vol_shot_weapon and _hand, by vr_agrunt_shotdisarm_parts; their near misses' too);
 // - with disarms on: the volumes a body blow disarms on (VR_AG_Hit: VR_AG_BlowGap, vr_agrunt_vol_blow);
 // - a ragdoll: the limb its weapon rides (VR_AG_RagProp's bone);
-// - a tug over it: the hand to its grip, and its progress (VR_AG_TugFrame's share, or time over VR_AG_TugNeed);
+// - a tug over it: the hand to its grip, and its progress (VR_AG_TugFrame's share, or time over VR_AG_TugNeed); the tug
+//   readout over the weapon (VR_AG_TugReadout: each rule's number against its threshold), and as it ends its verdict
+//   (won or lost, by which rule) with the last readout, kept a few seconds (VR_AG_TugEnd: debugdisarmnote 6);
 // - its state (debugdisarmnote 0): a tug, or what a grab does now (VR_AG_TugEasy: at once, or a tug).
 // And each player's hands (while any is held): the line a strike is measured from (the hand to its weapon's muzzle) and
 // its blow's line the parry sweeps (VR_Blow's last). The engine adds the fists as the grab measures them (which weapon a
@@ -94,7 +96,7 @@ void(entity g, entity p, entity pl) VR_DV_Weapon =
     {
         float share = g.vr_ag_tug_rag ? g.vr_ag_tug_prog : g.vr_ag_tug_prog / max(0.01, VR_AG_TugNeed(g));
         debugdisarm(p, VR_DV_TUG, VRGetEntHandPos(g.vr_ag_tug_pl, g.vr_ag_tug_hand), p.origin, share);
-        s = sprintf("TUG %.0f/100%s", min(1, share) * 100, g.vr_ag_tug_rag ? " (physical)" : "");
+        s = VR_AG_TugReadout(g); // (every number its rules read; its verdict kept a few seconds as it ends: VR_AG_TugEnd)
     }
     else if(!cvar_hget(cvarh_vr_agrunt_disarm_yank))
     {

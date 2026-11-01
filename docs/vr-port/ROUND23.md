@@ -5393,3 +5393,40 @@ melee_phase 7/0, arena 6 8/0), and before agent/ghosthand prop_climb and melee_p
   saves nothing mid-run.
 - **For the kit (coordinator)**: the console cases (arena_*, agrunt_*) run with the clock's seed; `sv_random_seed 7`
   before their map would make them repeat.
+
+## Tug readout, hand hulls (branch `agent/tugview`, his notes 2026-11-01 18:02, 18:35, 18:55)
+
+- **The cyan hull took the biceps (a real bug).** The hand's region was the ragdoll rig's vertices on the hand bone and
+  its parent. The grunt's right arm has no hand bone (its hand's vertices are on its forearm's bone), so the parent was
+  the upper arm: 39 of the region's 76 vertices were neither hand nor forearm (`disarmhull 17`, test 16). The left arm
+  and the Death Knight's arms (a hand bone) were right. Now the region is the arm skin's own chain weights
+  (`agarms::armPart`: row.x's c, 0 upper arm, 1 forearm, 2 hand), not the ragdoll rig's bones.
+- **Two hulls** (his 18:35 idea): the hand's volume is two hulls, its hand (c >= 1.5) and its forearm (0.5 < c < 2: they
+  overlap at the wrist), `disarmhull::HandPlaced`. Both count alike in the one shared query (gap: the nearer; met: the one
+  the path enters first): shots (`vr_agrunt_vol_shot_hand`), strikes, body blows. Show Disarm
+  Volumes draws both in cyan (orange, red as before). `weapondrawnpose 37/38` (the drawn forearm's middle: tests 16, 79)
+  is the skin's forearm too (it was the upper arm on the grunt's right arm).
+- **Tug readout** (part of Show Disarm Volumes, `vr_debug_disarm`): over the weapon while a tug is on, every number its
+  rules read against its threshold (`VR_AG_TugReadout`): physical tug: time (and the wrench-free cap), pull N (hold,
+  stretch) / break N and yank N, the least pull and how long it has been kept against the time it needs, impulse / break
+  impulse and progress, your controller's distance from its hold / the let-go distance (cm; `ragdolltug 7/8`), its
+  grip share (health, the badly-hurt line) and state; the old tug: stretch / needed, pulled / needed s, hand off / slip.
+  As the tug ends: `TUG WON: <the rule and its numbers>` or `TUG LOST: <you opened your hand | your hand went past the
+  let-go distance | it held on to vr_agrunt_tug_hold_max> (why)` with the last readout, kept 4 s over where it ended
+  (`debugdisarmnote 6`), and printed (`disarmviz: tug on N: ...`). The thresholds are one function now
+  (`VR_AG_TugLimits`, VR_AG_TugBreak's and the readout's).
+- **Tug arm stretch** (`vr_agrunt_tug_ik_stretch`, tunable 1.2, Advanced: "Tug: Arm Stretch"): the posed arms' IK stretch
+  (agpose::stretch of its kind and class) times this while a tug is on, eased in and out over 0.25 s
+  (`VR_AGK_TugStretch`). **Open:** the physical tug (`vr_agrunt_tug_ragdoll 1`, the default) draws its arms as ragdoll
+  limbs, not the posed arms, so this shows only in the old tug and a downed one's tug once it is up (test 19: share 0.00
+  in the physical tug). Making it show there needs the ragdoll's held arm drawn (or jointed) longer: not done.
+- **Not done:** his 18:55 note (a hand pushed through a facing grunt reaches its backpack): not started (budget).
+- Tests: test 16 274 passed, 0 failed (new: the hulls hold their own vertices; none of the upper arm's top inside them);
+  test 19 4 passed, 0 failed (the readout and the verdict line printed; no tug stretch before the grab).
+
+Checklist:
+- [tugview] Show Disarm Volumes on a grunt with a gun: two cyan hulls, one on its hand, one on its forearm; none round
+  its biceps. {test:agrunt_tug}
+- [tugview] Show Disarm Volumes, grab a grunt's gun and tug: the readout over the gun shows your pull against its break
+  force, the time kept, the impulse, your hand's distance against the let-go; as it ends, TUG WON / TUG LOST with the rule
+  stays over it about 4 s. {test:agrunt_tug}

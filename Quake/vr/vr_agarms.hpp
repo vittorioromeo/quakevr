@@ -173,6 +173,12 @@ bool rows(const entity_t* e, const aliashdr_t* hdr, glm::vec4* out);
 // is on. False: none.
 bool ragdollGrip(const qmodel_t* model, int side, rigpose::Rigid& grip, int& bone);
 
+// The disarm volumes' (vr_disarmhull.cpp): arm `side`'s vertices (the model's) by part, as its skin weighs them on its
+// chain (0 the upper arm, 1 the forearm, 2 the hand): part 0 its hand (from halfway through the wrist's blend on), 1 its
+// forearm (nearer the forearm's line than the upper arm's, up to the wholly hand's: the two overlap at the wrist), 2 its
+// upper arm's top (the tests: in neither). False: no skin made yet.
+bool armPart(const qmodel_t* model, int side, int part, const za::Vector<int>*& verts);
+
 // vr_agrunt_ragweapon_check: hand `side`'s vertices (wholly its hand's), the model's rest places (every vertex's) and
 // the hand's grip frame at rest (model units), as the posed arms hold a weapon in it. False: none.
 bool handSkin(const qmodel_t* model, int side, const za::Vector<int>*& verts, const za::Vector<glm::vec3>*& rest,

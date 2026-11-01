@@ -891,6 +891,7 @@ float cvarh_vr_agrunt_strike_raised;
 float cvarh_vr_agrunt_tug_pull;
 float cvarh_vr_agrunt_tug_hurt;
 float cvarh_vr_agrunt_tug_hold_max;
+float cvarh_vr_agrunt_tug_ik_stretch;
 float cvarh_vr_agrunt_tug_pull_force;
 float cvarh_vr_agrunt_tug_snap;
 float cvarh_vr_agrunt_tug_hurt_ease;
@@ -2204,6 +2205,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_agrunt_tug_pull = cvar_hmake("vr_agrunt_tug_pull");
     cvarh_vr_agrunt_tug_hurt = cvar_hmake("vr_agrunt_tug_hurt");
     cvarh_vr_agrunt_tug_hold_max = cvar_hmake("vr_agrunt_tug_hold_max");
+    cvarh_vr_agrunt_tug_ik_stretch = cvar_hmake("vr_agrunt_tug_ik_stretch");
     cvarh_vr_agrunt_tug_pull_force = cvar_hmake("vr_agrunt_tug_pull_force");
     cvarh_vr_agrunt_tug_snap = cvar_hmake("vr_agrunt_tug_snap");
     cvarh_vr_agrunt_tug_hurt_ease = cvar_hmake("vr_agrunt_tug_hurt_ease");
