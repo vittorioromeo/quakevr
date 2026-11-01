@@ -62,21 +62,29 @@ float(entity e) VR_ARS_Pool =
     return s;
 };
 
-// A line to plate `i` of `e`: its outer face's middle (limbpiece 14) seen from outside, out from the body, from ahead,
-// from either side, from above; the way out ('0 0 0': none clear). A MOVE_HITMODEL trace down it ends at that point (within
-// the guns' tolerance and the plate's own thickness): nothing of the body in front of the plate there.
+// A line to plate `i` of `e`: its outer face's middle (limbpiece 14) seen from outside, along the face's own outward
+// normal there (limbpiece 15), else out from the body, from ahead, from either side, from above, whichever is within 45
+// degrees of that normal; the way out ('0 0 0': none clear). A MOVE_HITMODEL trace down it ends at that point (within
+// the guns' tolerance and the plate's own thickness): nothing of the body in front of the plate there. (Before, the
+// first clear one of those, normal or not: a wrapped limb plate seen from the side has its face's middle on its outline,
+// and a projectile a fifth of a unit off the line passed the plate by: test 10's last 12 "leaks".)
 vector(entity e, float i) VR_ARS_Line =
 {
     vector at = limbpiece(e, i, 14);
+    vector nrm = limbpiece(e, i, 15);
     makevectors([0, e.angles_y, 0]);
     vector radial = at - e.origin;
     radial_z = 0;
     radial = normalize(radial);
     entity pl = VR_Player();
     float k;
-    for(k = 0; k < 6; k++)
+    for(k = 0; k < 7; k++)
     {
-        vector out = k == 0 ? radial : k == 1 ? v_forward : k == 2 ? v_right : k == 3 ? -v_right : k == 4 ? '0 0 1' : -v_forward;
+        vector out = k == 0 ? nrm : k == 1 ? radial : k == 2 ? v_forward : k == 3 ? v_right : k == 4 ? -v_right : k == 5 ? '0 0 1' : -v_forward;
+        if(out * nrm < 0.7)
+        {
+            continue;
+        }
         // (clear from 80 units out: a projectile's armour query reads its line from a frame's flight before its touch)
         traceline(at + out * 80, at - out * 8, MOVE_HITMODEL, pl);
         if((trace_ent == e) && (vlen(trace_endpos - at) < 3.5))
