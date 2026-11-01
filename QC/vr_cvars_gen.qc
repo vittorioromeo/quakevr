@@ -259,6 +259,7 @@ float cvarh_vr_agrunt_reserve;
 float cvarh_vr_agknight;
 float cvarh_vr_agknight_ranged_pickup;
 float cvarh_vr_agdknight;
+float cvarh_vr_agdknight_spell_share;
 float cvarh_vr_agrunt_aim_error;
 float cvarh_vr_agrunt_disarm;
 float cvarh_vr_agrunt_disarm_yank;
@@ -1558,6 +1559,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_agknight = cvar_hmake("vr_agknight");
     cvarh_vr_agknight_ranged_pickup = cvar_hmake("vr_agknight_ranged_pickup");
     cvarh_vr_agdknight = cvar_hmake("vr_agdknight");
+    cvarh_vr_agdknight_spell_share = cvar_hmake("vr_agdknight_spell_share");
     cvarh_vr_agrunt_aim_error = cvar_hmake("vr_agrunt_aim_error");
     cvarh_vr_agrunt_disarm = cvar_hmake("vr_agrunt_disarm");
     cvarh_vr_agrunt_disarm_yank = cvar_hmake("vr_agrunt_disarm_yank");

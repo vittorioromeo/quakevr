@@ -4870,3 +4870,36 @@ the same way as the weapons' (above).
   script reading the files); `held_over_props_test.sh` (a box of shells and the wall torch held over boxes) PASS.
 - **Next steps**: the monsters' tables, the named per-weapon families as weapon keys, then getter/setter rows and the
   old names retired after a release.
+
+## Small fixes from the 2026-11-01 voice notes (branch `agent/small1101`)
+
+- **Arena foes upright** (vrarena_2026-11-01_01-36-29). `VR_ARENA_SpawnMonster` turned each foe to the player with
+  `vectoangles`, pitch included (an enforcer on a high place: pitch 323), and nothing ever cleared it (ai_face turns
+  yaw alone): its body, gun and swings drawn tilted for good. Now yaw alone. The armed humanoids' pose code already
+  works in a yaw-only body frame (`VR_AGP_Body`). Test: `vr_arena_test 4` (vrarena) now also checks the first foes in
+  the field stand upright: before the fix 2 of 2 tilted (pitch 8), after 0; 8 passed, 0 failed.
+- **Armour's first breaks** (vrtesthall_..._01-22-56: ~80 ms hitches). Each plate's debris model
+  (`progs/<body>.mdl#plateN`, made as it loads: vr_agarmor.cpp derivedFile) was precached at its first break: 40-52 ms
+  of the server's frame each (`late precache:` lines), ten per body. Now `VR_AGR_PrecacheArmour` (worldspawn) precaches
+  the four armed kinds' bodies and all their plates and the break sounds (not in deathmatch), and `VR_AgArmor_Spawn`
+  precaches a wearer's own (soldier.mdl and any other). Test: `vr_agarmor_test 13` (a grunt in full green, a piece broken
+  a frame): 2 passed; with `developer 1; vr_profile_csv 1` no `late precache: ...#plate` and no `vr_profile: hitch`
+  line after the breaks (before: ten late plates and a 533 ms hitch in test 1's checks frame, quakec 474 ms).
+  `vr_agarmor_test 1` 26/26. Not done: a monster spawned mid-game (toolgun, test scenes, arena waves) still loads its
+  `#limbN` cut models late at its spawn (~4-7 ms each, 13 per body).
+- **Tug-of-war** (vrtesthall_..._02-15-16). His tuned values are the defaults: `vr_agrunt_tug_fight` 1 -> 0.9,
+  `vr_agrunt_tug_time` 0.8 -> 0.6, `vr_agrunt_tug_strength` 1.35 -> 1.2, `vr_agrunt_tug_let_go` 50 -> 40,
+  `vr_agrunt_tug_break_force` 800 -> 750. The physical tug's least time, `vr_agrunt_tug_pull_time` (0.5 s), was a
+  tuning constant (Debug > Tunables); it is now a setting, Combat > Armed Grunts > Disarming > Tug: Least Pull Time.
+  "Tug: Pull Time" (`vr_agrunt_tug_time`) only times the older tug (Tug: Physical off) and a staggering or downed one:
+  its help says so. Test 37 (`vr_agrunt_test 37`) 8 passed, 0 failed; `vr_menu_path_check maps/vrcalibration.map`
+  0 missing; menu_paths.txt regenerated.
+- **Armed death knights' spell** (vrtesthall_..._02-05-07, _02-11-04). His volley was cast from his middle while his
+  arms held the sword still. Now `VR_AGP_Cast` makes it an attack of what he holds: a melee weapon's swing (no step
+  in), the six fireballs fanned from the blade's tip as drawn (`VR_AG_DrawnMuzzle`) at the swing's blow; empty-handed
+  a punch, from the fist; a gun a thrust (the Shove pose's keys), from its muzzle as the thrust ends (`hknight_shot`
+  takes an origin: `vr_hk_shot_from`/`vr_hk_shot_org`). A gun holder now casts for `vr_agdknight_spell_share` (0.3,
+  Armed Humanoid Replacements page) of his ranged attacks and fires the gun for the rest. Test 95 with
+  `vr_agrunt_test_kind 3`: the cast 28.7 from his hand along a 28.0 blade, 46 from his middle; the gun share 0.303 over
+  2000 rolls; 9 passed, 1 failed: "knight death" fails the same way without these changes (health 50 after a blow of
+  health + 10: absorbed, likely his armour roll; pre-existing).

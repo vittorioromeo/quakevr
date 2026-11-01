@@ -463,6 +463,7 @@ void armedGripsDragMode()
         row(opt::vr_agrunt_repl),
         row(opt::vr_agknight),
         row(opt::vr_agdknight),
+        row(opt::vr_agdknight_spell_share),
         row(opt::vr_agknight_ranged_pickup),
         header("Weapon Variety (on top)"),
         chance("Common: Shotgun, Nail Pistol", vr_agrunt_repl_common,

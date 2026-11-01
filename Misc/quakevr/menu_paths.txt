@@ -1025,6 +1025,7 @@ vr_agrunt_w_phantom|1|Armed Grunts (Experimental)|Phantom Sword (Rogue's Data)|A
 vr_agrunt_repl|1|Armed Humanoid Replacements|Replace All Humanoids|Advanced VR Options > Combat > Armed Humanoid 
 vr_agknight|1|Armed Humanoid Replacements|Armed Knights|Advanced VR Options > Combat > Armed Humanoid Replacements 
 vr_agdknight|1|Armed Humanoid Replacements|Armed Death Knights|Advanced VR Options > Combat > Armed Humanoid 
+vr_agdknight_spell_share|1|Armed Humanoid Replacements|Armed Death Knights: Spell Share|Advanced VR Options > 
 vr_agknight_ranged_pickup|1|Armed Humanoid Replacements|Armed Knights: Pick Up Ranged Weapons|Advanced VR Options > 
 vr_agrunt_repl_common|1|Armed Humanoid Replacements|Common: Shotgun, Nail Pistol|Advanced VR Options > Combat > 
 vr_agrunt_repl_uncommon|1|Armed Humanoid Replacements|Uncommon: Nailguns, Super Shotgun|Advanced VR Options > 

@@ -855,6 +855,11 @@ QVR_TOGGLE(vr_agdknight, "Armed Death Knights",
     "disarmed, tugged and grabbed like the armed humanoids', dropped when he dies; at range he still casts "
     "his fireball volley. A work in progress (ROUND23.md, \"Death knights as armed humanoids\"). Takes "
     "effect at the next map load (vr_agdknight).")
+QVR_SLIDER(vr_agdknight_spell_share, "Armed Death Knights: Spell Share", 0.f, 1.f, 0.05f, "%.2f", ext(0.f, 1.f),
+    "An armed death knight holding a gun casts his fireball volley (a thrust of the gun, the fireballs from its "
+    "muzzle) for this share of his ranged attacks and fires the gun for the rest. With a blade or his fists he "
+    "casts at range as a swing or a punch, the fireballs from the blade's tip or his fist "
+    "(vr_agdknight_spell_share).")
 QVR_TOGGLE(vr_agknight_ranged_pickup, "Armed Knights: Pick Up Ranged Weapons",
     "Off: armed knights and death knights take up only melee weapons lying about (a gun they drop stays "
     "on the floor). On: they take up guns too, as grunts do (for experiments). One spawned holding a gun "
