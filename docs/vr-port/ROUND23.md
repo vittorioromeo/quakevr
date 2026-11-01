@@ -4870,3 +4870,18 @@ the same way as the weapons' (above).
   script reading the files); `held_over_props_test.sh` (a box of shells and the wall torch held over boxes) PASS.
 - **Next steps**: the monsters' tables, the named per-weapon families as weapon keys, then getter/setter rows and the
   old names retired after a release.
+
+## Nightly regressions after the exact disarm hulls: agrunt 2 and 68 (branch `agent/hullregress`)
+
+- **Confirmed**: both pass on e54d81480 (before the disarmhull merge) and fail on its merge 59c98632a, as on next.
+- **Test 2** (disarm by a blow): the test aimed at the old volume. Its blow was at the weapon's server place, inside the
+  old 10-unit grip sphere but off the drawn weapon's hull (Body Blows 0 wants the weapon or hand itself). Now it is at
+  the drawn weapon's hull middle (disarmhull 20). On next it also needed the hit record: since "One hit record",
+  `hit_pos` alone is read only with a zone found this frame, so the point goes in through `VR_Hit_SetZone`, as test 16's.
+- **Test 68** (dual tug, right leg): the test's setup. After the first tug the humanoid staggers off to 73 units; the
+  hand stops at its arm's reach (49 units), 14 off the drawn shotgun (fist gap 37.7 cm). It is now put back where it
+  stood, facing you, before the right leg. The check is unchanged; a fail prints the hand, the volume and the places.
+- **The mock's `agweapon` / `agweaponpalm`** (vr_backend_mock.cpp `weaponPoint`) aim at the armed weapon where it is
+  drawn (`disarmhull::weapon`), not at its server place: where its grab, shot and blow volume is read.
+- **Checks**: agrunt 2 4/0, 68 4/0, 16 242/0, 94 16/0. The other `agweapon` users (the downtug, raggrab, ragweapon,
+  twohand, play, grab and disarmviz tests) not run here.
