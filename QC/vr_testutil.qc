@@ -158,6 +158,7 @@ void() VR_TestsFrame =
     VR_ImpTest_Frame(); // VR: every hit ladder on every material (vr_impact_qc_test, vr_impacts_test.qc)
     VR_Burn_TestFrame(); // VR: the burning tests (vr_burn_test, vr_burning.qc)
     VR_HotBlade_TestFrame(); // VR: the incandescent blades' tests (vr_hotblade_test, vr_hotblade.qc)
+    VR_Clash_TestFrame(); // VR: your two weapons clashing (vr_clash_test, vr_ownclash_test.qc)
     VR_Shock_TestFrame(); // VR: lightning's lasting shock's test (vr_shock_hit_test, vr_shock.qc)
     VR_DentsTest_Frame(); // VR: every hit dents, the damage paths' test (vr_dents_test, vr_dents_test.qc)
     VR_ARENA_Test_Frame(); // VR: the Survival Arena's tests (vr_arena_test, vr_arena_test.qc)

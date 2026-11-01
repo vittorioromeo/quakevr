@@ -221,6 +221,7 @@ dispatch vr_dropcap_test QC/vr_dropcap_test.qc VR_DropCapTest_Frame request loos
 dispatch vr_dummy_test QC/vr_dummy_test.qc VR_Dummy_Test xTest loose
 dispatch vr_gibprops_test QC/vr_gibprops_test.qc VR_GibProps_TestFrame request loose
 dispatch vr_hotblade_test QC/vr_hotblade_test.qc VR_HotBlade_TestFrame ask loose
+dispatch vr_clash_test QC/vr_ownclash_test.qc VR_Clash_TestFrame ask
 dispatch vr_kdtrig_test QC/vr_kdtrig.qc VR_KdTrig_Frame want loose
 dispatch vr_limb_test QC/vr_limbs_test.qc VR_Limb_Test xTest loose
 dispatch vr_melee_sweep_test QC/vr_melee_sweep_test.qc VR_Melee_SweepTestFrame mode loose
@@ -368,6 +369,9 @@ vr_hotblade_test 11       vr_hotblade_test.qc              (VR_HotBlade_TestFind
 vr_hotblade_test 12       vr_hotblade_test.qc              (VR_HotBlade_Heatable)
 vr_hotblade_test 13       vr_hotblade_test.qc              (VRGetHandPos)
 vr_hotblade_test 14       vr_hotblade_test.qc              (VRGetHandPos)
+
+vr_clash_test    1        vr_ownclash_test.qc              (VR_Clash_TestAll: your two weapons' clash rule, its table)
+vr_clash_test    2        vr_ownclash_test.qc              (VR_Clash_E2EFrame: two swords in the mock hands swung together)
 
 vr_kdtrig_test   1*       vr_kdtrig.qc                     (the Debug menu runs it: the dispatcher's fall-through)
 vr_kdtrig_test   2*       vr_kdtrig.qc                     (the Debug menu runs it: the dispatcher's fall-through)

@@ -871,6 +871,14 @@ za::Vector<Item> pageDebugAutomation()
         command("Drop It Here", "developer 1; vr_hotblade_test 14")
             .help("vr_hotblade_test 14: the main hand's weapon let go of where the hand is: watch it glow and cool on the ground."),
         command("Off Hand's Torch to the Blade", "developer 1; vr_hotblade_test 10").help("vr_hotblade_test 10: the off hand's lit torch's flame brought round the main hand's blade (the mock headset's hand)."),
+        header("Weapon Clash (developer 1: clash: ...)"),
+        command("Run the Weapon Clash Tests", "developer 1; vr_clash_test 1")
+            .help("vr_clash_test 1: your two weapons' clash rule on laid-out swings (swords fast and slow, guns, a sword on "
+                  "a gun, a club, the toggles, the cooldown): the console's clashtest lines and its verdict. Swing your two "
+                  "held weapons into each other with developer 1 to see each clash's speed, sparks and sound."),
+        command("Swords in the Mock Hands Swung Together", "developer 1; vr_clash_test 2")
+            .help("vr_clash_test 2 (the mock headset only: it moves its hands): two swords given, the main one swung "
+                  "across into the other slowly (nothing) then fast (sparks, the clang and a tink): clashtest2 lines."),
         header("Wall Torches Shot Off Their Walls (developer 1: walltorch: ...)"),
         command("Shoot the Nearest Wall Torch (a Pellet)", "developer 1; vr_test_walltorch_shot 10")
             .help("vr_test_walltorch_shot 10: the wall torch nearest you shot from your eyes with a shotgun's pellets: it comes off its wall and falls lit (VR Settings > Combat > Wall Torches > Shot Off Its Wall)."),

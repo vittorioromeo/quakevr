@@ -945,6 +945,11 @@ vr_agrunt_shove|1|Enemy Shoves|Armed Humanoids' Shove|Advanced VR Options > Comb
 vr_enemy_shove_vore|1|Enemy Shoves|Vores Shove|Advanced VR Options > Combat > Enemy Shoves > Vores Shove
 |1|Enemy Shoves|Reset This Page|Advanced VR Options > Combat > Enemy Shoves > Reset This Page
 @page|1|Armed Grunts (Experimental)||Advanced VR Options > Combat > Armed Grunts (Experimental)
+vr_agrunt_grab_leniency|1|Armed Grunts (Experimental)|Grab Leniency|Advanced VR Options > Combat > Armed Grunts 
+vr_agrunt_vol_shot_weapon|1|Armed Grunts (Experimental)|Shot Leniency: Weapon|Advanced VR Options > Combat > Armed 
+vr_agrunt_vol_shot_hand|1|Armed Grunts (Experimental)|Shot Leniency: Hand|Advanced VR Options > Combat > Armed 
+vr_agrunt_vol_strike|1|Armed Grunts (Experimental)|Melee Strike Leniency|Advanced VR Options > Combat > Armed 
+vr_agrunt_vol_blow|1|Armed Grunts (Experimental)|Body Blow Leniency|Advanced VR Options > Combat > Armed Grunts 
 vr_agrunt_damage_scale|1|Armed Grunts (Experimental)|Damage to You|Advanced VR Options > Combat > Armed Grunts 
 vr_agrunt_reserve|1|Armed Grunts (Experimental)|Spare Clips|Advanced VR Options > Combat > Armed Grunts 
 vr_agrunt_dual_penalty|1|Armed Grunts (Experimental)|Dual Guns' Penalty|Advanced VR Options > Combat > Armed Grunts 
@@ -973,12 +978,8 @@ vr_agrunt_fall_keep|1|Armed Grunts (Experimental)|Keeps It in a Gentle Fall|Adva
 vr_agrunt_fall_keep_impact|1|Armed Grunts (Experimental)|Fall: Drops It on Impact|Advanced VR Options > Combat > 
 vr_agrunt_fall_keep_window|1|Armed Grunts (Experimental)|Fall: Flung Within|Advanced VR Options > Combat > Armed 
 vr_agrunt_saw_drop_running|1|Armed Grunts (Experimental)|Drops Its Chainsaw Running|Advanced VR Options > Combat > 
-vr_agrunt_vol_strike|1|Armed Grunts (Experimental)|Volume: Strikes|Advanced VR Options > Combat > Armed Grunts 
-vr_agrunt_vol_blow|1|Armed Grunts (Experimental)|Volume: Body Blows|Advanced VR Options > Combat > Armed Grunts 
 vr_agrunt_shotdisarm|1|Armed Grunts (Experimental)|Shoot Weapons Out|Advanced VR Options > Combat > Armed Grunts 
 vr_agrunt_shotdisarm_parts|1|Armed Grunts (Experimental)|What Counts|Advanced VR Options > Combat > Armed Grunts 
-vr_agrunt_vol_shot_weapon|1|Armed Grunts (Experimental)|Volume: Its Weapon|Advanced VR Options > Combat > Armed 
-vr_agrunt_vol_shot_hand|1|Armed Grunts (Experimental)|Volume: Its Hand|Advanced VR Options > Combat > Armed Grunts 
 vr_agrunt_shotdisarm_chance|1|Armed Grunts (Experimental)|Chance a Roll|Advanced VR Options > Combat > Armed Grunts 
 vr_agrunt_shotdisarm_chance_scale|1|Armed Grunts (Experimental)|Chance Past the Threshold|Advanced VR Options > 
 vr_agrunt_shotdisarm_block|1|Armed Grunts (Experimental)|Weapon Stops the Shot|Advanced VR Options > Combat > Armed 
@@ -1997,6 +1998,13 @@ vr_autopump_time|1|Weapon Effects|Auto Pump Time|Advanced VR Options > Weapons >
 vr_autopump_delay|1|Weapon Effects|Auto Pump Delay|Advanced VR Options > Weapons > Weapon Effects > Auto Pump Delay
 vr_autopump_sound|1|Weapon Effects|Auto Pump Sound|Advanced VR Options > Weapons > Weapon Effects > Auto Pump Sound
 vr_autopump_haptics|1|Weapon Effects|Auto Pump Haptics|Advanced VR Options > Weapons > Weapon Effects > Auto Pump 
+vr_clash_melee|1|Weapon Effects|Melee Weapons Clash|Advanced VR Options > Weapons > Weapon Effects > Melee Weapons 
+vr_clash_ranged|1|Weapon Effects|Guns Clash|Advanced VR Options > Weapons > Weapon Effects > Guns Clash
+vr_clash_speed|1|Weapon Effects|Clash Least Speed|Advanced VR Options > Weapons > Weapon Effects > Clash Least Speed
+vr_clash_sparks|1|Weapon Effects|Clash Sparks|Advanced VR Options > Weapons > Weapon Effects > Clash Sparks
+vr_clash_volume|1|Weapon Effects|Clash Volume|Advanced VR Options > Weapons > Weapon Effects > Clash Volume
+vr_clash_haptics|1|Weapon Effects|Clash Haptics|Advanced VR Options > Weapons > Weapon Effects > Clash Haptics
+vr_clash_cooldown|1|Weapon Effects|Clash Cooldown|Advanced VR Options > Weapons > Weapon Effects > Clash Cooldown
 vr_muzzle_flash|1|Weapon Effects|Programmatic Muzzle Flash|Advanced VR Options > Weapons > Weapon Effects > 
 vr_muzzle_flash_enemies|1|Weapon Effects|Enemies' Muzzle Flashes|Advanced VR Options > Weapons > Weapon Effects > 
 vr_muzzle_smoke_enemies|1|Weapon Effects|Enemies' Muzzle Smoke|Advanced VR Options > Weapons > Weapon Effects > 
@@ -3076,7 +3084,6 @@ vr_agrunt_tug_pull|2|Tunables|Tug: Pull Distance|Advanced VR Options > Debug > T
 vr_agrunt_tug_hurt|2|Tunables|Tug: Lets Go When Hurt Below|Advanced VR Options > Debug > Tunables > Tug: Lets Go 
 vr_agrunt_tug_hold_max|2|Tunables|Tug: Longest|Advanced VR Options > Debug > Tunables > Tug: Longest
 vr_agrunt_grab_slack|2|Tunables|Grab: Precision|Advanced VR Options > Debug > Tunables > Grab: Precision
-vr_agrunt_grab_leniency|2|Tunables|Grab: Leniency|Advanced VR Options > Debug > Tunables > Grab: Leniency
 vr_agrunt_grab_sweep|2|Tunables|Grab: Moving Weapon|Advanced VR Options > Debug > Tunables > Grab: Moving Weapon
 vr_agrunt_rag_grab_weapon|2|Tunables|Grab: Ragdoll's Weapon Within|Advanced VR Options > Debug > Tunables > Grab: 
 vr_agrunt_rag_limb_grab|2|Tunables|Grab: Ragdoll's Weapon Hand|Advanced VR Options > Debug > Tunables > Grab: 
@@ -3706,6 +3713,7 @@ vr_debug_hand_offset|2|Debug - Views|Log Hand Offsets|Advanced VR Options > Debu
 |2|Debug - Views|Cell Cord Info|Advanced VR Options > Debug > Views > Cell Cord Info
 |2|Debug - Views|Weapon Settings Inheritance|Advanced VR Options > Debug > Views > Weapon Settings Inheritance
 |2|Debug - Views|Held Object Slots|Advanced VR Options > Debug > Views > Held Object Slots
+|2|Debug - Views|Monster Values|Advanced VR Options > Debug > Views > Monster Values
 |2|Debug - Views|Held Heads' Weights|Advanced VR Options > Debug > Views > Held Heads' Weights
 |2|Debug - Views|Magnetic Holsters Info|Advanced VR Options > Debug > Views > Magnetic Holsters Info
 |2|Debug - Views|Magnetic Holsters: All Home|Advanced VR Options > Debug > Views > Magnetic Holsters: All Home
@@ -4182,6 +4190,7 @@ vr_brush_shade|2|Debug - Tools|Shade the Boxes' Faces|Advanced VR Options > Debu
 vr_lootbeam_debug|2|Debug - Tests|Loot Beams: Debug Lines|Advanced VR Options > Debug > Tests > Loot Beams: Debug 
 vr_debug_stick|2|Debug - Tests|Stick: Show Speed|Advanced VR Options > Debug > Tests > Stick: Show Speed
 |2|Debug - Tests|Stick: Curve Table|Advanced VR Options > Debug > Tests > Stick: Curve Table
+|2|Debug - Tests|Stick: Run Steadiness|Advanced VR Options > Debug > Tests > Stick: Run Steadiness
 |2|Debug - Tests|Doom: Info|Advanced VR Options > Debug > Tests > Doom: Info
 vr_debug_touch|2|Debug - Tests|Doom: Show Touches|Advanced VR Options > Debug > Tests > Doom: Show Touches
 vr_debug_doom|2|Debug - Tests|Doom: Debug|Advanced VR Options > Debug > Tests > Doom: Debug
@@ -4240,6 +4249,7 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Armoured Enforcers There|Advanced VR Options > Debug > Tests > Armoured Enforcers There
 |2|Debug - Tests|Armour Damage Marks There|Advanced VR Options > Debug > Tests > Armour Damage Marks There
 |2|Debug - Tests|Helmets There: Grunt and Enforcer|Advanced VR Options > Debug > Tests > Helmets There: Grunt and 
+|2|Debug - Tests|Helmets There: Knight and Death Knight|Advanced VR Options > Debug > Tests > Helmets There: Knight 
 |2|Debug - Tests|Enemy Weapon Drop Cap|Advanced VR Options > Debug > Tests > Enemy Weapon Drop Cap
 |2|Debug - Tests|A Knight's Ragdoll There|Advanced VR Options > Debug > Tests > A Knight's Ragdoll There
 |2|Debug - Tests|An Ogre's Ragdoll There|Advanced VR Options > Debug > Tests > An Ogre's Ragdoll There
@@ -4903,6 +4913,8 @@ vr_decap_poptest_dist|2|Debug - Automation & Self-Tests|Test Range|Advanced VR O
 |2|Debug - Automation & Self-Tests|Throw It at the Nearest Monster|Advanced VR Options > Debug > Automation & 
 |2|Debug - Automation & Self-Tests|Drop It Here|Advanced VR Options > Debug > Automation & Self-Tests > Drop It Here
 |2|Debug - Automation & Self-Tests|Off Hand's Torch to the Blade|Advanced VR Options > Debug > Automation & 
+|2|Debug - Automation & Self-Tests|Run the Weapon Clash Tests|Advanced VR Options > Debug > Automation & Self-Tests 
+|2|Debug - Automation & Self-Tests|Swords in the Mock Hands Swung Together|Advanced VR Options > Debug > Automation 
 |2|Debug - Automation & Self-Tests|Shoot the Nearest Wall Torch (a Pellet)|Advanced VR Options > Debug > Automation 
 |2|Debug - Automation & Self-Tests|Shoot It (a Nail)|Advanced VR Options > Debug > Automation & Self-Tests > Shoot 
 |2|Debug - Automation & Self-Tests|Shoot It (a Rocket)|Advanced VR Options > Debug > Automation & Self-Tests > 

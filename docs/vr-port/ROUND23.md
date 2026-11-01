@@ -5089,3 +5089,45 @@ The per-monster cvar families that are plain per-classname values are data: 171 
   drawn (`disarmhull::weapon`), not at its server place: where its grab, shot and blow volume is read.
 - **Checks**: agrunt 2 4/0, 68 4/0, 16 242/0, 94 16/0. The other `agweapon` users (the downtug, raggrab, ragweapon,
   twohand, play, grab and disarmviz tests) not run here.
+
+## Weapon clash: your own two weapons colliding (branch `agent/ownsparks`, his voice note 2026-11-01 02:17)
+
+His words: dual wielding swords (or any weapons), "they collide with each other with enough speed, I would like that
+same spark effect that also happens when I'm colliding with an enemy weapon"; melee weapons on by default, ranged
+"probably" too; by material: sword blade on sword blade sparks with a tink, shotgun on shotgun a dull sound, no sparks.
+
+- **The rule** (QC/vr_ownclash.qc, `VR_Clash_Frame`, called by PlayerVRMelee right after the hands' poses): both hands'
+  blow lines (`VR_Blow(h).mh_pp/mh_cp`, near end to far end, as the melee tracks them) swept from their last pose to
+  now in up to 12 steps; the first sample where they come within their thicknesses (1 unit a blade or the crowbar, 2 a
+  gun or a club) is the meeting, if they were not already well inside each other at the last pose (resting crossed or
+  scraping makes nothing). Its speed: the nearest points' relative velocity along the gap they just closed (moving
+  apart is 0), each hand over its own time since its last pose (a hand held still gets its next pose several frames
+  after its last: one shared dt read a 3.6 m/s swing as 0.9). At `vr_clash_speed` (1.5 m/s) or more: the effect at
+  the meeting point, light haptics in both hands (`haptic` 0.08 s; 160 Hz when it sparked, 80 else), then nothing from
+  the pair for `vr_clash_cooldown` (0.2 s). Speed scales it: k = min(2, speed / 4); volume (0.3 + 0.35 k) x the row's
+  x `vr_clash_volume`; sparks 20 x min(2, speed / 3) x the row's x `vr_clash_sparks`, sent in bursts of 20 (the impact
+  table caps one burst at 10 particles), every other one mirrored across, at most 4.
+- **The material table** (`VR_Clash_Row`; makes from `VR_MTHING_*`, an enemy's from its weapon id): blade (sword, axe,
+  Mjolnir, chainsaw) x blade: sparks 1, the blade clang (impact METAL/BLADE) + `weapons/tink1.wav` at 0.7; blade x
+  crowbar: 0.7, the clang; crowbar x crowbar: 0.5, the metal clank (METAL/BASH); blade or crowbar x gun: 0.35, the
+  clank; gun x gun: no sparks, the light metal knock (armour's, ARMOUR/BLOW over-layer, metal_l); wood (a club, a
+  torch) x anything: no sparks, the wooden thud (WOOD/BLOW layer); a hand on a weapon: no sparks, the clank at half.
+- **Enemy weapons use the same table:** `VR_AG_BladeContact` (your blow on a grunt's blade) and `VR_DRP_Effects` (the
+  directional parry's sparks) now call `VR_Clash_Fx` with your thing and its weapon. Changes there: a sword on its
+  sword adds the tink; a gun on its blade sends fewer sparks (0.35); the crowbar rings with the clang and fewer sparks;
+  a club thuds; a fist stays the half clank with no sparks. One burst there (its amount clamped as before).
+- **Settings** (Weapons > Weapon Effects > Weapon Clash): `vr_clash_melee` 1, `vr_clash_ranged` 1 (a pair clashes when
+  both of its weapons are on), `vr_clash_speed` 1.5 m/s, `vr_clash_sparks` 1x, `vr_clash_volume` 1x, `vr_clash_haptics`
+  1x, `vr_clash_cooldown` 0.2 s. developer 1 prints `clash: <a> on <b> at <point>, <m/s>: sparks N, sound S (vol)` and
+  the too-slow meetings.
+- **Tests** (Debug > Tests > Weapon Clash): `vr_clash_test 1` (QC/vr_ownclash_test.qc) lays both blows out and runs the
+  frame's rule: swords at 6 m/s clash (6.00 measured, sparks 40, the clang and a tink, 0.22 units off the meeting
+  point), none again within the cooldown, 2.5 m/s fewer sparks (17) and quieter (0.52 vs 0.82), 0.8 m/s none (counted
+  slow), touching already none, guns a metal_l knock with no sparks or tink, sword on gun 14 sparks and the metal_h
+  clank, club on sword a wood thud, the toggles, fists, the enemy rows: 25/0. `vr_clash_test 2` moves the mock hands:
+  two swords, the main one swung across into the off one at 0.58 m/s (met, too slow, nothing) then 3.6 m/s (one clash,
+  3.60 m/s measured, sparks and a tink): 8/0. (The test keeps the swords in its hands: given swords the player has no
+  item for are put away after a while.) Regression: agrunt 77 12/0; 78 18/2 (the two known: the horizontal-swing case
+  and the chainsaw's 2.56-unit line, above; neither reaches the effects' change).
+- **For him in VR:** dual swords, clash them: sparks and a tink at the crossing; slowly crossed: nothing; two shotguns:
+  a dull knock; a sword on a shotgun: a few sparks and a clank. Tune on Weapon Effects > Weapon Clash.

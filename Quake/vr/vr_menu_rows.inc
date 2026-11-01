@@ -4892,6 +4892,23 @@ QVR_SLIDER(vr_autopump_delay, "Auto Pump Delay", 0.f, 0.3f, 0.01f, "%.2f s", ext
 QVR_SLIDER(vr_autopump_sound, "Auto Pump Sound", 0.f, 1.f, 0.1f, "%.1f", noExt, "Volume of its two clacks (0: off).")
 QVR_SLIDER(vr_autopump_haptics, "Auto Pump Haptics", 0.f, 2.f, 0.1f, "%.1f", noExt,
     "Strength of the light ticks in the hand at the back of the stroke and home (0: off).")
+QVR_TOGGLE(vr_clash_melee, "Melee Weapons Clash",
+    "Your two held melee weapons (swords, axes, the crowbar) meeting fast: sparks and a ring where they meet. Blade "
+    "on blade sparks most, with a clang and a tink; a wooden club only thuds.")
+QVR_TOGGLE(vr_clash_ranged, "Guns Clash",
+    "Your two held guns, or a gun and a blade, meeting fast: a gun on a gun a dull metal knock and no sparks; a "
+    "blade on a gun a few sparks and a clank. A pair clashes when both of its weapons do.")
+QVR_SLIDER(vr_clash_speed, "Clash Least Speed", 0.5f, 5.f, 0.1f, "%.1f m/s", ext(0.f, 10.f),
+    "How fast the two weapons must close on each other to clash. Slower meetings (resting them crossed, moving "
+    "them together) make nothing.")
+QVR_SLIDER(vr_clash_sparks, "Clash Sparks", 0.f, 3.f, 0.1f, "%.1fx", noExt,
+    "The sparks' amount times this (0: none). Their own amount grows with the speed and depends on the materials.")
+QVR_SLIDER(vr_clash_volume, "Clash Volume", 0.f, 2.f, 0.1f, "%.1fx", noExt,
+    "The clash's sound times this (0: silent). Its own volume grows with the speed and depends on the materials.")
+QVR_SLIDER(vr_clash_haptics, "Clash Haptics", 0.f, 2.f, 0.1f, "%.1fx", noExt,
+    "The light buzz in both hands at a clash times this (0: none).")
+QVR_SLIDER(vr_clash_cooldown, "Clash Cooldown", 0.f, 1.f, 0.05f, "%.2f s", noExt,
+    "After a clash, how long before the two weapons can clash again (a rattle of contacts makes one).")
 QVR_TOGGLE(vr_muzzle_flash, "Programmatic Muzzle Flash",
     "The shotgun's flash at the muzzle of the weapons whose Muzzle Flash is on (Weapon Offsets > Effects: the "
     "grunts' burst rifle), following the gun.")
