@@ -369,11 +369,11 @@ struct TouchProvider
 }
 
 // A prop (a force-grabbable thing), or a carried thing by the fist (an explosive box by the fist only where the fist also
-// pushes it, vr_box3d_hand_push_fist: the listen server's own player. Another player's hand still pushes with the sphere
-// at its point, which keeps the box off its fist).
+// pushes it: the listen server's own player. Another player's hand still pushes with the sphere at its point, which keeps
+// the box off its fist).
 [[nodiscard]] bool claimsProp(edict_t* target, edict_t* player)
 {
-    const bool byFist = vr_box3d_hand_push_fist.value && NUM_FOR_EDICT(player) == 1;
+    const bool byFist = NUM_FOR_EDICT(player) == 1;
     return hasFlag(target, physics::FL_FORCEGRABBABLE) || (byFist && carried(target));
 }
 

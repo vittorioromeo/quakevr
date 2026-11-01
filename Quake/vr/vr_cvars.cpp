@@ -940,6 +940,14 @@ void registerCvars()
 // Settings removed (docs/vr-port/CVAR_AUDIT.md): a config, a shipped .cfg or a take that still sets one is not an
 // "Unknown command" (cmd.c asks here); the line is dropped quietly and the next config write leaves it out.
 constexpr const char* retiredCvars[] = {
+    // 2026-11-02: legacy options removed, their defaults kept (ROUND23.md, "Legacy options removed, group 1").
+    "vr_hand_rig",
+    "vr_gun_wall_slide",
+    "vr_box3d_hand_push_fist",
+    "vr_ragdoll_active_getup_hold",
+    "vr_menu_banner_beside",
+    "vr_worn_backpack_tug",
+    "vr_nailpistol_model",
     // 2026-10-31: the shot volumes' size, a multiplier of the old capsules, replaced by the hulls of the drawn triangles
     // grown by vr_agrunt_vol_* units (ROUND23.md, "Disarm volumes as hulls of the drawn triangles").
     "vr_agrunt_shotdisarm_size",

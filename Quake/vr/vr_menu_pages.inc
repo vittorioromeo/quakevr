@@ -14,7 +14,6 @@
         row(opt::vr_menu_resolution),
         row(opt::vr_menu_sharpen),
         row(opt::vr_menu_status),
-        row(opt::vr_menu_banner_beside),
         row(opt::vr_menu_version),
         row(opt::vr_update_check),
         row(opt::vr_menu_flat_shortcuts),
@@ -374,7 +373,6 @@ void resetHandMoves()
 {
     return {
         header("Fingers"),
-        row(opt::vr_hand_rig),
         row(opt::vr_hand_fit),
         row(opt::vr_hand_fit_thumb_outside),
         row(opt::vr_hand_fit_thumb_wide),

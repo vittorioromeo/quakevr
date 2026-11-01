@@ -5,10 +5,10 @@
 //   (VR_EnemyShove_Ready: alive, on its feet, not staggered, not sliding from a push) starts its shove (a grunt's and an
 //   enforcer's model's shove1..shove6 frames: Misc/quakevr/make_enemyshove.py; a vore's two-handed push, its model's
 //   shove1..shove7: Misc/quakevr/make_voreshove.py, orig_mon_shalrath.qc shal_shove1) instead of what it was about to do;
-//   An armed grunt or enforcer (vr_armedgrunt.qc) plays the Shove pose instead (vr_agrunt_shove 1, 2: ROUND22.md,
+//   An armed grunt or enforcer (vr_armedgrunt.qc) plays the Shove pose instead (ROUND22.md,
 //   "Armed humanoids' shove"; vr_armedgrunt_pose.qc VR_AGP_Shove: the pose keys' wind-up, push and recover over its
 //   stand frames, 0.56 s), its blow as the push phase ends (0.3 s in, as the frames' was); with vr_agrunt_shove 2 also
-//   with a melee weapon or its fists (before, and with 0 or 1, those only strike);
+//   with a melee weapon or its fists (with 1, those only strike);
 // - its blow (a grunt's and an enforcer's 4th frame, a vore's 5th) deals vr_enemy_shove_damage and pushes you
 //   vr_enemy_shove_distance units away, if you are still in reach and ahead of it (an enforcer's:
 //   vr_enemy_shove_enforcer_damage and _distance times as much; a vore's: vr_enemy_shove_vore_damage and _distance);
@@ -89,11 +89,11 @@ entity(entity m) VR_EnemyShove_Target =
 // An armed humanoid's shove (vr_armedgrunt_pose.qc VR_AGP_Shove: the Shove pose, its push at the push phase's end).
 void() VR_AGP_Shove;
 
-// Self (the monster) starts its shove: an armed grunt's or enforcer's posed (vr_agrunt_shove 1 and 2), else its
-// animation (its model's shove frames).
+// Self (the monster) starts its shove: an armed grunt's or enforcer's posed, else its animation (its model's shove
+// frames).
 void() VR_EnemyShove_Play =
 {
-    if(self.vr_ag && cvar_hget(cvarh_vr_agrunt_shove) >= 1)
+    if(self.vr_ag)
     {
         VR_AGP_Shove();
         return;

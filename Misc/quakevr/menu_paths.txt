@@ -1326,6 +1326,7 @@ vr_crouch_speed|1|Locomotion|Slower When Crouched|Advanced VR Options > Movement
 vr_crouch_speed_scale|1|Locomotion|Crouched Speed|Advanced VR Options > Movement > Locomotion > Crouched Speed
 vr_slope_walk|1|Locomotion|Walk Up Slopes Slowly|Advanced VR Options > Movement > Locomotion > Walk Up Slopes Slowly
 vr_closequarters|1|Locomotion|Close-Quarters Slowdown|Advanced VR Options > Movement > Locomotion > Close-Quarters 
+vr_closequarters_live|1|Locomotion|Only Live Foes|Advanced VR Options > Movement > Locomotion > Only Live Foes
 vr_closequarters_start|1|Locomotion|Start Radius|Advanced VR Options > Movement > Locomotion > Start Radius
 vr_closequarters_end|1|Locomotion|End Radius|Advanced VR Options > Movement > Locomotion > End Radius
 vr_closequarters_min|1|Locomotion|Min Factor|Advanced VR Options > Movement > Locomotion > Min Factor
@@ -1533,17 +1534,17 @@ vr_carry_body_collision|1|Carrying|Carried Things Stop at Your Body|Advanced VR 
 vr_carry_move_mass|1|Carrying|Carry Load: Mass|Advanced VR Options > Carrying and Throwing > Carrying > Carry Load: 
 vr_carry_move_size|1|Carrying|Carry Load: Size|Advanced VR Options > Carrying and Throwing > Carrying > Carry Load: 
 vr_carry_move_min|1|Carrying|Carry Load: Minimum Speed|Advanced VR Options > Carrying and Throwing > Carrying > 
+vr_carry_drag|1|Carrying|Drag Slowdown|Advanced VR Options > Carrying and Throwing > Carrying > Drag Slowdown
+vr_carry_drag_max|1|Carrying|Drag Slowdown: Most|Advanced VR Options > Carrying and Throwing > Carrying > Drag 
 vr_held_surface_fit|1|Carrying|Fit to the Hand|Advanced VR Options > Carrying and Throwing > Carrying > Fit to the 
 vr_grip_fit|1|Carrying|Keep Fingers Out of Props|Advanced VR Options > Carrying and Throwing > Carrying > Keep 
 vr_held_collide|1|Carrying|Held Things Collide|Advanced VR Options > Carrying and Throwing > Carrying > Held Things 
 vr_hand_collide_props_keep_out|1|Carrying|Empty Hand Stays Out of Held Props|Advanced VR Options > Carrying and 
 vr_hand_collide_fingers|1|Carrying|Fingers Rest on Held Things|Advanced VR Options > Carrying and Throwing > 
-vr_gun_wall_slide|1|Carrying|Weapons Slide Along Walls|Advanced VR Options > Carrying and Throwing > Carrying > 
 vr_held_collide_walls|1|Carrying|Held Things Stop at Walls|Advanced VR Options > Carrying and Throwing > Carrying > 
 vr_model_collide_rest|1|Carrying|Things Rest on Hands|Advanced VR Options > Carrying and Throwing > Carrying > 
 vr_held_collide_monsters|1|Carrying|Held Things Stop at Monsters|Advanced VR Options > Carrying and Throwing > 
 vr_box3d_hand_props|1|Carrying|Hands Push and Hold Things|Advanced VR Options > Carrying and Throwing > Carrying > 
-vr_box3d_hand_push_fist|1|Carrying|Push Boxes With the Fist|Advanced VR Options > Carrying and Throwing > Carrying 
 vr_box3d_weapon_push|1|Carrying|Weapons Push Things|Advanced VR Options > Carrying and Throwing > Carrying > 
 vr_box3d_gun_pieces|1|Carrying|Guns' Shape|Advanced VR Options > Carrying and Throwing > Carrying > Guns' Shape
 vr_box3d_throw_grace|1|Carrying|Throw Grace|Advanced VR Options > Carrying and Throwing > Carrying > Throw Grace
@@ -1881,7 +1882,6 @@ vr_weapon_button_depth|1|Hand/Gun Calibration|Ammo Button Depth|Advanced VR Opti
 vr_ammo_switch_empty_hand|1|Hand/Gun Calibration|Ammo Switch Needs Empty Hand|Advanced VR Options > Weapons > 
 |1|Hand/Gun Calibration|Reset This Page|Advanced VR Options > Weapons > Hand/Gun Calibration > Reset This Page
 @page|2|Fingers and Collisions||Advanced VR Options > Weapons > Fingers and Collisions
-vr_hand_rig|2|Fingers and Collisions|Jointed Hand|Advanced VR Options > Weapons > Fingers and Collisions > Jointed 
 vr_hand_fit|2|Fingers and Collisions|Fit Fingers to What You Hold|Advanced VR Options > Weapons > Fingers and 
 vr_hand_fit_thumb_outside|2|Fingers and Collisions|Thumb Round In-Palm Props|Advanced VR Options > Weapons > 
 vr_hand_fit_thumb_wide|2|Fingers and Collisions|Thumb Opens Wide Round Them|Advanced VR Options > Weapons > Fingers 
@@ -2136,7 +2136,6 @@ vr_menu_grab|1|Menu|Move the Panel|Advanced VR Options > HUD and Menus > Menu > 
 vr_menu_resolution|1|Menu|Menu Resolution|Advanced VR Options > HUD and Menus > Menu > Menu Resolution
 vr_menu_sharpen|1|Menu|Menu Sharpening|Advanced VR Options > HUD and Menus > Menu > Menu Sharpening
 vr_menu_status|1|Menu|Status Box|Advanced VR Options > HUD and Menus > Menu > Status Box
-vr_menu_banner_beside|1|Menu|Banner Beside the Buttons|Advanced VR Options > HUD and Menus > Menu > Banner Beside 
 vr_menu_version|1|Menu|Version Label|Advanced VR Options > HUD and Menus > Menu > Version Label
 vr_update_check|1|Menu|Check for Updates|Advanced VR Options > HUD and Menus > Menu > Check for Updates
 vr_menu_flat_shortcuts|1|Menu|Corner Buttons on a Flat Screen|Advanced VR Options > HUD and Menus > Menu > Corner 
@@ -4445,7 +4444,6 @@ vr_climb_prop_letgo_speed|2|Debug - Tests|Prop Knocked Away At|Advanced VR Optio
 |2|Debug - Tests|Nails at a Dropped Backpack|Advanced VR Options > Debug > Tests > Nails at a Dropped Backpack
 |2|Debug - Tests|Nail Wounds Test|Advanced VR Options > Debug > Tests > Nail Wounds Test
 vr_nailslide_debug|2|Debug - Tests|Slide: Print|Advanced VR Options > Debug > Tests > Slide: Print
-vr_nailpistol_model|2|Debug - Tests|Nail Pistol Model (Archived)|Advanced VR Options > Debug > Tests > Nail Pistol 
 |2|Debug - Tests|Nail Pistol Aim Test|Advanced VR Options > Debug > Tests > Nail Pistol Aim Test
 |2|Debug - Tests|Low and Empty Guns in Hand|Advanced VR Options > Debug > Tests > Low and Empty Guns in Hand
 |2|Debug - Tests|Ammo Colours Self-Test|Advanced VR Options > Debug > Tests > Ammo Colours Self-Test
@@ -5032,7 +5030,6 @@ vr_worn_backpack_pool_blast|1|Worn Backpacks|Explosions' Share|Advanced VR Optio
 vr_worn_backpack_pool_fire|1|Worn Backpacks|Fire's Share|Advanced VR Options > Combat > Armed Grunts (Experimental) 
 vr_worn_backpack_hit_roll|1|Worn Backpacks|Extra Hit Chance|Advanced VR Options > Combat > Armed Grunts 
 vr_worn_backpack_hit_ref|1|Worn Backpacks|Hit Damage|Advanced VR Options > Combat > Armed Grunts (Experimental) > 
-vr_worn_backpack_tug|1|Worn Backpacks|Grab the Pack|Advanced VR Options > Combat > Armed Grunts (Experimental) > 
 vr_worn_backpack_tug_stretch|1|Worn Backpacks|Pull That Counts|Advanced VR Options > Combat > Armed Grunts 
 vr_worn_backpack_tug_time|1|Worn Backpacks|Pull Time|Advanced VR Options > Combat > Armed Grunts (Experimental) > 
 vr_worn_backpack_two_hand_mult|1|Worn Backpacks|Two-Hand Pull|Advanced VR Options > Combat > Armed Grunts 
@@ -6981,7 +6978,6 @@ vr_corpse_placed|2|Gibs and Corpses - Ragdolls|Placed Corpses Are Bodies|Advance
 vr_ragdoll_active_getup_pin|2|Gibs and Corpses - Ragdolls|Get-Up Lift|Advanced VR Options > Carrying and Throwing > 
 vr_ragdoll_active_getup_pace|2|Gibs and Corpses - Ragdolls|Get-Up Pace|Advanced VR Options > Carrying and Throwing 
 vr_ragdoll_active_getup_blend|2|Gibs and Corpses - Ragdolls|Get-Up Blend|Advanced VR Options > Carrying and 
-vr_ragdoll_active_getup_hold|2|Gibs and Corpses - Ragdolls|Get Up in Place|Advanced VR Options > Carrying and 
 vr_ragdoll_mass|2|Gibs and Corpses - Ragdolls|Mass|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > 
 vr_ragdoll_friction|2|Gibs and Corpses - Ragdolls|Friction|Advanced VR Options > Carrying and Throwing > Gibs and 
 vr_ragdoll_joint_friction|2|Gibs and Corpses - Ragdolls|Joint Friction|Advanced VR Options > Carrying and Throwing 
@@ -8058,7 +8054,6 @@ vr_ragdoll_active_getup|2|Ragdoll Tool - Knockdown and Get-Up|Active Get-Up (Swi
 vr_ragdoll_active_getup_pin|2|Ragdoll Tool - Knockdown and Get-Up|Get-Up Pin|Advanced VR Options > Debug > Ragdoll 
 vr_ragdoll_active_getup_blend|2|Ragdoll Tool - Knockdown and Get-Up|Get-Up Blend (s)|Advanced VR Options > Debug > 
 vr_ragdoll_active_getup_pace|2|Ragdoll Tool - Knockdown and Get-Up|Get-Up Pace|Advanced VR Options > Debug > 
-vr_ragdoll_active_getup_hold|2|Ragdoll Tool - Knockdown and Get-Up|Roll Over and Pull In|Advanced VR Options > 
 vr_knockdown_wiggle|2|Ragdoll Tool - Knockdown and Get-Up|Struggling Strength|Advanced VR Options > Debug > Ragdoll 
 vr_knockdown_wiggle_frequency|2|Ragdoll Tool - Knockdown and Get-Up|Struggling Rate (Hz)|Advanced VR Options > 
 |2|Ragdoll Tool - Knockdown and Get-Up|Reset This Group|Advanced VR Options > Debug > Ragdoll Tool > Knockdown and 

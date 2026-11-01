@@ -9,8 +9,7 @@
 // slides from where it was last frame towards there along what it meets (a table top holds it up, a
 // wall holds it off), as the player's box moves (SV_FlyMove's clip), after leaving any surface its
 // turn put it into along that surface's normal (the rays from the hand to its points; Gauss-Seidel),
-// as far as vr_gun_wall_max. vr_gun_wall_slide 0: the old push-back along the aim (the hand moved
-// back so that the muzzle stops at the wall). Hands stay within 50 units of the torso.
+// as far as vr_gun_wall_max. Hands stay within 50 units of the torso.
 // However the weapon is held: by its handle, or carried off it (taken by a hotspot or anywhere on it, or after the
 // hand-off: no muzzle, its tip as drawn instead), its points in the frame of the hand carrying it; carried with the other
 // hand on it too (drawn between the hands), the other hand is held out with it (ROUND22.md, "Weapons held off their
@@ -80,11 +79,11 @@ StrikePass strikePasses[HAND_COUNT];
 constexpr float strikePassEase = 0.15f; // s from let in to held out whole again
 
 // Sweeps a small box from `from` to `to`. When it hits, `pos` stops along the axes the hit plane
-// faces, `back` short of where the box stopped (the other axes are kept), and it returns true.
+// faces where the box stopped (the other axes are kept).
 // Monsters (anything that bleeds, not a brush) don't stop it: their boxes are much bigger than they
 // look, and a sword stopped at one jerked the hand back, which the server's melee took for a new
 // stroke (no hit), so blows with a weapon's far end didn't register (ROUND15.md (removed 2026-10-06; git history)).
-bool stopAtWall(glm::vec3& pos, const glm::vec3 from, const glm::vec3 to, const glm::vec3& back = glm::vec3{0.f})
+void stopAtWall(glm::vec3& pos, const glm::vec3 from, const glm::vec3 to)
 {
     const glm::vec3 box{1.f};
     auto tr = worldtrace::move(from, -box, box, to, MOVE_NORMAL | MOVE_PORTALS);
@@ -94,11 +93,11 @@ bool stopAtWall(glm::vec3& pos, const glm::vec3 from, const glm::vec3 to, const 
     }
     if(!tr || tr->fraction >= 1.f)
     {
-        return false;
+        return;
     }
 
     const glm::vec3 n = worldtrace::normal(*tr);
-    const glm::vec3 stop = worldtrace::endPos(*tr) - back;
+    const glm::vec3 stop = worldtrace::endPos(*tr);
     for(int i = 0; i < 3; i++)
     {
         if(n[i] != 0.f)
@@ -106,7 +105,6 @@ bool stopAtWall(glm::vec3& pos, const glm::vec3 from, const glm::vec3 to, const 
             pos[i] = stop[i];
         }
     }
-    return true;
 }
 
 // A line from `from` to `to` through the level (and the things lying in it); monsters don't stop it (stopAtWall).
@@ -439,26 +437,18 @@ void resolvePositions(hands::State& s, float /* turnYaw */)
         {
             const glm::vec3 before = pos;
             const glm::vec3 last = tip - m.lastPos;
-            if(vr_gun_wall_slide.value)
+            // Where the muzzle was from the hand last frame, turned as the hand is now.
+            const glm::vec3 local{glm::dot(last, m.lastFwd), glm::dot(last, m.lastRight), glm::dot(last, m.lastUp)};
+            const glm::vec3 muzzleOffset = hands::redirect(local, s.rot[h]);
+            makeShape(h, s.rot[h], muzzleOffset);
+            if(const float length = strikeLength(h, s, pos); length < 1.f)
             {
-                // Where the muzzle was from the hand last frame, turned as the hand is now.
-                const glm::vec3 local{glm::dot(last, m.lastFwd), glm::dot(last, m.lastRight), glm::dot(last, m.lastUp)};
-                const glm::vec3 muzzleOffset = hands::redirect(local, s.rot[h]);
-                makeShape(h, s.rot[h], muzzleOffset);
-                if(const float length = strikeLength(h, s, pos); length < 1.f)
+                for(glm::vec3& o : shape[h])
                 {
-                    for(glm::vec3& o : shape[h])
-                    {
-                        o *= length; // (the hand's own point, the first, stays at the hand)
-                    }
+                    o *= length; // (the hand's own point, the first, stays at the hand)
                 }
-                colliding[h] = gunOutOfWalls(m, pos, shape[h]);
             }
-            else
-            {
-                m.gunValid = m.slid = false;
-                colliding[h] = stopAtWall(pos, pos, pos + last, last);
-            }
+            colliding[h] = gunOutOfWalls(m, pos, shape[h]);
             gunPush[h] = pos - before;
         }
         else

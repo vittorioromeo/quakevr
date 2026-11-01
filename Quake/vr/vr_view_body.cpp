@@ -64,7 +64,7 @@ void wristInfo_f()
         static_cast<int>(entities.gadgetStrap[0].visible) + static_cast<int>(entities.gadgetStrap[1].visible));
     for(int hand = 0; hand < 2; hand++)
     {
-        const view::ViewEntity& base = entities.hand[hand][FingerBase];
+        const view::ViewEntity& base = entities.hand[hand];
         if(!s.valid || !base.ent.model)
         {
             Con_Printf("wrist %d: no hand drawn\n", hand);
@@ -96,7 +96,7 @@ void wristInfo_f()
                "body's: %s)\n",
         bareLit.color.x, bareLit.color.y, bareLit.color.z, bareLit.hand[0].x, bareLit.hand[0].y,
         bareLit.hand[0].z, bareLit.hand[1].x, bareLit.hand[1].y, bareLit.hand[1].z,
-        bareLitHand(&entities.hand[0][FingerBase].ent) >= 0 ? "yes" : "no");
+        bareLitHand(&entities.hand[0].ent) >= 0 ? "yes" : "no");
 }
 
 // Blood dripping from the wounds (vr_body_blood, vr_bodyblood.cpp): from the hands where they are
@@ -107,7 +107,7 @@ void dripBlood(const hands::State& s)
     const avatar::HandPose* drawn[2]{nullptr, nullptr};
     for(int hand = 0; hand < 2; hand++)
     {
-        const view::ViewEntity& base = entities.hand[hand][FingerBase];
+        const view::ViewEntity& base = entities.hand[hand];
         if(base.visible && base.ent.model)
         {
             poses[hand] = drawnHand(s, hand);

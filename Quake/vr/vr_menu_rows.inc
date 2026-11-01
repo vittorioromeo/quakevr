@@ -362,8 +362,8 @@ QVR_CYCLE_BYNAME(vr_agrunt_shove, "Armed Humanoids' Shove",
     "How armed grunts and enforcers shove you: posed (the Shove pose's keys, per weapon class: the off "
     "hand pushing beside a one-handed gun, a long gun pushed across the body in both hands, the palms "
     "out holding two weapons or the fists), with guns only (the default; melee and fist humanoids just "
-    "strike) or with every weapon and their fists; or as before (their model's shove frames, the arms held as they aim, guns only).",
-    {0.f, "Model Frames, Guns"}, {1.f, "Posed, Guns"}, {2.f, "Posed, Every Weapon"})
+    "strike) or with every weapon and their fists.",
+    {1.f, "Posed, Guns"}, {2.f, "Posed, Every Weapon"})
 QVR_TOGGLE(vr_enemy_shove_vore, "Vores Shove",
     "Vores shove you too, swinging their arms down at you: the hardest shove of all. They reach a little "
     "farther (they are wider).")
@@ -815,9 +815,6 @@ QVR_SLIDER(vr_worn_backpack_hit_roll, "Extra Hit Chance", 0.f, 1.f, 0.05f, "%.2f
     "Besides its damage, a hit on the pack tears it off at once with this chance at the Hit Damage below "
     "(more damage: likelier). 0: off.")
 QVR_SLIDER(vr_worn_backpack_hit_ref, "Hit Damage", 1.f, 100.f, 1.f, "%.0f", noExt, "The damage of a hit whose chance is the Extra Hit Chance.")
-QVR_TOGGLE(vr_worn_backpack_tug, "Grab the Pack",
-    "A fist on a living grunt's pack takes hold of the pack (it spots you): pull and it tears off into "
-    "your hand. Off: the hand holds its back, as any enemy.")
 QVR_SLIDER(vr_worn_backpack_tug_stretch, "Pull That Counts", 2.f, 40.f, 1.f, "%.0f cm", noExt,
     "How far your hand must pull the pack off its place for the pull to count.")
 QVR_SLIDER(vr_worn_backpack_tug_time, "Pull Time", 0.05f, 3.f, 0.05f, "%.2f s", noExt,
@@ -2319,8 +2316,6 @@ QVR_SLIDER_BYNAME(vr_menu_sharpen, "Menu Sharpening", 0.f, 1.f, 0.1f, "%.1f", no
     "With Menu Resolution above 0: the menus shrunk less softly. Higher: crisper letters, the smallest ones shimmering a little as your head moves. 1 as shipped (0.5 before 2026-10-09).")
 QVR_TOGGLE_BYNAME(vr_menu_status, "Status Box",
     "A small box in the menus' top right corner: VR, mock VR or flat screen, the runtime (SteamVR, VDXR), the resolution rendered (the runtime's times Eye Image Size times Render Scale; against the headset panel's, with a warning when far over it), the target rate, fps, the CPU's and GPU's milliseconds a frame (and their share of the frame's budget), RAM and VRAM.")
-QVR_TOGGLE_BYNAME(vr_menu_banner_beside, "Banner Beside the Buttons",
-    "With the VR Menu Style: the vertical Quake VR banner stands left of the corner's shortcut buttons, its top level with theirs, so the buttons, the banner and the menu don't crowd each other. Off: under the buttons, in their column, as before (also where the panel leaves too little room left of them).")
 QVR_TOGGLE_BYNAME(vr_menu_version, "Version Label",
     "The game's name, version and author, small, in the menus' bottom right corner (where the page leaves room for it). A build not made for a release says \"dev\" after the version.")
 QVR_TOGGLE_BYNAME(vr_update_check, "Check for Updates",
@@ -2514,8 +2509,8 @@ QVR_SLIDER_BYNAME(vr_lean_recenter, "Lean Recentre", 0.f, 2.f, 0.1f, "%.1f m/s",
 QVR_SLIDER_BYNAME(vr_lean_detect, "Lean Detection", 0.f, 2.f, 0.1f, "%.1fx", noExt,
     "Tells a lean from walking in the room. Leaning (your head lower and tilted the way you lean, your hands left by your hips), your feet and hips stay where you stand and your back tilts; walking, the body follows your head. 0: off, the body always slides back under your head; higher: more readily a lean.")
 QVR_CYCLE(vr_lean_turn, "Lean on Turns",
-    "Turning with the stick while you lean keeps the lean on your body: the game's body stays where your real one stands. Round the Head: smooth turns keep your view where it is and swing the body round under it (where it fits), snap turns swing your head round the body. Round the Body: every turn swings your head round the body. Off: the old way (the body ended up leaning the wrong way, or off to a side, until it slid back).",
-    {0.f, "Off"}, {1.f, "Round the Body"}, {2.f, "Round the Head"})
+    "Turning with the stick while you lean keeps the lean on your body: the game's body stays where your real one stands. Round the Head: smooth turns keep your view where it is and swing the body round under it (where it fits), snap turns swing your head round the body. Round the Body: every turn swings your head round the body.",
+    {1.f, "Round the Body"}, {2.f, "Round the Head"})
 QVR_SLIDER(vr_roomscale_move_mult, "Room Scale", 0.5f, 2.f, 0.1f, "%.1fx", ext(0.2f, 5.f),
     "How far walking in your room moves you in the game (1: as far).")
 QVR_TOGGLE_BYNAME(vr_roomscale_jump, "Roomscale Jump", "Jumping in the room jumps in the game.")
@@ -2668,9 +2663,6 @@ QVR_TOGGLE_BYNAME(vr_ammo_switch_empty_hand, "Ammo Switch Needs Empty Hand",
     "always works).")
 
 // vr_menu_pages.inc: pageFingersCollisions
-QVR_TOGGLE_BYNAME(vr_hand_rig, "Jointed Hand",
-    "The hand as one model with three joints a finger and an opposable thumb: the fingers curl smoothly and "
-    "wrap what they hold. Off: the palm and five finger models as before (their six curl frames).")
 QVR_TOGGLE_BYNAME(vr_hand_fit, "Fit Fingers to What You Hold",
     "With the jointed hand: the fingers close on what the hand holds (weapons, grabbed things) and stop on its "
     "surface, never through it and never floating off it. Off: they curl as the controller says.")
@@ -4054,10 +4046,6 @@ QVR_TOGGLE(vr_hand_collide_props_keep_out, "Empty Hand Stays Out of Held Props",
 QVR_TOGGLE(vr_hand_collide_fingers, "Fingers Rest on Held Things",
     "With Empty Hand Against Held Things: the empty hand's fingers rest on what the other hand holds or bend "
     "out of it, instead of the whole hand being pushed by its fingertips.")
-QVR_TOGGLE(vr_gun_wall_slide, "Weapons Slide Along Walls",
-    "A weapon you hold into a wall, a floor or a table slides along it: lowered onto a table it rests on the top, "
-    "pushed into a wall it is held off along the wall. Off: the old push-back, the hand moved back along the aim "
-    "until the muzzle stops at the wall.")
 QVR_TOGGLE(vr_held_collide_walls, "Held Things Stop at Walls",
     "A thing you hold in one hand stops at walls, floors and doors: it and your hand are drawn held out of them, "
     "a short buzz as it touches. Looks only: your real hand is never held back.")
@@ -4071,9 +4059,6 @@ QVR_TOGGLE(vr_held_collide_monsters, "Held Things Stop at Monsters",
 QVR_TOGGLE(vr_box3d_hand_props, "Hands Push and Hold Things",
     "Your empty hands are solid to loose things: they push them, and what you let go of on an open palm turned "
     "up stays there. Grenades pass through (your palm catches them).")
-QVR_TOGGLE(vr_box3d_hand_push_fist, "Push Boxes With the Fist",
-    "Your hands push explosive boxes where the drawn fist meets them. Off: a small ball at the hand's point, "
-    "which met a box before the fist did.")
 QVR_TOGGLE(vr_box3d_weapon_push, "Weapons Push Things",
     "The weapons you hold are solid to loose things as drawn: shove things with a gun, balance them on it, bat a "
     "grenade away with the axe.")
@@ -4495,10 +4480,6 @@ QVR_SLIDER(vr_ragdoll_active_getup_pace, "Get-Up Pace", 0.3f, 2.f, 0.1f, "%.1fx"
     "Its get-up's speed, times the get-up's own (vr_ragdoll_active_getup_pace).")
 QVR_SLIDER(vr_ragdoll_active_getup_blend, "Get-Up Blend", 0.05f, 1.f, 0.05f, "%.2f s", noExt,
     "Risen, its ragdoll blends into the animated monster over this (vr_ragdoll_active_getup_blend).")
-QVR_TOGGLE(vr_ragdoll_active_getup_hold, "Get Up in Place",
-    "On: it rolls over and gathers itself where it lies, then rises; only the get-up's own motion moves "
-    "it. Off: as before, its roll carried it along the floor and it was dragged back "
-    "(vr_ragdoll_active_getup_hold).")
 QVR_SLIDER(vr_ragdoll_mass, "Mass", 20.f, 200.f, 5.f, "%.0f kg", ext(),
     "A ragdoll's whole weight, its parts by their size, for a monster whose own Mass is Global: each has its "
     "own by default (grunt 80, knight 90, enforcer 100, death knight 130, ogre 200, rottweiler and scrag 40, fiend 140, shambler 280, gremlin 20; "
@@ -4764,12 +4745,11 @@ QVR_SLIDER(vr_skin_tone, "Skin Tone", -1.f, 1.f, 0.05f, "%.2f", noExt,
     "keeps your painted skin. Blood, nails, clothes, gloves and gadgets keep their own colours.")
 QVR_TOGGLE(vr_body_bracers, "Bracers",
     "The leather bracers on your forearms. Off: bare forearms with the wrist gadget strapped round the skin, running "
-    "on into the hands (with the jointed hand, vr_hand_rig 1: the default).")
+    "on into the hands.")
 QVR_CYCLE(vr_hand_shape, "Hand Shape",
     "The shape of your hands. Feminine: slimmer fingers and palm, finer knuckles, tapered fingertips with "
     "longer nails. The joints are the same, so grips, weapons and reloads fit as before; "
-    "skin tone, gloves and nails work on both. Changes at once. On the jointed hands (vr_hand_rig 1: the "
-    "default); the older hands (vr_hand_rig 0) have one shape only.",
+    "skin tone, gloves and nails work on both. Changes at once.",
     {0.f, "Standard"}, {1.f, "Feminine"})
 QVR_CYCLE(vr_voice, "Voice",
     "Your character's voice: pain, death, the jump's grunt, landing hard, gasping for air, drowning, "
@@ -4783,8 +4763,7 @@ QVR_SLIDER(vr_voice_formant, "Voice Formants", 0.f, 30.f, 1.f, "+%.0f%%", noExt,
     "like a man's voice sped up, too much a child's.")
 QVR_CYCLE(vr_gloves, "Gloves",
     "Leather gloves on your hands: fingerless ones leave the fingertips bare (in your skin tone); full ones "
-    "cover every finger. With bare forearms (no bracers) a cuff covers the wrist. On the jointed hands "
-    "(vr_hand_rig 1: the default).",
+    "cover every finger. With bare forearms (no bracers) a cuff covers the wrist.",
     {0.f, "None"}, {1.f, "Fingerless"}, {2.f, "Full"})
 QVR_SLIDER(vr_glove_hue, "Glove Hue", 0.f, 360.f, 5.f, "%.0f deg", noExt,
     "The leather's colour round the colour wheel: 0 red, 25 brown, 60 yellow, 120 green, 240 blue, 300 "
@@ -4805,7 +4784,7 @@ QVR_SLIDER(vr_glove_relief, "Leather Relief", 0.f, 2.f, 0.1f, "%.1f", noExt,
     "and pauldrons; 0 flat.")
 QVR_TOGGLE(vr_nails, "Painted Nails",
     "Polish on your fingernails, in the colour below. Full gloves cover them; fingerless gloves leave them "
-    "showing. Your skin tone doesn't tint the polish. On the jointed hands (vr_hand_rig 1: the default).")
+    "showing. Your skin tone doesn't tint the polish.")
 QVR_SLIDER(vr_nail_hue, "Nail Hue", 0.f, 360.f, 5.f, "%.0f deg", noExt,
     "The polish's colour round the colour wheel: 0 and 355 red, 20 coral, 330 pink, 270 violet, 210 blue, "
     "150 green.")
@@ -5456,9 +5435,8 @@ QVR_SLIDER(vr_grapple_rope_radius, "Rope Thickness", 0.25f, 4.f, 0.25f, "%.2f", 
 QVR_SLIDER(vr_grapple_rope_tail, "Rope Straight Out of the Hook", 0.f, 12.f, 0.5f, "%.1f", ext(0.f, 16.f),
     "How far the drawn rope goes straight out of the hook's back before it bends (units, at the hook's full "
     "size): its last pieces point into the hook, not across it. 0: it bends right at the hook.")
-QVR_SLIDER(vr_grapple_rope_depth, "Rope Depth in the Gun", 0.f, 8.f, 0.5f, "%.1f", ext(-1.f, 16.f),
-    "How far inside the muzzle the rope is drawn from (units), in the hand and with the gun lying about. "
-    "-1: the old places.")
+QVR_SLIDER(vr_grapple_rope_depth, "Rope Depth in the Gun", 0.f, 8.f, 0.5f, "%.1f", ext(0.f, 16.f),
+    "How far inside the muzzle the rope is drawn from (units), in the hand and with the gun lying about.")
 QVR_SLIDER(vr_grapple_move_share, "Walking Shared", 0.f, 1.f, 0.05f, "%.2f", noExt,
     "How much of your walking (the thumbstick) the hook or a hooked prop hanging on the rope takes: it "
     "trails a little behind you instead of lagging far back and snapping forward. Lying on the floor, it "
@@ -6470,10 +6448,6 @@ QVR_SLIDER_BYNAME(vr_climb_prop_letgo_speed, "Prop Knocked Away At", 0.f, 600.f,
 QVR_TOGGLE(vr_nailslide_debug, "Slide: Print",
     "vr_nailslide_debug: the slide's place in each hand every frame it moves (0 home .. 1 back by Slide "
     "Travel) and its edges: a shot, the lock, the re-rack (\"nailslide: ...\").")
-QVR_CYCLE_BYNAME(vr_nailpistol_model, "Nail Pistol Model (Archived)",
-    "vr_nailpistol_model: its look. Full Slide (the default): the whole upper part is the slide, as a real "
-    "pistol's. Classic (archived, kept to compare): a copper slide on top of the receiver. Changes at once.",
-    {0.f, "Classic"}, {1.f, "Full Slide"})
 QVR_TOGGLE(vr_debug_impacts, "Print Impact Effects",
     "vr_debug_impacts: every particle2 message and QC sound the server sends (\"impfx p2 <preset> <count> "
     "...\", \"impfx snd ...\"): the hit ladders' output (vr_impacts.cpp).")

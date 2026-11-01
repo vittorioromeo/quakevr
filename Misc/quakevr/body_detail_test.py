@@ -12,7 +12,7 @@ def main():
     kit = Path(os.environ.get('KIT', 'C:/OHWorkspace/qvr-kit'))
     bash = os.environ.get('BASH', 'C:/Program Files/Git/bin/bash.exe' if os.name == 'nt' else 'bash')
     script = ('vr_fixed_frames 1;map vrfiringrange;wait60;god;notarget;vr_body_mode 3;'
-              'vr_hand_rig 1;impulse 150;vr_body_bracers 0;vr_wounds 1;vr_body_blood 0')
+              'impulse 150;vr_body_bracers 0;vr_wounds 1;vr_body_blood 0')
     cases = [(0, 0), (0, 1024), (512, 1024), (0, 1024), (0, 0)]
     for hands, body in cases:
         script += (f';vr_wounds_own_res {hands};vr_wounds_body_res {body};wait10;'
