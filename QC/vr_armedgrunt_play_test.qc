@@ -1135,16 +1135,22 @@ void() VR_AGPT_WeaponBlow =
     self = p;
     entity b = VR_Blow(cVR_MainHand);
     self = was;
+    // A closed fist (its grip held: an open hand is a reach, not a strike, VR_AG_HandStrikes), swung over frames (the
+    // frame before as fast: not a one-frame jolt, VR_AG_SwingBefore).
+    VRSetMainHandGrabbingBit(p, TRUE);
     b.mh_thing = VR_MTHING_FIST;
     b.mh_time = time;
     b.mh_fast = 2;
+    b.mh_vgrip_last = b.mh_vfar_last = v_forward * 2;
     p.handvel = v_forward * 2; // (metres a second)
     p.vr_ag_knock_at = 0;
     float slow = VR_AG_WeaponStruck(g, g.vr_ag_prop);
     b.mh_fast = 6;
+    b.mh_vgrip_last = b.mh_vfar_last = v_forward * 6;
     p.handvel = v_forward * 6;
     p.vr_ag_knock_at = 0;
     float hard = VR_AG_WeaponStruck(g, g.vr_ag_prop);
+    VRSetMainHandGrabbingBit(p, FALSE);
     VR_AGT_Check(sprintf("weapon blow: the hand %.1f units from its line; 2 m/s %s, 6 m/s %s, %g sounds (%s):", near,
         slow ? "disarmed" : "kept", hard ? "disarmed" : "kept", vr_ag_feedbacks - fb, vr_ag_feedback),
         !slow && hard && !g.vr_ag_prop && vr_ag_feedbacks == fb + 1);

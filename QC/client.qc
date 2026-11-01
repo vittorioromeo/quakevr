@@ -2868,8 +2868,8 @@ void(float xHand) VR_Melee_Deal =
     }
 };
 
-// The blows of `xHand` this frame (vr_melee.qc VR_Melee_Strike): the first, and with one swing, many things
-// (vr_melee_multi) every other thing, and the world, the same sweep crossed.
+// The blows of `xHand` this frame (vr_melee.qc VR_Melee_Strike): the first, and (one swing, many things:
+// VR_Melee_Multi) every other thing, and the world, the same sweep crossed.
 void(float xHand) VR_Melee_DealAll =
 {
     VR_Melee_Deal(xHand);

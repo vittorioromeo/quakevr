@@ -202,7 +202,7 @@ float VR_MKIND_SLAP = 4;   // an open hand swung across (VR_Melee_Slaps): a punc
 .float mh_n;           // points (0: none yet)
 .vector mh_pp[9];      // the points at the pose before (world),
 .vector mh_cp[9];      // and now
-// A hammer's or mace's head (vr_melee_swept: its volume strikes, VR_Melee_Ribs): its box on the line (admeleehead:
+// A hammer's or mace's head (its volume strikes, VR_Melee_Ribs): its box on the line (admeleehead:
 // shares of the line's length; '0 0 0' none), and the line's frame (the grip, the far end, the model's +y: unit) at
 // the pose before and now.
 .vector mh_hd_lo;
@@ -255,7 +255,7 @@ float VR_MKIND_SLAP = 4;   // an open hand swung across (VR_Melee_Slaps): a punc
 .vector mh_hit_dir;    // the struck part's way then (play space),
 .float mh_hit_time;    // when
 .float mh_hit_touch;   // the last time a part touched it (VR_MELEE_REARM_OUT)
-// One swing, many things (vr_melee_multi, VR_Melee_Multi): what this motion struck, each once (VR_Melee_Armed), and
+// One swing, many things (VR_Melee_Multi): what this motion struck, each once (VR_Melee_Armed), and
 // whether it struck the world (a wall, the floor: once a motion, VR_Melee_WallArmed). Cleared as the motion is new.
 .float mh_hit_n;       // how many things (VR_MELEE_MULTI_LIST at most),
 .float mh_hit_cap;     // of them not loose gibs (vr_melee_multi_max of them at most: a blow's small gibs don't count)
@@ -805,10 +805,6 @@ float(entity p, float xHand, float xThing, vector xHandPos) VR_Melee_FreeLine =
 // is (vr_mline_bend -1 - its slot: VR_Melee_At's admeleebend reads its curve).
 void(entity p, float xHand, float xThing, vector xLine) VR_Melee_BendLine =
 {
-    if(!cvar_hget(cvarh_vr_melee_curved_blades))
-    {
-        return;
-    }
     float kind = xThing == VR_MTHING_SWORD ? VR_ADMelee_Kind(VRGetEntWeaponFlags(p, xHand)) : 0;
     if(vr_mline_slot >= 0 && (vr_mline_shape_z & 5)) // (a curve or a blade start of its own: admeleebend adds them)
     {

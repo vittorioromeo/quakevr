@@ -815,7 +815,7 @@ void(entity p) VR_ADMelee_ReportCarried =
 };
 
 // `vr_ad_test 126` (the death fury's sword in the main hand: `vr_ad_test 116` first, a few frames before): its melee
-// points on its curve (VR_Melee_At, vr_melee_curved_blades) against the straight line from the hand to its tip, and a
+// points on its curve (VR_Melee_At) against the straight line from the hand to its tip, and a
 // sweep: the blade's points moved 24 units across its flat in one frame past a small box on the curve's bow, halfway
 // (the points' own thickness, VR_MELEE_RADIUS, in): the curved points' sweeps strike it, the straight line's pass it by.
 // "admelee curve:" lines (each share's point; the engine's drawn spine for the same shares: vr_admelee_spine), then
@@ -824,7 +824,7 @@ void(entity p) VR_ADMelee_CurveTest =
 {
     entity was = self;
     self = p;
-    bprint(sprintf("admelee curve: main hand %s, curved blades %g\n", p.weaponmodel, cvar_hget(cvarh_vr_melee_curved_blades)));
+    bprint(sprintf("admelee curve: main hand %s\n", p.weaponmodel));
     float ok = VR_Melee_Line(p, cVR_MainHand, VR_MTHING_SWORD);
     float kind = VR_ADMelee_Kind(VRGetEntWeaponFlags(p, cVR_MainHand));
     vector grip = vr_mline_grip, far = vr_mline_far;

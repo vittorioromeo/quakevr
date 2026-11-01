@@ -369,8 +369,7 @@ void say(const za::String& text)
     g.p = glm::normalize(glm::cross(g.y, g.a));
     g.lift = squareTo(glm::vec3{0.f, 0.f, 1.f}, g.a, g.p); // (above the forearm behind the hand)
     g.kind = admelee::kindOfModel(modelName());
-    g.modelCurve = !g.shape.spine && g.kind > 0 && vr_melee_curved_blades.value != 0.f &&
-                   admelee::bend(g.kind, 0.5f) != glm::vec2{0.f};
+    g.modelCurve = !g.shape.spine && g.kind > 0 && admelee::bend(g.kind, 0.5f) != glm::vec2{0.f};
     // The near end: its own, else the kind's as QC laid it last (Show Melee Blades is on), else a sword's.
     g.nearBack = g.shape.nearBack;
     if(g.nearBack < 0.f)
@@ -405,13 +404,9 @@ void say(const za::String& text)
 
 // The curve's way off the line at share `f` (shares of its length): its own, the model's, or none; with the blade's
 // start's bend (its own: the line straight to its point and on to the tip) unless `withFrom` is false. As QC VR_Melee_At
-// (admeleebend: vr_melee_curved_blades 0 straightens both).
+// (admeleebend).
 [[nodiscard]] glm::vec2 curveAt(const Geo& g, float f, bool withFrom = true)
 {
-    if(vr_melee_curved_blades.value == 0.f)
-    {
-        return glm::vec2{0.f};
-    }
     const glm::vec2 k = g.shape.spine ? blade::spineAt(g.shape, f)
                         : g.modelCurve && f > 0.f ? admelee::bend(g.kind, f)
                                                   : glm::vec2{0.f};
