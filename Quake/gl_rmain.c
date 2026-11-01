@@ -2230,6 +2230,7 @@ void R_RenderScene (void)
 	VR_ProfileEnd (); // QVR
 
 	VR_DrawSceneTranslucent (); // QVR: particles
+	VR_DrawArenaXray (); // QVR: the arena's last foes, outlined through walls (vr/vr_arenaxray.cpp)
 	VR_TemporalReactive (0); // QVR
 
 	VR_ProfileBeginGPU ("view model"); // QVR: profile

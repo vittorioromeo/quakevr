@@ -55,7 +55,7 @@
 float vr_at_case;        // 0 idle; 1 .. 14 running
 float vr_at_step;
 float vr_at_until;
-float vr_at_keep[30];    // the cvars the tests set, put back at the end
+float vr_at_keep[33];    // the cvars the tests set, put back at the end
 float vr_at_skill0;      // the skill the run had (its cvar's value; the tests pin it and put it back)
 float vr_at_kills0;
 float vr_at_score0;
@@ -101,9 +101,12 @@ vr_at_cvar VR_AT_CVARS[] =
     { "vr_arena_perks", "0" },    // (the perk cards hold the arena until picked: vr_arena_perks_test drives them)
     { "vr_arena_countdown_sound", "1" }, // (test 14 counts the beeps)
     { "vr_arena_scatter", "1" },  // (test 15: the supplies on random places)
-    { "vr_arena_shards", "2" }
+    { "vr_arena_shards", "2" },
+    { "vr_arena_xray", "1" },     // (test 16: the last foes seen through walls)
+    { "vr_arena_xray_left", "2" },
+    { "vr_arena_xray_distance", "600" }
 };
-float VR_AT_NCVARS = 30;
+float VR_AT_NCVARS = 33;
 
 void() VR_AT_Save =
 {
@@ -2986,6 +2989,144 @@ void() VR_AT15_Frame =
     }
 }
 
+// ---------------------------------------------------------------------------
+// Test 16: the wave's last foes seen through walls (vr_arena_xray; vrarena). A wave is brought down a foe at a time:
+// with three left (up and to come) none is marked or outlined; with two left every one of them up is marked, and the
+// engine puts each through its outline pass (vr_arena_xray_shown, the foes it outlined the last frame, read back)
+// while the outline distance is short, none at a distance past the arena's size; turned off, none is marked.
+// ---------------------------------------------------------------------------
+float vr_at16_state;
+float vr_at16_from; // the wave
+float vr_at16_at;   // the time of the step's last change (the director's beat and a frame drawn since)
+
+// The wave's foes up are all marked (xMarked) or none is; a fallen foe is never marked.
+float(float xMarked) VR_AT16_Marks =
+{
+    float up = 0;
+    float marked = 0;
+    entity e = findflags(world, ar_slot, ar_wave);
+    while(e)
+    {
+        if(e.health > 0) { up = up + 1; if(e.vr_xray) { marked = marked + 1; } }
+        else if(e.vr_xray) { marked = marked + 100; }
+        e = findflags(e, ar_slot, ar_wave);
+    }
+    if(xMarked) { return marked == up && up > 0; }
+    return marked == 0;
+}
+
+void() VR_AT16_Begin =
+{
+    if(!ar_mgr) { VR_AT_Check(FALSE, "test 16 needs the arena (vrarena)"); VR_AT_End(); return; }
+    cvar_set("vr_arena_alive_max", "8"); // (the whole wave up at once)
+    cvar_set("vr_arena_burst", "8");
+    vr_at16_from = 6;
+    VR_ARENA_FastForward(vr_at16_from);
+    vr_at16_state = 0;
+    vr_at16_at = 0;
+    vr_at_until = time + 120;
+}
+
+void() VR_AT16_Frame =
+{
+    if(ar_wave != vr_at16_from || VR_ARENA_Between()) { return; }
+    float alive = VR_ARENA_CountAlive();
+    float left = ar_plan_left + alive;
+    if(vr_at16_state == 0) // (down to three, a foe at a time, the director's beat between blows)
+    {
+        if(time < vr_at16_at + 0.6) { return; }
+        if(left > 3) { if(VR_AT_KillOne(ar_wave)) { vr_at16_at = time; } return; }
+        VR_AT_Check(left == 3, sprintf("three of the wave left (%g)", left));
+        VR_AT_Check(VR_AT16_Marks(FALSE), "with three left no foe is marked");
+        VR_AT_Check(cvar("vr_arena_xray_shown") == 0, sprintf("with three left none is outlined (%g)",
+                                                                   cvar("vr_arena_xray_shown")));
+        VR_AT_KillOne(ar_wave);
+        vr_at16_at = time;
+        vr_at16_state = 1;
+        return;
+    }
+    if(time < vr_at16_at + 0.6) { return; } // (a fall wakes the director at once; a frame drawn since)
+    if(vr_at16_state == 1) // (two left: marked, and outlined beyond a short distance)
+    {
+        VR_AT_Check(left == 2, sprintf("two of the wave left (%g)", left));
+        VR_AT_Check(VR_AT16_Marks(TRUE), "with two left every foe up is marked");
+        cvar_set("vr_arena_xray_distance", "32");
+        vr_at16_at = time;
+        vr_at16_state = 2;
+        return;
+    }
+    if(vr_at16_state == 2)
+    {
+        VR_AT_Check(cvar("vr_arena_xray_shown") == alive, sprintf("with two left both are outlined beyond 32 (%g of %g)",
+                                                                       cvar("vr_arena_xray_shown"), alive));
+        cvar_set("vr_arena_xray_distance", "5000");
+        vr_at16_at = time;
+        vr_at16_state = 3;
+        return;
+    }
+    if(vr_at16_state == 3)
+    {
+        VR_AT_Check(cvar("vr_arena_xray_shown") == 0, sprintf("none is outlined nearer than 5000 (%g)",
+                                                               cvar("vr_arena_xray_shown")));
+        cvar_set("vr_arena_xray_distance", "32");
+        cvar_set("vr_arena_xray", "0");
+        vr_at16_at = time;
+        vr_at16_state = 4;
+        return;
+    }
+    VR_AT_Check(VR_AT16_Marks(FALSE), "off: no foe is marked");
+    VR_AT_Check(cvar("vr_arena_xray_shown") == 0, sprintf("off: none is outlined (%g)", cvar("vr_arena_xray_shown")));
+    VR_AT_End();
+}
+
+// ---------------------------------------------------------------------------
+// Test 17: the walls' trim is no step (vrarena; the author, 2026-11-01: players and foes walked up onto the skirting).
+// A player's box (hull 1) and an ogre's (hull 2) pushed flat into the middle of each of the 8 walls, their bottoms
+// just off the floor, just over the skirting's top (16), at 40 and just over the wainscot's top (80): each stops a
+// full 8 out from the wall at every height (the trim's face and the clip over the wainscot), so there is no ledge to
+// stand on below the rail's top at 96. One frame; no foes needed.
+// ---------------------------------------------------------------------------
+void(vector c, vector n, vector lo, vector hi, string what) VR_AT17_Wall =
+{
+    float half = hi_x * (fabs(n_x) + fabs(n_y)); // (the box's reach towards the wall)
+    float b;
+    float worst = 1000;
+    float worstAt = 0;
+    for(b = 0; b < 4; b++)
+    {
+        float bottom = 1;
+        if(b == 1) { bottom = 17; }
+        if(b == 2) { bottom = 40; }
+        if(b == 3) { bottom = 81; }
+        vector at = c + '0 0 1' * (bottom - lo_z);
+        tracebox(at + n * 128, lo, hi, at, TRUE, world);
+        float gap = (trace_endpos - c) * n - half; // (how far out of the wall its face stopped)
+        if(gap < worst) { worst = gap; worstAt = bottom; }
+    }
+    VR_AT_Check(worst >= 7.9, sprintf("%s: %s stops %g out of the wall (at %g up; want 8)", what, vtos(c), worst,
+                                      worstAt));
+}
+
+void() VR_AT17_Run =
+{
+    if(!ar_mgr) { VR_AT_Check(FALSE, "test 17 needs the arena (vrarena)"); return; }
+    float i;
+    for(i = 0; i < 8; i++)
+    {
+        vector c = [800, 0, 0]; // (the middle of each wall, on the floor: its inward normal points at the centre)
+        if(i == 1) { c = [700, 700, 0]; }
+        if(i == 2) { c = [0, 800, 0]; }
+        if(i == 3) { c = [-700, 700, 0]; }
+        if(i == 4) { c = [-800, 0, 0]; }
+        if(i == 5) { c = [-700, -700, 0]; }
+        if(i == 6) { c = [0, -800, 0]; }
+        if(i == 7) { c = [700, -700, 0]; }
+        vector n = normalize('0 0 0' - c);
+        VR_AT17_Wall(c, n, VEC_HULL_MIN, VEC_HULL_MAX, "a player");
+        VR_AT17_Wall(c, n, VEC_HULL2_MIN, VEC_HULL2_MAX, "an ogre");
+    }
+}
+
 void() VR_ARENA_Test_Frame =
 {
     float c = cvar("vr_arena_test");
@@ -3028,6 +3169,8 @@ void() VR_ARENA_Test_Frame =
         if(c == 13) { VR_AT13_Begin(); return; }
         if(c == 14) { VR_AT14_Begin(); return; }
         if(c == 15) { VR_AT15_Begin(); return; }
+        if(c == 16) { VR_AT16_Begin(); return; }
+        if(c == 17) { VR_AT17_Run(); VR_AT_End(); return; }
 
         VR_AT_Check(FALSE, "no such arena test");
         VR_AT_End();
@@ -3057,5 +3200,6 @@ void() VR_ARENA_Test_Frame =
     if(vr_at_case == 13) { VR_AT13_Frame(); return; }
     if(vr_at_case == 14) { VR_AT14_Frame(); return; }
     if(vr_at_case == 15) { VR_AT15_Frame(); return; }
+    if(vr_at_case == 16) { VR_AT16_Frame(); return; }
 }
 #endif

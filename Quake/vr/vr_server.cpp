@@ -6,6 +6,7 @@
 #include "vr_fatigue.hpp"
 #include "vr_axestick.hpp"
 #include "vr_agarmor.hpp"
+#include "vr_arenaxray.hpp"
 #include "vr_box3d.hpp"
 #include "vr_hitmodel.hpp"
 #include "vr_limbmodel.hpp"
@@ -1126,6 +1127,7 @@ extern "C" void VR_WriteClientSpawnState(sizebuf_t* msg)
         tips::serverWriteAll(msg);
         serverrules::serverWriteAll(msg);
         agarmor::serverWriteAll(msg); // (the armed humanoids' armour: vr_agarmor.cpp)
+        arenaxray::serverWriteAll(msg); // (the arena's last foes, seen through walls: vr_arenaxray.cpp)
     }
 }
 
@@ -1168,6 +1170,7 @@ extern "C" void VR_ServerFrameEnd()
     progs::loadNoticeFrame(); // a loaded save's warning (another build's), once the player is in
     QVR_TRACY_CALL("sv end: rig sequences", qvr::rigseq::serverFrame()); // QC's Rig Studio sequences: started, their events sent to QC (vr_rigseq.cpp)
     QVR_TRACY_CALL("sv end: armour", qvr::agarmor::serverFrame()); // the armed humanoids' armour sent where it changed (vr_agarmor.cpp)
+    qvr::arenaxray::serverFrame(); // the arena's last foes marked or not, sent where it changed (vr_arenaxray.cpp)
     qvr::rigstudio::serverFrame(); // the Rig Studio's scene: its subject made and held (nothing while closed)
 
     if(!vrProtocol())

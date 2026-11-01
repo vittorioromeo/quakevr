@@ -1089,6 +1089,16 @@ QVR_TOGGLE(vr_arena_perks, "Boss Perks",
     "1: clearing a boss wave offers your choice of perks -- cards floating in front of you, the arena "
     "waiting (no countdown, no next wave) until you point at one and pull the trigger (or press its "
     "number); that perk is yours for the rest of the run. 0: it offers nothing (vr_arena_perks).")
+QVR_TOGGLE(vr_arena_xray, "Last Foes Through Walls",
+    "1: once only a few of a wave are left (Foes Left below, counting those still to come in), each of "
+    "them glows red through walls -- an outline you see through the towers, the dais and the walk -- when "
+    "it is farther from you than Outline Distance. 0: never (vr_arena_xray).")
+QVR_SLIDER(vr_arena_xray_left, "Foes Left", 1.f, 8.f, 1.f, "%.0f", noExt,
+    "The outline comes on when this many of the wave are left, or fewer: 2 is its last two, 1 only its "
+    "very last (vr_arena_xray_left).")
+QVR_SLIDER(vr_arena_xray_distance, "Outline Distance", 0.f, 2000.f, 50.f, "%.0f units", noExt,
+    "Only a foe farther from your eyes than this glows (600: across a good part of the arena, about 15 m; "
+    "one nearer you find yourself). 0: at any distance (vr_arena_xray_distance).")
 QVR_SLIDER(vr_arena_perk_count, "Perks Offered", 1.f, 8.f, 1.f, "%.0f", noExt,
     "How many of the pool's eight a boss clear offers, at Normal -- the difficulty takes its share (3 is 2 "
     "at Easy, 4 at Hard, 5 at Nightmare); never the same perk twice (vr_arena_perk_count).")
