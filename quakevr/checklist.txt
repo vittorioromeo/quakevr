@@ -35,6 +35,7 @@ Barrel heat on every gun: hold the nailgun about 1 s, then fire a few shotgun sh
 Hold a ragdoll (or a crate in both hands) and punch the dummy, a wall or a button with that hand: no blow, no press; your free hand still punches. {test:agrunt_tug}
 Ragdoll smash: slam a held grunt's limb (alive and down, or dead) into a wall and the floor: a fleshy thud, deeper when harder, blood on the surface at the contact; a gentle touch or a drag is silent and clean; sliding a body along a wall does not machine-gun. {test:vr_ragsmash_test 1}
 Weapon clash: dual swords swung into each other fast spark with a clang and tink at the crossing; a slow cross does nothing; two shotguns give a dull knock, no sparks; sword on shotgun a few sparks and a clank (Weapons > Weapon Effects > Weapon Clash). {test:vr_clash_test 2}
+Switch campaign (e.g. to Arcane Dimensions) with a menu panel open on the Levels, then play into the hub: no crash; reopened, the panel lists the new campaign's levels.
 
 [2. Armed humanoids: disarming and armour]
 Show Disarm Volumes: the wireframe hulls sit on each drawn weapon (magenta, orange, red; the sword's orange line along its blade) and on the drawn hand and forearm (cyan). {test:disarm_hulls_melee}

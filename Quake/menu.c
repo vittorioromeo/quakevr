@@ -2593,6 +2593,7 @@ static struct
 	int				mapcount;			// not all items represent actual maps!
 	qboolean		scrollbar_grab;
 	int				prev_cursor;
+	int				generation;			// QVR: the extralevels_generation the items come from
 	mapitem_t		*items;
 } mapsmenu;
 
@@ -2695,6 +2696,7 @@ static void M_Maps_Init (void)
 	mapsmenu.list.numitems = 0;
 	mapsmenu.mapcount = 0;
 	VEC_CLEAR (mapsmenu.items);
+	mapsmenu.generation = extralevels_generation;
 
 	M_Ticker_Init (&mapsmenu.ticker);
 
@@ -2728,6 +2730,18 @@ static void M_Maps_Init (void)
 	M_List_CenterCursor (&mapsmenu.list);
 
 	mapsmenu.prev_cursor = mapsmenu.list.cursor;
+}
+
+// QVR: the items point into the level list (names, descriptions), which a game/campaign switch frees and rebuilds while
+// the Levels can stay on screen (a menu panel, the menu closed and reopened): every entry point rebuilds them from the
+// current list first (the cursor on the new start map).
+static void M_Maps_Sync (void)
+{
+	if (mapsmenu.generation == extralevels_generation)
+		return;
+	M_Maps_Init ();
+	Con_DPrintf ("Levels rebuilt: %d levels, cursor on \"%s\"\n", mapsmenu.mapcount,
+		mapsmenu.list.cursor >= 0 && mapsmenu.list.cursor < mapsmenu.list.numitems ? mapsmenu.items[mapsmenu.list.cursor].name : "");
 }
 
 // QVR: the Levels from the main menu's Play Custom Map (as the menu_maps command opens them).
@@ -2779,6 +2793,7 @@ void M_Maps_Draw (void)
 	int firstvismap, numvismaps;
 	int namecols, desccols;
 
+	M_Maps_Sync (); // QVR
 	M_Maps_UpdateLayout ();
 
 	namecols = (int) CLAMP (14, mapsmenu.cols * 0.375f, 56) & ~1;
@@ -2885,6 +2900,7 @@ void M_Maps_Draw (void)
 
 void M_Maps_Char (int key)
 {
+	M_Maps_Sync (); // QVR
 	M_List_Char (&mapsmenu.list, key);
 }
 
@@ -2897,6 +2913,7 @@ void M_Maps_Key (int key)
 {
 	int x, y;
 
+	M_Maps_Sync (); // QVR
 	if (mapsmenu.scrollbar_grab)
 	{
 		switch (key)
@@ -2936,7 +2953,9 @@ void M_Maps_Key (int key)
 	case K_ABUTTON:
 	enter:
 		M_List_ClearSearch (&mapsmenu.list);
-		if (mapsmenu.items[mapsmenu.list.cursor].name[0])
+		// QVR: (an empty list: a campaign with no levels, or one being switched)
+		if (mapsmenu.list.cursor >= 0 && mapsmenu.list.cursor < mapsmenu.list.numitems &&
+			mapsmenu.items[mapsmenu.list.cursor].name[0])
 		{
 			M_SetSkillMenuMap (mapsmenu.items[mapsmenu.list.cursor].name);
 			M_Menu_Skill_f ();
@@ -2962,6 +2981,7 @@ void M_Maps_Key (int key)
 
 void M_Maps_Mousemove (float cx, float cy)
 {
+	M_Maps_Sync (); // QVR
 	cy -= mapsmenu.y + MAPLIST_OFS;
 
 	if (mapsmenu.scrollbar_grab)
