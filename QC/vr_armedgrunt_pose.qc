@@ -262,9 +262,55 @@ vector(entity g) VR_AGP_TargetLocal =
     return VR_AGP_ToLocal(at - g.origin);
 };
 
+// The armed death knight's spell cast as an attack of its own (VR_AGP_Cast): its act's blow (a swing's, a punch's, a
+// gun's thrust) looses his fireball volley from the weapon's tip, the fist or the gun's muzzle, not his middle.
+.float vr_ag_act_cast;  // its act a cast: 1 to come, 2 cast (VR_AGP_Begin, VR_AGP_Shove: from vr_agp_cast_next)
+float vr_agp_cast_next; // the next act a cast (VR_AGP_Cast)
+float vr_am_casts;      // the tests: volleys cast by armed death knights,
+vector vr_am_cast_org;  // ... the last one's origin,
+vector vr_am_cast_grip; // ... its hand's place then (a weapon's grip, the fist),
+vector vr_am_cast_tip;  // ... the weapon's tip then (weaponmuzzle; the fist: its origin),
+float vr_am_cast_by;    // ... how: 1 a blade's swing, 2 a fist, 3 a gun's thrust
+
+void(entity g, vector org, vector grip, float by) VR_AGP_CastVolley =
+{
+    g.vr_ag_act_cast = 2;
+    if(!g.enemy)
+    {
+        return;
+    }
+    entity oldself = self;
+    self = g;
+    vr_hk_shot_from = 1;
+    vr_hk_shot_org = org;
+    float i;
+    for(i = -2; i <= 3; i++)
+    {
+        hknight_shot(i); // (his six, fanned as his magicc frames fan them, all at the blow)
+    }
+    vr_hk_shot_from = 0;
+    self = oldself;
+    vr_am_casts = vr_am_casts + 1;
+    vr_am_cast_org = org;
+    vr_am_cast_grip = grip;
+    vr_am_cast_tip = (by != 2 && g.vr_ag_prop) ? weaponmuzzle(g.vr_ag_prop) : org;
+    vr_am_cast_by = by;
+    VR_AG_Log(sprintf("agp: cast its fireballs (%s) from %v, %.0f from its hand", by == 1 ? "a swing" : by == 2 ?
+        "a fist" : "its gun", org, vlen(org - grip)));
+};
+
 // A blow from `from` along `dir` (world), with its weapon `p` (world: a punch): that weapon's own melee, `g` striking.
 void(entity g, entity p, vector from, vector dir) VR_AGP_Strike =
 {
+    if(g.vr_ag_act_cast)
+    {
+        // A cast: its blow's moment looses the volley from the blade's tip (or the fist); no blow of its own.
+        if(g.vr_ag_act_cast == 1)
+        {
+            VR_AGP_CastVolley(g, p ? VR_AG_DrawnMuzzle(p, dir) : from + dir * 6, p ? p.origin : from, p ? 1 : 2);
+        }
+        return;
+    }
     if(vr_agk_on)
     {
         // (the Pose Studio's keys move the blow's line with the pose: its hand's place and turn)
@@ -2030,10 +2076,22 @@ void(entity g, entity p) VR_AGP_Pose =
             g.vr_ag_shove_s = time - g.vr_ag_act_at;
             VR_AG_Log(sprintf("agp: shove lands %.3f s in (wind-up %.2f, push %.2f)", g.vr_ag_shove_s, vr_agp_tw,
                 vr_agp_ts));
-            entity shoveSelf = self;
-            self = g;
-            VR_EnemyShove_Hit();
-            self = shoveSelf;
+            if(g.vr_ag_act_cast)
+            {
+                // (a gun held: the cast is its thrust, the volley from its muzzle)
+                if(g.vr_ag_act_cast == 1 && g.vr_ag_prop && g.enemy)
+                {
+                    entity cg = g.vr_ag_prop;
+                    VR_AGP_CastVolley(g, VR_AG_DrawnMuzzle(cg, normalize(VR_AI_Origin(g.enemy) - cg.origin)), cg.origin, 3);
+                }
+            }
+            else
+            {
+                entity shoveSelf = self;
+                self = g;
+                VR_EnemyShove_Hit();
+                self = shoveSelf;
+            }
         }
     }
     entity pL = world; // (two held: the right hand's in `p`, the left's here; the slots don't say which)
@@ -2525,6 +2583,8 @@ void(float act) VR_AGP_Begin =
 {
     float last = self.vr_ag_act_kind;
     self.vr_ag_act = act;
+    self.vr_ag_act_cast = vr_agp_cast_next; // (VR_AGP_Cast's: the blow a cast)
+    vr_agp_cast_next = 0;
     if(act == VR_AGP_PUNCH)
     {
         // A jab, a cross, hooks, an uppercut; a combo goes on to the other hand.
@@ -2596,6 +2656,8 @@ void(entity g) VR_AGP_ShoveAim =
 void() VR_AGP_Shove =
 {
     self.vr_ag_act = VR_AGP_SHOVE;
+    self.vr_ag_act_cast = vr_agp_cast_next; // (VR_AGP_Cast's: a gun's thrust casting)
+    vr_agp_cast_next = 0;
     self.vr_ag_act_kind = 0;
     self.vr_ag_act_hand = 0;
     self.vr_ag_act_at = time;
@@ -2607,6 +2669,30 @@ void() VR_AGP_Shove =
     VR_AGP_ShoveAim(self);
     VR_AG_Log(sprintf("agp: shove starts (%s)", self.vr_ag_prop ? self.vr_ag_prop.netname : "fists"));
     vr_agp_act();
+};
+
+// The armed death knight's spell (VR_AM_SpellTry out of reach, VR_AM_GunCasts with a gun): his fireball volley cast as
+// an attack of the weapon he holds: a melee weapon's swing (from its tip at the blow), his fist's punch (from the
+// fist), a gun's thrust (the Shove pose's keys; from its muzzle as the thrust ends). No step in, no follow-up.
+void() VR_AGP_Cast =
+{
+    entity p = self.vr_ag_prop;
+    vr_agp_cast_next = 1;
+    if(p && VR_AG_Class(p.weapon) == VR_AG_CLASS_MELEE)
+    {
+        VR_AGP_Begin(VR_AGP_SWING);
+    }
+    else if(!p)
+    {
+        self.vr_ag_act_combo = 2; // (one punch: no combo)
+        VR_AGP_Begin(VR_AGP_PUNCH);
+    }
+    else
+    {
+        VR_AGP_Shove();
+    }
+    vr_agp_cast_next = 0;
+    VR_AG_Log(sprintf("agp: casting (%s)", p ? p.netname : "fists"));
 };
 
 // Its th_melee: a punch, a swing or the chainsaw's thrust (VR_AG_CheckAttack: its target within reach).
@@ -2648,7 +2734,7 @@ void() VR_AGP_Frame =
     {
         VR_AGP_ShoveAim(self); // (no step in: the shove is from where it stands, as the model's frames were)
     }
-    else if(s < vr_agp_tw + vr_agp_ts && !demo)
+    else if(s < vr_agp_tw + vr_agp_ts && !demo && !self.vr_ag_act_cast)
     {
         // Stepping into the blow; a long blade no nearer than its standoff (vr_agrunt_mspace: its tip meets you there).
         float step = (s < vr_agp_tw ? 1 : 3) * sp;
@@ -2673,6 +2759,11 @@ void() VR_AGP_Frame =
     }
     float was = self.vr_ag_act;
     self.vr_ag_act = 0;
+    if(self.vr_ag_act_cast)
+    {
+        was = -1; // (a cast: no follow-up)
+    }
+    self.vr_ag_act_cast = 0;
     if(was == VR_AGP_PUNCH && self.enemy && self.enemy.health > 0 && self.vr_ag_act_combo < 2 && random() < 0.55 &&
        vlen(VR_AI_Origin(self.enemy) - self.origin) < VR_AG_GRIP_REACH + 8)
     {
