@@ -5353,3 +5353,19 @@ The guns' reload load points are weapon keys: 142 values (12 guns) in quakevr/da
 - **Next steps**: the aliases (old names) dropped after one release (the config's lines then `vr_wofs_reload_*_NN`);
   the code reading `weapons::value(slot, key)` by the held gun's slot instead of the names (the lava nailguns' and
   plasma model's own blocks then mean something).
+
+## Nightly reload regressions after datatables5 (branch `agent/nightfixreload`)
+
+- **Report**: nightly 1101b on next 5095e37b4: reload_contact 23/0 -> 21/2, reload_front 34/0 -> 30/4, reload
+  112/3 -> 104/11 (all lane 1; prop_climb 12/0 -> 2/10, judo, ragdoll_guard in the same lane fell too).
+- **Not reproduced**: the same commit in another tree passes all three at baseline (contact 23/0 alone, in lane 1,
+  and in lane 1 with 1 and 2 batch copies; front 34/0; reload 112/3 with 2 copies), with or without the fix below. The
+  nightly's contact log differs deterministically (every gun's floor round ~12 units farther, two edicts fewer, no
+  shell spawned for the shape check), as from a different config or game folder, not from the 142 values; lane 1's
+  unrelated cases fell with it. Worth a rerun of lane 1 before more digging.
+- **Fixed on the way (a datatables5 gap)**: `vr_test_snapshot` took only the registered cvars, so a batched case's
+  data-table value set by name (since datatables5 the reload load points: `reload_test.sh` sets
+  `vr_reload_port_shot_radius 0.1`, `vr_reload_port_nail_radius 1`) stayed for the next cases in that game copy.
+  `CvarSnapshot::takeAll` (vr_testbatch.cpp) now takes every stand-in of `standInTables()` too; `vr_test_reset` puts
+  them back through `Cvar_SetQuick`. Checked: snapshot, `vr_reload_port_shot_radius 0.1`, reset -> 1.6 again (was 0.1);
+  `vr_wofs_hol_hip_x_27 9` -> back to its value.
