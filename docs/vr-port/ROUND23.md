@@ -5687,3 +5687,18 @@ Checklist:
   gun nearer your hand; Tug: Arm Stretch x1.0 removes it. {test:agrunt_tug}
 - [tugstretch] Push your hand slowly into a grunt facing you, on through its body: the drawn hand stays on its chest; close
   the hand there: its backpack is not taken. From behind, the pack is taken as before. {test:worn_packs_lift}
+
+## Test 79 after the forearm from the arm skin (branch `agent/t79`)
+
+agent/tugview made `weapondrawnpose` 37/38 the skin's forearm (agarms::armPart 1); on the grunt's rig (no hand bone)
+they were its upper arm. Test 79 went 18/2. No hitmodel or zone code changed: the test now aims at another place.
+- Grunt guard: the shot across the drawn forearm hits 2.6 from it and maps (hitmodel_rest) 2.3 from the frame's forearm
+  (the guard is frozen in its stand frame: that is its forearm standing), so it lands on the arm. Zone 0 because the
+  grunt's stand frame holds its forearm 6.4 out from its middle, inside PositionalPointRegion's 8.4 side limit (the
+  enforcer's 10.9, the knights' 10.3 and 19.0: zone 2). So the check now wants the standing forearm's zone and the
+  rest point within 6 of it. (Open: whether a grunt's forearm should count as an arm hit: the zone rule's design, the
+  same before tugview for a shot at that place.)
+- Enforcer guard: the shot across the frame's forearm (m +/- 6 along the view) hit at t 0.96: the drawn body 5.5 behind
+  m (15.2 from the drawn forearm), not a phantom arm. The miss shot now runs from in front up to m: a frame-posed
+  hitmodel would meet that forearm's front.
+- Test 79 20 passed, 0 failed; test 16 274/0.
