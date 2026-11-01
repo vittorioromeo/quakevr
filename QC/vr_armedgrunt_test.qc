@@ -1488,6 +1488,7 @@ void() VR_AGTest_Frame =
     else if(t == 97) { VR_DVT_Frame(); } // (Show Disarm Volumes in each state, its eye images: vr_disarmviz_test.qc)
     else if(t == 91) { VR_AGRB_Frame(); } // (an active ragdoll's weapon grabbed at the gun or its hand: vr_armedgrunt_raggrab_test.qc)
     else if(t == 92) { VR_AG2_Frame(); } // (two hands in the tug, a staggering or downed one's eased tug: vr_armedgrunt_twohand_test.qc)
+    else if(t == 19) { VR_AGTP_Frame(); } // (the other fist's real punch in a tug: vr_armedgrunt_tugpunch_test.qc)
     else if(t >= 6 && t <= 9) // a row of armed grunts ahead, 30 units apart (eyeshots): 6 guns, 7 melee, 8 more guns, 9 the rest
     {
         float base = (t - 6) * 4;

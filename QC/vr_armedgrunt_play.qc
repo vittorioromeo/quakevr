@@ -805,6 +805,13 @@ float(entity g, entity p) VR_AG_TugFrame =
             return FALSE;
         }
     }
+    // Your other fist striking it: torn free into the holding hand (vr_agrunt_tug_strike). Here, not only in
+    // VR_AG_WeaponStruck: VR_AG_PropThink never reaches that while a tug is on (this returns TRUE), so a real punch went
+    // through the gun (his checklist answer 2026-11-01: "it didn't punch it out at all"; test 92 called it directly).
+    if(VR_AG_TugStrike(g, p))
+    {
+        return TRUE;
+    }
     if(g.vr_ag_tug_rag)
     {
         if(VR_AG_HealthShare(g) <= cvar_hget(cvarh_vr_agrunt_tug_hurt))
