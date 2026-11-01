@@ -357,6 +357,12 @@ void SV_AirMove (void)
 		VectorScale (wishvel, maxspeed/wishspeed, wishvel); // QVR: maxspeed: stamina
 		wishspeed = maxspeed;
 	}
+	if (sv_player->v.movetype == MOVETYPE_WALK) // QVR: straight at a live enemy near it, slower (vr_closequarters)
+	{
+		VR_CloseQuartersMove (sv_player, wishvel);
+		VectorCopy (wishvel, wishdir);
+		wishspeed = VectorNormalize (wishdir);
+	}
 
 	if ( sv_player->v.movetype == MOVETYPE_NOCLIP)
 	{	// noclip

@@ -1775,6 +1775,40 @@ void(entity targ, entity attacker, float take, float healthBefore) VR_BulletTime
     attacker.vr_bullettime_earned = attacker.vr_bullettime_earned + min(take, healthBefore);
 };
 
+// Monster `m` provoked by `by` (a hit, or something done to it with no damage: a hit on its worn tank, a try at its
+// weapon): it notices (vr_oblivious off) and turns on `by` (FoundTarget: its sight sound, its group woken) unless it is
+// already after it, `by` is its charmer, or it is its own kind (but grunts). A player with notarget too: it saw what was
+// done to it. T_DamageDeal's reaction to the damage (the original's "get mad").
+void(entity m, entity by) VR_Provoke =
+{
+    if(!(m.flags & FL_MONSTER) || !by)
+    {
+        return;
+    }
+    m.vr_oblivious = 0; // QVR: oblivious until hurt (vr_oblivious): it notices you now
+    if(m == by || by == m.enemy || m.charmer == by)
+    {
+        return;
+    }
+    if(m.classname == by.classname && m.classname != "monster_army" && m.classname != "monster_armagon")
+    {
+        return;
+    }
+    if(m.classname == "monster_dragon")
+    {
+        return;
+    }
+    entity was = self;
+    self = m;
+    if(self.enemy.classname == "player")
+    {
+        self.oldenemy = self.enemy;
+    }
+    self.enemy = by;
+    FoundTarget();
+    self = was;
+};
+
 float(entity targ, entity inflictor, entity attacker, float damage, float isVRMelee) T_DamageDeal =
 {
     vector    dir;
@@ -2116,28 +2150,8 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     float kdNext = self.nextthink;
 
     //MED 10/17/96 added charmed stuff
-    if((self.flags & FL_MONSTER) && attacker != world)
-    {
-        self.vr_oblivious = 0; // QVR: oblivious until hurt (vr_oblivious): it notices you now
-        // get mad unless of the same class (except for soldiers)
-        if(self != attacker && attacker != self.enemy && (self.charmer != attacker))
-        {
-            if((self.classname != attacker.classname)
-            || (self.classname == "monster_army") || (self.classname == "monster_armagon"))
-            {
-                if(self.classname != "monster_dragon")
-                {
-                    if(self.enemy.classname == "player")
-                    {
-                        self.oldenemy = self.enemy;
-                    }
-
-                    self.enemy = attacker;
-                    FoundTarget();
-                }
-            }
-        }
-    }
+    // get mad unless of the same class (except for soldiers): VR_Provoke
+    VR_Provoke(self, attacker);
 
     if(self.th_pain)
     {

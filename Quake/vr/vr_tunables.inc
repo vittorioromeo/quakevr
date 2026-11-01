@@ -623,6 +623,7 @@ QVR_TUNABLE(vr_tracer_brightness, "1") // times the colour (they add light onto 
 QVR_TUNABLE(vr_gunfx_intensity, "1") // how many of them, all (0.25-3; fewer at high fire rates anyway)
 QVR_TUNABLE(vr_gunfx_turbulence, "1") // how much the gunfire smoke swirls as it spreads (0 none: straight drift; 0-3)
 QVR_TUNABLE(vr_gunfx_shell_trail, "1.6") // every spent casing's smoke trail, times (0 none; 1 the old faint one)
+QVR_TUNABLE(vr_gunfx_heat_light_radius, "48") // a glowing barrel's light's reach in units at full heat (vr_hotblade.cpp)
 
 // Weapons > Weapon Offsets - Flashlight
 QVR_TUNABLE(vr_flashlight_mount_preview, "0") // Weapon Offsets > Flashlight: the torch's place on the page's weapon drawn while the page is shown
@@ -741,6 +742,7 @@ QVR_TUNABLE(vr_agrunt_reload_time, "1.5") // seconds a reload takes
 QVR_TUNABLE(vr_agrunt_reload_ssg, "0.85") // the double-barrelled shotgun's reload: this share of vr_agrunt_reload_time (his voice note 2026-11-01 18:11: 15% faster)
 QVR_TUNABLE(vr_agrunt_disarm_damage, "10") // a blow's least damage there to disarm it
 QVR_TUNABLE(vr_agrunt_disarm_swing, "4.5") // m/s a blow (your hand or what it holds) landing on its held weapon must reach to knock it out
+QVR_TUNABLE(vr_agrunt_disarm_stagger, "0.4") // s a disarm (a blow, a shot, a throw) staggers it on its feet (0 none)
 QVR_TUNABLE(vr_agrunt_disarm_throw, "20") // kg m/s a thrown weapon, prop or gib landing on its held weapon must carry (mass x speed) to knock it out
 QVR_TUNABLE(vr_agrunt_down_swing, "3.2") // m/s: lying with its weapon in its hand, a deliberate blow this fast knocks it away (with vr_agrunt_disarm_deliberate; else 0.8)
 QVR_TUNABLE(vr_agrunt_strike_beat, "0.4") // a deliberate strike on its weapon or hand into its raised parry: the chance it beats the parry and disarms it (times the two below)
@@ -750,6 +752,7 @@ QVR_TUNABLE(vr_agrunt_strike_raised, "0.5") // the share of its parry pose that 
 QVR_TUNABLE(vr_agrunt_tug_pull, "10") // the tug: how far (units) you must pull your hand back from where you grabbed, away from it, to be winning
 QVR_TUNABLE(vr_agrunt_tug_hurt, "0.35") // a grab takes the weapon at once from a grunt down to this share of its health (or staggered, down, stunned)
 QVR_TUNABLE(vr_agrunt_tug_hold_max, "6") // s the tug lasts at most: then it wrenches its weapon free (0: no limit)
+QVR_TUNABLE(vr_agrunt_tug_ik_stretch, "1.2") // the tug: its arms' IK stretch (vr_agrunt_ik_stretch's) times this while a tug is on, eased in and out with it (its arm reaches for the weapon held in your hand; 1: none)
 QVR_TUNABLE(vr_agrunt_grab_slack, "0") // cm: your fist takes its weapon within this of the weapon's drawn surface (vr_physics.cpp handOn; never by its box, nor on its arm or chest)
 QVR_TUNABLE(vr_agrunt_grab_sweep, "2") // frames (0..2): your fist is also measured against its weapon's places this many frames back and midway (the weapon as drawn lags the server's; a swung blade moves 5-20 cm a frame)
 QVR_TUNABLE(vr_agrunt_rag_grab_weapon, "8") // cm: on a living (active) ragdoll your fist this near its weapon's drawn surface takes the weapon, not the limb beside it (the grab query: vr_physics.cpp armedAllowance, box3d grabRagdoll)
@@ -1083,6 +1086,7 @@ QVR_TUNABLE(vr_hit_stagger_head, "1.5") // a melee blow to the head (fist or wea
 QVR_TUNABLE(vr_hit_stagger_resist, "0.75") // big monsters resist: the chance times (30 / its full health) ^ this, above 30 health (0: none; shambler 0.1, ogre 0.24)
 QVR_TUNABLE(vr_hit_stagger_cooldown, "4") // s after an unbalancing hit before another hit can unbalance it (no stunlock)
 QVR_TUNABLE(vr_ragimpact_damage, "0.08") // damage per kg m/s past the least speed (mass behind the part x (its speed - Least Speed))
+QVR_TUNABLE(vr_ragimpact_mult, "1.15") // a ragdoll's (knocked down or dead) strike on a wall, the floor or a prop: its damage and its head's or limb's wear (pops) times this (not a landing's crush)
 QVR_TUNABLE(vr_ragimpact_min_speed, "2.5") // m/s: slower strikes do nothing
 QVR_TUNABLE(vr_ragimpact_held_speed, "1") // m/s: a part your hand holds counts from this speed (the hand slows as it drives a body: 2-4 m/s slams)
 QVR_TUNABLE(vr_ragimpact_dent, "2") // a strike dealing this much damage or more dents and wounds the part where it struck, as a blunt melee blow does (a head slammed into a wall: its face dented); 0: never
@@ -1095,7 +1099,7 @@ QVR_TUNABLE(vr_ragimpact_max, "40") // most damage one strike (or a landing's cr
 QVR_TUNABLE(vr_ragimpact_limb, "1") // a strike on an arm or a leg deals this much more (the torso 1, the head vr_ragimpact_head)
 QVR_TUNABLE(vr_ragsmash_min_speed, "0") // m/s: a strike sounds and bleeds (vr_ragsmash) only this fast or faster, besides hurting (the impacts' own threshold); 0: every strike that hurts
 QVR_TUNABLE(vr_ragsmash_full_speed, "4") // m/s past the impacts' least speed: a strike this hard sounds full and deepest and bleeds its most (softer ones less, from a quarter)
-QVR_TUNABLE(vr_ragsmash_volume, "1") // the smash sound's volume, times (0: silent; blood still)
+QVR_TUNABLE(vr_ragsmash_volume, "1.35") // the smash sound's volume, times (0: silent; blood still; over full volume past 1: his note 2026-11-01, 30-40% louder)
 QVR_TUNABLE(vr_ragsmash_decal_size, "1") // the smash blood's size, times (1: 18..40 units across by the strike, then the gore's size; 0: none)
 QVR_TUNABLE(vr_ragsmash_cooldown, "0.25") // s: one body sounds and bleeds at most this often (a body sliding or bouncing along a wall: no machine gun)
 QVR_TUNABLE(vr_ragimpact_wear, "1") // a head's or limb's wear from a strike: its damage times this (higher: pops sooner; 0: impacts never pop pieces)

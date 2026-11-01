@@ -703,6 +703,11 @@ float gameover; // Set when a rule exits.
 
 string string_null; // Null string, nothing should be held here.
 
+// A player hit by a blade or a fist (PainSound's axhitme: an armed grunt's melee, another player's): id's axhit1, the
+// thud with his grunt in it, as his own voice (the engine's derived copy, vr_audio_io.cpp; feminine with vr_voice 1,
+// vr_voice.cpp voiceSounds). axhit1 itself stays the thud of a thrown axe or the grapple's hook.
+string QVR_SOUND_AXHIT_VOICE = "vr/derived/axhit1_voice.wav";
+
 entity activator; // The entity that activated a trigger or brush.
 
 entity damage_attacker; // Set by `T_Damage`.

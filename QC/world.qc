@@ -397,6 +397,7 @@ void() worldspawn =
     // ax sounds
     precache_sound("weapons/ax1.wav");            // ax swoosh
     precache_sound("player/axhit1.wav");        // ax hit meat
+    precache_sound(QVR_SOUND_AXHIT_VOICE);      // ... a player hit by one, his grunt (his voice: vr_voice)
     precache_sound("player/axhit2.wav");        // ax hit world
 
     precache_sound("player/h2ojump.wav");        // player jumping into water

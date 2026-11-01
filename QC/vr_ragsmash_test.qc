@@ -201,6 +201,19 @@ void() VR_RagSmash_TestFrame =
         VR_Test_Check(vr_rsmash_sounds == s1 + 1 && vr_rsmash_bloods == b1 + 1, "a held slam (5 m/s): a sound and blood");
         VR_RagImpact_Hit(vr_rst_g, vr_rst_wall, 5, 30, 5, 1, vr_rst_wn);
         VR_Test_Check(vr_rsmash_sounds == s1 + 1 && vr_rsmash_bloods == b1 + 1, "the same again at once: none (cooldown)");
+        // Smash Volume (1.35: his note 2026-11-01, "30, 40% louder") on the held slam (full strength): past full volume.
+        float sv = cvar_hget(cvarh_vr_ragsmash_volume);
+        VR_Test_Check(fabs(sv - 1.35) < 0.001 && fabs(vr_rsmash_vol - min(4, (0.25 + 0.75 * vr_rsmash_t) * sv)) < 0.001 &&
+            vr_rsmash_vol > 1, sprintf("the held slam's volume %.3f (strength %.2f, Smash Volume %.2f: louder than full)",
+            vr_rsmash_vol, vr_rsmash_t, sv));
+        // Impact Multiplier (1.15): the held slam's damage against the same strike's without it (its piece's multiplier
+        // in, under the cap; the wear toward popping is that damage's). Held: the least speed vr_ragimpact_held_speed.
+        float mult = cvar_hget(cvarh_vr_ragimpact_mult);
+        float d1 = VR_RagImpact_Scale(VR_RagImpact_Amount(30, 5 - max(0.25, cvar_hget(cvarh_vr_ragimpact_held_speed))),
+            VR_RagImpact_Piece(vr_rst_g, vr_rst_wall));
+        VR_RagImpact_Hit(vr_rst_g, vr_rst_wall, 5, 30, 5, 1, vr_rst_wn);
+        VR_Test_Check(fabs(mult - 1.15) < 0.001 && d1 > 0.5 && fabs(vr_rimp_last - d1 * mult) < 0.01,
+            sprintf("Impact Multiplier %.2f: the strike %.2f -> %.2f damage", mult, d1, vr_rimp_last));
         VR_RST_Finish();
     }
 };

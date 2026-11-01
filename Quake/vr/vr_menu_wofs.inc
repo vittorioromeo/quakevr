@@ -940,6 +940,9 @@ za::Vector<Item> pageWofsEffects()
         s("Barrel Cool-Down", Key::GunfxCool, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 10.f)
             .help("How long this weapon's hot barrel takes to cool: times Weapon Effects' Cool-Down Time (2: twice as "
                   "long). 0: it cools at once."),
+        s("Barrel Glow Length", Key::GunfxBarrel, 0.f, 1.f, 0.05f, "%.2f").extend(0.f, 1.f)
+            .help("How much of this weapon glows when its barrel is hot: a share of the gun's length from the muzzle "
+                  "back towards your hand (0.5: its front half, brightest at the muzzle and fading back). 0: none."),
         cycle("Muzzle Flash", weapons::cvar(slot, Key::Flash), {{0.f, "Off"}, {1.f, "On"}})
             .help("The shotgun's flash at this weapon's muzzle (its Muzzle settings) for a moment at each shot, following "
                   "the gun; gone when it leaves your hand."),

@@ -236,6 +236,7 @@ float(entity g, entity by, float h, float damage) VR_AGPar_Parried =
     g.vr_agpar_hand = h + 1;
     if(by.flags & FL_CLIENT)
     {
+        VR_AG_DisarmTry(g, by, VR_AG_TRY_PARRIED); // (your try at its weapon: it turns on you)
         // (Its weapon's later blows this motion are this parry's; its hand's knock on the weapon too: VR_AG_HandStrike.)
         if(h == cVR_OffHand) { by.vr_ag_knock_off = time; } else { by.vr_ag_knock_at = time; }
     }
@@ -285,7 +286,7 @@ float(entity g, entity by, float h, float damage) VR_AGPar_Parried =
         {
             VR_AG_Swap(g); // (the weapon that took the blow)
         }
-        VR_AG_Disarm(g, away * -1, 140, "parried until its strength gave out");
+        VR_AG_DisarmBy(g, by, away * -1, 140, "parried until its strength gave out");
         if(vr_dv_on)
         {
             VR_DV_Mark(g, vr_agpar_x, VR_DV_DISARM, "parried: its strength gave out");
@@ -461,6 +462,7 @@ float(entity g, entity pl, float h) VR_AG_BladeMarked =
 // `pl`'s hand `h`'s blow (its swing `swing` m/s) stopped on `g`'s weapon `p` at `x`, `off` units from its hand.
 void(entity g, entity p, entity pl, float h, vector x, float swing, float off) VR_AG_BladeContact =
 {
+    VR_AG_DisarmTry(g, pl, VR_AG_TRY_HELD); // (a blow on its weapon: it turns on you; before its stagger below)
     g.vr_agbc_by = pl;
     g.vr_agbc_mark = [h + 1, time, 0];
     if(h == cVR_MainHand) { pl.vr_ag_knock_at = time; } else { pl.vr_ag_knock_off = time; }
@@ -509,7 +511,7 @@ void(entity g, entity p, entity pl, float h, vector x, float swing, float off) V
         vr_parry_noragdoll = FALSE;
         st = sprintf(", staggered (its arm knocked, %.2f)", share);
     }
-    vr_agbc_why = sprintf("; blade contact: a %.1f m/s blow %.1f units off its hand%s", swing, off, st);
+    vr_agbc_why =sprintf("; blade contact: a %.1f m/s blow %.1f units off its hand%s", swing, off, st);
     VR_AG_Log(sprintf("blade: %s", vr_agbc_why));
     if(vr_dv_on)
     {
@@ -672,14 +674,14 @@ float(entity g, entity pl, float h, vector bodyAt) VR_AG_BlowOnWeapon =
     {
         VR_DV_Mark(g.vr_ag_prop, x, VR_DV_DISARM, sprintf("strike %.1f m/s on %s", sp, where));
     }
-    VR_AG_Disarm(g, VRGetEntHandVel(pl, h) - pl.velocity, 100 + sp * 15, vr_ag_strike_why);
+    VR_AG_DisarmBy(g, pl, VRGetEntHandVel(pl, h) - pl.velocity, 100 + sp * 15, vr_ag_strike_why);
     return VR_AG_STRIKE_DISARM;
 };
 
 // VR_AG_Hit: a thrown thing (a weapon, a prop, a gib) that touched `g`'s body: its way in (its flight, or towards its body
 // if it has bounced off already), one frame back plus its size, met its weapon or hand first; then the momentum rule
 // (vr_agrunt_disarm_throw). TRUE: knocked out of its hand. (One that never touches its body: VR_AG_WeaponStruck's.)
-float(entity g, entity e) VR_AG_ThrowOnWeapon =
+float(entity g, entity e, entity by) VR_AG_ThrowOnWeapon =
 {
     if(!cvar_hget(cvarh_vr_agrunt_strike_first) || !g.vr_ag_prop || VR_AG_Still(g) || time - e.vr_ag_knock_at <= 0.5 ||
        (e.flags & (FL_CLIENT | FL_MONSTER)) || !(e.classname == "thrown_weapon" || e.vr_gib || (e.flags & FL_FORCEGRABBABLE)))
@@ -733,6 +735,7 @@ float(entity g, entity e) VR_AG_ThrowOnWeapon =
     if(mom < cvar_hget(cvarh_vr_agrunt_disarm_throw))
     {
         VR_AG_Log(sprintf("strike: kept (%s: under %g)", what, cvar_hget(cvarh_vr_agrunt_disarm_throw)));
+        VR_AG_DisarmTry(g, by, VR_AG_TRY_HELD);
         return FALSE;
     }
     if(hit == g.vr_ag_prop2)
@@ -746,7 +749,7 @@ float(entity g, entity e) VR_AG_ThrowOnWeapon =
     {
         VR_DV_Mark(g.vr_ag_prop, c, VR_DV_DISARM, what);
     }
-    VR_AG_Disarm(g, dir, 120, what);
+    VR_AG_DisarmBy(g, by, dir, 120, what);
     return TRUE;
 };
 

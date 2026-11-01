@@ -106,6 +106,25 @@ vector vr_agk_gr;
 float vr_agk_mode;
 float vr_agk_gun;          // (a single gun held: its pose category's keys; the off-hand block only then)
 float vr_agk_stretch;      // its kind and class's IK stretch (agpose::stretch, weapondrawnpose(world, kind * 100 + class, 28); 1 none): sent in the off-hand block when over 1
+.float vr_agk_tugw;        // the tug's share of its IK stretch now (0..1; VR_AGK_TugStretch),
+.float vr_agk_tugt;        // ... eased last at
+float vr_agk_tugs;         // ... the last factor (the tests)
+float VR_AGK_TUG_EASE = 0.25; // s the tug's IK stretch takes to ease in or out
+
+// The tug's IK stretch (his note: "a tunable IK stretch multiplier that applies to the forearm/upper arm of an enemy only
+// during a tug of war, to make the weapon look a bit more attached to the enemy"): its kind and class's times
+// vr_agrunt_tug_ik_stretch while a tug over its weapon is on, eased in and out over VR_AGK_TUG_EASE s.
+float(entity g) VR_AGK_TugStretch =
+{
+    float dt = min(0.1, max(0, time - g.vr_agk_tugt));
+    g.vr_agk_tugt = time;
+    float want = g.vr_ag_tug_pl ? 1 : 0;
+    float step = dt / VR_AGK_TUG_EASE;
+    g.vr_agk_tugw = want > g.vr_agk_tugw ? min(want, g.vr_agk_tugw + step) : max(want, g.vr_agk_tugw - step);
+    float w = g.vr_agk_tugw * g.vr_agk_tugw * (3 - 2 * g.vr_agk_tugw); // (smooth)
+    vr_agk_tugs = 1 + (max(1, cvar_hget(cvarh_vr_agrunt_tug_ik_stretch)) - 1) * w;
+    return vr_agk_tugs;
+};
 
 void(entity g) VR_AGP_Body = { makevectors([0, g.angles_y, 0]); vr_agp_f = v_forward; vr_agp_r = v_right; };
 vector(vector l) VR_AGP_ToWorld = { return vr_agp_f * l_x - vr_agp_r * l_y + '0 0 1' * l_z; };
@@ -1605,7 +1624,7 @@ void(entity g, entity p) VR_AGK_Keys =
     float cls = VR_AGK_Class(g, p);
     float base = g.vr_ag_kind * VR_AGK_KIND + cls * VR_AGK_CLASS;
     vector st = weapondrawnpose(world, g.vr_ag_kind * 100 + cls, 28);
-    vr_agk_stretch = st_x;
+    vr_agk_stretch = st_x * VR_AGK_TugStretch(g);
     float wp = 0; // (the pickup's: its bend's)
     if(g.vr_ag_took_at > 0 && p)
     {

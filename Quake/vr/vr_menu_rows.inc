@@ -2467,6 +2467,24 @@ QVR_TOGGLE(vr_crouch_speed, "Slower When Crouched",
 QVR_SLIDER(vr_crouch_speed_scale, "Crouched Speed", 0.2f, 1.f, 0.05f, "%.2fx", noExt,
     "Crouched, the most speed the stick moves you at, times your top speed. Whatever it is, crouched you "
     "stay under the speed whose steps monsters hear (Stealth AI > Running From) (vr_crouch_speed_scale).")
+QVR_TOGGLE(vr_closequarters, "Close-Quarters Slowdown",
+    "Walking straight into a live enemy's face near it slows you gradually, so a full-speed run into one doesn't "
+    "end in a mess of bodies; you still get right up to it, and strafing past it keeps (nearly) full speed. Only the "
+    "part of your move towards the nearest enemy is slowed (vr_closequarters).")
+QVR_SLIDER(vr_closequarters_start, "Start Radius", 0.5f, 4.f, 0.1f, "%.1f m", ext(0.f, 10.f),
+    "How near the nearest live enemy (from your centre to its body) the slowdown starts (vr_closequarters_start).")
+QVR_SLIDER(vr_closequarters_end, "End Radius", 0.f, 2.f, 0.05f, "%.2f m", noExt,
+    "At this distance and nearer the slowdown is full (Min Factor); your body touches a grunt's at about 0.6 m "
+    "(vr_closequarters_end).")
+QVR_SLIDER(vr_closequarters_min, "Min Factor", 0.f, 1.f, 0.05f, "%.2fx", noExt,
+    "Your speed straight at the enemy at End Radius, times; 1: not slowed (vr_closequarters_min).")
+QVR_SLIDER(vr_closequarters_strafe, "Strafe Factor", 0.5f, 1.f, 0.05f, "%.2fx", noExt,
+    "Your speed sideways past the enemy at End Radius, times; 1: full speed (vr_closequarters_strafe).")
+QVR_SLIDER(vr_closequarters_angle, "Angle Leniency", 0.f, 90.f, 5.f, "%.0f deg", noExt,
+    "A move this far off straight at the enemy still counts fully as towards it (vr_closequarters_angle).")
+QVR_SLIDER(vr_closequarters_angle_falloff, "Angle Falloff", 0.f, 90.f, 5.f, "%.0f deg", noExt,
+    "Past this far off it a move isn't towards it at all; between Angle Leniency and this, less and less "
+    "(vr_closequarters_angle_falloff).")
 QVR_TOGGLE(vr_slope_walk, "Walk Up Slopes Slowly",
     "Standing on a slope you can walk on, gravity only presses you into it, none of it pulls you downhill: "
     "with the stick pushed only a little you still walk up slopes and stairs with a smooth ramp over them "
@@ -4813,6 +4831,10 @@ QVR_TOGGLE(vr_ghost_hands_ignore_recoil, "No Ghost from Recoil",
     "A shot's recoil kicks the drawn hand back and up off your real one (Weapon Effects' Programmatic "
     "Recoil): on, that kick doesn't bring the ghost out (only what else holds the hand off does); off, a "
     "strong kick shows it for a moment.")
+QVR_TOGGLE(vr_ghost_hands_ignore_bodies, "No Ghost Holding Bodies",
+    "On: a hand holding an enemy (grabbed alive, the judo) or a ragdoll (knocked down or dead) shows no ghost, "
+    "only the hand drawn on the body; the ghost still shows for a weapon in two hands, heavy weapons and walls. "
+    "Off: those holds show it too (vr_ghost_hands_ignore_bodies).")
 
 // vr_menu_settings.inc: pageBodyDisplay
 QVR_CYCLE(vr_handedness, "Handedness",
@@ -4970,8 +4992,12 @@ QVR_SLIDER(vr_gunfx_cool_time, "Cool-Down Time", 0.2f, 10.f, 0.1f, "%.1f s", ext
     "How many seconds a barrel at full heat takes to cool down once you stop firing (its glow and wisps fading "
     "with it).")
 QVR_SLIDER(vr_gunfx_heat_glow, "Heat Glow Strength", 0.f, 3.f, 0.05f, "%.2fx", noExt,
-    "How bright a hot barrel's glow is (it deepens from a dull red to orange as it heats). 0: no glow, the wisps "
-    "only.")
+    "How bright a hot barrel's glow is: its metal glows from within like an incandescent blade, strongest at the "
+    "muzzle and fading back along the barrel (each weapon's Barrel Glow Length), deepening from a dull red to orange "
+    "as it heats. 0: no glow, the wisps only.")
+QVR_SLIDER(vr_gunfx_heat_light, "Heat Light Strength", 0.f, 3.f, 0.05f, "%.2fx", noExt,
+    "How bright the light a glowing barrel casts on your hands and the walls nearby (following its glow, its reach "
+    "shrinking as it cools). 0: none.")
 QVR_TOGGLE(vr_gunfx_wisps, "Muzzle Wisps",
     "After you stop firing, a very thin, faint line of smoke trails off each barrel for a few seconds (the "
     "shotgun's one, the super shotgun's and the nailgun's two), following the muzzle as you move the gun.")
@@ -6440,7 +6466,9 @@ QVR_TOGGLE(vr_debug_impacts, "Print Impact Effects",
     "...\", \"impfx snd ...\"): the hit ladders' output (vr_impacts.cpp).")
 QVR_TOGGLE(vr_debug_gunfx, "Print Gunfire Particles",
     "vr_debug_gunfx: each shot's particles (\"gunfx shot ...\", \"gunfx port ...\", \"gunfx impact ...\") and your "
-    "barrels' heat (\"gunfx heat hand .. heat .. glow ..\" a shot, \"gunfx heat cold ..\" once cooled).")
+    "barrels' heat (\"gunfx heat hand .. heat .. glow ..\" a shot, \"gunfx heat cold ..\" once cooled). "
+    "vr_debug_gunfx 2 (console): also each frame a hot barrel glows, \"gunfx barrel hand .. heat .. glow .. light "
+    ".. drawn .. off ..\" (off: how far its drawn muzzle was from where its light was placed).")
 QVR_TOGGLE(vr_debug_ribbon_overlap, "Wisps Overlap Again",
     "vr_debug_ribbon_overlap: the muzzle wisps blend twice where they fold over themselves (a sharp swing), "
     "as before the fix: the denser creases, to compare.")

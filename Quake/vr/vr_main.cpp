@@ -157,6 +157,7 @@
 #include "vr_cleanskins.hpp"
 #include "vr_rangerhead.hpp"
 #include "vr_voice.hpp"
+#include "vr_closequarters.hpp"
 #include "vr_toolgun.hpp"
 #include "vr_arenacards.hpp"
 #include "vr_brushes.hpp"
@@ -2176,6 +2177,7 @@ extern "C" void VR_Init()
     proposedefaults::init();
     cleanskins::init();
     voice::init();
+    closequarters::init();
     rangerhead::init();
     Cmd_AddCommand("vr_body_head_info", rangerhead::info_f);
     mdldequant::init();

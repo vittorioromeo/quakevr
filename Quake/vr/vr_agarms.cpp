@@ -92,6 +92,7 @@ struct Side
     za::Vector<int> upper;                      // its upper arm's skin below the joint (the torso's measure, vr_agglitch)
     za::Vector<int> upperIn;                    // ... its inner side: the few nearest the chest's line (vr_agarms_arm_clear)
     za::Vector<int> shEdges;                    // ... the edges about its shoulder (vertex pairs: its stretch measured)
+    za::Vector<int> part[3];                    // armPart's: its hand, its forearm, its upper arm's top
 };
 
 struct Skin
@@ -800,6 +801,25 @@ const Skin* skinOf(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll::
         for(int b = 1; b < ragdoll::maxBones; b++)
         {
             sd.handBone = handCount[s][b] > handCount[s][sd.handBone] ? b : sd.handBone;
+        }
+        // Its parts by the chain its skin weighs each vertex on (row.x's c: 0 the upper arm, 1 the forearm, 2 the hand),
+        // not by the ragdoll rig's bones: a rig with no hand bone has its hand on its forearm's bone, whose parent is the
+        // upper arm (the cyan hull took the biceps: his note 2026-11-01 18:02).
+        for(const int v : sd.verts)
+        {
+            const float c = m.row[static_cast<za::SizeT>(v)].x - 1.f - 4.f * static_cast<float>(s);
+            if(c >= 1.5f)
+            {
+                sd.part[0].pushBack(v);
+            }
+            if(c > 0.5f && c < 2.f)
+            {
+                sd.part[1].pushBack(v);
+            }
+            else if(c >= 0.f && c < 0.25f)
+            {
+                sd.part[2].pushBack(v);
+            }
         }
     }
     // The arms' edges (the stretch measured), the anchor.
@@ -2174,6 +2194,19 @@ bool ragdollGrip(const qmodel_t* model, int side, rigpose::Rigid& grip, int& bon
         {
             grip = s.side[side].grip;
             bone = s.side[side].handBone;
+            return true;
+        }
+    }
+    return false;
+}
+
+bool armPart(const qmodel_t* model, int side, int part, const za::Vector<int>*& verts)
+{
+    for(const Skin& s : state.skins)
+    {
+        if(s.model == model && s.ok && side >= 0 && side < 2 && part >= 0 && part < 3)
+        {
+            verts = &s.side[side].part[part];
             return true;
         }
     }
