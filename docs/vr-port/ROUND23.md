@@ -5044,3 +5044,30 @@ The per-monster cvar families that are plain per-classname values are data: 171 
   drawn (`disarmhull::weapon`), not at its server place: where its grab, shot and blow volume is read.
 - **Checks**: agrunt 2 4/0, 68 4/0, 16 242/0, 94 16/0. The other `agweapon` users (the downtug, raggrab, ragweapon,
   twohand, play, grab and disarmviz tests) not run here.
+
+## Barrel heat settings (branch `agent/barrelheat`, his voice note 2026-11-01 01:43)
+
+He found the barrel glow too slow (~2 s of nailgun fire before it showed) and too faint, and wanted it on the older guns
+too, with heat-up and dissipation times, global and per weapon. Quake/vr/vr_gunfx.cpp:
+- **Model** (heatShot / heatCool / heatGlow): heat 0..1 per hand (was 0..1.5, only the nailguns ever got hot: the
+  shotgun's 0.12 a shot cooled faster than it fired). A shot adds its kind's interval (the gun's seconds between shots
+  in sustained fire: shotgun 0.5, super shotgun 0.7, revolver and flare gun 0.5, nailguns 0.1, grenade launchers 0.6,
+  rocket launchers 0.8, energy guns 0.1) over **Heat-Up Time**, at most 0.35 a shot (a slow gun takes 3 shots), times the
+  weapon's **Barrel Heat** multiplier. So sustained fire reaches full heat in Heat-Up Time / multiplier whatever the
+  gun. Cooling waits 1.5 intervals after a shot (none between shots of sustained fire), then is linear: full to cold in
+  **Cool-Down Time** times the weapon's **Barrel Cool-Down** (0: at once). Every gun with gunfire particles heats now
+  (the thunderbolt too: it glows, no smoke wisps); not the flamethrowers, crossbow, melee, grapple, toolgun, Mjolnir.
+- **Glow**: from heat 0.15, strength (heat - 0.15) / 0.85 x **Heat Glow Strength**; three glow points per barrel (the
+  super shotgun's and nailgun's two bores: the wisps' barrel ends) going 6 units down the barrel, alpha up to 0.75
+  (was one point, 0.3 at most, from heat 0.5), size 2.2; a dull red deepening to orange. Wisps from heat 0.3.
+- **Settings** (Weapons > Weapon Effects, after Barrel Heat): `vr_gunfx_heat_time` 1 s (Heat-Up Time, 0.2-5, ext
+  0.1-10), `vr_gunfx_cool_time` 3 s (Cool-Down Time, 0.2-10, ext 0.1-20), `vr_gunfx_heat_glow` 1 (Heat Glow Strength,
+  0-3). Per weapon (Weapon Offsets > Effects; weapons.txt defaults 1): `fx_gfx_heat` (Barrel Heat; 0 never heats),
+  `fx_gfx_cool` (Barrel Cool-Down). New cvars: no migration.
+- **Debug**: vr_debug_gunfx 1 prints `gunfx heat hand H wid W heat X glow Y` each shot and `gunfx heat cold hand H wid W
+  after S s peak P` when a barrel has cooled.
+- **Test**: `python Misc/quakevr/barrelheat_test.py <agent>` 10/10: the nailgun at Barrel Heat 0 never heats (6 shots);
+  the shotgun 0.35 / 0.70 / 1.00 with the glow rising; the nailgun +0.1 a shot to 0.8, the glow exactly following;
+  cold 2.556 s after its last shot (expected 0.15 + 0.8 x 3 = 2.55). Ends on the "cold" line.
+- **Not checked**: how it looks (no screenshot with the gun in view: the mock hand pose missed the view); in VR: is
+  1 s / 3 s / glow 1 right, the glow's size and colour on each gun, the super shotgun's bores.

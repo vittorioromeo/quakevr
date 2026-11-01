@@ -68,21 +68,21 @@ struct Look
     int arcs;           // ElectricSparks
     bool port;          // a shotgun's port's puff
     bool backblast;
-    float heat;         // the barrel's heat a shot adds (it smokes over 0.35, cools 0.35 a second)
+    float interval;     // seconds between its shots in sustained fire (its barrel's heat: a shot is that much fire)
     int barrels;
 };
 
 constexpr Look looks[] = {
-    // sparks: n speed spread size colour; smoke: n size speed life alpha; arcs port back heat barrels
+    // sparks: n speed spread size colour; smoke: n size speed life alpha; arcs port back interval barrels
     {0, 0.f, 0.f, 0.f, {0.f, 0.f, 0.f}, 0, 0.f, 0.f, 0.f, 0.f, 0, false, false, 0.f, 1},                       // None
-    {10, 380.f, 0.2f, 1.9f, {1.f, 0.74f, 0.38f}, 14, 1.3f, 260.f, 0.55f, 0.55f, 0, true, false, 0.12f, 1},     // Shotgun
-    {8, 380.f, 0.2f, 1.9f, {1.f, 0.74f, 0.38f}, 16, 1.5f, 280.f, 0.6f, 0.6f, 0, true, false, 0.15f, 2},       // SuperShotgun
-    {8, 400.f, 0.17f, 1.8f, {1.f, 0.8f, 0.45f}, 10, 1.1f, 240.f, 0.5f, 0.5f, 0, false, false, 0.1f, 1},       // Revolver
-    {4, 300.f, 0.18f, 1.5f, {1.f, 0.8f, 0.5f}, 5, 0.75f, 160.f, 0.35f, 0.4f, 0, false, false, 0.07f, 1},      // Nail
-    {6, 220.f, 0.28f, 1.6f, {1.f, 0.65f, 0.3f}, 14, 2.1f, 220.f, 0.8f, 0.5f, 0, false, false, 0.2f, 1},       // Launcher
-    {7, 260.f, 0.26f, 1.6f, {1.f, 0.65f, 0.3f}, 14, 2.2f, 250.f, 0.8f, 0.5f, 0, false, true, 0.2f, 1},        // Rocket
-    {10, 320.f, 0.2f, 1.8f, {1.f, 0.45f, 0.25f}, 10, 1.2f, 210.f, 0.55f, 0.5f, 0, false, false, 0.1f, 1},     // Flare
-    {0, 0.f, 0.f, 0.f, {0.f, 0.f, 0.f}, 0, 0.f, 0.f, 0.f, 0.f, 5, false, false, 0.f, 1},                        // Energy
+    {10, 380.f, 0.2f, 1.9f, {1.f, 0.74f, 0.38f}, 14, 1.3f, 260.f, 0.55f, 0.55f, 0, true, false, 0.5f, 1},      // Shotgun
+    {8, 380.f, 0.2f, 1.9f, {1.f, 0.74f, 0.38f}, 16, 1.5f, 280.f, 0.6f, 0.6f, 0, true, false, 0.7f, 2},        // SuperShotgun
+    {8, 400.f, 0.17f, 1.8f, {1.f, 0.8f, 0.45f}, 10, 1.1f, 240.f, 0.5f, 0.5f, 0, false, false, 0.5f, 1},       // Revolver
+    {4, 300.f, 0.18f, 1.5f, {1.f, 0.8f, 0.5f}, 5, 0.75f, 160.f, 0.35f, 0.4f, 0, false, false, 0.1f, 1},       // Nail
+    {6, 220.f, 0.28f, 1.6f, {1.f, 0.65f, 0.3f}, 14, 2.1f, 220.f, 0.8f, 0.5f, 0, false, false, 0.6f, 1},       // Launcher
+    {7, 260.f, 0.26f, 1.6f, {1.f, 0.65f, 0.3f}, 14, 2.2f, 250.f, 0.8f, 0.5f, 0, false, true, 0.8f, 1},        // Rocket
+    {10, 320.f, 0.2f, 1.8f, {1.f, 0.45f, 0.25f}, 10, 1.2f, 210.f, 0.55f, 0.5f, 0, false, false, 0.5f, 1},     // Flare
+    {0, 0.f, 0.f, 0.f, {0.f, 0.f, 0.f}, 0, 0.f, 0.f, 0.f, 0.f, 5, false, false, 0.1f, 1},                       // Energy
 };
 static_assert(za::getArraySize(looks) == za::getArraySize(kindNames));
 
@@ -157,7 +157,9 @@ struct HandState
 {
     bool due{false};
     int slot{-1};
-    float heat{0.f};
+    float heat{0.f};        // the barrel's heat, 0 cold .. 1 full (heatShot, heatCool)
+    float peak{0.f};        // (its heat at its last shot: vr_debug_gunfx's "cold" line)
+    double lastShot{-1.0};  // cl.time of its last shot (cooling waits a shot's interval after it)
     float wisps{0.f}; // the wisps owed (fractions carried)
     float vent{0.f};     // the nail pistol's vents still smoking, seconds (each shot adds)
     float exhaust{0.f};  // a rocket launcher's exhaust still smoking, seconds
@@ -763,30 +765,80 @@ Counts emit(int wid, const Muzzle& m, int shooter, bool adBurst, bool ports, int
     return c;
 }
 
-// The barrel's heat: wisps of smoke off a hot muzzle (`dt` seconds since the last frame).
-void heatWisps(HandState& h, const Muzzle& m, float dt)
+// Barrel heat (ROUND23.md, "Barrel heat settings"): 0 cold .. 1 full. A shot adds its share of Heat-Up Time's
+// sustained fire (the gun's interval over it, at most kHeatShotMax: a slow gun takes a few shots), times the weapon's
+// Barrel Heat (0: never); after a shot's interval and a half without one it cools linearly, full to cold over Cool-Down
+// Time times the weapon's Barrel Cool-Down. Over kHeatGlowFrom it glows, over kHeatWispsFrom it smokes.
+constexpr float kHeatShotMax = 0.35f;
+constexpr float kHeatGlowFrom = 0.15f;
+constexpr float kHeatWispsFrom = 0.3f;
+
+[[nodiscard]] float heatShot(Kind kind, int slot)
 {
-    h.heat = za::max(0.f, h.heat - 0.35f * dt);
-    const float over = h.heat - 0.35f;
-    if(over <= 0.f || !on(vr_gunfx_heat))
+    const float interval = looks[static_cast<int>(kind)].interval;
+    return za::min(interval / za::clamp(vr_gunfx_heat_time.value, 0.1f, 10.f), kHeatShotMax) * slotValue(slot, Key::GunfxHeat);
+}
+
+// `heat` after a frame of `dt` seconds ending `sinceShot` seconds after the gun's last shot.
+[[nodiscard]] float heatCool(float heat, Kind kind, int slot, float sinceShot, float dt)
+{
+    const float cooling = za::clamp(sinceShot - 1.5f * looks[static_cast<int>(kind)].interval, 0.f, dt);
+    if(heat <= 0.f || cooling <= 0.f)
+    {
+        return heat;
+    }
+    const float time = za::clamp(vr_gunfx_cool_time.value, 0.1f, 20.f) * slotValue(slot, Key::GunfxCool);
+    return time > 0.f ? za::max(0.f, heat - cooling / time) : 0.f;
+}
+
+// The glow's strength at `heat` (0 none; Glow Strength at full heat).
+[[nodiscard]] float heatGlow(float heat)
+{
+    return za::clamp(vr_gunfx_heat_glow.value, 0.f, 3.f) * za::clamp((heat - kHeatGlowFrom) / (1.f - kHeatGlowFrom), 0.f, 1.f);
+}
+
+// The barrel's heat (`dt` seconds since the last frame): it cools; a hot barrel glows at each muzzle of `gun` (a dull
+// red deepening to orange, a little way down the barrel) and smokes in thin wisps (not an energy gun: no smoke).
+void heatEffects(HandState& h, const Muzzle& m, const muzzlewisps::Gun& gun, Kind kind, int slot, int hand, int wid, float dt)
+{
+    const bool wasHot = h.heat > 0.f;
+    h.heat = heatCool(h.heat, kind, slot, static_cast<float>(cl.time - h.lastShot), dt);
+    if(wasHot && h.heat <= 0.f && vr_debug_gunfx.value)
+    {
+        Con_Printf("gunfx heat cold hand %d wid %d after %.3f s peak %.3f\n", hand, wid, cl.time - h.lastShot, h.peak);
+    }
+    if(h.heat <= 0.f || !on(vr_gunfx_heat))
     {
         h.wisps = 0.f;
         return;
     }
-    // A faint glow at the muzzle once the barrel is hot (past 0.5: about 3 s of a nailgun's fire), a dull red brighter
-    // as it heats; made again each frame (it lives 2 or 3), so it follows the gun.
-    if(const float hot = h.heat - 0.5f; hot > 0.f)
+    // The glow: made again each frame (it lives 2 or 3), so it follows the gun.
+    if(const float glow = heatGlow(h.heat); glow > 0.f)
     {
-        particles::GunParticle g;
-        g.kind = particles::GunParticle::Glow;
-        g.org = m.at - m.fwd * 1.f;
-        g.vel = m.drift;
-        g.color = glm::vec4{1.f, 0.3f, 0.07f, 0.3f * za::min(hot, 1.f)};
-        g.scale = 1.6f;
-        g.life = 0.03f;
-        (void)particles::gunParticle(g);
+        const float t = za::clamp((h.heat - kHeatGlowFrom) / (1.f - kHeatGlowFrom), 0.f, 1.f);
+        const glm::vec3 colour = glm::mix(glm::vec3{0.8f, 0.12f, 0.03f}, glm::vec3{1.f, 0.42f, 0.1f}, t);
+        for(int b = 0; b < za::max(gun.barrels, 1); b++)
+        {
+            for(int i = 0; i < 3; i++)
+            {
+                particles::GunParticle g;
+                g.kind = particles::GunParticle::Glow;
+                g.org = gun.at[b] - m.fwd * (1.f + 2.5f * static_cast<float>(i));
+                g.vel = m.drift;
+                g.color = glm::vec4{colour, za::min(0.75f * glow * (1.f - 0.3f * static_cast<float>(i)), 1.f)};
+                g.scale = 2.2f - 0.4f * static_cast<float>(i);
+                g.life = 0.03f;
+                (void)particles::gunParticle(g);
+            }
+        }
     }
-    h.wisps += over * 24.f * dt * za::clamp(vr_gunfx_intensity.value, 0.f, 3.f);
+    const float over = h.heat - kHeatWispsFrom;
+    if(over <= 0.f || looks[static_cast<int>(kind)].smoke <= 0)
+    {
+        h.wisps = 0.f;
+        return;
+    }
+    h.wisps += over * 36.f * dt * za::clamp(vr_gunfx_intensity.value, 0.f, 3.f);
     for(; h.wisps >= 1.f; h.wisps -= 1.f)
     {
         particles::GunParticle g;
@@ -1208,7 +1260,13 @@ void handFrame(int hand, const view::ViewEntity& w, int slot)
         // The shotgun, the super shotgun and the Widowmaker throw their casings out of their ports (vr_shells.cpp).
         const bool ports = wid == WID_SHOTGUN || wid == WID_SUPER_SHOTGUN;
         shot(wid, m, hand, adBurst, ports, slot);
-        h.heat = za::min(h.heat + looks[static_cast<int>(kind)].heat, 1.5f);
+        h.heat = za::min(h.heat + heatShot(kind, slot), 1.f);
+        h.peak = h.heat;
+        h.lastShot = cl.time;
+        if(vr_debug_gunfx.value)
+        {
+            Con_Printf("gunfx heat hand %d wid %d heat %.3f glow %.3f\n", hand, wid, h.heat, heatGlow(h.heat));
+        }
         if(wid == WID_NAILPISTOL)
         {
             h.vent = za::min(h.vent + 0.45f, 1.5f); // (a string of shots: its vents smoke on longer)
@@ -1220,9 +1278,10 @@ void handFrame(int hand, const view::ViewEntity& w, int slot)
     }
     if(on(vr_gunfx))
     {
-        heatWisps(h, m, dt);
+        const muzzlewisps::Gun gun = wispGun(m, wid, slot);
+        heatEffects(h, m, gun, kind, slot, hand, wid, dt);
         afterSmoke(h, m, wid, dt);
-        muzzlewisps::handFrame(hand, wispGun(m, wid, slot), due);
+        muzzlewisps::handFrame(hand, gun, due);
     }
 }
 
