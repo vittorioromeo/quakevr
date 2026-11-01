@@ -166,9 +166,9 @@ void() VR_HotBlade_TestFrame =
             vector mid = (near.absmin + near.absmax) * 0.5;
             dprint(sprintf("hotblade: test: strike %s (health %g, corpse %g) for %g\n", near.classname, near.health,
                 near.vr_corpse, dmg));
-            VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, mid, normalize(mid - self.origin));
+            VR_Hit_Begin(QVR_HITKIND_MELEE, cVR_MainHand, mid, normalize(mid - self.origin));
             T_Damage_VRMelee(near, self, self, dmg);
-            VR_ClearHitKind();
+            VR_Hit_End();
         }
     }
     else if(ask == 7)

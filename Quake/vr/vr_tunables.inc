@@ -606,6 +606,9 @@ QVR_TUNABLE(vr_ad_widowmaker_spin, "1")
 QVR_TUNABLE(vr_ad_widowmaker_spinup, "0.75") // (also the wait before the first shot: the barrels must reach firing speed; QC AD_WidowmakerSpinFrame)
 QVR_TUNABLE(vr_ad_widowmaker_spindown, "0.9")
 
+// Weapons > Reloading - Plasma Gun
+QVR_TUNABLE(vr_ad_plasmagun_cell, "16") // the cells its cell holds (the thunderbolt's holds 36; his 16, 2026-10-31; QC VR_ClipSizeOf)
+
 // Weapons > Weapon Effects
 QVR_TUNABLE(vr_autopump_travel, "2.5") // how far back the fore-end goes, in the gun model's units (0-3.2; about 3.8 cm each, drawn)
 QVR_TUNABLE(vr_muzzle_flash_enemy_size, "1") // their flashes' size (times a third of their gun's length)
@@ -862,10 +865,6 @@ QVR_TUNABLE(vr_agrunt_blade_arm, "0.5") // the knock on its weapon arm: the hit 
 QVR_TUNABLE(vr_agrunt_blade_fx, "1") // the contact's sparks and sound times this (0: none)
 
 // Combat > Directional Parry (vr_dirparry, experimental: QC vr_dirparry.qc)
-QVR_TUNABLE(vr_dirparry_window, "0.1") // s: at its blow, its blade's way followed on this long (where it would meet your weapon in the rest of the swing)
-QVR_TUNABLE(vr_dirparry_contact, "6") // units: its blade's line and your weapon's within this meet
-QVR_TUNABLE(vr_dirparry_angle, "40") // degrees: your weapon this far off square to its blade and its way still counts fully (none at 90)
-QVR_TUNABLE(vr_dirparry_threshold, "0.75") // the score (angle x meeting, 0..1) that parries
 QVR_TUNABLE(vr_dirparry_partial, "0") // under the threshold, the blow cut by this x score / threshold (0: off, the full blow)
 QVR_TUNABLE(vr_dirparry_opening, "0.5") // s: its flinch when the parry balance gave no stagger (its swing stopped: the opening)
 
@@ -1301,7 +1300,7 @@ QVR_TUNABLE(vr_flare_light, "1") // their lights' size and brightness (0: none)
 QVR_TUNABLE(vr_flare_sparks, "1") // their sparks and smoke (0: none)
 QVR_TUNABLE(vr_nailpistol_mag, "12") // the rounds its magazine holds (a nail each)
 QVR_TUNABLE(vr_nailpistol_slide_cycle, "0.14") // s back and home after a shot (a third back, the rest home; a re-rack closes in the home part)
-QVR_TUNABLE(vr_nailpistol_slide_delay, "0.25") // s from a magazine seated to its slide racking closed (0: at once); it cannot fire before
+QVR_TUNABLE(vr_nailpistol_slide_delay, "0.175") // s from a magazine seated to its slide racking closed (0: at once); it cannot fire before
 QVR_TUNABLE(vr_dmg_revolver, "28") // the heavy revolver (QC vr_revolver.qc): a slug's (a grunt, 30: one in the head at x1.5, two in the body, or one when its roll reaches 30; vr_revolver_heavy_mult in a big body; his 28 of 2026-10-27, was 26)
 QVR_TUNABLE(vr_revolver_dmg_random, "0.15") // up to this share more damage at random, each slug (at damage 28 a grunt's body shot reaches its 30 about half the time)
 QVR_TUNABLE(vr_revolver_heavy_health, "150") // the full health from which a monster's body is big (vr_revolver_heavy_mult)

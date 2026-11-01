@@ -200,3 +200,6 @@ qc-busy-hand QC/vr_carry.qc 4  # the slot's writers (VR_Hand_Take/Busy/Check): a
 qc-busy-hand QC/vr_melee_params.qc 1  # VR_Melee_HoldsTorch: the flashlight hand's punch, not a grab's check
 qc-busy-hand QC/weapons.qc 2  # the trigger does not attack while the hand is locked on to a force grab: not a grab's check
 qc-busy-hand QC/vr_axestick_test.qc 5  # the hand slot's test (vr_pickup_test 7) reads the kinds it sets
+
+# --- cpp-qc-constant: a QC constant is a #define in a Quake/vr/*_shared.h both include, not a literal copy
+# (qcConstants[], vr_agpose.cpp: no values now, read from the progs by name, progs::globalVec; ROUND23, "One hit record, part 5")

@@ -90,6 +90,12 @@ bool surfacePoint(edict_s* ent, int tri, float u, float v, glm::vec3& point, glm
 // Where vertex `vert` (the .mdl's order) of `ent`'s model is as drawn now, in the world (the armed grunts' hands and
 // hidden gun: QC modelvertex). False: no such model or vertex.
 bool vertexPoint(edict_s* ent, int vert, glm::vec3& point);
+// ... vertices `verts` as shots meet the model (segment's pose: an armed humanoid's on its authored rig, a ragdoll's as
+// its parts carry it), not its animation frame's: the armour's plates (vr_agarmor.cpp). False: no such model or vertex.
+bool drawnVertexPoints(edict_s* ent, const int* verts, int n, glm::vec3* out);
+// Where the segment a..b first crosses `ent`'s model itself as drawn (no tolerance; not recorded as the last hit):
+// 0..1 along it, -1 none (the armour's "a plate before the skin", vr_agarmor.cpp shotPiece).
+[[nodiscard]] float skinCrossing(edict_s* ent, const glm::vec3& a, const glm::vec3& b);
 
 // nearest() for many points against one pose: pose() takes `ent`'s model as drawn now (its vertices posed once, each
 // triangle's bounds), then nearestPosed() finds a point's nearest on it, its result nearest()'s to the bit (the

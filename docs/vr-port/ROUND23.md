@@ -3933,6 +3933,33 @@ Checklist:
   sliders); let go: the next shots kick one-handed again, the change smooth.
 - [offhandrecoil] Off hand holding a shell or magazine against the gun while firing: full one-handed kick.
 
+## One settings schema (branch `agent/setschema`; design review 9)
+
+A setting's menu row is written once: `Quake/vr/vr_menu_rows.inc` holds its label, range, step, format, extent, help and
+choices (`QVR_TOGGLE` / `QVR_SLIDER` / `QVR_CYCLE`; `_BYNAME` for a row that finds its cvar by name, as Ironwail's), and
+a page lists `row(opt::<cvar>)` (`.advanced()` / `.developer()` stay on the page). `opt::Id` is an enum made from the
+table (a typo does not compile); `row()` (vr_menu.cpp) builds the same `Item` the old builder calls did. CODE_STYLE.md,
+"Settings and the config".
+
+- **Converter:** `Misc/quakevr/settings_schema.py convert` (run once; `stats` says what it would do): 2,533 rows of
+  2,513 settings, every `toggle`/`slider`/`cycle` with literal arguments and its `.extend`/`.help`. Left written on their
+  pages: a setting's second row with other texts (91; the player page's row is the schema's, Debug's stays), rows with
+  code in them (lambdas, computed ranges or choices, `unavailableBecause` keeps its tail), and the weapon/prop offset
+  and Tunables pages (design review 3's; the Tunables rows are already `vr_tunables_rows.inc`).
+- **Menu paths:** `vr_menu_dump_paths` prints Search's index (every page and row, its cvar, level, page, label and path)
+  as `MP|` lines; `Misc/quakevr/menu_paths.py <log>` keeps them in `Misc/quakevr/menu_paths.txt` (8,279). The
+  calibration board's `{menu:...}` come from it (`menu_paths.board(page, button | cvar=)`: the seated row by its cvar;
+  a page or button gone stops the script). `settings_schema.py strip-comments` took 49 "Page > Section > Row:" prefixes
+  out of vr_cvars.inc comments (20 kept: no row in the menus). `vr_menu_dump <level> full` prints every row's fields.
+- **The tools that read vr_cvars.inc** (gen_vr_cvars_qc.py, cvar_inventory.py, blade_defaults.py, the kit's run.ps1 and
+  runq2.ps1, its refactor scans) need no change: the `QVR_CVAR` lines keep their form, and the table's name matches
+  cvar_inventory's menu files (`vr_menu*.inc`). The kit's tiers_scan.py (done, one-off) read builder calls on pages.
+- **Lines:** the menu sources 6,091 removed, 2,648 added; vr_menu_rows.inc 6,755 (the help texts moved, not cut).
+- Checks: `vr_menu_dump 2 full` (46,781 lines: every page, row, label, range, step, format, extent, level, choice and
+  help) and `vr_menu_dump_paths` (8,279: Search's index) identical before/after but for the build line;
+  `vr_menu_path_check maps/vrcalibration.map` 6 found, 0 missing; the calibration .map regenerates identical; the
+  release code builds (`/p:QvrRelease=1`, separate output dir; no `tune_reset` in the exe); run_baseline.sh (below).
+
 ## Worn backpack: a hard pull lifts its wearer instead of ripping (branch `agent/packragdoll`)
 
 His words: "Add an option to disable ripping out worn backpacks by tugging ... and instead make it so that pulling an
@@ -3977,6 +4004,116 @@ Checklist:
 - [packragdoll] Same mode: knock a grunt down, grab its pack and drag it slowly (it slides along, pack on), then yank:
   it flails in your hand, pack still on.
 - [packragdoll] Same mode: shooting or hitting a grunt's pack still tears it off; force-grab a dead one's pack: it comes off.
+
+## Explicit climb phases (design review 8, stage 1 of 3; branch `agent/phases`)
+
+The climber (vr_climb.cpp) has one `Phase {Free, Hanging, Slipping, Mantling}` and one `transition(ent, c, to, why)`
+holding the entry/exit work that was spread over seven places: the regrab delay, the release's fling, the exhausted
+let-go's buzz, gasp and stop, the slip's start (timer, buzz, gasp), the mantle's start (grips off, owed pull cleared,
+grunt), the new hang's low-stamina breath state. `Why` (11 reasons) says which. The `mantling` and `slipping` bools are
+gone; which hands hold stays each grip's `active` (real data), and `anyHeld()` reads it where the grips change within a
+frame (the pre-think's settle, the out-of-reach check, a mover's carry). `VR_ClientClimb` and the pre-think's settle are
+`switch(phase)`; `hangFrame`, `takeHold` (out of `gripHand`, 158 -> 96 lines) and `startMantle` (out of `tryMantle`)
+are split out; no climb frame function is over 100 lines.
+
+Verified: stage A (the phase kept beside the old flags, a per-frame shadow check deriving it from them) over prop_climb
+and slopes: no mismatch, no impossible combination reached. Stage B (flags gone): prop_climb 12/0 (as baseline), slopes
+8/0, prop_grab 8 pass, prop_sides all ok, mantle_height PASS, ragdoll climb 20/4 (the 4 known "too weak to rise"); A and
+B verdicts identical. Full baseline and A/B bench skipped (velocity rule).
+
+One combination the old code could reach, by reading: `slipping` stayed set after both hands let go by the grip (no
+`letGoAll` on that path), so a later hang began slipping for its first frame (no mantle, a sink of 8 u/s for 1/72 s)
+until the stamina check cleared it. Free now means not slipping; a later hang starts clean.
+
+Next: stage 2 (foe grab's `Holder`: phases one hand, two hands, leg drag, neck, carried/lifted, with its `Why`), then
+stage 3 (ragactive `Mode` over its 10 sub-machines; about 150 `.on` reads across them to sort into own vs pairwise).
+
+Checklist:
+- [phases] Climbing: take a ledge with one hand, then both, shimmy, let go (you drop, flung by the release), take it
+  again after the short delay; pull up and over (mantle, the grunt), and on a ledge with no room (the soft buzz).
+- [phases] Stamina on, Slip on: hang until it runs out: the gasp and buzz, you sink and slip off; let go and grab again
+  once stamina is back: a normal hang (no instant slip). Slip 0: you drop at once with the gasp.
+- [phases] Hang from a moving platform or lift, and from a prop (crate): carried along; get knocked off by an explosion.
+
+## Explicit foe grab phases (design review 8, stage 2 of 3; branch `agent/phases2`)
+
+The foe grab's `Holder` runs two machines at once (a hand can carry a ragdoll while the other holds a standing enemy),
+so it has two enums, each with its `transition()` (vr_foegrab.cpp, vr_foegrab_internal.hpp):
+- `Phase {Free, OneHand, OneLeg, TwoHands, Neck, Legs}`: the hands on a standing enemy, set by `twoHandCheck` each
+  frame from what they do (Neck: neckCheck's head hold; Legs/OneLeg: legCheck's grip, both hands or one).
+  `transition(c, to)` holds the entry/exit work: both hands' hold begun (its peak turn and way from zero), ended (the
+  "both hands' hold ended" line, the head-zone log reset), neither on a leg (the stroke, its log, the held yaw over).
+  `twoHanded` is gone (`twoHands()`: TwoHands or later).
+- `Carry {None, Thrown, Lifted, Snapped, LegDrag}`: the ragdoll held on. `transition(c, to, why, m)` holds what nine
+  places did by hand (handOver, the ragdoll neck snap, manhandle, the lift, the leg lift, the leg pull, the pack lift,
+  the break free, the let-go): a new hold's entity, time and break time; the lift's flail and `breakAt`; the leg drag's
+  start; the flail ended when the carry ends or the neck snaps. The existing `Why` says which (Lost: lifted and killed
+  in the hands, now a body held as Thrown, keeping its time and its flail until let go). `lifted` and `snapped` are
+  gone; `carried > 0` and `legDragFrom >= 0` no longer act as modes. `carryStep` is a `switch(carry)`.
+- Split at real boundaries: serverFrame's per-foe body (`foeStep`), legCheck's hands' measure (`legHandsOf`), held yaw
+  (`legHoldYaw`) and stroke (`legStrokeDrawn`). No foe grab frame function is over 100 lines (preThink 99).
+
+Verified: stage A (the phases beside the old flags; a per-frame shadow check deriving the carry from carried/lifted/
+snapped/legDragFrom, and `twoHanded` against the phase) over the judo test (dir, hold, lift, neck), the leg grabs and
+ragdoll_grab: no mismatch. Stage B (flags gone), the same verdicts as A case by case: ragdoll_grab 19/0, judo dir 12/4
+(as next's baseline), judo hold/lift/neck 46/3, leggrab 15/2. The 5 failures are the same in A and B and in code this
+doesn't touch (pp_knocked_back/neck: "a hand never took its ragdoll"; ogre; leggrab thigh, thigh_half_slow: the thigh
+bones read as below the knee, legPartAt); not checked against next. No eval.sh (no melee code changed).
+
+The one combination the old code reached: `lifted` or `snapped` left set after the carry ended (the break free and the
+let-go never cleared them: 25 times in the judo cases, 3 in the leg grabs); harmless, every reader checked `carried`
+first. By reading only (not reached): a leg drag whose ragdoll then had its neck snapped kept its `legDragFrom` (snapped
+and still firming up); no effect, since the snapping hands' holds are new ones, never the drag's soft ones. Snapped now
+ends the drag. Debug log only: on the frame both hands become one, "both hands' hold ended" prints after the one-hand
+leg check's lines.
+
+Checklist:
+- [phases2] Judo: take a grunt with both hands, throw it (held on, dragged, let go); lift one (it flails, breaks free
+  and shoves you back after Lift Time); lift one and kill it in your hands (no break free; let go: limp).
+- [phases2] Neck snap standing and on a lifted ragdoll (it goes limp, still held); manhandle a staggered grunt with one
+  hand.
+- [phases2] Leg grabs: pull one down by the shins and drag it by the legs (the hold firms up once it lies); the
+  one-hand pull; lift one by the legs; tug and lift an enforcer by its worn backpack.
+
+## One mode for the active ragdoll (design review 8, stage 3 of 3; branch `agent/phases3`)
+
+The active ragdoll keeps its concurrent sub-machines (each its own `on`: a guard over a stagger, a fall or a get-up; a
+dismemberment and the env's hands in a death; a struggle in place of a lifted one's flail). Above them, `State::mode`
+(`Mode {Limp, Struggle, Stagger, Falling, Rising, Dying, Climbing, Swimming}`, vr_ragactive.hpp) says who leads, set
+where a machine begins or ends (`setMode`): beginDeath/Stagger/Fall/Rise, livingLedge (a climb), startSwim (every swim
+and the flail), beginStruggle (not over a swim: a lifted one's struggle stands in for the flail, the mode stays
+Swimming), and the ends (the fall's after landing, stopSwim back to the struggle or the death, endClimb, the struggle's
+stop, `struggleGivesWay` where another machine takes over, end()). `Falling` is added to the review's list (a fall
+leads its own limbs, as a stagger does); `Limp` is also "driven, nothing leading" (lying after its fall).
+
+The checks that asked other machines' flags now ask the mode: driveFrames (the dismemberment, the swim, the stagger, the
+ledge, the fall, the guard), driveReaches (who leads the env, the fall's grab, the stand-down's reason), the get-up's
+pose, the pin's offset (stumble, stagger, climb), keeping awake (`knockdown(mode)`: a stagger, fall, get-up or climb),
+the guard's end, beginLivingSwim/beginFlail's refusals, `swimming()`, `flailing()`, `climbing()`, `beginClimb`. Counted:
+22 pairwise gates before (one of them a six-flag list, another the four-way stand-down chain), none after; the flag reads
+in the ragactive files 88 -> 35 (what remains is each machine's own, or data: a death's crawl, the struggle's slack). The
+box3d side's ~30 reads are untouched (several run with the drive off, on flags left over from the last drive: the mode
+is Limp then, so they need their own look). No function was over 300 lines (the longest, climbFrame, 227); none split.
+
+Verified: stage A (the mode beside the flags; every gate computed both ways and a per-frame check of the mode against
+the one the flags imply, plus impossible combinations: two leaders, a cut without a death, a wet swim with a struggle,
+get-up or stagger) over ragdoll_stagger, _liquid_active, _climb, _ragtest, _grab, _guard and judo: every mode reached
+(falling 32 processes, limp 31, rising 27, stagger 17, dying 17, climbing 9, swimming 8, struggle 8), **no mismatch and
+no impossible combination**. Stage B (the gates switched, the shadow gone): the same verdicts as stage A (stagger 51/6
+and once 52/5 as in A's runs: its chance rates; ragtest 28/3 against A's 29/2 and 30/1: its known "NOT begun (its
+ragdoll not driven)" flake; climb 24/4, grab 19/0, guard 8/0, liquid 1/0, judo 12/4). No bench (no frame function got
+heavier: a byte compare replaces several flag reads).
+
+Not reached by the tests (by reading): the dismemberment's "killed in a stagger, then cut" cleanup (now: a cut while a
+knockdown's machine leads ends it, the mode Dying).
+
+Checklist:
+- [phases3] Shove a grunt: it staggers and recovers, or goes over (a fall: arms braced), lies a moment, gets up; punch at
+  its head mid-stagger (the guard: arms up). Kill one mid-stagger: limp.
+- [phases3] Knock one off a ledge: it grabs the lip, hangs, pulls itself up (or drops). Knock one into water: it swims
+  to where it can stand; kill one standing in water: it paddles weakly, then limp.
+- [phases3] Lift a living grunt: it struggles (in place of the flail); let go: it falls. Cut a limb off a dying one: the
+  hand to the stump, the writhe.
 
 ## Knight two-pistol hold: the knights' Main and Off grips (branch `agent/kngrip`)
 
@@ -4106,6 +4243,146 @@ Checklist:
   hang in a plain animation: a miss.
 - [stalepose] Show Disarm Volumes: the grip spheres sit on its hand as drawn while it swings; punching its drawn hand
   disarms it, punching where the old sphere was does not.
+
+## One hit record, part 2: kind and bleeding in the record; the chainsaw through T_Damage (branch `agent/hitrecord2`; design review 6 and 10)
+
+**What (one commit each):**
+1. **The hit's kind in the record.** `vr_hitkind`, `vr_hithand`, `vr_hitpos`, `vr_hitdir`, `vr_hitweapon`, `vr_hitproj`
+   and `vr_hit_nobleed` are the record's `hit_kind`, `hit_hand`, `hit_pos`, `hit_dir`, `hit_weapon`, `hit_proj`,
+   `hit_nobleed` (combat.qc), written by `VR_Hit_Begin(kind, hand, pos, dir)` and taken back by `VR_Hit_End()` (the
+   old VR_SetHitKind/VR_ClearHitKind, every site). Variants: `VR_Hit_BeginProjectile` (VR_Proj_Begin's),
+   `VR_Hit_BeginBloodless` (burning, AD fire, the sprayers' streams: was a Begin plus a nobleed set/reset),
+   `VR_Hit_BeginAs(kind, bloodless)` (the same hit as another kind or bloodless: radius and beam damage's splash, the
+   ragdoll's strike, the poison ticks; was T_RadiusDamage's and T_BeamDamage's and vr_ragimpact's hand save/restores of
+   the kind, and the nobleed set/resets), `VR_Hit_At(pos, dir)` (a swing's last trace). **Records nest:** a Begin inside
+   another one this frame saves the outer (a stack of 8) and its End puts it back; before, an inner Clear wiped the
+   outer hit's kind for the rest of its T_Damage. A record begun in an earlier frame and never ended is dropped by the
+   next Begin. AD's pyro flame: ad_import.py writes the new calls.
+2. **(Part)** One ragdoll-piece lookup, `VR_Limb_PieceAt(targ, at, head, limbs)` (vr_limbs.qc), for
+   VR_Limb_WearPiece, VR_Limb_RagdollPiece and VR_RagImpact_Piece; each keeps its own head and limb rules.
+4. **The chainsaw's tick through T_Damage:** `vr_dmg_dealonly` (combat.qc) makes the next T_Damage only deal
+   (T_DamageImpl as a blow); the chain did its own parry, beheading and push, so nothing else changes. The two tests
+   that copied the tick do the same. **The crates are no bypass:** VR_CratePiece_Damage runs inside T_DamageDeal (as
+   gibs' and corpses' own damage), so it stays.
+5. **The helmet's share** reads `VR_Hit_Zone(targ) == 1`. It already sat inside `VR_Hit_On(targ)` since part 1's
+   step 3, so part 1's disagreement 2 was already fixed there: no behaviour change.
+6. **(Design review 10, part)** check_canonical.py family `cpp-qc-constant`: a C++ table row pairing a QC constant's
+   name with a number literal (`"VR_X", {1.f, ...}` or `"VR_X", 0.5f`). Its 9 current sites, qcConstants[]
+   (vr_agpose.cpp), are allowlisted: moving them to `vr_agpose_shared.h` failed, FTEQCC's preprocessor mangles a
+   #define used inside a `[x, y, z]` vector initializer (some components report `"5" - not a name`, one #define a
+   component or a list alike). Other ways: the engine reading the QC globals by name at load (findGlobalDef), or QC
+   setting them in a function from per-component floats.
+
+**Debug check (step 1):** every plain Begin while another record was open this frame printed `hitcheck:`, the only
+case where the old Clear and the new End differ. Over agrunt 1 and 12, agarmor 1 and 5, arena 1, nail 1, decap_test.sh live/corpse/saw/thrown and
+limb_wear: **0 nested Begins** (the check removed in its own commit).
+
+**Disagreements (kept as they were; his call):**
+1. Ragdoll piece, a corpse: VR_RagImpact_Piece (a ragdoll's own strike) gives a corpse's limb only with Limb Gore and
+   Corpses on (else the torso); VR_Limb_RagdollPiece (a blade's or trap's hit) gives it whatever those are.
+2. Ragdoll piece, a living ragdoll: VR_RagImpact_Piece gives a limb only if the monster may lose limbs
+   (VR_Limb_Allowed); VR_Limb_RagdollPiece always.
+3. Ragdoll piece, the head: VR_Limb_WearPiece (a corpse) asks Decapitation and its Corpses option, not
+   VR_Decap_Allowed (a monster with no head model counts).
+
+**Left (next):** step 2's other deciders onto `hit_zone` + a bone (VR_Decap_OnHead, VR_SmallGib_Where, vr_wounds' and
+vr_carry's inline rebuilds, the engine's `regionOf`, one Region vocabulary in a shared .h); step 3, `VR_Hit_Class()`
+for the 9 kind classifiers and 4 bleed predicates and the impact table's VR_HIT_* from it (VR_GibKind alone needs a
+delivery as well as a class: a thrown axe is a blade but a light gib); design review 10's shared constants (see 6)
+and `QVR_FIELD(name, owner)` with its wrong-side write check.
+
+**Verified:** build 0 warnings. Step 1, the covering cases (`--only 'agrunt|agarmor|arena|decap|limb|ragdoll|wound|gore|nail|judo|melee'`): 9 of 128 changed vs baseline.tsv, all
+as next has them (tests grown or fixed since the baseline; agrunt_11's known timeout; ragdoll_stagger 51/6 as next). The final tree, the full
+run (183 cases, no bench: his game was running): 12 changed, the same plus np_1/recoil grown, secret_hits FAIL 3/0 -> FAIL 0/0
+(its save file not written in the lane: failing before too) and **agrunt_66 PASS -> FAIL (open, see below)**. eval.sh: canary 36/44,
+full 163/171 (as next). decap_test.sh: beheadings as before. **agrunt_66 (a lying grunt keeps its weapon when you reach for it) fails on this
+branch (2 of 2: "it holds nothing, 1 dropped") and passes on the base's QC (16ada0d63, 1 of 1): not found yet;** step 2's lookup, 4 and 5
+are equal by construction, so step 1's records (the nesting, VR_Hit_BeginAs around ragimpact's strike and radius
+damage) are the suspects. The A/B bench is still to run (his game was running).
+
+**Test in VR:** gore, decap, the armour helmet, the chainsaw (cuts, beheads, an armed grunt's chain parried), crates
+(struck, shot, burst): all as before; a grenade or barrel blast set off by a blow, then the next blow: as before.
+
+### Parts 3 and 4 (same branch)
+
+**What (one commit each):**
+- **Part 3, step 2 (part):** one head sphere (`VR_HeadCentre`/`VR_HeadHolds`/`VR_HeadOnRay`, weapons.qc) for positional
+  damage, VR_Decap_OnHead, the decap melee zone and the teeth; one Region vocabulary, `Quake/vr/vr_region_shared.h`
+  (VR_REGION_*), read by the QC and vr_hitreact.cpp. Its debug check (VR_Decap_OnHead vs the record's zone, `hitcheck:`):
+  **0 lines** over part 3's covering run and decap_test.sh live/axe/refuse/corpse/saw/thrown/monsters/pop; removed.
+- **Step 2 (rest):** `VR_Hit_Point(targ, inflictor, near, missile)` and `VR_Hit_Way(targ, inflictor, dir)` (combat.qc):
+  where the hit struck a target and which way it went, for the wounds, the gore and the flinch (each rebuilt both by
+  hand). Equal by construction.
+- **Step 3:** `VR_Hit_Class(inflictor, attacker)`: QVR_HITCLASS_NONE, BLUNT, BLADE, PIERCE, BLAST, BURN, SLAM (the
+  level's), SHOCK, read off the corpses' damage kind (the finest ladder, on the small gibs' kind); `VR_Hit_Bleeds` (not
+  the level's, not bloodless, not a burn). Switched: VR_GibKind (how it came, then the class), VR_KdTrig_Blunt (not a
+  blade), VR_Wound_Hit (its first bleeding on VR_Hit_Bleeds; its blunt dent and thrown blow on the class). Debug check
+  (each against its old copy, `hitclass:`): **0 lines** over the small gibs' tests, decap_test.sh and the covering sample;
+  removed. Not switched: VR_SmallGib_Kind and VR_Corpse_DamageKind (the ladder the class reads), VR_Decap_BluntClass and
+  VR_Limb_WearHow (already lookups: the hand's thing, the corpse kind), the gore kind and VR_Dummy_Kind (how it came,
+  not what it is).
+- Merge of next: vr_disarmhull_test.qc's blow through VR_Hit_Begin/End.
+
+**Part 3's covering run** (runs/20261031-192749, 129 cases, vs baseline.tsv): 41 TIMEOUT with empty logs (the game
+printed nothing in 420-720 s: starved lanes while his game ran, not the code; agrunt_1, 12, 70, arena_1 pass on this
+tree); agrunt_76, ragdoll_ragtest flaky; agrunt_65 and agarmor_5 FAIL -> PASS; counts grown as next (32, 70, nail_1);
+the new agrunt_78/90/92 fail as on next's runs; agrunt_79 (FAIL 21/1, "stalepose ... zone 0") passes here after the
+merge (22/0). No regression found.
+
+**Disagreements: unified (his call 2026-11-01; part 5, below), each through the shared helper:**
+1. Where: one radius, 96, for the wounds, the gore and the flinch (`VR_Hit_Where`).
+2. A missile's origin where it touched: the fallback for all three (the gore too).
+3. No way known: from the attacker's middle for all three (else the inflictor's; the wounds then point down, the gore
+   sends nothing, as before).
+4. A blast (a splash or IsExplosionDamage, `VR_Hit_Blast`; not the discharge): the point of the box nearest the blast,
+   away from it, for all three.
+5. The point is this target's: only this target's record (`VR_Hit_On`: its zone's point, else the record's) counts
+   (a bug fix: another target's point this frame no longer does).
+6. Gib speed: a knight's or a wizard's spike and Hipnotic's laser are pierce, light (the class's; the exception gone).
+7. The knockdown's blow: the class decides (a thrown blade is a blade; a flung thing blunt); a blow with no recorded
+   hand is judged by the hand whose blow was priced (vr_mdmg_hand) if known, else the main hand.
+8. Wounds: Rogue's buzzsaw a nail's wound, lava spikes, lavaballs, lasers a burn, a monster's own blow a melee wound:
+   **kept (intended)**.
+9. The discharge (`VR_Hit_Discharge`): a shock everywhere (the corpses lightning, the small gibs "other" = lightning,
+   the wounds a zap, the gore a plain hit, not an explosion's; gib speed heavy as before).
+10. A stuck axe's bleeding: a blade everywhere (the small gibs' blades kind; the wounds a blade's melee wound, before
+    none; the corpses blades, gib speed light as before).
+11. Whether the hit bleeds: `VR_Hit_Bleeds` for the gore, the small gibs and the wounds (the gore now stops on a burn
+    too; the small gibs on the level's damage and a burn too).
+12. Whether the target bleeds: one rule, `VR_Hit_TargetBleeds` (combat.qc), the union of the three old ones'
+    exclusions. VR_Gore_Bleeds excluded: not a monster or a player, the clean dummy. VR_SmallGib_Bleeds: a gib, no
+    model, a statue (statgib knights), the clean dummy, not a monster/corpse/player. VR_Wound_TakesHit: not a monster
+    or a player, the clean dummy (its dents and streams kept, not blood). Now all three exclude all of those (the
+    gore and the wounds stop on gibs, model-less things and statues; nothing new bleeds). Settings stay each one's
+    (vr_gore, vr_smallgibs_player).
+
+**Left (next):** the impact table's VR_HIT_* from the class; VR_SmallGib_Where; a bone in the record; design review 10's
+shared constants and `QVR_FIELD`.
+
+**Verified:** build 0 warnings. `--only 'decap|limb|wound|gore|nail_1|agarmor_1'` after each step: no change vs
+baseline.tsv but nail_1 grown (as next; limb_wear 9/3 and ragdoll_climb 24/4 as the baseline). Small gibs' wound and
+gore counts as before the step. eval.sh canary 36/44, full 163/171 (as before).
+
+**Test in VR:** wounds and blood on blades, punches, thrown things, shots and blasts; gibs' flight speed by weapon; a
+knockdown by a blade's and a blunt blow: all as before.
+
+### Part 5 (branch `agent/hitrecord5`; design review 6 and 10)
+
+**What (one commit each):**
+- **The impact table's kind from the class:** `VR_Hit_ShotKind(inflictor, attacker, else)` (a pierce: hitscan a
+  bullet, a projectile's a nail: VR_Hit_Hitscan / hit_proj) for TraceAttack and spawn_touchblood;
+  `VR_Hit_BlowKind` (blade: the clang, blunt: the bash) for a blow's metal sound (VR_Melee_HitSoundOn, a thrown box, a
+  slam, a thrown weapon). Elsewhere the kind is how it came (a blow's blood, a splash, a pellet on no flesh, the saw):
+  kept literal. Check (old vs new, `hitkind:`) over agarmor_1/5, nail_1, empty_melee, melee_phase, throw_spin: **0
+  mismatches**; removed. (Not covered there: a crowbar on an explosive box now knocks, the class calls it blunt.)
+- **Design review 10, the shared constants:** FTEQCC (with the build's flags) still fails on a global vector from
+  scalar #defines (`[X, Y, Z]`: some components `"5" - not a name`, reproduced in a two-line file), so qcConstants[]
+  (vr_agpose.cpp) keeps only the names and reads the QC's VR_AGP_* values from the loaded progs by name
+  (`progs::globalVec`); its allowlist entry is gone. `QVR_FIELD(name, owner)`: not done (left).
+- **Unification (his call 2026-11-01, "apply all your suggestions"):** the disagreement list above, all but 8, through
+  `VR_Hit_Where`, `VR_Hit_Blast`, `VR_Hit_Discharge`, `VR_Hit_Bleeds` and `VR_Hit_TargetBleeds` (combat.qc);
+  VR_Hit_Point and VR_Hit_Way are gone. Damage is untouched (effects only).
+
 ## Faster map loads, round 6: the smooth rigs at once (branch `agent/loadtime2`)
 
 The leftovers of round 5 ("Not done": the smooth rigs one model after another, 42 ms of vrtesthall's load).
@@ -4130,3 +4407,466 @@ The leftovers of round 5 ("Not done": the smooth rigs one model after another, 4
   could save at most the fits and rest rows, ~20 ms of vrtesthall/vrstart and ~10 of hip2m5/e1m1 less its own reading
   and keying (the rigs must still be found: the key holds the derived rig), and the limbs' builds already run on the pool
   beside the load (round 5: 22 ms there, not on the main thread). Under the brief's ~20 ms bar: skipped.
+
+## Armour: the plate a shot meets, the debug view, the break sound, thrown plates (branch `agent/armorfix`, IN PROGRESS)
+
+His voice notes of 2026-10-31 ~19:55 (five items). Stopped at the tool budget; what is in and what is open:
+- **One query for every shot** (`agarmor::shotPiece`, QC `VR_AgArmor_Shot` from `PositionalDamage`, builtin
+  `ragdollbone(e, at, QVR_ARMOR_SHOT (-1005), dir)`): the first unbroken plate's triangles (outer, inner, rim) crossed on
+  the shot's line from 64 units before its point to where it first crosses the skin itself (`hitmodel::skinCrossing`,
+  no tolerance; else 4 units past the guns' tolerance). Sparks, blood, pellets, damage and armed cuts read that answer
+  (`VR_AgArmor_PieceAt`, while it is the target's this frame and within 16 units); blows with no line keep `pieceAt`.
+  Plates are posed from the drawn pose (`hitmodel::drawnVertexPoints`: an armed humanoid's authored-rig pose, as shots
+  meet it and as the client draws its armour; before, `vertexPoint`'s animation frame put the arm plates where the arms
+  were not). Plate Blocks All now stops the whole part even as the plate breaks (before: the pool's overflow went
+  through). Pellets count their damage per piece (a head pellet's three times a body pellet's), not their number.
+- **Debug view** `vr_agarmor_debug` (Debug > Show Armour Plates): every armoured body's unbroken plates' triangles,
+  posed exactly as `shotPiece` poses them, a colour per piece.
+- **Break sound**: `vr/derived/armor_break.wav` rate 0.7 -> 1.05 (vr_sndlayer.cpp; pitch rises with it). Committed.
+- **Thrown plates**: the debris gets `forcegrabbable_touch`, `throwhit`, the thrown-weapon flags (as vr_debris.qc's rocks).
+  It moves when thrown and its touch fires (test 12: 2/0, "throw hit: vr_ar_debris into monster_army ... 3.7 damage").
+- **Absorbed shot's push** `vr_agarmor_impulse` 0.5 (Combat > Armed Grunts > Armour: "Push Through Plates", 0..1): a
+  living body's flinch (`T_DamageDeal`: `VR_HitReact_Hit` gets what got through plus the plates' share times it; before,
+  a plate that took it all left `take` 0: no flinch at all), a ragdoll's or a knocked-down body's shot push
+  (`VR_ShotPush`: times it when `VR_AgArmor_PushScale`, the same plate query, finds an unbroken plate first; before, the
+  full push).
+- **Part 2 (the shot query's leaks, the tests)**:
+  - Test 10's 185 failures were the test's: `VR_ARS_Still` stopped the monsters' start think, so they never became
+    shootable (`takedamage` 0: every pellet passed by, every projectile's damage refused). Fixed in the test.
+  - The query itself: a line through a plate's vertex or a shared edge met none of its triangles by rounding (the
+    cuirass's and the shins' face points). `plateOnSegment` now takes 1e-3 barycentric slack.
+  - Splash: a projectile a plate just took (plasma, rocket) no longer hurts the body with its own blast (the plate broke
+    on its hit, the splash came after: 50 through). `VR_AgArmor_Damage` remembers the inflictor (Plate Blocks All).
+  - Left (test 10, 9 of about 190 shots fail, every one a projectile): plasma bolts at kind 0's cuirass, helmet and
+    right shin never strike the body (took 0, no record: they fly past or hit something else); plasma, nails and two
+    rocket direct hits whose touch point (`VR_Proj_Begin`'s `vr_proj_at`, the projectile's origin when the touch trace
+    misses) lies off the line, so the query from it misses the plate. Next: the query from the projectile's own flight
+    line (its last origin and velocity) rather than the touch point. Test 10 is also slow on a loaded machine (1500 s
+    reached kind 1 only); it needs a lighter frame (fewer bodies at once) before it can go in the baseline.
+  - Test 1: "rule 1: 60 past a pool" now expects 0 through (Plate Blocks All stops the whole hit as the plate breaks);
+    its pauldron place check and hits use the plate's outer face middle (limbpiece 14), not its model's origin (off the
+    plate: with plates posed as drawn the bracer's plate was nearer there).
+- **Rig Studio armour** (his "an option to toggle armor pieces in the rig studio"): Subject > Armour: None / Green /
+  Yellow / Red, a toggle per piece (10), All / No Pieces; put on the subject live (`agarmor::give`, QC
+  `VR_AgArmor_SetCmd`) and kept for the next subjects; default None. A studio subject never takes the skill's roll any
+  more (the "random armor pieces" on changing subject: its spawn ran `VR_AgArmor_Spawn`). Console:
+  `vr_rigstudio_armour [type] [pieces] | piece <i>`. Check: `vr_rigstudio_test_armour` (studio open; the roll made
+  certain meanwhile; ends on "rigstudio armour: N passed"): 25/0. Scenario `spawnarmed` monsters are bare too (the same
+  scene every time). The toolgun already passed armour 0; ragtool spawns nothing; `vr_physics_spawn` still rolls (a map
+  spawn's behaviour, left).
+- **Debug view** fixed: `debugDraw` read edicts without the server's VM (a crash the first time it was on).
+- **Part 3** (merged `next`: the new rows are schema rows, `vr_agarmor_impulse` and `vr_agarmor_debug` in vr_menu_rows.inc):
+  - Projectiles: `VR_Proj_Begin` hands the armour its flight line (`VR_AgArmor_Flight`: from a frame's flight back);
+    `VR_AgArmor_Shot` queries from there (each ask this frame near that line), not from the touch point.
+  - `shotPiece`: a line through a seam of a plate's mesh (test 10: a plate's face middle, a vertex; 0.002 units off a
+    line that met it, none) is retried nudged 0.05 four ways, then the skin it reaches under a worn plate (within the
+    plate's gap and thickness) counts as that plate.
+  - Test 10: one body at a time (10-16 s; before, four at once ran past 1500 s), at rest each shot, debris cleared,
+    `vr_hit_react 0` meanwhile (a flinch moved the plate off the aimed line), projectiles from 44 units out, the plasma
+    bolt's 0.1 s rest skipped, projectiles that never meet the body counted apart (`missed`, at most 12). It also
+    judged the next kind's first pellet against the last body (a stale projectile): fixed. Now 157/15: 12 projectile
+    leaks left, all limb plates (bracers 4/5, thighs 7, shins 9) and mostly plasma and rockets, the projectile
+    meeting the body at the plate's face middle yet the query finding no plate there while the same query from a
+    point 0.5-4 units back along the line finds it. Suspect the limb plates' "face middle" (limbpiece 14) lies on or
+    inside a wrapped plate's mesh; next: check those plates' meshes at that point.
+  - Debug view: the plate lines are `lines::line` (drawn over everything, no depth test), so they cannot hide in the
+    plate; the flatscreen Rig Studio screenshot shows the red armour but the 0.06-unit lines are too thin to see there.
+  - Test 11 timed out twice (240-300 s, no output at all) after the merge: not looked into.
+## Directional parry 2: debug view, leniency settings, Enemy Melee Speed (branch `agent/dirparry2`)
+
+His words (10-31): a debug view for it, leniencies he can tweak, slowed enemy swings to practise with.
+
+- **Show Directional Parry** (`vr_dirparry_debug`, test knob; Combat > Parry and Bash > Directional Parry and the Debug
+  page): `Quake/vr/vr_dirparryviz.cpp`, fed by QC `VR_DRP_Debug` / `VR_DRP_DebugLine` (builtins `debugdirparry`,
+  `debugdirparrynote`, `debugdirparryline`). Every server frame each held melee weapon's line as the parry reads it
+  (VR_AG_WeaponLine, both ends: blue, the front end white) and last frame's (faint, joined: the sweep), with the drawn
+  weapon's own butt and tip as magenta dots. Each reading of a swing: its blade then (white), where its way's span
+  begins and ends (grey), its way (yellow arrow), your parry line and the meeting point (verdict colour: green parried,
+  orange partial, red miss; faint while live), the ideal through your line's nearest point (cyan), the gap (thin). The
+  last strike's verdict is held 3 s with a readout facing you: verdict, score vs threshold (bar with a threshold tick),
+  angle off the ideal with its limits and marks, contact distance with its limits and marks, hand, when, speed; and
+  printed (`dirparryviz: strike ...`). `vr_dirparry_linecheck [reset]` prints the worst line-end gaps measured.
+- **Leniencies as settings** (player options, CVAR_ARCHIVE, defaults unchanged: they were tuning constants, but he tunes
+  them from the menu while playing, a player-facing reason): `vr_dirparry_angle` 40 (Angle: Full Marks Within),
+  `vr_dirparry_angle_zero` 90 (Angle: No Marks At; new, was fixed), `vr_dirparry_contact` 6 (Contact Distance),
+  `vr_dirparry_falloff` 2 (Contact Falloff; new, was fixed at 2x), `vr_dirparry_threshold` 0.75 (Score to Parry),
+  `vr_dirparry_window` 0.1 (Parry Window). `_partial` and `_opening` stay tuning constants (Debug > Tunables).
+- **Enemy Melee Speed** (`vr_agrunt_melee_speed`, test knob, 0.1..1, default 1; Parry page and Debug page): an armed
+  humanoid's swing or punch takes the speed as it begins (`.vr_ag_act_speed`, QC `VR_AGP_Speed`); `VR_AGP_Times`
+  divides every phase by it (keys, blow, hit, recovery together), its step-in distance and legs' frames are kept, and
+  the directional parry's window is divided by it. 1: the same code path as before (guarded).
+- **Rig Studio:** the Pose Studio Data window's Swing button (a strike pose: the subject plays it once from its start,
+  then holds at the phase picked), Swing Speed 0.1..1 (default 0.25), Stop Swing; `vr_rigstudio_posekey swing 1
+  swingspeed 0.5`. Through the hold query's count (QC VR_AGK_Hold), the speed by `weapondrawnpose(e, -1, 19)`.
+- **Test 78** grows to 16 cases (its swing's variation now fixed at 0.5: a random one moved case 5's blade from run to
+  run, so case 5 parried in some runs): 9 the view takes the readings and the verdict (eye image), 10 case 5 with the
+  contact distance just past its gap (15.4 units) flips to parried, 11 speed 0.5 vs fists: the blow lands as hard at
+  x1.963 the time, length x2.000, end x1.91 (its 0.1 s think), 12 speed 0.5 parried. 13-15 the line check (sword, axe,
+  knight's sword, side swing): **FAIL**, worst 18.0 / 7.5 / 18.0 units. The line's middle matches the drawn weapon's,
+  but it is far shorter (14 units for a ~38-unit sword) and along another axis than the drawn butt-to-tip
+  (view::weaponLocalGeometry by the renderer's matrix, as the Rig Studio's aim lines read it). Open: whether
+  held::drawnExtent's forward axis or the measurement is wrong; the view shows both for him to judge.
+
+### Part 3 (branch `agent/dirparry2`, brief dirparry3)
+
+- **The truth: held::drawnExtent was wrong, the measurement right.** `vr_dirparry_linecheck dump` (new) prints the next
+  measured line, the drawn butt and muzzle and the model's triangles' box, all in the weapon's own frame (the renderer's
+  matrix taken off). The line's ends were exactly the box's x ends (frames agree: the drawn origin and turn are right),
+  but the models do not lie along x: v_ksword.mdl's box is x -5.5..8.6, z -9.2..26.8, its butt (-4.7, 0, -8.9) and
+  muzzle (8.1, 0, 26.8) (its tip, the box's top): the blade runs up z, tilted ~20 deg; the "line" was its guard, 14
+  units across. Likewise v_axe.mdl (box z -3.4..11.7), v_crowbar.mdl (z -7.5..10.8), mg3 v_hammer.mdl (z -8.1..9.4).
+  The fix is agent/disarmhull's (drawnExtent along the model's own longest axis / the hull's farthest corners: the
+  coordinator's call); this branch keeps a patch of its own butt-to-muzzle version aside (scratch, not committed).
+- `vr_dirparry_linecheck look [off]` (new): the headless mock's eyes put 30 / 40 units from the next measured weapon
+  (its flat side; above it) for an eye image (the drawn model, its line, the magenta drawn ends).
+- **Test 78** grows to 20 cases: the line cases now swing all four swing kinds each (0-3; the chainsaw also its
+  thrust): 13 sword, 14 axe, 15 knight's sword, 16 Mjolnir, 17 chainsaw, 18 AD crowbar, 19 AD super axe. `scratch1 N`
+  (13 on): only the line cases from N; `scratch2 1`: a close eye image of each (dump + look).
+- **Case 12's "500 damage" was a test artifact, not a bug.** No T_Damage reached you: the counter (your posed sword's
+  pommel strike, 45 to the grunt) earned melee bloodlust, T_Heal(attacker, ..., ignore) clamps health to the megahealth
+  cap (250), and the test's 1000 health became 250, then the agrunt tests' keep-alive floor 500: read as 500 damage (its
+  "by stl_noise" was a stale inflictor field). Test 78 now turns `vr_melee_bloodlust` off while it runs (1: off; 0 is
+  on) and puts it back at its end, and judges case 12 like the rest (its "not by its blow" excuse gone).
+- Checks: test 77 12/0; `vr_menu_path_check maps/vrcalibration.map` 6 found, 0 missing. The Rig Studio Swing in the
+  mock (`vr_rigstudio monster_vr_grunt 13; vr_rigstudio_posekey kind 0 class 2 pose 14 swingspeed 0.25 swing 1`):
+  not verified, the studio had no subject attached (`subject -1 -1`, no `agk:` play line) in that script.
+
+### Part 3: the line after the hull fix (merged next with agent/disarmhull)
+
+- Test 78 after the merge: sword and Knight's Sword 0.48, the rest 1.1-6.3 units off. Two causes, per weapon:
+  - The reference: an axe's or hammer's muzzle (weapons' Muzzle offset) is where it strikes (an axe's edge, Mjolnir's
+    face beside its head), not its far end. The check's tip is now the middle of the drawn model's points within a
+    unit of its frontmost along the line (as its butt already was of the rearmost), still from the client's drawn
+    triangles and the renderer's matrix (vr_dirparryviz.cpp).
+  - The line: on the farthest-corners way (melee weapons: blades, hafts with heads) held::drawnExtent's line ran through
+    its hull corners' middle, which a one-sided head pulls off the haft (the axe's 2 units beside it, the super axe's 5).
+    On that way only, its ends are now the middles of its triangles' points within a unit of its rearmost and frontmost
+    along the axis (vr_held.cpp); the model-axis way (guns' barrels) and the rule choosing between them are unchanged.
+- Now: sword, axe, Knight's Sword, Mjolnir 0.00; AD crowbar 0.03, AD super axe 0.09. Chainsaw 2.56: not fixed. Its
+  farthest-corners axis runs 5 degrees off its bar (the model's x was rejected: through its box's middle it leaves the
+  bar), so its rear end along it is the bottom of its rear handle, 2.5 below the butt; its front is the bar's tip. The
+  fix is in the rule (place the axis candidate through the rear end before judging it: that picks x for the chainsaw,
+  but also turns the shotgun to the corners' way, test 99 18 degrees off), left for a decision.
+- Also: test 77 12/0, test 16 (disarm hulls) 242/0, test 99 (drawn pose) 41/0.
+
+## Disarm volumes as hulls of the drawn triangles (branch `agent/disarmhull`)
+
+His notes (2026-10-31 19:36, 19:38; a grunt with an axe, one with a Knight's Sword held level): the cyan volume floats
+above the hand, the magenta one is twice the axe and a near-sphere round half the body for the sword, the orange one
+stands upright across the level blade. "Use the triangles of the weapon ... create a convex hull ... give me some sliders".
+- **Why they were wrong:** (1) `held::drawnExtent` took the weapon model's *box in its own axes*: the line along its local
+  x from the box's least to most x, the radius half the larger of its y/z sides. A blade not along its model's x (the
+  Knight's Sword) got a line across it (14.1 long against its 38.2) and a radius of half its length (18: the near-sphere);
+  an axe's head made the radius 7.5 round a 15-unit axe, its line 44+ degrees off. (2) The hand volume was a line from the
+  weapon's origin 11 units towards a shoulder guessed from the row (VR_AM_Anchor), 3.5 round: not the drawn hand. (3) The
+  body-blow volume was a 10-unit sphere round the grip (16 on a limb). No stale frame or double offset: the drawn weapon
+  frame (hitreact::drawnWeapon) was right; test 16's hull matches the renderer's vertices exactly (0.000 out, box 1.000).
+- **Now** (Quake/vr/vr_disarmhull.cpp): the weapon's volume is the convex hull of its drawn mesh's triangles (held's
+  drawn mesh: its pose, the networked scale and offset; `held::drawnHull`, made once per mesh with Box3D's quickhull,
+  its faces pushed out to hold every vertex: slack 0.00 on every weapon), placed where it is drawn (drawnWeapon; not drawn
+  lately: the server's place). The hand's is the hull of the drawn body's vertices on its hand bone and forearm
+  (drawnpose::armedMesh; a ragdoll's skinnedVertices; else the frame's), made once a frame per hand asked for. One query,
+  `disarmhull::gap` (QC `disarmhull(e, what, a, b, grow)`, `VR_AGS_HullGap`): a path's or point's gap to a hull grown by
+  signed units (Box3D GJK: grown is the hull rounded by that; shrunk: each face moved in, a clip), and where along the
+  path it is met. Users: shots and projectiles (VR_AGS_MeetOne, VR_AGS_ProjRoll), your strikes on its weapon or hand
+  (VR_AG_StrikeGap, your sweep's own VR_AG_STRIKE_R on top), body blows (VR_AG_Hit: VR_AG_BlowGap, the nearer of the two).
+  No hull (no rig): the old lines as before.
+- **The line** (VR_AG_WeaponLine, held::drawnExtent, weapondrawnpose 33-35; the parry's and the strike point's) keeps its
+  API, now off the hull: the model's own longest axis when that is 0.85 of the hull's longest span or more (a gun's
+  barrel, the sword's blade: 36.0 of 38.2), else the span's way (its two farthest corners: the axe's slanted haft);
+  the farthest corners alone put a nail pistol's line 28 degrees off its barrel (test 99). The directional parry keeps
+  using this line (his decision); the root cause of its being off (the model box's x) is fixed in held::drawnExtent.
+- **Sliders** (Weapons > Armed Enemies, the disarm rows; signed units, default 0 = the hull itself):
+  `vr_agrunt_vol_shot_weapon` "Volume: Its Weapon", `vr_agrunt_vol_shot_hand` "Volume: Its Hand", `vr_agrunt_vol_strike`
+  "Volume: Strikes", `vr_agrunt_vol_blow` "Volume: Body Blows". Retired: `vr_agrunt_shotdisarm_size` (a multiplier of the
+  old capsules; a saved value is dropped quietly) and VR_AG_DISARM_HAND. Note: at 0 a body blow must land on the drawn
+  hand, forearm or weapon (was anywhere within 10 units of the grip): Body Blows +4..8 for the old leniency.
+- **Show Disarm Volumes** draws the hulls' edges where drawn this frame, grown by their units: orange the strike volumes
+  (weapon and hand) and the line, magenta / cyan the shot volumes, red the body-blow ones.
+- **Test 16** (`vr_agrunt_test 16`, QC/vr_disarmhull_test.qc): 4 kinds x axe, sword, mjolnir, chainsaw, shotgun, rocket
+  launcher, nail pistol, frozen in Aim: hulls hold the rendered vertices, line on the long axis, a shot across the far half
+  counts and one 2.00 units off does not, a shot down the drawn forearm counts, a blow 3 units off keeps, one on the
+  forearm disarms. Before (the old volumes): 139 passed, 85 failed (every line off: axe 44, sword 54+ degrees (a sine);
+  22 of 28 shots 2 units off counted). After: **224 passed, 0 failed**.
+- **Regressions** (run_baseline `--only 'agrunt|disarm|ragdoll_grab|tug|wornpack'`, on the first commit): 99 failed 9
+  (its axis check against the drawn forward: the farthest-corners line on guns; fixed by the model-axis rule above, NOT
+  re-run), 94 1 ("a gun thrown at its gun hand, bounced off its body": relied on the 10-unit grip sphere; at Body Blows 0
+  a throw must land on the drawn hand or weapon), 95 1 (knight death: its sword's random fall, flaky before), 78 2
+  (dirparry2's test), 67 1 (grab table bullet time, flaky as listed), 71 (fails in the baseline), ragdoll_grab 1 ("grab
+  rag enforcer: no grab": the grab code is not touched; not re-run). The full run had not ended when I stopped.
+- Not done: eval.sh (melee code not touched), the before/after mock screenshots of his two views, the grab (fist on the
+  weapon: held::fistGap on its triangles at the server's place, not where drawn: the same stale-place family; a hull
+  query there is the next step), a dual-wield case in test 16.
+
+Checklist:
+- [disarmhull] Show Disarm Volumes on a grunt with an axe and one with a Knight's Sword held level: every volume is a
+  wireframe hull on the drawn weapon (magenta, orange, red on it) and on the drawn hand and forearm (cyan), none floating
+  or larger than the weapon; the sword's line runs along its blade.
+- [disarmhull] Weapons > Armed Enemies: Volume: Its Weapon +4: the magenta hull grows 4 units all round and a shot that
+  near counts; -1 shrinks it. Same for Its Hand (cyan), Strikes (orange), Body Blows (red).
+- [disarmhull] Body Blows 0: punching its drawn hand or forearm disarms, punching its chest 5 units off does not.
+
+Part 2 (verified, finished):
+- **The line's rule, fixed:** 47718273d's "model axis when 0.85 of the span" took the Knight's Sword's model x, 20 degrees
+  off its blade (its x extent 36.0 of 38.2: a cosine), so test 16 failed its 4 sword rows (line ends off the hull). Now
+  (held::drawnExtent) the model's own axis is kept only when its line stays in the weapon: its ends no more than a unit
+  further out of the hull (its face planes) than the farthest corners' line's; else the corners' way. Guns and the axe
+  keep their model axis (test 99's axis checks 41/0), the sword's line runs along its blade (test 16 rows pass).
+  VR_AG_WeaponLine's API unchanged.
+- **The grab on the hull:** the fist on an armed monster's weapon (vr_physics onArmedWeapon, armedGrabGap: one helper,
+  armedFistGap) now measures its spheres against the same hull a shot, strike and blow use, where the weapon is drawn
+  (`disarmhull::spheresGap`; inside the hull counts as on it); its sweep over the last two server frames carries the
+  drawn hull back by the server's own moves. No hull (nothing drawn): held::fistGap as before. vr_agrunt_grab_slack /
+  _leniency stay the grab's allowance (no new slider).
+- **A real bug found by test 94:** VR_AG_ThrowOnWeapon (a thrown weapon, prop or gib's way in) called VR_AG_StrikeGap
+  without setting its globals (vr_ag_strike_g / _p): it measured the *previous strike's* grunt's hulls, so a gun thrown
+  at a grunt's hand could miss it. Fixed; logs added (vr_agrunt_debug) for a too-slow throw and a missed way in. Test 94
+  case 11 now aims at the drawn hand's volume (disarmhull 21 / 22: a volume's middle) and prints both gaps; it was never
+  the 10-unit sphere: the damage path needs vr_agrunt_disarm_damage 10 (its 5 never could), the momentum rule (56 kg m/s)
+  disarms it. 94: 16/0.
+- **Test 16** adds a grunt dual wielding two nail pistols (the right one, then a fresh grunt's left one: its left
+  hand's hull and forearm); the death knight with the Knight's Sword is the sweep's "Death Knight sword" row.
+  **242 passed, 0 failed.** Test 17 (`vr_agrunt_test 17`): an eyeshot aid, his two views (axe, Knight's Sword held
+  level) with Show Disarm Volumes on.
+- **A crash fixed:** Show Disarm Volumes on with an armed grunt in view crashed (EDICT_NUM from the view setup: part 1's
+  hull drawing read the server's edicts with no VM current); the shapes are drawn under progs::ServerVm now.
+- Runs: 16 242/0, 99 41/0, 94 16/0, ragdoll_grab 19/0; 78 (dirparry2's) 7/2 both before and after this part (its two
+  horizontal-swing cases; unchanged by the line fix). Screenshots: not taken (the mock run's `screenshot` shows the
+  console, and no eyeshots were written); test 17 sets up both views for a look. Skipped by the coordinator's rule: the wide subset, eval.sh (no melee code), the
+  before screenshots.
+## One shared Pickup pose per kind, overrides per class (branch `agent/sharedpickup`)
+
+His ask (10-31): "one pickup pose shared across all weapons would simplify things a lot".
+
+- **Data** (`vr_agpose.hpp/.cpp`): each kind has a shared Pickup key, its code on class 7 (`VR_AGK_SHARED`, no
+  class's: `agpose::sharedPickupCode`, 7030 the grunt's). A class's own Pickup code (as before, e.g. 17030) is an
+  **override**, used only where set: archived, or shipped (own row, else the followed kind's, fitted: shippedOf's
+  rules; no gun category takes the rifle's Pickup row any more). `agpose::get`/`set`/`setPreview` of a class's Pickup
+  code with no override go to the shared key (`editTarget`), so QC (`VR_AGK_Keys`, unchanged), the Pose Studio, the
+  Rig Studio, the Pose Keys tool and the aim line all read and edit the right key with the codes they used. Old
+  archived per-class Pickup keys load as that class's override. "Remove Override" on a class that ships one archives a
+  "no override" mark (the class's Pickup phase 2, all zero); `pose_defaults.py` turns a mark into dropping the shipped
+  override row. `copyKind` copies the overrides as overrides; `dropShippedEqual` keeps an override that ships none.
+- **Shipped defaults:** the shared key per kind is the rifle's Pickup (his tuned rifle row: the grunt's 1030, the
+  enforcer's 101030; the class every gun used before the categories). Threshold 0.5 units / 1 degree / the off-hand
+  mode: every other grunt Pickup row differs by more, so all stay as overrides (max place / turn difference from the
+  rifle): pistol 9.55 / 36.6 and Free off hand, launcher 9.69 / 0, sprayer 3.25 / 0, laser cannon 4.39 / 0, Widowmaker
+  4.28 / 0 (the four only in the off hand's Left Place and its elbow pole: probably unused while the off hand is on
+  the gun; try Remove Override on them), two guns 25.3 / 39.8, one-handed melee 23.6 / 27.5, chainsaw 9.19 / 48.6, two
+  melee 20.7 / 29.6. Dropped: the rifle rows (now the shared ones). The knights follow the grunt's, fitted.
+- **Studios:** Pickup is listed for every class including the fists, named "Pickup (shared)" or "Pickup (override)".
+  Rig Studio Pose Keys: Make Override for this class / Remove Override (use shared) (undo: the keys' text), Reset This
+  Pose resets the key its edits keep, Chest Bend (standing, kneeling). VR Pose Studio: one more panel row, shown in
+  Pickup, Make Override / Remove Override (its undo as every edit). `vr_agrunt_pose_override <kind> <class> [1|0]`;
+  `vr_agrunt_pose_dump pickup` prints each class's Pickup in effect and whose; `dump` (Print) and `dump all` list the
+  shared key and the overrides.
+- **Bend tunables:** `vr_agrunt_take_bend` 28 and `vr_agrunt_take_bend_kneel` 45 (archived) replace QC's
+  `VR_AGP_TAKE_BEND` / `_KNEEL` constants.
+- A fists subject in the studio shows no take (no weapon to take up); its Pickup edits the shared key all the same.
+- **Verified:** the effective Pickup of every kind x class (`vr_agrunt_pose_dump pickup`, against the old shipped table
+  under the old rules): 36 of 48 identical, every override exactly as before; now on the shared key and different
+  (they had no Pickup row: QC's pose alone) only the two-handed melee class of every kind, the fists (never take), and
+  the enforcer's two guns, melee, two-handed melee, chainsaw and two melee classes (the enforcer's rifle key: the right
+  hand 16.46 up). Grunt 9 overrides, enforcer 0, knights 9 (the grunt's, fitted). Pose Keys test grunt 13/1, knight +
+  shotgun 14/0, death knight 13/1 (the elbow step: the known failure); test 41 0/0 (over, as the baseline). Mock
+  screenshot: test 34's grunt at the grab over its shotgun, kneeling, nothing through the floor.
+
+Checklist:
+- Rig Studio > Pose Studio Data > Pose Keys, a grunt with a shotgun, Pose Pickup: it says "Pickup (shared)"; drag the
+  weapon: every class without an override (switch Class to Two-Handed Melee) moves with it; Undo.
+- Same, Class Pistol: "Pickup (override)"; Remove Override (use shared): the pistol now takes the rifle's Pickup;
+  Undo puts the override back; Make Override on the rifle, drag: only the rifle moves.
+- VR Pose Studio in Pickup: the bottom row's Make Override / Remove Override toggles the same.
+- Chest Bend (standing, kneeling) in Pickup: a grunt taking up a weapon bends more or less.
+
+## One Pickup pose: the per-class Pickup overrides dropped (branch `agent/pickupone`)
+
+His ask of 2026-10-31: "remove all existing pickup pose overrides and only keep the single one".
+- **Shipped:** the grunt's 9 per-class Pickup rows (one-handed melee 2030, chainsaw 4030, two melee 5030, two guns
+  6030, pistol 17030, launcher 18030, sprayer 19030, laser cannon 20030, Widowmaker 21030) removed from
+  `vr_agpose.cpp` `shipped[]` (the knights followed them); every kind keeps its shared key (7030, 107030) and the
+  Pickup legs (31). The override mechanism (Make / Remove Override, `vr_agrunt_pose_override`) is unchanged.
+- **`pose_defaults.py`** now drops every class's own Pickup row and "no override" mark from its output;
+  `--keep-pickup-overrides` ships them as before.
+- **`Misc/quakevr/drop_pickup_overrides.py <cfg> [--dry-run]`:** removes per-class Pickup keys and marks (any kind,
+  old or new code format; not the shared class 7, not the legs) from a config's `vr_agrunt_poses`, the rest of the
+  file byte-identical; prints each dropped code. On his config of 10-31 (a copy): 0 to drop (his saved poses have no
+  Pickup keys). Synthetic check: 1030, 17030, 101030, old 11030 and the mark 1032 dropped; 7030, 107030, 31 kept.
+- **Verified:** `vr_agrunt_pose_dump pickup` (keys reset): 0 overrides of 12 classes for each of the four kinds.
+  Pose Keys studio test, grunt: 13/1 (the known elbow step, as before).
+
+Checklist:
+- Rig Studio > Pose Keys, a grunt, Pose Pickup, Class Pistol (or Two Guns, Chainsaw): it says "Pickup (shared)" and
+  every class takes up its weapon with the same pose.
+
+## The Plasma Gun's cell holds 16; his recoil values of 2026-10-31 shipped (branch `agent/recoilpromo`)
+
+His voice notes of 2026-10-31: the Plasma Gun's magazine 16 instead of 36; his recoil and two-handed recoil values
+feel fine: make them the defaults and take the recoil items off the checklist.
+
+- **The Plasma Gun's cell** (AD support: the thunderbolt with AD's upgrade, which used the thunderbolt's 36-cell): its own
+  size, the new tunable `vr_ad_plasmagun_cell` "16" (Debug > Tunables, "Weapons > Reloading - Plasma Gun"; the
+  thunderbolt keeps 36). QC `VR_ClipSizeOf` answers it (as the Widowmaker's tube), so the ammo screens, the pouch
+  touch-reload and the props' refills follow. A cell drawn from the pouch for the gun in the other hand holds the gun's
+  own size (`VR_Reload_Take`; the gun-at-the-pouch reload, `VR_Reload_PouchFrame`, too). A fuller cell (a thunderbolt's
+  36) seated in it gives it 16 and the rest back to the reserve (`VR_Reload_SeatMagInto`; a Plasma Gun lying about,
+  `VR_Reload_IntoProp`: back to the hand's player). The upgrade's pickup (`AD_UpgradeGiven`) gives back what the
+  pickup moved past 16. An armed grunt's Plasma Gun: `VR_AG_ClipOf` the same. Test 141 (adplasma) gains two checks: a
+  pouch cell holds the size; a thunderbolt's full cell seated gives the size and returns the rest.
+- **His recoil values shipped:** `vr_recoil_2h_kick` 0.6 -> 0.4, `vr_recoil_2h_rise` 0.6 -> 0.2, `vr_recoil_2h_time`
+  0.6 -> 0.725, `vr_recoil_2h_haptic` 0.6 -> 0.7; the shotgun's Recoil Muzzle Rise (slot 1, `vr_wofs_fx_rise_deg_02`) 12.08 -> 12;
+  the tunable `vr_nailpistol_slide_delay` 0.25 -> 0.175 (tune_promote). His config has no other recoil value off its
+  default (`v_gunkick` 2 is the shipped default; no `vr_recoil_*`, `*_kick*`, `*_rise*` or 2H multiplier beyond these).
+- **Checklist:** the 18 recoil items taken off (per-weapon recoil, recovery, haptic punch, the models' own kick, Recoil
+  Amount, Two-Handed Recoil and its four sliders, no ghost from recoil, the starter shotgun's auto pump, the recoil along
+  the gun's top, the off hand's grip anywhere, a shell against the gun, the unpromoted 4.5 / 7.5); the nail pistol's
+  Rack Delay line now says its new default, 0.175 s.
+## Checklist: cleanup pass and a Test button on most items (branch `agent/cltests`)
+
+His voice note 2026-10-31 20:01: most checklist items had no test button. Two commits: the cleanup, then the buttons.
+
+- **Cleanup** (335 items -> 272): 10 ticked items retired, 6 duplicates (the Worn Backpacks block and two hit/backpack
+  lines had been shipped twice), the Full Slide comparison (decided: Full Slide is the default); 49 items merged into
+  31 that are tested in one go (the four flashlight-hand lines, the three downed-grunt grab lines, the nail pistol's
+  empty/re-rack/rack-delay lines, the death knight Rig Studio lines, ...); "debris you can't grab" reworded (ticked:
+  debris can be picked up); one tag a line (the Pose Studio rows split in four). Recoil lines untouched
+  (agent/recoilpromo removes them); the two failed items kept.
+- **Buttons**: 212 of 272 items end in `{test:<id>}` (was 15). 34 new scenes in `quakevr/scenarios/` (shoves, dual
+  bolts, a gunfire range, enemy gunfire, a live armed squad, props, vrarena calm/run/armour, armour plates and helmets,
+  knights with guns, plain and armoured, e1m2's armed knights, death knights' swords, disarm volumes, knockouts,
+  grenades in flight, worn packs in both pull modes, directional parry, chainsaws, the laser cannon, AD's streams,
+  crawlers and rocket soldier, empty nail pistols); the rest reuse existing scenes. Untagged (60): the recoil lines,
+  the flat-screen Rig Studio lines, startup/config/menu/tunables checks, load times, late arena waves (no wave skip),
+  general "as before" play (climbing, body, obituaries) and spots no test map has (moving water, metal floors).
+- **Engine**: a scene's `cvar vr_toolgun_armed_armor <1-4>` (and `_pieces`) puts the toolgun's Armed Humanoid armour
+  on the armed humanoids it places (`toolgun::armArmedSpawn`, vr_scenario.cpp); unset, nothing changes.
+- **Line format** in TESTING.md ("Checklist scenarios") and the checklist's header: new lines get a test whenever a
+  scene fits; `vr_scenario validate` (`0 missing`) and `vr_scenario runall quit <id>` before shipping.
+- The AD-only scenes (ad_streams, ad_crawlers, ad_rocket_soldier, as ad_fog_flicker) need AD's data, absent from the
+  kit's mock base: validated only.
+## Armed humanoids' melee spacing (branch `agent/meleereach`)
+
+His voice note 2026-10-31 19:59: a long melee weapon's holder came as close as one with its fists; a sword's holder
+should stand where its swing still connects, not in your face. Before: every melee holder ran its path into you
+(movetogoal, its box against yours: 30-37 units between the middles), started its swing within 62 and stepped in
+further during it (ai_charge).
+
+- **Its standoff** (QC vr_armedgrunt.qc `VR_AG_MeleeStandoff`): `12 + vr_agrunt_mspace_reach * (arm + weapon)`, flat,
+  its middle to yours. `arm`: its kind's shoulder ahead of its middle plus shoulder to wrist (`vr_am_sh_r_x + vr_am_arm`,
+  at least 12: grunt 14.9, enforcer 12, knight 20.7, death knight 16.9). `weapon`: its length from its grip
+  (`VR_AG_MeleeLen`): the further of the weapon's own muzzle offset (a blade's tip) and its drawn model's front end
+  along its forward (held::drawnExtent). The muzzle decides for the blades: the knight's sword 28, the hell knight's
+  35.4, the axe 8.5, Mjolnir 8.8. `12`: your body's front (a torso, not your 16-unit box; a monster: 0.75 of its box).
+  Two blades: the shorter. Under `vr_agrunt_mspace_min` (40): no standoff, it closes in as before (fists, the axe,
+  the hammers; the chainsaw always as before); at most `vr_agrunt_mspace_max` (88).
+- **Moving** (`VR_AG_MeleeSpaceMove`, from ai_run where a gun's holder keeps its distance, after CheckAnyAttack): within
+  its standoff + 64 it faces you and walks straight back to its standoff at `vr_agrunt_mspace_speed` (1.25) times its
+  run's step; at it or nearer (you stepped in) it holds its ground (no backing off); blocked or further: its path as
+  before. Its swing starts within its standoff + 12 (`VR_AG_MeleeStart`, at least the old 62; the two-blade follow-up
+  too) and its step into the blow (VR_AGP_Frame's ai_charge) stops at its standoff.
+- **Its blow aimed at you from its standoff** (VR_AGP_Strike): the Pose Studio keys' turn of the blow's line (vr_agk_rr)
+  swung a knight's line past you from 51-57 units (1 attack in 5 hurt nothing: its grip 29 units to your side, its line
+  going along, not across); up close it starts inside you and lands anyway. With a standoff its line goes from its keyed
+  grip to your chest.
+- **The blade's line** (`VR_AG_WeaponLine`, the disarm volumes, the blade contact) still takes a sword's length along
+  its model's forward (`weapondrawnpose` 34/35: the knight's sword 14 long, the blade being along its up). Not changed
+  here; noted.
+- **Settings**: Combat > Armed Grunts > AI Behaviour > Melee Spacing: Long Blades Keep Their Reach (`vr_agrunt_mspace`
+  1), Reach Share (`_reach` 0.8: 1 its tip just meeting your body), Shortest Standoff (`_min` 40), Longest Standoff
+  (`_max` 88), Re-Close Speed (`_speed` 1.25).
+- **Test 18** (`vr_agrunt_test 18`, QC/vr_armedgrunt_reach_test.qc; Debug > Tests > Armed Grunts: Melee Spacing): each
+  kind 0-3 with fists, axe, sword, the hell knight's long sword, Mjolnir, chainsaw from 160 units, you still with empty
+  hands: three attacks as it comes, then you 80 units back (its next attack), then (a standoff) you stepped in to 24
+  inside it (its next attack). Per trial: its standoff, where it stood as its blows landed, the re-close time, every
+  attack hurting you; PASS when all hurt you, a standoff's holder stood within 8 of it (a short weapon within 62) and
+  struck from no further than where you stepped in. 24 passed, 0 failed: standoffs grunt sword 46 / long 52, enforcer
+  44 / 50, knight 51 / 57, death knight 48 / 54, each stood at it within 0.3 as its blows landed; fists 30-37, the
+  axe, Mjolnir and the chainsaw 30-34 (as before); after you backed off 80 it came back and struck again in 0.4-2.2 s;
+  stepped in to 36 it struck from 36 (no backing off); every attack hurt you. Before the aim fix: 22/24 (a knight's
+  long blade 1 attack in 5 hurting nothing).
+- Not run (the coordinator's call, velocity first): the agrunt|arena baseline subset and eval.sh (the player's melee
+  is untouched: no file of it changed).
+- **Checklist** (suggested): "A grunt or knight with a sword or long sword stops a little out (about 45-57 units),
+  swings from there and its blows land; with fists, an axe or a hammer it still comes right up; step in on a swordsman:
+  it holds its ground; back off: it follows {test:agrunt_melee_spacing} (Debug > Tests > Armed Grunts: Melee Spacing,
+  `vr_agrunt_test 18`)."
+
+## Weapons as data (branch `agent/datatables`; design review 3, step 1: weapons)
+
+The weapons' settings (Weapon Offsets, Weapon Weights: 51 slots x 306 keys) are data, not 15,606 cvars.
+- **`quakevr/data/weapons.txt`**: a `defaults { key "value" ... }` block (every slot's value of a key; what
+  registerCvars' loops gave), then `weapon <slot> { ... }` per slot (slots from 0, as `vr_wofs_dump`; the old
+  `QVR_WEAPON_DEFAULT` and `QVR_WEAPON_UNINHERITED` rows, their comments carried along). Read at start
+  (`weapons::registerCvars`, COM_Parse; an unknown key is reported and skipped). vr_weapons.inc keeps the keys only
+  (4,444 lines of rows gone); `Quake/vr/vr_weapons_before48.inc` keeps the 352 AD defaults of before vr_wofs_version 48
+  that its migration compares (frozen).
+- **Storage**: `DataTable` (vr_slottable.hpp): each value's text, number and default in an unregistered `cvar_t`, its
+  stand-in named `vr_wofs_<key>_NN` (as the tunables' stand-ins). The menus' rows, the ~200 `->string`/`->value` reads
+  and the migrations keep working on it unchanged. Not in the cvar list: no registration, completion or `cvarlist`.
+  (Decision: stand-ins rather than bare float arrays, so the menus bind as before; thinning them to floats + text is a
+  later step with getter/setter rows.)
+- **Names kept for one release**: `Cvar_FindVar` falls back to the stand-in (`VR_CvarStandIn`), and `Cvar_SetQuick` of
+  one sets the table (`VR_StandInSet`): the console (`vr_wofs_x_05 1.2`, print), old and new configs, motion takes'
+  headers, his scripts, the tests' `cvar()`/`cvar_set()` all reach it by the old name.
+- **The config**: the player's values are sparse overrides of weapons.txt, written after the cvars, sorted, as
+  `vr_wofs_<key>_NN "value"` lines (`VR_ConfigWriteTables`; the line form kept so builds read each other's configs and
+  the config tracking, merge and `vr_config_test` see them). `vr_config_defaults` puts them back to weapons.txt's.
+- **Promoting his values**: `python Misc/quakevr/weapons_data.py promote <his ironwail.cfg> [--dry]` writes each
+  `vr_wofs_<key>_NN` line into block NN - 1 (in place, or added in key order; float noise kept as the file has it).
+  `check` validates the file; `convert` was the one-off converter. The Weapon Offsets / Weapon Weights "Print Changes"
+  and `vr_blade_dump` print weapons.txt lines.
+- **QC**: the game's QC reads it through the existing builtin `weaponvalue(model, key)` (no new builtin, no generated
+  table): the flare gun's barrel gap (was `cvar("vr_wofs_scale_38")`) and its test. The ammo-colour and armed-grunt tests
+  still set and restore by the old names (they work through the stand-ins).
+- Also: Propose Defaults lists the changed weapon values; `vr_config_test`'s iteration includes them.
+- **Checks** (before = origin/next ab0a03c68, the same tree): `vr_wofs_dump 0 .. 50` and `vr_wofs_dump` (15,612 lines)
+  identical with an empty sparse config, with his config's 17 vr_wofs_ lines (ironwail_now.cfg of 10-31) exec'd after
+  `vr_config_defaults` (a stray value set before it put back), with the kit's old full config (v141: every migration
+  step run) and with his lines typed at the console; `writeconfig` writes the same vr_wofs_ lines (1 and 17);
+  `config_sparse_test.sh` 16 passed, 0 failed, its every-setting dump after the load identical (sorted, 23,311 lines);
+  a motion take with weapon settings in its header (hilt_pommel_2026-10-12_12-32-54, the axe) replays the same, also
+  with `vr_wofs_x_01 5` set first (the take sets it back by name: "11 settings as recorded"); the reload suite
+  (`run_test_suite.py --only "reload_|holster|twohand"`: the 7 reload_ tests; none is named holster or twohand): 7 passed after; before 6 (reload_gunshape's "lying shotgun dropped onto: the loose
+  round slides in (0 frames drawn going in)" failed there once, on the old build: flaky, nothing of this change).
+- **Next steps** (design review 3): the props (`props.txt`, the same DataTable), the monsters, the named per-weapon
+  families (`vr_reload_well_<gun>_*`, `vr_adgun_*`, ... as weapon keys); then the menus' rows on getter/setter bindings
+  (the stand-ins thinned to floats + text) and the vr_wofs_ names retired after a release (the config's lines then
+  `weapon`-keyed).
+
+## Props as data (branch `agent/datatables2`; design review 3, step 2: props)
+
+The held objects' settings (Held Object Offsets, Held Object Weights: 80 slots x 45 keys) are data, not 3,600 cvars,
+the same way as the weapons' (above).
+- **`quakevr/data/props.txt`**: a `defaults { key "value" ... }` block (each key's every-slot value: the third column
+  `QVR_PROP_KEY` had), then `prop <slot> { ... }` per slot (slots from 0; the old `QVR_PROP_DEFAULT` rows in their
+  order, their comments carried along). vr_props.inc keeps the keys only. Read at start (`props::registerCvars`).
+- **One loader for both tables**: `readDataFile` (vr_datafile.cpp) and `DataTable::load` (vr_slottable.hpp) read
+  either file (`DataFileSpec`: path, block word, keys); the weapons' reader moved there. `SlotTable` (the props' old
+  registered cvars) is gone.
+- **Names kept for one release**: `VR_CvarStandIn` / `VR_StandInSet` try the weapons' table, then the props'
+  (`vr_prop_<key>_NN`, any case: an upper-case name typed at the console now finds it, as the vr_wofs_ ones do). Every
+  place that walked the weapons' stand-ins walks both (`standInTables()`, vr_cvars.hpp): the config's writer
+  (`VR_ConfigWriteTables`), `vr_config_defaults`, the config tracking, `vr_config_test`, Propose Defaults. The
+  configVersion steps that name `vr_prop_*` (179, 202, 204, 209) reach them by name. Not in `cvarlist` or completion.
+- **`vr_prop_dump`** (Debug menu: Held Object Slots): the slots holding a model and how many values each has changed;
+  `vr_prop_dump <slot> ... | all` every value and its default. Print Changes prints props.txt lines.
+- **`Misc/quakevr/props_data.py convert | promote <config> [--dry] | check`**: weapons_data.py's parser and promote,
+  now per table (`Table`, `slot_values`, `key_names`). His config of 10-31 has only six `vr_prop_id_NN` lines (slots his
+  hands claimed for v_axe, w_blueflail#melee, vr_fueltank#7, v_revolver, v_nailpistol, v_shot), no tuned values: not
+  promoted (`props_data.py promote` would add six id-only blocks; round-tripped and put back).
+- **His weapon values**: `weapons_data.py promote` of his ironwail.cfg (2026-10-31): the toolgun's (slot 26, `_27`) 12
+  holster values (hip and upper back: x, y, z, pitch, yaw, roll) are now weapons.txt's (his other 5 vr_wofs_ lines
+  were equal already or float noise).
+- **Scripts**: `blade_defaults.py` reads weapons.txt (the keys, the `#melee` IDs) and prints weapons.txt lines (no
+  more OldValue rows: a changed default needs no step); `improve_weapons_alt.py` reads a slot's values from weapons.txt
+  and, with `improve_weapons2.py`, prints weapons.txt lines; `improve_weapons.py` / `improve_weapons3.py` (one-offs,
+  their values shipped and tuned since) say where their printed values go now.
+- **Checks** (before = this branch with only `vr_prop_dump` added, the props still cvars): `vr_prop_dump all` and
+  `vr_prop_dump` (10,945 lines: values and defaults) identical after `vr_config_defaults`, after his config's prop lines
+  exec'd, and after console sets (`vr_prop_mass_01 12`, `vr_prop_grip_x_04 3`, `vr_prop_id_75 progs/gib1.mdl`; the one
+  difference: `VR_PROP_SIZE_10 2` now sets it, see above); `writeconfig` writes the same vr_prop_ lines;
+  `config_sparse_test.sh` 16 passed, 0 failed, its every-setting dump identical (sorted, 23,317 lines); every value in
+  the game equals its data file's (15,606 weapon values via `vr_wofs_dump`, 3,600 prop values via `vr_prop_dump`, a
+  script reading the files); `held_over_props_test.sh` (a box of shells and the wall torch held over boxes) PASS.
+- **Next steps**: the monsters' tables, the named per-weapon families as weapon keys, then getter/setter rows and the
+  old names retired after a release.

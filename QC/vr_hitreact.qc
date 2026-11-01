@@ -83,7 +83,7 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_HitReact_Hit
         return;
     }
     // (no flinch for a slow bleed, a burn's ticks, a liquid's)
-    if(vr_hitkind == QVR_HITKIND_BLEED || inflictor.classname == "vr_burn" || inflictor == world)
+    if(hit_kind == QVR_HITKIND_BLEED || inflictor.classname == "vr_burn" || inflictor == world)
     {
         return;
     }
@@ -150,13 +150,13 @@ void(entity targ, vector at, vector dir, float part, float share) VR_HitReact_Sl
 void(entity targ, entity inflictor, entity attacker) VR_HitReact_Where =
 {
     vector mid = (targ.absmin + targ.absmax) * 0.5;
-    vector at = '0 0 0';
-    vector dir = vr_hitdir;
+    VR_Hit_Where(targ, inflictor, attacker, hit_dir); // (the one rule: the wounds' and the gore's too)
+    vector at = hit_where;
+    vector dir = hit_whereway;
     float part = -1;
     if(VR_Hit_On(targ))
     {
         part = hit_zone;
-        at = hit_at;
     }
     if(VR_Hit_Pellets() > 0)
     {
@@ -168,38 +168,9 @@ void(entity targ, entity inflictor, entity attacker) VR_HitReact_Where =
             dir = hit_peldir;
         }
     }
-    if(vr_hitkind == QVR_HITKIND_SPLASH)
+    if(VR_Hit_Blast(inflictor, attacker))
     {
-        // A blast: from the nearest point of its box to the blast, pushed away from it
-        at = inflictor.origin;
-        at_x = min(max(at_x, targ.absmin_x), targ.absmax_x);
-        at_y = min(max(at_y, targ.absmin_y), targ.absmax_y);
-        at_z = min(max(at_z, targ.absmin_z), targ.absmax_z);
-        dir = mid - inflictor.origin;
-        part = -1;
-    }
-    if(at == '0 0 0' && vr_hitpos != '0 0 0' && vlen(vr_hitpos - mid) < 96)
-    {
-        at = vr_hitpos;
-    }
-    if(at == '0 0 0' && inflictor != targ && !(inflictor.flags & (FL_MONSTER | FL_CLIENT)) && vlen(inflictor.origin - mid) < 96)
-    {
-        at = inflictor.origin; // a missile where it touched
-    }
-    if(at == '0 0 0')
-    {
-        at = mid;
-    }
-    if(dir == '0 0 0' && inflictor != targ)
-    {
-        if(inflictor.velocity != '0 0 0' && !(inflictor.flags & (FL_MONSTER | FL_CLIENT)))
-        {
-            dir = inflictor.velocity; // a missile's flight
-        }
-        else
-        {
-            dir = mid - (inflictor.absmin + inflictor.absmax) * 0.5;
-        }
+        part = -1; // (a blast: VR_Hit_Where's nearest point of its box, pushed away from it)
     }
     if(dir == '0 0 0')
     {

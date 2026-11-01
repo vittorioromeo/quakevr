@@ -106,11 +106,9 @@ float(entity xFire, entity xVictim) AD_BurnHurt =
         xFire.vr_ad_burnnext = time + 1;
         float type = xVictim.armortype;
         xVictim.armortype = 0;
-        VR_SetHitKind(QVR_HITKIND_NONE, -1, xFire.burn_flames.origin, '0 0 -1');
-        vr_hit_nobleed = TRUE; // (fire: no blood)
+        VR_Hit_BeginBloodless(xFire.burn_flames.origin, '0 0 -1'); // (fire: no blood)
         T_Damage(xVictim, xFire, xFire.owner, ad_DEBUFF_BURN_DMG);
-        vr_hit_nobleed = FALSE;
-        VR_ClearHitKind();
+        VR_Hit_End();
         if(xVictim.armortype == 0)
         {
             xVictim.armortype = type;
@@ -136,20 +134,20 @@ float(entity inflictor, entity attacker, float isVRMelee) AD_AmmoOf =
     {
         return vr_ad_ammo;
     }
-    if(isVRMelee || vr_hitkind == QVR_HITKIND_MELEE || vr_hitkind == QVR_HITKIND_HEADBUTT || vr_hitkind == QVR_HITKIND_BASH ||
-       vr_hitkind == QVR_HITKIND_SHOVE || vr_hitkind == QVR_HITKIND_BLEED)
+    if(isVRMelee || hit_kind == QVR_HITKIND_MELEE || hit_kind == QVR_HITKIND_HEADBUTT || hit_kind == QVR_HITKIND_BASH ||
+       hit_kind == QVR_HITKIND_SHOVE || hit_kind == QVR_HITKIND_BLEED)
     {
         return 0;
     }
-    if(discharged || vr_hitweapon == "Mjolnir's lightning")
+    if(discharged || hit_weapon == "Mjolnir's lightning")
     {
         return AD_AMMO_CELLS;
     }
-    if(vr_hitkind == QVR_HITKIND_SHOT)
+    if(hit_kind == QVR_HITKIND_SHOT)
     {
         return AD_AMMO_SHELLS; // (lightning tags itself: VR_LightningHit)
     }
-    if(vr_hitkind == QVR_HITKIND_SPLASH)
+    if(hit_kind == QVR_HITKIND_SPLASH)
     {
         return AD_AMMO_ROCKETS;
     }
@@ -216,10 +214,10 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
         {
             AD_ResistTellsPrecache();
         }
-        vector at = vr_hitpos != '0 0 0' ? vr_hitpos : inflictor != attacker ? inflictor.origin : (targ.absmin + targ.absmax) * 0.5;
+        vector at = hit_pos != '0 0 0' ? hit_pos : inflictor != attacker ? inflictor.origin : (targ.absmin + targ.absmax) * 0.5;
         entity oself = self;
         self = attacker;
-        if(ammo == AD_AMMO_SHELLS) ad_Resist_Shells(targ, at, vr_hitdir * 300, left);
+        if(ammo == AD_AMMO_SHELLS) ad_Resist_Shells(targ, at, hit_dir * 300, left);
         else if(ammo == AD_AMMO_NAILS) ad_Resist_Nails(targ, at);
         else if(ammo == AD_AMMO_ROCKETS) ad_Resist_Rockets(targ, at);
         else ad_Resist_Lightning(targ, at);

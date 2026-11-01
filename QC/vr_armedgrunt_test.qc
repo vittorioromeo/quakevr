@@ -238,9 +238,9 @@ void() VR_AGTest_Sequence =
             g.vr_ag_prop.weaponinst.wi_clip, g.vr_ag_reserve), g.vr_ag_reloads >= 1 && g.vr_ag_prop.weaponinst.wi_clip > 0);
         // Struck on its gun hand.
         vr_agt_clip = g.vr_ag_prop.weaponinst.wi_clip;
-        vr_hitpos = g.vr_ag_prop.origin;
+        hit_pos = g.vr_ag_prop.origin;
         T_Damage(g, p, p, 12);
-        vr_hitpos = '0 0 0';
+        hit_pos = '0 0 0';
         entity w = VR_AGT_LyingNear(g.origin);
         VR_AGT_Check(sprintf("disarm: held %s, lying %s with %g:", g.vr_ag_prop ? "something" : "nothing",
             w ? w.netname : "nothing", w.weaponinst.wi_clip), !g.vr_ag_prop && w && w.weaponinst.wi_clip == vr_agt_clip);
@@ -1372,6 +1372,7 @@ void(float t) VR_AGDT_Frame; // (vr_armedgrunt_downtug_test.qc)
 void() VR_AGRW_Frame; // (vr_armedgrunt_ragweapon_test.qc)
 void() VR_AKNT_Frame; // (vr_armedknight_test.qc)
 void() VR_DVT_Frame; // (vr_disarmviz_test.qc)
+void() VR_DHV_Frame; // (vr_disarmhull_view_test.qc)
 void() VR_DPT_Frame; // (vr_drawnpose_test.qc)
 void() VR_SPT_Frame; // (vr_stalepose_test.qc)
 void(float t) VR_AGRT_Frame; // (armed humanoid replacements: vr_armedrepl_test.qc)
@@ -1383,6 +1384,7 @@ void() VR_AGPC_Frame;
 void() VR_AGSH_Frame; // (vr_armedgrunt_shove_test.qc)
 void() VR_AGMZ_Frame; // (vr_armedgrunt_muzzle_test.qc)
 void() VR_AGSC_Frame; // (vr_armedgrunt_shoveclose_test.qc)
+void() VR_AGMR_Frame; // (vr_armedgrunt_reach_test.qc)
 void() VR_AGGD_Frame; // (vr_armedgrunt_guard_test.qc)
 void() VR_AG2_Frame; // (vr_armedgrunt_twohand_test.qc)
 void() VR_AGRB_Frame; // (vr_armedgrunt_raggrab_test.qc)
@@ -1471,7 +1473,9 @@ void() VR_AGTest_Frame =
     else if(t == 83) { VR_AGPC_Frame(); } // (the gun pose categories: vr_armedgrunt_posecat_test.qc)
     else if(t == 84) { VR_AGSH_Frame(); } // (their posed shove: vr_armedgrunt_shove_test.qc)
     else if(t == 85) { VR_AGMZ_Frame(); } // (dual guns: each shot from its own muzzle: vr_armedgrunt_muzzle_test.qc)
+    else if(t == 17) { VR_DHV_Frame(); } // (his two views of Show Disarm Volumes: vr_disarmhull_view_test.qc)
     else if(t == 89) { VR_AGSC_Frame(); } // (a gun's holder shoves up close: vr_armedgrunt_shoveclose_test.qc)
+    else if(t == 18) { VR_AGMR_Frame(); } // (a long blade's standoff, its blows landing: vr_armedgrunt_reach_test.qc)
     else if(t == 90) { VR_AGGD_Frame(); } // (the fists' guard in game as the studio shows it: vr_armedgrunt_guard_test.qc)
     else if(t == 93) { VR_AGS_ProjTestFrame(); } // (projectiles' own rolls: vr_armedgrunt_shot_test.qc)
     else if(t == 77) { VR_AGBL_Frame(); } // (your blow on its blade away from its hand: vr_armedgrunt_blade_test.qc)
@@ -1480,6 +1484,7 @@ void() VR_AGTest_Frame =
     else if(t == 96 || t == 98) { VR_AGPP_Frame(t); } // (its guard: the preventive and wind-up parries: vr_armedgrunt_preparry_test.qc)
     else if(t == 99) { VR_DPT_Frame(); } // (the drawn pose: worn packs and disarm volumes on the body as drawn: vr_drawnpose_test.qc)
     else if(t == 79) { VR_SPT_Frame(); } // (shots and grip spheres from the drawn pose: vr_stalepose_test.qc)
+    else if(t == 16) { VR_DHT_Frame(); } // (the disarm volumes as hulls of the drawn triangles: vr_disarmhull_test.qc)
     else if(t == 97) { VR_DVT_Frame(); } // (Show Disarm Volumes in each state, its eye images: vr_disarmviz_test.qc)
     else if(t == 91) { VR_AGRB_Frame(); } // (an active ragdoll's weapon grabbed at the gun or its hand: vr_armedgrunt_raggrab_test.qc)
     else if(t == 92) { VR_AG2_Frame(); } // (two hands in the tug, a staggering or downed one's eased tug: vr_armedgrunt_twohand_test.qc)

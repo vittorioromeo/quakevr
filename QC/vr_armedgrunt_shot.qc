@@ -8,10 +8,10 @@
 //
 // - What a shot hits: a player's pellet (its traced path up to where it stopped: FireBulletsImpl), lightning bolt
 //   (LightningDamage) or nail, rocket or grenade (its flight each frame, VR_AGS_Frame: a frame back and a frame ahead, the
-//   grunt's own model in the way first: not counted) meeting a held weapon (its line from 8 units behind the grip to the
-//   muzzle, VR_AG_WeaponLine, VR_AGS_W_RADIUS round) or the hand holding it (the grip, VR_AGS_H_RADIUS round, and the
-//   forearm: VR_AGS_FOREARM units on towards its shoulder). The first of them along the path counts; the volumes are
-//   times vr_agrunt_shotdisarm_size, and a path within vr_agrunt_shotdisarm_near units beyond them counts at half.
+//   grunt's own model in the way first: not counted) meeting a held weapon (the hull of its model's triangles where it is
+//   drawn, grown by vr_agrunt_vol_shot_weapon units: VR_AGS_HullGap) or the hand holding it (the hull of the drawn hand
+//   and forearm, grown by vr_agrunt_vol_shot_hand; ROUND23.md, "Disarm volumes as hulls of the drawn triangles"). The
+//   first of them along the path counts; a path within vr_agrunt_shotdisarm_near units beyond them counts at half.
 //   vr_agrunt_shotdisarm_parts: 0 the weapon only, 1 the hand only, 2 either. Each weapon (two held: each hand's) on its own.
 // - What it counts: its damage (a pellet's, a nail's, a bolt's, a rocket's direct hit; not its positional factor) times
 //   its kind's weight (_w_pellet, _w_nail, _w_lightning, _w_blast) and the part's (_weapon_w, _hand_w). An explosion
@@ -183,6 +183,35 @@ void(entity g, entity p) VR_AGS_HandLine =
     vr_ags_hb = vlen(d) > 1 ? vr_ag_df_o + normalize(d) * min(VR_AGS_FOREARM, vlen(d)) : vr_ag_df_o;
 };
 
+float vr_ags_hs; // VR_AGS_HullGap's: the path's share where it meets the volume (or comes nearest)
+
+// The disarm volumes (vr_disarmhull.cpp; one query for shots, strikes and blows): the gap between the path a..b (a point:
+// a == b) and `g`'s held weapon `p` as drawn (`part` 1: its model's triangles' hull, where drawn) or the hand holding it
+// (2: its drawn hand and forearm's hull), grown by `grow` units; 0 or less: met (vr_ags_hs where along). No hull (no rig,
+// nothing drawn): the old lines (VR_AG_WeaponLine, VR_AGS_HandLine) and their radii.
+float(entity g, entity p, float part, vector a, vector b, float grow) VR_AGS_HullGap =
+{
+    vector v = part == 1 ? disarmhull(p, 0, a, b, grow) : disarmhull(g, p.vr_ag_left ? 2 : 1, a, b, grow);
+    if(v_z)
+    {
+        vr_ags_hs = v_y;
+        return v_x;
+    }
+    float d;
+    if(part == 1)
+    {
+        VR_AG_WeaponLine(p);
+        d = VR_AGS_Closest(a, b, vr_ag_wa, vr_ag_wb) - vr_ag_wr;
+    }
+    else
+    {
+        VR_AGS_HandLine(g, p);
+        d = VR_AGS_Closest(a, b, vr_ags_ha, vr_ags_hb) - VR_AGS_H_RADIUS;
+    }
+    vr_ags_hs = vr_ags_s;
+    return d - grow;
+};
+
 // Whether the path a..b meets the held weapon `p` (of `g`) or its hand before vr_ags_ms: if so, it is the one met
 // (vr_ags_mp, vr_ags_mpart, vr_ags_mf, vr_ags_ms). The weapon first: a tie is the weapon's.
 void(entity g, entity p, vector a, vector b) VR_AGS_MeetOne =
@@ -192,34 +221,28 @@ void(entity g, entity p, vector a, vector b) VR_AGS_MeetOne =
         return;
     }
     float parts = vr_ags_exact ? 2 : cvar_hget(cvarh_vr_agrunt_shotdisarm_parts);
-    float size = vr_ags_exact ? 1 : max(0, cvar_hget(cvarh_vr_agrunt_shotdisarm_size));
     float near = vr_ags_exact ? 0 : max(0, cvar_hget(cvarh_vr_agrunt_shotdisarm_near));
     float d;
-    float r;
     if(parts != 1)
     {
-        VR_AG_WeaponLine(p);
-        d = VR_AGS_Closest(a, b, vr_ag_wa, vr_ag_wb);
-        r = vr_ag_wr * size; // (the weapon's own drawn thickness: VR_AG_WeaponLine)
-        if(d <= r + near && vr_ags_s < vr_ags_ms)
+        d = VR_AGS_HullGap(g, p, 1, a, b, vr_ags_exact ? 0 : cvar_hget(cvarh_vr_agrunt_vol_shot_weapon));
+        if(d <= near && vr_ags_hs < vr_ags_ms)
         {
             vr_ags_mp = p;
             vr_ags_mpart = 1;
-            vr_ags_mf = d <= r ? 1 : 0.5;
-            vr_ags_ms = vr_ags_s;
+            vr_ags_mf = d <= 0 ? 1 : 0.5;
+            vr_ags_ms = vr_ags_hs;
         }
     }
     if(parts != 0)
     {
-        VR_AGS_HandLine(g, p);
-        d = VR_AGS_Closest(a, b, vr_ags_ha, vr_ags_hb);
-        r = VR_AGS_H_RADIUS * size;
-        if(d <= r + near && vr_ags_s < vr_ags_ms)
+        d = VR_AGS_HullGap(g, p, 2, a, b, vr_ags_exact ? 0 : cvar_hget(cvarh_vr_agrunt_vol_shot_hand));
+        if(d <= near && vr_ags_hs < vr_ags_ms)
         {
             vr_ags_mp = p;
             vr_ags_mpart = 2;
-            vr_ags_mf = d <= r ? 1 : 0.5;
-            vr_ags_ms = vr_ags_s;
+            vr_ags_mf = d <= 0 ? 1 : 0.5;
+            vr_ags_ms = vr_ags_hs;
         }
     }
 };
@@ -415,7 +438,7 @@ float(entity targ, entity inflictor, entity attacker, float take) VR_AGS_Hit =
     {
         return FALSE;
     }
-    if(vr_hitkind == QVR_HITKIND_SPLASH)
+    if(hit_kind == QVR_HITKIND_SPLASH)
     {
         float w = cvar_hget(cvarh_vr_agrunt_shotdisarm_w_splash) * cvar_hget(cvarh_vr_agrunt_shotdisarm_weapon_w);
         if(w > 0 && targ.health > 0 && !targ.vr_ag_tug_pl && cvar_hget(cvarh_vr_agrunt_shotdisarm_parts) != 1)
@@ -434,7 +457,7 @@ float(entity targ, entity inflictor, entity attacker, float take) VR_AGS_Hit =
         }
         return FALSE;
     }
-    return vr_hitkind == QVR_HITKIND_SHOT;
+    return hit_kind == QVR_HITKIND_SHOT;
 };
 
 // A player's projectile's kind (-1: not one that counts).
@@ -483,7 +506,6 @@ void(entity g, entity p, entity e, float kind, vector a, vector b) VR_AGS_ProjRo
         return;
     }
     float parts = cvar_hget(cvarh_vr_agrunt_shotdisarm_parts);
-    float size = max(0, cvar_hget(cvarh_vr_agrunt_shotdisarm_size));
     float near = max(0, cvar_hget(cvarh_vr_agrunt_shotdisarm_proj_near));
     float best = 0;
     float part = 0;
@@ -492,19 +514,17 @@ void(entity g, entity p, entity e, float kind, vector a, vector b) VR_AGS_ProjRo
     float f;
     if(parts != 1)
     {
-        VR_AG_WeaponLine(p);
-        d = VR_AGS_Closest(a, b, vr_ag_wa, vr_ag_wb) - vr_ag_wr * size;
+        d = VR_AGS_HullGap(g, p, 1, a, b, cvar_hget(cvarh_vr_agrunt_vol_shot_weapon));
         f = d <= 0 ? 1 : (near > 0 ? max(0, 1 - d / near) : 0);
         f = f * cvar_hget(cvarh_vr_agrunt_shotdisarm_weapon_w);
-        if(f > best) { best = f; part = 1; s = vr_ags_s; }
+        if(f > best) { best = f; part = 1; s = vr_ags_hs; }
     }
     if(parts != 0)
     {
-        VR_AGS_HandLine(g, p);
-        d = VR_AGS_Closest(a, b, vr_ags_ha, vr_ags_hb) - VR_AGS_H_RADIUS * size;
+        d = VR_AGS_HullGap(g, p, 2, a, b, cvar_hget(cvarh_vr_agrunt_vol_shot_hand));
         f = d <= 0 ? 1 : (near > 0 ? max(0, 1 - d / near) : 0);
         f = f * cvar_hget(cvarh_vr_agrunt_shotdisarm_hand_w);
-        if(f > best) { best = f; part = 2; s = vr_ags_s; }
+        if(f > best) { best = f; part = 2; s = vr_ags_hs; }
     }
     if(best <= 0)
     {

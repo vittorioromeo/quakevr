@@ -86,6 +86,10 @@ FAMILIES = {
                             r"\bVR_Hand_Kind\s*\([^()]*\)\s*[!=]=\s*VR_HOLD_(?:NONE|FLASHLIGHT)\b",
                             r"\bVR_Hand_IsBusyKind\s*\(", r"\bVR_Hand_CanTake(?:From)?\s*\("],
                      "VR_Hand_Free(player, hand, VR_HANDFREE_* exceptions) (QC/vr_wpnforcegrab.qc)"),
+    # QC/C++ mirrors from one source (design review 10): a QC constant's value is not copied into the engine as a literal
+    # next to its QC name (a table row "VR_X", {1.f, 2.f, 3.f} or "VR_X", 0.5f), it is a #define both include.
+    "cpp-qc-constant": ("cpp", [r'"(?:VR|QVR)_[A-Z][A-Z0-9_]*"\s*,\s*(?:glm::vec3\s*)?[{(]?\s*-?\.?[0-9]'],
+                        "a #define in a Quake/vr/*_shared.h that the QC #includes too (vr_agpose_shared.h VR_AGPS_*)"),
 }
 
 
@@ -115,6 +119,7 @@ NEEDLES = {
     "qc-material-ladder": r"VR_Hit_Metal|VR_Crate_Wooden|VR_Hit_Armoured",
     "qc-test-spawn": r"func_enemy_dispenser_use",
     "qc-busy-hand": r"VR_Forcegrab_IsHandBusy|VR_Hand_Kind|VR_Hand_IsBusyKind|VR_Hand_CanTake",
+    "cpp-qc-constant": r'"Q?VR_',
 }
 
 

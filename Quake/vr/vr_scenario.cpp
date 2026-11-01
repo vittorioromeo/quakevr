@@ -5,6 +5,7 @@
 #include "vr_scenario.hpp"
 #include "vr_geom.hpp"
 #include "vr_box3d.hpp"
+#include "vr_agarmor.hpp"
 #include "vr_checklist.hpp"
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
@@ -644,6 +645,10 @@ void place()
         {
             e = box3d::spawnClass(sp.what.cStr(), at + glm::vec3{0.f, 0.f, 25.f}, glm::vec3{0.f, faceYaw, 0.f}, nullptr,
                 "weapon", sp.code, false, 0.f, "weapon2", sp.code2);
+            if(e)
+            {
+                (void)agarmor::give(NUM_FOR_EDICT(e), 0, 0); // (the same scene every time: not the skill's armour roll)
+            }
         }
         else if(sp.entry >= 0)
         {
@@ -658,6 +663,15 @@ void place()
         {
             note(va("line %d: \"%s\" not made (not available here?)", sp.line, sp.what.cStr()));
             continue;
+        }
+        // An armed humanoid wears the toolgun's Armed Humanoid armour when the scene sets one (`cvar
+        // vr_toolgun_armed_armor 2`); otherwise its own roll, as a map gives it. (Its spawn names it monster_army and
+        // the like: what was asked for says it is armed.)
+        const char* asked = sp.armed ? sp.what.cStr() : sp.entry >= 0 ? toolgun::spawnableClass(sp.entry) : "";
+        if(vr_toolgun_armed_armor.value != 0.f && !strncmp(asked, "monster_vr_", 11))
+        {
+            Con_DPrintf("vr_scenario: line %d: the toolgun's armour on edict %d\n", sp.line, NUM_FOR_EDICT(e));
+            toolgun::armArmedSpawn(e);
         }
         made++;
         state.placed.pushBack(Placed{NUM_FOR_EDICT(e), sp.line, e->v.classname, geom::vec(e->v.origin)});

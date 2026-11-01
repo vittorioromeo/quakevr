@@ -14,9 +14,12 @@
 
 #include "Zancle/Base/Strncmp.hpp"
 #include "Zancle/Container/AnkerlUnorderedDense.hpp"
+#include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
 #include "vr_zancle.hpp"
+
+#include <algorithm>
 
 extern "C" cvar_t gl_texture_anisotropy; // gl_texmgr.c
 
@@ -582,6 +585,16 @@ void configDefaults_f()
             Cvar_SetQuick(var, var->default_string);
         }
     }
+    for(const za::Span<cvar_t> table : standInTables()) // (the weapons' and props' values: their data files')
+    {
+        for(cvar_t& var : table)
+        {
+            if(!sameValue(var.string, var.default_string))
+            {
+                Cvar_SetQuick(&var, var.default_string);
+            }
+        }
+    }
 }
 
 // The archived settings a config file sets (`name "value"` lines, as Cvar_WriteVariables writes them; a sparse config's
@@ -626,6 +639,13 @@ void configDefaults_f()
             settings.try_emplace(za::String{var->name}, var->default_string ? var->default_string : "");
         }
     }
+    for(const za::Span<cvar_t> table : standInTables()) // (the data tables' values: a line only when changed)
+    {
+        for(const cvar_t& var : table)
+        {
+            settings.try_emplace(za::String{var.name}, var.default_string);
+        }
+    }
     return settings;
 }
 
@@ -635,6 +655,13 @@ void configDefaults_f()
     for(const cvar_t* var = Cvar_FindVarAfter("", CVAR_ARCHIVE); var; var = Cvar_FindVarAfter(var->name, CVAR_ARCHIVE))
     {
         settings[var->name] = var->string;
+    }
+    for(const za::Span<cvar_t> table : standInTables())
+    {
+        for(const cvar_t& var : table)
+        {
+            settings[var.name] = var.string;
+        }
     }
     return settings;
 }
@@ -910,6 +937,9 @@ void registerCvars()
 // Settings removed (docs/vr-port/CVAR_AUDIT.md): a config, a shipped .cfg or a take that still sets one is not an
 // "Unknown command" (cmd.c asks here); the line is dropped quietly and the next config write leaves it out.
 constexpr const char* retiredCvars[] = {
+    // 2026-10-31: the shot volumes' size, a multiplier of the old capsules, replaced by the hulls of the drawn triangles
+    // grown by vr_agrunt_vol_* units (ROUND23.md, "Disarm volumes as hulls of the drawn triangles").
+    "vr_agrunt_shotdisarm_size",
     // 2026-10-19: the class lists replaced by the monster groups' Lift, Neck Snap, Leg Sweep, Leg Grabs, Manhandle and
     // Two-Hand Throw (vr_mgrp_<group>_*; ROUND22.md, "Monster groups").
     "vr_foegrab_lift_classes",
@@ -1192,6 +1222,47 @@ extern "C" int VR_ConfigSaves(const cvar_s* var)
 {
     using namespace qvr;
     return !inSparseConfig(var) || alwaysSaved(var) || !var->default_string || !sameValue(var->string, var->default_string);
+}
+
+// The data tables (design review 3; the weapons' quakevr/data/weapons.txt, vr_weapons.cpp; the props'
+// quakevr/data/props.txt, vr_props.cpp): their values by their old cvar names (vr_wofs_<key>_NN, vr_prop_<key>_NN: old
+// configs, the console, motion takes, the QC's cvar()), their sets, and the config's lines for those changed from the
+// data file (as a sparse config's vr_ settings, in the names' order).
+za::Array<za::Span<cvar_t>, 2> qvr::standInTables()
+{
+    return {weapons::standIns(), props::standIns()};
+}
+
+extern "C" cvar_s* VR_CvarStandIn(const char* name)
+{
+    cvar_t* var = qvr::weapons::findStandIn(name);
+    return var ? var : qvr::props::findStandIn(name);
+}
+
+extern "C" int VR_StandInSet(cvar_s* var, const char* value)
+{
+    return qvr::weapons::setStandIn(var, value) || qvr::props::setStandIn(var, value) ? 1 : 0;
+}
+
+extern "C" void VR_ConfigWriteTables(FILE* f)
+{
+    using namespace qvr;
+    za::Vector<const cvar_t*> changed;
+    for(const za::Span<cvar_t> table : standInTables())
+    {
+        for(const cvar_t& var : table)
+        {
+            if(!sameValue(var.string, var.default_string))
+            {
+                changed.pushBack(&var);
+            }
+        }
+    }
+    std::sort(changed.begin(), changed.end(), [](const cvar_t* a, const cvar_t* b) { return strcmp(a->name, b->name) < 0; });
+    for(const cvar_t* var : changed)
+    {
+        fprintf(f, "%s \"%s\"\n", var->name, var->string);
+    }
 }
 
 namespace qvr

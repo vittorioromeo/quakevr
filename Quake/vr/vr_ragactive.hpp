@@ -582,10 +582,29 @@ struct Struggle
     int lastVoice{-1};
 };
 
+// Who leads an active ragdoll's limbs (ROUND23.md, "One mode for the active ragdoll"). The sub-machines above keep
+// their own `on` and run together where that is meant (a guard over a stagger, a fall or a get-up; a dismemberment and
+// the env's hands in a death; a struggle standing in for a lifted one's flail); the mode says which of them may run.
+// Set where a machine begins or ends (setMode). Limp: not driven, or driven with nothing leading (lying after its fall).
+// Swimming: in a liquid, or lifted off its feet (Liquid::Air: its flail, or its struggle in place of the flail).
+enum class Mode : uint8_t
+{
+    Limp,
+    Struggle,
+    Stagger,
+    Falling,
+    Rising,
+    Dying,
+    Climbing,
+    Swimming
+};
+[[nodiscard]] const char* modeName(Mode m);
+
 // An active ragdoll's drive (in vr_box3d.cpp's RagdollBodies).
 struct State
 {
     bool on{false};
+    Mode mode{Mode::Limp}; // who leads (only while on)
     double begun{0.0};
     const qmodel_t* model{nullptr};
     glm::vec3 origin{0.f}; // world, metres: where the clip's model space is (his entity's origin when it was made)
@@ -785,6 +804,14 @@ void cutReaction(State& s, const Parts& p, int joint, bool crawler, const Contex
 // The joint of limb `limb` (Limb), its upper bone (`lower` false: the shoulder, the hip) or its lower (the elbow, the
 // knee), by its bones' names; -1 none (the tests' cuts: QC ragdolllimbs 6).
 [[nodiscard]] int limbJointOf(const ragdoll::Rig& rig, int limb, bool lower);
+
+// Who leads from now (a machine begun or ended; the State's mode).
+void setMode(State& s, Mode to);
+// A knockdown's own machine leads (a living one's: a stagger, a fall, a get-up, a climb; not a struggle or a swim).
+[[nodiscard]] inline bool knockdown(Mode m)
+{
+    return m == Mode::Stagger || m == Mode::Falling || m == Mode::Rising || m == Mode::Climbing;
+}
 
 // Its pin's anchor (and joint) gone, the drive off (the ragdoll's end).
 void end(State& s);

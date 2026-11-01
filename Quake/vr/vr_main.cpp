@@ -45,6 +45,7 @@
 #include "vr_angvel.hpp"
 #include "vr_animsmooth.hpp"
 #include "vr_mdldequant.hpp"
+#include "vr_dirparryviz.hpp"
 #include "vr_hitreact.hpp"
 #include "vr_backend.hpp"
 #include "vr_throw.hpp"
@@ -2107,6 +2108,7 @@ extern "C" void VR_Init()
     adtank::init(); // AD support: vr_adgun_hose_info (vr_adtank.cpp)
     Cmd_AddCommand("vr_adweapon_models", adweapons::info_f); // AD support: AD's upgraded weapons' VR models (vr_adweapons.cpp)
     Cmd_AddCommand("vr_wofs_dump", weapons::dump_f); // the weapon settings in use, per slot (vr_weapons.cpp)
+    Cmd_AddCommand("vr_prop_dump", props::dump_f); // the held objects' settings, per slot (vr_props.cpp)
     Cmd_AddCommand("vr_prop_heads", props::heads_f); // the monster heads' prop slots and their weights (vr_props.cpp)
     Cmd_AddCommand("vr_gloves_reload", render::glovesReload_f); // the gloves' painted leather read again (vr_render.cpp)
     VR_FileCacheRegisterCommands();
@@ -2116,6 +2118,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_cache_info", diskcache::info_f); // the derived-data cache (vr_diskcache.cpp)
     warmup::registerCommands();
     hitreact::registerCommands();
+    dirparryviz::registerCommands();
     temporal::registerCommands(); // vr_temporal_error (vr_temporal.cpp)
     edictindex::registerCommands();
     weapons::registerCvars();

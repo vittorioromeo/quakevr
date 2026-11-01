@@ -107,7 +107,7 @@ vector(float xHand, float xBarrel) VR_FlareGun_Muzzle =
     vector m = VRGetMuzzlePos(xHand);
     if(xBarrel > 0)
     {
-        float k = cvar("vr_wofs_scale_38"); // (its slot 37's Scale: vr_weapons.inc)
+        float k = weaponvalue("progs/v_flaregun.mdl", "scale"); // (its Scale: quakevr/data/weapons.txt, slot 37)
         m = m - v_up * (VR_FLAREGUN_BARREL_GAP * (k > 0 ? k : 0.45));
     }
     return m;

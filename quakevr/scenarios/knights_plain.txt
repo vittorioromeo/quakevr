@@ -1,0 +1,8 @@
+# knights_plain: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Plain knights and death knights (Armed Knights and Armed Death Knights off).
+title Plain knight and death knight (Armed Knights and Armed Death Knights off; god)
+map vrtesthall
+god
+cvar vr_agknight 0
+cvar vr_agdknight 0
+spawn "Knight" 400 60
+spawn "Death Knight" 450 -60

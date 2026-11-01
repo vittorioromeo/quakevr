@@ -17,111 +17,56 @@ const char* bodytrackAvailability(int)
         open("Build, Skin, Bracers, Gloves: Player Appearance", pageIndex(pageVrsAppearance))
             .help("How you look: the body's build, the skin tone, the bracers, gloves and their colour, the pauldrons (VR "
                   "Settings > Player Appearance)."),
-        toggle("Walking Legs", vr_body_walk).help("The legs (full body) walk as you move with the stick."),
-        slider("Step Rate", vr_body_step_rate, 1.f, 5.f, 0.1f, "%.1f /s").extend()
-            .help("How fast the legs step at most, in steps a second at full running speed (walking, somewhat fewer)."),
-        slider("Running Cadence", vr_body_step_run, 0.f, 1.5f, 0.05f, "%.2fx")
-            .help("At speed the legs step as often as a person's stride there (the bloody footprints' steps): a run looks "
-                  "like a run. 1: a person's cadence; 0: only the Step Rate above (a run's legs step half as often as its "
-                  "prints)."),
-        slider("Turn Before Stepping", vr_body_turn_step, 15.f, 90.f, 5.f, "%.0f deg").extend()
-            .help("How far you turn over your planted feet before they step round to follow."),
-        slider("Wading Heaviness", vr_body_wade, 0.f, 2.f, 0.1f, "%.1fx").extend()
-            .help("Wading, the legs walk heavier: shorter, higher, slower steps (0: as on land)."),
-        slider("Swimming Kicks", vr_body_swim_kick, 0.f, 2.f, 0.1f, "%.1fx").extend()
-            .help("Swimming, the legs trail behind and kick where the stick moves you: how wide (0: no kicks)."),
-        slider("Swimming Kick Rate", vr_body_swim_kick_rate, 0.f, 4.f, 0.1f, "+%.1f /s").extend()
-            .help("How many more kicks a second at full stick (treading water, about 0.7)."),
-        toggle("Climbing Footholds", vr_body_climb_feet)
-            .help("Climbing, the feet find footholds below you (ledges, rungs, the wall) and step from one to the next as "
-                  "you climb; with none, they hang. Off: they hang as in the air."),
-        slider("Foothold Reach", vr_body_climb_feet_reach, 0.5f, 1.2f, 0.05f, "%.2fx").extend()
-            .help("How far below the hips the feet look for a foothold (1: down to nearly a straight leg)."),
-        slider("Foothold Step Speed", vr_body_climb_feet_speed, 0.3f, 3.f, 0.1f, "%.1fx").extend()
-            .help("How fast a foot steps to a new foothold (1: about a third of a second)."),
-        toggle("Footholds on Props", vr_body_climb_feet_props).extend()
+        row(opt::vr_body_walk),
+        row(opt::vr_body_step_rate),
+        row(opt::vr_body_step_run),
+        row(opt::vr_body_turn_step),
+        row(opt::vr_body_wade),
+        row(opt::vr_body_swim_kick),
+        row(opt::vr_body_swim_kick_rate),
+        row(opt::vr_body_climb_feet),
+        row(opt::vr_body_climb_feet_reach),
+        row(opt::vr_body_climb_feet_speed),
+        row(opt::vr_body_climb_feet_props).extend()
             .help("The feet also find footholds on physics props (a crate you climb: its top and its sides). Off: on the "
                   "level only."),
-        toggle("Show Armour and Wounds", vr_body_state)
-            .help("The armour you wear plates your torso; your arms and hands get bloodier as you are hurt (with Dynamic Wounds, on the Gore page: where you are hit)."),
+        row(opt::vr_body_state),
         open("Wounds Drip Blood: Gore", pageIndex(pageGore)).help("The wounds' dripping blood is on Gore (Arm Drip Rate)."),
-        toggle("Show Powerups", vr_body_powerups)
-            .help("Quad damage glows blue or sparks around your hands, the pentagram glows red, the biosuit green, the ring fades you."),
-        cycle("Quad Damage Look", vr_quad_look, {{1.f, "Blue Glow"}, {0.f, "Lightning Arcs"}, {2.f, "Both"}})
-            .help("Quad damage on you: a soft pulsing blue glow round your hands, arms and body, lighting the world round you "
-                  "blue; or Quake's electric arcs crackling over your hands and forearms (as when lightning strikes you); or both."),
-        toggle("Anchors Follow Body", vr_body_anchors)
-            .help("Holsters, the virtual stock and hand collisions follow the body's lean and crouch."),
+        row(opt::vr_body_powerups),
+        row(opt::vr_quad_look),
+        row(opt::vr_body_anchors),
         header("Body Collisions"),
-        toggle("Body Collisions", vr_body_collide)
-            .help("Your hands and the weapons in them stop at your other hand, your other arm, the wrist gadget and your "
-                  "body instead of passing through them. Push on and they pass through (Pass Through At). Drawn only: "
-                  "hits, shots, aim and grabs are still where your hands are."),
-        slider("Pass Through At", vr_body_collide_pass, 0.3f, 1.f, 0.05f, "%.2f").extend(0.05f, 1.f)
-            .help("How far through what stops it your hand or weapon must be pushed before it lets go and passes "
-                  "through: 0.7, seven tenths of the way (and held out at most 10.5 cm); 1, only once all the way through. It "
-                  "stops again once clear."),
-        toggle("Elbows Out of the Torso", vr_body_collide_elbows)
-            .help("With Body Collisions: an elbow that would go into your torso (a hand across your chest) swings out "
-                  "round the line from the shoulder to the wrist."),
+        row(opt::vr_body_collide),
+        row(opt::vr_body_collide_pass),
+        row(opt::vr_body_collide_elbows),
         // Body tracking (vr_bodytrack.cpp): Quest 3 through Virtual Desktop (XR_FB_body_tracking).
         header("Body Tracking"),
         infoLine(bodytrackAvailability, 0),
-        toggle("Body Tracking", vr_bodytrack)
-            .help("Where the headset tracks your body (Quest 3 through Virtual Desktop: allow Movement Tracking), your "
-                  "tracked torso, elbows and (if you like) legs are blended into the body; where it is lost or unsure, "
-                  "the guessed body comes back smoothly. Your hands always stay on the controllers."),
-        slider("Elbows", vr_bodytrack_arms, 0.f, 1.f, 0.05f, "%.2f")
-            .help("How much the elbows swing round to where your tracked elbows are."),
-        slider("Elbow Fit", vr_bodytrack_arm_fit, 0.f, 1.f, 0.05f, "%.2f")
-            .help("How far the elbows go onto your tracked elbows themselves, not only round to their side: the shoulders "
-                  "follow your tracked shoulders and the arm's bones lengthen or shorten a little to put the elbow there. "
-                  "0: the swing only (the arm keeps its own shape)."),
-        toggle("Walk Over Tracked Legs", vr_bodytrack_legs_walk)
-            .help("With tracked legs: while you move (walking, running, in the air) the walk and run animation drives the "
-                  "legs over the tracked ones; standing still, the tracked legs show. Off: the tracked legs always."),
+        row(opt::vr_bodytrack),
+        row(opt::vr_bodytrack_arms),
+        row(opt::vr_bodytrack_arm_fit),
+        row(opt::vr_bodytrack_legs_walk),
         header("Placement"),
-        slider("Torso Offset", vr_body_torso_back, -0.2f, 0.4f, 0.01f, "%.2f m").extend(-1.f, 1.f)
-            .help("How far the torso sits behind your neck (negative: in front)."),
-        slider("Legs Offset", vr_body_legs_back, -0.2f, 0.4f, 0.01f, "%.2f m").extend(-1.f, 1.f)
-            .help("How far the feet stand behind your head (negative: in front)."),
-        slider("Shoulders Offset", vr_body_shoulders_back, -0.15f, 0.2f, 0.01f, "%.2f m").extend(-0.5f, 0.5f)
-            .help("How far the shoulders sit behind your neck (negative: in front)."),
-        slider("Eyes Forward", vr_body_eye_forward, 0.f, 0.25f, 0.01f, "%.2f m").extend(-0.1f, 0.5f)
-            .help("From the top of the neck to the eyes, forward."),
-        slider("Eyes Up", vr_body_eye_up, 0.f, 0.25f, 0.01f, "%.2f m").extend(-0.1f, 0.5f).help("From the top of the neck to the eyes, up."),
-        slider("Crouch Tilt", vr_body_crouch_tilt, 0.f, 80.f, 5.f, "%.0f deg").extend()
-            .help("How far the back tilts forward in a full crouch (the hips stay under you)."),
+        row(opt::vr_body_torso_back),
+        row(opt::vr_body_legs_back),
+        row(opt::vr_body_shoulders_back),
+        row(opt::vr_body_eye_forward),
+        row(opt::vr_body_eye_up),
+        row(opt::vr_body_crouch_tilt),
         header("Crouched Pose"),
         open("Crouched Pose Offsets", pageIndex(pageBodyCrouch))
             .help("Where the torso, pelvis, shoulders, elbows and neck sit crouched, and the holsters and the ammo pouch: "
                   "offsets at a full crouch, blended in as you crouch."),
-        slider("Crouched Pose Strength", vr_body_crouch_pose_strength, 0.f, 1.f, 0.05f, "%.2fx").extend(0.f, 3.f)
-            .help("Times the crouched pose's offsets (0: none, the body crouches as before; 1: as set)."),
-        slider("Crouched Pose Curve", vr_body_crouch_pose_curve, 0.25f, 3.f, 0.05f, "%.2f").extend(0.1f, 10.f)
-            .help("How the offsets come in as you crouch: 1 evenly (half a crouch, half of them); over 1 little until you "
-                  "are deep; under 1 most of them early.")
+        row(opt::vr_body_crouch_pose_strength),
+        row(opt::vr_body_crouch_pose_curve)
             .advanced(),
-        cycle("Preview Crouch", vr_body_crouch_preview,
-            {{-1.f, "Off"}, {0.f, "Standing"}, {0.25f, "Quarter"}, {0.5f, "Half"}, {0.75f, "Three Quarters"}, {1.f, "Full"}})
-            .help("The crouched pose blended as if you crouched this deep, standing or not (the crouch itself as you are): "
-                  "to tune it with the body in front of you (Debug: Show Body Skeleton) or looking down. Off: as deep as "
-                  "you crouch. Not saved.")
+        row(opt::vr_body_crouch_preview)
             .advanced(),
         header("Death View"),
-        cycle("Death View", vr_death_view, {{0.f, "Off"}, {1.f, "Third Person"}, {2.f, "Immersive"}})
-            .help("When you die (not gibbed) your body falls as a ragdoll (also on VR Settings, Comfort). Off: no body. "
-                  "Third Person: your view stays where your eyes were. Immersive: your view goes into your body's head "
-                  "(Third Person while a menu is open)."),
+        row(opt::vr_death_view),
         // (The author's note vrfiringrange_2026-10-23_01-18-00, a player's request.)
-        toggle("Vomit Mode", vr_death_view_vomit)
-            .help("Warning: very likely to make you sick. When you die, you see straight out of your ragdoll's eyes, "
-                  "turned exactly as its head is as it tumbles and rolls: no smoothing, no comfort, and your own head's "
-                  "turns do nothing. Overrides the Immersive rows below; needs Death View on (Third Person or "
-                  "Immersive). Too much: open the menu (it takes the view out) or close your eyes."),
-        toggle("Immersive: Turn With the Body", vr_death_view_turn)
-            .help("Immersive Death View: your view turns sideways as your body's head does, slowly (Turn Speed). Off: "
-                  "only its place follows the head; you turn yourself."),
+        row(opt::vr_death_view_vomit),
+        row(opt::vr_death_view_turn),
     };
 }
 
@@ -185,10 +130,8 @@ const char* bodytrackAvailability(int)
         crouchDegrees("Shoulders Shrug", vr_body_crouch_shoulders_shrug, "Crouched, the collarbones swing up (negative: "
             "down) about the base of the neck."),
         header("Elbows"),
-        slider("Elbows Out", vr_body_crouch_elbow_out, -1.f, 1.f, 0.05f, "%+.2f").extend(-3.f, 3.f)
-            .help("Crouched, the elbows point further out (negative: in): added to Arms and Pauldrons' Elbow Out."),
-        slider("Elbows Back", vr_body_crouch_elbow_back, -1.f, 1.f, 0.05f, "%+.2f").extend(-3.f, 3.f)
-            .help("Crouched, the elbows point further back (negative: forward): added to Elbow Back."),
+        row(opt::vr_body_crouch_elbow_out),
+        row(opt::vr_body_crouch_elbow_back),
         header("Neck"),
         crouchMetres("Eyes Forward", vr_body_crouch_eye_forward, "Crouched, the eyes further in front of the top of the "
             "neck (the neck further back; negative: forward): added to Eyes Forward."),
@@ -213,33 +156,18 @@ const char* bodytrackAvailability(int)
 [[nodiscard]] za::Vector<Item> pageSeated()
 {
     return {
-        cycle("Position", vr_bodycal_seated, {{0.f, "Standing"}, {1.f, "Seated"}})
-            .help("Seated: the game stands you up (your eyes at your standing Height), the body stands with its legs on "
-                  "the floor, the holsters and pouches move where a seated player reaches them, and a hand reaching low "
-                  "goes on down to the floor. VR Calibration and Body Calibration take you seated too."),
-        slider("Seated Height", vr_seated_height, 0.8f, 1.5f, 0.01f, "%.2f m").extend(0.f, 2.f)
-            .help("Your eyes' height sitting (VR Calibration measures it seated; 0: not measured, 0.74 of your standing "
-                  "Height). The game raises you by your standing Height less this."),
+        row(opt::vr_bodycal_seated),
+        row(opt::vr_seated_height),
         command("Set Seated Height Now", "vr_seated_height_now")
             .help("Sit up straight where you play, look ahead and press: your seated height from the headset."),
-        toggle("Stand Up in the Game", vr_seated_stand)
-            .help("Seated, your eyes at your standing height in the game. Off: as low as they really are (crouched)."),
-        toggle("Reach the Floor", vr_seated_reach)
-            .help("Seated, a hand reaching down beside the chair goes on down faster, to the game's floor: pick things up "
-                  "without leaving the chair."),
-        slider("Reach: Starts At", vr_seated_reach_start, 0.3f, 0.9f, 0.01f, "%.2f m").extend(0.1f, 1.5f)
-            .help("How high over your real floor a hand starts going down faster (keep it under your thighs and the hip "
-                  "holsters)."),
-        slider("Reach: Floor At", vr_seated_reach_floor, 0.f, 0.4f, 0.01f, "%.2f m").extend(0.f, 1.f)
-            .help("How high over your real floor a hand is at the game's floor."),
-        slider("Crouch Depth", vr_seated_crouch_depth, 0.f, 1.f, 0.05f, "%.2f m").extend(0.f, 1.5f)
-            .help("Seated, how far vr_crouch_toggle (bind it to a button) crouches you. Ducking in the chair crouches "
-                  "too, as far as your head goes down."),
+        row(opt::vr_seated_stand),
+        row(opt::vr_seated_reach),
+        row(opt::vr_seated_reach_start),
+        row(opt::vr_seated_reach_floor),
+        row(opt::vr_seated_crouch_depth),
         command("Crouch Toggle", "vr_crouch_toggle")
             .help("vr_crouch_toggle: crouch or stand up, seated (to try it here; bind it to a button to play)."),
-        cycle("Crouch Button", vr_seated_crouch_button, {{0.f, "Off"}, {1.f, "Left Thumbstick Press"}, {2.f, "Right Thumbstick Press"}})
-            .help("Seated, a thumbstick press that crouches and stands you up (vr_crouch_toggle). It does only this in "
-                  "the game, never its bound key."),
+        row(opt::vr_seated_crouch_button),
         info([]() -> const char* {
             return seated::crouchButtonConflict() ? "Warning: this stick press also starts Bullet Time (Bullet Time > Activation)." : "";
         }),
@@ -335,12 +263,8 @@ void armsResetTweaks()
     }
     list.pushBackMultiple(
         header("Arms"),
-        slider("Upper Arm", vr_body_tweak_upper_arm, -10.f, 10.f, 0.5f, "%+.1f cm").extend(-30.f, 30.f)
-            .help("Longer (negative: shorter) than measured, real cm: the shoulder joint to the elbow. 0: as Body "
-                  "Calibration measured it (uncalibrated: the default body's arm, times Arm Length)."),
-        slider("Forearm", vr_body_tweak_forearm, -10.f, 10.f, 0.5f, "%+.1f cm").extend(-30.f, 30.f)
-            .help("Longer (negative: shorter) than measured, real cm: the elbow to the drawn hand's wrist. 0: as Body "
-                  "Calibration measured it (uncalibrated: the default body's forearm, times Arm Length).")
+        row(opt::vr_body_tweak_upper_arm),
+        row(opt::vr_body_tweak_forearm)
     );
     if(armsPageCalibrated)
     {
@@ -348,70 +272,39 @@ void armsResetTweaks()
     }
     else
     {
-        list.pushBack(slider("Arm Length", vr_body_arm_length, 0.7f, 1.4f, 0.01f, "%.2fx").extend(0.5f, 2.f)
-                .help("Uncalibrated: the default body's arms (for your height), times this. Once Body Calibration "
-                      "has measured yours, it isn't used."));
+        list.pushBack(row(opt::vr_body_arm_length));
     }
     list.pushBackMultiple(
-        slider("Arm Stretch", vr_body_arm_stretch, 1.f, 1.5f, 0.05f, "%.2fx").extend(1.f, 3.f)
-            .help("How far the drawn arms may stretch to reach a hand beyond them (1: not at all). Calibrated, only past "
-                  "your measured reach and the Shoulder Reach (tracking glitches, a lunge); uncalibrated, before the "
-                  "shoulders reach."),
-        slider("Shoulder Reach", vr_body_shoulder_reach, 0.f, 0.25f, 0.01f, "%.2f m").extend(0.f, 0.6f)
-            .help("How far the shoulders may move out towards a hand the arm can't reach, metres (not measured)."),
+        row(opt::vr_body_arm_stretch),
+        row(opt::vr_body_shoulder_reach),
         header("Shoulders"),
-        slider("Shoulders Back", vr_body_tweak_shoulders_back, -0.1f, 0.1f, 0.005f, "%+.3f m").extend(-0.5f, 0.5f)
-            .help("The shoulder joints further back (negative: forward) than measured, metres. 0: as Body Calibration "
-                  "measured them (uncalibrated: the default body's)."),
-        slider("Shoulders Higher", vr_body_tweak_shoulders_up, -0.1f, 0.1f, 0.005f, "%+.3f m").extend(-0.5f, 0.5f)
-            .help("The shoulder joints higher (negative: lower) than measured, metres. 0: as measured (uncalibrated: "
-                  "the default body's)."),
-        slider("Shoulders Wider", vr_body_tweak_shoulders_out, -0.1f, 0.1f, 0.005f, "%+.3f m").extend(-0.3f, 0.3f)
-            .help("Each shoulder joint further out (negative: in) than measured, metres. 0: as measured "
-                  "(uncalibrated: the default body's)."),
-        slider("Shoulder Rise", vr_body_tweak_shoulder_rise, -30.f, 30.f, 1.f, "%+.0f deg").extend(-90.f, 90.f)
-            .help("Degrees more (negative: fewer) the shoulders rise as you reach up than measured. 0: as measured "
-                  "(uncalibrated: the default body's 25)."),
-        slider("Shoulder Swing", vr_body_tweak_shoulder_swing, -30.f, 30.f, 1.f, "%+.0f deg").extend(-90.f, 90.f)
-            .help("Degrees more (negative: fewer) the shoulders swing forward as you reach far forward than measured. "
-                  "0: as measured (uncalibrated: the default body's 20)."),
+        row(opt::vr_body_tweak_shoulders_back),
+        row(opt::vr_body_tweak_shoulders_up),
+        row(opt::vr_body_tweak_shoulders_out),
+        row(opt::vr_body_tweak_shoulder_rise),
+        row(opt::vr_body_tweak_shoulder_swing),
         action("Reset Tweaks", armsResetTweaks)
             .help("Upper Arm, Forearm and the shoulders' five tweaks to 0: your arms and shoulders as measured "
                   "(uncalibrated: the default body's). Arm Length and the rest stay."),
         header("Elbows and Wrists (not measured)"),
-        slider("Forearm Twist", vr_body_forearm_twist, 0.f, 1.f, 0.05f, "%.2f")
-            .help("Share of the wrist's roll the middle of the forearm follows (none at the elbow, all at the wrist)."),
-        slider("Wrist Limits", vr_body_wrist_limits, 0.f, 2.f, 0.05f, "%.2f")
-            .help("The elbow swings round to keep the wrist within a real one's bend and roll, times this (0: never)."),
-        slider("Elbow Stays Clear", vr_body_elbow_lift, 0.f, 8.f, 0.5f, "%.1f")
-            .help("How much that swing keeps the elbow out of the torso and from crossing the chest by the neck (a hand "
-                  "near the face or the chest), times this (0: free, as before)."),
-        slider("Elbows Spread", vr_body_elbow_spread, 0.f, 1.f, 0.05f, "%.2f")
-            .help("With the hand at the face or the chest and the palm down, how far the elbow turns out to the side "
-                  "(wings). Palm up or on its side, it stays tucked in (0: as before)."),
-        slider("Elbow Out", vr_body_elbow_out, 0.f, 1.f, 0.05f, "%.2f")
-            .help("Where the elbow points: down, plus this much outwards."),
-        slider("Elbow Back", vr_body_elbow_back, 0.f, 1.f, 0.05f, "%.2f")
-            .help("Where the elbow points: down, plus this much backwards."),
-        slider("Elbow From Hand", vr_body_elbow_hand, 0.f, 1.f, 0.05f, "%.2f")
-            .help("How much the elbow points away from the back of the hand."),
-        slider("Elbow Tuck", vr_body_elbow_tuck, 0.f, 1.f, 0.05f, "%.2f")
-            .help("With the hand at the face or the chest (aiming down the sights, an axe raised by the face), the "
-                  "elbow stays down and back by the ribs instead of swinging out or across (0: as before)."),
-        slider("Tucked Elbow Back", vr_body_elbow_tuck_back, 0.f, 2.f, 0.05f, "%.2f")
-            .help("Where a tucked elbow points: down, plus this much backwards (more lets it go behind the chest)."),
-        slider("Tuck Within", vr_body_elbow_tuck_near, 0.3f, 1.f, 0.05f, "%.2f arm")
-            .help("Fully tucked with the wrist this close to the shoulder (times the arm's length)."),
-        slider("Tuck Fades By", vr_body_elbow_tuck_far, 0.4f, 1.2f, 0.05f, "%.2f arm")
-            .help("Not tucked at all with the wrist this far from the shoulder (times the arm's length)."),
+        row(opt::vr_body_forearm_twist),
+        row(opt::vr_body_wrist_limits),
+        row(opt::vr_body_elbow_lift),
+        row(opt::vr_body_elbow_spread),
+        row(opt::vr_body_elbow_out),
+        row(opt::vr_body_elbow_back),
+        row(opt::vr_body_elbow_hand),
+        row(opt::vr_body_elbow_tuck),
+        row(opt::vr_body_elbow_tuck_back),
+        row(opt::vr_body_elbow_tuck_near),
+        row(opt::vr_body_elbow_tuck_far),
         header("Pauldrons"),
         open("Pauldrons, Style, Size: Player Appearance", pageIndex(pageVrsAppearance))
             .help("The pauldrons on or off, their style and size are on VR Settings > Player Appearance; their fit here."),
-        slider("Pauldron Follows Arm", vr_body_pauldron_follow, 0.f, 1.f, 0.05f, "%.2f")
-            .help("How much the shoulder cap turns with the upper arm (the lower plates follow the arm fully)."),
-        slider("Pauldron Forward", vr_body_pauldron_forward, -0.08f, 0.08f, 0.005f, "%.3f m").extend(-0.3f, 0.3f),
-        slider("Pauldron Up", vr_body_pauldron_up, -0.08f, 0.08f, 0.005f, "%.3f m").extend(-0.3f, 0.3f),
-        slider("Pauldron Out", vr_body_pauldron_out, -0.08f, 0.08f, 0.005f, "%.3f m").extend(-0.3f, 0.3f)
+        row(opt::vr_body_pauldron_follow),
+        row(opt::vr_body_pauldron_forward),
+        row(opt::vr_body_pauldron_up),
+        row(opt::vr_body_pauldron_out)
     );
     return list;
 }
@@ -482,14 +375,8 @@ const char* bodycalIntro(int i)
             .help("Seated, the height stays as it is (set it standing: Set Height Now); the arms and shoulders are measured "
                   "the same."),
         infoLine(bodytrackAvailability, 0),
-        toggle("Use Body Tracking", vr_bodycal_track)
-            .help("Where body tracking data comes in during the poses (Quest 3 through Virtual Desktop), your tracked "
-                  "shoulders' width and arm bones are blended into the measurements, so that the tracked elbows fit the "
-                  "arm without stretching it. A tracked length far off ours is left out. Taken at the next calibration, "
-                  "or a refit."),
-        slider("Body Tracking Weight", vr_bodycal_track_weight, 0.f, 1.f, 0.05f, "%.2f")
-            .help("How much of the tracked lengths goes into the measurements (0: ours alone, 1: the tracking's). The "
-                  "headset may scale its skeleton to your height, so ours (from the controllers) keep a share.")};
+        row(opt::vr_bodycal_track),
+        row(opt::vr_bodycal_track_weight)};
     if(bodycal::phase() == bodycal::Phase::Result)
     {
         if(bodycal::trusted())
@@ -503,8 +390,7 @@ const char* bodycalIntro(int i)
             action(bodycal::showingNew() ? "Showing: New Measurements" : "Showing: Current Settings", bodycalSwitch)
                 .help("Your body (and the one in front of you) with the new measurements, or with the settings as they are: "
                       "bend and straighten your arms to compare."),
-            cycle("Body in Front", vr_bodycal_preview, {{0.f, "Off"}, {1.f, "Facing You"}, {2.f, "From the Side"}})
-                .help("Your body in front of you while this page shows a result, moving as you do.")
+            row(opt::vr_bodycal_preview)
         );
     }
     else
@@ -623,35 +509,25 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
         open("On a Gun or Head", pageIndex(pageFlashlightMounts)).help("Where the torch clips on a gun or on your head, and the zones that clip it on."),
         header("Flashlight"),
         open("Chest Flashlight and Side: Body and Display", pageIndex(pageBodyDisplay)).help("The chest flashlight on or off and its side are on Body and Display."),
-        cycle("Beam Quality", vr_flashlight_beam_quality, {{0.f, "Low"}, {1.f, "Medium"}, {2.f, "High"}})
-            .help("How closely the visible beam fades where walls cut it. Higher looks for them more often, costing more time each frame."),
-        toggle("Casts Shadows", vr_flashlight_shadows).help("Its light casts shadows (takes one of the shadowed dynamic lights)."),
-        cycle("Cord", vr_flashlight_cord, {{0.f, "None"}, {1.f, "Chain"}, {2.f, "Coiled"}}).help("The retracting cord from the clip on your belt to the torch while it is off the belt. Chain: a rusty low-poly iron chain (chunky links of square bar, flat-shaded: Quake's look). Coiled: a springy coiled cord like an old telephone's, its turns opening out as you pull it. Both sag and swing as your hand moves. None: no cord drawn."),
+        row(opt::vr_flashlight_beam_quality),
+        row(opt::vr_flashlight_shadows),
+        row(opt::vr_flashlight_cord),
         hueSlider("Beam Hue", vr_flashlight_hue).help("The beam's colour, with Beam Saturation (at 0 it is white): its light, the beam in the air and the lens. 40 warm, 200 cold blue; Player's: the Player Effects Hue."),
         header("Turning It Over"),
-        toggle("Flick to Turn Over", vr_flashlight_flick)
-            .help("A sharp flick of your wrist up or down turns the torch in your hand over, as B or Y does (the beam out "
-                  "past your thumb or out past your little finger). Not by a gun or your head (B or Y clips it on there)."),
-        slider("Flick Strength", vr_flashlight_flick_speed, 300.f, 1500.f, 50.f, "%.0f deg/s").extend(100.f, 3000.f)
-            .help("How fast your wrist must turn up or down to count. Higher: only sharper flicks (fewer by accident)."),
+        row(opt::vr_flashlight_flick),
+        row(opt::vr_flashlight_flick_speed),
         header("Taking and Clipping On"),
-        slider("Grab Range", vr_flashlight_grab_range, 0.5f, 3.f, 0.1f, "%.1fx").extend(0.25f, 4.f)
-            .help("How far from the torch your hand reaches it (it lights up, a grip takes it): times 9 cm from its middle line. Higher is more lenient."),
-        slider("Head Clip Range", vr_flashlight_head_range, 0.5f, 3.f, 0.1f, "%.1fx").extend(0.25f, 4.f)
-            .help("How far from your temple the held torch clips on your head, and a hand takes it off there: times Head Zone Radius (On a Gun or Head)."),
-        slider("Gun Clip Range", vr_flashlight_gun_range, 0.5f, 3.f, 0.1f, "%.1fx").extend(0.25f, 4.f)
-            .help("How far from its place on the gun in your other hand the held torch clips on it (B or Y, or letting go with Clip on Gun When Let Go): times Gun Zone Radius (On a Gun or Head)."),
-        toggle("Clip on Head When Let Go", vr_flashlight_auto_head)
-            .help("Let go of the torch where it lights up by your head and it clips on there, no B or Y needed."),
-        toggle("Clip on Gun When Let Go", vr_flashlight_auto_gun)
-            .help("Let go of the torch where it lights up by the gun in your other hand and it clips on the gun, no B or Y needed."),
-        slider("Clip-On Transition", vr_flashlight_clip_time, 0.f, 0.5f, 0.01f, "%.2f s").extend(0.f, 1.f)
-            .help("How long the torch takes to move and turn from where it was onto the gun or your head as it clips on. It is on at once (it follows the gun, lights where it aims); only how it is drawn eases in. 0: it jumps there."),
+        row(opt::vr_flashlight_grab_range),
+        row(opt::vr_flashlight_head_range),
+        row(opt::vr_flashlight_gun_range),
+        row(opt::vr_flashlight_auto_head),
+        row(opt::vr_flashlight_auto_gun),
+        row(opt::vr_flashlight_clip_time),
         header("On the Belt"),
-        slider("Lean Out", vr_flashlight_tilt, -90.f, 90.f, 1.f, "%.0f deg").extend().help("How far the stored torch, hanging on your belt lens down, leans its lens out from your body."),
-        slider("Forward", vr_flashlight_forward, -0.3f, 0.3f, 0.005f, "%.3f m").extend(),
-        slider("Up", vr_flashlight_up, -0.4f, 0.4f, 0.01f, "%.2f m").extend(),
-        slider("Out", vr_flashlight_out, -0.3f, 0.3f, 0.01f, "%.2f m").extend().help("Away from your middle, towards its side."),
+        row(opt::vr_flashlight_tilt),
+        row(opt::vr_flashlight_forward),
+        row(opt::vr_flashlight_up),
+        row(opt::vr_flashlight_out),
     };
     return list;
 }
@@ -689,21 +565,11 @@ void flashlightFingers(za::Vector<Item>& list, const FlashlightFingerCvars& c, i
 {
     return {
         header("Reach Zones"),
-        toggle("Show Flashlight Zones", vr_show_flashlight_zones)
-            .help("Draws where holding the torch clips it on (yellow balls at your temples and forehead, an orange ball on "
-                  "each gun, where the torch sits on it) and the held torch's middle (white), which they measure. Green: in reach, B or Y clips it on (on "
-                  "your head: a hand there takes it off). The torch not in a hand: a capsule round it, green while a "
-                  "hand's grip there takes it, and a dot where the game reads each hand near it (the hand may be drawn "
-                  "elsewhere)."),
+        row(opt::vr_show_flashlight_zones),
         header("On the Head"),
-        slider("Head Zone Forward", vr_flashlight_head_zone_forward, -0.2f, 0.2f, 0.005f, "%.3f m").extend()
-            .help("Where the torch held at your head lets B or Y clip it on, and where a hand takes it off (B or Y, or the grip): "
-                  "balls at your temples and forehead, moved forward, up and out. Apart from where it then sits (On Head)."),
-        slider("Head Zone Up", vr_flashlight_head_zone_up, -0.2f, 0.2f, 0.005f, "%.3f m").extend()
-            .help("The default is 0.150 (15 cm over your eyes' height)."),
-        slider("Head Zone Out", vr_flashlight_head_zone_out, -0.2f, 0.2f, 0.005f, "%.3f m").extend()
-            .help("Away from your head: to the side at the temples, ahead at the forehead."),
-        slider("Head Zone Radius", vr_flashlight_head_zone_radius, 0.02f, 0.3f, 0.005f, "%.3f m").extend()
-            .help("How far from those places the torch's middle (or the fist taking it off) may be."),
+        row(opt::vr_flashlight_head_zone_forward),
+        row(opt::vr_flashlight_head_zone_up),
+        row(opt::vr_flashlight_head_zone_out),
+        row(opt::vr_flashlight_head_zone_radius),
     };
 }

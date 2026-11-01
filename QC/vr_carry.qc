@@ -3091,55 +3091,36 @@ float vr_gore_sent; // gore hits sent (VR_Gore_Hit: the small gibs' tests count 
 
 float(entity e) VR_Gore_Bleeds =
 {
-    return (e.flags & (FL_MONSTER | FL_CLIENT)) && !VR_Dummy_Clean(e) && cvar_hget(cvarh_vr_gore) > 0;
+    return VR_Hit_TargetBleeds(e) && cvar_hget(cvarh_vr_gore) > 0;
 };
 
 // From T_DamageImpl, as `take` is taken: the blow's way from what hit (a shot's own, a missile's
 // flight, away from an explosion), and its kind (0 a shot or a missile, 1 a shotgun blast, 2 an
 // explosion's, 3 a hand's blow). Not for damage from the world (lava, slime, drowning, falls).
-void(entity targ, entity inflictor, float take) VR_Gore_Hit =
+void(entity targ, entity inflictor, entity attacker, float take) VR_Gore_Hit =
 {
-    if(take <= 0 || inflictor == world || !VR_Gore_Bleeds(targ) || VR_HitBloodless())
+    if(take <= 0 || !VR_Gore_Bleeds(targ) || !VR_Hit_Bleeds(inflictor, attacker))
     {
         return;
     }
 
-    vector mid = (targ.absmin + targ.absmax) * 0.5;
-    vector org = mid;
-    vector dir = vr_hitdir;
     float kind = 0;
-    if(vr_hitkind == QVR_HITKIND_SPLASH)
+    if(VR_Hit_Blast(inflictor, attacker))
     {
         kind = 2;
-        dir = mid - inflictor.origin;
     }
-    else
+    else if(hit_kind == QVR_HITKIND_MELEE || hit_kind == QVR_HITKIND_HEADBUTT || hit_kind == QVR_HITKIND_BASH ||
+            hit_kind == QVR_HITKIND_SHOVE)
     {
-        if(vr_hitkind == QVR_HITKIND_MELEE || vr_hitkind == QVR_HITKIND_HEADBUTT || vr_hitkind == QVR_HITKIND_BASH ||
-           vr_hitkind == QVR_HITKIND_SHOVE)
-        {
-            kind = 3;
-        }
-        else if(VR_Hit_Pellets() > 1)
-        {
-            kind = 1;
-        }
-        if(vr_hitpos != '0 0 0' && vlen(vr_hitpos - mid) < 64)
-        {
-            org = vr_hitpos;
-        }
-        if(dir == '0 0 0' && inflictor != targ)
-        {
-            if(inflictor.velocity != '0 0 0' && !(inflictor.flags & (FL_MONSTER | FL_CLIENT)))
-            {
-                dir = inflictor.velocity; // a missile's flight
-            }
-            else
-            {
-                dir = mid - (inflictor.absmin + inflictor.absmax) * 0.5;
-            }
-        }
+        kind = 3;
     }
+    else if(VR_Hit_Pellets() > 1)
+    {
+        kind = 1;
+    }
+    VR_Hit_Where(targ, inflictor, attacker, hit_dir); // (VR_Hit_Where: the one rule)
+    vector org = hit_where;
+    vector dir = hit_whereway;
     if(dir == '0 0 0')
     {
         return;
@@ -3397,7 +3378,7 @@ void(float xHand, entity xGib, float xSpeed, vector xAt, vector xDir) VR_Gib_Blo
     VRMeleeHapticByHand(xHand);
     VR_SoundVaried(self, VRGetGunChannel(xHand), "fisthit.wav", 1.0, ATTN_NORM);
     VR_Blunt_HitLayer(self, VRGetHandChannel(xHand), xGib);
-    VR_SetHitKind(QVR_HITKIND_MELEE, xHand, xAt, xDir);
+    VR_Hit_Begin(QVR_HITKIND_MELEE, xHand, xAt, xDir);
     float sgib = xGib.vr_sgib;
     float sgibId = xGib.vr_sgib_id;
     float grace = VR_SmallGib_BlowSpared(xGib);
@@ -3409,7 +3390,7 @@ void(float xHand, entity xGib, float xSpeed, vector xAt, vector xDir) VR_Gib_Blo
     }
     float against = min(xSpeed, vlen(striker - xGib.velocity) * (1 / VRMetersToUnits()));
     VR_Gib_Hit(xGib, self, against * VR_Blow_Exhaust(xHand), striker, "a blow");
-    VR_ClearHitKind();
+    VR_Hit_End();
     if(sgib > 0 && cvar_hget(cvarh_vr_smallgibs_trace))
     {
         bprint(sprintf("sgibtrace: #%g %.3f s: struck by a blow at %.2f m/s%s: %s\n", sgibId, time - sgib, xSpeed,
@@ -3523,16 +3504,16 @@ void(entity xPlayer, entity xGib) VR_Gib_KnockOut =
     xGib.vr_gib_releasetime = 0;
 };
 
-// After a traceline of `self` (a player) from `xA` to `xB`, firing with vr_hithand: a gib or head held
+// After a traceline of `self` (a player) from `xA` to `xB`, firing with hit_hand: a gib or head held
 // in the other hand in the way (before trace_fraction) is what the shot hits, knocked out of the hand
 // (the shots after it hit it as a loose one).
 void(vector xA, vector xB) VR_Gib_TraceHeld =
 {
-    if(!(self.flags & FL_CLIENT) || vr_hithand < 0)
+    if(!(self.flags & FL_CLIENT) || hit_hand < 0)
     {
         return;
     }
-    entity g = VR_Gib_HeldByOther(self, vr_hithand);
+    entity g = VR_Gib_HeldByOther(self, hit_hand);
     if(g == world && vr_gib_knocked.vr_gib && vr_gib_knocktime == time && vr_gib_knocked.carry_player == world)
     {
         g = vr_gib_knocked; // knocked out by this shot's first pellets: the rest hit it too (they start in it)
@@ -3593,10 +3574,10 @@ void(float xHand) VR_Gib_HeldFrameHand =
             VRMeleeHapticByHand(xHand);
             VR_SoundVaried(self, VRGetGunChannel(xHand), "fisthit.wav", 1.0, ATTN_NORM);
             VR_Blunt_HitLayer(self, VRGetHandChannel(xHand), g);
-            VR_SetHitKind(QVR_HITKIND_MELEE, xHand, (g.absmin + g.absmax) * 0.5, normalize(rel));
+            VR_Hit_Begin(QVR_HITKIND_MELEE, xHand, (g.absmin + g.absmax) * 0.5, normalize(rel));
             g.velocity = VRGetHandVel(holder) * m2u; // (moving with the hand that held it: it bounces off the other)
             VR_Gib_HandImpact(g, speed, VRGetHandVel(xHand) * m2u, FALSE, "a hand's blow, held in the other");
-            VR_ClearHitKind();
+            VR_Hit_End();
             return;
         }
     }

@@ -409,12 +409,17 @@ float(float wid) WeaponIdToBaseClipSize =
 }
 
 // The magazine size of the weapon `wid` whose record is `inst` (world: not known, a plain one): AD support: the
-// Widowmaker's tube (vr_ad_widowmaker_tube), else its kind's.
+// Widowmaker's tube (vr_ad_widowmaker_tube), the Plasma Gun's cell (vr_ad_plasmagun_cell: a thunderbolt cell holding
+// fewer), else its kind's.
 float(float wid, entity inst) VR_ClipSizeOf =
 {
     if(wid == WID_SUPER_SHOTGUN && AD_Widowmaker(inst))
     {
         return max(2, rint(cvar_hget(cvarh_vr_ad_widowmaker_tube)));
+    }
+    if(wid == WID_LIGHTNING && AD_PlasmaGunInst(inst))
+    {
+        return max(1, rint(cvar_hget(cvarh_vr_ad_plasmagun_cell)));
     }
     return WeaponIdToBaseClipSize(wid);
 }

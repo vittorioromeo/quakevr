@@ -132,7 +132,7 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_AD_Hit =
     }
     VR_BulletTime_Earn(targ, attacker, take, targ.health + take); // (the health it had: taken already)
     VR_DamageNumber(targ, inflictor, attacker, take, 0, vr_ad_melee);
-    VR_Gore_Hit(targ, inflictor, take);
+    VR_Gore_Hit(targ, inflictor, attacker, take);
     VR_SmallGib_Hit(targ, inflictor, attacker, take);
     VR_Wound_Hit(targ, inflictor, attacker, take);
     // VR: living hit reactions (vr_hitreact.qc): it flinches where struck, a leg hit's knee buckling, its steps slowed a
@@ -1155,6 +1155,14 @@ void(entity xPickup, entity p, float xHand) AD_UpgradeGiven =
     {
         VRSetEntWeaponClip(p, xHand, VR_ClipSizeOf(WID_SUPER_SHOTGUN, inst));
     }
+    // The Plasma Gun's cell holds fewer than the thunderbolt's (vr_ad_plasmagun_cell, his 16 of 2026-10-31): what the
+    // pickup moved from the reserve past that goes back.
+    float over = VRGetEntWeaponClip(p, xHand) - VR_ClipSizeIn(p, xHand);
+    if(VRGetEntWeapon(p, xHand) == WID_LIGHTNING && over > 0)
+    {
+        VRSetEntWeaponClip(p, xHand, VRGetEntWeaponClip(p, xHand) - over);
+        VR_AmmoUtil_AddAmmoCountByAmmoId(p, AID_CELLS, over);
+    }
     dprint(sprintf("VR: %s: the %s in hand %g (weapon %g) is upgraded\n", xPickup.netname, WeaponIdToWeaponName(VRGetEntWeapon(p, xHand)),
         xHand, inst.wi_uid));
 };
@@ -1656,7 +1664,7 @@ float(entity victim, float serial) VR_AD_PopTopUp =
 };
 
 // (A corpse's damage from a projectile pellet or a rifle laser at its head or a limb: worn into that piece, as every
-// weapon's is: VR_Limb_CorpseWear, vr_limbs.qc. They tag the hit with VR_SetHitKind below.)
+// weapon's is: VR_Limb_CorpseWear, vr_limbs.qc. They tag the hit with VR_Hit_Begin below.)
 
 // AD projectile impacts keep the launching shot's identity across flight frames and weapon switches.
 void(entity victim, entity pellet, float damage) VR_AD_PelletHit =
@@ -1669,7 +1677,7 @@ void(entity victim, entity pellet, float damage) VR_AD_PelletHit =
     vector at = trace_ent == victim ? trace_endpos : pellet.origin;
     float part = PositionalDamage(victim, at, dir);
     damage = damage * PositionalDamageFactor(part);
-    VR_SetHitKind(QVR_HITKIND_SHOT, pellet.vr_ad_shothand, at, dir);
+    VR_Hit_Begin(QVR_HITKIND_SHOT, pellet.vr_ad_shothand, at, dir);
     float serial = vr_sgib_blastserial;
     float weapon = vr_decap_weapon;
     float pellets = vr_decap_pellets;
@@ -1727,7 +1735,7 @@ void(entity victim, entity pellet, float damage) VR_AD_PelletHit =
     vr_decap_weapon = weapon;
     vr_decap_pellets = pellets;
     vr_decap_src = src;
-    VR_ClearHitKind();
+    VR_Hit_End();
 };
 
 // Preserve AD's explosion/radius/resistance rules while using Quake VR's catching, batting and shot interception.

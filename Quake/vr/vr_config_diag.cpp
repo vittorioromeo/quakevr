@@ -75,9 +75,25 @@ constexpr const char* testName = "config_test";
     return Cvar_FindVarAfter("", CVAR_ARCHIVE);
 }
 
+// (After the cvars, the data tables' values, each table's in turn: no cvars, weapons.txt's and props.txt's stand-ins,
+// written in the config as the vr_ settings.)
 [[nodiscard]] cvar_t* nextArchived(const cvar_t* var)
 {
-    return Cvar_FindVarAfter(var->name, CVAR_ARCHIVE);
+    const auto tables = standInTables();
+    for(za::SizeT t = 0; t < tables.size(); t++)
+    {
+        const za::Span<cvar_t> table = tables[t];
+        if(var >= table.data() && var < table.data() + table.size())
+        {
+            if(var + 1 < table.data() + table.size())
+            {
+                return const_cast<cvar_t*>(var + 1);
+            }
+            return t + 1 < tables.size() ? tables[t + 1].data() : nullptr;
+        }
+    }
+    cvar_t* next = Cvar_FindVarAfter(var->name, CVAR_ARCHIVE);
+    return next ? next : tables[0].data();
 }
 
 void snap()

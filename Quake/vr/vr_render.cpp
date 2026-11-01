@@ -23,6 +23,7 @@
 #include "vr_ragdoll.hpp"
 #include "vr_rig2.hpp"
 #include "vr_rigstudio.hpp"
+#include "vr_dirparryviz.hpp"
 #include "vr_hitreact.hpp"
 #include "vr_flamewobble.hpp"
 #include "vr_brainjiggle.hpp"
@@ -326,6 +327,7 @@ extern "C" void VR_AliasPostTransform(const entity_t* e, float matrix[16])
     }
     applyPost(e, networkData(e), matrix);
     rigstudio::drawnMatrix(e, matrix); // (the Rig Studio's aim lines: its subject's weapons as drawn)
+    dirparryviz::drawnMatrix(e, matrix); // (Show Directional Parry's line check: the weapons it reads)
 }
 
 // Brush entities (the ammo and health boxes are brush models) take the networked scale and offset

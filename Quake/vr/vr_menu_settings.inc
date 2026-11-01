@@ -76,37 +76,21 @@ za::Vector<Item> pageSaves()
             .help("The autosaves kept, newest first: each one's map, your health and armor, how far into the level and "
                   "how long ago (the main menu's Load Autosave row too)."),
         header("Autosaves"),
-        toggle("Autosave", "sv_autosave").help("Saves the game by itself in quiet moments (and as each level starts)."),
-        slider("Every", "sv_autosave_interval", 10.f, 300.f, 10.f, "%.0f s")
-            .help("About how often it autosaves: it waits for a quiet moment (not hurt, not firing, slowing down)."),
-        toggle("As Each Level Starts", "vr_autosave_level_start")
-            .help("An autosave a moment after each level starts (a new map, not a loaded game)."),
-        slider("Autosaves Kept", "vr_autosave_slots", 1.f, 9.f, 1.f, "%.0f per map")
-            .help("How many of each map's latest autosaves are kept: the oldest is replaced by a new one. 1: only the "
-                  "last one, overwritten."),
-        toggle("List Every Game's", "vr_autosave_list_all")
-            .help("Load Autosave and the death menu list the autosaves of every campaign and map package, not only "
-                  "the one you are playing (their first row switches it too)."),
+        row(opt::sv_autosave),
+        row(opt::sv_autosave_interval),
+        row(opt::vr_autosave_level_start),
+        row(opt::vr_autosave_slots),
+        row(opt::vr_autosave_list_all),
         header("Only When Safe"),
-        toggle("Wait Until Safe", "vr_autosave_safe")
-            .help("An autosave due waits until the checks below pass, then it is made: so it never traps you in a fight."),
-        toggle("Not While Hunted", "vr_autosave_safe_alerted")
-            .help("Not while a living monster is after you, wherever it is."),
-        slider("Monsters in Sight Within", "vr_autosave_safe_radius", 0.f, 1500.f, 50.f, "%.0f units")
-            .help("Not while a living monster you can see is this near (a unit is 3 cm; 0: off), awake or not."),
-        slider("Health at Least", "vr_autosave_safe_health", 0.f, 100.f, 5.f, "%.0f%%")
-            .help("Not while your health is below this share of its maximum (0: off). Healing ends this wait."),
-        slider("Longest Wait for Monsters", "vr_autosave_safe_maxdelay", 0.f, 300.f, 10.f, "%.0f s")
-            .help("After this long waiting for the monsters (one stuck hunting you), it autosaves anyway; your health "
-                  "must still be high enough. 0: waits as long as it takes."),
+        row(opt::vr_autosave_safe),
+        row(opt::vr_autosave_safe_alerted),
+        row(opt::vr_autosave_safe_radius),
+        row(opt::vr_autosave_safe_health),
+        row(opt::vr_autosave_safe_maxdelay),
         header("When You Die"),
-        toggle("Death Menu", "vr_death_menu")
-            .help("A moment after you die: Respawn (your last save), Restart the Level, or any autosave kept, newest "
-                  "first. Back: you stay dead, fire respawns as ever."),
-        slider("Death Menu After", "vr_death_menu_delay", 0.5f, 10.f, 0.5f, "%.1f s"),
-        cycle("Respawn", "sv_autoload", {{0.f, "Restarts the Level"}, {2.f, "Loads the Last Save"}})
-            .help("What respawning does (fire when dead, the death menu's Respawn): load your last save (manual or "
-                  "auto), or start the level again."),
+        row(opt::vr_death_menu),
+        row(opt::vr_death_menu_delay),
+        row(opt::sv_autoload),
     };
 }
 
@@ -114,16 +98,11 @@ za::Vector<Item> pageSaves()
 [[nodiscard]] za::Vector<Item> pageVrsHeight()
 {
     return {
-        slider("Height", vr_height_calibration, 1.f, 2.2f, 0.01f, "%.2f m").extend(0.5f, 3.f)
-            .help("Your real height: it puts your eyes at the right height in the game and fits the body to you. Set "
-                  "Height Now measures it."),
+        row(opt::vr_height_calibration),
         action("Set Height Now", calibrateHeight)
             .help("Stand up straight, look straight ahead and press: your height is taken from the headset."),
-        slider("World Scale", vr_world_scale, 0.5f, 2.f, 0.05f, "%.2f").extend(0.25f, 4.f)
-            .help("How big the world feels around you: higher makes it bigger. 1.25: Quake's sizes as a person would "
-                  "see them."),
-        slider("Floor Offset", vr_floor_offset, -50.f, 30.f, 1.f, "%.0f").extend(-400.f, 400.f)
-            .help("Moves the floor up or down: change it if you feel you are floating above it or sunk into it."),
+        row(opt::vr_world_scale),
+        row(opt::vr_floor_offset),
         open("Seated Play", pageIndex(pageSeated))
             .help("Playing sitting down: the game stands you up, the holsters and pouches where you reach them seated, "
                   "the floor in reach, a crouch toggle."),
@@ -138,16 +117,12 @@ za::Vector<Item> pageSaves()
         toggle("Show Controller", "vr_show_controller")
             .help("Draws your real controllers, see-through, where the game tracks them: line the hands up with them "
                   "below. Not saved."),
-        slider("Hand Forward", vr_menu_hands_x, -5.f, 5.f, 0.1f, "%+.1f cm").extend(-20.f, 20.f).help(handHelp),
-        slider("Hand Inward", vr_menu_hands_y, -5.f, 5.f, 0.1f, "%+.1f cm").extend(-20.f, 20.f).help(handHelp),
-        slider("Hand Up", vr_menu_hands_z, -5.f, 5.f, 0.1f, "%+.1f cm").extend(-20.f, 20.f).help(handHelp),
-        slider("Hand Pitch", vr_menu_hands_pitch, -30.f, 30.f, 0.5f, "%+.1f").extend(-90.f, 90.f)
-            .help("Both hands: tilts the hands and the guns in them up or down on the controllers, until aiming feels "
-                  "natural. Changes where they aim."),
-        slider("Hand Yaw", vr_menu_hands_yaw, -30.f, 30.f, 0.5f, "%+.1f").extend(-90.f, 90.f)
-            .help("Both hands, mirrored: turns the hands and the guns in them inward or outward on the controllers. "
-                  "Changes where they aim."),
-        slider("Hand Roll", vr_menu_hands_roll, -30.f, 30.f, 0.5f, "%+.1f").extend(-90.f, 90.f).help(handHelp),
+        row(opt::vr_menu_hands_x).help(handHelp),
+        row(opt::vr_menu_hands_y).help(handHelp),
+        row(opt::vr_menu_hands_z).help(handHelp),
+        row(opt::vr_menu_hands_pitch),
+        row(opt::vr_menu_hands_yaw),
+        row(opt::vr_menu_hands_roll).help(handHelp),
         action("Reset Hand Offsets", resetHandOffsets)
             .help("Both hands' moves and turns back to the shipped calibration. Each hand's own values: Advanced VR "
                   "Options > Weapons > Hand/Gun Calibration."),
@@ -168,33 +143,30 @@ za::Vector<Item> pageSaves()
                   "drag it where you want it; grip it with both hands and spread them to make it bigger (or push the "
                   "stick up or down). Symmetry moves the other one of the pair mirrored. Done keeps it, Cancel puts "
                   "everything back. Seated, it sets the seated places. Single player only."),
-        slider("Hip Holsters Forward", vr_menu_holster_hip_x, -10.f, 10.f, 0.5f, "%+.1f").extend(-40.f, 40.f)
+        row(opt::vr_menu_holster_hip_x)
             .help(holsterHelp),
-        slider("Hip Holsters Inward", vr_menu_holster_hip_y, -10.f, 10.f, 0.5f, "%+.1f").extend(-40.f, 40.f)
+        row(opt::vr_menu_holster_hip_y)
             .help(holsterHelp),
-        slider("Hip Holsters Up", vr_menu_holster_hip_z, -10.f, 10.f, 0.5f, "%+.1f").extend(-40.f, 40.f)
+        row(opt::vr_menu_holster_hip_z)
             .help(holsterHelp),
-        slider("Chest Holsters Forward", vr_menu_holster_chest_x, -10.f, 10.f, 0.5f, "%+.1f").extend(-40.f, 40.f)
+        row(opt::vr_menu_holster_chest_x)
             .help(holsterHelp),
-        slider("Chest Holsters Inward", vr_menu_holster_chest_y, -10.f, 10.f, 0.5f, "%+.1f").extend(-40.f, 40.f)
+        row(opt::vr_menu_holster_chest_y)
             .help(holsterHelp),
-        slider("Chest Holsters Up", vr_menu_holster_chest_z, -10.f, 10.f, 0.5f, "%+.1f").extend(-40.f, 40.f)
+        row(opt::vr_menu_holster_chest_z)
             .help(holsterHelp),
-        slider("Back Holsters Forward", vr_menu_holster_back_x, -10.f, 10.f, 0.5f, "%+.1f").extend(-40.f, 40.f)
+        row(opt::vr_menu_holster_back_x)
             .help(holsterHelp),
-        slider("Back Holsters Inward", vr_menu_holster_back_y, -10.f, 10.f, 0.5f, "%+.1f").extend(-40.f, 40.f)
+        row(opt::vr_menu_holster_back_y)
             .help(holsterHelp),
-        slider("Back Holsters Up", vr_menu_holster_back_z, -10.f, 10.f, 0.5f, "%+.1f").extend(-40.f, 40.f)
+        row(opt::vr_menu_holster_back_z)
             .help(holsterHelp),
         open("Seated Holsters", pageIndex(pageSeatedHolsters))
             .help("Playing seated (Height > Seated Play): where the holsters and pouches go then, on top of these."),
         action("Reset Holsters", resetHolsters)
             .help("Every pair of holsters back to its shipped place. Each pair's own values (its turn and reach too): "
                   "Advanced VR Options > Weapons > Hip Holsters, and > Hotspots."),
-        toggle("Shoulder Holster Weapons", vr_holster_weapons_draw_shoulder)
-            .help("Draws the guns in the two holsters on your back, reached over your shoulders (the highest pair). Off: "
-                  "out of your view; you still take them and put them away there. The other pairs: Advanced VR Options "
-                  "> Body and Display."),
+        row(opt::vr_holster_weapons_draw_shoulder),
     };
 }
 
@@ -218,11 +190,7 @@ int itemCollectionPageMode = -1; // the mode the page was built for (Backpacks T
                                                  "force-grab is taken at once too, as the boxes are.");
     }
     return {
-        cycle("Item Pickup Mode", vr_menu_pickup_mode, {{0.f, "Immersive"}, {1.f, "Auto-Collect"}, {2.f, "Vanilla"}})
-            .help("Immersive: grip ammo, health and backpacks to carry them, and let go of them at a holster to put them "
-                  "away. Auto-Collect: an ammo or health box is taken the moment a hand grips it or a force grab brings "
-                  "it in, seen shrinking into the hand. Vanilla: walking into it takes it, as in Quake. The details: "
-                  "Advanced VR Options > Carrying and Throwing > Carrying."),
+        row(opt::vr_menu_pickup_mode),
         backpacks,
     };
 }
@@ -246,11 +214,8 @@ int itemCollectionPageMode = -1; // the mode the page was built for (Backpacks T
             .help("A small screen on the ammo pouch: how many of what it gives (shells, nails, cells) you have left."),
         // (The wobble's rows: Advanced VR Options > Weapons > Reloading > Ammo Pouch Wobble; the author, 2026-10-22: "too
         // fine-grained" for here.)
-        slider("Shells Shown in the Pouch", vr_ammo_pouch_shells_max, 1.f, 20.f, 1.f, "%.0f")
-            .help("The most shells piled in the ammo pouch: one a shell up to this many."),
-        slider("Magazines Shown in the Pouch", vr_ammo_pouch_mags_max, 1.f, 6.f, 1.f, "%.0f")
-            .help("The most magazines (or cells) standing in the ammo pouch: up to three in a row, then two rows. Pouch "
-                  "reloading takes the one your gun's well meets."),
+        row(opt::vr_ammo_pouch_shells_max),
+        row(opt::vr_ammo_pouch_mags_max),
     };
 }
 
@@ -279,13 +244,8 @@ void resetBodyEquipment()
         slider("Height", vr_height_calibration, 1.f, 2.2f, 0.01f, "%.2f m").extend(0.5f, 3.f)
             .help("Your eyes' height standing (Height and Hand Calibration > Set Height Now measures it). The body is "
                   "sized to it; with Legs Fit Your Height the legs still reach the floor if it is off."),
-        toggle("Legs Fit Your Height", vr_body_leg_fit)
-            .help("The legs lengthen or shorten (up to a quarter) so that, standing at the height the headset sees you "
-                  "stand at, the feet are on the floor and the knees straight: changing Height no longer breaks the legs "
-                  "or needs Body Calibration again. Off: the legs as the body's proportions make them."),
-        toggle("Gear Fits Your Body", vr_body_gear_fit)
-            .help("The holsters and the pouches are placed for your body's size (Height, World Scale) and the floor, so "
-                  "the belt sits on the belt for a tall player too. Off: placed as before (low on a tall body)."),
+        row(opt::vr_body_leg_fit),
+        row(opt::vr_body_gear_fit),
         open("Body Calibration", pageIndex(pageBodyCalibration))
             .help("Measures your arms and shoulders (and your height) from a few poses."),
         header("Shoulders and Torso"),
@@ -327,21 +287,16 @@ void resetBodyEquipment()
 [[nodiscard]] za::Vector<Item> pageVrsLocomotion()
 {
     return {
-        cycle("Move Towards", vr_menu_move_towards, {{1.f, "Head"}, {2.f, "Left Hand"}, {3.f, "Right Hand"}})
-            .help("Where pushing the stick forward takes you: where you look (Head), or where that hand points, so you "
-                  "can walk one way and look another."),
+        row(opt::vr_menu_move_towards),
         cycle("Default Speed", "cl_alwaysrun", {{1.f, "Run"}, {0.f, "Walk"}})
             .help("Whether you run or walk; holding the speed button does the other."),
-        slider("Stick Deadzone", vr_deadzone, 0.f, 50.f, 5.f, "%.0f%%")
-            .help("How far a stick must be pushed before it does anything. Raise it if you drift or turn without "
-                  "touching the stick: worn sticks often need 20-25%."),
+        row(opt::vr_deadzone),
         slider("Stick Response Curve", vr_move_curve, 1.f, 3.f, 0.1f, "%.1f")
             .help("How the moving stick's push becomes speed. 1: straight. Higher: more of the travel for slow, careful "
                   "walking, the top speed still at a full push."),
         toggle("Walk Into Run", vr_move_autorun)
             .help("Walking, pushing the moving stick all the way eases you into a run; a smaller push walks."),
-        toggle("Swap Stick Functions", vr_stick_swap)
-            .help("Off: the left stick moves you and the right one turns. On: the right stick moves, the left turns."),
+        row(opt::vr_stick_swap),
         cycle("Swimming", vr_swim, {{1.f, "Immersive"}, {0.f, "Vanilla"}})
             .help("Immersive: in water the stick slows and strokes of your hands move you. Vanilla: the stick swims as in "
                   "Quake."),
@@ -355,18 +310,10 @@ void resetBodyEquipment()
 {
     return {
         open("Blood Feedback", pageIndex(pageBloodFeedback)).help("Independent peripheral feedback for hits and low health, with timing, strength and directional controls."),
-        cycle("Vignette", vr_comfort_vignette, {{0.f, "Off"}, {1.f, "Moving and Turning"}, {2.f, "Moving Only"}, {3.f, "Turning Only"}})
-            .help("Darkens the edges of your view while the sticks move or turn you: it eases motion sickness for many. "
-                  "Your own steps in the room never do it."),
-        slider("Vignette Strength", vr_comfort_vignette_strength, 0.1f, 1.f, 0.1f, "%.1f")
-            .help("How dark and how wide the vignette is: at 1 you see through a narrow tunnel."),
-        slider("Fade on Scripted Teleports", vr_comfort_teleport_fade, 0.f, 2.f, 0.1f, "%.1f s")
-            .help("When the game moves you somewhere else at once (a boss sending you to another arena), your view goes "
-                  "black and comes back over this long. 0: no fade."),
-        slider("Soften Flickering Lights", vr_lightstyle_comfort, 0.f, 1.f, 0.25f, "%.2f")
-            .help("Flickering and pulsing map lights (Quake's and Arcane Dimensions' lamps) swing less around their usual "
-                  "brightness, their steps blended: 0 as the maps made them, 0.5 half the swing, 1 steady. They keep "
-                  "their rhythm. Lights switched on and off are not changed."),
+        row(opt::vr_comfort_vignette),
+        row(opt::vr_comfort_vignette_strength),
+        row(opt::vr_comfort_teleport_fade),
+        row(opt::vr_lightstyle_comfort),
         cycle("Death View", vr_death_view, {{0.f, "Off"}, {1.f, "Third Person"}, {2.f, "Immersive"}})
             .help("When you die (not gibbed) your body falls as a ragdoll, thrown by the blow that killed you. Off: no "
                   "body, as in Quake. Third Person: your view stays where your eyes were, your body there to look at. "
@@ -381,8 +328,7 @@ void resetBodyEquipment()
     return {
         toggle("Teleport", vr_teleport_enabled)
             .help("Jump to the spot you point at instead of walking there: the gentlest way to get around."),
-        slider("Teleport Range", vr_teleport_range, 100.f, 800.f, 50.f, "%.0f").extend(100.f, 3000.f)
-            .help("How far a teleport reaches, in Quake's units (one is about 3 cm)."),
+        row(opt::vr_teleport_range),
     };
 }
 
@@ -393,10 +339,7 @@ void resetBodyEquipment()
     const bool snap = !off && vr_snap_turn.value > 0.f;
     mainPageSnap = off ? 2 : snap ? 1 : 0;
     za::Vector<Item> list{
-        cycle("Turning Mode", vr_menu_turning, {{0.f, "Smooth"}, {1.f, "Snap"}, {2.f, "Off"}})
-            .help("Smooth: the turning stick turns you steadily. Snap: each push turns you at once by Snap Angle, which "
-                  "many find more comfortable. Off: the stick never turns you, in any state (its other uses stay): "
-                  "you turn in real life."),
+        row(opt::vr_menu_turning),
     };
     if(off)
     {
@@ -418,12 +361,8 @@ void resetBodyEquipment()
 [[nodiscard]] za::Vector<Item> pageVrsFlashlight()
 {
     return {
-        cycle("Flashlight", vr_flashlight, {{0.f, "Off"}, {1.f, "Immersive"}, {2.f, "Always on Head"}})
-            .help("Immersive: a torch on your belt: pull the trigger with an open hand at it to switch it on or off; press "
-                  "the grip to take it in your hand. Always on Head: worn at your temple, on from the start: pull the "
-                  "trigger with an open hand at it to switch it."),
-        cycle("Flashlight Side", vr_flashlight_side, {{0.f, "Left"}, {1.f, "Right"}})
-            .help("The side of your belt the torch hangs on (Always on Head: the temple it is worn at)."),
+        row(opt::vr_flashlight),
+        row(opt::vr_flashlight_side),
     };
 }
 
@@ -441,11 +380,8 @@ void resetBodyEquipment()
 [[nodiscard]] za::Vector<Item> pageVrsWeapons()
 {
     return {
-        cycle("Weapon Grip", vr_weapon_grip_mode, {{0.f, "Hold"}, {1.f, "Sticky"}})
-            .help("Hold: keep the grip pressed to hold a weapon. Sticky: a press takes it, another lets it go."),
-        slider("Grip Grace After Loading", vr_weapon_load_grace, 0.f, 2.f, 0.05f, "%.2f s")
-            .help("After loading a save, keep the restored weapons in your hands this long even without holding the grip. "
-                  "Starts when play resumes; 0 disables it."),
+        row(opt::vr_weapon_grip_mode),
+        row(opt::vr_weapon_load_grace),
         cycle("Two-Handed", vr_2h_mode, {{0.f, "Off"}, {1.f, "Basic"}, {2.f, "Virtual Stock"}})
             .help("Hold a gun with both hands to steady it. Virtual Stock: a gun brought near your shoulder also aims "
                   "from it, as against a real stock."),
@@ -464,27 +400,17 @@ void resetBodyEquipment()
                   "Gadget: tap its screen hard with your other hand (or the butt of its gun). A thumbstick press: that "
                   "press does only this (never its bound key), and the screen tap does nothing. More: Advanced VR "
                   "Options > Combat > Bullet Time."),
-        cycle("Meter Refill", "vr_bullettime_meter_mode", {{1.f, "Earned by Damage"}, {0.f, "Over Time"}})
-            .help("Earned by Damage: the TIME meter never fills by itself; hurting enemies fills it (six grunts' worth "
-                  "fills it from empty; less while slowed). Over Time: it fills by itself after each use. Either way it "
-                  "is kept from level to level and in saves, full on a new game."),
-        cycle("Screen Tap", "vr_bullettime_tap_gesture", {{0.f, "Single Tap"}, {1.f, "Double Tap"}})
-            .help("Activation by the Wrist Gadget: Double Tap, two quick taps on its screen (a single one does nothing, "
-                  "so a stray knock never starts it); Single Tap, one hard tap."),
-        slider("Quiet After Blows", "vr_bullettime_tap_blow_quiet", 0.f, 1.5f, 0.05f, "%.2f s").extend(0.f, 3.f)
-            .help("Screen taps don't count for this long after a melee blow of yours lands, or you shove or bash, nor "
-                  "while your hands move fast (Calm Hands Speed, Advanced VR Options > Combat > Bullet Time): no slow "
-                  "motion by accident in a melee. 0: off."),
+        row(opt::vr_bullettime_meter_mode),
+        row(opt::vr_bullettime_tap_gesture),
+        row(opt::vr_bullettime_tap_blow_quiet),
     };
 }
 
 [[nodiscard]] za::Vector<Item> pageVrsBody()
 {
     return {
-        cycle("Body Type", vr_body_mode, {{3.f, "Full Body"}, {2.f, "Torso and Arms"}, {0.f, "Only Hands"}})
-            .help("How much of your body you see: all of it, legs and all; the torso and arms; or only the hands."),
-        cycle("Wrist Gadget Arm", vr_gadget_arm, {{0.f, "Left"}, {1.f, "Right"}})
-            .help("The arm the wrist gadget (health, armour and ammo) is on."),
+        row(opt::vr_body_mode),
+        row(opt::vr_gadget_arm),
         cycle("Leaning Detection", vr_lean_detect, {{1.f, "On"}, {0.f, "Off"}})
             .help("On: leaning over (your head lower and tilted, your hands by your hips) leaves your feet where they "
                   "stand. Off: the body always slides back under your head. How readily: Advanced VR Options > Movement "
@@ -498,18 +424,15 @@ void resetBodyEquipment()
 [[nodiscard]] za::Vector<Item> pageVrsHaptics()
 {
     return {
-        slider("Vibration Strength", vr_haptics_strength, 0.f, 1.f, 0.1f, "%.1f").extend(0.f, 2.f)
-            .help("How strongly the controllers vibrate (0: never)."),
+        row(opt::vr_haptics_strength),
     };
 }
 
 [[nodiscard]] za::Vector<Item> pageVrsHud()
 {
     return {
-        cycle("HUD", vr_hud_mode, {{1.f, "Wrist Gadget"}, {0.f, "Status Bar"}})
-            .help("Wrist Gadget: health, armour and ammo on your wrist. Status Bar: Quake's, on a hand."),
-        cycle("Crosshair", vr_crosshair, {{0.f, "Off"}, {1.f, "Dot"}, {2.f, "Laser"}, {3.f, "Soft laser"}})
-            .help("A mark where your gun aims: a dot, or a laser beam from the muzzle."),
+        row(opt::vr_hud_mode),
+        row(opt::vr_crosshair),
         open("Doom on the Wrist Gadget", pageIndex(pageDoom))
             .help("Play Doom on the gadget's screen while you play Quake: touch it with your fingertip."),
     };
@@ -518,8 +441,8 @@ void resetBodyEquipment()
 [[nodiscard]] za::Vector<Item> pageVrsSound()
 {
     return {
-        slider("Volume", "volume", 0.f, 1.f, 0.05f, "%.2f").help("The game's sounds."),
-        slider("Music Volume", "bgmvolume", 0.f, 1.f, 0.05f, "%.2f").help("The music's volume."),
+        row(opt::volume),
+        row(opt::bgmvolume),
         toggle("Spatial Sound", vr_snd_spatial)
             .help("Sounds come from where they are around your head, muffled by walls, with the room's echo. Best with "
                   "headphones."),
@@ -539,27 +462,14 @@ void resetBodyEquipment()
 [[nodiscard]] za::Vector<Item> pageVrsScaling()
 {
     return {
-        slider("Render Scale", vr_render_scale, 0.5f, 1.5f, 0.05f, "%.2f").extend(0.25f, 2.f)
-            .help("Eye rendering resolution, times the headset's. Above 1: smoother edges, slower. Below 1: faster, "
-                  "blurrier."),
-        toggle("Dynamic Resolution", vr_dynres)
-            .help("When the graphics card can't keep up with the headset, the eyes are drawn smaller for a while (down to "
-                  "Dynamic Lowest Scale) and upscaled, instead of missing frames; back up slowly once it can. With "
-                  "headroom it stays at Render Scale: nothing changes."),
-        slider("Dynamic GPU Budget", vr_dynres_target, 0.5f, 1.f, 0.05f, "%.2f").advanced()
-            .help("The share of each headset frame the eyes' GPU time may take before the scale drops (0.85: 85 %; the "
-                  "rest is left for the headset's runtime and the window). Lower: drops sooner, steadier."),
-        slider("Dynamic Lowest Scale", vr_dynres_min, 0.4f, 1.f, 0.05f, "%.2f").extend(0.25f, 2.f)
-            .help("The lowest scale Dynamic Resolution goes to under load (times the headset's resolution)."),
+        row(opt::vr_render_scale),
+        row(opt::vr_dynres),
+        row(opt::vr_dynres_target).advanced(),
+        row(opt::vr_dynres_min),
         dynresMaxSlider().advanced(),
-        cycle("Upscaling", vr_upscale, {{0.f, "Bilinear"}, {1.f, "FSR"}, {2.f, "NIS"}})
-            .help("Below Render Scale 1: how the image is enlarged to the headset's size. FSR (AMD) and NIS (NVIDIA) "
-                  "keep it sharper than Bilinear."),
-        slider("Sharpening", vr_upscale_sharpness, 0.f, 1.f, 0.05f, "%.2f")
-            .help("How much the upscaler sharpens the image (FSR, NIS). Too much makes edges shimmer."),
-        cycle("Foveated Rendering", vr_foveated, {{0.f, "Off"}, {1.f, "Conservative"}, {2.f, "Balanced"}, {3.f, "Aggressive"}})
-            .help("Draws the edges of the view, which the lenses blur anyway, in less detail: faster. NVIDIA graphics "
-                  "cards only."),
+        row(opt::vr_upscale),
+        row(opt::vr_upscale_sharpness),
+        row(opt::vr_foveated),
     };
 }
 
@@ -573,14 +483,9 @@ void resetBodyEquipment()
         cycle("Antialiasing", "vid_fsaa", {{0.f, "Off"}, {2.f, "2x"}, {4.f, "4x"}, {8.f, "8x"}})
             .help("Smoother edges: thin lines such as the gaps between planks stop crawling and breaking into dashes "
                   "as your head moves. 4x (as shipped) does most of it; 8x takes nearly twice 4x's GPU time for little more."),
-        toggle("Temporal Antialiasing (TAA)", "vr_taa")
-            .help("vr_taa (experimental): smooths edges and shimmer by blending each frame with the last ones, following "
-                  "how everything moved. Replaces Antialiasing (MSAA) while on. Can leave faint trails behind fast hands."),
-        slider("TAA Sharpening", "vr_taa_sharpen", 0.f, 1.f, 0.05f, "%.2f")
-            .help("vr_taa_sharpen: sharpens the image after TAA, which softens textures a little (0: off)."),
-        cycle("Anisotropic Filtering", "gl_texture_anisotropy", {{1.f, "Off"}, {2.f, "2x"}, {4.f, "4x"}, {8.f, "8x"}, {16.f, "16x"}})
-            .help("Keeps floors and walls seen at a glancing angle sharp instead of blurry (smooth-filtered textures). "
-                  "Little GPU time; 16x is the sharpest. Capped at what the graphics card supports."),
+        row(opt::vr_taa),
+        row(opt::vr_taa_sharpen),
+        row(opt::gl_texture_anisotropy),
         slider("Bloom", "vr_bloom", 0.f, 1.5f, 0.02f, "%.2f").extend()
             .help("A glow around lamps, glowing panels, flashes and explosions (0: off)."),
         toggle("Tone Mapping", "vr_tonemap")
@@ -588,10 +493,8 @@ void resetBodyEquipment()
                   "white."),
         toggle("Bump Mapping", "vr_normalmaps")
             .help("Walls and floors get bumps and grooves that catch the light. From the next map."),
-        toggle("Generated Companion Maps", "vr_pbr")
-            .help("Adds normal and height maps generated for the exact wall or floor image. Keeps authored maps. From the next map."),
-        slider("Generated Relief Strength", "vr_pbr_strength", 0.f, 4.f, 0.1f, "%.1fx").extend(0.f, 8.f)
-            .help("Makes generated bumps and grooves stronger. 1: the generated shape; 0: flat. Authored normal and height components keep their own strength."),
+        row(opt::vr_pbr),
+        row(opt::vr_pbr_strength),
         toggle("Parallax Mapping", "vr_parallax")
             .help("Walls and floors look carved: their dark parts sink in as you move your head (needs Bump Mapping)."),
     };
@@ -654,28 +557,21 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
 [[nodiscard]] za::Vector<Item> pageVrsRangerHead()
 {
     return {
-        toggle("Use the Ranger's Head", vr_body_ranger_head)
-            .help("The head your body has in the mirror, the third-person views and shadows (never in your own eyes): "
-                  "the Quake ranger's, taken from your game's player model, or off for the plain placeholder head. "
-                  "Takes effect at the next start; the rows below apply at once."),
+        row(opt::vr_body_ranger_head),
         header("Size and Neck"),
-        slider("Size", vr_body_head_size, 0.5f, 2.f, 0.05f, "%.2fx")
-            .help("How big the head is (1 the first version's size, a little small)."),
-        slider("Neck Sink", vr_body_head_sink, 0.f, 12.f, 0.5f, "%.1f cm")
-            .help("Lowers the head over the neck, and the neck's top with it, so less of the neck shows."),
+        row(opt::vr_body_head_size),
+        row(opt::vr_body_head_sink),
         header("Position"),
-        slider("Forward", vr_body_head_forward, -10.f, 10.f, 0.25f, "%.2f cm").help("Moves the head forward (back below zero)."),
-        slider("Right", vr_body_head_side, -10.f, 10.f, 0.25f, "%.2f cm").help("Moves the head to its right (left below zero)."),
-        slider("Up", vr_body_head_up, -10.f, 10.f, 0.25f, "%.2f cm").help("Moves the head up (down below zero), the neck's top with it."),
+        row(opt::vr_body_head_forward),
+        row(opt::vr_body_head_side),
+        row(opt::vr_body_head_up),
         header("Orientation"),
-        slider("Pitch", vr_body_head_pitch, -45.f, 45.f, 1.f, "%.0f deg").help("Tips the chin down (up below zero), about the bottom of the head."),
-        slider("Yaw", vr_body_head_yaw, -45.f, 45.f, 1.f, "%.0f deg").help("Turns the head to its left (right below zero)."),
-        slider("Roll", vr_body_head_roll, -45.f, 45.f, 1.f, "%.0f deg").help("Tilts the head to its right (left below zero)."),
+        row(opt::vr_body_head_pitch),
+        row(opt::vr_body_head_yaw),
+        row(opt::vr_body_head_roll),
         header("Preview"),
-        slider("Preview Distance", vr_menu_body_clone_distance, 0.5f, 5.f, 0.1f, "%.1f m")
-            .help("How far off the mirror image of your body is drawn while this page (or a page placing what you wear) is open."),
-        cycle("Preview Side", vr_menu_body_clone_side, {{0.f, "Away From Main Hand"}, {1.f, "Left"}, {2.f, "Right"}, {3.f, "Ahead"}})
-            .help("Where the mirror image stands, beside the menu panel or straight ahead behind it."),
+        row(opt::vr_menu_body_clone_distance),
+        row(opt::vr_menu_body_clone_side),
         command("Reset Head Placement",
             "vr_body_head_size 1.3; vr_body_head_sink 4.5; vr_body_head_forward 0; vr_body_head_side 0; vr_body_head_up 0; "
             "vr_body_head_pitch 0; vr_body_head_yaw 0; vr_body_head_roll 0")
@@ -689,71 +585,32 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
 {
     return {
         header("Body"),
-        cycle("Body Shape", vr_body_build, {{0.f, "Lean"}, {1.f, "Athletic"}, {2.f, "Brawny"}, {3.f, "Feminine"}})
-            .help("The shape of the body you see: lean, athletic or brawny, or feminine (narrower shoulders and waist, "
-                  "wider hips, a modest chest, slimmer arms and legs). Your calibration still sets its size."),
+        row(opt::vr_body_build),
         open("Ranger Head", pageIndex(pageVrsRangerHead))
             .help("The Quake ranger's head on your body (on or off), its size, place and turn, and how far it sinks over "
                   "the neck, with a mirror image of your body beside the menu while the page is open."),
-        slider("Skin Tone", vr_skin_tone, -1.f, 1.f, 0.05f, "%.2f")
-            .help("Darken or lighten the skin on your hands and arms (and the fingertips out of fingerless gloves). Zero "
-                  "keeps your painted skin. Blood, nails, clothes, gloves and gadgets keep their own colours."),
-        toggle("Bracers", vr_body_bracers)
-            .help("The leather bracers on your forearms. Off: bare forearms with the wrist gadget strapped round the skin, running "
-                  "on into the hands (with the jointed hand, vr_hand_rig 1: the default)."),
-        cycle("Hand Shape", vr_hand_shape, {{0.f, "Standard"}, {1.f, "Feminine"}})
-            .help("The shape of your hands. Feminine: slimmer fingers and palm, finer knuckles, tapered fingertips with "
-                  "longer nails. The joints are the same, so grips, weapons and reloads fit as before; "
-                  "skin tone, gloves and nails work on both. Changes at once. On the jointed hands (vr_hand_rig 1: the "
-                  "default); the older hands (vr_hand_rig 0) have one shape only."),
-        cycle("Voice", vr_voice, {{0.f, "Masculine"}, {1.f, "Feminine"}})
-            .help("Your character's voice: pain, death, the jump's grunt, landing hard, gasping for air, drowning, "
-                  "burning. Feminine: Quake's recordings pitched up with their formants raised as they load (no new "
-                  "recordings). Changes at once. Hear Voice plays one."),
-        slider("Voice Pitch", vr_voice_pitch, 0.f, 8.f, 0.5f, "+%.1f semitones")
-            .help("With the feminine voice: how much higher it is pitched (the sounds keep their length)."),
-        slider("Voice Formants", vr_voice_formant, 0.f, 30.f, 1.f, "+%.0f%%")
-            .help("With the feminine voice: how much its resonances are raised, a smaller throat's. Too little sounds "
-                  "like a man's voice sped up, too much a child's."),
+        row(opt::vr_skin_tone),
+        row(opt::vr_body_bracers),
+        row(opt::vr_hand_shape),
+        row(opt::vr_voice),
+        row(opt::vr_voice_pitch),
+        row(opt::vr_voice_formant),
         command("Hear Voice", "vr_voice_hear")
             .help("One of your voice's sounds, as set now (a different one each press)."),
         header("Gloves"),
-        cycle("Gloves", vr_gloves, {{0.f, "None"}, {1.f, "Fingerless"}, {2.f, "Full"}})
-            .help("Leather gloves on your hands: fingerless ones leave the fingertips bare (in your skin tone); full ones "
-                  "cover every finger. With bare forearms (no bracers) a cuff covers the wrist. On the jointed hands "
-                  "(vr_hand_rig 1: the default)."),
-        slider("Glove Hue", vr_glove_hue, 0.f, 360.f, 5.f, "%.0f deg")
-            .help("The leather's colour round the colour wheel: 0 red, 25 brown, 60 yellow, 120 green, 240 blue, 300 "
-                  "purple."),
-        slider("Glove Saturation", vr_glove_saturation, 0.f, 1.f, 0.05f, "%.2f")
-            .help("How strong the colour is: 0 grey, black or white leather; 1 the purest."),
-        slider("Glove Lightness", vr_glove_lightness, 0.f, 1.f, 0.05f, "%.2f")
-            .help("0 black, 0.5 the colour at its fullest, 1 white. The hand's own creases and knuckles shade it."),
-        slider("Glove Thickness", vr_glove_thickness, 0.f, 4.f, 0.25f, "%.2f mm")
-            .help("How thick the leather is: the glove is its own layer over the hand, bending with the fingers, its "
-                  "edge a step down to the skin. 0: painted on the skin only (no layer of its own)."),
-        toggle("Worn Leather", vr_glove_paint)
-            .help("The gloves' leather painted worn: scuffed knuckles, creases over the finger joints, stitched seams, "
-                  "scratches (progs/hand_rig_00_00_glove.png: editable, docs/vr-port/GLOVES.md). Off: plain new leather."),
-        slider("Leather Relief", vr_glove_relief, 0.f, 2.f, 0.1f, "%.1f")
-            .help("How deep the worn leather's relief is in the light: raised stitches in their grooves, the padded "
-                  "panels between seams, the creases over the knuckles and joints, the grain. 1 matches the bracers "
-                  "and pauldrons; 0 flat."),
+        row(opt::vr_gloves),
+        row(opt::vr_glove_hue),
+        row(opt::vr_glove_saturation),
+        row(opt::vr_glove_lightness),
+        row(opt::vr_glove_thickness),
+        row(opt::vr_glove_paint),
+        row(opt::vr_glove_relief),
         header("Nails"),
-        toggle("Painted Nails", vr_nails)
-            .help("Polish on your fingernails, in the colour below. Full gloves cover them; fingerless gloves leave them "
-                  "showing. Your skin tone doesn't tint the polish. On the jointed hands (vr_hand_rig 1: the default)."),
-        slider("Nail Hue", vr_nail_hue, 0.f, 360.f, 5.f, "%.0f deg")
-            .help("The polish's colour round the colour wheel: 0 and 355 red, 20 coral, 330 pink, 270 violet, 210 blue, "
-                  "150 green."),
-        slider("Nail Saturation", vr_nail_saturation, 0.f, 1.f, 0.05f, "%.2f")
-            .help("How strong the colour is: 0 grey, black or white polish; 1 the purest. Pastels: low saturation with "
-                  "high lightness."),
-        slider("Nail Lightness", vr_nail_lightness, 0.f, 1.f, 0.05f, "%.2f")
-            .help("0 black, 0.5 the colour at its fullest, 1 white. The nail's own shape and the light still shade it."),
-        slider("Nail Gloss", vr_nail_gloss, 0.f, 1.f, 0.05f, "%.2f")
-            .help("How shiny the polish is: 0 matte, 1 a glassy top coat with a sharp highlight and the room's light "
-                  "mirrored in it."),
+        row(opt::vr_nails),
+        row(opt::vr_nail_hue),
+        row(opt::vr_nail_saturation),
+        row(opt::vr_nail_lightness),
+        row(opt::vr_nail_gloss),
         action("Randomize", randomAppearance)
             .help("A new look at random: skin tone, gloves (none, fingerless or full) and their colour, painted nails "
                   "and their colour, the body shape (feminine one time in four, else your other shape kept) and the hands' "
@@ -761,31 +618,18 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
                   "ten with the feminine body, else one time in ten). Nothing else changes. Press again for "
                   "another (vr_appearance_random)."),
         header("Pauldrons"),
-        toggle("Pauldrons", vr_body_pauldrons).help("Leather pads over the shoulders and the tops of the arms, as the Quake ranger wears."),
-        cycle("Pauldron Style", vr_body_pauldron_style, {{0.f, "Ranger leather"}, {1.f, "Armour colour"}, {2.f, "Steel"}})
-            .help("Armour colour: green, yellow or red as the armour you wear (leather without)."),
-        slider("Pauldron Size", vr_body_pauldron_size, 0.5f, 1.5f, 0.05f, "%.2fx").extend(0.25f, 4.f)
-            .help("Their size (scaled with the build too). Their fit: Advanced VR Options > Body > Arms and Pauldrons."),
+        row(opt::vr_body_pauldrons),
+        row(opt::vr_body_pauldron_style),
+        row(opt::vr_body_pauldron_size),
         header("Ghost Hands"),
-        cycle("Ghost Hands", vr_ghost_hands, {{0.f, "Off"}, {1.f, "Hands"}, {2.f, "Hands and Forearms"}})
-            .help("A see-through copy of each hand where your real hand is, whenever the game draws your hand elsewhere: a "
-                  "heavy weapon lagging or drooping, a two-handed grip aiming it, a wall stopping it. It fades out as "
-                  "the drawn hand comes back to yours."),
-        cycle("Ghost Which Hands", vr_ghost_hands_which, {{0.f, "Both"}, {1.f, "Off Hand Only"}})
-            .help("Both hands, or only the off hand (the one that steadies a weapon in two hands)."),
-        slider("Ghost Opacity", vr_ghost_hands_alpha, 0.05f, 1.f, 0.05f, "%.2f"),
-        slider("Ghost Lightness", vr_ghost_hands_lightness, 0.25f, 3.f, 0.05f, "%.2fx")
-            .help("Times the light on the ghost: brighter stands out from your drawn hand."),
-        slider("Ghost Tint", vr_ghost_hands_tint, 0.f, 1.f, 0.05f, "%.2f").help("0: the hand's own colours; 1: a cold blue."),
-        slider("Ghost Hidden Within", vr_ghost_hands_fade_from, 0.f, 20.f, 0.5f, "%.1f cm")
-            .help("No ghost while the drawn hand is this close to your real one (its grip, and a point 15 cm ahead of "
-                  "it: a turn counts too)."),
-        slider("Ghost Fade-In Range", vr_ghost_hands_fade_range, 0.5f, 30.f, 0.5f, "%.1f cm")
-            .help("And it fades in over this much further apart."),
-        toggle("No Ghost from Recoil", vr_ghost_hands_ignore_recoil)
-            .help("A shot's recoil kicks the drawn hand back and up off your real one (Weapon Effects' Programmatic "
-                  "Recoil): on, that kick doesn't bring the ghost out (only what else holds the hand off does); off, a "
-                  "strong kick shows it for a moment."),
+        row(opt::vr_ghost_hands),
+        row(opt::vr_ghost_hands_which),
+        row(opt::vr_ghost_hands_alpha),
+        row(opt::vr_ghost_hands_lightness),
+        row(opt::vr_ghost_hands_tint),
+        row(opt::vr_ghost_hands_fade_from),
+        row(opt::vr_ghost_hands_fade_range),
+        row(opt::vr_ghost_hands_ignore_recoil),
     };
 }
 
@@ -814,10 +658,8 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
 {
     return {
         header("Sides"),
-        cycle("Handedness", vr_handedness, {{0.f, "Custom"}, {1.f, "Right-handed"}, {2.f, "Left-handed"}})
-            .help("Sets which stick moves you, the wrist gadget's arm and the flashlight's side together. Left-handed: the right "
-                  "stick moves, the gadget on the right arm, the torch on the right (Custom: set apart, below)."),
-        toggle("Swap Stick Functions", vr_stick_swap).help("Off: the left stick moves you and the right one turns. On: the right stick moves, the left turns."),
+        row(opt::vr_handedness),
+        row(opt::vr_stick_swap),
         cycle("Wrist Gadget Arm", vr_gadget_arm, {{0.f, "Left"}, {1.f, "Right"}}).help("The arm the wrist gadget (the HUD) is on."),
         cycle("Flashlight Side", vr_flashlight_side, {{0.f, "Left"}, {1.f, "Right"}}).help("The side of your belt the torch hangs on (Chest Flashlight; Always on Head: the temple it is worn at)."),
 
@@ -834,24 +676,17 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
             .help("How much of your body you see: only the hands; the torso and arms; or all of it, legs and all."),
         open("Build: Player Appearance", pageIndex(pageVrsAppearance))
             .help("The body's build, skin tone, bracers, gloves and pauldrons are on VR Settings > Player Appearance."),
-        toggle("Holster Models", vr_leg_holster_model_enabled)
-            .help("Draws the holsters on your body, with a gun in each one that holds one."),
-        toggle("Hip Holster Weapons", vr_holster_weapons_draw_hip)
-            .help("Draws the guns in the two holsters on your hips. Off: not drawn; you still take them and put them "
-                  "away there."),
-        toggle("Chest Holster Weapons", vr_holster_weapons_draw_upper)
-            .help("Draws the guns in the two holsters on your chest. Off: not drawn; you still take them and put them "
-                  "away there."),
+        row(opt::vr_leg_holster_model_enabled),
+        row(opt::vr_holster_weapons_draw_hip),
+        row(opt::vr_holster_weapons_draw_upper),
         toggle("Shoulder Holster Weapons", vr_holster_weapons_draw_shoulder)
             .help("Draws the guns in the two holsters on your back, reached over your shoulders (the highest pair; off "
                   "by default: they can get in the way of your view). Off: not drawn; you still take them and put them "
                   "away there."),
 
         header("Display"),
-        cycle("Status Bar", vr_sbar_mode, {{1.f, "Off Hand"}, {0.f, "Main Hand"}}).help("The hand Quake's status bar is on (HUD: Status bar)."),
-        toggle("Desktop Mirror", vr_mirror)
-            .help("The headset's view in the desktop window. Which eye, both, smoothed or a spectator camera: Recording "
-                  "(Window View)."),
+        row(opt::vr_sbar_mode),
+        row(opt::vr_mirror),
         open("Recording (Window View)", pageIndex(pageRecording))
             .help("What the desktop window shows for recording: a steadied mirror or a spectator camera."),
     };
@@ -869,39 +704,25 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
 {
     return {
         header("Headset"),
-        toggle("VR", vr_enabled).help("Off: play on the desktop screen, flat, without the headset."),
+        row(opt::vr_enabled),
         action("Restart VR", restartVr).help("Starts the headset again: if the picture froze or stayed black, or after changing the runtime."),
-        cycle("OpenXR Runtime", vr_xr_runtime, {{4.f, "Auto"}, {0.f, "System default"}, {1.f, "Virtual Desktop (VDXR)"}, {2.f, "SteamVR"}})
-            .help("Which OpenXR runtime runs the headset; VR restarts. Auto: the one whose app is running (Virtual Desktop: the runtime picked in its Streamer's OpenXR Runtime option; VDXR, which skips SteamVR, unless SteamVR is picked there), else the system's. Keep Virtual Desktop's 'Emulate Index controllers' off."),
+        row(opt::vr_xr_runtime),
         info(xrRuntimeLine),
         command("Create Bug Report", "bugreport")
             .help("Zips this run's and the last run's logs (the console, the OpenXR runtime's start and messages, the "
                   "crash report if any, the settings, the runtimes' own logs) into quakevr\\bugreports\\<date>.zip, "
                   "and opens the folder on the desktop: attach it to your bug report. After a crash, the Start menu's "
                   "'Quake VR Unleashed (Create Bug Report)' makes it without starting the game."),
-        cycle("Try Other Runtimes", vr_xr_runtime_fallback, {{0.f, "Off"}, {1.f, "On"}, {2.f, "On, SteamVR too"}}).advanced()
-            .help("Auto: when the chosen runtime fails to start (no headset), try the other installed ones before playing flat. An idle SteamVR (not the system's runtime) only with 'SteamVR too': trying it starts SteamVR."),
-        slider("SteamVR Wait", vr_xr_steamvr_wait, 0.f, 20.f, 1.f, "%.0f s").advanced()
-            .help("How long SteamVR, just started, is given to find the headset (through Virtual Desktop or the Link) before it counts as failed and Auto tries the next runtime."),
-        slider("Eye Image Size", vr_xr_eye_scale, 0.5f, 1.f, 0.05f, "%.2f").advanced()
-            .help("The headset images' size, times the runtime's recommended (each side), at the next VR start. SteamVR's recommended is 1.5 times the panel's pixels by default (its own Render Resolution): 0.82 matches the panel. Smaller images cost less to draw, to copy (SteamVR copies an OpenGL game's every image) and in video memory. The menus' status box shows the eyes' size, the headset panel's if known (vr_xr_panel WxH sets it) and warns over 1.3 times its pixels."),
-        cycle("Runtime Menu Open", vr_xr_unfocused, {{1.f, "Freeze the Game's View"}, {0.f, "Keep Rendering"}}).advanced()
-            .help("While the runtime's own menu (SteamVR's dashboard, Virtual Desktop's or Meta's menu) has the controllers: the game's last frame stays in view, not rendered again, which leaves the graphics card to the menu; or the game keeps rendering as usual."),
-        cycle("Runtime Menu Pauses", vr_xr_unfocused_pause, {{1.f, "Pause the Game"}, {0.f, "Keep Running"}}).advanced()
-            .help("While the runtime's own menu has the controllers, a single player game pauses as the game's own menu pauses it (the monsters wait, the game's time stands still) and resumes as you come back; or it keeps running. Multiplayer always runs on."),
-        slider("Runtime Menu Volume", vr_xr_unfocused_volume, 0.f, 1.f, 0.1f, "%.1f").advanced()
-            .help("The game's sounds while the runtime's menu pauses it: 0 silent, 1 unchanged. The music pauses."),
-        cycle("Exit From Runtime Menu", vr_xr_exit_quits, {{1.f, "Quit the Game"}, {0.f, "Play Flat"}}).advanced()
-            .help("Exiting the game from the runtime's own menu (SteamVR's dashboard, Virtual Desktop's or Meta's): the game "
-                  "quits, your settings saved; or it keeps running flat on the desktop (Restart VR brings the headset back)."),
-        toggle("Late Image Acquire", vr_xr_late_acquire).advanced()
-            .help("Each eye's headset image is taken from the runtime only once its scene is drawn, so the runtime's wait for it (SteamVR copying the last one out) overlaps the drawing. Off: before the scene, the old way, to compare."),
-        toggle("Vendor Controller Profiles", vr_xr_vendor_profiles).advanced()
-            .help("Pico, HTC Vive Cosmos and Focus 3, HP Reverb G2 and Samsung Odyssey controllers get their own buttons, "
-                  "menu button included, when the runtime offers them. Off: they go as the runtime emulates them (the "
-                  "1.0.0 way, if your hands' angle changed). From the next VR start."),
-        toggle("OpenXR Timing Log", vr_xr_log_timing).advanced()
-            .help("A line a second in quakevr/qvr_openxr.txt while VR runs: frames rendered, frames missed, each OpenXR call's time and the session's state."),
+        row(opt::vr_xr_runtime_fallback).advanced(),
+        row(opt::vr_xr_steamvr_wait).advanced(),
+        row(opt::vr_xr_eye_scale).advanced(),
+        row(opt::vr_xr_unfocused).advanced(),
+        row(opt::vr_xr_unfocused_pause).advanced(),
+        row(opt::vr_xr_unfocused_volume).advanced(),
+        row(opt::vr_xr_exit_quits).advanced(),
+        row(opt::vr_xr_late_acquire).advanced(),
+        row(opt::vr_xr_vendor_profiles).advanced(),
+        row(opt::vr_xr_log_timing).advanced(),
         slider("Render Scale", vr_render_scale, 0.5f, 1.5f, 0.05f, "%.2f").extend(0.25f, 2.f)
             .help("Eye rendering resolution, times the headset's (SteamVR's resolution included); resampled to it."), // + the size (renderScaleHelp)
         toggle("Dynamic Resolution", vr_dynres)
@@ -914,14 +735,10 @@ void addVrsPart(za::Vector<Item>& out, const char* title, za::Vector<Item> part)
             .help("The upscaler's sharpening (FSR, NIS). Too much makes edges shimmer."),
         cycle("Foveated Rendering", vr_foveated, {{0.f, "Off"}, {1.f, "Conservative"}, {2.f, "Balanced"}, {3.f, "Aggressive"}})
             .help("Shade the scene coarser towards the edges of the lenses, where they blur anyway: faster. NVIDIA GPUs only (variable-rate shading)."),
-        toggle("Hide Lens Corners", vr_visibility_mask)
-            .help("Skip the pixels the lenses never show (if the headset gives them): faster, looks the same. Black corners in the desktop mirror."),
-        slider("Near Clip", vr_nearclip, 0.02f, 1.f, 0.02f, "%.2f units").extend(0.02f, 4.f).advanced()
-            .help("How near the eyes things are still drawn (a unit is 3 cm): lower draws a gun at your face whole. Not below 1 without Float Depth."),
-        cycle("Held Items at the Eyes", vr_nearclip_held, {{0.f, "Clipped"}, {1.f, "Never clipped"}, {2.f, "Block the view"}}).advanced()
-            .help("A weapon or hand right at your eyes: Never clipped draws its parts nearer than Near Clip too; Block the view also draws its inside when an eye is in it, instead of seeing through it."),
-        toggle("Float Depth", vr_depth_float).advanced()
-            .help("A 32-bit float depth buffer for the eyes: no flicker far away with a small Near Clip. Applies after Restart VR."),
+        row(opt::vr_visibility_mask),
+        row(opt::vr_nearclip).advanced(),
+        row(opt::vr_nearclip_held).advanced(),
+        row(opt::vr_depth_float).advanced(),
     };
 }
 
@@ -1058,108 +875,51 @@ za::Vector<Item> pageWeaponEffects()
 {
     return {
         header("Recoil"),
-        toggle("Programmatic Recoil", vr_weapon_recoil)
-            .help("Each shot kicks the drawn weapon back and tips it up, as far as the weapon's own Recoil Kick Back and "
-                  "Muzzle Rise (Weapon Offsets > Effects: every gun has its own; the kick in Quake's gun models is taken "
-                  "out). Looks only: the aim and the shots stay where your controller is."),
-        slider("Recoil Amount", vr_recoil_amount, 0.f, 2.f, 0.05f, "%.2fx").extend(0.f, 5.f)
-            .help("Every weapon's recoil times this: its kick back and its muzzle rise (each weapon's own cm and degrees: "
-                  "Weapon Offsets > Effects). 1: as each weapon is set; 0: none."),
-        slider("Two-Handed Kick Back", vr_recoil_2h_kick, 0.f, 1.f, 0.05f, "%.2fx").extend(0.f, 2.f)
-            .help("A shot fired with the weapon held in both hands: its kick back times this, times the weapon's own "
-                  "Two-Handed Kick Back (Weapon Offsets > Effects). 1: as held in one hand; lower: steadier with the "
-                  "second hand on it."),
-        slider("Two-Handed Muzzle Rise", vr_recoil_2h_rise, 0.f, 1.f, 0.05f, "%.2fx").extend(0.f, 2.f)
-            .help("A shot fired with the weapon held in both hands: its muzzle rise (and the little sideways turn with it) "
-                  "times this, times the weapon's own Two-Handed Muzzle Rise. 1: as held in one hand."),
-        slider("Two-Handed Return Time", vr_recoil_2h_time, 0.f, 1.f, 0.05f, "%.2fx").extend(0.f, 2.f)
-            .help("A shot fired with the weapon held in both hands: the time it takes back to rest times this, times the "
-                  "weapon's own Two-Handed Return Time. 1: as held in one hand; lower: back sooner."),
-        slider("Two-Handed Haptics", vr_recoil_2h_haptic, 0.f, 1.f, 0.05f, "%.2fx").extend(0.f, 2.f)
-            .help("A shot fired with the weapon held in both hands: its haptic punch (how hard and how long) times this, "
-                  "times the weapon's own Two-Handed Haptics. 1: as held in one hand."),
+        row(opt::vr_weapon_recoil),
+        row(opt::vr_recoil_amount),
+        row(opt::vr_recoil_2h_kick),
+        row(opt::vr_recoil_2h_rise),
+        row(opt::vr_recoil_2h_time),
+        row(opt::vr_recoil_2h_haptic),
         header("Shotgun Auto Pump"),
-        slider("Auto Pump Time", vr_autopump_time, 0.15f, 0.45f, 0.01f, "%.2f s").extend(0.1f, 0.48f)
-            .help("After each shot the shotgun cycles itself: its fore-end is driven back along the guide rods over the "
-                  "barrel and springs home, and the spent shell leaves the port as it reaches the back (looks only: the "
-                  "fire rate is the same). How long the stroke takes, back and home (the shotgun fires again after 0.5 s)."),
-        slider("Auto Pump Delay", vr_autopump_delay, 0.f, 0.3f, 0.01f, "%.2f s").extend(0.f, 0.38f)
-            .help("How long after the shot the stroke starts: the shot, a moment, then the cycle (0: at once). Cut short so "
-                  "that the stroke is home before the shotgun can fire again (0.5 s)."),
-        slider("Auto Pump Sound", vr_autopump_sound, 0.f, 1.f, 0.1f, "%.1f").help("Volume of its two clacks (0: off)."),
-        slider("Auto Pump Haptics", vr_autopump_haptics, 0.f, 2.f, 0.1f, "%.1f")
-            .help("Strength of the light ticks in the hand at the back of the stroke and home (0: off)."),
+        row(opt::vr_autopump_time),
+        row(opt::vr_autopump_delay),
+        row(opt::vr_autopump_sound),
+        row(opt::vr_autopump_haptics),
         header("Muzzle Flash"),
-        toggle("Programmatic Muzzle Flash", vr_muzzle_flash)
-            .help("The shotgun's flash at the muzzle of the weapons whose Muzzle Flash is on (Weapon Offsets > Effects: the "
-                  "grunts' burst rifle), following the gun."),
-        toggle("Enemies' Muzzle Flashes", vr_muzzle_flash_enemies).help("The grunts' and enforcers' guns flash at their muzzles as they fire."),
-        toggle("Enemies' Muzzle Smoke", vr_muzzle_smoke_enemies).help("Puffs of gun smoke out of an enforcer's rifle's and a grunt's gun's muzzle as they fire, as out of your guns'."),
+        row(opt::vr_muzzle_flash),
+        row(opt::vr_muzzle_flash_enemies),
+        row(opt::vr_muzzle_smoke_enemies),
         header("Gunfire Particles"),
-        toggle("Gunfire Particles", vr_gunfx)
-            .help("Each shot's sparks and smoke, by the weapon: yours, the armed grunts' and the grunts' and enforcers' "
-                  "guns. Not the flamethrowers, the crossbow, melee weapons, the grapple or the toolgun."),
-        toggle("Muzzle Sparks", vr_gunfx_sparks)
-            .help("A cone of sparks out of the muzzle (each barrel of the super shotgun; the energy guns throw electric arcs)."),
-        slider("Spark Amount", vr_gunfx_spark_amount, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 4.f)
-            .help("How many sparks a shot throws, the energy guns' arcs too (each weapon's own: Weapon Offsets > Effects). "
-                  "0: none."),
-        slider("Spark Size", vr_gunfx_spark_size, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.25f, 4.f)
-            .help("How big the sparks are (the energy guns' arcs too)."),
-        slider("Spark Speed", vr_gunfx_spark_speed, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.25f, 4.f)
-            .help("How fast the sparks fly out of the muzzle (so how far)."),
-        toggle("Muzzle Smoke", vr_gunfx_smoke)
-            .help("A cone of smoke billowing forward out of the muzzle with the flash, swirling as it spreads and fades, the "
-                  "flash's glow in it; the nail pistol's side vents smoke lightly. Never the energy guns'."),
-        slider("Smoke Amount", vr_gunfx_smoke_amount, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 4.f)
-            .help("How many puffs a shot's muzzle smoke has: how thick the cloud is (each weapon's own: Weapon Offsets > "
-                  "Effects); the thunderbolt's ozone haze too. 0: none."),
-        slider("Smoke Size", vr_gunfx_smoke_size, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.25f, 4.f)
-            .help("How big the muzzle smoke's puffs are and how much they grow (the thunderbolt's ozone haze too)."),
-        slider("Smoke Speed", vr_gunfx_smoke_speed, 0.25f, 3.f, 0.05f, "%.2fx").extend(0.25f, 4.f)
-            .help("How fast the muzzle smoke billows out (so how far ahead the cloud reaches)."),
-        slider("Smoke Directionality", vr_gunfx_smoke_direction, 0.f, 1.f, 0.05f, "%.2f")
-            .help("1: the smoke billows forward in a cone out of the muzzle. 0: it bursts out every way. In between: more "
-                  "or less forward."),
-        slider("Smoke Opacity", vr_gunfx_smoke_alpha, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 3.f)
-            .help("How opaque the muzzle smoke is as it comes out (it fades from there)."),
-        toggle("Ejection Port Smoke", vr_gunfx_port)
-            .help("A small quick puff out of a shotgun's port as the casing leaves it (the super shotgun's open breech)."),
-        toggle("Rocket Backblast", vr_gunfx_backblast)
-            .help("A swirling cone of smoke out of the rocket launchers' exhaust, the exhaust smoking a moment after, and "
-                  "dust kicked up off the floor under it."),
-        toggle("Barrel Heat", vr_gunfx_heat)
-            .help("Sustained fire (the nailguns) leaves the muzzle smoking in thin wisps and glowing faintly until it cools."),
-        toggle("Muzzle Wisps", vr_gunfx_wisps)
-            .help("After you stop firing, a very thin, faint line of smoke trails off each barrel for a few seconds (the "
-                  "shotgun's one, the super shotgun's and the nailgun's two), following the muzzle as you move the gun."),
-        slider("Wisp Delay", vr_gunfx_wisp_delay, 0.f, 1.f, 0.05f, "%.2f s").extend(0.f, 3.f)
-            .help("How long after the last shot the wisps start."),
-        slider("Wisp Persistence", vr_gunfx_wisp_time, 0.5f, 10.f, 0.25f, "%.2f s").extend(0.f, 30.f)
-            .help("How long a barrel keeps smoking (after a burst; a single shot of the nailguns: less)."),
-        slider("Wisp Fade Time", vr_gunfx_wisp_fade, 0.2f, 4.f, 0.1f, "%.1f s")
-            .help("How long the smoke let go lasts, rising and fading: the trail's length."),
-        slider("Wisp Thickness", vr_gunfx_wisp_width, 0.1f, 3.f, 0.05f, "%.2f cm").extend(0.05f, 20.f)
-            .help("How thick a wisp is at the muzzle."),
-        slider("Wisp Spread", vr_gunfx_wisp_spread, 1.f, 8.f, 0.25f, "%.2fx").extend(1.f, 10.f)
-            .help("How much thicker (and fainter) a wisp gets as it fades."),
-        slider("Wisp Amount", vr_gunfx_wisp_amount, 0.f, 3.f, 0.05f, "%.2fx").extend(0.f, 4.f)
-            .help("How dense the wisps are (their opacity; each weapon's own: Weapon Offsets > Effects)."),
-        slider("Wisp Max Opacity", vr_gunfx_wisp_opacity, 0.02f, 1.f, 0.02f, "%.2f")
-            .help("The most opaque a wisp gets, wherever it is (its start at the muzzle is its densest): a cap on Wisp "
-                  "Amount. 1: no cap."),
-        slider("Wisp Rise", vr_gunfx_wisp_rise, 0.f, 60.f, 1.f, "%.0f cm/s").extend(0.f, 200.f)
-            .help("How fast the smoke rises off the barrel (Smoke Turbulence curls it)."),
-        toggle("Impacts by Material", vr_gunfx_impacts)
-            .help("Bullets and nails hitting walls throw up what the surface is made of: dust off stone and ground, sparks "
-                  "off metal, chips off wood (flesh has the gore's blood mist)."),
-        toggle("Lightning Ozone Haze", vr_gunfx_ozone).help("A faint bluish haze lingers where the thunderbolt's beam plays on a surface."),
-        toggle("Enemies' Gunfire Particles", vr_gunfx_enemies).help("The monsters' guns make them too."),
+        row(opt::vr_gunfx),
+        row(opt::vr_gunfx_sparks),
+        row(opt::vr_gunfx_spark_amount),
+        row(opt::vr_gunfx_spark_size),
+        row(opt::vr_gunfx_spark_speed),
+        row(opt::vr_gunfx_smoke),
+        row(opt::vr_gunfx_smoke_amount),
+        row(opt::vr_gunfx_smoke_size),
+        row(opt::vr_gunfx_smoke_speed),
+        row(opt::vr_gunfx_smoke_direction),
+        row(opt::vr_gunfx_smoke_alpha),
+        row(opt::vr_gunfx_port),
+        row(opt::vr_gunfx_backblast),
+        row(opt::vr_gunfx_heat),
+        row(opt::vr_gunfx_wisps),
+        row(opt::vr_gunfx_wisp_delay),
+        row(opt::vr_gunfx_wisp_time),
+        row(opt::vr_gunfx_wisp_fade),
+        row(opt::vr_gunfx_wisp_width),
+        row(opt::vr_gunfx_wisp_spread),
+        row(opt::vr_gunfx_wisp_amount),
+        row(opt::vr_gunfx_wisp_opacity),
+        row(opt::vr_gunfx_wisp_rise),
+        row(opt::vr_gunfx_impacts),
+        row(opt::vr_gunfx_ozone),
+        row(opt::vr_gunfx_enemies),
         header("Bullet Tracers"),
-        toggle("Bullet Tracers", vr_tracers)
-            .help("Hitscan shots (the shotguns, the burst rifle) draw streaks of light flying from the muzzle to what they "
-                  "hit. A weapon may differ (Weapon Offsets > Effects: Tracers, and its multipliers)."),
-        toggle("Enemies' Tracers", vr_tracers_enemies).help("The grunts' shots too."),
+        row(opt::vr_tracers),
+        row(opt::vr_tracers_enemies),
         header("Each Weapon"),
         open("Weapon Offsets (Held Weapon)", pageIndex(pageWeaponOffsets))
             .help("The held weapon's own: its Effects section turns its recoil and flash on, and changes its tracers."),
@@ -1172,8 +932,7 @@ za::Vector<Item> pageWeaponEffects()
 za::Vector<Item> pageLightningWater()
 {
     return {
-        toggle("Lightning Gun in Water", vr_lg_water)
-            .help("Fired with your body waist deep, or your hand or the gun's muzzle in water, the lightning gun shocks you and both hands drop what they hold; the shock spreads through the water to what is in it. Fired into water from outside, it electrifies the water round where the beam goes in. Off: Quake's discharge (every cell at once, all round you)."),
+        row(opt::vr_lg_water),
         command("Test the Shock Effect", "vr_shock_test 0").help("Shows the shock's flash and arcs, without the damage."),
         command("Test the Electrified Water", "vr_shock_test 1").help("Arcs on the water below the point ahead of you, for 3 seconds."),
     };
@@ -1207,33 +966,17 @@ za::Vector<Item> pageWeaponsHub()
 za::Vector<Item> pageHotBlades()
 {
     return {
-        toggle("Incandescent Blades", vr_hotblade)
-            .help("Hold a melee weapon's blade in a flame (a torch on its wall or in your other hand, a brazier, the map's "
-                  "flames) or dip it in lava: it glows red-hot for a while, hits harder and sets what it strikes on fire. "
-                  "The axe (the Shadow Axe too), the knights' swords, the crowbar, the Super Axe and the chainsaw; not "
-                  "Mjolnir. The heat is the weapon's: it cools held, holstered or dropped alike."),
-        slider("Stays Hot", vr_hotblade_time, 5.f, 120.f, 5.f, "%.0f s").extend(1.f, 600.f)
-            .help("How long it stays incandescent. A flame again while it glows makes it full again."),
-        slider("Fades Over", vr_hotblade_fade, 0.f, 15.f, 0.5f, "%.1f s").extend(0.f, 60.f)
-            .help("Its glow is full until these last seconds, then fades out (0: full to the end)."),
-        toggle("Sets Enemies on Fire", vr_hotblade_ignite)
-            .help("Its blows set living enemies on fire (Combat > Burning: the damage and how long)."),
-        toggle("Sets Corpses on Fire", vr_hotblade_ignite_corpses)
-            .help("And corpses (with Combat > Burning > Corpses Burn on)."),
-        toggle("Water Quenches", vr_hotblade_quench)
-            .help("Dipped in water or slime, it cools at once, with a hiss and a puff of steam."),
+        row(opt::vr_hotblade),
+        row(opt::vr_hotblade_time),
+        row(opt::vr_hotblade_fade),
+        row(opt::vr_hotblade_ignite),
+        row(opt::vr_hotblade_ignite_corpses),
+        row(opt::vr_hotblade_quench),
         header("Look and Sound"),
-        slider("Glow Brightness", vr_hotblade_glow, 0.f, 2.f, 0.05f, "%.2f")
-            .help("How brightly the heated part of the blade glows (not the handle), held, holstered or lying on the "
-                  "ground, and its embers (0: no glow, no light, no embers, no trail)."),
-        slider("Light", vr_hotblade_light, 0.f, 2.f, 0.05f, "%.2f")
-            .help("How bright the light the glowing blade casts round it is; it follows the glow, rising as it heats and "
-                  "dying as it fades (0: none)."),
-        slider("Embers per Puff", vr_hotblade_embers, 0.f, 10.f, 1.f, "%.0f").extend(0.f, 32.f)
-            .help("How many embers leave the heated part of the blade at a time, from all over it (0: none)."),
-        slider("Swing Trail", vr_hotblade_trail, 0.f, 3.f, 0.1f, "%.1f")
-            .help("How much fire and how many sparks a swung (or thrown) glowing blade leaves hanging in the air behind its "
-                  "heated part; a faster swing leaves more (0: none)."),
+        row(opt::vr_hotblade_glow),
+        row(opt::vr_hotblade_light),
+        row(opt::vr_hotblade_embers),
+        row(opt::vr_hotblade_trail),
     };
 }
 

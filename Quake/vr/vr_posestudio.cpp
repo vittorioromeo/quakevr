@@ -102,6 +102,8 @@ enum ButtonId : int
     BtnFold,
     BtnHandle,
     BtnRecentre,
+    // In the Pickup pose (agent/sharedpickup): the class's own Pickup or the shared one (its own row under the rest)
+    BtnPickupOverride,
     BtnCount
 };
 
@@ -138,8 +140,9 @@ constexpr Place buttonPlace[BtnCount] = {
     {-1, 0}, // Fold / Unfold
     {0, 0},  // the handle: grip to move
     {1, 0},  // Recentre
+    {0, 7},  // (Pickup) Make Override / Use Shared
 };
-constexpr int PANEL_ROWS = 7;
+constexpr int PANEL_ROWS = 8;
 
 constexpr int grabStartPart = 99;      // partPoint's: the controller where the grab began
 constexpr float PANEL_DISTANCE = 0.55f;// metres from the eyes...
@@ -1299,6 +1302,33 @@ void resetPose()
         agpose::className(cls)));
 }
 
+// The Pickup's Make Override / Remove Override: the subject's class's own Pickup (starting as the shared key), or back
+// on its kind's shared one.
+void togglePickupOverride()
+{
+    const Note* n = current();
+    const int cls = n ? classOf(n->ent) : -1;
+    if(!n || cls < 0)
+    {
+        say("no armed humanoid near: walk up to one");
+        return;
+    }
+    pushUndo();
+    const bool had = agpose::hasPickupOverride(n->kind, cls);
+    if(had)
+    {
+        agpose::removePickupOverride(n->kind, cls);
+    }
+    else
+    {
+        agpose::makePickupOverride(n->kind, cls);
+    }
+    dropUnchangedUndo();
+    say(had ? va("%s with %s: the shared Pickup again", agpose::kindsName(n->kind), agpose::className(cls))
+            : va("%s with %s: a Pickup of its own (an override; edits stay on this class)", agpose::kindsName(n->kind),
+                  agpose::className(cls)));
+}
+
 // The subject's kind's pose keys and grips laid on the other kind (scaled by their fits).
 void copyKind()
 {
@@ -1330,7 +1360,7 @@ void stepPose(int by)
     {
         Cvar_SetValueQuick(&vr_agrunt_freeze, 1.f); // (a pose is shown held)
     }
-    say(va("pose: %s%s", agpose::poseName(n ? classOf(n->ent) : 0, ses.pose),
+    say(va("pose: %s%s", n ? agpose::poseTitle(n->kind, za::max(0, classOf(n->ent)), ses.pose) : agpose::poseName(0, ses.pose),
         ses.pose == agpose::Pickup && aglegs::enabled() ? " (its legs too: pelvis, feet, knees)" : ""));
 }
 
@@ -1490,6 +1520,7 @@ void press(int b)
             placePanel(hands::current());
             say("the panel back at its place: ahead, low, to your off hand's side");
             break;
+        case BtnPickupOverride: togglePickupOverride(); break;
         default: break;
     }
 }
@@ -1530,6 +1561,11 @@ void press(int b)
         case BtnFold: return folded() ? "Unfold" : "Fold";
         case BtnHandle: return ses.panelHand >= 0 ? "(moving)" : "Grip: Move";
         case BtnRecentre: return "Recentre";
+        case BtnPickupOverride:
+        {
+            const int cls = n ? classOf(n->ent) : -1;
+            return n && cls >= 0 && agpose::hasPickupOverride(n->kind, cls) ? "Remove Override" : "Make Override";
+        }
         default: return va("Copy > %s", agpose::kindTitle(n ? (n->kind + 1) % agpose::numKinds : 1));
     }
 }
@@ -1543,6 +1579,7 @@ void press(int b)
         case BtnKeyNext:
         case BtnPlay: return agpose::isStrike(ses.pose);
         case BtnCopy:
+        case BtnPickupOverride:
         case BtnResetPose: return current() != nullptr;
         case BtnLoop:
         case BtnSpeed:
@@ -1562,6 +1599,10 @@ void press(int b)
 {
     const bool tapeRow = b >= BtnBack && b <= BtnFrameNext;
     const bool poseRow = b >= BtnPosePrev && b <= BtnKeyNext;
+    if(b == BtnPickupOverride)
+    {
+        return !folded() && !poselive::on() && ses.pose == agpose::Pickup;
+    }
     if(b >= BtnFold)
     {
         return true; // (the handle bar: folded too)
@@ -1719,7 +1760,7 @@ void drawPanel()
         }
         else
         {
-            text += va("\n\x10%s\x11 pose %d of %d", agpose::poseName(cls < 0 ? 0 : cls, ses.pose), i + 1, count);
+            text += va("\n\x10%s\x11 pose %d of %d", agpose::poseTitle(n->kind, cls < 0 ? 0 : cls, ses.pose), i + 1, count);
         }
         if(!poselive::on() && agpose::isStrike(ses.pose))
         {

@@ -340,10 +340,10 @@ void(float xTest) VR_Limb_Test =
             }
             for(float hit = 0; hit < ((xTest == 25 || xTest == 28) ? 1 : 2); hit++)
             {
-                VR_SetHitKind(xTest == 26 ? QVR_HITKIND_NONE : QVR_HITKIND_MELEE, -1, at, v_forward);
+                VR_Hit_Begin(xTest == 26 ? QVR_HITKIND_NONE : QVR_HITKIND_MELEE, -1, at, v_forward);
                 float damage = hp * (xTest == 25 ? 10 : 0.6) * VR_Corpse_PositionalFactor(m) / max(0.001, mult);
                 T_Damage(m, impact, self, damage);
-                VR_ClearHitKind();
+                VR_Hit_End();
             }
             if(impact != self)
             {
@@ -647,9 +647,9 @@ void(float xTest) VR_Limb_Test =
         what = "a fist at a limb";
         m.health = 1;
         VR_Decap_TestBlow(at, VR_MTHING_FIST, VR_MKIND_POMMEL, 0.7, 0, 8);
-        VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, at, normalize(at - self.origin));
+        VR_Hit_Begin(QVR_HITKIND_MELEE, cVR_MainHand, at, normalize(at - self.origin));
         T_Damage_VRMelee(m, self, self, 30);
-        VR_ClearHitKind();
+        VR_Hit_End();
     }
     else
     {
@@ -659,9 +659,9 @@ void(float xTest) VR_Limb_Test =
             m.health = 1;
         }
         VR_Decap_TestBlow(at, VR_MTHING_SWORD, VR_MKIND_SLASH, 0.7, 0, 8);
-        VR_SetHitKind(QVR_HITKIND_MELEE, cVR_MainHand, at, normalize(at - self.origin));
+        VR_Hit_Begin(QVR_HITKIND_MELEE, cVR_MainHand, at, normalize(at - self.origin));
         T_Damage_VRMelee(m, self, self, (xTest == 12) ? 10 : 30);
-        VR_ClearHitKind();
+        VR_Hit_End();
     }
     VR_Gore_Print(sprintf("limbtest: %g at limb %g (maps to %g)\n", xTest, b, mapped));
     VR_Limb_TestReport(m, what, cuts, pops, limbs, fountains);

@@ -196,7 +196,7 @@ string(entity xTarg, string xSound, float xBlade) VR_Melee_HitSoundOn =
     if(VR_Hit_Metal(xTarg))
     {
         float blade = xBlade && !vr_melee_blunt;
-        string s = impactsound(VR_MAT_METAL, blade ? VR_HIT_BLADE : VR_HIT_BASH, VR_IMPACT_SOUND);
+        string s = impactsound(VR_MAT_METAL, VR_Hit_BlowKind(self, self, blade ? VR_HIT_BLADE : VR_HIT_BASH), VR_IMPACT_SOUND);
         dprint(sprintf("melee sound: %s on metal (%s)\n", s, xTarg.classname));
         return s;
     }
@@ -366,7 +366,7 @@ void(float xSpeed) VR_SolidProp_Impact =
                 other.classname, speed, xSpeed, dmg, self.vr_throw_2h ? 2 : 1, VR_Thrown_2hMult(self)));
             // (An explosive box thrown, or one struck: a metal knock.)
             float metal = VR_Prop_Metal(self) || VR_Prop_Metal(other);
-            VR_SoundVaried(self, CHAN_AUTO, metal ? impactsound(VR_MAT_METAL, VR_HIT_BASH, VR_IMPACT_SOUND) : "fisthit.wav", 1, ATTN_NORM);
+            VR_SoundVaried(self, CHAN_AUTO, metal ? impactsound(VR_MAT_METAL, VR_Hit_BlowKind(self, thrower, VR_HIT_BASH), VR_IMPACT_SOUND) : "fisthit.wav", 1, ATTN_NORM);
             if(!metal)
             {
                 VR_Blunt_HitLayer(self, CHAN_AUTO, other);
@@ -449,7 +449,7 @@ void(entity xBox) VR_Crate_SlamFrame =
     }
     dprint(sprintf("slam: %s swung down at %.1f m/s onto %s: %.1f damage to it, broken\n", xBox.model, speed,
         struck == world ? "the level" : struck.classname, dmg));
-    VR_SoundVaried(xBox, CHAN_AUTO, VR_Prop_Metal(struck) ? impactsound(VR_MAT_METAL, VR_HIT_BASH, VR_IMPACT_SOUND) : "fisthit.wav", 1, ATTN_NORM);
+    VR_SoundVaried(xBox, CHAN_AUTO, VR_Prop_Metal(struck) ? impactsound(VR_MAT_METAL, VR_Hit_BlowKind(xBox, self, VR_HIT_BASH), VR_IMPACT_SOUND) : "fisthit.wav", 1, ATTN_NORM);
     entity crate = xBox;
     if(dmg > 0)
     {

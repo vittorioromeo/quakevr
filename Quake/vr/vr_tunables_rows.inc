@@ -607,6 +607,9 @@ QVR_TUNABLE_SLIDER(vr_ad_widowmaker_spin, "Barrel Spin", 0.0f, 2.0f, 0.1f, "%.1f
 QVR_TUNABLE_SLIDER(vr_ad_widowmaker_spinup, "Spin Up (Before the First Shot)", 0.0f, 1.0f, 0.05f, "%.2f s", 0.0f, 3.0f, "Seconds the barrels take to come up to speed with the trigger held. It fires only once they are at speed: the first shot waits this long from rest, less if they still spin.")
 QVR_TUNABLE_SLIDER(vr_ad_widowmaker_spindown, "Spin Down", 0.1f, 3.0f, 0.1f, "%.1f s", 0.1f, 10.0f, "About how long they coast after the trigger is let go, stopping with a barrel on top.")
 
+QVR_TUNABLE_GROUP("Weapons > Reloading - Plasma Gun")
+QVR_TUNABLE_SLIDER(vr_ad_plasmagun_cell, "Cell Size", 4.0f, 36.0f, 1.0f, "%.0f cells", 1.0f, 100.0f, "The cells the Plasma Gun's cell holds (the thunderbolt's holds 36). A cell drawn for it holds this many; a fuller one seated in it gives it this many and the rest back to the pouch. A new size counts from its next load.")
+
 QVR_TUNABLE_GROUP("Weapons > Weapon Effects")
 QVR_TUNABLE_SLIDER(vr_autopump_travel, "Auto Pump Travel", 0.5f, 3.2f, 0.1f, "%.1f units", 0.0f, 3.2f, "How far back the fore-end goes, in the gun model's units (about 3.8 cm each, as drawn).")
 QVR_TUNABLE_SLIDER(vr_muzzle_flash_enemy_size, "Enemies' Flash Size", 0.2f, 3.0f, 0.05f, "%.2fx", 0.0f, 10.0f, "their flashes' size (times a third of their gun's length)")
@@ -863,10 +866,6 @@ QVR_TUNABLE_SLIDER(vr_agrunt_blade_arm, "Arm Impulse", 0.0f, 2.0f, 0.05f, "%.2f"
 QVR_TUNABLE_SLIDER(vr_agrunt_blade_fx, "Sparks and Sound", 0.0f, 3.0f, 0.1f, "%.1fx", 0.0f, 3.0f, "The blade contact's sparks and clang times this. 0: none (vr_agrunt_blade_fx).")
 
 QVR_TUNABLE_GROUP("Combat > Directional Parry")
-QVR_TUNABLE_SLIDER(vr_dirparry_window, "Window", 0.0f, 0.4f, 0.01f, "%.2f s", 0.0f, 1.0f, "Directional Parry (experimental): at an armed humanoid's blow, its blade's way is followed on this long; your weapon in it then parries (vr_dirparry_window).")
-QVR_TUNABLE_SLIDER(vr_dirparry_contact, "Contact Distance", 0.5f, 20.0f, 0.5f, "%.1f units", 0.5f, 60.0f, "Its blade's line and your weapon's within this meet (vr_dirparry_contact).")
-QVR_TUNABLE_SLIDER(vr_dirparry_angle, "Angle Leniency", 0.0f, 85.0f, 1.0f, "%.0f deg", 0.0f, 89.0f, "Your weapon this far off square to its blade and its way still counts fully; less at more, none at 90 (vr_dirparry_angle).")
-QVR_TUNABLE_SLIDER(vr_dirparry_threshold, "Score Threshold", 0.0f, 1.0f, 0.05f, "%.2f", 0.0f, 1.0f, "The score (the angle's marks times the meeting's, 0 to 1) that parries (vr_dirparry_threshold).")
 QVR_TUNABLE_SLIDER(vr_dirparry_partial, "Partial Share", 0.0f, 1.0f, 0.05f, "%.2f", 0.0f, 1.0f, "Under the threshold the blow is cut by this times score / threshold. 0: off, the full blow (vr_dirparry_partial).")
 QVR_TUNABLE_SLIDER(vr_dirparry_opening, "Opening", 0.05f, 1.5f, 0.05f, "%.2f s", 0.05f, 3.0f, "Its flinch after your directional parry when the parry balance gave it no stagger: its swing stopped (vr_dirparry_opening).")
 

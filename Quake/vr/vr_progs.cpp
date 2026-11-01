@@ -247,6 +247,26 @@ namespace
 }
 } // namespace
 
+bool globalVec(const char* name, glm::vec3& out)
+{
+    if(!sv.active || !sv.qcvm.progs)
+    {
+        return false;
+    }
+    const qcvm_t& vm = sv.qcvm; // (the server's progs: whichever VM is current)
+    for(int i = 0; i < vm.progs->numglobaldefs; i++)
+    {
+        const ddef_t& def = vm.globaldefs[i];
+        if((def.type & ~DEF_SAVEGLOBAL) == ev_vector && !strcmp(PR_GetString(def.s_name), name))
+        {
+            const float* v = &vm.globals[def.ofs];
+            out = {v[0], v[1], v[2]};
+            return true;
+        }
+    }
+    return false;
+}
+
 float staminaMax() { return za::max(1.f, askQc(bindings().Stamina_Max, nullptr)); }
 
 float staminaLeft(edict_t* p) { return za::clamp(askQc(bindings().Stamina_Left, p), 0.f, staminaMax()); }

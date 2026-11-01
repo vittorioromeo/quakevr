@@ -230,6 +230,38 @@ void menuBar()
                 ImGui::EndMenu();
             }
         }
+        if(kind >= 0 && ImGui::BeginMenu("Armour"))
+        {
+            // (live on the subject; kept for the next ones: rigstudio::setArmour; never the skill's roll)
+            const char* types[] = {"None", "Green", "Yellow", "Red"};
+            for(int t = 0; t < 4; t++)
+            {
+                if(ImGui::MenuItem(types[t], nullptr, st.choice.armour == t))
+                {
+                    setArmour(t, st.choice.armourPieces);
+                }
+            }
+            ImGui::Separator();
+            const char* pieces[] = {"Cuirass", "Helmet", "Pauldron (left)", "Pauldron (right)", "Bracer (left)",
+                "Bracer (right)", "Thigh (left)", "Thigh (right)", "Shin (left)", "Shin (right)"};
+            for(int i = 0; i < 10; i++)
+            {
+                if(ImGui::MenuItem(pieces[i], nullptr, (st.choice.armourPieces >> i) & 1, st.choice.armour > 0))
+                {
+                    setArmour(st.choice.armour, st.choice.armourPieces ^ (1 << i));
+                }
+            }
+            ImGui::Separator();
+            if(ImGui::MenuItem("All Pieces", nullptr, false, st.choice.armour > 0))
+            {
+                setArmour(st.choice.armour, 1023);
+            }
+            if(ImGui::MenuItem("No Pieces", nullptr, false, st.choice.armour > 0))
+            {
+                setArmour(st.choice.armour, 0);
+            }
+            ImGui::EndMenu();
+        }
         ImGui::Separator();
         if(ImGui::MenuItem("Respawn"))
         {
@@ -1458,7 +1490,7 @@ void poseDataWindow()
             }
             helpMarker("A single gun's class is its pose category (Rifle, Pistol, Shoulder Launcher, Sprayer, Laser Cannon, "
                        "Widowmaker): per weapon and kind in Combat > Armed Grunts > Weapon Holds. A category not tuned "
-                       "yet starts as the Rifle's keys.");
+                       "yet starts as the Rifle's keys (its Pickup: the kind's shared one).");
             {
                 // The IK stretch of this kind and class (agpose::stretch: every pose of it), the subject's as used
                 float by = agpose::stretch(st.pdKind, st.pdClass);
@@ -1487,22 +1519,86 @@ void poseDataWindow()
             }
             int poses[agpose::NumPoses];
             const int np = agpose::posesOf(st.pdClass, poses, agpose::NumPoses);
-            if(ImGui::BeginCombo("Pose", agpose::poseName(st.pdClass, st.pdPose)))
+            if(ImGui::BeginCombo("Pose", agpose::poseTitle(st.pdKind, st.pdClass, st.pdPose)))
             {
                 for(int i = 0; i < np; i++)
                 {
-                    if(ImGui::Selectable(agpose::poseName(st.pdClass, poses[i]), st.pdPose == poses[i]))
+                    if(ImGui::Selectable(agpose::poseTitle(st.pdKind, st.pdClass, poses[i]), st.pdPose == poses[i]))
                     {
                         st.pdPose = poses[i];
                     }
                 }
                 ImGui::EndCombo();
             }
+            if(st.pdPose == agpose::Pickup)
+            {
+                // One Pickup per kind every class shares, a class's own only where one is set (agent/sharedpickup)
+                const bool own = agpose::hasPickupOverride(st.pdKind, st.pdClass);
+                if(own)
+                {
+                    ImGui::TextUnformatted("This class's own Pickup (an override of the shared one).");
+                    if(ImGui::Button("Remove Override (use shared)"))
+                    {
+                        pushPosesUndo("Pickup override removed");
+                        agpose::removePickupOverride(st.pdKind, st.pdClass);
+                    }
+                }
+                else
+                {
+                    ImGui::TextUnformatted(va("The shared Pickup: every %s class without an override.",
+                        agpose::kindName(st.pdKind)));
+                    if(ImGui::Button("Make Override for this class"))
+                    {
+                        pushPosesUndo("Pickup override made");
+                        agpose::makePickupOverride(st.pdKind, st.pdClass);
+                    }
+                }
+                helpMarker("Each kind has one Pickup pose every weapon class uses; a class may have its own instead (an "
+                           "override, starting as the shared one). Edits here and with the Pose Keys tool change the "
+                           "shared Pickup unless this class has an override. Print lists the shared key and the "
+                           "overrides; vr_agrunt_pose_dump pickup shows each class's in effect.");
+                float bend[2] = {vr_agrunt_take_bend.value, vr_agrunt_take_bend_kneel.value};
+                if(ImGui::DragFloat2("Chest Bend (standing, kneeling)", bend, 0.25f, 0.f, 90.f, "%.1f"))
+                {
+                    Cvar_SetValueQuick(&vr_agrunt_take_bend, bend[0]);
+                    Cvar_SetValueQuick(&vr_agrunt_take_bend_kneel, bend[1]);
+                }
+                helpMarker("Degrees the chest bends forward at the waist at the take's lowest (every kind and class): "
+                           "vr_agrunt_take_bend (28; its take frames' crouch, Legs off) and vr_agrunt_take_bend_kneel (45; "
+                           "on one knee).");
+            }
             const int phases = agpose::isStrike(st.pdPose) ? agpose::numPhases : 1;
             st.pdPhase = za::clamp(st.pdPhase, 0, phases - 1);
             if(phases > 1)
             {
                 ImGui::SliderInt("Phase", &st.pdPhase, 0, phases - 1, agpose::phaseName(st.pdPose, st.pdPhase));
+            }
+            if(phases > 1)
+            {
+                // (the subject's strike played from its start, slowed: QC vr_ag_act_speed, every phase alike)
+                if(ImGui::Button("Swing"))
+                {
+                    swingPlay();
+                }
+                ImGui::SameLine();
+                ImGui::SetNextItemWidth(ImGui::GetFontSize() * 8.f);
+                ImGui::SliderFloat("Swing Speed", &st.swing.speed, 0.1f, 1.f, "%.2fx", ImGuiSliderFlags_AlwaysClamp);
+                if(st.swing.on)
+                {
+                    ImGui::SameLine();
+                    if(ImGui::Button("Stop Swing"))
+                    {
+                        st.swing.on = false;
+                    }
+                }
+                helpMarker("Swing: the subject plays this strike once from its start at Swing Speed (its wind-up, strike, "
+                           "blow and recovery slowed together, as Enemy Melee Speed does in the game), then holds at the "
+                           "phase picked; press again to replay. Stop Swing lets it go. The subject must be of this kind "
+                           "and class (Follow the Subject).");
+                if(st.subject > 0 && (st.subjKind != st.pdKind || st.subjClass != st.pdClass))
+                {
+                    ImGui::TextDisabled("Swing: the subject holds another kind or class");
+                }
             }
             const int code = agpose::code(st.pdKind, st.pdClass, st.pdPose, st.pdPhase);
             agpose::Key k = agpose::value(code);
@@ -1581,7 +1677,11 @@ void poseDataWindow()
             }
             if(ImGui::Button("Reset This Pose"))
             {
-                for(int ph = 0; ph < agpose::numPhases; ph++)
+                if(st.pdPose == agpose::Pickup)
+                {
+                    pushPosesUndo("Pickup reset"); // (its override or the shared key: the text as it is)
+                }
+                for(int ph = 0; ph < agpose::numPhases && st.pdPose != agpose::Pickup; ph++)
                 {
                     pushPoseUndo(agpose::code(st.pdKind, st.pdClass, st.pdPose, ph));
                 }

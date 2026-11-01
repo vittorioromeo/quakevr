@@ -495,7 +495,7 @@ void(entity e, entity by) VR_ARK_Kill =
     float bits = ar_mgr.ark_taken;
     if(bits == 0) { return; }
 
-    if(((bits & ARK_QUAD) != 0) && (vr_hitkind == QVR_HITKIND_MELEE))
+    if(((bits & ARK_QUAD) != 0) && (hit_kind == QVR_HITKIND_MELEE))
     {
         VR_ARK_GiveQuad(by, ARK_QUAD_SECS);
         dprint(sprintf("arena_perks: Quad Strike: %g s of quad for a hand kill of %s\n", ARK_QUAD_SECS, e.classname));

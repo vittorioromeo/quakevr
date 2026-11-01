@@ -167,23 +167,11 @@ float(entity e, vector xAt, vector xDir) VR_Decap_OnHead =
     {
         return FALSE;
     }
-    float yaw = e.angles_y * (3.14159265 / 180);
-    vector facing;
-    facing_x = cos(yaw);
-    facing_y = sin(yaw);
-    facing_z = 0;
-    vector head = e.origin + facing * xHeadForward + VR_HeadSide(facing) + '0 0 1' * xHeadUp;
     if(hitmodel_target(e))
     {
-        return vlen(hitmodel_rest(e, xAt) - head) < xHeadRadius + VR_HEAD_MARGIN;
+        return VR_HeadHolds(e, hitmodel_rest(e, xAt));
     }
-    vector d = normalize(xDir);
-    if(d == '0 0 0')
-    {
-        return vlen(xAt - head) < xHeadRadius;
-    }
-    float t = max(0, (head - xAt) * d);
-    return vlen(head - (xAt + d * t)) < xHeadRadius;
+    return VR_HeadOnRay(e, xAt, normalize(xDir));
 };
 
 // The melee's decapitation zone of `e` (VR_Decap_MeleeZone): the head zone grown by vr_decap_head_size (its radius,
@@ -198,12 +186,7 @@ float(entity e) VR_Decap_MeleeZone =
     {
         return FALSE;
     }
-    float yaw = e.angles_y * (3.14159265 / 180);
-    vector facing;
-    facing_x = cos(yaw);
-    facing_y = sin(yaw);
-    facing_z = 0;
-    vr_decap_zone_top = e.origin + facing * xHeadForward + VR_HeadSide(facing) + '0 0 1' * xHeadUp;
+    vr_decap_zone_top = VR_HeadCentre(e);
     vr_decap_zone_bottom = vr_decap_zone_top - '0 0 1' * max(0, cvar_hget(cvarh_vr_decap_neck));
     xHeadRadius = (xHeadRadius + (hitmodel_target(e) ? VR_HEAD_MARGIN : 0)) * max(0.1, cvar_hget(cvarh_vr_decap_head_size));
     return TRUE;
@@ -410,16 +393,16 @@ float(entity targ, entity attacker, vector xAt, vector xVel, float xHow) VR_Deca
     return TRUE;
 };
 
-// A hand's blow about to deal its damage to `targ` (T_Damage_VRMelee; self the player, vr_hithand the hand): armed if
+// A hand's blow about to deal its damage to `targ` (T_Damage_VRMelee; self the player, hit_hand the hand): armed if
 // it is a beheading cut at a live monster's head.
 float(entity targ, entity attacker, float xDamage) VR_Decap_HeadBlow =
 {
-    if(vr_hitkind != QVR_HITKIND_MELEE || vr_hithand < 0 || attacker != self || !(self.flags & FL_CLIENT) ||
+    if(hit_kind != QVR_HITKIND_MELEE || hit_hand < 0 || attacker != self || !(self.flags & FL_CLIENT) ||
        targ.health <= 0 || !VR_Decap_Allowed(targ))
     {
         return FALSE;
     }
-    entity b = VR_Blow(vr_hithand);
+    entity b = VR_Blow(hit_hand);
     if(b.mh_kind == VR_MKIND_SLAP)
     {
         dprint(sprintf("decap: no: a slap (%s)\n", targ.classname));
@@ -436,7 +419,7 @@ float(entity targ, entity attacker, float xDamage) VR_Decap_HeadBlow =
         // A zombie's head pops only to a blow that would knock it down, as a shot's (VR_DECAP_ZOMBIE_DOWN, 25: a light
         // tap it survives keeps its head; VR_Decap_After kills an armed zombie).
         if(VR_Decap_IsZombie(targ) && xDamage < 25) { return FALSE; }
-        if(!VR_Decap_Arm(targ, attacker, b.mh_c_pos, VRGetHandVel(vr_hithand) * VRMetersToUnits(), QVR_DECAP_BLUNT))
+        if(!VR_Decap_Arm(targ, attacker, b.mh_c_pos, VRGetHandVel(hit_hand) * VRMetersToUnits(), QVR_DECAP_BLUNT))
         {
             return FALSE;
         }
@@ -453,7 +436,7 @@ float(entity targ, entity attacker, float xDamage) VR_Decap_HeadBlow =
     }
     if(VR_Decap_OnMeleeHead(targ, b.mh_c_pos, b.mh_c_dir))
     {
-        float how = VR_Decap_Slash(vr_hithand, b.mh_c_pos, TRUE);
+        float how = VR_Decap_Slash(hit_hand, b.mh_c_pos, TRUE);
         if(how && VR_Decap_Arm(targ, attacker, b.mh_c_pos, vr_decap_slashvel, how))
         {
             return TRUE;
@@ -463,7 +446,7 @@ float(entity targ, entity attacker, float xDamage) VR_Decap_HeadBlow =
     if(VR_Decap_QuadPops(attacker) && VR_Decap_OnHead(targ, b.mh_c_pos, '0 0 0') &&
        (!VR_Decap_IsZombie(targ) || xDamage >= 25))
     {
-        return VR_Decap_Arm(targ, attacker, b.mh_c_pos, VRGetHandVel(vr_hithand) * VRMetersToUnits(), QVR_DECAP_QUAD);
+        return VR_Decap_Arm(targ, attacker, b.mh_c_pos, VRGetHandVel(hit_hand) * VRMetersToUnits(), QVR_DECAP_QUAD);
     }
     return FALSE;
 };

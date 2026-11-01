@@ -1,0 +1,11 @@
+# knights_armour: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Debug > Tests' armour knights (vr_agarmor_test 8), with Armed Knights and Armed Death Knights on.
+title An armed knight and an armed death knight in full yellow (vr_agarmor_test 8)
+map vrtesthall
+god
+notarget
+cvar vr_agknight 1
+cvar vr_agdknight 1
+give "Knight's Sword" main
+give "Shotgun" off
+cmd impulse 9
+cmd vr_agarmor_test 8

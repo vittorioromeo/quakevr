@@ -384,7 +384,7 @@ void(entity player, float hand, vector vel) ragdollrelease = #0;
 float(entity e, vector vel) ragdollfling = #0;
 float(entity player, float hand) ragdollheld = #0;
 float(entity player, float hand) ragdollreach = #0;
-float(entity e, vector p, optional float within) ragdollbone = #0; // (within: -1 when its surface is farther)
+float(entity e, vector p, optional float within, optional vector dir) ragdollbone = #0; // (within: -1 when its surface is farther)
 // Ragdolls in a world box (the buzzsaw's blade, rogue_buzzsaw.qc): the next ragdoll after `after` (edict order; world:
 // from the first) with a part in mins..maxs, world if none; the next part of e's ragdoll after `after` (-1: from the
 // first) in it, -1 none, trace_endpos its point nearest the box's middle.
@@ -412,6 +412,10 @@ float(entity e, vector p) ragdolllimb = #0;
 // QVR_ARMOR_PIECE_AT) the piece a hit at p strikes (-1 none there, -2 no rig); limbpiece(e, piece, 10 / 11) that piece's
 // own model's ("<model>#plate<piece>") origin / angles now, as drawn.
 float QVR_ARMOR_PIECE_AT = -1000;
+// ragdollbone(e, p, QVR_ARMOR_SHOT, dir): the unbroken plate a shot that met e's model at p going along dir crossed
+// first (vr_agarmor.cpp shotPiece: each plate's triangles as drawn, on the shot's line up to where it crosses the skin);
+// -1 none (bare skin), -2 no shell.
+float QVR_ARMOR_SHOT = -1005;
 float QVR_ARMOR_CLIENT = -1001; // ragdollbone(e, [what, 0, 0], ...): the client's word on e's armour (the tests): 0 type, 1 pieces, 2 wear; -1 none
 // The worn backpack (vr_wornpack.qc; the engine's vr_box3d_wornpack.cpp): ragdollbone(e, [what, player's number, hand],
 // QVR_WORNPACK) 0 whether e's ragdoll wears it (1; 0 not, -1 no ragdoll), 1 torn off its ragdoll, 2 the pull (N) of that
@@ -517,6 +521,22 @@ void(entity e, float zone, vector lo, vector hi, float radius) debughitzone = #0
 // e's state this frame (a label at `at`), 1-5 a disarm-relevant hit there (VR_DV_PARRY...: marked a moment). Nothing
 // is kept while it is off.
 void(entity e, float kind, vector a, vector b, float radius) debugdisarm = #0;
+// Show Directional Parry (vr_dirparry_debug; vr_dirparry.qc VR_DRP_Debug, the engine's vr_dirparryviz.cpp): a line of
+// the reading being sent (kind 1 its blade then, 2 and 3 where its way's span begins and ends, 4 your parry line, 5 its
+// way, 6 the ideal, 7 the gap), then its note, which ends it: `verdict` (VR_DRP_SHOW_*), where they met, and its numbers
+// (score: the score, the threshold, a partial's cut; angle: degrees off the ideal, full marks within, none at; contact:
+// the gap, full within, none at; marks: the angle's, the contact's; more: 1 your main hand (0 the off), when on its way
+// (s), the swing's speed). 1: shown (0: off, nothing kept).
+void(float kind, vector a, vector b) debugdirparry = #0;
+// ... and each held melee weapon's line every server frame as the parry reads it (VR_AG_WeaponLine: back a, front b)
+// and last frame's (a0, b0); returns how far (units) its ends are from the drawn weapon's own butt and tip (the
+// renderer's last matrix for it), the worse; -1 not measured (off, not drawn lately).
+float(entity w, vector a, vector b, vector a0, vector b0) debugdirparryline = #0;
+float(float verdict, vector at, vector score, vector angle, vector contact, vector marks, vector more) debugdirparrynote =
+    #0;
+// The disarm volumes as drawn (vr_disarmhull.cpp PF_disarmhull): what 0 held weapon e, 1/2 humanoid e's hand on side 0/1:
+// '<gap of the path a..b to it grown by grow (0 or less: met)> <the path's share where met> <1 found>'; 10-14 the tests'.
+vector(entity e, float what, vector a, vector b, float grow) disarmhull = #0;
 void(entity e, float what, vector at, string text) debugdisarmnote = #0;
 // What of you the flame of torch t, held by you, touches (single player: the client's last frame; vr_burn_self,
 // vr_burn_drop on): 1 the holding hand, 2 the other hand, 4 the holding arm, 8 the other arm, 16 the torso or legs, 32
@@ -618,6 +638,9 @@ float(string model, optional float kick) weaponheft = #0;
 #include "../Quake/vr/vr_impact_shared.h"
 float(float material, float kind, vector org, vector dir, float amount) impact = #0;
 string(float material, float kind, float slot) impactsound = #0;
+// Where on a body a hit struck (positional damage's part, the hit record's hit_zone, the engine's hit reaction regions):
+// VR_REGION_* (one vocabulary both sides read).
+#include "../Quake/vr/vr_region_shared.h"
 float(string path) fileexists = #0; // whether a file is in the search path (data that may not be installed)
 float(string folder, float track) campaignmusic = #0; // a campaign's own CD track's number (target_vr_music), 0 if not there
 

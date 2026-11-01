@@ -287,6 +287,33 @@ float(entity xTarget) PositionalHead =
 
 float VR_HEAD_MARGIN = 3.5; // units: the head spheres are fitted to the top vertices' middle; a head's surface lies up to 3.5 beyond (an ogre's back of the head)
 
+// The head sphere's tests, one for every "was it the head" decider (positional damage's part, beheading, head pops:
+// VR_Decap_OnHead). Each after PositionalHead(e) (its xHead* globals).
+// Its middle (world, on its model standing, turned with its yaw).
+vector(entity e) VR_HeadCentre =
+{
+    float yaw = e.angles_y * (3.14159265 / 180);
+    vector facing = '0 0 0';
+    facing_x = cos(yaw);
+    facing_y = sin(yaw);
+    return e.origin + facing * xHeadForward + VR_HeadSide(facing) + '0 0 1' * xHeadUp;
+};
+
+// Whether `rest` (a place on its model standing: hitmodel_rest) is in it, VR_HEAD_MARGIN grown (precise hits).
+float(entity e, vector rest) VR_HeadHolds =
+{
+    return vlen(rest - VR_HeadCentre(e)) < xHeadRadius + VR_HEAD_MARGIN;
+};
+
+// Whether a ray entering at `xAt` along unit `xDir` passes through it, not behind where it entered ('0 0 0': whether the
+// point itself is in it).
+float(entity e, vector xAt, vector xDir) VR_HeadOnRay =
+{
+    vector head = VR_HeadCentre(e);
+    float t = max(0, (head - xAt) * xDir);
+    return vlen(head - (xAt + xDir * t)) < xHeadRadius;
+};
+
 // Which zone a point that lies in more than one belongs to (1 head, 2 extremities, 3 legs, 0 body). Head priority
 // (vr_hit_head_priority, Combat > Hit Detection > Head Priority): the head's zone wins the overlap - a head is a head
 // whatever else reaches it. Off: the limb and leg zones claim the point first, and the head only where nothing else
@@ -297,46 +324,43 @@ float(float inHead, float outLateral, float belowOrigin) VR_RegionPick =
     {
         if(inHead)
         {
-            return 1; // headshot
+            return VR_REGION_HEAD; // headshot
         }
         if(outLateral)
         {
-            return 2; // extremities
+            return VR_REGION_ARM; // extremities
         }
         if(belowOrigin)
         {
-            return 3; // legs
+            return VR_REGION_LEG; // legs
         }
-        return 0; // standard
+        return VR_REGION_BODY; // standard
     }
 
     if(outLateral)
     {
-        return 2; // extremities
+        return VR_REGION_ARM; // extremities
     }
     if(belowOrigin)
     {
-        return 3; // legs
+        return VR_REGION_LEG; // legs
     }
     if(inHead)
     {
-        return 1; // headshot
+        return VR_REGION_HEAD; // headshot
     }
-    return 0; // standard
+    return VR_REGION_BODY; // standard
 }
 
 // Point classification shared by precise shots, positional melee and the animated debug view's check.
 // `rest` is the contacted point mapped to the standing model, in world space (hitmodel_rest).
 float PositionalPointRegion(entity xTarget, vector rest) =
 {
-    if(!PositionalHead(xTarget)) { return -1; }
+    if(!PositionalHead(xTarget)) { return VR_REGION_NONE; }
     float yaw = xTarget.angles_y * (3.14159265 / 180);
-    vector facing = '0 0 0';
-    facing_x = cos(yaw); facing_y = sin(yaw);
-    vector head = xTarget.origin + facing * xHeadForward + VR_HeadSide(facing) + '0 0 1' * xHeadUp;
     vector side = '0 0 0';
-    side_x = -facing_y; side_y = facing_x;
-    float inHead = vlen(rest - head) < xHeadRadius + VR_HEAD_MARGIN;
+    side_x = -sin(yaw); side_y = cos(yaw);
+    float inHead = VR_HeadHolds(xTarget, rest);
     float lateral = fabs((rest - xTarget.origin) * side) > (xTarget.maxs_x - xTarget.mins_x) * 0.35;
     return VR_RegionPick(inHead, lateral, rest_z < xTarget.origin_z);
 }
@@ -353,21 +377,14 @@ float PositionalRegion(entity xTarget, vector xEndpos, vector xDirection) =
     if(cvar_hget(cvarh_vr_positional_damage) == 0 || (xTarget.vr_gib && !(xTarget.flags & FL_CLIENT)) ||
        !PositionalHead(xTarget))
     {
-        return -1;
+        return VR_REGION_NONE;
     }
 
     vector d = normalize(xDirection);
     if(d == '0 0 0')
     {
-        return -1;
+        return VR_REGION_NONE;
     }
-
-    float yaw = xTarget.angles_y * (3.14159265 / 180);
-    vector facing;
-    facing_x = cos(yaw);
-    facing_y = sin(yaw);
-    facing_z = 0;
-    vector head = xTarget.origin + facing * xHeadForward + VR_HeadSide(facing) + '0 0 1' * xHeadUp;
 
     // Precise hits (vr_hit_precise): the shot struck the model as drawn (at xEndpos, within its tolerance of it). Where
     // that place is on the model standing (hitmodel_rest: the same place of the same triangle in its stand frame, at its
@@ -380,8 +397,7 @@ float PositionalRegion(entity xTarget, vector xEndpos, vector xDirection) =
     }
 
     // The ray's closest approach to the head, not behind where it entered.
-    float t = max(0, (head - xEndpos) * d);
-    float inHead = vlen(head - (xEndpos + d * t)) < xHeadRadius;
+    float inHead = VR_HeadOnRay(xTarget, xEndpos, d);
 
     // The ray's closest approach to the target's vertical axis: how far out, and how high.
     vector dh = d;
@@ -429,12 +445,13 @@ float(entity xTarget, vector xTo, vector xDir) VR_Melee_Positional =
 float PositionalDamage(entity xTarget, vector xEndpos, vector xDirection) =
 {
     float region = PositionalRegion(xTarget, xEndpos, xDirection);
-    if(region == 1)
+    if(region == VR_REGION_HEAD)
     {
         PositionalHeadshotFeedback(xTarget);
     }
 
     VR_Hit_SetZone(xTarget, region, xEndpos);
+    VR_AgArmor_Shot(xTarget, xEndpos, xDirection); // (armour: the plate its line met first, vr_agarmor.qc)
     return max(0, region);
 }
 
@@ -522,14 +539,14 @@ void() HIP_LaserTouch =
 
         // VR: every projectile's hit (VR_Proj_Begin's, its bounces its own): tagged a shot where it struck (a corpse's
         // head or limb worn), a kill at the head or a limb popped by chance (vr_decap_pop_laser).
-        VR_SetHitProjectile(at, oldvel);
+        VR_Hit_BeginProjectile(at, oldvel);
         float pop = VR_Decap_ProjArm(other, self.lastvictim, at, oldvel, adjDmg, QVR_PROJ_LASER);
         T_Damage(other, self, self.lastvictim, adjDmg);
         if(pop)
         {
             VR_Decap_After(other);
         }
-        VR_ClearHitKind();
+        VR_Hit_End();
     }
     else if((self.cnt == 3) || (random()<0.15))
     {
@@ -997,13 +1014,13 @@ void() HIP_LightningThink =
    dam = VR_WpnDmg(self, cvarh_vr_dmg_mjolnir_lightning, 80); // (self: the player now)
    if(oldstate!=0)
       dam = dam * (30 / 80);
-   VR_SetHitKind(QVR_HITKIND_SHOT, -1, trace_endpos, normalize(trace_endpos - org));
-   vr_hitweapon = "Mjolnir's lightning";
+   VR_Hit_Begin(QVR_HITKIND_SHOT, -1, trace_endpos, normalize(trace_endpos - org));
+   hit_weapon = "Mjolnir's lightning";
    if(dot>0.3)
       HIP_HammerDamage(org, trace_endpos, self, dam);
    else
       HIP_HammerDamage(org, trace_endpos, self, dam*0.5);
-   VR_ClearHitKind();
+   VR_Hit_End();
    self = head;
 
    self.nextthink = time + 0.2;
@@ -1088,10 +1105,9 @@ void(float xHand, vector xAt) HIP_FireMjolnirLightning =
 // training dummy's report (vr_dummy.qc).
 void(vector xDir) VRMeleeHitAt =
 {
-    if(vr_hitkind == QVR_HITKIND_MELEE)
+    if(hit_kind == QVR_HITKIND_MELEE)
     {
-        vr_hitpos = trace_endpos;
-        vr_hitdir = xDir;
+        VR_Hit_At(trace_endpos, xDir);
     }
 };
 
@@ -1736,7 +1752,7 @@ void(float damage) spawn_touchblood =
     }
     if(bleed > 0)
     {
-        VR_ImpactFx(m, VR_HIT_NAIL, other, self.origin, vel, damage * bleed);
+        VR_ImpactFx(m, VR_Hit_ShotKind(self, self.owner, VR_HIT_NAIL), other, self.origin, vel, damage * bleed);
     }
 };
 
@@ -1814,7 +1830,7 @@ float(entity hit, float damage) AddMultiDamage =
     if(part == 1)      hit_pelparts_x = hit_pelparts_x + 1;
     else if(part == 2) hit_pelparts_y = hit_pelparts_y + 1;
     else if(part == 3) hit_pelparts_z = hit_pelparts_z + 1;
-    VR_AgArmor_PelletAdd(hit); // (armour: the pellet's piece, vr_agarmor.qc)
+    VR_AgArmor_PelletAdd(hit, damage); // (armour: the pellet's damage on its piece, vr_agarmor.qc)
 
     // HONEY
     return VR_DamageCredit_Accepts(hit, self); // (the shooter's hitscan shot: FireBullets credited him)
@@ -1863,6 +1879,10 @@ float(float xKind) VR_ShotPush_Momentum =
 entity(entity xHit, vector xFrom, vector xAt, vector xDir, float xKind, float xScale) VR_ShotPush =
 {
     float momentum = VR_ShotPush_Momentum(xKind) * xScale;
+    if(xHit.vr_ar_type > 0)
+    {
+        momentum = momentum * VR_AgArmor_PushScale(xHit, xAt, xDir); // (an armed humanoid's plate takes it: less push)
+    }
     float speed = cvar_hget(cvarh_vr_shot_push_speed);
     if(momentum <= 0 || speed <= 0 || xDir == '0 0 0')
     {
@@ -1942,7 +1962,7 @@ void() VR_ShotPush_Touch =
 // - the prop, gib or ragdoll (a corpse's, a knocked-down body's) it met or flew through pushed (VR_ShotPush: a nail's
 //   push, or its own kind's, .vr_shot_push_kind); an explosive's blast pushes instead (physicsblast);
 // - where it struck, along its flight (VR_TouchTrace: vr_proj_at, vr_proj_dir), and the body's part there
-//   (PositionalDamage: vr_proj_factor, the headshot's crack); the hit tagged a shot there (VR_SetHitKind), so a corpse's
+//   (PositionalDamage: vr_proj_factor, the headshot's crack); the hit tagged a shot there (VR_Hit_Begin), so a corpse's
 //   head or limb it strikes is worn down (VR_Limb_CorpseWear);
 // - a kill at the head or a limb armed to pop it (VR_Decap_ProjArm: a laser's or a plasma bolt's chance
 //   vr_decap_pop_laser, any other bolt's, nail's or lump's vr_decap_pop_projectile; an explosive's are its blast's,
@@ -1963,6 +1983,7 @@ float vr_proj_armed;   // a pop armed (VR_Proj_End ends it)
 float vr_proj_hits;    // VR_Proj_Begin's calls (the tests)
 
 float(entity targ, entity attacker, vector xAt, vector xDir, float xDamage, float xKind) VR_Decap_ProjArm; // (vr_limbs.qc)
+void(entity targ, vector from, vector dir) VR_AgArmor_Flight; // (vr_agarmor.qc)
 
 // `e`, a projectile just launched, marked one (its move meets corpses, gibs, knocked-down bodies: the engine's
 // VR_HitModelMoveFlags), for a small MOVETYPE_FLY one (AD's bolts, lasers and plasma) or a grenade.
@@ -2062,6 +2083,10 @@ void(float xKind, float xDamage) VR_Proj_Begin =
     VR_TouchTrace(self.origin - dir * 8, self.origin + dir * 8);
     vr_proj_target = other;
     vr_proj_at = trace_ent == other ? trace_endpos : self.origin;
+    // The armour's plate query reads its own flight line, from a frame's flight back (VR_AgArmor_Shot), not this touch
+    // point: a missile's box meets a monster's 15 units early (MOVE_MISSILE) and its touch trace a limb beside the line
+    // (the projectiles' tolerance), and a query from there missed the plate the line goes on to meet (test 10's leaks).
+    VR_AgArmor_Flight(other, self.origin - dir * (vlen(self.velocity) * frametime + 2), dir);
     vr_proj_dir = dir;
     vr_proj_factor = 1;
     vr_proj_armed = FALSE;
@@ -2074,7 +2099,7 @@ void(float xKind, float xDamage) VR_Proj_Begin =
     {
         return;
     }
-    VR_SetHitProjectile(vr_proj_at, dir); // (its kind its own: a nail's wound a bullet's, not lightning's: VR_Hit_Hitscan)
+    VR_Hit_BeginProjectile(vr_proj_at, dir); // (its kind its own: a nail's wound a bullet's, not lightning's: VR_Hit_Hitscan)
     vr_proj_armed = VR_Decap_ProjArm(other, self.owner, vr_proj_at, dir, xDamage, xKind);
     if(cvar_hget(cvarh_vr_debug_shots))
     {
@@ -2091,9 +2116,9 @@ void() VR_Proj_End =
         VR_Decap_After(vr_proj_target);
         vr_proj_armed = FALSE;
     }
-    if(vr_hitkind == QVR_HITKIND_SHOT && vr_hithand == -1 && vr_hitpos == vr_proj_at)
+    if(hit_kind == QVR_HITKIND_SHOT && hit_hand == -1 && hit_pos == vr_proj_at)
     {
-        VR_ClearHitKind();
+        VR_Hit_End();
     }
 };
 
@@ -2126,14 +2151,14 @@ void(float damage, vector dir) TraceAttack =
                 float through = VR_AgArmor_HitFx(trace_ent, trace_endpos, vel, damage);
                 if(through > 0)
                 {
-                    VR_ImpactFx(m, VR_HIT_BULLET, trace_ent, org, vel, damage * through);
+                    VR_ImpactFx(m, VR_Hit_ShotKind(self, self, VR_HIT_BULLET), trace_ent, org, vel, damage * through);
                     VR_Wound_Pellet(trace_ent, trace_endpos, dir, damage); // VR: painted on its model (vr_wounds.qc)
                 }
                 VR_HitReact_Pellet(trace_ent, trace_endpos, dir); // VR: where its flinch is (vr_hitreact.qc)
             }
             else
             {
-                VR_ImpactFx(m, VR_HIT_BULLET, trace_ent, org, vel, damage);
+                VR_ImpactFx(m, VR_Hit_ShotKind(self, self, VR_HIT_BULLET), trace_ent, org, vel, damage);
             }
             bleed = TRUE;
         }
@@ -2236,7 +2261,7 @@ void(float shotcount, vector dir, vector spread, vector src, float xRange, float
         {
             posDmgType = PositionalDamage(trace_ent, trace_endpos, shotDir);
             VR_SmallGib_Pellet(trace_ent, trace_endpos);
-            if(debugShots && posDmgType == 1) { hitsHead++; }
+            if(debugShots && posDmgType == VR_REGION_HEAD) { hitsHead++; }
             adjDmg = (vr_pellet_damage ? vr_pellet_damage : 4) * PositionalDamageFactor(posDmgType);
             if(vr_pellet_heavy_mult > 0 && (trace_ent.flags & FL_MONSTER) && trace_ent.max_health >= vr_pellet_heavy_health)
             {
@@ -2285,11 +2310,11 @@ void(float xHand, float shotcount, vector dir, vector spread) FireBullets =
         AD_FirePellets(xHand, shotcount, dir, spread, muzzle);
         return;
     }
-    VR_SetHitKind(QVR_HITKIND_SHOT, xHand, '0 0 0', dir);
+    VR_Hit_Begin(QVR_HITKIND_SHOT, xHand, '0 0 0', dir);
     vr_tracer_hand = xHand;
     vr_tracer_from = muzzle;
     FireBulletsImpl(shotcount, dir, spread, src, 2048 + vlen(muzzle - src), TRUE);
-    VR_ClearHitKind();
+    VR_Hit_End();
     // QVR: the shot's line passing near a monster alerts it (vr_stealth.qc)
     traceline(src, src + dir * 2048, FALSE, self);
     VR_Stealth_Graze(muzzle, trace_endpos, self, trace_ent);
@@ -2901,7 +2926,7 @@ void(float xHand) W_FireLightning =
     particle2(boltEnd, '0 0 0', QVR_PARTICLE_PRESET_LIGHTNING, 60);
     particle2(boltEnd, '0 0 0', QVR_PARTICLE_PRESET_SMOKE, 1);
     particle2(boltEnd, '0 0 0', QVR_PARTICLE_PRESET_SPARKS, 12);
-    VR_SetHitKind(QVR_HITKIND_SHOT, xHand, '0 0 0', boltDir);
+    VR_Hit_Begin(QVR_HITKIND_SHOT, xHand, '0 0 0', boltDir);
     vr_decap_weapon = QVR_DECAP_LIGHTNING; // (head pops)
     vr_lightning_hitpass = fromImage ? MOVE_HITPASS : 0;
     if(through)
@@ -2913,7 +2938,7 @@ void(float xHand) W_FireLightning =
     LightningDamage(from, boltEnd + boltDir*4, self, cvar_hget(cvarh_vr_dmg_lightning));
     vr_lightning_hitpass = 0;
     vr_decap_weapon = 0;
-    VR_ClearHitKind();
+    VR_Hit_End();
 
     weaponfired(self, xHand); // VR: its drawn kick and muzzle flash (vr_weaponfx.cpp)
     VRGunHaptic(xHand, 0.4, 175, 1.0);

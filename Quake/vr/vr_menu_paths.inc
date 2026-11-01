@@ -138,6 +138,7 @@ void qvr::menu::pathCheck_f()
 void qvr::menu::dump_f()
 {
     const int level = CLAMP(0, Cmd_Argc() > 1 ? Q_atoi(Cmd_Argv(1)) : 0, LevelCount - 1);
+    const bool full = Cmd_Argc() > 2 && !q_strcasecmp(Cmd_Argv(2), "full");
     const int was = levelOverride;
     levelOverride = level;
     for(int p = 0; p < pageCount; p++)
@@ -161,10 +162,38 @@ void qvr::menu::dump_f()
                                 : item.infoArg            ? item.infoArg(item.arg) // (a list's row: its text)
                                 : item.info               ? item.info()
                                                           : "";
-            Con_Printf("MD|%s|%s|%s|%s\n", kind, label ? label : "", choices.cStr(), item.helpText ? item.helpText : "");
+            if(!full)
+            {
+                Con_Printf("MD|%s|%s|%s|%s\n", kind, label ? label : "", choices.cStr(), item.helpText ? item.helpText : "");
+                continue;
+            }
+            za::String values;
+            for(const Choice& c : item.choices)
+            {
+                values += va("%g ", c.value);
+            }
+            Con_Printf("MD|%s|%s|%s|%s|%s|cvar %s|range %g %g step %g fmt %s|ext %d %g %g|neg %s %g|lvl %d|unav %d|page %d|cmd %s"
+                       "|act %d|wide %d|part %d\n",
+                kind, label ? label : "", choices.cStr(), values.cStr(), item.helpText ? item.helpText : "",
+                item.cvar ? item.cvar->name : "-", item.min, item.max, item.step, item.format ? item.format : "-",
+                item.extendable ? 1 : 0, item.hardMin, item.hardMax, item.negativeLabel ? item.negativeLabel : "-",
+                item.negativeStart, item.level, item.unavailable ? 1 : 0, item.page, item.command ? item.command : "-",
+                item.action || item.actionArg ? 1 : 0, item.wide ? 1 : 0, item.partOf);
         }
     }
     levelOverride = was;
+}
+
+void qvr::menu::dumpPaths_f()
+{
+    buildSearchIndex();
+    for(const SearchEntry& e : search.index)
+    {
+        const za::String full = e.path.empty() ? e.label : e.path + " > " + e.label;
+        Con_Printf("MP|%s%s|%d|%s|%s|%s\n", e.isPage ? "@" : "", e.isPage ? "page" : e.cvar ? e.cvar->name : "",
+            e.level, e.page >= 0 ? pages[e.page].title : "", e.isPage ? "" : e.label.cStr(), full.cStr());
+    }
+    Con_Printf("menu paths dumped: %d\n", static_cast<int>(search.index.size()));
 }
 
 void qvr::menu::press_f()

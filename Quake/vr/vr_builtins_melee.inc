@@ -776,8 +776,9 @@ void PF_propvalue()
 }
 
 // float(string model, string key) weaponvalue: a setting of the weapon drawn with `model` ("progs/v_rock2.mdl"; Weapon
-// Offsets and Weapon Weights, vr_weapons.inc, as its cvars name it: "w_mass" kg, "w_meleedmg", "w_throwdmg"...), what
-// it inherits followed (0: no such weapon or key).
+// Offsets and Weapon Weights: quakevr/data/weapons.txt and its keys, "w_mass" kg, "w_meleedmg", "w_throwdmg"...), what
+// it inherits followed (0: no such weapon or key). The game's QC reads the weapon table only so; the tests' cvar() and
+// cvar_set() of a vr_wofs_<key>_NN name reach it through the names kept for one release (VR_CvarStandIn).
 void PF_weaponvalue()
 {
     const int slot = weapons::slotForName(G_STRING(OFS_PARM0));

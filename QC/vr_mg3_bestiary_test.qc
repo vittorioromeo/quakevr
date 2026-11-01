@@ -417,11 +417,11 @@ void() MG3_BT_LavaStep =
         float d2 = h - mg3bt_a.health;
         float w1 = p.weapon, w2 = p.weapon2;
         p.weapon = p.weapon2 = WID_LIGHTNING;
-        VR_SetHitKind(QVR_HITKIND_SHOT, cVR_MainHand, '0 0 0', '0 0 0');
+        VR_Hit_Begin(QVR_HITKIND_SHOT, cVR_MainHand, '0 0 0', '0 0 0');
         h = mg3bt_a.health;
         T_Damage(mg3bt_a, p, p, 100);
         float d3 = h - mg3bt_a.health;
-        VR_ClearHitKind();
+        VR_Hit_End();
         p.weapon = w1; p.weapon2 = w2;
         VR_Test_Check(d2 == 100 && d3 == 100, sprintf("the laser cannon's bolt %g, the lightning gun's %g: whole", d2, d3));
         entity chthon = spawn();
