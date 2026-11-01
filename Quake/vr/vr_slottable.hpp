@@ -18,14 +18,16 @@ namespace qvr
 {
 
 // A data file: a `defaults { key "value" ... }` block (every slot's value of a key; a key not listed: "0"), then
-// `<block> <slot> { key "value" ... }` blocks (a slot's own values; slots from 0). `//` comments anywhere.
+// `<block> <slot> { key "value" ... }` blocks (a slot's own values; slots from 0, or by name: `slotNames`). `//`
+// comments anywhere.
 struct DataFileSpec
 {
-    const char* path;                     // in the game folders: "data/weapons.txt"
-    const char* block;                    // a slot's block's word: "weapon"
-    const char* keysFile;                 // where the keys are defined (its messages): "vr_weapons.inc"
-    int slots;                            // the slots 0 .. slots - 1
-    za::Span<const char* const> keyNames; // the keys' names in the file, by key
+    const char* path;                         // in the game folders: "data/weapons.txt"
+    const char* block;                        // a slot's block's word: "weapon"
+    const char* keysFile;                     // where the keys are defined (its messages): "vr_weapons.inc"
+    int slots;                                // the slots 0 .. slots - 1
+    za::Span<const char* const> keyNames;     // the keys' names in the file, by key
+    za::Span<const char* const> slotNames{};  // the slots' names in the file (monsters.txt's classnames); none: numbers
 };
 
 struct DataFileValue

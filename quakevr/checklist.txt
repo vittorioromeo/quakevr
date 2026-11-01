@@ -194,6 +194,7 @@ Hit rules unified (your call): blood, wounds and gore land where blades, shots a
 A crowbar on an explosive box now knocks (blunt) instead of clanging: say if it should clang.
 Props: grab and throw the explosive box, the torch, a pouch grenade: they weigh and sit in the hand as before; Held Object Offsets edits survive a restart.
 Toolgun: holstered on hip and back where you set it on 10-31 (now the default).
+Movement > Monster Hitbox, Ragdolls per class, Gore > Small Gibs per enemy: change one, quit and restart: the change sticks (these now live in quakevr/data/monsters.txt).
 
 [2. Survival Arena (Play > Survival Arena, map vrarena)]
 Start: unarmed, wave 1 is one or two unarmed grunts; their guns off the bodies are how you climb to nail pistols, shotguns and heavier guns {test:arena_run}
