@@ -47,6 +47,10 @@ void(float xHand) VR_Haptic_GrabProp = { haptic(xHand, 0.0, 0.1, 70, 0.6); };
 // A soft knock: a carried thing nudged, let go of from both hands.
 void(float xHand) VR_Haptic_SoftKnock = { haptic(xHand, 0.0, 0.05, 60, 0.3); };
 
+// A hard knock: your blow knocked a foe's weapon out of its hand (a punch or a strike on it: vr_armedgrunt_play.qc
+// VR_AG_StrikeKnock).
+void(float xHand) VR_Haptic_KnockOut = { haptic(xHand, 0.0, 0.12, 70, 1.0); };
+
 // The pack is full.
 void(float xHand) VR_Haptic_PackFull = { haptic(xHand, 0.0, 0.06, 40, 0.9); };
 

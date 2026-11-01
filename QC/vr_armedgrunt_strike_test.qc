@@ -89,8 +89,8 @@ void(vector a0, vector a1, vector b0, vector b1, float n, vector dir, float sp, 
     b.mh_cp[0] = b0;
     b.mh_cp[1] = b1;
     pl.handpos = b0;
-    // (the hand's world velocity: the game's, in slow motion 1 over its scale faster: vr_hand_time_scale)
-    pl.handvel = dir * sp * VRMetersToUnits() / (vr_hand_time_scale > 0 ? vr_hand_time_scale : 1);
+    // (the hand's velocity, metres a second: the game's, in slow motion 1 over its scale faster: vr_hand_time_scale)
+    pl.handvel = dir * sp / (vr_hand_time_scale > 0 ? vr_hand_time_scale : 1);
     pl.velocity = '0 0 0';
     pl.vrbits0 = pl.vrbits0 - (pl.vrbits0 & QVR_VRBITS0_MAINHAND_GRABBING);
     if(closed)
