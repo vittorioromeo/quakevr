@@ -467,7 +467,7 @@ void(entity g, entity p, entity pl, float h, vector x, float swing, float off) V
     g.vr_agbc_mark = [h + 1, time, 0];
     if(h == cVR_MainHand) { pl.vr_ag_knock_at = time; } else { pl.vr_ag_knock_off = time; }
     vr_agbc_n = vr_agbc_n + 1;
-    vector hv = VRGetEntHandVel(pl, h) - pl.velocity;
+    vector hv = VRGetEntHandVelU(pl, h);
     vector way = vlen(hv) > 1 ? normalize(hv) : normalize(x - pl.origin);
     entity was = self;
     self = pl;
@@ -565,10 +565,21 @@ float(entity g, entity pl, float h, vector bodyAt) VR_AG_BlowOnWeapon =
     if(!cvar_hget(cvarh_vr_agrunt_strike_first) || !cvar_hget(cvarh_vr_agrunt_disarm) || !g.vr_ag_prop || g.vr_ag_tug_pl ||
        g.health <= 0 || !(pl.flags & FL_CLIENT) || VR_AG_Still(g))
     {
+        if(cvar_hget(cvarh_vr_agrunt_debug) >= 3) // (every frame: the gates' trace, vr_agrunt_debug 3)
+        {
+            VR_AG_Log(sprintf("strike: none (hand %g): strike_first %g, disarm %g, armed %g, tug %g, health %g, still %g",
+                h, cvar_hget(cvarh_vr_agrunt_strike_first), cvar_hget(cvarh_vr_agrunt_disarm), g.vr_ag_prop != world,
+                g.vr_ag_tug_pl != world, g.health, VR_AG_Still(g)));
+        }
         return -1;
     }
     if(VR_AG_SwingSpeed(pl, h) < min(cvar_hget(cvarh_vr_agrunt_disarm_swing), VR_AG_DOWN_SWING))
     {
+        if(cvar_hget(cvarh_vr_agrunt_debug) >= 3)
+        {
+            VR_AG_Log(sprintf("strike: none (hand %g): its swing %.1f m/s, under %g", h, VR_AG_SwingSpeed(pl, h),
+                min(cvar_hget(cvarh_vr_agrunt_disarm_swing), VR_AG_DOWN_SWING)));
+        }
         return -1; // (too slow for any strike: VR_AG_StrikeSpeed's least need; the swept test spared)
     }
     // Which of its weapons (two held: either) it met first.
@@ -597,11 +608,18 @@ float(entity g, entity pl, float h, vector bodyAt) VR_AG_BlowOnWeapon =
     }
     if(t < 0)
     {
+        if(cvar_hget(cvarh_vr_agrunt_debug) >= 3)
+        {
+            VR_AG_Log(sprintf("strike: none (hand %g): its sweep missed its weapon and hand (gap %.1f)", h,
+                VR_AG_StrikeGap(vr_ag_sw_b0, vr_ag_sw_b1, VR_AG_STRIKE_R, 0)));
+        }
         return -1;
     }
     if(bodyAt != '0 0 0' && t > VR_AGPar_SweepAt(vr_ag_sw_a0, vr_ag_sw_a1, vr_ag_sw_b0, vr_ag_sw_b1, bodyAt) + 0.25)
     {
         vr_ag_strike_why = "its body met first";
+        VR_AG_Log(sprintf("strike: none (hand %g): its body met first (weapon at %.2f of the sweep, body at %.2f)", h, t,
+            VR_AGPar_SweepAt(vr_ag_sw_a0, vr_ag_sw_a1, vr_ag_sw_b0, vr_ag_sw_b1, bodyAt)));
         return -1;
     }
     // A melee weapon's blade met away from its hand: blade on blade (VR_AG_BladeMet), never a disarm.
@@ -618,9 +636,10 @@ float(entity g, entity pl, float h, vector bodyAt) VR_AG_BlowOnWeapon =
     float sp = VR_AG_StrikeSpeed(g, p, pl, h, 1);
     if(sp <= 0)
     {
+        VR_AG_Log(sprintf("strike: none (hand %g): not a deliberate strike (swing %.1f m/s)", h, VR_AG_SwingSpeed(pl, h)));
         return -1; // (no deliberate strike: an open hand, a jolt, too slow)
     }
-    string where = sprintf("%s, %.1f units from its grip or hand", part == 2 ? "its gun hand" : "its weapon", near);
+    string where =sprintf("%s, %.1f units from its grip or hand", part == 2 ? "its gun hand" : "its weapon", near);
     float able = VR_AGPar_Able(g, pl);
     float raised = able && cvar_hget(cvarh_vr_agrunt_parry) && g.vr_agpar_ready > 0 && time >= g.vr_agpar_ready &&
                    g.vr_agpar_w >= cvar_hget(cvarh_vr_agrunt_strike_raised);
@@ -661,7 +680,7 @@ float(entity g, entity pl, float h, vector bodyAt) VR_AG_BlowOnWeapon =
         }
         why = sprintf("beat its raised parry: chance %.2f, rolled %.2f", chance, roll);
     }
-    if(h == cVR_MainHand) { pl.vr_ag_knock_at = time; } else { pl.vr_ag_knock_off = time; }
+    VR_AG_StrikeKnock(pl, h);
     if(p == g.vr_ag_prop2)
     {
         VR_AG_Swap(g); // (the weapon it struck)
@@ -674,7 +693,7 @@ float(entity g, entity pl, float h, vector bodyAt) VR_AG_BlowOnWeapon =
     {
         VR_DV_Mark(g.vr_ag_prop, x, VR_DV_DISARM, sprintf("strike %.1f m/s on %s", sp, where));
     }
-    VR_AG_DisarmBy(g, pl, VRGetEntHandVel(pl, h) - pl.velocity, 100 + sp * 15, vr_ag_strike_why);
+    VR_AG_DisarmBy(g, pl, VRGetEntHandVelU(pl, h), 100 + sp * 15, vr_ag_strike_why);
     return VR_AG_STRIKE_DISARM;
 };
 
@@ -1001,7 +1020,7 @@ void(entity g) VR_AGPar_Frame =
                 {
                     continue;
                 }
-                vector hv = VRGetEntHandVel(pl, h) - pl.velocity; // (its way)
+                vector hv = VRGetEntHandVelU(pl, h); // (its way)
                 float sp = cvar_hget(cvarh_vr_agrunt_parry_strikes_only) ? VR_AG_SwingSpeed(pl, h) : vlen(hv) / mu;
                 float need = VR_AGPAR_SWING;
                 if(VRIsHandEmpty(pl, h) && cvar_hget(cvarh_vr_agrunt_parry_strikes_only))
