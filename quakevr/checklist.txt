@@ -57,6 +57,7 @@ Arena: a wave's last two foes farther than 600 units glow red through towers, da
 Arena: walking into the wall's skirting keeps you on the floor; foes no longer climb it. Stairs: riveted trim on every riser, a tube lamp every 3rd (dais) or 4th (tower) step, two lamps beside each dais flight. {test:arena_run}
 Grab a grunt's gun and hold it (the physical tug): its arm reaches a little longer toward your hand, the gun nearer your hand; Tug: Arm Stretch 1.0 removes it. {test:agrunt_tug}
 Push your hand slowly into a grunt facing you, on through its body: the drawn hand stays on its chest; close the hand there: its backpack is not taken; from behind it is. {test:worn_packs_lift}
+Shoot or strike a grunt in the forearm, upper arm or hand: each is an arm hit, as on the enforcer and the knights; chest is body, head is a headshot (Debug > Show Hit Zones shows arms in the arm colour). Melee blows on arms now deal arm damage too (your call). {test:disarm_hulls_melee}
 
 [2. Armed humanoids: disarming and armour]
 Show Disarm Volumes: the wireframe hulls sit on each drawn weapon (magenta, orange, red; the sword's orange line along its blade) and on the drawn hand and forearm (cyan). {test:disarm_hulls_melee}
