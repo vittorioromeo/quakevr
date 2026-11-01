@@ -2185,6 +2185,8 @@ int plateNear(edict_t* ent, const Shell& s, const float* p, float reach, float& 
 inline constexpr float shotBack = 64.f;      // units of its line looked along before where it met the model
 inline constexpr float shotOn = 4.f;         // and past it (beyond the guns' tolerance), unless it crosses the skin first
 inline constexpr float shotPastSkin = 0.05f; // (a plate on the skin's surface counts)
+inline constexpr float debugOuterWidth = 0.35f; // vr_agarmor_debug's lines (world units): a plate's outer face's edges,
+inline constexpr float debugInnerWidth = 0.12f; // its inner face's and rim's
 // vr_agarmor_debug: each piece's colour (cuirass, helmet, pauldrons, bracers, thighs, shins; left and right differ).
 const za::Array<glm::vec4, NumPieces> debugColours{glm::vec4{1.f, 0.85f, 0.1f, 0.8f}, glm::vec4{1.f, 0.2f, 0.2f, 0.8f},
     glm::vec4{0.2f, 0.6f, 1.f, 0.8f}, glm::vec4{0.1f, 0.9f, 1.f, 0.8f}, glm::vec4{0.2f, 1.f, 0.3f, 0.8f},
@@ -2372,10 +2374,15 @@ void debugDraw()
             {
                 w[c] = pp.origin[piece] + pp.turn[piece] * at(s->verts, at(s->tris, k + c)).p;
             }
-            const glm::vec4& col = debugColours[static_cast<za::SizeT>(piece)];
-            lines::line(w[0], w[1], 0.06f, col, col);
-            lines::line(w[1], w[2], 0.06f, col, col);
-            lines::line(w[2], w[0], 0.06f, col, col);
+            // (the outer face's edges bold, the inner face's and the rim's thin and faint: at 0.06 units every edge was too
+            // thin to see on a flat screen or across a room)
+            const bool outer = at(s->verts, at(s->tris, k)).layer == 0;
+            const float width = outer ? debugOuterWidth : debugInnerWidth;
+            glm::vec4 col = debugColours[static_cast<za::SizeT>(piece)];
+            col.a = outer ? 1.f : 0.45f;
+            lines::line(w[0], w[1], width, col, col);
+            lines::line(w[1], w[2], width, col, col);
+            lines::line(w[2], w[0], width, col, col);
         }
     }
 }
