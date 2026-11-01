@@ -55,6 +55,8 @@ A death knight holding a gun casts the full fan of six fireballs, one after anot
 Nightmare on e1m2: about 6 in 10 armed humanoids wear armour (before: none, the skill was read too early).
 Arena: a wave's last two foes farther than 600 units glow red through towers, dais and walls (Combat > Survival Arena > The Last Foes: on, Foes Left, Distance). {test:arena_lastfoes}
 Arena: walking into the wall's skirting keeps you on the floor; foes no longer climb it. Stairs: riveted trim on every riser, a tube lamp every 3rd (dais) or 4th (tower) step, two lamps beside each dais flight. {test:arena_run}
+Grab a grunt's gun and hold it (the physical tug): its arm reaches a little longer toward your hand, the gun nearer your hand; Tug: Arm Stretch 1.0 removes it. {test:agrunt_tug}
+Push your hand slowly into a grunt facing you, on through its body: the drawn hand stays on its chest; close the hand there: its backpack is not taken; from behind it is. {test:worn_packs_lift}
 
 [2. Armed humanoids: disarming and armour]
 Show Disarm Volumes: the wireframe hulls sit on each drawn weapon (magenta, orange, red; the sword's orange line along its blade) and on the drawn hand and forearm (cyan). {test:disarm_hulls_melee}
