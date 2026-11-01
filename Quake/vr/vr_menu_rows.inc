@@ -660,6 +660,10 @@ QVR_TOGGLE(vr_ragimpact, "Impacts Hurt",
     "hard: its speed times the mass behind it. Its head or limb struck wears down too, and pops past its own "
     "health (a head worn through kills). Slam a held head into a wall again and again; throw a lifted one into "
     "a wall.")
+QVR_TOGGLE(vr_ragsmash, "Impact Sound and Blood",
+    "A strike that hurts (Impacts Hurt) also sounds: the flesh hit and thud of the body on the wall or floor, louder "
+    "and deeper the harder. What bleeds leaves blood on the surface struck (with gore on). Held, thrown or dropped, "
+    "alive or dead.")
 QVR_SLIDER(vr_ragimpact_crush_speed, "Crush Least Speed", 100.f, 1000.f, 25.f, "%.0f u/s", ext(0.f, 3000.f),
     "Landing slower than this crushes nothing (a jump from the same level lands at about 270 on the floor, "
     "200 on top of a body: 180 crushes both; a stair step: 160; a 100-unit drop: 400).")

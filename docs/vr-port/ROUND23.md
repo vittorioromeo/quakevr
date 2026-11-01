@@ -5044,3 +5044,33 @@ The per-monster cvar families that are plain per-classname values are data: 171 
   drawn (`disarmhull::weapon`), not at its server place: where its grab, shot and blow volume is read.
 - **Checks**: agrunt 2 4/0, 68 4/0, 16 242/0, 94 16/0. The other `agweapon` users (the downtug, raggrab, ragweapon,
   twohand, play, grab and disarmviz tests) not run here.
+
+## Smash sound and blood (branch `agent/ragsmash`; his voice note 2026-11-01 01:26)
+
+His words: smashing an active or dead ragdoll's limbs into a wall or the floor hurt it, with no sound of its flesh
+hitting and no blood on the wall.
+
+- **When**: every strike the impacts already judge as hurting (vr_ragimpact.qc `VR_RagImpact_Hit`: a body you hold,
+  threw or dropped within `vr_ragimpact_time`, alive and down or dead; its speed past the least speed, 2.5 m/s free,
+  1 m/s held, times the mass behind it, at least 0.5 damage). Bodies nobody drives (a death's own fall, a blast's
+  fling) stay silent, as they take no impact damage (conservative: a corpse collapsing reaches 4-6 m/s at the head).
+- **Sound** (`VR_RagSmash`, server): the zombie's flesh hit (`zombie/z_hit.wav`, now precached by worldspawn) and a
+  body's thud (`demon/dland2.wav`, 0.6 of it), volume 0.25..1 and pitch 110..88 (thud 104..90) by the strike's speed
+  past the least, full at `vr_ragsmash_full_speed`.
+- **Blood**: on what bleeds (`VR_Gore_Bleeds`: `VR_Hit_TargetBleeds` and gore on: no statue, no clean dummy, no gib) a
+  new gore event (`QVR_GORE_SMASH` = vr_gore.hpp `EventSmash` = 44: 43 is the melee marks') at the contact, 4 units out
+  along the surface normal the engine gives (`xInto`), pointing in. The client (vr_gore.cpp `smash`) traces 16 units
+  in, lays the gore's splotch (18..40 units by the strike, times `vr_ragsmash_decal_size`, then `vr_gore_size`; 0.7 at
+  gore 1), a run down a wall at gore 2 for a strike past half strength, and plays the gore's wet slap. Gore 0: nothing.
+  `vr_knockdown_debug 1` prints the server's `ragsmash: ...` and the client's `ragsmash: blood ... placed` lines.
+- **Rate**: once per `vr_ragsmash_cooldown` (0.25 s) per body (`.vr_rsmash_next`), checked before the per-piece 0.15 s
+  gap: a body sliding or bouncing along a wall does not machine-gun (the hard fling's 5 strikes in 0.2 s: one sound).
+- **Knobs**: `vr_ragsmash` 1 (setting, Combat > Knockdowns > Impacts, "Impact Sound and Blood"); tunables
+  `vr_ragsmash_min_speed` 0 (an extra least speed; 0: every strike that hurts), `vr_ragsmash_full_speed` 4,
+  `vr_ragsmash_volume` 1, `vr_ragsmash_decal_size` 1, `vr_ragsmash_cooldown` 0.25.
+- **Test** `vr_ragsmash_test 1` (vrfiringrange; Debug > Tests > Holding Enemies, "Smash a Corpse into a Wall"): a
+  grunt killed 48 units off a wall, its corpse flung at it at 9 m/s: struck at 6.8-7.6 m/s, one sound, one blood
+  placed 0.5 units off the wall's plane; a soft fling (1 m/s, 2.4 up): nothing; the engine's call itself: a 2 m/s
+  touch nothing, a 5 m/s held slam a sound and blood, again at once nothing. 10 passed, 0 failed.
+- **Not tested here**: a real held slam with the mock hands; a living knocked-down one (same code path past the
+  `VR_RagImpact_By` gate).

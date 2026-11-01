@@ -723,6 +723,10 @@ za::Vector<Item> pageDebugTests()
             .help("vr_foegrab_throw_test 1: the same, to your right."),
         command("Throw the Nearest at You", "vr_foegrab_throw_test 2")
             .help("vr_foegrab_throw_test 2: the same, towards you."),
+        command("Smash a Corpse into a Wall", "developer 1; vr_ragsmash_test 1")
+            .help("A grunt ahead killed 48 units off the nearest wall, its corpse flung at the wall hard (it thuds and "
+                  "bloodies the wall), then softly (nothing): Impact Sound and Blood (vr_ragsmash_test 1; ends on "
+                  "\"ragsmash: N passed, M failed\")."),
         header("Enemy Shoves"),
         command("Shove the Nearest Monster", "impulse 219")
             .help("impulse 219: the nearest monster within 200 units shoved as your two-handed shove does (knocked away, "
