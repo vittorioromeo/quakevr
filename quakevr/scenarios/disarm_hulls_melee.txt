@@ -1,0 +1,10 @@
+# disarm_hulls_melee: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Show Disarm Volumes on calm melee grunts at arm's length (punch, grab, throw a gun at a gun hand).
+title Disarm volumes on calm grunts at arm's length: an axe, a sword, a shotgun; your main hand empty, a shotgun in the off hand to throw (god)
+map vrtesthall
+god
+notarget
+cvar vr_debug_disarm 1
+give "Shotgun" off
+spawn "Armed Grunt: Axe" 80 40
+spawn "Armed Grunt: Sword" 80 -40
+spawn "Armed Grunt: Shotgun" 150 0
