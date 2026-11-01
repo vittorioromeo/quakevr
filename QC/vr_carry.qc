@@ -215,10 +215,40 @@ void(entity xPlayer, float xHand) VR_Hand_DeriveHand =
     }
 };
 
+// Whether the drawn hand `xHand` of `p` is held off its tracked place (the real controller: Ghost Hands' ghost) by what it
+// holds: a ledge or a rung (climbing), an enemy (the foe grab), a ragdoll's body or limb, a prop held in both hands, a
+// tug on a stuck axe, the other hand's super shotgun's fore-end. The one answer every interaction of a hand with the
+// world asks (his note, 2026-11-01: "the actual drawn position of the hand should be the dominant one"): such a hand
+// strikes, shoves, presses and touches nothing, its tracked place being a ghost's (VR_Melee_Thing: VR_MTHING_NONE; the
+// engine's hand touches, a hand's own bodies: .vr_hand_heldoff, progs::handHeldOff). A free hand (or one holding a
+// weapon, a prop alone, the flashlight) is drawn where it is tracked, or held out of the walls as the server's hand
+// already is: unchanged.
+float(entity p, float xHand) VR_Hand_HeldOff =
+{
+    if(VRHasBit(p.vrbits0, xHand == cVR_MainHand ? QVR_VRBITS0_MAINHAND_CLIMBING : QVR_VRBITS0_OFFHAND_CLIMBING))
+    {
+        return TRUE; // drawn on its hold (vr_climb.cpp)
+    }
+    float k = VR_Hand_Kind(p, xHand);
+    if(k == VR_HOLD_FOE || k == VR_HOLD_RAGDOLL || k == VR_HOLD_TUG || k == VR_HOLD_SSGGRIP)
+    {
+        return TRUE; // drawn on the spot it holds (vr_foegrab.cpp, the limb: vr_view_hands.cpp limbDrawnHand), on the gun
+    }
+    entity t = VR_Hand_Thing(p, xHand);
+    return t != world && t == VR_Hand_Thing(p, VRGetOtherHand(xHand)); // drawn on its grip on it (vr_held.cpp drawnHand)
+};
+
 void(entity xPlayer) VR_Hand_Derive =
 {
     VR_Hand_DeriveHand(xPlayer, cVR_OffHand);
     VR_Hand_DeriveHand(xPlayer, cVR_MainHand);
+    float heldOff = (VR_Hand_HeldOff(xPlayer, cVR_OffHand) ? 1 : 0) + (VR_Hand_HeldOff(xPlayer, cVR_MainHand) ? 2 : 0);
+    if(heldOff != xPlayer.vr_hand_heldoff)
+    {
+        dprint(sprintf("handslot: held off %g (1 the off hand, 2 the main): kinds %g %g\n", heldOff,
+            xPlayer.vr_hold_kind_off, xPlayer.vr_hold_kind_main));
+    }
+    xPlayer.vr_hand_heldoff = heldOff;
 };
 
 float(entity p, float xHand) VR_Reload_SsgBreaks;                  // (vr_reload.qc)

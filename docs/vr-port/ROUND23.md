@@ -4977,3 +4977,28 @@ The per-monster cvar families that are plain per-classname values are data: 171 
   drawn (`disarmhull::weapon`), not at its server place: where its grab, shot and blow volume is read.
 - **Checks**: agrunt 2 4/0, 68 4/0, 16 242/0, 94 16/0. The other `agweapon` users (the downtug, raggrab, ragweapon,
   twohand, play, grab and disarmviz tests) not run here.
+
+## Held-off hands: no blow, touch or push from the ghost (branch `agent/ghosthand`)
+
+His note (2026-11-01 01:24): holding a ragdoll, the real (ghost) hand still punched a wall or a dummy it reached; "the
+actual drawn position of the hand should be the dominant one for all these interactions".
+
+- **One query (QC/vr_carry.qc):** `VR_Hand_HeldOff(p, hand)`: the drawn hand is held off its tracked place by what it
+  holds: climbing (the hold), an enemy (foe grab), a ragdoll (`VR_HOLD_RAGDOLL`), a tug (`VR_HOLD_TUG`), the super
+  shotgun's fore-end (`VR_HOLD_SSGGRIP`), a prop held in both hands (one thing in both slots). Its answer goes into
+  `.vr_hand_heldoff` (bit 1 off, 2 main) in `VR_Hand_Derive` each PlayerPreThink; the engine reads it through
+  `progs::handHeldOff` (vr_progs.hpp). `developer 1` prints `handslot: held off N` when it changes.
+- **What it turns off for a held-off hand:** melee (`VR_Melee_Thing` returns NONE: blows, slaps, presses by a blow,
+  shoves, parries, wall marks; it replaces the climbing and foe-grab checks there), the engine's hand touches
+  (`handTouches`, `handTouch`: button presses, pickups, nudges, grabs by touch), its weapon-line touches, and its Box3D
+  hand bodies (the fist sphere and the reach body). Free hands, one-handed props, weapons, the flashlight: unchanged.
+- **Decision (conservative):** off rather than moved to the drawn place. The drawn place of a hold is the client's
+  (vr_view_hands.cpp limbDrawnHand, vr_held.cpp drawnHand), and a hand clenched on a limb, an enemy or a crate has no
+  free fist to strike or press with. A ragdoll held and swung still hits through its own bodies; a crate in both hands
+  no longer deals the improvised punch (it did, from the tracked hands). Left out: the steadying hand of a two-handed
+  gun (its melee was NONE already; its touches unchanged), `VR_HOLD_MAGREHOLD` (a frame), the flashlight hand.
+- **Test:** `Misc/quakevr/carry/heldoff_test.sh <tree>` (vrmelee-recording, the dummy, a 5.3 m/s mock punch): the free
+  main hand 1 blow; the main hand holding a dead grunt's limb 0 blows (held off 2). Without the melee change: 1 blow
+  (FAIL). Ends on `heldoff: N passed, M failed`. eval.sh: 163/171 full; its drift from the stored baseline is the same
+  as origin/next's run beside it (punch_hook, slash_backswing_up_right: identical numbers).
+- **Not run:** a button press or a pickup by a held-off hand (the engine's touch gate: code only).

@@ -92,6 +92,8 @@ inline float(entity xEntPlayer, float xHand) VR_HandGrabUtil_IsHandReloadFlickin
 .float vr_foegrab_hands; // on a player, set by the engine: the hands holding an enemy (1 the off hand, 2 the main)
 .float vr_foegrab_hold;  // on a monster, set by the engine: how firmly hands hold it now (0..1; 0 not held)
 .float vr_foegrab_letgo; // on a monster, set here: every hand holding it lets go (the engine, at the frame's end)
+.float vr_hand_heldoff;  // on a player, set here (VR_Hand_Derive): the hands drawn off their tracked place by what they
+                         // hold (VR_Hand_HeldOff; 1 the off hand, 2 the main): the engine's hand touches and bodies skip them
 
 // Whether `xHand` of `p` holds an enemy (it deals no melee blows): the hand slot's VR_HOLD_FOE (vr_carry.qc
 // VR_Hand_Derive, from .vr_foegrab_hands each PlayerPreThink).
