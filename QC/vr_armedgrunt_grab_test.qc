@@ -415,6 +415,7 @@ void() VR_AGGT_Run =
 // (vr_ag_tug_test_force 1.3 x the break force) it is torn out, yours; it keeps the shotgun. Then your empty hand on the
 // shotgun: a tug over it too.
 float vr_aggt_leg;      // test 68's leg: 0 the left weapon, 1 the right
+vector vr_aggt_spot;    // ... where it stood for the first (the second's put back there: in your reach)
 
 void() VR_AGGT_Dual68 =
 {
@@ -430,6 +431,7 @@ void() VR_AGGT_Dual68 =
             vr_agt_weapon2 = WID_NAILGUN;
             vr_agt_grunt = g = VR_AGT_Spawn(WID_SHOTGUN, 60);
             vr_agt_weapon2 = 0;
+            vr_aggt_spot = g.origin;
         }
         VR_AGPT_EmptyHand(p);
         localcmd("-grabmain\n");
@@ -453,6 +455,15 @@ void() VR_AGGT_Dual68 =
                 vr_agt_step = 9;
             }
             return;
+        }
+        if(vr_aggt_leg == 1 && vr_aggt_track == 0)
+        {
+            // (The first tug lost, it staggers off: 73 units from you, its gun out of your arm's reach (the hand stopped
+            // 49 units out, 14 off the drawn gun). Put back where it stood, facing you, as the first leg had it: the
+            // reach is not what this tests. Its drawn gun follows within the 12 frames' track.)
+            setorigin(g, vr_aggt_spot);
+            g.velocity = '0 0 0';
+            g.angles_y = vectoyaw(p.origin - g.origin);
         }
         localcmd(sprintf("vr_mock_hand_to main agweaponpalm 0.5 0 %s\n", vr_aggt_leg == 0 ? "left" : "either"));
         vr_aggt_track = vr_aggt_track + 1;
@@ -480,13 +491,20 @@ void() VR_AGGT_Dual68 =
         VR_AGT_Check(sprintf("dual tug %s: a tug %g over its %s (the left %g), its other hand holding %s:", vr_aggt_leg == 0 ? "left" : "right",
             tug, g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing", g.vr_ag_prop.vr_ag_left, other >= 0 ? VR_AGT_Name(other) : "nothing"),
             tug && g.vr_ag_prop.weapon == want && (vr_aggt_leg == 1 || (other == WID_SHOTGUN && g.vr_ag_prop.vr_ag_left)));
-        if(!tug)
+        if(!tug || cvar("vr_agrunt_debug"))
         {
             vector hp = VRGetEntHandPos(p, cVR_MainHand);
             vector hg = disarmhull(g.vr_ag_prop, 0, hp, hp, 0);
             vector hm = disarmhull(g.vr_ag_prop, 20, '0 0 0', '0 0 0', 0);
             VR_AGT_Print(sprintf("dual tug: the hand %.1f off its drawn volume (found %g), %.1f from its server place, the volume's middle %.1f from it",
                 hg_x, hg_z, vlen(hp - g.vr_ag_prop.origin), vlen(hm - g.vr_ag_prop.origin)));
+            VR_AGT_Print(sprintf("dual tug: the hand at %v, its volume's middle at %v, its server place %v; fist gap %g cm (vr_agrunt_debug)",
+                hp, hm, g.vr_ag_prop.origin, cvar("vr_agrunt_grab_gap")));
+            VR_AGT_Print(sprintf("dual tug: you at %v, it at %v facing %.0f (box %v %v), its weapon's server angles %v",
+                p.origin, g.origin, g.angles_y, g.absmin, g.absmax, g.vr_ag_prop.angles));
+        }
+        if(!tug)
+        {
             vr_agt_step = 9;
             return;
         }
