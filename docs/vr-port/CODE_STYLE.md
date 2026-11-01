@@ -212,8 +212,9 @@ the config is the player's choice. The weapons', the props', the monsters' per-c
 are data, not cvars (`quakevr/data/weapons.txt`, `props.txt`, `monsters.txt`, `groups.txt`, read at start; ROUND23.md,
 "Weapons as data", "Props as data", "Monsters as data", "Monster groups as data"): their `vr_wofs_<key>_NN`,
 `vr_prop_<key>_NN`, old per-monster names (`vr_mhull_<m>`, `vr_smallgibs_mult_<m>`, `vr_ragdoll_<m>_<key>`:
-vr_monsterdata.inc) and old per-group names (`vr_mgrp_<group>_<key>`, `vr_kdtrig_resist_<group>`,
-`vr_knockdown_chance_<group>`) are stand-ins (`DataTable`, vr_slottable.hpp; `monsterValues[]`, vr_monsterdata.cpp)
+vr_monsterdata.inc), old per-group names (`vr_mgrp_<group>_<key>`, `vr_kdtrig_resist_<group>`,
+`vr_knockdown_chance_<group>`) and the guns' reload values' old names (`vr_reload_<port|mag|well|hold>_<gun>_<key>`:
+weapons.txt's `reload_*` keys, vr_weaponvalues.inc; ROUND23.md "Named weapon values as data") are stand-ins (`DataTable`, vr_slottable.hpp; `monsterValues[]`, vr_monsterdata.cpp)
 that the config, the console, the QC's `cvar()` and cvar handles and the menus reach as cvars; the changed ones are
 written after the cvars (`VR_ConfigWriteTables`). His values become the defaults with `Misc/quakevr/weapons_data.py
 promote <config>`, `props_data.py promote <config>`, `monsters_data.py promote <config>` and `groups_data.py promote

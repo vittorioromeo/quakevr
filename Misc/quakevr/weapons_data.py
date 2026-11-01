@@ -11,7 +11,8 @@ as data").
   python Misc/quakevr/weapons_data.py promote <config> [--dry]
       His tweaks become the defaults: each `vr_wofs_<key>_NN "value"` line of a config (the player's Weapon Offsets and
       Weapon Weights, saved as overrides of weapons.txt) written into weapons.txt's block of slot NN - 1 (the value
-      replaced in place, or the key added). --dry prints what it would change.
+      replaced in place, or the key added). --dry prints what it would change. The named values' lines by their old
+      cvar names too (vr_reload_port_nail_x "0.5": vr_weaponvalues.inc's slot and key).
 
   python Misc/quakevr/weapons_data.py check
       Parses weapons.txt against vr_weapons.inc's keys: an unknown key, a bad slot or a malformed line fails.
@@ -27,6 +28,7 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 INC = os.path.join(ROOT, "Quake", "vr", "vr_weapons.inc")
 BEFORE48 = os.path.join(ROOT, "Quake", "vr", "vr_weapons_before48.inc")
+VALUES = os.path.join(ROOT, "Quake", "vr", "vr_weaponvalues.inc")
 DATA = os.path.join(ROOT, "quakevr", "data", "weapons.txt")
 NUM_SLOTS = 51
 UNINHERITED_SLOTS = (27, 28, 29, 30, 31, 33, 34, 35)  # vr_weapons.cpp uninherited[]
@@ -250,6 +252,17 @@ def same_number(a, b):
     return abs(x - y) <= 1e-5 * max(1.0, abs(x))
 
 
+def named_values():
+    """vr_weaponvalues.inc: each named value's old cvar name -> (slot, weapons.txt key)."""
+    key_of = dict(read_keys())
+    out = {}
+    for line in open(VALUES, encoding="utf-8"):
+        m = re.match(r"^QVR_WEAPON_VALUE\((\w+), (\d+), (\w+)\)", line)
+        if m:
+            out[m.group(1)] = (int(m.group(2)), key_of[m.group(3)])
+    return out
+
+
 def promote(cfg, dry, table=WEAPONS):
     order = [name for _, name in read_keys(table)]
     lines, blocks = parse_data(table)
@@ -259,6 +272,11 @@ def promote(cfg, dry, table=WEAPONS):
         m = re.match(rf'^{table.stem}(\w+)_(\d\d) "([^"]*)"\s*$', line.strip())
         if m and m.group(1) in order and 1 <= int(m.group(2)) <= table.num_slots:
             sets.append((int(m.group(2)) - 1, m.group(1), m.group(3)))
+        # the named values by their old cvar names (vr_reload_port_nail_x "0.5": vr_weaponvalues.inc's slot and key)
+        m = re.match(r'^(vr_\w+) "([^"]*)"\s*$', line.strip())
+        if table is WEAPONS and m and m.group(1) in named_values():
+            slot, key = named_values()[m.group(1)]
+            sets.append((slot, key, m.group(2)))
     inserts = {}  # line index -> lines to insert before it
     new_blocks = {}  # slot without a block -> {key: value}
     changed = 0

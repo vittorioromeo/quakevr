@@ -53,6 +53,10 @@ class DataTable
 public:
     static constexpr int size = Slots * Keys;
 
+    // `storage`: the stand-ins, slot by slot, each slot's keys in turn (a namespace-scope array of the owner's, so that
+    // a stand-in has a constant address: the weapons' named values, vr_cvars.hpp, are references to theirs).
+    explicit DataTable(cvar_t (&storage)[size]) : cvars{storage} {}
+
     [[nodiscard]] cvar_t& at(int slot, Key key) { return cvars[slot * Keys + static_cast<int>(key)]; }
 
     // Every slot's values from `spec`'s file (the defaults; the config's lines go over them), each named
@@ -114,7 +118,7 @@ public:
     // change). False: `var` is not one of the table's.
     bool set(cvar_t* var, const char* value)
     {
-        const za::PtrDiffT i = var - cvars.data();
+        const za::PtrDiffT i = var - cvars;
         if(i < 0 || i >= size)
         {
             return false;
@@ -147,19 +151,29 @@ public:
 
     [[nodiscard]] int keyOf(const cvar_t* var) const
     {
-        const za::PtrDiffT index = var - cvars.data();
+        const za::PtrDiffT index = var - cvars;
         return index >= 0 && index < size ? static_cast<int>(index % Keys) : -1;
     }
 
-    [[nodiscard]] cvar_t* begin() { return cvars.data(); }
-    [[nodiscard]] cvar_t* end() { return cvars.data() + size; }
+    // Slot `slot`'s value of key `key` named `name` (lower case) from now on: the config writes it so, the dumps print it;
+    // its name until now still finds it (find).
+    void rename(int slot, Key key, za::StringView name)
+    {
+        const int i = slot * Keys + static_cast<int>(key);
+        names[i] = name;
+        cvars[i].name = names[i].cStr();
+        byName[names[i]] = i;
+    }
+
+    [[nodiscard]] cvar_t* begin() { return cvars; }
+    [[nodiscard]] cvar_t* end() { return cvars + size; }
 
 private:
     za::Array<za::String, Slots * Keys> names;
     za::Array<za::String, Slots * Keys> texts;
     za::Array<za::String, Slots * Keys> defaults;
     za::Array<za::String, Keys> keyDefaults;
-    za::Array<cvar_t, Slots * Keys> cvars{};
+    cvar_t* cvars;
     ankerl::unordered_dense::map<za::String, int> byName;
 };
 

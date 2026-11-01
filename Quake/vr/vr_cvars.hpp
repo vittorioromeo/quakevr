@@ -37,6 +37,23 @@ extern cvar_t monsterValues[monsterValueCount]; // (vr_monsterdata.cpp)
 #include "vr_monsterdata.inc"
 #undef QVR_MONSTER_VALUE
 
+// The named per-weapon values (design review 3, step 5: quakevr/data/weapons.txt's reload_* keys, vr_weaponvalues.inc):
+// no cvars, each the stand-in of its slot's key in the weapon table (weaponStandIns: vr_weapons.cpp's DataTable keeps
+// its values there, slot by slot) named as its old cvar (vr_reload_port_nail_x, ...), read as one (name.value, &name).
+inline constexpr int weaponSlotCount = 51; // (vr_weapons.hpp numSlots)
+enum WeaponKeyId : int
+{
+#define QVR_WEAPON_KEY(e, k) weaponKeyId_##e,
+#include "vr_weapons.inc"
+#undef QVR_WEAPON_KEY
+    weaponKeyCount
+};
+extern cvar_t weaponStandIns[weaponSlotCount * weaponKeyCount]; // (vr_weapons.cpp)
+#define QVR_WEAPON_VALUE(name, slot, key) \
+    inline constexpr cvar_t& name = weaponStandIns[(slot) * weaponKeyCount + weaponKeyId_##key];
+#include "vr_weaponvalues.inc"
+#undef QVR_WEAPON_VALUE
+
 // Tuning constants (the settings' tiers, ROUND23.md "Settings tiers"): vr_tunables.inc's QVR_TUNABLE(name, default),
 // numbers tuned once that no player sets: no menu row of their own, not in the config. Read as a cvar is (name.value,
 // name.string), the same code in every build:

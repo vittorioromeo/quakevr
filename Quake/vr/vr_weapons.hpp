@@ -24,7 +24,8 @@ enum class Key : int
 // the config, the console and the QC reach by that name (VR_CvarStandIn, VR_StandInSet; vr_cvars.cpp).
 void registerCvars();
 // The stand-in named `name` (vr_wofs_<key>_NN, any case), or null; `var` (a stand-in) set to `value` (false: not one);
-// every stand-in (the config's writer and its tracking: vr_cvars.cpp).
+// every stand-in (the config's writer and its tracking: vr_cvars.cpp). (A named value, vr_weaponvalues.inc: also by its
+// old cvar name.)
 [[nodiscard]] cvar_t* findStandIn(const char* name);
 bool setStandIn(cvar_t* var, const char* value);
 [[nodiscard]] za::Span<cvar_t> standIns();

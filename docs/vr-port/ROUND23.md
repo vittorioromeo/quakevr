@@ -5307,3 +5307,49 @@ blade. Not a change to the player's melee (live, the standing height is learnt l
   @0.569, stab 14.9 @0.433, hand errors 3.410 / 1.162 / 0.362: exactly the baseline's.
 - **punch_hook_2026-10-12_12-22-58** (20.1 @0.600 -> 20.0 @0.575, its hand error unchanged) is another, later change
   (still 20.1 at ffda2d5e5, 2026-10-27 11:44).
+## Named weapon values as data (branch `agent/datatables5`; design review 3, step 5: the named per-weapon families)
+
+The guns' reload load points are weapon keys: 142 values (12 guns) in quakevr/data/weapons.txt, no cvars.
+- **Keys** (vr_weapons.inc, at the end; every slot has them, `defaults` 0, the curls 0.55 / 0.7 / 0.75 / 0.8 / 0.85):
+  `reload_port_<x|y|z|radius>` (was `vr_reload_port_<gun>_*`: shot, sshot, nail, snail, light, widow, adplasma, npistol,
+  revolver, gl, prox, rl), `reload_mag_<x|y|z|radius>` (`vr_reload_mag_<nail|snail|light|npistol>_*`),
+  `reload_well_<x|y|z|pitch|yaw|roll>` (`vr_reload_well_<nail|snail|light|adplasma|npistol>_*`), `reload_hold_<x|y|z|
+  pitch|yaw|roll|fingers|curl_thumb|..|curl_pinky>` (`vr_reload_hold_<nail|snail|light|npistol>_*`). Each gun's values
+  listed in its block (shot 1, sshot 2, nail 3, snail 4, gl 5, rl 6, light 7, prox 10, widow 33, adplasma 34, npistol
+  35, revolver 37); the other slots' are unused (the code picks by gun kind: the lava nailguns read the nailgun's, the
+  thunderbolt's plasma model the thunderbolt's, as before).
+- **`Quake/vr/vr_weaponvalues.inc`**: `QVR_WEAPON_VALUE(oldname, slot, key)` per value (vr_cvars.inc's comments carried
+  along). vr_cvars.hpp makes each old name a constexpr reference to its stand-in in `weaponStandIns[]`: the weapon
+  table's storage (a `DataTable` now keeps its stand-ins in an array its owner gives it, so they have constant addresses;
+  the props' and groups' too). The C++ (`loadPorts`, wells, magazine grips, the menu rows, `defaultChanges`' pointers) is
+  unchanged.
+- **Names**: a named value's stand-in goes by its old name (`DataTable::rename`, after the load): the config's lines,
+  the menus' rows, the QC's `cvarh_vr_reload_*` handles (gen_vr_cvars_qc.py reads the new .inc; the same 1,303
+  handles, reordered) and the console reach it so; `vr_wofs_<key>_NN` finds it too (`vr_wofs_reload_port_x_04`).
+  `weapons::findStandIn` takes any `vr_` name now. Not in `cvarlist` or completion; an upper-case name now sets it.
+- **Whole-slot steps leave them** (`reloadKey`), as when they were cvars of their own: `resetSlot` (the migration steps'
+  and the menu's reset of a slot), `inPart` (Reset Offsets / Weights, Print Changes), `inheritable` (a parent's values,
+  `takeUninherited` of an old config: it would have given the Widowmaker the super shotgun's port radius).
+- **`weapons_data.py promote`** takes the old names' lines too (`vr_reload_port_nail_x "0.7"` -> slot 3 reload_port_x).
+  His config of 10-31 has no such line: nothing to promote.
+- **Not moved** (not one plain value per weapon): `vr_reload_pouch_<gun>` (per-gun on/off switches), `vr_reload_ssg_*`
+  (the super shotgun's mechanism: switches, thresholds), `vr_revolver_*`, `vr_magholster_*` (one feature's settings,
+  the holster chain), `vr_adgun_*` (AD guns' feature settings; most tunables), `vr_decap_*` (switches; the per-gun pop
+  chances are a feature's tuning: `vr_decap_pop_<ssg|sg|revolver>_*` 6, with melee parts beside them), `vr_dmg_*`
+  (per projectile, not per weapon: hand and ogre grenades, lava nails), the tunables (`vr_reload_ssg_*`, `vr_adgun_*`,
+  `vr_lg_water_*`, ...: constants, constexpr in a release). Motion takes' settings headers no longer record these values
+  (the cvar list's only), as the monsters' and groups'.
+- **Checks** (before = origin/next e180f705c, the same tree): the 142 values printed by name identical after
+  `vr_config_defaults`, after his whole config (ironwail_now.cfg of 10-31) exec'd, and after console sets
+  (`vr_reload_port_nail_x 0.7`, `vr_reload_hold_npistol_curl_ring 0.33`, `vr_reload_well_adplasma_yaw 12`,
+  `vr_reload_mag_light_radius 0.75`; the one difference: `VR_RELOAD_PORT_SSHOT_RADIUS 2.5` now sets it); `writeconfig`
+  writes the same lines (plus that one); `vr_wofs_reload_port_x_04 0.25` sets `vr_reload_port_nail_x`; `vr_wofs_dump 3`
+  lists the keys; `weapons_data.py check` ok (4,637 values); `config_sparse_test.sh` 16 passed, 0 failed; the reload
+  suite (`run_test_suite.py --only "reload_|np_1|rv_1"`: the 7 reload_ tests, no suite test is named np_1 or rv_1) 7
+  passed; `vr_np_test 1` (vrtesthall, developer 1) 39 passed, 0 failed; `vr_rv_test 1` 36 passed, 0 failed.
+- **For him in VR**: nothing should change. Reload each gun (shotgun, super shotgun, nailguns, thunderbolt, nail pistol,
+  revolver, the launchers, AD's Widowmaker and Plasma Gun); Weapons > Reloading's load point, well and magazine grip
+  rows still move them, and a changed one is kept across a restart (the config line by its old name).
+- **Next steps**: the aliases (old names) dropped after one release (the config's lines then `vr_wofs_reload_*_NN`);
+  the code reading `weapons::value(slot, key)` by the held gun's slot instead of the names (the lava nailguns' and
+  plasma model's own blocks then mean something).

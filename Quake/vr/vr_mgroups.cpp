@@ -144,7 +144,8 @@ constexpr const char* paramKeys[paramCount] = {"kdtrig", "resist", "ledge", "sta
     "throw", "hold", "poise", "health", "kdscale", "downtime", "getup", "snapkills", "struggle", "struggle_strength",
     "struggle_speed", "struggle_arms", "struggle_hurt"};
 
-DataTable<Param, groupCount, paramCount> values;
+cvar_t standIns[groupCount * paramCount]{};
+DataTable<Param, groupCount, paramCount> values{standIns};
 
 // A value's old cvar name: vr_mgrp_<id>_<key>; the resistance's vr_kdtrig_resist_<id>, the shove's
 // vr_knockdown_chance_<id> (older than the groups).

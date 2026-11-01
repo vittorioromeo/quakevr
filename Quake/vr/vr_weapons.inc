@@ -1,7 +1,8 @@
 // vr_weapons.inc -- the per-weapon settings' keys (Weapon Offsets, Weapon Weights).
 //   QVR_WEAPON_KEY(Enum, "key"): a key of quakevr/data/weapons.txt, where every slot's values are (its `defaults`
 //   block: every slot's value unless the slot's block has its own; "1 by default" below is that block's). The config
-//   and the console name a slot's value vr_wofs_<key>_NN (NN = slot + 1; vr_weapons.cpp's stand-ins, not cvars).
+//   and the console name a slot's value vr_wofs_<key>_NN (NN = slot + 1; vr_weapons.cpp's stand-ins, not cvars); the
+//   named values (vr_weaponvalues.inc: the reload keys of the guns that have them) go by their old cvar names.
 
 #ifdef QVR_WEAPON_KEY
 QVR_WEAPON_KEY(TwoHDisplayMode, "2h_dispmd")
@@ -447,6 +448,36 @@ QVR_WEAPON_KEY(GunfxWisps, "fx_gfx_wisps")
 // Weapon Effects' Cool-Down Time (0: it cools at once). 1 by default (weapons.txt's defaults). New cvars: no migration.
 QVR_WEAPON_KEY(GunfxHeat, "fx_gfx_heat")
 QVR_WEAPON_KEY(GunfxCool, "fx_gfx_cool")
+// Reloading (the named per-weapon values: vr_weaponvalues.inc names each gun's by its old cvar). Each gun's load
+// point moved (model units: +x forward, +y left, +z up) and its radius (world units); a magazine's reference point
+// moved (its model units) and its radius; a magazine gun's well moved and turned (visual only); the other hand
+// holding its attached magazine: moved, turned, Fingers (0 fitted, 1 the curls).
+QVR_WEAPON_KEY(ReloadPortX, "reload_port_x")
+QVR_WEAPON_KEY(ReloadPortY, "reload_port_y")
+QVR_WEAPON_KEY(ReloadPortZ, "reload_port_z")
+QVR_WEAPON_KEY(ReloadPortRadius, "reload_port_radius")
+QVR_WEAPON_KEY(ReloadMagX, "reload_mag_x")
+QVR_WEAPON_KEY(ReloadMagY, "reload_mag_y")
+QVR_WEAPON_KEY(ReloadMagZ, "reload_mag_z")
+QVR_WEAPON_KEY(ReloadMagRadius, "reload_mag_radius")
+QVR_WEAPON_KEY(ReloadWellX, "reload_well_x")
+QVR_WEAPON_KEY(ReloadWellY, "reload_well_y")
+QVR_WEAPON_KEY(ReloadWellZ, "reload_well_z")
+QVR_WEAPON_KEY(ReloadWellPitch, "reload_well_pitch")
+QVR_WEAPON_KEY(ReloadWellYaw, "reload_well_yaw")
+QVR_WEAPON_KEY(ReloadWellRoll, "reload_well_roll")
+QVR_WEAPON_KEY(ReloadHoldX, "reload_hold_x")
+QVR_WEAPON_KEY(ReloadHoldY, "reload_hold_y")
+QVR_WEAPON_KEY(ReloadHoldZ, "reload_hold_z")
+QVR_WEAPON_KEY(ReloadHoldPitch, "reload_hold_pitch")
+QVR_WEAPON_KEY(ReloadHoldYaw, "reload_hold_yaw")
+QVR_WEAPON_KEY(ReloadHoldRoll, "reload_hold_roll")
+QVR_WEAPON_KEY(ReloadHoldFingers, "reload_hold_fingers")
+QVR_WEAPON_KEY(ReloadHoldCurlThumb, "reload_hold_curl_thumb")
+QVR_WEAPON_KEY(ReloadHoldCurlIndex, "reload_hold_curl_index")
+QVR_WEAPON_KEY(ReloadHoldCurlMiddle, "reload_hold_curl_middle")
+QVR_WEAPON_KEY(ReloadHoldCurlRing, "reload_hold_curl_ring")
+QVR_WEAPON_KEY(ReloadHoldCurlPinky, "reload_hold_curl_pinky")
 #endif
 
 
