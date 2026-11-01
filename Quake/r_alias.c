@@ -844,6 +844,7 @@ void R_FlushAliasInstances (qboolean showtris)
 		GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 11, model->meshvbo, mainhdr->vbofracofs, sizeof (unsigned) * totalverts * mainhdr->numposes);
 	VR_AnimSmoothBind (ibuf.ent, 0); // QVR: r_lerpmodels 3's swings (the model's rig: its rest pose, the instances' bones)
 	VR_DentBind (); // QVR: the flesh dents (Dents: vr/vr_dents.cpp)
+	VR_BarrelMaskBind (); // QVR: hot barrels' masks (BarrelMasks: vr/vr_barrelmask.cpp)
 	if (!notex) // QVR: (the fragment shader's only)
 	{
 		GL_BindNative (GL_TEXTURE14, GL_TEXTURE_CUBE_MAP, VR_EnvCubeTexture ()); // QVR: the reflections' cube map (EnvCube)
@@ -2030,6 +2031,7 @@ qboolean R_PaintAliasWounds (entity_t *e, int numsplats, const float *splats, in
 		GL_BindBufferRange (GL_SHADER_STORAGE_BUFFER, 11, e->model->meshvbo, hdr->vbofracofs, sizeof (unsigned) * totalverts * hdr->numposes);
 	VR_AnimSmoothBind (e, 1); // QVR: r_lerpmodels 3's swings (its rig: the rest pose, the bones)
 	VR_DentBind (); // QVR: the flesh dents (Dents: vr/vr_dents.cpp)
+	VR_BarrelMaskBind (); // QVR: hot barrels' masks (BarrelMasks: vr/vr_barrelmask.cpp)
 	if (hdr->poseverttype == PV_IQM)
 	{
 		GL_VertexAttribPointerFunc (0, 3, GL_FLOAT, GL_FALSE, sizeof (iqmvert_t), (void*)(hdr->vbovertofs + offsetof (iqmvert_t, xyz)));

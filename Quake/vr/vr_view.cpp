@@ -4128,6 +4128,23 @@ int handOf(const entity_t* e, bool& weapon)
     return -1;
 }
 
+int gunPartHand(const entity_t* e)
+{
+    for(int hand = 0; e && hand < 2; hand++)
+    {
+        for(const ViewEntity* ve : {&entities.weapon[hand], &entities.weaponMorph[hand], &entities.pumpBody[hand],
+                &entities.pump[hand], &entities.ssgFrame[hand], &entities.ssgBarrels[hand], &entities.rvFrame[hand],
+                &entities.rvCrane[hand], &entities.rvCyl[hand]})
+        {
+            if(e == &ve->ent)
+            {
+                return hand;
+            }
+        }
+    }
+    return -1;
+}
+
 bool weaponFrame(const hands::State& s, int hand, WeaponFrame& out)
 {
     const ViewEntity& ve = entities.weapon[hand];

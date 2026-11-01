@@ -227,6 +227,9 @@ struct WeaponFrame
 [[nodiscard]] int ammoPouchMags(glm::vec3 (&top)[pouchitems::magsMost], glm::vec3& up);
 [[nodiscard]] int ammoPouchMagSlots(glm::vec3 (&top)[pouchitems::magsMost], glm::vec3& up);
 [[nodiscard]] int handOf(const entity_t* e, bool& weapon);
+// The hand whose held gun `e` is drawn as: the gun, its morph, or a part drawn in its place (the auto pump's two pieces,
+// the open super shotgun's frame and barrels, the heavy revolver's frame, crane and cylinder); else -1.
+[[nodiscard]] int gunPartHand(const entity_t* e);
 // The weapon drawn in holster `stat` (body::Holster: its STAT_QVR_HOLSTERWEAPON* slot) last frame, the one it holds
 // (null: empty, or a stand-in: the Weapon Offsets preview, a posing session): its blood (vr_wounds.cpp).
 [[nodiscard]] entity_t* holsteredWeapon(int stat);

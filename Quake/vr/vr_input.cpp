@@ -26,6 +26,7 @@
 #include "vr_menuui.hpp"
 #include "vr_motion.hpp"
 #include "vr_holstersetup.hpp"
+#include "vr_barrelmask.hpp"
 #include "vr_bladeedit.hpp"
 #include "vr_poselive.hpp"
 #include "vr_posestudio.hpp"
@@ -1228,6 +1229,12 @@ void buttonChanged(const InputState& in, int h, const ButtonKeys& b, bool now)
         logButton(h, b, now, b.key[h], "Edit Blade Shape");
         return;
     }
+    // And Paint Barrel Mask (vr_barrelmask.cpp).
+    if(barrelmask::button(h, posingButton(b.button), now))
+    {
+        logButton(h, b, now, b.key[h], "Paint Barrel Mask");
+        return;
+    }
     // And the Pose Studio (vr_posestudio.cpp): the grips, triggers, B/Y (not A/X or the sticks: you walk).
     if(posestudio::button(h, posingButton(b.button), now))
     {
@@ -1409,6 +1416,16 @@ void routeSticks(const InputState& in, const HandInput& off, const HandInput& ma
         moveAxes = glm::vec2{0.f};
         holstersetup::sticks(in.hands[HAND_OFF].stick, in.hands[HAND_MAIN].stick);
     }
+    else if(barrelmask::active())
+    {
+        // Paint Barrel Mask: the player stands still; the pointing hand's stick sizes the brush.
+        for(StickKey& k : stickKeys)
+        {
+            stickKey(k, 0.f, false);
+        }
+        moveAxes = glm::vec2{0.f};
+        barrelmask::sticks(in.hands[HAND_OFF].stick, in.hands[HAND_MAIN].stick);
+    }
     else if(bladeedit::active())
     {
         // Edit Blade Shape: the player stands still while the hands shape the blade.
@@ -1503,6 +1520,7 @@ void update(const InputState& tracked)
         menuGestures.menuWas[h] = menuNow;
         if(menuNow == menuBefore ||
             (!holstersetup::button(h, posing::Button::Menu, menuNow) && !bladeedit::button(h, posing::Button::Menu, menuNow) &&
+                !barrelmask::button(h, posing::Button::Menu, menuNow) &&
                 !posestudio::button(h, posing::Button::Menu, menuNow) &&
                 !posing::button(h, posing::Button::Menu, menuNow)))
         {

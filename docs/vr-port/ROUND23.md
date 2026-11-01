@@ -5728,3 +5728,42 @@ where the model has a rig, through the one decider (VR_RegionPick); the point's 
 - eval.sh: 163/171 as the baseline, every verdict the same; 18 takes' damage changed (arm/body multipliers): e.g.
   slash_backswing_up_right 26.3 -> 15.8 (now an arm), hilt_pommel 14.2 -> 23.6 (now the body: a triangle out at the
   side that is the torso's).
+
+## Barrel glow: the fire frames, the revolver, a painted barrel (branch `agent/barrelfx`, his notes 2026-11-01 23:10-23:40)
+
+- **The fire frames**: the shotgun's glow went out while its auto pump stroked: the gun is drawn then as two other
+  models (vr_pumpbody_on_v_shot.mdl, vr_pump_on_v_shot.mdl: view.cpp setupPumps), which hotblade's barrelHand
+  (view::handOf) did not know as the gun. **The revolver** was the same case: held, it is drawn in parts (its frame,
+  crane, cylinder), never as v_revolver.mdl (the light, placed from the gun entity, did show). New `view::gunPartHand`:
+  the gun, its morph, or a part drawn in its place (the pump's pieces, the open super shotgun's, the revolver's three);
+  the barrel's heat/slot from the hand's held weapon. And the glow's ramp is now taken on the rest pose (pose 0) in the
+  vertex shader (`out_morphpos.w`), not on the lerped pose: the firing frames' baked recoil moved the metal through the
+  old pose-space plane; now the glow stays on the vertices whatever the frame.
+- **Barrel mask** (vr_barrelmask.cpp/.hpp): per weapon key `fx_gfx_mask` (vr_weapons.inc; saved as `vr_wofs_fx_gfx_mask_NN`,
+  not inherited: its own model's triangles): `"<triangles>:<bits>"` (a bit a triangle in drawing order, 6 a character);
+  `"0"` none (the ramp alone, as before). The alias FS reads the bits by `gl_PrimitiveID` from a new SSBO 16
+  (`BarrelMasks`, uploaded on change; instance field `Barrel`: x 1 + the mask's place, yz the rest-pose ramp, w the mask
+  shown flat). A part takes each triangle's bit from the gun's triangle with the same middle (cached map). Barrel Glow
+  Length still sets the ramp (from the muzzle back, a share of grip-to-muzzle) on the marked part.
+- **Pre-marks**: `python Misc/quakevr/barrel_masks.py [--preview out.png] [--write]`: each bore's axis through the
+  muzzle (two-bore guns: their bore ends), radius from the muzzle's ring; a triangle is barrel when its corners are all
+  within it (back limits: shotgun x 12, revolver 8.5; the shotgun's pump's triangles excluded by its part model).
+  Written for slots 1-4, 6, 7, 9, 11, 12, 14, 15, 21, 22, 36-38; the grenade launchers (5, 10, 13: no barrel found round
+  the muzzle) stay "0". Rough on some: the rifles (21, 22) only their muzzle tips (their bodies cover the rest), the
+  rocket launchers and laser cannon their whole tube.
+- **Paint mode**: Weapon Offsets > Effects > **Paint Barrel Mask** (`vr_barrelpaint [main|off]`): the other hand points
+  at the held gun (a ray, a ring brush on the surface); its trigger paints, its grip erases, its stick sizes the brush
+  (0.3-8 units, 1.2); the mask shows flat cyan on the gun. Panel: Undo, Clear, Pre-marked (the shipped mask), Cancel,
+  Done; B/Y undo, menu Done. Each stroke written to the key at once. Test aids: `vr_barrelpaint_brush x y z r [0]`,
+  `vr_barrelpaint_press i`, `vr_barrelmask_report <slot> [box [part <model>]]`. `vr_debug_gunfx 2` adds
+  `gunfx barrel draws hand H glow G drawn N pieces P masked M`.
+- **Wisps from data**: vr_gunfx.cpp wispLook's per-weapon-id table moved to weapon keys `fx_gfx_wisp_charge`,
+  `fx_gfx_wisp_alpha`, `fx_gfx_wisp_barrels` (weapons.txt, 0: none; same values as before for the guns that had them;
+  an energy weapon's tint blue-grey by its kind). New: the burst rifle (slot 21: 0.15, 0.26, 1) and the enforcer rifle
+  (slot 22: 0.25, 0.2, 1, blue-grey).
+- **Tests**: `python Misc/quakevr/barrelfx_test.py <agent>` 11/11: the shotgun glows all 112 hot frames, 66 of them on
+  the pump's pieces with the mask; the pump model 0/316 marked, the pump body 344/1208 marked (0 unmatched); a brush
+  stroke marks 13, writeconfig / reset / exec reads back 409 (396 shipped + 13); the revolver glows on its parts 117
+  frames; the rifles' wisps start. barrelglow_test 9/9.
+- **Not checked**: in VR: the pre-marks' look per gun (only the shotgun and revolver reviewed on a side/top raster),
+  the paint ray and brush by hand (only the command path tested), menu_paths.txt for the new row.

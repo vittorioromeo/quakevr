@@ -156,8 +156,10 @@ typedef struct vraliasinstance_s
 	float		gloveshell[4]; // a glove's shell (vr_handrig.cpp gloveShells, vr_glove_thickness): its thickness in the model's units (0: none drawn); [1] its painted leather's relief's strength (vr_glove_relief; 0 none); [2] the wet coat's strength (VR_AliasWetCoat; 0 dry), [3] 1: all of it wet (else where its wound mask is)
 	float		stump[4]; // a ragdoll's stumps (vr_ragdoll.cpp stumpLook; the shaders' StumpFlesh): its cut bones (bits 0..23, as a whole number; 0 none), how far round their joints the cut's flesh reaches (units)
 	float		nails[4]; // painted nails (vr_view.cpp nailLook; the shaders' Nails): the polish's rgb, w 1 + its gloss (0 none)
+	float		barrel[4]; // a hot gun barrel's glow (vr_hotblade.cpp barrelInstance; the shaders' Barrel): 1 + its mask's place in BarrelMasks (1 + first word; 1 alone: no mask; 0: not a barrel), its ramp along the rest pose's x (x * [1] + [2]), [3] 1: the mask shown flat (painted)
 } vraliasinstance_t;
 void VR_AliasDent (const struct entity_s *e, const void *aliashdr, float dent[4], float scale[4]); // instance: its flesh dents (vr_dents.cpp)
+void VR_BarrelMaskBind (void); // the hot barrels' triangle masks bound for the alias shaders (SSBO 16; vr_barrelmask.cpp)
 void VR_DentBind (void); // the flesh dents' rows bound for the alias shaders (SSBO 12), the changed ones written first
 struct gltexture_s *VR_AliasSkinMask (const struct entity_s *e);
 void VR_PrecacheSkinMasks (void);
