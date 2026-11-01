@@ -379,10 +379,7 @@ void() VR_AGAW_Frame =
     }
     if(vr_agaw_step == 5)
     {
-        // The punch on its way: the off hand's world velocity the glide's (the mock's reads about 0.1 m/s at the server:
-        // test 19's note).
-        makevectors('0 1 0' * p.angles_y);
-        p.offhandvel = vr_agaw_way * (38 / 0.2);
+        // The punch on its way: the off hand's velocity the engine's own, the glide's (test 19's note).
         VR_AGAW_Watch(g);
         float gone = g.vr_ag_prop != vr_agaw_aim && g.vr_ag_prop2 != vr_agaw_aim;
         if(!gone)

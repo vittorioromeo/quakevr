@@ -68,7 +68,7 @@ float(entity g, entity p, float sp) VR_AG2_OffStrike =
     VR_AG_WeaponLine(p);
     pl.offhandpos = (vr_ag_wa + vr_ag_wb) * 0.5;
     makevectors(pl.angles);
-    pl.offhandvel = v_forward * sp * VRMetersToUnits();
+    pl.offhandvel = v_forward * sp; // (metres a second)
     pl.velocity = '0 0 0';
     entity was = self;
     self = pl;

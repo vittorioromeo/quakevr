@@ -5767,3 +5767,43 @@ where the model has a rig, through the one decider (VR_RegionPick); the point's 
   frames; the rifles' wisps start. barrelglow_test 9/9.
 - **Not checked**: in VR: the pre-marks' look per gun (only the shotgun and revolver reviewed on a side/top raster),
   the paint ray and brush by hand (only the command path tested), menu_paths.txt for the new row.
+## The punch through an armed grunt's gun (branch `agent/punchgun`, his notes 2026-11-01 22:56, 22:57, 23:08)
+
+"The fist just goes through the disarm volume without any sort of registration", held by his other hand or not, the
+grunt aware or not.
+- **Reproduced** from his 23:08 replay (the 22:56 / 22:57 replays are the 3 s and 1 s after a scenario reload: no
+  punch in them): `vr_scenario agrunt_tug; wait150; developer 1; vr_agrunt_debug 1; vr_motion_play
+  <note>_replay.csv target monster_army recorded` (the take's grunt #61 is the scenario's shotgun grunt; `target #61`
+  is another entity here). His first punch (main fist closed, 1.76 s, the melee's swing 8.8-10.6 m/s) met the gun
+  (the swept test, VR_AG_StrikeMeets) and was dropped by **VR_AG_StrikeSpeed**: "a blow of 0.3 m/s on its weapon (0.3
+  in the world): under 4.5".
+- **The gate**: the strike's speed is the lesser of the melee tracker's swing and the fist against the weapon
+  (`rel`, since 10-27: a hand going with a swing is no blow). `rel` read the hand's velocity (`.handvel`,
+  VRGetEntHandVel) as world units a second; it is metres a second against the player (vr_move.hpp; every other QC use
+  multiplies by VRMetersToUnits). So every real punch read 1/38 of its speed: never a strike, in a tug or not, aware or
+  not. The same misread: the grab's speed (vr_agrunt_grab_speed never refused a real grab), the blow's way
+  (VR_AG_DisarmBy's direction, the blade contact's, the parry's look-ahead `tip + hv * 0.25`). The mock tests set
+  `.handvel` themselves in units (test 19's note: "the mock's glide reads about 0.1 m/s ... at the server"), so they
+  passed.
+- **Fix**: `VRGetEntHandVelU(e, hand)` (vr_util.qc): the hand's velocity against its player in units a second; every
+  armed-grunt use goes through it (vr_armedgrunt.qc grab, vr_armedgrunt_play.qc VR_AG_StrikeSpeed / HandStrike,
+  vr_armedgrunt_parry.qc). One rule for every armed humanoid: a deliberate fist on its weapon or hand knocks it out
+  (unaware: caught out; raised parry: the roll), and in your other hand's tug, into the holding hand (VR_AG_TugStrike).
+- **Feedback**: the disarm's clatter and grunt as before (VR_AG_DisarmFeedback), and now a hard knock in the striking
+  hand (`VR_Haptic_KnockOut`, vr_haptics.qc) from `VR_AG_StrikeKnock` (the strike, the hand strike, the tug strike).
+- **Gate log** (`vr_agrunt_debug 1`): VR_AG_BlowOnWeapon names its refusal ("strike: none (hand h): its body met
+  first", "not a deliberate strike (swing ..)"; `vr_agrunt_debug 3` also the per-frame ones: no tug/armed/still, too
+  slow, the sweep missed with its gap), VR_AG_StrikeSpeed its 0.3 s knock cooldown.
+- **Tests**: his 23:08 replay now: "strike: disarmed (a 7.2 m/s strike on its weapon, 10.5 units from its grip or hand:
+  unaware of it)" on his first punch (and the axe grunt later, beating its raised parry). Tests 19 and 200 no longer
+  set the off hand's velocity: the engine's own glide, 6.7 / 6.1 m/s. Test 19 5/0, 200 33/0, 94 16/0, 92 22/0, 36 4/0
+  (the punch through it still refused as a grab at the real speed), 79 36/0. Test 29 0/1 as before this change (its mock
+  fist is an open hand: "not a strike (an open hand)", the deliberate rule).
+
+Checklist:
+- [punchgun] Fists in both hands, a calm grunt: punch its gun with a closed fist: it flies out of its hand with a metal
+  clatter and a hard knock in your fist; it staggers and turns on you. {test:agrunt_tug}
+- [punchgun] Hold the grunt's gun with one hand and punch it with the other fist: the gun ends in your holding hand,
+  with the clatter and the knock in your punching fist. {test:agrunt_tug}
+- [punchgun] Grab the grunt's gun by closing your hand on it as you swing through fast: no grab (a punch through it);
+  close it slowly on the gun: the tug as before. {test:agrunt_tug}
