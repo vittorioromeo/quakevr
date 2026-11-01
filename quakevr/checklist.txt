@@ -29,6 +29,8 @@ An armed death knight at range casts his fireballs with a sword swing, from the 
 Show Disarm Volumes, a grunt hunting you: the cyan hull sits on its drawn gun hand and forearm as it walks and aims, never floating off with its animation. {test:agrunt_tug}
 Combat > Armed Grunts (Experimental) > Disarm Leniency (Grab, Shot: Weapon, Shot: Hand, Melee Strike, Body Blow): raise Grab Leniency and grab near (not on) its gun: taken; raise Shot Leniency: Weapon and shoot just past the gun: it counts.
 (Re-test of the failed item, fixed: the punch was never checked during a tug) Hold its gun with one hand and punch the gun with the other fist: the gun ends in the holding hand. {test:agrunt_tug}
+Armour, Plate Blocks All: shots from every gun at any plate (cuirass, helmet, limb plates) never hurt the body, only sparks; a shot past a plate's edge does. {test:agarmor_guns}
+Debug > Show Armour Plates: each plate's outer edges bold and easy to see, standing and ragdolled. {test:agarmor_guns}
 
 [2. Armed humanoids: disarming and armour]
 Show Disarm Volumes: the wireframe hulls sit on each drawn weapon (magenta, orange, red; the sword's orange line along its blade) and on the drawn hand and forearm (cyan). {test:disarm_hulls_melee}

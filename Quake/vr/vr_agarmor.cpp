@@ -2222,6 +2222,8 @@ int plateNear(edict_t* ent, const Shell& s, const float* p, float reach, float& 
 inline constexpr float shotBack = 64.f;      // units of its line looked along before where it met the model
 inline constexpr float shotOn = 4.f;         // and past it (beyond the guns' tolerance), unless it crosses the skin first
 inline constexpr float shotPastSkin = 0.05f; // (a plate on the skin's surface counts)
+inline constexpr float debugOuterWidth = 0.35f; // vr_agarmor_debug's lines (world units): a plate's outer face's edges,
+inline constexpr float debugInnerWidth = 0.12f; // its inner face's and rim's
 // vr_agarmor_debug: each piece's colour (cuirass, helmet, pauldrons, bracers, thighs, shins; left and right differ).
 const za::Array<glm::vec4, NumPieces> debugColours{glm::vec4{1.f, 0.85f, 0.1f, 0.8f}, glm::vec4{1.f, 0.2f, 0.2f, 0.8f},
     glm::vec4{0.2f, 0.6f, 1.f, 0.8f}, glm::vec4{0.1f, 0.9f, 1.f, 0.8f}, glm::vec4{0.2f, 1.f, 0.3f, 0.8f},
@@ -2409,10 +2411,15 @@ void debugDraw()
             {
                 w[c] = pp.origin[piece] + pp.turn[piece] * at(s->verts, at(s->tris, k + c)).p;
             }
-            const glm::vec4& col = debugColours[static_cast<za::SizeT>(piece)];
-            lines::line(w[0], w[1], 0.06f, col, col);
-            lines::line(w[1], w[2], 0.06f, col, col);
-            lines::line(w[2], w[0], 0.06f, col, col);
+            // (the outer face's edges bold, the inner face's and the rim's thin and faint: at 0.06 units every edge was too
+            // thin to see on a flat screen or across a room)
+            const bool outer = at(s->verts, at(s->tris, k)).layer == 0;
+            const float width = outer ? debugOuterWidth : debugInnerWidth;
+            glm::vec4 col = debugColours[static_cast<za::SizeT>(piece)];
+            col.a = outer ? 1.f : 0.45f;
+            lines::line(w[0], w[1], width, col, col);
+            lines::line(w[1], w[2], width, col, col);
+            lines::line(w[2], w[0], width, col, col);
         }
     }
 }
@@ -2489,10 +2496,11 @@ void plateWhere(edict_t* ent, int piece, int what, float* out)
     posedAnchors(ent, *s, pf, posed);
     const glm::mat3 now = frameFrom(posed[0], posed[1], posed[2]);
     const glm::mat3 turn = now * glm::transpose(pf.rest);
-    if(what == 0 || (what >= 2 && what <= 4))
+    if(what == 0 || (what >= 2 && what <= 5))
     {
         const glm::vec3 restA = at(s->body.mdlRest, pf.anchor[0]);
-        // (2, 3, 4: a point on its outer face 15% / 85% / 50% of its length along its frame's first axis: its ends, its middle)
+        // (2, 3, 4: a point on its outer face 15% / 85% / 50% of its length along its frame's first axis: its ends, its
+        // middle; 5: the outer face's outward normal there, a direction)
         glm::vec3 restP = pf.mid;
         if(what != 0)
         {
@@ -2505,13 +2513,53 @@ void plateWhere(edict_t* ent, int piece, int what, float* out)
                 hi = v.piece == piece && v.layer == 0 ? za::max(hi, x) : hi;
             }
             const float want = lo + (hi - lo) * (what == 2 ? 0.15f : what == 3 ? 0.85f : 0.5f);
+            // (the outer vertex nearest the face's own middle at that length: the outer face's centroid moved to it
+            // along the axis; for a wrapped limb plate, the middle of its arc. Before, the first vertex of the ring at
+            // that length, anywhere around it, up to its long edge)
+            glm::vec3 centroid{0.f};
+            int n = 0;
+            for(const Vert& v : s->verts)
+            {
+                centroid += v.piece == piece && v.layer == 0 ? v.p : glm::vec3{0.f};
+                n += v.piece == piece && v.layer == 0 ? 1 : 0;
+            }
+            centroid /= static_cast<float>(za::max(n, 1));
+            const glm::vec3 aim = centroid + axis * (want - glm::dot(centroid, axis));
             float best = 1e9f;
             for(const Vert& v : s->verts)
             {
-                const float d = za::abs(glm::dot(v.p, axis) - want);
+                const float d = glm::distance(v.p, aim);
                 restP = v.piece == piece && v.layer == 0 && d < best ? v.p : restP;
                 best = v.piece == piece && v.layer == 0 && d < best ? d : best;
             }
+        }
+        if(what == 5)
+        {
+            // (the outer triangles at that vertex, their normals summed; turned away from the plate's inner face)
+            glm::vec3 nrm{0.f};
+            for(int k = 0; k + 2 < count(s->tris); k += 3)
+            {
+                const Vert& v0 = at(s->verts, at(s->tris, k));
+                const Vert& v1 = at(s->verts, at(s->tris, k + 1));
+                const Vert& v2 = at(s->verts, at(s->tris, k + 2));
+                const bool touches = glm::distance(v0.p, restP) < 1e-3f || glm::distance(v1.p, restP) < 1e-3f ||
+                                     glm::distance(v2.p, restP) < 1e-3f;
+                nrm += v0.piece == piece && v0.layer == 0 && touches ? glm::cross(v1.p - v0.p, v2.p - v0.p) : glm::vec3{0.f};
+            }
+            glm::vec3 inner = restP;
+            float innerD = 1e9f;
+            for(const Vert& v : s->verts)
+            {
+                const float d = glm::distance(v.p, restP);
+                inner = v.piece == piece && v.layer == 1 && d < innerD ? v.p : inner;
+                innerD = v.piece == piece && v.layer == 1 && d < innerD ? d : innerD;
+            }
+            nrm = glm::dot(nrm, restP - inner) < 0.f ? -nrm : nrm;
+            const glm::vec3 w = geom::safeNormalize(turn * nrm, glm::vec3{0.f}, 1e-9f);
+            out[0] = w.x;
+            out[1] = w.y;
+            out[2] = w.z;
+            return;
         }
         const glm::vec3 o = posed[0] + turn * (restP - restA);
         out[0] = o.x;
