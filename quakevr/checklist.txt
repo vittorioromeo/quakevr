@@ -22,6 +22,10 @@ Weapon pickup: hit a grunt while it reaches down for its gun: the gun stays on t
 Replacements: "replace all" (Combat > Armed Grunts) in e1m1: as hard as the original grunts, and their guns can be grabbed, tugged and shot out. {test:agrunt_repl_map}
 Running: hold the stick hard forward: the speed no longer dips every few steps (full speed now from an 80% push); slow walking still easy. {test:vr_stick_run_test}
 Death knight in a full helmet: it sits close round his skull, horns through it, face open (Debug > Tests > Helmets There: Knight and Death Knight). {test:vr_agarmor_test 8}
+Arena foes stand upright, never pitched toward you, enforcers on high places too. {test:arena_intro}
+The first armour plates broken after a new game cause no hitch.
+Tug-of-war with your tuned values as defaults; the tug's least time is now 0.4 s (Armed Grunts > Tug: Least Pull Time slider). {test:agrunt_tug}
+An armed death knight at range casts his fireballs with a sword swing, from the blade tip; holding a gun he sometimes (30%, Armed Humanoid Replacements > spell share) casts them from the muzzle with a thrust.
 
 [2. Armed humanoids: disarming and armour]
 Show Disarm Volumes: the wireframe hulls sit on each drawn weapon (magenta, orange, red; the sword's orange line along its blade) and on the drawn hand and forearm (cyan). {test:disarm_hulls_melee}
