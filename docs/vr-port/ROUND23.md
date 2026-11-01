@@ -5187,3 +5187,33 @@ too, with heat-up and dissipation times, global and per weapon. Quake/vr/vr_gunf
 - **Test**: `vr_smallgibs_test 28` (any map; -QuitOn `strstrofs: N passed`): 21 passed, 0 failed (found at 0, later, not
   found, `>= 0` both ways, offsets at / past the match / past the end / negative, empty strings, strcat, ftos and
   sprintf temps, two temps alive). `vr_smallgibs_test 27` 12 passed, 0 failed.
+## Monster groups as data (branch `agent/datatables4`; design review 3, step 4: the monster groups)
+
+The monster groups' values are data: 768 values (24 groups x 32 keys), no cvars.
+- **`quakevr/data/groups.txt`** (not monsters.txt: a group is not a classname, its members are vr_mgroups.cpp's, and
+  the shared reader takes one block word and one `defaults` block per file; the groups' keys and defaults are their own):
+  a `defaults { ... }` block, then `group <id> { key "value" ... }` per group (the label as the line's comment), every
+  key listed. Keys, in vr_mgroups.hpp Param's order: kdtrig, resist, ledge ... tackle, shove, push, stagger, sweep,
+  leggrab, lift, necksnap, manhandle, throw, hold, poise, health, kdscale, downtime, getup, snapkills, struggle,
+  struggle_strength, _speed, _arms, _hurt. Old names kept: `vr_mgrp_<id>_<key>`, `vr_kdtrig_resist_<id>` (resist),
+  `vr_knockdown_chance_<id>` (shove).
+- **Code**: `vr_mgroups.inc` is `QVR_MGROUP(id, label)` only (its 13 default columns went to groups.txt); vr_cvars.inc's
+  QVR_MGROUP block (768 cvars) is gone. vr_mgroups.cpp keeps them in a `DataTable<Param, groupCount, paramCount>`
+  (vr_slottable.hpp, now with `loadNamed`: a namer for the old names), read by `mgroups::registerCvars` (VR_Init,
+  after the monsters); `setting(g, p)` returns its stand-in, so the menus (Combat > Monster Groups, both ways in), the
+  QC's monstergroupget and `migrateStruggleClasses` are unchanged. `standInTables()` has four tables now;
+  VR_CvarStandIn / VR_StandInSet ask the groups last. The QC's hand-written `cvarh_vr_knockdown_chance_<id>` handles
+  find them by name (no "unknown cvar" at a map load). The four 164 rows of `defaultChanges` (pointers to the group
+  cvars) moved to `namedDefaultChanges` by name, first in it (same per-setting order).
+- **`vr_mgroup_dump`** (Debug menu: Monster Group Values): each group and how many values changed;
+  `vr_mgroup_dump <id> ... | all` every value, its old name and its default.
+- **`Misc/quakevr/groups_data.py convert | promote <config> [--dry] | check | names`**. His config of 10-31 has no group
+  lines: nothing to promote.
+- **Checks** (before = origin/next 7331538ff, the same tree): the 768 values printed by name identical after
+  `vr_config_defaults`, after his whole config (ironwail_now.cfg of 10-31) exec'd, and after console sets
+  (`vr_mgrp_ogre_poise 2.5`, `vr_kdtrig_resist_ogre 3`, `vr_mgrp_boss_struggle_hurt 0`; the one difference, as step 3's:
+  `VR_KNOCKDOWN_CHANCE_ARMY 0.9` in upper case now sets it); `writeconfig` writes the same group lines (plus that one);
+  `config_sparse_test.sh` with his config 16 passed, 0 failed; the blast trials (`map vrtesthall`, `vr_kdtrig_test_n 6;
+  vr_kdtrig_blast 100; vr_kdtrig_test 37`, -QuitOn `kdtrig test:`): 6 of 6 down; with `vr_mgrp_army_blast 0` 0 of 6;
+  with `vr_mgrp_army_kdtrig 0` 0 of 6.
+- **Next steps**: the named per-weapon families as weapon keys; the aliases (old names) dropped after one release.

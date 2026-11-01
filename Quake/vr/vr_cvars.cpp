@@ -275,11 +275,7 @@ const DefaultChange defaultChanges[] = {
     {161, &vr_flame_wobble_strength, "1"},              // 2.5
     // 162: his Widowmaker and AD crossbow numbers (his config of 2026-10-19).
     // 163: a projectile's kill pops a head or limb less often (his notes of 2026-10-19).
-    // 164: monster groups: bosses can't be shoved, machines aren't knocked down by shoves, a skull wizard has no legs.
-    {164, &vr_mgrp_boss_push, "0"},           // 1
-    {164, &vr_knockdown_chance_machine, "0"}, // 0.3
-    {164, &vr_mgrp_skullwiz_sweep, "0"},      // 1
-    {164, &vr_mgrp_skullwiz_leggrab, "0"},    // 1
+    // (164's monster group rows: namedDefaultChanges, the groups' values being data now, quakevr/data/groups.txt.)
     // 165: his wet time, the Widowmaker's motor (quieter) and load port (his config of 2026-10-19).
     {165, &vr_wounds_wet_time, "28"},           // 15
     {165, &vr_reload_port_widow_radius, "1.25"}, // 1.4
@@ -465,6 +461,12 @@ struct NamedDefaultChange
     const char* before;
 };
 const NamedDefaultChange namedDefaultChanges[] = {
+    // 164: monster groups: bosses can't be shoved, machines aren't knocked down by shoves, a skull wizard has no legs
+    // (the groups' values: quakevr/data/groups.txt).
+    {164, "vr_mgrp_boss_push", "0"},           // 1
+    {164, "vr_knockdown_chance_machine", "0"}, // 0.3
+    {164, "vr_mgrp_skullwiz_sweep", "0"},      // 1
+    {164, "vr_mgrp_skullwiz_leggrab", "0"},    // 1
     // 179: the nailgun magazine's fitted fingers sink less into it (his config of 2026-10-22: the pinky showed through).
     {179, "vr_prop_overlap_51", "0.4"}, // 0.385
     // 179: the shells and magazines thrown deal a quarter of a thing's damage (a magazine broke a crate in two throws).
@@ -1226,26 +1228,28 @@ extern "C" int VR_ConfigSaves(const cvar_s* var)
 }
 
 // The data tables (design review 3; the weapons' quakevr/data/weapons.txt, vr_weapons.cpp; the props'
-// quakevr/data/props.txt, vr_props.cpp; the monsters' quakevr/data/monsters.txt, vr_monsterdata.cpp): their values by
-// their old cvar names (vr_wofs_<key>_NN, vr_prop_<key>_NN, vr_ragdoll_army_mass, ...: old configs, the console, motion
-// takes, the QC's cvar() and cvar handles), their sets, and the config's lines for those changed from the data file (as
-// a sparse config's vr_ settings, in the names' order).
-za::Array<za::Span<cvar_t>, 3> qvr::standInTables()
+// quakevr/data/props.txt, vr_props.cpp; the monsters' quakevr/data/monsters.txt, vr_monsterdata.cpp; the monster
+// groups' quakevr/data/groups.txt, vr_mgroups.cpp): their values by their old cvar names (vr_wofs_<key>_NN,
+// vr_prop_<key>_NN, vr_ragdoll_army_mass, vr_mgrp_ogre_poise, ...: old configs, the console, motion takes, the QC's
+// cvar() and cvar handles), their sets, and the config's lines for those changed from the data file (as a sparse
+// config's vr_ settings, in the names' order).
+za::Array<za::Span<cvar_t>, 4> qvr::standInTables()
 {
-    return {weapons::standIns(), props::standIns(), monsterdata::standIns()};
+    return {weapons::standIns(), props::standIns(), monsterdata::standIns(), mgroups::standIns()};
 }
 
 extern "C" cvar_s* VR_CvarStandIn(const char* name)
 {
     cvar_t* var = qvr::weapons::findStandIn(name);
     var = var ? var : qvr::props::findStandIn(name);
-    return var ? var : qvr::monsterdata::findStandIn(name);
+    var = var ? var : qvr::monsterdata::findStandIn(name);
+    return var ? var : qvr::mgroups::findStandIn(name);
 }
 
 extern "C" int VR_StandInSet(cvar_s* var, const char* value)
 {
     return qvr::weapons::setStandIn(var, value) || qvr::props::setStandIn(var, value)
-                   || qvr::monsterdata::setStandIn(var, value)
+                   || qvr::monsterdata::setStandIn(var, value) || qvr::mgroups::setStandIn(var, value)
                ? 1
                : 0;
 }
