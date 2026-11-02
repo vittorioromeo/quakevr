@@ -304,9 +304,10 @@ void() VR_AGAM_Frame =
     }
     if(g && g.health > 0 && g.classname == "monster_army" && time < vr_agam_until + 3)
     {
-        // (The blow didn't kill it: printed with its state, dealt again next frame until it dies, 3 s at most.)
-        VR_AGAM_Print(sprintf("%s still alive after the blow: health %g, takedamage %g, knockdown %g, deadflag %g",
-            vr_agam_name, g.health, g.takedamage, g.vr_knockdown, g.deadflag));
+        // (An armoured one's plate can take the whole blow, health untouched: "plate's save 5000". Dealt again next frame
+        // until it dies, 3 s at most: this case is about its loot.)
+        VR_AGAM_Print(sprintf("%s still alive after the blow: health %g, takedamage %g, knockdown %g, armour type %g mask %g, plate's save %g",
+            vr_agam_name, g.health, g.takedamage, g.vr_knockdown, g.vr_ar_type, g.vr_ar_mask, vr_ar_last_save));
         T_Damage(g, pl, pl, 5000);
         return;
     }

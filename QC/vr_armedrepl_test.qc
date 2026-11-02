@@ -575,8 +575,8 @@ void() VR_AGRT_GunAxe =
     {
         if(g.vr_ag_total_shots > vr_agrt_shots0 || timedOut)
         {
-            // (its weapons where its hands are: the gun on its right, the axe on its left. Aiming, the gun's grip is
-            // near its middle (0.3-0.8 units right as it fires, the two-hand aim pose): right of it is enough.)
+            // (its weapons where its hands are: the gun on its right, the axe on its left. Measured at its first shot: the
+            // gun 0.3-0.8 units right of its middle in most runs, so right of it is enough; the check was > 2 until 2026-11-02.)
             makevectors(g.angles);
             float gunSide = (g.vr_ag_prop.origin - g.origin) * v_right;
             float axeSide = (g.vr_ag_prop2.origin - g.origin) * v_right;
