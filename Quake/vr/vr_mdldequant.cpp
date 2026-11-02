@@ -186,9 +186,9 @@ mem::Cache<QcLoopCache> qcLoops{"mdl dequant loops", mem::GameDirChange};
     {
         return false;
     }
-    const int a = static_cast<unsigned short>(vm.statements[first].a);
-    const int b = static_cast<unsigned short>(vm.statements[first].b);
-    if(a >= pr->numglobals || b >= pr->numglobals)
+    const unsigned int a = vm.statements[first].a;
+    const unsigned int b = vm.statements[first].b;
+    if(a >= static_cast<unsigned int>(pr->numglobals) || b >= static_cast<unsigned int>(pr->numglobals))
     {
         return false;
     }
@@ -416,13 +416,13 @@ void buildQcLoops()
             cur = owner[static_cast<size_t>(s)];
         }
         const dstatement_t& st = vm.statements[s];
-        for(const short operand : {st.a, st.b, st.c})
+        for(const unsigned int operand : {st.a, st.b, st.c})
         {
-            const int g = static_cast<unsigned short>(operand);
-            if(g >= pr->numglobals)
+            if(operand >= static_cast<unsigned int>(pr->numglobals))
             {
                 continue;
             }
+            const int g = static_cast<int>(operand);
             if(modelOf[static_cast<size_t>(g)] >= 0)
             {
                 addUnique(models, modelOf[static_cast<size_t>(g)]);

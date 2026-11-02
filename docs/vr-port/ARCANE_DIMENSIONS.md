@@ -76,7 +76,7 @@ AD's QC is 116,719 lines in 144 `.qc` files. That includes the extension headers
 | progs.dat (header) | AD 1.80p1 | Quake VR today | Limit |
 |---|---:|---:|---|
 | statements | 176,943 | 224,782 | int32 (no practical limit) |
-| globals | 22,799 | 26,746 | **65,535** (v6 16-bit operands) |
+| globals | 22,799 | 26,746 | **65,535** (v6 16-bit operands; no limit since 2026-11-02: 32-bit progs) |
 | entity fields (slots) | 1,129 | 1,934 | memory (edict size) |
 | functions | 10,135 | 7,526 | |
 | strings | 296 KB | 345 KB | |
@@ -428,7 +428,7 @@ skullwiz 225, lostsoul 177, hogremac 150, boil 117.
 
 | Risk | Measure / estimate | Mitigation |
 |---|---|---|
-| **Globals limit** (v6: 16-bit operands, 65,535) | Ours 26,746 + AD 22,799 (AD's own compile). After dropping CSQC, extension headers and player code, and with our `-O3` local overlap: estimated **+12-18k → about 40-45k**. **Measured in P1a: 42,279 (64.5%; 23,256 left).** | P1's first task builds the import with no behaviour and **measures**. If it ever nears 60k, the fallback is engine support for fteqcc's 32-bit-operand progs (a large engine task: loader, VM, saves). |
+| **Globals limit** (v6: 16-bit operands, 65,535; lifted 2026-11-02: 32-bit progs) | Ours 26,746 + AD 22,799 (AD's own compile). After dropping CSQC, extension headers and player code, and with our `-O3` local overlap: estimated **+12-18k → about 40-45k**. **Measured in P1a: 42,279 (64.5%; 23,256 left).** | P1's first task builds the import with no behaviour and **measures**. If it ever nears 60k, the fallback is engine support for fteqcc's 32-bit-operand progs (a large engine task: loader, VM, saves). |
 | **Edict size** | +813 AD field slots (+42%): edict about 7.7 → 11 KB. At `max_edicts` 16,384 the server allocates about 180 MB (+53 MB). Saves grow only by non-zero fields. **Measured in P1a: 1,934 → 2,815 slots (+881); saves +4.6% (AD's saved globals).** | Share fields with ours where the meaning matches (allowlist). Keep mapper keys as the only bare-named fields. Consider allocating edicts on demand. |
 | Progs size / load | Statements +177k (to about 400k), file about 5 MB, a few hundred ms more at progs load, QC compile time up | Measure in P1 |
 | Duplicate monster implementations | Our VR monsters vs AD's versions | Section 5.4: ours + an AD-key adapter (decision 1) |
