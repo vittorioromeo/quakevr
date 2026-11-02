@@ -27,12 +27,18 @@ namespace qvr::flatplay
 // The one console line for that implication (vr_main.cpp asks before it starts a backend).
 void noteBackendImplied();
 
-// VR_Init: reads the flag, registers vr_flatplay_status.
+// VR_Init: reads the flag, registers vr_flatplay_status, +flatcrouch / -flatcrouch.
 void init();
 
-// VR_BeginFrame, before the hands are posed: the keys (E, V), the cvars the mode stands in for (reloading off, the
-// flashlight worn and always lit, body interactions on), vr_flatplay itself.
+// VR_BeginFrame, before the hands are posed: the keys (E, V, Left Ctrl, F, G), the cvars the mode stands in for
+// (reloading off, the flashlight worn with F switching it, body interactions on), vr_flatplay itself.
 void frame();
+
+// The crouch Left Ctrl / +flatcrouch holds, eased 0 standing .. 1 crouched, and how far it puts his head down (units):
+// vr_hands.cpp's flat branch lowers his head and his height with it, view.c's VR_FlatViewDrop the drawn view. 0 standing,
+// and 0 outside the mode (a headset player crouches with his own tracked head).
+[[nodiscard]] float crouchRatio();
+[[nodiscard]] float crouchDrop();
 
 // vr_hands.cpp's flat-screen branch: where each hand goes and how it is turned, in world space. The straight
 // out-in-front pose stands when the mode is off.

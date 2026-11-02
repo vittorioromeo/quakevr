@@ -10,7 +10,8 @@
 //   - E force-grabs what the view is pointed at, V punches with the right hand: both go through the game's own force
 //     grab and melee, a punch being a real motion of the hand, so the melee rules decide whether it lands;
 //   - 1 and 2 cycle the weapons collected, into the left and the right hand (QC weapons.qc, on the flag);
-//   - reloading is off, the flashlight is worn on the head and always lit, and the body presses the buttons it walks into.
+//   - reloading is off, the flashlight is worn on the head (F switches it off and on), and the body presses the buttons it
+//     walks into.
 //
 // The keys are read from the keyboard state, not from bindings: nothing is rebound and no config changes. The keys Quake
 // already uses (1 and 2, its own weapon select) are answered by the game code only while the flag is on.
@@ -90,6 +91,25 @@ struct Feel
 };
 
 Feel feel;
+
+// The keys beyond E and V, and the crouch one of them holds. Its own struct, apart from FlatState's pose fields: the
+// mode's keys and its pose are worked on apart (FLATPLAY.md).
+struct FlatKeys
+{
+    bool keyCtrl{false};    // Left Ctrl, last frame (Right Ctrl is the same key code: in_sdl.c maps both to K_CTRL)
+    bool keyFlash{false};   // F, last frame
+    bool keyDrop{false};    // G, last frame
+    bool cmdHeld{false};    // +flatcrouch held: the console's way of the same hold
+
+    float ratio{0.f};       // the crouch's share now: 0 standing .. 1 crouched, eased at vr_flat_crouch_time each way
+    double lastTime{-1e9};  // the frame the ease was last stepped at (the ease steps once a frame)
+
+    int crouches{0};        // vr_flatplay_status's counts: a crouch hold started
+    int toggles{0};         // F: the flashlight switched
+    int drops{0};           // G: impulse 47 sent (QC drops what the hand holds)
+};
+
+FlatKeys keyState;
 
 // The pose, measured from the shoulders (hands::bodyAnchor with vr_shoulder_offset, the same anchor the body's own
 // holsters are placed at): the arms stay on the body whatever the height calibration. Forward, side and down in the
@@ -286,7 +306,8 @@ void pollKeys()
     {
         fs.grabAt = vr_gametime;
         fs.grabs++;
-        Cbuf_AddText("impulse 46\n"); // QC vr_wpnforcegrab.qc: the force grab on what the view is pointed at
+        Cbuf_InsertText("impulse 46\n"); // QC vr_wpnforcegrab.qc: the force grab on what the view is pointed at
+                                          // (InsertText, not AddText: the grab is asked for now, not after what is already queued)
         if(vr_flatplay_debug.value)
         {
             Con_Printf("flatplay: E: force grab\n");
@@ -303,6 +324,75 @@ void pollKeys()
     }
     fs.keyGrab = grab;
     fs.keyMelee = melee;
+}
+
+// Left Ctrl crouches while it is held and stands up when it is let go, F switches the flashlight, G drops what a hand
+// holds. Read from the keyboard state like E and V: nothing is rebound, and only while the game has the keys.
+// (+flatcrouch / -flatcrouch hold the crouch the same way, for the console and a bind.)
+void pollKeysFlat()
+{
+    const bool inGame = key_dest == key_game;
+    const bool ctrl = inGame && keydown[K_CTRL] != 0;
+    const bool flash = inGame && keydown['f'] != 0;
+    const bool drop = inGame && keydown['g'] != 0;
+
+    if(ctrl && !keyState.keyCtrl)
+    {
+        keyState.crouches++;
+        if(vr_flatplay_debug.value)
+        {
+            Con_Printf("flatplay: Left Ctrl: crouch\n");
+        }
+    }
+    if(flash && !keyState.keyFlash)
+    {
+        keyState.toggles++;
+        // InsertText, not AddText: the switch runs next. AddText would put it after the commands already queued, which
+        // in a test run means after the script's waits (vr_mapinstall.cpp says the same). The console's own switch is
+        // vr_flashlight_toggle (vr_flashlight.cpp), so a bind or the console does the very same thing.
+        Cbuf_InsertText("vr_flashlight_toggle\n");
+        if(vr_flatplay_debug.value)
+        {
+            Con_Printf("flatplay: F: the flashlight\n");
+        }
+    }
+    if(drop && !keyState.keyDrop)
+    {
+        keyState.drops++;
+        // The same InsertText as the F above: the drop is asked for now, not after what is already queued. It travels as
+        // the impulse the game code reads (QC weapons.qc ImpulseCommands, vr_wpnforcegrab.qc VR_Forcegrab_FlatDrop), so
+        // `impulse 47` on the console drops the same thing.
+        Cbuf_InsertText("impulse 47\n");
+        if(vr_flatplay_debug.value)
+        {
+            Con_Printf("flatplay: G: drop\n");
+        }
+    }
+    keyState.keyCtrl = ctrl;
+    keyState.keyFlash = flash;
+    keyState.keyDrop = drop;
+
+    // Down while held, back up when let go, each way in vr_flat_crouch_time seconds. Stepped once a frame, like the pose.
+    double dt = keyState.lastTime > -1e8 ? vr_gametime - keyState.lastTime : 0.0;
+    keyState.lastTime = vr_gametime;
+    dt = za::clamp(dt, 0.0, 0.1);
+    const float want = (ctrl || keyState.cmdHeld) ? 1.f : 0.f;
+    if(dt > 0.0)
+    {
+        const float time = za::clamp(vr_flat_crouch_time.value, 0.05f, 2.f);
+        keyState.ratio = za::clamp(keyState.ratio + (want > keyState.ratio ? 1.f : -1.f) * static_cast<float>(dt) / time, 0.f, 1.f);
+    }
+}
+
+// +flatcrouch / -flatcrouch: the crouch held and let go from the console (the same hold Left Ctrl gives).
+void crouchHold_f()
+{
+    keyState.cmdHeld = true;
+}
+
+void crouchRelease_f()
+{
+    keyState.cmdHeld = false;
 }
 
 // Quake angles' axes as columns: forward, right, up.
@@ -426,10 +516,27 @@ void noteBackendImplied()
                "no headset session is up; start the game without the flag to play in a headset)\n");
 }
 
+// How far the crouch this player holds (Left Ctrl, +flatcrouch) puts his head down, in units: 0 standing, and 0 outside
+// the mode (in a headset nothing here runs and the player crouches with his own tracked head). The flat branch of
+// vr_hands.cpp lowers his head and the body's crouch with it; the crouched boxes (vr_hull.cpp) and the QC's .vr_stand
+// (vr_server.cpp) follow that lowered head.
+float crouchDrop()
+{
+    return active() ? keyState.ratio * za::clamp(vr_flat_crouch_drop.value, 0.f, 40.f) : 0.f;
+}
+
+// Its eased share: 0 standing .. 1 fully crouched (vr_flatplay_status, the tests).
+float crouchRatio()
+{
+    return active() ? keyState.ratio : 0.f;
+}
+
 void init()
 {
     fs.flag = COM_CheckParm("-flatscreenmode") != 0 || ragtool::flagGiven(); // (-ragtool: the ragdoll tool, flat)
     Cmd_AddCommand("vr_flatplay_status", status_f);
+    Cmd_AddCommand("+flatcrouch", crouchHold_f); // Left Ctrl's hold, the console's way (a bind or a script can hold it)
+    Cmd_AddCommand("-flatcrouch", crouchRelease_f);
 }
 
 void frame()
@@ -442,7 +549,8 @@ void frame()
         fs.announced = true;
         Con_Printf("Quake VR: flatscreen play (-flatscreenmode): the VR gameplay on the desktop screen. E grabs what you "
                    "look at, 1 and 2 cycle the weapons you collected (and the empty hand) into the left and right hand, V punches, the mouse "
-                   "fires the hand it fires in VR. vr_flatplay_status says what the mode is doing.\n");
+                   "fires the hand it fires in VR. Left Ctrl crouches while you hold it, F switches the flashlight, G drops "
+                   "what a hand holds. vr_flatplay_status says what the mode is doing.\n");
     }
     if(!on && fs.wasOn)
     {
@@ -455,10 +563,12 @@ void frame()
         fs.localSeen[0] = fs.localSeen[1] = false;
         fs.lastTime = -1e9;
         feel = Feel{};
+        keyState = FlatKeys{}; // no crouch held, no key edges: a headset player crouches with his own head
         return;
     }
 
     pollKeys();
+    pollKeysFlat();
 }
 
 void poseHands(hands::State& s, const glm::vec3& aim)
@@ -606,8 +716,26 @@ void status_f()
         vr_flat_turnlag_speed.value);
     Con_Printf("  E pressed %d times (force grab), V %d (punch); E and V are read from the keyboard, not from bindings.\n",
         fs.grabs, fs.punches);
-    Con_Printf("  the game code: reloading off, the flashlight worn and always lit, body interactions on, 1, 2 and the wheel cycle (empty hand included) "
-               "the weapons collected into the left and right hand.\n");
+    Con_Printf("  Left Ctrl pressed %d times (crouch), F %d (the flashlight), G %d (what the hand holds dropped), read the "
+               "same way. Crouched %g (held %d): his head %.1f units down of %g standing, eased in %g s each way.\n",
+        keyState.crouches, keyState.toggles, keyState.drops, keyState.ratio,
+        (keyState.cmdHeld || keyState.keyCtrl) ? 1 : 0, crouchDrop(),
+        za::clamp(vr_flat_crouch_drop.value, 0.f, 40.f), za::clamp(vr_flat_crouch_time.value, 0.05f, 2.f));
+    Con_Printf("  the game code: reloading off, body interactions on, 1, 2 and the wheel cycle (empty hand included) "
+               "the weapons collected into the left and right hand, an ammo or health box grabbed with E taken at once.\n");
+    Con_Printf("  the flashlight: worn on the head, lit until F puts it out, and it stays out (a level change, a saved "
+               "game).\n");
 }
 
 } // namespace qvr::flatplay
+
+// view.c's V_CalcRefdef: a flatscreen player holding his crouch (Left Ctrl, +flatcrouch) sees from lower, the same
+// vr_flat_crouch_drop the game poses his body with. Outside the mode, and in a chase view, the view is left exactly as it was.
+extern "C" void VR_FlatViewDrop(float* vieworg)
+{
+    if(!qvr::flatplay::active() || chase_active.value)
+    {
+        return;
+    }
+    vieworg[2] -= qvr::flatplay::crouchDrop();
+}
