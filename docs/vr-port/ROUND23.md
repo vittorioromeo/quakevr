@@ -6403,6 +6403,51 @@ possible, implement a check that always verifies that all handles are valid and 
   turn: that surface's images drawn again on the next frame, the others' not, none the frame after; settings restored.
   vrcalibration: 24 passed, 0 failed (world 6 images a change, ammo 1, gadget 1).
 
+## Option round 2: removals (branch `agent/opt2remove`, his answers 2026-11-02, items 1, 2, 6, 7, 8)
+
+His words: "1. Remove `vr_hit_drawn_pose` 2. Remove `vr_gunsfx_casings` ... 6. Remove `vr_hit_precise` and make
+precise hit detection the default 7. Remove `vr_permdecals` and make permanent decals the default 8. Remove
+`vr_mdl_dequant` and make dequantization the default". Five cvars retired (vr_cvars.cpp `retiredCvars`: an old
+config's line is dropped quietly), their "on" the only path, their menu rows gone.
+
+- **`vr_hit_drawn_pose`** (Combat > Damage and Knockback > Armed Bodies as Drawn): an armed humanoid alive is always
+  hit as drawn (vr_hitmodel.cpp: `drawnpose::armedMesh`); vr_hitmodel_check's frame comparison still uses the frame.
+- **`vr_gunsfx_casings`** (Sound > Casings by Surface): casings always ring on metal, knock on wood (gunsfx::casingSound);
+  vr_gunsfx_test's "casings off" check dropped.
+- **`vr_hit_precise`** (Combat > Damage and Knockback > Precise Hit Detection): `hitmodel::enabled()` deleted, with its
+  gates in `hitmodel::target`, `serverFrame`, `VR_HitModelTolerance`, `VR_HitModelTarget`, foe grab's `enabledFor`
+  (and its "precise hits off" debug reason), Leg Sweep, vr_hitmodel_bench's forced-on and vr_hitmodel_stats' on/off.
+  No QC branched on it (the ~10 QC sites were comments: reworded). The fallback stays: a monster without a hit model
+  (`hitmodel::target` false: no Quake .mdl, a `.vr_hitclass` < 0 missile, mod entities) is met at its box as before.
+  Foe grab's help no longer says "Needs Precise Hit Detection". Tests rewritten: weapons_test.qc's `impulse 238`
+  (hittest) runs the model pass only (was boxes, then models); `vr_nail_test 1`'s step 2 sweeps with precise hits
+  only (one check fewer: Quake's boxes pass dropped); adbugs_tests.sh armagon probes once (was precise, then boxes).
+- **`vr_permdecals`** (Gore > Permanent Decals): the layer is on whenever `vr_decals` is and the map is laid out for
+  it (`permdecals::on()`); the on/off rule went (`permdecals::kept`, `record`, `rebake`, `newestWorld`,
+  `unbakedFrom`; vr_decals.cpp's `showRecord`, `fromLayer`, `layerShown`). The live ring stays for what the layer
+  doesn't take (boxes made in the game, carved marks, a map not laid out); the atlas caps (`vr_permdecal_atlas_max`)
+  and the stamps' cap stay. The Off graphics preset no longer turns the layer off (it set `vr_permdecals 0`): its marks are permanent too.
+  permdecal_test.sh's part 4 rewritten: `vr_decals 0` hides every mark and 1 brings the same frame back (the on/off
+  frame comparisons dropped). PERM_DECALS.md "On and off" says it was removed.
+- **`vr_mdl_dequant`** (Graphics > Models and Effects > Steady Model Vertices): `VR_MdlDequantOn`, the cvar callback
+  `onChanged` and `Mod_ReuploadAliasModels` (only it used it) deleted; gl_mesh.c computes and uploads the offsets for
+  every PV_QUAKE1 model. `vr_mdl_dequant_check` (Debug > Reports > Steady Vertices Check) stays. No A/B test compared
+  the two (none in Misc or QC).
+- **Tests.** build 0 warnings, QC handles regenerated (1733); menu_paths.txt regenerated (exactly the 5 rows gone),
+  `vr_menu_path_check maps/vrcalibration.map`: 6 found, 0 missing. `vr_nail_test 1` 10/0 (precise sweep -18..14, at
+  most 18). e1m1 grunt `impulse 238`: corner rays 3/6, middle 1/1, head ring 24/24, chest 24/24, melee head 24/24;
+  `vr_hitmodel_stats` 4156 model tests, 2990 hits, 2.64 us each. AD map: ad_tfuma with AD's paks in the base and
+  `-Games "-game hipnotic -game rogue -game ad -game quakevr"` (without them `vr_campaign_native ad` loads no AD data:
+  `map ad_tfuma` does not spawn): `vr_hitmodel_bench 2000` on its 17 monster classes, 23226 of 34000 rays hit (origin/next:
+  23241 of 34012). adbugs_tests.sh armagon: hits -24 and 32..96 (the
+  torso, as after its ROUND22 fix). `vr_gunsfx_test` (-Sound) 23/0 (24 before less the dropped casings-off check).
+  permdecal_test.sh PASS (49 stamps past a cap of 16, saves, budget 88 pages / 22 flushes, layered atlas exact,
+  vr_decals 0/1 exact, late lift mark, box mark live). Crowd scene bench_crowd_plain32, `vr_hitmodel_bench 2000`: 5400 of
+  9865 hit (origin/next, two runs: 5901 of 11527, 5755 of 10101); the per-class hit hashes differ between two runs of
+  the same build there, so they compare nothing. No timing A/B. `vr_nail_test 1`'s "a lying backpack: no nail flew on
+  through" fails now and then on both: 1 of 3 runs here, 1 of 2 on origin/next. eval.sh not run: the player's melee
+  code is unchanged.
+
 
 ## Flaky tests (branch `agent/flaky`, his words 2026-11-02: "Please sort out the flaky tests")
 
@@ -6543,3 +6588,31 @@ crowd32_armed, 3 reps each): frame p50 6.57 to 6.27 ms, p99 21.8 to 20.1 ms, CPU
 micro-bench (`vr_qcexec_bench ad_mathlib_pow`, goto loop) read 83/73/80 ns/call before and 94/88/91 after, but a
 second after-run read 94/121/135, so it is too noisy here to credit or blame the format. Not settled: a small per-statement
 cost is possible; a quiet machine with both exes would settle it.
+
+## Tuned values can't be lost at release (branch `agent/promoguard`, 2026-11-02)
+
+His words: "Can we automate tweaks promotion so we can never forget?" Tuning constants are live in a development build
+(`tunables.cfg`) and constexpr in a release, so an unpromoted value silently disappears there.
+
+- **Release gate.** `make_release.ps1`'s checks run `tune_promote.py <file> --check --quiet` on `-TunablesCfg` (default his
+  checkout's `quakevr/tunables.cfg`; absent: a warning, an explicit path absent: a problem). Anything off the tree's
+  `vr_tunables.inc` is a PROBLEM before the tests or the build: each value, and the exact command. `-DryRun` and `-Local`
+  (ships to nobody) only warn. `-AllowUnpromotedTunables` goes on, in red, with the list in PUBLISH.txt's warnings.
+  `make_release.py` only makes the assets from what the script built: not a path around this.
+- **A setting that becomes a constant.** Before: the config line ran into `VR_RetiredCvar`, was ignored, and the next
+  write left it out: the value gone. Now, right after the saved config ran (`vr_migrate_config`), a development build reads
+  the file for `name "value"` lines naming a constant (`tunablesTakeConfigLines`) and keeps each as if tuned, one console
+  line each; `tunables.cfg`, read next, wins for a name it also holds. Only a **sparse** config (version 218+): there a
+  line is the player's choice, while an older full config holds every setting, mostly old defaults (the kit's baselines,
+  version 141: 931 same and 11 stale values such as `vr_chainsaw_damage 100`, which must not become tweaks: the tests'
+  `oldconfig` step). Not from the executed line: scripts' and console lines still set nothing (`-Script` runs inside
+  `in_cfg_exec` too). His config (219) has no such line today; earlier moves' values, if any, were lost before this.
+- **`tune_promote.py --check --quiet`** (also implied by `--quiet`): prints only what is unpromoted, exit 2; nothing and
+  exit 0 when clean or the file is absent; exit 1 on an error. Values equal as numbers no longer count as a change, as in
+  the game (`sameAsDefault`), which keeps "1.50" against "1.5" from stopping a release.
+- **Fixed on the way:** `tunablesLoad` cleared `fileDirty`; it now keeps what was set before it, or a taken value would not
+  be written unless something else was tuned.
+- **Tests.** `tunables_test.sh`: 13 of 13 stages (new: `oldconfig`, quiet on three files, run 3 `configline`: value taken,
+  one console line, kept at quit, a setting's line untouched). One real start with the baseline marked 219: 11 constants
+  kept in `tunables.cfg`. Gate: stops ("1 problem(s) ... nothing was built"), warns in a dry run, the override's banner,
+  the absent path. A build with `QVR_RELEASE` was not run for this (the stub is two `(void)`s).

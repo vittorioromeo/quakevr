@@ -85,8 +85,8 @@ struct Made
 za::Vector<Made> made;
 
 // The skinned model's vertices shaded as the game draws its .mdl's rest pose (pose 0) through the alias renderer
-// (gl_mesh.c, PV_QUAKE1): its dequantised place (vr_mdl_dequant's offset from the stored bytes), its smoothed normal
-// (vr_mdl_dequant's, else the table's), its own baked occlusion (vr_ao.cpp; negated in the normal's 4th byte, the
+// (gl_mesh.c, PV_QUAKE1): its dequantised place (vr_mdldequant.cpp's offset from the stored bytes), its smoothed normal
+// (vr_mdldequant.cpp's, else the table's), its own baked occlusion (vr_ao.cpp; negated in the normal's 4th byte, the
 // shaders' PoseAO; 0: none yet). The bones' blend moves the places and turns the normals (the alias shader).
 // Returns whether its occlusion was there to fill.
 bool shadeLikeMdl(qmodel_t* src, const aliashdr_t* sh, iqmvert_t* verts, int numVerts)

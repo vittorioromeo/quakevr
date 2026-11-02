@@ -1,13 +1,13 @@
-# .mdl vertex dequantisation (vr_mdl_dequant)
+# .mdl vertex dequantisation
 
 Backlog "Model vertex wobble", item (1). Code: `Quake/vr/vr_mdldequant.cpp` (its header comment is the design).
 
 ## Status (2026-10-15)
 
-- [x] Load-time solver, offsets in the model's VBO (SSBO 11 `PoseFrac`), shader, cvar `vr_mdl_dequant` (default 1),
-  menu row (Graphics > Models and Effects > Steady Model Vertices), Debug > Reports > Steady Vertices Check
+- [x] Load-time solver, offsets in the model's VBO (SSBO 11 `PoseFrac`), shader; always on since 2026-11-02 (option
+  round 2: the cvar `vr_mdl_dequant` and its menu row Steady Model Vertices retired, the stored-bytes path gone), Debug > Reports > Steady Vertices Check
   (`vr_mdl_dequant_check [model ...]`; one model: its runs too). Merged into `next` (1226e5357).
-- [x] `vr_mdl_dequant 0` draws exactly as before (screenshots below), computes nothing at load.
+- [x] (Until 2026-11-02) `vr_mdl_dequant 0` drew exactly as before (screenshots below), computed nothing at load.
 - [x] Numbers (max offset, jitter, roughness, near-still wobble), load time (optimised to 114 ms for 139 models).
 - [x] r_lerpmodels 3 / vr_anim_smooth_rig: draws and checks as before (pinned ogre, `vr_anim_smooth_check`).
 - [x] His first look (2026-10-15): "Much better!", but an itch at the loop point (grunt, knight idle) and some
@@ -138,7 +138,7 @@ Debug: Rebuild Fit Limit, `vr_anim_smooth_rebuild_error` 0.5 units). Code: `vr_a
   of its place taken back by the fit), then fits (Gauss-Newton on the turn, vertices weighted by their share). A vertex's
   share is 1 within 0.5 units rms of its places, 0 at twice that (it keeps the frames' place: round the joints); a model
   with under half its vertices fully rebuilt isn't rebuilt (the shambler). Normals: the mean normal on the bone, turned.
-  Made again when the error cvar or vr_mdl_dequant changes.
+  Made again when the error cvar changes or the model's offsets become ready.
 - Per instance: the refitted keys along the spline (r_lerpmodels 3) or turned linearly (Quake's blend; Stepped), 9 rows
   a bone, memoised as before; a bone fitted badly in a pose fades out towards it across the lerps (no pop).
 - The shader (RigRebuild) mixes the spline's/blend's place (with B's swing) and the bone's by both shares.

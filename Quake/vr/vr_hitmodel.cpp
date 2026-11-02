@@ -516,7 +516,7 @@ bool drawnOf(edict_t* ent, Drawn& d, bool asDrawn)
     // its hit reactions), not its animation frame: a shot at its drawn arm meets that arm (ROUND23.md, "Armed humanoids:
     // shots and grip spheres from the drawn pose"). Not for `asDrawn` false (vertexPoint: the frame's own vertices, its
     // arms' inputs) nor vr_hitmodel_check's frame comparison.
-    else if(asDrawn && !checkNoLerp && vr_hit_drawn_pose.value != 0.f &&
+    else if(asDrawn && !checkNoLerp &&
         drawnpose::armedMesh(ent, ragdollScratch.pos, &ragdollScratch.nor, &d.build) &&
         ragdollScratch.pos.size() >= static_cast<za::SizeT>(d.mesh->numverts))
     {
@@ -902,14 +902,9 @@ void record(edict_t* ent, const Drawn& d, const glm::vec3& a, const glm::vec3& b
 
 } // namespace
 
-bool enabled()
-{
-    return vr_hit_precise.value != 0.f;
-}
-
 bool target(edict_t* ent)
 {
-    if(!enabled() || !isTarget(ent))
+    if(!isTarget(ent))
     {
         return false;
     }
@@ -1370,7 +1365,7 @@ bool anchorFrame(edict_t* ent, int tri, float u, float v, glm::vec3& point, glm:
 
 void serverFrame()
 {
-    if(!enabled() || !sv.active)
+    if(!sv.active)
     {
         return;
     }
@@ -1959,7 +1954,7 @@ void zonesDraw()
 
 extern "C" float VR_HitModelTolerance(int type)
 {
-    if(!(type & MOVE_HITMODEL) || !qvr::hitmodel::enabled())
+    if(!(type & MOVE_HITMODEL))
     {
         return -1.f;
     }
@@ -2049,10 +2044,6 @@ extern "C" int VR_HitModelMoveFlags(edict_t* ent)
         return 0;
     }
     const int corpseFlags = marked ? MOVE_HITGIBS : 0;
-    if(!qvr::hitmodel::enabled())
-    {
-        return corpseFlags;
-    }
     const int cls = static_cast<int>(qvr::progs::fieldFloatOr(ent, qvr::progs::fields().vr_hitclass, 0.f));
     if(cls < 0)
     {

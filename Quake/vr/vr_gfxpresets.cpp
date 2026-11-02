@@ -88,7 +88,6 @@ constexpr Row presetRows[] = {
     {&vr_parallax_steps,              {D,       D,       D,       D,    "24"}},
     {&vr_detail,                      {"0",     "0",     D,       D,    D}}, // (off by default)
     {&vr_decal_carve,                 {"0",     "0",     D,       D,    D}},
-    {&vr_permdecals,                  {"0",     D,       D,       D,    D}},
     {&vr_adgun_fx_scorch,             {"0",     D,       D,       D,    D}}, // the flamethrowers' scorch marks
     // Ambient occlusion (vr_ao.cpp)
     {&vr_ao_dynamic,                  {"0",     "0",     D,       D,    D}},

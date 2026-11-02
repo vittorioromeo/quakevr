@@ -10,8 +10,8 @@
 // - An empty gun's dry click (gunclick.wav): its volume, a small tick in that hand (vr_gunsfx_dryfire).
 // - A gun's actions (breaking open and closing, a magazine in or out, a shell in) heard from the action on the gun, not
 //   the muzzle (vr_gunsfx_action; vr_audio.cpp handSoundAt).
-// - Spent casings sound of what they land on: stone (the tinks as before), metal, wood (vr_gunsfx_casings; water's
-//   plips as before: vr_shells.cpp).
+// - Spent casings sound of what they land on: stone (the tinks as before), metal, wood (water's plips as
+//   before: vr_shells.cpp).
 // - A shot's haptic punch (vr_gunsfx_punch): a sharp spike, then a short tail as long as the weapon's recoil takes to
 //   come back (its kick up and Recoil Return Time), as hard as its recoil (kick back and rise: weapons::recoilFeel) times
 //   its Haptic Punch (Weapon Offsets > Effects); it replaces the QC's flat buzz for that shot.
@@ -32,7 +32,7 @@ namespace qvr::gunsfx
 [[nodiscard]] float actionPlace(const char* sfxName);
 
 // A spent casing landing at `at` on a surface facing `normal`: its sound's name (variant 0..2), or null for the tinks
-// as before (stone, or vr_gunsfx_casings 0).
+// as before (stone and the rest).
 [[nodiscard]] const char* casingSound(const glm::vec3& at, const glm::vec3& normal, int variant);
 
 // The player's `hand` fired (weaponfx::playerFired): its haptic punch starts.
