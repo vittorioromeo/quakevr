@@ -106,7 +106,8 @@ void stats_f()
         Con_Printf("  a model test: %.2f us, %.1f nodes, %.1f triangles\n", stats.ns / 1000. / static_cast<double>(stats.narrow),
             static_cast<double>(stats.nodes) / static_cast<double>(stats.narrow), static_cast<double>(stats.tris) / static_cast<double>(stats.narrow));
     }
-    Con_Printf("  %lld hierarchies made at map loads, %.1f ms in all\n", stats.builds, stats.buildMs);
+    Con_Printf("  %lld hierarchies made at map loads, %.1f ms in all; %lld refit to skinned bodies\n", stats.builds, stats.buildMs,
+        stats.refits);
     za::SizeT bytes = 0, count = 0;
     for(const auto& [name, mp] : meshes)
     {

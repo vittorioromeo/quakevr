@@ -72,6 +72,7 @@ struct MeshMemo
 {
     MeshKey key;
     bool hasNormals{false};
+    za::U32 build{0}; // (armedMesh's `build`: lastBuild when made)
     za::Vector<glm::vec3> pos, nor;
 };
 [[nodiscard]] za::SizeT heldBytes(const MeshMemo& x) // (vr_mem.hpp)
@@ -85,6 +86,7 @@ struct ArmedMeshes
 };
 mem::Cache<ArmedMeshes> armedMeshes{"drawn pose armed meshes", mem::MapChange | mem::ModelReload};
 constexpr za::SizeT maxMeshMemos = 256; // (past it: all begun again)
+za::U32 lastBuild = 0;                  // the memos' makings counted (never 0 again: a wrap skips it)
 } // namespace
 
 Source bone(edict_t* ent, int b, rigpose::Rigid& out, float& scale)
@@ -116,8 +118,12 @@ Source bone(edict_t* ent, int b, rigpose::Rigid& out, float& scale)
     return Source::Live;
 }
 
-bool armedMesh(edict_t* ent, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>* normals)
+bool armedMesh(edict_t* ent, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>* normals, za::U32* build)
 {
+    if(build)
+    {
+        *build = 0;
+    }
     const int num = viewNum(ent);
     glm::mat4 m;
     // (its own .mdl: while a frame draws it, between rig2::swapModels and restoreModels, cl_entities[num].model is its
@@ -144,6 +150,10 @@ bool armedMesh(edict_t* ent, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>* 
                 if(normals)
                 {
                     *normals = memo.nor;
+                }
+                if(build)
+                {
+                    *build = memo.build;
                 }
                 return true;
             }
@@ -191,6 +201,12 @@ bool armedMesh(edict_t* ent, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>* 
         if(normals)
         {
             memo->nor = *normals;
+        }
+        lastBuild = lastBuild + 1u == 0u ? 1u : lastBuild + 1u;
+        memo->build = lastBuild;
+        if(build)
+        {
+            *build = lastBuild;
         }
     }
     return true;

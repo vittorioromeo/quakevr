@@ -33,7 +33,9 @@ enum class Source : int
 // them (world), and their normals turned likewise (`normals`: world, unit length). Not a ragdoll's (ragdoll::
 // skinnedVertices). False: not drawn so lately (the caller's own: the frame's). The precise hits on its body (hitmodel:
 // shots, blows and holds meet the body as drawn: aiming, guarding, swinging, staggered, not its animation frame).
-[[nodiscard]] bool armedMesh(edict_s* ent, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>* normals);
+// `build`: which making of the vertices these are (the same number: the same vertices and normals; 0: made for this call
+// alone), for what callers keep made from them (hitmodel's triangle hierarchy).
+[[nodiscard]] bool armedMesh(edict_s* ent, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>* normals, za::U32* build = nullptr);
 
 [[nodiscard]] const char* sourceName(Source s);
 
