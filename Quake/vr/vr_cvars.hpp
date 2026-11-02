@@ -137,6 +137,8 @@ extern Tunable tunables[tunableCount]; // (vr_tunables.cpp) the values now: the 
 
 void tunablesInit(); // the stand-ins' check; in a development build tune, tune_reset and the Tunables page's settings
 void tunablesLoad(); // tunables.cfg, once, after the config (vr_migrate_config; nothing in a release build)
+void tunablesTakeConfigLines(const char* path); // a config's lines for settings that are constants now (vr_cvars.cpp)
+void tunableTakeConfigLine(const char* name, const char* value); // one: kept as if tuned, and said (nothing in a release)
 
 #ifndef QVR_RELEASE
 // Live tuning (a development build; vr_tunables.cpp).
