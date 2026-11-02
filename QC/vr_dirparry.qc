@@ -2,7 +2,7 @@
 //
 //
 // ----------------------------------------------------------------------------
-// Directional parry (vr_dirparry, experimental; ROUND23.md, "Directional parry"). His words (2026-10-31): parrying an
+// Directional parry (vr_dirparry, on by default since 2026-11-02; ROUND23.md, "Directional parry"). His words (2026-10-31): parrying an
 // armed humanoid's melee weapon by "the direction of the enemy weapon and strike": overhead strikes parried by holding
 // your weapon horizontally against them, horizontal strikes by holding it vertically; no poses written in: the parrying
 // weapon square to the enemy weapon during the strike, physically meeting it; sparks where the two weapons collide.
@@ -28,7 +28,7 @@
 // - Debug > Show Disarm Volumes: both lines, its way and the score (vr_disarmviz.cpp kinds 12-14). Show Directional
 //   Parry (vr_dirparry_debug, VR_DRP_Debug: vr_dirparryviz.cpp): each reading's lines, the ideal and its numbers, the
 //   last strike's verdict held a moment.
-// - The leniencies (Combat > Parry and Bash, Directional Parry): vr_dirparry_angle (full marks within), _angle_zero (none
+// - The leniencies (tuning constants: Debug > Tunables > Combat > Directional Parry): vr_dirparry_angle (full marks within), _angle_zero (none
 //   at), _contact, _falloff (the meeting's marks none at this times the contact), _threshold, _window (divided by the
 //   swing's speed: vr_agrunt_melee_speed, VR_AGP_Speed).
 // ----------------------------------------------------------------------------
