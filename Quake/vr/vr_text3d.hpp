@@ -82,4 +82,8 @@ void counts(int& queuedTexts, int& boardCount);
 // The ammo screens' images drawn so far, and the screens shown through another's image (the same text) so far.
 void screenStats(int& draws, int& shared);
 
+// Its command (VR_Init): vr_fontstyle_live_test, a change to a font's style (Screens > World Text / Ammo Screen / Wrist
+// Gadget Font) drawing that surface's cached text images again once, on the next frame.
+void init();
+
 } // namespace qvr::text3d

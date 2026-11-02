@@ -51,6 +51,7 @@ constexpr float fpsAssumedHz = 90.f;    // the budget when the runtime doesn't t
 gfx::Target fpsTarget;
 za::String fpsDrawn; // Basic: the text the image holds
 int fpsDrawnMode = 0; // the mode the image is of (0: none)
+int fpsDrawnFont = -1; // the font's style it was drawn in (fontstyle::generation(Gadget))
 int fpsWidth = fpsBasicWidth, fpsHeight = fpsBasicHeight; // the image's, in font pixels
 
 struct FpsFrame
@@ -171,10 +172,13 @@ void renderFpsDetailed()
     const double now = realtime;
     const bool figures = fpsFiguresAt < 0.0 || now < fpsFiguresAt || now - fpsFiguresAt >= fpsFiguresEvery;
     const bool graph = figures || now < fpsGraphAt || now - fpsGraphAt >= fpsGraphEvery;
-    if(fpsDrawnMode == 2 && fpsTarget.texture && !graph)
+    const int style = fontstyle::generation(fontstyle::Surface::Gadget);
+    if(fpsDrawnMode == 2 && fpsTarget.texture && !graph && fpsDrawnFont == style)
     {
         return;
     }
+    fpsDrawnFont = style;
+    imageDraws++;
     if(figures)
     {
         measureFps(fpsFigures);
@@ -325,12 +329,15 @@ void renderFps()
     q_snprintf(figures[1], sizeof(figures[1]), known ? "%5.1f" : "    -", za::min(r.cpuMs, 999.9f));
     q_snprintf(figures[2], sizeof(figures[2]), known && r.gpuMs >= 0.f ? "%5.1f" : "    -", za::min(r.gpuMs, 999.9f));
     const za::String text = za::String{figures[0]} + figures[1] + figures[2];
-    if(text == fpsDrawn && fpsDrawnMode == 1 && fpsTarget.texture)
+    const int style = fontstyle::generation(fontstyle::Surface::Gadget);
+    if(text == fpsDrawn && fpsDrawnMode == 1 && fpsTarget.texture && fpsDrawnFont == style)
     {
         return;
     }
     fpsDrawn = text;
     fpsDrawnMode = 1;
+    fpsDrawnFont = style;
+    imageDraws++;
     fpsWidth = fpsBasicWidth;
     fpsHeight = fpsBasicHeight;
 

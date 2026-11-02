@@ -2165,6 +2165,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_mock_key", menuui::mockKey_f);
     Cmd_AddCommand("vr_bigfont", bigfont::report_f);
     fontstyle::init(); // Menu > Fonts (vr_fontstyle.cpp): its cvars rebuild the font as they change; vr_fontstyle_test
+    text3d::init();    // vr_fontstyle_live_test (vr_text3d.cpp)
     Cmd_AddCommand("vr_checklist", checklist::command_f);
     Cmd_AddCommand("vr_scenario", scenario::command_f);
     lightstyle::registerCommands();

@@ -6386,3 +6386,19 @@ possible, implement a check that always verifies that all handles are valid and 
 - **Tests.** e1m1: no `cvar_hmake: unknown` line. `vr_arena_test 1` 257/0; `vr_agrunt_test 2` 4/0;
   `vr_wornpack_test 1` 38/1 and 39/0 (next's own runs: 38/1 and 39/0, the same "dragged slowly" case flaking).
   `vr_menu_path_check`: 0 missing; menu_paths.txt regenerated, unchanged.
+
+## World text, ammo screens and hologram follow their font's style live (branch `agent/fontlive`, his report 2026-11-02)
+
+"World text and ammo text doesn't seem to update in real time when I change the drop shadow / outline settings / etc".
+- **Cause.** vr_fontstyle.cpp bumped a per-surface `generation` and remade the atlases, but the cached text images were
+  keyed on their text and palette only: the boards and tip screens (World), the ammo screens (Ammo), the gadget's
+  hologram and frame-rate images (Gadget) kept the old style until their text changed. `fontstyle::generation()`
+  returned the Menu surface's alone.
+- **Fix.** `fontstyle::generation(Surface)` (vr_bigfont.cpp asks for Menu's). Each cache keys on its surface's
+  generation too: Board `drawnFont`, TipImage `font`, ScreenLook/ScreenImage `font`/`drawnFont` (findScreenImage), the
+  hologram's key, the frame rate's `fpsDrawnFont`. The gadget's screen, floating texts, hints and the wrist log are
+  laid out and drawn every frame (no cache). Nothing is drawn again while nothing changes.
+- **Test.** `vr_fontstyle_live_test` (Debug > Test Effects > Font Style Live Test; vr_text3d.cpp, stepped in
+  renderScreens): settles (images drawn, then none for 3 frames), then changes each surface's outline and shadow in
+  turn: that surface's images drawn again on the next frame, the others' not, none the frame after; settings restored.
+  vrcalibration: 24 passed, 0 failed (world 6 images a change, ammo 1, gadget 1).
