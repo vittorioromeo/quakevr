@@ -395,6 +395,13 @@ void M_DrawTransPic (int x, int y, qpic_t *pic)
 	Draw_Pic (x, y, pic); //johnfitz -- simplified becuase centering is handled elsewhere
 }
 
+// QVR: a picture of menu rows in the big lettering (a mod's own too), in the Menu > Fonts style as the main menu's rows.
+static void M_DrawRowsPic (int x, int y, const char *name)
+{
+	if (!VR_BigFont_DrawPicture (x, y, name))
+		M_DrawTransPic (x, y, Draw_CachePic (name));
+}
+
 /*
 ================
 M_DrawPlaque -- QVR
@@ -1951,9 +1958,9 @@ void M_SinglePlayer_Draw (void)
 	M_DrawPlaque (16, 4); // QVR: the Quake VR banner
 	p = Draw_CachePic ("gfx/ttl_sgl.lmp");
 	M_DrawPic ( (320-p->width)/2, 4, p);
-	M_DrawTransPic (72, 32, Draw_CachePic ("gfx/sp_menu.lmp") );
+	M_DrawRowsPic (72, 32, "gfx/sp_menu.lmp");
 	if (m_singleplayer_showlevels)
-		M_DrawTransPic (72, 92, Draw_CachePic ("gfx/sp_maps.lmp") );
+		M_DrawRowsPic (72, 92, "gfx/sp_maps.lmp");
 
 	M_DrawQuakeCursor (54, 32 + m_singleplayer_cursor * 20);
 }
@@ -3084,7 +3091,7 @@ void M_Skill_Draw (void)
 
 	if (m_skill_usegfx)
 	{
-		M_DrawTransPic (x, y, Draw_CachePic ("gfx/skillmenu.lmp") );
+		M_DrawRowsPic (x, y, "gfx/skillmenu.lmp");
 		if (m_skill_cursor < 4)
 			M_DrawQuakeCursor (x - 18, y + m_skill_cursor * 20);
 		y += 4 * 20;
@@ -3218,7 +3225,7 @@ void M_MultiPlayer_Draw (void)
 	M_DrawPlaque (16, 4); // QVR: the Quake VR banner
 	p = Draw_CachePic ("gfx/p_multi.lmp");
 	M_DrawPic ( (320-p->width)/2, 4, p);
-	M_DrawTransPic (72, 32, Draw_CachePic ("gfx/mp_menu.lmp") );
+	M_DrawRowsPic (72, 32, "gfx/mp_menu.lmp");
 
 	M_DrawQuakeCursor (54, 32 + m_multiplayer_cursor * 20);
 
@@ -3534,18 +3541,10 @@ void M_Net_Draw (void)
 
 	f = 32;
 
-	if (ipxAvailable)
-		p = Draw_CachePic ("gfx/netmen3.lmp");
-	else
-		p = Draw_CachePic ("gfx/dim_ipx.lmp");
-	M_DrawTransPic (72, f, p);
+	M_DrawRowsPic (72, f, ipxAvailable ? "gfx/netmen3.lmp" : "gfx/dim_ipx.lmp");
 
 	f += 19;
-	if (tcpipAvailable)
-		p = Draw_CachePic ("gfx/netmen4.lmp");
-	else
-		p = Draw_CachePic ("gfx/dim_tcp.lmp");
-	M_DrawTransPic (72, f, p);
+	M_DrawRowsPic (72, f, tcpipAvailable ? "gfx/netmen4.lmp" : "gfx/dim_tcp.lmp");
 
 	f = (320-26*8)/2;
 	M_DrawTextBox (f, 96, 24, 4);

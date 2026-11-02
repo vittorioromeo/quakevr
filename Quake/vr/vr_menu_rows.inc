@@ -2153,7 +2153,7 @@ QVR_SLIDER_BYNAME(vr_menu_section_gap, "Section Gap", 0.f, 2.f, 0.25f, "%.2f row
 QVR_TOGGLE_BYNAME(vr_menu_vr_style, "VR Menu Style",
     "The menus fill the panel with their rows spaced out, with modern sliders and switches, and a laser from your hand points at them: trigger to click and drag.")
 QVR_TOGGLE_BYNAME(vr_menu_bigfont, "Main Menu Lettering",
-    "The main menu's rows as text in Quake's own lettering (its letters cut from the menu pictures), VR Calibration among them. Off: Quake's picture of the rows, with VR Calibration above it in the console's letters.")
+    "The main menu's rows as text in Quake's own lettering (its letters cut from the menu pictures), VR Calibration among them, and the other menus' pictures of rows (difficulty, Single Player, Multiplayer) in the Fonts page's style. Off: Quake's pictures as they are, with VR Calibration above the main menu's in the console's letters.")
 QVR_TOGGLE_BYNAME(vr_menu_recolor, "Blood Red Menus",
     "The menus' browns and tans (the letters, Quake's pictures, sliders, switches and panels) turned blood red, in Quake VR's colours. Off: Quake's own browns.")
 QVR_SLIDER_BYNAME(vr_menu_recolor_strength, "Red Strength", 0.f, 1.f, 0.05f, "%.2f", noExt,
