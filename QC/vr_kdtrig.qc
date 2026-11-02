@@ -100,7 +100,8 @@ void() VR_KdTrig_Init =
         cvarh_vr_kdtrig_blast_push, FALSE, 48);
     VR_KdTrig_Def(VR_KDT_THROWN, "thrown", cvarh_vr_kdtrig_thrown_on, cvarh_vr_kdtrig_thrown, 0, cvarh_vr_kdtrig_thrown_push,
         FALSE, 32);
-    VR_KdTrig_Def(VR_KDT_TACKLE, "tackle", cvarh_vr_kdtrig_tackle_on, cvarh_vr_kdtrig_tackle, 0, cvarh_vr_kdtrig_tackle_push,
+    // (Shoulder Charges' switch is its chance: 0 off)
+    VR_KdTrig_Def(VR_KDT_TACKLE, "tackle", cvarh_vr_kdtrig_tackle, cvarh_vr_kdtrig_tackle, 0, cvarh_vr_kdtrig_tackle_push,
         FALSE, 32);
     vr_kdt_ready = TRUE;
 };
@@ -1031,7 +1032,7 @@ void() VR_KdTrig_Tackle =
         return;
     }
     float dummy = VR_IsDummy(best);
-    if(!dummy && (!cvar_hget(cvarh_vr_kdtrig_tackle_on) || !cvar_hget(cvarh_vr_kdtrig)))
+    if(!dummy && (cvar_hget(cvarh_vr_kdtrig_tackle) <= 0 || !cvar_hget(cvarh_vr_kdtrig)))
     {
         return;
     }

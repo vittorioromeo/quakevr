@@ -64,14 +64,8 @@ QVR_TONE_GLSL
 "		out_fragcolor.rgb = (texture(WaterScene, buv + b).rgb + texture(WaterScene, buv - b).rgb +\n" \
 "			texture(WaterScene, buv + vec2(b.x, -b.y)).rgb + texture(WaterScene, buv + vec2(-b.x, b.y)).rgb) * 0.25;\n" \
 "	}\n" \
-"	if (BloomStrength > 0.0) // QVR: smoothed up from a quarter of the size by four bilinear taps\n" \
-"	{\n" \
-"		vec2 bt = 0.5 / vec2(textureSize(BloomTexture, 0));\n" \
-"		out_fragcolor.rgb += (texture(BloomTexture, buv + vec2(-bt.x, -bt.y)).rgb + texture(BloomTexture, buv + vec2(bt.x, -bt.y)).rgb +\n" \
-"			texture(BloomTexture, buv + vec2(-bt.x, bt.y)).rgb + texture(BloomTexture, buv + vec2(bt.x, bt.y)).rgb) * (0.25 * BloomStrength);\n" \
-"	}\n" \
-"	else if (BloomStrength < 0.0) // QVR: vr_bloom_fast: by one tap, the smoothing done at the quarter (vr_bloom.cpp)\n" \
-"		out_fragcolor.rgb -= texture(BloomTexture, buv).rgb * BloomStrength;\n"
+"	if (BloomStrength > 0.0) // QVR: by one bilinear tap, the smoothing done at the quarter (vr_bloom.cpp)\n" \
+"		out_fragcolor.rgb += texture(BloomTexture, buv).rgb * BloomStrength;\n"
 
 // graded (vr_grade) and dithered into the 8-bit image
 #define QVR_POSTPROCESS_GRADE_DITHER \

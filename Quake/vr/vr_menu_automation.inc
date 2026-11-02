@@ -443,7 +443,7 @@ za::Vector<Item> pageDebugAutomation()
         command("Armed Grunts: Reach for a Lying One's Weapon", "vr_agrunt_test 66")
             .help("vr_agrunt_test 66: a shotgun grunt shoved to the floor keeps its gun in its hand; you walk up to it "
                   "and reach for the gun with an open hand at 0.8 m/s for 3 s: it keeps it. Then the old rules (printed: "
-                  "vr_agrunt_disarm_deliberate 0, vr_agrunt_fall_keep_window 0)."),
+                  "vr_agrunt_disarm_deliberate 0)."),
         command("Armed Grunts: Friendly Fire", "vr_agrunt_test 63")
             .help("vr_agrunt_test 63: four gunners far ahead, their friends held still in their lines of fire, 15 s "
                   "careless (Careful of Friends 0), then 15 s careful: friendly hits each (vr_agrunt_friendly_care)."),

@@ -1888,7 +1888,7 @@ constexpr float legStrokeShare = 0.5f; // the pull's stroke: the hands towards y
 // out): one hand alone on a standing enemy drags it (the follow and the pull, serverFrame) only by its torso and
 // shoulders (vr_foegrab_drag_onehand 1): on its legs (legPartAt) the hand is the one-hand leg pull's (legCheck), at its
 // head or neck (its head zone, as the neck snap's) the head hold's (2: that drags too), on a forearm or a hand (the
-// rig's bone) neither; elsewhere (its chest, its belly, its shoulders, an upper arm) it drags. 0: anywhere, as before.
+// rig's bone) neither; elsewhere (its chest, its belly, its shoulders, an upper arm) it drags.
 // Both his hands on it: they drag, as ever (the two-hand moves are theirs).
 bool oneHandDrags(int c, int h, edict_t* m, const char** where)
 {
@@ -1907,11 +1907,7 @@ bool oneHandDrags(int c, int h, edict_t* m, const char** where)
     const char* name = "both hands";
     bool drags = true;
     const bool alone = !other.active || other.ent != g.ent;
-    if(alone && mode == 0.f)
-    {
-        name = "anywhere (One Hand Drags By Anywhere)";
-    }
-    else if(alone)
+    if(alone)
     {
         const glm::vec3 spot = spotOf(g);
         const char* bone = "";

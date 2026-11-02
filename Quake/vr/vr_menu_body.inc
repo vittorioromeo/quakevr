@@ -295,7 +295,6 @@ void armsResetTweaks()
         row(opt::vr_body_forearm_twist),
         row(opt::vr_body_wrist_limits),
         row(opt::vr_body_elbow_lift),
-        row(opt::vr_body_elbow_spread),
         row(opt::vr_body_elbow_out),
         row(opt::vr_body_elbow_back),
         row(opt::vr_body_elbow_hand),

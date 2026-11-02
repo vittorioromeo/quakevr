@@ -168,6 +168,9 @@ QVR_TUNABLE_SLIDER(vr_bodytrack_legs, "Legs", 0.0f, 1.0f, 0.05f, "%.2f", 0.0f, 1
 QVR_TUNABLE_SLIDER(vr_bodytrack_confidence, "Min Confidence", 0.0f, 1.0f, 0.05f, "%.2f", 0.0f, 1.0f, "Below this confidence the tracking eases out to the guessed body.")
 QVR_TUNABLE_SLIDER(vr_bodytrack_smooth, "Smoothing", 0.0f, 0.2f, 0.01f, "%.2f s", 0.0f, 0.2f, "How long the tracked joints are smoothed over.")
 
+QVR_TUNABLE_GROUP("Body > Body - Arms and Pauldrons")
+QVR_TUNABLE_SLIDER(vr_body_elbow_spread, "Elbows Spread", 0.0f, 1.0f, 0.05f, "%.2f", 0.0f, 1.0f, "With the hand at the face or the chest and the palm down, how far the elbow turns out to the side (wings). Palm up or on its side, it stays tucked in (0: always tucked in).")
+
 QVR_TUNABLE_GROUP("Body > Body - Crouched Pose")
 QVR_TUNABLE_SLIDER(vr_hip_holster_crouch_z, "Hips Up", -10.0f, 10.0f, 0.25f, "%+.2f", -30.0f, 30.0f, "Crouched, the hip holsters higher (negative: lower), units.")
 QVR_TUNABLE_SLIDER(vr_hip_holster_crouch_pitch, "Hips Pitch", -45.0f, 45.0f, 1.0f, "%+.0f deg", -180.0f, 180.0f, "Crouched, the hip holsters' top tips further from the body (as the Hotspots' Hip Pitch).")
@@ -451,6 +454,7 @@ QVR_TUNABLE_SLIDER(vr_walltorch_damage, "Blow Damage", 0.0f, 40.0f, 1.0f, "%.0f"
 QVR_TUNABLE_SLIDER(vr_walltorch_flame, "Flame Size", 0.25f, 1.5f, 0.05f, "%.2fx", 0.0f, 4.0f, "A taken torch's flame (1: the wall torch's).")
 
 QVR_TUNABLE_GROUP("Weapons > Aiming")
+QVR_TUNABLE_SLIDER(vr_2h_sticky, "Stickiness", 0.5f, 4.0f, 0.05f, "%.2fx", 0.1f, 20.0f, "Once your other hand holds a weapon's grip, how far it may go off it (20 units), how far out of line (2H Aiming Threshold) and past the muzzle, before it lets go: times this, always (and times the hotspot's own Stickiness: Weapon Offsets).")
 QVR_TUNABLE_SLIDER(vr_weight_spring_stiffness, "Stiffness", 0.25f, 4.0f, 0.05f, "%.2fx", 0.05f, 20.0f, "How firmly your arm pulls what it holds to your hand: higher lags less.")
 QVR_TUNABLE_SLIDER(vr_weight_spring_damping, "Damping", 0.2f, 2.0f, 0.05f, "%.2f", 0.0f, 5.0f, "1: it settles without swinging back. Lower: it overshoots and wobbles; higher: it creeps in.")
 QVR_TUNABLE_SLIDER(vr_weight_spring_strength, "Arm Strength", 0.0f, 4.0f, 0.1f, "%.1fx", 0.0f, 20.0f, "The most force and torque your arm and wrist give it: a heavy thing can't be swung as fast as your hand goes. 0: unlimited.")
@@ -777,9 +781,6 @@ QVR_TUNABLE_SLIDER(vr_agrunt_shotdisarm_w_nail, "Nails", 0.0f, 3.0f, 0.1f, "%.1f
 QVR_TUNABLE_SLIDER(vr_agrunt_shotdisarm_w_lightning, "Lightning", 0.0f, 3.0f, 0.1f, "%.1fx", 0.0f, 10.0f, "How much the lightning gun's bolts count, 30 each tenth of a second (vr_agrunt_shotdisarm_w_lightning).")
 QVR_TUNABLE_SLIDER(vr_agrunt_shotdisarm_w_blast, "Rockets and Grenades", 0.0f, 3.0f, 0.1f, "%.1fx", 0.0f, 10.0f, "How much a rocket or a grenade flying through the weapon or the hand counts, its direct hit's damage (vr_agrunt_shotdisarm_w_blast).")
 QVR_TUNABLE_SLIDER(vr_agrunt_shotdisarm_w_splash, "Explosions", 0.0f, 3.0f, 0.1f, "%.1fx", 0.0f, 10.0f, "How much an explosion's damage to the grunt counts on its weapons. 0: never (vr_agrunt_shotdisarm_w_splash).")
-QVR_TUNABLE_SLIDER(vr_agrunt_fall_keep_height, "Fall: Drops It Below", 0.0f, 5.0f, 0.05f, "%.2f m", 0.0f, 50.0f, "Falling to a floor this far below the one it stood on (off a ledge) it lets go (vr_agrunt_fall_keep_height).")
-QVR_TUNABLE_SLIDER(vr_agrunt_fall_keep_speed, "Fall: Drops It Falling Faster", 0.0f, 20.0f, 0.5f, "%.1f m/s", 0.0f, 100.0f, "Its body falling faster than this, it lets go (vr_agrunt_fall_keep_speed).")
-QVR_TUNABLE_SLIDER(vr_agrunt_fall_keep_fling, "Fall: Drops It Flung Faster", 0.0f, 20.0f, 0.5f, "%.1f m/s", 0.0f, 100.0f, "A strong force: its body moving faster than this any way but down (thrown, held and flung, blown away), it lets go (vr_agrunt_fall_keep_fling).")
 QVR_TUNABLE_SLIDER(vr_agrunt_w_nailpistol, "Nail Pistol", 0.0f, 5.0f, 0.25f, "%.2f", 0.0f, 100.0f, "the nail pistol (one in each hand when it pairs)")
 QVR_TUNABLE_SLIDER(vr_agrunt_w_revolver, "Heavy Revolver", 0.0f, 5.0f, 0.25f, "%.2f", 0.0f, 100.0f, "the heavy revolver (rare)")
 QVR_TUNABLE_SLIDER(vr_agrunt_strike_hips, "Hips in the Twist", 0.0f, 1.0f, 0.05f, "%.2f", 0.0f, 1.0f, "The share of the torso's twist its hips take; its feet stay planted (vr_agrunt_strike_hips).")

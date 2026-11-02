@@ -9,8 +9,9 @@ const float VR_CAMPAIGN_MG3 = 5;
 float vr_save_packmask;
 
 // Optional mission packs. The engine validates their own archives before mounting them.
-float() VR_Pack_Hipnotic = { return cvar("vr_hipnotic_available"); };
-float() VR_Pack_Rogue = { return cvar("vr_rogue_available"); };
+// (vr_*_status: 0 not installed, 1 installed and valid, 2 incomplete or corrupt; vr_gamedir.cpp)
+float() VR_Pack_Hipnotic = { return cvar("vr_hipnotic_status") == 1; };
+float() VR_Pack_Rogue = { return cvar("vr_rogue_status") == 1; };
 
 // ---- What Quake VR can run without the mission packs ---------------------------------------------------------
 // A feature is available exactly when the files it loads exist: Quake VR's own (quakevr), the stock game's (id1), or

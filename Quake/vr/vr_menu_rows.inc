@@ -249,9 +249,6 @@ QVR_SLIDER(vr_body_wrist_limits, "Wrist Limits", 0.f, 2.f, 0.05f, "%.2f", noExt,
 QVR_SLIDER(vr_body_elbow_lift, "Elbow Stays Clear", 0.f, 8.f, 0.5f, "%.1f", noExt,
     "How much that swing keeps the elbow out of the torso and from crossing the chest by the neck (a hand "
     "near the face or the chest), times this (0: free, as before).")
-QVR_SLIDER(vr_body_elbow_spread, "Elbows Spread", 0.f, 1.f, 0.05f, "%.2f", noExt,
-    "With the hand at the face or the chest and the palm down, how far the elbow turns out to the side "
-    "(wings). Palm up or on its side, it stays tucked in (0: as before).")
 QVR_SLIDER(vr_body_elbow_out, "Elbow Out", 0.f, 1.f, 0.05f, "%.2f", noExt, "Where the elbow points: down, plus this much outwards.")
 QVR_SLIDER(vr_body_elbow_back, "Elbow Back", 0.f, 1.f, 0.05f, "%.2f", noExt, "Where the elbow points: down, plus this much backwards.")
 QVR_SLIDER(vr_body_elbow_hand, "Elbow From Hand", 0.f, 1.f, 0.05f, "%.2f", noExt, "How much the elbow points away from the back of the hand.")
@@ -475,8 +472,8 @@ QVR_SLIDER(vr_foegrab_drag, "Pull", 0.f, 20.f, 0.5f, "%.1f /s", noExt,
 QVR_CYCLE_BYNAME(vr_foegrab_drag_onehand, "One Hand Drags By",
     "Where one hand alone (the other off it) drags a standing enemy along by Follow the Hand and Pull. "
     "Torso, Shoulders: a hand on its legs only pulls its legs out (Leg Grabs, One-Hand Pull), on its head "
-    "only holds it, on a forearm or hand neither. Anywhere: as before.",
-    {1.f, "Torso, Shoulders"}, {2.f, "Torso, Shoulders, Head"}, {0.f, "Anywhere"})
+    "only holds it, on a forearm or hand neither.",
+    {1.f, "Torso, Shoulders"}, {2.f, "Torso, Shoulders, Head"})
 QVR_CYCLE_BYNAME(vr_foegrab_shove, "Held Enemy's Shove",
     "Resisted: a grunt or enforcer you hold barely pushes you (by Shove Resistance and its hold), and comes "
     "along with you. Breaks Free: its shove pushes you fully, as ever, and tears it from your hands.",
@@ -622,12 +619,11 @@ QVR_TOGGLE(vr_kdtrig_thrown_on, "Thrown Bodies",
     "momentum. Needs Ragdoll Triggers and Knockdowns on.")
 
 // vr_menu_gameplay.inc: pageKdTrigTackle
-QVR_TOGGLE(vr_kdtrig_tackle_on, "Shoulder Charges",
+QVR_SLIDER(vr_kdtrig_tackle, "Chance", 0.f, 1.f, 0.05f, "%.2f", noExt,
     "Running into a monster with a shoulder leading, your head tucked down, both hands low and close to "
-    "your body (the leading arm tucked) knocks it back: a light one flies back and falls, an ogre staggers "
-    "back, shamblers and bosses stand. You bounce back off it. Needs Ragdoll Triggers and Knockdowns on. "
-    "(Tuned on recorded takes: Motion Recorder > Shoulder Charge.)")
-QVR_SLIDER(vr_kdtrig_tackle, "Chance", 0.f, 1.f, 0.05f, "%.2f", noExt, "The chance a light one falls.")
+    "your body (the leading arm tucked) knocks it back: a light one flies back and falls (this chance), an "
+    "ogre staggers back, shamblers and bosses stand. You bounce back off it. 0: off. Needs Ragdoll Triggers "
+    "and Knockdowns on. (Tuned on recorded takes: Motion Recorder > Shoulder Charge.)")
 QVR_SLIDER(vr_kdtrig_tackle_runup, "Run-Up", 0.f, 4.f, 0.1f, "%.1f s", noExt,
     "How long you must have been running at that speed before it counts (a sprint begun next to the "
     "monster doesn't; 0: none).")
@@ -1218,15 +1214,12 @@ QVR_TOGGLE(vr_agrunt_fall_drop, "Drops It When Floored",
     "takes it back as it gets up unless you took it (vr_agrunt_fall_drop; with Hits Disarm).")
 QVR_TOGGLE(vr_agrunt_fall_keep, "Keeps It in a Gentle Fall",
     "A gentle fall (a shove's backpedal to the floor) keeps the weapon in its hand, but while it lies "
-    "there a grab takes it with a short tug (Tug: Staggering or Down) and a blow knocks it away. A violent one (below) drops it "
+    "there a grab takes it with a short tug (Tug: Staggering or Down) and a blow knocks it away. A hard landing (below) drops it "
     "(vr_agrunt_fall_keep).")
 QVR_SLIDER(vr_agrunt_fall_keep_impact, "Fall: Drops It on Impact", 0.f, 20.f, 0.5f, "%.1f m/s", ext(0.f, 100.f),
     "Lifted, judo-thrown, shoulder-charged or shoved over, it holds on to its weapon until its body meets "
     "the ground this hard (the speed it loses as it lands); a gentle landing keeps it, a slam drops it. "
-    "Never while your hands hold it. 0: the older rules below instead (vr_agrunt_fall_keep_impact).")
-QVR_SLIDER(vr_agrunt_fall_keep_window, "Fall: Flung Within", 0.f, 5.f, 0.1f, "%.1f s", ext(0.f, 60.f),
-    "Flung counts only this long after it goes down: lying there, your body or hand nudging it as you "
-    "come to take its weapon doesn't make it let go. 0: any time while down (vr_agrunt_fall_keep_window).")
+    "Never while your hands hold it. 0: never (vr_agrunt_fall_keep_impact).")
 QVR_TOGGLE(vr_agrunt_saw_drop_running, "Drops Its Chainsaw Running",
     "One that was fighting you with a chainsaw drops it with the engine running (killed, disarmed, a tug "
     "lost): it runs on as yours does when let go (Runs On When Let Go), so taken up meanwhile it needs no "
@@ -2549,11 +2542,9 @@ QVR_SLIDER_BYNAME(vr_climb_mantle_height, "Mantle Height", 0.f, 40.f, 1.f, "%.0f
     "Holding a ledge, how far your head must rise above its top before you pull up onto it. Higher: you "
     "can lean up and down over a ledge without mantling (the old point was about 15 at a chest-high ledge; "
     "32 units are about a metre).")
-QVR_TOGGLE_BYNAME(vr_climb_mantle_lenient, "Mantle onto Slopes",
-    "Pulling yourself up onto a ledge whose top isn't level (rising or falling away from the edge, or "
-    "sloping along it) stands you on the slope, up to Steepest Slope. Off: only level tops, as before.")
 QVR_SLIDER_BYNAME(vr_climb_mantle_slope, "Steepest Slope", 10.f, 60.f, 5.f, "%.0f deg", noExt,
-    "The steepest top a mantle stands you on with Mantle onto Slopes (Quake walks up to about 45).")
+    "Pulling yourself up onto a ledge whose top isn't level (rising or falling away from the edge, or sloping "
+    "along it) stands you on the slope, up to this steep (Quake walks up to about 45).")
 QVR_SLIDER_BYNAME(vr_climb_mantle_grunt, "Mantle Grunt", 0.f, 1.f, 0.1f, "%.1f", noExt,
     "A small grunt as you pull yourself up onto a ledge (0 off).")
 QVR_TOGGLE_BYNAME(vr_climb_props, "Climb Props",
@@ -2756,10 +2747,6 @@ QVR_SLIDER_BYNAME(vr_2h_angle_threshold, "2H Aiming Threshold", -1.f, 1.f, 0.05f
     "How far out of line the hands may be before two-handed aiming stops. Higher is stricter; -1 never stops.")
 QVR_SLIDER_BYNAME(vr_2h_virtual_stock_factor, "2H Stock Factor", 0.f, 1.f, 0.05f, "%.2f", noExt,
     "How much the virtual stock matters in the final angle calculation for two-handed aiming. Decrease if you want your hands to matter more.")
-QVR_SLIDER(vr_2h_sticky, "Stickiness", 0.5f, 4.f, 0.05f, "%.2fx", ext(0.1f, 20.f),
-    "Once your other hand holds a weapon's grip, how far it may go off it (20 units), how far out of line "
-    "(2H Aiming Threshold) and past the muzzle, before it lets go: times this, always (and times the "
-    "hotspot's own Stickiness: Weapon Offsets).")
 QVR_SLIDER(vr_2h_sticky_fast, "While Swinging", 0.f, 5.f, 0.1f, "+%.1fx", ext(0.f, 20.f),
     "And this many times more while your hands swing (a two-handed melee blow): back to the above as they "
     "slow, so a weapon held still lets go as before. 0: off.")
@@ -3647,8 +3634,6 @@ QVR_SLIDER_BYNAME(vr_bloom_color, "Bloom: Coloured Lights", 0.f, 3.f, 0.05f, "%.
     "Glow of coloured lights (red buttons, blue panels), times Bloom.")
 QVR_SLIDER_BYNAME(vr_bloom_adapt, "Bloom: Adapt", 0.f, 10.f, 0.25f, "%.2f", ext(),
     "How much bloom weakens when much of the view glows (a brightly lit map); 0: never.")
-QVR_TOGGLE_BYNAME(vr_bloom_fast, "Bloom: Fast",
-    "On: a cheaper glow: three glow sizes instead of four (the widest folded into the next) and the glow added with one texture read a pixel instead of four. About 0.035 ms an eye cheaper at 2784 x 2784 (a quarter of the post-processing and bloom), halo edges and lava at most about 20/255 different. Off: as before, for comparison.")
 QVR_TOGGLE_BYNAME(vr_tonemap, "Tone Mapping",
     "Bright lights, flashes, lava and explosions keep their colour and detail instead of clipping to yellow and white (a filmic shoulder). The rest is unchanged. Off: Quake's.")
 QVR_SLIDER_BYNAME(vr_exposure, "Exposure", 0.5f, 2.f, 0.05f, "%.2f", ext(), "Brightness before tone mapping (1: as Quake).")
@@ -3707,8 +3692,6 @@ QVR_TOGGLE_BYNAME(vr_particle_trim, "Trim Particle Margins",
     "Trim empty margins of larger fire and smoke sprites. Off by default: the extra work can cost more than it saves for small particles. Keeps filtering and retro blocks; uncertain cases keep their full shape.")
 QVR_TOGGLE_BYNAME(vr_particle_saturate, "Skip Hidden Particles",
     "Particles are composited in reverse order into a layer of their own, and where thick smoke or blood is already opaque the particles under it are skipped: the same image, less GPU work in dense effects. Off: each blended into the scene in turn, as before.")
-QVR_TOGGLE_BYNAME(vr_particle_retro_fast, "Fast Retro Particles",
-    "Optimize full-resolution retro particles while keeping palette, dither and edge filtering. Off compares the original full-resolution shader. Retro half resolution always uses the fast shader.")
 QVR_TOGGLE_BYNAME(vr_particle_retro_halfres, "Half-Res Retro Particles",
     "Optional: render large retro particles at half resolution during heavy effects. Keeps their palette and world-space grid, with softer edges. Small particles stay at full resolution.")
 QVR_SLIDER_BYNAME(vr_particle_retro_halfres_pixels, "Retro Half-Res Size", 0.f, 256.f, 8.f, "%.0f px", noExt,
@@ -3983,11 +3966,8 @@ QVR_TOGGLE(vr_collect_fx, "Put-Away Transition",
     "instead of vanishing. Only how it looks: it is yours the moment you let go, as before.")
 QVR_SLIDER(vr_collect_fx_time, "Put-Away Time", 0.05f, 0.6f, 0.05f, "%.2f s", ext(0.f, 2.f), "How long it takes to go in (slowed in bullet time).")
 QVR_SLIDER(vr_collect_fx_size, "Put-Away End Size", 0.05f, 1.f, 0.05f, "%.2fx", noExt, "How small it is as it goes in: its size then, of its own.")
-QVR_TOGGLE(vr_weapon_grab_drawn, "Weapons by the Fist",
-    "A weapon lying on the floor is taken where the fist touches it: a crowbar by its bar, a sword by its "
-    "blade. Off: only with the hand at its handle.")
 QVR_SLIDER(vr_weapon_grab_slack, "Weapon Grab Slack", 0.f, 10.f, 0.5f, "%.1f cm", noExt,
-    "With Weapons by the Fist: a weapon lying on the floor is taken with the fist this far off it too (a gun "
+    "A weapon lying on the floor is taken where the fist touches it (a crowbar by its bar, a sword by its blade), and this far off it too (a gun "
     "lying flat is thinner than the lowest your fist gets over it). Not one in the air: caught by the fist on it.")
 QVR_SLIDER(vr_weapon_grab_handle_leniency, "Handle Grab Leniency", 0.f, 10.f, 0.5f, "%.1f cm", ext(0.f, 20.f),
     "A gun lying on a table or the floor is taken by its handle with your fist this much farther off it than "
@@ -5520,9 +5500,6 @@ QVR_TOGGLE(vr_hull_edge_probe, "Ledge Test Fix",
 QVR_TOGGLE(vr_hull_brushmodels, "Doors, Lifts and Walls Too",
     "The width above against brush models as well (doors, lifts, trains, func_walls, the firing range's "
     "panels and tables). Off: only the world's walls; brush models meet Quake's box.")
-QVR_TOGGLE(vr_hull_monsters, "Monsters", "That width between you and monsters.")
-QVR_TOGGLE(vr_hull_players, "Other Players", "That width between players.")
-QVR_TOGGLE(vr_hull_boxes, "Solid Boxes", "That width against explosive boxes and other solid boxes.")
 QVR_TOGGLE(vr_hull_hit_head, "Height Shots Hit: Your Head's",
     "Shots and missiles meet you only up to the top of your head: crouched behind a crate, those flying "
     "over it miss you (Quake's box stands as tall), and monsters' bullets aim no higher than your body. "
@@ -6186,11 +6163,10 @@ QVR_TOGGLE(vr_particle_halfres_force, "Half-Res Particles Always",
     "(when Half-Res Heavy Particles or Half-Res Retro Particles allow it), not only in dense effects: to "
     "compare with Freeze Particles.")
 QVR_CYCLE(vr_particle_halfres_upsample, "Half-Res Blend",
-    "vr_particle_halfres_upsample: how half-resolution particles are blended into the view. By Depth: each "
+    "vr_particle_halfres_upsample: half-resolution particles are blended into the view by depth: each "
     "pixel takes the half-size texels at its own distance (no smoke bled onto a crate's edge in front of "
-    "it). Edges Shown: the pixels that took texels by distance in green. Filtered: the four blended, as "
-    "before.",
-    {0.f, "Filtered (before)"}, {1.f, "By Depth"}, {2.f, "By Depth, Edges Shown"})
+    "it). Edges Shown: the pixels that took texels by distance in green.",
+    {1.f, "By Depth"}, {2.f, "By Depth, Edges Shown"})
 QVR_TOGGLE(host_fixedtick, "Fixed 72 Hz Server Tick",
     "host_fixedtick: the server (monsters, physics, your hands' blows) runs in steady 1/72 s ticks at any "
     "headset rate, the leftover time carried to the next frame. Off: the old way, a server frame once 1/72 s "

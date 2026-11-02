@@ -122,12 +122,12 @@ void debugBoxTouch(edict_t* target, edict_t* player, int which)
     return !strcmp(PR_GetString(target->v.classname), "thrown_weapon");
 }
 
-// Such a weapon is also taken where the fist meets its drawn shape (vr_weapon_grab_drawn): its box is a small cube round
+// Such a weapon is also taken where the fist meets its drawn shape: its box is a small cube round
 // its handle (its origin), so a crowbar or a sword lying on the floor could be taken only by its handle, not by its bar
 // or blade.
 [[nodiscard]] bool weaponByFist(edict_t* target)
 {
-    return vr_weapon_grab_drawn.value && thrownWeapon(target);
+    return thrownWeapon(target);
 }
 
 // An armed monster's weapon in its hand (QC vr_armedgrunt.qc VR_AG_MakeProp): taken (a tug-of-war, or at once) only by
@@ -1276,7 +1276,7 @@ extern "C" int VR_TouchLinks(edict_t* ent)
     if(client)
     {
         // handsReach's, and a weapon's length more: a weapon's drawn shape reaches that far from its box.
-        const glm::vec3 reach{handHalfSize + easyHandTouchBonus + (vr_weapon_grab_drawn.value ? weaponDrawnReach : 0.f)};
+        const glm::vec3 reach{handHalfSize + easyHandTouchBonus + weaponDrawnReach};
         for(const int ofs : {f().offhandpos, f().handpos})
         {
             const glm::vec3 hand = fieldVec(ent, ofs);

@@ -238,7 +238,7 @@ bool skipInFolder(const char* filename)
         if(c == 0)
         {
             const int owner = shadowedFiles[mid].owner;
-            return owner == 0 || Cvar_VariableValue(owner == 1 ? "vr_hipnotic_available" : "vr_rogue_available") != 0.f;
+            return owner == 0 || Cvar_VariableValue(owner == 1 ? "vr_hipnotic_status" : "vr_rogue_status") == 1.f; // (1: valid)
         }
         if(c < 0) { hi = mid - 1; } else { lo = mid + 1; }
     }
