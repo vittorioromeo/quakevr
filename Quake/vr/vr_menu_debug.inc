@@ -958,6 +958,8 @@ za::Vector<Item> pageDebugTools()
         command("Open the Map Browser", "maps_page")
             .help("maps_page [text]: the Map Library page (the corner's Maps button, Single Player > Map Library), with the text typed in. maps_install <sha> gets a package, maps_play <sha> starts it."),
         header("Test Effects"),
+        command("Font Sample Message", "vr_fontstyle_sample")
+            .help("vr_fontstyle_sample: a centre message and a console line in white and gold, to judge Menu > Fonts (upscaling, outline, shadow) over the game. vr_fontstyle_test: its self-test."),
         command("Blood and Gore", "vr_gore_test").help("vr_gore_test: blood and gore 64 units ahead, as a 40 damage hit."),
         command("Gore Burst", "vr_gore_test burst").help("vr_gore_test burst: a body bursting into gibs 64 units ahead."),
         command("Gore Sounds: a Crowd's Tears", "vr_gore_sound_test tear 12 0.06")

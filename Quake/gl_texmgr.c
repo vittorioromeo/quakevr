@@ -219,7 +219,7 @@ static void TexMgr_SetFilterModes (gltexture_t *glt)
 	else if (glt->flags & TEXPREF_LINEAR)
 	{
 		glTexParameterf(glt->target, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-		glTexParameterf(glt->target, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+		glTexParameterf(glt->target, GL_TEXTURE_MIN_FILTER, (glt->flags & TEXPREF_MIPMAP) ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR); // QVR: with mipmaps, trilinear (vr_fontstyle.cpp's font)
 	}
 	else if (glt->flags & TEXPREF_MIPMAP)
 	{
@@ -1486,7 +1486,7 @@ models' skins (TEXPREF_ALPHA with TEXPREF_UNCOMPRESSED; mipmapped), not their gl
 static qboolean TexMgr_AlphaTested (gltexture_t *glt)
 {
 	const unsigned need = TEXPREF_MIPMAP | TEXPREF_ALPHA | TEXPREF_UNCOMPRESSED;
-	return (glt->flags & need) == need && !(glt->flags & (TEXPREF_ALPHABRIGHT | TEXPREF_FULLBRIGHT | TEXPREF_ARRAY | TEXPREF_CUBEMAP)) &&
+	return (glt->flags & need) == need && !(glt->flags & (TEXPREF_ALPHABRIGHT | TEXPREF_FULLBRIGHT | TEXPREF_ARRAY | TEXPREF_CUBEMAP | TEXPREF_LINEAR)) && // (LINEAR: 2D art drawn smooth, vr_fontstyle.cpp's)
 		normalmap_kind[glt - gltextures_base] == NORMALMAP_NONE;
 }
 

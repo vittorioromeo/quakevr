@@ -481,6 +481,34 @@ void Draw_ReplacePic (qpic_t *pic, const char *name, int width, int height, byte
 
 /*
 ================
+Draw_ReplacePicRGBA -- QVR: as Draw_ReplacePic, of `data`'s RGBA texels (texwidth x texheight, kept by the caller
+while the pic is used), drawn width x height: vr_fontstyle.cpp's upscaled pictures. Smooth: linear, mipmapped;
+else nearest.
+================
+*/
+void Draw_ReplacePicRGBA (qpic_t *pic, const char *name, int width, int height, int texwidth, int texheight,
+	const unsigned *data, qboolean smooth)
+{
+	int flags = TEXPREF_ALPHA | TEXPREF_PERSIST | TEXPREF_NOPICMIP | TEXPREF_CLAMP | TEXPREF_UNCOMPRESSED |
+		(smooth ? TEXPREF_LINEAR | TEXPREF_MIPMAP : TEXPREF_NEAREST);
+	glpic_t gl;
+
+	memcpy (&gl, pic->data, sizeof (glpic_t));
+	if (gl.gltexture)
+		TexMgr_FreeTexture (gl.gltexture);
+
+	pic->width = width;
+	pic->height = height;
+	gl.gltexture = TexMgr_LoadImage (NULL, name, texwidth, texheight, SRC_RGBA, (byte *) data, "", (src_offset_t) data, flags);
+	gl.sl = 0;
+	gl.sh = 1;
+	gl.tl = 0;
+	gl.th = 1;
+	memcpy (pic->data, &gl, sizeof (glpic_t));
+}
+
+/*
+================
 Draw_LoadImagePic -- QVR: a pic (Draw_PicBytes () bytes the caller keeps) from a 32-bit image file (`path`
 without its extension: png, tga or jpg, Image_LoadImage), kept across maps and games, mipmapped and drawn smooth
 (an image file's filter, TexMgr_FilterMode), made again from the file on a video restart. Its width and height
@@ -565,6 +593,7 @@ void Draw_LoadPics (void)
 	}
 	char_texture = TexMgr_LoadImage (NULL, WADFILENAME":conchars", 16*10, 16*10, SRC_INDEXED, char_texture_data,
 		"", (src_offset_t) char_texture_data, TEXPREF_ALPHA | TEXPREF_NEAREST | TEXPREF_NOPICMIP | TEXPREF_CONCHARS | TEXPREF_UNCOMPRESSED);
+	VR_FontStyle_Rebuild (); // QVR: its upscaled, outlined copy (Menu > Fonts)
 
 	draw_disc = Draw_PicFromWad ("disc");
 	draw_backtile = Draw_PicFromWad2 ("backtile", TEXPREF_ALPHA | TEXPREF_NOPICMIP | TEXPREF_UNCOMPRESSED); // no pad flag to force separate allocation
@@ -709,6 +738,18 @@ static void Draw_SetTexture (gltexture_t *tex)
 		return;
 	Draw_Flush ();
 	glcanvas.texture = tex;
+}
+
+/*
+================
+Draw_CharsTexture -- QVR: the console font to draw text with: char_texture, or its upscaled, outlined copy
+(vr_fontstyle.cpp; Draw_CharacterQuadEx then finds each character in it)
+================
+*/
+static gltexture_t *Draw_CharsTexture (void)
+{
+	gltexture_t *styled = VR_FontStyle_Chars (char_texture);
+	return styled ? styled : char_texture;
 }
 
 /*
@@ -858,7 +899,8 @@ game. Only the letters (not the box and slider pieces, which join up with their 
 */
 float draw_textoutline = 0.f;
 
-static void Draw_TextOutline (float x, float y, float dimx, float dimy, float fcol, float frow, float fsize, int num)
+static void Draw_TextOutline (float x, float y, float dimx, float dimy, float fcol, float frow, float fsize, int num,
+	float stepx, float stepy) // QVR: step: a glyph pixel (the quad may be bigger than the glyph: vr_fontstyle.cpp's margin)
 {
 	static const float dirs[8][2] = {{-1,-1}, {0,-1}, {1,-1}, {-1,0}, {1,0}, {-1,1}, {0,1}, {1,1}};
 	uint32_t color, a;
@@ -875,8 +917,8 @@ static void Draw_TextOutline (float x, float y, float dimx, float dimy, float fc
 	GL_PushCanvasColor (0.f, 0.f, 0.f, a / 255.f);
 	for (i = 0; i < 8; i++)
 	{
-		float ox = x + dirs[i][0] * dimx / 8.f;
-		float oy = y + dirs[i][1] * dimy / 8.f;
+		float ox = x + dirs[i][0] * stepx;
+		float oy = y + dirs[i][1] * stepy;
 		verts = Draw_AllocQuad ();
 		Draw_SetVertex (verts++, ox,      oy,      fcol,         frow);
 		Draw_SetVertex (verts++, ox+dimx, oy,      fcol + fsize, frow);
@@ -895,6 +937,7 @@ void Draw_CharacterQuadEx (float x, float y, float dimx, float dimy, char num)
 {
 	int				row, col;
 	float			frow, fcol, fsize;
+	float			stepx, stepy; // QVR
 	guivertex_t		*verts;
 
 	Draw_KeepMenuGlyphSize (&y, &dimy); // QVR
@@ -906,7 +949,23 @@ void Draw_CharacterQuadEx (float x, float y, float dimx, float dimy, char num)
 	fcol = col * 0.0625f + 1.f / (16.f * 10.f);
 	fsize = 8.f / (16.f * 10.f);
 
-	Draw_TextOutline (x, y, dimx, dimy, fcol, frow, fsize, (unsigned char) num); // QVR
+	// QVR: the restyled font (vr_fontstyle.cpp): its cell, a letter with an outline or shadow drawn bigger round
+	// the same place (the text's layout unchanged); one with its own outline gets no second one
+	stepx = dimx / 8.f;
+	stepy = dimy / 8.f;
+	if (glcanvas.texture && glcanvas.texture == VR_FontStyle_Chars (char_texture))
+	{
+		float grow;
+		if (VR_FontStyle_CharCell ((unsigned char) num, &fcol, &frow, &fsize, &grow) & 2)
+			stepx = 0.f;
+		x -= dimx * grow;
+		y -= dimy * grow;
+		dimx *= 1.f + 2.f * grow;
+		dimy *= 1.f + 2.f * grow;
+	}
+
+	if (stepx > 0.f)
+		Draw_TextOutline (x, y, dimx, dimy, fcol, frow, fsize, (unsigned char) num, stepx, stepy); // QVR
 
 	verts = Draw_AllocQuad ();
 	Draw_SetVertex (verts++, x,      y,      fcol,         frow);
@@ -940,7 +999,7 @@ void Draw_CharacterEx (float x, float y, float dimx, float dimy, int num)
 	if ((num & 0x7f) == 32)
 		return; //don't waste verts on spaces
 
-	Draw_SetTexture (char_texture);
+	Draw_SetTexture (Draw_CharsTexture ()); // QVR: or its restyled copy
 	Draw_CharacterQuadEx (x, y, dimx, dimy, (char) num);
 }
 
@@ -967,7 +1026,7 @@ void Draw_StringEx (float x, float y, float dim, const char *str)
 	if (Draw_FadedOut ())
 		return;
 
-	Draw_SetTexture (char_texture);
+	Draw_SetTexture (Draw_CharsTexture ()); // QVR: or its restyled copy
 
 	while (*str)
 	{
