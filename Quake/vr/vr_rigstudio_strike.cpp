@@ -62,7 +62,8 @@ struct GhostWeapon
 {
     const qmodel_t* model{nullptr};
     int pose{0};
-    glm::mat4 m{1.f}; // its packed vertices -> the world
+    glm::mat4 m{1.f};   // its packed vertices -> the world
+    glm::mat4 own{1.f}; // its model's own frame (x forward, y left, z up: weaponLocalGeometry's) -> the world
 };
 struct GhostPose
 {
@@ -343,6 +344,7 @@ bool weaponGhost(int num, const glm::mat4& space, const rigpose::Rigid& frame, G
     out.model = e.model;
     out.pose = hdr && e.frame >= 0 && e.frame < hdr->numframes ? hdr->frames[e.frame].firstpose : 0;
     out.m = space * rigidMatrix(frame) * f0;
+    out.own = space * rigidMatrix(frame);
     return true;
 }
 
@@ -569,6 +571,7 @@ void refreshGhosts()
     gh.resumeT = s.t;
     gh.resumeParked = s.parked;
     gh.refreshedHash = gh.hash;
+    Con_DPrintf("rigstudio: the onion's ghosts taken again (data %08x, back to %.3f s)\n", gh.hash, s.t);
     s.t = 0.f;
     s.playing = true;
     s.parked = false;
@@ -1047,6 +1050,9 @@ void strikeTestTick()
         st.pdPhase = 0;
         Cvar_SetValueQuick(&vr_rigstudio_onion, 0.f);
         Cvar_SetValueQuick(&vr_rigstudio_ikghost, 0.f);
+        st.showPoseData = true; // (the timeline in the screenshots, clear of the view)
+        frameSelection();
+        snapView(3, false); // (its right side: the shove's reach across the view)
         swingPlay();
         s.speed = 1.f;
         s.loop = false;
@@ -1078,6 +1084,9 @@ void strikeTestTick()
         if(stest.waited == 12)
         {
             const int k = stest.step - 3;
+            // (the window shown by now: moved clear of the view for the screenshots)
+            ImGui::SetWindowPos("Pose Studio Data", ImVec2{ImGui::GetIO().DisplaySize.x - 300.f, 30.f});
+            ImGui::SetWindowSize("Pose Studio Data", ImVec2{296.f, 330.f});
             t.check(za::abs(s.t - s.keys[k]) < 1e-4f, name, va("parked on key %d: t %.4f", k, s.t));
             stest.hand[k] = hand();
             if(k < 2)
@@ -1102,7 +1111,25 @@ void strikeTestTick()
             const glm::vec3 m = hand();
             const float a = glm::length(m - stest.hand[0]), b = glm::length(m - stest.hand[1]);
             t.check(!s.parked && a > 0.2f && b > 0.2f, name, va("scrubbed between: off both keys' hands (%.2f, %.2f)", a, b));
+            // the ghosts' weapon where the game draws it (its origin, its barrel: the aim lines' reading)
+            const GhostPose g = poseFromNote(st.note);
+            AimLineReading r;
+            if(t.check(g.weapon[0].model && readAimLine(0, r), name, "ghost weapon: a weapon and its drawn reading"))
+            {
+                const glm::vec3 o{g.weapon[0].own[3]};
+                const glm::vec3 f = glm::normalize(glm::vec3{g.weapon[0].own[0]});
+                const float off = glm::length(o - r.origin);
+                const float turn = glm::degrees(za::acos(za::clamp(glm::dot(f, r.barrel), -1.f, 1.f)));
+                t.check(off < 0.5f && turn < 1.f, name, va("ghost weapon on the drawn one: %.3f units, %.2f deg off", off, turn));
+                Con_Printf("rigstudio strike: the ghost weapon %.3f units, %.2f deg off the drawn one\n", off, turn);
+            }
             Cbuf_AddText("screenshot\n");
+            next();
+        }
+        break;
+    case 7:
+        if(stest.waited == 6) // (the screenshot taken: the frame a few behind)
+        {
             // playback at 0.5x: its time advanced by half the game's
             s.speed = 0.5f;
             s.loop = true;
@@ -1110,11 +1137,8 @@ void strikeTestTick()
             s.playing = true;
             stest.t0 = s.t;
             stest.s0 = sv.qcvm.time;
-            next();
         }
-        break;
-    case 7:
-        if(stest.waited == 30)
+        if(stest.waited == 36)
         {
             const float game = static_cast<float>(sv.qcvm.time - stest.s0);
             t.check(za::abs((s.t - stest.t0) - game * 0.5f) < 2.f * frameStep, name,
@@ -1150,12 +1174,15 @@ void strikeTestTick()
             t.check(a && b && glm::length(a->hand[0] - b->hand[0]) > 1.f, name,
                 va("onion: its ghosts' hands apart (%.2f)", a && b ? glm::length(a->hand[0] - b->hand[0]) : 0.f));
             t.check(za::abs(s.t - s.keys[1]) < 1e-4f, name, va("onion: back on the key after taking them (t %.4f)", s.t));
-            Cbuf_AddText("screenshot\n");
             next();
         }
         break;
     case 9: // the IK ghost: the push's key's right weapon pushed out of reach
-        if(stest.waited == 3)
+        if(stest.waited == 4)
+        {
+            Cbuf_AddText("screenshot\n"); // (the onion skin)
+        }
+        if(stest.waited == 12)
         {
             Cvar_SetValueQuick(&vr_rigstudio_onion, 0.f);
             Cvar_SetValueQuick(&vr_rigstudio_ikghost, 3.f);
