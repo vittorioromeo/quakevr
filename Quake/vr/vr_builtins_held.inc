@@ -317,8 +317,8 @@ void PF_weapondrawnpose()
         glm::vec3 out{0.f};
         if(what == 19 && arg < 0)
         {
-            // (`hand` -1: the speed the studio plays `player`'s strike at, the Rig Studio's Swing; 1 for anything else)
-            out = glm::vec3{rigstudio::swingSpeed(NUM_FOR_EDICT(player)), 0.f, 0.f};
+            // (`hand` -1: the Rig Studio's strike timeline on `player`: x a play's speed, y its time, z 1 while it drives it)
+            out = rigstudio::strikeQuery(NUM_FOR_EDICT(player));
         }
         else if(what == 19)
         {
@@ -385,6 +385,72 @@ void PF_weapondrawnpose()
     {
         G_VECTOR(OFS_RETURN)[i] = out[i];
     }
+}
+
+// The armed humanoids' lookups in one call each (PERF_1102.md, "Follow-up": weapondrawnpose's ~30 calls a humanoid a frame),
+// their results in QC globals (Bindings::agkPart, agDrawn, agExtent; QC builtins.qc) as traceline's in trace_*.
+static void setGlobalVec(float* g, const glm::vec3& v)
+{
+    if(g)
+    {
+        g[0] = v.x;
+        g[1] = v.y;
+        g[2] = v.z;
+    }
+}
+
+// vector(float code) agposekey: pose key `code` (QC VR_AGK_Add): '1 0 0' and its parts (agpose::RPos..Torso, GripPos,
+// GripTurn: weapondrawnpose(world, code, 11..17, 25, 26)) in vr_agk_k_*; '0 0 0' none (weapondrawnpose 18), them left.
+void PF_agposekey()
+{
+    agpose::Key k;
+    const bool has = agpose::get(static_cast<int>(G_FLOAT(OFS_PARM0)), k);
+    if(has)
+    {
+        const Bindings& b = bindings();
+        for(int i = 0; i < agpose::numOldParts; i++)
+        {
+            setGlobalVec(b.agkPart[i], k.v[i]);
+        }
+        setGlobalVec(b.agkPart[agpose::numOldParts], k.v[agpose::GripPos]);
+        setGlobalVec(b.agkPart[agpose::numOldParts + 1], k.v[agpose::GripTurn]);
+    }
+    progs::returnVec({has ? 1.f : 0.f, 0.f, 0.f});
+}
+
+// float(entity p) agdrawnframe: armed humanoid's held weapon `p` as drawn lately (weapondrawnpose(p, 0, 30..32)): TRUE
+// and its origin, forward and up in vr_ag_df_o, _fw, _up (QC VR_AG_DrawnFrame's); FALSE not drawn lately (them left).
+void PF_agdrawnframe()
+{
+    glm::vec3 at{0.f}, fw{0.f}, up{0.f};
+    const bool local = sv.active && cls.state == ca_connected;
+    const bool drawn = local && hitreact::drawnWeapon(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)), at, fw, up) && fw != glm::vec3{0.f};
+    if(drawn)
+    {
+        const Bindings& b = bindings();
+        setGlobalVec(b.agDrawn[0], at);
+        setGlobalVec(b.agDrawn[1], fw);
+        setGlobalVec(b.agDrawn[2], up);
+    }
+    G_FLOAT(OFS_RETURN) = drawn ? 1.f : 0.f;
+}
+
+// vector(entity p) agweaponextent: weapon `p`'s drawn model along its long axis (held::drawnExtent; weapondrawnpose(p, 0,
+// 33..35)): '<its most off that line> <its length> 0', its back and front ends (its own axes) in vr_ag_wx_back, _front;
+// all '0 0 0' with no drawn surface.
+void PF_agweaponextent()
+{
+    glm::vec3 back{0.f}, front{0.f};
+    float radius = 0.f;
+    if(!held::drawnExtent(G_EDICT(OFS_PARM0), back, front, radius))
+    {
+        back = front = glm::vec3{0.f};
+        radius = 0.f;
+    }
+    const Bindings& b = bindings();
+    setGlobalVec(b.agExtent[0], back);
+    setGlobalVec(b.agExtent[1], front);
+    progs::returnVec({radius, glm::distance(front, back), 0.f});
 }
 
 // vector(float kind, float f) admeleebend: AD sword kind `kind`'s blade at share `f` of the line from the hand to its tip,

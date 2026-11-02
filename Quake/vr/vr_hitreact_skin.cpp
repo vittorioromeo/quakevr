@@ -271,6 +271,11 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
         rigseq::adjustTargets(*rig, spec, posed, kicked ? kick : nullptr, t); // (the Rig Studio's arms: the hands on their bones)
     }
     agarms::Placed placed;
+    // (vr_agarms_lod: far ones' last solve reused between their turns; exact while reacting to a hit or the studios'
+    // subject)
+    const bool exact = kicked || hitreact::reacting(e) || posestudio::active() || rigstudio::wantsNotes() ||
+                       poselive::recording(s.ent) || vr_agrunt_ik_debug.value >= 2.f;
+    if(!agarms::lodReuse(e, hdr, *rig, spec, posed, kicked ? kick : nullptr, t, exact, placed))
     {
         QVR_TRACY_SCOPE(tracySolve, "armed pose: arms solve");
         if(!agarms::solve(e, hdr, *rig, spec, posed, kicked ? kick : nullptr, t, placed))

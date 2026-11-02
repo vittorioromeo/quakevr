@@ -129,6 +129,12 @@ struct Bindings
     float* agrHold{nullptr};   // vr_agr_hold: > 0 while a tool spawns (no armed replacement: progs::ToolSpawn)
     float* playerTimeOffset{nullptr}; // vr_player_time_offset: the player's clock ahead of time (vr_timescale.cpp)
     float* handTimeScale{nullptr};    // vr_hand_time_scale: the hands' velocities to real time (timescale::handScale)
+    // The armed humanoids' one-call lookups' results, QC globals they set as traceline sets trace_* (vr_builtins_held.inc):
+    // agposekey's key parts (vr_agk_k_rp, _rr, _lp, _lr, _er, _el, _t, _gp, _gr), agdrawnframe's weapon frame (vr_ag_df_o,
+    // _fw, _up), agweaponextent's ends (vr_ag_wx_back, _front). Null: no such global (then not set).
+    float* agkPart[9]{};
+    float* agDrawn[3]{};
+    float* agExtent[2]{};
     float* extSpawnParms[numExtSpawnParms]{};
 };
 

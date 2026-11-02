@@ -82,6 +82,12 @@ Spawn a grunt with a nail pistol in each hand from the toolgun several times, ri
 Run full speed at a grunt and let go of the stick within about 1.6 m: you brake and stop short of it instead of sliding into it; strafing past isn't slowed (Locomotion > Close Quarters > Brake Momentum, Braking). {test:closequarters}
 Throw a magazine or cell hard at a grunt: about 1 damage, a flinch and its pain, as a light prop does. {test:magthrow}
 Fight a crowd of armed grunts (shotgun up close, punches): smoother than last night, no change in hits, parries or worn packs {test:bench_armed_mix16}
+Rig Studio fly camera: W A S D, Q/E down/up, Shift faster (Preferences > Fly Speed); Select is now B, IK is K, Weights is V.
+Pose Studio Data, pick Shove: the timeline plays at 0.25x, Loop, scrub the bar, step with < > or Left/Right, Key returns to the phase. {test:rigstudio_strike}
+Timeline > Onion Skin: orange ghosts before, blue after (arms, hands, chest line, weapons); after a key edit they retake themselves; Phase Points spacing.
+Tools > Display > IK Ghost Right/Left: push a weapon past reach: the set weapon translucent, the diamond at the set hand, the "off" label.
+AD: kill a cleaver hunter ogre and a death sergeant: both fall as ragdolls (no "got 0 vertices" in the console at startup), the weapon dropped beside them, the fist on the arm.
+Far armed humanoids' arms move smoothly and their guns stay in their hands; turning your head to a group behind you never shows a stale arm (Graphics > Performance: Armed Arms LOD). {test:bench_armed_mix32}
 
 [2. Armed humanoids: disarming and armour]
 Show Disarm Volumes: the wireframe hulls sit on each drawn weapon (magenta, orange, red; the sword's orange line along its blade) and on the drawn hand and forearm (cyan). {test:disarm_hulls_melee}

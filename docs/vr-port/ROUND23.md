@@ -6058,6 +6058,69 @@ New: bench group `armed` (`armed_mix16`, `armed_mix32`, `crowd32_armed`, `crowd3
 Wave 6), profiling scopes in the client relink and the armed arms' pose steps; the Release-Tracy build compiles again
 (`vr_tracy.cpp` after the refactor's cvar change).
 
+## Rig Studio: strike timeline, onion skin, IK ghost, fly camera (branch `agent/rigtools`, his words 2026-11-02)
+
+"Enable camera movement via WSAD; onion-like ghosts for pose editor animations (e.g. shove); slowly play them, control
+speed or scrub; the real position of set limbs as a ghost (what the IK constrains vs what I set)." And: "Ensure that WASD
+doesn't conflict with existing shortcuts." Full description: RIGSTUDIO.md, "The strike timeline and the ghosts".
+
+- **Strike timeline** (Pose Studio Data, a strike or the Cast picked; replaces Swing / Swing Speed / Stop Swing): Play /
+  Pause (Space), |<, < > a 1/72 s frame (Left / Right), Key (back on the picked phase's key), Loop, Speed 0.05x..2x, Let
+  Go; a scrubber bar with the act's phases coloured and named, its keys as diamonds, the onion's ticks, the time. The
+  engine drives the act's time (`weapondrawnpose(g, -1, 19)` now returns speed, time, driven; QC `VR_AGK_Hold` sets
+  `vr_ag_act_at = time - t` unslowed), QC tells it the act's times (`VR_AGK_TellTimes` -> `.vr_rs_times`, `.vr_rs_trec`,
+  `.vr_rs_keys`; `VR_AGK_KeyTime` now the one place the keys' times are worked out). The VR Pose Studio's play by count
+  is unchanged. One line in `vr_builtins_held.inc` (the weapondrawnpose builtin: the -1 query's answer) touched.
+- **Onion Skin** (under the timeline; `vr_rigstudio_onion` 0, `_count` 2, `_step` 0.06, `_mode` 0 every step / 1 phase
+  points): ghosts of the arms, hands, chest line and weapons (translucent meshes) as the game solved them at those times,
+  orange before, blue after, fading; taken as the act plays (1/144 s bins); after an edit (keys, stretch, aim target)
+  they are dropped and the act plays once at 1x to take them again (Auto Refresh, 0.3 s after the data settle; Refresh
+  button). Limit: not the body's mesh (the game draws it on the GPU; only the arms' solve is on the CPU).
+- **IK Ghost** (Tools > Display, Right / Left; `vr_rigstudio_ikghost` 0): each hand's goal before the IK: the weapon there
+  (translucent), a hollow diamond at the hand as set, dashed to the solved hand, the arm straight from the shoulder, the
+  elbow's pole as set, a label (units and degrees off; reach, body, wrist, elbow-off-pole from the solve).
+- **Fly camera**: W A S D (along the view), Q / E down / up, Shift 3x, `vr_rigstudio_fly_speed` 120 (Preferences); the
+  orbit's focus moves with it; not while a text field has focus or with Ctrl / Alt held (Ctrl+S still saves). **Moved
+  shortcuts**: Select Q -> B, IK E -> K, Weights W -> V (Tools window labels, Help, RIGSTUDIO.md). Every other key is as
+  it was (R G T P O I H F 1/3/7 Space Left Right, Ctrl+Z/Y/S, Esc, F1; the dope sheet's X/Delete, Ctrl+C/V).
+- `vr_rigstudio_strike [play|pause|park|t <s>|step <n>|speed <x>|loop 0|1|refresh]`; test `vr_rigstudio_test_strike`
+  (RIGSTUDIO.md, Tests).
+
+## AD ragdolls lost again: the hunter ogre and the death sergeant (branch `agent/adragdoll`, his report 2026-11-02)
+
+His console with Arcane Dimensions: `ragdoll: progs/mon_hogre.mdl: bone hand_r got 0 vertices: no ragdoll`, the same for
+`progs/mon_dsergeant.mdl`. Not the derive split (b0f2f0f28: no behaviour change) nor the positional zones (c1fa59f25):
+the two models whose weapons became loose pieces after d5de4ee89 (which fixed the hammer and mace ogres, the death
+guard/knight/fury, the crossbow knight, the hell knight and the ice golem) never had their seed tables updated.
+40020fb03 ("ogres drop chainsaws") put the cleaver ogre's weapon (210..332) in vr_monstermods.cpp knownSwords; 9c0842ef4
+(the flail) made the sergeant's flail (870..1264) loose and removed its bone. Both tables kept `hand_r`'s middle in the
+weapon and its pivot at the grip (the ogre) or past the fist (the sergeant), so no cluster went to the hand and
+`adoptPastPivot` found fewer than 3 of the forearm's vertices past that pivot (the ogre 2 places, the sergeant none).
+
+- vr_ad_rigs.inc: their `hand_r` the fist, as the crossbow knight's in d5de4ee89: the pivot at the wrist, the middle and
+  end the fist's, the forearm's end the wrist. The ogre: 13 bones, hand 22 vertices (10 places), bones 1.06 units rms;
+  the sergeant: 13 bones, hand 22 (9 places), 1.04.
+- `vr_ragdoll_rig_sweep` (Debug > Ragdolls > Every Ragdoll Rig; registered at start-up with `vr_ragdoll_info`, so both
+  work before any map): every seed table's model in the game folders derived, `N rigged, M failed, K absent`. A failed
+  derive's line now lists each bone's vertex count.
+- Misc/quakevr/ragdoll/ad_rig_sweep.sh (TESTING.md, "Ragdoll rigs"): the sweep with AD: 69 rigged, 0 failed, 0 absent
+  (before the fix 67 rigged, 2 failed: exactly his two).
+
+## Armed humanoids: the arms' level of detail, the pose keys in one call (branch `agent/perf1102b`; PERF_1102.md, "Follow-up")
+
+His answer to PERF_1102's list: far and unseen humanoids posed less often, the lookups optimised. **The arms' IK
+level of detail** (`vr_agarms_lod 1`, Graphics > Performance: Near Within `vr_agarms_lod_near 192` units, Far in View
+`vr_agarms_lod_far 2` frames, Out of View `vr_agarms_lod_unseen 6`, View Margin `vr_agarms_lod_margin 20` deg): a far
+armed humanoid solves its arms on its turn only; between, the last solve rides its chest and its held weapon its
+target (the aim, and the shots' drawn line, exact). Near ones, hit reactions, the studios' subjects, changing grips and
+anything easing or moving fast are solved every frame; hits use the arms as drawn (near ones exact, so melee and
+parries never meet a stale arm). Debug > Tests: Check the Arms' Detail (`vr_agarms_lod_check`), Arms' Solve Time
+(counts, far hands' jerk). Reused against solved: hands 0.025 units mean; A/B `crowd32_armed` -0.41 ms p50.
+**The pose keys**: `agposekey`, `agdrawnframe`, `agweaponextent` builtins (one call each instead of 10, 3 and 3
+`weapondrawnpose` calls; results in QC globals), proven identical over 77824 key sets, 196608 drawn frames and 192512
+extents; tests 99, 79, 16 pass; A/B `crowd32_armed` -0.33 ms p50 (A/Bs taken while another worker ran: noisy).
+Checklist: Far armed humanoids' arms move smoothly and their guns stay in their hands; turning your head to a group
+behind you never shows a stale arm {test:bench_armed_mix32}.
 
 ## Font upscaling, outline and drop shadow, live in the menu (branch `agent/fontstyle`, his words 2026-11-02)
 

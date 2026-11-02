@@ -344,10 +344,10 @@ float vr_ag_msp_raw;       // ... its standoff before the least and the most
 float(entity p) VR_AG_MeleeLen =
 {
     float len = 0;
-    vector size = weapondrawnpose(p, 0, 35);
+    vector size = agweaponextent(p); // (its front end into vr_ag_wx_front)
     if(size_y > 1)
     {
-        vector hi = weapondrawnpose(p, 0, 34);
+        vector hi = vr_ag_wx_front;
         len = max(0, hi_x);
     }
     float m = vlen(weaponmuzzle(p) - p.origin);

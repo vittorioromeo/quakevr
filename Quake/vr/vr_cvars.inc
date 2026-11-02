@@ -2702,6 +2702,12 @@ QVR_CVAR(vr_agrunt_ragweapon_check, "0", CVAR_NONE)  // 1: measure each frame ho
 QVR_CVAR(vr_agarms_second, "0.97", CVAR_NONE)        // vr_agarms: the off hand takes a two-handed weapon's second grip only while its wrist is within this share of its arm's length of its shoulder
 QVR_CVAR(vr_agarms_wrist_most, "100", CVAR_NONE)      // vr_agarms: a wrist bends at most this much (degrees); past it the hand, and its weapon, turn back towards the forearm
 QVR_CVAR(vr_agarms_wrist, "80", CVAR_NONE)           // vr_agarms: ... and its wrist bends at most this much there (degrees); else it lets go and hangs free
+QVR_CVAR(vr_agarms_lod, "1", CVAR_ARCHIVE)          // vr_agarms: the arms' IK level of detail: armed humanoids far off solved less often, their last solve carried by the chest between (agarms::lodReuse); 0 every one every frame (before)
+QVR_CVAR(vr_agarms_lod_near, "192", CVAR_ARCHIVE)    // ... within this of the view (units): every frame
+QVR_CVAR(vr_agarms_lod_far, "2", CVAR_ARCHIVE)       // ... further off in view: solved every this many frames
+QVR_CVAR(vr_agarms_lod_unseen, "6", CVAR_ARCHIVE)    // ... further off out of view: every this many frames
+QVR_CVAR(vr_agarms_lod_margin, "20", CVAR_ARCHIVE)   // ... in view: within the eyes' views and this much round them (degrees: a turn of the head never meets a stale arm)
+QVR_CVAR(vr_agarms_lod_check, "0", CVAR_NONE)       // ... 1: each reused frame also solved (on a copy of its state) and the two compared: vr_agarms_cost prints how far apart (Debug > Tests)
 QVR_CVAR(vr_agarms_elbow_rate, "720", CVAR_NONE)      // vr_agarms: an elbow swings round its reach line at most this fast (degrees a second; the way round outside the body: no flips); 0 anywhere at once (before)
 QVR_CVAR(vr_agrunt_upper, "1", CVAR_NONE)           // vr_agarms: 1 armed humanoids' chests (and heads) held on their hips as they stand (the frames' own chest and shoulder motion in shots, reloads, pains and runs, which the posed arms don't follow, taken out; hit flinches and strikes' turns on top; the frames' in a pickup's crouch); 0 the frames' (before)
 QVR_CVAR(vr_agrunt_aim_twist, "0.5", CVAR_NONE)      // ... a gun aimed turns their chest towards its aim by this share of the aim's yaw and pitch off their body's way (at most 25 and 20 degrees; a shot's kick leans it back, a reload turns it towards the off hand); 0 none
@@ -3052,6 +3058,12 @@ QVR_CVAR(vr_rigstudio_pan_speed, "1", CVAR_ARCHIVE)   // the pan's speed (1: the
 QVR_CVAR(vr_rigstudio_zoom_speed, "0.12", CVAR_ARCHIVE) // the wheel's zoom a step (a share of the distance)
 QVR_CVAR(vr_rigstudio_handle_size, "90", CVAR_ARCHIVE) // pixels: the transform handles' size
 QVR_CVAR(vr_rigstudio_theme, "0", CVAR_ARCHIVE)       // the studio's colours: 0 dark, 1 light, 2 classic
+QVR_CVAR(vr_rigstudio_fly_speed, "120", CVAR_ARCHIVE) // units a second: the fly camera (W A S D, Q E; Shift 3x; Preferences)
+QVR_CVAR(vr_rigstudio_onion, "0", CVAR_ARCHIVE)       // the strike timeline's onion skin: ghosts of the act before and after its time
+QVR_CVAR(vr_rigstudio_onion_count, "2", CVAR_ARCHIVE) // ... how many each way (1..6)
+QVR_CVAR(vr_rigstudio_onion_step, "0.06", CVAR_ARCHIVE) // ... seconds between them (the act's own time; 0.01..0.5)
+QVR_CVAR(vr_rigstudio_onion_mode, "0", CVAR_ARCHIVE)  // ... 0 every onion_step, 1 at the act's phase points (its phases' bounds, its keys)
+QVR_CVAR(vr_rigstudio_ikghost, "0", CVAR_ARCHIVE)     // the IK ghost: where the set values put each hand and weapon (1 right, 2 left, 3 both)
 QVR_CVAR(vr_agrunt_taunt, "0", CVAR_ARCHIVE)          // 1: an armed grunt seeing you for the first time plays its taunt (the Rig Studio sequence quakevr/anims/vrgrunt/taunt.anim.txt) before it comes for you; 0 off
 // Armed humanoids' AI (Combat > Armed Grunts > AI Behaviour; QC vr_armedgrunt_ai.qc; ROUND22.md, "Armed humanoids' AI
 // behaviour"): each 1 is today's behaviour at Normal skill; the skill's factor (vr_agrunt_ai_skill) on top.

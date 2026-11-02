@@ -1562,8 +1562,15 @@ bool derive(qmodel_t* model, const aliashdr_t* hdr, const SeedTable& table, Rig&
         if(t.members[static_cast<za::SizeT>(b)] < 3)
         {
             log.developer = false;
-            q_snprintf(log.text, sizeof(log.text), "ragdoll: %s: bone %s got %d vertices: no ragdoll\n", model->name,
+            q_snprintf(log.text, sizeof(log.text), "ragdoll: %s: bone %s got %d vertices: no ragdoll (each bone's:", model->name,
                 table.seeds[b].name, t.members[static_cast<za::SizeT>(b)]);
+            for(int c = 0; c < table.count; c++)
+            {
+                const size_t len = strlen(log.text);
+                q_snprintf(log.text + len, sizeof(log.text) - len, " %d", t.members[static_cast<za::SizeT>(c)]);
+            }
+            const size_t len = strlen(log.text);
+            q_snprintf(log.text + len, sizeof(log.text) - len, ")\n");
             return false;
         }
     }
@@ -2582,6 +2589,44 @@ void warmRigs(qmodel_t* const* models, int count)
             (void)rigFor(models[i]);
         }
     }
+}
+
+void rigSweep_f()
+{
+    // Every seed table's model the game folders have (the mission packs', AD's with -game ad): their derived rigs made
+    // (on the pool, as a map's), then counted. A table made for a weapon in the hand that a later change made loose
+    // (vr_monstermods.cpp knownSwords) shows here as "bone hand_r got 0 vertices" (ROUND23.md, "AD ragdolls lost again").
+    za::Vector<qmodel_t*> models;
+    int absent = 0;
+    for(const SeedTable& t : seedTables)
+    {
+        const char* path = modelmeta::path(t.model);
+        qmodel_t* model = path && COM_FileExists(path, nullptr) ? Mod_ForName(path, false) : nullptr;
+        if(!model || model->type != mod_alias)
+        {
+            absent++;
+            continue;
+        }
+        if(za::find(models.begin(), models.end(), model) == models.end())
+        {
+            models.pushBack(model);
+        }
+    }
+    warmRigs(models.data(), static_cast<int>(models.size()));
+    int rigged = 0, failed = 0;
+    for(qmodel_t* model : models)
+    {
+        if(derivedRigFor(model))
+        {
+            rigged++;
+        }
+        else
+        {
+            failed++;
+            Con_Printf("vr_ragdoll_rig_sweep: %s: no ragdoll\n", model->name);
+        }
+    }
+    Con_Printf("vr_ragdoll_rig_sweep: %d rigged, %d failed, %d absent\n", rigged, failed, absent);
 }
 
 qmodel_t* skinnedModelOf(const Rig& rig)
