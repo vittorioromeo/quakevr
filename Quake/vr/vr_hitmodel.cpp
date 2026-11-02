@@ -314,13 +314,115 @@ namespace
 
 // Where and how `ent` is drawn now.
 
-// A ragdoll's skinned vertices for the test under way (drawnOf; the server's frame: the main thread).
+// A skinned body's (a ragdoll's, an armed humanoid's as drawn) node bounds: its model's hierarchy (Mesh::nodes, the
+// same layout) refit to the skinned vertices. Each node's box round its vertices (world) and the largest part of their
+// normals on each axis: a vertex grown by g moves at most g times that, so one refit serves every growth.
+struct SkinBounds
+{
+    glm::vec3 lo{0.f}, hi{0.f}, n{0.f};
+};
+
+// A ragdoll's skinned vertices for the test under way (drawnOf; the server's frame: the main thread), and their bounds.
 struct RagdollScratch
 {
     za::Vector<glm::vec3> pos, nor;
-    auto members() { return mem::list(pos, nor); }
+    za::Vector<SkinBounds> tree;
+    auto members() { return mem::list(pos, nor, tree); }
 };
 mem::Scratch<RagdollScratch> ragdollScratch{"hit model ragdolls"};
+
+// Each armed humanoid's bounds, refit once a making of its mesh (drawnpose::armedMesh's build: a frame's shots and
+// blows share it; PERF_1102.md, "Follow-up: a triangle hierarchy").
+struct SkinTree
+{
+    int num{0};
+    za::U32 build{0};
+    const Mesh* mesh{nullptr};
+    za::Vector<SkinBounds> nodes;
+};
+[[nodiscard]] za::SizeT heldBytes(const SkinTree& x) // (vr_mem.hpp)
+{
+    return mem::heldBytes(x.nodes);
+}
+struct SkinTrees
+{
+    za::Vector<SkinTree> trees; // (one an entity: its last)
+    auto members() { return mem::list(trees); }
+};
+mem::Cache<SkinTrees> skinTrees{"hit model skinned bounds", mem::MapChange | mem::ModelReload};
+constexpr za::SizeT maxSkinTrees = 256; // (past it: all begun again)
+
+// The model's hierarchy refit to skinned vertices `pos` and normals `nor` (children after their parent: from the end).
+void refit(const Mesh& m, const glm::vec3* pos, const glm::vec3* nor, za::Vector<SkinBounds>& out)
+{
+    stats.refits++;
+    const za::SizeT nn = m.nodes.size();
+    out.resize(nn);
+    for(za::SizeT j = nn; j-- > 0;)
+    {
+        const Node& nd = m.nodes[j];
+        SkinBounds& b = out[j];
+        if(nd.count == 0)
+        {
+            const SkinBounds& l = out[j + 1];
+            const SkinBounds& r = out[nd.first];
+            b.lo = glm::min(l.lo, r.lo);
+            b.hi = glm::max(l.hi, r.hi);
+            b.n = glm::max(l.n, r.n);
+            continue;
+        }
+        b.lo = glm::vec3{1e30f};
+        b.hi = glm::vec3{-1e30f};
+        b.n = glm::vec3{0.f};
+        for(za::U32 k = nd.first; k < nd.first + nd.count; k++)
+        {
+            for(const za::U16 vi : m.tris[k])
+            {
+                b.lo = glm::min(b.lo, pos[vi]);
+                b.hi = glm::max(b.hi, pos[vi]);
+                b.n = glm::max(b.n, glm::abs(nor[vi]));
+            }
+        }
+    }
+}
+
+// Skinned body d's node bounds: an armed humanoid's kept by its mesh's making, a ragdoll's made now.
+[[nodiscard]] const SkinBounds* skinBoundsOf(const Drawn& d)
+{
+    if(d.build == 0u)
+    {
+        refit(*d.mesh, d.skinned, d.skinnedN, ragdollScratch.tree);
+        return ragdollScratch.tree.data();
+    }
+    za::Vector<SkinTree>& trees = skinTrees.trees;
+    SkinTree* t = nullptr;
+    for(SkinTree& x : trees)
+    {
+        if(x.num == d.num)
+        {
+            t = &x;
+            break;
+        }
+    }
+    if(t && t->build == d.build && t->mesh == d.mesh)
+    {
+        return t->nodes.data();
+    }
+    if(!t)
+    {
+        if(trees.size() >= maxSkinTrees)
+        {
+            trees.clear(); // (entities gone: begun again)
+        }
+        trees.pushBack(SkinTree{});
+        t = &trees.back();
+        t->num = d.num;
+    }
+    t->build = d.build;
+    t->mesh = d.mesh;
+    refit(*d.mesh, d.skinned, d.skinnedN, t->nodes);
+    return t->nodes.data();
+}
 
 } // namespace
 namespace detail
@@ -398,6 +500,8 @@ bool drawnOf(edict_t* ent, Drawn& d, bool asDrawn)
     d.Ainv = glm::inverse(d.A);
     d.b = d.origin + d.R * d.l;
     d.invNetScale = glm::vec3{1.f} / glm::max(glm::abs(ns), glm::vec3{1e-3f});
+    d.num = num;
+    d.build = 0u;
     // A ragdoll: its mesh as its parts carry it (the triangles tested one by one: the hierarchy's bounds are its
     // frames').
     if(ragdoll::skinnedVertices(NUM_FOR_EDICT(ent), ragdollScratch.pos, &ragdollScratch.nor) &&
@@ -412,7 +516,8 @@ bool drawnOf(edict_t* ent, Drawn& d, bool asDrawn)
     // its hit reactions), not its animation frame: a shot at its drawn arm meets that arm (ROUND23.md, "Armed humanoids:
     // shots and grip spheres from the drawn pose"). Not for `asDrawn` false (vertexPoint: the frame's own vertices, its
     // arms' inputs) nor vr_hitmodel_check's frame comparison.
-    else if(asDrawn && !checkNoLerp && vr_hit_drawn_pose.value != 0.f && drawnpose::armedMesh(ent, ragdollScratch.pos, &ragdollScratch.nor) &&
+    else if(asDrawn && !checkNoLerp && vr_hit_drawn_pose.value != 0.f &&
+        drawnpose::armedMesh(ent, ragdollScratch.pos, &ragdollScratch.nor, &d.build) &&
         ragdollScratch.pos.size() >= static_cast<za::SizeT>(d.mesh->numverts))
     {
         d.skinned = ragdollScratch.pos.data();
@@ -478,12 +583,17 @@ bool firstCrossing(const Drawn& d, const glm::vec3& a, const glm::vec3& dir, flo
         }
         return vcache.pos[vi];
     };
-    const glm::vec3 sb = d.Ainv * (a - d.b);
-    const glm::vec3 db = d.Ainv * dir;
+    // A ragdoll, an armed humanoid as drawn: the hierarchy refit to its skinned vertices (world; its frames' bounds
+    // don't hold them), each node's box grown by its normals' largest parts times `grow`, and a margin for the crossing's
+    // rounding (never a triangle missed: the same hits as testing every triangle, PERF_1102.md).
+    const SkinBounds* sk = d.skinned ? skinBoundsOf(d) : nullptr;
+    const glm::vec3 sb = sk ? a : d.Ainv * (a - d.b);
+    const glm::vec3 db = sk ? dir : d.Ainv * dir;
+    const float g = za::fabs(grow);
     glm::vec3 e, inv;
     for(int i = 0; i < 3; i++)
     {
-        e[i] = grow * glm::length(glm::vec3{d.Ainv[0][i], d.Ainv[1][i], d.Ainv[2][i]}) + 0.01f;
+        e[i] = sk ? (sk[0].hi[i] - sk[0].lo[i]) * 1e-3f + 0.05f : grow * glm::length(glm::vec3{d.Ainv[0][i], d.Ainv[1][i], d.Ainv[2][i]}) + 0.01f;
         inv[i] = za::fabs(db[i]) < 1e-9f ? 0.f : 1.f / db[i];
     }
     const za::SizeT nn = m.nodes.size();
@@ -498,11 +608,21 @@ bool firstCrossing(const Drawn& d, const glm::vec3& a, const glm::vec3& dir, flo
         float t0 = 0.f, t1 = best;
         for(int k = 0; k < 3; k++)
         {
-            float lo = b1[i].lo[k], hi = b1[i].hi[k];
-            if(two)
+            float lo, hi;
+            if(sk)
             {
-                lo = za::min(lo, static_cast<float>(b2[i].lo[k]));
-                hi = za::max(hi, static_cast<float>(b2[i].hi[k]));
+                lo = sk[i].lo[k] - g * sk[i].n[k];
+                hi = sk[i].hi[k] + g * sk[i].n[k];
+            }
+            else
+            {
+                lo = b1[i].lo[k];
+                hi = b1[i].hi[k];
+                if(two)
+                {
+                    lo = za::min(lo, static_cast<float>(b2[i].lo[k]));
+                    hi = za::max(hi, static_cast<float>(b2[i].hi[k]));
+                }
             }
             lo -= e[k];
             hi += e[k];
@@ -559,7 +679,8 @@ bool firstCrossing(const Drawn& d, const glm::vec3& a, const glm::vec3& dir, flo
             return;
         }
         const float tt = glm::dot(e2, qv) * id;
-        if(tt < 0.f || tt >= best)
+        // (a skinned body's tie: the first triangle, as when they were all tested in order)
+        if(tt < 0.f || tt > best || (tt == best && !(sk && found && k < f.tri)))
         {
             return;
         }
@@ -572,47 +693,6 @@ bool firstCrossing(const Drawn& d, const glm::vec3& a, const glm::vec3& dir, flo
         f.faceN = glm::cross(e1, e2) * m.winding;
         f.front = glm::dot(dir, f.faceN) < 0.f;
     };
-    if(d.skinned)
-    {
-        // A ragdoll, an armed humanoid as drawn: every triangle (its frames' hierarchy doesn't bound it), unless the
-        // segment misses the box round all its vertices as grown (made here, each into the cache the triangles read).
-        glm::vec3 lo{1e30f}, hi{-1e30f};
-        for(int vi = 0; vi < m.numverts; vi++)
-        {
-            vcache.stamp[vi] = vcache.now;
-            const glm::vec3 p = vcache.pos[vi] = vs.at(d, vi, grow);
-            lo = glm::min(lo, p);
-            hi = glm::max(hi, p);
-        }
-        const glm::vec3 slack = (hi - lo) * 1e-3f + glm::vec3{0.05f}; // (the crossing's rounding: never a hit missed)
-        lo -= slack;
-        hi += slack;
-        float t0 = 0.f, t1 = best;
-        for(int i = 0; i < 3 && t0 <= t1; i++)
-        {
-            if(za::fabs(dir[i]) < 1e-12f)
-            {
-                t1 = a[i] < lo[i] || a[i] > hi[i] ? -1.f : t1;
-                continue;
-            }
-            float ta = (lo[i] - a[i]) / dir[i], tb = (hi[i] - a[i]) / dir[i];
-            if(ta > tb)
-            {
-                za::genericSwap(ta, tb);
-            }
-            t0 = za::max(t0, ta);
-            t1 = za::min(t1, tb);
-        }
-        if(t0 > t1)
-        {
-            return false;
-        }
-        for(za::U32 k = 0; k < m.tris.size(); k++)
-        {
-            test(k);
-        }
-        return found;
-    }
     za::Array<Entry, 64> stack;
     int sp = 0;
     if(const float t = enter(0); t <= best)

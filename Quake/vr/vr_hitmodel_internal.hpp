@@ -61,6 +61,7 @@ struct Stats
     long long insides{0};  // started inside
     long long nodes{0};
     long long tris{0};
+    long long refits{0};   // skinned bodies' hierarchies refit (an armed humanoid's: once a making of its mesh)
     double ns{0.};         // the model tests' time
     long long builds{0};
     double buildMs{0.};
@@ -155,6 +156,10 @@ struct Drawn
     // the world (ragdollScratch); null otherwise.
     const glm::vec3* skinned{nullptr};
     const glm::vec3* skinnedN{nullptr};
+    // Whose and which making of them (drawnpose::armedMesh's build; 0: a ragdoll's, made for this test): the triangle
+    // hierarchy refit to them is kept by it (vr_hitmodel.cpp's skinBoundsOf).
+    int num{0};
+    za::U32 build{0};
 };
 
 inline bool checkNoLerp = false; // (vr_hitmodel_check: the model at its frame and origin, for comparison)

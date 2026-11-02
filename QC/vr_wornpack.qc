@@ -56,7 +56,7 @@ float(entity pk, entity g) VR_WP_Place =
         return FALSE;
     }
     pk.angles = limbpiece(g, 0, 31);
-    setorigin(pk, o);
+    pk.origin = o; // (linked once, by setsize below: setorigin's link as well cost a second one each frame, PERF_1102.md)
     vector mid = limbpiece(g, 0, 32) - o;
     vector ext = limbpiece(g, 0, 33); // (the level box round its model's box as it is turned)
     if(ext == '0 0 0')

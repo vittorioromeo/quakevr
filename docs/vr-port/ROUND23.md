@@ -6122,6 +6122,34 @@ extents; tests 99, 79, 16 pass; A/B `crowd32_armed` -0.33 ms p50 (A/Bs taken whi
 Checklist: Far armed humanoids' arms move smoothly and their guns stay in their hands; turning your head to a group
 behind you never shows a stale arm {test:bench_armed_mix32}.
 
+## Precise hits through skinned bodies: a triangle hierarchy; worn packs linked once (branch `agent/hitbvh`; PERF_1102.md, "Follow-up 2")
+
+His yes to PERF_1102's item 4.
+
+**The hierarchy.** Shots and blows on a ragdoll or an armed humanoid as drawn used to test every triangle (~800) once
+they met the body's box. Now they walk the model's own triangle hierarchy, refit to the skinned vertices:
+- Each node has a world box plus its normals' largest parts, so one refit serves every growth.
+- An armed humanoid's refit is kept per making of its cached mesh (`drawnpose::armedMesh`'s new `build` number).
+- A ragdoll's is refit per test.
+
+Exact: 286018 skinned tests (1243 hits) compared with the flat loop in a temporary build, 0 differences; ties go to
+the first triangle as before. Triangles tested per test: 0.3-2.4.
+
+The tests' own time (Release LTO, fast mode, his settings): `crowd32_armed` 5.4 -> 0.9 us a test, about -0.43 ms a
+frame; the corpses scene -0.26; `combat_48` -0.09.
+
+Bench A/B: `crowd32_armed` -0.48 and -0.73 ms p50 in two rounds. The rest were in the noise: a local model server
+held the GPU during these runs, p95s were stalls, and the control spread 0.6 ms.
+
+**Worn packs**: `VR_WP_Place` sets the pack's origin and lets `setsize` link it, instead of `setorigin` linking it
+first: one BSP link less per worn pack a frame. Exact. The effect is below today's noise; `vr_wornpack_test 1` 38/1 on
+both (the known "dragged slowly: kept").
+
+Left: `drawnOf` still copies the cached armed mesh per test (about 0.5-0.9 us).
+
+Checklist: Shots and blows on armed humanoids and ragdolls land exactly where they did (cheaper now)
+{test:bench_crowd32_armed}.
+
 ## Font upscaling, outline and drop shadow, live in the menu (branch `agent/fontstyle`, his words 2026-11-02)
 
 - **Where:** Advanced VR Options > HUD and Menus > Menu, a "Fonts" group at the page's end (`vr_fontstyle.cpp`).
