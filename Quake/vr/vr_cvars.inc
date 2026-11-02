@@ -841,7 +841,7 @@ QVR_CVAR(vr_menu_recolor, "1", CVAR_ARCHIVE)          // the menus' browns, tans
 QVR_CVAR(vr_menu_recolor_strength, "1", CVAR_ARCHIVE)  // with it, how far towards the hue (0 to 1)
 QVR_CVAR(vr_menu_recolor_hue, "0", CVAR_ARCHIVE)       // with it, the hue they turn to (degrees; 0 red, the banner's; 345 crimson, 20 red-orange; -1 vr_player_hue)
 QVR_CVAR(vr_menu_recolor_saturation, "3", CVAR_ARCHIVE)    // with it, their colourfulness times this (as far as the hue's colours go; 0.5 to 3; their lightness always kept)
-QVR_CVAR(vr_menu_bigfont, "1", CVAR_ARCHIVE)         // the main menu's rows as text in Quake's own lettering (vr_bigfont.cpp; 0: Quake's picture, VR Calibration above it in the console's letters)
+QVR_CVAR(vr_menu_bigfont, "1", CVAR_ARCHIVE)         // the main menu's rows as text in Quake's own lettering, the other menus' pictures of rows restyled (vr_bigfont.cpp; 0: Quake's pictures as they are, VR Calibration above the main menu's in the console's letters)
 // The console font restyled (vr_fontstyle.cpp), one set for each kind of text; each change rebuilds that one at once.
 // Classic, no outline, shadow opacity 0: Quake's own texture, as before. Shipped: the author's look (2026-11-02).
 // The menus and the 2D canvas (Menu > Fonts):

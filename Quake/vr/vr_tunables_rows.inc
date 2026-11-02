@@ -1127,6 +1127,8 @@ QVR_TUNABLE_SLIDER(vr_footstep_run_vol, "Running Volume", 0.0f, 1.0f, 0.05f, "%.
 QVR_TUNABLE_SLIDER(vr_footstep_walk_atten, "Walking Falloff", 0.5f, 4.0f, 0.1f, "%.1f", 0.0f, 8.0f, "How fast a walking step dies with distance (Quake's usual sounds: 1).")
 QVR_TUNABLE_SLIDER(vr_footstep_run_atten, "Running Falloff", 0.5f, 4.0f, 0.1f, "%.1f", 0.0f, 8.0f, "How fast a running step dies with distance.")
 QVR_TUNABLE_SLIDER(vr_footstep_min_speed, "Least Speed", 0.0f, 30.0f, 1.0f, "%.0f u/s", 0.0f, 100.0f, "Slower is no step (a shift of weight on the spot, a pain's stagger).")
+QVR_TUNABLE_SLIDER(vr_footstep_heavy_volume, "Heavy Feet Volume", 0.0f, 2.0f, 0.05f, "%.2fx", 0.0f, 4.0f, "Ogres, fiends and shamblers, times this as well.")
+QVR_TUNABLE_SLIDER(vr_footstep_heavy_carry, "Heavy Feet Carry", 0.2f, 1.0f, 0.05f, "%.2fx", 0.05f, 1.0f, "Their distance counted times this for the falloff, the range and who is nearest: lower is heard from further, and over nearer boots.")
 QVR_TUNABLE_SLIDER(vr_footstep_nearest, "Heard at Once", 0.0f, 16.0f, 1.0f, "%.0f", 0.0f, 16.0f, "Only the nearest this many of the enemies moving are heard, so that a crowd doesn't machine-gun.")
 QVR_TUNABLE_SLIDER(vr_footstep_range, "Range", 200.0f, 2000.0f, 50.0f, "%.0f u", 0.0f, 8000.0f, "Farther from every player than this isn't heard or counted among the nearest.")
 QVR_TUNABLE_SLIDER(vr_footstep_rate, "Most a Second", 2.0f, 40.0f, 1.0f, "%.0f", 0.0f, 200.0f, "Steps a second at most, all the enemies together.")

@@ -6726,6 +6726,38 @@ setting (the player's own steps have none to sit beside; Volume 0 is off).
   grunts hunting you. `vr_footstep_info` prints each model's contacts, `vr_footstep_info <model> <frame> <count>` its feet
   over those frames, `tune vr_footstep_log 1` a line a step. Results and the bench are in the worktree's report.
 
+### Enemy footsteps: boots and heavy feet remade (branch `agent/footsteps2`)
+
+His words: "Grunt and enforcers sound a bit too metallic", "Struggling to hear ogres, fiends, and shamblers". Knights and
+zombies stay as they were (same WAV hashes). All of this is measured, not heard: no agent can listen to it.
+
+Means per set, from `scratch/stepspec.py` (band shares of the energy; "tone": the strongest line over its neighbours;
+A-100: the loudest 100 ms, A-weighted):
+
+| set | RMS | peak | <150 Hz | 150-800 | >2 kHz | tone dB | A-100 |
+|---|---|---|---|---|---|---|---|
+| old boot | 0.129 | 0.80 | 73% | 6% | 15.3% | 10.4 | 0.070 |
+| new boot | 0.090 | 0.60 | 24% | 50% | 3.8% | 10.6 | 0.083 |
+| metal (untouched) | 0.117 | 0.80 | 93% | 0% | 3.6% | 32.8 | 0.058 |
+| old thud | 0.217 | 0.90 | 99% | 0% | 0.1% | 11.0 | 0.034 |
+| new thud | 0.219 | 0.75 | 19% | 67% | 1.5% | 11.0 | 0.216 |
+| player's feet | 0.163 | 0.98 | 9% | 86% | 2.5% | 8.8 | 0.121 |
+
+- **Boots.** The old takes had no ringing line (tone 10 dB, as noise), so the metal was their bright edge: 1 ms attacks on
+  noise reaching past 2 kHz. Now a soft heel (3-5 ms attacks), a grainy scuff, the sole rolling down, all rolled off at 2 kHz.
+  Energy over 2 kHz is down 9 dB in absolute terms.
+- **Why the heavy feet were hard to hear.** The sample: 99% of its energy under 150 Hz, where headset speakers play little.
+  Its RMS was the highest of any set, but its A-weighted level was the lowest, under half a boot's. Neither budget nor range
+  was dropping them: a lone ogre was heard on all 12 of its steps at 300 and at 800 units (fiend 19, shambler 12-14). Falloff
+  made it worse at range: a mean gain of 0.097 at the head at 800 units.
+- **The fix.** New thuds carry a falling 420-170 Hz knock and a thick 170-750 Hz smack over a lighter low thump, with soft
+  saturation. Ogre gain 0.95 to 1.15, fiend 0.85 to 1, shambler 1.3 to 1.4. New tunables `vr_footstep_heavy_volume` (1) and
+  `vr_footstep_heavy_carry` (0.6): their distance counts times that for the falloff, the range (1000 becomes about 1670) and
+  who is nearest, so a heavy step is heard over nearer boots.
+- **Level at the head** (falloff gain times A-100): ogre at 300 units -39.9 to -20.8 dB, at 800 -49.8 to -24.5 dB; shambler
+  at 800 -42.1 to -19.2 dB; grunt at 300 -30.6 dB, at 800 -39.5 dB; the player's own steps -24.4 dB. Walls and air are not
+  in these. `vr_footstep_test <distance>` runs a lone grunt, ogre, fiend and shambler with you held that far behind.
+
 ## Tuned values can't be lost at release (branch `agent/promoguard`, 2026-11-02)
 
 His words: "Can we automate tweaks promotion so we can never forget?" Tuning constants are live in a development build
@@ -6768,37 +6800,103 @@ weighs 1 on it). `vr_agarmor_check` 20/0. Eyeshots in the worktree's scratch: `d
 back), `dkhelm2_front_crop.png`, `dkhelm2_threequarter_crop.png`, `dkhelm2_fullarmour.png`.
 - **Checklist:** [dkhelm2] An armoured death knight from the front (Debug > Tests > Helmets Alone There: Knight and Death Knight): plates come down each side of his face from the brim, outside his cheeks, his eyes open between them; it reads as a helmet, not a hat, and they turn with his head. {test:agarmor_helmets_knights}
 
-## Every QC cvar read by handle, checked (branch `agent/qchandles`, his words 2026-11-02, item 6)
+## Big menu rows drawn from pictures get the font style (branch `agent/skillfont`, 2026-11-02)
 
-"Turn *all* `cvar("...")` QuakeC lookups into cvar handles. Ensure all existing handles are valid/up-to-date. If
-possible, implement a check that always verifies that all handles are valid and not stale/obsolete."
+His words: "The big menu text for difficulty selection (e.g. "Easy", "Normal", "Hard") doesn't seem to use the outline/shadow effects,
+can that be fixed?" The rows are `gfx/skillmenu.lmp`, ironwail.pak's picture (180 x 82), not text. The main menu's way (rows as big font
+text) does not fit: the font has no E, N or h (nor G or J for New Game, Join a Game), its letters are cut from id's three pictures by hash,
+and fixed labels would hide a mod's own words. So the pictures are restyled whole: `VR_BigFont_DrawPicture` (vr_bigfont.cpp) gives
+`fontstyle::restyleStrip` the whole picture as one letter, keyed on the Menu surface's `generation` like the font's strip, and draws it
+where it was (`margin` further left and up). Menus call `M_DrawRowsPic`: skillmenu, sp_menu, sp_maps, mp_menu, netmen3/4, dim_ipx/tcp.
+Rows, cursor and mouse/laser hit areas are untouched: the picture's own coordinates. A mod's skillmenu.lmp shows as before
+(`m_skill_usegfx`'s logic unchanged, the same file search) and gets the style too. `vr_menu_bigfont 0` draws Quake's pictures as they
+are, as it does on the main menu (row help updated); no style at all (`fontstyle::active`) too.
 
-- **Converted.** 932 `cvar("<literal>")` calls in 140 QC files became `cvar_hget(cvarh_<name>)` (code only, comments
-  left), plus the names picked by a ternary (the aim cone's wide/narrow, the armour's helmet/cuts, the AD melee
-  weights, the ammo readout test's four) and the small fixed families built at run time: the armour roll's
-  `vr_agarmor_skill<0..3>[_type|_pieces]` (VR_AgArmor_SkillValue, also in its tests) and `vr_agrunt_repl_skill<0..3>`.
-  `VR_Pack_Hipnotic/Rogue` now read handles: the handles are made in OnSpawnServerBeforeLoad, before ED_LoadFromFile
-  spawns worldspawn or any entity (and again in OnLoadGame after a save's globals), and no QC runs earlier.
-- **Left by name** (check_canonical.py `qc-cvar-by-name`, allowlisted with reasons): `VR_ADGun_Value`
-  (`vr_adgun_<gun>_<what>`, 26 callers), the tests that keep a cvar table and put it back with `cvar_set` (arena,
-  arena perks, preparry, armed knight, replacements, the armour test's skill cvar), the small gibs test's printed
-  name, and `scratch5` (no engine cvar: `set scratch5 1` makes it after the handles are made). QC/ad (the AD import,
-  regenerated whole by ad_import.py, ~60 calls) keeps its `cvar("...")`: an edit there is lost on the next import.
-- **One declaration.** `cvarh_<name>` written anywhere in the QC is the whole declaration: gen_vr_cvars_qc.py now
-  makes every used handle (the engine's cvars too; vr_cvars.qc's 46 hand-written globals and `VR_CVAR_HMAKE` lines
-  are gone), sorted, from the code with comments stripped. A handle can't be declared without being made, and one
-  whose last use goes disappears (6 stale today: `vr_kdtrig_resist_<group>`, made and never read).
-- **Checks.** Build (`gen_vr_cvars_qc.py --check`, build.sh): the file must be current, and every name must be a
-  QVR_CVAR, tunable, weapon or monster value, monster group value (groups_data.py), weapon slot setting
-  (`vr_wofs_<key>_<NN>`) or an engine `cvar_t`; else `<file>: cvarh_<name> names no cvar or tuning constant`. Two
-  were invalid today: `vr_agrunt_shotdisarm_size` (retired 10-31, still printed by vr_disarmhull_test: dropped) and
-  `scratch5` (above). check_canonical's new `qc-cvar-by-name` family stops new `cvar(` calls outside the allowlist
-  (the generated file is out of its scan). Runtime: VR_CVar_Make counts handles the engine does not find (its
-  `cvar_hmake: unknown cvar` line, printed always) and VR_Test_Begin fails every QC test while any is.
-- **Cost.** Handles 1,351 -> 1,735; progs globals 63,010 -> 63,403 (of 65,536: ~2,100 left). `crowd32_armed`, fast
-  mode, vr_qcprofile, same exe: the `cvar` builtin 0.078 ms and 128.6 calls a frame -> off the list (none of ours);
-  `cvar_hget` 0.0167 -> 0.0187 ms (1003 -> 1131 calls); QuakeC 2.226 -> 2.191 ms a frame. Most of the old cost was
-  `VR_AG_KickLeft`'s `vr_heavy_recoil_time`, a tunable: by name it missed the cvar table first (2.9 us a call).
-- **Tests.** e1m1: no `cvar_hmake: unknown` line. `vr_arena_test 1` 257/0; `vr_agrunt_test 2` 4/0;
-  `vr_wornpack_test 1` 38/1 and 39/0 (next's own runs: 38/1 and 39/0, the same "dragged slowly" case flaking).
-  `vr_menu_path_check`: 0 missing; menu_paths.txt regenerated, unchanged.
+Left as they are: the titles' plates (ttl_main, ttl_sgl, ttl_cstm, p_skill, p_multi, p_option, p_load, p_save: dark letters cut into a
+red plate, their own art, an outline would only ring the plate); the main menu's picture rows when a mod's own mainmenu.lmp stops the
+font (a strip cut per row would clip the outline; menumods with them, to match); menuplyr, bigbox, help pages, qplaque (not rows).
+
+Checked: `vr_menu_bigfont 0` against 1 in one run: only the rows change (659 samples on the difficulty menu, 575 Single Player, 555
+Multiplayer; titles equal); `vr_font_outline`, its colour and `vr_font_shadow_x/y` changed on the open menu show on the next frame;
+`vr_mock_mouse 100 95` and `100 115` put the cursor on Hard and Nightmare, beside their rows. Not run with a real mod's picture.
+- **Checklist:** [skillfont] Difficulty menu (Play Custom Map, pick a map), Single Player and Multiplayer: the big rows have the same outline and shadow as the main menu's; change Menu > Fonts and they follow at once.
+
+## The player's walk: a step rate that does what it says, stride sliders, footsteps on the feet (branch `agent/playersteps`)
+
+His words (2026-11-02): "vr_body_step_rate" doesn't seem to affect the rate as I expect, is there any clamping going on? I
+would also like to be able to tweak the stride width and make player footsteps actually match the moving feet (optional, on
+by default).
+
+**The clamping, measured** (steps counted over 2 s on vrarena's flat floor, mock stick, about his height's body scale; the
+count's grain is 0.5/s; the new default over 3 s). The old rule: `min(speed / stride, max(cap, Running Cadence * person))`, with
+`cap = Step Rate * (0.7 + 0.3 run)` and Step Rate clamped to 0.5 .. 6 (menu 1 .. 5). `person` is 4.9 at a full run and 3.5 at
+190 u/s, so the cap only counted above that: from 2.2 to 3 nothing moved at those speeds, and 7 (6 by the clamp) gave 5.5 at
+a run.
+
+| stick, speed | old 2.2 (default) | old 3 | old 7 | new 3 | new 4.9 (default) | new 7 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 0.3, about 75 u/s | 2.5 | 2.0 | 4.0 | 1.0 | 2.67 | 3.5 |
+| 0.6, about 190 u/s | 3.5 | 3.5 | 4.5 | 2.5 | 3.67 | 4.5 |
+| 1, 320 u/s | 5.0 | 5.0 | 5.5 | 3.0 | 5.0 | 7.0 |
+
+(Running Cadence 1 in all of these. New with Running Cadence 0: 7 gives 4.0 / 5.5 / 7.0, 2.2 gives 1.5 / 2.0 / 2.0. The speed
+over the stride is about 13 a second at a run with the default stride: the only other limit.)
+
+**The rule now:** `vr_body_step_rate` (now 4.9, 0.5 .. 10, the menu the same) is the steps a second at a full run, 320 units
+a second, at any world or body scale. Below it a share of that: `vr_body_step_run` (Running Cadence, 0 .. 1, was 0 .. 1.5)
+blends from even (70% at the slowest) to a person's cadence over a person's at a run. Never more than the speed over the
+stride. This differs from the brief's proposal (Step Rate alone up to a run, a blend at a run) because at the default Running
+Cadence 1 the proposal leaves the slider dead at a full run, where he plays and where he tried it.
+
+**At defaults:** his look: 4.87 steps a second at a run at his height (1.56 m) against the new 4.9, and the same under it
+within the count's grain (old 2.5 / 3.5 / 5.0, new 2.67 / 3.67 / 5.0); the old cap of 2.2 survives as `SLOWEST_STEPS`, the least
+share at a crawl. Other heights change a little: the old rate at a run followed the body (4.6 at the models' own 1.65 m), the
+new one is the slider's number. A config from before the sparse ones (vr_cfg_version < 218) still holding 2.2 keeps 2.2, as
+for any changed default.
+
+**Stride.** `vr_body_stride` (Stride Length, 1, 0.3 .. 2), times the stride; `vr_body_step_width` (Step Width, 0 m, -0.08 ..
+0.25), each foot further out than it stands, eased with the walk. No setting for either before (the feet stand the hips' width
+apart, 0.18 m, from the bind pose; `vr_body_legs_back` is fore and aft only). At a full run, default rate (3 s):
+
+| Stride Length | stride | steps/s | planted foot slides | a planted foot off the floor at the stride's ends |
+| --- | --- | --- | --- | --- |
+| 0.3 | 0.23 m | 4.67 | 90% | 5 cm |
+| 1 | 0.80 m | 5.0 | 63% | 12 cm |
+| 1.5 | 1.16 m | 4.67 | 47% | 20 cm |
+| 2 | 1.54 m | 4.67 | 30% | 27 cm |
+
+So the longer stride does bring the foot to the ground's pace (at a slow walk, stick 0.3, 2x: 3% slide, the speed-over-stride
+limit taking over), at the cost of the feet lifting at the ends: the hips don't drop for the reach. Today's 12 cm is that
+too. Step Width 0.25: 0.65 m apart; -0.08: 0.03 m.
+
+**The footsteps, before:** QC's `player_run`, one think in 0.1 s while moving, on the ground, every 95 units or so: one of
+misc/foot1..7.wav at 0.5, ATTN_NORM, on any free channel from the player (unplaced), pitch varied by `vr_snd_pitch_jitter`.
+At a run 3.3 a second whatever the legs do. There's no setting for it (the QC global `footsteps` is always 1).
+
+**Now** (`vr_body_step_sounds`, Footsteps on the Feet, default on; `Quake/vr/vr_playersteps.cpp`): a touchdown of the drawn legs
+(`Skeleton::steps`, the bloody footprints' count) plays the same sounds at the same volume and variation on the client, in
+the frame it is drawn, from that foot's place. (Placed under the listener, about 6% quieter than unplaced from the distance;
+at a run 4.9 steps a second against the old 3.3: more steps, as many as you see.) The old trigger asks `playerstepsilent` and
+keeps quiet; one rule, `fromLegs()`, answers for both sides. It keeps sounding: the setting off; no walking legs drawn (no
+legs, `vr_body_walk 0`, no VR); in the air, so a landing's step is as it was; swimming and climbing; multiplayer, bots too
+(the server's sound goes to all, it can't leave one player out, and the others don't have your feet's phase: everyone there
+hears the old trigger). A landing's old step and a touchdown within 0.12 s are one sound.
+
+Standing steps (turning on the spot, moving in the room): quiet, 0.35 of a step (`vr_footstep_player_turn_vol`, Debug >
+Tunables > Player > Footsteps; 0: none). The feet do visibly step, so silence would look wrong, but they are small steps, and
+snap turns make two at once. The old trigger had none.
+
+**Test:** `Misc/quakevr/playersteps_test.sh <agent>`, ends on `playersteps_test: N passed, M failed`; the report is
+`vr_body_step_report` (Debug > Player's Walk Report: press, walk, press). Sound error: from the frame the drawn foot's swing
+ends (its ankle against its hip stops going forward).
+
+| phase | speed | touchdowns | sounds from the feet | old played | old silenced | sound error |
+| --- | --- | --- | --- | --- | --- | --- |
+| walk, stick 0.4 | 112 u/s | 9 | 9 | 0 | 4 | 13.9 ms |
+| run | 320 u/s | 15 | 15 | 0 | 10 | 13.0 mean, 13.9 most |
+| strafe | 320 u/s | 15 | 15 | 0 | 10 | 13.9 ms |
+| turning on the spot | | 4 (2 standing) | 4 | 0 | 1 | not checked |
+| run, `vr_body_step_sounds 0` | 296 u/s | 14 | 0 | 9 | 0 | |
+| run, `vr_body_walk 0` | 295 u/s | 0 | 0 | 9 | 0 | |
+
+The one frame: the sound starts as the foot is first drawn planted, a frame (at 72 Hz) after its forward-most.
