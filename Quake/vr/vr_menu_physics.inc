@@ -50,7 +50,6 @@
         row(opt::vr_collect_fx),
         row(opt::vr_collect_fx_time),
         row(opt::vr_collect_fx_size),
-        row(opt::vr_weapon_grab_drawn),
         row(opt::vr_weapon_grab_slack),
         row(opt::vr_weapon_grab_handle_leniency),
         row(opt::vr_weapon_catch_handle_leniency),

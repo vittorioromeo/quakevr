@@ -544,7 +544,7 @@ void() VR_AGGT_Dual68 =
 // unseen, each case once: 0 shoved over (a topple), 1 lifted (vr_foegrab_lift_up) and let go, 2 lifted then slammed down
 // (8 m/s), 3 judo-thrown (VR_FoeGrab_Throw), 4 a shoulder charge (strike 1), 5 a hard one (strike 2), 6 down and flung
 // at 8 m/s (test 38's). Each until it lies still: whether it kept its weapon, its hardest impact against
-// vr_agrunt_fall_keep_impact, and how fast it was flung and fell (the old rules let go above 5 and 4.5 m/s). PASS: kept
+// vr_agrunt_fall_keep_impact, and how fast it was flung and fell. PASS: kept
 // while in the air and held, let go only at an impact over the threshold (never before it).
 float vr_aggt_case69;
 float vr_aggt_drop_at;  // when its weapon left its hand (0: kept)
@@ -710,7 +710,7 @@ void() VR_AGGT_Hold69 =
             VR_AGGT_Name69(vr_aggt_case69), dropped ? sprintf("dropped at %.2f s", vr_aggt_drop_at - vr_aggt_t0) : "kept",
             g.vr_ag_fall_hit / u, g.vr_ag_fall_hit_at ? g.vr_ag_fall_hit_at - vr_aggt_t0 : -1, most / u, g.vr_ag_fall_fling / u,
             g.vr_ag_fall_down / u);
-        VR_AGT_Check(strcat(a, sprintf(" (the old rules: %s):", (g.vr_ag_fall_fling > 5 * u || g.vr_ag_fall_down > 4.5 * u) ? "dropped" : "kept")), ok);
+        VR_AGT_Check(strcat(a, ":"), ok);
         vr_aggt_case69 = vr_aggt_case69 + 1;
         vr_agt_step = cvar("scratch1") > 0 ? 9 : 0; // (after the falls, the chainsaw's three: VR_AGGT_Saw69)
         return;

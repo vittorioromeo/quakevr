@@ -705,7 +705,7 @@ int halfTargetNext = 0;
 int halfTargetsMadeCount = 0; // (vr_frame_log: made again each frame, they would thrash)
 GLuint halfCompositeProgram = 0;
 bool halfCompositeFailed = false;
-GLuint halfDepthCompositeProgram = 0; // vr_particle_halfres_upsample's (halfDepthCompositeFs)
+GLuint halfDepthCompositeProgram = 0; // the depth-aware blend's (halfDepthCompositeFs)
 bool halfDepthCompositeFailed = false;
 // Its framebuffer: the scene's colour alone (its depth is read), attached at each use (GL reuses a deleted texture's
 // name: the scene's targets made again at another size can come back under the same one).
@@ -781,7 +781,7 @@ void main()
         discard;
 }
 )";
-// vr_particle_halfres_upsample: the same, depth-aware (a bilateral blend): a half-size texel holds the particles in
+// The same, depth-aware (a bilateral blend): a half-size texel holds the particles in
 // front of the nearest of its four pixels (their distances, SceneDistances); a pixel blends the four texels round it
 // by their bilinear weights, each only if its distance is the pixel's own (the scene's full-size depth), within 10% and
 // 8 units of the nearest one's. On one surface: all four, as before. Where a crate's edge crosses a texel, the pixels of
@@ -1761,8 +1761,7 @@ void drawParticles(const ParticleBatch& batch, bool pull, const State& state, Te
     {
         return;
     }
-    const int r = state.retro > 0 ? (vr_particle_retro_fast.value != 0.f ?
-        (retro::particleCentreNear(state.retro) ? 5 : 3) : 1) : 0;
+    const int r = state.retro > 0 ? (retro::particleCentreNear(state.retro) ? 5 : 3) : 0;
     const int trimmed = vr_particle_trim.value != 0.f && batch.trim ? (r == 0 ? 7 : r == 5 ? 9 : r) : r;
     GLuint program = particleProgramFor(trimmed);
     if(!program && trimmed >= 7) program = particleProgramFor(r);
@@ -1838,10 +1837,10 @@ bool drawParticlesHalf(const ParticleBatch& batch, bool pull, Texture texture, c
     drawParticlesWith(program, batch, pull, false, retro, texture, ParticlePass::Large, split, distances, soft, true);
     restore();
 
-    // Blended into the scene: depth-aware (vr_particle_halfres_upsample) into its colour alone, when its depth is a
-    // single-sampled texture; else filtered (bilinear) into its framebuffer as bound.
+    // Blended into the scene: depth-aware into its colour alone, when its depth is a single-sampled texture; else
+    // filtered (bilinear) into its framebuffer as bound (an MSAA scene, or the depth-aware program failed).
     GLuint sceneFbo = 0;
-    const bool depthAware = vr_particle_halfres_upsample.value != 0.f && halfDepthComposite(sceneFbo);
+    const bool depthAware = halfDepthComposite(sceneFbo);
     if(!depthAware)
     {
         GL_UseProgram(halfCompositeProgram);

@@ -68,9 +68,7 @@ float vr_ag_tug_ease;     // VR_AG_TugBreak's thresholds times this (both hands 
 .float vr_ag_tug_down;    // the tug began on it staggering or down: its thresholds this share (vr_agrunt_tug_downed_scale)
 // Knocked down keeping its weapon (VR_AG_FallDrop, vr_agrunt_fall_keep): its fall measured from its start.
 .float vr_ag_fall_at;     // the knockdown measured (its vr_kd_since)
-.float vr_ag_fall_floor;  // ... the floor it stood on (z)
 .vector vr_ag_fall_last;  // ... its body's place last frame
-.float vr_ag_fall_drop;   // ... the most the floor under it fell below that (units)
 .float vr_ag_fall_down;   // ... its body's fastest fall (units/s)
 .float vr_ag_fall_fling;  // ... its body's fastest motion any way but down (units/s)
 .float vr_ag_fall_kept;   // ... kept its weapon as it fell (the tests)
@@ -1314,7 +1312,8 @@ float(entity g) VR_AG_HeldByHand =
 // shoulder-charged "they should try to hold on; the impact with the ground should make them drop it"): its body's place
 // each frame from its fall's start; it lets go only as it meets the ground (near the floor, coming down) losing `most`
 // units/s or more in a frame (its velocity's change: a slam, a hard landing; a topple's fall onto its back is gentle).
-// Flung through the air, carried in your hands, swung about, falling: it holds on. "" kept, else why it lets go.
+// Flung through the air, carried in your hands, swung about, falling: it holds on. `most` 0: never. "" kept, else why it
+// lets go.
 string(entity g, float most) VR_AG_FallImpact =
 {
     float u = VRMetersToUnits();
@@ -1353,7 +1352,7 @@ string(entity g, float most) VR_AG_FallImpact =
         VR_AG_Log(sprintf("fall: hardest impact %.1f m/s, falling %.1f m/s, moving %.1f m/s%s", g.vr_ag_fall_hit / u,
             g.vr_ag_fall_down / u, g.vr_ag_fall_fling / u, held ? ", held" : ""));
     }
-    if(g.vr_ag_fall_hit >= most)
+    if(most > 0 && g.vr_ag_fall_hit >= most)
     {
         return sprintf("it met the ground at %.1f m/s", g.vr_ag_fall_hit / u);
     }
@@ -1362,19 +1361,14 @@ string(entity g, float most) VR_AG_FallImpact =
 
 // Knocked down (VR_AG_PropThink): TRUE when it let go (the prop gone). Staggering, still falling, getting up: it holds.
 // Knocked down keeping its weapon (vr_agrunt_fall_keep): its fall measured each frame from its start (a stagger's too:
-// it may go over). Violent: the floor under it fell vr_agrunt_fall_keep_height below the one it stood on (a ledge), its
-// body fell faster than vr_agrunt_fall_keep_speed, or moved faster than vr_agrunt_fall_keep_fling any way but down
-// (thrown, held and flung, blown away). "" gentle (it keeps it), else why it lets go.
+// it may go over), by the impact rule (VR_AG_FallImpact; the old height, speed and fling rules were retired 2026-11-02).
+// "" gentle (it keeps it), else why it lets go.
 string(entity g) VR_AG_FallViolent =
 {
-    float u = VRMetersToUnits();
     if(g.vr_ag_fall_at != g.vr_kd_since)
     {
         g.vr_ag_fall_at = g.vr_kd_since;
-        traceline(g.origin, g.origin - '0 0 160', TRUE, g);
-        g.vr_ag_fall_floor = trace_endpos_z;
         g.vr_ag_fall_last = g.origin;
-        g.vr_ag_fall_drop = 0;
         g.vr_ag_fall_down = 0;
         g.vr_ag_fall_fling = 0;
         g.vr_ag_fall_v = '0 0 0';
@@ -1383,48 +1377,7 @@ string(entity g) VR_AG_FallViolent =
         g.vr_ag_fall_held = 0;
         return "";
     }
-    float impact = cvar_hget(cvarh_vr_agrunt_fall_keep_impact);
-    if(impact > 0)
-    {
-        return VR_AG_FallImpact(g, impact * u);
-    }
-    if(frametime > 0)
-    {
-        vector v = (g.origin - g.vr_ag_fall_last) * (1 / frametime);
-        g.vr_ag_fall_down = max(g.vr_ag_fall_down, -v_z);
-        v_z = max(0, v_z);
-        // (Flung: in its fall's first vr_agrunt_fall_keep_window s only. Lying, your body or hand nudging it as you come
-        // to take its weapon is no fling: vrragtriggers_2026-10-24_23-04-09, it lost it lying as he walked up.)
-        float win = cvar_hget(cvarh_vr_agrunt_fall_keep_window);
-        if(win <= 0 || time - g.vr_kd_since <= win)
-        {
-            g.vr_ag_fall_fling = max(g.vr_ag_fall_fling, vlen(v));
-        }
-    }
-    g.vr_ag_fall_last = g.origin;
-    traceline(g.origin, g.origin - '0 0 160', TRUE, g);
-    if(trace_fraction < 1)
-    {
-        g.vr_ag_fall_drop = max(g.vr_ag_fall_drop, g.vr_ag_fall_floor - trace_endpos_z);
-    }
-    if(cvar_hget(cvarh_vr_agrunt_debug) >= 2)
-    {
-        VR_AG_Log(sprintf("fall: floor %.2f m below, falling %.1f m/s, moving %.1f m/s", g.vr_ag_fall_drop / u,
-            g.vr_ag_fall_down / u, g.vr_ag_fall_fling / u));
-    }
-    if(g.vr_ag_fall_drop > cvar_hget(cvarh_vr_agrunt_fall_keep_height) * u)
-    {
-        return sprintf("a fall of %.2f m", g.vr_ag_fall_drop / u);
-    }
-    if(g.vr_ag_fall_down > cvar_hget(cvarh_vr_agrunt_fall_keep_speed) * u)
-    {
-        return sprintf("falling at %.1f m/s", g.vr_ag_fall_down / u);
-    }
-    if(g.vr_ag_fall_fling > cvar_hget(cvarh_vr_agrunt_fall_keep_fling) * u)
-    {
-        return sprintf("flung at %.1f m/s", g.vr_ag_fall_fling / u);
-    }
-    return "";
+    return VR_AG_FallImpact(g, max(0, cvar_hget(cvarh_vr_agrunt_fall_keep_impact)) * VRMetersToUnits());
 };
 
 float(entity g) VR_AG_FallDrop =

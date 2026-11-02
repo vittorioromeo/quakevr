@@ -226,35 +226,8 @@ void saveSeen()
     }
 }
 
-// vr_tips_seen's value as the config's line has it, whole: a config value longer than 1023 characters is read back
-// cut (com_token), so a long list's last keys are only there. Empty: no such line.
-[[nodiscard]] za::String configSeenLine()
-{
-    za::String cfg;
-    if(!files::readText(va("%s/%s", com_gamedir, CONFIG_NAME), cfg))
-    {
-        return {};
-    }
-    const za::StringView text{cfg.cStr()};
-    const za::StringView prefix{"vr_tips_seen \""};
-    for(size_t start = 0; start < text.size();)
-    {
-        size_t end = text.find('\n', start);
-        end = end == za::StringView::nPos ? text.size() : end;
-        const za::StringView line = text.substrByPosLen(start, end - start);
-        if(line.size() > prefix.size() && line.substrByPosLen(0, prefix.size()) == prefix)
-        {
-            const za::StringView rest = line.substrByPosLen(prefix.size(), line.size() - prefix.size());
-            const size_t quote = rest.find('"');
-            return za::String{rest.substrByPosLen(0, quote == za::StringView::nPos ? rest.size() : quote)};
-        }
-        start = end + 1;
-    }
-    return {};
-}
-
-// The list as it is in this game folder: read from its file, with the old vr_tips_seen cvar's (set by an older
-// config) moved into it once.
+// The list as it is in this game folder: read from its file (vr_tips_seen, the config's list before 2026-10-07, is
+// retired: an older config's tips show once more).
 void loadSeen()
 {
     if(!seenList.loaded || seenList.dir != za::StringView{com_gamedir})
@@ -267,15 +240,6 @@ void loadSeen()
         {
             (void)addKeys(za::StringView{text.cStr()});
         }
-    }
-    if(vr_tips_seen.string[0])
-    {
-        int added = addKeys(za::StringView{vr_tips_seen.string});
-        added += addKeys(za::StringView{configSeenLine().cStr()});
-        Cvar_Set(vr_tips_seen.name, "");
-        saveSeen();
-        Con_DPrintf("VR: vr_tips_seen moved to tips_seen.txt (%d keys new, %d in all)\n", added,
-            static_cast<int>(seenList.keys.size()));
     }
 }
 
@@ -979,7 +943,7 @@ void frame()
 
 void reset_f()
 {
-    loadSeen(); // (an older config's vr_tips_seen moved first, to be cleared with the rest)
+    loadSeen();
     seenList.keys.clear();
     saveSeen();
     showing.tip = -1;

@@ -14,8 +14,9 @@ required resources are unavailable. `common.c` also ignores malformed PAKs durin
 which previously could terminate startup before the VR-specific validation ran. This is structural validation,
 not an authenticity check or an exhaustive proof of every authored gameplay behavior.
 
-Read-only `vr_hipnotic_available` / `vr_rogue_available` are 0 or 1 (compiled default 0, populated from installed data).
-Read-only `vr_hipnotic_status` / `vr_rogue_status` are 0 missing, 1 available, 2 incomplete/corrupt (default 0).
+Read-only `vr_hipnotic_status` / `vr_rogue_status` are 0 missing, 1 available, 2 incomplete/corrupt (default 0); a pack
+is usable at status 1 (QC `VR_Pack_Hipnotic`, `VR_Pack_Rogue`; `vr_hipnotic_available` / `vr_rogue_available`, the same
+as status 1, were retired 2026-11-02).
 `vr_pack_status` and Debug > Reports > Mission Pack Status print the result and restoration advice. Unavailable hub
 buttons show their state, refuse selection, and campaign map/start requests report the missing pack before spawn.
 

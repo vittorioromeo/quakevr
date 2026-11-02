@@ -6238,6 +6238,44 @@ rewrite. "Yes, add the rule."
   break: a sprites shader broken under `QVR_MULTIVIEW` gave two FAIL lines; allow-listed, a pass with its `allowed` line.
   No rendering change, no default changed.
 
+## Option audit: removals (branch `agent/optremove`, his decisions 2026-11-02, items 2 and 3)
+
+OPTION_AUDIT_1102's low-risk removals and both medium-risk ones. Each removed cvar is in `retiredCvars` (an old
+config's line is dropped quietly); none was in his config. The paths they switched are simplified, not hard-wired.
+
+- **Hitbox categories** (top #8): `vr_hull_monsters`, `_players`, `_boxes` gone: Width Against Them
+  (`vr_hull_ent_width`, 0 = Quake's 32) holds against every body. `hull::narrowsAgainst`, `categoryOn` and
+  `VR_HullNarrowsAgainst` removed (world.c, vr_bodycontact.cpp, vr_box3d_standing.cpp just test the narrowed box).
+- **Old sides of legacy switches** (top #11, #12): `vr_climb_mantle_lenient` (Steepest Slope 0 still means level tops
+  only), `vr_weapon_grab_drawn`, `vr_particle_retro_fast` (program 1 stays as the missing-shader fallback),
+  `vr_bloom_fast` (the three-level chain and the one-tap add always: `levels` 3, the sixteenth's weight 1.4, the
+  shaders' four-tap branch and `bloom::fast()` gone; the Ultra preset loses its four-level glow), the 0 side of
+  `vr_foegrab_drag_onehand` (Torso, Shoulders / ... Head: a config's 0 now reads as 1) and of
+  `vr_particle_halfres_upsample` (always by depth; 2 shows the edges; the filtered blend stays as the MSAA fallback).
+- **To tunables**: `vr_2h_sticky` (Weapons > Aiming). `vr_body_elbow_spread` stays a setting (his 2026-09-28 decision:
+  the arms' settings are the player's to tweak).
+- **Status duplicates** (top #13): `vr_hipnotic_available`, `vr_rogue_available` gone; the readers (vr_ad.cpp, the
+  menu's dummy enemies and Proximity Gun reload page, QC `VR_Pack_Hipnotic`/`_Rogue`) read `*_status == 1`. The QC still
+  uses `cvar("...")` there (the handle-everything pass is worker D's).
+- **Retired migrations' cvars** (top #14, CVAR_AUDIT F): `vr_gunmodelpitch` (configVersion 203's step reads its old line
+  through `VR_RetiredCvar`, `retiredGunModelPitch`, as `vr_struggle_classes` does; `weapons::gunModelPitchTurn` gone);
+  `vr_tips_seen` (the one-time move into tips_seen.txt of 2026-10-07 dropped: a config from before it shows its tips once
+  more).
+- **Shoulder Charges' switch**: `vr_kdtrig_tackle_on` into `vr_kdtrig_tackle` (chance 0 = off; the dummy still judges
+  charges with it off). An old config's `vr_kdtrig_tackle_on 0` (version 177 or later) sets the chance to 0.
+- **Armed grunts' old fall rules** (medium, his item 3): `vr_agrunt_fall_keep_impact` 0 is now "never lets go on
+  impact"; the old height/speed/fling rules, `vr_agrunt_fall_keep_window`, the three tunables and the fields
+  `vr_ag_fall_floor`, `vr_ag_fall_drop` gone (~40 QC lines). Tests 38, 66, 69 print the impact instead of the floor drop.
+- **World marks as meshes** (medium): `vr_decals_world` gone with its mesh path (~130 lines of vr_decals.cpp: the
+  settled-vertex buffer, `unsettle`, `staticTouched`, the per-frame build in `draw`); brush entities' marks keep their
+  meshes (`drawEntityDecals`). The fallback if a driver breaks the world shader is now only `vr_glsafe`.
+- **Tests:** armed grunts 38 (3/0), 69 (10/0), 74 (1/0), 91 (1/0), 88 (0/0: prints only); 66 FAILs as shipped: the
+  lying grunt drops its gun by the impact rule ("met the ground at 6.8 m/s" as the player walks into it). Flaky, not a
+  regression: origin/next (a41459e82) fails it the same way 1 run in 3; this branch passed 3 of 5. The impact rule
+  meeting the player's push on a lying grunt is worth a look on its own. permdecal_test.sh PASS (live,
+  baked, removed-in-place and on/off frames exact); onehand_drag_test.py ALL PASS (its Anywhere case replaced by
+  head_2: mode 2 drags by the head); vr_menu_path_check 0 missing; e1m1 smoke renders.
+
 ## Worn backpacks always on (branch `agent/wornonly`, his words 2026-11-02; OPTION_AUDIT_1102.md)
 
 His words: "Make worn backpacks the default and only valid code path. Add a backlog note to review/apply this setting

@@ -1817,8 +1817,8 @@ void() VR_AGPT_FallKeep =
     }
     if(vr_agt_step == 2)
     {
-        VR_AGT_Check(sprintf("fall keep: floored (knockdown %g, stagger %g): it holds %s (floor %.2f m down, falling %.1f, moving %.1f m/s):",
-            g.vr_knockdown, g.vr_kd_stagger, g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing", g.vr_ag_fall_drop / u,
+        VR_AGT_Check(sprintf("fall keep: floored (knockdown %g, stagger %g): it holds %s (hardest impact %.1f, falling %.1f, moving %.1f m/s):",
+            g.vr_knockdown, g.vr_kd_stagger, g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing", g.vr_ag_fall_hit / u,
             g.vr_ag_fall_down / u, g.vr_ag_fall_fling / u), g.vr_knockdown == 1 && g.vr_ag_prop != world);
         VR_AG_GrabBy(g, p, cVR_MainHand);
         VR_AGT_Check(sprintf("fall keep: grabbed while down: yours %g (%s):", p.weapon == WID_SHOTGUN, vr_ag_tug_why),
@@ -1826,8 +1826,8 @@ void() VR_AGPT_FallKeep =
     }
     else
     {
-        VR_AGT_Check(sprintf("fall keep: flung while down: it holds %s (floor %.2f m down, falling %.1f, moving %.1f m/s):",
-            g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing", g.vr_ag_fall_drop / u, g.vr_ag_fall_down / u,
+        VR_AGT_Check(sprintf("fall keep: flung while down: it holds %s (hardest impact %.1f, falling %.1f, moving %.1f m/s):",
+            g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing", g.vr_ag_fall_hit / u, g.vr_ag_fall_down / u,
             g.vr_ag_fall_fling / u), !g.vr_ag_prop);
     }
     VR_AGPT_EmptyHand(p);

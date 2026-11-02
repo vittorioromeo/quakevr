@@ -221,7 +221,6 @@ void kdTrigWeightRows(za::Vector<Item>& items)
 [[nodiscard]] za::Vector<Item> pageKdTrigTackle()
 {
     za::Vector<Item> items{
-        row(opt::vr_kdtrig_tackle_on),
         row(opt::vr_kdtrig_tackle),
         row(opt::vr_kdtrig_tackle_runup),
         row(opt::vr_kdtrig_tackle_feel),
@@ -793,7 +792,6 @@ void ikStretchReset()
         row(opt::vr_agrunt_fall_drop),
         row(opt::vr_agrunt_fall_keep),
         row(opt::vr_agrunt_fall_keep_impact),
-        row(opt::vr_agrunt_fall_keep_window),
         row(opt::vr_agrunt_saw_drop_running),
         header("Disarming: Shooting It Out"),
         row(opt::vr_agrunt_shotdisarm),

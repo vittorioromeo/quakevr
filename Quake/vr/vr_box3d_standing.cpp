@@ -680,7 +680,7 @@ namespace
 [[nodiscard]] bool feetInTop(edict_t* p, edict_t* prop)
 {
     vec3_t mins, maxs;
-    if(!VR_HullEntBox(p, p->v.mins, p->v.maxs, mins, maxs) || !VR_HullNarrowsAgainst(p, prop))
+    if(!VR_HullEntBox(p, p->v.mins, p->v.maxs, mins, maxs))
     {
         VectorCopy(p->v.mins, mins);
         VectorCopy(p->v.maxs, maxs);
@@ -937,7 +937,7 @@ extern "C" int VR_PropLetsOut(edict_t* mover, edict_t* touch, const float* start
     if(vr_box3d_player_hold.value)
     {
         vec3_t entmins, entmaxs;
-        const bool narrow = VR_HullEntBox(mover, mins, maxs, entmins, entmaxs) && VR_HullNarrowsAgainst(mover, touch);
+        const bool narrow = VR_HullEntBox(mover, mins, maxs, entmins, entmaxs);
         const float* m = narrow ? entmins : mins;
         const float* M = narrow ? entmaxs : maxs;
         glm::dvec3 out{0.0}, to{0.0};

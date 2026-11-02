@@ -458,7 +458,6 @@ int VR_HullOverDropoff (struct edict_s *ent, const float *origin, const float *v
 int VR_HullClipBSP (struct edict_s *ent, const float *start, const float *boxmins, const float *boxmaxs, const float *end,
 	trace_t *trace);								// SV_ClipMoveToEntity for SOLID_BSP: nonzero if it traced (else the hull)
 int VR_HullEntBox (struct edict_s *passedict, const float *mins, const float *maxs, float *boxmins, float *boxmaxs); // SV_Move: nonzero if the player's box meets other entities' boxes narrowed (vr_hull_ent_width)
-int VR_HullNarrowsAgainst (struct edict_s *mover, struct edict_s *other);	// ... and nonzero if it does so against this one (its category's setting; a monster's, vr_mhull: all)
 int VR_HullFootprint (struct edict_s *ent, float *absmins, float *absmaxs); // SV_CheckBottom: a monster's corners narrowed to its width (vr_mhull_ledges): nonzero if narrowed
 int VR_HullTouchBox (struct edict_s *touch, struct edict_s *mover, float *boxmins, float *boxmaxs); // a player's box, narrowed, as a body moving into it meets it: nonzero if narrowed
 int VR_HullHitBox (struct edict_s *touch, float *boxmins, float *boxmaxs, int projectile); // ... and as a shot or missile meets it (vr_hull_hit_width; a bullet or missile, `projectile`: to his head, vr_hull_hit_head): nonzero if changed

@@ -1009,8 +1009,6 @@ extern "C" void VR_ReloadVRGameKeepCampaign()
 
 extern "C" void VR_RegisterPackStatus()
 {
-    Cvar_SetROM("vr_hipnotic_available", packStatus[0] == 1 ? "1" : "0");
-    Cvar_SetROM("vr_rogue_available", packStatus[1] == 1 ? "1" : "0");
     Cvar_SetROM("vr_hipnotic_status", va("%d", packStatus[0]));
     Cvar_SetROM("vr_rogue_status", va("%d", packStatus[1]));
     Cmd_AddCommand("vr_pack_status", reportPackStatus);
@@ -1163,10 +1161,8 @@ extern "C" void VR_AfterAddGameDirectory(const char* dir)
         return;
     }
 
-    if(Cvar_FindVar("vr_hipnotic_available"))
+    if(Cvar_FindVar("vr_hipnotic_status"))
     {
-        Cvar_SetROM("vr_hipnotic_available", packStatus[0] == 1 ? "1" : "0");
-        Cvar_SetROM("vr_rogue_available", packStatus[1] == 1 ? "1" : "0");
         Cvar_SetROM("vr_hipnotic_status", va("%d", packStatus[0]));
         Cvar_SetROM("vr_rogue_status", va("%d", packStatus[1]));
         reportPackStatus();

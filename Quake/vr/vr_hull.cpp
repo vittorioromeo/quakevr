@@ -3237,22 +3237,6 @@ void narrowBox(const float* mins, const float* maxs, float width, float* boxMins
     boxMaxs[2] = maxs[2];
 }
 
-// Whether the narrow entity width holds between a player and this entity (its category's setting): players, monsters,
-// other boxes (explosive boxes, solid items; anything moving without an entity).
-bool categoryOn(const edict_t* other)
-{
-    const int num = clientNum(other);
-    if(num >= 1 && num <= svs.maxclients)
-    {
-        return vr_hull_players.value != 0.f;
-    }
-    if(other && (static_cast<int>(other->v.flags) & FL_MONSTER))
-    {
-        return vr_hull_monsters.value != 0.f;
-    }
-    return vr_hull_boxes.value != 0.f;
-}
-
 // ---------------------------------------------------------------------------------------------------------------
 // Monsters' widths (vr_mhull; HULLS.md, "Monsters"): Quake moves a monster against the map with hull 1 (32 wide) or
 // hull 2 (64), whatever its own box (Quake VR's QC gives most of them narrower boxes: a grunt's is 24, an ogre's 40).
@@ -4511,12 +4495,6 @@ bool entBox(const edict_t* passedict, const float* mins, const float* maxs, floa
     return false;
 }
 
-bool narrowsAgainst(const edict_t* mover, const edict_t* other)
-{
-    const int num = clientNum(mover);
-    return num >= 1 && num <= svs.maxclients ? categoryOn(other) : true; // a monster's width meets every body
-}
-
 bool touchBox(const edict_t* touch, const edict_t* mover, float* boxMins, float* boxMaxs)
 {
     float width = entWidthSetting();
@@ -4524,11 +4502,11 @@ bool touchBox(const edict_t* touch, const edict_t* mover, float* boxMins, float*
     if(sv.active && isPlayerBox(touch, touch->v.mins, touch->v.maxs) && crouch > 0.f)
     {
         // Crouched (vr_crouch_hull): a body meets his crouched box, narrowed as below if it would be.
-        narrowBox(touch->v.mins, touch->v.maxs, width > 0.f && categoryOn(mover) ? width : 32.f, boxMins, boxMaxs);
+        narrowBox(touch->v.mins, touch->v.maxs, width > 0.f ? width : 32.f, boxMins, boxMaxs);
         boxMaxs[2] = za::min(boxMaxs[2], touch->v.mins[2] + crouch);
         return true;
     }
-    if(width > 0.f && sv.active && isPlayerBox(touch, touch->v.mins, touch->v.maxs) && categoryOn(mover))
+    if(width > 0.f && sv.active && isPlayerBox(touch, touch->v.mins, touch->v.maxs))
     {
         narrowBox(touch->v.mins, touch->v.maxs, width, boxMins, boxMaxs);
         return true;
@@ -4892,11 +4870,6 @@ extern "C" int VR_HullClipBSP(edict_t* ent, const float* start, const float* box
 extern "C" int VR_HullEntBox(edict_t* passedict, const float* mins, const float* maxs, float* boxmins, float* boxmaxs)
 {
     return qvr::hull::entBox(passedict, mins, maxs, boxmins, boxmaxs);
-}
-
-extern "C" int VR_HullNarrowsAgainst(edict_t* mover, edict_t* other)
-{
-    return qvr::hull::narrowsAgainst(mover, other);
 }
 
 extern "C" int VR_HullFootprint(edict_t* ent, float* absmins, float* absmaxs)

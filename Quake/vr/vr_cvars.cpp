@@ -229,8 +229,6 @@ const DefaultChange defaultChanges[] = {
     {154, &vr_lootbeam_length, "1.2"},                  // 1.5
     {154, &vr_lootbeam_thickness, "0.06"},              // 0.03
     {154, &vr_lootbeam_far, "0"},                       // 12
-    // 155: the cheaper bloom chain by default (2026-10-17).
-    {155, &vr_bloom_fast, "0"},                         // 1
     // 156: the author's holster zones, thresholds, glove thickness and relief (his config of 2026-10-18).
     {156, &vr_glove_relief, "1"},
     {156, &vr_glove_thickness, "2"},
@@ -317,8 +315,8 @@ const DefaultChange defaultChanges[] = {
     {175, &vr_foegrab_legpull_onehand, "1.3"},     // 1
     // 176: a two-hand shove goes 1.25 times as far (the author's 2026-10-21 notes; its distance goes by the push's square).
     {176, &vr_shove_push_twohand, "1"}, // 1.12
-    // 177: the author's Shoulder Charges (his config of 2026-10-22: "it feels better"): on, knocked farther, gentler pose.
-    {177, &vr_kdtrig_tackle_on, "0"},          // 1
+    // 177: the author's Shoulder Charges (his config of 2026-10-22: "it feels better"): on (vr_kdtrig_tackle_on 1, retired
+    // since: its chance 0 is off), knocked farther, gentler pose.
     // 178: the author's values (his config of 2026-10-22): bigger bloody footprints and handprints, the gore sounds'
     // kinds quieter (ROUND22.md, "Bloody prints 2; drip sounds").
     {178, &vr_footprint_size, "1"},         // 1.6
@@ -530,6 +528,9 @@ constexpr int configVersion = 219;
 // executed (VR_RetiredCvar keeps it), moved into the groups by mgroups::migrateStruggleClasses if it was custom.
 za::String retiredStruggleClasses;
 bool retiredStruggleSeen = false;
+// 203: Gun Model Pitch (vr_gunmodelpitch, retired 2026-11-02) moved into Hand Pitch: its line's value in the config just
+// executed (VR_RetiredCvar keeps it; its default 7 when there is none).
+float retiredGunModelPitch = weapons::gunModelPitchBase;
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 
@@ -785,17 +786,17 @@ void migrateConfig()
         const int poses = agpose::dropShippedEqual();
         Con_DPrintf("VR: armed grunts: %d pose keys equal to the new defaults dropped\n", poses);
     }
-    if(from < 203 && vr_gunmodelpitch.value != 7.f)
+    if(from < 203 && retiredGunModelPitch != weapons::gunModelPitchBase)
     {
         // configVersion 203: Gun Model Pitch lost its menu row (Hand Pitch turns both hands, the guns and the aim
         // together, as it did). What it was past 7 goes into both hands' pitch, subtracted (measured with vr_aim_check: Gun Model
         // Pitch +10 aims where vr_gunangle/vr_offhandpitch -10 do; Hand Pitch adds to both, a higher one aims lower).
-        const float extra = vr_gunmodelpitch.value - 7.f;
+        const float extra = retiredGunModelPitch - weapons::gunModelPitchBase;
         Cvar_SetValueQuick(&vr_gunangle, vr_gunangle.value - extra);
         Cvar_SetValueQuick(&vr_offhandpitch, vr_offhandpitch.value - extra);
-        Cvar_SetValueQuick(&vr_gunmodelpitch, 7.f);
-        Con_DPrintf("VR: Gun Model Pitch %g moved into Hand Pitch (-%g)\n", extra + 7.f, extra);
+        Con_DPrintf("VR: Gun Model Pitch %g moved into Hand Pitch (-%g)\n", retiredGunModelPitch, extra);
     }
+    retiredGunModelPitch = weapons::gunModelPitchBase;
     if(from < 205 && sameValue(vr_heat_haze_half.string, "1"))
     {
         // configVersion 205: Heat Haze Detail full size by default, as High and Ultra set it; the presets below High half
@@ -865,7 +866,7 @@ const CompiledDefault compiledDefaults[] = {
 {
     return var == &vr_cfg_version || var == &vr_tutorial_started || var == &vr_bindings_version || var == &vr_wofs_version || var == &vr_height_calibration
         || var == &vr_seated_height // (one's chair)
-        || var == &vr_props_version || var == &vr_tips_seen || var == &vr_menu_positions
+        || var == &vr_props_version || var == &vr_menu_positions
         || var == &vr_xr_runtime || var == &vr_xr_runtime_json || var == &vr_note_device || var == &vr_dominant_eye
         || !ZA_STRNCMP(var->name, "vr_motion_", 10) // the motion recorder's (a tool's settings)
         || !ZA_STRNCMP(var->name, "vr_bodycal_", 11) || !ZA_STRNCMP(var->name, "vr_body_tweak_", 14) // one's body
@@ -950,6 +951,27 @@ void registerCvars()
 // Settings removed (docs/vr-port/CVAR_AUDIT.md): a config, a shipped .cfg or a take that still sets one is not an
 // "Unknown command" (cmd.c asks here); the line is dropped quietly and the next config write leaves it out.
 constexpr const char* retiredCvars[] = {
+    // 2026-11-02: the option audit's removals (ROUND23.md, "Option audit: removals"): the hitbox category switches (the
+    // width, vr_hull_ent_width, holds against all), the old sides of legacy switches (their "on" kept), the status
+    // duplicates (vr_*_status 1), the retired migrations' cvars, Shoulder Charges' switch (its chance 0 is off), the
+    // armed grunts' old fall rules (the impact rule kept) and the world marks as meshes (the world's shader kept).
+    "vr_hull_monsters",
+    "vr_hull_players",
+    "vr_hull_boxes",
+    "vr_climb_mantle_lenient",
+    "vr_weapon_grab_drawn",
+    "vr_particle_retro_fast",
+    "vr_bloom_fast",
+    "vr_hipnotic_available",
+    "vr_rogue_available",
+    "vr_tips_seen",
+    "vr_gunmodelpitch", // (an old config's value moved into Hand Pitch by the migration to 203: retiredGunModelPitch)
+    "vr_kdtrig_tackle_on", // (an old config's 0: vr_kdtrig_tackle 0)
+    "vr_agrunt_fall_keep_window",
+    "vr_agrunt_fall_keep_height",
+    "vr_agrunt_fall_keep_speed",
+    "vr_agrunt_fall_keep_fling",
+    "vr_decals_world",
     "vr_font_shadow_size", // 2026-11-02: the shadow's offset, now vr_font_shadow_x and _y (vr_font_shadow_grow its size)
     "vr_worn_backpacks", // 2026-11-02: armed grunts always wear their backpack (ROUND23.md, "Worn backpacks always on")
     // 2026-11-02: legacy options removed, their defaults kept (ROUND23.md, "Legacy options removed, group 1").
@@ -1208,6 +1230,16 @@ extern "C" int VR_RetiredCvar(const char* name)
             {
                 qvr::retiredStruggleClasses = Cmd_Argv(1); // (its config line's value, for the migration to 190)
                 qvr::retiredStruggleSeen = true;
+            }
+            if(!q_strcasecmp(name, "vr_kdtrig_tackle_on") && Cmd_Argc() > 1 && Q_atof(Cmd_Argv(1)) == 0.f &&
+                qvr::vr_cfg_version.value >= 177.f)
+            {
+                // (Shoulder Charges turned off: now its chance 0. Before 177 off was the default, which 177 turned on.)
+                Cvar_SetQuick(&qvr::vr_kdtrig_tackle, "0");
+            }
+            if(!q_strcasecmp(name, "vr_gunmodelpitch") && Cmd_Argc() > 1)
+            {
+                qvr::retiredGunModelPitch = static_cast<float>(Q_atof(Cmd_Argv(1))); // (for the migration to 203)
             }
             return 1;
         }

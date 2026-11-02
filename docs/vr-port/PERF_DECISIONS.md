@@ -101,8 +101,8 @@ the one large GPU lever left; visual, his call.
 so that both eyes see it at the same time"): the grid is made in a frame's first view only (`VR_DecalsFrame`), and every
 view of the frame draws with it; a mark made during the frame (blood landing in the left eye's particles, gore::frame
 in its decals::draw) shows in both eyes together from the next frame. The other option (the marks' producers moved
-before the build) is dropped; no setting. The marks drawn as triangles (`vr_decals_world 0`) likewise take a new mark
-from the next frame's build, not the right eye's.
+before the build) is dropped; no setting. (The marks drawn as triangles, `vr_decals_world 0`, were retired 2026-11-02:
+the world's marks are only its shader's.)
 
 Before: marks placed during the left eye's scene came after that eye's `decals::buildWorld`, so the right eye made the
 grid again and showed them a frame before the left (the profile's "decals on the world" under eye R: 0.03-0.07 ms a

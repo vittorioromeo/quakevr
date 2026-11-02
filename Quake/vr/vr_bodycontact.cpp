@@ -124,7 +124,7 @@ void insetBox(float* mins, float* maxs, float by)
 void pairHull(edict_t* mover, edict_t* touch, const float* mins, const float* maxs, float* hullMins, float* hullMaxs)
 {
     float m[3], mx[3], t[3], tx[3];
-    if(!(hull::entBox(mover, mins, maxs, m, mx) && hull::narrowsAgainst(mover, touch)))
+    if(!hull::entBox(mover, mins, maxs, m, mx))
     {
         VectorCopy(mins, m);
         VectorCopy(maxs, mx);
