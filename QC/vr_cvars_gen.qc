@@ -114,7 +114,7 @@ float cvarh_vr_agarmor_skill3_type;
 float cvarh_vr_agarmor_test;
 float cvarh_vr_agarms_shoulder;
 float cvarh_vr_agdknight;
-float cvarh_vr_agdknight_spell_share;
+float cvarh_vr_agdknight_cast_cooldown;
 float cvarh_vr_agknight;
 float cvarh_vr_agknight_ranged_pickup;
 float cvarh_vr_aglegs;
@@ -1851,7 +1851,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_agarmor_test = VR_CVar_Make("vr_agarmor_test");
     cvarh_vr_agarms_shoulder = VR_CVar_Make("vr_agarms_shoulder");
     cvarh_vr_agdknight = VR_CVar_Make("vr_agdknight");
-    cvarh_vr_agdknight_spell_share = VR_CVar_Make("vr_agdknight_spell_share");
+    cvarh_vr_agdknight_cast_cooldown = VR_CVar_Make("vr_agdknight_cast_cooldown");
     cvarh_vr_agknight = VR_CVar_Make("vr_agknight");
     cvarh_vr_agknight_ranged_pickup = VR_CVar_Make("vr_agknight_ranged_pickup");
     cvarh_vr_aglegs = VR_CVar_Make("vr_aglegs");

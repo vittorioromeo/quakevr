@@ -30,9 +30,10 @@ void step(int hand, const qmodel_s* gun, int frame);
 // round to fire: drawn locked back whatever its frame.
 [[nodiscard]] bool propLocked(const entity_t& e);
 
-// Where its ammo screen is moved by the slide now (vr_nailpistol_screen_ride, the full-slide look: the screen is on the
-// slide's left wall), in the model's byte space (anchor::posedAnchor's): the slide's drawn travel; 0 for anything else.
-[[nodiscard]] glm::vec3 screenShift(const entity_t& e);
+// What takes its ammo screen's `anchor` (as anchor::posedAnchor has it, `zeroBlend`) to where the slide has it now, in the
+// model's byte space (vr_nailpistol_screen_ride: the screen is on the slide's left wall, and goes back by the slide's drawn
+// travel; off: fixed on the gun, wherever the frame has the wall); 0 for anything else.
+[[nodiscard]] glm::vec3 screenShift(const entity_t& e, const char* anchor, float zeroBlend);
 
 // The nail pistol's test (vr_np_test, QC vr_nailpistol_test.qc), each frame: what is drawn, into vr_np_seen_screen (the
 // main hand's ammo screen moved by its slide, the gun's model units), vr_np_seen_holster and vr_np_seen_prop (the nail

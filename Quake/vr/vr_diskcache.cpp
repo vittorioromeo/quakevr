@@ -42,6 +42,7 @@ const ProductInfo products[] = {
     {"dequant", "dequantised poses", 256ull << 20, &qvr::vr_mdl_dequant_cache},
     {"rigs", "ragdoll rigs", 0, &qvr::vr_ragdoll_rig_cache},
     {"reliefmaps", "weapons' relief maps", 0, &qvr::vr_normalmap_cache},
+    {"lightgrid", "big maps' model light grids", 256ull << 20, &qvr::vr_model_light_grid_cache},
 };
 static_assert(sizeof(products) / sizeof(products[0]) == static_cast<size_t>(Product::Count));
 
