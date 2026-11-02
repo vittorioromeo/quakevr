@@ -6426,7 +6426,7 @@ config's line is dropped quietly), their "on" the only path, their menu rows gon
   it (`permdecals::on()`); the on/off rule went (`permdecals::kept`, `record`, `rebake`, `newestWorld`,
   `unbakedFrom`; vr_decals.cpp's `showRecord`, `fromLayer`, `layerShown`). The live ring stays for what the layer
   doesn't take (boxes made in the game, carved marks, a map not laid out); the atlas caps (`vr_permdecal_atlas_max`)
-  and the stamps' cap stay. The lowest graphics preset no longer turns the layer off (it set `vr_permdecals 0`).
+  and the stamps' cap stay. The Off graphics preset no longer turns the layer off (it set `vr_permdecals 0`): its marks are permanent too.
   permdecal_test.sh's part 4 rewritten: `vr_decals 0` hides every mark and 1 brings the same frame back (the on/off
   frame comparisons dropped). PERM_DECALS.md "On and off" says it was removed.
 - **`vr_mdl_dequant`** (Graphics > Models and Effects > Steady Model Vertices): `VR_MdlDequantOn`, the cvar callback

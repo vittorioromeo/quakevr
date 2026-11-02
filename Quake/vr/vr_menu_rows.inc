@@ -35,8 +35,8 @@ QVR_SLIDER_BYNAME(vr_adgun_ad_copies, "AD's Flames Frequency", 0.f, 3.f, 1.f, "%
     "fuller stream (drawn only: the flames that burn stay AD's). 0: AD's alone.")
 QVR_SLIDER_BYNAME(vr_adgun_fx_scorch, "Scorch Marks", 0.f, 3.f, 0.25f, "%.2fx", noExt,
     "Scorch marks where the flamethrowers' fire licks a wall or the floor: one where every flame is spent "
-    "(under 1: that share of them; over 1: a little bigger). 0: none. Cheap: with Permanent Decals on, "
-    "each is baked straight into them.")
+    "(under 1: that share of them; over 1: a little bigger). 0: none. Cheap: "
+    "each is baked straight into the walls.")
 QVR_SLIDER_BYNAME(vr_adgun_plasma_fx, "Plasma Bolt Arcs", 0.f, 3.f, 0.25f, "%.2fx", noExt,
     "Small lightning arcs crackling round the plasma bolts (the Plasma Gun's, the plasma soldiers' and "
     "centurions'). 0: none. Their blue light: Projectile Lights.")
@@ -2118,7 +2118,7 @@ QVR_SLIDER(vr_decal_carve_steps, "Carving Quality", 4.f, 64.f, 4.f, "%.0f steps"
 QVR_SLIDER(vr_decal_carve_fade, "Carving Distance", 128.f, 4096.f, 128.f, "%.0f", noExt,
     "How far off holes and craters stop looking carved (they flatten from half as far; 1024 shipped).")
 QVR_SLIDER(vr_decal_carve_max, "Carved Marks Kept", 32.f, 1024.f, 32.f, "%.0f", noExt,
-    "How many of the newest holes and craters stay carved; with Permanent Decals the older ones stay, flat (256 shipped).")
+    "How many of the newest holes and craters stay carved; the older ones stay, flat (256 shipped).")
 QVR_CYCLE(vr_decal_carve_style, "Carve Style",
     "How holes, craters, dents and grooves are carved. Smooth: round and smooth. Retro: pixelated like the walls, block by block on the wall's own texels, their depth in steps. Faceted: low-poly, flat sides (8 round, 3 rings out). Auto, as shipped: Retro on walls with Retro Textures' blocks, else Smooth.",
     {-1.f, "Auto"}, {0.f, "Smooth"}, {1.f, "Retro"}, {2.f, "Faceted"})
