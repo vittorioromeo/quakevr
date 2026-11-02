@@ -597,6 +597,12 @@ za::Vector<Item> pageDebugTests()
         command("Crouch Status", "vr_crouch_status")
             .help("Prints your eyes' height over your feet, your crouched box's height (0 standing) and whether you could "
                   "stand."),
+        command("Flat Keys", "vr_flatkeys_test 1")
+            .help("vr_flatkeys_test 1 (-flatscreenmode only, Player > Flat Play): whether Left Ctrl has him crouched, how "
+                   "upright the game sees him (.vr_stand), the height of your eyes over your feet, what each hand holds and "
+                   "whether the flashlight is still lit after F (hold Left Ctrl, or +flatcrouch, before asking; flatkeys: "
+                   "lines). vr_flatkeys_test 2 sends G: what your main hand held, and whether it is gone after (flat drop: "
+                   "line)."),
         header("Melee Sweep"),
         command("Melee Sweep Test", "vr_melee_sweep_test 1")
             .help("vr_melee_sweep_test 1: scripted sweeps of the weapon in your main hand past a box ahead of you and onto "
