@@ -3116,6 +3116,11 @@ QVR_TOGGLE_BYNAME(vr_reload_pouch_mag_slots, "Magazines Where Drawn",
     "The nailguns' and thunderbolt's well against each magazine as drawn in the pouch (the nearest one): "
     "Magazine Contact and Magazine Angle. Off: anywhere along the row of rounds, by Pouch Contact and Pouch "
     "Angle.")
+QVR_TOGGLE_BYNAME(vr_reload_pouch_catch, "Falling Magazines Go In",
+    "A magazine with rounds left that drops out of a gun (its eject button, a hit) and falls into the ammo pouch is "
+    "collected, drawn going in. An empty one still falls.")
+QVR_SLIDER_BYNAME(vr_reload_pouch_catch_reach, "Falling In Reach", 0.f, 20.f, 1.f, "%.0f cm", noExt,
+    "How near the pouch's rounds a falling magazine must come to go in (its own size added).")
 QVR_TOGGLE_BYNAME(vr_ammo_pouch_show, "Show", "Draw the pouch (off: it still works where it is).")
 QVR_SLIDER_BYNAME(vr_ammo_pouch_x, "X", -10.f, 10.f, 0.25f, "%.2f", ext(),
     "Forward (negative: back, round the hips). With the body drawn, 0 is on the belly.")
@@ -4525,6 +4530,9 @@ QVR_TOGGLE(vr_ghost_hands_ignore_bodies, "No Ghost Holding Bodies",
     "On: a hand holding an enemy (grabbed alive, the judo) or a ragdoll (knocked down or dead) shows no ghost, "
     "only the hand drawn on the body; the ghost still shows for a weapon in two hands, heavy weapons and walls. "
     "Off: those holds show it too (vr_ghost_hands_ignore_bodies).")
+QVR_TOGGLE(vr_ghost_hands_ignore_climb, "No Ghost Climbing",
+    "On: no ghost while either hand is on a hold, only the hands drawn on the ledge. Off: climbing shows it too "
+    "(vr_ghost_hands_ignore_climb).")
 
 // vr_menu_settings.inc: pageBodyDisplay
 QVR_CYCLE(vr_handedness, "Handedness",

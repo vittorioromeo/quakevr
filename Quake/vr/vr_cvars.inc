@@ -1105,6 +1105,7 @@ QVR_CVAR(vr_ghost_hands_fade_from, "9", CVAR_ARCHIVE)      // cm: no ghost while
 QVR_CVAR(vr_ghost_hands_fade_range, "7", CVAR_ARCHIVE)     // cm: and it fades in over this much further
 QVR_CVAR(vr_ghost_hands_ignore_recoil, "1", CVAR_ARCHIVE)  // 1: the programmatic recoil's kick of the drawn hand (vr_weaponfx.cpp) doesn't count as held off (no ghost from a shot); 0: it does
 QVR_CVAR(vr_ghost_hands_ignore_bodies, "1", CVAR_ARCHIVE)  // 1: no ghost for a hand holding a body (an enemy alive: the foe grab, the judo; a ragdoll, alive or dead: its limb or body); 0: those show it too
+QVR_CVAR(vr_ghost_hands_ignore_climb, "1", CVAR_ARCHIVE)   // 1: no ghost while climbing (either hand on a hold: the drawn hands stay on the ledge as you move); 0: those show it too
 QVR_CVAR(vr_ghost_hands_test_offset, "0", CVAR_NONE)       // test aid (Debug): cm the ghost is moved sideways, so it shows apart from the drawn hand
 QVR_CVAR(vr_heavy_damping_min,"0.8", CVAR_ARCHIVE)        // the least damping ratio of a weapon with a Heft (the struggle's and its own Spring Damping's no lower; 1 critical)
 QVR_CVAR(vr_debug_stamina_hold, "0", CVAR_NONE)          // tests: 1 keeps the game's stamina where it is, or where vr_stamina_set put it (a local game; vr_fatigue.cpp)
@@ -3555,6 +3556,11 @@ QVR_CVAR(vr_reload_pouch_npistol, "1", CVAR_ARCHIVE)
 // vr_reload_pouch_mag_contact cm of its top across it and along it, the well within vr_reload_pouch_mag_angle degrees of
 // it. 0: the whole row of rounds (vr_reload_pouch_contact, vr_reload_pouch_angle), as before.
 QVR_CVAR(vr_reload_pouch_mag_slots, "1", CVAR_ARCHIVE)
+// A magazine with rounds left out of a gun by itself (B/Y's eject, a hit), falling into the ammo pouch, is collected, drawn
+// going in (QC vr_reload.qc VR_Reload_PouchCatchFrame; his note 2026-11-02): on, and cm from the pouch's rounds it counts as
+// falling in (the magazine's own radius added).
+QVR_CVAR(vr_reload_pouch_catch, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_pouch_catch_reach, "10", CVAR_ARCHIVE)
 // A launcher's round's turn in the hand as it is taken from the ammo pouch (the author's note vrfiringrange_2026-10-08_
 // 22-18-19: the same for every round, easy to load): every round, whatever its Held Object Offsets, its middle in the
 // fist's grip channel, its long axis along the hand's forward, its nose ahead (the multi-grenade's too), then turned about

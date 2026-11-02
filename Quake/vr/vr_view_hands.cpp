@@ -1021,6 +1021,8 @@ struct GhostBody
 };
 GhostBody ghostBody;
 GhostBody ghostBodyHidden; // (the "hidden" phase's, kept for the verdict)
+GhostBody ghostClimb;       // (the same for climbing: vr_ghost_climb_test)
+GhostBody ghostClimbHidden;
 
 // vr_ghost_body_test start | hidden | end: a hand holding an enemy brings no ghost out with vr_ghost_hands_ignore_bodies
 // 1 (the frames since "start", kept by "hidden": the hand drawn on the body far enough off its controller for a ghost,
@@ -1053,6 +1055,35 @@ void ghostBodyTest_f()
     t.verdict(name);
 }
 
+// vr_ghost_climb_test start | hidden | end: as vr_ghost_body_test, a hand on a hold with vr_ghost_hands_ignore_climb 1,
+// then 0 (Misc/quakevr/ghost_climb_test.sh).
+void ghostClimbTest_f()
+{
+    const char* step = Cmd_Argc() > 1 ? Cmd_Argv(1) : "";
+    if(!strcmp(step, "start"))
+    {
+        ghostClimb = GhostBody{};
+        return;
+    }
+    if(!strcmp(step, "hidden"))
+    {
+        ghostClimbHidden = ghostClimb;
+        ghostClimb = GhostBody{};
+        return;
+    }
+    testkit::Tally t;
+    constexpr const char* name = "vr_ghost_climb_test";
+    const GhostBody& a = ghostClimbHidden;
+    const GhostBody& b = ghostClimb;
+    Con_Printf("%s: hidden: %d frames climbing, ghost %.3f measured, %.3f drawn; shown: %d frames, %.3f, %.3f\n", name, a.frames,
+        a.maxAlpha, a.maxDrawn, b.frames, b.maxAlpha, b.maxDrawn);
+    t.check(a.frames > 0 && b.frames > 0, name, "a hand on a hold in both phases");
+    t.check(a.maxAlpha >= 0.02f, name, va("held off its controller enough for a ghost (opacity %.3f)", a.maxAlpha));
+    t.check(a.maxDrawn < 0.02f, name, va("No Ghost Climbing on: none drawn (%.3f)", a.maxDrawn));
+    t.check(b.maxDrawn >= 0.02f, name, va("off: the same hold shows it (%.3f)", b.maxDrawn));
+    t.verdict(name);
+}
+
 // Held props' grips (grip::setHandFrame): where the empty hand's palm and grip channel are in its frame (the move's place
 // and angles), every frame; not measured without the jointed hand (the default hand's are used).
 void gripFrame_f();
@@ -1069,6 +1100,7 @@ void updateGripFrame(const hands::State& s, int hand)
         Cmd_AddCommand("vr_powerup_info", powerupInfo_f);
         Cmd_AddCommand("vr_ghost_recoil_test", ghostRecoilTest_f);
         Cmd_AddCommand("vr_ghost_body_test", ghostBodyTest_f);
+        Cmd_AddCommand("vr_ghost_climb_test", ghostClimbTest_f);
     }
     grip::HandFrame f;
     qmodel_t* const model = viewModel(handrig::modelName());
@@ -2657,7 +2689,17 @@ void setupGhostHands(const hands::State& s)
             ghostBody.maxAlpha = za::max(ghostBody.maxAlpha, alpha);
             ghostBody.maxDrawn = za::max(ghostBody.maxDrawn, bodyHidden ? 0.f : alpha);
         }
-        if(alpha < 0.02f || bodyHidden)
+        // Climbing (either hand on a hold): none either unless asked (vr_ghost_hands_ignore_climb; his note
+        // e1m1_2026-11-02_23-26-45).
+        const bool climbing = climb::holding(HAND_MAIN) || climb::holding(HAND_OFF);
+        const bool climbHidden = climbing && vr_ghost_hands_ignore_climb.value != 0.f;
+        if(climbing)
+        {
+            ghostClimb.frames++;
+            ghostClimb.maxAlpha = za::max(ghostClimb.maxAlpha, alpha);
+            ghostClimb.maxDrawn = za::max(ghostClimb.maxDrawn, climbHidden ? 0.f : alpha);
+        }
+        if(alpha < 0.02f || bodyHidden || climbHidden)
         {
             continue;
         }

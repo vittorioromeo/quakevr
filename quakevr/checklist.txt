@@ -25,6 +25,11 @@ A downed armed grunt flung low along the floor without hitting anything keeps it
 Arena, run hard with the stick: speed holds, no dips every few steps, the world goes by evenly. Debug > Tests "Game Time From the Display Clock" off to compare (this one is only tested on a headset: if motion feels wrong, say so).
 Stick about straight: you run exactly where you look; looking down doesn't slow you or bend a diagonal. Debug > Tests "Stick: Show Speed" shows the push angle and heading on the console.
 Stick page "Stick Straight Zone" (15 deg) and "Stick Full Push Hold" (0.4 s): letting go still stops at once; easing to a lower push from a full run slows after about 0.4 s.
+A loaded magazine ejected over the ammo pouch falls in and is collected, drawn going in; an empty one falls past.
+A shoulder charge that connects costs 35 stamina.
+Flashlight: with the grip already closed, the grace to grab it is shorter (0.39 s).
+No ghost hands while climbing (Ghost Hands: No Ghost Climbing).
+A thrown crate or barrel kills a grunt or pops what it hit, never a full gib; Quad, a war hammer's hardest blows and heavy counters still gib.
 
 
 [3. Bodies: grabbing, throwing, hits]

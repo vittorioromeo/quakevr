@@ -7009,3 +7009,133 @@ ends (its ankle against its hip stops going forward).
 | run, `vr_body_walk 0` | 295 u/s | 0 | 0 | 9 | 0 | |
 
 The one frame: the sound starts as the foot is first drawn planted, a frame (at 72 Hz) after its forward-most.
+
+
+## Falling magazines into the pouch; charge stamina; late flashlight grip; no ghost climbing; gibbing by blows and props
+
+His notes of 2026-11-02 night (typed list; e1m1_2026-11-02_23-26-45, vrarena_2026-11-02_23-20-22, _23-24-37).
+
+- **Falling magazines** (`vr_reload_pouch_catch` 1, `vr_reload_pouch_catch_reach` 10 cm; Immersive Reloading's "Reloading at
+  the Pouch"): a magazine with rounds left that came out of its gun by itself (B/Y's eject, a hit: `VR_Reload_Eject`, marked
+  `.vr_ammo_ejected_by`), falling within the reach of the pouch's rounds (its own radius added), goes in as a hand letting go
+  of it there does, with the put-away transition (`VR_CollectFx_Send`, hotspot 12). A hand's or a force grab's touch or its
+  landing ends that; an empty one, or a full reserve: it falls past, silently. The pouch lies inside the player's Box3D hull,
+  so a magazine dropped from above the hull rests on it: it reaches the pouch when it comes out inside the hull, as one
+  from a gun held over the belt does (`vr_prop_drop_pass_inside`). `Misc/quakevr/pouchcatch_test.sh` (`vr_reload_test 44`).
+- **Shoulder charge stamina** (`vr_kdtrig_tackle_stamina` 35; nothing before): paid when it connects (`VR_KdTrig_ChargeHit`,
+  after its knock's roll, which reads the stamina left), not when it misses; the training dummy too.
+- **Late flashlight grip** (`lateFor`, vr_flashlight.cpp): 0.6 -> 0.39 s, the grace after the press with the grip already
+  closed. The reach (`lateReach`) and the grab range are untouched; a slowed hand still gets its extension.
+- **Ghost hands climbing** (`vr_ghost_hands_ignore_climb` 1): none while either hand is on a hold. `ghost_climb_test.sh`.
+
+### Gibbing: overkill by blows and props
+
+Cause: the death code gibs on health (a grunt under -35), and nothing relates the damage of a heavy prop to that: a thrown
+prop's damage is its base times `VR_Thrown_HeavyMult` (mass / 8, at most 5), the weight's curve, and its speed over a full
+speed scaled down by the heavy leniency, with no cap: 60 for a 40 kg crate at 3 m/s, 100 at 5 m/s (a grunt gibs from 66; a 15
+hp one from 51). A pop's failed roll (`vr_decap_chance_scale`) fell through to that gib. Those numbers also must hurt an ogre,
+so the damage stays, and what changes is what counts towards the gib: `VR_Gib_Overkill` (combat.qc), where the slap's rule was:
+
+- `vr_gib_overkill_melee` 1 -> 0.5: a hand's blow, or a prop swung in the hand (the overhead slam);
+- `vr_gib_overkill_prop` 1 -> 0.1: a thrown, flung or fallen prop;
+- all of it under Quad; a slap none, as before; everything else (guns, blasts) as before.
+- `vr_corpse_dmg_props` 1 -> 0.25: a body keeps its own health to gib (160 for a grunt's), and one small crate at 7 m/s with
+  two hands (175) burst it.
+
+`Misc/quakevr/gibtable_test.sh` (`vr_prop_impact_test 7`, Debug > Gore Tests, "Blows and Props: What Gibs"): a grunt at 30 and
+15 health, no sneak bonus. Before (`tune` both shares 1, `vr_corpse_dmg_props` 1) -> after. Blows are the priced damage at
+that strength, delivered as a blow lands; props are their real hit (`VR_SolidProp_Impact`). hp15 "whole" for a small blow
+includes its knockdown's fall. "head": its head popped (a heavy prop's arming is as before; the table's prop is level with
+the chest, near enough the head zone that most of them pop it: not judged in a headset).
+
+```
+fist, light (x0.75)                                          10.3 | hp30 alive -> alive | hp15 alive -> alive
+fist, firm (x1.00)                                           13.8 | hp30 alive -> alive | hp15 alive -> alive
+fist, hardest (x1.75)                                        24.1 | hp30 alive -> alive | hp15 whole -> whole
+fist, hardest at the head (x2.25)                            30.9 | hp30 whole -> whole | hp15 whole -> whole
+fist, a counter, hardest at the head (x3.94)                 54.1 | hp30 whole -> whole | hp15 GIB   -> whole
+axe, light (x0.75)                                           16.5 | hp30 alive -> alive | hp15 whole -> whole
+axe, firm (x1.00)                                            22.0 | hp30 alive -> alive | hp15 whole -> whole
+axe, hardest (x1.75)                                         38.5 | hp30 whole -> whole | hp15 whole -> whole
+axe, hardest at the head (x2.25)                             49.5 | hp30 whole -> whole | hp15 whole -> whole
+axe, a counter, hardest at the head (x3.94)                  86.6 | hp30 GIB   -> whole | hp15 GIB   -> GIB  
+crowbar, light (x0.75)                                       16.5 | hp30 alive -> alive | hp15 whole -> whole
+crowbar, firm (x1.00)                                        22.0 | hp30 alive -> alive | hp15 whole -> whole
+crowbar, hardest (x1.75)                                     38.5 | hp30 whole -> whole | hp15 whole -> whole
+crowbar, hardest at the head (x2.25)                         49.5 | hp30 whole -> whole | hp15 whole -> whole
+crowbar, a counter, hardest at the head (x3.94)              86.6 | hp30 GIB   -> whole | hp15 GIB   -> GIB  
+knight's sword, light (x0.75)                                27.2 | hp30 alive -> alive | hp15 whole -> whole
+knight's sword, firm (x1.00)                                 36.3 | hp30 whole -> whole | hp15 whole -> whole
+knight's sword, hardest (x1.75)                              63.5 | hp30 whole -> whole | hp15 GIB   -> whole
+knight's sword, hardest at the head (x2.25)                  81.7 | hp30 GIB   -> whole | hp15 GIB   -> whole
+knight's sword, a counter, hardest at the head (x3.94)      142.9 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+war hammer, light (x0.75)                                    43.6 | hp30 whole -> whole | hp15 whole -> whole
+war hammer, firm (x1.00)                                     58.1 | hp30 whole -> whole | hp15 GIB   -> whole
+war hammer, hardest (x1.75)                                 101.6 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+war hammer, hardest at the head (x2.25)                     130.7 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+war hammer, a counter, hardest at the head (x3.94)          228.7 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+fist under Quad (x1.00)                                      60.5 | hp30 whole -> whole | hp15 GIB   -> GIB  
+fist under Quad (x1.75)                                     105.9 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+axe under Quad (x1.00)                                       96.8 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+axe under Quad (x1.75)                                      169.4 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+crowbar under Quad (x1.00)                                   96.8 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+crowbar under Quad (x1.75)                                  169.4 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+knight's sword under Quad (x1.00)                           159.7 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+knight's sword under Quad (x1.75)                           279.5 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+war hammer under Quad (x1.00)                               255.6 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+war hammer under Quad (x1.75)                               447.2 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+barrel thrown, 1 hand, 3 m/s                                 40.5 | hp30 whole -> whole | hp15 head  -> whole
+barrel thrown, 1 hand, 5 m/s                                 67.5 | hp30 GIB   -> whole | hp15 head  -> head 
+barrel thrown, 1 hand, 7 m/s                                 94.6 | hp30 GIB   -> whole | hp15 head  -> head 
+barrel thrown, 1 hand, 9 m/s                                121.6 | hp30 head  -> head  | hp15 GIB   -> head 
+barrel thrown, 1 hand, 12 m/s                               162.1 | hp30 head  -> head  | hp15 GIB   -> head 
+barrel thrown, 2 hands, 3 m/s                                50.7 | hp30 whole -> head  | hp15 GIB   -> head 
+barrel thrown, 2 hands, 5 m/s                                84.4 | hp30 head  -> head  | hp15 GIB   -> head 
+barrel thrown, 2 hands, 7 m/s                               118.2 | hp30 head  -> head  | hp15 GIB   -> head 
+barrel thrown, 2 hands, 9 m/s                               152.0 | hp30 head  -> head  | hp15 GIB   -> head 
+barrel thrown, 2 hands, 12 m/s                              202.6 | hp30 head  -> head  | hp15 head  -> head 
+small crate thrown, 1 hand, 3 m/s                            60.2 | hp30 whole -> head  | hp15 GIB   -> head 
+small crate thrown, 1 hand, 5 m/s                           100.3 | hp30 GIB   -> head  | hp15 head  -> head 
+small crate thrown, 1 hand, 7 m/s                           140.4 | hp30 GIB   -> head  | hp15 head  -> head 
+small crate thrown, 1 hand, 9 m/s                           180.6 | hp30 GIB   -> head  | hp15 GIB   -> head 
+small crate thrown, 1 hand, 12 m/s                          240.7 | hp30 head  -> head  | hp15 GIB   -> head 
+small crate thrown, 2 hands, 3 m/s                           75.2 | hp30 GIB   -> head  | hp15 head  -> head 
+small crate thrown, 2 hands, 5 m/s                          125.4 | hp30 GIB   -> head  | hp15 head  -> head 
+small crate thrown, 2 hands, 7 m/s                          175.5 | hp30 GIB   -> head  | hp15 GIB   -> head 
+small crate thrown, 2 hands, 9 m/s                          225.7 | hp30 GIB   -> head  | hp15 GIB   -> head 
+small crate thrown, 2 hands, 12 m/s                         300.9 | hp30 head  -> head  | hp15 GIB   -> head 
+large crate thrown, 1 hand, 3 m/s                            72.2 | hp30 head  -> head  | hp15 head  -> head 
+large crate thrown, 1 hand, 5 m/s                           120.3 | hp30 GIB   -> head  | hp15 GIB   -> head 
+large crate thrown, 1 hand, 7 m/s                           168.5 | hp30 head  -> head  | hp15 GIB   -> head 
+large crate thrown, 1 hand, 9 m/s                           216.6 | hp30 head  -> head  | hp15 GIB   -> head 
+large crate thrown, 1 hand, 12 m/s                          288.8 | hp30 GIB   -> head  | hp15 head  -> head 
+large crate thrown, 2 hands, 3 m/s                           90.3 | hp30 GIB   -> head  | hp15 head  -> head 
+large crate thrown, 2 hands, 5 m/s                          150.4 | hp30 GIB   -> head  | hp15 head  -> head 
+large crate thrown, 2 hands, 7 m/s                          210.6 | hp30 GIB   -> head  | hp15 head  -> head 
+large crate thrown, 2 hands, 9 m/s                          270.8 | hp30 GIB   -> head  | hp15 head  -> head 
+large crate thrown, 2 hands, 12 m/s                         361.0 | hp30 GIB   -> head  | hp15 GIB   -> head 
+barrel falling or flung, 8 m/s                               20.0 | hp30 alive -> alive | hp15 whole -> whole
+barrel falling or flung, 12 m/s                              30.0 | hp30 whole -> whole | hp15 whole -> whole
+barrel falling or flung, 20 m/s                              50.0 | hp30 whole -> whole | hp15 whole -> whole
+small crate falling or flung, 8 m/s                          20.0 | hp30 alive -> alive | hp15 whole -> whole
+small crate falling or flung, 12 m/s                         30.0 | hp30 whole -> whole | hp15 whole -> whole
+small crate falling or flung, 20 m/s                         50.0 | hp30 whole -> whole | hp15 whole -> whole
+large crate falling or flung, 8 m/s                          20.0 | hp30 alive -> alive | hp15 whole -> whole
+large crate falling or flung, 12 m/s                         30.0 | hp30 whole -> whole | hp15 whole -> whole
+large crate falling or flung, 20 m/s                         50.0 | hp30 whole -> whole | hp15 whole -> whole
+barrel thrown onto a body just killed, 2 hands, 7 m/s       118.2 | hp30 whole -> whole | hp15 whole -> whole
+small crate thrown onto a body just killed, 2 hands, 7 m/s  175.5 | hp30 whole -> whole | hp15 GIB   -> whole
+large crate thrown onto a body just killed, 2 hands, 7 m/s  210.6 | hp30 whole -> whole | hp15 whole -> whole
+barrel slammed down (speed x1)                               54.2 | hp30 whole -> whole | hp15 GIB   -> whole
+barrel slammed down (speed x2)                              108.3 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+small crate slammed down (speed x1)                          60.3 | hp30 whole -> whole | hp15 GIB   -> whole
+small crate slammed down (speed x2)                         120.7 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+large crate slammed down (speed x1)                          72.4 | hp30 GIB   -> whole | hp15 GIB   -> whole
+large crate slammed down (speed x2)                         144.8 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+blow: 50 rows, gibbed 17 -> 10
+quad: 20 rows, gibbed 19 -> 19
+throw: 60 rows, gibbed 32 -> 0
+fall: 18 rows, gibbed 0 -> 0
+body: 6 rows, gibbed 1 -> 0
+slam: 12 rows, gibbed 10 -> 6
+```

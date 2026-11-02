@@ -1671,6 +1671,38 @@ float(entity inflictor, entity attacker, float isVRMelee) VR_GibKind =
     return r;
 };
 
+// A monster's death code gibs it under some health (a grunt -35, most -40: its overkill), and the damage a hand's blow or a
+// heavy prop deals is far past what its health asks for (ROUND23.md, "Gibbing: overkill by blows and props": a 40 kg crate
+// thrown at 5 m/s deals 100, a barrel 67; his notes 2026-11-02): only a share of that overkill counts: a blow's (or a prop
+// swung, still in the hand) vr_gib_overkill_melee, a thrown, flung or fallen prop's vr_gib_overkill_prop; a slap's none
+// (vr_melee_slap: it kills, never gibs); all of it under Quad and for everything else. Its limb or head still pops
+// (vr_decap.qc, vr_limbs.qc), and it still dies: never over -1. Called with the damage just taken.
+void(entity targ, entity inflictor, entity attacker, float isVRMelee) VR_Gib_Overkill =
+{
+    if(!(targ.flags & FL_MONSTER) || targ.health >= -1)
+    {
+        return;
+    }
+    float share = 1;
+    if(isVRMelee && vr_melee_slap)
+    {
+        share = 0;
+    }
+    else if(attacker.super_damage_finished > time)
+    {
+        return;
+    }
+    else if(VR_GibKind(inflictor, attacker, isVRMelee) == QVR_GIBKIND_MELEE || (inflictor.carry_player != world && inflictor.carry_player == attacker))
+    {
+        share = cvar_hget(cvarh_vr_gib_overkill_melee);
+    }
+    else if(VR_Corpse_DamageKind(inflictor, attacker) == QVR_CDMG_PROPS)
+    {
+        share = cvar_hget(cvarh_vr_gib_overkill_prop);
+    }
+    targ.health = min(-1, targ.health * max(0, share));
+};
+
 float(entity inflictor, entity attacker, float isVRMelee) VR_GibSpeedScale =
 {
     float k = VR_GibKind(inflictor, attacker, isVRMelee);
@@ -2088,10 +2120,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     float healthBefore = targ.health;
     targ.health = targ.health - take;
     VR_BulletTime_Earn(targ, attacker, take, healthBefore); // VR: earned bullet time's meter
-    if(isVRMelee && vr_melee_slap && (targ.flags & FL_MONSTER) && targ.health < -1)
-    {
-        targ.health = -1; // VR: a slap kills but never gibs (vr_melee_slap): no overkill
-    }
+    VR_Gib_Overkill(targ, inflictor, attacker, isVRMelee); // VR: how much of a blow's or a prop's overkill counts to gib it
 
     if(targ.health <= 0)
     {
