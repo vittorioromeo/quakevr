@@ -27,7 +27,8 @@ namespace
 // vr_agrunt_poses of 2026-10-24 14:24, then of 2026-10-25 17:50: 71 keys, approved 2026-10-25; then of 2026-10-27: 20
 // keys changed or new, 75 in all; then of 2026-10-27 evening: his rifle Aim and the Pistol, Launcher, Sprayer and Laser
 // Cannon keys, 6 changed or new, 80 in all; then of 2026-10-30: 120 changed or new; then of 2026-10-31: the knight's
-// and the death knight's own keys, rows of their kinds over the grunt's they follow (shippedFrom)), written by
+// and the death knight's own keys, rows of their kinds over the grunt's they follow (shippedFrom); then of 2026-11-02
+// 18:53: his edits in the Pose Studio, with his grips and IK stretch), written by
 // Misc/quakevr/pose_defaults.py --cfg <his ironwail.cfg> --write.
 // configVersion 202, and again 210 and 212, drop the archived keys equal to these (dropShippedEqual: his text then empty).
 // The Pickup (2026-10-31, agent/sharedpickup): each kind's shared key (class 7: the grunt's and the enforcer's his rifle
@@ -42,45 +43,47 @@ struct ShippedRow
 };
 constexpr ShippedRow shipped[] = {
     // grunt, fists, Guard
-    {10, {-0.03f, 3.31f, 7.16f, 0.f, 0.f, 0.f, -0.74f, -1.64f, 4.82f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {10, {0.06f, 0.79f, 6.27f, 0.f, 0.f, 0.f, -0.74f, -1.64f, 4.82f, 0.f, 0.f, 0.f, 0.33f, -0.08f, -0.94f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, fists, Run
+    {20, {8.f, 6.13f, 12.68f, 0.f, 0.f, 0.f, 9.f, -8.6f, 11.08f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, the pickup's legs (any weapon)
-    {31, {0.f, 0.f, 6.23f, 0.f, 0.f, 0.f, -3.81f, 0.f, 0.f, 0.16f, 0.02f, -4.81f, -3.2f, -0.41f, 0.8f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {31, {0.f, 0.f, 6.23f, 0.f, 0.f, 0.f, -3.81f, 0.f, 0.f, 4.08f, 0.02f, -4.81f, -0.57f, -0.41f, 0.8f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, fists, Jab, wind-up
-    {100, {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.55f, 4.9f, -1.64f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.95f, 0.73f, 0.12f, 14.8f, 0.f, 0.f}},
+    {100, {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.55f, 4.9f, -1.64f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.95f, 0.73f, 0.12f, 20.1f, 0.f, 0.f}},
     // grunt, fists, Jab, blow
-    {101, {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.94f, 0.f, 1.16f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.02f, 1.f, -0.05f, -8.7f, 0.f, 0.f}},
+    {101, {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 7.27f, -2.08f, -0.02f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.02f, 1.f, -0.05f, -17.3f, 0.f, 0.f}},
     // grunt, fists, Jab, follow-through
-    {102, {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.47f, -1.15f, 2.28f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.06f, 0.93f, -0.37f, -14.7f, 0.f, 0.f}},
+    {102, {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 9.87f, -0.66f, -1.51f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.06f, 0.93f, -0.37f, -17.8f, 0.f, 0.f}},
     // grunt, fists, Cross, wind-up
     {110, {5.26f, -5.09f, -0.62f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.09f, -0.52f, -0.24f, 0.f, 0.f, 0.f, -8.5f, 0.f, 0.f}},
     // grunt, fists, Cross, blow
-    {111, {1.56f, 1.98f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.19f, -0.8f, -0.57f, 0.f, 0.f, 0.f, 6.3f, 0.f, 0.f}},
+    {111, {3.63f, 3.42f, -1.58f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.19f, -0.8f, -0.57f, 0.f, 0.f, 0.f, 20.7f, 0.f, 0.f}},
     // grunt, fists, Cross, follow-through
-    {112, {-2.26f, 0.88f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.5f, 0.f, 0.f}},
+    {112, {6.9f, 0.86f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 7.4f, 0.f, 0.f}},
     // grunt, fists, Hook, wind-up
-    {120, {3.03f, -6.05f, -10.24f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.64f, 0.36f, -0.76f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {120, {3.03f, -2.35f, -10.24f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.64f, 0.36f, -0.76f, 0.f, 0.f, 0.f, -6.1f, 0.f, 0.f}},
     // grunt, fists, Hook, blow
-    {121, {1.21f, 3.28f, -2.25f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.13f, -0.4f, -0.91f, 0.f, 0.f, 0.f, 4.4f, 0.f, 0.f}},
+    {121, {3.43f, 8.52f, -4.52f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.13f, -0.4f, -0.91f, 0.f, 0.f, 0.f, 11.f, 0.f, 0.f}},
     // grunt, fists, Hook, follow-through
-    {122, {-4.58f, 1.53f, 2.27f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.5f, 0.f, 0.f}},
+    {122, {-4.31f, 8.55f, -2.2f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 12.1f, 0.f, 0.f}},
     // grunt, fists, Uppercut, wind-up
-    {130, {-4.46f, -3.97f, -4.13f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {130, {-5.57f, -4.37f, -4.38f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, fists, Uppercut, blow
-    {131, {-2.43f, 2.7f, 0.51f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.25f, -0.38f, -0.89f, 0.f, 0.f, 0.f, 9.4f, 0.f, 0.f}},
+    {131, {-1.76f, 4.84f, 5.62f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.08f, 0.32f, -0.84f, 0.f, 0.f, 0.f, 9.4f, 0.f, 0.f}},
     // grunt, fists, Uppercut, follow-through
-    {132, {-10.57f, 0.f, 4.02f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {132, {-11.47f, 4.1f, 9.25f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 6.2f, 0.f, 0.f}},
     // grunt, fists, Shove, wind-up
     {200, {-3.f, 0.f, -1.f, 0.f, 0.f, 0.f, -3.f, 0.f, -1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -4.f, 0.f}},
     // grunt, fists, Shove, push
-    {201, {10.f, 2.f, 4.f, 0.f, 0.f, 0.f, 10.f, -2.f, 4.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 10.f, 0.f}},
+    {201, {12.67f, 1.54f, 1.02f, 0.f, 0.f, 0.f, 13.57f, -2.f, 0.73f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 10.f, 0.f}},
     // grunt, fists, Shove, recover
     {202, {4.f, 1.f, 2.f, 0.f, 0.f, 0.f, 4.f, -1.f, 2.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 4.f, 0.f}},
     // grunt, a rifle, Idle / Carry
-    {1000, {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.25f, -0.92f, -0.31f, 0.67f, 0.74f, -0.05f, 0.f, 0.f, 0.f}},
+    {1000, {2.7f, 0.f, 0.f, 0.f, 0.f, 6.6f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.25f, -0.92f, -0.31f, 0.67f, 0.74f, -0.05f, 0.f, 0.f, 0.f}},
     // grunt, a rifle, Aim
-    {1010, {1.82f, 6.76f, 6.78f, -3.1f, 1.8f, -2.1f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.15f, -0.47f, -0.88f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f}},
+    {1010, {1.82f, 6.76f, 6.78f, -3.1f, 1.7f, -2.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.15f, -0.47f, -0.88f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f}},
     // grunt, a rifle, Run
-    {1020, {4.06f, 0.96f, 0.87f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {1020, {1.73f, 0.94f, 2.19f, 0.f, 0.f, 8.7f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, a rifle, Shove, wind-up
     {1200, {-5.f, 0.f, -3.f, 0.f, 0.f, 80.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -5.f, 0.f, 2.99f, -3.f, 0.f, 0.f, 0.f, 0.7f, 1.f, 0.f, 0.f}},
     // grunt, a rifle, Shove, push
@@ -98,35 +101,65 @@ constexpr ShippedRow shipped[] = {
     // grunt, a one-handed melee weapon, Overhead, blow
     {2141, {3.65f, -4.41f, -3.08f, 13.f, -13.7f, -1.7f, 2.78f, 0.f, 3.25f, 0.f, 0.f, 0.f, -0.17f, -0.94f, 0.29f, 0.09f, 0.14f, -0.02f, 0.f, 0.f, 0.f}},
     // grunt, a one-handed melee weapon, Overhead, follow-through
-    {2142, {2.43f, -0.54f, -10.26f, 28.9f, -18.7f, -25.7f, 5.74f, 0.f, 5.54f, 0.f, 0.f, 0.f, -0.26f, -0.86f, -0.43f, 0.63f, 0.44f, -0.06f, 0.f, 0.f, 0.f}},
+    {2142, {0.15f, -2.58f, -14.54f, 25.6f, -11.4f, -27.2f, 5.74f, 0.f, 5.54f, 0.f, 0.f, 0.f, -0.26f, -0.86f, -0.43f, 0.63f, 0.44f, -0.06f, 0.f, 0.f, 0.f}},
     // grunt, a one-handed melee weapon, Diagonal, wind-up
-    {2150, {2.33f, -7.4f, 3.37f, 4.8f, 2.1f, 24.8f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.29f, -0.02f, -0.91f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {2150, {7.11f, -13.04f, 0.19f, 4.8f, 2.1f, 24.8f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.08f, -0.32f, -0.34f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, a one-handed melee weapon, Diagonal, blow
     {2151, {1.88f, 1.76f, -2.75f, -5.f, -3.8f, 6.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.09f, -0.98f, -0.17f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, a one-handed melee weapon, Diagonal, follow-through
-    {2152, {5.58f, 4.01f, -11.66f, -0.4f, -4.2f, -4.1f, 0.3f, -1.68f, -0.29f, 0.f, 0.f, 0.f, 0.81f, -0.5f, 0.31f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {2152, {0.39f, 3.68f, -12.26f, -0.4f, -4.2f, -4.1f, 0.3f, -1.68f, -0.29f, 0.f, 0.f, 0.f, 0.81f, -0.5f, 0.31f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, a one-handed melee weapon, Horizontal, wind-up
-    {2160, {4.7f, -8.59f, 0.63f, 85.1f, 82.5f, -12.9f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.5f, 0.34f, -0.29f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {2160, {9.94f, -12.14f, -4.43f, 53.9f, 89.8f, 13.3f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.74f, 0.33f, -1.15f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, a one-handed melee weapon, Horizontal, blow
-    {2161, {3.4f, -1.14f, -7.8f, -7.3f, 4.6f, -33.6f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {2161, {0.91f, -0.25f, -8.23f, -7.8f, 8.6f, -3.1f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, a one-handed melee weapon, Horizontal, follow-through
-    {2162, {14.44f, 1.84f, -15.43f, -49.5f, -50.5f, -67.4f, -0.42f, 5.91f, -0.14f, 0.f, 0.f, 0.f, 0.55f, -0.83f, 0.09f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {2162, {0.55f, 0.11f, -13.8f, -54.4f, 98.6f, 1.8f, -0.42f, 5.91f, -0.14f, 0.f, 0.f, 0.f, 0.55f, -0.83f, 0.09f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, a one-handed melee weapon, Backhand, wind-up
-    {2170, {9.45f, 4.93f, -3.29f, 3.8f, 9.f, -17.5f, -9.79f, 3.67f, -4.63f, 0.f, 0.f, 0.f, 0.36f, -0.18f, -0.35f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {2170, {2.05f, 4.67f, -3.55f, 8.1f, 9.7f, -17.2f, -9.79f, 3.67f, -4.63f, 0.f, 0.f, 0.f, 0.36f, -0.18f, -0.35f, 0.f, 0.f, 0.f, 15.4f, 0.f, 0.f}},
     // grunt, a one-handed melee weapon, Backhand, blow
-    {2171, {1.54f, -7.77f, -13.5f, 5.f, 35.3f, 11.f, 1.35f, 3.85f, -2.93f, 0.f, 0.f, 0.f, 0.21f, -0.97f, 0.16f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {2171, {2.58f, -7.75f, -13.54f, 7.4f, 34.8f, 3.5f, 1.35f, 3.85f, -2.93f, 0.f, 0.f, 0.f, 0.21f, -0.97f, 0.16f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, a one-handed melee weapon, Backhand, follow-through
-    {2172, {1.8f, -8.95f, -24.82f, 25.1f, 45.4f, 22.2f, 0.f, -4.47f, 3.19f, 0.f, 0.f, 0.f, -0.62f, -0.77f, -0.16f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {2172, {-2.46f, -10.94f, -24.85f, 18.5f, 17.9f, 27.3f, 0.f, -4.47f, 3.19f, 0.f, 0.f, 0.f, -0.62f, -0.77f, -0.16f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, a one-handed melee weapon, Shove, wind-up
-    {2200, {-1.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.11f, -2.77f, 12.34f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 8.f, -3.f, 0.f}},
+    {2200, {-1.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.11f, -2.77f, 12.34f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.53f, -0.06f, -0.34f, 8.f, -3.f, 0.f}},
     // grunt, a one-handed melee weapon, Shove, push
-    {2201, {-4.f, 0.f, -1.f, 0.f, 0.f, 0.f, 14.59f, -0.38f, 14.67f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -28.7f, 10.f, 0.f}},
+    {2201, {-4.f, 0.f, -1.f, 0.f, 0.f, 0.f, 15.5f, -0.38f, 15.54f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -28.7f, 10.f, 0.f}},
     // grunt, a one-handed melee weapon, Shove, recover
     {2202, {-2.f, 0.f, 0.f, 0.f, 0.f, 0.f, 4.6f, -0.47f, 11.31f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -4.f, 4.f, 0.f}},
+    // grunt, a two-handed melee weapon, Port Arms
+    {3000, {8.07f, 6.34f, 10.58f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, a two-handed melee weapon, Ready
+    {3010, {3.29f, 12.83f, 13.04f, -20.4f, 0.f, 2.7f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, a two-handed melee weapon, Run
+    {3020, {-2.71f, 2.55f, 2.56f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, a two-handed melee weapon, Overhead, wind-up
+    {3140, {7.37f, -7.73f, -1.54f, 21.2f, 14.1f, -34.f, -6.18f, -4.03f, 32.08f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, a two-handed melee weapon, Overhead, blow
+    {3141, {3.46f, -9.05f, -27.86f, 27.9f, 50.5f, -2.4f, 12.21f, -11.02f, 0.88f, 0.f, 0.f, 0.f, 0.11f, -0.91f, -0.39f, 0.12f, 0.8f, -0.59f, 0.f, 0.f, 0.f}},
+    // grunt, a two-handed melee weapon, Overhead, follow-through
+    {3142, {-4.92f, -13.89f, -25.53f, 53.8f, 8.2f, -59.7f, 5.29f, -13.15f, -6.69f, 0.f, 0.f, 0.f, -0.66f, -0.58f, -0.48f, 0.f, 0.f, 0.f, -0.6f, -24.8f, -5.9f}},
+    // grunt, a two-handed melee weapon, Diagonal, wind-up
+    {3150, {7.84f, -26.98f, -10.35f, 45.f, 0.f, 0.f, -5.56f, -24.23f, 18.53f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, a two-handed melee weapon, Diagonal, blow
+    {3151, {-2.42f, -0.43f, -23.35f, 52.6f, 28.9f, 26.f, 4.15f, -3.62f, 0.32f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 15.8f, 0.f, 0.f}},
+    // grunt, a two-handed melee weapon, Diagonal, follow-through
+    {3152, {-8.54f, -7.89f, -13.77f, 46.3f, 36.1f, -26.1f, 2.18f, -0.79f, 0.54f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 5.6f, 0.f, 0.f}},
+    // grunt, a two-handed melee weapon, Horizontal, wind-up
+    {3160, {11.81f, -18.77f, -12.17f, 139.8f, 21.8f, -36.3f, -3.71f, -25.41f, 8.58f, 0.f, 0.f, 0.f, 0.63f, 1.29f, -0.95f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, a two-handed melee weapon, Horizontal, blow
+    {3161, {5.37f, -7.71f, -14.92f, 30.6f, 17.2f, -4.4f, 11.92f, -7.74f, 8.25f, 0.f, 0.f, 0.f, 0.38f, -0.86f, -0.34f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, a two-handed melee weapon, Horizontal, follow-through
+    {3162, {2.3f, -5.75f, -17.32f, 0.f, 118.8f, 0.f, 8.66f, 2.83f, 7.44f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 5.8f, 0.f, 0.f}},
+    // grunt, a two-handed melee weapon, Backhand, wind-up
+    {3170, {0.38f, -5.09f, -11.32f, 51.8f, 27.1f, -13.5f, 6.07f, 2.88f, 5.76f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 13.3f, 0.f, 0.f}},
+    // grunt, a two-handed melee weapon, Backhand, blow
+    {3171, {3.44f, -12.75f, -17.75f, 64.8f, 24.1f, -7.1f, 12.63f, -9.48f, 8.3f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // grunt, a two-handed melee weapon, Backhand, follow-through
+    {3172, {3.84f, -17.87f, -27.01f, 66.2f, 34.3f, 72.9f, -0.63f, -18.85f, 12.12f, 0.f, 0.f, 0.f, 0.08f, -0.98f, -0.19f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, a two-handed melee weapon, Shove, wind-up
-    {3200, {-4.f, 0.f, -4.f, -80.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -5.f, 0.f}},
+    {3200, {-1.44f, -1.98f, -7.4f, -65.8f, 36.f, 44.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.59f, -0.78f, -0.22f, -0.83f, 0.53f, -0.18f, 0.f, -5.f, 0.f}},
     // grunt, a two-handed melee weapon, Shove, push
-    {3201, {8.f, 0.f, -3.f, -85.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 12.f, 0.f}},
+    {3201, {10.27f, 0.02f, -3.01f, -85.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 12.f, 0.f}},
     // grunt, a two-handed melee weapon, Shove, recover
     {3202, {2.f, 0.f, -3.f, -70.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 5.f, 0.f}},
     // grunt, a chainsaw, Idle / Carry
@@ -188,41 +221,45 @@ constexpr ShippedRow shipped[] = {
     // grunt, two melee weapons, Shove, recover
     {5202, {2.37f, 3.66f, 5.34f, -69.3f, -65.f, -67.5f, 3.44f, -3.38f, 4.29f, 81.1f, -63.4f, 68.8f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 4.f, 0.f}},
     // grunt, two guns, Idle / Carry
-    {6000, {2.95f, 1.65f, -1.42f, 5.4f, 3.9f, 14.3f, 4.48f, -1.47f, 1.5f, 0.3f, -3.4f, -20.5f, -0.97f, -0.18f, -0.14f, -0.84f, 0.34f, -0.42f, 0.f, 0.f, 0.f}},
+    {6000, {2.95f, 1.65f, -1.42f, 5.4f, 3.9f, 14.3f, 3.92f, -2.9f, -1.1f, -0.5f, 1.1f, -20.5f, -0.97f, -0.18f, -0.14f, -0.84f, 0.34f, -0.42f, 0.f, 0.f, 0.f}},
     // grunt, two guns, Aim
-    {6010, {4.74f, 1.83f, 1.78f, 0.7f, 0.6f, -0.5f, 4.87f, -2.81f, 1.75f, 2.2f, 0.5f, 0.4f, 0.f, 0.f, 0.f, -0.33f, 0.19f, -0.92f, 0.f, 0.f, 0.f}},
+    {6010, {7.13f, 2.09f, 5.29f, 0.7f, 1.5f, -0.5f, 6.4f, -2.65f, 4.89f, 2.2f, 1.3f, 0.2f, 0.f, 0.f, 0.f, -0.33f, 0.19f, -0.92f, 0.f, 0.f, 0.f}},
     // grunt, two guns, Run
     {6020, {3.46f, 3.87f, 0.17f, 0.f, 0.f, 0.f, 0.f, -2.95f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, two guns, Shove, wind-up
-    {6200, {-8.78f, 0.03f, 2.01f, -69.3f, -69.3f, -69.3f, -12.69f, -0.16f, 1.78f, 76.1f, -67.2f, 69.f, -0.15f, -0.3f, -0.94f, 0.f, 0.f, 0.f, 0.f, -4.f, 0.f}},
+    {6200, {-10.05f, 0.02f, 2.01f, -69.3f, -69.3f, -69.3f, -12.69f, -0.16f, 1.78f, 76.1f, -67.2f, 69.f, -0.15f, -0.3f, -0.94f, 0.f, 0.f, 0.f, 0.f, -4.f, 0.f}},
     // grunt, two guns, Shove, push
     {6201, {1.15f, 3.19f, 5.77f, -68.4f, -65.4f, -62.7f, 2.16f, -2.01f, 6.32f, 53.6f, -60.2f, 56.6f, 0.1f, -0.22f, -0.97f, 0.f, 0.f, 0.f, 0.f, 10.f, 0.f}},
     // grunt, two guns, Shove, recover
     {6202, {-6.62f, 0.58f, 0.43f, -59.5f, -59.4f, -37.5f, -8.51f, 0.78f, 2.42f, 49.5f, -56.5f, 38.7f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 4.f, 0.f}},
     // grunt, every weapon (the shared Pickup), Pickup
-    {7030, {-1.29f, 5.65f, 15.86f, -6.f, 20.f, 18.2f, 4.69f, -4.99f, -9.19f, 0.f, 0.f, 0.f, 0.83f, -0.26f, 0.49f, -0.13f, 0.99f, 0.07f, 8.4f, -48.6f, 37.2f}},
-    // grunt, every weapon (the shared Cast), Cast: the death knight's volley (the knights follow the grunt's, fitted):
-    // his off hand off the gun (Free), out ahead at his shoulder's height, its palm turned at you (fingers up); a first
-    // default (2026-11-01, agent/night1101) for him to set in the Pose Studio as the Pickup's
-    {7040, {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 20.f, -3.f, 21.f, 127.3f, -127.3f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.f, 0.f, 0.f}},
+    {7030, {-3.05f, 4.71f, 12.36f, -7.4f, 23.2f, 25.8f, 7.83f, -7.81f, -5.44f, 0.f, 0.f, -0.3f, 0.83f, -0.26f, 0.49f, -0.8f, 0.35f, -0.48f, 9.f, -46.8f, 25.8f}},
+    // grunt, every weapon (the shared Pickup), ?
+    {7040, {0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 25.02f, -13.79f, 12.79f, -163.7f, 74.7f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.f, 0.f, 0.f}},
     // grunt, a pistol, Idle / Carry
-    {17000, {4.46f, 5.46f, -1.62f, 0.f, 0.f, 0.f, 1.14f, -7.3f, -1.57f, 0.f, 0.f, 0.f, -0.25f, -0.92f, -0.31f, -0.24f, 0.95f, -0.19f, 0.f, 0.f, 0.f}},
+    {17000, {6.21f, 10.8f, 1.72f, 0.f, 0.f, 0.f, 1.14f, -7.3f, -1.57f, 0.f, 0.f, 0.f, -0.25f, -0.92f, -0.31f, -0.24f, 0.95f, -0.19f, 0.f, 0.f, 0.f, -1.95f, -0.97f, 1.91f, 1.3f, 0.f, 0.f, 1.f, 0.f, 0.f}},
     // grunt, a pistol, Aim
-    {17010, {3.88f, 6.08f, 6.47f, -1.8f, 1.8f, -1.6f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.01f, -0.98f, -0.25f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f, 0.f, -1.15f, 2.55f, 16.3f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {17010, {5.88f, 6.6f, 6.39f, -1.8f, 1.8f, -1.8f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.01f, -0.98f, -0.25f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f, 0.f, -1.15f, 2.55f, 16.3f, 0.f, 0.f, 1.f, 0.f, 0.f}},
     // grunt, a pistol, Run
-    {17020, {4.06f, 4.71f, 0.87f, 0.f, 0.f, 0.f, -1.72f, 0.f, 0.f, 0.f, 5.8f, 0.f, 0.f, 0.f, 0.f, -0.31f, 0.16f, 0.32f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f}},
+    {17020, {3.34f, -0.52f, 1.87f, 0.f, 0.f, 0.f, -1.72f, 0.f, 0.f, 0.f, 5.8f, 0.f, 0.f, 0.f, 0.f, -0.31f, 0.16f, 0.32f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f}},
     // grunt, a pistol, Shove, wind-up
     {17200, {-1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.58f, -5.89f, 13.5f, -75.8f, 52.8f, -135.3f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 8.f, -3.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.f, 0.f, 0.f}},
     // grunt, a pistol, Shove, push
     {17201, {-3.f, 0.f, 0.f, 0.f, 0.f, 0.f, 21.f, -16.28f, 10.39f, 88.5f, -104.7f, 52.f, 0.f, 0.f, 0.f, 0.f, 0.6f, -0.3f, -26.3f, 10.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.f, 0.f, 0.f}},
     // grunt, a pistol, Shove, recover
     {17202, {-1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 11.99f, -9.73f, 12.95f, 77.f, -124.7f, 25.7f, 0.f, 0.f, 0.f, 0.48f, 0.08f, -0.21f, -4.f, 4.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.f, 0.f, 0.f}},
+    // grunt, a shoulder launcher, Idle / Carry
+    {18000, {2.45f, 0.f, 0.f, 0.f, 0.f, 12.1f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.57f, -0.72f, -0.4f, 0.67f, 0.74f, -0.05f, 0.f, 0.f, 0.f}},
     // grunt, a shoulder launcher, Aim
-    {18010, {2.71f, 2.82f, 10.46f, -29.3f, 1.5f, -0.3f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.01f, -0.98f, -0.25f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f}},
+    {18010, {3.48f, 4.79f, 10.34f, -29.3f, 1.7f, -1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.01f, -0.98f, -0.25f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f}},
+    // grunt, a shoulder launcher, Run
+    {18020, {4.12f, 0.98f, 0.86f, 0.f, 0.f, 12.9f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, a sprayer, Idle / Carry
-    {19000, {5.13f, 0.01f, 1.22f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.25f, -0.92f, -0.31f, 0.67f, 0.74f, -0.05f, 0.f, 0.f, 0.f}},
+    {19000, {5.12f, 4.21f, 1.19f, 0.f, 0.f, 17.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.25f, -0.92f, -0.31f, 0.67f, 0.74f, -0.05f, 0.f, 0.f, 0.f}},
     // grunt, a sprayer, Aim
-    {19010, {-1.59f, 3.04f, -3.88f, 0.3f, -1.1f, -1.1f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.01f, -0.98f, -0.25f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f}},
+    {19010, {-1.59f, 3.04f, -3.88f, 0.3f, -1.2f, -1.1f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.01f, -0.98f, -0.25f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f}},
+    // grunt, a sprayer, Run
+    {19020, {-0.41f, 0.03f, 0.6f, 0.1f, 1.4f, 11.1f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 4.39f, -0.27f, 3.82f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f}},
     // grunt, a sprayer, Shove, wind-up
     {19200, {-3.78f, 7.37f, 3.59f, 0.f, 0.f, 80.f, -0.96f, -5.5f, 5.53f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -5.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f}},
     // grunt, a sprayer, Shove, push
@@ -230,11 +267,11 @@ constexpr ShippedRow shipped[] = {
     // grunt, a sprayer, Shove, recover
     {19202, {-1.02f, 2.01f, 2.92f, 0.f, 0.f, 70.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 5.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f}},
     // grunt, the laser cannon, Idle / Carry
-    {20000, {8.04f, -2.73f, 0.f, 0.f, 0.f, 31.1f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.25f, -0.92f, -0.31f, 0.67f, 0.74f, -0.05f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 87.f, -73.f, -12.f, 0.f, 0.f, 0.f}},
+    {20000, {8.04f, -1.17f, 0.f, 0.f, 0.f, 33.6f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.25f, -0.92f, -0.31f, 0.67f, 0.74f, -0.05f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 87.f, -73.f, -12.f, 0.f, 0.f, 0.f}},
     // grunt, the laser cannon, Aim
-    {20010, {-4.42f, 3.5f, -4.46f, -1.4f, -0.9f, -1.5f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.01f, -0.98f, -0.25f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f, 1.7f, 1.45f, 0.f, 87.3f, -73.9f, -12.4f, 0.f, 0.f, 0.f}},
+    {20010, {-4.42f, 3.5f, -4.46f, -1.4f, -1.f, -1.5f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.01f, -0.98f, -0.25f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f, 1.7f, 1.45f, 0.f, 87.3f, -73.9f, -12.4f, 0.f, 0.f, 0.f}},
     // grunt, the laser cannon, Run
-    {20020, {4.06f, 0.96f, 0.87f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.7f, -0.35f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {20020, {-3.19f, -1.14f, 0.85f, 0.f, 0.f, -17.8f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.7f, -0.35f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, the laser cannon, Shove, wind-up
     {20200, {0.43f, -3.05f, 0.78f, -16.6f, -20.1f, 78.7f, 0.9f, 0.82f, 1.88f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -5.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f}},
     // grunt, the laser cannon, Shove, push
@@ -242,11 +279,11 @@ constexpr ShippedRow shipped[] = {
     // grunt, the laser cannon, Shove, recover
     {20202, {6.35f, 1.98f, 4.28f, -20.3f, -29.f, 67.9f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 5.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f}},
     // grunt, the Widowmaker, Idle / Carry
-    {21000, {7.74f, 3.45f, 0.f, 0.f, 0.f, 26.2f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.25f, -0.92f, -0.31f, -0.04f, 0.99f, -0.12f, 0.f, 0.f, 0.f, 2.46f, 0.83f, 0.98f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {21000, {7.74f, 0.f, 0.f, 0.f, 0.f, 26.2f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.25f, -0.92f, -0.31f, -0.04f, 0.99f, -0.12f, 0.f, 0.f, 0.f, 2.46f, 0.83f, 0.98f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, the Widowmaker, Aim
     {21010, {2.53f, 6.18f, 6.25f, -3.1f, 1.6f, -1.9f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.15f, -0.47f, -0.88f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f, 2.63f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // grunt, the Widowmaker, Run
-    {21020, {4.06f, 0.96f, 0.87f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.54f, 0.f, 0.09f, 47.f, -37.7f, -17.2f, 0.f, 0.f, 0.f}},
+    {21020, {0.74f, 0.03f, 0.63f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.54f, 0.f, 0.09f, 47.f, -37.7f, -17.2f, 0.f, 0.f, 0.f}},
     // enforcer, fists, Idle
     {100000, {6.47f, 3.7f, 1.68f, 0.f, 0.f, 0.f, 1.77f, -3.42f, 1.48f, 0.f, 0.f, 0.f, -0.36f, -0.83f, -0.42f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // enforcer, fists, Guard
@@ -472,7 +509,7 @@ constexpr ShippedRow shipped[] = {
     // knight, a rifle, Idle / Carry
     {201000, {10.55f, 6.97f, 7.12f, -24.9f, 8.1f, 58.3f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.51f, -0.43f, -0.75f, -0.41f, 0.54f, -0.74f, 0.f, 0.f, 0.f, -0.86f, -1.82f, -1.06f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // knight, a rifle, Aim
-    {201010, {11.85f, 7.46f, 12.16f, 15.9f, 3.6f, -2.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.48f, 0.78f, -0.39f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f, 2.79f, -2.03f, -1.3f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {201010, {11.85f, 7.46f, 12.16f, 15.9f, 3.6f, -2.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.48f, 0.78f, -0.39f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f, -3.87f, -2.03f, -1.3f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // knight, a rifle, Run
     {201020, {2.73f, -1.98f, 3.51f, 6.4f, -10.9f, -13.6f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.9f, 0.f, -0.58f, 0.f, 0.f, 0.f}},
     // knight, a rifle, Shove, wind-up
@@ -585,18 +622,116 @@ constexpr ShippedRow shipped[] = {
     {300000, {2.39f, 2.08f, -6.31f, 0.f, 0.f, 0.f, 1.66f, -2.32f, -4.23f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
     // death knight, fists, Guard
     {300010, {5.22f, -0.77f, 6.45f, 0.f, 0.f, 0.f, 5.51f, -5.77f, 4.6f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // death knight, the pickup's legs (any weapon)
+    {300031, {0.f, 0.f, 7.16f, -11.7f, -22.3f, -13.f, 3.58f, 0.f, -2.2f, 0.16f, 0.03f, -5.53f, -3.2f, -0.59f, 0.92f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // death knight, a rifle, Idle / Carry
+    {301000, {23.22f, -2.35f, 1.29f, 5.1f, 45.7f, 98.1f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.25f, -0.92f, -0.31f, 0.67f, 0.74f, -0.05f, 0.f, 4.1f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f}},
+    // death knight, a rifle, Aim
+    {301010, {17.46f, 14.14f, 12.65f, 2.2f, 4.f, -3.9f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.41f, -0.59f, -0.71f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f, -1.84f, -0.77f, -1.04f, 0.f, -36.9f, 0.f, 0.f, 0.f, 0.f}},
+    // death knight, a rifle, Run
+    {301020, {-0.89f, -0.61f, 4.25f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.33f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // death knight, a rifle, Shove, wind-up
+    {301200, {-4.99f, -2.6f, -3.44f, 0.f, 0.f, 80.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -5.f, 0.f, 2.99f, -3.f, 0.f, 0.f, 0.f, 0.7f, 1.f, 0.f, 0.f}},
+    // death knight, a rifle, Shove, push
+    {301201, {5.6f, -0.39f, 1.44f, 0.f, 0.f, 85.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 12.f, 0.f, 1.34f, 1.99f, 1.17f, 0.f, -0.3f, 0.f, 1.f, 0.f, 0.f}},
+    // death knight, a rifle, Shove, recover
+    {301202, {-1.23f, -0.48f, -0.64f, 0.f, 0.f, 70.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 5.f, 0.f, 3.16f, 1.79f, -0.16f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f}},
+    // death knight, a one-handed melee weapon, Idle / Carry
+    {302000, {3.52f, -0.08f, -5.7f, 0.f, 0.f, 0.f, 5.44f, -3.45f, -2.08f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.96f, 0.12f, -0.27f, 0.f, 0.f, 0.f}},
+    // death knight, a one-handed melee weapon, Ready
+    {302010, {8.51f, -2.58f, 1.85f, 16.4f, 0.f, 0.f, 4.04f, -2.24f, -2.81f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.73f, 0.28f, -0.62f, 0.f, 0.f, 0.f}},
+    // death knight, a one-handed melee weapon, Run
+    {302020, {3.51f, -2.49f, 5.53f, -13.9f, -22.1f, 2.7f, -2.7f, 3.56f, 0.89f, 0.f, 0.f, 0.f, -0.89f, 0.19f, -0.41f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // death knight, a one-handed melee weapon, Overhead, wind-up
+    {302140, {-0.44f, -5.8f, 15.92f, 38.4f, 6.9f, -21.7f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.07f, -0.47f, -0.73f, 0.f, 0.f, 0.f, -29.2f, 0.f, 0.f}},
+    // death knight, a one-handed melee weapon, Overhead, blow
+    {302141, {4.07f, 3.04f, -17.31f, 11.8f, 23.1f, -5.8f, 2.78f, 0.f, 3.74f, 0.f, 0.f, 0.f, -0.17f, -0.94f, 0.29f, 0.09f, 0.14f, -0.02f, 21.5f, 0.f, 0.f}},
+    // death knight, a one-handed melee weapon, Overhead, follow-through
+    {302142, {-0.99f, 2.2f, -9.71f, 28.9f, -18.7f, -25.7f, 5.74f, 0.f, 6.37f, 0.f, 0.f, 0.f, -0.26f, -0.86f, -0.43f, 0.63f, 0.44f, -0.06f, 0.f, 0.f, 0.f}},
+    // death knight, a one-handed melee weapon, Diagonal, wind-up
+    {302150, {2.18f, -20.44f, 2.4f, 17.4f, -0.7f, 25.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.29f, -0.02f, -0.91f, 0.f, 0.f, 0.f, -6.9f, 0.f, 0.f}},
+    // death knight, a one-handed melee weapon, Diagonal, blow
+    {302151, {-1.03f, 7.1f, -13.03f, 11.8f, 14.7f, 3.4f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.09f, -0.98f, -0.17f, 0.f, 0.f, 0.f, 27.3f, 0.f, 0.f}},
+    // death knight, a one-handed melee weapon, Diagonal, follow-through
+    {302152, {0.29f, 6.1f, -8.53f, 20.7f, -3.4f, -4.8f, 0.3f, -2.42f, -0.33f, 0.f, 0.f, 0.f, 0.81f, -0.5f, 0.31f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // death knight, a one-handed melee weapon, Horizontal, wind-up
+    {302160, {4.7f, -12.37f, 0.72f, 85.1f, 82.5f, -12.9f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.5f, 0.34f, -0.29f, 0.f, 0.f, 0.f, -7.5f, 0.f, 0.f}},
+    // death knight, a one-handed melee weapon, Horizontal, blow
+    {302161, {3.4f, -1.64f, -8.97f, -7.3f, 4.6f, -33.6f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.5f, 0.f, 0.f}},
+    // death knight, a one-handed melee weapon, Horizontal, follow-through
+    {302162, {8.62f, 5.18f, -15.37f, -16.4f, -41.7f, 7.f, -0.42f, 8.51f, -0.16f, 0.f, 0.f, 0.f, 0.55f, -0.83f, 0.09f, 0.f, 0.f, 0.f, 14.1f, 0.f, 0.f}},
+    // death knight, a one-handed melee weapon, Backhand, wind-up
+    {302170, {6.68f, 8.06f, -3.36f, 30.9f, 17.9f, -11.7f, -9.79f, 5.28f, -5.32f, 0.f, 0.f, 0.f, 0.36f, -0.18f, -0.35f, 0.f, 0.f, 0.f, 8.1f, 0.f, 0.f}},
+    // death knight, a one-handed melee weapon, Backhand, blow
+    {302171, {-0.62f, -2.98f, -8.28f, 44.7f, 22.4f, -8.6f, 1.35f, 5.54f, -3.37f, 0.f, 0.f, 0.f, 0.21f, -0.97f, 0.16f, 0.f, 0.f, 0.f, -8.3f, 0.f, 0.f}},
+    // death knight, a one-handed melee weapon, Backhand, follow-through
+    {302172, {-1.94f, -8.57f, -20.4f, 31.8f, 34.4f, 56.9f, 0.f, -6.44f, 3.67f, 0.f, 0.f, 0.f, -0.62f, -0.77f, -0.16f, 0.f, 0.f, 0.f, -13.f, 0.f, 0.f}},
+    // death knight, a one-handed melee weapon, Shove, wind-up
+    {302200, {-1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.52f, -3.12f, 13.26f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 17.6f, -3.f, 0.f}},
+    // death knight, a one-handed melee weapon, Shove, push
+    {302201, {-4.f, 0.f, -1.15f, 0.f, 0.f, 0.f, 14.88f, -4.37f, 13.95f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -40.2f, 10.f, 0.f}},
+    // death knight, a one-handed melee weapon, Shove, recover
+    {302202, {-2.f, 0.f, 0.f, 0.f, 0.f, 0.f, 4.6f, -0.68f, 13.01f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -17.1f, 4.f, 0.f}},
+    // death knight, two guns, Idle / Carry
+    {306000, {2.95f, 2.38f, -1.63f, 5.4f, 3.9f, 14.3f, 5.75f, -3.37f, -1.1f, -1.3f, 5.2f, -20.5f, -0.97f, -0.18f, -0.14f, -0.84f, 0.34f, -0.42f, 0.f, 0.f, 0.f}},
+    // death knight, two guns, Aim
+    {306010, {13.08f, 4.57f, 8.53f, -6.9f, 2.4f, -0.5f, 13.3f, -6.76f, 8.5f, 8.7f, 2.5f, 0.4f, 0.f, 0.f, 0.f, -0.33f, 0.19f, -0.92f, 0.f, 0.f, 0.f}},
+    // death knight, two guns, Shove, push
+    {306201, {1.15f, 4.59f, 6.64f, -68.4f, -65.4f, -62.7f, 2.16f, -2.89f, 7.27f, 53.6f, -60.2f, 56.6f, 0.1f, -0.22f, -0.97f, 0.f, 0.f, 0.f, 0.f, 17.1f, 0.1f}},
+    // death knight, every weapon (the shared Pickup), Pickup
+    {307030, {11.4f, 7.65f, 9.6f, 17.8f, 54.1f, 21.1f, 3.3f, -5.06f, -19.8f, 0.f, 0.f, 0.f, 0.83f, -0.26f, 0.49f, -0.13f, 0.99f, 0.07f, 9.1f, -46.f, 20.1f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.f, 0.f, 0.f}},
+    // death knight, every weapon (the shared Pickup), ?
+    {307040, {6.65f, -5.65f, -6.45f, 6.4f, 29.f, -24.4f, 42.89f, -19.47f, 16.9f, -148.2f, 102.1f, 0.f, -0.92f, -0.32f, -0.23f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.f, 0.f, 0.f}},
     // death knight, a pistol, Idle / Carry
-    {317000, {9.45f, 8.36f, -1.67f, 28.8f, -3.4f, 15.7f, 0.99f, -7.35f, -6.12f, 0.f, 0.f, 0.f, -0.25f, -0.92f, -0.31f, -0.24f, 0.95f, -0.19f, 0.f, 0.f, 0.f}},
+    {317000, {7.18f, 7.64f, -2.26f, 29.6f, 2.8f, 14.1f, 2.75f, -4.41f, -3.19f, 0.f, 0.f, 0.f, -0.25f, -0.92f, -0.31f, -0.24f, 0.95f, -0.19f, 0.f, 0.f, 0.f}},
     // death knight, a pistol, Aim
-    {317010, {8.17f, 10.36f, 8.36f, -1.7f, 2.6f, -2.8f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.01f, -0.98f, -0.25f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f, 0.f, -1.15f, 2.55f, 16.3f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    {317010, {10.82f, 10.05f, 7.57f, -1.7f, 2.5f, -2.6f, 4.65f, -6.37f, -2.45f, 0.f, 0.f, 0.f, 0.01f, -0.98f, -0.25f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f, 0.f, -1.15f, 2.55f, 16.3f, 0.f, 0.f, 1.f, 0.f, 0.f}},
     // death knight, a pistol, Run
     {317020, {4.36f, 8.08f, 5.19f, 0.f, 0.f, 0.f, -1.72f, 0.f, 0.f, 0.f, 5.8f, 0.f, 0.f, 0.f, 0.f, -0.31f, 0.16f, 0.32f, 0.f, 0.f, 0.f, -0.68f, -1.24f, 1.24f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f}},
     // death knight, a pistol, Shove, wind-up
-    {317200, {-1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 10.68f, -11.32f, 12.96f, -75.8f, 52.8f, -135.3f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 8.f, -3.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.f, 0.f, 0.f}},
+    {317200, {-1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 7.59f, -1.74f, 13.46f, -75.8f, 52.8f, -135.3f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 19.4f, -3.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.f, 0.f, 0.f}},
     // death knight, a pistol, Shove, push
-    {317201, {-3.f, 0.f, 0.f, 0.f, 0.f, 0.f, 21.f, -17.78f, 11.95f, 88.5f, -104.7f, 52.f, 0.f, 0.f, 0.f, 0.f, 0.6f, -0.3f, -38.1f, 10.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.f, 0.f, 0.f}},
+    {317201, {-2.15f, -2.66f, -5.35f, 1.9f, -7.9f, 14.7f, 16.63f, -17.78f, 7.92f, 63.8f, -116.7f, 40.9f, 0.f, 0.f, 0.f, 0.f, 0.6f, -0.3f, -38.1f, 10.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.f, 0.f, 0.f}},
     // death knight, a pistol, Shove, recover
-    {317202, {-1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 7.89f, -7.83f, 8.19f, 77.f, -124.7f, 25.7f, 0.f, 0.f, 0.f, 0.48f, 0.08f, -0.21f, -4.f, 4.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.f, 0.f, 0.f}},
+    {317202, {-1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 6.71f, -7.44f, 11.58f, 77.f, -124.7f, 25.7f, 0.f, 0.f, 0.f, 0.48f, 0.08f, -0.21f, -4.f, 4.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.f, 0.f, 0.f}},
+    // death knight, a shoulder launcher, Idle / Carry
+    {318000, {22.32f, -2.58f, 4.35f, 5.5f, 45.6f, 96.6f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.25f, -0.92f, -0.31f, 0.67f, 0.74f, -0.05f, 0.f, 0.f, 0.f}},
+    // death knight, a shoulder launcher, Aim
+    {318010, {12.81f, 10.16f, 12.93f, -55.8f, 0.7f, 0.3f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.39f, -0.58f, -0.73f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f, 6.91f, -2.26f, -0.13f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f}},
+    // death knight, a shoulder launcher, Run
+    {318020, {0.83f, -1.17f, 5.57f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // death knight, a shoulder launcher, Shove, wind-up
+    {318200, {-5.f, -3.83f, -3.51f, 22.4f, -18.8f, 78.4f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -5.f, 0.f, -3.73f, 2.69f, -0.43f, 0.f, 0.f, 0.7f, 1.f, 0.f, 0.f}},
+    // death knight, a shoulder launcher, Shove, push
+    {318201, {5.82f, -0.7f, 1.66f, 33.f, -30.3f, 81.1f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.1f, 21.8f, 0.2f, 0.f, 0.f, 0.23f, 0.f, -0.3f, 0.f, 1.f, 0.f, 0.f}},
+    // death knight, a shoulder launcher, Shove, recover
+    {318202, {-0.72f, -0.78f, -2.68f, 24.f, -34.f, 97.7f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 5.f, 0.f, -5.31f, 1.31f, -0.86f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f}},
+    // death knight, a sprayer, Aim
+    {319010, {12.37f, 8.56f, 2.66f, 0.8f, 0.9f, -2.3f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.01f, -0.98f, -0.25f, -0.5f, 0.85f, -0.16f, 0.f, 0.f, 0.f, 1.15f, -2.2f, 1.68f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f}},
+    // death knight, a sprayer, Run
+    {319020, {12.11f, 2.59f, 3.98f, 2.2f, 21.1f, 101.7f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 2.4f, 0.08f, -0.1f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // death knight, a sprayer, Shove, wind-up
+    {319200, {-3.78f, 10.61f, 4.13f, 0.f, 0.f, 80.f, -0.96f, -7.92f, 6.36f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -5.f, 0.f, 0.8f, -0.15f, -2.1f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f}},
+    // death knight, a sprayer, Shove, push
+    {319201, {10.06f, 5.63f, 12.11f, 0.f, 0.f, 85.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.1f, 20.f, -0.3f, -0.16f, -0.19f, -1.87f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f}},
+    // death knight, a sprayer, Shove, recover
+    {319202, {-2.27f, 7.44f, 3.05f, 0.f, 0.f, 70.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 5.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f}},
+    // death knight, the laser cannon, Idle / Carry
+    {320000, {20.45f, -14.05f, -6.17f, 0.5f, 4.5f, 122.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.25f, -0.92f, -0.31f, 0.67f, 0.74f, -0.05f, -14.f, 0.f, 0.f, 1.57f, 3.71f, 2.18f, 47.9f, 1.6f, -64.6f, 1.f, 0.f, 0.f}},
+    // death knight, the laser cannon, Aim
+    {320010, {17.17f, 6.05f, 2.01f, -22.4f, 7.3f, 36.2f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.01f, -0.98f, -0.25f, -0.5f, 0.85f, -0.16f, -38.3f, 0.f, 0.f, 1.7f, 1.45f, 0.f, 50.5f, -51.2f, -1.6f, 0.f, 0.f, 0.f}},
+    // death knight, the laser cannon, Shove, wind-up
+    {320200, {3.97f, -7.42f, 0.54f, -16.6f, -20.1f, 78.7f, 0.9f, 1.18f, 2.16f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -5.f, 0.f, 9.07f, -0.65f, 4.72f, -1.5f, 0.f, 0.f, 1.f, 0.f, 0.f}},
+    // death knight, the laser cannon, Shove, push
+    {320201, {7.03f, -2.26f, 10.57f, -35.f, -63.7f, 63.4f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 25.5f, 12.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f}},
+    // death knight, the Widowmaker, Idle / Carry
+    {321000, {17.87f, -7.22f, -1.44f, 2.2f, 7.1f, 97.8f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -0.25f, -0.92f, -0.31f, -0.04f, 0.99f, -0.12f, 0.f, 0.f, 0.f, 2.46f, 0.83f, 0.98f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // death knight, the Widowmaker, Aim
+    {321010, {12.04f, 9.31f, 10.46f, -2.4f, 3.3f, 13.4f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.15f, -0.47f, -0.88f, -0.5f, 0.85f, -0.16f, -15.8f, 0.f, 0.f, 2.63f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f}},
+    // death knight, the Widowmaker, Run
+    {321020, {4.06f, 1.38f, 1.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 1.54f, 0.f, 0.09f, 30.9f, 20.7f, -38.5f, 0.f, 0.f, 0.f}},
+    // death knight, the Widowmaker, Shove, wind-up
+    {321200, {-1.88f, -2.3f, -4.35f, 0.f, 0.f, 63.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, 0.f, -5.f, 0.f, -0.75f, 1.61f, 0.f, 0.2f, 0.f, 0.7f, 1.f, 0.f, 0.f}},
     {-1, {}}, // (the end)
 };
 
@@ -892,13 +1027,15 @@ struct StretchRow
     float by;
 };
 constexpr StretchRow shippedStretch[] = {
-    {0, 0, 1.05f}, // grunt, fists
-    {0, 1, 1.20f}, // grunt, a rifle
+    {0, 0, 1.20f}, // grunt, fists
+    {0, 1, 1.15f}, // grunt, a rifle
+    {0, 2, 1.20f}, // grunt, a one-handed melee weapon
+    {0, 3, 1.23f}, // grunt, a two-handed melee weapon
     {0, 4, 1.14f}, // grunt, a chainsaw
     {0, 5, 1.05f}, // grunt, two melee weapons
-    {0, 6, 1.09f}, // grunt, two guns
+    {0, 6, 1.20f}, // grunt, two guns
     {0, 17, 1.10f}, // grunt, a pistol
-    {0, 18, 1.15f}, // grunt, a shoulder launcher
+    {0, 18, 1.20f}, // grunt, a shoulder launcher
     {0, 19, 1.25f}, // grunt, a sprayer
     {0, 20, 1.20f}, // grunt, the laser cannon
     {0, 21, 1.25f}, // grunt, the Widowmaker
@@ -913,15 +1050,22 @@ constexpr StretchRow shippedStretch[] = {
     {1, 20, 1.34f}, // enforcer, the laser cannon
     {1, 21, 1.20f}, // enforcer, the Widowmaker
     {2, 0, 1.20f}, // knight, fists
-    {2, 1, 1.50f}, // knight, a rifle
-    {2, 2, 1.20f}, // knight, a one-handed melee weapon
+    {2, 1, 1.35f}, // knight, a rifle
+    {2, 2, 1.25f}, // knight, a one-handed melee weapon
     {2, 3, 1.20f}, // knight, a two-handed melee weapon
     {2, 6, 1.20f}, // knight, two guns
     {2, 17, 1.20f}, // knight, a pistol
     {2, 18, 1.35f}, // knight, a shoulder launcher
     {2, 20, 1.35f}, // knight, the laser cannon
     {2, 21, 1.40f}, // knight, the Widowmaker
-    {3, 17, 1.20f}, // death knight, a pistol
+    {3, 1, 1.50f}, // death knight, a rifle
+    {3, 2, 1.20f}, // death knight, a one-handed melee weapon
+    {3, 6, 1.40f}, // death knight, two guns
+    {3, 17, 1.25f}, // death knight, a pistol
+    {3, 18, 1.50f}, // death knight, a shoulder launcher
+    {3, 19, 1.50f}, // death knight, a sprayer
+    {3, 20, 1.50f}, // death knight, the laser cannon
+    {3, 21, 1.50f}, // death knight, the Widowmaker
     {-1, -1, 1.f}, // (the end)
 };
 
