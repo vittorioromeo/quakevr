@@ -518,6 +518,9 @@ za::Vector<Item> pageDebugProfiling()
         command("Single-Pass Stereo Info", "vr_stereo_single_info")
             .help("vr_stereo_single_info: whether the driver can, the frames drawn in a single pass since the last time "
                   "(and why not), the shaders made for it, in the console."),
+        command("Multiview Shader Check", "vr_multiview_check")
+            .help("vr_multiview_check: builds every shader's single-pass stereo version and lists any that fails and is "
+                  "not on the known list, in the console (a hitch of a second or so)."),
         command("Load Times", "vr_startup_times")
             .help("vr_startup_times: where the start-up and the last map load spent their time (from the map command to its "
                   "first frame drawn: the stages, then the kinds of work across them), every load's total, and the last "

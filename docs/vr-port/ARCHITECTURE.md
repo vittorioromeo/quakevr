@@ -113,7 +113,7 @@ One implementation each; the full tables with signatures are in CODE_STYLE.md, "
 | files | `files::readText`, `writeText`, `forLines`, `join` | vr_files.hpp |
 | scratch memory, caches | `mem::Scratch`, `mem::Cache` (no function-local statics: build.sh fails on them) | vr_mem.hpp, CODE_STYLE.md |
 | client sounds; UI clicks | `audio::playAt`, `audio::playLocal`; `menuui::uiSound(UiSound::...)` | vr_audio.hpp, vr_menuui.hpp |
-| GL targets and programs | `gfx::RenderTarget`, `gfx::linkProgram` | vr_glutil.hpp |
+| GL targets and programs | `gfx::RenderTarget`; programs: gl_shaders.c `GL_CreateProgram` (its multiview twin; `gfx::linkProgram` only where none is needed: CODE_STYLE.md, "Rendering stays multiview-ready") | vr_glutil.hpp, gl_shaders.c |
 | in-world tool panels | `toolpanel::Frame/Grid/buttonUnder/pushUndo/say/textFit` | vr_toolpanel.hpp |
 | per-slot cvars | `SlotTable<Key, Slots, Keys>` | vr_slottable.hpp |
 | particles, debris, decals, wounds | `particles::` emitters, `debris::add`, `decals::`, `wounds::` | their headers |
@@ -149,6 +149,9 @@ One implementation each; the full tables with signatures are in CODE_STYLE.md, "
   become defaults with `Misc/quakevr/tune_promote.py` (CODE_STYLE.md, "Settings and the config").
 - **Debug and test aids**: in the Debug menu pages; tests in QC `*_test.qc` under `#ifdef QVR_TESTS`, or C++
   `_diag.cpp` commands; a numbered test claims its number in `QC/test_numbers.txt`.
+- **Rendering**: multiview-ready (CODE_STYLE.md, "Rendering stays multiview-ready"): per-view values through
+  `QvrStereoUBO`, a new program in gl_shaders.c with a twin that builds (`vr_multiview_check`), a new pass placed
+  against the multiview pass in `R_RenderScene`, a new desktop-only GL feature noted with its GLES/Vulkan way.
 - **Tables, not if-chains** (QC struct arrays with initializers; C++ constexpr arrays).
 - **No** function-local statics, per-frame allocations, `std::` containers (Zancle), or new dynamic allocation where a
   scratch buffer serves (CODE_STYLE.md).
@@ -163,7 +166,7 @@ One implementation each; the full tables with signatures are in CODE_STYLE.md, "
 | `Misc/quakevr/check_test_numbers.py` | a test number claimed or dispatched twice, or not registered |
 | `Misc/quakevr/check_builtins.py` | a `#0` prototype with no builtin, a builtin with no prototype |
 | `Misc/quakevr/gen_vr_cvars_qc.py --check` | a stale `QC/vr_cvars_gen.qc` |
-| `Misc/quakevr/check_canonical.py` | a NEW copy of a canonical helper (families: `geom-vec`, `geom-math`, `rnd-wrapper`, `strings-copy`, `haptic-direct`, `qcvm-push`, `player-edict`, `cvar-by-name`, `field-by-name`, `qc-find-player`, `qc-math-copy`, `qc-test-check`): a file holding more sites than `Misc/quakevr/canonical_allowlist.txt` allows. `--list <family>` shows the sites; after migrating some, `--tighten` lowers the allowlist; a meant new site is a hand-written allowlist line with its reason |
+| `Misc/quakevr/check_canonical.py` | a NEW copy of a canonical helper (families: `geom-vec`, `geom-math`, `rnd-wrapper`, `strings-copy`, `haptic-direct`, `qcvm-push`, `player-edict`, `cvar-by-name`, `field-by-name`, `qc-find-player`, `qc-math-copy`, `qc-test-check`, `gl-program-no-twin`, ...): a file holding more sites than `Misc/quakevr/canonical_allowlist.txt` allows. `--list <family>` shows the sites; after migrating some, `--tighten` lowers the allowlist; a meant new site is a hand-written allowlist line with its reason |
 | `Misc/quakevr/check_qc_precedence.py` | QC that compiles differently under C's operator priorities |
 | MSBuild | errors; warnings are listed (keep 0) |
 

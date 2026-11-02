@@ -382,6 +382,12 @@ has the probe that dumps every anchor in every pose of its model (base against b
 run (A/B between builds). `vr_motion_header_check` (in `selfchecks_test.sh`): the weapon anchors through a motion
 take's header and back, and an old take's vertex index to the default (PASS/FAIL).
 
+Multiview twins (STEREO.md, "Multiview-ready: the check"): `vr_multiview_check` builds every graphics program's
+single-pass stereo twin and ends on `vr_multiview_check: N passed, M failed` (a FAIL line for each twin that does not
+build and is not on its allow-list). `selfchecks_test.sh` runs it last, its run ending on that verdict; alone:
+`run.sh <agent> -Script "map e1m1;wait30;vr_multiview_check;toggleconsole;quit" -Filter "^vr_multiview_check" -QuitOn
+"vr_multiview_check: [0-9]+ passed"`. Run it after touching a shader or gl_shaders.c.
+
 Smoother animations (r_lerpmodels 3; ROUND22.md, "Smoother animations"): `bash Misc/quakevr/animsmooth_test.sh <agent>`
 (`vr_anim_smooth_check`'s keys, a grunt drawn smoothed with limbs swung, `vr_anim_smooth_trace`, the pin off after a
 map change). Debug > Reports has the commands (check, info, trace, pin).

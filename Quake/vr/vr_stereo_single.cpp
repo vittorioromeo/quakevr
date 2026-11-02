@@ -16,6 +16,8 @@
 #include "vr_main.hpp"
 #include "vr_portals.hpp"
 #include "vr_stereo.hpp"
+#include "vr_strings.hpp"
+#include "vr_testkit.hpp"
 
 #if defined(SDL_FRAMEWORK) || defined(NO_SDL_CONFIG)
 #include <SDL2/SDL.h>
@@ -380,11 +382,99 @@ void info_f()
     state.frames = state.framesSingle = 0;
 }
 
+// vr_multiview_check's allow-list: the graphics programs whose multiview twin does not build today (a name's start:
+// "world|" covers its variants), each with why. Only a new failure fails the check; one listed here that builds again
+// is reported, to be taken off. docs/vr-port/STEREO.md, "Multiview-ready: the check".
+struct MultiviewException
+{
+    const char* prefix;
+    const char* reason;
+};
+constexpr MultiviewException multiviewExceptions[] = {
+    {nullptr, nullptr}, // (none today: keep the array non-empty)
+};
+
+struct MultiviewCheck
+{
+    testkit::Tally tally;
+    int allowed[countof(multiviewExceptions)]{};
+    int allowedBuilt[countof(multiviewExceptions)]{};
+    int programs = 0, built = 0, ported = 0;
+};
+
+int multiviewExceptionOf(const char* name)
+{
+    for(int i = 0; i < static_cast<int>(countof(multiviewExceptions)); i++)
+    {
+        if(multiviewExceptions[i].prefix && strings::startsWith(name, multiviewExceptions[i].prefix))
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+
+void multiviewCheckReport(const char* name, int ported, int ok, const char* log, void* ctx)
+{
+    auto& check = *static_cast<MultiviewCheck*>(ctx);
+    check.programs++;
+    check.built += ok != 0;
+    check.ported += ported != 0;
+    const int exception = ported ? -1 : multiviewExceptionOf(name); // (a ported pass's twin may never fail)
+    if(exception >= 0)
+    {
+        ++(ok ? check.allowedBuilt : check.allowed)[exception];
+        check.tally.check(true);
+        return;
+    }
+    if(!check.tally.check(ok != 0))
+    {
+        int line = 0; // the driver's first line
+        while(log[line] && log[line] != '\n' && line < 200)
+        {
+            line++;
+        }
+        Con_Printf("vr_multiview_check: FAIL %s%s: its twin does not build: %.*s\n", name, ported ? " (ported)" : "",
+            line, log);
+    }
+}
+
+// vr_multiview_check: every graphics program's multiview twin built (GL_MultiviewCheck), whether its pass is ported
+// or not, so that new rendering stays ready for single-pass stereo (docs/vr-port/CODE_STYLE.md, "Rendering stays
+// multiview-ready"). Fails on a twin that does not build and is not in multiviewExceptions, and on a graphics program
+// made with no room to keep its sources (gl_shaders.c gl_progsources).
+void multiviewCheck_f()
+{
+    if(!supported())
+    {
+        Con_Printf("vr_multiview_check: SKIP the driver has no GL_OVR_multiview2\n");
+        testkit::verdict("vr_multiview_check", 0, 0);
+        return;
+    }
+    MultiviewCheck check;
+    const int dropped = GL_MultiviewCheck(multiviewCheckReport, &check);
+    check.tally.check(dropped == 0, "vr_multiview_check",
+        va("%d graphics programs made with gl_progsources full (gl_shaders.c): no twin; make it larger", dropped));
+    for(int i = 0; i < static_cast<int>(countof(multiviewExceptions)); i++)
+    {
+        if(check.allowed[i] || check.allowedBuilt[i])
+        {
+            Con_Printf("vr_multiview_check: allowed %s* (%d failing%s): %s\n", multiviewExceptions[i].prefix,
+                check.allowed[i], check.allowedBuilt[i] ? va(", %d built: take it off the list?", check.allowedBuilt[i]) : "",
+                multiviewExceptions[i].reason);
+        }
+    }
+    Con_Printf("vr_multiview_check: %d of %d graphics programs' twins built (%d programs of a ported pass)\n", check.built,
+        check.programs, check.ported);
+    check.tally.verdict("vr_multiview_check");
+}
+
 } // namespace
 
 void init()
 {
     Cmd_AddCommand("vr_stereo_single_info", info_f);
+    Cmd_AddCommand("vr_multiview_check", multiviewCheck_f);
 }
 
 bool wanted(int samples)
