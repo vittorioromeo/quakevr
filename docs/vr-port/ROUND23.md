@@ -6270,8 +6270,9 @@ config's line is dropped quietly); none was in his config. The paths they switch
   settled-vertex buffer, `unsettle`, `staticTouched`, the per-frame build in `draw`); brush entities' marks keep their
   meshes (`drawEntityDecals`). The fallback if a driver breaks the world shader is now only `vr_glsafe`.
 - **Tests:** armed grunts 38 (3/0), 69 (10/0), 74 (1/0), 91 (1/0), 88 (0/0: prints only); 66 FAILs as shipped: the
-  lying grunt drops its gun by the impact rule ("met the ground at 6.8 m/s" as the player walks into it), a path this
-  branch did not change (impact 4.5 > 0 took it before too): a finding, not a regression. permdecal_test.sh PASS (live,
+  lying grunt drops its gun by the impact rule ("met the ground at 6.8 m/s" as the player walks into it). Flaky, not a
+  regression: origin/next (a41459e82) fails it the same way 1 run in 3; this branch passed 3 of 5. The impact rule
+  meeting the player's push on a lying grunt is worth a look on its own. permdecal_test.sh PASS (live,
   baked, removed-in-place and on/off frames exact); onehand_drag_test.py ALL PASS (its Anywhere case replaced by
   head_2: mode 2 drags by the head); vr_menu_path_check 0 missing; e1m1 smoke renders.
 
