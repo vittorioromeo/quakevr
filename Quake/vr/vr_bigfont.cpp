@@ -249,7 +249,7 @@ void ensureBuilt()
     {
         return nullptr;
     }
-    if(font.styledGeneration != qvr::fontstyle::generation())
+    if(font.styledGeneration != qvr::fontstyle::generation(qvr::fontstyle::Surface::Menu))
     {
         za::Array<int, glyphCount> widths{};
         for(int g = 0; g < glyphCount; g++)
@@ -258,7 +258,7 @@ void ensureBuilt()
         }
         qvr::fontstyle::restyleStrip(font.atlas.data(), font.atlasWidth, cellRows, font.column.data(), widths.data(),
             glyphCount, "vr_bigfont_styled", font.styled);
-        font.styledGeneration = qvr::fontstyle::generation();
+        font.styledGeneration = qvr::fontstyle::generation(qvr::fontstyle::Surface::Menu);
     }
     return &font.styled;
 }
