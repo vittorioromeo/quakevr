@@ -126,8 +126,10 @@ fall. Test: `vr_agrunt_test 40`; eyeshots `vr_agrunt_test 14` with `scratch4 1` 
   force at once; wounds weaken the grip by `vr_agrunt_tug_hurt_ease` (no pain halving). Won: it stumbles
   `vr_agrunt_tug_won_stumble` s.
 - Falls (`vr_agrunt_fall_keep`): a gentle one keeps the weapon on the ragdoll's hand (`VR_AG_FallViolent`: the impact
-  rule, `VR_AG_FallImpact`: it lets go only as its body meets the ground at `vr_agrunt_fall_keep_impact` m/s or harder;
-  the older height, speed and fling rules were retired 2026-11-02); down, a grab takes it at once and a blow over
+  rule, `VR_AG_FallImpact`: it lets go only as its body, having kept up `vr_agrunt_fall_impact_speed` for
+  `vr_agrunt_fall_impact_time`, loses `vr_agrunt_fall_keep_impact` m/s within `vr_agrunt_fall_impact_window` on a floor or
+  wall it flew into, held by your hands too; contact is the ragdoll strikes' own, `VR_RagImpact_Hit`; test
+  `vr_agrunt_test 202`; the older height, speed and fling rules were retired 2026-11-02); down, a grab takes it at once and a blow over
   `VR_AG_DOWN_SWING` knocks it away.
 - Pickups: the row's `vr_am_f_take`, `vr_am_n_take` (down to the lowest frame, held there while the hand closes, back
   up: `vr_ag_takestep`); while it bends the hand reaches down with the bend and the weapon is sent as none (the client
