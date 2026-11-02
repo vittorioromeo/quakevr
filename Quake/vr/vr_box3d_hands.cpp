@@ -366,9 +366,9 @@ namespace
 // continuously while it is in contact, Box3D's friction and contacts doing the rest. Only against solid props (ammo boxes
 // and the like are nudged by QC's touches, as before). A hand is not armed while it carries something, nor again until
 // its sphere is clear of every solid prop (a box let go of isn't shoved away by the hand inside it).
-// With vr_box3d_hand_push_fist, the listen server's own player's hands are their drawn fists instead (held::fist: the
-// grab's spheres), turned with the hand: a box is pushed where the fist meets it, and the fist that pushes it touches it
-// to take it (the sphere at the hand's point met a box up to 7 cm before the drawn fist did).
+// The listen server's own player's hands are their drawn fists instead (held::fist: the grab's spheres), turned with the
+// hand: a box is pushed where the fist meets it, and the fist that pushes it touches it to take it (another player's
+// hand, with no fist drawn here, keeps the sphere).
 // The same fist within a twentieth of a unit (the view makes it again each frame, through the hand's placement).
 [[nodiscard]] bool sameFist(const za::Vector<glm::vec4>& a, const za::Vector<glm::vec4>& b)
 {
@@ -412,7 +412,7 @@ void syncHands(float dt)
             const glm::vec3 angles = fieldVec(player, progs::handFields(h).rot);
             vec3_t in{angles.x, angles.y, angles.z}, fwd, right, up;
             AngleVectors(in, fwd, right, up);
-            const za::Vector<glm::vec4>& fist = i == 1 && vr_box3d_hand_push_fist.value ? held::fist(h) : noFist;
+            const za::Vector<glm::vec4>& fist = i == 1 ? held::fist(h) : noFist;
             const bool byFist = !fist.empty();
             const glm::vec3 at = byFist ? point : point - vec(fwd) * (radius * world->m2u);
             const b3Quat turn = byFist ? toB3(glm::quat_cast(held::axesFromAngles(&angles[0], true))) : b3Quat_identity;

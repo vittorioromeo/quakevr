@@ -9,7 +9,7 @@ BASH='C:/Program Files/Git/bin/bash.exe'
 # The kit worktree name: the first argument that is not a --flag (default: the worktree this script is in).
 AGENT=next((a for a in sys.argv[1:] if not a.startswith('--')),ROOT.name)
 base=('vr_fixed_frames 1;vr_particle_seed 7;map vrfiringrange;wait60;god;notarget;fog 0;'
-      'vr_exposure 1;vr_bloom 0;vr_tonemap 0;vr_weapon_reflections 0;vr_body_mode 3;vr_hand_rig 1;vr_body_blood 0;vr_body_blood_floor 0;'
+      'vr_exposure 1;vr_bloom 0;vr_tonemap 0;vr_weapon_reflections 0;vr_body_mode 3;vr_body_blood 0;vr_body_blood_floor 0;'
       'vr_wounds 1;vr_skin_tone 0;vr_shot_hide 0;impulse 150;vr_body_powerups 0;'
       'vr_mock_hand off 0.10 1.22 -0.34 0 -75 0;vr_mock_hand main -0.08 1.02 -0.30 0 75 0;'
       'vr_mock_hand head 0 1.6 0 -45 0 0;')

@@ -5949,3 +5949,46 @@ happened before like a week ago." Investigated from code, history and his logs (
 - **Not done (an option if the restart doesn't help):** telling Meta his height (xrSuggestBodyTrackingCalibrationOverrideMETA
   from vr_height_calibration) instead of letting it measure; and asking for low fidelity (no Quest 3 camera IOBT).
 
+
+## Legacy options removed, group 1 (branch `agent/legacy1`, his words 2026-11-02)
+
+"Remove everything from group 1 ... Remove the classic nail pistol too (the one without the slide) ... cleanup all the
+code paths and simplify them wherever possible." Each default kept exactly; the code only the other value used deleted.
+Retired (`retiredCvars`: an old config's line dropped quietly): `vr_hand_rig`, `vr_gun_wall_slide`,
+`vr_box3d_hand_push_fist`, `vr_ragdoll_active_getup_hold`, `vr_menu_banner_beside`, `vr_worn_backpack_tug`,
+`vr_nailpistol_model`. Their menu rows (and the Ragdoll Tool's "Roll Over and Pull In") are gone.
+
+- **The jointed hand only** (`vr_hand_rig`): the palm and five finger models' drawing path (drawHand's fallback,
+  `fingerModels`, `fingerPose`, the per-finger view entities: `entities.hand[2]` is now one entity a hand), the
+  `HandBase` model id and the `Finger` model trait went. A missing rig model now draws no hand (it shipped always).
+  `progs/hand_base.mdl` and the five `finger_*.mdl` stay: make_hand_rig.py builds the rig from them. The hidden-hand
+  case (a weapon's Hide Hand) keeps hand_base.mdl's wrist constant for the arm, as before.
+- **Weapons slide along walls** (`vr_gun_wall_slide`): the push-back along the aim (and stopAtWall's `back`) gone.
+- **Props pushed by the drawn fist** (`vr_box3d_hand_push_fist`): the listen server's own player always pushes with
+  the fist; another player's hand keeps the sphere (no fist drawn for it there).
+- **Armed humanoids' shove** (`vr_agrunt_shove`): 0 (their model's shove frames) gone; 1 and 2 stay. Plain grunts,
+  enforcers and vores keep their shove frames.
+- **Get up in place** (`vr_ragdoll_active_getup_hold`): holdLevel always at full strength (its slider share gone).
+- **Lean on turns** (`vr_lean_turn`): 0 (the lean fixed in the world) gone; 1 and 2 stay (a config's 0 acts as 1).
+  lean_turn_test.sh's default modes are "1 2".
+- **Grapple rope depth** (`vr_grapple_rope_depth`): -1 ("the old places") gone; the slider's range starts at 0.
+- **Menu banner beside the buttons** (`vr_menu_banner_beside`): always beside (under them only where the margin is too
+  narrow, as before).
+- **Worn pack tug** (`vr_worn_backpack_tug`): always the tug (packSearch's off switch gone).
+- **The classic nail pistol** (`vr_nailpistol_model`): `progs/v_nailpistol.mdl` is now the full slide alone, frames 0
+  `slide` and 1 `slide1` (1144 vertices, 594 triangles; was 1569/841 in four frames), the classic box and skin kept.
+  build_nailpistol_slide.py drops the classic look's own triangles after its checks and keeps the classic model it
+  reads as its source (`Misc/quakevr/models_src/nailpistol/v_nailpistol_classic.mdl`, export_mdl.py's output): run on
+  its own output it builds from that, byte-identical. vr_nailslide.cpp has one look: frames 0 rest, 1 back, the blend
+  past 1 for the travel. Checked: the old model's full-slide frames (2, 3) and the new frames (0, 1) draw identical
+  triangles (594: positions, normals, texels; scratch/np_compare.py), same box, same skin.
+- **Test 92 phase 4** (his call "Standing rules"): a staggering grunt that gets up mid-tug goes on as a standing tug
+  under standing rules; when it rose mid-tug the phase expects "torn away" (`vr_ag2_rose`), else the eased win within
+  2 s as before.
+- **Tests:** build clean; test 92 22 passed, 0 failed (phase 4: torn away after 0.64 s, it got up mid-tug); `vr_np_test 1` 39/0
+  (the ammo screen rides the slide 1.500 units locked back); `vr_body_wrist_info`: rig 1 on both hands, bare forearms;
+  menu_paths.txt regenerated (the removed rows gone). `vr_wornpack_test 1` (vrtesthall) varies run to run on this
+  branch: 37/2, 25/3, 25/3, 38/1 (different checks each time: G's tear not counted, G's pack not held, gibbed pack);
+  next (3504844a4) once: 38/1 ("H toppled"). The pack code here only lost its off switch: open, worth a look at the
+  test's grab timing.
+

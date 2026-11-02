@@ -265,7 +265,7 @@ QVR_TUNABLE(vr_carry_throw_damage, "8") // damage of a box thrown hard (at about
 QVR_TUNABLE(vr_throw_heavy_from, "8") // kg: props heavier than this hurt more thrown (0: off; weapons never)
 QVR_TUNABLE(vr_throw_heavy_exp, "1") // the curve's exponent (1: in proportion to the mass)
 QVR_TUNABLE(vr_throw_heavy_max, "5") // the most it multiplies by
-QVR_TUNABLE(vr_gun_wall_max, "40") // with vr_gun_wall_slide: cm, the most a held weapon and its hand are held out of the level (pushed further, they go in by the rest; the weapon keeps resting where it was held)
+QVR_TUNABLE(vr_gun_wall_max, "40") // cm, the most a held weapon and its hand are held out of the level (pushed further, they go in by the rest; the weapon keeps resting where it was held)
 QVR_TUNABLE(vr_hand_collide, "5") // cm a free hand and what the other hand holds (its weapon, or the prop it holds alone) are each drawn moved back at most as the hand meets its surface (vr_hand_collide_props_margin off it), by half how deep it would be, as a prop held there and that thing (vr_held_collide_max); pressed further, the hand sinks in by the rest (0: it always passes through)
 QVR_TUNABLE(vr_hand_collide_props_margin, "1") // cm off the surface of the prop or the weapon the other hand holds the free hand's palm and knuckles stop (0..2: the drawn skin about at it)
 

@@ -1337,7 +1337,7 @@ extern "C" int VR_UpdateBeam(int ent, float* start, float* end)
     }
     if((ent & 0xFFFF) != cl.viewentity)
     {
-        if(id == 2 && vr_grapple_rope_depth.value >= 0.f)
+        if(id == 2)
         {
             thrownGunRopeStart(ent, start);
         }

@@ -80,7 +80,7 @@ qboolean reloadMatch(const char* name, void* ctx)
         base = base ? base + 1 : name;
         // The models the Blender add-on edits (docs/vr-port/MODELS_IN_BLENDER.md).
         static constexpr const char* prefixes[] = {"v_", "vrbody", "vrgadget", "vrflashlight", "vrpauldron", "legholster",
-            "vr_shell", "wpnbutton", "hand_base", "finger_"};
+            "vr_shell", "wpnbutton"};
         yes = !q_strncasecmp(name, "progs/", 6) && za::anyOf(prefixes, prefixes + za::getArraySize(prefixes), [&](const char* p) {
             return !q_strncasecmp(base, p, strlen(p));
         });
@@ -174,7 +174,7 @@ void woundTargets(entity_t* out[3])
     out[0] = entities.body.visible && entities.body.ent.model ? &entities.body.ent : nullptr;
     for(int hand = 0; hand < 2; hand++)
     {
-        out[1 + hand] = rigHands[hand].drawn && entities.hand[hand][FingerBase].ent.model ? &entities.hand[hand][FingerBase].ent : nullptr;
+        out[1 + hand] = rigHands[hand].drawn && entities.hand[hand].ent.model ? &entities.hand[hand].ent : nullptr;
     }
 }
 
@@ -182,7 +182,7 @@ int handBonePoses(const entity_t* e, const float** matrices)
 {
     for(int hand = 0; hand < 2; hand++)
     {
-        if(rigHands[hand].drawn && (e == &entities.hand[hand][FingerBase].ent || e == &entities.ghostHand[hand].ent))
+        if(rigHands[hand].drawn && (e == &entities.hand[hand].ent || e == &entities.ghostHand[hand].ent))
         {
             if(matrices)
             {
@@ -805,7 +805,7 @@ bool drawnHandSurface(int hand, za::Vector<glm::vec4>& out, za::Vector<HandPart>
         }
         return !out.empty();
     }
-    const view::ViewEntity& he = entities.hand[hand][FingerBase];
+    const view::ViewEntity& he = entities.hand[hand];
     const hands::State& s = hands::current();
     if(!he.visible || !he.ent.model || !s.valid)
     {
@@ -1229,14 +1229,8 @@ void dumpView_f()
             h == HAND_MAIN ? "main" : "off", in.triggerValue, in.gripValue, in.thumbTouch, fingerFrames[h][FingerThumb],
             fingerFrames[h][FingerIndex], fingerFrames[h][FingerMiddle], fingerFrames[h][FingerRing],
             fingerFrames[h][FingerPinky]);
-        Con_Printf("  finger tweaks %+.2f %+.2f %+.2f %+.2f %+.2f (frame/open:", fingerBias[h][FingerThumb],
+        Con_Printf("  finger tweaks %+.2f %+.2f %+.2f %+.2f %+.2f\n", fingerBias[h][FingerThumb],
             fingerBias[h][FingerIndex], fingerBias[h][FingerMiddle], fingerBias[h][FingerRing], fingerBias[h][FingerPinky]);
-        for(int f = FingerThumb; f < FingerCount; f++)
-        {
-            const FingerPose p = fingerPose(h, f);
-            Con_Printf(" %d/%.2f", p.frame, p.open);
-        }
-        Con_Printf(")\n");
     }
 
     if(body::pouchEnabled())

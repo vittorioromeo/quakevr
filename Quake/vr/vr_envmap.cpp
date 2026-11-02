@@ -1026,8 +1026,7 @@ extern "C" void VR_AliasSurface(const entity_t* e, float out[4])
     const auto& info = modelmeta::get(e->model);
     const bool view = e == &cl.viewent || VR_IsViewEntity(e);
     const bool self = e == &cl_entities[cl.viewentity];
-    const bool weapon = view && weapons::slotForModel(e->model) >= 0 && !info.has(modelmeta::Trait::Hand) &&
-                        !info.has(modelmeta::Trait::Finger);
+    const bool weapon = view && weapons::slotForModel(e->model) >= 0 && !info.has(modelmeta::Trait::Hand);
 
     // Rim light: monsters and things full, held weapons less, your hands a little, your body not (seen from
     // inside, its edges are everywhere).
@@ -1042,7 +1041,7 @@ extern "C" void VR_AliasSurface(const entity_t* e, float out[4])
     }
     else if(view)
     {
-        const bool hand = info.has(modelmeta::Trait::Hand) || info.has(modelmeta::Trait::Finger);
+        const bool hand = info.has(modelmeta::Trait::Hand);
         out[0] = hand ? rim * 0.35f : 0.f;
     }
     else

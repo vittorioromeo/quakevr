@@ -362,7 +362,7 @@ HAND_PARTS = ("hand_base.mdl", "finger_index.mdl", "finger_middle.mdl", "finger_
 
 
 def hand_part_report(old, new):
-    """hand_base.mdl, finger_*.mdl: the hands drawn without the rig (vr_hand_rig 0), and what make_hand_rig.py builds
+    """hand_base.mdl, finger_*.mdl: no longer drawn; what make_hand_rig.py builds
     the rigged hand from. Frames 0-5: the curls; skins 0-3: the blood (make_bloody_hands.py makes 1-3 from 0)."""
     lines, problems = [], []
     if len(new.poses()) != len(old.poses()):
@@ -372,7 +372,7 @@ def hand_part_report(old, new):
     skin = skin_image(old, 0) != skin_image(new, 0)
     if _geometry_changed(old, new) or skin:
         problems.append(("the hand: regenerate", 1.0))
-        lines.append("CHECK    changed: drawn as it is only with vr_hand_rig 0. The rigged hand (hand_rig) is built from "
+        lines.append("CHECK    changed: not drawn itself. The rigged hand (hand_rig) is built from "
                      "these: run Misc/quakevr/make_hand_rig.py (it rewrites hand_rig.* and Quake/vr/vr_handrig_data.inc)"
                      "%s. vr_view.cpp's wrist (-6.86, -1.08, 1.42) and vr_held.cpp's fistSurface are measured on them" % (
                          "; skin 0 changed: run make_bloody_hands.py for the blood skins 1-3" if skin else ""))

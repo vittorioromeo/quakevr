@@ -81,7 +81,7 @@ void calcStats(edict_t* ent, int* statsi);
 [[nodiscard]] bool holds(const edict_t* player, const edict_t* m);
 
 // Server: the stretch (units: the tracked palm from its spot) of `player`'s `hand` (0 off, 1 main) holding standing `m` by
-// its worn backpack (QC vr_wornpack.qc's tug: a fist on a living wearer's pack takes the pack, vr_worn_backpack_tug);
+// its worn backpack (QC vr_wornpack.qc's tug: a fist on a living wearer's pack takes the pack);
 // -1 none.
 [[nodiscard]] float packStretch(edict_t* player, int hand, edict_t* m);
 // Server: `player`'s hands' pull on standing `m`'s worn backpack now (units: each holding palm's travel since it took
