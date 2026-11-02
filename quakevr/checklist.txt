@@ -128,6 +128,7 @@ In a big crowd only the nearest few are heard, with no machine-gunning.
 
 An armoured death knight from the front (Debug > Tests > Helmets Alone There: Knight and Death Knight): plates come down each side of his face from the brim, outside his cheeks, his eyes open between them; it reads as a helmet, not a hat, and they turn with his head. {test:agarmor_helmets_knights}
 Difficulty menu (Play Custom Map, pick a map), Single Player and Multiplayer: the big rows have the same outline and shadow as the main menu's; change Menu > Fonts and they follow at once. Laser and mouse still pick the right rows.
+Grunt and enforcer steps read as leather on stone, not metal; ogres, fiends and shamblers are clearly the heaviest and easy to hear, even from across a room (too loud? Debug > Tunables > Combat > Enemy Footsteps > Heavy Feet Volume).
 
 [2. Armed humanoids: disarming and armour]
 Show Disarm Volumes: the wireframe hulls sit on each drawn weapon (magenta, orange, red; the sword's orange line along its blade) and on the drawn hand and forearm (cyan). {test:disarm_hulls_melee}

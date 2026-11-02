@@ -15,6 +15,8 @@
 //   vr_footstep_min_speed or faster (a pain's or an attack's shift of weight on the spot is silent).
 // - How loud. By its speed over its last frames: vr_footstep_walk_vol at vr_footstep_walk_speed up to vr_footstep_run_vol at
 //   vr_footstep_run_speed, carrying from vr_footstep_walk_atten to vr_footstep_run_atten; its kind's weight on top.
+// - The heavy ones (Sole::Thud) carry: vr_footstep_heavy_volume louder, and vr_footstep_heavy_carry on their distance for the
+//   falloff, the range and who counts as nearest: a heavy step is heard from further, over nearer boots.
 // - The budget. Any free channel (never its voice's or its weapon's). Only the nearest vr_footstep_nearest of those moving
 //   within vr_footstep_range of a player are heard, at vr_footstep_rate steps a second at most: a crowd is the few by you.
 //
@@ -88,11 +90,11 @@ constexpr Kind kinds[] = {
     {modelmeta::Id::Zombie, Sole::Bare, 1.f, 0.9f},
     {modelmeta::Id::Mummy, Sole::Bare, 0.92f, 1.f},
     {modelmeta::Id::Grem, Sole::Bare, 1.3f, 0.6f},
-    {modelmeta::Id::Ogre, Sole::Thud, 1.1f, 0.95f},
-    {modelmeta::Id::Mg3OgreRocket, Sole::Thud, 1.1f, 0.95f},
-    {modelmeta::Id::Demon, Sole::Thud, 1.25f, 0.85f},
-    {modelmeta::Id::Shambler, Sole::Thud, 0.85f, 1.3f},
-    {modelmeta::Id::Mg3ShamblerBlood, Sole::Thud, 0.85f, 1.3f},
+    {modelmeta::Id::Ogre, Sole::Thud, 1.1f, 1.15f},
+    {modelmeta::Id::Mg3OgreRocket, Sole::Thud, 1.1f, 1.15f},
+    {modelmeta::Id::Demon, Sole::Thud, 1.25f, 1.f},
+    {modelmeta::Id::Shambler, Sole::Thud, 0.85f, 1.4f},
+    {modelmeta::Id::Mg3ShamblerBlood, Sole::Thud, 0.85f, 1.4f},
 };
 
 // The rules for reading a contact off the frames, as shares of a foot's swing (forward) and lift along one animation.
@@ -135,6 +137,8 @@ struct Stats
     int dropped{0};
     int contacts{0};
     int measured{0}; // the steps with the drawn pose to compare with
+    double distSum{0.0};
+    double earSum{0.0}; // how loud it gets to the nearest player's head: its volume after the falloff (no walls, no air)
 };
 
 struct ModelSteps
@@ -467,6 +471,12 @@ bool analyse(ModelSteps& m, qmodel_t* model)
     return state.byIndex[modelindex];
 }
 
+// How far a kind's step counts its distance (the falloff, the range, the nearest): the heavy ones as if nearer.
+[[nodiscard]] float carryOf(const Kind& kind)
+{
+    return kind.sole == Sole::Thud ? za::max(vr_footstep_heavy_carry.value, 0.05f) : 1.f;
+}
+
 [[nodiscard]] bool grounded(const edict_t* e, int num)
 {
     return e->v.health > 0.f && (static_cast<int>(e->v.flags) & FL_ONGROUND) && static_cast<int>(e->v.movetype) == MOVETYPE_STEP &&
@@ -474,7 +484,7 @@ bool analyse(ModelSteps& m, qmodel_t* model)
 }
 
 // The sound's way from the server: a take of its kind's sole, never the last one, at the foot.
-void play(const edict_t* e, int num, EntSteps& st, int side, float pace, double now)
+void play(const edict_t* e, int num, EntSteps& st, int side, float pace, float distSq, double now)
 {
     ModelSteps& m = *st.steps;
     const Kind& kind = *m.kind;
@@ -487,9 +497,10 @@ void play(const edict_t* e, int num, EntSteps& st, int side, float pace, double 
                                      za::max(vr_footstep_run_speed.value - vr_footstep_walk_speed.value, 1.f),
         0.f, 1.f);
     const float volume = za::min((vr_footstep_walk_vol.value + (vr_footstep_run_vol.value - vr_footstep_walk_vol.value) * ramp) *
-                                     kind.gain * vr_footstep_volume.value,
+                                     kind.gain * (kind.sole == Sole::Thud ? vr_footstep_heavy_volume.value : 1.f) * vr_footstep_volume.value,
         1.f);
-    const float atten = vr_footstep_walk_atten.value + (vr_footstep_run_atten.value - vr_footstep_walk_atten.value) * ramp;
+    const float carry = carryOf(kind);
+    const float atten = (vr_footstep_walk_atten.value + (vr_footstep_run_atten.value - vr_footstep_walk_atten.value) * ramp) * carry;
 
     const float yaw = e->v.angles[YAW] * (3.14159265f / 180.f);
     const float cs = za::cos(yaw), sn = za::sin(yaw);
@@ -506,6 +517,10 @@ void play(const edict_t* e, int num, EntSteps& st, int side, float pace, double 
     const int fast = ramp >= 0.5f ? 1 : 0;
     s.steps[fast]++;
     s.volume[fast] += volume;
+    const float dist = za::sqrt(distSq) / carry; // (distSq: as counted, carried)
+    const float ear = volume * za::max(1.f - dist * atten * vr_snd_falloff.value / 1000.f, 0.f);
+    s.distSum += dist;
+    s.earSum += ear;
     float err = 0.f, lift = 0.f;
     // (only what is being drawn: the renderer keeps an entity's lerp, and an unseen one's is old)
     if(cl_entities && num < cl.num_entities && cl.time - cl_entities[num].lerpstart <= 2.0 * st.frameLen)
@@ -532,8 +547,8 @@ void play(const edict_t* e, int num, EntSteps& st, int side, float pace, double 
     s.liftSum += za::max(lift, -lift);
     if(vr_footstep_log.value > 0.f)
     {
-        Con_Printf("footstep: %s ent %d %s frame %d pace %.0f vol %.2f atten %.2f err %.0f ms lift %.1f t %.3f\n", m.model->name, num,
-            side == 0 ? "right" : "left", st.footFrame[side], pace, volume, atten, err, lift, now);
+        Con_Printf("footstep: %s ent %d %s frame %d pace %.0f vol %.2f atten %.2f dist %.0f ear %.3f err %.0f ms lift %.1f t %.3f\n", m.model->name, num,
+            side == 0 ? "right" : "left", st.footFrame[side], pace, volume, atten, dist, ear, err, lift, now);
     }
 }
 
@@ -619,8 +634,8 @@ void report_f()
         const double lift = s.measured ? s.liftSum / s.measured : 0.0;
         const bool softer = !s.steps[0] || !s.steps[1] || walk < run;
         const bool onIt = err <= errGoodMs && lift <= liftGood;
-        Con_Printf("footstep_test: %s %s: walk %d steps vol %.2f, run %d steps vol %.2f; %d drawn: err mean %.1f most %.1f ms; foot over its sole %.1f units\n",
-            softer && onIt ? "PASS" : "FAIL", m.model->name, s.steps[0], walk, s.steps[1], run, s.measured, err, s.errMost, lift);
+        Con_Printf("footstep_test: %s %s: walk %d steps vol %.2f, run %d steps vol %.2f; %d drawn: err mean %.1f most %.1f ms; foot over its sole %.1f units; at %.0f units, %.3f at the head\n",
+            softer && onIt ? "PASS" : "FAIL", m.model->name, s.steps[0], walk, s.steps[1], run, s.measured, err, s.errMost, lift, s.distSum / steps, s.earSum / steps);
         (softer && onIt ? passed : failed)++;
     }
     if(Cmd_Argc() < 2)
@@ -783,6 +798,8 @@ extern "C" void VR_Footsteps_Frame(void)
             const glm::vec3 d = ears[k] - glm::vec3{e->v.origin[0], e->v.origin[1], e->v.origin[2]};
             distSq = za::min(distSq, glm::dot(d, d));
         }
+        const float carried = carryOf(*st.steps->kind);
+        distSq *= carried * carried;
         if(distSq > rangeSq)
         {
             st.due[0] = st.due[1] = 0.0;
@@ -828,7 +845,7 @@ extern "C" void VR_Footsteps_Frame(void)
             continue;
         }
         state.tokens -= 1.0;
-        play(EDICT_NUM(d.num), d.num, st, d.side, st.pace, now);
+        play(EDICT_NUM(d.num), d.num, st, d.side, st.pace, d.distSq, now);
     }
     state.frameSeconds += Sys_DoubleTime() - wall;
     state.framesTimed++;
