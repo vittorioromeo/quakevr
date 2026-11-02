@@ -130,13 +130,13 @@ void(entity g) VR_AGAM_Expected =
     }
 };
 
-// The backpack dropped just now (world: none).
+// The backpack dropped just now, or a grunt's worn one its loot went into (world: none; a living one's worn pack is not).
 entity() VR_AGAM_Backpack =
 {
     entity e = nextent(world);
     while(e)
     {
-        if(e.model == "progs/backpack.mdl")
+        if(e.model == "progs/backpack.mdl" && e.vr_wp_state != VR_WP_WORN)
         {
             return e;
         }
@@ -145,14 +145,14 @@ entity() VR_AGAM_Backpack =
     return world;
 };
 
-// Backpacks lying about go (between cases).
+// Backpacks lying about go (between cases; not the worn pack on a living one: its loot goes there).
 void() VR_AGAM_ClearBackpacks =
 {
     entity e = nextent(world);
     while(e)
     {
         entity n = nextent(e);
-        if(e.model == "progs/backpack.mdl")
+        if(e.model == "progs/backpack.mdl" && e.vr_wp_state != VR_WP_WORN)
         {
             remove(e);
         }

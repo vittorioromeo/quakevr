@@ -50,7 +50,7 @@ void createRagdollPack(RagdollBodies& r, edict_t* ent, int num, const Slot& s)
 {
     r.pack = b3_nullShapeId;
     r.packPart = -1;
-    if(fieldFloatOr(ent, fields().vr_wp_worn, 0.f) != 1.f || !r.rig) // (worn: the QC gave it one, vr_worn_backpacks)
+    if(fieldFloatOr(ent, fields().vr_wp_worn, 0.f) != 1.f || !r.rig) // (worn: the QC gave it one: an armed grunt's)
     {
         return;
     }

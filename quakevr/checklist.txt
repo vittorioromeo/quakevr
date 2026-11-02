@@ -95,6 +95,7 @@ Text everywhere has your look by default (soft edges, thin dark outline, soft sh
 Fonts: Shadow Offset X/Y move the shadow, Shadow Size thickens it, Spread softens it.
 Ammo Screen Font: tweak it with a gun in hand and check the ammo screen text changes (not seen in tests: the mock never held a gun).
 Shots and blows on armed humanoids and ragdolls land exactly where they did (cheaper now). {test:bench_crowd32_armed}
+Every armed grunt wears its backpack by default (no Worn Backpacks switch); killed or gibbed, its loot is in the pack and no second one drops; enforcers still drop theirs. {test:worn_packs}
 
 [2. Armed humanoids: disarming and armour]
 Show Disarm Volumes: the wireframe hulls sit on each drawn weapon (magenta, orange, red; the sword's orange line along its blade) and on the drawn hand and forearm (cyan). {test:disarm_hulls_melee}

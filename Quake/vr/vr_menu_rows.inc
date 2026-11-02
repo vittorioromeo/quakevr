@@ -786,12 +786,6 @@ QVR_SLIDER(vr_agarmor_debris_time, "Broken Plates Last", 1.f, 60.f, 1.f, "%.0f s
     "A broken plate falls as debris (you can't force-grab it) and fades out after this long.")
 
 // vr_menu_gameplay.inc: pageArmedPacks
-QVR_TOGGLE(vr_worn_backpacks, "Worn Backpacks",
-    "Experimental. Armed grunts wear the backpack they would drop on their back, as ragdolls too (it weighs "
-    "and collides with the body, and you can drag the body by it). It tears off with a rip on a hard pull, "
-    "a hard landing or enough damage on the pack, or grab a living one's pack and pull; torn off a living one, "
-    "its spare ammo goes with it. A dead one's pack is taken as an item. Grunts spawned after it is "
-    "turned on.")
 QVR_CYCLE_BYNAME(vr_worn_backpack_pull, "Pulling the Pack",
     "Experimental. What a hand's hard pull on a worn pack does. Tears It Off: the pack rips off into the hand. "
     "Lifts Its Wearer: a pull never tears it (shots, blows, the force grab and damage still do); pulled hard "

@@ -1,5 +1,5 @@
-// vr_wornpack.qc -- worn backpacks (experimental, vr_worn_backpacks 0 by default; ROUND23.md, "Worn backpacks"): an armed
-// grunt wears the backpack it would drop (progs/backpack.mdl on its back, as its model is drawn: the engine's
+// vr_wornpack.qc -- worn backpacks (always on since 2026-11-02; ROUND23.md, "Worn backpacks"): an armed grunt (not
+// Mission Pack 3's campaign's: MG3_NoBackpack; no other armed kind yet: BACKLOG.md) wears the backpack it would drop (progs/backpack.mdl on its back, as its model is drawn: the engine's
 // agarmor::packWhere), and as a ragdoll the pack is a box on its chest part that weighs, collides and is held with it
 // (vr_box3d_wornpack.cpp). It comes off, with a fabric rip (vr/derived/fabric_rip.wav), on
 // - a hand's hard pull on a ragdoll held by its pack (vr_worn_backpack_rip_force): the pack is then in that hand;
@@ -524,7 +524,7 @@ void() VR_WP_Think =
 
 void(entity e) VR_WP_Spawn =
 {
-    if(!cvar("vr_worn_backpacks") || !e.vr_ag || e.vr_ag_kind != VR_AM_GRUNT || e.vr_wp_pack || MG3_NoBackpack(e) ||
+    if(!e.vr_ag || e.vr_ag_kind != VR_AM_GRUNT || e.vr_wp_pack || MG3_NoBackpack(e) ||
        e.vr_dummy_dead)
     {
         return;

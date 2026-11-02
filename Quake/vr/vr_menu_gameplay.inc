@@ -414,12 +414,11 @@ void armedGripsDragMode()
 }
 
 // Combat > Armed Grunts > Worn Backpacks (QC vr_wornpack.qc; vr_box3d_wornpack.cpp; ROUND23.md, "Worn backpacks"):
-// experimental, off by default.
+// armed grunts always wear theirs; the page tunes them.
 [[nodiscard]] za::Vector<Item> pageArmedPacks()
 {
     return {
         header("Worn Backpacks"),
-        row(opt::vr_worn_backpacks),
         row(opt::vr_worn_backpack_pull),
         row(opt::vr_worn_backpack_lift_force),
         header("Tearing Off"),
