@@ -2260,6 +2260,13 @@ QVR_SLIDER(vr_deadzone_outer, "Stick Outer Deadzone", 0.f, 30.f, 1.f, "%.0f%%", 
     "The last part of the moving stick's travel that already counts as a full push, so you reach full "
     "speed without pressing the stick hard against its edge, and a thumb slipping a little off the "
     "edge does not slow a run (vr_deadzone_outer; 20%).")
+QVR_SLIDER(vr_move_snap, "Stick Straight Zone", 0.f, 30.f, 1.f, "%.0f deg", noExt,
+    "A push within this many degrees of straight ahead, back or a side goes exactly that way, so a thumb "
+    "a little off straight does not walk you at an angle; other angles are spread over the rest, without "
+    "a jump. 0 walks the stick's exact angle (vr_move_snap; 15).")
+QVR_SLIDER(vr_move_hold, "Stick Full Push Hold", 0.f, 1.f, 0.05f, "%.2f s", noExt,
+    "How long a full push still counts while your thumb slips off it, so a run keeps its speed. A push "
+    "kept lower slows you after this; letting go stops you at once (vr_move_hold; 0.4 s, 0 off).")
 QVR_SLIDER(vr_move_curve, "Stick Response Curve", 1.f, 3.f, 0.1f, "%.1f", noExt,
     "How the moving stick's push becomes speed. 1: straight (half the push, half the speed). Higher: "
     "more of the travel for slow speeds, for careful walking, the top speed still at a full push. 1.6: "
@@ -5941,8 +5948,12 @@ QVR_TOGGLE(vr_mg3_aggro_groups, "Aggro Groups",
     "A waking monster wakes what its aggro_target names (map3, map7, map8). Upstream ships this off; off by default.")
 QVR_TOGGLE(vr_lootbeam_debug, "Loot Beams: Debug Lines", "vr_lootbeam_debug: those counts once a second.")
 QVR_TOGGLE(vr_debug_stick, "Stick: Show Speed",
-    "vr_debug_stick: twice a second on the console, the moving stick's push (raw, and past the "
-    "deadzones), the speed it asks (and the walking and running tops) and the speed you move at.")
+    "vr_debug_stick: twice a second on the console, the moving stick's push (raw, its angle off straight, and "
+    "past the deadzones), the speed it asks (and the walking and running tops), the speed you move at and "
+    "your heading off the head's.")
+QVR_TOGGLE(vr_display_clock, "Game Time From the Display Clock",
+    "vr_display_clock: a frame's game time is the time between the headset's display times, so running moves "
+    "you in even steps; off, the wall clock's time between frames (uneven: what running looked like before).")
 QVR_TOGGLE(vr_debug_touch, "Doom: Show Touches",
     "vr_debug_touch: each touch's start and end printed (2: every frame).")
 QVR_TOGGLE(vr_debug_doom, "Doom: Debug",
