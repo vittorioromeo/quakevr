@@ -51,7 +51,7 @@ constexpr const char* categoryNames[categoryCount] = {"weapons", "mags", "ammo",
     "backpacks"};
 cvar_t* const categoryOn[categoryCount] = {&vr_lootbeam_weapons, &vr_lootbeam_mags, &vr_lootbeam_ammo,
     &vr_lootbeam_health, &vr_lootbeam_armor, &vr_lootbeam_powerups, &vr_lootbeam_keys, &vr_lootbeam_backpacks};
-cvar_t* const categoryHue[categoryCount] = {&vr_lootbeam_hue_weapons, &vr_lootbeam_hue_mags, &vr_lootbeam_hue_ammo,
+const Tunable* const categoryHue[categoryCount] = {&vr_lootbeam_hue_weapons, &vr_lootbeam_hue_mags, &vr_lootbeam_hue_ammo,
     &vr_lootbeam_hue_health, &vr_lootbeam_hue_armor, &vr_lootbeam_hue_powerups, &vr_lootbeam_hue_keys,
     &vr_lootbeam_hue_backpacks};
 

@@ -210,10 +210,6 @@ const DefaultChange defaultChanges[] = {
     // 154: his player head and loot beam values (2026-10-17: "make all of those the defaults").
     {154, &vr_body_head_side, "0"},                     // 1.75
     {154, &vr_body_head_sink, "4.5"},                   // 9
-    {154, &vr_lootbeam_opacity, "0.5"},                 // 0.15
-    {154, &vr_lootbeam_length, "1.2"},                  // 1.5
-    {154, &vr_lootbeam_thickness, "0.06"},              // 0.03
-    {154, &vr_lootbeam_far, "0"},                       // 12
     // 156: the author's holster zones, thresholds, glove thickness and relief (his config of 2026-10-18).
     {156, &vr_glove_relief, "1"},
     {156, &vr_glove_thickness, "2"},
@@ -249,10 +245,6 @@ const DefaultChange defaultChanges[] = {
     // 159: the Widowmaker's handful his 2 (was 4), its shell port half its size (his notes 2026-10-19).
     {159, &vr_reload_port_widow_radius, "2.5"},
     // 160: his swing sounds and wet sheen (his config of 2026-10-19).
-    {160, &vr_melee_swish_min, "0.5"},                  // 0.3
-    {160, &vr_melee_swish_sub, "0.45"},                 // 0.35
-    {160, &vr_melee_swish_full, "2.2"},                 // 1.75
-    {160, &vr_melee_swish_gain, "1.6"},                 // 2
     {160, &vr_wounds_wet_coat, "1"},                    // 2
     // 160 too: the player's chainsaw a fifth stronger (his request, 2026-10-19).
     // 161: his flame wobble (his config of 2026-10-19); your AD crossbow's bolts 1.5 times the knights' (his notes).
@@ -304,14 +296,6 @@ const DefaultChange defaultChanges[] = {
     // since: its chance 0 is off), knocked farther, gentler pose.
     // 178: the author's values (his config of 2026-10-22): bigger bloody footprints and handprints, the gore sounds'
     // kinds quieter (ROUND22.md, "Bloody prints 2; drip sounds").
-    {178, &vr_gore_sound_vol_spurt, "1"},   // 0.75
-    {178, &vr_gore_sound_vol_pour, "1"},    // 0.75
-    {178, &vr_gore_sound_vol_choke, "1"},   // 0.75
-    {178, &vr_gore_sound_vol_tear, "1"},    // 0.75
-    {178, &vr_gore_sound_vol_squelch, "1"}, // 0.75
-    {178, &vr_gore_sound_vol_step, "1"},    // 0.75
-    {178, &vr_gore_sound_vol_slap, "1"},    // 0.75
-    {178, &vr_gore_sound_vol_splash, "1"},  // 0.75
     // 179: the author's values (his config of 2026-10-22): a body shoved over a ledge keeps more of its speed past the
     // edge (ROUND22.md, "Prop pushback, heavy throws, light ammo").
     {179, &vr_knockdown_shove_ledge_over, "0.1"}, // 0.45
@@ -322,7 +306,6 @@ const DefaultChange defaultChanges[] = {
     // (181's vr_struggle_classes row: dropped at 190, the setting retired; mgroups::migrateStruggleClasses.)
     // 182: the author's values (his config of 2026-10-22: the new flamethrower and sprayer effects, the drip sounds).
     {182, &vr_adgun_ad_copies, "0"},      // 2
-    {182, &vr_gore_sound_vol_drip, "1"},  // 0.35
     {182, &vr_gore_sound_drips, "1"},     // 0.65
     // (183's vr_struggle_classes row: dropped at 190, the setting retired; mgroups::migrateStruggleClasses.)
     // 184: the author's values (his config of 2026-10-22 evening): his shoulder charge settings, more bloody footprints

@@ -208,7 +208,7 @@ void() VR_DRPT_End =
     entity p = vr_agt_player;
     cvar_set("vr_dirparry", ftos(vr_drpt_keep_on));
     cvar_set("vr_agrunt_parry", ftos(vr_drpt_keep_parry));
-    cvar_set("vr_dirparry_contact", ftos(vr_drpt_keep_contact));
+    localcmd(sprintf("tune vr_dirparry_contact %g\n", vr_drpt_keep_contact)); // (a tunable: set by `tune`)
     cvar_set("vr_dirparry_debug", ftos(vr_drpt_keep_debug));
     cvar_set("vr_agrunt_melee_speed", ftos(vr_drpt_keep_speed));
     cvar_set("vr_agknight", ftos(vr_drpt_keep_knight));
@@ -363,7 +363,7 @@ void() VR_DRPT_Frame =
         cvar_set("vr_dirparry", c == 8 ? "0" : "1");
         cvar_set("vr_dirparry_debug", ((c == 9) || (c >= 13)) ? "1" : ftos(vr_drpt_keep_debug));
         cvar_set("vr_agknight", c == 15 ? "1" : ftos(vr_drpt_keep_knight));
-        cvar_set("vr_dirparry_contact", c == 10 ? ftos(ceil(vr_drpt_gap5) + 1) : ftos(vr_drpt_keep_contact));
+        localcmd(sprintf("tune vr_dirparry_contact %g\n", c == 10 ? ceil(vr_drpt_gap5) + 1 : vr_drpt_keep_contact));
         cvar_set("vr_agrunt_melee_speed", ((c == 11) || (c == 12)) ? "0.5" : ftos(vr_drpt_keep_speed));
         float geo = VR_DRPT_Geo(c);
         VR_AGPT_Clear();
