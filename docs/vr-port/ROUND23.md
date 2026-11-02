@@ -2494,7 +2494,8 @@ changed. gunfx_test.py 29/0. Build: 0 warnings, check_canonical clean. A/B bench
 His ask: enemies wear the backpack they drop, attached through ragdoll form, torn off by hard pulls, landings and
 direct hits with a fabric rip, takeable only once dead, no second drop, and the reserve lost with a pack torn off alive.
 Scope (his change): the armed **grunt** only (the enforcer's model already has a pack; ogres and others later).
-- **Flag.** `vr_worn_backpacks` 0 (Combat > Armed Grunts > Worn Backpacks). Off: no pack is made and every hook returns
+- **Flag** (retired 2026-11-02: always on, "Worn backpacks always on" at the end). `vr_worn_backpacks` 0 (Combat >
+  Armed Grunts > Worn Backpacks). Off: no pack is made and every hook returns
   at once (as before). Grunts spawned after it is turned on wear one (`VR_WP_Spawn` from `VR_AM_Spawn`; not where
   `MG3_NoBackpack` or the dummy's no-loot rule apply).
 - **On the back.** A QC entity (`vr_wornpack`, progs/backpack.mdl, not solid) placed every frame from
@@ -6282,3 +6283,33 @@ tunables were cvars", and the audit's low-risk moves.
 - **Test:** tunables_test.sh 6/6 stages (20 checks, the tree PASS: 1391 of 1391 reached); Search opens a constant's
   submenu (vr_ragdoll_active_hertz_legs: "Joint Groups", Water Wavy Edge: "Shoreline Foam"); `vr_menu_path_check
   maps/vrcalibration.map` 0 missing; menu_paths.txt regenerated.
+
+## Worn backpacks always on (branch `agent/wornonly`, his words 2026-11-02; OPTION_AUDIT_1102.md)
+
+His words: "Make worn backpacks the default and only valid code path. Add a backlog note to review/apply this setting
+to the remaining armed humanoids (it currently only works for grunts)."
+- **Who wears one.** Every armed grunt (`vr_ag_kind == VR_AM_GRUNT`: monster_vr_grunt and the grunts `vr_agrunt_repl`
+  arms, AD maps' standard monster_army too), except in Mission Pack 3's campaign (`MG3_NoBackpack`: no monster drops
+  one there) and the test dummy (`vr_dummy_dead`). Not enforcers, knights, death knights or AD's humanoids: BACKLOG.md,
+  "Worn backpacks for the remaining armed humanoids", says what each needs.
+- **Removed.** `vr_worn_backpacks` (retiredCvars; his config's `1` is now the only behaviour) and its row (Combat >
+  Armed Grunts > Worn Backpacks keeps the pack's own settings: pull, fit, tearing, scale, reserve). `VR_WP_Spawn` no
+  longer asks it. The old drop for wearers was already gone in `VR_AG_SoldierDrop` (`VR_WP_DeathLoot`: loot into the
+  worn pack, no second backpack); with the switch gone that is every armed grunt's death, gibbed (the pack torn off
+  as an item) or as a ragdoll. Non-wearers (enforcers, plain monster_army, MP3's) drop their backpack as before.
+  Saves made with packs off load as they were: those grunts have no pack (`vr_wp_had` 0) and drop a backpack. The
+  engine side (`vr_box3d_wornpack.cpp`, `limbpiece`) only reads `.vr_wp_worn`: unchanged. Deathmatch spawns no armed
+  monster (`VR_AM_Spawn`); coop is the same as single player.
+- **Cost.** PERF_1102.md's worn-pack numbers (`limbpiece`, `VR_WP_Place`, measured with his `1`) are now the default's.
+- **Tests.** `vr_wornpack_test 1`: the control is an armed enforcer now (it wears none and drops one); 39 passed, 0
+  failed (the known "dragged slowly by the pack: kept" passed this run). `vr_agrunt_test 99`: every grunt wears a pack
+  now, so the pack checks run on all three weapons: 47 passed, 0 failed (41 before). `vr_agrunt_test 47` (loot): it
+  cleared every backpack model between cases, the living grunt's worn pack too, so its loot went nowhere (25 FAIL);
+  it now leaves a worn pack on a living one and reads the dead one's: 77 passed, 0 failed (one run 76/1, "enforcer
+  rifle loot: no backpack": an occasional one-case miss, 76/1 in 9 of the 10-31 refactor runs too, other cases).
+- `vr_agrunt_test 71` (the replacements' drops) now counts a dead grunt's worn pack as its backpack, never a living
+  one's. It fails as it did before this change (0 passes in the 10-31 refactor runs): the balance checks, and kills
+  counted 1.5 s after the blow (replaced grunts: guns 32 of 40, packs 39, ammo 150 against 200 vanilla; enforcers,
+  who wear none, 40 then 39 backpacks in two runs). This is timing noise in the test, not the packs, and is left open.
+  `vr_menu_path_check`: 0 missing (calibration and test hall boards); menu_paths.txt regenerated.
+- **Scenarios.** `worn_packs`, `worn_packs_lift`: the `vr_worn_backpacks 1` line gone, titles "Worn backpacks".

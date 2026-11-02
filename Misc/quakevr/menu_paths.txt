@@ -5195,7 +5195,6 @@ vr_agarmor_skill3_type|1|Armour|Best Armour|Advanced VR Options > Combat > Armed
 vr_agarmor_skill3_pieces|1|Armour|Pieces|Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour > 
 |1|Armour|Reset This Page|Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour > Reset This Page
 @page|1|Worn Backpacks||Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks
-vr_worn_backpacks|1|Worn Backpacks|Worn Backpacks|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn 
 vr_worn_backpack_pull|1|Worn Backpacks|Pulling the Pack|Advanced VR Options > Combat > Armed Grunts (Experimental) 
 vr_worn_backpack_lift_force|1|Worn Backpacks|Pull That Lifts|Advanced VR Options > Combat > Armed Grunts 
 vr_worn_backpack_rip_force|1|Worn Backpacks|Pull That Tears It|Advanced VR Options > Combat > Armed Grunts 
