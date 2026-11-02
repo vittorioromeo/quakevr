@@ -10,6 +10,10 @@
 // letter out, and a row with a letter missing is drawn as before (the picture). V, R, C and b, which the pictures do
 // not have, are made of others (v, r, G and p: the script says how). The letters go side by side into one texture,
 // drawn a letter at a time (Draw_SubPic).
+//
+// The menus' other rows of the same lettering (Easy, Normal...; New Game, Load...) have letters these pictures do not
+// give (E, N, h, G, J...), and a mod's art may have any: those pictures are restyled whole, as one letter
+// (VR_BigFont_DrawPicture), and stay where they were drawn, whoever made them.
 
 #include "vr_bigfont.hpp"
 #include "vr_cvars.hpp"
@@ -85,6 +89,36 @@ struct Font
     int styledGeneration{-1};            // the style it was made for (-1: none yet)
 };
 Font font;
+
+// The whole pictures of rows restyled (the menu's drawing: VR_BigFont_DrawPicture).
+constexpr const char* rowPictureNames[]{"gfx/skillmenu.lmp", "gfx/sp_menu.lmp", "gfx/sp_maps.lmp", "gfx/mp_menu.lmp",
+    "gfx/netmen3.lmp", "gfx/netmen4.lmp", "gfx/dim_ipx.lmp", "gfx/dim_tcp.lmp"};
+
+struct RowPicture
+{
+    qvr::fontstyle::Strip styled;
+    int generation{-1}; // the style it was made for (-1: none yet)
+    bool made{false};   // false: the file was not a picture (drawn as Quake's)
+};
+za::Array<RowPicture, za::getArraySize(rowPictureNames)> rowPictures;
+
+// A .lmp's width, height and pixels (`file` as read; none if it is not one).
+[[nodiscard]] Picture pictureOf(const byte* file, int size)
+{
+    if(file && size >= 8)
+    {
+        int w, h;
+        memcpy(&w, file, 4);
+        memcpy(&h, file + 4, 4);
+        w = LittleLong(w);
+        h = LittleLong(h);
+        if(w > 0 && h > 0 && w <= 4096 && h <= 4096 && 8 + w * h <= size)
+        {
+            return {w, h, file + 8};
+        }
+    }
+    return {};
+}
 
 [[nodiscard]] za::U32 pieceHash(const Picture& p, const Band& b, const Op& op)
 {
@@ -168,18 +202,7 @@ void build()
     for(za::SizeT i = 0; i < za::getArraySize(picNames); i++)
     {
         files[i] = COM_LoadMallocFile(picNames[i], nullptr);
-        if(files[i] && com_filesize >= 8)
-        {
-            int w, h;
-            memcpy(&w, files[i], 4);
-            memcpy(&h, files[i] + 4, 4);
-            w = LittleLong(w);
-            h = LittleLong(h);
-            if(w > 0 && h > 0 && w <= 4096 && h <= 4096 && 8 + w * h <= com_filesize)
-            {
-                pics[i] = {w, h, files[i] + 8};
-            }
-        }
+        pics[i] = pictureOf(files[i], com_filesize);
         font.picFound[i] = pics[i].pixels != nullptr;
     }
 
@@ -263,6 +286,42 @@ void ensureBuilt()
     return &font.styled;
 }
 
+// The picture `name` restyled, made again as the style changes; null: drawn as Quake's (not one of the row pictures,
+// no style, or vr_menu_bigfont 0: as the main menu's rows).
+[[nodiscard]] const qvr::fontstyle::Strip* styledRowPicture(const char* name)
+{
+    if(!qvr::vr_menu_bigfont.value || !qvr::fontstyle::active())
+    {
+        return nullptr;
+    }
+    for(za::SizeT i = 0; i < za::getArraySize(rowPictureNames); i++)
+    {
+        if(strcmp(name, rowPictureNames[i]) != 0)
+        {
+            continue;
+        }
+        RowPicture& r = rowPictures[i];
+        const int generation = qvr::fontstyle::generation(qvr::fontstyle::Surface::Menu);
+        if(r.generation != generation)
+        {
+            r.generation = generation;
+            byte* const file = COM_LoadMallocFile(name, nullptr);
+            const Picture p = pictureOf(file, com_filesize);
+            r.made = p.pixels != nullptr;
+            if(r.made)
+            {
+                const int x = 0;
+                char textureName[MAX_QPATH];
+                q_snprintf(textureName, sizeof(textureName), "vr_styled_%s", name);
+                qvr::fontstyle::restyleStrip(p.pixels, p.width, p.height, &x, &p.width, 1, textureName, r.styled);
+            }
+            VR_HeapFree(file);
+        }
+        return r.made ? &r.styled : nullptr;
+    }
+    return nullptr;
+}
+
 } // namespace
 
 namespace qvr::bigfont
@@ -271,6 +330,10 @@ namespace qvr::bigfont
 void onGameDirChanged()
 {
     font.built = false; // (the texture stays until the next build replaces it)
+    for(RowPicture& r : rowPictures)
+    {
+        r.generation = -1;
+    }
 }
 
 void report_f()
@@ -385,4 +448,18 @@ extern "C" float VR_BigFont_WidthScaled(float scale, const char* text)
 extern "C" int VR_BigFont_Draw(int x, int y, const char* text)
 {
     return static_cast<int>(VR_BigFont_DrawScaled(x, y, 1.f, text));
+}
+
+extern "C" int VR_BigFont_DrawPicture(int x, int y, const char* name)
+{
+    const qvr::fontstyle::Strip* const style = styledRowPicture(name);
+    if(!style)
+    {
+        return 0;
+    }
+    const float m = static_cast<float>(style->margin);
+    Draw_SubPic(static_cast<float>(x) - m, static_cast<float>(y) - m, static_cast<float>(style->width),
+        static_cast<float>(style->height), reinterpret_cast<qpic_t*>(const_cast<za::U8*>(style->pic.data())), 0.f, 0.f, 1.f,
+        1.f, nullptr, 1.f);
+    return 1;
 }
