@@ -798,20 +798,15 @@ QVR_SLIDER(vr_agarmor_debris_time, "Broken Plates Last", 1.f, 60.f, 1.f, "%.0f s
     "A broken plate falls as debris (you can't force-grab it) and fades out after this long.")
 
 // vr_menu_gameplay.inc: pageArmedPacks
-QVR_CYCLE_BYNAME(vr_worn_backpack_pull, "Pulling the Pack",
-    "Experimental. What a hand's hard pull on a worn pack does. Tears It Off: the pack rips off into the hand. "
-    "Lifts Its Wearer: a pull never tears it (shots, blows, the force grab and damage still do); pulled hard "
-    "enough, a living grunt is lifted by its pack as by its torso: it goes down flailing, held by the pack "
-    "on its back, and you can carry, swing and throw it until it breaks free. A gentler pull drags it.",
-    {0.f, "Tears It Off"}, {1.f, "Lifts Its Wearer"})
 QVR_SLIDER(vr_worn_backpack_lift_force, "Pull That Lifts", 500.f, 4000.f, 100.f, "%.0f N", noExt,
-    "Lifts Its Wearer: a pull on the pack this hard lifts a living grunt (standing, the hands' pull off the "
-    "pack counts at 150 N a unit; held down by its pack, its hold's force).")
-QVR_SLIDER(vr_worn_backpack_rip_force, "Pull That Tears It", 500.f, 4000.f, 100.f, "%.0f N", noExt,
-    "A hand holding a ragdoll by its pack and yanking this hard (kept up a moment) tears the pack off into "
-    "the hand. A slow drag pulls about 1500 N; a hold's spring gives 4000 N at most (Ragdoll Grab Force).")
+    "A pull on the pack this hard lifts its living wearer as by its torso: it goes down flailing, held by the pack on "
+    "its back, and you can carry, swing and throw it until it breaks free. A gentler pull drags it; a pull never takes "
+    "the pack off. Standing, the hands' pull off the pack counts at 150 N a unit; held down by its pack, its hold's "
+    "force.")
+QVR_SLIDER(vr_worn_backpack_two_hand_mult, "Two-Hand Pull", 1.f, 4.f, 0.1f, "%.1fx", noExt,
+    "Both hands on the pack pull this many times harder together.")
 QVR_SLIDER(vr_worn_backpack_pool, "Damage That Tears It", 0.f, 200.f, 5.f, "%.0f", noExt,
-    "A living one's pack tears off once it has taken this much damage: blows, throws, shots and projectiles "
+    "A living one's pack comes off once it has taken this much damage: blows, throws, shots and projectiles "
     "on the pack, and explosions and fire on its wearer (their shares below). Poison never. 0: never by "
     "damage.")
 QVR_SLIDER(vr_worn_backpack_pool_blast, "Explosions' Share", 0.f, 1.f, 0.05f, "%.2f", noExt,
@@ -822,20 +817,10 @@ QVR_SLIDER(vr_worn_backpack_hit_roll, "Extra Hit Chance", 0.f, 1.f, 0.05f, "%.2f
     "Besides its damage, a hit on the pack tears it off at once with this chance at the Hit Damage below "
     "(more damage: likelier). 0: off.")
 QVR_SLIDER(vr_worn_backpack_hit_ref, "Hit Damage", 1.f, 100.f, 1.f, "%.0f", noExt, "The damage of a hit whose chance is the Extra Hit Chance.")
-QVR_SLIDER(vr_worn_backpack_tug_stretch, "Pull That Counts", 2.f, 40.f, 1.f, "%.0f cm", noExt,
-    "How far your hand must pull the pack off its place for the pull to count.")
-QVR_SLIDER(vr_worn_backpack_tug_time, "Pull Time", 0.05f, 3.f, 0.05f, "%.2f s", noExt,
-    "How long that pull must be kept up to tear the pack off (twice as far: half as long).")
-QVR_SLIDER(vr_worn_backpack_two_hand_mult, "Two-Hand Pull", 1.f, 4.f, 0.1f, "%.1fx", noExt,
-    "Both hands on the pack pull this many times harder together (a living one's and a ragdoll's).")
-QVR_TOGGLE(vr_worn_backpack_topple, "Tearing Topples It",
-    "A ragdoll trigger: a pack torn off a living grunt by your pull knocks it down, falling the way you "
-    "tore.")
-QVR_SLIDER(vr_worn_backpack_topple_push, "Topple Push", 0.1f, 2.f, 0.1f, "%.1f", noExt, "That knockdown's push (a two-hand shove's: 1).")
 QVR_SLIDER(vr_worn_backpack_impact, "Landing That Tears It", 2.f, 30.f, 0.5f, "%.1f m/s", noExt,
     "A ragdoll striking the level at least this fast loses its pack.")
 QVR_SLIDER(vr_worn_backpack_reserve, "Spare Ammo in It", 0.f, 1.f, 0.05f, "%.2f", noExt,
-    "The share of a grunt's spare rounds it carries in its pack: lost with the pack while it lives (it "
+    "The share of its spare rounds a wearer carries in its pack: lost with the pack while it lives (it "
     "fights on with what its gun holds).")
 QVR_SLIDER(vr_worn_backpack_volume, "Rip Volume", 0.f, 1.f, 0.05f, "%.2f", noExt, "The fabric rip's loudness.")
 QVR_SLIDER(vr_worn_backpack_scale, "Size", 0.3f, 1.2f, 0.05f, "%.2f", noExt, "The pack's size on the back.")

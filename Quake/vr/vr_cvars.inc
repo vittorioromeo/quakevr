@@ -2885,20 +2885,14 @@ QVR_CVAR(vr_worn_backpack_pitch, "0", CVAR_ARCHIVE)   // worn backpacks: tipped 
 QVR_CVAR(vr_worn_backpack_yaw, "0", CVAR_ARCHIVE)     // worn backpacks: turned (degrees)
 QVR_CVAR(vr_worn_backpack_roll, "0", CVAR_ARCHIVE)    // worn backpacks: rolled (degrees)
 QVR_CVAR(vr_worn_backpack_mass, "4", CVAR_ARCHIVE)    // worn backpacks: its weight on a ragdoll's chest (kg)
-QVR_CVAR(vr_worn_backpack_rip_force, "1500", CVAR_ARCHIVE) // worn backpacks: a hand's pull on a ragdoll held by its pack that tears the pack off (N: the hold's force, or its stretch times vr_worn_backpack_rip_stiffness if more)
 QVR_CVAR(vr_worn_backpack_impact, "9", CVAR_ARCHIVE)  // worn backpacks: a ragdoll's strike on the level at least this fast (m/s) tears it off
 QVR_CVAR(vr_worn_backpack_pool, "25", CVAR_ARCHIVE)  // worn backpacks: the damage a living one's pack takes before it tears off (hits on the pack: blows, throws, shots, projectiles; and the share below of blasts and fire anywhere on it; poison never; 0: never by damage)
 QVR_CVAR(vr_worn_backpack_pool_blast, "1", CVAR_ARCHIVE) // worn backpacks: the share of an explosion's damage to its wearer counted on the pack (0..1)
 QVR_CVAR(vr_worn_backpack_pool_fire, "1", CVAR_ARCHIVE)  // worn backpacks: the share of fire's damage (the flamethrower, burning) counted on the pack (0..1)
 QVR_CVAR(vr_worn_backpack_hit_roll, "0", CVAR_ARCHIVE) // worn backpacks: besides its damage, a hit on the pack tears it off with this chance at vr_worn_backpack_hit_ref damage (more: likelier; at most 1; 0 off: the damage alone, vr_worn_backpack_pool)
 QVR_CVAR(vr_worn_backpack_hit_ref, "20", CVAR_ARCHIVE) // worn backpacks: the damage of a hit whose chance is vr_worn_backpack_hit_roll
-QVR_CVAR(vr_worn_backpack_tug_stretch, "10", CVAR_ARCHIVE) // worn backpacks: cm a hand holding a living one's pack must pull it off its place for the pull to count (two hands: their pulls added, times vr_worn_backpack_two_hand_mult)
-QVR_CVAR(vr_worn_backpack_tug_time, "0.6", CVAR_ARCHIVE) // worn backpacks: s a pull of vr_worn_backpack_tug_stretch must be kept up to tear the pack off (twice as far: half as long)
-QVR_CVAR(vr_worn_backpack_two_hand_mult, "1.5", CVAR_ARCHIVE) // worn backpacks: both hands on the pack pull this many times their pulls together (a living one's tug, a ragdoll's pull)
-QVR_CVAR(vr_worn_backpack_topple, "1", CVAR_ARCHIVE)  // worn backpacks: a pack torn off a living one by your pull knocks it down, falling the way you tore (a ragdoll trigger); 0 it stands
-QVR_CVAR(vr_worn_backpack_topple_push, "0.8", CVAR_ARCHIVE) // worn backpacks: that knockdown's push (a shove's: two hands 1)
-QVR_CVAR(vr_worn_backpack_pull, "0", CVAR_ARCHIVE)    // worn backpacks: what a hand's pull on the pack does: 0 tears it off; 1 (experimental) never tears it (shots, blows, the force grab, damage still do): past vr_worn_backpack_lift_force a living wearer is lifted by its pack (knocked down, flailing, held by the pack on its chest)
-QVR_CVAR(vr_worn_backpack_lift_force, "1500", CVAR_ARCHIVE) // worn backpacks, Pull 1: N: a pull on the pack this hard (vr_worn_backpack_rip_time) lifts a living wearer (standing: the hands' stretch x vr_worn_backpack_rip_stiffness; a ragdoll: its hold's force)
+QVR_CVAR(vr_worn_backpack_two_hand_mult, "1.5", CVAR_ARCHIVE) // worn backpacks: both hands on the pack pull this many times their pulls together (a living one's and a ragdoll's)
+QVR_CVAR(vr_worn_backpack_lift_force, "1500", CVAR_ARCHIVE) // worn backpacks: N: a pull on the pack this hard (kept up vr_worn_backpack_lift_hold) lifts a living wearer (standing: the hands' stretch off the pack times vr_worn_backpack_lift_stiffness; a ragdoll held by it: its hold's force)
 QVR_CVAR(vr_worn_backpack_reserve, "1", CVAR_ARCHIVE) // worn backpacks: the share of an armed grunt's spare rounds in its pack (lost with it while alive)
 QVR_CVAR(vr_worn_backpack_volume, "1", CVAR_ARCHIVE)  // worn backpacks: the fabric rip's loudness
 QVR_CVAR(vr_worn_backpack_debug, "0", CVAR_NONE)      // worn backpacks: log each pack's state, pulls and rips (developer 1)

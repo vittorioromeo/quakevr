@@ -244,10 +244,19 @@ dispatch vr_stealth_test QC/vr_stealth_test.qc VR_Stealth_TestFrame ask loose
 dispatch vr_wornpack_test QC/vr_wornpack_test.qc VR_WornPack_TestFrame request loose
 dispatch vr_ragsmash_test QC/vr_ragsmash_test.qc VR_RagSmash_TestFrame request loose
 
-vr_wornpack_test 1        vr_wornpack_test.qc              (worn backpacks: on, hits, knockdowns, landings, pulls, deaths)
+vr_wornpack_test 1        vr_wornpack_test.qc              (worn backpacks, grunts: on, none on melee or fists, shots, blows, knockdowns, landings, deaths)
 vr_wornpack_test 2        vr_wornpack_test.qc              (worn backpacks: the eyeshot)
-vr_wornpack_test 3        vr_wornpack_test.qc              (worn backpacks: Pulling the Pack lifts its wearer, vr_worn_backpack_pull 1)
+vr_wornpack_test 3        vr_wornpack_test.qc              (worn backpacks, grunts: pulling the pack lifts its wearer, never tears it)
 vr_wornpack_test 4        vr_wornpack_test.qc              (worn backpacks: a hand pushed through a facing wearer doesn't take its pack; from behind it does)
+vr_wornpack_test 5        vr_wornpack_test.qc              (worn backpacks: the enforcer's lift zone: nothing takes it off, its loot its own)
+vr_wornpack_test 6        vr_wornpack_test.qc              (worn backpacks: a replacement's loadout rolled unseen gives or takes the pack)
+vr_wornpack_test 11       vr_wornpack_test.qc              (test 1 on knights)
+vr_wornpack_test 12       vr_wornpack_test.qc              (test 2 on knights: the eyeshot)
+vr_wornpack_test 13       vr_wornpack_test.qc              (test 3 on knights: lifted by the pack)
+vr_wornpack_test 21       vr_wornpack_test.qc              (test 1 on death knights)
+vr_wornpack_test 22       vr_wornpack_test.qc              (test 2 on death knights: the eyeshot)
+vr_wornpack_test 23       vr_wornpack_test.qc              (test 3 on death knights: lifted by the pack)
+vr_wornpack_test 33       vr_wornpack_test.qc              (test 3 on enforcers: lifted by the zone on their model's pack)
 vr_ragsmash_test 1        vr_ragsmash_test.qc              (a corpse smashed into a wall: its sound and blood there; a slow touch: none)
 
 vr_agarmor_test  1*       vr_agarmor_test.qc               (the Debug menu runs it: the dispatcher's fall-through)

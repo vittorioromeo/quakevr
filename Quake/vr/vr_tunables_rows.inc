@@ -1637,8 +1637,8 @@ QVR_TUNABLE_SLIDER(vr_menu_grab_dist_max, "Menu Grab Dist Max", 0.0f, 1200.0f, 1
 QVR_TUNABLE_SLIDER(vr_menu_grab_deadzone, "Menu Grab Deadzone", 0.0f, 8.0f, 0.5f, "%.1f", 0.0f, 40.0f, "cm a hand moves with a grip held on the panel's face before it takes hold of the panel (vr_menu_grab 2)")
 
 QVR_TUNABLE_GROUP("Combat > Armed Grunts - Worn Backpacks")
-QVR_TUNABLE_SLIDER(vr_worn_backpack_rip_time, "Worn Backpack Rip Time", 0.0f, 0.08f, 0.005f, "%.3f", 0.0f, 0.4f, "worn backpacks: the pull kept past vr_worn_backpack_rip_force this long (s) tears it off (a yank, not a jolt)")
-QVR_TUNABLE_SLIDER(vr_worn_backpack_rip_stiffness, "Worn Backpack Rip Stiffness", 0.0f, 300.0f, 20.0f, "%.0f", 0.0f, 1500.0f, "worn backpacks: N a unit of the held point's lag behind the hand (the stretch's share of the pull)")
+QVR_TUNABLE_SLIDER(vr_worn_backpack_lift_hold, "Worn Backpack Lift Hold", 0.0f, 0.08f, 0.005f, "%.3f", 0.0f, 0.4f, "worn backpacks: the pull kept past vr_worn_backpack_lift_force this long (s) lifts its wearer (a yank, not a jolt)")
+QVR_TUNABLE_SLIDER(vr_worn_backpack_lift_stiffness, "Worn Backpack Lift Stiffness", 0.0f, 300.0f, 20.0f, "%.0f", 0.0f, 1500.0f, "worn backpacks: N a unit of the held point\'s lag behind the hand (the stretch\'s share of the pull)")
 
 QVR_TUNABLE_GROUP("Debug > Tests")
 QVR_TUNABLE_SLIDER(vr_climb_prop_pull, "Light Prop Pull", 0.0f, 100.0f, 5.0f, "%.0f kg", 0.0f, 100.0f, "vr_climb_prop_pull: the most weight a hand on a light prop pulls it with (your weight, Box3D's Player " "Mass, shared by the holding hands, towards your body).")

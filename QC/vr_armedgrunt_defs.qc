@@ -232,13 +232,16 @@ void(entity e, float done, vector vel) VR_AgArmor_CutDone; // and after it: thos
 float(entity e, float joint) VR_AgArmor_Holds;            // VR_Limb_WearInto: a corpse's piece kept on by an unbroken plate
 void(entity h) VR_AgArmor_DebrisGrabbed;                  // VR_Carry_Start: a plate's debris taken, its fade put off
 
-// Worn backpacks (vr_wornpack.qc; ROUND23.md, "Worn backpacks"; armed grunts'): the fields and the hooks.
+#define VR_WP_RIP_SOUND_FILE "vr/derived/fabric_rip.wav"
+// Worn backpacks (vr_wornpack.qc; ROUND23.md, "Worn backpacks"; armed ones with a ranged weapon): the fields and the hooks.
 .float vr_wp_worn;    // a wearer's: 1 its pack on its back (the engine reads it: its ragdoll made with the pack on its chest)
 .entity vr_wp_pack;   // a wearer's pack (on it or torn off; world: none)
 .float vr_wp_had;     // a wearer's: it was given one (it drops no backpack as it dies)
 .float vr_wp_state;   // a pack's: 1 worn by the living, 2 worn by the dead (takeable), 3 off
 .entity vr_wp_wearer; // a pack's wearer
 .float vr_wp_peak;    // a pack's: the hardest pull on it so far (N; the tests)
+float(entity e) VR_WP_Packless;                                          // VR_AG_SoldierDrop, SoldierDrop: left without a pack by the rule: no backpack
+void(entity e) VR_WP_Refit;                                              // VR_AGR_Resolve: its loadout changed unseen
 void(entity e) VR_WP_Spawn;                                              // VR_AM_Spawn: an armed grunt's pack put on
 void(entity targ, entity inflictor, entity attacker, float take) VR_WP_Hit; // T_Damage: a hit on the pack may tear it off
 void(entity m, float xSpeed, vector xInto) VR_AG_FallTouch;                // VR_RagImpact_Hit: its body met the level (VR_AG_FallImpact)

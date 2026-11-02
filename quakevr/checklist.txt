@@ -30,6 +30,10 @@ A shoulder charge that connects costs 35 stamina.
 Flashlight: with the grip already closed, the grace to grab it is shorter (0.39 s).
 No ghost hands while climbing (Ghost Hands: No Ghost Climbing).
 A thrown crate or barrel kills a grunt or pops what it hit, never a full gib; Quad, a war hammer's hardest blows and heavy counters still gib.
+Pulling a worn pack never takes it off: pull hard and the wearer is lifted by it, flailing, and can be carried and thrown; shots, blows, landings and gibbing still knock it off.
+Knights and death knights holding a gun wear a backpack on their upper back and can be lifted by it. Does the pack look right on them?
+Grunts, knights and death knights with only a melee weapon or fists wear no pack and drop no backpack.
+An enforcer with a gun can be lifted by the pack on its back, which never comes off; with a sword or fists it can't.
 
 
 [3. Bodies: grabbing, throwing, hits]
