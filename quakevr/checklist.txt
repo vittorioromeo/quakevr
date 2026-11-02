@@ -76,6 +76,9 @@ The nail pistol is always the full-slide model (the classic copper-slide option 
 Start the game wearing the headset: full-body tracking is right from the start; if it starts broken, the console shows "Body tracking: restarting (automatic: ...)" within about 6 s and it recovers (Body > Body Tracking > Restart When Broken at Start). {test:vrstart}
 Body > Body Tracking > Restart Body Tracking, pressed while standing straight, fixes body tracking that started wrong, without restarting Virtual Desktop. {test:vrstart}
 Body > Seated Height is now 0 ("not measured": yours had been measured standing); Set Seated Height Now while standing says "sit down first".
+Grab an armed grunt's gun with the grip button only (trigger released) and tug: all fingers, index included, close round the gun and touch it rather than closing in the air. {test:agrunt_tug}
+Grab a downed grunt's arm or a corpse's limb with the grip only: the index finger curls with the others.
+Spawn a grunt with a nail pistol in each hand from the toolgun several times, right after loading the map: both guns visible every time; if one is missing, run Debug > Armed Monsters' Weapons: Drawn vs Server at once and take a note. {test:dual_wield}
 
 [2. Armed humanoids: disarming and armour]
 Show Disarm Volumes: the wireframe hulls sit on each drawn weapon (magenta, orange, red; the sword's orange line along its blade) and on the drawn hand and forearm (cyan). {test:disarm_hulls_melee}
