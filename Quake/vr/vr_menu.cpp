@@ -705,6 +705,7 @@ void hologramTestMessage()
         row(opt::vr_notify_wrist_time),
         row(opt::vr_notify_wrist_height),
         row(opt::vr_notify_wrist_alpha),
+        open("Wrist Gadget Font", pageIndex(pageFontSurface<1>)).help("The gadget's text: its screen, hologram and log (upscaling, outline, shadow)."),
         header("Weapons' Ammo Screens"),
         row(opt::vr_show_weapon_text),
         row(opt::vr_weapon_screen),
@@ -718,9 +719,11 @@ void hologramTestMessage()
         row(opt::vr_weapon_screen_idle),
         row(opt::vr_weapon_world_attach_range),
         row(opt::vr_weapon_world_attach_max),
+        open("Ammo Screen Font", pageIndex(pageFontSurface<2>)).help("The ammo screens' numbers and text (upscaling, outline, shadow)."),
         header("Map Boards"),
         row(opt::vr_worldtext_crt),
         row(opt::vr_worldtext_hue),
+        open("World Text Font", pageIndex(pageFontSurface<3>)).help("The world's texts: map boards, floating texts, tips and the tools' hints (upscaling, outline, shadow)."),
     };
 }
 

@@ -2356,24 +2356,6 @@ QVR_CYCLE_BYNAME(vr_menu_dropdown, "Drop-Down Lists",
     {0.f, "Never"}, {3.f, "3+ Choices"}, {4.f, "4+ Choices"}, {5.f, "5+ Choices"}, {6.f, "6+ Choices"},
     {8.f, "8+ Choices"})
 
-QVR_CYCLE(vr_font_upscale, "Upscaling",
-    "How the text's 8-pixel font (and Quake's text box, the main menu's lettering) is enlarged. Classic: Quake's pixels, columns uneven at the menus' sizes. Nearest 4x + Sharp Bilinear: the same pixels with even, soft edges. Scale4x: rounded diagonals, Quake's own colours. 4xBR: the smoothest slopes and curves.",
-    {0.f, "Classic"}, {1.f, "Nearest 4x + Sharp Bilinear"}, {2.f, "Scale4x"}, {3.f, "4xBR"})
-QVR_SLIDER(vr_font_outline, "Outline Thickness", 0.f, 2.f, 0.25f, "%.2f px", noExt,
-    "An outline round the letters, in the font's pixels (an 8 x 8 letter's). 0: none. Not on the text box, sliders or Quake's textured pieces.")
-QVR_SLIDER(vr_font_outline_r, "Outline Red", 0.f, 1.f, 0.05f, "%.2f", noExt, nullptr)
-QVR_SLIDER(vr_font_outline_g, "Outline Green", 0.f, 1.f, 0.05f, "%.2f", noExt, nullptr)
-QVR_SLIDER(vr_font_outline_b, "Outline Blue", 0.f, 1.f, 0.05f, "%.2f", noExt, nullptr)
-QVR_SLIDER(vr_font_shadow_opacity, "Shadow Opacity", 0.f, 1.f, 0.05f, "%.2f", noExt,
-    "A drop shadow under the letters (and their outline). 0: none.")
-QVR_SLIDER(vr_font_shadow_size, "Shadow Size", 0.f, 2.f, 0.25f, "%.2f px", noExt,
-    "How far down and right the shadow falls, in the font's pixels.")
-QVR_SLIDER(vr_font_shadow_spread, "Shadow Spread", 0.f, 2.f, 0.25f, "%.2f px", noExt,
-    "How soft the shadow is: its blur, in the font's pixels. 0: a hard copy of the letters.")
-QVR_SLIDER(vr_font_shadow_r, "Shadow Red", 0.f, 1.f, 0.05f, "%.2f", noExt, nullptr)
-QVR_SLIDER(vr_font_shadow_g, "Shadow Green", 0.f, 1.f, 0.05f, "%.2f", noExt, nullptr)
-QVR_SLIDER(vr_font_shadow_b, "Shadow Blue", 0.f, 1.f, 0.05f, "%.2f", noExt, nullptr)
-
 // vr_menu_pages.inc: pageCrosshairSettings
 QVR_SLIDER_BYNAME(vr_crosshair_depth, "Crosshair Depth", 0.f, 4096.f, 16.f, "%.0f", ext(),
     "When zero, the crosshair will be projected to the closest wall. Otherwise, the crosshair will be projected at a fixed depth.")

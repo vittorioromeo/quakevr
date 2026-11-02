@@ -558,6 +558,11 @@ vr_gamma|1|Graphics|Headset Gamma|Advanced VR Options > Graphics > Headset Gamma
 vr_contrast|1|Graphics|Headset Contrast|Advanced VR Options > Graphics > Headset Contrast
 vr_profile|1|Graphics|Performance Profile|Advanced VR Options > Graphics > Performance Profile
 vr_gadget_fps|1|Graphics|FPS Counter on the Gadget|Advanced VR Options > Graphics > FPS Counter on the Gadget
+vr_agarms_lod|1|Graphics|Armed Humanoids' Arms: Level of Detail|Advanced VR Options > Graphics > Armed Humanoids' 
+vr_agarms_lod_near|1|Graphics|Arms' Detail: Near Within|Advanced VR Options > Graphics > Arms' Detail: Near Within
+vr_agarms_lod_far|1|Graphics|Arms' Detail: Far in View|Advanced VR Options > Graphics > Arms' Detail: Far in View
+vr_agarms_lod_unseen|1|Graphics|Arms' Detail: Out of View|Advanced VR Options > Graphics > Arms' Detail: Out of View
+vr_agarms_lod_margin|1|Graphics|Arms' Detail: View Margin|Advanced VR Options > Graphics > Arms' Detail: View Margin
 |1|Graphics|Reset This Page|Advanced VR Options > Graphics > Reset This Page
 @page|2|Motion Recorder||Advanced VR Options > Motion Recorder
 |2|Motion Recorder|Melee Recording Room|Advanced VR Options > Motion Recorder > Melee Recording Room
@@ -2162,8 +2167,10 @@ vr_font_outline_r|1|Menu|Outline Red|Advanced VR Options > HUD and Menus > Menu 
 vr_font_outline_g|1|Menu|Outline Green|Advanced VR Options > HUD and Menus > Menu > Outline Green
 vr_font_outline_b|1|Menu|Outline Blue|Advanced VR Options > HUD and Menus > Menu > Outline Blue
 vr_font_shadow_opacity|1|Menu|Shadow Opacity|Advanced VR Options > HUD and Menus > Menu > Shadow Opacity
-vr_font_shadow_size|1|Menu|Shadow Size|Advanced VR Options > HUD and Menus > Menu > Shadow Size
+vr_font_shadow_grow|1|Menu|Shadow Size|Advanced VR Options > HUD and Menus > Menu > Shadow Size
 vr_font_shadow_spread|1|Menu|Shadow Spread|Advanced VR Options > HUD and Menus > Menu > Shadow Spread
+vr_font_shadow_x|1|Menu|Shadow Offset X|Advanced VR Options > HUD and Menus > Menu > Shadow Offset X
+vr_font_shadow_y|1|Menu|Shadow Offset Y|Advanced VR Options > HUD and Menus > Menu > Shadow Offset Y
 vr_font_shadow_r|1|Menu|Shadow Red|Advanced VR Options > HUD and Menus > Menu > Shadow Red
 vr_font_shadow_g|1|Menu|Shadow Green|Advanced VR Options > HUD and Menus > Menu > Shadow Green
 vr_font_shadow_b|1|Menu|Shadow Blue|Advanced VR Options > HUD and Menus > Menu > Shadow Blue
@@ -3922,6 +3929,7 @@ vr_box3d_threads_bodies|2|Debug - Profiling and Memory|Physics Threads From|Adva
 |2|Debug - Profiling and Memory|Thread Pool Sites Reset|Advanced VR Options > Debug > Profiling and Memory > Thread 
 |2|Debug - Profiling and Memory|Ragdoll Hand Probe|Advanced VR Options > Debug > Profiling and Memory > Ragdoll 
 |2|Debug - Profiling and Memory|Armed Humanoids: Weapon Holds Report|Advanced VR Options > Debug > Profiling and 
+vr_agarms_lod_check|2|Debug - Profiling and Memory|Armed Humanoids: Check the Arms' Detail|Advanced VR Options > 
 |2|Debug - Profiling and Memory|Armed Humanoids: Arms' Solve Time|Advanced VR Options > Debug > Profiling and 
 |2|Debug - Profiling and Memory|Armed Monsters' Weapons: Drawn vs Server|Advanced VR Options > Debug > Profiling 
 |2|Debug - Profiling and Memory|Grip Fit: Last|Advanced VR Options > Debug > Profiling and Memory > Grip Fit: Last
@@ -3993,6 +4001,7 @@ vr_flat_turnlag_speed|2|Debug - Reports|Flatscreen Turn Lag Recovery|Advanced VR
 |2|Debug - Reports|Cut the Nearest Monster's Arm Off|Advanced VR Options > Debug > Reports > Cut the Nearest 
 |2|Debug - Reports|Cut Both Its Legs Off|Advanced VR Options > Debug > Reports > Cut Both Its Legs Off
 |2|Debug - Reports|Ragdolls|Advanced VR Options > Debug > Reports > Ragdolls
+|2|Debug - Reports|Every Ragdoll Rig|Advanced VR Options > Debug > Reports > Every Ragdoll Rig
 |2|Debug - Reports|Grunt's Ragdoll Rig|Advanced VR Options > Debug > Reports > Grunt's Ragdoll Rig
 |2|Debug - Reports|Smooth Animation Check|Advanced VR Options > Debug > Reports > Smooth Animation Check
 |2|Debug - Reports|Steady Vertices Check|Advanced VR Options > Debug > Reports > Steady Vertices Check
@@ -4982,6 +4991,51 @@ vr_xr_test_drop_context|2|Debug - Automation & Self-Tests|Test: No GL Context at
 |2|Debug - Automation & Self-Tests|Crash: abort()|Advanced VR Options > Debug > Automation & Self-Tests > Crash: 
 |2|Debug - Automation & Self-Tests|Error: Host_Error|Advanced VR Options > Debug > Automation & Self-Tests > Error: 
 |2|Debug - Automation & Self-Tests|Reset This Page|Advanced VR Options > Debug > Automation & Self-Tests > Reset 
+@page|1|Wrist Gadget Font||Advanced VR Options > Tips > Wrist Gadget Messages > Wrist Gadget Font
+vr_font_gadget_upscale|1|Wrist Gadget Font|Upscaling|Advanced VR Options > Tips > Wrist Gadget Messages > Wrist 
+vr_font_gadget_outline|1|Wrist Gadget Font|Outline Thickness|Advanced VR Options > Tips > Wrist Gadget Messages > 
+vr_font_gadget_outline_r|1|Wrist Gadget Font|Outline Red|Advanced VR Options > Tips > Wrist Gadget Messages > Wrist 
+vr_font_gadget_outline_g|1|Wrist Gadget Font|Outline Green|Advanced VR Options > Tips > Wrist Gadget Messages > 
+vr_font_gadget_outline_b|1|Wrist Gadget Font|Outline Blue|Advanced VR Options > Tips > Wrist Gadget Messages > 
+vr_font_gadget_shadow_opacity|1|Wrist Gadget Font|Shadow Opacity|Advanced VR Options > Tips > Wrist Gadget Messages 
+vr_font_gadget_shadow_grow|1|Wrist Gadget Font|Shadow Size|Advanced VR Options > Tips > Wrist Gadget Messages > 
+vr_font_gadget_shadow_spread|1|Wrist Gadget Font|Shadow Spread|Advanced VR Options > Tips > Wrist Gadget Messages > 
+vr_font_gadget_shadow_x|1|Wrist Gadget Font|Shadow Offset X|Advanced VR Options > Tips > Wrist Gadget Messages > 
+vr_font_gadget_shadow_y|1|Wrist Gadget Font|Shadow Offset Y|Advanced VR Options > Tips > Wrist Gadget Messages > 
+vr_font_gadget_shadow_r|1|Wrist Gadget Font|Shadow Red|Advanced VR Options > Tips > Wrist Gadget Messages > Wrist 
+vr_font_gadget_shadow_g|1|Wrist Gadget Font|Shadow Green|Advanced VR Options > Tips > Wrist Gadget Messages > Wrist 
+vr_font_gadget_shadow_b|1|Wrist Gadget Font|Shadow Blue|Advanced VR Options > Tips > Wrist Gadget Messages > Wrist 
+|1|Wrist Gadget Font|Reset This Page|Advanced VR Options > Tips > Wrist Gadget Messages > Wrist Gadget Font > Reset 
+@page|1|Ammo Screen Font||Advanced VR Options > Tips > Wrist Gadget Messages > Ammo Screen Font
+vr_font_ammo_upscale|1|Ammo Screen Font|Upscaling|Advanced VR Options > Tips > Wrist Gadget Messages > Ammo Screen 
+vr_font_ammo_outline|1|Ammo Screen Font|Outline Thickness|Advanced VR Options > Tips > Wrist Gadget Messages > Ammo 
+vr_font_ammo_outline_r|1|Ammo Screen Font|Outline Red|Advanced VR Options > Tips > Wrist Gadget Messages > Ammo 
+vr_font_ammo_outline_g|1|Ammo Screen Font|Outline Green|Advanced VR Options > Tips > Wrist Gadget Messages > Ammo 
+vr_font_ammo_outline_b|1|Ammo Screen Font|Outline Blue|Advanced VR Options > Tips > Wrist Gadget Messages > Ammo 
+vr_font_ammo_shadow_opacity|1|Ammo Screen Font|Shadow Opacity|Advanced VR Options > Tips > Wrist Gadget Messages > 
+vr_font_ammo_shadow_grow|1|Ammo Screen Font|Shadow Size|Advanced VR Options > Tips > Wrist Gadget Messages > Ammo 
+vr_font_ammo_shadow_spread|1|Ammo Screen Font|Shadow Spread|Advanced VR Options > Tips > Wrist Gadget Messages > 
+vr_font_ammo_shadow_x|1|Ammo Screen Font|Shadow Offset X|Advanced VR Options > Tips > Wrist Gadget Messages > Ammo 
+vr_font_ammo_shadow_y|1|Ammo Screen Font|Shadow Offset Y|Advanced VR Options > Tips > Wrist Gadget Messages > Ammo 
+vr_font_ammo_shadow_r|1|Ammo Screen Font|Shadow Red|Advanced VR Options > Tips > Wrist Gadget Messages > Ammo 
+vr_font_ammo_shadow_g|1|Ammo Screen Font|Shadow Green|Advanced VR Options > Tips > Wrist Gadget Messages > Ammo 
+vr_font_ammo_shadow_b|1|Ammo Screen Font|Shadow Blue|Advanced VR Options > Tips > Wrist Gadget Messages > Ammo 
+|1|Ammo Screen Font|Reset This Page|Advanced VR Options > Tips > Wrist Gadget Messages > Ammo Screen Font > Reset 
+@page|1|World Text Font||Advanced VR Options > Tips > Wrist Gadget Messages > World Text Font
+vr_font_world_upscale|1|World Text Font|Upscaling|Advanced VR Options > Tips > Wrist Gadget Messages > World Text 
+vr_font_world_outline|1|World Text Font|Outline Thickness|Advanced VR Options > Tips > Wrist Gadget Messages > 
+vr_font_world_outline_r|1|World Text Font|Outline Red|Advanced VR Options > Tips > Wrist Gadget Messages > World 
+vr_font_world_outline_g|1|World Text Font|Outline Green|Advanced VR Options > Tips > Wrist Gadget Messages > World 
+vr_font_world_outline_b|1|World Text Font|Outline Blue|Advanced VR Options > Tips > Wrist Gadget Messages > World 
+vr_font_world_shadow_opacity|1|World Text Font|Shadow Opacity|Advanced VR Options > Tips > Wrist Gadget Messages > 
+vr_font_world_shadow_grow|1|World Text Font|Shadow Size|Advanced VR Options > Tips > Wrist Gadget Messages > World 
+vr_font_world_shadow_spread|1|World Text Font|Shadow Spread|Advanced VR Options > Tips > Wrist Gadget Messages > 
+vr_font_world_shadow_x|1|World Text Font|Shadow Offset X|Advanced VR Options > Tips > Wrist Gadget Messages > World 
+vr_font_world_shadow_y|1|World Text Font|Shadow Offset Y|Advanced VR Options > Tips > Wrist Gadget Messages > World 
+vr_font_world_shadow_r|1|World Text Font|Shadow Red|Advanced VR Options > Tips > Wrist Gadget Messages > World Text 
+vr_font_world_shadow_g|1|World Text Font|Shadow Green|Advanced VR Options > Tips > Wrist Gadget Messages > World 
+vr_font_world_shadow_b|1|World Text Font|Shadow Blue|Advanced VR Options > Tips > Wrist Gadget Messages > World 
+|1|World Text Font|Reset This Page|Advanced VR Options > Tips > Wrist Gadget Messages > World Text Font > Reset 
 @page|1|Death Sergeant's Flail||Advanced VR Options > Combat > Melee > Flail
 vr_flail_chain|1|Death Sergeant's Flail|Flail Chain Length|Advanced VR Options > Combat > Melee > Flail > Flail 
 vr_flail_world|1|Death Sergeant's Flail|Flail Head Lying About|Advanced VR Options > Combat > Melee > Flail > Flail 

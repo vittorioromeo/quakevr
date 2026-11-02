@@ -867,19 +867,64 @@ QVR_CVAR(vr_menu_recolor_strength, "1", CVAR_ARCHIVE)  // with it, how far towar
 QVR_CVAR(vr_menu_recolor_hue, "0", CVAR_ARCHIVE)       // with it, the hue they turn to (degrees; 0 red, the banner's; 345 crimson, 20 red-orange; -1 vr_player_hue)
 QVR_CVAR(vr_menu_recolor_saturation, "3", CVAR_ARCHIVE)    // with it, their colourfulness times this (as far as the hue's colours go; 0.5 to 3; their lightness always kept)
 QVR_CVAR(vr_menu_bigfont, "1", CVAR_ARCHIVE)         // the main menu's rows as text in Quake's own lettering (vr_bigfont.cpp; 0: Quake's picture, VR Calibration above it in the console's letters)
-// The 2D font restyled (vr_fontstyle.cpp): the console font, the text box pieces and the main menu's lettering. Each
-// change rebuilds it at once. Classic, no outline, no shadow: Quake's own textures, as before.
-QVR_CVAR(vr_font_upscale, "0", CVAR_ARCHIVE)          // 0 Classic (nearest, as Quake); 1 nearest 4x sampled smooth (even strokes); 2 Scale4x (rounded diagonals, no new colours); 3 4xBR (smooth slopes, blended edges); 1-3 linear and mipmapped
-QVR_CVAR(vr_font_outline, "0", CVAR_ARCHIVE)          // the letters' outline: its thickness in font pixels (an 8 x 8 glyph's; 0 to 2, quarter steps; 0 off); not the box, slider or textured pieces
-QVR_CVAR(vr_font_outline_r, "0", CVAR_ARCHIVE)        // its colour: red, 0 to 1
-QVR_CVAR(vr_font_outline_g, "0", CVAR_ARCHIVE)        // green
-QVR_CVAR(vr_font_outline_b, "0", CVAR_ARCHIVE)        // blue
-QVR_CVAR(vr_font_shadow_opacity, "0", CVAR_ARCHIVE)   // the letters' drop shadow (cast by the letter and its outline): its opacity, 0 to 1 (0 off)
-QVR_CVAR(vr_font_shadow_size, "1", CVAR_ARCHIVE)      // its offset down and right, in font pixels (0 to 2)
-QVR_CVAR(vr_font_shadow_spread, "0.5", CVAR_ARCHIVE)  // its softness: the blur's radius in font pixels (0 to 2; 0 a hard copy)
-QVR_CVAR(vr_font_shadow_r, "0", CVAR_ARCHIVE)         // its colour: red, 0 to 1
-QVR_CVAR(vr_font_shadow_g, "0", CVAR_ARCHIVE)         // green
-QVR_CVAR(vr_font_shadow_b, "0", CVAR_ARCHIVE)         // blue
+// The console font restyled (vr_fontstyle.cpp), one set for each kind of text; each change rebuilds that one at once.
+// Classic, no outline, shadow opacity 0: Quake's own texture, as before. Shipped: the author's look (2026-11-02).
+// The menus and the 2D canvas (Menu > Fonts):
+QVR_CVAR(vr_font_upscale, "1", CVAR_ARCHIVE) // 0 Classic (nearest, as Quake); 1 nearest 4x sampled smooth (even strokes); 2 Scale4x (rounded diagonals, no new colours); 3 4xBR (smooth slopes, blended edges); 1-3 linear and mipmapped
+QVR_CVAR(vr_font_outline, "0.75", CVAR_ARCHIVE) // the letters' outline: its thickness in font pixels (an 8 x 8 glyph's; 0 to 2; 0 off); never the box, slider or textured pieces
+QVR_CVAR(vr_font_outline_r, "0", CVAR_ARCHIVE) // its colour: red, 0 to 1
+QVR_CVAR(vr_font_outline_g, "0", CVAR_ARCHIVE) // green
+QVR_CVAR(vr_font_outline_b, "0", CVAR_ARCHIVE) // blue
+QVR_CVAR(vr_font_shadow_opacity, "0.65", CVAR_ARCHIVE) // the letters' drop shadow (cast by the letter and its outline): its opacity, 0 to 1 (0 off)
+QVR_CVAR(vr_font_shadow_grow, "0", CVAR_ARCHIVE) // its size: the shape grown by this many font pixels (0 to 2; 0 the letter's own)
+QVR_CVAR(vr_font_shadow_spread, "1", CVAR_ARCHIVE) // its softness: the blur's radius in font pixels (0 to 2; 0 a hard copy)
+QVR_CVAR(vr_font_shadow_x, "1", CVAR_ARCHIVE) // its offset right, in font pixels (-2 to 2)
+QVR_CVAR(vr_font_shadow_y, "1", CVAR_ARCHIVE) // its offset down, in font pixels (-2 to 2)
+QVR_CVAR(vr_font_shadow_r, "0", CVAR_ARCHIVE) // its colour: red, 0 to 1
+QVR_CVAR(vr_font_shadow_g, "0", CVAR_ARCHIVE) // green
+QVR_CVAR(vr_font_shadow_b, "0", CVAR_ARCHIVE) // blue
+// The wrist gadget's screen, hologram and log:
+QVR_CVAR(vr_font_gadget_upscale, "1", CVAR_ARCHIVE) // 0 Classic (nearest, as Quake); 1 nearest 4x sampled smooth (even strokes); 2 Scale4x (rounded diagonals, no new colours); 3 4xBR (smooth slopes, blended edges); 1-3 linear and mipmapped
+QVR_CVAR(vr_font_gadget_outline, "0.75", CVAR_ARCHIVE) // the letters' outline: its thickness in font pixels (an 8 x 8 glyph's; 0 to 2; 0 off); never the box, slider or textured pieces
+QVR_CVAR(vr_font_gadget_outline_r, "0", CVAR_ARCHIVE) // its colour: red, 0 to 1
+QVR_CVAR(vr_font_gadget_outline_g, "0", CVAR_ARCHIVE) // green
+QVR_CVAR(vr_font_gadget_outline_b, "0", CVAR_ARCHIVE) // blue
+QVR_CVAR(vr_font_gadget_shadow_opacity, "0.65", CVAR_ARCHIVE) // the letters' drop shadow (cast by the letter and its outline): its opacity, 0 to 1 (0 off)
+QVR_CVAR(vr_font_gadget_shadow_grow, "0", CVAR_ARCHIVE) // its size: the shape grown by this many font pixels (0 to 2; 0 the letter's own)
+QVR_CVAR(vr_font_gadget_shadow_spread, "1", CVAR_ARCHIVE) // its softness: the blur's radius in font pixels (0 to 2; 0 a hard copy)
+QVR_CVAR(vr_font_gadget_shadow_x, "1", CVAR_ARCHIVE) // its offset right, in font pixels (-2 to 2)
+QVR_CVAR(vr_font_gadget_shadow_y, "1", CVAR_ARCHIVE) // its offset down, in font pixels (-2 to 2)
+QVR_CVAR(vr_font_gadget_shadow_r, "0", CVAR_ARCHIVE) // its colour: red, 0 to 1
+QVR_CVAR(vr_font_gadget_shadow_g, "0", CVAR_ARCHIVE) // green
+QVR_CVAR(vr_font_gadget_shadow_b, "0", CVAR_ARCHIVE) // blue
+// The weapons' ammo screens:
+QVR_CVAR(vr_font_ammo_upscale, "1", CVAR_ARCHIVE) // 0 Classic (nearest, as Quake); 1 nearest 4x sampled smooth (even strokes); 2 Scale4x (rounded diagonals, no new colours); 3 4xBR (smooth slopes, blended edges); 1-3 linear and mipmapped
+QVR_CVAR(vr_font_ammo_outline, "0.75", CVAR_ARCHIVE) // the letters' outline: its thickness in font pixels (an 8 x 8 glyph's; 0 to 2; 0 off); never the box, slider or textured pieces
+QVR_CVAR(vr_font_ammo_outline_r, "0", CVAR_ARCHIVE) // its colour: red, 0 to 1
+QVR_CVAR(vr_font_ammo_outline_g, "0", CVAR_ARCHIVE) // green
+QVR_CVAR(vr_font_ammo_outline_b, "0", CVAR_ARCHIVE) // blue
+QVR_CVAR(vr_font_ammo_shadow_opacity, "0.65", CVAR_ARCHIVE) // the letters' drop shadow (cast by the letter and its outline): its opacity, 0 to 1 (0 off)
+QVR_CVAR(vr_font_ammo_shadow_grow, "0", CVAR_ARCHIVE) // its size: the shape grown by this many font pixels (0 to 2; 0 the letter's own)
+QVR_CVAR(vr_font_ammo_shadow_spread, "1", CVAR_ARCHIVE) // its softness: the blur's radius in font pixels (0 to 2; 0 a hard copy)
+QVR_CVAR(vr_font_ammo_shadow_x, "1", CVAR_ARCHIVE) // its offset right, in font pixels (-2 to 2)
+QVR_CVAR(vr_font_ammo_shadow_y, "1", CVAR_ARCHIVE) // its offset down, in font pixels (-2 to 2)
+QVR_CVAR(vr_font_ammo_shadow_r, "0", CVAR_ARCHIVE) // its colour: red, 0 to 1
+QVR_CVAR(vr_font_ammo_shadow_g, "0", CVAR_ARCHIVE) // green
+QVR_CVAR(vr_font_ammo_shadow_b, "0", CVAR_ARCHIVE) // blue
+// The world's texts: map boards, floating texts, tips, tools' hints:
+QVR_CVAR(vr_font_world_upscale, "1", CVAR_ARCHIVE) // 0 Classic (nearest, as Quake); 1 nearest 4x sampled smooth (even strokes); 2 Scale4x (rounded diagonals, no new colours); 3 4xBR (smooth slopes, blended edges); 1-3 linear and mipmapped
+QVR_CVAR(vr_font_world_outline, "0.75", CVAR_ARCHIVE) // the letters' outline: its thickness in font pixels (an 8 x 8 glyph's; 0 to 2; 0 off); never the box, slider or textured pieces
+QVR_CVAR(vr_font_world_outline_r, "0", CVAR_ARCHIVE) // its colour: red, 0 to 1
+QVR_CVAR(vr_font_world_outline_g, "0", CVAR_ARCHIVE) // green
+QVR_CVAR(vr_font_world_outline_b, "0", CVAR_ARCHIVE) // blue
+QVR_CVAR(vr_font_world_shadow_opacity, "0.65", CVAR_ARCHIVE) // the letters' drop shadow (cast by the letter and its outline): its opacity, 0 to 1 (0 off)
+QVR_CVAR(vr_font_world_shadow_grow, "0", CVAR_ARCHIVE) // its size: the shape grown by this many font pixels (0 to 2; 0 the letter's own)
+QVR_CVAR(vr_font_world_shadow_spread, "1", CVAR_ARCHIVE) // its softness: the blur's radius in font pixels (0 to 2; 0 a hard copy)
+QVR_CVAR(vr_font_world_shadow_x, "1", CVAR_ARCHIVE) // its offset right, in font pixels (-2 to 2)
+QVR_CVAR(vr_font_world_shadow_y, "1", CVAR_ARCHIVE) // its offset down, in font pixels (-2 to 2)
+QVR_CVAR(vr_font_world_shadow_r, "0", CVAR_ARCHIVE) // its colour: red, 0 to 1
+QVR_CVAR(vr_font_world_shadow_g, "0", CVAR_ARCHIVE) // green
+QVR_CVAR(vr_font_world_shadow_b, "0", CVAR_ARCHIVE) // blue
 QVR_CVAR(vr_menu_spacing, "2", CVAR_ARCHIVE)         // with it, the rows' spacing over Quake's (1 to 2)
 QVR_CVAR(vr_menu_height, "1.6", CVAR_ARCHIVE)         // with it, the menus' height over Quake's 200 pixels (1 to 2): the VR pages and Ironwail's lists show more rows (1.35: about 35 degrees up and down at the shipped distance, scale and spacing)
 QVR_CVAR(vr_menu_resolution, "1.5", CVAR_ARCHIVE)      // the headset's 2D canvas (menus, HUD text): this many of its pixels to each of the eye image's pixels across the menu panel, mipmapped (vr_panel.cpp; 0: the window's size, smooth-filtered, as before; 1 to 3)

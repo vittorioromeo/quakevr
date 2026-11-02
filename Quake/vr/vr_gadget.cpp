@@ -13,6 +13,7 @@
 
 #include "vr_menuui.hpp"
 #include "vr_gadget.hpp"
+#include "vr_fontstyle.hpp"
 #include "vr_doom.hpp"
 #include "vr_gearlights.hpp"
 #include "vr_body.hpp"
@@ -256,12 +257,7 @@ namespace
     constexpr int size = 16 * 10, whiteRows = 8 * 10; // characters 0..127: the white half
     brightFont.data.resize(static_cast<za::SizeT>(size) * size);
     memcpy(brightFont.data.data(), char_texture_data, static_cast<size_t>(size) * size);
-    byte top = 0;
-    for(int t = 0; t < size * whiteRows; t++)
-    {
-        const byte b = brightFont.data[static_cast<za::SizeT>(t)];
-        top = b < 16 && b > top ? b : top;
-    }
+    const int top = fontstyle::consoleGreyTop(); // (the restyled font's bright copy stretches the same greys)
     if(top > 0 && top < 15)
     {
         for(int t = 0; t < size * whiteRows; t++)
@@ -1259,6 +1255,7 @@ void onGameDirChanged()
 void renderScreen()
 {
     QVR_GPU_PROFILE("gadget screen");
+    const fontstyle::Use font{fontstyle::Surface::Gadget}; // its screen, hologram and fps (Screens > Wrist Gadget Font)
     text3d::renderScreens(); // the weapons' ammo screens' images too
     doom::renderScreen(); // Doom's picture and its touch controls (vr_doom), while it is open and can be seen
     if(!active())
@@ -1368,7 +1365,8 @@ void useBrightFont(bool on)
     if(on && !brightFont.consoleFont)
     {
         brightFont.consoleFont = char_texture;
-        char_texture = brightFontTexture(); // (Draw_StringEx binds char_texture)
+        gltexture_t* const styled = fontstyle::brightChars(); // the restyled font, brightened (Menu > Fonts)
+        char_texture = styled ? styled : brightFontTexture(); // (Draw_StringEx binds char_texture)
     }
     else if(!on && brightFont.consoleFont)
     {

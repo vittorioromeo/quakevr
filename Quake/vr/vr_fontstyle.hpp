@@ -7,8 +7,59 @@
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Container/Vector.hpp"
 
+struct gltexture_s;
+struct cvar_s;
+
 namespace qvr::fontstyle
 {
+
+// The kinds of text, each with its own style (upscaling, outline, shadow) and settings: the menus and everything
+// else drawn on the 2D canvas (Menu > Fonts); the wrist gadget's screen, hologram and log; the weapons' ammo screens;
+// the world's texts (map boards, floating texts, tips, tools' hints). Screens > the fonts' pages.
+enum class Surface : int
+{
+    Menu,
+    Gadget,
+    Ammo,
+    World,
+    Count
+};
+
+// A surface's settings (vr_font_* for the menu, vr_font_gadget_*, vr_font_ammo_*, vr_font_world_*).
+struct SurfaceCvars
+{
+    cvar_s* upscale;
+    cvar_s* outline;
+    cvar_s* outlineRgb[3];
+    cvar_s* shadowOpacity;
+    cvar_s* shadowGrow;
+    cvar_s* shadowSpread;
+    cvar_s* shadowX;
+    cvar_s* shadowY;
+    cvar_s* shadowRgb[3];
+};
+[[nodiscard]] const SurfaceCvars& cvars(Surface s);
+
+// While one lives, the text drawn (the console font, gfx::fontTexture and fontGlyph) is in surface `s`'s style.
+class Use
+{
+public:
+    explicit Use(Surface s);
+    ~Use();
+    Use(const Use&) = delete;
+    Use& operator=(const Use&) = delete;
+
+private:
+    Surface previous;
+};
+
+// The lightest grey (palette index 1..15) in conchars' white half (characters 0..127): the wrist gadget's screens
+// stretch the greys so that it becomes white (15). 0: none.
+[[nodiscard]] int consoleGreyTop();
+
+// The restyled font brightened that way (the wrist gadget's screens and hologram: gadget::useBrightFont), the same
+// upscaling, outline and shadow; made when first asked after a change. Null: not restyled (the gadget's own copy).
+[[nodiscard]] gltexture_s* brightChars();
 
 // The cvars' callbacks and the test command (VR_Init).
 void init();

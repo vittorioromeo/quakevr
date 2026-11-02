@@ -584,7 +584,7 @@ float VR_BigFont_WidthScaled (float scale, const char *text); // M_Main_Draw: th
 // The 2D font restyled (vr_fontstyle.cpp; Menu > Fonts): upscaled 4x and drawn smooth, outlined and shadowed.
 void VR_FontStyle_Rebuild (void);						// Draw_LoadPics: conchars (char_texture_data) and the text box restyled again
 gltexture_t *VR_FontStyle_Chars (gltexture_t *conchars); // the restyled font to draw for char_texture `conchars`, or NULL (draw it)
-int VR_FontStyle_CharCell (int num, float *s, float *t, float *size, float *grow); // character num in it: s, t, size (texture coordinates of the square to draw), grow (the quad that much bigger round the glyph each side, over its size); 1: its outline and shadow, 3: with an outline of its own
+int VR_FontStyle_CharCell (gltexture_t *font, int num, float *s, float *t, float *size, float *grow); // character num in it: s, t, size (texture coordinates of the square to draw), grow (the quad that much bigger round the glyph each side, over its size); 1: its outline and shadow, 3: with an outline of its own
 qpic_t *VR_FontStyle_Pic (const char *name, qpic_t *pic); // M_DrawTextBox: the restyled piece `name` (gfx/box_*.lmp), or `pic`
 
 // Hardcoded limits (vr_limits.cpp, the vr_limits command): a limit whose overflow used to be silent is counted, and warned

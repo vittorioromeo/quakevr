@@ -6157,3 +6157,35 @@ behind you never shows a stale arm {test:bench_armed_mix32}.
   Scripted eyeshots (vr_eyeshot 3) of the notify lines, the Menu page and the main menu in all four modes with outline
   1 and shadow 0.8: letters in place, outline and shadow visible, 4xBR the smoothest. The sample's centre message did
   not show in the mock eyes (vr_gadget_holo 0 too); it uses the same draw path as the notify lines.
+
+
+## Fonts per kind of text, his look shipped, the shadow's offset (branch `agent/fontstyle2`, his words 2026-11-02)
+
+- **Shipped look:** every font set defaults to his tweak: Nearest 4x + Sharp Bilinear, outline 0.75, shadow opacity
+  0.65, spread 1, offset 1, 1, size 0, colours black. (Configs are sparse: no migration.)
+- **Shadow offset and size:** `vr_font_shadow_size` was the offset: retired (vr_cvars.cpp retiredCvars). Now
+  `vr_font_shadow_x` / `_y` (-2..2 font px, default 1, 1: the old look), `vr_font_shadow_grow` ("Shadow Size": the
+  shape grown by a disc of N font px, 0..2, default 0), `vr_font_shadow_spread` the blur. Each cell's margin is the
+  style's reach (outline + grow + offset + spread, at least 2 for the tiling pieces), so the atlas is as big as it needs
+  (his look: 3 px, 896 x 896).
+- **Four sets, one code path:** `fontstyle::Surface` Menu (`vr_font_*`: menus, 2D canvas, text box, main menu
+  lettering), Gadget (`vr_font_gadget_*`: the gadget's screen, hologram, fps and wrist log), Ammo (`vr_font_ammo_*`:
+  the ammo screens' images and their 3D glyphs), World (`vr_font_world_*`: map boards, floating texts, tips, the
+  tools' hints). One SurfaceCvars table, one Style read from it, one atlas per surface (and its brightened copy: the
+  gadget's grey stretch applied after upscaling, before outline and shadow) built by the same buildAtlas. The text
+  being drawn says its surface with `fontstyle::Use` (vr_gadget.cpp renderScreen; vr_text3d.cpp's layouts, renders and
+  draws); the wrist log and the ammo screens' ink glyphs got buffers of their own so each draw is one surface.
+  `gfx::fontGlyph` grows a restyled letter's 3D quad (text3d glyph) as gl_draw.c does for 2D.
+- **Menu:** Menu > Fonts (the 13 rows, the sample) and three pages, "Wrist Gadget Font", "Ammo Screen Font", "World
+  Text Font", opened from the Screens page's Wrist Gadget, Ammo Screens and Map Boards parts (rows from one function,
+  `fontRows`, for all four; the old QVR_ rows removed).
+- **Why the sample centre message never showed in the mock eyes:** the shots were taken while the map was still
+  signing on (con_forcedup: the console over the panel; the window's screenshot was named `console_...`): in these
+  fast runs sign-on ends a few hundred frames after `map`. After it, with `vr_messages_hologram 0`, the message is on
+  the head panel (seen); with the default 1 it goes to the wrist's hologram. Also, the first `vr_eyeshot` of a run
+  showed that early frame, and eyeshots close together were dropped.
+- **Test:** `vr_fontstyle_test` 93/93 (atlas size from the style's reach, seams, effects only on letters, the
+  brightened copy lighter in the white half and the gold half unchanged). Pictures: the head panel's centre message,
+  the map boards (vrcalibration), the gadget's screen (`vr_gadget_screen_dump`), the Menu page.
+- **Note:** the world's and ammo screens' 3D glyphs are drawn alpha-tested (TextureCutout): a soft shadow's faint
+  part is cut there.
