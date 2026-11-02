@@ -1205,6 +1205,7 @@ za::Vector<Item> pageDebugTests()
         command("Hitbox Stats", "vr_hull_stats").help("Prints the map's rebuilt brushes and compiled hull: counts, memory, build times."),
         row(opt::vr_hull_keep),
         row(opt::vr_hull_cache),
+        row(opt::vr_model_light_grid_cache),
         row(opt::vr_hull_async),
         header("Teleporters: Crossing One (the start map; developer 1: VR portal: ...)"),
         command("The Gates In This Map", "vr_portals_info")

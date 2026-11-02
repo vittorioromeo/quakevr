@@ -3436,7 +3436,9 @@ QVR_CYCLE_BYNAME(vr_dither, "Dither",
 QVR_TOGGLE_BYNAME(vr_model_lighting, "Model Lighting",
     "Monsters, items and weapons are shaded from the map's lights, not one fixed direction.")
 QVR_TOGGLE_BYNAME(vr_model_light_parity, "Models Lit as the World",
-    "Monsters and items as bright as the floor they stand on (off: Quake's brighter models).")
+    "Monsters and items as bright as the world around them (off: Quake's brighter models).")
+QVR_TOGGLE_BYNAME(vr_model_light_grid, "Models Lit From All Sides",
+    "Monsters, items, weapons and hands take the baked light of the walls, floor and ceiling around them (off: Quake's, the floor under their feet).")
 QVR_TOGGLE_BYNAME(vr_model_ambient_dir, "Directional Ambient",
     "Monsters, items, weapons and hands take the light around them: brighter on the side facing lit walls, darker facing shade.")
 QVR_SLIDER_BYNAME(vr_model_ambient_contrast, "Ambient Contrast", 0.f, 1.5f, 0.05f, "%.2f", ext(),
@@ -6166,6 +6168,10 @@ QVR_CYCLE(vr_hull_cache, "Hitboxes on Disk",
     "A big map's compiled hulls kept on disk (cache/hulls) and read at its next load instead of compiled "
     "again (vrstart: 9 s to 0.1 s). Check: read, then compiled anyway and compared (Hitbox Stats counts "
     "them). Off: compiled at every load (vr_hull_cache).",
+    {0.f, "Off"}, {1.f, "On"}, {2.f, "Check"})
+QVR_CYCLE(vr_model_light_grid_cache, "Model Light Grids on Disk",
+    "A big map's model light grid kept on disk (cache/lightgrid) and read at its next load instead of built "
+    "again (vrstart: 2.2 s). Check: read, then built anyway and compared. Off: built at every load (vr_model_light_grid_cache).",
     {0.f, "Off"}, {1.f, "On"}, {2.f, "Check"})
 QVR_CYCLE(vr_hull_async, "New Monster Sizes in Play",
     "A monster whose box size the map's load did not compile (a delayed or triggered spawn, the test "

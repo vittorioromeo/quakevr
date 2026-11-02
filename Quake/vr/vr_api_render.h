@@ -195,6 +195,7 @@ void VR_AliasPoseOverride (const struct entity_s *e, const void *aliashdr, short
 void VR_NailSlidePose (const struct entity_s *e, const void *aliashdr, short *pose1, short *pose2, float *blend); // after it: a nail pistol's slide, its frames 0 and 1 blended by how far it is drawn back (vr_nailslide.cpp)
 void VR_AliasLightModifier (const struct entity_s *e, float lightcolor[3]); // end of R_SetupAliasLighting
 void VR_AliasLightOrigin (const struct entity_s *e, float origin[3]);		// R_SetupAliasLighting: where the light is sampled
+int VR_ModelLightGrid (const struct entity_s *e, float lightcolor[3]);		// R_SetupAliasLighting: the light from the map's probes; 0: from the floor
 void VR_AliasLightDir (const struct entity_s *e, float dir[4]);	// instance: the direction the model is shaded from (w 0: the fixed one)
 void VR_AliasAmbient (const struct entity_s *e, const float matrix[16], const void *aliashdr, int enabled, float cube[24]); // instance: the light around it, 6 faces (vr_ambient.cpp)
 void VR_AliasSurface (const struct entity_s *e, float out[4]); // instance: rim light, reflections' strength and blur (vr_envmap.cpp)

@@ -1646,6 +1646,7 @@ void addFoamRows(za::Vector<Item>& items, const FoamRows& r)
     return {
         row(opt::vr_model_lighting),
         row(opt::vr_model_light_parity),
+        row(opt::vr_model_light_grid),
         row(opt::vr_model_ambient_dir),
         row(opt::vr_model_ambient_contrast),
         row(opt::r_lerpmodels),

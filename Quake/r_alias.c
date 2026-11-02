@@ -596,6 +596,8 @@ static void R_AliasLightPoint (entity_t *e)
 	// this helps with models whose origin is slightly below ground level
 	// (e.g. some of the candles in the DOTM start map)
 	vec3_t		lightorg;
+	if (VR_ModelLightGrid (e, lightcolor)) // QVR: the baked light from every side (vr_model_light_grid), not the floor's
+		return;
 	VR_AliasLightOrigin (e, lightorg); // QVR: the origin, or a climbing hand's as if not moved for looks
 	if (!R_LightPoint (lightorg, 0.f, &e->lightcache))
 		R_LightPoint (lightorg, e->model->maxs[2] * 0.5f, &e->lightcache);

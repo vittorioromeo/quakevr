@@ -7,6 +7,7 @@
 #include "vr_temporal.hpp"
 #include "vr_cheats.hpp"
 #include "vr_modelmetadata.hpp"
+#include "vr_ambient.hpp"
 #include "vr_audio.hpp"
 #include "vr_admelee.hpp"
 #include "vr_agarmor.hpp"
@@ -1937,6 +1938,7 @@ constexpr PrewarmStep prewarmSteps[] = {
     {"auto pump", autopump::prepare, false},
     {"AD crossbow", adcrossbow::prepare, false}, // AD support: its next bolt's sound
     {"Widowmaker", adweapons::prepare, false},   // AD support: its barrels' motor
+    {"model light grid", ambient::prepareGrid, false},
     {"explosion debris", explosiondebris::prepare, false},
     {"muzzle flash", weaponfx::prepare, false},
     {"wall torches", walltorch::prepare, false},

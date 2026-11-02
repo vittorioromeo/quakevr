@@ -6442,3 +6442,64 @@ the main switches as cvars", "11. Address the remaining menu clutter as suggeste
   3 runs, this branch in 3 of 3 (18/2 every run). Case 10
   (contact by `tune`): PASS. e1m1/start: loot beams 9 drawn, fire particles 400 made, gore sounds played, the grapple
   reels at 300 u/s.
+
+## Models lit by all baked lights: the model light grid (branch `agent/arenalight`, his report and decision 2026-11-02)
+
+His report: "in the arena, enemy models do not seem to get lit by the static prebaked lights"; his decision: "I would
+like models to be lit by all baked lights (regardless of floor/wall/ceiling) and dynamic lights".
+
+**Cause, measured (vrarena).** Nothing arena-specific: no flag, setting or stale file. A model's whole brightness is one
+straight-down sample of the floor (`R_LightPoint`); armed humanoids read the same as plain monsters at the same place
+(ogre 151, grunt 145 raw, 60 units apart). The arena's floor varies from 2 to 220 drawn light under `vr_light_contrast`
+2.5, with its lamps on the walls above the rail: a foe at (640 640) under a lit wall reads raw 38, drawn 13; at (720 0)
+raw 151, drawn 236; on the walk raw 232, drawn 648 (2.5 times Quake's full light). A step of the line (700 -600 24) to
+(700 600 24) jumps 148 drawn at a floor seam. The walls never counted.
+
+**What it does.** `vr_model_light_grid` 1 (Graphics, by Directional Ambient; 0: the old floor sample and per-entity rays,
+left whole for comparison). `vr_ambient.cpp`, "The light grid": probes every 48 units on one lattice over the world,
+skipping solid and sky and open air (no surface within 256 straight below: most of an outdoor map). Each gathers the
+existing 26 rays and keeps, per light style (`GridEntry`, 44 bytes, up to 8 styles), what lights the model (`level`) and
+the six cube faces. A model reads the 8 round it each frame, no rays: trilinear, renormalised without those missing;
+`R_AliasLightPoint` takes `level` in `R_LightPoint`'s units, so `VR_AliasLightCurve`, the eye cache, per-pixel dynamic
+lights, parity and the view minimum are unchanged. The cube's ratios come from the same reading.
+- *Level:* each ray's light over distance + 64 (`GRID_NEAR`), since a surface's lightmap says what fell where it is;
+  a power mean of 2.5 (the default contrast's: the world is drawn through it, so a lit wall in view counts as it looks).
+  Sky and lava count on the cube, as before, not on `level` (not baked light; a sky-lit room stays as its surfaces are).
+- *Light styles:* every read multiplies by `d_lightstylevalue`, so flicker and switches stay in step with the walls.
+- *Leaks:* non-clear cells (a precomputed flag: 8 corners present and the 4 long diagonals clear) get a line to each
+  corner, kept until the model moves 4 units or changes cell; unseen corners are dropped. `vr_model_light_grid_info` counts
+  what that prevents (e1m1: 46 of 4651 spots over 16 drawn, 97 at worst; warden 80, 383 at worst).
+- *No popping:* trilinear in space; a change in the corners seen fades at the rays' `EASE_RATE` (5 per second), light
+  style changes do not. Over 128 units in a frame snaps. No corner in sight: keeps what it last had; never had any: old path.
+- *Build:* at the load (`VR_NewMap` prewarm), `jobs::parallelFor` by layer. Grids that took 100 ms or more are kept in the
+  shared disk cache (`lightgrid`, `vr_model_light_grid_cache`, key: lightmaps, styles, planes, size; CACHES.md).
+- *Keeps the old path:* `MOD_FBRIGHTHACK` models (fullbright, as before), and no-light maps.
+- *Doors, lifts:* probes and lines read the world only, as the old sample did. A model by a closed door can have the
+  light beyond it, within a cell; on a lift it reads the air where it is, not the floor under the shaft (better than old).
+- *BSPX light grids:* not read. The engine has no reader, stock maps have none, and it holds one colour a point, no
+  direction: the same probes work everywhere, so everything looks alike. Possible later for our own compiled maps.
+
+**Numbers** (drawn light, 128 is Quake's full; old floor -> new). vrarena: (720 0) 236 -> 115, (640 640) 13 -> 23,
+(520 -60) 163 -> 143, walk (736 200) 648 -> 364, dais 170 -> 125. e1m1 start: ogre 12 -> 31, grunt 18 -> 31, armour 49 -> 33.
+e2m6 (dark): ogre 6 -> 20, grunt 7 -> 20, armour 7 -> 26, the room as dark. Largest 4-unit step walking a line, floor ->
+grid: vrarena 148 -> 5.0, 173 -> 4.9; e1m1 69.6 -> 20.2 (before the fade). `vr_model_light_walk` prints these.
+
+| map | cells | probes | memory | build (LTO, exclusive) |
+|---|---|---|---|---|
+| vrarena | 38 x 38 x 13 | 6141 | 0.3 MB | 18 ms |
+| e1m1 | 46 x 75 x 21 | 7513 | 0.8 MB | 23 ms |
+| e2m6 | 89 x 54 x 32 | 8718 | 1.0 MB | 19 ms (no-LTO) |
+| warden | 93 x 86 x 92 | 34807 | 6.1 MB | 88 ms (39 ms another run) |
+| vrstart (largest) | 170 x 170 x 72 | 152946 | 14.4 MB | 2203 ms cold; 20 ms from the disk cache |
+
+A reading costs 2-2.8 us (no-LTO, with its lines), a model's own rays were 77-226 us each, up to 8 a frame.
+`crowd32_armed` x3, grid 0 -> 1 (`benchresults/grid0`, `grid1`): CPU busy average 18.47 -> 18.65 ms (+1.0%), heap allocations
+equal. Frame and GPU medians differed +73% and +18%, but the machine was noisy: within grid 0 alone GPU 3D ran 12.3, 13.5,
+22.7 ms, within grid 1 17.9, 11.5, 15.8 ms. That run says no CPU cost and nothing firm on the GPU; the shaders are unchanged.
+
+**Dynamic lights.** Default settings reach every alias model: `vr_dlight_models` 1, `ModelDynamicLights` in the one alias
+fragment shader (all its variants), from the same light list (muzzle flash, explosions, rockets, flashlight:
+`CL_AllocDlight`). Seen: `vr_light_test` lights the ogre, grunt and armour in `shot_e1m1.png`'s third frame. Muzzle
+flash, explosions and flashlight read from the code, not separately shot. Nothing to fix.
+
+**Not changed.** Coils, ropes, gore, blood, impacts and gun smoke still read the floor's `R_LightPoint` for their own light.
