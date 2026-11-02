@@ -6694,6 +6694,38 @@ micro-bench (`vr_qcexec_bench ad_mathlib_pow`, goto loop) read 83/73/80 ns/call 
 second after-run read 94/121/135, so it is too noisy here to credit or blame the format. Not settled: a small per-statement
 cost is possible; a quiet machine with both exes would settle it.
 
+## Enemy footsteps (branch `agent/footsteps`, his note vrfiringrange_2026-11-02_19-31-56)
+
+His words: enemies get footstep sounds, from where they are, played "exactly when the enemies are stepping on the ground",
+louder running than walking. `Quake/vr/vr_footsteps.cpp`; numbers in Debug > Tunables > Combat > Enemy Footsteps. No on/off
+setting (the player's own steps have none to sit beside; Volume 0 is off).
+
+- **Who.** By drawn model: grunt, enforcer, knight, hell knight (their armed `vr*.mdl` too, same frames), MG3's ranged
+  knight, zombie, mummy, gremlin, ogre, MG3's rocket ogre, fiend, shambler, MG3's blood shambler. Not bipeds, so silent: dog,
+  spawn, scrag, fish, vore, centroid. Arcane Dimensions' monsters use their own `mon_*.mdl` models and already have
+  `ad_monster_footstep` on hand-set frames: left as they are, so no doubles.
+- **When.** Read off the model's frames once per model, at first sight, so it follows whatever model is drawn and can't
+  drift. A foot is the low 35% of its shin bone in the rest pose (ragdoll rig, as `vr_aglegs.cpp`). Along each animation
+  (`mdldequant::poseSuccessors`) the foot swings forward, then is carried back as the body passes over it; the contact is
+  the first moment past the swing's forward end (within 10%) that it is also down (near the floor, or the animation's
+  lowest for a run that never reaches the floor). The table holds that frame and how far into the lerp to it, so the sound
+  waits that share of the think interval after the frame changes. Against AD's hand-set frames: hell knight run 2/6, charge
+  2/6/10/14; zombie run 9/17, walk 12; fiend run 2/5; knight run 2/6, walk 8 all agree; ogre run 3/6 (AD 2/6), grunt run 2/5
+  (AD 2/6: AD plays at the start of a lerp, ours part way in). The zombie's limp puts its steps at walk 8 and 12, not AD's 2
+  and 12: that is where the feet stop moving forward.
+- **Whether.** Alive, `FL_ONGROUND`, `MOVETYPE_STEP`, not in a liquid, no ragdoll, and moving at 6 u/s or more over its last
+  frames (Least Speed), so a pain's or attack's weight shift on the spot is silent and an attack or charge that travels steps.
+- **How.** Any free channel (`CHAN_AUTO`, never the voice's or weapon's), from the foot's place 6 units over the floor (so
+  occlusion rays don't start in it). By its pace: 0.25 volume and 1.6 falloff at 30 u/s up to 0.7 and 1.0 at 150 u/s, times
+  the kind's weight; playback rate by kind, with `vr_snd_pitch_jitter`. Not surface-aware: the engine knows wood/metal/stone
+  under a point (`physsound::surfaceOnSegment`), but the player's own steps have no surface system to reuse, so not added.
+- **Budget.** Only the nearest 6 moving within 1000 units of a player are heard, at most 14 steps a second all together.
+- **Sounds.** `Misc/quakevr/make_footstep_sounds.py` (synthesised): `vr/step_boot`, `step_metal`, `step_bare`, `step_thud`,
+  five takes each, never the same take twice running.
+- **Test.** `vr_footstep_test 1` (`QC/vr_footstep_test.qc`) walks then runs each of 8 classes; `vr_footstep_test 2` is 32
+  grunts hunting you. `vr_footstep_info` prints each model's contacts, `vr_footstep_info <model> <frame> <count>` its feet
+  over those frames, `tune vr_footstep_log 1` a line a step. Results and the bench are in the worktree's report.
+
 ## Tuned values can't be lost at release (branch `agent/promoguard`, 2026-11-02)
 
 His words: "Can we automate tweaks promotion so we can never forget?" Tuning constants are live in a development build

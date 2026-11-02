@@ -65,6 +65,7 @@ articles, talks and other engines' source are credited with where they came from
   Quake's palette and its own models (for example, the armour colours come from `progs/armor.mdl`). `mdlpolish.py`
   embeds Quake's palette (id Software's `gfx/palette.lmp`, as GPL tools such as ericw-tools embed it) to match
   colours.
+- **Enemy footsteps** (`make_footstep_sounds.py`, `quakevr/sound/vr/step_*.wav`): synthesised, nothing recorded.
 - **Synthesised sounds** (`make_sounds.py`, in `quakevr/sound/vr/`): made from sine partials and filtered noise by
   the script, with no recordings. They are the headshot tick, the shells' tinks, the shove, bash, parry-bash and
   parry, and (round 21) the pommel, hilt and butt knocks `pommel1..3.wav`.
