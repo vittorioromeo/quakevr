@@ -642,6 +642,10 @@ za::Vector<Item> pageDebugAutomation()
                   "flail's loose head flung at 13, 16 and 19 m/s into a grunt (once, about as a small crate as heavy), "
                   "thrown by a hand, and never hurting its wielder: you letting go of it, a grunt dropping it. The "
                   "console (flailhead_hit: lines, then N passed, M failed)."),
+        command("Magazines Thrown at a Grunt", "god 1; notarget 1; vr_prop_impact_test 6")
+            .help("vr_prop_impact_test 6 (god and notarget on; 200 units of open floor ahead): a nailgun magazine, a "
+                  "super nailgun's and a thunderbolt cell each thrown hard (14 m/s) into a grunt, as light props: about "
+                  "1 damage and its flinch. The console (magthrow: lines, then N passed, M failed)."),
         command("Press Down on a Crate", "vr_test_spawn_hold 0; vr_test_spawn 108; vr_test_spawn_dist 48; impulse 241; "
                                          "wait40; vr_prop_press_test main 50 20")
             .help("vr_prop_press_test: a large crate 48 units ahead, then the main hand (empty, a weapon or a prop held) "

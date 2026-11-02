@@ -891,6 +891,106 @@ void() VR_PropImp_FhStep =
     }
 };
 
+// vr_prop_impact_test 6 (Debug > Gore Tests, "Magazines Thrown at a Grunt"; ROUND23.md, "Thrown magazines hit as light
+// props"): a nailgun magazine, a super nailgun's and a thunderbolt cell (VR_Reload_MakeRound), each thrown at
+// VR_PROPIMP_MT_SPEED m/s from 40 units off a grunt's face (made 200 ahead) at its middle, as a hand lets go
+// (VR_Carry_Loose, VR_Carry_Throw: the light props' throw and hit, forcegrabbable_touch). Each waits for its hit (the
+// throw over, or the grunt hurt; VR_PROPIMP_FT_GIVEUP frames without: no hit). One "magthrow:" line a throw: its damage
+// (passed: 0.5 .. 2, the author's "pretty much pathetic like one damage") and the grunt's reaction (its flinch,
+// vr_hitreact.qc, and its pain: how long it is kept in it). Then "magthrow: N passed, M failed". Use god and notarget.
+float vr_propimp_mt_on;
+float vr_propimp_mt_case;   // 0..2: the nailgun's, the super nailgun's, the cell
+float vr_propimp_mt_phase;  // 0 make, 1 settle, 2 in flight
+float vr_propimp_mt_frames;
+float vr_propimp_mt_h0;
+entity vr_propimp_mt_mon;
+entity vr_propimp_mt_mag;
+entity vr_propimp_mt_at;    // where you stood at the start, facing the way you faced
+float VR_PROPIMP_MT_SPEED = 14; // m/s: a hard throw (the light ammo test's)
+
+void() VR_PropImp_MtClear =
+{
+    if(vr_propimp_mt_mon != world && vr_propimp_mt_mon.modelindex)
+    {
+        remove(vr_propimp_mt_mon);
+    }
+    if(vr_propimp_mt_mag != world && vr_propimp_mt_mag.modelindex)
+    {
+        VR_Carry_Forget(vr_propimp_mt_mag);
+        remove(vr_propimp_mt_mag);
+    }
+    vr_propimp_mt_mon = world;
+    vr_propimp_mt_mag = world;
+};
+
+// Each frame while it runs; self the player.
+void() VR_PropImp_MtStep =
+{
+    float c = vr_propimp_mt_case;
+    makevectors('0 1 0' * vr_propimp_mt_at.angles_y);
+    vector fwd = v_forward;
+    entity oself;
+    if(vr_propimp_mt_phase == 0)
+    {
+        oself = self;
+        self = spawn();
+        self.classname = "monster_army";
+        setorigin(self, vr_propimp_mt_at.origin + fwd * 200);
+        self.angles_y = vr_propimp_mt_at.angles_y + 180;
+        monster_army();
+        vr_propimp_mt_mon = self;
+        self = oself;
+        vr_propimp_mt_phase = 1;
+        vr_propimp_mt_frames = 0;
+        return;
+    }
+    vr_propimp_mt_frames++;
+    entity m = vr_propimp_mt_mon;
+    entity t = vr_propimp_mt_mag;
+    if(vr_propimp_mt_phase == 1)
+    {
+        if(vr_propimp_mt_frames < VR_PROPIMP_FT_SETTLE)
+        {
+            return;
+        }
+        vector mid = (m.absmin + m.absmax) * 0.5;
+        vector from = mid - fwd * (m.maxs_x + 40);
+        t = VR_Reload_MakeRound(c == 0 ? WID_NAILGUN : (c == 1 ? WID_SUPER_NAILGUN : WID_LIGHTNING),
+            c == 2 ? AID_CELLS : AID_NAILS, 20, from, '0 0 0');
+        vr_propimp_mt_mag = t;
+        t.carry_player = self; // (let go of by this player's hand: VR_Carry_Loose)
+        VR_Carry_Loose(t);
+        t.vr_spin = '0 0 0';
+        vr_propimp_mt_h0 = m.health;
+        VR_Carry_Throw(t, fwd * VR_PROPIMP_MT_SPEED * VRMetersToUnits());
+        vr_propimp_mt_phase = 2;
+        vr_propimp_mt_frames = 0;
+        return;
+    }
+    float hurt = m.health < vr_propimp_mt_h0;
+    if(!hurt && t.throwhit == QVR_THROWHIT_NEVER_HIT && vr_propimp_mt_frames < VR_PROPIMP_FT_GIVEUP)
+    {
+        return;
+    }
+    float dmg = vr_propimp_mt_h0 - m.health;
+    float flinch = m.vr_hr_until > time;
+    float pain = max(0, m.pain_finished - time);
+    float ok = dmg >= 0.5 && dmg <= 2 && (flinch || pain > 0);
+    bprint(strcat(sprintf("magthrow: %s (%.2f kg, Throw Damage x%.2f) at %g m/s into a grunt: ", t.model, propvalue(t, "mass"),
+        propvalue(t, "throw_dmg"), VR_PROPIMP_MT_SPEED),
+        sprintf("%.1f damage after %g frames; flinch %g, pain for %.2f s: %s\n", dmg, vr_propimp_mt_frames, flinch, pain,
+        ok ? "passed" : "FAILED")));
+    VR_Test_Count(ok);
+    VR_PropImp_MtClear();
+    vr_propimp_mt_case++;
+    vr_propimp_mt_phase = 0;
+    if(vr_propimp_mt_case >= 3)
+    {
+        vr_propimp_mt_on = FALSE;
+        VR_Test_Verdict();
+    }
+};
+
 // Every server frame (StartFrame): a test asked for (vr_prop_impact_test).
 void() VR_PropImp_TestFrame =
 {
@@ -915,6 +1015,17 @@ void() VR_PropImp_TestFrame =
             oself = self;
             self = p;
             VR_PropImp_FhStep();
+            self = oself;
+        }
+    }
+    if(vr_propimp_mt_on)
+    {
+        p = VR_Player();
+        if(p != world)
+        {
+            oself = self;
+            self = p;
+            VR_PropImp_MtStep();
             self = oself;
         }
     }
@@ -994,6 +1105,21 @@ void() VR_PropImp_TestFrame =
         vr_propimp_fh_chain = cvar("vr_flail_chain");
         vr_propimp_fh_health = self.health;
         cvar_set("vr_flail_chain", "2");
+    }
+    else if(ask == 6)
+    {
+        VR_PropImp_MtClear();
+        vr_propimp_mt_on = TRUE;
+        vr_propimp_mt_case = 0;
+        vr_propimp_mt_phase = 0;
+        VR_Test_BeginFlags("magthrow", VR_TEST_LOUD);
+        if(!vr_propimp_mt_at)
+        {
+            vr_propimp_mt_at = spawn();
+            vr_propimp_mt_at.classname = "vr_propimp_mt_at";
+        }
+        setorigin(vr_propimp_mt_at, self.origin);
+        vr_propimp_mt_at.angles = '0 1 0' * self.angles_y;
     }
     else if(ask == 3)
     {

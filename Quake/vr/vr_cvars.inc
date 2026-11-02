@@ -55,6 +55,8 @@ QVR_CVAR(vr_closequarters_min, "0.5", CVAR_ARCHIVE)             // the part of y
 QVR_CVAR(vr_closequarters_strafe, "0.95", CVAR_ARCHIVE)         // the sideways part of your move times this at End Radius (1: none)
 QVR_CVAR(vr_closequarters_angle, "30", CVAR_ARCHIVE)            // degrees off straight at it still counted fully as towards it
 QVR_CVAR(vr_closequarters_angle_falloff, "75", CVAR_ARCHIVE)    // degrees off it past which a move counts as not towards it at all (between: less and less)
+QVR_CVAR(vr_closequarters_brake, "1", CVAR_ARCHIVE)             // your own momentum towards it braked too (on the ground, not shoved or knocked back): its part towards it eased down to the slowed move's
+QVR_CVAR(vr_closequarters_braking, "80", CVAR_ARCHIVE)          // m/s^2: how fast that brake sheds it at End Radius straight at it (less further out and further off it)
 QVR_CVAR(vr_slope_walk, "1", CVAR_ARCHIVE)          // standing on a walkable slope, gravity only presses you into it (none of it pulls you downhill): with the stick pushed a little you walk up slopes and stairs' ramps from a standstill (Quake: under about a quarter stick you never got going); flat floors unchanged; 0: Quake's
 QVR_CVAR(vr_unstick_monsters, "1", CVAR_ARCHIVE)     // a monster (any live walking body) inside the map or a door, lift or wall, not moving, for vr_unstick_monsters_time is moved to the nearest free spot (vr_unstick.cpp; developer 1 prints each); 0: it stays stuck
 QVR_CVAR(vr_unstick_monsters_time, "1", CVAR_ARCHIVE) // ... seconds inside before it is moved

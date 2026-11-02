@@ -5905,3 +5905,24 @@ Checklist:
   sweep test 1 PASS (the knight's sword, sword_multi turned north: its own spot has no room ahead); sweep test 6 PASS
   (floor, two, wall); calibration board menu paths 6 found, 0 missing.
 
+## Close quarters brakes your momentum; thrown magazines hit as light props (branch `agent/cqmags`, his notes 2026-11-02 00:53, 01:00)
+
+- **Brake Momentum** (`vr_closequarters_brake` 1, `vr_closequarters_braking` 80 m/s^2; Locomotion > Close Quarters,
+  "Brake Momentum", "Braking"): in VR_CloseQuartersMove, where the wish is slowed, the player's own velocity's part
+  towards the nearest live enemy above the slowed wish's part towards it (0 with the stick let go) is shed at Braking
+  times the slowdown's weight on the velocity's direction (`Factors::weight`: its ramp from Start Radius to End Radius
+  times the angle rule's weight), never below that part. Sideways untouched; a velocity past Angle Falloff or moving away
+  isn't braked. Only his own momentum: on the ground, not sliding from an enemy's shove (`.vr_eshove_speed`), not within
+  0.5 s of a hit's knockback (`.vr_deathdoll_pushtime`, now an engine field); a jump or a step down is off the ground.
+  Holding the stick at it, the brake only takes him down to the slowed run (Min Factor); let go, to a stop.
+- **Magazines are light props:** VR_Reload_MakeRound gives a magazine (not a shell or a launcher's round) the light
+  props' touch (`forcegrabbable_touch`) and `.throwhit` HIT until thrown, so a hard throw goes through VR_Carry_Throw and
+  hits as any thrown prop (VR_Thrown_Damage; flung: VR_Prop_Flung). props.txt: the four magazines' Throw Damage x 0.25 ->
+  0.15. Their stagger is what any 1-damage hit gives: the flinch (vr_hitreact) and the grunt's Quake pain (0.6-1.1 s; a
+  momentum this small never unbalances: vr_hit_stagger_throw_ref 60 kg m/s).
+- **Tests:** closequarters_test.sh (now on vrarena's flat floor, grunt 600 ahead) adds `vr_closequarters_test coast`:
+  from 140 units short of the grunt, run at it, let go at Start Radius: brake off it ends in the grunt (0.00 m), on it
+  stops at 0.78 m; the strafe past sheds nothing; 16/16. night1101_test.sh cq 15/15. magthrow_test.sh
+  (`vr_prop_impact_test 6`, Debug > Gore Tests "Magazines Thrown at a Grunt"): the nailgun's, super nailgun's magazine
+  and the cell at 14 m/s: 1 damage each (0.4-0.6 before the ceiling), flinch and pain; 3/3.
+

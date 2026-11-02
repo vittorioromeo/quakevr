@@ -528,6 +528,7 @@ vr_prop_impact_test 2        vr_propimpact_test.qc            (VR_PropImp_LightS
 vr_prop_impact_test 3        vr_propimpact_test.qc            (VR_PropImp_BlastStep)
 vr_prop_impact_test 4        vr_propimpact_test.qc            (VR_PropImp_FtClear)
 vr_prop_impact_test 5        vr_propimpact_test.qc            (VR_PropImp_FhClear)
+vr_prop_impact_test 6        vr_propimpact_test.qc            (VR_PropImp_MtClear)
 
 vr_smallgibs_test 0-5      vr_smallgibs_test.qc             (see vr_smallgibs_test.qc)
 vr_smallgibs_test 6        vr_smallgibs_test.qc             (VR_SmallGib_TestGoreMark)

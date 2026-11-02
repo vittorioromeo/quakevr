@@ -2489,6 +2489,13 @@ QVR_SLIDER(vr_closequarters_angle, "Angle Leniency", 0.f, 90.f, 5.f, "%.0f deg",
 QVR_SLIDER(vr_closequarters_angle_falloff, "Angle Falloff", 0.f, 90.f, 5.f, "%.0f deg", noExt,
     "Past this far off it a move isn't towards it at all; between Angle Leniency and this, less and less "
     "(vr_closequarters_angle_falloff).")
+QVR_TOGGLE(vr_closequarters_brake, "Brake Momentum",
+    "Your own momentum towards the enemy is braked too, not only the stick's move: run at it and let go of the "
+    "stick and you still stop short. Only your own (on the ground): knockback, jumps and shoves aren't braked "
+    "(vr_closequarters_brake).")
+QVR_SLIDER(vr_closequarters_braking, "Braking", 0.f, 200.f, 5.f, "%.0f m/s2", ext(0.f, 500.f),
+    "How fast that brake slows you towards the enemy, at End Radius straight at it; less further out and further "
+    "off it (vr_closequarters_braking).")
 QVR_TOGGLE(vr_slope_walk, "Walk Up Slopes Slowly",
     "Standing on a slope you can walk on, gravity only presses you into it, none of it pulls you downhill: "
     "with the stick pushed only a little you still walk up slopes and stairs with a smooth ramp over them "
