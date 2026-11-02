@@ -910,6 +910,10 @@ QVR_TUNABLE_SLIDER(vr_agrunt_aim_exposed_hold, "Keep Aim On a Part", 0.0f, 2.0f,
 QVR_TUNABLE_SLIDER(vr_agrunt_range_scale, "Distance Scale", 0.5f, 2.0f, 0.05f, "%.2fx", 0.5f, 2.0f, "Their fighting distances times this (vr_agrunt_range_scale).")
 QVR_TUNABLE_SLIDER(vr_agrunt_range_walkfire, "Walking Fire", 0.0f, 120.0f, 5.0f, "%.0f u/s", 0.0f, 120.0f, "How fast it walks while it fires (on, back or round you, by its distance) and steps back while it reloads. 0: it stands to fire, as before (vr_agrunt_range_walkfire).")
 QVR_TUNABLE_SLIDER(vr_agrunt_friendly_care, "Careful of Friends", 0.0f, 1.0f, 0.05f, "%.2f", 0.0f, 1.0f, "How careful it is not to shoot or strike its friends: with another monster in its line of fire (a " "few lines for a shotgun's spread), the chance it holds fire and sidesteps for a clear shot. 1: " "always, 0: never, it fires through them as before (vr_agrunt_friendly_care).")
+QVR_TUNABLE_SLIDER(vr_ogre_friendly_care, "Ogres: Careful of Friends", 0.0f, 1.0f, 0.05f, "%.2f", 0.0f, 1.0f, "How careful an ogre is not to lob or fire into its friends: with another monster on its shot's way, the chance it holds and sidesteps for a clear shot. 1: always, 0: never, the old way (vr_ogre_friendly_care).")
+QVR_TUNABLE_SLIDER(vr_ogre_friendly_giveup, "Ogres: Gives Up After", 0.0f, 10.0f, 0.5f, "%.1f s", 0.0f, 10.0f, "Held so long for friends in the way (sidestepping), an ogre fires anyway. 0: never gives up (vr_ogre_friendly_giveup).")
+QVR_TUNABLE_SLIDER(vr_ogre_friendly_step, "Ogres: Sidestep For", 0.1f, 2.0f, 0.1f, "%.1f s", 0.1f, 2.0f, "An ogre's sidestep for a clear shot lasts this to twice this (vr_ogre_friendly_step).")
+QVR_TUNABLE_SLIDER(vr_ogre_friendly_spread, "Ogres: Shot Check Spread", 0.0f, 15.0f, 0.5f, "%.1f deg", 0.0f, 15.0f, "The lines checked either side of an ogre's shot for friends (vr_ogre_friendly_spread).")
 
 QVR_TUNABLE_GROUP("Combat > Armed Grunts - Preventive Parry")
 QVR_TUNABLE_SLIDER(vr_agrunt_preparry_range, "Preventive: Range", 0.0f, 200.0f, 1.0f, "%.0f u", 0.0f, 400.0f, "Units (its middle to yours, level): you this near, it may raise its guard (times the category's range) (vr_agrunt_preparry_range).")

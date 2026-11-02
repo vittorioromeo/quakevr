@@ -30,6 +30,9 @@
 .entity vr_ag_prop2;
 .float vr_ag_reserve2;
 .float vr_ag_left;         // a held weapon's prop: in its left hand
+.float vr_ag_ff_until;     // any monster: stepping aside (a friend in its line of fire) until then (VR_AI_FriendCare; VR_AG_Run, ai_run)
+.float vr_ag_ff_since;     // ... held for friends since then (0: its line clear)
+.float vr_ag_ff_last;      // ... the last time it held
 .vector vr_ag_was_o1;      // ... its place and turn a frame before (VR_AG_PropWas: the grab's sweep, the engine's handOn,
 .vector vr_ag_was_a1;      //     vr_agrunt_grab_sweep: the drawn weapon lags the server's),
 .vector vr_ag_was_o2;      // ... two frames before

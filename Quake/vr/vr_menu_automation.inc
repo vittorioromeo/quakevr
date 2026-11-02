@@ -444,6 +444,12 @@ za::Vector<Item> pageDebugAutomation()
             .help("vr_agrunt_test 66: a shotgun grunt shoved to the floor keeps its gun in its hand; you walk up to it "
                   "and reach for the gun with an open hand at 0.8 m/s for 3 s: it keeps it. Then the old rules (printed: "
                   "vr_agrunt_disarm_deliberate 0)."),
+        command("Armed Grunts: Dual Wielder Disarmed", "vr_agrunt_test 203")
+            .help("vr_agrunt_test 203: each kind with two weapons has its left one knocked out (by nobody, your fist, a tug), "
+                  "goes for a fallen one, loses its right, then the last: each weapon's think goes on, each drawn on its hand."),
+        command("Ogres: Friendly Fire", "vr_agrunt_test 204")
+            .help("vr_agrunt_test 204: ogres far ahead, a friend held still in each one's way: friendly hits and attacks "
+                  "careless, careful, and with the friend always in the way (vr_ogre_friendly_care)."),
         command("Armed Grunts: Friendly Fire", "vr_agrunt_test 63")
             .help("vr_agrunt_test 63: four gunners far ahead, their friends held still in their lines of fire, 15 s "
                   "careless (Careful of Friends 0), then 15 s careful: friendly hits each (vr_agrunt_friendly_care)."),

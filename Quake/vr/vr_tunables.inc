@@ -907,6 +907,10 @@ QVR_TUNABLE(vr_agrunt_aim_exposed_hold, "0.5") // seconds it keeps aiming at the
 QVR_TUNABLE(vr_agrunt_range_scale, "1") // armed humanoids' fighting distances (vr_agrunt_range) times this
 QVR_TUNABLE(vr_agrunt_range_walkfire, "50") // units/s: with vr_agrunt_range, an armed humanoid walks while it fires (on, back or round you, by its fighting distance); 0: it stands to fire, as before
 QVR_TUNABLE(vr_agrunt_friendly_care, "1") // 0..1: how careful an armed humanoid is not to shoot or strike its friends: the chance it holds fire (and sidesteps) when a monster not its enemy is in its line of fire (0: never, the old way)
+QVR_TUNABLE(vr_ogre_friendly_care, "1") // 0..1: how careful an ogre is not to lob or fire into a friend: the chance it holds and sidesteps with one on its shot's way (0: never, the old way; vr_ogre_friends.qc)
+QVR_TUNABLE(vr_ogre_friendly_giveup, "2.5") // s: held so long for friends in the way (sidestepping), an ogre fires anyway (0: never gives up)
+QVR_TUNABLE(vr_ogre_friendly_step, "0.5") // s: an ogre's sidestep for a clear shot, this to twice this
+QVR_TUNABLE(vr_ogre_friendly_spread, "4") // degrees: the lines checked either side of an ogre's shot for friends
 
 // Combat > Armed Grunts - Preventive Parry
 QVR_TUNABLE(vr_agrunt_preparry_range, "64") // units (its middle to yours, level): you this near, it may raise its guard (times the category's range)

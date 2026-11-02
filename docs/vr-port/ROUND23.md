@@ -6952,3 +6952,49 @@ ends (its ankle against its hip stops going forward).
 | run, `vr_body_walk 0` | 295 u/s | 0 | 0 | 9 | 0 | |
 
 The one frame: the sound starts as the foot is first drawn planted, a frame (at 72 Hz) after its forward-most.
+
+## A dual wielder's off hand disarmed; ogres mind their friends (his notes of 2026-11-02 night)
+
+**The floating weapons (vrfiringrange_2026-11-02_23-10-50).** A blow on a dual wielder's weapons is tested once for both by the
+first slot's think (`VR_AG_StrikeFrame`: the nearer of the two the fist met). Its left weapon struck, the slots swapped and that
+one dropped; `VR_AG_PropThink` took `VR_AG_WeaponStruck`'s TRUE to mean "this weapon is gone" and returned with no next think,
+but this weapon, the first, was still held. It never thought again: nothing placed it, nothing sent the arm pose (the second's
+think never places: "placed with the first"), so it hung where it stood; whatever it picked up next hung too, and on its death
+it stayed. A blow on its right weapon seen by the same think lost that very weapon, so only the off hand showed it. Fixed at the
+cause: `VR_AG_PropThink` asks for its next think before anything can drop a weapon (a drop removes it).
+Second cause of "it all gets screwed up": the weapon just knocked out, flying at 150-180 u/s from its hand, counted as a weapon
+thrown at the other one (`VR_AG_WeaponStruck`, a sword's 42 kg m/s) and knocked that out too: a dropped weapon now starts with
+`.vr_ag_knock_at` as a blow's had (0.5 s).
+
+**Test 203** (`vr_agrunt_test 203`, `map vrtesthall`; Debug > Tests): each kind with a pair; its left weapon out by nobody, your
+fist (test 200's blow, in the frame order the engine runs) or a real tug won (test 68's way), the one left watched 0.8 s, it goes
+for a fallen one, its right out, then the last. Each frame: slots, wids, the left flag, each think going on, each weapon as drawn
+on its hand. Before the fix: `FAIL dualdisarm 7 ... bad slots 58 (its think stopped ...)`, and "holds nothing" from the second cause; after: 81/81.
+Test 200's own blow called both thinks itself, which hid this.
+
+**Ogres (`QC/vr_ogre_friends.qc`).** "Avoid shooting grenades/rockets directly into friendlies." An ogre's attack already begins
+only with a clear sight line (`CheckAttack`, stock Quake); what hit friends is the friend who walks in during its 0.4 s wind-up,
+and a rocket volley's second rocket (64 units aside). So at its shot's frame (`ogre_nail4`: id's, Honey's, MG3's rocket ogre) the
+shot's way is checked: a grenade's own throw (`OgreGrenadeAim`, split out of `OgreFireGrenade`) flown by `VR_AG_ArcBurst` (the
+launcher safety's arc, split out of `VR_AG_BlastPoint`), a rocket's line by `VR_AG_FriendInLine`. A friend first on it: the armed
+humanoids' rule (`VR_AI_FriendCare`, split out of `VR_AG_FriendHold`; `VR_AI_IsFriend`): it gives the attack up, strafes
+(`AS_SLIDING`, `ai_run_slide`) away from the friend's side and tries again; held so long it fires anyway. MG3's Bloody Nightmare
+burst skips a grenade with a friend on its way. Arcane Dimensions' ogres have code of their own (`ad_ogre_shoot*`,
+`ad_MonsterFireGrenade`): not covered. Tunables (Debug > Tunables): `vr_ogre_friendly_care` 1 (0: the old way),
+`vr_ogre_friendly_giveup` 2.5 s, `vr_ogre_friendly_step` 0.5 s (to twice that), `vr_ogre_friendly_spread` 4 degrees.
+Only direct hits are looked for: a burst beside a friend (one fighting you, say) still splashes it.
+
+**Test 204** (`vr_agrunt_test 204`, Debug > Tests), 20 s runs, three ogres 420 ahead, each with a friend who walks onto its line
+110 ahead in half its wind-ups (all of them in the third run):
+
+| kind | run | friendly hits (damage) | shots | held |
+| --- | --- | --- | --- | --- |
+| ogre | careless | 10 | 24 | 0 |
+| ogre | careful | 1 (24) | 15 | 21 |
+| ogre | always in the way | 7 (170) | 11 | 24 |
+| rocket ogre | careless | 21 (420) | 56 | 0 |
+| rocket ogre | careful | 4 (80) | 24 | 22 |
+| rocket ogre | always in the way | 12 (240) | 12 | 34 |
+
+Held ogres strafed about 90 units a hold. Hits left when careful: its give-up (a friend in the way twice running). Shots a minute an
+ogre: 24 careless, 15 careful, 11 always blocked; never idle.
