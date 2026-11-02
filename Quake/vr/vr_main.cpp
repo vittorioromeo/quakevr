@@ -2356,6 +2356,25 @@ extern "C" void VR_Shutdown()
     jobs::shutdown(); // last: whatever the systems above left queued run, the workers joined
 }
 
+// vr_display_clock (VR_HostFrameTime): the display times' steps, and this frame's time on the wall clock (the diagnostics').
+namespace
+{
+constexpr double displayClockLongest = 0.25; // a longer step (a session paused, a stall): the wall clock's time instead
+struct DisplayClock
+{
+    double last{-1.0}; // the last frame's predicted display time, seconds (-1: none)
+    double step{0.0};  // the step to it from the one before (0: none)
+    double wall{0.0};
+};
+DisplayClock displayClock;
+
+void noteDisplayTime(double time)
+{
+    displayClock.step = time >= 0.0 && displayClock.last >= 0.0 ? time - displayClock.last : 0.0;
+    displayClock.last = time;
+}
+} // namespace
+
 extern "C" void VR_BeginFrame()
 {
     if(!state || cls.state == ca_dedicated)
@@ -2379,6 +2398,7 @@ extern "C" void VR_BeginFrame()
     profile::begin("xr wait", false); // the runtime's pacing (xrWaitFrame) and the tracking
     const bool began = !state->backend || state->backend->beginFrame(state->tracking, state->frame);
     profile::end();
+    noteDisplayTime(began && state->backend ? motion::displayTimeFor(state->tracking.displayTime) : -1.0);
     bench::poseSampled(); // (the latency's proxy: from here to the submit)
     QVR_PROFILE("vr frame setup"); // the rest: the recorder, the texts queued anew, the input
     if(!began)
@@ -2832,7 +2852,20 @@ extern "C" void VR_HostFrameEnd()
 
 extern "C" double VR_HostFrameTime(double time)
 {
-    return qvr::motion::hostFrameTime(time);
+    using namespace qvr;
+    const double wall = motion::hostFrameTime(time);
+    displayClock.wall = wall;
+    // (The newest step known is the last frame's: this frame's display time comes with its xrWaitFrame, after this. They
+    // add up to the display's time all the same: a dropped frame's long step comes a frame late, nothing is lost.)
+    return vr_display_clock.value != 0.f && motion::displayClocked() && displayClock.step > 0.0 &&
+                   displayClock.step <= displayClockLongest
+               ? displayClock.step
+               : wall;
+}
+
+double qvr::motion::wallFrameTime()
+{
+    return displayClock.wall;
 }
 
 extern "C" int VR_ServerFrameOverride(double* frametime)

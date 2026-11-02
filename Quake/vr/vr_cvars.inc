@@ -184,6 +184,12 @@ QVR_CVAR(vr_mock_hand_pull_off, "0", CVAR_NONE)       // m: ... the off mock han
 // Test runs: 1 makes every host frame 1/72 s of game time with a server frame (vr_motion_play.cpp hostFrameTime), so a
 // scripted run (vr_mock_play, "wait") logs the same numbers every time, whatever the machine's pace.
 QVR_CVAR(vr_fixed_frames, "0", CVAR_NONE)
+// 1: in VR a frame's game time is the time between the headset's predicted display times, not the wall clock's between
+// two frames' starts (vr_main.cpp VR_HostFrameTime): the world moves past you in even steps, as the head's pose is
+// already for its display time. His run at a steady 308 u/s moved 2.1..3.2 units a frame on the wall clock (2026-11-02,
+// frames 5.9..11 ms on a steady 8.33 ms display). 0: the wall clock. vr_fixed_frames_jitter: its frames' jitter is the
+// wall clock's, so this takes it away too; a test of the jitter sets 0.
+QVR_CVAR(vr_display_clock, "1", CVAR_NONE)
 // Test runs with vr_fixed_frames 1: the host frames a second of game time (72: a server tick with each; 90: a headset's
 // frame rate, the server's ticks on its own 72 Hz clock between them, as in the headset (host_fixedtick): the drawn
 // motion's smoothness tests, vr_drawn_motion_test, host_tickstats).
@@ -627,6 +633,15 @@ QVR_CVAR(vr_deadzone, "10", CVAR_ARCHIVE)
 // with it, "a hitch"); from 0.8 on is full, as the old response's top fifth was (running asked 400 against 320).
 QVR_CVAR(vr_deadzone_outer, "20", CVAR_ARCHIVE)
 QVR_CVAR(vr_move_curve, "1.6", CVAR_ARCHIVE)
+// Degrees off straight ahead, back or a side within which the moving stick's direction is exactly that way, the rest
+// of each quadrant spread over what is left (moveSnap; 0 off). A thumb "straight" reads a few degrees to 15 off (his
+// runs of 2026-11-02: x 0.13 at y 0.88, 8 degrees): the response of 2026-10-25 walks that angle, the per-axis deadzone
+// before it took it away.
+QVR_CVAR(vr_move_snap, "15", CVAR_ARCHIVE)
+// Seconds a full push is held as the thumb slips off it, then falling to the push in a moment (moveHold; 0 off). His
+// thumb held hard forward dips to 0.55..0.75 for a tenth of a second, about three times a second (2026-11-02, up to 28%
+// slower each time, 309 to 223 u/s: the hitch); a push let go (under a quarter of the travel) stops at once.
+QVR_CVAR(vr_move_hold, "0.4", CVAR_ARCHIVE)
 // 1: walking (cl_alwaysrun 0, the speed button up), the stick walks up to vr_move_autorun_threshold of its push (the
 // rescaled length, before the curve) and pushed past it eases into running in a moment; back under it, into walking.
 QVR_CVAR(vr_move_autorun, "0", CVAR_ARCHIVE)

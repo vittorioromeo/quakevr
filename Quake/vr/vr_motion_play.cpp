@@ -1567,6 +1567,18 @@ double hostFrameTime(double time)
     return dt;
 }
 
+bool displayClocked()
+{
+    return state == State::Idle && !fixedLoading && (vr_fixed_frames.value == 0.f || vr_fixed_frames_jitter.value > 0.f);
+}
+
+double displayTimeFor(double time)
+{
+    return state == State::Idle && vr_fixed_frames.value != 0.f && vr_fixed_frames_jitter.value > 0.f
+               ? static_cast<double>(fixedFrameCount) * fixedFrameDt()
+               : time;
+}
+
 bool gameClockFixed()
 {
     // hostFrameTime's cases that don't read the frame's wall-clock time (a take in watch mode waits for the wall clock).

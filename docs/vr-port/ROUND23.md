@@ -5035,6 +5035,63 @@ few steps" the player slows abruptly and resumes a split second later.
   0 failed**.
 - **For him in VR**: run around the test hall holding the stick forward hard; the speed should stay put. Slow walking
   should feel as before at the bottom of the travel; the top fifth is all full speed.
+## Thumbstick walking: hitches and a slightly angled direction (branch `agent/stickhitch`)
+
+Vittorio (voice note vrarena_2026-11-02_23-15-25): still hitches running at full speed with the stick, and "a bit angled
+even if my thumbstick is completely straight". His note's replay and frames (3596 frames, 30 s; median 8.3 ms, 3 frame
+hitches of 20-21 ms), and his take of 2026-11-01 01:38.
+
+**Not frame-time hitches, and not the floor.** Three frames over 20 ms in 30 s. On the ground his height moved at most
+0.04 units a frame; `vr_stick_line_test` on his arena's lines: 704 units at 320.0..320.0, height flat; the only strays
+were a wall grazed (x stuck at 528.0, one line). Four causes, each a motion:
+
+1. **His thumb slips further than the last fix allowed.** Held hard forward it reads 0.53..1.0: dips to 0.55..0.75 for a
+   tenth of a second, about three a second (the note's frames 1301..: 0.74 0.87 0.65 0.77 0.87 0.61 0.80 0.91 ...). 26-34%
+   of his run's frames are under the 80% that `vr_deadzone_outer` 20 counts as full, and the speed follows: 309 -> 223
+   -> 309. Simulated on his takes (Quake's ground physics, the recorded stick, frames in sustained runs; dips: under 10%
+   of 320): now 20 dips in 894 frames (arena), 58 in 2796 (hall); **`vr_move_hold` 0.4 s: 0 and 0**, a wider plateau only
+   halves them (outer 35%: 7, 24), and costs fine walking. The hold is on a *full* push only, and under a quarter of the
+   travel it follows at once: letting go stops at once, slow walking answers as ever; a deliberate slow-down from full to a
+   lower push kept takes 0.4 s + a moment. (The 2026-11-01 note's "fall-rate hold added little": a fall rate without a hold.)
+2. **Game time on an uneven clock.** A frame's game time was the wall clock's between two frames' *starts*, read before
+   `xrWaitFrame`: 5.9..11 ms (p5..p95) on a display steady at 8.33 ms. At a steady stick and 308 u/s the world moved 2.09..3.20
+   units a frame (correlation with the last frame's dt 0.999), its path 0.32 units rms off a straight line in display time,
+   1.6 at most. `vr_display_clock` 1: a frame's game time is the step between predicted display times (a frame late, adding
+   up all the same; over 0.25 s or none, the wall clock's). Note frame files keep the wall clock (`motion::wallFrameTime`).
+3. **The straight push that isn't.** The response of 2026-10-25 (radial deadzone) walks the stick's exact angle, while the
+   per-axis deadzone before it zeroed a small side part: his "straight" reads x 0.13 at y 0.88 (8 degrees), -0.06 at 1.0 (3).
+   Near a cardinal his mean angle was 6.8 degrees now, 2.3 under the old deadzone. `vr_move_snap` 15: within 15 degrees of an
+   axis exactly on it, the rest of each quadrant spread over what is left. Some of his long pushes read 26-30 degrees (the
+   note's frames 635..1450): looking aside on purpose or a thumb that far off, the take can't say (`vr_debug_stick` now prints
+   the push's angle and the heading off the head's).
+4. **The head's pitch steered the walk.** The server's wish took the head's whole angles, so forward's level part shrank by
+   cos(pitch). Hidden while running asked 400 against 320; since 2026-10-25 a full push asks 320 exactly: looking 40 degrees
+   down ran 245 u/s, a diagonal turned 7.5 degrees. His hall take looks over 20 degrees down in 13% of its pushed frames. Walking
+   now steers by the yaw alone (`SV_AirMove`); flying keeps it all.
+
+Left alone: Quake's ground physics only sheds the velocity's sideways part by friction (a quarter of a second), so turning
+the head while running the heading trails (the take's 12 degrees after a sharp turn); from the code and the take, not
+a change here, and as old as Quake. `vr_closequarters` turns the wish near a live enemy by design (within its 1 m).
+
+**Test**: `vr_stick_run_test [x y z] [outer [snap [hold]]]` (run 2 his thumb as recorded, the drawn steps in run 0, a sweep of
+64 pushes: 16 angles, 2 lengths, the head level and 40 down) and `vr_stick_line_test x y z <length>`. Fast mode, verdict lines.
+
+| vr_stick_run_test -300 -150 24 | run 2 dip (limit 2%) | worst heading, sweep (limit 0.5) | worst speed, sweep (limit 1.5%) | verdict |
+|---|---|---|---|---|
+| snap 0, hold 0 | 30.2% (224 under 321) | 13.95 deg (stick +14 walks +13.95) | 0.53% | 27 passed, 41 failed |
+| head's pitch kept (a build) | - | 7.55 deg | 23.4% (245 of 320) | 42 passed, 26 failed |
+| now | 0.39% | 0.20 deg | 0.31% | 68 passed, 0 failed |
+
+Drawn steps of run 0, `vr_fixed_frames_rate 120; vr_fixed_frames_jitter 0.2` (his frames' spread), limit 3% rms:
+`vr_display_clock 0` 1.63..3.68 units, **16.08%**: 67 passed, 1 failed; `1` 2.66..2.70, **0.39%**: 68 passed, 0 failed. Even frames
+at 120 Hz: 0.39% too. `vr_stick_curve_test -300 -150 24`: 115 passed, 0 failed. `vr_stick_line_test 317 564 24 700` in vrarena
+(`vr_mock_turn_to 177` first): 320.0..320.0, height 24.00: 1 passed.
+
+Under the mock only the display clock's jittered test path runs; its real source (OpenXR's predicted display times) needs the
+headset. **For him in VR**: run the arena hard with the stick: no dips, the world going by evenly; straight runs go where
+he looks, looking down too; Debug > Tests: Stick: Show Speed for the push's angle and heading; "Game Time From the Display Clock" to
+compare.
+
 ## Monsters as data (branch `agent/datatables3`; design review 3, step 3: monsters)
 
 The per-monster cvar families that are plain per-classname values are data: 171 values of 17 classnames, no cvars.
