@@ -216,6 +216,12 @@ vector(entity player, float hand, float what) weapondrawnpose = #0;
 // '1 0 0' and its parts in vr_agk_k_* (the right target's place and turn, the left's, the elbows' poles, the torso's turn,
 // the off hand's grip place and turn on the gun), or '0 0 0' (none: the globals left).
 vector(float code) agposekey = #0;
+// A strike's keys and their times (agent/posekeys; the engine's agpose::actBlend, keyTime). agstrikeblend: strike
+// `code`'s keys (its kind, class and pose) either side of `s` seconds into its act (`times` its wind-up, strike and hold,
+// `trec` its recovery: VR_AGP_Times): '<phase a> <phase b> <b's share>', -1 the stance. agkeytime: when key `code` is
+// whole in that act (s).
+vector(float code, float s, vector times, float trec) agstrikeblend = #0;
+float(float code, vector times, float trec) agkeytime = #0;
 vector vr_agk_k_rp;
 vector vr_agk_k_rr;
 vector vr_agk_k_lp;

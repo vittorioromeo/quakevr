@@ -1564,15 +1564,7 @@ void poseDataWindow()
                            "vr_agrunt_take_bend (28; its take frames' crouch, Legs off) and vr_agrunt_take_bend_kneel (45; "
                            "on one knee).");
             }
-            const int phases = agpose::isStrike(st.pdPose) ? agpose::numPhases : 1;
-            st.pdPhase = za::clamp(st.pdPhase, 0, phases - 1);
-            if(phases > 1)
-            {
-                if(ImGui::SliderInt("Phase", &st.pdPhase, 0, phases - 1, agpose::phaseName(st.pdPose, st.pdPhase)))
-                {
-                    strikePark(); // (the timeline on the picked phase's key)
-                }
-            }
+            strikeKeysUi();     // (a strike: its keys in order, the picked one's time, Add / Remove Key)
             strikeTimelineUi(); // (a strike or the Cast: play, pause, loop, step, speed, the scrubber, the onion skin)
             const int code = agpose::code(st.pdKind, st.pdClass, st.pdPose, st.pdPhase);
             agpose::Key k = agpose::value(code);
@@ -1651,14 +1643,8 @@ void poseDataWindow()
             }
             if(ImGui::Button("Reset This Pose"))
             {
-                if(st.pdPose == agpose::Pickup)
-                {
-                    pushPosesUndo("Pickup reset"); // (its override or the shared key: the text as it is)
-                }
-                for(int ph = 0; ph < agpose::numPhases && st.pdPose != agpose::Pickup; ph++)
-                {
-                    pushPoseUndo(agpose::code(st.pdKind, st.pdClass, st.pdPose, ph));
-                }
+                // (the text as it is: the Pickup's override or the shared key; a strike's keys, in-betweens too)
+                pushPosesUndo(va("%s reset", agpose::poseName(st.pdClass, st.pdPose)));
                 agpose::resetPose(st.pdKind, st.pdClass, st.pdPose);
             }
             ImGui::SameLine();
