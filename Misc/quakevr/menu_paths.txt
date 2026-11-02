@@ -513,7 +513,8 @@ vr_bodytrack|1|Body|Body Tracking|Advanced VR Options > Body > Body Tracking
 vr_bodytrack_arms|1|Body|Elbows|Advanced VR Options > Body > Elbows
 vr_bodytrack_arm_fit|1|Body|Elbow Fit|Advanced VR Options > Body > Elbow Fit
 vr_bodytrack_legs_walk|1|Body|Walk Over Tracked Legs|Advanced VR Options > Body > Walk Over Tracked Legs
-vr_bodytrack_auto_restart|1|Body|Restart When Broken at Start|Advanced VR Options > Body > Restart When Broken at Start
+|1|Body|Restart Body Tracking|Advanced VR Options > Body > Restart Body Tracking
+vr_bodytrack_auto_restart|1|Body|Restart When Broken at Start|Advanced VR Options > Body > Restart When Broken at 
 vr_body_torso_back|1|Body|Torso Offset|Advanced VR Options > Body > Torso Offset
 vr_body_legs_back|1|Body|Legs Offset|Advanced VR Options > Body > Legs Offset
 vr_body_shoulders_back|1|Body|Shoulders Offset|Advanced VR Options > Body > Shoulders Offset
@@ -1330,6 +1331,8 @@ vr_closequarters_min|1|Locomotion|Min Factor|Advanced VR Options > Movement > Lo
 vr_closequarters_strafe|1|Locomotion|Strafe Factor|Advanced VR Options > Movement > Locomotion > Strafe Factor
 vr_closequarters_angle|1|Locomotion|Angle Leniency|Advanced VR Options > Movement > Locomotion > Angle Leniency
 vr_closequarters_angle_falloff|1|Locomotion|Angle Falloff|Advanced VR Options > Movement > Locomotion > Angle 
+vr_closequarters_brake|1|Locomotion|Brake Momentum|Advanced VR Options > Movement > Locomotion > Brake Momentum
+vr_closequarters_braking|1|Locomotion|Braking|Advanced VR Options > Movement > Locomotion > Braking
 vr_snap_turn|1|Locomotion|Turning|Advanced VR Options > Movement > Locomotion > Turning
 vr_turn_speed|1|Locomotion|Turn Speed|Advanced VR Options > Movement > Locomotion > Turn Speed
 vr_enable_joystick_turn|1|Locomotion|Enable Joystick Turn|Advanced VR Options > Movement > Locomotion > Enable 
@@ -2153,6 +2156,18 @@ vr_menu_button|1|Menu|Menu Button|Advanced VR Options > HUD and Menus > Menu > M
 vr_menu_remember|1|Menu|Reopen Where Left|Advanced VR Options > HUD and Menus > Menu > Reopen Where Left
 vr_menu_help_wpm|1|Menu|Help Reading Speed|Advanced VR Options > HUD and Menus > Menu > Help Reading Speed
 vr_menu_dropdown|1|Menu|Drop-Down Lists|Advanced VR Options > HUD and Menus > Menu > Drop-Down Lists
+vr_font_upscale|1|Menu|Upscaling|Advanced VR Options > HUD and Menus > Menu > Upscaling
+vr_font_outline|1|Menu|Outline Thickness|Advanced VR Options > HUD and Menus > Menu > Outline Thickness
+vr_font_outline_r|1|Menu|Outline Red|Advanced VR Options > HUD and Menus > Menu > Outline Red
+vr_font_outline_g|1|Menu|Outline Green|Advanced VR Options > HUD and Menus > Menu > Outline Green
+vr_font_outline_b|1|Menu|Outline Blue|Advanced VR Options > HUD and Menus > Menu > Outline Blue
+vr_font_shadow_opacity|1|Menu|Shadow Opacity|Advanced VR Options > HUD and Menus > Menu > Shadow Opacity
+vr_font_shadow_size|1|Menu|Shadow Size|Advanced VR Options > HUD and Menus > Menu > Shadow Size
+vr_font_shadow_spread|1|Menu|Shadow Spread|Advanced VR Options > HUD and Menus > Menu > Shadow Spread
+vr_font_shadow_r|1|Menu|Shadow Red|Advanced VR Options > HUD and Menus > Menu > Shadow Red
+vr_font_shadow_g|1|Menu|Shadow Green|Advanced VR Options > HUD and Menus > Menu > Shadow Green
+vr_font_shadow_b|1|Menu|Shadow Blue|Advanced VR Options > HUD and Menus > Menu > Shadow Blue
+|1|Menu|Show a Sample Message|Advanced VR Options > HUD and Menus > Menu > Show a Sample Message
 |1|Menu|Reset This Page|Advanced VR Options > HUD and Menus > Menu > Reset This Page
 @page|1|Graphics - Relighting||Advanced VR Options > Graphics > Relighting
 |1|Graphics - Relighting|Relight This Map|Advanced VR Options > Graphics > Relighting > Relight This Map
@@ -4102,6 +4117,7 @@ vr_maps_debug_free_mb|2|Debug - Tools|Pretend Free Disk Space|Advanced VR Option
 |2|Debug - Tools|Map Browser Costs|Advanced VR Options > Debug > Tools > Map Browser Costs
 |2|Debug - Tools|Clear Search's Recent List|Advanced VR Options > Debug > Tools > Clear Search's Recent List
 |2|Debug - Tools|Open the Map Browser|Advanced VR Options > Debug > Tools > Open the Map Browser
+|2|Debug - Tools|Font Sample Message|Advanced VR Options > Debug > Tools > Font Sample Message
 |2|Debug - Tools|Blood and Gore|Advanced VR Options > Debug > Tools > Blood and Gore
 |2|Debug - Tools|Gore Burst|Advanced VR Options > Debug > Tools > Gore Burst
 |2|Debug - Tools|Gore Sounds: a Crowd's Tears|Advanced VR Options > Debug > Tools > Gore Sounds: a Crowd's Tears
@@ -4639,6 +4655,7 @@ vr_ragtool_log|2|Ragdoll Tool|Log|Advanced VR Options > Debug > Ragdoll Tool > L
 |2|Debug - Automation & Self-Tests|Arcane Dimensions: Ladders Report|Advanced VR Options > Debug > Automation & 
 |2|Debug - Automation & Self-Tests|Arcane Dimensions: Spawnflags and Sight Report|Advanced VR Options > Debug > 
 |2|Debug - Automation & Self-Tests|Offer Perk Cards Now|Advanced VR Options > Debug > Automation & Self-Tests > 
+|2|Debug - Automation & Self-Tests|Jump to Wave 6|Advanced VR Options > Debug > Automation & Self-Tests > Jump to 
 |2|Debug - Automation & Self-Tests|Perk Card Panel Test|Advanced VR Options > Debug > Automation & Self-Tests > 
 |2|Debug - Automation & Self-Tests|Spatial Audio Tests|Advanced VR Options > Debug > Automation & Self-Tests > 
 |2|Debug - Automation & Self-Tests|Spatial Audio Benchmark (12 s)|Advanced VR Options > Debug > Automation & 
@@ -4805,6 +4822,7 @@ vr_smallgibs_test_dummy|2|Debug - Automation & Self-Tests|On the Training Dummy|
 |2|Debug - Automation & Self-Tests|Blasts Push Props: AD and Quake|Advanced VR Options > Debug > Automation & 
 |2|Debug - Automation & Self-Tests|Fuel Tank and Crate Thrown at Monsters|Advanced VR Options > Debug > Automation 
 |2|Debug - Automation & Self-Tests|Flail Head Hits|Advanced VR Options > Debug > Automation & Self-Tests > Flail 
+|2|Debug - Automation & Self-Tests|Magazines Thrown at a Grunt|Advanced VR Options > Debug > Automation & 
 |2|Debug - Automation & Self-Tests|Press Down on a Crate|Advanced VR Options > Debug > Automation & Self-Tests > 
 |2|Debug - Automation & Self-Tests|Step Up to the Wall Ahead|Advanced VR Options > Debug > Automation & Self-Tests 
 |2|Debug - Automation & Self-Tests|Flight by Situation|Advanced VR Options > Debug > Automation & Self-Tests > 

@@ -13,6 +13,7 @@
 
 #include "vr_bigfont.hpp"
 #include "vr_cvars.hpp"
+#include "vr_fontstyle.hpp"
 #include "vr_engine.hpp"
 
 #include "Zancle/Algorithm/Fill.hpp"
@@ -80,6 +81,8 @@ struct Font
     za::Array<int, glyphCount> column{}; // each letter's first column in it; -1: left out (a piece's hash differed)
     za::Vector<byte> pic;                // the texture's qpic_t (Draw_ReplacePic), kept from game to game
     za::Array<bool, za::getArraySize(picNames)> picFound{};
+    qvr::fontstyle::Strip styled;        // the letters upscaled, outlined (vr_fontstyle.cpp; Menu > Fonts)
+    int styledGeneration{-1};            // the style it was made for (-1: none yet)
 };
 Font font;
 
@@ -157,6 +160,7 @@ void paint(const GlyphDef& g, int column, const za::Array<Picture, za::getArrayS
 void build()
 {
     font.built = true;
+    font.styledGeneration = -1;
     za::fill(font.column, -1);
 
     za::Array<byte*, za::getArraySize(picNames)> files{};
@@ -238,6 +242,27 @@ void ensureBuilt()
     }
 }
 
+// The letters restyled (vr_fontstyle.cpp), made again as the style changes; null: drawn as cut.
+[[nodiscard]] const qvr::fontstyle::Strip* styled()
+{
+    if(!qvr::fontstyle::active() || font.atlasWidth <= pad)
+    {
+        return nullptr;
+    }
+    if(font.styledGeneration != qvr::fontstyle::generation())
+    {
+        za::Array<int, glyphCount> widths{};
+        for(int g = 0; g < glyphCount; g++)
+        {
+            widths[static_cast<za::SizeT>(g)] = glyphDefs[g].width;
+        }
+        qvr::fontstyle::restyleStrip(font.atlas.data(), font.atlasWidth, cellRows, font.column.data(), widths.data(),
+            glyphCount, "vr_bigfont_styled", font.styled);
+        font.styledGeneration = qvr::fontstyle::generation();
+    }
+    return &font.styled;
+}
+
 } // namespace
 
 namespace qvr::bigfont
@@ -311,6 +336,8 @@ namespace
     }
     qpic_t* const pic = reinterpret_cast<qpic_t*>(font.pic.data());
     const float w = static_cast<float>(font.atlasWidth);
+    const qvr::fontstyle::Strip* const style = draw ? styled() : nullptr;
+    qpic_t* const stylePic = style ? reinterpret_cast<qpic_t*>(const_cast<za::U8*>(style->pic.data())) : nullptr;
     float at = static_cast<float>(x);
     za::StringView s{text};
     while(!s.empty())
@@ -323,7 +350,15 @@ namespace
         else if(const int g = glyphAt(s, length); g >= 0)
         {
             const GlyphDef& d = glyphDefs[g];
-            if(draw)
+            if(draw && style)
+            {
+                // the restyled letter: its margin round the same place
+                const float m = static_cast<float>(style->margin) * scale, sw = static_cast<float>(style->width);
+                Draw_SubPic(at - m, static_cast<float>(y) - m, d.width * scale + 2.f * m, cellRows * scale + 2.f * m,
+                    stylePic, static_cast<float>(style->column[static_cast<za::SizeT>(g)]) / sw, 0.f,
+                    static_cast<float>(d.width + 2 * style->margin) / sw, 1.f, nullptr, 1.f);
+            }
+            else if(draw)
             {
                 Draw_SubPic(at, static_cast<float>(y), d.width * scale, cellRows * scale, pic,
                     static_cast<float>(font.column[g]) / w, 0.f, static_cast<float>(d.width) / w, 1.f, nullptr, 1.f);

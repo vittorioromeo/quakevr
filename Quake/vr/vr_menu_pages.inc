@@ -35,6 +35,20 @@
         row(opt::vr_menu_remember),
         row(opt::vr_menu_help_wpm),
         row(opt::vr_menu_dropdown),
+        header("Fonts"), // (vr_fontstyle.cpp: each change remade at once)
+        row(opt::vr_font_upscale),
+        row(opt::vr_font_outline),
+        row(opt::vr_font_outline_r),
+        row(opt::vr_font_outline_g),
+        row(opt::vr_font_outline_b),
+        row(opt::vr_font_shadow_opacity),
+        row(opt::vr_font_shadow_size),
+        row(opt::vr_font_shadow_spread),
+        row(opt::vr_font_shadow_r),
+        row(opt::vr_font_shadow_g),
+        row(opt::vr_font_shadow_b),
+        command("Show a Sample Message", "vr_fontstyle_sample")
+            .help("A centre message and a console line in white and gold, to see the font over the game as you tweak it."),
     };
 }
 

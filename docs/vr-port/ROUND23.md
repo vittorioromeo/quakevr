@@ -6121,3 +6121,39 @@ parries never meet a stale arm). Debug > Tests: Check the Arms' Detail (`vr_agar
 extents; tests 99, 79, 16 pass; A/B `crowd32_armed` -0.33 ms p50 (A/Bs taken while another worker ran: noisy).
 Checklist: Far armed humanoids' arms move smoothly and their guns stay in their hands; turning your head to a group
 behind you never shows a stale arm {test:bench_armed_mix32}.
+
+## Font upscaling, outline and drop shadow, live in the menu (branch `agent/fontstyle`, his words 2026-11-02)
+
+- **Where:** Advanced VR Options > HUD and Menus > Menu, a "Fonts" group at the page's end (`vr_fontstyle.cpp`).
+  Upscaling (`vr_font_upscale` 0 Classic / 1 Nearest 4x + Sharp Bilinear / 2 Scale4x / 3 4xBR), Outline Thickness
+  (`vr_font_outline` 0-2 font pixels, quarter steps) and its Red/Green/Blue (`vr_font_outline_r/g/b`, 0-1), Shadow
+  Opacity (`vr_font_shadow_opacity` 0-1, 0 off), Size (`vr_font_shadow_size` 0-2 font px down and right, default 1),
+  Spread (`vr_font_shadow_spread` 0-2 font px blur radius, default 0.5), Red/Green/Blue (`vr_font_shadow_r/g/b`); and
+  "Show a Sample Message" (`vr_fontstyle_sample`: a centre message and white/gold console lines; Debug > Tools too).
+  All archived; defaults change nothing (Classic, no outline, shadow 0: Quake's own textures drawn as before).
+- **What is restyled:** conchars (everything drawn with Draw_Character/Draw_String: menus, notify lines, centre
+  messages, console), the text box pieces `gfx/box_*.lmp` (M_DrawTextBox, the classic menu style) and the main menu's
+  lettering (vr_bigfont.cpp). Each cvar's callback rebuilds at once; Draw_LoadPics rebuilds after a game change.
+- **Upscaling:** the comparison sheets' scalers ported to C++ (Scale4x = EPX twice; Hyllian 4xBR, FFmpeg vf_xbr's
+  level-2 rules, the four corners by turning the neighbourhood). Each cell upscaled on its own, padded 2 source px:
+  transparent for letters; the tiling middles for the slider 128-130 (129), lines 29-31 (30) and 157-159 (158); the
+  text box with its drawn neighbours (top/middles/bottom across, sides down). The textured cells of rows 0 and 8 stay
+  nearest 4x. Modes 1-3: linear with trilinear mipmaps (gl_texmgr.c: TEXPREF_LINEAR + TEXPREF_MIPMAP is now trilinear,
+  and such a texture is never treated as alpha-tested); Classic with effects: nearest 4x sampled nearest (Quake's look).
+- **Outline and shadow baked, not drawn:** the font is a 1280 x 1280 RGBA atlas, 16 x 16 cells of 80 x 80 (the 32 x 32
+  glyph and 6 font px of margin each side: outline 2 + shadow 2 + spread 2). A letter with effects is drawn as a quad
+  grown by 6/8 of its size each side round the same place (Draw_CharacterQuadEx): layout and advance unchanged; one quad
+  a letter. Outline: a smooth disc (coverage `R + 0.5 - d`) at 4x; the shadow is cast by letter + outline, offset, then a
+  separable Gaussian (sigma = radius / 2). Letters only: 32-127, 160-255, arrows 13/141, brackets and gold digits 16-28
+  and 144-156; never box, slider, line or textured cells. A letter with its own outline skips the menus' old 8-copy
+  outline (`draw_textoutline`, scr_menubgalpha below 0.5); with only a shadow that one still draws. The main menu's
+  lettering gets a restyled strip (6 px margins round each letter, drawn the same way). The vertex colour still
+  multiplies the whole letter (a tinted text tints its outline; fading fades both).
+- **Not restyled:** the wrist gadget's text (its own brightened copy of conchars, swapped in while it draws: the
+  hologram's centre messages), 3D text using `fontGlyph` (vr_gfx_gl.cpp), Quake's menu pictures (qplaque, titles).
+- **Test:** `vr_fontstyle_test` (Debug > Tools "Font Sample Message" help names it): every mode with and without
+  effects: the atlas 1280 x 1280, 'A' drawn, effects round it only when on, none on a box cell, and each tiling piece
+  (end beside two middles, middle between two) texel-equal to upscaling the joined row at once: 91 passed, 0 failed.
+  Scripted eyeshots (vr_eyeshot 3) of the notify lines, the Menu page and the main menu in all four modes with outline
+  1 and shadow 0.8: letters in place, outline and shadow visible, 4xBR the smoothest. The sample's centre message did
+  not show in the mock eyes (vr_gadget_holo 0 too); it uses the same draw path as the notify lines.
