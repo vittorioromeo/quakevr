@@ -10,6 +10,7 @@ QVR_CVAR(vr_hull_width, "16", CVAR_ARCHIVE)            // the player's width aga
 QVR_CVAR(vr_hull_ent_width, "-1", CVAR_ARCHIVE)        // the player's width against monsters, players and solid boxes (8-32; 0: Quake's 32; -1: vr_hull_width's)
 QVR_CVAR(vr_hull_edge_probe, "1", CVAR_ARCHIVE)       // Quake's "over a ledge" friction test (double friction) looks down from your box's leading edge (half its width ahead; Quake: 16), and a point inside a step has floor under it; 0: Quake's (under a stairs' clip ramp that point was inside the steps: walking up slowed to a crawl, a jump there went nowhere)
 QVR_CVAR(vr_hull_brushmodels, "1", CVAR_ARCHIVE)       // the narrow width against brush models too (doors, lifts, func_walls, external .bsp models), not only the world
+QVR_CVAR(vr_model_light_grid_cache, "1", CVAR_ARCHIVE) // big maps' model light grids kept on disk (cache/lightgrid, vr_ambient.cpp: those that took 100 ms or more; vrstart cold 2.2 s): 0 built at every load, 2 read, built anyway and compared
 QVR_CVAR(vr_hull_cache, "1", CVAR_ARCHIVE)             // the world's compiled hulls kept on disk (cache/hulls, vr_hull.cpp: trees that took 250 ms or more; vrstart cold 10 s to under 1): 0 compiled at every load; 2 read, then compiled anyway and compared (vr_hull_stats)
 QVR_CVAR(vr_hull_async, "1", CVAR_NONE)               // a monster's box size first met in play (no tree from the load: AD's delayed spawns, the test spawner) compiled on the pool while it moves with Quake's hull, not in the frame (ad_tears' 40x88: a 1.3-1.9 s hitch); 0: compiled at its first move, the frame waiting (vr_hull.cpp, "Trees compiled in play")
 QVR_CVAR(vr_hull_keep, "1", CVAR_ARCHIVE)             // maps whose brushes and compiled hulls are kept in memory for a load of the same map again (a death's reload, restart, a changelevel back; 0: off)
@@ -1785,6 +1786,7 @@ QVR_CVAR(vr_body_elbow_tuck_near, "0.6", CVAR_ARCHIVE)
 QVR_CVAR(vr_body_elbow_tuck_far, "0.9", CVAR_ARCHIVE)
 QVR_CVAR(vr_holster_haptics, "2", CVAR_ARCHIVE)
 QVR_CVAR(vr_model_lighting, "1", CVAR_ARCHIVE)        // models shaded from the map's lights (0: Quake's fixed direction; 0..1 blends)
+QVR_CVAR(vr_model_light_grid, "1", CVAR_ARCHIVE)      // models lit by the baked light from every side (probes over the map: vr_ambient.cpp, "The light grid"; 0: Quake's, the floor under them, and rays of their own for the sides)
 QVR_CVAR(vr_model_ambient_dir, "1", CVAR_ARCHIVE)     // models lit by the baked light around them, brighter on the side facing lit walls (vr_ambient.cpp; 0: one brightness all round)
 QVR_CVAR(vr_model_ambient_contrast, "1.5", CVAR_ARCHIVE) // how much the sides differ (0: not at all, 1: as the surroundings do)
 QVR_CVAR(vr_rim_light, "0.5", CVAR_ARCHIVE)           // a faint light round models' edges, in the light around them, so they stand out from dark backgrounds (vr_envmap.cpp; 0 off .. 1)

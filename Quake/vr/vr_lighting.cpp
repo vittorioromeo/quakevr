@@ -2398,8 +2398,8 @@ float lighting::ambientFloor()
 }
 
 // The curve onto a lightmap value (R_LightPoint: 128 is Quake's full light): the fill light first,
-// then the contrast about that same full light. Models are lit from the lightmap at their feet with
-// this; the world shader does the same on total_light, where Quake's full light is 0.5.
+// then the contrast about that same full light. Models are lit with this (their light: vr_ambient.cpp,
+// "The light grid"); the world shader does the same on total_light, where Quake's full light is 0.5.
 void lighting::lightCurve(float* lightcolor)
 {
     const float c = lightContrast();
@@ -2414,8 +2414,7 @@ void lighting::lightCurve(float* lightcolor)
     }
 }
 
-// Models are lit from the lightmap at their feet (R_LightPoint: 128 is Quake's full light): the
-// same fill light and contrast as the world's.
+// A model's baked light (128 is Quake's full light): the same fill light and contrast as the world's.
 extern "C" void VR_AliasLightCurve(float lightcolor[3])
 {
     lighting::lightCurve(lightcolor);
@@ -2710,9 +2709,9 @@ void lightTest_f()
     }
 }
 
-// vr_light_probe: the baked light at a few points round you, as the map has it and as it is drawn
-// with the current Graphics > Lights (vr_ambient_light, vr_light_contrast). The same curve lights
-// models (VR_AliasLightCurve), so the second column is what a model standing there would be lit by.
+// vr_light_probe: the baked light on the floor under a few points round you, as the map has it and as it
+// is drawn with the current Graphics > Lights (vr_ambient_light, vr_light_contrast). The same curve lights
+// models (VR_AliasLightCurve), so the second column is what a model there has with vr_model_light_grid 0.
 void lightProbe_f()
 {
     if(cl.worldmodel == nullptr || cl.worldmodel->lightdata == nullptr)
