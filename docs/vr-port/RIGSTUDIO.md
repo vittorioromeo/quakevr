@@ -217,12 +217,34 @@ dual scissor, the **Shove**) and the death knight's **Cast**.
   as a white line; drag on it to scrub. Under it: the time, the length and "on the key". The times are the game's own:
   while the studio holds the subject in an act it tells QC its time into it each frame (`VR_AGK_Hold`:
   `weapondrawnpose(g, -1, 19)`: x a count-play's speed, y the time, z 1 while the timeline drives it), and QC tells it the
-  act's phases' lengths and its keys' times (`VR_AGK_TellTimes`: `.vr_rs_times`, `.vr_rs_trec`, `.vr_rs_keys`;
-  `VR_AGK_KeyTime`, the one place the keys' times are worked out, also used by the count-play's hold). Paused, the act
+  act's phases' lengths (`VR_AGK_TellTimes`: `.vr_rs_times`, `.vr_rs_trec`); the keys' times are the engine's
+  (`agpose::keyTime`, also QC's `VR_AGK_KeyTime` for the count-play's hold: see "Strike keys" below). Paused, the act
   sits on the picked phase's key (as the Pose Keys tool held it before) until scrubbed or stepped elsewhere; picking a
   phase or starting a Pose Keys drag puts it back on that key (the handles map a whole key). Played without Loop it stops
   back on the key, as Swing did. Slowed playback is the act's own time slowed (the arms' eases run in real time, as
   before with Swing). The VR Pose Studio's play by count is unchanged.
+- **Strike keys: their times and in-betweens** (agent/posekeys, 2026-11-02; replaces the Phase slider): **Key** (a
+  combo, **<** **>** the one before / after): the strike's keys in its act's order, the wind-up's, the blow's and the
+  follow-through's (the shove's push and recover) always there, plus up to seven **in-betweens** (phases 3..9 of the key
+  code; blue diamonds). **Key Time** (s into the act at 1x; or drag the key's diamond on the bar): when the key is whole,
+  kept between its neighbours (0.01 of a phase apart); beside it the phase it is in and how far (`strike 53%`); a named
+  key moved gets **Default Time** (back on its own place). **Add Key at Playhead**: an in-between where the playhead is,
+  set to the pose the game blends there (nothing changes until it is edited; the Pose Keys tool and the fields edit it as
+  any key). **Remove Key**: the picked in-between (the named three never). Each is undoable (Ctrl+Z). Console:
+  `vr_rigstudio_strike addkey | delkey | keytime <s> | keyreset` (the picked key), `vr_rigstudio_posekey phase 3..9`.
+  - Stored in the key's new **Time** part (`agpose::Time`, after the off hand's): x its place in the act (0 the start, 1
+    the wind-up's end, 2 the strike's, 3 the hold's, 4 the end; the fraction that share of the phase), y 1 when set.
+    Older text (21 or 30 numbers) reads as before (the phases' own places); a key with Time set writes 33.
+  - The game (`agpose::actBlend`, QC `VR_AGK_Blend` through the `agstrikeblend` builtin) blends the two keys either side
+    of the act's time (the stance before the first and after the last) along the act's own progress, `actProgress`: QC's
+    old shares (`VR_AGK_Phases`, gone) as one number, -1 the stance, 0 / 1 / 2 the named keys whole, 3 the stance again.
+    With the three keys on their own places it is exactly the old blend. A key's place is in the act's phases, so a
+    slowed or heavy swing keeps it at the same point of its phase.
+  - **What the keys never move**: the act's phases' lengths (QC `VR_AGP_Times`) and the moment of the blow (its hit at
+    the strike's 0.55, a punch's 0.8; the shove's push's end): all QC's, by time. **What they do move**: where the weapon
+    is at that moment. The blow's line starts from the pose as blended then (`VR_AGP_Strike` adds the keys' place and
+    turn, as any key edit always did), and whatever reads the blade as drawn follows it, so retiming a key across the
+    blow, or an in-between near it, can change where a blow goes though not when.
 - **Onion Skin** (under the timeline; `vr_rigstudio_onion` 0): ghosts of the act before (orange) and after (blue) the
   time, fading with distance: **Each Way** 1..6 (`vr_rigstudio_onion_count` 2), **Spacing**: Every Step
   (`vr_rigstudio_onion_step` 0.06 s of the act) or Phase Points (its phases' bounds and its keys:
@@ -429,6 +451,14 @@ taunt (the enforcer's, for now) goes on at once; a pain cuts it short (its frame
   (the act's time half the game's), the onion's four ghosts taken by Auto Refresh (their hands apart; back on the key),
   the push key's right weapon pushed 30 units out (the IK ghost's gap over 5 units; undone exactly), the fly camera's
   step. Three screenshots: scrubbed, the onion skin, the IK ghost.
+- `vr_rigstudio_test_strikekeys` (open the studio with a melee weapon: `vr_rigstudio monster_vr_grunt 13`; ends on
+  `rigstudio strikekeys: N passed, M failed`): the Horizontal strike: an in-between added halfway between the wind-up's
+  and the blow's keys (the blend at five times and the hand drawn there unchanged), edited (the weapon's goal before the
+  IK moves by the edit: QC plays it; the hand may be held by the arm's reach), retimed 0.02 s, set past the blow (kept
+  before it; undone), the blow's key retimed and put back (Default Time); by the mock mouse: its diamond dragged (picked,
+  retimed, one undo step), Add Key and Remove Key clicked; the text emptied and set again (the key exactly), the dump's row
+  named, the act's times unchanged; removed (the blend back exactly), a named key refused, the removal undone, the text put
+  back. One screenshot.
 - `vr_rigstudio_test_typing` (ends on `rigstudio typing: N passed, M failed`): SDL key, text and mouse events pushed
   through the game's input loop into the fields: a sequence's FPS typed (Ctrl+click, "12.5r", Enter: 12.5, no tool
   change), Ctrl+Z, a typed value cancelled by Escape, the Outliner's search typed (Backspace; the game's keys untouched),

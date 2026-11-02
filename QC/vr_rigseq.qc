@@ -24,10 +24,10 @@
 .vector vr_rs_aim;  // the point (world)
 .float vr_rs_aimon; // 1: aimed at it
 // The studio's strike timeline (VR_AGK_TellTimes writes them while the studio holds an act: a strike, the Cast): its
-// phases' lengths (s, at 1x: the wind-up, the strike, the hold), its recovery's, its keys' times (phases 0, 1, 2).
+// phases' lengths (s, at 1x: the wind-up, the strike, the hold) and its recovery's (its keys' times: the engine's,
+// agpose::keyTime).
 .vector vr_rs_times;
 .float vr_rs_trec;
-.vector vr_rs_keys;
 
 void(entity m, string seq) VR_RigSeq_Play =
 {
