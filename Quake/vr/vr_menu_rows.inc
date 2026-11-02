@@ -139,6 +139,11 @@ QVR_SLIDER(vr_bodytrack_arm_fit, "Elbow Fit", 0.f, 1.f, 0.05f, "%.2f", noExt,
 QVR_TOGGLE(vr_bodytrack_legs_walk, "Walk Over Tracked Legs",
     "With tracked legs: while you move (walking, running, in the air) the walk and run animation drives the "
     "legs over the tracked ones; standing still, the tracked legs show. Off: the tracked legs always.")
+QVR_CYCLE(vr_bodytrack_auto_restart, "Restart When Broken at Start",
+    "When the first seconds of body tracking after the game starts look broken (the tracked head away from "
+    "the headset, the feet under or over the floor, every joint at one point, or no tracking at all), it "
+    "restarts itself, as Restart Body Tracking does: at most this many times a game.",
+    {0.f, "Off"}, {1.f, "Once"}, {2.f, "Twice"}, {3.f, "Three Times"})
 QVR_SLIDER(vr_body_torso_back, "Torso Offset", -0.2f, 0.4f, 0.01f, "%.2f m", ext(-1.f, 1.f),
     "How far the torso sits behind your neck (negative: in front).")
 QVR_SLIDER(vr_body_legs_back, "Legs Offset", -0.2f, 0.4f, 0.01f, "%.2f m", ext(-1.f, 1.f),

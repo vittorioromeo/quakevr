@@ -513,6 +513,7 @@ vr_bodytrack|1|Body|Body Tracking|Advanced VR Options > Body > Body Tracking
 vr_bodytrack_arms|1|Body|Elbows|Advanced VR Options > Body > Elbows
 vr_bodytrack_arm_fit|1|Body|Elbow Fit|Advanced VR Options > Body > Elbow Fit
 vr_bodytrack_legs_walk|1|Body|Walk Over Tracked Legs|Advanced VR Options > Body > Walk Over Tracked Legs
+vr_bodytrack_auto_restart|1|Body|Restart When Broken at Start|Advanced VR Options > Body > Restart When Broken at Start
 vr_body_torso_back|1|Body|Torso Offset|Advanced VR Options > Body > Torso Offset
 vr_body_legs_back|1|Body|Legs Offset|Advanced VR Options > Body > Legs Offset
 vr_body_shoulders_back|1|Body|Shoulders Offset|Advanced VR Options > Body > Shoulders Offset

@@ -99,7 +99,7 @@ bool OpenXrBackend::startRuntime()
     {
         return false;
     }
-    bodytrack::xr::create(instance, systemId, session); // (vr_bodytrack_xr.cpp: when the runtime offers it)
+    // (The body tracker: made once the session has the focus, bodytrack::xr::frame in the frame loop.)
 
     // The runtime paces frames (xrWaitFrame): the desktop mirror must not wait for vsync.
     SDL_GL_SetSwapInterval(0);

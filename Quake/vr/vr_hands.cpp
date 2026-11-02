@@ -714,7 +714,7 @@ void placeTracked(const TrackingState& t, float m2u, float seatedLift)
     state.turnYaw = turnYaw;
     state.spaceOrigin = toWorld(glm::vec3{0.f});
     // The tracked body, as the head and hands (seated: raised as they are, the floor under it lowered).
-    bodytrack::place(base, floorBelowHead - glm::vec3{0.f, seatedLift, 0.f}, turnYaw, m2u);
+    bodytrack::place(base, floorBelowHead - glm::vec3{0.f, seatedLift, 0.f}, t.head.position, turnYaw, m2u);
 
     state.head = toWorld(t.head.position);
     state.headAngles = anglesFromTracking(t.head.orientation, turnYaw);
