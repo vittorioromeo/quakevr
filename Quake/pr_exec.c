@@ -158,10 +158,10 @@ static void PR_PrintStatement (dstatement_t *s)
 	}
 
 	if (s->op == OP_IF || s->op == OP_IFNOT)
-		Con_Printf("%sbranch %i", PR_GlobalString(s->a), s->b);
+		Con_Printf("%sbranch %i", PR_GlobalString(s->a), (int)s->b);
 	else if (s->op == OP_GOTO)
 	{
-		Con_Printf("branch %i", s->a);
+		Con_Printf("branch %i", (int)s->a);
 	}
 	else if ((unsigned int)(s->op-OP_STORE_F) < 6)
 	{
@@ -608,9 +608,9 @@ PR_ExecuteProgram
 The interpretation main loop
 ====================
 */
-#define OPA ((eval_t *)&qcvm->globals[(unsigned short)st->a])
-#define OPB ((eval_t *)&qcvm->globals[(unsigned short)st->b])
-#define OPC ((eval_t *)&qcvm->globals[(unsigned short)st->c])
+#define OPA ((eval_t *)&qcvm->globals[st->a])
+#define OPB ((eval_t *)&qcvm->globals[st->b])
+#define OPC ((eval_t *)&qcvm->globals[st->c])
 
 static void PR_ExecuteProgramRun (func_t fnum);
 #include "vr/vr_qcexec.c" // QVR: the faster loop (QCExec_Run; docs/vr-port/QC_VM.md)
@@ -873,16 +873,16 @@ static void PR_ExecuteProgramRun (func_t fnum)
 
 	case OP_IFNOT:
 		if (!OPA->_int)
-			st += st->b - 1;	/* -1 to offset the st++ */
+			st += (int)st->b - 1;	/* -1 to offset the st++ (a signed jump) */
 		break;
 
 	case OP_IF:
 		if (OPA->_int)
-			st += st->b - 1;	/* -1 to offset the st++ */
+			st += (int)st->b - 1;	/* -1 to offset the st++ (a signed jump) */
 		break;
 
 	case OP_GOTO:
-		st += st->a - 1;		/* -1 to offset the st++ */
+		st += (int)st->a - 1;		/* -1 to offset the st++ (a signed jump) */
 		break;
 
 	case OP_CALL0:
@@ -945,9 +945,9 @@ static void PR_ExecuteProgramRun (func_t fnum)
 		qcvm->xfunction->profile += profile - startprofile;
 		startprofile = profile;
 		qcvm->xstatement = st - qcvm->statements;
-		qcvm->globals[OFS_RETURN] = qcvm->globals[(unsigned short)st->a];
-		qcvm->globals[OFS_RETURN + 1] = qcvm->globals[(unsigned short)st->a + 1];
-		qcvm->globals[OFS_RETURN + 2] = qcvm->globals[(unsigned short)st->a + 2];
+		qcvm->globals[OFS_RETURN] = qcvm->globals[st->a];
+		qcvm->globals[OFS_RETURN + 1] = qcvm->globals[st->a + 1];
+		qcvm->globals[OFS_RETURN + 2] = qcvm->globals[st->a + 2];
 		st = &qcvm->statements[PR_LeaveFunction()];
 		if (qcvm->depth == exitdepth)
 		{ // Done
