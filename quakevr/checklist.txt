@@ -72,6 +72,7 @@ Each gun's pre-marked barrel looks right when hot; fix any gun with the paint mo
 Grab a grunt's gun and pull: it leans back and turns its holding shoulder away from you, rocking a little, while its other arm flails near the gun; Armed Grunts > Tug: Torso Sway / Tug: Free Arm Flail at 0 turn each off. {test:agrunt_tug}
 The tug is always physical: no "Tug: Physical", "Tug: Pull Time" or "Tug: It Fights Back Every" rows, and the grunt no longer shoves, headbutts or fires during a tug. {test:agrunt_tug}
 Combat > Melee: the "Swing Through Enemies", "Strike Past Walls and Floor" and "Hit Everything the Edge Passes" toggles are gone (always on); Combat > Damage and Knockback: "Melee Positional Damage" is gone (melee follows Positional Damage). {test:sword_multi}
+The nail pistol is always the full-slide model (the classic copper-slide option is gone); its slide still racks and the ammo screen rides it. {test:dual_wield}
 
 [2. Armed humanoids: disarming and armour]
 Show Disarm Volumes: the wireframe hulls sit on each drawn weapon (magenta, orange, red; the sword's orange line along its blade) and on the drawn hand and forearm (cyan). {test:disarm_hulls_melee}
