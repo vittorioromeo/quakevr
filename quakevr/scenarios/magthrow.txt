@@ -1,0 +1,13 @@
+# magthrow: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". A magazine or a cell thrown hard at
+# a grunt (vr_prop_impact_test 6, Misc/quakevr/magthrow_test.sh): guns with magazines in hand, ammo to spare, grunts.
+title Throw a magazine or a cell at a grunt
+map vrtesthall
+god
+notarget
+give "Nailgun" main
+give "Grunt Burst Rifle" off
+spawn "Grunt" 220 30
+spawn "Grunt" 260 -50
+cmd give n 200
+cmd give s 60
+hint B/Y drops a gun's magazine; take one from the pouch and throw it hard at a grunt: about 1 damage, a flinch and its pain, as a light prop does.

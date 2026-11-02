@@ -1050,7 +1050,7 @@ float(entity b, vector xNormal, vector xAt) VR_Melee_WallFresh =
 };
 
 // Whether the hands' blows find `e` by its box (VR_Melee_Sweep, after VR_Blow_Strikable): a solid one; a living monster
-// knocked down (vr_knockdown.qc: not solid, its ragdoll struck as drawn, vr_hit_precise; a blow on it is a live one's:
+// knocked down (vr_knockdown.qc: not solid, its ragdoll struck as drawn; a blow on it is a live one's:
 // its head cut off, its limbs, by the same rules as standing; his note 2026-10-09); a loose gib or head, an exploding
 // crate's piece (not solid: the traces pass them), not one held nor a small gib spared.
 float(entity e) VR_Melee_BoxTarget =
@@ -1062,7 +1062,7 @@ float(entity e) VR_Melee_BoxTarget =
 };
 
 // One swing, many things (VR_Melee_Multi): a corpse or a body still dying (not solid to the traces: a ragdoll lying on the
-// floor) is struck by the sweep as a box target is, as drawn (vr_hit_precise), and dealt as VR_Corpse_StrikeFrame's
+// floor) is struck by the sweep as a box target is, as drawn (precise hits), and dealt as VR_Corpse_StrikeFrame's
 // blow (VR_Corpse_Struck: client.qc VR_Melee_Deal). That one only traced the weapon's line as it is, from the hand: a
 // blade whose tip met the floor first stopped there, short of the limb under it (his note vrtesthall_2026-10-24_01-17-02).
 float(entity e) VR_Melee_CorpseTarget =
@@ -1071,7 +1071,7 @@ float(entity e) VR_Melee_CorpseTarget =
            !e.vr_gib && (e.health <= 0) && cvar_hget(cvarh_vr_corpse_gib);
 };
 
-// Whether a point swept from `xP0` to `xP1` (`xR` thick) starts in `e` (a box target: its model, vr_hit_precise, else its
+// Whether a point swept from `xP0` to `xP1` (`xR` thick) starts in `e` (a box target: its model, precise hits, else its
 // box, as VR_Melee_Sweep's boxes measure it): it doesn't enter it.
 float(entity e, vector xP0, vector xP1, float xR) VR_Melee_StartsIn =
 {
@@ -1389,7 +1389,7 @@ float(float xHand, entity b) VR_Melee_Sweep =
         i = vr_rib_i[k];
         rr = vr_rib_r[k];
         striker = VR_Melee_Strikes(vr_mpt_kind[i]);
-        traceline(p0, p1, MOVE_HITMODEL_MELEE, self); // (a monster: its model, vr_hit_precise)
+        traceline(p0, p1, MOVE_HITMODEL_MELEE, self); // (a monster: its model, precise hits)
         if(trace_fraction >= 1 && !trace_startsolid)
         {
             float past = FALSE;
@@ -1520,7 +1520,7 @@ float(float xHand, entity b) VR_Melee_Sweep =
     // Monsters' boxes, widened by the lines' thickness (and not through a wall); and loose gibs and heads (on the
     // floor, flying): not solid (SOLID_NOT_BUT_TOUCHABLE: the traces above pass them; only shots trace with
     // MOVE_HITGIBS), struck as a monster's box, and burst (VR_Gib_Blow). A gib held in a hand is VR_Gib_HeldFrame's.
-    // Precise hits (vr_hit_precise): a monster's (or corpse's) box, grown by VR_HITMODEL_REACH, is only the broad phase:
+    // Precise hits: a monster's (or corpse's) box, grown by VR_HITMODEL_REACH, is only the broad phase:
     // a line strikes where its sweep meets the model as drawn, grown by its thickness and the melee tolerance
     // (hitmodel_segment); through the box beside the model it misses.
     vector mid = (b.mh_pp[0] + b.mh_cp[0] + b.mh_pp[n - 1] + b.mh_cp[n - 1]) * 0.25;

@@ -1,4 +1,4 @@
-// vr_permdecals.hpp -- the permanent decals (vr_permdecals): blood, scorches and chips baked for good into a layer of
+// vr_permdecals.hpp -- the permanent decals: blood, scorches and chips baked for good into a layer of
 // the map's own faces, so that they never go and cost the same however many there are.
 //
 // Each lit face of the map (the world's and its brush models': doors, lifts, plats) has a grid of pages over it, in its
@@ -37,18 +37,9 @@ struct Stamp
     int model;
 };
 
-// The layer on (vr_permdecals, with vr_decals: off hides what was baked) and the map laid out for it.
+// The layer on (with vr_decals: off hides what was baked) and the map laid out for it. Off (no map, or not laid out):
+// the marks live only, the newest vr_decal_max (vr_decals.cpp).
 [[nodiscard]] bool on();
-// The layer kept but not shown: vr_permdecals 0 (vr_decals on, the map laid out). The rule (PERM_DECALS.md, "On and
-// off"): every mark goes into the stamps, on or off. On, they are all shown, baked. Off, the newest vr_decal_max of them
-// are shown live, as without the layer (vr_decals.cpp: showRecord at the switch; the marks the ring lets go of kept,
-// not baked: record); on again, those are dropped from the ring and what was kept while off baked (rebake).
-// vr_decals 0 hides both.
-[[nodiscard]] bool kept();
-void record(const Stamp& s);
-bool rebake();
-// The newest `max` stamps on the static world (model 0), the oldest first, into `out`.
-void newestWorld(int max, za::Vector<Stamp>& out);
 // Pages the bakes since the last flush draw into (bakeSettled's budget: vr_permdecal_bake_max).
 [[nodiscard]] int pendingPages();
 
@@ -78,7 +69,7 @@ void info_f();
 
 // Saves: the stamps, then `live` (the live ring's marks not among them, settled), as the save's comment lines
 // (VR_SaveDecalLines; valid until the next call); a save's read before its load (VR_ReadSaveInfo), baked again once its
-// map has loaded (restore, once a frame: 1 if it baked them, 2 if it kept them, the layer off: kept).
+// map has loaded (restore, once a frame: 1 if it baked them).
 [[nodiscard]] const char* saveLines(const za::Vector<Stamp>& live);
 void readSaveLines(const char* text);
 int restore();

@@ -1214,7 +1214,7 @@ QVR_TUNABLE(vr_hit_stagger_head, "1.5") // a melee blow to the head (fist or wea
 QVR_TUNABLE(vr_hit_stagger_resist, "0.75") // big monsters resist: the chance times (30 / its full health) ^ this, above 30 health (0: none; shambler 0.1, ogre 0.24)
 QVR_TUNABLE(vr_hit_stagger_cooldown, "4") // s after an unbalancing hit before another hit can unbalance it (no stunlock)
 QVR_TUNABLE(vr_ragimpact_damage, "0.08") // damage per kg m/s past the least speed (mass behind the part x (its speed - Least Speed))
-QVR_TUNABLE(vr_ragimpact_mult, "1.15") // a ragdoll's (knocked down or dead) strike on a wall, the floor or a prop: its damage and its head's or limb's wear (pops) times this (not a landing's crush)
+QVR_TUNABLE(vr_ragimpact_mult, "1.25") // a ragdoll's (knocked down or dead) strike on a wall, the floor or a prop: its damage and its head's or limb's wear (pops) times this (not a landing's crush)
 QVR_TUNABLE(vr_ragimpact_min_speed, "2.5") // m/s: slower strikes do nothing
 QVR_TUNABLE(vr_ragimpact_held_speed, "1") // m/s: a part your hand holds counts from this speed (the hand slows as it drives a body: 2-4 m/s slams)
 QVR_TUNABLE(vr_ragimpact_dent, "2") // a strike dealing this much damage or more dents and wounds the part where it struck, as a blunt melee blow does (a head slammed into a wall: its face dented); 0: never

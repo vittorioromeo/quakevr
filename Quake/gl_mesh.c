@@ -60,8 +60,8 @@ void GL_MakeAliasModelDisplayLists (qmodel_t *aliasmodel, aliashdr_t *paliashdr)
 		for (j=0 ; j<paliashdr->numverts ; j++)
 			verts[i*paliashdr->numverts + j] = poseverts[i][j];
 
-	// QVR: room for each vertex's path along its animations dequantised (vr/vr_mdldequant.cpp: vr_mdl_dequant), computed
-	// by the first upload with it on (GLMesh_LoadVertexBuffer): the positions' offsets, then the normals
+	// QVR: room for each vertex's path along its animations dequantised (vr/vr_mdldequant.cpp), computed
+	// by the first upload (GLMesh_LoadVertexBuffer): the positions' offsets, then the normals
 	paliashdr->dequant = (byte *) Hunk_AllocNoFill (paliashdr->numposes * paliashdr->numverts * 2 * sizeof (unsigned)) - (byte *)paliashdr;
 	paliashdr->dequantready = 0;
 
@@ -227,8 +227,8 @@ void GLMesh_LoadVertexBuffer (qmodel_t *m, aliashdr_t *mainhdr)
 		unsigned short *flamerefs = NULL;
 		// QVR: the model's own occlusion per pose and vertex (vr/vr_ao.cpp), in each position's spare 4th byte
 		const unsigned char *vertexao = mainhdr->poseverttype == PV_QUAKE1 ? VR_AliasVertexAO (m, mainhdr) : NULL;
-		// QVR: vr_mdl_dequant (vr/vr_mdldequant.cpp: the poses' offsets and normals; off: the stored bytes exactly)
-		const qboolean dequant = mainhdr->poseverttype == PV_QUAKE1 && VR_MdlDequantOn ();
+		// QVR: the poses dequantised (vr/vr_mdldequant.cpp: their offsets and normals)
+		const qboolean dequant = mainhdr->poseverttype == PV_QUAKE1;
 		if (mainhdr->poseverttype == PV_QUAKE1 && !Mod_NextSurface (mainhdr))
 		{
 			flamerefs = (unsigned short *) VR_HeapMalloc (mainhdr->numverts_vbo * sizeof (unsigned short));
@@ -236,7 +236,7 @@ void GLMesh_LoadVertexBuffer (qmodel_t *m, aliashdr_t *mainhdr)
 				VR_AliasFlameRefs (mainhdr, flamerefs);
 		}
 
-		// QVR: the dequantised offsets and normals (vr/vr_mdldequant.cpp), computed by the first upload with vr_mdl_dequant on
+		// QVR: the dequantised offsets and normals (vr/vr_mdldequant.cpp), computed by the first upload
 		for (hdr = mainhdr; dequant && hdr; hdr = Mod_NextSurface (hdr))
 		{
 			if (hdr->dequant && !hdr->dequantready)
@@ -258,7 +258,7 @@ void GLMesh_LoadVertexBuffer (qmodel_t *m, aliashdr_t *mainhdr)
 					const aliasmesh_t *desc = (aliasmesh_t *) ((byte *) hdr + hdr->meshdesc);
 					const trivertx_t *tv = (const trivertx_t *) ((byte *)hdr + hdr->vertexes) + hdr->numverts * f;
 					meshxyz_t *xyz = (meshxyz_t *) (vbodata + vertofs);
-					// QVR: vr_mdl_dequant's normals (smoothed along the animations within the table's step), packed as below
+					// QVR: the dequantised normals (smoothed along the animations within the table's step), packed as below
 					const unsigned *smoothnormals = dequant && hdr->dequantready ?
 						(const unsigned *) ((byte *) hdr + hdr->dequant) + hdr->numposes * hdr->numverts + hdr->numverts * f : NULL;
 
@@ -308,7 +308,7 @@ void GLMesh_LoadVertexBuffer (qmodel_t *m, aliashdr_t *mainhdr)
 		}
 		VR_HeapFree (flamerefs); // QVR
 
-		// QVR: the dequantised offsets (vr/vr_mdldequant.cpp), in the poses' order; zero (the stored bytes) while vr_mdl_dequant is 0
+		// QVR: the dequantised offsets (vr/vr_mdldequant.cpp), in the poses' order
 		if (mainhdr->poseverttype == PV_QUAKE1)
 		{
 			unsigned *frac;

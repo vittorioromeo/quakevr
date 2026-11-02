@@ -59,7 +59,7 @@ struct SmoothModel
     // The rebuild (vr_anim_smooth_rebuild): made with this vr_anim_smooth_rebuild_error, its vertices rebuilt fully,
     // partly, their fits' rms (median, 90th percentile, most: units); off for the model if too few are.
     float rebuildError{-1.f};
-    int rebuildDequant{-1};                // whether the poses were dequantised (vr_mdl_dequant) when it was made
+    int rebuildDequant{-1};                // whether the poses were dequantised yet when it was made
     za::Vector<rigpose::Rigid> rebuildKeys; // [pose * numBones + bone]: the bones refitted to the drawn (dequantised) poses
     int rebuiltVerts{0}, rebuildFaded{0};
     float rebuildMedian{0.f}, rebuildP90{0.f}, rebuildMost{0.f};

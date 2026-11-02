@@ -2185,7 +2185,6 @@ extern "C" void VR_Init()
     closequarters::init();
     rangerhead::init();
     Cmd_AddCommand("vr_body_head_info", rangerhead::info_f);
-    mdldequant::init();
     posing::init();
     holstersetup::init();
     blade::init();

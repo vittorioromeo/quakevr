@@ -88,7 +88,7 @@ enum Kind : int
     Level = 1,   // the world or a brush entity (a door, a lift): its origin and angles
     Prop = 2,    // a Box3D prop: its origin and angles as drawn
     Model = 3,   // a monster's model: the triangle it went into
-    MonsterBox = 4, // a monster without a model to go by (vr_hit_precise off): its origin and yaw
+    MonsterBox = 4, // a monster without a model to go by (no Quake .mdl): its origin and yaw
 };
 
 using geom::vec;

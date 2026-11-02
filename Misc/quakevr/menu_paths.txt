@@ -256,7 +256,6 @@ vr_gunsfx|1|Sound|Punchier Gunfire|Advanced VR Options > Sound > Punchier Gunfir
 vr_gunsfx_layers|1|Sound|Shot Layers|Advanced VR Options > Sound > Shot Layers
 vr_gunsfx_tail|1|Sound|Room Tail|Advanced VR Options > Sound > Room Tail
 vr_gunsfx_vary|1|Sound|Shot Variation|Advanced VR Options > Sound > Shot Variation
-vr_gunsfx_casings|1|Sound|Casings by Surface|Advanced VR Options > Sound > Casings by Surface
 vr_gunsfx_impacts|1|Sound|Surface Impacts|Advanced VR Options > Sound > Surface Impacts
 vr_gunsfx_dryfire|1|Sound|Dry Fire Click|Advanced VR Options > Sound > Dry Fire Click
 vr_gunsfx_action|1|Sound|Actions From the Action|Advanced VR Options > Sound > Actions From the Action
@@ -430,7 +429,6 @@ vr_dummy_anchored|1|Gore|Dummy Stays Put|Advanced VR Options > Gore > Dummy Stay
 vr_dummy_regen|2|Gore|Dummy Health Refills|Advanced VR Options > Gore > Dummy Health Refills
 vr_dummy_healthbar|1|Gore|Dummy Health Bar|Advanced VR Options > Gore > Dummy Health Bar
 vr_decals|1|Gore|Decals|Advanced VR Options > Gore > Decals
-vr_permdecals|1|Gore|Permanent Decals|Advanced VR Options > Gore > Permanent Decals
 vr_decal_entities|1|Gore|Marks on Moving Brushes|Advanced VR Options > Gore > Marks on Moving Brushes
 vr_decal_max|1|Gore|Max Decals|Advanced VR Options > Gore > Max Decals
 vr_decal_bucket_max|1|Gore|Decals Piled in One Spot|Advanced VR Options > Gore > Decals Piled in One Spot
@@ -827,8 +825,6 @@ vr_handgrenade|1|Batting and Catching|Hand Grenades|Advanced VR Options > Combat
 vr_handgrenade_arm|1|Batting and Catching|Arm Hand Grenades|Advanced VR Options > Combat > Batting and Catching > 
 |1|Batting and Catching|Reset This Page|Advanced VR Options > Combat > Batting and Catching > Reset This Page
 @page|1|Damage and Knockback||Advanced VR Options > Combat > Damage and Knockback
-vr_hit_precise|1|Damage and Knockback|Precise Hit Detection|Advanced VR Options > Combat > Damage and Knockback > 
-vr_hit_drawn_pose|1|Damage and Knockback|Armed Bodies as Drawn|Advanced VR Options > Combat > Damage and Knockback 
 vr_hit_tolerance_melee|1|Damage and Knockback|Melee Tolerance|Advanced VR Options > Combat > Damage and Knockback > 
 vr_hit_head_priority|1|Damage and Knockback|Head Priority|Advanced VR Options > Combat > Damage and Knockback > 
 vr_damage_to_enemies|1|Damage and Knockback|Damage to Enemies|Advanced VR Options > Combat > Damage and Knockback > 
@@ -2216,7 +2212,6 @@ vr_model_ambient_dir|1|Graphics - Models and Effects|Directional Ambient|Advance
 vr_model_ambient_contrast|1|Graphics - Models and Effects|Ambient Contrast|Advanced VR Options > Graphics > Models 
 r_lerpmodels|1|Graphics - Models and Effects|Model Animation|Advanced VR Options > Graphics > Models and Effects > 
 vr_anim_smooth_tension|1|Graphics - Models and Effects|Animation Ease|Advanced VR Options > Graphics > Models and 
-vr_mdl_dequant|1|Graphics - Models and Effects|Steady Model Vertices|Advanced VR Options > Graphics > Models and 
 vr_anim_smooth_rig|1|Graphics - Models and Effects|Swing Limbs|Advanced VR Options > Graphics > Models and Effects 
 vr_anim_smooth_rebuild|1|Graphics - Models and Effects|Rebuild From Skeleton|Advanced VR Options > Graphics > 
 vr_rim_light|1|Graphics - Models and Effects|Rim Light|Advanced VR Options > Graphics > Models and Effects > Rim 
@@ -4239,6 +4234,7 @@ vr_maps_debug_free_mb|2|Debug - Tools|Pretend Free Disk Space|Advanced VR Option
 |2|Debug - Tools|Clear Search's Recent List|Advanced VR Options > Debug > Tools > Clear Search's Recent List
 |2|Debug - Tools|Open the Map Browser|Advanced VR Options > Debug > Tools > Open the Map Browser
 |2|Debug - Tools|Font Sample Message|Advanced VR Options > Debug > Tools > Font Sample Message
+|2|Debug - Tools|Font Style Live Test|Advanced VR Options > Debug > Tools > Font Style Live Test
 |2|Debug - Tools|Blood and Gore|Advanced VR Options > Debug > Tools > Blood and Gore
 |2|Debug - Tools|Gore Burst|Advanced VR Options > Debug > Tools > Gore Burst
 |2|Debug - Tools|Gore Sounds: a Crowd's Tears|Advanced VR Options > Debug > Tools > Gore Sounds: a Crowd's Tears

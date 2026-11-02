@@ -1354,7 +1354,7 @@ void(float xHand) VR_Corpse_StrikeFrame =
     float blunt = FALSE;
 
     // The hand, along its swing.
-    traceline(hand - dir * 6, hand + dir * 8, MOVE_HITGIBS | MOVE_HITMODEL_MELEE, self); // VR: the corpse's model (vr_hit_precise)
+    traceline(hand - dir * 6, hand + dir * 8, MOVE_HITGIBS | MOVE_HITMODEL_MELEE, self); // VR: the corpse's model (precise hits)
     if(trace_ent.vr_corpse == 2 || trace_ent.vr_corpse_dying)
     {
         c = trace_ent;

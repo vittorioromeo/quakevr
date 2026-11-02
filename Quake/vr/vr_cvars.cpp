@@ -515,6 +515,8 @@ ConfigTrack configTrack;
 // only when changed from their defaults, after a "vr_config_defaults" line that sets the others to theirs. A line in the
 // config is the player's choice, and a changed default reaches everyone else with no defaultChanges row. Ironwail's own
 // settings (r_*, gl_*, ...) are all written, as before.
+constexpr int sparseConfigVersion = 218;
+
 [[nodiscard]] bool inSparseConfig(const cvar_t* var)
 {
     return !ZA_STRNCMP(var->name, "vr_", 3);
@@ -551,15 +553,14 @@ void configDefaults_f()
     }
 }
 
-// The archived settings a config file sets (`name "value"` lines, as Cvar_WriteVariables writes them; a sparse config's
-// vr_ settings without a line: their defaults).
-[[nodiscard]] ankerl::unordered_dense::map<za::String, za::String> readConfigSettings(const char* path)
+// A config file's `name "value"` lines (as Cvar_WriteVariables writes them), in order: fn(name, value). False: no file.
+template <typename Fn>
+[[nodiscard]] bool forEachConfigLine(const char* path, Fn&& fn)
 {
-    ankerl::unordered_dense::map<za::String, za::String> settings;
     FILE* f = Sys_fopen(path, "rb"); // (UTF-8 path: a non-ASCII game folder)
     if(!f)
     {
-        return settings;
+        return false;
     }
     za::String line;
     for(int c = 0; c != EOF;)
@@ -576,15 +577,32 @@ void configDefaults_f()
         if(open != za::StringView::nPos && close > open && line.findFirstNotOf(' ', space) == open)
         {
             const za::String name{line.substrByPosLen(0, space)};
-            const cvar_t* var = Cvar_FindVar(name.cStr());
-            if(var && (var->flags & CVAR_ARCHIVE))
-            {
-                settings[za::String{var->name}] = line.substrByPosLen(open + 1, close - open - 1); // (an old name: the new)
-            }
+            const za::String value{line.substrByPosLen(open + 1, close - open - 1)};
+            fn(name, value);
         }
         line.clear();
     }
     fclose(f);
+    return true;
+}
+
+// The archived settings a config file sets (a sparse config's vr_ settings without a line: their defaults).
+[[nodiscard]] ankerl::unordered_dense::map<za::String, za::String> readConfigSettings(const char* path)
+{
+    ankerl::unordered_dense::map<za::String, za::String> settings;
+    const bool read = forEachConfigLine(path,
+        [&settings](const za::String& name, const za::String& value)
+        {
+            const cvar_t* var = Cvar_FindVar(name.cStr());
+            if(var && (var->flags & CVAR_ARCHIVE))
+            {
+                settings[za::String{var->name}] = value; // (an old name: the new)
+            }
+        });
+    if(!read)
+    {
+        return settings;
+    }
     // A sparse config (218) has no line for a vr_ setting at its default: it sets that default (vr_config_defaults).
     for(const cvar_t* var = Cvar_FindVarAfter("", CVAR_ARCHIVE); var; var = Cvar_FindVarAfter(var->name, CVAR_ARCHIVE))
     {
@@ -654,8 +672,15 @@ void resetOldConfig(int from)
 // Right after the saved config is executed (Cmd_Exec_f queues it).
 void migrateConfig_f()
 {
+    // (the version it was saved with: migrateConfig moves it on)
+    const bool sparse = Cmd_Argc() == 1 && static_cast<int>(vr_cfg_version.value) >= sparseConfigVersion;
     migrateConfig();
-    trackConfig(va("%s/%s", com_gamedir, CONFIG_NAME));
+    const char* path = va("%s/%s", com_gamedir, CONFIG_NAME);
+    trackConfig(path);
+    if(sparse)
+    {
+        tunablesTakeConfigLines(path); // (an older config's lines are mostly old defaults: not the player's)
+    }
     tunablesLoad(); // tunables.cfg, after the config (vr_tunables.cpp)
 }
 
@@ -870,6 +895,22 @@ void saveDefaults_f()
 
 } // namespace
 
+// A setting that became a tuning constant: a line in a sparse config is the player's value (sparseConfigVersion), and it
+// would go at the next write (the name is no setting now): a development build keeps it as the constant's, in
+// tunables.cfg, where tune_promote.py and make_release.ps1's gate see it. Read after the config ran (which ignored the
+// line: VR_RetiredCvar), not from the line itself: a test script or a console command sets nothing this way.
+void tunablesTakeConfigLines(const char* path)
+{
+    (void)forEachConfigLine(path,
+        [](const za::String& name, const za::String& value)
+        {
+            if(!Cvar_FindVar(name.cStr()))
+            {
+                tunableTakeConfigLine(name.cStr(), value.cStr());
+            }
+        });
+}
+
 bool sameSettingValue(const char* a, const char* b)
 {
     return sameValue(a, b);
@@ -921,6 +962,13 @@ constexpr const char* retiredCvars[] = {
     "vr_decals_world",
     "vr_font_shadow_size", // 2026-11-02: the shadow's offset, now vr_font_shadow_x and _y (vr_font_shadow_grow its size)
     "vr_worn_backpacks", // 2026-11-02: armed grunts always wear their backpack (ROUND23.md, "Worn backpacks always on")
+    // 2026-11-02: option round 2's removals, their "on" kept (ROUND23.md, "Option round 2: removals"): armed bodies hit
+    // as drawn, casings' sound per surface, precise hit detection, permanent decals, dequantised .mdl vertices.
+    "vr_hit_drawn_pose",
+    "vr_gunsfx_casings",
+    "vr_hit_precise",
+    "vr_permdecals",
+    "vr_mdl_dequant",
     // 2026-11-02: legacy options removed, their defaults kept (ROUND23.md, "Legacy options removed, group 1").
     "vr_hand_rig",
     "vr_gun_wall_slide",
@@ -1156,7 +1204,7 @@ extern "C" int VR_RetiredCvar(const char* name)
     }
     if(qvr::tunableFind(name))
     {
-        return 1; // a tuning constant now (vr_tunables.inc): an old config's line for it is ignored
+        return 1; // a tuning constant now (vr_tunables.inc): the line sets nothing (a sparse config's value: tunablesTakeConfigLines)
     }
     // 2026-10-31: the one two-handed recoil slider split in four: an old config's value set on each.
     if(qvr::weapons::retiredTwoHandLine(name, Cmd_Argc() > 1 ? Cmd_Argv(1) : nullptr))

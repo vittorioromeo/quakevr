@@ -174,7 +174,7 @@ bool drawnTriangles(edict_t* ent, const qmodel_t* model, za::Vector<Triangle>& o
     const auto* base = reinterpret_cast<const byte*>(hdr);
     const auto* mesh = reinterpret_cast<const aliasmesh_t*>(base + hdr->meshdesc);
     const auto* indexes = reinterpret_cast<const unsigned short*>(base + hdr->indexes);
-    mdldequant::prepare(model); // the vertices as drawn (vr_mdl_dequant), not the stored bytes
+    mdldequant::prepare(model); // the vertices as drawn (dequantised), not the stored bytes
     const auto vertex = [&](int i) { return xf.stored(mdldequant::poseVertex(hdr, pose, mesh[indexes[i]].vertindex)); };
     for(int i = 0; i + 2 < hdr->numindexes; i += 3)
     {
@@ -557,7 +557,7 @@ bool modelVertices(const qmodel_t* model, bool mirrored, za::Vector<glm::vec3>& 
     }
     const DrawnTransform xf{model, glm::vec3{0.f}, glm::vec3{0.f}, glm::vec3{0.f}};
     const int pose = hdr->frames[0].firstpose;
-    mdldequant::prepare(model); // the vertices as drawn (vr_mdl_dequant), not the stored bytes
+    mdldequant::prepare(model); // the vertices as drawn (dequantised), not the stored bytes
     out.reserve(static_cast<size_t>(hdr->numverts));
     for(int i = 0; i < hdr->numverts; i++)
     {
@@ -589,7 +589,7 @@ bool modelTriangles(const qmodel_t* model, bool mirrored, za::Vector<glm::vec3>&
     const int pose = hdr->frames[0].firstpose;
     const auto* mesh = reinterpret_cast<const aliasmesh_t*>(base + hdr->meshdesc);
     const auto* indexes = reinterpret_cast<const unsigned short*>(base + hdr->indexes);
-    mdldequant::prepare(model); // the vertices as drawn (vr_mdl_dequant), not the stored bytes
+    mdldequant::prepare(model); // the vertices as drawn (dequantised), not the stored bytes
     out.reserve(static_cast<size_t>(hdr->numindexes));
     for(int i = 0; i < hdr->numindexes; i++)
     {
@@ -623,7 +623,7 @@ bool magazinePoints(const DrawnTransform& xf, const qmodel_t* mag, bool mirrored
     const int pose = hdr->frames[0].firstpose;
     const glm::vec3 so{hdr->scale_origin[0], hdr->scale_origin[1], hdr->scale_origin[2]};
     const glm::vec3 hs{hdr->scale[0], hdr->scale[1], hdr->scale[2]};
-    mdldequant::prepare(mag); // the vertices as drawn (vr_mdl_dequant), not the stored bytes
+    mdldequant::prepare(mag); // the vertices as drawn (dequantised), not the stored bytes
     out.reserve(static_cast<size_t>(hdr->numverts));
     for(int i = 0; i < hdr->numverts; i++)
     {

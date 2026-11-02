@@ -147,8 +147,7 @@ struct Decal
     za::Vector<za::U32> buckets;
     za::U32 bucketsMask = 0;
     int brush = 0; // the runtime brush (vr_brushes.cpp) it lies on, by id (0: none; -1: more than one)
-    bool permTried = false; // baked into the permanent layer and found no face there (vr_permdecals: it stays live)
-    bool fromLayer = false; // one of the permanent layer's, shown live while it is off (showRecord: dropped when on)
+    bool permTried = false; // baked into the permanent layer and found no face there (it stays live)
     // Carved (vr_decal_carve; the shader's Decal.carve): its crater's depth in units (0: flat), radius in units, rim's
     // height over its depth, dark core's part of the radius + 2 x its shape (0 a pit, 1 a nail's hole, 2 a blast's).
     glm::vec4 carve{0.f};
@@ -781,7 +780,7 @@ void makeAtlas()
 
 [[nodiscard]] bool hitWorld(const glm::vec3& from, const glm::vec3& to, glm::vec3& where, glm::vec3& normal, float& fraction)
 {
-    // With the permanent layer (vr_permdecals), the brush models too: a mark on a door is baked into its faces.
+    // With the permanent layer on, the brush models too: a mark on a door is baked into its faces.
     trace_t tr = worldtrace::world(from, to, permdecals::on());
     bool world = tr.fraction < 1.f && !tr.startsolid && !tr.allsolid;
     // A brush entity of its own file (or the map's, the permanent layer off) nearer: marked in its space (add).
@@ -1165,22 +1164,14 @@ bool addOnEntity(int ent, const Decal& d)
 }
 
 // A live mark the ring lets go of (to the cap, a drop's limit, its life) before it was baked: baked as it would have
-// settled with the permanent layer on (vr_permdecals), not lost; with the layer off, kept for when it is on again
-// (permdecals::record; the rule: vr_permdecals.hpp's kept).
+// settled with the permanent layer on, not lost.
 void bakeEarly(const Decal& d)
 {
-    if(d.brush != 0 || d.permTried || d.fromLayer)
+    if(d.brush != 0 || d.permTried || !permdecals::on())
     {
         return;
     }
-    if(permdecals::on())
-    {
-        (void)permdecals::bakeWorld(stampOf(d));
-    }
-    else
-    {
-        permdecals::record(stampOf(d));
-    }
+    (void)permdecals::bakeWorld(stampOf(d));
 }
 
 // Mark `d` (its triangles `tris`) into the ring: the oldest go first if it is full (as many as vr_decal_max, lowered,
@@ -1215,63 +1206,6 @@ void pushDecal(Decal&& d, const za::Vector<Corner>& tris, int max)
     slot.bucketsMask = 0;
     dropCount += isDrop(slot);
     worldDirty = true; // (the world's shader takes it in the next frame: in both eyes together)
-}
-
-// The permanent layer switched off (vr_permdecals 0), or a save loaded with it off: the newest of its marks on the
-// static world shown live, as many as the ring has room for (vr_decal_max with the live ones), older than the live ones
-// (the ring's order), settled (spread, darkened) and with a whole life ahead (vr_decal_life). They stay in the layer's
-// stamps (fromLayer: dropped from the ring, not baked again, when it is on again). The rule: vr_permdecals.hpp's kept.
-za::Vector<permdecals::Stamp> recordShown; // (showRecord's)
-za::Vector<Decal> liveKept;               // (showRecord's: the live marks moved behind those shown)
-
-void showRecord()
-{
-    const int max = static_cast<int>(vr_decal_max.value);
-    if(max <= 0 || !cl.worldmodel)
-    {
-        return;
-    }
-    QVR_PROFILE("decals from the permanent layer");
-    permdecals::newestWorld(max - static_cast<int>(za::min(decals.size(), static_cast<za::SizeT>(max))), recordShown);
-    if(recordShown.empty())
-    {
-        return;
-    }
-    if(!atlas)
-    {
-        makeAtlas();
-    }
-    liveKept.clear();
-    while(!decals.empty())
-    {
-        dropCount -= isDrop(decals.front());
-        liveKept.pushBack(ZA_MOVE(decals.front()));
-        decals.popFront();
-    }
-    worldDirty = true;
-    za::Vector<Corner>& tris = scratch.tris;
-    int shown = 0;
-    for(const permdecals::Stamp& s : recordShown)
-    {
-        Decal d{s.centre, s.u, s.v, s.cell, cl.time - 9.0};
-        d.darken = za::clamp(1.f - s.dark, 0.f, 0.9f);
-        d.normal = s.normal;
-        d.depth = s.depth;
-        d.fromLayer = true;
-        clipToWorld(d, d.normal, d.depth, tris, d.brush);
-        if(!tris.empty())
-        {
-            pushDecal(ZA_MOVE(d), tris, max);
-            shown++;
-        }
-    }
-    for(Decal& d : liveKept)
-    {
-        pushDecal(ZA_MOVE(d), d.tris, max);
-    }
-    liveKept.clear();
-    Con_DPrintf("decals: %d of the permanent layer's %d newest marks shown live (vr_permdecals 0)\n", shown,
-        static_cast<int>(recordShown.size()));
 }
 
 // `carve`: carved (vr_decal_carve) as {its crater's depth in units (0 flat), radius over the mark's half size, rim's
@@ -1350,7 +1284,7 @@ bool add(Kind kind, const glm::vec3& where, const glm::vec3& normal, float size,
     }
     za::Vector<Corner>& tris = scratch.tris;
     clipToWorld(d, n, d.depth, tris, d.brush);
-    // With the permanent layer (vr_permdecals), its part on the brush models (doors, lifts) baked when it shows (at once,
+    // With the permanent layer on, its part on the brush models (doors, lifts) baked when it shows (at once,
     // or after its delay), in their own space: the live marks are the static world's.
     int onModels = 0;
     if(permdecals::on())
@@ -2164,16 +2098,14 @@ void buildWorld()
 }
 
 int permFrame = -1;  // the host frame bakeSettled last ran in (VR_DecalsFrame's first view: the main thread)
-int layerShown = -1; // the permanent layer shown (1) or kept off (0) at the last frame with vr_decals on (-1: not yet)
 za::Vector<za::U8> bakedNow; // (bakeSettled's: the marks gone from the ring this frame, by ring order)
 
-// With the permanent layer (vr_permdecals), the marks that have settled (shown, spread, darkened; a tenth of a second
+// With the permanent layer on, the marks that have settled (shown, spread, darkened; a tenth of a second
 // at least, for a hit's second effect to find its first: add; 8 s for blood that darkens as it dries) baked into it and
 // gone from the ring, so that the live cap no longer limits what stays: those on the static world (those on the boxes
 // made in the game stay live: theirs go with them, removeOn). The oldest first, vr_permdecal_bake_max pages a frame at
-// most (the others stay live a frame or more). Those shown from it while it was off (fromLayer) leave the ring. Then
-// what was baked drawn into the layer's atlas. Once a frame, before the world draws. The layer switched off: its newest
-// marks shown live (showRecord); on again: what was kept while off baked (rebake).
+// most (the others stay live a frame or more). Then what was baked drawn into the layer's atlas. Once a frame, before
+// the world draws.
 void bakeSettled()
 {
     if(permFrame == host_framecount)
@@ -2190,22 +2122,9 @@ void bakeSettled()
     {
         makeAtlas();
     }
-    if(vr_decals.value)
+    if(permdecals::on())
     {
-        const bool shown = permdecals::on(), kept = permdecals::kept();
-        if(kept && (layerShown == 1 || restored == 2))
-        {
-            showRecord();
-        }
-        if(shown)
-        {
-            (void)permdecals::rebake();
-            (void)permdecals::bakeDue(); // (the brush models' marks shown by now)
-        }
-        if(shown || kept)
-        {
-            layerShown = shown ? 1 : 0;
-        }
+        (void)permdecals::bakeDue(); // (the brush models' marks shown by now)
     }
     if(vr_decals.value && permdecals::on() && !decals.empty())
     {
@@ -2227,19 +2146,13 @@ void bakeSettled()
         {
             for(za::SizeT i = 0; i < n; i++)
             {
-                carvedLeft += decals[i].carve.x > 0.f && !decals[i].fromLayer ? 1 : 0;
+                carvedLeft += decals[i].carve.x > 0.f ? 1 : 0;
             }
         }
         const double carveUntil = static_cast<double>(za::max(10.f, vr_decal_life.value)) - 6.0;
         for(za::SizeT i = 0; i < n; i++)
         {
             Decal& d = decals[i];
-            if(d.fromLayer)
-            {
-                bakedNow[i] = 1; // (in the layer already)
-                gone++;
-                continue;
-            }
             const bool carved = carving && d.carve.x > 0.f;
             if(carved && carvedLeft-- <= carveMax && cl.time - d.born < carveUntil)
             {
@@ -2854,7 +2767,7 @@ void liveStamps(za::Vector<permdecals::Stamp>& out)
     for(za::SizeT k = 0; k < decals.size(); k++)
     {
         const Decal& d = decals[k];
-        if(d.brush == 0 && !d.permTried && !d.fromLayer && !d.tris.empty())
+        if(d.brush == 0 && !d.permTried && !d.tris.empty())
         {
             out.pushBack(stampOf(d));
         }

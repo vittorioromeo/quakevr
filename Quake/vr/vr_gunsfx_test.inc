@@ -55,10 +55,9 @@ void test_f()
         return;
     }
     const KeepCvar keep[] = {KeepCvar{&vr_gunsfx}, KeepCvar{&vr_gunsfx_layers}, KeepCvar{&vr_gunsfx_tail},
-        KeepCvar{&vr_gunsfx_vary}, KeepCvar{&vr_gunsfx_casings}, KeepCvar{&vr_gunsfx_dryfire}, KeepCvar{&vr_gunsfx_action},
-        KeepCvar{&vr_gunsfx_punch}};
-    for(cvar_t* c : {&vr_gunsfx, &vr_gunsfx_layers, &vr_gunsfx_tail, &vr_gunsfx_casings, &vr_gunsfx_dryfire,
-            &vr_gunsfx_action, &vr_gunsfx_punch})
+        KeepCvar{&vr_gunsfx_vary}, KeepCvar{&vr_gunsfx_dryfire}, KeepCvar{&vr_gunsfx_action}, KeepCvar{&vr_gunsfx_punch}};
+    for(cvar_t* c : {&vr_gunsfx, &vr_gunsfx_layers, &vr_gunsfx_tail, &vr_gunsfx_dryfire, &vr_gunsfx_action,
+            &vr_gunsfx_punch})
     {
         Cvar_SetQuick(c, "1");
     }
@@ -204,9 +203,6 @@ void test_f()
         check(casings == 3 && debris::materialOf("metal1_1") == debris::Material::Metal &&
                 debris::materialOf("wood1_1") == debris::Material::Wood,
             "metal and wood casings' sounds made (%d of 3)", casings);
-        Cvar_SetQuick(&vr_gunsfx_casings, "0");
-        check(casingSound(floor, glm::vec3{0.f, 0.f, 1.f}, 1) == nullptr, "casings off: the tinks everywhere");
-        Cvar_SetQuick(&vr_gunsfx_casings, "1");
     }
 
     // 5. The dry click: a tick in the hand that clicked; silent at 0.

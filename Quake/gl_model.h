@@ -330,7 +330,7 @@ typedef struct {
 	intptr_t		indexes;        // offset into extradata: numindexes unsigned shorts
 	intptr_t		vertexes;       // offset into extradata: numposes*vertsperframe trivertx_t
 	intptr_t		dequant;        // QVR: offset into extradata (0 none): numposes*vertsperframe unsigned, each axis' dequantised offset from its byte (snorm8 / 254 steps), then as many smoothed normals (snorm8 * 127, as the VBO holds them; vr/vr_mdldequant.cpp)
-	int				dequantready;   // QVR: ... computed (the first upload with vr_mdl_dequant on: none while it is off)
+	int				dequantready;   // QVR: ... computed (by the first upload)
 
 	intptr_t	vbovertofs;
 	intptr_t	vbostofs;
@@ -551,7 +551,6 @@ void	Mod_ResetAll (void); // for gamedir changes (Host_Game_f)
 qmodel_t *Mod_ForName (const char *name, qboolean crash);
 void	*Mod_Extradata (qmodel_t *mod);	// handles caching
 void	Mod_ReloadAliasModel (qmodel_t *mod); // QVR: vr_hand_reload
-void	Mod_ReuploadAliasModels (void); // QVR: every loaded alias model's VBO built again (vr_mdl_dequant)
 void	Mod_TouchModel (const char *name);
 
 #define VIS_ALIGN			16						// vis buffer size alignment (in bytes)

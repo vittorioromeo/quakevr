@@ -1217,7 +1217,7 @@ void SV_ClipToLinks ( areanode_t *node, moveclip_t *clip )
 				continue;	// don't clip against owner (QVR: but a missile come through a teleporter meets it: VR_PortalHitsOwner)
 		}
 
-		// QVR: precise hits (vr_hit_precise, vr/vr_hitmodel.cpp): a monster's box (grown by the
+		// QVR: precise hits (vr/vr_hitmodel.cpp): a monster's box (grown by the
 		// tolerance) is only the broad phase; the move meets its model as drawn, or goes on through.
 		// A monster moving (knocked back) into a missile doesn't meet it with its box: the missile's
 		// own move meets its model.

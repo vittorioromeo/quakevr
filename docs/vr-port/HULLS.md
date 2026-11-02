@@ -500,7 +500,7 @@ better. Right now they're quite large."
 | Walking, stepping, falling, `droptofloor`, doors and lifts pushing it (against the map and brush models) | Quake's clipping hull for its width (`SV_HullForEntity`): hull 1 (32 wide, 56 tall) up to 32 wide, else hull 2 (64 wide, 88 tall), whatever its own box |
 | Ledges (`SV_CheckBottom`: every corner over ground) | its own box's corners |
 | Bodies: you, other monsters, solid boxes | its own box (`SV_HullForBox`); yours narrowed (Width Against Them) |
-| Your shots, missiles, grenades, melee, shoves, thrown props | its model as drawn (`vr_hit_precise` 1, the default): the box is only the broad phase |
+| Your shots, missiles, grenades, melee, shoves, thrown props | its model as drawn (always; a monster without a Quake .mdl: its box): the box is only the broad phase |
 | Splash damage, the headbutt, telefrags, the power shield, Box3D's own prop contacts | the box (or its centre): see "What shots still hit by box" |
 | Pathing (`SV_CloseEnough`), its melee and ranges | its `absmin`/`absmax`; the distance between origins |
 
