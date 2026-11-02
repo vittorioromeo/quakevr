@@ -498,11 +498,11 @@ vector(entity e) modelcentre = #0; // the middle of the drawn model (turned with
 // (a unit vector) whose cosine is mincos (a little wider: test each again), or within a unit of org.
 entity(vector org, float rad, vector dir, float mincos) findcone = #0;
 void(vector v1, vector mins, vector maxs, vector v2, float nomonsters, entity forent) tracebox = #0; // traceline with a box
-// Precise hit detection (engine vr_hitmodel.cpp; the option vr_hit_precise): shots, missiles, the grappling hook, melee
+// Precise hit detection (engine vr_hitmodel.cpp): shots, missiles, the grappling hook, melee
 // blows and thrown things meet a monster's (or a corpse's) model as drawn, grown by their class's tolerance
 // (vr_hit_tolerance_*), not Quake's box round it. Added to a traceline's "nomonsters" (FALSE, MOVE_HITGIBS): monsters are
-// met at their models, the class in the two bits above (a missile's move has it from .vr_hitclass). With the option off,
-// ignored: the boxes, as before.
+// met at their models, the class in the two bits above (a missile's move has it from .vr_hitclass). A monster
+// without a model to go by (no Quake .mdl): its box.
 float MOVE_HITMODEL = 512;          // a gun's shot (vr_hit_tolerance_guns)
 float MOVE_HITMODEL_GRAPPLE = 1536; // the grappling hook's (MOVE_HITMODEL + 1 * 1024)
 float MOVE_HITMODEL_MELEE = 2560;   // a melee blow's (+ 2 * 1024)

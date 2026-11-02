@@ -463,7 +463,7 @@ void tink(Shell& s, float impact, const glm::vec3& normal)
     s.tinks++;
     s.nextTink = cl.time + 0.06;
 
-    // Of what it landed on: metal's ring, wood's knock; stone (and the rest) the tinks (vr_gunsfx_casings).
+    // Of what it landed on: metal's ring, wood's knock; stone (and the rest) the tinks.
     const int k = rng.getI(0, 2);
     const char* surface = gunsfx::casingSound(s.pos, normal, k);
     sfx_t* sfx = S_PrecacheSound(surface ? surface : tinkSounds[k]);

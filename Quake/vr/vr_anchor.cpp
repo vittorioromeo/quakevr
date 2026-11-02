@@ -453,7 +453,7 @@ mem::Cache<AnchorCache> anchorCache{"anchors", mem::GameDirChange | mem::ModelRe
     return {v.v[0], v.v[1], v.v[2]};
 }
 
-// As drawn: dequantised (vr_mdl_dequant; off: the stored bytes).
+// As drawn: dequantised (vr_mdldequant.cpp).
 [[nodiscard]] glm::vec3 poseVertex(const aliashdr_t* hdr, int pose, int vertex)
 {
     return mdldequant::poseVertex(hdr, pose, vertex);
@@ -625,7 +625,7 @@ bool posedVertices(const entity_t& ent, float zeroBlend, za::Vector<glm::vec3>& 
     now.resize(hdr->numverts);
     for(int v = 0; v < hdr->numverts; v++)
     {
-        rest[v] = storedVertex(hdr, zero, v); // (the binding, kept: the stored bytes whatever vr_mdl_dequant)
+        rest[v] = storedVertex(hdr, zero, v); // (the binding, kept: the stored bytes, not the dequantised ones)
         now[v] = glm::mix(drawnVertex(ent, hdr, d.poses, v), rest[v], CLAMP(0.f, zeroBlend, 1.f));
     }
     return true;

@@ -938,6 +938,13 @@ constexpr const char* retiredCvars[] = {
     "vr_decals_world",
     "vr_font_shadow_size", // 2026-11-02: the shadow's offset, now vr_font_shadow_x and _y (vr_font_shadow_grow its size)
     "vr_worn_backpacks", // 2026-11-02: armed grunts always wear their backpack (ROUND23.md, "Worn backpacks always on")
+    // 2026-11-02: option round 2's removals, their "on" kept (ROUND23.md, "Option round 2: removals"): armed bodies hit
+    // as drawn, casings' sound per surface, precise hit detection, permanent decals, dequantised .mdl vertices.
+    "vr_hit_drawn_pose",
+    "vr_gunsfx_casings",
+    "vr_hit_precise",
+    "vr_permdecals",
+    "vr_mdl_dequant",
     // 2026-11-02: legacy options removed, their defaults kept (ROUND23.md, "Legacy options removed, group 1").
     "vr_hand_rig",
     "vr_gun_wall_slide",

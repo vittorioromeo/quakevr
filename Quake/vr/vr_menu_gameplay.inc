@@ -951,7 +951,6 @@ void ikStretchReset()
         row(opt::vr_gunsfx_layers),
         row(opt::vr_gunsfx_tail),
         row(opt::vr_gunsfx_vary),
-        row(opt::vr_gunsfx_casings),
         row(opt::vr_gunsfx_impacts),
         row(opt::vr_gunsfx_dryfire),
         row(opt::vr_gunsfx_action),
@@ -991,8 +990,6 @@ void ikStretchReset()
 {
     return {
         header("Hit Detection"),
-        row(opt::vr_hit_precise),
-        row(opt::vr_hit_drawn_pose),
         row(opt::vr_hit_tolerance_melee),
         row(opt::vr_hit_head_priority),
         header("Damage"),

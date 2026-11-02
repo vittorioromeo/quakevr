@@ -160,7 +160,7 @@ float(entity e) VR_Decap_HeadZone =
 };
 
 // Whether a hit at `xAt` going `xDir` on `e` is at its head: its head zone (VR_Decap_HeadZone: on its model standing,
-// vr_hit_precise; else the ray past its head sphere), whether positional damage is on or not.
+// precise hits; else the ray past its head sphere), whether positional damage is on or not.
 float(entity e, vector xAt, vector xDir) VR_Decap_OnHead =
 {
     if(!VR_Decap_HeadZone(e))
