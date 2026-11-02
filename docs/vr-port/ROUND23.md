@@ -6533,3 +6533,31 @@ crowd32_armed, 3 reps each): frame p50 6.57 to 6.27 ms, p99 21.8 to 20.1 ms, CPU
 micro-bench (`vr_qcexec_bench ad_mathlib_pow`, goto loop) read 83/73/80 ns/call before and 94/88/91 after, but a
 second after-run read 94/121/135, so it is too noisy here to credit or blame the format. Not settled: a small per-statement
 cost is possible; a quiet machine with both exes would settle it.
+
+## Tuned values can't be lost at release (branch `agent/promoguard`, 2026-11-02)
+
+His words: "Can we automate tweaks promotion so we can never forget?" Tuning constants are live in a development build
+(`tunables.cfg`) and constexpr in a release, so an unpromoted value silently disappears there.
+
+- **Release gate.** `make_release.ps1`'s checks run `tune_promote.py <file> --check --quiet` on `-TunablesCfg` (default his
+  checkout's `quakevr/tunables.cfg`; absent: a warning, an explicit path absent: a problem). Anything off the tree's
+  `vr_tunables.inc` is a PROBLEM before the tests or the build: each value, and the exact command. `-DryRun` and `-Local`
+  (ships to nobody) only warn. `-AllowUnpromotedTunables` goes on, in red, with the list in PUBLISH.txt's warnings.
+  `make_release.py` only makes the assets from what the script built: not a path around this.
+- **A setting that becomes a constant.** Before: the config line ran into `VR_RetiredCvar`, was ignored, and the next
+  write left it out: the value gone. Now, right after the saved config ran (`vr_migrate_config`), a development build reads
+  the file for `name "value"` lines naming a constant (`tunablesTakeConfigLines`) and keeps each as if tuned, one console
+  line each; `tunables.cfg`, read next, wins for a name it also holds. Only a **sparse** config (version 218+): there a
+  line is the player's choice, while an older full config holds every setting, mostly old defaults (the kit's baselines,
+  version 141: 931 same and 11 stale values such as `vr_chainsaw_damage 100`, which must not become tweaks: the tests'
+  `oldconfig` step). Not from the executed line: scripts' and console lines still set nothing (`-Script` runs inside
+  `in_cfg_exec` too). His config (219) has no such line today; earlier moves' values, if any, were lost before this.
+- **`tune_promote.py --check --quiet`** (also implied by `--quiet`): prints only what is unpromoted, exit 2; nothing and
+  exit 0 when clean or the file is absent; exit 1 on an error. Values equal as numbers no longer count as a change, as in
+  the game (`sameAsDefault`), which keeps "1.50" against "1.5" from stopping a release.
+- **Fixed on the way:** `tunablesLoad` cleared `fileDirty`; it now keeps what was set before it, or a taken value would not
+  be written unless something else was tuned.
+- **Tests.** `tunables_test.sh`: 13 of 13 stages (new: `oldconfig`, quiet on three files, run 3 `configline`: value taken,
+  one console line, kept at quit, a setting's line untouched). One real start with the baseline marked 219: 11 constants
+  kept in `tunables.cfg`. Gate: stops ("1 problem(s) ... nothing was built"), warns in a dry run, the override's banner,
+  the absent path. A build with `QVR_RELEASE` was not run for this (the stub is two `(void)`s).
