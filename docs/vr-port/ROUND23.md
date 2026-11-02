@@ -6851,8 +6851,9 @@ Cadence 1 the proposal leaves the slider dead at a full run, where he plays and 
 **At defaults:** his look: 4.87 steps a second at a run at his height (1.56 m) against the new 4.9, and the same under it
 within the count's grain (old 2.5 / 3.5 / 5.0, new 2.67 / 3.67 / 5.0); the old cap of 2.2 survives as `SLOWEST_STEPS`, the least
 share at a crawl. Other heights change a little: the old rate at a run followed the body (4.6 at the models' own 1.65 m), the
-new one is the slider's number. A config from before the sparse ones (vr_cfg_version < 218) still holding 2.2 keeps 2.2, as
-for any changed default.
+new one is the slider's number. The old number can't be converted, so configVersion 220 puts any saved `vr_body_step_rate` back to the
+default, a player's own choice too (a beta 4 config holds 2.2: under half today's rate otherwise), and clamps a saved
+`vr_body_step_run` to 0 .. 1 (`Misc/quakevr/config220_test.sh`).
 
 **Stride.** `vr_body_stride` (Stride Length, 1, 0.3 .. 2), times the stride; `vr_body_step_width` (Step Width, 0 m, -0.08 ..
 0.25), each foot further out than it stands, eased with the walk. No setting for either before (the feet stand the hips' width
