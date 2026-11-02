@@ -1779,6 +1779,36 @@ void(entity g, entity p) VR_AGK_Query =
     vr_agk_hplay = h_z;
 };
 
+// When act `g`'s phase `ph` key is whole (s into it; its times set: VR_AGP_Times): the wind-up's end, the blow (a
+// swing's, a punch's; the shove's push's end: its contact), the follow-through's middle (the shove's recover key); the
+// Cast's key past its raise.
+float(entity g, float ph) VR_AGK_KeyTime =
+{
+    if(g.vr_ag_act == VR_AGP_CAST)
+    {
+        return vr_agp_tw + 0.01;
+    }
+    if(g.vr_ag_act == VR_AGP_SHOVE)
+    {
+        return ph == 1 ? vr_agp_tw + vr_agp_ts + 0.0005 : ph == 2 ? vr_agp_tw + vr_agp_ts + vr_agp_th + 0.0005 :
+            vr_agp_tw * 0.999;
+    }
+    if(ph == 1)
+    {
+        return vr_agp_tw + vr_agp_ts * (g.vr_ag_act == VR_AGP_PUNCH ? 0.8 : 0.5334); // (Smooth(0.5334) = 0.55: a swing's blow)
+    }
+    return ph == 2 ? vr_agp_tw + vr_agp_ts + vr_agp_th * 0.5 + 0.001 : vr_agp_tw * 0.999;
+};
+
+// The Rig Studio's timeline told `g`'s act's times (its times set: VR_AGP_Times; vr_rigseq.qc .vr_rs_*): its phases'
+// lengths and its keys' times.
+void(entity g) VR_AGK_TellTimes =
+{
+    g.vr_rs_times = [vr_agp_tw, vr_agp_ts, vr_agp_th];
+    g.vr_rs_trec = vr_agp_tr;
+    g.vr_rs_keys = [VR_AGK_KeyTime(g, 0), VR_AGK_KeyTime(g, 1), VR_AGK_KeyTime(g, 2)];
+};
+
 // `g` (frozen: VR_AGP_Pose) held in the studio's pose: its target ahead, its stance's shares set at once, its frame (a
 // run's mid-stride, the take's lowest), a strike at its phase's key (no blow dealt; Play: once from its start).
 void(entity g, entity p) VR_AGK_Hold =
@@ -1830,6 +1860,9 @@ void(entity g, entity p) VR_AGK_Hold =
     {
         g.vr_ag_took_at = 0;
     }
+    // (the Rig Studio's strike timeline: x the speed of its Swing, y its time into the act (s, at 1x), z 1 while its
+    // timeline drives it (then the act is put at that time each frame, unslowed: the studio plays, pauses and scrubs it))
+    vector tl = weapondrawnpose(g, -1, 19);
     if(pose == VR_AGK_CAST)
     {
         // (held whole in its Cast key: past its raise, no volley)
@@ -1837,6 +1870,13 @@ void(entity g, entity p) VR_AGK_Hold =
         g.vr_ag_act_at = time - VR_AGP_CAST_RAISE - 0.01;
         g.vr_ag_act_hit = 2;
         g.vr_ag_act_tick = time;
+        g.vr_ag_act_speed = 1;
+        VR_AGP_Times(g);
+        VR_AGK_TellTimes(g);
+        if(tl_z)
+        {
+            g.vr_ag_act_at = time - tl_y;
+        }
     }
     else if(g.vr_ag_act == VR_AGP_CAST)
     {
@@ -1855,12 +1895,22 @@ void(entity g, entity p) VR_AGK_Hold =
     g.vr_ag_act_hit = 2; // (no blow dealt, no cut)
     g.vr_ag_act_hitl = 1;
     g.vr_ag_act_tick = time;
+    if(tl_z)
+    {
+        // (the Rig Studio's timeline: the act at its time, at its own speed: every phase's length as in the game)
+        g.vr_ag_act_speed = 1;
+        VR_AGP_Times(g);
+        VR_AGK_TellTimes(g);
+        g.vr_ag_act_at = time - tl_y;
+        g.vr_agk_play = vr_agk_hplay;
+        g.vr_agk_play_end = 0;
+        return;
+    }
     float play = was && vr_agk_hplay != g.vr_agk_play;
     if(play || time >= g.vr_agk_play_end)
     {
         // (its speed as the Rig Studio's Swing plays it, 1 for anything else: taken as it starts, kept through it)
-        vector sp = weapondrawnpose(g, -1, 19);
-        g.vr_ag_act_speed = sp_x;
+        g.vr_ag_act_speed = tl_x;
     }
     VR_AGP_Times(g);
     if(play)
@@ -1873,21 +1923,7 @@ void(entity g, entity p) VR_AGK_Hold =
     g.vr_agk_play = vr_agk_hplay;
     if(time >= g.vr_agk_play_end)
     {
-        float s = vr_agp_tw * 0.999;
-        if(g.vr_ag_act == VR_AGP_SHOVE)
-        {
-            // (the shove's keys whole: the wind-up's end, the push's (its contact), the recover key's)
-            s = vr_agk_hphase == 1 ? vr_agp_tw + vr_agp_ts + 0.0005 : vr_agk_hphase == 2 ? vr_agp_tw + vr_agp_ts + vr_agp_th + 0.0005 : s;
-        }
-        else if(vr_agk_hphase == 1)
-        {
-            s = vr_agp_tw + vr_agp_ts * (g.vr_ag_act == VR_AGP_PUNCH ? 0.8 : 0.5334); // (Smooth(0.5334) = 0.55: a swing's blow)
-        }
-        else if(vr_agk_hphase == 2)
-        {
-            s = vr_agp_tw + vr_agp_ts + vr_agp_th * 0.5 + 0.001;
-        }
-        g.vr_ag_act_at = time - s;
+        g.vr_ag_act_at = time - VR_AGK_KeyTime(g, vr_agk_hphase);
     }
 };
 

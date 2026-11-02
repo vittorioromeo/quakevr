@@ -29,9 +29,10 @@ void beforeLoad();
 // hold on its subject (x the pose, y its phase, z Play's count, as posestudio::qcHold) into `out`. False: not the
 // subject (the Pose Studio's answer stands).
 [[nodiscard]] bool qcHold(int ent, int kind, int cls, glm::vec3& out);
-// QC's weapondrawnpose(e, -1, 19): the speed the studio plays entity `ent`'s strike at (the Pose Studio Data window's
-// Swing Speed, 0.1..1, while the subject is held in a strike; 1 otherwise): QC vr_ag_act_speed.
-[[nodiscard]] float swingSpeed(int ent);
+// QC's weapondrawnpose(e, -1, 19) (VR_AGK_Hold): for entity `ent`, x the speed of a strike played by count (1), y the
+// strike timeline's time into the held act (s, at 1x), z 1 while that timeline drives it (the studio's subject held in a
+// strike or the Cast; 0 for anything else: QC's own play by count, as before).
+[[nodiscard]] glm::vec3 strikeQuery(int ent);
 
 // R_SetupAliasFrame's end (VR_AnimSmoothPinned): the subject drawn at the timeline's frames. False: not the subject.
 bool pinned(const entity_t* e, const void* aliashdr, short* pose1, short* pose2, float* blend);

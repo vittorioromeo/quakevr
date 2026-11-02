@@ -3039,6 +3039,12 @@ QVR_CVAR(vr_rigstudio_pan_speed, "1", CVAR_ARCHIVE)   // the pan's speed (1: the
 QVR_CVAR(vr_rigstudio_zoom_speed, "0.12", CVAR_ARCHIVE) // the wheel's zoom a step (a share of the distance)
 QVR_CVAR(vr_rigstudio_handle_size, "90", CVAR_ARCHIVE) // pixels: the transform handles' size
 QVR_CVAR(vr_rigstudio_theme, "0", CVAR_ARCHIVE)       // the studio's colours: 0 dark, 1 light, 2 classic
+QVR_CVAR(vr_rigstudio_fly_speed, "120", CVAR_ARCHIVE) // units a second: the fly camera (W A S D, Q E; Shift 3x; Preferences)
+QVR_CVAR(vr_rigstudio_onion, "0", CVAR_ARCHIVE)       // the strike timeline's onion skin: ghosts of the act before and after its time
+QVR_CVAR(vr_rigstudio_onion_count, "2", CVAR_ARCHIVE) // ... how many each way (1..6)
+QVR_CVAR(vr_rigstudio_onion_step, "0.06", CVAR_ARCHIVE) // ... seconds between them (the act's own time; 0.01..0.5)
+QVR_CVAR(vr_rigstudio_onion_mode, "0", CVAR_ARCHIVE)  // ... 0 every onion_step, 1 at the act's phase points (its phases' bounds, its keys)
+QVR_CVAR(vr_rigstudio_ikghost, "0", CVAR_ARCHIVE)     // the IK ghost: where the set values put each hand and weapon (1 right, 2 left, 3 both)
 QVR_CVAR(vr_agrunt_taunt, "0", CVAR_ARCHIVE)          // 1: an armed grunt seeing you for the first time plays its taunt (the Rig Studio sequence quakevr/anims/vrgrunt/taunt.anim.txt) before it comes for you; 0 off
 // Armed humanoids' AI (Combat > Armed Grunts > AI Behaviour; QC vr_armedgrunt_ai.qc; ROUND22.md, "Armed humanoids' AI
 // behaviour"): each 1 is today's behaviour at Normal skill; the skill's factor (vr_agrunt_ai_skill) on top.

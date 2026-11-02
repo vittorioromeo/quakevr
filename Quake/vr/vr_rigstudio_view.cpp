@@ -1516,6 +1516,15 @@ void cameraInput()
     const float orbit = vr_rigstudio_orbit_speed.value;
     const bool mmb = ImGui::IsMouseDown(ImGuiMouseButton_Middle);
     const bool altL = io.KeyAlt && ImGui::IsMouseDown(ImGuiMouseButton_Left);
+    if(!io.WantTextInput && !io.KeyCtrl && !io.KeyAlt)
+    {
+        // The fly camera: W S forward and back (along the view), A D left and right, Q E down and up; Shift faster
+        const auto axis = [](ImGuiKey plus, ImGuiKey minus) {
+            return (ImGui::IsKeyDown(plus) ? 1.f : 0.f) - (ImGui::IsKeyDown(minus) ? 1.f : 0.f);
+        };
+        flyCamera(glm::vec3{axis(ImGuiKey_W, ImGuiKey_S), axis(ImGuiKey_D, ImGuiKey_A), axis(ImGuiKey_E, ImGuiKey_Q)},
+            io.KeyShift, io.DeltaTime);
+    }
     if(!overUi || st.cam.look)
     {
         if((mmb && io.KeyShift) || (altL && io.KeyShift))
@@ -1602,17 +1611,42 @@ void keyInput()
     }
     if(!c)
     {
-        if(ImGui::IsKeyPressed(ImGuiKey_Q, false)) { st.tool = Tool::Select; }
+        // (W A S D, Q E: the fly camera's, cameraInput; the tools moved off them 2026-11-02: Select B, IK K, Weights V)
+        if(ImGui::IsKeyPressed(ImGuiKey_B, false)) { st.tool = Tool::Select; }
         if(ImGui::IsKeyPressed(ImGuiKey_R, false)) { st.tool = Tool::Rotate; }
         if(ImGui::IsKeyPressed(ImGuiKey_G, false)) { st.tool = Tool::Move; }
-        if(ImGui::IsKeyPressed(ImGuiKey_E, false)) { st.tool = Tool::IK; }
+        if(ImGui::IsKeyPressed(ImGuiKey_K, false)) { st.tool = Tool::IK; }
         if(ImGui::IsKeyPressed(ImGuiKey_T, false) && !st.doc.authored) { st.tool = Tool::Rest; }
-        if(ImGui::IsKeyPressed(ImGuiKey_W, false) && !st.doc.authored) { st.tool = Tool::Weights; }
-        if(ImGui::IsKeyPressed(ImGuiKey_P, false) && !st.doc.authored) { st.tool = Tool::Paint; } // (T, W, P: the derived rig's)
+        if(ImGui::IsKeyPressed(ImGuiKey_V, false) && !st.doc.authored) { st.tool = Tool::Weights; }
+        if(ImGui::IsKeyPressed(ImGuiKey_P, false) && !st.doc.authored) { st.tool = Tool::Paint; } // (T, V, P: the derived rig's)
         if(ImGui::IsKeyPressed(ImGuiKey_I, false)) { pushUndo("key"); keySelected(); publish(); }
-        if(ImGui::IsKeyPressed(ImGuiKey_Space, false)) { st.playing = !st.playing; }
-        if(ImGui::IsKeyPressed(ImGuiKey_LeftArrow)) { setFrame(za::floor(st.frame + 0.5f) - 1.f); }
-        if(ImGui::IsKeyPressed(ImGuiKey_RightArrow)) { setFrame(za::floor(st.frame + 0.5f) + 1.f); }
+        // (Space, Left, Right: the strike timeline's while the subject is held in an act, else the Timeline window's)
+        const bool act = st.swing.heldPose >= 0;
+        if(ImGui::IsKeyPressed(ImGuiKey_Space, false))
+        {
+            if(!act)
+            {
+                st.playing = !st.playing;
+            }
+            else if(st.swing.playing)
+            {
+                strikeSetTime(st.swing.t); // (paused where it is)
+            }
+            else
+            {
+                st.swing.t = strikeLength() > 0.f && st.swing.t >= strikeLength() - 1e-4f ? 0.f : st.swing.t;
+                st.swing.playing = true;
+                st.swing.parked = false;
+            }
+        }
+        if(ImGui::IsKeyPressed(ImGuiKey_LeftArrow))
+        {
+            act ? strikeSetTime(st.swing.t - 1.f / 72.f) : setFrame(za::floor(st.frame + 0.5f) - 1.f);
+        }
+        if(ImGui::IsKeyPressed(ImGuiKey_RightArrow))
+        {
+            act ? strikeSetTime(st.swing.t + 1.f / 72.f) : setFrame(za::floor(st.frame + 0.5f) + 1.f);
+        }
         if(ImGui::IsKeyPressed(ImGuiKey_H, false))
         {
             if(io.KeyAlt)
@@ -2272,6 +2306,7 @@ void viewport()
     evaluate(st.frame, st.F, st.P, true);
     drawMesh(dl);
     drawOnion(dl);
+    drawGhosts(dl); // (the strike timeline's onion skin, the IK ghost)
     if(romNew())
     {
         romDraw(dl); // (Range of Motion: the authored rig's bones and its joint's limits)

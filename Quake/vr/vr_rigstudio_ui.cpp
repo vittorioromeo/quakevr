@@ -51,16 +51,6 @@ using geom::deg;
     return ImGui::ColorConvertFloat4ToU32(ImVec4{c.x, c.y, c.z, c.w});
 }
 
-void helpMarker(const char* text)
-{
-    ImGui::SameLine();
-    ImGui::TextDisabled("(?)");
-    if(ImGui::IsItemHovered())
-    {
-        ImGui::SetTooltip("%s", text);
-    }
-}
-
 // An edit's undo snapshot taken when a widget starts being changed (a drag: once).
 void undoOnStart(const char* what)
 {
@@ -303,7 +293,7 @@ void toolsWindow()
         ImGui::End();
         return;
     }
-    const char* tools[toolCount] = {"Select (Q)", "Rotate (R)", "Move (G)", "IK (E)", "Rest Pose (T)", "Weights (W)", "Paint (P)", "Pose Keys (O)"};
+    const char* tools[toolCount] = {"Select (B)", "Rotate (R)", "Move (G)", "IK (K)", "Rest Pose (T)", "Weights (V)", "Paint (P)", "Pose Keys (O)"};
     // (an authored rig's subject: no Rest Pose, Weights or Paint, the derived rig's overrides; its rest, limits and
     // weights are its rig2.txt's, the Range of Motion window's)
     const auto derivedOnly = [](int i) {
@@ -374,6 +364,7 @@ void toolsWindow()
         helpMarker("With the aim target on: each weapon's barrel line (cyan, from its muzzle as far as the target, its error "
                    "beside it: yaw + left, pitch + up), the game's shot line where it is another (dashed magenta: "
                    "vr_agrunt_aim_converge sends it from the muzzle to the target) and a thin line from the muzzle to the target.");
+        ghostsDisplayUi(); // (the IK ghost; the onion skin is the strike timeline's, in the Pose Studio Data window)
     }
     if(ImGui::CollapsingHeader("Aim Target", ImGuiTreeNodeFlags_DefaultOpen))
     {
@@ -776,7 +767,7 @@ void propertiesWindow()
         {
             ImGui::TextDisabled("not part of a two-bone chain");
         }
-        ImGui::TextDisabled("The IK tool (E) drags a chain's end.");
+        ImGui::TextDisabled("The IK tool (K) drags a chain's end.");
     }
     if(ImGui::CollapsingHeader("Pose", ImGuiTreeNodeFlags_DefaultOpen))
     {
@@ -1577,35 +1568,12 @@ void poseDataWindow()
             st.pdPhase = za::clamp(st.pdPhase, 0, phases - 1);
             if(phases > 1)
             {
-                ImGui::SliderInt("Phase", &st.pdPhase, 0, phases - 1, agpose::phaseName(st.pdPose, st.pdPhase));
-            }
-            if(phases > 1)
-            {
-                // (the subject's strike played from its start, slowed: QC vr_ag_act_speed, every phase alike)
-                if(ImGui::Button("Swing"))
+                if(ImGui::SliderInt("Phase", &st.pdPhase, 0, phases - 1, agpose::phaseName(st.pdPose, st.pdPhase)))
                 {
-                    swingPlay();
-                }
-                ImGui::SameLine();
-                ImGui::SetNextItemWidth(ImGui::GetFontSize() * 8.f);
-                ImGui::SliderFloat("Swing Speed", &st.swing.speed, 0.1f, 1.f, "%.2fx", ImGuiSliderFlags_AlwaysClamp);
-                if(st.swing.on)
-                {
-                    ImGui::SameLine();
-                    if(ImGui::Button("Stop Swing"))
-                    {
-                        st.swing.on = false;
-                    }
-                }
-                helpMarker("Swing: the subject plays this strike once from its start at Swing Speed (its wind-up, strike, "
-                           "blow and recovery slowed together, as Enemy Melee Speed does in the game), then holds at the "
-                           "phase picked; press again to replay. Stop Swing lets it go. The subject must be of this kind "
-                           "and class (Follow the Subject).");
-                if(st.subject > 0 && (st.subjKind != st.pdKind || st.subjClass != st.pdClass))
-                {
-                    ImGui::TextDisabled("Swing: the subject holds another kind or class");
+                    strikePark(); // (the timeline on the picked phase's key)
                 }
             }
+            strikeTimelineUi(); // (a strike or the Cast: play, pause, loop, step, speed, the scrubber, the onion skin)
             const int code = agpose::code(st.pdKind, st.pdClass, st.pdPose, st.pdPhase);
             agpose::Key k = agpose::value(code);
             const char* parts[agpose::NumParts] = {"Right Place", "Right Turn", "Left Place", "Left Turn", "Right Elbow Pole",
@@ -1768,15 +1736,18 @@ void helpWindow()
         {"Wheel", "zoom"},
         {"Alt + left mouse", "orbit (laptops); Shift too: pan"},
         {"Right mouse drag", "look about (the camera stays)"},
+        {"W A S D, Q / E", "fly: forward, left, back, right; down / up (Shift: 3x; Preferences > Fly Speed)"},
         {"F", "frame the selection (or the model)"},
         {"1 / 3 / 7 (numpad too)", "front / right / top; Ctrl: back / left / bottom"},
         {"Left click", "select a bone (Shift: add); a handle: drag it"},
-        {"Q R G E T W P O", "tools: select, rotate, move, IK, rest pose, weights, paint, pose keys"},
+        {"B R G K T V P O", "tools: select, rotate, move, IK, rest pose, weights, paint, pose keys"},
         {"Aim target: click it", "its arrows: where the subject aims (Tools > Aim Target)"},
         {"Pose Keys: click a dot", "a weapon, fist, elbow, the torso (Pickup: the legs): drag its arrows or rings"},
         {"Ctrl (dragging)", "snap: 15 degrees, 1 unit"},
         {"I", "key the selected bones at the frame"},
-        {"Space / Left / Right", "play or pause / a frame back / on"},
+        {"Space / Left / Right", "play or pause / a frame back / on (an act held: its strike timeline's)"},
+        {"Strike timeline", "Pose Studio Data, a strike or the Cast: play, loop, speed, step, scrub; Onion Skin"},
+        {"Tools > Display > IK Ghost", "where the set values put each hand and weapon, before the IK"},
         {"H / Alt+H", "hide the selected bones / show all"},
         {"Weights: click, Shift, Ctrl", "select a vertex, add, remove; drag: a box"},
         {"Paint: drag", "the brush (Tools > Weights: add, subtract, smooth)"},
@@ -1833,6 +1804,11 @@ void prefsWindow()
     {
         Cvar_SetValueQuick(&vr_rigstudio_zoom_speed, zoom);
     }
+    float fly = vr_rigstudio_fly_speed.value;
+    if(ImGui::SliderFloat("Fly Speed", &fly, 10.f, 800.f, "%.0f u/s", ImGuiSliderFlags_Logarithmic))
+    {
+        Cvar_SetValueQuick(&vr_rigstudio_fly_speed, fly); // (W A S D, Q E; Shift 3x)
+    }
     if(ImGui::SliderFloat("Handle Size", &handle, 30.f, 250.f, "%.0f px"))
     {
         Cvar_SetValueQuick(&vr_rigstudio_handle_size, handle);
@@ -1860,6 +1836,16 @@ glm::vec4 boneColor(int b)
     float r, g, bl;
     ImGui::ColorConvertHSVtoRGB(h, 0.7f, 0.95f, r, g, bl);
     return glm::vec4{r, g, bl, 1.f};
+}
+
+void helpMarker(const char* text)
+{
+    ImGui::SameLine();
+    ImGui::TextDisabled("(?)");
+    if(ImGui::IsItemHovered())
+    {
+        ImGui::SetTooltip("%s", text);
+    }
 }
 
 void windows()
