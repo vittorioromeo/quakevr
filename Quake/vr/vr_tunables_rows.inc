@@ -168,9 +168,6 @@ QVR_TUNABLE_SLIDER(vr_bodytrack_legs, "Legs", 0.0f, 1.0f, 0.05f, "%.2f", 0.0f, 1
 QVR_TUNABLE_SLIDER(vr_bodytrack_confidence, "Min Confidence", 0.0f, 1.0f, 0.05f, "%.2f", 0.0f, 1.0f, "Below this confidence the tracking eases out to the guessed body.")
 QVR_TUNABLE_SLIDER(vr_bodytrack_smooth, "Smoothing", 0.0f, 0.2f, 0.01f, "%.2f s", 0.0f, 0.2f, "How long the tracked joints are smoothed over.")
 
-QVR_TUNABLE_GROUP("Body > Body - Arms and Pauldrons")
-QVR_TUNABLE_SLIDER(vr_body_elbow_spread, "Elbows Spread", 0.0f, 1.0f, 0.05f, "%.2f", 0.0f, 1.0f, "With the hand at the face or the chest and the palm down, how far the elbow turns out to the side (wings). Palm up or on its side, it stays tucked in (0: always tucked in).")
-
 QVR_TUNABLE_GROUP("Body > Body - Crouched Pose")
 QVR_TUNABLE_SLIDER(vr_hip_holster_crouch_z, "Hips Up", -10.0f, 10.0f, 0.25f, "%+.2f", -30.0f, 30.0f, "Crouched, the hip holsters higher (negative: lower), units.")
 QVR_TUNABLE_SLIDER(vr_hip_holster_crouch_pitch, "Hips Pitch", -45.0f, 45.0f, 1.0f, "%+.0f deg", -180.0f, 180.0f, "Crouched, the hip holsters' top tips further from the body (as the Hotspots' Hip Pitch).")

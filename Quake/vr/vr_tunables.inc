@@ -167,9 +167,6 @@ QVR_TUNABLE(vr_bodytrack_legs, "1") // the legs' share: the feet and knees towar
 QVR_TUNABLE(vr_bodytrack_confidence, "0.5") // below this confidence (0 .. 1) the tracking eases out to the guesses (vr_bodytrack_stats' "gate" line: when it did)
 QVR_TUNABLE(vr_bodytrack_smooth, "0.04") // seconds the tracked joints are smoothed over (0: raw)
 
-// Body > Body - Arms and Pauldrons
-QVR_TUNABLE(vr_body_elbow_spread, "1") // a folded arm (hand at the face or chest) with the palm down turns its elbow out to the side, this much (0: tucked in, 1: fully)
-
 // Body > Body - Crouched Pose
 QVR_TUNABLE(vr_hip_holster_crouch_z, "0")
 QVR_TUNABLE(vr_hip_holster_crouch_pitch, "0")

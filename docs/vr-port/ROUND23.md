@@ -6252,8 +6252,8 @@ config's line is dropped quietly); none was in his config. The paths they switch
   shaders' four-tap branch and `bloom::fast()` gone; the Ultra preset loses its four-level glow), the 0 side of
   `vr_foegrab_drag_onehand` (Torso, Shoulders / ... Head: a config's 0 now reads as 1) and of
   `vr_particle_halfres_upsample` (always by depth; 2 shows the edges; the filtered blend stays as the MSAA fallback).
-- **To tunables**: `vr_2h_sticky` (Weapons > Aiming) and `vr_body_elbow_spread` (new group Body > Body - Arms and
-  Pauldrons; it left the `personal` list: tunables are not in the config).
+- **To tunables**: `vr_2h_sticky` (Weapons > Aiming). `vr_body_elbow_spread` stays a setting (his 2026-09-28 decision:
+  the arms' settings are the player's to tweak).
 - **Status duplicates** (top #13): `vr_hipnotic_available`, `vr_rogue_available` gone; the readers (vr_ad.cpp, the
   menu's dummy enemies and Proximity Gun reload page, QC `VR_Pack_Hipnotic`/`_Rogue`) read `*_status == 1`. The QC still
   uses `cvar("...")` there (the handle-everything pass is worker D's).

@@ -249,6 +249,9 @@ QVR_SLIDER(vr_body_wrist_limits, "Wrist Limits", 0.f, 2.f, 0.05f, "%.2f", noExt,
 QVR_SLIDER(vr_body_elbow_lift, "Elbow Stays Clear", 0.f, 8.f, 0.5f, "%.1f", noExt,
     "How much that swing keeps the elbow out of the torso and from crossing the chest by the neck (a hand "
     "near the face or the chest), times this (0: free, as before).")
+QVR_SLIDER(vr_body_elbow_spread, "Elbows Spread", 0.f, 1.f, 0.05f, "%.2f", noExt,
+    "With the hand at the face or the chest and the palm down, how far the elbow turns out to the side "
+    "(wings). Palm up or on its side, it stays tucked in (0: as before).")
 QVR_SLIDER(vr_body_elbow_out, "Elbow Out", 0.f, 1.f, 0.05f, "%.2f", noExt, "Where the elbow points: down, plus this much outwards.")
 QVR_SLIDER(vr_body_elbow_back, "Elbow Back", 0.f, 1.f, 0.05f, "%.2f", noExt, "Where the elbow points: down, plus this much backwards.")
 QVR_SLIDER(vr_body_elbow_hand, "Elbow From Hand", 0.f, 1.f, 0.05f, "%.2f", noExt, "How much the elbow points away from the back of the hand.")

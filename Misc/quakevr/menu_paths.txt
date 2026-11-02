@@ -1782,6 +1782,7 @@ vr_body_tweak_shoulder_swing|2|Body - Arms and Pauldrons|Shoulder Swing|Advanced
 vr_body_forearm_twist|2|Body - Arms and Pauldrons|Forearm Twist|Advanced VR Options > Body > Arms and Pauldrons > 
 vr_body_wrist_limits|2|Body - Arms and Pauldrons|Wrist Limits|Advanced VR Options > Body > Arms and Pauldrons > 
 vr_body_elbow_lift|2|Body - Arms and Pauldrons|Elbow Stays Clear|Advanced VR Options > Body > Arms and Pauldrons > 
+vr_body_elbow_spread|2|Body - Arms and Pauldrons|Elbows Spread|Advanced VR Options > Body > Arms and Pauldrons > 
 vr_body_elbow_out|2|Body - Arms and Pauldrons|Elbow Out|Advanced VR Options > Body > Arms and Pauldrons > Elbow Out
 vr_body_elbow_back|2|Body - Arms and Pauldrons|Elbow Back|Advanced VR Options > Body > Arms and Pauldrons > Elbow 
 vr_body_elbow_hand|2|Body - Arms and Pauldrons|Elbow From Hand|Advanced VR Options > Body > Arms and Pauldrons > 
@@ -2608,7 +2609,6 @@ vr_bodytrack_arm_fit_stretch|2|Tunables|Elbow Fit Stretch|Advanced VR Options > 
 vr_bodytrack_legs|2|Tunables|Legs|Advanced VR Options > Debug > Tunables > Legs
 vr_bodytrack_confidence|2|Tunables|Min Confidence|Advanced VR Options > Debug > Tunables > Min Confidence
 vr_bodytrack_smooth|2|Tunables|Smoothing|Advanced VR Options > Debug > Tunables > Smoothing
-vr_body_elbow_spread|2|Tunables|Elbows Spread|Advanced VR Options > Debug > Tunables > Elbows Spread
 vr_hip_holster_crouch_z|2|Tunables|Hips Up|Advanced VR Options > Debug > Tunables > Hips Up
 vr_hip_holster_crouch_pitch|2|Tunables|Hips Pitch|Advanced VR Options > Debug > Tunables > Hips Pitch
 vr_hip_holster_crouch_yaw|2|Tunables|Hips Yaw|Advanced VR Options > Debug > Tunables > Hips Yaw
