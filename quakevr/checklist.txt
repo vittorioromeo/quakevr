@@ -126,6 +126,8 @@ Walking enemies are soft, running ones louder and carry further.
 Boots for grunts and enforcers, metal for knights, wet feet for zombies, heavy thuds for ogres, fiends and shamblers: do they sound right?
 In a big crowd only the nearest few are heard, with no machine-gunning.
 
+An armoured death knight from the front (Debug > Tests > Helmets Alone There: Knight and Death Knight): plates come down each side of his face from the brim, outside his cheeks, his eyes open between them; it reads as a helmet, not a hat, and they turn with his head. {test:agarmor_helmets_knights}
+
 [2. Armed humanoids: disarming and armour]
 Show Disarm Volumes: the wireframe hulls sit on each drawn weapon (magenta, orange, red; the sword's orange line along its blade) and on the drawn hand and forearm (cyan). {test:disarm_hulls_melee}
 Disarm volume sliders (Combat > Armed Grunts > Disarming, Volume: Its Weapon, Its Hand, Strikes, Body Blows; 0 = exact): +4 and near misses count, -1 and they miss. {test:disarm_hulls_melee}
