@@ -1778,7 +1778,7 @@ void() VR_AGPT_Pull =
 };
 
 // Test 38: knocked down keeps its weapon (vr_agrunt_fall_keep). Case 0: a shove's fall to the floor: it keeps it (its
-// fall's measures printed); grabbed while down: yours at once. Case 1: knocked down, then flung (8 m/s): it lets go.
+// fall's measures printed); grabbed while down: yours at once. Case 1: knocked down, then flung (8 m/s) low along the floor, skidding into nothing: it holds on (the impact rule since 2026-11-02: no surface ahead; test 202 has the throws that hit one).
 void() VR_AGPT_FallKeep =
 {
     entity p = vr_agt_player;
@@ -1828,7 +1828,7 @@ void() VR_AGPT_FallKeep =
     {
         VR_AGT_Check(sprintf("fall keep: flung while down: it holds %s (hardest impact %.1f, falling %.1f, moving %.1f m/s):",
             g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing", g.vr_ag_fall_hit / u, g.vr_ag_fall_down / u,
-            g.vr_ag_fall_fling / u), !g.vr_ag_prop);
+            g.vr_ag_fall_fling / u), g.vr_ag_prop != world);
     }
     VR_AGPT_EmptyHand(p);
     vr_agpt_case = vr_agpt_case + 1;
