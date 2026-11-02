@@ -5,7 +5,6 @@ float(string extension) checkextension = #99;
 void() ReviewProbe =
 {
     checkextension("DP_QC_SPRINTF"); // engine records the check even when it does not advertise the extension
-    cvar_set("vr_melee_positional", "1");
     cvar_set("vr_positional_damage", "1");
     cvar_set("vr_hit_head_priority", "1");
     cvar_set("vr_damage_to_enemies", "1");

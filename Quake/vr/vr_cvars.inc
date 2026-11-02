@@ -693,10 +693,8 @@ QVR_CVAR(vr_melee_pommel_wait, "0.05", CVAR_ARCHIVE)  // s a pommel's (a handle'
 // what it holds pass through the monsters' drawn models instead of being drawn stopped at their surface (Hands Stop at
 // Models, vr_model_collide); the walls and the things lying about still stop them. Drawn only, as that stop is: the blow
 // is the tracked hand's either way (QC vr_melee.qc), so the weapon is drawn where the blow is tested.
-QVR_CVAR(vr_melee_phase, "1", CVAR_ARCHIVE)          // 1: on (the author's, 2026-10-07); 0: the hand is drawn stopped at a monster however fast it goes (as before)
 QVR_CVAR(vr_melee_phase_speed, "4", CVAR_ARCHIVE) // m/s the hand (its grip, relative to the play space) goes at from which it passes through (the author's 4; 2.25: the least speed of any blow, a stab's: 0.75 x vr_melee_speed 3)
 QVR_CVAR(vr_melee_phase_time, "0.2", CVAR_ARCHIVE)  // s it still passes through after it slowed below that (the follow-through); then it is eased back out of the model over about 0.2 s, not snapped
-QVR_CVAR(vr_melee_curved_blades, "1", CVAR_ARCHIVE) // a curved sword (AD's death fury's) strikes along its curve: its blade's points on its spine (the engine's admeleebend, QC VR_Melee_At); 0 on the straight line from the hand to its tip, as before
 // The empty hand's blow line (QC vr_melee.qc VR_Melee_Line, a fist's; ROUND22.md "The fist's blow line"): its two ends in
 // the hand's frame (units along its forward, right, up from the tracked hand), what strikes between them (the layout's
 // fist and knuckles); the near end behind it a quarter of the line back. Gloved, bare and ghost hands alike. Edited in VR
@@ -711,15 +709,13 @@ QVR_CVAR(vr_melee_fist_to_y, "0.7656", CVAR_ARCHIVE)   // right (mirrored for th
 QVR_CVAR(vr_melee_fist_to_z, "-4.2209", CVAR_ARCHIVE)  // up
 QVR_CVAR(vr_melee_fist_width, "0.291", CVAR_ARCHIVE)   // times the swept points' radius (QC VR_MELEE_RADIUS x vr_melee_range_multiplier)
 QVR_CVAR(vr_melee_fist_mirror, "1", CVAR_ARCHIVE) // 1: the off hand's line is the main hand's mirrored (its right offsets negated); 0: as they are
-QVR_CVAR(vr_melee_swept, "1", CVAR_ARCHIVE) // 1 a weapon's blow is the surface its whole blade (and a hammer's or mace's head, its volume: admeleehead) sweeps each frame, landing where it crossed the thing most squarely (QC VR_Melee_Sweep); 0 its points' lines alone, the outermost striking, the first wall touched, as before
-QVR_CVAR(vr_melee_sweep_test, "0", CVAR_NONE) // Debug > Tests: the QC's swept-blade test (vr_melee.qc VR_Melee_SweepTest): scripted sweeps past a target dummy, each with vr_melee_swept 0 and 1 ("meleesweep:" lines, PASS or FAIL); 2 the main hand's blade dumped, 3 its edited shape, 4 the empty hand's fist line (vr_melee_fist_*: "fistline:"), 6 one swing, many hits (vr_melee_multi; the sword_multi scene: "meleemulti:")
+QVR_CVAR(vr_melee_sweep_test, "0", CVAR_NONE) // Debug > Tests: the QC's swept-blade test (vr_melee.qc VR_Melee_SweepTest): scripted sweeps past a target dummy ("meleesweep:" lines, PASS or FAIL); 2 the main hand's blade dumped, 3 its edited shape, 4 the empty hand's fist line (vr_melee_fist_*: "fistline:"), 6 one swing, many hits (the sword_multi scene: "meleemulti:")
 QVR_CVAR(vr_melee_wall_hold, "0.2", CVAR_ARCHIVE)  // s a weapon (a fist holding a prop) that went into a wall or the floor hard enough may land its blow there while it stays at it: the hand held off the wall slows, so a blow judged a frame or two after it met the wall (at the speed it came in at) still counts (QC vr_melee.qc VR_Melee_WallHeld); 0: only in the frame it crosses the surface, and never steeply down onto the floor (as before round 22)
 // Strikes let past the level (ROUND22.md, "Swords past the floor"): a hand swinging at least vr_melee_world_pass_speed,
 // the far part of what it holds near a monster, a corpse or a ragdoll (within vr_melee_world_pass_reach), has that part
 // let into the walls and the floor: only the share vr_melee_world_pass_length of it (from the hand) is held out of them,
 // so a blade chopping at a body lying on the floor reaches it instead of being pushed back up; for vr_melee_world_pass_time
 // after it slowed, then eased back out. Without such a target nearby the weapon meets the level as before (a wall blow).
-QVR_CVAR(vr_melee_world_pass, "1", CVAR_ARCHIVE)        // 1 on; 0 the weapon is always held out of the level whole (as before)
 QVR_CVAR(vr_melee_world_pass_length, "0.35", CVAR_ARCHIVE) // the share of the weapon's length (from the hand) still held out of the level during such a strike (0: only the hand; 1: all of it, as without)
 QVR_CVAR(vr_melee_world_pass_speed, "2.5", CVAR_ARCHIVE) // m/s the hand (its grip) swings at from which (a blow's least speed is about 2.25)
 QVR_CVAR(vr_melee_world_pass_time, "0.25", CVAR_ARCHIVE) // s it stays let in after the hand slowed (the cut's follow-through), then eased back out over 0.15 s
@@ -727,7 +723,6 @@ QVR_CVAR(vr_melee_world_pass_reach, "12", CVAR_ARCHIVE) // units: how near the w
 // One swing, many things (ROUND22.md, "One swing hits everything its edge passes through"; QC VR_Melee_Multi): a swing of
 // a weapon (not a bare fist) strikes each thing its striking part passes through once, each its own blow, and the wall
 // or the floor once as well, in any order: a blow on the floor no longer spends the swing for a body beyond it.
-QVR_CVAR(vr_melee_multi, "1", CVAR_ARCHIVE)          // 1 on; 0 as before (the world ends the swing; one thing after another)
 QVR_CVAR(vr_melee_multi_max, "4", CVAR_ARCHIVE)      // things (not the world) one swing strikes at most (1..6)
 QVR_CVAR(vr_melee_phase_hold, "1", CVAR_ARCHIVE)     // 1: also a gun and a prop held in one hand (swung as clubs); 0: only fists and the melee weapons (the axe, Mjolnir, the swords, the crowbar, the chainsaw)
 QVR_CVAR(vr_melee_butt_run, "0.45", CVAR_ARCHIVE)   // m a gun's grip must have come towards a butt strike within 0.3 s (a gun wiggled spins in place, its butt fast: 0.34 at most; the author's butt strikes 0.54-0.73; 0.2: as every blow)
@@ -2330,7 +2325,6 @@ QVR_CVAR(vr_water_ripple_decay, "2", CVAR_ARCHIVE)    // ... seconds for them to
 QVR_CVAR(vr_water_ripple_wavelength, "24", CVAR_ARCHIVE) // ... units between crests (in the geometry from 2 grid cells up, fully from 3; the lighting also has ones a third as long)
 QVR_CVAR(vr_water_ripple_max, "32", CVAR_ARCHIVE)       // ... how many at once, at most (1..32; a new one takes the weakest's place)
 QVR_CVAR(vr_positional_damage, "1", CVAR_ARCHIVE)
-QVR_CVAR(vr_melee_positional, "1", CVAR_ARCHIVE)       // your melee blows take the same head/limb/leg multipliers as your shots, from the point on the model they met (0: flat melee damage, as before)
 QVR_CVAR(vr_hit_head_priority, "1", CVAR_ARCHIVE)      // where the contacted point lies in more than one body zone, the head's zone decides it (0: the limb/leg zones claim it first)
 QVR_CVAR(vr_headshot_sound, "1", CVAR_ARCHIVE)      // volume of the tick on a headshot (0 off)
 QVR_CVAR(vr_climb, "1", CVAR_ARCHIVE)                 // on as shipped (vr_defaults.cfg): either empty hand gripping a ledge or rung hangs from it; hand over hand, shimmy, mantle (vr_climb.cpp)
@@ -3503,7 +3497,7 @@ QVR_CVAR(vr_hand_fit_thumb_outside, "1", CVAR_ARCHIVE) // cm: a prop held In the
 QVR_CVAR(vr_model_collide, "2", CVAR_ARCHIVE)         // round 21: held weapons stop at the models' drawn triangles (drawn only: the game reads the tracked hands; vr_modelcollide.cpp): 0 off, 1 monsters (corpses, other players), 2 things on the ground too
 QVR_CVAR(vr_model_collide_rest, "1", CVAR_ARCHIVE)    // a thing lying on a hand (held up by it: an open palm, a fist, a gun) never pushes that hand away (the physics keeps them apart); 0: it does, as other things
 QVR_CVAR(vr_debug_model_collide, "0", CVAR_NONE)      // 1: print each hand's push while a model stops it; 2: and draw its rays (grey as tracked, green/red as drawn) and the push (yellow)
-QVR_CVAR(vr_debug_hand_offset, "0", CVAR_NONE)       // 3: also each fast frame's strike-pass test (vr_melee_world_pass: the far part's box, the body found); 1: print each hand drawn away from where it is tracked (0.01 units or more), and by what: the walls, the weight's spring, the models, a prop in the other hand, the body; 2: every frame (tests)
+QVR_CVAR(vr_debug_hand_offset, "0", CVAR_NONE)       // 3: also each fast frame's strike-pass test (vr_melee_world_pass_*: the far part's box, the body found); 1: print each hand drawn away from where it is tracked (0.01 units or more), and by what: the walls, the weight's spring, the models, a prop in the other hand, the body; 2: every frame (tests)
 QVR_CVAR(vr_test_give_wid, "-1", CVAR_NONE)           // impulse 149 (tests): that weapon id, loaded, in the main hand (any id: impulse 150 + id reaches 19)
 QVR_CVAR(vr_test_spawn, "0", CVAR_NONE)               // impulse 241 (tests): what it puts ahead of you: 0..17 the firing range's dispenser monsters (0 grunt, 1 ogre, 2 zombie, 3 shambler, ...; 18 the Guardian, 19 the dragon, 20 the marksman ogre: tests only), 100 a health box, 101 a shells box, 102/103 an explosive box/a small one, 104 an explosive box that never blows up, 107-109 crates, 110 the rocks and bricks (a row of each), 111/112 a barrel upright/lying, 113 the silver key, 114 a long plank, 115 a brick (the leg sweep tests), 120..124 the climbing tests' crates square to you (a large one, two large stacked, a large one on its side, a small one on a large one, a small one)
 QVR_CVAR(vr_test_spawn_dist, "56", CVAR_NONE)         // and how far ahead (units)

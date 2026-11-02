@@ -717,7 +717,7 @@ float(entity b, entity xEnt) VR_Melee_SlapLands =
     return b.mh_kind != VR_MKIND_SLAP || (xEnt.takedamage && !xEnt.vr_gib);
 };
 
-// One swing, many things (vr_melee_multi; ROUND22.md "One swing hits everything its edge passes through"): a swing of a
+// One swing, many things (ROUND22.md "One swing hits everything its edge passes through"): a swing of a
 // weapon (not a bare fist: a punch strikes one thing) strikes each thing its striking part passes through once (at
 // most vr_melee_multi_max of them), each its own blow by its own point and speed, and the world (a wall, the floor)
 // once as well, in the order its parts meet them: a blow on the floor before a body lying on it no longer spends the
@@ -726,7 +726,7 @@ float VR_MELEE_MULTI_MOST = 6; // things a swing strikes at most (vr_melee_multi
 float VR_MELEE_MULTI_LIST = 8; // and loose gibs with them (the list's fields: mh_hit_e0..e7; a full list: no more)
 float(entity b) VR_Melee_Multi =
 {
-    return (cvar("vr_melee_multi") != 0) && (b.mh_thing != VR_MTHING_FIST) && (b.mh_thing != VR_MTHING_NONE);
+    return (b.mh_thing != VR_MTHING_FIST) && (b.mh_thing != VR_MTHING_NONE);
 };
 
 float(entity b, entity xEnt) VR_Melee_HitHas =
@@ -1092,7 +1092,7 @@ float(entity e, vector xP0, vector xP1, float xR) VR_Melee_StartsIn =
 // them all, their thickness in (vr_rib_lo, _hi); a wall's crossing by each (VR_Melee_Sweep: how far past its surface,
 // where, its normal).
 float VR_MELEE_RIBS = 48; // (the arrays below as long)
-float VR_MELEE_RIB_GAP = 1.5; // vr_melee_swept: neighbouring striking points' lines at most this many thicknesses apart
+float VR_MELEE_RIB_GAP = 1.5; // neighbouring striking points' lines at most this many thicknesses apart
 float VR_MELEE_RIB_MORE = 3;  // (at most this many lines more between two points)
 float VR_MELEE_HEAD_MOST = 4; // a hammer's or mace's head: its lines along each of its two long sides, at most
 vector vr_rib_p0[48];
@@ -1173,13 +1173,12 @@ void(entity b, vector xP0, vector xP1, float xI, float xR) VR_Melee_ArcRib =
     VR_Melee_RibAdd(xP0, xP1, xI, xR);
 };
 
-// The lines of `b`'s sweep, `xR` thick: its layout's points (VR_Melee_Track); with vr_melee_swept (`xSwept`) the surface
-// its whole blade sweeps: between two neighbouring striking points (a blade's, an axe's head's, the crowbar's bar), as
+// The lines of `b`'s sweep, `xR` thick: its layout's points (VR_Melee_Track) and the surface its whole blade sweeps: between two neighbouring striking points (a blade's, an axe's head's, the crowbar's bar), as
 // many lines more as keep them at most VR_MELEE_RIB_GAP thicknesses apart all along the sweep (his note: a long swing
 // passed by a thing its blade went through between two points), each striking as the nearer point; and a hammer's or
 // mace's head as its volume (its box, admeleehead): a grid of lines over its middle, as thick as half its depth and
 // reaching its faces, each striking as the head's point.
-void(entity b, float xR, float xSwept) VR_Melee_Ribs =
+void(entity b, float xR) VR_Melee_Ribs =
 {
     float n = b.mh_n;
     float i;
@@ -1192,7 +1191,7 @@ void(entity b, float xR, float xSwept) VR_Melee_Ribs =
         vector p0 = b.mh_pp[i];
         vector p1 = b.mh_cp[i];
         VR_Melee_ArcRib(b, p0, p1, i, xR);
-        if(!xSwept || i + 1 >= n || !VR_Melee_Strikes(vr_mpt_kind[i]) || !VR_Melee_Strikes(vr_mpt_kind[i + 1]))
+        if(i + 1 >= n || !VR_Melee_Strikes(vr_mpt_kind[i]) || !VR_Melee_Strikes(vr_mpt_kind[i + 1]))
         {
             continue;
         }
@@ -1206,7 +1205,7 @@ void(entity b, float xR, float xSwept) VR_Melee_Ribs =
             VR_Melee_RibAdd(p0 + (q0 - p0) * u, p1 + (q1 - p1) * u, u < 0.5 ? i : i + 1, xR);
         }
     }
-    if(!xSwept || n <= 0 || b.mh_hd_hi == '0 0 0')
+    if(n <= 0 || b.mh_hd_hi == '0 0 0')
     {
         return;
     }
@@ -1238,7 +1237,7 @@ void(entity b, float xR, float xSwept) VR_Melee_Ribs =
     }
 };
 
-// vr_melee_swept: how squarely a line of `b` swept from `xP0` to `xP1` crosses `e` (lower is better): its nearest to the
+// How squarely a line of `b` swept from `xP0` to `xP1` crosses `e` (lower is better): its nearest to the
 // thing's middle, a share of its half size; the blade proper's lines (from VR_MELEE_BLADE_FROM out: a blade cuts with
 // its outer part, a fist with its knuckles) before those nearer the hand, and a line already in it (`xIn`: it didn't
 // enter it) after any that entered.
@@ -1299,7 +1298,7 @@ void(float xHand, entity b) VR_Melee_Show =
     {
         meleeshow(xHand, 2, vr_rib_p0[k], vr_rib_p1[k], vr_rib_r[k]);
     }
-    if(b.mh_hd_hi != '0 0 0' && cvar_hget(cvarh_vr_melee_swept))
+    if(b.mh_hd_hi != '0 0 0')
     {
         meleeshow(xHand, 3, b.mh_hd_lo, b.mh_hd_hi, 0);
         meleeshow(xHand, 4, b.mh_hd_cg, b.mh_hd_cf, 0);
@@ -1319,11 +1318,11 @@ float vr_msw_wall_i;
 
 // Sweeps the lines of `xHand` (VR_Melee_Ribs) from the last pose to this one (VR_Melee_Track) and decides the blow: the
 // contact to land on into mh_c_* and TRUE, or FALSE. Things that bleed first: of the lines striking this frame, the
-// blade's (or head's, fist's) over the pommel's; with vr_melee_swept the thing the blade crossed most squarely, struck
-// where the line that crossed it nearest its middle met it, as its outermost striking point in it (its kind, a stab's
-// or a cut's: VR_Melee_Decide); else (0) the outermost point's. The pommel's: the earliest along the sweep. A wall only
-// when nothing that bleeds is struck, and not by a point going down (a hand reaching for a holster); with
-// vr_melee_swept where the blade went deepest into it (the middle of the lines as deep), else the first touch.
+// blade's (or head's, fist's) over the pommel's; the thing the blade crossed most squarely, struck where the line that
+// crossed it nearest its middle met it, as its outermost striking point in it (its kind, a stab's or a cut's:
+// VR_Melee_Decide). The pommel's: the earliest along the sweep. A wall only when nothing that bleeds is struck, and not
+// by a point going down (a hand reaching for a holster); where the blade went deepest into it (the middle of the lines
+// as deep).
 float(float xHand, entity b) VR_Melee_Sweep =
 {
     float n = b.mh_n;
@@ -1334,16 +1333,14 @@ float(float xHand, entity b) VR_Melee_Sweep =
     VR_Melee_LayoutOf(b); // (this hand's: the globals hold the last hand tracked)
     vr_melee_wallwin = cvar_hget(cvarh_vr_melee_wall_hold);
     float r = VR_MELEE_RADIUS * max(0.25, cvar_hget(cvarh_vr_melee_range_multiplier)) * (b.mh_bwidth > 0 ? b.mh_bwidth : 1);
-    float swept = cvar_hget(cvarh_vr_melee_swept);
     vector hand = b.mh_grip;
-    VR_Melee_Ribs(b, r, swept);
+    VR_Melee_Ribs(b, r);
     if(!vr_msw_probe && !vr_msw_more && cvar_hget(cvarh_vr_debug_melee_blades))
     {
         VR_Melee_Show(xHand, b);
     }
 
     // The best contact of each class: the striking part's (edge, fist) and the near end's (pommel, butt).
-    float edgeT = 2;
     float edgeI = -1;
     entity edgeEnt = world;
     vector edgeAt = '0 0 0';
@@ -1361,7 +1358,7 @@ float(float xHand, entity b) VR_Melee_Sweep =
     vector wallNormal = '0 0 0';
     vector wallDir = '0 0 0';
     float wallDepth = -1000000;
-    entity traceEnt = world; // (vr_melee_swept: a box target the lines' traces met first, its best line, its outermost)
+    entity traceEnt = world; // (a box target the lines' traces met first, its best line, its outermost)
     float traceOuter = -1;
     float traceScore = 1000000;
     vector traceAt = '0 0 0';
@@ -1427,7 +1424,7 @@ float(float xHand, entity b) VR_Melee_Sweep =
             {
                 continue; // (a blow enters what it strikes: below)
             }
-            if(swept && VR_Melee_BoxTarget(trace_ent))
+            if(VR_Melee_BoxTarget(trace_ent))
             {
                 // (Measured with its box's below: kept for the one thing a line found first.)
                 if(striker && (traceEnt == world || traceEnt == trace_ent) && (vr_msw_probe || VR_Melee_Armed(xHand, b, trace_ent)))
@@ -1447,16 +1444,9 @@ float(float xHand, entity b) VR_Melee_Sweep =
                 }
                 continue;
             }
-            float sc = swept ? VR_Melee_RibScore(b, trace_ent, p0, p1, FALSE) : 0;
-            float first = trace_fraction < edgeT;
-            if(swept)
+            float sc = VR_Melee_RibScore(b, trace_ent, p0, p1, FALSE);
+            if(striker && sc < edgeScore && (vr_msw_probe || VR_Melee_Armed(xHand, b, trace_ent)))
             {
-                first = sc < edgeScore;
-            }
-            if(striker && first &&
-               (vr_msw_probe || VR_Melee_Armed(xHand, b, trace_ent)))
-            {
-                edgeT = trace_fraction;
                 edgeScore = sc;
                 edgeI = i;
                 edgeEnt = trace_ent;
@@ -1476,25 +1466,17 @@ float(float xHand, entity b) VR_Melee_Sweep =
         {
             // How far past the surface the line went (held off it, within reach: under 0).
             float depth = (trace_endpos - p1) * trace_plane_normal;
-            float better = trace_fraction < wallT;
-            if(swept)
+            // (As deep: a striking part's over the pommel's, then the first.)
+            float better = depth > wallDepth + 0.01;
+            if(!better && depth > wallDepth - 0.01)
             {
-                // (As deep: a striking part's over the pommel's, then the first.)
-                better = depth > wallDepth + 0.01;
-                if(!better && depth > wallDepth - 0.01)
-                {
-                    better = ((striker && wallI >= 0 && !VR_Melee_Strikes(vr_mpt_kind[wallI])) ||
-                              (striker == VR_Melee_Strikes(vr_mpt_kind[max(0, wallI)]) && trace_fraction < wallT));
-                }
+                better = ((striker && wallI >= 0 && !VR_Melee_Strikes(vr_mpt_kind[wallI])) ||
+                          (striker == VR_Melee_Strikes(vr_mpt_kind[max(0, wallI)]) && trace_fraction < wallT));
             }
-            float entered = FALSE;
-            if(better || swept)
+            float entered = (held || vr_msw_probe);
+            if(!entered)
             {
-                entered = (held || vr_msw_probe);
-                if(!entered)
-                {
-                    entered = VR_Melee_WallEntered(b, i, p0, p1, trace_plane_normal, trace_endpos);
-                }
+                entered = VR_Melee_WallEntered(b, i, p0, p1, trace_plane_normal, trace_endpos);
             }
             if(entered)
             {
@@ -1516,7 +1498,7 @@ float(float xHand, entity b) VR_Melee_Sweep =
     }
     // The wall where the blade crossed it: the middle of the lines that went as deep into the same surface (a flat
     // chop at the floor: the blade's middle, not its first point).
-    if(swept && wallI >= 0)
+    if(wallI >= 0)
     {
         vector sum = '0 0 0';
         float cnt = 0;
@@ -1562,9 +1544,9 @@ float(float xHand, entity b) VR_Melee_Sweep =
                 boxPad = VR_HITMODEL_REACH;
             }
             // (The box round all the lines first: most things near are nowhere near them.)
-            float near = !swept || (lo_x - boxPad <= vr_rib_hi_x && hi_x + boxPad >= vr_rib_lo_x &&
-                                    lo_y - boxPad <= vr_rib_hi_y && hi_y + boxPad >= vr_rib_lo_y &&
-                                    lo_z - boxPad <= vr_rib_hi_z && hi_z + boxPad >= vr_rib_lo_z);
+            float near = (lo_x - boxPad <= vr_rib_hi_x && hi_x + boxPad >= vr_rib_lo_x &&
+                          lo_y - boxPad <= vr_rib_hi_y && hi_y + boxPad >= vr_rib_lo_y &&
+                          lo_z - boxPad <= vr_rib_hi_z && hi_z + boxPad >= vr_rib_lo_z);
             vector ctr = (lo + hi) * 0.5;
             float eScore = 1000000;
             float eOuter = -1;
@@ -1616,7 +1598,7 @@ float(float xHand, entity b) VR_Melee_Sweep =
                 }
                 striker = VR_Melee_Strikes(vr_mpt_kind[i]);
                 float rsc = 0;
-                if(swept && striker)
+                if(striker)
                 {
                     // The line that crossed it most squarely is where it lands; the outermost striking point in it
                     // what struck (its kind).
@@ -1626,10 +1608,8 @@ float(float xHand, entity b) VR_Melee_Sweep =
                         continue;
                     }
                 }
-                // Of the striking points in it, the outermost (a blade strikes with its outer part, its root may have been
-                // in the thing for a while: the furthest from the grip, either way along a weapon held anywhere); of the
-                // near end's, the first along the sweep.
-                else if((striker && edgeI >= 0 && fabs(vr_mpt_f[i]) < fabs(vr_mpt_f[edgeI])) || (!striker && t >= hiltT))
+                // Of the near end's points in it, the first along the sweep.
+                else if(t >= hiltT)
                 {
                     continue;
                 }
@@ -1650,7 +1630,7 @@ float(float xHand, entity b) VR_Melee_Sweep =
                 {
                     continue;
                 }
-                if(striker && swept)
+                if(striker)
                 {
                     if(eOuter < 0 || fabs(vr_mpt_f[i]) > fabs(vr_mpt_f[eOuter]))
                     {
@@ -1662,14 +1642,6 @@ float(float xHand, entity b) VR_Melee_Sweep =
                         eAt = at;
                         eDir = normalize(p1 - p0);
                     }
-                }
-                else if(striker)
-                {
-                    edgeT = t;
-                    edgeI = i;
-                    edgeEnt = e;
-                    edgeAt = at;
-                    edgeDir = normalize(p1 - p0);
                 }
                 else
                 {
@@ -1683,7 +1655,6 @@ float(float xHand, entity b) VR_Melee_Sweep =
             if(eOuter >= 0 && eScore < edgeScore)
             {
                 edgeScore = eScore;
-                edgeT = 0;
                 edgeI = eOuter;
                 edgeEnt = e;
                 edgeAt = eAt;
@@ -1706,7 +1677,6 @@ float(float xHand, entity b) VR_Melee_Sweep =
             edgeDir = traceDir;
         }
         edgeEnt = traceEnt;
-        edgeT = 0;
     }
 
     if(vr_msw_probe)

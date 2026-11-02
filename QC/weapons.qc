@@ -426,15 +426,15 @@ float PositionalRegion(entity xTarget, vector xEndpos, vector xDirection) =
     return VR_RegionPick(inHead, vlen(off) > (xTarget.maxs_x - xTarget.mins_x) * 0.35, q_z < xTarget.origin_z);
 }
 
-// A melee blow's positional damage (vr_melee_positional, Combat > Damage and Knockback > Positional Damage): the same
-// zones and the same multipliers the guns use, decided from the zero-radius point on the model the blow met
-// (PositionalRegion, hitmodel_rest) - so a head is a head for a blade and for a shot alike. The looser melee
-// tolerance (vr_hit_tolerance_melee, vr_hit_melee_scale) stays what *connects* only: it never makes a body hit count
-// as a head. Head priority resolves overlapping zones at the contacted point. Its answer is recorded as a shot's (the
-// dummy's report, the highlights). With the option off: 1, nothing recorded - today's flat melee damage.
+// A melee blow's positional damage (Combat > Damage and Knockback > Positional Damage): the same zones and the same
+// multipliers the guns use, decided from the zero-radius point on the model the blow met (PositionalRegion,
+// hitmodel_rest) - so a head is a head for a blade and for a shot alike. The looser melee tolerance
+// (vr_hit_tolerance_melee, vr_hit_melee_scale) stays what *connects* only: it never makes a body hit count as a head.
+// Head priority resolves overlapping zones at the contacted point. Its answer is recorded as a shot's (the dummy's
+// report, the highlights). With Positional Damage off: 1, nothing recorded (flat melee damage).
 float(entity xTarget, vector xTo, vector xDir) VR_Melee_Positional =
 {
-    if(cvar_hget(cvarh_vr_melee_positional) == 0 || cvar_hget(cvarh_vr_positional_damage) == 0)
+    if(cvar_hget(cvarh_vr_positional_damage) == 0)
     {
         return 1;
     }

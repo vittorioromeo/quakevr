@@ -3,7 +3,7 @@
 // QC sends, only while the view is on (vr_melee.qc VR_Melee_Show, from VR_Melee_Sweep; the builtin meleeshow), each
 // hand's sweep this server frame: its blow line (the hand to the tip: VR_Melee_Line's, and the near end behind the
 // hand), the lines the sweep tested (VR_Melee_Ribs: each striking point's way from the pose before to this one, the
-// whole blade's with vr_melee_swept) and a hammer's or mace's head box (admeleehead); and each blow that landed (the
+// whole blade's) and a hammer's or mace's head box (admeleehead); and each blow that landed (the
 // contact, its damage: VR_Melee_Landed, T_Damage_VRMelee). The view (vr_view.cpp) draws them: the blow line white idle,
 // yellow while it moves as a blow (QC VR_Melee_ShowFast: VR_Melee_Decide would land one with its tip now: fast enough,
 // the arm driving it, no wiggle), red with a blow just landed; the swept

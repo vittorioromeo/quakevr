@@ -1004,7 +1004,6 @@ void ikStretchReset()
         row(opt::vr_damage_self),
         header("Positional Damage"),
         row(opt::vr_positional_damage),
-        row(opt::vr_melee_positional),
         row(opt::vr_headshot_mult),
         row(opt::vr_limbshot_mult),
         row(opt::vr_legshot_mult),

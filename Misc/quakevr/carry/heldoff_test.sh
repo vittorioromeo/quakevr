@@ -14,7 +14,7 @@ printf '0.000 main -0.10 1.15 -0.20 0 0 0\n0.300 main -0.10 1.15 -0.20 0 0 0\n0.
 P="vr_mock_play $OUT/punch.txt"
 SPOT="setpos 3.3 -31.2 24 0 90 0"
 TAKE="vr_mock_hand_to main ragdoll near 1;wait2;vr_mock_hand_to main ragdoll near 1;+grabmain;vr_mock_button main grip 1"
-S="vr_fixed_frames 1;vr_fixed_frames_rate 90;map vrmelee-recording;wait60;god;notarget;developer 1;vr_ragdoll 1;vr_melee_dmg_multiplier 0.25;vr_melee_push 0;vr_dummy_attacks 0;vr_melee_phase 0"
+S="vr_fixed_frames 1;vr_fixed_frames_rate 90;map vrmelee-recording;wait60;god;notarget;developer 1;vr_ragdoll 1;vr_melee_dmg_multiplier 0.25;vr_melee_push 0;vr_dummy_attacks 0;vr_melee_phase_speed 100"
 S="$S;impulse 150;wait5;$SPOT;wait30;vr_mock_hand main -0.10 1.15 -0.20 0 0 0;+grabmain;vr_mock_button main grip 1;wait20"
 S="$S;echo HELDOFF_CASE free;$P;wait260;echo HELDOFF_END free"
 S="$S;-grabmain;vr_mock_button main grip 0;wait10;setpos 3.3 -31.2 24 0 ${YAW:-0} 0;wait10;vr_test_spawn 0;vr_test_spawn_dist 28;vr_test_spawn_dead 1;impulse 241;wait3;vr_test_spawn_dead 0;wait300"

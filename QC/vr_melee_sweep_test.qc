@@ -2,22 +2,20 @@
 // vr_melee_sweep_test 1 (Debug > Tests > Melee Sweep): VR_Melee_Sweep's contacts (its probe: no speeds, nothing armed
 // or decided) for scripted sweeps of the main hand's weapon (its line's length, its layout and a hammer's or mace's head
 // as held: give it first, `vr_ad_test 116`..`129`), in the air ahead of the player past a target box, and once at the
-// floor; each with vr_melee_swept 0 (the points' lines, as before) and 1 (the swept surface). "meleesweep:" lines (hit,
-// the striking point, the contact), then PASS or FAIL:
-//   A  the blade's middle swept across a box (20 units), its tip past it: both strike; swept, the contact is where the
-//      blade crossed the box's middle (old: its outermost point, at its edge).
-//   E  a small box (6 units) only the blade's outer third crosses (0.85 of its line): swept strikes it.
-//   B  a thin pole (1 unit) halfway between the two striking points farthest apart: swept strikes it.
-//   C  a hammer's or mace's head (when it has one) swept by a small box beside its line, within the head: swept strikes it.
-//   F  a box the sweep passes 3 units clear of (past the tip, past a head's face): neither strikes.
-//   D  the blade laid flat on the floor in one frame (from 4 units over to 3 into it): swept lands at the blade's
-//      middle (old: its first point).
+// floor (the swept surface). "meleesweep:" lines (hit, the striking point, the contact), then PASS or FAIL:
+//   A  the blade's middle swept across a box (20 units), its tip past it: it strikes where the blade crossed the box's
+//      middle.
+//   E  a small box (6 units) only the blade's outer third crosses (0.85 of its line): it strikes it.
+//   B  a thin pole (1 unit) halfway between the two striking points farthest apart: it strikes it.
+//   C  a hammer's or mace's head (when it has one) swept by a small box beside its line, within the head: it strikes it.
+//   F  a box the sweep passes 3 units clear of (past the tip, past a head's face): it doesn't strike.
+//   D  the blade laid flat on the floor in one frame (from 4 units over to 3 into it): it lands at the blade's middle.
 
 float vr_mswt_fail;
 
 // One probe of the sweep of what `b` holds (`xThing`) from the line at `xG0` (grip), `xA0` (way, unit) to `xG1`, `xA1`,
 // `xLen` long, the model's +y `xY`: into vr_msw_*.
-void(entity b, float xThing, vector xG0, vector xA0, vector xG1, vector xA1, vector xY, float xLen, float xSwept) VR_MSWT_Probe =
+void(entity b, float xThing, vector xG0, vector xA0, vector xG1, vector xA1, vector xY, float xLen) VR_MSWT_Probe =
 {
     float i;
     VR_Melee_Layout(xThing);
@@ -50,54 +48,37 @@ void(entity b, float xThing, vector xG0, vector xA0, vector xG1, vector xA1, vec
     b.mh_hd_cg = xG1;
     b.mh_hd_cf = xG1 + xA1 * xLen;
     b.mh_hd_cy = xY;
-    float was = cvar("vr_melee_swept");
-    cvar_set("vr_melee_swept", ftos(xSwept));
     vr_msw_probe = TRUE;
     VR_Melee_Sweep(cVR_MainHand, b);
     vr_msw_probe = FALSE;
-    cvar_set("vr_melee_swept", ftos(was));
 };
 
-// Probes both ways and prints them; the contact's place along the blade (from the grip, `xG1` along `xA1`) and off the
-// target's middle `xC`.
-float vr_mswt_hit0;
-float vr_mswt_hit1;
-vector vr_mswt_at0;
-vector vr_mswt_at1;
+// Probes and prints it; the contact's place along the blade (from the grip, `xG1` along `xA1`) and off the target's
+// middle `xC`.
+float vr_mswt_hit;
+vector vr_mswt_at;
 void(string xName, entity b, entity xT, float xThing, vector xG0, vector xA0, vector xG1, vector xA1, vector xY, float xLen,
      vector xC) VR_MSWT_Case =
 {
-    float s;
-    for(s = 0; s < 2; ++s)
+    VR_MSWT_Probe(b, xThing, xG0, xA0, xG1, xA1, xY, xLen);
+    float hit = (vr_msw_edge == xT);
+    vector at = vr_msw_edge_at;
+    float pt = vr_msw_edge_i;
+    if(xT == world)
     {
-        VR_MSWT_Probe(b, xThing, xG0, xA0, xG1, xA1, xY, xLen, s);
-        float hit = (vr_msw_edge == xT);
-        vector at = vr_msw_edge_at;
-        float pt = vr_msw_edge_i;
-        if(xT == world)
-        {
-            hit = (vr_msw_wall_i >= 0);
-            at = vr_msw_wall_at;
-            pt = vr_msw_wall_i;
-        }
-        if(s == 0)
-        {
-            vr_mswt_hit0 = hit;
-            vr_mswt_at0 = at;
-        }
-        else
-        {
-            vr_mswt_hit1 = hit;
-            vr_mswt_at1 = at;
-        }
-        bprint(sprintf("meleesweep: %s swept %g (%g lines): %s", xName, s, vr_rib_n, hit ? "hit" : "miss"));
-        if(hit)
-        {
-            bprint(sprintf(" by point %g (%s), %.1f along the blade, %.1f off the target's middle", pt, vr_mpt_name[pt],
-                (at - xG1) * xA1, vlen(at - xC)));
-        }
-        bprint("\n");
+        hit = (vr_msw_wall_i >= 0);
+        at = vr_msw_wall_at;
+        pt = vr_msw_wall_i;
     }
+    vr_mswt_hit = hit;
+    vr_mswt_at = at;
+    bprint(sprintf("meleesweep: %s (%g lines): %s", xName, vr_rib_n, hit ? "hit" : "miss"));
+    if(hit)
+    {
+        bprint(sprintf(" by point %g (%s), %.1f along the blade, %.1f off the target's middle", pt, vr_mpt_name[pt],
+            (at - xG1) * xA1, vlen(at - xC)));
+    }
+    bprint("\n");
 };
 
 void(entity p) VR_Melee_SweepTest =
@@ -155,9 +136,7 @@ void(entity p) VR_Melee_SweepTest =
     setorigin(t, cA);
     setsize(t, '-10 -10 -10', '10 10 10');
     VR_MSWT_Case("A (the blade's middle across a box)", b, t, thing, g0, side, g1, side, up, len, cA);
-    float offOld = fabs((vr_mswt_at0 - g1) * side - len * fA);
-    float offNew = fabs((vr_mswt_at1 - g1) * side - len * fA);
-    if(!vr_mswt_hit1 || offNew > 10 || (vr_mswt_hit0 && offNew > offOld + 0.5))
+    if(!vr_mswt_hit || fabs((vr_mswt_at - g1) * side - len * fA) > 10)
     {
         bprint("meleesweep: A FAIL\n");
         vr_mswt_fail = TRUE;
@@ -169,7 +148,7 @@ void(entity p) VR_Melee_SweepTest =
     setorigin(t, cE);
     setsize(t, '-3 -3 -3', '3 3 3');
     VR_MSWT_Case("E (only the outer third across a box)", b, t, thing, g0, side, g1, side, up, len, cE);
-    if(!vr_mswt_hit1)
+    if(!vr_mswt_hit)
     {
         bprint("meleesweep: E FAIL\n");
         vr_mswt_fail = TRUE;
@@ -195,7 +174,7 @@ void(entity p) VR_Melee_SweepTest =
         setsize(t, '-0.5 -0.5 -20', '0.5 0.5 20');
         bprint(sprintf("meleesweep: B's gap %.1f units (the points' lines %.1f thick)\n", gap * len, r));
         VR_MSWT_Case("B (a thin pole between two points)", b, t, thing, g0, side, g1, side, up, len, cB);
-        if(!vr_mswt_hit1)
+        if(!vr_mswt_hit)
         {
             bprint("meleesweep: B FAIL\n");
             vr_mswt_fail = TRUE;
@@ -217,7 +196,7 @@ void(entity p) VR_Melee_SweepTest =
         bprint(sprintf("meleesweep: C's head %.1f long, %.1f across, %.1f deep; the box %.1f off its line\n",
             len * (hhi_x - hlo_x), len * (hhi_y - hlo_y), len * hhi_z * 2, len * hhi_z * 0.7 + 2));
         VR_MSWT_Case("C (a box beside the head)", b, t, thing, hg0, up, hg1, up, side, len, cC);
-        if(!vr_mswt_hit1)
+        if(!vr_mswt_hit)
         {
             bprint("meleesweep: C FAIL\n");
             vr_mswt_fail = TRUE;
@@ -226,7 +205,7 @@ void(entity p) VR_Melee_SweepTest =
         vector cF = hc + side * (len * hhi_z + r + 3 + 2);
         setorigin(t, cF);
         VR_MSWT_Case("F (a box clear of the head)", b, t, thing, hg0, up, hg1, up, side, len, cF);
-        if(vr_mswt_hit0 || vr_mswt_hit1)
+        if(vr_mswt_hit)
         {
             bprint("meleesweep: F FAIL\n");
             vr_mswt_fail = TRUE;
@@ -239,7 +218,7 @@ void(entity p) VR_Melee_SweepTest =
         setorigin(t, cT);
         setsize(t, '-2 -2 -2', '2 2 2');
         VR_MSWT_Case("F (a box clear past the tip)", b, t, thing, g0, side, g1, side, up, len, cT);
-        if(vr_mswt_hit0 || vr_mswt_hit1)
+        if(vr_mswt_hit)
         {
             bprint("meleesweep: F FAIL\n");
             vr_mswt_fail = TRUE;
@@ -270,10 +249,9 @@ void(entity p) VR_Melee_SweepTest =
             }
         }
         float midD = len * (s0 + 1) * 0.5;
-        float alongD = (vr_mswt_at1 - d1) * side;
-        bprint(sprintf("meleesweep: D's striking part's middle %.1f along the blade; swept landed %.1f, old %.1f\n", midD,
-            alongD, (vr_mswt_at0 - d1) * side));
-        if(!vr_mswt_hit1 || fabs(alongD - midD) > len * 0.15 || fabs(vr_mswt_at1_z - fz) > 1)
+        float alongD = (vr_mswt_at - d1) * side;
+        bprint(sprintf("meleesweep: D's striking part's middle %.1f along the blade; it landed %.1f\n", midD, alongD));
+        if(!vr_mswt_hit || fabs(alongD - midD) > len * 0.15 || fabs(vr_mswt_at_z - fz) > 1)
         {
             bprint("meleesweep: D FAIL\n");
             vr_mswt_fail = TRUE;
@@ -326,12 +304,9 @@ float(entity b, entity xT, float xThing, vector xD, float xBent, float xWidth) V
     b.mh_grip = vr_mline_grip + xD;
     b.mh_far = vr_mline_far + xD;
     b.mh_hd_lo = b.mh_hd_hi = '0 0 0';
-    float was = cvar("vr_melee_swept");
-    cvar_set("vr_melee_swept", "1");
     vr_msw_probe = TRUE;
     VR_Melee_Sweep(cVR_MainHand, b);
     vr_msw_probe = FALSE;
-    cvar_set("vr_melee_swept", ftos(was));
     return vr_msw_edge == xT;
 };
 
@@ -452,12 +427,9 @@ float(entity b, entity xT, vector xGrip, vector xFar, vector xD, float xWidth) V
     b.mh_grip = xGrip + xD;
     b.mh_far = xFar + xD;
     b.mh_hd_lo = b.mh_hd_hi = '0 0 0';
-    float was = cvar("vr_melee_swept");
-    cvar_set("vr_melee_swept", "1");
     vr_msw_probe = TRUE;
     VR_Melee_Sweep(cVR_MainHand, b);
     vr_msw_probe = FALSE;
-    cvar_set("vr_melee_swept", ftos(was));
     return vr_msw_edge == xT;
 };
 
@@ -517,9 +489,7 @@ void(entity p) VR_Melee_FistLineTest =
 // vr_melee_sweep_test 6 (one swing, many things: ROUND22.md "One swing hits everything its edge passes through"): the
 // main hand's weapon (a sword: the scene sword_multi gives one) swung in scripted frames at what the scene placed, every
 // blow landing (vr_msw_decide: VR_Melee_Decide's speed tests skipped, a cut at strength 1.5) and dealt as in play
-// (VR_Melee_Sweep, VR_Melee_DealAll: the weapon's damage, gore, sparks), each case with vr_melee_multi 0 (as before:
-// the frame after a blow skipped, as PlayerVRMeleeImpl's 0.02 s pause at 72 Hz) and then 1. "meleemulti:" lines, then
-// PASS or FAIL (multi 1):
+// (VR_Melee_Sweep, VR_Melee_DealAll: the weapon's damage, gore, sparks). "meleemulti:" lines, then PASS or FAIL:
 //   floor  a chop at the nearest corpse's limb (an arm's lower part) lying on the floor, the blade's tip lower: frame 1
 //          its tip into the floor beside the limb, frame 2 the blade through the limb: the floor and the corpse struck,
 //          the limb cut off (vr_limbs).
@@ -527,9 +497,7 @@ void(entity p) VR_Melee_FistLineTest =
 //          frame: both struck.
 //   wall   a swing along the wall beside the live monster nearest a wall (another than the two), the tip going into
 //          the wall first: the wall and the monster struck.
-// The live monsters' health is raised to 5000 first (each case strikes them twice); the corpse is struck by multi 1 only
-// (off first: it must stay whole).
-float vr_mmt_skip; // (multi 0: the frames skipped after a blow)
+// The live monsters' health is raised to 5000 first.
 float vr_mmt_probeonly; // (VR_MMT_Frame: the poses set, the sweep probed, nothing dealt)
 vector vr_mmt_g;   // the last pose's grip, way
 vector vr_mmt_a;
@@ -582,11 +550,6 @@ void(entity b, vector xG, vector xA, float xLen, vector xVel) VR_MMT_Frame =
         vr_msw_probe = FALSE;
         return;
     }
-    if(vr_mmt_skip > 0)
-    {
-        vr_mmt_skip = vr_mmt_skip - 1;
-        return;
-    }
     if(!VRGetMeleeHitSoundPlayed(h))
     {
         VR_Melee_HitClear(b);
@@ -617,10 +580,6 @@ void(entity b, vector xG, vector xA, float xLen, vector xVel) VR_MMT_Frame =
             bprint(sprintf("meleemulti:   dealt: landed %g, %g things, world %g; its health %g -> %g\n",
                 VRGetMeleeHitSoundPlayed(h), b.mh_hit_n, b.mh_hit_world, hp, c.health));
         }
-        if(!VR_Melee_Multi(b))
-        {
-            vr_mmt_skip = 1;
-        }
     }
 };
 
@@ -635,7 +594,6 @@ void(entity b, vector xG, vector xA) VR_MMT_Start =
     b.mh_wall_blow = -10;
     b.mh_wall_on = FALSE;
     b.mh_pend_ent = world;
-    vr_mmt_skip = 0;
     vr_mmt_g = xG;
     vr_mmt_a = xA;
 };
@@ -645,8 +603,7 @@ float(string xName, entity b, entity xA, entity xB, float xWall) VR_MMT_Report =
 {
     float ha = (xA == world) || VR_Melee_HitHas(b, xA);
     float hb = (xB == world) || VR_Melee_HitHas(b, xB);
-    bprint(sprintf("meleemulti: %s multi %g: %g things struck, world %g;", xName, cvar("vr_melee_multi"), b.mh_hit_n,
-        b.mh_hit_world));
+    bprint(sprintf("meleemulti: %s: %g things struck, world %g;", xName, b.mh_hit_n, b.mh_hit_world));
     bprint(sprintf(" %s at %v %g", xA.classname, xA.origin, VR_Melee_HitHas(b, xA)));
     bprint(sprintf(", %s at %v %g\n", xB.classname, xB.origin, VR_Melee_HitHas(b, xB)));
     return ha && hb && (!xWall || b.mh_hit_world);
@@ -842,46 +799,33 @@ void(entity p) VR_Melee_MultiTest =
     if(ta != world) { ta.health = 5000; }
     if(tb != world) { tb.health = 5000; }
     if(tw != world) { tw.health = 5000; }
-    float multi = cvar("vr_melee_multi");
     float pass = TRUE;
-    float on;
-    for(on = 0; on < 2; ++on)
+    vr_msw_decide = 1.5;
+    float ok;
+    if(corpse != world)
     {
-        cvar_set("vr_melee_multi", ftos(on));
-        vr_msw_decide = 1.5;
-        float ok;
-        if((corpse != world) && on)
-        {
-            ok = VR_MMT_Floor(p, b, corpse, len);
-            bprint(sprintf("meleemulti: floor %s\n", ok ? "PASS" : "FAIL"));
-            pass = (pass && ok);
-        }
-        if((ta != world) && (tb != world))
-        {
-            ok = VR_MMT_Two(p, b, ta, tb, len);
-            if(on)
-            {
-                bprint(sprintf("meleemulti: two %s\n", ok ? "PASS" : "FAIL"));
-                pass = (pass && ok);
-            }
-        }
-        if(tw != world)
-        {
-            ok = VR_MMT_Wall(p, b, tw, wn, wd, len);
-            if(on)
-            {
-                bprint(sprintf("meleemulti: wall %s\n", ok ? "PASS" : "FAIL"));
-                pass = (pass && ok);
-            }
-        }
-        vr_msw_decide = 0;
+        ok = VR_MMT_Floor(p, b, corpse, len);
+        bprint(sprintf("meleemulti: floor %s\n", ok ? "PASS" : "FAIL"));
+        pass = (pass && ok);
     }
+    if((ta != world) && (tb != world))
+    {
+        ok = VR_MMT_Two(p, b, ta, tb, len);
+        bprint(sprintf("meleemulti: two %s\n", ok ? "PASS" : "FAIL"));
+        pass = (pass && ok);
+    }
+    if(tw != world)
+    {
+        ok = VR_MMT_Wall(p, b, tw, wn, wd, len);
+        bprint(sprintf("meleemulti: wall %s\n", ok ? "PASS" : "FAIL"));
+        pass = (pass && ok);
+    }
+    vr_msw_decide = 0;
     if((corpse == world) || (ta == world) || (tw == world))
     {
         pass = FALSE;
         bprint("meleemulti: the scene lacks a corpse, two live monsters or one by a wall (vr_scenario sword_multi)\n");
     }
-    cvar_set("vr_melee_multi", ftos(multi));
     VRSetMeleeHitSoundPlayed(cVR_MainHand, FALSE);
     VR_Melee_HitClear(b);
     b.mh_hit_ent = world;
@@ -923,12 +867,9 @@ float(entity b, entity xT, float xThing, vector xGrip, vector xFar, vector xD) V
     vr_mline_grip = g;
     vr_mline_far = f;
     vr_mline_bend = bend;
-    float was = cvar("vr_melee_swept");
-    cvar_set("vr_melee_swept", "1");
     vr_msw_probe = TRUE;
     VR_Melee_Sweep(cVR_MainHand, b);
     vr_msw_probe = FALSE;
-    cvar_set("vr_melee_swept", ftos(was));
     return vr_msw_edge == xT;
 };
 

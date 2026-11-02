@@ -1493,10 +1493,6 @@ QVR_SLIDER(vr_damage_to_enemies, "Damage to Enemies", 0.25f, 4.f, 0.05f, "%.2fx"
 QVR_SLIDER(vr_damage_to_player, "Damage to You", 0.f, 4.f, 0.05f, "%.2fx", ext(), "Damage monsters, traps and falls deal to you.")
 QVR_SLIDER(vr_damage_self, "Self Damage", 0.f, 2.f, 0.05f, "%.2fx", ext(), "Damage your own rockets and grenades deal to you.")
 QVR_TOGGLE(vr_positional_damage, "Positional Damage", "Headshots, arm and leg shots on humanoid monsters.")
-QVR_TOGGLE(vr_melee_positional, "Melee Positional Damage",
-    "Your melee blows take the same head / limb / leg multipliers as your shots, from the point on the "
-    "model they met: a head is a head for a blade and for a shot. Off: flat melee damage, as before. The "
-    "looser melee tolerance stays what connects only.")
 QVR_SLIDER(vr_headshot_mult, "Headshot Damage", 1.f, 5.f, 0.1f, "%.1fx", ext(), nullptr)
 QVR_SLIDER(vr_limbshot_mult, "Arm Shot Damage", 0.1f, 1.f, 0.05f, "%.2fx", ext(), nullptr)
 QVR_SLIDER(vr_legshot_mult, "Leg Shot Damage", 0.1f, 1.f, 0.05f, "%.2fx", ext(), nullptr)
@@ -2712,16 +2708,12 @@ QVR_SLIDER_BYNAME(vr_melee_swish_full, "Loudest Blow At", 1.2f, 3.f, 0.05f, "%.2
     "The speed, times the blow's landing speed, at which its whoosh is loudest (Loudest Blow).")
 QVR_SLIDER_BYNAME(vr_melee_swish_gain, "Loudest Blow", 1.f, 2.5f, 0.05f, "%.2fx", ext(1.f, 4.f),
     "Volume of the fastest blows' whoosh, times full volume (1: every blow at full volume).")
-QVR_TOGGLE_BYNAME(vr_melee_phase, "Swing Through Enemies",
-    "While your hand swings fast, your fist and the weapon in it pass through enemies instead of being drawn stopped at their bodies (Hands Stop at Models). Walls and things lying about still stop them. The blow is tested where your real hand goes either way: this shows the swing where it is tested. After the swing the hand is eased back out of the enemy. Off: stopped at enemies however fast (as before).")
 QVR_SLIDER_BYNAME(vr_melee_phase_speed, "Swing Through Speed", 1.f, 6.f, 0.25f, "%.2f m/s", ext(0.25f, 10.f),
     "How fast the hand must move to pass through. 4 (the default): a hard blow's speed; 2.25: a stab's least speed at Swing Speed 3 (a punch 3, a weapon's swing 3.75). Lower: slower pushes pass through too; higher: only hard blows.")
 QVR_SLIDER_BYNAME(vr_melee_phase_time, "Swing Through Follow-Through", 0.f, 0.5f, 0.01f, "%.2f s", ext(0.f, 2.f),
     "How long the hand still passes through after it slowed down, so a blow's end isn't stopped inside the enemy.")
 QVR_TOGGLE_BYNAME(vr_melee_phase_hold, "Swing Through: Guns and Props",
     "Also a gun or a prop held in one hand, swung as a club. Off: only fists and melee weapons (the axe, Mjolnir, the swords, the crowbar, the chainsaw).")
-QVR_TOGGLE_BYNAME(vr_melee_world_pass, "Strike Past Walls and Floor",
-    "While your hand swings fast at an enemy, a corpse or a ragdoll near the wall or the floor, most of your weapon is let into the level instead of being held out of it, so a cut at a body lying on the floor reaches it instead of the blade bouncing up off the floor first. Swung at the floor or a wall with no body near, it meets the level as before (sparks, marks, the wall blow). Off: always held out of the level whole.")
 QVR_SLIDER_BYNAME(vr_melee_world_pass_length, "Strike Past: Length Held Out", 0.f, 1.f, 0.05f, "%.2f", noExt,
     "During such a strike, the share of the weapon (from your hand) still held out of the walls and the floor: lower lets more of the blade in. 0: only your hand; 1: all of it (as off).")
 QVR_SLIDER_BYNAME(vr_melee_world_pass_speed, "Strike Past: Speed", 1.f, 6.f, 0.25f, "%.2f m/s", ext(0.25f, 10.f),
@@ -2730,8 +2722,6 @@ QVR_SLIDER_BYNAME(vr_melee_world_pass_time, "Strike Past: Follow-Through", 0.f, 
     "How long the weapon stays let in after the hand slowed (the end of the cut), before it is eased back out.")
 QVR_SLIDER_BYNAME(vr_melee_world_pass_reach, "Strike Past: Target Reach", 0.f, 32.f, 1.f, "%.0f units", ext(0.f, 64.f),
     "How near the weapon's far end (and where it is going) the body must be for the strike to be let past the level.")
-QVR_TOGGLE_BYNAME(vr_melee_multi, "Hit Everything the Edge Passes",
-    "A swing of a weapon strikes every enemy, corpse, ragdoll and prop its striking part passes through, each once and each by its own speed and spot, and the wall or the floor as well (sparks, marks): a blade that meets the floor first still cuts the body lying on it. Bare fists strike one thing a punch. Off: as before (the floor or a wall struck first ends the swing).")
 QVR_SLIDER_BYNAME(vr_melee_multi_max, "Most Things a Swing", 1.f, 6.f, 1.f, "%.0f", noExt,
     "How many things (not counting the wall or the floor) one swing strikes at most.")
 QVR_TOGGLE(vr_headbutt, "Headbutt", "Lunge your head at something to headbutt it.")
@@ -5602,9 +5592,6 @@ QVR_TOGGLE_BYNAME(vr_flail_frame, "Flail Head in Your Frame",
 QVR_TOGGLE_BYNAME(vr_flail_smooth, "Flail Head Drawn Smooth",
     "Debug: the held flail's head drawn between the server's steps, on the hand as drawn, at the headset's "
     "frame rate. Off: where each 72 Hz step left it (jerky under the hand).")
-QVR_TOGGLE_BYNAME(vr_melee_curved_blades, "Curved Blades",
-    "A curved sword (the death fury's) strikes along its curve; off: along the straight line from the hand "
-    "to its tip, as before.")
 
 // vr_menu_automation.inc: ?
 QVR_TOGGLE(vr_agrunt_ik_debug, "Armed Grunts: Grip Distances",
@@ -6382,10 +6369,6 @@ QVR_SLIDER(vr_test_spawn_yaw, "Box Turned", 0.f, 90.f, 1.f, "%.0f degrees", ext(
     "grappling hook against its real shape (its turned box's empty corners let the hook by).")
 QVR_SLIDER(vr_test_spawn_tilt, "Box Tilted", 0.f, 90.f, 1.f, "%.0f degrees", ext(),
     "A box: tipped this far about the way you face, on its lowest corner (it topples: sv_gravity 0 keeps it so).")
-QVR_TOGGLE_BYNAME(vr_melee_swept, "Swept Blades",
-    "vr_melee_swept: a weapon's blow is the surface its whole blade sweeps each frame (a hammer's or mace's "
-    "head: its volume), landing where it crossed the thing most squarely; off: its points' lines alone, the "
-    "outermost striking, as before.")
 QVR_CYCLE_BYNAME(vr_kdtrig_debug, "Show Ragdoll Triggers",
     "vr_kdtrig_debug: a `kdtrig:` line for each hit that knocks a humanoid down by stairs, a ledge, a slope, "
     "a close shotgun blast or its wounds (which, its chance and roll), each thrown body and shoulder "

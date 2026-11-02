@@ -907,7 +907,7 @@ const za::Vector<glm::vec3>* propSamples(int num)
 // it can actually get through the grunt and then I'm able to grab the backpack while the grunt is facing me"): the push
 // lets go at twice vr_model_collide_max, and the hand's own ray (handRayLength behind it) starts inside a body deeper
 // than that, so a hand pushed on went through. Now its grip's way from one frame to the next is followed: crossing a
-// living monster's surface inwards (not swinging through it: vr_melee_phase) it is drawn held out by the face it went in
+// living monster's surface inwards (not swinging through it: updatePhase) it is drawn held out by the face it went in
 // by (kept in the monster's frame: turning and walking with it) however deep, until it comes back out in front of that
 // face, moves throughReach clear of the body's drawn box, goes throughMost in (a monster walking into you: let go, as
 // before), or the monster dies. Its grabs take hold where it is drawn (vr_foegrab.cpp: not the backpack behind it).
@@ -940,7 +940,7 @@ bool lastGripValid[2]{false, false};
 }
 
 // The push of `hand` out of the models near it, from its tracked pose.
-// `phase`: the hand swings (vr_melee_phase): the monsters (and corpses, other players) don't stop it; the things lying
+// `phase`: the hand swings (updatePhase): the monsters (and corpses, other players) don't stop it; the things lying
 // about still do.
 Result test(const hands::State& s, int hand, bool phase)
 {
@@ -1219,7 +1219,7 @@ Result test(const hands::State& s, int hand, bool phase)
 // ----------------------------------------------------------------------------
 // The pushes, drawn.
 
-// Melee phasing (vr_melee_phase; ROUND21.md, "Melee phasing"): a hand swinging at least vr_melee_phase_speed, and for
+// Melee phasing (ROUND21.md, "Melee phasing"): a hand swinging at least vr_melee_phase_speed, and for
 // vr_melee_phase_time after it slowed, passes through the monsters (test's `phase`), its push let go at once (easeIn);
 // when it ends in one, it is eased back out (releaseEase), not snapped out (easeIn) in a frame: until the push is reached
 // (or releaseTime, at most).
@@ -1230,7 +1230,7 @@ float releaseLeft[2]{0.f, 0.f};      // s it is still eased out slowly
 bool phasing[2]{false, false};
 
 // The melee weapons' models (QC WeaponIdToModel: the axe, Mjolnir and MG3's Super Axe, the knights' swords, the
-// chainsaw, the crowbar): they phase with vr_melee_phase alone; a gun or a held prop also needs vr_melee_phase_hold.
+// chainsaw, the crowbar): they always phase; a gun or a held prop also needs vr_melee_phase_hold.
 constexpr const char* meleeModels[]{"progs/v_axe.mdl", "progs/v_hammer.mdl", "progs/v_ksword.mdl", "progs/v_hksword.mdl",
     "progs/v_chainsaw.mdl", "progs/v_crowbar.mdl", "progs/v_shadaxe3.mdl#vr" /* AD support: the Shadow Axe */};
 
@@ -1271,7 +1271,7 @@ constexpr const char* meleeModels[]{"progs/v_axe.mdl", "progs/v_hammer.mdl", "pr
 void updatePhase(const hands::State& s, int hand, float dt)
 {
     const bool was = phasing[hand];
-    const bool on = vr_melee_phase.value != 0.f && s.valid && phaseable(hand);
+    const bool on = s.valid && phaseable(hand);
     const float speed = s.valid ? glm::length(s.vel[hand]) : 0.f;
     const bool fast = on && speed >= za::fmax(vr_melee_phase_speed.value, 0.1f);
     if(!on)

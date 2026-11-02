@@ -36,7 +36,7 @@ float hit_proj;     // a QVR_HITKIND_SHOT that is a projectile's hit (VR_Proj_Be
 vector hit_pos;     // where it struck ('0 0 0': unknown)
 vector hit_dir;     // and going which way
 
-// A melee blow's positional damage (weapons.qc, vr_melee_positional): its damage times the zone the blow landed on.
+// A melee blow's positional damage (weapons.qc): its damage times the zone the blow landed on.
 float(entity xTarget, vector xTo, vector xDir) VR_Melee_Positional;
 
 // The hit record (design review 6; ROUND23.md, "One hit record"): where the hit being dealt struck, written once by
@@ -3188,8 +3188,8 @@ float(entity targ, entity inflictor, entity attacker, float damage) T_Damage_VRM
 {
     // A prop that breaks (a crate, an explosive box, AD's breakables...) struck by a hand's blow: the impact rule's damage
     // instead (VR_Prop_BlowDamage: from the blow's speed; a light one none, it only pushes). Else positional damage
-    // (vr_melee_positional): the zone of the point on the model it met, the same the guns use. Off: 1, and nothing is
-    // recorded - exactly the flat melee damage of before.
+    // (VR_Melee_Positional): the zone of the point on the model it met, the same the guns use; with Positional Damage
+    // off: 1, and nothing is recorded.
     // An armed monster's blow (your weapons' own code, dealt by it: vr_armedgrunt_pose.qc VR_AGP_Strike) parried as any
     // monster's melee (VR_Parry: its windows, stamina, stagger, sounds, haptics). This path never went through T_Damage:
     // its blows could not be parried.

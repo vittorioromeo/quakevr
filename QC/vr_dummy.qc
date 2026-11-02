@@ -300,7 +300,7 @@ string(entity targ, float isVRMelee) VR_Dummy_Part =
         return s;
     }
 
-    // A melee blow: only where it landed (and its zone's multiplier, with vr_melee_positional: VR_Melee_Positional
+    // A melee blow: only where it landed (and its zone's multiplier: VR_Melee_Positional
     // records it as a shot's PositionalDamage does).
     if(isVRMelee || hit_kind == QVR_HITKIND_BASH || hit_kind == QVR_HITKIND_SHOVE)
     {

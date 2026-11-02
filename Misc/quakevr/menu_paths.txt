@@ -799,16 +799,13 @@ vr_melee_swish_min|1|Melee|Heard From|Advanced VR Options > Combat > Melee > Hea
 vr_melee_swish_sub|1|Melee|Short of a Blow|Advanced VR Options > Combat > Melee > Short of a Blow
 vr_melee_swish_full|1|Melee|Loudest Blow At|Advanced VR Options > Combat > Melee > Loudest Blow At
 vr_melee_swish_gain|1|Melee|Loudest Blow|Advanced VR Options > Combat > Melee > Loudest Blow
-vr_melee_phase|1|Melee|Swing Through Enemies|Advanced VR Options > Combat > Melee > Swing Through Enemies
 vr_melee_phase_speed|1|Melee|Swing Through Speed|Advanced VR Options > Combat > Melee > Swing Through Speed
 vr_melee_phase_time|1|Melee|Swing Through Follow-Through|Advanced VR Options > Combat > Melee > Swing Through 
 vr_melee_phase_hold|1|Melee|Swing Through: Guns and Props|Advanced VR Options > Combat > Melee > Swing Through: 
-vr_melee_world_pass|1|Melee|Strike Past Walls and Floor|Advanced VR Options > Combat > Melee > Strike Past Walls 
 vr_melee_world_pass_length|1|Melee|Strike Past: Length Held Out|Advanced VR Options > Combat > Melee > Strike Past: 
 vr_melee_world_pass_speed|1|Melee|Strike Past: Speed|Advanced VR Options > Combat > Melee > Strike Past: Speed
 vr_melee_world_pass_time|1|Melee|Strike Past: Follow-Through|Advanced VR Options > Combat > Melee > Strike Past: 
 vr_melee_world_pass_reach|1|Melee|Strike Past: Target Reach|Advanced VR Options > Combat > Melee > Strike Past: 
-vr_melee_multi|1|Melee|Hit Everything the Edge Passes|Advanced VR Options > Combat > Melee > Hit Everything the 
 vr_melee_multi_max|1|Melee|Most Things a Swing|Advanced VR Options > Combat > Melee > Most Things a Swing
 vr_headbutt|1|Melee|Headbutt|Advanced VR Options > Combat > Melee > Headbutt
 vr_headbutt_speed|1|Melee|Headbutt Speed|Advanced VR Options > Combat > Melee > Headbutt Speed
@@ -879,7 +876,6 @@ vr_damage_to_enemies|1|Damage and Knockback|Damage to Enemies|Advanced VR Option
 vr_damage_to_player|1|Damage and Knockback|Damage to You|Advanced VR Options > Combat > Damage and Knockback > 
 vr_damage_self|1|Damage and Knockback|Self Damage|Advanced VR Options > Combat > Damage and Knockback > Self Damage
 vr_positional_damage|1|Damage and Knockback|Positional Damage|Advanced VR Options > Combat > Damage and Knockback > 
-vr_melee_positional|1|Damage and Knockback|Melee Positional Damage|Advanced VR Options > Combat > Damage and 
 vr_headshot_mult|1|Damage and Knockback|Headshot Damage|Advanced VR Options > Combat > Damage and Knockback > 
 vr_limbshot_mult|1|Damage and Knockback|Arm Shot Damage|Advanced VR Options > Combat > Damage and Knockback > Arm 
 vr_legshot_mult|1|Damage and Knockback|Leg Shot Damage|Advanced VR Options > Combat > Damage and Knockback > Leg 
@@ -4297,7 +4293,6 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Can the Grunt See You?|Advanced VR Options > Debug > Tests > Can the Grunt See You?
 |2|Debug - Tests|Crouch Shots|Advanced VR Options > Debug > Tests > Crouch Shots
 |2|Debug - Tests|Crouch Status|Advanced VR Options > Debug > Tests > Crouch Status
-vr_melee_swept|2|Debug - Tests|Swept Blades|Advanced VR Options > Debug > Tests > Swept Blades
 |2|Debug - Tests|Melee Sweep Test|Advanced VR Options > Debug > Tests > Melee Sweep Test
 |2|Debug - Tests|One Swing, Many Hits Test|Advanced VR Options > Debug > Tests > One Swing, Many Hits Test
 |2|Debug - Tests|Check the Parry Pose|Advanced VR Options > Debug > Tests > Check the Parry Pose
@@ -7881,7 +7876,6 @@ vr_flail_smooth|2|Arcane Dimensions Monsters|Flail Head Drawn Smooth|Advanced VR
 |2|Arcane Dimensions Monsters|Melee Weapon Models|Advanced VR Options > Debug > Tests > Arcane Dimensions Monsters 
 |2|Arcane Dimensions Monsters|Fury's Sword: Curve Check|Advanced VR Options > Debug > Tests > Arcane Dimensions 
 |2|Arcane Dimensions Monsters|Fury's Sword: Drawn Spine|Advanced VR Options > Debug > Tests > Arcane Dimensions 
-vr_melee_curved_blades|2|Arcane Dimensions Monsters|Curved Blades|Advanced VR Options > Debug > Tests > Arcane 
 |2|Arcane Dimensions Monsters|Holster Refusal Check|Advanced VR Options > Debug > Tests > Arcane Dimensions 
 |2|Arcane Dimensions Monsters|Projectile Hit Check|Advanced VR Options > Debug > Tests > Arcane Dimensions Monsters 
 |2|Arcane Dimensions Monsters|Stand-In Gun Model|Advanced VR Options > Debug > Tests > Arcane Dimensions Monsters > 
