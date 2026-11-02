@@ -115,6 +115,7 @@ Graphics preset Off now keeps permanent marks.
 Release: make_release.ps1 -DryRun lists any tunables.cfg value not in the source, with the promote command; a real run stops on it before building.
 Console at start: when a setting becomes a tuning constant and your config set it, you see "X is a tuning constant now: the config's "v" is kept in tunables.cfg" and `tune` lists it.
 Smashing a ragdoll into a wall: your Impact Multiplier 1.25 is the default now.
+A grunt with a gun and an axe switches to its axe up close and swings it; it no longer stands and shoves you {test:agrunt_repl_gunaxe}
 
 [2. Armed humanoids: disarming and armour]
 Show Disarm Volumes: the wireframe hulls sit on each drawn weapon (magenta, orange, red; the sword's orange line along its blade) and on the drawn hand and forearm (cyan). {test:disarm_hulls_melee}
