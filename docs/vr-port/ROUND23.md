@@ -5905,6 +5905,50 @@ Checklist:
   sweep test 1 PASS (the knight's sword, sword_multi turned north: its own spot has no room ahead); sweep test 6 PASS
   (floor, two, wall); calibration board menu paths 6 found, 0 missing.
 
+## Body tracking at start-up (agent/bodystart; his voice note 2026-11-02 00:41, vrstart)
+
+"As soon as I start the game the full body tracking ... is screwed up ... restarting Virtual Desktop fixes it ... never
+happened before like a week ago." Investigated from code, history and his logs (no headset here).
+
+- **History since 10-24:** nothing in the tracker's code changed. vr_bodytrack_xr.cpp is as made on 10-16 (04268b4ea:
+  FB tracker, Meta's full body, high fidelity asked for, calibration only read); its call sites moved in the backend
+  split (578445fe4, 10-30, pure move); the Body page's rows went through the settings schema (357de6dde) and tuning
+  constants (0882541d4) with no change in behaviour. The 10-31 seated pollution (prop_climb) was in the kit's worktree
+  config, not his.
+- **His last start** (logs/2026-11-02_00-40-08/qvr_openxr.txt): VDXR 1.1.0, all four body extensions enabled, "tracker
+  made (full body, 84 joints, high fidelity asked for)" at 00:40:15.220, *before* the session's IDLE/READY (the tracker
+  was made right after xrCreateSession, before xrBeginSession and long before the headset shows the game). No body
+  tracking error. The note's replay has no body columns, so what "screwed up" looked like can't be read back.
+- **His config:** vr_seated_height 1.574 m with a standing vr_height_calibration of 1.561 m: a seated height measured
+  standing (out of the slider's 0.8-1.5). Not used while seated play is off (vr_bodycal_seated 0, as his is), so not
+  the cause, but wrong. Body Calibration's values (vr_bodycal_*) are his own measurements: left alone.
+- **Causes, ranked:** (1) runtime side: Meta's body tracking (through VDXR) calibrates the body when the tracker starts;
+  started before the session runs or with the headset off the head (the game started from the desktop), it can keep a
+  wrong calibration until VDXR restarts, which matches "restarting Virtual Desktop fixes it"; why it began a week ago
+  is outside our code (a Virtual Desktop / Quest update is the likely change). (2) Ours, made worse by it: the tracker
+  made before the session's focus. (3) No in-game way to restart it but quitting and restarting Virtual Desktop.
+- **Fixes:** the tracker is made at the session's first FOCUSED frame (`bodytrack::xr::frame`, before locate), not with
+  the session. **Restart Body Tracking** (Body > Body Tracking; `vr_bodytrack_restart`): the tracker's calibration reset
+  (xrResetBodyTrackingCalibrationMETA, when offered), the tracker destroyed and made again at the next frame; the
+  joints start over (no smoothing from the old tracker), the regions ease out and back in. **Restart When Broken at
+  Start** (`vr_bodytrack_auto_restart`, default 2, Off/Once/Twice/Three Times): the start-up watch looks at the first
+  6 s of the source's frames after each start; 1.5 s of them broken, or none active, and it restarts itself, at most
+  that many times a game, then says so in the console. Broken (tracking space, metres): the tracked head joint over
+  0.35 from the headset; the hips-to-head distance outside 0.3-1.2 or the hips over the head; every valid joint within
+  0.1 of the hips (one point, the origin); not seated, the lower ankle more than 0.3 from the floor (the legs
+  mis-scaled); active with no valid hips or head. `vr_bodytrack_status` prints the restarts and the watch.
+- **Config 219:** a saved vr_seated_height at or over 0.9 of the standing eye height goes back to 0 (not measured);
+  `vr_seated_height_now` refuses such a height ("sit down first"). `seated::MAX_SHARE_OF_STANDING`.
+- **Mock:** `vr_bodytrack_synth_broken N` starts the synthetic body broken (0.5 m down) until N restarts.
+  `vr_bodytrack_restart_test` (mock only; `-QuitOn "bodytrack_restart_test: [0-9]+ passed"`): healthy start no
+  restart, the button restarts and tracking comes back, a broken start restarted once then fine, never fixed: 2 then it
+  gives up, auto restart 0: none. 6 passed, 0 failed.
+- **Verified:** that test 6/0; his real capture of 10-17 (bodytrack_dump.csv) replayed: the watch over with 0.0 s
+  broken, no restart (no false trigger on real Virtual Desktop data); bodytrack_elbow_test 7 PASS; migration: 1.574
+  with 1.561 standing -> 0, 1.1 kept.
+- **Not done (an option if the restart doesn't help):** telling Meta his height (xrSuggestBodyTrackingCalibrationOverrideMETA
+  from vr_height_calibration) instead of letting it measure; and asking for low fidelity (no Quest 3 camera IOBT).
+
 
 ## Legacy options removed, group 1 (branch `agent/legacy1`, his words 2026-11-02)
 

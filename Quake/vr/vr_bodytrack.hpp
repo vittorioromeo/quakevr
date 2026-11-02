@@ -82,6 +82,14 @@ BackendStatus& backendStatus();
 // A source's frame (once a frame, before hands.cpp's update).
 void submit(const Raw& raw);
 
+// Restart Body Tracking (vr_bodytrack_restart: the Body Tracking page's button; or the start-up watch, when the first
+// seconds of joints after the tracker starts look broken, at most vr_bodytrack_auto_restart times a game): asked here,
+// done by the source at its next frame. takeRestart: the source's question, once a frame; true (taken) when asked:
+// the source restarts (the OpenXR tracker made again with its calibration reset), the joints here start over (the
+// regions eased out and back in) and the start-up watch again.
+void requestRestart(const char* why);
+[[nodiscard]] bool takeRestart();
+
 // The mock (vr_backend_mock.cpp, after its head and hands are set): with vr_bodytrack_synth, a synthetic body (leans,
 // twist, crouch, neck bend, elbows) that also moves the head as that body carries it, submitted as a source would.
 // With vr_bodytrack_replay, instead: a recorded dump's frames (vr_bodytrack_dump), the head, the controllers and the
@@ -90,8 +98,9 @@ void synthesize(TrackingState& t);
 
 // hands.cpp, once a frame in VR after the head is placed: the joints into the world as the hands are (`base` the world
 // point under the head's tracking-space floor point `floorBelowHead`, `turnYaw` the play space's turn, `m2u` units per
-// metre), smoothed (vr_bodytrack_smooth), and the regions' weights eased.
-void place(const glm::vec3& base, const glm::vec3& floorBelowHead, float turnYaw, float m2u);
+// metre), smoothed (vr_bodytrack_smooth), and the regions' weights eased. `head`: the headset in the tracking space (the
+// start-up watch: the tracked head joint far from it is a broken start).
+void place(const glm::vec3& base, const glm::vec3& floorBelowHead, const glm::vec3& head, float turnYaw, float m2u);
 
 // The regions' blend weights now (0: today's guesses alone, bit-identical).
 [[nodiscard]] float torsoWeight();
@@ -186,6 +195,6 @@ struct Sample
 [[nodiscard]] bool available();
 [[nodiscard]] const char* availabilityLine();
 
-void registerCommands(); // vr_bodytrack_status, vr_bodytrack_stats, vr_bodytrack_dump
+void registerCommands(); // vr_bodytrack_status, vr_bodytrack_stats, vr_bodytrack_dump, vr_bodytrack_restart(_test)
 
 } // namespace qvr::bodytrack

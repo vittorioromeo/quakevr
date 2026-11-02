@@ -11,6 +11,7 @@
 #include "vr_mgroups.hpp"
 #include "vr_monsterdata.hpp"
 #include "vr_props.hpp"
+#include "vr_seated.hpp"
 #include "vr_weapons.hpp"
 
 #include "Zancle/Base/Strncmp.hpp"
@@ -522,7 +523,9 @@ const NamedDefaultChange namedDefaultChanges[] = {
 // 217: vr_agarms_clavicle 0.35 -> 0.6 (vr_rig2_clavicle merged into it at the value both armed rigs used: refactor C1)
 // 218: sparse configs (Cvar_WriteVariables writes "vr_config_defaults", then only the vr_ settings changed from their
 // defaults: VR_ConfigSaves). The last version: the rows above are frozen, a changed default needs none from now on.
-constexpr int configVersion = 218;
+// 219: a vr_seated_height at or over 0.9 of the standing eye height (vr_height_calibration) back to 0 (not measured):
+// measured standing, no seated height (his config of 2026-11-02: 1.574 seated, 1.561 standing).
+constexpr int configVersion = 219;
 // 190: vr_struggle_classes retired for the monster groups' Struggle settings: the value of its line in the config just
 // executed (VR_RetiredCvar keeps it), moved into the groups by mgroups::migrateStruggleClasses if it was custom.
 za::String retiredStruggleClasses;
@@ -804,6 +807,13 @@ void migrateConfig()
             Cvar_SetQuick(&vr_heat_haze_half, vr_heat_haze_half.default_string);
         }
         Con_DPrintf("VR: vr_heat_haze_half: %s (graphics preset %d)\n", vr_heat_haze_half.string, level);
+    }
+    if(from < 219 && vr_seated_height.value > 0.f &&
+        vr_seated_height.value >= seated::MAX_SHARE_OF_STANDING * vr_height_calibration.value)
+    {
+        Con_Printf("VR: Seated Height %.2f m is not a seated one (standing %.2f m): back to not measured\n",
+            vr_seated_height.value, vr_height_calibration.value);
+        Cvar_SetValueQuick(&vr_seated_height, 0.f);
     }
     Cvar_SetValueQuick(&vr_cfg_version, static_cast<float>(configVersion));
 }
