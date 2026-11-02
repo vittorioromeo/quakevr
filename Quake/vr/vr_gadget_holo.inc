@@ -524,6 +524,8 @@ void renderHologram()
     }
     za::String& key = scratch.hologramKey;
     key.clear();
+    key += za::toString(fontstyle::generation(fontstyle::Surface::Gadget)); // (Screens > Wrist Gadget Font)
+    key += '\x1f';
     for(const HoloMessage& m : holoMessages)
     {
         key += m.text;
@@ -534,6 +536,7 @@ void renderHologram()
         return;
     }
     holoDrawnKey = key;
+    imageDraws++;
 
     QVR_GPU_PROFILE("gadget hologram");
     gfx::ensureTarget(holoTarget, holoWidth * holoTexels, holoHeight * holoTexels, true, "gadget hologram");

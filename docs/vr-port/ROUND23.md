@@ -6386,3 +6386,59 @@ possible, implement a check that always verifies that all handles are valid and 
 - **Tests.** e1m1: no `cvar_hmake: unknown` line. `vr_arena_test 1` 257/0; `vr_agrunt_test 2` 4/0;
   `vr_wornpack_test 1` 38/1 and 39/0 (next's own runs: 38/1 and 39/0, the same "dragged slowly" case flaking).
   `vr_menu_path_check`: 0 missing; menu_paths.txt regenerated, unchanged.
+
+## World text, ammo screens and hologram follow their font's style live (branch `agent/fontlive`, his report 2026-11-02)
+
+"World text and ammo text doesn't seem to update in real time when I change the drop shadow / outline settings / etc".
+- **Cause.** vr_fontstyle.cpp bumped a per-surface `generation` and remade the atlases, but the cached text images were
+  keyed on their text and palette only: the boards and tip screens (World), the ammo screens (Ammo), the gadget's
+  hologram and frame-rate images (Gadget) kept the old style until their text changed. `fontstyle::generation()`
+  returned the Menu surface's alone.
+- **Fix.** `fontstyle::generation(Surface)` (vr_bigfont.cpp asks for Menu's). Each cache keys on its surface's
+  generation too: Board `drawnFont`, TipImage `font`, ScreenLook/ScreenImage `font`/`drawnFont` (findScreenImage), the
+  hologram's key, the frame rate's `fpsDrawnFont`. The gadget's screen, floating texts, hints and the wrist log are
+  laid out and drawn every frame (no cache). Nothing is drawn again while nothing changes.
+- **Test.** `vr_fontstyle_live_test` (Debug > Test Effects > Font Style Live Test; vr_text3d.cpp, stepped in
+  renderScreens): settles (images drawn, then none for 3 frames), then changes each surface's outline and shadow in
+  turn: that surface's images drawn again on the next frame, the others' not, none the frame after; settings restored.
+  vrcalibration: 24 passed, 0 failed (world 6 images a change, ammo 1, gadget 1).
+
+## Option round 2: moves to tunables, Directional Parry on (branch `agent/opt2tune`, his words 2026-11-02, items 3-5, 9-11)
+
+OPTION_AUDIT_1102.md, "Round 2". His answers: "3. Turn melee swish settings into tunables", "4. Turn
+`vr_agrunt_friendly_care` into tunable", "5. Make `vr_dirparry 1` the default, turn its knobs/tweaks into tunables",
+"9. Keep grapple length/speeds as tunables", "10. Turn fire particle tweaks and loot beam tweaks to tunables, but keep
+the main switches as cvars", "11. Address the remaining menu clutter as suggested".
+
+- **Moved to tuning constants (61; names and defaults kept, so QC's handles find them; their config lines ignored,
+  their 17 migration rows gone), each in the Tunables submenu of its old page:**
+  - Combat > Melee: `vr_melee_swish_min/_sub/_full/_gain` (Whoosh by Speed, `vr_melee_swish`, stays a setting).
+  - Combat > Armed Grunts > AI Behaviour: `vr_agrunt_friendly_care` (test 63 sets it with `tune`).
+  - Combat > Directional Parry: `vr_dirparry_angle/_angle_zero/_contact/_falloff/_threshold/_window`, beside the two
+    that were constants already (`_partial`, `_opening`): the group the toggle's help already named. The page's six
+    inline sliders are gone; the switch and Show Directional Parry stay on Parry and Bash. Test 78 sets the contact
+    with `tune`.
+  - Movement > Grappling Hook: the lengths and speeds, `vr_grapple_max_length`, `_min_length`, `_reel_speed`,
+    `_unreel_speed`, `_quick_speed`, `_prop_speed`, `_tow_speed`, `_small_speed`, `_medium_speed` (the Props header
+    went with its two rows). Kept settings: the rope, trigger release, drop grace, shootable, the front button's time
+    (`_quick_time`, a time), the button places, rope sim, unreel airborne, stagger, stamina, haptics, sag.
+  - Combat > Burning > Fire Particles: all 12 numbers; `vr_fire_particles` stays.
+  - Graphics > Loot Beams: all 20 tweaks (magazine fullness, opacity, length, thickness, colourfulness, fade in, rest,
+    near and far fades, the 10 hues, the toolgun's length). Settings: `vr_lootbeams` and the eight per-kind switches
+    (weapons, magazines, ammo, health, armour, power-ups, keys, backpacks), so a player chooses what has a beam.
+  - Gore > Gore: the 9 per-sound volumes `vr_gore_sound_vol_<kind>`. The master is the existing `vr_gore_sound` row,
+    relabelled **Gore Volume** (default 1, so every sound is as loud as before: 0.75 each, drips 0.35, times it).
+- **`vr_dirparry` defaults to 1** (his config's). Off still gives the level-across parry (removed in a later round).
+  No migration row: configs are sparse, so everyone who never set it gets the new default.
+- C++ that held them as `cvar_t*` holds `const Tunable*` (vr_goresound.cpp `kindVolumes`, vr_lootbeams.cpp
+  `categoryHue`). Moved with `scratch/ot_move.py` (agent/opttune's tool).
+- **Tests.** Tunables tree: 1450 of 1450 constants reached, 0 twice: PASS. `vr_menu_path_check`: calibration 6 found,
+  test hall 14 found, 0 missing; menu_paths.txt regenerated. `vr_agrunt_test 63`: careless (`tune ... 0`) 10 friendly
+  hits, careful 0: PASS (its summary line says "0 passed, 10 failed" because the test keeps the careless hits in
+  `vr_test_fail`: the verdict line is the PASS). `vr_agrunt_test 78`: 18 passed, 2 failed: "horizontal vs your sword
+  level across" parried (expected to land: its swing's way read as upward, gap 3.7 where the test's notes say 16) and
+  "the chainsaw's line" (2.56 units off the drawn weapon). Both cases set `vr_dirparry 1` themselves and read the
+  swing's geometry, which this change does not touch; pre-existing: origin/next (a664c3d65) fails the same two in 3 of
+  3 runs, this branch in 3 of 3 (18/2 every run). Case 10
+  (contact by `tune`): PASS. e1m1/start: loot beams 9 drawn, fire particles 400 made, gore sounds played, the grapple
+  reels at 300 u/s.

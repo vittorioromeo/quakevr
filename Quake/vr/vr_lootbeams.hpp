@@ -1,11 +1,11 @@
 // vr_lootbeams.hpp -- loot beams (vr_lootbeams; ROUND22.md, "Loot beams"): a soft pillar of light rising from the middle
-// of a thing lying about to pick up, as Diablo's and Path of Exile's, so loot stands out among the corpses and gibs. Each
-// category has its toggle and hue (vr_lootbeam_<category>, vr_lootbeam_hue_<category>): weapons (dropped, thrown, a
+// of a thing lying about to pick up, as Diablo's and Path of Exile's, so loot stands out among the corpses and gibs. The
+// switches are settings (vr_lootbeams, a toggle per category: vr_lootbeam_<category>); the look and timing are tuning
+// constants (vr_lootbeam_hue_<category>, opacity, length, ...: Tunables > Graphics > Loot Beams): weapons (dropped, thrown, a
 // map's; the expansions' and Arcane Dimensions' guns, the crossbow: any weapon prop) and magazines fuller than
 // vr_lootbeam_mag_min on by default; ammo, health, armour, power-ups, keys and runes, backpacks off. Never while held,
 // holstered (both drawn by the view, not lying about), carried (the server says so: vr_server.cpp lootByte) or moving
-// (thrown, falling, flying home): it fades in once the thing has lain still vr_lootbeam_settle seconds. Opacity, length
-// and thickness are settings; it fades out as your head comes near it (vr_lootbeam_near), and far away if wanted. A
+// (thrown, falling, flying home): it fades in once the thing has lain still vr_lootbeam_settle seconds. It fades out as your head comes near it (vr_lootbeam_near), and far away if wanted. A
 // dropped toolgun (a weapon prop drawn as progs/v_toolgun.mdl) has its own hue and a longer beam (vr_lootbeam_hue_toolgun,
 // vr_lootbeam_toolgun_length: magenta, twice as high), found among many weapons.
 //

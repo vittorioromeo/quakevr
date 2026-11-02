@@ -50,6 +50,10 @@ void onGameDirChanged();
 // screens' into theirs: text3d::renderScreens).
 void renderScreen();
 
+// The hologram's and the frame rate's images drawn so far (each drawn again only when its text or its font's style
+// changes: vr_fontstyle_live_test).
+[[nodiscard]] int imageDrawCount();
+
 // How much a CRT screen glitches at `time` (0..1, the CRT look's): now and then a short burst.
 // The ammo screens' offset their time, so that they glitch at other moments.
 [[nodiscard]] float glitch(double time);

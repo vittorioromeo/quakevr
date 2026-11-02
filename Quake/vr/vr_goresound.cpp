@@ -62,8 +62,9 @@ constexpr KindInfo kinds[kindCount] = {
     {"drip", {"vr/gore/drip1.wav", "vr/gore/drip2.wav", "vr/gore/drip3.wav"}, 3, 0.3f, 4, 0.03f, 2.f, 500.f, 0.1f},
 };
 
-// Each kind's own volume (vr_gore_sound_vol_<kind>, times vr_gore_sound), in Kind's order.
-cvar_t* const kindVolumes[kindCount] = {&vr_gore_sound_vol_spurt, &vr_gore_sound_vol_pour, &vr_gore_sound_vol_choke,
+// Each kind's own volume (the tuning constants vr_gore_sound_vol_<kind>, times the Gore Volume setting vr_gore_sound), in
+// Kind's order.
+const Tunable* const kindVolumes[kindCount] = {&vr_gore_sound_vol_spurt, &vr_gore_sound_vol_pour, &vr_gore_sound_vol_choke,
     &vr_gore_sound_vol_tear, &vr_gore_sound_vol_squelch, &vr_gore_sound_vol_step, &vr_gore_sound_vol_slap,
     &vr_gore_sound_vol_splash, &vr_gore_sound_vol_drip};
 
