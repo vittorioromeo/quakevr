@@ -6660,3 +6660,17 @@ His words: "Can we automate tweaks promotion so we can never forget?" Tuning con
   one console line, kept at quit, a setting's line untouched). One real start with the baseline marked 219: 11 constants
   kept in `tunables.cfg`. Gate: stops ("1 problem(s) ... nothing was built"), warns in a dry run, the override's banner,
   the absent path. A build with `QVR_RELEASE` was not run for this (the stub is two `(void)`s).
+
+## The death knight's helmet: cheek plates (branch `agent/dkhelm2`)
+
+His words (11-02): "looks better in size, but looks more like a hat from the front. There should be vertical geometry that goes
+down the cheeks". The guards were there but sunk: his face's vertices are left out of the guards' fit (`face` in helmetOf), so only
+his nape's held them out (half width 3.26 against a head 10.65 wide). New `Wearer` fields (`plateWide`, `plateBack`, `plateFront`
+and `plateOpen` per row; default -1, fitted as before) and `Ring::Wb` (the side's width where it meets the back chamfer; -1: W): his
+cheek and jaw rows are plates to 0.49 of the head bone out, clear of the head's real width (0.53 at its most: `scratch/hkw.py`'s
+table, outer surface 0.533), their front edges following his face as it widens down (0.37 out at 0.54 forward, then 0.44 at 0.42),
+down to 0.42. Crown, brim and back chamfer as shipped (brow ring 6.30 / 3.86 / 4.69, 11.70 deep); 11.13 wide at the plates (10.27 at
+the crown), 7.83 high. Other wearers' fit lines identical. Rigid on the head bone as the rest of the helmet (every helmet vertex
+weighs 1 on it). `vr_agarmor_check` 20/0. Eyeshots in the worktree's scratch: `dkhelm2_after.png` (front, three-quarter, side,
+back), `dkhelm2_front_crop.png`, `dkhelm2_threequarter_crop.png`, `dkhelm2_fullarmour.png`.
+- **Checklist:** [dkhelm2] An armoured death knight from the front (Debug > Tests > Helmets Alone There: Knight and Death Knight): plates come down each side of his face from the brim, outside his cheeks, his eyes open between them; it reads as a helmet, not a hat, and they turn with his head. {test:agarmor_helmets_knights}

@@ -71,6 +71,10 @@ struct Wearer
     // the top's chamfer, how much wider its brow is than its crown, and how far the back's corners may be cut (of its half
     // width).
     float brow{-1.f}, cheek{0.3f}, jaw{0.04f}, nape{-1.f}, chamfer{0.18f}, taper{0.03f}, backCut2{0.7f};
+    // Its guards below the ledge as plates of their own, not fitted to the vertices round them (-1: fitted): half width, half
+    // width where they turn to the back, and their front edge's place and distance from the middle of the face at the cheek
+    // row and at the jaw row.
+    float plateWide{-1.f}, plateBack{-1.f}, plateFront[2]{-1.f, -1.f}, plateOpen[2]{-1.f, -1.f};
 };
 // The armed knight and death knight (vr_agknight, vr_agdknight: their swordless models on their authored rigs) wear it
 // too: every piece found on their own rigs' bones and skin weights as the grunt's are; nothing on their backs to cut round.
@@ -81,10 +85,13 @@ struct Wearer
 // 0.78-0.88 up), and it was wider than his head from behind (his ask, 2026-11-02): his sides to 0.44 (the skull's; what's out
 // to 0.47 stays inside the shell's thickness), the brim at 0.97 (its ledge 0.91, over the eyes), a short top's chamfer and hardly
 // a flare (they pushed its front and sides out), the guards ending at his cheekbones (0.52 up: 0.51 out under them) and the
-// back's corners cut further round his narrow nape: outside 11.1 deep, 10.2 wide (his head 10.7 at its widest).
+// back's corners cut further round his narrow nape. It read as a hat from the front (his note, 2026-11-02): his face's
+// vertices are left out of the guards' fit, so nothing held them out and they sank into his cheeks; they are plates now, down each
+// side of his face to 0.42, outside the head's real width (0.53 at its most, at 0.2 forward), their front edges following his face as it widens down (0.35
+// out at 0.53 forward at the cheek row, 0.46 at 0.4 at the jaw row), so they sweep back to a point. Outside 11.7 deep, 11.1 wide (the crown 10.3, his head 10.65 at its widest).
 constexpr Wearer wearers[] = {{"progs/vrgrunt.mdl", -1e9f}, {"progs/soldier.mdl", -1e9f}, {"progs/vrenforcer.mdl", -10.5f},
     {"progs/enforcer.mdl", -10.5f}, {"progs/vrknight.mdl", -1e9f},
-    {"progs/vrhknight.mdl", -1e9f, 1.12f, 0.44f, 0.8f, 0.97f, 0.68f, 0.52f, 0.45f, 0.06f, 0.01f, 0.9f}};
+    {"progs/vrhknight.mdl", -1e9f, 1.12f, 0.44f, 0.8f, 0.97f, 0.68f, 0.42f, 0.45f, 0.06f, 0.01f, 0.9f, 0.49f, 0.44f, {0.54f, 0.42f}, {0.37f, 0.44f}}};
 
 // The atlas (make_agarmor.py's REGIONS): texels of its 256 x 128 skins.
 struct Block
@@ -825,6 +832,7 @@ struct Ring
 {
     float F{0.f}, B{0.f}, W{0.f}; // front, back, half width
     float Df{0.f}, Db{0.f};       // the chamfers: x + |y| <= Df, -x + |y| <= Db
+    float Wb{-1.f};               // the half width where the side meets the back chamfer (-1: W; less: the side slants in)
 };
 enum HelmRow : int
 {
@@ -854,7 +862,12 @@ constexpr float helmU[numHelmPoints] = {0.f, 0.16f, 0.3f, 0.7f, 0.84f, 1.f};
     case 0: p = {r.F, 0.f}; break;
     case 1: p = {r.F, r.Df - r.F}; break;
     case 2: p = {r.Df - r.W, r.W}; break;
-    case 3: p = {r.W - r.Db, r.W}; break;
+    case 3:
+    {
+        const float w = r.Wb >= 0.f ? r.Wb : r.W;
+        p = {w - r.Db, w};
+        break;
+    }
     case 4: p = {-r.B, r.Db - r.B}; break;
     default: p = {-r.B, 0.f}; break;
     }
@@ -863,7 +876,7 @@ constexpr float helmU[numHelmPoints] = {0.f, 0.16f, 0.3f, 0.7f, 0.84f, 1.f};
 [[nodiscard]] Ring grown(const Ring& r, float d)
 {
     constexpr float root2 = 1.41421356f;
-    return Ring{r.F + d, r.B + d, r.W + d, r.Df + d * root2, r.Db + d * root2};
+    return Ring{r.F + d, r.B + d, r.W + d, r.Df + d * root2, r.Db + d * root2, r.Wb >= 0.f ? r.Wb + d : -1.f};
 }
 // The lowest row of the strip from column c to c + 1: the face's two strips end under the bucket.
 [[nodiscard]] int stripBottom(int c)
@@ -1072,6 +1085,15 @@ void helmetOf(Shell& s, const Body& b, const PieceFrame& f, int headBone, const 
         x.Df = r >= HLedge ? za::clamp(x.F + faceHalf, x.Df, x.F + x.W) : x.Df;
     }
     ring[HCap] = grown(crown, -chamfer);
+    // The guards as plates (Wearer), the back's chamfer as fitted.
+    for(int r = HCheek; r < NumHelmRows && who.plateWide >= 0.f; r++)
+    {
+        Ring& x = ring[r];
+        x.W = za::max(x.W, who.plateWide * L);
+        x.Wb = za::max(x.Wb, who.plateBack * L);
+        x.F = za::max(x.F, who.plateFront[r - HCheek] * L);
+        x.Df = za::clamp(x.F + who.plateOpen[r - HCheek] * L, 0.f, x.F + x.W);
+    }
 
     HelmBuild hb{s, f.origin, f.fwd, f.left, f.up, W{}};
     hb.w.w[headBone] = 1.f;
