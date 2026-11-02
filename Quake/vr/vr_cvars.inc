@@ -218,7 +218,6 @@ QVR_CVAR(vr_box3d_threads_bodies, "300", CVAR_ARCHIVE) // with it: only while at
 QVR_CVAR(vr_box3d_workers, "4", CVAR_ARCHIVE)        // with it: at most this many threads step Box3D, the main thread one of them (0: as many as the pool has, up to 32; measured: 4 as fast as 8 up to ~500 awake, leaving cores to the render thread)
 QVR_CVAR(vr_box3d_avx2, "0", CVAR_NONE)             // 1: Box3D's AVX2 kernels (8 lanes) where the CPU has AVX2; 0: its SSE2 ones (4 lanes). The same results; in the game AVX2 measured no faster (ROUND22.md, "Box3D updated"). Debug menu
 QVR_CVAR(vr_box3d_hand_push, "1", CVAR_ARCHIVE)      // the players' hands push solid props (an explosive box) as bodies: a sphere at each fist, one way (vr_box3d.cpp syncHands)
-QVR_CVAR(vr_box3d_hand_push_fist, "1", CVAR_ARCHIVE) // with it: your own hands (a listen server) push solid props with their drawn fists (the grab's spheres, turned with the hand), so a box is pushed and taken where the fist meets it; 0: a 4.5 cm sphere at the hand's point (the old, which met a box up to 7 cm before the fist)
 QVR_CVAR(vr_box3d_hand_props, "1", CVAR_ARCHIVE)     // the players' empty hands are bodies (the open hand, or the fist) at full speed: they push loose props (not solid ones, not grenades) and hold them up (vr_box3d.cpp syncReach)
 QVR_CVAR(vr_box3d_weapon_push, "1", CVAR_ARCHIVE)    // the players' held weapons are bodies (the drawn model's hull) at full speed: they push loose props (grenades too: batted) and hold them up
 QVR_CVAR(vr_box3d_throw_grace, "0.2", CVAR_ARCHIVE) // s, how long a thrown thing (a weapon, a prop) passes through its thrower's hands' bodies (the open hand, the fist, the held weapon, the fists' spheres): it leaves the hand without a knock; 0: off (vr_box3d.cpp noteThrows)
@@ -841,7 +840,6 @@ QVR_CVAR(vr_sbar_offset_roll, "-0.3", CVAR_ARCHIVE)
 QVR_CVAR(vr_height_calibration, "1.646099", CVAR_ARCHIVE)
 QVR_CVAR(vr_menu_distance, "150", CVAR_ARCHIVE)
 QVR_CVAR(vr_menu_status, "1", CVAR_ARCHIVE)            // a status box in the menus' top right corner (vr_menuui.cpp): VR / mock / flat, the runtime, the resolution rendered, the target rate, fps, CPU/GPU ms, RAM/VRAM
-QVR_CVAR(vr_menu_banner_beside, "1", CVAR_ARCHIVE)     // the VR menu style's Quake VR banner left of the corner's shortcut buttons, top level with theirs (vr_menubrand.cpp, VR_MenuDrawBannerColumn); 0: under them, in their column, as before (also where the panel's margin is too narrow)
 QVR_CVAR(vr_menu_version, "1", CVAR_ARCHIVE)           // the version box (with the Support on Ko-fi link) in the menus' bottom right corner (vr_menubrand.cpp): "Quake VR: Unleashed - v0.9", "by Vittorio Romeo"
 QVR_CVAR(vr_menu_link_dryrun, "0", CVAR_NONE)       // the menus' links (the version box's "Support on Ko-fi", the update notice: vr_menubrand.cpp) print the address instead of opening the browser (tests; the kit's hidden runs, QVR_TEST_HIDDEN, never open it either)
 // The update notice (vr_update.cpp): the release feed's latest.json read at start-up (at most once an hour: a cached
@@ -996,7 +994,7 @@ QVR_CVAR(vr_gadget_fps, "0", CVAR_ARCHIVE)         // QVR round 21: an FPS count
 QVR_CVAR(vr_lean_radius, "8", CVAR_ARCHIVE)          // units the head may lean from the middle of the player's box before the body follows (0: always above it)
 QVR_CVAR(vr_lean_recenter, "0.5", CVAR_ARCHIVE)       // metres/second the body slides back under the head where it can (0: never; with vr_lean_detect, faster when further off, and not while leaning)
 QVR_CVAR(vr_lean_detect, "1", CVAR_ARCHIVE)          // tells a lean (the head lower and tilted towards it, the hands left by the hips) from walking in the room: while leaning the body stays where it stands (0: off, the body always slides back under the head; above 1, more readily a lean, up to 2)
-QVR_CVAR(vr_lean_turn, "2", CVAR_ARCHIVE)            // a stick turn while leaning keeps the lean where it is on your real body (the play space turns round the head, so the body under it must swing round too): 0 off (the old way: the lean stayed fixed in the world, and the drawn body ended up leaning the wrong way of you, or off to a side, until it slid back), 1 round the body (the lean turns with you, the head swings round the hips), 2 smooth turns round the head (the body swings round it, where its box fits; else round the body) and snap turns round the body
+QVR_CVAR(vr_lean_turn, "2", CVAR_ARCHIVE)            // a stick turn while leaning keeps the lean where it is on your real body (the play space turns round the head, so the body under it must swing round too): 1 round the body (the lean turns with you, the head swings round the hips), 2 smooth turns round the head (the body swings round it, where its box fits; else round the body) and snap turns round the body
 QVR_CVAR(vr_roomscale_jump, "1", CVAR_ARCHIVE)          // jumping in the room jumps in the game: the head rising faster than
 QVR_CVAR(vr_roomscale_jump_threshold, "0.8", CVAR_ARCHIVE) // this (m/s) above the standing height
 QVR_CVAR(vr_roomscale_move_mult, "1.0", CVAR_ARCHIVE)
@@ -1304,24 +1302,24 @@ QVR_CVAR(vr_body_head_roll, "0", CVAR_ARCHIVE)        // degrees, tilted right (
 QVR_CVAR(vr_body_head_size, "1.3", CVAR_ARCHIVE)      // times the first version's size (0.5 to 2)
 QVR_CVAR(vr_body_head_sink, "9", CVAR_ARCHIVE)      // cm the head is lowered over the neck, the neck's top with it (0 to 12)
 QVR_CVAR(vr_skin_tone, "0", CVAR_ARCHIVE) // skin-only shader: -1 dark, 0 authored skin, +1 light
-QVR_CVAR(vr_gloves, "0", CVAR_ARCHIVE)                // gloves on the jointed hands (vr_hand_rig 1): 0 none, 1 fingerless (the fingertips bare), 2 full; with bare forearms a cuff over the wrist (make_skin_masks.py's G, B)
+QVR_CVAR(vr_gloves, "0", CVAR_ARCHIVE)                // gloves on the jointed hands: 0 none, 1 fingerless (the fingertips bare), 2 full; with bare forearms a cuff over the wrist (make_skin_masks.py's G, B)
 QVR_CVAR(vr_glove_hue, "25", CVAR_ARCHIVE)            // their leather's colour: hue in degrees (0 red, 25 brown, 120 green, 240 blue),
 QVR_CVAR(vr_glove_saturation, "0.45", CVAR_ARCHIVE)   // saturation (0 grey .. 1),
 QVR_CVAR(vr_glove_lightness, "0.2", CVAR_ARCHIVE)     // and lightness (0 black, 0.5 the full colour, 1 white); the hand's own shading kept
 QVR_CVAR(vr_glove_thickness, "2.25", CVAR_ARCHIVE)       // their leather's thickness in mm (0..4): a shell over the hand (vr_handrig.cpp gloveShells) pushed out by it, its edge a wall down to the skin; 0 painted on the skin only
 QVR_CVAR(vr_glove_paint, "1", CVAR_ARCHIVE)         // their painted leather (progs/hand_rig_0N_00_glove*.png, make_glove_paint.py; docs/vr-port/GLOVES.md): worn knuckles, creases, stitches; 0 the plain leather
 QVR_CVAR(vr_glove_relief, "1.25", CVAR_ARCHIVE)        // the painted leather's relief (a normal map made from _glove_height as it loads): stitches, seams, creases, grain in the light; 0 flat, 1 as the bracers', up to 2
-QVR_CVAR(vr_nails, "0", CVAR_ARCHIVE)                 // painted nails on the jointed hands (vr_hand_rig 1; progs/hand_rig_0N_00_nails.png, make_nail_mask.py; docs/vr-port/GLOVES.md): full gloves cover them, fingerless ones show them
+QVR_CVAR(vr_nails, "0", CVAR_ARCHIVE)                 // painted nails on the jointed hands (progs/hand_rig_0N_00_nails.png, make_nail_mask.py; docs/vr-port/GLOVES.md): full gloves cover them, fingerless ones show them
 QVR_CVAR(vr_nail_hue, "355", CVAR_ARCHIVE)            // the polish's colour: hue in degrees (0 red, 330 pink, 270 violet, 210 blue),
 QVR_CVAR(vr_nail_saturation, "0.85", CVAR_ARCHIVE)    // saturation (0 grey .. 1),
 QVR_CVAR(vr_nail_lightness, "0.32", CVAR_ARCHIVE)     // and lightness (0 black, 0.5 the full colour, 1 white); not tinted by vr_skin_tone, the hand's own shading kept
 QVR_CVAR(vr_nail_gloss, "0.6", CVAR_ARCHIVE)          // the polish's gloss (0 matte .. 1 a glassy top coat): a sharp highlight and the room mirrored in it
-QVR_CVAR(vr_hand_shape, "0", CVAR_ARCHIVE)            // the jointed hands' shape (vr_hand_rig 1): 0 standard, 1 feminine (progs/hand_rig_f.md5mesh, make_hand_feminine.py: slimmer, the same joints and skins); live
+QVR_CVAR(vr_hand_shape, "0", CVAR_ARCHIVE)            // the jointed hands' shape: 0 standard, 1 feminine (progs/hand_rig_f.md5mesh, make_hand_feminine.py: slimmer, the same joints and skins); live
 QVR_CVAR(vr_voice, "0", CVAR_ARCHIVE)                 // the player's own voice (pain, death, jump, gasps, drowning, burning: vr_voice.cpp voiceSounds): 0 masculine (Quake's recordings), 1 feminine (the same recordings pitched up and their formants raised as they load); live (those sounds loaded again)
 QVR_CVAR(vr_voice_pitch, "4.5", CVAR_ARCHIVE)         // vr_voice 1: the voice's pitch raised by this many semitones (TD-PSOLA: the duration kept), 0..8
 QVR_CVAR(vr_voice_formant, "17", CVAR_ARCHIVE)        // vr_voice 1: its formants (the vocal tract's resonances) raised by this many percent (so it isn't a chipmunk's), 0..30
 QVR_CVAR(vr_voice_voicing, "0.4", CVAR_ARCHIVE)       // vr_voice 1: how rough a stretch of a voice sound may be and still be pitched up (YIN's threshold, 0.05..0.9: higher pitches more of the screams' growl; the rest only has its formants raised)
-QVR_CVAR(vr_body_bracers, "0", CVAR_ARCHIVE)         // the leather bracers on the forearms; 0: bare forearms (gadget straps fitted to the skin) (progs/vrbody*_bare, needs the jointed hand: vr_hand_rig 1)
+QVR_CVAR(vr_body_bracers, "0", CVAR_ARCHIVE)         // the leather bracers on the forearms; 0: bare forearms (gadget straps fitted to the skin) (progs/vrbody*_bare, fitted round the jointed hand)
 QVR_CVAR(vr_body_walk, "1", CVAR_ARCHIVE)             // legs (vr_body_mode 3) walk as the player moves
 QVR_CVAR(vr_body_step_rate, "2.2", CVAR_ARCHIVE)      // at most this many steps a second at full running speed (fewer walking)
 QVR_CVAR(vr_body_step_run, "1", CVAR_ARCHIVE)         // at speed the legs step up to a person's cadence there (the bloody footprints' steps: a run's ~5.6 a second) above vr_body_step_rate: 1 all of it, 0 the cap alone (a run's ~2.5), up to 1.5
@@ -2434,7 +2432,6 @@ QVR_CVAR(vr_nailpistol_mag_pull, "0", CVAR_ARCHIVE)   // 1: its magazine pulls o
 // Its slide (vr_nailslide.cpp): back each shot and home again, locked back while the gun is empty; a magazine with
 // rounds put in closes it with a rack (vr/nailpistol_rack.wav). vr_nailpistol_slide_time (held back 0.07 s) retired.
 QVR_CVAR(vr_nailpistol_slide_travel, "1.5", CVAR_ARCHIVE) // how far it goes back, in the gun's model units (0..3: progs/v_nailpistol.mdl's frame 1 is 3 back)
-QVR_CVAR(vr_nailpistol_model, "1", CVAR_ARCHIVE)         // its look: 1 full slide (the default since his note of 2026-10-30: the whole upper receiver; v_nailpistol.mdl frames 2-3, build_nailpistol_slide.py), 0 classic (archived: a copper slide on top; Debug > Tests > Nail Pistol); live
 QVR_CVAR(vr_nailpistol_screen_ride, "1", CVAR_ARCHIVE)   // 1: its ammo screen (on the full slide's left wall) rides back and home with the slide; 0: fixed on the gun
 // The heavy revolver (QC vr_revolver.qc; Combat > Weapon Damage > Heavy Revolver; Weapons > Reloading > Heavy
 // Revolver): one-handed, double action (a pull cocks the hammer, turns the cylinder a chamber and fires), six chambers
@@ -2999,7 +2996,6 @@ QVR_CVAR(vr_worn_backpack_pool_blast, "1", CVAR_ARCHIVE) // worn backpacks: the 
 QVR_CVAR(vr_worn_backpack_pool_fire, "1", CVAR_ARCHIVE)  // worn backpacks: the share of fire's damage (the flamethrower, burning) counted on the pack (0..1)
 QVR_CVAR(vr_worn_backpack_hit_roll, "0", CVAR_ARCHIVE) // worn backpacks: besides its damage, a hit on the pack tears it off with this chance at vr_worn_backpack_hit_ref damage (more: likelier; at most 1; 0 off: the damage alone, vr_worn_backpack_pool)
 QVR_CVAR(vr_worn_backpack_hit_ref, "20", CVAR_ARCHIVE) // worn backpacks: the damage of a hit whose chance is vr_worn_backpack_hit_roll
-QVR_CVAR(vr_worn_backpack_tug, "1", CVAR_ARCHIVE)     // worn backpacks: a fist on a living one's pack takes hold of the pack (a tug; it spots you): pulled, it tears off into the hand (0: the hand holds its back, as before)
 QVR_CVAR(vr_worn_backpack_tug_stretch, "10", CVAR_ARCHIVE) // worn backpacks: cm a hand holding a living one's pack must pull it off its place for the pull to count (two hands: their pulls added, times vr_worn_backpack_two_hand_mult)
 QVR_CVAR(vr_worn_backpack_tug_time, "0.6", CVAR_ARCHIVE) // worn backpacks: s a pull of vr_worn_backpack_tug_stretch must be kept up to tear the pack off (twice as far: half as long)
 QVR_CVAR(vr_worn_backpack_two_hand_mult, "1.5", CVAR_ARCHIVE) // worn backpacks: both hands on the pack pull this many times their pulls together (a living one's tug, a ragdoll's pull)
@@ -3186,7 +3182,6 @@ QVR_CVAR(vr_ragdoll_active_getup, "1", CVAR_ARCHIVE)    // a knocked-down grunt,
 QVR_CVAR(vr_ragdoll_active_getup_pin, "2.5", CVAR_ARCHIVE) // body weights: its pelvis's pin to the get-up's at most
 QVR_CVAR(vr_ragdoll_active_getup_blend, "0.2", CVAR_ARCHIVE) // s: risen, its ragdoll blended into the animated monster over this
 QVR_CVAR(vr_ragdoll_active_getup_pace, "0.8", CVAR_ARCHIVE) // its get-up's frames' speed, times the get-up's own (vr_knockdown_getup_speed)
-QVR_CVAR(vr_ragdoll_active_getup_hold, "1", CVAR_ARCHIVE) // QVR round 22: 1: a get-up rises where it lies: it rolls over and is pulled in on the spot (its body's level motion held), only the get-up's own frames move it; 0: as before (its roll over carried it off along the floor like a wheel, up to 60 units, and the pin dragged it back)
 QVR_CVAR(vr_test_kill, "0", CVAR_NONE)                  // n: the live monster nearest you killed by a shot of yours struck on its body (1), head (2), an arm (3), a leg (4), nowhere known (6) (QC combat.qc VR_TestKill_Frame; the active ragdolls' tests)
 QVR_CVAR(vr_test_hurt, "0", CVAR_NONE)                  // damage: the live monster nearest you takes it from a shot of yours, its health as it is (QC combat_test.qc VR_TestHurt_Frame; earned bullet time's test)
 QVR_CVAR(vr_ragdoll_active_env, "1", CVAR_ARCHIVE)       // an active death senses what is round him (walls, floors, ledges, crates) and uses his hands on it (the three below); 0: his death ignores it (ROUND22.md, "Active ragdolls: environment")
@@ -3361,7 +3356,7 @@ QVR_CVAR(vr_grapple_front_button, "1", CVAR_ARCHIVE)     // the grappling gun's 
 QVR_CVAR(vr_grapple_front_button_x, "6", CVAR_ARCHIVE)   // its place: from the back button along the gun (model units; +x towards the muzzle)
 QVR_CVAR(vr_grapple_front_button_y, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_grapple_front_button_z, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_grapple_rope_depth, "2", CVAR_ARCHIVE)       // units inside the grappling gun's muzzle the rope is drawn from (in a hand, and a gun lying about); -1: the old places (the muzzle's end; a gun lying about: where the server has it)
+QVR_CVAR(vr_grapple_rope_depth, "2", CVAR_ARCHIVE)       // units inside the grappling gun's muzzle the rope is drawn from (in a hand, and a gun lying about)
 QVR_CVAR(vr_grapple_sag, "1", CVAR_ARCHIVE)              // a slack rope is drawn hanging (0: always straight)
 QVR_CVAR(vr_grapple_rope_tail, "6", CVAR_ARCHIVE)        // units (times the hook's size) the drawn rope goes straight out of the hook's back before it bends (its last pieces point into the hook); 0: none
 QVR_CVAR(vr_grapple_hook_scale, "0.6", CVAR_ARCHIVE)     // the size of the hook the grappling gun fires (its model; 1: Rogue's, too big for the gun), on the next shot
@@ -3397,7 +3392,7 @@ QVR_CVAR(vr_enemy_shove_cooldown, "1.5", CVAR_ARCHIVE)     // seconds from one s
 QVR_CVAR(vr_enemy_shove_damage, "5", CVAR_ARCHIVE)       // a shove's damage (0: none, and it can't be parried)
 QVR_CVAR(vr_enemy_shove_distance, "128", CVAR_ARCHIVE)    // how far it pushes you (units, a slide; not scaled by vr_push)
 QVR_CVAR(vr_enemy_shove_vore, "1", CVAR_ARCHIVE)         // vores shove you too (a swing of their arms; their reach is 16 units longer: they are wider)
-QVR_CVAR(vr_agrunt_shove, "1", CVAR_ARCHIVE)             // armed humanoids' shove: 0 their model's shove frames (guns only, as before), 1 the Shove pose (the pose keys; guns only; the default), 2 the Shove pose with every weapon and the fists (QC vr_armedgrunt_pose.qc VR_AGP_Shove)
+QVR_CVAR(vr_agrunt_shove, "1", CVAR_ARCHIVE)             // armed humanoids' shove: 1 the Shove pose (the pose keys; guns only; the default), 2 the Shove pose with every weapon and the fists (QC vr_armedgrunt_pose.qc VR_AGP_Shove)
 // Holding enemies (vr_foegrab.cpp, QC vr_foegrab.qc; Combat > Holding Enemies): an empty hand that grips on a living
 // monster's model holds on to that spot, slows it and drags it, until let go or pulled too far.
 QVR_CVAR(vr_foegrab, "1", CVAR_ARCHIVE)                  // experimental: an empty hand can hold on to a living enemy
@@ -3502,7 +3497,6 @@ QVR_CVAR(vr_hand_fit_thumb_outside, "1", CVAR_ARCHIVE) // cm: a prop held In the
 QVR_CVAR(vr_model_collide, "2", CVAR_ARCHIVE)         // round 21: held weapons stop at the models' drawn triangles (drawn only: the game reads the tracked hands; vr_modelcollide.cpp): 0 off, 1 monsters (corpses, other players), 2 things on the ground too
 QVR_CVAR(vr_model_collide_rest, "1", CVAR_ARCHIVE)    // a thing lying on a hand (held up by it: an open palm, a fist, a gun) never pushes that hand away (the physics keeps them apart); 0: it does, as other things
 QVR_CVAR(vr_debug_model_collide, "0", CVAR_NONE)      // 1: print each hand's push while a model stops it; 2: and draw its rays (grey as tracked, green/red as drawn) and the push (yellow)
-QVR_CVAR(vr_gun_wall_slide, "1", CVAR_ARCHIVE)       // a held weapon against the level: 1 slides along what it meets (rests on a table top, held off a wall along its surface: vr_handpose.cpp); 0 the old push-back along the aim (the hand moved back until the muzzle stops at the wall)
 QVR_CVAR(vr_debug_hand_offset, "0", CVAR_NONE)       // 3: also each fast frame's strike-pass test (vr_melee_world_pass_*: the far part's box, the body found); 1: print each hand drawn away from where it is tracked (0.01 units or more), and by what: the walls, the weight's spring, the models, a prop in the other hand, the body; 2: every frame (tests)
 QVR_CVAR(vr_test_give_wid, "-1", CVAR_NONE)           // impulse 149 (tests): that weapon id, loaded, in the main hand (any id: impulse 150 + id reaches 19)
 QVR_CVAR(vr_test_spawn, "0", CVAR_NONE)               // impulse 241 (tests): what it puts ahead of you: 0..17 the firing range's dispenser monsters (0 grunt, 1 ogre, 2 zombie, 3 shambler, ...; 18 the Guardian, 19 the dragon, 20 the marksman ogre: tests only), 100 a health box, 101 a shells box, 102/103 an explosive box/a small one, 104 an explosive box that never blows up, 107-109 crates, 110 the rocks and bricks (a row of each), 111/112 a barrel upright/lying, 113 the silver key, 114 a long plank, 115 a brick (the leg sweep tests), 120..124 the climbing tests' crates square to you (a large one, two large stacked, a large one on its side, a small one on a large one, a small one)
@@ -3556,7 +3550,6 @@ QVR_CVAR(vr_debug_grasp, "0", CVAR_NONE)               // print each grasp solve
 QVR_CVAR(vr_debug_grasp_trace, "0", CVAR_NONE)         // write the drawn hand's joints every frame to grasp_trace.txt in the game folder: 1 the main hand, 2 the off hand, 3 both
 QVR_CVAR(vr_jobs_threads, "0", CVAR_NONE)             // the game's thread pool (vr_jobs.hpp): its workers (0: the hardware's threads less one, at most 31); changed, the pool is made again
 QVR_CVAR(vr_jobs_parallel, "1", CVAR_NONE)            // parallelFor (the grasp solve, the liquids' volume, the occlusion bakes) split between the pool's threads; 0: the calling thread runs every chunk (the single-threaded reference: the same results)
-QVR_CVAR(vr_hand_rig, "1", CVAR_ARCHIVE)               // round 21: the jointed hand (progs/hand_rig.md5mesh: three joints a finger, an opposable thumb, continuous curls; vr_handrig.cpp). 0: the palm and five finger models as before
 // Reloading (docs/vr-port/RELOAD.md): 0 off (the guns fire from the reserve); 1 a gun held at any holster reloads, 2 at
 // the hip holsters (manual-simple); 3 manual-immersive (shipped; vr_cfg_version 97 gives it to configs with the old default
 // 2): the guns that load by hand (the shotgun so far) take rounds from the ammo pouch on the front of the belt, held in the

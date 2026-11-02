@@ -137,7 +137,7 @@ Load adds to these [code]:
     - `vr_world_scale` (`units::metresToUnits` everywhere)
     - `vr_climb_leniency`, `vr_swim_look`, `vr_swim_stroke_assist`
     - `vr_teleport_range`
-    - `vr_carry_grab_drawn` and `vr_box3d_hand_push_fist` (edict 1 only)
+    - the drawn fist pushing props (edict 1 only)
     - `vr_gunmodelscale`, `vr_gunmodely`, `vr_leg_holster_model_*`
   - QC:
     - `vr_gunangle`, `vr_gunyaw`, `vr_offhandpitch/yaw`, `vr_handcal_off_mirror`
@@ -249,7 +249,7 @@ The server reads the local client's state:
 | vr_grip.cpp:399 | `h.local = cls.state != ca_dedicated && ... NUM_FOR_EDICT(player) == 1`: the measured palm frame, player 1 only |
 | vr_held.cpp:424, 608 | `fists[2]`, the host's drawn fist, used by `grabTouch` for every player |
 | vr_physics.cpp:131 | `byFist = ... && NUM_FOR_EDICT(player) == 1` |
-| vr_box3d.cpp:1726 | `i == 1 && vr_box3d_hand_push_fist ? held::fist(h)` |
+| vr_box3d.cpp:1726 | `i == 1 ? held::fist(h)` |
 | vr_box3d.cpp:1929 | `i == 1 && cls.state == ca_connected`: `view::drawnWeapon` |
 | vr_box3d.cpp:1218-1219 | `cl.protocolflags` and the client's weapon cvars in the hull scale |
 | vr_builtins.cpp:751 | `weaponhotspot*`: `cls.state == ca_connected && NUM_FOR_EDICT(player) == 1` → `view::weaponHotspot` |

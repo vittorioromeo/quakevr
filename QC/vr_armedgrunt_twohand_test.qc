@@ -10,7 +10,8 @@
 //   3 both hold; the off hand lets go: the tug goes on on the main; it takes hold again and the main lets go: the tug
 //     goes on on the off hand;
 //   4 a staggering grunt grabbed: not yours at once (vr_agrunt_tug_downed_scale 0.5), held still 0.4 s it keeps it,
-//     pulled at 0.6 m/s it is yours within 2 s (a standing one's: about 1.2 s at 0.4 m/s, no fight);
+//     pulled at 0.6 m/s: its stagger ends mid-tug and the tug goes on as a standing one, under standing rules (his call
+//     2026-11-02, "Standing rules"): torn away; yours within 2 s only if it was still staggering;
 //   5 the same, knocked down: the physical downed tug (his note 2026-10-31: the hand should "actually grab the enemy
 //     hand/weapon and move it, while the enemy physically resists by pulling back"): physical (ragdolltug 6), its arm's
 //     pull felt in the hold held still (joint force > 0), pulled its weapon moves over 8 units, won within 2 s;
@@ -22,6 +23,7 @@ float vr_ag2_phase;
 vector vr_ag2_w0;      // phases 5, 6: its weapon's place as grabbed
 float vr_ag2_moved;    // ... how far it moved since (most)
 float vr_ag2_back;     // ... its arm's pull on the hold held still (most joint force, N)
+float vr_ag2_rose;     // phase 4: its stagger over while the tug went on (then a standing tug)
 float vr_ag2_one;      // phase 0's win time (s; 99: kept)
 float vr_ag2_keep_drop;
 float vr_ag2_keep_scale;
@@ -159,6 +161,7 @@ void() VR_AG2_Frame =
         vr_ag2_w0 = g.vr_ag_prop ? g.vr_ag_prop.origin : '0 0 0';
         vr_ag2_moved = 0;
         vr_ag2_back = 0;
+        vr_ag2_rose = FALSE;
         vr_agt_clip = time;
         vr_agt_step = 4;
         vr_agt_until = time + (ph >= 4 ? 0.4 : 0.5);
@@ -222,6 +225,10 @@ void() VR_AG2_Frame =
         {
             vr_ag2_moved = max(vr_ag2_moved, vlen(g.vr_ag_prop.origin - vr_ag2_w0));
         }
+        if(ph == 4 && g.vr_ag_tug_pl && !g.vr_ag_tug_down) // (VR_AG_TugFrame: up again, the eased tug over)
+        {
+            vr_ag2_rose = TRUE;
+        }
         if(g.vr_ag_tug_pl && floor((time - vr_agt_clip) * 2) != floor((time - frametime - vr_agt_clip) * 2))
         {
             VR_AG2_Print(sprintf("two %g at %.1f s: %.0f N (joint %.0f, stretch %.0f), held %.2f s,", ph, time - vr_agt_clip,
@@ -257,6 +264,11 @@ void() VR_AG2_Frame =
         else if(ph == 1)
         {
             VR_AGT_Check(sprintf("%s one hand's %.2f s:", what, vr_ag2_one), won && (vr_ag2_one >= 99 || took <= vr_ag2_one * 0.75));
+        }
+        else if(ph == 4 && vr_ag2_rose)
+        {
+            VR_AGT_Check(sprintf("%s it got up mid-tug, the tug went on standing: torn away (standing rules):", what),
+                !won && vr_ag_tug_why == "torn away");
         }
         else
         {

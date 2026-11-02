@@ -568,17 +568,12 @@ void turnWhole(const Parts& p, const Context& c, const glm::quat& want, float ra
     }
 }
 
-// Its whole body held where it is on the floor (level): its middle's level motion eased (share `k` of
-// 1 - e^(-dt / 0.05 s) a frame) towards going back to level `anchor` over 0.15 s (at most 1 m/s), every part's motion
-// changed alike (its turn and pose untouched). A get-up's roll over and pull-in (vr_ragdoll_active_getup_hold): the roll
-// is about the edge it rolls over, and the floor's grip makes it a wheel: the body rolled away (a knight 50 units, an
-// arm flung out the edge), then the pin dragged it back.
-void holdLevel(const Parts& p, const Context& c, const glm::vec3& anchor, float k)
+// Its whole body held where it is on the floor (level): its middle's level motion eased (1 - e^(-dt / 0.05 s) a frame)
+// towards going back to level `anchor` over 0.15 s (at most 1 m/s), every part's motion changed alike (its turn and pose
+// untouched). A get-up's roll over and pull-in: the roll is about the edge it rolls over, and the floor's grip would make
+// it a wheel (the body rolled away, a knight 50 units, an arm flung out the edge, and the pin dragged it back).
+void holdLevel(const Parts& p, const Context& c, const glm::vec3& anchor)
 {
-    if(k <= 0.f)
-    {
-        return;
-    }
     glm::vec3 vel;
     const glm::vec3 at = massCentre(p, &vel);
     glm::vec3 want = level(anchor - at) / 0.15f;
@@ -586,7 +581,7 @@ void holdLevel(const Parts& p, const Context& c, const glm::vec3& anchor, float 
     {
         want *= 1.f / l;
     }
-    const glm::vec3 add = (want - level(vel)) * ((1.f - za::exp(-c.dt / 0.05f)) * za::min(k, 1.f));
+    const glm::vec3 add = (want - level(vel)) * (1.f - za::exp(-c.dt / 0.05f));
     for(int b = 0; b < p.count; b++)
     {
         if(!cut(p, b))

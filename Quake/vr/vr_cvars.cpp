@@ -940,6 +940,14 @@ void registerCvars()
 // Settings removed (docs/vr-port/CVAR_AUDIT.md): a config, a shipped .cfg or a take that still sets one is not an
 // "Unknown command" (cmd.c asks here); the line is dropped quietly and the next config write leaves it out.
 constexpr const char* retiredCvars[] = {
+    // 2026-11-02: legacy options removed, their defaults kept (ROUND23.md, "Legacy options removed, group 1").
+    "vr_hand_rig",
+    "vr_gun_wall_slide",
+    "vr_box3d_hand_push_fist",
+    "vr_ragdoll_active_getup_hold",
+    "vr_menu_banner_beside",
+    "vr_worn_backpack_tug",
+    "vr_nailpistol_model",
     // 2026-11-02: the old melee options, their "on" kept (ROUND23.md, "Old melee options removed"): the swept blade, the
     // swing through enemies, the strike past walls and floor, one swing hitting everything, the curved blades, the
     // positional melee damage.
