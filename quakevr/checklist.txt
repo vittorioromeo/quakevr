@@ -79,6 +79,8 @@ Body > Seated Height is now 0 ("not measured": yours had been measured standing)
 Grab an armed grunt's gun with the grip button only (trigger released) and tug: all fingers, index included, close round the gun and touch it rather than closing in the air. {test:agrunt_tug}
 Grab a downed grunt's arm or a corpse's limb with the grip only: the index finger curls with the others.
 Spawn a grunt with a nail pistol in each hand from the toolgun several times, right after loading the map: both guns visible every time; if one is missing, run Debug > Armed Monsters' Weapons: Drawn vs Server at once and take a note. {test:dual_wield}
+Run full speed at a grunt and let go of the stick within about 1.6 m: you brake and stop short of it instead of sliding into it; strafing past isn't slowed (Locomotion > Close Quarters > Brake Momentum, Braking). {test:closequarters}
+Throw a magazine or cell hard at a grunt: about 1 damage, a flinch and its pain, as a light prop does. {test:magthrow}
 
 [2. Armed humanoids: disarming and armour]
 Show Disarm Volumes: the wireframe hulls sit on each drawn weapon (magenta, orange, red; the sword's orange line along its blade) and on the drawn hand and forearm (cyan). {test:disarm_hulls_melee}

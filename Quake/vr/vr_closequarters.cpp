@@ -8,6 +8,14 @@
 // (vr_closequarters_min) at End Radius (vr_closequarters_end) and nearer, the less the further the move turns from
 // straight at it (all of it within vr_closequarters_angle degrees, none past vr_closequarters_angle_falloff); its
 // sideways part times 1 .. Strafe Factor (vr_closequarters_strafe) on the same ramp. Moving away: only the sideways part.
+//
+// Brake Momentum (vr_closequarters_brake; his note 2026-11-02 00:53: "if I run full speed close to the enemy and then
+// release the thumbstick, my inertia can still make me basically get into the enemy too quickly"): the player's own
+// velocity's part towards that enemy, above the slowed wish's part towards it (0 with the stick let go), shed at Braking
+// (vr_closequarters_braking, m/s^2) times the same slowdown's weight on the velocity's own direction (its ramp and angle:
+// none past Start Radius or Angle Falloff, all of it at End Radius straight at it), never below the slowed wish's part.
+// Sideways untouched. Only his own momentum: on the ground, not sliding from an enemy's shove (QC .vr_eshove_speed) nor
+// within pushGrace of a hit's knockback (QC .vr_deathdoll_pushtime); a jump is off the ground.
 
 #include "vr_closequarters.hpp"
 #include "vr_box3d.hpp"
@@ -78,6 +86,173 @@ LastMove lastMove;
     return glm::sqrt(dx * dx + dy * dy);
 }
 
+// The record of a slowed move (LastMove).
+void noteSlowed(const float speedIn, const float speedOut, const float gapM, const closequarters::Factors& f, const int foe)
+{
+    LastMove& l = lastMove;
+    l.slowed++;
+    l.gap = gapM;
+    l.toward = f.toward;
+    l.side = f.side;
+    l.speedIn = speedIn;
+    l.speedOut = speedOut;
+    l.leastToward = za::min(l.leastToward, f.toward);
+    l.leastGap = za::min(l.leastGap, gapM);
+    l.foe = foe;
+    l.firstGap = l.firstGap < 0.f ? gapM : l.firstGap;
+    if(gapM >= startRadius())
+    {
+        l.farSlowed = za::max(l.farSlowed, 1.f - f.toward);
+    }
+}
+
+constexpr float pushGrace = 0.5f; // s after a hit's knockback pushed the player that his velocity isn't braked
+
+// Whether `ent`'s velocity is its own momentum, for Brake Momentum: on the ground, not sliding from an enemy's shove, no
+// hit's knockback within pushGrace.
+[[nodiscard]] bool ownMomentum(edict_t* ent)
+{
+    if(!(static_cast<int>(ent->v.flags) & FL_ONGROUND) ||
+        progs::fieldFloatOr(ent, progs::fields().vr_eshove_speed, 0.f) > 0.f)
+    {
+        return false;
+    }
+    const float pushed = progs::fieldFloatOr(ent, progs::fields().vr_deathdoll_pushtime, 0.f);
+    return pushed <= 0.f || static_cast<float>(qcvm->time) - pushed >= pushGrace;
+}
+
+// Brake Momentum: `ent`'s velocity's part towards the enemy (`toEnemy`, its box `gapM` metres off) above the slowed wish
+// `out`'s part towards it, shed at Braking times the slowdown's weight on the velocity's direction. Returns the speed
+// shed this frame (units/s).
+float brakeMomentum(edict_t* ent, const glm::vec3& toEnemy, const float gapM, const glm::vec3& out)
+{
+    const glm::vec3 vel{ent->v.velocity[0], ent->v.velocity[1], 0.f};
+    const float along = glm::dot(vel, toEnemy);
+    const float cap = za::max(glm::dot(out, toEnemy), 0.f);
+    if(along <= cap)
+    {
+        return 0.f;
+    }
+    const closequarters::Factors f = closequarters::factorsFor(vel, toEnemy, gapM);
+    const float rate = za::max(vr_closequarters_braking.value, 0.f) * units::metresToUnits() * f.weight;
+    const float to = za::max(cap, along - rate * static_cast<float>(host_frametime));
+    ent->v.velocity[0] += toEnemy.x * (to - along);
+    ent->v.velocity[1] += toEnemy.y * (to - along);
+    return along - to;
+}
+
+// vr_closequarters_test coast (after "start" and "approach"): leg 1 runs from where "start" stood straight at the grunt
+// with Brake Momentum off, lets go of the stick at Start Radius and coasts to a stop; leg 2 the same with it on; leg 3
+// strafes beside it (strafeFrames) and runs "end". Each step waits on its own condition (Start Radius reached, stopped,
+// frames counted); giveUpFrames in a leg: FAIL "timed out".
+struct Coast
+{
+    int leg{0};                   // 0 none; 1 brake off, 2 brake on, 3 the strafe
+    int phase{0};                 // 0 running at it, 1 coasting (the stick let go)
+    int frames{0};                // frames in this leg
+    glm::vec3 from{0.f};          // where "start" stood
+    float entry[2]{0.f, 0.f};     // each leg's speed (units/s) as it let go at Start Radius
+    float least[2]{1e9f, 1e9f};   // and the least gap its coast came to (m)
+    float brakeWas{1.f};          // vr_closequarters_brake before
+    int braked{0};                // leg 2's frames the brake shed speed
+    float strafeShed{0.f};        // speed the brake shed in the strafe (units/s; stays 0)
+    int foe{0};                   // the grunt "approach" walked into (its edict number)
+};
+Coast coast;
+constexpr int strafeFrames = 12;
+constexpr int giveUpFrames = 72 * 6;
+constexpr float touchGap = 0.62f; // m: the player's body against a grunt's (16 units)
+testkit::Tally cqTally;
+
+// `p` put at `at`, dropped onto the floor below (from 64 units over it), still.
+void putAt(edict_t* p, const glm::vec3& at)
+{
+    vec3_t from{at.x, at.y, at.z + 64.f}, to{at.x, at.y, at.z - 64.f};
+    const trace_t tr = SV_Move(from, p->v.mins, p->v.maxs, to, MOVE_NOMONSTERS, p);
+    const float z = tr.startsolid ? at.z : tr.endpos[2];
+    p->v.origin[0] = at.x;
+    p->v.origin[1] = at.y;
+    p->v.origin[2] = z;
+    p->v.oldorigin[0] = at.x;
+    p->v.oldorigin[1] = at.y;
+    p->v.oldorigin[2] = z;
+    p->v.velocity[0] = p->v.velocity[1] = p->v.velocity[2] = 0.f;
+    SV_LinkEdict(p, false);
+}
+
+void coastNextLeg(edict_t* ent)
+{
+    Coast& c = coast;
+    c.frames = 0;
+    c.phase = 0;
+    if(c.leg == 1)
+    {
+        c.leg = 2;
+        Cvar_SetValueQuick(&vr_closequarters_brake, 1.f);
+        putAt(ent, c.from);
+        Cbuf_AddText("+forward\n");
+        return;
+    }
+    Cvar_SetValueQuick(&vr_closequarters_brake, c.brakeWas);
+    constexpr const char* name = "vr_closequarters_test";
+    Con_Printf("%s: coast: let go at Start Radius at %.0f u/s (brake off), %.0f (on); stopped at %.2f m (off), %.2f m "
+               "(on; braked %d frames, Braking %.0f m/s2)\n",
+        name, c.entry[0], c.entry[1], c.least[0], c.least[1], c.braked, vr_closequarters_braking.value);
+    cqTally.check(c.entry[1] > 200.f, name, va("the braked leg let go running (%.0f u/s)", c.entry[1]));
+    cqTally.check(c.braked > 0, name, "the brake ran");
+    cqTally.check(c.least[1] > c.least[0] + 0.1f, name,
+        va("braked, it stopped shorter (%.2f m, unbraked %.2f m)", c.least[1], c.least[0]));
+    cqTally.check(c.least[1] > touchGap, name, va("braked, it stopped short of the grunt (%.2f m, touching %.2f)", c.least[1], touchGap));
+    c.leg = 3;
+    Cbuf_AddText("+moveright\n");
+}
+
+// Each walking move while the coast runs: `gapM` to the nearest live enemy (huge: none), `shed` what the brake shed.
+void coastFrame(edict_t* ent, const float gapM, const float shed)
+{
+    Coast& c = coast;
+    if(c.leg == 0)
+    {
+        return;
+    }
+    c.frames++;
+    if(c.leg == 3)
+    {
+        c.strafeShed += shed;
+        if(c.frames >= strafeFrames)
+        {
+            c.leg = 0;
+            Cbuf_AddText("-moveright\nvr_closequarters_test end\n");
+        }
+        return;
+    }
+    const int i = c.leg - 1;
+    c.braked += (i == 1 && shed > 0.f) ? 1 : 0;
+    const float speed = glm::length(glm::vec2{ent->v.velocity[0], ent->v.velocity[1]});
+    if(c.phase == 0 && gapM <= startRadius())
+    {
+        c.entry[i] = speed;
+        c.phase = 1;
+        Cbuf_AddText("-forward\n");
+    }
+    else if(c.phase == 1)
+    {
+        c.least[i] = za::min(c.least[i], gapM);
+        if(speed < 1.f)
+        {
+            coastNextLeg(ent);
+            return;
+        }
+    }
+    if(c.frames > giveUpFrames)
+    {
+        cqTally.check(false, "vr_closequarters_test", va("coast leg %d timed out", c.leg));
+        Cvar_SetValueQuick(&vr_closequarters_brake, c.brakeWas);
+        c.leg = 0;
+        Cbuf_AddText("-forward\nvr_closequarters_test end\n");
+    }
+}
+
 } // namespace
 
 namespace qvr::closequarters
@@ -104,7 +279,8 @@ Factors factorsFor(const glm::vec3& wish, const glm::vec3& toEnemy, const float 
     const float full = za::clamp(vr_closequarters_angle.value, 0.f, 90.f);
     const float none = za::clamp(vr_closequarters_angle_falloff.value, full, 90.f);
     const float weight = angle <= full ? 1.f : (none > full ? za::clamp((none - angle) / (none - full), 0.f, 1.f) : 0.f);
-    f.toward = 1.f - ramp * weight * (1.f - za::clamp(vr_closequarters_min.value, 0.f, 1.f));
+    f.weight = ramp * weight;
+    f.toward = 1.f - f.weight * (1.f - za::clamp(vr_closequarters_min.value, 0.f, 1.f));
     return f;
 }
 
@@ -119,11 +295,12 @@ extern "C" void VR_CloseQuartersMove(edict_t* ent, float* wishvel)
     }
     const glm::vec3 wish{wishvel[0], wishvel[1], 0.f};
     const float speedIn = glm::length(wish);
-    if(speedIn <= 0.f)
+    const bool brake = vr_closequarters_brake.value != 0.f && ownMomentum(ent);
+    if(speedIn <= 0.f && !brake && coast.leg == 0)
     {
         return;
     }
-    lastMove.moves++;
+    lastMove.moves += speedIn > 0.f ? 1 : 0;
     const float m2u = units::metresToUnits();
     const float start = startRadius() * m2u;
     const glm::vec3 at{ent->v.origin[0], ent->v.origin[1], ent->v.origin[2]};
@@ -136,39 +313,31 @@ extern "C" void VR_CloseQuartersMove(edict_t* ent, float* wishvel)
         }
         return boxGap(at, e->v.absmin, e->v.absmax);
     }, &gap);
-    if(!foe)
+    glm::vec3 toEnemy{0.f};
+    if(foe)
     {
-        return;
+        toEnemy = glm::vec3{(foe->v.absmin[0] + foe->v.absmax[0]) * 0.5f - at.x, (foe->v.absmin[1] + foe->v.absmax[1]) * 0.5f - at.y, 0.f};
     }
-    glm::vec3 toEnemy{(foe->v.absmin[0] + foe->v.absmax[0]) * 0.5f - at.x, (foe->v.absmin[1] + foe->v.absmax[1]) * 0.5f - at.y, 0.f};
     const float len = glm::length(toEnemy);
     if(len <= 0.f)
     {
+        coastFrame(ent, 1e9f, 0.f);
         return;
     }
     toEnemy /= len;
     const float gapM = gap / m2u;
-    const closequarters::Factors f = closequarters::factorsFor(wish, toEnemy, gapM);
-    const float along = glm::dot(wish, toEnemy);
-    const glm::vec3 towardPart = toEnemy * za::max(along, 0.f);
-    const glm::vec3 out = towardPart * f.toward + (wish - towardPart) * f.side;
-    wishvel[0] = out.x;
-    wishvel[1] = out.y;
-    LastMove& l = lastMove;
-    l.slowed++;
-    l.gap = gapM;
-    l.toward = f.toward;
-    l.side = f.side;
-    l.speedIn = speedIn;
-    l.speedOut = glm::length(out);
-    l.leastToward = za::min(l.leastToward, f.toward);
-    l.leastGap = za::min(l.leastGap, gapM);
-    l.foe = NUM_FOR_EDICT(foe);
-    l.firstGap = l.firstGap < 0.f ? gapM : l.firstGap;
-    if(gapM >= startRadius())
+    glm::vec3 out = wish;
+    if(speedIn > 0.f)
     {
-        l.farSlowed = za::max(l.farSlowed, 1.f - f.toward);
+        const closequarters::Factors f = closequarters::factorsFor(wish, toEnemy, gapM);
+        const float along = glm::dot(wish, toEnemy);
+        const glm::vec3 towardPart = toEnemy * za::max(along, 0.f);
+        out = towardPart * f.toward + (wish - towardPart) * f.side;
+        wishvel[0] = out.x;
+        wishvel[1] = out.y;
+        noteSlowed(speedIn, glm::length(out), gapM, f, NUM_FOR_EDICT(foe));
     }
+    coastFrame(ent, gapM, brake ? brakeMomentum(ent, toEnemy, gapM, out) : 0.f);
 }
 
 namespace
@@ -178,9 +347,8 @@ namespace
 // 120 units ahead) and runs "approach": it was slowed only within Start Radius, down to Min Factor at its face; then it
 // strafes beside it and runs "end": the sideways move kept Strafe Factor of its speed (no part towards it slowed), and
 // the factors' rule on the settings (none past Start Radius, Min Factor at End Radius straight at it, between them
-// halfway, Strafe Factor sideways, moving away only the sideways part). Prints "vr_closequarters_test: N passed, M
-// failed".
-testkit::Tally cqTally;
+// halfway, Strafe Factor sideways, moving away only the sideways part). "coast" (Coast) runs the brake's legs and the
+// strafe itself, then "end". Prints "vr_closequarters_test: N passed, M failed".
 
 void test_f()
 {
@@ -193,6 +361,40 @@ void test_f()
     {
         l = LastMove{};
         cqTally = testkit::Tally{};
+        coast = Coast{};
+        if(const edict_t* const p = progs::localPlayer())
+        {
+            coast.from = glm::vec3{p->v.origin[0], p->v.origin[1], p->v.origin[2]};
+        }
+        return;
+    }
+    if(!strcmp(step, "coast"))
+    {
+        edict_t* const p = progs::localPlayer();
+        if(!p)
+        {
+            return;
+        }
+        const progs::ServerVm vm;
+        // The legs' start: runUp units short of the grunt "approach" walked into, on the way from the start, on the
+        // floor the player stands on now (a map's start may be a step up: off it he flies, and nothing brakes that).
+        const edict_t* const foe = coast.foe > 0 && coast.foe < qcvm->num_edicts ? EDICT_NUM(coast.foe) : nullptr;
+        glm::vec3 from = coast.from;
+        if(foe)
+        {
+            constexpr float runUp = 140.f;
+            const glm::vec3 mid{(foe->v.absmin[0] + foe->v.absmax[0]) * 0.5f, (foe->v.absmin[1] + foe->v.absmax[1]) * 0.5f, p->v.origin[2]};
+            glm::vec3 way{mid.x - from.x, mid.y - from.y, 0.f};
+            way = glm::length(way) > 0.f ? glm::normalize(way) : glm::vec3{1.f, 0.f, 0.f};
+            from = mid - way * (runUp + (foe->v.absmax[0] - foe->v.absmin[0]) * 0.5f);
+        }
+        coast = Coast{};
+        coast.from = from;
+        coast.leg = 1;
+        coast.brakeWas = vr_closequarters_brake.value;
+        Cvar_SetValueQuick(&vr_closequarters_brake, 0.f);
+        putAt(p, from);
+        Cbuf_AddText("+forward\n");
         return;
     }
     if(!strcmp(step, "approach"))
@@ -212,6 +414,7 @@ void test_f()
         cqTally.check(l.leastGap <= endRadius(), name, va("it reached End Radius (%.2f m, want <= %.2f)", l.leastGap, endRadius()));
         cqTally.check(za::abs(l.leastToward - minF) < 0.01f, name,
             va("straight at its face: slowed to Min Factor (%.3f, want %.2f)", l.leastToward, minF));
+        coast.foe = l.foe;
         l = LastMove{};
         return;
     }
@@ -259,6 +462,7 @@ void test_f()
     cqTally.check(l.slowed > 0, name, "the strafe was beside it");
     cqTally.check(l.speedIn > 0.f && l.speedOut >= l.speedIn * (strafe - 0.02f), name,
         va("strafing past it kept its speed (%.0f of %.0f, Strafe Factor %.2f)", l.speedOut, l.speedIn, strafe));
+    cqTally.check(coast.strafeShed < 2.f, name, va("strafing past it wasn't braked (%.1f u/s shed)", coast.strafeShed));
     // The rule on the settings, straight, sideways and away.
     const glm::vec3 way{1.f, 0.f, 0.f};
     const float s = startRadius(), e = endRadius();

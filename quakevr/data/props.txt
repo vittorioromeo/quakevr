@@ -558,7 +558,7 @@ prop 48
     fgr_curl_middle "0.55"
     fgr_curl_ring "0.9"
     fgr_curl_pinky "0.95"
-    // The shells and the magazines below are light and blunt: thrown, a quarter of a thing's damage (Throw Damage x; the
+    // The shells and the magazines below are light and blunt: thrown, a quarter of a thing's damage (the magazines 0.15 since 2026-11-02) (Throw Damage x; the
     // author's 2026-10-22 note: a magazine broke a crate in two throws; configVersion 179 gives it to configs saved before).
     throw_dmg "0.25"
 }
@@ -586,7 +586,7 @@ prop 49
 // slot 50: progs/vr_mag_nail.mdl (vr_prop_*_51)
 prop 50
 {
-    throw_dmg "0.25"
+    throw_dmg "0.15" // (the magazines thrown as light props at monsters, 2026-11-02: a hard throw about 1 damage)
     // Immersive reloading's magazines (phase 2; make_mags.py): the nailgun's, the super nailgun's, the thunderbolt's cell.
     // In one hand; their weights. vr_props_version 61 gave these slots to configs saved before. The author's sizes (his
     // config, 2026-10-07: the nailgun's 0.55, the super nailgun's and the cell's 0.45) and held as for loading (his note:
@@ -607,7 +607,7 @@ prop 50
 // slot 51: progs/vr_mag_snail.mdl (vr_prop_*_52)
 prop 51
 {
-    throw_dmg "0.25"
+    throw_dmg "0.15"
     id "progs/vr_mag_snail.mdl"
     mass "0.7"
     two_hands "0"
@@ -622,7 +622,7 @@ prop 51
 // slot 52: progs/vr_mag_light.mdl (vr_prop_*_53)
 prop 52
 {
-    throw_dmg "0.25"
+    throw_dmg "0.15"
     id "progs/vr_mag_light.mdl"
     mass "0.9"
     two_hands "0"
@@ -690,7 +690,7 @@ prop 56
     size "0.55"
     handle_tilt "30.5"
     overlap "0.37"
-    throw_dmg "0.25"
+    throw_dmg "0.15"
 }
 
 // slot 57: progs/h_dcrossbow.mdl (vr_prop_*_58)

@@ -19,6 +19,7 @@ struct Factors
 {
     float toward{1.f};
     float side{1.f};
+    float weight{0.f}; // how much of the slowdown towards it applies (0 .. 1: its ramp times the angle's weight)
 };
 [[nodiscard]] Factors factorsFor(const glm::vec3& wish, const glm::vec3& toEnemy, float gap);
 

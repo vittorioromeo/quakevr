@@ -142,6 +142,8 @@
         row(opt::vr_closequarters_strafe),
         row(opt::vr_closequarters_angle),
         row(opt::vr_closequarters_angle_falloff),
+        row(opt::vr_closequarters_brake),
+        row(opt::vr_closequarters_braking),
         header("Turning"),
         row(opt::vr_snap_turn),
         row(opt::vr_turn_speed),

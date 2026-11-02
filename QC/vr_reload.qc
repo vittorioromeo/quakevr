@@ -780,9 +780,20 @@ entity(float xWid, float xAid, float xCount, vector xOrg, vector xAngles) VR_Rel
     r.movetype = MOVETYPE_TOSS;
     r.solid = SOLID_NOT_BUT_TOUCHABLE;
     r.flags = r.flags | FL_FORCEGRABBABLE | FL_EASYHANDTOUCH;
-    r.touch = SUB_Null;
     r.handtouch = VR_Reload_RoundUse; // (VR_Carry_Setup keeps it as carry_use: its pickup)
-    r.throwhit = QVR_THROWHIT_NEVER_HIT; // (a round thrown hurts nothing)
+    if(xWid)
+    {
+        // A magazine is a light prop (the author's note 2026-11-02 01:00: "behave consistently as if they were throwing
+        // light props onto enemies"): thrown hard it hits as any thrown prop does (VR_Carry_Throw, forcegrabbable_touch:
+        // VR_Thrown_Damage, its Throw Damage x in props.txt; flung, VR_Prop_Flung). Not in a throw until thrown.
+        r.touch = forcegrabbable_touch;
+        r.throwhit = QVR_THROWHIT_HIT;
+    }
+    else
+    {
+        r.touch = SUB_Null;
+        r.throwhit = QVR_THROWHIT_NEVER_HIT; // (a shell or a launcher's round thrown hurts nothing)
+    }
     r.owner = world;
     SetThrownWeaponDealDamage(r, FALSE);
     SetThrownWeaponDisappearOnHit(r, FALSE);
