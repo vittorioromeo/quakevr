@@ -2993,7 +2993,10 @@ void restoreState()
     st.overhead[0] = (packed & 512) != 0;
     st.overhead[1] = (packed & 1024) != 0;
     st.gunSlot = int((packed >> 11) & 255) - 1;
-    if(headMode() && st.mode != Mode::OnHead)
+    // Flatscreen play (-flatscreenmode) excepted: F switches the torch there (vr_flatplay.cpp reads the key and sends the
+    // engine's own vr_flashlight_toggle), and the state saved each frame carries his choice over a level change: a torch
+    // put out with F stays out. A new game has nothing saved yet: lit as always, and his first switch is F.
+    if(headMode() && st.mode != Mode::OnHead && (!flatplay::active() || packed == 0u))
     {
         st.on = true; // Always on Head, a save made in another mode (or a new game's empty state): worn at once, on
     }
