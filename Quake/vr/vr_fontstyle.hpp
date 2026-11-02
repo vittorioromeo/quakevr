@@ -64,8 +64,10 @@ private:
 // The cvars' callbacks and the test command (VR_Init).
 void init();
 
-// Bumped each time the style changes (a setting, a game change): a strip made by restyleStrip is made again.
-[[nodiscard]] int generation();
+// Bumped each time surface `s`'s style changes (one of its settings): whatever caches text drawn or laid out in that
+// surface's font (a strip made by restyleStrip: the menu's; the boards', tips', ammo screens', hologram's images) keys on
+// it as well as on its text, and is made again on the next frame.
+[[nodiscard]] int generation(Surface s);
 
 // Anything restyled (not Classic without outline or shadow). Off: every picture is drawn as Quake's.
 [[nodiscard]] bool active();
