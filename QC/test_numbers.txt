@@ -293,6 +293,8 @@ vr_arena_test    14       vr_arena_test.qc                 (VR_AT14_Begin)
 vr_arena_test    15       vr_arena_test.qc                 (VR_AT15_Begin)
 vr_arena_test    16       vr_arena_test.qc                 (VR_AT16_Begin)
 vr_arena_test    17       vr_arena_test.qc                 (VR_AT17_Run)
+vr_arena_test    18       vr_arena_test.qc                 (VR_AT18_Frame)
+vr_arena_test    19       vr_arena_test.qc                 (VR_AT19_Begin)
 
 vr_burn_test     1*       vr_burning_test.qc               (the Debug menu runs it: the dispatcher's fall-through)
 vr_burn_test     2*       vr_burning_test.qc               (the Debug menu runs it: the dispatcher's fall-through)
