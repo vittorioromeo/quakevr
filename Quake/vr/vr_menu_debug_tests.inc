@@ -519,6 +519,9 @@ za::Vector<Item> pageDebugTests()
         row(opt::vr_test_spawn_tilt),
         adSpawnRow(static_cast<int>(vr_test_spawn.value), command("Put It There", "impulse 241").help("Puts the Thing ahead of you.")) , // AD support
         command("Armour on Armed Grunts", "developer 1; vr_agarmor_test 1"),
+        command("Death Knight's Gun and Casts", "vr_agtune_test 3")
+            .help("vr_agtune_test 3 (vrtesthall): an armed death knight with a shotgun hunts you for two minutes of game "
+                  "time: his casts against his gun's attacks at Gun Cast Cooldown, printed at the end."),
         command("Armed Humanoid Tuning", "vr_agtune_test 1")
             .help("vr_agtune_test 1 (vrtesthall): the Plasma Gun's fire interval as yours, the super shotgun's reload "
                   "(vr_agrunt_reload_ssg), the Movement / Backpedal / Strafe Speed sliders, a slowed swing's weapon "
@@ -544,6 +547,10 @@ za::Vector<Item> pageDebugTests()
             .help("An armed grunt and an armed enforcer close ahead in full yellow armour, facing you, standing still "
                   "(vr_agarmor_test 6): the helmets' fit up close. vr_agarmor_headcam 1-4 (the mock headset) puts the "
                   "eyes on their heads: front, side, three-quarter, behind."),
+        command("Helmets Alone There: Knight and Death Knight", "vr_agarmor_test 14")
+            .help("A knight and a death knight close ahead in yellow helmets and nothing else (vr_agarmor_test 14): the "
+                  "fit from every side. vr_agarmor_headcam <1 front | 2 side | 3 three-quarter | 4 behind> 18 1 (the mock "
+                  "headset) puts the screenshot's eye on the death knight."),
         command("Helmets There: Knight and Death Knight", "vr_agarmor_test 8")
             .help("An armed knight and an armed death knight close ahead in full yellow armour, facing you "
                   "(vr_agarmor_test 8): the helmets' fit up close. vr_agarmor_headcam <1-4> 26 1 (the mock headset) puts "

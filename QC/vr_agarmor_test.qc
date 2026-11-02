@@ -13,6 +13,7 @@
 // pieces at their places on its own rig, the cuirass absorbing, a pauldron broken into its own model's debris, a blade's
 // blow on a plate sparking with no blood, the skill's roll dressing it, its wear reaching the client; the debris fading.
 // `vr_agarmor_test 8`: a knight and a death knight close ahead in full yellow (the eyeshots).
+// `vr_agarmor_test 14`: the same in their helmets alone (the fit's eyeshots from every side).
 // `vr_agarmor_test 9` (agent/hkrig): their deaths: a knight and a death knight in full yellow killed (health 1, small
 // blows), their ragdolls awaited (each a corpse, then 3 s more): each still wearing both pauldrons, its body where it
 // fell (its middle within 48 units of its death's place: no blow-up). Ends on "agarmor test: N passed, M failed" (the
@@ -548,6 +549,13 @@ void() VR_AgArmor_TestFrame =
             // (the knights' eyeshots: a knight and a death knight close ahead in full yellow, facing the player)
             VR_AgArmor_Give(VR_ART_SpawnKind(p, -44, 2, 110), 2, 1023);
             VR_AgArmor_Give(VR_ART_SpawnKind(p, 44, 3, 130), 2, 1023);
+            return;
+        }
+        if(request == 14)
+        {
+            // (the same, the helmets alone: nothing else in the way of the eyeshots)
+            VR_AgArmor_Give(VR_ART_SpawnKind(p, -44, 2, 110), 2, 2);
+            VR_AgArmor_Give(VR_ART_SpawnKind(p, 44, 3, 130), 2, 2);
             return;
         }
         if(request == 9)

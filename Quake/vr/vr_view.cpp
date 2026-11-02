@@ -3804,12 +3804,12 @@ glm::vec3 anchorPosition(const entity_t& e, bool mirrored, float zeroBlend, cons
 
 glm::vec3 screenPosition(const ViewEntity& ve, const char* anchor, const glm::vec3& extra)
 {
-    return shiftedAnchor(ve, anchor, extra, nailslide::screenShift(ve.ent));
+    return shiftedAnchor(ve, anchor, extra, nailslide::screenShift(ve.ent, anchor, ve.zeroBlend));
 }
 
 glm::vec3 screenPosition(const entity_t& e, bool mirrored, float zeroBlend, const char* anchor, const glm::vec3& extra)
 {
-    return shiftedAnchor(e, mirrored, zeroBlend, anchor, extra, nailslide::screenShift(e));
+    return shiftedAnchor(e, mirrored, zeroBlend, anchor, extra, nailslide::screenShift(e, anchor, zeroBlend));
 }
 
 glm::vec3 vertexPosition(const ViewEntity& ve, int vertex)
