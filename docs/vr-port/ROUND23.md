@@ -6412,7 +6412,8 @@ With `sv_random_seed 1;` before the map (TESTING.md, the existing way), 11 of th
 in 5 of 5 finished runs (filtered to their PASS/FAIL lines; on `6572296a2`, parallel lanes, other workers running). Two
 did not: agrunt_71 and agrunt_67 vary with the seed fixed, so something besides the server's stream reaches them.
 **Kit change needed (coordinator):** run_baseline.py's HALL/ARENA/STUDIO prefixes and the agrunt case script start with
-`sv_random_seed 1;`.
+`sv_random_seed 1;`. After merging origin/next (`96b38209f`), the five cases taken off test_flaky.txt ran again: agrunt_47,
+60, 63, 72 and rv_1, 5 of 5 identical passes each. The table's other rows were not rerun on the merge.
 
 **A seed makes a verdict repeat; it does not explain it.** Seed 1 is one draw: agrunt_60, 66, rv_1 and nail_1 pass on it,
 which removes their flake from the runs but leaves whatever a bad draw exposed (66's impact rule, below; nail_1's
