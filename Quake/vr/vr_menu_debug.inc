@@ -700,6 +700,11 @@ za::Vector<Item> pageDebugReports()
         row(opt::vr_flat_bob),
         row(opt::vr_flat_turnlag),
         row(opt::vr_flat_turnlag_speed),
+        row(opt::vr_flat_arm_hold),
+        row(opt::vr_flat_pose_pitch),
+        command("Flatscreen Punch", "vr_flat_punch")
+            .help("A punch with the main hand (`vr_flat_punch off` for the off hand): the same motion the fire button of a "
+                  "hand holding a swinging weapon makes, and V's punch. Flatscreen play only."),
         header("The Game"),
         command("Official Campaign Status", "vr_campaign_status").help("Owned data and language readiness; active native campaign context."),
         command("Dopa Finale Text", "loc_probe $map_dopa_endtext_final").help("Preview the resolved completion text. loc_probe <key> [arguments] also checks formatted expansion strings."),
