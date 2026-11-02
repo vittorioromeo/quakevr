@@ -12,5 +12,6 @@ agrunt_67 agrunt_71
 agrunt_1 agrunt_76 agrunt_86 agarmor_5
 # Only its gates scene rerun (3 identical): not yet 5 identical full runs.
 stealth
-# Taken off 2026-11-02: agrunt_47, agrunt_63, agrunt_72 (fixed; 5 identical passes seeded). agrunt_60, rv_1: 5 identical
-# passes seeded, no other fix, so they rely on run_baseline.py's cases seeding (sv_random_seed 1 before the map).
+# Pass 5 of 5 seeded but flaky unseeded, cause not found: a fixed seed hides the failure, it doesn't fix it.
+agrunt_60 rv_1
+# Taken off 2026-11-02: agrunt_47, agrunt_63, agrunt_72 (fixed; 5 identical passes seeded).
