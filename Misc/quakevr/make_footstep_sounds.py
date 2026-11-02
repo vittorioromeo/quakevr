@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 # make_footstep_sounds.py -- generates the enemies' footsteps (quakevr/sound/vr/step_*.wav; vr_footsteps.cpp), synthesised:
-#   step_boot1..5.wav   a leather boot (grunts, enforcers): a heel's dull knock and a gritty scuff, the sole's slap after
+#   step_boot1..5.wav   a leather and rubber boot on stone (grunts, enforcers): a soft low heel, a gritty scuff, the sole
+#                       rolling down after; nothing rings and nothing clicks (no energy to speak of over 2 kHz)
 #   step_metal1..5.wav  an armoured boot (knights): the same knock, heavier, a plate's short clink and a rattle after
 #   step_bare1..5.wav   a wet bare foot (zombies, gremlins): a flesh slap, a soft low thud and a small squelch
-#   step_thud1..5.wav   a great bare foot (ogres, shamblers, fiends): a deep falling thump with a low rumble after
+#   step_thud1..5.wav   a great bare foot (ogres, shamblers, fiends): the weight's mid-range knock and thick smack (150-800
+#                       Hz, what a headset's speakers can play), over a deep thump and a rumble and grit after
 # Five takes of each, apart in timing, pitch and grit. The monsters' size is the engine's (a playback rate and a weight per
 # kind: vr_footsteps.cpp, kinds). Everything is seeded: the same files every run.
 #
@@ -84,14 +86,38 @@ def chirp(out, at, f0, f1, length, level):
         out[i] += level * math.sin(phase) * math.sin(math.pi * u) ** 2
 
 
+def scuff(out, at, length, cut_lo, cut_hi, level, rng):
+    """Grit: band-passed noise in small uneven grains, the sole dragging on grains of stone."""
+    lo, hi = OnePole(cut_lo), OnePole(cut_hi)
+    start = int(at * RATE)
+    n = min(len(out) - start, int(length * RATE))
+    grain = 0.0
+    for i in range(n):
+        if rng.random() < 0.012:
+            grain = rng.uniform(0.3, 1.0)
+        grain *= 0.992
+        u = i / n
+        x = rng.uniform(-1, 1)
+        out[start + i] += level * (hi(x) - lo(x)) * grain * min(u * 8.0, 1.0) * (1.0 - u)
+
+
+def rolled_off(out, cut, passes):
+    """The whole take through `passes` one-poles at `cut` Hz: no bright edge left."""
+    for _ in range(passes):
+        f = OnePole(cut)
+        for i in range(len(out)):
+            out[i] = f(out[i])
+
+
 def boot(rng):
     out = buffer(0.2)
-    k = rng.uniform(0.9, 1.12)
-    thump(out, 0.0, 170 * k, 85 * k, 0.03, 0.8)
-    noise(out, 0.0, 250, 1700 * k, 0.018, 1.0, rng)
-    slap = rng.uniform(0.04, 0.065)
-    noise(out, slap, 400, 2600 * k, 0.014, 0.55, rng)
-    thump(out, slap, 140 * k, 90 * k, 0.018, 0.25)
+    k = rng.uniform(0.92, 1.1)
+    thump(out, 0.0, 125 * k, 80 * k, 0.026, 0.42, attack=0.004)
+    noise(out, 0.0, 130, 620 * k, 0.03, 2.0, rng, attack=0.003)
+    scuff(out, rng.uniform(0.008, 0.018), rng.uniform(0.07, 0.1), 300, 1200 * k, 1.8, rng)
+    roll = rng.uniform(0.05, 0.075)
+    noise(out, roll, 150, 700 * k, 0.018, 1.0, rng, attack=0.005)
+    rolled_off(out, 2000, 2)
     return out
 
 
@@ -122,10 +148,14 @@ def bare(rng):
 def thud(rng):
     out = buffer(0.42)
     k = rng.uniform(0.9, 1.1)
-    thump(out, 0.0, 95 * k, 42 * k, 0.11, 1.0, attack=0.004)
-    noise(out, 0.0, 60, 420 * k, 0.05, 0.9, rng, attack=0.003)
-    noise(out, 0.002, 300, 1300, 0.01, 0.25, rng)
-    noise(out, rng.uniform(0.05, 0.09), 40, 200, 0.12, 0.45, rng, attack=0.03)
+    thump(out, 0.0, 90 * k, 48 * k, 0.1, 0.3, attack=0.004)
+    thump(out, 0.001, 420 * k, 170 * k, 0.075, 0.75, attack=0.003)
+    noise(out, 0.0, 170, 750 * k, 0.085, 4.5, rng, attack=0.004)
+    noise(out, rng.uniform(0.04, 0.07), 110, 480, 0.09, 1.6, rng, attack=0.015)
+    scuff(out, rng.uniform(0.03, 0.05), 0.15, 320, 1000, 1.5, rng)
+    rolled_off(out, 1800, 2)
+    for i, x in enumerate(out):
+        out[i] = math.tanh(1.8 * x)  # (thick: its loudness held up to the peak, not one sharp edge)
     return out
 
 
@@ -143,8 +173,9 @@ def main():
     root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "quakevr", "sound", "vr")
     out_dir = sys.argv[1] if len(sys.argv) > 1 else root
     os.makedirs(out_dir, exist_ok=True)
-    # (each a little under full scale: its level is the engine's; the thud carries in the lows, felt more than heard)
-    for name, make, level, seed in (("boot", boot, 0.8, 101), ("metal", metal, 0.8, 202), ("bare", bare, 0.7, 303), ("thud", thud, 0.9, 404)):
+    # (each under full scale: its level is the engine's. Levels by what is heard, not by the peak: A-weighted, the loudest
+    # 100 ms of a boot near the player's own steps at their volumes, a thud's well over it)
+    for name, make, level, seed in (("boot", boot, 0.6, 101), ("metal", metal, 0.8, 202), ("bare", bare, 0.7, 303), ("thud", thud, 0.75, 404)):
         for take in range(5):
             rng = random.Random(seed + take)
             samples = finish(make(rng), level)

@@ -6726,6 +6726,38 @@ setting (the player's own steps have none to sit beside; Volume 0 is off).
   grunts hunting you. `vr_footstep_info` prints each model's contacts, `vr_footstep_info <model> <frame> <count>` its feet
   over those frames, `tune vr_footstep_log 1` a line a step. Results and the bench are in the worktree's report.
 
+### Enemy footsteps: boots and heavy feet remade (branch `agent/footsteps2`)
+
+His words: "Grunt and enforcers sound a bit too metallic", "Struggling to hear ogres, fiends, and shamblers". Knights and
+zombies stay as they were (same WAV hashes). All of this is measured, not heard: no agent can listen to it.
+
+Means per set, from `scratch/stepspec.py` (band shares of the energy; "tone": the strongest line over its neighbours;
+A-100: the loudest 100 ms, A-weighted):
+
+| set | RMS | peak | <150 Hz | 150-800 | >2 kHz | tone dB | A-100 |
+|---|---|---|---|---|---|---|---|
+| old boot | 0.129 | 0.80 | 73% | 6% | 15.3% | 10.4 | 0.070 |
+| new boot | 0.090 | 0.60 | 24% | 50% | 3.8% | 10.6 | 0.083 |
+| metal (untouched) | 0.117 | 0.80 | 93% | 0% | 3.6% | 32.8 | 0.058 |
+| old thud | 0.217 | 0.90 | 99% | 0% | 0.1% | 11.0 | 0.034 |
+| new thud | 0.219 | 0.75 | 19% | 67% | 1.5% | 11.0 | 0.216 |
+| player's feet | 0.163 | 0.98 | 9% | 86% | 2.5% | 8.8 | 0.121 |
+
+- **Boots.** The old takes had no ringing line (tone 10 dB, as noise), so the metal was their bright edge: 1 ms attacks on
+  noise reaching past 2 kHz. Now a soft heel (3-5 ms attacks), a grainy scuff, the sole rolling down, all rolled off at 2 kHz.
+  Energy over 2 kHz is down 9 dB in absolute terms.
+- **Why the heavy feet were hard to hear.** The sample: 99% of its energy under 150 Hz, where headset speakers play little.
+  Its RMS was the highest of any set, but its A-weighted level was the lowest, under half a boot's. Neither budget nor range
+  was dropping them: a lone ogre was heard on all 12 of its steps at 300 and at 800 units (fiend 19, shambler 12-14). Falloff
+  made it worse at range: a mean gain of 0.097 at the head at 800 units.
+- **The fix.** New thuds carry a falling 420-170 Hz knock and a thick 170-750 Hz smack over a lighter low thump, with soft
+  saturation. Ogre gain 0.95 to 1.15, fiend 0.85 to 1, shambler 1.3 to 1.4. New tunables `vr_footstep_heavy_volume` (1) and
+  `vr_footstep_heavy_carry` (0.6): their distance counts times that for the falloff, the range (1000 becomes about 1670) and
+  who is nearest, so a heavy step is heard over nearer boots.
+- **Level at the head** (falloff gain times A-100): ogre at 300 units -39.9 to -20.8 dB, at 800 -49.8 to -24.5 dB; shambler
+  at 800 -42.1 to -19.2 dB; grunt at 300 -30.6 dB, at 800 -39.5 dB; the player's own steps -24.4 dB. Walls and air are not
+  in these. `vr_footstep_test <distance>` runs a lone grunt, ogre, fiend and shambler with you held that far behind.
+
 ## Tuned values can't be lost at release (branch `agent/promoguard`, 2026-11-02)
 
 His words: "Can we automate tweaks promotion so we can never forget?" Tuning constants are live in a development build

@@ -8,6 +8,8 @@
 // loud, and how far each was from the foot's contact as the client drew it, and the verdict line,
 // `footstep_test: N passed, M failed` (-QuitOn). The phases are counted game time for two strides; nothing waits on a guess.
 // `vr_footstep_test 2`: one crowd of 32 grunts hunting you, for the budget: the same report (see the "dropped" count).
+// `vr_footstep_test <100 or more>`: a lone grunt, then ogre, fiend and shambler, the same phases, you kept that many units
+// behind it: the report's steps and how loud they reach your head at that distance.
 // ----------------------------------------------------------------------------
 
 float vr_fst_case;   // the class in turn (1..)
@@ -78,6 +80,10 @@ vector(float dist) VR_FST_At =
 void() VR_FST_Next =
 {
     vr_fst_case = vr_fst_case + 1;
+    if(cvar_hget(cvarh_vr_footstep_test) >= 100 && vr_fst_case == 2)
+    {
+        vr_fst_case = 6; // (the lone runs: the grunt to compare with, then the heavy ones)
+    }
     vr_fst_phase = 0;
     entity oldself = self;
     self = spawn();
@@ -164,6 +170,12 @@ void() VR_Footstep_TestFrame =
             localcmd("vr_footstep_info\nvr_footstep_report\n");
         }
         return;
+    }
+    if(req >= 100 && vr_fst_mon)
+    {
+        p.movetype = MOVETYPE_NOCLIP; // (held there through whatever is in the way)
+        p.velocity = '0 0 0';
+        setorigin(p, vr_fst_mon.origin - vr_fst_way * req);
     }
     if(!vr_fst_mon)
     {

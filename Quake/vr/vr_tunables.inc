@@ -1122,6 +1122,8 @@ QVR_TUNABLE(vr_footstep_run_vol, "0.7") // a running step's volume
 QVR_TUNABLE(vr_footstep_walk_atten, "1.6") // how fast a walking step dies with distance (Quake's ATTN_NORM is 1)
 QVR_TUNABLE(vr_footstep_run_atten, "1") // a running step's
 QVR_TUNABLE(vr_footstep_min_speed, "6") // units/s: slower is no step (a shift of weight on the spot)
+QVR_TUNABLE(vr_footstep_heavy_volume, "1") // the heavy feet (ogres, fiends, shamblers), times this as well
+QVR_TUNABLE(vr_footstep_heavy_carry, "0.6") // their distance counted times this: heard from further, over nearer boots
 QVR_TUNABLE(vr_footstep_nearest, "6") // only the nearest this many of those moving are heard (0-16)
 QVR_TUNABLE(vr_footstep_range, "1000") // units from a player: farther isn't heard or counted
 QVR_TUNABLE(vr_footstep_rate, "14") // steps a second at most, all together
