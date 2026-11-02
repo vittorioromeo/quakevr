@@ -1473,6 +1473,14 @@ float(entity xBox) VR_Carry_On =
 float(float xHand, entity xBox) VR_Carry_AutoCollect =
 {
     float mode = cvar_hget(cvarh_vr_carry_autocollect);
+    // Flatscreen play (-flatscreenmode): grabbed with E, an ammo or health box is taken at once whatever the saved
+    // setting (his words 2026-11-02). Mode 1's rule, and mode 1 only: the collectable set is the same as the setting's
+    // default (backpacks are mode 2's, the menu's Item Pickup Mode), and the cvar itself is left as it is saved, so a
+    // headset player on the same machine keeps what he set.
+    if(VR_FlatPlay(self) && mode < 1)
+    {
+        mode = 1;
+    }
     if(!mode || xBox.carry_autotried || xBox.carry_2h || !VR_Carry_IsCollectable(xBox, mode >= 2))
     {
         return FALSE;
