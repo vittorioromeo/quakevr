@@ -3,7 +3,8 @@
 // cvars it reads stay with the feature.
 
 // QVR: precise hit detection's test (impulse 238; ROUND21 "Precise hit detection (models, not boxes)"): at the monster
-// (or corpse) spawned last, level from the player's side, each kind of test with Quake's boxes and then with its model:
+// (or corpse) spawned last, level from the player's side, each kind of test with its model (precise hits;
+// Quake's boxes gone with vr_hit_precise, 2026-11-02):
 // rays through its box's corner columns (2 units in from its edges: the empty part), at its middle, a ring of 24 at its
 // head and 24 at its chest (their positional regions), and the same segments as melee blows (hitmodel_segment, 3 units
 // thick) and thrown things (tracebox, vr_throw_hitbox 6), and a blade's ring at the head (positional melee's region of the
@@ -15,10 +16,8 @@ float(entity xTarget, vector xFrom, vector xTo, float xFlags) VR_Test_HitRay =
     return trace_ent == xTarget;
 };
 
-void(entity t, float xPrecise) VR_Test_HitsMode =
+void(entity t) VR_Test_HitsMode =
 {
-    float saved = cvar_hget(cvarh_vr_hit_precise);
-    cvar_set("vr_hit_precise", ftos(xPrecise));
     vector lo = t.origin + t.mins;
     vector hi = t.origin + t.maxs;
     vector c = (lo + hi) * 0.5;
@@ -45,7 +44,7 @@ void(entity t, float xPrecise) VR_Test_HitsMode =
         else if(trace_fraction < 1 && trace_ent == world) { behindC++; }
         if(VR_Test_HitRay(t, at - dir * 64, at + dir * 128, MOVE_HITMODEL_GRAPPLE)) { grappleC++; }
         float mt;
-        if(xPrecise && hitmodel_target(t)) { mt = hitmodel_segment(t, at - dir * 24, at + dir * 24, 3, HITCLASS_MELEE); }
+        if(hitmodel_target(t)) { mt = hitmodel_segment(t, at - dir * 24, at + dir * 24, 3, HITCLASS_MELEE); }
         else { mt = VR_SegmentBox(at - dir * 24, at + dir * 24, lo - '3 3 3', hi + '3 3 3'); }
         if(mt >= 0) { meleeC++; }
         tracebox(at - dir * 64, '-6 -6 -6', '6 6 6', at + dir * 128, MOVE_HITMODEL_THROWN, self);
@@ -61,7 +60,7 @@ void(entity t, float xPrecise) VR_Test_HitsMode =
     dprint("\n");
     if(VR_Test_HitRay(t, chest - dir * 64, chest + dir * 128, MOVE_HITMODEL_GRAPPLE)) { grappleB++; }
     float mb;
-    if(xPrecise && hitmodel_target(t)) { mb = hitmodel_segment(t, chest - dir * 24, chest + dir * 24, 3, HITCLASS_MELEE); }
+    if(hitmodel_target(t)) { mb = hitmodel_segment(t, chest - dir * 24, chest + dir * 24, 3, HITCLASS_MELEE); }
     else { mb = VR_SegmentBox(chest - dir * 24, chest + dir * 24, lo - '3 3 3', hi + '3 3 3'); }
     if(mb >= 0) { meleeB++; }
     tracebox(chest - dir * 64, '-6 -6 -6', '6 6 6', chest + dir * 128, MOVE_HITMODEL_THROWN, self);
@@ -83,14 +82,14 @@ void(entity t, float xPrecise) VR_Test_HitsMode =
         {
             headOn++;
             if(PositionalRegion(t, trace_endpos, r) == 1) { heads++; }
-            if(xPrecise && cvar_hget(cvarh_developer) > 1)
+            if(cvar_hget(cvarh_developer) > 1)
             {
                 dprint(sprintf("hittest head ray %d: the rest point %f from the head's middle (radius %f)\n", k,
                     vlen(hitmodel_rest(t, trace_endpos) - head), xHeadRadius));
             }
         }
         // A blade's blow at the head from the same side (positional melee: the point it met, PositionalRegion).
-        if(hasHead && xPrecise && hitmodel_target(t))
+        if(hasHead && hitmodel_target(t))
         {
             float mt = hitmodel_segment(t, head - r * 24, head, 3, HITCLASS_MELEE);
             if(mt > 0)
@@ -106,14 +105,12 @@ void(entity t, float xPrecise) VR_Test_HitsMode =
             if(reg == 1) { chestHead++; } else if(reg == 2) { chestLimb++; } else if(reg == 3) { chestLegs++; }
         }
     }
-    string mode = "boxes";
-    if(xPrecise) { mode = "model"; }
+    string mode = "model";
     dprint(sprintf("hittest %s %s: corner rays %d/6 on it (%d on to the world), middle %d/1;", t.classname, mode, onC, behindC, onB));
     dprint(sprintf(" grapple corners %d/6, middle %d/1; melee corners %d/6, middle %d/1;", grappleC, grappleB, meleeC, meleeB));
     dprint(sprintf(" thrown corners %d/6, middle %d/1; head ring %d/24 on it (%d headshots);", thrownC, thrownB, headOn, heads));
     dprint(sprintf(" chest ring %d/24 on it (%d head, %d limb, %d legs);", chestOn, chestHead, chestLimb, chestLegs));
     dprint(sprintf(" melee head ring %d/24 on it (%d head)\n", meleeHeadOn, meleeHeads));
-    cvar_set("vr_hit_precise", ftos(saved));
 };
 
 void() VR_Test_Hits =
@@ -134,8 +131,7 @@ void() VR_Test_Hits =
         dprint("hittest: no monster\n");
         return;
     }
-    VR_Test_HitsMode(t, 0);
-    VR_Test_HitsMode(t, 1);
+    VR_Test_HitsMode(t);
     // Then removed, with anything else there (the next one is tested where it stood).
     vector at = t.origin;
     e = nextent(world);
@@ -212,7 +208,7 @@ void(float xRockets) VR_Test_Missiles =
     m.touch = VR_Test_MissileTouch;
     string kind = "nail";
     if(xRockets == 2) { kind = "hook"; } else if(xRockets) { kind = "rocket"; }
-    dprint(sprintf("hittest %s: %s %d (precise %d):", t.classname, kind, k, cvar_hget(cvarh_vr_hit_precise)));
+    dprint(sprintf("hittest %s: %s %d:", t.classname, kind, k));
 };
 
 void() VR_Test_MissilesReport =

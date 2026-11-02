@@ -1651,7 +1651,6 @@ void addFoamRows(za::Vector<Item>& items, const FoamRows& r)
         row(opt::vr_model_ambient_contrast),
         row(opt::r_lerpmodels),
         row(opt::vr_anim_smooth_tension),
-        row(opt::vr_mdl_dequant),
         row(opt::vr_anim_smooth_rig),
         row(opt::vr_anim_smooth_rebuild),
         row(opt::vr_rim_light),

@@ -1,0 +1,16 @@
+# barrelfx: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The barrels' heat glow and smoke
+# after firing (vr_weaponfx.cpp): the shotgun and the heavy revolver in hand, the burst rifle and the enforcer's rifle
+# lying by you, ammo to spare, grunts to shoot at.
+title Barrel glow and smoke: shotgun, heavy revolver, burst rifle, enforcer's rifle
+map vrtesthall
+god
+notarget
+give "Shotgun" main
+give "Heavy Revolver" off
+spawn "Grunt Burst Rifle" 48 -24
+spawn "Enforcer's Rifle" 48 24
+spawn "Grunt" 360 60
+spawn "Grunt" 360 -60
+cmd give s 100
+cmd give c 100
+hint Fire a few shots with each gun and watch its barrel: the shotgun's keeps glowing through the pump stroke, the revolver's glows hot, the burst rifle and enforcer's rifle smoke (the enforcer's blue-grey).

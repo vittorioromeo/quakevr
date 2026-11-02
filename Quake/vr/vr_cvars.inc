@@ -60,8 +60,6 @@ QVR_CVAR(vr_debug_walkmove, "0", CVAR_NONE)       // each of the first player's 
 
 // Precise hit detection (vr_hitmodel.cpp; ROUND21 "Precise hit detection (models, not boxes)"): shots, missiles, the
 // grappling hook, melee blows and thrown things meet a monster's model as drawn (grown by the tolerance), not Quake's box.
-QVR_CVAR(vr_hit_precise, "1", CVAR_ARCHIVE)           // Quake's boxes, as before
-QVR_CVAR(vr_hit_drawn_pose, "1", CVAR_ARCHIVE)        // an armed humanoid's body met as drawn (drawnpose::armedMesh); 0 its animation frame, as before
 QVR_CVAR(vr_hit_tolerance_melee, "2", CVAR_ARCHIVE)   // for melee blows and shoves (on top of the striking points' own thickness, 3 units)
 QVR_CVAR(vr_debug_sound_log, "0", CVAR_NONE)          // each sound the server starts printed ("sndlog: t <time> ent <n> <classname> chan <c> <sample> vol <v>", dropped ones and why: vr_server.cpp VR_SoundLog); 2: not the players'
 QVR_CVAR(vr_debug_hits, "0", CVAR_NONE)             // each precise hit drawn (the model as drawn then, the triangle hit, the point on the model) and printed; 2: also the shots through a box that missed the model
@@ -269,7 +267,6 @@ QVR_CVAR(vr_gunsfx, "1", CVAR_ARCHIVE)               // the gunfire's extras bel
 QVR_CVAR(vr_gunsfx_layers, "1", CVAR_ARCHIVE)        // a shot's close mechanical layer and low thump: volume (0 none)
 QVR_CVAR(vr_gunsfx_tail, "1", CVAR_ARCHIVE)          // a shot's tail sized to the room (short indoors, long with an echo outdoors): volume (0 none)
 QVR_CVAR(vr_gunsfx_vary, "4", CVAR_ARCHIVE)          // percent: each shot (and its layers) up to this much higher or lower, and half as much louder or quieter (0 off)
-QVR_CVAR(vr_gunsfx_casings, "1", CVAR_ARCHIVE)       // spent casings sound of what they land on (stone, metal, wood; water as before); 0: the one tink everywhere
 QVR_CVAR(vr_gunsfx_impacts, "1", CVAR_ARCHIVE)       // a bullet's or a nail's hit on a wall sounds of its surface (stone, dirt, metal, wood), at the surface: volume (0 none)
 QVR_CVAR(vr_gunsfx_dryfire, "1", CVAR_ARCHIVE)      // an empty gun's dry click: its volume and a small tick in the hand (0 silent)
 QVR_CVAR(vr_gunsfx_action, "1", CVAR_ARCHIVE)        // a gun's actions (breaking open, closing, a magazine in or out) heard from the action, not the muzzle
@@ -1954,7 +1951,7 @@ QVR_CVAR(vr_decal_carve_size, "1", CVAR_ARCHIVE)     // ... how wide the holes a
 QVR_CVAR(vr_decal_carve_rim, "1.25", CVAR_ARCHIVE)      // ... how high their raised rim is, times each kind's own (0 none)
 QVR_CVAR(vr_decal_carve_steps, "8", CVAR_ARCHIVE)   // ... the most steps a pixel's ray takes into one (4-64; fewer where it spans few pixels)
 QVR_CVAR(vr_decal_carve_fade, "1024", CVAR_ARCHIVE)  // ... units from the eye past which they are flat (flattening from half as far)
-QVR_CVAR(vr_decal_carve_max, "128", CVAR_ARCHIVE)    // ... how many of the newest stay carved, live (with vr_permdecals the older are baked flat into the layer)
+QVR_CVAR(vr_decal_carve_max, "128", CVAR_ARCHIVE)    // ... how many of the newest stay carved, live (the older are baked flat into the permanent layer)
 QVR_CVAR(vr_decal_carve_style, "-1", CVAR_ARCHIVE)   // ... how they are carved: 0 smooth, 1 retro (blocky: the wall's texel blocks, the depth in steps), 2 faceted (low-poly: 8 flat sides, 3 rings); -1: retro on retro textures' blocks, else smooth
 QVR_CVAR(vr_decal_melee, "1", CVAR_ARCHIVE)          // melee blows on walls and floors carve their own marks (vr_decal_carve on): blunt ones (the crowbar, a gun's butt or barrel, a pommel, Mjolnir, a club, a fist holding a prop, a prop hitting hard) round dents, blades (a sword's, an axe's, the chainsaw's bar) grooves along the swing; both scaled by the blow's damage (0: the old shallow pits)
 QVR_CVAR(vr_decal_melee_blunt_depth, "1", CVAR_ARCHIVE) // ... a blunt dent's depth, times its own (0.25-4; shallower than a pellet's pit)
@@ -1962,8 +1959,7 @@ QVR_CVAR(vr_decal_melee_blunt_size, "1", CVAR_ARCHIVE)  // ... and width (0.5-2)
 QVR_CVAR(vr_decal_melee_slash_depth, "1", CVAR_ARCHIVE) // ... a blade's groove's depth, times its own (0.25-4)
 QVR_CVAR(vr_decal_melee_slash_length, "1", CVAR_ARCHIVE) // ... its length (0.5-2)
 QVR_CVAR(vr_decal_melee_slash_width, "1", CVAR_ARCHIVE)  // ... and width (0.5-2)
-QVR_CVAR(vr_decal_entities, "1", CVAR_ARCHIVE)       // marks (shots, blows, blood) on brush entities of their own files (the firing range's targets: its spawn buttons and panels), and on the map's doors and lifts with vr_permdecals 0: live, moving with them, the newest 128 (flat: no carved relief)
-QVR_CVAR(vr_permdecals, "1", CVAR_ARCHIVE)         // settled marks baked for good into a layer of the world's and its brush models' faces (vr_permdecals.cpp): they never go, and cost the same however many (0: as before, the newest vr_decal_max live; the others kept, shown again when on: PERM_DECALS.md "On and off")
+QVR_CVAR(vr_decal_entities, "1", CVAR_ARCHIVE)       // marks (shots, blows, blood) on brush entities of their own files (the firing range's targets: its spawn buttons and panels), and on the map's doors and lifts where the permanent layer is not laid out: live, moving with them, the newest 128 (flat: no carved relief)
 QVR_CVAR(vr_permdecal_density, "0.5", CVAR_ARCHIVE)  // the baked layer's units a texel (0.25-8; read at a map's load; 1: a little softer than the live marks, 2: blurred)
 QVR_CVAR(vr_permdecal_show, "0", CVAR_NONE)           // debug: the baked layer's pages drawn unlit and green, the marks on them (vr_permdecals.cpp)
 QVR_CVAR(vr_permdecal_atlas, "4096", CVAR_ARCHIVE)   // the baked layer's atlas, texels a side of each of its layers (1024-8192; 4096: 16384 pages of 30 x 30 texels a layer, 85 MB with its mips; made again, what was baked baked again, when changed)
@@ -3725,7 +3721,6 @@ QVR_CVAR(vr_ai_prop_push, "1", CVAR_ARCHIVE)         // and pushes it as it meet
 QVR_CVAR(vr_stealth_gem, "1", CVAR_ARCHIVE)          // a gem on the wrist gadget: how visible (its glow) and how loud (its ring) you are
 QVR_CVAR(vr_stealth_marks, "0", CVAR_ARCHIVE)        // a "?" over a monster turning Alert, "!" turning Hostile
 QVR_CVAR(vr_stealth_debug, "0", CVAR_NONE)           // 1: state changes printed; 2: each sighting's meter and each noise heard
-QVR_CVAR(vr_mdl_dequant, "1", CVAR_ARCHIVE)          // .mdl vertices dequantised at load (vr_mdldequant.cpp): each vertex's smoothest path through its animations within half a byte step of every stored value (no wobble); 0: the stored bytes, exactly as before
 QVR_CVAR(vr_anim_smooth_tension, "0", CVAR_ARCHIVE)  // r_lerpmodels 3 (vr_animsmooth.cpp): the spline's tension: 0 Catmull-Rom (the speed carried through each frame), 1 easing to rest at each frame; between: less overshoot
 QVR_CVAR(vr_anim_smooth_rig, "1", CVAR_ARCHIVE)      // ... and a rigged monster's limbs (vr_ragdoll.cpp's rig) swung round their joints between frames, keeping their length (0: the spline alone)
 QVR_CVAR(vr_anim_smooth_rebuild, "1", CVAR_ARCHIVE)  // a rigged monster drawn from its fitted skeleton every frame (vr_animsmooth.cpp): each vertex its rest place on its bone moved with it, the frames' rounding gone (any Model Animation); a vertex its bone fits worse keeps the frames' place

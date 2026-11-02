@@ -9,9 +9,11 @@
 //   of an unregistered cvar comes here (Cvar_SetQuick: VR_TunableSetVar);
 // - tunables.cfg in the game folder: the ones off their defaults (`tune <name> "<value>"` lines), read once after the
 //   config (vr_migrate_config), written with the config (Host_WriteConfiguration: at quit, the menu's Save Default; not by a copy that never
-//   writes its config). A console notice says how many it set.
+//   writes its config). A console notice says how many it set;
+// - a sparse config's line for a setting that became a constant (tunablesTakeConfigLines): kept as if tuned, one console
+//   line each.
 // The values become the shipped defaults by Misc/quakevr/tune_promote.py (a tunables.cfg's values into vr_tunables.inc,
-// on a worker's tree); the game never writes a source file.
+// on a worker's tree); the game never writes a source file. A release stops on any not promoted (make_release.ps1).
 //
 // A release build reads each constant's default, folded in at compile time; none of this is in it (the stand-ins stay,
 // constant: the QC reads them by name the same way in both builds).
@@ -55,6 +57,12 @@ void tunablesInit()
 
 void tunablesLoad()
 {
+}
+
+void tunableTakeConfigLine(const char* name, const char* value)
+{
+    (void)name;
+    (void)value;
 }
 
 cvar_t* settingByName(const char* name)
@@ -311,7 +319,9 @@ void tuneReset_f()
 // vr_tunables_test <step> (Misc/quakevr/tunables_test.sh): live tuning's round trip, every reader checked. Steps:
 // set (a number by tune, one by a Tunables page row's Cvar_SetQuick, a text), write (tunables.cfg as at quit), checkfile
 // (its lines), reload (the values back to their defaults in memory, the file read again), checkloaded (as set: a new
-// start), reset (tune_reset: all back), checkreset, done (the verdict line).
+// start), reset (tune_reset: all back), checkreset, oldconfig (none set: the baseline config's stale lines, older than
+// sparse configs, not taken), configline (a sparse config's line for a constant taken, then tunables.cfg read, and both
+// still to be written at quit), done (the verdict line).
 testkit::Tally testTally;
 
 void testCheck(bool ok, const char* what)
@@ -395,13 +405,42 @@ void tunablesTest_f()
         Cmd_ExecuteString("tune_reset", src_command);
         testExpectSet(false);
     }
+    else if(!strcmp(step, "oldconfig"))
+    {
+        testCheck(overrideCount == 0, va("an old full config sets no constant (%d set)", overrideCount));
+    }
+    else if(!strcmp(step, "configline"))
+    {
+        // tunables.cfg with one constant, then the start's order: the config's lines, then that file.
+        tunablesResetAll();
+        tunableSet(tunableId_vr_throw_gain_hi, "7.5");
+        fileLoaded = true;
+        VR_TunablesWrite();
+        tunablesResetAll();
+        fileDirty = false; // (as at a start)
+        const za::String path{va("%s/tunables_test_config.tmp", com_gamedir)};
+        if(FILE* f = Sys_fopen(path.cStr(), "w"))
+        {
+            fprintf(f, "bind \"x\" \"impulse 1\"\nvr_throw_gain_lo \"2.25\"\nvr_throw_gain_hi \"6\"\nvr_cfg_version \"219\"\n");
+            fclose(f);
+        }
+        const float version = vr_cfg_version.value;
+        tunablesTakeConfigLines(path.cStr());
+        Sys_remove(path.cStr());
+        testCheck(vr_throw_gain_lo.value == 2.25f && overrideCount == 1, va("the config's value taken (%g, %d set)", vr_throw_gain_lo.value, overrideCount));
+        testCheck(vr_cfg_version.value == version, "a setting's line left alone");
+        fileLoaded = false;
+        tunablesLoad();
+        testCheck(vr_throw_gain_lo.value == 2.25f && vr_throw_gain_hi.value == 7.5f && overrideCount == 2 && fileDirty,
+            va("kept beside tunables.cfg's, still to be written (%d set, dirty %d)", overrideCount, fileDirty));
+    }
     else if(!strcmp(step, "done"))
     {
         testTally.verdict("tunables_test");
     }
     else
     {
-        Con_Printf("vr_tunables_test set|write|checkfile|reload|checkloaded|checkset|reset|done\n");
+        Con_Printf("vr_tunables_test set|write|checkfile|reload|checkloaded|checkset|reset|oldconfig|configline|done\n");
     }
 }
 
@@ -567,6 +606,7 @@ void tunablesLoad()
         return;
     }
     fileLoaded = true;
+    const bool takenFromConfig = fileDirty; // (tunableTakeConfigLine, just before: still to be written)
     const za::String path = filePath();
     long len = 0;
     char* text = reinterpret_cast<char*>(COM_LoadMallocFile_TextMode_OSPath(path.cStr(), &len));
@@ -602,13 +642,27 @@ void tunablesLoad()
         set++;
     }
     free(text);
-    fileDirty = false;
+    fileDirty = takenFromConfig;
     if(overrideCount)
     {
         Con_Printf("\x02%d tuning constant%s set off %s default by tunables.cfg (tune lists them; tune_reset puts them "
                    "back)\n", overrideCount, overrideCount == 1 ? "" : "s", overrideCount == 1 ? "its" : "their");
     }
     loadedCount = set;
+}
+
+// A config's line for a name that is a constant now (tunablesTakeConfigLines; before tunablesLoad, so a tunables.cfg line
+// for it, set later than the config's, wins): the value kept, as if tuned.
+void tunableTakeConfigLine(const char* name, const char* value)
+{
+    const int id = tunableIndex(name);
+    if(id < 0 || sameAsDefault(id, value))
+    {
+        return;
+    }
+    tunableSet(id, value);
+    Con_Printf("\x02%s is a tuning constant now: the config's \"%s\" is kept in tunables.cfg (tune lists it)\n",
+        tunables[id].name, value);
 }
 
 } // namespace qvr

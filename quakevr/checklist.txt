@@ -20,8 +20,8 @@ Dual-wielding blades: they swing in turn and together; knock or pull one out: it
 Dual-wielding guns: the toolgun's Left Hand gives a spawned grunt a second gun; with Pick Up a Second on, a one-gun grunt out of a fight fetches a second one lying near. {test:toolgun_bench}
 Weapon pickup: hit a grunt while it reaches down for its gun: the gun stays on the floor; its feet don't slide while it kneels. {test:agrunt_pickup}
 Replacements: "replace all" (Combat > Armed Grunts) in e1m1: as hard as the original grunts, and their guns can be grabbed, tugged and shot out. {test:agrunt_repl_map}
-Running: hold the stick hard forward: the speed no longer dips every few steps (full speed now from an 80% push); slow walking still easy. {test:vr_stick_run_test}
-Death knight in a full helmet: it sits close round his skull, horns through it, face open (Debug > Tests > Helmets There: Knight and Death Knight). {test:vr_agarmor_test 8}
+Running: hold the stick hard forward: the speed no longer dips every few steps (full speed now from an 80% push); slow walking still easy. {test:stick_run}
+Death knight in a full helmet: it sits close round his skull, horns through it, face open (Debug > Tests > Helmets There: Knight and Death Knight). {test:agarmor_helmets_knights}
 Arena foes stand upright, never pitched toward you, enforcers on high places too. {test:arena_intro}
 The first armour plates broken after a new game cause no hitch.
 Tug-of-war with your tuned values as defaults; the tug's least time is now 0.4 s (Armed Grunts > Tug: Least Pull Time slider). {test:agrunt_tug}
@@ -33,8 +33,8 @@ Armour, Plate Blocks All: shots from every gun at any plate (cuirass, helmet, li
 Debug > Show Armour Plates: each plate's outer edges bold and easy to see, standing and ragdolled. {test:agarmor_guns}
 Barrel heat on every gun: hold the nailgun about 1 s, then fire a few shotgun shots: the muzzle glows red to orange and smokes, then cools over about 3 s; tune Weapon Effects > Heat-Up Time / Cool-Down Time / Heat Glow Strength, and Weapon Offsets > Effects > Barrel Heat 0 for a gun that never heats. {test:gunfire_range}
 Hold a ragdoll (or a crate in both hands) and punch the dummy, a wall or a button with that hand: no blow, no press; your free hand still punches. {test:agrunt_tug}
-Ragdoll smash: slam a held grunt's limb (alive and down, or dead) into a wall and the floor: a fleshy thud, deeper when harder, blood on the surface at the contact; a gentle touch or a drag is silent and clean; sliding a body along a wall does not machine-gun. {test:vr_ragsmash_test 1}
-Weapon clash: dual swords swung into each other fast spark with a clang and tink at the crossing; a slow cross does nothing; two shotguns give a dull knock, no sparks; sword on shotgun a few sparks and a clank (Weapons > Weapon Effects > Weapon Clash). {test:vr_clash_test 2}
+Ragdoll smash: slam a held grunt's limb (alive and down, or dead) into a wall and the floor: a fleshy thud, deeper when harder, blood on the surface at the contact; a gentle touch or a drag is silent and clean; sliding a body along a wall does not machine-gun. {test:ragsmash}
+Weapon clash: dual swords swung into each other fast spark with a clang and tink at the crossing; a slow cross does nothing; two shotguns give a dull knock, no sparks; sword on shotgun a few sparks and a clank (Weapons > Weapon Effects > Weapon Clash). {test:weapon_clash}
 Switch campaign (e.g. to Arcane Dimensions) with a menu panel open on the Levels, then play into the hub: no crash; reopened, the panel lists the new campaign's levels.
 A hot shotgun or nailgun glows like a torch-heated blade, on the metal itself: brightest at the muzzle, fading back along the barrel, red deepening to orange, fading as it cools; turning and walking with the sticks it stays exactly on the barrel. {test:barrelglow}
 A glowing barrel lights your hand and nearby walls (Weapon Effects > Heat Light Strength; 0 off); Weapon Offsets > Effects > Barrel Glow Length sets how much of each gun glows (0.5 = its front half).
@@ -44,7 +44,7 @@ Show Disarm Volumes, grab a grunt's gun and tug: the readout over the gun shows 
 Run straight at a grunt: you slow noticeably in the last metre or so and still reach its face; strafing past it stays at almost full speed (Locomotion > Close Quarters sliders). {test:agrunt_melee_spacing}
 Ghost Hands on: grabbing an enemy, a knocked-down or a dead body shows no ghost hand; a two-handed gun still shows it (Ghost Hands > No Ghost Holding Bodies).
 Feminine voice on: an armed grunt's punch or blade hit on you plays a feminine grunt.
-Smashing a ragdoll into a wall sounds louder, and limbs pop slightly sooner (Smash Volume 1.35, Impact Multiplier 1.15). {test:vr_ragsmash_test 1}
+Smashing a ragdoll into a wall sounds louder, and limbs pop slightly sooner (Smash Volume 1.35, Impact Multiplier 1.15). {test:ragsmash}
 notarget on, an idle shotgun grunt: punch its gun out: it staggers a moment and turns on you; shoot an idle grunt's gun: it turns on you (and staggers if it's knocked out). {test:disarm_hulls_melee}
 A grunt holding two swords or two guns: knock out one, then the other (both orders, also while it lies on the floor): only the struck weapon falls each time. {test:dual_wield}
 Strike a sword grunt's blade (away from its hand) while it hasn't seen you: sparks, no disarm, and it turns on you.
@@ -94,7 +94,7 @@ Menu > Fonts > Show a Sample Message: console lines (and the centre message) in 
 Text everywhere has your look by default (soft edges, thin dark outline, soft shadow down-right); Menu > Fonts and the new Wrist Gadget Font / Ammo Screen Font / World Text Font pages (from Wrist Gadget, Ammo Screens, Map Boards) each change only their own text at once. {test:vrcalibration}
 Fonts: Shadow Offset X/Y move the shadow, Shadow Size thickens it, Spread softens it.
 Ammo Screen Font: tweak it with a gun in hand and check the ammo screen text changes (not seen in tests: the mock never held a gun).
-Shots and blows on armed humanoids and ragdolls land exactly where they did (cheaper now). {test:bench_crowd32_armed}
+Shots and blows on armed humanoids and ragdolls land exactly where they did (cheaper now). {test:bench_armed_mix32}
 Every armed grunt wears its backpack by default (no Worn Backpacks switch); killed or gibbed, its loot is in the pack and no second one drops; enforcers still drop theirs. {test:worn_packs}
 Ultra graphics preset: the glow looks as on High (four-level glow retired).
 Shoulder Charges: Chance 0 turns them off; the training dummy still judges them.
@@ -107,6 +107,15 @@ Screens > World Text Font / Ammo Screen Font / Wrist Gadget Font: moving the out
 The Gore page shows one "Gore Volume" slider; per-sound volumes are under Debug > Tunables > Gore. {test:gore}
 Armed humanoids' sword, axe and club swings are parried by direction by default. {test:dirparry}
 The Grappling Hook, Fire Particles and Loot Beams pages are shorter: their numbers are under Debug > Tunables. The loot beam per-kind switches are still on the page.
+Armed humanoids hold and swing as you set them in the Pose Studio without your config: your poses, grips and arm stretch of 11-02 are now the defaults.
+Pose Studio strike keys: drag a diamond, Add Key, Remove Key, undo; the blow lands at the same moment.
+Old save loads and a new save/load works on the 32-bit progs (console: `progs.dat: 32-bit (FTE32)`).
+Shots and blows on armed enemies hit where they are drawn, on an AD map too. {test:bench_crowd_plain32}
+Graphics preset Off now keeps permanent marks.
+Release: make_release.ps1 -DryRun lists any tunables.cfg value not in the source, with the promote command; a real run stops on it before building.
+Console at start: when a setting becomes a tuning constant and your config set it, you see "X is a tuning constant now: the config's "v" is kept in tunables.cfg" and `tune` lists it.
+Smashing a ragdoll into a wall: your Impact Multiplier 1.25 is the default now.
+A grunt with a gun and an axe switches to its axe up close and swings it; it no longer stands and shoves you {test:agrunt_repl_gunaxe}
 
 [2. Armed humanoids: disarming and armour]
 Show Disarm Volumes: the wireframe hulls sit on each drawn weapon (magenta, orange, red; the sword's orange line along its blade) and on the drawn hand and forearm (cyan). {test:disarm_hulls_melee}

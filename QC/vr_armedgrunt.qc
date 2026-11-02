@@ -507,9 +507,9 @@ float(entity g) VR_AG_ShoveClose =
     entity e = g.enemy;
     if(close <= 0 || !cvar_hget(cvarh_vr_enemy_shove) || !g.vr_ag_prop || !VR_AG_RangeOf(g.vr_ag_wid) || !g.th_vrshove ||
        g.vr_oblivious || !(e.flags & FL_CLIENT) || e.health <= 0 || (e.flags & FL_NOTARGET) || time < g.vr_eshove_next ||
-       !VR_EnemyShove_Ready(g) || g.vr_ag_tug_pl)
+       !VR_EnemyShove_Ready(g) || g.vr_ag_tug_pl || g.vr_ag_gunaxe)
     {
-        return FALSE;
+        return FALSE; // (a gun and an axe: its axe up close, not a shove: VR_AGR_GunAxe)
     }
     vector to = e.origin - g.origin;
     if(fabs(to_z) > VR_ESHOVE_HEIGHT)

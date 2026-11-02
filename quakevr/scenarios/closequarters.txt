@@ -1,0 +1,10 @@
+# closequarters: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Close quarters (Locomotion >
+# Close Quarters, Misc/quakevr/closequarters_test.sh): grunts to run at and brake before, one to knock down and walk into.
+title Close quarters: grunts to run at, brake before and walk into
+map vrtesthall
+god
+notarget
+spawn "Grunt" 260 0
+spawn "Grunt" 260 120
+spawn "Armed Grunt: Shotgun" 400 -120
+hint Run full speed at a grunt and let go of the stick within about 1.6 m: you brake short of it; strafe past: not slowed. Knock one down and walk into it: no slowdown.

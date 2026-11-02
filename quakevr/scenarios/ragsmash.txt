@@ -1,0 +1,10 @@
+# ragsmash: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". A ragdoll's limb slammed into a
+# wall or the floor (vr_ragsmash_test 1): plain grunts by a wall to grab and smash.
+title Ragdoll smash: grunts by the wall to grab and slam
+map vrtesthall
+start -400 -400 25 -90
+god
+notarget
+spawn "Grunt" 60 60
+spawn "Grunt" 60 -60
+hint Knock one down (or kill it), grab a limb and slam it into the wall and the floor: a fleshy thud, deeper when harder, blood at the contact; a gentle touch or a drag is silent.

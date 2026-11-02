@@ -2,22 +2,36 @@
 
 The QuakeC compiler the Windows builds use by default (`Windows/VisualStudio/ironwail.vcxproj`'s `QvrQcCompiler`
 and `QC/build.sh` on Windows). It is FTEQCC with a few speed patches: on Quake VR's QC (~270k lines) a compile takes
-~2 s instead of ~8 s, and the `-Fwasm` listing the precedence check reads ~3 s instead of ~25 s.
+~2 s instead of ~8 s, and the `-Fwasm` listing the precedence check reads ~3 s instead of ~25 s. It also has the
+`fte32` flag our QC needs (below).
 
 - **Source:** https://github.com/vittorioromeo/fteqw, branch `qcc-perf-parseerror-null`, commit `c1c874d`
-  (five speed commits on top of upstream `fte-team/fteqw` `f937b9d88`, then one fix; see each commit's message).
+  (five speed commits on top of upstream `fte-team/fteqw` `f937b9d88`, then one fix; see each commit's message),
+  plus `fte32.patch` here (not yet a commit on that branch: apply it with `git apply` in the fteqw checkout).
 - **The fix (`c1c874d`):** stock FTEQCC crashes (no message after the real error, exit 0xC0000005 / 0xC0000409) when
   a compile error is followed by any `#include`, or on a "X is not a member of Y" error: `QCC_PR_ParseError(0, NULL)`,
   the silent abort, passed its NULL format to `vsnprintf`. It now ends with the error and "compilation errors".
   `test_fteqcc.py` here compiles those tiny cases (the kit's build.sh runs it whenever the compiler changes).
-- **Output is byte-identical** to stock FTEQCC `f937b9d88` (git-6729): `progs.dat`, the `-Fwasm` listing and the
-  compile log, checked on our QC. The binary is stamped with the upstream revision (`git-6729-f937b9d88`, 2026-06-04)
-  on purpose: FTEQCC writes its version string into `progs.dat`, so a different stamp would change the output.
+- **The `fte32` flag (`fte32.patch`, 2026-11-02):** `-Ffte32`, or `#pragma flag enable fte32` (QC/defs.qc has it, so
+  every build path gets it), always writes FTE's extended progs with 32-bit statements and defs (version 7, secondary
+  version `PROG_SECONDARYVERSION32`, uncompressed) instead of id's 16-bit version 6. Stock FTEQCC writes that format
+  only when the 16-bit one overflows (more than 65,530 globals, or a jump past +-32767), from the same compiled code:
+  the flag takes that path every build, so the engine's 32-bit loader is the one always exercised. Nothing else
+  changes: the target stays `standard` (no extension opcodes), the `-Fwasm` listing is identical and the compile log
+  differs in two lines (no "Globals exceeds 32k" notice, "fte format" in the last line). Stock FTEQCC warns that the pragma's flag is unknown and writes version 6;
+  `Misc/quakevr/check_progs_format.py` (QC/build.sh, the Visual Studio build, the flatpak) then fails the build. The
+  flatpak's manifest applies the patch to upstream `f937b9d88` (it applies there too).
+- **Output** without the flag is byte-identical to stock FTEQCC `f937b9d88` (git-6729): `progs.dat`, the `-Fwasm`
+  listing and the compile log, checked on our QC. The binary is stamped with the upstream revision
+  (`git-6729-f937b9d88`, 2026-06-04) on purpose: FTEQCC writes its version string into `progs.dat`, so a different
+  stamp would change the output.
 - **Built with** VS 2022 clang-cl from `engine/qclib`:
   `clang-cl /O2 /w /DNDEBUG /D_CRT_SECURE_NO_WARNINGS /DNO_ZLIB /DSVNREVISION=git-6729-f937b9d88 /DSVNDATE=2026-06-04
   qcctui.c comprout.c hash.c qcc_cmdlib.c qcc_pr_comp.c qcc_pr_lex.c qccmain.c qcd_main.c decomp.c packager.c
   /Fe:fteqcc64.exe /link /OPT:REF /OPT:ICF`
-- SHA-256: `923ac7474c35fa8552ad3ac4ddab98662e76f9acdb0567ce916feaf9acaa5a48`
+- SHA-256: `b1d7613c7f0459945e78425c70309873fa8947a400f36fbae2f3647b1f3df875` (before `fte32.patch`:
+  `923ac7474c35fa8552ad3ac4ddab98662e76f9acdb0567ce916feaf9acaa5a48`)
 
 FTEQCC is GPL-2.0-or-later (the fteqw repository's license); its source is at the link above.
-To use another compiler: `/p:QvrQcCompiler=<path>` for the Visual Studio build, `FTEQCC=<path>` for `QC/build.sh`.
+To use another compiler: `/p:QvrQcCompiler=<path>` for the Visual Studio build, `FTEQCC=<path>` for `QC/build.sh`; it
+needs the `fte32` flag (build it with `fte32.patch`).

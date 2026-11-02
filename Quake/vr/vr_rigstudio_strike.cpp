@@ -87,6 +87,15 @@ struct Ghosts
 };
 Ghosts gh;
 
+// Where the strike keys' controls were drawn last (screen; vr_rigstudio_test_strikekeys' mock mouse aims at them).
+struct KeysUiRects
+{
+    glm::vec2 barAt{0.f};
+    float barW{0.f}, barH{0.f};
+    glm::vec2 add{0.f}, remove{0.f};
+};
+KeysUiRects keysUi;
+
 // vr_rigstudio_test_strike's state.
 struct StrikeTest
 {
@@ -138,7 +147,7 @@ StrikeTest stest;
 int phasePoints(float* out, int most)
 {
     const Studio::Swing& s = sw();
-    float p[8];
+    float p[5 + agpose::maxStrikeKeys];
     int n = 0;
     float at = 0.f;
     p[n++] = 0.f;
@@ -150,10 +159,12 @@ int phasePoints(float* out, int most)
             p[n++] = at;
         }
     }
-    const int keys = agpose::isStrike(s.heldPose) ? agpose::numPhases : 1;
-    for(int k = 0; k < keys && n < 8; k++)
+    for(int k = 0; k < agpose::maxStrikeKeys; k++)
     {
-        p[n++] = s.keys[k];
+        if(s.has[k])
+        {
+            p[n++] = s.keys[k];
+        }
     }
     // (sorted, the near-equal merged)
     for(int i = 1; i < n; i++)
@@ -210,7 +221,7 @@ int phasePoints(float* out, int most)
         }
     };
     const Studio::Swing& s = sw();
-    const int keys = agpose::isStrike(s.heldPose) ? agpose::numPhases : 1;
+    const int keys = agpose::isStrike(s.heldPose) ? agpose::maxStrikeKeys : 1; // (its places in its Time part)
     for(int k = 0; k < keys && s.heldPose >= 0; k++)
     {
         const agpose::Key key = agpose::value(agpose::code(st.subjKind, st.subjClass, s.heldPose, k));
@@ -264,8 +275,8 @@ int onionTimes(float* times, int* ks, int most)
     int m = 0;
     if(vr_rigstudio_onion_mode.value >= 1.f)
     {
-        float p[8];
-        const int np = phasePoints(p, 8);
+        float p[5 + agpose::maxStrikeKeys];
+        const int np = phasePoints(p, 5 + agpose::maxStrikeKeys);
         int before = 0;
         for(int i = np - 1; i >= 0 && before < n && m < most; i--)
         {
@@ -593,15 +604,140 @@ void stopRefresh()
 void strikeStatus()
 {
     const Studio::Swing& s = sw();
-    Con_Printf("strike: pose %d (%s) t %.4f / %.4f s, phase %d, %s%s%s, speed %.2fx; times %.3f %.3f %.3f %.3f, keys %.4f %.4f "
-               "%.4f\n",
+    za::String keys;
+    for(int k = 0; k < agpose::maxStrikeKeys; k++)
+    {
+        if(s.has[k])
+        {
+            keys += va(" %d@%.4f", k, static_cast<double>(s.keys[k]));
+        }
+    }
+    Con_Printf("strike: pose %d (%s) t %.4f / %.4f s, phase %d, %s%s%s, speed %.2fx; times %.3f %.3f %.3f %.3f, keys%s\n",
         s.heldPose, s.heldPose >= 0 ? agpose::poseName(st.subjClass, s.heldPose) : "none", s.t, strikeLength(), st.pdPhase,
         s.playing ? "playing" : "paused", s.parked ? " (on the key)" : "", s.loop ? ", loop" : "", s.speed, s.times[0],
-        s.times[1], s.times[2], s.times[3], s.keys[0], s.keys[1], s.keys[2]);
+        s.times[1], s.times[2], s.times[3], keys.cStr());
 }
 
-// vr_rigstudio_strike [play | pause | park | t <s> | step <frames> | speed <x> | loop 0|1 | refresh]...: the strike
-// timeline as its buttons work it; then its state printed.
+// ---- The picked strike's keys: added, removed, retimed (agent/posekeys; agpose::addKey, removeKey, setKeyPlace) ----
+
+[[nodiscard]] agpose::ActTimes actTimes()
+{
+    agpose::ActTimes a;
+    for(int i = 0; i < 4; i++)
+    {
+        a.t[i] = sw().times[i];
+    }
+    return a;
+}
+
+[[nodiscard]] int pickedCode(int phase)
+{
+    return agpose::code(st.pdKind, st.pdClass, st.pdPose, phase);
+}
+
+// Whether the window's strike is the act held now (its times known: a key's time means its act's).
+[[nodiscard]] bool keysEditable()
+{
+    const Studio::Swing& s = sw();
+    return agpose::isStrike(st.pdPose) && s.timed && s.heldPose == st.pdPose && st.subjKind == st.pdKind &&
+           st.subjClass == st.pdClass;
+}
+
+// The keys' times now (the held act's: the subject's kind and class), each frame and after an edit.
+void readKeyTimes()
+{
+    Studio::Swing& s = sw();
+    for(int k = 0; k < agpose::maxStrikeKeys; k++)
+    {
+        s.has[k] = false;
+    }
+    if(s.heldPose < 0 || !s.timed || st.subjKind < 0 || st.subjClass < 0)
+    {
+        return;
+    }
+    const agpose::ActTimes a = actTimes();
+    if(!agpose::isStrike(s.heldPose))
+    {
+        s.keys[0] = agpose::keyTime(agpose::code(st.subjKind, st.subjClass, s.heldPose, 0), a); // (the Cast's one)
+        s.has[0] = true;
+        return;
+    }
+    agpose::ActKey keys[agpose::maxStrikeKeys];
+    const int n = agpose::actKeys(st.subjKind, st.subjClass, s.heldPose, a, keys);
+    for(int i = 0; i < n; i++)
+    {
+        s.keys[keys[i].phase] = agpose::placeTime(a, keys[i].place);
+        s.has[keys[i].phase] = true;
+    }
+}
+
+int strikeAddKey()
+{
+    Studio::Swing& s = sw();
+    if(!keysEditable())
+    {
+        say("Add Key: hold the subject in this strike first (Play), of this kind and class");
+        return -1;
+    }
+    pushPosesUndo("key added");
+    const int ph = agpose::addKey(st.pdKind, st.pdClass, st.pdPose, actTimes(), s.t);
+    if(ph < 0)
+    {
+        st.undo.popBack();
+        say("Add Key: a key is there already, or all seven in-betweens are in use");
+        return -1;
+    }
+    st.pdPhase = ph;
+    readKeyTimes();
+    strikePark(); // (on it: as it was there, nothing changed)
+    say(va("key added at %.3f s (an in-between: edit it as any key)", static_cast<double>(s.keys[ph])));
+    return ph;
+}
+
+bool strikeRemoveKey()
+{
+    const int c = pickedCode(st.pdPhase);
+    if(!agpose::isStrike(st.pdPose) || st.pdPhase < agpose::numPhases || !agpose::hasKey(c))
+    {
+        say("Remove Key: only an in-between key (the wind-up's, the blow's and the follow-through's stay)");
+        return false;
+    }
+    const float place = agpose::keyPlace(c);
+    pushPosesUndo("key removed");
+    agpose::removeKey(c);
+    // (the key before it picked: the nearest that stays)
+    agpose::ActKey keys[agpose::maxStrikeKeys];
+    const int n = agpose::actKeys(st.pdKind, st.pdClass, st.pdPose, actTimes(), keys);
+    int pick = 0;
+    for(int i = 0; i < n; i++)
+    {
+        pick = keys[i].place < place ? keys[i].phase : pick;
+    }
+    st.pdPhase = pick;
+    readKeyTimes();
+    strikePark();
+    say("key removed");
+    return true;
+}
+
+// The picked key to time `t` (s into the act; kept between its neighbours). `undoable`: an undo step pushed first.
+void strikeKeyTime(float t, bool undoable)
+{
+    if(!keysEditable())
+    {
+        return;
+    }
+    const int c = pickedCode(st.pdPhase);
+    if(undoable)
+    {
+        pushPoseUndo(c);
+    }
+    (void)agpose::setKeyPlace(c, agpose::actPlace(actTimes(), t));
+    readKeyTimes();
+}
+
+// vr_rigstudio_strike [play | pause | park | t <s> | step <frames> | speed <x> | loop 0|1 | refresh | addkey | delkey |
+// keytime <s> | keyreset]...: the strike timeline as its buttons work it; then its state printed.
 void strike_f()
 {
     Studio::Swing& s = sw();
@@ -617,9 +753,14 @@ void strike_f()
         else if(!strcmp(w, "speed")) { s.speed = za::clamp(v, strikeSpeedMin, strikeSpeedMax); i++; }
         else if(!strcmp(w, "loop")) { s.loop = v != 0.f; i++; }
         else if(!strcmp(w, "refresh")) { refreshGhosts(); }
+        else if(!strcmp(w, "addkey")) { (void)strikeAddKey(); }
+        else if(!strcmp(w, "delkey")) { (void)strikeRemoveKey(); }
+        else if(!strcmp(w, "keytime")) { strikeKeyTime(v, true); i++; }
+        else if(!strcmp(w, "keyreset")) { pushPoseUndo(pickedCode(st.pdPhase)); agpose::clearKeyTime(pickedCode(st.pdPhase)); readKeyTimes(); }
         else
         {
-            Con_Printf("vr_rigstudio_strike [play | pause | park | t <s> | step <frames> | speed <x> | loop 0|1 | refresh]...\n");
+            Con_Printf("vr_rigstudio_strike [play | pause | park | t <s> | step <frames> | speed <x> | loop 0|1 | refresh | "
+                       "addkey | delkey | keytime <s> | keyreset]...\n");
             return;
         }
     }
@@ -687,7 +828,8 @@ glm::vec3 strikeQuery(int ent)
     }
     if(s.parked && s.timed)
     {
-        s.t = s.keys[za::clamp(s.heldPhase, 0, agpose::numPhases - 1)];
+        const int k = za::clamp(s.heldPhase, 0, agpose::maxStrikeKeys - 1);
+        s.t = s.keys[s.has[k] ? k : 0];
     }
     s.sentT = s.t;
     return glm::vec3{speed, s.t, 1.f};
@@ -704,19 +846,16 @@ void strikeServerFrame()
     {
         const glm::vec3 tm = progs::fieldVec(e, progs::fields().vr_rs_times);
         const float rec = progs::fieldFloatOr(e, progs::fields().vr_rs_trec, 0.f);
-        const glm::vec3 keys = progs::fieldVec(e, progs::fields().vr_rs_keys);
         if(tm.x + tm.y + tm.z + rec > 0.f)
         {
             s.times[0] = tm.x;
             s.times[1] = tm.y;
             s.times[2] = tm.z;
             s.times[3] = rec;
-            s.keys[0] = keys.x;
-            s.keys[1] = keys.y;
-            s.keys[2] = keys.z;
             s.timed = true;
         }
     }
+    readKeyTimes(); // (its keys' times: their places in these times)
     // A Pose Keys drag: the act on the picked phase's key (the key whole, as the handles map it)
     if(st.dragging && (st.dragKind == 11 || st.dragKind == 12) && !s.parked)
     {
@@ -879,7 +1018,8 @@ void strikeTimelineUi()
     helpMarker("The act as the game plays it (QC's times: VR_AGP_Times), at Speed (0.05x..2x). Play (Space): from where it "
                "is (the start when at its end); not looping, it stops back on the picked phase's key. |< the start, < > a "
                "frame (1/72 s; the Left and Right keys), Key: back on the picked phase's key (paused; where it sits, and "
-               "where a Pose Keys drag puts it). Drag on the bar to scrub. Let Go: the subject no longer held in the act "
+               "where a Pose Keys drag puts it). Drag on the bar to scrub; drag a strike's key (a diamond: the "
+               "in-betweens blue) to retime it. Let Go: the subject no longer held in the act "
                "(outside the Pose Keys tool). The subject must be of this kind and class (Follow the Subject).");
     if(st.subject > 0 && (st.subjKind != st.pdKind || st.subjClass != st.pdClass))
     {
@@ -889,6 +1029,9 @@ void strikeTimelineUi()
     const float w = za::max(ImGui::GetContentRegionAvail().x, 120.f);
     const float h = ImGui::GetFontSize() * 2.6f;
     const ImVec2 o = ImGui::GetCursorScreenPos();
+    keysUi.barAt = glm::vec2{o.x, o.y};
+    keysUi.barW = w;
+    keysUi.barH = h;
     ImGui::InvisibleButton("##strikebar", ImVec2{w, h});
     ImDrawList* dl = ImGui::GetWindowDrawList();
     dl->AddRectFilled(o, ImVec2{o.x + w, o.y + h}, col(glm::vec4{0.12f, 0.12f, 0.14f, 1.f}), 3.f);
@@ -898,11 +1041,52 @@ void strikeTimelineUi()
             "Play (or the Pose Keys tool) holds the subject in this act: its timeline then shows here.");
         return;
     }
+    const auto xOf = [&](float t) { return o.x + w * za::clamp(t / len, 0.f, 1.f); };
+    const float mouseT = (ImGui::GetIO().MousePos.x - o.x) / w * len;
+    if(ImGui::IsItemActivated())
+    {
+        // (pressed on a key's diamond: that key picked, dragged to retime it (a strike's); else scrubbing)
+        s.keyDrag = -1;
+        float best = 7.f;
+        for(int k = 0; k < agpose::maxStrikeKeys; k++)
+        {
+            const float d = za::abs(ImGui::GetIO().MousePos.x - xOf(s.keys[k]));
+            if(s.has[k] && d < best && ImGui::GetIO().MousePos.y < o.y + h * 0.45f)
+            {
+                best = d;
+                s.keyDrag = k;
+            }
+        }
+        if(s.keyDrag >= 0 && agpose::isStrike(s.heldPose))
+        {
+            st.pdPhase = s.keyDrag;
+            strikePark();
+            if(keysEditable())
+            {
+                pushPoseUndo(pickedCode(st.pdPhase));
+            }
+            else
+            {
+                s.keyDrag = -1;
+            }
+        }
+    }
+    if(!ImGui::IsItemActive())
+    {
+        s.keyDrag = -1;
+    }
     if(ImGui::IsItemActive() && ImGui::IsMouseDown(ImGuiMouseButton_Left))
     {
-        strikeSetTime((ImGui::GetIO().MousePos.x - o.x) / w * len);
+        if(s.keyDrag >= 0)
+        {
+            strikeKeyTime(mouseT, false); // (the act sits on it as it moves)
+            strikePark();
+        }
+        else
+        {
+            strikeSetTime(mouseT);
+        }
     }
-    const auto xOf = [&](float t) { return o.x + w * za::clamp(t / len, 0.f, 1.f); };
     const glm::vec4 segCol[4] = {{0.25f, 0.35f, 0.55f, 1.f}, {0.6f, 0.3f, 0.25f, 1.f}, {0.55f, 0.45f, 0.2f, 1.f}, {0.25f, 0.45f, 0.3f, 1.f}};
     float at = 0.f;
     const float barTop = o.y + h * 0.45f;
@@ -922,17 +1106,25 @@ void strikeTimelineUi()
         }
         at += s.times[i];
     }
-    const int keys = agpose::isStrike(s.heldPose) ? agpose::numPhases : 1;
-    for(int k = 0; k < keys; k++)
+    const bool strike = agpose::isStrike(s.heldPose);
+    for(int k = 0; k < agpose::maxStrikeKeys; k++)
     {
+        if(!s.has[k])
+        {
+            continue;
+        }
         const float x = xOf(s.keys[k]);
         const float y = o.y + h * 0.25f;
-        const bool picked = k == st.pdPhase || keys == 1;
-        const ImU32 kc = col(picked ? glm::vec4{1.f, 0.85f, 0.2f, 1.f} : glm::vec4{0.85f, 0.85f, 0.85f, 0.85f});
-        dl->AddQuadFilled(ImVec2{x, y - 5.f}, ImVec2{x + 5.f, y}, ImVec2{x, y + 5.f}, ImVec2{x - 5.f, y}, kc);
-        if(ImGui::IsMouseHoveringRect(ImVec2{x - 6.f, o.y}, ImVec2{x + 6.f, o.y + h}))
+        const bool picked = k == st.pdPhase || !strike;
+        const glm::vec4 kcv = picked ? glm::vec4{1.f, 0.85f, 0.2f, 1.f}
+                              : k >= agpose::numPhases ? glm::vec4{0.55f, 0.85f, 1.f, 0.9f} // (an in-between: blue)
+                                                       : glm::vec4{0.85f, 0.85f, 0.85f, 0.85f};
+        const float r = k >= agpose::numPhases ? 4.f : 5.f;
+        dl->AddQuadFilled(ImVec2{x, y - r}, ImVec2{x + r, y}, ImVec2{x, y + r}, ImVec2{x - r, y}, col(kcv));
+        if(ImGui::IsMouseHoveringRect(ImVec2{x - 6.f, o.y}, ImVec2{x + 6.f, o.y + h * 0.45f}))
         {
-            ImGui::SetTooltip("key %d: %s at %.3f s", k, keys == 1 ? "the Cast" : agpose::phaseName(s.heldPose, k), s.keys[k]);
+            ImGui::SetTooltip("key %d: %s at %.3f s%s", k, strike ? agpose::phaseName(s.heldPose, k) : "the Cast",
+                static_cast<double>(s.keys[k]), strike ? " (drag to retime it)" : "");
         }
     }
     if(vr_rigstudio_onion.value != 0.f)
@@ -995,6 +1187,130 @@ void strikeTimelineUi()
     }
 }
 
+void strikeKeysUi()
+{
+    if(!agpose::isStrike(st.pdPose))
+    {
+        st.pdPhase = 0;
+        return;
+    }
+    Studio::Swing& s = sw();
+    const bool timesKnown = keysEditable();
+    const agpose::ActTimes a = actTimes();
+    agpose::ActKey keys[agpose::maxStrikeKeys];
+    const int n = agpose::actKeys(st.pdKind, st.pdClass, st.pdPose, a, keys);
+    int at = 0;
+    for(int i = 0; i < n; i++)
+    {
+        at = keys[i].phase == st.pdPhase ? i : at;
+    }
+    st.pdPhase = n > 0 ? keys[at].phase : 0;
+    const auto label = [&](char* out, size_t size, int i) {
+        const char* name = agpose::phaseName(st.pdPose, keys[i].phase);
+        if(timesKnown)
+        {
+            snprintf(out, size, "%d. %s (%.3f s)", i + 1, name, static_cast<double>(agpose::placeTime(a, keys[i].place)));
+        }
+        else
+        {
+            snprintf(out, size, "%d. %s", i + 1, name);
+        }
+    };
+    // The keys in the act's order (the named three and any in-betweens), < > the one before and after
+    char text[96];
+    label(text, sizeof(text), at);
+    if(ImGui::ArrowButton("##keyprev", ImGuiDir_Left) && at > 0)
+    {
+        st.pdPhase = keys[at - 1].phase;
+        strikePark();
+    }
+    ImGui::SameLine();
+    if(ImGui::ArrowButton("##keynext", ImGuiDir_Right) && at + 1 < n)
+    {
+        st.pdPhase = keys[at + 1].phase;
+        strikePark();
+    }
+    ImGui::SameLine();
+    if(ImGui::BeginCombo("Key", text))
+    {
+        for(int i = 0; i < n; i++)
+        {
+            char item[96];
+            label(item, sizeof(item), i);
+            if(ImGui::Selectable(item, i == at))
+            {
+                st.pdPhase = keys[i].phase;
+                strikePark(); // (the timeline on the picked key)
+            }
+        }
+        ImGui::EndCombo();
+    }
+    helpMarker("A strike's keys in its act's order: its wind-up's, its blow's and its follow-through's (always there) "
+               "and the in-betweens you add. The game blends the two either side of the act's time (the stance before "
+               "the first and after the last), along the act as the three always moved. The act's phases (the wind-up, "
+               "the strike, the hold, the recovery) and the blow (when it lands, a parry's timing, the sounds) are the "
+               "game's: the keys change the look, never when the blow lands.");
+    if(!timesKnown)
+    {
+        ImGui::TextDisabled("Key Time, Add Key: Play holds the subject in this strike (this kind and class)");
+        return;
+    }
+    // The picked key's time (s into the act, at 1x), its place among the phases
+    const int c = pickedCode(st.pdPhase);
+    float t = s.keys[st.pdPhase];
+    ImGui::SetNextItemWidth(ImGui::GetFontSize() * 8.f);
+    const bool moved = ImGui::DragFloat("Key Time", &t, 0.001f, 0.f, strikeLength(), "%.3f s", ImGuiSliderFlags_AlwaysClamp);
+    if(ImGui::IsItemActivated())
+    {
+        pushPoseUndo(c);
+    }
+    if(moved)
+    {
+        strikeKeyTime(t, false);
+        strikePark();
+    }
+    const float place = agpose::keyPlace(c);
+    const int seg = za::clamp(static_cast<int>(place), 0, 3);
+    ImGui::SameLine();
+    ImGui::TextDisabled("%s %.0f%%", segmentName(st.pdPose, seg), static_cast<double>((place - static_cast<float>(seg)) * 100.f));
+    const bool named = st.pdPhase < agpose::numPhases;
+    if(named && agpose::value(c).v[agpose::Time].y != 0.f)
+    {
+        ImGui::SameLine();
+        if(ImGui::SmallButton("Default Time"))
+        {
+            pushPoseUndo(c);
+            agpose::clearKeyTime(c);
+            readKeyTimes();
+            strikePark();
+        }
+    }
+    const auto middle = [] {
+        const ImVec2 a = ImGui::GetItemRectMin(), b = ImGui::GetItemRectMax();
+        return glm::vec2{(a.x + b.x) * 0.5f, (a.y + b.y) * 0.5f};
+    };
+    const bool add = ImGui::Button("Add Key at Playhead");
+    keysUi.add = middle();
+    if(add)
+    {
+        (void)strikeAddKey();
+    }
+    ImGui::SameLine();
+    ImGui::BeginDisabled(named);
+    const bool remove = ImGui::Button("Remove Key");
+    keysUi.remove = middle();
+    if(remove)
+    {
+        (void)strikeRemoveKey();
+    }
+    ImGui::EndDisabled();
+    helpMarker("Key Time: when the picked key is whole (s into the act at 1x; drag its diamond on the bar too), kept "
+               "between its neighbours; saved as its place in the act's phases (the strike 50%: halfway through the "
+               "strike), so a slowed or heavier swing keeps it at the same point. Default Time: a named key back on its "
+               "own place. Add Key at Playhead: an in-between key where the playhead is, set to the pose there (nothing "
+               "changes until you edit it; up to seven). Remove Key: the picked in-between. Ctrl+Z undoes each.");
+}
+
 void ghostsDisplayUi()
 {
     const int which = static_cast<int>(vr_rigstudio_ikghost.value);
@@ -1013,8 +1329,327 @@ void ghostsDisplayUi()
                "on the right weapon's ghost. vr_rigstudio_ikghost.");
 }
 
+namespace
+{
+
+// vr_rigstudio_test_strikekeys (open the studio with a melee weapon: `vr_rigstudio monster_vr_grunt 13`; ends on
+// `rigstudio strikekeys: N passed, M failed`): the Horizontal strike's keys. An in-between added halfway between the
+// wind-up's and the blow's keys (the keys as blended at five times unchanged, the hand drawn there unchanged), edited
+// (the weapon's goal moves with it: the game blends it), retimed (kept between its neighbours; undone), the blow's
+// key retimed and put back (Default Time); the text saved and read back (the key exactly), the act's times unchanged
+// (the blow lands when it did); removed (the blend back as it was), the removal undone and the text put back exactly.
+struct KeysTest
+{
+    bool on{false};
+    int step{0};
+    int waited{0};
+    testkit::Tally tally;
+    za::String text0;
+    float times0[4]{};
+    float keys0[agpose::numPhases]{};
+    float sample[5]{};
+    agpose::Key blend0[5];
+    int phase{-1};
+    glm::vec3 hand0{0.f}, hand1{0.f}, target0{0.f};
+    float keyT{0.f};
+    int undos{0};
+};
+KeysTest ktest;
+
+[[nodiscard]] float keyDiff(const agpose::Key& a, const agpose::Key& b)
+{
+    float most = 0.f;
+    for(int p = 0; p < agpose::Time; p++)
+    {
+        most = za::max(most, glm::length(a.v[p] - b.v[p]));
+    }
+    return most;
+}
+
+[[nodiscard]] int keyCount()
+{
+    int n = 0;
+    for(const bool h : sw().has)
+    {
+        n += h ? 1 : 0;
+    }
+    return n;
+}
+
+void testStrikeKeys_f()
+{
+    if(!st.open)
+    {
+        Con_Printf("rigstudio strikekeys: open the studio with a melee weapon first (vr_rigstudio monster_vr_grunt 13)\n");
+        testkit::verdict("rigstudio strikekeys", 0, 1);
+        return;
+    }
+    ktest = KeysTest{};
+    ktest.on = true;
+    ktest.text0 = za::String{vr_agrunt_poses.string ? vr_agrunt_poses.string : ""};
+    Con_Printf("rigstudio strikekeys: begun\n");
+}
+
+void strikeKeysTestTick()
+{
+    if(!ktest.on)
+    {
+        return;
+    }
+    Studio::Swing& s = sw();
+    testkit::Tally& t = ktest.tally;
+    const char* name = "rigstudio strikekeys";
+    ktest.waited++;
+    const auto next = [&]() {
+        ktest.step++;
+        ktest.waited = 0;
+    };
+    const auto hand = [&]() {
+        const glm::mat4 sm = spaceMatrix(st.note.space);
+        return glm::vec3{sm * glm::vec4{st.note.placed.hand[0].pos, 1.f}};
+    };
+    const auto blendMoved = [&]() {
+        float most = 0.f;
+        for(int i = 0; i < 5; i++)
+        {
+            most = za::max(most, keyDiff(agpose::keyAt(st.pdKind, st.pdClass, st.pdPose, actTimes(), ktest.sample[i]),
+                                     ktest.blend0[i]));
+        }
+        return most;
+    };
+    if(ktest.waited > 72 * 20)
+    {
+        t.check(false, name, va("timed out (step %d)", ktest.step));
+        ktest.step = 99;
+    }
+    switch(ktest.step)
+    {
+    case 0: // the Horizontal strike held by Play (the subject's kind and class)
+        if(st.subject <= 0 || st.subjKind < 0 || st.subjClass < 0 || !noteFreshNow())
+        {
+            break;
+        }
+        st.pdKind = st.subjKind;
+        st.pdClass = st.subjClass;
+        st.pdPose = agpose::Horizontal;
+        st.pdPhase = 0;
+        Cvar_SetValueQuick(&vr_rigstudio_onion, 0.f);
+        st.showPoseData = true;
+        frameSelection();
+        swingPlay();
+        s.speed = 1.f;
+        s.loop = false;
+        next();
+        break;
+    case 1:
+        if(s.timed && s.heldPose == agpose::Horizontal && !s.playing && ktest.waited > 2)
+        {
+            t.check(keyCount() == agpose::numPhases, name, va("the strike's keys: %d (want the named 3)", keyCount()));
+            for(int i = 0; i < 4; i++)
+            {
+                ktest.times0[i] = s.times[i];
+            }
+            for(int k = 0; k < agpose::numPhases; k++)
+            {
+                ktest.keys0[k] = s.keys[k];
+            }
+            const float a = s.keys[0], b = s.keys[1];
+            const float at[5] = {a + (b - a) * 0.2f, a + (b - a) * 0.4f, a + (b - a) * 0.5f, a + (b - a) * 0.7f,
+                (b + s.keys[2]) * 0.5f};
+            for(int i = 0; i < 5; i++)
+            {
+                ktest.sample[i] = at[i];
+                ktest.blend0[i] = agpose::keyAt(st.pdKind, st.pdClass, st.pdPose, actTimes(), at[i]);
+            }
+            Con_Printf("rigstudio strikekeys: %s, class %d: times %.3f %.3f %.3f %.3f, keys %.4f %.4f %.4f\n",
+                agpose::poseName(st.pdClass, st.pdPose), st.pdClass, s.times[0], s.times[1], s.times[2], s.times[3],
+                s.keys[0], s.keys[1], s.keys[2]);
+            strikeSetTime(ktest.sample[2]); // (halfway between the wind-up's and the blow's keys)
+            next();
+        }
+        break;
+    case 2: // an in-between added there: nothing changes
+        if(ktest.waited == 12)
+        {
+            ktest.hand0 = hand();
+            ktest.target0 = st.note.t.weapon[0].pos;
+            ktest.phase = strikeAddKey();
+            const bool ok = t.check(ktest.phase >= agpose::numPhases && keyCount() == agpose::numPhases + 1, name,
+                va("added: phase %d, %d keys", ktest.phase, keyCount()));
+            if(ok)
+            {
+                const float kt = s.keys[ktest.phase];
+                t.check(za::abs(kt - ktest.sample[2]) < 0.002f && kt > s.keys[0] && kt < s.keys[1], name,
+                    va("at the playhead between its neighbours: %.4f (%.4f .. %.4f)", kt, s.keys[0], s.keys[1]));
+                const float moved = blendMoved();
+                t.check(moved < 0.06f, name, va("the blend unchanged at five times: %.4f at most", moved));
+            }
+            next();
+        }
+        break;
+    case 3: // the hand drawn on it where it was; then the key edited: the hand with it
+        if(ktest.waited == 12)
+        {
+            ktest.hand1 = hand();
+            const float d = glm::length(ktest.hand1 - ktest.hand0);
+            const float dt = glm::length(st.note.t.weapon[0].pos - ktest.target0);
+            t.check(d < 0.1f && dt < 0.1f, name,
+                va("the hand drawn where it was before the add: %.3f units (its weapon's goal %.3f)", d, dt));
+            ktest.target0 = st.note.t.weapon[0].pos;
+            const int c = pickedCode(ktest.phase);
+            pushPoseUndo(c);
+            agpose::Key k = agpose::value(c);
+            k.v[agpose::RPos].z += 8.f;
+            agpose::set(c, k);
+            next();
+        }
+        break;
+    case 4:
+        if(ktest.waited == 12)
+        {
+            // (the game's goal for the weapon, before the arm's IK and reach: QC's blend of the keys, whole on this one)
+            const glm::vec3 dg = st.note.t.weapon[0].pos - ktest.target0;
+            t.check(za::abs(dg.z - 8.f) < 0.3f && za::abs(dg.x) + za::abs(dg.y) < 0.3f, name,
+                va("the edited in-between played: the weapon's goal moved %.2f %.2f %.2f (want 0 0 8; the hand %.2f, in "
+                   "reach as it allows)", dg.x, dg.y, dg.z, glm::length(hand() - ktest.hand1)));
+            Cbuf_AddText("screenshot\n");
+            // retimed: 0.02 s on; then past the blow's key (kept before it), undone
+            const float kt = s.keys[ktest.phase];
+            strikeKeyTime(kt + 0.02f, true);
+            t.check(za::abs(s.keys[ktest.phase] - (kt + 0.02f)) < 0.002f, name,
+                va("retimed: %.4f (want %.4f)", s.keys[ktest.phase], kt + 0.02f));
+            ktest.keyT = s.keys[ktest.phase];
+            strikeKeyTime(s.keys[1] + 0.1f, true);
+            t.check(s.keys[ktest.phase] < s.keys[1] && s.keys[ktest.phase] > s.keys[1] - 0.01f, name,
+                va("dragged past the blow: kept before it (%.4f < %.4f)", s.keys[ktest.phase], s.keys[1]));
+            undo();
+            readKeyTimes();
+            t.check(za::abs(s.keys[ktest.phase] - ktest.keyT) < 1e-4f, name, va("undone: %.4f", s.keys[ktest.phase]));
+            // the blow's key retimed, then on its own place again
+            st.pdPhase = 1;
+            strikeKeyTime(ktest.keys0[1] + 0.01f, true);
+            const float moved = s.keys[1];
+            pushPoseUndo(pickedCode(1));
+            agpose::clearKeyTime(pickedCode(1));
+            readKeyTimes();
+            t.check(za::abs(moved - ktest.keys0[1] - 0.01f) < 0.002f && za::abs(s.keys[1] - ktest.keys0[1]) < 1e-5f, name,
+                va("the blow's key retimed %.4f, Default Time %.4f (was %.4f)", moved, s.keys[1], ktest.keys0[1]));
+            st.pdPhase = ktest.phase;
+            strikePark();
+            next();
+        }
+        break;
+    case 5: // the in-between's diamond dragged 0.02 s on by the mock mouse: picked, retimed, one undo step
+        if(ktest.waited == 6)
+        {
+            const float len = strikeLength();
+            const float x = keysUi.barAt.x + keysUi.barW * s.keys[ktest.phase] / len;
+            const float y = keysUi.barAt.y + keysUi.barH * 0.25f;
+            ktest.keyT = s.keys[ktest.phase];
+            ktest.undos = static_cast<int>(st.undo.size());
+            st.pdPhase = 0; // (the press picks it)
+            strikePark();
+            mockLine(glm::vec2{x, y}, glm::vec2{x + keysUi.barW * 0.02f / len, y});
+            next();
+        }
+        break;
+    case 6:
+        if(ktest.waited > 2 && !mockBusy())
+        {
+            const float moved = s.keys[ktest.phase] - ktest.keyT;
+            t.check(za::abs(moved - 0.02f) < 0.004f && st.pdPhase == ktest.phase &&
+                        static_cast<int>(st.undo.size()) == ktest.undos + 1, name,
+                va("its diamond dragged: moved %.4f s (want 0.02), picked %d, %d undo steps", moved, st.pdPhase,
+                    static_cast<int>(st.undo.size()) - ktest.undos));
+            undo();
+            readKeyTimes();
+            t.check(za::abs(s.keys[ktest.phase] - ktest.keyT) < 1e-4f, name, va("the drag undone: %.4f", s.keys[ktest.phase]));
+            strikeSetTime((s.keys[1] + s.keys[2]) * 0.5f);
+            mockLine(keysUi.add, keysUi.add); // (Add Key at Playhead clicked)
+            next();
+        }
+        break;
+    case 7:
+        if(ktest.waited > 2 && !mockBusy())
+        {
+            t.check(keyCount() == agpose::numPhases + 2 && st.pdPhase != ktest.phase && st.pdPhase >= agpose::numPhases, name,
+                va("Add Key clicked: %d keys, picked %d", keyCount(), st.pdPhase));
+            mockLine(keysUi.remove, keysUi.remove); // (Remove Key clicked: the one just added)
+            next();
+        }
+        break;
+    case 8:
+        if(ktest.waited > 2 && !mockBusy())
+        {
+            t.check(keyCount() == agpose::numPhases + 1 && agpose::hasKey(pickedCode(ktest.phase)), name,
+                va("Remove Key clicked: %d keys, the first in-between kept", keyCount()));
+            st.pdPhase = ktest.phase;
+            strikePark();
+            next();
+        }
+        break;
+    case 9: // saved and read back; the act's times as they were
+        if(ktest.waited == 6)
+        {
+            const int c = pickedCode(ktest.phase);
+            const agpose::Key before = agpose::value(c);
+            const za::String text{vr_agrunt_poses.string};
+            Cvar_SetQuick(&vr_agrunt_poses, "");
+            const bool gone = !agpose::hasKey(c);
+            Cvar_SetQuick(&vr_agrunt_poses, text.cStr());
+            const agpose::Key after = agpose::value(c);
+            t.check(gone && agpose::hasKey(c) && memcmp(&before, &after, sizeof(before)) == 0, name,
+                va("saved and read back: the key exactly (text %d chars)", static_cast<int>(strlen(text.cStr()))));
+            za::String dump;
+            agpose::dumpText(dump);
+            t.check(strstr(dump.cStr(), "Horizontal, in-between") != nullptr, name, "the dump's row names the in-between");
+            bool same = true;
+            for(int i = 0; i < 4; i++)
+            {
+                same = same && s.times[i] == ktest.times0[i];
+            }
+            t.check(same, name, "the act's phases (its blow's time) unchanged by its keys");
+            next();
+        }
+        break;
+    case 10: // removed: the blend as it was; the removal undone; the text back
+        if(ktest.waited == 6)
+        {
+            st.pdPhase = ktest.phase;
+            const bool removed = strikeRemoveKey();
+            t.check(removed && keyCount() == agpose::numPhases && st.pdPhase < agpose::numPhases, name,
+                va("removed: %d keys, picked %d", keyCount(), st.pdPhase));
+            const float moved = blendMoved();
+            t.check(moved < 1e-4f, name, va("the blend back as it was: %.5f", moved));
+            st.pdPhase = 1;
+            t.check(!strikeRemoveKey(), name, "a named key is never removed");
+            undo();
+            readKeyTimes();
+            t.check(keyCount() == agpose::numPhases + 1, name, va("the removal undone: %d keys", keyCount()));
+            Cvar_SetQuick(&vr_agrunt_poses, ktest.text0.cStr());
+            readKeyTimes();
+            t.check(keyCount() == agpose::numPhases && strcmp(vr_agrunt_poses.string, ktest.text0.cStr()) == 0, name,
+                "the text put back");
+            next();
+        }
+        break;
+    default:
+        if(ktest.step >= 11)
+        {
+            s.on = false;
+            s.playing = false;
+            ktest.on = false;
+            t.verdict(name);
+        }
+        break;
+    }
+}
+
+} // namespace
+
 void strikeTestTick()
 {
+    strikeKeysTestTick();
     if(!stest.on)
     {
         return;
@@ -1241,6 +1876,7 @@ void strikeInit()
 {
     Cmd_AddCommand("vr_rigstudio_strike", strike_f);
     Cmd_AddCommand("vr_rigstudio_test_strike", testStrike_f);
+    Cmd_AddCommand("vr_rigstudio_test_strikekeys", testStrikeKeys_f);
 }
 
 } // namespace qvr::rigstudio::detail
