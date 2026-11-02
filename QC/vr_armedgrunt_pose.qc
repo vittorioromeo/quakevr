@@ -1440,9 +1440,9 @@ vector(entity g, vector posL, vector handL) VR_AGP_TurnPose =
 // the run, the pickup, a strike's wind-up, blow and follow-through. And the studio's hold: its subject shown in the pose
 // picked on its panel (weapondrawnpose(g, kind * 100 + class, 19)).
 // ----------------------------------------------------------------------------
-float vr_agk_ww;            // a strike's phases' shares now (VR_AGK_Phases): its wind-up, its blow, its follow-through
-float vr_agk_wb;
-float vr_agk_wf;
+float vr_agk_ba;            // a strike's keys now (VR_AGK_Blend): the two either side of its time (their phases, -1 the
+float vr_agk_bb;            // stance) and the second's share
+float vr_agk_bf;
 float vr_agk_hpose;         // the studio's hold this frame (VR_AGK_Query): the pose (-1 none), its phase, Play's count
 float vr_agk_hphase;
 float vr_agk_hplay;
@@ -1542,74 +1542,30 @@ float(float code) VR_AGK_Mode =
     return rint(m_x);
 };
 
-// A strike's phases' shares at its time now: the wind-up's (1 at its end), the blow's (1 as it is struck: VR_AGP_Phase's
-// turning point), the follow-through's (1 at the strike's end, held through a cut, back to 0 over the recovery).
-void(entity g) VR_AGK_Phases =
+// A strike's keys at its time now (agent/posekeys; vr_agpose.hpp, "A strike's keys"): any number, each at its place in
+// the act (the Pose Studio's), blended along the act's progress as its three phases' keys always were (the engine's
+// agpose::actBlend, VR_AGK_Phases' shares before): the two either side (vr_agk_ba, vr_agk_bb: their phases, -1 the stance)
+// and the second's share (vr_agk_bf). `code` its kind, class and pose (phase 0). Its times are QC's (VR_AGP_Times): the
+// keys change its look, never when its blow lands.
+void(entity g, float code) VR_AGK_Blend =
 {
     VR_AGP_Times(g);
-    float s = time - g.vr_ag_act_at;
-    float tS = vr_agp_tw + vr_agp_ts;
-    float punch = g.vr_ag_act == VR_AGP_PUNCH;
-    float h = punch ? 0.8 : 0.55;
-    vr_agk_ww = 0;
-    vr_agk_wb = 0;
-    vr_agk_wf = 0;
-    if(g.vr_ag_act == VR_AGP_SHOVE)
+    vector b = agstrikeblend(code, time - g.vr_ag_act_at, [vr_agp_tw, vr_agp_ts, vr_agp_th], vr_agp_tr);
+    vr_agk_ba = b_x;
+    vr_agk_bb = b_y;
+    vr_agk_bf = b_z;
+};
+
+// ... laid on (`mirror`: VR_AGK_Add's).
+void(float code, float mirror) VR_AGK_AddBlend =
+{
+    if(vr_agk_ba >= 0)
     {
-        // The shove's: into the wind-up, from it into the push (whole as the push lands: its phase's end), from that
-        // into the recover key, then back to the stance.
-        float u2;
-        if(s < vr_agp_tw)
-        {
-            vr_agk_ww = VR_Smooth(s / vr_agp_tw);
-        }
-        else if(s < tS)
-        {
-            u2 = VR_Smooth((s - vr_agp_tw) / vr_agp_ts);
-            vr_agk_ww = 1 - u2;
-            vr_agk_wb = u2;
-        }
-        else if(s < tS + vr_agp_th)
-        {
-            u2 = VR_Smooth((s - tS) / vr_agp_th);
-            vr_agk_wb = 1 - u2;
-            vr_agk_wf = u2;
-        }
-        else
-        {
-            vr_agk_wf = 1 - VR_Smooth((s - tS - vr_agp_th) / max(vr_agp_tr, 0.01));
-        }
-        return;
+        VR_AGK_Add(code + vr_agk_ba, 1 - vr_agk_bf, mirror);
     }
-    if(s < vr_agp_tw)
+    if(vr_agk_bb >= 0)
     {
-        vr_agk_ww = VR_Smooth(s / vr_agp_tw);
-    }
-    else if(s < tS)
-    {
-        float u = (s - vr_agp_tw) / vr_agp_ts;
-        if(!punch)
-        {
-            u = VR_Smooth(u);
-        }
-        float pe = punch && cvar_hget(cvarh_vr_agrunt_punch_ease); // (vr_agrunt_punch_ease: no kink at the blow)
-        if(u < h)
-        {
-            vr_agk_ww = pe ? 1 - VR_Smooth(u / h) : cos(1.5708 * u / h);
-        }
-        else
-        {
-            vr_agk_wf = pe ? VR_Smooth((u - h) / (1 - h)) : sin(1.5708 * (u - h) / (1 - h));
-        }
-        vr_agk_wb = max(0, 1 - vr_agk_ww - vr_agk_wf);
-    }
-    else if(s < tS + vr_agp_th)
-    {
-        vr_agk_wf = 1;
-    }
-    else
-    {
-        vr_agk_wf = 1 - VR_Smooth((s - tS - vr_agp_th) / max(vr_agp_tr, 0.01));
+        VR_AGK_Add(code + vr_agk_bb, vr_agk_bf, mirror);
     }
 };
 
@@ -1737,10 +1693,8 @@ void(entity g, entity p) VR_AGK_Keys =
                 mir = g.vr_ag_act_hand == 1;
             }
         }
-        VR_AGK_Phases(g);
-        VR_AGK_Add(base + pose * VR_AGK_POSE, vr_agk_ww, mir);
-        VR_AGK_Add(base + pose * VR_AGK_POSE + 1, vr_agk_wb, mir);
-        VR_AGK_Add(base + pose * VR_AGK_POSE + 2, vr_agk_wf, mir);
+        VR_AGK_Blend(g, base + pose * VR_AGK_POSE);
+        VR_AGK_AddBlend(base + pose * VR_AGK_POSE, mir);
     }
     else if(act == VR_AGP_SHOVE)
     {
@@ -1751,15 +1705,15 @@ void(entity g, entity p) VR_AGK_Keys =
         {
             sb = g.vr_ag_kind * VR_AGK_KIND + VR_AGK_PISTOL * VR_AGK_CLASS;
         }
-        VR_AGK_Phases(g);
         sb = sb + VR_AGK_SHOVE * VR_AGK_POSE;
-        VR_AGK_Add(sb, vr_agk_ww, FALSE);
-        VR_AGK_Add(sb + 1, vr_agk_wb, FALSE);
-        VR_AGK_Add(sb + 2, vr_agk_wf, FALSE);
-        if(vr_agk_gun && vr_agk_ww + vr_agk_wb + vr_agk_wf >= 0.5)
+        VR_AGK_Blend(g, sb);
+        VR_AGK_AddBlend(sb, FALSE);
+        float wka = vr_agk_ba >= 0 ? 1 - vr_agk_bf : 0;
+        float wkb = vr_agk_bb >= 0 ? vr_agk_bf : 0;
+        if(vr_agk_gun && wka + wkb >= 0.5)
         {
-            // (its off hand: the leading phase's key's, when set: Free to push with it, On the Gun to push the gun)
-            float ph = ((vr_agk_wb >= vr_agk_ww) && (vr_agk_wb >= vr_agk_wf)) ? 1 : ((vr_agk_ww >= vr_agk_wf) ? 0 : 2);
+            // (its off hand: the leading key's, when set: Free to push with it, On the Gun to push the gun)
+            float ph = wkb > wka ? vr_agk_bb : vr_agk_ba;
             float ms = VR_AGK_Mode(sb + ph);
             if(ms)
             {
@@ -1779,34 +1733,20 @@ void(entity g, entity p) VR_AGK_Query =
     vr_agk_hplay = h_z;
 };
 
-// When act `g`'s phase `ph` key is whole (s into it; its times set: VR_AGP_Times): the wind-up's end, the blow (a
-// swing's, a punch's; the shove's push's end: its contact), the follow-through's middle (the shove's recover key); the
-// Cast's key past its raise.
-float(entity g, float ph) VR_AGK_KeyTime =
+// When key `code` is whole in its act (s into it; its times set: VR_AGP_Times): its place in the act (the engine's
+// agpose::keyTime: as the Pose Studio set it, else its phase's own: the wind-up's end, the blow (a swing's, a punch's; the
+// shove's push's end: its contact), the follow-through's middle (the shove's recover key)); the Cast's past its raise.
+float(float code) VR_AGK_KeyTime =
 {
-    if(g.vr_ag_act == VR_AGP_CAST)
-    {
-        return vr_agp_tw + 0.01;
-    }
-    if(g.vr_ag_act == VR_AGP_SHOVE)
-    {
-        return ph == 1 ? vr_agp_tw + vr_agp_ts + 0.0005 : ph == 2 ? vr_agp_tw + vr_agp_ts + vr_agp_th + 0.0005 :
-            vr_agp_tw * 0.999;
-    }
-    if(ph == 1)
-    {
-        return vr_agp_tw + vr_agp_ts * (g.vr_ag_act == VR_AGP_PUNCH ? 0.8 : 0.5334); // (Smooth(0.5334) = 0.55: a swing's blow)
-    }
-    return ph == 2 ? vr_agp_tw + vr_agp_ts + vr_agp_th * 0.5 + 0.001 : vr_agp_tw * 0.999;
+    return agkeytime(code, [vr_agp_tw, vr_agp_ts, vr_agp_th], vr_agp_tr);
 };
 
 // The Rig Studio's timeline told `g`'s act's times (its times set: VR_AGP_Times; vr_rigseq.qc .vr_rs_*): its phases'
-// lengths and its keys' times.
+// lengths (its keys' times the engine's).
 void(entity g) VR_AGK_TellTimes =
 {
     g.vr_rs_times = [vr_agp_tw, vr_agp_ts, vr_agp_th];
     g.vr_rs_trec = vr_agp_tr;
-    g.vr_rs_keys = [VR_AGK_KeyTime(g, 0), VR_AGK_KeyTime(g, 1), VR_AGK_KeyTime(g, 2)];
 };
 
 // `g` (frozen: VR_AGP_Pose) held in the studio's pose: its target ahead, its stance's shares set at once, its frame (a
@@ -1923,7 +1863,8 @@ void(entity g, entity p) VR_AGK_Hold =
     g.vr_agk_play = vr_agk_hplay;
     if(time >= g.vr_agk_play_end)
     {
-        g.vr_ag_act_at = time - VR_AGK_KeyTime(g, vr_agk_hphase);
+        g.vr_ag_act_at = time - VR_AGK_KeyTime(g.vr_ag_kind * VR_AGK_KIND + cls * VR_AGK_CLASS + pose * VR_AGK_POSE +
+            vr_agk_hphase);
     }
 };
 

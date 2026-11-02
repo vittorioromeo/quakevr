@@ -7,6 +7,10 @@
 
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
+#include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Sin.hpp"
 #include "vr_zancle.hpp"
 
 #include <glm/gtc/quaternion.hpp>
@@ -784,8 +788,10 @@ State state;
 
 [[nodiscard]] bool validCode(int c)
 {
+    // (a strike's in-between keys: its phases 3..9)
     return (c >= 0 && agpose::kindOf(c) < agpose::numKinds && agpose::isClass(agpose::classOf(c)) &&
-               agpose::poseOf(c) < agpose::NumPoses && agpose::phaseOf(c) < agpose::numPhases) ||
+               agpose::poseOf(c) < agpose::NumPoses &&
+               agpose::phaseOf(c) < (agpose::isStrike(agpose::poseOf(c)) ? agpose::maxStrikeKeys : agpose::numPhases)) ||
            (agpose::isSharedKey(c) && agpose::kindOf(c) < agpose::numKinds);
 }
 
@@ -934,11 +940,23 @@ namespace
     return part == agpose::RTurn || part == agpose::LTurn || part == agpose::Torso || part == agpose::GripTurn;
 }
 
+// The steps key `code`'s part is kept to (set, the dump's rows): a turn 0.1 degree, a place 0.01 unit, a strike key's
+// time 0.001 of a phase; and the decimals that prints.
+[[nodiscard]] float perOf(int code, int part)
+{
+    return part == agpose::Time && !agpose::isLegCode(code) ? 1000.f : isTurn(code, part) ? 10.f : 100.f;
+}
+[[nodiscard]] int decimalsOf(int code, int part)
+{
+    const float per = perOf(code, part);
+    return per >= 1000.f ? 3 : per >= 100.f ? 2 : 1;
+}
+
 [[nodiscard]] bool same(int code, const agpose::Key& a, const agpose::Key& b)
 {
     for(int i = 0; i < agpose::NumParts; i++)
     {
-        const float eps = isTurn(code, i) ? 0.05f : 0.005f;
+        const float eps = 0.5f / perOf(code, i);
         for(int c = 0; c < 3; c++)
         {
             if(za::abs(a.v[i][c] - b.v[i][c]) > eps)
@@ -1240,7 +1258,7 @@ void dumpAll()
             }
             for(int pose = 0; pose < agpose::NumPoses; pose++)
             {
-                for(int ph = 0; ph < agpose::numPhases; ph++)
+                for(int ph = 0; ph < (agpose::isStrike(pose) ? agpose::maxStrikeKeys : agpose::numPhases); ph++)
                 {
                     const int c = agpose::code(k, cls, pose, ph);
                     agpose::Key key;
@@ -1465,7 +1483,7 @@ void set(int c, const Key& k)
     {
         for(int a = 0; a < 3; a++)
         {
-            r.v[i][a] = rounded(k.v[i][a], isTurn(c, i) ? 10.f : 100.f);
+            r.v[i][a] = rounded(k.v[i][a], perOf(c, i));
         }
     }
     // (a class's own Pickup, its override: kept whatever it is unless it ships one, and that equal to it)
@@ -1492,9 +1510,9 @@ void resetPose(int kind, int cls, int pose)
         return;
     }
     parse();
-    for(int ph = 0; ph < numPhases; ph++)
+    for(int ph = 0; ph < (isStrike(pose) ? maxStrikeKeys : numPhases); ph++)
     {
-        dropCode(code(kind, cls, pose, ph));
+        dropCode(code(kind, cls, pose, ph)); // (a strike's in-between keys too: back to the shipped ones)
     }
     write();
 }
@@ -1773,14 +1791,15 @@ void dumpText(za::String& out)
     out += "// vr_agrunt_pose_dump: rows for Quake/vr/vr_agpose.cpp's shipped[] (the changes laid on QC's poses):\n";
     out += "// {code (kind*100000 + class*1000 + pose*10 + phase), {right place, right turn, left place, left turn,\n";
     out += "//  right elbow's pole, left elbow's pole, torso yaw pitch roll[, off hand's grip place, its grip turn (the gun's\n";
-    out += "//  frame), off hand mode 0 Auto 1 On the Gun 2 Free, 0, 0: when any is set]}}\n";
+    out += "//  frame), off hand mode 0 Auto 1 On the Gun 2 Free, 0, 0, a strike key's time: its place in the act, 1, 0:\n";
+    out += "//  when any is set]}} (a strike's phases 3..9: its in-between keys)\n";
     for(const Entry& e : state.over)
     {
         const int kind = kindOf(e.code), cls = classOf(e.code), pose = poseOf(e.code), phase = phaseOf(e.code);
         out += va("    {%d, {", e.code);
         for(int i = 0; i < partsOf(e.k) * 3; i++)
         {
-            out += va("%s%.*ff", i ? ", " : "", isTurn(e.code, i / 3) ? 1 : 2, static_cast<double>(e.k.v[i / 3][i % 3]));
+            out += va("%s%.*ff", i ? ", " : "", decimalsOf(e.code, i / 3), static_cast<double>(e.k.v[i / 3][i % 3]));
         }
         if(isLegCode(e.code))
         {
@@ -1944,12 +1963,12 @@ const char* poseName(int cls, int pose)
 
 const char* phaseName(int phase)
 {
-    return phase == 0 ? "wind-up" : phase == 1 ? "blow" : "follow-through";
+    return phase == 0 ? "wind-up" : phase == 1 ? "blow" : phase == 2 ? "follow-through" : "in-between";
 }
 
 const char* phaseName(int pose, int phase)
 {
-    if(pose == Shove)
+    if(pose == Shove && phase < numPhases)
     {
         return phase == 0 ? "wind-up" : phase == 1 ? "push" : "recover";
     }
@@ -1994,6 +2013,296 @@ int posesOf(int cls, int* out, int max)
     }
     add(Shove); // (every class: its push of the player up close)
     return n;
+}
+
+// ---- A strike's keys: their times and in-betweens (agent/posekeys) ----
+
+float placeTime(const ActTimes& a, float place)
+{
+    place = za::clamp(place, 0.f, 4.f);
+    const int seg = za::min(static_cast<int>(place), 3);
+    float at = 0.f;
+    for(int i = 0; i < seg; i++)
+    {
+        at += a.t[i];
+    }
+    return at + (place - static_cast<float>(seg)) * a.t[seg];
+}
+
+float actPlace(const ActTimes& a, float s)
+{
+    float at = 0.f;
+    for(int i = 0; i < 4; i++)
+    {
+        if(a.t[i] > 0.f && s < at + a.t[i])
+        {
+            return static_cast<float>(i) + za::max(0.f, s - at) / a.t[i];
+        }
+        at += a.t[i];
+    }
+    return 4.f;
+}
+
+namespace
+{
+[[nodiscard]] float smooth(float x)
+{
+    x = za::clamp(x, 0.f, 1.f);
+    return x * x * (3.f - 2.f * x);
+}
+[[nodiscard]] bool isPunch(int pose)
+{
+    return pose >= Jab && pose <= Uppercut;
+}
+} // namespace
+
+// (QC's VR_AGK_Phases as it was, its shares' sum: ww the wind-up's, wb the blow's, wf the follow-through's)
+float actProgress(int pose, const ActTimes& a, float s)
+{
+    const float tw = za::max(a.t[0], 1e-4f), ts = za::max(a.t[1], 1e-4f), th = a.t[2], tr = za::max(a.t[3], 0.01f);
+    const float tS = tw + ts;
+    if(s < tw)
+    {
+        return -1.f + smooth(s / tw);
+    }
+    if(pose == Shove)
+    {
+        // (into the wind-up, from it into the push, from that into the recover key, then back to the stance)
+        if(s < tS)
+        {
+            return smooth((s - tw) / ts);
+        }
+        if(s < tS + th)
+        {
+            return 1.f + smooth((s - tS) / th);
+        }
+        return 2.f + smooth((s - tS - th) / tr);
+    }
+    if(s < tS)
+    {
+        const bool punch = isPunch(pose);
+        float u = (s - tw) / ts;
+        if(!punch)
+        {
+            u = smooth(u);
+        }
+        const float h = punch ? 0.8f : 0.55f;
+        const bool pe = punch && vr_agrunt_punch_ease.value != 0.f; // (no kink at the blow)
+        constexpr float halfPi = 1.5707963f;
+        if(u < h)
+        {
+            return pe ? smooth(u / h) : 1.f - za::cos(halfPi * u / h);
+        }
+        return 1.f + (pe ? smooth((u - h) / (1.f - h)) : za::sin(halfPi * (u - h) / (1.f - h)));
+    }
+    if(s < tS + th)
+    {
+        return 2.f;
+    }
+    return 2.f + smooth((s - tS - th) / tr);
+}
+
+// (QC's VR_AGK_KeyTime as it was: the wind-up's end, the blow (a punch's 0.8 of its strike, a swing's 0.5334: its
+// smoothed 0.55), the hold's middle; the shove's push's end and its recover's)
+float defaultPlace(int pose, int phase)
+{
+    if(phase == 0)
+    {
+        return 1.f;
+    }
+    if(pose == Shove)
+    {
+        return phase == 1 ? 2.f : 3.f;
+    }
+    return phase == 1 ? (isPunch(pose) ? 1.8f : 1.5334f) : 2.5f;
+}
+
+bool hasKey(int c)
+{
+    if(c < 0 || !isStrike(poseOf(c)) || phaseOf(c) >= maxStrikeKeys)
+    {
+        return false;
+    }
+    Key k;
+    return phaseOf(c) < numPhases || (get(c, k) && k.v[Time].y != 0.f);
+}
+
+float keyPlace(int c)
+{
+    const Key k = value(c);
+    return k.v[Time].y != 0.f ? za::clamp(k.v[Time].x, placeGap, 4.f - placeGap) : defaultPlace(poseOf(c), phaseOf(c));
+}
+
+float keyTime(int c, const ActTimes& a)
+{
+    if(poseOf(c) == Cast)
+    {
+        return a.t[0] + 0.01f; // (QC's: past its raise)
+    }
+    return placeTime(a, keyPlace(c));
+}
+
+int actKeys(int kind, int cls, int pose, const ActTimes& a, ActKey* out)
+{
+    int n = 0;
+    for(int ph = 0; ph < maxStrikeKeys && isStrike(pose); ph++)
+    {
+        const int c = code(kind, cls, pose, ph);
+        Key k;
+        const bool has = get(c, k);
+        const bool timed = has && k.v[Time].y != 0.f;
+        if(ph >= numPhases && !timed)
+        {
+            continue;
+        }
+        ActKey e;
+        e.phase = ph;
+        e.timed = timed;
+        e.place = timed ? za::clamp(k.v[Time].x, placeGap, 4.f - placeGap) : defaultPlace(pose, ph);
+        // (a named key on its own place: whole exactly where it always was)
+        e.progress = timed ? actProgress(pose, a, placeTime(a, e.place)) : static_cast<float>(ph);
+        int i = n++;
+        for(; i > 0 && (out[i - 1].place > e.place || (out[i - 1].place == e.place && out[i - 1].phase > e.phase)); i--)
+        {
+            out[i] = out[i - 1];
+        }
+        out[i] = e;
+    }
+    return n;
+}
+
+ActBlend actBlend(int kind, int cls, int pose, const ActTimes& a, float s)
+{
+    ActKey keys[maxStrikeKeys];
+    const int n = actKeys(kind, cls, pose, a, keys);
+    // (the stance before the first key, at the act's start, and after the last, at its end)
+    int pa = -1;
+    float ka = -1.f, ta = 0.f;
+    int pb = -1;
+    float kb = 3.f, tb = a.length();
+    for(int i = 0; i < n; i++)
+    {
+        const float t = placeTime(a, keys[i].place);
+        if(s >= t)
+        {
+            pa = keys[i].phase;
+            ka = keys[i].progress;
+            ta = t;
+            continue;
+        }
+        pb = keys[i].phase;
+        kb = keys[i].progress;
+        tb = t;
+        break;
+    }
+    ActBlend b;
+    b.a = pa;
+    b.b = pb;
+    if(kb - ka > 1e-5f)
+    {
+        b.f = (actProgress(pose, a, s) - ka) / (kb - ka);
+    }
+    else
+    {
+        // (two keys where the act's progress stands still: a chainsaw's cut; eased between by time)
+        b.f = tb - ta > 1e-6f ? smooth((s - ta) / (tb - ta)) : 1.f;
+    }
+    b.f = za::clamp(b.f, 0.f, 1.f);
+    return b;
+}
+
+Key keyAt(int kind, int cls, int pose, const ActTimes& a, float s)
+{
+    const ActBlend b = actBlend(kind, cls, pose, a, s);
+    Key out;
+    const Key ka = b.a >= 0 ? value(code(kind, cls, pose, b.a)) : Key{};
+    const Key kb = b.b >= 0 ? value(code(kind, cls, pose, b.b)) : Key{};
+    for(int p = 0; p < Time; p++)
+    {
+        out.v[p] = ka.v[p] * (1.f - b.f) + kb.v[p] * b.f;
+    }
+    out.v[OffHand] = b.f < 0.5f ? ka.v[OffHand] : kb.v[OffHand]; // (a hold, not a blend: the nearer key's)
+    out.v[Time] = glm::vec3{0.f};
+    return out;
+}
+
+int addKey(int kind, int cls, int pose, const ActTimes& a, float s)
+{
+    if(!isStrike(pose))
+    {
+        return -1;
+    }
+    const float place = rounded(za::clamp(actPlace(a, s), placeGap, 4.f - placeGap), 1000.f);
+    ActKey keys[maxStrikeKeys];
+    const int n = actKeys(kind, cls, pose, a, keys);
+    bool used[maxStrikeKeys]{};
+    for(int i = 0; i < n; i++)
+    {
+        used[keys[i].phase] = true;
+        if(za::abs(keys[i].place - place) < placeGap)
+        {
+            return -1; // (a key there already)
+        }
+    }
+    for(int ph = numPhases; ph < maxStrikeKeys; ph++)
+    {
+        if(!used[ph])
+        {
+            Key k = keyAt(kind, cls, pose, a, placeTime(a, place));
+            k.v[Time] = glm::vec3{place, 1.f, 0.f};
+            set(code(kind, cls, pose, ph), k);
+            return ph;
+        }
+    }
+    return -1;
+}
+
+bool removeKey(int c)
+{
+    if(!hasKey(c) || phaseOf(c) < numPhases)
+    {
+        return false;
+    }
+    set(c, Key{}); // (none: dropped, or an all-zero entry over a shipped in-between)
+    return true;
+}
+
+float setKeyPlace(int c, float place)
+{
+    if(!hasKey(c))
+    {
+        return keyPlace(c);
+    }
+    // (between its neighbours: the act's order kept)
+    const int kind = kindOf(c), cls = classOf(c), pose = poseOf(c);
+    ActKey keys[maxStrikeKeys];
+    const int n = actKeys(kind, cls, pose, ActTimes{}, keys);
+    float lo = placeGap, hi = 4.f - placeGap;
+    for(int i = 0; i < n; i++)
+    {
+        if(keys[i].phase != phaseOf(c))
+        {
+            continue;
+        }
+        lo = i > 0 ? keys[i - 1].place + placeGap : lo;
+        hi = i + 1 < n ? keys[i + 1].place - placeGap : hi;
+    }
+    place = rounded(za::clamp(place, lo, za::max(lo, hi)), 1000.f);
+    Key k = value(c);
+    k.v[Time] = glm::vec3{place, 1.f, 0.f};
+    set(c, k);
+    return place;
+}
+
+void clearKeyTime(int c)
+{
+    if(!hasKey(c) || phaseOf(c) >= numPhases)
+    {
+        return;
+    }
+    Key k = value(c);
+    k.v[Time] = glm::vec3{0.f};
+    set(c, k);
 }
 
 void registerCommands()

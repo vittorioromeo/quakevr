@@ -6443,6 +6443,21 @@ the main switches as cvars", "11. Address the remaining menu clutter as suggeste
   (contact by `tune`): PASS. e1m1/start: loot beams 9 drawn, fire particles 400 made, gore sounds played, the grapple
   reels at 300 u/s.
 
+## Strike keys: times and in-betweens (agent/posekeys)
+
+- **What.** In the Pose Studio a strike's keys have times and can be added: the Phase slider is replaced by the Key
+  list, Key Time, the diamonds on the strike bar, Add Key at Playhead and Remove Key; RIGSTUDIO.md has the details.
+- **Blow timing.** An act's phases' lengths and the moment of its blow stay QC's, by time. The keys do change where the
+  weapon is at that moment: `VR_AGP_Strike` adds the blended pose's place and turn to the blow's line.
+- **Test.** `vr_rigstudio_test_strikekeys` (needs `-flatscreenmode`; `vr_rigstudio monster_vr_grunt 13` first): 22
+  passed, 0 failed, including the diamond dragged and both buttons clicked by the mock mouse.
+- **Check of the blow's moment** (`vr_agrunt_test 18`, every kind's melee and punch strikes, blow keys at 1.2 and an
+  in-between at 1.1; a temporary print of the seconds into the act, since removed): the same ranges with and without
+  keys, e.g. act 2 kind 0 0.3639..0.4695 s against 0.3611..0.4695 s, within a frame's 0.014 s. Times alone: 24 passed,
+  0 failed. With the blow keys also moved 8 units: 22 passed, 2 failed (Grunt and Knight fists miss), the place moving
+  the blow as above. No keys: 24/0 and 23/1 in two runs, so that test has one intermittent failure of its own (which
+  one was not recorded).
+
 ## 32-bit progs (branch `agent/progs32`, 2026-11-02)
 
 Our QC was ~2,100 globals short of the 65,536 that id's 16-bit progs format allows (63,405 now). It now always compiles
