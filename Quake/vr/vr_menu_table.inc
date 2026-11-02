@@ -450,6 +450,11 @@ inline constexpr Page pages[] = {
     {"World Text Font", pageFontSurface<3>, pageScreens}, // (Surface::World)
 #ifndef QVR_RELEASE
     {"Tunables", pageTunables, pageDebug, LevelDeveloper}, // a development build's (vr_menu_tunables.inc; vr_tunables.cpp)
+    // Its submenus, a page a depth (titled with the submenu shown: tunablesTitle).
+    {"Tunables - Page", pageTunablesAt<1>, pageTunables, LevelDeveloper},
+    {"Tunables - Subpage", pageTunablesAt<2>, pageTunablesAt<1>, LevelDeveloper},
+    {"Tunables - Third Level", pageTunablesAt<3>, pageTunablesAt<2>, LevelDeveloper},
+    {"Tunables - Fourth Level", pageTunablesAt<4>, pageTunablesAt<3>, LevelDeveloper},
 #endif
 };
 inline constexpr int pageCount = static_cast<int>(sizeof(pages) / sizeof(pages[0]));

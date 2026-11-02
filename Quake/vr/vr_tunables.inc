@@ -6,8 +6,12 @@
 // player setting is a QVR_CVAR in vr_cvars.inc; to make one of these a setting again, move its line back there and give
 // it a menu row. The list per page and why: ROUND23.md, "Settings tiers".
 
-// (no menu row) > (no menu row)
+// Weapons > Other
 QVR_TUNABLE(vr_compat_muzzle, "1") // with another mod's progs, its shots start at the gun, not the player's head
+QVR_TUNABLE(vr_2h_spread_reduction, "0.5")
+QVR_TUNABLE(vr_2h_cup_stock, "1")
+
+// Carrying and Throwing > Other
 QVR_TUNABLE(vr_throw_peak_span, "0.017")
 QVR_TUNABLE(vr_throw_ang_threshold, "6")
 QVR_TUNABLE(vr_throw_ang_factor, "0.7")
@@ -25,16 +29,31 @@ QVR_TUNABLE(vr_box3d_substeps, "4") // Box3D's sub-steps a server frame (1..8)
 QVR_TUNABLE(vr_box3d_player_push, "1") // the players' bodies push props (a capsule each, one way)
 QVR_TUNABLE(vr_box3d_hand_push_speed, "3") // m/s, the most a hand shoves a solid prop at (the rest of its move it passes into it, eased out)
 QVR_TUNABLE(vr_box3d_player_push_speed, "2.5") // m/s, the most a player's body shoves a prop at (the rest of its move it passes into it, eased out)
+
+// Sound > Other
 QVR_TUNABLE(vr_snd_hrtf_sofa, "") // an HRTF of your own: a .sofa file in the game folder (empty: Steam Audio's)
 QVR_TUNABLE(vr_snd_limiter_release, "0.15") // s, the limiter's gain back up after a peak (0.02-1)
+
+// Motion Recorder > Other
 QVR_TUNABLE(vr_obs_host, "127.0.0.1") // obs-websocket's address (OBS on another PC: its address)
+
+// Combat > Other
 QVR_TUNABLE(vr_bullettime_fx_tint, "0.85 0.95 1.15") // ... the colour it multiplies by (red green blue)
+
+// Headset > Other
 QVR_TUNABLE(vr_xr_res_warn, "1.3")
 QVR_TUNABLE(vr_xr_res_warn_mpx, "6")
+
+// Graphics > Other
 QVR_TUNABLE(vr_upscale_radius, "40") // ... only within this many degrees of the lens centre, bilinear beyond (0: the whole image)
 QVR_TUNABLE(vr_upscale_sharpen_native, "0") // at vr_render_scale 1: FSR's RCAS sharpening alone (with vr_upscale 1 or 2 and some sharpness)
 QVR_TUNABLE(vr_foveated_inner, "0") // ... full-rate shading within this many degrees of the lens centre (0: the preset's: 45, 35, 25)
 QVR_TUNABLE(vr_foveated_outer, "0") // ... 2x2 up to this many degrees, 4x4 beyond (0: the preset's: 60, 50, 40)
+QVR_TUNABLE(vr_shadow_precision, "1") // texels per unit of a light's radius, close by
+QVR_TUNABLE(vr_extmaps_green, "0") // ... their normal maps' green: 0 turned to ours where their heights (alpha) say it runs the other way (Quetoo's does), 1 as it is, 2 turned (next map)
+QVR_TUNABLE(vr_mirror_unfocused_hz, "4")
+
+// HUD and Menus > Doom on the Wrist Gadget
 QVR_TUNABLE(vr_touch_depth, "4") // ... or this far through it
 QVR_TUNABLE(vr_touch_hover, "4") // in front within this: hovering (the widget under it lights up, a cursor shows)
 QVR_TUNABLE(vr_touch_margin, "0.5") // a touch counts this far past the screen's edges (on the edge)
@@ -43,36 +62,59 @@ QVR_TUNABLE(vr_doom_args, "") // more of Doom's command line (-file my.wad, -ski
 QVR_TUNABLE(vr_doom_attenuation, "2") // how fast they fade with distance (Quake's: 1 normal, 3 a small source; 0 everywhere)
 QVR_TUNABLE(vr_doom_focus_angle, "25") // degrees off the view's middle the screen may be and count as looked at
 QVR_TUNABLE(vr_doom_panel_distance, "0.6") // m: how far in front it is placed
+
+// Motion Recorder > Other
 QVR_TUNABLE(vr_note_replay, "1") // with vr_notes on: the last seconds kept (poses, buttons, the player, nearby entities) and saved beside each note as a motion take (vr_notectx.cpp, vr_motion.cpp)
 QVR_TUNABLE(vr_note_replay_seconds, "30") // how many seconds that instant replay keeps (and the console lines and frame times saved with a note)
+
+// Weapons > Other
 QVR_TUNABLE(vr_heavy_auto_from, "10") // kg: a weapon without its own Heft (-1) lighter than this is light (0)
 QVR_TUNABLE(vr_heavy_auto_full, "20") // kg: and this heavy the heaviest (1)
+
+// Body > Other
 QVR_TUNABLE(vr_ghost_hands_solid, "1") // 1 each ghost hand is one solid translucent object (its nearest surface only), 0 every face blended
+QVR_TUNABLE(vr_seated_crouch_ease, "0.2") // ... seconds it eases over
+
+// World > Other
 QVR_TUNABLE(vr_debris_area_size, "384") // units: the side of an area
 QVR_TUNABLE(vr_debris_exclude, "vrfiringrange vrclimb vrexample") // maps with none (names, spaces between)
 QVR_TUNABLE(vr_debris_edicts_left, "2048") // entities left free for the game at least (max_edicts less the map's): fewer pieces if needed
 QVR_TUNABLE(vr_crates_exclude, "vrfiringrange vrclimb vrexample vrcalibration") // maps with none (names, spaces between)
+
+// Body > Other
 QVR_TUNABLE(vr_bodytrack_fade, "0.25") // seconds a region's tracking eases in or out (lost, low confidence, switched)
+
+// Graphics > Other
 QVR_TUNABLE(vr_water_splash_speed, "150") // units/s a thing (not a player) must move at to splash entering or leaving water
 QVR_TUNABLE(vr_shadow_head, "1") // your shadow (vr_shadow_self) has your head, which the eyes never see (not for a light at the head: the head-mounted flashlight)
+
+// Gore > Other
 QVR_TUNABLE(vr_decal_melee_prop_speed, "7") // ... a prop (crate, rock, brick, weapon) dents the level hitting it this fast or faster (m/s: a hard throw; 0: never)
 QVR_TUNABLE(vr_gore_streams_pools, "4") // most pools one stream spreads (a new one each time it moves on)
 QVR_TUNABLE(vr_teeth_speed, "3") // m/s they fly out at (along the blow, scattering)
 QVR_TUNABLE(vr_teeth_mass, "0.05") // kg each
 QVR_TUNABLE(vr_smallgibs_brains_jiggle_speed, "0.8") // m/s: a change of their speed faster than this between two frames kicks it (less: wobblier)
+
+// Weapons > Other
 QVR_TUNABLE(vr_weapon_relief, "1") // weapons made from other models as they load (AD's #vr, #gun, #melee; our rifle's #adv variants): 1 their relief made from the skin like our baked weapons' (vr_skinrelief.cpp, drawn as authored), 0 the plain made map; on their next load (a restart)
+
+// Graphics > Other
 QVR_TUNABLE(vr_parallax_depth_distance, "0") // round 22: how far ahead (view depth, units) the depth write reaches; beyond, the surfaces' flat depth (0, the default: as far as the parallax, vr_parallax_distance, the same picture)
 QVR_TUNABLE(vr_detail_fine, "1") // ... a second, finer grain within half that distance (one more texture read there)
 QVR_TUNABLE(vr_taa_blend, "0.1") // the current frame's weight in the history (lower: smoother, more ghosting)
 QVR_TUNABLE(vr_taa_clip, "1") // the history's variance clip, in standard deviations of the 3x3 (lower: less ghosting, more flicker)
 QVR_TUNABLE(vr_taa_reactive, "0.6") // the current frame's weight on translucency, particles and liquids (no motion vectors)
 QVR_TUNABLE(vr_water_geo_cell, "16") // ... the grid's cell in units (smaller: smoother, more triangles; remade on change)
+
+// Weapons > Other
 QVR_TUNABLE(vr_flaregun_cooldown, "0.3") // s at least from a shot to the next (each a new pull)
 QVR_TUNABLE(vr_flaregun_volume, "1") // its shot's volume (0..4)
 QVR_TUNABLE(vr_nailpistol_volume, "1") // its shot's volume (0..4)
 QVR_TUNABLE(vr_nailpistol_smoke, "1") // light smoke out of its side vents with each shot (vr_gunfx.cpp; 0 none, up to 3x; longer after a quick string)
 QVR_TUNABLE(vr_revolver_volume, "1") // its shot's volume (0..4)
 QVR_TUNABLE(vr_revolver_smoke, "1") // a wisp of smoke from its muzzle after a shot (0 none)
+
+// Combat > Other
 QVR_TUNABLE(vr_agarms_shoulder, "0.5") // vr_agarms: a long gun aimed is raised from its rest pose's hold (0: as it held its own rifle, its wrists as made) to its shoulder (1: the butt in its pocket, at its cheek) by this
 QVR_TUNABLE(vr_agarms_clavicle, "0.6") // vr_agarms: the shoulder joint carried by a clavicle that takes this share of the arm's lift above level and of its reach forward and across (the shoulder shrugs and comes forward; its top turns with it); 0 none (before)
 QVR_TUNABLE(vr_agarms_clavicle_most, "25") // vr_agarms: ... the clavicle turns at most this much up and this much forward (degrees)
@@ -81,29 +123,51 @@ QVR_TUNABLE(vr_agarms_shoulder_twist, "80") // vr_agarms_limits: ... and twisted
 QVR_TUNABLE(vr_agrunt_second_reach, "1") // vr_agarms: 1 a long gun carried or aimed is brought in towards the off shoulder until its second grip is within the off arm's reach (as a chainsaw's front handle is: the laser cannon's); 0 where its rest pose's rifle is (before: the off hand slid back to the main handle or let go)
 QVR_TUNABLE(vr_agrunt_atk_stand, "1") // armed humanoids whose own aiming frames crouch and lean back (the enforcer's: a rifle at the hip) stand as they aim and fire, their posed arms holding the weapon (with vr_agarms); 0 their aiming frames (before: the enforcer's belly pushed forward, its legs bent)
 QVR_TUNABLE(vr_posestudio_reach, "2.5") // the Pose Studio (Grip Editor > Drag Mode): the armed humanoid nearest within this many metres of your head is the one shown and edited
+
+// Combat > Arcane Dimensions' Guns
 QVR_TUNABLE(vr_adgun_tank_y, "0") // ... right
+
+// Carrying and Throwing > Other
 QVR_TUNABLE(vr_carry_two_hands_detach, "3") // with it: cm past the drift a hand may be off its grip before it lets go (its fist off the prop: pulled away, not sliding on it); both off: it drops (vr_carry2h.cpp detached)
 QVR_TUNABLE(vr_held_fit_gaps, "") // ... and per model, added: "name=cm ...", a name matching the end of the model's (e.g. "backpack.mdl=0.5 b_bh25.bsp=-0.3")
+
+// Combat > Other
 QVR_TUNABLE(vr_hit_stagger_throw_ref, "60") // kg m/s: a thrown prop's or weapon's momentum (mass x speed into it) that makes impact 1 (a 6 kg crate at 10 m/s)
 QVR_TUNABLE(vr_hit_stagger_melee_ref, "30") // a melee blow's damage (its zone's multiplier in) that makes impact 1
 QVR_TUNABLE(vr_hit_stagger_damage, "1") // impact plus this x the hit's damage as a share of its full health
 QVR_TUNABLE(vr_hit_stagger_push, "1") // its push, times a shove's (impact 1: a two-hand shove's; 0.5 .. 1.25)
+
+// Carrying and Throwing > Other
 QVR_TUNABLE(vr_ragimpact_body, "0.1") // share of the rest of the body's mass behind the struck part (0: the part alone)
 QVR_TUNABLE(vr_ragimpact_whip, "2") // a part's speed counts up to this times its whole body's (a limb whipping on a throw is no blow), unless a hand holds it
 QVR_TUNABLE(vr_ragimpact_held_mass, "20") // kg of your arm behind a part your hand holds (a head held and slammed: the hand drives it)
 QVR_TUNABLE(vr_ragimpact_time, "2") // s: a body (alive or dead) you hold, or let go of (threw) this long ago, takes impacts (0: only while held)
 QVR_TUNABLE(vr_ragimpact_crush_mass, "50") // kg of you counted behind your feet
+
+// Gore > Other
 QVR_TUNABLE(vr_decap_pop_projectile, "0.5") // any other projectile's kill at the head or a limb (a nail, a spike, AD's crossbow bolt, a lump of flesh; every game's: QC VR_Proj_Begin) pops it at this chance, as a laser bolt's (0: never; explosives pop by their blast, vr_limbs_blast_chance)
+
+// Combat > Other
 QVR_TUNABLE(vr_parry_muzzle_angle, "45") // degrees: a weapon whose far end (a gun's muzzle, a blade's tip) points within this of the attacker doesn't parry
+
+// Carrying and Throwing > Other
 QVR_TUNABLE(vr_forcegrab_miss_speed, "0.2") // share of its speed a missed object keeps
 QVR_TUNABLE(vr_forcegrabbable_ammo_boxes, "1")
 QVR_TUNABLE(vr_forcegrabbable_health_boxes, "1")
 QVR_TUNABLE(vr_forcegrabbable_return_time_deathmatch, "4")
 QVR_TUNABLE(vr_forcegrabbable_return_time_singleplayer, "0")
+
+// Weapons > Fingers and Collisions
 QVR_TUNABLE(vr_finger_blending_speed, "50")
+
+// Weapons > Reloading
 QVR_TUNABLE(vr_spinreload_pitch_speed, "1100")
 QVR_TUNABLE(vr_spinreload_x_angular_threshold, "6.5")
+
+// Movement > Other
 QVR_TUNABLE(vr_player_stepsize, "18.0")
+
+// Weapons > Fingers and Collisions
 QVR_TUNABLE(vr_fingers_and_base_x, "1.925")
 QVR_TUNABLE(vr_fingers_and_base_y, "-2.825")
 QVR_TUNABLE(vr_fingers_and_base_z, "-2.075")
@@ -131,7 +195,11 @@ QVR_TUNABLE(vr_finger_pinky_z, "1.6375")
 QVR_TUNABLE(vr_finger_base_x, "0.0")
 QVR_TUNABLE(vr_finger_base_y, "0.0")
 QVR_TUNABLE(vr_finger_base_z, "0.0")
+
+// Play > Other
 QVR_TUNABLE(vr_maps_fetch, "1") // the index is fetched at start-up (0: never; a cached copy is still read). -nomapindex turns it off for one run
+
+// Graphics > Other
 QVR_TUNABLE(vr_brush_max, "256") // how many a map may have at once (its slots in the brush buffers, made at its load: 52 bytes x 64 corners each)
 QVR_TUNABLE(vr_brush_bake_ms, "3") // ... how many milliseconds a frame the bake takes at most
 QVR_TUNABLE(vr_brush_luxel, "16") // ... luxels this many texture units apart (Quake's 16; doubled for a brush whose faces don't fit its lightmap rectangle)
@@ -229,6 +297,7 @@ QVR_TUNABLE(vr_flashlight_high_roll, "0")
 QVR_TUNABLE(vr_liquid_fall_cushion, "48") // units of water, slime or lava over where a monster lands (standing or knocked down) that take all of its fall damage; shallower takes that share of its speed; 0: liquid takes none
 QVR_TUNABLE(vr_enemy_drops_chance_mult, "1.0")
 QVR_TUNABLE(vr_ammobox_drops_chance_mult, "1.0")
+QVR_TUNABLE(vr_item_float_height, "26") // units above the floor the map's weapons, armour, powerups and keys float at (0: on the floor); next map
 
 // Carrying and Throwing > Carrying
 QVR_TUNABLE(vr_box3d_hand_hold_mass, "20") // kg, the heaviest prop an open hand or a weapon holds up (heavier: it slips through, pushed still); 0: no limit
@@ -380,6 +449,41 @@ QVR_TUNABLE(vr_ragdoll_active_env_ledge, "1") // falling past a ledge's lip near
 QVR_TUNABLE(vr_ragdoll_active_env_grip, "1.2") // body weights a hand holding a ledge takes at most (a lean's: a third of it; a heavy monster less); past it he slips off
 QVR_TUNABLE(vr_ragdoll_active_env_hang, "1.8") // s: about how long he hangs from a ledge (each 0.45 to 1.65 times it)
 QVR_TUNABLE(vr_ragdoll_active_env_arms, "1") // times the strength of his arms reaching for what is round him (a catch, a lean, a ledge's hold, a brace; 0..2)
+QVR_TUNABLE(vr_ragdoll_mass, "80") // kg: a ragdoll's whole mass (its parts by their volume); each class has its own by default (vr_ragdoll_<class>_mass), this is for a class set to -1
+QVR_TUNABLE(vr_ragdoll_friction, "0.8") // a ragdoll's friction (with the floor's: 0.6)
+QVR_TUNABLE(vr_ragdoll_joint_friction, "1.5") // N m: the joints' friction (a motor holding each still up to this torque); 0 limp
+QVR_TUNABLE(vr_ragdoll_damping, "0.4") // its parts' angular damping (1/s): less flailing
+QVR_TUNABLE(vr_ragdoll_blast, "2") // times the throw a blast gives a prop of a ragdoll's mass (explosions throw ragdolls)
+QVR_TUNABLE(vr_ragdoll_joint_stiffness, "0") // Hz: a spring in each joint pulling it back towards how he stood (0 none; 1-3 a body with some tone left)
+QVR_TUNABLE(vr_ragdoll_limits, "1") // the joints' limits (cone, twist, the knees' and elbows' range) times this (0.25 stiff .. 1.5 loose)
+QVR_TUNABLE(vr_ragdoll_active_strength, "1") // times the joints' strength (0 limp .. 3)
+QVR_TUNABLE(vr_ragdoll_active_hertz, "10") // Hz: a joint's spring towards its pose at full strength (at most 20)
+QVR_TUNABLE(vr_ragdoll_active_damping, "1") // its damping (1: critical)
+QVR_TUNABLE(vr_ragdoll_active_torque, "2") // a joint's motor at full strength: at most this many times the weight of what hangs on it times its lever (a blow or a hand overpowers it)
+QVR_TUNABLE(vr_ragdoll_active_fade, "1") // times how long the strength lasts (his death animation's length: the legs give first, then the torso, the arms, the head)
+QVR_TUNABLE(vr_ragdoll_active_pin, "0.6") // body weights: his pelvis pulled along his death animation's at first (its throw back or forward kept), at most this force; 0 none
+QVR_TUNABLE(vr_ragdoll_active_pin_time, "0.3") // s: and that pull fading out over this
+QVR_TUNABLE(vr_ragdoll_active_stumble, "90") // units/s: dying on the move at least this fast, he stumbles on (carried a moment, a leg stepping ahead); 0 never
+QVR_TUNABLE(vr_ragdoll_active_crawl_force, "1.3") // body weights: his arms' pull along the floor at most
+QVR_TUNABLE(vr_ragdoll_active_dismember_time, "3") // s: how long he writhes holding the stump once down
+QVR_TUNABLE(vr_ragdoll_active_writhe, "1") // times how far his torso and legs stir as he writhes (0 still .. 3)
+QVR_TUNABLE(vr_ragdoll_active_balance_time, "1.2") // s: on one leg, how long he tries to keep his balance at most
+QVR_TUNABLE(vr_ragdoll_active_balance_lean, "15") // degrees: and he falls once leaning this far from how he stood
+QVR_TUNABLE(vr_ragdoll_active_paddle, "4.5") // s: in water he paddles about this long (each 0.8 to 1.2 times it), weakening from a third of it on
+QVR_TUNABLE(vr_ragdoll_active_flail, "1.5") // s: in lava he flails about this long (slime: 1.4 times it; each 0.8 to 1.2 times it)
+QVR_TUNABLE(vr_ragdoll_active_stagger_lean, "30") // degrees: its middle leaning over its feet past this for 0.36 s (or twice it at once), the stagger falls whatever its balance
+QVR_TUNABLE(vr_ragdoll_active_stagger_push, "2") // m/s: a fresh two-hand shove's push on its top (its pelvis carried by its pin, its feet none)
+QVR_TUNABLE(vr_ragdoll_active_stagger_pin, "2") // body weights: its pelvis's pin at most, steady (times 0.2 .. 1 by its balance: the knockdown's chance against the roll; its muscles' hold on its weight and its upright too)
+QVR_TUNABLE(vr_ragdoll_active_stagger_blend, "0.2") // s: recovered, its ragdoll blended into the animated monster over this
+QVR_TUNABLE(vr_ragdoll_active_stagger_settle, "1") // m/s: its backpedal near done (its pin's carry 90% over), slower than this, steady and not mid-step: it has recovered (0.4, from 0.2 s past its carry, before: it froze a moment at its end)
+QVR_TUNABLE(vr_ragdoll_active_stagger_settle_time, "0.35") // s: still up this long past its carry, it has recovered however it moves (1.2 before)
+QVR_TUNABLE(vr_ragdoll_active_stagger_drop, "20") // units: the floor under its pelvis this much lower than where it stood (stepped off a ledge, the top of stairs) a moment: it falls, sure-footed or not (no backpedalling on air); 0: never
+QVR_TUNABLE(vr_ragdoll_active_getup_pin, "2.5") // body weights: its pelvis's pin to the get-up's at most
+QVR_TUNABLE(vr_ragdoll_active_getup_blend, "0.2") // s: risen, its ragdoll blended into the animated monster over this
+QVR_TUNABLE(vr_ragdoll_active_getup_pace, "0.8") // its get-up's frames' speed, times the get-up's own (vr_knockdown_getup_speed)
+QVR_TUNABLE(vr_ragdoll_active_stagger_steps, "6") // a shoved monster's backpedal: at most this many steps back (1..10); one whose balance the shove beat (the knockdown's roll under its chance) gives way after 3 or 4 of them
+QVR_TUNABLE(vr_hit_react_strength, "1") // times the kicks' size (0..3)
+QVR_TUNABLE(vr_hit_react_time, "1") // times how long a kick lasts (its peak at ~74 ms, gone by ~0.5 s; 0.25..4)
 
 // Carrying and Throwing > Rocks and Bricks
 QVR_TUNABLE(vr_debris_chance, "0.1") // the chance a spot at a wall's foot gets a piece (or a few), every 16 units along it, before the limits
@@ -442,6 +546,8 @@ QVR_TUNABLE(vr_shot_push_supernail, "24") // N s, a super nailgun nail's
 QVR_TUNABLE(vr_shot_push_lightning, "6") // N s, each bolt of the lightning gun's beam (10 a second; a shambler's by its damage)
 QVR_TUNABLE(vr_shot_push_speed, "10") // m/s, the most a shot makes what it hits go (light things: a gib, a small gun)
 QVR_TUNABLE(vr_throw_self_grace, "0.35") // s after you throw or let go of a thing before it can hurt you (thrown up, falling back on you; 0: at once)
+QVR_TUNABLE(vr_throw_grab_press, "0.7")
+QVR_TUNABLE(vr_throw_2h_window, "0.2")
 
 // Carrying and Throwing > Wall Torches
 QVR_TUNABLE(vr_walltorch_reach, "15") // cm from a torch's stick (its axis, butt to flame) to the hand's point or its fist's middle within which a hand's grip takes it off its wall though the fist isn't on it (0: only the fist on it)
@@ -624,6 +730,7 @@ QVR_TUNABLE(vr_gunfx_intensity, "1") // how many of them, all (0.25-3; fewer at 
 QVR_TUNABLE(vr_gunfx_turbulence, "1") // how much the gunfire smoke swirls as it spreads (0 none: straight drift; 0-3)
 QVR_TUNABLE(vr_gunfx_shell_trail, "1.6") // every spent casing's smoke trail, times (0 none; 1 the old faint one)
 QVR_TUNABLE(vr_gunfx_heat_light_radius, "48") // a glowing barrel's light's reach in units at full heat (vr_hotblade.cpp)
+QVR_TUNABLE(vr_gunfx_wisp_pixels, "1.5") // the thinnest they are drawn, in pixels (fainter instead: no shimmer far off; 0.5-8)
 
 // Weapons > Weapon Offsets - Flashlight
 QVR_TUNABLE(vr_flashlight_mount_preview, "0") // Weapon Offsets > Flashlight: the torch's place on the page's weapon drawn while the page is shown
@@ -737,7 +844,7 @@ QVR_TUNABLE(vr_adgun_fx_rate, "1.5") // AD support: how often our tongues are ma
 QVR_TUNABLE(vr_adgun_fx_embers, "1") // AD support: embers thrown off the flamethrowers' fire and wisps of dark smoke from it, this many times (0..3; 0 none)
 QVR_TUNABLE(vr_adgun_fx_mist, "1") // AD support: a faint green mist lingering where the poison sprayers' poison went, this many times (0..3; 0 none)
 
-// Combat > Armed Grunts (Experimental)
+// Combat > Armed Grunts
 QVR_TUNABLE(vr_agrunt_reload_time, "1.5") // seconds a reload takes
 QVR_TUNABLE(vr_agrunt_reload_ssg, "0.85") // the double-barrelled shotgun's reload: this share of vr_agrunt_reload_time (his voice note 2026-11-01 18:11: 15% faster)
 QVR_TUNABLE(vr_agrunt_disarm_damage, "10") // a blow's least damage there to disarm it
@@ -919,6 +1026,9 @@ QVR_TUNABLE(vr_bullettime_trails_life, "2") // real seconds a trail's every poin
 QVR_TUNABLE(vr_bullettime_trails_length, "15") // metres: the longest a trail is behind its projectile
 QVR_TUNABLE(vr_bullettime_trails_width, "8") // cm wide (a bullet's and a nail's; rockets and grenades twice, enemies' balls 1.5 times)
 QVR_TUNABLE(vr_bullettime_trails_fade, "1") // real seconds they fade out over after bullet time ends
+QVR_TUNABLE(vr_bullettime_sound_on, "items/inv1.wav") // its sounds (empty: none)
+QVR_TUNABLE(vr_bullettime_sound_off, "items/inv2.wav")
+QVR_TUNABLE(vr_bullettime_sound_denied, "misc/menu2.wav") // pressed with the meter too low or cooling down
 
 // Combat > Burning
 QVR_TUNABLE(vr_walltorch_lean, "1") // how far a swung torch's flame leans and trails behind its motion, times the default (0: always straight up)
@@ -1338,3 +1448,197 @@ QVR_TUNABLE(vr_ad_plasma_push, "70") // a plasma bolt's blast (the Plasma Gun's,
 QVR_TUNABLE(vr_chainsaw_damage, "120") // an ogre's chainsaw (QC vr_chainsaw.qc): damage a second its running chain deals what its bar is in
 QVR_TUNABLE(vr_enfrifle_damage, "16") // an enforcer's laser rifle: each laser's damage (the enforcer's: 15)
 QVR_TUNABLE(vr_weapon_throw_damage_mult, "0.4") // every throw's hit damage times this (weapons, props, boxes, gibs: VR_Thrown_Damage); 1 before 2026-10-02
+
+// Graphics > Liquids - Shoreline Foam
+QVR_TUNABLE(vr_water_foam_frequency, "1.75") // ... how finely its edge and flecks are broken up (0.25..4: more, smaller patches)
+QVR_TUNABLE(vr_water_foam_strength, "1.75") // ... how far it reaches out from the shore (0.25..3, times its width)
+QVR_TUNABLE(vr_water_foam_breathe, "0.45") // ... breathing: how much the band grows and shrinks over time, unevenly along the shore (0 off .. 1, a share of its width)
+QVR_TUNABLE(vr_water_foam_breathe_speed, "2") // ... how fast it breathes (0.1..4; 1: a breath in about 4 seconds)
+QVR_TUNABLE(vr_water_foam_breathe_irregularity, "0.6") // ... how unevenly along the shore (0: all of it together .. 1: each stretch on its own)
+QVR_TUNABLE(vr_water_foam_red, "0.85") // ... its colour, red (0..2; over 1 glows)
+QVR_TUNABLE(vr_water_foam_green, "0.9") // ... green
+QVR_TUNABLE(vr_water_foam_blue, "0.92") // ... blue
+QVR_TUNABLE(vr_water_foam_particle_life, "0.5") // ... how long each lasts, seconds (0.2..4) (0.4 before 2026-10-30, 0.8 before vr_cfg_version 202)
+QVR_TUNABLE(vr_water_foam_particle_opacity, "0.5") // ... how opaque (0..1)
+QVR_TUNABLE(vr_water_foam_particle_size, "1.25") // ... how big (0.25..4, times about 3 units across growing to 9)
+QVR_TUNABLE(vr_water_foam_particle_shore, "-1") // ... where they are born: units out from the shore's line (-4..16; 0 on it, straddling it, a little either side) (his -1, 0 before vr_cfg_version 202)
+QVR_TUNABLE(vr_water_foam_edge, "4") // ... the wavy edge: the liquid's edge at the shore drawn back in slow, drifting curves, the foam following them, so it is not one straight cut: how far, units (0 off .. 12)
+QVR_TUNABLE(vr_lava_foam_frequency, "1.25")
+QVR_TUNABLE(vr_lava_foam_strength, "2.5")
+QVR_TUNABLE(vr_lava_foam_breathe, "0.65")
+QVR_TUNABLE(vr_lava_foam_breathe_speed, "2.7")
+QVR_TUNABLE(vr_lava_foam_breathe_irregularity, "0.7")
+QVR_TUNABLE(vr_lava_foam_red, "1.5")
+QVR_TUNABLE(vr_lava_foam_green, "1.1")
+QVR_TUNABLE(vr_lava_foam_blue, "0.3")
+QVR_TUNABLE(vr_lava_foam_particle_life, "1")
+QVR_TUNABLE(vr_lava_foam_particle_opacity, "0.55")
+QVR_TUNABLE(vr_lava_foam_particle_size, "3.05")
+QVR_TUNABLE(vr_lava_foam_particle_shore, "0")
+QVR_TUNABLE(vr_lava_foam_edge, "3")
+QVR_TUNABLE(vr_slime_foam_frequency, "1.6")
+QVR_TUNABLE(vr_slime_foam_strength, "1.9")
+QVR_TUNABLE(vr_slime_foam_breathe, "0.7")
+QVR_TUNABLE(vr_slime_foam_breathe_speed, "3.4")
+QVR_TUNABLE(vr_slime_foam_breathe_irregularity, "0.6")
+QVR_TUNABLE(vr_slime_foam_red, "0.38")
+QVR_TUNABLE(vr_slime_foam_green, "0.56")
+QVR_TUNABLE(vr_slime_foam_blue, "0.16")
+QVR_TUNABLE(vr_slime_foam_particle_life, "1")
+QVR_TUNABLE(vr_slime_foam_particle_opacity, "0.45")
+QVR_TUNABLE(vr_slime_foam_particle_size, "1")
+QVR_TUNABLE(vr_slime_foam_particle_shore, "0")
+QVR_TUNABLE(vr_slime_foam_edge, "3")
+
+// Gore > Small Gibs
+QVR_TUNABLE(vr_smallgibs_min_damage, "10") // a hit's damage (a shotgun blast's pellets summed) under which none come
+QVR_TUNABLE(vr_smallgibs_full_damage, "35") // the damage from which one always comes (the chance rises from 0 at the least)
+QVR_TUNABLE(vr_smallgibs_curve, "1.7") // the chance's rise from the least damage to the sure one: to this power (1 straight; more: rarer for light hits)
+QVR_TUNABLE(vr_smallgibs_damage_per_gib, "30") // one gib more for each this much damage (with a random part)
+QVR_TUNABLE(vr_smallgibs_per_hit, "6") // most small gibs from one hit
+QVR_TUNABLE(vr_smallgibs_shots, "1") // the chance times this: the shotguns, a grunt's gun
+QVR_TUNABLE(vr_smallgibs_nails, "0.4") // nails, lasers
+QVR_TUNABLE(vr_smallgibs_blades, "1.7") // a blade's edge or point: the axe, a sword, swung or thrown
+QVR_TUNABLE(vr_smallgibs_blunt, "0.3") // punches, a pommel or hilt, a gun or the crowbar swung, Mjolnir, bashes, headbutts
+QVR_TUNABLE(vr_smallgibs_props, "1.2") // a rock, brick or other thing thrown or swung in the fist
+QVR_TUNABLE(vr_smallgibs_explosions, "1") // rockets, grenades, every blast
+QVR_TUNABLE(vr_smallgibs_other, "0.5") // lightning, monsters' blows, the rest
+QVR_TUNABLE(vr_smallgibs_saw_interval, "0.1") // s: the chainsaw tears one out of what it cuts at most this often (always: monster or corpse)
+QVR_TUNABLE(vr_smallgibs_gibbing, "12") // small gibs with a monster's (or corpse's) gibs when it is gibbed
+QVR_TUNABLE(vr_smallgibs_burst, "4") // small gibs a large gib bursts into (a head half as many again)
+QVR_TUNABLE(vr_smallgibs_speed, "3") // m/s they fly out from the hit (randomized by a third)
+QVR_TUNABLE(vr_smallgibs_up, "7") // m/s up (randomized by a third; Quake falls three times as fast as the world)
+QVR_TUNABLE(vr_smallgibs_speed_melee, "1") // Speed times this: a hand's blow: a blade, a punch, a pommel, a thing in the fist; a bash, a headbutt
+QVR_TUNABLE(vr_smallgibs_up_melee, "1") // Up times this
+QVR_TUNABLE(vr_smallgibs_speed_saw, "1") // Speed times this: the chainsaw's chain or swing
+QVR_TUNABLE(vr_smallgibs_up_saw, "1") // Up times this
+QVR_TUNABLE(vr_smallgibs_speed_guns, "1") // Speed times this: shotguns, nails, lasers, lightning, a grunt's gun
+QVR_TUNABLE(vr_smallgibs_up_guns, "1") // Up times this
+QVR_TUNABLE(vr_smallgibs_speed_explosions, "1") // Speed times this: rockets, grenades, every blast
+QVR_TUNABLE(vr_smallgibs_up_explosions, "1") // Up times this
+QVR_TUNABLE(vr_smallgibs_speed_thrown, "1") // Speed times this: a thrown weapon, rock, brick or gib; a projectile batted back
+QVR_TUNABLE(vr_smallgibs_up_thrown, "1") // Up times this
+QVR_TUNABLE(vr_smallgibs_speed_other, "1") // Speed times this: monsters' blows, the rest
+QVR_TUNABLE(vr_smallgibs_up_other, "1") // Up times this
+QVR_TUNABLE(vr_smallgibs_speed_gibbing, "1") // Speed times this: a living monster gibbed (with its gibs' flight at 0.6)
+QVR_TUNABLE(vr_smallgibs_up_gibbing, "0.7") // Up times this
+QVR_TUNABLE(vr_smallgibs_speed_corpse, "1") // Speed times this: a corpse gibbed (with its gibs' flight at 0.6)
+QVR_TUNABLE(vr_smallgibs_up_corpse, "0.7") // Up times this
+QVR_TUNABLE(vr_smallgibs_speed_burst, "1") // Speed times this: a large gib or head burst
+QVR_TUNABLE(vr_smallgibs_up_burst, "1") // Up times this
+QVR_TUNABLE(vr_smallgibs_size_min, "0.65") // their size: from this times a rock's
+QVR_TUNABLE(vr_smallgibs_size_max, "1.15") // to this
+QVR_TUNABLE(vr_smallgibs_mass, "0.3") // kg each (light: thrown, they hurt little)
+QVR_TUNABLE(vr_smallgibs_blow_grace, "0.3") // s after it is made a small gib isn't struck, nudged or pushed by a hand, a weapon or a held thing (the blow that tore it out batted it away)
+QVR_TUNABLE(vr_smallgibs_stomp_speed, "200") // ... landing at least this fast (units/s down: a jump from the same level lands at about 270, a step down under 100)
+QVR_TUNABLE(vr_smallgibs_brains_burst, "16") // brain chunks from a head gib destroyed
+QVR_TUNABLE(vr_smallgibs_brains_pop, "16") // brain chunks from a head pop (a headshot that bursts the head)
+QVR_TUNABLE(vr_smallgibs_brains_size, "0.8") // their size: times the small gibs' (vr_smallgibs_size_min/max)
+QVR_TUNABLE(vr_smallgibs_brains_mass, "0.15") // kg each (lighter than a small gib of meat)
+QVR_TUNABLE(vr_smallgibs_brains_speed, "1.8") // m/s brain chunks fly out of a head burst (their own Speed: vr_smallgibs_speed is the meat gibs'; times vr_smallgibs_speed_burst)
+QVR_TUNABLE(vr_smallgibs_brains_up, "8.2") // m/s up (their own Up; times vr_smallgibs_up_burst)
+QVR_TUNABLE(vr_smallgibs_brains_gloss, "1") // their wet sheen (0 none .. 2), always on: a gloss without the wet coat's darkening, a warm rim (vr_wounds.cpp VR_AliasWetCoat)
+QVR_TUNABLE(vr_smallgibs_brains_jiggle, "1") // they wobble when knocked (a landing, a bounce, a jerk): drawn squashed along the knock and bulged across, a damped spring (vr_brainjiggle.cpp); the kick times this, 0 off
+
+// Debug > Ragdoll Tool - Joint Groups
+QVR_TUNABLE(vr_ragdoll_limits_legs, "1") // the legs' joints' limits times this too (with vr_ragdoll_limits; the next ragdoll made)
+QVR_TUNABLE(vr_ragdoll_limits_torso, "1") // ... the torso's (the spine, a tail)
+QVR_TUNABLE(vr_ragdoll_limits_arms, "1") // ... the arms'
+QVR_TUNABLE(vr_ragdoll_limits_head, "1") // ... the neck's and jaw's
+QVR_TUNABLE(vr_ragdoll_active_hertz_legs, "1") // times vr_ragdoll_active_hertz for the legs' joints
+QVR_TUNABLE(vr_ragdoll_active_hertz_torso, "1") // ... the torso's (the spine, a tail)
+QVR_TUNABLE(vr_ragdoll_active_hertz_arms, "1") // ... the arms'
+QVR_TUNABLE(vr_ragdoll_active_hertz_head, "1") // ... the neck's and jaw's
+QVR_TUNABLE(vr_ragdoll_active_damping_legs, "1") // times vr_ragdoll_active_damping for the legs' joints
+QVR_TUNABLE(vr_ragdoll_active_damping_torso, "1") // ... the torso's
+QVR_TUNABLE(vr_ragdoll_active_damping_arms, "1") // ... the arms'
+QVR_TUNABLE(vr_ragdoll_active_damping_head, "1") // ... the neck's and jaw's
+QVR_TUNABLE(vr_ragdoll_active_torque_legs, "1") // times vr_ragdoll_active_torque (a motor's most force) for the legs' joints
+QVR_TUNABLE(vr_ragdoll_active_torque_torso, "1") // ... the torso's
+QVR_TUNABLE(vr_ragdoll_active_torque_arms, "1") // ... the arms'
+QVR_TUNABLE(vr_ragdoll_active_torque_head, "1") // ... the neck's and jaw's
+
+// Movement > Grappling Hook
+QVR_TUNABLE(vr_grapple_rope_spacing, "4") // units between the simulated rope's points (finer: truer round edges, more work; a long rope's are farther apart: 96 points at most)
+QVR_TUNABLE(vr_grapple_rope_iterations, "32") // passes a frame holding its pieces to their length (more: stiffer, truer, more work)
+QVR_TUNABLE(vr_grapple_rope_radius, "4") // the simulated rope's thickness (units, half of it): how far from what it lies on
+QVR_TUNABLE(vr_grapple_rope_tail, "6") // units (times the hook's size) the drawn rope goes straight out of the hook's back before it bends (its last pieces point into the hook); 0: none
+QVR_TUNABLE(vr_grapple_rope_depth, "2") // units inside the grappling gun's muzzle the rope is drawn from (in a hand, and a gun lying about)
+QVR_TUNABLE(vr_grapple_loose_slack, "8") // units of slack the rope gets when the hook comes off (a loose hook lying there is not dragged by a step)
+QVR_TUNABLE(vr_grapple_unreel_slack, "256") // units of slack the unreel (A/X) pays out beyond the load's distance when nothing pulls on the rope (you or the load on the ground): the rope comes off the drum and lies there; hanging, the load takes it out as ever. 4: the old unreel (nothing seen on the ground)
+QVR_TUNABLE(vr_grapple_reel_home, "5") // units from the rope's end at the muzzle the loose hook's tail is reeled to before it goes back in (it was 9)
+QVR_TUNABLE(vr_grapple_load_drag, "1") // a second: how much of its speed a load on the rope loses to the air (its swing relative to you; a gun hanging on its own: all of it), so a swing dies down
+QVR_TUNABLE(vr_grapple_hang_drag, "1") // a second: how much of its speed what hangs on a rope with no one holding it loses (a gun left hanging from a ceiling: it stops swinging in a couple of seconds)
+QVR_TUNABLE(vr_grapple_load_max_speed, "500") // units/s: the fastest a load on the rope moves relative to you (no rope of death); 0: no limit
+QVR_TUNABLE(vr_grapple_move_share, "0.7") // the share of your walking (the thumbstick) a load hanging on the rope takes (the loose hook, a hooked prop): it trails a little rather than lagging far behind and snapping forward; 0: none
+QVR_TUNABLE(vr_grapple_front_button_x, "6") // its place: from the back button along the gun (model units; +x towards the muzzle)
+QVR_TUNABLE(vr_grapple_front_button_y, "0")
+QVR_TUNABLE(vr_grapple_front_button_z, "0")
+QVR_TUNABLE(vr_grapple_hook_scale, "0.6") // the size of the hook the grappling gun fires (its model; 1: Rogue's, too big for the gun), on the next shot
+QVR_TUNABLE(vr_grapple_prop_light, "8") // kg up to which props come in at that speed; heavier, slower in proportion (40 kg: a fifth)
+QVR_TUNABLE(vr_grapple_prop_anchor, "100") // kg from which a prop does not come: the reel pulls you to it
+QVR_TUNABLE(vr_grapple_small_mass, "120") // kg (QC VR_Grapple_MonsterMass) up to which a monster is small: pulled fast, staggered
+QVR_TUNABLE(vr_grapple_huge_mass, "400") // kg from which a monster is huge: the reel pulls you to it (in between: medium)
+QVR_TUNABLE(vr_grapple_tow_light, "10") // kg up to which a hooked prop dragged along on a taut rope doesn't slow you; heavier, you drag it slower in proportion (40 kg, an explosive box: a quarter as fast)
+
+// HUD and Menus > Other
+QVR_TUNABLE(vr_gear_lights_sound_on, "vr/gadget_click_on.wav") // the button's clicks (empty: none)
+QVR_TUNABLE(vr_gear_lights_sound_off, "vr/gadget_click_off.wav")
+QVR_TUNABLE(vr_menu_grab_reach, "3") // a held menu panel: the hand's move towards or away from it counts this many times (1: as the hand moves)
+QVR_TUNABLE(vr_menu_grab_dist_min, "30") // cm: nearest a held menu panel can be pulled to the head
+QVR_TUNABLE(vr_menu_grab_dist_max, "600") // cm: farthest it can be pushed (a panel taken farther stays that far at most)
+QVR_TUNABLE(vr_menu_grab_deadzone, "4") // cm a hand moves with a grip held on the panel's face before it takes hold of the panel (vr_menu_grab 2)
+
+// Combat > Armed Grunts - Worn Backpacks
+QVR_TUNABLE(vr_worn_backpack_rip_time, "0.04") // worn backpacks: the pull kept past vr_worn_backpack_rip_force this long (s) tears it off (a yank, not a jolt)
+QVR_TUNABLE(vr_worn_backpack_rip_stiffness, "150") // worn backpacks: N a unit of the held point's lag behind the hand (the stretch's share of the pull)
+
+// Debug > Tests
+QVR_TUNABLE(vr_climb_prop_pull, "40") // kg: the most weight a hand on a light prop pulls it with (the player's, vr_box3d_player_mass, shared by the holding hands, towards the body; a body over the hold presses it down)
+QVR_TUNABLE(vr_climb_prop_tilt, "10") // degrees: a held prop's top turned this far from how it lay when taken lets the hand go (it tipped over)
+QVR_TUNABLE(vr_climb_prop_slip, "6") // units: a light prop's hold moved this far from where it was taken lets the hand go (pulled off its stack, slid away)
+QVR_TUNABLE(vr_climb_prop_letgo_speed, "200") // units/s: a held prop's hold whose speed changes this much in a frame lets the hand go (knocked away: a blast, a hit)
+QVR_TUNABLE(vr_hull_build_mb, "1024") // the memory the world's compiled hulls' builds at a load may hold at once (MB, estimated: 16 KB a brush of the world's a tree; vrstart: about 330 MB a tree, three at once): a build past it waits for one to end (one always runs); 0: no limit (vrstart's seven at once: about 1 GB more working set, 5-10% quicker)
+
+// Debug > Profiling and Memory
+QVR_TUNABLE(vr_heap_load_hold, "60000") // ms a map load keeps the memory it frees for its own later allocations (the heap's purge delay while it loads, vr_crtheap.c), all given back at its first frame drawn: 0 off (purged as vr_heap_purge_delay says; vrstart's hull build 1.7x slower)
+QVR_TUNABLE(vr_image_cache_mb, "512") // decoded image files (a texture pack's world textures, material maps, skies, skins) kept across map loads, up to this many MB (vr_imgcache.cpp: keyed by the file itself; the least recently used go first; vr_image_cache_info); 0: none kept, each load decodes them again
+
+// Debug > Reports
+QVR_TUNABLE(vr_anim_smooth_rig_error, "1.5") // ... a bone whose fit to a frame is off by more than this (rms, units) isn't swung between it and its neighbours; a vertex off its bone by more swings less (none at twice it)
+QVR_TUNABLE(vr_anim_smooth_rebuild_error, "0.5") // ... a vertex off its bone's fits by more than this (rms over the frames, units) is rebuilt less (not at twice it); a model with too few vertices rebuilt draws as before
+
+// Gore > Blood Streams
+QVR_TUNABLE(vr_gore_streams_chance, "0.6") // the chance a shot or a nail (each pellet) opens one
+QVR_TUNABLE(vr_gore_streams_melee_blunt, "0.6") // the chance your blunt blow opens one (the crowbar, a punch, a pommel, a gun)
+QVR_TUNABLE(vr_gore_streams_per_body, "4") // most on one body (a new one takes the weakest's place)
+QVR_TUNABLE(vr_gore_streams_max, "24") // most in all (0-64)
+QVR_TUNABLE(vr_gore_streams_time, "7") // seconds one pours, about (weakening all along)
+QVR_TUNABLE(vr_gore_streams_speed, "50") // units/s it leaves the wound at, at its strongest
+QVR_TUNABLE(vr_gore_streams_spread, "35") // degrees: each stream's way out turned at random up to this far from the wound's (one shotgun blast's streams diverge)
+QVR_TUNABLE(vr_gore_streams_speed_var, "0.5") // each stream's force times a random 1 +- this (0: all alike)
+QVR_TUNABLE(vr_gore_streams_wobble, "15") // degrees: each stream's way out wanders this far as it pours (slow noise; 0: steady)
+QVR_TUNABLE(vr_gore_streams_wobble_rate, "0.7") // how fast it wanders (about this many swings a second)
+QVR_TUNABLE(vr_gore_streams_thickness_var, "0.85") // how much its thickness varies as it pours (and so along it): 0 steady, 1 from a trickle to double
+QVR_TUNABLE(vr_gore_streams_thickness_rate, "1.3") // how fast its thickness changes (about this many swells a second)
+QVR_TUNABLE(vr_gore_streams_spurt_rate, "70") // drops a second at its strongest (fewer as it weakens)
+QVR_TUNABLE(vr_gore_streams_spurt_cone, "15") // degrees round its way out they spurt in
+QVR_TUNABLE(vr_gore_streams_spurt_speed, "1.35") // their speed, times the stream's
+QVR_TUNABLE(vr_gore_streams_spurt_life, "0.4") // seconds they live (fading all along), about
+QVR_TUNABLE(vr_gore_streams_spurt_outliers, "0.12") // the share of them that live longer,
+QVR_TUNABLE(vr_gore_streams_spurt_outlier_life, "1.15") // this many seconds, about
+QVR_TUNABLE(vr_gore_streams_spurt_size, "0.525") // units across, about (1 unit: 3.8 cm)
+QVR_TUNABLE(vr_gore_streams_splash_size, "1.25") // their size, times the spurts'
+QVR_TUNABLE(vr_gore_streams_smooth, "0.25") // seconds the body's motion at the wound, and its way out, are smoothed over: the animation's jumps don't fling it into ribbons (0: none)
+QVR_TUNABLE(vr_gore_streams_inherit, "0.35") // the share of the body's (smoothed) motion it and its spurts take (0.7 before; 1 as a real one)
+QVR_TUNABLE(vr_gore_streams_break, "4") // a piece of it stretched to this many times its length as poured breaks off (fading from half that), and it is cut where the wound jumps (0: never)
+
+// Gore > Bloody Footprints and Handprints
+QVR_TUNABLE(vr_footprint_count, "16") // ... this many after it (1..32) (his 16, 8 before vr_cfg_version 184)
+QVR_TUNABLE(vr_footprint_size, "1.6") // ... times your foot's size (0.5..2)
+QVR_TUNABLE(vr_handprint_count, "8") // ... at most this many from a hand soaked full, fainter as its blood is used up (1..32) (his 8, 6 before vr_cfg_version 185)
+QVR_TUNABLE(vr_handprint_size, "1.6") // ... times your hand's size (0.5..2)
+
+// Gore > Sticking
+QVR_TUNABLE(vr_gore_stick, "8") // gibs flung into a ceiling or a wall may stick there about this many seconds, then fall (0 never)
+QVR_TUNABLE(vr_gore_stick_speed, "20") // units/s a gib must strike a wall or a ceiling at to stick (flung or thrown)

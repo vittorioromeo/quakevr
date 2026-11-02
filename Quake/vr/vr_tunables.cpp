@@ -57,6 +57,11 @@ void tunablesLoad()
 {
 }
 
+cvar_t* settingByName(const char* name)
+{
+    return Cvar_FindVar(name); // (a release's constants are constants)
+}
+
 } // namespace qvr
 
 extern "C" int VR_TunableSetVar(cvar_t* var, const char* value)
@@ -175,7 +180,6 @@ bool fileLoaded = false; // tunables.cfg read (until then it is not written: it 
 bool fileDirty = false;  // a constant set since it was read or written
 
 cvar_t vr_tunables_show_changed = {"vr_tunables_show_changed", "0", CVAR_NONE}; // the Tunables page: changed ones only
-cvar_t vr_tunables_page = {"vr_tunables_page", "0", CVAR_NONE}; // the Tunables page: one page's (its group, from 1)
 
 [[nodiscard]] bool numeric(const char* s)
 {
@@ -417,6 +421,16 @@ const cvar_t* tunableFind(const char* name)
     return id >= 0 ? &tunableStandIns[id] : nullptr;
 }
 
+cvar_t* settingByName(const char* name)
+{
+    if(cvar_t* var = Cvar_FindVar(name))
+    {
+        return var;
+    }
+    const int id = tunableIndex(name);
+    return id >= 0 ? &tunableStandIns[id] : nullptr;
+}
+
 int tunableIndex(const char* name)
 {
     for(int id = 0; id < tunableCount; id++)
@@ -537,12 +551,6 @@ void tunablesInit()
     }
     Cmd_AddCommand("vr_tunables_test", tunablesTest_f);
     Cvar_RegisterVariable(&vr_tunables_show_changed);
-    Cvar_RegisterVariable(&vr_tunables_page);
-}
-
-cvar_t& tunablesPageCvar()
-{
-    return vr_tunables_page;
 }
 
 cvar_t& tunablesShowChangedCvar()

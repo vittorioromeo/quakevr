@@ -1150,16 +1150,16 @@ void onWound(int ent, const glm::vec3& at, const glm::vec3& dir, int kind, int a
     {
         return;
     }
-    const cvar_t& chance = kind != 3              ? vr_gore_streams_chance
-                           : melee == MeleeBlade  ? vr_gore_streams_melee_blade
-                           : melee == MeleeBlunt  ? vr_gore_streams_melee_blunt
-                                                  : vr_gore_streams_thrown_blade;
+    const float chance = kind != 3             ? vr_gore_streams_chance.value
+                         : melee == MeleeBlade ? vr_gore_streams_melee_blade.value
+                         : melee == MeleeBlunt ? vr_gore_streams_melee_blunt.value
+                                               : vr_gore_streams_thrown_blade.value;
     const int tally = kind == 3 ? melee - 1 : -1;
     if(tally >= 0)
     {
         meleeTally.seen[tally]++;
     }
-    if(vrand::range(rng, 0.f, 1.f) >= za::clamp(chance.value, 0.f, 1.f))
+    if(vrand::range(rng, 0.f, 1.f) >= za::clamp(chance, 0.f, 1.f))
     {
         return;
     }

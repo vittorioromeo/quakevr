@@ -1093,9 +1093,11 @@ struct RagdollClass
     za::Array<cvar_t*, static_cast<za::SizeT>(Tune::Count)> own;
 };
 
-inline const za::Array<cvar_t*, static_cast<za::SizeT>(Tune::Count)> ragdollGlobals{&vr_ragdoll_start, &vr_ragdoll_mass,
-    &vr_ragdoll_friction, &vr_ragdoll_joint_friction, &vr_ragdoll_joint_stiffness, &vr_ragdoll_limits, &vr_ragdoll_damping,
-    &vr_ragdoll_blast, &vr_ragdoll_inherit};
+// The global values the classes' own fall back to (their values: the settings' and the tuning constants' alike).
+inline const za::Array<const float*, static_cast<za::SizeT>(Tune::Count)> ragdollGlobals{&vr_ragdoll_start.value,
+    &vr_ragdoll_mass.value, &vr_ragdoll_friction.value, &vr_ragdoll_joint_friction.value,
+    &vr_ragdoll_joint_stiffness.value, &vr_ragdoll_limits.value, &vr_ragdoll_damping.value, &vr_ragdoll_blast.value,
+    &vr_ragdoll_inherit.value};
 
 inline const RagdollClass ragdollClasses[] = {
     {"monster_army", "progs/h_guard.mdl",

@@ -5,7 +5,8 @@
 #     values put back and the file read again; quit writes it (only the changed ones);
 #   tune_promote.py --check on it: the three would be promoted into vr_tunables.inc (a copy; nothing edited);
 #   run 2 (a new start, QVR_KEEP_TUNABLES=1: run.ps1 keeps run 1's file): the three read from tunables.cfg,
-#     tune_reset <name> and tune_reset; quit removes the file. Then it is left empty (an empty file reads as none).
+#     tune_reset <name> and tune_reset; quit removes the file. Then it is left empty (an empty file reads as none);
+#     and Debug > Tunables' submenus (vr_tunables_tree): every constant on one, reached from the Tunables page.
 # Ends on the verdict line "tunables_test: N passed, M failed"; exits 1 on a failure.
 AGENT=${1:?worktree name}
 KIT=${KIT:-C:/OHWorkspace/qvr-kit}
@@ -28,10 +29,12 @@ PROMOTE=$(python $TREE/Misc/quakevr/tune_promote.py "$CFG" --check)
 echo "$PROMOTE" | tail -1
 echo "$PROMOTE" | grep -q "^tune_promote: 3 promoted, 0 unchanged, 0 unknown" && PASS=$((PASS + 1)) || FAIL=$((FAIL + 1))
 
-OUT2=$(QVR_KEEP_TUNABLES=1 bash $KIT/run.sh $AGENT -Script "vr_tunables_test checkloaded;vr_tunables_test reset;vr_tunables_test done;toggleconsole;quit" \
-    -Filter "^tunables_test:|rror|CRASH" -QuitOn "^tunables_test: [0-9]+ passed" -Timeout 120 2>&1 | grep -v "^$")
+OUT2=$(QVR_KEEP_TUNABLES=1 bash $KIT/run.sh $AGENT -Script "vr_tunables_tree;vr_tunables_test checkloaded;vr_tunables_test reset;vr_tunables_test done;toggleconsole;quit" \
+    -Filter "^tunables_test:|^tunables tree:|rror|CRASH" -QuitOn "^tunables_test: [0-9]+ passed" -Timeout 120 2>&1 | grep -v "^$")
 echo "$OUT2" | grep -v "PASS"
 echo "$OUT2" | grep -q "^tunables_test: [1-9][0-9]* passed, 0 failed" && PASS=$((PASS + 1)) || FAIL=$((FAIL + 1))
+echo "$OUT2" | grep "^tunables tree:"
+echo "$OUT2" | grep -q "^tunables tree: .*: PASS" && PASS=$((PASS + 1)) || FAIL=$((FAIL + 1))
 if [ -f "$CFG" ]; then
     echo "tunables_test: FAIL $CFG still there after tune_reset and quit"; FAIL=$((FAIL + 1))
 else

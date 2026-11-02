@@ -2248,7 +2248,7 @@ float headPropMass(const char* model)
         return 0.f;
     }
     const auto i = static_cast<za::SizeT>(Tune::Mass);
-    const float mass = za::max(c->own[i]->value >= 0.f ? c->own[i]->value : ragdollGlobals[i]->value, 1.f);
+    const float mass = za::max(c->own[i]->value >= 0.f ? c->own[i]->value : *ragdollGlobals[i], 1.f);
     return za::max(mass * limbmass::headShare * scale, 0.05f);
 }
 

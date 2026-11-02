@@ -656,7 +656,7 @@ void save_f()
     int changed = 0;
     for(const ragtool::Param& p : params)
     {
-        const cvar_t* v = Cvar_FindVar(p.cvar);
+        const cvar_t* v = settingByName(p.cvar); // (a setting or a tuning constant)
         if(!v)
         {
             continue;
@@ -688,9 +688,9 @@ void load_f()
         char cvar[128], value[256];
         if(sscanf(line, "%127s \"%255[^\"]\"", cvar, value) == 2 && cvar[0] != '/')
         {
-            if(Cvar_FindVar(cvar))
+            if(cvar_t* v = settingByName(cvar))
             {
-                Cvar_Set(cvar, value);
+                Cvar_SetQuick(v, value);
                 set++;
             }
         }
@@ -705,7 +705,7 @@ void params_f()
     int missing = 0, changed = 0;
     for(const ragtool::Param& p : params)
     {
-        const cvar_t* v = Cvar_FindVar(p.cvar);
+        const cvar_t* v = settingByName(p.cvar); // (a setting or a tuning constant)
         missing += v ? 0 : 1;
         const bool differs = v && v->default_string && strcmp(v->string, v->default_string) != 0;
         changed += differs ? 1 : 0;
@@ -725,7 +725,7 @@ void reset_f()
     int n = 0;
     for(const ragtool::Param& p : params)
     {
-        cvar_t* v = Cvar_FindVar(p.cvar);
+        cvar_t* v = settingByName(p.cvar);
         if(v && v->default_string && (only < 0 || only == p.group))
         {
             Cvar_SetQuick(v, v->default_string);

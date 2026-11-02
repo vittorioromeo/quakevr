@@ -1682,11 +1682,14 @@ bool shoreSeen(const ShoreSegment& s)
 namespace
 {
 
-// Each liquid's foam settings (FoamLook), water's, lava's, slime's.
+// Each liquid's foam (FoamLook), water's, lava's, slime's: its settings (on, opacity, particles) and its look's tuning
+// constants (vr_tunables.inc, "Graphics > Liquids - Shoreline Foam").
 struct FoamCvars
 {
-    cvar_t *on, *opacity, *frequency, *strength, *breathe, *breatheSpeed, *breatheIrregularity, *red, *green, *blue,
-        *particles, *particleLife, *particleOpacity, *particleSize, *particleShore, *edge;
+    cvar_t *on, *opacity;
+    const Tunable *frequency, *strength, *breathe, *breatheSpeed, *breatheIrregularity, *red, *green, *blue;
+    cvar_t* particles;
+    const Tunable *particleLife, *particleOpacity, *particleSize, *particleShore, *edge;
 };
 const FoamCvars foamCvars[3] = {
     {&vr_water_foam_on, &vr_water_foam_opacity, &vr_water_foam_frequency, &vr_water_foam_strength, &vr_water_foam_breathe,

@@ -6236,3 +6236,49 @@ rewrite. "Yes, add the rule."
 - **Test:** 99 of 99 twins build (60 a ported pass's), `100 passed, 0 failed`; selfchecks 4/4 PASS. Proven to catch a
   break: a sprites shader broken under `QVR_MULTIVIEW` gave two FAIL lines; allow-listed, a pass with its `allowed` line.
   No rendering change, no default changed.
+
+## Option cleanup A: Tunables in submenus; the audit's low-risk moves (branch `agent/opttune`, his words 2026-11-02)
+
+His items 1 and 2 (OPTION_AUDIT_1102.md): "Keep the tunables menu tidy -- ... use submenus like we did for when the
+tunables were cvars", and the audit's low-risk moves.
+
+- **Debug > Tunables in submenus** (vr_menu_tunables.inc): made from the rows' group labels, nothing written by hand.
+  `QVR_TUNABLE_GROUP("Combat > Armed Grunts - AI Behaviour")` is Tunables > Combat > Armed Grunts > AI Behaviour (each
+  part at " > " or " - " a page; "Body > Body" is the Body page; one label in two places is one page). The top pages in
+  the Advanced VR Options' order, each page's "Other" last; a link says how many constants are below it and how many
+  are changed. Four pages carry the depths (`pageTunablesAt<1..4>`, titled with the submenu shown: `tunablesTitle`).
+  The Page filter (`vr_tunables_page`) is gone; Show: Changed Only lists the changed ones flat on the Tunables page;
+  Search still indexes every row there and opens the row's submenu (`tunablesSearchTarget`). The 130 constants that
+  never had a row ("Other") are split into an "Other" per system (Weapons, Carrying and Throwing, Combat, Graphics...).
+  Check: `vr_tunables_tree [list]` ("tunables tree: ... N of N constants reached, 0 twice ...: PASS"), now a stage of
+  tunables_test.sh.
+- **Rows named by text find tuning constants too** (`settingByName`, vr_tunables.cpp): the menus' by-name sliders and
+  cycles, the Ragdoll Tool's registry (its pages, save, load, reset, params) and the ragdoll tests' blockers. In a
+  development build a constant's stand-in, set live (Cvar_SetQuick -> tunableSet); a release has only the settings.
+  `vr_ragtool_params`: 101 settings, 0 missing.
+- **Moved to tuning constants (218, same defaults; their config lines ignored, their migration rows gone):**
+  Shoreline Foam's look (39: each liquid's frequency, strength, breathing x3, colour x3, particle life, opacity, size,
+  shore, wavy edge; On, Opacity and Particles stay settings); Small Gibs' numbers (48 sliders; `vr_smallgibs`, `_max`,
+  `_time`, `_grace` (a QC test sets it) and the switches stay); Ragdolls' numbers (35) and the Ragdoll Tool's joint
+  groups (16, `vr_ragdoll_{limits,active_hertz,active_damping,active_torque}_<group>`); the grappling hook rope's
+  drawing and physics (21: rope spacing, iterations, radius, tail, depth, slacks, reel home, drags, load speed cap, move
+  share, front button place, hook scale, mass bands, tow light; its lengths and speeds stay); the unmenued singles (21:
+  bullet time and gear-light sounds, `vr_throw_grab_press`, `vr_throw_2h_window`, `vr_2h_spread_reduction`,
+  `vr_2h_cup_stock`, `vr_item_float_height`, `vr_gunfx_wisp_pixels`, `vr_seated_crouch_ease`, `vr_shadow_precision`,
+  `vr_extmaps_green`, `vr_mirror_unfocused_hz`, `vr_worn_backpack_rip_time/_stiffness`, `vr_menu_grab_*` x4); the
+  Debug pages' thresholds (9: `vr_climb_prop_*` x4, `vr_hull_build_mb`, `vr_heap_load_hold`, `vr_image_cache_mb`,
+  `vr_anim_smooth_rig_error/_rebuild_error`); Gore's streams, prints and sticking (29). Each under its old page's
+  submenu. C++ that held them as `cvar_t*` holds `const Tunable*` (foam, joint groups) or `const float*`
+  (`ragdollGlobals`, settings and constants alike).
+- **Kept settings, against the audit:** the flashlight grip curls (Manual grip's sliders on the Low and Overhead Grip
+  pages: a player's, like their siblings), `vr_heavy_damping_min` (a Weapon Weights row). Not moved, not in his brief's
+  list: Fire Particles, Loot Beams (section 6's other "-> tunables").
+- **Not saved any more (CVAR_NONE):** `vr_xr_log_timing`, `vr_memstats_log`, `vr_memstats_log_gpu`,
+  `vr_probe_test_spawn`, `vr_mg3_ghost_alpha`, `vr_mg3_aggro_groups`, `vr_renderdoc_delay/_frames/_hide_menu`,
+  `vr_menu_body_clone`.
+- **Menu levels:** Developer level for the never-moved numeric rows of Gore (49 left after the moves, its 10 sound
+  volumes among them), Decapitation (25), Swimming (17), Survival Arena (1), Screens (18) and Knockdowns (15); Doom on
+  the Wrist Gadget's 10 numeric rows at Advanced. Armed Grunts, AI Behaviour, Holster Zones and Melee untouched.
+- **Test:** tunables_test.sh 6/6 stages (20 checks, the tree PASS: 1391 of 1391 reached); Search opens a constant's
+  submenu (vr_ragdoll_active_hertz_legs: "Joint Groups", Water Wavy Edge: "Shoreline Foam"); `vr_menu_path_check
+  maps/vrcalibration.map` 0 missing; menu_paths.txt regenerated.
