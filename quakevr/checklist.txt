@@ -121,6 +121,10 @@ Fire a nail pistol's clip out: its slide locks open and the ammo screen stays fl
 Feminine voice on: the grunt of a body, leg or backpack lift and of a throw is a woman's, as high as your jump's grunt.
 An armed death knight with a gun fires it and casts from his off hand's palm about every other attack (Gun Cast Cooldown 3 s; Debug > Tests > Death Knight's Gun and Casts); a group's first volleys come apart.
 Models lit from all sides (Graphics > Models and Effects, `vr_model_light_grid`): foes on dark floors under lit walls are visible, bright floors no longer make them glow, and no pop crossing floor seams; 0 restores the old look. {test:e1m1}
+Enemies' footsteps (Debug > Tests > Enemy Footsteps Walkabout) land on their feet, and you can place them by ear with your eyes shut.
+Walking enemies are soft, running ones louder and carry further.
+Boots for grunts and enforcers, metal for knights, wet feet for zombies, heavy thuds for ogres, fiends and shamblers: do they sound right?
+In a big crowd only the nearest few are heard, with no machine-gunning.
 
 [2. Armed humanoids: disarming and armour]
 Show Disarm Volumes: the wireframe hulls sit on each drawn weapon (magenta, orange, red; the sword's orange line along its blade) and on the drawn hand and forearm (cyan). {test:disarm_hulls_melee}
