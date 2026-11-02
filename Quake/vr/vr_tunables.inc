@@ -1113,6 +1113,9 @@ QVR_TUNABLE(vr_enemy_aim_angle, "20") // Combat > Enemy Melee > Aim Cone: degree
 QVR_TUNABLE(vr_enemy_aim_fire, "40") // Combat > Enemy Melee > Fire Cone: degrees each side of its facing you must be inside for it to shoot at once (else it waits, turning; times the kind's multiplier too)
 QVR_TUNABLE(vr_enemy_aim_delay, "0.3") // Combat > Enemy Melee > Max Delay: seconds a shot waits at most with you outside its fire cone (turning after you meanwhile), then fires clamped; 0: no wait
 
+// Player > Footsteps (vr_playersteps.cpp)
+QVR_TUNABLE(vr_footstep_player_turn_vol, "0.35") // a standing step (turning on the spot, moving in the room), times a step's volume (0: none)
+
 // Combat > Enemy Footsteps (vr_footsteps.cpp)
 QVR_TUNABLE(vr_footstep_volume, "0.9") // all of them, times this (0: none)
 QVR_TUNABLE(vr_footstep_walk_speed, "30") // units/s: a pace this slow or slower is a walk's volume and carry

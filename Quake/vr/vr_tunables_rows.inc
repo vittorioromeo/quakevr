@@ -1116,6 +1116,8 @@ QVR_TUNABLE_SLIDER(vr_enemy_aim_angle, "Aim Cone", 5.0f, 60.0f, 1.0f, "%.0f deg"
 QVR_TUNABLE_SLIDER(vr_enemy_aim_fire, "Fire Cone", 10.0f, 120.0f, 5.0f, "%.0f deg", 10.0f, 120.0f, "You inside this cone ahead of it, it fires at once (bent at most its aim cone); outside it, it waits for itself to turn, up to Max Delay. Times the kind's multiplier too.")
 QVR_TUNABLE_SLIDER(vr_enemy_aim_delay, "Max Delay", 0.0f, 1.0f, 0.05f, "%.2f s", 0.0f, 1.0f, "How long a shot waits at most with you outside its fire cone, the monster turning after you meanwhile. Then it fires anyway, bent toward you at most its aim cone. 0: no wait.")
 
+QVR_TUNABLE_GROUP("Player > Footsteps")
+QVR_TUNABLE_SLIDER(vr_footstep_player_turn_vol, "Standing Step Volume", 0.0f, 1.0f, 0.05f, "%.2fx", 0.0f, 1.0f, "A standing step (turning on the spot, moving in the room) on the drawn feet, times a walking step's volume (0: none).")
 QVR_TUNABLE_GROUP("Combat > Enemy Footsteps")
 QVR_TUNABLE_SLIDER(vr_footstep_volume, "Volume", 0.0f, 2.0f, 0.05f, "%.2fx", 0.0f, 4.0f, "All the enemies' footsteps, times this (0: none).")
 QVR_TUNABLE_SLIDER(vr_footstep_walk_speed, "Walking Speed", 0.0f, 100.0f, 5.0f, "%.0f u/s", 0.0f, 400.0f, "A pace this slow or slower has a walk's volume and carry.")

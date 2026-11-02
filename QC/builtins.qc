@@ -587,6 +587,7 @@ float(entity t) torchflametouch = #0;
 // parts selects eligible contacts (15 hands/arms, 48 torso/legs/head, 63 all).
 // A negative radius only requests tracked body shapes for the next frame (returns 0).
 float(entity p, vector a, vector b, float radius, float parts) mapflametouch = #0;
+float(entity p) playerstepsilent = #0; // QVR: the old footsteps' trigger: this player's step is the drawn feet's now, or just was (vr_playersteps.cpp)
 
 float(string s) cvar_hmake = #0;
 float(float h) cvar_hget = #0;

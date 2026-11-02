@@ -195,11 +195,12 @@ the rest of the port was. Only the feel needs the headset.
     the side of the turn steps back under the body and the other squares up after it; steps quicken during a fast
     smooth turn, and a foot left more than 25 degrees past the limit pivots round. The knees point between the
     body's and the feet's forward. Walking (`vr_body_walk`), a gait cycle: the planted foot goes back at an even
-    pace, the other swings forward, lifted. The cadence is the speed over the stride (so the planted foot keeps
-    up) but at most `vr_body_step_rate` (2.2) steps a second at full running speed (70% of that when slow): Quake's
-    10 m/s would otherwise spin the legs. At speed the cap rises to a person's cadence there (the bloody footprints'
-    steps, `avatar::personStep`: a run's ~5.2 a second) as far as `vr_body_step_run` (1) says. No stair or slope
-    traces yet.
+    pace, the other swings forward, lifted. The cadence is `vr_body_step_rate` (4.9) steps a second at a full run;
+    below it a share of that, falling as a person's cadence does (the bloody footprints' steps,
+    `avatar::personStep`) as far as `vr_body_step_run` (1) says (0: even, 70% at the slowest). Never more than the
+    speed over the stride (`vr_body_stride` times the speed's stride), so the planted foot never runs ahead of the
+    ground. At a run it slides: Quake's 10 m/s would otherwise spin the legs. Each foot walks `vr_body_step_width`
+    further out than it stands. No stair or slope traces yet.
   - The head and neck are collapsed, so the eyes are never inside them.
 - **Modes:** `vr_body_mode` (Options > VR Settings > Body):
   - 0: off;

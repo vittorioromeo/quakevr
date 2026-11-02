@@ -6820,3 +6820,84 @@ Checked: `vr_menu_bigfont 0` against 1 in one run: only the rows change (659 sam
 Multiplayer; titles equal); `vr_font_outline`, its colour and `vr_font_shadow_x/y` changed on the open menu show on the next frame;
 `vr_mock_mouse 100 95` and `100 115` put the cursor on Hard and Nightmare, beside their rows. Not run with a real mod's picture.
 - **Checklist:** [skillfont] Difficulty menu (Play Custom Map, pick a map), Single Player and Multiplayer: the big rows have the same outline and shadow as the main menu's; change Menu > Fonts and they follow at once.
+
+## The player's walk: a step rate that does what it says, stride sliders, footsteps on the feet (branch `agent/playersteps`)
+
+His words (2026-11-02): "vr_body_step_rate" doesn't seem to affect the rate as I expect, is there any clamping going on? I
+would also like to be able to tweak the stride width and make player footsteps actually match the moving feet (optional, on
+by default).
+
+**The clamping, measured** (steps counted over 2 s on vrarena's flat floor, mock stick, about his height's body scale; the
+count's grain is 0.5/s; the new default over 3 s). The old rule: `min(speed / stride, max(cap, Running Cadence * person))`, with
+`cap = Step Rate * (0.7 + 0.3 run)` and Step Rate clamped to 0.5 .. 6 (menu 1 .. 5). `person` is 4.9 at a full run and 3.5 at
+190 u/s, so the cap only counted above that: from 2.2 to 3 nothing moved at those speeds, and 7 (6 by the clamp) gave 5.5 at
+a run.
+
+| stick, speed | old 2.2 (default) | old 3 | old 7 | new 3 | new 4.9 (default) | new 7 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 0.3, about 75 u/s | 2.5 | 2.0 | 4.0 | 1.0 | 2.67 | 3.5 |
+| 0.6, about 190 u/s | 3.5 | 3.5 | 4.5 | 2.5 | 3.67 | 4.5 |
+| 1, 320 u/s | 5.0 | 5.0 | 5.5 | 3.0 | 5.0 | 7.0 |
+
+(Running Cadence 1 in all of these. New with Running Cadence 0: 7 gives 4.0 / 5.5 / 7.0, 2.2 gives 1.5 / 2.0 / 2.0. The speed
+over the stride is about 13 a second at a run with the default stride: the only other limit.)
+
+**The rule now:** `vr_body_step_rate` (now 4.9, 0.5 .. 10, the menu the same) is the steps a second at a full run, 320 units
+a second, at any world or body scale. Below it a share of that: `vr_body_step_run` (Running Cadence, 0 .. 1, was 0 .. 1.5)
+blends from even (70% at the slowest) to a person's cadence over a person's at a run. Never more than the speed over the
+stride. This differs from the brief's proposal (Step Rate alone up to a run, a blend at a run) because at the default Running
+Cadence 1 the proposal leaves the slider dead at a full run, where he plays and where he tried it.
+
+**At defaults:** his look: 4.87 steps a second at a run at his height (1.56 m) against the new 4.9, and the same under it
+within the count's grain (old 2.5 / 3.5 / 5.0, new 2.67 / 3.67 / 5.0); the old cap of 2.2 survives as `SLOWEST_STEPS`, the least
+share at a crawl. Other heights change a little: the old rate at a run followed the body (4.6 at the models' own 1.65 m), the
+new one is the slider's number. The old number can't be converted, so configVersion 220 puts any saved `vr_body_step_rate` back to the
+default, a player's own choice too (a beta 4 config holds 2.2: under half today's rate otherwise), and clamps a saved
+`vr_body_step_run` to 0 .. 1 (`Misc/quakevr/config220_test.sh`).
+
+**Stride.** `vr_body_stride` (Stride Length, 1, 0.3 .. 2), times the stride; `vr_body_step_width` (Step Width, 0 m, -0.08 ..
+0.25), each foot further out than it stands, eased with the walk. No setting for either before (the feet stand the hips' width
+apart, 0.18 m, from the bind pose; `vr_body_legs_back` is fore and aft only). At a full run, default rate (3 s):
+
+| Stride Length | stride | steps/s | planted foot slides | a planted foot off the floor at the stride's ends |
+| --- | --- | --- | --- | --- |
+| 0.3 | 0.23 m | 4.67 | 90% | 5 cm |
+| 1 | 0.80 m | 5.0 | 63% | 12 cm |
+| 1.5 | 1.16 m | 4.67 | 47% | 20 cm |
+| 2 | 1.54 m | 4.67 | 30% | 27 cm |
+
+So the longer stride does bring the foot to the ground's pace (at a slow walk, stick 0.3, 2x: 3% slide, the speed-over-stride
+limit taking over), at the cost of the feet lifting at the ends: the hips don't drop for the reach. Today's 12 cm is that
+too. Step Width 0.25: 0.65 m apart; -0.08: 0.03 m.
+
+**The footsteps, before:** QC's `player_run`, one think in 0.1 s while moving, on the ground, every 95 units or so: one of
+misc/foot1..7.wav at 0.5, ATTN_NORM, on any free channel from the player (unplaced), pitch varied by `vr_snd_pitch_jitter`.
+At a run 3.3 a second whatever the legs do. There's no setting for it (the QC global `footsteps` is always 1).
+
+**Now** (`vr_body_step_sounds`, Footsteps on the Feet, default on; `Quake/vr/vr_playersteps.cpp`): a touchdown of the drawn legs
+(`Skeleton::steps`, the bloody footprints' count) plays the same sounds at the same volume and variation on the client, in
+the frame it is drawn, from that foot's place. (Placed under the listener, about 6% quieter than unplaced from the distance;
+at a run 4.9 steps a second against the old 3.3: more steps, as many as you see.) The old trigger asks `playerstepsilent` and
+keeps quiet; one rule, `fromLegs()`, answers for both sides. It keeps sounding: the setting off; no walking legs drawn (no
+legs, `vr_body_walk 0`, no VR); in the air, so a landing's step is as it was; swimming and climbing; multiplayer, bots too
+(the server's sound goes to all, it can't leave one player out, and the others don't have your feet's phase: everyone there
+hears the old trigger). A landing's old step and a touchdown within 0.12 s are one sound.
+
+Standing steps (turning on the spot, moving in the room): quiet, 0.35 of a step (`vr_footstep_player_turn_vol`, Debug >
+Tunables > Player > Footsteps; 0: none). The feet do visibly step, so silence would look wrong, but they are small steps, and
+snap turns make two at once. The old trigger had none.
+
+**Test:** `Misc/quakevr/playersteps_test.sh <agent>`, ends on `playersteps_test: N passed, M failed`; the report is
+`vr_body_step_report` (Debug > Player's Walk Report: press, walk, press). Sound error: from the frame the drawn foot's swing
+ends (its ankle against its hip stops going forward).
+
+| phase | speed | touchdowns | sounds from the feet | old played | old silenced | sound error |
+| --- | --- | --- | --- | --- | --- | --- |
+| walk, stick 0.4 | 112 u/s | 9 | 9 | 0 | 4 | 13.9 ms |
+| run | 320 u/s | 15 | 15 | 0 | 10 | 13.0 mean, 13.9 most |
+| strafe | 320 u/s | 15 | 15 | 0 | 10 | 13.9 ms |
+| turning on the spot | | 4 (2 standing) | 4 | 0 | 1 | not checked |
+| run, `vr_body_step_sounds 0` | 296 u/s | 14 | 0 | 9 | 0 | |
+| run, `vr_body_walk 0` | 295 u/s | 0 | 0 | 9 | 0 | |
+
+The one frame: the sound starts as the foot is first drawn planted, a frame (at 72 Hz) after its forward-most.
