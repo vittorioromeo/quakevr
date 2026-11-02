@@ -7010,6 +7010,34 @@ ends (its ankle against its hip stops going forward).
 
 The one frame: the sound starts as the foot is first drawn planted, a frame (at 72 Hz) after its forward-most.
 
+## The arena: towers, light, flat walls, no starting ammunition (2026-11-02 night)
+
+The author's notes vrarena_2026-11-02_23-13-15 and 23-19-02, and his list.
+
+- **Towers.** Their own plates (`tech07_2`, `fit` 2 across 3 up), pinned to each face's own edges: 90 x 85 tiles, so every
+  corner is a plate's end on both faces. A wall's `tech14_1` at world scale had cut 1.4 tiles across a 180 face.
+- **Light.** 12 hooded lamps on the towers' open faces (z 128..160, light 125, wait 0.66) and 8 lit panels under the decks
+  (light 160, wait 0.65). A first try at 185/0.55 on the towers overbrightened the floor (mean 140), so it came down. From
+  the lit file, area-weighted luxel luminance, before -> after: E/W walls under the decks 52 -> 81 (under 48: 47% -> 26%),
+  deck undersides 66 -> 99, tower faces 90 -> 108, floor round the towers 90 -> 101, the rest of the floor 98 -> 105, walls
+  over the decks 127 -> 128, N/S walls under 192 94 -> 95. Models read the same grid: foes at their corner spawns are a
+  little brighter, the most under the decks.
+- **Flat walls.** One clip per wall, floor to ceiling, 16 out (all the trim stands within it: `--check` counts any point
+  past it). The old clip only covered the wainscot.
+- **Climbing honours clip.** It didn't: the ledge map reads hull 0, which has no clip brushes, so the rail, the sconce
+  plates and the lamp hoods stayed holds behind a clip. A test on hull 1 (is the box solid with no hull 0 in it?) can't
+  say: it cost vrstart 26% of its lip with no clip brush in the map (a grown slanted brush reaches past its shape) and
+  missed the sconces under the decks. So the ledge map reads the brushes themselves from the BSP's BSPX `BRUSHLIST` lump
+  (`qbsp -wrbrushes`), read once per map (`relight::mapBspxLump`), and a hold inside a clip brush is no ledge. A map
+  without the lump is untouched: the ledge hashes of e1m1, e2m1, e1m3, vrclimb, vrstart and vrcalibration are identical
+  before and after. vrarena: 448 -> 262 ledges; deck and tower lips stay.
+- **No ammunition.** `VR_ARENA_StripPlayers` zeroes all 7 kinds and `currentammo` (a new game's parms give 25 shells).
+  Fists as before. Test 18 fresh, after `restart fresh`, from a load; test 19 takes a fallen foe's pack.
+
+Tests: `vr_arena_test` 17 (24 passed), 18 (4 passed, three times), 19 (7 passed), 15 (130 passed). A real grip (mock play)
+on an upright lamp's hood from the deck: the old map holds and climbs from z 280 to 287.6, the new one says "no hold".
+`vr_climb_try` on the sconce plate and hood: old lenient hold, new none; deck and tower lips hold on both.
+
 
 ## Falling magazines into the pouch; charge stamina; late flashlight grip; no ghost climbing; gibbing by blows and props
 
