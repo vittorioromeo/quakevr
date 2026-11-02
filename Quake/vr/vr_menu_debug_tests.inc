@@ -596,6 +596,10 @@ za::Vector<Item> pageDebugTests()
                   "asleep); standing up, or holding the small crate up, it should (Crates Hide You)."),
         command("Can the Grunt See You?", "impulse 224")
             .help("impulse 224: whether Crate Cover's grunt sees you now, how high your head is, and whether it woke."),
+        command("Enemy Footsteps Walkabout", "vr_footstep_test 1")
+            .help("vr_footstep_test 1 (load a map with room first; reload it to stop): each biped in turn walks, then runs, "
+                  "ahead of you: listen for the steps on its feet, softer walking. The console's report at the end "
+                  "(vr_footstep_report). vr_footstep_test 2: 32 grunts hunting you, for the nearest-win budget."),
         command("Crouch Shots", "developer 1; vr_crouch_test 12")
             .help("vr_crouch_test 12: a grunt put ahead of you fires 12 bullets at you as it aims them, then goes: whether "
                   "you are crouched (Player Hitbox > Crouching), your eyes' height, the aim's height over your feet and "

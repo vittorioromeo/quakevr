@@ -821,6 +821,7 @@ float cvarh_vr_foegrab_throw_lift;
 float cvarh_vr_foegrab_throw_mass_always;
 float cvarh_vr_foegrab_throw_mass_hurt;
 float cvarh_vr_foegrab_throw_push;
+float cvarh_vr_footstep_test;
 float cvarh_vr_forcegrab_arc;
 float cvarh_vr_forcegrab_bodies_block;
 float cvarh_vr_forcegrab_catch_early;
@@ -2557,6 +2558,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_foegrab_throw_mass_always = VR_CVar_Make("vr_foegrab_throw_mass_always");
     cvarh_vr_foegrab_throw_mass_hurt = VR_CVar_Make("vr_foegrab_throw_mass_hurt");
     cvarh_vr_foegrab_throw_push = VR_CVar_Make("vr_foegrab_throw_push");
+    cvarh_vr_footstep_test = VR_CVar_Make("vr_footstep_test");
     cvarh_vr_forcegrab_arc = VR_CVar_Make("vr_forcegrab_arc");
     cvarh_vr_forcegrab_bodies_block = VR_CVar_Make("vr_forcegrab_bodies_block");
     cvarh_vr_forcegrab_catch_early = VR_CVar_Make("vr_forcegrab_catch_early");

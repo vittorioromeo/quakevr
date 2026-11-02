@@ -34,6 +34,12 @@ void precache();
 // the server), with Quake VR's progs. Its index, 0 if not.
 int precacheOne(const char* name);
 
+// A sound precached by precacheOne from entity `ent` on `channel` (0: any free one) at `at`, as SV_StartSound sends it (by
+// precache index), at playback rate `pitch` (1 as recorded); false: not sent. jitterPitch: a rate within
+// vr_snd_pitch_jitter percent of 1.
+bool emitSound(int ent, int channel, int index, float volume, float attenuation, const glm::vec3& at, float pitch);
+[[nodiscard]] float jitterPitch();
+
 // Box3D's hit events, each step (vr_box3d.cpp touches): prop `num` (of `material`, `mass` kg) hit something at `speed`
 // m/s (the contact's approach) at `at` (units). Only the loudest of a frame per prop plays (frameEnd). `body`: a
 // ragdoll's part or a pushable corpse (`num` the corpse, `mass` the part's): vr_physsound_bodies loud, from
