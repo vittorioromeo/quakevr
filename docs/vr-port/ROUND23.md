@@ -5883,3 +5883,25 @@ Checklist:
   goes past the let-go distance at 0.64 s: "torn away"; the old tug won it by distance). His call: keep (a standing tug's
   rules after it is up) or keep its eased times after it gets up.
 
+## Old melee options removed (branch `agent/legacymelee`, his words 2026-11-02, group 2)
+
+- **Removed, their "on" kept** (all six into vr_cvars.cpp `retiredCvars`: his config's lines are dropped quietly):
+  `vr_melee_swept` (Debug > Tests "Swept Blades": the point-only blow, its traces' first touch and first wall touch,
+  went; `VR_Melee_Ribs` always adds the blade's in-between lines and a head's volume, `VR_Melee_Sweep` always scores
+  the most squarely crossed line, the wall at the deepest lines' middle; the dead `edgeT` and the old outermost-point
+  branch went), `vr_melee_phase` (Melee "Swing Through Enemies": `updatePhase` always on; the speed, follow-through and
+  Guns and Props rows stay), `vr_melee_world_pass` ("Strike Past Walls and Floor": `strikeLength` always on; its
+  length, speed, follow-through and reach stay), `vr_melee_multi` ("Hit Everything the Edge Passes":
+  `VR_Melee_Multi` is now only "a weapon's blow, not a fist's"; Most Things a Swing stays), `vr_melee_curved_blades`
+  (Debug > Arcane Dimensions Monsters "Curved Blades": QC `VR_Melee_BendLine`, the engine's blade editor `curveAt`
+  and `modelCurve`), `vr_melee_positional` (Damage and Knockback "Melee Positional Damage": `VR_Melee_Positional`
+  follows `vr_positional_damage` alone).
+- **Tests:** `vr_melee_sweep_test 1` probes the swept sweep only (A/E/B/C/F/D, the old-vs-new comparisons gone);
+  `vr_melee_sweep_test 6` runs its cases once (the multi 0 pass and its frame skip gone); melee_phase_test.sh's "off"
+  cases (and heldoff_test.sh) use `vr_melee_phase_speed 100` (a speed no hand reaches) instead of the removed toggle.
+  Test 29 (`vr_agrunt_test 29`, failing 0/1 since `agent/punchgun`): its mock hand is a closed fist (grip held) swung
+  over two frames (the frame before as fast), as the deliberate-strike rule wants; the rule unchanged.
+- **Verified:** eval.sh canary 36/44 pass, 0 differ from the baseline; test 29 1/0; melee_phase_test 7 of 7;
+  sweep test 1 PASS (the knight's sword, sword_multi turned north: its own spot has no room ahead); sweep test 6 PASS
+  (floor, two, wall); calibration board menu paths 6 found, 0 missing.
+

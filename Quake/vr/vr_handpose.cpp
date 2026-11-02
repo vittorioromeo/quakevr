@@ -68,7 +68,7 @@ double lastTime = -1.0;
 float frameDt = 0.f;
 bool newFrame = false; // the hands may be recomputed within a frame: the weight's spring advances once
 
-// A strike let past the level (vr_melee_world_pass): how long it still lasts after the hand slowed, how far it is let in
+// A strike let past the level (strikeLength): how long it still lasts after the hand slowed, how far it is let in
 // (1 all the way, eased back to 0), and the body it was going for.
 struct StrikePass
 {
@@ -331,7 +331,7 @@ bool gunOutOfWalls(HandMemory& m, glm::vec3& pos, const za::Vector<glm::vec3>& p
     return false;
 }
 
-// Strikes let past the level (vr_melee_world_pass; ROUND22.md, "Swords past the floor"): the share of the weapon in hand
+// Strikes let past the level (ROUND22.md, "Swords past the floor"): the share of the weapon in hand
 // `h` (at `pos`; its points `shape[h]`) still held out of the walls and the floor now: 1 all of it; less while the hand
 // swings fast with the weapon's far part (beyond that share, as it is and a frame ahead) near a monster, a corpse or a
 // ragdoll, and for vr_melee_world_pass_time after it slowed, then eased back. A blade chopping at a body lying on the
@@ -339,12 +339,11 @@ bool gunOutOfWalls(HandMemory& m, glm::vec3& pos, const za::Vector<glm::vec3>& p
 float strikeLength(int h, const hands::State& s, const glm::vec3& pos)
 {
     StrikePass& p = strikePasses[h];
-    const bool on = vr_melee_world_pass.value != 0.f; // (s.valid: set after the walls)
     const float keep = za::clamp(vr_melee_world_pass_length.value, 0.f, 1.f);
     const float dt = newFrame ? frameDt : 0.f;
     const float speed = glm::length(s.vel[h]);
     int target = 0;
-    if(on && keep < 1.f && speed >= za::max(vr_melee_world_pass_speed.value, 0.1f) && shape[h].size() > 1)
+    if(keep < 1.f && speed >= za::max(vr_melee_world_pass_speed.value, 0.1f) && shape[h].size() > 1)
     {
         float reach = 0.f;
         for(const glm::vec3& o : shape[h])
@@ -371,11 +370,7 @@ float strikeLength(int h, const hands::State& s, const glm::vec3& pos)
         }
     }
     const bool was = p.level > 0.f;
-    if(!on)
-    {
-        p = {};
-    }
-    else if(target)
+    if(target)
     {
         p.left = za::max(vr_melee_world_pass_time.value, 0.f);
         p.level = 1.f;

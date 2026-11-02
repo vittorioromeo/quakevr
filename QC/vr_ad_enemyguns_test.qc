@@ -1124,7 +1124,7 @@ void(float request, entity p) AD_HoseCutTest =
         b.mh_grip = g1;
         b.mh_far = g1 + perp * len;
         b.mh_hd_hi = '0 0 0';
-        VR_Melee_Ribs(b, VR_MELEE_RADIUS * max(0.25, cvar("vr_melee_range_multiplier")), 1);
+        VR_Melee_Ribs(b, VR_MELEE_RADIUS * max(0.25, cvar("vr_melee_range_multiplier")));
         vr_hosecut_speed_test = cvar("temp1") > 0 ? cvar("temp1") : 5;
         float cuts = vr_hosecut_count;
         entity sweeper = self;

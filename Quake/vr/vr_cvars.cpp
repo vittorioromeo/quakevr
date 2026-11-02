@@ -940,6 +940,15 @@ void registerCvars()
 // Settings removed (docs/vr-port/CVAR_AUDIT.md): a config, a shipped .cfg or a take that still sets one is not an
 // "Unknown command" (cmd.c asks here); the line is dropped quietly and the next config write leaves it out.
 constexpr const char* retiredCvars[] = {
+    // 2026-11-02: the old melee options, their "on" kept (ROUND23.md, "Old melee options removed"): the swept blade, the
+    // swing through enemies, the strike past walls and floor, one swing hitting everything, the curved blades, the
+    // positional melee damage.
+    "vr_melee_swept",
+    "vr_melee_phase",
+    "vr_melee_world_pass",
+    "vr_melee_multi",
+    "vr_melee_curved_blades",
+    "vr_melee_positional",
     // 2026-10-31: the shot volumes' size, a multiplier of the old capsules, replaced by the hulls of the drawn triangles
     // grown by vr_agrunt_vol_* units (ROUND23.md, "Disarm volumes as hulls of the drawn triangles").
     "vr_agrunt_shotdisarm_size",
