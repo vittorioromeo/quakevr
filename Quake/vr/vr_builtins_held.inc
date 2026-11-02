@@ -418,6 +418,36 @@ void PF_agposekey()
     progs::returnVec({has ? 1.f : 0.f, 0.f, 0.f});
 }
 
+// A strike's act's phases' lengths from QC (VR_AGP_Times: '<wind-up> <strike> <hold>' and the recovery).
+static agpose::ActTimes actTimesParm(int vecParm, int recParm)
+{
+    agpose::ActTimes a;
+    const float* v = G_VECTOR(vecParm);
+    a.t[0] = v[0];
+    a.t[1] = v[1];
+    a.t[2] = v[2];
+    a.t[3] = G_FLOAT(recParm);
+    return a;
+}
+
+// vector(float code, float s, vector times, float trec) agstrikeblend: strike `code`'s keys (its kind, class and pose;
+// any phase) either side of `s` seconds into its act (QC VR_AGK_Keys; agpose::actBlend): '<phase a> <phase b> <b's
+// share>', -1 the stance.
+void PF_agstrikeblend()
+{
+    const int c = static_cast<int>(G_FLOAT(OFS_PARM0));
+    const agpose::ActBlend b = agpose::actBlend(agpose::kindOf(c), agpose::classOf(c), agpose::poseOf(c),
+        actTimesParm(OFS_PARM2, OFS_PARM3), G_FLOAT(OFS_PARM1));
+    progs::returnVec({static_cast<float>(b.a), static_cast<float>(b.b), b.f});
+}
+
+// float(float code, vector times, float trec) agkeytime: when key `code` is whole in its act (s; agpose::keyTime: its
+// place, the Cast's past its raise; QC VR_AGK_KeyTime).
+void PF_agkeytime()
+{
+    G_FLOAT(OFS_RETURN) = agpose::keyTime(static_cast<int>(G_FLOAT(OFS_PARM0)), actTimesParm(OFS_PARM1, OFS_PARM2));
+}
+
 // float(entity p) agdrawnframe: armed humanoid's held weapon `p` as drawn lately (weapondrawnpose(p, 0, 30..32)): TRUE
 // and its origin, forward and up in vr_ag_df_o, _fw, _up (QC VR_AG_DrawnFrame's); FALSE not drawn lately (them left).
 void PF_agdrawnframe()

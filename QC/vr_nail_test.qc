@@ -11,8 +11,8 @@
 //     frames' way over their time), against vr_nail_speed / vr_nailpistol_speed and Quake VR's speeds before round 23
 //     (1750, 2600): 15-20% faster.
 //   2 the hit box: an unarmed grunt 256 ahead; nails from 200 units in front of it along the player's line, one at a time
-//     at 2-unit steps across it (-30..30) at its chest, with precise hits (its model) and then Quake's boxes
-//     (vr_hit_precise 0): which met it. Each a point (its mins and maxs 0), the middle met (no nail through it), none
+//     at 2-unit steps across it (-30..30) at its chest, with precise hits (its model; Quake's boxes gone with
+//     vr_hit_precise, 2026-11-02): which met it. Each a point (its mins and maxs 0), the middle met (no nail through it), none
 //     met beyond the monster's box (16) and the tolerance (2).
 //   3 the drawn size: a nail of each model hung still ahead, `vr_physics_list spike` prints each one's "drawn x" (the
 //     client's matrix: vr_nail_scale, 1 before round 23).
@@ -25,8 +25,6 @@
 float vr_nlt_step;     // 0 idle
 float vr_nlt_frames;   // frames into the step
 float vr_nlt_case;     // step 1: 0 nailgun, 1 super nailgun, 2 nail pistol, 3 an armed grunt's nailgun
-float vr_nlt_precise;  // step 2: the setting before
-float vr_nlt_mode;     // step 2: 0 precise, 1 Quake's boxes
 entity vr_nlt_player;
 entity vr_nlt_nail;    // step 1: the nail measured
 entity vr_nlt_g;       // the grunt
@@ -137,7 +135,7 @@ void(float xOff) VR_NLT_SweepNail =
     self = os;
     n.touch = VR_NLT_NailTouch;
     n.vr_nlt_off = xOff;
-    if(xOff == 0 && vr_nlt_mode == 0)
+    if(xOff == 0)
     {
         VR_Test_Check(n.mins == '0 0 0' && n.maxs == '0 0 0', sprintf("a nail's hit box: a point (mins %v, maxs %v)",
             n.mins, n.maxs));
@@ -163,7 +161,6 @@ entity(string xModel, vector xAt, vector xDir, float xLife) VR_NLT_Hang =
 
 void() VR_NLT_End =
 {
-    cvar_set("vr_hit_precise", ftos(vr_nlt_precise));
     if(vr_nlt_g) { VR_AGT_Remove(vr_nlt_g); vr_nlt_g = world; }
     if(vr_nlt_t) { VR_AGT_Remove(vr_nlt_t); vr_nlt_t = world; }
     vr_nlt_player.flags = vr_nlt_player.flags - (vr_nlt_player.flags & FL_NOTARGET);
@@ -483,7 +480,6 @@ void() VR_NailTest_Frame =
             return;
         }
         VR_Test_Begin("nailtest");
-        vr_nlt_precise = cvar_hget(cvarh_vr_hit_precise);
         if(req == 3)
         {
             vr_nlt_step = 4;
@@ -563,18 +559,16 @@ void() VR_NailTest_Frame =
             {
                 VR_AGT_Remove(vr_nlt_g);
                 vr_nlt_g = VR_NPT_Grunt(256, -1, 0);
-                vr_nlt_mode = 0;
                 VR_NLT_Next();
             }
         }
     }
     else if(s == 2)
     {
-        // A sweep each mode: a nail at each offset once the one before is gone (met something, or the wall beyond); its
-        // result once the last is gone.
+        // A sweep: a nail at each offset once the one before is gone (met something, or the wall beyond); its result once
+        // the last is gone.
         if(vr_nlt_frames == 1)
         {
-            cvar_set("vr_hit_precise", vr_nlt_mode == 0 ? "1" : "0");
             vr_nlt_hitlo = 1000;
             vr_nlt_hithi = -1000;
             vr_nlt_hit0 = FALSE;
@@ -591,20 +585,14 @@ void() VR_NailTest_Frame =
         }
         else
         {
-            string what = vr_nlt_mode == 0 ? "precise hits (its model)" : "Quake's boxes";
-            float lim = 16 + (vr_nlt_mode == 0 ? cvar_hget(cvarh_vr_hit_tolerance_guns) : max(0, cvar_hget(cvarh_vr_gameplayfix_missilesize)));
+            float lim = 16 + cvar_hget(cvarh_vr_hit_tolerance_guns);
             VR_Test_Check(vr_nlt_hit0 && vr_nlt_hitlo >= -lim && vr_nlt_hithi <= lim,
-                sprintf("%s: the nails that met the grunt from %g to %g units off its middle (the middle %s; at most %g: its box 16 and the tolerance; Quake's 15-unit missile box would meet to 31)",
-                    what, vr_nlt_hitlo, vr_nlt_hithi, vr_nlt_hit0 ? "met" : "MISSED", lim));
-            vr_nlt_mode++;
+                sprintf("precise hits (its model): the nails that met the grunt from %g to %g units off its middle (the middle %s; at most %g: its box 16 and the tolerance; Quake's 15-unit missile box would meet to 31)",
+                    vr_nlt_hitlo, vr_nlt_hithi, vr_nlt_hit0 ? "met" : "MISSED", lim));
             vr_nlt_frames = 0;
-            if(vr_nlt_mode > 1)
-            {
-                cvar_set("vr_hit_precise", ftos(vr_nlt_precise));
-                VR_AGT_Remove(vr_nlt_g);
-                vr_nlt_g = world;
-                VR_NLT_Next();
-            }
+            VR_AGT_Remove(vr_nlt_g);
+            vr_nlt_g = world;
+            VR_NLT_Next();
         }
     }
     else if(s == 3)

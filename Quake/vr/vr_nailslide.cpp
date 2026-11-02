@@ -7,6 +7,8 @@
 #include "vr_cvars.hpp"
 #include "vr_protocol.hpp"
 #include "vr_mdldequant.hpp"
+#include "vr_anchor.hpp"
+#include "vr_weapons.hpp"
 
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
@@ -114,9 +116,9 @@ bool propLocked(const entity_t& e)
     return net && net->weaponUid != 0 && net->clip >= 0 && (net->clip == 0 || net->noMag);
 }
 
-glm::vec3 screenShift(const entity_t& e)
+glm::vec3 screenShift(const entity_t& e, const char* anchor, float zeroBlend)
 {
-    if(vr_nailpistol_screen_ride.value == 0.f || !isNailPistol(e.model))
+    if(!isNailPistol(e.model))
     {
         return glm::vec3{0.f};
     }
@@ -125,20 +127,34 @@ glm::vec3 screenShift(const entity_t& e)
     {
         return glm::vec3{0.f};
     }
+    // Its anchor is on the slide's wall, so the server's back frame has it already 0.65 back (the model's frame 1), the
+    // slide's drawn travel coming on top of that: at full open it was 0.65 past the slide's own place (his note
+    // vrfiringrange_2026-11-02_19-31-10), and it jumped so with each shot's frame. What the pose did to it goes first:
+    // the slide's place as drawn (VR_NailSlidePose) is the only thing that moves the screen.
+    const glm::vec3 undo = anchor::posedAnchor(e, anchor, 1.f) - anchor::posedAnchor(e, anchor, zeroBlend);
+    if(vr_nailpistol_screen_ride.value == 0.f)
+    {
+        return undo;
+    }
     const int hand = handOf(&e);
     const float w = hand >= 0 ? hands[hand].pos : propLocked(e) || e.frame == 1 ? 1.f : 0.f;
     const float k = travelBlend(hdr); // (measures the model first)
-    return measured.bytes * (w * k);
+    return undo + measured.bytes * (w * k);
 }
 
 void probe()
 {
-    const entity_t& gun = view_detail::entities.weapon[HAND_MAIN].ent;
+    const view::ViewEntity& held = view_detail::entities.weapon[HAND_MAIN];
+    const entity_t& gun = held.ent;
     float screen = 0.f;
     if(isNailPistol(gun.model))
     {
+        // (the screen as drawn, from where it is on the closed gun: the anchor's pose and the shift together)
         const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(gun.model));
-        screen = glm::length(screenShift(gun) * glm::vec3{hdr->scale[0], hdr->scale[1], hdr->scale[2]});
+        const char* anchor = weapons::anchor(weapons::slotForModel(gun.model), weapons::Key::WpnTextAnchor);
+        const glm::vec3 now = anchor::posedAnchor(gun, anchor, held.zeroBlend) + screenShift(gun, anchor, held.zeroBlend);
+        const glm::vec3 moved = now - anchor::posedAnchor(gun, anchor, 1.f);
+        screen = glm::length(moved * glm::vec3{hdr->scale[0], hdr->scale[1], hdr->scale[2]});
     }
     int holstered = 0;
     for(const view::ViewEntity& ve : view_detail::entities.holster)

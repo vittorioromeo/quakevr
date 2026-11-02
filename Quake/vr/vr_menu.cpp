@@ -798,10 +798,8 @@ void hologramTestMessage()
         row(opt::vr_grapple_rope),
         row(opt::vr_grapple_trigger_release),
         row(opt::vr_grapple_drop_grace),
-        row(opt::vr_grapple_max_length),
         row(opt::vr_grapple_shootable),
         row(opt::vr_grapple_quick_time),
-        row(opt::vr_grapple_quick_speed),
 
         header("Buttons on the Gun"),
         slider("Back Button Along", grappleButton(weapons::Key::WpnButtonX), -20.f, 20.f, 0.1f, "%.1f").extend(-60.f, 60.f)
@@ -817,18 +815,9 @@ void hologramTestMessage()
         row(opt::vr_grapple_rope_sim),
 
         header("Reel"),
-        row(opt::vr_grapple_reel_speed),
-        row(opt::vr_grapple_min_length),
-        row(opt::vr_grapple_unreel_speed),
         row(opt::vr_grapple_unreel_airborne),
 
-        header("Props"),
-        row(opt::vr_grapple_prop_speed),
-        row(opt::vr_grapple_tow_speed),
-
         header("Monsters"),
-        row(opt::vr_grapple_small_speed),
-        row(opt::vr_grapple_medium_speed),
         row(opt::vr_grapple_stagger),
         row(opt::vr_grapple_stamina),
 

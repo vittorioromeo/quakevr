@@ -1,0 +1,7 @@
+# stick_run: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Running with the stick
+# (vr_stick_run_test): the test hall's long free stretch ahead, nothing in the way.
+title Running with the stick: a long free stretch ahead
+map vrtesthall
+god
+notarget
+hint Hold the stick hard forward: full speed from an 80% push, no dip every few steps; slow walking stays easy.

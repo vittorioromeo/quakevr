@@ -210,10 +210,6 @@ const DefaultChange defaultChanges[] = {
     // 154: his player head and loot beam values (2026-10-17: "make all of those the defaults").
     {154, &vr_body_head_side, "0"},                     // 1.75
     {154, &vr_body_head_sink, "4.5"},                   // 9
-    {154, &vr_lootbeam_opacity, "0.5"},                 // 0.15
-    {154, &vr_lootbeam_length, "1.2"},                  // 1.5
-    {154, &vr_lootbeam_thickness, "0.06"},              // 0.03
-    {154, &vr_lootbeam_far, "0"},                       // 12
     // 156: the author's holster zones, thresholds, glove thickness and relief (his config of 2026-10-18).
     {156, &vr_glove_relief, "1"},
     {156, &vr_glove_thickness, "2"},
@@ -249,10 +245,6 @@ const DefaultChange defaultChanges[] = {
     // 159: the Widowmaker's handful his 2 (was 4), its shell port half its size (his notes 2026-10-19).
     {159, &vr_reload_port_widow_radius, "2.5"},
     // 160: his swing sounds and wet sheen (his config of 2026-10-19).
-    {160, &vr_melee_swish_min, "0.5"},                  // 0.3
-    {160, &vr_melee_swish_sub, "0.45"},                 // 0.35
-    {160, &vr_melee_swish_full, "2.2"},                 // 1.75
-    {160, &vr_melee_swish_gain, "1.6"},                 // 2
     {160, &vr_wounds_wet_coat, "1"},                    // 2
     // 160 too: the player's chainsaw a fifth stronger (his request, 2026-10-19).
     // 161: his flame wobble (his config of 2026-10-19); your AD crossbow's bolts 1.5 times the knights' (his notes).
@@ -304,14 +296,6 @@ const DefaultChange defaultChanges[] = {
     // since: its chance 0 is off), knocked farther, gentler pose.
     // 178: the author's values (his config of 2026-10-22): bigger bloody footprints and handprints, the gore sounds'
     // kinds quieter (ROUND22.md, "Bloody prints 2; drip sounds").
-    {178, &vr_gore_sound_vol_spurt, "1"},   // 0.75
-    {178, &vr_gore_sound_vol_pour, "1"},    // 0.75
-    {178, &vr_gore_sound_vol_choke, "1"},   // 0.75
-    {178, &vr_gore_sound_vol_tear, "1"},    // 0.75
-    {178, &vr_gore_sound_vol_squelch, "1"}, // 0.75
-    {178, &vr_gore_sound_vol_step, "1"},    // 0.75
-    {178, &vr_gore_sound_vol_slap, "1"},    // 0.75
-    {178, &vr_gore_sound_vol_splash, "1"},  // 0.75
     // 179: the author's values (his config of 2026-10-22): a body shoved over a ledge keeps more of its speed past the
     // edge (ROUND22.md, "Prop pushback, heavy throws, light ammo").
     {179, &vr_knockdown_shove_ledge_over, "0.1"}, // 0.45
@@ -322,7 +306,6 @@ const DefaultChange defaultChanges[] = {
     // (181's vr_struggle_classes row: dropped at 190, the setting retired; mgroups::migrateStruggleClasses.)
     // 182: the author's values (his config of 2026-10-22: the new flamethrower and sprayer effects, the drip sounds).
     {182, &vr_adgun_ad_copies, "0"},      // 2
-    {182, &vr_gore_sound_vol_drip, "1"},  // 0.35
     {182, &vr_gore_sound_drips, "1"},     // 0.65
     // (183's vr_struggle_classes row: dropped at 190, the setting retired; mgroups::migrateStruggleClasses.)
     // 184: the author's values (his config of 2026-10-22 evening): his shoulder charge settings, more bloody footprints
@@ -487,7 +470,10 @@ const NamedDefaultChange namedDefaultChanges[] = {
 // defaults: VR_ConfigSaves). The last version: the rows above are frozen, a changed default needs none from now on.
 // 219: a vr_seated_height at or over 0.9 of the standing eye height (vr_height_calibration) back to 0 (not measured):
 // measured standing, no seated height (his config of 2026-11-02: 1.574 seated, 1.561 standing).
-constexpr int configVersion = 219;
+// 220: vr_body_step_rate's meaning changed (a cap that rarely counted -> the steps a second at a full run): the old number
+// can't be converted, so whatever was saved goes back to the default, the player's own choice too; vr_body_step_run to
+// its new range, 0 .. 1.
+constexpr int configVersion = 220;
 // 190: vr_struggle_classes retired for the monster groups' Struggle settings: the value of its line in the config just
 // executed (VR_RetiredCvar keeps it), moved into the groups by mgroups::migrateStruggleClasses if it was custom.
 za::String retiredStruggleClasses;
@@ -532,6 +518,8 @@ ConfigTrack configTrack;
 // only when changed from their defaults, after a "vr_config_defaults" line that sets the others to theirs. A line in the
 // config is the player's choice, and a changed default reaches everyone else with no defaultChanges row. Ironwail's own
 // settings (r_*, gl_*, ...) are all written, as before.
+constexpr int sparseConfigVersion = 218;
+
 [[nodiscard]] bool inSparseConfig(const cvar_t* var)
 {
     return !ZA_STRNCMP(var->name, "vr_", 3);
@@ -568,15 +556,14 @@ void configDefaults_f()
     }
 }
 
-// The archived settings a config file sets (`name "value"` lines, as Cvar_WriteVariables writes them; a sparse config's
-// vr_ settings without a line: their defaults).
-[[nodiscard]] ankerl::unordered_dense::map<za::String, za::String> readConfigSettings(const char* path)
+// A config file's `name "value"` lines (as Cvar_WriteVariables writes them), in order: fn(name, value). False: no file.
+template <typename Fn>
+[[nodiscard]] bool forEachConfigLine(const char* path, Fn&& fn)
 {
-    ankerl::unordered_dense::map<za::String, za::String> settings;
     FILE* f = Sys_fopen(path, "rb"); // (UTF-8 path: a non-ASCII game folder)
     if(!f)
     {
-        return settings;
+        return false;
     }
     za::String line;
     for(int c = 0; c != EOF;)
@@ -593,15 +580,32 @@ void configDefaults_f()
         if(open != za::StringView::nPos && close > open && line.findFirstNotOf(' ', space) == open)
         {
             const za::String name{line.substrByPosLen(0, space)};
-            const cvar_t* var = Cvar_FindVar(name.cStr());
-            if(var && (var->flags & CVAR_ARCHIVE))
-            {
-                settings[za::String{var->name}] = line.substrByPosLen(open + 1, close - open - 1); // (an old name: the new)
-            }
+            const za::String value{line.substrByPosLen(open + 1, close - open - 1)};
+            fn(name, value);
         }
         line.clear();
     }
     fclose(f);
+    return true;
+}
+
+// The archived settings a config file sets (a sparse config's vr_ settings without a line: their defaults).
+[[nodiscard]] ankerl::unordered_dense::map<za::String, za::String> readConfigSettings(const char* path)
+{
+    ankerl::unordered_dense::map<za::String, za::String> settings;
+    const bool read = forEachConfigLine(path,
+        [&settings](const za::String& name, const za::String& value)
+        {
+            const cvar_t* var = Cvar_FindVar(name.cStr());
+            if(var && (var->flags & CVAR_ARCHIVE))
+            {
+                settings[za::String{var->name}] = value; // (an old name: the new)
+            }
+        });
+    if(!read)
+    {
+        return settings;
+    }
     // A sparse config (218) has no line for a vr_ setting at its default: it sets that default (vr_config_defaults).
     for(const cvar_t* var = Cvar_FindVarAfter("", CVAR_ARCHIVE); var; var = Cvar_FindVarAfter(var->name, CVAR_ARCHIVE))
     {
@@ -671,8 +675,15 @@ void resetOldConfig(int from)
 // Right after the saved config is executed (Cmd_Exec_f queues it).
 void migrateConfig_f()
 {
+    // (the version it was saved with: migrateConfig moves it on)
+    const bool sparse = Cmd_Argc() == 1 && static_cast<int>(vr_cfg_version.value) >= sparseConfigVersion;
     migrateConfig();
-    trackConfig(va("%s/%s", com_gamedir, CONFIG_NAME));
+    const char* path = va("%s/%s", com_gamedir, CONFIG_NAME);
+    trackConfig(path);
+    if(sparse)
+    {
+        tunablesTakeConfigLines(path); // (an older config's lines are mostly old defaults: not the player's)
+    }
     tunablesLoad(); // tunables.cfg, after the config (vr_tunables.cpp)
 }
 
@@ -779,6 +790,17 @@ void migrateConfig()
         Con_Printf("VR: Seated Height %.2f m is not a seated one (standing %.2f m): back to not measured\n",
             vr_seated_height.value, vr_height_calibration.value);
         Cvar_SetValueQuick(&vr_seated_height, 0.f);
+    }
+    if(from < 220)
+    {
+        Con_DPrintf("VR: vr_body_step_rate: %s for %s (its meaning changed)\n", vr_body_step_rate.default_string,
+            vr_body_step_rate.string);
+        Cvar_SetQuick(&vr_body_step_rate, vr_body_step_rate.default_string);
+        const float run = CLAMP(0.f, vr_body_step_run.value, 1.f);
+        if(run != vr_body_step_run.value)
+        {
+            Cvar_SetValueQuick(&vr_body_step_run, run);
+        }
     }
     Cvar_SetValueQuick(&vr_cfg_version, static_cast<float>(configVersion));
 }
@@ -887,6 +909,22 @@ void saveDefaults_f()
 
 } // namespace
 
+// A setting that became a tuning constant: a line in a sparse config is the player's value (sparseConfigVersion), and it
+// would go at the next write (the name is no setting now): a development build keeps it as the constant's, in
+// tunables.cfg, where tune_promote.py and make_release.ps1's gate see it. Read after the config ran (which ignored the
+// line: VR_RetiredCvar), not from the line itself: a test script or a console command sets nothing this way.
+void tunablesTakeConfigLines(const char* path)
+{
+    (void)forEachConfigLine(path,
+        [](const za::String& name, const za::String& value)
+        {
+            if(!Cvar_FindVar(name.cStr()))
+            {
+                tunableTakeConfigLine(name.cStr(), value.cStr());
+            }
+        });
+}
+
 bool sameSettingValue(const char* a, const char* b)
 {
     return sameValue(a, b);
@@ -915,6 +953,8 @@ void registerCvars()
 // Settings removed (docs/vr-port/CVAR_AUDIT.md): a config, a shipped .cfg or a take that still sets one is not an
 // "Unknown command" (cmd.c asks here); the line is dropped quietly and the next config write leaves it out.
 constexpr const char* retiredCvars[] = {
+    // 2026-11-02: the armed death knight's share of casts with a gun, a cooldown now (vr_agdknight_cast_cooldown).
+    "vr_agdknight_spell_share",
     // 2026-11-02: the option audit's removals (ROUND23.md, "Option audit: removals"): the hitbox category switches (the
     // width, vr_hull_ent_width, holds against all), the old sides of legacy switches (their "on" kept), the status
     // duplicates (vr_*_status 1), the retired migrations' cvars, Shoulder Charges' switch (its chance 0 is off), the
@@ -938,6 +978,13 @@ constexpr const char* retiredCvars[] = {
     "vr_decals_world",
     "vr_font_shadow_size", // 2026-11-02: the shadow's offset, now vr_font_shadow_x and _y (vr_font_shadow_grow its size)
     "vr_worn_backpacks", // 2026-11-02: armed grunts always wear their backpack (ROUND23.md, "Worn backpacks always on")
+    // 2026-11-02: option round 2's removals, their "on" kept (ROUND23.md, "Option round 2: removals"): armed bodies hit
+    // as drawn, casings' sound per surface, precise hit detection, permanent decals, dequantised .mdl vertices.
+    "vr_hit_drawn_pose",
+    "vr_gunsfx_casings",
+    "vr_hit_precise",
+    "vr_permdecals",
+    "vr_mdl_dequant",
     // 2026-11-02: legacy options removed, their defaults kept (ROUND23.md, "Legacy options removed, group 1").
     "vr_hand_rig",
     "vr_gun_wall_slide",
@@ -1173,7 +1220,7 @@ extern "C" int VR_RetiredCvar(const char* name)
     }
     if(qvr::tunableFind(name))
     {
-        return 1; // a tuning constant now (vr_tunables.inc): an old config's line for it is ignored
+        return 1; // a tuning constant now (vr_tunables.inc): the line sets nothing (a sparse config's value: tunablesTakeConfigLines)
     }
     // 2026-10-31: the one two-handed recoil slider split in four: an old config's value set on each.
     if(qvr::weapons::retiredTwoHandLine(name, Cmd_Argc() > 1 ? Cmd_Argv(1) : nullptr))

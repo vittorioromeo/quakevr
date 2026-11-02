@@ -272,8 +272,9 @@ promote <config>`, `props_data.py promote <config>`, `monsters_data.py promote <
   those values into `vr_tunables.inc` as the new defaults (a worker's tree; the game never writes sources). A
   **release** (`QVR_RELEASE`: make_release.ps1's `/p:QvrReleaseVersion`, or `/p:QvrRelease=1` to build its code as a
   check) makes each a constexpr with its default folded in, and has none of the above. Code that differs between the
-  two goes under `#ifndef QVR_RELEASE` (vr_tunables.cpp, the Tunables page). An old config's line for a constant is
-  ignored. Its default is its value: changing it changes the game. A **test knob** is a `CVAR_NONE`
+  two goes under `#ifndef QVR_RELEASE` (vr_tunables.cpp, the Tunables page). A setting that becomes a constant keeps the
+  player's value in a development build: a sparse config's line for it goes to `tunables.cfg` with one console line
+  (`tunablesTakeConfigLines`), any other line for it is ignored; `make_release.ps1` stops on a value not promoted. Its default is its value: changing it changes the game. A **test knob** is a `CVAR_NONE`
   cvar (never saved) whose row, if any, belongs on a Debug page. A new number starts as a tuning constant; it becomes a
   setting only for a player-facing reason. A constant can't be written (`&name`, `Cvar_Set`) or looked up with
   `Cvar_FindVar`: that one stays a cvar.
@@ -391,7 +392,7 @@ Use these instead of a local copy (refactor 2026-10-29, cluster A4).
   sees it), never `cvar("...")` (check_canonical.py's qc-cvar-by-name: only the allowlisted sites, names built at run
   time or tests' cvar tables put back by name; QC/ad, the import, keeps its own). Every handle is generated: write
   `cvarh_<name>` and run `python Misc/quakevr/gen_vr_cvars_qc.py` (it writes `QC/vr_cvars_gen.qc`, the global and its
-  make for every handle the QC's code uses and no other: each costs a global, ~2,100 left under 65,536; `--check`
+  make for every handle the QC's code uses and no other: each costs a global; `--check`
   fails a stale file or a name that is no cvar, tunable, weapon/monster/group value or engine cvar). Handles are made
   again at every load (their numbers are the session's); one the engine does not find prints `cvar_hmake: unknown
   cvar` and fails every QC test (VR_CVar_Make, VR_Test_Begin).

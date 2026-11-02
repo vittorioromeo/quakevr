@@ -204,6 +204,7 @@ typedef enum
 typedef struct qcvm_s
 {
 	dprograms_t		*progs;
+	qboolean		progs32;	// QVR: loaded from the 32-bit format (FTE32; else 16-bit, widened at load: PR_LoadProgs)
 	dfunction_t		*functions;
 	dstatement_t	*statements;
 	float			*globals;	/* same as pr_global_struct */

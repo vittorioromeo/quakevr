@@ -63,6 +63,14 @@ za::Vector<Item> pageDebugViews()
         command("Retro Textures: List", "vr_retro_list")
             .help("vr_retro_list: prints each model drawn now with its retro textures kind (Graphics > Retro Textures), its "
                   "set and its skin's size, to the console."),
+        command("Player's Walk Report", "vr_body_step_report")
+            .help("vr_body_step_report: since the last time, the walk's counted steps a second, stride and the planted foot's "
+                  "slide, the footstep sounds from the feet and from the old trigger, and how far the sounds were from the "
+                  "drawn feet's touchdowns, to the console. Press it, walk, press it again."),
+        command("Enemy Footsteps: Contacts", "vr_footstep_info")
+            .help("vr_footstep_info: each biped seen so far with the frames its feet come down on, as read from its model, "
+                  "to the console. vr_footstep_report: its steps heard, walking and running, and how far they were from the "
+                  "drawn contact."),
         command("Flame Lights Info", "vr_flame_lights_info")
             .help("vr_flame_lights_info: the flamethrowers' stream lights now (Graphics' Flamethrower Lights): how many "
                   "flames were drawn last frame, the clusters they made, and each light's place, level and reach."),
@@ -512,6 +520,9 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_shadow_layered_check 20 casters: this frame's shadow maps drawn with each dynamic light's exact world "
                   "casters, then with the wider set kept for a moving light, 20 times each, timed, then read back and "
                   "compared texel by texel, in the console. Stand where shadows are."),
+        command("Model Light Grid Info", "vr_model_light_grid_info")
+            .help("vr_model_light_grid_info: the map's model light grid: its cells, probes, memory and build time, and how "
+                  "much light its probes out of sight would add through thin walls, in the console."),
         command("Light Caster Stats", "vr_shadow_caster_stats")
             .help("vr_shadow_caster_stats: since the last time, the dynamic lights' world caster sets kept and collected, "
                   "in the console."),
@@ -763,7 +774,7 @@ za::Vector<Item> pageDebugReports()
         command("Every Ragdoll Rig", "vr_ragdoll_rig_sweep").help("vr_ragdoll_rig_sweep: every monster model with a ragdoll table in the loaded game folders (Arcane Dimensions' with -game ad), its rig derived: how many rigged, and why any did not (\"bone ... got 0 vertices\")."),
         command("Grunt's Ragdoll Rig", "vr_ragdoll_info").help("vr_ragdoll_info [model]: the rig derived from the grunt's animation: each bone's vertices, joint, pivot and limits, how well the bones fit the frames."),
         command("Smooth Animation Check", "vr_anim_smooth_check").help("vr_anim_smooth_check [model ...]: each rigged monster's frames drawn as Model Animation Smooth draws them (r_lerpmodels 3): the weights at the frames (exact), how near a frame the shape is just off it, how far mid-frame it is from Quake's blend, and how much limbs turning 30 degrees or more shrink mid-frame (Quake's blend, the spline, with the swung limbs)."),
-        command("Steady Vertices Check", "vr_mdl_dequant_check").help("vr_mdl_dequant_check [model ...]: each model's vertices dequantised (Steady Model Vertices, vr_mdl_dequant): its animation runs and loops, the largest offset from the stored values (at most half a step), how much the vertices' second differences shrink (all of them; the slow parts, where the file's rounding shows), the loops the game's QuakeC plays (their seams: second differences there and inside, stored, as before and now), how far the normals turn from frame to frame, the time it takes, and the load totals."),
+        command("Steady Vertices Check", "vr_mdl_dequant_check").help("vr_mdl_dequant_check [model ...]: each model's vertices dequantised (as drawn): its animation runs and loops, the largest offset from the stored values (at most half a step), how much the vertices' second differences shrink (all of them; the slow parts, where the file's rounding shows), the loops the game's QuakeC plays (their seams: second differences there and inside, stored, as before and now), how far the normals turn from frame to frame, the time it takes, and the load totals."),
         command("Smooth Animation Rig Hashes", "vr_anim_smooth_rig_hash").help("vr_anim_smooth_rig_hash: each rigged model's rig data as made (the poses each bone fits badly in, the rebuilt keys, the rest rows, the fit statistics) hashed, by name: two builds' printouts compare their rig data byte for byte."),
         command("Smooth Animation Models", "vr_anim_smooth_info").help("vr_anim_smooth_info [model [frames]]: the models drawn smoothed: the frames that follow by name or were seen, the rig's bones and how many poses each is fitted too badly in to swing."),
         command("Trace Nearest Monster's Motion", "vr_anim_smooth_trace 180").help("vr_anim_smooth_trace <frames> [<entity> | <model>]: the nearest monster's drawn animation over the next frames (here 180): how much its points' speed changes from frame to frame (median, p95, most), printed at the end. Run it with Model Animation on Quake's Blend, then Smooth, to compare (even frames: vr_fixed_frames 1)."),
@@ -799,7 +810,7 @@ za::Vector<Item> pageDebugReports()
         command("Bloody Hands and Washing", "vr_gore_hands_info")
             .help("vr_gore_hands_info: the blood on your hands and body (texels), the wounds kept to re-open, the wash and its re-opening, and the blood on your weapons and props."),
         command("Decals and Gore", "vr_decal_count").help("vr_decal_count: the decals and gore pieces in the world."),
-        command("Permanent Decals", "vr_permdecal_info").help("vr_permdecal_info: the marks baked for good (Permanent Decals): faces laid out, pages and atlas slots used, the atlas's layers and memory, marks baked, pages given up when it was full at its most, the flushes' cost."),
+        command("Permanent Decals", "vr_permdecal_info").help("vr_permdecal_info: the marks baked for good: faces laid out, pages and atlas slots used, the atlas's layers and memory, marks baked, pages given up when it was full at its most, the flushes' cost."),
         command("Particle Lighting", "vr_particle_light_report").help("vr_particle_light_report: the last frame's lit particles (Lit Particles), their mean light and colour against unlit, and the lightmap traces it took."),
         command("Model Lighting", "vr_model_ambient_show").help("vr_model_ambient_show: the six nearest entities' ambient light."),
         command("Ambient Occlusion", "vr_ao_show").help("vr_ao_show: the ambient occlusion's occluders and bake."),
@@ -969,6 +980,8 @@ za::Vector<Item> pageDebugTools()
         header("Test Effects"),
         command("Font Sample Message", "vr_fontstyle_sample")
             .help("vr_fontstyle_sample: a centre message and a console line in white and gold, to judge Menu > Fonts (upscaling, outline, shadow) over the game. vr_fontstyle_test: its self-test."),
+        command("Font Style Live Test", "vr_fontstyle_live_test")
+            .help("vr_fontstyle_live_test: in a map with boards, a weapon in hand: changes each of the World Text, Ammo Screen and Wrist Gadget fonts' outline and shadow in turn, checks that only that font's text images are drawn again, once, on the next frame, and puts the settings back."),
         command("Blood and Gore", "vr_gore_test").help("vr_gore_test: blood and gore 64 units ahead, as a 40 damage hit."),
         command("Gore Burst", "vr_gore_test burst").help("vr_gore_test burst: a body bursting into gibs 64 units ahead."),
         command("Gore Sounds: a Crowd's Tears", "vr_gore_sound_test tear 12 0.06")

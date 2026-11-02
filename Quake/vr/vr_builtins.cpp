@@ -4,6 +4,7 @@
 // unbound, so they are given numbers from a private range here and bound by name.
 
 #include "vr_progs.hpp"
+#include "vr_playersteps.hpp"
 #include "vr_brushes.hpp"
 #include "vr_goresound.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
@@ -792,6 +793,8 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"weaponanygrip", PF_weaponanygrip},
     {"weapondrawnpose", PF_weapondrawnpose},
     {"agposekey", PF_agposekey},
+    {"agstrikeblend", PF_agstrikeblend},
+    {"agkeytime", PF_agkeytime},
     {"agdrawnframe", PF_agdrawnframe},
     {"agweaponextent", PF_agweaponextent},
     {"admeleebend", PF_admeleebend},
@@ -962,6 +965,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"disarmhull", disarmhull::PF_disarmhull},
     {"torchflametouch", PF_torchflametouch},
     {"mapflametouch", PF_mapflametouch},
+    {"playerstepsilent", PF_playerstepsilent},
     {"anglemod", PF_anglemod},
     {"stealthlight", stealth::PF_stealthlight},
     {"flashlightbeam", stealth::PF_flashlightbeam},

@@ -20,8 +20,8 @@ Dual-wielding blades: they swing in turn and together; knock or pull one out: it
 Dual-wielding guns: the toolgun's Left Hand gives a spawned grunt a second gun; with Pick Up a Second on, a one-gun grunt out of a fight fetches a second one lying near. {test:toolgun_bench}
 Weapon pickup: hit a grunt while it reaches down for its gun: the gun stays on the floor; its feet don't slide while it kneels. {test:agrunt_pickup}
 Replacements: "replace all" (Combat > Armed Grunts) in e1m1: as hard as the original grunts, and their guns can be grabbed, tugged and shot out. {test:agrunt_repl_map}
-Running: hold the stick hard forward: the speed no longer dips every few steps (full speed now from an 80% push); slow walking still easy. {test:vr_stick_run_test}
-Death knight in a full helmet: it sits close round his skull, horns through it, face open (Debug > Tests > Helmets There: Knight and Death Knight). {test:vr_agarmor_test 8}
+Running: hold the stick hard forward: the speed no longer dips every few steps (full speed now from an 80% push); slow walking still easy. {test:stick_run}
+Death knight in a full helmet: it sits close round his skull, horns through it, face open (Debug > Tests > Helmets There: Knight and Death Knight). {test:agarmor_helmets_knights}
 Arena foes stand upright, never pitched toward you, enforcers on high places too. {test:arena_intro}
 The first armour plates broken after a new game cause no hitch.
 Tug-of-war with your tuned values as defaults; the tug's least time is now 0.4 s (Armed Grunts > Tug: Least Pull Time slider). {test:agrunt_tug}
@@ -33,8 +33,8 @@ Armour, Plate Blocks All: shots from every gun at any plate (cuirass, helmet, li
 Debug > Show Armour Plates: each plate's outer edges bold and easy to see, standing and ragdolled. {test:agarmor_guns}
 Barrel heat on every gun: hold the nailgun about 1 s, then fire a few shotgun shots: the muzzle glows red to orange and smokes, then cools over about 3 s; tune Weapon Effects > Heat-Up Time / Cool-Down Time / Heat Glow Strength, and Weapon Offsets > Effects > Barrel Heat 0 for a gun that never heats. {test:gunfire_range}
 Hold a ragdoll (or a crate in both hands) and punch the dummy, a wall or a button with that hand: no blow, no press; your free hand still punches. {test:agrunt_tug}
-Ragdoll smash: slam a held grunt's limb (alive and down, or dead) into a wall and the floor: a fleshy thud, deeper when harder, blood on the surface at the contact; a gentle touch or a drag is silent and clean; sliding a body along a wall does not machine-gun. {test:vr_ragsmash_test 1}
-Weapon clash: dual swords swung into each other fast spark with a clang and tink at the crossing; a slow cross does nothing; two shotguns give a dull knock, no sparks; sword on shotgun a few sparks and a clank (Weapons > Weapon Effects > Weapon Clash). {test:vr_clash_test 2}
+Ragdoll smash: slam a held grunt's limb (alive and down, or dead) into a wall and the floor: a fleshy thud, deeper when harder, blood on the surface at the contact; a gentle touch or a drag is silent and clean; sliding a body along a wall does not machine-gun. {test:ragsmash}
+Weapon clash: dual swords swung into each other fast spark with a clang and tink at the crossing; a slow cross does nothing; two shotguns give a dull knock, no sparks; sword on shotgun a few sparks and a clank (Weapons > Weapon Effects > Weapon Clash). {test:weapon_clash}
 Switch campaign (e.g. to Arcane Dimensions) with a menu panel open on the Levels, then play into the hub: no crash; reopened, the panel lists the new campaign's levels.
 A hot shotgun or nailgun glows like a torch-heated blade, on the metal itself: brightest at the muzzle, fading back along the barrel, red deepening to orange, fading as it cools; turning and walking with the sticks it stays exactly on the barrel. {test:barrelglow}
 A glowing barrel lights your hand and nearby walls (Weapon Effects > Heat Light Strength; 0 off); Weapon Offsets > Effects > Barrel Glow Length sets how much of each gun glows (0.5 = its front half).
@@ -44,7 +44,7 @@ Show Disarm Volumes, grab a grunt's gun and tug: the readout over the gun shows 
 Run straight at a grunt: you slow noticeably in the last metre or so and still reach its face; strafing past it stays at almost full speed (Locomotion > Close Quarters sliders). {test:agrunt_melee_spacing}
 Ghost Hands on: grabbing an enemy, a knocked-down or a dead body shows no ghost hand; a two-handed gun still shows it (Ghost Hands > No Ghost Holding Bodies).
 Feminine voice on: an armed grunt's punch or blade hit on you plays a feminine grunt.
-Smashing a ragdoll into a wall sounds louder, and limbs pop slightly sooner (Smash Volume 1.35, Impact Multiplier 1.15). {test:vr_ragsmash_test 1}
+Smashing a ragdoll into a wall sounds louder, and limbs pop slightly sooner (Smash Volume 1.35, Impact Multiplier 1.15). {test:ragsmash}
 notarget on, an idle shotgun grunt: punch its gun out: it staggers a moment and turns on you; shoot an idle grunt's gun: it turns on you (and staggers if it's knocked out). {test:disarm_hulls_melee}
 A grunt holding two swords or two guns: knock out one, then the other (both orders, also while it lies on the floor): only the struck weapon falls each time. {test:dual_wield}
 Strike a sword grunt's blade (away from its hand) while it hasn't seen you: sparks, no disarm, and it turns on you.
@@ -94,7 +94,7 @@ Menu > Fonts > Show a Sample Message: console lines (and the centre message) in 
 Text everywhere has your look by default (soft edges, thin dark outline, soft shadow down-right); Menu > Fonts and the new Wrist Gadget Font / Ammo Screen Font / World Text Font pages (from Wrist Gadget, Ammo Screens, Map Boards) each change only their own text at once. {test:vrcalibration}
 Fonts: Shadow Offset X/Y move the shadow, Shadow Size thickens it, Spread softens it.
 Ammo Screen Font: tweak it with a gun in hand and check the ammo screen text changes (not seen in tests: the mock never held a gun).
-Shots and blows on armed humanoids and ragdolls land exactly where they did (cheaper now). {test:bench_crowd32_armed}
+Shots and blows on armed humanoids and ragdolls land exactly where they did (cheaper now). {test:bench_armed_mix32}
 Every armed grunt wears its backpack by default (no Worn Backpacks switch); killed or gibbed, its loot is in the pack and no second one drops; enforcers still drop theirs. {test:worn_packs}
 Ultra graphics preset: the glow looks as on High (four-level glow retired).
 Shoulder Charges: Chance 0 turns them off; the training dummy still judges them.
@@ -102,6 +102,39 @@ Armed grunt knocked down: keeps its gun until it lands hard (no ledge/speed/flin
 Debug > Tunables shows submenus (Combat > Armed Grunts > AI Behaviour...), titled as you go down, Back goes up; Search opens a constant's own submenu.
 Shoreline Foam Settings shows only On, Opacity and Particles per liquid; Gore > Small Gibs keeps on/off, Max, Time and its switches (the rest in Debug > Tunables, same submenus).
 Ragdoll Tool > Joint Groups sliders still work live.
+vr_diagnostics 1 -> one start makes a diagnostics folder and prints that it set itself back to 0; the next start makes none.
+Screens > World Text Font / Ammo Screen Font / Wrist Gadget Font: moving the outline or shadow sliders updates the map boards, tip screens, ammo screens and the gadget hologram right away {test:vrcalibration}
+The Gore page shows one "Gore Volume" slider; per-sound volumes are under Debug > Tunables > Gore. {test:gore}
+Armed humanoids' sword, axe and club swings are parried by direction by default. {test:dirparry}
+The Grappling Hook, Fire Particles and Loot Beams pages are shorter: their numbers are under Debug > Tunables. The loot beam per-kind switches are still on the page.
+Armed humanoids hold and swing as you set them in the Pose Studio without your config: your poses, grips and arm stretch of 11-02 are now the defaults.
+Pose Studio strike keys: drag a diamond, Add Key, Remove Key, undo; the blow lands at the same moment.
+Old save loads and a new save/load works on the 32-bit progs (console: `progs.dat: 32-bit (FTE32)`).
+Shots and blows on armed enemies hit where they are drawn, on an AD map too. {test:bench_crowd_plain32}
+Graphics preset Off now keeps permanent marks.
+Release: make_release.ps1 -DryRun lists any tunables.cfg value not in the source, with the promote command; a real run stops on it before building.
+Console at start: when a setting becomes a tuning constant and your config set it, you see "X is a tuning constant now: the config's "v" is kept in tunables.cfg" and `tune` lists it.
+Smashing a ragdoll into a wall: your Impact Multiplier 1.25 is the default now.
+A grunt with a gun and an axe switches to its axe up close and swings it; it no longer stands and shoves you {test:agrunt_repl_gunaxe}
+An armoured death knight (Debug > Tests > Helmets There: Knight and Death Knight): his eyes show under the helmet from the front, its back no wider than his head, the horns standing out of it. {test:agarmor_helmets_knights}
+Fire a nail pistol's clip out: its slide locks open and the ammo screen stays flat on the slide's wall, not out past its back; and during a shot it stays on the wall.
+Feminine voice on: the grunt of a body, leg or backpack lift and of a throw is a woman's, as high as your jump's grunt.
+An armed death knight with a gun fires it and casts from his off hand's palm about every other attack (Gun Cast Cooldown 3 s; Debug > Tests > Death Knight's Gun and Casts); a group's first volleys come apart.
+Models lit from all sides (Graphics > Models and Effects, `vr_model_light_grid`): foes on dark floors under lit walls are visible, bright floors no longer make them glow, and no pop crossing floor seams; 0 restores the old look. {test:e1m1}
+Enemies' footsteps (Debug > Tests > Enemy Footsteps Walkabout) land on their feet, and you can place them by ear with your eyes shut.
+Walking enemies are soft, running ones louder and carry further.
+Boots for grunts and enforcers, metal for knights, wet feet for zombies, heavy thuds for ogres, fiends and shamblers: do they sound right?
+In a big crowd only the nearest few are heard, with no machine-gunning.
+
+An armoured death knight from the front (Debug > Tests > Helmets Alone There: Knight and Death Knight): plates come down each side of his face from the brim, outside his cheeks, his eyes open between them; it reads as a helmet, not a hat, and they turn with his head. {test:agarmor_helmets_knights}
+Difficulty menu (Play Custom Map, pick a map), Single Player and Multiplayer: the big rows have the same outline and shadow as the main menu's; change Menu > Fonts and they follow at once. Laser and mouse still pick the right rows.
+Grunt and enforcer steps read as leather on stone, not metal; ogres, fiends and shamblers are clearly the heaviest and easy to hear, even from across a room (too loud? Debug > Tunables > Combat > Enemy Footsteps > Heavy Feet Volume).
+Body > Step Rate changes the legs' steps at a full run: 3 slow, 7 fast, the number is steps per second.
+Body > Running Cadence 0: about the same step rate at any stick push.
+Body > Stride Length 1.5: longer strides, less foot slide, feet lift more at the stride's ends.
+Body > Step Width +0.15: feet walk wider apart.
+Your footsteps land with the drawn feet, from that foot, one sound per step; turning on the spot gives soft shuffles. About 5 steps a second at a run: too busy?
+Body > Footsteps on the Feet off: the old distance-based steps.
 
 [2. Armed humanoids: disarming and armour]
 Show Disarm Volumes: the wireframe hulls sit on each drawn weapon (magenta, orange, red; the sword's orange line along its blade) and on the drawn hand and forearm (cyan). {test:disarm_hulls_melee}

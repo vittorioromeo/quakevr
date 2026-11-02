@@ -24,6 +24,11 @@ namespace qvr::ambient
 // files are another game's; the entities' cached light (and the world it was traced in).
 void onGameDirChanged();
 
+// A map's load: its light grid (vr_model_light_grid: probes that gather the same light, once, at the map's load; a
+// model reads the eight round it instead of its own rays, and takes its brightness from them too, not from the floor
+// under it). vr_ambient.cpp, "The light grid".
+void prepareGrid();
+
 void entityCube(const entity_t* e, const float modelMatrix[16], const void* aliashdr, bool enabled, float out[6][4]);
 
 } // namespace qvr::ambient

@@ -55,10 +55,7 @@ struct Hit
     float u{0.f}, v{0.f};
 };
 
-// vr_hit_precise.
-[[nodiscard]] bool enabled();
-
-// With the option on: whether `ent`'s model is what is hit (a monster or a corpse with a Quake .mdl).
+// Whether `ent`'s model is what is hit (a monster or a corpse with a Quake .mdl).
 [[nodiscard]] bool target(edict_s* ent);
 
 [[nodiscard]] float tolerance(Class c);

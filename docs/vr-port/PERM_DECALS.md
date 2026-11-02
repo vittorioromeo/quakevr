@@ -1,4 +1,4 @@
-# Permanent decals (vr_permdecals)
+# Permanent decals
 
 Blood, scorches and chips baked for good into a layer of the map's own faces (the author, 2026-10-14: "make blood and
 bullet hole decals permanently 'embedded/mapped' in the level's textures, both to make them never disappear but also
@@ -84,20 +84,12 @@ boxes made in the game (vr_brushes.cpp) and marks with no face of the layer unde
 So a fresh pool under a corpse stays a live mark for 8 s, then becomes part of the wall; a live mark left out of a full
 bucket (a pile of over `vr_decal_bucket_max`, 24, in one spot) is unseen until it bakes.
 
-## On and off
+## On and off (removed)
 
-One rule (`permdecals::kept`, vr_permdecals.hpp): **every mark goes into the layer's stamps, on or off. On, they are
-all shown, baked. Off (`vr_permdecals 0`), the newest `vr_decal_max` of them show live, exactly as without the layer
-(fading after `vr_decal_life`). `vr_decals 0` hides both.** Before, switching off hid every baked mark and left the
-live ones not baked yet (the last 0.1-8 s of marks, door marks lost): a random-looking mix.
-
-- Switched off: `showRecord` (vr_decals.cpp) lays the newest world stamps live again (settled, a whole life ahead, older
-  than the live marks there were), as many as the ring has room for; door marks stay hidden (the live ring never had
-  any). The marks the ring lets go of while off (cap, life) are kept as stamps, not baked (`record`).
-- Switched on again: the marks shown from the layer leave the ring (in it already); the stamps kept while off, and the
-  live marks as they settle, are baked (`rebake`: only those, the atlas untouched while off).
-- A save made off keeps the stamps and the live marks; loaded off, the newest show live; on, all are baked.
-- The texture and its memory stay while off (made again only at a new map, and then only with the layer on).
+The layer has no switch of its own since 2026-11-02 (option round 2: `vr_permdecals` retired, permanent decals
+always on; ROUND23.md, "Option round 2: removals"). Its on/off rule (`permdecals::kept`, `record`, `rebake`, the live
+ring's `showRecord`) went with it. `vr_decals 0` still hides every mark, baked or live; a map the layer is not laid out
+for (`permdecals::on()` false) keeps the live ring only, the newest `vr_decal_max`.
 
 ## Performance (2026-10-15; `scratch/burst.sh`: vrfiringrange, gore 2, 32 monsters, four rounds of 4 blasts)
 
@@ -117,13 +109,8 @@ emptied slot was a scissored clear in each mip level (up to 145 x 4 a frame).
 | first mark's frame | 5-10 ms (program, texture) | in the load |
 
 The marks' quads were never the cost (842 pages in one frame: 0.03 ms GPU). Other numbers: `decals baked` (the CPU
-bakes) 0.01 ms average, 0.1-0.6 worst; the live ring's grid rebuild 0.04 / 0.37 ms. Switching off with 5000 stamps:
-`showRecord` 0.64 ms (768 marks laid live); on again: 0.46 ms CPU (the 2574 pages of the stamps kept while off; it was a
-rebake of everything, 10.5 ms CPU + 23 ms GPU, before it baked only those). Budget: 128 marks settling at once with
+bakes) 0.01 ms average, 0.1-0.6 worst; the live ring's grid rebuild 0.04 / 0.37 ms. Budget: 128 marks settling at once with
 `vr_permdecal_bake_max 64` bake over 21 frames, 84 pages the most in one (64 + one mark's).
-
-Off (`vr_permdecals 0`) against the base build, 64 live marks, exact setup: 33 pixels of 518400 differ by 1 (the world
-shader built with the array sampler), mean 0.00.
 
 ## Commands and menus
 
@@ -134,7 +121,6 @@ shader built with the array sampler), mean 0.00.
 - `vr_decal_at x y z dx dy dz [blood|hole|scorch|pool] [size] [delay]`: a mark where the line meets a surface (shown
   `delay` seconds later, as the gore's flying blood) (deterministic:
   rand seeded from its arguments); prints the entity it met.
-- Settings > Gore > Marks: "Permanent Decals" (`vr_permdecals`, default 1; its help says what off shows).
 - `vr_permdecal_atlas` (4096, a layer's side), `vr_permdecal_atlas_max` (512 MB), `vr_permdecal_bake_max` (1024 pages a
   frame; not archived): console only.
 

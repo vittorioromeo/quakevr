@@ -901,6 +901,7 @@ QVR_TUNABLE(vr_agrunt_saw_start, "44") // units (its middle to yours): an armed 
 QVR_TUNABLE(vr_agrunt_aim_exposed_hold, "0.5") // seconds it keeps aiming at the part it picked while that part stays reachable (then the best reachable one again: the chest first)
 QVR_TUNABLE(vr_agrunt_range_scale, "1") // armed humanoids' fighting distances (vr_agrunt_range) times this
 QVR_TUNABLE(vr_agrunt_range_walkfire, "50") // units/s: with vr_agrunt_range, an armed humanoid walks while it fires (on, back or round you, by its fighting distance); 0: it stands to fire, as before
+QVR_TUNABLE(vr_agrunt_friendly_care, "1") // 0..1: how careful an armed humanoid is not to shoot or strike its friends: the chance it holds fire (and sidesteps) when a monster not its enemy is in its line of fire (0: never, the old way)
 
 // Combat > Armed Grunts - Preventive Parry
 QVR_TUNABLE(vr_agrunt_preparry_range, "64") // units (its middle to yours, level): you this near, it may raise its guard (times the category's range)
@@ -973,6 +974,12 @@ QVR_TUNABLE(vr_agrunt_blade_fx, "1") // the contact's sparks and sound times thi
 // Combat > Directional Parry (vr_dirparry, experimental: QC vr_dirparry.qc)
 QVR_TUNABLE(vr_dirparry_partial, "0") // under the threshold, the blow cut by this x score / threshold (0: off, the full blow)
 QVR_TUNABLE(vr_dirparry_opening, "0.5") // s: its flinch when the parry balance gave no stagger (its swing stopped: the opening)
+QVR_TUNABLE(vr_dirparry_angle, "40") // Directional Parry: degrees your weapon may be off square to its blade and its way and still count fully
+QVR_TUNABLE(vr_dirparry_angle_zero, "90") // ... degrees off where the angle's marks reach none (from full at vr_dirparry_angle, falling evenly)
+QVR_TUNABLE(vr_dirparry_contact, "6") // ... units: its blade's line and your weapon's within this meet (full marks)
+QVR_TUNABLE(vr_dirparry_falloff, "2") // ... the meeting's marks fall to none at this times the contact distance
+QVR_TUNABLE(vr_dirparry_threshold, "0.75") // ... the score (angle x meeting, 0..1) that parries
+QVR_TUNABLE(vr_dirparry_window, "0.1") // ... s: at its blow, its blade's way followed on this long (where it would meet your weapon in the rest of the swing)
 
 // Combat > Armed Humanoid Replacements
 QVR_TUNABLE(vr_agrunt_repl_skill0, "0.5") // the chances above times this on Easy
@@ -1106,6 +1113,25 @@ QVR_TUNABLE(vr_enemy_aim_angle, "20") // Combat > Enemy Melee > Aim Cone: degree
 QVR_TUNABLE(vr_enemy_aim_fire, "40") // Combat > Enemy Melee > Fire Cone: degrees each side of its facing you must be inside for it to shoot at once (else it waits, turning; times the kind's multiplier too)
 QVR_TUNABLE(vr_enemy_aim_delay, "0.3") // Combat > Enemy Melee > Max Delay: seconds a shot waits at most with you outside its fire cone (turning after you meanwhile), then fires clamped; 0: no wait
 
+// Player > Footsteps (vr_playersteps.cpp)
+QVR_TUNABLE(vr_footstep_player_turn_vol, "0.35") // a standing step (turning on the spot, moving in the room), times a step's volume (0: none)
+
+// Combat > Enemy Footsteps (vr_footsteps.cpp)
+QVR_TUNABLE(vr_footstep_volume, "0.9") // all of them, times this (0: none)
+QVR_TUNABLE(vr_footstep_walk_speed, "30") // units/s: a pace this slow or slower is a walk's volume and carry
+QVR_TUNABLE(vr_footstep_run_speed, "150") // units/s: this fast or faster a run's
+QVR_TUNABLE(vr_footstep_walk_vol, "0.25") // a walking step's volume (times its kind's weight)
+QVR_TUNABLE(vr_footstep_run_vol, "0.6") // a running step's volume
+QVR_TUNABLE(vr_footstep_walk_atten, "1.6") // how fast a walking step dies with distance (Quake's ATTN_NORM is 1)
+QVR_TUNABLE(vr_footstep_run_atten, "1") // a running step's
+QVR_TUNABLE(vr_footstep_min_speed, "6") // units/s: slower is no step (a shift of weight on the spot)
+QVR_TUNABLE(vr_footstep_heavy_volume, "1") // the heavy feet (ogres, fiends, shamblers), times this as well
+QVR_TUNABLE(vr_footstep_heavy_carry, "0.6") // their distance counted times this: heard from further, over nearer boots
+QVR_TUNABLE(vr_footstep_nearest, "6") // only the nearest this many of those moving are heard (0-16)
+QVR_TUNABLE(vr_footstep_range, "1000") // units from a player: farther isn't heard or counted
+QVR_TUNABLE(vr_footstep_rate, "14") // steps a second at most, all together
+QVR_TUNABLE(vr_footstep_log, "0") // 1: a console line a step (the pace, volume, its error against the drawn contact)
+
 // Combat > Enemy Shoves
 QVR_TUNABLE(vr_enemy_shove_parry_reduction, "0.75") // share of a shove's push a parry takes off (0: none, 1: all; was vr_enemy_shove_parried, the share left)
 QVR_TUNABLE(vr_enemy_shove_enforcer_damage, "1.5") // an enforcer's shove's damage, times vr_enemy_shove_damage
@@ -1193,7 +1219,7 @@ QVR_TUNABLE(vr_hit_stagger_head, "1.5") // a melee blow to the head (fist or wea
 QVR_TUNABLE(vr_hit_stagger_resist, "0.75") // big monsters resist: the chance times (30 / its full health) ^ this, above 30 health (0: none; shambler 0.1, ogre 0.24)
 QVR_TUNABLE(vr_hit_stagger_cooldown, "4") // s after an unbalancing hit before another hit can unbalance it (no stunlock)
 QVR_TUNABLE(vr_ragimpact_damage, "0.08") // damage per kg m/s past the least speed (mass behind the part x (its speed - Least Speed))
-QVR_TUNABLE(vr_ragimpact_mult, "1.15") // a ragdoll's (knocked down or dead) strike on a wall, the floor or a prop: its damage and its head's or limb's wear (pops) times this (not a landing's crush)
+QVR_TUNABLE(vr_ragimpact_mult, "1.25") // a ragdoll's (knocked down or dead) strike on a wall, the floor or a prop: its damage and its head's or limb's wear (pops) times this (not a landing's crush)
 QVR_TUNABLE(vr_ragimpact_min_speed, "2.5") // m/s: slower strikes do nothing
 QVR_TUNABLE(vr_ragimpact_held_speed, "1") // m/s: a part your hand holds counts from this speed (the hand slows as it drives a body: 2-4 m/s slams)
 QVR_TUNABLE(vr_ragimpact_dent, "2") // a strike dealing this much damage or more dents and wounds the part where it struck, as a blunt melee blow does (a head slammed into a wall: its face dented); 0: never
@@ -1240,6 +1266,10 @@ QVR_TUNABLE(vr_knockdown_wiggle_pause, "0.5") // pause between bursts, seconds; 
 QVR_TUNABLE(vr_quad_melee_damage, "1.1")
 QVR_TUNABLE(vr_quad_melee_range, "1")
 QVR_TUNABLE(vr_headbutt_damage, "24") // damage at that speed (up to three times it, faster)
+QVR_TUNABLE(vr_melee_swish_min, "0.3") // share of the blow's landing speed from which a swing is heard (slower: silent)
+QVR_TUNABLE(vr_melee_swish_sub, "0.35") // volume of the loudest swing short of a blow (just under its landing speed; a blow is 1 and more)
+QVR_TUNABLE(vr_melee_swish_full, "1.75") // share of the landing speed at which a blow's whoosh is loudest (vr_melee_swish_gain; the author's punches land at 1.4-1.6, his overhead cuts 1.9-2.7)
+QVR_TUNABLE(vr_melee_swish_gain, "2") // volume of the fastest blows' whoosh (1: full volume, as a blow's was; up to 4), a little higher too
 
 // Combat > Monster Health
 QVR_TUNABLE(vr_monster_health_from, "150") // no cut up to this health (grunts, knights, enforcers, zombies...)
@@ -1578,6 +1608,15 @@ QVR_TUNABLE(vr_grapple_prop_anchor, "100") // kg from which a prop does not come
 QVR_TUNABLE(vr_grapple_small_mass, "120") // kg (QC VR_Grapple_MonsterMass) up to which a monster is small: pulled fast, staggered
 QVR_TUNABLE(vr_grapple_huge_mass, "400") // kg from which a monster is huge: the reel pulls you to it (in between: medium)
 QVR_TUNABLE(vr_grapple_tow_light, "10") // kg up to which a hooked prop dragged along on a taut rope doesn't slow you; heavier, you drag it slower in proportion (40 kg, an explosive box: a quarter as fast)
+QVR_TUNABLE(vr_grapple_max_length, "1500") // units: the longest the rope is (the hook flies no farther; the unreel pays out no more)
+QVR_TUNABLE(vr_grapple_quick_speed, "1800") // units/s the quick release (the button on the gun) brings the hook back at, with vr_grapple_quick_time 0 (and the fastest it goes with it: a long rope takes longer)
+QVR_TUNABLE(vr_grapple_reel_speed, "300") // units/s the reel pulls you in (to walls, huge monsters, props too heavy to move)
+QVR_TUNABLE(vr_grapple_min_length, "40") // the shortest the reel takes the rope (units)
+QVR_TUNABLE(vr_grapple_unreel_speed, "300") // units/s the hand's A/X pays the rope out at (lets you down, lets a load go farther); 0: no unreel
+QVR_TUNABLE(vr_grapple_prop_speed, "300") // units/s a light prop comes in at (weapons, pickups, keys)
+QVR_TUNABLE(vr_grapple_tow_speed, "320") // units/s you can drag a light prop at on a taut rope (walking away from it); heavier, slower (vr_grapple_tow_light); 0: no limit (it comes at your speed)
+QVR_TUNABLE(vr_grapple_small_speed, "400") // units/s a small monster is reeled in at
+QVR_TUNABLE(vr_grapple_medium_speed, "160") // and a medium one
 
 // HUD and Menus > Other
 QVR_TUNABLE(vr_gear_lights_sound_on, "vr/gadget_click_on.wav") // the button's clicks (empty: none)
@@ -1640,3 +1679,50 @@ QVR_TUNABLE(vr_handprint_size, "1.6") // ... times your hand's size (0.5..2)
 // Gore > Sticking
 QVR_TUNABLE(vr_gore_stick, "8") // gibs flung into a ceiling or a wall may stick there about this many seconds, then fall (0 never)
 QVR_TUNABLE(vr_gore_stick_speed, "20") // units/s a gib must strike a wall or a ceiling at to stick (flung or thrown)
+
+// Combat > Burning - Fire Particles
+QVR_TUNABLE(vr_fire_particles_count, "8") // exact particles in each emission burst
+QVR_TUNABLE(vr_fire_particles_frequency, "10") // bursts per second per flame model
+QVR_TUNABLE(vr_fire_particles_origin, "0.2") // emission height along flame: 0 base, 1 tip
+QVR_TUNABLE(vr_fire_particles_speed_min, "0.1") // horizontal outward speed, m/s
+QVR_TUNABLE(vr_fire_particles_speed_max, "0.4")
+QVR_TUNABLE(vr_fire_particles_up_min, "0.3") // upward speed in world axes, regardless of torch tilt
+QVR_TUNABLE(vr_fire_particles_up_max, "0.9")
+QVR_TUNABLE(vr_fire_particles_life_min, "0.25")
+QVR_TUNABLE(vr_fire_particles_life_max, "0.65")
+QVR_TUNABLE(vr_fire_particles_size, "2.5")
+QVR_TUNABLE(vr_fire_particles_alpha, "1")
+QVR_TUNABLE(vr_fire_particles_range, "1216")
+
+// Graphics > Loot Beams
+QVR_TUNABLE(vr_lootbeam_mag_min, "0.25") // a magazine's beam only fuller than this share of its rounds (0..1; 0: any not empty)
+QVR_TUNABLE(vr_lootbeam_opacity, "0.15") // its brightness (0..1)
+QVR_TUNABLE(vr_lootbeam_length, "1.5") // metres it rises from the thing's middle
+QVR_TUNABLE(vr_lootbeam_thickness, "0.03") // metres across its bright core (its soft glow three times that)
+QVR_TUNABLE(vr_lootbeam_saturation, "0.75") // its colours' saturation (0 white)
+QVR_TUNABLE(vr_lootbeam_fade_in, "0.5") // seconds it takes to fade in once the thing has rested vr_lootbeam_settle seconds
+QVR_TUNABLE(vr_lootbeam_settle, "0.3") // seconds a thing must lie still (within a few units) before its beam shows
+QVR_TUNABLE(vr_lootbeam_near, "0.5") // metres (across the floor) from your head within which it fades out, not in your face as you pick it up (0: never)
+QVR_TUNABLE(vr_lootbeam_far, "12") // metres beyond which it fades out (over the last quarter; 0: never)
+QVR_TUNABLE(vr_lootbeam_hue_weapons, "40") // each category's hue (degrees): weapons gold
+QVR_TUNABLE(vr_lootbeam_hue_weapons_empty, "0") // a reloadable weapon lying with its magazine empty (or out; reloading on): red, so it is known as needing ammo before it is grabbed (his note 2026-10-29); below 0: the weapons' hue
+QVR_TUNABLE(vr_lootbeam_hue_mags, "190") // ... magazines cyan
+QVR_TUNABLE(vr_lootbeam_hue_ammo, "55") // ... ammo yellow
+QVR_TUNABLE(vr_lootbeam_hue_health, "0") // ... health red
+QVR_TUNABLE(vr_lootbeam_hue_armor, "120") // ... armour green
+QVR_TUNABLE(vr_lootbeam_hue_powerups, "285") // ... power-ups violet
+QVR_TUNABLE(vr_lootbeam_hue_keys, "225") // ... keys and runes blue
+QVR_TUNABLE(vr_lootbeam_hue_backpacks, "25") // ... backpacks orange
+QVR_TUNABLE(vr_lootbeam_hue_toolgun, "305") // a dropped toolgun's (a weapon, but its own): magenta, found among many weapons (his note vrfiringrange_2026-10-23_21-18-02)
+QVR_TUNABLE(vr_lootbeam_toolgun_length, "2") // a dropped toolgun's beam this many times vr_lootbeam_length
+
+// Gore > Gore
+QVR_TUNABLE(vr_gore_sound_vol_spurt, "0.75") // a stump's spurts
+QVR_TUNABLE(vr_gore_sound_vol_pour, "0.75") // blood streams splattering on the floor
+QVR_TUNABLE(vr_gore_sound_vol_tear, "0.75") // limbs and heads torn off
+QVR_TUNABLE(vr_gore_sound_vol_squelch, "0.75") // a hand taking a gib or a dead body
+QVR_TUNABLE(vr_gore_sound_vol_splash, "0.75") // your foot splashing into a pool of blood
+QVR_TUNABLE(vr_gore_sound_vol_step, "0.75") // your wet steps after a pool
+QVR_TUNABLE(vr_gore_sound_vol_slap, "0.75") // gibs slapping into walls
+QVR_TUNABLE(vr_gore_sound_vol_choke, "0.75") // the chokes (vr_gore_sound_choke 1)
+QVR_TUNABLE(vr_gore_sound_vol_drip, "0.35") // drops of blood hitting the floor: yours (vr_body_blood), the ceilings' and stuck gibs' (vr_gore_drips) (his 0.35, 1 before vr_cfg_version 182)

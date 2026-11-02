@@ -20,6 +20,7 @@
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_files.hpp"
+#include "vr_climb.hpp"
 
 #include "Zancle/Algorithm/NthElement.hpp"
 #include "Zancle/Base/SizeT.hpp"
@@ -99,7 +100,7 @@ LoadStats loadStats;
 int hearNext{0};
 constexpr const char* hearSounds[] = {"player/pain2.wav", "player/death1.wav", "player/plyrjmp8.wav",
     "player/pain4.wav", "player/land2.wav", "player/gasp2.wav", "player/death3.wav", "player/pain6.wav",
-    "vr/derived/axhit1_voice.wav"};
+    "vr/derived/axhit1_voice.wav", "vr/derived/plyrjmp8_low.wav"};
 
 [[nodiscard]] float semitonesSetting()
 {
@@ -109,6 +110,24 @@ constexpr const char* hearSounds[] = {"player/pain2.wav", "player/death1.wav", "
 [[nodiscard]] float formantSetting()
 {
     return za::clamp(vr_voice_formant.value, -30.f, 50.f);
+}
+
+// What the transform asks of the sound `name`. A derived copy (VR_SndDerived) comes to it already played slower, its pitch
+// and formants lower with it, a man's grunt made heavier, and that took back what the voice gives: the deeper jump's grunt
+// (the lifts' and throws' grunt, vr_foegrab_throw_grunt_sound 2), 0.8, ended 4.5 - 3.9 = 0.6 semitones over the man's
+// recording with its formants 0.8 x 1.17 = 0.94 of his (his note vrfiringrange_2026-11-02_19-33-12). So the slowing is made
+// up for here: pitch and formants as high as the recording's own in this voice, only the copy's length its own.
+struct VoiceShift
+{
+    float semitones;
+    float formantPercent;
+};
+
+[[nodiscard]] VoiceShift voiceShift(const char* name)
+{
+    float slowed = 1.f;
+    (void)VR_SndDerived(name, &slowed);
+    return {semitonesSetting() - 12.f * 3.3219281f * za::log10(slowed), ((1.f + formantSetting() / 100.f) / slowed - 1.f) * 100.f};
 }
 
 // ----------------------------------------------------------------------------
@@ -698,13 +717,32 @@ void synthVowel(const int rate, const float f0, za::Vector<byte>& pcm)
     }
 }
 
+// (the test's: a deeper copy and its recording)
+constexpr const char* deeperPairs[2][2] = {{"vr/derived/plyrjmp8_low.wav", "player/plyrjmp8.wav"}, {"vr/derived/land2_low.wav", "player/land2.wav"}};
+
+// The sound `name` as the voice makes it: its pitch and spectral centroid (Hz).
+void feminineMeasure(const char* name, const int outRate, float& pitch, float& centroid)
+{
+    za::Vector<float> sound, out;
+    int rate = 0;
+    if(!loadGameSound(name, sound, rate))
+    {
+        return;
+    }
+    const VoiceShift shift = voiceShift(name);
+    voice::transform(sound, rate, outRate, shift.semitones, shift.formantPercent, out);
+    pitch = medianPitch(out, outRate);
+    centroid = spectralCentroid(out, outRate);
+}
+
 // The transform as the load runs it: 16-bit at outRate, *clipped the samples past full scale before the clamp.
-void transformPcm(const byte* pcm, const int width, const int samples, const int rate, const int outRate,
+void transformPcm(const char* name, const byte* pcm, const int width, const int samples, const int rate, const int outRate,
     za::Vector<float>& out, int* clipped)
 {
     za::Vector<float> in;
     decode(pcm, width, samples, in);
-    voice::transform(in, rate, outRate, semitonesSetting(), formantSetting(), out);
+    const VoiceShift shift = voiceShift(name);
+    voice::transform(in, rate, outRate, shift.semitones, shift.formantPercent, out);
     if(clipped)
     {
         *clipped = 0;
@@ -738,7 +776,7 @@ void test_f()
     za::Vector<float> out;
     int clipped = 0;
     const double t0 = Sys_DoubleTime();
-    transformPcm(pcm.data(), 1, static_cast<int>(pcm.size()), vowelRate, outRate, out, &clipped);
+    transformPcm("", pcm.data(), 1, static_cast<int>(pcm.size()), vowelRate, outRate, out, &clipped);
     const double ms = (Sys_DoubleTime() - t0) * 1000.0;
     const float f0In = medianPitch(in, vowelRate);
     const float f0Out = medianPitch(out, outRate);
@@ -788,7 +826,7 @@ void test_f()
             bytes[2 * i + 1] = static_cast<byte>((s >> 8) & 0xff);
         }
         const double s0 = Sys_DoubleTime();
-        transformPcm(bytes.data(), 2, static_cast<int>(sound.size()), rate, outRate, out, &clipped);
+        transformPcm(name, bytes.data(), 2, static_cast<int>(sound.size()), rate, outRate, out, &clipped);
         const double soundMs = (Sys_DoubleTime() - s0) * 1000.0;
         totalMs += soundMs;
         const double seconds = static_cast<double>(sound.size()) / rate;
@@ -821,6 +859,26 @@ void test_f()
     // A blade's or a fist's hit on the player: his grunt is his voice; axhit1 itself (a thrown axe's thud) is not.
     check(qvr::voice::isVoice("vr/derived/axhit1_voice.wav") && !qvr::voice::isVoice("player/axhit1.wav"),
         "hit by a blade or a fist: the grunt's copy is his voice, axhit1 itself not");
+    // Every grunt of the lifts, the throws and the mantle (climb::gruntSample's list) is his voice.
+    for(int choice = 0; choice < 5; choice++)
+    {
+        const char* grunt = climb::gruntSample(static_cast<float>(choice));
+        check(qvr::voice::isVoice(grunt), va("the lifts' and mantle's grunt %d (%s) is his voice", choice, grunt));
+    }
+    // The deeper copies of the grunts as high in this voice as their recordings: a copy's slowing doesn't take it back.
+    for(const char* const* pair : {deeperPairs[0], deeperPairs[1]})
+    {
+        float pitchCopy = 0.f, pitchSource = 0.f, copy = 0.f, source = 0.f;
+        feminineMeasure(pair[0], outRate, pitchCopy, copy);
+        feminineMeasure(pair[1], outRate, pitchSource, source);
+        Con_Printf("vr_voice_test: %s in this voice: pitch %.0f Hz, centroid %.0f Hz; %s: %.0f Hz, %.0f Hz\n", pair[0], pitchCopy, copy,
+            pair[1], pitchSource, source);
+        // (the slowing not made up for: the jump's copy 0.8 of its recording's on both; land2's pitch is half unvoiced, its
+        // median rough, hence the upper bound's slack)
+        const float pitchShare = pitchCopy / za::max(pitchSource, 1.f);
+        check(pitchShare > 0.93f && pitchShare < 1.25f && za::abs(copy / za::max(source, 1.f) - 1.f) < 0.1f,
+            va("%s as high in this voice as its recording (pitch %.2f of it, centroid %.2f)", pair[0], pitchShare, copy / za::max(source, 1.f)));
+    }
     qvr::testkit::verdict("vr_voice_test", passed, failed);
 }
 
@@ -1064,7 +1122,8 @@ extern "C" short* VR_SndVoice(const char* name, const byte* pcm, int width, int 
     za::Vector<float> in;
     decode(pcm, width, samples, in);
     za::Vector<float> out;
-    qvr::voice::transform(in, rate, outRate, semitonesSetting(), formantSetting(), out);
+    const VoiceShift shift = voiceShift(name);
+    qvr::voice::transform(in, rate, outRate, shift.semitones, shift.formantPercent, out);
     if(out.empty())
     {
         return nullptr;

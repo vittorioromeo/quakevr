@@ -294,6 +294,12 @@ extern "C" void VR_DiagnosticsBegin(void)
     diag.on = true;
     diag.began = time(nullptr);
     q_strlcpy(diag.why, param ? "-diagnostics" : "vr_diagnostics 1", sizeof(diag.why));
+    if(!param)
+    {
+        // One-shot: a forgotten 1 must not slow every start. The config written at exit saves the 0.
+        Cvar_Set("vr_diagnostics", "0");
+        Con_Printf("vr_diagnostics: diagnostics mode on for this run, vr_diagnostics set back to 0\n");
+    }
     char stampText[32];
     strftime(stampText, sizeof(stampText), "%Y-%m-%d_%H-%M-%S", localtime(&diag.began));
     char parent[1024];

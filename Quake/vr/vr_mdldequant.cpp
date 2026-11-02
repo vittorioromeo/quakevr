@@ -1,4 +1,4 @@
-// vr_mdldequant.cpp -- .mdl vertices dequantised at load (vr_mdl_dequant; docs/vr-port/MDL_DEQUANT.md).
+// vr_mdldequant.cpp -- .mdl vertices dequantised at load (docs/vr-port/MDL_DEQUANT.md).
 //
 // A .mdl stores each pose's vertices as one byte per axis (times the model's scale plus its origin): every position is
 // rounded to a 1/255th of the model's size, each frame on its own, so a vertex moving smoothly in the artist's animation
@@ -19,9 +19,8 @@
 //   sweeps; the result, as an offset from the stored byte in [-0.5, 0.5] steps, is kept per pose and vertex as three
 //   signed bytes (1/254th of a step: 0.004 units on a 60-unit model) next to the model's poses (aliashdr_t's dequant:
 //   the offsets, then the normals as the buffer holds them).
-// - The renderer (gl_mesh.c): the offsets go into the model's buffer after its poses (zero while vr_mdl_dequant is 0: the
-//   shader then draws exactly the stored bytes) and the alias shader adds them (SSBO 11, PoseFrac). Toggling the cvar
-//   uploads every loaded model's buffer again. Nothing is done per frame on the CPU.
+// - The renderer (gl_mesh.c): the offsets go into the model's buffer after its poses (zero until they are computed, at the
+//   model's first upload) and the alias shader adds them (SSBO 11, PoseFrac). Nothing is done per frame on the CPU.
 // - Normals: a pose's normal is one of 162 directions (up to 10.7 degrees from the true one), so a vertex that barely
 //   moves flips between neighbouring directions from frame to frame and its shading flickers (an idle knight's: 7.5
 //   degrees a frame). Along the same runs, each component takes the smoothest path within 0.1 of the stored direction's
@@ -187,9 +186,9 @@ mem::Cache<QcLoopCache> qcLoops{"mdl dequant loops", mem::GameDirChange};
     {
         return false;
     }
-    const int a = static_cast<unsigned short>(vm.statements[first].a);
-    const int b = static_cast<unsigned short>(vm.statements[first].b);
-    if(a >= pr->numglobals || b >= pr->numglobals)
+    const unsigned int a = vm.statements[first].a;
+    const unsigned int b = vm.statements[first].b;
+    if(a >= static_cast<unsigned int>(pr->numglobals) || b >= static_cast<unsigned int>(pr->numglobals))
     {
         return false;
     }
@@ -417,13 +416,13 @@ void buildQcLoops()
             cur = owner[static_cast<size_t>(s)];
         }
         const dstatement_t& st = vm.statements[s];
-        for(const short operand : {st.a, st.b, st.c})
+        for(const unsigned int operand : {st.a, st.b, st.c})
         {
-            const int g = static_cast<unsigned short>(operand);
-            if(g >= pr->numglobals)
+            if(operand >= static_cast<unsigned int>(pr->numglobals))
             {
                 continue;
             }
+            const int g = static_cast<int>(operand);
             if(modelOf[static_cast<size_t>(g)] >= 0)
             {
                 addUnique(models, modelOf[static_cast<size_t>(g)]);
@@ -1259,15 +1258,10 @@ void check_f()
             checkOne(name, false);
         }
     }
-    Con_Printf("mdldequant: loads: %d models dequantised in %.1f ms, %.1f KB of offsets (vr_mdl_dequant %s); progs loops: "
+    Con_Printf("mdldequant: loads: %d models dequantised in %.1f ms, %.1f KB of offsets; progs loops: "
                "%d (%d without a progs, built in %.1f ms)\n",
         loadTotals.models, loadTotals.seconds * 1000.0, static_cast<double>(loadTotals.bytes) / 1024.0,
-        vr_mdl_dequant.string, static_cast<int>(qcLoops.loops.size()), loadTotals.withoutProgs, qcLoops.ms);
-}
-
-void onChanged(cvar_t*)
-{
-    Mod_ReuploadAliasModels();
+        static_cast<int>(qcLoops.loops.size()), loadTotals.withoutProgs, qcLoops.ms);
 }
 
 } // namespace
@@ -1353,18 +1347,8 @@ extern "C" void VR_MdlDequantCompute(const char* model, const void* aliashdr, un
     loadTotals.bytes += static_cast<size_t>(hdr->numposes) * hdr->numverts * 2 * sizeof(unsigned);
 }
 
-extern "C" int VR_MdlDequantOn(void)
-{
-    return vr_mdl_dequant.value != 0.f;
-}
-
 namespace qvr::mdldequant
 {
-
-void init()
-{
-    Cvar_SetCallback(&vr_mdl_dequant, onChanged);
-}
 
 void registerCommands()
 {
@@ -1373,7 +1357,7 @@ void registerCommands()
 
 void prepare(const qmodel_s* model)
 {
-    if(!model || model->type != mod_alias || !VR_MdlDequantOn())
+    if(!model || model->type != mod_alias)
     {
         return;
     }
@@ -1399,7 +1383,7 @@ glm::vec3 poseVertex(const void* aliashdr, int pose, int vertex)
     const size_t k = static_cast<size_t>(pose) * hdr->numverts + vertex;
     const trivertx_t& t = posesOf(hdr)[k];
     glm::vec3 p{t.v[0], t.v[1], t.v[2]};
-    if(hdr->dequant && hdr->dequantready && vr_mdl_dequant.value != 0.f)
+    if(hdr->dequant && hdr->dequantready)
     {
         const unsigned packed = reinterpret_cast<const unsigned*>(reinterpret_cast<const byte*>(hdr) + hdr->dequant)[k];
         p += glm::vec3{decode(packed, 0), decode(packed, 1), decode(packed, 2)};
@@ -1427,7 +1411,7 @@ void restVertex(const void* aliashdr, int meshVertex, float xyz[3], signed char 
     const auto* hdr = static_cast<const aliashdr_t*>(aliashdr);
     const int v = reinterpret_cast<const aliasmesh_t*>(reinterpret_cast<const byte*>(hdr) + hdr->meshdesc)[meshVertex].vertindex;
     const trivertx_t& t = posesOf(hdr)[v];
-    const bool on = hdr->dequant && hdr->dequantready && VR_MdlDequantOn();
+    const bool on = hdr->dequant && hdr->dequantready;
     const auto* frac = on ? reinterpret_cast<const unsigned*>(reinterpret_cast<const byte*>(hdr) + hdr->dequant) : nullptr;
     const unsigned smooth = frac ? frac[static_cast<size_t>(hdr->numposes) * static_cast<size_t>(hdr->numverts) + static_cast<size_t>(v)] : 0u;
     for(int i = 0; i < 3; i++)

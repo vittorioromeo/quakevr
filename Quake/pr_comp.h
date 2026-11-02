@@ -134,19 +134,36 @@ typedef enum opcode_t
 	OP_BITOR
 } opcode_t;
 
+// QVR: statements and defs are 32-bit in memory, whatever the file's format (PR_LoadProgs converts): the operands
+// are global offsets (unsigned) or, for OP_GOTO's a and OP_IF/OP_IFNOT's b, signed jumps (read as (int)).
+// It is also the layout of the 32-bit file format.
 typedef struct statement_s
 {
-	unsigned short	op;
-	short	a, b, c;
+	unsigned int	op;
+	unsigned int	a, b, c;
 } dstatement_t;
 
 typedef struct
 {
-	unsigned short	type;	// if DEF_SAVEGLOBAL bit is set
+	unsigned int	type;	// if DEF_SAVEGLOBAL bit is set
 				// the variable needs to be saved in savegames
-	unsigned short	ofs;
+	unsigned int	ofs;
 	int		s_name;
 } ddef_t;
+
+// On disk: id's version 6 (and FTE's 16-bit extended) format; PR_LoadProgs widens it.
+typedef struct
+{
+	unsigned short	op;
+	unsigned short	a, b, c;
+} dstatement16_t;
+
+typedef struct
+{
+	unsigned short	type;
+	unsigned short	ofs;
+	int		s_name;
+} ddef16_t;
 
 #define	DEF_SAVEGLOBAL	(1<<15)
 
@@ -194,6 +211,24 @@ typedef struct
 
 	int		entityfields;
 } dprograms_t;
+
+// FTE's extended progs (FTEQCC's fte/qss targets, its overflow fallback, or our -Ffte32): version 7, the version 6
+// header followed by these. PR_LoadProgs reads the uncompressed 16- and 32-bit kinds (32-bit: dstatement_t and
+// ddef_t as they are in memory).
+#define	PROG_EXTENDEDVERSION	7
+#define	PROG_SECONDARYVERSION16	((('1'<<0)|('F'<<8)|('T'<<16)|('E'<<24))^(('P'<<0)|('R'<<8)|('O'<<16)|('G'<<24)))
+#define	PROG_SECONDARYVERSION32	((('1'<<0)|('F'<<8)|('T'<<16)|('E'<<24))^(('3'<<0)|('2'<<8)|('B'<<16)|(' '<<24)))
+typedef struct
+{
+	int		ofsfiles;
+	int		ofslinenums;
+	int		ofsbodylessfuncs;
+	int		numbodylessfuncs;
+	int		ofs_types;
+	int		numtypes;
+	int		blockscompressed;
+	int		secondaryversion;
+} dprograms_ext_t;
 
 #endif	/* __PR_COMP_H */
 

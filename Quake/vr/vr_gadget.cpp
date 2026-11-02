@@ -58,6 +58,7 @@
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/String/String.hpp"
 #include "Zancle/String/StringView.hpp"
+#include "Zancle/String/ToString.hpp"
 #include "Zancle/Vocabulary/Pair.hpp"
 #include "vr_zancle.hpp"
 
@@ -1021,6 +1022,8 @@ constexpr float cmPerModelUnit = 3.048f;
     return CLAMP(0.f, (f - 0.2f) / 0.3f, 1.f);
 }
 
+int imageDraws = 0; // the hologram's and the frame rate's images drawn so far (gadget::imageDrawCount)
+
 #include "vr_gadget_holo.inc"
 #include "vr_gadget_fps.inc"
 
@@ -1280,6 +1283,11 @@ void renderScreen()
         Cmd_AddCommand("vr_gadget_info", gadgetInfo_f);
         Cmd_AddCommand("vr_gadget_screen_dump", screenDump_f);
     }
+}
+
+int imageDrawCount()
+{
+    return imageDraws;
 }
 
 bool togglePage()

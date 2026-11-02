@@ -7,6 +7,7 @@
 #include "vr_temporal.hpp"
 #include "vr_cheats.hpp"
 #include "vr_modelmetadata.hpp"
+#include "vr_ambient.hpp"
 #include "vr_audio.hpp"
 #include "vr_admelee.hpp"
 #include "vr_agarmor.hpp"
@@ -1937,6 +1938,7 @@ constexpr PrewarmStep prewarmSteps[] = {
     {"auto pump", autopump::prepare, false},
     {"AD crossbow", adcrossbow::prepare, false}, // AD support: its next bolt's sound
     {"Widowmaker", adweapons::prepare, false},   // AD support: its barrels' motor
+    {"model light grid", ambient::prepareGrid, false},
     {"explosion debris", explosiondebris::prepare, false},
     {"muzzle flash", weaponfx::prepare, false},
     {"wall torches", walltorch::prepare, false},
@@ -2165,6 +2167,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_mock_key", menuui::mockKey_f);
     Cmd_AddCommand("vr_bigfont", bigfont::report_f);
     fontstyle::init(); // Menu > Fonts (vr_fontstyle.cpp): its cvars rebuild the font as they change; vr_fontstyle_test
+    text3d::init();    // vr_fontstyle_live_test (vr_text3d.cpp)
     Cmd_AddCommand("vr_checklist", checklist::command_f);
     Cmd_AddCommand("vr_scenario", scenario::command_f);
     lightstyle::registerCommands();
@@ -2184,7 +2187,6 @@ extern "C" void VR_Init()
     closequarters::init();
     rangerhead::init();
     Cmd_AddCommand("vr_body_head_info", rangerhead::info_f);
-    mdldequant::init();
     posing::init();
     holstersetup::init();
     blade::init();

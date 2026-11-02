@@ -258,6 +258,7 @@ void VR_AliasPosesLoaded (const char *name, void *aliashdr, const stvert_t *stve
 void VR_OnProgsLoaded (void);			// end of PR_LoadProgs, with the loaded qcvm current
 void VR_OnSpawnServerBeforeLoad (void);	// SV_SpawnServer, before ED_LoadFromFile
 void VR_OnEntitySpawned (edict_t *ent);	// ED_LoadFromFile, after an entity's spawn function ran
+void VR_Footsteps_Frame (void);		// SV_Physics, after the edicts: the enemies' footsteps (vr_footsteps.cpp)
 void VR_MonsterHealth_Frame (void);	// SV_Physics, after the edicts: Monster Health's cut on monsters seen first (vr_mgroups.cpp)
 int VR_AD_PelletsPass (const struct edict_s *mover, const struct edict_s *target); // AD support: projectile pellets pass one another
 int VR_AD_RulesOn (void);				// AD support (vr_ad.cpp): the map spawning plays by Arcane Dimensions' rules
@@ -580,6 +581,7 @@ int VR_BigFont_CanDraw (const char *text);				// M_Main_Draw: nonzero if every l
 int VR_BigFont_Draw (int x, int y, const char *text);	// M_Main_Draw: draws it (its cell's top at y); returns its width
 float VR_BigFont_DrawScaled (int x, int y, float scale, const char *text); // as VR_BigFont_Draw, `scale` times the size (the main menu's rows closer than 15); its width
 float VR_BigFont_WidthScaled (float scale, const char *text); // M_Main_Draw: the width VR_BigFont_DrawScaled would draw it (nothing drawn)
+int VR_BigFont_DrawPicture (int x, int y, const char *name); // M_DrawRowsPic: the picture of menu rows `name` in the Menu > Fonts style, placed as Draw_Pic would; 0: not drawn (draw it as it is)
 // The 2D font restyled (vr_fontstyle.cpp; Menu > Fonts): upscaled 4x and drawn smooth, outlined and shadowed.
 void VR_FontStyle_Rebuild (void);						// Draw_LoadPics: conchars (char_texture_data) and the text box restyled again
 gltexture_t *VR_FontStyle_Chars (gltexture_t *conchars); // the restyled font to draw for char_texture `conchars`, or NULL (draw it)

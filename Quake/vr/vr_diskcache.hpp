@@ -33,6 +33,7 @@ enum class Product : int
     Rigs,       // the monsters' ragdoll rigs (vr_ragdoll.cpp; vr_ragdoll_rig_cache)
     ReliefMaps, // derived weapons' relief maps (vr_skinrelief.cpp; vr_normalmap_cache): their own folder, as a
                 // product keeps one build (sharing normalmaps/, each removed the other's files every session)
+    LightGrid,  // big maps' model light grids (vr_ambient.cpp; vr_model_light_grid_cache)
     Count
 };
 

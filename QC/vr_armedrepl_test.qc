@@ -575,12 +575,13 @@ void() VR_AGRT_GunAxe =
     {
         if(g.vr_ag_total_shots > vr_agrt_shots0 || timedOut)
         {
-            // (its weapons where its hands are: the gun on its right, the axe on its left)
+            // (its weapons where its hands are: the gun on its right, the axe on its left. Measured at its first shot: the
+            // gun 0.3-0.8 units right of its middle in most runs, so right of it is enough; the check was > 2 until 2026-11-02.)
             makevectors(g.angles);
             float gunSide = (g.vr_ag_prop.origin - g.origin) * v_right;
             float axeSide = (g.vr_ag_prop2.origin - g.origin) * v_right;
             VR_AGT_Check(sprintf("gun and axe: held in their hands: the gun %.1f to its right, the axe %.1f", gunSide,
-                axeSide), gunSide > 2 && axeSide < -2);
+                axeSide), gunSide > 0 && axeSide < -2);
             VR_AGRT_StepCheck(sprintf("gun and axe: at range, the gun fires (%g shots, the axe %s)", g.vr_ag_total_shots,
                 VR_AGRT_OnAxe() ? "in use" : "carried"), !VR_AGRT_OnAxe() && !timedOut);
             setorigin(g, VR_AGRT_Ahead(56, 0)); // (up close)

@@ -1,0 +1,6 @@
+# vrcalibration: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The calibration map
+# (Misc/quakevr/make_vrcalibration_map.py): its boards and wall buttons.
+title The calibration map: its boards and wall buttons
+map vrcalibration
+god
+notarget
