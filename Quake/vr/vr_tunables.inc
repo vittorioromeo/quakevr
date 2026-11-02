@@ -383,6 +383,8 @@ QVR_TUNABLE(vr_forcegrab_catch_blend, "0.15") // seconds a caught weapon takes t
 // Carrying and Throwing > Gibs and Corpses
 QVR_TUNABLE(vr_gib_throw_damage, "4") // and of a gib or head
 QVR_TUNABLE(vr_gib_health, "12") // the damage that destroys a gib (a head takes half as much again)
+QVR_TUNABLE(vr_gib_overkill_melee, "0.5") // the share of a hand's blow's overkill (damage past its health) that counts towards gibbing a monster; Quad's all of it (QC combat.qc VR_Gib_Overkill; 1 before his note 2026-11-02)
+QVR_TUNABLE(vr_gib_overkill_prop, "0.1") // and of a thrown, flung or fallen prop's (a limb or head it hit still pops; 1 before his note 2026-11-02)
 QVR_TUNABLE(vr_gib_splat_speed, "250") // units/s a thrown gib or head must hit a wall or a monster at to burst
 QVR_TUNABLE(vr_gib_splat_throw, "7") // m/s of the throwing hand from which a thrown gib or head bursts on a wall instead of sticking, however heavy; 0 off
 QVR_TUNABLE(vr_gib_burst_speed, "5") // m/s: a hand's or weapon's hit on a gib, or one held and smashed into something, this fast (relative) bursts it; from half as fast it wears it (and bounces off the hand)
@@ -418,7 +420,7 @@ QVR_TUNABLE(vr_corpse_dmg_blunt, "1") // times the damage corpses and ragdolls t
 QVR_TUNABLE(vr_corpse_dmg_fists, "1") // times the damage corpses and ragdolls take from an empty fist
 QVR_TUNABLE(vr_corpse_dmg_blades, "1") // times the damage corpses and ragdolls take from the axe's and a sword's edge or point, swung or thrown; a stuck axe bleeding it
 QVR_TUNABLE(vr_corpse_dmg_chainsaw, "1") // times the damage corpses and ragdolls take from the chainsaw
-QVR_TUNABLE(vr_corpse_dmg_props, "1") // times the damage corpses and ragdolls take from thrown or flung boxes, gibs, heads and weapons, deflected shots, a prop in the fist
+QVR_TUNABLE(vr_corpse_dmg_props, "0.25") // times the damage corpses and ragdolls take from thrown or flung boxes, gibs, heads and weapons, deflected shots, a prop in the fist (0.25: one crate or barrel thrown does not burst a body, his note 2026-11-02; 1 before)
 QVR_TUNABLE(vr_corpse_dmg_fire, "1") // times the damage corpses and ragdolls take from burning (vr_burn_corpse_damage first)
 QVR_TUNABLE(vr_corpse_dmg_bash, "1") // times the damage corpses and ragdolls take from bashes, shoves and headbutts
 QVR_TUNABLE(vr_corpse_dmg_other, "1") // times the damage corpses and ragdolls take from anything else: monsters' blows, kicks, crushers
@@ -1356,6 +1358,7 @@ QVR_TUNABLE(vr_kdtrig_tackle_face, "60") // ... deg: running within this of the 
 QVR_TUNABLE(vr_kdtrig_tackle_leniency, "0.4") // ... 0..1: the pose's thresholds together (0.5 as set; 1 half as strict: least ones halved, most ones and the speed's shortfall doubled; 0 1.5 times as strict) (his 0.4, 0.2 before vr_cfg_version 191, 0.85 before 184)
 QVR_TUNABLE(vr_kdtrig_tackle_knock, "148") // ... units a monster of your weight is knocked back, then toppled (a lighter one up to 1.5 times; a heavier class staggers back 0.6 of it) (his 148, 152 before vr_cfg_version 184)
 QVR_TUNABLE(vr_kdtrig_tackle_bump, "120") // ... units/s you bounce back off it (his 120, 100 before vr_cfg_version 184)
+QVR_TUNABLE(vr_kdtrig_tackle_stamina, "35") // ... stamina a charge that connects costs (0: none; one that misses costs nothing)
 QVR_TUNABLE(vr_kdtrig_tackle_contact, "0") // ... units: it connects with your body this near the monster's as the two meet (the engine's narrowed, inset boxes: QC bodygap; 0 touching; plus this frame's run), not before (his 0, 2 before vr_cfg_version 184)
 QVR_TUNABLE(vr_kdtrig_tackle_cooldown, "1.5") // ... s before you charge again
 

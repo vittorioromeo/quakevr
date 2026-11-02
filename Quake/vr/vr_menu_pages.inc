@@ -1005,6 +1005,8 @@ void resetHandMoves()
         toggle("Nail Pistol", "vr_reload_pouch_npistol")
             .help("Its grip empty, brought down onto the magazines in the pouch along them: a fresh one seats."),
         row(opt::vr_reload_pouch_mag_slots),
+        row(opt::vr_reload_pouch_catch),
+        row(opt::vr_reload_pouch_catch_reach),
         header("Ammo Pouch"),
         row(opt::vr_ammo_pouch_show),
         row(opt::vr_ammo_pouch_x),

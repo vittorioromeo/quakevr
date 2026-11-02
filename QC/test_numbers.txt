@@ -205,6 +205,7 @@ vr_reload_test   40       vr_reload_test.qc                (VR_Reload_TestMagNai
 vr_reload_test   41       vr_reload_test.qc                (VR_Reload_TestMagNailsLayout)
 vr_reload_test   42       vr_reload_test.qc                (VR_Reload_TestMagNailsLying)
 vr_reload_test   43       vr_reload_test.qc                (VR_Reload_TestMagForceGrab)
+vr_reload_test   44       vr_reload_test.qc                (VR_Reload_TestPouchCatch)
 
 vr_rv_test       1*       vr_revolver_test.qc              (the self-test (its fall-through))
 vr_rv_test       2-4      vr_revolver_test.qc              (VR_WeaponUtil_EntAddWeapon)
@@ -542,6 +543,7 @@ vr_prop_impact_test 3        vr_propimpact_test.qc            (VR_PropImp_BlastS
 vr_prop_impact_test 4        vr_propimpact_test.qc            (VR_PropImp_FtClear)
 vr_prop_impact_test 5        vr_propimpact_test.qc            (VR_PropImp_FhClear)
 vr_prop_impact_test 6        vr_propimpact_test.qc            (VR_PropImp_MtClear)
+vr_prop_impact_test 7        vr_propimpact_test.qc            (VR_GT_Step: what gibs: blows and props)
 
 vr_smallgibs_test 0-5      vr_smallgibs_test.qc             (see vr_smallgibs_test.qc)
 vr_smallgibs_test 6        vr_smallgibs_test.qc             (VR_SmallGib_TestGoreMark)
