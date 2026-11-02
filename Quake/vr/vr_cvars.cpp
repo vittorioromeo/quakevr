@@ -939,6 +939,8 @@ void registerCvars()
 // Settings removed (docs/vr-port/CVAR_AUDIT.md): a config, a shipped .cfg or a take that still sets one is not an
 // "Unknown command" (cmd.c asks here); the line is dropped quietly and the next config write leaves it out.
 constexpr const char* retiredCvars[] = {
+    // 2026-11-02: the armed death knight's share of casts with a gun, a cooldown now (vr_agdknight_cast_cooldown).
+    "vr_agdknight_spell_share",
     // 2026-11-02: the option audit's removals (ROUND23.md, "Option audit: removals"): the hitbox category switches (the
     // width, vr_hull_ent_width, holds against all), the old sides of legacy switches (their "on" kept), the status
     // duplicates (vr_*_status 1), the retired migrations' cvars, Shoulder Charges' switch (its chance 0 is off), the

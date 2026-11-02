@@ -67,15 +67,24 @@ struct Wearer
     float backCut;
     float headTop{1.06f}, headSide{0.75f};
     float collar{0.5f}; // (the guards fit the head where it weighs this much on the head bone, not the collar)
+    // The helmet's rows up the head bone's length (the brow -1: vr_agarmor_brow_front; the nape -1: vr_agarmor_brow_back),
+    // the top's chamfer, how much wider its brow is than its crown, and how far the back's corners may be cut (of its half
+    // width).
+    float brow{-1.f}, cheek{0.3f}, jaw{0.04f}, nape{-1.f}, chamfer{0.18f}, taper{0.03f}, backCut2{0.7f};
 };
 // The armed knight and death knight (vr_agknight, vr_agdknight: their swordless models on their authored rigs) wear it
 // too: every piece found on their own rigs' bones and skin weights as the grunt's are; nothing on their backs to cut round.
 // The death knight's head proper is narrower and his crown higher: his skull 0.51 of its length to each side and 1.11
 // up, rigid on it the horns' stalks from his temples (0.55-0.62 out, up from 0.93; their roots left out with them) and
 // under it his gorget (to 0.9 out, weighing 0.52-0.78 on his head, his face 0.93 and more): fitted round, they made his
-// helmet a hat 18 wide over a skull 10.7 wide (his ask, 2026-11-01).
+// helmet a hat 18 wide over a skull 10.7 wide (his ask, 2026-11-01). And it still came down over his eyes (their sockets
+// 0.78-0.88 up), and it was wider than his head from behind (his ask, 2026-11-02): his sides to 0.44 (the skull's; what's out
+// to 0.47 stays inside the shell's thickness), the brim at 0.97 (its ledge 0.91, over the eyes), a short top's chamfer and hardly
+// a flare (they pushed its front and sides out), the guards ending at his cheekbones (0.52 up: 0.51 out under them) and the
+// back's corners cut further round his narrow nape: outside 11.1 deep, 10.2 wide (his head 10.7 at its widest).
 constexpr Wearer wearers[] = {{"progs/vrgrunt.mdl", -1e9f}, {"progs/soldier.mdl", -1e9f}, {"progs/vrenforcer.mdl", -10.5f},
-    {"progs/enforcer.mdl", -10.5f}, {"progs/vrknight.mdl", -1e9f}, {"progs/vrhknight.mdl", -1e9f, 1.12f, 0.53f, 0.8f}};
+    {"progs/enforcer.mdl", -10.5f}, {"progs/vrknight.mdl", -1e9f},
+    {"progs/vrhknight.mdl", -1e9f, 1.12f, 0.44f, 0.8f, 0.97f, 0.68f, 0.52f, 0.45f, 0.06f, 0.01f, 0.9f}};
 
 // The atlas (make_agarmor.py's REGIONS): texels of its 256 x 128 skins.
 struct Block
@@ -958,10 +967,11 @@ void helmetOf(Shell& s, const Body& b, const PieceFrame& f, int headBone, const 
     }
     // The rows' heights (inner surface) per point: the bucket's lower edge and the guards' rows lower toward the back,
     // the jaw's down to the nape there.
-    const float chamfer = 0.18f * L, faceHalf = 0.4f * L, taper = 0.03f * L;
+    const float chamfer = who.chamfer * L, faceHalf = 0.4f * L, taper = who.taper * L;
     const float zTop = top + gap;
     float rowZ[NumHelmRows][numHelmPoints];
-    const float zRow[NumHelmRows] = {zTop, zTop - chamfer, vr_agarmor_brow_front.value * L, (vr_agarmor_brow_front.value - 0.06f) * L, 0.3f * L, 0.04f * L};
+    const float browAt = who.brow >= 0.f ? who.brow : vr_agarmor_brow_front.value;
+    const float zRow[NumHelmRows] = {zTop, zTop - chamfer, browAt * L, (browAt - 0.06f) * L, who.cheek * L, who.jaw * L};
     constexpr float browDrop[numHelmPoints] = {0.f, 0.f, 0.04f, 0.13f, 0.2f, 0.2f}, cheekDrop[numHelmPoints] = {0.f, 0.f, 0.f, 0.03f, 0.07f, 0.07f};
     for(int r = 0; r < NumHelmRows; r++)
     {
@@ -971,7 +981,7 @@ void helmetOf(Shell& s, const Body& b, const PieceFrame& f, int headBone, const 
             rowZ[r][k] = zRow[r] - drop * L;
         }
     }
-    const float nape = za::min(vr_agarmor_brow_back.value * L, rowZ[HCheek][5] - 0.05f * L);
+    const float nape = za::min((who.nape >= 0.f ? who.nape : vr_agarmor_brow_back.value) * L, rowZ[HCheek][5] - 0.05f * L);
     rowZ[HJaw][3] = nape; // (the side's back corner clear of the neck as the head turns)
     rowZ[HJaw][4] = rowZ[HJaw][5] = nape;
     // The fit: each ring round every vertex of its bands (the cap's ring the crown's, stepped in).
@@ -1058,7 +1068,7 @@ void helmetOf(Shell& s, const Body& b, const PieceFrame& f, int headBone, const 
         Ring& x = ring[r];
         const float cut = (r <= HBrow ? 0.7f : 0.5f) * x.W; // the bucket rounder than the guards
         x.Df = za::clamp(za::max(x.Df, x.F + x.W - cut), 0.f, x.F + x.W);
-        x.Db = za::clamp(za::max(x.Db, x.B + x.W - 0.7f * x.W), 0.f, x.B + x.W); // (the back round: clear of the upper back)
+        x.Db = za::clamp(za::max(x.Db, x.B + x.W - who.backCut2 * x.W), 0.f, x.B + x.W); // (the back round: clear of the upper back)
         x.Df = r >= HLedge ? za::clamp(x.F + faceHalf, x.Df, x.F + x.W) : x.Df;
     }
     ring[HCap] = grown(crown, -chamfer);
