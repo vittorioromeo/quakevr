@@ -4499,6 +4499,15 @@ void() ImpulseCommands =
         return;
     }
 
+    // Flatscreen play (-flatscreenmode): G drops what a hand holds, the main hand's first (vr_flatplay.cpp reads the key
+    // and sends the impulse; vr_wpnforcegrab.qc does it). Nobody else's impulse: it stays unused in a headset game.
+    if(self.impulse == 47 && VR_FlatPlay(self))
+    {
+        self.impulse = 0;
+        VR_Forcegrab_FlatDrop();
+        return;
+    }
+
     if(self.impulse >= 1 && self.impulse <= 8)
     {
         // Flatscreen play (-flatscreenmode): 1 cycles the left hand's weapon and 2 the right hand's, through the weapons
