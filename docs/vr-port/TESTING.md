@@ -26,7 +26,8 @@ numbers in less time (`wait600`: 6.7 s at `host_maxfps 90`, 1.7 s fast). Frames 
 waits for a server frame: on the real clock that is 1/72 s whatever the frame rate, so `wait600` is 8.3 s there;
 with `vr_fixed_frames 1` every frame is one at 72 Hz (`vr_fixed_frames_rate`; at 90, four frames in five; below 72 a frame
 that runs two ticks counts once). Server ticks (ROUND21.md, "Server tick rate"): `vr_fixed_frames_rate <hz>` with
-`vr_fixed_frames_jitter 0.02` (each frame's time off by up to 2%, as a headset's), then `host_tickstats reset`, `wait...`,
+`vr_fixed_frames_jitter 0.02` (each frame's time off by up to 2%, as a headset's; the wall clock's jitter, which
+`vr_display_clock` takes away: `vr_display_clock 0` to test it), then `host_tickstats reset`, `wait...`,
 `host_tickstats`: ticks a second, their lengths, each frame's tick count, the server's clock, Box3D's steps;
 `host_fixedtick 0` for the old cadence. `vr_motion_play`/`vr_motion_eval ... rate <hz> [jitter <fraction>]` print them
 over the take. Sound (off in the kit) plays at the wall clock's pace, ahead of the game.

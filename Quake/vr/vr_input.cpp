@@ -700,6 +700,7 @@ struct StickTest
     float sweepHeading{0.f}, sweepSpeed{0.f}, sweepPushed{0.f};
     float lineLength{0.f}, lineZLow{0.f}, lineZHigh{0.f}, lineZStep{0.f};
     int lineAir{0};
+    int lineStrays{0};
 };
 StickTest stickTest;
 int stickDebugFrames = 0; // vr_debug_stick: frames since its last line
@@ -1105,6 +1106,7 @@ void stickSweepTick(edict_t* p)
 // wall: the line ends there, what it crossed counts). Ends "stick line test: N passed, M failed".
 constexpr int stickLineRun = 100; // StickTest::run's value
 constexpr float stickLineZStep = 0.1f;
+constexpr int stickLineStrayLines = 14;
 
 void stickLine_f()
 {
@@ -1173,6 +1175,13 @@ void stickLineTick(edict_t* p)
         t.lineZHigh = za::max(t.lineZHigh, z);
         t.lineZStep = za::max(t.lineZStep, za::fabs(z - t.drawnLast.z));
         t.lineAir += (static_cast<int>(p->v.flags) & FL_ONGROUND) ? 0 : 1;
+        // (Where it strays from the speed asked: the first few frames' places, to look at.)
+        if(za::fabs(speed / stickTestRun - 1.f) > stickRunDip * 0.5f && t.lineStrays++ < stickLineStrayLines)
+        {
+            Con_Printf("stick line: frame %d at %.1f %.1f %.2f (%.0f units): speed %.1f, velocity %.1f %.1f %.1f, %s\n", t.runFrames,
+                       p->v.origin[0], p->v.origin[1], z, gone, speed, p->v.velocity[0], p->v.velocity[1], p->v.velocity[2],
+                       (static_cast<int>(p->v.flags) & FL_ONGROUND) ? "on the ground" : "in the air");
+        }
     }
     t.drawnLast = glm::vec3{p->v.origin[0], p->v.origin[1], z};
     if(!blocked && gone < t.lineLength)
