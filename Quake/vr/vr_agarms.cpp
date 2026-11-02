@@ -12,6 +12,9 @@
 #include "vr_poselive.hpp"
 #include "vr_cvars.hpp"
 #include "vr_geom.hpp"
+#include "vr_main.hpp"
+#include "vr_portals.hpp"
+#include "vr_tracy.h"
 
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Abs.hpp"
@@ -24,6 +27,7 @@
 #include "Zancle/Math/MinMax.hpp"
 #include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/Sqrt.hpp"
+#include "Zancle/Math/Tan.hpp"
 
 #include <string.h>
 
@@ -75,6 +79,10 @@ constexpr float reachNear = 1.15f;  // ... this near: reaching for it wholly
 
 constexpr int maxModels = 4;
 constexpr int maxEnts = 64;
+constexpr float lodRadius = 40.f; // vr_agarms_lod: an armed humanoid's size round its origin (units: its weapon held out)
+constexpr int lodEveryMost = 30;  // ... solved at least every this many frames
+constexpr float lodStill = 0.3f;  // ... reused only while its hands and elbows moved less than this a frame (units) between
+                                  // its last solves (on its chest; a held one's hand on its weapon's target)
 constexpr int errTags = 1024;
 
 struct Side
@@ -179,14 +187,54 @@ struct Ent
     float stretch[2]{1.f, 1.f}; // ... each arm's as drawn (the skin's: rows, skinned)
 };
 
+// vr_agarms_lod: an Ent's last solve (State::lods, by its Ent's index; not in the Live tape's state: its subject is
+// solved every frame), carried by its chest (its weapons by their targets) on the frames that reuse it (lodReuse): whose,
+// what it placed, its clavicles, its targets' weapon frames and shape (a change solves at once), when.
+struct Lod
+{
+    int ent{0};
+    const qmodel_t* model{nullptr};
+    agarms::Placed solved;
+    rigpose::Rigid solvedClav[2];
+    rigpose::Rigid solvedTarget[2];
+    int solvedShape{-1};
+    int solvedFrame{-1};
+    bool settled{false}; // ... nothing easing in it (a jump's ease, a grip taken or let go, the off hand's goal, the
+                         // stretch, the arms easing in), its hands and elbows still (lodStill): only then reused
+    glm::vec3 still[4]{glm::vec3{0.f}, glm::vec3{0.f}, glm::vec3{0.f}, glm::vec3{0.f}}; // ... their places then (still's)
+    bool haveStill{false};
+    // ... the jump ease's samples (Ent::relW) taken at uneven times (frames reused between): the last one's spacing
+    bool reusedSince{false};
+    bool reusedBefore{false};
+    float relDt{0.f};
+    // vr_agarms_cost's jerk: its drawn right hand (model space) on the last frames it was drawn far off, how many
+    glm::vec3 jerkHand[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    int jerkN{0};
+    int jerkFrame{-1};
+};
+
 struct State
 {
     Skin skins[maxModels];
     Ent ents[maxEnts];
+    Lod lods[maxEnts]; // (each ents[]'s)
     Err errs[errTags];
     Err total;
     double costUs{0.0}; // vr_agarms_cost: the solves' time since it last printed, their count
     int costN{0};
+    int reusedN{0};     // ... and the frames a solve was reused instead (vr_agarms_lod): in view, out of it;
+    int reusedUnseenN{0};
+    int nearN{0};       // ... solved near, far on its turn
+    int turnN{0};
+    double jerkSum{0.0}; // ... the far ones' drawn right hands' change of step a frame (units; with the setting or not)
+    float jerkMost{0.f};
+    int jerkN{0};
+    int jerkOver{0};    // ... over a unit
+    // vr_agarms_lod_check: each reused frame against the solve it stood for: the hands' places apart (units), the held
+    // weapons' turns apart (degrees), how many
+    double checkHandSum{0.0}, checkTurnSum{0.0};
+    float checkHandMost{0.f}, checkTurnMost{0.f};
+    int checkHands{0}, checkWeapons{0};
 };
 State state;
 
@@ -913,11 +961,107 @@ const Skin* skinOf(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll::
     return free;
 }
 
+// vr_agarms_lod: `st`'s last solve's (none: ent 0, after its Ent was taken by another).
+[[nodiscard]] Lod& lodOf(const Ent& st)
+{
+    return state.lods[&st - state.ents];
+}
+
 // The chest as drawn: rest (pose 0) -> model space now.
 [[nodiscard]] rigpose::Rigid chestNow(const ragdoll::Rig& rig, int chest, const rigpose::Rigid* posed, const rigpose::Rigid* kick)
 {
     rigpose::Rigid c = compose(posed[chest], inverse(rigpose::key(rig, 0, chest)));
     return kick ? compose(kick[chest], c) : c;
+}
+
+// vr_agarms_lod: the shape of `t` (each hand's goal, the off hand's grip or cup, the pose keys' off hand, a reach, the Rig
+// Studio's hands): a solve reused only while it is the same.
+[[nodiscard]] int shapeOf(const agarms::Targets& t)
+{
+    return static_cast<int>(t.goal[0]) | static_cast<int>(t.goal[1]) << 2 | (t.second ? 16 : 0) | (t.cup ? 32 : 0) |
+           (t.offKeyed ? 64 : 0) | (t.keyGun ? 128 : 0) | (t.reaching ? 256 : 0) | (t.fk[0] ? 512 : 0) | (t.fk[1] ? 1024 : 0);
+}
+
+// vr_agarms_lod: the view the armed humanoids are seen from this frame (the last drawn: r_refdef), made once a frame.
+struct LodView
+{
+    int frame{-1};
+    glm::vec3 org{0.f};
+    glm::vec3 fw{1.f, 0.f, 0.f};
+    float half{pi};   // in view within this angle of its forward (radians: the eyes' widest corner, their cant, the margin)
+    bool all{true};   // every one counts as in view (views through teleporters drawn, or no view yet)
+};
+LodView lodView;
+
+void lodViewNow()
+{
+    LodView& v = lodView;
+    if(v.frame == host_framecount)
+    {
+        return;
+    }
+    v.frame = host_framecount;
+    v.org = geom::vec(r_refdef.vieworg);
+    vec3_t f, r, u;
+    AngleVectors(r_refdef.viewangles, f, r, u);
+    v.fw = geom::vec(f);
+    // (each eye's widest corner off its own forward, the eyes' turn apart (a canted headset's), the flat view's)
+    const auto corner = [](float x, float y) { return za::atan2(za::sqrt(x * x + y * y), 1.f); };
+    float widest = corner(za::tan(r_refdef.fov_x * (pi / 360.f)), za::tan(r_refdef.fov_y * (pi / 360.f)));
+    const FrameState& fs = frameState();
+    for(const EyeView& eye : fs.eyes)
+    {
+        const float x = za::max(za::abs(za::tan(eye.fov.left)), za::abs(za::tan(eye.fov.right)));
+        const float y = za::max(za::abs(za::tan(eye.fov.up)), za::abs(za::tan(eye.fov.down)));
+        widest = za::max(widest, corner(x, y));
+    }
+    const float dq = za::abs(glm::dot(fs.eyes[0].pose.orientation, fs.eyes[1].pose.orientation));
+    const float cant = za::acos(za::min(1.f, dq)); // (half the eyes' angle apart: a quaternion's dot is its half angle's cosine)
+    v.half = za::min(pi, widest + cant + za::max(vr_agarms_lod_margin.value, 0.f) * (pi / 180.f));
+    v.all = portals::viewCount(0) > 0 || glm::length(v.org) <= 0.f;
+}
+
+// vr_agarms_lod: whether one `to` (`dist`) from the view is in it (its middle within the eyes' views and the margin,
+// lodRadius round it).
+[[nodiscard]] bool lodSeen(const glm::vec3& to, float dist)
+{
+    if(lodView.all)
+    {
+        return true;
+    }
+    const float off = za::acos(za::clamp(glm::dot(to / za::max(dist, 1e-3f), lodView.fw), -1.f, 1.f));
+    const float round = za::atan2(lodRadius, za::max(dist, 1e-3f));
+    return off - round <= lodView.half;
+}
+
+// vr_agarms_cost's jerk: `e`'s drawn right hand (`out`) noted when it is far off (past vr_agarms_lod_near): the change
+// of its step from the last frame's (model space, units), with vr_agarms_lod on or off alike (a reused solve's pop shows).
+void noteJerk(Lod& lod, const entity_t* e, const agarms::Placed& out)
+{
+    lodViewNow();
+    const glm::vec3 to = geom::vec(e->origin) - lodView.org;
+    if(glm::length(to) <= za::max(vr_agarms_lod_near.value, 0.f) || !lodSeen(to, glm::length(to)))
+    {
+        lod.jerkN = 0; // (near, or out of view: not measured)
+        return;
+    }
+    if(lod.jerkFrame != host_framecount - 1)
+    {
+        lod.jerkN = 0;
+    }
+    lod.jerkFrame = host_framecount;
+    const glm::vec3 h = out.hand[0].pos;
+    if(lod.jerkN >= 2)
+    {
+        const float j = glm::length(h - 2.f * lod.jerkHand[0] + lod.jerkHand[1]);
+        state.jerkSum += j;
+        state.jerkMost = za::max(state.jerkMost, j);
+        state.jerkN++;
+        state.jerkOver += j > 1.f ? 1 : 0;
+    }
+    lod.jerkHand[1] = lod.jerkHand[0];
+    lod.jerkHand[0] = h;
+    lod.jerkN = za::min(lod.jerkN + 1, 2);
 }
 
 struct ArmOut
@@ -1601,6 +1745,13 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
         st->model = e->model;
     }
     st->ragArms = false;
+    Lod& lod = lodOf(*st);
+    if(lod.ent != num || lod.model != e->model)
+    {
+        lod = Lod{};
+        lod.ent = num;
+        lod.model = e->model;
+    }
     for(int s = 0; s < 2; s++)
     {
         st->rigBone[3 * s] = spec.upper[s];
@@ -1729,7 +1880,15 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
         if(st->relN[s] >= 2 && dt > 0.f && st->haveDrawn[s])
         {
             const float k = (1.f / 90.f) / dt;
-            const float jump = glm::length(relW - 2.f * st->relW[s][0] + st->relW[s][1]) * k * k;
+            float jump = glm::length(relW - 2.f * st->relW[s][0] + st->relW[s][1]) * k * k;
+            if((lod.reusedSince || lod.reusedBefore) && lod.relDt > 0.f)
+            {
+                // (vr_agarms_lod: the samples apart by unequal times, frames reused between: the change of its speed
+                // over both, at 90 Hz, as the even samples' measure gives it)
+                const glm::vec3 a = ((relW - st->relW[s][0]) / dt - (st->relW[s][0] - st->relW[s][1]) / lod.relDt) *
+                                    (2.f / (dt + lod.relDt));
+                jump = glm::length(a) * (1.f / 90.f) * (1.f / 90.f);
+            }
             if(jump > jumpEase)
             {
                 st->easeFrom[s] = st->drawnRel[s];
@@ -2026,7 +2185,45 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
         st->haveElbow[s] = true;
         st->drawnRel[s] = compose(inverse(C), arms[s].H);
         st->haveDrawn[s] = true;
+        lod.solvedClav[s] = arms[s].K;
+        lod.solvedTarget[s] = t.weapon[s];
     }
+    // (vr_agarms_lod: this solve kept for the frames that reuse it)
+    lod.solved = out;
+    lod.solvedShape = shapeOf(t);
+    {
+        // (its hands where a reuse carries them: a held weapon's hand on the weapon's target, the off hand on the right
+        // weapon's when it holds or cups it, else on its chest; its elbows on its chest)
+        glm::vec3 still[4];
+        for(int s = 0; s < 2; s++)
+        {
+            const bool held = out.on[s] && t.goal[s] == Goal::Frame;
+            const bool onRight = s == 1 && !out.on[1] && (out.held2 || out.cupped) && out.on[0];
+            const rigpose::Rigid& by = held ? t.weapon[s] : onRight ? t.weapon[0] : C;
+            still[s] = rigpose::apply(inverse(by), out.hand[s].pos);
+            still[2 + s] = rigpose::apply(inverse(C), out.elbow[s]);
+        }
+        float moved = 0.f;
+        for(int i = 0; i < 4 && lod.haveStill; i++)
+        {
+            moved = za::max(moved, glm::length(still[i] - lod.still[i]));
+        }
+        const int frames = za::max(1, host_framecount - lod.solvedFrame);
+        lod.settled = lod.haveStill && moved <= lodStill * static_cast<float>(frames) && st->on >= 1.f &&
+                      cl.time - st->leftModeAt >= 0.3 && (st->grip2w <= 0.f || st->grip2w >= 1.f) &&
+                      st->easeT[0] >= st->easeDur[0] && st->easeT[1] >= st->easeDur[1] &&
+                      st->stretchMost == za::clamp(t.stretch, 1.f, agpose::stretchMost);
+        for(int i = 0; i < 4; i++)
+        {
+            lod.still[i] = still[i];
+        }
+        lod.haveStill = true;
+    }
+    lod.solvedFrame = host_framecount;
+    lod.relDt = dt;
+    lod.reusedBefore = lod.reusedSince;
+    lod.reusedSince = false;
+    noteJerk(lod, e, out);
     if(posed && rig.head >= 0)
     {
         const ragdoll::Bone& hb = rig.bones[rig.head];
@@ -2056,6 +2253,136 @@ bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, co
         {
             noteErr(*m, *st, hdr, pose1, pose2, blend, arms, C, second, slid, t.second, held2);
         }
+    }
+    return true;
+}
+
+bool lodReuse(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, const Spec& spec, const rigpose::Rigid* posed,
+    const rigpose::Rigid* kick, const Targets& t, bool exact, Placed& out)
+{
+    if(exact || vr_agarms_lod.value == 0.f)
+    {
+        return false;
+    }
+    const int num = client::entityNumber(e);
+    Ent* st = num > 0 ? entOf(num, false) : nullptr;
+    Lod* lod = st ? &lodOf(*st) : nullptr;
+    if(!st || st->model != e->model || lod->ent != num || lod->model != e->model || lod->solvedFrame < 0 ||
+       lod->solvedShape != shapeOf(t) || !lod->settled ||
+       agglitch::watching(num) || poselive::measuring(num) || vr_agrunt_ik_tag.value >= 0.f)
+    {
+        return false; // (never solved, its targets' shape changed, or measured: solved every frame)
+    }
+    lodViewNow();
+    const glm::vec3 to = geom::vec(e->origin) - lodView.org;
+    const float dist = glm::length(to);
+    if(dist <= za::max(vr_agarms_lod_near.value, 0.f))
+    {
+        state.nearN++;
+        return false; // (near: every frame; within reach of the hands and weapons, a parry, a tug, a grab)
+    }
+    // In view: its middle within the eyes' views and the margin, its size (lodRadius) round it.
+    const bool seen = lodSeen(to, dist);
+    const int every = za::clamp(static_cast<int>(seen ? vr_agarms_lod_far.value : vr_agarms_lod_unseen.value), 1, lodEveryMost);
+    const int gap = host_framecount - lod->solvedFrame;
+    if(every <= 1 || gap >= every || (host_framecount + num) % every == 0)
+    {
+        state.turnN++;
+        return false; // (its turn: solved; spread over the frames by its number)
+    }
+    const Skin* m = skinOf(e->model, hdr, rig, spec);
+    if(!m)
+    {
+        return false;
+    }
+    QVR_TRACY_SCOPE(tracyReuse, "armed pose: arms reused (lod)");
+    // Its arms carried by its chest since the solve; a weapon held by its target (its turn as the server aims it: the
+    // shots go along the drawn line, vr_agrunt_shot_drawn), the hand holding it with it, the off hand on its second
+    // grip or cupping it with the right weapon's.
+    const rigpose::Rigid C = chestNow(rig, m->chest, posed, kick);
+    const Placed& p = lod->solved;
+    const rigpose::Rigid byChest = compose(C, inverse(p.chest));
+    rigpose::Rigid byWeapon[2] = {byChest, byChest};
+    for(int s = 0; s < 2; s++)
+    {
+        if(p.on[s] && t.goal[s] == Goal::Frame)
+        {
+            byWeapon[s] = compose(t.weapon[s], inverse(lod->solvedTarget[s]));
+        }
+    }
+    const rigpose::Rigid byHand[2] = {byWeapon[0], p.on[1] ? byWeapon[1] : (p.held2 || p.cupped) ? byWeapon[0] : byChest};
+    out = p;
+    for(int s = 0; s < 2; s++)
+    {
+        if(p.on[s])
+        {
+            out.weapon[s] = compose(byWeapon[s], p.weapon[s]);
+        }
+        out.hand[s] = compose(byHand[s], p.hand[s]);
+        out.handM[s] = compose(byHand[s], p.handM[s]);
+        out.upperM[s] = compose(byChest, p.upperM[s]);
+        out.foreM[s] = compose(byChest, p.foreM[s]);
+        out.elbow[s] = rigpose::apply(byChest, p.elbow[s]);
+        out.shoulder[s] = rigpose::apply(byChest, p.shoulder[s]);
+        out.clavicle[s] = rigpose::apply(byChest, p.clavicle[s]);
+        st->bones[3 * s] = out.upperM[s];
+        st->bones[3 * s + 1] = out.foreM[s];
+        st->bones[3 * s + 2] = out.handM[s];
+        st->clav[s] = compose(byChest, lod->solvedClav[s]);
+    }
+    out.chest = C;
+    st->chest = C;
+    // (drawn this frame: not eased out; its clock left at the solve's, the next solve's step over the frames between)
+    st->frame = host_framecount;
+    st->easeFrame = host_framecount;
+    lod->reusedSince = true;
+    noteJerk(*lod, e, out);
+    if(posed && rig.head >= 0)
+    {
+        const ragdoll::Bone& hb = rig.bones[rig.head];
+        const glm::vec3 head = rigpose::apply(posed[rig.head], (hb.pivot + hb.end) * 0.5f);
+        for(int s = 0; s < 2; s++)
+        {
+            st->handHead[s] = rigpose::apply(out.handM[s], m->side[s].grip.pos) - head;
+        }
+        st->handHeadFrame = host_framecount;
+    }
+    state.reusedN++;
+    state.reusedUnseenN += seen ? 0 : 1;
+    if(vr_agarms_lod_check.value != 0.f)
+    {
+        // (vr_agarms_lod_check: the solve this frame would have made, on a copy of its state, against the reuse)
+        const Ent keep = *st;
+        const Lod keepLod = *lod;
+        const double keepCost = state.costUs, keepJerk = state.jerkSum;
+        const int keepN = state.costN, keepJerkN = state.jerkN, keepOver = state.jerkOver;
+        const float keepMost = state.jerkMost;
+        Placed full;
+        if(solve(e, hdr, rig, spec, posed, kick, t, full))
+        {
+            for(int s = 0; s < 2; s++)
+            {
+                const float hand = glm::length(full.hand[s].pos - out.hand[s].pos);
+                state.checkHandSum += hand;
+                state.checkHandMost = za::max(state.checkHandMost, hand);
+                state.checkHands++;
+                if(full.on[s] && out.on[s])
+                {
+                    const float turn = angleDeg(glm::inverse(full.weapon[s].rot) * out.weapon[s].rot);
+                    state.checkTurnSum += turn;
+                    state.checkTurnMost = za::max(state.checkTurnMost, turn);
+                    state.checkWeapons++;
+                }
+            }
+        }
+        *st = keep;
+        *lod = keepLod;
+        state.costUs = keepCost;
+        state.costN = keepN;
+        state.jerkSum = keepJerk;
+        state.jerkN = keepJerkN;
+        state.jerkOver = keepOver;
+        state.jerkMost = keepMost;
     }
     return true;
 }
@@ -2407,9 +2734,28 @@ void dump_f()
 // vr_agarms_cost: the arms' solves' time since the last (us each: one armed humanoid's arms a frame), then reset.
 void cost_f()
 {
-    Con_Printf("agarms cost: %d solves, %.2f us each\n", state.costN, state.costN > 0 ? state.costUs / state.costN : 0.0);
+    Con_Printf("agarms cost: %d solves, %.2f us each; vr_agarms_lod: %d reused (%d out of view), %d solved near, %d far "
+               "on their turn\n",
+        state.costN, state.costN > 0 ? state.costUs / state.costN : 0.0, state.reusedN, state.reusedUnseenN, state.nearN,
+        state.turnN);
+    Con_Printf("agarms jerk: far ones' in view, their drawn right hands' change of step a frame: %.4f units mean, %.3f "
+               "most, %d over a unit (of %d)\n",
+        state.jerkN > 0 ? state.jerkSum / state.jerkN : 0.0, state.jerkMost, state.jerkOver, state.jerkN);
     state.costUs = 0.0;
     state.costN = 0;
+    state.reusedN = state.reusedUnseenN = state.nearN = state.turnN = state.jerkN = state.jerkOver = 0;
+    state.jerkSum = 0.0;
+    state.jerkMost = 0.f;
+    if(state.checkHands > 0)
+    {
+        Con_Printf("agarms lod check: reused against solved: hands %.3f units mean, %.3f most (%d); weapons' turn %.3f deg "
+                   "mean, %.3f most (%d)\n",
+            state.checkHandSum / state.checkHands, state.checkHandMost, state.checkHands,
+            state.checkWeapons > 0 ? state.checkTurnSum / state.checkWeapons : 0.0, state.checkTurnMost, state.checkWeapons);
+    }
+    state.checkHandSum = state.checkTurnSum = 0.0;
+    state.checkHandMost = state.checkTurnMost = 0.f;
+    state.checkHands = state.checkWeapons = 0;
 }
 
 } // namespace
