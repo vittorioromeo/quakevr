@@ -992,6 +992,16 @@ constexpr const char* retiredCvars[] = {
     "vr_ragdoll_active_getup_hold",
     "vr_menu_banner_beside",
     "vr_worn_backpack_tug",
+    // 2026-11-02: a hand's pull only ever lifts a worn pack's wearer (ROUND23.md, "Lift only"); the tear by pulling and its
+    // options went, and its two tunables, still used by the lift, are named for it now.
+    "vr_worn_backpack_pull",
+    "vr_worn_backpack_rip_force",
+    "vr_worn_backpack_tug_stretch",
+    "vr_worn_backpack_tug_time",
+    "vr_worn_backpack_topple",
+    "vr_worn_backpack_topple_push",
+    "vr_worn_backpack_rip_time",
+    "vr_worn_backpack_rip_stiffness",
     "vr_nailpistol_model",
     // 2026-11-02: the old melee options, their "on" kept (ROUND23.md, "Old melee options removed"): the swept blade, the
     // swing through enemies, the strike past walls and floor, one swing hitting everything, the curved blades, the

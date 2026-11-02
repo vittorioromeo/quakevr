@@ -526,7 +526,7 @@ vr_armedgrunt_guard.qc // its guard: the preventive and wind-up parries (vr_agru
 vr_dirparry.qc // the directional parry of an armed humanoid's swing (vr_dirparry, experimental)
 vr_disarmviz.qc // Debug > Show Disarm Volumes: the armed humanoids' disarm volumes (the engine draws them: vr_disarmviz.cpp)
 vr_armedrepl.qc
-vr_wornpack.qc // worn backpacks (armed grunts')
+vr_wornpack.qc // worn backpacks (armed ones with a ranged weapon)
 // Survival Arena: the wave director (the waves, their ladder, their boss, their drops).
 vr_arena.qc
 vr_arena_perks.qc // Survival Arena: the boss wave's perk choice (its offers, and what each perk does)
@@ -552,6 +552,7 @@ vr_armedgrunt_preparry_test.qc
 vr_armedgrunt_bugs_test.qc
 vr_armedgrunt_close_test.qc
 vr_armedgrunt_grab_test.qc
+vr_armedgrunt_impact_test.qc
 vr_armedgrunt_downtug_test.qc
 vr_armedgrunt_ragweapon_test.qc
 vr_armedknight_test.qc

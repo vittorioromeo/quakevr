@@ -154,6 +154,7 @@ vr_agrunt_test   79       vr_stalepose_test.qc             shots on a live armed
 vr_agrunt_test   16       vr_disarmhull_test.qc            the disarm volumes as hulls of the drawn triangles: every kind and weapon class
 vr_agrunt_test   100-199  vr_armedgrunt_test.qc            one weapon's every-weapon test (100 + its index)
 vr_agrunt_test   200      vr_armedgrunt_aware_test.qc      disarm attempts on unaware grunts: punch, shots (notarget), parry, blade wake them; dual wield drops the struck one alone
+vr_agrunt_test   202      vr_armedgrunt_impact_test.qc     the impact rule: a push, you walking into it, a topple or a swing in the air keep the weapon; a fall, a throw into the floor or a wall, a body banged into a wall drop it
 vr_agrunt_test   201      vr_armedgrunt_test.qc            dual wielders' both guns drawn: 30 dual nail pistol spawns (VR_AGTest_DualSpawns)
 
 vr_flare_test    1*       vr_flaregun_test.qc              (the self-test (its fall-through))
@@ -204,6 +205,7 @@ vr_reload_test   40       vr_reload_test.qc                (VR_Reload_TestMagNai
 vr_reload_test   41       vr_reload_test.qc                (VR_Reload_TestMagNailsLayout)
 vr_reload_test   42       vr_reload_test.qc                (VR_Reload_TestMagNailsLying)
 vr_reload_test   43       vr_reload_test.qc                (VR_Reload_TestMagForceGrab)
+vr_reload_test   44       vr_reload_test.qc                (VR_Reload_TestPouchCatch)
 
 vr_rv_test       1*       vr_revolver_test.qc              (the self-test (its fall-through))
 vr_rv_test       2-4      vr_revolver_test.qc              (VR_WeaponUtil_EntAddWeapon)
@@ -242,10 +244,19 @@ dispatch vr_stealth_test QC/vr_stealth_test.qc VR_Stealth_TestFrame ask loose
 dispatch vr_wornpack_test QC/vr_wornpack_test.qc VR_WornPack_TestFrame request loose
 dispatch vr_ragsmash_test QC/vr_ragsmash_test.qc VR_RagSmash_TestFrame request loose
 
-vr_wornpack_test 1        vr_wornpack_test.qc              (worn backpacks: on, hits, knockdowns, landings, pulls, deaths)
+vr_wornpack_test 1        vr_wornpack_test.qc              (worn backpacks, grunts: on, none on melee or fists, shots, blows, knockdowns, landings, deaths)
 vr_wornpack_test 2        vr_wornpack_test.qc              (worn backpacks: the eyeshot)
-vr_wornpack_test 3        vr_wornpack_test.qc              (worn backpacks: Pulling the Pack lifts its wearer, vr_worn_backpack_pull 1)
+vr_wornpack_test 3        vr_wornpack_test.qc              (worn backpacks, grunts: pulling the pack lifts its wearer, never tears it)
 vr_wornpack_test 4        vr_wornpack_test.qc              (worn backpacks: a hand pushed through a facing wearer doesn't take its pack; from behind it does)
+vr_wornpack_test 5        vr_wornpack_test.qc              (worn backpacks: the enforcer's lift zone: nothing takes it off, its loot its own)
+vr_wornpack_test 6        vr_wornpack_test.qc              (worn backpacks: a replacement's loadout rolled unseen gives or takes the pack)
+vr_wornpack_test 11       vr_wornpack_test.qc              (test 1 on knights)
+vr_wornpack_test 12       vr_wornpack_test.qc              (test 2 on knights: the eyeshot)
+vr_wornpack_test 13       vr_wornpack_test.qc              (test 3 on knights: lifted by the pack)
+vr_wornpack_test 21       vr_wornpack_test.qc              (test 1 on death knights)
+vr_wornpack_test 22       vr_wornpack_test.qc              (test 2 on death knights: the eyeshot)
+vr_wornpack_test 23       vr_wornpack_test.qc              (test 3 on death knights: lifted by the pack)
+vr_wornpack_test 33       vr_wornpack_test.qc              (test 3 on enforcers: lifted by the zone on their model's pack)
 vr_ragsmash_test 1        vr_ragsmash_test.qc              (a corpse smashed into a wall: its sound and blood there; a slow touch: none)
 
 vr_agarmor_test  1*       vr_agarmor_test.qc               (the Debug menu runs it: the dispatcher's fall-through)
@@ -534,6 +545,7 @@ vr_prop_impact_test 3        vr_propimpact_test.qc            (VR_PropImp_BlastS
 vr_prop_impact_test 4        vr_propimpact_test.qc            (VR_PropImp_FtClear)
 vr_prop_impact_test 5        vr_propimpact_test.qc            (VR_PropImp_FhClear)
 vr_prop_impact_test 6        vr_propimpact_test.qc            (VR_PropImp_MtClear)
+vr_prop_impact_test 7        vr_propimpact_test.qc            (VR_GT_Step: what gibs: blows and props)
 
 vr_smallgibs_test 0-5      vr_smallgibs_test.qc             (see vr_smallgibs_test.qc)
 vr_smallgibs_test 6        vr_smallgibs_test.qc             (VR_SmallGib_TestGoreMark)

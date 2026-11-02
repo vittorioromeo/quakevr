@@ -280,6 +280,7 @@ float cVR_Forcegrab_AfterFoe = 0.5; // s: that moment (a judo throw's follow-thr
 .float vr_ammo_count;    // and how many (a taped pair: 2)
 .float vr_ammo_front;    // a launcher's round: the launcher it fits (WID_GRENADE_LAUNCHER, _PROXIMITY_GUN, _ROCKET_LAUNCHER)
 .float vr_ammo_born;     // when it was last in a hand or flying (its time lying about runs from here)
+.entity vr_ammo_ejected_by; // a magazine out of a gun by itself, falling (vr_reload.qc VR_Reload_PouchCatchFrame): that player, until a hand takes it, a force grab reaches it or it lands
 
 // ----------------------------------------------------------------------------
 // The parry's cooldown (combat.qc VR_Parry) and your own throws hurting you (vr_carry.qc, "Your own throws")

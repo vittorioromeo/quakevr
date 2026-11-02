@@ -1035,7 +1035,7 @@ constexpr double fastHold = 0.15;
 // The late grip (lateGrips): how long after the press the hand may still come to rest at the lamp (longer while a
 // slowed hand catches up with its controller), how near the lamp the press must be (metres, plus that lag), how far
 // back out from its nearest the hand may go, and the speed that is a punch, not a reach (none just before the press).
-constexpr double lateFor = 0.6;
+constexpr double lateFor = 0.39; // (his note 2026-11-02: 0.6 less 35%)
 constexpr float lateReach = 0.25f;
 constexpr float lateBack = 0.1f;
 constexpr float punchSpeed = 2.5f;
