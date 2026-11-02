@@ -950,7 +950,6 @@ vr_agrunt_parry_disarm|1|Armed Grunts (Experimental)|Parry Disarm Chance|Advance
 vr_agrunt_fall_drop|1|Armed Grunts (Experimental)|Drops It When Floored|Advanced VR Options > Combat > Armed Grunts 
 vr_agrunt_fall_keep|1|Armed Grunts (Experimental)|Keeps It in a Gentle Fall|Advanced VR Options > Combat > Armed 
 vr_agrunt_fall_keep_impact|1|Armed Grunts (Experimental)|Fall: Drops It on Impact|Advanced VR Options > Combat > 
-vr_agrunt_fall_keep_window|1|Armed Grunts (Experimental)|Fall: Flung Within|Advanced VR Options > Combat > Armed 
 vr_agrunt_saw_drop_running|1|Armed Grunts (Experimental)|Drops Its Chainsaw Running|Advanced VR Options > Combat > 
 vr_agrunt_shotdisarm|1|Armed Grunts (Experimental)|Shoot Weapons Out|Advanced VR Options > Combat > Armed Grunts 
 vr_agrunt_shotdisarm_parts|1|Armed Grunts (Experimental)|What Counts|Advanced VR Options > Combat > Armed Grunts 
@@ -1335,7 +1334,6 @@ vr_climb_over_top|1|Climbing|Reach Over the Top|Advanced VR Options > Movement >
 vr_climb_slide|1|Climbing|Hands Slide Along Ledges|Advanced VR Options > Movement > Climbing > Hands Slide Along 
 vr_physsound_grab|1|Climbing|Grab Sound|Advanced VR Options > Movement > Climbing > Grab Sound
 vr_climb_mantle_height|1|Climbing|Mantle Height|Advanced VR Options > Movement > Climbing > Mantle Height
-vr_climb_mantle_lenient|1|Climbing|Mantle onto Slopes|Advanced VR Options > Movement > Climbing > Mantle onto Slopes
 vr_climb_mantle_slope|1|Climbing|Steepest Slope|Advanced VR Options > Movement > Climbing > Steepest Slope
 vr_climb_mantle_grunt|1|Climbing|Mantle Grunt|Advanced VR Options > Movement > Climbing > Mantle Grunt
 vr_climb_mantle_grunt_sound|1|Climbing|Mantle Grunt Sound|Advanced VR Options > Movement > Climbing > Mantle Grunt 
@@ -1410,9 +1408,6 @@ vr_hull_width|2|Player Hitbox|Width Against Walls|Advanced VR Options > Movement
 vr_hull_edge_probe|2|Player Hitbox|Ledge Test Fix|Advanced VR Options > Movement > Player Hitbox > Ledge Test Fix
 vr_hull_brushmodels|2|Player Hitbox|Doors, Lifts and Walls Too|Advanced VR Options > Movement > Player Hitbox > 
 vr_hull_ent_width|2|Player Hitbox|Width Against Them|Advanced VR Options > Movement > Player Hitbox > Width Against 
-vr_hull_monsters|2|Player Hitbox|Monsters|Advanced VR Options > Movement > Player Hitbox > Monsters
-vr_hull_players|2|Player Hitbox|Other Players|Advanced VR Options > Movement > Player Hitbox > Other Players
-vr_hull_boxes|2|Player Hitbox|Solid Boxes|Advanced VR Options > Movement > Player Hitbox > Solid Boxes
 vr_hull_hit_width|2|Player Hitbox|Width Shots Hit|Advanced VR Options > Movement > Player Hitbox > Width Shots Hit
 vr_hull_hit_head|2|Player Hitbox|Height Shots Hit: Your Head's|Advanced VR Options > Movement > Player Hitbox > 
 vr_crouch_hull|2|Player Hitbox|Crouched Hitbox|Advanced VR Options > Movement > Player Hitbox > Crouched Hitbox
@@ -1473,7 +1468,6 @@ vr_carry_full_cue|1|Carrying|Full Cue|Advanced VR Options > Carrying and Throwin
 vr_collect_fx|1|Carrying|Put-Away Transition|Advanced VR Options > Carrying and Throwing > Carrying > Put-Away 
 vr_collect_fx_time|1|Carrying|Put-Away Time|Advanced VR Options > Carrying and Throwing > Carrying > Put-Away Time
 vr_collect_fx_size|1|Carrying|Put-Away End Size|Advanced VR Options > Carrying and Throwing > Carrying > Put-Away 
-vr_weapon_grab_drawn|1|Carrying|Weapons by the Fist|Advanced VR Options > Carrying and Throwing > Carrying > 
 vr_weapon_grab_slack|1|Carrying|Weapon Grab Slack|Advanced VR Options > Carrying and Throwing > Carrying > Weapon 
 vr_weapon_grab_handle_leniency|1|Carrying|Handle Grab Leniency|Advanced VR Options > Carrying and Throwing > 
 vr_weapon_catch_handle_leniency|1|Carrying|Mid-Air Catch Leniency|Advanced VR Options > Carrying and Throwing > 
@@ -1801,7 +1795,6 @@ vr_2h_handoff|1|Aiming|Two-Handed Hand-Off|Advanced VR Options > Weapons > Aimin
 vr_2h_grip_sound|1|Aiming|Grip Click|Advanced VR Options > Weapons > Aiming > Grip Click
 vr_2h_angle_threshold|1|Aiming|2H Aiming Threshold|Advanced VR Options > Weapons > Aiming > 2H Aiming Threshold
 vr_2h_virtual_stock_factor|1|Aiming|2H Stock Factor|Advanced VR Options > Weapons > Aiming > 2H Stock Factor
-vr_2h_sticky|1|Aiming|Stickiness|Advanced VR Options > Weapons > Aiming > Stickiness
 vr_2h_sticky_fast|1|Aiming|While Swinging|Advanced VR Options > Weapons > Aiming > While Swinging
 vr_2h_sticky_fast_from|1|Aiming|Swing From|Advanced VR Options > Weapons > Aiming > Swing From
 vr_2h_sticky_fast_full|1|Aiming|Swing Full At|Advanced VR Options > Weapons > Aiming > Swing Full At
@@ -2239,7 +2232,6 @@ vr_bloom_radius|1|Graphics - Post-processing|Bloom Size|Advanced VR Options > Gr
 vr_bloom_white|1|Graphics - Post-processing|Bloom: White Lights|Advanced VR Options > Graphics > Post-processing > 
 vr_bloom_color|1|Graphics - Post-processing|Bloom: Coloured Lights|Advanced VR Options > Graphics > Post-processing 
 vr_bloom_adapt|1|Graphics - Post-processing|Bloom: Adapt|Advanced VR Options > Graphics > Post-processing > Bloom: 
-vr_bloom_fast|1|Graphics - Post-processing|Bloom: Fast|Advanced VR Options > Graphics > Post-processing > Bloom: 
 vr_tonemap|1|Graphics - Post-processing|Tone Mapping|Advanced VR Options > Graphics > Post-processing > Tone Mapping
 vr_exposure|1|Graphics - Post-processing|Exposure|Advanced VR Options > Graphics > Post-processing > Exposure
 vr_grade|1|Graphics - Post-processing|Colour Grade|Advanced VR Options > Graphics > Post-processing > Colour Grade
@@ -2270,7 +2262,6 @@ vr_particle_max_screen|1|Graphics - Models and Effects|Largest Particle|Advanced
 vr_particle_halfres|1|Graphics - Models and Effects|Half-Res Heavy Particles|Advanced VR Options > Graphics > 
 vr_particle_trim|1|Graphics - Models and Effects|Trim Particle Margins|Advanced VR Options > Graphics > Models and 
 vr_particle_saturate|1|Graphics - Models and Effects|Skip Hidden Particles|Advanced VR Options > Graphics > Models 
-vr_particle_retro_fast|1|Graphics - Models and Effects|Fast Retro Particles|Advanced VR Options > Graphics > Models 
 vr_particle_retro_halfres|1|Graphics - Models and Effects|Half-Res Retro Particles|Advanced VR Options > Graphics > 
 vr_particle_retro_halfres_pixels|1|Graphics - Models and Effects|Retro Half-Res Size|Advanced VR Options > Graphics 
 vr_weapon_morph_time|1|Graphics - Models and Effects|Ammo Switch Morph|Advanced VR Options > Graphics > Models and 
@@ -2815,6 +2806,7 @@ vr_walltorch_reach|2|Tunables|Grab Reach|Advanced VR Options > Debug > Tunables 
 vr_walltorch_hits|2|Tunables|Blows Before It Dies|Advanced VR Options > Debug > Tunables > Blows Before It Dies
 vr_walltorch_damage|2|Tunables|Blow Damage|Advanced VR Options > Debug > Tunables > Blow Damage
 vr_walltorch_flame|2|Tunables|Flame Size|Advanced VR Options > Debug > Tunables > Flame Size
+vr_2h_sticky|2|Tunables|Stickiness|Advanced VR Options > Debug > Tunables > Stickiness
 vr_weight_spring_stiffness|2|Tunables|Stiffness|Advanced VR Options > Debug > Tunables > Stiffness
 vr_weight_spring_damping|2|Tunables|Damping|Advanced VR Options > Debug > Tunables > Damping
 vr_weight_spring_strength|2|Tunables|Arm Strength|Advanced VR Options > Debug > Tunables > Arm Strength
@@ -3092,9 +3084,6 @@ vr_agrunt_shotdisarm_w_nail|2|Tunables|Nails|Advanced VR Options > Debug > Tunab
 vr_agrunt_shotdisarm_w_lightning|2|Tunables|Lightning|Advanced VR Options > Debug > Tunables > Lightning
 vr_agrunt_shotdisarm_w_blast|2|Tunables|Rockets and Grenades|Advanced VR Options > Debug > Tunables > Rockets and 
 vr_agrunt_shotdisarm_w_splash|2|Tunables|Explosions|Advanced VR Options > Debug > Tunables > Explosions
-vr_agrunt_fall_keep_height|2|Tunables|Fall: Drops It Below|Advanced VR Options > Debug > Tunables > Fall: Drops It 
-vr_agrunt_fall_keep_speed|2|Tunables|Fall: Drops It Falling Faster|Advanced VR Options > Debug > Tunables > Fall: 
-vr_agrunt_fall_keep_fling|2|Tunables|Fall: Drops It Flung Faster|Advanced VR Options > Debug > Tunables > Fall: 
 vr_agrunt_w_nailpistol|2|Tunables|Nail Pistol|Advanced VR Options > Debug > Tunables > Nail Pistol
 vr_agrunt_w_revolver|2|Tunables|Heavy Revolver|Advanced VR Options > Debug > Tunables > Heavy Revolver
 vr_agrunt_strike_hips|2|Tunables|Hips in the Twist|Advanced VR Options > Debug > Tunables > Hips in the Twist
@@ -5380,7 +5369,6 @@ vr_kdtrig_blast_on|1|Ragdoll Triggers - Explosions|Explosions|Advanced VR Option
 vr_kdtrig_thrown_on|1|Ragdoll Triggers - Thrown Bodies|Thrown Bodies|Advanced VR Options > Combat > Ragdoll 
 |1|Ragdoll Triggers - Thrown Bodies|Reset This Page|Advanced VR Options > Combat > Ragdoll Triggers > Thrown Bodies 
 @page|1|Ragdoll Triggers - Shoulder Charges||Advanced VR Options > Combat > Ragdoll Triggers > Shoulder Charges
-vr_kdtrig_tackle_on|1|Ragdoll Triggers - Shoulder Charges|Shoulder Charges|Advanced VR Options > Combat > Ragdoll 
 vr_kdtrig_tackle|1|Ragdoll Triggers - Shoulder Charges|Chance|Advanced VR Options > Combat > Ragdoll Triggers > 
 vr_kdtrig_tackle_runup|1|Ragdoll Triggers - Shoulder Charges|Run-Up|Advanced VR Options > Combat > Ragdoll Triggers 
 vr_kdtrig_tackle_feel|1|Ragdoll Triggers - Shoulder Charges|Impact Feel|Advanced VR Options > Combat > Ragdoll 

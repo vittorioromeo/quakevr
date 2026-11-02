@@ -9,7 +9,7 @@ grunt's origin and the hold's part.
   shin   dz -21: by its leg, doesn't drag (moves under 6 units, or the hold breaks: pulled too far)
   chest  dz 8: by its torso, drags (comes 6 units or more towards you)
   head   dz 23: by its head, doesn't drag (as the shin)
-  shin_any  the shin with One Hand Drags By: Anywhere (0): drags, as before
+  head_2    the head with One Hand Drags By: Torso, Shoulders, Head (2): drags
 PASS per case; the logs go to <agent>/scratch/onehanddrag_<case>.txt.
 """
 import math
@@ -34,7 +34,7 @@ CASES = [
     ("shin", -21, "", False),
     ("chest", 8, "", True),
     ("head", 23, "", False),
-    ("shin_any", -21, "vr_foegrab_drag_onehand 0", True),
+    ("head_2", 23, "vr_foegrab_drag_onehand 2", True),
 ]
 
 

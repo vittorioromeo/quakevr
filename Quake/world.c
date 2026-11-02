@@ -1013,7 +1013,7 @@ static trace_t SV_ClipMoveToBoxEntityQVR (edict_t *touch, vec3_t mins, vec3_t ma
 	pair = clip->bodymove && VR_BodyContactHull (clip->passedict, touch, mins, maxs, hullmins, hullmaxs);
 	if (!pair)
 	{
-		if (clip->entbox && VR_HullNarrowsAgainst (clip->passedict, touch))
+		if (clip->entbox)
 		{
 			m = clip->entmins;
 			M = clip->entmaxs;
@@ -1170,7 +1170,7 @@ void SV_ClipToLinks ( areanode_t *node, moveclip_t *clip )
 			// the move's (the player's narrower one where it narrows, as SV_ClipMoveToBoxEntityQVR)
 			if (!clip->bodymove || clip->hitmodel >= 0 || touch == clip->passedict)
 				continue;
-			narrow = clip->entbox && VR_HullNarrowsAgainst (clip->passedict, touch);
+			narrow = clip->entbox;
 			if (!VR_CorpseBox (clip->passedict, touch, clip->start, narrow ? clip->entmins : clip->mins,
 				narrow ? clip->entmaxs : clip->maxs, corpsemins, corpsemaxs))
 				continue;
@@ -1250,8 +1250,8 @@ void SV_ClipToLinks ( areanode_t *node, moveclip_t *clip )
 		// (vr_box3d_player_shape).
 		else if (touch->v.solid == SOLID_BBOX && clip->bodymove && clip->passedict &&
 			VR_PropClip (clip->passedict, touch, clip->start, clip->mins, clip->maxs,
-				clip->entbox && VR_HullNarrowsAgainst (clip->passedict, touch) ? clip->entmins : clip->mins,
-				clip->entbox && VR_HullNarrowsAgainst (clip->passedict, touch) ? clip->entmaxs : clip->maxs,
+				clip->entbox ? clip->entmins : clip->mins,
+				clip->entbox ? clip->entmaxs : clip->maxs,
 				clip->end, &trace))
 			propshape = true;
 		else if (touch->v.solid != SOLID_BSP) // QVR

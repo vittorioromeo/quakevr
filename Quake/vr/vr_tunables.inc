@@ -556,6 +556,7 @@ QVR_TUNABLE(vr_walltorch_damage, "12") // a torch's blow: its base damage, times
 QVR_TUNABLE(vr_walltorch_flame, "1") // a taken torch's flame's size (1: the wall torch's)
 
 // Weapons > Aiming
+QVR_TUNABLE(vr_2h_sticky, "1") // 2H grip stickiness: times the let-go distance and angle, always (vr_2h_sticky_fast*: more while swinging)
 QVR_TUNABLE(vr_weight_spring_stiffness, "1") // Spring: times the arm's and wrist's stiffness (2: 41% quicker)
 QVR_TUNABLE(vr_weight_spring_damping, "1") // Spring: the damping ratio (1 critical: settles without swinging back; less: overshoots)
 QVR_TUNABLE(vr_weight_spring_strength, "1") // Spring: times the arm's force and the wrist's torque (0: unlimited)
@@ -883,9 +884,6 @@ QVR_TUNABLE(vr_agrunt_shotdisarm_w_nail, "1") // the nailguns' nails
 QVR_TUNABLE(vr_agrunt_shotdisarm_w_lightning, "0.3") // the lightning gun's bolts (30 a tenth of a second: a roll every 0.4 s held on it)
 QVR_TUNABLE(vr_agrunt_shotdisarm_w_blast, "1") // a rocket's or grenade's direct hit on it (its flight through the weapon or hand)
 QVR_TUNABLE(vr_agrunt_shotdisarm_w_splash, "0") // an explosion's damage to the grunt (0: splash never counts)
-QVR_TUNABLE(vr_agrunt_fall_keep_height, "0.75") // m: the floor under it now this far below the floor it stood on (a ledge): it lets go
-QVR_TUNABLE(vr_agrunt_fall_keep_speed, "4.5") // m/s: its body falling faster than this: it lets go
-QVR_TUNABLE(vr_agrunt_fall_keep_fling, "5") // m/s: its body moving faster than this any way but down (thrown, flung, blown away: a strong force): it lets go
 QVR_TUNABLE(vr_agrunt_w_nailpistol, "1") // the nail pistol (one in each hand when it pairs)
 QVR_TUNABLE(vr_agrunt_w_revolver, "0.25") // the heavy revolver (rare)
 QVR_TUNABLE(vr_agrunt_strike_hips, "0.3") // ... the share of the torso's twist the hips take (the legs stay planted; client)

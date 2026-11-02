@@ -78,12 +78,12 @@ void restartVr()
     za::Vector<Choice> out{{0.f, "Grunt"}, {1.f, "Enforcer"}, {2.f, "Knight"}, {3.f, "Death Knight"}, {4.f, "Ogre"},
         {5.f, "Fiend"}, {6.f, "Shambler"}, {7.f, "Zombie"}, {8.f, "Vore"}, {9.f, "Scrag"}, {10.f, "Rottweiler"},
         {11.f, "Spawn"}, {12.f, "Rotfish"}};
-    if(vr_hipnotic_available.value != 0.f)
+    if(vr_hipnotic_status.value == 1.f) // (installed and valid)
     {
         out.pushBack({13.f, "Gremlin"});
         out.pushBack({14.f, "Centroid"});
     }
-    if(vr_rogue_available.value != 0.f)
+    if(vr_rogue_status.value == 1.f)
     {
         out.pushBack({15.f, "Mummy"});
         out.pushBack({16.f, "Wrath"});
@@ -860,9 +860,6 @@ za::Vector<Item> pageHitbox()
         cycle("Width Against Them", vr_hull_ent_width, ents)
             .help("How wide you are against monsters, other players and solid boxes, both ways (you walking into them, "
                   "them walking into you). Shots and missiles hit the width below; items are picked up with Quake's 32 box."),
-        row(opt::vr_hull_monsters),
-        row(opt::vr_hull_players),
-        row(opt::vr_hull_boxes),
         cycle("Width Shots Hit", vr_hull_hit_width, hits)
             .help("How wide you are to monsters' shots and missiles (bullets, nails, lasers, grenades, rockets, spit, "
                   "vore balls). Quake's box is 32; 24 still leaves them a bit of leniency. Melee blows and splash "
@@ -1698,7 +1695,7 @@ void resetHolsters()
     {
         return true;
     }
-    for(const cvar_t* kept : {&vr_menu_level, &vr_menu_positions, &vr_tips_seen, &vr_setup_pending, &vr_enabled,
+    for(const cvar_t* kept : {&vr_menu_level, &vr_menu_positions, &vr_setup_pending, &vr_enabled,
             &vr_xr_runtime, &vr_height_calibration, &vr_floor_offset, &vr_body_arm_length, &vr_body_eye_forward,
             &vr_body_eye_up, &vr_body_torso_back, &vr_gunangle, &vr_gunyaw, &vr_offhandpitch, &vr_offhandyaw})
     {

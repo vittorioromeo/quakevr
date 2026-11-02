@@ -207,7 +207,7 @@ void() VR_AGCT_Grab =
 
 // Test 66: one lying with its weapon in its hand (a shove's gentle fall: vr_agrunt_fall_keep), you walking up to it
 // and reaching for its weapon with an open hand at 0.8 m/s (your body against it, your hand on it): it keeps it. Case 0
-// as shipped; case 1 the old rules (vr_agrunt_disarm_deliberate 0, vr_agrunt_fall_keep_window 0: printed, not checked).
+// as shipped; case 1 the old rule (vr_agrunt_disarm_deliberate 0: printed, not checked).
 void() VR_AGCT_Lying =
 {
     entity p = vr_agt_player;
@@ -218,11 +218,9 @@ void() VR_AGCT_Lying =
         if(vr_agct_case == 0)
         {
             vr_agct_keep1 = cvar("vr_agrunt_disarm_deliberate");
-            vr_agct_keep2 = cvar("vr_agrunt_fall_keep_window");
             vr_agct_keep3 = cvar("vr_agrunt_disarm_yank");
         }
         cvar_set("vr_agrunt_disarm_deliberate", vr_agct_case == 0 ? ftos(vr_agct_keep1) : "0");
-        cvar_set("vr_agrunt_fall_keep_window", vr_agct_case == 0 ? ftos(vr_agct_keep2) : "0");
         cvar_set("vr_agrunt_disarm_yank", "0"); // (a grab would take it: only blows and falls here)
         p.flags = p.flags | FL_NOTARGET;
         VR_AGPT_EmptyHand(p);
@@ -302,7 +300,6 @@ void() VR_AGCT_Lying =
         vr_agct_case = 0;
         VR_AGPT_Clear();
         cvar_set("vr_agrunt_disarm_deliberate", ftos(vr_agct_keep1));
-        cvar_set("vr_agrunt_fall_keep_window", ftos(vr_agct_keep2));
         cvar_set("vr_agrunt_disarm_yank", ftos(vr_agct_keep3));
         p.flags = p.flags - (p.flags & FL_NOTARGET);
         cvar_set("vr_agrunt_test", "0");

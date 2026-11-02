@@ -235,12 +235,10 @@ void dump_f();
 // off hand). `aimRot` itself for no slot or the empty hand, or with both 0. Nothing drawn moves with it.
 [[nodiscard]] glm::vec3 shotAngles(const glm::vec3& aimRot, int slot, bool mirrored);
 
-// Gun Model Pitch (vr_gunmodelpitch). Every weapon's Pitch is tuned with the drawn model turned up by its default,
-// `gunModelPitchBase` (most guns' Pitch is about -7 to undo it): the models are always drawn with that. What the player
-// sets past it turns the held gun, the hand holding it and its aim up together, about the hand (a Together Pitch for
-// every weapon: hands::wholeOffset), so the grip stays in the palm, the screen on the gun and the shots along the barrel.
+// Every weapon's Pitch is tuned with the drawn model turned up by `gunModelPitchBase` (most guns' Pitch is about -7 to
+// undo it): the models are always drawn with that. (Gun Model Pitch, vr_gunmodelpitch, turned the gun, hand and aim
+// past it; moved into Hand Pitch at configVersion 203 and retired: vr_cvars.cpp.)
 inline constexpr float gunModelPitchBase = 7.f;
-[[nodiscard]] float gunModelPitchTurn(); // vr_gunmodelpitch - gunModelPitchBase (degrees up)
 
 // The weapon as it sits in a holster, per kind of holster (the HipHolster*, UpperHolster*, ShoulderHolster* keys): moved
 // (units: x off the body, y outwards, z up) and turned about its grip (pitch, yaw, roll: degrees), in the holster's frame

@@ -212,7 +212,7 @@ expect it to be more robust for Quake 1: it is Quake's own trace, with its behav
 | Method | `vr_hull_method` | 1 (Compiled Hull) | 0 Brush Sweep (B), 1 Compiled Hull (A) |
 | Doors, Lifts and Walls Too | `vr_hull_brushmodels` | 1 | off: brush models other than the world meet Quake's box |
 | Width Against Them | `vr_hull_ent_width` | -1 (Same as Walls) | 0 Quake's 32, or 8-32: against monsters, players, solid boxes |
-| Monsters / Other Players / Solid Boxes | `vr_hull_monsters`, `vr_hull_players`, `vr_hull_boxes` | 1 | per category, both ways |
+| (Monsters / Other Players / Solid Boxes) | (`vr_hull_monsters`, `_players`, `_boxes`: retired 2026-11-02) | - | the width holds against all, both ways |
 | Width Shots Hit | `vr_hull_hit_width` | 24 | 0 Quake's 32, or 8-28: the box shots and missiles hit |
 | Prop Push Radius | `vr_box3d_player_radius` | 15 cm | the Box3D capsule that pushes loose props |
 

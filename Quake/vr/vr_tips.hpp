@@ -3,7 +3,7 @@
 // screen like the map boards' floating by it with a cable to it (vr_tips 1: over the scene; vr_tips_facing), or as one
 // of the wrist gadget's hologram messages (vr_tips 2: it waits there until you look at the gadget, which chimes and
 // buzzes your hand meanwhile; the screen when there is no hologram). The tips shown are kept in
-// <gamedir>/tips_seen.txt (one key a line, no limit; an older config's vr_tips_seen is moved there once), emptied by
+// <gamedir>/tips_seen.txt (one key a line, no limit), emptied by
 // vr_tips_reset (VR Settings > Tips > Show Tips Again).
 //
 // The built-in tips (vr_tips.cpp, `tips`): a wall torch on its wall (vr_walltorch.cpp: it can be taken and sets

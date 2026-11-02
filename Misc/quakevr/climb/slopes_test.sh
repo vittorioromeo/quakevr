@@ -1,6 +1,6 @@
 #!/bin/bash
 # slopes_test.sh <agent> ["<cvars>"] (ROUND21.md, "Climbing: mantling onto sloping tops"): the mantle play on each of
-# vrslopes' tops; prints the run's lines and, with no cvars (the defaults: vr_climb_mantle_lenient 1, slope 40), a PASS or
+# vrslopes' tops; prints the run's lines and, with no cvars (the defaults: vr_climb_mantle_slope 40), a PASS or
 # FAIL a top against ROUND21.md's table (mantled: level, up10, up20, up30, down20, across15; no room: up45, up20slab).
 # The mantle play: climb_plays.py's mantle with the hands at 1.49 m (its default 1.638 no longer reaches the lip with the
 # current default body), written to the agent's scratch (P=<file> to use another).

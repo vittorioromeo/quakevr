@@ -49,9 +49,6 @@ void afterLoad();
 // SV_Move: true if this move meets other entities' boxes with the narrower box (vr_hull_ent_width), filled in.
 [[nodiscard]] bool entBox(const edict_t* passedict, const float* mins, const float* maxs, float* boxMins, float* boxMaxs);
 
-// ... and whether it does against this entity (its category: vr_hull_players, vr_hull_monsters, vr_hull_boxes).
-[[nodiscard]] bool narrowsAgainst(const edict_t* mover, const edict_t* other);
-
 // A player's box as a body moving into it (mover; null: none) meets it: true if narrowed, filled in.
 [[nodiscard]] bool touchBox(const edict_t* touch, const edict_t* mover, float* boxMins, float* boxMaxs);
 

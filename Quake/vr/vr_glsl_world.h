@@ -107,7 +107,7 @@
 "	gl_Position = vec4(c * 2.0 - 1.0, 0.0, 1.0);\n" \
 "}\n"
 
-// QVR: the decals on the world's own surfaces (vr/vr_decals.cpp, vr_decals_world), applied in its shader as DOOM (2016)
+// QVR: the decals on the world's own surfaces (vr/vr_decals.cpp), applied in its shader as DOOM (2016)
 // and its clustered forward decals do: each pixel finds the decals over it and puts them on its texture, before its
 // light, where the parallax mapping moved it (so they follow the relief as the texture does, and take the light, the
 // sheen and the fog as it does). The decals are found in a grid over the world, 32 units a cell, hashed into buckets

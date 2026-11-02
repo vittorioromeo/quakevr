@@ -1169,8 +1169,7 @@ glm::mat3 basisOf(const glm::vec3& angles)
 namespace
 {
 
-// A slot's Hand and Weapon Together offset, as for hand `h` (mirrored for the off hand); false if it has none. Gun Model
-// Pitch past its default adds to its pitch (weapons::gunModelPitchTurn: the gun, the hand and the aim turned together).
+// A slot's Hand and Weapon Together offset, as for hand `h` (mirrored for the off hand); false if it has none.
 bool wholeValues(int slot, int h, glm::vec3& p, glm::vec3& a)
 {
     using weapons::Key;
@@ -1180,7 +1179,6 @@ bool wholeValues(int slot, int h, glm::vec3& p, glm::vec3& a)
     }
     p = weapons::vec(slot, Key::WholeX, Key::WholeY, Key::WholeZ);
     a = weapons::vec(slot, Key::WholePitch, Key::WholeYaw, Key::WholeRoll);
-    a.x += weapons::gunModelPitchTurn();
     if(p == glm::vec3{0.f} && a == glm::vec3{0.f})
     {
         return false;

@@ -212,7 +212,6 @@
         row(opt::vr_climb_slide).extend().help("When your body can't follow your hands along a ledge (past your arm's reach, against a wall), the hand slides along it and stays on your controller. Off: it stays where it took hold, and drifts away from your controller."),
         row(opt::vr_physsound_grab),
         row(opt::vr_climb_mantle_height),
-        row(opt::vr_climb_mantle_lenient),
         row(opt::vr_climb_mantle_slope),
         row(opt::vr_climb_mantle_grunt),
         cycle("Mantle Grunt Sound", "vr_climb_mantle_grunt_sound", gruntChoices()).help("Which grunt the mantle makes. Hard landing (the default): the strained \"oof\" of landing from a height, so it doesn't sound like a jump. The deeper ones are Quake's played slower. Hear it with Hear Mantle Grunt."),
@@ -479,7 +478,6 @@ void resetHandMoves()
         row(opt::vr_2h_angle_threshold),
         row(opt::vr_2h_virtual_stock_factor),
         header("2H Grip Stickiness"),
-        row(opt::vr_2h_sticky),
         row(opt::vr_2h_sticky_fast),
         row(opt::vr_2h_sticky_fast_from),
         row(opt::vr_2h_sticky_fast_full),
@@ -952,8 +950,8 @@ void resetHandMoves()
         mode("Plasma Gun (Arcane Dimensions)", "vr_reload_mode_adplasma"),
     };
     // (Hipnotic's proximity gun only where Hipnotic is installed.)
-    const cvar_t* hipnotic = Cvar_FindVar("vr_hipnotic_available");
-    if(hipnotic && hipnotic->value != 0.f)
+    const cvar_t* hipnotic = Cvar_FindVar("vr_hipnotic_status");
+    if(hipnotic && hipnotic->value == 1.f) // (1: installed and valid)
     {
         list.pushBack(mode("Proximity Gun (Hipnotic)", "vr_reload_mode_prox"));
     }
@@ -1671,7 +1669,6 @@ void addFoamRows(za::Vector<Item>& items, const FoamRows& r)
         row(opt::vr_bloom_white),
         row(opt::vr_bloom_color),
         row(opt::vr_bloom_adapt),
-        row(opt::vr_bloom_fast),
         header("Tone and Colour"),
         row(opt::vr_tonemap),
         row(opt::vr_exposure),
@@ -1712,7 +1709,6 @@ void addFoamRows(za::Vector<Item>& items, const FoamRows& r)
         row(opt::vr_particle_halfres),
         row(opt::vr_particle_trim),
         row(opt::vr_particle_saturate),
-        row(opt::vr_particle_retro_fast),
         row(opt::vr_particle_retro_halfres),
         row(opt::vr_particle_retro_halfres_pixels),
         open("Decals and Gib Blood: Gore", pageIndex(pageGore)).help("Decals and the gibs' blood are on Gore."),
