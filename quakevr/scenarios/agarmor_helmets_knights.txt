@@ -1,0 +1,7 @@
+# agarmor_helmets_knights: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Debug > Tests >
+# Helmets There: Knight and Death Knight (vr_agarmor_test 8).
+title Armour helmets on a knight and a death knight (Debug > Tests > Helmets There: Knight and Death Knight)
+map vrtesthall
+god
+notarget
+cmd vr_agarmor_test 8

@@ -1,0 +1,11 @@
+# rigstudio_strike: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The Pose Studio's strike
+# timeline (Pose Studio Data: a strike's keys played, scrubbed and stepped): a frozen armed grunt and enforcer ahead.
+title Pose Studio: a strike's timeline (Shove) on a frozen grunt
+map vrtesthall
+god
+notarget
+cvar vr_agrunt_freeze 1
+spawn "Armed Grunt: Shotgun" 60 0
+spawn "Armed Enforcer: Shotgun" 60 45
+cmd vr_posestudio
+hint Pose Studio Data, pick Shove: the timeline plays at 0.25x, Loop, scrub the bar, step with < > or Left/Right, Key returns to the phase.
