@@ -43,12 +43,6 @@ constexpr LayeredSound layeredSounds[] = {
     // its rate (his note 2026-10-31: 0.7 was too slow, 50% faster sounds punchier, like armour breaking; the pitch rises
     // with it), reversed so it is never taken for a pickup; barely driven (clean).
     {"vr/derived/armor_break.wav", {{"items/armor1.wav", 1.05f, 1.f, 0.f, 0.f, 0.f, true}}, 0.1f},
-    // A worn backpack torn off (QC vr_wornpack.qc VR_WP_Rip): the fiend's claw tearing, quicker; the gib's tear under it;
-    // the lightning's hit, short and higher, for the fibres snapping. Lightly driven.
-    {"vr/derived/fabric_rip.wav",
-        {{"demon/dhit2.wav", 1.15f, 0.85f, 0.f, 0.f, 0.f}, {"player/tornoff2.wav", 1.35f, 0.5f, 0.f, 0.f, 0.f},
-            {"weapons/lhit.wav", 1.6f, 0.22f, 0.f, 0.2f, 0.1f}},
-        0.6f},
 };
 
 [[nodiscard]] int readLe(const byte* p, int bytes)
