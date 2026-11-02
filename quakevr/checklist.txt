@@ -19,6 +19,9 @@ Body > Stride Length 1.5: longer strides, less foot slide, feet lift more at the
 Body > Step Width +0.15: feet walk wider apart.
 Your footsteps land with the drawn feet, from that foot, one sound per step; turning on the spot gives soft shuffles. About 5 steps a second at a run: too busy?
 Body > Footsteps on the Feet off: the old distance-based steps.
+Armed grunt down: a small push, walking into it or a gentle topple keeps its weapon; a fall, a throw into the floor or a wall drops it.
+Hold a downed armed grunt and swing it hard into a wall or the floor: it drops its weapon; swing it and reverse in mid-air: it keeps it. Do the speeds feel right near walls?
+A downed armed grunt flung low along the floor without hitting anything keeps its weapon.
 
 
 [3. Bodies: grabbing, throwing, hits]

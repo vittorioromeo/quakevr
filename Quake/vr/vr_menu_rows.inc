@@ -1220,9 +1220,10 @@ QVR_TOGGLE(vr_agrunt_fall_keep, "Keeps It in a Gentle Fall",
     "there a grab takes it with a short tug (Tug: Staggering or Down) and a blow knocks it away. A hard landing (below) drops it "
     "(vr_agrunt_fall_keep).")
 QVR_SLIDER(vr_agrunt_fall_keep_impact, "Fall: Drops It on Impact", 0.f, 20.f, 0.5f, "%.1f m/s", ext(0.f, 100.f),
-    "Lifted, judo-thrown, shoulder-charged or shoved over, it holds on to its weapon until its body meets "
-    "the ground this hard (the speed it loses as it lands); a gentle landing keeps it, a slam drops it. "
-    "Never while your hands hold it. 0: never (vr_agrunt_fall_keep_impact).")
+    "Lifted, judo-thrown, shoulder-charged or shoved over, it holds on to its weapon until its body, having "
+    "kept up speed for a moment, hits a floor or a wall this hard (the speed it loses): a fall, a throw, or "
+    "banging it into something with your hands drops it; a small push, a gentle topple or a swing in the air "
+    "keeps it. 0: never (vr_agrunt_fall_keep_impact; timings in Tunables).")
 QVR_TOGGLE(vr_agrunt_saw_drop_running, "Drops Its Chainsaw Running",
     "One that was fighting you with a chainsaw drops it with the engine running (killed, disarmed, a tug "
     "lost): it runs on as yours does when let go (Runs On When Let Go), so taken up meanwhile it needs no "

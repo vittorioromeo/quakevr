@@ -207,7 +207,9 @@ void() VR_AGCT_Grab =
 
 // Test 66: one lying with its weapon in its hand (a shove's gentle fall: vr_agrunt_fall_keep), you walking up to it
 // and reaching for its weapon with an open hand at 0.8 m/s (your body against it, your hand on it): it keeps it. Case 0
-// as shipped; case 1 the old rule (vr_agrunt_disarm_deliberate 0: printed, not checked).
+// as shipped; case 1 the old rule (vr_agrunt_disarm_deliberate 0: printed, not checked). scratch1 n: case 0 n times (a
+// lying body's physics varies: it once read as an impact about 1 time in 3, VR_AG_FallImpact).
+float vr_agct_repeat;
 void() VR_AGCT_Lying =
 {
     entity p = vr_agt_player;
@@ -215,7 +217,7 @@ void() VR_AGCT_Lying =
     float u = VRMetersToUnits();
     if(vr_agt_step == 0)
     {
-        if(vr_agct_case == 0)
+        if(vr_agct_case == 0 && !vr_agct_repeat)
         {
             vr_agct_keep1 = cvar_hget(cvarh_vr_agrunt_disarm_deliberate);
             vr_agct_keep3 = cvar_hget(cvarh_vr_agrunt_disarm_yank);
@@ -293,11 +295,17 @@ void() VR_AGCT_Lying =
     }
     cvar_set("vr_mock_hand_pull", "0");
     cvar_set("vr_mock_hand_lift", "0");
-    vr_agct_case = vr_agct_case + 1;
     vr_agt_step = 0;
+    if(vr_agct_case == 0 && vr_agct_repeat + 1 < cvar_hget(cvarh_scratch1))
+    {
+        vr_agct_repeat = vr_agct_repeat + 1;
+        return;
+    }
+    vr_agct_case = vr_agct_case + 1;
     if(vr_agct_case > 1)
     {
         vr_agct_case = 0;
+        vr_agct_repeat = 0;
         VR_AGPT_Clear();
         cvar_set("vr_agrunt_disarm_deliberate", ftos(vr_agct_keep1));
         cvar_set("vr_agrunt_disarm_yank", ftos(vr_agct_keep3));
