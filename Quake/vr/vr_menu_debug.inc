@@ -964,6 +964,8 @@ za::Vector<Item> pageDebugTools()
         header("Test Effects"),
         command("Font Sample Message", "vr_fontstyle_sample")
             .help("vr_fontstyle_sample: a centre message and a console line in white and gold, to judge Menu > Fonts (upscaling, outline, shadow) over the game. vr_fontstyle_test: its self-test."),
+        command("Font Style Live Test", "vr_fontstyle_live_test")
+            .help("vr_fontstyle_live_test: in a map with boards, a weapon in hand: changes each of the World Text, Ammo Screen and Wrist Gadget fonts' outline and shadow in turn, checks that only that font's text images are drawn again, once, on the next frame, and puts the settings back."),
         command("Blood and Gore", "vr_gore_test").help("vr_gore_test: blood and gore 64 units ahead, as a 40 damage hit."),
         command("Gore Burst", "vr_gore_test burst").help("vr_gore_test burst: a body bursting into gibs 64 units ahead."),
         command("Gore Sounds: a Crowd's Tears", "vr_gore_sound_test tear 12 0.06")

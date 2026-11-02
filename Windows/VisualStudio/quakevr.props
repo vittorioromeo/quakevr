@@ -212,7 +212,9 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
        MAJOR.MINOR.PATCH[-prerelease]; docs/vr-port/RELEASING.md, "Versions"); a build not made by the release script
        is a dev build ("1.0.0-dev"), the release script's says the plain version. Then the last commit's date and short
        hash, "-dirty" when tracked files differ from it: "1.0.0-dev (2026-10-07 afd53921)". Written only when it changes
-       (only vr_crash.cpp then recompiles); "unknown build" in place of the date and hash without git. -->
+       (only vr_crash.cpp then recompiles); "unknown build" in place of the date and hash without git.
+       Each git call's stderr goes to nul: ConsoleToMSBuild captures both streams, and a git warning (e.g. "unable to
+       find all commit-graph files") would otherwise land in the header and break the build. -->
   <Target Name="QvrBuildVersion" BeforeTargets="ClCompile">
     <PropertyGroup>
       <QvrRepo>$(MSBuildThisFileDirectory)..\..</QvrRepo>
@@ -223,23 +225,23 @@ copy "$(SolutionDir)..\..\Quake\vr\external\steamaudio\lib\windows-x64\phonon.dl
     <!-- A release (Misc/release/make_release.ps1, /p:QvrReleaseVersion=1.2.3) is VERSION's own: the script checks it. -->
     <Error Condition="'$(QvrReleaseVersion)'!='' and '$(QvrReleaseVersion)'!='$(QvrSemver)'"
            Text="QvrReleaseVersion $(QvrReleaseVersion) is not VERSION's $(QvrSemver): bump VERSION (make_release.ps1 -BumpVersion)" />
-    <Exec Command="git -C &quot;$(QvrRepo)&quot; log -1 --date=format:%25%25Y-%25%25m-%25%25d --format=&quot;%25%25cd %25%25h&quot; --abbrev=8"
+    <Exec Command="git -C &quot;$(QvrRepo)&quot; log -1 --date=format:%25%25Y-%25%25m-%25%25d --format=&quot;%25%25cd %25%25h&quot; --abbrev=8 2&gt;nul"
           ConsoleToMSBuild="true" IgnoreExitCode="true" StandardOutputImportance="low" StandardErrorImportance="low" EchoOff="true">
       <Output TaskParameter="ConsoleOutput" PropertyName="QvrGitCommit" />
       <Output TaskParameter="ExitCode" PropertyName="QvrGitExit" />
     </Exec>
-    <Exec Condition="'$(QvrGitExit)'=='0'" Command="git -C &quot;$(QvrRepo)&quot; --no-optional-locks status --porcelain --untracked-files=no"
+    <Exec Condition="'$(QvrGitExit)'=='0'" Command="git -C &quot;$(QvrRepo)&quot; --no-optional-locks status --porcelain --untracked-files=no 2&gt;nul"
           ConsoleToMSBuild="true" IgnoreExitCode="true" StandardOutputImportance="low" StandardErrorImportance="low" EchoOff="true">
       <Output TaskParameter="ConsoleOutput" PropertyName="QvrGitChanges" />
     </Exec>
     <!-- The build number (QVR_BUILD_NUMBER: the commit count, always increasing; QVR_BUILD_INFO: "1.1.0-dev build 4321
          (abc1234+dirty) 2026-10-17 14:05", the menus' bottom left corner and the console): 0 and "unknown" without
          git. The date is the build's local time, to the minute: the header is rewritten only when its text changes. -->
-    <Exec Condition="'$(QvrGitExit)'=='0'" Command="git -C &quot;$(QvrRepo)&quot; rev-list --count HEAD"
+    <Exec Condition="'$(QvrGitExit)'=='0'" Command="git -C &quot;$(QvrRepo)&quot; rev-list --count HEAD 2&gt;nul"
           ConsoleToMSBuild="true" IgnoreExitCode="true" StandardOutputImportance="low" StandardErrorImportance="low" EchoOff="true">
       <Output TaskParameter="ConsoleOutput" PropertyName="QvrBuildNumber" />
     </Exec>
-    <Exec Condition="'$(QvrGitExit)'=='0'" Command="git -C &quot;$(QvrRepo)&quot; rev-parse --short=7 HEAD"
+    <Exec Condition="'$(QvrGitExit)'=='0'" Command="git -C &quot;$(QvrRepo)&quot; rev-parse --short=7 HEAD 2&gt;nul"
           ConsoleToMSBuild="true" IgnoreExitCode="true" StandardOutputImportance="low" StandardErrorImportance="low" EchoOff="true">
       <Output TaskParameter="ConsoleOutput" PropertyName="QvrBuildHash" />
     </Exec>
