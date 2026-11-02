@@ -2208,6 +2208,7 @@ vr_dither|1|Graphics - Post-processing|Dither|Advanced VR Options > Graphics > P
 @page|1|Graphics - Models and Effects||Advanced VR Options > Graphics > Models and Effects
 vr_model_lighting|1|Graphics - Models and Effects|Model Lighting|Advanced VR Options > Graphics > Models and 
 vr_model_light_parity|1|Graphics - Models and Effects|Models Lit as the World|Advanced VR Options > Graphics > 
+vr_model_light_grid|1|Graphics - Models and Effects|Models Lit From All Sides|Advanced VR Options > Graphics > 
 vr_model_ambient_dir|1|Graphics - Models and Effects|Directional Ambient|Advanced VR Options > Graphics > Models 
 vr_model_ambient_contrast|1|Graphics - Models and Effects|Ambient Contrast|Advanced VR Options > Graphics > Models 
 r_lerpmodels|1|Graphics - Models and Effects|Model Animation|Advanced VR Options > Graphics > Models and Effects > 
@@ -3993,6 +3994,7 @@ vr_oit_lazy_clear|2|Debug - Profiling and Memory|Lazy OIT Clear|Advanced VR Opti
 vr_shadow_setup_share|2|Debug - Profiling and Memory|Shadow Caster Set-up Shared|Advanced VR Options > Debug > 
 vr_shadow_caster_cache|2|Debug - Profiling and Memory|Keep Light Casters|Advanced VR Options > Debug > Profiling 
 |2|Debug - Profiling and Memory|Check Kept Light Casters|Advanced VR Options > Debug > Profiling and Memory > Check 
+|2|Debug - Profiling and Memory|Model Light Grid Info|Advanced VR Options > Debug > Profiling and Memory > Model 
 |2|Debug - Profiling and Memory|Light Caster Stats|Advanced VR Options > Debug > Profiling and Memory > Light 
 vr_stereo_single|2|Debug - Profiling and Memory|Single-Pass Stereo (Experimental)|Advanced VR Options > Debug > 
 |2|Debug - Profiling and Memory|Single-Pass Stereo Info|Advanced VR Options > Debug > Profiling and Memory > 
@@ -4679,6 +4681,7 @@ vr_debug_sound_log|2|Debug - Tests|Log Sounds|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Hitbox Stats|Advanced VR Options > Debug > Tests > Hitbox Stats
 vr_hull_keep|2|Debug - Tests|Keep Hitboxes for Reloads|Advanced VR Options > Debug > Tests > Keep Hitboxes for 
 vr_hull_cache|2|Debug - Tests|Hitboxes on Disk|Advanced VR Options > Debug > Tests > Hitboxes on Disk
+vr_model_light_grid_cache|2|Debug - Tests|Model Light Grids on Disk|Advanced VR Options > Debug > Tests > Model 
 vr_hull_async|2|Debug - Tests|New Monster Sizes in Play|Advanced VR Options > Debug > Tests > New Monster Sizes in 
 |2|Debug - Tests|The Gates In This Map|Advanced VR Options > Debug > Tests > The Gates In This Map
 |2|Debug - Tests|Teleporter Test Map|Advanced VR Options > Debug > Tests > Teleporter Test Map

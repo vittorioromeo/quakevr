@@ -512,6 +512,9 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_shadow_layered_check 20 casters: this frame's shadow maps drawn with each dynamic light's exact world "
                   "casters, then with the wider set kept for a moving light, 20 times each, timed, then read back and "
                   "compared texel by texel, in the console. Stand where shadows are."),
+        command("Model Light Grid Info", "vr_model_light_grid_info")
+            .help("vr_model_light_grid_info: the map's model light grid: its cells, probes, memory and build time, and how "
+                  "much light its probes out of sight would add through thin walls, in the console."),
         command("Light Caster Stats", "vr_shadow_caster_stats")
             .help("vr_shadow_caster_stats: since the last time, the dynamic lights' world caster sets kept and collected, "
                   "in the console."),

@@ -284,6 +284,9 @@ textures are filtered smoothly; and `r_shadow_gloss 2` gives dynamic lights a fa
   shaded 0.6 .. 1.4 by the normal (on average the light given), instead of over 200 with MH's 0.7 .. 2 and the 96 cap:
   models were 1.5 to 2.6 times as bright as the floor under them. Hands and weapons keep at least
   `vr_viewmodel_minlight` (8; Quake's 24). `vr_light_contrast`'s curve still applies first.
+- **Models lit from all sides** (`vr_model_light_grid` 1, his decision 2026-11-02; 0 is the floor's light above): probes
+  over the map gather the baked light of every surface round them, per light style; a model reads the eight round it.
+  `vr_ambient.cpp`, "The light grid"; ROUND23.md, "Models lit by all baked lights".
 - **DarkPlaces' dynamic lights** (`vr_dlight_falloff` 1; 0 is Quake's linear falloff):
   - falloff `clamp((1 - d) × 2 / (1 + d²), 0, 1)`, d = distance / radius: full light to about 40% of the radius, then
     smoothly to none, by the 3D distance, never capped, Lambert's angle term (`vr_dlight_angle`);
