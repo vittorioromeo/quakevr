@@ -110,6 +110,7 @@
 #include "vr_portals.hpp"
 #include "vr_progs.hpp"
 #include "vr_ragtest.hpp"
+#include "vr_ragdoll.hpp"
 #include "vr_protocol.hpp"
 #include "vr_server.hpp"
 #include "vr_view.hpp"
@@ -2248,6 +2249,10 @@ extern "C" void VR_Init()
     kickcancel::registerCommands(); // vr_kickcancel_info, vr_kickcancel_test
     portals::registerCommands(); // vr_portals_info
     ragtest::registerCommands(); // vr_ragdoll_act
+    // (at start-up, not with the other ragdoll commands at the first physics use: they run before any map, the campaign's
+    // game folders on the search path)
+    Cmd_AddCommand("vr_ragdoll_rig_sweep", ragdoll::rigSweep_f);
+    Cmd_AddCommand("vr_ragdoll_info", ragdoll::info_f);
     Cmd_AddCommand("vr_torso_report", torso::report_f);
     bodytrack::registerCommands(); // vr_bodytrack_status, vr_bodytrack_stats
     seated::registerCommands();    // vr_seated_status, vr_crouch_toggle, vr_seated_height_now
