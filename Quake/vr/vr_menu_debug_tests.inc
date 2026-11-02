@@ -920,10 +920,6 @@ za::Vector<Item> pageDebugTests()
         command("A Large Crate on Its Side Ahead", "vr_test_spawn_dist 40; vr_test_spawn 122; impulse 241")
             .help("vr_test_spawn 122: a large crate lying on its side (40 high), 40 units ahead."),
         row(opt::vr_climb_prop_mass),
-        row(opt::vr_climb_prop_pull),
-        row(opt::vr_climb_prop_tilt),
-        row(opt::vr_climb_prop_slip),
-        row(opt::vr_climb_prop_letgo_speed),
         header("Weapon Pickups (pickuptest: ... in the console)"),
         command("Every Weapon Pickup Ahead", "vr_pickup_test 1")
             .help("vr_pickup_test 1: every weapon pickup (the mission pack's when loaded) in rows ahead of you, each with "
@@ -1209,7 +1205,6 @@ za::Vector<Item> pageDebugTests()
         command("Hitbox Stats", "vr_hull_stats").help("Prints the map's rebuilt brushes and compiled hull: counts, memory, build times."),
         row(opt::vr_hull_keep),
         row(opt::vr_hull_cache),
-        row(opt::vr_hull_build_mb),
         row(opt::vr_hull_async),
         header("Teleporters: Crossing One (the start map; developer 1: VR portal: ...)"),
         command("The Gates In This Map", "vr_portals_info")

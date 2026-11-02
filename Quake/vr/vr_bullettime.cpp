@@ -245,7 +245,7 @@ void earn()
            cls.signon == SIGNONS && !cl.intermission && cl.stats[STAT_HEALTH] > 0;
 }
 
-void playSound(const cvar_t& name)
+void playSound(const Tunable& name)
 {
     if(name.string && name.string[0])
     {

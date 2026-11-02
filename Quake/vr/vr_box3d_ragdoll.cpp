@@ -42,7 +42,7 @@ constexpr double recentBlastTime = 0.6; // s: a blast this recent throws a ragdo
             return c.own[i]->value;
         }
     }
-    return ragdollGlobals[i]->value;
+    return *ragdollGlobals[i];
 }
 
 namespace
@@ -69,7 +69,7 @@ constexpr ActiveClass activeClasses[] = {{"monster_army", true}, {"monster_enfor
 
 // A joint's limits' share by its group (vr_ragdoll_limits_legs ...; the ragdoll tool's Joint Groups): times the global
 // one and its class's.
-cvar_t* const groupLimitCvars[ragactive::channelCount] = {&vr_ragdoll_limits_legs, &vr_ragdoll_limits_torso,
+const Tunable* const groupLimitCvars[ragactive::channelCount] = {&vr_ragdoll_limits_legs, &vr_ragdoll_limits_torso,
     &vr_ragdoll_limits_arms, &vr_ragdoll_limits_head};
 
 [[nodiscard]] float groupLimits(const ragdoll::Bone& bone)

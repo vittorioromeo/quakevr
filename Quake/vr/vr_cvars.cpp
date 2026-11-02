@@ -136,8 +136,6 @@ const DefaultChange defaultChanges[] = {
     {139, &vr_gore_dents_depth, "1"},                // 3
     {139, &vr_gore_dents_max, "8"},                  // 12
     {139, &vr_gore_dents_size, "1"},                 // 1.25
-    {139, &vr_gore_streams_per_body, "3"},           // 4
-    {139, &vr_gore_streams_speed, "70"},             // 50
     {139, &vr_gore_streams_width, "0.35"},           // 0.75
     {139, &vr_ragimpact_crush_speed, "200"},         // 350
     {139, &vr_teeth_per_enemy, "10"},                // 8
@@ -151,14 +149,12 @@ const DefaultChange defaultChanges[] = {
     // one two-handed window (vr_carry_two_hands_window was the props', 0.1; the weapons' a hard-coded 0.3) and one share
     // of the thrower's velocity (vr_carry_throw_inherit was the props', 1; the weapons' all of it). The old names set
     // the new settings (cvarAliases) as an old config is executed; at their old defaults they take the new ones.
-    {142, &vr_throw_2h_window, "0.1"},              // 0.2
     {142, &vr_throw_inherit, "1"},                  // 0.9
     // 143: a jump from the same level crushes (2026-10-16: "jump from no extra height and still damage and pop the
     // limbs ... one or two jumps to kill a grunt by jumping on his head"); a hit keeps one down at least this after it.
     {143, &vr_knockdown_hit_time, "0.5"},           // 1
     {143, &vr_ragimpact_crush_speed, "350"},        // 180
     // 144: the menu panel grip drag reaches farther (2026-10-17: "push the menu away too").
-    {144, &vr_menu_grab_dist_max, "200"},           // 600
     // 145: the magnetic holsters' tether the default chain (2026-10-17: "the nicer one").
     {145, &vr_magholster_style, "0"},               // 1
     // 146: the leg sweep (2026-10-17): short weapons and props sweep too ("pretty much all of them should sweep"), and
@@ -198,17 +194,6 @@ const DefaultChange defaultChanges[] = {
     // 150: his blood streams' and his own bleeding's values (2026-10-17: "I've tweaked some of the blood spurts and
     // waterfall settings. Make those the new defaults"; "increased the blood dripping rate and size for the player").
     {150, &vr_gore_streams_width, "0.75"},              // 1
-    {150, &vr_gore_streams_speed_var, "0.3"},           // 0.5
-    {150, &vr_gore_streams_wobble, "10"},               // 15
-    {150, &vr_gore_streams_thickness_var, "0.55"},      // 0.85
-    {150, &vr_gore_streams_thickness_rate, "1.1"},      // 1.3
-    {150, &vr_gore_streams_spurt_rate, "40"},           // 70
-    {150, &vr_gore_streams_spurt_cone, "30"},           // 15
-    {150, &vr_gore_streams_spurt_speed, "0.8"},         // 1.35
-    {150, &vr_gore_streams_spurt_life, "0.2"},          // 0.4
-    {150, &vr_gore_streams_spurt_outlier_life, "0.7"},  // 1.15
-    {150, &vr_gore_streams_spurt_size, "0.3"},          // 0.525
-    {150, &vr_gore_streams_splash_size, "1"},           // 1.25
     {150, &vr_body_blood, "1"},                         // 1.25
     {150, &vr_body_blood_amount, "1"},                  // 1.25
     {150, &vr_body_blood_mark_size, "1"},               // 1.5
@@ -319,8 +304,6 @@ const DefaultChange defaultChanges[] = {
     // since: its chance 0 is off), knocked farther, gentler pose.
     // 178: the author's values (his config of 2026-10-22): bigger bloody footprints and handprints, the gore sounds'
     // kinds quieter (ROUND22.md, "Bloody prints 2; drip sounds").
-    {178, &vr_footprint_size, "1"},         // 1.6
-    {178, &vr_handprint_size, "1"},         // 1.6
     {178, &vr_gore_sound_vol_spurt, "1"},   // 0.75
     {178, &vr_gore_sound_vol_pour, "1"},    // 0.75
     {178, &vr_gore_sound_vol_choke, "1"},   // 0.75
@@ -344,10 +327,8 @@ const DefaultChange defaultChanges[] = {
     // (183's vr_struggle_classes row: dropped at 190, the setting retired; mgroups::migrateStruggleClasses.)
     // 184: the author's values (his config of 2026-10-22 evening): his shoulder charge settings, more bloody footprints
     // (ROUND22.md, "Shoulder charge 3: body contact, run-up, standing tall").
-    {184, &vr_footprint_count, "8"},           // 16
     // 185: the author's value (his config of 2026-10-22, approved): more bloody handprints from a soaked hand (ROUND22.md,
     // "Item Pickup Mode; running legs; handprints").
-    {185, &vr_handprint_count, "6"}, // 8
     // 186: the flamethrowers' scorch marks on (cheap now: baked straight into the permanent layer; ROUND22.md, "Cheap
     // scorch marks").
     {186, &vr_adgun_fx_scorch, "0"}, // 1
@@ -369,8 +350,6 @@ const DefaultChange defaultChanges[] = {
     // particles"): fainter, finer, reaching further. Water's own now (lava and slime have their own vr_lava_foam_*,
     // vr_slime_foam_*).
     {193, &vr_water_foam_opacity, "1"},   // 0.5
-    {193, &vr_water_foam_frequency, "1"}, // 1.75
-    {193, &vr_water_foam_strength, "1"},  // 1.75
     // 194: the death sergeant's flail heavier (the author's note vrfiringrange_2026-10-23_17-33-56): its head 3 kg, its
     // blows at most 120 (with its new least damage, speed limit and drag; ROUND22.md, "The flail: heavier, smaller").
     // 195: crates need two strong hits (his note: one hard punch or swing broke one; ROUND22.md, "Crates: two strong
@@ -379,21 +358,8 @@ const DefaultChange defaultChanges[] = {
     // 196: the author's shoreline foam (his config of 2026-10-23, notes start_2026-10-23_21-30-29,
     // vrfiringrange_2026-10-23_21-28-18, e1m1_2026-10-23_21-33-57; ROUND22.md, "Shoreline foam: at the shore's edge"):
     // every liquid breathing more and faster, more and bigger particles, slime's scum greener and reaching further.
-    {196, &vr_water_foam_breathe, "0.35"},         // 0.45
-    {196, &vr_water_foam_breathe_speed, "1"},      // 2
-    {196, &vr_water_foam_particle_size, "1"},      // 1.5
     {196, &vr_water_foam_particles, "1"},          // 2
-    {196, &vr_lava_foam_breathe, "0.3"},           // 0.65
-    {196, &vr_lava_foam_breathe_speed, "0.5"},     // 2.7
-    {196, &vr_lava_foam_particle_opacity, "0.6"},  // 0.55
-    {196, &vr_lava_foam_particle_size, "1"},       // 3.05
     {196, &vr_lava_foam_particles, "0.6"},         // 1.5
-    {196, &vr_slime_foam_blue, "0.14"},            // 0.16
-    {196, &vr_slime_foam_breathe, "0.25"},         // 0.7
-    {196, &vr_slime_foam_breathe_speed, "0.6"},    // 3.4
-    {196, &vr_slime_foam_frequency, "1.5"},        // 1.6
-    {196, &vr_slime_foam_green, "0.62"},           // 0.56
-    {196, &vr_slime_foam_strength, "1.5"},         // 1.9
     {196, &vr_slime_foam_particles, "0.6"},        // 1.5
     // 197: AD's metal and stone breakables as before 195 (his note: metal took ~8 axe blows; ROUND22.md, "The blade's
     // start; the axe's head box", Breakables): a 200-health metal piece 3-4 full axe blows, a rubble wall one.
@@ -416,8 +382,6 @@ const DefaultChange defaultChanges[] = {
     {202, &vr_memstats_log, "60"},                  // 0
     {202, &vr_xr_log_timing, "1"},                  // 0
     {202, &vr_flail_chain, "0.45"},                 // 0.6
-    {202, &vr_water_foam_particle_life, "0.8"},     // 0.4
-    {202, &vr_water_foam_particle_shore, "0"},      // -1
     {202, &vr_bullettime_duration, "20"},           // 15
     {202, &vr_struggle_look, "0.9"},                // 1
     {202, &vr_struggle_look_strength, "0.6"},       // 0.8

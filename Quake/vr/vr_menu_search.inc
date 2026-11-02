@@ -580,14 +580,14 @@ void openEntry(int entry)
     {
         Cvar_SetValueQuick(&vr_menu_level, static_cast<float>(e.level));
     }
-    const int target = e.page;
+    int target = e.page;
     const za::String label = e.label;
     const bool isPage = e.isPage;
     const cvar_t* const cvar = e.cvar;
 #ifndef QVR_RELEASE
     if(target == pageIndex(pageTunables))
     {
-        tunablesShowAll(); // (a row the filter hides is shown)
+        target = tunablesSearchTarget(target, cvar); // its submenu (any other: every row shown)
     }
 #endif
     // Back from the result's page goes up its place in the tree (its natural parent), not to Search: Search left off

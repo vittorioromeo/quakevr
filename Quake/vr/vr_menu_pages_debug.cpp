@@ -15,3 +15,10 @@ namespace menu_detail
 #include "vr_menu_tunables.inc"
 
 } // namespace menu_detail
+
+#ifndef QVR_RELEASE
+void qvr::menu::tunablesTree_f()
+{
+    menu_detail::tunablesTreeCheck_f();
+}
+#endif

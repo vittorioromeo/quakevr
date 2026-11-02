@@ -58,7 +58,7 @@ void restartVr()
 // By name, for settings of Ironwail's too: left out when there is no such cvar.
 [[nodiscard]] Item slider(const char* label, const char* cvar, float min, float max, float step, const char* format)
 {
-    return slider(label, Cvar_FindVar(cvar), min, max, step, format);
+    return slider(label, settingByName(cvar), min, max, step, format); // (or a tuning constant: Ragdoll Tool)
 }
 
 // A monster class's own setting (Gibs and Corpses > Ragdolls > Grunt): its leftmost step -1, the global one ("Global");
@@ -156,7 +156,7 @@ void restartVr()
 
 [[nodiscard]] Item cycle(const char* label, const char* cvar, za::Vector<Choice> choices)
 {
-    return cycle(label, Cvar_FindVar(cvar), ZA_MOVE(choices));
+    return cycle(label, settingByName(cvar), ZA_MOVE(choices));
 }
 
 [[nodiscard]] Item toggle(const char* label, cvar_t& cvar)
@@ -607,23 +607,23 @@ void hologramTestMessage()
         row(opt::vr_doom_overlay),
         row(opt::vr_doom_hard_fire),
         row(opt::vr_doom_always_run),
-        row(opt::vr_doom_focus_look),
-        row(opt::vr_doom_focus_grace),
-        row(opt::vr_doom_light_presses),
-        row(opt::vr_doom_light_gap),
+        row(opt::vr_doom_focus_look).advanced(),
+        row(opt::vr_doom_focus_grace).advanced(),
+        row(opt::vr_doom_light_presses).advanced(),
+        row(opt::vr_doom_light_gap).advanced(),
         row(opt::vr_doom_pause_unfocused),
         header("Picture and Sound"),
         row(opt::vr_doom_aspect),
         row(opt::vr_doom_crt),
-        row(opt::vr_doom_volume),
+        row(opt::vr_doom_volume).advanced(),
         row(opt::vr_doom_panel),
-        row(opt::vr_doom_panel_size),
+        row(opt::vr_doom_panel_size).advanced(),
         command("Place the Panel in Front", "vr_doom_panel_place"),
         header("Touchscreen"),
-        row(opt::vr_touch_press),
-        row(opt::vr_touch_release),
-        row(opt::vr_touch_hard),
-        row(opt::vr_touch_haptic),
+        row(opt::vr_touch_press).advanced(),
+        row(opt::vr_touch_release).advanced(),
+        row(opt::vr_touch_hard).advanced(),
+        row(opt::vr_touch_haptic).advanced(),
     };
     for(const Item& i : rest)
     {
@@ -664,47 +664,47 @@ void hologramTestMessage()
         row(opt::vr_gadget_show_level),
         row(opt::vr_dead_hide_gear),
         row(opt::vr_gadget_stamina),
-        row(opt::vr_gadget_light),
+        row(opt::vr_gadget_light).developer(),
         header("Gear Lights: the Gadget's Side Button"),
         row(opt::vr_gear_lights),
-        row(opt::vr_gear_lights_dim),
-        row(opt::vr_gear_lights_screen_dim),
+        row(opt::vr_gear_lights_dim).developer(),
+        row(opt::vr_gear_lights_screen_dim).developer(),
         row(opt::vr_gadget_button),
-        row(opt::vr_gadget_button_size),
+        row(opt::vr_gadget_button_size).developer(),
         row(opt::vr_gadget_button_x),
-        row(opt::vr_gadget_button_y),
+        row(opt::vr_gadget_button_y).developer(),
         row(opt::vr_gadget_button_z),
         row(opt::vr_gadget_button_pitch),
         row(opt::vr_gadget_button_yaw),
         row(opt::vr_gadget_fingertip_drawn),
-        row(opt::vr_gadget_button_reach),
+        row(opt::vr_gadget_button_reach).developer(),
         row(opt::vr_gadget_fingertip_x),
         row(opt::vr_gadget_fingertip_y),
         row(opt::vr_gadget_fingertip_z),
         row(opt::vr_gadget_fingertip_pitch),
         row(opt::vr_gadget_fingertip_yaw),
         row(opt::vr_gadget_fingertip_roll),
-        row(opt::vr_gadget_button_cooldown),
+        row(opt::vr_gadget_button_cooldown).developer(),
         row(opt::vr_debug_gadget_button),
-        row(opt::vr_gadget_crt),
+        row(opt::vr_gadget_crt).developer(),
         row(opt::vr_screen_glow),
-        row(opt::vr_screen_text_glow),
+        row(opt::vr_screen_text_glow).developer(),
         header("Messages"),
         row(opt::vr_messages_hologram),
-        row(opt::vr_messages_hologram_time),
+        row(opt::vr_messages_hologram_time).developer(),
         row(opt::vr_messages_hologram_size),
-        row(opt::vr_messages_hologram_height),
+        row(opt::vr_messages_hologram_height).developer(),
         row(opt::vr_messages_hologram_effect),
         action("Show a Test Message", hologramTestMessage)
             .help("One of the game's messages in the hologram, as they come: raise the gadget to see it while you change these settings. Press again for another: they stack."),
         row(opt::vr_messages_hologram_only),
         // (The author's note vrstart_2026-10-23_01-23-46: VR Calibration's texts jumped to each turn of the head.)
-        row(opt::vr_view_text_smooth),
+        row(opt::vr_view_text_smooth).developer(),
         row(opt::vr_hud_console_log),
         row(opt::vr_notify_wrist),
-        row(opt::vr_notify_wrist_time),
-        row(opt::vr_notify_wrist_height),
-        row(opt::vr_notify_wrist_alpha),
+        row(opt::vr_notify_wrist_time).developer(),
+        row(opt::vr_notify_wrist_height).developer(),
+        row(opt::vr_notify_wrist_alpha).developer(),
         open("Wrist Gadget Font", pageIndex(pageFontSurface<1>)).help("The gadget's text: its screen, hologram and log (upscaling, outline, shadow)."),
         header("Weapons' Ammo Screens"),
         row(opt::vr_show_weapon_text),
@@ -713,16 +713,16 @@ void hologramTestMessage()
         row(opt::vr_weapon_screen_crt),
         toggle("White Ammo Screen Text", "vr_ammo_screen_text_white").help("The numbers on the ammo screens (and the ammo pouch's counter) near-white, as the wrist gadget's, for readability; their frame and glow keep the screen's colour. Off: in the screen's colour."),
         row(opt::vr_ammo_color_warn),
-        row(opt::vr_ammo_color_low),
+        row(opt::vr_ammo_color_low).developer(),
         row(opt::vr_ammo_color_empty),
-        row(opt::vr_ammo_low_frac),
+        row(opt::vr_ammo_low_frac).developer(),
         row(opt::vr_weapon_screen_idle),
         row(opt::vr_weapon_world_attach_range),
         row(opt::vr_weapon_world_attach_max),
         open("Ammo Screen Font", pageIndex(pageFontSurface<2>)).help("The ammo screens' numbers and text (upscaling, outline, shadow)."),
         header("Map Boards"),
         row(opt::vr_worldtext_crt),
-        row(opt::vr_worldtext_hue),
+        row(opt::vr_worldtext_hue).developer(),
         open("World Text Font", pageIndex(pageFontSurface<3>)).help("The world's texts: map boards, floating texts, tips and the tools' hints (upscaling, outline, shadow)."),
     };
 }
@@ -802,7 +802,6 @@ void hologramTestMessage()
         row(opt::vr_grapple_shootable),
         row(opt::vr_grapple_quick_time),
         row(opt::vr_grapple_quick_speed),
-        row(opt::vr_grapple_hook_scale),
 
         header("Buttons on the Gun"),
         slider("Back Button Along", grappleButton(weapons::Key::WpnButtonX), -20.f, 20.f, 0.1f, "%.1f").extend(-60.f, 60.f)
@@ -813,43 +812,21 @@ void hologramTestMessage()
         slider("Back Button Up", grappleButton(weapons::Key::WpnButtonZ), -10.f, 10.f, 0.1f, "%.1f").extend(-40.f, 40.f)
             .help("Up (model units)."),
         row(opt::vr_grapple_front_button),
-        row(opt::vr_grapple_front_button_x),
-        row(opt::vr_grapple_front_button_y),
-        row(opt::vr_grapple_front_button_z),
 
         header("Rope"),
         row(opt::vr_grapple_rope_sim),
-        row(opt::vr_grapple_rope_spacing),
-        row(opt::vr_grapple_rope_iterations),
-        row(opt::vr_grapple_rope_radius),
-        row(opt::vr_grapple_rope_tail),
-        row(opt::vr_grapple_rope_depth),
-
-        header("What Hangs on the Rope"),
-        row(opt::vr_grapple_move_share),
-        row(opt::vr_grapple_load_drag),
-        row(opt::vr_grapple_hang_drag),
-        row(opt::vr_grapple_load_max_speed),
-        row(opt::vr_grapple_loose_slack),
 
         header("Reel"),
         row(opt::vr_grapple_reel_speed),
         row(opt::vr_grapple_min_length),
-        row(opt::vr_grapple_reel_home),
         row(opt::vr_grapple_unreel_speed),
-        row(opt::vr_grapple_unreel_slack),
         row(opt::vr_grapple_unreel_airborne),
 
         header("Props"),
         row(opt::vr_grapple_prop_speed),
-        row(opt::vr_grapple_prop_light),
-        row(opt::vr_grapple_prop_anchor),
-        row(opt::vr_grapple_tow_light),
         row(opt::vr_grapple_tow_speed),
 
         header("Monsters"),
-        row(opt::vr_grapple_small_mass),
-        row(opt::vr_grapple_huge_mass),
         row(opt::vr_grapple_small_speed),
         row(opt::vr_grapple_medium_speed),
         row(opt::vr_grapple_stagger),
@@ -4033,6 +4010,12 @@ MenuExpect menuExpect;
     }
     if(m_state == m_vr)
     {
+#ifndef QVR_RELEASE
+        if(const char* submenu = tunablesTitle(ui().page))
+        {
+            return submenu; // (a Tunables submenu: the one shown)
+        }
+#endif
         return pages[ui().page].title;
     }
     return m_state == m_maps ? "levels" : m_state == m_singleplayer ? "single player" : m_state == m_options ? "options"
@@ -4499,6 +4482,12 @@ extern "C" void VR_Menu_Draw()
     qpic_t* title = Draw_CachePic("gfx/p_option.lmp");
     M_DrawPic((320 - title->width) / 2, l.top + 4, title);
     const char* name = pages[ui().page].title;
+#ifndef QVR_RELEASE
+    if(const char* submenu = tunablesTitle(ui().page))
+    {
+        name = submenu; // (a Tunables submenu: the one shown)
+    }
+#endif
     char refused[48];
     if(ui().refusedPage >= 0 && realtime - ui().refusedTime < 2.5)
     {

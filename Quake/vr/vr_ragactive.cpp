@@ -3336,9 +3336,9 @@ struct GroupGains
 };
 struct GroupGainCvars
 {
-    cvar_t* hertz;
-    cvar_t* damping;
-    cvar_t* torque;
+    const Tunable* hertz; // (tuning constants: vr_tunables.inc, "Debug > Ragdoll Tool - Joint Groups")
+    const Tunable* damping;
+    const Tunable* torque;
 };
 const GroupGainCvars groupGainCvars[channelCount] = {
     {&vr_ragdoll_active_hertz_legs, &vr_ragdoll_active_damping_legs, &vr_ragdoll_active_torque_legs},

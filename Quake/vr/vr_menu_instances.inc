@@ -465,8 +465,8 @@ void qvr::menu::search_f()
         {
             openResult(0);
         }
-        Con_Printf("vr_menu_search -open \"%s\": %s\n", search.query.cStr(),
-            search.results.empty() ? "no result" : search.index[search.results[0].entry].label.cStr());
+        Con_Printf("vr_menu_search -open \"%s\": %s (on %s)\n", search.query.cStr(),
+            search.results.empty() ? "no result" : search.index[search.results[0].entry].label.cStr(), menuShownName());
         return;
     }
     Con_Printf("vr_menu_search \"%s\": %d results (of %d rows and pages)\n", search.query.cStr(),

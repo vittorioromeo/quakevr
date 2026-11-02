@@ -16,8 +16,9 @@
                   "Save Default (press twice)."),
 #ifndef QVR_RELEASE
         open("Tunables", pageIndex(pageTunables))
-            .help("Every tuning constant as a slider, by the page it came from: set live, kept in tunables.cfg at quit "
-                  "(the console: tune <name> [value], tune_reset). Search finds them too. Not in a release."),
+            .help("Every tuning constant as a slider, in pages like the menus they came from (Combat > Armed Grunts > "
+                  "AI Behaviour): set live, kept in tunables.cfg at quit (the console: tune <name> [value], tune_reset). "
+                  "Search finds them too. Not in a release."),
 #endif
         toggle("Voice Notes", vr_notes).help("Raise your off hand to your mouth and hold Y to record a note, with a screenshot and where you are; they go to quakevr/notes."),
         open("Cheats and Recording", pageIndex(pageDebugCheats))
@@ -533,7 +534,6 @@ za::Vector<Item> pageDebugProfiling()
                   "prepare), writes and checks; then the warm-up's progress."),
         row(opt::vr_probe_kinds),
         row(opt::vr_probe_test_spawn),
-        row(opt::vr_image_cache_mb),
         row(opt::vr_campaign_keep_models),
         command("Kept Models Info", "vr_model_keep_info")
             .help("vr_model_keep_info: how many models the last campaign switch kept, of how many, and the time its check "
@@ -657,7 +657,6 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_heap stress [threads] [ms]: 8 threads allocating and freeing for 2 s (a quarter freed by another "
                   "thread), each block checked: million operations a second, the heap's contention. Stalls the game."),
         row(opt::vr_heap_purge_delay),
-        row(opt::vr_heap_load_hold),
         command("Heap: Return Free Memory", "vr_heap collect")
             .help("vr_heap collect: mimalloc returns the memory it holds unused to the system, then vr_heap."),
         header("Startup (GL safe mode)"),
@@ -765,8 +764,6 @@ za::Vector<Item> pageDebugReports()
         command("Trace Nearest Monster's Motion", "vr_anim_smooth_trace 180").help("vr_anim_smooth_trace <frames> [<entity> | <model>]: the nearest monster's drawn animation over the next frames (here 180): how much its points' speed changes from frame to frame (median, p95, most), printed at the end. Run it with Model Animation on Quake's Blend, then Smooth, to compare (even frames: vr_fixed_frames 1)."),
         command("Pin Nearest Monster Mid-Swing", "vr_anim_smooth_pin 41 42 0.5 -1 -1 ogre").help("vr_anim_smooth_pin <frame1> <frame2> <blend> [<frame0> <frame3> [<entity> | <model>]]: a monster (here the nearest ogre: its chainsaw swing) drawn held between two frames, to compare Model Animation's settings on it; vr_anim_smooth_pin off lets it go."),
         command("Unpin Monster", "vr_anim_smooth_pin off").help("vr_anim_smooth_pin off: the pinned monster animates again."),
-        row(opt::vr_anim_smooth_rig_error),
-        row(opt::vr_anim_smooth_rebuild_error),
         command("Corpse Poses", "vr_corpse_poses").help("vr_corpse_poses [1]: every dead monster and placed corpse: its model, "
                                                          "frame and where that is in its death, a ragdoll or why not; those "
                                                          "drawn mid-death (upright) are counted as not lying. 1: the counts only."),

@@ -322,121 +322,92 @@ vr_heartbeat|1|World|Low Health Heartbeat|Advanced VR Options > World > Low Heal
 vr_gore|1|Gore|Gore|Advanced VR Options > Gore > Gore
 vr_gore_sound|1|Gore|Gore Sounds|Advanced VR Options > Gore > Gore Sounds
 vr_gore_sound_choke|1|Gore|Gore Sounds: Chokes|Advanced VR Options > Gore > Gore Sounds: Chokes
-vr_gore_sound_vol_spurt|1|Gore|Gore Sounds: Spurts|Advanced VR Options > Gore > Gore Sounds: Spurts
-vr_gore_sound_vol_pour|1|Gore|Gore Sounds: Streams|Advanced VR Options > Gore > Gore Sounds: Streams
-vr_gore_sound_vol_tear|1|Gore|Gore Sounds: Tears|Advanced VR Options > Gore > Gore Sounds: Tears
-vr_gore_sound_vol_squelch|1|Gore|Gore Sounds: Squelches|Advanced VR Options > Gore > Gore Sounds: Squelches
-vr_gore_sound_vol_splash|1|Gore|Gore Sounds: Pool Splash|Advanced VR Options > Gore > Gore Sounds: Pool Splash
-vr_gore_sound_vol_step|1|Gore|Gore Sounds: Wet Steps|Advanced VR Options > Gore > Gore Sounds: Wet Steps
-vr_gore_sound_vol_slap|1|Gore|Gore Sounds: Slaps|Advanced VR Options > Gore > Gore Sounds: Slaps
-vr_gore_sound_vol_choke|1|Gore|Gore Sounds: Chokes Volume|Advanced VR Options > Gore > Gore Sounds: Chokes Volume
-vr_gore_sound_vol_drip|1|Gore|Gore Sounds: Drips|Advanced VR Options > Gore > Gore Sounds: Drips
-vr_gore_sound_drips|1|Gore|Gore Sounds: Drips Heard|Advanced VR Options > Gore > Gore Sounds: Drips Heard
+vr_gore_sound_vol_spurt|2|Gore|Gore Sounds: Spurts|Advanced VR Options > Gore > Gore Sounds: Spurts
+vr_gore_sound_vol_pour|2|Gore|Gore Sounds: Streams|Advanced VR Options > Gore > Gore Sounds: Streams
+vr_gore_sound_vol_tear|2|Gore|Gore Sounds: Tears|Advanced VR Options > Gore > Gore Sounds: Tears
+vr_gore_sound_vol_squelch|2|Gore|Gore Sounds: Squelches|Advanced VR Options > Gore > Gore Sounds: Squelches
+vr_gore_sound_vol_splash|2|Gore|Gore Sounds: Pool Splash|Advanced VR Options > Gore > Gore Sounds: Pool Splash
+vr_gore_sound_vol_step|2|Gore|Gore Sounds: Wet Steps|Advanced VR Options > Gore > Gore Sounds: Wet Steps
+vr_gore_sound_vol_slap|2|Gore|Gore Sounds: Slaps|Advanced VR Options > Gore > Gore Sounds: Slaps
+vr_gore_sound_vol_choke|2|Gore|Gore Sounds: Chokes Volume|Advanced VR Options > Gore > Gore Sounds: Chokes Volume
+vr_gore_sound_vol_drip|2|Gore|Gore Sounds: Drips|Advanced VR Options > Gore > Gore Sounds: Drips
+vr_gore_sound_drips|2|Gore|Gore Sounds: Drips Heard|Advanced VR Options > Gore > Gore Sounds: Drips Heard
 vr_footprints|1|Gore|Bloody Footprints|Advanced VR Options > Gore > Bloody Footprints
-vr_footprint_count|1|Gore|Footprints|Advanced VR Options > Gore > Footprints
 vr_footprint_fade|1|Gore|Footprint Fade|Advanced VR Options > Gore > Footprint Fade
-vr_footprint_size|1|Gore|Footprint Size|Advanced VR Options > Gore > Footprint Size
 vr_footprint_rate|1|Gore|Footprint Frequency|Advanced VR Options > Gore > Footprint Frequency
 vr_handprints|1|Gore|Bloody Handprints|Advanced VR Options > Gore > Bloody Handprints
-vr_handprint_count|1|Gore|Handprints|Advanced VR Options > Gore > Handprints
-vr_handprint_size|1|Gore|Handprint Size|Advanced VR Options > Gore > Handprint Size
 vr_handprint_props|1|Gore|Handprints on Props|Advanced VR Options > Gore > Handprints on Props
 vr_handprint_gear|1|Gore|Bloody Grips|Advanced VR Options > Gore > Bloody Grips
 vr_gore_spray|1|Gore|Blood Sprays|Advanced VR Options > Gore > Blood Sprays
 vr_gore_size|1|Gore|Splat Size|Advanced VR Options > Gore > Splat Size
 vr_gore_pools|1|Gore|Blood Pools|Advanced VR Options > Gore > Blood Pools
 vr_gore_drips|1|Gore|Dripping|Advanced VR Options > Gore > Dripping
-vr_gore_stick|1|Gore|Gibs Stick|Advanced VR Options > Gore > Gibs Stick
 vr_gore_stick_thrown|1|Gore|Thrown Gibs Stick|Advanced VR Options > Gore > Thrown Gibs Stick
-vr_gore_stick_speed|1|Gore|Speed to Stick|Advanced VR Options > Gore > Speed to Stick
 vr_head_flies|1|Gore|Flies on Heads|Advanced VR Options > Gore > Flies on Heads
-vr_gib_speed_melee|1|Gore|Gib Speed: Melee|Advanced VR Options > Gore > Gib Speed: Melee
-vr_gib_speed_light|1|Gore|Gib Speed: Light Weapons|Advanced VR Options > Gore > Gib Speed: Light Weapons
+vr_gib_speed_melee|2|Gore|Gib Speed: Melee|Advanced VR Options > Gore > Gib Speed: Melee
+vr_gib_speed_light|2|Gore|Gib Speed: Light Weapons|Advanced VR Options > Gore > Gib Speed: Light Weapons
 vr_gib_speed_heavy|1|Gore|Gib Speed: Explosives|Advanced VR Options > Gore > Gib Speed: Explosives
 vr_gore_streams|1|Gore|Blood Streams|Advanced VR Options > Gore > Blood Streams
-vr_gore_streams_chance|1|Gore|Stream Chance|Advanced VR Options > Gore > Stream Chance
 vr_gore_streams_melee_blade|1|Gore|Melee Blade Chance|Advanced VR Options > Gore > Melee Blade Chance
-vr_gore_streams_melee_blunt|1|Gore|Melee Blunt Chance|Advanced VR Options > Gore > Melee Blunt Chance
 vr_gore_streams_thrown_blade|1|Gore|Thrown Blade Chance|Advanced VR Options > Gore > Thrown Blade Chance
-vr_gore_streams_per_body|1|Gore|Streams per Body|Advanced VR Options > Gore > Streams per Body
-vr_gore_streams_max|1|Gore|Streams in All|Advanced VR Options > Gore > Streams in All
-vr_gore_streams_time|1|Gore|Stream Duration|Advanced VR Options > Gore > Stream Duration
-vr_gore_streams_speed|1|Gore|Stream Force|Advanced VR Options > Gore > Stream Force
 vr_gore_streams_width|1|Gore|Stream Width|Advanced VR Options > Gore > Stream Width
 vr_gore_streams_pool|1|Gore|Stream Pools|Advanced VR Options > Gore > Stream Pools
-vr_gore_streams_spread|1|Gore|Stream Spread|Advanced VR Options > Gore > Stream Spread
-vr_gore_streams_speed_var|1|Gore|Stream Force Variation|Advanced VR Options > Gore > Stream Force Variation
-vr_gore_streams_wobble|1|Gore|Stream Wobble|Advanced VR Options > Gore > Stream Wobble
-vr_gore_streams_wobble_rate|1|Gore|Stream Wobble Rate|Advanced VR Options > Gore > Stream Wobble Rate
-vr_gore_streams_thickness_var|1|Gore|Stream Thickness Variation|Advanced VR Options > Gore > Stream Thickness 
-vr_gore_streams_thickness_rate|1|Gore|Stream Thickness Rate|Advanced VR Options > Gore > Stream Thickness Rate
-vr_gore_streams_smooth|1|Gore|Stream Smoothing|Advanced VR Options > Gore > Stream Smoothing
-vr_gore_streams_inherit|1|Gore|Stream Body Motion|Advanced VR Options > Gore > Stream Body Motion
-vr_gore_streams_break|1|Gore|Stream Break Stretch|Advanced VR Options > Gore > Stream Break Stretch
 vr_gore_streams_spurts|1|Gore|Stream Spurts|Advanced VR Options > Gore > Stream Spurts
-vr_gore_streams_spurt_rate|1|Gore|Spurt Rate|Advanced VR Options > Gore > Spurt Rate
-vr_gore_streams_spurt_cone|1|Gore|Spurt Cone|Advanced VR Options > Gore > Spurt Cone
-vr_gore_streams_spurt_speed|1|Gore|Spurt Speed|Advanced VR Options > Gore > Spurt Speed
-vr_gore_streams_spurt_life|1|Gore|Spurt Lifetime|Advanced VR Options > Gore > Spurt Lifetime
-vr_gore_streams_spurt_outliers|1|Gore|Spurt Outliers|Advanced VR Options > Gore > Spurt Outliers
-vr_gore_streams_spurt_outlier_life|1|Gore|Spurt Outlier Lifetime|Advanced VR Options > Gore > Spurt Outlier Lifetime
-vr_gore_streams_spurt_size|1|Gore|Spurt Size|Advanced VR Options > Gore > Spurt Size
 vr_gore_streams_splash|1|Gore|Stream Splash|Advanced VR Options > Gore > Stream Splash
-vr_gore_streams_splash_size|1|Gore|Splash Size|Advanced VR Options > Gore > Splash Size
 vr_gore_backsplatter|1|Gore|Back-splatter|Advanced VR Options > Gore > Back-splatter
 vr_gore_backsplatter_reach|1|Gore|Back-splatter Reach|Advanced VR Options > Gore > Back-splatter Reach
 vr_teeth|1|Gore|Knocked-out Teeth|Advanced VR Options > Gore > Knocked-out Teeth
-vr_teeth_per_hit|1|Gore|Teeth per Punch|Advanced VR Options > Gore > Teeth per Punch
-vr_teeth_per_enemy|1|Gore|Teeth per Enemy|Advanced VR Options > Gore > Teeth per Enemy
-vr_teeth_hardness|1|Gore|Punch Hardness for Teeth|Advanced VR Options > Gore > Punch Hardness for Teeth
+vr_teeth_per_hit|2|Gore|Teeth per Punch|Advanced VR Options > Gore > Teeth per Punch
+vr_teeth_per_enemy|2|Gore|Teeth per Enemy|Advanced VR Options > Gore > Teeth per Enemy
+vr_teeth_hardness|2|Gore|Punch Hardness for Teeth|Advanced VR Options > Gore > Punch Hardness for Teeth
 vr_teeth_blunt|1|Gore|Teeth from Blunt Weapons|Advanced VR Options > Gore > Teeth from Blunt Weapons
-vr_teeth_size|1|Gore|Tooth Size|Advanced VR Options > Gore > Tooth Size
+vr_teeth_size|2|Gore|Tooth Size|Advanced VR Options > Gore > Tooth Size
 vr_wounds|1|Gore|Dynamic Wounds|Advanced VR Options > Gore > Dynamic Wounds
 vr_wounds_burns|1|Gore|Burns|Advanced VR Options > Gore > Burns
 vr_wounds_wet|1|Gore|Wet from Liquids|Advanced VR Options > Gore > Wet from Liquids
 vr_wounds_wet_coat|1|Gore|Wet Sheen|Advanced VR Options > Gore > Wet Sheen
-vr_wounds_wet_time|1|Gore|Wet Duration|Advanced VR Options > Gore > Wet Duration
+vr_wounds_wet_time|2|Gore|Wet Duration|Advanced VR Options > Gore > Wet Duration
 vr_wounds_pool|1|Gore|Models Kept|Advanced VR Options > Gore > Models Kept
 vr_wounds_own_res|1|Gore|Your Wounds' Detail|Advanced VR Options > Gore > Your Wounds' Detail
 vr_wounds_body_res|1|Gore|Body Wounds' Detail|Advanced VR Options > Gore > Body Wounds' Detail
-vr_wounds_bump_burns|1|Gore|Your Burns' Relief|Advanced VR Options > Gore > Your Burns' Relief
-vr_wounds_bump_blood|1|Gore|Your Wounds' Depth|Advanced VR Options > Gore > Your Wounds' Depth
+vr_wounds_bump_burns|2|Gore|Your Burns' Relief|Advanced VR Options > Gore > Your Burns' Relief
+vr_wounds_bump_blood|2|Gore|Your Wounds' Depth|Advanced VR Options > Gore > Your Wounds' Depth
 vr_wounds_blood_alpha|1|Gore|Blood Opacity|Advanced VR Options > Gore > Blood Opacity
 vr_gore_dents|1|Gore|Flesh Dents|Advanced VR Options > Gore > Flesh Dents
-vr_gore_dents_depth|1|Gore|Dent Depth|Advanced VR Options > Gore > Dent Depth
-vr_gore_dents_size|1|Gore|Dent Size|Advanced VR Options > Gore > Dent Size
-vr_gore_dents_max|1|Gore|Dents per Body|Advanced VR Options > Gore > Dents per Body
+vr_gore_dents_depth|2|Gore|Dent Depth|Advanced VR Options > Gore > Dent Depth
+vr_gore_dents_size|2|Gore|Dent Size|Advanced VR Options > Gore > Dent Size
+vr_gore_dents_max|2|Gore|Dents per Body|Advanced VR Options > Gore > Dents per Body
 vr_shock_death|1|Gore|Lightning Shock|Advanced VR Options > Gore > Lightning Shock
 vr_shock_living|1|Gore|Arcs on the Living|Advanced VR Options > Gore > Arcs on the Living
-vr_shock_death_time|1|Gore|Lightning Shock Duration|Advanced VR Options > Gore > Lightning Shock Duration
-vr_shock_living_time|1|Gore|On the Living|Advanced VR Options > Gore > On the Living
+vr_shock_death_time|2|Gore|Lightning Shock Duration|Advanced VR Options > Gore > Lightning Shock Duration
+vr_shock_living_time|2|Gore|On the Living|Advanced VR Options > Gore > On the Living
 vr_shock_seizure|1|Gore|Convulsions|Advanced VR Options > Gore > Convulsions
-vr_shock_sound|1|Gore|Crackle Volume|Advanced VR Options > Gore > Crackle Volume
+vr_shock_sound|2|Gore|Crackle Volume|Advanced VR Options > Gore > Crackle Volume
 vr_shock_arcs|1|Gore|Arcs on Bodies|Advanced VR Options > Gore > Arcs on Bodies
-vr_shock_burns|1|Gore|Burn Marks|Advanced VR Options > Gore > Burn Marks
-vr_smoulder_time|1|Gore|Smoke After Lightning|Advanced VR Options > Gore > Smoke After Lightning
+vr_shock_burns|2|Gore|Burn Marks|Advanced VR Options > Gore > Burn Marks
+vr_smoulder_time|2|Gore|Smoke After Lightning|Advanced VR Options > Gore > Smoke After Lightning
 vr_smoulder|1|Gore|Smouldering Smoke|Advanced VR Options > Gore > Smouldering Smoke
-vr_smoulder_alpha|1|Gore|Smoke Opacity|Advanced VR Options > Gore > Smoke Opacity
-vr_shock_self_time|1|Gore|Arcs on You|Advanced VR Options > Gore > Arcs on You
+vr_smoulder_alpha|2|Gore|Smoke Opacity|Advanced VR Options > Gore > Smoke Opacity
+vr_shock_self_time|2|Gore|Arcs on You|Advanced VR Options > Gore > Arcs on You
 vr_shock_self_arcs|1|Gore|Arcs on You: Number|Advanced VR Options > Gore > Arcs on You: Number
-vr_shock_self_light|1|Gore|Arcs on You: Light|Advanced VR Options > Gore > Arcs on You: Light
+vr_shock_self_light|2|Gore|Arcs on You: Light|Advanced VR Options > Gore > Arcs on You: Light
 vr_body_blood|1|Gore|Arm Drip Rate|Advanced VR Options > Gore > Arm Drip Rate
-vr_body_blood_amount|1|Gore|Drop Size|Advanced VR Options > Gore > Drop Size
+vr_body_blood_amount|2|Gore|Drop Size|Advanced VR Options > Gore > Drop Size
 vr_body_blood_floor|1|Gore|Drips Round Feet|Advanced VR Options > Gore > Drips Round Feet
 vr_body_blood_marks|1|Gore|Drops Mark Floor|Advanced VR Options > Gore > Drops Mark Floor
-vr_body_blood_mark_size|1|Gore|Floor Mark Size|Advanced VR Options > Gore > Floor Mark Size
+vr_body_blood_mark_size|2|Gore|Floor Mark Size|Advanced VR Options > Gore > Floor Mark Size
 vr_gore_hands|1|Gore|Gib Blood on Hands|Advanced VR Options > Gore > Gib Blood on Hands
 vr_gore_wash|1|Gore|Water Washes Blood|Advanced VR Options > Gore > Water Washes Blood
-vr_gore_wash_time|1|Gore|Wash Time|Advanced VR Options > Gore > Wash Time
+vr_gore_wash_time|2|Gore|Wash Time|Advanced VR Options > Gore > Wash Time
 vr_gore_reopen|1|Gore|Wounds Re-open|Advanced VR Options > Gore > Wounds Re-open
-vr_gore_reopen_delay|1|Gore|Re-open Delay|Advanced VR Options > Gore > Re-open Delay
-vr_gore_reopen_time|1|Gore|Re-open Spread|Advanced VR Options > Gore > Re-open Spread
-vr_gore_reopen_fade|1|Gore|Re-open Bleed|Advanced VR Options > Gore > Re-open Bleed
+vr_gore_reopen_delay|2|Gore|Re-open Delay|Advanced VR Options > Gore > Re-open Delay
+vr_gore_reopen_time|2|Gore|Re-open Spread|Advanced VR Options > Gore > Re-open Spread
+vr_gore_reopen_fade|2|Gore|Re-open Bleed|Advanced VR Options > Gore > Re-open Bleed
 vr_gore_spatter|1|Gore|Blood Spatter|Advanced VR Options > Gore > Blood Spatter
 vr_gore_spatter_melee|1|Gore|From Your Blows|Advanced VR Options > Gore > From Your Blows
 vr_gore_spatter_saw|1|Gore|From the Chainsaw|Advanced VR Options > Gore > From the Chainsaw
 vr_gore_spatter_shots|1|Gore|From Close Shots|Advanced VR Options > Gore > From Close Shots
-vr_gore_spatter_range|1|Gore|Close Shot Range|Advanced VR Options > Gore > Close Shot Range
+vr_gore_spatter_range|2|Gore|Close Shot Range|Advanced VR Options > Gore > Close Shot Range
 vr_gore_spatter_gibs|1|Gore|Gibs Striking You|Advanced VR Options > Gore > Gibs Striking You
 vr_gore_gear|1|Gore|Blood on Weapons and Props|Advanced VR Options > Gore > Blood on Weapons and Props
 vr_gore_clean_skins|1|Gore|Clean Weapon Skins|Advanced VR Options > Gore > Clean Weapon Skins
@@ -446,15 +417,15 @@ vr_gore_gear_drops|1|Gore|Gibbed Monsters' Drops|Advanced VR Options > Gore > Gi
 vr_gore_spread|1|Gore|Blood over Your Arms|Advanced VR Options > Gore > Blood over Your Arms
 vr_gore_mist|1|Gore|Mist Amount|Advanced VR Options > Gore > Mist Amount
 vr_gore_mist_size|1|Gore|Mist Size|Advanced VR Options > Gore > Mist Size
-vr_gore_mist_alpha|1|Gore|Mist Opacity|Advanced VR Options > Gore > Mist Opacity
-vr_gore_mist_life|1|Gore|Mist Lifetime|Advanced VR Options > Gore > Mist Lifetime
+vr_gore_mist_alpha|2|Gore|Mist Opacity|Advanced VR Options > Gore > Mist Opacity
+vr_gore_mist_life|2|Gore|Mist Lifetime|Advanced VR Options > Gore > Mist Lifetime
 vr_gore_mist_grow|1|Gore|Mist Spreading|Advanced VR Options > Gore > Mist Spreading
 vr_gore_mist_speed|1|Gore|Mist Drift|Advanced VR Options > Gore > Mist Drift
 vr_gore_mist_rise|1|Gore|Mist Rise|Advanced VR Options > Gore > Mist Rise
-vr_gore_mist_dark|1|Gore|Mist Darkness|Advanced VR Options > Gore > Mist Darkness
-vr_gore_mist_near|1|Gore|Mist Clear of Eyes|Advanced VR Options > Gore > Mist Clear of Eyes
+vr_gore_mist_dark|2|Gore|Mist Darkness|Advanced VR Options > Gore > Mist Darkness
+vr_gore_mist_near|2|Gore|Mist Clear of Eyes|Advanced VR Options > Gore > Mist Clear of Eyes
 vr_water_blood|1|Gore|Blood in Water|Advanced VR Options > Gore > Blood in Water
-vr_water_blood_time|1|Gore|Blood in Water Lifetime|Advanced VR Options > Gore > Blood in Water Lifetime
+vr_water_blood_time|2|Gore|Blood in Water Lifetime|Advanced VR Options > Gore > Blood in Water Lifetime
 vr_corpse_dying|1|Gore|Hit While Dying|Advanced VR Options > Gore > Hit While Dying
 vr_dummy_type|1|Gore|Dummy Enemy|Advanced VR Options > Gore > Dummy Enemy
 vr_dummy_gore|1|Gore|Dummy Bleeds|Advanced VR Options > Gore > Dummy Bleeds
@@ -465,7 +436,7 @@ vr_dummy_gib|1|Gore|Dummy Dies|Advanced VR Options > Gore > Dummy Dies
 vr_dummy_gib_respawn|1|Gore|Dummy Stands Again|Advanced VR Options > Gore > Dummy Stands Again
 vr_dummy_health|1|Gore|Dummy Health|Advanced VR Options > Gore > Dummy Health
 vr_dummy_anchored|1|Gore|Dummy Stays Put|Advanced VR Options > Gore > Dummy Stays Put
-vr_dummy_regen|1|Gore|Dummy Health Refills|Advanced VR Options > Gore > Dummy Health Refills
+vr_dummy_regen|2|Gore|Dummy Health Refills|Advanced VR Options > Gore > Dummy Health Refills
 vr_dummy_healthbar|1|Gore|Dummy Health Bar|Advanced VR Options > Gore > Dummy Health Bar
 vr_decals|1|Gore|Decals|Advanced VR Options > Gore > Decals
 vr_permdecals|1|Gore|Permanent Decals|Advanced VR Options > Gore > Permanent Decals
@@ -474,12 +445,12 @@ vr_decal_max|1|Gore|Max Decals|Advanced VR Options > Gore > Max Decals
 vr_decal_bucket_max|1|Gore|Decals Piled in One Spot|Advanced VR Options > Gore > Decals Piled in One Spot
 vr_decal_life|1|Gore|Decal Lifetime|Advanced VR Options > Gore > Decal Lifetime
 vr_decal_carve|1|Gore|Carved Holes and Craters|Advanced VR Options > Gore > Carved Holes and Craters
-vr_decal_carve_depth|1|Gore|Carved Depth|Advanced VR Options > Gore > Carved Depth
+vr_decal_carve_depth|2|Gore|Carved Depth|Advanced VR Options > Gore > Carved Depth
 vr_decal_carve_size|1|Gore|Carved Size|Advanced VR Options > Gore > Carved Size
-vr_decal_carve_rim|1|Gore|Carved Rim|Advanced VR Options > Gore > Carved Rim
-vr_decal_carve_steps|1|Gore|Carving Quality|Advanced VR Options > Gore > Carving Quality
-vr_decal_carve_fade|1|Gore|Carving Distance|Advanced VR Options > Gore > Carving Distance
-vr_decal_carve_max|1|Gore|Carved Marks Kept|Advanced VR Options > Gore > Carved Marks Kept
+vr_decal_carve_rim|2|Gore|Carved Rim|Advanced VR Options > Gore > Carved Rim
+vr_decal_carve_steps|2|Gore|Carving Quality|Advanced VR Options > Gore > Carving Quality
+vr_decal_carve_fade|2|Gore|Carving Distance|Advanced VR Options > Gore > Carving Distance
+vr_decal_carve_max|2|Gore|Carved Marks Kept|Advanced VR Options > Gore > Carved Marks Kept
 vr_decal_carve_style|1|Gore|Carve Style|Advanced VR Options > Gore > Carve Style
 vr_decal_melee|1|Gore|Melee Marks|Advanced VR Options > Gore > Melee Marks
 vr_decal_melee_blunt_depth|1|Gore|Blunt Dent Depth|Advanced VR Options > Gore > Blunt Dent Depth
@@ -488,7 +459,7 @@ vr_decal_melee_slash_depth|1|Gore|Slash Depth|Advanced VR Options > Gore > Slash
 vr_decal_melee_slash_length|1|Gore|Slash Length|Advanced VR Options > Gore > Slash Length
 vr_decal_melee_slash_width|1|Gore|Slash Width|Advanced VR Options > Gore > Slash Width
 vr_gib_blood|1|Gore|Gib Blood|Advanced VR Options > Gore > Gib Blood
-vr_gib_blood_trail|1|Gore|Gib Blood Trail|Advanced VR Options > Gore > Gib Blood Trail
+vr_gib_blood_trail|2|Gore|Gib Blood Trail|Advanced VR Options > Gore > Gib Blood Trail
 |1|Gore|Reset This Page|Advanced VR Options > Gore > Reset This Page
 @page|1|Body||Advanced VR Options > Body
 vr_body_walk|1|Body|Walking Legs|Advanced VR Options > Body > Walking Legs
@@ -671,21 +642,21 @@ vr_doom_controls|0|Doom|Controls|VR Settings > HUD, Haptics and Sound > Doom on 
 vr_doom_overlay|0|Doom|Touch Controls Shown|VR Settings > HUD, Haptics and Sound > Doom on the Wrist Gadget > Touch 
 vr_doom_hard_fire|0|Doom|Hard Press Fires|VR Settings > HUD, Haptics and Sound > Doom on the Wrist Gadget > Hard 
 vr_doom_always_run|0|Doom|Always Run|VR Settings > HUD, Haptics and Sound > Doom on the Wrist Gadget > Always Run
-vr_doom_focus_look|0|Doom|Look to Focus|VR Settings > HUD, Haptics and Sound > Doom on the Wrist Gadget > Look to 
-vr_doom_focus_grace|0|Doom|Out of View to Unfocus|VR Settings > HUD, Haptics and Sound > Doom on the Wrist Gadget > 
-vr_doom_light_presses|0|Doom|Light Button Presses|VR Settings > HUD, Haptics and Sound > Doom on the Wrist Gadget > 
-vr_doom_light_gap|0|Doom|Light Press Gap|VR Settings > HUD, Haptics and Sound > Doom on the Wrist Gadget > Light 
+vr_doom_focus_look|1|Doom|Look to Focus|VR Settings > HUD, Haptics and Sound > Doom on the Wrist Gadget > Look to 
+vr_doom_focus_grace|1|Doom|Out of View to Unfocus|VR Settings > HUD, Haptics and Sound > Doom on the Wrist Gadget > 
+vr_doom_light_presses|1|Doom|Light Button Presses|VR Settings > HUD, Haptics and Sound > Doom on the Wrist Gadget > 
+vr_doom_light_gap|1|Doom|Light Press Gap|VR Settings > HUD, Haptics and Sound > Doom on the Wrist Gadget > Light 
 vr_doom_pause_unfocused|0|Doom|Pause When Not Focused|VR Settings > HUD, Haptics and Sound > Doom on the Wrist 
 vr_doom_aspect|0|Doom|4:3 Picture|VR Settings > HUD, Haptics and Sound > Doom on the Wrist Gadget > 4:3 Picture
 vr_doom_crt|0|Doom|CRT Look|VR Settings > HUD, Haptics and Sound > Doom on the Wrist Gadget > CRT Look
-vr_doom_volume|0|Doom|Volume|VR Settings > HUD, Haptics and Sound > Doom on the Wrist Gadget > Volume
+vr_doom_volume|1|Doom|Volume|VR Settings > HUD, Haptics and Sound > Doom on the Wrist Gadget > Volume
 vr_doom_panel|0|Doom|Big Floating Panel|VR Settings > HUD, Haptics and Sound > Doom on the Wrist Gadget > Big 
-vr_doom_panel_size|0|Doom|Panel Width|VR Settings > HUD, Haptics and Sound > Doom on the Wrist Gadget > Panel Width
+vr_doom_panel_size|1|Doom|Panel Width|VR Settings > HUD, Haptics and Sound > Doom on the Wrist Gadget > Panel Width
 |0|Doom|Place the Panel in Front|VR Settings > HUD, Haptics and Sound > Doom on the Wrist Gadget > Place the Panel 
-vr_touch_press|0|Doom|Touch Distance|VR Settings > HUD, Haptics and Sound > Doom on the Wrist Gadget > Touch 
-vr_touch_release|0|Doom|Release Distance|VR Settings > HUD, Haptics and Sound > Doom on the Wrist Gadget > Release 
-vr_touch_hard|0|Doom|Hard Press Depth|VR Settings > HUD, Haptics and Sound > Doom on the Wrist Gadget > Hard Press 
-vr_touch_haptic|0|Doom|Touch Haptics|VR Settings > HUD, Haptics and Sound > Doom on the Wrist Gadget > Touch Haptics
+vr_touch_press|1|Doom|Touch Distance|VR Settings > HUD, Haptics and Sound > Doom on the Wrist Gadget > Touch 
+vr_touch_release|1|Doom|Release Distance|VR Settings > HUD, Haptics and Sound > Doom on the Wrist Gadget > Release 
+vr_touch_hard|1|Doom|Hard Press Depth|VR Settings > HUD, Haptics and Sound > Doom on the Wrist Gadget > Hard Press 
+vr_touch_haptic|1|Doom|Touch Haptics|VR Settings > HUD, Haptics and Sound > Doom on the Wrist Gadget > Touch Haptics
 |0|Doom|Reset This Page|VR Settings > HUD, Haptics and Sound > Doom on the Wrist Gadget > Reset This Page
 @page|1|Recording||Advanced VR Options > Body and Display > Recording (Window View)
 vr_window_view|1|Recording|Window View|Advanced VR Options > Body and Display > Recording (Window View) > Window 
@@ -732,57 +703,57 @@ vr_highlights_multikill|1|Recording|Multi-Kill Window|Advanced VR Options > Body
 vr_gadget_show_level|1|Screens|Level and Stats|Advanced VR Options > Tips > Wrist Gadget Messages > Level and Stats
 vr_dead_hide_gear|1|Screens|Hide Gear When Dead|Advanced VR Options > Tips > Wrist Gadget Messages > Hide Gear When 
 vr_gadget_stamina|1|Screens|Stamina and Counters|Advanced VR Options > Tips > Wrist Gadget Messages > Stamina and 
-vr_gadget_light|1|Screens|Screen Light|Advanced VR Options > Tips > Wrist Gadget Messages > Screen Light
+vr_gadget_light|2|Screens|Screen Light|Advanced VR Options > Tips > Wrist Gadget Messages > Screen Light
 vr_gear_lights|1|Screens|Gear Lights|Advanced VR Options > Tips > Wrist Gadget Messages > Gear Lights
-vr_gear_lights_dim|1|Screens|Lights When Dimmed|Advanced VR Options > Tips > Wrist Gadget Messages > Lights When 
-vr_gear_lights_screen_dim|1|Screens|Screens When Dimmed|Advanced VR Options > Tips > Wrist Gadget Messages > 
+vr_gear_lights_dim|2|Screens|Lights When Dimmed|Advanced VR Options > Tips > Wrist Gadget Messages > Lights When 
+vr_gear_lights_screen_dim|2|Screens|Screens When Dimmed|Advanced VR Options > Tips > Wrist Gadget Messages > 
 vr_gadget_button|1|Screens|Side Button|Advanced VR Options > Tips > Wrist Gadget Messages > Side Button
-vr_gadget_button_size|1|Screens|Button Size|Advanced VR Options > Tips > Wrist Gadget Messages > Button Size
+vr_gadget_button_size|2|Screens|Button Size|Advanced VR Options > Tips > Wrist Gadget Messages > Button Size
 vr_gadget_button_x|1|Screens|Button Across|Advanced VR Options > Tips > Wrist Gadget Messages > Button Across
-vr_gadget_button_y|1|Screens|Button Up|Advanced VR Options > Tips > Wrist Gadget Messages > Button Up
+vr_gadget_button_y|2|Screens|Button Up|Advanced VR Options > Tips > Wrist Gadget Messages > Button Up
 vr_gadget_button_z|1|Screens|Button Out|Advanced VR Options > Tips > Wrist Gadget Messages > Button Out
 vr_gadget_button_pitch|1|Screens|Button Tilt Out|Advanced VR Options > Tips > Wrist Gadget Messages > Button Tilt 
 vr_gadget_button_yaw|1|Screens|Button Tilt Across|Advanced VR Options > Tips > Wrist Gadget Messages > Button Tilt 
 vr_gadget_fingertip_drawn|1|Screens|Drawn Fingertip|Advanced VR Options > Tips > Wrist Gadget Messages > Drawn 
-vr_gadget_button_reach|1|Screens|Fingertip Reach|Advanced VR Options > Tips > Wrist Gadget Messages > Fingertip 
+vr_gadget_button_reach|2|Screens|Fingertip Reach|Advanced VR Options > Tips > Wrist Gadget Messages > Fingertip 
 vr_gadget_fingertip_x|1|Screens|Fingertip Forward|Advanced VR Options > Tips > Wrist Gadget Messages > Fingertip 
 vr_gadget_fingertip_y|1|Screens|Fingertip Outward|Advanced VR Options > Tips > Wrist Gadget Messages > Fingertip 
 vr_gadget_fingertip_z|1|Screens|Fingertip Up|Advanced VR Options > Tips > Wrist Gadget Messages > Fingertip Up
 vr_gadget_fingertip_pitch|1|Screens|Fingertip Pitch|Advanced VR Options > Tips > Wrist Gadget Messages > Fingertip 
 vr_gadget_fingertip_yaw|1|Screens|Fingertip Yaw|Advanced VR Options > Tips > Wrist Gadget Messages > Fingertip Yaw
 vr_gadget_fingertip_roll|1|Screens|Fingertip Roll|Advanced VR Options > Tips > Wrist Gadget Messages > Fingertip 
-vr_gadget_button_cooldown|1|Screens|Button Cooldown|Advanced VR Options > Tips > Wrist Gadget Messages > Button 
+vr_gadget_button_cooldown|2|Screens|Button Cooldown|Advanced VR Options > Tips > Wrist Gadget Messages > Button 
 vr_debug_gadget_button|1|Screens|Show the Button|Advanced VR Options > Tips > Wrist Gadget Messages > Show the 
-vr_gadget_crt|1|Screens|CRT Look|Advanced VR Options > Tips > Wrist Gadget Messages > CRT Look
+vr_gadget_crt|2|Screens|CRT Look|Advanced VR Options > Tips > Wrist Gadget Messages > CRT Look
 vr_screen_glow|1|Screens|Screen Glow|Advanced VR Options > Tips > Wrist Gadget Messages > Screen Glow
-vr_screen_text_glow|1|Screens|Text Glow|Advanced VR Options > Tips > Wrist Gadget Messages > Text Glow
+vr_screen_text_glow|2|Screens|Text Glow|Advanced VR Options > Tips > Wrist Gadget Messages > Text Glow
 vr_messages_hologram|1|Screens|Game Messages as Hologram|Advanced VR Options > Tips > Wrist Gadget Messages > Game 
-vr_messages_hologram_time|1|Screens|Hologram Time|Advanced VR Options > Tips > Wrist Gadget Messages > Hologram Time
+vr_messages_hologram_time|2|Screens|Hologram Time|Advanced VR Options > Tips > Wrist Gadget Messages > Hologram Time
 vr_messages_hologram_size|1|Screens|Hologram Text Size|Advanced VR Options > Tips > Wrist Gadget Messages > 
-vr_messages_hologram_height|1|Screens|Hologram Height|Advanced VR Options > Tips > Wrist Gadget Messages > Hologram 
+vr_messages_hologram_height|2|Screens|Hologram Height|Advanced VR Options > Tips > Wrist Gadget Messages > Hologram 
 vr_messages_hologram_effect|1|Screens|Hologram Effect|Advanced VR Options > Tips > Wrist Gadget Messages > Hologram 
 |1|Screens|Show a Test Message|Advanced VR Options > Tips > Wrist Gadget Messages > Show a Test Message
 vr_messages_hologram_only|1|Screens|Messages Only on the Gadget|Advanced VR Options > Tips > Wrist Gadget Messages 
-vr_view_text_smooth|1|Screens|Messages in View: Follow Smoothing|Advanced VR Options > Tips > Wrist Gadget Messages 
+vr_view_text_smooth|2|Screens|Messages in View: Follow Smoothing|Advanced VR Options > Tips > Wrist Gadget Messages 
 vr_hud_console_log|1|Screens|Console Log on the HUD|Advanced VR Options > Tips > Wrist Gadget Messages > Console 
 vr_notify_wrist|1|Screens|Console Messages|Advanced VR Options > Tips > Wrist Gadget Messages > Console Messages
-vr_notify_wrist_time|1|Screens|Console Message Time|Advanced VR Options > Tips > Wrist Gadget Messages > Console 
-vr_notify_wrist_height|1|Screens|Console Log Height|Advanced VR Options > Tips > Wrist Gadget Messages > Console 
-vr_notify_wrist_alpha|1|Screens|Console Log Brightness|Advanced VR Options > Tips > Wrist Gadget Messages > Console 
+vr_notify_wrist_time|2|Screens|Console Message Time|Advanced VR Options > Tips > Wrist Gadget Messages > Console 
+vr_notify_wrist_height|2|Screens|Console Log Height|Advanced VR Options > Tips > Wrist Gadget Messages > Console 
+vr_notify_wrist_alpha|2|Screens|Console Log Brightness|Advanced VR Options > Tips > Wrist Gadget Messages > Console 
 vr_show_weapon_text|1|Screens|Weapon Text|Advanced VR Options > Tips > Wrist Gadget Messages > Weapon Text
 vr_weapon_screen|1|Screens|Weapon Ammo Screen|Advanced VR Options > Tips > Wrist Gadget Messages > Weapon Ammo 
 vr_weapon_screen_padding|1|Screens|Ammo Screen Margin|Advanced VR Options > Tips > Wrist Gadget Messages > Ammo 
 vr_weapon_screen_crt|1|Screens|Ammo Screen CRT Look|Advanced VR Options > Tips > Wrist Gadget Messages > Ammo 
 vr_ammo_screen_text_white|1|Screens|White Ammo Screen Text|Advanced VR Options > Tips > Wrist Gadget Messages > 
 vr_ammo_color_warn|1|Screens|Low Ammo Colours|Advanced VR Options > Tips > Wrist Gadget Messages > Low Ammo Colours
-vr_ammo_color_low|1|Screens|Low Ammo Hue|Advanced VR Options > Tips > Wrist Gadget Messages > Low Ammo Hue
+vr_ammo_color_low|2|Screens|Low Ammo Hue|Advanced VR Options > Tips > Wrist Gadget Messages > Low Ammo Hue
 vr_ammo_color_empty|1|Screens|Empty Ammo Hue|Advanced VR Options > Tips > Wrist Gadget Messages > Empty Ammo Hue
-vr_ammo_low_frac|1|Screens|Low Ammo Fraction|Advanced VR Options > Tips > Wrist Gadget Messages > Low Ammo Fraction
+vr_ammo_low_frac|2|Screens|Low Ammo Fraction|Advanced VR Options > Tips > Wrist Gadget Messages > Low Ammo Fraction
 vr_weapon_screen_idle|1|Screens|Screens on Weapons at Rest|Advanced VR Options > Tips > Wrist Gadget Messages > 
 vr_weapon_world_attach_range|1|Screens|Lying Weapons' Parts Range|Advanced VR Options > Tips > Wrist Gadget 
 vr_weapon_world_attach_max|1|Screens|Lying Weapons With Parts|Advanced VR Options > Tips > Wrist Gadget Messages > 
 vr_worldtext_crt|1|Screens|Map Boards as CRTs|Advanced VR Options > Tips > Wrist Gadget Messages > Map Boards as 
-vr_worldtext_hue|1|Screens|Map Board Hue|Advanced VR Options > Tips > Wrist Gadget Messages > Map Board Hue
+vr_worldtext_hue|2|Screens|Map Board Hue|Advanced VR Options > Tips > Wrist Gadget Messages > Map Board Hue
 |1|Screens|Reset This Page|Advanced VR Options > Tips > Wrist Gadget Messages > Reset This Page
 @page|1|Official Campaigns||Advanced VR Options > Play > Official Campaigns
 |1|Official Campaigns|Campaign Data Status|Advanced VR Options > Play > Official Campaigns > Campaign Data Status
@@ -1091,7 +1062,7 @@ vr_arena_wave_size|1|Survival Arena|Wave Size|Advanced VR Options > Combat > Sur
 vr_arena_alive_max|1|Survival Arena|Alive Pool|Advanced VR Options > Combat > Survival Arena > Alive Pool
 vr_arena_alive_grow|1|Survival Arena|Pool Grows Every|Advanced VR Options > Combat > Survival Arena > Pool Grows 
 vr_arena_burst|1|Survival Arena|Opening Burst|Advanced VR Options > Combat > Survival Arena > Opening Burst
-vr_arena_spawn_gap|1|Survival Arena|Spawn Gap|Advanced VR Options > Combat > Survival Arena > Spawn Gap
+vr_arena_spawn_gap|2|Survival Arena|Spawn Gap|Advanced VR Options > Combat > Survival Arena > Spawn Gap
 vr_arena_max_alive|1|Survival Arena|Foes Up At Once|Advanced VR Options > Combat > Survival Arena > Foes Up At Once
 vr_arena_boss_every|1|Survival Arena|Boss Every|Advanced VR Options > Combat > Survival Arena > Boss Every
 vr_arena_boss_health|1|Survival Arena|Boss Bulk|Advanced VR Options > Combat > Survival Arena > Boss Bulk
@@ -1131,7 +1102,7 @@ vr_kdtrig|1|Ragdoll Triggers|Ragdoll Triggers|Advanced VR Options > Combat > Rag
 vr_knockdown|1|Knockdowns|Knockdowns|Advanced VR Options > Combat > Knockdowns > Knockdowns
 vr_knockdown_chance|1|Knockdowns|Chance|Advanced VR Options > Combat > Knockdowns > Chance
 vr_knockdown_onehand|1|Knockdowns|One-Handed Shove|Advanced VR Options > Combat > Knockdowns > One-Handed Shove
-vr_knockdown_twohand|1|Knockdowns|Two-Handed Shove|Advanced VR Options > Combat > Knockdowns > Two-Handed Shove
+vr_knockdown_twohand|2|Knockdowns|Two-Handed Shove|Advanced VR Options > Combat > Knockdowns > Two-Handed Shove
 vr_knockdown_surprise|1|Knockdowns|Surprise Shoves Knock Down|Advanced VR Options > Combat > Knockdowns > Surprise 
 vr_knockdown_ledge|1|Knockdowns|Over a Ledge, Always|Advanced VR Options > Combat > Knockdowns > Over a Ledge, 
 vr_hit_stagger|1|Knockdowns|Strong Hits Unbalance|Advanced VR Options > Combat > Knockdowns > Strong Hits Unbalance
@@ -1149,22 +1120,22 @@ vr_knockdown_hit_time|1|Knockdowns|Hit Keeps It Down|Advanced VR Options > Comba
 vr_knockdown_keep_time|1|Knockdowns|Handling Keeps It Down|Advanced VR Options > Combat > Knockdowns > Handling 
 vr_knockdown_keep_max|1|Knockdowns|Kept Down, Most|Advanced VR Options > Combat > Knockdowns > Kept Down, Most
 vr_knockdown_push|1|Knockdowns|Launch|Advanced VR Options > Combat > Knockdowns > Launch
-vr_knockdown_shove_travel|1|Knockdowns|Travel|Advanced VR Options > Combat > Knockdowns > Travel
-vr_knockdown_shove_topple_angle|1|Knockdowns|Topple Angle|Advanced VR Options > Combat > Knockdowns > Topple Angle
-vr_knockdown_shove_topple_time|1|Knockdowns|Topple Time|Advanced VR Options > Combat > Knockdowns > Topple Time
-vr_knockdown_shove_feet_lag|1|Knockdowns|Feet Lag|Advanced VR Options > Combat > Knockdowns > Feet Lag
-vr_knockdown_shove_max_spin|1|Knockdowns|Max Spin|Advanced VR Options > Combat > Knockdowns > Max Spin
-vr_knockdown_shove_ledge_topple|1|Knockdowns|Topple Over a Ledge|Advanced VR Options > Combat > Knockdowns > Topple 
-vr_knockdown_shove_ledge_push|1|Knockdowns|Ledge Push|Advanced VR Options > Combat > Knockdowns > Ledge Push
-vr_knockdown_shove_ledge_over|1|Knockdowns|Ledge Carry Past the Edge|Advanced VR Options > Combat > Knockdowns > 
+vr_knockdown_shove_travel|2|Knockdowns|Travel|Advanced VR Options > Combat > Knockdowns > Travel
+vr_knockdown_shove_topple_angle|2|Knockdowns|Topple Angle|Advanced VR Options > Combat > Knockdowns > Topple Angle
+vr_knockdown_shove_topple_time|2|Knockdowns|Topple Time|Advanced VR Options > Combat > Knockdowns > Topple Time
+vr_knockdown_shove_feet_lag|2|Knockdowns|Feet Lag|Advanced VR Options > Combat > Knockdowns > Feet Lag
+vr_knockdown_shove_max_spin|2|Knockdowns|Max Spin|Advanced VR Options > Combat > Knockdowns > Max Spin
+vr_knockdown_shove_ledge_topple|2|Knockdowns|Topple Over a Ledge|Advanced VR Options > Combat > Knockdowns > Topple 
+vr_knockdown_shove_ledge_push|2|Knockdowns|Ledge Push|Advanced VR Options > Combat > Knockdowns > Ledge Push
+vr_knockdown_shove_ledge_over|2|Knockdowns|Ledge Carry Past the Edge|Advanced VR Options > Combat > Knockdowns > 
 vr_knockdown_weld|1|Knockdowns|Weapon Stays in Hand|Advanced VR Options > Combat > Knockdowns > Weapon Stays in Hand
-vr_knockdown_wiggle|1|Knockdowns|Struggling Strength|Advanced VR Options > Combat > Knockdowns > Struggling Strength
-vr_knockdown_wiggle_frequency|1|Knockdowns|Struggling Frequency|Advanced VR Options > Combat > Knockdowns > 
+vr_knockdown_wiggle|2|Knockdowns|Struggling Strength|Advanced VR Options > Combat > Knockdowns > Struggling Strength
+vr_knockdown_wiggle_frequency|2|Knockdowns|Struggling Frequency|Advanced VR Options > Combat > Knockdowns > 
 vr_knockdown_retry|1|Knockdowns|Retry|Advanced VR Options > Combat > Knockdowns > Retry
-vr_knockdown_getup_slope|1|Knockdowns|Steepest Slope to Stand|Advanced VR Options > Combat > Knockdowns > Steepest 
-vr_knockdown_getup_force|1|Knockdowns|Forced Get-Up|Advanced VR Options > Combat > Knockdowns > Forced Get-Up
-vr_knockdown_blend|1|Knockdowns|Blend|Advanced VR Options > Combat > Knockdowns > Blend
-vr_knockdown_getup_speed|1|Knockdowns|Get-Up Speed|Advanced VR Options > Combat > Knockdowns > Get-Up Speed
+vr_knockdown_getup_slope|2|Knockdowns|Steepest Slope to Stand|Advanced VR Options > Combat > Knockdowns > Steepest 
+vr_knockdown_getup_force|2|Knockdowns|Forced Get-Up|Advanced VR Options > Combat > Knockdowns > Forced Get-Up
+vr_knockdown_blend|2|Knockdowns|Blend|Advanced VR Options > Combat > Knockdowns > Blend
+vr_knockdown_getup_speed|2|Knockdowns|Get-Up Speed|Advanced VR Options > Combat > Knockdowns > Get-Up Speed
 vr_knockdown_debug|1|Knockdowns|Print Rolls|Advanced VR Options > Combat > Knockdowns > Print Rolls
 |1|Knockdowns|Reset This Page|Advanced VR Options > Combat > Knockdowns > Reset This Page
 @page|1|Holding Enemies||Advanced VR Options > Combat > Holding Enemies
@@ -1380,30 +1351,30 @@ vr_climb_hand_roll|1|Climbing|Hand on Hold: Roll|Advanced VR Options > Movement 
 |1|Climbing|Reset This Page|Advanced VR Options > Movement > Climbing > Reset This Page
 @page|1|Swimming||Advanced VR Options > Movement > Swimming
 vr_swim|1|Swimming|Swimming|Advanced VR Options > Movement > Swimming > Swimming
-vr_swim_shallow_speed|1|Swimming|Stick in Shallow Water|Advanced VR Options > Movement > Swimming > Stick in 
-vr_swim_wade_speed|1|Swimming|Stick Wading|Advanced VR Options > Movement > Swimming > Stick Wading
+vr_swim_shallow_speed|2|Swimming|Stick in Shallow Water|Advanced VR Options > Movement > Swimming > Stick in 
+vr_swim_wade_speed|2|Swimming|Stick Wading|Advanced VR Options > Movement > Swimming > Stick Wading
 vr_swim_stick_speed|1|Swimming|Stick Swimming|Advanced VR Options > Movement > Swimming > Stick Swimming
 vr_air_supply|1|Swimming|Air Supply|Advanced VR Options > Movement > Swimming > Air Supply
 vr_water_jump|1|Swimming|Jump Out of Water|Advanced VR Options > Movement > Swimming > Jump Out of Water
-vr_swim_stroke|1|Swimming|Stroke Strength|Advanced VR Options > Movement > Swimming > Stroke Strength
+vr_swim_stroke|2|Swimming|Stroke Strength|Advanced VR Options > Movement > Swimming > Stroke Strength
 vr_swim_speed_exp|1|Swimming|Speed Curve|Advanced VR Options > Movement > Swimming > Speed Curve
-vr_swim_palm|1|Swimming|Palm Matters|Advanced VR Options > Movement > Swimming > Palm Matters
-vr_swim_against_palm|1|Swimming|Stroke Against Palm|Advanced VR Options > Movement > Swimming > Stroke Against Palm
-vr_swim_flat_exp|1|Swimming|Palm Sharpness|Advanced VR Options > Movement > Swimming > Palm Sharpness
-vr_swim_recovery|1|Swimming|Recovery Push|Advanced VR Options > Movement > Swimming > Recovery Push
-vr_swim_palm_dir|1|Swimming|Push Along Palm|Advanced VR Options > Movement > Swimming > Push Along Palm
+vr_swim_palm|2|Swimming|Palm Matters|Advanced VR Options > Movement > Swimming > Palm Matters
+vr_swim_against_palm|2|Swimming|Stroke Against Palm|Advanced VR Options > Movement > Swimming > Stroke Against Palm
+vr_swim_flat_exp|2|Swimming|Palm Sharpness|Advanced VR Options > Movement > Swimming > Palm Sharpness
+vr_swim_recovery|2|Swimming|Recovery Push|Advanced VR Options > Movement > Swimming > Recovery Push
+vr_swim_palm_dir|2|Swimming|Push Along Palm|Advanced VR Options > Movement > Swimming > Push Along Palm
 vr_swim_stroke_min|1|Swimming|Slowest Push|Advanced VR Options > Movement > Swimming > Slowest Push
-vr_swim_power_threshold|1|Swimming|Intent Threshold|Advanced VR Options > Movement > Swimming > Intent Threshold
-vr_swim_power_knee|1|Swimming|Intent Fade-In|Advanced VR Options > Movement > Swimming > Intent Fade-In
+vr_swim_power_threshold|2|Swimming|Intent Threshold|Advanced VR Options > Movement > Swimming > Intent Threshold
+vr_swim_power_knee|2|Swimming|Intent Fade-In|Advanced VR Options > Movement > Swimming > Intent Fade-In
 vr_swim_power_whole|1|Swimming|Whole Stroke Counts|Advanced VR Options > Movement > Swimming > Whole Stroke Counts
-vr_swim_intent_memory|1|Swimming|Stroke Memory|Advanced VR Options > Movement > Swimming > Stroke Memory
-vr_swim_reverse_damp|1|Swimming|Return Damping|Advanced VR Options > Movement > Swimming > Return Damping
+vr_swim_intent_memory|2|Swimming|Stroke Memory|Advanced VR Options > Movement > Swimming > Stroke Memory
+vr_swim_reverse_damp|2|Swimming|Return Damping|Advanced VR Options > Movement > Swimming > Return Damping
 vr_swim_reverse_speed|1|Swimming|Reverse Stroke Speed|Advanced VR Options > Movement > Swimming > Reverse Stroke 
-vr_swim_look|1|Swimming|Swim Where You Look|Advanced VR Options > Movement > Swimming > Swim Where You Look
-vr_swim_stroke_assist|1|Swimming|Stroke Steering|Advanced VR Options > Movement > Swimming > Stroke Steering
-vr_swim_stroke_pitch|1|Swimming|Stroke Pitch Offset|Advanced VR Options > Movement > Swimming > Stroke Pitch Offset
-vr_swim_glide|1|Swimming|Glide|Advanced VR Options > Movement > Swimming > Glide
-vr_swim_max_speed|1|Swimming|Swim Top Speed|Advanced VR Options > Movement > Swimming > Swim Top Speed
+vr_swim_look|2|Swimming|Swim Where You Look|Advanced VR Options > Movement > Swimming > Swim Where You Look
+vr_swim_stroke_assist|2|Swimming|Stroke Steering|Advanced VR Options > Movement > Swimming > Stroke Steering
+vr_swim_stroke_pitch|2|Swimming|Stroke Pitch Offset|Advanced VR Options > Movement > Swimming > Stroke Pitch Offset
+vr_swim_glide|2|Swimming|Glide|Advanced VR Options > Movement > Swimming > Glide
+vr_swim_max_speed|2|Swimming|Swim Top Speed|Advanced VR Options > Movement > Swimming > Swim Top Speed
 |1|Swimming|Reset Swimming to Defaults|Advanced VR Options > Movement > Swimming > Reset Swimming to Defaults
 |1|Swimming|Reset This Page|Advanced VR Options > Movement > Swimming > Reset This Page
 @page|1|Grappling Hook||Advanced VR Options > Movement > Grappling Hook
@@ -1414,38 +1385,17 @@ vr_grapple_max_length|1|Grappling Hook|Longest Rope|Advanced VR Options > Moveme
 vr_grapple_shootable|1|Grappling Hook|Shoot the Hook Off|Advanced VR Options > Movement > Grappling Hook > Shoot 
 vr_grapple_quick_time|1|Grappling Hook|Reel-In Button Time|Advanced VR Options > Movement > Grappling Hook > 
 vr_grapple_quick_speed|1|Grappling Hook|Reel-In Button Speed|Advanced VR Options > Movement > Grappling Hook > 
-vr_grapple_hook_scale|1|Grappling Hook|Hook Size|Advanced VR Options > Movement > Grappling Hook > Hook Size
 vr_wofs_wpnbtn_x_18|1|Grappling Hook|Back Button Along|Advanced VR Options > Movement > Grappling Hook > Back 
 vr_wofs_wpnbtn_y_18|1|Grappling Hook|Back Button Side|Advanced VR Options > Movement > Grappling Hook > Back Button 
 vr_wofs_wpnbtn_z_18|1|Grappling Hook|Back Button Up|Advanced VR Options > Movement > Grappling Hook > Back Button Up
 vr_grapple_front_button|1|Grappling Hook|Front Button|Advanced VR Options > Movement > Grappling Hook > Front Button
-vr_grapple_front_button_x|1|Grappling Hook|Front Button Along|Advanced VR Options > Movement > Grappling Hook > 
-vr_grapple_front_button_y|1|Grappling Hook|Front Button Side|Advanced VR Options > Movement > Grappling Hook > 
-vr_grapple_front_button_z|1|Grappling Hook|Front Button Up|Advanced VR Options > Movement > Grappling Hook > Front 
 vr_grapple_rope_sim|1|Grappling Hook|Physical Rope|Advanced VR Options > Movement > Grappling Hook > Physical Rope
-vr_grapple_rope_spacing|1|Grappling Hook|Rope Point Spacing|Advanced VR Options > Movement > Grappling Hook > Rope 
-vr_grapple_rope_iterations|1|Grappling Hook|Rope Precision|Advanced VR Options > Movement > Grappling Hook > Rope 
-vr_grapple_rope_radius|1|Grappling Hook|Rope Thickness|Advanced VR Options > Movement > Grappling Hook > Rope 
-vr_grapple_rope_tail|1|Grappling Hook|Rope Straight Out of the Hook|Advanced VR Options > Movement > Grappling Hook 
-vr_grapple_rope_depth|1|Grappling Hook|Rope Depth in the Gun|Advanced VR Options > Movement > Grappling Hook > Rope 
-vr_grapple_move_share|1|Grappling Hook|Walking Shared|Advanced VR Options > Movement > Grappling Hook > Walking 
-vr_grapple_load_drag|1|Grappling Hook|Air Drag|Advanced VR Options > Movement > Grappling Hook > Air Drag
-vr_grapple_hang_drag|1|Grappling Hook|Hanging Air Drag|Advanced VR Options > Movement > Grappling Hook > Hanging 
-vr_grapple_load_max_speed|1|Grappling Hook|Top Speed|Advanced VR Options > Movement > Grappling Hook > Top Speed
-vr_grapple_loose_slack|1|Grappling Hook|Slack When Detached|Advanced VR Options > Movement > Grappling Hook > Slack 
 vr_grapple_reel_speed|1|Grappling Hook|Reel Speed|Advanced VR Options > Movement > Grappling Hook > Reel Speed
 vr_grapple_min_length|1|Grappling Hook|Shortest Rope|Advanced VR Options > Movement > Grappling Hook > Shortest Rope
-vr_grapple_reel_home|1|Grappling Hook|Loose Hook Goes In At|Advanced VR Options > Movement > Grappling Hook > Loose 
 vr_grapple_unreel_speed|1|Grappling Hook|Unreel Speed|Advanced VR Options > Movement > Grappling Hook > Unreel Speed
-vr_grapple_unreel_slack|1|Grappling Hook|Unreel Slack|Advanced VR Options > Movement > Grappling Hook > Unreel Slack
 vr_grapple_unreel_airborne|1|Grappling Hook|Unreel Button Only When Airborne|Advanced VR Options > Movement > 
 vr_grapple_prop_speed|1|Grappling Hook|Prop Reel Speed|Advanced VR Options > Movement > Grappling Hook > Prop Reel 
-vr_grapple_prop_light|1|Grappling Hook|Light Up To|Advanced VR Options > Movement > Grappling Hook > Light Up To
-vr_grapple_prop_anchor|1|Grappling Hook|Too Heavy From|Advanced VR Options > Movement > Grappling Hook > Too Heavy 
-vr_grapple_tow_light|1|Grappling Hook|Dragging: Light Up To|Advanced VR Options > Movement > Grappling Hook > 
 vr_grapple_tow_speed|1|Grappling Hook|Dragging Speed|Advanced VR Options > Movement > Grappling Hook > Dragging 
-vr_grapple_small_mass|1|Grappling Hook|Small Up To|Advanced VR Options > Movement > Grappling Hook > Small Up To
-vr_grapple_huge_mass|1|Grappling Hook|Huge From|Advanced VR Options > Movement > Grappling Hook > Huge From
 vr_grapple_small_speed|1|Grappling Hook|Small Reel Speed|Advanced VR Options > Movement > Grappling Hook > Small 
 vr_grapple_medium_speed|1|Grappling Hook|Medium Reel Speed|Advanced VR Options > Movement > Grappling Hook > Medium 
 vr_grapple_stagger|1|Grappling Hook|Stagger Small Monsters|Advanced VR Options > Movement > Grappling Hook > 
@@ -1646,72 +1596,24 @@ vr_ragdoll|1|Gibs and Corpses|Ragdolls|Advanced VR Options > Carrying and Throwi
 @page|2|Small Gibs||Advanced VR Options > Gore > Small Gibs
 vr_smallgibs|2|Small Gibs|Small Gibs|Advanced VR Options > Gore > Small Gibs > Small Gibs
 vr_smallgibs_player|2|Small Gibs|From You Too|Advanced VR Options > Gore > Small Gibs > From You Too
-vr_smallgibs_min_damage|2|Small Gibs|Least Damage|Advanced VR Options > Gore > Small Gibs > Least Damage
-vr_smallgibs_full_damage|2|Small Gibs|Damage for a Sure One|Advanced VR Options > Gore > Small Gibs > Damage for a 
-vr_smallgibs_curve|2|Small Gibs|Chance Curve|Advanced VR Options > Gore > Small Gibs > Chance Curve
-vr_smallgibs_damage_per_gib|2|Small Gibs|One More Each|Advanced VR Options > Gore > Small Gibs > One More Each
-vr_smallgibs_per_hit|2|Small Gibs|Most From a Hit|Advanced VR Options > Gore > Small Gibs > Most From a Hit
-vr_smallgibs_shots|2|Small Gibs|Shotguns|Advanced VR Options > Gore > Small Gibs > Shotguns
-vr_smallgibs_nails|2|Small Gibs|Nails|Advanced VR Options > Gore > Small Gibs > Nails
-vr_smallgibs_blades|2|Small Gibs|Blades|Advanced VR Options > Gore > Small Gibs > Blades
-vr_smallgibs_blunt|2|Small Gibs|Blunt Blows|Advanced VR Options > Gore > Small Gibs > Blunt Blows
-vr_smallgibs_props|2|Small Gibs|Props|Advanced VR Options > Gore > Small Gibs > Props
-vr_smallgibs_explosions|2|Small Gibs|Explosions|Advanced VR Options > Gore > Small Gibs > Explosions
-vr_smallgibs_other|2|Small Gibs|Everything Else|Advanced VR Options > Gore > Small Gibs > Everything Else
-vr_smallgibs_saw_interval|2|Small Gibs|Chainsaw: One Each|Advanced VR Options > Gore > Small Gibs > Chainsaw: One 
-vr_smallgibs_gibbing|2|Small Gibs|With a Gibbing|Advanced VR Options > Gore > Small Gibs > With a Gibbing
-vr_smallgibs_burst|2|Small Gibs|A Large Gib Bursts Into|Advanced VR Options > Gore > Small Gibs > A Large Gib 
 vr_smallgibs_brains|2|Small Gibs|Brain Chunks|Advanced VR Options > Gore > Small Gibs > Brain Chunks
-vr_smallgibs_brains_burst|2|Small Gibs|From a Head Gib|Advanced VR Options > Gore > Small Gibs > From a Head Gib
-vr_smallgibs_brains_pop|2|Small Gibs|From a Head Pop|Advanced VR Options > Gore > Small Gibs > From a Head Pop
-vr_smallgibs_brains_size|2|Small Gibs|Brain Chunk Size|Advanced VR Options > Gore > Small Gibs > Brain Chunk Size
-vr_smallgibs_brains_mass|2|Small Gibs|Brain Chunk Mass|Advanced VR Options > Gore > Small Gibs > Brain Chunk Mass
-vr_smallgibs_brains_gloss|2|Small Gibs|Brain Chunk Gloss|Advanced VR Options > Gore > Small Gibs > Brain Chunk Gloss
-vr_smallgibs_brains_jiggle|2|Small Gibs|Brain Chunk Jiggle|Advanced VR Options > Gore > Small Gibs > Brain Chunk 
-vr_smallgibs_brains_speed|2|Small Gibs|Brain Chunk Speed|Advanced VR Options > Gore > Small Gibs > Brain Chunk Speed
-vr_smallgibs_brains_up|2|Small Gibs|Brain Chunk Up|Advanced VR Options > Gore > Small Gibs > Brain Chunk Up
-vr_smallgibs_speed|2|Small Gibs|Speed|Advanced VR Options > Gore > Small Gibs > Speed
-vr_smallgibs_up|2|Small Gibs|Up|Advanced VR Options > Gore > Small Gibs > Up
 vr_smallgibs_grace|2|Small Gibs|Pass Through the Body|Advanced VR Options > Gore > Small Gibs > Pass Through the 
 vr_smallgibs_pass_inside|2|Small Gibs|Not Pushed Out of Bodies|Advanced VR Options > Gore > Small Gibs > Not Pushed 
-vr_smallgibs_blow_grace|2|Small Gibs|Not Batted Away For|Advanced VR Options > Gore > Small Gibs > Not Batted Away 
 vr_smallgibs_blow_burst|2|Small Gibs|Burst by Blows Meanwhile|Advanced VR Options > Gore > Small Gibs > Burst by 
-vr_smallgibs_size_min|2|Small Gibs|Smallest|Advanced VR Options > Gore > Small Gibs > Smallest
-vr_smallgibs_size_max|2|Small Gibs|Largest|Advanced VR Options > Gore > Small Gibs > Largest
-vr_smallgibs_mass|2|Small Gibs|Mass|Advanced VR Options > Gore > Small Gibs > Mass
-vr_smallgibs_speed_melee|2|Small Gibs|Melee: Speed|Advanced VR Options > Gore > Small Gibs > Melee: Speed
-vr_smallgibs_up_melee|2|Small Gibs|Melee: Up|Advanced VR Options > Gore > Small Gibs > Melee: Up
-vr_smallgibs_speed_saw|2|Small Gibs|Chainsaw: Speed|Advanced VR Options > Gore > Small Gibs > Chainsaw: Speed
-vr_smallgibs_up_saw|2|Small Gibs|Chainsaw: Up|Advanced VR Options > Gore > Small Gibs > Chainsaw: Up
-vr_smallgibs_speed_guns|2|Small Gibs|Guns: Speed|Advanced VR Options > Gore > Small Gibs > Guns: Speed
-vr_smallgibs_up_guns|2|Small Gibs|Guns: Up|Advanced VR Options > Gore > Small Gibs > Guns: Up
-vr_smallgibs_speed_explosions|2|Small Gibs|Explosions: Speed|Advanced VR Options > Gore > Small Gibs > Explosions: 
-vr_smallgibs_up_explosions|2|Small Gibs|Explosions: Up|Advanced VR Options > Gore > Small Gibs > Explosions: Up
-vr_smallgibs_speed_thrown|2|Small Gibs|Thrown: Speed|Advanced VR Options > Gore > Small Gibs > Thrown: Speed
-vr_smallgibs_up_thrown|2|Small Gibs|Thrown: Up|Advanced VR Options > Gore > Small Gibs > Thrown: Up
-vr_smallgibs_speed_other|2|Small Gibs|Everything Else: Speed|Advanced VR Options > Gore > Small Gibs > Everything 
-vr_smallgibs_up_other|2|Small Gibs|Everything Else: Up|Advanced VR Options > Gore > Small Gibs > Everything Else: Up
-vr_smallgibs_speed_gibbing|2|Small Gibs|Gibbing a Live One: Speed|Advanced VR Options > Gore > Small Gibs > Gibbing 
-vr_smallgibs_up_gibbing|2|Small Gibs|Gibbing a Live One: Up|Advanced VR Options > Gore > Small Gibs > Gibbing a 
-vr_smallgibs_speed_corpse|2|Small Gibs|Gibbing a Corpse: Speed|Advanced VR Options > Gore > Small Gibs > Gibbing a 
-vr_smallgibs_up_corpse|2|Small Gibs|Gibbing a Corpse: Up|Advanced VR Options > Gore > Small Gibs > Gibbing a 
-vr_smallgibs_speed_burst|2|Small Gibs|A Large Gib Bursts: Speed|Advanced VR Options > Gore > Small Gibs > A Large 
-vr_smallgibs_up_burst|2|Small Gibs|A Large Gib Bursts: Up|Advanced VR Options > Gore > Small Gibs > A Large Gib 
 vr_smallgibs_max|2|Small Gibs|Most Lying About|Advanced VR Options > Gore > Small Gibs > Most Lying About
 vr_smallgibs_time|2|Small Gibs|Last|Advanced VR Options > Gore > Small Gibs > Last
 vr_smallgibs_destroy|2|Small Gibs|Can Be Destroyed|Advanced VR Options > Gore > Small Gibs > Can Be Destroyed
 vr_smallgibs_stomp|2|Small Gibs|Pop Underfoot|Advanced VR Options > Gore > Small Gibs > Pop Underfoot
-vr_smallgibs_stomp_speed|2|Small Gibs|Pop Landing Speed|Advanced VR Options > Gore > Small Gibs > Pop Landing Speed
 |2|Small Gibs|Reset This Page|Advanced VR Options > Gore > Small Gibs > Reset This Page
 @page|1|Gore - Decapitation||Advanced VR Options > Gore > Decapitation
 vr_decap|1|Gore - Decapitation|Decapitation|Advanced VR Options > Gore > Decapitation > Decapitation
-vr_decap_speed|1|Gore - Decapitation|Least Swing Speed|Advanced VR Options > Gore > Decapitation > Least Swing Speed
-vr_decap_slash_angle|1|Gore - Decapitation|Least Slash Angle|Advanced VR Options > Gore > Decapitation > Least 
+vr_decap_speed|2|Gore - Decapitation|Least Swing Speed|Advanced VR Options > Gore > Decapitation > Least Swing Speed
+vr_decap_slash_angle|2|Gore - Decapitation|Least Slash Angle|Advanced VR Options > Gore > Decapitation > Least 
 vr_decap_head_size|1|Gore - Decapitation|Head Zone Size|Advanced VR Options > Gore > Decapitation > Head Zone Size
 vr_decap_neck|1|Gore - Decapitation|Neck|Advanced VR Options > Gore > Decapitation > Neck
-vr_decap_head_speed|1|Gore - Decapitation|Head Speed|Advanced VR Options > Gore > Decapitation > Head Speed
-vr_decap_head_lift|1|Gore - Decapitation|Head Thrown Up|Advanced VR Options > Gore > Decapitation > Head Thrown Up
-vr_decap_fountain|1|Gore - Decapitation|Fountain|Advanced VR Options > Gore > Decapitation > Fountain
+vr_decap_head_speed|2|Gore - Decapitation|Head Speed|Advanced VR Options > Gore > Decapitation > Head Speed
+vr_decap_head_lift|2|Gore - Decapitation|Head Thrown Up|Advanced VR Options > Gore > Decapitation > Head Thrown Up
+vr_decap_fountain|2|Gore - Decapitation|Fountain|Advanced VR Options > Gore > Decapitation > Fountain
 vr_limbs_end_fountain|1|Gore - Decapitation|Flying Head's Fountain|Advanced VR Options > Gore > Decapitation > 
 vr_decap_corpses|1|Gore - Decapitation|Corpses|Advanced VR Options > Gore > Decapitation > Corpses
 vr_decap_zombies|1|Gore - Decapitation|Zombies|Advanced VR Options > Gore > Decapitation > Zombies
@@ -1721,34 +1623,34 @@ vr_decap_shotgun|1|Gore - Decapitation|Shotgun|Advanced VR Options > Gore > Deca
 vr_decap_super_shotgun|1|Gore - Decapitation|Super Shotgun|Advanced VR Options > Gore > Decapitation > Super Shotgun
 vr_decap_revolver|1|Gore - Decapitation|Heavy Revolver|Advanced VR Options > Gore > Decapitation > Heavy Revolver
 vr_decap_lightning|1|Gore - Decapitation|Lightning Gun|Advanced VR Options > Gore > Decapitation > Lightning Gun
-vr_decap_head_share|1|Gore - Decapitation|Blast's Head Share|Advanced VR Options > Gore > Decapitation > Blast's 
-vr_decap_pop_body_speed|1|Gore - Decapitation|Body's Speed After a Pop|Advanced VR Options > Gore > Decapitation > 
+vr_decap_head_share|2|Gore - Decapitation|Blast's Head Share|Advanced VR Options > Gore > Decapitation > Blast's 
+vr_decap_pop_body_speed|2|Gore - Decapitation|Body's Speed After a Pop|Advanced VR Options > Gore > Decapitation > 
 vr_decap_chance_scale|1|Gore - Decapitation|Head Chance|Advanced VR Options > Gore > Decapitation > Head Chance
 vr_decap_pop_always_range|1|Gore - Decapitation|Always Within|Advanced VR Options > Gore > Decapitation > Always 
 vr_decap_pop_never_range|1|Gore - Decapitation|Never Beyond|Advanced VR Options > Gore > Decapitation > Never Beyond
-vr_decap_pop_ssg_scale|1|Gore - Decapitation|Super Shotgun Chance|Advanced VR Options > Gore > Decapitation > Super 
+vr_decap_pop_ssg_scale|2|Gore - Decapitation|Super Shotgun Chance|Advanced VR Options > Gore > Decapitation > Super 
 vr_decap_pop_ssg_falloff|1|Gore - Decapitation|Super Shotgun Falloff|Advanced VR Options > Gore > Decapitation > 
-vr_decap_pop_revolver_scale|1|Gore - Decapitation|Heavy Revolver Chance|Advanced VR Options > Gore > Decapitation > 
-vr_decap_pop_revolver_falloff|1|Gore - Decapitation|Heavy Revolver Falloff|Advanced VR Options > Gore > 
-vr_decap_pop_sg_scale|1|Gore - Decapitation|Shotgun Chance|Advanced VR Options > Gore > Decapitation > Shotgun 
-vr_decap_pop_sg_falloff|1|Gore - Decapitation|Shotgun Falloff|Advanced VR Options > Gore > Decapitation > Shotgun 
+vr_decap_pop_revolver_scale|2|Gore - Decapitation|Heavy Revolver Chance|Advanced VR Options > Gore > Decapitation > 
+vr_decap_pop_revolver_falloff|2|Gore - Decapitation|Heavy Revolver Falloff|Advanced VR Options > Gore > 
+vr_decap_pop_sg_scale|2|Gore - Decapitation|Shotgun Chance|Advanced VR Options > Gore > Decapitation > Shotgun 
+vr_decap_pop_sg_falloff|2|Gore - Decapitation|Shotgun Falloff|Advanced VR Options > Gore > Decapitation > Shotgun 
 vr_decap_pop_pellet_weight|1|Gore - Decapitation|Pellets at the Head|Advanced VR Options > Gore > Decapitation > 
 vr_decap_pop_lightning_always|1|Gore - Decapitation|Lightning Always Pops|Advanced VR Options > Gore > Decapitation 
 vr_decap_pop_laser|1|Gore - Decapitation|Enforcer Laser|Advanced VR Options > Gore > Decapitation > Enforcer Laser
 vr_decap_pop_thrown|1|Gore - Decapitation|Thrown Things|Advanced VR Options > Gore > Decapitation > Thrown Things
-vr_decap_pop_thrown_mass|1|Gore - Decapitation|Thrown: Always From|Advanced VR Options > Gore > Decapitation > 
-vr_decap_pop_thrown_light_chance|1|Gore - Decapitation|Thrown: Lighter's Chance|Advanced VR Options > Gore > 
-vr_decap_pop_fist_scale|1|Gore - Decapitation|Fist|Advanced VR Options > Gore > Decapitation > Fist
-vr_decap_pop_gun_scale|1|Gore - Decapitation|Gun Butt|Advanced VR Options > Gore > Decapitation > Gun Butt
-vr_decap_pop_crowbar_scale|1|Gore - Decapitation|Crowbar|Advanced VR Options > Gore > Decapitation > Crowbar
-vr_decap_pop_pommel_scale|1|Gore - Decapitation|Pommel|Advanced VR Options > Gore > Decapitation > Pommel
-vr_decap_pop_club_scale|1|Gore - Decapitation|Club|Advanced VR Options > Gore > Decapitation > Club
-vr_decap_pop_mjolnir_scale|1|Gore - Decapitation|Mjolnir|Advanced VR Options > Gore > Decapitation > Mjolnir
-vr_decap_pop_melee_soft_speed|1|Gore - Decapitation|Soft Hit Speed|Advanced VR Options > Gore > Decapitation > Soft 
-vr_decap_pop_melee_hard_speed|1|Gore - Decapitation|Hard Hit Speed|Advanced VR Options > Gore > Decapitation > Hard 
-vr_decap_pop_melee_soft_damage|1|Gore - Decapitation|Soft Hit Damage|Advanced VR Options > Gore > Decapitation > 
-vr_decap_pop_melee_hard_damage|1|Gore - Decapitation|Hard Hit Damage|Advanced VR Options > Gore > Decapitation > 
-vr_decap_pop_melee_damage_weight|1|Gore - Decapitation|Damage's Weight|Advanced VR Options > Gore > Decapitation > 
+vr_decap_pop_thrown_mass|2|Gore - Decapitation|Thrown: Always From|Advanced VR Options > Gore > Decapitation > 
+vr_decap_pop_thrown_light_chance|2|Gore - Decapitation|Thrown: Lighter's Chance|Advanced VR Options > Gore > 
+vr_decap_pop_fist_scale|2|Gore - Decapitation|Fist|Advanced VR Options > Gore > Decapitation > Fist
+vr_decap_pop_gun_scale|2|Gore - Decapitation|Gun Butt|Advanced VR Options > Gore > Decapitation > Gun Butt
+vr_decap_pop_crowbar_scale|2|Gore - Decapitation|Crowbar|Advanced VR Options > Gore > Decapitation > Crowbar
+vr_decap_pop_pommel_scale|2|Gore - Decapitation|Pommel|Advanced VR Options > Gore > Decapitation > Pommel
+vr_decap_pop_club_scale|2|Gore - Decapitation|Club|Advanced VR Options > Gore > Decapitation > Club
+vr_decap_pop_mjolnir_scale|2|Gore - Decapitation|Mjolnir|Advanced VR Options > Gore > Decapitation > Mjolnir
+vr_decap_pop_melee_soft_speed|2|Gore - Decapitation|Soft Hit Speed|Advanced VR Options > Gore > Decapitation > Soft 
+vr_decap_pop_melee_hard_speed|2|Gore - Decapitation|Hard Hit Speed|Advanced VR Options > Gore > Decapitation > Hard 
+vr_decap_pop_melee_soft_damage|2|Gore - Decapitation|Soft Hit Damage|Advanced VR Options > Gore > Decapitation > 
+vr_decap_pop_melee_hard_damage|2|Gore - Decapitation|Hard Hit Damage|Advanced VR Options > Gore > Decapitation > 
+vr_decap_pop_melee_damage_weight|2|Gore - Decapitation|Damage's Weight|Advanced VR Options > Gore > Decapitation > 
 vr_decap_pop_melee_curve|1|Gore - Decapitation|Hardness Curve|Advanced VR Options > Gore > Decapitation > Hardness 
 vr_decap_pop_quad|1|Gore - Decapitation|Quad Damage: Always Pop|Advanced VR Options > Gore > Decapitation > Quad 
 |1|Gore - Decapitation|Reset This Page|Advanced VR Options > Gore > Decapitation > Reset This Page
@@ -2457,9 +2359,10 @@ vr_checklist_hide_ticked|2|Checklist|Hide Ticked|Advanced VR Options > Debug > C
 |2|Checklist|Reset This Page|Advanced VR Options > Debug > Checklist > Reset This Page
 @page|2|Tunables||Advanced VR Options > Debug > Tunables
 vr_tunables_show_changed|2|Tunables|Show|Advanced VR Options > Debug > Tunables > Show
-vr_tunables_page|2|Tunables|Page|Advanced VR Options > Debug > Tunables > Page
 |2|Tunables|Reset All to Defaults|Advanced VR Options > Debug > Tunables > Reset All to Defaults
 vr_compat_muzzle|2|Tunables|Compat Muzzle|Advanced VR Options > Debug > Tunables > Compat Muzzle
+vr_2h_spread_reduction|2|Tunables|2h Spread Reduction|Advanced VR Options > Debug > Tunables > 2h Spread Reduction
+vr_2h_cup_stock|2|Tunables|2h Cup Stock|Advanced VR Options > Debug > Tunables > 2h Cup Stock
 vr_throw_peak_span|2|Tunables|Throw Peak Span|Advanced VR Options > Debug > Tunables > Throw Peak Span
 vr_throw_ang_threshold|2|Tunables|Throw Ang Threshold|Advanced VR Options > Debug > Tunables > Throw Ang Threshold
 vr_throw_ang_factor|2|Tunables|Throw Ang Factor|Advanced VR Options > Debug > Tunables > Throw Ang Factor
@@ -2484,6 +2387,9 @@ vr_upscale_radius|2|Tunables|Upscale Radius|Advanced VR Options > Debug > Tunabl
 vr_upscale_sharpen_native|2|Tunables|Upscale Sharpen Native|Advanced VR Options > Debug > Tunables > Upscale 
 vr_foveated_inner|2|Tunables|Foveated Inner|Advanced VR Options > Debug > Tunables > Foveated Inner
 vr_foveated_outer|2|Tunables|Foveated Outer|Advanced VR Options > Debug > Tunables > Foveated Outer
+vr_shadow_precision|2|Tunables|Shadow Precision|Advanced VR Options > Debug > Tunables > Shadow Precision
+vr_extmaps_green|2|Tunables|Extmaps Green|Advanced VR Options > Debug > Tunables > Extmaps Green
+vr_mirror_unfocused_hz|2|Tunables|Mirror Unfocused Hz|Advanced VR Options > Debug > Tunables > Mirror Unfocused Hz
 vr_touch_depth|2|Tunables|Touch Depth|Advanced VR Options > Debug > Tunables > Touch Depth
 vr_touch_hover|2|Tunables|Touch Hover|Advanced VR Options > Debug > Tunables > Touch Hover
 vr_touch_margin|2|Tunables|Touch Margin|Advanced VR Options > Debug > Tunables > Touch Margin
@@ -2496,6 +2402,7 @@ vr_note_replay_seconds|2|Tunables|Note Replay Seconds|Advanced VR Options > Debu
 vr_heavy_auto_from|2|Tunables|Heavy Auto From|Advanced VR Options > Debug > Tunables > Heavy Auto From
 vr_heavy_auto_full|2|Tunables|Heavy Auto Full|Advanced VR Options > Debug > Tunables > Heavy Auto Full
 vr_ghost_hands_solid|2|Tunables|Ghost Hands Solid|Advanced VR Options > Debug > Tunables > Ghost Hands Solid
+vr_seated_crouch_ease|2|Tunables|Seated Crouch Ease|Advanced VR Options > Debug > Tunables > Seated Crouch Ease
 vr_debris_area_size|2|Tunables|Debris Area Size|Advanced VR Options > Debug > Tunables > Debris Area Size
 vr_debris_edicts_left|2|Tunables|Debris Edicts Left|Advanced VR Options > Debug > Tunables > Debris Edicts Left
 vr_bodytrack_fade|2|Tunables|Bodytrack Fade|Advanced VR Options > Debug > Tunables > Bodytrack Fade
@@ -2660,6 +2567,7 @@ vr_flashlight_high_roll|2|Tunables|Overhead Grip Roll|Advanced VR Options > Debu
 vr_liquid_fall_cushion|2|Tunables|Liquid Breaks Falls|Advanced VR Options > Debug > Tunables > Liquid Breaks Falls
 vr_enemy_drops_chance_mult|2|Tunables|Enemy Drops Chance|Advanced VR Options > Debug > Tunables > Enemy Drops Chance
 vr_ammobox_drops_chance_mult|2|Tunables|Ammo Box Drops Chance|Advanced VR Options > Debug > Tunables > Ammo Box 
+vr_item_float_height|2|Tunables|Item Float Height|Advanced VR Options > Debug > Tunables > Item Float Height
 vr_box3d_hand_hold_mass|2|Tunables|Heaviest Thing Held Up|Advanced VR Options > Debug > Tunables > Heaviest Thing 
 vr_box3d_throw_grace_speed|2|Tunables|Throw Grace From|Advanced VR Options > Debug > Tunables > Throw Grace From
 vr_box3d_hand_mass|2|Tunables|Hand Push Mass|Advanced VR Options > Debug > Tunables > Hand Push Mass
@@ -2799,6 +2707,41 @@ vr_ragdoll_active_env_ledge|2|Tunables|Grab Ledges|Advanced VR Options > Debug >
 vr_ragdoll_active_env_grip|2|Tunables|Grip|Advanced VR Options > Debug > Tunables > Grip
 vr_ragdoll_active_env_hang|2|Tunables|Hang Time|Advanced VR Options > Debug > Tunables > Hang Time
 vr_ragdoll_active_env_arms|2|Tunables|Arms' Strength|Advanced VR Options > Debug > Tunables > Arms' Strength
+vr_ragdoll_mass|2|Tunables|Mass|Advanced VR Options > Debug > Tunables > Mass
+vr_ragdoll_friction|2|Tunables|Friction|Advanced VR Options > Debug > Tunables > Friction
+vr_ragdoll_joint_friction|2|Tunables|Joint Friction|Advanced VR Options > Debug > Tunables > Joint Friction
+vr_ragdoll_damping|2|Tunables|Limb Damping|Advanced VR Options > Debug > Tunables > Limb Damping
+vr_ragdoll_blast|2|Tunables|Blast Throw|Advanced VR Options > Debug > Tunables > Blast Throw
+vr_ragdoll_joint_stiffness|2|Tunables|Joint Stiffness|Advanced VR Options > Debug > Tunables > Joint Stiffness
+vr_ragdoll_limits|2|Tunables|Joint Limits|Advanced VR Options > Debug > Tunables > Joint Limits
+vr_ragdoll_active_strength|2|Tunables|Muscle Strength|Advanced VR Options > Debug > Tunables > Muscle Strength
+vr_ragdoll_active_hertz|2|Tunables|Muscle Stiffness|Advanced VR Options > Debug > Tunables > Muscle Stiffness
+vr_ragdoll_active_damping|2|Tunables|Muscle Damping|Advanced VR Options > Debug > Tunables > Muscle Damping
+vr_ragdoll_active_torque|2|Tunables|Muscle Torque|Advanced VR Options > Debug > Tunables > Muscle Torque
+vr_ragdoll_active_fade|2|Tunables|Strength Lasts|Advanced VR Options > Debug > Tunables > Strength Lasts
+vr_ragdoll_active_pin|2|Tunables|Thrown by His Death|Advanced VR Options > Debug > Tunables > Thrown by His Death
+vr_ragdoll_active_pin_time|2|Tunables|Thrown For|Advanced VR Options > Debug > Tunables > Thrown For
+vr_ragdoll_active_stumble|2|Tunables|Stumble From|Advanced VR Options > Debug > Tunables > Stumble From
+vr_ragdoll_active_crawl_force|2|Tunables|Crawl Pull|Advanced VR Options > Debug > Tunables > Crawl Pull
+vr_ragdoll_active_dismember_time|2|Tunables|Writhing|Advanced VR Options > Debug > Tunables > Writhing
+vr_ragdoll_active_writhe|2|Tunables|Writhe Size|Advanced VR Options > Debug > Tunables > Writhe Size
+vr_ragdoll_active_balance_time|2|Tunables|Balance on One Leg|Advanced VR Options > Debug > Tunables > Balance on 
+vr_ragdoll_active_balance_lean|2|Tunables|Falls Past|Advanced VR Options > Debug > Tunables > Falls Past
+vr_ragdoll_active_paddle|2|Tunables|Paddle Time|Advanced VR Options > Debug > Tunables > Paddle Time
+vr_ragdoll_active_flail|2|Tunables|Flail Time|Advanced VR Options > Debug > Tunables > Flail Time
+vr_ragdoll_active_stagger_lean|2|Tunables|Stagger Falls Past|Advanced VR Options > Debug > Tunables > Stagger Falls 
+vr_ragdoll_active_stagger_push|2|Tunables|Shove's Push|Advanced VR Options > Debug > Tunables > Shove's Push
+vr_ragdoll_active_stagger_pin|2|Tunables|Stagger Balance|Advanced VR Options > Debug > Tunables > Stagger Balance
+vr_ragdoll_active_stagger_blend|2|Tunables|Stagger Recovery Blend|Advanced VR Options > Debug > Tunables > Stagger 
+vr_ragdoll_active_stagger_settle|2|Tunables|Stagger Settles Below|Advanced VR Options > Debug > Tunables > Stagger 
+vr_ragdoll_active_stagger_settle_time|2|Tunables|Stagger Settle at Most|Advanced VR Options > Debug > Tunables > 
+vr_ragdoll_active_stagger_drop|2|Tunables|Stagger Drop Falls|Advanced VR Options > Debug > Tunables > Stagger Drop 
+vr_ragdoll_active_getup_pin|2|Tunables|Get-Up Lift|Advanced VR Options > Debug > Tunables > Get-Up Lift
+vr_ragdoll_active_getup_blend|2|Tunables|Get-Up Blend|Advanced VR Options > Debug > Tunables > Get-Up Blend
+vr_ragdoll_active_getup_pace|2|Tunables|Get-Up Pace|Advanced VR Options > Debug > Tunables > Get-Up Pace
+vr_ragdoll_active_stagger_steps|2|Tunables|Backpedal Steps|Advanced VR Options > Debug > Tunables > Backpedal Steps
+vr_hit_react_strength|2|Tunables|Reaction Strength|Advanced VR Options > Debug > Tunables > Reaction Strength
+vr_hit_react_time|2|Tunables|Reaction Length|Advanced VR Options > Debug > Tunables > Reaction Length
 vr_debris_chance|2|Tunables|Chance|Advanced VR Options > Debug > Tunables > Chance
 vr_debris_dark|2|Tunables|In the Dark|Advanced VR Options > Debug > Tunables > In the Dark
 vr_debris_corner|2|Tunables|In Corners|Advanced VR Options > Debug > Tunables > In Corners
@@ -2857,6 +2800,8 @@ vr_shot_push_supernail|2|Tunables|Super Nail Push|Advanced VR Options > Debug > 
 vr_shot_push_lightning|2|Tunables|Lightning Push|Advanced VR Options > Debug > Tunables > Lightning Push
 vr_shot_push_speed|2|Tunables|Shot Push Top Speed|Advanced VR Options > Debug > Tunables > Shot Push Top Speed
 vr_throw_self_grace|2|Tunables|Your Throws Spare You For|Advanced VR Options > Debug > Tunables > Your Throws Spare 
+vr_throw_grab_press|2|Tunables|Throw Grab Press|Advanced VR Options > Debug > Tunables > Throw Grab Press
+vr_throw_2h_window|2|Tunables|Throw 2h Window|Advanced VR Options > Debug > Tunables > Throw 2h Window
 vr_walltorch_reach|2|Tunables|Grab Reach|Advanced VR Options > Debug > Tunables > Grab Reach
 vr_walltorch_hits|2|Tunables|Blows Before It Dies|Advanced VR Options > Debug > Tunables > Blows Before It Dies
 vr_walltorch_damage|2|Tunables|Blow Damage|Advanced VR Options > Debug > Tunables > Blow Damage
@@ -3000,6 +2945,7 @@ vr_gunfx_intensity|2|Tunables|Gunfire Intensity|Advanced VR Options > Debug > Tu
 vr_gunfx_turbulence|2|Tunables|Smoke Turbulence|Advanced VR Options > Debug > Tunables > Smoke Turbulence
 vr_gunfx_shell_trail|2|Tunables|Casing Smoke Trails|Advanced VR Options > Debug > Tunables > Casing Smoke Trails
 vr_gunfx_heat_light_radius|2|Tunables|Barrel Light Reach|Advanced VR Options > Debug > Tunables > Barrel Light Reach
+vr_gunfx_wisp_pixels|2|Tunables|Gunfx Wisp Pixels|Advanced VR Options > Debug > Tunables > Gunfx Wisp Pixels
 vr_flashlight_mount_preview|2|Tunables|Show the Flashlight's Place|Advanced VR Options > Debug > Tunables > Show 
 vr_show_controller_x|2|Tunables|Preview X (red)|Advanced VR Options > Debug > Tunables > Preview X (red)
 vr_show_controller_y|2|Tunables|Preview Y (green)|Advanced VR Options > Debug > Tunables > Preview Y (green)
@@ -3623,6 +3569,174 @@ vr_ad_plasma_push|2|Tunables|Plasma Blast Push|Advanced VR Options > Debug > Tun
 vr_chainsaw_damage|2|Tunables|Ogre's Chainsaw Chain|Advanced VR Options > Debug > Tunables > Ogre's Chainsaw Chain
 vr_enfrifle_damage|2|Tunables|Enforcer's Laser Rifle|Advanced VR Options > Debug > Tunables > Enforcer's Laser Rifle
 vr_weapon_throw_damage_mult|2|Tunables|All Throws|Advanced VR Options > Debug > Tunables > All Throws
+vr_water_foam_frequency|2|Tunables|Water Frequency|Advanced VR Options > Debug > Tunables > Water Frequency
+vr_water_foam_strength|2|Tunables|Water Strength|Advanced VR Options > Debug > Tunables > Water Strength
+vr_water_foam_breathe|2|Tunables|Water Breathing|Advanced VR Options > Debug > Tunables > Water Breathing
+vr_water_foam_breathe_speed|2|Tunables|Water Breathing Speed|Advanced VR Options > Debug > Tunables > Water 
+vr_water_foam_breathe_irregularity|2|Tunables|Water Breathing Irregularity|Advanced VR Options > Debug > Tunables > 
+vr_water_foam_red|2|Tunables|Water Red|Advanced VR Options > Debug > Tunables > Water Red
+vr_water_foam_green|2|Tunables|Water Green|Advanced VR Options > Debug > Tunables > Water Green
+vr_water_foam_blue|2|Tunables|Water Blue|Advanced VR Options > Debug > Tunables > Water Blue
+vr_water_foam_particle_life|2|Tunables|Water Particle Life|Advanced VR Options > Debug > Tunables > Water Particle 
+vr_water_foam_particle_opacity|2|Tunables|Water Particle Opacity|Advanced VR Options > Debug > Tunables > Water 
+vr_water_foam_particle_size|2|Tunables|Water Particle Size|Advanced VR Options > Debug > Tunables > Water Particle 
+vr_water_foam_particle_shore|2|Tunables|Water Particle Shore|Advanced VR Options > Debug > Tunables > Water 
+vr_water_foam_edge|2|Tunables|Water Wavy Edge|Advanced VR Options > Debug > Tunables > Water Wavy Edge
+vr_lava_foam_frequency|2|Tunables|Lava Frequency|Advanced VR Options > Debug > Tunables > Lava Frequency
+vr_lava_foam_strength|2|Tunables|Lava Strength|Advanced VR Options > Debug > Tunables > Lava Strength
+vr_lava_foam_breathe|2|Tunables|Lava Breathing|Advanced VR Options > Debug > Tunables > Lava Breathing
+vr_lava_foam_breathe_speed|2|Tunables|Lava Breathing Speed|Advanced VR Options > Debug > Tunables > Lava Breathing 
+vr_lava_foam_breathe_irregularity|2|Tunables|Lava Breathing Irregularity|Advanced VR Options > Debug > Tunables > 
+vr_lava_foam_red|2|Tunables|Lava Red|Advanced VR Options > Debug > Tunables > Lava Red
+vr_lava_foam_green|2|Tunables|Lava Green|Advanced VR Options > Debug > Tunables > Lava Green
+vr_lava_foam_blue|2|Tunables|Lava Blue|Advanced VR Options > Debug > Tunables > Lava Blue
+vr_lava_foam_particle_life|2|Tunables|Lava Particle Life|Advanced VR Options > Debug > Tunables > Lava Particle Life
+vr_lava_foam_particle_opacity|2|Tunables|Lava Particle Opacity|Advanced VR Options > Debug > Tunables > Lava 
+vr_lava_foam_particle_size|2|Tunables|Lava Particle Size|Advanced VR Options > Debug > Tunables > Lava Particle Size
+vr_lava_foam_particle_shore|2|Tunables|Lava Particle Shore|Advanced VR Options > Debug > Tunables > Lava Particle 
+vr_lava_foam_edge|2|Tunables|Lava Wavy Edge|Advanced VR Options > Debug > Tunables > Lava Wavy Edge
+vr_slime_foam_frequency|2|Tunables|Slime Frequency|Advanced VR Options > Debug > Tunables > Slime Frequency
+vr_slime_foam_strength|2|Tunables|Slime Strength|Advanced VR Options > Debug > Tunables > Slime Strength
+vr_slime_foam_breathe|2|Tunables|Slime Breathing|Advanced VR Options > Debug > Tunables > Slime Breathing
+vr_slime_foam_breathe_speed|2|Tunables|Slime Breathing Speed|Advanced VR Options > Debug > Tunables > Slime 
+vr_slime_foam_breathe_irregularity|2|Tunables|Slime Breathing Irregularity|Advanced VR Options > Debug > Tunables > 
+vr_slime_foam_red|2|Tunables|Slime Red|Advanced VR Options > Debug > Tunables > Slime Red
+vr_slime_foam_green|2|Tunables|Slime Green|Advanced VR Options > Debug > Tunables > Slime Green
+vr_slime_foam_blue|2|Tunables|Slime Blue|Advanced VR Options > Debug > Tunables > Slime Blue
+vr_slime_foam_particle_life|2|Tunables|Slime Particle Life|Advanced VR Options > Debug > Tunables > Slime Particle 
+vr_slime_foam_particle_opacity|2|Tunables|Slime Particle Opacity|Advanced VR Options > Debug > Tunables > Slime 
+vr_slime_foam_particle_size|2|Tunables|Slime Particle Size|Advanced VR Options > Debug > Tunables > Slime Particle 
+vr_slime_foam_particle_shore|2|Tunables|Slime Particle Shore|Advanced VR Options > Debug > Tunables > Slime 
+vr_slime_foam_edge|2|Tunables|Slime Wavy Edge|Advanced VR Options > Debug > Tunables > Slime Wavy Edge
+vr_smallgibs_min_damage|2|Tunables|Least Damage|Advanced VR Options > Debug > Tunables > Least Damage
+vr_smallgibs_full_damage|2|Tunables|Damage for a Sure One|Advanced VR Options > Debug > Tunables > Damage for a 
+vr_smallgibs_curve|2|Tunables|Chance Curve|Advanced VR Options > Debug > Tunables > Chance Curve
+vr_smallgibs_damage_per_gib|2|Tunables|One More Each|Advanced VR Options > Debug > Tunables > One More Each
+vr_smallgibs_per_hit|2|Tunables|Most From a Hit|Advanced VR Options > Debug > Tunables > Most From a Hit
+vr_smallgibs_shots|2|Tunables|Shotguns|Advanced VR Options > Debug > Tunables > Shotguns
+vr_smallgibs_nails|2|Tunables|Nails|Advanced VR Options > Debug > Tunables > Nails
+vr_smallgibs_blades|2|Tunables|Blades|Advanced VR Options > Debug > Tunables > Blades
+vr_smallgibs_blunt|2|Tunables|Blunt Blows|Advanced VR Options > Debug > Tunables > Blunt Blows
+vr_smallgibs_props|2|Tunables|Props|Advanced VR Options > Debug > Tunables > Props
+vr_smallgibs_explosions|2|Tunables|Explosions|Advanced VR Options > Debug > Tunables > Explosions
+vr_smallgibs_other|2|Tunables|Everything Else|Advanced VR Options > Debug > Tunables > Everything Else
+vr_smallgibs_saw_interval|2|Tunables|Chainsaw: One Each|Advanced VR Options > Debug > Tunables > Chainsaw: One Each
+vr_smallgibs_gibbing|2|Tunables|With a Gibbing|Advanced VR Options > Debug > Tunables > With a Gibbing
+vr_smallgibs_burst|2|Tunables|A Large Gib Bursts Into|Advanced VR Options > Debug > Tunables > A Large Gib Bursts 
+vr_smallgibs_speed|2|Tunables|Speed|Advanced VR Options > Debug > Tunables > Speed
+vr_smallgibs_up|2|Tunables|Up|Advanced VR Options > Debug > Tunables > Up
+vr_smallgibs_speed_melee|2|Tunables|Melee: Speed|Advanced VR Options > Debug > Tunables > Melee: Speed
+vr_smallgibs_up_melee|2|Tunables|Melee: Up|Advanced VR Options > Debug > Tunables > Melee: Up
+vr_smallgibs_speed_saw|2|Tunables|Chainsaw: Speed|Advanced VR Options > Debug > Tunables > Chainsaw: Speed
+vr_smallgibs_up_saw|2|Tunables|Chainsaw: Up|Advanced VR Options > Debug > Tunables > Chainsaw: Up
+vr_smallgibs_speed_guns|2|Tunables|Guns: Speed|Advanced VR Options > Debug > Tunables > Guns: Speed
+vr_smallgibs_up_guns|2|Tunables|Guns: Up|Advanced VR Options > Debug > Tunables > Guns: Up
+vr_smallgibs_speed_explosions|2|Tunables|Explosions: Speed|Advanced VR Options > Debug > Tunables > Explosions: 
+vr_smallgibs_up_explosions|2|Tunables|Explosions: Up|Advanced VR Options > Debug > Tunables > Explosions: Up
+vr_smallgibs_speed_thrown|2|Tunables|Thrown: Speed|Advanced VR Options > Debug > Tunables > Thrown: Speed
+vr_smallgibs_up_thrown|2|Tunables|Thrown: Up|Advanced VR Options > Debug > Tunables > Thrown: Up
+vr_smallgibs_speed_other|2|Tunables|Everything Else: Speed|Advanced VR Options > Debug > Tunables > Everything 
+vr_smallgibs_up_other|2|Tunables|Everything Else: Up|Advanced VR Options > Debug > Tunables > Everything Else: Up
+vr_smallgibs_speed_gibbing|2|Tunables|Gibbing a Live One: Speed|Advanced VR Options > Debug > Tunables > Gibbing a 
+vr_smallgibs_up_gibbing|2|Tunables|Gibbing a Live One: Up|Advanced VR Options > Debug > Tunables > Gibbing a Live 
+vr_smallgibs_speed_corpse|2|Tunables|Gibbing a Corpse: Speed|Advanced VR Options > Debug > Tunables > Gibbing a 
+vr_smallgibs_up_corpse|2|Tunables|Gibbing a Corpse: Up|Advanced VR Options > Debug > Tunables > Gibbing a Corpse: Up
+vr_smallgibs_speed_burst|2|Tunables|A Large Gib Bursts: Speed|Advanced VR Options > Debug > Tunables > A Large Gib 
+vr_smallgibs_up_burst|2|Tunables|A Large Gib Bursts: Up|Advanced VR Options > Debug > Tunables > A Large Gib 
+vr_smallgibs_size_min|2|Tunables|Smallest|Advanced VR Options > Debug > Tunables > Smallest
+vr_smallgibs_size_max|2|Tunables|Largest|Advanced VR Options > Debug > Tunables > Largest
+vr_smallgibs_mass|2|Tunables|Mass|Advanced VR Options > Debug > Tunables > Mass
+vr_smallgibs_blow_grace|2|Tunables|Not Batted Away For|Advanced VR Options > Debug > Tunables > Not Batted Away For
+vr_smallgibs_stomp_speed|2|Tunables|Pop Landing Speed|Advanced VR Options > Debug > Tunables > Pop Landing Speed
+vr_smallgibs_brains_burst|2|Tunables|From a Head Gib|Advanced VR Options > Debug > Tunables > From a Head Gib
+vr_smallgibs_brains_pop|2|Tunables|From a Head Pop|Advanced VR Options > Debug > Tunables > From a Head Pop
+vr_smallgibs_brains_size|2|Tunables|Brain Chunk Size|Advanced VR Options > Debug > Tunables > Brain Chunk Size
+vr_smallgibs_brains_mass|2|Tunables|Brain Chunk Mass|Advanced VR Options > Debug > Tunables > Brain Chunk Mass
+vr_smallgibs_brains_speed|2|Tunables|Brain Chunk Speed|Advanced VR Options > Debug > Tunables > Brain Chunk Speed
+vr_smallgibs_brains_up|2|Tunables|Brain Chunk Up|Advanced VR Options > Debug > Tunables > Brain Chunk Up
+vr_smallgibs_brains_gloss|2|Tunables|Brain Chunk Gloss|Advanced VR Options > Debug > Tunables > Brain Chunk Gloss
+vr_smallgibs_brains_jiggle|2|Tunables|Brain Chunk Jiggle|Advanced VR Options > Debug > Tunables > Brain Chunk Jiggle
+vr_ragdoll_limits_legs|2|Tunables|Legs: Limits|Advanced VR Options > Debug > Tunables > Legs: Limits
+vr_ragdoll_limits_torso|2|Tunables|Torso: Limits|Advanced VR Options > Debug > Tunables > Torso: Limits
+vr_ragdoll_limits_arms|2|Tunables|Arms: Limits|Advanced VR Options > Debug > Tunables > Arms: Limits
+vr_ragdoll_limits_head|2|Tunables|Head: Limits|Advanced VR Options > Debug > Tunables > Head: Limits
+vr_ragdoll_active_hertz_legs|2|Tunables|Legs: Spring|Advanced VR Options > Debug > Tunables > Legs: Spring
+vr_ragdoll_active_hertz_torso|2|Tunables|Torso: Spring|Advanced VR Options > Debug > Tunables > Torso: Spring
+vr_ragdoll_active_hertz_arms|2|Tunables|Arms: Spring|Advanced VR Options > Debug > Tunables > Arms: Spring
+vr_ragdoll_active_hertz_head|2|Tunables|Head: Spring|Advanced VR Options > Debug > Tunables > Head: Spring
+vr_ragdoll_active_damping_legs|2|Tunables|Legs: Damping|Advanced VR Options > Debug > Tunables > Legs: Damping
+vr_ragdoll_active_damping_torso|2|Tunables|Torso: Damping|Advanced VR Options > Debug > Tunables > Torso: Damping
+vr_ragdoll_active_damping_arms|2|Tunables|Arms: Damping|Advanced VR Options > Debug > Tunables > Arms: Damping
+vr_ragdoll_active_damping_head|2|Tunables|Head: Damping|Advanced VR Options > Debug > Tunables > Head: Damping
+vr_ragdoll_active_torque_legs|2|Tunables|Legs: Max Force|Advanced VR Options > Debug > Tunables > Legs: Max Force
+vr_ragdoll_active_torque_torso|2|Tunables|Torso: Max Force|Advanced VR Options > Debug > Tunables > Torso: Max Force
+vr_ragdoll_active_torque_arms|2|Tunables|Arms: Max Force|Advanced VR Options > Debug > Tunables > Arms: Max Force
+vr_ragdoll_active_torque_head|2|Tunables|Head: Max Force|Advanced VR Options > Debug > Tunables > Head: Max Force
+vr_grapple_rope_spacing|2|Tunables|Rope Point Spacing|Advanced VR Options > Debug > Tunables > Rope Point Spacing
+vr_grapple_rope_iterations|2|Tunables|Rope Precision|Advanced VR Options > Debug > Tunables > Rope Precision
+vr_grapple_rope_radius|2|Tunables|Rope Thickness|Advanced VR Options > Debug > Tunables > Rope Thickness
+vr_grapple_rope_tail|2|Tunables|Rope Straight Out of the Hook|Advanced VR Options > Debug > Tunables > Rope 
+vr_grapple_rope_depth|2|Tunables|Rope Depth in the Gun|Advanced VR Options > Debug > Tunables > Rope Depth in the 
+vr_grapple_loose_slack|2|Tunables|Slack When Detached|Advanced VR Options > Debug > Tunables > Slack When Detached
+vr_grapple_unreel_slack|2|Tunables|Unreel Slack|Advanced VR Options > Debug > Tunables > Unreel Slack
+vr_grapple_reel_home|2|Tunables|Loose Hook Goes In At|Advanced VR Options > Debug > Tunables > Loose Hook Goes In At
+vr_grapple_load_drag|2|Tunables|Air Drag|Advanced VR Options > Debug > Tunables > Air Drag
+vr_grapple_hang_drag|2|Tunables|Hanging Air Drag|Advanced VR Options > Debug > Tunables > Hanging Air Drag
+vr_grapple_load_max_speed|2|Tunables|Top Speed|Advanced VR Options > Debug > Tunables > Top Speed
+vr_grapple_move_share|2|Tunables|Walking Shared|Advanced VR Options > Debug > Tunables > Walking Shared
+vr_grapple_front_button_x|2|Tunables|Front Button Along|Advanced VR Options > Debug > Tunables > Front Button Along
+vr_grapple_front_button_y|2|Tunables|Front Button Side|Advanced VR Options > Debug > Tunables > Front Button Side
+vr_grapple_front_button_z|2|Tunables|Front Button Up|Advanced VR Options > Debug > Tunables > Front Button Up
+vr_grapple_hook_scale|2|Tunables|Hook Size|Advanced VR Options > Debug > Tunables > Hook Size
+vr_grapple_prop_light|2|Tunables|Light Up To|Advanced VR Options > Debug > Tunables > Light Up To
+vr_grapple_prop_anchor|2|Tunables|Too Heavy From|Advanced VR Options > Debug > Tunables > Too Heavy From
+vr_grapple_small_mass|2|Tunables|Small Up To|Advanced VR Options > Debug > Tunables > Small Up To
+vr_grapple_huge_mass|2|Tunables|Huge From|Advanced VR Options > Debug > Tunables > Huge From
+vr_grapple_tow_light|2|Tunables|Dragging: Light Up To|Advanced VR Options > Debug > Tunables > Dragging: Light Up To
+vr_menu_grab_reach|2|Tunables|Menu Grab Reach|Advanced VR Options > Debug > Tunables > Menu Grab Reach
+vr_menu_grab_dist_min|2|Tunables|Menu Grab Dist Min|Advanced VR Options > Debug > Tunables > Menu Grab Dist Min
+vr_menu_grab_dist_max|2|Tunables|Menu Grab Dist Max|Advanced VR Options > Debug > Tunables > Menu Grab Dist Max
+vr_menu_grab_deadzone|2|Tunables|Menu Grab Deadzone|Advanced VR Options > Debug > Tunables > Menu Grab Deadzone
+vr_worn_backpack_rip_time|2|Tunables|Worn Backpack Rip Time|Advanced VR Options > Debug > Tunables > Worn Backpack 
+vr_worn_backpack_rip_stiffness|2|Tunables|Worn Backpack Rip Stiffness|Advanced VR Options > Debug > Tunables > Worn 
+vr_climb_prop_pull|2|Tunables|Light Prop Pull|Advanced VR Options > Debug > Tunables > Light Prop Pull
+vr_climb_prop_tilt|2|Tunables|Prop Hold Tips Off At|Advanced VR Options > Debug > Tunables > Prop Hold Tips Off At
+vr_climb_prop_slip|2|Tunables|Light Prop Slips Off At|Advanced VR Options > Debug > Tunables > Light Prop Slips Off 
+vr_climb_prop_letgo_speed|2|Tunables|Prop Knocked Away At|Advanced VR Options > Debug > Tunables > Prop Knocked 
+vr_hull_build_mb|2|Tunables|Hitbox Build Memory|Advanced VR Options > Debug > Tunables > Hitbox Build Memory
+vr_heap_load_hold|2|Tunables|Heap: Hold During Loads|Advanced VR Options > Debug > Tunables > Heap: Hold During 
+vr_image_cache_mb|2|Tunables|Decoded Image Cache|Advanced VR Options > Debug > Tunables > Decoded Image Cache
+vr_anim_smooth_rig_error|2|Tunables|Limb Fit Limit|Advanced VR Options > Debug > Tunables > Limb Fit Limit
+vr_anim_smooth_rebuild_error|2|Tunables|Rebuild Fit Limit|Advanced VR Options > Debug > Tunables > Rebuild Fit Limit
+vr_gore_streams_chance|2|Tunables|Stream Chance|Advanced VR Options > Debug > Tunables > Stream Chance
+vr_gore_streams_melee_blunt|2|Tunables|Melee Blunt Chance|Advanced VR Options > Debug > Tunables > Melee Blunt 
+vr_gore_streams_per_body|2|Tunables|Streams per Body|Advanced VR Options > Debug > Tunables > Streams per Body
+vr_gore_streams_max|2|Tunables|Streams in All|Advanced VR Options > Debug > Tunables > Streams in All
+vr_gore_streams_time|2|Tunables|Stream Duration|Advanced VR Options > Debug > Tunables > Stream Duration
+vr_gore_streams_speed|2|Tunables|Stream Force|Advanced VR Options > Debug > Tunables > Stream Force
+vr_gore_streams_spread|2|Tunables|Stream Spread|Advanced VR Options > Debug > Tunables > Stream Spread
+vr_gore_streams_speed_var|2|Tunables|Stream Force Variation|Advanced VR Options > Debug > Tunables > Stream Force 
+vr_gore_streams_wobble|2|Tunables|Stream Wobble|Advanced VR Options > Debug > Tunables > Stream Wobble
+vr_gore_streams_wobble_rate|2|Tunables|Stream Wobble Rate|Advanced VR Options > Debug > Tunables > Stream Wobble 
+vr_gore_streams_thickness_var|2|Tunables|Stream Thickness Variation|Advanced VR Options > Debug > Tunables > Stream 
+vr_gore_streams_thickness_rate|2|Tunables|Stream Thickness Rate|Advanced VR Options > Debug > Tunables > Stream 
+vr_gore_streams_spurt_rate|2|Tunables|Spurt Rate|Advanced VR Options > Debug > Tunables > Spurt Rate
+vr_gore_streams_spurt_cone|2|Tunables|Spurt Cone|Advanced VR Options > Debug > Tunables > Spurt Cone
+vr_gore_streams_spurt_speed|2|Tunables|Spurt Speed|Advanced VR Options > Debug > Tunables > Spurt Speed
+vr_gore_streams_spurt_life|2|Tunables|Spurt Lifetime|Advanced VR Options > Debug > Tunables > Spurt Lifetime
+vr_gore_streams_spurt_outliers|2|Tunables|Spurt Outliers|Advanced VR Options > Debug > Tunables > Spurt Outliers
+vr_gore_streams_spurt_outlier_life|2|Tunables|Spurt Outlier Lifetime|Advanced VR Options > Debug > Tunables > Spurt 
+vr_gore_streams_spurt_size|2|Tunables|Spurt Size|Advanced VR Options > Debug > Tunables > Spurt Size
+vr_gore_streams_splash_size|2|Tunables|Splash Size|Advanced VR Options > Debug > Tunables > Splash Size
+vr_gore_streams_smooth|2|Tunables|Stream Smoothing|Advanced VR Options > Debug > Tunables > Stream Smoothing
+vr_gore_streams_inherit|2|Tunables|Stream Body Motion|Advanced VR Options > Debug > Tunables > Stream Body Motion
+vr_gore_streams_break|2|Tunables|Stream Break Stretch|Advanced VR Options > Debug > Tunables > Stream Break Stretch
+vr_footprint_count|2|Tunables|Footprints|Advanced VR Options > Debug > Tunables > Footprints
+vr_footprint_size|2|Tunables|Footprint Size|Advanced VR Options > Debug > Tunables > Footprint Size
+vr_handprint_count|2|Tunables|Handprints|Advanced VR Options > Debug > Tunables > Handprints
+vr_handprint_size|2|Tunables|Handprint Size|Advanced VR Options > Debug > Tunables > Handprint Size
+vr_gore_stick|2|Tunables|Gibs Stick|Advanced VR Options > Debug > Tunables > Gibs Stick
+vr_gore_stick_speed|2|Tunables|Speed to Stick|Advanced VR Options > Debug > Tunables > Speed to Stick
 |2|Tunables|Reset This Page|Advanced VR Options > Debug > Tunables > Reset This Page
 @page|2|Debug - Cheats and Recording||Advanced VR Options > Debug > Cheats and Recording
 |2|Debug - Cheats and Recording|God Mode|Advanced VR Options > Debug > Cheats and Recording > God Mode
@@ -3881,7 +3995,6 @@ vr_cache_warmup|2|Debug - Profiling and Memory|Cache Warm-up|Advanced VR Options
 |2|Debug - Profiling and Memory|Cache Info|Advanced VR Options > Debug > Profiling and Memory > Cache Info
 vr_probe_kinds|2|Debug - Profiling and Memory|Ready What Can Appear|Advanced VR Options > Debug > Profiling and 
 vr_probe_test_spawn|2|Debug - Profiling and Memory|Ready the Debug Spawner's|Advanced VR Options > Debug > 
-vr_image_cache_mb|2|Debug - Profiling and Memory|Decoded Image Cache|Advanced VR Options > Debug > Profiling and 
 vr_campaign_keep_models|2|Debug - Profiling and Memory|Campaign Switch Keeps Models|Advanced VR Options > Debug > 
 |2|Debug - Profiling and Memory|Kept Models Info|Advanced VR Options > Debug > Profiling and Memory > Kept Models 
 |2|Debug - Profiling and Memory|Decoded Image Cache Info|Advanced VR Options > Debug > Profiling and Memory > 
@@ -3935,7 +4048,6 @@ vr_memstats_log_gpu|2|Debug - Profiling and Memory|Memory Log: GPU|Advanced VR O
 |2|Debug - Profiling and Memory|Heap Statistics|Advanced VR Options > Debug > Profiling and Memory > Heap Statistics
 |2|Debug - Profiling and Memory|Heap Stress|Advanced VR Options > Debug > Profiling and Memory > Heap Stress
 vr_heap_purge_delay|2|Debug - Profiling and Memory|Heap: Purge Delay|Advanced VR Options > Debug > Profiling and 
-vr_heap_load_hold|2|Debug - Profiling and Memory|Heap: Hold During Loads|Advanced VR Options > Debug > Profiling 
 |2|Debug - Profiling and Memory|Heap: Return Free Memory|Advanced VR Options > Debug > Profiling and Memory > Heap: 
 vr_glsafe|2|Debug - Profiling and Memory|GL Safe Mode|Advanced VR Options > Debug > Profiling and Memory > GL Safe 
 vr_gl_workarounds|2|Debug - Profiling and Memory|AMD Workarounds|Advanced VR Options > Debug > Profiling and Memory 
@@ -4000,8 +4112,6 @@ vr_flat_turnlag_speed|2|Debug - Reports|Flatscreen Turn Lag Recovery|Advanced VR
 |2|Debug - Reports|Trace Nearest Monster's Motion|Advanced VR Options > Debug > Reports > Trace Nearest Monster's 
 |2|Debug - Reports|Pin Nearest Monster Mid-Swing|Advanced VR Options > Debug > Reports > Pin Nearest Monster 
 |2|Debug - Reports|Unpin Monster|Advanced VR Options > Debug > Reports > Unpin Monster
-vr_anim_smooth_rig_error|2|Debug - Reports|Limb Fit Limit|Advanced VR Options > Debug > Reports > Limb Fit Limit
-vr_anim_smooth_rebuild_error|2|Debug - Reports|Rebuild Fit Limit|Advanced VR Options > Debug > Reports > Rebuild 
 |2|Debug - Reports|Corpse Poses|Advanced VR Options > Debug > Reports > Corpse Poses
 |2|Debug - Reports|Corpses in the Physics|Advanced VR Options > Debug > Reports > Corpses in the Physics
 |2|Debug - Reports|Held Props|Advanced VR Options > Debug > Reports > Held Props
@@ -4429,10 +4539,6 @@ vr_trailer_log|2|Debug - Tests|Trailer Scene Log|Advanced VR Options > Debug > T
 |2|Debug - Tests|Two Large Crates Stacked Ahead|Advanced VR Options > Debug > Tests > Two Large Crates Stacked Ahead
 |2|Debug - Tests|A Large Crate on Its Side Ahead|Advanced VR Options > Debug > Tests > A Large Crate on Its Side 
 vr_climb_prop_mass|2|Debug - Tests|Props Hold Like the Level From|Advanced VR Options > Debug > Tests > Props Hold 
-vr_climb_prop_pull|2|Debug - Tests|Light Prop Pull|Advanced VR Options > Debug > Tests > Light Prop Pull
-vr_climb_prop_tilt|2|Debug - Tests|Prop Hold Tips Off At|Advanced VR Options > Debug > Tests > Prop Hold Tips Off At
-vr_climb_prop_slip|2|Debug - Tests|Light Prop Slips Off At|Advanced VR Options > Debug > Tests > Light Prop Slips 
-vr_climb_prop_letgo_speed|2|Debug - Tests|Prop Knocked Away At|Advanced VR Options > Debug > Tests > Prop Knocked 
 |2|Debug - Tests|Every Weapon Pickup Ahead|Advanced VR Options > Debug > Tests > Every Weapon Pickup Ahead
 |2|Debug - Tests|Next Pair Before You|Advanced VR Options > Debug > Tests > Next Pair Before You
 |2|Debug - Tests|Every Enemy Weapon Dropped Ahead|Advanced VR Options > Debug > Tests > Every Enemy Weapon Dropped 
@@ -4565,7 +4671,6 @@ vr_debug_sound_log|2|Debug - Tests|Log Sounds|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Hitbox Stats|Advanced VR Options > Debug > Tests > Hitbox Stats
 vr_hull_keep|2|Debug - Tests|Keep Hitboxes for Reloads|Advanced VR Options > Debug > Tests > Keep Hitboxes for 
 vr_hull_cache|2|Debug - Tests|Hitboxes on Disk|Advanced VR Options > Debug > Tests > Hitboxes on Disk
-vr_hull_build_mb|2|Debug - Tests|Hitbox Build Memory|Advanced VR Options > Debug > Tests > Hitbox Build Memory
 vr_hull_async|2|Debug - Tests|New Monster Sizes in Play|Advanced VR Options > Debug > Tests > New Monster Sizes in 
 |2|Debug - Tests|The Gates In This Map|Advanced VR Options > Debug > Tests > The Gates In This Map
 |2|Debug - Tests|Teleporter Test Map|Advanced VR Options > Debug > Tests > Teleporter Test Map
@@ -6989,58 +7094,23 @@ vr_ragdoll_max|2|Gibs and Corpses - Ragdolls|Most Ragdolls|Advanced VR Options >
 vr_ragdoll_collide_each|2|Gibs and Corpses - Ragdolls|Ragdolls Meet Each Other|Advanced VR Options > Carrying and 
 vr_ragdoll_self_collide|2|Gibs and Corpses - Ragdolls|Limbs Meet Each Other|Advanced VR Options > Carrying and 
 vr_ragdoll_active|2|Gibs and Corpses - Ragdolls|Active Deaths|Advanced VR Options > Carrying and Throwing > Gibs 
-vr_ragdoll_active_strength|2|Gibs and Corpses - Ragdolls|Muscle Strength|Advanced VR Options > Carrying and 
-vr_ragdoll_active_fade|2|Gibs and Corpses - Ragdolls|Strength Lasts|Advanced VR Options > Carrying and Throwing > 
-vr_ragdoll_active_hertz|2|Gibs and Corpses - Ragdolls|Muscle Stiffness|Advanced VR Options > Carrying and Throwing 
-vr_ragdoll_active_damping|2|Gibs and Corpses - Ragdolls|Muscle Damping|Advanced VR Options > Carrying and Throwing 
-vr_ragdoll_active_torque|2|Gibs and Corpses - Ragdolls|Muscle Torque|Advanced VR Options > Carrying and Throwing > 
-vr_ragdoll_active_pin|2|Gibs and Corpses - Ragdolls|Thrown by His Death|Advanced VR Options > Carrying and Throwing 
-vr_ragdoll_active_pin_time|2|Gibs and Corpses - Ragdolls|Thrown For|Advanced VR Options > Carrying and Throwing > 
-vr_ragdoll_active_stumble|2|Gibs and Corpses - Ragdolls|Stumble From|Advanced VR Options > Carrying and Throwing > 
 vr_ragdoll_active_dismember|2|Gibs and Corpses - Ragdolls|React to Lost Limbs|Advanced VR Options > Carrying and 
-vr_ragdoll_active_dismember_time|2|Gibs and Corpses - Ragdolls|Writhing|Advanced VR Options > Carrying and Throwing 
-vr_ragdoll_active_writhe|2|Gibs and Corpses - Ragdolls|Writhe Size|Advanced VR Options > Carrying and Throwing > 
-vr_ragdoll_active_balance_time|2|Gibs and Corpses - Ragdolls|Balance on One Leg|Advanced VR Options > Carrying and 
-vr_ragdoll_active_balance_lean|2|Gibs and Corpses - Ragdolls|Falls Past|Advanced VR Options > Carrying and Throwing 
 vr_ragdoll_active_wound|2|Gibs and Corpses - Ragdolls|Hold the Wound|Advanced VR Options > Carrying and Throwing > 
 vr_ragdoll_active_env|2|Gibs and Corpses - Ragdolls|Use What Is Round Him|Advanced VR Options > Carrying and 
 vr_ragdoll_active_crawl|2|Gibs and Corpses - Ragdolls|Crawl Away|Advanced VR Options > Carrying and Throwing > Gibs 
 vr_ragdoll_active_crawl_time|2|Gibs and Corpses - Ragdolls|Crawl Time|Advanced VR Options > Carrying and Throwing > 
 vr_ragdoll_active_crawl_back|2|Gibs and Corpses - Ragdolls|Flail on His Back|Advanced VR Options > Carrying and 
-vr_ragdoll_active_crawl_force|2|Gibs and Corpses - Ragdolls|Crawl Pull|Advanced VR Options > Carrying and Throwing 
 vr_ragdoll_active_liquids|2|Gibs and Corpses - Ragdolls|Swim and Flail in Liquids|Advanced VR Options > Carrying 
-vr_ragdoll_active_paddle|2|Gibs and Corpses - Ragdolls|Paddle Time|Advanced VR Options > Carrying and Throwing > 
-vr_ragdoll_active_flail|2|Gibs and Corpses - Ragdolls|Flail Time|Advanced VR Options > Carrying and Throwing > Gibs 
 vr_hit_react|2|Gibs and Corpses - Ragdolls|Hit Reactions|Advanced VR Options > Carrying and Throwing > Gibs and 
-vr_hit_react_strength|2|Gibs and Corpses - Ragdolls|Reaction Strength|Advanced VR Options > Carrying and Throwing > 
-vr_hit_react_time|2|Gibs and Corpses - Ragdolls|Reaction Length|Advanced VR Options > Carrying and Throwing > Gibs 
 vr_hit_react_slow|2|Gibs and Corpses - Ragdolls|Hits Slow Them|Advanced VR Options > Carrying and Throwing > Gibs 
 vr_ragdoll_active_stagger|2|Gibs and Corpses - Ragdolls|Active Shoves and Throws|Advanced VR Options > Carrying and 
-vr_ragdoll_active_stagger_lean|2|Gibs and Corpses - Ragdolls|Stagger Falls Past|Advanced VR Options > Carrying and 
-vr_ragdoll_active_stagger_steps|2|Gibs and Corpses - Ragdolls|Backpedal Steps|Advanced VR Options > Carrying and 
 vr_ragdoll_active_stagger_travel|2|Gibs and Corpses - Ragdolls|Backpedal Distance|Advanced VR Options > Carrying 
-vr_ragdoll_active_stagger_push|2|Gibs and Corpses - Ragdolls|Shove's Push|Advanced VR Options > Carrying and 
-vr_ragdoll_active_stagger_pin|2|Gibs and Corpses - Ragdolls|Stagger Balance|Advanced VR Options > Carrying and 
-vr_ragdoll_active_stagger_blend|2|Gibs and Corpses - Ragdolls|Stagger Recovery Blend|Advanced VR Options > Carrying 
-vr_ragdoll_active_stagger_settle|2|Gibs and Corpses - Ragdolls|Stagger Settles Below|Advanced VR Options > Carrying 
-vr_ragdoll_active_stagger_settle_time|2|Gibs and Corpses - Ragdolls|Stagger Settle at Most|Advanced VR Options > 
-vr_ragdoll_active_stagger_drop|2|Gibs and Corpses - Ragdolls|Stagger Drop Falls|Advanced VR Options > Carrying and 
 vr_ragdoll_active_getup|2|Gibs and Corpses - Ragdolls|Active Get-Ups|Advanced VR Options > Carrying and Throwing > 
 vr_ragdoll_active_drown|2|Gibs and Corpses - Ragdolls|Drowning Struggle|Advanced VR Options > Carrying and Throwing 
 vr_ragdoll_active_pullup|2|Gibs and Corpses - Ragdolls|Pull Up From Ledges|Advanced VR Options > Carrying and 
 vr_ragdoll_active_grab|2|Gibs and Corpses - Ragdolls|Grab Others Falling|Advanced VR Options > Carrying and 
 vr_ragdoll_active_guard|2|Gibs and Corpses - Ragdolls|Guard the Head|Advanced VR Options > Carrying and Throwing > 
 vr_corpse_placed|2|Gibs and Corpses - Ragdolls|Placed Corpses Are Bodies|Advanced VR Options > Carrying and 
-vr_ragdoll_active_getup_pin|2|Gibs and Corpses - Ragdolls|Get-Up Lift|Advanced VR Options > Carrying and Throwing > 
-vr_ragdoll_active_getup_pace|2|Gibs and Corpses - Ragdolls|Get-Up Pace|Advanced VR Options > Carrying and Throwing 
-vr_ragdoll_active_getup_blend|2|Gibs and Corpses - Ragdolls|Get-Up Blend|Advanced VR Options > Carrying and 
-vr_ragdoll_mass|2|Gibs and Corpses - Ragdolls|Mass|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > 
-vr_ragdoll_friction|2|Gibs and Corpses - Ragdolls|Friction|Advanced VR Options > Carrying and Throwing > Gibs and 
-vr_ragdoll_joint_friction|2|Gibs and Corpses - Ragdolls|Joint Friction|Advanced VR Options > Carrying and Throwing 
-vr_ragdoll_joint_stiffness|2|Gibs and Corpses - Ragdolls|Joint Stiffness|Advanced VR Options > Carrying and 
-vr_ragdoll_limits|2|Gibs and Corpses - Ragdolls|Joint Limits|Advanced VR Options > Carrying and Throwing > Gibs and 
-vr_ragdoll_damping|2|Gibs and Corpses - Ragdolls|Limb Damping|Advanced VR Options > Carrying and Throwing > Gibs 
-vr_ragdoll_blast|2|Gibs and Corpses - Ragdolls|Blast Throw|Advanced VR Options > Carrying and Throwing > Gibs and 
 vr_ragdoll_inherit|2|Gibs and Corpses - Ragdolls|Death Motion Kept|Advanced VR Options > Carrying and Throwing > 
 vr_ragdoll_grab_reach|2|Gibs and Corpses - Ragdolls|Grip Reach|Advanced VR Options > Carrying and Throwing > Gibs 
 |2|Gibs and Corpses - Ragdolls|Reset This Page|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > 
@@ -7378,52 +7448,13 @@ vr_reload_well_adplasma_roll|1|Reloading - Plasma Gun|Receiver Roll|Advanced VR 
 vr_water_foam|1|Graphics - Shoreline Foam|Shoreline Foam|Advanced VR Options > Graphics > Liquids > Shoreline Foam 
 vr_water_foam_on|1|Graphics - Shoreline Foam|Water Foam|Advanced VR Options > Graphics > Liquids > Shoreline Foam 
 vr_water_foam_opacity|1|Graphics - Shoreline Foam|Water Opacity|Advanced VR Options > Graphics > Liquids > 
-vr_water_foam_frequency|1|Graphics - Shoreline Foam|Water Frequency|Advanced VR Options > Graphics > Liquids > 
-vr_water_foam_strength|1|Graphics - Shoreline Foam|Water Strength|Advanced VR Options > Graphics > Liquids > 
-vr_water_foam_breathe|1|Graphics - Shoreline Foam|Water Breathing|Advanced VR Options > Graphics > Liquids > 
-vr_water_foam_breathe_speed|1|Graphics - Shoreline Foam|Water Breathing Speed|Advanced VR Options > Graphics > 
-vr_water_foam_breathe_irregularity|1|Graphics - Shoreline Foam|Water Breathing Irregularity|Advanced VR Options > 
-vr_water_foam_red|1|Graphics - Shoreline Foam|Water Red|Advanced VR Options > Graphics > Liquids > Shoreline Foam 
-vr_water_foam_green|1|Graphics - Shoreline Foam|Water Green|Advanced VR Options > Graphics > Liquids > Shoreline 
-vr_water_foam_blue|1|Graphics - Shoreline Foam|Water Blue|Advanced VR Options > Graphics > Liquids > Shoreline Foam 
 vr_water_foam_particles|1|Graphics - Shoreline Foam|Water Particles|Advanced VR Options > Graphics > Liquids > 
-vr_water_foam_particle_life|1|Graphics - Shoreline Foam|Water Particle Life|Advanced VR Options > Graphics > 
-vr_water_foam_particle_opacity|1|Graphics - Shoreline Foam|Water Particle Opacity|Advanced VR Options > Graphics > 
-vr_water_foam_particle_size|1|Graphics - Shoreline Foam|Water Particle Size|Advanced VR Options > Graphics > 
-vr_water_foam_particle_shore|1|Graphics - Shoreline Foam|Water Particle Shore|Advanced VR Options > Graphics > 
-vr_water_foam_edge|1|Graphics - Shoreline Foam|Water Wavy Edge|Advanced VR Options > Graphics > Liquids > Shoreline 
 vr_lava_foam_on|1|Graphics - Shoreline Foam|Lava Foam|Advanced VR Options > Graphics > Liquids > Shoreline Foam 
 vr_lava_foam_opacity|1|Graphics - Shoreline Foam|Lava Opacity|Advanced VR Options > Graphics > Liquids > Shoreline 
-vr_lava_foam_frequency|1|Graphics - Shoreline Foam|Lava Frequency|Advanced VR Options > Graphics > Liquids > 
-vr_lava_foam_strength|1|Graphics - Shoreline Foam|Lava Strength|Advanced VR Options > Graphics > Liquids > 
-vr_lava_foam_breathe|1|Graphics - Shoreline Foam|Lava Breathing|Advanced VR Options > Graphics > Liquids > 
-vr_lava_foam_breathe_speed|1|Graphics - Shoreline Foam|Lava Breathing Speed|Advanced VR Options > Graphics > 
-vr_lava_foam_breathe_irregularity|1|Graphics - Shoreline Foam|Lava Breathing Irregularity|Advanced VR Options > 
-vr_lava_foam_red|1|Graphics - Shoreline Foam|Lava Red|Advanced VR Options > Graphics > Liquids > Shoreline Foam 
-vr_lava_foam_green|1|Graphics - Shoreline Foam|Lava Green|Advanced VR Options > Graphics > Liquids > Shoreline Foam 
-vr_lava_foam_blue|1|Graphics - Shoreline Foam|Lava Blue|Advanced VR Options > Graphics > Liquids > Shoreline Foam 
 vr_lava_foam_particles|1|Graphics - Shoreline Foam|Lava Particles|Advanced VR Options > Graphics > Liquids > 
-vr_lava_foam_particle_life|1|Graphics - Shoreline Foam|Lava Particle Life|Advanced VR Options > Graphics > Liquids 
-vr_lava_foam_particle_opacity|1|Graphics - Shoreline Foam|Lava Particle Opacity|Advanced VR Options > Graphics > 
-vr_lava_foam_particle_size|1|Graphics - Shoreline Foam|Lava Particle Size|Advanced VR Options > Graphics > Liquids 
-vr_lava_foam_particle_shore|1|Graphics - Shoreline Foam|Lava Particle Shore|Advanced VR Options > Graphics > 
-vr_lava_foam_edge|1|Graphics - Shoreline Foam|Lava Wavy Edge|Advanced VR Options > Graphics > Liquids > Shoreline 
 vr_slime_foam_on|1|Graphics - Shoreline Foam|Slime Foam|Advanced VR Options > Graphics > Liquids > Shoreline Foam 
 vr_slime_foam_opacity|1|Graphics - Shoreline Foam|Slime Opacity|Advanced VR Options > Graphics > Liquids > 
-vr_slime_foam_frequency|1|Graphics - Shoreline Foam|Slime Frequency|Advanced VR Options > Graphics > Liquids > 
-vr_slime_foam_strength|1|Graphics - Shoreline Foam|Slime Strength|Advanced VR Options > Graphics > Liquids > 
-vr_slime_foam_breathe|1|Graphics - Shoreline Foam|Slime Breathing|Advanced VR Options > Graphics > Liquids > 
-vr_slime_foam_breathe_speed|1|Graphics - Shoreline Foam|Slime Breathing Speed|Advanced VR Options > Graphics > 
-vr_slime_foam_breathe_irregularity|1|Graphics - Shoreline Foam|Slime Breathing Irregularity|Advanced VR Options > 
-vr_slime_foam_red|1|Graphics - Shoreline Foam|Slime Red|Advanced VR Options > Graphics > Liquids > Shoreline Foam 
-vr_slime_foam_green|1|Graphics - Shoreline Foam|Slime Green|Advanced VR Options > Graphics > Liquids > Shoreline 
-vr_slime_foam_blue|1|Graphics - Shoreline Foam|Slime Blue|Advanced VR Options > Graphics > Liquids > Shoreline Foam 
 vr_slime_foam_particles|1|Graphics - Shoreline Foam|Slime Particles|Advanced VR Options > Graphics > Liquids > 
-vr_slime_foam_particle_life|1|Graphics - Shoreline Foam|Slime Particle Life|Advanced VR Options > Graphics > 
-vr_slime_foam_particle_opacity|1|Graphics - Shoreline Foam|Slime Particle Opacity|Advanced VR Options > Graphics > 
-vr_slime_foam_particle_size|1|Graphics - Shoreline Foam|Slime Particle Size|Advanced VR Options > Graphics > 
-vr_slime_foam_particle_shore|1|Graphics - Shoreline Foam|Slime Particle Shore|Advanced VR Options > Graphics > 
-vr_slime_foam_edge|1|Graphics - Shoreline Foam|Slime Wavy Edge|Advanced VR Options > Graphics > Liquids > Shoreline 
 |1|Graphics - Shoreline Foam|Reset This Page|Advanced VR Options > Graphics > Liquids > Shoreline Foam Settings > 
 @page|2|Retro Textures - World||Advanced VR Options > Graphics > Retro Textures > World
 vr_retro_world|2|Retro Textures - World|World|Advanced VR Options > Graphics > Retro Textures > World > World

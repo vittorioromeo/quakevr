@@ -356,7 +356,7 @@ void toggle(int hand)
 {
     const bool on = vr_gear_lights.value == 0.f;
     Cvar_SetValueQuick(&vr_gear_lights, on ? 1.f : 0.f);
-    const cvar_t& sound = on ? vr_gear_lights_sound_on : vr_gear_lights_sound_off;
+    const Tunable& sound = on ? vr_gear_lights_sound_on : vr_gear_lights_sound_off;
     if(sound.string && sound.string[0] && cls.state == ca_connected)
     {
         S_LocalSound(sound.string);

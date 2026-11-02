@@ -131,6 +131,10 @@ extern Tunable tunables[tunableCount]; // (vr_tunables.cpp) the values now: the 
 // cvar() and cvar_hmake (its string and value are the constant's now); nullptr for any other name.
 [[nodiscard]] const cvar_t* tunableFind(const char* name);
 
+// A setting by name, or (a development build) a tuning constant's stand-in, which Cvar_SetQuick sets live: what the
+// rows named by text (the menus' by-name rows, the Ragdoll Tool's registry) show and set. nullptr if neither.
+[[nodiscard]] cvar_t* settingByName(const char* name);
+
 void tunablesInit(); // the stand-ins' check; in a development build tune, tune_reset and the Tunables page's settings
 void tunablesLoad(); // tunables.cfg, once, after the config (vr_migrate_config; nothing in a release build)
 
@@ -174,7 +178,6 @@ struct TunableRow
 void tunableSet(int id, const char* value);               // (its default: no longer changed)
 void tunableReset(int id);
 void tunablesResetAll();
-[[nodiscard]] cvar_t& tunablesPageCvar();        // vr_tunables_page: the Tunables page shows one page's (from 1; 0 all)
 [[nodiscard]] cvar_t& tunablesShowChangedCvar(); // vr_tunables_show_changed: only the ones off their defaults
 #endif
 

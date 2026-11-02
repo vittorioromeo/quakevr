@@ -590,6 +590,12 @@ za::Vector<Item> pageSpawnWeapons();
 extern int testsPageSpawn;
 #ifndef QVR_RELEASE
 [[nodiscard]] za::Vector<Item> pageTunables(); // (vr_menu_tunables.inc)
+template<int Depth>
+[[nodiscard]] za::Vector<Item> pageTunablesAt(); // a Tunables submenu, Depth pages below it
+[[nodiscard]] const char* tunablesTitle(int page); // a Tunables submenu's page: its name, over it (nullptr: not one)
+// Search's result on the Tunables page: the submenu with that constant's row (its pages above set to the way down).
+[[nodiscard]] int tunablesSearchTarget(int target, const cvar_t* cvar);
+void tunablesTreeCheck_f(); // vr_tunables_tree [list]: every constant on one submenu reached from the Tunables page
 extern int tunablesPageKey;
 extern bool tunablesPageUnfiltered;
 [[nodiscard]] int tunablesPageKeyNow();

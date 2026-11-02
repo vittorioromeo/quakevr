@@ -62,6 +62,9 @@ void dump_f();
 // lines: "MP|<cvar, @page, or empty>|<level>|<page title>|<row label>|<path>". Misc/quakevr/menu_paths.py turns them
 // into Misc/quakevr/menu_paths.txt, which the board maps' scripts read ({menu:...} from a cvar's name).
 void dumpPaths_f();
+#ifndef QVR_RELEASE
+void tunablesTree_f(); // vr_tunables_tree [list]: Debug > Tunables' submenus checked (each constant on one, reached)
+#endif
 // vr_menu_press <page title> > <row label>: that button pressed (its command run, its function called), whatever Menu
 // Detail shows; the tests' (Misc/quakevr/ragdoll/ragtest_test.sh: each Ragdoll Behaviours button).
 void press_f();

@@ -954,7 +954,7 @@ constexpr int actionCount = static_cast<int>(za::getArraySize(actions));
         {
             p++;
         }
-        const cvar_t* var = Cvar_FindVar(name);
+        const cvar_t* var = settingByName(name); // (a setting or a tuning constant)
         if(var && var->value == 0.f)
         {
             return var;

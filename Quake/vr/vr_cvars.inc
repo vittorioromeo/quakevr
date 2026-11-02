@@ -11,7 +11,6 @@ QVR_CVAR(vr_hull_ent_width, "-1", CVAR_ARCHIVE)        // the player's width aga
 QVR_CVAR(vr_hull_edge_probe, "1", CVAR_ARCHIVE)       // Quake's "over a ledge" friction test (double friction) looks down from your box's leading edge (half its width ahead; Quake: 16), and a point inside a step has floor under it; 0: Quake's (under a stairs' clip ramp that point was inside the steps: walking up slowed to a crawl, a jump there went nowhere)
 QVR_CVAR(vr_hull_brushmodels, "1", CVAR_ARCHIVE)       // the narrow width against brush models too (doors, lifts, func_walls, external .bsp models), not only the world
 QVR_CVAR(vr_hull_cache, "1", CVAR_ARCHIVE)             // the world's compiled hulls kept on disk (cache/hulls, vr_hull.cpp: trees that took 250 ms or more; vrstart cold 10 s to under 1): 0 compiled at every load; 2 read, then compiled anyway and compared (vr_hull_stats)
-QVR_CVAR(vr_hull_build_mb, "1024", CVAR_ARCHIVE)       // the memory the world's compiled hulls' builds at a load may hold at once (MB, estimated: 16 KB a brush of the world's a tree; vrstart: about 330 MB a tree, three at once): a build past it waits for one to end (one always runs); 0: no limit (vrstart's seven at once: about 1 GB more working set, 5-10% quicker)
 QVR_CVAR(vr_hull_async, "1", CVAR_NONE)               // a monster's box size first met in play (no tree from the load: AD's delayed spawns, the test spawner) compiled on the pool while it moves with Quake's hull, not in the frame (ad_tears' 40x88: a 1.3-1.9 s hitch); 0: compiled at its first move, the frame waiting (vr_hull.cpp, "Trees compiled in play")
 QVR_CVAR(vr_hull_keep, "1", CVAR_ARCHIVE)             // maps whose brushes and compiled hulls are kept in memory for a load of the same map again (a death's reload, restart, a changelevel back; 0: off)
 QVR_CVAR(vr_body_monster_inset, "4", CVAR_ARCHIVE)     // units (0-12) each level side of the player's box and a monster's comes in where the two bodies meet (both ways; twice as close face to face): the map, monsters against monsters, shots and melee keep their boxes (vr_bodycontact.cpp)
@@ -42,7 +41,6 @@ QVR_CVAR(vr_mhull_ledges, "1", CVAR_ARCHIVE)            // ... and SV_CheckBotto
 QVR_CVAR(vr_gameplayfix_tossfall, "0", CVAR_NONE)     // resting items and weapons fall when their support goes
 QVR_CVAR(vr_pickup_scale, "1", CVAR_NONE)             // weapons (classic models: vr_pickup_prop_models 0), armour, powerups and keys drawn smaller, on the floor
 QVR_CVAR(vr_pickup_prop_models, "1", CVAR_ARCHIVE)   // the map's weapons drawn as the weapons you hold and drop (their v_ models at their size, not vr_pickup_scale, spinning about their middle), 0 the classic g_ models; next map
-QVR_CVAR(vr_item_float_height, "26", CVAR_ARCHIVE)    // units above the floor the map's weapons, armour, powerups and keys float at (0: on the floor); next map
 QVR_CVAR(vr_unstick, "1", CVAR_ARCHIVE)             // a player found inside the map or a door, button or lift is moved to the nearest free spot (vr_unstick.cpp); 0: Quake's small nudge only
 QVR_CVAR(vr_closequarters, "1", CVAR_ARCHIVE)                  // close-quarters slowdown (vr_closequarters.cpp): walking straight at a live enemy near it is gradually slowed; strafing past it keeps (nearly) full speed
 QVR_CVAR(vr_closequarters_live, "1", CVAR_ARCHIVE)             // only fully live enemies count: not one in ragdoll or active ragdoll form (knocked down, staggering, held, rising)
@@ -103,7 +101,6 @@ QVR_CVAR(vr_debug_damage_numbers, "0", CVAR_NONE)  // every hit on anything that
 // vr_throw_release_speed m/s (a throw), or below vr_throw_release_floor anyway; it grabs again
 // above vr_throw_grab_press. Controllers without an analog grip keep the button.
 QVR_CVAR(vr_throw_release, "1", CVAR_ARCHIVE)
-QVR_CVAR(vr_throw_grab_press, "0.7", CVAR_ARCHIVE)
 // Gameplay scaling (QC): speeds up to vr_throw_gain_lo m/s leave the hand as they are (drops,
 // passes), rising smoothly to vr_throw_gain_max times at vr_throw_gain_hi; a weapon's weight
 // slows it by vr_throw_weight_influence of its old multiplier.
@@ -137,7 +134,6 @@ QVR_CVAR(vr_debug_wallbuttons, "0", CVAR_NONE)         // print each wall button
 // One throw for props and weapons (QC vr_carry.qc, "One throw"; ROUND22.md, "One throw for props and weapons"). Seconds
 // between the two hands letting go (a prop's grips, a weapon's foregrip) that still make a two-handed throw (was
 // vr_carry_two_hands_window 0.1 for props, plus 0.05 on the server; 0.3 hard-coded for weapons).
-QVR_CVAR(vr_throw_2h_window, "0.2", CVAR_ARCHIVE)
 // Share of your own velocity a thing you throw or let go of (a prop, a weapon) takes with it (was vr_carry_throw_inherit 1
 // for props, all of it for weapons; 0: none).
 QVR_CVAR(vr_throw_inherit, "0.9", CVAR_ARCHIVE)
@@ -305,9 +301,9 @@ QVR_CVAR(vr_spectator_preview, "1", CVAR_ARCHIVE)      // spectator camera: a sm
 QVR_CVAR(vr_spectator_aa, "1", CVAR_ARCHIVE)           // spectator camera: 1 the window's MSAA (vid_fsaa), as the eyes; 0 none
 QVR_CVAR(vr_spectator_pos_smooth, "0.05", CVAR_ARCHIVE) // spectator camera: seconds, the steadied position's lag (0 none .. 0.3)
 // RenderDoc capture (vr_renderdoc.cpp): the corner's Capture Frame button (Menu Detail: Developer, RenderDoc attached) and vr_renderdoc_capture.
-QVR_CVAR(vr_renderdoc_delay, "0", CVAR_ARCHIVE)        // seconds from the button's press to the capture (0, 1, 3): time to close the menu or get into position
-QVR_CVAR(vr_renderdoc_frames, "1", CVAR_ARCHIVE)       // frames a capture holds (the button's; vr_renderdoc_capture takes its own)
-QVR_CVAR(vr_renderdoc_hide_menu, "1", CVAR_ARCHIVE)    // 1: the menu is closed for the captured frame (and reopened after); 0: the capture shows it
+QVR_CVAR(vr_renderdoc_delay, "0", CVAR_NONE)        // seconds from the button's press to the capture (0, 1, 3): time to close the menu or get into position
+QVR_CVAR(vr_renderdoc_frames, "1", CVAR_NONE)       // frames a capture holds (the button's; vr_renderdoc_capture takes its own)
+QVR_CVAR(vr_renderdoc_hide_menu, "1", CVAR_NONE)    // 1: the menu is closed for the captured frame (and reopened after); 0: the capture shows it
 // OBS's recording from the menus (vr_obs.cpp): its obs-websocket v5 server (OBS 28+: Tools > WebSocket Server Settings).
 QVR_CVAR(vr_obs, "1", CVAR_ARCHIVE)                    // 1: while a menu is open, look for OBS and show its recording's row above the spectator camera's switch (a press starts or stops it); 0: never
 QVR_CVAR(vr_obs_port, "4455", CVAR_ARCHIVE)            // obs-websocket's port (OBS's default 4455)
@@ -355,9 +351,6 @@ QVR_CVAR(vr_bullettime_tap_holding, "1", CVAR_ARCHIVE) // 1: the tapping hand ma
 QVR_CVAR(vr_bullettime_tap_twohanded, "0", CVAR_ARCHIVE) // 1: taps count while both hands hold one weapon; 0: ignored then (the off hand on a foregrip)
 QVR_CVAR(vr_bullettime_trigger_cooldown, "0.5", CVAR_ARCHIVE) // real seconds after a tap or stick press before the next counts (no double triggers)
 QVR_CVAR(vr_bullettime_tap_sound, "0.4", CVAR_ARCHIVE) // QVR round 21: the gadget's click as a screen tap registers, from its screen (a double tap's first: vr/gadget_tap.wav; the tap that starts or stops it: vr/gadget_tap_on.wav): its volume (0: none .. 1)
-QVR_CVAR(vr_bullettime_sound_on, "items/inv1.wav", CVAR_ARCHIVE)     // its sounds (empty: none)
-QVR_CVAR(vr_bullettime_sound_off, "items/inv2.wav", CVAR_ARCHIVE)
-QVR_CVAR(vr_bullettime_sound_denied, "misc/menu2.wav", CVAR_ARCHIVE) // pressed with the meter too low or cooling down
 // Bullet time's distortion trails (vr_bttrails.cpp; ROUND21.md, "Bullet time's distortion trails"): F.E.A.R.'s wake
 // behind bullets and projectiles, the view behind it bent as through a glass rod, fading along its length.
 QVR_CVAR(vr_bullettime_trails, "1", CVAR_ARCHIVE)          // 1: in bullet time (and fading out over vr_bullettime_trails_fade after); 2: always (to look at them); 0: off
@@ -482,7 +475,6 @@ QVR_CVAR(vr_debug_frame_stall_ms, "0", CVAR_NONE)
 // While VR runs and the desktop window lacks the focus: the mirror presented at most this many times a second (0: every
 // frame). The GPU driver may cap an unfocused window's presents (NVIDIA's Background Application Max Frame Rate), and
 // the wait for it held the headset's frames to that rate (10 fps, then Virtual Desktop stopped the session).
-QVR_CVAR(vr_mirror_unfocused_hz, "4", CVAR_ARCHIVE)
 // While VR runs and the desktop window has the focus: -1 the mirror presented at most once each refresh of the window's
 // display (a monitor slower than the headset: every 2nd headset frame or so), 0 every frame, more than 0 at most this
 // many times a second. A present the display paces (the driver forcing vsync, G-SYNC's or the compositor's flip of the
@@ -567,7 +559,7 @@ QVR_CVAR(vr_stereo_single, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_stereo_single_passes, "3", CVAR_NONE)
 // 1: a line a second in qvr_openxr.txt while VR runs: the frames (rendered, the last one shown again, without layers),
 // the display periods missed, and each OpenXR call's time (average and worst), the session's state; 0 none.
-QVR_CVAR(vr_xr_log_timing, "0", CVAR_ARCHIVE) // (1 before vr_cfg_version 202)
+QVR_CVAR(vr_xr_log_timing, "0", CVAR_NONE) // (1 before vr_cfg_version 202)
 // Tests of the choice without the real runtimes (docs/vr-port/TESTING.md, "OpenXR runtime choice"): vr_xr_test 1 reads
 // the installed runtimes (manifests, comma-separated), the active one and the running processes from these instead of
 // the registry and the system (and never loads the real active runtime). vr_xr_test_fail: runtimes (parts of their
@@ -757,8 +749,6 @@ QVR_CVAR(vr_gadget_light, "0.5", CVAR_ARCHIVE)          // the screen casts a li
 QVR_CVAR(vr_gear_lights, "1", CVAR_ARCHIVE)           // 1: the gear's lights on; 0: dimmed (the side button toggles it; kept)
 QVR_CVAR(vr_gear_lights_dim, "0.05", CVAR_ARCHIVE)    // dimmed: the screens' cast lights and glows at this share (0: none)
 QVR_CVAR(vr_gear_lights_screen_dim, "0.35", CVAR_ARCHIVE) // dimmed: the screens' faces (text, hologram) at this share of their brightness, readable up close
-QVR_CVAR(vr_gear_lights_sound_on, "vr/gadget_click_on.wav", CVAR_ARCHIVE) // the button's clicks (empty: none)
-QVR_CVAR(vr_gear_lights_sound_off, "vr/gadget_click_off.wav", CVAR_ARCHIVE)
 QVR_CVAR(vr_gadget_button, "1", CVAR_ARCHIVE)         // 1: the gadget's side button toggles the gear lights (vr_gear_lights); 0: not
 QVR_CVAR(vr_gadget_button_size, "1.25", CVAR_ARCHIVE)    // cm: the button's hit volume's radius (round its middle; only from its side of the screen's edge)
 QVR_CVAR(vr_gadget_button_x, "0", CVAR_ARCHIVE)       // cm: the hit volume moved along the screen's right ...
@@ -849,10 +839,6 @@ QVR_CVAR(vr_menu_vr_style, "1", CVAR_ARCHIVE)          // menus made for the hea
 QVR_CVAR(vr_menu_main_mods, "0", CVAR_ARCHIVE)        // the main menu's Mods row (Options > Mods has it anyway; Ironwail's own rule still hides it for a mod with its own menu)
 QVR_CVAR(vr_menu_fine_step, "0.1", CVAR_ARCHIVE)      // a slider's step while the fine-adjust modifier is held (a grip in the headset, Shift on a flat screen): this much of its own (0.01 to 1)
 QVR_CVAR(vr_menu_grab, "2", CVAR_ARCHIVE)             // moving the menu panel with a grip (vr_menuui.cpp PanelGrab): 0 never; 1 with the laser on its frame (lit there); 2 also on its face once the hand moves vr_menu_grab_deadzone with the grip held (not after a stick push or with the trigger held: the fine modifier then)
-QVR_CVAR(vr_menu_grab_reach, "3", CVAR_ARCHIVE)       // a held menu panel: the hand's move towards or away from it counts this many times (1: as the hand moves)
-QVR_CVAR(vr_menu_grab_dist_min, "30", CVAR_ARCHIVE)   // cm: nearest a held menu panel can be pulled to the head
-QVR_CVAR(vr_menu_grab_dist_max, "600", CVAR_ARCHIVE)  // cm: farthest it can be pushed (a panel taken farther stays that far at most)
-QVR_CVAR(vr_menu_grab_deadzone, "4", CVAR_ARCHIVE)    // cm a hand moves with a grip held on the panel's face before it takes hold of the panel (vr_menu_grab 2)
 QVR_CVAR(vr_menu_panel_remember, "1", CVAR_ARCHIVE)   // the menu panels after the first (New Panel; MULTI_MENU.md): 1 each opens again where it was last this session (its place from the first panel's); 0 always beside the first
 QVR_CVAR(vr_menu_section_gap, "0.75", CVAR_ARCHIVE)   // the VR pages' space above each section's header (and under the page's title), in rows (0 to 2: 0 none)
 QVR_CVAR(vr_menu_flat_shortcuts, "1", CVAR_ARCHIVE)    // the VR menus' corner buttons (Back to game, Search, Console, VR Settings, Advanced VR, Levels, Map Library, Relighting) on a flat screen too, for the desktop mouse (vr_menuui.cpp)
@@ -929,7 +915,7 @@ QVR_CVAR(vr_menu_dropdown, "4", CVAR_ARCHIVE)          // a VR page's choice row
 QVR_CVAR(vr_menu_help_wpm, "200", CVAR_ARCHIVE)        // the VR pages' help under the list: a help longer than its box shows a part at a time, each kept as long as reading its words takes at this many words a minute (vr_menu.cpp drawHelp; 60 to 600)
 // The body's mirror image while a VR page tweaks something worn on it (vr_bodyclone.cpp; ROUND22.md, "A clone of the body
 // while tweaking"; Debug > Views).
-QVR_CVAR(vr_menu_body_clone, "1", CVAR_ARCHIVE)          // 1: shown while such a page or row is; 2: on every VR page (tests); 0: never
+QVR_CVAR(vr_menu_body_clone, "1", CVAR_NONE)          // 1: shown while such a page or row is; 2: on every VR page (tests); 0: never
 QVR_CVAR(vr_menu_body_clone_distance, "1.4", CVAR_ARCHIVE) // metres from your eyes to the image's (0.5 to 5)
 QVR_CVAR(vr_menu_body_clone_side, "0", CVAR_ARCHIVE)     // where, beside the menu panel: 0 the side away from the main hand, 1 left, 2 right, 3 straight ahead (behind the panel)
 QVR_CVAR(vr_tutorial_started, "0", CVAR_ARCHIVE)      // 1: the tutorial (vrtutorial) has been started once (its worldspawn sets it, QC vr_tutorial.qc): VR starts in the hub; 0 (a new install): vr_startgame and the first calibration's way out go to the tutorial (vr_main.cpp startGameCommands, QC changelevel_touch); configs from before vr_cfg_version 103 have it 1
@@ -1037,12 +1023,10 @@ QVR_CVAR(vr_motion_review_category, "-1", CVAR_ARCHIVE) // and of which category
 QVR_CVAR(vr_motion_review_speed, "0.5", CVAR_ARCHIVE)   // the ghost replay's pace (1: as recorded)
 QVR_CVAR(vr_motion_relabel_category, "0", CVAR_NONE)    // Relabel: the category (vr_motion_category's index) and detail a take is given
 QVR_CVAR(vr_motion_relabel_detail, "0", CVAR_NONE)
-QVR_CVAR(vr_memstats_log_gpu, "0", CVAR_ARCHIVE)  // 1: the memory log's GPU columns (clocks, slowdowns, each program's GPU use: a sampling thread) always; 0: only while profiling (vr_profile, vr_profile_overlay, vr_profile_csv)
-QVR_CVAR(vr_heap_load_hold, "60000", CVAR_ARCHIVE)  // ms a map load keeps the memory it frees for its own later allocations (the heap's purge delay while it loads, vr_crtheap.c), all given back at its first frame drawn: 0 off (purged as vr_heap_purge_delay says; vrstart's hull build 1.7x slower)
+QVR_CVAR(vr_memstats_log_gpu, "0", CVAR_NONE)  // 1: the memory log's GPU columns (clocks, slowdowns, each program's GPU use: a sampling thread) always; 0: only while profiling (vr_profile, vr_profile_overlay, vr_profile_csv)
 QVR_CVAR(vr_heap_purge_delay, "0", CVAR_ARCHIVE)  // ms mimalloc (the heap, vr_crtheap.c) keeps freed memory before giving it back to the system: 0 at once (the smallest working set), 1000 mimalloc's own default (loads ~15% quicker, 0.3-1 GB more held after them), -1 never. MIMALLOC_PURGE_DELAY sets the start-up value
-QVR_CVAR(vr_memstats_log, "0", CVAR_ARCHIVE)      // seconds between rows of quakevr/profile/memstats_<date>.csv (and one after each map load; 0: off) (60 before vr_cfg_version 202)
+QVR_CVAR(vr_memstats_log, "0", CVAR_NONE)      // seconds between rows of quakevr/profile/memstats_<date>.csv (and one after each map load; 0: off) (60 before vr_cfg_version 202)
 QVR_CVAR(vr_memstats_glscan, "1", CVAR_NONE)       // the memory log's GL object count at each map load (vr_main.cpp countGlForLog): 1 the names glGen* hands out (no object, by the GL spec) not asked about (the same count, 5 ms), 0 every name asked up to 4096 past the last object (13 ms), 2 both, compared (printed)
-QVR_CVAR(vr_image_cache_mb, "512", CVAR_ARCHIVE)   // decoded image files (a texture pack's world textures, material maps, skies, skins) kept across map loads, up to this many MB (vr_imgcache.cpp: keyed by the file itself; the least recently used go first; vr_image_cache_info); 0: none kept, each load decodes them again
 QVR_CVAR(vr_texture_prefetch, "1", CVAR_ARCHIVE)   // a map load decodes its textures' replacement images (their glows, the external pack's maps) on worker threads ahead of Mod_LoadTextures' uploads, which take them in order (vr_imgprefetch.cpp; the same pixels; vr_image_prefetch_info); 0: decoded on the main thread at each upload, as before
 QVR_CVAR(vr_campaign_keep_models, "1", CVAR_ARCHIVE) // a campaign switch (id1 to a mission pack and back) keeps the alias models whose files are the same in its game folders (vr_modelkeep.cpp: each file its load looked for found the same again; vr_model_keep_info); 0: every model loaded again
 QVR_CVAR(vr_gadget_fps, "0", CVAR_ARCHIVE)         // QVR round 21: an FPS counter floating just under the wrist gadget: 1 basic (frames a second, the CPU's and the GPU's milliseconds a frame: the memory log's busy_ms and gpu_eyes_ms, over half a second), 2 detailed (now, a quarter second's average, the last 5 s's least and most, frames that missed a refresh, 3 s graphs against the budget)
@@ -1063,7 +1047,6 @@ QVR_CVAR(vr_2h_virtual_stock_factor, "0.5", CVAR_ARCHIVE)
 // A Cup hotspot (a two-handed pistol grip: held wherever the hands point) takes the virtual stock too (his notes
 // 2026-10-19, the Widowmaker's two handles): the holding hand at the shoulder aims from the shoulder through the other
 // hand (vr_twohand.cpp applyHotspots). 0: a cup never aims.
-QVR_CVAR(vr_2h_cup_stock, "1", CVAR_ARCHIVE)
 // Sticky two-handed grips (ROUND21.md, "Heavy weapons: wrenched out, sticky grips, heavy melee"; vr_twohand.cpp): once
 // the helping hand holds a weapon's hotspot, how far off it it may go (20 units plus the hotspot's own Stickiness), the
 // angle it may turn the aim off (vr_2h_angle_threshold) and how far past the muzzle it may go, before it lets go, are
@@ -1687,7 +1670,6 @@ QVR_CVAR(vr_gunfx_wisp_spread, "3", CVAR_ARCHIVE)      // times thicker (and fai
 QVR_CVAR(vr_gunfx_wisp_amount, "1", CVAR_ARCHIVE)      // their opacity, times (0-4)
 QVR_CVAR(vr_gunfx_wisp_opacity, "1", CVAR_ARCHIVE)     // the most opaque they get (0.02-1: a cap on Wisp Amount's opacity)
 QVR_CVAR(vr_gunfx_wisp_rise, "31.5", CVAR_ARCHIVE)       // cm a second the smoke rises (0-200; vr_gunfx_turbulence curls it)
-QVR_CVAR(vr_gunfx_wisp_pixels, "1.5", CVAR_ARCHIVE)    // the thinnest they are drawn, in pixels (fainter instead: no shimmer far off; 0.5-8)
 QVR_CVAR(vr_gunfx_impacts, "1", CVAR_ARCHIVE)          // bullets' and nails' wall hits by the surface's material (vr_impacts.cpp): dust off stone, sparks off metal, chips off wood
 QVR_CVAR(vr_gunfx_ozone, "1", CVAR_ARCHIVE)            // a faint bluish ozone haze where the thunderbolt's beam plays on a surface
 QVR_CVAR(vr_gunfx_enemies, "1", CVAR_ARCHIVE)          // the monsters' guns too (the grunts', the enforcers', the armed grunts')
@@ -1738,7 +1720,6 @@ QVR_CVAR(vr_seated_reach, "1", CVAR_ARCHIVE)         // seated, a hand reaching 
 QVR_CVAR(vr_seated_reach_start, "0.55", CVAR_ARCHIVE) // ... real metres over your floor the hand starts going down faster (under the seat's edge: the thighs and the hip holsters stay as they are)
 QVR_CVAR(vr_seated_reach_floor, "0.1", CVAR_ARCHIVE)  // ... real metres over your floor the hand is as low in the game as it is in the room (the floor in reach)
 QVR_CVAR(vr_seated_crouch_depth, "0.5", CVAR_ARCHIVE) // seated, metres vr_crouch_toggle lowers you (eased in and out)
-QVR_CVAR(vr_seated_crouch_ease, "0.2", CVAR_ARCHIVE)  // ... seconds it eases over
 QVR_CVAR(vr_seated_crouch_button, "0", CVAR_ARCHIVE)  // seated, a stick press that runs vr_crouch_toggle (the press then does only that and, if bullet time is not on the same stick, never its bound key); 0 off, 1 the left stick, 2 the right stick
 // The seated layout: each pair of holsters and the ammo pouch moved by these seated (units forward, outwards (the pouch:
 // to the right), up, in the body's facing; degrees as their Hotspots turn), on top of the standing (and crouched)
@@ -1927,7 +1908,6 @@ QVR_CVAR(vr_water_sounds, "1", CVAR_ARCHIVE)          // volume of the water sou
 QVR_CVAR(vr_graphics_preset, "-1", CVAR_NONE)          // set 0 off .. 4 ultra to apply a preset to the settings below
 QVR_CVAR(vr_shadow_dlights, "8", CVAR_ARCHIVE)         // dynamic lights (explosions, rockets) casting shadows, the most important first (0 off)
 QVR_CVAR(vr_shadow_dlight_size, "1024", CVAR_ARCHIVE)   // their largest face size, texels (smaller farther away)
-QVR_CVAR(vr_shadow_precision, "1", CVAR_ARCHIVE)       // texels per unit of a light's radius, close by
 QVR_CVAR(vr_shadow_muzzleflash, "1", CVAR_ARCHIVE)     // your own muzzle flashes cast shadows too (brief, and costly)
 QVR_CVAR(vr_shadow_maplights, "4", CVAR_ARCHIVE)       // map lights near you casting the shadows of monsters and you (0 off)
 QVR_CVAR(vr_shadow_maplight_size, "1024", CVAR_ARCHIVE) // their face size, texels
@@ -2014,7 +1994,6 @@ QVR_CVAR(vr_gore_spray, "1", CVAR_ARCHIVE)             // how many splats a hit 
 QVR_CVAR(vr_gore_size, "1", CVAR_ARCHIVE)              // how big the gore's splats, pools and runs are
 QVR_CVAR(vr_gore_pools, "1", CVAR_ARCHIVE)             // pools of blood spreading under corpses and gibs: their size (0 none)
 QVR_CVAR(vr_gore_drips, "1", CVAR_ARCHIVE)             // blood dripping from splats on the ceiling and from hanging gibs: how long and how much (0 none)
-QVR_CVAR(vr_gore_stick, "8", CVAR_ARCHIVE)             // gibs flung into a ceiling or a wall may stick there about this many seconds, then fall (0 never)
 // Gore sounds (vr_goresound.cpp; ROUND22.md, "Gore sounds"): stump spurts, streams splattering, chokes, tears, squelches,
 // wet steps, gibs slapping walls (sound/vr/gore/*.wav, make_gore_sounds.py). Silent with vr_gore 0.
 QVR_CVAR(vr_gore_sound, "1", CVAR_ARCHIVE)             // their volume (0 none; up to 2)
@@ -2034,48 +2013,21 @@ QVR_CVAR(vr_gore_sound_drips, "0.65", CVAR_ARCHIVE)          // ... the share of
 // Bloody footprints and handprints (vr_bloodprints.cpp; ROUND22.md, "Bloody footprints and handprints"): decals as the
 // blood's, permanent as theirs (vr_decals 0: none).
 QVR_CVAR(vr_footprints, "1", CVAR_ARCHIVE)             // stepping in a pool of blood or on a bloody body leaves bloody footprints
-QVR_CVAR(vr_footprint_count, "16", CVAR_ARCHIVE)       // ... this many after it (1..32) (his 16, 8 before vr_cfg_version 184)
 QVR_CVAR(vr_footprint_fade, "1", CVAR_ARCHIVE)         // ... fading this much from the first to the last (0: all as strong; 1: the last faint)
-QVR_CVAR(vr_footprint_size, "1.6", CVAR_ARCHIVE)       // ... times your foot's size (0.5..2)
 QVR_CVAR(vr_footprint_rate, "1", CVAR_ARCHIVE)         // ... times as many: a print a step's length walked (a person's at your speed: 0.7 m walking, up to 2.2 m at a run), over this (0.25..4)
 QVR_CVAR(vr_handprints, "1", CVAR_ARCHIVE)             // a very bloody hand (a gib held, a bloody blow) touching a wall or a ledge leaves a bloody handprint
-QVR_CVAR(vr_handprint_count, "8", CVAR_ARCHIVE)        // ... at most this many from a hand soaked full, fainter as its blood is used up (1..32) (his 8, 6 before vr_cfg_version 185)
-QVR_CVAR(vr_handprint_size, "1.6", CVAR_ARCHIVE)       // ... times your hand's size (0.5..2)
 QVR_CVAR(vr_handprint_props, "1", CVAR_ARCHIVE)        // ... on props too (crates, barrels, boxes, things lying about): its blood painted on it
 QVR_CVAR(vr_handprint_gear, "1", CVAR_ARCHIVE)         // ... and on what a bloody hand holds (its weapon, a prop it carries) where it grips it, building up as you hold it; the weapon's stays with it
 QVR_CVAR(vr_bloodprints_debug, "0", CVAR_NONE)         // 1: each footprint and handprint (where, its foot's or hand's ankle/wrist and way), each pool or body that bloodied your feet; 2: also each bloody hand's palm test every 30 frames
 // Blood streaming out of bullet holes (vr_bloodstream.cpp; ROUND22.md, "More gore"): a thin stream pouring from a shot's
 // or a nail's wound on a monster or a corpse, pulsing, weakening, painting where it lands.
 QVR_CVAR(vr_gore_streams, "1", CVAR_ARCHIVE)            // on
-QVR_CVAR(vr_gore_streams_chance, "0.6", CVAR_ARCHIVE)   // the chance a shot or a nail (each pellet) opens one
 QVR_CVAR(vr_gore_streams_melee_blade, "1", CVAR_ARCHIVE) // the chance your blade's blow opens one (the axe, the sword, the chainsaw)
-QVR_CVAR(vr_gore_streams_melee_blunt, "0.6", CVAR_ARCHIVE) // the chance your blunt blow opens one (the crowbar, a punch, a pommel, a gun)
 QVR_CVAR(vr_gore_streams_thrown_blade, "1", CVAR_ARCHIVE) // the chance a blade you threw (an axe, a sword) opens one where it strikes
-QVR_CVAR(vr_gore_streams_per_body, "4", CVAR_ARCHIVE)   // most on one body (a new one takes the weakest's place)
-QVR_CVAR(vr_gore_streams_max, "24", CVAR_ARCHIVE)       // most in all (0-64)
-QVR_CVAR(vr_gore_streams_time, "7", CVAR_ARCHIVE)       // seconds one pours, about (weakening all along)
-QVR_CVAR(vr_gore_streams_speed, "50", CVAR_ARCHIVE)     // units/s it leaves the wound at, at its strongest
 QVR_CVAR(vr_gore_streams_width, "1", CVAR_ARCHIVE)   // units across, at its strongest (1 unit: 3.8 cm)
 QVR_CVAR(vr_gore_streams_pool, "1", CVAR_ARCHIVE)       // the pools it spreads where it lands: their size (0: no marks)
-QVR_CVAR(vr_gore_streams_spread, "35", CVAR_ARCHIVE)    // degrees: each stream's way out turned at random up to this far from the wound's (one shotgun blast's streams diverge)
-QVR_CVAR(vr_gore_streams_speed_var, "0.5", CVAR_ARCHIVE) // each stream's force times a random 1 +- this (0: all alike)
-QVR_CVAR(vr_gore_streams_wobble, "15", CVAR_ARCHIVE)    // degrees: each stream's way out wanders this far as it pours (slow noise; 0: steady)
-QVR_CVAR(vr_gore_streams_wobble_rate, "0.7", CVAR_ARCHIVE) // how fast it wanders (about this many swings a second)
-QVR_CVAR(vr_gore_streams_thickness_var, "0.85", CVAR_ARCHIVE) // how much its thickness varies as it pours (and so along it): 0 steady, 1 from a trickle to double
-QVR_CVAR(vr_gore_streams_thickness_rate, "1.3", CVAR_ARCHIVE) // how fast its thickness changes (about this many swells a second)
 QVR_CVAR(vr_gore_streams_spurts, "1", CVAR_ARCHIVE)      // small drops spurting from the wound in a cone as it pours
-QVR_CVAR(vr_gore_streams_spurt_rate, "70", CVAR_ARCHIVE) // drops a second at its strongest (fewer as it weakens)
-QVR_CVAR(vr_gore_streams_spurt_cone, "15", CVAR_ARCHIVE) // degrees round its way out they spurt in
-QVR_CVAR(vr_gore_streams_spurt_speed, "1.35", CVAR_ARCHIVE) // their speed, times the stream's
-QVR_CVAR(vr_gore_streams_spurt_life, "0.4", CVAR_ARCHIVE) // seconds they live (fading all along), about
-QVR_CVAR(vr_gore_streams_spurt_outliers, "0.12", CVAR_ARCHIVE) // the share of them that live longer,
-QVR_CVAR(vr_gore_streams_spurt_outlier_life, "1.15", CVAR_ARCHIVE) // this many seconds, about
-QVR_CVAR(vr_gore_streams_spurt_size, "0.525", CVAR_ARCHIVE) // units across, about (1 unit: 3.8 cm)
 QVR_CVAR(vr_gore_streams_splash, "1", CVAR_ARCHIVE)      // drops splashing away where it lands (the world, a prop, a monster): how many (0 none; 1 about 45 a second at its strongest)
-QVR_CVAR(vr_gore_streams_splash_size, "1.25", CVAR_ARCHIVE) // their size, times the spurts'
-QVR_CVAR(vr_gore_streams_smooth, "0.25", CVAR_ARCHIVE)    // seconds the body's motion at the wound, and its way out, are smoothed over: the animation's jumps don't fling it into ribbons (0: none)
-QVR_CVAR(vr_gore_streams_inherit, "0.35", CVAR_ARCHIVE)   // the share of the body's (smoothed) motion it and its spurts take (0.7 before; 1 as a real one)
-QVR_CVAR(vr_gore_streams_break, "4", CVAR_ARCHIVE)        // a piece of it stretched to this many times its length as poured breaks off (fading from half that), and it is cut where the wound jumps (0: never)
 // Back-splatter (vr_gore.cpp): thin long streaks thrown onto what is behind a monster hit, along the shot's line.
 QVR_CVAR(vr_gore_backsplatter, "1", CVAR_ARCHIVE)       // how many (0 none)
 QVR_CVAR(vr_gore_backsplatter_reach, "1", CVAR_ARCHIVE) // how far they fly (times the hit's own: a shotgun's close, big hits far)
@@ -2093,67 +2045,18 @@ QVR_CVAR(vr_head_flies, "0", CVAR_ARCHIVE)
 // down to a rock's size or half of it; carried, thrown, bleeding as the gibs do, gone after a while (not while held).
 QVR_CVAR(vr_smallgibs, "1", CVAR_ARCHIVE)                  // hits on monsters tear small gibs out of them
 QVR_CVAR(vr_smallgibs_player, "1", CVAR_ARCHIVE)           // and hits on you
-QVR_CVAR(vr_smallgibs_min_damage, "10", CVAR_ARCHIVE)      // a hit's damage (a shotgun blast's pellets summed) under which none come
-QVR_CVAR(vr_smallgibs_full_damage, "35", CVAR_ARCHIVE)     // the damage from which one always comes (the chance rises from 0 at the least)
-QVR_CVAR(vr_smallgibs_curve, "1.7", CVAR_ARCHIVE)          // the chance's rise from the least damage to the sure one: to this power (1 straight; more: rarer for light hits)
-QVR_CVAR(vr_smallgibs_damage_per_gib, "30", CVAR_ARCHIVE)  // one gib more for each this much damage (with a random part)
-QVR_CVAR(vr_smallgibs_per_hit, "6", CVAR_ARCHIVE)          // most small gibs from one hit
-QVR_CVAR(vr_smallgibs_shots, "1", CVAR_ARCHIVE)            // the chance times this: the shotguns, a grunt's gun
-QVR_CVAR(vr_smallgibs_nails, "0.4", CVAR_ARCHIVE)            // nails, lasers
-QVR_CVAR(vr_smallgibs_blades, "1.7", CVAR_ARCHIVE)         // a blade's edge or point: the axe, a sword, swung or thrown
-QVR_CVAR(vr_smallgibs_blunt, "0.3", CVAR_ARCHIVE)          // punches, a pommel or hilt, a gun or the crowbar swung, Mjolnir, bashes, headbutts
-QVR_CVAR(vr_smallgibs_props, "1.2", CVAR_ARCHIVE)            // a rock, brick or other thing thrown or swung in the fist
-QVR_CVAR(vr_smallgibs_explosions, "1", CVAR_ARCHIVE)       // rockets, grenades, every blast
-QVR_CVAR(vr_smallgibs_other, "0.5", CVAR_ARCHIVE)          // lightning, monsters' blows, the rest
-QVR_CVAR(vr_smallgibs_saw_interval, "0.1", CVAR_ARCHIVE)   // s: the chainsaw tears one out of what it cuts at most this often (always: monster or corpse)
-QVR_CVAR(vr_smallgibs_gibbing, "12", CVAR_ARCHIVE)          // small gibs with a monster's (or corpse's) gibs when it is gibbed
-QVR_CVAR(vr_smallgibs_burst, "4", CVAR_ARCHIVE)            // small gibs a large gib bursts into (a head half as many again)
-QVR_CVAR(vr_smallgibs_speed, "3", CVAR_ARCHIVE)            // m/s they fly out from the hit (randomized by a third)
-QVR_CVAR(vr_smallgibs_up, "7", CVAR_ARCHIVE)               // m/s up (randomized by a third; Quake falls three times as fast as the world)
 // Speed and Up times these, by what tore them out (QC VR_SmallGib_Situation):
-QVR_CVAR(vr_smallgibs_speed_melee, "1", CVAR_ARCHIVE)    // Speed times this: a hand's blow: a blade, a punch, a pommel, a thing in the fist; a bash, a headbutt
-QVR_CVAR(vr_smallgibs_up_melee, "1", CVAR_ARCHIVE)        // Up times this
-QVR_CVAR(vr_smallgibs_speed_saw, "1", CVAR_ARCHIVE)       // Speed times this: the chainsaw's chain or swing
-QVR_CVAR(vr_smallgibs_up_saw, "1", CVAR_ARCHIVE)          // Up times this
-QVR_CVAR(vr_smallgibs_speed_guns, "1", CVAR_ARCHIVE)        // Speed times this: shotguns, nails, lasers, lightning, a grunt's gun
-QVR_CVAR(vr_smallgibs_up_guns, "1", CVAR_ARCHIVE)           // Up times this
-QVR_CVAR(vr_smallgibs_speed_explosions, "1", CVAR_ARCHIVE)  // Speed times this: rockets, grenades, every blast
-QVR_CVAR(vr_smallgibs_up_explosions, "1", CVAR_ARCHIVE)     // Up times this
-QVR_CVAR(vr_smallgibs_speed_thrown, "1", CVAR_ARCHIVE)      // Speed times this: a thrown weapon, rock, brick or gib; a projectile batted back
-QVR_CVAR(vr_smallgibs_up_thrown, "1", CVAR_ARCHIVE)         // Up times this
-QVR_CVAR(vr_smallgibs_speed_other, "1", CVAR_ARCHIVE)       // Speed times this: monsters' blows, the rest
-QVR_CVAR(vr_smallgibs_up_other, "1", CVAR_ARCHIVE)          // Up times this
-QVR_CVAR(vr_smallgibs_speed_gibbing, "1", CVAR_ARCHIVE)     // Speed times this: a living monster gibbed (with its gibs' flight at 0.6)
-QVR_CVAR(vr_smallgibs_up_gibbing, "0.7", CVAR_ARCHIVE)      // Up times this
-QVR_CVAR(vr_smallgibs_speed_corpse, "1", CVAR_ARCHIVE)      // Speed times this: a corpse gibbed (with its gibs' flight at 0.6)
-QVR_CVAR(vr_smallgibs_up_corpse, "0.7", CVAR_ARCHIVE)       // Up times this
-QVR_CVAR(vr_smallgibs_speed_burst, "1", CVAR_ARCHIVE)       // Speed times this: a large gib or head burst
-QVR_CVAR(vr_smallgibs_up_burst, "1", CVAR_ARCHIVE)          // Up times this
 QVR_CVAR(vr_smallgibs_pass_inside, "1", CVAR_ARCHIVE)      // made inside a monster, a player or a hand's or weapon's body (the melee and chainsaw ones), they pass through it until clear (0: Box3D pushes them out, at 2 to 3 m/s)
-QVR_CVAR(vr_smallgibs_size_min, "0.65", CVAR_ARCHIVE)       // their size: from this times a rock's
-QVR_CVAR(vr_smallgibs_size_max, "1.15", CVAR_ARCHIVE)         // to this
-QVR_CVAR(vr_smallgibs_mass, "0.3", CVAR_ARCHIVE)           // kg each (light: thrown, they hurt little)
 QVR_CVAR(vr_smallgibs_grace, "0.3", CVAR_ARCHIVE)         // s they pass through the body they came from
-QVR_CVAR(vr_smallgibs_blow_grace, "0.3", CVAR_ARCHIVE)   // s after it is made a small gib isn't struck, nudged or pushed by a hand, a weapon or a held thing (the blow that tore it out batted it away)
 QVR_CVAR(vr_smallgibs_blow_burst, "1", CVAR_ARCHIVE)    // in that time a blow (the blade that tore it out too) still bursts it, with vr_smallgibs_destroy; never batted or pushed (0: blows pass it)
 QVR_CVAR(vr_smallgibs_max, "64", CVAR_ARCHIVE)             // most lying about at once: the oldest go first (not one in a hand)
 QVR_CVAR(vr_smallgibs_time, "20", CVAR_ARCHIVE)            // s one lies about before it fades away (held, and until it lands again, it waits)
 QVR_CVAR(vr_smallgibs_destroy, "1", CVAR_ARCHIVE)          // they can be shot or struck to a mist (off: shots and blows pass them)
 QVR_CVAR(vr_smallgibs_stomp, "1", CVAR_ARCHIVE)            // landing on them (a jump, a drop, a stomp) pops the meat and brain chunks under your feet (QC VR_SmallGib_Stomp)
-QVR_CVAR(vr_smallgibs_stomp_speed, "200", CVAR_ARCHIVE)    // ... landing at least this fast (units/s down: a jump from the same level lands at about 270, a step down under 100)
 QVR_CVAR(vr_smallgibs_brains, "1", CVAR_ARCHIVE)           // a head burst (a head gib destroyed, a head pop) throws brain chunks too (small gibs of brain matter: make_brains.py)
-QVR_CVAR(vr_smallgibs_brains_burst, "16", CVAR_ARCHIVE)     // brain chunks from a head gib destroyed
-QVR_CVAR(vr_smallgibs_brains_pop, "16", CVAR_ARCHIVE)       // brain chunks from a head pop (a headshot that bursts the head)
-QVR_CVAR(vr_smallgibs_brains_size, "0.8", CVAR_ARCHIVE)    // their size: times the small gibs' (vr_smallgibs_size_min/max)
-QVR_CVAR(vr_smallgibs_brains_mass, "0.15", CVAR_ARCHIVE)   // kg each (lighter than a small gib of meat)
-QVR_CVAR(vr_smallgibs_brains_speed, "1.8", CVAR_ARCHIVE)     // m/s brain chunks fly out of a head burst (their own Speed: vr_smallgibs_speed is the meat gibs'; times vr_smallgibs_speed_burst)
-QVR_CVAR(vr_smallgibs_brains_up, "8.2", CVAR_ARCHIVE)        // m/s up (their own Up; times vr_smallgibs_up_burst)
-QVR_CVAR(vr_smallgibs_brains_gloss, "1", CVAR_ARCHIVE)    // their wet sheen (0 none .. 2), always on: a gloss without the wet coat's darkening, a warm rim (vr_wounds.cpp VR_AliasWetCoat)
-QVR_CVAR(vr_smallgibs_brains_jiggle, "1", CVAR_ARCHIVE)     // they wobble when knocked (a landing, a bounce, a jerk): drawn squashed along the knock and bulged across, a damped spring (vr_brainjiggle.cpp); the kick times this, 0 off
 // Per enemy (vr_smallgibs_mult_<monster>, vr_smallgibs_brains_mult_<monster>): quakevr/data/monsters.txt's smallgibs,
 // smallgibs_brains (vr_monsterdata.inc; ROUND23.md, "Monsters as data").
 QVR_CVAR(vr_gore_stick_thrown, "1", CVAR_ARCHIVE)        // a gib or head thrown into a wall or a ceiling (slower than vr_gib_splat_speed) sticks there: the chance (0 never)
-QVR_CVAR(vr_gore_stick_speed, "20", CVAR_ARCHIVE)         // units/s a gib must strike a wall or a ceiling at to stick (flung or thrown)
 QVR_CVAR(vr_test_dispenser, "0", CVAR_NONE)                // the map's n-th monster dispenser (func_enemy_dispenser) used, as its button would (buttons.qc VR_TestDispenser_Frame: test dispenser: lines, the monster's yaw); back to 0 once done
 QVR_CVAR(vr_dropcap_test, "0", CVAR_NONE)                  // the QC tests the cap on dropped enemy weapons: 1 grunts spawned and killed one by one (vr_dropcap_test_n, 0: 60) (vr_dropcap_test.qc; Debug > Tests)
 QVR_CVAR(vr_dropcap_test_n, "0", CVAR_NONE)
@@ -2262,7 +2165,6 @@ QVR_CVAR(vr_extmaps_normals, "1", CVAR_ARCHIVE)        // ... their normal maps 
 QVR_CVAR(vr_extmaps_spec, "1", CVAR_ARCHIVE)           // ... their specular maps: the sheen (vr_specular) per texel, its colour, and the .mat's specularity and hardness (0 off: the same sheen everywhere)
 QVR_CVAR(vr_extmaps_spec_scale, "8", CVAR_ARCHIVE)     // ... how bright the specular maps make the sheen (Quetoo's average about 0.15: 4 keeps the walls' average about as before)
 QVR_CVAR(vr_extmaps_luma, "1", CVAR_ARCHIVE)           // ... their glow maps (_luma, _glow) on textures that glow nowhere (neither a pack's _luma nor Quake's fullbright colours)
-QVR_CVAR(vr_extmaps_green, "0", CVAR_ARCHIVE)          // ... their normal maps' green: 0 turned to ours where their heights (alpha) say it runs the other way (Quetoo's does), 1 as it is, 2 turned (next map)
 QVR_CVAR(vr_extmaps_match, "0.5", CVAR_ARCHIVE)        // ... used only where the pack's own picture (<name>.jpg/png beside them) matches the texture drawn this well (correlation of their detail, 0..1; 0: always): a repainted picture's bumps would not fit (next map)
 QVR_CVAR(vr_anim_surface, "1", CVAR_ARCHIVE)         // an animated texture's frames (the wall buttons' +0basebtn/+1basebtn...) drawn with one surface, its first frame's: normal map, parallax heights, specular map and detail; each frame only its own colours and glow (0: each its own: the relief and sheen pulsed with the frames). At once
 QVR_CVAR(vr_retro, "1", CVAR_ARCHIVE)                  // retro textures (vr_retro.cpp): high-resolution textures drawn in Quake's chunky look (blocks, its palette); each kind's settings are vr_retro_<kind>_* (World: vr_retro_world*)
@@ -2320,52 +2222,13 @@ QVR_CVAR(vr_water_foam, "1", CVAR_ARCHIVE)            // shoreline foam where wa
 // particles"): water's vr_water_foam_*, lava's vr_lava_foam_*, slime's vr_slime_foam_* (teleports have none).
 QVR_CVAR(vr_water_foam_on, "1", CVAR_ARCHIVE)         // water's foam: 1 on, 0 off
 QVR_CVAR(vr_water_foam_opacity, "0.5", CVAR_ARCHIVE)  // ... how opaque it is (0..1.5, times)
-QVR_CVAR(vr_water_foam_frequency, "1.75", CVAR_ARCHIVE) // ... how finely its edge and flecks are broken up (0.25..4: more, smaller patches)
-QVR_CVAR(vr_water_foam_strength, "1.75", CVAR_ARCHIVE) // ... how far it reaches out from the shore (0.25..3, times its width)
-QVR_CVAR(vr_water_foam_breathe, "0.45", CVAR_ARCHIVE) // ... breathing: how much the band grows and shrinks over time, unevenly along the shore (0 off .. 1, a share of its width)
-QVR_CVAR(vr_water_foam_breathe_speed, "2", CVAR_ARCHIVE) // ... how fast it breathes (0.1..4; 1: a breath in about 4 seconds)
-QVR_CVAR(vr_water_foam_breathe_irregularity, "0.6", CVAR_ARCHIVE) // ... how unevenly along the shore (0: all of it together .. 1: each stretch on its own)
-QVR_CVAR(vr_water_foam_red, "0.85", CVAR_ARCHIVE)     // ... its colour, red (0..2; over 1 glows)
-QVR_CVAR(vr_water_foam_green, "0.9", CVAR_ARCHIVE)    // ... green
-QVR_CVAR(vr_water_foam_blue, "0.92", CVAR_ARCHIVE)    // ... blue
 QVR_CVAR(vr_water_foam_particles, "1", CVAR_ARCHIVE)  // ... foam particles along the shore (vr_particles.cpp shoreFoam): how many (0 off .. 4; 1 about 15 a second for each 100 units of shore near you)
-QVR_CVAR(vr_water_foam_particle_life, "0.5", CVAR_ARCHIVE) // ... how long each lasts, seconds (0.2..4) (0.4 before 2026-10-30, 0.8 before vr_cfg_version 202)
-QVR_CVAR(vr_water_foam_particle_opacity, "0.5", CVAR_ARCHIVE) // ... how opaque (0..1)
-QVR_CVAR(vr_water_foam_particle_size, "1.25", CVAR_ARCHIVE) // ... how big (0.25..4, times about 3 units across growing to 9)
-QVR_CVAR(vr_water_foam_particle_shore, "-1", CVAR_ARCHIVE) // ... where they are born: units out from the shore's line (-4..16; 0 on it, straddling it, a little either side) (his -1, 0 before vr_cfg_version 202)
-QVR_CVAR(vr_water_foam_edge, "4", CVAR_ARCHIVE)       // ... the wavy edge: the liquid's edge at the shore drawn back in slow, drifting curves, the foam following them, so it is not one straight cut: how far, units (0 off .. 12)
 QVR_CVAR(vr_lava_foam_on, "1", CVAR_ARCHIVE)          // lava's foam (a molten crust at the rock), as water's above
 QVR_CVAR(vr_lava_foam_opacity, "1", CVAR_ARCHIVE)
-QVR_CVAR(vr_lava_foam_frequency, "1.25", CVAR_ARCHIVE)
-QVR_CVAR(vr_lava_foam_strength, "2.5", CVAR_ARCHIVE)
-QVR_CVAR(vr_lava_foam_breathe, "0.65", CVAR_ARCHIVE)
-QVR_CVAR(vr_lava_foam_breathe_speed, "2.7", CVAR_ARCHIVE)
-QVR_CVAR(vr_lava_foam_breathe_irregularity, "0.7", CVAR_ARCHIVE)
-QVR_CVAR(vr_lava_foam_red, "1.5", CVAR_ARCHIVE)
-QVR_CVAR(vr_lava_foam_green, "1.1", CVAR_ARCHIVE)
-QVR_CVAR(vr_lava_foam_blue, "0.3", CVAR_ARCHIVE)
 QVR_CVAR(vr_lava_foam_particles, "1.5", CVAR_ARCHIVE)
-QVR_CVAR(vr_lava_foam_particle_life, "1", CVAR_ARCHIVE)
-QVR_CVAR(vr_lava_foam_particle_opacity, "0.55", CVAR_ARCHIVE)
-QVR_CVAR(vr_lava_foam_particle_size, "3.05", CVAR_ARCHIVE)
-QVR_CVAR(vr_lava_foam_particle_shore, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_lava_foam_edge, "3", CVAR_ARCHIVE)
 QVR_CVAR(vr_slime_foam_on, "1", CVAR_ARCHIVE)         // slime's foam (a green scum), as water's above
 QVR_CVAR(vr_slime_foam_opacity, "0.8", CVAR_ARCHIVE)
-QVR_CVAR(vr_slime_foam_frequency, "1.6", CVAR_ARCHIVE)
-QVR_CVAR(vr_slime_foam_strength, "1.9", CVAR_ARCHIVE)
-QVR_CVAR(vr_slime_foam_breathe, "0.7", CVAR_ARCHIVE)
-QVR_CVAR(vr_slime_foam_breathe_speed, "3.4", CVAR_ARCHIVE)
-QVR_CVAR(vr_slime_foam_breathe_irregularity, "0.6", CVAR_ARCHIVE)
-QVR_CVAR(vr_slime_foam_red, "0.38", CVAR_ARCHIVE)
-QVR_CVAR(vr_slime_foam_green, "0.56", CVAR_ARCHIVE)
-QVR_CVAR(vr_slime_foam_blue, "0.16", CVAR_ARCHIVE)
 QVR_CVAR(vr_slime_foam_particles, "1.5", CVAR_ARCHIVE)
-QVR_CVAR(vr_slime_foam_particle_life, "1", CVAR_ARCHIVE)
-QVR_CVAR(vr_slime_foam_particle_opacity, "0.45", CVAR_ARCHIVE)
-QVR_CVAR(vr_slime_foam_particle_size, "1", CVAR_ARCHIVE)
-QVR_CVAR(vr_slime_foam_particle_shore, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_slime_foam_edge, "3", CVAR_ARCHIVE)
 QVR_CVAR(vr_water_blood, "1", CVAR_ARCHIVE)           // blood in water and slime: dark red clouds spreading on the surface where something bled into it (vr_water.cpp, LiquidBlood): strength, 0 off .. 2
 QVR_CVAR(vr_water_blood_time, "30", CVAR_ARCHIVE)     // ... seconds a cloud takes to fade (2..120)
 QVR_CVAR(vr_heat_haze, "1", CVAR_ARCHIVE)             // heat haze (vr_haze.cpp): the air shimmering over lava, round explosions and over flames: 0 off .. 1
@@ -2405,11 +2268,7 @@ QVR_CVAR(vr_climb_hand_yaw, "10", CVAR_ARCHIVE)      // degrees: and turned, the
 QVR_CVAR(vr_climb_hand_roll, "0", CVAR_ARCHIVE)      // degrees: and rolled about the knuckles' way, the thumb's side up (mirrored), display only
 QVR_CVAR(vr_climb_props, "1", CVAR_ARCHIVE)          // the edges of solid physics props (crates, barrels, explosive boxes, their stacks) are holds too, as they lie now (vr_climb.cpp "Holds on props")
 QVR_CVAR(vr_climb_prop_mass, "60", CVAR_ARCHIVE)     // kg: a prop at least this heavy (or pinned) holds like the level (the hold follows it, the pull doesn't move it); lighter, the hands' pull goes into it (vr_climb_prop_pull) and it tips or slides (large crate 65, explosive box 80.5; small crate 40, barrel 30)
-QVR_CVAR(vr_climb_prop_pull, "40", CVAR_ARCHIVE)     // kg: the most weight a hand on a light prop pulls it with (the player's, vr_box3d_player_mass, shared by the holding hands, towards the body; a body over the hold presses it down)
 QVR_CVAR(vr_climb_prop_min_height, "36", CVAR_ARCHIVE) // units above the feet a prop's ledge must be to take hold of from the ground (lower: the grip carries the prop instead: a small crate, 32; a large one lying on its side, 40, is a hold); hanging or in the air, vr_climb_min_height as any ledge
-QVR_CVAR(vr_climb_prop_tilt, "10", CVAR_ARCHIVE)     // degrees: a held prop's top turned this far from how it lay when taken lets the hand go (it tipped over)
-QVR_CVAR(vr_climb_prop_slip, "6", CVAR_ARCHIVE)     // units: a light prop's hold moved this far from where it was taken lets the hand go (pulled off its stack, slid away)
-QVR_CVAR(vr_climb_prop_letgo_speed, "200", CVAR_ARCHIVE) // units/s: a held prop's hold whose speed changes this much in a frame lets the hand go (knocked away: a blast, a hit)
 QVR_CVAR(vr_climb_mover_crush, "0", CVAR_ARCHIVE)    // a hold on a moving brush (a plat, a train, a door) whose ride carries you into something: 0 the hand lets go (you fall); 1 you hold on and block it, as anything in its way (Quake's crush rules: it hurts you, a door or plat goes back)
 QVR_CVAR(vr_debug_ledges, "0", CVAR_NONE)             // the ledge map (vr_ledges.cpp) drawn round you: lips green (on brush models pink), a tick out every 8 units (yellow: the drop starts further out, past a trim or a rung below), the top's depth in (grey); 1: within 512 units, more: that many
 QVR_CVAR(vr_climb_stamina, "1", CVAR_ARCHIVE)         // hanging from a hold tires you: stamina from the parry/shove/strike pool (vr_parry_stamina_max) drains while a hand holds and your feet are on nothing, none comes back meanwhile, and at none the hands let go (vr_climb.cpp "Climbing stamina")
@@ -2986,21 +2845,10 @@ QVR_CVAR(vr_knockdown_weld, "1", CVAR_ARCHIVE)            // its weapon stays in
 QVR_CVAR(vr_test_shove_run, "0", CVAR_NONE)               // u/s: vr_knockdown_test 21/22 shove as if you ran into it this fast (vr_shove_run_carry); 0: your own velocity
 QVR_CVAR(vr_knockdown_debug, "0", CVAR_NONE)             // prints each shove's chance and roll, and the get-ups; 2: and each get-up's drawn motion (ragdoll.cpp watchGetup); 3: and each frame's
 
-QVR_CVAR(vr_ragdoll_mass, "80", CVAR_ARCHIVE)         // kg: a ragdoll's whole mass (its parts by their volume); each class has its own by default (vr_ragdoll_<class>_mass), this is for a class set to -1
-QVR_CVAR(vr_ragdoll_friction, "0.8", CVAR_ARCHIVE)    // a ragdoll's friction (with the floor's: 0.6)
-QVR_CVAR(vr_ragdoll_joint_friction, "1.5", CVAR_ARCHIVE) // N m: the joints' friction (a motor holding each still up to this torque); 0 limp
-QVR_CVAR(vr_ragdoll_damping, "0.4", CVAR_ARCHIVE)     // its parts' angular damping (1/s): less flailing
-QVR_CVAR(vr_ragdoll_blast, "2", CVAR_ARCHIVE)         // times the throw a blast gives a prop of a ragdoll's mass (explosions throw ragdolls)
 QVR_CVAR(vr_ragdoll_inherit, "1", CVAR_ARCHIVE)       // share of the death animation's motion its parts start with (0: still)
 QVR_CVAR(vr_debug_ragdoll, "0", CVAR_NONE)            // print each ragdoll made, its pushes and blasts
 QVR_CVAR(vr_debug_ragdoll_look, "0", CVAR_NONE)       // each ragdoll drawn in its .mdl's rest pose where the entity stands, to compare its look with the .mdl's: 1 its skinned copy ("#rag"), 2 the .mdl itself (pose 0), 3 neither (hidden); vr_ragdoll_draw_info
 QVR_CVAR(vr_debug_ragdoll_gun, "0", CVAR_NONE)      // every 0.25 s, each ragdoll's held weapon (its loose piece) as drawn: how far from the part of it that holds it ("gun:"), beside the rest pose's
-QVR_CVAR(vr_ragdoll_joint_stiffness, "0", CVAR_ARCHIVE) // Hz: a spring in each joint pulling it back towards how he stood (0 none; 1-3 a body with some tone left)
-QVR_CVAR(vr_ragdoll_limits, "1", CVAR_ARCHIVE)        // the joints' limits (cone, twist, the knees' and elbows' range) times this (0.25 stiff .. 1.5 loose)
-QVR_CVAR(vr_ragdoll_limits_legs, "1", CVAR_ARCHIVE)   // the legs' joints' limits times this too (with vr_ragdoll_limits; the next ragdoll made)
-QVR_CVAR(vr_ragdoll_limits_torso, "1", CVAR_ARCHIVE)  // ... the torso's (the spine, a tail)
-QVR_CVAR(vr_ragdoll_limits_arms, "1", CVAR_ARCHIVE)   // ... the arms'
-QVR_CVAR(vr_ragdoll_limits_head, "1", CVAR_ARCHIVE)   // ... the neck's and jaw's
 // The ragdoll tool (vr_ragtool.cpp, RAGTOOL.md; `-ragtool` or `vr_ragtool`): its choices, shown on its menu page. Not saved.
 QVR_CVAR(vr_ragtool_map, "vrragtriggers", CVAR_NONE)  // the room vr_ragtool loads
 QVR_CVAR(vr_ragtool_model, "0", CVAR_NONE)            // the subject: its row in vr_ragtool_models (the toolgun's monsters with a rig)
@@ -3047,8 +2895,6 @@ QVR_CVAR(vr_worn_backpack_yaw, "0", CVAR_ARCHIVE)     // worn backpacks: turned 
 QVR_CVAR(vr_worn_backpack_roll, "0", CVAR_ARCHIVE)    // worn backpacks: rolled (degrees)
 QVR_CVAR(vr_worn_backpack_mass, "4", CVAR_ARCHIVE)    // worn backpacks: its weight on a ragdoll's chest (kg)
 QVR_CVAR(vr_worn_backpack_rip_force, "1500", CVAR_ARCHIVE) // worn backpacks: a hand's pull on a ragdoll held by its pack that tears the pack off (N: the hold's force, or its stretch times vr_worn_backpack_rip_stiffness if more)
-QVR_CVAR(vr_worn_backpack_rip_time, "0.04", CVAR_ARCHIVE) // worn backpacks: the pull kept past vr_worn_backpack_rip_force this long (s) tears it off (a yank, not a jolt)
-QVR_CVAR(vr_worn_backpack_rip_stiffness, "150", CVAR_ARCHIVE) // worn backpacks: N a unit of the held point's lag behind the hand (the stretch's share of the pull)
 QVR_CVAR(vr_worn_backpack_impact, "9", CVAR_ARCHIVE)  // worn backpacks: a ragdoll's strike on the level at least this fast (m/s) tears it off
 QVR_CVAR(vr_worn_backpack_pool, "25", CVAR_ARCHIVE)  // worn backpacks: the damage a living one's pack takes before it tears off (hits on the pack: blows, throws, shots, projectiles; and the share below of blasts and fire anywhere on it; poison never; 0: never by damage)
 QVR_CVAR(vr_worn_backpack_pool_blast, "1", CVAR_ARCHIVE) // worn backpacks: the share of an explosion's damage to its wearer counted on the pack (0..1)
@@ -3195,62 +3041,24 @@ QVR_CVAR(vr_decap_poptest_wid, "10", CVAR_NONE)        // vr_decap_test 47: the 
 QVR_CVAR(vr_decap_poptest_body, "0", CVAR_NONE)        // vr_decap_test 47, 48: thrown at the body instead
 // Active ragdolls (experimental; vr_ragactive.cpp, ROUND22.md "Active ragdolls: core and deaths"; Gibs and Corpses > Ragdoll Settings).
 QVR_CVAR(vr_ragdoll_active, "1", CVAR_ARCHIVE)        // a dying grunt, enforcer, knight, death knight, ogre or zombie (AD's soldiers, knights and zombies too) goes limp from his first frame not solid, his joints driven by his death animation as they weaken (legs first): he stumbles, holds his wound, may crawl; a headshot collapses him; 0: limp at Go Limp At, as before
-QVR_CVAR(vr_ragdoll_active_strength, "1", CVAR_ARCHIVE) // times the joints' strength (0 limp .. 3)
-QVR_CVAR(vr_ragdoll_active_hertz, "10", CVAR_ARCHIVE)   // Hz: a joint's spring towards its pose at full strength (at most 20)
-QVR_CVAR(vr_ragdoll_active_damping, "1", CVAR_ARCHIVE)  // its damping (1: critical)
 // Each joint group's own share of the three above (vr_ragactive.cpp's channels: the legs, the torso with the pelvis and a
 // tail, the arms, the head and jaw), times them (1: as the global ones). The ragdoll tool's Joint Groups (RAGTOOL.md).
-QVR_CVAR(vr_ragdoll_active_hertz_legs, "1", CVAR_ARCHIVE)    // times vr_ragdoll_active_hertz for the legs' joints
-QVR_CVAR(vr_ragdoll_active_hertz_torso, "1", CVAR_ARCHIVE)   // ... the torso's (the spine, a tail)
-QVR_CVAR(vr_ragdoll_active_hertz_arms, "1", CVAR_ARCHIVE)    // ... the arms'
-QVR_CVAR(vr_ragdoll_active_hertz_head, "1", CVAR_ARCHIVE)    // ... the neck's and jaw's
-QVR_CVAR(vr_ragdoll_active_damping_legs, "1", CVAR_ARCHIVE)  // times vr_ragdoll_active_damping for the legs' joints
-QVR_CVAR(vr_ragdoll_active_damping_torso, "1", CVAR_ARCHIVE) // ... the torso's
-QVR_CVAR(vr_ragdoll_active_damping_arms, "1", CVAR_ARCHIVE)  // ... the arms'
-QVR_CVAR(vr_ragdoll_active_damping_head, "1", CVAR_ARCHIVE)  // ... the neck's and jaw's
-QVR_CVAR(vr_ragdoll_active_torque_legs, "1", CVAR_ARCHIVE)   // times vr_ragdoll_active_torque (a motor's most force) for the legs' joints
-QVR_CVAR(vr_ragdoll_active_torque_torso, "1", CVAR_ARCHIVE)  // ... the torso's
-QVR_CVAR(vr_ragdoll_active_torque_arms, "1", CVAR_ARCHIVE)   // ... the arms'
-QVR_CVAR(vr_ragdoll_active_torque_head, "1", CVAR_ARCHIVE)   // ... the neck's and jaw's
-QVR_CVAR(vr_ragdoll_active_torque, "2", CVAR_ARCHIVE)   // a joint's motor at full strength: at most this many times the weight of what hangs on it times its lever (a blow or a hand overpowers it)
-QVR_CVAR(vr_ragdoll_active_fade, "1", CVAR_ARCHIVE)     // times how long the strength lasts (his death animation's length: the legs give first, then the torso, the arms, the head)
-QVR_CVAR(vr_ragdoll_active_pin, "0.6", CVAR_ARCHIVE)    // body weights: his pelvis pulled along his death animation's at first (its throw back or forward kept), at most this force; 0 none
-QVR_CVAR(vr_ragdoll_active_pin_time, "0.3", CVAR_ARCHIVE) // s: and that pull fading out over this
-QVR_CVAR(vr_ragdoll_active_stumble, "90", CVAR_ARCHIVE) // units/s: dying on the move at least this fast, he stumbles on (carried a moment, a leg stepping ahead); 0 never
 QVR_CVAR(vr_ragdoll_active_wound, "0.7", CVAR_ARCHIVE)  // the chance a monster killed by a blow to the body or a limb holds the wound with a free hand
 QVR_CVAR(vr_ragdoll_active_crawl, "0.25", CVAR_ARCHIVE) // the chance a humanoid lying face down after his death crawls on before going limp
 QVR_CVAR(vr_ragdoll_active_crawl_time, "3", CVAR_ARCHIVE) // s: how long he crawls
 QVR_CVAR(vr_ragdoll_active_crawl_back, "1", CVAR_ARCHIVE) // one to crawl lying on his back: 1 no roll onto his front, a dying cockroach's flail (limbs pawing the air, rocking, weakening) then limp; 0 rolls over and crawls
-QVR_CVAR(vr_ragdoll_active_crawl_force, "1.3", CVAR_ARCHIVE) // body weights: his arms' pull along the floor at most
 QVR_CVAR(vr_ragdoll_active_dismember, "1", CVAR_ARCHIVE) // a dying monster losing a limb reacts: his free hand to the stump and a writhe, on one leg a try at keeping his balance before he falls, with no legs a crawl on his arms; 0: as any death
-QVR_CVAR(vr_ragdoll_active_dismember_time, "3", CVAR_ARCHIVE) // s: how long he writhes holding the stump once down
-QVR_CVAR(vr_ragdoll_active_writhe, "1", CVAR_ARCHIVE)   // times how far his torso and legs stir as he writhes (0 still .. 3)
-QVR_CVAR(vr_ragdoll_active_balance_time, "1.2", CVAR_ARCHIVE) // s: on one leg, how long he tries to keep his balance at most
-QVR_CVAR(vr_ragdoll_active_balance_lean, "15", CVAR_ARCHIVE) // degrees: and he falls once leaning this far from how he stood
 QVR_CVAR(vr_test_cut, "0", CVAR_NONE)                   // n: a sword's cut at the nearest monster's left arm (1), right arm (2), left leg (3), right leg (4), both legs (5), left forearm (6), left shin (7), head (8): the live one nearest you killed by it, or with n + 10 the dead one nearest you (QC vr_limbs_test.qc VR_TestCut_Frame; the active ragdolls' dismemberment tests)
 QVR_CVAR(vr_ragdoll_active_liquids, "1", CVAR_ARCHIVE) // dying in water (drowned, or falling in soon after his death) he paddles and kicks, his head held up, weakening as he drowns; in lava or slime he flails, short and violent; then limp; 0: his death in a liquid as on land
-QVR_CVAR(vr_ragdoll_active_paddle, "4.5", CVAR_ARCHIVE) // s: in water he paddles about this long (each 0.8 to 1.2 times it), weakening from a third of it on
-QVR_CVAR(vr_ragdoll_active_flail, "1.5", CVAR_ARCHIVE)  // s: in lava he flails about this long (slime: 1.4 times it; each 0.8 to 1.2 times it)
 QVR_CVAR(vr_ragdoll_active_debug, "0", CVAR_NONE)      // 1: each driven ragdoll's targets drawn over it (green as strong as the joint is, grey limp), its pelvis pin (yellow) and its hands' and feet's goals (red) (Debug > Logs)
 QVR_CVAR(vr_ragdoll_active_trace, "0", CVAR_NONE)       // n: every n-th frame a `ragtrace` line per driven ragdoll (its pelvis, the joints' error from the animation per channel, their strength, its energy; the tests)
 QVR_CVAR(vr_ragdoll_active_seed, "0", CVAR_NONE)        // mixed into each death's rolls (wound, crawl): another roll for the same scene (tests)
 QVR_CVAR(vr_ragdoll_active_stagger, "1", CVAR_ARCHIVE)  // with Knockdowns, a shove makes a grunt, enforcer, knight, death knight, ogre or zombie stagger as a pinned ragdoll (its feet stepping after it): leaning too far it falls (a knockdown), else it recovers and fights on; its fall braced by its arms, a two-hand throw's body slack where held, curling; 0: the knockdown's chance alone, as before
-QVR_CVAR(vr_ragdoll_active_stagger_lean, "30", CVAR_ARCHIVE) // degrees: its middle leaning over its feet past this for 0.36 s (or twice it at once), the stagger falls whatever its balance
-QVR_CVAR(vr_ragdoll_active_stagger_push, "2", CVAR_ARCHIVE)  // m/s: a fresh two-hand shove's push on its top (its pelvis carried by its pin, its feet none)
 QVR_CVAR(vr_ragdoll_active_stagger_travel, "1.2", CVAR_ARCHIVE) // how far its pelvis is carried (its backpedal), times how far the shove slides a standing one (at most 4 m; 0.2 before vr_cfg_version 128)
-QVR_CVAR(vr_ragdoll_active_stagger_pin, "2", CVAR_ARCHIVE)  // body weights: its pelvis's pin at most, steady (times 0.2 .. 1 by its balance: the knockdown's chance against the roll; its muscles' hold on its weight and its upright too)
-QVR_CVAR(vr_ragdoll_active_stagger_blend, "0.2", CVAR_ARCHIVE) // s: recovered, its ragdoll blended into the animated monster over this
-QVR_CVAR(vr_ragdoll_active_stagger_settle, "1", CVAR_ARCHIVE) // m/s: its backpedal near done (its pin's carry 90% over), slower than this, steady and not mid-step: it has recovered (0.4, from 0.2 s past its carry, before: it froze a moment at its end)
-QVR_CVAR(vr_ragdoll_active_stagger_settle_time, "0.35", CVAR_ARCHIVE) // s: still up this long past its carry, it has recovered however it moves (1.2 before)
-QVR_CVAR(vr_ragdoll_active_stagger_drop, "20", CVAR_ARCHIVE) // units: the floor under its pelvis this much lower than where it stood (stepped off a ledge, the top of stairs) a moment: it falls, sure-footed or not (no backpedalling on air); 0: never
 QVR_CVAR(vr_ragdoll_active_getup, "1", CVAR_ARCHIVE)    // a knocked-down grunt, enforcer, knight, death knight, ogre or zombie gets up with its body: pulled into its get-up's first frame, then risen through its get-up, handed back to the animated monster standing; 0: the ragdoll blended into the get-up from the floor, as before
-QVR_CVAR(vr_ragdoll_active_getup_pin, "2.5", CVAR_ARCHIVE) // body weights: its pelvis's pin to the get-up's at most
-QVR_CVAR(vr_ragdoll_active_getup_blend, "0.2", CVAR_ARCHIVE) // s: risen, its ragdoll blended into the animated monster over this
-QVR_CVAR(vr_ragdoll_active_getup_pace, "0.8", CVAR_ARCHIVE) // its get-up's frames' speed, times the get-up's own (vr_knockdown_getup_speed)
 QVR_CVAR(vr_test_kill, "0", CVAR_NONE)                  // n: the live monster nearest you killed by a shot of yours struck on its body (1), head (2), an arm (3), a leg (4), nowhere known (6) (QC combat.qc VR_TestKill_Frame; the active ragdolls' tests)
 QVR_CVAR(vr_test_hurt, "0", CVAR_NONE)                  // damage: the live monster nearest you takes it from a shot of yours, its health as it is (QC combat_test.qc VR_TestHurt_Frame; earned bullet time's test)
 QVR_CVAR(vr_ragdoll_active_env, "1", CVAR_ARCHIVE)       // an active death senses what is round him (walls, floors, ledges, crates) and uses his hands on it (the three below); 0: his death ignores it (ROUND22.md, "Active ragdolls: environment")
-QVR_CVAR(vr_ragdoll_active_stagger_steps, "6", CVAR_ARCHIVE) // a shoved monster's backpedal: at most this many steps back (1..10); one whose balance the shove beat (the knockdown's roll under its chance) gives way after 3 or 4 of them
 QVR_CVAR(vr_ragdoll_active_stagger_lift, "0.3", CVAR_ARCHIVE) // of a leg's length: a backpedal step's foot lifted this high (its knee bending)
 QVR_CVAR(vr_ragdoll_active_stagger_crouch, "0.08", CVAR_ARCHIVE) // of its pelvis's height: a backpedalling monster's pelvis let down this far, its knees bent (the backpedal walk)
 QVR_CVAR(vr_ragdoll_active_stagger_arms, "1", CVAR_ARCHIVE) // a backpedalling monster's arms flailing for its balance, times this (0: none)
@@ -3298,8 +3106,6 @@ QVR_CVAR(vr_struggle_debug, "0", CVAR_NONE)             // 1: a panel over each 
 QVR_CVAR(vr_struggle_force, "0", CVAR_NONE)             // tests: every living knockdown of a struggling class struggles as if held by the chest where it lies (the cost with many: vr_struggle_status)
 // Living hit reactions (vr_hitreact.cpp, QC/vr_hitreact.qc; ROUND22.md, "Active ragdolls: living hit reactions")
 QVR_CVAR(vr_hit_react, "1", CVAR_ARCHIVE)             // a living monster struck flinches where it was struck (its AI untouched): 1 its rig's bones kicked round their joints (the head snaps, an arm swings, a leg's knee buckles; a model with no rig tilted whole), 2 every model tilted whole, 0 off. The server's sends the blows and slows the steps (vr_hit_react_slow); each client draws by its own
-QVR_CVAR(vr_hit_react_strength, "1", CVAR_ARCHIVE)    // times the kicks' size (0..3)
-QVR_CVAR(vr_hit_react_time, "1", CVAR_ARCHIVE)        // times how long a kick lasts (its peak at ~74 ms, gone by ~0.5 s; 0.25..4)
 QVR_CVAR(vr_hit_react_slow, "1", CVAR_ARCHIVE)        // the server: times a struck monster's slow-down (its walking and running steps a moment shorter: a leg hit about half, with a hitch to that side, for 0.5 s; the body a third, 0.3 s); 0 none
 QVR_CVAR(vr_hit_react_debug, "0", CVAR_NONE)          // 1: each blow received and the bone it struck printed (`hitreact:`); 2: and a `hittrace` line each frame per reacting monster (its bones' turns, deg; the tests); the server: `hitslow:` lines (its slow-down, its steps)
 QVR_CVAR(vr_test_hit, "0", CVAR_NONE)                 // n: the live monster nearest you struck by a shot of yours (vr_test_hit_damage, never a kill) on its body (1), head (2), an arm (3), a leg (4) (QC vr_hitreact.qc; the hit reactions' tests)
@@ -3394,10 +3200,6 @@ QVR_CVAR(vr_grapple_min_length, "40", CVAR_ARCHIVE)      // the shortest the ree
 QVR_CVAR(vr_grapple_unreel_speed, "300", CVAR_ARCHIVE)   // units/s the hand's A/X pays the rope out at (lets you down, lets a load go farther); 0: no unreel
 QVR_CVAR(vr_grapple_unreel_airborne, "1", CVAR_ARCHIVE)  // the unreel button (A/X) doesn't unreel as it jumps (A, by default: it unreels only in the air); X (the reload) unreels on the ground too; 0: anywhere (its key still pressed)
 QVR_CVAR(vr_grapple_prop_speed, "300", CVAR_ARCHIVE)     // units/s a light prop comes in at (weapons, pickups, keys)
-QVR_CVAR(vr_grapple_prop_light, "8", CVAR_ARCHIVE)       // kg up to which props come in at that speed; heavier, slower in proportion (40 kg: a fifth)
-QVR_CVAR(vr_grapple_prop_anchor, "100", CVAR_ARCHIVE)    // kg from which a prop does not come: the reel pulls you to it
-QVR_CVAR(vr_grapple_small_mass, "120", CVAR_ARCHIVE)     // kg (QC VR_Grapple_MonsterMass) up to which a monster is small: pulled fast, staggered
-QVR_CVAR(vr_grapple_huge_mass, "400", CVAR_ARCHIVE)      // kg from which a monster is huge: the reel pulls you to it (in between: medium)
 QVR_CVAR(vr_grapple_small_speed, "400", CVAR_ARCHIVE)    // units/s a small monster is reeled in at
 QVR_CVAR(vr_grapple_medium_speed, "160", CVAR_ARCHIVE)   // and a medium one
 QVR_CVAR(vr_grapple_stagger, "1", CVAR_ARCHIVE)          // small monsters reeled in are staggered (their pain, forced; again every second of reeling)
@@ -3406,33 +3208,15 @@ QVR_CVAR(vr_grapple_haptics, "1", CVAR_ARCHIVE)          // strength of the rope
 QVR_CVAR(vr_grapple_quick_speed, "1800", CVAR_ARCHIVE)   // units/s the quick release (the button on the gun) brings the hook back at, with vr_grapple_quick_time 0 (and the fastest it goes with it: a long rope takes longer)
 QVR_CVAR(vr_grapple_drop_grace, "0.12", CVAR_ARCHIVE)    // seconds the trigger let go waits before the hook comes off: dropping or passing the gun by then keeps it in
 QVR_CVAR(vr_grapple_rope_sim, "1", CVAR_ARCHIVE)         // the rope is a physical thing (vr_ropesim.cpp): it hangs, lies and wraps round the world and the props, never through them, and pulls along where it lies; 0: a straight line (drawn sagging)
-QVR_CVAR(vr_grapple_rope_spacing, "4", CVAR_ARCHIVE)     // units between the simulated rope's points (finer: truer round edges, more work; a long rope's are farther apart: 96 points at most)
-QVR_CVAR(vr_grapple_rope_iterations, "32", CVAR_ARCHIVE) // passes a frame holding its pieces to their length (more: stiffer, truer, more work)
-QVR_CVAR(vr_grapple_rope_radius, "4", CVAR_ARCHIVE)      // the simulated rope's thickness (units, half of it): how far from what it lies on
 QVR_CVAR(vr_grapple_trigger_release, "0", CVAR_ARCHIVE)  // the trigger let go: 0 nothing (the hook stays in: the detach button on the gun takes it off); 1 it comes straight back (as the reel-in button); 2 it comes loose on its rope (reel it in with B/Y)
 QVR_CVAR(vr_grapple_max_length, "1500", CVAR_ARCHIVE)    // units: the longest the rope is (the hook flies no farther; the unreel pays out no more)
-QVR_CVAR(vr_grapple_loose_slack, "8", CVAR_ARCHIVE)      // units of slack the rope gets when the hook comes off (a loose hook lying there is not dragged by a step)
-QVR_CVAR(vr_grapple_move_share, "0.7", CVAR_ARCHIVE)     // the share of your walking (the thumbstick) a load hanging on the rope takes (the loose hook, a hooked prop): it trails a little rather than lagging far behind and snapping forward; 0: none
-QVR_CVAR(vr_grapple_load_drag, "1", CVAR_ARCHIVE)        // a second: how much of its speed a load on the rope loses to the air (its swing relative to you; a gun hanging on its own: all of it), so a swing dies down
-QVR_CVAR(vr_grapple_hang_drag, "1", CVAR_ARCHIVE)        // a second: how much of its speed what hangs on a rope with no one holding it loses (a gun left hanging from a ceiling: it stops swinging in a couple of seconds)
-QVR_CVAR(vr_grapple_load_max_speed, "500", CVAR_ARCHIVE) // units/s: the fastest a load on the rope moves relative to you (no rope of death); 0: no limit
 QVR_CVAR(vr_grapple_shootable, "1", CVAR_ARCHIVE)        // shooting a hook that is in the world or a door (any weapon) takes it off
 QVR_CVAR(vr_grapple_front_button, "1", CVAR_ARCHIVE)     // the grappling gun's front button (near the muzzle): the instant reel-in (the back one only detaches)
-QVR_CVAR(vr_grapple_front_button_x, "6", CVAR_ARCHIVE)   // its place: from the back button along the gun (model units; +x towards the muzzle)
-QVR_CVAR(vr_grapple_front_button_y, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_grapple_front_button_z, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_grapple_rope_depth, "2", CVAR_ARCHIVE)       // units inside the grappling gun's muzzle the rope is drawn from (in a hand, and a gun lying about)
 QVR_CVAR(vr_grapple_sag, "1", CVAR_ARCHIVE)              // a slack rope is drawn hanging (0: always straight)
-QVR_CVAR(vr_grapple_rope_tail, "6", CVAR_ARCHIVE)        // units (times the hook's size) the drawn rope goes straight out of the hook's back before it bends (its last pieces point into the hook); 0: none
-QVR_CVAR(vr_grapple_hook_scale, "0.6", CVAR_ARCHIVE)     // the size of the hook the grappling gun fires (its model; 1: Rogue's, too big for the gun), on the next shot
-QVR_CVAR(vr_grapple_tow_light, "10", CVAR_ARCHIVE)       // kg up to which a hooked prop dragged along on a taut rope doesn't slow you; heavier, you drag it slower in proportion (40 kg, an explosive box: a quarter as fast)
 QVR_CVAR(vr_grapple_tow_speed, "320", CVAR_ARCHIVE)      // units/s you can drag a light prop at on a taut rope (walking away from it); heavier, slower (vr_grapple_tow_light); 0: no limit (it comes at your speed)
 QVR_CVAR(vr_grapple_debug, "0", CVAR_NONE)               // with developer 1: what the hook bites and each reel (mass, class, speeds); 2 also the rope four times a second; 3 every frame the rope holds you; 4 also every rope drawn, every frame (the client)
-QVR_CVAR(vr_grapple_unreel_slack, "256", CVAR_ARCHIVE)   // units of slack the unreel (A/X) pays out beyond the load's distance when nothing pulls on the rope (you or the load on the ground): the rope comes off the drum and lies there; hanging, the load takes it out as ever. 4: the old unreel (nothing seen on the ground)
-QVR_CVAR(vr_grapple_reel_home, "5", CVAR_ARCHIVE)        // units from the rope's end at the muzzle the loose hook's tail is reeled to before it goes back in (it was 9)
 QVR_CVAR(vr_grapple_quick_time, "0.5", CVAR_ARCHIVE)     // seconds the front button's reel-in takes (the hook reeled in, speeding up then slowing down; a short rope quicker); 0: straight back at vr_grapple_quick_speed
 QVR_CVAR(vr_weapondrop_particles, "1", CVAR_ARCHIVE)
-QVR_CVAR(vr_2h_spread_reduction, "0.5", CVAR_ARCHIVE)
 QVR_CVAR(vr_2h_throw_velocity_mult, "1.3", CVAR_ARCHIVE)
 QVR_CVAR(vr_2h_handoff, "1", CVAR_ARCHIVE)                // letting go of a two-handed weapon leaves it in the other hand: a sword changes hands, a gun hangs from its foregrip
 QVR_CVAR(vr_2h_grip_sound, "0.6", CVAR_ARCHIVE)      // the volume of the click as the other hand takes a weapon's foregrip (half as it lets go; vr_twohand.cpp gripFeedback; 0 none; the pulse stays)
@@ -3572,7 +3356,7 @@ QVR_CVAR(vr_test_pile_crates, "80", CVAR_NONE)       // and the crates its Wall 
 QVR_CVAR(vr_test_spawn_hold, "0", CVAR_NONE)          // 1: a box or a crate (vr_test_spawn 100..104, 107..109) put into the empty main hand (QC weapons.qc)
 QVR_CVAR(vr_test_spawn_flags, "0", CVAR_NONE)         // a test monster's spawnflags (vr_test_spawn 0..20; QC buttons.qc): 2 a Rogue statue knight or hell knight, a multi-grenade ogre
 QVR_CVAR(vr_probe_kinds, "1", CVAR_ARCHIVE)          // the kinds of monster that can appear later on a map (the firing range's dispensers, the training dummies' types, monsters waiting for a trigger) made ready as it loads: their models, sounds, limbs and compiled hull (QC vr_probe.qc; no 15-25 ms hitch at their first appearance); 0: at their first appearance
-QVR_CVAR(vr_probe_test_spawn, "0", CVAR_ARCHIVE)     // ... and the debug spawner's monsters made ready as each map loads (QC vr_probe.qc: models, sounds, limbs, hull; no hitch at its first impulse 241): 1 vr_test_spawn's kind, 2 every kind (a longer load); 0 none (the firing range's dispensers, dummies and waiting monsters are always)
+QVR_CVAR(vr_probe_test_spawn, "0", CVAR_NONE)     // ... and the debug spawner's monsters made ready as each map loads (QC vr_probe.qc: models, sounds, limbs, hull; no hitch at its first impulse 241): 1 vr_test_spawn's kind, 2 every kind (a longer load); 0 none (the firing range's dispensers, dummies and waiting monsters are always)
 QVR_CVAR(vr_test_spawn_dead, "0", CVAR_NONE)          // 1: a monster killed at once (a corpse); 2: killed hard enough to gib (QC weapons.qc: 100 damage past its health)
 QVR_CVAR(vr_test_spawn_yaw, "0", CVAR_NONE)           // 100..104: a box let loose (a physics prop), turned this many degrees about its upright (grappling hook tests: a turned box's empty corners)
 QVR_CVAR(vr_test_spawn_tilt, "0", CVAR_NONE)          // ... and tipped this many degrees about the way you face, its lowest corner on the floor (it topples: sv_gravity 0 holds it so)
@@ -3946,8 +3730,8 @@ QVR_CVAR(vr_nail_test, "0", CVAR_NONE) // Debug > Tests > Nail Pistol: 1 the nai
 QVR_CVAR(vr_mg3_wtest, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine Weapons: 1 report, 2 Super Axe blows (QC/vr_mg3_weapons_test.qc; not archived)
 QVR_CVAR(vr_mg_route_stage, "0", CVAR_NONE) // MG1/MG3 route sweep driver: each new map's first frame runs mg1route<stage>.cfg (MG3: mg3route<stage>.cfg) once (0 off; the scripts raise it); not archived
 QVR_CVAR(vr_mg3_test, "0", CVAR_NONE) // Debug > Tests > Dawn of the Machine Tests: 1 state report (developer campaign only; not archived)
-QVR_CVAR(vr_mg3_ghost_alpha, "0.4", CVAR_ARCHIVE) // Dawn of the Machine's ghosts: how opaque they are drawn (0.05..1; 1 solid; QC/vr_mg3_ghost.qc, Debug > Tests > Dawn of the Machine Tests)
-QVR_CVAR(vr_mg3_aggro_groups, "0", CVAR_ARCHIVE) // Dawn of the Machine: a waking monster wakes what its aggro_target names (upstream ships this off; Debug > Tests > Dawn of the Machine Tests)
+QVR_CVAR(vr_mg3_ghost_alpha, "0.4", CVAR_NONE) // Dawn of the Machine's ghosts: how opaque they are drawn (0.05..1; 1 solid; QC/vr_mg3_ghost.qc, Debug > Tests > Dawn of the Machine Tests)
+QVR_CVAR(vr_mg3_aggro_groups, "0", CVAR_NONE) // Dawn of the Machine: a waking monster wakes what its aggro_target names (upstream ships this off; Debug > Tests > Dawn of the Machine Tests)
 QVR_CVAR(vr_mg3_bn_discovered, "0", CVAR_ARCHIVE) // Dawn of the Machine: Bloody Nightmare found in a game (the hell knight's head): the Official Campaigns menu offers it
 QVR_CVAR(vr_mg3_bn_start, "0", CVAR_NONE) // Official Campaigns > Bloody Nightmare: the next Dawn of the Machine start map begins a Bloody Nightmare game (QC clears it)
 // Debug > Cheats and Recording (vr_cheats.cpp, QC vr_cheats.qc; not saved, not in deathmatch):
@@ -3984,9 +3768,7 @@ QVR_CVAR(vr_stealth_debug, "0", CVAR_NONE)           // 1: state changes printed
 QVR_CVAR(vr_mdl_dequant, "1", CVAR_ARCHIVE)          // .mdl vertices dequantised at load (vr_mdldequant.cpp): each vertex's smoothest path through its animations within half a byte step of every stored value (no wobble); 0: the stored bytes, exactly as before
 QVR_CVAR(vr_anim_smooth_tension, "0", CVAR_ARCHIVE)  // r_lerpmodels 3 (vr_animsmooth.cpp): the spline's tension: 0 Catmull-Rom (the speed carried through each frame), 1 easing to rest at each frame; between: less overshoot
 QVR_CVAR(vr_anim_smooth_rig, "1", CVAR_ARCHIVE)      // ... and a rigged monster's limbs (vr_ragdoll.cpp's rig) swung round their joints between frames, keeping their length (0: the spline alone)
-QVR_CVAR(vr_anim_smooth_rig_error, "1.5", CVAR_ARCHIVE) // ... a bone whose fit to a frame is off by more than this (rms, units) isn't swung between it and its neighbours; a vertex off its bone by more swings less (none at twice it)
 QVR_CVAR(vr_anim_smooth_rebuild, "1", CVAR_ARCHIVE)  // a rigged monster drawn from its fitted skeleton every frame (vr_animsmooth.cpp): each vertex its rest place on its bone moved with it, the frames' rounding gone (any Model Animation); a vertex its bone fits worse keeps the frames' place
-QVR_CVAR(vr_anim_smooth_rebuild_error, "0.5", CVAR_ARCHIVE) // ... a vertex off its bone's fits by more than this (rms over the frames, units) is rebuilt less (not at twice it); a model with too few vertices rebuilt draws as before
 QVR_CVAR(vr_monster_lerp_continue, "1", CVAR_ARCHIVE) // a monster's next step drawn on from where it is drawn, not from its last step's end (no snap: the dogs' turns)
 QVR_CVAR(vr_debug_drawn_moves, "", CVAR_NONE)       // a part of model names (progs/dog): those monsters drawn jumping between frames logged ("drawnmove:")
 QVR_CVAR(vr_debug_pose_check, "0", CVAR_NONE)        // 1: monsters drawn collapsed logged ("posecheck:": held squashed between two poses over 0.2 s, a pose out of range, a blend not in 0..1, an uneven scale; vr_posecheck.cpp); 2: every frame of theirs; 3: as 1, and a screenshot at each long squash

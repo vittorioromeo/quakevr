@@ -1639,89 +1639,14 @@ QVR_CYCLE(vr_handgrenade_arm, "Arm Hand Grenades",
 QVR_TOGGLE(vr_smallgibs, "Small Gibs",
     "Hits tear small chunks of meat out of monsters and corpses: the gibs' models, a rock's size or half of it. They bleed, can be picked up and thrown, and fade away after a while.")
 QVR_TOGGLE(vr_smallgibs_player, "From You Too", "Hits on you tear them out of you as well.")
-QVR_SLIDER(vr_smallgibs_min_damage, "Least Damage", 0.f, 100.f, 1.f, "%.0f", ext(0.f, 500.f),
-    "A hit with less damage tears none out (a shotgun blast's pellets count as one hit). Above it the chance rises.")
-QVR_SLIDER(vr_smallgibs_full_damage, "Damage for a Sure One", 1.f, 200.f, 5.f, "%.0f", ext(1.f, 1000.f),
-    "From this damage a hit always tears some out (times the weapon's chance below). Quad Damage, the chainsaw, gibbing and bursting a large gib always do.")
-QVR_SLIDER(vr_smallgibs_curve, "Chance Curve", 0.5f, 3.f, 0.1f, "%.1f", noExt,
-    "How the chance rises between the two: 1 straight, more makes light hits rarer (a plain shotgun blast) while hard ones stay sure.")
-QVR_SLIDER(vr_smallgibs_damage_per_gib, "One More Each", 5.f, 200.f, 5.f, "%.0f damage", ext(1.f, 1000.f),
-    "Harder hits tear more out: one more for about each this much damage.")
-QVR_SLIDER(vr_smallgibs_per_hit, "Most From a Hit", 1.f, 10.f, 1.f, "%.0f", noExt, nullptr)
-QVR_SLIDER(vr_smallgibs_shots, "Shotguns", 0.f, 3.f, 0.1f, "%.1fx", noExt,
-    "The shotgun's blast rarely tears one out, the double-barrelled one's often (their pellets' damage summed). A grunt's gun too.")
-QVR_SLIDER(vr_smallgibs_nails, "Nails", 0.f, 3.f, 0.1f, "%.1fx", noExt, "Nails and lasers (0: never, but under Quad Damage).")
-QVR_SLIDER(vr_smallgibs_blades, "Blades", 0.f, 3.f, 0.1f, "%.1fx", noExt,
-    "The axe's and a sword's edge or point, swung or thrown fast.")
-QVR_SLIDER(vr_smallgibs_blunt, "Blunt Blows", 0.f, 3.f, 0.1f, "%.1fx", noExt,
-    "Punches, a pommel or hilt, a gun or the crowbar swung, Mjolnir, bashes and headbutts: only strong ones, rarely.")
-QVR_SLIDER(vr_smallgibs_props, "Props", 0.f, 3.f, 0.1f, "%.1fx", noExt,
-    "A rock, a brick or another thing thrown hard or swung in the fist.")
-QVR_SLIDER(vr_smallgibs_explosions, "Explosions", 0.f, 3.f, 0.1f, "%.1fx", noExt, nullptr)
-QVR_SLIDER(vr_smallgibs_other, "Everything Else", 0.f, 3.f, 0.1f, "%.1fx", noExt, "Lightning, monsters' blows and the rest.")
-QVR_SLIDER(vr_smallgibs_saw_interval, "Chainsaw: One Each", 0.05f, 1.f, 0.05f, "%.2f s", noExt,
-    "The running chain tears one out of a monster or a corpse this often.")
-QVR_SLIDER(vr_smallgibs_gibbing, "With a Gibbing", 0.f, 20.f, 1.f, "%.0f", noExt, "How many fly with a body's gibs when it is gibbed.")
-QVR_SLIDER(vr_smallgibs_burst, "A Large Gib Bursts Into", 0.f, 10.f, 1.f, "%.0f", noExt,
-    "How many a gib breaks into when it is destroyed (a head half as many again).")
 QVR_TOGGLE(vr_smallgibs_brains, "Brain Chunks",
     "A head that bursts (a head gib destroyed, or a head popped by a headshot) throws torn lumps of brain too: small gibs in all else (picked up, thrown, bleeding, fading), lighter.")
-QVR_SLIDER(vr_smallgibs_brains_burst, "From a Head Gib", 0.f, 20.f, 1.f, "%.0f", noExt,
-    "How many when a head gib is destroyed (with its small gibs of meat).")
-QVR_SLIDER(vr_smallgibs_brains_pop, "From a Head Pop", 0.f, 20.f, 1.f, "%.0f", noExt,
-    "How many when a headshot pops a head (Decapitation > Head Shots).")
-QVR_SLIDER(vr_smallgibs_brains_size, "Brain Chunk Size", 0.2f, 2.f, 0.05f, "%.2fx", noExt, "Times the small gibs' size (Smallest, Largest).")
-QVR_SLIDER(vr_smallgibs_brains_mass, "Brain Chunk Mass", 0.05f, 2.f, 0.05f, "%.2f kg", noExt, nullptr)
-QVR_SLIDER(vr_smallgibs_brains_gloss, "Brain Chunk Gloss", 0.f, 2.f, 0.1f, "%.1fx", noExt,
-    "Their wet sheen, always on: the highlights on the folds and a warm, reddish rim; 0 dry and matt "
-    "(vr_smallgibs_brains_gloss).")
-QVR_SLIDER(vr_smallgibs_brains_jiggle, "Brain Chunk Jiggle", 0.f, 4.f, 0.25f, "%.2fx", noExt,
-    "They wobble when knocked (landing, bouncing, shaken in a hand): squashed and bulging, settling in "
-    "half a second. Drawn only: their physics stay rigid. 0 off (vr_smallgibs_brains_jiggle).")
-QVR_SLIDER(vr_smallgibs_brains_speed, "Brain Chunk Speed", 0.f, 10.f, 0.1f, "%.1f m/s", ext(0.f, 30.f),
-    "How fast brain chunks fly out of a head burst: their own, not Speed below (times A Large Gib Bursts: "
-    "Speed). The default is Speed's, which is what they used then (vr_smallgibs_brains_speed).")
-QVR_SLIDER(vr_smallgibs_brains_up, "Brain Chunk Up", 0.f, 10.f, 0.1f, "%.1f m/s", ext(0.f, 30.f),
-    "And upwards: their own, not Up below (times A Large Gib Bursts: Up) (vr_smallgibs_brains_up).")
-QVR_SLIDER(vr_smallgibs_speed, "Speed", 0.f, 10.f, 0.1f, "%.1f m/s", ext(0.f, 30.f),
-    "How fast they fly out from where the hit landed (times Flight by Situation below).")
-QVR_SLIDER(vr_smallgibs_up, "Up", 0.f, 10.f, 0.1f, "%.1f m/s", ext(0.f, 30.f), "And upwards (times Flight by Situation below).")
 QVR_SLIDER(vr_smallgibs_grace, "Pass Through the Body", 0.f, 0.5f, 0.05f, "%.2f s", noExt,
     "For this long they don't collide with the body they came from.")
 QVR_TOGGLE(vr_smallgibs_pass_inside, "Not Pushed Out of Bodies",
     "Still inside a monster, you, a hand or a blade after that (melee, the chainsaw), they pass through it until clear, not pushed out at 2 to 3 m/s.")
-QVR_SLIDER(vr_smallgibs_blow_grace, "Not Batted Away For", 0.f, 1.f, 0.05f, "%.2f s", noExt,
-    "For this long after it is torn out, your hands, weapons and what they hold pass through a small gib: the blade that tore it out doesn't bat it away. After it you can bat it.")
 QVR_TOGGLE(vr_smallgibs_blow_burst, "Burst by Blows Meanwhile",
     "In that time a blow still bursts one (the blade that tore it out too, going on through it), with Can Be Destroyed on; it is never batted or pushed. Off: blows pass through it.")
-QVR_SLIDER(vr_smallgibs_size_min, "Smallest", 0.1f, 2.f, 0.05f, "%.2fx rock", noExt, nullptr)
-QVR_SLIDER(vr_smallgibs_size_max, "Largest", 0.1f, 2.f, 0.05f, "%.2fx rock", noExt, nullptr)
-QVR_SLIDER(vr_smallgibs_mass, "Mass", 0.05f, 5.f, 0.05f, "%.2f kg", noExt, "Light: thrown, they hurt little.")
-QVR_SLIDER(vr_smallgibs_speed_melee, "Melee: Speed", 0.f, 3.f, 0.01f, "%.2fx", ext(0.f, 10.f),
-    "Speed times this. A hand's blow: a blade, a punch, a pommel or hilt, a rock or brick in the fist; bashes and headbutts.")
-QVR_SLIDER(vr_smallgibs_up_melee, "Melee: Up", 0.f, 3.f, 0.01f, "%.2fx", ext(0.f, 10.f), "Up times this.")
-QVR_SLIDER(vr_smallgibs_speed_saw, "Chainsaw: Speed", 0.f, 3.f, 0.01f, "%.2fx", ext(0.f, 10.f),
-    "Speed times this. The chainsaw's running chain or a swing of it.")
-QVR_SLIDER(vr_smallgibs_up_saw, "Chainsaw: Up", 0.f, 3.f, 0.01f, "%.2fx", ext(0.f, 10.f), "Up times this.")
-QVR_SLIDER(vr_smallgibs_speed_guns, "Guns: Speed", 0.f, 3.f, 0.01f, "%.2fx", ext(0.f, 10.f),
-    "Speed times this. Shotguns, nails, lasers, lightning, a grunt's gun.")
-QVR_SLIDER(vr_smallgibs_up_guns, "Guns: Up", 0.f, 3.f, 0.01f, "%.2fx", ext(0.f, 10.f), "Up times this.")
-QVR_SLIDER(vr_smallgibs_speed_explosions, "Explosions: Speed", 0.f, 3.f, 0.01f, "%.2fx", ext(0.f, 10.f), "Speed times this. Rockets, grenades, every blast.")
-QVR_SLIDER(vr_smallgibs_up_explosions, "Explosions: Up", 0.f, 3.f, 0.01f, "%.2fx", ext(0.f, 10.f), "Up times this.")
-QVR_SLIDER(vr_smallgibs_speed_thrown, "Thrown: Speed", 0.f, 3.f, 0.01f, "%.2fx", ext(0.f, 10.f),
-    "Speed times this. A thrown axe, sword, rock, brick or gib; a projectile batted back.")
-QVR_SLIDER(vr_smallgibs_up_thrown, "Thrown: Up", 0.f, 3.f, 0.01f, "%.2fx", ext(0.f, 10.f), "Up times this.")
-QVR_SLIDER(vr_smallgibs_speed_other, "Everything Else: Speed", 0.f, 3.f, 0.01f, "%.2fx", ext(0.f, 10.f), "Speed times this. Monsters' blows and the rest.")
-QVR_SLIDER(vr_smallgibs_up_other, "Everything Else: Up", 0.f, 3.f, 0.01f, "%.2fx", ext(0.f, 10.f), "Up times this.")
-QVR_SLIDER(vr_smallgibs_speed_gibbing, "Gibbing a Live One: Speed", 0.f, 3.f, 0.01f, "%.2fx", ext(0.f, 10.f),
-    "Speed times this. A living monster gibbed: they fly out of its whole body, with its gibs' push.")
-QVR_SLIDER(vr_smallgibs_up_gibbing, "Gibbing a Live One: Up", 0.f, 3.f, 0.01f, "%.2fx", ext(0.f, 10.f), "Up times this.")
-QVR_SLIDER(vr_smallgibs_speed_corpse, "Gibbing a Corpse: Speed", 0.f, 3.f, 0.01f, "%.2fx", ext(0.f, 10.f),
-    "Speed times this. A corpse gibbed where it lies (struck, shot, blown up).")
-QVR_SLIDER(vr_smallgibs_up_corpse, "Gibbing a Corpse: Up", 0.f, 3.f, 0.01f, "%.2fx", ext(0.f, 10.f), "Up times this.")
-QVR_SLIDER(vr_smallgibs_speed_burst, "A Large Gib Bursts: Speed", 0.f, 3.f, 0.01f, "%.2fx", ext(0.f, 10.f),
-    "Speed times this. A gib or head destroyed breaks into them.")
-QVR_SLIDER(vr_smallgibs_up_burst, "A Large Gib Bursts: Up", 0.f, 3.f, 0.01f, "%.2fx", ext(0.f, 10.f), "Up times this.")
 QVR_SLIDER(vr_smallgibs_max, "Most Lying About", 1.f, 128.f, 1.f, "%.0f", ext(1.f, 256.f), "Past it, the oldest go first (not one in your hand).")
 QVR_SLIDER(vr_smallgibs_time, "Last", 0.f, 120.f, 5.f, "%.0f s", noExt,
     "Then they fade away (0: never). Held, and in the air after, they wait.")
@@ -1729,8 +1654,6 @@ QVR_TOGGLE(vr_smallgibs_destroy, "Can Be Destroyed",
     "Shots and blows burst them into a puff of blood. Off: they pass through them.")
 QVR_TOGGLE(vr_smallgibs_stomp, "Pop Underfoot",
     "Landing on them (a jump, a drop, a stomp) pops the meat and brain chunks under your feet.")
-QVR_SLIDER(vr_smallgibs_stomp_speed, "Pop Landing Speed", 50.f, 600.f, 10.f, "%.0f u/s", noExt,
-    "How fast you must land on them to pop them (a jump from the same level lands at about 270).")
 
 // vr_menu_gore.inc: pageSmallGibsEnemies
 QVR_SLIDER(vr_smallgibs_mult_grunt, "Grunt", 0.f, 4.f, 0.25f, "%.2fx", ext(0.f, 20.f),
@@ -1969,19 +1892,14 @@ QVR_SLIDER(vr_gore_sound_drips, "Gore Sounds: Drips Heard", 0.f, 1.f, 0.05f, "%.
 QVR_TOGGLE(vr_footprints, "Bloody Footprints",
     "Stepping in a pool of blood or on a bloody body bloodies your feet: your next steps leave bloody boot "
     "prints where your feet come down, fading (vr_footprints).")
-QVR_SLIDER(vr_footprint_count, "Footprints", 1.f, 16.f, 1.f, "%.0f", ext(1.f, 32.f), "How many prints after the blood (vr_footprint_count).")
 QVR_SLIDER(vr_footprint_fade, "Footprint Fade", 0.f, 1.f, 0.05f, "%.2f", noExt,
     "How much they fade from the first to the last (0: all as strong; 1: the last faint) (vr_footprint_fade).")
-QVR_SLIDER(vr_footprint_size, "Footprint Size", 0.5f, 2.f, 0.05f, "%.2fx", noExt, "Times your foot's own size (vr_footprint_size).")
 QVR_SLIDER(vr_footprint_rate, "Footprint Frequency", 0.25f, 2.f, 0.05f, "%.2fx", ext(0.25f, 4.f),
     "A print each step: a step as long as a person's at your speed (0.7 m walking, longer running, up to "
     "2.2 m at a full run), times as many as this (vr_footprint_rate).")
 QVR_TOGGLE(vr_handprints, "Bloody Handprints",
     "A hand soaked in blood (a gib held, a bloody blow or cut) pressed on a wall, the floor or a ledge leaves a "
     "bloody handprint there, one a touch, using its blood up (water washes it off) (vr_handprints).")
-QVR_SLIDER(vr_handprint_count, "Handprints", 1.f, 16.f, 1.f, "%.0f", ext(1.f, 32.f),
-    "How many prints a hand soaked full leaves, fainter as its blood runs out (vr_handprint_count).")
-QVR_SLIDER(vr_handprint_size, "Handprint Size", 0.5f, 2.f, 0.05f, "%.2fx", noExt, "Times your hand's own size (vr_handprint_size).")
 QVR_TOGGLE(vr_handprint_props, "Handprints on Props",
     "A bloody hand pressed on a crate, a barrel, a box or anything lying about leaves its blood on it, "
     "moving with it (vr_handprint_props).")
@@ -1996,12 +1914,8 @@ QVR_SLIDER(vr_gore_pools, "Blood Pools", 0.f, 2.f, 0.1f, "%.1fx", ext(),
     "Pools of blood spreading under corpses and gibs: their size (0 none).")
 QVR_SLIDER(vr_gore_drips, "Dripping", 0.f, 3.f, 0.25f, "%.2fx", ext(),
     "Blood dripping from splats on the ceiling and from gibs stuck there: how long and how much (0 none).")
-QVR_SLIDER(vr_gore_stick, "Gibs Stick", 0.f, 30.f, 1.f, "%.0f s", ext(),
-    "Gibs flung into a ceiling or a wall may stick there about this long, dripping, then fall (0 never).")
 QVR_SLIDER(vr_gore_stick_thrown, "Thrown Gibs Stick", 0.f, 1.f, 0.05f, "%.2f", noExt,
     "The chance a gib or head (or a small gib) you throw into a wall or a ceiling sticks there (faster than Gib Splat Speed it bursts instead).")
-QVR_SLIDER(vr_gore_stick_speed, "Speed to Stick", 50.f, 500.f, 10.f, "%.0f u/s", ext(20.f, 1000.f),
-    "How fast a gib must strike a wall or a ceiling to stick (flung from a body or thrown).")
 QVR_TOGGLE(vr_head_flies, "Flies on Heads",
     "Flies buzzing round some severed heads (Scourge of Armagon's: about one head in ten). Off "
     "by default.")
@@ -2015,72 +1929,21 @@ QVR_SLIDER(vr_gib_speed_heavy, "Gib Speed: Explosives", 0.05f, 1.5f, 0.05f, "%.2
 QVR_TOGGLE(vr_gore_streams, "Blood Streams",
     "Shots and nails open bullet holes that pour a thin stream of blood, pulsing and weakening over a few seconds, "
     "following the body as it moves and falls, painting a pool where it lands (vr_gore_streams).")
-QVR_SLIDER(vr_gore_streams_chance, "Stream Chance", 0.f, 1.f, 0.05f, "%.2f", noExt,
-    "The chance each shot or pellet opens one (vr_gore_streams_chance).")
 QVR_SLIDER(vr_gore_streams_melee_blade, "Melee Blade Chance", 0.f, 1.f, 0.05f, "%.2f", noExt,
     "The chance each blow of a blade in your hand (the axe, the sword, the chainsaw) opens one, on a monster "
     "or a corpse (vr_gore_streams_melee_blade).")
-QVR_SLIDER(vr_gore_streams_melee_blunt, "Melee Blunt Chance", 0.f, 1.f, 0.05f, "%.2f", noExt,
-    "The chance each blunt blow of yours (the crowbar, a punch, a pommel, a gun, a thing in the fist) opens "
-    "one (vr_gore_streams_melee_blunt).")
 QVR_SLIDER(vr_gore_streams_thrown_blade, "Thrown Blade Chance", 0.f, 1.f, 0.05f, "%.2f", noExt,
     "The chance an axe or a sword you threw opens one where it strikes (vr_gore_streams_thrown_blade).")
-QVR_SLIDER(vr_gore_streams_per_body, "Streams per Body", 1.f, 8.f, 1.f, "%.0f", noExt,
-    "Most on one body: a new one takes the weakest's place (vr_gore_streams_per_body).")
-QVR_SLIDER(vr_gore_streams_max, "Streams in All", 0.f, 64.f, 2.f, "%.0f", noExt, "Most at once everywhere (vr_gore_streams_max).")
-QVR_SLIDER(vr_gore_streams_time, "Stream Duration", 1.f, 20.f, 0.5f, "%.1f s", ext(1.f, 30.f),
-    "About how long one pours, weakening all along (vr_gore_streams_time).")
-QVR_SLIDER(vr_gore_streams_speed, "Stream Force", 0.f, 200.f, 5.f, "%.0f u/s", ext(0.f, 400.f),
-    "How fast it leaves the wound at its strongest: how far it arcs out (vr_gore_streams_speed).")
 QVR_SLIDER(vr_gore_streams_width, "Stream Width", 0.1f, 2.f, 0.05f, "%.2f units", ext(0.05f, 4.f),
     "How thick, at its strongest (1 unit: 3.8 cm) (vr_gore_streams_width).")
 QVR_SLIDER(vr_gore_streams_pool, "Stream Pools", 0.f, 3.f, 0.1f, "%.1fx", ext(0.f, 4.f),
     "The pools a stream spreads where it lands: their size (0: no marks) (vr_gore_streams_pool).")
-QVR_SLIDER(vr_gore_streams_spread, "Stream Spread", 0.f, 90.f, 5.f, "%.0f deg", noExt,
-    "Each stream's way out turned at random up to this far from the wound's, so one shotgun blast's "
-    "streams go their own ways (0: all alike) (vr_gore_streams_spread).")
-QVR_SLIDER(vr_gore_streams_speed_var, "Stream Force Variation", 0.f, 0.9f, 0.05f, "+-%.2f", noExt,
-    "Each stream's force times a random 1 plus or minus this (vr_gore_streams_speed_var).")
-QVR_SLIDER(vr_gore_streams_wobble, "Stream Wobble", 0.f, 45.f, 1.f, "%.0f deg", noExt,
-    "How far each stream's way out wanders as it pours: slow noise (0: steady) (vr_gore_streams_wobble).")
-QVR_SLIDER(vr_gore_streams_wobble_rate, "Stream Wobble Rate", 0.f, 3.f, 0.05f, "%.2f Hz", ext(0.f, 10.f),
-    "How fast it wanders: about this many swings a second (vr_gore_streams_wobble_rate).")
-QVR_SLIDER(vr_gore_streams_thickness_var, "Stream Thickness Variation", 0.f, 1.f, 0.05f, "%.2f", noExt,
-    "How much its thickness swells and thins as it pours, and so along it as it falls: an uneven flow, not a "
-    "steady trickle (0: even; 1: from a thread to twice as thick) (vr_gore_streams_thickness_var).")
-QVR_SLIDER(vr_gore_streams_thickness_rate, "Stream Thickness Rate", 0.f, 4.f, 0.1f, "%.1f Hz", ext(0.f, 10.f),
-    "How fast it swells and thins: about this many swells a second, unevenly (vr_gore_streams_thickness_rate).")
-QVR_SLIDER(vr_gore_streams_smooth, "Stream Smoothing", 0.f, 1.f, 0.05f, "%.2f s", ext(0.f, 2.f),
-    "The body's motion at the wound, and the stream's way out, smoothed over about this long, so the "
-    "monster's animation and turns don't fling it about in ribbons (0: none) (vr_gore_streams_smooth).")
-QVR_SLIDER(vr_gore_streams_inherit, "Stream Body Motion", 0.f, 1.f, 0.05f, "%.2fx", ext(0.f, 1.5f),
-    "How much of the body's (smoothed) motion the stream and its spurts take: 1 as a real one, less to keep "
-    "it steady as the monster moves (vr_gore_streams_inherit).")
-QVR_SLIDER(vr_gore_streams_break, "Stream Break Stretch", 0.f, 10.f, 0.5f, "%.1fx", ext(0.f, 100.f),
-    "A piece of the stream stretched this many times its length as poured breaks off, fading from half that; "
-    "and it is cut where the wound jumps (0: never) (vr_gore_streams_break).")
 QVR_TOGGLE(vr_gore_streams_spurts, "Stream Spurts",
     "Small drops spurting from the wound in a cone as it pours, most fading fast, a few flying further "
     "(vr_gore_streams_spurts).")
-QVR_SLIDER(vr_gore_streams_spurt_rate, "Spurt Rate", 0.f, 150.f, 5.f, "%.0f /s", ext(0.f, 1000.f),
-    "Drops a second at its strongest; fewer as it weakens (vr_gore_streams_spurt_rate).")
-QVR_SLIDER(vr_gore_streams_spurt_cone, "Spurt Cone", 0.f, 90.f, 5.f, "%.0f deg", noExt,
-    "How far round its way out they spurt (vr_gore_streams_spurt_cone).")
-QVR_SLIDER(vr_gore_streams_spurt_speed, "Spurt Speed", 0.f, 2.f, 0.05f, "%.2fx", ext(0.f, 4.f),
-    "Their speed, times the stream's (vr_gore_streams_spurt_speed).")
-QVR_SLIDER(vr_gore_streams_spurt_life, "Spurt Lifetime", 0.05f, 1.f, 0.05f, "%.2f s", ext(0.02f, 5.f),
-    "About how long most live, fading all along (vr_gore_streams_spurt_life).")
-QVR_SLIDER(vr_gore_streams_spurt_outliers, "Spurt Outliers", 0.f, 1.f, 0.02f, "%.2f", noExt,
-    "The share of them that fly further and live longer (vr_gore_streams_spurt_outliers).")
-QVR_SLIDER(vr_gore_streams_spurt_outlier_life, "Spurt Outlier Lifetime", 0.1f, 3.f, 0.05f, "%.2f s", ext(0.02f, 10.f),
-    "About how long those live (vr_gore_streams_spurt_outlier_life).")
-QVR_SLIDER(vr_gore_streams_spurt_size, "Spurt Size", 0.05f, 1.f, 0.01f, "%.2f units", ext(0.02f, 3.f),
-    "About how big the drops are (1 unit: 3.8 cm) (vr_gore_streams_spurt_size).")
 QVR_SLIDER(vr_gore_streams_splash, "Stream Splash", 0.f, 3.f, 0.1f, "%.1fx", ext(0.f, 10.f),
     "Drops splashing away where it lands: on the floor, a wall, a prop or a monster: how many (0 none) "
     "(vr_gore_streams_splash).")
-QVR_SLIDER(vr_gore_streams_splash_size, "Splash Size", 0.f, 3.f, 0.1f, "%.1fx", ext(0.f, 4.f),
-    "Their size, times the spurts' (vr_gore_streams_splash_size).")
 QVR_SLIDER(vr_gore_backsplatter, "Back-splatter", 0.f, 3.f, 0.25f, "%.2fx", ext(0.f, 4.f),
     "Thin long streaks thrown along the shot's line onto what is behind a monster hit: how many (0 none) "
     "(vr_gore_backsplatter).")
@@ -4333,39 +4196,10 @@ QVR_TOGGLE(vr_ragdoll_active, "Active Deaths",
     "his body playing his death animation as his strength fades (legs first): he stumbles if he dies on the "
     "move, may hold his wound and may crawl before going limp; a headshot or beheading collapses him. Off: "
     "limp at Go Limp At (vr_ragdoll_active).")
-QVR_SLIDER(vr_ragdoll_active_strength, "Muscle Strength", 0.f, 2.f, 0.1f, "%.1fx", ext(0.f, 3.f),
-    "How strongly the joints follow the death animation (vr_ragdoll_active_strength).")
-QVR_SLIDER(vr_ragdoll_active_fade, "Strength Lasts", 0.25f, 3.f, 0.25f, "%.2fx", ext(0.1f, 5.f),
-    "How long the strength lasts, times his death animation's length (vr_ragdoll_active_fade).")
-QVR_SLIDER(vr_ragdoll_active_hertz, "Muscle Stiffness", 2.f, 20.f, 1.f, "%.0f Hz", noExt,
-    "How quickly a joint at full strength springs towards its pose: more follows the animation tighter, "
-    "less is looser and lags (vr_ragdoll_active_hertz; at most 20).")
-QVR_SLIDER(vr_ragdoll_active_damping, "Muscle Damping", 0.2f, 2.f, 0.1f, "%.1f", noExt,
-    "How the joints' springs settle: 1 without overshoot, less bouncy, more sluggish (vr_ragdoll_active_damping).")
-QVR_SLIDER(vr_ragdoll_active_torque, "Muscle Torque", 0.5f, 5.f, 0.25f, "%.2f", ext(0.f, 10.f),
-    "A joint's most force at full strength, times the weight of what hangs on it times its lever: a blow "
-    "or a hand overpowers less of it (vr_ragdoll_active_torque).")
-QVR_SLIDER(vr_ragdoll_active_pin, "Thrown by His Death", 0.f, 2.f, 0.1f, "%.1f", ext(0.f, 5.f),
-    "Body weights pulling his pelvis along his death animation's at first (its throw back or forward "
-    "kept); 0 none (vr_ragdoll_active_pin).")
-QVR_SLIDER(vr_ragdoll_active_pin_time, "Thrown For", 0.f, 1.f, 0.05f, "%.2f s", ext(0.f, 3.f),
-    "And that pull fading out over this (vr_ragdoll_active_pin_time).")
-QVR_SLIDER(vr_ragdoll_active_stumble, "Stumble From", 0.f, 300.f, 10.f, "%.0f u/s", ext(0.f, 1000.f),
-    "Dying on the move at least this fast, he stumbles on: carried a moment, a leg stepping ahead. 0: "
-    "never (vr_ragdoll_active_stumble; a run is about 200-300, a walk 50-100).")
 QVR_TOGGLE(vr_ragdoll_active_dismember, "React to Lost Limbs",
     "A dying monster losing a limb holds the stump with his free hand and writhes a few seconds once down; "
     "killed standing by a leg cut off, he tries to keep his balance on the other before he falls; with no "
     "legs he crawls on his arms. Off: he dies as from any blow (vr_ragdoll_active_dismember).")
-QVR_SLIDER(vr_ragdoll_active_dismember_time, "Writhing", 0.f, 8.f, 0.5f, "%.1f s", ext(0.f, 20.f),
-    "How long he writhes holding the stump once down (vr_ragdoll_active_dismember_time).")
-QVR_SLIDER(vr_ragdoll_active_writhe, "Writhe Size", 0.f, 2.f, 0.1f, "%.1fx", ext(0.f, 3.f),
-    "How far his torso and legs stir as he writhes, times the default; 0 still (vr_ragdoll_active_writhe).")
-QVR_SLIDER(vr_ragdoll_active_balance_time, "Balance on One Leg", 0.f, 3.f, 0.1f, "%.1f s", ext(0.f, 5.f),
-    "How long at most he tries to keep his balance on one leg (0: he falls at once) "
-    "(vr_ragdoll_active_balance_time).")
-QVR_SLIDER(vr_ragdoll_active_balance_lean, "Falls Past", 5.f, 45.f, 1.f, "%.0f deg", ext(1.f, 90.f),
-    "And he falls once leaning this far from how he stood (vr_ragdoll_active_balance_lean).")
 QVR_SLIDER(vr_ragdoll_active_wound, "Hold the Wound", 0.f, 1.f, 0.05f, "%.2f", noExt,
     "The chance he puts a free hand on the wound that killed him (vr_ragdoll_active_wound).")
 QVR_TOGGLE(vr_ragdoll_active_env, "Use What Is Round Him",
@@ -4379,28 +4213,16 @@ QVR_TOGGLE(vr_ragdoll_active_crawl_back, "Flail on His Back",
     "One to crawl who lies on his back: on, he doesn't roll over onto his front; he flails there like a "
     "dying cockroach, his limbs pawing the air, then goes limp. Off: he rolls over and crawls "
     "(vr_ragdoll_active_crawl_back).")
-QVR_SLIDER(vr_ragdoll_active_crawl_force, "Crawl Pull", 0.2f, 3.f, 0.1f, "%.1f", ext(0.f, 6.f),
-    "Body weights his arms pull along the floor at most: more drags him further (vr_ragdoll_active_crawl_force).")
 QVR_TOGGLE(vr_ragdoll_active_liquids, "Swim and Flail in Liquids",
     "Dying in water (drowned, or falling in just after his death) he paddles and kicks, his head held up, "
     "weakening as he drowns; in lava or slime he flails, short and violent; then limp. Off: his death in a "
     "liquid plays as on land (vr_ragdoll_active_liquids).")
-QVR_SLIDER(vr_ragdoll_active_paddle, "Paddle Time", 1.f, 10.f, 0.5f, "%.1f s", ext(0.2f, 30.f),
-    "About how long he paddles in water before going limp (vr_ragdoll_active_paddle).")
-QVR_SLIDER(vr_ragdoll_active_flail, "Flail Time", 0.5f, 4.f, 0.25f, "%.2f s", ext(0.2f, 30.f),
-    "About how long he flails in lava (in slime 1.4 times it) before going limp (vr_ragdoll_active_flail).")
 QVR_CYCLE(vr_hit_react, "Hit Reactions",
     "A living monster you hit flinches where you hit it, then carries on fighting: its AI, its damage and "
     "its hitboxes are as before. Limbs: the bones struck turn round their joints (the head snaps back, an "
     "arm swings, a leg's knee buckles and the torso leans over it; a monster with no rig tilts whole). "
     "Whole Body: every monster tilts whole. Off: none, and no slow-down (vr_hit_react).",
     {0.f, "Off"}, {1.f, "Limbs"}, {2.f, "Whole Body"})
-QVR_SLIDER(vr_hit_react_strength, "Reaction Strength", 0.f, 2.f, 0.1f, "%.1fx", ext(0.f, 3.f),
-    "How far it flinches, times the default (by the share of its health the blow took; "
-    "vr_hit_react_strength).")
-QVR_SLIDER(vr_hit_react_time, "Reaction Length", 0.5f, 2.f, 0.1f, "%.1fx", ext(0.25f, 4.f),
-    "How long a flinch lasts, times the default (its peak at about 0.07 s, gone by about 0.5 s; "
-    "vr_hit_react_time).")
 QVR_SLIDER(vr_hit_react_slow, "Hits Slow Them", 0.f, 2.f, 0.1f, "%.1fx", ext(0.f, 3.f),
     "A monster hit a moment ago takes shorter steps: a leg hit about half for half a second, with a hitch "
     "towards that leg; the body a third, 0.3 s. 0: none (vr_hit_react_slow).")
@@ -4410,32 +4232,9 @@ QVR_TOGGLE(vr_ragdoll_active_stagger, "Active Shoves and Throws",
     "the knockdown's chance it gives way after 3 or 4 steps (knocked down), else it catches itself and "
     "fights on. Going down, its arms brace for the floor; a two-hand throw's body goes slack where you held "
     "it and curls as it goes over. Off: the knockdown's chance alone (vr_ragdoll_active_stagger).")
-QVR_SLIDER(vr_ragdoll_active_stagger_lean, "Stagger Falls Past", 10.f, 60.f, 5.f, "%.0f deg", noExt,
-    "A staggering monster whose middle leans this far past its feet for a third of a second, or twice "
-    "this far at once, falls whatever its balance (vr_ragdoll_active_stagger_lean).")
-QVR_SLIDER(vr_ragdoll_active_stagger_steps, "Backpedal Steps", 1.f, 10.f, 1.f, "%.0f", noExt,
-    "How many steps back a shoved monster takes at most (a steady one up to 3 more to catch itself); one "
-    "the shove beat gives way after 3 or 4 of them (vr_ragdoll_active_stagger_steps).")
 QVR_SLIDER(vr_ragdoll_active_stagger_travel, "Backpedal Distance", 0.f, 2.f, 0.1f, "%.1fx", noExt,
     "How far a shoved monster backpedals, times how far the same shove slid a standing one before "
     "active shoves (at most 4 m) (vr_ragdoll_active_stagger_travel).")
-QVR_SLIDER(vr_ragdoll_active_stagger_push, "Shove's Push", 0.f, 5.f, 0.25f, "%.2f m/s", ext(0.f, 10.f),
-    "A fresh two-hand shove's push on a staggering monster's top (its pelvis carried by its balance, its "
-    "feet not): more tips it further (vr_ragdoll_active_stagger_push).")
-QVR_SLIDER(vr_ragdoll_active_stagger_pin, "Stagger Balance", 0.5f, 5.f, 0.25f, "%.2f", ext(0.f, 10.f),
-    "Body weights holding its pelvis up while it staggers, at most (by its balance: the knockdown's chance "
-    "against its roll): less, it falls more often (vr_ragdoll_active_stagger_pin).")
-QVR_SLIDER(vr_ragdoll_active_stagger_blend, "Stagger Recovery Blend", 0.05f, 1.f, 0.05f, "%.2f s", noExt,
-    "Recovered, its ragdoll blends into the animated monster over this (vr_ragdoll_active_stagger_blend).")
-QVR_SLIDER(vr_ragdoll_active_stagger_settle, "Stagger Settles Below", 0.f, 3.f, 0.1f, "%.1f m/s", noExt,
-    "Its backpedal nearly done, not mid-step, steady and slower than this: it has recovered and fights on "
-    "(higher: handed back sooner) (vr_ragdoll_active_stagger_settle).")
-QVR_SLIDER(vr_ragdoll_active_stagger_settle_time, "Stagger Settle at Most", 0.f, 1.2f, 0.05f, "%.2f s", noExt,
-    "Still staggering this long after its backpedal: recovered however it moves "
-    "(vr_ragdoll_active_stagger_settle_time).")
-QVR_SLIDER(vr_ragdoll_active_stagger_drop, "Stagger Drop Falls", 0.f, 64.f, 4.f, "%.0f units", noExt,
-    "Backpedalling off a ledge or down from the top of stairs: the floor this much lower under it than "
-    "where it stood, it falls instead of stepping on air. 0: never (vr_ragdoll_active_stagger_drop).")
 QVR_TOGGLE(vr_ragdoll_active_getup, "Active Get-Ups",
     "A knocked-down grunt, enforcer, knight, death knight, ogre or zombie gets up with its body: it rolls "
     "over if it must, pulls itself into its get-up and rises through it, then fights on. Off: its ragdoll "
@@ -4462,30 +4261,6 @@ QVR_SLIDER(vr_ragdoll_active_guard, "Guard the Head", 0.f, 1.f, 0.05f, "%.2f", n
 QVR_TOGGLE(vr_corpse_placed, "Placed Corpses Are Bodies",
     "The corpses a map places (Dimension and Dawn of the Machine) are dead monsters' bodies: shot, gibbed and "
     "burnt, and ragdolls you take and cut once you come near. Off: scenery. The next map load (vr_corpse_placed).")
-QVR_SLIDER(vr_ragdoll_active_getup_pin, "Get-Up Lift", 0.5f, 5.f, 0.25f, "%.2f", ext(0.f, 10.f),
-    "Body weights pulling its pelvis through its get-up, at most: less, it struggles and may slump "
-    "(vr_ragdoll_active_getup_pin).")
-QVR_SLIDER(vr_ragdoll_active_getup_pace, "Get-Up Pace", 0.3f, 2.f, 0.1f, "%.1fx", noExt,
-    "Its get-up's speed, times the get-up's own (vr_ragdoll_active_getup_pace).")
-QVR_SLIDER(vr_ragdoll_active_getup_blend, "Get-Up Blend", 0.05f, 1.f, 0.05f, "%.2f s", noExt,
-    "Risen, its ragdoll blends into the animated monster over this (vr_ragdoll_active_getup_blend).")
-QVR_SLIDER(vr_ragdoll_mass, "Mass", 20.f, 200.f, 5.f, "%.0f kg", ext(),
-    "A ragdoll's whole weight, its parts by their size, for a monster whose own Mass is Global: each has its "
-    "own by default (grunt 80, knight 90, enforcer 100, death knight 130, ogre 200, rottweiler and scrag 40, fiend 140, shambler 280, gremlin 20; "
-    "vr_ragdoll_mass).")
-QVR_SLIDER(vr_ragdoll_friction, "Friction", 0.1f, 2.f, 0.1f, "%.1f", ext(),
-    "How much it drags and catches on floors and steps (vr_ragdoll_friction).")
-QVR_SLIDER(vr_ragdoll_joint_friction, "Joint Friction", 0.f, 10.f, 0.5f, "%.1f N m", ext(),
-    "How hard the joints are to turn: 0 limp as a rag, more like a body freshly dead (vr_ragdoll_joint_friction).")
-QVR_SLIDER(vr_ragdoll_joint_stiffness, "Joint Stiffness", 0.f, 5.f, 0.25f, "%.2f Hz", ext(),
-    "A spring in each joint pulling it back towards how he stood: 0 none, 1 to 3 some tone left in the body "
-    "(vr_ragdoll_joint_stiffness).")
-QVR_SLIDER(vr_ragdoll_limits, "Joint Limits", 0.25f, 1.5f, 0.05f, "%.2fx", ext(0.05f, 3.f),
-    "How far the joints bend and twist, times the body's own limits: less stiff, more loose "
-    "(vr_ragdoll_limits).")
-QVR_SLIDER(vr_ragdoll_damping, "Limb Damping", 0.f, 3.f, 0.1f, "%.1f", ext(), "Less flailing of the arms and legs (vr_ragdoll_damping).")
-QVR_SLIDER(vr_ragdoll_blast, "Blast Throw", 0.f, 5.f, 0.25f, "%.2fx", ext(),
-    "How far explosions throw a ragdoll, times what they give a prop of its weight (vr_ragdoll_blast).")
 QVR_SLIDER(vr_ragdoll_inherit, "Death Motion Kept", 0.f, 2.f, 0.1f, "%.1fx", noExt,
     "How much of his death animation's motion the parts keep as he goes limp (vr_ragdoll_inherit).")
 QVR_SLIDER(vr_ragdoll_grab_reach, "Grip Reach", 1.f, 16.f, 1.f, "%.0f units", ext(),
@@ -5398,63 +5173,20 @@ QVR_SLIDER(vr_grapple_quick_time, "Reel-In Button Time", 0.f, 2.f, 0.05f, "%.2f 
 QVR_SLIDER(vr_grapple_quick_speed, "Reel-In Button Speed", 300.f, 4000.f, 100.f, "%.0f u/s", ext(100.f, 10000.f),
     "The fastest the hook comes back when you press the front button (a long rope takes longer than the "
     "Reel-In Button Time), and its speed with that time at 0.")
-QVR_SLIDER(vr_grapple_hook_scale, "Hook Size", 0.3f, 1.f, 0.05f, "%.2f", ext(0.2f, 2.f),
-    "The size of the hook the gun fires (1: the mission pack's, too big for the gun). From the next shot.")
 QVR_TOGGLE(vr_grapple_front_button, "Front Button",
     "The gun's second button, near the muzzle: press it with the other hand's finger and the hook comes "
     "straight back into the gun (through anything). The back button, over the grip, only detaches it.")
-QVR_SLIDER(vr_grapple_front_button_x, "Front Button Along", -20.f, 30.f, 0.1f, "%.1f", ext(),
-    "Where the front button is: from the back button along the gun, towards the muzzle (model units).")
-QVR_SLIDER(vr_grapple_front_button_y, "Front Button Side", -10.f, 10.f, 0.1f, "%.1f", ext(),
-    "From the back button, towards the gun's left (model units).")
-QVR_SLIDER(vr_grapple_front_button_z, "Front Button Up", -10.f, 10.f, 0.1f, "%.1f", ext(), "From the back button, up (model units).")
 QVR_TOGGLE(vr_grapple_rope_sim, "Physical Rope",
     "The rope wraps round the world and the props (a pillar's edge, a box's top), never through them, and "
     "pulls along where it lies; slack, it is drawn hanging from the corners it wraps and lying on the "
     "world. Off: a straight line, drawn sagging.")
-QVR_SLIDER(vr_grapple_rope_spacing, "Rope Point Spacing", 4.f, 48.f, 1.f, "%.0f", ext(2.f, 256.f),
-    "Units between the points of the rope as drawn hanging (the physical rope): finer bends more smoothly "
-    "and costs more (128 points at most).")
-QVR_SLIDER(vr_grapple_rope_iterations, "Rope Precision", 1.f, 32.f, 1.f, "%.0f", ext(1.f, 64.f),
-    "Passes a frame holding the drawn rope's pieces to their length: more is stiffer and truer, and costs "
-    "more.")
-QVR_SLIDER(vr_grapple_rope_radius, "Rope Thickness", 0.25f, 4.f, 0.25f, "%.2f", ext(0.1f, 8.f),
-    "Half the rope's thickness (units): how far its corners keep from the edges it wraps round, and the "
-    "drawn rope from what it lies on.")
-QVR_SLIDER(vr_grapple_rope_tail, "Rope Straight Out of the Hook", 0.f, 12.f, 0.5f, "%.1f", ext(0.f, 16.f),
-    "How far the drawn rope goes straight out of the hook's back before it bends (units, at the hook's full "
-    "size): its last pieces point into the hook, not across it. 0: it bends right at the hook.")
-QVR_SLIDER(vr_grapple_rope_depth, "Rope Depth in the Gun", 0.f, 8.f, 0.5f, "%.1f", ext(0.f, 16.f),
-    "How far inside the muzzle the rope is drawn from (units), in the hand and with the gun lying about.")
-QVR_SLIDER(vr_grapple_move_share, "Walking Shared", 0.f, 1.f, 0.05f, "%.2f", noExt,
-    "How much of your walking (the thumbstick) the hook or a hooked prop hanging on the rope takes: it "
-    "trails a little behind you instead of lagging far back and snapping forward. Lying on the floor, it "
-    "is left alone. 0: none.")
-QVR_SLIDER(vr_grapple_load_drag, "Air Drag", 0.f, 5.f, 0.1f, "%.1f", ext(),
-    "How fast what swings on the rope slows down (a share of its speed a second, relative to you): a gun "
-    "left hanging stops swinging, a flail can't wind up without end.")
-QVR_SLIDER(vr_grapple_hang_drag, "Hanging Air Drag", 0.f, 10.f, 0.25f, "%.2f", ext(),
-    "The same for what hangs on a rope no one holds (a gun left hanging from a ceiling, what hangs from a "
-    "dropped gun): it stops swinging in a couple of seconds.")
-QVR_SLIDER(vr_grapple_load_max_speed, "Top Speed", 0.f, 2000.f, 50.f, "%.0f u/s", ext(0.f, 10000.f),
-    "The fastest what hangs on the rope moves relative to you (no rope of death). 0: no limit.")
-QVR_SLIDER(vr_grapple_loose_slack, "Slack When Detached", 0.f, 128.f, 4.f, "%.0f", ext(0.f, 1000.f),
-    "Units of slack the rope gets when the hook comes off: a loose hook lying there is not dragged by "
-    "your next step.")
 QVR_SLIDER(vr_grapple_reel_speed, "Reel Speed", 100.f, 1000.f, 25.f, "%.0f u/s", ext(25.f, 2000.f),
     "How fast the reel pulls you in: to a wall or a ceiling, to a huge monster, to a prop too heavy to come.")
 QVR_SLIDER(vr_grapple_min_length, "Shortest Rope", 16.f, 128.f, 4.f, "%.0f", ext(0.f, 400.f), "How short the reel takes the rope (units).")
-QVR_SLIDER(vr_grapple_reel_home, "Loose Hook Goes In At", 0.5f, 16.f, 0.5f, "%.1f", ext(0.5f, 64.f),
-    "How close to the muzzle (units) you reel a loose hook's back before it goes into the gun. Smaller: you "
-    "reel it in further.")
 QVR_SLIDER(vr_grapple_unreel_speed, "Unreel Speed", 50.f, 800.f, 25.f, "%.0f u/s", ext(0.f, 2000.f),
     "The hand's lower button (A on the right hand, X on the left) pays the rope out while held, this fast: "
     "you let yourself down from a ceiling, a monster or a prop can go farther. Let go and the rope keeps its "
     "length. 0: no unreel.")
-QVR_SLIDER(vr_grapple_unreel_slack, "Unreel Slack", 4.f, 1000.f, 4.f, "%.0f", ext(4.f, 10000.f),
-    "With nothing pulling on the rope (you standing, a hooked box on the floor), the unreel lets out this "
-    "much slack (units) beyond the hook's distance: the rope comes off the drum and lies there. Hanging, "
-    "what pulls takes the rope out as ever. 4: no slack.")
 QVR_TOGGLE(vr_grapple_unreel_airborne, "Unreel Button Only When Airborne",
     "On: a button that jumps (A) unreels only in the air: on the ground it jumps as ever, and a press that "
     "jumped does not unreel until pressed again; X (the reload) unreels on the ground too. Off: either "
@@ -5462,23 +5194,8 @@ QVR_TOGGLE(vr_grapple_unreel_airborne, "Unreel Button Only When Airborne",
 QVR_SLIDER(vr_grapple_prop_speed, "Prop Reel Speed", 100.f, 1500.f, 25.f, "%.0f u/s", ext(25.f, 3000.f),
     "How fast light props come in: weapons, pickups, keys, gibs. They hang at the gun, to take with the "
     "other hand.")
-QVR_SLIDER(vr_grapple_prop_light, "Light Up To", 1.f, 40.f, 1.f, "%.0f kg", ext(0.1f, 200.f),
-    "Props up to this mass come at the Prop Reel Speed; heavier ones slower, in proportion (twice as heavy: "
-    "half as fast). Masses: Held Object Offsets.")
-QVR_SLIDER(vr_grapple_prop_anchor, "Too Heavy From", 10.f, 500.f, 5.f, "%.0f kg", ext(1.f, 10000.f),
-    "A prop this heavy does not come: the reel pulls you to it, as to a wall.")
-QVR_SLIDER(vr_grapple_tow_light, "Dragging: Light Up To", 1.f, 100.f, 1.f, "%.0f kg", ext(0.1f, 1000.f),
-    "Walking away from a hooked prop on a taut rope drags it along: up to this mass, at the Dragging Speed; "
-    "heavier, its weight holds you back, in proportion (twice as heavy: half as fast; an explosive box is "
-    "40 kg).")
 QVR_SLIDER(vr_grapple_tow_speed, "Dragging Speed", 0.f, 600.f, 10.f, "%.0f u/s", ext(0.f, 2000.f),
     "The fastest you walk dragging a light prop on a taut rope. 0: no limit (it comes at your speed).")
-QVR_SLIDER(vr_grapple_small_mass, "Small Up To", 20.f, 600.f, 10.f, "%.0f kg", ext(0.f, 10000.f),
-    "Monsters up to this mass are small: pulled fast and staggered (dogs 35, grunts 80, knights 90, "
-    "enforcers 100).")
-QVR_SLIDER(vr_grapple_huge_mass, "Huge From", 100.f, 2000.f, 25.f, "%.0f kg", ext(0.f, 100000.f),
-    "Monsters this heavy are huge: the reel pulls you to them (shamblers 600, bosses). In between, medium: "
-    "pulled slowly, not staggered (hell knights 150, ogres and fiends 250).")
 QVR_SLIDER(vr_grapple_small_speed, "Small Reel Speed", 50.f, 1000.f, 25.f, "%.0f u/s", ext(10.f, 2000.f), nullptr)
 QVR_SLIDER(vr_grapple_medium_speed, "Medium Reel Speed", 25.f, 600.f, 25.f, "%.0f u/s", ext(10.f, 2000.f), nullptr)
 QVR_TOGGLE(vr_grapple_stagger, "Stagger Small Monsters",
@@ -6128,10 +5845,6 @@ QVR_CYCLE_BYNAME(vr_probe_test_spawn, "Ready the Debug Spawner's",
     "The debug spawner's monsters (vr_test_spawn, impulse 241) made ready as each map loads too: Its Kind the one "
     "vr_test_spawn names, Every Kind all 23 (a longer load). The next map load (vr_probe_test_spawn).",
     {0.f, "Off"}, {1.f, "Its Kind"}, {2.f, "Every Kind"})
-QVR_SLIDER(vr_image_cache_mb, "Decoded Image Cache", 0.f, 2048.f, 64.f, "%.0f MB", noExt,
-    "Image files decoded once are kept for later loads up to this size (a texture pack's world textures and "
-    "material maps: QRP's E1M1 loads 0.5 s faster the second time); the least recently used go first. 0: none "
-    "kept (vr_image_cache_mb).")
 QVR_TOGGLE(vr_campaign_keep_models, "Campaign Switch Keeps Models",
     "On: a switch of campaign (id1 to a mission pack and back) keeps the models whose files are the same in "
     "its folders (each file their load looked for is found the same again), instead of loading every one "
@@ -6223,11 +5936,6 @@ QVR_CYCLE_BYNAME(vr_heap_purge_delay, "Heap: Purge Delay",
     "At once: the smallest working set. 1 s, mimalloc's own default: map loads about 15% quicker, 0.3 to 1 GB "
     "more memory held after them.",
     {0.f, "At once"}, {10.f, "10 ms"}, {1000.f, "1 s (mimalloc's)"}, {-1.f, "Never"})
-QVR_CYCLE_BYNAME(vr_heap_load_hold, "Heap: Hold During Loads",
-    "vr_heap_load_hold: a map load keeps the memory it frees for its own later allocations, then gives it all "
-    "back at its first frame drawn. Off: freed memory goes back as Purge Delay says (a big map's hitbox "
-    "build much slower: its threads queue on the system's memory calls).",
-    {0.f, "Off"}, {60000.f, "On"})
 QVR_TOGGLE(vr_glsafe, "GL Safe Mode",
     "vr_glsafe, from the next start: the optional GL features off (persistent mapped buffers, bindless textures, "
     "multi-bind, clip control, layered shadow casters, debug output, MSAA, the 8192 shadow atlas), each one "
@@ -6271,10 +5979,6 @@ QVR_SLIDER(vr_flat_turnlag, "Flatscreen Turn Lag", 0.f, 3.f, 0.05f, "%.2f", noEx
     "the view). Looks only: the shots go along the crosshair.")
 QVR_SLIDER(vr_flat_turnlag_speed, "Flatscreen Turn Lag Recovery", 0.1f, 5.f, 0.05f, "%.2fx", noExt,
     "How fast the flatscreen hands catch up with a turn: higher, quicker and less lag.")
-QVR_SLIDER_BYNAME(vr_anim_smooth_rig_error, "Limb Fit Limit", 0.25f, 5.f, 0.25f, "%.2f units", noExt,
-    "vr_anim_smooth_rig_error: a bone fitted to a frame worse than this (rms) isn't swung between it and its neighbours; a vertex further off its bone swings less (none at twice it).")
-QVR_SLIDER_BYNAME(vr_anim_smooth_rebuild_error, "Rebuild Fit Limit", 0.1f, 2.f, 0.1f, "%.1f units", noExt,
-    "vr_anim_smooth_rebuild_error: with Rebuild From Skeleton, a point further than this (rms over the frames) off its bone's fits is rebuilt less (not at twice it); a model with under half its points rebuilt is drawn as before (Smooth Animation Models: each model's counts).")
 QVR_TOGGLE(vr_ao_cache, "Keep AO Bakes on Disk",
     "vr_ao_cache: the models' occlusion bakes kept on disk, so a later session's loads bake nothing (off: baked at every first load; 2 in the console: baked anyway and compared with the file).")
 QVR_TOGGLE(vr_menu_link_dryrun, "Menu Links: Print, Do Not Open",
@@ -6413,16 +6117,6 @@ QVR_SLIDER_BYNAME(vr_climb_prop_mass, "Props Hold Like the Level From", 0.f, 200
     "vr_climb_prop_mass: a prop at least this heavy holds like a wall while you hang from it; lighter, your "
     "weight pulls it (Light Prop Pull) and it tips or slides towards you, and your hand lets go. Large crate "
     "65, explosive box 80, small crate 40, barrel 30. 0: every prop holds.")
-QVR_SLIDER_BYNAME(vr_climb_prop_pull, "Light Prop Pull", 0.f, 100.f, 5.f, "%.0f kg", noExt,
-    "vr_climb_prop_pull: the most weight a hand on a light prop pulls it with (your weight, Box3D's Player "
-    "Mass, shared by the holding hands, towards your body).")
-QVR_SLIDER_BYNAME(vr_climb_prop_tilt, "Prop Hold Tips Off At", 0.f, 45.f, 1.f, "%.0f deg", noExt,
-    "vr_climb_prop_tilt: a prop's top turned this far from how it lay when you took hold lets your hand go.")
-QVR_SLIDER_BYNAME(vr_climb_prop_slip, "Light Prop Slips Off At", 0.f, 32.f, 1.f, "%.0f units", noExt,
-    "vr_climb_prop_slip: a light prop's hold moved this far from where you took it lets your hand go.")
-QVR_SLIDER_BYNAME(vr_climb_prop_letgo_speed, "Prop Knocked Away At", 0.f, 600.f, 25.f, "%.0f u/s", noExt,
-    "vr_climb_prop_letgo_speed: a held prop's hold whose speed changes this much in a frame (a blast, a hit) "
-    "lets your hand go.")
 QVR_TOGGLE(vr_nailslide_debug, "Slide: Print",
     "vr_nailslide_debug: the slide's place in each hand every frame it moves (0 home .. 1 back by Slide "
     "Travel) and its edges: a shot, the lock, the re-rack (\"nailslide: ...\").")
@@ -6565,11 +6259,6 @@ QVR_CYCLE(vr_hull_cache, "Hitboxes on Disk",
     "again (vrstart: 9 s to 0.1 s). Check: read, then compiled anyway and compared (Hitbox Stats counts "
     "them). Off: compiled at every load (vr_hull_cache).",
     {0.f, "Off"}, {1.f, "On"}, {2.f, "Check"})
-QVR_CYCLE(vr_hull_build_mb, "Hitbox Build Memory",
-    "How much memory a big map's hitbox build (its first load after an install or update) may hold at once "
-    "(estimated): past it a tree's build waits for another to end. vrstart: about 330 MB a tree, three at "
-    "once in 1 GB. No Limit: all at once (about 1 GB more, 5-10% quicker) (vr_hull_build_mb).",
-    {0.f, "No Limit"}, {512.f, "512 MB"}, {1024.f, "1 GB"}, {2048.f, "2 GB"})
 QVR_CYCLE(vr_hull_async, "New Monster Sizes in Play",
     "A monster whose box size the map's load did not compile (a delayed or triggered spawn, the test "
     "spawner): On the Pool compiles its hull in the background while it moves with Quake's own hull, "
