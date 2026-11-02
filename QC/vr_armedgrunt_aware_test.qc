@@ -189,10 +189,10 @@ void() VR_AGAW_Frame =
         }
         if(c == 0)
         {
-            vr_agaw_keep_chance = cvar("vr_agrunt_shotdisarm_chance");
-            vr_agaw_keep_scale = cvar("vr_agrunt_shotdisarm_chance_scale");
-            vr_agaw_keep_beat = cvar("vr_agrunt_strike_beat");
-            vr_agaw_keep_yank = cvar("vr_agrunt_disarm_yank");
+            vr_agaw_keep_chance = cvar_hget(cvarh_vr_agrunt_shotdisarm_chance);
+            vr_agaw_keep_scale = cvar_hget(cvarh_vr_agrunt_shotdisarm_chance_scale);
+            vr_agaw_keep_beat = cvar_hget(cvarh_vr_agrunt_strike_beat);
+            vr_agaw_keep_yank = cvar_hget(cvarh_vr_agrunt_disarm_yank);
             cvar_set("vr_agrunt_disarm_yank", "0"); // (no grab by the fist's own touch: a punch)
             VR_AGPT_EmptyHand(p);
             p.weapon2 = WID_FIST;

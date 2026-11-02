@@ -66,7 +66,7 @@ void(float xTest) VR_Dummy_Test =
 // Every server frame (StartFrame): a test asked for (vr_dummy_test).
 void() VR_Dummy_TestFrame =
 {
-    float ask = cvar("vr_dummy_test");
+    float ask = cvar_hget(cvarh_vr_dummy_test);
     if(!ask)
     {
         return;

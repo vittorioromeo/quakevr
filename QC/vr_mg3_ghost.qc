@@ -50,7 +50,7 @@ float mg3_ghosts_gone; // ghosts that faded away (the tests' count)
 // and runs, so the setting takes at once.
 void() mg3_ghost_alpha =
 {
-    float a = cvar("vr_mg3_ghost_alpha");
+    float a = cvar_hget(cvarh_vr_mg3_ghost_alpha);
     self.alpha = a >= 1 ? 0 : max(0.05, a); // (0: Quake's default, opaque, with its shadow)
 };
 

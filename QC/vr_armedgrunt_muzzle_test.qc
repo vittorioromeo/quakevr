@@ -138,7 +138,7 @@ void() VR_AGMZ_Frame =
     {
         if(c == 0)
         {
-            vr_agmz_keep_sd = cvar("vr_agrunt_shotdisarm");
+            vr_agmz_keep_sd = cvar_hget(cvarh_vr_agrunt_shotdisarm);
             cvar_set("vr_agrunt_shotdisarm", "0");
         }
         cvar_set("vr_agrunt_test_kind", ftos(vr_agmz_kind));

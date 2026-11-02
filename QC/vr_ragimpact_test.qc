@@ -96,18 +96,18 @@ void(float xMode) VR_RagImpact_Test =
             dir_z = 0;
             dir = normalize(dir);
         }
-        float speed = cvar("vr_test_throw_up_speed") * VRMetersToUnits();
+        float speed = cvar_hget(cvarh_vr_test_throw_up_speed) * VRMetersToUnits();
         best.velocity = dir * speed + '0 0 1' * 3 * VRMetersToUnits();
         best.vr_rag_letgo = self;
         best.vr_rag_letgo_hand = 0;
         best.vr_rag_letgo_time = time;
         dprint(sprintf("ragimpact test: %s flung at %.1f m/s at a wall %.0f units away\n", best.classname,
-            cvar("vr_test_throw_up_speed"), near * 512));
+            cvar_hget(cvarh_vr_test_throw_up_speed), near * 512));
         return;
     }
     if(xMode == 52 || xMode == 53)
     {
-        float up = xMode == 52 ? cvar("vr_test_drop_height") : 96;
+        float up = xMode == 52 ? cvar_hget(cvarh_vr_test_drop_height) : 96;
         vector mid = (best.absmin + best.absmax) * 0.5;
         setorigin(self, mid + '0 0 1' * (up - self.mins_z));
         self.velocity = '0 0 0';
@@ -127,11 +127,11 @@ void(float xMode) VR_RagImpact_Test =
         }
         vector on = limbplace(best, part, (xMode == 60) ? 0 : 3); // (the head's middle; a point on the shin)
         traceline(on, on - '0 0 256', TRUE, best);
-        on_z = trace_endpos_z + cvar("vr_test_drop_height");
+        on_z = trace_endpos_z + cvar_hget(cvarh_vr_test_drop_height);
         setorigin(self, on - '0 0 1' * self.mins_z);
         self.velocity = '0 0 0';
         self.flags = self.flags - (self.flags & FL_ONGROUND);
-        dprint(sprintf("ragimpact test: you %g units over %s's %s (health %g)\n", cvar("vr_test_drop_height"),
+        dprint(sprintf("ragimpact test: you %g units over %s's %s (health %g)\n", cvar_hget(cvarh_vr_test_drop_height),
             best.classname, (xMode == 60) ? "head" : "left shin", best.health));
         return;
     }
@@ -140,11 +140,11 @@ void(float xMode) VR_RagImpact_Test =
         // You over its middle (its torso), your feet vr_test_drop_height units over the floor it lies on.
         vector over = (best.absmin + best.absmax) * 0.5;
         traceline(over, over - '0 0 256', TRUE, best);
-        over_z = trace_endpos_z + cvar("vr_test_drop_height");
+        over_z = trace_endpos_z + cvar_hget(cvarh_vr_test_drop_height);
         setorigin(self, over - '0 0 1' * self.mins_z);
         self.velocity = '0 0 0';
         self.flags = self.flags - (self.flags & FL_ONGROUND);
-        dprint(sprintf("ragimpact test: you %g units over %s's middle (health %g)\n", cvar("vr_test_drop_height"),
+        dprint(sprintf("ragimpact test: you %g units over %s's middle (health %g)\n", cvar_hget(cvarh_vr_test_drop_height),
             best.classname, best.health));
         return;
     }
@@ -204,7 +204,7 @@ void(float xMode) VR_RagImpact_Test =
     if(xMode == 59)
     {
         // You vr_test_drop_height units over the nearest standing one's top, over its middle (its head).
-        float drop = cvar("vr_test_drop_height");
+        float drop = cvar_hget(cvarh_vr_test_drop_height);
         setorigin(self, best.origin + '0 0 1' * (best.maxs_z + drop - self.mins_z));
         self.velocity = '0 0 0';
         self.flags = self.flags - (self.flags & FL_ONGROUND);

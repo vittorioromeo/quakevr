@@ -256,8 +256,8 @@ void() VR_RVT_Flicks =
     for(k = 0; k < 20 && !r5; k++) { r5 = VR_Revolver_FlickRate(h, -250, dt); }
     VR_Test_Check(r4 == -1 && r5 == 0, sprintf("the other way: -350 deg/s home (%g), -250 deg/s nothing (%g)", r4, r5));
     // Customized: a lighter force (200) takes 300 deg/s; a longer wrist flick (60 deg) needs more of it.
-    float s0 = cvar("vr_revolver_open_flick_speed");
-    float a0 = cvar("vr_revolver_open_flick_angle");
+    float s0 = cvar_hget(cvarh_vr_revolver_open_flick_speed);
+    float a0 = cvar_hget(cvarh_vr_revolver_open_flick_angle);
     cvar_set("vr_revolver_open_flick_speed", "200");
     cvar_set("vr_revolver_open_flick_angle", "60");
     h.rvh_fo = h.rvh_fop = h.rvh_fc = h.rvh_fcp = 0;
@@ -269,7 +269,7 @@ void() VR_RVT_Flicks =
     cvar_set("vr_revolver_open_flick_angle", ftos(a0));
     // The time window: a slow roll (50 deg/s, 30 deg takes 0.6 s) never opens within 0.25 s, does within 1 s. Also how long
     // today's default flick (30 deg at 350 deg/s) takes.
-    float w0 = cvar("vr_revolver_open_flick_time");
+    float w0 = cvar_hget(cvarh_vr_revolver_open_flick_time);
     cvar_set("vr_revolver_open_flick_speed", "50");
     cvar_set("vr_revolver_open_flick_angle", "30");
     cvar_set("vr_revolver_open_flick_time", "0.25");
@@ -293,7 +293,7 @@ void() VR_RVT_Flicks =
 
 void() VR_Revolver_TestFrame =
 {
-    float req = cvar("vr_rv_test");
+    float req = cvar_hget(cvarh_vr_rv_test);
     if(req)
     {
         cvar_set("vr_rv_test", "0");
@@ -338,15 +338,15 @@ void() VR_Revolver_TestFrame =
         }
         self = os0;
         VR_Test_Begin("rvtest");
-        vr_rvt_mode = cvar("vr_reload_mode_revolver");
-        vr_rvt_grip = cvar("vr_weapon_grip_mode");
-        vr_rvt_tv = cvar("vr_mock_turn_velocity");
+        vr_rvt_mode = cvar_hget(cvarh_vr_reload_mode_revolver);
+        vr_rvt_grip = cvar_hget(cvarh_vr_weapon_grip_mode);
+        vr_rvt_tv = cvar_hget(cvarh_vr_mock_turn_velocity);
         cvar_set("vr_weapon_grip_mode", "1");
         cvar_set("vr_mock_turn_velocity", "1");
         // The flicks the mock's turns and VR_RVT_Flicks were measured with (the defaults before his of 2026-10-27, 120 and
         // 75 degrees: the mock's turn of 150 in a frame rolls the wrist about 50), meanwhile.
-        vr_rvt_flick0 = '1 0 0' * cvar("vr_revolver_open_flick_speed") + '0 1 0' * cvar("vr_revolver_open_flick_angle");
-        vr_rvt_flick1 = '1 0 0' * cvar("vr_revolver_close_flick_speed") + '0 1 0' * cvar("vr_revolver_close_flick_angle");
+        vr_rvt_flick0 = '1 0 0' * cvar_hget(cvarh_vr_revolver_open_flick_speed) + '0 1 0' * cvar_hget(cvarh_vr_revolver_open_flick_angle);
+        vr_rvt_flick1 = '1 0 0' * cvar_hget(cvarh_vr_revolver_close_flick_speed) + '0 1 0' * cvar_hget(cvarh_vr_revolver_close_flick_angle);
         cvar_set("vr_revolver_open_flick_speed", "350");
         cvar_set("vr_revolver_open_flick_angle", "30");
         cvar_set("vr_revolver_close_flick_speed", "300");
@@ -554,7 +554,7 @@ void() VR_Revolver_TestFrame =
                 vr_rvt_frames, hr ? hr.classname : "nothing", hr ? hr.vr_ammo_count : 0,
                 hr ? vlen(VR_Reload_RoundRef(hr) - p.loadportpos) : -1, VR_HandGrabUtil_IsHandGrabbing(p, cVR_OffHand)));
         }
-        float chOff = cvar("vr_test_collect_chamber_off");
+        float chOff = cvar_hget(cvarh_vr_test_collect_chamber_off);
         if((vr_rv_loaded >= 4 && vr_rvt_frames > 8 && chOff >= 0) || vr_rvt_frames == 70)
         {
             VR_Test_Check(vr_rv_loaded == 4 && vr_rv_lastch == vr_rvt_n && VRGetWeaponClip(cVR_MainHand) == 4,

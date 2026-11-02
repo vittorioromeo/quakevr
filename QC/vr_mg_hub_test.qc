@@ -9,7 +9,7 @@ void() MG1_H_Report = {
     entity e = find(world, classname, "misc_rune_indicator");
     while(e) { count++; if(e.alpha == 0.2) ghosts++; else active++; e = find(e, classname, "misc_rune_indicator"); }
     dprint(sprintf("mghubtest: report map %s flags %g indicators %g active %g ghosts %g finalgate %g\n",mapname,serverflags,count,active,ghosts,!!find(world,classname,"hub_trigger_changelevel")));
-    dprint(sprintf("mghubtest: player health %g max %g origin %v skill %g intermission %g armor %g items %g\n",p.health,p.max_health,p.origin,cvar("skill"),intermission_running,p.armorvalue,p.items));
+    dprint(sprintf("mghubtest: player health %g max %g origin %v skill %g intermission %g armor %g items %g\n",p.health,p.max_health,p.origin,cvar_hget(cvarh_skill),intermission_running,p.armorvalue,p.items));
     dprint(sprintf("mghubtest: hands shells %g weapons %g/%g clips %g/%g ids %g/%g\n",p.ammo_shells,p.weapon,p.weapon2,p.weaponinst.wi_clip,p.weaponinst2.wi_clip,p.weaponinst.wi_uid,p.weaponinst2.wi_uid));
     dprint(sprintf("mghubtest: holster0 weapon %g clip %g id %g\n",p.holsterweapon0,p.holsterweaponinst0.wi_clip,p.holsterweaponinst0.wi_uid));
     dprint(sprintf("mghubtest: holster1 weapon %g clip %g id %g\n",p.holsterweapon1,p.holsterweaponinst1.wi_clip,p.holsterweaponinst1.wi_uid));
@@ -131,7 +131,7 @@ entity(float alt) MG1_H_NextExit = {
 // map ends the script.
 nosave float MG1_H_autoran;
 void() MG1_H_RouteAutorun = {
-    float stage = cvar("vr_mg_route_stage");
+    float stage = cvar_hget(cvarh_vr_mg_route_stage);
     if(!stage || MG1_H_autoran || time < 1 || !VR_Player()) return;
     MG1_H_autoran = TRUE;
     localcmd(sprintf("exec %s%g.cfg\n", MG3_Campaign() ? "mg3route" : "mg1route", stage)); // (MG3: M3-29's sweep)
@@ -190,7 +190,7 @@ vector(entity t, entity p) MG1_H_SpotIn = {
     }
     return (t.absmin + t.absmax) * 0.5 - (p.mins + p.maxs) * 0.5;
 };
-void() MG1_H_After = { localcmd(sprintf("exec mghub_after%g.cfg\n", cvar("vr_mg_hub_stage"))); };
+void() MG1_H_After = { localcmd(sprintf("exec mghub_after%g.cfg\n", cvar_hget(cvarh_vr_mg_hub_stage))); };
 void(float request) MG1_H_Route = {
     entity caller = self, p = VR_Player(); other = activator = p;
     if(request == 4) {
@@ -228,7 +228,7 @@ void(float request) MG1_H_Route = {
             if(!MG1_H_spotfound) p.movetype = MOVETYPE_NOCLIP;
             dprint(sprintf("mghubtest: walk spot %v fits %g exit box %v %v player %v %v\n",p.origin,MG1_H_spotfound,walk.absmin,walk.absmax,p.mins,p.maxs));
             p.velocity = '0 0 0';
-            dprint(sprintf("mghubtest: walk %s %s -> %s skill %g flags %g\n",mapname,walk.classname,walk.map,cvar("skill"),serverflags));
+            dprint(sprintf("mghubtest: walk %s %s -> %s skill %g flags %g\n",mapname,walk.classname,walk.map,cvar_hget(cvarh_skill),serverflags));
             MG1_H_Presser();
         } else dprint(sprintf("mghubtest: walk %s no open exit\n",mapname));
     } else if(request == 35) {
@@ -253,7 +253,7 @@ void(float request) MG1_H_Route = {
         // Dimension of the Machine's marksman ogre (id's ogre model; the dispenser's needs Honey's) vr_test_spawn_dist ahead.
         makevectors(p.v_angle);
         entity mk = spawn();
-        setorigin(mk, p.origin + v_forward * cvar("vr_test_spawn_dist") + '0 0 24');
+        setorigin(mk, p.origin + v_forward * cvar_hget(cvarh_vr_test_spawn_dist) + '0 0 24');
         mk.angles_y = p.v_angle_y + 180;
         mk.classname = "monster_ogre_marksman";
         self = mk; monster_ogre_marksman();
@@ -281,7 +281,7 @@ void(float request) MG1_H_Route = {
 };
 void() MG1_H_TestFrame = {
     MG1_H_RouteAutorun();
-    float request = cvar("vr_mg_hub_test"); if(!request) return;
+    float request = cvar_hget(cvarh_vr_mg_hub_test); if(!request) return;
     cvar_set("vr_mg_hub_test","0");
     if(!MG1_Campaign()) { dprint("mghubtest: Machine developer campaign required\n"); return; }
     entity oldself = self, oldother = other, oldact = activator;

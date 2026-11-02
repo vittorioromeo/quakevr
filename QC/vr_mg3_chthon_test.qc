@@ -135,7 +135,7 @@ void(string xPrefix) MG3_CT_WaveReport =
 
 void() MG3_CT_Report =
 {
-    dprint(sprintf("mg3ctest: report map %s campaign %g data %g skill %g serverflags %g\n", mapname, cvar("vr_campaign"),
+    dprint(sprintf("mg3ctest: report map %s campaign %g data %g skill %g serverflags %g\n", mapname, cvar_hget(cvarh_vr_campaign),
                    MG3_Chthon_Available(), skill, serverflags));
     entity c = MG3_CT_Chthon();
     if(c)
@@ -485,7 +485,7 @@ void() MG3_ChthonTestFrame =
         else MG3_CT_MapStep(p);
         self = os; other = oo; activator = oa;
     }
-    float request = cvar("vr_mg3_ctest");
+    float request = cvar_hget(cvarh_vr_mg3_ctest);
     if(!request) return;
     cvar_set("vr_mg3_ctest", "0");
     entity pl = VR_Player();

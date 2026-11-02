@@ -103,7 +103,7 @@ void() misc_corpse = {
 // (a swimmer: no ragdoll) stay scenery; 0: all scenery, as Dawn of the Machine has them.
 void() VR_MG_PlacedBody =
 {
-    if(!cvar("vr_corpse_placed"))
+    if(!cvar_hget(cvarh_vr_corpse_placed))
     {
         return;
     }

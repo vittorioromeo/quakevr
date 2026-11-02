@@ -556,7 +556,7 @@ void(entity b, vector xG, vector xA, float xLen, vector xVel) VR_MMT_Frame =
     }
     b.mh_c_ent = world;
     b.mh_c_pos = '0 0 0';
-    if(cvar("developer"))
+    if(cvar_hget(cvarh_developer))
     {
         vr_msw_probe = TRUE; // (what the sweep finds, armed or not)
         VR_Melee_Sweep(h, b);
@@ -565,7 +565,7 @@ void(entity b, vector xG, vector xA, float xLen, vector xVel) VR_MMT_Frame =
             vr_rib_n, vr_msw_edge.classname, vr_msw_edge_i, vr_msw_wall_i));
     }
     float struck = VR_Melee_StrikeAfter(h, b, VR_Melee_Sweep(h, b));
-    if(cvar("developer"))
+    if(cvar_hget(cvarh_developer))
     {
         bprint(sprintf(" struck: %s (weapon %g, tracked %g)\n", struck ? b.mh_c_ent.classname : "nothing", self.weapon,
             VRHandsTracked(self)));
@@ -575,7 +575,7 @@ void(entity b, vector xG, vector xA, float xLen, vector xVel) VR_MMT_Frame =
         entity c = b.mh_c_ent;
         float hp = c.health;
         VR_Melee_DealAll(h);
-        if(cvar("developer"))
+        if(cvar_hget(cvarh_developer))
         {
             bprint(sprintf("meleemulti:   dealt: landed %g, %g things, world %g; its health %g -> %g\n",
                 VRGetMeleeHitSoundPlayed(h), b.mh_hit_n, b.mh_hit_world, hp, c.health));
@@ -970,7 +970,7 @@ void(entity p) VR_Melee_LineEndsTest =
 // 4 the fist's line, 5 the line's own ends, 6 one swing, many things).
 void() VR_Melee_SweepTestFrame =
 {
-    float mode = cvar("vr_melee_sweep_test");
+    float mode = cvar_hget(cvarh_vr_melee_sweep_test);
     if(!mode)
     {
         return;

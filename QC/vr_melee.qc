@@ -601,7 +601,7 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
     // steady); its strength is the arc's and the weight's (below).
     float heavyArc = 0;
     float deliberate = FALSE;
-    float arcNeed = max(0.05, cvar("vr_heavy_swing_arc"));
+    float arcNeed = max(0.05, cvar_hget(cvarh_vr_heavy_swing_arc));
     if(b.mh_heavy2h > 0 && xKind != VR_MPT_FIST)
     {
         heavyArc = meleearc(b, need * 0.5);
@@ -696,7 +696,7 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
     // twice as long; a faster blow keeps its own if stronger.
     if(b.mh_heavy2h > 0 && heavyArc >= arcNeed)
     {
-        float arcStrength = cvar("vr_heavy_swing_strength") * min(1.3, 0.7 + 0.3 * heavyArc / arcNeed);
+        float arcStrength = cvar_hget(cvarh_vr_heavy_swing_strength) * min(1.3, 0.7 + 0.3 * heavyArc / arcNeed);
         arcStrength = VR_MELEE_WEAKEST + (arcStrength - VR_MELEE_WEAKEST) * b.mh_heavy2h;
         b.mh_core = min(VR_MELEE_STRONGEST, max(b.mh_core, arcStrength));
     }
@@ -772,7 +772,7 @@ void(entity b) VR_Melee_HitClear =
 // its list not full.
 float(entity b) VR_Melee_MultiRoom =
 {
-    float most = min(VR_MELEE_MULTI_MOST, max(1, floor(cvar("vr_melee_multi_max"))));
+    float most = min(VR_MELEE_MULTI_MOST, max(1, floor(cvar_hget(cvarh_vr_melee_multi_max))));
     return ((b.mh_hit_n > 0) || b.mh_hit_world) && (b.mh_hit_cap < most) && (b.mh_hit_n < VR_MELEE_MULTI_LIST);
 };
 

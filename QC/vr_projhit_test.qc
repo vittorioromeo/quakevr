@@ -145,8 +145,8 @@ void() VR_ProjTest_Fire =
 
 void(float request, entity p) AD_ProjHitTest =
 {
-    float kind = cvar("scratch1");
-    float scenario = cvar("scratch2");
+    float kind = cvar_hget(cvarh_scratch1);
+    float scenario = cvar_hget(cvarh_scratch2);
     entity os = self;
     if(vr_projtest_g != world && !vr_projtest_g.vr_gib && vr_projtest_g.classname == "monster_army")
     {

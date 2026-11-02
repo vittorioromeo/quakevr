@@ -688,27 +688,27 @@ float() VR_AG_PickWeapon =
     VR_AG_PoolAdd(WID_LASER_CANNON, cvar_hget(cvarh_vr_agrunt_w_packs));
     VR_AG_PoolAdd(WID_PROXIMITY_GUN, cvar_hget(cvarh_vr_agrunt_w_packs));
     // Arcane Dimensions' (VR_AG_Decode: only with its data; the upgrades where AD's upgrades play).
-    VR_AG_PoolAdd(WID_ADROCKET, cvar("vr_agrunt_w_adrocket"));
-    VR_AG_PoolAdd(WID_ADGRENADE, cvar("vr_agrunt_w_adgrenade"));
-    VR_AG_PoolAdd(WID_ADPLASMA, cvar("vr_agrunt_w_adplasma"));
-    VR_AG_PoolAdd(WID_ADDEFENDER, cvar("vr_agrunt_w_addefender"));
-    VR_AG_PoolAdd(WID_ADCENTURION, cvar("vr_agrunt_w_adcenturion"));
-    VR_AG_PoolAdd(WID_ADPYRO, cvar("vr_agrunt_w_adpyro"));
-    VR_AG_PoolAdd(WID_ADFUMIGATOR, cvar("vr_agrunt_w_adfumigator"));
-    VR_AG_PoolAdd(WID_ADCROSSBOW, cvar("vr_agrunt_w_adcrossbow"));
-    VR_AG_PoolAdd(VR_AG_CODE_SHADOWAXE, cvar("vr_agrunt_w_shadowaxe"));
-    VR_AG_PoolAdd(VR_AG_CODE_WIDOWMAKER, cvar("vr_agrunt_w_widowmaker"));
-    VR_AG_PoolAdd(VR_AG_CODE_PLASMAGUN, cvar("vr_agrunt_w_plasmagun"));
+    VR_AG_PoolAdd(WID_ADROCKET, cvar_hget(cvarh_vr_agrunt_w_adrocket));
+    VR_AG_PoolAdd(WID_ADGRENADE, cvar_hget(cvarh_vr_agrunt_w_adgrenade));
+    VR_AG_PoolAdd(WID_ADPLASMA, cvar_hget(cvarh_vr_agrunt_w_adplasma));
+    VR_AG_PoolAdd(WID_ADDEFENDER, cvar_hget(cvarh_vr_agrunt_w_addefender));
+    VR_AG_PoolAdd(WID_ADCENTURION, cvar_hget(cvarh_vr_agrunt_w_adcenturion));
+    VR_AG_PoolAdd(WID_ADPYRO, cvar_hget(cvarh_vr_agrunt_w_adpyro));
+    VR_AG_PoolAdd(WID_ADFUMIGATOR, cvar_hget(cvarh_vr_agrunt_w_adfumigator));
+    VR_AG_PoolAdd(WID_ADCROSSBOW, cvar_hget(cvarh_vr_agrunt_w_adcrossbow));
+    VR_AG_PoolAdd(VR_AG_CODE_SHADOWAXE, cvar_hget(cvarh_vr_agrunt_w_shadowaxe));
+    VR_AG_PoolAdd(VR_AG_CODE_WIDOWMAKER, cvar_hget(cvarh_vr_agrunt_w_widowmaker));
+    VR_AG_PoolAdd(VR_AG_CODE_PLASMAGUN, cvar_hget(cvarh_vr_agrunt_w_plasmagun));
     for(float k = 1; k <= VR_ADMELEE_MACE; k++)
     {
-        VR_AG_PoolAdd(VR_AG_CODE_ADMELEE + k, cvar(VR_ADMelee_Heavy(k) ? "vr_agrunt_w_adheavy" : "vr_agrunt_w_adsword"));
+        VR_AG_PoolAdd(VR_AG_CODE_ADMELEE + k, cvar_hget(VR_ADMelee_Heavy(k) ? cvarh_vr_agrunt_w_adheavy : cvarh_vr_agrunt_w_adsword));
     }
     // The monster swords (rare: low weights): the Phantom Swordsman's (with Rogue's data), the Dark Prince's, the justice
     // knight's, the judicator's.
-    VR_AG_PoolAdd(VR_AG_CODE_ADMELEE + VR_ADMELEE_PHANTOM, cvar("vr_agrunt_w_phantom"));
-    VR_AG_PoolAdd(VR_AG_CODE_ADMELEE + VR_ADMELEE_DPRINCE, cvar("vr_agrunt_w_dprince"));
-    VR_AG_PoolAdd(VR_AG_CODE_ADMELEE + VR_ADMELEE_JUSTICE, cvar("vr_agrunt_w_justice"));
-    VR_AG_PoolAdd(VR_AG_CODE_ADMELEE + VR_ADMELEE_JUDGE, cvar("vr_agrunt_w_judge"));
+    VR_AG_PoolAdd(VR_AG_CODE_ADMELEE + VR_ADMELEE_PHANTOM, cvar_hget(cvarh_vr_agrunt_w_phantom));
+    VR_AG_PoolAdd(VR_AG_CODE_ADMELEE + VR_ADMELEE_DPRINCE, cvar_hget(cvarh_vr_agrunt_w_dprince));
+    VR_AG_PoolAdd(VR_AG_CODE_ADMELEE + VR_ADMELEE_JUSTICE, cvar_hget(cvarh_vr_agrunt_w_justice));
+    VR_AG_PoolAdd(VR_AG_CODE_ADMELEE + VR_ADMELEE_JUDGE, cvar_hget(cvarh_vr_agrunt_w_judge));
     if(vr_ag_pool_pick == WID_FIST)
     {
         return -1;
@@ -1159,7 +1159,7 @@ entity(entity g, vector vel) VR_AG_DropHeld =
     entity w = CreateThrownWeapon(g, p.weapon, p.weaponflags, inst, p.origin, p.v_angle, vel, randomVec(90),
         FALSE /* disappear on hit */, FALSE /* deal damage */, WeaponIdToThrowDamage(p.weapon));
     float fought = g.vr_ag_saw_fought || (g.health > 0 && g.enemy && (g.enemy.flags & FL_CLIENT)); // (alive: after you now)
-    if(w && p.weapon == WID_CHAINSAW && inst.wi_clip > 0 && fought && cvar("vr_agrunt_saw_drop_running"))
+    if(w && p.weapon == WID_CHAINSAW && inst.wi_clip > 0 && fought && cvar_hget(cvarh_vr_agrunt_saw_drop_running))
     {
         // (It was fighting with it, its engine running: dropped running (dead, disarmed, a tug lost), as yours runs on
         // as it lies, vr_chainsaw_drop_run; taken up meanwhile, no cord to pull. His note vrragtriggers_2026-10-27_01-35-21.)
@@ -1355,13 +1355,13 @@ float vr_ag_last_kick;          // ... its kick up then
 // The penalties' share now (0: one gun, or vr_agrunt_dual_penalty 0).
 float(entity g) VR_AG_DualPenalty =
 {
-    return VR_AG_DualGuns(g) ? max(0, cvar("vr_agrunt_dual_penalty")) : 0;
+    return VR_AG_DualGuns(g) ? max(0, cvar_hget(cvarh_vr_agrunt_dual_penalty)) : 0;
 };
 
 // What is left of the gun `p`'s kick now (degrees up).
 float(entity p) VR_AG_KickLeft =
 {
-    float t = max(0.01, cvar("vr_heavy_recoil_time"));
+    float t = max(0.01, cvar_hget(cvarh_vr_heavy_recoil_time));
     return p.vr_ag_hk * max(0, 1 - (time - p.vr_ag_hk_at) / t);
 };
 
@@ -1422,7 +1422,7 @@ vector(entity t, float i, vector side, vector toward) VR_AG_XPoint =
     {
         top = min(top, max(t.mins_z + 24, head + 5)); // (the engine's: to 5 over the headset, never under 24)
     }
-    float w = cvar("vr_hull_hit_width");
+    float w = cvar_hget(cvarh_vr_hull_hit_width);
     w = (w > 0 ? min(w, 32) : 32) * 0.5;
     float sd = max(2, w - 4); // (the sides: 4 in from the box's)
     float z = 0;
@@ -2220,7 +2220,7 @@ void() vr_ag_taunt_wait =
 void() vr_ag_hunt =
 {
     if(!self.vr_ag_taunted && self.health > 0 && self.enemy && self.enemy.classname == "player" && !VR_AG_Still(self) &&
-       cvar("vr_agrunt_taunt"))
+       cvar_hget(cvarh_vr_agrunt_taunt))
     {
         self.vr_ag_taunted = 1;
         self.vr_rigseq_on = VR_AG_SeqEvent;
@@ -2604,7 +2604,7 @@ entity() VR_AG_FindWeapon =
 // second that pairs with it (VR_AG_Pairs; out of its target's reach).
 float(entity g) VR_AG_WantsSecond =
 {
-    return (g.vr_ag_dual || cvar("vr_agrunt_dual_pickup")) && g.vr_ag_prop && !g.vr_ag_prop2 &&
+    return (g.vr_ag_dual || cvar_hget(cvarh_vr_agrunt_dual_pickup)) && g.vr_ag_prop && !g.vr_ag_prop2 &&
            VR_AG_Pairable(g.vr_ag_wid, g.vr_ag_wflags) &&
            (!g.enemy || g.enemy.health <= 0 || vlen(VR_AI_Origin(g.enemy) - g.origin) > 160);
 };
@@ -3250,7 +3250,7 @@ void(float kind) VR_AM_Spawn =
         want = VR_AG_PickWeapon();
         flags = 0;
     }
-    if(want2 == 0 && pooled && random() < cvar("vr_agrunt_dual_chance") && VR_AG_Decode(want) &&
+    if(want2 == 0 && pooled && random() < cvar_hget(cvarh_vr_agrunt_dual_chance) && VR_AG_Decode(want) &&
        VR_AG_Pairable(vr_ag_dec_wid, vr_ag_dec_flags))
     {
         // A second weapon that pairs with it from the pool (its weights; a few tries: none, one alone).

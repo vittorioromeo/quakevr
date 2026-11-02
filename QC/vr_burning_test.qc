@@ -112,7 +112,7 @@ void(entity v) VR_Burn_TestFlamesOff =
 
 void() VR_Burn_TestFrame =
 {
-    float ask = cvar("vr_burn_test");
+    float ask = cvar_hget(cvarh_vr_burn_test);
     if(!ask)
     {
         return;

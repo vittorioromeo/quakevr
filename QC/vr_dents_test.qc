@@ -80,7 +80,7 @@ void(vector xFrom, float xByBlade) VR_DentsTest_SwordLine =
 
 void() VR_DentsTest_Frame =
 {
-    float n = cvar("vr_dents_test");
+    float n = cvar_hget(cvarh_vr_dents_test);
     if(!n)
     {
         return;

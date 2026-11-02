@@ -91,7 +91,7 @@ vector(float xContents) VR_HotBlade_TestFind =
 
 void() VR_HotBlade_TestFrame =
 {
-    float ask = cvar("vr_hotblade_test");
+    float ask = cvar_hget(cvarh_vr_hotblade_test);
     if(!ask)
     {
         return;

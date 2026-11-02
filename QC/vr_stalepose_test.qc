@@ -135,8 +135,8 @@ void() VR_SPT_Frame =
     pl.flags = pl.flags | FL_GODMODE | FL_NOTARGET;
     if(vr_agt_step == 0)
     {
-        vr_spt_disarm = cvar("vr_agrunt_disarm");
-        vr_spt_kind = cvar("vr_agrunt_test_kind");
+        vr_spt_disarm = cvar_hget(cvarh_vr_agrunt_disarm);
+        vr_spt_kind = cvar_hget(cvarh_vr_agrunt_test_kind);
         cvar_set("vr_agrunt_disarm", "1");
         vr_spt_k = 0;
         vr_agt_step = 1;

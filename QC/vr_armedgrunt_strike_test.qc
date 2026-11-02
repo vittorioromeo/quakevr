@@ -314,11 +314,11 @@ void() VR_AGST_Frame =
     {
         if(vr_agst_case == 0)
         {
-            vr_agst_keep_beat = cvar("vr_agrunt_strike_beat");
-            vr_agst_keep_first = cvar("vr_agrunt_strike_first");
-            vr_agst_keep_parry = cvar("vr_agrunt_parry");
-            vr_agst_keep_scale = cvar("vr_timescale");
-            vr_agst_keep_armor = cvar("vr_agarmor_rule");
+            vr_agst_keep_beat = cvar_hget(cvarh_vr_agrunt_strike_beat);
+            vr_agst_keep_first = cvar_hget(cvarh_vr_agrunt_strike_first);
+            vr_agst_keep_parry = cvar_hget(cvarh_vr_agrunt_parry);
+            vr_agst_keep_scale = cvar_hget(cvarh_vr_timescale);
+            vr_agst_keep_armor = cvar_hget(cvarh_vr_agarmor_rule);
             cvar_set("vr_agrunt_parry", "1");
             // (The player's armour rule: a plate saves its share, the rest gets through (case 13's damage past a parry's);
             // rule 1, shipped 2026-10-30, stops the whole hit while its pool lasts.)

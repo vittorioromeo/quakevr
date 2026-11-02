@@ -55,9 +55,9 @@ float(float xMain, float xOff, float xSpeed, float xRest, float xKeepCool) VR_Cl
 void() VR_Clash_TestAll =
 {
     VR_Test_Begin("clashtest");
-    float melee = cvar("vr_clash_melee");
-    float ranged = cvar("vr_clash_ranged");
-    float need = cvar("vr_clash_speed");
+    float melee = cvar_hget(cvarh_vr_clash_melee);
+    float ranged = cvar_hget(cvarh_vr_clash_ranged);
+    float need = cvar_hget(cvarh_vr_clash_speed);
     cvar_set("vr_clash_melee", "1");
     cvar_set("vr_clash_ranged", "1");
     cvar_set("vr_clash_speed", "1.5");
@@ -242,7 +242,7 @@ void() VR_Clash_TestFrame =
         self = was;
         return;
     }
-    float ask = cvar("vr_clash_test");
+    float ask = cvar_hget(cvarh_vr_clash_test);
     if(!ask)
     {
         return;

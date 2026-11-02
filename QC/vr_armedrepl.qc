@@ -70,7 +70,7 @@ float() VR_AGR_Rand =
 
 void(vector seed) VR_AGR_SeedSet =
 {
-    float c = VR_AGR_Mod(fabs(rint(cvar("vr_agrunt_repl_seed"))), 30011);
+    float c = VR_AGR_Mod(fabs(rint(cvar_hget(cvarh_vr_agrunt_repl_seed))), 30011);
     vr_agr_s1 = 1 + VR_AGR_Mod(seed_x + 17 * c, 30268);
     vr_agr_s2 = 1 + VR_AGR_Mod(seed_y + 29 * c, 30306);
     vr_agr_s3 = 1 + VR_AGR_Mod(seed_x * 3 + seed_y + seed_z * 11 + c, 30322);
@@ -105,13 +105,13 @@ float() VR_AGR_InScope =
     float c = cvar_hget(cvarh_vr_campaign);
     if(AD_Rules() || c == 6)
     {
-        return cvar("vr_agrunt_repl_ad") != 0;
+        return cvar_hget(cvarh_vr_agrunt_repl_ad) != 0;
     }
     if(c == 1 || c == 2)
     {
-        return cvar("vr_agrunt_repl_mp") != 0;
+        return cvar_hget(cvarh_vr_agrunt_repl_mp) != 0;
     }
-    return cvar("vr_agrunt_repl_id") != 0;
+    return cvar_hget(cvarh_vr_agrunt_repl_id) != 0;
 };
 
 // One of Arcane Dimensions' own variants under a standard monster's classname, in AD's rules: a lightning point knight
@@ -265,13 +265,19 @@ float(float t, float r) VR_AGR_TierPick =
 float(float x) VR_AGR_Unit = { return min(1, max(0, x)); };
 
 // The chances times the skill's (vr_agrunt_repl_skill0..3).
-float() VR_AGR_SkillMult = { return max(0, cvar(sprintf("vr_agrunt_repl_skill%g", min(3, max(0, rint(skill)))))); };
+float() VR_AGR_SkillMult =
+{
+    float sk = rint(skill);
+    float h = sk <= 0 ? cvarh_vr_agrunt_repl_skill0 : (sk == 1 ? cvarh_vr_agrunt_repl_skill1
+            : (sk == 2 ? cvarh_vr_agrunt_repl_skill2 : cvarh_vr_agrunt_repl_skill3));
+    return max(0, cvar_hget(h));
+};
 
 // Any variety on (VR_AGR_Pick has anything to roll).
 float() VR_AGR_Varied =
 {
-    return cvar("vr_agrunt_repl_common") > 0 || cvar("vr_agrunt_repl_uncommon") > 0 || cvar("vr_agrunt_repl_rare") > 0 ||
-           cvar("vr_agrunt_repl_dual") > 0 || cvar("vr_agrunt_repl_gunaxe") > 0;
+    return cvar_hget(cvarh_vr_agrunt_repl_common) > 0 || cvar_hget(cvarh_vr_agrunt_repl_uncommon) > 0 || cvar_hget(cvarh_vr_agrunt_repl_rare) > 0 ||
+           cvar_hget(cvarh_vr_agrunt_repl_dual) > 0 || cvar_hget(cvarh_vr_agrunt_repl_gunaxe) > 0;
 };
 
 float vr_agr_cc; // VR_AGR_Pick's tiers' chances now (common, uncommon, rare: scaled to a sum of at most 1)
@@ -297,10 +303,10 @@ void(float kind, vector seed) VR_AGR_Pick =
     vr_agr_n1 = VR_AGR_TierCount(1);
     vr_agr_n2 = VR_AGR_TierCount(2);
     vr_agr_n3 = VR_AGR_TierCount(3);
-    float rareOk = (VR_AGR_MapIndex() >= max(1, cvar("vr_agrunt_repl_rare_map"))) || (cvar("vr_agrunt_repl_rare_map") <= 0);
-    vr_agr_cr = (rareOk && (vr_agr_n3 > 0)) ? VR_AGR_Unit(cvar("vr_agrunt_repl_rare") * m) : 0;
-    vr_agr_cu = (vr_agr_n2 > 0) ? VR_AGR_Unit(cvar("vr_agrunt_repl_uncommon") * m) : 0;
-    vr_agr_cc = (vr_agr_n1 > 0) ? VR_AGR_Unit(cvar("vr_agrunt_repl_common") * m) : 0;
+    float rareOk = (VR_AGR_MapIndex() >= max(1, cvar_hget(cvarh_vr_agrunt_repl_rare_map))) || (cvar_hget(cvarh_vr_agrunt_repl_rare_map) <= 0);
+    vr_agr_cr = (rareOk && (vr_agr_n3 > 0)) ? VR_AGR_Unit(cvar_hget(cvarh_vr_agrunt_repl_rare) * m) : 0;
+    vr_agr_cu = (vr_agr_n2 > 0) ? VR_AGR_Unit(cvar_hget(cvarh_vr_agrunt_repl_uncommon) * m) : 0;
+    vr_agr_cc = (vr_agr_n1 > 0) ? VR_AGR_Unit(cvar_hget(cvarh_vr_agrunt_repl_common) * m) : 0;
     float sum = vr_agr_cr + vr_agr_cu + vr_agr_cc;
     if(sum > 1)
     {
@@ -325,7 +331,7 @@ void(float kind, vector seed) VR_AGR_Pick =
     }
     float w1 = vr_ag_dec_wid;
     float f1 = vr_ag_dec_flags;
-    if(rd < VR_AGR_Unit(cvar("vr_agrunt_repl_dual") * m) && VR_AG_Pairable(w1, f1) && !VR_AG_Big(w1, f1))
+    if(rd < VR_AGR_Unit(cvar_hget(cvarh_vr_agrunt_repl_dual) * m) && VR_AG_Pairable(w1, f1) && !VR_AG_Big(w1, f1))
     {
         // A second weapon that pairs, from the same rolls (its own gun among them; a few tries, else one weapon).
         float k;
@@ -339,7 +345,7 @@ void(float kind, vector seed) VR_AGR_Pick =
             }
         }
     }
-    else if(rg < VR_AGR_Unit(cvar("vr_agrunt_repl_gunaxe") * m) && VR_AG_DualGun(w1, f1))
+    else if(rg < VR_AGR_Unit(cvar_hget(cvarh_vr_agrunt_repl_gunaxe) * m) && VR_AG_DualGun(w1, f1))
     {
         vr_agr_code2 = WID_AXE;
         vr_agr_gunaxe = 1;
@@ -368,7 +374,7 @@ void(entity g) VR_AGR_MarkNative =
 // scope, a dummy, MG3's infected, Honey's trigger-spawned copies' maker, VR_AM_Spawn's own call).
 float(float kind) VR_AGR_Replace =
 {
-    if(vr_am_spawning || vr_agr_hold > 0 || !cvar("vr_agrunt_repl"))
+    if(vr_am_spawning || vr_agr_hold > 0 || !cvar_hget(cvarh_vr_agrunt_repl))
     {
         return FALSE;
     }
@@ -424,7 +430,7 @@ float() VR_AKN_Replace =
     {
         return FALSE; // (a statue; a trigger's copies: their maker keeps its own spawn)
     }
-    if((AD_Rules() || cvar_hget(cvarh_vr_campaign) == 6) && (!cvar("vr_agrunt_repl_ad") || VR_AGR_ADVariant(self)))
+    if((AD_Rules() || cvar_hget(cvarh_vr_campaign) == 6) && (!cvar_hget(cvarh_vr_agrunt_repl_ad) || VR_AGR_ADVariant(self)))
     {
         return FALSE; // (Arcane Dimensions' maps: vr_agrunt_repl_ad's, as the grunts; AD's own variants never)
     }
@@ -547,7 +553,7 @@ void() VR_AGR_PrecacheArmour =
 // precached at the level's load (none late: a spawner's later ones too).
 void() VR_AGR_Precache =
 {
-    if(!cvar("vr_agrunt_repl"))
+    if(!cvar_hget(cvarh_vr_agrunt_repl))
     {
         return;
     }

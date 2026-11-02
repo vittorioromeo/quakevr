@@ -232,7 +232,7 @@ float() VR_MeleeArc_On =
 // size alone: an ogre's and a shambler's grow by the size sliders).
 vector() VR_MeleeArc_Kind =
 {
-    if(!cvar("vr_enemy_melee_kind"))
+    if(!cvar_hget(cvarh_vr_enemy_melee_kind))
     {
         return '1 1 0';
     }
@@ -255,14 +255,14 @@ float() VR_MeleeArc_SizeMore =
 float(float wide) VR_MeleeArc_Angle =
 {
     vector kind = VR_MeleeArc_Kind();
-    float a = cvar("vr_enemy_melee_arc_angle") * (1 + cvar("vr_enemy_melee_arc_size") * VR_MeleeArc_SizeMore());
-    a = a * kind_x + (wide ? cvar("vr_enemy_melee_arc_wide") : 0);
+    float a = cvar_hget(cvarh_vr_enemy_melee_arc_angle) * (1 + cvar_hget(cvarh_vr_enemy_melee_arc_size) * VR_MeleeArc_SizeMore());
+    a = a * kind_x + (wide ? cvar_hget(cvarh_vr_enemy_melee_arc_wide) : 0);
     return a < 0 ? 0 : (a > 180 ? 180 : a);
 };
 float(float base) VR_MeleeArc_Reach =
 {
     vector kind = VR_MeleeArc_Kind();
-    float r = base * (1 + cvar("vr_enemy_melee_reach_size") * VR_MeleeArc_SizeMore()) * kind_y;
+    float r = base * (1 + cvar_hget(cvarh_vr_enemy_melee_reach_size) * VR_MeleeArc_SizeMore()) * kind_y;
     return r < 0 ? 0 : r;
 };
 
@@ -309,7 +309,7 @@ float(float wide) VR_MeleeArc_Hits =
     {
         self.vr_melee_wide_seen = TRUE;
     }
-    if(cvar("vr_enemy_melee_arc_debug") && (self.enemy.flags & FL_CLIENT))
+    if(cvar_hget(cvarh_vr_enemy_melee_arc_debug) && (self.enemy.flags & FL_CLIENT))
     {
         bprint(sprintf("meleearc: %s blow %.0f deg off (arc %.0f, reach %.0f): %s\n", self.classname, off, arc,
             on ? VR_MeleeArc_Reach(vr_meleearc_reach_base) : vr_meleearc_reach_base,
@@ -386,7 +386,7 @@ void() VR_MeleeArc_TurnBegin =
 };
 void() VR_MeleeArc_TurnEnd =
 {
-    float cap = cvar("vr_enemy_melee_turn");
+    float cap = cvar_hget(cvarh_vr_enemy_melee_turn);
     if(cap <= 0 || !VR_MeleeArc_On())
     {
         return;

@@ -9,7 +9,7 @@
 
 void() VR_CrouchTest_Run =
 {
-    float n = cvar("vr_crouch_test");
+    float n = cvar_hget(cvarh_vr_crouch_test);
     entity player = VR_Player();
     if(player == world)
     {
@@ -63,7 +63,7 @@ void() VR_CrouchTest_Run =
 
 void() VR_CrouchTest_Frame =
 {
-    if(!cvar("vr_crouch_test"))
+    if(!cvar_hget(cvarh_vr_crouch_test))
     {
         return;
     }

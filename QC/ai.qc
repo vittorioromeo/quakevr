@@ -300,7 +300,7 @@ returns 1 if the entity is visible to self, even if not infront ()
 vector(entity e) VR_SightOfs =
 {
     if(e.headpos == '0 0 0' || !VRHasBit(e.vrbits0, QVR_VRBITS0_CROUCHED) || e.classname != "player" ||
-       !cvar("vr_crouch_sight"))
+       !cvar_hget(cvarh_vr_crouch_sight))
     {
         return e.view_ofs;
     }

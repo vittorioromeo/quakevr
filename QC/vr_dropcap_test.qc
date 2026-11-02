@@ -138,7 +138,7 @@ void() VR_DropCapTest_Think =
 
 void() VR_DropCapTest_Frame =
 {
-    float request = cvar("vr_dropcap_test");
+    float request = cvar_hget(cvarh_vr_dropcap_test);
     if(!request)
     {
         return;
@@ -175,7 +175,7 @@ void() VR_DropCapTest_Frame =
         vr_dct_other3.netname));
 
     vr_dct_made = 0;
-    vr_dct_total = cvar("vr_dropcap_test_n");
+    vr_dct_total = cvar_hget(cvarh_vr_dropcap_test_n);
     if(vr_dct_total <= 0)
     {
         vr_dct_total = 60;

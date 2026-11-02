@@ -200,10 +200,9 @@ void() VR_ART_Run =
     float sk;
     for(sk = 0; sk < 4; sk++)
     {
-        string base = strcat("vr_agarmor_skill", ftos(sk));
-        float chance = cvar(base);
-        float best = cvar(strcat(base, "_type"));
-        float want = cvar(strcat(base, "_pieces"));
+        float chance = VR_AgArmor_SkillValue(sk, 0);
+        float best = VR_AgArmor_SkillValue(sk, 1);
+        float want = VR_AgArmor_SkillValue(sk, 2);
         float got = 0;
         float bad = 0;
         for(i = 0; i < 200; i++)
@@ -494,11 +493,11 @@ void() VR_AgArmor_TestFrame =
     }
     if(vr_art_state == 0)
     {
-        if(cvar("vr_agarmor_test") == 0)
+        if(cvar_hget(cvarh_vr_agarmor_test) == 0)
         {
             return;
         }
-        float request = cvar("vr_agarmor_test");
+        float request = cvar_hget(cvarh_vr_agarmor_test);
         cvar_set("vr_agarmor_test", "0");
         entity p = VR_Player();
         if(!p)
@@ -579,10 +578,10 @@ void() VR_AgArmor_TestFrame =
         if(request == 7)
         {
             VR_Test_BeginFlags("agarmor test", VR_TEST_LOUD); // (its lines printed without developer 1)
-            vr_art_rule = cvar("vr_agarmor_rule");
-            vr_art_helm = cvar("vr_agarmor_helmet_head");
-            vr_art_cuts = cvar("vr_agarmor_block_cuts");
-            vr_art_dtime = cvar("vr_agarmor_debris_time");
+            vr_art_rule = cvar_hget(cvarh_vr_agarmor_rule);
+            vr_art_helm = cvar_hget(cvarh_vr_agarmor_helmet_head);
+            vr_art_cuts = cvar_hget(cvarh_vr_agarmor_block_cuts);
+            vr_art_dtime = cvar_hget(cvarh_vr_agarmor_debris_time);
             cvar_set("vr_agarmor_helmet_head", "1");
             cvar_set("vr_agarmor_block_cuts", "1");
             cvar_set("vr_agarmor_debris_time", "0.5");
@@ -609,10 +608,10 @@ void() VR_AgArmor_TestFrame =
             return;
         }
         VR_Test_BeginFlags("agarmor test", VR_TEST_LOUD); // (its lines printed without developer 1)
-        vr_art_rule = cvar("vr_agarmor_rule");
-        vr_art_helm = cvar("vr_agarmor_helmet_head");
-        vr_art_cuts = cvar("vr_agarmor_block_cuts");
-        vr_art_dtime = cvar("vr_agarmor_debris_time");
+        vr_art_rule = cvar_hget(cvarh_vr_agarmor_rule);
+        vr_art_helm = cvar_hget(cvarh_vr_agarmor_helmet_head);
+        vr_art_cuts = cvar_hget(cvarh_vr_agarmor_block_cuts);
+        vr_art_dtime = cvar_hget(cvarh_vr_agarmor_debris_time);
         cvar_set("vr_agarmor_helmet_head", "1");
         cvar_set("vr_agarmor_block_cuts", "1");
         cvar_set("vr_agarmor_debris_time", "0.5");

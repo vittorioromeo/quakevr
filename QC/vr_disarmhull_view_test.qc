@@ -22,7 +22,7 @@ void() VR_DHV_Frame =
     pl.flags = pl.flags | FL_GODMODE | FL_NOTARGET;
     if(vr_agt_step == 0)
     {
-        vr_dhv_was = cvar("vr_debug_disarm");
+        vr_dhv_was = cvar_hget(cvarh_vr_debug_disarm);
         cvar_set("vr_debug_disarm", "1");
         vr_dhv_w = 0;
         vr_agt_step = 1;

@@ -84,12 +84,12 @@ void(entity p, float request) VR_MeleeArcTest_Start =
     vr_mat_first_off = -1;
     vr_mat_blowtime = vr_meleearc_last_time;
     bprint(sprintf("meleearc: start %s mode %g dist %g arc %g (%g deg, turn %g)\n", best.classname, mode, dist,
-        cvar("vr_enemy_melee_arc"), cvar("vr_enemy_melee_arc_angle"), cvar("vr_enemy_melee_turn")));
+        cvar_hget(cvarh_vr_enemy_melee_arc), cvar_hget(cvarh_vr_enemy_melee_arc_angle), cvar_hget(cvarh_vr_enemy_melee_turn)));
 };
 
 void() VR_MeleeArcTest_Frame =
 {
-    float request = cvar("vr_test_meleearc");
+    float request = cvar_hget(cvarh_vr_test_meleearc);
     entity p = VR_Player();
     if(request)
     {
@@ -142,7 +142,7 @@ void() VR_MeleeArcTest_Frame =
     {
         // (two prints: a builtin takes at most 8 arguments)
         bprint(sprintf("meleearc: result %s mode %g arc %g: hits %g dmg %.0f first %.2f off %.0f", m.classname, vr_mat_mode,
-            cvar("vr_enemy_melee_arc"), vr_mat_hits, vr_mat_dmg, vr_mat_first, vr_mat_first_off));
+            cvar_hget(cvarh_vr_enemy_melee_arc), vr_mat_hits, vr_mat_dmg, vr_mat_first, vr_mat_first_off));
         bprint(sprintf(" blows %g landed %g after-step %g\n", vr_mat_blows, vr_mat_landed, vr_mat_after));
         vr_mat_mode = 0;
     }

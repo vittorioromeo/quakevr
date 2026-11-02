@@ -11,7 +11,7 @@ void() VR_WallTorch_TestShot =
             vr_blood_sent - vr_wt_test_blood, vr_wt_test_missile != world && vr_wt_test_missile.model != string_null));
         vr_wt_test_until = 0;
     }
-    float kind = cvar("vr_test_walltorch_shot");
+    float kind = cvar_hget(cvarh_vr_test_walltorch_shot);
     if(kind < 0)
     {
         return;
@@ -108,7 +108,7 @@ void() VR_WallTorch_TestShot =
         dir_x = -to_y;
         dir_y = to_x;
         dir_z = 0;
-        float speed = cvar("vr_test_fling_speed") * VRMetersToUnits();
+        float speed = cvar_hget(cvarh_vr_test_fling_speed) * VRMetersToUnits();
         p.owner = world;
         p.carry_player = world;
         p.carry_letgo = world;
@@ -119,7 +119,7 @@ void() VR_WallTorch_TestShot =
         setorigin(p, mid - dir * (0.5 * max(t.size_x, t.size_y) + 40) - 0.5 * (p.mins + p.maxs));
         p.velocity = dir * speed;
         dprint(sprintf("walltorch test: %s sent at it along %v at %g m/s\n", p.classname, dir,
-            cvar("vr_test_fling_speed")));
+            cvar_hget(cvarh_vr_test_fling_speed)));
         return;
     }
     vr_wt_test_missile = VR_Test_Fire(kind, mid);

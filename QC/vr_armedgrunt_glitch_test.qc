@@ -217,7 +217,7 @@ void() VR_AGG_Next =
     self.enemy = tg;
     FoundTarget();
     self = oldself;
-    vr_agg_at = cvar("temp1") == 1 ? time - VR_AGG_CLOSE_AT : time;
+    vr_agg_at = cvar_hget(cvarh_temp1) == 1 ? time - VR_AGG_CLOSE_AT : time;
     vr_agg_pain = 0;
     vr_agg_hits = 0;
     vr_agg_knocked = 0;
@@ -238,8 +238,8 @@ void() VR_AGTest_Glitch =
         vr_agg_home = p.origin;
         vr_agg_homeyaw = p.angles_y;
         vr_agg_tn = vr_agg_tup45 = vr_agg_thead = vr_agg_tpar = vr_agg_tdis = vr_agg_tup = 0;
-        vr_agg_i = cvar("scratch2");
-        vr_agg_last = cvar("scratch3") > 0 ? min(VR_AGG_COUNT - 1, cvar("scratch3")) : VR_AGG_COUNT - 1;
+        vr_agg_i = cvar_hget(cvarh_scratch2);
+        vr_agg_last = cvar_hget(cvarh_scratch3) > 0 ? min(VR_AGG_COUNT - 1, cvar_hget(cvarh_scratch3)) : VR_AGG_COUNT - 1;
         VR_AGG_Next();
         vr_agt_step = 1;
         return;
@@ -249,7 +249,7 @@ void() VR_AGTest_Glitch =
     float s = time - vr_agg_at;
     if(vr_agt_step == 1)
     {
-        float end = cvar("temp1") == 1 ? VR_AGG_CLOSE_AT + VR_AGG_CLOSE_LEN : VR_AGG_LEN;
+        float end = cvar_hget(cvarh_temp1) == 1 ? VR_AGG_CLOSE_AT + VR_AGG_CLOSE_LEN : VR_AGG_LEN;
         if(s >= end || !g || g.classname == "" || g.health <= 0)
         {
             vr_agg_i = vr_agg_i + 1;

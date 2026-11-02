@@ -69,7 +69,7 @@ void(string xHow) VR_GPT_Count =
             gibs++;
             grab += (e.flags & FL_FORCEGRABBABLE) != 0;
             destroy += e.th_die == VR_Gib_Die;
-            if(cvar("developer") >= 2)
+            if(cvar_hget(cvarh_developer) >= 2)
             {
                 bprint(sprintf("gibprops:   gib %s %s flags %g solid %g\n", e.classname, e.model, e.flags, e.solid));
             }
@@ -88,7 +88,7 @@ void(string xHow) VR_GPT_Count =
 
 void() VR_GibProps_TestFrame =
 {
-    float request = cvar("vr_gibprops_test");
+    float request = cvar_hget(cvarh_vr_gibprops_test);
     if(!request)
     {
         return;

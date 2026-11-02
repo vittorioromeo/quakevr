@@ -98,6 +98,17 @@ player-edict Quake/vr/vr_toolgun_pick.inc 1  # guard differs (ROUND23 'player ed
 
 # --- cvar-by-name: use the cvar_t directly: vr_x.value
 
+# --- qc-cvar-by-name: use cvar_hget(cvarh_<name>) (QC/vr_cvars.qc; run Misc/quakevr/gen_vr_cvars_qc.py)
+qc-cvar-by-name QC/vr_ad_guns_defs.qc 1  # VR_ADGun_Value: vr_adgun_<gun>_<what>, 26 callers' names built at run time
+qc-cvar-by-name QC/vr_agarmor_test.qc 2  # the skill's vr_agarmor_skill<n>: read, cvar_set and put back by name
+qc-cvar-by-name QC/vr_arena_perks_test.qc 1  # its cvar table kept and put back by name (cvar_set)
+qc-cvar-by-name QC/vr_arena_test.qc 1  # its cvar table kept and put back by name (cvar_set)
+qc-cvar-by-name QC/vr_armedgrunt_preparry_test.qc 1  # its cvar table kept and put back by name (cvar_set)
+qc-cvar-by-name QC/vr_armedgrunt_test.qc 1  # scratch5: no engine cvar (`set scratch5 1` makes it after the handles)
+qc-cvar-by-name QC/vr_armedknight_test.qc 1  # the case's flag (vr_agknight or vr_agdknight), kept and put back by name
+qc-cvar-by-name QC/vr_armedrepl_test.qc 1  # its cvar table kept and put back by name (cvar_set)
+qc-cvar-by-name QC/vr_smallgibs_test.qc 1  # a multiplier's value printed by its name (the test's table)
+
 # --- field-by-name: use progs::fields().x (add the field to vr_fields.inc)
 field-by-name Quake/vr/vr_portals.cpp 1  # `mangle`: also read with non-VR progs (ROUND23 A2, left on purpose)
 field-by-name Quake/vr/vr_progs.cpp 5  # the binder itself: mh_* fields and the isVrProgs probe

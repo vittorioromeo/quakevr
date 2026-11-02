@@ -18,7 +18,7 @@ float(entity e) VR_TestSkips =
 // side as he sees it), 3 a leg, on its side facing him; 5: nowhere known. Prints `test kill:`.
 void() VR_TestKill_Frame =
 {
-    float want = cvar("vr_test_kill");
+    float want = cvar_hget(cvarh_vr_test_kill);
     if(want < 1)
     {
         return;
@@ -87,7 +87,7 @@ void() VR_TestKill_Frame =
 // `test hurt:` with its health before and after.
 void() VR_TestHurt_Frame =
 {
-    float dmg = cvar("vr_test_hurt");
+    float dmg = cvar_hget(cvarh_vr_test_hurt);
     if(dmg <= 0)
     {
         return;

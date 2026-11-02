@@ -16,7 +16,7 @@ vector vr_dvt_home;
 void(string what) VR_DVT_Shot =
 {
     cvar_set("vr_eyeshot", "3"); // (with the UI pass: the debug lines are drawn in it)
-    if(!cvar("vr_enabled"))
+    if(!cvar_hget(cvarh_vr_enabled))
     {
         localcmd("screenshot\n"); // (the flat view: its overlay's lines)
     }
@@ -30,7 +30,7 @@ void() VR_DVT_Frame =
     float t = time - vr_dvt_t0;
     if(vr_agt_step == 0)
     {
-        vr_dvt_was = cvar("vr_debug_disarm");
+        vr_dvt_was = cvar_hget(cvarh_vr_debug_disarm);
         cvar_set("vr_debug_disarm", "2");
         p.flags = p.flags | FL_NOTARGET;
         vr_dvt_home = p.origin;

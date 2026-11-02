@@ -84,7 +84,7 @@ void() VR_RST_Finish =
 void(entity p) VR_RST_Begin =
 {
     VR_Test_Begin("ragsmash");
-    vr_rst_old_debug = cvar("vr_knockdown_debug");
+    vr_rst_old_debug = cvar_hget(cvarh_vr_knockdown_debug);
     cvar_set("vr_knockdown_debug", ftos(max(1, vr_rst_old_debug))); // (2: the engine's every strike too)
     vr_rimp_test = 1;
     makevectors(p.angles);
@@ -108,7 +108,7 @@ void() VR_RagSmash_TestFrame =
     entity p = VR_Player();
     if(vr_rst_state == 0)
     {
-        float request = cvar("vr_ragsmash_test");
+        float request = cvar_hget(cvarh_vr_ragsmash_test);
         if(!request || !p)
         {
             return;

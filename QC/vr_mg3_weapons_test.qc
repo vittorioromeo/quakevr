@@ -49,7 +49,7 @@ float(entity p, entity v) MG3_WT_Strike =
 void() MG3_WT_Report =
 {
     entity p = VR_Player();
-    dprint(sprintf("mg3wtest: report map %s campaign %g superaxe data %g model %s\n", mapname, cvar("vr_campaign"),
+    dprint(sprintf("mg3wtest: report map %s campaign %g superaxe data %g model %s\n", mapname, cvar_hget(cvarh_vr_campaign),
         VR_Pack_WeaponAvailable(WID_SUPERAXE), WeaponIdToModel(WID_SUPERAXE, 0)));
     if(!p) return;
     dprint(sprintf("mg3wtest: hands %g/%g models %s / %s cells %g has %g\n", p.weapon, p.weapon2, p.weaponmodel, p.weaponmodel2,
@@ -79,7 +79,7 @@ void() MG3_WT_BurstStep =
     {
         VR_Test_Begin("mg3wtest");
         p.flags = p.flags | FL_GODMODE;
-        mg3wt_gripmode = cvar("vr_weapon_grip_mode");
+        mg3wt_gripmode = cvar_hget(cvarh_vr_weapon_grip_mode);
         cvar_set("vr_weapon_grip_mode", "1");
         MG3_WT_GiveMain(p);
         p.ammo_cells = 50;
@@ -376,7 +376,7 @@ void() MG3_WT_Laser =
     float plain = VR_LaserBoltDamage(FALSE), lit = VR_LaserBoltDamage(TRUE);
     float want = MG3_Campaign() ? 15 : 18, wantLit = MG3_Campaign() ? 20 : 25;
     float scale = cvar_hget(cvarh_vr_dmg_laser) / 18;
-    dprint(sprintf("mg3wtest: laser bolt %g, lit %g (campaign %g, Weapon Damage x%g)\n", plain, lit, cvar("vr_campaign"), scale));
+    dprint(sprintf("mg3wtest: laser bolt %g, lit %g (campaign %g, Weapon Damage x%g)\n", plain, lit, cvar_hget(cvarh_vr_campaign), scale));
     VR_Test_Check(fabs(plain - want * scale) < 0.01 && fabs(lit - wantLit * scale) < 0.01,
         sprintf("a bolt %g, a lit one %g", want * scale, wantLit * scale));
     // At the floor ahead, 40 degrees down, fanned (the floor: world, near, whatever the map; monsters seldom on it).
@@ -630,7 +630,7 @@ void() MG3_WeaponsTestFrame =
         MG3_WT_BurstStep();
         self = os; other = oo;
     }
-    float request = cvar("vr_mg3_wtest");
+    float request = cvar_hget(cvarh_vr_mg3_wtest);
     if(!request) return;
     cvar_set("vr_mg3_wtest", "0");
     if(!VR_Player()) return;

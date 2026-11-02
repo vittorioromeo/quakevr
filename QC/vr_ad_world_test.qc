@@ -122,7 +122,7 @@ void(float request, entity p) AD_WorldTest =
         entity ladder = find(world, classname, "trigger_ladder");
         if(!ladder) { bprint("adworld: no ladder\n"); return; }
         float bits = p.vrbits0, oldflags = ladder.spawnflags, oldgrav = p.gravity;
-        float climb = cvar("vr_climb"), ladders = cvar("vr_climb_ladders");
+        float climb = cvar_hget(cvarh_vr_climb), ladders = cvar_hget(cvarh_vr_climb_ladders);
         p.vrbits0 |= QVR_VRBITS0_HANDSTRACKED;
         ladder.ad_bmodel_act = p;
         // cfg 0: hands climb the ladder (AD's keyboard climb off); 1: Hand Climbing off, 2: Hand-Climbed Ladders off

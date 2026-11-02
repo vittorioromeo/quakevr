@@ -105,7 +105,7 @@ void(float request) AD_Test =
         if(request == 4)
         {
             bprint(sprintf("adtest: Plasma Gun's shot sound %s (AD's data mounted %g)\n", AD_PlasmaFireSound(),
-                cvar("vr_ad_mounted")));
+                cvar_hget(cvarh_vr_ad_mounted)));
         }
         self = oself;
         return;

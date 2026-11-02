@@ -436,7 +436,7 @@ float(float xHow, float xBusy) VR_FgBusyTest_Offer =
 
 void() VR_FgBusyTest_Weapons =
 {
-    float speed = cvar("vr_agrunt_grab_speed");
+    float speed = cvar_hget(cvarh_vr_agrunt_grab_speed);
     cvar_set("vr_agrunt_grab_speed", "0"); // (any speed: the mock hand's and the grunt's own drift aside)
     for(float i = 1; i <= 3; ++i)
     {

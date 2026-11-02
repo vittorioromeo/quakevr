@@ -680,7 +680,7 @@ void() VR_Tutorial_Frame =
     {
         return;
     }
-    float n = cvar("vr_tutorial_goto");
+    float n = cvar_hget(cvarh_vr_tutorial_goto);
     if(!vr_tut_goto_ready)
     {
         vr_tut_goto_ready = TRUE;

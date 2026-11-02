@@ -22,7 +22,7 @@ void() VR_AGTP_Frame =
     p.flags = p.flags | FL_GODMODE | FL_NOTARGET;
     if(vr_agt_step == 0)
     {
-        vr_agtp_yank = cvar("vr_agrunt_disarm_yank");
+        vr_agtp_yank = cvar_hget(cvarh_vr_agrunt_disarm_yank);
         cvar_set("vr_agrunt_disarm_yank", "0"); // (no grab by the hands' own touches: the test's grab)
         VR_AGPT_Clear();
         VR_AGPT_EmptyHand(p);

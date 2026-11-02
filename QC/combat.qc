@@ -2127,7 +2127,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     }
 
     // VR: a living monster flinches (vr_hitreact.qc); a blow a plate took pushes it by vr_agarmor_impulse of a bare one's
-    VR_HitReact_Hit(targ, inflictor, attacker, take + plated * max(0, cvar("vr_agarmor_impulse")));
+    VR_HitReact_Hit(targ, inflictor, attacker, take + plated * max(0, cvar_hget(cvarh_vr_agarmor_impulse)));
     // VR: an armed grunt struck on its gun hand drops it (vr_armedgrunt.qc); a player's shot: the shooting rule's
     // (vr_armedgrunt_shot.qc), an explosion counting there too
     if(!VR_AGS_Hit(targ, inflictor, attacker, take))

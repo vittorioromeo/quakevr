@@ -63,8 +63,8 @@ void() VR_WeaponInst_TestList =
 
 void() VR_WeaponInst_Test =
 {
-    float step = cvar("vr_test_weaponinst");
-    float slot = cvar("vr_test_weaponinst_slot");
+    float step = cvar_hget(cvarh_vr_test_weaponinst);
+    float slot = cvar_hget(cvarh_vr_test_weaponinst_slot);
     if(!slot)
     {
         slot = QVR_HS_RIGHT_HIP_HOLSTER;

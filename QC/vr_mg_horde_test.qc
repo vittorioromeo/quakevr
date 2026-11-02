@@ -103,7 +103,7 @@ void() MGH_TestMonitor = {
 };
 void() MGH_TestFrame = {
  if(MGH_test_monitor) MGH_TestMonitor();
- float request=cvar("vr_mg_horde_test"); if(!request) return; cvar_set("vr_mg_horde_test","0");
+ float request=cvar_hget(cvarh_vr_mg_horde_test); if(!request) return; cvar_set("vr_mg_horde_test","0");
  entity caller=self,prevother=other,prevact=activator;
  if(request==2) MGH_Report();
  else if(!MGH_Active()) dprint("mghordetest: owned Machine Horde arena required\n");

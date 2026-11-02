@@ -72,7 +72,7 @@ float(entity g, float c) VR_AGRB_Bone =
 // The next case (FALSE: all done).
 float() VR_AGRB_Next =
 {
-    float a = cvar("scratch1");
+    float a = cvar_hget(cvarh_scratch1);
     for(;;)
     {
         vr_agrb_case = vr_agrb_case + 1;
@@ -117,11 +117,11 @@ void() VR_AGRB_Frame =
         if(c == 0 && vr_agrb_n + vr_agrb_nost == 0)
         {
             vr_agrb_home = p.origin;
-            vr_agrb_keep_scale = cvar("vr_agrunt_tug_downed_scale");
-            vr_agrb_keep_impact = cvar("vr_agrunt_fall_keep_impact");
-            vr_agrb_keep_drop = cvar("vr_agrunt_fall_drop");
-            vr_agrb_keep_dbg = cvar("vr_agrunt_debug");
-            vr_agrb_keep_dv = cvar("vr_debug_disarm");
+            vr_agrb_keep_scale = cvar_hget(cvarh_vr_agrunt_tug_downed_scale);
+            vr_agrb_keep_impact = cvar_hget(cvarh_vr_agrunt_fall_keep_impact);
+            vr_agrb_keep_drop = cvar_hget(cvarh_vr_agrunt_fall_drop);
+            vr_agrb_keep_dbg = cvar_hget(cvarh_vr_agrunt_debug);
+            vr_agrb_keep_dv = cvar_hget(cvarh_vr_debug_disarm);
             vr_agrb_keep_dmg = cvar_hget(cvarh_vr_agrunt_disarm_damage);
             localcmd("tune vr_agrunt_disarm_damage 9999\n"); // (a tunable: the mock hand's jump onto it is no blow that disarms)
             cvar_set("vr_agrunt_tug_downed_scale", "0.5"); // (as shipped: a downed one's weapon needs a tug)
@@ -131,7 +131,7 @@ void() VR_AGRB_Frame =
             {
                 cvar_set("vr_agrunt_debug", "0.5"); // (the engine's reading of the fist's gap: vr_agrunt_grab_gap)
             }
-            float a = cvar("scratch1");
+            float a = cvar_hget(cvarh_scratch1);
             if(a > 0)
             {
                 vr_agrb_case = -1;
@@ -298,7 +298,7 @@ void() VR_AGRB_Frame =
             // Raised over its barrel until the engine reads the fist 5.5-7.5 cm off its drawn surface.
             if(vr_agrb_track >= 12 && (vr_agrb_track - floor(vr_agrb_track / 3) * 3) == 0)
             {
-                float gp = cvar("vr_agrunt_grab_gap");
+                float gp = cvar_hget(cvarh_vr_agrunt_grab_gap);
                 if(gp >= 5.5 && gp <= 7.5)
                 {
                     near = TRUE;
@@ -330,12 +330,12 @@ void() VR_AGRB_Frame =
         if(!near)
         {
             VR_AGT_Print(sprintf("%s: no state (the hand never got there: bone %g, nearest %g, gap %.1f cm)", name, bone,
-                ragdollbone(g, p.handpos), cvar("vr_agrunt_grab_gap")));
+                ragdollbone(g, p.handpos), cvar_hget(cvarh_vr_agrunt_grab_gap)));
             vr_agrb_nost = vr_agrb_nost + 1;
             VR_AGRB_End(p, g);
             return;
         }
-        vr_agrb_gap = cvar("vr_agrunt_grab_gap");
+        vr_agrb_gap = cvar_hget(cvarh_vr_agrunt_grab_gap);
         vr_agrb_rag = isragdoll(g);
         cvar_set("vr_agrunt_disarm_yank", "1");
         localcmd("+grabmain\n"); // (the grip pressed as the engine presses it: every touch that frame racing for it)

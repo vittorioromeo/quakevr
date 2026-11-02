@@ -209,7 +209,7 @@ void() VR_AGST_Report =
         vr_agst_loss0 = loss;
         VR_AGST_Check("shotgun 2 m: 0.5..0.8, none stopped:", rate >= 0.5 && rate <= 0.8 && ab == 0);
     }
-    float proj = cvar("vr_agrunt_shotdisarm_proj"); // (each nail its own roll, 0.2 a nail: 3 of them 0.49)
+    float proj = cvar_hget(cvarh_vr_agrunt_shotdisarm_proj); // (each nail its own roll, 0.2 a nail: 3 of them 0.49)
     if(c == 4) { VR_AGST_Check(proj ? "3 nails, each its roll: 0.3..0.7:" : "3 nails: 0.25..0.5:", proj ? (rate >= 0.3 && rate <= 0.7) : (rate >= 0.25 && rate <= 0.5)); }
     if(c == 7) { VR_AGST_Check("lightning 0.2 s: 0.2..0.6:", rate >= 0.2 && rate <= 0.6); }
     if(c == 5 && proj) { VR_AGST_Check("a single far nail, its own roll: 0.1..0.35:", rate >= 0.1 && rate <= 0.35); }
@@ -235,11 +235,11 @@ void(float t) VR_AGS_TestFrame =
     {
         if(vr_agst_case == 0)
         {
-            vr_agst_keep_parts = cvar("vr_agrunt_shotdisarm_parts");
-            vr_agst_keep_size = cvar("vr_agrunt_vol_shot_weapon");
-            vr_agst_keep_hand = cvar("vr_agrunt_vol_shot_hand");
-            vr_agst_keep_absorb = cvar("vr_agrunt_shotdisarm_block");
-            vr_agst_keep_disarm = cvar("vr_agrunt_fall_drop");
+            vr_agst_keep_parts = cvar_hget(cvarh_vr_agrunt_shotdisarm_parts);
+            vr_agst_keep_size = cvar_hget(cvarh_vr_agrunt_vol_shot_weapon);
+            vr_agst_keep_hand = cvar_hget(cvarh_vr_agrunt_vol_shot_hand);
+            vr_agst_keep_absorb = cvar_hget(cvarh_vr_agrunt_shotdisarm_block);
+            vr_agst_keep_disarm = cvar_hget(cvarh_vr_agrunt_fall_drop);
             cvar_set("vr_agrunt_fall_drop", "0"); // (only its shots: not a knockdown's drop)
             VR_Test_Nest("agshot", VR_TEST_LOUD);
         }
@@ -252,13 +252,13 @@ void(float t) VR_AGS_TestFrame =
             pl.flags = pl.flags - (pl.flags & FL_NOTARGET);
             vr_agst_case = 0;
             cvar_set("vr_agrunt_test", "0");
-            if(cvar("scratch2") == 1)
+            if(cvar_hget(cvarh_scratch2) == 1)
             {
                 localcmd("toggleconsole; quit\n"); // (a headless run's end, however long it took)
             }
             return;
         }
-        vr_agst_n = cvar("scratch1") > 0 ? cvar("scratch1") : (vr_agst_case <= 8 ? 100 : 40); // (the defaults' rates: 100)
+        vr_agst_n = cvar_hget(cvarh_scratch1) > 0 ? cvar_hget(cvarh_scratch1) : (vr_agst_case <= 8 ? 100 : 40); // (the defaults' rates: 100)
         vr_agst_trial = 0;
         vr_agst_dis = 0;
         vr_agst_wrong = 0;
@@ -362,8 +362,8 @@ string(float w) VR_AGPJ_WhereName = { return w == 0 ? "on the gun" : w == 1 ? "o
 // The chance the formula gives (vr_agrunt_shotdisarm_proj_*): `dmg` damage, falloff `f`, part weight 1.
 float(float dmg, float f) VR_AGPJ_Expect =
 {
-    float c = cvar("vr_agrunt_shotdisarm_proj_chance") * dmg / max(0.01, cvar("vr_agrunt_shotdisarm_proj_ref"));
-    return min(cvar("vr_agrunt_shotdisarm_proj_max"), c) * f;
+    float c = cvar_hget(cvarh_vr_agrunt_shotdisarm_proj_chance) * dmg / max(0.01, cvar_hget(cvarh_vr_agrunt_shotdisarm_proj_ref));
+    return min(cvar_hget(cvarh_vr_agrunt_shotdisarm_proj_max), c) * f;
 };
 
 float(float k) VR_AGPJ_Damage =
@@ -437,8 +437,8 @@ void() VR_AGPJ_Report =
     float k = floor(vr_agpj_case / 4);
     float w = vr_agpj_case - k * 4;
     float n = max(1, vr_agpj_n);
-    float f = w == 2 ? max(0, 1 - 3 / max(0.01, cvar("vr_agrunt_shotdisarm_proj_near"))) : (w == 3 ? 0 : 1);
-    f = w == 3 ? max(0, 1 - 6 / max(0.01, cvar("vr_agrunt_shotdisarm_proj_near"))) : f;
+    float f = w == 2 ? max(0, 1 - 3 / max(0.01, cvar_hget(cvarh_vr_agrunt_shotdisarm_proj_near))) : (w == 3 ? 0 : 1);
+    f = w == 3 ? max(0, 1 - 6 / max(0.01, cvar_hget(cvarh_vr_agrunt_shotdisarm_proj_near))) : f;
     float want = VR_AGPJ_Expect(VR_AGPJ_Damage(k), f);
     float mean = vr_agpj_csum / max(1, vr_agpj_rolled);
     float rate = vr_agpj_dis / n;
@@ -462,10 +462,10 @@ void() VR_AGS_ProjTestFrame =
     {
         if(vr_agpj_case == 0)
         {
-            vr_agpj_keep_proj = cvar("vr_agrunt_shotdisarm_proj");
-            vr_agpj_keep_drop = cvar("vr_agrunt_fall_drop");
-            vr_agpj_keep_block = cvar("vr_agrunt_shotdisarm_block");
-            vr_agpj_keep_parts = cvar("vr_agrunt_shotdisarm_parts");
+            vr_agpj_keep_proj = cvar_hget(cvarh_vr_agrunt_shotdisarm_proj);
+            vr_agpj_keep_drop = cvar_hget(cvarh_vr_agrunt_fall_drop);
+            vr_agpj_keep_block = cvar_hget(cvarh_vr_agrunt_shotdisarm_block);
+            vr_agpj_keep_parts = cvar_hget(cvarh_vr_agrunt_shotdisarm_parts);
             cvar_set("vr_agrunt_shotdisarm_proj", "1");
             cvar_set("vr_agrunt_fall_drop", "0");
             cvar_set("vr_agrunt_shotdisarm_block", "0"); // (each nail on into the body: its roll only)
@@ -487,7 +487,7 @@ void() VR_AGS_ProjTestFrame =
             return;
         }
         float w0 = vr_agpj_case - floor(vr_agpj_case / 4) * 4;
-        vr_agpj_n = cvar("scratch1") > 0 ? cvar("scratch1") : (w0 == 0 ? 40 : 12);
+        vr_agpj_n = cvar_hget(cvarh_scratch1) > 0 ? cvar_hget(cvarh_scratch1) : (w0 == 0 ? 40 : 12);
         vr_agpj_shot = 0;
         vr_agpj_rolled = 0;
         vr_agpj_dis = 0;

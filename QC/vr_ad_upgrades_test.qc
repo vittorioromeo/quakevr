@@ -51,13 +51,13 @@ void(entity p, entity e) AD_ShadowAxeBlow =
     b.mh_strength = 1;
     self = p;
     VRSetMeleeHitSoundPlayed(cVR_MainHand, FALSE);
-    if(cvar("developer"))
+    if(cvar_hget(cvarh_developer))
     {
         bprint(sprintf("adshadowaxe: blow on %s: tracked %g human %g contact %g inpain %g\n", e.classname, VRHandsTracked(p),
             p.ishuman, VR_Blow_Contact(cVR_MainHand), e.ad_inpain));
     }
     W_FireAxe(cVR_MainHand);
-    if(cvar("developer"))
+    if(cvar_hget(cvarh_developer))
     {
         bprint(sprintf("adshadowaxe: after: mark %g inpain %g health %g\n", e.ad_axhitme, e.ad_inpain, e.health));
     }
@@ -211,7 +211,7 @@ void() AD_PlasmaCellTestRun =
         sprintf("taken %g", r != world));
     // Its cell holds vr_ad_plasmagun_cell (his 16, the thunderbolt's 36): a pouch's is that size; a thunderbolt's full
     // one seated gives it that many, the rest back to the reserve.
-    float size = rint(cvar("vr_ad_plasmagun_cell"));
+    float size = rint(cvar_hget(cvarh_vr_ad_plasmagun_cell));
     AD_PlasmaCheck("a cell from the pouch holds its size", VR_ClipSizeIn(p, h) == size && VRGetEntWeaponClip(p, h) == size,
         sprintf("size %g, it holds %g, want %g", VR_ClipSizeIn(p, h), VRGetEntWeaponClip(p, h), size));
     entity spent = VR_Reload_Eject(p, h, out * 40, -1, "test 141");
@@ -244,7 +244,7 @@ void() AD_WidowFireRun =
 {
     entity p = self.owner;
     entity os = self;
-    float spinup = max(0.01, cvar("vr_ad_widowmaker_spinup"));
+    float spinup = max(0.01, cvar_hget(cvarh_vr_ad_widowmaker_spinup));
     if(vr_adwm_phase == 1)
     {
         // The trigger let go 0.3 s (the barrels slowing), then pressed again: the first shot comes sooner than from rest.
@@ -299,7 +299,7 @@ void() AD_WidowFireRun =
     if(vr_adwm_phase == 0)
     {
         float shots = vr_adwm_tube - VRGetEntWeaponClip(p, cVR_OffHand);
-        float rate = max(0.02, cvar("vr_ad_widowmaker_refire"));
+        float rate = max(0.02, cvar_hget(cvarh_vr_ad_widowmaker_refire));
         float expect = floor((2 - spinup) / rate) + 1;
         AD_WidowCheck("first shot waits for the barrels: from rest about the spin-up time", vr_adwm_first >= spinup - 0.05 && vr_adwm_first <= spinup + 0.1,
             sprintf("%g s after the press, spin-up %g", vr_adwm_first, spinup));
@@ -330,7 +330,7 @@ void() AD_WidowFireRun =
     p.touchinghand = touching;
     remove(pk);
     self = os;
-    float tube = rint(cvar("vr_ad_widowmaker_tube"));
+    float tube = rint(cvar_hget(cvarh_vr_ad_widowmaker_tube));
     float got = AD_WidowmakerIn(p, cVR_MainHand) ? VRGetEntWeaponClip(p, cVR_MainHand) : -1;
     AD_WidowCheck("a pickup comes with its tube full", got == tube,
         sprintf("%g in its tube of %g (-1: no Widowmaker in hand); the reserve 20 -> %g", got, tube, p.ammo_shells));
@@ -351,8 +351,8 @@ void() AD_WidowTubeTestRun =
     AD_WidowCheck("it loads by hand (never broken open)", VR_Reload_ManualInHand(p, h) && !VR_Reload_SsgBreaks(p, h),
         sprintf("manual %g", VR_Reload_ManualInHand(p, h)));
     vr_adwm_tube = VR_ClipSizeIn(p, h);
-    AD_WidowCheck("its tube's size", vr_adwm_tube == rint(cvar("vr_ad_widowmaker_tube")), sprintf("%g", vr_adwm_tube));
-    float handful = rint(cvar("vr_ad_widowmaker_handful"));
+    AD_WidowCheck("its tube's size", vr_adwm_tube == rint(cvar_hget(cvarh_vr_ad_widowmaker_tube)), sprintf("%g", vr_adwm_tube));
+    float handful = rint(cvar_hget(cvarh_vr_ad_widowmaker_handful));
     float loads = 0, first = -1, lastClip = 0, steps = 0;
     for(float i = 0; i < 12 && VRGetEntWeaponClip(p, h) < vr_adwm_tube; i++)
     {
@@ -414,7 +414,7 @@ void(float request, entity p) AD_UpgradesTest =
                 w = e;
             }
         }
-        float tube = rint(cvar("vr_ad_widowmaker_tube"));
+        float tube = rint(cvar_hget(cvarh_vr_ad_widowmaker_tube));
         float got = -1;
         if(w != world)
         {

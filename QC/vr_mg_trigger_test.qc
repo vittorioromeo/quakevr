@@ -68,7 +68,7 @@ void(entity p) MG_T_Interactions = {
     VR_Test_Check(button.state == STATE_BOTTOM, "held prop/weapon activation cannot bypass key button");
     entity thrown = spawn(); thrown.classname = "thrown_weapon"; thrown.movetype = MOVETYPE_TOSS;
     thrown.carry_letgo = p; thrown.velocity = '1000 0 0';
-    float oldThrow = cvar("vr_button_throw"); cvar_set("vr_button_throw","1");
+    float oldThrow = cvar_hget(cvarh_vr_button_throw); cvar_set("vr_button_throw","1");
     other = thrown; button_touch_any();
     VR_Test_Check(button.state == STATE_BOTTOM, "thrown weapon cannot bypass key button");
     p.items = IT_KEY1; other = p; button_handtouch();
@@ -245,7 +245,7 @@ void() MG_T_RetargetGate = {
     localcmd("vr_portals_info\n");
 };
 void() MG_TriggerTestFrame = {
-    float request = cvar("vr_mg_trigger_test"); if(!request) return;
+    float request = cvar_hget(cvarh_vr_mg_trigger_test); if(!request) return;
     cvar_set("vr_mg_trigger_test","0");
     if(!MG_WorldCampaign()) { dprint("mgtriggertest: select a native campaign first\n"); return; }
     if(request == 2) MG_T_MapStart(); else if(request == 3) MG_T_LightningDamage(); else if(request == 4) MG_T_RetargetGate(); else MG_T_Start();

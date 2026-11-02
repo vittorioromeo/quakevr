@@ -272,7 +272,7 @@ void() VR_PropImp_Run =
 
     // Thrown (or dropped) into the wall: a crate at 0.6x, 0.85x, 1.1x Breaks On Impact; an explosive box at 0.9x, 1.1x
     // Blow Up On Impact; a piece thrown at 0.4x, 0.75x, 1.1x Thrown Pieces Burst, and dropped at 1.5x.
-    float ci = cvar("vr_crate_impact");
+    float ci = cvar_hget(cvarh_vr_crate_impact);
     float ei = cvar_hget(cvarh_vr_explobox_impact);
     float pi = cvar_hget(cvarh_vr_crate_piece_impact);
     for(float r = 0; r < 9; r++)
@@ -552,7 +552,7 @@ void() VR_PropImp_FtStep =
             t = VR_Crate_TestSpawn(from, 1, 0, FALSE);
             setorigin(t, t.origin + '0 0 4'); // (off the floor: it would slide on it)
             t.flags = t.flags - (t.flags & FL_ONGROUND);
-            t.vr_prop_mass = max(0.2, cvar("vr_adgun_tank_mass")); // (as heavy as the tank)
+            t.vr_prop_mass = max(0.2, cvar_hget(cvarh_vr_adgun_tank_mass)); // (as heavy as the tank)
             t.carry_player = self;
             VR_Carry_Loose(t);
             vr_propimp_ft_prop = t;
@@ -760,7 +760,7 @@ void() VR_PropImp_FhStep =
             t = VR_Crate_TestSpawn(from, 1, 0, FALSE);
             setorigin(t, t.origin + '0 0 4');
             t.flags = t.flags - (t.flags & FL_ONGROUND);
-            t.vr_prop_mass = max(0.2, cvar("vr_flail_mass")); // (as heavy as the head)
+            t.vr_prop_mass = max(0.2, cvar_hget(cvarh_vr_flail_mass)); // (as heavy as the head)
             vr_propimp_fh_prop = t;
         }
         else if(c == 7)
@@ -1051,7 +1051,7 @@ void() VR_PropImp_TestFrame =
             self = oself;
         }
     }
-    float ask = cvar("vr_prop_impact_test");
+    float ask = cvar_hget(cvarh_vr_prop_impact_test);
     if(!ask)
     {
         return;
@@ -1085,7 +1085,7 @@ void() VR_PropImp_TestFrame =
         }
         setorigin(vr_propimp_ft_at, self.origin);
         vr_propimp_ft_at.angles = '0 1 0' * self.angles_y;
-        vr_propimp_ft_rope = cvar("vr_adgun_tank_rope");
+        vr_propimp_ft_rope = cvar_hget(cvarh_vr_adgun_tank_rope);
         cvar_set("vr_adgun_tank_rope", "3");
     }
     else if(ask == 5)
@@ -1102,7 +1102,7 @@ void() VR_PropImp_TestFrame =
         }
         setorigin(vr_propimp_fh_at, self.origin);
         vr_propimp_fh_at.angles = '0 1 0' * self.angles_y;
-        vr_propimp_fh_chain = cvar("vr_flail_chain");
+        vr_propimp_fh_chain = cvar_hget(cvarh_vr_flail_chain);
         vr_propimp_fh_health = self.health;
         cvar_set("vr_flail_chain", "2");
     }

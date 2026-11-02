@@ -105,9 +105,9 @@ void() VR_AGBT_Pickup =
     if(vr_agt_step == 0)
     {
         vr_agbt_count = 10 * VR_AGBT_SOURCES;
-        vr_agbt_keep = cvar("scratch1");
+        vr_agbt_keep = cvar_hget(cvarh_scratch1);
         vr_agbt_case = vr_agbt_keep > 0 ? vr_agbt_keep - 1 : 0;
-        vr_agbt_val2 = cvar("vr_agrunt_test_kind");
+        vr_agbt_val2 = cvar_hget(cvarh_vr_agrunt_test_kind);
         vr_agt_step = 1;
     }
     if(vr_agt_step == 1)
@@ -261,7 +261,7 @@ void() VR_AGBT_Friendly =
     float k;
     if(vr_agt_step == 0)
     {
-        vr_agbt_care = cvar("vr_agrunt_friendly_care");
+        vr_agbt_care = cvar_hget(cvarh_vr_agrunt_friendly_care);
         vr_agbt_case = 0;
         vr_agt_step = 1;
     }
@@ -321,7 +321,7 @@ void() VR_AGBT_Friendly =
     float hits = vr_ag_ff_hits - vr_agbt_val;
     float pdmg = vr_ag_player_dmg - vr_agt_dmg0;
     VR_AGT_Print(sprintf("friendly care %g: %g friendly hits (%g damage), %g shots, %g held, %g damage to you",
-        cvar("vr_agrunt_friendly_care"), hits, vr_ag_ff_dmg - vr_agbt_val2, vr_ag_shots_fired - vr_agt_clip,
+        cvar_hget(cvarh_vr_agrunt_friendly_care), hits, vr_ag_ff_dmg - vr_agbt_val2, vr_ag_shots_fired - vr_agt_clip,
         vr_ag_ff_held - vr_agt_index, pdmg));
     VR_AGBT_RowRemove();
     if(vr_agbt_case == 0)

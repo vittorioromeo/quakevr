@@ -6,14 +6,14 @@
 // AD's data is installed and is the latest release (the engine's vr_ad_status, vr_ad.cpp).
 float() VR_Pack_AD =
 {
-    return cvar("vr_ad_status") == 1;
+    return cvar_hget(cvarh_vr_ad_status) == 1;
 };
 
 // This map plays by AD's rules: the AD campaign, or a map the engine found made for AD before it spawned (vr_ad_rules,
 // vr_ad.cpp). It is set for every spawn, a saved game's too, from the map's own entities.
 float() AD_Rules =
 {
-    return cvar("vr_ad_rules") != 0;
+    return cvar_hget(cvarh_vr_ad_rules) != 0;
 };
 
 // AD support: independent safe feature scope; does not change map detection or required world logic.
@@ -27,8 +27,8 @@ float(float scope) VR_AD_FeatureScope =
 // is (decision 9), its pickups placed or spawned (the toolgun) in any map. 2 any map; 0 none.
 float() AD_UpgradeScope =
 {
-    float s = cvar("vr_ad_upgrades");
-    return (s == 1 && cvar("vr_ad_everywhere")) ? 2 : s;
+    float s = cvar_hget(cvarh_vr_ad_upgrades);
+    return (s == 1 && cvar_hget(cvarh_vr_ad_everywhere)) ? 2 : s;
 };
 void() AD_WeaponsOnDemand; // AD's weapons in a map outside AD's rules: their sounds (vr_ad_enemyguns.qc)
 string(float ammo, float big, string fallback) AD_AmmoModel;

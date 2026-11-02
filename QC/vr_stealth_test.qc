@@ -101,7 +101,7 @@ float() VR_STT_FindWalled =
 
 void() VR_Stealth_TestFrame =
 {
-    float ask = cvar("vr_stealth_test");
+    float ask = cvar_hget(cvarh_vr_stealth_test);
     if(ask >= 100)
     {
         cvar_set("vr_stealth_test", "0");
@@ -418,7 +418,7 @@ void() VR_Stealth_TestFrame =
         float d2 = vlen(m.origin - stt_at);
         if(stt_stage == 1)
         {
-            if(cvar("vr_stealth_debug") && time >= stt_n) { stt_n = time + 0.5; bprint(sprintf("stealthtest: t %.1f phase %g at %v yaw %.0f ideal %.0f goal %s flags %g\n", t, m.stl_phase, m.origin, m.angles_y, m.ideal_yaw, m.goalentity.classname, m.flags)); }
+            if(cvar_hget(cvarh_vr_stealth_debug) && time >= stt_n) { stt_n = time + 0.5; bprint(sprintf("stealthtest: t %.1f phase %g at %v yaw %.0f ideal %.0f goal %s flags %g\n", t, m.stl_phase, m.origin, m.angles_y, m.ideal_yaw, m.goalentity.classname, m.flags)); }
             stt_v = min(stt_v, d2);
             if(m.stl_phase == STL_RETURN || m.stl_state == STL_IDLE) { stt_n = t; VR_STT_Stage(2); }
             else if(t > 20) { VR_STT_Report("investigate", FALSE, sprintf("stuck in phase %g, nearest %.0f of %.0f", m.stl_phase, stt_v, vlen(stt_home - stt_at))); VR_STT_Next(13); }

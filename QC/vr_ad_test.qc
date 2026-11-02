@@ -260,9 +260,9 @@ void(float request, entity p) AD_RulesTest =
         entity upInst = spawn(); // (an axe's record with the Shadow Axe: the upgrades are the weapons')
         upInst.wi_adup = ad_IT_UPGRADE_AXE;
         bprint(sprintf("admenu: map %g mounted %g ammo %g resistance %g upgrades %g projectiles %g\n",
-            AD_Rules(), cvar("vr_ad_mounted"), VR_AD_FeatureScope(cvar("vr_ad_ammo_models")),
-            VR_AD_FeatureScope(cvar("vr_ad_resistance")), VR_AD_FeatureScope(AD_UpgradeScope()), AD_ProjectileRules()));
-        bprint(sprintf("admenu-speed: player %g enemy %g\n", cvar("vr_ad_pellet_speed"), VR_AD_PelletSpeed(standIn, 1000)));
+            AD_Rules(), cvar_hget(cvarh_vr_ad_mounted), VR_AD_FeatureScope(cvar_hget(cvarh_vr_ad_ammo_models)),
+            VR_AD_FeatureScope(cvar_hget(cvarh_vr_ad_resistance)), VR_AD_FeatureScope(AD_UpgradeScope()), AD_ProjectileRules()));
+        bprint(sprintf("admenu-speed: player %g enemy %g\n", cvar_hget(cvarh_vr_ad_pellet_speed), VR_AD_PelletSpeed(standIn, 1000)));
         bprint(sprintf("admenu-rules: resist %g importedDamage %g upgrade %g\n", AD_Resists(standIn),
             ad_Resist_Damage(standIn, ad_IT_NAILS, 10), AD_WeaponUpgraded(standIn, upInst, ad_IT_UPGRADE_AXE)));
         remove(standIn);
@@ -312,7 +312,7 @@ void(float request, entity p) AD_RulesTest =
         dir_z = 0;
         dir = normalize(dir);
         vector muzzle = p.origin + dir * 32 + '0 0 24';
-        float distance = cvar("scratch1");
+        float distance = cvar_hget(cvarh_scratch1);
         if(distance <= 0) distance = 128;
         entity g = AD_TestSpawn("monster_army", ad_monster_army, muzzle + dir * distance);
         setmodel(g, g.mdl);
@@ -355,11 +355,11 @@ void(float request, entity p) AD_RulesTest =
         vector at = p.origin + v_forward * 160;
         float scope = VR_AGR_InScope();
         VR_Test_Check(scope && vr_agr_made > 0, sprintf("the map's own grunts replaced (AD rules %g, campaign %g, in scope %g, %g made)",
-            AD_Rules(), cvar("vr_campaign"), scope, vr_agr_made));
+            AD_Rules(), cvar_hget(cvarh_vr_campaign), scope, vr_agr_made));
         entity g1 = AD_TestSpawn("monster_army", monster_army, at);
         VR_Test_Check(g1.vr_ag, "a plain monster_army armed");
         entity k1 = AD_TestSpawn("monster_hell_knight", monster_hell_knight, at + v_right * 80);
-        VR_Test_Check(k1.vr_ag || !cvar("vr_agdknight"), "a plain monster_hell_knight armed");
+        VR_Test_Check(k1.vr_ag || !cvar_hget(cvarh_vr_agdknight), "a plain monster_hell_knight armed");
         entity k2 = spawn();
         k2.classname = "monster_hell_knight";
         k2.spawnflags = 8192; // (AD's MON_POINT_KNIGHT)
@@ -602,7 +602,7 @@ void(float request, entity p) AD_RulesTest =
         self = p;
         float axe = AD_AxeScale(cVR_MainHand);
         self = os;
-        bprint(sprintf("adrules: evil %g on %g cvar %g skill %g adskill %g", AD_Evil(), vr_ad_evil_on, cvar("vr_ad_evil"),
+        bprint(sprintf("adrules: evil %g on %g cvar %g skill %g adskill %g", AD_Evil(), vr_ad_evil_on, cvar_hget(cvarh_vr_ad_evil),
             skill, ad_skill));
         bprint(sprintf(" health %g/%g mega %g axe %g\n", p.health, p.max_health, VR_MegaHealthCap(p), axe));
         return;
@@ -611,10 +611,10 @@ void(float request, entity p) AD_RulesTest =
     {
         // AD's skill choices: Evil (4) then Normal (1), as AD's hub sets them.
         VR_AD_SetSkill(4);
-        float s4 = cvar("skill"), e4 = cvar("vr_ad_evil");
+        float s4 = cvar_hget(cvarh_skill), e4 = cvar_hget(cvarh_vr_ad_evil);
         VR_AD_SetSkill(1);
-        bprint(sprintf("adrules: setskill 4 -> skill %g evil %g; 1 -> skill %g evil %g\n", s4, e4, cvar("skill"),
-            cvar("vr_ad_evil")));
+        bprint(sprintf("adrules: setskill 4 -> skill %g evil %g; 1 -> skill %g evil %g\n", s4, e4, cvar_hget(cvarh_skill),
+            cvar_hget(cvarh_vr_ad_evil)));
         return;
     }
     if(request == 24)

@@ -25,7 +25,7 @@ float vr_aknt_hp;    // the player's health as the swing case began
 vector vr_aknt_home;
 
 // The knight kind under test (vr_agrunt_test_kind 3: the death knight; else the knight) and its names.
-float() VR_AKNT_Dk = { return rint(cvar("vr_agrunt_test_kind")) == VR_AM_DKNIGHT; };
+float() VR_AKNT_Dk = { return rint(cvar_hget(cvarh_vr_agrunt_test_kind)) == VR_AM_DKNIGHT; };
 string() VR_AKNT_Flag = { return VR_AKNT_Dk() ? "vr_agdknight" : "vr_agknight"; };
 string() VR_AKNT_Name = { return VR_AKNT_Dk() ? "death knight" : "knight"; };
 
@@ -236,7 +236,7 @@ void() VR_AKNT_Frame =
             }
             enemy_range = er;
             float share = (vr_am_gun_casts - c0) / max(1, vr_am_gun_rolls - r0);
-            float want = cvar("vr_agdknight_spell_share");
+            float want = cvar_hget(cvarh_vr_agdknight_spell_share);
             VR_AGT_Check(sprintf("death knight with a gun: casts %.3f of his ranged attacks (vr_agdknight_spell_share %g)",
                 share, want), vr_am_gun_rolls - r0 == 2000 && fabs(share - want) < 0.04);
         }

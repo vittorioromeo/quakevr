@@ -7,7 +7,7 @@
 // monster's classname, yaw and ideal_yaw (it faces the dispenser's angle).
 void() VR_TestDispenser_Frame =
 {
-    float want = cvar("vr_test_dispenser");
+    float want = cvar_hget(cvarh_vr_test_dispenser);
     if(want < 1)
     {
         return;

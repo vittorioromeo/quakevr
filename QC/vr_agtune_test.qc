@@ -245,7 +245,7 @@ float(vector f, vector u, float k) VR_AGTT_Off =
 
 void() VR_AGTune_TestFrame =
 {
-    float req = cvar("vr_agtune_test");
+    float req = cvar_hget(cvarh_vr_agtune_test);
     if(!req)
     {
         return;
@@ -258,13 +258,13 @@ void() VR_AGTune_TestFrame =
             return;
         }
         VR_Test_BeginFlags("agtune", VR_TEST_LOUD);
-        vr_agtt_keep[0] = cvar("vr_agrunt_melee_speed");
-        vr_agtt_keep[1] = cvar("vr_agdknight");
+        vr_agtt_keep[0] = cvar_hget(cvarh_vr_agrunt_melee_speed);
+        vr_agtt_keep[1] = cvar_hget(cvarh_vr_agdknight);
         if(req == 2)
         {
             // The map's own armed humanoids (spawned with it): their armour by the skill.
-            float sk = cvar("skill");
-            float want = cvar(strcat("vr_agarmor_skill", ftos(min(3, max(0, rint(sk))))));
+            float sk = cvar_hget(cvarh_skill);
+            float want = VR_AgArmor_SkillValue(min(3, max(0, rint(sk))), 0);
             float n = 0;
             float worn = 0;
             entity e = nextent(world);
@@ -330,7 +330,7 @@ void() VR_AGTune_TestFrame =
             vr_agtt_until = time + 20;
             return;
         }
-        float ssg = cvar("vr_agrunt_reload_ssg");
+        float ssg = cvar_hget(cvarh_vr_agrunt_reload_ssg);
         VR_Test_Check(t > 0 && fabs(t / vr_agtt_rl0 - ssg) < 0.03,
             sprintf("reload: the shotgun's %.3f s, the double-barrelled shotgun's %.3f s: x%.3f (vr_agrunt_reload_ssg %g)",
                 vr_agtt_rl0, t, t / vr_agtt_rl0, ssg));

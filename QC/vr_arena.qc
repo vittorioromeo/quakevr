@@ -250,7 +250,7 @@ void() VR_ARK_HoldThink;
 float() VR_ARENA_On =
 {
     if(mapname == "vrarena") { return TRUE; }
-    return cvar("vr_arena") != 0;
+    return cvar_hget(cvarh_vr_arena) != 0;
 }
 
 float(float x, float xMod) VR_ARENA_Mod =
@@ -281,7 +281,7 @@ float(float easy, float hard, float nightmare) VR_ARENA_Skill =
 {
     float s = VR_ARENA_SkillLevel();
     float m = s < 1 ? easy : s < 2 ? 1 : s < 3 ? hard : nightmare;
-    return max(0, 1 + cvar("vr_arena_skill_impact") * (m - 1));
+    return max(0, 1 + cvar_hget(cvarh_vr_arena_skill_impact) * (m - 1));
 }
 
 // The difficulty's own word, for the line the player reads: one word per skill.
@@ -290,19 +290,19 @@ string(float xSkill) VR_ARENA_SkillName =
     return xSkill < 1 ? "Easy" : xSkill < 2 ? "Normal" : xSkill < 3 ? "Hard" : "Nightmare";
 }
 
-float() VR_ARENA_Opt_MaxAlive   { return clamp(cvar("vr_arena_max_alive"), 1, AR_FIELD_MAX); }
-float() VR_ARENA_Opt_WaveSize   { return clamp(cvar("vr_arena_wave_size"), 0.25, 4); }
-float() VR_ARENA_Opt_AliveMax   { return clamp(cvar("vr_arena_alive_max"), 1, AR_FIELD_MAX); }
-float() VR_ARENA_Opt_AliveGrow  { return clamp(cvar("vr_arena_alive_grow"), 0, 20); }
-float() VR_ARENA_Opt_Burst      { return clamp(cvar("vr_arena_burst"), 1, AR_FIELD_MAX); }
-float() VR_ARENA_Opt_Gap        { return clamp(cvar("vr_arena_spawn_gap"), AR_TICK, 10); }
-float() VR_ARENA_Opt_Rest       { return clamp(cvar("vr_arena_wave_rest"), 1, 60); }
-float() VR_ARENA_Opt_Countdown  { return clamp(floor(cvar("vr_arena_countdown")), 0, 10); }
-float() VR_ARENA_Opt_BossEvery  { return clamp(cvar("vr_arena_boss_every"), 0, 20); }
-float() VR_ARENA_Opt_BossHealth { return clamp(cvar("vr_arena_boss_health"), 1, 8); }
-float() VR_ARENA_Opt_Medkits    { return clamp(cvar("vr_arena_medkits_after"), 0, AR_KIT_MAX); }
-float() VR_ARENA_Opt_ArmorEvery { return clamp(cvar("vr_arena_armor_every"), 0, AR_ARMOR_MAX); }
-float() VR_ARENA_Opt_ScoreKill  { return clamp(cvar("vr_arena_score_kill"), 1, 10000); }
+float() VR_ARENA_Opt_MaxAlive   { return clamp(cvar_hget(cvarh_vr_arena_max_alive), 1, AR_FIELD_MAX); }
+float() VR_ARENA_Opt_WaveSize   { return clamp(cvar_hget(cvarh_vr_arena_wave_size), 0.25, 4); }
+float() VR_ARENA_Opt_AliveMax   { return clamp(cvar_hget(cvarh_vr_arena_alive_max), 1, AR_FIELD_MAX); }
+float() VR_ARENA_Opt_AliveGrow  { return clamp(cvar_hget(cvarh_vr_arena_alive_grow), 0, 20); }
+float() VR_ARENA_Opt_Burst      { return clamp(cvar_hget(cvarh_vr_arena_burst), 1, AR_FIELD_MAX); }
+float() VR_ARENA_Opt_Gap        { return clamp(cvar_hget(cvarh_vr_arena_spawn_gap), AR_TICK, 10); }
+float() VR_ARENA_Opt_Rest       { return clamp(cvar_hget(cvarh_vr_arena_wave_rest), 1, 60); }
+float() VR_ARENA_Opt_Countdown  { return clamp(floor(cvar_hget(cvarh_vr_arena_countdown)), 0, 10); }
+float() VR_ARENA_Opt_BossEvery  { return clamp(cvar_hget(cvarh_vr_arena_boss_every), 0, 20); }
+float() VR_ARENA_Opt_BossHealth { return clamp(cvar_hget(cvarh_vr_arena_boss_health), 1, 8); }
+float() VR_ARENA_Opt_Medkits    { return clamp(cvar_hget(cvarh_vr_arena_medkits_after), 0, AR_KIT_MAX); }
+float() VR_ARENA_Opt_ArmorEvery { return clamp(cvar_hget(cvarh_vr_arena_armor_every), 0, AR_ARMOR_MAX); }
+float() VR_ARENA_Opt_ScoreKill  { return clamp(cvar_hget(cvarh_vr_arena_score_kill), 1, 10000); }
 
 // A group of a wave's foes at this skill: the wave's own count times the skill's factor, whole foes (floor), and a
 // group is never emptied out -- the wave the difficulty thins still brings its zombie, its dog, its boss.
@@ -383,7 +383,7 @@ float(float xWave) VR_ARENA_WaveAdj =
 {
     float s = VR_ARENA_SkillLevel();
     float d = s < 1 ? 3 : s < 2 ? 0 : s < 3 ? -2 : -4;
-    return max(2, xWave + d * cvar("vr_arena_skill_impact"));
+    return max(2, xWave + d * cvar_hget(cvarh_vr_arena_skill_impact));
 }
 
 // How many of the first waves' humanoids come unarmed: the softer the difficulty, the wider the share (its own
@@ -393,7 +393,7 @@ float() VR_ARENA_EarlyUnarmed =
 {
     float s = VR_ARENA_SkillLevel();
     float m = s < 1 ? 0.30 : s < 2 ? 0.20 : s < 3 ? 0.15 : 0.10;
-    return clamp(0.20 + cvar("vr_arena_skill_impact") * (m - 0.20), 0, 0.5);
+    return clamp(0.20 + cvar_hget(cvarh_vr_arena_skill_impact) * (m - 0.20), 0, 0.5);
 }
 
 // A boss wave's gap, as this difficulty counts it: at Easy the marked big ones come a wave LESS often
@@ -404,12 +404,12 @@ float() VR_ARENA_BossEvery =
     float every = VR_ARENA_Opt_BossEvery();
     if(every <= 0) { return 0; }
     if(VR_ARENA_SkillLevel() >= 1) { return every; }
-    return every + cvar("vr_arena_skill_impact");
+    return every + cvar_hget(cvarh_vr_arena_skill_impact);
 }
 
 // How many marked big ones a boss wave brings: Nightmare brings two (the second the same kind at half its bulk),
 // every other skill the one it always had.
-float() VR_ARENA_BossTwice = { return VR_ARENA_SkillLevel() >= 3 && cvar("vr_arena_skill_impact") > 0; }
+float() VR_ARENA_BossTwice = { return VR_ARENA_SkillLevel() >= 3 && cvar_hget(cvarh_vr_arena_skill_impact) > 0; }
 
 // A boss's bulk: its kind's own health times vr_arena_boss_health times the difficulty's factor (0.75 Easy /
 // 1 Normal / 1.25 Hard / 1.5 Nightmare), and a boss wave's second boss (ar_plan_boss 2) half as much. Its
@@ -465,8 +465,8 @@ float(float xWave) VR_ARENA_ArmourKind =
 
 void(float xWave) VR_ARENA_SeedWaves =
 {
-    float base = VR_ARENA_Mod(cvar("vr_arena_seed"), 30000);
-    if(cvar("vr_arena_seed") <= 0) { base = 1 + floor(29998 * random()); } // (an unseeded run: its own ladder)
+    float base = VR_ARENA_Mod(cvar_hget(cvarh_vr_arena_seed), 30000);
+    if(cvar_hget(cvarh_vr_arena_seed) <= 0) { base = 1 + floor(29998 * random()); } // (an unseeded run: its own ladder)
     base = base + 7919 * xWave;
 
     ar_s1 = 1 + VR_ARENA_Mod(base, 30268);
@@ -742,9 +742,9 @@ void(float xWave) VR_ARENA_ArmourSeed =
     ar_arm_seq = 0;
 }
 
-float() VR_ARENA_Opt_ArmourScale { return clamp(cvar("vr_arena_foe_armor_scale"), 0, 4); }
-float() VR_ARENA_Opt_ArmourFrom  { return clamp(cvar("vr_arena_foe_armor_from"), 2, 60); }
-float() VR_ARENA_Opt_FoeArmour   { return cvar("vr_arena_foe_armor") != 0 && VR_ARENA_Opt_ArmourScale() > 0; }
+float() VR_ARENA_Opt_ArmourScale { return clamp(cvar_hget(cvarh_vr_arena_foe_armor_scale), 0, 4); }
+float() VR_ARENA_Opt_ArmourFrom  { return clamp(cvar_hget(cvarh_vr_arena_foe_armor_from), 2, 60); }
+float() VR_ARENA_Opt_FoeArmour   { return cvar_hget(cvarh_vr_arena_foe_armor) != 0 && VR_ARENA_Opt_ArmourScale() > 0; }
 
 // The first wave a foe may wear armour, as this difficulty counts waves.
 float() VR_ARENA_ArmourFrom = { return VR_ARENA_WaveAdj(VR_ARENA_Opt_ArmourFrom()); }
@@ -1609,7 +1609,7 @@ float() VR_ARENA_CountAlive =
 void(float xAlive) VR_ARENA_XrayMark =
 {
     float left = ar_plan_left + xAlive;
-    float on = (cvar("vr_arena_xray") != 0 && left > 0 && left <= max(cvar("vr_arena_xray_left"), 0));
+    float on = (cvar_hget(cvarh_vr_arena_xray) != 0 && left > 0 && left <= max(cvar_hget(cvarh_vr_arena_xray_left), 0));
     entity e = findflags(world, ar_slot, ar_wave);
     while(e)
     {
@@ -1720,7 +1720,7 @@ float(entity e) VR_ARENA_BodyLies = { return e.ar_fell > 0 && (e.ar_expire <= 0 
 // Past vr_arena_corpse_max: the oldest bodies not spared fade (one held stays: the next oldest goes).
 void() VR_ARENA_BodyRoom =
 {
-    float most = cvar("vr_arena_corpse_max");
+    float most = cvar_hget(cvarh_vr_arena_corpse_max);
     if(most <= 0) { return; }
     float guard;
     for(guard = 0; guard < 64; guard++)
@@ -1750,7 +1750,7 @@ void(entity e) VR_ARENA_BodyDown =
     e.ar_fell = ar_fell_n;
     e.ar_expiring = 1;
     e.ar_expire = 0;
-    float lie = cvar("vr_arena_corpse_fade");
+    float lie = cvar_hget(cvarh_vr_arena_corpse_fade);
     if(lie > 0)
     {
         e.ar_expire = time + max(AR_FADE, lie + crandom() * min(AR_FADE_JITTER, lie * 0.25));
@@ -1762,7 +1762,7 @@ void(entity e) VR_ARENA_BodyDown =
 // till let go of); the ones picked up already (items.qc leaves them, unseen, in a single player game) go now.
 void(float xWave) VR_ARENA_DropsExpire =
 {
-    float waves = cvar("vr_arena_item_waves");
+    float waves = cvar_hget(cvarh_vr_arena_item_waves);
     entity e = findflags(world, ar_drop, 3);
     while(e)
     {
@@ -1785,7 +1785,7 @@ void(float xWave) VR_ARENA_DropsExpire =
 float() VR_ARENA_GunMost =
 {
     if(!ar_mgr) { return -1; }
-    float most = max(0, floor(cvar("vr_arena_gun_max")));
+    float most = max(0, floor(cvar_hget(cvarh_vr_arena_gun_max)));
     if(VR_ARK_Kept()) { most = most * AR_SPOILS_GUNS; }
     return most;
 }
@@ -1975,7 +1975,7 @@ string AR_BEEP_GO   = "misc/talk.wav";
 
 void(float xLeft) VR_ARENA_CountSound =
 {
-    float vol = clamp(cvar("vr_arena_countdown_sound"), 0, 1);
+    float vol = clamp(cvar_hget(cvarh_vr_arena_countdown_sound), 0, 1);
     if(vol <= 0) { return; }
     string s = AR_BEEP_TICK;
     float pitch = 100;
@@ -2219,8 +2219,8 @@ void() VR_ARENA_WorldSpawn =
     self = oself;
 
     dprint(sprintf("arena: %s on (skill %g %s, impact %g, max alive %g, boss every %g, seed %g)\n", mapname,
-                   VR_ARENA_SkillLevel(), VR_ARENA_SkillName(VR_ARENA_SkillLevel()), cvar("vr_arena_skill_impact"),
-                   VR_ARENA_FieldCap(), VR_ARENA_BossEvery(), cvar("vr_arena_seed")));
+                   VR_ARENA_SkillLevel(), VR_ARENA_SkillName(VR_ARENA_SkillLevel()), cvar_hget(cvarh_vr_arena_skill_impact),
+                   VR_ARENA_FieldCap(), VR_ARENA_BossEvery(), cvar_hget(cvarh_vr_arena_seed)));
     dprint(sprintf("arena: pool %g at wave 1, wave size %g\n", VR_ARENA_Pool(1), VR_ARENA_Opt_WaveSize()));
 }
 
@@ -2229,9 +2229,9 @@ void(float xWave) VR_ARENA_FastForward;
 void() VR_ARENA_Frame =
 {
     if(!ar_mgr) { return; }
-    if(cvar("vr_arena_goto") >= 1) // (Debug > Automation: a wave jumped to; the benchmarks' arena mid-wave)
+    if(cvar_hget(cvarh_vr_arena_goto) >= 1) // (Debug > Automation: a wave jumped to; the benchmarks' arena mid-wave)
     {
-        VR_ARENA_FastForward(floor(cvar("vr_arena_goto")));
+        VR_ARENA_FastForward(floor(cvar_hget(cvarh_vr_arena_goto)));
         cvar_set("vr_arena_goto", "0");
     }
     if(!ar_stripped)

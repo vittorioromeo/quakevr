@@ -22,7 +22,7 @@ float vr_agrw_kind0;     // vr_agrunt_test_kind as it was
 float vr_agrw_keep;      // vr_agrunt_fall_keep_impact as it was
 float vr_agrw_check;     // vr_agrunt_ragweapon_check as it was
 vector vr_agrw_home;
-float() VR_AGRW_Cases = { return cvar("vr_agknight") ? 6 : 4; }; // (the knight's with vr_agknight: kind 2, a sword)
+float() VR_AGRW_Cases = { return cvar_hget(cvarh_vr_agknight) ? 6 : 4; }; // (the knight's with vr_agknight: kind 2, a sword)
 
 string(float c) VR_AGRW_Name =
 {
@@ -38,9 +38,9 @@ void() VR_AGRW_Frame =
         if(vr_agrw_case == 0)
         {
             vr_agrw_home = p.origin;
-            vr_agrw_kind0 = cvar("vr_agrunt_test_kind");
-            vr_agrw_keep = cvar("vr_agrunt_fall_keep_impact");
-            vr_agrw_check = cvar("vr_agrunt_ragweapon_check");
+            vr_agrw_kind0 = cvar_hget(cvarh_vr_agrunt_test_kind);
+            vr_agrw_keep = cvar_hget(cvarh_vr_agrunt_fall_keep_impact);
+            vr_agrw_check = cvar_hget(cvarh_vr_agrunt_ragweapon_check);
             cvar_set("vr_agrunt_fall_keep_impact", "100");
             if(!vr_agrw_check)
             {

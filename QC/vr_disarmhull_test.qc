@@ -110,9 +110,8 @@ void(entity g, entity p, float side, string wn) VR_DHT_Measure =
     VR_AG_WeaponLine(p);
     vector ld = vr_ag_wb - vr_ag_wa;
     float ang = vlen(VR_Cross(normalize(ld), ax)) * 57.2958; // (degrees: sin, near enough under 10)
-    float size = cvar("vr_agrunt_shotdisarm_size");
-    VR_AGT_Print(sprintf("%s: the hull %.1f long, %.1f off its axis; the line %.1f long, %.1f round (x%g)", wn, ext_x, ext_y,
-        vlen(ld), vr_ag_wr, size));
+    VR_AGT_Print(sprintf("%s: the hull %.1f long, %.1f off its axis; the line %.1f long, %.1f round", wn, ext_x, ext_y,
+        vlen(ld), vr_ag_wr));
     // (Its line: the model's own longest axis when that is 0.85 of the hull's longest span or more (a gun's barrel), else
     // that span's way (the Knight's Sword's blade: wanted on it); as long as the hull is along it.)
     vector ga = disarmhull(p, 0, vr_ag_wa, vr_ag_wa, 0);
@@ -178,8 +177,8 @@ void() VR_DHT_Frame =
     pl.flags = pl.flags | FL_GODMODE | FL_NOTARGET;
     if(vr_agt_step == 0)
     {
-        vr_dht_kind = cvar("vr_agrunt_test_kind");
-        vr_dht_disarm = cvar("vr_agrunt_disarm");
+        vr_dht_kind = cvar_hget(cvarh_vr_agrunt_test_kind);
+        vr_dht_disarm = cvar_hget(cvarh_vr_agrunt_disarm);
         cvar_set("vr_agrunt_disarm", "1");
         vr_dht_k = 0;
         vr_dht_w = 0;
@@ -249,7 +248,7 @@ void() VR_DHT_Frame =
     // from the drawn rig (source 1) while drawn (+10), the drawn grip (VR_AG_DrawnFrame) on it.
     if(vr_agt_step == 5)
     {
-        vr_dht_debug = cvar("vr_debug_disarm");
+        vr_dht_debug = cvar_hget(cvarh_vr_debug_disarm);
         cvar_set("vr_debug_disarm", "1");
         vr_agt_grunt = g = VR_AGT_Spawn(WID_SHOTGUN, 200);
         vr_dht_n = vr_dht_bad = vr_dht_gmax = vr_dht_srv = vr_dht_gsum = 0;

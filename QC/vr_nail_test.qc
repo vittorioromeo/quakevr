@@ -99,7 +99,7 @@ string(float xCase) VR_NLT_CaseName =
 
 void() VR_NLT_NailTouch =
 {
-    if(cvar("developer") > 1)
+    if(cvar_hget(cvarh_developer) > 1)
     {
         dprint(sprintf("nailtest: debug sweep %g met %s at %v\n", self.vr_nlt_off, other.classname, self.origin));
     }
@@ -229,7 +229,7 @@ float(vector p, float xGrow) VR_NLT_InBag =
 
 void() VR_NLT_BagTouch =
 {
-    if(cvar("developer") > 1)
+    if(cvar_hget(cvarh_developer) > 1)
     {
         dprint(sprintf("nailtest: debug bag nail %g across, %g up met %s at %v\n", self.vr_nlt_off, self.vr_nlt_up,
             other == vr_nlt_bag ? "the bag" : other.classname, self.origin));
@@ -466,7 +466,7 @@ void() VR_NLT_WoundStep =
 
 void() VR_NailTest_Frame =
 {
-    float req = cvar("vr_nail_test");
+    float req = cvar_hget(cvarh_vr_nail_test);
     if(req)
     {
         cvar_set("vr_nail_test", "0");
@@ -479,11 +479,11 @@ void() VR_NailTest_Frame =
             VR_NLT_Hang("progs/spike.mdl", eye - v_right * 8, v_right, 30);
             VR_NLT_Hang("progs/s_spike.mdl", eye, v_right, 30);
             if(vr_have_lava) { VR_NLT_Hang("progs/lspike.mdl", eye + v_right * 8, v_right, 30); }
-            dprint(sprintf("nailtest: nails hung before your eyes (vr_nail_scale %g)\n", cvar("vr_nail_scale")));
+            dprint(sprintf("nailtest: nails hung before your eyes (vr_nail_scale %g)\n", cvar_hget(cvarh_vr_nail_scale)));
             return;
         }
         VR_Test_Begin("nailtest");
-        vr_nlt_precise = cvar("vr_hit_precise");
+        vr_nlt_precise = cvar_hget(cvarh_vr_hit_precise);
         if(req == 3)
         {
             vr_nlt_step = 4;
@@ -510,8 +510,8 @@ void() VR_NailTest_Frame =
         vr_nlt_step = 1;
         vr_nlt_frames = -10; // (the main hand's pose settled first)
         localcmd("vr_mock_hand main 0.03 1.69 -0.20 70 0 0\n"); // (level, at the eye: the nail pistol's aim test's sight picture)
-        dprint(sprintf("nailtest: vr_nail_speed %g, vr_nailpistol_speed %g, vr_nail_scale %g\n", cvar("vr_nail_speed"),
-            cvar("vr_nailpistol_speed"), cvar("vr_nail_scale")));
+        dprint(sprintf("nailtest: vr_nail_speed %g, vr_nailpistol_speed %g, vr_nail_scale %g\n", cvar_hget(cvarh_vr_nail_speed),
+            cvar_hget(cvarh_vr_nailpistol_speed), cvar_hget(cvarh_vr_nail_scale)));
         return;
     }
     if(!vr_nlt_step)
@@ -546,7 +546,7 @@ void() VR_NailTest_Frame =
         else if(vr_nlt_frames == 5 && vr_nlt_nail)
         {
             float flown = vlen(vr_nlt_nail.origin - vr_nlt_o1) / max(0.001, time - vr_nlt_t1);
-            float want = vr_nlt_case == 2 ? cvar("vr_nailpistol_speed") : cvar("vr_nail_speed");
+            float want = vr_nlt_case == 2 ? cvar_hget(cvarh_vr_nailpistol_speed) : cvar_hget(cvarh_vr_nail_speed);
             float before = vr_nlt_case == 2 ? 2600 : 1750;
             float r = flown / before;
             VR_Test_Check(fabs(flown - want) <= want * 0.01 && r >= 1.15 && r <= 1.2,
@@ -592,7 +592,7 @@ void() VR_NailTest_Frame =
         else
         {
             string what = vr_nlt_mode == 0 ? "precise hits (its model)" : "Quake's boxes";
-            float lim = 16 + (vr_nlt_mode == 0 ? cvar("vr_hit_tolerance_guns") : max(0, cvar("vr_gameplayfix_missilesize")));
+            float lim = 16 + (vr_nlt_mode == 0 ? cvar_hget(cvarh_vr_hit_tolerance_guns) : max(0, cvar_hget(cvarh_vr_gameplayfix_missilesize)));
             VR_Test_Check(vr_nlt_hit0 && vr_nlt_hitlo >= -lim && vr_nlt_hithi <= lim,
                 sprintf("%s: the nails that met the grunt from %g to %g units off its middle (the middle %s; at most %g: its box 16 and the tolerance; Quake's 15-unit missile box would meet to 31)",
                     what, vr_nlt_hitlo, vr_nlt_hithi, vr_nlt_hit0 ? "met" : "MISSED", lim));
@@ -618,8 +618,8 @@ void() VR_NailTest_Frame =
         }
         else if(vr_nlt_frames == 4)
         {
-            dprint(sprintf("nailtest: the nails' drawn size (vr_nail_scale %g; 1 before):\n", cvar("vr_nail_scale")));
-            localcmd(sprintf("vr_debug_box3d 1; vr_physics_list spike; vr_debug_box3d %g\n", cvar("vr_debug_box3d")));
+            dprint(sprintf("nailtest: the nails' drawn size (vr_nail_scale %g; 1 before):\n", cvar_hget(cvarh_vr_nail_scale)));
+            localcmd(sprintf("vr_debug_box3d 1; vr_physics_list spike; vr_debug_box3d %g\n", cvar_hget(cvarh_vr_debug_box3d)));
         }
         else if(vr_nlt_frames == 7)
         {

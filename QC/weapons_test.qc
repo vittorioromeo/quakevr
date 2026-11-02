@@ -17,7 +17,7 @@ float(entity xTarget, vector xFrom, vector xTo, float xFlags) VR_Test_HitRay =
 
 void(entity t, float xPrecise) VR_Test_HitsMode =
 {
-    float saved = cvar("vr_hit_precise");
+    float saved = cvar_hget(cvarh_vr_hit_precise);
     cvar_set("vr_hit_precise", ftos(xPrecise));
     vector lo = t.origin + t.mins;
     vector hi = t.origin + t.maxs;
@@ -83,7 +83,7 @@ void(entity t, float xPrecise) VR_Test_HitsMode =
         {
             headOn++;
             if(PositionalRegion(t, trace_endpos, r) == 1) { heads++; }
-            if(xPrecise && cvar("developer") > 1)
+            if(xPrecise && cvar_hget(cvarh_developer) > 1)
             {
                 dprint(sprintf("hittest head ray %d: the rest point %f from the head's middle (radius %f)\n", k,
                     vlen(hitmodel_rest(t, trace_endpos) - head), xHeadRadius));
@@ -212,7 +212,7 @@ void(float xRockets) VR_Test_Missiles =
     m.touch = VR_Test_MissileTouch;
     string kind = "nail";
     if(xRockets == 2) { kind = "hook"; } else if(xRockets) { kind = "rocket"; }
-    dprint(sprintf("hittest %s: %s %d (precise %d):", t.classname, kind, k, cvar("vr_hit_precise")));
+    dprint(sprintf("hittest %s: %s %d (precise %d):", t.classname, kind, k, cvar_hget(cvarh_vr_hit_precise)));
 };
 
 void() VR_Test_MissilesReport =
@@ -328,7 +328,7 @@ void() VR_GrenShot_TestShoot =
         return;
     }
     vector at = best.origin + (best.mins + best.maxs) * 0.5;
-    float kind = cvar("vr_test_grenade_shot");
+    float kind = cvar_hget(cvarh_vr_test_grenade_shot);
     dprint(sprintf("test: shooting %s (%s's) at %v, %.0f units away, %.0f u/s, shot box %.1f (kind %g)\n", best.classname,
         best.owner.classname, at, vlen(at - (self.origin + self.view_ofs)), vlen(best.velocity), best.vr_shot_radius, kind));
     VR_Test_Fire(kind, at);
@@ -415,15 +415,15 @@ void() VR_GrenShot_TestDud =
     }
     VR_Carry_Release(cVR_OffHand, g);
     makevectors('0 1 0' * self.v_viewangle_y);
-    vector ahead = self.origin + v_forward * cvar("vr_test_grenade_dist");
+    vector ahead = self.origin + v_forward * cvar_hget(cvarh_vr_test_grenade_dist);
     traceline(ahead + '0 0 16', ahead - '0 0 256', TRUE, self);
     // (vr_test_grenade_height: in the air, it falls)
-    setorigin(g, trace_endpos - g.mins + '0 0 1' * (1 + max(0, cvar("vr_test_grenade_height"))));
+    setorigin(g, trace_endpos - g.mins + '0 0 1' * (1 + max(0, cvar_hget(cvarh_vr_test_grenade_height))));
     g.velocity = '0 0 0';
     g.vr_spin = '0 0 0';
     g.vr_gren_lastvel = '0 0 0';
     g.vr_gren_lastorg = g.origin;
-    if(!cvar("vr_test_grenade_yours"))
+    if(!cvar_hget(cvarh_vr_test_grenade_yours))
     {
         g.owner = world; // (nobody's, as an enemy's lying about: your blows meet it, VR_Blow_Strikable)
     }
@@ -489,7 +489,7 @@ void() VR_Test_CrateCoverReport =
 // before; 3: the spawn's own angle), 4 its left side to `p` (facing `p`'s left), 5 its right side to `p`.
 float(entity p) VR_TestSpawn_FacingYaw =
 {
-    float f = cvar("vr_test_spawn_facing");
+    float f = cvar_hget(cvarh_vr_test_spawn_facing);
     if(f == 1)
     {
         return anglemod(p.v_viewangle_y + 180);
@@ -515,7 +515,7 @@ void() VR_Test_Fling =
     entity target = p;
     float best;
     entity e;
-    if(!cvar("vr_test_fling_at"))
+    if(!cvar_hget(cvarh_vr_test_fling_at))
     {
         target = world;
         best = 100000;
@@ -558,10 +558,10 @@ void() VR_Test_Fling =
         dir = normalize(dir);
     }
     float half = 0.5 * max(target.size_x, target.size_y);
-    float speed = cvar("vr_test_fling_speed") * VRMetersToUnits();
+    float speed = cvar_hget(cvarh_vr_test_fling_speed) * VRMetersToUnits();
     vector at = mid - dir * (half + 40);
     vector vel = dir * speed;
-    if(cvar("vr_test_fling_away"))
+    if(cvar_hget(cvarh_vr_test_fling_away))
     {
         at = mid - dir * (half - 4);
         vel = -1 * vel;
@@ -575,8 +575,8 @@ void() VR_Test_Fling =
     setorigin(prop, at - 0.5 * (prop.mins + prop.maxs));
     prop.velocity = vel;
     dprint(sprintf("fling test: %s (%.1f kg) at %s, %.1f m/s (%.0f u/s)%s; its health %.0f\n", prop.classname,
-        VR_Thrown_Mass(prop), target.classname, cvar("vr_test_fling_speed"), speed,
-        cvar("vr_test_fling_away") ? ", away from it" : "", target.health));
+        VR_Thrown_Mass(prop), target.classname, cvar_hget(cvarh_vr_test_fling_speed), speed,
+        cvar_hget(cvarh_vr_test_fling_away) ? ", away from it" : "", target.health));
 };
 
 // Tests (impulse 204; Debug > Tests > Two-Handed Throw): a two-handed throw's sparing of blows (VR_Throw_TwoHanded): a
@@ -653,7 +653,7 @@ void() VR_Throw_TestUp =
     prop.flags = prop.flags - (prop.flags & FL_ONGROUND);
     vector top = VRGetHeadPos(self);
     top_z = max(top_z, self.absmax_z) + 4 - prop.mins_z; // (its bottom just over your head)
-    if(cvar("vr_test_throw_up_body"))
+    if(cvar_hget(cvarh_vr_test_throw_up_body))
     {
         top = self.origin + '0 0 16' - '0 0 0.5' * (prop.mins_z + prop.maxs_z); // (at your chest, in your box)
     }
@@ -662,8 +662,8 @@ void() VR_Throw_TestUp =
     setorigin(prop, top - '1 0 0' * 0.5 * (prop.mins_x + prop.maxs_x) - '0 1 0' * 0.5 * (prop.mins_y + prop.maxs_y));
     prop.vr_spin = '0 0 0';
     prop.avelocity = '0 0 0';
-    VR_Carry_Throw(prop, '0 0 1' * cvar("vr_test_throw_up_speed") * VRMetersToUnits());
+    VR_Carry_Throw(prop, '0 0 1' * cvar_hget(cvarh_vr_test_throw_up_speed) * VRMetersToUnits());
     dprint(sprintf("throw test: %s thrown up from %v at %.1f m/s; your health %.0f\n", prop.classname, prop.origin,
-        cvar("vr_test_throw_up_speed"), self.health));
+        cvar_hget(cvarh_vr_test_throw_up_speed), self.health));
 };
 #endif

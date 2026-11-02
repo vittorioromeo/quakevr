@@ -68,7 +68,7 @@ entity(entity p) VR_SmallGib_TestTarget =
     entity e = findradius(p.origin, 800);
     while(e)
     {
-        float ok = cvar("vr_smallgibs_test_dummy") ? VR_IsDummy(e) :
+        float ok = cvar_hget(cvarh_vr_smallgibs_test_dummy) ? VR_IsDummy(e) :
                    (!VR_IsDummy(e) && ((e.flags & FL_MONSTER) || e.vr_corpse == 2));
         if(e != p && ok && !e.vr_gib)
         {
@@ -219,7 +219,7 @@ void(entity m, float xStep) VR_SmallGib_TestSpeedLaunch =
     float oldWeapon = self.weapon;
     float oldQuad = self.super_damage_finished;
     self.super_damage_finished = time + 30; // every hit tears them out
-    if(xStep == 1 && cvar("vr_smallgibs_test_hand"))
+    if(xStep == 1 && cvar_hget(cvarh_vr_smallgibs_test_hand))
     {
         bprint(sprintf("sgibtest: speeds: the main hand %.0f units from its middle\n", vlen(VRGetHandPos(cVR_MainHand) - mid)));
     }
@@ -279,7 +279,7 @@ void(entity m, float xStep) VR_SmallGib_TestSpeedLaunch =
             {
                 self.weapon = xStep == 1 ? WID_SWORD : WID_CHAINSAW;
                 VR_Hit_Begin(QVR_HITKIND_MELEE, cVR_MainHand, mid, -side);
-                if(cvar("vr_smallgibs_test_hand"))
+                if(cvar_hget(cvarh_vr_smallgibs_test_hand))
                 {
                     // Torn out at the main hand (vr_smallgibs_test_hand 1: put in the body), in its reach body, as at a
                     // blade's or the chain's contact.
@@ -404,7 +404,7 @@ void(float xCell) VR_SmallGib_StickThrow =
     entity g;
     if(i == 5)
     {
-        float grace = cvar("vr_smallgibs_grace");
+        float grace = cvar_hget(cvarh_vr_smallgibs_grace);
         cvar_set("vr_smallgibs_grace", "0");
         g = VR_SmallGib_Spawn(from, '0 0 0', world);
         cvar_set("vr_smallgibs_grace", ftos(grace));
@@ -745,16 +745,16 @@ void(float xCase) VR_SmallGib_TestStart =
     vr_sgib_test_step = 0;
     vr_sgib_test_t = time;
     vr_sgib_test_m = VR_SmallGib_TestTarget(self);
-    float n = cvar("vr_smallgibs_test_n");
+    float n = cvar_hget(cvarh_vr_smallgibs_test_n);
     n = n > 0 ? n : 200;
-    float dmg = cvar("vr_smallgibs_test_dmg");
+    float dmg = cvar_hget(cvarh_vr_smallgibs_test_dmg);
     dmg = dmg > 0 ? dmg : 35;
     entity m = vr_sgib_test_m;
     if(xCase == 15)
     {
         // To the wall ahead (the view's yaw), vr_smallgibs_test_dist units from it (default 64): gibs thrown from there
         // strike it (sticking tests: Misc/quakevr/gib_stick_test.sh).
-        float wd = cvar("vr_smallgibs_test_dist");
+        float wd = cvar_hget(cvarh_vr_smallgibs_test_dist);
         wd = wd > 0 ? wd : 64;
         makevectors('0 1 0' * self.v_viewangle_y);
         vector weye = self.origin + '0 0 16';
@@ -781,7 +781,7 @@ void(float xCase) VR_SmallGib_TestStart =
     {
         // A monster's backpack (a stand-in with FL_MONSTER) dropped from over your head: its toss, then its fall on you.
         entity mon = spawn();
-        setorigin(mon, self.origin + '0 0 1' * cvar("vr_smallgibs_test_dist") * 2);
+        setorigin(mon, self.origin + '0 0 1' * cvar_hget(cvarh_vr_smallgibs_test_dist) * 2);
         mon.flags = FL_MONSTER;
         mon.ammo_shells = 5;
         entity oself20 = self;
@@ -792,7 +792,7 @@ void(float xCase) VR_SmallGib_TestStart =
         vr_sgib_test_a = self.health;
         vr_fling_drophits = 0;
         vr_fling_dropspared = 0;
-        bprint(sprintf("sgibtest: a monster's backpack dropped %.0f units over you\n", cvar("vr_smallgibs_test_dist") * 2));
+        bprint(sprintf("sgibtest: a monster's backpack dropped %.0f units over you\n", cvar_hget(cvarh_vr_smallgibs_test_dist) * 2));
         return;
     }
     if(xCase == 18 && m == world)
@@ -1091,7 +1091,7 @@ void(float xCase) VR_SmallGib_TestStart =
         // A head pop's brain chunks ahead, to look at.
         makevectors('0 1 0' * self.v_viewangle_y);
         float b0 = vr_sgib_brains_made;
-        float bd = cvar("vr_smallgibs_test_dist");
+        float bd = cvar_hget(cvarh_vr_smallgibs_test_dist);
         bd = bd > 0 ? bd : 40;
         VR_SmallGib_BurstOf(self.origin + v_forward * bd + '0 0 6', '0 0 0', floor(max(0, cvar_hget(cvarh_vr_smallgibs_brains_pop)) + 0.5), TRUE, world);
         bprint(sprintf("sgibtest: brain chunks ahead: %d (Head Pop %.0f)\n", vr_sgib_brains_made - b0,
@@ -1101,11 +1101,11 @@ void(float xCase) VR_SmallGib_TestStart =
     else if(xCase == 13)
     {
         vr_sgib_test_a = 0;
-        if(cvar("vr_smallgibs_max") < 128)
+        if(cvar_hget(cvarh_vr_smallgibs_max) < 128)
         {
             cvar_set("vr_smallgibs_max", "128"); // (each step's lie about together)
         }
-        if(cvar("vr_smallgibs_test_hand"))
+        if(cvar_hget(cvarh_vr_smallgibs_test_hand))
         {
             // The main hand into the body's middle (the mock headset), half a second to get there.
             localcmd(sprintf("vr_mock_hand_to main %v\n", (m.absmin + m.absmax) * 0.5));
@@ -1150,7 +1150,7 @@ void(float xCase) VR_SmallGib_TestStart =
     }
     if(xCase == 14)
     {
-        float crowd = cvar("vr_smallgibs_test_crowd");
+        float crowd = cvar_hget(cvarh_vr_smallgibs_test_crowd);
         crowd = crowd > 0 ? crowd : 24;
         entity p = self;
         makevectors('0 1 0' * p.v_viewangle_y);
@@ -1273,7 +1273,7 @@ float() VR_SmallGib_TestUnderfoot =
 void() VR_SmallGib_TestFrame =
 {
     VR_SmallGib_TraceFrame();
-    float ask = cvar("vr_smallgibs_test");
+    float ask = cvar_hget(cvarh_vr_smallgibs_test);
     entity p = VR_Player();
     if(p == world)
     {
@@ -1395,7 +1395,7 @@ void() VR_SmallGib_TestFrame =
             {
                 // A rocket's blast in the middle (vr_smallgibs_test_blasts: that many in the frame, the others round it).
                 vector c = vr_sgib_test_e.origin;
-                float blasts = max(1, cvar("vr_smallgibs_test_blasts"));
+                float blasts = max(1, cvar_hget(cvarh_vr_smallgibs_test_blasts));
                 for(float i = 0; i < blasts; i++)
                 {
                     makevectors('0 1 0' * (i * 360 / blasts));
@@ -1504,7 +1504,7 @@ void() VR_SmallGib_TestFrame =
                 setorigin(tg, eye - 0.5 * (tg.mins + tg.maxs));
                 tg.vr_spin = '0 0 0';
                 tg.avelocity = '0 0 0';
-                VR_Carry_Throw(tg, normalize(at - eye) * cvar("vr_test_throw_up_speed") * VRMetersToUnits());
+                VR_Carry_Throw(tg, normalize(at - eye) * cvar_hget(cvarh_vr_test_throw_up_speed) * VRMetersToUnits());
             }
             if(t >= 3.5)
             {
@@ -1532,7 +1532,7 @@ void() VR_SmallGib_TestFrame =
                     cvar_hget(cvarh_vr_gib_spawn_harmless)));
                 bprint(sprintf("sgibtest: underfoot drops: flung hits on you %d, spared %d (Monster Drops Harmless For %.2f s, Hurt Only Falling %d, Pass Through Bodies %d)\n",
                     vr_fling_drophits, vr_fling_dropspared, cvar_hget(cvarh_vr_prop_drop_grace),
-                    cvar_hget(cvarh_vr_prop_drop_falls_only), cvar("vr_prop_drop_pass_inside")));
+                    cvar_hget(cvarh_vr_prop_drop_falls_only), cvar_hget(cvarh_vr_prop_drop_pass_inside)));
                 vr_sgib_test = 0;
             }
         }

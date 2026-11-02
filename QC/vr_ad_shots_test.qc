@@ -41,7 +41,7 @@ void() AD_ShotsFire =
         float found = FALSE;
         for(float pass = 0; pass < 2 && !found; pass++)
         {
-            float headClear = (pass == 0 && report.count == 1 && !cvar("scratch4")) ? 12 : 0;
+            float headClear = (pass == 0 && report.count == 1 && !cvar_hget(cvarh_scratch4)) ? 12 : 0;
             for(float elevation = 0; elevation < 3 && !found; elevation++)
             {
                 for(float angle = 0; angle < 16 && !found; angle++)
@@ -78,16 +78,16 @@ void() AD_ShotsFire =
     {
         vr_sgib_blastserial++;
         float oldclass = p.ad_classtype, oldsize = ad_playerprojsize;
-        if(cvar("scratch4"))
+        if(cvar_hget(cvarh_scratch4))
         {
             p.ad_classtype = ad_CT_PLAYER;
             ad_playerprojsize = 1;
         }
-        float count = cvar("scratch3");
+        float count = cvar_hget(cvarh_scratch3);
         if(count > 0)
         {
             VRGiveEntWeapon(p, cVR_MainHand, count > 6 ? WID_SUPER_SHOTGUN : WID_SHOTGUN, 0, 30);
-            float spread = cvar("vr_ad_pellet_spread");
+            float spread = cvar_hget(cvarh_vr_ad_pellet_spread);
             cvar_set("vr_ad_pellet_spread", "0");
             AD_FirePellets(cVR_MainHand, count, dir, '0 0 0', from);
             cvar_set("vr_ad_pellet_spread", ftos(spread));
@@ -152,7 +152,7 @@ void(float request, entity p) AD_ShotsTest =
         g.nextthink2 = 0;
         g.think2 = SUB_Null;
         g.takedamage = DAMAGE_AIM;
-        g.health = cvar("scratch2") ? 10000 : 1;
+        g.health = cvar_hget(cvarh_scratch2) ? 10000 : 1;
         if(corpse)
         {
             T_Damage(g, g, p, g.health + 1);
@@ -162,7 +162,7 @@ void(float request, entity p) AD_ShotsTest =
         r.enemy = g;
         r.owner = p;
         r.weapon = request;
-        r.count = cvar("scratch1");
+        r.count = cvar_hget(cvarh_scratch1);
         r.dmg = g.health;
         r.think = AD_ShotsFire;
         r.nextthink = time + (corpse ? 2.5 : 0.1);
@@ -271,7 +271,7 @@ void() AD_PelletMat_Step =
     vector eye = p.origin + p.view_ofs;
     vector at = (t.absmin + t.absmax) * 0.5;
     vector dir = normalize(at - eye);
-    float spread = cvar("vr_ad_pellet_spread");
+    float spread = cvar_hget(cvarh_vr_ad_pellet_spread);
     cvar_set("vr_ad_pellet_spread", "0");
     VRGiveEntWeapon(p, cVR_MainHand, WID_SHOTGUN, 0, 6);
     AD_FirePellets(cVR_MainHand, 1, dir, '0 0 0', eye);

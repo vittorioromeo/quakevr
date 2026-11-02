@@ -20,6 +20,14 @@ void(string tag) VR_Test_Begin =
     vr_test_fail = 0;
     vr_test_flags = 0;
     vr_test_nested = FALSE; // (a test inside another given up: forgotten)
+    if(vr_cvar_handles_bad > 0)
+    {
+        // A cvar handle names no cvar or tunable (vr_cvars.qc VR_CVar_Make; its "cvar_hmake: unknown" lines): every
+        // test fails until it is fixed.
+        vr_test_fail = 1;
+        bprint(sprintf("%s: FAIL %g cvar handle(s) name no cvar or tunable (\"cvar_hmake: unknown\" lines)\n", tag,
+            vr_cvar_handles_bad));
+    }
 };
 
 // The same with print modes (VR_TEST_LOUD | VR_TEST_QUIET).

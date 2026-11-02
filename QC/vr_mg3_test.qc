@@ -18,7 +18,7 @@ void() MG3_T_Caps = {
     entity p = VR_Player(); if(!p) return;
     float mh = VR_MaxHealth(p), mega = VR_MegaHealthCap(p);
     float s = VR_MaxAmmo(p, AID_SHELLS), n = VR_MaxAmmo(p, AID_NAILS), r = VR_MaxAmmo(p, AID_ROCKETS), c = VR_MaxAmmo(p, AID_CELLS);
-    dprint(sprintf("mg3test: caps campaign %g skill %g dm %g health %g max_health %g mega %g", cvar("vr_campaign"), skill, deathmatch, mh, p.max_health, mega));
+    dprint(sprintf("mg3test: caps campaign %g skill %g dm %g health %g max_health %g mega %g", cvar_hget(cvarh_vr_campaign), skill, deathmatch, mh, p.max_health, mega));
     dprint(sprintf(" shells %g nails %g rockets %g cells %g", s, n, r, c));
     dprint(sprintf(" lava %g multi %g plasma %g\n", VR_MaxAmmo(p, AID_LAVA_NAILS), VR_MaxAmmo(p, AID_MULTI_ROCKETS), VR_MaxAmmo(p, AID_PLASMA)));
     VR_Test_Begin("mg3test");
@@ -254,7 +254,7 @@ void() MG3_T_KeysLate = {
         float woken = 0;
         entity b = find(world, targetname, MG3_T_aggro_name);
         while(b) { if(b.MG3_T_mark && b.enemy) woken++; b = find(b, targetname, MG3_T_aggro_name); }
-        float on = cvar("vr_mg3_aggro_groups");
+        float on = cvar_hget(cvarh_vr_mg3_aggro_groups);
         dprint(sprintf("mg3test: aggro %s (groups %g): %g of %g named woke\n", MG3_T_aggro_name, on, woken, MG3_T_aggro_n));
         if(on) VR_Test_Check(woken == MG3_T_aggro_n && !find(world, aggro_target, MG3_T_aggro_name), "the aggro group wakes together, its key cleared");
         else VR_Test_Check(woken == 0, "aggro groups off (upstream): nothing else wakes");
@@ -411,9 +411,9 @@ void() MG3_T_Items = {
         float sf = serverflags;
         cvar_set("vr_mg3_bn_discovered", "0");
         MG3_T_Take(e);
-        dprint(sprintf("mg3test: head taken: serverflags %g -> %g skill %g discovered %g\n", sf, serverflags, cvar("skill"), cvar("vr_mg3_bn_discovered")));
-        VR_Test_Check((serverflags & (MG3_SF_BN_ACTIVE | MG3_SF_BN_DISCOVERED)) == (MG3_SF_BN_ACTIVE | MG3_SF_BN_DISCOVERED) && cvar("skill") == 3, "the head turns Bloody Nightmare on");
-        VR_Test_Check(cvar("vr_mg3_bn_discovered") == 1, "and discovers it for good (the menu)");
+        dprint(sprintf("mg3test: head taken: serverflags %g -> %g skill %g discovered %g\n", sf, serverflags, cvar_hget(cvarh_skill), cvar_hget(cvarh_vr_mg3_bn_discovered)));
+        VR_Test_Check((serverflags & (MG3_SF_BN_ACTIVE | MG3_SF_BN_DISCOVERED)) == (MG3_SF_BN_ACTIVE | MG3_SF_BN_DISCOVERED) && cvar_hget(cvarh_skill) == 3, "the head turns Bloody Nightmare on");
+        VR_Test_Check(cvar_hget(cvarh_vr_mg3_bn_discovered) == 1, "and discovers it for good (the menu)");
         VR_Test_Check(kt == string_null || !find(world, targetname, kt), "its killtarget is gone");
     }
     else {
@@ -510,11 +510,11 @@ void() MG3_T_SkillButtons = {
     if(!find(world, classname, "trigger_relay_setskill")) { dprint("mg3test: no skill buttons here\n"); return; }
     cvar_set("vr_mg3_bn_discovered", "0");
     MG3_T_Skill("4");
-    VR_Test_Check((serverflags & (MG3_SF_BN_ACTIVE | MG3_SF_BN_DISCOVERED)) == (MG3_SF_BN_ACTIVE | MG3_SF_BN_DISCOVERED) && cvar("skill") == 3 && cvar("vr_mg3_bn_discovered") == 1, "skill 4: Bloody Nightmare on and found, skill 3");
+    VR_Test_Check((serverflags & (MG3_SF_BN_ACTIVE | MG3_SF_BN_DISCOVERED)) == (MG3_SF_BN_ACTIVE | MG3_SF_BN_DISCOVERED) && cvar_hget(cvarh_skill) == 3 && cvar_hget(cvarh_vr_mg3_bn_discovered) == 1, "skill 4: Bloody Nightmare on and found, skill 3");
     MG3_T_Skill("1");
-    VR_Test_Check(!(serverflags & MG3_SF_BN_ACTIVE) && (serverflags & MG3_SF_BN_DISCOVERED) && cvar("skill") == 1, "skill 1: Bloody Nightmare off, skill 1");
+    VR_Test_Check(!(serverflags & MG3_SF_BN_ACTIVE) && (serverflags & MG3_SF_BN_DISCOVERED) && cvar_hget(cvarh_skill) == 1, "skill 1: Bloody Nightmare off, skill 1");
     MG3_T_Skill("4");
-    VR_Test_Check((serverflags & MG3_SF_BN_ACTIVE) && cvar("skill") == 3, "skill 4 again: on");
+    VR_Test_Check((serverflags & MG3_SF_BN_ACTIVE) && cvar_hget(cvarh_skill) == 3, "skill 4 again: on");
     VR_Test_VerdictPart("skill");
 };
 void(entity p, float slot, float wid) MG3_T_Holster = {
@@ -614,7 +614,7 @@ void(float m, float nth) MG3_T_RouteWalk = {
     MG1_H_Presser();
 };
 void() MG3_T_RouteFrame = {
-    float request = cvar("vr_mg3_test");
+    float request = cvar_hget(cvarh_vr_mg3_test);
     entity p = VR_Player();
     if(request >= 100 && request < 140) MG3_T_RouteWalk(floor((request - 100) / 2), (request - 100) & 1);
     else if(request == 31) MG3_T_RouteReport();
@@ -629,7 +629,7 @@ void() MG3_T_RouteFrame = {
         entity b = find(world, classname, "trigger_setskill");
         while(b && stof(b.message) != request - 40) b = find(b, classname, "trigger_setskill");
         if(b && p) { MG3_T_player = p; MG3_T_Touch(b); }
-        dprint(sprintf("mg3route: skill brush %g found %g: skill cvar %g\n", request - 40, !!b, cvar("skill")));
+        dprint(sprintf("mg3route: skill brush %g found %g: skill cvar %g\n", request - 40, !!b, cvar_hget(cvarh_skill)));
     }
     else if(request == 35 && p) {
         // A real death (god mode off, damage past the health): the presser's press respawns, which in single player
@@ -721,7 +721,7 @@ void() MG3_T_Sacrifices = {
     dprint(sprintf("mg3rune: %g sacrifices made\n", n));
 };
 void() MG3_TestFrame = {
-    float request = cvar("vr_mg3_test"); if(!request) return;
+    float request = cvar_hget(cvarh_vr_mg3_test); if(!request) return;
     if(((request >= 31 && request <= 38) || (request >= 40 && request <= 43) || (request >= 100 && request < 140)) && MG3_Campaign()) {
         entity ros = self, roo = other, roa = activator;
         MG3_T_RouteFrame();

@@ -344,7 +344,7 @@ void(float xHand, entity ent, entity entPlayer,
 // own fist closing again as it leaves).
 float(entity ent, entity entPlayer, float xHand) wpnthrow_midair_catch =
 {
-    float window = cvar("vr_weapon_catch_window");
+    float window = cvar_hget(cvarh_vr_weapon_catch_window);
     if(window <= 0 || (ent.flags & FL_ONGROUND) || ent.fg_state == 1 || vlen(ent.velocity) < 30)
     {
         return FALSE;

@@ -46,8 +46,8 @@ void() VR_AxeStick_TestThrow =
 {
     makevectors('0 1 0' * self.v_viewangle_y);
     vector F = v_forward;
-    float dist = cvar("vr_test_axe_dist");
-    float atKind = cvar("vr_test_axe_at");
+    float dist = cvar_hget(cvarh_vr_test_axe_dist);
+    float atKind = cvar_hget(cvarh_vr_test_axe_at);
     entity target = world;
     vector eye = self.origin + '0 0 22';
     if(atKind > 0)
@@ -60,7 +60,7 @@ void() VR_AxeStick_TestThrow =
             dprint("axe test: no target of that kind\n");
             return;
         }
-        vector c = (target.absmin + target.absmax) * 0.5 + '0 0 1' * cvar("vr_test_axe_up"); // (_up: above its middle)
+        vector c = (target.absmin + target.absmax) * 0.5 + '0 0 1' * cvar_hget(cvarh_vr_test_axe_up); // (_up: above its middle)
         F = c - eye;
         if(atKind == 4 && (target.movedir_x || target.movedir_y))
         {
@@ -93,7 +93,7 @@ void() VR_AxeStick_TestThrow =
     L_x = -F_y;
     L_y = F_x;
     L_z = 0;
-    float mode = cvar("vr_test_axe");
+    float mode = cvar_hget(cvarh_vr_test_axe);
     // The model's forward (x) from where its blade faces (`bf`) and its handle points (`hp`), square to each other: the
     // blade faces (0.94, 0, -0.34) in its axes, the handle (0.34, 0, 0.94), the head thin along y.
     vector bf = F;
@@ -203,25 +203,25 @@ void() VR_AxeStick_TestThrow =
             self.velocity = '0 0 0';
         }
     }
-    vector from = self.origin + '0 0 22' + F * 40 + L * cvar("vr_test_axe_side"); // (clear of your body)
-    float speed = cvar("vr_test_axe_speed") * VRMetersToUnits();
-    float hurt = cvar("vr_test_axe_damage") != 0;
+    vector from = self.origin + '0 0 22' + F * 40 + L * cvar_hget(cvarh_vr_test_axe_side); // (clear of your body)
+    float speed = cvar_hget(cvarh_vr_test_axe_speed) * VRMetersToUnits();
+    float hurt = cvar_hget(cvarh_vr_test_axe_damage) != 0;
     // vr_test_axe_weapon: that weapon instead, hurting as a hand's throw does (its full-damage speed: DropWeaponInHandScaled).
-    float wid = cvar("vr_test_axe_weapon");
+    float wid = cvar_hget(cvarh_vr_test_axe_weapon);
     if(wid <= 0)
     {
         wid = WID_AXE;
     }
     entity axe = CreateThrownWeapon(self, wid, 0, WeaponInst_New(0), from, a, F * speed - self.velocity * VR_Throw_Inherit(self), '0 0 0',
         FALSE, hurt, WeaponIdToThrowDamage(wid));
-    if(cvar("vr_test_axe_weapon") > 0)
+    if(cvar_hget(cvarh_vr_test_axe_weapon) > 0)
     {
         axe.throwdmgspeed = 700 * VRMetersToUnits() / 120;
     }
-    if(mode >= 4 && cvar("vr_test_axe_loft") && speed > 0)
+    if(mode >= 4 && cvar_hget(cvarh_vr_test_axe_loft) && speed > 0)
     {
         traceline(from, from + F * 4000, TRUE, self);
-        float g = (axe.gravity ? axe.gravity : 1) * cvar("sv_gravity");
+        float g = (axe.gravity ? axe.gravity : 1) * cvar_hget(cvarh_sv_gravity);
         if(trace_fraction < 1) // (nothing ahead: not lofted, or it went up at 140 m/s)
         {
             axe.velocity_z = axe.velocity_z + 0.5 * g * (4000 * trace_fraction / speed);
@@ -237,7 +237,7 @@ void() VR_AxeStick_TestThrow =
     }
     // vr_test_axe_what (the spin in the air's tests): 1 a gib, 2 an explosive box (that never blows up) thrown instead,
     // the same way (the axe's place, velocity and spin; the axe itself removed).
-    float what = cvar("vr_test_axe_what");
+    float what = cvar_hget(cvarh_vr_test_axe_what);
     if(what == 1 || what == 2)
     {
         entity thing = world;
@@ -274,7 +274,7 @@ void() VR_AxeStick_TestThrow =
     traceline(from, from + F * 2000, FALSE, self);
     dprint(sprintf("axe test: thrown %s at %.1f m/s (%.0f u/s) from %v, angles %v; ahead: %s %.0f units away\n",
         mode == 1 ? "flat" : mode == 2 ? "handle first" : mode == 3 ? "spinning" : "blade first",
-        cvar("vr_test_axe_speed"), speed, from, axe.angles, trace_ent == world ? "the level" : trace_ent.classname,
+        cvar_hget(cvarh_vr_test_axe_speed), speed, from, axe.angles, trace_ent == world ? "the level" : trace_ent.classname,
         2000 * trace_fraction));
 };
 
@@ -307,7 +307,7 @@ void() VR_AxeStick_TestReach =
 // you, your health lowered for it: the axe falls).
 void() VR_AxeStick_TestHost =
 {
-    float what = cvar("vr_test_axe_host");
+    float what = cvar_hget(cvarh_vr_test_axe_host);
     cvar_set("vr_test_axe_host", "0");
     entity p = self;
     for(entity e = find(world, classname, "thrown_weapon"); e; e = find(e, classname, "thrown_weapon"))
@@ -346,7 +346,7 @@ void() VR_AxeStick_TestHost =
 // Tests (impulse 208): prints each stuck axe: what it is in, where, its blade.
 void() VR_AxeStick_TestReport =
 {
-    if(cvar("vr_test_axe_host"))
+    if(cvar_hget(cvarh_vr_test_axe_host))
     {
         VR_AxeStick_TestHost();
     }

@@ -11,14 +11,14 @@ void() VR_TestHit_Frame =
             vr_hr_watch.frame, vr_hr_watch.origin, vr_hr_watch.health, vr_hr_watch.enemy.classname,
             vr_hr_watch.attack_state));
     }
-    float want = cvar("vr_test_hit");
+    float want = cvar_hget(cvarh_vr_test_hit);
     if(want < 1)
     {
         return;
     }
     cvar_set("vr_test_hit", "0");
     entity pl = VR_Player();
-    float all = cvar("vr_test_hit_all");
+    float all = cvar_hget(cvarh_vr_test_hit_all);
     entity best = world;
     float bestD = 100000;
     float count = 0;
@@ -82,17 +82,17 @@ void(entity pl, entity best, float part) VR_TestHit_One =
     VR_Hit_End();
     VR_Hit_Begin(QVR_HITKIND_SHOT, -1, at, dir);
     VR_Hit_SetZone(best, part, at);
-    if(cvar("vr_test_hit_watch") > 0 && !cvar("vr_test_hit_all"))
+    if(cvar_hget(cvarh_vr_test_hit_watch) > 0 && !cvar_hget(cvarh_vr_test_hit_all))
     {
         vr_hr_watch = best;
-        vr_hr_watch_until = time + cvar("vr_test_hit_watch");
+        vr_hr_watch_until = time + cvar_hget(cvarh_vr_test_hit_watch);
     }
-    float dmg = min(cvar("vr_test_hit_damage"), best.health - 1);
+    float dmg = min(cvar_hget(cvarh_vr_test_hit_damage), best.health - 1);
     dprint(sprintf("test hit: %s at %v (health %g) struck %g at %v for %g\n", best.classname, best.origin, best.health,
         part, at, dmg));
     if(dmg > 0)
     {
-        if(cvar("vr_test_hit_calm"))
+        if(cvar_hget(cvarh_vr_test_hit_calm))
         {
             // (the flinch alone: no pain frames, and nobody's blow, so it doesn't turn on him)
             best.pain_finished = time + 5;

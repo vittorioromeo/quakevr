@@ -203,7 +203,7 @@ void(float pass) VR_Probe_Kinds =
         }
     }
 
-    float test = cvar("vr_probe_test_spawn");
+    float test = cvar_hget(cvarh_vr_probe_test_spawn);
     if(test >= 2)
     {
         for(kind = 0; kind < VR_PROBE_KINDS; kind++)
@@ -213,7 +213,7 @@ void(float pass) VR_Probe_Kinds =
     }
     else if(test >= 1)
     {
-        VR_Probe_Make(VR_Probe_DispenserKind(cvar("vr_test_spawn")), '0 0 0');
+        VR_Probe_Make(VR_Probe_DispenserKind(cvar_hget(cvarh_vr_test_spawn)), '0 0 0');
     }
     dprint(sprintf("probes: kinds ready %g (bits), monsters counted %g before, %g after\n", vr_probe_ready,
         vr_probe_counted, total_monsters));

@@ -250,7 +250,7 @@ float(entity m, float xVolume, float xRagdoll) VR_FoeGrab_NeckSnap =
     if(!monstergroupget(m, MGP_SNAPKILLS))
     {
         float full = m.max_health > 0 ? m.max_health : m.health;
-        float dmg = max(1, rint(full * max(0, cvar("vr_foegrab_necksnap_tough"))));
+        float dmg = max(1, rint(full * max(0, cvar_hget(cvarh_vr_foegrab_necksnap_tough))));
         VR_FoeGrab_Crack(m, xVolume * 0.6);
         VR_Haptic_Both(VR_Haptic_NeckCrack);
         floattext(m.origin + '0 0 1' * (m.maxs_z + 8), "its neck holds", '1 0.7 0.3', 0.6);

@@ -60,7 +60,7 @@ void(entity t, float n) VR_Shock_Burns =
 // played out (1.8 s), so a beam held on it crackles on under its hum and the arcs after it are heard.
 void(entity t) VR_Shock_Crackle =
 {
-    float vol = cvar("vr_shock_sound");
+    float vol = cvar_hget(cvarh_vr_shock_sound);
     if(vol <= 0 || time - t.vr_shock_crackle < 1.8)
     {
         return;
@@ -74,18 +74,18 @@ void(entity t, float xAlive, vector xAt, vector xDir) VR_Shock_Hit =
 {
     // (vr_shock_living 0: the lasting shock only on the bodies it kills or strikes dead; a living one has each hit's own
     // short arcs, weapons.qc's bodyshock.)
-    if(!(t.flags & FL_MONSTER) || t.vr_gib || !cvar("vr_shock_death") || (t.health > 0 && !cvar("vr_shock_living")))
+    if(!(t.flags & FL_MONSTER) || t.vr_gib || !cvar_hget(cvarh_vr_shock_death) || (t.health > 0 && !cvar_hget(cvarh_vr_shock_living)))
     {
         return;
     }
-    float len = cvar("vr_shock_death_time");
+    float len = cvar_hget(cvarh_vr_shock_death_time);
     if(len <= 0)
     {
         return;
     }
     if(xAlive && t.health <= 0)
     {
-        VR_Shock_Burns(t, floor(cvar("vr_shock_burns")));
+        VR_Shock_Burns(t, floor(cvar_hget(cvarh_vr_shock_burns)));
     }
     else if(!xAlive && VR_Wound_Takes(t) && xDir != '0 0 0')
     {
@@ -98,7 +98,7 @@ void(entity t, float xAlive, vector xAt, vector xDir) VR_Shock_Hit =
     t.vr_shock_bolt = time;
     if(t.health > 0)
     {
-        len = len * max(0, cvar("vr_shock_living_time"));
+        len = len * max(0, cvar_hget(cvarh_vr_shock_living_time));
         if(len <= 0)
         {
             return;
@@ -118,11 +118,11 @@ void(entity t, float xAlive, vector xAt, vector xDir) VR_Shock_Hit =
 // to the whole vr_shock_death_time from its last bolt, as a body's; its ragdoll convulses as long. (Ended already: none.)
 void(entity t) VR_Shock_Killed =
 {
-    if(t.vr_shock_until <= time || !(t.flags & FL_MONSTER) || !cvar("vr_shock_death"))
+    if(t.vr_shock_until <= time || !(t.flags & FL_MONSTER) || !cvar_hget(cvarh_vr_shock_death))
     {
         return;
     }
-    float left = t.vr_shock_bolt + cvar("vr_shock_death_time") - time;
+    float left = t.vr_shock_bolt + cvar_hget(cvarh_vr_shock_death_time) - time;
     if(left <= t.vr_shock_until - time)
     {
         return;
@@ -130,6 +130,6 @@ void(entity t) VR_Shock_Killed =
     bodyshockdeath(t, left);
     vr_shock_carried++;
     t.vr_shock_until = time + left;
-    t.vr_shock_len = cvar("vr_shock_death_time"); // (= time + left - bolt)
+    t.vr_shock_len = cvar_hget(cvarh_vr_shock_death_time); // (= time + left - bolt)
     VR_Shock_Crackle(t);
 };

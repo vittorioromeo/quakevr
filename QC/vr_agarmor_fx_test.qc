@@ -92,7 +92,7 @@ void(entity e) VR_AFT_RightLegWear =
 {
     float keepType = e.vr_ar_type;
     float keepMask = e.vr_ar_mask;
-    float chance = cvar("vr_limbs_chance_scale");
+    float chance = cvar_hget(cvarh_vr_limbs_chance_scale);
     cvar_set("vr_limbs_chance_scale", "0");
     VR_AgArmor_Give(e, 0, 0);
     float i, ok = 0;
@@ -287,10 +287,10 @@ void(float start) VR_AgArmor_FxTestFrame =
     if(start)
     {
         VR_Test_Begin("agarmor fx test");
-        vr_aft_rule = cvar("vr_agarmor_rule");
-        vr_aft_helm = cvar("vr_agarmor_helmet_head");
-        vr_aft_cuts = cvar("vr_agarmor_block_cuts");
-        vr_aft_dtime = cvar("vr_agarmor_debris_time");
+        vr_aft_rule = cvar_hget(cvarh_vr_agarmor_rule);
+        vr_aft_helm = cvar_hget(cvarh_vr_agarmor_helmet_head);
+        vr_aft_cuts = cvar_hget(cvarh_vr_agarmor_block_cuts);
+        vr_aft_dtime = cvar_hget(cvarh_vr_agarmor_debris_time);
         cvar_set("vr_agarmor_rule", "0");
         cvar_set("vr_agarmor_helmet_head", "1");
         cvar_set("vr_agarmor_block_cuts", "1");
