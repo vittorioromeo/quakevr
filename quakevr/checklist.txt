@@ -34,6 +34,8 @@ Pulling a worn pack never takes it off: pull hard and the wearer is lifted by it
 Knights and death knights holding a gun wear a backpack on their upper back and can be lifted by it. Does the pack look right on them?
 Grunts, knights and death knights with only a melee weapon or fists wear no pack and drop no backpack.
 An enforcer with a gun can be lifted by the pack on its back, which never comes off; with a sword or fists it can't.
+Ogres, fiends and shamblers: footsteps now layered from recordings: heavy, not artificial, loud enough in the headset?
+Worn pack coming off: stand-in rip, no fiend claw in it: does it read as fabric?
 
 
 [3. Bodies: grabbing, throwing, hits]
