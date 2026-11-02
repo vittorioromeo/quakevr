@@ -34,7 +34,7 @@ void touchNearby(edict_t* ent, const glm::vec3& from, const glm::vec3& to)
     store(to, end);
     const int throwhit = fields().throwhit;
     const bool thrown = throwhit >= 0 && fieldFloat(ent, throwhit) == 0.f;
-    // Precise hits (vr_hit_precise, vr_hitmodel.cpp): a monster is met at its model as drawn, grown by the hit box's
+    // Precise hits (vr_hitmodel.cpp): a monster is met at its model as drawn, grown by the hit box's
     // half-size and the thrown tolerance, not at its box.
     const int precise = MOVE_HITMODEL | (static_cast<int>(hitmodel::Class::Thrown) << MOVE_HITMODEL_CLASS_SHIFT);
     const trace_t tr = SV_Move(start, mins, maxs, end, (thrown ? (MOVE_NORMAL | MOVE_HITGIBS) : MOVE_NORMAL) | precise, ent);

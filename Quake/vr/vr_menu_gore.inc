@@ -288,7 +288,6 @@
         row(opt::vr_dummy_healthbar),
         header("Marks"),
         row(opt::vr_decals),
-        row(opt::vr_permdecals),
         row(opt::vr_decal_entities),
         row(opt::vr_decal_max),
         row(opt::vr_decal_bucket_max),

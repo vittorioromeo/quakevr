@@ -2457,7 +2457,7 @@ namespace
 {
 [[nodiscard]] bool enabledFor(edict_t* ent, const VrMove* move)
 {
-    return vr_foegrab.value != 0.f && bindings().isVrProgs && hitmodel::enabled() && move &&
+    return vr_foegrab.value != 0.f && bindings().isVrProgs && move &&
            (move->buttons & protocol::QVR_BUTTON_HANDSTRACKED) && static_cast<int>(ent->v.movetype) == MOVETYPE_WALK &&
            ent->v.health > 0.f;
 }
@@ -2602,7 +2602,7 @@ void qvr::foegrab::preThink(edict_t* ent)
             if(debug() && (!enabled || !climb::handFree(ent, h)))
             {
                 Con_Printf("foegrab: %s hand grips: %s\n", handName(h),
-                    vr_foegrab.value == 0.f ? "off" : !hitmodel::enabled() ? "precise hits off (vr_hit_precise)" :
+                    vr_foegrab.value == 0.f ? "off" :
                     !(move->buttons & protocol::QVR_BUTTON_HANDSTRACKED) ? "hands not tracked" :
                     !enabled ? "the player can't (dead, noclip, other progs)" : "the hand isn't free");
             }

@@ -18,6 +18,8 @@ echo "== QuakeC (fteqcc)"
 (cd QC && fteqcc -DQVR_NO_TESTS -O3 -Fautoproto -Olo -Fiffloat -Fifvector -Fvectorlogic -Flo -Fsubscope -Wall -Wextra -Wno-F209 -Wno-F208 \
     > ../qc-build.log 2>&1) || { tail -40 qc-build.log; echo "QC compilation failed"; exit 1; }
 test -f quakevr/progs.dat || { echo "no quakevr/progs.dat after the QC compile"; exit 1; }
+# The 32-bit progs (QC/defs.qc's fte32 pragma; the manifest patches fteqcc for it): a 16-bit one fails the build.
+python3 Misc/quakevr/check_progs_format.py quakevr/progs.dat || exit 1
 
 echo "== Engine (CMake, Release, ${CC:-cc})"
 # No user dirs: the launcher passes the base dirs (the Quake install, then the writable Quake VR folder).

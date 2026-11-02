@@ -1393,7 +1393,7 @@ void posekey_f()
         if(!strcmp(w, "kind")) { st.pdKind = za::clamp(v, 0, agpose::numKinds - 1); }
         else if(!strcmp(w, "class")) { st.pdClass = agpose::isClass(v) ? v : st.pdClass; }
         else if(!strcmp(w, "pose")) { st.pdPose = za::clamp(v, 0, agpose::NumPoses - 1); }
-        else if(!strcmp(w, "phase")) { st.pdPhase = za::clamp(v, 0, agpose::numPhases - 1); strikePark(); }
+        else if(!strcmp(w, "phase")) { st.pdPhase = za::clamp(v, 0, agpose::maxStrikeKeys - 1); strikePark(); } // (3..9: an in-between)
         else if(!strcmp(w, "follow")) { st.pdFollow = v != 0; }
         else if(!strcmp(w, "part")) { st.pdPart = v; }
         else if(!strcmp(w, "swingspeed")) { st.swing.speed = za::clamp(static_cast<float>(Q_atof(Cmd_Argv(i + 1))), strikeSpeedMin, strikeSpeedMax); }

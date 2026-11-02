@@ -317,7 +317,7 @@ bool rigStale(SmoothModel& m, qmodel_t* model, const aliashdr_t* hdr, bool& rigg
         return false;
     }
     const float rebuildError = za::max(vr_anim_smooth_rebuild_error.value, 0.01f);
-    const int dequant = hdr->dequant && hdr->dequantready && vr_mdl_dequant.value != 0.f ? 1 : 0;
+    const int dequant = hdr->dequant && hdr->dequantready ? 1 : 0;
     if(m.rigError == error && m.rebuildError == rebuildError && m.rebuildDequant == dequant)
     {
         return false;

@@ -1790,6 +1790,21 @@ void mockFeed()
     vs.mockNext++;
 }
 
+void mockLine(const glm::vec2& from, const glm::vec2& to)
+{
+    constexpr int steps = 8;
+    vs.mock.clear();
+    vs.mockNext = 0;
+    vs.mock.pushBack(MockStep{from, false}); // (hovered)
+    vs.mock.pushBack(MockStep{from, true});  // (pressed)
+    for(int i = 1; i <= steps; i++)
+    {
+        vs.mock.pushBack(MockStep{from + (to - from) * (static_cast<float>(i) / static_cast<float>(steps)), true});
+    }
+    vs.mock.pushBack(MockStep{to, false});                         // (let go)
+    vs.mock.pushBack(MockStep{to + glm::vec2{0.f, 400.f}, false}); // (and away)
+}
+
 bool mockClick(const glm::vec3& world)
 {
     glm::vec2 s;

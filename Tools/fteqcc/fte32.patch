@@ -1,0 +1,57 @@
+diff --git a/engine/qclib/qcc.h b/engine/qclib/qcc.h
+index 4b596d5..7bf7c66 100644
+--- a/engine/qclib/qcc.h
++++ b/engine/qclib/qcc.h
+@@ -732,6 +732,7 @@ extern pbool flag_cpriority;
+ extern pbool flag_qcfuncs;
+ extern pbool flag_embedsrc;
+ extern pbool flag_noreflection;
++extern pbool flag_fte32;
+ extern pbool flag_nopragmafileline;
+ extern pbool flag_utf8strings;
+ extern pbool flag_reciprocalmaths;
+diff --git a/engine/qclib/qcc_pr_comp.c b/engine/qclib/qcc_pr_comp.c
+index 925c67e..253c796 100644
+--- a/engine/qclib/qcc_pr_comp.c
++++ b/engine/qclib/qcc_pr_comp.c
+@@ -157,6 +157,7 @@ pbool flag_qcfuncs;			//void() is a function type, and not a syntax error.
+ pbool flag_allowuninit;		//ignore uninitialised locals, avoiding all private locals.
+ pbool flag_embedsrc;		//embed all source files inside the .dat (can be opened with any zip program)
+ pbool flag_noreflection;	//no reflection stuff, for smaller unsavable binaries.
++pbool flag_fte32;		//always write the 32-bit (FTE32) statement and def format, not only on overflow.
+ pbool flag_nopragmafileline;//ignore #pragma file and #pragma line, so that I can actually read+debug xonotic's code.
+ pbool flag_utf8strings;		//strings default to u8"" string rules.
+ pbool flag_reciprocalmaths;	//unsafe maths optimisations
+diff --git a/engine/qclib/qccmain.c b/engine/qclib/qccmain.c
+index 365de24..72c32f3 100644
+--- a/engine/qclib/qccmain.c
++++ b/engine/qclib/qccmain.c
+@@ -439,6 +439,7 @@ compiler_flag_t compiler_flag[] = {
+ 	{&flag_ILP32,			FLAG_MIDCOMPILE,"ILP32",		"ILP32 Data Model",		"Restricts the size of `long` to 32bits, consistent with pointers."},
+ 	{&flag_undefwordsize,	hideflag,		"undefwordsize","Undefined Word Size",	"Do not make assumptions about pointer types and word sizes. Block functionality that depends upon specific word sizes. Changed as part of target."},
+ 	{&flag_pointerrelocs,	hideflag,		"pointerrelocs","Initialised Pointers",	"Allow pointer types to be preinitialised at compile time, both at global scope and optimising local scope a little."},
++	{&flag_fte32,			FLAG_MIDCOMPILE,"fte32",		"32-bit Output",		"Always writes the 32-bit statement and def format (FTE's extended progs, secondary version FTE32) instead of only when the 16-bit one overflows. The code is unchanged; the engine must load that format."},
+ 	{&flag_noreflection,	FLAG_MIDCOMPILE,"omitinternals","Omit Reflection Info",	"Keeps internal symbols private (equivelent to unix's hidden visibility). This has the effect of reducing filesize, thwarting debuggers, and breaking saved games. This allows you to use arrays without massively bloating the size of your progs.\nWARNING: The bit about breaking saved games was NOT a joke, but does not apply to menuqc or csqc. It also interferes with FTE_MULTIPROGS."},
+ 
+ 	{&flag_embedsrc,		FLAG_MIDCOMPILE,"embedsrc",		"Embed Sources",		"Write the sourcecode into the output file. The resulting .dat can be opened as a standard zip archive (or by fteqccgui).\nGood for GPL compliance!"},
+@@ -1882,6 +1883,11 @@ static pbool QCC_WriteData (int crc)
+ 				outputsttype = PST_FTE32;
+ 			}
+ 		}
++		else if (flag_fte32 && qcc_targetformat != QCF_HEXEN2)
++		{
++			//-Ffte32: the same code in the 32-bit FTE container (as the numpr_globals overflow above), every build.
++			outputsttype = PST_FTE32;
++		}
+ 		else if (qcc_targetformat == QCF_FTEH2)
+ 		{
+ 			externs->Printf("Progs execution will require FTE\n");
+@@ -1926,6 +1932,8 @@ static pbool QCC_WriteData (int crc)
+ 				externs->Printf("Using 32 bit target due to numpr_globals\n");
+ 				outputsttype = PST_FTE32;
+ 			}
++			else if (flag_fte32)
++				outputsttype = PST_FTE32;
+ 		}
+ 
+ 		if (qcc_targetformat == QCF_QSS || qcc_targetformat == QCF_DARKPLACES)

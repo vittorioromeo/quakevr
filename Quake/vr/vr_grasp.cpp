@@ -1117,7 +1117,7 @@ bool buildShape(const entity_t& e, int frame, Shape& out)
         const auto* base = reinterpret_cast<const byte*>(hdr);
         const auto* mesh = reinterpret_cast<const aliasmesh_t*>(base + hdr->meshdesc);
         const auto* indexes = reinterpret_cast<const unsigned short*>(base + hdr->indexes);
-        mdldequant::prepare(model); // the vertices as drawn (vr_mdl_dequant), not the stored bytes
+        mdldequant::prepare(model); // the vertices as drawn (dequantised), not the stored bytes
         for(int i = 0; i + 2 < hdr->numindexes; i += 3)
         {
             Triangle t;

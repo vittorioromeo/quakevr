@@ -148,7 +148,13 @@ param(
     # With -RunTests -AllowFlaky: more tests (names from run_test_suite.py --list) that only warn.
     [string[]]$FlakyTests = @(),
     # With -RunTests: only the tests whose name matches this regex.
-    [string]$TestOnly = ""
+    [string]$TestOnly = "",
+    # The author's tuned constants (the game's tunables.cfg): a value in it that vr_tunables.inc does not have as the
+    # default is lost in a release (constants there), so the release stops before building and lists them. Default: his
+    # checkout's, C:\OHWorkspace\quakevr-iw\quakevr\tunables.cfg (not there: a warning, not checked).
+    [string]$TunablesCfg = "",
+    # Release without those values: a deliberate local-only tweak. Printed loudly, and kept in PUBLISH.txt's warnings.
+    [switch]$AllowUnpromotedTunables
 )
 
 $ErrorActionPreference = "Stop"
@@ -630,6 +636,29 @@ if (-not $Fteqcc) {
     if (-not $Fteqcc) { $Fteqcc = (Get-Command fteqcc64 -ErrorAction SilentlyContinue | Select-Object -First 1).Source }
 }
 if (-not $Fteqcc -or -not (Test-Path -LiteralPath $Fteqcc)) { Problem "fteqcc64.exe not found (-Fteqcc, FTEQCC, QC\fteqcc64.exe or PATH)" } else { $Fteqcc = (Resolve-Path $Fteqcc).Path; Say "fteqcc: $Fteqcc" }
+# The tuned constants: live in a development build, kept in tunables.cfg; a release folds in vr_tunables.inc's defaults,
+# so a value not promoted is lost (RELEASING.md, "Step by step"). A -Local test release ships to nobody: a warning.
+$tunablesFile = if ($TunablesCfg) { $TunablesCfg } else { "C:\OHWorkspace\quakevr-iw\quakevr\tunables.cfg" }
+if (-not (Test-Path -LiteralPath $tunablesFile -PathType Leaf)) {
+    if ($TunablesCfg) { Problem "-TunablesCfg: no file $TunablesCfg" }
+    else { Warn "no $tunablesFile : the tuned constants were not checked (-TunablesCfg <the author's tunables.cfg>)" }
+} elseif ($python) {
+    $promoter = Join-Path $root "Misc\quakevr\tune_promote.py"
+    $tuned = Run $python @($promoter, $tunablesFile, "--check", "--quiet")
+    if ($tuned.Code -eq 0) { Say "tunables.cfg: nothing to promote ($tunablesFile)" }
+    elseif ($tuned.Code -ne 2) { Problem "tune_promote.py --check --quiet failed on $tunablesFile (exit $($tuned.Code))" }
+    else {
+        $tunedList = "$tunablesFile has values this release would lose:`n$($tuned.Out -join "`n")"
+        if ($AllowUnpromotedTunables) {
+            Write-Host ""
+            Write-Host "!!! -AllowUnpromotedTunables: THIS RELEASE SHIPS WITHOUT THE TUNED VALUES BELOW !!!" -ForegroundColor Red
+            Warn $tunedList
+        } else {
+            $tunedText = "$tunedList`nPromote them: python ""$promoter"" ""$tunablesFile""`nthen commit Quake\vr\vr_tunables.inc and run this again (a name that is not a tuning constant: fix it by hand; tune_reset <name> drops a value you don't want). A deliberate local-only tweak: -AllowUnpromotedTunables"
+            if ($Local) { Warn $tunedText } else { Problem $tunedText }
+        }
+    }
+}
 
 # The test suite's worktree: a kit worktree whose tracked files are this commit's (VERSION aside: -BumpVersion's commit
 # comes after the tests).

@@ -6,7 +6,7 @@
 #            soldier 300 units ahead of him on AD's start, him dark (vr_stealth_light_force 10): Idle after 7 s
 #   guns     vr_ad_test 71: each armed AD soldier's drop (AD's own single-use guns); vr_ad_test 90: the grenade launcher
 #            fires our grenade (model, size, physics, fuse), clear of its muzzle
-#   armagon  hipend: vr_test_monsters 5 (the hit probe) on the Armagon: its torso's heights hit (precise hits on and off)
+#   armagon  hipend: vr_test_monsters 5 (the hit probe) on the Armagon: its torso's heights hit (precise hits)
 #   range    vrfiringrange: the two laser cannons after 5 s (vr_pickup_test 5): on their pads, at rest
 AGENT=${1:?worktree name}
 WHAT=${2:-all}
@@ -25,8 +25,8 @@ if [ "$WHAT" = guns ] || [ "$WHAT" = all ]; then
     run "skill 1;vr_campaign_native ad;wait30;map start;wait60;god;notarget;developer 1;vr_mock_hand main 0.25 1.20 -0.40 70 0 0;wait5;vr_ad_test 90;wait1100" "adgun shots: .*(PASS|FAIL)|adgun shots: [0-9]+ passed|rror"
 fi
 if [ "$WHAT" = armagon ] || [ "$WHAT" = all ]; then
-    echo "== armagon (precise, then boxes)"
-    run "skill 1;vr_campaign_native hipnotic;wait30;map hipend;wait60;god;notarget;setpos 923 -676 152;wait10;vr_test_monsters 5;wait5;vr_hit_precise 0;wait2;vr_test_monsters 5;wait5;vr_hit_precise 1" "hitprobe|rror"
+    echo "== armagon (precise hits)"
+    run "skill 1;vr_campaign_native hipnotic;wait30;map hipend;wait60;god;notarget;setpos 923 -676 152;wait10;vr_test_monsters 5;wait5" "hitprobe|rror"
 fi
 if [ "$WHAT" = range ] || [ "$WHAT" = all ]; then
     echo "== range (the laser cannons, weapon 12, pads at 152 -920 and 152 -952, z 33 over a table at 21)"
