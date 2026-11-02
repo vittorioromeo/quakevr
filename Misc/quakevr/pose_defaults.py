@@ -27,7 +27,8 @@ import os
 import re
 import sys
 
-NUM_PARTS = 10  # (agpose::NumParts: the first 7, then the off hand's: its grip offset place and turn (the gun's frame), its mode)
+NUM_PARTS = 11  # (agpose::NumParts: the first 7, then the off hand's: its grip offset place and turn (the gun's frame), its mode;
+                # then a strike key's Time: its place in the act, 1 when set (agent/posekeys))
 OLD_PARTS = 7   # (agpose::numOldParts: older text and rows carry these only; the rest zero)
 TURN_PARTS = (1, 3, 6, 8)  # RTurn, LTurn, Torso, GripTurn: degrees (a tenth); the rest units (a hundredth)
 
@@ -124,6 +125,8 @@ def pose_name(code):
     elif pose == 1:
         name = "Guard" if cls == 0 else "Aim" if cls in GUN_CLASSES else "Ready"
     text = "%s, %s, %s" % (KIND_NAMES[kind], CLASSES.get(cls, "?"), name)
+    if pose >= 10 and phase >= 3:
+        return text + ", in-between"  # (a strike's in-between key: phases 3..9, agent/posekeys)
     return text + (", " + (SHOVE_PHASES if pose == 20 else PHASES)[phase] if pose >= 10 and phase < 3 else "")
 
 
