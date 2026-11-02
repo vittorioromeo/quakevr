@@ -317,8 +317,8 @@ void PF_weapondrawnpose()
         glm::vec3 out{0.f};
         if(what == 19 && arg < 0)
         {
-            // (`hand` -1: the speed the studio plays `player`'s strike at, the Rig Studio's Swing; 1 for anything else)
-            out = glm::vec3{rigstudio::swingSpeed(NUM_FOR_EDICT(player)), 0.f, 0.f};
+            // (`hand` -1: the Rig Studio's strike timeline on `player`: x a play's speed, y its time, z 1 while it drives it)
+            out = rigstudio::strikeQuery(NUM_FOR_EDICT(player));
         }
         else if(what == 19)
         {
