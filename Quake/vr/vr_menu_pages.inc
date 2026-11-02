@@ -143,6 +143,8 @@
         row(opt::vr_movement_mode),
         row(opt::vr_deadzone),
         row(opt::vr_deadzone_outer),
+        row(opt::vr_move_snap),
+        row(opt::vr_move_hold),
         row(opt::vr_move_curve),
         row(opt::vr_move_autorun),
         row(opt::vr_move_autorun_threshold),

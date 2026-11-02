@@ -118,6 +118,7 @@ struct TrackingState
     GripInRaw gripInHand[HAND_COUNT];
     InputState input;
     double time{-1.0};      // seconds on the runtime's clock that the poses are for (< 0: unknown)
+    double displayTime{-1.0}; // that time, from a backend whose clock is a display's own, apart from the game's (a real runtime's: vr_display_clock; < 0: none)
 };
 
 // Field of view of an eye, as tangent-space angles in radians (left and down negative).

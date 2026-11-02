@@ -154,6 +154,7 @@ vr_agrunt_test   79       vr_stalepose_test.qc             shots on a live armed
 vr_agrunt_test   16       vr_disarmhull_test.qc            the disarm volumes as hulls of the drawn triangles: every kind and weapon class
 vr_agrunt_test   100-199  vr_armedgrunt_test.qc            one weapon's every-weapon test (100 + its index)
 vr_agrunt_test   200      vr_armedgrunt_aware_test.qc      disarm attempts on unaware grunts: punch, shots (notarget), parry, blade wake them; dual wield drops the struck one alone
+vr_agrunt_test   202      vr_armedgrunt_impact_test.qc     the impact rule: a push, you walking into it, a topple or a swing in the air keep the weapon; a fall, a throw into the floor or a wall, a body banged into a wall drop it
 vr_agrunt_test   201      vr_armedgrunt_test.qc            dual wielders' both guns drawn: 30 dual nail pistol spawns (VR_AGTest_DualSpawns)
 
 vr_flare_test    1*       vr_flaregun_test.qc              (the self-test (its fall-through))

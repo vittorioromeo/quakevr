@@ -57,6 +57,13 @@ void hostFrameEnd();
 // same frames at any speed), and whether its server frame runs (-1: as usual; 0: no; 1: yes, for
 // `frametime` seconds).
 [[nodiscard]] double hostFrameTime(double time);
+// vr_display_clock (vr_main.cpp VR_HostFrameTime): whether this frame's time may come from the display's clock (not a
+// take's recorded frame, nor a test's exact fixed frame); the display time of a frame the backend predicted `time` for (a
+// test run's jittered frames, the jitter being the wall clock's: the even frames underneath); the frame's time on the
+// wall clock, for the diagnostics (a note's frame times).
+[[nodiscard]] bool displayClocked();
+[[nodiscard]] double displayTimeFor(double time);
+[[nodiscard]] double wallFrameTime();
 [[nodiscard]] bool gameClockFixed(); // hostFrameTime ignores the wall clock (vr_fixed_frames, a take's playback not in watch mode)
 [[nodiscard]] int serverFrameOverride(double& frametime);
 [[nodiscard]] bool playing();
