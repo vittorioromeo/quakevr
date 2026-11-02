@@ -104,6 +104,9 @@ Shoreline Foam Settings shows only On, Opacity and Particles per liquid; Gore > 
 Ragdoll Tool > Joint Groups sliders still work live.
 vr_diagnostics 1 -> one start makes a diagnostics folder and prints that it set itself back to 0; the next start makes none.
 Screens > World Text Font / Ammo Screen Font / Wrist Gadget Font: moving the outline or shadow sliders updates the map boards, tip screens, ammo screens and the gadget hologram right away {test:vrcalibration}
+The Gore page shows one "Gore Volume" slider; per-sound volumes are under Debug > Tunables > Gore. {test:gore}
+Armed humanoids' sword, axe and club swings are parried by direction by default. {test:dirparry}
+The Grappling Hook, Fire Particles and Loot Beams pages are shorter: their numbers are under Debug > Tunables. The loot beam per-kind switches are still on the page.
 
 [2. Armed humanoids: disarming and armour]
 Show Disarm Volumes: the wireframe hulls sit on each drawn weapon (magenta, orange, red; the sword's orange line along its blade) and on the drawn hand and forearm (cyan). {test:disarm_hulls_melee}
