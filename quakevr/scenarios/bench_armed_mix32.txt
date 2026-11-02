@@ -1,0 +1,43 @@
+# Benchmark scene (Misc/quakevr/bench/qvrbench.py, BENCHMARKS.md): not a checklist test; places only.
+# bench_armed_mix16's 16 (two rows nearer) and 16 more behind them (PERF_1102.md: the cost of each extra one).
+title Benchmark: 32 armed humanoids, mixed loadouts (knights, death knights, three disarmed)
+map vrtesthall
+god
+cvar vr_agknight 1
+cvar vr_agdknight 1
+spawnarmed monster_vr_grunt 4 0 260 -210
+spawnarmed monster_vr_grunt 29 29 260 -150
+spawnarmed monster_vr_grunt 15 0 260 -90
+spawnarmed monster_vr_grunt 6 0 260 -30
+spawnarmed monster_vr_grunt 2 0 260 30
+spawnarmed monster_vr_grunt 13 0 260 90
+spawnarmed monster_vr_grunt -1 0 260 150
+spawnarmed monster_vr_enforcer 15 0 260 210
+spawnarmed monster_vr_enforcer 7 0 350 -210
+spawnarmed monster_vr_enforcer -1 0 350 -150
+spawnarmed monster_vr_enforcer 4 4 350 -90
+spawnarmed monster_vr_enforcer 17 0 350 -30
+spawnarmed monster_vr_enforcer 29 29 350 30
+spawnarmed monster_vr_knight 0 0 350 90
+spawnarmed monster_vr_hknight 0 0 350 150
+spawnarmed monster_vr_hknight 0 0 350 210
+spawnarmed monster_vr_grunt 5 0 440 -210
+spawnarmed monster_vr_grunt 15 0 440 -150
+spawnarmed monster_vr_grunt 7 0 440 -90
+spawnarmed monster_vr_grunt 2 2 440 -30
+spawnarmed monster_vr_grunt 4 0 440 30
+spawnarmed monster_vr_enforcer 16 0 440 90
+spawnarmed monster_vr_enforcer 15 0 440 150
+spawnarmed monster_vr_grunt -1 0 440 210
+spawnarmed monster_vr_enforcer 6 0 530 -210
+spawnarmed monster_vr_enforcer 13 0 530 -150
+spawnarmed monster_vr_enforcer 31 0 530 -90
+spawnarmed monster_vr_grunt 29 29 530 -30
+spawnarmed monster_vr_knight 0 0 530 30
+spawnarmed monster_vr_knight 4 0 530 90
+spawnarmed monster_vr_hknight 0 0 530 150
+spawnarmed monster_vr_hknight 0 0 530 210
+spawn "Shotgun" 190 150
+spawn "Super Shotgun" 220 -150
+spawn "Nailgun" 300 -120
+spawn "Super Nailgun" 400 210

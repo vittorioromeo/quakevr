@@ -1,0 +1,27 @@
+# Benchmark scene (Misc/quakevr/bench/qvrbench.py, BENCHMARKS.md): not a checklist test; places only.
+# Mixed loadouts (PERF_1102.md): shotgun, dual nail pistols, burst rifles, nailguns, axe, sword, crowbar, dual shotguns,
+# two disarmed ones (fists) with guns lying ahead of them to go for, an armed knight and two casting death knights.
+title Benchmark: 16 armed humanoids, mixed loadouts (knights, death knights, two disarmed)
+map vrtesthall
+god
+cvar vr_agknight 1
+cvar vr_agdknight 1
+spawnarmed monster_vr_grunt 4 0 280 -210
+spawnarmed monster_vr_grunt 29 29 280 -150
+spawnarmed monster_vr_grunt 15 0 280 -90
+spawnarmed monster_vr_grunt 6 0 280 -30
+spawnarmed monster_vr_grunt 2 0 280 30
+spawnarmed monster_vr_grunt 13 0 280 90
+spawnarmed monster_vr_grunt -1 0 280 150
+spawnarmed monster_vr_enforcer 15 0 280 210
+spawnarmed monster_vr_enforcer 7 0 390 -210
+spawnarmed monster_vr_enforcer -1 0 390 -150
+spawnarmed monster_vr_enforcer 4 4 390 -90
+spawnarmed monster_vr_enforcer 17 0 390 -30
+spawnarmed monster_vr_enforcer 29 29 390 30
+spawnarmed monster_vr_knight 0 0 390 90
+spawnarmed monster_vr_hknight 0 0 390 150
+spawnarmed monster_vr_hknight 0 0 390 210
+spawn "Shotgun" 200 150
+spawn "Super Shotgun" 230 -150
+spawn "Nailgun" 330 -120

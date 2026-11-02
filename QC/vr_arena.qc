@@ -2224,9 +2224,16 @@ void() VR_ARENA_WorldSpawn =
     dprint(sprintf("arena: pool %g at wave 1, wave size %g\n", VR_ARENA_Pool(1), VR_ARENA_Opt_WaveSize()));
 }
 
+void(float xWave) VR_ARENA_FastForward;
+
 void() VR_ARENA_Frame =
 {
     if(!ar_mgr) { return; }
+    if(cvar("vr_arena_goto") >= 1) // (Debug > Automation: a wave jumped to; the benchmarks' arena mid-wave)
+    {
+        VR_ARENA_FastForward(floor(cvar("vr_arena_goto")));
+        cvar_set("vr_arena_goto", "0");
+    }
     if(!ar_stripped)
     {
         entity p = VR_Player();

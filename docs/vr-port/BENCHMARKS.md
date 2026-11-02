@@ -587,6 +587,11 @@ scenario's console prints a marker put before `vr_bench_begin` (the client is on
 for self times, `-g` for GPU zones). The round's scripts: `qvr-kit/scratch/perfround/` (copied from the worktree's
 scratch: `pf_tracy.sh`, `pf_zones.py`, `pf_var.sh`, `pf_ab.sh`, `pf_hitch.sh`, `pf_hitches.py`).
 
+Group `armed` (2026-11-02, [PERF_1102.md](PERF_1102.md)): armed humanoid crowds with mixed loadouts at 16 and 32
+(`armed_mix16`, `armed_mix32`: the cost of each extra one), the same 32 places armed or plain (`crowd32_armed`,
+`crowd32_plain`: the premium over a plain monster), `armed_mix16_corpses` (8 bodies lying about) and `arena_wave6`
+(the Survival Arena mid-wave, `vr_arena_goto 6`).
+
 **Baseline** (`kit/benchresults/pf_base`: build fad928b7d, his settings of 2026-10-25, paced 90 Hz, eyes 2048,
 exclusive, 3 x 900 frames, medians; ms; CPU = `cpu_busy_ms`, GPU = `gpu_3d_ms`). Every gameplay scenario holds 90 Hz
 at the median; the worst steady CPU is `combined` (6.1 ms) and AD's 813-monster ad_tears (3.7).

@@ -2,6 +2,7 @@
 // drawn on its hands. Moved out of vr_hitreact.cpp (see vr_hitreact.hpp); what they share is vr_hitreact_internal.hpp.
 
 #include "vr_hitreact_internal.hpp"
+#include "vr_tracy.h"
 
 namespace hitreact_detail
 {
@@ -27,6 +28,7 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
     }
     if(rig->authored)
     {
+        QVR_TRACY_SCOPE(tracySmooth, "armed pose: smooth");
         rig2::posedSmooth(e, hdr, *rig, pose1, pose2, blend, posed); // (drawn from these: r_lerpmodels 3's spline)
     }
     // The Rig Studio's animations (vr_rigseq.cpp; kickInstance draws them so): its bones from them, the layers below on top.
@@ -74,6 +76,7 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
     }
     float leanPelvis = 0.f;
     {
+        QVR_TRACY_SCOPE(tracyLegs, "armed pose: legs and lean");
         // A take's kneel (vr_aglegs: its legs posed, the body above carried by its pelvis, the arms solved on it)
         float yawDeg = 0.f;
         const glm::vec3 origin = drawnOrigin(e, &yawDeg);
@@ -122,6 +125,7 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
     // with it.
     rigpose::Rigid upperCorr;
     const bool pickup = (s.flags & apReach) || ((s.flags & apBody) && (s.flags & apFixed));
+    QVR_TRACY_SCOPE(tracyUpper, "armed pose: upper body, kicks, targets"); // (to the arms' solve)
     const bool uppered = agbody::upper(s.ent, *rig, spec.chest, posed, pickup, upperCorr, aglegs::twistNow(e));
     if(uppered)
     {
@@ -267,14 +271,18 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
         rigseq::adjustTargets(*rig, spec, posed, kicked ? kick : nullptr, t); // (the Rig Studio's arms: the hands on their bones)
     }
     agarms::Placed placed;
-    if(!agarms::solve(e, hdr, *rig, spec, posed, kicked ? kick : nullptr, t, placed))
     {
-        return;
+        QVR_TRACY_SCOPE(tracySolve, "armed pose: arms solve");
+        if(!agarms::solve(e, hdr, *rig, spec, posed, kicked ? kick : nullptr, t, placed))
+        {
+            return;
+        }
     }
     if(rig->authored)
     {
         // drawn on the authored rig, its arms laid on its arm bones within their limits, its weapons carried
         // by its hands as drawn (vr_rig2_game.cpp)
+        QVR_TRACY_SCOPE(tracyLive, "armed pose: rig2 live armed");
         rig2::liveArmed(e, *rig, posed, kicked ? kick : nullptr, placed, pose1, pose2, blend, layerArms);
     }
     if(ArmPose* seen = armPoseOf(s.ent, false))

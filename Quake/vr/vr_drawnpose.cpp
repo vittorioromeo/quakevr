@@ -5,8 +5,11 @@
 #include "vr_hitreact.hpp"
 #include "vr_hitreact_internal.hpp"
 #include "vr_api_render.h"
+#include "vr_mem.hpp"
 #include "vr_ragdoll.hpp"
 #include "vr_rig2.hpp"
+
+#include <cstring>
 
 #include <glm/glm.hpp>
 #include <glm/gtc/quaternion.hpp>
@@ -51,6 +54,37 @@ namespace
     return glm::length(a[0]) >= 1e-6f && glm::determinant(a) > 0.f;
 }
 
+// armedMesh's results by entity (the main thread: the server's QC and the client's frame): what made them (rig2::liveKey's
+// publish and rig generation, the placement) and the world vertices (normals: when they were asked for). A frame asks
+// for the same armed humanoid's body many times (each melee sweep's line, each shot, the arms' checks: PERF_1102.md).
+struct MeshKey
+{
+    int num{0};
+    za::U32 serial{0};
+    int generation{-1};
+    glm::mat4 m{1.f};
+    [[nodiscard]] bool operator==(const MeshKey& o) const
+    {
+        return num == o.num && serial == o.serial && generation == o.generation && !memcmp(&m, &o.m, sizeof(m));
+    }
+};
+struct MeshMemo
+{
+    MeshKey key;
+    bool hasNormals{false};
+    za::Vector<glm::vec3> pos, nor;
+};
+[[nodiscard]] za::SizeT heldBytes(const MeshMemo& x) // (vr_mem.hpp)
+{
+    return mem::heldBytes(x.pos) + mem::heldBytes(x.nor);
+}
+struct ArmedMeshes
+{
+    za::Vector<MeshMemo> memos; // (one an entity: its last)
+    auto members() { return mem::list(memos); }
+};
+mem::Cache<ArmedMeshes> armedMeshes{"drawn pose armed meshes", mem::MapChange | mem::ModelReload};
+constexpr za::SizeT maxMeshMemos = 256; // (past it: all begun again)
 } // namespace
 
 Source bone(edict_t* ent, int b, rigpose::Rigid& out, float& scale)
@@ -91,8 +125,31 @@ bool armedMesh(edict_t* ent, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>* 
     // ROUND23.md "The cyan hand hull off")
     const qmodel_t* own = num > 0 ? rig2::sourceModel(&cl_entities[num]) : nullptr;
     if(num <= 0 || ragdoll::published(num) ||
-        !hitreact::armsWantedAs(&cl_entities[num], own ? own : cl_entities[num].model) ||
-        !rig2::liveVertices(num, out, normals) || !livePlacement(num, m))
+        !hitreact::armsWantedAs(&cl_entities[num], own ? own : cl_entities[num].model))
+    {
+        return false;
+    }
+    // Made already for this publish and placement (a frame's melee sweeps, shots and arm checks ask for the same body
+    // dozens of times): the same vertices again.
+    MeshKey key;
+    key.num = num;
+    const bool keyed = rig2::liveKey(num, key.serial, key.generation) && livePlacement(num, key.m);
+    if(keyed)
+    {
+        for(const MeshMemo& memo : armedMeshes.memos)
+        {
+            if(memo.key == key && (!normals || memo.hasNormals))
+            {
+                out = memo.pos;
+                if(normals)
+                {
+                    *normals = memo.nor;
+                }
+                return true;
+            }
+        }
+    }
+    if(!rig2::liveVertices(num, out, normals) || !livePlacement(num, m))
     {
         return false;
     }
@@ -109,6 +166,31 @@ bool armedMesh(edict_t* ent, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>* 
             const glm::vec3 w = a * n;
             const float len = glm::length(w);
             n = len > 1e-6f ? w / len : glm::vec3{0.f}; // (a collapsed bone's: none)
+        }
+    }
+    if(keyed)
+    {
+        za::Vector<MeshMemo>& memos = armedMeshes.memos;
+        MeshMemo* memo = nullptr;
+        for(MeshMemo& x : memos)
+        {
+            memo = x.key.num == num ? &x : memo;
+        }
+        if(!memo)
+        {
+            if(memos.size() >= maxMeshMemos)
+            {
+                memos.clear(); // (entities gone: begun again)
+            }
+            memos.pushBack(MeshMemo{});
+            memo = &memos.back();
+        }
+        memo->key = key;
+        memo->pos = out;
+        memo->hasNormals = normals != nullptr;
+        if(normals)
+        {
+            memo->nor = *normals;
         }
     }
     return true;

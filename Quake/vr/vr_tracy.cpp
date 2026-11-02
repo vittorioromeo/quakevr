@@ -23,6 +23,7 @@
 #include "vr_jobs.hpp"
 #include "vr_profile.hpp"
 #include "vr_profile.h"
+#include "vr_cvars.hpp"
 #include "vr_backend.hpp"
 #include "vr_main.hpp"
 #include "vr_ragdoll.hpp"
@@ -304,8 +305,8 @@ void preset()
         if(full) Cvar_SetValueQuick(p.var, p.full);
         else Cvar_SetQuick(p.var, p.var->default_string);
     Con_Printf("Tracy detail preset: %s\n", full ? "full" : "off (defaults)");
-    if(full && vr_profile.value != 0.f)
-        Con_Printf("  vr_profile is %s: set it to 0 for a capture (it times the same scopes again)\n", profile->string);
+    if(full && qvr::vr_profile.value != 0.f)
+        Con_Printf("  vr_profile is %s: set it to 0 for a capture (it times the same scopes again)\n", qvr::vr_profile.string);
     status();
 }
 void memoryTest()

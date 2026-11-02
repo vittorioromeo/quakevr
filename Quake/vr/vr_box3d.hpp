@@ -539,6 +539,8 @@ bool ragdollCutLimb(edict_t* ent, int bone, const glm::vec3& blade, float settle
 // model's origin, 1 its angles (an alias model's), 2 its box's middle, 3 the half size of the level box round it as it
 // is turned (its entity's size).
 [[nodiscard]] glm::vec3 wornPackWhere(edict_t* ent, int what);
+// All four of wornPackWhere's (`what` 0..3) at once: the same values, the pack's place found once.
+void wornPackAll(edict_t* ent, glm::vec3 out[4]);
 // e's worn backpack's box as it is now (the model's bounds: its ragdoll's shape, else on its posed model): its middle,
 // its axes and its half size (units). False: none worn (vr_wp_worn not 1).
 [[nodiscard]] bool wornPackBox(edict_t* ent, glm::vec3& mid, glm::mat3& axes, glm::vec3& half);

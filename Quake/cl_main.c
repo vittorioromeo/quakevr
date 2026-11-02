@@ -795,10 +795,18 @@ void CL_RelinkEntities (void)
 		}
 	}
 
+	VR_ProfileBegin ("relink: held"); // QVR: profile (the relink's own parts: PERF_1102.md)
 	VR_RelinkHeld (); // QVR: what the local player carries is drawn in the hands
+	VR_ProfileEnd ();
+	VR_ProfileBegin ("relink: ragdoll swap");
 	VR_RagdollSwap (); // QVR: the ragdolls drawn with their skinned models (vr/vr_ragdoll.cpp)
+	VR_ProfileEnd ();
+	VR_ProfileBegin ("relink: armed arms");
 	VR_RelinkArmedGrunts (); // QVR: armed grunts' weapons on their drawn hands (vr/vr_hitreact.cpp)
+	VR_ProfileEnd ();
+	VR_ProfileBegin ("relink: rig2 swap");
 	VR_Rig2Swap (); // QVR: live grunts and enforcers drawn on the authored rig, and the Rig Studio's subject (vr/vr_rig2_game.cpp)
+	VR_ProfileEnd ();
 	VR_RelinkWornTanks (); // QVR: their back tanks on their drawn backs (vr/vr_adtank.cpp)
 }
 

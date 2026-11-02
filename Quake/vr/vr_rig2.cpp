@@ -66,9 +66,11 @@ struct Drawn
     bool swapped{false};
     int drawsFrame{-1}, draws{0}, lastDraws{0}; // its bone matrices handed to the renderer (vr_rig2_draw_info)
     int studioFrame{-1};       // the Rig Studio's pose published at (drawPosed: the game's drawLive yields to it)
+    za::U32 serial{0};         // its publish (drawnSerial's at it): liveKey, what liveVertices makes of it the same
     rigpose::Rigid F[maxBones]; // the bones as published (drawnBone: a ragdoll made of it starts there)
 };
 za::Vector<Drawn> drawn;
+za::U32 drawnSerial = 0; // publishDrawn's count (the main thread): each publish its own Drawn::serial
 
 // The rigs' generations as a map was last spawned (latch: a rig's file changed, what is made from it made again); -1 not
 // read yet.
@@ -984,6 +986,7 @@ void publishDrawn(int entnum, const qmodel_t* model, const rigpose::Rigid* F, in
     d->num = entnum;
     d->model = model;
     d->frame = host_framecount;
+    d->serial = ++drawnSerial;
     d->studioFrame = studio ? host_framecount : d->studioFrame;
     d->bones = za::min(numBones, maxBones);
     const Rig* rig = hidden ? rigFor(model) : nullptr;
@@ -1168,6 +1171,22 @@ int bonePoses(const entity_t* e, const float** matrices)
         }
     }
     return 0;
+}
+
+bool liveKey(int num, za::U32& serial, int& generation)
+{
+    for(const Drawn& d : drawn) // (liveVertices's choice of its Drawn)
+    {
+        if(d.num != num || d.frame < host_framecount - 2 || !d.model || d.model->type != mod_alias || d.bones <= 0)
+        {
+            continue;
+        }
+        const Rig* rig = rigFor(d.model);
+        serial = d.serial;
+        generation = rig ? rig->generation : -1;
+        return true;
+    }
+    return false;
 }
 
 bool liveVertices(int num, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>* normals)

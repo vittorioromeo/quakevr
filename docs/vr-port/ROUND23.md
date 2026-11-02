@@ -6043,3 +6043,17 @@ Retired (`retiredCvars`: an old config's line dropped quietly): `vr_hand_rig`, `
   (`vr_prop_impact_test 6`, Debug > Gore Tests "Magazines Thrown at a Grunt"): the nailgun's, super nailgun's magazine
   and the cell at 14 m/s: 1 damage each (0.4-0.6 before the ceiling), flinch and pain; 3/3.
 
+## Performance check: armed humanoids (branch `agent/perf1102`, his note 2026-11-01 23:40; PERF_1102.md)
+
+Full Tracy run (CPU, QC functions and builtins, GPU passes) of the bench fights on `next` and on 1.1.0-beta4. The
+regression is the armed humanoids: about 0.16 ms of CPU a frame each over a plain monster (beta4 0.06), and since
+`vr_agrunt_repl 1` became the default (2026-10-31) every map's grunts and enforcers are armed (E1M1's fight 1.6 -> 5.0
+ms CPU busy p50, Tracy build). Plain monsters cost what they did; the GPU is cheaper than in beta4. Three exact fixes:
+the armed humanoid's drawn mesh made once a frame (`drawnpose::armedMesh` keyed by `rig2::liveKey`), the skinned
+precise hits' box early-out (`vr_hitmodel.cpp`), the worn pack placed from one look (`limbpiece` 30..33,
+`box3d::wornPackAll`): armed fights -0.9 to -1.25 ms p50, -1.3 to -2.3 ms p95 (Release LTO A/B). Left for him: the arms'
+IK every frame for every armed humanoid (30 us each), the QC pose lookups, the `vr_agrunt_repl` default.
+New: bench group `armed` (`armed_mix16`, `armed_mix32`, `crowd32_armed`, `crowd32_plain`, `armed_mix16_corpses`,
+`arena_wave6`; scenes `bench_armed_mix16/32`, `bench_crowd_plain32`), `vr_arena_goto N` (Debug > Automation > Jump to
+Wave 6), profiling scopes in the client relink and the armed arms' pose steps; the Release-Tracy build compiles again
+(`vr_tracy.cpp` after the refactor's cvar change).
