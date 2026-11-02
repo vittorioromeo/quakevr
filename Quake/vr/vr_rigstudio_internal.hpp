@@ -283,7 +283,21 @@ struct Studio
         bool seen{false};    // the last hold query answered with a strike (QC holds it)
         int pose{0}, kind{0}, cls{0};
         int count{0};        // Play's count (z of the hold query)
-        float speed{0.25f};  // its playback speed (0.1..1; QC vr_ag_act_speed)
+        float speed{0.25f};  // its playback speed (strikeSpeedMin..strikeSpeedMax)
+        // The strike timeline (agent/rigtools; vr_rigstudio_strike.cpp): while the subject is held in an act (a strike,
+        // the Cast) the studio tells QC its time into it each frame (VR_AGK_Hold: weapondrawnpose(g, -1, 19)); QC tells
+        // back its phases' lengths and its keys' times (.vr_rs_times, .vr_rs_trec, .vr_rs_keys).
+        float t{0.f};        // seconds into the act (at 1x: the game's own times)
+        float sentT{0.f};    // the time QC was last given (the frame drawn now shows it)
+        bool playing{false};
+        bool loop{true};
+        bool parked{true};   // t follows the picked phase's key (else where it was scrubbed or stepped to)
+        int heldPose{-1};    // the act QC holds the subject in now (-1 none: no timeline)
+        int heldPhase{0};
+        float times[4]{};    // its phases' lengths (s): the wind-up, the strike, the hold, the recovery
+        float keys[3]{};     // its keys' times (s; phases 0, 1, 2)
+        bool timed{false};   // times read for heldPose
+        double lastServer{-1.0}; // the server time of the last advance
     } swing;
     Tool lastTool{Tool::Rotate};
     double statusAt{0.0};
@@ -331,7 +345,24 @@ void pushUndo(const char* what);
 void keepPreEdit();          // the frame's start (no widget held): the data kept for pushPreEditUndo
 void pushPreEditUndo(const char* what);
 void pushPoseUndo(int code);                       // a Pose Studio key about to change
-void swingPlay();  // the data window's Swing: the subject held in its strike, played once from its start (st.swing)
+void swingPlay();  // the data window's Play: the subject held in its strike, played from its start (st.swing)
+
+// vr_rigstudio_strike.cpp: the strike timeline, the ghosts (onion skin, the IK ghost), the fly camera's keys
+inline constexpr float strikeSpeedMin = 0.05f, strikeSpeedMax = 2.f;
+[[nodiscard]] bool timedPose(int pose);  // a pose the timeline plays: a strike, the Cast
+[[nodiscard]] float strikeLength();      // the held act's length (s; 0: no times yet)
+void strikeSetTime(float t);             // scrubbed or stepped there (paused)
+void strikePark();                       // back on the picked phase's key (paused)
+void strikeServerFrame();                // the time advanced (playing), QC's times read
+[[nodiscard]] glm::vec3 strikeQuery(int ent); // QC's query: speed, time, 1 while the timeline drives it
+void strikeTimelineUi();                 // the Pose Studio Data window's timeline (a strike or the Cast picked)
+void ghostsDisplayUi();                  // Tools > Display's IK ghost options
+void ghostNote();                        // st.note just taken: the subject as solved, kept by its time (the onion's)
+void drawGhosts(ImDrawList* dl);         // the onion skin and the IK ghost (translucent, never picked)
+// The fly camera (W A S D, Q E down and up, Shift faster): `move` (x forward, y right, z up; -1..1) for `dt` seconds.
+void flyCamera(const glm::vec3& move, bool fast, float dt);
+void strikeTestTick();                   // vr_rigstudio_test_strike's steps (each studio frame)
+void strikeInit();                       // its commands
 void pushStretchUndo(int kind, int cls);           // ... a kind and class's IK stretch
 void pushPosesUndo(const char* what);              // ... every pose key (vr_agrunt_poses as it is)
 void pushGripUndo(int kind, int slot, int hand);   // a grip about to change
@@ -464,5 +495,6 @@ void aimLineInit();
 // vr_rigstudio_ui.cpp
 void windows();
 [[nodiscard]] glm::vec4 boneColor(int b);
+void helpMarker(const char* text); // a "(?)" on the line, its text as its tooltip
 
 } // namespace qvr::rigstudio::detail

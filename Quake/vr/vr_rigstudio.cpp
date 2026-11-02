@@ -1393,10 +1393,10 @@ void posekey_f()
         if(!strcmp(w, "kind")) { st.pdKind = za::clamp(v, 0, agpose::numKinds - 1); }
         else if(!strcmp(w, "class")) { st.pdClass = agpose::isClass(v) ? v : st.pdClass; }
         else if(!strcmp(w, "pose")) { st.pdPose = za::clamp(v, 0, agpose::NumPoses - 1); }
-        else if(!strcmp(w, "phase")) { st.pdPhase = za::clamp(v, 0, agpose::numPhases - 1); }
+        else if(!strcmp(w, "phase")) { st.pdPhase = za::clamp(v, 0, agpose::numPhases - 1); strikePark(); }
         else if(!strcmp(w, "follow")) { st.pdFollow = v != 0; }
         else if(!strcmp(w, "part")) { st.pdPart = v; }
-        else if(!strcmp(w, "swingspeed")) { st.swing.speed = za::clamp(static_cast<float>(Q_atof(Cmd_Argv(i + 1))), 0.1f, 1.f); }
+        else if(!strcmp(w, "swingspeed")) { st.swing.speed = za::clamp(static_cast<float>(Q_atof(Cmd_Argv(i + 1))), strikeSpeedMin, strikeSpeedMax); }
         else if(!strcmp(w, "swing"))
         {
             // (1: the data window's Swing pressed, its strike played from its start; 0: Stop Swing)
@@ -3786,12 +3786,16 @@ int mirrorVert(int v)
 
 void swingPlay()
 {
+    // (the subject held in the window's act, its timeline played from its start: Play, Space)
     Studio::Swing& sw = st.swing;
-    sw.on = agpose::isStrike(st.pdPose);
+    sw.on = timedPose(st.pdPose);
     sw.want = sw.on;
     sw.pose = st.pdPose;
     sw.kind = st.pdKind;
     sw.cls = st.pdClass;
+    sw.t = 0.f;
+    sw.playing = sw.on;
+    sw.parked = !sw.on;
 }
 
 } // namespace qvr::rigstudio::detail
@@ -3845,6 +3849,7 @@ void init()
     rig2::init(); // the authored rig's commands (vr_rig2.cpp, vr_rig2_check.cpp)
     romInit();    // the Range of Motion's (vr_rigstudio_rom.cpp)
     aimLineInit(); // the aim lines' and Align's (vr_rigstudio_aimline.cpp)
+    strikeInit();  // the strike timeline's and the ghosts' (vr_rigstudio_strike.cpp)
     rigseq::registerCommands();
 }
 
@@ -3884,7 +3889,9 @@ bool qcHold(int ent, int kind, int cls, glm::vec3& out)
     {
         // (the Pose Keys tool: held in the window's pose, a strike at its phase; Aim at the aim target. Swing: its
         // strike, played once from its start when its count changes, then held at the phase picked)
-        const int pose = swinging ? sw.pose : st.pdPose;
+        // (played: the window's act when another of its kind and class is picked, so the timeline is the picked one's)
+        const bool picked = timedPose(st.pdPose) && st.pdKind == kind && st.pdClass == cls;
+        const int pose = swinging && !picked ? sw.pose : st.pdPose;
         if(sw.want && sw.seen)
         {
             sw.count++;
@@ -3892,19 +3899,28 @@ bool qcHold(int ent, int kind, int cls, glm::vec3& out)
         }
         sw.seen = true;
         const int phase = agpose::isStrike(pose) && pose == st.pdPose ? st.pdPhase : 0;
+        const int timed = timedPose(pose) ? pose : -1;
+        if(timed != sw.heldPose)
+        {
+            // (another act held, or none: its timeline from its picked phase's key, paused)
+            sw.heldPose = timed;
+            sw.timed = false;
+            sw.parked = sw.parked || !sw.playing;
+        }
+        sw.heldPhase = phase;
         out = glm::vec3{static_cast<float>(pose), static_cast<float>(phase), static_cast<float>(sw.count)};
         return true;
     }
     out = glm::vec3{st.aim.on ? static_cast<float>(agpose::Aim) : -1.f, 0.f, 0.f};
     sw.seen = st.aim.on;
+    sw.heldPose = -1;
+    sw.timed = false;
     return true;
 }
 
-float swingSpeed(int ent)
+glm::vec3 strikeQuery(int ent)
 {
-    // (the subject held in a strike by the studio: its Swing's speed, for every play of it)
-    const bool held = st.open && ent == st.subject && st.subject > 0 && st.swing.seen;
-    return held ? za::clamp(st.swing.speed, 0.1f, 1.f) : 1.f;
+    return detail::strikeQuery(ent);
 }
 
 void serverFrame()
@@ -3937,6 +3953,7 @@ void serverFrame()
     {
         holdSubject(e);
     }
+    strikeServerFrame();
 }
 
 void clientFrame()
@@ -4069,6 +4086,7 @@ void clientFrame()
     stretchTestTick();
     typingTestTick();
     animTestTick();
+    strikeTestTick();
     aimLineFrame(); // (Align to Target's steps and its test's)
 }
 
@@ -4100,6 +4118,7 @@ void note(const posestudio::Note& n)
     {
         st.note = n;
         st.noteFrame = host_framecount;
+        ghostNote();
     }
 }
 

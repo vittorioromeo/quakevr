@@ -133,15 +133,16 @@ without it the fields get no typed characters); the windows' places are kept in 
 | Wheel | zoom |
 | Alt + left mouse | orbit (laptops); Alt + Shift + left: pan |
 | Right mouse drag | look about (the camera stays where it is) |
+| W A S D, Q / E | fly: forward / back along the view, left / right; down / up (Shift: 3x; Preferences > Fly Speed, `vr_rigstudio_fly_speed` 120 units a second); the orbit's focus moves with the camera. Not while typing in a field, nor with Ctrl or Alt held |
 | F | frame the selection (bones or vertices; else the model) |
 | 1 / 3 / 7 (numpad too) | front / right side / top; Ctrl: back / left / bottom |
 | Left click | select a bone (Shift adds or toggles); on a handle: drag it |
-| Q R G E T W P O | tools: Select, Rotate, Move, IK, Rest Pose, Weights, Paint, Pose Keys |
+| B R G K T V P O | tools: Select, Rotate, Move, IK, Rest Pose, Weights, Paint, Pose Keys (2026-11-02: Select was Q, IK E, Weights W: those keys fly the camera now) |
 | Left click on the aim target | select it: its move handle (where the subject aims) |
 | Pose Keys: left click on a dot | pick that part: its arrows and rings drag the key |
 | Ctrl while dragging | snap: 15 degrees, 1 unit (Tools > Snap: always) |
 | I | key the selected bones at the frame |
-| Space, Left, Right | play / pause, a frame back, a frame on |
+| Space, Left, Right | play / pause, a frame back, a frame on (the subject held in an act: the strike timeline's, a step 1/72 s) |
 | H, Alt+H | hide the selected bones, show them all |
 | Ctrl+Z, Ctrl+Y (Ctrl+Shift+Z) | undo, redo (every edit) |
 | Ctrl+S | save |
@@ -197,10 +198,50 @@ ring, the move tool's arrows, plane squares and its centre (the view's plane); t
   class's Pickup in effect and whose; `vr_agrunt_pose_override <kind> <class> [1|0]` makes or removes an override. The
   VR Pose Studio's panel has the same toggle in Pickup (its bottom row: Make Override / Remove Override). A fists
   subject shows no take (no weapon to take up): its Pickup edits the shared key all the same.
-- **Help**, **Preferences** (orbit, pan and zoom speeds, handle size, theme: dark, light, classic).
+- **Help**, **Preferences** (orbit, pan, zoom and fly speeds, handle size, theme: dark, light, classic).
 
 The File menu: Save, Revert to Files, Print as Defaults, Close Studio. Edit: undo, redo, copy, paste (all bones or the
 selected), mirror the pose, clear the changes not keyed. View: the windows, frame, the six views.
+
+## The strike timeline and the ghosts (`vr_rigstudio_strike.cpp`; agent/rigtools, 2026-11-02)
+
+Tools for polishing the armed humanoids' phase-based acts: the strikes (the punches, the swings, the saw's thrust, the
+dual scissor, the **Shove**) and the death knight's **Cast**.
+
+- **The timeline** (Pose Studio Data, under Phase, when the pose picked is a strike or the Cast; it replaces Swing / Swing
+  Speed / Stop Swing): **Play** / **Pause** (Space), **|<** the start, **<** **>** a frame (1/72 s; the Left and Right
+  keys), **Key** back on the picked phase's key, **Loop** (on), **Speed** 0.05x..2x (logarithmic; 0.25x at first), **Let
+  Go** (the subject no longer held in the act outside the Pose Keys tool). The bar under them: the act's phases in colour
+  and named (wind-up / strike / hold / recover; the shove's wind-up / push / recover / back; the Cast's raise / hold /
+  lower), its keys as diamonds (the picked phase's yellow; hover: its name and time), the onion's times as ticks, the time
+  as a white line; drag on it to scrub. Under it: the time, the length and "on the key". The times are the game's own:
+  while the studio holds the subject in an act it tells QC its time into it each frame (`VR_AGK_Hold`:
+  `weapondrawnpose(g, -1, 19)`: x a count-play's speed, y the time, z 1 while the timeline drives it), and QC tells it the
+  act's phases' lengths and its keys' times (`VR_AGK_TellTimes`: `.vr_rs_times`, `.vr_rs_trec`, `.vr_rs_keys`;
+  `VR_AGK_KeyTime`, the one place the keys' times are worked out, also used by the count-play's hold). Paused, the act
+  sits on the picked phase's key (as the Pose Keys tool held it before) until scrubbed or stepped elsewhere; picking a
+  phase or starting a Pose Keys drag puts it back on that key (the handles map a whole key). Played without Loop it stops
+  back on the key, as Swing did. Slowed playback is the act's own time slowed (the arms' eases run in real time, as
+  before with Swing). The VR Pose Studio's play by count is unchanged.
+- **Onion Skin** (under the timeline; `vr_rigstudio_onion` 0): ghosts of the act before (orange) and after (blue) the
+  time, fading with distance: **Each Way** 1..6 (`vr_rigstudio_onion_count` 2), **Spacing**: Every Step
+  (`vr_rigstudio_onion_step` 0.06 s of the act) or Phase Points (its phases' bounds and its keys:
+  `vr_rigstudio_onion_mode` 1). Each ghost is the subject as the game solved it at that time: its arms (shoulder, elbow,
+  hand), its chest line, its weapons as translucent meshes (relinkSkinned's note, kept by its time in 1/144 s bins as the
+  act plays: `ghostNote`). When the act's keys, its stretch or the aim target change (or another act is held) they are
+  dropped, and once the data have settled 0.3 s with the timeline paused the act plays once at 1x to take them again
+  (**Refresh** does it at once); it then goes back to where it was. Not the body's mesh: the arms, chest and weapons.
+- **IK Ghost** (Tools > Display; `vr_rigstudio_ikghost` 0: 1 right, 2 left, 3 both): for each hand with a goal, where
+  its set values put it before the arms' IK and their limits: its weapon there (translucent, the right blue, the left
+  pink), a hollow diamond at the hand as set, a dashed line to it from the hand as solved, the arm drawn straight from its
+  shoulder to it, the elbow's pole as set (a short line from the solved elbow), and a label: how far off it was held
+  (units, degrees) and the solve's own numbers (reach, body, wrist, elbow off its pole). The off hand on the right gun
+  (its second grip, a cup) rides on the right weapon's ghost; a fist's goal is a point.
+- **The fly camera**: W A S D, Q E, Shift (the Controls). The tools' keys that were on them moved: Select Q -> B, IK E ->
+  K, Weights W -> V.
+
+`vr_rigstudio_strike [play | pause | park | t <s> | step <frames> | speed <x> | loop 0|1 | refresh]...` works it from the
+console and prints its state.
 
 ## What it edits (the data model)
 
@@ -382,6 +423,12 @@ taunt (the enforcer's, for now) goes on at once; a pain cuts it short (its frame
   held in Aim at 1, then at the factor (each settled): the off hand on the fore-end (no slide back), the stretch used
   within the factor, the change eased (no step over a third of the way); with `push`, its Aim key's weapon pushed that
   far forward meanwhile (an arm stretched to its goal); the slider's undo, the setting and the key put back exactly.
+- `vr_rigstudio_test_strike` (open the studio with a gun: `vr_rigstudio monster_vr_grunt 4`; ends on `rigstudio strike: N
+  passed, M failed`): the shove held by Play: its length from QC (0.56 s) and its keys in order, back on the key after
+  one play, each key parked (the hand moving between them), scrubbed between two keys (the hand off both), 0.5x playback
+  (the act's time half the game's), the onion's four ghosts taken by Auto Refresh (their hands apart; back on the key),
+  the push key's right weapon pushed 30 units out (the IK ghost's gap over 5 units; undone exactly), the fly camera's
+  step. Three screenshots: scrubbed, the onion skin, the IK ghost.
 - `vr_rigstudio_test_typing` (ends on `rigstudio typing: N passed, M failed`): SDL key, text and mouse events pushed
   through the game's input loop into the fields: a sequence's FPS typed (Ctrl+click, "12.5r", Enter: 12.5, no tool
   change), Ctrl+Z, a typed value cancelled by Escape, the Outliner's search typed (Backspace; the game's keys untouched),
