@@ -240,9 +240,11 @@ dual scissor, the **Shove**) and the death knight's **Cast**.
     old shares (`VR_AGK_Phases`, gone) as one number, -1 the stance, 0 / 1 / 2 the named keys whole, 3 the stance again.
     With the three keys on their own places it is exactly the old blend. A key's place is in the act's phases, so a
     slowed or heavy swing keeps it at the same point of its phase.
-  - **What the keys never move**: the act's phases' lengths (QC `VR_AGP_Times`), the blow (its hit at the strike's 0.55,
-    a punch's 0.8; the shove's push's end), a parry's timing, the sounds: all QC's, by time. Moving or adding keys
-    changes the look only.
+  - **What the keys never move**: the act's phases' lengths (QC `VR_AGP_Times`) and the moment of the blow (its hit at
+    the strike's 0.55, a punch's 0.8; the shove's push's end): all QC's, by time. **What they do move**: where the weapon
+    is at that moment. The blow's line starts from the pose as blended then (`VR_AGP_Strike` adds the keys' place and
+    turn, as any key edit always did), and whatever reads the blade as drawn follows it, so retiming a key across the
+    blow, or an in-between near it, can change where a blow goes though not when.
 - **Onion Skin** (under the timeline; `vr_rigstudio_onion` 0): ghosts of the act before (orange) and after (blue) the
   time, fading with distance: **Each Way** 1..6 (`vr_rigstudio_onion_count` 2), **Spacing**: Every Step
   (`vr_rigstudio_onion_step` 0.06 s of the act) or Phase Points (its phases' bounds and its keys:
@@ -451,10 +453,12 @@ taunt (the enforcer's, for now) goes on at once; a pain cuts it short (its frame
   step. Three screenshots: scrubbed, the onion skin, the IK ghost.
 - `vr_rigstudio_test_strikekeys` (open the studio with a melee weapon: `vr_rigstudio monster_vr_grunt 13`; ends on
   `rigstudio strikekeys: N passed, M failed`): the Horizontal strike: an in-between added halfway between the wind-up's
-  and the blow's keys (the blend at five times and the hand drawn there unchanged), edited (the hand drawn there moves:
-  the game blends it), retimed 0.02 s, dragged past the blow (kept before it; undone), the blow's key retimed and put back
-  (Default Time); the text emptied and set again (the key exactly), the dump's row named, the act's times unchanged;
-  removed (the blend back exactly), a named key refused, the removal undone, the text put back. One screenshot.
+  and the blow's keys (the blend at five times and the hand drawn there unchanged), edited (the weapon's goal before the
+  IK moves by the edit: QC plays it; the hand may be held by the arm's reach), retimed 0.02 s, set past the blow (kept
+  before it; undone), the blow's key retimed and put back (Default Time); by the mock mouse: its diamond dragged (picked,
+  retimed, one undo step), Add Key and Remove Key clicked; the text emptied and set again (the key exactly), the dump's row
+  named, the act's times unchanged; removed (the blend back exactly), a named key refused, the removal undone, the text put
+  back. One screenshot.
 - `vr_rigstudio_test_typing` (ends on `rigstudio typing: N passed, M failed`): SDL key, text and mouse events pushed
   through the game's input loop into the fields: a sequence's FPS typed (Ctrl+click, "12.5r", Enter: 12.5, no tool
   change), Ctrl+Z, a typed value cancelled by Escape, the Outliner's search typed (Backspace; the game's keys untouched),

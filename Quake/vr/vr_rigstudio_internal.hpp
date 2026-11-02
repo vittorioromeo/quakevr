@@ -438,6 +438,7 @@ void cameraView(float* origin, float* angles);
 // (`amount` units along it), 20..22 a ring (`amount` degrees round it). False: no such handle shown now.
 bool mockDrag(int owner, int part, int axis, float amount);
 bool mockClick(const glm::vec3& world); // a left click on that point (false: not in view)
+void mockLine(const glm::vec2& from, const glm::vec2& to); // pressed at `from`, dragged to `to`, let go (screen; equal: a click)
 void mockFeed();
 [[nodiscard]] bool mockBusy();
 

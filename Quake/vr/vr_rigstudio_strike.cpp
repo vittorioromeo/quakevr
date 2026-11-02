@@ -87,6 +87,15 @@ struct Ghosts
 };
 Ghosts gh;
 
+// Where the strike keys' controls were drawn last (screen; vr_rigstudio_test_strikekeys' mock mouse aims at them).
+struct KeysUiRects
+{
+    glm::vec2 barAt{0.f};
+    float barW{0.f}, barH{0.f};
+    glm::vec2 add{0.f}, remove{0.f};
+};
+KeysUiRects keysUi;
+
 // vr_rigstudio_test_strike's state.
 struct StrikeTest
 {
@@ -1020,6 +1029,9 @@ void strikeTimelineUi()
     const float w = za::max(ImGui::GetContentRegionAvail().x, 120.f);
     const float h = ImGui::GetFontSize() * 2.6f;
     const ImVec2 o = ImGui::GetCursorScreenPos();
+    keysUi.barAt = glm::vec2{o.x, o.y};
+    keysUi.barW = w;
+    keysUi.barH = h;
     ImGui::InvisibleButton("##strikebar", ImVec2{w, h});
     ImDrawList* dl = ImGui::GetWindowDrawList();
     dl->AddRectFilled(o, ImVec2{o.x + w, o.y + h}, col(glm::vec4{0.12f, 0.12f, 0.14f, 1.f}), 3.f);
@@ -1273,13 +1285,21 @@ void strikeKeysUi()
             strikePark();
         }
     }
-    if(ImGui::Button("Add Key at Playhead"))
+    const auto middle = [] {
+        const ImVec2 a = ImGui::GetItemRectMin(), b = ImGui::GetItemRectMax();
+        return glm::vec2{(a.x + b.x) * 0.5f, (a.y + b.y) * 0.5f};
+    };
+    const bool add = ImGui::Button("Add Key at Playhead");
+    keysUi.add = middle();
+    if(add)
     {
         (void)strikeAddKey();
     }
     ImGui::SameLine();
     ImGui::BeginDisabled(named);
-    if(ImGui::Button("Remove Key"))
+    const bool remove = ImGui::Button("Remove Key");
+    keysUi.remove = middle();
+    if(remove)
     {
         (void)strikeRemoveKey();
     }
@@ -1332,6 +1352,7 @@ struct KeysTest
     int phase{-1};
     glm::vec3 hand0{0.f}, hand1{0.f}, target0{0.f};
     float keyT{0.f};
+    int undos{0};
 };
 KeysTest ktest;
 
@@ -1518,7 +1539,56 @@ void strikeKeysTestTick()
             next();
         }
         break;
-    case 5: // saved and read back; the act's times as they were
+    case 5: // the in-between's diamond dragged 0.02 s on by the mock mouse: picked, retimed, one undo step
+        if(ktest.waited == 6)
+        {
+            const float len = strikeLength();
+            const float x = keysUi.barAt.x + keysUi.barW * s.keys[ktest.phase] / len;
+            const float y = keysUi.barAt.y + keysUi.barH * 0.25f;
+            ktest.keyT = s.keys[ktest.phase];
+            ktest.undos = static_cast<int>(st.undo.size());
+            st.pdPhase = 0; // (the press picks it)
+            strikePark();
+            mockLine(glm::vec2{x, y}, glm::vec2{x + keysUi.barW * 0.02f / len, y});
+            next();
+        }
+        break;
+    case 6:
+        if(ktest.waited > 2 && !mockBusy())
+        {
+            const float moved = s.keys[ktest.phase] - ktest.keyT;
+            t.check(za::abs(moved - 0.02f) < 0.004f && st.pdPhase == ktest.phase &&
+                        static_cast<int>(st.undo.size()) == ktest.undos + 1, name,
+                va("its diamond dragged: moved %.4f s (want 0.02), picked %d, %d undo steps", moved, st.pdPhase,
+                    static_cast<int>(st.undo.size()) - ktest.undos));
+            undo();
+            readKeyTimes();
+            t.check(za::abs(s.keys[ktest.phase] - ktest.keyT) < 1e-4f, name, va("the drag undone: %.4f", s.keys[ktest.phase]));
+            strikeSetTime((s.keys[1] + s.keys[2]) * 0.5f);
+            mockLine(keysUi.add, keysUi.add); // (Add Key at Playhead clicked)
+            next();
+        }
+        break;
+    case 7:
+        if(ktest.waited > 2 && !mockBusy())
+        {
+            t.check(keyCount() == agpose::numPhases + 2 && st.pdPhase != ktest.phase && st.pdPhase >= agpose::numPhases, name,
+                va("Add Key clicked: %d keys, picked %d", keyCount(), st.pdPhase));
+            mockLine(keysUi.remove, keysUi.remove); // (Remove Key clicked: the one just added)
+            next();
+        }
+        break;
+    case 8:
+        if(ktest.waited > 2 && !mockBusy())
+        {
+            t.check(keyCount() == agpose::numPhases + 1 && agpose::hasKey(pickedCode(ktest.phase)), name,
+                va("Remove Key clicked: %d keys, the first in-between kept", keyCount()));
+            st.pdPhase = ktest.phase;
+            strikePark();
+            next();
+        }
+        break;
+    case 9: // saved and read back; the act's times as they were
         if(ktest.waited == 6)
         {
             const int c = pickedCode(ktest.phase);
@@ -1542,7 +1612,7 @@ void strikeKeysTestTick()
             next();
         }
         break;
-    case 6: // removed: the blend as it was; the removal undone; the text back
+    case 10: // removed: the blend as it was; the removal undone; the text back
         if(ktest.waited == 6)
         {
             st.pdPhase = ktest.phase;
@@ -1564,7 +1634,7 @@ void strikeKeysTestTick()
         }
         break;
     default:
-        if(ktest.step >= 7)
+        if(ktest.step >= 11)
         {
             s.on = false;
             s.playing = false;
