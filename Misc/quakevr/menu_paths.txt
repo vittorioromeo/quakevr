@@ -3012,11 +3012,11 @@ vr_agrunt_tug_hold_max|2|Tunables|Tug: Longest|Advanced VR Options > Debug > Tun
 vr_agrunt_tug_ik_stretch|2|Tunables|Tug: Arm Stretch|Advanced VR Options > Debug > Tunables > Tug: Arm Stretch
 vr_agrunt_grab_slack|2|Tunables|Grab: Precision|Advanced VR Options > Debug > Tunables > Grab: Precision
 vr_agrunt_grab_sweep|2|Tunables|Grab: Moving Weapon|Advanced VR Options > Debug > Tunables > Grab: Moving Weapon
-vr_agrunt_fall_impact_speed|2|Tunables|Fall Impact: Body Speed|Advanced VR Options > Debug > Tunables > Fall Impact: Body Speed
-vr_agrunt_fall_impact_time|2|Tunables|Fall Impact: Sustained Time|Advanced VR Options > Debug > Tunables > Fall Impact: Sustained Time
-vr_agrunt_fall_impact_window|2|Tunables|Fall Impact: Stop Window|Advanced VR Options > Debug > Tunables > Fall Impact: Stop Window
-vr_agrunt_fall_impact_held|2|Tunables|Fall Impact: Held Share|Advanced VR Options > Debug > Tunables > Fall Impact: Held Share
-vr_agrunt_fall_impact_reach|2|Tunables|Fall Impact: Held Reach|Advanced VR Options > Debug > Tunables > Fall Impact: Held Reach
+vr_agrunt_fall_impact_speed|2|Tunables|Fall Impact: Body Speed|Advanced VR Options > Debug > Tunables > Fall 
+vr_agrunt_fall_impact_time|2|Tunables|Fall Impact: Sustained Time|Advanced VR Options > Debug > Tunables > Fall 
+vr_agrunt_fall_impact_window|2|Tunables|Fall Impact: Stop Window|Advanced VR Options > Debug > Tunables > Fall 
+vr_agrunt_fall_impact_held|2|Tunables|Fall Impact: Held Share|Advanced VR Options > Debug > Tunables > Fall Impact: 
+vr_agrunt_fall_impact_reach|2|Tunables|Fall Impact: Held Reach|Advanced VR Options > Debug > Tunables > Fall 
 vr_agrunt_rag_grab_weapon|2|Tunables|Grab: Ragdoll's Weapon Within|Advanced VR Options > Debug > Tunables > Grab: 
 vr_agrunt_rag_limb_grab|2|Tunables|Grab: Ragdoll's Weapon Hand|Advanced VR Options > Debug > Tunables > Grab: 
 vr_agrunt_tug_pull_force|2|Tunables|Tug: Least Pull|Advanced VR Options > Debug > Tunables > Tug: Least Pull
