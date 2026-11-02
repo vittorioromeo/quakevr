@@ -612,6 +612,9 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_agholds_report: each armed humanoid drawn lately, its weapon and its hands on it (one-handed, two: the "
                   "off hand on its second grip or cupping the other), what the Weapon Holds asked; vr_agholds_info the "
                   "settings' table."),
+        toggle("Armed Humanoids: Check the Arms' Detail", vr_agarms_lod_check)
+            .help("vr_agarms_lod_check: each far armed humanoid's reused arms (Arms' Level of Detail, Graphics) also solved and "
+                  "compared; Arms' Solve Time prints how far apart its hands and weapons were."),
         command("Armed Humanoids: Arms' Solve Time", "vr_agarms_cost")
             .help("vr_agarms_cost: the arms' solves since the last (one armed humanoid's arms a frame): how many, us each."),
         command("Armed Monsters' Weapons: Drawn vs Server", "vr_agrunt_weapon_probe")

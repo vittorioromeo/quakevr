@@ -1094,6 +1094,11 @@ void resetHandMoves()
         header("Performance"),
         row(opt::vr_profile),
         row(opt::vr_gadget_fps),
+        row(opt::vr_agarms_lod),
+        row(opt::vr_agarms_lod_near),
+        row(opt::vr_agarms_lod_far),
+        row(opt::vr_agarms_lod_unseen),
+        row(opt::vr_agarms_lod_margin),
     };
 }
 

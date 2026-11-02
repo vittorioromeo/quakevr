@@ -148,6 +148,15 @@ bool restRow(const qmodel_t* model, const aliashdr_t* hdr, const ragdoll::Rig& r
 bool solve(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, const Spec& spec, const rigpose::Rigid* posed,
     const rigpose::Rigid* kick, const Targets& t, Placed& out);
 
+// vr_agarms_lod (Graphics > Performance): instead of solve, `e`'s last solve reused this frame (true; `out` placed as
+// solve's) when it is far (past vr_agarms_lod_near from the view) and not its turn: solved every vr_agarms_lod_far
+// frames in the eyes' views (vr_agarms_lod_margin round them), every vr_agarms_lod_unseen out of them. Its arms ride its
+// chest as drawn now, a held weapon its target (its turn the server's: the shots' drawn line) with its hand. False (solve
+// it): near, `exact` (a hit reaction, the studios' subject), measured (the glitch finder, the Live tape, ik tags), its
+// targets' shape changed (a hand taking or letting go), never solved, or its turn.
+bool lodReuse(const entity_t* e, const aliashdr_t* hdr, const ragdoll::Rig& rig, const Spec& spec, const rigpose::Rigid* posed,
+    const rigpose::Rigid* kick, const Targets& t, bool exact, Placed& out);
+
 // Whether `e` is drawn with posed arms now (solved this frame, or easing back to its animation's).
 [[nodiscard]] bool active(const entity_t* e);
 

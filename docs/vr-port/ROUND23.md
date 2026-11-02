@@ -6105,3 +6105,19 @@ weapon and its pivot at the grip (the ogre) or past the fist (the sergeant), so 
   derive's line now lists each bone's vertex count.
 - Misc/quakevr/ragdoll/ad_rig_sweep.sh (TESTING.md, "Ragdoll rigs"): the sweep with AD: 69 rigged, 0 failed, 0 absent
   (before the fix 67 rigged, 2 failed: exactly his two).
+
+## Armed humanoids: the arms' level of detail, the pose keys in one call (branch `agent/perf1102b`; PERF_1102.md, "Follow-up")
+
+His answer to PERF_1102's list: far and unseen humanoids posed less often, the lookups optimised. **The arms' IK
+level of detail** (`vr_agarms_lod 1`, Graphics > Performance: Near Within `vr_agarms_lod_near 192` units, Far in View
+`vr_agarms_lod_far 2` frames, Out of View `vr_agarms_lod_unseen 6`, View Margin `vr_agarms_lod_margin 20` deg): a far
+armed humanoid solves its arms on its turn only; between, the last solve rides its chest and its held weapon its
+target (the aim, and the shots' drawn line, exact). Near ones, hit reactions, the studios' subjects, changing grips and
+anything easing or moving fast are solved every frame; hits use the arms as drawn (near ones exact, so melee and
+parries never meet a stale arm). Debug > Tests: Check the Arms' Detail (`vr_agarms_lod_check`), Arms' Solve Time
+(counts, far hands' jerk). Reused against solved: hands 0.025 units mean; A/B `crowd32_armed` -0.41 ms p50.
+**The pose keys**: `agposekey`, `agdrawnframe`, `agweaponextent` builtins (one call each instead of 10, 3 and 3
+`weapondrawnpose` calls; results in QC globals), proven identical over 77824 key sets, 196608 drawn frames and 192512
+extents; tests 99, 79, 16 pass; A/B `crowd32_armed` -0.33 ms p50 (A/Bs taken while another worker ran: noisy).
+Checklist: Far armed humanoids' arms move smoothly and their guns stay in their hands; turning your head to a group
+behind you never shows a stale arm {test:bench_armed_mix32}.

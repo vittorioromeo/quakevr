@@ -985,12 +985,8 @@ float vr_ag_wr;      // VR_AG_WeaponLine's: half the weapon's drawn thickness (i
 // lately (a dedicated server, out of view): the server's own place and turn.
 float(entity p) VR_AG_DrawnFrame =
 {
-    vector fw = weapondrawnpose(p, 0, 31);
-    if(fw != '0 0 0')
+    if(agdrawnframe(p)) // (its origin, forward and up into vr_ag_df_o, _fw, _up)
     {
-        vr_ag_df_o = weapondrawnpose(p, 0, 30);
-        vr_ag_df_fw = fw;
-        vr_ag_df_up = weapondrawnpose(p, 0, 32);
         return TRUE;
     }
     makevectors(p.v_angle);
@@ -1009,11 +1005,11 @@ void(entity p) VR_AG_WeaponLine =
     vector f = vr_ag_df_fw;
     vector u = vr_ag_df_up;
     vector rt = [f_y * u_z - f_z * u_y, f_z * u_x - f_x * u_z, f_x * u_y - f_y * u_x]; // (forward x up: its right)
-    vector size = weapondrawnpose(p, 0, 35);
+    vector size = agweaponextent(p); // (its ends into vr_ag_wx_back, _front)
     if(size_y > 1)
     {
-        vector lo = weapondrawnpose(p, 0, 33);
-        vector hi = weapondrawnpose(p, 0, 34);
+        vector lo = vr_ag_wx_back;
+        vector hi = vr_ag_wx_front;
         vr_ag_wa = vr_ag_df_o + vr_ag_df_fw * lo_x - rt * lo_y + vr_ag_df_up * lo_z;
         vr_ag_wb = vr_ag_df_o + vr_ag_df_fw * hi_x - rt * hi_y + vr_ag_df_up * hi_z;
         vr_ag_wr = max(0.5, size_x);

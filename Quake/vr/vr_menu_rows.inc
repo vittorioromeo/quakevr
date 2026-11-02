@@ -3354,6 +3354,16 @@ QVR_CYCLE_BYNAME(vr_profile, "Performance Profile",
 QVR_CYCLE_BYNAME(vr_gadget_fps, "FPS Counter on the Gadget",
     "Under the wrist gadget: the frame rate and the CPU's and GPU's milliseconds a frame (our work, the eyes' drawing; not the runtime's waits). Basic: one line, averaged over half a second. Detailed: now, the last quarter second's average, the last 5 seconds' least and most, the frames that missed a refresh (Late), and graphs of the last 3 seconds against the frame budget (the dotted line); figures over the budget are highlighted.",
     {0.f, "Off"}, {1.f, "Basic"}, {2.f, "Detailed"})
+QVR_TOGGLE_BYNAME(vr_agarms_lod, "Armed Humanoids' Arms: Level of Detail",
+    "Armed humanoids far away pose their arms (the IK onto their weapons) less often, those out of view much less; between, the arms ride the body and the weapons keep their aim. Near ones, and any you fight or grab, every frame. Off: every one every frame (more CPU time in big fights).")
+QVR_SLIDER_BYNAME(vr_agarms_lod_near, "Arms' Detail: Near Within", 64.f, 1024.f, 16.f, "%.0f units", noExt,
+    "Armed humanoids nearer than this pose their arms every frame.")
+QVR_SLIDER_BYNAME(vr_agarms_lod_far, "Arms' Detail: Far in View", 1.f, 6.f, 1.f, "every %.0f frames", noExt,
+    "How often a far armed humanoid in view poses its arms (1: every frame).")
+QVR_SLIDER_BYNAME(vr_agarms_lod_unseen, "Arms' Detail: Out of View", 1.f, 30.f, 1.f, "every %.0f frames", noExt,
+    "How often a far armed humanoid out of view poses its arms (1: every frame). Turning your head towards one poses it at once.")
+QVR_SLIDER_BYNAME(vr_agarms_lod_margin, "Arms' Detail: View Margin", 0.f, 60.f, 5.f, "%.0f deg", noExt,
+    "Out of view means this much past the edges of your eyes' views, so a quick turn of the head never shows a stale arm.")
 
 // vr_menu_pages.inc: pageGraphicsLights
 QVR_SLIDER_BYNAME(vr_light_contrast, "Light Contrast", 1.f, 2.5f, 0.02f, "%.2f", ext(),
