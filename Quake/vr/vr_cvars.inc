@@ -1352,8 +1352,11 @@ QVR_CVAR(vr_voice_formant, "17", CVAR_ARCHIVE)        // vr_voice 1: its formant
 QVR_CVAR(vr_voice_voicing, "0.4", CVAR_ARCHIVE)       // vr_voice 1: how rough a stretch of a voice sound may be and still be pitched up (YIN's threshold, 0.05..0.9: higher pitches more of the screams' growl; the rest only has its formants raised)
 QVR_CVAR(vr_body_bracers, "0", CVAR_ARCHIVE)         // the leather bracers on the forearms; 0: bare forearms (gadget straps fitted to the skin) (progs/vrbody*_bare, fitted round the jointed hand)
 QVR_CVAR(vr_body_walk, "1", CVAR_ARCHIVE)             // legs (vr_body_mode 3) walk as the player moves
-QVR_CVAR(vr_body_step_rate, "2.2", CVAR_ARCHIVE)      // at most this many steps a second at full running speed (fewer walking)
-QVR_CVAR(vr_body_step_run, "1", CVAR_ARCHIVE)         // at speed the legs step up to a person's cadence there (the bloody footprints' steps: a run's ~5.6 a second) above vr_body_step_rate: 1 all of it, 0 the cap alone (a run's ~2.5), up to 1.5
+QVR_CVAR(vr_body_step_rate, "4.9", CVAR_ARCHIVE)      // steps a second at a full run (320 units/s), 0.5 .. 10; below it a share of that (vr_body_step_run); never more than the speed over the stride
+QVR_CVAR(vr_body_stride, "1", CVAR_ARCHIVE)           // the walk's stride, times this (0.3 .. 2): longer, the planted foot slides less, and the fewer steps it takes when walking slowly
+QVR_CVAR(vr_body_step_width, "0", CVAR_ARCHIVE)       // metres each foot walks further out than it stands, the hips' width apart (-0.08 .. 0.25)
+QVR_CVAR(vr_body_step_sounds, "1", CVAR_ARCHIVE)       // the player's footsteps play as the drawn feet touch down, from that foot (vr_playersteps.cpp); 0: QC's old trigger, by distance. The old trigger too with no walking legs, in the air, swimming, climbing and in multiplayer
+QVR_CVAR(vr_body_step_run, "1", CVAR_ARCHIVE)         // below a full run, how the steps fall off: 1 as a person's cadence does (the bloody footprints' steps), 0 vr_body_step_rate rules everywhere (70% at the slowest, all of it at a run); 0 .. 1
 QVR_CVAR(vr_body_wade, "1", CVAR_ARCHIVE)             // wading, the legs walk heavier: shorter, higher, slower steps (0 as on land, up to 2)
 QVR_CVAR(vr_body_swim_kick, "1", CVAR_ARCHIVE)        // swimming, how wide the legs kick (0: they only trail behind; up to 2)
 QVR_CVAR(vr_body_swim_kick_rate, "1.5", CVAR_ARCHIVE) // and how many more kicks a second at full stick (0.7 treading water)

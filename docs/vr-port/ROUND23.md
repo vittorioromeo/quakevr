@@ -6767,3 +6767,38 @@ the crown), 7.83 high. Other wearers' fit lines identical. Rigid on the head bon
 weighs 1 on it). `vr_agarmor_check` 20/0. Eyeshots in the worktree's scratch: `dkhelm2_after.png` (front, three-quarter, side,
 back), `dkhelm2_front_crop.png`, `dkhelm2_threequarter_crop.png`, `dkhelm2_fullarmour.png`.
 - **Checklist:** [dkhelm2] An armoured death knight from the front (Debug > Tests > Helmets Alone There: Knight and Death Knight): plates come down each side of his face from the brim, outside his cheeks, his eyes open between them; it reads as a helmet, not a hat, and they turn with his head. {test:agarmor_helmets_knights}
+
+## Every QC cvar read by handle, checked (branch `agent/qchandles`, his words 2026-11-02, item 6)
+
+"Turn *all* `cvar("...")` QuakeC lookups into cvar handles. Ensure all existing handles are valid/up-to-date. If
+possible, implement a check that always verifies that all handles are valid and not stale/obsolete."
+
+- **Converted.** 932 `cvar("<literal>")` calls in 140 QC files became `cvar_hget(cvarh_<name>)` (code only, comments
+  left), plus the names picked by a ternary (the aim cone's wide/narrow, the armour's helmet/cuts, the AD melee
+  weights, the ammo readout test's four) and the small fixed families built at run time: the armour roll's
+  `vr_agarmor_skill<0..3>[_type|_pieces]` (VR_AgArmor_SkillValue, also in its tests) and `vr_agrunt_repl_skill<0..3>`.
+  `VR_Pack_Hipnotic/Rogue` now read handles: the handles are made in OnSpawnServerBeforeLoad, before ED_LoadFromFile
+  spawns worldspawn or any entity (and again in OnLoadGame after a save's globals), and no QC runs earlier.
+- **Left by name** (check_canonical.py `qc-cvar-by-name`, allowlisted with reasons): `VR_ADGun_Value`
+  (`vr_adgun_<gun>_<what>`, 26 callers), the tests that keep a cvar table and put it back with `cvar_set` (arena,
+  arena perks, preparry, armed knight, replacements, the armour test's skill cvar), the small gibs test's printed
+  name, and `scratch5` (no engine cvar: `set scratch5 1` makes it after the handles are made). QC/ad (the AD import,
+  regenerated whole by ad_import.py, ~60 calls) keeps its `cvar("...")`: an edit there is lost on the next import.
+- **One declaration.** `cvarh_<name>` written anywhere in the QC is the whole declaration: gen_vr_cvars_qc.py now
+  makes every used handle (the engine's cvars too; vr_cvars.qc's 46 hand-written globals and `VR_CVAR_HMAKE` lines
+  are gone), sorted, from the code with comments stripped. A handle can't be declared without being made, and one
+  whose last use goes disappears (6 stale today: `vr_kdtrig_resist_<group>`, made and never read).
+- **Checks.** Build (`gen_vr_cvars_qc.py --check`, build.sh): the file must be current, and every name must be a
+  QVR_CVAR, tunable, weapon or monster value, monster group value (groups_data.py), weapon slot setting
+  (`vr_wofs_<key>_<NN>`) or an engine `cvar_t`; else `<file>: cvarh_<name> names no cvar or tuning constant`. Two
+  were invalid today: `vr_agrunt_shotdisarm_size` (retired 10-31, still printed by vr_disarmhull_test: dropped) and
+  `scratch5` (above). check_canonical's new `qc-cvar-by-name` family stops new `cvar(` calls outside the allowlist
+  (the generated file is out of its scan). Runtime: VR_CVar_Make counts handles the engine does not find (its
+  `cvar_hmake: unknown cvar` line, printed always) and VR_Test_Begin fails every QC test while any is.
+- **Cost.** Handles 1,351 -> 1,735; progs globals 63,010 -> 63,403 (of 65,536: ~2,100 left). `crowd32_armed`, fast
+  mode, vr_qcprofile, same exe: the `cvar` builtin 0.078 ms and 128.6 calls a frame -> off the list (none of ours);
+  `cvar_hget` 0.0167 -> 0.0187 ms (1003 -> 1131 calls); QuakeC 2.226 -> 2.191 ms a frame. Most of the old cost was
+  `VR_AG_KickLeft`'s `vr_heavy_recoil_time`, a tunable: by name it missed the cvar table first (2.9 us a call).
+- **Tests.** e1m1: no `cvar_hmake: unknown` line. `vr_arena_test 1` 257/0; `vr_agrunt_test 2` 4/0;
+  `vr_wornpack_test 1` 38/1 and 39/0 (next's own runs: 38/1 and 39/0, the same "dragged slowly" case flaking).
+  `vr_menu_path_check`: 0 missing; menu_paths.txt regenerated, unchanged.

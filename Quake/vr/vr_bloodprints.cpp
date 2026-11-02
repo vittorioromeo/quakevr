@@ -38,8 +38,8 @@ constexpr float bodyReach = 22.f;      // units: a bloody body's origin this nea
 constexpr float bodyHeight = 32.f;     // ... this near up or down, is stepped on
 // A step's length, metres of the body, at a speed (metres a second of the body): a person's (avatar::personStep), from a
 // walk's 0.7 m at 1.4 m/s to a sprint's 2.2 m (Quake's run, 320 units/s, is a sprint's 8-12 m/s), over
-// vr_footprint_rate. The walk's legs step at that cadence at speed only as far as vr_body_step_run says (and walking
-// slowly, up to vr_body_step_rate), so the prints don't wait for their touchdowns while you move.
+// vr_footprint_rate. The walk's legs step at that cadence only at the default vr_body_step_rate and vr_body_step_run, so
+// the prints don't wait for their touchdowns while you move.
 constexpr double airGrace = 0.25;      // s off the ground still walking (a step down, the ground flickering off)
 constexpr float standSpeed = 0.3f;    // metres a second of the body: slower, the legs' own steps (turning on the spot)
 constexpr float fallbackApart = 0.1f;  // metres each foot is from the middle without the legs

@@ -83,12 +83,21 @@ QVR_TOGGLE_BYNAME(vr_flail_world, "Flail Head Lying About",
 
 // vr_menu_body.inc: pageBody
 QVR_TOGGLE(vr_body_walk, "Walking Legs", "The legs (full body) walk as you move with the stick.")
-QVR_SLIDER(vr_body_step_rate, "Step Rate", 1.f, 5.f, 0.1f, "%.1f /s", ext(),
-    "How fast the legs step at most, in steps a second at full running speed (walking, somewhat fewer).")
-QVR_SLIDER(vr_body_step_run, "Running Cadence", 0.f, 1.5f, 0.05f, "%.2fx", noExt,
-    "At speed the legs step as often as a person's stride there (the bloody footprints' steps): a run looks "
-    "like a run. 1: a person's cadence; 0: only the Step Rate above (a run's legs step half as often as its "
-    "prints).")
+QVR_SLIDER(vr_body_step_rate, "Step Rate", 0.5f, 10.f, 0.1f, "%.1f /s", ext(),
+    "How many steps a second the legs take at a full run; slower, fewer, as Running Cadence says. The only limit: never "
+    "more than it takes to cover the ground with the stride (above about 13 a second at a run, more walking slowly).")
+QVR_SLIDER(vr_body_step_run, "Running Cadence", 0.f, 1.f, 0.05f, "%.2f", noExt,
+    "How the steps fall off below a full run. 1: as a person's cadence does (a walk at half the speed, about 70% of the "
+    "Step Rate; the bloody footprints' steps at the default Step Rate). 0: the Step Rate rules everywhere (70% of it at "
+    "the slowest, all of it at a run).")
+QVR_SLIDER(vr_body_stride, "Stride Length", 0.3f, 2.f, 0.05f, "%.2fx", ext(),
+    "How long the walk's strides are, times this. Longer: the planted foot slides less on the ground at speed (and slow "
+    "walking takes fewer steps), but the feet leave the floor further at the stride's ends, past the legs' reach.")
+QVR_SLIDER(vr_body_step_width, "Step Width", -0.08f, 0.25f, 0.01f, "%+.2f m", ext(),
+    "How much further apart each foot walks than it stands (hips' width apart): out, or in if negative.")
+QVR_TOGGLE(vr_body_step_sounds, "Footsteps on the Feet",
+    "Your footsteps play as the drawn feet touch down, from that foot, and softly for the small steps turning on the "
+    "spot. Off, or with no walking legs, swimming, climbing and in multiplayer: by the distance you cover, as in Quake.")
 QVR_SLIDER(vr_body_turn_step, "Turn Before Stepping", 15.f, 90.f, 5.f, "%.0f deg", ext(),
     "How far you turn over your planted feet before they step round to follow.")
 QVR_SLIDER(vr_body_wade, "Wading Heaviness", 0.f, 2.f, 0.1f, "%.1fx", ext(),

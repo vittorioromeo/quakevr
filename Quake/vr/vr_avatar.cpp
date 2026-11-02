@@ -7,6 +7,7 @@
 #include "vr_avatar.hpp"
 #include "vr_avatar_internal.hpp"
 #include "vr_agarmor.hpp"
+#include "vr_playersteps.hpp"
 #include "vr_selfcollide.hpp"
 #include "vr_engine.hpp"
 #include "vr_units.hpp"
@@ -1630,6 +1631,7 @@ glm::vec3 pose(const hands::State& s, qmodel_t* model, const entity_t* ent, cons
     posed.m2w = b.m2w;
 
     posed.ent = ent;
+    playersteps::frame(posedSkeleton); // the player's steps on the feet just posed
     posed.scale = k;
     const Bind& bd = bind();
     for(int side = 0; side < 2; side++)
@@ -1807,6 +1809,11 @@ void shadowLight(const glm::vec3& light)
 {
     // Out to a light 30 cm from the eyes: the head (10 cm round them) and the head-mounted flashlight (9 cm out).
     posed.shadowHead = vr_shadow_head.value != 0.f && glm::distance(light, posed.eyes) > 0.3f * posed.m2w;
+}
+
+float legsMetreUnits()
+{
+    return posedSkeleton.m2w;
 }
 
 float personStep(float speed)
