@@ -1244,6 +1244,9 @@ float vr_agpt_thf;     // ... the hand's place along the weapon as it glides the
 float vr_agpt_thh;     // ... then its tries at the fist on it
 float vr_agpt_thlag;   // ... the hold's lag, most and last (cm)
 float vr_agpt_thlagl;
+float vr_agpt_thpalm;  // ... the drawn palm's most off the drawn weapon's surface (cm, either way: vr_agrunt_tug_hand_palm)
+float vr_agpt_thidx;   // ... the drawn index finger's least curl (the grip pressed, the trigger not: vr_agrunt_tug_hand_index)
+float vr_agpt_thchan;  // ... the drawn grip channel's most off the drawn weapon's surface (cm, either way: vr_agrunt_tug_hand_channel)
 
 void() VR_AGPT_TugHand =
 {
@@ -1279,6 +1282,9 @@ void() VR_AGPT_TugHand =
         vr_agpt_thlog = 0;
         vr_agpt_thf = -1;
         vr_agpt_thlagl = 0;
+        vr_agpt_thpalm = 0;
+        vr_agpt_thidx = 99;
+        vr_agpt_thchan = 0;
         vr_agt_step = 1;
         vr_agt_until = time + 0.4;
         return;
@@ -1367,6 +1373,7 @@ void() VR_AGPT_TugHand =
             return;
         }
         cvar_set("vr_agrunt_disarm_yank", "1");
+        localcmd("vr_mock_fingers main 0 1\n"); // (the fingers: the grip's, the trigger released: the index curls all the same)
         p.mainhand_lastgrabtime = time; // (the grip pressed now: VR_HandGrabUtil_StartedHandGrabbing)
         p.mainhand_lastreleasetime = time - 1;
         vr_agt_step = 6;
@@ -1432,6 +1439,9 @@ void() VR_AGPT_TugHand =
         // (the last frame's reading: the probe below runs after this frame's drawing)
         float gap = cvar("vr_agrunt_tug_hand_gap");
         float reach = cvar("vr_agrunt_tug_hand_reach");
+        float palm = cvar("vr_agrunt_tug_hand_palm");
+        float idx = cvar("vr_agrunt_tug_hand_index");
+        float chan = cvar("vr_agrunt_tug_hand_channel");
         float lag = ragdollreach(p, cVR_MainHand);
         if(on && lag >= 0)
         {
@@ -1445,14 +1455,20 @@ void() VR_AGPT_TugHand =
             vr_agpt_thlast = reach;
             vr_agpt_thn = vr_agpt_thn + 1;
         }
+        if(on && t > 0.3 && palm < 900) // (the palm and the fingers eased on: 0.06 s, vr_finger_blending_speed)
+        {
+            vr_agpt_thpalm = max(vr_agpt_thpalm, fabs(palm));
+            vr_agpt_thidx = min(vr_agpt_thidx, idx);
+            vr_agpt_thchan = max(vr_agpt_thchan, chan < 900 ? fabs(chan) : 999);
+        }
         if(floor(t * 10) != floor((t - frametime) * 10))
         {
             VR_AGT_Print(sprintf("tughand %.2f s: the drawn hand %.1f cm off its grab, the controller %.1f cm, the hold's lag "
-                "%.1f cm, tug %g", t, gap, reach, vr_agpt_thlagl, on));
+                "%.1f cm, tug %g; the palm %.1f cm off the weapon, the index curled %.2f", t, gap, reach, vr_agpt_thlagl, on, palm, idx));
         }
         if(floor(t * 2) == 1 && floor((t - frametime) * 2) == 0)
         {
-            localcmd("vr_agrunt_weapon_probe\n"); // (0.5 s in: its weapon drawn against the server's)
+            localcmd("vr_agrunt_weapon_probe\nvr_ragdoll_hand_probe\n"); // (0.5 s in: its weapon drawn against the server's; the hand)
             if(cvar("scratch4") >= 1)
             {
                 cvar_set("vr_eyeshot", "1");
@@ -1481,6 +1497,21 @@ void() VR_AGPT_TugHand =
             VR_AGT_Check(sprintf("tughand held: the drawn hand at most %.2f cm off its grab (%g frames), the controller at "
                 "most %.1f cm:", vr_agpt_thgap, vr_agpt_thn, vr_agpt_threach), vr_agpt_thgap <= 2);
         }
+        if(vr_agpt_thidx < 90)
+        {
+            // Snug on the weapon (its grip channel on its drawn surface, the fingers round it; grabbed with the palm on it:
+            // scratch2 0 or more; the palm printed: a fist round a thick stock keeps it off) and a full grip with the
+            // trigger released.
+            VR_AGT_Print(sprintf("tughand snug: the grip channel at most %.2f cm off the weapon's surface, the palm %.2f cm",
+                vr_agpt_thchan, vr_agpt_thpalm));
+            if(cvar("scratch2") >= 0)
+            {
+                VR_AGT_Check(sprintf("tughand snug: the grip channel at most %.2f cm off the weapon's surface, the palm %.2f cm:",
+                    vr_agpt_thchan, vr_agpt_thpalm), vr_agpt_thchan <= 1);
+            }
+            // (closed onto the weapon: 1.7 .. 3 as the weapon stops it; open, as the trigger released left it before: 0)
+            VR_AGT_Check(sprintf("tughand index: curled at least %.2f (trigger released):", vr_agpt_thidx), vr_agpt_thidx >= 1.5);
+        }
         VR_AGT_Print(sprintf("tughand ended: %s after %.2f s (%s), your hand %s; the hold's lag at most %.1f cm, last %.1f",
             on ? "still on" : (g.vr_ag_tug_wins ? "won" : "lost"), t, on ? "-" : vr_ag_tug_why, VR_AGT_Name(p.weapon),
             vr_agpt_thlag, vr_agpt_thlagl));
@@ -1503,6 +1534,7 @@ void() VR_AGPT_TugHand =
         VR_AG_TugEnd(g, FALSE, "test");
     }
     cvar_set("vr_mock_hand_pull", "0");
+    localcmd("vr_mock_fingers main 0 0\n");
     cvar_set("vr_agrunt_tug_break_force", ftos(vr_agpt_h0a));
     cvar_set("vr_agrunt_tug_break_impulse", ftos(vr_agpt_h0b));
     cvar_set("vr_agrunt_test", "0");

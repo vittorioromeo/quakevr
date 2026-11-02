@@ -2529,6 +2529,10 @@ QVR_CVAR(vr_agrunt_tug_strength, "1.2", CVAR_ARCHIVE) // its arms' pull back in 
 // A deliberate tug (ROUND22.md "Armed monsters: a deliberate tug-of-war"; QC vr_armedgrunt_play.qc VR_AG_TugBreak).
 QVR_CVAR(vr_agrunt_tug_hand_gap, "999", CVAR_NONE)      // (the tests' reading: vr_ragdoll_hand_probe in a tug, the main drawn hand to its grab on the weapon as drawn, cm)
 QVR_CVAR(vr_agrunt_tug_hand_reach, "999", CVAR_NONE)    // (... and its controller to it, cm)
+QVR_CVAR(vr_agrunt_tug_hand_palm, "999", CVAR_NONE)     // (... and the main drawn palm to the drawn weapon's surface, cm; negative: in it)
+QVR_CVAR(vr_agrunt_tug_hand_channel, "999", CVAR_NONE)  // (... and the main drawn hand's grip channel to the drawn weapon's surface, cm; negative: in it: vr_ragdoll_hand_rest)
+QVR_CVAR(vr_agrunt_tug_hand_index, "-1", CVAR_NONE)    // (... and the main drawn index finger's curl, 0 open .. 4 closed; a held limb's too)
+QVR_CVAR(vr_agrunt_weapon_undrawn, "-1", CVAR_NONE)  // (the tests' reading: vr_agrunt_weapon_probe, the armed monsters' held weapons not drawn last frame)
 QVR_CVAR(vr_agrunt_grab_gap, "999", CVAR_NONE)         // (the tests' reading: with vr_agrunt_debug, the main fist's last gap to an armed monster's weapon, cm)
 QVR_CVAR(vr_agrunt_saw_drop_running, "1", CVAR_ARCHIVE) // 1: an armed humanoid that was fighting you with a chainsaw drops it running (dead, disarmed, a tug won), as yours runs on as it lies (vr_chainsaw_drop_run): taken up meanwhile, no cord to pull; one that never saw you drops it off
 QVR_CVAR(vr_agrunt_grab_speed, "1.25", CVAR_ARCHIVE)     // m/s: a hand moving faster than this (relative to you: a punch, a swipe) doesn't take hold of its weapon (0: any speed)

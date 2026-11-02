@@ -843,6 +843,64 @@ entity(float w1, float w2, float dist) VR_AGT_SpawnPair =
     return g;
 };
 
+// Test 201: both guns of a dual wielder drawn (his note 11-02 01:02: "two nail pistols and only one of them was
+// visible"). 30 grunts with a nail pistol in each hand spawned one after another (the first right after the map's load),
+// each 0.6 s after the last was removed (its entities' slots reused): 0.25 s after its spawn the client's last frame drew
+// both its weapons (vr_agrunt_weapon_probe: vr_agrunt_weapon_undrawn 0).
+void(entity g) VR_AGT_RemovePair;
+float vr_agt_ds_n;     // spawns checked
+float vr_agt_ds_bad;   // ... with a weapon not drawn
+entity vr_agt_ds_g;
+
+void() VR_AGTest_DualSpawns =
+{
+    if(vr_agt_step == 0)
+    {
+        vr_agt_ds_n = 0;
+        vr_agt_ds_bad = 0;
+        vr_agt_step = 1;
+    }
+    if(time < vr_agt_until) { return; }
+    if(vr_agt_step == 1)
+    {
+        if(vr_agt_ds_n >= 30)
+        {
+            VR_AGT_Check(sprintf("dualspawn: %g of %g dual nail pistol grunts drew both guns:", vr_agt_ds_n - vr_agt_ds_bad,
+                vr_agt_ds_n), vr_agt_ds_bad == 0);
+            cvar_set("vr_agrunt_test", "0");
+            return;
+        }
+        vr_agt_ds_g = VR_AGT_SpawnPair(WID_NAILPISTOL, WID_NAILPISTOL, 120);
+        vr_agt_step = 2;
+        vr_agt_until = time + 0.25; // (its weapons placed, sent and drawn: a few frames)
+        return;
+    }
+    if(vr_agt_step == 2)
+    {
+        cvar_set("vr_agrunt_weapon_undrawn", "-1");
+        localcmd("vr_agrunt_weapon_probe\n"); // (the client's last frame: run before the next)
+        vr_agt_step = 3;
+        return;
+    }
+    if(vr_agt_step == 3)
+    {
+        float undrawn = cvar("vr_agrunt_weapon_undrawn");
+        if(undrawn < 0) { return; } // (the probe not run yet)
+        entity g = vr_agt_ds_g;
+        float both = g.vr_ag_prop && g.vr_ag_prop2 && g.vr_ag_prop.modelindex && g.vr_ag_prop2.modelindex;
+        if(undrawn > 0 || !both)
+        {
+            vr_agt_ds_bad = vr_agt_ds_bad + 1;
+            VR_AGT_Print(sprintf("dualspawn %g: weapons %s, %s (left %g %g), %g not drawn (vr_agrunt_weapon_probe's lines above)",
+                vr_agt_ds_n, g.vr_ag_prop.model, g.vr_ag_prop2.model, g.vr_ag_prop.vr_ag_left, g.vr_ag_prop2.vr_ag_left, undrawn));
+        }
+        vr_agt_ds_n = vr_agt_ds_n + 1;
+        VR_AGT_RemovePair(g);
+        vr_agt_step = 1;
+        vr_agt_until = time + 0.6; // (the freed slots reused by the next: ED_Alloc after 0.5 s)
+    }
+};
+
 void(entity g) VR_AGT_RemovePair =
 {
     if(g.vr_ag_prop2)
@@ -1501,6 +1559,7 @@ void() VR_AGTest_Frame =
     else if(t == 91) { VR_AGRB_Frame(); } // (an active ragdoll's weapon grabbed at the gun or its hand: vr_armedgrunt_raggrab_test.qc)
     else if(t == 92) { VR_AG2_Frame(); } // (two hands in the tug, a staggering or downed one's eased tug: vr_armedgrunt_twohand_test.qc)
     else if(t == 19) { VR_AGTP_Frame(); } // (the other fist's real punch in a tug: vr_armedgrunt_tugpunch_test.qc)
+    else if(t == 201) { VR_AGTest_DualSpawns(); } // (dual wielders' both guns drawn, 30 spawns)
     else if(t == 200) { VR_AGAW_Frame(); } // (disarm attempts on unaware grunts; dual wield: vr_armedgrunt_aware_test.qc)
     else if(t >= 6 && t <= 9) // a row of armed grunts ahead, 30 units apart (eyeshots): 6 guns, 7 melee, 8 more guns, 9 the rest
     {
