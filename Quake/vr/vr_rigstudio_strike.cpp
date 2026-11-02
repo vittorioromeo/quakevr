@@ -122,6 +122,12 @@ StrikeTest stest;
     return e->free ? nullptr : e;
 }
 
+// The subject solved lately (its note this frame or a few before).
+[[nodiscard]] bool noteFreshNow()
+{
+    return st.noteFrame >= 0 && host_framecount - st.noteFrame <= 5 && st.note.ent == st.subject && st.subject > 0;
+}
+
 [[nodiscard]] Studio::Swing& sw()
 {
     return st.swing;
@@ -470,7 +476,7 @@ void drawOnionSkin(ImDrawList* dl)
 void drawIkGhost(ImDrawList* dl)
 {
     const int which = static_cast<int>(vr_rigstudio_ikghost.value);
-    if(which <= 0 || st.noteFrame < 0 || host_framecount - st.noteFrame > 5 || st.note.ent != st.subject)
+    if(which <= 0 || !noteFreshNow())
     {
         return;
     }
@@ -619,7 +625,7 @@ void strike_f()
 
 void testStrike_f()
 {
-    if(!st.open || st.subject <= 0)
+    if(!st.open)
     {
         Con_Printf("rigstudio strike: open the studio with a gun first (vr_rigstudio monster_vr_grunt 4)\n");
         testkit::verdict("rigstudio strike", 0, 1);
@@ -1029,9 +1035,12 @@ void strikeTestTick()
     }
     switch(stest.step)
     {
-    case 0: // the shove, held by Play: its times from QC
-        st.pdFollow = true;
-        st.tool = Tool::PoseKeys;
+    case 0: // the shove, held by Play (once the subject stands and QC has told its kind and class): its times from QC
+        if(st.subject <= 0 || st.subjKind < 0 || st.subjClass < 0 || !noteFreshNow())
+        {
+            break;
+        }
+        // (held by Play, the tool as it is: the Pose Keys tool would put the window back on Carry as it is entered)
         st.pdKind = st.subjKind >= 0 ? st.subjKind : st.pdKind;
         st.pdClass = st.subjClass >= 0 ? st.subjClass : st.pdClass;
         st.pdPose = agpose::Shove;
@@ -1118,13 +1127,14 @@ void strikeTestTick()
             Cvar_SetValueQuick(&vr_rigstudio_onion_mode, 0.f);
             st.pdPhase = 1;
             strikePark();
+            clearGhosts(); // (taken again by Auto Refresh: the act played once at 1x)
             gh.refreshedHash = 0;
             gh.hashAt = realtime - 10.0;
             next();
         }
         break;
-    case 8:
-        if(stest.waited > 4 && !gh.refreshing && !s.playing)
+    case 8: // (Auto Refresh has played the act through and gone back on the key)
+        if(stest.waited > 4 && gh.refreshedHash == gh.hash && !gh.refreshing && !s.playing)
         {
             float times[2 * maxOnion + 2];
             int ks[2 * maxOnion + 2];
@@ -1137,13 +1147,11 @@ void strikeTestTick()
             t.check(m == 4 && have == m, name, va("onion: %d of %d ghosts taken", have, m));
             const GhostPose* a = m > 0 ? ghostAt(times[0]) : nullptr;
             const GhostPose* b = m > 1 ? ghostAt(times[1]) : nullptr;
-            t.check(a && b && glm::length(a->hand[0] - b->hand[0]) > 1.f, name, "onion: its ghosts' hands apart");
-            t.check(za::abs(s.t - s.keys[1]) < 1e-4f, name, "onion: back on the key after taking them");
-            if(stest.waited > 8)
-            {
-                Cbuf_AddText("screenshot\n");
-                next();
-            }
+            t.check(a && b && glm::length(a->hand[0] - b->hand[0]) > 1.f, name,
+                va("onion: its ghosts' hands apart (%.2f)", a && b ? glm::length(a->hand[0] - b->hand[0]) : 0.f));
+            t.check(za::abs(s.t - s.keys[1]) < 1e-4f, name, va("onion: back on the key after taking them (t %.4f)", s.t));
+            Cbuf_AddText("screenshot\n");
+            next();
         }
         break;
     case 9: // the IK ghost: the push's key's right weapon pushed out of reach
@@ -1195,7 +1203,6 @@ void strikeTestTick()
         {
             s.on = false;
             s.playing = false;
-            st.tool = Tool::Rotate;
             stest.on = false;
             t.verdict(name);
         }
