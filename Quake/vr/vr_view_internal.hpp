@@ -828,6 +828,11 @@ struct LimbHold
 };
 [[nodiscard]] bool limbHold(int hand, LimbHold& out);
 
+// Whether the local player's `hand` holds a body: an enemy (the foe grab, the judo: foegrab::holding) or a ragdoll's
+// limb or body, knocked down or dead, or its weapon in a tug (a listen server's: box3d::ragdollHold). No Ghost Holding
+// Bodies hides its ghost; its index finger closes with the grip, as on a held prop (updateFingerFrames).
+[[nodiscard]] bool holdsBody(int hand);
+
 // A tug-of-war's hold (LimbHold::tug): where the hand took hold of the armed monster's weapon, on the weapon as drawn
 // (the hold's point on the server, in the server's weapon's frame, put in the drawn weapon's: the client draws it on the
 // ragdoll's drawn hand, vr_hitreact.cpp ragdollProps).

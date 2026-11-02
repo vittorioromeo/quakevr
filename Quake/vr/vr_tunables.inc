@@ -367,7 +367,7 @@ QVR_TUNABLE(vr_ragdoll_grab_force, "4000") // N: the most a hand pulls a held li
 QVR_TUNABLE(vr_ragdoll_grab_fit, "1") // a taken limb's surface brought onto the palm (as a carried prop's: vr_held_surface_fit); 0: held where the hand's middle was
 QVR_TUNABLE(vr_ragdoll_hand_stick, "30") // cm: the most the hand holding a limb is drawn off its controller to stay on the limb (it lags and sags); 0: on the controller
 QVR_TUNABLE(vr_ragdoll_hand_turn, "70") // degrees: and the most it is drawn turned off it, with the limb twisting in the hand (the hand turns about its fingers on the limb)
-QVR_TUNABLE(vr_ragdoll_hand_rest, "6") // cm: the hand drawn on a held limb slid at most this along the way to its mesh, for its palm to rest on it (not off it, not sunk in it); 0: as the hold has it
+QVR_TUNABLE(vr_ragdoll_hand_rest, "6") // cm: the hand drawn on a held limb slid at most this along the way to its mesh, for its palm to rest on it (not off it, not sunk in it; a tug's on the weapon too); 0: as the hold has it
 QVR_TUNABLE(vr_ragdoll_throw, "1") // times the hand's throw a limb let go of keeps (0: only what the pull gave it)
 QVR_TUNABLE(vr_ragdoll_blood, "1") // a ragdoll's limbs flung fast leave blood trails and drops (as gibs do: vr_gib_blood_trail)
 QVR_TUNABLE(vr_ragdoll_smooth, "1") // drawn between the server's last two steps, as props are (smooth at a headset's 90 Hz over the server's 72); 0 the latest step (judders)

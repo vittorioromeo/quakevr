@@ -201,6 +201,9 @@ void ragdollHandProbe_f()
     const bool quiet = Cmd_Argc() > 1 && !q_strcasecmp(Cmd_Argv(1), "quiet");
     Cvar_SetValueQuick(&vr_agrunt_tug_hand_gap, 999.f);
     Cvar_SetValueQuick(&vr_agrunt_tug_hand_reach, 999.f);
+    Cvar_SetValueQuick(&vr_agrunt_tug_hand_palm, 999.f);
+    Cvar_SetValueQuick(&vr_agrunt_tug_hand_channel, 999.f);
+    Cvar_SetValueQuick(&vr_agrunt_tug_hand_index, -1.f);
     bool any = false;
     for(int hand = 1; hand >= 0; hand--)
     {
@@ -210,30 +213,57 @@ void ragdollHandProbe_f()
             continue;
         }
         any = true;
+        const RigHand& rh = rigHands[hand];
+        // The drawn index finger's curl (0 open .. 4 closed: its joints' mean).
+        float index = 0.f;
+        for(int j = 0; j < handrig::jointsPerFinger; j++)
+        {
+            index += rh.joints[handrig::Index][j] / static_cast<float>(handrig::jointsPerFinger);
+        }
+        if(hand == HAND_MAIN)
+        {
+            Cvar_SetValueQuick(&vr_agrunt_tug_hand_index, index);
+        }
         // A tug-of-war (an armed monster's weapon in its hand): the drawn hand and its controller to where it took hold
-        // of the weapon, on the weapon as drawn.
+        // of the weapon, on the weapon as drawn, and the drawn palm to the drawn weapon's surface.
         const LimbEase& le = limbEase[hand];
         if(TugGrab tg; tugGrab(hand, limb, tg))
         {
-            const float gap = glm::distance(le.drawnPos, tg.at) * cm;
+            // (the hold's place: its palm's rest on the weapon taken out)
+            const float gap = glm::distance(le.drawnPos - le.rest * le.blend, tg.at) * cm;
             const float reach = glm::distance(hands::current().pos[hand], tg.at) * cm;
+            float palm = 999.f, grab = 999.f;
+            const entity_t& we = cl_entities[tg.prop];
+            if(const grasp::Shape* shape = rh.drawn ? grasp::shapeOf(we, we.frame) : nullptr)
+            {
+                const auto off = [&](const glm::vec3& p) {
+                    glm::vec3 at;
+                    bool in = false;
+                    const float d = grasp::surfaceDistance(*shape, grasp::shapeToWorld(we, false), p, 64.f, at, in);
+                    return d < 0.f ? 999.f : (in ? -d : d) * cm;
+                };
+                palm = off(glm::vec3{rh.rigToWorld * glm::vec4{drawnInRig(rh, grasp::palmCentre()), 1.f}});
+                grab = off(tg.at);
+            }
             if(hand == HAND_MAIN)
             {
                 Cvar_SetValueQuick(&vr_agrunt_tug_hand_gap, gap);
                 Cvar_SetValueQuick(&vr_agrunt_tug_hand_reach, reach);
+                Cvar_SetValueQuick(&vr_agrunt_tug_hand_palm, palm);
+                Cvar_SetValueQuick(&vr_agrunt_tug_hand_channel, le.gapAfter < 900.f ? le.gapAfter * cm : 999.f);
             }
             if(!quiet)
             {
                 Con_Printf("ragdoll hand %s tug: the drawn hand %.1f cm from its grab on the weapon (as drawn), the controller "
-                           "%.1f cm; the drawn weapon %.1f cm from the server's\n",
-                    hand == HAND_MAIN ? "main" : "off", gap, reach, tg.drawnOff * cm);
+                           "%.1f cm; the drawn weapon %.1f cm from the server's; the palm %.1f cm off the weapon's surface (the "
+                           "grab %.1f), the index finger curled %.2f\n",
+                    hand == HAND_MAIN ? "main" : "off", gap, reach, tg.drawnOff * cm, palm, grab, index);
             }
         }
         if(quiet)
         {
             continue;
         }
-        const RigHand& rh = rigHands[hand];
         const char* name = hand == HAND_MAIN ? "main" : "off";
         float lag = -1.f;
         {
@@ -314,11 +344,19 @@ void agruntWeaponProbe_f()
     const float cm = 100.f / units::metresToUnits();
     progs::ServerVm vm;
     int n = 0;
-    for(int i = 1; i < qcvm->num_edicts && i < cl.num_entities; i++)
+    int undrawn = 0; // (vr_agrunt_weapon_undrawn: the tests' reading)
+    for(int i = 1; i < qcvm->num_edicts; i++)
     {
         const edict_t* ed = EDICT_NUM(i);
         if(ed->free || strcmp(PR_GetString(ed->v.classname), "vr_ag_weapon") != 0 || !ed->v.modelindex)
         {
+            continue;
+        }
+        if(i >= cl.num_entities)
+        {
+            undrawn++;
+            n++;
+            Con_Printf("agweapon %d (%s): NOT DRAWN (the client has no such entity yet)\n", i, PR_GetString(ed->v.model));
             continue;
         }
         entity_t sv{};
@@ -330,10 +368,22 @@ void agruntWeaponProbe_f()
                                                                a[2][0] * b[2][0] + a[2][1] * b[2][1] + a[2][2] * b[2][2] - 1.f) * 0.5f,
             -1.f, 1.f)));
         const glm::vec3 so{ed->v.origin[0], ed->v.origin[1], ed->v.origin[2]}, co{ce.origin[0], ce.origin[1], ce.origin[2]};
-        Con_Printf("agweapon %d (%s, held by %d): drawn %.1f cm and %.0f degrees off the server's\n", i,
-            PR_GetString(ed->v.model), NUM_FOR_EDICT(PROG_TO_EDICT(ed->v.owner)), glm::distance(so, co) * cm, turn);
+        // Drawn last frame: in the frame's list of entities to draw (cl_visedicts), its model the server's, not hidden.
+        bool listed = false;
+        for(int v = 0; v < cl_numvisedicts && !listed; v++)
+        {
+            listed = cl_visedicts[v] == &ce;
+        }
+        const bool sameModel = ce.model && !strcmp(ce.model->name, PR_GetString(ed->v.model));
+        const bool drawn = listed && sameModel && ce.alpha != ENTALPHA_ZERO && glm::distance(so, co) < 64.f;
+        undrawn += drawn ? 0 : 1;
+        Con_Printf("agweapon %d (%s, held by %d): drawn %.1f cm and %.0f degrees off the server's; %s (client model %s, "
+                   "updated %s, alpha %d)\n", i, PR_GetString(ed->v.model), NUM_FOR_EDICT(PROG_TO_EDICT(ed->v.owner)),
+            glm::distance(so, co) * cm, turn, drawn ? "drawn" : "NOT DRAWN", ce.model ? ce.model->name : "none",
+            ce.msgtime == cl.mtime[0] ? "now" : "stale", static_cast<int>(ce.alpha));
         n++;
     }
+    Cvar_SetValueQuick(&vr_agrunt_weapon_undrawn, static_cast<float>(undrawn));
     if(n == 0)
     {
         Con_Printf("vr_agrunt_weapon_probe: no armed monster's weapon\n");

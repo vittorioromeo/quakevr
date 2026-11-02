@@ -5905,3 +5905,33 @@ Checklist:
   sweep test 1 PASS (the knight's sword, sword_multi turned north: its own spot has no room ahead); sweep test 6 PASS
   (floor, two, wall); calibration board menu paths 6 found, 0 missing.
 
+
+## Your hand in a tug: a full grip, snug on the weapon; the dual wielder's second gun (branch `agent/tughand`, his notes 11-02 00:57, 01:02)
+
+- **A full grip on a body** (his 00:57: "the index finger is pointing, because usually I'm just using the grab
+  button"). `updateFingerFrames` (vr_view.cpp), the one place the fingers' curls are chosen for held things: a hand
+  holding a body (`view::holdsBody`, now shared: a foe grab, a ragdoll's limb, a tug's weapon) closes its index finger
+  with the grip, as on a held prop, the torch or the other hand's weapon (needs `vr_hand_fit`, as those). No setting
+  (props have none).
+- **Snug on the weapon** (his "a little bit detached from the weapon"). The tug's hand was drawn with its point (the
+  controller's) at the grab and nothing rested it on the weapon (`limbDrawnHand` dropped the shape for a tug): its
+  fingers closed in the air (0-1 of 5 met the weapon). Now the tug rests the hand as a limb's does
+  (`vr_ragdoll_hand_rest`, at most 6 cm, eased 0.06 s), on the weapon's drawn mesh, but held as a handle is
+  (grip::Mode::Handle): its grip channel's point, not the palm, slid onto the surface and the channel's radius into it,
+  so the fingers close round the weapon (3 of 5 meet it). No facing test for a tug (the hand took hold there).
+- **Measured** (test 39, still, grabbed with the palm on the weapon 0.3 along a shotgun): grip channel to the weapon's
+  surface 2.0 cm -> 0.45 cm at most; the drawn palm 1.5-2.4 cm -> 1.8 cm at most (a fist round the barrel keeps its
+  palm off it: the fingers are what now meet it); on the stock (0): channel 0.7 cm, palm 5 cm (a thick butt). The
+  grab-at-the-grip case (-1, the controller's point on the weapon's origin, not a real grab): channel 5.2 -> -0.3 cm.
+  Index curled 1.7-3.0 with the grip held and the trigger released (stopped on the weapon).
+- **Test aids:** `vr_ragdoll_hand_probe` prints the palm off the weapon, the grab off it and the index curl;
+  readings `vr_agrunt_tug_hand_palm`, `_channel`, `_index`. Test 39 presses the grip alone (`vr_mock_fingers main 0 1`)
+  and checks the channel (scratch2 >= 0) and the index; it also prints the full probe at 0.5 s.
+- **The invisible second gun (01:02): not reproduced.** Test 201 (`vr_agrunt_test 201`, new): 30 grunts with a nail
+  pistol in each hand, the first right after the map's load, each spawned 0.6 s after the last was removed (slots
+  reused): 30 of 30 drew both (`vr_agrunt_weapon_probe` now says NOT DRAWN and why: not in the frame's entities, no or
+  another model, hidden, far off; reading `vr_agrunt_weapon_undrawn`). His case went through the toolgun
+  (`toolgun: spawn Armed Grunt: Nail Pistol + Nail Pistol`, then `spawned 88` 0.45 s later: the first spawn of that
+  choice, its ghost's probe spawn just before; the next, 12 s later, fine). Not tried: the toolgun's path
+  (box3d::spawnClass, VR_SpawnLive_Finish, the ghost's probe), which needs the toolgun aimed. Next: when it happens, run
+  Debug > Armed Monsters' Weapons: Drawn vs Server at once.

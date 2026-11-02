@@ -1011,18 +1011,6 @@ void ghostRecoilTest_f()
     t.verdict(name);
 }
 
-// Whether the local player's `hand` holds a body: an enemy (the foe grab, the judo: foegrab::holding) or a ragdoll's
-// limb or body, knocked down or dead (a listen server's: box3d::ragdollHold). No Ghost Holding Bodies hides its ghost.
-[[nodiscard]] bool holdsBody(int hand)
-{
-    if(foegrab::holding(hand))
-    {
-        return true;
-    }
-    box3d::RagdollHold h;
-    return sv.active && cls.state == ca_connected && box3d::ragdollHold(cl.viewentity, hand, h);
-}
-
 // The frames a hand held a body since vr_ghost_body_test start (or "hidden"): its ghost's opacity as measured (the most)
 // and as drawn (the most: 0 while hidden).
 struct GhostBody
@@ -2048,6 +2036,16 @@ namespace
 entity_t placedTorch[2]; // (setupHand: the torch as it is placed this frame, per hand)
 } // namespace
 
+bool holdsBody(int hand)
+{
+    if(foegrab::holding(hand))
+    {
+        return true;
+    }
+    box3d::RagdollHold h;
+    return sv.active && cls.state == ca_connected && box3d::ragdollHold(cl.viewentity, hand, h);
+}
+
 // The limb the local player's `hand` holds (a listen server's ragdoll: box3d::ragdollHold), as drawn now. False: none.
 [[nodiscard]] bool limbHold(int hand, LimbHold& out)
 {
@@ -2141,14 +2139,17 @@ void limbDrawnHand(int hand, glm::vec3& pos, glm::vec3& angles)
     bool on = limbHold(hand, h);
     // A tug-of-war (an armed monster's weapon in its hand): the hand drawn on the weapon where it took hold of it, as the
     // weapon is drawn (on the ragdoll's drawn hand: it lies off the limb's point the hold has, by as much as 25 cm),
-    // however far its controller is (it lets go past vr_agrunt_tug_let_go: vr_box3d_ragparts.cpp), not rested on the
-    // arm's mesh.
+    // however far its controller is (it lets go past vr_agrunt_tug_let_go: vr_box3d_ragparts.cpp), its palm rested on the
+    // weapon's drawn surface as on a limb's (vr_ragdoll_hand_rest; his note 11-02 00:57: "a little bit detached from the
+    // weapon"), not on the arm's mesh.
     TugGrab tg;
     const bool tug = on && tugGrab(hand, h, tg);
     if(tug)
     {
+        const entity_t& weaponEnt = cl_entities[tg.prop];
         h.pos = tg.at;
-        h.shape = nullptr;
+        h.shape = grasp::shapeOf(weaponEnt, weaponEnt.frame);
+        h.toWorld = grasp::shapeToWorld(weaponEnt, false);
         stick = tugDrawnMost * units::metresToUnits();
     }
     on = on && stick > 0.f;
@@ -2182,28 +2183,35 @@ void limbDrawnHand(int hand, glm::vec3& pos, glm::vec3& angles)
         // Its palm rested on the limb's mesh (vr_ragdoll_hand_rest): the hold's point is on the limb's body (its hull,
         // not the drawn skin) and the hold lags and sags, so the palm came off the mesh or sank into it. Slid the
         // shortest way until the palm's middle lies on the mesh's skin, at most that far, eased (the fingers then close
-        // round it: the grasp).
+        // round it: the grasp). A tug's weapon is held as a handle is (grip::Mode::Handle: in the fingers' grip channel,
+        // not on the palm, which a closed fist holds 8 cm off it): its grip channel's point slid onto the weapon's drawn
+        // surface and the channel's radius into it, so the fingers close round it (his note 11-02 00:57: "a little bit
+        // detached from the weapon").
         const float cm = 0.01f * units::metresToUnits();
         const float restMost = za::fmax(vr_ragdoll_hand_rest.value, 0.f) * cm;
         glm::vec3 restWant{0.f};
         e.gapBefore = e.gapAfter = 999.f;
         const float look = za::fmax(restMost * 4.f, 20.f * cm); // (how far the mesh is looked for)
+        const grip::HandFrame frame = grip::handFrame(hand, hand == HAND_OFF, true);
+        const glm::vec3 restPoint = tug ? frame.channelPoint : frame.palm; // (the hand's frame)
         if(h.shape)
         {
             const glm::mat3 R = glm::mat3_cast(turn * controller);
-            const glm::vec3 palm = pos + offset + R * grip::handFrame(hand, hand == HAND_OFF, true).palm;
+            const glm::vec3 point = pos + offset + R * restPoint;
             glm::vec3 at;
             bool in = false;
-            const float d = grasp::surfaceDistance(*h.shape, h.toWorld, palm, look, at, in);
+            const float d = grasp::surfaceDistance(*h.shape, h.toWorld, point, look, at, in);
             if(d > 1e-4f && d <= look)
             {
                 constexpr float skin = 0.3f; // cm: the palm's skin on it
+                const float depth = tug ? za::fmax(frame.channelRadius, 0.f) : -skin * cm; // (how far in it the point rests)
                 e.gapBefore = in ? -d : d;
-                const float by = in ? d + skin * cm : d - skin * cm;
-                // (Off the palm's side of the hand, behind its back: not slid through the hand.)
-                const glm::vec3 n = R * grip::handFrame(hand, hand == HAND_OFF, true).palmNormal;
-                const bool facing = in || glm::dot(at - palm, n) > 0.f;
-                restWant = restMost > 0.f && facing ? (at - palm) / d * za::clamp(by, -restMost, restMost) : glm::vec3{0.f};
+                const float by = in ? d - depth : d + depth;
+                // (Off the palm's side of the hand, behind its back: not slid through the hand. A tug's weapon: where the
+                // hand took hold of it, the fingers round it.)
+                const glm::vec3 n = R * frame.palmNormal;
+                const bool facing = tug || in || glm::dot(at - point, n) > 0.f;
+                restWant = restMost > 0.f && facing ? (at - point) / d * za::clamp(by, -restMost, restMost) : glm::vec3{0.f};
             }
         }
         e.rest += (restWant - e.rest) * (1.f - za::exp(-dt / 0.06f));
@@ -2212,8 +2220,7 @@ void limbDrawnHand(int hand, glm::vec3& pos, glm::vec3& angles)
             const glm::mat3 R = glm::mat3_cast(turn * controller);
             glm::vec3 at;
             bool in = false;
-            const float d = grasp::surfaceDistance(*h.shape, h.toWorld,
-                pos + offset + e.rest + R * grip::handFrame(hand, hand == HAND_OFF, true).palm, look, at, in);
+            const float d = grasp::surfaceDistance(*h.shape, h.toWorld, pos + offset + e.rest + R * restPoint, look, at, in);
             e.gapAfter = d < 0.f || d > look ? 999.f : (in ? -d : d);
         }
         e.offset += e.rest;
