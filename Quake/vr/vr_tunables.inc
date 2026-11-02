@@ -1113,6 +1113,20 @@ QVR_TUNABLE(vr_enemy_aim_angle, "20") // Combat > Enemy Melee > Aim Cone: degree
 QVR_TUNABLE(vr_enemy_aim_fire, "40") // Combat > Enemy Melee > Fire Cone: degrees each side of its facing you must be inside for it to shoot at once (else it waits, turning; times the kind's multiplier too)
 QVR_TUNABLE(vr_enemy_aim_delay, "0.3") // Combat > Enemy Melee > Max Delay: seconds a shot waits at most with you outside its fire cone (turning after you meanwhile), then fires clamped; 0: no wait
 
+// Combat > Enemy Footsteps (vr_footsteps.cpp)
+QVR_TUNABLE(vr_footstep_volume, "1") // all of them, times this (0: none)
+QVR_TUNABLE(vr_footstep_walk_speed, "30") // units/s: a pace this slow or slower is a walk's volume and carry
+QVR_TUNABLE(vr_footstep_run_speed, "150") // units/s: this fast or faster a run's
+QVR_TUNABLE(vr_footstep_walk_vol, "0.25") // a walking step's volume (times its kind's weight)
+QVR_TUNABLE(vr_footstep_run_vol, "0.7") // a running step's volume
+QVR_TUNABLE(vr_footstep_walk_atten, "1.6") // how fast a walking step dies with distance (Quake's ATTN_NORM is 1)
+QVR_TUNABLE(vr_footstep_run_atten, "1") // a running step's
+QVR_TUNABLE(vr_footstep_min_speed, "6") // units/s: slower is no step (a shift of weight on the spot)
+QVR_TUNABLE(vr_footstep_nearest, "6") // only the nearest this many of those moving are heard (0-16)
+QVR_TUNABLE(vr_footstep_range, "1000") // units from a player: farther isn't heard or counted
+QVR_TUNABLE(vr_footstep_rate, "14") // steps a second at most, all together
+QVR_TUNABLE(vr_footstep_log, "0") // 1: a console line a step (the pace, volume, its error against the drawn contact)
+
 // Combat > Enemy Shoves
 QVR_TUNABLE(vr_enemy_shove_parry_reduction, "0.75") // share of a shove's push a parry takes off (0: none, 1: all; was vr_enemy_shove_parried, the share left)
 QVR_TUNABLE(vr_enemy_shove_enforcer_damage, "1.5") // an enforcer's shove's damage, times vr_enemy_shove_damage

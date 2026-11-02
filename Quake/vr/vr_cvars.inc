@@ -2035,6 +2035,7 @@ QVR_CVAR(vr_test_dispenser, "0", CVAR_NONE)                // the map's n-th mon
 QVR_CVAR(vr_dropcap_test, "0", CVAR_NONE)                  // the QC tests the cap on dropped enemy weapons: 1 grunts spawned and killed one by one (vr_dropcap_test_n, 0: 60) (vr_dropcap_test.qc; Debug > Tests)
 QVR_CVAR(vr_dropcap_test_n, "0", CVAR_NONE)
 QVR_CVAR(vr_prop_impact_test, "0", CVAR_NONE)              // the QC runs the props' impact rule test n (vr_propimpact_test.qc; Debug > Gore Tests): 1 every kind tapped, hit, struck hard, smashed held, thrown; propimpact: lines; 4 a fuel tank and a crate as heavy thrown at a grunt and an ogre (fueltankhit: lines)
+QVR_CVAR(vr_footstep_test, "0", CVAR_NONE)               // 1: each biped in turn walks, then runs, by the player; the steps' report (QC vr_footstep_test.qc; vr_footsteps.cpp), `footstep_test: N passed, M failed`
 QVR_CVAR(vr_crouch_test, "0", CVAR_NONE)                 // the QC fires n bullets from a grunt put 280 units ahead of the player at him (vr_crouch_test.qc; Debug > Tests > Crouch Shots): crouchtest: crouched, eyes, aim height, damage
 QVR_CVAR(vr_smallgibs_test, "0", CVAR_NONE)                // the QC runs small gib test n on the nearest monster or corpse (vr_smallgibs_test.qc; Debug)
 QVR_CVAR(vr_gibprops_test, "0", CVAR_NONE)                 // the QC's gib prop test n (vr_gibprops_test.qc; Debug > Gore Tests): 1 gib the nearest monster, 2 kill it whole, 3 gib the nearest corpse, 4 its head Box3D's and grabbed, 5 held and let go, 6 shot: burst
