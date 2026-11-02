@@ -1111,9 +1111,9 @@ Use::~Use()
     state.current = previous;
 }
 
-int generation()
+int generation(Surface s)
 {
-    return surface(Surface::Menu).generation;
+    return surface(s).generation;
 }
 
 bool active()

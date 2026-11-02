@@ -2,6 +2,7 @@
 
 #include "vr_text3d.hpp"
 #include "vr_fontstyle.hpp"
+#include "vr_testkit.hpp"
 #include "vr_tracy.h"
 #include "vr_color.hpp"
 #include "vr_gfx.hpp"
@@ -99,6 +100,7 @@ struct ScreenImage
     za::String drawn;       // what is drawn in it: the text, its alignment and the palette (redrawn when they change)
     int drawnAlign{-1};
     glm::vec3 drawnFace{-1.f}, drawnText{-1.f};
+    int drawnFont{-1};     // and the font's style (fontstyle::generation(Ammo))
     bool trueColor{false}; // drawn in its own colours (its text whitened: vr_ammo_screen_text_white)
 };
 za::Array<ScreenImage, maxScreenImages> screenImages;
@@ -223,8 +225,11 @@ struct Board
     int width{0}, height{0};          // its image's virtual screen (font pixels), 0 before it is drawn
     za::String drawn;                // the text in its image
     glm::vec4 drawnPalette{-1.f};     // and the palette it was drawn in
+    int drawnFont{-1};                // and the font's style (fontstyle::generation(World))
 };
 za::Vector<Board> boards;
+int worldImageDraws = 0; // the boards' and tip screens' images drawn so far (vr_fontstyle_live_test)
+void liveStep();         // vr_fontstyle_live_test's step a frame (renderScreens)
 
 // Tips' screens over the scene (queueOverlayScreen): this frame's, and their images (as the boards', a few kept by
 // their text).
@@ -244,6 +249,7 @@ struct TipImage
 {
     za::String text;            // drawn in it
     glm::vec4 palette{-1.f};
+    int font{-1};               // the font's style it was drawn in (fontstyle::generation(World))
     gfx::Target target;
     int width{0}, height{0};    // its virtual screen (font pixels), 0 before it is drawn
     int frame{-1};              // the host frame it was last wanted in
@@ -581,6 +587,7 @@ struct ScreenLook
     glm::vec3 face;
     glm::vec3 text;
     bool trueColor;
+    int font; // the ammo screens' font's style (fontstyle::generation(Ammo): Screens > Ammo Screen Font)
 };
 
 // A tinted screen's text (queue's `tint`): the colour at the screen's brightness (the gear lights too).
@@ -595,7 +602,8 @@ struct ScreenLook
     const bool trueColor = screenWhiteness() > 0.f;
     // (Drawn in one phosphor colour, the CRT shader lights the face in the text's colour, the tint's too.)
     const glm::vec3 face = !trueColor ? screenFace() : tint ? screenFaceLit(tintedFace(*tint), tintedText(*tint)) : screenFaceLit();
-    return {face, tint ? tintedText(*tint) : trueColor ? screenInk() : screenText(), trueColor};
+    return {face, tint ? tintedText(*tint) : trueColor ? screenInk() : screenText(), trueColor,
+        fontstyle::generation(fontstyle::Surface::Ammo)};
 }
 
 // The image that shows `text` so (whenever it was drawn: what it shows still holds), or -1.
@@ -605,7 +613,8 @@ struct ScreenLook
     {
         const ScreenImage& image = screenImages[static_cast<size_t>(i)];
         if(image.width > 0 && image.target.texture && image.drawnAlign == align &&
-            image.drawnFace == look.face && image.drawnText == look.text && image.drawn == text)
+            image.drawnFace == look.face && image.drawnText == look.text && image.drawnFont == look.font &&
+            image.drawn == text)
         {
             return i;
         }
@@ -851,6 +860,7 @@ void drawBoardImage(gfx::Target& target, za::StringView boardText, int columns, 
     // Its virtual screen in font pixels: whole ones, so that the image's pixels fall on the font's.
     const float fit = za::sqrt(boardTexels / static_cast<float>(width * height));
     const int scale = za::clamp(static_cast<int>(fit), 2, 8);
+    worldImageDraws++;
     gfx::ensureTarget(target, width * scale, height * scale, true, name);
     gfx::begin2D(target, width, height);
     gfx::draw2D::fill(0.f, 0.f, static_cast<float>(width), static_cast<float>(height), face);
@@ -875,6 +885,7 @@ void renderTipImages()
     const fontstyle::Use font{fontstyle::Surface::World}; // (Screens > World Text Font)
     const glm::vec3 text = boardText(), face = boardFace();
     const glm::vec4 palette{vr_worldtext_hue.value, text.g, face.g, text.r};
+    const int style = fontstyle::generation(fontstyle::Surface::World);
     for(za::SizeT i = 0; i < tipScreenCount; i++)
     {
         const TipScreen& t = tipScreens[i];
@@ -895,7 +906,7 @@ void renderTipImages()
             }
         }
         image->frame = host_framecount;
-        if(image->target.texture && image->text == t.text && image->palette == palette)
+        if(image->target.texture && image->text == t.text && image->palette == palette && image->font == style)
         {
             continue;
         }
@@ -904,6 +915,7 @@ void renderTipImages()
         drawBoardImage(image->target, t.text, static_cast<int>(columns), rows, Align::Centre, text, face, "tip screen");
         image->text = t.text;
         image->palette = palette;
+        image->font = style;
         image->width = static_cast<int>(columns) * 8 + boardPad * 2;
         image->height = rows * 8 + boardPad * 2;
     }
@@ -1084,6 +1096,7 @@ void renderBoards()
     }
     const glm::vec3 text = boardText(), face = boardFace();
     const glm::vec4 palette{vr_worldtext_hue.value, text.g, face.g, text.r};
+    const int style = fontstyle::generation(fontstyle::Surface::World);
     int images = 0;
     for(Board& b : boards)
     {
@@ -1093,7 +1106,8 @@ void renderBoards()
         }
         const int width = b.columns * 8 + boardPad * 2;
         const int height = b.rows * 8 + boardPad * 2;
-        if(b.target.texture && b.drawn == b.text && b.drawnPalette == palette && b.width == width && b.height == height)
+        if(b.target.texture && b.drawn == b.text && b.drawnPalette == palette && b.drawnFont == style && b.width == width &&
+            b.height == height)
         {
             continue;
         }
@@ -1104,6 +1118,7 @@ void renderBoards()
         b.height = height;
         b.drawn = b.text;
         b.drawnPalette = palette;
+        b.drawnFont = style;
     }
 }
 
@@ -1243,6 +1258,7 @@ void clear()
 
 void renderScreens()
 {
+    liveStep(); // (vr_fontstyle_live_test: last frame's images counted, before this frame's)
     renderBoards();
     renderTipImages();
     const fontstyle::Use font{fontstyle::Surface::Ammo}; // the ammo screens (Screens > Ammo Screen Font)
@@ -1360,6 +1376,7 @@ void renderScreens()
         image.drawnAlign = static_cast<int>(q.align);
         image.drawnFace = look.face;
         image.drawnText = look.text;
+        image.drawnFont = look.font;
         screenSlots.draws++;
         static constexpr const char* names[maxScreenImages] = {"ammo screen 1", "ammo screen 2", "ammo screen 3",
             "ammo screen 4", "ammo screen 5", "ammo screen 6", "ammo screen 7", "ammo screen 8", "ammo screen 9",
@@ -1390,6 +1407,150 @@ void renderScreens()
         gfx::draw2D::color(glm::vec4{1.f});
         gfx::end2D();
     }
+}
+
+// ---- vr_fontstyle_live_test: a font style change draws the cached text images again once, on the next frame ----
+
+namespace
+{
+
+// Stepped once a frame (renderScreens): the scene settles (the boards', the ammo screens' and the hologram's images drawn,
+// then none for a few frames); then each surface's outline and then its shadow is changed: the next frame that surface's
+// images are drawn again (the others' not), the frame after none is.
+constexpr fontstyle::Surface liveSurfaces[3] = {fontstyle::Surface::World, fontstyle::Surface::Ammo, fontstyle::Surface::Gadget};
+constexpr const char* liveNames[3] = {"world text", "ammo screen", "gadget"};
+constexpr int liveChanges = 6;   // each surface's outline, then its shadow
+constexpr int liveQuiet = 3;     // frames without a draw: settled
+constexpr int liveGiveUp = 3000; // frames (a safety net: FAIL "timed out")
+struct LiveCounts
+{
+    int images[3]{}; // liveSurfaces' images drawn so far
+};
+struct LiveTest
+{
+    bool running{false};
+    bool messaged{false}; // the hologram's message asked for (once in the game)
+    int frames{0};
+    int quiet{0};
+    int step{0}; // 0: settling; 2c + 1: change c made, its redraw checked next; 2c + 2: checking that none follows
+    LiveCounts counts;
+    float restore[liveChanges]{};
+    testkit::Tally tally;
+};
+LiveTest liveTest;
+
+[[nodiscard]] LiveCounts liveCounts()
+{
+    return {{worldImageDraws, screenSlots.draws, gadget::imageDrawCount()}};
+}
+
+[[nodiscard]] bool sameCounts(const LiveCounts& a, const LiveCounts& b)
+{
+    return a.images[0] == b.images[0] && a.images[1] == b.images[1] && a.images[2] == b.images[2];
+}
+
+[[nodiscard]] cvar_t* liveCvar(int change)
+{
+    const fontstyle::SurfaceCvars& c = fontstyle::cvars(liveSurfaces[change / 2]);
+    return change % 2 ? c.shadowOpacity : c.outline;
+}
+
+void liveFinish(const char* failure)
+{
+    LiveTest& t = liveTest;
+    if(failure)
+    {
+        t.tally.check(false, "fontstyle live test", failure);
+    }
+    for(int c = 0; c < liveChanges; c++)
+    {
+        Cvar_SetValueQuick(liveCvar(c), t.restore[c]);
+    }
+    t.running = false;
+    t.tally.verdict("fontstyle live test");
+}
+
+void liveStep()
+{
+    LiveTest& t = liveTest;
+    if(!t.running)
+    {
+        return;
+    }
+    if(++t.frames > liveGiveUp)
+    {
+        liveFinish("timed out (no board, ammo screen or hologram image drawn, or they never stopped being drawn)");
+        return;
+    }
+    const LiveCounts now = liveCounts();
+    int next = 0; // the change to make now
+    if(t.step == 0)
+    {
+        if(!t.messaged && cls.signon == SIGNONS)
+        {
+            Cbuf_AddText("vr_message_test center Font style test\n"); // (the hologram's image)
+            t.messaged = true;
+        }
+        t.quiet = sameCounts(now, t.counts) ? t.quiet + 1 : 0;
+        t.counts = now;
+        if(t.quiet < liveQuiet || now.images[0] == 0 || now.images[1] == 0 || now.images[2] == 0)
+        {
+            return;
+        }
+    }
+    else
+    {
+        const int change = (t.step - 1) / 2;
+        const int surface = change / 2;
+        const char* const setting = change % 2 ? "shadow" : "outline";
+        if(t.step % 2 == 1)
+        {
+            for(int k = 0; k < 3; k++)
+            {
+                const bool redrawn = now.images[k] > t.counts.images[k];
+                t.tally.check(redrawn == (k == surface), "fontstyle live test",
+                    va("%s %s changed: the %s images %s", liveNames[surface], setting, liveNames[k],
+                        redrawn ? "drawn again" : "not drawn again"));
+            }
+            Con_Printf("fontstyle live test: %s %s changed: images drawn %d %d %d (world, ammo, gadget)\n",
+                liveNames[surface], setting, now.images[0] - t.counts.images[0], now.images[1] - t.counts.images[1],
+                now.images[2] - t.counts.images[2]);
+            t.counts = now;
+            t.step++;
+            return;
+        }
+        t.tally.check(sameCounts(now, t.counts), "fontstyle live test",
+            va("%s %s changed: images drawn again the frame after", liveNames[surface], setting));
+        t.counts = now;
+        next = change + 1;
+        if(next == liveChanges)
+        {
+            liveFinish(nullptr);
+            return;
+        }
+    }
+    cvar_t* const v = liveCvar(next);
+    Cvar_SetValueQuick(v, v->value > 0.5f ? 0.25f : 1.f);
+    t.step = 2 * next + 1;
+}
+
+void liveTestCommand()
+{
+    liveTest = LiveTest{};
+    liveTest.running = true;
+    liveTest.counts = liveCounts();
+    for(int c = 0; c < liveChanges; c++)
+    {
+        liveTest.restore[c] = liveCvar(c)->value;
+    }
+    Con_Printf("fontstyle live test: started (the scene's boards, ammo screens and hologram settle first)\n");
+}
+
+} // namespace
+
+void init()
+{
+    Cmd_AddCommand("vr_fontstyle_live_test", liveTestCommand);
 }
 
 void screenStats(int& draws, int& shared)
