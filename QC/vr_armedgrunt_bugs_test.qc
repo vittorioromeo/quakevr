@@ -270,7 +270,7 @@ void() VR_AGBT_Friendly =
     {
         // The row: gunners 420 ahead, 70 apart; a friend in each one's line, 200 ahead of you.
         VR_AGT_ClearWeapons();
-        cvar_set("vr_agrunt_friendly_care", vr_agbt_case == 0 ? "0" : ftos(vr_agbt_care));
+        localcmd(sprintf("tune vr_agrunt_friendly_care %g\n", vr_agbt_case == 0 ? 0 : vr_agbt_care)); // (a tunable)
         makevectors(p.angles);
         vector side = v_right;
         side_z = 0;
@@ -334,7 +334,7 @@ void() VR_AGBT_Friendly =
     }
     VR_AGT_Check(sprintf("friendly fire: %g hits careless, %g careful, %g damage to you", vr_agbt_careless, hits, pdmg),
         (hits < vr_agbt_careless || vr_agbt_careless == 0) && pdmg > 0);
-    cvar_set("vr_agrunt_friendly_care", ftos(vr_agbt_care));
+    localcmd(sprintf("tune vr_agrunt_friendly_care %g\n", vr_agbt_care));
     cvar_set("vr_agrunt_test", "0");
 };
 

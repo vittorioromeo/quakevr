@@ -792,6 +792,8 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"weaponanygrip", PF_weaponanygrip},
     {"weapondrawnpose", PF_weapondrawnpose},
     {"agposekey", PF_agposekey},
+    {"agstrikeblend", PF_agstrikeblend},
+    {"agkeytime", PF_agkeytime},
     {"agdrawnframe", PF_agdrawnframe},
     {"agweaponextent", PF_agweaponextent},
     {"admeleebend", PF_admeleebend},

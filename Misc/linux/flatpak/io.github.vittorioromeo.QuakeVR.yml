@@ -48,7 +48,8 @@ finish-args:
   - --filesystem=xdg-config/openvr:ro
 
 modules:
-  # The QuakeC compiler, for the build only (the commit of the author's fteqcc64.exe: "git-6729-f937b9d88").
+  # The QuakeC compiler, for the build only (the commit of the author's fteqcc64.exe: "git-6729-f937b9d88"), with its
+  # fte32 flag (Tools/fteqcc/fte32.patch: the 32-bit progs QC/defs.qc asks for).
   - name: fteqcc
     buildsystem: simple
     build-commands:
@@ -60,6 +61,8 @@ modules:
       - type: archive
         url: https://github.com/fte-team/fteqw/archive/f937b9d88f71fc4429db5fe56c6a98d922711b2e.tar.gz
         sha256: d8aede03b56a37eafaf3e11d2ca63fe6a84e45ee602afff72ffd152d18bafef3
+      - type: patch
+        path: ../../../Tools/fteqcc/fte32.patch
 
   # The OpenXR loader (not in the freedesktop runtime): libopenxr_loader.so and pkg-config openxr for the engine.
   - name: openxr-loader

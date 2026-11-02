@@ -286,7 +286,7 @@ struct Studio
         float speed{0.25f};  // its playback speed (strikeSpeedMin..strikeSpeedMax)
         // The strike timeline (agent/rigtools; vr_rigstudio_strike.cpp): while the subject is held in an act (a strike,
         // the Cast) the studio tells QC its time into it each frame (VR_AGK_Hold: weapondrawnpose(g, -1, 19)); QC tells
-        // back its phases' lengths and its keys' times (.vr_rs_times, .vr_rs_trec, .vr_rs_keys).
+        // back its phases' lengths (.vr_rs_times, .vr_rs_trec); its keys' times are agpose::keyTime's (agent/posekeys).
         float t{0.f};        // seconds into the act (at 1x: the game's own times)
         float sentT{0.f};    // the time QC was last given (the frame drawn now shows it)
         bool playing{false};
@@ -295,7 +295,9 @@ struct Studio
         int heldPose{-1};    // the act QC holds the subject in now (-1 none: no timeline)
         int heldPhase{0};
         float times[4]{};    // its phases' lengths (s): the wind-up, the strike, the hold, the recovery
-        float keys[3]{};     // its keys' times (s; phases 0, 1, 2)
+        float keys[agpose::maxStrikeKeys]{}; // its keys' times (s; by phase: 0..2 the named keys, 3..9 in-betweens)
+        bool has[agpose::maxStrikeKeys]{};   // ... which are there (the Cast: its one, phase 0)
+        int keyDrag{-1};     // the key whose diamond is being dragged on the scrubber (its phase; -1 none)
         bool timed{false};   // times read for heldPose
         double lastServer{-1.0}; // the server time of the last advance
     } swing;
@@ -356,6 +358,7 @@ void strikePark();                       // back on the picked phase's key (paus
 void strikeServerFrame();                // the time advanced (playing), QC's times read
 [[nodiscard]] glm::vec3 strikeQuery(int ent); // QC's query: speed, time, 1 while the timeline drives it
 void strikeTimelineUi();                 // the Pose Studio Data window's timeline (a strike or the Cast picked)
+void strikeKeysUi();                     // ... its Key picker (in the act's order), the key's time, Add / Remove Key
 void ghostsDisplayUi();                  // Tools > Display's IK ghost options
 void ghostNote();                        // st.note just taken: the subject as solved, kept by its time (the onion's)
 void drawGhosts(ImDrawList* dl);         // the onion skin and the IK ghost (translucent, never picked)
@@ -435,6 +438,7 @@ void cameraView(float* origin, float* angles);
 // (`amount` units along it), 20..22 a ring (`amount` degrees round it). False: no such handle shown now.
 bool mockDrag(int owner, int part, int axis, float amount);
 bool mockClick(const glm::vec3& world); // a left click on that point (false: not in view)
+void mockLine(const glm::vec2& from, const glm::vec2& to); // pressed at `from`, dragged to `to`, let go (screen; equal: a click)
 void mockFeed();
 [[nodiscard]] bool mockBusy();
 

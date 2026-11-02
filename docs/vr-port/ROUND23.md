@@ -6456,3 +6456,89 @@ try at its weapon already does); (2) only falls count (coming down); (3) as now.
 **Question for him (agrunt_72):** the fix changes how a gun-and-axe holder plays up close: it swings its axe and no
 longer steps in to shove. The axe is what vr_agrunt_repl_gunaxe says; the shove is newer. Keep, or let it shove too?
 Recommendation: keep. One condition in VR_AG_ShoveClose takes it back (test 72 then fails again).
+
+## Option round 2: moves to tunables, Directional Parry on (branch `agent/opt2tune`, his words 2026-11-02, items 3-5, 9-11)
+
+OPTION_AUDIT_1102.md, "Round 2". His answers: "3. Turn melee swish settings into tunables", "4. Turn
+`vr_agrunt_friendly_care` into tunable", "5. Make `vr_dirparry 1` the default, turn its knobs/tweaks into tunables",
+"9. Keep grapple length/speeds as tunables", "10. Turn fire particle tweaks and loot beam tweaks to tunables, but keep
+the main switches as cvars", "11. Address the remaining menu clutter as suggested".
+
+- **Moved to tuning constants (61; names and defaults kept, so QC's handles find them; their config lines ignored,
+  their 17 migration rows gone), each in the Tunables submenu of its old page:**
+  - Combat > Melee: `vr_melee_swish_min/_sub/_full/_gain` (Whoosh by Speed, `vr_melee_swish`, stays a setting).
+  - Combat > Armed Grunts > AI Behaviour: `vr_agrunt_friendly_care` (test 63 sets it with `tune`).
+  - Combat > Directional Parry: `vr_dirparry_angle/_angle_zero/_contact/_falloff/_threshold/_window`, beside the two
+    that were constants already (`_partial`, `_opening`): the group the toggle's help already named. The page's six
+    inline sliders are gone; the switch and Show Directional Parry stay on Parry and Bash. Test 78 sets the contact
+    with `tune`.
+  - Movement > Grappling Hook: the lengths and speeds, `vr_grapple_max_length`, `_min_length`, `_reel_speed`,
+    `_unreel_speed`, `_quick_speed`, `_prop_speed`, `_tow_speed`, `_small_speed`, `_medium_speed` (the Props header
+    went with its two rows). Kept settings: the rope, trigger release, drop grace, shootable, the front button's time
+    (`_quick_time`, a time), the button places, rope sim, unreel airborne, stagger, stamina, haptics, sag.
+  - Combat > Burning > Fire Particles: all 12 numbers; `vr_fire_particles` stays.
+  - Graphics > Loot Beams: all 20 tweaks (magazine fullness, opacity, length, thickness, colourfulness, fade in, rest,
+    near and far fades, the 10 hues, the toolgun's length). Settings: `vr_lootbeams` and the eight per-kind switches
+    (weapons, magazines, ammo, health, armour, power-ups, keys, backpacks), so a player chooses what has a beam.
+  - Gore > Gore: the 9 per-sound volumes `vr_gore_sound_vol_<kind>`. The master is the existing `vr_gore_sound` row,
+    relabelled **Gore Volume** (default 1, so every sound is as loud as before: 0.75 each, drips 0.35, times it).
+- **`vr_dirparry` defaults to 1** (his config's). Off still gives the level-across parry (removed in a later round).
+  No migration row: configs are sparse, so everyone who never set it gets the new default.
+- C++ that held them as `cvar_t*` holds `const Tunable*` (vr_goresound.cpp `kindVolumes`, vr_lootbeams.cpp
+  `categoryHue`). Moved with `scratch/ot_move.py` (agent/opttune's tool).
+- **Tests.** Tunables tree: 1450 of 1450 constants reached, 0 twice: PASS. `vr_menu_path_check`: calibration 6 found,
+  test hall 14 found, 0 missing; menu_paths.txt regenerated. `vr_agrunt_test 63`: careless (`tune ... 0`) 10 friendly
+  hits, careful 0: PASS (its summary line says "0 passed, 10 failed" because the test keeps the careless hits in
+  `vr_test_fail`: the verdict line is the PASS). `vr_agrunt_test 78`: 18 passed, 2 failed: "horizontal vs your sword
+  level across" parried (expected to land: its swing's way read as upward, gap 3.7 where the test's notes say 16) and
+  "the chainsaw's line" (2.56 units off the drawn weapon). Both cases set `vr_dirparry 1` themselves and read the
+  swing's geometry, which this change does not touch; pre-existing: origin/next (a664c3d65) fails the same two in 3 of
+  3 runs, this branch in 3 of 3 (18/2 every run). Case 10
+  (contact by `tune`): PASS. e1m1/start: loot beams 9 drawn, fire particles 400 made, gore sounds played, the grapple
+  reels at 300 u/s.
+
+## Strike keys: times and in-betweens (agent/posekeys)
+
+- **What.** In the Pose Studio a strike's keys have times and can be added: the Phase slider is replaced by the Key
+  list, Key Time, the diamonds on the strike bar, Add Key at Playhead and Remove Key; RIGSTUDIO.md has the details.
+- **Blow timing.** An act's phases' lengths and the moment of its blow stay QC's, by time. The keys do change where the
+  weapon is at that moment: `VR_AGP_Strike` adds the blended pose's place and turn to the blow's line.
+- **Test.** `vr_rigstudio_test_strikekeys` (needs `-flatscreenmode`; `vr_rigstudio monster_vr_grunt 13` first): 22
+  passed, 0 failed, including the diamond dragged and both buttons clicked by the mock mouse.
+- **Check of the blow's moment** (`vr_agrunt_test 18`, every kind's melee and punch strikes, blow keys at 1.2 and an
+  in-between at 1.1; a temporary print of the seconds into the act, since removed): the same ranges with and without
+  keys, e.g. act 2 kind 0 0.3639..0.4695 s against 0.3611..0.4695 s, within a frame's 0.014 s. Times alone: 24 passed,
+  0 failed. With the blow keys also moved 8 units: 22 passed, 2 failed (Grunt and Knight fists miss), the place moving
+  the blow as above. No keys: 24/0 and 23/1 in two runs, so that test has one intermittent failure of its own (which
+  one was not recorded).
+
+## 32-bit progs (branch `agent/progs32`, 2026-11-02)
+
+Our QC was ~2,100 globals short of the 65,536 that id's 16-bit progs format allows (63,405 now). It now always compiles
+to FTE's extended format (version 7, secondary version `PROG_SECONDARYVERSION32`: 32-bit statements and defs), so that
+limit is gone. The compiled code is the same.
+
+- **Compiler.** Our FTEQCC gets an `fte32` flag (`Tools/fteqcc/fte32.patch`, `-Ffte32` or `#pragma flag enable fte32`;
+  `QC/defs.qc` has the pragma). Stock FTEQCC already writes this format when the 16-bit one overflows; the flag takes
+  that path on every build, so the 32-bit loader is the one always exercised. The `-Fwasm` listing is identical; the
+  compile log differs in two lines. `Tools/fteqcc/README.md` has the details and the new SHA-256.
+- **Stock FTEQCC** warns about the unknown flag and writes version 6. `Misc/quakevr/check_progs_format.py` (`QC/build.sh`,
+  the Visual Studio build, the flatpak) then fails the build, and it prints the globals count. The flatpak's manifest
+  applies the patch to upstream `f937b9d88`.
+- **Engine.** Statements and defs are 32-bit in memory (`Quake/pr_comp.h`, `Quake/pr_edict.c`). id's 16-bit version 6 and
+  FTE16 are widened at load, jumps sign-extended, so other mods' stock progs still load. The startup line says which
+  format loaded; our game code in 16-bit gets a warning (`Quake/vr/vr_progs.cpp`).
+- **Cost.** About 4.9 MB more memory: 592,981 statements at 16 bytes instead of 8, defs at 12 instead of 8.
+- **Kit.** `kit/build.sh`'s stock-compiler comparison can never match on this branch, so when the QC changes it replaces
+  `progs.dat` with stock FTEQCC's 16-bit one and warns. It needs to skip the comparison for trees with the pragma.
+
+**Tested** (fast mode). Ours on e1m1: FTE32 loaded, 300 edicts before and after a save and load; a save from the older
+`5095e37b` build loaded (282 edicts). Hipnotic's stock progs on hip1m1 (16-bit, 21,151 globals): played 5 s, 355 edicts
+before and after a save and load.
+
+**Timings** (`--lto`, exclusive, fast; `kit/benchresults/progs32_before2` on `5216a22de`, `progs32_after` on `f24ef7613`,
+crowd32_armed, 3 reps each): frame p50 6.57 to 6.27 ms, p99 21.8 to 20.1 ms, CPU 6.73 to 6.14 ms: no measured cost. The
+"better" is noise, as is GPU eyes 3.2 to 4.7 ms (QC doesn't touch the GPU; the first after-rep ran cold). The QC VM
+micro-bench (`vr_qcexec_bench ad_mathlib_pow`, goto loop) read 83/73/80 ns/call before and 94/88/91 after, but a
+second after-run read 94/121/135, so it is too noisy here to credit or blame the format. Not settled: a small per-statement
+cost is possible; a quiet machine with both exes would settle it.

@@ -912,10 +912,6 @@ QVR_TOGGLE(vr_agrunt_aim_exposed, "Aim at What They Can Hit",
     "Partly behind cover, they aim at a part of you their gun's line reaches (your chest first, then your "
     "head, then whatever shows: shoulders, hips, legs; a rocket the floor at your feet), and hold fire while "
     "nothing shows. Off: always your chest, firing whenever they see your head (vr_agrunt_aim_exposed).")
-QVR_SLIDER(vr_agrunt_friendly_care, "Careful of Friends", 0.f, 1.f, 0.05f, "%.2f", noExt,
-    "How careful it is not to shoot or strike its friends: with another monster in its line of fire (a "
-    "few lines for a shotgun's spread), the chance it holds fire and sidesteps for a clear shot. 1: "
-    "always, 0: never, it fires through them as before (vr_agrunt_friendly_care).")
 QVR_TOGGLE(vr_agrunt_blast_safe, "Launchers Fired Safely",
     "With a grenade or rocket launcher or a proximity gun, it fires only when the round's predicted burst "
     "(its arc, its bounces, a wall just ahead) is far enough from itself; otherwise it backs off or "
@@ -1861,32 +1857,14 @@ QVR_CYCLE(vr_gib_limbs, "Gibbed Bodies Throw Limbs",
 QVR_CYCLE(vr_gore, "Gore",
     "Over the top: hits spray blood onto the walls, floor and ceiling behind, gibbing paints the room, pools spread under corpses, gibs stick to ceilings and drip.",
     {0.f, "Quake VR"}, {1.f, "More"}, {2.f, "Over the top"})
-QVR_SLIDER(vr_gore_sound, "Gore Sounds", 0.f, 1.f, 0.05f, "%.2fx", ext(0.f, 2.f),
+QVR_SLIDER(vr_gore_sound, "Gore Volume", 0.f, 1.f, 0.05f, "%.2fx", ext(0.f, 2.f),
     "How loud the gore's own sounds are (0 none): stumps spurting with each pulse, streams splattering on the "
     "floor, limbs tearing off, a hand squelching into a gib or a body, a splash stepping into a pool of blood "
-    "and wet steps after it, gibs slapping walls; a choke if on (below). Each kind's own volume below, times "
-    "this (vr_gore_sound).")
+    "and wet steps after it, gibs slapping walls; a choke if on (below). Each kind's own volume (a tuning "
+    "constant: Debug > Tunables > Gore), times this (vr_gore_sound).")
 QVR_TOGGLE(vr_gore_sound_choke, "Gore Sounds: Chokes",
     "A beheaded or face-smashed enemy gargles and chokes instead of crying out (its pain or death cry dropped "
     "for a moment). Off: never, every cry plays (vr_gore_sound_choke).")
-QVR_SLIDER(vr_gore_sound_vol_spurt, "Gore Sounds: Spurts", 0.f, 1.f, 0.05f, "%.2fx", ext(0.f, 2.f),
-    "A stump's spurt with each pulse of its fountain: its volume, times Gore Sounds (vr_gore_sound_vol_spurt).")
-QVR_SLIDER(vr_gore_sound_vol_pour, "Gore Sounds: Streams", 0.f, 1.f, 0.05f, "%.2fx", ext(0.f, 2.f),
-    "A blood stream splattering where it lands (vr_gore_sound_vol_pour).")
-QVR_SLIDER(vr_gore_sound_vol_tear, "Gore Sounds: Tears", 0.f, 1.f, 0.05f, "%.2fx", ext(0.f, 2.f),
-    "The wet rip and bone crack of a limb or a head torn off (vr_gore_sound_vol_tear).")
-QVR_SLIDER(vr_gore_sound_vol_squelch, "Gore Sounds: Squelches", 0.f, 1.f, 0.05f, "%.2fx", ext(0.f, 2.f),
-    "A hand closing on a gib or a dead body (vr_gore_sound_vol_squelch).")
-QVR_SLIDER(vr_gore_sound_vol_splash, "Gore Sounds: Pool Splash", 0.f, 1.f, 0.05f, "%.2fx", ext(0.f, 2.f),
-    "Your foot stepping into a pool of blood (vr_gore_sound_vol_splash).")
-QVR_SLIDER(vr_gore_sound_vol_step, "Gore Sounds: Wet Steps", 0.f, 1.f, 0.05f, "%.2fx", ext(0.f, 2.f),
-    "Your steps for a few seconds after a pool of blood (vr_gore_sound_vol_step).")
-QVR_SLIDER(vr_gore_sound_vol_slap, "Gore Sounds: Slaps", 0.f, 1.f, 0.05f, "%.2fx", ext(0.f, 2.f),
-    "A gib slapping into a wall or a ceiling (vr_gore_sound_vol_slap).")
-QVR_SLIDER(vr_gore_sound_vol_choke, "Gore Sounds: Chokes Volume", 0.f, 1.f, 0.05f, "%.2fx", ext(0.f, 2.f), "The chokes, when on (vr_gore_sound_vol_choke).")
-QVR_SLIDER(vr_gore_sound_vol_drip, "Gore Sounds: Drips", 0.f, 1.f, 0.05f, "%.2fx", ext(0.f, 2.f),
-    "A quiet drip as a drop of blood hits the floor: yours dripping from your wounds, from ceilings and from "
-    "gibs stuck there (vr_gore_sound_vol_drip).")
 QVR_SLIDER(vr_gore_sound_drips, "Gore Sounds: Drips Heard", 0.f, 1.f, 0.05f, "%.2f", noExt,
     "The share of the drops you hear (1: every drop; 0.5: every other) (vr_gore_sound_drips).")
 QVR_TOGGLE(vr_footprints, "Bloody Footprints",
@@ -2221,22 +2199,6 @@ QVR_SLIDER_BYNAME(vr_crosshairy, "Crosshair Z Offset", -10.f, 10.f, 0.05f, "%.2f
 // vr_menu_pages.inc: pageFireParticles
 QVR_TOGGLE_BYNAME(vr_fire_particles, "Fire Model Particles",
     "Rising flame tongues from wall torches, map fires, candles, lanterns, burning bodies and taken torches. Keeps the low-poly flame models. Needs Quake VR Particles.")
-QVR_SLIDER_BYNAME(vr_fire_particles_count, "Particles per Emission", 0.f, 16.f, 1.f, "%.0f", noExt,
-    "Exact count per source per emission, independent of Particle Multiplier.")
-QVR_SLIDER_BYNAME(vr_fire_particles_frequency, "Emission Frequency", 0.f, 30.f, 1.f, "%.0f /s", ext(0.f, 60.f), nullptr)
-QVR_SLIDER_BYNAME(vr_fire_particles_origin, "Emission Height", 0.f, 1.f, 0.05f, "%.2f", noExt,
-    "0: base of the flame; 0.5: centre; 1: tip. Also applies to held torches.")
-QVR_SLIDER_BYNAME(vr_fire_particles_speed_min, "Minimum Outward Speed", 0.f, 3.f, 0.05f, "%.2f m/s", ext(0.f, 10.f), nullptr)
-QVR_SLIDER_BYNAME(vr_fire_particles_speed_max, "Maximum Outward Speed", 0.f, 3.f, 0.05f, "%.2f m/s", ext(0.f, 10.f),
-    "Horizontal speed, away from the flame. Endpoints may be swapped.")
-QVR_SLIDER_BYNAME(vr_fire_particles_up_min, "Minimum Upward Speed", 0.f, 3.f, 0.05f, "%.2f m/s", ext(0.f, 10.f), nullptr)
-QVR_SLIDER_BYNAME(vr_fire_particles_up_max, "Maximum Upward Speed", 0.f, 3.f, 0.05f, "%.2f m/s", ext(0.f, 10.f), "Up in the world, even when a torch is inverted.")
-QVR_SLIDER_BYNAME(vr_fire_particles_life_min, "Minimum Particle Life", 0.05f, 2.f, 0.05f, "%.2f s", ext(0.05f, 5.f), nullptr)
-QVR_SLIDER_BYNAME(vr_fire_particles_life_max, "Maximum Particle Life", 0.05f, 2.f, 0.05f, "%.2f s", ext(0.05f, 5.f), nullptr)
-QVR_SLIDER_BYNAME(vr_fire_particles_size, "Fire Particle Size", 0.1f, 4.f, 0.1f, "%.1fx", noExt, nullptr)
-QVR_SLIDER_BYNAME(vr_fire_particles_alpha, "Fire Particle Opacity", 0.f, 1.f, 0.05f, "%.2f", noExt, nullptr)
-QVR_SLIDER_BYNAME(vr_fire_particles_range, "Emission Distance", 0.f, 2048.f, 64.f, "%.0f units", ext(0.f, 4096.f),
-    "Sources beyond this distance stop emitting; limits the cost on maps with many fires.")
 QVR_TOGGLE_BYNAME(vr_flame_wobble, "Hands Stir Flames",
     "A hand passing quickly through or near a flame (torches, braziers, map fires, burning bodies, the pyro's pilot light) makes it lean the way the hand went, as if moving the air, swinging back a little as it settles; the fire and smoke particles near the hand are carried along.")
 QVR_SLIDER_BYNAME(vr_flame_wobble_strength, "Stir Strength", 0.f, 4.f, 0.05f, "%.2fx", noExt,
@@ -2563,14 +2525,6 @@ QVR_CYCLE_BYNAME(vr_melee_bloodlust, "Melee Bloodlust",
 QVR_SLIDER_BYNAME(vr_melee_bloodlust_mult, "Melee Bloodlust Mult.", 0.05f, 5.f, 0.05f, "%.2f", ext(), "Multiplier for melee bloodlust health restoration.")
 QVR_TOGGLE_BYNAME(vr_melee_swish, "Whoosh by Speed",
     "Every swing of a fist, an open hand or a melee weapon that moves air whooshes, louder the faster: softly short of a blow, a blow at full volume, the fastest blows louder still and a little higher. Off: only a blow whooshes, always at full volume. A gun's swing whooshes only as a blow.")
-QVR_SLIDER_BYNAME(vr_melee_swish_min, "Heard From", 0.2f, 0.9f, 0.05f, "%.2fx", ext(0.05f, 0.95f),
-    "The slowest swing heard, as a share of the speed its blow would land at (slower: silent).")
-QVR_SLIDER_BYNAME(vr_melee_swish_sub, "Short of a Blow", 0.f, 1.f, 0.05f, "%.2f", noExt,
-    "Volume of the loudest swing that is not a blow, just under the speed it would land at (a blow is 1). Lower: the step to a blow stands out more.")
-QVR_SLIDER_BYNAME(vr_melee_swish_full, "Loudest Blow At", 1.2f, 3.f, 0.05f, "%.2fx", ext(1.05f, 5.f),
-    "The speed, times the blow's landing speed, at which its whoosh is loudest (Loudest Blow).")
-QVR_SLIDER_BYNAME(vr_melee_swish_gain, "Loudest Blow", 1.f, 2.5f, 0.05f, "%.2fx", ext(1.f, 4.f),
-    "Volume of the fastest blows' whoosh, times full volume (1: every blow at full volume).")
 QVR_SLIDER_BYNAME(vr_melee_phase_speed, "Swing Through Speed", 1.f, 6.f, 0.25f, "%.2f m/s", ext(0.25f, 10.f),
     "How fast the hand must move to pass through. 4 (the default): a hard blow's speed; 2.25: a stab's least speed at Swing Speed 3 (a punch 3, a weapon's swing 3.75). Lower: slower pushes pass through too; higher: only hard blows.")
 QVR_SLIDER_BYNAME(vr_melee_phase_time, "Swing Through Follow-Through", 0.f, 0.5f, 0.01f, "%.2f s", ext(0.f, 2.f),
@@ -3363,9 +3317,8 @@ QVR_TOGGLE_BYNAME(vr_lootbeams, "Loot Beams",
 QVR_TOGGLE_BYNAME(vr_lootbeam_weapons, "Weapons",
     "Weapons lying about: dropped, thrown, a map's, an enemy's dropped gun (the expansions' and Arcane Dimensions' too); an enemy's gun that is empty for good only with Spent Guns Stand Out (Enemy Weapons).")
 QVR_TOGGLE_BYNAME(vr_lootbeam_mags, "Magazines",
-    "Magazines you dropped or pulled out, unless empty or nearly (Magazine Fullness).")
-QVR_SLIDER_BYNAME(vr_lootbeam_mag_min, "Magazine Fullness", 0.f, 1.f, 0.05f, "%.2f", noExt,
-    "A magazine has a beam only when fuller than this share of its rounds. 0: any magazine not empty.")
+    "Magazines you dropped or pulled out, unless empty or nearly (Magazine Fullness: Debug > Tunables > Graphics > "
+    "Loot Beams).")
 QVR_TOGGLE_BYNAME(vr_lootbeam_ammo, "Ammo Boxes", nullptr)
 QVR_TOGGLE_BYNAME(vr_lootbeam_health, "Health Boxes", nullptr)
 QVR_TOGGLE_BYNAME(vr_lootbeam_armor, "Armour", nullptr)
@@ -3373,32 +3326,6 @@ QVR_TOGGLE_BYNAME(vr_lootbeam_powerups, "Power-ups",
     "Quad damage, the pentagram, the ring, the suit, and the mission packs' power-ups.")
 QVR_TOGGLE_BYNAME(vr_lootbeam_keys, "Keys and Runes", nullptr)
 QVR_TOGGLE_BYNAME(vr_lootbeam_backpacks, "Backpacks", nullptr)
-QVR_SLIDER_BYNAME(vr_lootbeam_opacity, "Opacity", 0.f, 1.f, 0.05f, "%.2f", noExt, "How bright the beams are.")
-QVR_SLIDER_BYNAME(vr_lootbeam_length, "Length", 0.2f, 4.f, 0.1f, "%.1f m", noExt, "How high a beam rises from the thing's middle.")
-QVR_SLIDER_BYNAME(vr_lootbeam_thickness, "Thickness", 0.01f, 0.3f, 0.01f, "%.2f m", noExt,
-    "How wide its bright core is; its soft glow is three times as wide.")
-QVR_SLIDER_BYNAME(vr_lootbeam_saturation, "Colourfulness", 0.f, 1.f, 0.05f, "%.2f", noExt, "0: all white.")
-QVR_SLIDER_BYNAME(vr_lootbeam_fade_in, "Fade In", 0.f, 2.f, 0.1f, "%.1f s", noExt,
-    "How long a beam takes to appear once the thing has come to rest.")
-QVR_SLIDER_BYNAME(vr_lootbeam_settle, "Rest Before Showing", 0.f, 2.f, 0.1f, "%.1f s", noExt, "How long a thing must lie still before its beam fades in.")
-QVR_SLIDER_BYNAME(vr_lootbeam_near, "Fade Up Close", 0.f, 2.f, 0.1f, "%.1f m", noExt,
-    "A beam fades out as your head comes this close to it (across the floor), so it is not in your face as you pick the thing up. 0: never.")
-QVR_SLIDER_BYNAME(vr_lootbeam_far, "Fade Far Away", 0.f, 60.f, 1.f, "%.0f m", noExt, "Beams farther than this fade out. 0: never.")
-QVR_SLIDER_BYNAME(vr_lootbeam_hue_weapons, "Weapons Hue", 0.f, 355.f, 5.f, "%.0f", noExt,
-    "Hue in degrees: 0 red, 40 gold, 120 green, 190 cyan, 240 blue, 285 violet.")
-QVR_SLIDER_BYNAME(vr_lootbeam_hue_weapons_empty, "Empty Weapons Hue", -5.f, 355.f, 5.f, "%.0f", noExt,
-    "A reloadable weapon whose magazine is empty (or out): 0 red, so you know it needs ammo before you grab it. Below 0: as the other weapons.")
-QVR_SLIDER_BYNAME(vr_lootbeam_hue_mags, "Magazines Hue", 0.f, 355.f, 5.f, "%.0f", noExt, nullptr)
-QVR_SLIDER_BYNAME(vr_lootbeam_hue_ammo, "Ammo Boxes Hue", 0.f, 355.f, 5.f, "%.0f", noExt, nullptr)
-QVR_SLIDER_BYNAME(vr_lootbeam_hue_health, "Health Boxes Hue", 0.f, 355.f, 5.f, "%.0f", noExt, nullptr)
-QVR_SLIDER_BYNAME(vr_lootbeam_hue_armor, "Armour Hue", 0.f, 355.f, 5.f, "%.0f", noExt, nullptr)
-QVR_SLIDER_BYNAME(vr_lootbeam_hue_powerups, "Power-ups Hue", 0.f, 355.f, 5.f, "%.0f", noExt, nullptr)
-QVR_SLIDER_BYNAME(vr_lootbeam_hue_keys, "Keys and Runes Hue", 0.f, 355.f, 5.f, "%.0f", noExt, nullptr)
-QVR_SLIDER_BYNAME(vr_lootbeam_hue_backpacks, "Backpacks Hue", 0.f, 355.f, 5.f, "%.0f", noExt, nullptr)
-QVR_SLIDER_BYNAME(vr_lootbeam_hue_toolgun, "Toolgun Hue", 0.f, 355.f, 5.f, "%.0f", noExt,
-    "A dropped toolgun's own colour (it is a weapon, but easy to lose among many): 305 magenta.")
-QVR_SLIDER_BYNAME(vr_lootbeam_toolgun_length, "Toolgun Beam Length", 1.f, 4.f, 0.25f, "x%.2f", noExt,
-    "A dropped toolgun's beam this many times Length, so it stands above the weapons'.")
 
 // vr_menu_pages.inc: pageGraphicsTeleporters
 QVR_TOGGLE_BYNAME(vr_teleporters, "Quake VR Teleporters",
@@ -5162,17 +5089,12 @@ QVR_SLIDER(vr_grapple_drop_grace, "Drop Grace", 0.f, 0.5f, 0.02f, "%.2f s", ext(
     "Comes Back and Comes Loose: the trigger let go waits this long before the hook comes off: dropping the "
     "gun, holstering it or passing it to the other hand in that time (letting go of trigger and grip "
     "together) keeps the hook in.")
-QVR_SLIDER(vr_grapple_max_length, "Longest Rope", 200.f, 3000.f, 50.f, "%.0f", ext(64.f, 10000.f),
-    "The rope is never longer (units): the hook flies no farther, the unreel pays out no more.")
 QVR_TOGGLE(vr_grapple_shootable, "Shoot the Hook Off",
     "A hook in a wall, a floor or a door comes off when you shoot it (any weapon): get it back when it is "
     "stuck or its gun is out of reach.")
 QVR_SLIDER(vr_grapple_quick_time, "Reel-In Button Time", 0.f, 2.f, 0.05f, "%.2f s", ext(0.f, 10.f),
     "How long the front button takes to reel the hook in: it speeds up, then slows down into the gun (a "
-    "short rope quicker). 0: it flies straight back at the Reel-In Button Speed.")
-QVR_SLIDER(vr_grapple_quick_speed, "Reel-In Button Speed", 300.f, 4000.f, 100.f, "%.0f u/s", ext(100.f, 10000.f),
-    "The fastest the hook comes back when you press the front button (a long rope takes longer than the "
-    "Reel-In Button Time), and its speed with that time at 0.")
+    "short rope quicker). 0: it flies straight back at the Reel-In Button Speed (a tuning constant).")
 QVR_TOGGLE(vr_grapple_front_button, "Front Button",
     "The gun's second button, near the muzzle: press it with the other hand's finger and the hook comes "
     "straight back into the gun (through anything). The back button, over the grip, only detaches it.")
@@ -5180,24 +5102,10 @@ QVR_TOGGLE(vr_grapple_rope_sim, "Physical Rope",
     "The rope wraps round the world and the props (a pillar's edge, a box's top), never through them, and "
     "pulls along where it lies; slack, it is drawn hanging from the corners it wraps and lying on the "
     "world. Off: a straight line, drawn sagging.")
-QVR_SLIDER(vr_grapple_reel_speed, "Reel Speed", 100.f, 1000.f, 25.f, "%.0f u/s", ext(25.f, 2000.f),
-    "How fast the reel pulls you in: to a wall or a ceiling, to a huge monster, to a prop too heavy to come.")
-QVR_SLIDER(vr_grapple_min_length, "Shortest Rope", 16.f, 128.f, 4.f, "%.0f", ext(0.f, 400.f), "How short the reel takes the rope (units).")
-QVR_SLIDER(vr_grapple_unreel_speed, "Unreel Speed", 50.f, 800.f, 25.f, "%.0f u/s", ext(0.f, 2000.f),
-    "The hand's lower button (A on the right hand, X on the left) pays the rope out while held, this fast: "
-    "you let yourself down from a ceiling, a monster or a prop can go farther. Let go and the rope keeps its "
-    "length. 0: no unreel.")
 QVR_TOGGLE(vr_grapple_unreel_airborne, "Unreel Button Only When Airborne",
     "On: a button that jumps (A) unreels only in the air: on the ground it jumps as ever, and a press that "
     "jumped does not unreel until pressed again; X (the reload) unreels on the ground too. Off: either "
     "unreels anywhere, its key still pressed too.")
-QVR_SLIDER(vr_grapple_prop_speed, "Prop Reel Speed", 100.f, 1500.f, 25.f, "%.0f u/s", ext(25.f, 3000.f),
-    "How fast light props come in: weapons, pickups, keys, gibs. They hang at the gun, to take with the "
-    "other hand.")
-QVR_SLIDER(vr_grapple_tow_speed, "Dragging Speed", 0.f, 600.f, 10.f, "%.0f u/s", ext(0.f, 2000.f),
-    "The fastest you walk dragging a light prop on a taut rope. 0: no limit (it comes at your speed).")
-QVR_SLIDER(vr_grapple_small_speed, "Small Reel Speed", 50.f, 1000.f, 25.f, "%.0f u/s", ext(10.f, 2000.f), nullptr)
-QVR_SLIDER(vr_grapple_medium_speed, "Medium Reel Speed", 25.f, 600.f, 25.f, "%.0f u/s", ext(10.f, 2000.f), nullptr)
 QVR_TOGGLE(vr_grapple_stagger, "Stagger Small Monsters",
     "A small monster reeled in is staggered: its pain, cutting off its attack, and again every second.")
 QVR_SLIDER(vr_grapple_stamina, "Stamina a Second", 0.f, 50.f, 1.f, "%.0f", ext(0.f, 200.f),
@@ -5516,7 +5424,7 @@ QVR_CYCLE_BYNAME(developer, "Developer Messages",
     {0.f, "Off"}, {1.f, "On"}, {2.f, "Verbose"})
 QVR_TOGGLE(vr_gore_sound_debug, "Gore Sounds",
     "vr_gore_sound_debug: each gore sound played or dropped (capped, rate-limited, too far, off) and why, "
-    "and a choking monster's cry dropped (Gore > Gore Sounds; vr_gore_sound_stats counts them).")
+    "and a choking monster's cry dropped (Gore > Gore Volume; vr_gore_sound_stats counts them).")
 QVR_TOGGLE(vr_bloodprints_debug, "Bloody Prints",
     "vr_bloodprints_debug: each bloody footprint and handprint (where, its way, size, strength; the ankle and "
     "toe or the wrist it came from), each pool or body that bloodied your feet.")
