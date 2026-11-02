@@ -6422,6 +6422,7 @@ the main switches as cvars", "11. Address the remaining menu clutter as suggeste
   `vr_test_fail`: the verdict line is the PASS). `vr_agrunt_test 78`: 18 passed, 2 failed: "horizontal vs your sword
   level across" parried (expected to land: its swing's way read as upward, gap 3.7 where the test's notes say 16) and
   "the chainsaw's line" (2.56 units off the drawn weapon). Both cases set `vr_dirparry 1` themselves and read the
-  swing's geometry, which this change does not touch; not compared against origin/next (no baseline run). Case 10
+  swing's geometry, which this change does not touch; pre-existing: origin/next (a664c3d65) fails the same two in 3 of
+  3 runs, this branch in 3 of 3 (18/2 every run). Case 10
   (contact by `tune`): PASS. e1m1/start: loot beams 9 drawn, fire particles 400 made, gore sounds played, the grapple
   reels at 300 u/s.
