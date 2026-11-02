@@ -836,11 +836,7 @@ void noteRagImpacts(const b3ContactEvents& events)
 {
     const float least = za::max(vr_ragimpact_min_speed.value, 0.5f);
     const float leastHeld = za::max(vr_ragimpact_held_speed.value, 0.25f);
-    if(vr_ragimpact.value == 0.f)
-    {
-        return;
-    }
-    noteDragSwings();
+    noteDragSwings(); // (vr_ragimpact off too: the QC's own check; armed humanoids' impact rule still reads the contact)
     const auto kindAt = [](int n) { return n > 0 && n < static_cast<int>(world->slots.size()) ? world->slots[n].kind : Kind::None; };
     for(int i = 0; i < events.hitCount; i++)
     {

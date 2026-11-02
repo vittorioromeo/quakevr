@@ -218,7 +218,7 @@ void frame()
 {
     FrameTime& t = frameRing[frameNext];
     t.realtime = realtime;
-    t.dt = static_cast<float>(host_rawframetime);
+    t.dt = static_cast<float>(motion::wallFrameTime()); // (the wall clock's: vr_display_clock's steps are even, a frame late or not)
     frameNext = (frameNext + 1) % frameCap;
     frameCount = za::min(frameCount + 1, frameCap);
     framesSeen++;

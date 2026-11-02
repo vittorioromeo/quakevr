@@ -862,6 +862,11 @@ QVR_TUNABLE(vr_agrunt_tug_hold_max, "6") // s the tug lasts at most: then it wre
 QVR_TUNABLE(vr_agrunt_tug_ik_stretch, "1.2") // the tug: its arms' IK stretch (vr_agrunt_ik_stretch's) times this while a tug is on, eased in and out with it (its arm reaches for the weapon held in your hand; 1: none)
 QVR_TUNABLE(vr_agrunt_grab_slack, "0") // cm: your fist takes its weapon within this of the weapon's drawn surface (vr_physics.cpp handOn; never by its box, nor on its arm or chest)
 QVR_TUNABLE(vr_agrunt_grab_sweep, "2") // frames (0..2): your fist is also measured against its weapon's places this many frames back and midway (the weapon as drawn lags the server's; a swung blade moves 5-20 cm a frame)
+QVR_TUNABLE(vr_agrunt_fall_impact_speed, "3") // m/s: the impact rule (vr_agrunt_fall_keep_impact) counts only a body that has kept up this speed ...
+QVR_TUNABLE(vr_agrunt_fall_impact_time, "0.1") // s: ... for this long (a shove's or your body's one-frame spike never does) ...
+QVR_TUNABLE(vr_agrunt_fall_impact_window, "0.085") // s: ... and loses vr_agrunt_fall_keep_impact over this long, on a surface it flew into (a limp body takes about 6 frames at 72 Hz: measured 6.5, 3.8, 4.9, 3.5, 3.9, 2.4, 1.4 m/s on a landing, ROUND23.md)
+QVR_TUNABLE(vr_agrunt_fall_impact_held, "0.6") // your hands' bang: your swing must drive the body at this share of vr_agrunt_fall_keep_impact or faster as your hand reaches a surface, having kept up this share of vr_agrunt_fall_impact_speed (your grip drives it at about 5 m/s at most)
+QVR_TUNABLE(vr_agrunt_fall_impact_reach, "8") // units: your hands' bang: the swinging hand holding it this near a surface ahead (your hand stops at the wall, the body softly at your hand)
 QVR_TUNABLE(vr_agrunt_rag_grab_weapon, "8") // cm: on a living (active) ragdoll your fist this near its weapon's drawn surface takes the weapon, not the limb beside it (the grab query: vr_physics.cpp armedAllowance, box3d grabRagdoll)
 QVR_TUNABLE(vr_agrunt_rag_limb_grab, "1") // a grab on a living ragdoll's weapon hand or forearm is a grab on its weapon (a tug); 0: the limb is held, as any
 QVR_TUNABLE(vr_agrunt_tug_pull_force, "270") // N (was 200: a still hold peaked at 211): the physical tug's pull that counts: only above it does its grip give (its force x time, the time below)

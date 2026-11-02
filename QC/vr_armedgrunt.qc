@@ -2991,7 +2991,12 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_AG_Damage
 // T_DamageDeal: a blow on it, near its gun hand and hard enough, knocks its weapon out of it.
 void(entity targ, entity inflictor, entity attacker, float take) VR_AG_Hit =
 {
-    targ.vr_ag_struck_at = time; // (lying: the knock it gives its body is no fall's impact, VR_AG_FallImpact)
+    // (Lying: the knock a blow gives its body is no fall's impact, VR_AG_FallImpact. Inflictor world: the level's own strike
+    // on it, VR_RagImpact_Deal, is that impact itself.)
+    if(inflictor != world)
+    {
+        targ.vr_ag_struck_at = time;
+    }
     // A thrown thing's way in met its weapon or hand before its body (vr_agrunt_strike_first): its momentum's rule, not
     // the damage's (vr_armedgrunt_parry.qc).
     if(targ.vr_ag && targ.vr_ag_prop && targ.health > 0 && cvar_hget(cvarh_vr_agrunt_disarm) && !vr_agpar_now &&

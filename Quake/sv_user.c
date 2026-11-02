@@ -327,7 +327,16 @@ void SV_AirMove (void)
 	float		fmove, smove;
 	float		maxspeed; // QVR
 
-	AngleVectors (VR_MoveAngles (sv_player, sv_player->v.angles), forward, right, up); // QVR
+	// QVR: the head steers. Walking takes its yaw alone: pitched, forward's level part shrank (320 asked at 320 the most:
+	// looking 30 degrees down ran 277) and a diagonal turned towards the side; rolled, the side tilted. Flying, it all counts.
+	{
+		const float *steer = VR_MoveAngles (sv_player, sv_player->v.angles);
+		vec3_t steerangles;
+		VectorCopy (steer, steerangles);
+		if ((int)sv_player->v.movetype == MOVETYPE_WALK)
+			steerangles[PITCH] = steerangles[ROLL] = 0.f;
+		AngleVectors (steerangles, forward, right, up);
+	}
 
 	fmove = cmd.forwardmove;
 	smove = cmd.sidemove;
