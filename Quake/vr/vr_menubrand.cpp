@@ -279,7 +279,7 @@ extern "C" void VR_MenuDrawBannerColumn()
     // (Above the bottom left corner's rows: the Recording button, the spectator camera's switch, OBS's row.)
     const float bottom = za::fmin(glcanvas.bottom, qvr::menuui::cornerRowsTop());
     const float buttonsLeft = qvr::menuui::toolbarLeft();
-    if(qvr::vr_menu_banner_beside.value && buttonsLeft > glcanvas.left)
+    if(buttonsLeft > glcanvas.left)
     {
         const float bx0 = glcanvas.left + columnGap;
         const float bx1 = buttonsLeft - columnGap;

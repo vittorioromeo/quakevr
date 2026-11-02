@@ -43,10 +43,10 @@ float vr_npt_h3, vr_npt_h3f, vr_npt_h5, vr_npt_h5f; // the holsters step 11 fill
 entity vr_npt_h3i, vr_npt_h5i;
 string vr_npt_h3m, vr_npt_h5m;
 
-// Whether the ammo screen rides the slide as drawn now (vr_nailpistol_screen_ride, the full-slide look).
+// Whether the ammo screen rides the slide as drawn now (vr_nailpistol_screen_ride).
 float() VR_NPT_ScreenRides =
 {
-    return cvar("vr_nailpistol_screen_ride") != 0 && cvar("vr_nailpistol_model") >= 1;
+    return cvar("vr_nailpistol_screen_ride") != 0;
 };
 
 

@@ -141,10 +141,6 @@ enum Finger : int
     FingerCount
 };
 
-constexpr const char* fingerModels[FingerCount] = {"progs/hand_base.mdl",
-    "progs/finger_thumb.mdl", "progs/finger_index.mdl", "progs/finger_middle.mdl",
-    "progs/finger_ring.mdl", "progs/finger_pinky.mdl"};
-
 // Finger curls, as finger model frames (0 open .. 5 curled), blended towards the controller's
 // (vr_finger_blending_speed frames per second). From the old engine's finger tracking, driven
 // by the trigger, the grip and the thumb's touch sensors instead of SteamVR's skeleton.
@@ -155,15 +151,6 @@ inline float fingerFrames[2][FingerCount]{};
 // top of what the fingers do (the controller's curl, the grasp's wrap). Blended like the curls, so a weapon's tweaks
 // ease in as it is taken. 0 for an empty hand and a hand helping hold the other's weapon.
 inline float fingerBias[2][FingerCount]{};
-
-// A finger's drawn curl (the six models): the frame, and the blend of it towards frame 0 (open: ViewEntity::zeroBlend)
-// for a curl between frames that a weapon's finger tweak leaves (the curls alone are whole frames, as they were).
-struct FingerPose
-{
-    int frame;
-    float open;
-};
-[[nodiscard]] FingerPose fingerPose(int hand, int finger);
 
 enum Holster : int
 {
@@ -337,7 +324,7 @@ struct Entities
 {
     view::ViewEntity weapon[2];
     view::ViewEntity weaponMorph[2]; // the model a gun is morphing out of (its other ammo's: vr_weapon_morph_time)
-    view::ViewEntity hand[2][FingerCount];
+    view::ViewEntity hand[2]; // the jointed hands (setupRigHand)
     view::ViewEntity holster[HolsterCount];
     view::ViewEntity holsterSlot[HolsterCount];
     view::ViewEntity holsterButton[HolsterCount]; // the buttons of the holstered weapons,
@@ -660,8 +647,7 @@ void setupWeapon(hands::State& s, int hand, qmodel_t* model, int frame, bool flo
 [[nodiscard]] int damageLevel();
 
 // ----------------------------------------------------------------------------
-// The jointed hand (vr_hand_rig, vr_handrig.cpp): drawn instead of the palm and the five finger models, as
-// entities.hand[hand][FingerBase] (the others hidden), posed here: each joint of a finger at its curl.
+// The jointed hand (vr_handrig.cpp): drawn as entities.hand[hand], posed here: each joint of a finger at its curl.
 
 // What a hand holds, for its fingers to wrap (vr_hand_fit, vr_grasp.cpp): an entity drawn this frame, and the pose
 // of its model to wrap (-1: its own).
@@ -808,7 +794,8 @@ void moveDrawnHand(int hand, bool mirrored, const glm::vec3& frameRot, glm::vec3
 void updateGroundSpots(const hands::State& s);
 void updateFreeSpots(const hands::State& s);
 
-void drawHand(int hand, glm::vec3 pos, glm::vec3 handRot, bool mirrored, bool hide, const Held& held, const glm::mat4& motion);
+void drawHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool mirrored, bool hide, const Held& held,
+    const glm::mat4& motion);
 
 // ---- A hand holding a ragdoll's limb (vr_ragdoll_grab; ROUND21.md, "Hands on held ragdolls") ----
 // The limb is held by a spring at the hand (vr_box3d.cpp): it lags the hand as it moves and sags under the body's
@@ -861,7 +848,8 @@ struct LimbEase
 };
 inline LimbEase limbEase[2];
 void setupHand(const hands::State& s, int hand);
-void drawHand(int hand, glm::vec3 pos, glm::vec3 handRot, bool mirrored, bool hide, const Held& held, const glm::mat4& motion);
+void drawHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool mirrored, bool hide, const Held& held,
+    const glm::mat4& motion);
 [[nodiscard]] glm::mat3 entityTurn(const entity_t& e);
 void placeFloating(const hands::State& s, posing::Session& ps);
 void holdFloating(hands::State& s, const posing::Session& ps);

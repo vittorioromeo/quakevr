@@ -1,18 +1,19 @@
-# build_nailpistol_slide.py -- the nail pistol's second look, a full pistol slide (vr_nailpistol_model 1), added to
-# quakevr/progs/v_nailpistol.mdl as its frames 2 and 3. Pure Python (no Blender): run it after export_mdl.py (which writes
-# the classic frames 0 and 1 only), or again on its own output (it takes the classic part back out first):
+# build_nailpistol_slide.py -- the nail pistol's full pistol slide, made from the classic model export_mdl.py writes
+# (its copper slide on top of the receiver: frames 0 rest, 1 back) into quakevr/progs/v_nailpistol.mdl (frames 0 rest,
+# 1 the slide back). Pure Python (no Blender): run it after export_mdl.py, or again on its own output (the classic model
+# kept as its source: CLASSIC):
 #
 #   python Misc/quakevr/models_src/nailpistol/build_nailpistol_slide.py [<in.mdl> [<out.mdl>]]
 #
-# The classic look (frames 0 rest, 1 its copper slide back 3 units) is kept byte for byte: its vertices, triangles,
-# skin texels, box (scale and scale_origin: the corner the game scales the gun about) and frames as they were, the new
-# ones appended. The full-slide look (frames 2 rest, 3 the slide back BACK_STEPS whole x steps, ~0.65 units: the box
-# ends there; the game blends past frame 3 for more) shares the grip, trigger guard, trigger, muzzle and sights with it and
-# adds its own: a frame (the lower receiver, a dust cover in front), a slide (the whole upper receiver from the rear
+# The classic model's box (scale and scale_origin: the corner the game scales the gun about) and skin texels are kept;
+# its own parts (receiver, rear housing, copper slide) are left out (until 2026-11-02 they were a second look, frames 0
+# and 1, the full slide's frames 2 and 3: ROUND23.md, "Legacy options removed, group 1"). The full slide (frame 1: the
+# slide back BACK_STEPS whole x steps, ~0.65 units: the box ends there; the game blends past frame 1 for more) keeps the
+# classic grip, trigger guard, trigger, muzzle and sights and adds its own: a frame (the lower receiver, a dust cover in front), a slide (the whole upper receiver from the rear
 # sight to the muzzle: the three vents as slide cuts, an ejection port on the right, rear cocking serrations; the sights
-# ride on it), a copper barrel that shows when the slide is back, and a cap behind the muzzle's nozzle. Each look's own
-# triangles are folded into one point inside the gun in the other look's frames (zero area: nothing drawn), so the game
-# picks a look by the frames it draws (Quake/vr/vr_nailslide.cpp, VR_NailSlidePose), live, for every copy of the gun.
+# ride on it), a copper barrel that shows when the slide is back, and a cap behind the muzzle's nozzle. The checks
+# (check_faces) still build both looks, each look's own triangles folded into one point in the other's frames, before the
+# classic look's own are dropped.
 #
 # The skin grows from 256x256 to 256x512: the classic texels as they were, the new parts' painted below (row 256 on),
 # procedurally in the classic skin's style and Quake's palette (rust on iron, worn bright edges, dark crevices).
@@ -41,6 +42,7 @@ HAND = mdlgen.sub(GRIP_TOP, mdlgen.mul(GRIP_UP, 2.0))  # the MDL's origin (build
 BACK_STEPS = 12              # frame 3: the slide this many x steps back (12 * 0.0543 = 0.651 units: as far as the box allows)
 FOLD = (1.0, 0.0, 3.0)       # where the other look's triangles are folded (inside both looks' upper receiver)
 SKIN_ROWS = 256              # rows added below the classic skin
+CLASSIC = os.path.join(HERE, "v_nailpistol_classic.mdl")  # the classic model (export_mdl.py's), the source kept
 DENSITY = 10.0               # texels a unit (the classic skin's receiver sides: ~10)
 
 # The slide (design coordinates): x from its rear to its front face; its side walls from the seam up, a chamfer on
@@ -553,11 +555,16 @@ def body(p):
 
 def main():
     global HEX_ROT, NOZZLE_HEX
-    src = sys.argv[1] if len(sys.argv) > 1 else os.path.join(REPO, "quakevr", "progs", "v_nailpistol.mdl")
-    dst = sys.argv[2] if len(sys.argv) > 2 else src
+    dst = os.path.join(REPO, "quakevr", "progs", "v_nailpistol.mdl")
+    src = sys.argv[1] if len(sys.argv) > 1 else dst
+    dst = sys.argv[2] if len(sys.argv) > 2 else dst
     import mdl as M
     m = M.Model.read(src)
     names = m.pose_names()
+    if names == ["slide", "slide1"]:  # our own output: from the classic model kept
+        src = CLASSIC
+        m = M.Model.read(src)
+        names = m.pose_names()
     pb = m.pose_bytes()
     w, h = m.skin_size
     nv, nt = m.num_verts, len(m.tris)
@@ -573,6 +580,8 @@ def main():
     elif len(names) != 2:
         raise SystemExit("%s: expected the classic 2 frames (rest, rest1), found %s" % (src, names))
     assert h == SKIN_TOP and w == 256, "the classic skin is 256x256"
+    if os.path.abspath(src) != os.path.abspath(CLASSIC):
+        write_classic(CLASSIC, m, pb, nv, nt)
     P = [[design(m.place(pb[f][i][:3])) for i in range(nv)] for f in range(2)]
     NB = [[pb[f][i][3] for i in range(nv)] for f in range(2)]
     tris = [t[1:] for t in m.tris[:nt]]
@@ -681,21 +690,44 @@ def main():
           "pair" % k_max)
     print("model: %d vertices (%d classic), %d triangles (%d classic); the slide's back frame %.4f units back "
           "(%d steps; %d to spare)" % (len(verts), nv, len(new_tris), nt, BACK_STEPS * scale[0], BACK_STEPS, low))
-    out = bytearray(mdlgen.HEADER.pack(b"IDPO", 6, *scale, *lo, hdr[8], *hdr[9:12], 1, w, H, len(verts),
-                                       len(new_tris), 4, hdr[18], hdr[19], hdr[20]))
+    # The full slide alone: the classic look's own triangles and vertices left out, its frames 2 and 3 as 0 and 1.
+    keep = [i for i in range(len(verts)) if i >= nv or vkind.get(i) in ("shared", "sight")]
+    index = {i: k for k, i in enumerate(keep)}
+    tris_out = [tuple(index[i] for i in t) for k, t in enumerate(new_tris) if k >= nt or kinds[k] != "classic"]
+    verts_out = [([fr[2], fr[3]], [nb[2], nb[3]], st) for fr, nb, st in (verts[i] for i in keep)]
+    write(dst, scale, lo, hdr, w, H, skin, verts_out, tris_out, ("slide", "slide1"))
+    print("wrote %s: frames slide, slide1 (%d vertices, %d triangles); skin %dx%d" % (dst, len(verts_out), len(tris_out),
+                                                                                    w, H))
+
+
+def write(path, scale, lo, hdr, w, h, skin, verts, tris, names):
+    """An MDL of one skin `skin` (w x h), `verts` ([byte triple a frame], [normal index a frame], (s, t)), `tris`
+    (front-facing), a frame a name, its box (`scale`, `lo`) and the rest of the header from `hdr`."""
+    out = bytearray(mdlgen.HEADER.pack(b"IDPO", 6, *scale, *lo, hdr[8], *hdr[9:12], 1, w, h, len(verts),
+                                       len(tris), len(names), hdr[18], hdr[19], hdr[20]))
     out += struct.pack("<i", 0) + bytes(skin)
     for _, _, (s, t) in verts:
         out += struct.pack("<3i", 0, s, t)
-    for a, c, d in new_tris:
+    for a, c, d in tris:
         out += struct.pack("<4i", 1, a, c, d)
-    for f, name in enumerate(("rest", "rest1", "slide", "slide1")):
+    for f, name in enumerate(names):
         qs = [bytes(fr[f] + [nb[f]]) for fr, nb, _ in verts]
         mins = bytes([min(v[k] for v in qs) for k in range(3)] + [0])
         maxs = bytes([max(v[k] for v in qs) for k in range(3)] + [0])
         out += struct.pack("<i", 0) + mins + maxs + name.encode().ljust(16, b"\0") + b"".join(qs)
-    with open(dst, "wb") as fh:
+    with open(path, "wb") as fh:
         fh.write(out)
-    print("wrote %s: frames rest, rest1 (classic), slide, slide1 (full slide); skin %dx%d" % (dst, w, H))
+
+
+def write_classic(path, m, pb, nv, nt):
+    """The classic model (frames rest, rest1; its 256x256 skin) kept as this script's source."""
+    w = m.skin_size[0]
+    verts = [([list(pb[0][i][:3]), list(pb[1][i][:3])], [pb[0][i][3], pb[1][i][3]], tuple(m.st[i][1:])) for i in range(nv)]
+    tris = [tuple(t[1:]) for t in m.tris[:nt]]
+    assert all(m.st[i][0] == 0 for i in range(nv)) and all(t[0] == 1 for t in m.tris[:nt]), "no seams, all front-facing"
+    write(path, list(m.scale), list(m.origin), list(m.h), w, SKIN_TOP, m.skins[0][2][0][:w * SKIN_TOP], verts, tris,
+          ("rest", "rest1"))
+    print("wrote %s: the classic model (%d vertices, %d triangles)" % (path, nv, nt))
 
 
 if __name__ == "__main__":

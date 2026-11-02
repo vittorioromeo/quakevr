@@ -826,7 +826,7 @@ struct HandPush
 bool scanHandPush(b3BodyId prop, HandPush& hp)
 {
     za::Vector<b3ContactData>& contacts = scratch.pushContacts;
-    // Every contact, not the first few: a drawn fist (vr_box3d_hand_push_fist) is a body of a sphere per joint, and
+    // Every contact, not the first few: a drawn fist (syncHands) is a body of a sphere per joint, and
     // pressed on a box its spheres touch it in dozens of places, the ones that push often not among the first 16 (it
     // then pushed at full strength, as a kinematic body: walked into, a tall box tipped; landing on you, it flew off).
     contacts.resize(static_cast<za::SizeT>(za::max(b3Body_GetContactCapacity(prop), 1)));

@@ -99,7 +99,7 @@ void swimFrame(State& s, const Parts& p, const Context& c, float t);
 [[nodiscard]] glm::vec3 massCentre(const Parts& p, glm::vec3* vel = nullptr);
 [[nodiscard]] glm::vec3 level(const glm::vec3& v);
 void turnWhole(const Parts& p, const Context& c, const glm::quat& want, float rate, float most, float k);
-void holdLevel(const Parts& p, const Context& c, const glm::vec3& anchor, float k);
+void holdLevel(const Parts& p, const Context& c, const glm::vec3& anchor);
 
 // vr_ragactive_hold.cpp
 bool findGrab(State& s, const Parts& p, const Context& c, const glm::vec3& chestAt, const glm::vec3& v, float L);

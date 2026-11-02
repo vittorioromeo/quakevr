@@ -1477,20 +1477,17 @@ void traceGrasp(int hand, const RigHand& rh, const view::ViewEntity& ve, const g
     }
 }
 
-bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool mirrored, bool hide, const Held& held,
+void setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool mirrored, bool hide, const Held& held,
     const glm::mat4& motion)
 {
     QVR_PROFILE("rig hand");
     RigHand& rh = rigHands[hand];
     rh.drawn = false;
-    if(!vr_hand_rig.value)
-    {
-        return false;
-    }
     qmodel_t* const model = viewModel(handrig::modelName());
     if(!handrig::usable(model))
     {
-        return false;
+        entities.hand[hand].visible = false;
+        return;
     }
 
     const weapons::ModelTransform t = weapons::modelTransform(model);
@@ -1499,7 +1496,7 @@ bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool
     rigShifts(model, hand, rh.pose);
     rh.pose.metacarpal = glm::quat{1.f, 0.f, 0.f, 0.f};
 
-    view::ViewEntity& ve = entities.hand[hand][FingerBase];
+    view::ViewEntity& ve = entities.hand[hand];
     const glm::mat4 rigToWorld = rigPlacement(hand, pos, handRot, mirrored, &ve);
 
     // The fingers: the controller's curls (as the six models'), or wrapping what the hand holds, or set by hand (the
@@ -1583,13 +1580,8 @@ bool setupRigHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool
     // wounds painted instead (vr_wounds.cpp); the wound skins washed and a gib's blood (wounds::skinLevel)
     ve.ent.skinnum = wounds::replacesSkins() ? 0 : wounds::skinLevel(hand, damageLevel(), ve.ent.origin);
     ve.visible = !hide;
-    for(int finger = FingerBase + 1; finger < FingerCount; finger++)
-    {
-        entities.hand[hand][finger].visible = false;
-    }
     rh.drawn = ve.visible;
     noteIndexTip(hand, rh);
-    return true;
 }
 } // namespace
 
@@ -2261,10 +2253,7 @@ void limbDrawnHand(int hand, glm::vec3& pos, glm::vec3& angles)
         controllerPos += shakePos * onHold;
         controllerRot += shakeAngles * onHold;
     }
-    for(view::ViewEntity& ve : entities.hand[hand])
-    {
-        ve.lightShift = lightShift;
-    }
+    entities.hand[hand].lightShift = lightShift;
     return freeHelp;
 }
 
@@ -2512,10 +2501,7 @@ void setupHand(const hands::State& s, int hand)
 
     if(!weapon.ent.model)
     {
-        for(view::ViewEntity& ve : entities.hand[hand])
-        {
-            ve.visible = false;
-        }
+        entities.hand[hand].visible = false;
         rigHands[hand].drawn = false;
         rigHands[hand].held = Held{};
         return;
@@ -2592,39 +2578,12 @@ void setupHand(const hands::State& s, int hand)
     drawHand(hand, pos, handRot, mirrored, hide, held, motion);
 }
 
-// A hand drawn at (`pos`, `handRot`), holding `held` (the jointed hand; else the six models).
-void drawHand(int hand, glm::vec3 pos, glm::vec3 handRot, bool mirrored, bool hide, const Held& held, const glm::mat4& motion)
+// The jointed hand drawn at (`pos`, `handRot`), holding `held`.
+void drawHand(int hand, const glm::vec3& pos, const glm::vec3& handRot, bool mirrored, bool hide, const Held& held,
+    const glm::mat4& motion)
 {
     ghostDrawn[hand] = {pos, handRot, mirrored, host_framecount}; // (Ghost Hands: how far it is drawn from its controller)
-    if(setupRigHand(hand, pos, handRot, mirrored, hide, held, motion))
-    {
-        return;
-    }
-    movePose(motion, pos, handRot);
-
-    const float offsetScale = weapons::offsetScale();
-    const int skin = wounds::skinLevel(hand, damageLevel(), &pos.x); // (washed, a gib's blood: vr_wounds.cpp)
-    for(int finger = 0; finger < FingerCount; finger++)
-    {
-        view::ViewEntity& ve = entities.hand[hand][finger];
-
-        glm::vec3 foff = fingerOffset(finger, hand) * offsetScale;
-        if(mirrored)
-        {
-            foff.y = -foff.y;
-        }
-
-        const FingerPose curl = fingerPose(hand, finger);
-        place(ve, viewModel(fingerModels[finger]), pos + hands::redirect(foff, handRot),
-            {-handRot.x, handRot.y, handRot.z}, curl.frame, mirrored);
-        ve.zeroBlend = curl.open;
-        ve.ent.skinnum = skin;
-
-        if(hide)
-        {
-            ve.visible = false;
-        }
-    }
+    setupRigHand(hand, pos, handRot, mirrored, hide, held, motion);
 }
 
 void setupGhostHands(const hands::State& s)
@@ -2635,7 +2594,7 @@ void setupGhostHands(const hands::State& s)
     {
         view::ViewEntity& ghost = entities.ghostHand[hand];
         ghost.visible = false;
-        const view::ViewEntity& base = entities.hand[hand][FingerBase];
+        const view::ViewEntity& base = entities.hand[hand];
         const GhostDrawn& drawn = ghostDrawn[hand];
         if(mode <= 0 || !s.valid || (vr_ghost_hands_which.value >= 1.f && hand != HAND_OFF) || !rigHands[hand].drawn ||
             !base.visible || !base.ent.model || drawn.frame != host_framecount)
@@ -2791,7 +2750,7 @@ bool view::heldHandPoint(int hand, glm::vec3& out)
         return false;
     }
     const view::ViewEntity& w = entities.weapon[hand];
-    const view::ViewEntity& base = entities.hand[hand][FingerBase];
+    const view::ViewEntity& base = entities.hand[hand];
     if(!w.visible || !w.ent.model || !base.ent.model)
     {
         return false;

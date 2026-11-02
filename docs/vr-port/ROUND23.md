@@ -5935,3 +5935,90 @@ Checklist:
   choice, its ghost's probe spawn just before; the next, 12 s later, fine). Not tried: the toolgun's path
   (box3d::spawnClass, VR_SpawnLive_Finish, the ghost's probe), which needs the toolgun aimed. Next: when it happens, run
   Debug > Armed Monsters' Weapons: Drawn vs Server at once.
+## Body tracking at start-up (agent/bodystart; his voice note 2026-11-02 00:41, vrstart)
+
+"As soon as I start the game the full body tracking ... is screwed up ... restarting Virtual Desktop fixes it ... never
+happened before like a week ago." Investigated from code, history and his logs (no headset here).
+
+- **History since 10-24:** nothing in the tracker's code changed. vr_bodytrack_xr.cpp is as made on 10-16 (04268b4ea:
+  FB tracker, Meta's full body, high fidelity asked for, calibration only read); its call sites moved in the backend
+  split (578445fe4, 10-30, pure move); the Body page's rows went through the settings schema (357de6dde) and tuning
+  constants (0882541d4) with no change in behaviour. The 10-31 seated pollution (prop_climb) was in the kit's worktree
+  config, not his.
+- **His last start** (logs/2026-11-02_00-40-08/qvr_openxr.txt): VDXR 1.1.0, all four body extensions enabled, "tracker
+  made (full body, 84 joints, high fidelity asked for)" at 00:40:15.220, *before* the session's IDLE/READY (the tracker
+  was made right after xrCreateSession, before xrBeginSession and long before the headset shows the game). No body
+  tracking error. The note's replay has no body columns, so what "screwed up" looked like can't be read back.
+- **His config:** vr_seated_height 1.574 m with a standing vr_height_calibration of 1.561 m: a seated height measured
+  standing (out of the slider's 0.8-1.5). Not used while seated play is off (vr_bodycal_seated 0, as his is), so not
+  the cause, but wrong. Body Calibration's values (vr_bodycal_*) are his own measurements: left alone.
+- **Causes, ranked:** (1) runtime side: Meta's body tracking (through VDXR) calibrates the body when the tracker starts;
+  started before the session runs or with the headset off the head (the game started from the desktop), it can keep a
+  wrong calibration until VDXR restarts, which matches "restarting Virtual Desktop fixes it"; why it began a week ago
+  is outside our code (a Virtual Desktop / Quest update is the likely change). (2) Ours, made worse by it: the tracker
+  made before the session's focus. (3) No in-game way to restart it but quitting and restarting Virtual Desktop.
+- **Fixes:** the tracker is made at the session's first FOCUSED frame (`bodytrack::xr::frame`, before locate), not with
+  the session. **Restart Body Tracking** (Body > Body Tracking; `vr_bodytrack_restart`): the tracker's calibration reset
+  (xrResetBodyTrackingCalibrationMETA, when offered), the tracker destroyed and made again at the next frame; the
+  joints start over (no smoothing from the old tracker), the regions ease out and back in. **Restart When Broken at
+  Start** (`vr_bodytrack_auto_restart`, default 2, Off/Once/Twice/Three Times): the start-up watch looks at the first
+  6 s of the source's frames after each start; 1.5 s of them broken, or none active, and it restarts itself, at most
+  that many times a game, then says so in the console. Broken (tracking space, metres): the tracked head joint over
+  0.35 from the headset; the hips-to-head distance outside 0.3-1.2 or the hips over the head; every valid joint within
+  0.1 of the hips (one point, the origin); not seated, the lower ankle more than 0.3 from the floor (the legs
+  mis-scaled); active with no valid hips or head. `vr_bodytrack_status` prints the restarts and the watch.
+- **Config 219:** a saved vr_seated_height at or over 0.9 of the standing eye height goes back to 0 (not measured);
+  `vr_seated_height_now` refuses such a height ("sit down first"). `seated::MAX_SHARE_OF_STANDING`.
+- **Mock:** `vr_bodytrack_synth_broken N` starts the synthetic body broken (0.5 m down) until N restarts.
+  `vr_bodytrack_restart_test` (mock only; `-QuitOn "bodytrack_restart_test: [0-9]+ passed"`): healthy start no
+  restart, the button restarts and tracking comes back, a broken start restarted once then fine, never fixed: 2 then it
+  gives up, auto restart 0: none. 6 passed, 0 failed.
+- **Verified:** that test 6/0; his real capture of 10-17 (bodytrack_dump.csv) replayed: the watch over with 0.0 s
+  broken, no restart (no false trigger on real Virtual Desktop data); bodytrack_elbow_test 7 PASS; migration: 1.574
+  with 1.561 standing -> 0, 1.1 kept.
+- **Not done (an option if the restart doesn't help):** telling Meta his height (xrSuggestBodyTrackingCalibrationOverrideMETA
+  from vr_height_calibration) instead of letting it measure; and asking for low fidelity (no Quest 3 camera IOBT).
+
+
+## Legacy options removed, group 1 (branch `agent/legacy1`, his words 2026-11-02)
+
+"Remove everything from group 1 ... Remove the classic nail pistol too (the one without the slide) ... cleanup all the
+code paths and simplify them wherever possible." Each default kept exactly; the code only the other value used deleted.
+Retired (`retiredCvars`: an old config's line dropped quietly): `vr_hand_rig`, `vr_gun_wall_slide`,
+`vr_box3d_hand_push_fist`, `vr_ragdoll_active_getup_hold`, `vr_menu_banner_beside`, `vr_worn_backpack_tug`,
+`vr_nailpistol_model`. Their menu rows (and the Ragdoll Tool's "Roll Over and Pull In") are gone.
+
+- **The jointed hand only** (`vr_hand_rig`): the palm and five finger models' drawing path (drawHand's fallback,
+  `fingerModels`, `fingerPose`, the per-finger view entities: `entities.hand[2]` is now one entity a hand), the
+  `HandBase` model id and the `Finger` model trait went. A missing rig model now draws no hand (it shipped always).
+  `progs/hand_base.mdl` and the five `finger_*.mdl` stay: make_hand_rig.py builds the rig from them. The hidden-hand
+  case (a weapon's Hide Hand) keeps hand_base.mdl's wrist constant for the arm, as before.
+- **Weapons slide along walls** (`vr_gun_wall_slide`): the push-back along the aim (and stopAtWall's `back`) gone.
+- **Props pushed by the drawn fist** (`vr_box3d_hand_push_fist`): the listen server's own player always pushes with
+  the fist; another player's hand keeps the sphere (no fist drawn for it there).
+- **Armed humanoids' shove** (`vr_agrunt_shove`): 0 (their model's shove frames) gone; 1 and 2 stay. Plain grunts,
+  enforcers and vores keep their shove frames.
+- **Get up in place** (`vr_ragdoll_active_getup_hold`): holdLevel always at full strength (its slider share gone).
+- **Lean on turns** (`vr_lean_turn`): 0 (the lean fixed in the world) gone; 1 and 2 stay (a config's 0 acts as 1).
+  lean_turn_test.sh's default modes are "1 2".
+- **Grapple rope depth** (`vr_grapple_rope_depth`): -1 ("the old places") gone; the slider's range starts at 0.
+- **Menu banner beside the buttons** (`vr_menu_banner_beside`): always beside (under them only where the margin is too
+  narrow, as before).
+- **Worn pack tug** (`vr_worn_backpack_tug`): always the tug (packSearch's off switch gone).
+- **The classic nail pistol** (`vr_nailpistol_model`): `progs/v_nailpistol.mdl` is now the full slide alone, frames 0
+  `slide` and 1 `slide1` (1144 vertices, 594 triangles; was 1569/841 in four frames), the classic box and skin kept.
+  build_nailpistol_slide.py drops the classic look's own triangles after its checks and keeps the classic model it
+  reads as its source (`Misc/quakevr/models_src/nailpistol/v_nailpistol_classic.mdl`, export_mdl.py's output): run on
+  its own output it builds from that, byte-identical. vr_nailslide.cpp has one look: frames 0 rest, 1 back, the blend
+  past 1 for the travel. Checked: the old model's full-slide frames (2, 3) and the new frames (0, 1) draw identical
+  triangles (594: positions, normals, texels; scratch/np_compare.py), same box, same skin.
+- **Test 92 phase 4** (his call "Standing rules"): a staggering grunt that gets up mid-tug goes on as a standing tug
+  under standing rules; when it rose mid-tug the phase expects "torn away" (`vr_ag2_rose`), else the eased win within
+  2 s as before.
+- **Tests:** build clean; test 92 22 passed, 0 failed (phase 4: torn away after 0.64 s, it got up mid-tug); `vr_np_test 1` 39/0
+  (the ammo screen rides the slide 1.500 units locked back); `vr_body_wrist_info`: rig 1 on both hands, bare forearms;
+  menu_paths.txt regenerated (the removed rows gone). `vr_wornpack_test 1` (vrtesthall) varies run to run on this
+  branch: 37/2, 25/3, 25/3, 38/1 (different checks each time: G's tear not counted, G's pack not held, gibbed pack);
+  next (3504844a4) once: 38/1 ("H toppled"). The pack code here only lost its off switch: open, worth a look at the
+  test's grab timing.
+

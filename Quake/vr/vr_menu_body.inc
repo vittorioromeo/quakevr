@@ -46,6 +46,11 @@ const char* bodytrackAvailability(int)
         row(opt::vr_bodytrack_arms),
         row(opt::vr_bodytrack_arm_fit),
         row(opt::vr_bodytrack_legs_walk),
+        command("Restart Body Tracking", "vr_bodytrack_restart")
+            .help("The headset's body tracker made again and its calibration reset (measured again): for tracking "
+                  "that started wrong (the body bent, too short or too tall). Stand up straight while it restarts. If "
+                  "it is still wrong, restart Virtual Desktop."),
+        row(opt::vr_bodytrack_auto_restart),
         header("Placement"),
         row(opt::vr_body_torso_back),
         row(opt::vr_body_legs_back),

@@ -223,7 +223,6 @@ const ragtool::Param params[] = {
     {GroupGetUp, "vr_ragdoll_active_getup_pin", "Get-Up Pin", 0.f, 5.f, 0.1f, "%.1f", false},
     {GroupGetUp, "vr_ragdoll_active_getup_blend", "Get-Up Blend (s)", 0.f, 1.f, 0.05f, "%.2f", false},
     {GroupGetUp, "vr_ragdoll_active_getup_pace", "Get-Up Pace", 0.1f, 3.f, 0.05f, "%.2f", false},
-    {GroupGetUp, "vr_ragdoll_active_getup_hold", "Roll Over and Pull In", 0.f, 2.f, 0.05f, "%.2f", false},
     {GroupGetUp, "vr_knockdown_wiggle", "Struggling Strength", 0.f, 3.f, 0.1f, "%.1f", false},
     {GroupGetUp, "vr_knockdown_wiggle_frequency", "Struggling Rate (Hz)", 0.f, 4.f, 0.1f, "%.1f", false},
     {GroupDeath, "vr_ragdoll_active_pin", "Death Pin", 0.f, 3.f, 0.05f, "%.2f", false},

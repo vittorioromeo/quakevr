@@ -2745,7 +2745,7 @@ void(entity g) VR_AGP_ShoveAim =
     }
 };
 
-// Its shove of the player up close (vr_enemyshove.qc VR_EnemyShove_Play, vr_agrunt_shove 1 and 2; self: the grunt): the
+// Its shove of the player up close (vr_enemyshove.qc VR_EnemyShove_Play; self: the grunt): the
 // Shove pose's keys over its stand frames, the push dealt as the push phase ends (VR_AGP_Pose: VR_EnemyShove_Hit), then
 // on as after any attack (VR_AG_AfterAttack).
 void() VR_AGP_Shove =

@@ -26,11 +26,14 @@ struct Tracker
     PFN_xrDestroyBodyTrackerFB destroy{nullptr};
     PFN_xrLocateBodyJointsFB locate{nullptr};
     PFN_xrRequestBodyTrackingFidelityMETA requestFidelity{nullptr};
+    PFN_xrResetBodyTrackingCalibrationMETA resetCalibration{nullptr};
     XrBodyJointLocationFB joints[XR_FULL_BODY_JOINT_COUNT_META]{};
     uint32_t jointCount{0};
     Raw raw{};
 };
 Tracker tracker;
+// frame(): whether the tracker was made (or tried) for this session; destroy() and reset() clear it.
+bool attempted = false;
 
 void fail(const char* what, XrResult result)
 {
@@ -99,6 +102,11 @@ void create(XrInstance instance, XrSystemId system, XrSession session)
         xrGetInstanceProcAddr(instance, "xrRequestBodyTrackingFidelityMETA",
             reinterpret_cast<PFN_xrVoidFunction*>(&tracker.requestFidelity));
     }
+    if(st.calibrationExtension)
+    {
+        xrGetInstanceProcAddr(instance, "xrResetBodyTrackingCalibrationMETA",
+            reinterpret_cast<PFN_xrVoidFunction*>(&tracker.resetCalibration));
+    }
     if(!tracker.create || !tracker.destroy || !tracker.locate)
     {
         fail("xrGetInstanceProcAddr", XR_ERROR_FUNCTION_UNSUPPORTED);
@@ -135,6 +143,31 @@ void create(XrInstance instance, XrSystemId system, XrSession session)
     }
     xrruntime::logLine(va("OpenXR: body tracking: tracker made (%s, %u joints%s)\n", st.fullBodySet ? "full body" : "upper body",
         tracker.jointCount, st.highFidelityRequested ? ", high fidelity asked for" : ""));
+}
+
+void frame(XrInstance instance, XrSystemId system, XrSession session, bool focused)
+{
+    // Restart Body Tracking (vr_bodytrack.cpp: the button, or the start-up watch): the tracker's calibration back to the
+    // headset's own (measured again), the tracker destroyed and made again at once.
+    if(takeRestart())
+    {
+        if(tracker.handle != XR_NULL_HANDLE && tracker.resetCalibration)
+        {
+            const XrResult result = tracker.resetCalibration(tracker.handle);
+            xrruntime::logLine(va("OpenXR: body tracking: calibration reset (%d)\n", static_cast<int>(result)));
+        }
+        destroy();
+        create(instance, system, session);
+        attempted = true;
+        return;
+    }
+    // Made once the session first has the focus (the headset on, the game's frames shown): made with the session, before
+    // it ran, the tracking it gave through Virtual Desktop could start wrong (ROUND23.md, "Body tracking at start-up").
+    if(!attempted && focused)
+    {
+        attempted = true;
+        create(instance, system, session);
+    }
 }
 
 void locate(XrSpace base, XrTime time)
@@ -203,6 +236,7 @@ void destroy()
         tracker.destroy(tracker.handle);
     }
     tracker = Tracker{};
+    attempted = false;
     backendStatus().trackerCreated = false;
 }
 

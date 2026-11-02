@@ -94,14 +94,14 @@ Removing the switch deletes the old branch.
 | `vr_particle_freeze` | "freeze for same-state render comparisons" | 1 read (vr_particles.cpp, retropart's file) |
 | `vr_normalmap_cache` 2 | "made and compared with the file" | the compare mode in vr_texcache.cpp (0/1 stay) |
 | `vr_hull_method` 0 (**removed 2026-10-16**) | Quake 2's brush sweep | the whole brush-sweep path in vr_hull.cpp (5 reads). Large win (each trace's `else` branch and the sweep itself), **hullsmall's file** |
-| `vr_hand_rig` 0 | the palm and five finger models | the palm-and-fingers path after `setupRigHand` returns false (vr_view.cpp ~3640). The 27 `vr_finger_*`/`vr_fingers_*` offsets stay (the rig fits to them) but become constants (C) |
+| `vr_hand_rig` 0 (**removed 2026-11-02**) | the palm and five finger models | the palm-and-fingers path after `setupRigHand` returns false (vr_view.cpp ~3640). The 27 `vr_finger_*`/`vr_fingers_*` offsets stay (the rig fits to them) but become constants (C) |
 | `vr_gore_wash_once` | edges washed 2-3 times | vr_wounds.cpp, 2 reads |
 | `vr_torso_mode` | the old engine's 0.8 towards the hands | vr_torso.cpp, 1 |
 | `vr_body_elbow_spread` 0 | elbow as before | 1 (it is also a strength 0..1: keep as a slider or fix at 1) |
 | `vr_2h_sticky` | 1 = as before (a multiplier) | 1 |
-| `vr_gun_wall_slide` | the old push-back along the aim | vr_handpose.cpp, 1 |
+| `vr_gun_wall_slide` (**removed 2026-11-02**) | the old push-back along the aim | vr_handpose.cpp, 1 |
 | `vr_button_weapon` (**removed 2026-10-16**) | only the hand-to-muzzle line | QC buttons.qc, 1 |
-| `vr_carry_grab_drawn` (**removed 2026-10-16**, with `vr_weapon_grab_box`), `vr_weapon_grab_drawn`, `vr_box3d_hand_push_fist` | the 4.5 cm sphere / box grabs | vr_physics.cpp, vr_box3d.cpp: 5 |
+| `vr_carry_grab_drawn` (**removed 2026-10-16**, with `vr_weapon_grab_box`), `vr_weapon_grab_drawn`, `vr_box3d_hand_push_fist` (**removed 2026-11-02**, the fist kept) | the 4.5 cm sphere / box grabs | vr_physics.cpp, vr_box3d.cpp: 5 |
 | `vr_climb_mantle_lenient` | no sloped mantle | vr_climb.cpp, 1 |
 | `vr_grapple_rope_depth` -1 | the old rope anchor places | vr_client.cpp, 3 |
 | `vr_decap_own_motion`, `vr_decap_pop_chance` 0 (**removed 2026-10-16**), `vr_limbs_mass_scale` 0 (kept) | the old pop/walk/mass rules | box3d 2, QC 4 |

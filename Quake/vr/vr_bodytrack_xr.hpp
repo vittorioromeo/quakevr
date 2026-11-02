@@ -13,8 +13,12 @@ namespace qvr::bodytrack::xr
 void reset();
 [[nodiscard]] const char* wanted(const char* offered);
 
-// After the session and its spaces are made: the tracker (full body, high fidelity), if the system supports it.
+// The tracker (full body, high fidelity), if the system supports it.
 void create(XrInstance instance, XrSystemId system, XrSession session);
+
+// Each frame, before locate(): the tracker made once the session first has the focus (`focused`), and made again with
+// its calibration reset when a restart is asked (bodytrack::requestRestart: Restart Body Tracking, the start-up watch).
+void frame(XrInstance instance, XrSystemId system, XrSession session, bool focused);
 
 // Each frame, with the hands: the joints in `base` at `time`, submitted (nothing without a tracker).
 void locate(XrSpace base, XrTime time);

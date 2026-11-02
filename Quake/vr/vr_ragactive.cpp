@@ -1417,7 +1417,7 @@ void riseFrame(State& s, const Parts& p, const Context& c, const ClipPose& pose)
         else
         {
             rollOver(p, c, r.rollAxis, r.rollSign, pelvis, floorAt(c, pelvis, 0.6f, pelvis.z - 0.2f));
-            holdLevel(p, c, r.lay, vr_ragdoll_active_getup_hold.value);
+            holdLevel(p, c, r.lay);
         }
     }
     // Rolled over: the whole body turned as one towards the get-up's turn of its pelvis (its parts' spin and their motion

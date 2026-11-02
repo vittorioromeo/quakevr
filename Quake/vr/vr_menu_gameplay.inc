@@ -431,7 +431,6 @@ void armedGripsDragMode()
         row(opt::vr_worn_backpack_hit_roll),
         row(opt::vr_worn_backpack_hit_ref),
         header("Tearing It Off a Living One"),
-        row(opt::vr_worn_backpack_tug),
         row(opt::vr_worn_backpack_tug_stretch),
         row(opt::vr_worn_backpack_tug_time),
         row(opt::vr_worn_backpack_two_hand_mult),

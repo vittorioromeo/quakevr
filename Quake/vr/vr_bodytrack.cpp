@@ -17,6 +17,7 @@
 #include "vr_lines.hpp"
 #include "vr_profile.hpp"
 #include "vr_seated.hpp"
+#include "vr_testkit.hpp"
 #include "vr_units.hpp"
 #include "vr_geom.hpp"
 
@@ -79,6 +80,48 @@ struct State
     ArmFit fit[2]{};           // solveArm's last fit of each arm (armFitted)
 };
 State st;
+
+// Restart Body Tracking (requestRestart): asked by the Body Tracking page's button (vr_bodytrack_restart) or by the
+// start-up watch, taken by the source at its next frame (takeRestart). ROUND23.md, "Body tracking at start-up".
+struct Restarts
+{
+    bool pending{false};
+    char why[64]{};
+    int done{0};      // taken by a source, this game
+    int automatic{0}; // the watch's asked, this game (at most vr_bodytrack_auto_restart)
+    char last[64]{};  // the last one's reason (vr_bodytrack_status)
+};
+Restarts restarts;
+
+// The start-up watch: the first WATCH_SECONDS of the source's frames after the tracker starts (made, or restarted).
+// BROKEN_SECONDS of them looking broken (brokenReason), or none of them active, and it asks for a restart.
+struct Watch
+{
+    bool on{true};
+    float seen{0.f};             // seconds of the source's frames watched
+    float broken{0.f};           // ... of them broken
+    bool everActive{false};
+    const char* reason{nullptr}; // the last broken frame's
+    bool gaveUp{false};          // broken, but no restart left (vr_bodytrack_auto_restart)
+};
+Watch watch;
+constexpr float WATCH_SECONDS = 6.f;
+constexpr float BROKEN_SECONDS = 1.5f;
+constexpr float BROKEN_HEAD_OFF = 0.35f;     // metres the tracked head joint from the headset (Meta's is ~10 cm off the eyes)
+constexpr float BROKEN_HIPS_HEAD_MIN = 0.3f; // metres from the hips to the head, outside which no body stands (~0.65)
+constexpr float BROKEN_HIPS_HEAD_MAX = 1.2f;
+constexpr float BROKEN_SPREAD = 0.1f;        // metres: every valid joint this near the hips (all at one point)
+constexpr float BROKEN_FEET_OFF = 0.3f;      // metres the lower ankle from the floor, not seated (the legs mis-scaled)
+
+// vr_bodytrack_restart_test: the restart button and the start-up watch on the mock's synthetic body.
+struct RestartTest
+{
+    int step{-1}; // -1: not running
+    int frames{0};
+    testkit::Tally tally;
+    int doneBefore{0};
+};
+RestartTest restartTest;
 
 // vr_bodytrack_dump: a CSV row a posed frame (the raw joints, the weights, the fit, the avatar's joints) until `until`
 // (the wall clock).
@@ -317,6 +360,10 @@ void status_f()
     Con_Printf("bodytrack: weights torso %.2f arms %.2f %.2f legs %.2f %.2f; %.1f us a frame%s%s\n", st.torso, st.arm[0],
         st.arm[1], st.leg[0], st.leg[1], st.placeCalls > 0 ? st.placeSeconds * 1e6 / st.placeCalls : 0.0,
         b.error[0] ? "; last error " : "", b.error);
+    Con_Printf("bodytrack: restarts %d (%d automatic of %d allowed)%s%s; start-up watch %s (%.1f s, %.1f s broken%s%s)\n",
+        restarts.done, restarts.automatic, static_cast<int>(vr_bodytrack_auto_restart.value), restarts.last[0] ? ", last: " : "",
+        restarts.last, watch.on ? "on" : watch.gaveUp ? "gave up" : "over", watch.seen, watch.broken,
+        watch.reason ? ": " : "", watch.reason ? watch.reason : "");
     if(st.placed && st.m2u > 0.f)
     {
         const auto cm = [](int a, int b) { return glm::distance(st.world[a], st.world[b]) * 100.f / st.m2u; };
@@ -497,6 +544,91 @@ void dump_f()
 
 char availabilityBuf[160];
 
+// A source's frame that looks broken (the start-up watch), why; nullptr if not, or not active (counted apart). From
+// what a broken start can give: the joints all at one point, the skeleton away from the headset, a spine no body has,
+// upside down, or the legs mis-scaled (the feet under or over the floor). Tracking space, metres, the floor at y 0.
+const char* brokenReason(const Raw& r, const glm::vec3& hmd)
+{
+    if(!r.active)
+    {
+        return nullptr;
+    }
+    const auto ok = [&](int j) { return (r.flags[j] & POS_VALID) != 0u; };
+    if(!ok(Hips) || !ok(Head))
+    {
+        return "no hips or head";
+    }
+    float spread = 0.f;
+    for(int j = 0; j < JointCount; j++)
+    {
+        if(ok(j))
+        {
+            spread = za::max(spread, glm::distance(r.pos[j], r.pos[Hips]));
+        }
+    }
+    if(spread < BROKEN_SPREAD)
+    {
+        return "the joints at one point";
+    }
+    if(glm::distance(r.pos[Head], hmd) > BROKEN_HEAD_OFF)
+    {
+        return "the head away from the headset";
+    }
+    const float spine = glm::distance(r.pos[Hips], r.pos[Head]);
+    if(spine < BROKEN_HIPS_HEAD_MIN || spine > BROKEN_HIPS_HEAD_MAX || r.pos[Hips].y > r.pos[Head].y)
+    {
+        return "the hips and head apart as no body's";
+    }
+    if(!seated::active() && ok(AnkleL) && ok(AnkleR) &&
+        za::fabs(za::min(r.pos[AnkleL].y, r.pos[AnkleR].y)) > BROKEN_FEET_OFF)
+    {
+        return "the feet off the floor";
+    }
+    return nullptr;
+}
+
+// place(), each frame the source's is fresh: the start-up watch.
+void watchFrame(float dt, const glm::vec3& hmd)
+{
+    if(!watch.on)
+    {
+        return;
+    }
+    const Raw& r = st.raw;
+    watch.seen += dt;
+    watch.everActive = watch.everActive || r.active;
+    if(const char* why = brokenReason(r, hmd))
+    {
+        watch.broken += dt;
+        watch.reason = why;
+    }
+    const char* trigger = watch.broken >= BROKEN_SECONDS                     ? watch.reason
+                          : watch.seen >= WATCH_SECONDS && !watch.everActive ? "never active"
+                                                                             : nullptr;
+    if(!trigger)
+    {
+        watch.on = watch.seen < WATCH_SECONDS;
+        return;
+    }
+    watch.on = false;
+    const int allowed = static_cast<int>(vr_bodytrack_auto_restart.value);
+    if(restarts.automatic < allowed)
+    {
+        restarts.automatic++;
+        requestRestart(va("automatic: %s", trigger));
+        return;
+    }
+    watch.gaveUp = true;
+    Con_Printf("Body tracking looks broken (%s); no automatic restart left (%d of %d): Body > Body Tracking > Restart "
+               "Body Tracking, or restart Virtual Desktop\n",
+        trigger, restarts.automatic, allowed);
+}
+
+void restart_f()
+{
+    requestRestart("Restart Body Tracking");
+}
+
 } // namespace
 
 BackendStatus& backendStatus()
@@ -510,7 +642,33 @@ void submit(const Raw& raw)
     st.submitted = Sys_DoubleTime();
 }
 
-void place(const glm::vec3& base, const glm::vec3& floorBelowHead, float turnYaw, float m2u)
+void requestRestart(const char* why)
+{
+    restarts.pending = true;
+    q_strlcpy(restarts.why, why, sizeof(restarts.why));
+    Con_Printf("Body tracking: restarting (%s)\n", why);
+}
+
+bool takeRestart()
+{
+    if(!restarts.pending)
+    {
+        return false;
+    }
+    restarts.pending = false;
+    restarts.done++;
+    q_strlcpy(restarts.last, restarts.why, sizeof(restarts.last));
+    // The joints start over (none smoothed from the old tracker's), the regions ease out until the new one's come.
+    st.raw = Raw{};
+    for(bool& have : st.have)
+    {
+        have = false;
+    }
+    watch = Watch{};
+    return true;
+}
+
+void place(const glm::vec3& base, const glm::vec3& floorBelowHead, const glm::vec3& head, float turnYaw, float m2u)
 {
     if(st.submitted < 0.0)
     {
@@ -543,6 +701,10 @@ void place(const glm::vec3& base, const glm::vec3& floorBelowHead, float turnYaw
         }
     }
     st.placed = true;
+    if(fresh)
+    {
+        watchFrame(dt, head);
+    }
 
     // The regions: in while the tracking is good (on, active, confident, the region's joints valid), eased out otherwise
     // (the last joints held meanwhile).
@@ -1154,10 +1316,141 @@ void replayFrame(TrackingState& t)
     submit(raw);
 }
 
+// vr_bodytrack_restart_test, once a mock frame: a game start healthy (no restart), the button (the source restarts, the
+// tracking comes back), a broken start (restarted once by itself, then fine), one never fixed (vr_bodytrack_auto_restart
+// restarts, then it gives up), and the automatic restart off. Each step waits on its condition (TEST_STEP_FRAMES at most:
+// FAIL "timed out"); ends on "bodytrack_restart_test: P passed, F failed".
+constexpr int TEST_STEP_FRAMES = 72 * 30;
+
+void testCheck(bool ok, const char* what)
+{
+    if(restartTest.tally.check(ok, "bodytrack_restart_test", what))
+    {
+        Con_Printf("bodytrack_restart_test: PASS %s\n", what);
+    }
+}
+
+// A game start as the watch sees it: the watch from the beginning, no automatic restart yet.
+void testStart(float broken, float allowed)
+{
+    Cvar_SetValueQuick(&vr_bodytrack_synth_broken, broken);
+    Cvar_SetValueQuick(&vr_bodytrack_auto_restart, allowed);
+    watch = Watch{};
+    restarts.automatic = 0;
+    restartTest.doneBefore = restarts.done;
+}
+
+void testNext(int step)
+{
+    restartTest.step = step;
+    restartTest.frames = 0;
+}
+
+void testFinish()
+{
+    restartTest.tally.verdict("bodytrack_restart_test");
+    Cvar_SetQuick(&vr_bodytrack_synth_broken, vr_bodytrack_synth_broken.default_string);
+    Cvar_SetQuick(&vr_bodytrack_auto_restart, vr_bodytrack_auto_restart.default_string);
+    restartTest.step = -1;
+}
+
+void testFrame()
+{
+    RestartTest& T = restartTest;
+    if(T.step < 0)
+    {
+        return;
+    }
+    if(++T.frames > TEST_STEP_FRAMES)
+    {
+        testCheck(false, va("step %d timed out", T.step));
+        testFinish();
+        return;
+    }
+    const bool tracking = st.torso >= 0.99f;
+    switch(T.step)
+    {
+        case 0: // set up: a healthy synthetic body, a game start
+            Cvar_SetValueQuick(&vr_bodytrack, 1.f);
+            Cvar_SetValueQuick(&vr_bodytrack_synth, 1.f);
+            testStart(0.f, 2.f);
+            testNext(1);
+            break;
+        case 1: // a healthy start: the watch over with no restart
+            if(!watch.on && tracking)
+            {
+                testCheck(restarts.done == T.doneBefore && !watch.gaveUp, "a healthy start: no automatic restart");
+                T.doneBefore = restarts.done;
+                Cbuf_AddText("vr_bodytrack_restart\n"); // (the Body Tracking page's button)
+                testNext(2);
+            }
+            break;
+        case 2: // the button: taken by the source
+            if(restarts.done > T.doneBefore)
+            {
+                testCheck(restarts.done == T.doneBefore + 1 && !strcmp(restarts.last, "Restart Body Tracking"),
+                    "Restart Body Tracking restarts the tracker");
+                testNext(3);
+            }
+            break;
+        case 3: // ... and the tracking comes back, the watch over with no automatic restart
+            if(!watch.on && tracking)
+            {
+                testCheck(restarts.automatic == 0 && !watch.gaveUp, "tracking back after the restart, none automatic");
+                testStart(1.f, 2.f); // a broken start that one restart fixes
+                testNext(4);
+            }
+            break;
+        case 4:
+            if(!watch.on && restarts.automatic == 1 && vr_bodytrack_synth_broken.value == 0.f && tracking)
+            {
+                testCheck(restarts.done == T.doneBefore + 1 && !watch.gaveUp && !strncmp(restarts.last, "automatic: ", 11),
+                    va("a broken start restarted once by itself, then fine (%s)", restarts.last));
+                testStart(5.f, 2.f); // never fixed
+                testNext(5);
+            }
+            break;
+        case 5:
+            if(watch.gaveUp)
+            {
+                testCheck(restarts.automatic == 2 && restarts.done == T.doneBefore + 2,
+                    va("never fixed: %d automatic restarts, then it gives up", restarts.automatic));
+                testStart(1.f, 0.f); // the automatic restart off
+                testNext(6);
+            }
+            break;
+        case 6:
+            if(watch.gaveUp)
+            {
+                testCheck(restarts.automatic == 0 && restarts.done == T.doneBefore,
+                    "vr_bodytrack_auto_restart 0: broken, no restart");
+                testFinish();
+            }
+            break;
+    }
+}
+
+void restartTest_f()
+{
+    if(!vr_backend.string[0] || strcmp(vr_backend.string, "mock"))
+    {
+        Con_Printf("vr_bodytrack_restart_test: the mock headset only (vr_backend mock)\n");
+        return;
+    }
+    restartTest = RestartTest{};
+    testNext(0);
+}
+
 } // namespace
 
 void synthesize(TrackingState& t)
 {
+    testFrame();
+    // A restart asked (the button, the start-up watch): the synthetic body's broken starts one fewer.
+    if(takeRestart() && vr_bodytrack_synth_broken.value > 0.f)
+    {
+        Cvar_SetValueQuick(&vr_bodytrack_synth_broken, vr_bodytrack_synth_broken.value - 1.f);
+    }
     if(vr_bodytrack_replay.string[0])
     {
         replayFrame(t);
@@ -1257,6 +1550,15 @@ void synthesize(TrackingState& t)
         set(ankle(side), ankleAt, false);
         set(side == 0 ? BallL : BallR, ankleAt + f * (0.08f * eye) - u * (0.035f * eye), false);
     }
+    if(vr_bodytrack_synth_broken.value > 0.f)
+    {
+        // A broken start (as a wrong calibration gives): the whole skeleton half a metre down, the head under the
+        // headset, the feet under the floor.
+        for(glm::vec3& p : raw.pos)
+        {
+            p.y -= 0.5f;
+        }
+    }
     submit(raw);
     st.placeSeconds += Sys_DoubleTime() - t0;
 }
@@ -1266,6 +1568,8 @@ void registerCommands()
     Cmd_AddCommand("vr_bodytrack_status", status_f);
     Cmd_AddCommand("vr_bodytrack_stats", stats_f);
     Cmd_AddCommand("vr_bodytrack_dump", dump_f);
+    Cmd_AddCommand("vr_bodytrack_restart", restart_f);
+    Cmd_AddCommand("vr_bodytrack_restart_test", restartTest_f);
 }
 
 } // namespace qvr::bodytrack

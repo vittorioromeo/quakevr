@@ -130,18 +130,6 @@ void updateFingerFrames()
 }
 } // namespace
 
-[[nodiscard]] FingerPose fingerPose(int hand, int finger)
-{
-    const float curl = CLAMP(0.f, za::floor(fingerFrames[hand][finger] + 0.5f) + 5.f * fingerBias[hand][finger], 5.f);
-    const int frame = static_cast<int>(za::ceil(curl - 0.01f));
-    if(frame <= 0)
-    {
-        return {0, 0.f};
-    }
-    const float open = 1.f - curl / static_cast<float>(frame);
-    return {frame, open < 0.5f / 255.f ? 0.f : open};
-}
-
 namespace
 {
 // The magazines' reference points (QC vr_reload.qc VR_Reload_MagRef): each prop's top, its feed end (make_mags.py: up its
@@ -423,8 +411,8 @@ int ammoPouchItems = 0;       // the rounds placed in it (setupAmmoPouchItems: e
         }
         return false;
     };
-    if((hide & 2) && (among(entities.weapon) || among(entities.weaponMorph) || among(entities.hand[0]) ||
-                         among(entities.hand[1]) || among(entities.button) || among(entities.frontButton) ||
+    if((hide & 2) && (among(entities.weapon) || among(entities.weaponMorph) || among(entities.hand) ||
+                         among(entities.button) || among(entities.frontButton) ||
                          among(entities.muzzleFlash) || &ve == &entities.flashlight || &ve == &entities.sawHandle ||
                          among(entities.mag) || among(entities.well) || among(entities.pumpBody) ||
                          among(entities.pump) || among(entities.ssgFrame) || among(entities.ssgBarrels)))
@@ -488,8 +476,7 @@ view::ViewEntity& addClone(const view::ViewEntity& ve, const glm::mat4& mirror)
     }
 
     const auto& info = modelmeta::get(model);
-    return info.is(modelmeta::Id::Hand) || info.is(modelmeta::Id::HandBase) ||
-           info.has(modelmeta::Trait::Finger) || info.is(modelmeta::Id::HandRig) || info.is(modelmeta::Id::HandRigF);
+    return info.is(modelmeta::Id::Hand) || info.is(modelmeta::Id::HandRig) || info.is(modelmeta::Id::HandRigF);
 }
 [[nodiscard]] qmodel_t* precachedModel(int index)
 {
@@ -535,8 +522,7 @@ qmodel_t* view::magazineModelOf(const qmodel_t* gun)
 namespace view_detail
 {
 // The body's model for a build (0 lean, 1 athletic, 2 brawny, 3 feminine: avatar::buildShape), with the bracers or bare
-// forearms (vr_body_bracers 0: progs/vrbody*_bare, make_vrbody.py; fitted round the jointed hand, so only with it:
-// vr_hand_rig).
+// forearms (vr_body_bracers 0: progs/vrbody*_bare, make_vrbody.py; fitted round the jointed hand).
 [[nodiscard]] const char* bodyModelName(int build, bool bare)
 {
     const avatar::BuildShape& b = avatar::buildShape(build);
@@ -545,7 +531,7 @@ namespace view_detail
 
 [[nodiscard]] bool bareForearms()
 {
-    return !vr_body_bracers.value && vr_hand_rig.value;
+    return !vr_body_bracers.value;
 }
 
 } // namespace view_detail
@@ -2670,7 +2656,7 @@ void setupWorldWeapons(const hands::State& s, bool queueTexts)
     const glm::vec3 handWrist = rigHands[hand].drawn ? vec3Of(handrig::data::wrist) : glm::vec3{-6.86f, -1.08f, 1.42f};
 
     avatar::HandPose hp;
-    const view::ViewEntity& base = entities.hand[hand][FingerBase];
+    const view::ViewEntity& base = entities.hand[hand];
     if(entities.weapon[hand].ent.model && base.ent.model)
     {
         const view::ModelSpace space{base}; // (its matrix made once for the points)
@@ -2744,7 +2730,7 @@ bool emptyHandImpl(const hands::State& s, int hand, view::EmptyHand& out)
     }
     for(int hand = 0; hand < 2; hand++)
     {
-        if(e == &entities.hand[hand][FingerBase].ent && rigHands[hand].drawn)
+        if(e == &entities.hand[hand].ent && rigHands[hand].drawn)
         {
             return hand;
         }
@@ -3105,7 +3091,7 @@ void powerupInfo_f()
     const PowerupGlowState& g = powerupGlowState;
     Con_Printf("powerups: quad %d pent %d suit %d look %d arcsframe %d\n", (cl.items & IT_QUAD) ? 1 : 0,
         (cl.items & IT_INVULNERABILITY) ? 1 : 0, (cl.items & IT_SUIT) ? 1 : 0, static_cast<int>(vr_quad_look.value), oncePerFrame.quadArcs);
-    const float hand = view::powerupGlow(&entities.hand[0][FingerBase].ent);
+    const float hand = view::powerupGlow(&entities.hand[0].ent);
     const float body = view::powerupGlow(&entities.body.ent);
     Con_Printf("glow: %s shown %d level %.2f code %.0f hand %.3f body %.3f\n", g.kind >= 0 ? powerupGlowLooks[g.kind].name : "none",
         g.shown, g.level, g.code, hand, body);
@@ -3488,7 +3474,7 @@ void bareLight(const entity_t* e, float lightcolor[3])
     }
     for(int hand = 0; hand < 2; hand++)
     {
-        if(e == &entities.hand[hand][FingerBase].ent)
+        if(e == &entities.hand[hand].ent)
         {
             bareLit.hand[hand] = {lightcolor[0], lightcolor[1], lightcolor[2]};
         }
@@ -3549,7 +3535,7 @@ bool skinTint(const entity_t* e, float tint[4], float range[4])
     }
     for(int hand = 0; hand < 2; hand++)
     {
-        const entity_t* he = &entities.hand[hand][FingerBase].ent;
+        const entity_t* he = &entities.hand[hand].ent;
         if((e == he || cloneSource(e) == he) && rigHands[hand].drawn)
         {
             // The jointed hand's end inside the arm (behind its wrist ring: make_hand_rig.py's first palm ring and the
@@ -3595,7 +3581,7 @@ int skinTone(const entity_t* e, float tone[4])
     }
     for(int hand = 0; hand < 2 && !kind; hand++)
     {
-        const entity_t* he = &entities.hand[hand][FingerBase].ent;
+        const entity_t* he = &entities.hand[hand].ent;
         if((e == he || cloneSource(e) == he) && rigHands[hand].drawn)
         {
             kind = 1;
@@ -4119,13 +4105,10 @@ int handOf(const entity_t* e, bool& weapon)
             weapon = true;
             return hand;
         }
-        for(const ViewEntity& ve : entities.hand[hand])
+        if(e == &entities.hand[hand].ent)
         {
-            if(e == &ve.ent)
-            {
-                weapon = false;
-                return hand;
-            }
+            weapon = false;
+            return hand;
         }
     }
     return -1;
@@ -4163,7 +4146,7 @@ bool weaponFrame(const hands::State& s, int hand, WeaponFrame& out)
     glm::vec3 cp, cd;
     float radius;
     const RigHand& rh = rigHands[hand];
-    const ViewEntity& he = entities.hand[hand][FingerBase];
+    const ViewEntity& he = entities.hand[hand];
     out.fistFromRig = rh.drawn && he.ent.model && grasp::gripChannel(rh.pose, cp, cd, radius);
     if(out.fistFromRig)
     {
@@ -4645,7 +4628,7 @@ static selfcollide::Drawn selfCollideDrawn(const hands::State& s)
         if(rh.drawn)
         {
             grasp::posedSpheres(rh.pose, rig);
-            const view::ViewEntity& he = entities.hand[hand][FingerBase];
+            const view::ViewEntity& he = entities.hand[hand];
             float mm[16];
             render::entityMatrix(he.ent, he.mirrored, ENTSCALE_DEFAULT, glm::vec3{0.f}, mm); // the rig as drawn
             const glm::mat4 m = glm::make_mat4(mm);
@@ -4656,7 +4639,7 @@ static selfcollide::Drawn selfCollideDrawn(const hands::State& s)
             }
             d.hand[hand] = &spheres[hand];
         }
-        else if(entities.hand[hand][FingerBase].visible && entities.hand[hand][FingerBase].ent.model)
+        else if(entities.hand[hand].visible && entities.hand[hand].ent.model)
         {
             const avatar::HandPose hp = drawnHand(s, hand);
             const float k = units::metresToUnits() * units::bodyScale();
@@ -5058,10 +5041,10 @@ extern "C" void VR_SetupViewEntities()
         for(int hand = 0; hand < 2; hand++)
         {
             const entity_t& we = entities.weapon[hand].ent;
-            const entity_t& he = entities.hand[hand][FingerBase].ent;
+            const entity_t& he = entities.hand[hand].ent;
             Con_Printf("painview %.3f %s weapon %d %.2f %.2f %.2f hand %d %.2f %.2f %.2f eye %.2f %.2f %.2f\n", cl.time,
                 hand == HAND_MAIN ? "main" : "off", entities.weapon[hand].visible ? 1 : 0, we.origin[0], we.origin[1],
-                we.origin[2], entities.hand[hand][FingerBase].visible ? 1 : 0, he.origin[0], he.origin[1], he.origin[2],
+                we.origin[2], entities.hand[hand].visible ? 1 : 0, he.origin[0], he.origin[1], he.origin[2],
                 s.eyeOrigin[0].x, s.eyeOrigin[0].y, s.eyeOrigin[0].z);
         }
     }
