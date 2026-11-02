@@ -23,6 +23,7 @@
 #include "vr_weapons.hpp"
 #include "vr_geom.hpp"
 #include "vr_region_shared.h"
+#include "vr_tracy.h"
 
 #include "Zancle/Base/GetArraySize.hpp"
 
@@ -1412,15 +1413,19 @@ void relinkArms()
         int pose1 = 0, pose2 = 0;
         float blend = 0.f;
         drawnPoses(e, hdr, pose1, pose2, blend);
-        if(!placeArmPose(e, hdr, pose1, pose2, blend, s))
         {
-            continue;
+            QVR_TRACY_SCOPE(tracyPlace, "armed arms: place pose");
+            if(!placeArmPose(e, hdr, pose1, pose2, blend, s))
+            {
+                continue;
+            }
         }
         const bool rec = poselive::recording(s.ent); // (the Pose Studio's Live tape)
         if(rec)
         {
             liveRecord(s, e, pose1, pose2, blend);
         }
+        QVR_TRACY_SCOPE(tracySkinned, "armed arms: skinned props");
         relinkSkinned(s, e, hdr, pose1, pose2, blend);
         if(rec)
         {
