@@ -6,7 +6,7 @@
 // - On the feet (vr_body_step_sounds). A touchdown of the drawn legs (avatar::Skeleton::steps) plays the same recordings at
 //   the same volume from that foot's place, on the client, in the frame the foot is drawn down. fromLegs() is the one rule
 //   for both sides, so that a step is either the foot's or the old trigger's, never both: the old one asks oldStepSilent.
-// - The old trigger keeps: the setting off; no walking legs drawn (a shorter body, vr_body_walk 0, no VR); in the air (it
+// - The old trigger keeps: the setting off; no walking legs drawn (no legs, vr_body_walk 0, no VR); in the air (it
 //   only sounds on the ground: the landing's step, as it always was); swimming and climbing (the legs aren't walking,
 //   whatever the ground says); multiplayer (bots too): the server's sound goes to every client and can't leave one out, and
 //   the others can't see your feet's phase, so everyone there hears the old trigger.
