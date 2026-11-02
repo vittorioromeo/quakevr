@@ -283,6 +283,55 @@ float wornPack(edict_t* ent, int what, int a, int b, const glm::vec3& p)
     return -1.f;
 }
 
+void wornPackAll(edict_t* ent, glm::vec3 out[4])
+{
+    // wornPackWhere's four, its packWhere made once (each of them made it again: QC VR_WP_Place asked for all four a
+    // frame for every wearer; PERF_1102.md)
+    glm::vec3 origin{0.f}, mid{0.f}, half{0.f};
+    glm::mat3 axes{1.f};
+    for(int k = 0; k < 4; k++)
+    {
+        out[k] = glm::vec3{0.f};
+    }
+    RagdollBodies* r = ragdollOf(NUM_FOR_EDICT(ent));
+    const bool onRagdoll = r && packOn(*r);
+    if(onRagdoll)
+    {
+        glm::quat turn;
+        packBox(*r, mid, turn);
+        axes = glm::mat3_cast(turn);
+        glm::vec3 modelMid;
+        qvr::agarmor::packModelBox(modelMid, half);
+        origin = mid - axes * modelMid;
+    }
+    else if(!qvr::agarmor::packWhere(ent, origin, axes, mid, half))
+    {
+        return;
+    }
+    glm::vec3 angles;
+    qvr::held::anglesFromAxes(axes, &angles[0], false);
+    out[0] = origin;
+    out[1] = angles;
+    out[2] = mid;
+    // (3: wornPackBox's box: the ragdoll's own half size, else the same packWhere when it is worn)
+    glm::vec3 boxHalf = half;
+    glm::mat3 boxAxes = axes;
+    if(onRagdoll)
+    {
+        boxHalf = r->packHalf;
+    }
+    else if(fieldFloatOr(ent, fields().vr_wp_worn, 0.f) != 1.f)
+    {
+        return;
+    }
+    glm::vec3 extent{0.f};
+    for(int k = 0; k < 3; k++)
+    {
+        extent += glm::abs(boxAxes[k]) * boxHalf[k];
+    }
+    out[3] = extent;
+}
+
 glm::vec3 wornPackWhere(edict_t* ent, int what)
 {
     glm::vec3 origin{0.f}, mid{0.f}, half{0.f};

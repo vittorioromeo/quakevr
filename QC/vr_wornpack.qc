@@ -50,15 +50,15 @@ float() VR_WP_Scale = { return min(2, max(0.1, cvar("vr_worn_backpack_scale")));
 // model not a wearer's: gibbed, its head).
 float(entity pk, entity g) VR_WP_Place =
 {
-    vector o = limbpiece(g, 0, 20);
+    vector o = limbpiece(g, 0, 30); // (20..23 found at once: 30 its 20, then 31..33 its 21..23)
     if(o == '0 0 0')
     {
         return FALSE;
     }
-    pk.angles = limbpiece(g, 0, 21);
+    pk.angles = limbpiece(g, 0, 31);
     setorigin(pk, o);
-    vector mid = limbpiece(g, 0, 22) - o;
-    vector ext = limbpiece(g, 0, 23); // (the level box round its model's box as it is turned)
+    vector mid = limbpiece(g, 0, 32) - o;
+    vector ext = limbpiece(g, 0, 33); // (the level box round its model's box as it is turned)
     if(ext == '0 0 0')
     {
         ext = '1 1 1' * 16.6 * VR_WP_Scale();

@@ -327,9 +327,39 @@ void PF_ragdolllimbs()
 // ("<model>#plate<piece>", vr_agarmor.cpp): its origin / its angles now, as drawn; 12 / 13 / 14 a point on its outer face
 // near one end / the other / at its middle (15% / 85% / 50% along it: the tests' hits on a plate); 15 the outer face's
 // outward normal at that middle (the tests' line to it).
+// limbpiece 30..33 (QC VR_WP_Place, the server's frame: the main thread): a worn pack's four (20..23) found at once by 25,
+// the other three read back from it (the same entity, frame and time; else found again).
+struct WornPackRead
+{
+    int num{-1};
+    int frame{-1};
+    double time{-1.0};
+    glm::vec3 v[4]{};
+};
+WornPackRead wornPackRead;
+
 void PF_limbpiece()
 {
     const int what = static_cast<int>(G_FLOAT(OFS_PARM2));
+    if(what >= 30 && what <= 33) // the worn backpack's 20..23 in one: 30 finds all four (its 20 returned), 31..33 its 21..23
+    {
+        edict_t* ent = G_EDICT(OFS_PARM0);
+        const int num = NUM_FOR_EDICT(ent);
+        WornPackRead& m = wornPackRead;
+        if(what == 30 || m.num != num || m.frame != host_framecount || m.time != qcvm->time)
+        {
+            box3d::wornPackAll(ent, m.v);
+            m.num = num;
+            m.frame = host_framecount;
+            m.time = qcvm->time;
+        }
+        const glm::vec3& w = m.v[what - 30];
+        float* o = G_VECTOR(OFS_RETURN);
+        o[0] = w.x;
+        o[1] = w.y;
+        o[2] = w.z;
+        return;
+    }
     if(what >= 10 && what <= 15)
     {
         agarmor::plateWhere(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1)), what - 10, G_VECTOR(OFS_RETURN));
