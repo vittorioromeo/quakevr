@@ -391,7 +391,7 @@ Use these instead of a local copy (refactor 2026-10-29, cluster A4).
   sees it), never `cvar("...")` (check_canonical.py's qc-cvar-by-name: only the allowlisted sites, names built at run
   time or tests' cvar tables put back by name; QC/ad, the import, keeps its own). Every handle is generated: write
   `cvarh_<name>` and run `python Misc/quakevr/gen_vr_cvars_qc.py` (it writes `QC/vr_cvars_gen.qc`, the global and its
-  make for every handle the QC's code uses and no other: each costs a global, ~2,100 left under 65,536; `--check`
+  make for every handle the QC's code uses and no other: each costs a global; `--check`
   fails a stale file or a name that is no cvar, tunable, weapon/monster/group value or engine cvar). Handles are made
   again at every load (their numbers are the session's); one the engine does not find prints `cvar_hmake: unknown
   cvar` and fails every QC test (VR_CVar_Make, VR_Test_Begin).
