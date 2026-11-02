@@ -1315,7 +1315,7 @@ namespace
 // vr_rigstudio_test_strikekeys (open the studio with a melee weapon: `vr_rigstudio monster_vr_grunt 13`; ends on
 // `rigstudio strikekeys: N passed, M failed`): the Horizontal strike's keys. An in-between added halfway between the
 // wind-up's and the blow's keys (the keys as blended at five times unchanged, the hand drawn there unchanged), edited
-// (the hand drawn there moves with it: the game blends it), retimed (kept between its neighbours; undone), the blow's
+// (the weapon's goal moves with it: the game blends it), retimed (kept between its neighbours; undone), the blow's
 // key retimed and put back (Default Time); the text saved and read back (the key exactly), the act's times unchanged
 // (the blow lands when it did); removed (the blend back as it was), the removal undone and the text put back exactly.
 struct KeysTest
@@ -1330,7 +1330,7 @@ struct KeysTest
     float sample[5]{};
     agpose::Key blend0[5];
     int phase{-1};
-    glm::vec3 hand0{0.f}, hand1{0.f};
+    glm::vec3 hand0{0.f}, hand1{0.f}, target0{0.f};
     float keyT{0.f};
 };
 KeysTest ktest;
@@ -1451,6 +1451,7 @@ void strikeKeysTestTick()
         if(ktest.waited == 12)
         {
             ktest.hand0 = hand();
+            ktest.target0 = st.note.t.weapon[0].pos;
             ktest.phase = strikeAddKey();
             const bool ok = t.check(ktest.phase >= agpose::numPhases && keyCount() == agpose::numPhases + 1, name,
                 va("added: phase %d, %d keys", ktest.phase, keyCount()));
@@ -1470,7 +1471,10 @@ void strikeKeysTestTick()
         {
             ktest.hand1 = hand();
             const float d = glm::length(ktest.hand1 - ktest.hand0);
-            t.check(d < 0.1f, name, va("the hand drawn where it was before the add: %.3f units", d));
+            const float dt = glm::length(st.note.t.weapon[0].pos - ktest.target0);
+            t.check(d < 0.1f && dt < 0.1f, name,
+                va("the hand drawn where it was before the add: %.3f units (its weapon's goal %.3f)", d, dt));
+            ktest.target0 = st.note.t.weapon[0].pos;
             const int c = pickedCode(ktest.phase);
             pushPoseUndo(c);
             agpose::Key k = agpose::value(c);
@@ -1482,8 +1486,11 @@ void strikeKeysTestTick()
     case 4:
         if(ktest.waited == 12)
         {
-            const float d = glm::length(hand() - ktest.hand1);
-            t.check(d > 2.f, name, va("the edited in-between drawn: the hand moved %.2f units (the game blends it)", d));
+            // (the game's goal for the weapon, before the arm's IK and reach: QC's blend of the keys, whole on this one)
+            const glm::vec3 dg = st.note.t.weapon[0].pos - ktest.target0;
+            t.check(za::abs(dg.z - 8.f) < 0.3f && za::abs(dg.x) + za::abs(dg.y) < 0.3f, name,
+                va("the edited in-between played: the weapon's goal moved %.2f %.2f %.2f (want 0 0 8; the hand %.2f, in "
+                   "reach as it allows)", dg.x, dg.y, dg.z, glm::length(hand() - ktest.hand1)));
             Cbuf_AddText("screenshot\n");
             // retimed: 0.02 s on; then past the blow's key (kept before it), undone
             const float kt = s.keys[ktest.phase];
