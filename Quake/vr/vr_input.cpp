@@ -379,7 +379,7 @@ za::Vector<PendingHaptic> pendingHaptics;
 }
 
 // vr_move_hold: a full push kept as the thumb slips off it (his thumb held hard forward, 2026-11-02: 0.55..0.75 for a
-// tenth of a second about three times a second, each a run 26% slower for a moment). It stays full for vr_move_hold
+// tenth of a second about three times a second, each a run up to 28% slower for a moment). It stays full for vr_move_hold
 // seconds, then falls to the push at moveHoldFall a second; under moveHoldLeast (letting go, creeping) it follows at
 // once. A push that never was full follows at once too: slow walking answers as ever.
 constexpr float moveHoldFall = 4.f;

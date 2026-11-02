@@ -639,8 +639,8 @@ QVR_CVAR(vr_move_curve, "1.6", CVAR_ARCHIVE)
 // before it took it away.
 QVR_CVAR(vr_move_snap, "15", CVAR_ARCHIVE)
 // Seconds a full push is held as the thumb slips off it, then falling to the push in a moment (moveHold; 0 off). His
-// thumb held hard forward dips to 0.55..0.75 for a tenth of a second, about three times a second (2026-11-02, a 26%
-// slower run each time: the hitch); a push let go (under a quarter of the travel) stops at once.
+// thumb held hard forward dips to 0.55..0.75 for a tenth of a second, about three times a second (2026-11-02, up to 28%
+// slower each time, 309 to 223 u/s: the hitch); a push let go (under a quarter of the travel) stops at once.
 QVR_CVAR(vr_move_hold, "0.4", CVAR_ARCHIVE)
 // 1: walking (cl_alwaysrun 0, the speed button up), the stick walks up to vr_move_autorun_threshold of its push (the
 // rescaled length, before the curve) and pushed past it eases into running in a moment; back under it, into walking.
