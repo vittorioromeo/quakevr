@@ -6057,3 +6057,31 @@ New: bench group `armed` (`armed_mix16`, `armed_mix32`, `crowd32_armed`, `crowd3
 `arena_wave6`; scenes `bench_armed_mix16/32`, `bench_crowd_plain32`), `vr_arena_goto N` (Debug > Automation > Jump to
 Wave 6), profiling scopes in the client relink and the armed arms' pose steps; the Release-Tracy build compiles again
 (`vr_tracy.cpp` after the refactor's cvar change).
+
+## Rig Studio: strike timeline, onion skin, IK ghost, fly camera (branch `agent/rigtools`, his words 2026-11-02)
+
+"Enable camera movement via WSAD; onion-like ghosts for pose editor animations (e.g. shove); slowly play them, control
+speed or scrub; the real position of set limbs as a ghost (what the IK constrains vs what I set)." And: "Ensure that WASD
+doesn't conflict with existing shortcuts." Full description: RIGSTUDIO.md, "The strike timeline and the ghosts".
+
+- **Strike timeline** (Pose Studio Data, a strike or the Cast picked; replaces Swing / Swing Speed / Stop Swing): Play /
+  Pause (Space), |<, < > a 1/72 s frame (Left / Right), Key (back on the picked phase's key), Loop, Speed 0.05x..2x, Let
+  Go; a scrubber bar with the act's phases coloured and named, its keys as diamonds, the onion's ticks, the time. The
+  engine drives the act's time (`weapondrawnpose(g, -1, 19)` now returns speed, time, driven; QC `VR_AGK_Hold` sets
+  `vr_ag_act_at = time - t` unslowed), QC tells it the act's times (`VR_AGK_TellTimes` -> `.vr_rs_times`, `.vr_rs_trec`,
+  `.vr_rs_keys`; `VR_AGK_KeyTime` now the one place the keys' times are worked out). The VR Pose Studio's play by count
+  is unchanged. One line in `vr_builtins_held.inc` (the weapondrawnpose builtin: the -1 query's answer) touched.
+- **Onion Skin** (under the timeline; `vr_rigstudio_onion` 0, `_count` 2, `_step` 0.06, `_mode` 0 every step / 1 phase
+  points): ghosts of the arms, hands, chest line and weapons (translucent meshes) as the game solved them at those times,
+  orange before, blue after, fading; taken as the act plays (1/144 s bins); after an edit (keys, stretch, aim target)
+  they are dropped and the act plays once at 1x to take them again (Auto Refresh, 0.3 s after the data settle; Refresh
+  button). Limit: not the body's mesh (the game draws it on the GPU; only the arms' solve is on the CPU).
+- **IK Ghost** (Tools > Display, Right / Left; `vr_rigstudio_ikghost` 0): each hand's goal before the IK: the weapon there
+  (translucent), a hollow diamond at the hand as set, dashed to the solved hand, the arm straight from the shoulder, the
+  elbow's pole as set, a label (units and degrees off; reach, body, wrist, elbow-off-pole from the solve).
+- **Fly camera**: W A S D (along the view), Q / E down / up, Shift 3x, `vr_rigstudio_fly_speed` 120 (Preferences); the
+  orbit's focus moves with it; not while a text field has focus or with Ctrl / Alt held (Ctrl+S still saves). **Moved
+  shortcuts**: Select Q -> B, IK E -> K, Weights W -> V (Tools window labels, Help, RIGSTUDIO.md). Every other key is as
+  it was (R G T P O I H F 1/3/7 Space Left Right, Ctrl+Z/Y/S, Esc, F1; the dope sheet's X/Delete, Ctrl+C/V).
+- `vr_rigstudio_strike [play|pause|park|t <s>|step <n>|speed <x>|loop 0|1|refresh]`; test `vr_rigstudio_test_strike`
+  (RIGSTUDIO.md, Tests).
