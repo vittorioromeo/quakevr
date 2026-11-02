@@ -49,11 +49,12 @@ constexpr GlobalRow globalDefaults[] = {
     {2, aggrip::Second, 0.f, 0.f, 0.f, -54.5f, 176.5f, 74.0f},
     // (the armed death knight (agent/dknight): the same, read off his own rig: with no row his wrist bent 93 degrees on
     // the shotgun's fore-end in Aim; this turn (a search over the three angles, vr_agrunt_ik_debug 4) leaves it 1-3)
-    {3, aggrip::Second, 0.f, 0.f, 0.f, -161.0f, 37.0f, -55.0f},
+    {3, aggrip::Second, -3.40f, -2.15f, -1.60f, 95.6f, 4.8f, -27.0f},
     // (Vittorio's of 2026-10-31, set in the Rig Studio: the knight's Main and Off, the death knight's Main)
     {2, aggrip::Main, 0.50f, 0.50f, 2.00f, 0.0f, 50.0f, 0.0f},
     {2, aggrip::Off, 3.05f, 1.10f, -0.15f, 31.0f, 113.5f, 119.7f},
-    {3, aggrip::Main, 3.85f, 1.00f, 1.95f, 12.0f, -56.0f, -38.0f},
+    {3, aggrip::Main, 2.60f, 1.00f, 1.95f, 12.0f, -56.0f, -38.0f},
+    {3, aggrip::Off, -2.57f, 0.34f, -1.72f, 14.3f, -125.6f, 134.3f},
 };
 
 // A kind with no Main or Off row of its own above ships the hand's row of the kind it ships its poses from
