@@ -1632,3 +1632,11 @@ frames). Its lines show in `vr_eyeshot 3` (with the UI), not `vr_eyeshot
 1`. AD's weapons: `-Games "-game hipnotic -game rogue -game ad -game quakevr"`, `vr_ad_test 116` (the fury's sword).
 The axe in the mock's main hand: `vr_weapon_grip_mode 1; vr_mock_button main grip 1` before and after `vr_scenario
 blade_editor_axe` (`vr_waitprint 3000 SCNPLACED`): without the grip held the given axe goes to the hip holster.
+
+## Ragdoll rigs: every seed table's model (2026-11-02)
+
+`bash Misc/quakevr/ragdoll/ad_rig_sweep.sh <agent>`: `vr_ragdoll_rig_sweep` before any map (the rig cache off) derives
+the rig of every seed table's model the game folders have, Hipnotic's, Rogue's and Arcane Dimensions' too (`N rigged,
+M failed, K absent`, each failure's `ragdoll: ... got 0 vertices` line before it); passes on `0 failed, 0 absent`. Needs
+AD's paks copied into the agent's base (`bases/<agent>/qbase/ad`, never linked), else SKIP. Run it when a monster's
+weapon becomes a loose piece (vr_monstermods.cpp knownSwords) or a seed table changes.

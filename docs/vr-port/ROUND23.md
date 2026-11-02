@@ -6057,3 +6057,23 @@ New: bench group `armed` (`armed_mix16`, `armed_mix32`, `crowd32_armed`, `crowd3
 `arena_wave6`; scenes `bench_armed_mix16/32`, `bench_crowd_plain32`), `vr_arena_goto N` (Debug > Automation > Jump to
 Wave 6), profiling scopes in the client relink and the armed arms' pose steps; the Release-Tracy build compiles again
 (`vr_tracy.cpp` after the refactor's cvar change).
+
+## AD ragdolls lost again: the hunter ogre and the death sergeant (branch `agent/adragdoll`, his report 2026-11-02)
+
+His console with Arcane Dimensions: `ragdoll: progs/mon_hogre.mdl: bone hand_r got 0 vertices: no ragdoll`, the same for
+`progs/mon_dsergeant.mdl`. Not the derive split (b0f2f0f28: no behaviour change) nor the positional zones (c1fa59f25):
+the two models whose weapons became loose pieces after d5de4ee89 (which fixed the hammer and mace ogres, the death
+guard/knight/fury, the crossbow knight, the hell knight and the ice golem) never had their seed tables updated.
+40020fb03 ("ogres drop chainsaws") put the cleaver ogre's weapon (210..332) in vr_monstermods.cpp knownSwords; 9c0842ef4
+(the flail) made the sergeant's flail (870..1264) loose and removed its bone. Both tables kept `hand_r`'s middle in the
+weapon and its pivot at the grip (the ogre) or past the fist (the sergeant), so no cluster went to the hand and
+`adoptPastPivot` found fewer than 3 of the forearm's vertices past that pivot (the ogre 2 places, the sergeant none).
+
+- vr_ad_rigs.inc: their `hand_r` the fist, as the crossbow knight's in d5de4ee89: the pivot at the wrist, the middle and
+  end the fist's, the forearm's end the wrist. The ogre: 13 bones, hand 22 vertices (10 places), bones 1.06 units rms;
+  the sergeant: 13 bones, hand 22 (9 places), 1.04.
+- `vr_ragdoll_rig_sweep` (Debug > Ragdolls > Every Ragdoll Rig; registered at start-up with `vr_ragdoll_info`, so both
+  work before any map): every seed table's model in the game folders derived, `N rigged, M failed, K absent`. A failed
+  derive's line now lists each bone's vertex count.
+- Misc/quakevr/ragdoll/ad_rig_sweep.sh (TESTING.md, "Ragdoll rigs"): the sweep with AD: 69 rigged, 0 failed, 0 absent
+  (before the fix 67 rigged, 2 failed: exactly his two).
