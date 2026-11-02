@@ -20,6 +20,7 @@
 #include "vr_engine.hpp"
 #include "vr_rigpose.hpp"
 
+#include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/String/String.hpp"
 
@@ -161,6 +162,10 @@ void drawInfo(); // vr_rig2_draw_info: the drawn subject's models (its .mdl, the
 // (The model collisions: vr_modelcollide.cpp, the hands held out of a live grunt as drawn.) `normals`: each vertex's rest
 // normal turned likewise (model space, not unit length: the bones' blend; the precise hits' growth, drawnpose::armedMesh).
 bool liveVertices(int num, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>* normals = nullptr);
+// What liveVertices(num) would make its vertices of: the Drawn it uses (its publish's serial: the bones, the model) and its
+// rig's generation (the weights). False: liveVertices finds none (not drawn on it lately). The same key, the same vertices
+// (drawnpose::armedMesh keeps them by it).
+[[nodiscard]] bool liveKey(int num, za::U32& serial, int& generation);
 // The Rig Studio's subject posed on the authored rig lately (drawPosed this frame or the last), swapped or not: its .mdl,
 // else nullptr. (The swap is undone after each frame's drawing, so code before the next swap, VR_RelinkArmedGrunts, sees
 // the .mdl: sourceModel misses it there.)
