@@ -1627,8 +1627,8 @@ QVR_TUNABLE(vr_menu_grab_dist_max, "600") // cm: farthest it can be pushed (a pa
 QVR_TUNABLE(vr_menu_grab_deadzone, "4") // cm a hand moves with a grip held on the panel's face before it takes hold of the panel (vr_menu_grab 2)
 
 // Combat > Armed Grunts - Worn Backpacks
-QVR_TUNABLE(vr_worn_backpack_rip_time, "0.04") // worn backpacks: the pull kept past vr_worn_backpack_rip_force this long (s) tears it off (a yank, not a jolt)
-QVR_TUNABLE(vr_worn_backpack_rip_stiffness, "150") // worn backpacks: N a unit of the held point's lag behind the hand (the stretch's share of the pull)
+QVR_TUNABLE(vr_worn_backpack_lift_hold, "0.04") // worn backpacks: the pull kept past vr_worn_backpack_lift_force this long (s) lifts its wearer (a yank, not a jolt)
+QVR_TUNABLE(vr_worn_backpack_lift_stiffness, "150") // worn backpacks: N a unit of the held point's lag behind the hand (the stretch's share of the pull)
 
 // Debug > Tests
 QVR_TUNABLE(vr_climb_prop_pull, "40") // kg: the most weight a hand on a light prop pulls it with (the player's, vr_box3d_player_mass, shared by the holding hands, towards the body; a body over the hold presses it down)

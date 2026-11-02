@@ -528,15 +528,21 @@ za::Vector<Item> pageDebugTests()
                   "steady with its parry dropped, an armed death knight's full fireball sweep. vr_agtune_test 2 on a "
                   "loaded map: its armed humanoids' armour share by the skill."),
         command("Worn Backpacks", "developer 1; vr_wornpack_test 1")
-            .help("Armed grunts ahead wearing packs: hits, knockdowns, landings, a pull by the pack, deaths (vr_wornpack_test "
-                  "1; ends on \"wornpack: N passed, M failed\")."),
+            .help("Armed grunts ahead, packs on those with guns, none on a sword's or fists': shots, blows, knockdowns, "
+                  "landings, deaths (vr_wornpack_test 1; 11 knights, 21 death knights; ends on \"wornpack: N passed, M failed\")."),
         command("Grunts Wearing Packs There", "vr_wornpack_test 2")
-            .help("Three armed grunts ahead wearing packs (Worn Backpacks on): back on, side on and knocked down "
-                  "(vr_wornpack_test 2)."),
+            .help("Three armed grunts ahead wearing packs: back on, side on and knocked down (vr_wornpack_test 2)."),
+        command("Knights Wearing Packs There", "vr_wornpack_test 12")
+            .help("Three knights with guns ahead wearing packs: back on, side on and knocked down (vr_wornpack_test 12)."),
+        command("Death Knights Wearing Packs There", "vr_wornpack_test 22")
+            .help("Three death knights with guns ahead wearing packs: back on, side on and knocked down (vr_wornpack_test 22)."),
         command("Worn Backpacks: Pulling Lifts", "developer 1; vr_wornpack_test 3")
-            .help("Pulling the Pack: Lifts Its Wearer: a grunt held by its pack lifted by a strong pull (not a gentle one), "
-                  "carried and thrown with the pack on its chest; a knocked-down one dragged, then lifted; hits and the "
-                  "force grab still tear packs off (vr_wornpack_test 3; ends on \"wornpull: N passed, M failed\")."),
+            .help("A grunt held by its pack lifted by a strong pull (not a gentle one), carried and thrown with the pack on "
+                  "its chest; a knocked-down one dragged, then lifted; hits and the force grab still take packs off "
+                  "(vr_wornpack_test 3; 13 knights, 23 death knights, 33 enforcers; ends on \"wornpull: N passed, M failed\")."),
+        command("Enforcer's Lift Zone", "developer 1; vr_wornpack_test 5")
+            .help("An enforcer with a gun has a lift zone on the pack in its model, a sword's or fists' none; nothing takes "
+                  "it off; its own loot drops (vr_wornpack_test 5; ends on \"wornpack: N passed, M failed\")."),
         command("Armoured Enforcers There", "vr_agarmor_test 3")
             .help("Three armed enforcers ahead in full green, yellow and red armour (vr_agarmor_test 3)."),
         command("Armour Damage Marks There", "vr_agarmor_test 4")

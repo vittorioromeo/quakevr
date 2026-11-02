@@ -6901,3 +6901,38 @@ ends (its ankle against its hip stops going forward).
 | run, `vr_body_walk 0` | 295 u/s | 0 | 0 | 9 | 0 | |
 
 The one frame: the sound starts as the foot is first drawn planted, a frame (at 72 Hz) after its forward-most.
+
+## Lift only; who wears a backpack (branch `agent/packrules`, his notes of 2026-11-02 night)
+
+His words: "I want tearing to be gone only by pulling"; "Armed knights and death knights that carry a ranged weapon should also
+wear a real backpack ... It should be possible to lift them like other humanoids"; "Armed humanoids that carry only a melee
+weapon or are unarmed should not carry backpacks, this also includes grunts"; "For the enforcer, please make it a lift zone only
+for now."
+
+**A hand's pull only lifts.** The tear by pulling went with its branches and options (retired: `vr_worn_backpack_pull`, `_rip_force`,
+`_tug_stretch`, `_tug_time`, `_topple`, `_topple_push`; the tear's two tunables the lift still uses are `vr_worn_backpack_lift_hold`
+and `_lift_stiffness` now). The engine's `foegrab::packPull`, `packTorn` and `wornPack` 6 went with them. A pack still comes off, with
+the rip (`VR_WP_Off`, the one place it plays), on: damage on it to the pool (a shot, a blow, a throw, a projectile; an explosion's or
+fire's share), a hard landing, its wearer gibbed or gone, and a dead one's pack taken by hand or force grab. A slow drag of a downed
+wearer runs at about the lift force (1500 N: the old menu text said so), past it as the body catches on the floor, so it may lift
+any kind; the pack stays on and the body stays held, which is what a pull does now.
+
+**The rule.** `VR_WP_Spawn`: an armed one carrying a ranged weapon (in a hand, or stowed behind a flare gun) as it spawns wears the
+pack; melee-only and unarmed ones of every kind wear none and drop none (`VR_WP_Packless`: a replacement keeps its monster's chance
+of a weapon). It is read once, before anyone sees it: as it spawns, and again as a replacement's loadout is rolled (`VR_WP_Refit`, at
+the first player). One that picks up a gun later stays packless; one that loses its only gun keeps its pack, with its spare
+rounds: no pack pops in or out in view. AD's maps' `monster_army` armed by `vr_agrunt_repl` follows the rule by this path, so a
+melee-rolled one there has no pack now; AD's own humanoids are unarmed and unchanged.
+
+**Knights and death knights.** The same system: on each rig's `chest` bone (both authored rigs have it, the pack lying on the cuirass's
+back face). The knight's fits as it is; the death knight's goes up 6 (`agarmor::packFits`: it hung at his waist on his long
+cuirass; back and side renders). The size is the grunt's, not scaled by his 1.12. Their deaths have no drop of their own, so
+`VR_AG_Dying` puts what's left of their rounds in the pack; none: the row's loot, 5 shells (0 before, never used).
+
+**Enforcers: a lift zone.** With a ranged weapon: an unseen pack entity (`.vr_wp_baked`) and `.vr_wp_worn` for the engine's hold, lift and
+ragdoll box, on a box round the pack in its model (`packFits`: from its vertices). Shots meet the model (`wornPackSegment` skips
+it), nothing counts on it, it ends with its life, its own backpack still drops. Melee-only or unarmed: the model's pack still shows,
+no zone. The real one: BACKLOG.md, "The enforcer's backpack made a real one".
+
+Tests: `vr_wornpack_test` tens choose the kind (0 grunts, 10 knights, 20 death knights, 30 enforcers: 1, 2, 3 for each; 33 lifts an
+enforcer), 5 the zone, 6 the replacement's rule. `vr_agrunt_test 47` expects no backpack from melee and fists now.

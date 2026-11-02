@@ -3682,8 +3682,8 @@ vr_menu_grab_reach|2|Tunables|Menu Grab Reach|Advanced VR Options > Debug > Tuna
 vr_menu_grab_dist_min|2|Tunables|Menu Grab Dist Min|Advanced VR Options > Debug > Tunables > Menu Grab Dist Min
 vr_menu_grab_dist_max|2|Tunables|Menu Grab Dist Max|Advanced VR Options > Debug > Tunables > Menu Grab Dist Max
 vr_menu_grab_deadzone|2|Tunables|Menu Grab Deadzone|Advanced VR Options > Debug > Tunables > Menu Grab Deadzone
-vr_worn_backpack_rip_time|2|Tunables|Worn Backpack Rip Time|Advanced VR Options > Debug > Tunables > Worn Backpack 
-vr_worn_backpack_rip_stiffness|2|Tunables|Worn Backpack Rip Stiffness|Advanced VR Options > Debug > Tunables > Worn 
+vr_worn_backpack_lift_hold|2|Tunables|Worn Backpack Lift Hold|Advanced VR Options > Debug > Tunables > Worn 
+vr_worn_backpack_lift_stiffness|2|Tunables|Worn Backpack Lift Stiffness|Advanced VR Options > Debug > Tunables > 
 vr_climb_prop_pull|2|Tunables|Light Prop Pull|Advanced VR Options > Debug > Tunables > Light Prop Pull
 vr_climb_prop_tilt|2|Tunables|Prop Hold Tips Off At|Advanced VR Options > Debug > Tunables > Prop Hold Tips Off At
 vr_climb_prop_slip|2|Tunables|Light Prop Slips Off At|Advanced VR Options > Debug > Tunables > Light Prop Slips Off 
@@ -4426,7 +4426,10 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Armed Humanoid Tuning|Advanced VR Options > Debug > Tests > Armed Humanoid Tuning
 |2|Debug - Tests|Worn Backpacks|Advanced VR Options > Debug > Tests > Worn Backpacks
 |2|Debug - Tests|Grunts Wearing Packs There|Advanced VR Options > Debug > Tests > Grunts Wearing Packs There
+|2|Debug - Tests|Knights Wearing Packs There|Advanced VR Options > Debug > Tests > Knights Wearing Packs There
+|2|Debug - Tests|Death Knights Wearing Packs There|Advanced VR Options > Debug > Tests > Death Knights Wearing 
 |2|Debug - Tests|Worn Backpacks: Pulling Lifts|Advanced VR Options > Debug > Tests > Worn Backpacks: Pulling Lifts
+|2|Debug - Tests|Enforcer's Lift Zone|Advanced VR Options > Debug > Tests > Enforcer's Lift Zone
 |2|Debug - Tests|Armoured Enforcers There|Advanced VR Options > Debug > Tests > Armoured Enforcers There
 |2|Debug - Tests|Armour Damage Marks There|Advanced VR Options > Debug > Tests > Armour Damage Marks There
 |2|Debug - Tests|Helmets There: Grunt and Enforcer|Advanced VR Options > Debug > Tests > Helmets There: Grunt and 
@@ -5218,19 +5221,13 @@ vr_agarmor_skill3_type|1|Armour|Best Armour|Advanced VR Options > Combat > Armed
 vr_agarmor_skill3_pieces|1|Armour|Pieces|Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour > 
 |1|Armour|Reset This Page|Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour > Reset This Page
 @page|1|Worn Backpacks||Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks
-vr_worn_backpack_pull|1|Worn Backpacks|Pulling the Pack|Advanced VR Options > Combat > Armed Grunts (Experimental) 
 vr_worn_backpack_lift_force|1|Worn Backpacks|Pull That Lifts|Advanced VR Options > Combat > Armed Grunts 
-vr_worn_backpack_rip_force|1|Worn Backpacks|Pull That Tears It|Advanced VR Options > Combat > Armed Grunts 
+vr_worn_backpack_two_hand_mult|1|Worn Backpacks|Two-Hand Pull|Advanced VR Options > Combat > Armed Grunts 
 vr_worn_backpack_pool|1|Worn Backpacks|Damage That Tears It|Advanced VR Options > Combat > Armed Grunts 
 vr_worn_backpack_pool_blast|1|Worn Backpacks|Explosions' Share|Advanced VR Options > Combat > Armed Grunts 
 vr_worn_backpack_pool_fire|1|Worn Backpacks|Fire's Share|Advanced VR Options > Combat > Armed Grunts (Experimental) 
 vr_worn_backpack_hit_roll|1|Worn Backpacks|Extra Hit Chance|Advanced VR Options > Combat > Armed Grunts 
 vr_worn_backpack_hit_ref|1|Worn Backpacks|Hit Damage|Advanced VR Options > Combat > Armed Grunts (Experimental) > 
-vr_worn_backpack_tug_stretch|1|Worn Backpacks|Pull That Counts|Advanced VR Options > Combat > Armed Grunts 
-vr_worn_backpack_tug_time|1|Worn Backpacks|Pull Time|Advanced VR Options > Combat > Armed Grunts (Experimental) > 
-vr_worn_backpack_two_hand_mult|1|Worn Backpacks|Two-Hand Pull|Advanced VR Options > Combat > Armed Grunts 
-vr_worn_backpack_topple|1|Worn Backpacks|Tearing Topples It|Advanced VR Options > Combat > Armed Grunts 
-vr_worn_backpack_topple_push|1|Worn Backpacks|Topple Push|Advanced VR Options > Combat > Armed Grunts 
 vr_worn_backpack_impact|1|Worn Backpacks|Landing That Tears It|Advanced VR Options > Combat > Armed Grunts 
 vr_worn_backpack_reserve|1|Worn Backpacks|Spare Ammo in It|Advanced VR Options > Combat > Armed Grunts 
 vr_worn_backpack_volume|1|Worn Backpacks|Rip Volume|Advanced VR Options > Combat > Armed Grunts (Experimental) > 
