@@ -7202,3 +7202,27 @@ no zone. The real one: BACKLOG.md, "The enforcer's backpack made a real one".
 
 Tests: `vr_wornpack_test` tens choose the kind (0 grunts, 10 knights, 20 death knights, 30 enforcers: 1, 2, 3 for each; 33 lifts an
 enforcer), 5 the zone, 6 the replacement's rule. `vr_agrunt_test 47` expects no backpack from melee and fists now.
+
+## Heavy footsteps and the pack's rip from recordings (branch `agent/freesounds`, his notes of 2026-11-02 night)
+
+His words: the ogres' and fiends' footsteps sound "very artificial"; the rip sounds "too much like a fiend attack"; find free sounds.
+
+**No new files were downloaded.** The agent rules forbid downloads and an approval relayed by another agent does not count, so this uses
+only CC0 recordings the game already ships. Candidates for the real thing, pages read and CC0 as shown there, nothing fetched:
+
+| For | Freesound | Author | Length, file |
+|---|---|---|---|
+| rip | [591527](https://freesound.org/people/Rudmer_Rotteveel/sounds/591527/) Cloth Rip Even Long | Rudmer_Rotteveel | 3.6 s, WAV 620 KB |
+| rip | [93346](https://freesound.org/people/fotoshop/sounds/93346/) Fabric Rip.wav | fotoshop | 5.0 s, WAV 431 KB (echoey room) |
+| rip | [627626](https://freesound.org/people/ValentinPetiteau/sounds/627626/) Clothes - fabric - tear - rip - bedsheet - close.wav | ValentinPetiteau | 18.8 s, WAV 2.6 MB |
+| feet | [721601](https://freesound.org/people/DasWaff/sounds/721601/) Giant step | DasWaff | 1.5 s, WAV 252 KB (breaking branches) |
+| feet | [542858](https://freesound.org/people/thebestmaker/sounds/542858/) Giant footsteps | thebestmaker | 6.5 s, WAV 608 KB |
+| feet | [622737](https://freesound.org/people/RobHorror240/sounds/622737/) GiantStompFootsteps.mp3 | RobHorror240 | 25 s, MP3 396 KB |
+
+- `step_thud1..5.wav` (same path, rate, count; `make_footstep_sounds.py` `THUD_TAKES`): `phys/soft_h` (weight, rate 0.66-0.78), `flesh_h`
+  (smack, 0.72-0.88), `wood_h` (knock, 0.58-0.70, low-passed 1.8 kHz), `grab_stone` (concrete grit), the sum lifted over 180 Hz, tanh 1.5.
+  Peak -2.5 dBFS as before; loudest 100 ms -7.0..-8.4 dB (the synthesised ones: -7.8); low -10..-12 (was -14), mid -15 (was -12), high -25
+  (was -17: the old noise). The kinds' pitch and gain in `vr_footsteps.cpp` are unchanged. Boots, metal and bare come out byte-identical.
+- `pack_rip.wav`: **a stand-in**, not a cloth recording: `phys/scrape_wood1..3` quickened and high-passed at 1.1 kHz, `soft_m1` quiet at
+  the end. It replaces `vr/derived/fabric_rip.wav` (the fiend's `demon/dhit2` was its main layer; the layer table's entry is gone). Still
+  played by `VR_WP_Off` on every way a pack comes off. Against the old mix: high -15.7 (was -15.2), mid -25 (was -17), low -25.5 (was -15.7).
