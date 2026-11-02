@@ -11,7 +11,8 @@
 #      (RMB) with the off hand when that hand holds a weapon a swing strikes with, and the punch deals the game's own
 #      melee damage to what stands within the fist's arc (vr_test_spawn 5, vr_test_spawn_dist 16, and vr_test_hurt 1
 #      read twice: what its line finds before its own damage is what the punch left the monster at). A gun's fire
-#      button is its own shot (the shotgun's clip drops) and never a punch; a chainsaw's trigger runs its chain; and a
+#      button is its own shot (the knight it is aimed at takes the blast: this port refills a magazine from the
+#      reserve as it empties, so the clip is not the measure) and never a punch; a chainsaw's trigger runs its chain; and a
 #      hand that already punched this frame is joined by the other only when both hold a swinging weapon.
 #   4. the drawn hand stays on its arm (the probe's "flatarm:" lines, vr_flatplay_debug 2): no more than 0.6 units of
 #      the hand past what the arm can hold it at, through a punch and at a look straight up (it was 14 units past,
@@ -56,15 +57,14 @@ check $okmain "flatscreen melee: +attack (LMB) punches with the axe in the main 
 check $okoff "flatscreen melee: +offhandattack (RMB) punches with the axe in the off hand and hurts the knight in front of it"
 check $okarm "flatscreen arm: the drawn hand stays on its arm through a punch and looking straight up"
 log=$HERE/scratch/flatgate.log
-bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; god; notarget; developer 1; impulse 152; impulse 174; wait15; vr_flatplay_debug 2; wait10; vr_flatplay_status; +attack; +offhandattack; wait20; -attack; -offhandattack; wait10; vr_flatplay_status; impulse 154; wait15; vr_test_weaponinst 0; wait3; impulse 120; wait5; +attack; wait10; -attack; wait5; vr_test_weaponinst 0; wait3; impulse 120; wait3; vr_flatplay_status; impulse 164; wait15; +attack; wait10; -attack; wait5; vr_flatplay_status; vr_flat_punch main; wait3; vr_flat_punch off; wait3; toggleconsole; quit" -Filter "punches:|weaponinst:|vr_flat_punch:|flatplay: " > "$log" 2>&1
+bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; god; notarget; developer 1; impulse 152; impulse 174; wait15; vr_flatplay_debug 2; wait10; vr_flatplay_status; +attack; +offhandattack; wait20; -attack; -offhandattack; wait10; vr_flatplay_status; impulse 154; wait15; vr_test_spawn 5; vr_test_spawn_dist 16; impulse 241; wait20; vr_test_hurt 1; wait3; +attack; wait10; -attack; wait5; vr_test_hurt 1; wait15; vr_flatplay_status; impulse 164; wait15; +attack; wait10; -attack; wait5; vr_flatplay_status; vr_flat_punch main; wait3; vr_flat_punch off; wait3; toggleconsole; quit" -Filter "punches:|vr_flat_punch:|flatplay: |test hurt:" > "$log" 2>&1
 counts=$(grep -a "punches: the main hand" "$log" | grep -ao "main hand [0-9]*, the off hand [0-9]*" | awk '{ print $3 + 0, $7 + 0 }')
 read -r s1m s1o <<<"$(echo "$counts" | sed -n 1p)"; read -r s2m s2o <<<"$(echo "$counts" | sed -n 2p)"
 read -r s3m s3o <<<"$(echo "$counts" | sed -n 3p)"; read -r s4m s4o <<<"$(echo "$counts" | sed -n 4p)"
-clips=$(sed -n 's/.*main weapon[^|]*clip \([0-9]*\).*/\1/p' "$log")
-c1=$(echo "$clips" | sed -n 1p); c2=$(echo "$clips" | sed -n 2p)
-echo "  punches after each step: $s1m/$s1o then $s2m/$s2o then $s3m/$s3o then $s4m/$s4o; the shotgun's clip $c1 then $c2 ($log)"
+shot=$(grep -a 'test hurt:' "$log" | awk '{ if (match($0, /health [0-9]+ -> [0-9]+/)) { split(substr($0, RSTART + 7, RLENGTH - 7), b, " -> "); if (seen) { print prev - b[1]; exit } prev = b[2]; seen = 1 } }')
+echo "  punches after each step: $s1m/$s1o then $s2m/$s2o then $s3m/$s3o then $s4m/$s4o; the shotgun's blast left the knight $shot units of damage ($log)"
 check $([ "${s2m:-0}" -gt "${s1m:-0}" ] && [ "${s2o:-0}" = "${s1o:-0}" ] && echo 1 || echo 0) "flatscreen melee: the other hand's fire button does not disturb a hand that already punched, unless both hold a swinging weapon"
-check $([ -n "$c1" ] && [ -n "$c2" ] && [ "$c1" -gt "$c2" ] && [ "$s3m" = "$s2m" ] && [ "$s3o" = "$s2o" ] && echo 1 || echo 0) "flatscreen melee: a gun's fire button is its own shot (the shotgun's clip drops) and not a punch"
+check $([ "${shot:-0}" -gt 0 ] && [ "$s3m" = "$s2m" ] && [ "$s3o" = "$s2o" ] && echo 1 || echo 0) "flatscreen melee: a gun's fire button is its own shot (the knight it is aimed at takes the blast) and not a punch"
 check $([ "$s4m" = "$s3m" ] && [ "$s4o" = "$s3o" ] && grep -q "does not strike with" "$log" && echo 1 || echo 0) "flatscreen melee: a chainsaw's trigger runs its chain, and vr_flat_punch says so"
 # 5: in the headset none of this is running.
 log=$HERE/scratch/flatvr.log

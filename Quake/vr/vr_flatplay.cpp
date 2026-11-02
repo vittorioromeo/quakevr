@@ -1,4 +1,4 @@
-﻿// vr_flatplay.cpp -- flatscreen play (-flatscreenmode): the VR gameplay on the desktop screen, with the hands posed by
+// vr_flatplay.cpp -- flatscreen play (-flatscreenmode): the VR gameplay on the desktop screen, with the hands posed by
 // the game instead of a headset (docs/vr-port/FLATPLAY.md).
 //
 // What the mode does, all of it behind the flag:
@@ -156,17 +156,15 @@ constexpr float breathPitch = 0.15f;
 constexpr float camNear = 24.f;
 
 // V's punch, seconds from the press: wound up, thrown, drawn back.
-constexpr float punchWind = 0.26f;
-constexpr float punchStrike = 0.26f;   // spread over some 19 frames: the game reads a blow through the weapon's line,
-                                       // which follows the hand as it is drawn (a drawn frame behind), so a flick that
-                                       // is over in 6 frames reaches it as one big step, which VR_Melee_Track reads as
-                                       // the hand having jumped (vr_melee.qc) and counts no motion at all
-constexpr float punchBack = 0.30f;
+constexpr float punchWind = 0.13f;
+constexpr float punchStrike = 0.12f;   // the throw is quick on purpose: what the game's melee rules read is the hand's
+                                       // speed (vr_melee_speed 3.2 m/s, a weapon's swing 1.25 times that), not how far
+                                       // the fist goes, so the punch is measured for that (see the flatarm probe's
+                                       // speed) and its reach is capped elsewhere (armSpan, punchSwing)
+constexpr float punchBack = 0.22f;
 constexpr float punchReach = 24.f;   // units the fist goes forward in the strike
-constexpr float punchWindUp = 4.f;   // and how it rises on the way back
-constexpr float punchWindBack = 4.f;   // and how much lower it sits there (with the throw, the whole punch moves the
-                                       // hand some 20 units: enough for the game's speed gates, little enough per drawn
-                                       // frame that no step of it reads as the hand jumping)
+constexpr float punchWindUp = 5.f;   // and how it rises on the way back
+constexpr float punchWindBack = 7.f;   // and how much lower it sits there
 constexpr float punchLevel = 0.25f;    // the thrown fist's height, times where its hand rests at (0: level with its shoulder, 1: as it rests)
 
 // E's reach: the collecting (left) hand goes out towards what the view is on.

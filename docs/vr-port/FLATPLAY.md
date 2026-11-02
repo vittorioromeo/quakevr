@@ -1,4 +1,4 @@
-﻿# Flatscreen play (`-flatscreenmode`)
+# Flatscreen play (`-flatscreenmode`)
 
 Quake VR's gameplay played on the desktop screen, with no headset. Everything here is behind the command-line flag
 `-flatscreenmode` and only while there is no headset session (`VR_IsActive() == 0`) — and the flag implies no session
@@ -42,7 +42,7 @@ straight-out-in-front pose). The pose is built from the view angles, the weapon 
   `vr_body_arm_stretch`, plus the shoulder's own `vr_body_shoulder_reach` — of the shoulder the body poses that arm on,
   and the hands follow the view's up and down only as far as `vr_flat_pose_pitch`. A punch is a *thrust along the aim* (`punchSwing`: chambered back along the arm's own line, thrown to what
   the arm can hold the hand at, drawn back again — and not eased, because the game's melee rules ask the striking hand
-  for vr_melee_speed, and spread over some 19 frames of the throw: the game reads a blow through the held weapon's line, which follows the hand as it is drawn, so a punch that is over in 6 frames reaches it as one big step, which VR_Melee_Track (QC/vr_melee.qc) reads as the hand having jumped and counts no motion in it at all), not the straight shove off the shoulder it used to be: that one asked the off hand's arm for 14 units more than it
+  for vr_melee_speed, and thrown no further than the arm can hold it (0.13 s chambered, 0.12 s out, 0.22 s back: a punch peaks near 7 m/s against the 3.2 m/s the game asks a striking hand for), not the straight shove off the shoulder it used to be: that one asked the off hand's arm for 14 units more than it
   had, and its hand ended 401 mm off its wrist.
 
 **The hands are locked to the view.** The game's pose is rigid in the view's frame (only a change of pose — a weapon
