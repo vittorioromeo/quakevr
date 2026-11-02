@@ -399,7 +399,7 @@ void(float c) VR_AGRT_CountDrops =
             e.weaponinst = world;
             remove(e);
         }
-        else if(e.model == "progs/backpack.mdl")
+        else if(e.model == "progs/backpack.mdl" && e.vr_wp_state != VR_WP_WORN) // (a dead grunt's worn pack: its loot)
         {
             vr_agrt_res[at + 4] = vr_agrt_res[at + 4] + on;
             vr_agrt_res[at + 5] = vr_agrt_res[at + 5] + on * (e.ammo_shells + e.ammo_cells + e.ammo_nails + e.ammo_rockets);

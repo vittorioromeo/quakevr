@@ -3886,6 +3886,7 @@ vr_shadow_caster_cache|2|Debug - Profiling and Memory|Keep Light Casters|Advance
 |2|Debug - Profiling and Memory|Light Caster Stats|Advanced VR Options > Debug > Profiling and Memory > Light 
 vr_stereo_single|2|Debug - Profiling and Memory|Single-Pass Stereo (Experimental)|Advanced VR Options > Debug > 
 |2|Debug - Profiling and Memory|Single-Pass Stereo Info|Advanced VR Options > Debug > Profiling and Memory > 
+|2|Debug - Profiling and Memory|Multiview Shader Check|Advanced VR Options > Debug > Profiling and Memory > 
 |2|Debug - Profiling and Memory|Load Times|Advanced VR Options > Debug > Profiling and Memory > Load Times
 vr_cache_warmup|2|Debug - Profiling and Memory|Cache Warm-up|Advanced VR Options > Debug > Profiling and Memory > 
 |2|Debug - Profiling and Memory|Cache Info|Advanced VR Options > Debug > Profiling and Memory > Cache Info
@@ -5089,7 +5090,6 @@ vr_agarmor_skill3_type|1|Armour|Best Armour|Advanced VR Options > Combat > Armed
 vr_agarmor_skill3_pieces|1|Armour|Pieces|Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour > 
 |1|Armour|Reset This Page|Advanced VR Options > Combat > Armed Grunts (Experimental) > Armour > Reset This Page
 @page|1|Worn Backpacks||Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks
-vr_worn_backpacks|1|Worn Backpacks|Worn Backpacks|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn 
 vr_worn_backpack_pull|1|Worn Backpacks|Pulling the Pack|Advanced VR Options > Combat > Armed Grunts (Experimental) 
 vr_worn_backpack_lift_force|1|Worn Backpacks|Pull That Lifts|Advanced VR Options > Combat > Armed Grunts 
 vr_worn_backpack_rip_force|1|Worn Backpacks|Pull That Tears It|Advanced VR Options > Combat > Armed Grunts 

@@ -1,7 +1,7 @@
 #ifdef QVR_TESTS
 // ----------------------------------------------------------------------------
 // vr_drawnpose_test.qc: test 99 (vr_agrunt_test 99), the drawn pose's one query (ROUND23.md, "Drawn pose: worn
-// backpacks and disarm volumes"): a nail pistol, a shotgun (wearing a worn backpack) and a rocket launcher grunt in turn,
+// backpacks and disarm volumes"): a nail pistol, a shotgun and a rocket launcher grunt (each wearing its backpack) in turn,
 // 60 ahead of you, standing ("standing"), toppled by a shove while falling ("falling": an active ragdoll) and lying
 // ("lying"). Each state: the disarm volumes (VR_AG_WeaponLine, VR_AGS_HandLine) on the weapon as drawn (its grip within
 // 2 units of the drawn weapon's origin, its line within 3 degrees of the drawn forward), the line the weapon model's own
@@ -13,7 +13,6 @@
 
 float vr_dpt_t0;
 float vr_dpt_k;     // the weapon under test (0..2)
-float vr_dpt_packs; // vr_worn_backpacks as it was
 
 float(float k) VR_DPT_Wid =
 {
@@ -93,7 +92,6 @@ void() VR_DPT_Frame =
     float t = time - vr_dpt_t0;
     if(vr_agt_step == 0)
     {
-        vr_dpt_packs = cvar("vr_worn_backpacks");
         pl.flags = pl.flags | FL_NOTARGET;
         vr_dpt_k = 0;
         vr_agt_step = 1;
@@ -101,7 +99,6 @@ void() VR_DPT_Frame =
     }
     if(vr_agt_step == 1)
     {
-        cvar_set("vr_worn_backpacks", vr_dpt_k == 1 ? "1" : "0");
         vr_agt_grunt = g = VR_AGT_Spawn(VR_DPT_Wid(vr_dpt_k), 60);
         g.health = 400;
         vr_dpt_t0 = time;
@@ -160,7 +157,6 @@ void() VR_DPT_Frame =
         vr_agt_step = vr_dpt_k < 3 ? 1 : 5;
         return;
     }
-    cvar_set("vr_worn_backpacks", ftos(vr_dpt_packs));
     pl.flags = pl.flags - (pl.flags & FL_NOTARGET);
     vr_agt_step = 0;
     cvar_set("vr_agrunt_test", "0");

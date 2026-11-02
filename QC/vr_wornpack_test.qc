@@ -1,6 +1,6 @@
 // vr_wornpack_test.qc -- worn backpacks' test (vr_wornpack.qc; Debug > Tests; ROUND23.md, "Worn backpacks").
-// `vr_wornpack_test 1` (any map with room ahead: e1m1's start; god, notarget): armed grunts ahead with
-// vr_worn_backpacks 1 (one with it 0 for the control). Checks: the pack on the back, untakeable while it lives; a hit on
+// `vr_wornpack_test 1` (any map with room ahead: e1m1's start; god, notarget): armed grunts ahead, all wearing packs
+// (an armed enforcer, who wears none, the control). Checks: the pack on the back, untakeable while it lives; a hit on
 // its chest leaves it, a hit on the pack tears it off (the rip, its reserve gone with it); a mild knockdown keeps it (the
 // pack where it was as the ragdoll is made; the ragdoll's box), a mild landing too, a hard one tears it off; a hand takes
 // the ragdoll by its pack, drags it slowly (kept), yanks (torn off into the hand); a wearer killed drops no other backpack
@@ -10,7 +10,7 @@
 float vr_wpt_state;
 float vr_wpt_until;
 float vr_wpt_frames;
-float vr_wpt_old_on, vr_wpt_old_chance, vr_wpt_old_ref, vr_wpt_old_debug;
+float vr_wpt_old_chance, vr_wpt_old_ref, vr_wpt_old_debug;
 entity vr_wpt_a, vr_wpt_b, vr_wpt_c, vr_wpt_d, vr_wpt_e, vr_wpt_f, vr_wpt_g, vr_wpt_h;
 vector vr_wpt_pull;     // the tug's way (level, towards the player)
 float vr_wpt_gapmax;    // the drawn palm's farthest off the pack's box while pulled (cm)
@@ -21,8 +21,9 @@ float vr_wpt_loose0;    // loose backpacks before the deaths
 float vr_wpt_rips0;
 vector vr_wpt_hand;     // the mock hand's target
 
-// An armed grunt holding `wid` ahead of the player, `side` to the right, `ahead` out, facing the player (or away).
-entity(entity p, float wid, float side, float ahead, float away) VR_WPT_Spawn =
+// An armed monster of `kind` (VR_AM_*) holding `wid` ahead of the player, `side` to the right, `ahead` out, facing the
+// player (or away).
+entity(entity p, float kind, float wid, float side, float ahead, float away) VR_WPT_SpawnKind =
 {
     makevectors(p.angles);
     vector fw = v_forward;
@@ -33,13 +34,19 @@ entity(entity p, float wid, float side, float ahead, float away) VR_WPT_Spawn =
     setorigin(self, p.origin + fw * ahead + v_right * side);
     self.angles_y = vectoyaw(p.origin - self.origin) + (away ? 180 : 0);
     self.weapon = wid;
-    VR_AM_Spawn(VR_AM_GRUNT);
+    VR_AM_Spawn(kind);
     entity g = self;
     self = oldself;
     g.vr_ar_type = 0;
     g.vr_ar_mask = 0;
     g.health = 1000;
     return g;
+};
+
+// An armed grunt (it wears a pack).
+entity(entity p, float wid, float side, float ahead, float away) VR_WPT_Spawn =
+{
+    return VR_WPT_SpawnKind(p, VR_AM_GRUNT, wid, side, ahead, away);
 };
 
 // Backpacks lying about (not worn ones, not torn off ones).
@@ -64,7 +71,6 @@ void(entity g, entity p, vector at, float d) VR_WPT_Hit =
 
 void() VR_WPT_End =
 {
-    cvar_set("vr_worn_backpacks", ftos(vr_wpt_old_on));
     cvar_set("vr_worn_backpack_pool", ftos(vr_wpt_old_pool));
     cvar_set("vr_worn_backpack_hit_roll", ftos(vr_wpt_old_roll));
     localcmd("-graboff\n");
@@ -93,16 +99,13 @@ void(entity g, entity p, float speed) VR_WPT_KnockDown =
 void(entity p) VR_WPT_Begin =
 {
     VR_Test_Begin("wornpack");
-    vr_wpt_old_on = cvar("vr_worn_backpacks");
     vr_wpt_old_chance = cvar("vr_worn_backpack_hit_roll");
     vr_wpt_old_pool = cvar("vr_worn_backpack_pool");
     vr_wpt_old_roll = vr_wpt_old_chance;
     vr_wpt_old_ref = cvar("vr_worn_backpack_hit_ref");
     vr_wpt_old_debug = cvar("vr_worn_backpack_debug");
     cvar_set("vr_worn_backpack_debug", ftos(max(1, vr_wpt_old_debug)));
-    cvar_set("vr_worn_backpacks", "0");
-    vr_wpt_e = VR_WPT_Spawn(p, WID_SHOTGUN, 60, 120, FALSE); // (the control: no pack)
-    cvar_set("vr_worn_backpacks", "1");
+    vr_wpt_e = VR_WPT_SpawnKind(p, VR_AM_ENFORCER, WID_SHOTGUN, 60, 120, FALSE); // (the control: an enforcer wears no pack)
     cvar_set("vr_worn_backpack_pool", "30");
     cvar_set("vr_worn_backpack_hit_roll", "0");
     vr_wpt_a = VR_WPT_Spawn(p, WID_SHOTGUN, -60, 120, TRUE);
@@ -523,7 +526,6 @@ void() VR_WPL_End =
 void(entity p) VR_WPL_Begin =
 {
     VR_Test_Begin("wornpull");
-    vr_wpt_old_on = cvar("vr_worn_backpacks");
     vr_wpt_old_chance = cvar("vr_worn_backpack_hit_roll");
     vr_wpt_old_pool = cvar("vr_worn_backpack_pool");
     vr_wpt_old_roll = vr_wpt_old_chance;
@@ -531,7 +533,6 @@ void(entity p) VR_WPL_Begin =
     vr_wpt_old_debug = cvar("vr_worn_backpack_debug");
     vr_wpt_old_pull = cvar("vr_worn_backpack_pull");
     cvar_set("vr_worn_backpack_debug", ftos(max(1, vr_wpt_old_debug)));
-    cvar_set("vr_worn_backpacks", "1");
     cvar_set("vr_worn_backpack_pull", "1");
     cvar_set("vr_worn_backpack_pool", "30");
     cvar_set("vr_worn_backpack_hit_roll", "0");
@@ -833,7 +834,6 @@ void(entity p) VR_WPL_Others =
 
 void(entity p) VR_WPT_Eyeshot =
 {
-    cvar_set("vr_worn_backpacks", "1");
     entity g1 = VR_WPT_Spawn(p, WID_SHOTGUN, -22, 64, TRUE);
     entity g2 = VR_WPT_Spawn(p, WID_SHOTGUN, 22, 72, FALSE);
     g2.angles_y = g2.angles_y + 90;
@@ -854,14 +854,12 @@ vector vr_wpp_start, vr_wpp_end;
 void(entity p) VR_WPP_Begin =
 {
     VR_Test_Begin("wornpack");
-    vr_wpt_old_on = cvar("vr_worn_backpacks");
     vr_wpt_old_chance = cvar("vr_worn_backpack_hit_roll");
     vr_wpt_old_pool = cvar("vr_worn_backpack_pool");
     vr_wpt_old_roll = vr_wpt_old_chance;
     vr_wpt_old_ref = cvar("vr_worn_backpack_hit_ref");
     vr_wpt_old_debug = cvar("vr_worn_backpack_debug");
     cvar_set("vr_worn_backpack_debug", ftos(max(1, vr_wpt_old_debug)));
-    cvar_set("vr_worn_backpacks", "1");
     cvar_set("vr_worn_backpack_pool", "30");
     cvar_set("vr_worn_backpack_hit_roll", "0");
     cvar_set("vr_mock_hand_to_absolute", "1");
