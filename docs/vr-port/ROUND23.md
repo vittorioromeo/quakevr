@@ -6543,6 +6543,111 @@ the main switches as cvars", "11. Address the remaining menu clutter as suggeste
   (contact by `tune`): PASS. e1m1/start: loot beams 9 drawn, fire particles 400 made, gore sounds played, the grapple
   reels at 300 u/s.
 
+## Notes of 11-02 evening: the death knight's helmet, the nail pistol's screen, the lifts' grunt, his cast on a cooldown (branch `agent/notes1102a`)
+
+- **The death knight's helmet** ("still a bit too big, and covers his eyes ... the back of the helmet is also too wide"): his eye
+  sockets are 0.78-0.88 of the head bone's length up, the brim was at 0.62. New `Wearer` fields in vr_agarmor.cpp (brow, cheek,
+  jaw, nape, top chamfer, brow flare, how far the back's corners may be cut), defaults the old numbers, so the grunt's, the
+  enforcer's and the knight's fit lines are the same to the digit. His: sides to 0.44, brim 0.97 (its ledge 0.91), guards to his
+  cheekbones (0.52), nape 0.45, top chamfer 0.06 (its 0.18 pushed the front and sides out), flare 0.01, the back's corners cut 0.9.
+  Outside 13.73 deep x 12.40 wide x 11.79 high -> 11.70 x 10.27 x 7.51 (his head 10.65 wide at its widest). A skullcap; the horns
+  stand out of it. `vr_agarmor_test 14` (Debug > Tests > Helmets Alone There): the knights in helmets alone. Eyeshots in the
+  worktree's scratch: `dkhelm_before.png`, `dkhelm_after.png` (front, side, back), `hk_front.png` (his bare head, lines each 0.1 up).
+- **The nail pistol's ammo screen at full open** (vrfiringrange_2026-11-02_19-31-10): its anchor binds to the slide's wall (the
+  10-30 note said the receiver: true of the classic look, not of the slide that replaced it), so the server's back frame already
+  had it 0.65 back, and `nailslide::screenShift` added the slide's whole drawn travel on top: 2.15 where the slide is 1.5. Now
+  `screenShift` takes the frame's move out first, so the slide's drawn place alone moves the screen (each shot's jump gone with it;
+  ride off: really fixed on the gun). Closed: frame 0, nothing to take out, unchanged. `vr_np_seen_screen` now reads the screen
+  as drawn from its closed place, so `vr_np_test 1` catches this (without the fix 38/1, with it 39/0, 1.500 want 1.500).
+  Close-ups: `npscreen_before_crop.png`, `npscreen_after_crop.png`.
+- **The lifts' grunt and the feminine voice** (vrfiringrange_2026-11-02_19-33-12): every lift (body: vr_foegrab.cpp liftCheck; legs;
+  backpack: packLift) and every throw and leg pull goes through `climb::grunt`, sample `vr_foegrab_throw_grunt_sound` (default 2,
+  `vr/derived/plyrjmp8_low.wav`); all five samples of that list are in `voiceSounds`, so it was transformed. But the derived copy
+  is played at 0.8 rate first: 4.5 - 3.9 = 0.6 semitones over the man's recording, formants 0.8 x 1.17 = 0.94 of his: it sounded
+  a man's. Fixed in the voice's own path (`voiceShift`, used by VR_SndVoice and the test): a derived copy's slowing is made up for in
+  pitch and formants, only its length stays. plyrjmp8_low in the voice: 451 Hz, centroid 1147 Hz; plyrjmp8: 452 Hz, 1119 Hz (was
+  0.8 of those). land2_low (a mantle choice, a hard landing's) too. No throat sound found outside the list: every `player/*.wav`
+  in QC and the engine was checked, the rest are splashes, ladders, gibs, the heartbeat, teleports. `vr_voice_test` 38/0;
+  a `-Sound` run logs `voicelog: transformed vr/derived/plyrjmp8_low.wav`. Vr_voice_hear's list has the grunt now.
+- **The death knight's cast with a gun** (vrfiringrange_2026-11-02_19-34-46; his correction: 3 s, not the transcript's 30):
+  `vr_agdknight_spell_share` retired for `vr_agdknight_cast_cooldown` 3 s (Gameplay's Replacements row, "Gun Cast Cooldown"). `VR_AM_GunCasts`: each
+  his own clock (`vr_ag_cast_ready`), started at his first attack on a random part of it (not at spawn: a group met late would
+  all be ready and volley together); once it has passed he casts at his next attack, else fires. With a blade or fists:
+  unchanged, `VR_AM_SpellTry` (id's chance, near 0.2, mid 0.05 a check, times the aggression, not in reach, no cooldown). `vr_agtune_test 3`
+  (Debug > Tests > Death Knight's Gun and Casts), two minutes against a still player: 17 casts and 22 gun attacks over 64 s (a cast
+  per 3.8 s, the closest 3.1 s; 44% casts), another seed 17 and 23 (42%), another 12 and 13 (48%). So at 3 s he alternates about
+  one for one: his attacks come about 1.6-5 s apart, and the cooldown is up at nearly every second one. "Mostly the gun" needs
+  about 8 s or more; the row goes to 60. Seen in that test and not looked into: on some seeds he stops attacking at about 115
+  from the still mock player for the rest of the two minutes (his `attack_finished` long past; not the cast's path: it's asked only
+  after the shot's checks), so the test's rates are over the span to his last attack.
+- Test 95's "knight death ... dead (50)" with a death knight failed once here: left 50 health by an armour roll on him; unrelated, not touched.
+- **Checklist:**
+  - [notes1102a] An armoured death knight (Debug > Tests > Helmets There: Knight and Death Knight): his eyes show under the helmet from the front, its back no wider than his head, the horns standing out of it. {test:agarmor_helmets_knights}
+  - [notes1102a] Fire a nail pistol's clip out: its slide locks open and the ammo screen stays flat on the slide's wall, not out past its back; and during a shot it stays on the wall.
+  - [notes1102a] Feminine voice on: the grunt of a body, leg or backpack lift and of a throw is a woman's, as high as your jump's grunt.
+  - [notes1102a] An armed death knight with a gun fires it and casts from his off hand's palm about every other attack (Gun Cast Cooldown 3 s; Debug > Tests > Death Knight's Gun and Casts); a group's first volleys come apart.
+
+## Models lit by all baked lights: the model light grid (branch `agent/arenalight`, his report and decision 2026-11-02)
+
+His report: "in the arena, enemy models do not seem to get lit by the static prebaked lights"; his decision: "I would
+like models to be lit by all baked lights (regardless of floor/wall/ceiling) and dynamic lights".
+
+**Cause, measured (vrarena).** Nothing arena-specific: no flag, setting or stale file. A model's whole brightness is one
+straight-down sample of the floor (`R_LightPoint`); armed humanoids read the same as plain monsters at the same place
+(ogre 151, grunt 145 raw, 60 units apart). The arena's floor varies from 2 to 220 drawn light under `vr_light_contrast`
+2.5, with its lamps on the walls above the rail: a foe at (640 640) under a lit wall reads raw 38, drawn 13; at (720 0)
+raw 151, drawn 236; on the walk raw 232, drawn 648 (2.5 times Quake's full light). A step of the line (700 -600 24) to
+(700 600 24) jumps 148 drawn at a floor seam. The walls never counted.
+
+**What it does.** `vr_model_light_grid` 1 (Graphics, by Directional Ambient; 0: the old floor sample and per-entity rays,
+left whole for comparison). `vr_ambient.cpp`, "The light grid": probes every 48 units on one lattice over the world,
+skipping solid and sky and open air (no surface within 256 straight below: most of an outdoor map). Each gathers the
+existing 26 rays and keeps, per light style (`GridEntry`, 44 bytes, up to 8 styles), what lights the model (`level`) and
+the six cube faces. A model reads the 8 round it each frame, no rays: trilinear, renormalised without those missing;
+`R_AliasLightPoint` takes `level` in `R_LightPoint`'s units, so `VR_AliasLightCurve`, the eye cache, per-pixel dynamic
+lights, parity and the view minimum are unchanged. The cube's ratios come from the same reading.
+- *Level:* each ray's light over distance + 64 (`GRID_NEAR`), since a surface's lightmap says what fell where it is;
+  a power mean of 2.5 (the default contrast's: the world is drawn through it, so a lit wall in view counts as it looks).
+  Sky and lava count on the cube, as before, not on `level` (not baked light; a sky-lit room stays as its surfaces are).
+- *Light styles:* every read multiplies by `d_lightstylevalue`, so flicker and switches stay in step with the walls.
+- *Leaks:* non-clear cells (a precomputed flag: 8 corners present and the 4 long diagonals clear) get a line to each
+  corner, kept until the model moves 4 units or changes cell; unseen corners are dropped. `vr_model_light_grid_info` counts
+  what that prevents (e1m1: 46 of 4651 spots over 16 drawn, 97 at worst; warden 80, 383 at worst).
+- *No popping:* trilinear in space; a change in the corners seen fades at the rays' `EASE_RATE` (5 per second), light
+  style changes do not. Over 128 units in a frame snaps. No corner in sight: keeps what it last had; never had any: old path.
+- *Build:* at the load (`VR_NewMap` prewarm), `jobs::parallelFor` by layer. Grids that took 100 ms or more are kept in the
+  shared disk cache (`lightgrid`, `vr_model_light_grid_cache`, key: lightmaps, styles, planes, size; CACHES.md).
+- *Keeps the old path:* `MOD_FBRIGHTHACK` models (fullbright, as before), and no-light maps.
+- *Doors, lifts:* probes and lines read the world only, as the old sample did. A model by a closed door can have the
+  light beyond it, within a cell; on a lift it reads the air where it is, not the floor under the shaft (better than old).
+- *BSPX light grids:* not read. The engine has no reader, stock maps have none, and it holds one colour a point, no
+  direction: the same probes work everywhere, so everything looks alike. Possible later for our own compiled maps.
+
+**Numbers** (drawn light, 128 is Quake's full; old floor -> new). vrarena: (720 0) 236 -> 115, (640 640) 13 -> 23,
+(520 -60) 163 -> 143, walk (736 200) 648 -> 364, dais 170 -> 125. e1m1 start: ogre 12 -> 31, grunt 18 -> 31, armour 49 -> 33.
+e2m6 (dark): ogre 6 -> 20, grunt 7 -> 20, armour 7 -> 26, the room as dark. Largest 4-unit step walking a line, floor ->
+grid: vrarena 148 -> 5.0, 173 -> 4.9; e1m1 69.6 -> 20.2 (before the fade). `vr_model_light_walk` prints these.
+
+| map | cells | probes | memory | build (LTO, exclusive) |
+|---|---|---|---|---|
+| vrarena | 38 x 38 x 13 | 6141 | 0.3 MB | 18 ms |
+| e1m1 | 46 x 75 x 21 | 7513 | 0.8 MB | 23 ms |
+| e2m6 | 89 x 54 x 32 | 8718 | 1.0 MB | 19 ms (no-LTO) |
+| warden | 93 x 86 x 92 | 34807 | 6.1 MB | 88 ms (39 ms another run) |
+| vrstart (largest) | 170 x 170 x 72 | 152946 | 14.4 MB | 2203 ms cold; 20 ms from the disk cache |
+
+A reading costs 2-2.8 us (no-LTO, with its lines), a model's own rays were 77-226 us each, up to 8 a frame.
+`crowd32_armed` x3, grid 0 -> 1 (`benchresults/grid0`, `grid1`): CPU busy average 18.47 -> 18.65 ms (+1.0%), heap allocations
+equal. Frame and GPU medians differed +73% and +18%, but the machine was noisy: within grid 0 alone GPU 3D ran 12.3, 13.5,
+22.7 ms, within grid 1 17.9, 11.5, 15.8 ms. That run says no CPU cost and nothing firm on the GPU; the shaders are unchanged.
+
+**Dynamic lights.** Default settings reach every alias model: `vr_dlight_models` 1, `ModelDynamicLights` in the one alias
+fragment shader (all its variants), from the same light list (muzzle flash, explosions, rockets, flashlight:
+`CL_AllocDlight`). Seen: `vr_light_test` lights the ogre, grunt and armour in `shot_e1m1.png`'s third frame. Muzzle
+flash, explosions and flashlight read from the code, not separately shot. Nothing to fix.
+
+**Not changed.** Coils, ropes, gore, blood, impacts and gun smoke still read the floor's `R_LightPoint` for their own light.
+
 ## Strike keys: times and in-betweens (agent/posekeys)
 
 - **What.** In the Pose Studio a strike's keys have times and can be added: the Phase slider is replaced by the Key
@@ -6589,6 +6694,38 @@ micro-bench (`vr_qcexec_bench ad_mathlib_pow`, goto loop) read 83/73/80 ns/call 
 second after-run read 94/121/135, so it is too noisy here to credit or blame the format. Not settled: a small per-statement
 cost is possible; a quiet machine with both exes would settle it.
 
+## Enemy footsteps (branch `agent/footsteps`, his note vrfiringrange_2026-11-02_19-31-56)
+
+His words: enemies get footstep sounds, from where they are, played "exactly when the enemies are stepping on the ground",
+louder running than walking. `Quake/vr/vr_footsteps.cpp`; numbers in Debug > Tunables > Combat > Enemy Footsteps. No on/off
+setting (the player's own steps have none to sit beside; Volume 0 is off).
+
+- **Who.** By drawn model: grunt, enforcer, knight, hell knight (their armed `vr*.mdl` too, same frames), MG3's ranged
+  knight, zombie, mummy, gremlin, ogre, MG3's rocket ogre, fiend, shambler, MG3's blood shambler. Not bipeds, so silent: dog,
+  spawn, scrag, fish, vore, centroid. Arcane Dimensions' monsters use their own `mon_*.mdl` models and already have
+  `ad_monster_footstep` on hand-set frames: left as they are, so no doubles.
+- **When.** Read off the model's frames once per model, at first sight, so it follows whatever model is drawn and can't
+  drift. A foot is the low 35% of its shin bone in the rest pose (ragdoll rig, as `vr_aglegs.cpp`). Along each animation
+  (`mdldequant::poseSuccessors`) the foot swings forward, then is carried back as the body passes over it; the contact is
+  the first moment past the swing's forward end (within 10%) that it is also down (near the floor, or the animation's
+  lowest for a run that never reaches the floor). The table holds that frame and how far into the lerp to it, so the sound
+  waits that share of the think interval after the frame changes. Against AD's hand-set frames: hell knight run 2/6, charge
+  2/6/10/14; zombie run 9/17, walk 12; fiend run 2/5; knight run 2/6, walk 8 all agree; ogre run 3/6 (AD 2/6), grunt run 2/5
+  (AD 2/6: AD plays at the start of a lerp, ours part way in). The zombie's limp puts its steps at walk 8 and 12, not AD's 2
+  and 12: that is where the feet stop moving forward.
+- **Whether.** Alive, `FL_ONGROUND`, `MOVETYPE_STEP`, not in a liquid, no ragdoll, and moving at 6 u/s or more over its last
+  frames (Least Speed), so a pain's or attack's weight shift on the spot is silent and an attack or charge that travels steps.
+- **How.** Any free channel (`CHAN_AUTO`, never the voice's or weapon's), from the foot's place 6 units over the floor (so
+  occlusion rays don't start in it). By its pace: 0.25 volume and 1.6 falloff at 30 u/s up to 0.7 and 1.0 at 150 u/s, times
+  the kind's weight; playback rate by kind, with `vr_snd_pitch_jitter`. Not surface-aware: the engine knows wood/metal/stone
+  under a point (`physsound::surfaceOnSegment`), but the player's own steps have no surface system to reuse, so not added.
+- **Budget.** Only the nearest 6 moving within 1000 units of a player are heard, at most 14 steps a second all together.
+- **Sounds.** `Misc/quakevr/make_footstep_sounds.py` (synthesised): `vr/step_boot`, `step_metal`, `step_bare`, `step_thud`,
+  five takes each, never the same take twice running.
+- **Test.** `vr_footstep_test 1` (`QC/vr_footstep_test.qc`) walks then runs each of 8 classes; `vr_footstep_test 2` is 32
+  grunts hunting you. `vr_footstep_info` prints each model's contacts, `vr_footstep_info <model> <frame> <count>` its feet
+  over those frames, `tune vr_footstep_log 1` a line a step. Results and the bench are in the worktree's report.
+
 ## Tuned values can't be lost at release (branch `agent/promoguard`, 2026-11-02)
 
 His words: "Can we automate tweaks promotion so we can never forget?" Tuning constants are live in a development build
@@ -6616,3 +6753,17 @@ His words: "Can we automate tweaks promotion so we can never forget?" Tuning con
   one console line, kept at quit, a setting's line untouched). One real start with the baseline marked 219: 11 constants
   kept in `tunables.cfg`. Gate: stops ("1 problem(s) ... nothing was built"), warns in a dry run, the override's banner,
   the absent path. A build with `QVR_RELEASE` was not run for this (the stub is two `(void)`s).
+
+## The death knight's helmet: cheek plates (branch `agent/dkhelm2`)
+
+His words (11-02): "looks better in size, but looks more like a hat from the front. There should be vertical geometry that goes
+down the cheeks". The guards were there but sunk: his face's vertices are left out of the guards' fit (`face` in helmetOf), so only
+his nape's held them out (half width 3.26 against a head 10.65 wide). New `Wearer` fields (`plateWide`, `plateBack`, `plateFront`
+and `plateOpen` per row; default -1, fitted as before) and `Ring::Wb` (the side's width where it meets the back chamfer; -1: W): his
+cheek and jaw rows are plates to 0.49 of the head bone out, clear of the head's real width (0.53 at its most: `scratch/hkw.py`'s
+table, outer surface 0.533), their front edges following his face as it widens down (0.37 out at 0.54 forward, then 0.44 at 0.42),
+down to 0.42. Crown, brim and back chamfer as shipped (brow ring 6.30 / 3.86 / 4.69, 11.70 deep); 11.13 wide at the plates (10.27 at
+the crown), 7.83 high. Other wearers' fit lines identical. Rigid on the head bone as the rest of the helmet (every helmet vertex
+weighs 1 on it). `vr_agarmor_check` 20/0. Eyeshots in the worktree's scratch: `dkhelm2_after.png` (front, three-quarter, side,
+back), `dkhelm2_front_crop.png`, `dkhelm2_threequarter_crop.png`, `dkhelm2_fullarmour.png`.
+- **Checklist:** [dkhelm2] An armoured death knight from the front (Debug > Tests > Helmets Alone There: Knight and Death Knight): plates come down each side of his face from the brim, outside his cheeks, his eyes open between them; it reads as a helmet, not a hat, and they turn with his head. {test:agarmor_helmets_knights}

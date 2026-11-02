@@ -854,10 +854,11 @@ QVR_TOGGLE(vr_agdknight, "Armed Death Knights",
     "disarmed, tugged and grabbed like the armed humanoids', dropped when he dies; at range he still casts "
     "his fireball volley. A work in progress (ROUND23.md, \"Death knights as armed humanoids\"). Takes "
     "effect at the next map load (vr_agdknight).")
-QVR_SLIDER(vr_agdknight_spell_share, "Armed Death Knights: Spell Share", 0.f, 1.f, 0.05f, "%.2f", ext(0.f, 1.f),
-    "An armed death knight holding a gun casts his fireball volley (his off hand out, the fireballs from its palm: "
-    "the Cast pose) for this share of his ranged attacks and fires the gun for the rest. With a blade or his fists "
-    "he casts at range the same way, his sword kept in his hand (vr_agdknight_spell_share).")
+QVR_SLIDER(vr_agdknight_cast_cooldown, "Armed Death Knights: Gun Cast Cooldown", 0.f, 60.f, 0.5f, "%.1f s", ext(0.f, 600.f),
+    "An armed death knight holding a gun fires it, and casts his fireball volley (his off hand out, the fireballs from "
+    "its palm: the Cast pose) at his next attack once this long has passed since his last cast; each has his own clock, "
+    "starting on a random part of it, so a group doesn't volley together. With a blade or his fists he casts at range "
+    "by id's own chances, his sword kept in his hand (vr_agdknight_cast_cooldown).")
 QVR_TOGGLE(vr_agknight_ranged_pickup, "Armed Knights: Pick Up Ranged Weapons",
     "Off: armed knights and death knights take up only melee weapons lying about (a gun they drop stays "
     "on the floor). On: they take up guns too, as grunts do (for experiments). One spawned holding a gun "
@@ -3425,7 +3426,9 @@ QVR_CYCLE_BYNAME(vr_dither, "Dither",
 QVR_TOGGLE_BYNAME(vr_model_lighting, "Model Lighting",
     "Monsters, items and weapons are shaded from the map's lights, not one fixed direction.")
 QVR_TOGGLE_BYNAME(vr_model_light_parity, "Models Lit as the World",
-    "Monsters and items as bright as the floor they stand on (off: Quake's brighter models).")
+    "Monsters and items as bright as the world around them (off: Quake's brighter models).")
+QVR_TOGGLE_BYNAME(vr_model_light_grid, "Models Lit From All Sides",
+    "Monsters, items, weapons and hands take the baked light of the walls, floor and ceiling around them (off: Quake's, the floor under their feet).")
 QVR_TOGGLE_BYNAME(vr_model_ambient_dir, "Directional Ambient",
     "Monsters, items, weapons and hands take the light around them: brighter on the side facing lit walls, darker facing shade.")
 QVR_SLIDER_BYNAME(vr_model_ambient_contrast, "Ambient Contrast", 0.f, 1.5f, 0.05f, "%.2f", ext(),
@@ -6153,6 +6156,10 @@ QVR_CYCLE(vr_hull_cache, "Hitboxes on Disk",
     "A big map's compiled hulls kept on disk (cache/hulls) and read at its next load instead of compiled "
     "again (vrstart: 9 s to 0.1 s). Check: read, then compiled anyway and compared (Hitbox Stats counts "
     "them). Off: compiled at every load (vr_hull_cache).",
+    {0.f, "Off"}, {1.f, "On"}, {2.f, "Check"})
+QVR_CYCLE(vr_model_light_grid_cache, "Model Light Grids on Disk",
+    "A big map's model light grid kept on disk (cache/lightgrid) and read at its next load instead of built "
+    "again (vrstart: 2.2 s). Check: read, then built anyway and compared. Off: built at every load (vr_model_light_grid_cache).",
     {0.f, "Off"}, {1.f, "On"}, {2.f, "Check"})
 QVR_CYCLE(vr_hull_async, "New Monster Sizes in Play",
     "A monster whose box size the map's load did not compile (a delayed or triggered spawn, the test "

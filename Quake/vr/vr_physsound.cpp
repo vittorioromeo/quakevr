@@ -557,6 +557,16 @@ int precacheOne(const char* name)
     return progs::bindings().isVrProgs && sv.state == ss_loading ? precacheName(name) : 0;
 }
 
+bool emitSound(int ent, int channel, int index, float volume, float attenuation, const glm::vec3& at, float pitch)
+{
+    return emit(ent, channel, index, volume, attenuation, at, pitch);
+}
+
+float jitterPitch()
+{
+    return jitter();
+}
+
 void hit(int num, Material material, float mass, float speed, const glm::vec3& at, bool body)
 {
     if(material == Material::None || master() <= 0.f || speed < vr_physsound_min_speed.value ||

@@ -116,6 +116,17 @@ Release: make_release.ps1 -DryRun lists any tunables.cfg value not in the source
 Console at start: when a setting becomes a tuning constant and your config set it, you see "X is a tuning constant now: the config's "v" is kept in tunables.cfg" and `tune` lists it.
 Smashing a ragdoll into a wall: your Impact Multiplier 1.25 is the default now.
 A grunt with a gun and an axe switches to its axe up close and swings it; it no longer stands and shoves you {test:agrunt_repl_gunaxe}
+An armoured death knight (Debug > Tests > Helmets There: Knight and Death Knight): his eyes show under the helmet from the front, its back no wider than his head, the horns standing out of it. {test:agarmor_helmets_knights}
+Fire a nail pistol's clip out: its slide locks open and the ammo screen stays flat on the slide's wall, not out past its back; and during a shot it stays on the wall.
+Feminine voice on: the grunt of a body, leg or backpack lift and of a throw is a woman's, as high as your jump's grunt.
+An armed death knight with a gun fires it and casts from his off hand's palm about every other attack (Gun Cast Cooldown 3 s; Debug > Tests > Death Knight's Gun and Casts); a group's first volleys come apart.
+Models lit from all sides (Graphics > Models and Effects, `vr_model_light_grid`): foes on dark floors under lit walls are visible, bright floors no longer make them glow, and no pop crossing floor seams; 0 restores the old look. {test:e1m1}
+Enemies' footsteps (Debug > Tests > Enemy Footsteps Walkabout) land on their feet, and you can place them by ear with your eyes shut.
+Walking enemies are soft, running ones louder and carry further.
+Boots for grunts and enforcers, metal for knights, wet feet for zombies, heavy thuds for ogres, fiends and shamblers: do they sound right?
+In a big crowd only the nearest few are heard, with no machine-gunning.
+
+An armoured death knight from the front (Debug > Tests > Helmets Alone There: Knight and Death Knight): plates come down each side of his face from the brim, outside his cheeks, his eyes open between them; it reads as a helmet, not a hat, and they turn with his head. {test:agarmor_helmets_knights}
 
 [2. Armed humanoids: disarming and armour]
 Show Disarm Volumes: the wireframe hulls sit on each drawn weapon (magenta, orange, red; the sword's orange line along its blade) and on the drawn hand and forearm (cyan). {test:disarm_hulls_melee}

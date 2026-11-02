@@ -12,8 +12,8 @@
 // `vr_agrunt_test_kind 3`: the same for the death knight (vr_agdknight, monster_hell_knight, progs/vrhknight.mdl), with
 //   spell    after its swing, moved out of reach (you in sight): it casts its fireball volley (its knightspikes) with
 //            its sword in its hand, and still holds it after; cast with his off hand (the Cast pose), the volley from
-//            its palm as drawn (out from his shoulder, ahead of his middle towards you); last, a gun holder's spell
-//            share over 2000 rolls (vr_agdknight_spell_share, 0.6).
+//            its palm as drawn (out from his shoulder, ahead of his middle towards you); last, a gun holder's cast
+//            cooldown's rule (vr_agdknight_cast_cooldown; its play over minutes: vr_agtune_test 3).
 // Each prints `agtest: PASS|FAIL <what>`; the run ends on `agtest: test 95 over: N passed, M failed` (-QuitOn).
 // A case that never gets there FAILs as "timed out" (a safety net).
 // ----------------------------------------------------------------------------
@@ -223,22 +223,31 @@ void() VR_AKNT_Frame =
         }
         if(VR_AKNT_Dk())
         {
-            // A gun's holder: the spell's share of his ranged attacks (vr_agdknight_spell_share, 0.6) over 2000 rolls
-            // (last: its random() draws would move the cases' own rolls).
-            float r0 = vr_am_gun_rolls;
-            float c0 = vr_am_gun_casts;
+            // A gun's holder: his cast's cooldown: a fresh one's clock on a random part of it (500 of them: all of it
+            // spread over), ready he casts and not again until it has passed (last: its random() draws would move the
+            // cases' own rolls).
             float er = enemy_range;
             enemy_range = RANGE_MID;
+            float cd = max(1, cvar_hget(cvarh_vr_agdknight_cast_cooldown));
             float k;
-            for(k = 0; k < 2000; k++)
+            float least = 999999;
+            float most = -1;
+            float early = 0;
+            for(k = 0; k < 500; k++)
             {
-                VR_AM_GunCasts(g);
+                g.vr_ag_cast_ready = 0;
+                early = early + VR_AM_GunCasts(g);
+                least = min(least, g.vr_ag_cast_ready - time);
+                most = max(most, g.vr_ag_cast_ready - time);
             }
+            VR_AGT_Check(sprintf("death knight with a gun: a fresh one's first cast %.2f..%.2f s off (cooldown %g), cast at once %g of 500",
+                least, most, cd, early), least >= 0 && most <= cd && least < 0.1 * cd && most > 0.9 * cd && early <= 5);
+            g.vr_ag_cast_ready = time;
+            float now = VR_AM_GunCasts(g);
+            float again = VR_AM_GunCasts(g);
+            VR_AGT_Check(sprintf("death knight with a gun: ready he casts (%g), then fires the gun (%g), %.2f s to his next",
+                now, again, g.vr_ag_cast_ready - time), now && !again && fabs(g.vr_ag_cast_ready - time - cd) < 0.01);
             enemy_range = er;
-            float share = (vr_am_gun_casts - c0) / max(1, vr_am_gun_rolls - r0);
-            float want = cvar_hget(cvarh_vr_agdknight_spell_share);
-            VR_AGT_Check(sprintf("death knight with a gun: casts %.3f of his ranged attacks (vr_agdknight_spell_share %g)",
-                share, want), vr_am_gun_rolls - r0 == 2000 && fabs(share - want) < 0.04);
         }
         VR_AGT_ClearWeapons();
         p.flags = p.flags - (p.flags & FL_NOTARGET);

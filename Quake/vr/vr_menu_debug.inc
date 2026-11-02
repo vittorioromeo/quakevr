@@ -63,6 +63,10 @@ za::Vector<Item> pageDebugViews()
         command("Retro Textures: List", "vr_retro_list")
             .help("vr_retro_list: prints each model drawn now with its retro textures kind (Graphics > Retro Textures), its "
                   "set and its skin's size, to the console."),
+        command("Enemy Footsteps: Contacts", "vr_footstep_info")
+            .help("vr_footstep_info: each biped seen so far with the frames its feet come down on, as read from its model, "
+                  "to the console. vr_footstep_report: its steps heard, walking and running, and how far they were from the "
+                  "drawn contact."),
         command("Flame Lights Info", "vr_flame_lights_info")
             .help("vr_flame_lights_info: the flamethrowers' stream lights now (Graphics' Flamethrower Lights): how many "
                   "flames were drawn last frame, the clusters they made, and each light's place, level and reach."),
@@ -512,6 +516,9 @@ za::Vector<Item> pageDebugProfiling()
             .help("vr_shadow_layered_check 20 casters: this frame's shadow maps drawn with each dynamic light's exact world "
                   "casters, then with the wider set kept for a moving light, 20 times each, timed, then read back and "
                   "compared texel by texel, in the console. Stand where shadows are."),
+        command("Model Light Grid Info", "vr_model_light_grid_info")
+            .help("vr_model_light_grid_info: the map's model light grid: its cells, probes, memory and build time, and how "
+                  "much light its probes out of sight would add through thin walls, in the console."),
         command("Light Caster Stats", "vr_shadow_caster_stats")
             .help("vr_shadow_caster_stats: since the last time, the dynamic lights' world caster sets kept and collected, "
                   "in the console."),

@@ -59,6 +59,7 @@ vector(entity e) weaponmuzzle = { return weapondrawnpose(e, 0, 6); };
 
 .float vr_ag_code;      // its "weapon" key as spawned (a weapon id, or VR_AG_CODE_*: the tests' names)
 .vector vr_ag_aim;      // the way it aims now (a unit vector; '0 0 0': as its animation holds the gun)
+.float vr_ag_cast_ready; // a death knight holding a gun: when he may cast again (VR_AM_GunCasts; 0: not yet started)
 .float vr_ag_myrun;     // when its own run frames last ran (VR_AG_CheckAttack sends it back to them)
 .float vr_ag_lastwid;   // the last weapon it held
 void(entity g) VR_AG_DrawMain;            // (a flare gun as its second weapon: below, before VR_AG_SoldierDrop)
@@ -2784,9 +2785,10 @@ float(entity targ) VR_AM_SpellTry =
     return TRUE;
 };
 
-// A gun's holder with a spell (an armed death knight holding a gun): this share of its ranged attacks
-// (vr_agdknight_spell_share) are its fireball volley, cast from his off hand's palm, the rest the gun's shots.
-float vr_am_gun_rolls, vr_am_gun_casts; // the tests: the rolls made, the casts they gave
+// A gun's holder with a spell (an armed death knight holding a gun): he fires the gun, and casts his fireball volley from
+// his off hand's palm at his attack once vr_agdknight_cast_cooldown has passed since his last cast. His clock starts at his
+// first attack, on a random part of it (not at his spawn: a group met late would have long been ready, and volley together).
+float vr_am_gun_rolls, vr_am_gun_casts; // the tests: the attacks asked about, the casts they gave
 float(entity g) VR_AM_GunCasts =
 {
     VR_AM_Row(g.vr_ag_kind);
@@ -2795,10 +2797,16 @@ float(entity g) VR_AM_GunCasts =
         return FALSE;
     }
     vr_am_gun_rolls = vr_am_gun_rolls + 1;
-    if(random() >= min(1, max(0, cvar_hget(cvarh_vr_agdknight_spell_share))))
+    float cooldown = max(0, cvar_hget(cvarh_vr_agdknight_cast_cooldown));
+    if(!g.vr_ag_cast_ready)
+    {
+        g.vr_ag_cast_ready = time + random() * cooldown;
+    }
+    if(time < g.vr_ag_cast_ready)
     {
         return FALSE;
     }
+    g.vr_ag_cast_ready = time + cooldown;
     vr_am_gun_casts = vr_am_gun_casts + 1;
     return TRUE;
 };
