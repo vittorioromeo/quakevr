@@ -3331,7 +3331,7 @@ void(float kind) VR_AM_Spawn =
     vr_ag_arm_roll = random();
     VR_AM_ArmAll(want, flags, inst, want2, flags2);
     VR_AgArmor_Spawn(self); // (its armour by the skill: vr_agarmor.qc)
-    VR_WP_Spawn(self);      // (its backpack on its back: vr_wornpack.qc, vr_worn_backpacks)
+    VR_WP_Spawn(self);      // (its backpack on its back: vr_wornpack.qc)
 };
 
 // Its weapons from its keys (as VR_AM_Spawn's: "weapon" decoded to `want`, `flags`, `inst`; "weapon2" `want2`,

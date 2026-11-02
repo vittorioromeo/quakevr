@@ -88,6 +88,31 @@ ML at runtime. Borrow ideas only unless noted. Not started.
   https://github.com/YoucefNabil/skyrim-delirium (a Skyrim port). Not read yet: check their licences before borrowing
   anything beyond ideas.
 
+### Worn backpacks for the remaining armed humanoids (author, 2026-11-02)
+
+His words: "Make worn backpacks the default and only valid code path. Add a backlog note to review/apply this setting
+to the remaining armed humanoids (it currently only works for grunts)." Since 2026-11-02 (ROUND23.md, "Worn backpacks
+always on") every armed grunt wears its pack: `VR_WP_Spawn` gates on `vr_ag_kind == VR_AM_GRUNT` (monster_vr_grunt and
+the grunts `vr_agrunt_repl` arms, AD maps' standard monster_army included), never in Mission Pack 3's campaign
+(`MG3_NoBackpack`) or on the test dummy. Review and apply it to the others; each needs the pack's anchor
+(`agarmor::packRest`: the armour shell's cuirass back face, today the only rule), its ragdoll box
+(`createRagdollPack`: the rig's `chest` bone, which all four rigs have), its loot rule (`VR_AG_SoldierDrop` /
+`VR_WP_DeathLoot`), then the kind added to `VR_WP_Spawn`'s gate and to `vr_wornpack_test` (whose control is an armed
+enforcer today: pick another non-wearer then):
+- **Enforcers** (`VR_AM_ENFORCER`, vrenforcer.mdl): the model already has a power pack on its back, and its armour
+  shell stops at `Wearer::backCut` -10.5 (a breastplate), so `packRest` would put the pack inside it. Decide: the
+  modelled power pack becomes the worn pack (hidden on the body when torn off: a mesh split or a skin), or a backpack
+  on top of it (its own anchor offset). Loot exists already (its rounds, else 5 cells, through `VR_AG_SoldierDrop`).
+- **Knights and death knights** (`VR_AM_KNIGHT`, `VR_AM_DKNIGHT`, vrknight/vrhknight.mdl): armour shells exist
+  (`agarmor.cpp` wearers), so `packRest` should place it as is (check the fit: their cuirass and the death knight's
+  1.12 scale). They drop no backpack in Quake: decide what the pack holds (nothing, a few of the player's ammo, health)
+  or keep them packless.
+- **AD's own humanoids** (AD's variants are never armed: `VR_AGR_ADVariant`): they need arming first (rows, rigs,
+  shells), then the same three parts.
+Cost: PERF_1102.md measured the worn packs (`limbpiece` 0.97 ms a frame in E1M1's fight with 29 wearers, cut by about
+that much with one look a wearer (`box3d::wornPackAll`) and one link a pack a frame): each wearer costs a little; more
+kinds wearing packs add to it.
+
 ### Pillar/pipe climbing (brace a hand on each side) (23:10:39, 2026-10-14)
 
 Research climbing by bracing a hand on each side of a pillar or pipe and moving upward hand-over-hand. Open.
