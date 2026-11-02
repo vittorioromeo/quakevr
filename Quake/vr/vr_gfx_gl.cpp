@@ -2024,13 +2024,29 @@ void sceneCamera(glm::vec3& origin, glm::vec3& right, glm::vec3& up)
 
 Texture fontTexture()
 {
-    return char_texture ? char_texture->texnum : 0;
+    gltexture_t* const styled = VR_FontStyle_Chars(char_texture); // (Menu > Fonts: vr_fontstyle.cpp)
+    gltexture_t* const font = styled ? styled : char_texture;
+    return font ? font->texnum : 0;
 }
 
 // Ironwail's console font atlas: 16 x 16 cells of 10 x 10 texels, each an 8 x 8 glyph with a
-// one-texel border.
-glm::vec4 fontGlyph(unsigned char c)
+// one-texel border; or the restyled one's cell (vr_fontstyle.cpp: bigger round a letter with an outline or shadow).
+glm::vec4 fontGlyph(unsigned char c, float* grow)
 {
+    if(gltexture_t* const styled = VR_FontStyle_Chars(char_texture))
+    {
+        float s, t, size, g;
+        VR_FontStyle_CharCell(styled, c, &s, &t, &size, &g);
+        if(grow)
+        {
+            *grow = g;
+        }
+        return {s, t, s + size, t + size};
+    }
+    if(grow)
+    {
+        *grow = 0.f;
+    }
     constexpr float atlas = 160.f;
     const float u0 = ((c & 15) * 10 + 1) / atlas;
     const float v0 = ((c >> 4) * 10 + 1) / atlas;

@@ -7,7 +7,7 @@
 
 [[nodiscard]] za::Vector<Item> pageMenuSettings()
 {
-    return {
+    za::Vector<Item> items{
         row(opt::vr_menu_scale),
         row(opt::vr_menu_distance),
         row(opt::vr_menu_grab),
@@ -35,6 +35,37 @@
         row(opt::vr_menu_remember),
         row(opt::vr_menu_help_wpm),
         row(opt::vr_menu_dropdown),
+        header("Fonts"), // (vr_fontstyle.cpp: each change remade at once)
+    };
+    for(const Item& i : fontRows(static_cast<int>(qvr::fontstyle::Surface::Menu)))
+    {
+        items.pushBack(i);
+    }
+    items.pushBack(command("Show a Sample Message", "vr_fontstyle_sample")
+            .help("A centre message and a console line in white and gold, to see the font over the game as you tweak it."));
+    return items;
+}
+
+// A kind of text's font (vr_fontstyle.cpp): the same rows for each, on Menu > Fonts and Screens' font pages.
+[[nodiscard]] za::Vector<Item> fontRows(int surface)
+{
+    const qvr::fontstyle::SurfaceCvars& c = qvr::fontstyle::cvars(static_cast<qvr::fontstyle::Surface>(surface));
+    return {
+        cycle("Upscaling", c.upscale, {{0.f, "Classic"}, {1.f, "Nearest 4x + Sharp Bilinear"}, {2.f, "Scale4x"}, {3.f, "4xBR"}})
+            .help("How the text's 8-pixel font is enlarged. Classic: Quake's pixels, columns uneven at most sizes. Nearest 4x + Sharp Bilinear: the same pixels with even, soft edges. Scale4x: rounded diagonals, Quake's own colours. 4xBR: the smoothest slopes and curves."),
+        slider("Outline Thickness", c.outline, 0.f, 2.f, 0.25f, "%.2f px")
+            .help("An outline round the letters, in the font's pixels (an 8 x 8 letter's). 0: none. Never on boxes, sliders or Quake's textured pieces."),
+        slider("Outline Red", c.outlineRgb[0], 0.f, 1.f, 0.05f, "%.2f"),
+        slider("Outline Green", c.outlineRgb[1], 0.f, 1.f, 0.05f, "%.2f"),
+        slider("Outline Blue", c.outlineRgb[2], 0.f, 1.f, 0.05f, "%.2f"),
+        slider("Shadow Opacity", c.shadowOpacity, 0.f, 1.f, 0.05f, "%.2f").help("A drop shadow under the letters (and their outline). 0: none."),
+        slider("Shadow Size", c.shadowGrow, 0.f, 2.f, 0.25f, "%.2f px").help("The shadow's shape grown by this many of the font's pixels. 0: the letter's own."),
+        slider("Shadow Spread", c.shadowSpread, 0.f, 2.f, 0.25f, "%.2f px").help("How soft the shadow is: its blur, in the font's pixels. 0: a hard copy."),
+        slider("Shadow Offset X", c.shadowX, -2.f, 2.f, 0.25f, "%.2f px").help("How far right the shadow falls (negative: left), in the font's pixels."),
+        slider("Shadow Offset Y", c.shadowY, -2.f, 2.f, 0.25f, "%.2f px").help("How far down the shadow falls (negative: up), in the font's pixels."),
+        slider("Shadow Red", c.shadowRgb[0], 0.f, 1.f, 0.05f, "%.2f"),
+        slider("Shadow Green", c.shadowRgb[1], 0.f, 1.f, 0.05f, "%.2f"),
+        slider("Shadow Blue", c.shadowRgb[2], 0.f, 1.f, 0.05f, "%.2f"),
     };
 }
 

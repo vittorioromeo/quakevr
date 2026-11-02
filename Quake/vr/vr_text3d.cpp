@@ -1,6 +1,7 @@
 // vr_text3d.cpp -- see vr_text3d.hpp. Layout from the old engine's R_DrawWorldText.
 
 #include "vr_text3d.hpp"
+#include "vr_fontstyle.hpp"
 #include "vr_tracy.h"
 #include "vr_color.hpp"
 #include "vr_gfx.hpp"
@@ -81,6 +82,8 @@ za::Vector<gfx::Vertex> panels;   // screens behind them
 za::Vector<gfx::Vertex> floating; // floating texts (blended: they fade)
 za::Vector<gfx::Vertex> backings; // the wrist log's backing (blended; drawOverlay, over the eye's image)
 za::Vector<gfx::Vertex> logText;  // and its text
+za::Vector<gfx::Vertex> wristLogText; // the wrist log's text (the gadget's font: fontstyle::Surface::Gadget)
+za::Vector<gfx::Vertex> screenInkGlyphs; // the ammo screens' glyphs in the screen's ink (not whitened; the ammo screens' font)
 za::Vector<gfx::Vertex> glows;    // the screens' soft glows (added)
 // The ammo screens as small CRTs (vr_weapon_screen_crt): each screen text's image (its face and
 // text, in the order they were queued), drawn at the end of the 2D pass (renderScreens) and shown
@@ -316,11 +319,13 @@ za::String lineText; // one of textLines as a C string (the board and screen ima
 void glyph(const glm::vec3& topLeft, const glm::vec3& right, const glm::vec3& down, unsigned char c, const glm::vec4& color,
     za::Vector<gfx::Vertex>& out = vertices)
 {
-    const glm::vec4 uv = gfx::fontGlyph(c);
-    const gfx::Vertex tl{topLeft, {uv.x, uv.y}, color};
-    const gfx::Vertex tr{topLeft + right, {uv.z, uv.y}, color};
-    const gfx::Vertex br{topLeft + right + down, {uv.z, uv.w}, color};
-    const gfx::Vertex bl{topLeft + down, {uv.x, uv.w}, color};
+    float grow = 0.f; // (a restyled letter's outline and shadow round it: Menu > Fonts)
+    const glm::vec4 uv = gfx::fontGlyph(c, &grow);
+    const glm::vec3 at = topLeft - (right + down) * grow, across = right * (1.f + 2.f * grow), below = down * (1.f + 2.f * grow);
+    const gfx::Vertex tl{at, {uv.x, uv.y}, color};
+    const gfx::Vertex tr{at + across, {uv.z, uv.y}, color};
+    const gfx::Vertex br{at + across + below, {uv.z, uv.w}, color};
+    const gfx::Vertex bl{at + below, {uv.x, uv.w}, color};
     // (Written in place: no temporary list of six copied one push at a time.)
     const za::SizeT n = out.size();
     out.resize(n + 6);
@@ -340,6 +345,7 @@ void glyph(const glm::vec3& topLeft, const glm::vec3& right, const glm::vec3& do
 void layoutFloating(const worldtext::FloatText& ft, double now, const glm::vec3& eye, const glm::vec3& right,
     const glm::vec3& up)
 {
+    const fontstyle::Use font{fontstyle::Surface::World}; // (Screens > World Text Font)
     if(ft.text.empty())
     {
         return;
@@ -391,6 +397,7 @@ void quad(const glm::vec3& a, const glm::vec3& b, const glm::vec3& c, const glm:
 // fades out as the screen turns away from the viewer (the arm lowered, or aiming).
 void layoutLog(const gadget::Log& log, const glm::vec3& eye, const glm::vec3& right, const glm::vec3& up)
 {
+    const fontstyle::Use font{fontstyle::Surface::Gadget}; // (Screens > Wrist Gadget Font)
     const glm::vec3 toEye = eye - log.base;
     const float facing = glm::dot(log.normal, toEye) / za::max(glm::length(toEye), 0.01f);
     const float shown = CLAMP(0.f, (facing - 0.2f) / 0.3f, 1.f);
@@ -433,7 +440,7 @@ void layoutLog(const gadget::Log& log, const glm::vec3& eye, const glm::vec3& ri
         {
             if(c != ' ')
             {
-                glyph(p, hInc, vInc, static_cast<unsigned char>(c), color, logText);
+                glyph(p, hInc, vInc, static_cast<unsigned char>(c), color, wristLogText);
             }
             p += hInc;
         }
@@ -522,6 +529,7 @@ size_t splitLines(za::StringView text)
 // the eye's image, not depth tested).
 void layoutOverlay(const Queued& q)
 {
+    const fontstyle::Use font{fontstyle::Surface::World}; // (Screens > World Text Font)
     const size_t longest = splitLines(q.text);
     if(longest == 0)
     {
@@ -608,6 +616,7 @@ struct ScreenLook
 void layout(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, Align align, float scale,
     bool screen = false, const glm::vec3* tint = nullptr)
 {
+    const fontstyle::Use font{screen ? fontstyle::Surface::Ammo : fontstyle::Surface::World}; // (Screens' font pages)
     const size_t longest = splitLines(text);
     if(longest == 0)
     {
@@ -657,7 +666,7 @@ void layout(za::StringView text, const glm::vec3& pos, const glm::vec3& angles, 
         const float bright = CLAMP(0.f, vr_gadget_screen_brightness.value, 2.f);
         textColor = glm::vec4{tint ? tintedText(*tint) : screenText(), 1.f};
         inkColor = glm::vec4{tint ? tintedText(*tint) : screenInk(), 1.f};
-        glyphs = screenWhiteness() > 0.f ? &screenGlyphs : &vertices;
+        glyphs = screenWhiteness() > 0.f ? &screenGlyphs : &screenInkGlyphs;
 
         const float halfW = charSize * static_cast<float>(longest) * 0.5f;
         const float halfH = charSize * static_cast<float>(textLines.size()) * 0.5f;
@@ -863,6 +872,7 @@ void drawBoardImage(gfx::Target& target, za::StringView boardText, int columns, 
 // holding it already or the one wanted least lately.
 void renderTipImages()
 {
+    const fontstyle::Use font{fontstyle::Surface::World}; // (Screens > World Text Font)
     const glm::vec3 text = boardText(), face = boardFace();
     const glm::vec4 palette{vr_worldtext_hue.value, text.g, face.g, text.r};
     for(za::SizeT i = 0; i < tipScreenCount; i++)
@@ -1052,6 +1062,7 @@ void layoutTipScreen(const TipScreen& t)
 // The boards' images whose text or palette changed (renderScreens).
 void renderBoards()
 {
+    const fontstyle::Use font{fontstyle::Surface::World}; // (Screens > World Text Font)
     // A board of an earlier map that this one has not laid out (layoutBoard gives a board of this map's world texts
     // their generation; by model it was, but a game change reuses the models, NOTES.md vrfiringrange_2026-10-06_13-12-36): its
     // image freed (up to 8 MB of VRAM each, else held for the rest of the session by the most boards any map had), and
@@ -1114,6 +1125,7 @@ void drawTranslucent()
     }
     if(!floating.empty())
     {
+        const fontstyle::Use font{fontstyle::Surface::World};
         gfx::draw(floating, viewProjection,
             {.shade = gfx::Shade::Texture, .blend = gfx::Blend::Alpha, .depthTest = true, .depthWrite = false},
             gfx::fontTexture());
@@ -1123,16 +1135,26 @@ void drawTranslucent()
 void drawOverlay()
 {
     if(!(cl.protocolflags & PRFL_QUAKEVR) || builtFrame != host_framecount ||
-        (logText.empty() && tipDrawCount == 0))
+        (logText.empty() && wristLogText.empty() && tipDrawCount == 0))
     {
         return;
     }
     const glm::mat4 viewProjection = gfx::sceneViewProjection();
     gfx::draw(backings, viewProjection,
         {.shade = gfx::Shade::Color, .blend = gfx::Blend::Alpha, .depthTest = false, .depthWrite = false});
-    gfx::draw(logText, viewProjection,
-        {.shade = gfx::Shade::Texture, .blend = gfx::Blend::Alpha, .depthTest = false, .depthWrite = false},
-        gfx::fontTexture());
+    {
+        const fontstyle::Use font{fontstyle::Surface::World}; // the tools' hints
+        gfx::draw(logText, viewProjection,
+            {.shade = gfx::Shade::Texture, .blend = gfx::Blend::Alpha, .depthTest = false, .depthWrite = false},
+            gfx::fontTexture());
+    }
+    if(!wristLogText.empty())
+    {
+        const fontstyle::Use font{fontstyle::Surface::Gadget}; // the wrist log
+        gfx::draw(wristLogText, viewProjection,
+            {.shade = gfx::Shade::Texture, .blend = gfx::Blend::Alpha, .depthTest = false, .depthWrite = false},
+            gfx::fontTexture());
+    }
     // The tips' screens: each one's cable, then the screen over the cable's start.
     const gfx::State color{.shade = gfx::Shade::Color, .blend = gfx::Blend::Alpha, .depthTest = false, .depthWrite = false};
     const gfx::State glowState{.shade = gfx::Shade::SoftEdge, .blend = gfx::Blend::Additive, .depthTest = false, .depthWrite = false};
@@ -1223,6 +1245,7 @@ void renderScreens()
 {
     renderBoards();
     renderTipImages();
+    const fontstyle::Use font{fontstyle::Surface::Ammo}; // the ammo screens (Screens > Ammo Screen Font)
     if(screenCrt() <= 0.f)
     {
         return;
@@ -1415,10 +1438,12 @@ extern "C" void VR_DrawSceneOpaque()
         setViewPlanes(gfx::sceneViewProjection()); // the boards' cull (layoutBoard)
         vertices.clear();
         screenGlyphs.clear();
+        screenInkGlyphs.clear();
         panels.clear();
         floating.clear();
         backings.clear();
         logText.clear();
+        wristLogText.clear();
         glows.clear();
         screenQuads.clear();
         screenCount = 0;
@@ -1479,9 +1504,19 @@ extern "C" void VR_DrawSceneOpaque()
     const glm::mat4 viewProjection = gfx::sceneViewProjection();
     gfx::draw(panels, viewProjection,
         {.shade = gfx::Shade::Color, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true});
-    gfx::draw(vertices, viewProjection,
-        {.shade = gfx::Shade::TextureCutout, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true},
-        gfx::fontTexture());
+    {
+        const fontstyle::Use font{fontstyle::Surface::World};
+        gfx::draw(vertices, viewProjection,
+            {.shade = gfx::Shade::TextureCutout, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true},
+            gfx::fontTexture());
+    }
+    const fontstyle::Use ammoFont{fontstyle::Surface::Ammo}; // the ammo screens' glyphs
+    if(!screenInkGlyphs.empty())
+    {
+        gfx::draw(screenInkGlyphs, viewProjection,
+            {.shade = gfx::Shade::TextureCutout, .blend = gfx::Blend::Opaque, .depthTest = true, .depthWrite = true},
+            gfx::fontTexture());
+    }
     if(!screenGlyphs.empty())
     {
         gadget::useBrightFont(true);

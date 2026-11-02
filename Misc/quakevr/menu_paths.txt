@@ -513,7 +513,8 @@ vr_bodytrack|1|Body|Body Tracking|Advanced VR Options > Body > Body Tracking
 vr_bodytrack_arms|1|Body|Elbows|Advanced VR Options > Body > Elbows
 vr_bodytrack_arm_fit|1|Body|Elbow Fit|Advanced VR Options > Body > Elbow Fit
 vr_bodytrack_legs_walk|1|Body|Walk Over Tracked Legs|Advanced VR Options > Body > Walk Over Tracked Legs
-vr_bodytrack_auto_restart|1|Body|Restart When Broken at Start|Advanced VR Options > Body > Restart When Broken at Start
+|1|Body|Restart Body Tracking|Advanced VR Options > Body > Restart Body Tracking
+vr_bodytrack_auto_restart|1|Body|Restart When Broken at Start|Advanced VR Options > Body > Restart When Broken at 
 vr_body_torso_back|1|Body|Torso Offset|Advanced VR Options > Body > Torso Offset
 vr_body_legs_back|1|Body|Legs Offset|Advanced VR Options > Body > Legs Offset
 vr_body_shoulders_back|1|Body|Shoulders Offset|Advanced VR Options > Body > Shoulders Offset
@@ -557,6 +558,11 @@ vr_gamma|1|Graphics|Headset Gamma|Advanced VR Options > Graphics > Headset Gamma
 vr_contrast|1|Graphics|Headset Contrast|Advanced VR Options > Graphics > Headset Contrast
 vr_profile|1|Graphics|Performance Profile|Advanced VR Options > Graphics > Performance Profile
 vr_gadget_fps|1|Graphics|FPS Counter on the Gadget|Advanced VR Options > Graphics > FPS Counter on the Gadget
+vr_agarms_lod|1|Graphics|Armed Humanoids' Arms: Level of Detail|Advanced VR Options > Graphics > Armed Humanoids' 
+vr_agarms_lod_near|1|Graphics|Arms' Detail: Near Within|Advanced VR Options > Graphics > Arms' Detail: Near Within
+vr_agarms_lod_far|1|Graphics|Arms' Detail: Far in View|Advanced VR Options > Graphics > Arms' Detail: Far in View
+vr_agarms_lod_unseen|1|Graphics|Arms' Detail: Out of View|Advanced VR Options > Graphics > Arms' Detail: Out of View
+vr_agarms_lod_margin|1|Graphics|Arms' Detail: View Margin|Advanced VR Options > Graphics > Arms' Detail: View Margin
 |1|Graphics|Reset This Page|Advanced VR Options > Graphics > Reset This Page
 @page|2|Motion Recorder||Advanced VR Options > Motion Recorder
 |2|Motion Recorder|Melee Recording Room|Advanced VR Options > Motion Recorder > Melee Recording Room
@@ -1330,6 +1336,8 @@ vr_closequarters_min|1|Locomotion|Min Factor|Advanced VR Options > Movement > Lo
 vr_closequarters_strafe|1|Locomotion|Strafe Factor|Advanced VR Options > Movement > Locomotion > Strafe Factor
 vr_closequarters_angle|1|Locomotion|Angle Leniency|Advanced VR Options > Movement > Locomotion > Angle Leniency
 vr_closequarters_angle_falloff|1|Locomotion|Angle Falloff|Advanced VR Options > Movement > Locomotion > Angle 
+vr_closequarters_brake|1|Locomotion|Brake Momentum|Advanced VR Options > Movement > Locomotion > Brake Momentum
+vr_closequarters_braking|1|Locomotion|Braking|Advanced VR Options > Movement > Locomotion > Braking
 vr_snap_turn|1|Locomotion|Turning|Advanced VR Options > Movement > Locomotion > Turning
 vr_turn_speed|1|Locomotion|Turn Speed|Advanced VR Options > Movement > Locomotion > Turn Speed
 vr_enable_joystick_turn|1|Locomotion|Enable Joystick Turn|Advanced VR Options > Movement > Locomotion > Enable 
@@ -2153,6 +2161,20 @@ vr_menu_button|1|Menu|Menu Button|Advanced VR Options > HUD and Menus > Menu > M
 vr_menu_remember|1|Menu|Reopen Where Left|Advanced VR Options > HUD and Menus > Menu > Reopen Where Left
 vr_menu_help_wpm|1|Menu|Help Reading Speed|Advanced VR Options > HUD and Menus > Menu > Help Reading Speed
 vr_menu_dropdown|1|Menu|Drop-Down Lists|Advanced VR Options > HUD and Menus > Menu > Drop-Down Lists
+vr_font_upscale|1|Menu|Upscaling|Advanced VR Options > HUD and Menus > Menu > Upscaling
+vr_font_outline|1|Menu|Outline Thickness|Advanced VR Options > HUD and Menus > Menu > Outline Thickness
+vr_font_outline_r|1|Menu|Outline Red|Advanced VR Options > HUD and Menus > Menu > Outline Red
+vr_font_outline_g|1|Menu|Outline Green|Advanced VR Options > HUD and Menus > Menu > Outline Green
+vr_font_outline_b|1|Menu|Outline Blue|Advanced VR Options > HUD and Menus > Menu > Outline Blue
+vr_font_shadow_opacity|1|Menu|Shadow Opacity|Advanced VR Options > HUD and Menus > Menu > Shadow Opacity
+vr_font_shadow_grow|1|Menu|Shadow Size|Advanced VR Options > HUD and Menus > Menu > Shadow Size
+vr_font_shadow_spread|1|Menu|Shadow Spread|Advanced VR Options > HUD and Menus > Menu > Shadow Spread
+vr_font_shadow_x|1|Menu|Shadow Offset X|Advanced VR Options > HUD and Menus > Menu > Shadow Offset X
+vr_font_shadow_y|1|Menu|Shadow Offset Y|Advanced VR Options > HUD and Menus > Menu > Shadow Offset Y
+vr_font_shadow_r|1|Menu|Shadow Red|Advanced VR Options > HUD and Menus > Menu > Shadow Red
+vr_font_shadow_g|1|Menu|Shadow Green|Advanced VR Options > HUD and Menus > Menu > Shadow Green
+vr_font_shadow_b|1|Menu|Shadow Blue|Advanced VR Options > HUD and Menus > Menu > Shadow Blue
+|1|Menu|Show a Sample Message|Advanced VR Options > HUD and Menus > Menu > Show a Sample Message
 |1|Menu|Reset This Page|Advanced VR Options > HUD and Menus > Menu > Reset This Page
 @page|1|Graphics - Relighting||Advanced VR Options > Graphics > Relighting
 |1|Graphics - Relighting|Relight This Map|Advanced VR Options > Graphics > Relighting > Relight This Map
@@ -3907,6 +3929,7 @@ vr_box3d_threads_bodies|2|Debug - Profiling and Memory|Physics Threads From|Adva
 |2|Debug - Profiling and Memory|Thread Pool Sites Reset|Advanced VR Options > Debug > Profiling and Memory > Thread 
 |2|Debug - Profiling and Memory|Ragdoll Hand Probe|Advanced VR Options > Debug > Profiling and Memory > Ragdoll 
 |2|Debug - Profiling and Memory|Armed Humanoids: Weapon Holds Report|Advanced VR Options > Debug > Profiling and 
+vr_agarms_lod_check|2|Debug - Profiling and Memory|Armed Humanoids: Check the Arms' Detail|Advanced VR Options > 
 |2|Debug - Profiling and Memory|Armed Humanoids: Arms' Solve Time|Advanced VR Options > Debug > Profiling and 
 |2|Debug - Profiling and Memory|Armed Monsters' Weapons: Drawn vs Server|Advanced VR Options > Debug > Profiling 
 |2|Debug - Profiling and Memory|Grip Fit: Last|Advanced VR Options > Debug > Profiling and Memory > Grip Fit: Last
@@ -3978,6 +4001,7 @@ vr_flat_turnlag_speed|2|Debug - Reports|Flatscreen Turn Lag Recovery|Advanced VR
 |2|Debug - Reports|Cut the Nearest Monster's Arm Off|Advanced VR Options > Debug > Reports > Cut the Nearest 
 |2|Debug - Reports|Cut Both Its Legs Off|Advanced VR Options > Debug > Reports > Cut Both Its Legs Off
 |2|Debug - Reports|Ragdolls|Advanced VR Options > Debug > Reports > Ragdolls
+|2|Debug - Reports|Every Ragdoll Rig|Advanced VR Options > Debug > Reports > Every Ragdoll Rig
 |2|Debug - Reports|Grunt's Ragdoll Rig|Advanced VR Options > Debug > Reports > Grunt's Ragdoll Rig
 |2|Debug - Reports|Smooth Animation Check|Advanced VR Options > Debug > Reports > Smooth Animation Check
 |2|Debug - Reports|Steady Vertices Check|Advanced VR Options > Debug > Reports > Steady Vertices Check
@@ -4102,6 +4126,7 @@ vr_maps_debug_free_mb|2|Debug - Tools|Pretend Free Disk Space|Advanced VR Option
 |2|Debug - Tools|Map Browser Costs|Advanced VR Options > Debug > Tools > Map Browser Costs
 |2|Debug - Tools|Clear Search's Recent List|Advanced VR Options > Debug > Tools > Clear Search's Recent List
 |2|Debug - Tools|Open the Map Browser|Advanced VR Options > Debug > Tools > Open the Map Browser
+|2|Debug - Tools|Font Sample Message|Advanced VR Options > Debug > Tools > Font Sample Message
 |2|Debug - Tools|Blood and Gore|Advanced VR Options > Debug > Tools > Blood and Gore
 |2|Debug - Tools|Gore Burst|Advanced VR Options > Debug > Tools > Gore Burst
 |2|Debug - Tools|Gore Sounds: a Crowd's Tears|Advanced VR Options > Debug > Tools > Gore Sounds: a Crowd's Tears
@@ -4639,6 +4664,7 @@ vr_ragtool_log|2|Ragdoll Tool|Log|Advanced VR Options > Debug > Ragdoll Tool > L
 |2|Debug - Automation & Self-Tests|Arcane Dimensions: Ladders Report|Advanced VR Options > Debug > Automation & 
 |2|Debug - Automation & Self-Tests|Arcane Dimensions: Spawnflags and Sight Report|Advanced VR Options > Debug > 
 |2|Debug - Automation & Self-Tests|Offer Perk Cards Now|Advanced VR Options > Debug > Automation & Self-Tests > 
+|2|Debug - Automation & Self-Tests|Jump to Wave 6|Advanced VR Options > Debug > Automation & Self-Tests > Jump to 
 |2|Debug - Automation & Self-Tests|Perk Card Panel Test|Advanced VR Options > Debug > Automation & Self-Tests > 
 |2|Debug - Automation & Self-Tests|Spatial Audio Tests|Advanced VR Options > Debug > Automation & Self-Tests > 
 |2|Debug - Automation & Self-Tests|Spatial Audio Benchmark (12 s)|Advanced VR Options > Debug > Automation & 
@@ -4805,6 +4831,7 @@ vr_smallgibs_test_dummy|2|Debug - Automation & Self-Tests|On the Training Dummy|
 |2|Debug - Automation & Self-Tests|Blasts Push Props: AD and Quake|Advanced VR Options > Debug > Automation & 
 |2|Debug - Automation & Self-Tests|Fuel Tank and Crate Thrown at Monsters|Advanced VR Options > Debug > Automation 
 |2|Debug - Automation & Self-Tests|Flail Head Hits|Advanced VR Options > Debug > Automation & Self-Tests > Flail 
+|2|Debug - Automation & Self-Tests|Magazines Thrown at a Grunt|Advanced VR Options > Debug > Automation & 
 |2|Debug - Automation & Self-Tests|Press Down on a Crate|Advanced VR Options > Debug > Automation & Self-Tests > 
 |2|Debug - Automation & Self-Tests|Step Up to the Wall Ahead|Advanced VR Options > Debug > Automation & Self-Tests 
 |2|Debug - Automation & Self-Tests|Flight by Situation|Advanced VR Options > Debug > Automation & Self-Tests > 
@@ -4964,6 +4991,51 @@ vr_xr_test_drop_context|2|Debug - Automation & Self-Tests|Test: No GL Context at
 |2|Debug - Automation & Self-Tests|Crash: abort()|Advanced VR Options > Debug > Automation & Self-Tests > Crash: 
 |2|Debug - Automation & Self-Tests|Error: Host_Error|Advanced VR Options > Debug > Automation & Self-Tests > Error: 
 |2|Debug - Automation & Self-Tests|Reset This Page|Advanced VR Options > Debug > Automation & Self-Tests > Reset 
+@page|1|Wrist Gadget Font||Advanced VR Options > Tips > Wrist Gadget Messages > Wrist Gadget Font
+vr_font_gadget_upscale|1|Wrist Gadget Font|Upscaling|Advanced VR Options > Tips > Wrist Gadget Messages > Wrist 
+vr_font_gadget_outline|1|Wrist Gadget Font|Outline Thickness|Advanced VR Options > Tips > Wrist Gadget Messages > 
+vr_font_gadget_outline_r|1|Wrist Gadget Font|Outline Red|Advanced VR Options > Tips > Wrist Gadget Messages > Wrist 
+vr_font_gadget_outline_g|1|Wrist Gadget Font|Outline Green|Advanced VR Options > Tips > Wrist Gadget Messages > 
+vr_font_gadget_outline_b|1|Wrist Gadget Font|Outline Blue|Advanced VR Options > Tips > Wrist Gadget Messages > 
+vr_font_gadget_shadow_opacity|1|Wrist Gadget Font|Shadow Opacity|Advanced VR Options > Tips > Wrist Gadget Messages 
+vr_font_gadget_shadow_grow|1|Wrist Gadget Font|Shadow Size|Advanced VR Options > Tips > Wrist Gadget Messages > 
+vr_font_gadget_shadow_spread|1|Wrist Gadget Font|Shadow Spread|Advanced VR Options > Tips > Wrist Gadget Messages > 
+vr_font_gadget_shadow_x|1|Wrist Gadget Font|Shadow Offset X|Advanced VR Options > Tips > Wrist Gadget Messages > 
+vr_font_gadget_shadow_y|1|Wrist Gadget Font|Shadow Offset Y|Advanced VR Options > Tips > Wrist Gadget Messages > 
+vr_font_gadget_shadow_r|1|Wrist Gadget Font|Shadow Red|Advanced VR Options > Tips > Wrist Gadget Messages > Wrist 
+vr_font_gadget_shadow_g|1|Wrist Gadget Font|Shadow Green|Advanced VR Options > Tips > Wrist Gadget Messages > Wrist 
+vr_font_gadget_shadow_b|1|Wrist Gadget Font|Shadow Blue|Advanced VR Options > Tips > Wrist Gadget Messages > Wrist 
+|1|Wrist Gadget Font|Reset This Page|Advanced VR Options > Tips > Wrist Gadget Messages > Wrist Gadget Font > Reset 
+@page|1|Ammo Screen Font||Advanced VR Options > Tips > Wrist Gadget Messages > Ammo Screen Font
+vr_font_ammo_upscale|1|Ammo Screen Font|Upscaling|Advanced VR Options > Tips > Wrist Gadget Messages > Ammo Screen 
+vr_font_ammo_outline|1|Ammo Screen Font|Outline Thickness|Advanced VR Options > Tips > Wrist Gadget Messages > Ammo 
+vr_font_ammo_outline_r|1|Ammo Screen Font|Outline Red|Advanced VR Options > Tips > Wrist Gadget Messages > Ammo 
+vr_font_ammo_outline_g|1|Ammo Screen Font|Outline Green|Advanced VR Options > Tips > Wrist Gadget Messages > Ammo 
+vr_font_ammo_outline_b|1|Ammo Screen Font|Outline Blue|Advanced VR Options > Tips > Wrist Gadget Messages > Ammo 
+vr_font_ammo_shadow_opacity|1|Ammo Screen Font|Shadow Opacity|Advanced VR Options > Tips > Wrist Gadget Messages > 
+vr_font_ammo_shadow_grow|1|Ammo Screen Font|Shadow Size|Advanced VR Options > Tips > Wrist Gadget Messages > Ammo 
+vr_font_ammo_shadow_spread|1|Ammo Screen Font|Shadow Spread|Advanced VR Options > Tips > Wrist Gadget Messages > 
+vr_font_ammo_shadow_x|1|Ammo Screen Font|Shadow Offset X|Advanced VR Options > Tips > Wrist Gadget Messages > Ammo 
+vr_font_ammo_shadow_y|1|Ammo Screen Font|Shadow Offset Y|Advanced VR Options > Tips > Wrist Gadget Messages > Ammo 
+vr_font_ammo_shadow_r|1|Ammo Screen Font|Shadow Red|Advanced VR Options > Tips > Wrist Gadget Messages > Ammo 
+vr_font_ammo_shadow_g|1|Ammo Screen Font|Shadow Green|Advanced VR Options > Tips > Wrist Gadget Messages > Ammo 
+vr_font_ammo_shadow_b|1|Ammo Screen Font|Shadow Blue|Advanced VR Options > Tips > Wrist Gadget Messages > Ammo 
+|1|Ammo Screen Font|Reset This Page|Advanced VR Options > Tips > Wrist Gadget Messages > Ammo Screen Font > Reset 
+@page|1|World Text Font||Advanced VR Options > Tips > Wrist Gadget Messages > World Text Font
+vr_font_world_upscale|1|World Text Font|Upscaling|Advanced VR Options > Tips > Wrist Gadget Messages > World Text 
+vr_font_world_outline|1|World Text Font|Outline Thickness|Advanced VR Options > Tips > Wrist Gadget Messages > 
+vr_font_world_outline_r|1|World Text Font|Outline Red|Advanced VR Options > Tips > Wrist Gadget Messages > World 
+vr_font_world_outline_g|1|World Text Font|Outline Green|Advanced VR Options > Tips > Wrist Gadget Messages > World 
+vr_font_world_outline_b|1|World Text Font|Outline Blue|Advanced VR Options > Tips > Wrist Gadget Messages > World 
+vr_font_world_shadow_opacity|1|World Text Font|Shadow Opacity|Advanced VR Options > Tips > Wrist Gadget Messages > 
+vr_font_world_shadow_grow|1|World Text Font|Shadow Size|Advanced VR Options > Tips > Wrist Gadget Messages > World 
+vr_font_world_shadow_spread|1|World Text Font|Shadow Spread|Advanced VR Options > Tips > Wrist Gadget Messages > 
+vr_font_world_shadow_x|1|World Text Font|Shadow Offset X|Advanced VR Options > Tips > Wrist Gadget Messages > World 
+vr_font_world_shadow_y|1|World Text Font|Shadow Offset Y|Advanced VR Options > Tips > Wrist Gadget Messages > World 
+vr_font_world_shadow_r|1|World Text Font|Shadow Red|Advanced VR Options > Tips > Wrist Gadget Messages > World Text 
+vr_font_world_shadow_g|1|World Text Font|Shadow Green|Advanced VR Options > Tips > Wrist Gadget Messages > World 
+vr_font_world_shadow_b|1|World Text Font|Shadow Blue|Advanced VR Options > Tips > Wrist Gadget Messages > World 
+|1|World Text Font|Reset This Page|Advanced VR Options > Tips > Wrist Gadget Messages > World Text Font > Reset 
 @page|1|Death Sergeant's Flail||Advanced VR Options > Combat > Melee > Flail
 vr_flail_chain|1|Death Sergeant's Flail|Flail Chain Length|Advanced VR Options > Combat > Melee > Flail > Flail 
 vr_flail_world|1|Death Sergeant's Flail|Flail Head Lying About|Advanced VR Options > Combat > Melee > Flail > Flail 

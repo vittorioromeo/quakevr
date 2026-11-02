@@ -744,6 +744,14 @@ za::Vector<Item> pageRetroCategory()
     return retroCategoryItems(C, retroResetCategory<C>);
 }
 
+// A kind of text's font settings (vr_menu_pages.inc; vr_fontstyle.cpp's Surface): Menu > Fonts and Screens' pages.
+[[nodiscard]] za::Vector<Item> fontRows(int surface);
+template <int S>
+za::Vector<Item> pageFontSurface()
+{
+    return fontRows(S);
+}
+
 #include "vr_menu_table.inc" // pages[], the pages by number
 
 } // namespace menu_detail

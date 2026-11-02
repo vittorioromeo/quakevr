@@ -81,6 +81,8 @@ extern int con_current, con_linewidth;				// console.c
 extern char key_tabpartial[MAXCMDLINE];				// console.c: Tab completion's partial word
 size_t Draw_PicBytes (void);						// gl_draw.c: the bytes a pic made by Draw_ReplacePic takes
 void Draw_ReplacePic (qpic_t *pic, const char *name, int width, int height, byte *data); // gl_draw.c: a lasting pic of 8-bit data
+void Draw_ReplacePicRGBA (qpic_t *pic, const char *name, int width, int height, int texwidth, int texheight,
+	const unsigned *data, qboolean smooth); // gl_draw.c: the same of RGBA texels (texwidth x texheight drawn width x height)
 int Mod_ReloadAliasModels (qboolean (*match) (const char *name, void *ctx), void *ctx); // gl_model.c (vr_model_reload)
 void TexMgr_ReloadAlphaTested (void);				// gl_texmgr.c: as vr_alpha_coverage changes
 gltexture_t *TexMgr_LoadNormalMap (gltexture_t *base, const char *name, int width, int height, enum srcformat format,

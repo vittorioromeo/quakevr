@@ -270,9 +270,11 @@ void drawBent(const BentBatch& batch, const BentDraw& draw);
 // The scene view's position and its right and up directions (for camera-facing sprites).
 void sceneCamera(glm::vec3& origin, glm::vec3& right, glm::vec3& up);
 
-// The console font: its texture, and a character's texture rectangle (u0, v0, u1, v1).
+// The console font: its texture (or its restyled copy: vr_fontstyle.cpp, Menu > Fonts), and a character's texture
+// rectangle (u0, v0, u1, v1). `grow` (if given): how much bigger than the glyph, each side, that rectangle is drawn,
+// over the glyph's size (a restyled letter's outline and shadow; else 0).
 [[nodiscard]] Texture fontTexture();
-[[nodiscard]] glm::vec4 fontGlyph(unsigned char c);
+[[nodiscard]] glm::vec4 fontGlyph(unsigned char c, float* grow = nullptr);
 
 // An offscreen colour target (RGBA8, linear filtering, clamped).
 struct Target
