@@ -388,11 +388,13 @@ Use these instead of a local copy (refactor 2026-10-29, cluster A4).
   on that tally. A new test never keeps its own pass/fail globals or verdict line (check_canonical.py's test-*
   families). Scripts: `Misc/quakevr/qvrtest.py` / `qvrtest.sh` (TESTING.md, "Writing a test").
 - Cvars: read with a handle, `cvar_hget(cvarh_<name>)` (`QC/vr_cvars.qc`, compiled right after defs.qc so every file
-  sees it); `cvar("...")` only in tests and one-off code. A vr_cvars.inc cvar's handle is generated: use
-  `cvarh_<name>` and run `python Misc/quakevr/gen_vr_cvars_qc.py` (it writes `QC/vr_cvars_gen.qc`, a handle for every
-  one the QC uses and no other: each costs a global; `--check` fails a stale file). Only the engine's own cvars and the
-  ones vr_cvars.inc makes through its macros are hand-written in vr_cvars.qc (a global and a `VR_CVAR_HMAKE` line).
-  Handles are made again at every load (their numbers are the session's).
+  sees it), never `cvar("...")` (check_canonical.py's qc-cvar-by-name: only the allowlisted sites, names built at run
+  time or tests' cvar tables put back by name; QC/ad, the import, keeps its own). Every handle is generated: write
+  `cvarh_<name>` and run `python Misc/quakevr/gen_vr_cvars_qc.py` (it writes `QC/vr_cvars_gen.qc`, the global and its
+  make for every handle the QC's code uses and no other: each costs a global, ~2,100 left under 65,536; `--check`
+  fails a stale file or a name that is no cvar, tunable, weapon/monster/group value or engine cvar). Handles are made
+  again at every load (their numbers are the session's); one the engine does not find prints `cvar_hmake: unknown
+  cvar` and fails every QC test (VR_CVar_Make, VR_Test_Begin).
 - A per-hand field of a pair: `VR_HAND_FIELD(e, xHand, loadportpos, offloadportpos)` (vr_util.qc), not a hand-written
   `xHand == cVR_MainHand ? e.loadportpos : e.offloadportpos`.
 - Tables, not if-chains (refactor B1): a weapon's numbers, model, name, ammo and pickup classname are its row of

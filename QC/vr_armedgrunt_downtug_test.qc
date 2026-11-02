@@ -64,7 +64,7 @@ float() VR_AGDT_Next =
         {
             return FALSE;
         }
-        float a = cvar("scratch1"), b = cvar("scratch2");
+        float a = cvar_hget(cvarh_scratch1), b = cvar_hget(cvarh_scratch2);
         if((a <= 0 || vr_agdt_m == a - 1) && (b <= 0 || vr_agdt_ph == b - 1))
         {
             return TRUE;
@@ -98,10 +98,10 @@ void() VR_AGDT_Down =
         if(vr_agdt_m == 0 && vr_agdt_ph == 0 && vr_agdt_try == 0 && vr_agdt_n + vr_agdt_nost == 0)
         {
             // (the downed grab's own rules: at once; the eased tug of vr_agrunt_tug_downed_scale: test 92)
-            vr_agdt_keep_scale = cvar("vr_agrunt_tug_downed_scale");
+            vr_agdt_keep_scale = cvar_hget(cvarh_vr_agrunt_tug_downed_scale);
             cvar_set("vr_agrunt_tug_downed_scale", "0");
             vr_agdt_home = p.origin;
-            float a = cvar("scratch1"), b = cvar("scratch2");
+            float a = cvar_hget(cvarh_scratch1), b = cvar_hget(cvarh_scratch2);
             if(!((a <= 0 || a == 1) && (b <= 0 || b == 1)))
             {
                 vr_agdt_try = -1; // (the first wanted)
@@ -111,11 +111,11 @@ void() VR_AGDT_Down =
                     return;
                 }
             }
-            if(!cvar("vr_agrunt_debug"))
+            if(!cvar_hget(cvarh_vr_agrunt_debug))
             {
                 cvar_set("vr_agrunt_debug", "0.5"); // (the engine's reading of the fist's gap: vr_agrunt_grab_gap)
             }
-            vr_agdt_keep_impact = cvar("vr_agrunt_fall_keep_impact");
+            vr_agdt_keep_impact = cvar_hget(cvarh_vr_agrunt_fall_keep_impact);
             cvar_set("vr_agrunt_fall_keep_impact", "100");
         }
         p.flags = p.flags | FL_NOTARGET;
@@ -156,7 +156,7 @@ void() VR_AGDT_Down =
         localcmd("-grabmain\n");
         cvar_set("vr_mock_hand_to_absolute", "0");
         cvar_set("vr_mock_hand_pull", "0");
-        if(cvar("vr_agrunt_debug") == 0.5)
+        if(cvar_hget(cvarh_vr_agrunt_debug) == 0.5)
         {
             cvar_set("vr_agrunt_debug", "0");
         }
@@ -199,12 +199,12 @@ void() VR_AGDT_Down =
         }
         else if(vr_agdt_m == 1)
         {
-            r = VR_KdTrig_Bump(VR_KDT_TACKLE, g, p, cvar("vr_kdtrig_tackle_weight"), back, 1, "the test's charge");
+            r = VR_KdTrig_Bump(VR_KDT_TACKLE, g, p, cvar_hget(cvarh_vr_kdtrig_tackle_weight), back, 1, "the test's charge");
         }
         else if(vr_agdt_m == 2)
         {
             self = p;
-            r = VR_FoeGrab_Lift(g, cvar("vr_foegrab_lift_up"), 1);
+            r = VR_FoeGrab_Lift(g, cvar_hget(cvarh_vr_foegrab_lift_up), 1);
             self = oldself;
         }
         else
@@ -315,7 +315,7 @@ void() VR_AGDT_Down =
     {
         vr_agdt_tugged = 1;
     }
-    if(cvar("vr_agrunt_debug") >= 1 && tp < 0.06)
+    if(cvar_hget(cvarh_vr_agrunt_debug) >= 1 && tp < 0.06)
     {
         VR_AGT_Print(sprintf("downtug %.3f s: your weapon %g, your hand holds %s, its weapon %s, tug %g (%s)", tp, p.weapon,
             p.mainhand_held ? p.mainhand_held.classname : "nothing", g.vr_ag_prop ? "held" : "gone", tug, vr_ag_tug_why));
@@ -402,7 +402,7 @@ void(vector from, vector dir) VR_AGWS_Fire =
     else if(vr_agws_s == 2 || vr_agws_s == 5)
     {
         vr_agws_nail = launch_spike(from, dir);
-        if(cvar("scratch3") > 0)
+        if(cvar_hget(cvarh_scratch3) > 0)
         {
             traceline(from, from + dir * 30, FALSE, pl);
             VR_AGT_Print(sprintf("weaponshot nail from %v dir %v: at %v, a line ahead stops at %.2f on %s (startsolid %g)", from, dir,
@@ -433,9 +433,9 @@ void() VR_AGWS_Frame =
     {
         if(vr_agws_w == 0 && vr_agws_s == 0 && vr_agws_block == 0)
         {
-            vr_agws_keep_block = cvar("vr_agrunt_shotdisarm_block");
-            vr_agws_keep_chance = cvar("vr_agrunt_shotdisarm_chance");
-            vr_agws_keep_scale = cvar("vr_agrunt_shotdisarm_chance_scale");
+            vr_agws_keep_block = cvar_hget(cvarh_vr_agrunt_shotdisarm_block);
+            vr_agws_keep_chance = cvar_hget(cvarh_vr_agrunt_shotdisarm_chance);
+            vr_agws_keep_scale = cvar_hget(cvarh_vr_agrunt_shotdisarm_chance_scale);
             cvar_set("vr_agrunt_shotdisarm_chance", "0"); // (its weapon stays in its hand: every shot on it)
             cvar_set("vr_agrunt_shotdisarm_chance_scale", "0");
             VR_Test_Nest("agtest", VR_TEST_LOUD); // (its own tally)
@@ -464,7 +464,7 @@ void() VR_AGWS_Frame =
         vr_agt_step = 1;
         return;
     }
-    if(cvar("scratch3") > 0 && vr_agws_nail && vr_agws_nail.classname == "spike" && vr_agt_step == 2)
+    if(cvar_hget(cvarh_scratch3) > 0 && vr_agws_nail && vr_agws_nail.classname == "spike" && vr_agt_step == 2)
     {
         VR_AGT_Print(sprintf("weaponshot nail at %v (%.1f from its weapon, %.1f from it), touched %s", vr_agws_nail.origin,
             vlen(vr_agws_nail.origin - g.vr_ag_prop.origin), vlen(vr_agws_nail.origin - g.origin), vr_agws_nail.enemy.classname));

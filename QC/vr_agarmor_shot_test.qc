@@ -379,8 +379,8 @@ void(float request) VR_ARS_Frame =
     if(request)
     {
         VR_Test_BeginFlags("agarmor shot test", VR_TEST_LOUD);
-        vr_ars_rule = cvar("vr_agarmor_rule");
-        vr_ars_dtime = cvar("vr_agarmor_debris_time");
+        vr_ars_rule = cvar_hget(cvarh_vr_agarmor_rule);
+        vr_ars_dtime = cvar_hget(cvarh_vr_agarmor_debris_time);
         vr_ars_pdmg = vr_pellet_damage;
         cvar_set("vr_agarmor_rule", "1");
         cvar_set("vr_agarmor_debris_time", "0.5");
@@ -397,7 +397,7 @@ void(float request) VR_ARS_Frame =
             vr_ars_settle_n = -1;
             // (no flinch: a hit's kick moves the drawn pose, and so the plates, for half a second; the next shot's line,
             // aimed at the plate where it was, met skin by the time its projectile arrived)
-            vr_ars_react = cvar("vr_hit_react");
+            vr_ars_react = cvar_hget(cvarh_vr_hit_react);
             cvar_set("vr_hit_react", "0");
             // (the player in god mode: forty rockets' blasts 160 units off, a few points each, killed him by the last
             // kind, and the test, run from his frame, stopped with him: no verdict, the run's timeout)
@@ -410,13 +410,13 @@ void(float request) VR_ARS_Frame =
             vr_ars_e1 = VR_ART_SpawnKind(p, 60, 0, 120);
             VR_AgArmor_Give(vr_ars_e1, 3, 1023); // (worn as it spawns, as a map's; off for its death: step 0)
             // (limp ragdolls: an active one's death throes kept its thigh moving past the give-up time)
-            vr_ars_ragact = cvar("vr_ragdoll_active");
+            vr_ars_ragact = cvar_hget(cvarh_vr_ragdoll_active);
             cvar_set("vr_ragdoll_active", "0");
             // (the slug's push and speed a hundred times over: the same light pusher (0.6 kg), so its impulse is about its
             // momentum and the two pushes' ratio about vr_agarmor_impulse (a heavy one's tends to 1); at 1x the thigh
             // gained 0.1-3 u/s, under a resting limp ragdoll's own jitter (up to 8 u/s))
-            vr_ars_push = cvar("vr_shot_push");
-            vr_ars_pspeed = cvar("vr_shot_push_speed");
+            vr_ars_push = cvar_hget(cvarh_vr_shot_push);
+            vr_ars_pspeed = cvar_hget(cvarh_vr_shot_push_speed);
             cvar_set("vr_shot_push", ftos(max(1, vr_ars_push) * 100));
             cvar_set("vr_shot_push_speed", ftos(max(1, vr_ars_pspeed) * 100));
             vr_ars_until = time + 15;
@@ -506,7 +506,7 @@ void(float request) VR_ARS_Frame =
             if(vr_ars_n == 1)
             {
                 VR_AgArmor_Give(b, 3, 1023); // (the second shot: its plates on, on its ragdoll)
-                if(cvar("vr_agarmor_debug"))
+                if(cvar_hget(cvarh_vr_agarmor_debug))
                 {
                     localcmd("screenshot\n"); // (the debug view on the ragdoll at rest: Debug > Show Armour Plates)
                 }
@@ -520,7 +520,7 @@ void(float request) VR_ARS_Frame =
             vr_ars_hp0 = VR_ARS_Pool(b);
             // (the push's own scale: the plate query on its line: 1 bare, vr_agarmor_impulse armoured)
             float sb = VR_AgArmor_PushScale(b, pb, vr_ars_dir);
-            float want = vr_ars_n == 1 ? cvar("vr_agarmor_impulse") : 1;
+            float want = vr_ars_n == 1 ? cvar_hget(cvarh_vr_agarmor_impulse) : 1;
             VR_ART_Check(sb == want, sprintf("shot %g: the push's scale %g (%g)", vr_ars_n, sb, want));
             entity oldself = self;
             self = p;
@@ -541,7 +541,7 @@ void(float request) VR_ARS_Frame =
             vr_ars_until = time + 15;
             return;
         }
-        float k = cvar("vr_agarmor_impulse");
+        float k = cvar_hget(cvarh_vr_agarmor_impulse);
         VR_Test_Print(sprintf("agarmor shot test: the parts' gain: bare %.1f u/s, armoured %.1f u/s (%.2f; vr_agarmor_impulse %g); plates took %g\n",
             vr_ars_h0, g, g / max(0.01, vr_ars_h0), k, vr_ars_hp0 - VR_ARS_Pool(b)));
         VR_ART_Check(vr_ars_hp0 - VR_ARS_Pool(b) > 0, "the armoured thigh's plate took the slug");

@@ -503,7 +503,7 @@ float(entity p, float xHand) VR_Heavy_TwoHanded =
 // swung slower, deliberately (VR_Melee_Decide then asks for a smooth arc instead: meleearc).
 float(float xHeavy) VR_Heavy_SpeedFactor =
 {
-    return 1 + (min(1, max(0.05, cvar("vr_heavy_melee_2h"))) - 1) * xHeavy;
+    return 1 + (min(1, max(0.05, cvar_hget(cvarh_vr_heavy_melee_2h))) - 1) * xHeavy;
 };
 
 // A weapon's own multiplier of how fast a blow's strength rises over the speed it needs (Weapon Weights: Melee Damage

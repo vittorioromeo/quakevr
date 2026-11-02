@@ -141,7 +141,7 @@ void() VR_MonstersTest_HitProbe =
 
 void() VR_MonstersTest_Frame =
 {
-    float request = cvar("vr_test_monsters");
+    float request = cvar_hget(cvarh_vr_test_monsters);
     if(!request)
     {
         return;

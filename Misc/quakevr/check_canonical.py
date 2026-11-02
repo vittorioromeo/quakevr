@@ -54,7 +54,11 @@ FAMILIES = {
     "player-edict": ("cpp", [r"\bEDICT_NUM\s*\(\s*1\s*\)", r"\bsvs\.clients\s*\[\s*0\s*\]\s*\.edict\b"],
                      "progs::localPlayer() / progs::playerEdict() (vr_progs.hpp)"),
     "cvar-by-name": ("cpp", [r"\bCvar_VariableValue\s*\(\s*\"vr_"], "the cvar_t directly: vr_x.value"),
-    "field-by-name": ("cpp", [r"\bED_FindFieldOffset\s*\(\s*\""], "progs::fields().x (add the field to vr_fields.inc)"),
+    # The QC reads a cvar or tunable by handle (QC/vr_cvars.qc; gen_vr_cvars_qc.py makes every used cvarh_<name>), not by
+    # cvar("<name>"): a name lookup each call, and a misspelt or retired name nothing checks (QC/ad, the import, aside).
+    "qc-cvar-by-name": ("qc", [r"\bcvar\s*\("],
+                        "cvar_hget(cvarh_<name>) (QC/vr_cvars.qc; run Misc/quakevr/gen_vr_cvars_qc.py)"),
+    "field-by-name": ("cpp",[r"\bED_FindFieldOffset\s*\(\s*\""], "progs::fields().x (add the field to vr_fields.inc)"),
     "qc-find-player": ("qc", [r"\bfind\s*\(\s*world\s*,\s*classname\s*,\s*\"player\"\s*\)"],
                        "VR_Player() / VR_NextPlayer(p) (QC/vr_util.qc)"),
     "qc-math-copy": ("qc", [r"(?m)^[ \t]*\w+\s*\([^)]*\)\s*(?:\w+_(?:Cross|Wrap180|Wrap|AngleNorm|SegDist|SegmentDist|"
@@ -111,6 +115,7 @@ NEEDLES = {
     "qcvm-push": r"PR_PushQCVM",
     "player-edict": r"EDICT_NUM|svs\.clients",
     "cvar-by-name": r"Cvar_VariableValue",
+    "qc-cvar-by-name": r"\bcvar\s*\(",
     "field-by-name": r"ED_FindFieldOffset",
     "qc-find-player": r"\"player\"",
     "qc-math-copy": r"(?:Cross|Wrap180|Wrap|AngleNorm|SegDist|SegmentDist|Lerp|Nlerp|Clamp|Smooth|Ease|clamp)\s*=",
@@ -152,7 +157,8 @@ def sources():
     for ext in ("cpp", "hpp", "h", "inc", "c"):
         cpp += glob.glob("Quake/vr/**/*." + ext, recursive=True)
     cpp = sorted(p.replace("\\", "/") for p in cpp if "/external/" not in p.replace("\\", "/"))
-    qc = sorted(p.replace("\\", "/") for p in glob.glob("QC/*.qc"))
+    qc = sorted(p.replace("\\", "/") for p in glob.glob("QC/*.qc")
+                if p.replace("\\", "/") != "QC/vr_cvars_gen.qc")  # (generated: gen_vr_cvars_qc.py)
     misc = lambda ext: sorted(p.replace("\\", "/") for p in glob.glob("Misc/quakevr/**/*." + ext, recursive=True)
                               if not p.replace("\\", "/").endswith(("/qvrtest.py", "/qvrtest.sh")))
     return {"cpp": cpp, "qc": qc, "py": misc("py"), "sh": misc("sh")}

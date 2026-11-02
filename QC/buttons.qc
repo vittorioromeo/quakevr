@@ -88,9 +88,9 @@ float() button_campaign_unavailable =
     string prefix = substring(self.targetname, 0, 28);
     if(prefix == "vr_activestartpaknameidx 1; ") return !VR_Pack_Hipnotic();
     if(prefix == "vr_activestartpaknameidx 2; ") return !VR_Pack_Rogue();
-    if(prefix == "vr_activestartpaknameidx 3; ") return cvar("vr_dopa_status") != 1;
-    if(prefix == "vr_activestartpaknameidx 4; ") return cvar("vr_mg1_status") != 1;
-    if(prefix == "vr_activestartpaknameidx 5; ") return cvar("vr_mg3_status") != 1;
+    if(prefix == "vr_activestartpaknameidx 3; ") return cvar_hget(cvarh_vr_dopa_status) != 1;
+    if(prefix == "vr_activestartpaknameidx 4; ") return cvar_hget(cvarh_vr_mg1_status) != 1;
+    if(prefix == "vr_activestartpaknameidx 5; ") return cvar_hget(cvarh_vr_mg3_status) != 1;
     return FALSE;
 };
 
@@ -480,7 +480,7 @@ void() func_button =
     if(MG_WorldCampaign()) MG_ButtonInit();
     // The hub's Continue button ("vr_continue"): there only when there is a save to continue (the engine's
     // vr_continue_available, looked at as a Quake VR map spawns: vr_continue.cpp); its save is shown over it.
-    if(self.buttonEffect == 3 && substring(self.targetname, 0, 11) == "vr_continue" && !cvar("vr_continue_available"))
+    if(self.buttonEffect == 3 && substring(self.targetname, 0, 11) == "vr_continue" && !cvar_hget(cvarh_vr_continue_available))
     {
         remove(self);
         return;
@@ -994,7 +994,7 @@ void() func_enemy_dispenser_use =
     }
 
     self = spawn();
-    self.spawnflags = cvar("vr_test_spawn_flags"); // (0; the tests' variants: 2 a statue knight, a multi-grenade ogre)
+    self.spawnflags = cvar_hget(cvarh_vr_test_spawn_flags); // (0; the tests' variants: 2 a statue knight, a multi-grenade ogre)
     if((self.spawnflags & 2) && (choice == 5 || choice == 6))
     {
         self.targetname = "vr_test_statue"; // (a statue wakes when used: woken below, as its map's trigger would)

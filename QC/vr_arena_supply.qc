@@ -39,8 +39,8 @@ vector ar_sc_at[AR_SCATTER_MAX]; // this clear's supplies so far (ar_sc_n of the
 float ar_sc_scattered;           // the run's supplies put on random places (the tests read it)
 float ar_ds1; float ar_ds2; float ar_ds3; // the supplies' rolls (a Levy triple, as VR_ARENA_Rand's)
 
-float() VR_ARENA_Opt_Scatter = { return cvar("vr_arena_scatter") != 0; }
-float() VR_ARENA_Opt_Shards  = { return clamp(floor(cvar("vr_arena_shards")), 0, AR_SHARDS_MAX); }
+float() VR_ARENA_Opt_Scatter = { return cvar_hget(cvarh_vr_arena_scatter) != 0; }
+float() VR_ARENA_Opt_Shards  = { return clamp(floor(cvar_hget(cvarh_vr_arena_shards)), 0, AR_SHARDS_MAX); }
 
 // ---------------------------------------------------------------------------
 // The supplies' rolls
@@ -48,8 +48,8 @@ float() VR_ARENA_Opt_Shards  = { return clamp(floor(cvar("vr_arena_shards")), 0,
 
 void(float xWave) VR_ARENA_DropSeed =
 {
-    float base = VR_ARENA_Mod(cvar("vr_arena_seed"), 30000);
-    if(cvar("vr_arena_seed") <= 0) { base = 1 + floor(29998 * random()); }
+    float base = VR_ARENA_Mod(cvar_hget(cvarh_vr_arena_seed), 30000);
+    if(cvar_hget(cvarh_vr_arena_seed) <= 0) { base = 1 + floor(29998 * random()); }
     base = base + 7919 * (xWave + AR_DROP_SALT);
     ar_ds1 = 1 + VR_ARENA_Mod(base, 30268);
     ar_ds2 = 1 + VR_ARENA_Mod(3 * base + 17, 30306);

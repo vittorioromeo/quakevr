@@ -169,10 +169,10 @@ void() VR_AGBL_Frame =
     {
         if(vr_agbl_case == 0)
         {
-            vr_agbl_keep_beat = cvar("vr_agrunt_strike_beat");
-            vr_agbl_keep_first = cvar("vr_agrunt_strike_first");
-            vr_agbl_keep_parry = cvar("vr_agrunt_parry");
-            vr_agbl_keep_armor = cvar("vr_agarmor_rule");
+            vr_agbl_keep_beat = cvar_hget(cvarh_vr_agrunt_strike_beat);
+            vr_agbl_keep_first = cvar_hget(cvarh_vr_agrunt_strike_first);
+            vr_agbl_keep_parry = cvar_hget(cvarh_vr_agrunt_parry);
+            vr_agbl_keep_armor = cvar_hget(cvarh_vr_agarmor_rule);
             cvar_set("vr_agrunt_parry", "1");
             cvar_set("vr_agarmor_rule", "0"); // (the armour rule's plates stay out of the damage cases: test 94's)
             p.flags = p.flags | FL_NOTARGET;

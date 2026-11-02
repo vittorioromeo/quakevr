@@ -116,7 +116,7 @@ void(entity p) VR_ADGun_FxTestPlace =
     if(vr_adgun_t73_fly)
     {
         // Its near side 50 units ahead of the muzzle, the aim through its middle (a big one's too).
-        float gap = cvar("vr_test_spawn_dist") > 0 ? cvar("vr_test_spawn_dist") : 50;
+        float gap = cvar_hget(cvarh_vr_test_spawn_dist) > 0 ? cvar_hget(cvarh_vr_test_spawn_dist) : 50;
         at = at + fwd * (gap + max(m.maxs_x, m.maxs_y));
         setorigin(m, at - (m.mins + m.maxs) * 0.5);
         m.velocity = '0 0 0';
@@ -482,21 +482,21 @@ void() VR_ADXbow_Think =
         entity bolt = ad_newmis;
         vector fwd = VRGetWeaponFireRotFwd(cVR_MainHand);
         vector groove = VRGetMuzzlePos(cVR_MainHand);
-        if(cvar("vr_adgun_crossbow_anim") && self.launchofs != '0 0 0')
+        if(cvar_hget(cvarh_vr_adgun_crossbow_anim) && self.launchofs != '0 0 0')
         {
             makevectors(VRGetWeaponFireRot(cVR_MainHand));
             groove = groove + v_forward * self.launchofs_x + v_right * self.launchofs_y + v_up * self.launchofs_z;
         }
         self = was;
         float bspeed = (bolt != before && bolt.vr_adgun_wid == WID_ADCROSSBOW) ? vlen(bolt.velocity) : 0;
-        float bwant = cvar("vr_adgun_crossbow_speed");
+        float bwant = cvar_hget(cvarh_vr_adgun_crossbow_speed);
         VR_ADXbow_Report(sprintf("its bolt at %.0f u/s (setting %g; the knights' %g on this skill, 700 on normal), along the "
             "shot %.4f", bspeed, bwant, ad_SPEED_DCROSS + ad_skill * ad_SPEED_BOLTSKILL, (bspeed > 0) ? (normalize(bolt.velocity) * fwd) : 0),
             bspeed > 0 && fabs(bspeed - bwant) < bwant * 0.05 + 10 && bwant >= 1.5 * 700 - 1 &&
             normalize(bolt.velocity) * fwd > 0.999);
         VR_ADXbow_Report(sprintf("its bolt leaves from the drawn bolt's place (%.2f off; launch offset %v)",
             (bspeed > 0) ? vlen(bolt.origin - groove) : -1, p.launchofs), bspeed > 0 && vlen(bolt.origin - groove) < 0.5 &&
-            (!cvar("vr_adgun_crossbow_anim") || p.launchofs != '0 0 0'));
+            (!cvar_hget(cvarh_vr_adgun_crossbow_anim) || p.launchofs != '0 0 0'));
         vr_adxb_step = 2;
         self.nextthink = time + 1;
         return;
@@ -808,7 +808,7 @@ void(float request, entity p) AD_FuelTankTest =
         }
         if(request == 162 && bg.weaponinst)
         {
-            bg.weaponinst.wi_clip = floor(WeaponIdToBaseClipSize(bg.weapon) * clamp(cvar("temp1"), 0, 1));
+            bg.weaponinst.wi_clip = floor(WeaponIdToBaseClipSize(bg.weapon) * clamp(cvar_hget(cvarh_temp1), 0, 1));
         }
         float bursts = vr_fueltank_bursts;
         T_Damage(bt, p, p, request == 161 ? 10 : 1000);
@@ -969,7 +969,7 @@ void(float request, entity p) AD_TankFieldTest =
     }
     if(request == 178)
     {
-        entity w = VR_FuelTank_TestWearer(p, cvar("temp1") == 1 ? WID_ADFUMIGATOR : WID_ADPYRO, 160);
+        entity w = VR_FuelTank_TestWearer(p, cvar_hget(cvarh_temp1) == 1 ? WID_ADFUMIGATOR : WID_ADPYRO, 160);
         bprint(sprintf("tankfield: %s armed with %s at %v\n", w.classname, w.vr_ag_prop.netname, w.origin));
         return;
     }
@@ -1055,7 +1055,7 @@ void(float request, entity p) AD_HoseCutTest =
 {
     if(request == 191)
     {
-        entity m = VR_ADWeapons_Make(p, cvar("temp1") ? 319 : 318, 64);
+        entity m = VR_ADWeapons_Make(p, cvar_hget(cvarh_temp1) ? 319 : 318, 64);
         bprint(sprintf("hosecut: made %s, its tank %s\n", m ? m.netname : "nothing", VR_FuelTank_Of(m) ? "there" : "none"));
         return;
     }
@@ -1124,8 +1124,8 @@ void(float request, entity p) AD_HoseCutTest =
         b.mh_grip = g1;
         b.mh_far = g1 + perp * len;
         b.mh_hd_hi = '0 0 0';
-        VR_Melee_Ribs(b, VR_MELEE_RADIUS * max(0.25, cvar("vr_melee_range_multiplier")));
-        vr_hosecut_speed_test = cvar("temp1") > 0 ? cvar("temp1") : 5;
+        VR_Melee_Ribs(b, VR_MELEE_RADIUS * max(0.25, cvar_hget(cvarh_vr_melee_range_multiplier)));
+        vr_hosecut_speed_test = cvar_hget(cvarh_temp1) > 0 ? cvar_hget(cvarh_temp1) : 5;
         float cuts = vr_hosecut_count;
         entity sweeper = self;
         self = p; // (VR_Melee_Strike's: the player's blow)
@@ -1133,7 +1133,7 @@ void(float request, entity p) AD_HoseCutTest =
         self = sweeper;
         vr_hosecut_speed_test = 0;
         bprint(sprintf("hosecut: swept thing %g (weapon %g, %.0f long, %g lines) at %.1f m/s across the hose at %v (%.2f along it): ",
-            thing, b.mh_wid, len, vr_rib_n, cvar("temp1") > 0 ? cvar("temp1") : 5, hoseAt, along));
+            thing, b.mh_wid, len, vr_rib_n, cvar_hget(cvarh_temp1) > 0 ? cvar_hget(cvarh_temp1) : 5, hoseAt, along));
         bprint(sprintf("%s\n", vr_hosecut_count > cuts ? "cut" : "not cut"));
         if(vr_hosecut_count == cuts)
         {
@@ -1269,7 +1269,7 @@ void(float request, entity p) AD_GunTest =
     }
     if(request == 95 || request == 102)
     {
-        if(!cvar("vr_ad_mounted"))
+        if(!cvar_hget(cvarh_vr_ad_mounted))
         {
             bprint("adfred: Arcane Dimensions' data is not loaded\n");
             return;
@@ -1292,7 +1292,7 @@ void(float request, entity p) AD_GunTest =
     }
     if(request == 93)
     {
-        if(!cvar("vr_ad_mounted"))
+        if(!cvar_hget(cvarh_vr_ad_mounted))
         {
             bprint("adxb: Arcane Dimensions' data is not loaded\n");
             return;
@@ -1303,7 +1303,7 @@ void(float request, entity p) AD_GunTest =
         xb.owner = p;
         vr_adxb_step = 0;
         vr_adxb_ok = TRUE;
-        vr_adxb_grip = cvar("vr_weapon_grip_mode");
+        vr_adxb_grip = cvar_hget(cvarh_vr_weapon_grip_mode);
         cvar_set("vr_weapon_grip_mode", "1"); // (the gun stays in a hand not gripping; as it was again at the end)
         xb.think = VR_ADXbow_Think;
         xb.nextthink = time + 0.1;
@@ -1313,7 +1313,7 @@ void(float request, entity p) AD_GunTest =
     {
         // 81: each AD weapon made ahead (the spawner's 309..319), taken into the main hand and fired once.
         // 82: each laid ahead (left there), then a Widowmaker taken into the main hand (save, load, then 83 and 84).
-        float grip = cvar("vr_weapon_grip_mode");
+        float grip = cvar_hget(cvarh_vr_weapon_grip_mode);
         cvar_set("vr_weapon_grip_mode", "1"); // (a weapon stays in a hand not gripping)
         p.ammo_shells = max(p.ammo_shells, 50);
         p.ammo_cells = max(p.ammo_cells, 50);
@@ -1324,7 +1324,7 @@ void(float request, entity p) AD_GunTest =
             if(w == world)
             {
                 bprint(sprintf("adweapons: %g not made (its scope: vr_ad_upgrades %g, vr_ad_everywhere %g, vr_ad_rules %g): FAIL\n",
-                    c, cvar("vr_ad_upgrades"), cvar("vr_ad_everywhere"), cvar("vr_ad_rules")));
+                    c, cvar_hget(cvarh_vr_ad_upgrades), cvar_hget(cvarh_vr_ad_everywhere), cvar_hget(cvarh_vr_ad_rules)));
                 vr_test_fail++;
                 continue;
             }
@@ -1372,7 +1372,7 @@ void(float request, entity p) AD_GunTest =
         // model nearest where it was made (vr_test_spawn_dist ahead), where it lies from you (ahead, within reach) and its
         // model (adspawn: one line, PASS or FAIL); then removed, for the next row's. A monster the spawner made too.
         makevectors('0 1 0' * p.v_viewangle_y);
-        vector at = p.origin + v_forward * cvar("vr_test_spawn_dist");
+        vector at = p.origin + v_forward * cvar_hget(cvarh_vr_test_spawn_dist);
         entity n = world;
         float best = 4096;
         for(entity e3 = nextent(world); e3; e3 = nextent(e3))
@@ -1388,7 +1388,7 @@ void(float request, entity p) AD_GunTest =
         }
         if(n == world)
         {
-            bprint(sprintf("adspawn: %g: nothing made: FAIL\n", cvar("vr_test_spawn")));
+            bprint(sprintf("adspawn: %g: nothing made: FAIL\n", cvar_hget(cvarh_vr_test_spawn)));
             return;
         }
         vector mid = (n.absmin + n.absmax) * 0.5;
@@ -1397,8 +1397,8 @@ void(float request, entity p) AD_GunTest =
         flat_z = 0;
         float dist = vlen(flat);
         float ahead = dist > 0 ? (flat * v_forward) / dist : 0;
-        float near = (dist < max(128, cvar("vr_test_spawn_dist") + 64) && ahead > 0.7 && fabs(dz) < 64);
-        bprint(sprintf("adspawn: %g: %s (%s) at %g ahead x%g, height %g: %s\n", cvar("vr_test_spawn"), n.classname, n.model,
+        float near = (dist < max(128, cvar_hget(cvarh_vr_test_spawn_dist) + 64) && ahead > 0.7 && fabs(dz) < 64);
+        bprint(sprintf("adspawn: %g: %s (%s) at %g ahead x%g, height %g: %s\n", cvar_hget(cvarh_vr_test_spawn), n.classname, n.model,
             rint(dist), rint(ahead * 100) / 100, rint(dz), near ? "PASS" : "FAIL"));
         if(near)
         {
@@ -1408,7 +1408,7 @@ void(float request, entity p) AD_GunTest =
     }
     if(request == 84)
     {
-        float grip2 = cvar("vr_weapon_grip_mode");
+        float grip2 = cvar_hget(cvarh_vr_weapon_grip_mode);
         cvar_set("vr_weapon_grip_mode", "1");
         bprint(sprintf("adweapons: the main hand fires: %s\n", VR_ADWeapons_Fire(p, "held") ? "PASS" : "FAIL"));
         cvar_set("vr_weapon_grip_mode", ftos(grip2));
@@ -1475,7 +1475,7 @@ void(float request, entity p) AD_GunTest =
     }
     if(request == 90)
     {
-        if(!cvar("vr_ad_mounted"))
+        if(!cvar_hget(cvarh_vr_ad_mounted))
         {
             bprint("adgun shots: Arcane Dimensions' data is not loaded\n");
             return;
@@ -1487,7 +1487,7 @@ void(float request, entity p) AD_GunTest =
         vr_adgun_t90_phase = 0;
         vr_adgun_test_step = 0;
         VR_Test_BeginFlags("adgun shots", VR_TEST_LOUD);
-        vr_adgun_test_grip = cvar("vr_weapon_grip_mode");
+        vr_adgun_test_grip = cvar_hget(cvarh_vr_weapon_grip_mode);
         cvar_set("vr_weapon_grip_mode", "1");
         e90.think = VR_ADGun_ShotsTestThink;
         e90.nextthink = time + 0.1;
@@ -1496,7 +1496,7 @@ void(float request, entity p) AD_GunTest =
     }
     if(request == 70)
     {
-        if(!cvar("vr_ad_mounted"))
+        if(!cvar_hget(cvarh_vr_ad_mounted))
         {
             bprint("adgun test: Arcane Dimensions' data is not loaded (its guns' models are its monsters')\n");
             return;
@@ -1508,7 +1508,7 @@ void(float request, entity p) AD_GunTest =
         vr_adgun_test_index = 0;
         vr_adgun_test_step = 0;
         VR_Test_BeginFlags("adgun test", VR_TEST_LOUD);
-        vr_adgun_test_grip = cvar("vr_weapon_grip_mode");
+        vr_adgun_test_grip = cvar_hget(cvarh_vr_weapon_grip_mode);
         cvar_set("vr_weapon_grip_mode", "1"); // (as it was again at the end)
         e.think = VR_ADGun_TestThink;
         e.nextthink = time + 0.1;
@@ -1610,7 +1610,7 @@ void(float request, entity p) AD_GunTest =
         float okHand = p.weapon == WID_ADROCKET && p.weaponmodel == WeaponIdToModel(WID_ADROCKET, 0);
         float okHolster = p.holsterweapon0 == WID_ADPLASMA && p.holsterweaponmodel0 == WeaponIdToModel(WID_ADPLASMA, 0);
         bprint(sprintf("adgun carry: %s: hand %g (%s), holster %g (%s), drops %g: %s\n", mapname, p.weapon,
-            p.weaponmodel, p.holsterweapon0, p.holsterweaponmodel0, cvar("vr_adgun_drops"),
+            p.weaponmodel, p.holsterweapon0, p.holsterweaponmodel0, cvar_hget(cvarh_vr_adgun_drops),
             (okHand && okHolster) ? "PASS" : "FAIL"));
         return;
     }
@@ -1628,7 +1628,7 @@ void(float request, entity p) AD_GunTest =
     if(request == 91 || request == 101)
     {
         vr_adgun_t73_fly = (request == 101); // (101: the flames and puffs fly into it: a big monster's too)
-        if(!cvar("vr_ad_mounted"))
+        if(!cvar_hget(cvarh_vr_ad_mounted))
         {
             bprint("adgun fx: Arcane Dimensions' data is not loaded\n");
             return;
@@ -1658,7 +1658,7 @@ void(float request, entity p) AD_GunTest =
         vr_adgun_t73_phase = 0;
         vr_adgun_test_step = 0;
         VR_Test_BeginFlags(vr_adgun_t73_fly ? "adgun fly" : "adgun fx", VR_TEST_LOUD);
-        vr_adgun_test_grip = cvar("vr_weapon_grip_mode");
+        vr_adgun_test_grip = cvar_hget(cvarh_vr_weapon_grip_mode);
         cvar_set("vr_weapon_grip_mode", "1");
         t73.think = VR_ADGun_FxTestThink;
         t73.nextthink = time + 0.1;

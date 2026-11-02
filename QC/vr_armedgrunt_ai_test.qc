@@ -208,7 +208,7 @@ void() VR_AGAIT_Frame =
         vr_agait_yaw0 = p.angles_y;
         vr_agait_skill0 = skill;
         VR_AGAIT_Table();
-        vr_agait_case = rint(cvar("scratch1")) > 0 ? rint(cvar("scratch1")) - 1 : 0; // (scratch1 N: case N - 1 alone)
+        vr_agait_case = rint(cvar_hget(cvarh_scratch1)) > 0 ? rint(cvar_hget(cvarh_scratch1)) - 1 : 0; // (scratch1 N: case N - 1 alone)
         vr_agt_step = 1;
     }
     if(vr_agt_step == 1)
@@ -327,7 +327,7 @@ void() VR_AGAIT_Frame =
     VR_AGT_Check(strcat(s, ":"), ok);
     vr_agait_case = vr_agait_case + 1;
     vr_agt_step = 1;
-    if(vr_agait_case >= VR_AGAIT_N || rint(cvar("scratch1")) > 0)
+    if(vr_agait_case >= VR_AGAIT_N || rint(cvar_hget(cvarh_scratch1)) > 0)
     {
         VR_AGPT_Clear();
         VR_AGAIT_Defaults();
@@ -393,8 +393,8 @@ void() VR_AGLT_Frame =
         // (vr_agrunt_lean_info ran last frame: its "aglean twist: ... PASS/FAIL" line is the strafe turn's verdict)
         p.flags = p.flags - (p.flags & FL_NOTARGET);
         VR_AGT_Check(sprintf("lean: %g phases moved, vr_agrunt_strafe_lean %g, vr_agrunt_strafe_turn %g (the numbers: "
-            "aglean lines; the turn's verdict: aglean twist):", vr_aglt_phase, cvar("vr_agrunt_strafe_lean"),
-            cvar("vr_agrunt_strafe_turn")), g != world);
+            "aglean lines; the turn's verdict: aglean twist):", vr_aglt_phase, cvar_hget(cvarh_vr_agrunt_strafe_lean),
+            cvar_hget(cvarh_vr_agrunt_strafe_turn)), g != world);
         VR_AGPT_Clear();
         cvar_set("vr_agrunt_test", "0");
         return;
@@ -410,7 +410,7 @@ void() VR_AGLT_Frame =
         at = g.origin + vr_aglt_side * (dir * speed * frametime);
     }
     setorigin(g, at);
-    if(cvar("scratch1") == 1 && (vr_aglt_phase == 4 || vr_aglt_phase == 0) && t >= VR_AGLT_SECS * 0.5 &&
+    if(cvar_hget(cvarh_scratch1) == 1 && (vr_aglt_phase == 4 || vr_aglt_phase == 0) && t >= VR_AGLT_SECS * 0.5 &&
        t - frametime < VR_AGLT_SECS * 0.5)
     {
         localcmd("screenshot\n");

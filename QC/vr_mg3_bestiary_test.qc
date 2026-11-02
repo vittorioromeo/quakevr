@@ -78,7 +78,7 @@ float(entity p) MG3_BT_KillSpawns =
 
 void() MG3_BT_Report =
 {
-    dprint(sprintf("mg3btest: report map %s campaign %g mg3 data: orb %g\n", mapname, cvar("vr_campaign"), MG3_Orb_Available()));
+    dprint(sprintf("mg3btest: report map %s campaign %g mg3 data: orb %g\n", mapname, cvar_hget(cvarh_vr_campaign), MG3_Orb_Available()));
     float n = MG3_BT_Count("monster_orb");
     dprint(sprintf("mg3btest: monster_orb %g alive %g dead; monsters %g/%g\n", n, mg3bt_n2, killed_monsters, total_monsters));
     n = MG3_BT_Count("monster_ghost");
@@ -210,7 +210,7 @@ void() MG3_BT_GhostSlimeStep =
         self = oldself; other = oldother;
         VR_Test_Check(mg3bt_a.health <= 0 && mg3bt_a.takedamage == DAMAGE_NO, "your touch: it dies");
         mg3bt_b = MG3_BT_Spawn(p, 42, 96, 48, 0);
-        VR_Test_Check(mg3bt_b.alpha == (cvar("vr_mg3_ghost_alpha") >= 1 ? 0 : max(0.05, cvar("vr_mg3_ghost_alpha"))),
+        VR_Test_Check(mg3bt_b.alpha == (cvar_hget(cvarh_vr_mg3_ghost_alpha) >= 1 ? 0 : max(0.05, cvar_hget(cvarh_vr_mg3_ghost_alpha))),
             sprintf("drawn see-through: alpha %.2f (vr_mg3_ghost_alpha)", mg3bt_b.alpha));
         float gibs0 = vr_sgib_made, cuts0 = vr_limb_cuts + vr_limb_pops;
         T_Damage(mg3bt_b, p, p, 200);
@@ -600,7 +600,7 @@ void() MG3_BT_SuperShamblerStep =
     }
     if(mg3bt_step == 65)
     {
-        VR_Test_Check(isragdoll(mg3bt_a) && ragdolllimbs(mg3bt_a, 0) > 0, sprintf("he lies as a ragdoll (vr_ragdoll %g), his limb bits %g", cvar("vr_ragdoll"), ragdolllimbs(mg3bt_a, 0)));
+        VR_Test_Check(isragdoll(mg3bt_a) && ragdolllimbs(mg3bt_a, 0) > 0, sprintf("he lies as a ragdoll (vr_ragdoll %g), his limb bits %g", cvar_hget(cvarh_vr_ragdoll), ragdolllimbs(mg3bt_a, 0)));
         p.flags = p.flags - (p.flags & FL_GODMODE);
         MG3_BT_Total();
         return;
@@ -833,7 +833,7 @@ void() MG3_BestiaryTestFrame =
         else if(mg3bt_step >= 70 && mg3bt_step < 80) MG3_BT_StockStep();
         self = os; other = oo; activator = oa;
     }
-    float request = cvar("vr_mg3_btest");
+    float request = cvar_hget(cvarh_vr_mg3_btest);
     if(!request) return;
     cvar_set("vr_mg3_btest", "0");
     if(!VR_Player()) return;

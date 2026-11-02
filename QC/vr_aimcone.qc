@@ -79,12 +79,12 @@ float(entity m) VR_AimCone_On =
 // A kind's aim cone and fire cone (degrees each side of the facing; the fire cone at least the aim cone).
 float(float kind) VR_AimCone_Angle =
 {
-    float a = cvar_hget(cvarh_vr_enemy_aim_angle) * cvar(kind == VR_AIM_WIDE ? "vr_enemy_aim_wide" : "vr_enemy_aim_narrow");
+    float a = cvar_hget(cvarh_vr_enemy_aim_angle) * cvar_hget(kind == VR_AIM_WIDE ? cvarh_vr_enemy_aim_wide : cvarh_vr_enemy_aim_narrow);
     return a < 0 ? 0 : (a > 180 ? 180 : a);
 };
 float(float kind) VR_AimCone_Fire =
 {
-    float a = cvar_hget(cvarh_vr_enemy_aim_fire) * cvar(kind == VR_AIM_WIDE ? "vr_enemy_aim_wide" : "vr_enemy_aim_narrow");
+    float a = cvar_hget(cvarh_vr_enemy_aim_fire) * cvar_hget(kind == VR_AIM_WIDE ? cvarh_vr_enemy_aim_wide : cvarh_vr_enemy_aim_narrow);
     a = a > 180 ? 180 : a;
     float cone = VR_AimCone_Angle(kind);
     return a < cone ? cone : a;

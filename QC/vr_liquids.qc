@@ -254,7 +254,7 @@ void() VR_Liquids_Frame =
 // the lungs (client.qc); the drowning damage, once it starts, and the suits' own time are id's.
 float() VR_AirSupply =
 {
-    local float scale = cvar("vr_air_supply");
+    local float scale = cvar_hget(cvarh_vr_air_supply);
     if(scale < 1)
         scale = 1;
     if(scale > 4)

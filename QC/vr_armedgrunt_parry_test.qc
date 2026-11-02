@@ -136,8 +136,8 @@ void() VR_AGPar_Test =
     {
         VR_AGPT_Clear();
         p.flags = p.flags | FL_NOTARGET;
-        vr_agpt2_chance = cvar("vr_agrunt_parry_chance");
-        vr_agpt2_parry = cvar("vr_agrunt_parry");
+        vr_agpt2_chance = cvar_hget(cvarh_vr_agrunt_parry_chance);
+        vr_agpt2_parry = cvar_hget(cvarh_vr_agrunt_parry);
         cvar_set("vr_agrunt_parry_chance", "1");
         cvar_set("vr_agrunt_parry", "1");
         vr_agt_grunt = VR_AGT_Spawn(WID_SWORD, 70);

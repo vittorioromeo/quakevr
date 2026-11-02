@@ -57,7 +57,7 @@ void() monster_ogre_marksman =
     // the Gutter, plaw01, or Honey not installed): Dimension of the Machine's marksman, as id's ogre.qc has it: id's
     // ogre under the marksman's classname (the ogre's model and behaviour: ai.qc CheckAnyAttack, OgreCheckAttack).
     // Precaching Honey's model without it there would be a Host_Error.
-    float honeyMap = !MG_WorldCampaign() && (cvar("vr_honey_context") || VR_GameUtil_InHoneyMap());
+    float honeyMap = !MG_WorldCampaign() && (cvar_hget(cvarh_vr_honey_context) || VR_GameUtil_InHoneyMap());
     if(!honeyMap || !VR_Has("progs/mogre.mdl") || !VR_Has("progs/s_light2.spr"))
     {
         self.wad = "progs/ogre.mdl";

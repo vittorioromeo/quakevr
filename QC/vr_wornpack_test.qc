@@ -99,11 +99,11 @@ void(entity g, entity p, float speed) VR_WPT_KnockDown =
 void(entity p) VR_WPT_Begin =
 {
     VR_Test_Begin("wornpack");
-    vr_wpt_old_chance = cvar("vr_worn_backpack_hit_roll");
-    vr_wpt_old_pool = cvar("vr_worn_backpack_pool");
+    vr_wpt_old_chance = cvar_hget(cvarh_vr_worn_backpack_hit_roll);
+    vr_wpt_old_pool = cvar_hget(cvarh_vr_worn_backpack_pool);
     vr_wpt_old_roll = vr_wpt_old_chance;
-    vr_wpt_old_ref = cvar("vr_worn_backpack_hit_ref");
-    vr_wpt_old_debug = cvar("vr_worn_backpack_debug");
+    vr_wpt_old_ref = cvar_hget(cvarh_vr_worn_backpack_hit_ref);
+    vr_wpt_old_debug = cvar_hget(cvarh_vr_worn_backpack_debug);
     cvar_set("vr_worn_backpack_debug", ftos(max(1, vr_wpt_old_debug)));
     vr_wpt_e = VR_WPT_SpawnKind(p, VR_AM_ENFORCER, WID_SHOTGUN, 60, 120, FALSE); // (the control: an enforcer wears no pack)
     cvar_set("vr_worn_backpack_pool", "30");
@@ -501,7 +501,7 @@ void(entity p) VR_WPT_Tug =
         return;
     }
     VR_Test_Check(secs < vr_wpt_one * 0.85, sprintf("two hands tear it sooner: %.2f s against one's %.2f s (x%g)", secs, vr_wpt_one,
-        cvar("vr_worn_backpack_two_hand_mult")));
+        cvar_hget(cvarh_vr_worn_backpack_two_hand_mult)));
     VR_WPT_End();
 };
 
@@ -526,12 +526,12 @@ void() VR_WPL_End =
 void(entity p) VR_WPL_Begin =
 {
     VR_Test_Begin("wornpull");
-    vr_wpt_old_chance = cvar("vr_worn_backpack_hit_roll");
-    vr_wpt_old_pool = cvar("vr_worn_backpack_pool");
+    vr_wpt_old_chance = cvar_hget(cvarh_vr_worn_backpack_hit_roll);
+    vr_wpt_old_pool = cvar_hget(cvarh_vr_worn_backpack_pool);
     vr_wpt_old_roll = vr_wpt_old_chance;
-    vr_wpt_old_ref = cvar("vr_worn_backpack_hit_ref");
-    vr_wpt_old_debug = cvar("vr_worn_backpack_debug");
-    vr_wpt_old_pull = cvar("vr_worn_backpack_pull");
+    vr_wpt_old_ref = cvar_hget(cvarh_vr_worn_backpack_hit_ref);
+    vr_wpt_old_debug = cvar_hget(cvarh_vr_worn_backpack_debug);
+    vr_wpt_old_pull = cvar_hget(cvarh_vr_worn_backpack_pull);
     cvar_set("vr_worn_backpack_debug", ftos(max(1, vr_wpt_old_debug)));
     cvar_set("vr_worn_backpack_pull", "1");
     cvar_set("vr_worn_backpack_pool", "30");
@@ -560,7 +560,7 @@ void(entity p) VR_WPL_Standing =
     vr_wpt_frames = vr_wpt_frames + 1;
     entity g = vr_wpt_g;
     entity pk = g.vr_wp_pack;
-    float stiff = cvar("vr_worn_backpack_rip_stiffness");
+    float stiff = cvar_hget(cvarh_vr_worn_backpack_rip_stiffness);
     if(vr_wpt_state == 20)
     {
         if(vr_wpt_frames == 1)
@@ -615,7 +615,7 @@ void(entity p) VR_WPL_Standing =
         }
         VR_Test_Check(!isragdoll(g) && pk.vr_wp_state == VR_WP_WORN && vr_wp_lifts == vr_wpt_lifts0 && vr_wp_rips == vr_wpt_rips0 && s >= 0,
             sprintf("a gentle pull (4 units back, at most %.0f N of %g) neither lifts nor tears; still held", vr_wpt_one,
-            cvar("vr_worn_backpack_lift_force")));
+            cvar_hget(cvarh_vr_worn_backpack_lift_force)));
         vr_wpt_frames = 0;
         vr_wpt_state = 22;
         return;
@@ -774,7 +774,7 @@ void(entity p) VR_WPL_Down =
             return;
         }
         VR_Test_Check(pk.vr_wp_state == VR_WP_WORN && p.mainhand_held == b && vr_wp_lifts == vr_wpt_lifts0 && vr_wp_rips == vr_wpt_rips0,
-            sprintf("B dragged slowly by the pack: kept, not lifted (hardest pull %.0f N of %g)", pk.vr_wp_peak, cvar("vr_worn_backpack_lift_force")));
+            sprintf("B dragged slowly by the pack: kept, not lifted (hardest pull %.0f N of %g)", pk.vr_wp_peak, cvar_hget(cvarh_vr_worn_backpack_lift_force)));
         vr_wpt_hand = vr_wpt_hand + away * 30 + '0 0 20';
         localcmd(sprintf("vr_mock_hand_to main %g %g %g\n", vr_wpt_hand_x, vr_wpt_hand_y, vr_wpt_hand_z));
         vr_wpt_frames = 0;
@@ -854,11 +854,11 @@ vector vr_wpp_start, vr_wpp_end;
 void(entity p) VR_WPP_Begin =
 {
     VR_Test_Begin("wornpack");
-    vr_wpt_old_chance = cvar("vr_worn_backpack_hit_roll");
-    vr_wpt_old_pool = cvar("vr_worn_backpack_pool");
+    vr_wpt_old_chance = cvar_hget(cvarh_vr_worn_backpack_hit_roll);
+    vr_wpt_old_pool = cvar_hget(cvarh_vr_worn_backpack_pool);
     vr_wpt_old_roll = vr_wpt_old_chance;
-    vr_wpt_old_ref = cvar("vr_worn_backpack_hit_ref");
-    vr_wpt_old_debug = cvar("vr_worn_backpack_debug");
+    vr_wpt_old_ref = cvar_hget(cvarh_vr_worn_backpack_hit_ref);
+    vr_wpt_old_debug = cvar_hget(cvarh_vr_worn_backpack_debug);
     cvar_set("vr_worn_backpack_debug", ftos(max(1, vr_wpt_old_debug)));
     cvar_set("vr_worn_backpack_pool", "30");
     cvar_set("vr_worn_backpack_hit_roll", "0");
@@ -958,7 +958,7 @@ void() VR_WornPack_TestFrame =
     entity p = VR_Player();
     if(vr_wpt_state == 0)
     {
-        float request = cvar("vr_wornpack_test");
+        float request = cvar_hget(cvarh_vr_wornpack_test);
         if(!request || !p)
         {
             return;

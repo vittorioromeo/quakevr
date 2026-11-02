@@ -61,7 +61,7 @@ void() MG3_MT_Report =
         e = nextent(e);
     }
     dprint(sprintf("mg3mtest: report map %s campaign %g: infected (to zombie %g, to fiend %g; lying %g), turned %g\n",
-        mapname, cvar("vr_campaign"), n1, n2, n4, vr_mg3_infected_turned));
+        mapname, cvar_hget(cvarh_vr_campaign), n1, n2, n4, vr_mg3_infected_turned));
     dprint(sprintf("mg3mtest: monsters alive %g, killed %g of %g\n", n3, killed_monsters, total_monsters));
     dprint(sprintf("mg3mtest: the rising death knight's sound %s\n", MG3_Infected_RiseSound()));
     dprint(sprintf("mg3mtest: rocket ogres %g, demo dogs %g, ranged knights %g (alive)\n", n5, n6, n7));
@@ -497,7 +497,7 @@ void() MG3_MonstersTestFrame =
         MG3_MT_Step();
         self = os; other = oo; activator = oa;
     }
-    float request = cvar("vr_mg3_mtest");
+    float request = cvar_hget(cvarh_vr_mg3_mtest);
     if(!request) return;
     cvar_set("vr_mg3_mtest", "0");
     if(!VR_Player()) return;

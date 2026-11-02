@@ -209,7 +209,7 @@ void(float d) VR_AGR_GunAxe;                                               // VR
 .string vr_agr_mdl;        // a held weapon's model while its holder waits unseen (MG_deferred: VR_AG_PropThink)
 .float vr_agk_live; // run live by the Pose Studio (its real loops where it stands: vr_armedgrunt_pose.qc VR_AGK_Live)
 // Held still (vr_agrunt_freeze: the Grip Editor, the Pose Studio; not the studio's Live subject): no AI, no tug, no blow.
-float(entity g) VR_AG_Still = { return cvar("vr_agrunt_freeze") && g.health > 0 && !g.vr_agk_live; };
+float(entity g) VR_AG_Still = { return cvar_hget(cvarh_vr_agrunt_freeze) && g.health > 0 && !g.vr_agk_live; };
 
 // Armour for armed humanoids (vr_agarmor.qc; ROUND23.md, "Armour for armed humanoids, P1"): the fields (the engine sends
 // .vr_ar_type and .vr_ar_mask to the clients: vr_agarmor.cpp) and the hooks combat.qc, weapons.qc and player.qc call.

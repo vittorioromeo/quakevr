@@ -23,7 +23,7 @@ entity vr_agt_player;
 float VR_AGT_COUNT = 17;
 
 // The armed monster the tests spawn: vr_agrunt_test_kind (vr_armedmon.qc VR_AM_*: 0 the grunt, 1 the enforcer).
-float() VR_AGT_Kind = { return min(VR_AM_COUNT - 1, max(0, rint(cvar("vr_agrunt_test_kind")))); };
+float() VR_AGT_Kind = { return min(VR_AM_COUNT - 1, max(0, rint(cvar_hget(cvarh_vr_agrunt_test_kind)))); };
 // ... its classname (its monster's).
 string() VR_AGT_Classname = { VR_AM_Row(VR_AGT_Kind()); return vr_am_classname; };
 
@@ -306,7 +306,7 @@ void(entity p, float z) VR_AGT_HandToHeight =
     float dz = z - p.handpos_z;
     if(fabs(dz) > 1)
     {
-        cvar_set("vr_mock_hand_lift", ftos(cvar("vr_mock_hand_lift") + dz / VRMetersToUnits()));
+        cvar_set("vr_mock_hand_lift", ftos(cvar_hget(cvarh_vr_mock_hand_lift) + dz / VRMetersToUnits()));
     }
 };
 
@@ -529,21 +529,22 @@ void(float t) VR_AGT_PoseRow =
             side_z = 0;
             vector keep = vr_agt_player.origin;
             setorigin(vr_agt_player, keep + side * ((k - 1.5) * 40));
-            vr_agt_weapon2 = (t == 14 && k > 0 && cvar("scratch4") > 0) ? WID_SWORD : 0; // (scratch4: a sword in each left hand)
-            entity r = VR_AGT_Spawn(wid, cvar("scratch1") > 0 ? cvar("scratch1") : 120); // (scratch1: further off)
+            vr_agt_weapon2 = (t == 14 && k > 0 && cvar_hget(cvarh_scratch4) > 0) ? WID_SWORD : 0; // (scratch4: a sword in each left hand)
+            entity r = VR_AGT_Spawn(wid, cvar_hget(cvarh_scratch1) > 0 ? cvar_hget(cvarh_scratch1) : 120); // (scratch1: further off)
             vr_agt_weapon2 = 0;
             r.angles_y = vectoyaw(keep - r.origin) + 60;
             setorigin(vr_agt_player, keep);
             vr_agt_row[k] = r;
         }
     }
-    float ph = cvar("scratch2");
+    float ph = cvar_hget(cvarh_scratch2);
     for(k = 0; k < 4; k++)
     {
         entity g = vr_agt_row[k];
         if(g && g.vr_ag && g.health > 0 && cvar("scratch5") > 0)
         {
-            // (scratch5: each guards its head from you, as from a melee wind-up: its weapon carried by its hands)
+            // (`set scratch5 1`, read by name: the engine has no scratch5, so a handle made at the map's load would find
+            // none; each guards its head from you, as from a melee wind-up: its weapon carried by its hands)
             VR_Guard_Raise(g, vr_agt_player.origin + '0 0 22', normalize(g.origin - vr_agt_player.origin));
         }
         if(!g || !g.vr_ag || ph <= 0)
@@ -553,7 +554,7 @@ void(float t) VR_AGT_PoseRow =
         entity p = g.vr_ag_prop;
         g.vr_ag_act = !p ? VR_AGP_PUNCH : p.weapon == WID_CHAINSAW ? VR_AGP_SAW : VR_AG_Class(p.weapon) == VR_AG_CLASS_MELEE ?
             VR_AGP_SWING : 0;
-        g.vr_ag_act_kind = cvar("scratch3");
+        g.vr_ag_act_kind = cvar_hget(cvarh_scratch3);
         g.vr_ag_act_hand = 2; // (two held: both swing)
         if(g.vr_ag_act == VR_AGP_PUNCH)
         {
@@ -595,8 +596,8 @@ void() VR_AGTest_Dual =
         VR_AGT_Check(sprintf("dual: holds %s (left %g) and %s (left %g):", pr ? pr.netname : "nothing", pr.vr_ag_left,
             pl ? pl.netname : "nothing", pl.vr_ag_left), pr && pl && !pr.vr_ag_left && pl.vr_ag_left && pl.weapon == WID_CROWBAR);
         VR_AGT_Hunt(g);
-        vr_agt_keep_disarm = cvar("vr_agrunt_disarm");
-        vr_agt_keep_parry = cvar("vr_agrunt_parry_disarm");
+        vr_agt_keep_disarm = cvar_hget(cvarh_vr_agrunt_disarm);
+        vr_agt_keep_parry = cvar_hget(cvarh_vr_agrunt_parry_disarm);
         cvar_set("vr_agrunt_disarm", "0"); // (the fight's own disarms off: the test's blow below)
         cvar_set("vr_agrunt_parry_disarm", "0");
         vr_agt_step = 1;
@@ -694,7 +695,7 @@ void() VR_AGTest_Sweep =
 {
     entity g = vr_agt_grunt;
     entity p = vr_agt_player;
-    float hold = cvar("scratch1");
+    float hold = cvar_hget(cvarh_scratch1);
     if(vr_agt_step == 0)
     {
         VR_AGT_ClearWeapons();
@@ -705,20 +706,20 @@ void() VR_AGTest_Sweep =
         // (eyeshots: scratch2 its right hand's weapon id + 1, scratch3 its left's + 1 (-1 none), scratch4 how far,
         // temp1 its turn from facing you (degrees); 0 each: an axe in each hand (43: a shotgun and a nail gun), 90 units,
         // side on)
-        float w1 = cvar("scratch2") ? cvar("scratch2") - 1 : (t43 ? WID_SHOTGUN : WID_AXE);
-        if(cvar("scratch2") < 0)
+        float w1 = cvar_hget(cvarh_scratch2) ? cvar_hget(cvarh_scratch2) - 1 : (t43 ? WID_SHOTGUN : WID_AXE);
+        if(cvar_hget(cvarh_scratch2) < 0)
         {
             w1 = -1; // (scratch2 -1: its fists, every punch: VR_AGT_SweepSwing)
         }
-        float w2 = cvar("scratch3") ? cvar("scratch3") - 1 : (t43 ? WID_NAILGUN : WID_AXE);
+        float w2 = cvar_hget(cvarh_scratch3) ? cvar_hget(cvarh_scratch3) - 1 : (t43 ? WID_NAILGUN : WID_AXE);
         vr_agt_weapon2 = w2 >= 0 ? w2 : 0;
-        vr_agt_grunt = VR_AGT_Spawn(w1, cvar("scratch4") ? cvar("scratch4") : 90);
+        vr_agt_grunt = VR_AGT_Spawn(w1, cvar_hget(cvarh_scratch4) ? cvar_hget(cvarh_scratch4) : 90);
         vr_agt_weapon2 = 0;
         g = vr_agt_grunt;
-        g.angles_y = vectoyaw(p.origin - g.origin) + (cvar("temp1") ? cvar("temp1") : 90); // (side on: its right hand towards you)
+        g.angles_y = vectoyaw(p.origin - g.origin) + (cvar_hget(cvarh_temp1) ? cvar_hget(cvarh_temp1) : 90); // (side on: its right hand towards you)
         vr_agt_sweep2 = VR_AGT_Spawn(WID_AXE, -200); // (behind you, not drawn, until its turn)
         vr_agt_sweep2.angles_y = g.angles_y;
-        vr_agt_sweep_n = cvar("vr_agrunt_test_kind") == 1 ? 108 : 120;
+        vr_agt_sweep_n = cvar_hget(cvarh_vr_agrunt_test_kind) == 1 ? 108 : 120;
         localcmd("vr_agrunt_ik_err\n"); // (counted afresh)
         VR_AGT_Print(sprintf("sweep: %s holds %s and %s; the second %s", g.classname, g.vr_ag_prop.netname,
             g.vr_ag_prop2 ? g.vr_ag_prop2.netname : "nothing", vr_agt_sweep2.vr_ag_prop.netname));
@@ -884,7 +885,7 @@ void() VR_AGTest_DualSpawns =
     }
     if(vr_agt_step == 3)
     {
-        float undrawn = cvar("vr_agrunt_weapon_undrawn");
+        float undrawn = cvar_hget(cvarh_vr_agrunt_weapon_undrawn);
         if(undrawn < 0) { return; } // (the probe not run yet)
         entity g = vr_agt_ds_g;
         float both = g.vr_ag_prop && g.vr_ag_prop2 && g.vr_ag_prop.modelindex && g.vr_ag_prop2.modelindex;
@@ -972,8 +973,8 @@ void() VR_AGTest_DualGuns =
             VR_AG_Pairable(WID_GRENADE_LAUNCHER, 0), VR_AG_Pairable(WID_LIGHTNING, 0), VR_AG_Pairable(WID_PROXIMITY_GUN, 0),
             VR_AG_Pairable(WID_ADPLASMA, 0)), VR_AG_Pairable(WID_GRENADE_LAUNCHER, 0) && VR_AG_Pairable(WID_LIGHTNING, 0));
         // B: the penalty
-        float keepPen = cvar("vr_agrunt_dual_penalty");
-        vr_agt_keep_err = cvar("vr_agrunt_aim_error");
+        float keepPen = cvar_hget(cvarh_vr_agrunt_dual_penalty);
+        vr_agt_keep_err = cvar_hget(cvarh_vr_agrunt_aim_error);
         cvar_set("vr_agrunt_aim_error", "4");
         p.flags = p.flags | FL_GODMODE;
         // (Side by side, 15 degrees either way from you: on one spot each is in the other's line of fire, its shots held
@@ -995,7 +996,7 @@ void() VR_AGTest_DualGuns =
         VR_AGT_Volley(b, b.vr_ag_prop2, 20);
         sp2 = (sp2 + vr_agt_kick_sum) * 0.5;
         aim2 = (aim2 + vr_agt_kick_sum1) * 0.5;
-        float want = 1 + keepPen * (1 / max(0.05, cvar("vr_2h_spread_reduction")) - 1);
+        float want = 1 + keepPen * (1 / max(0.05, cvar_hget(cvarh_vr_2h_spread_reduction)) - 1);
         VR_AGT_Check(sprintf("guns: penalty %g: pellets %.2f deg off (one gun) vs %.2f (two): x%.2f (want %.2f), %g shots "
             "held for a friend:", keepPen, sp1, sp2, sp2 / max(0.001, sp1), want, vr_ag_ff_held - heldBefore),
             fabs(sp2 / max(0.001, sp1) - want) < 0.15 * want && vr_ag_ff_held == heldBefore);
@@ -1017,7 +1018,7 @@ void() VR_AGTest_DualGuns =
             weaponheft(WeaponIdToModel(WID_LIGHTNING, 0), 1)));
         // C: the kick (the dual-wieldable guns are all Heft 0 but AD's Widowmaker: the super nail gun's made 0.5 here,
         // the super nail gun's slot 5's Weapon Weights setting)
-        vr_agt_keep_heft = cvar("vr_wofs_w_heft_05");
+        vr_agt_keep_heft = cvar_hget(cvarh_vr_wofs_w_heft_05);
         cvar_set("vr_wofs_w_heft_05", "0.5");
         vr_agt_grunt = VR_AGT_SpawnPair(WID_SUPER_NAILGUN, WID_SUPER_NAILGUN, 220);
         p.angles_y = p.angles_y + 25; // (side by side: neither in the other's line of fire)
@@ -1105,7 +1106,7 @@ void() VR_AGTest_DualGuns =
         // E: the pickup option, off
         VR_AGT_ClearWeapons();
         p.flags = p.flags | FL_NOTARGET;
-        vr_agt_keep_pickup = cvar("vr_agrunt_dual_pickup");
+        vr_agt_keep_pickup = cvar_hget(cvarh_vr_agrunt_dual_pickup);
         cvar_set("vr_agrunt_dual_pickup", "0");
         vr_agt_grunt = VR_AGT_Spawn(WID_SHOTGUN, 260);
         p.angles_y = p.angles_y + 25;
@@ -1224,7 +1225,7 @@ void(entity g, float pose) VR_AGT_SheetPose =
             g.vr_ag_aim = normalize(t - p.origin);
         }
     }
-    float sheet = cvar("scratch1") <= 0; // (the strike sheet: its eighths all on its stand frame)
+    float sheet = cvar_hget(cvarh_scratch1) <= 0; // (the strike sheet: its eighths all on its stand frame)
     if(pose == 6 && sheet)
     {
         g.frame = vr_am_f_run + (floor(time * 10) & 7);
@@ -1235,7 +1236,7 @@ void(entity g, float pose) VR_AGT_SheetPose =
         g.frame = vr_am_f_take + max(1, vr_am_n_take) - 1;
         g.vr_ag_took_at = time - 5; // (its hand just closed on it: still where it lay)
         g.vr_ag_took_grab = time - 0.001;
-        float takeSheet = cvar("scratch1") < 0;
+        float takeSheet = cvar_hget(cvarh_scratch1) < 0;
         if(takeSheet && vr_agt_sheet_take < 1)
         {
             // (the take sheet: on its way down, this share of it; its frames' that far)
@@ -1261,7 +1262,7 @@ void(entity g, float pose) VR_AGT_SheetPose =
     {
         g.frame = g.vr_ag_kind == VR_AM_ENFORCER ? 67 : 41;
     }
-    float strike = cvar("scratch1"); // (the strike sheet: its kind + 1; each pose an eighth of it)
+    float strike = cvar_hget(cvarh_scratch1); // (the strike sheet: its kind + 1; each pose an eighth of it)
     if(strike > 0)
     {
         float cs = p ? VR_AG_Class(p.weapon) : VR_AG_CLASS_FISTS;
@@ -1310,9 +1311,9 @@ void(entity g, float pose) VR_AGT_SheetPose =
 void() VR_AGTest_Sheet =
 {
     entity pl = vr_agt_player;
-    float first = cvar("scratch2");
-    float last = cvar("scratch3") >= first ? cvar("scratch3") : first;
-    float hold = cvar("temp1") > 0 ? cvar("temp1") : 0.7;
+    float first = cvar_hget(cvarh_scratch2);
+    float last = cvar_hget(cvarh_scratch3) >= first ? cvar_hget(cvarh_scratch3) : first;
+    float hold = cvar_hget(cvarh_temp1) > 0 ? cvar_hget(cvarh_temp1) : 0.7;
     if(vr_agt_step == 0)
     {
         VR_AGT_ClearWeapons();
@@ -1322,8 +1323,8 @@ void() VR_AGTest_Sheet =
         vr_agt_sheet_set = first;
         vr_agt_sheet_pose = 0;
         vr_agt_sheet_view = 0;
-        vr_agt_sheet_torso = cvar("vr_agrunt_strike_torso");
-        vr_agt_sheet_shoulder = cvar("vr_agrunt_strike_shoulder");
+        vr_agt_sheet_torso = cvar_hget(cvarh_vr_agrunt_strike_torso);
+        vr_agt_sheet_shoulder = cvar_hget(cvarh_vr_agrunt_strike_shoulder);
         localcmd("vr_agrunt_ik_err\n"); // (counted afresh)
         vr_agt_step = 1;
     }
@@ -1333,17 +1334,17 @@ void() VR_AGTest_Sheet =
         if(vr_agt_grunt && vr_agt_grunt.classname != "" && vr_agt_grunt.health > 0) { VR_AGT_Remove(vr_agt_grunt); }
         float w1 = VR_AGT_SheetSet(vr_agt_sheet_set);
         vr_agt_weapon2 = vr_agt_sheet_w2 >= 0 ? vr_agt_sheet_w2 : 0;
-        vr_agt_grunt = VR_AGT_Spawn(w1, cvar("scratch4") ? cvar("scratch4") : 110);
+        vr_agt_grunt = VR_AGT_Spawn(w1, cvar_hget(cvarh_scratch4) ? cvar_hget(cvarh_scratch4) : 110);
         vr_agt_weapon2 = 0;
         vr_agt_sheet_at = time;
         vr_agt_step = 2;
     }
     entity g = vr_agt_grunt;
-    float tag = vr_agt_sheet_set * 20 + vr_agt_sheet_pose * (cvar("scratch1") < 0 ? 3 : 2) + vr_agt_sheet_view; // (the take sheet: 3 views)
-    float strike = cvar("scratch1") > 0; // (the strike sheet: side on, each eighth without (view 0) and with its body)
+    float tag = vr_agt_sheet_set * 20 + vr_agt_sheet_pose * (cvar_hget(cvarh_scratch1) < 0 ? 3 : 2) + vr_agt_sheet_view; // (the take sheet: 3 views)
+    float strike = cvar_hget(cvarh_scratch1) > 0; // (the strike sheet: side on, each eighth without (view 0) and with its body)
     // (the take sheet, scratch1 -1: its poses the take's phases (way down 0.45, 0.8, the grab, half up), each from its
     // front, its right side and three-quarters: vr_aglegs)
-    float takes = cvar("scratch1") < 0;
+    float takes = cvar_hget(cvarh_scratch1) < 0;
     vr_agt_sheet_take = vr_agt_sheet_pose == 0 ? 0.45 : vr_agt_sheet_pose == 1 ? 0.8 : vr_agt_sheet_pose == 2 ? 1 : 1.5;
     g.angles_y = vectoyaw(pl.origin - g.origin) + ((vr_agt_sheet_view || strike) ? (vr_agt_sheet_view == 2 ? 45 : 90) : 0) + 0.01;
     if(strike)
@@ -1402,7 +1403,7 @@ void() VR_AGTest_Sheet =
 void() VR_AGTest_DualRow =
 {
     entity p = vr_agt_player;
-    float keepKind = cvar("vr_agrunt_test_kind");
+    float keepKind = cvar_hget(cvarh_vr_agrunt_test_kind);
     float w1[5];
     float w2[5];
     w1[0] = WID_SHOTGUN;        w2[0] = WID_SHOTGUN;
@@ -1575,7 +1576,7 @@ void() VR_AGTest_Frame =
                 side_z = 0;
                 vector keep = vr_agt_player.origin;
                 setorigin(vr_agt_player, keep + side * ((k - 1.5) * 34));
-                entity r = VR_AGT_Spawn(VR_AGT_Wid(i < VR_AGT_COUNT ? i : 0), cvar("scratch1") > 0 ? cvar("scratch1") : 110);
+                entity r = VR_AGT_Spawn(VR_AGT_Wid(i < VR_AGT_COUNT ? i : 0), cvar_hget(cvarh_scratch1) > 0 ? cvar_hget(cvarh_scratch1) : 110);
                 r.angles_y = vectoyaw(keep - r.origin);
                 setorigin(vr_agt_player, keep);
             }

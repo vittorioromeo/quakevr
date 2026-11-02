@@ -136,14 +136,14 @@ vector(float xBit) VR_ARK_Colour =
 // The knobs (vr_cvars.inc) and the run's state
 // ---------------------------------------------------------------------------
 
-float() VR_ARK_Opt_On    { return cvar("vr_arena_perks") != 0; }
+float() VR_ARK_Opt_On    { return cvar_hget(cvarh_vr_arena_perks) != 0; }
 
 // How many cards a boss clear offers: vr_arena_perk_count (the Normal value) times the difficulty's factor --
 // a Hard or Nightmare clear offers a fourth, an Easy one two -- still clamped 1 .. the pool's size (8), and
 // VR_ARK_Choose still skips what this run already took, so nothing is ever offered twice.
 float() VR_ARK_Opt_Count =
 {
-    return clamp(VR_ARENA_SkillWhole(cvar("vr_arena_perk_count") * VR_ARENA_Skill(0.75, 1.25, 1.5)), 1, ARK_POOL_N);
+    return clamp(VR_ARENA_SkillWhole(cvar_hget(cvarh_vr_arena_perk_count) * VR_ARENA_Skill(0.75, 1.25, 1.5)), 1, ARK_POOL_N);
 }
 
 // The perks this file can hand out at all: an arena run, and a director to keep them on.

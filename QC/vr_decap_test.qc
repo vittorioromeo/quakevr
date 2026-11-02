@@ -191,7 +191,7 @@ void(float xTest) VR_Decap_PopTest =
         aim = m.origin + '0 0 4';
     }
     // Where to shoot from: level with its head, `dist` off, the way from it to you first.
-    float dist = cvar("vr_decap_poptest_dist") * VR_DECAP_PLAYER_LENGTH;
+    float dist = cvar_hget(cvarh_vr_decap_poptest_dist) * VR_DECAP_PLAYER_LENGTH;
     vector away = self.origin - at;
     away_z = 0;
     float yaw0 = vectoyaw(away);
@@ -221,7 +221,7 @@ void(float xTest) VR_Decap_PopTest =
         // A thing thrown at its head (or its body: vr_decap_poptest_body) at 16 m/s, met just before it: its real hit
         // (forcegrabbable_touch for a weapon, VR_SolidProp_Impact for the box).
         vector to = at;
-        if(cvar("vr_decap_poptest_body"))
+        if(cvar_hget(cvarh_vr_decap_poptest_body))
         {
             to = m.origin + '0 0 4';
         }
@@ -231,7 +231,7 @@ void(float xTest) VR_Decap_PopTest =
         m.health = 1;
         if(xTest == 47)
         {
-            float wid = cvar("vr_decap_poptest_wid");
+            float wid = cvar_hget(cvarh_vr_decap_poptest_wid);
             thing = CreateThrownWeapon(self, wid, 0, WeaponInst_New(0), to - dir * 2, vectoangles(dir), vel, '0 0 0',
                 FALSE, TRUE, WeaponIdToThrowDamage(wid));
         }
@@ -266,7 +266,7 @@ void(float xTest) VR_Decap_PopTest =
         }
         self = me;
         bprint(sprintf("poptest: %g %s (%s, %.1f kg) thrown at the %s of %s: ", xTest, thing.classname, thing.netname,
-            VR_Thrown_Mass(thing), cvar("vr_decap_poptest_body") ? "body" : "head", m.classname));
+            VR_Thrown_Mass(thing), cvar_hget(cvarh_vr_decap_poptest_body) ? "body" : "head", m.classname));
         bprint(sprintf("%s, headless %g, gibbed %g, health %g\n", (vr_decap_pops > pops0) ? "popped" : "not popped",
             m.vr_headless, m.vr_gib, m.health));
         remove(thing);
@@ -287,7 +287,7 @@ void(float xTest) VR_Decap_PopTest =
     else if(xTest == 45 || xTest == 46)
     {
         float wpn = (xTest == 46) ? QVR_DECAP_SSG : QVR_DECAP_SHOTGUN;
-        float n = max(1, cvar("vr_decap_poptest_n"));
+        float n = max(1, cvar_hget(cvarh_vr_decap_poptest_n));
         for(float b = 0; b < 15; ++b)
         {
             vr_poptest_bn[b] = 0;
@@ -379,7 +379,7 @@ void(float xTest) VR_Decap_BluntTest =
     m.frame = 0; // (standing: the head zone's middle is its head's, not where a pain or run frame put it)
     if(xTest == 49)
     {
-        float n = max(1, cvar("vr_decap_poptest_n"));
+        float n = max(1, cvar_hget(cvarh_vr_decap_poptest_n));
         float oldHealth = m.health;
         float hm = max(1, cvar_hget(cvarh_vr_headshot_mult));
         for(float cls = 0; cls < 6; ++cls)
@@ -699,7 +699,7 @@ void(float xTest) VR_Decap_Test =
 void() VR_Decap_TestFrame =
 {
     VR_Decap_DebugFrame();
-    float ask = cvar("vr_decap_test");
+    float ask = cvar_hget(cvarh_vr_decap_test);
     if(!ask)
     {
         return;
@@ -712,7 +712,7 @@ void() VR_Decap_TestFrame =
     }
     entity oself = self;
     self = p;
-    if(cvar("vr_gore_test_crowd") > 0)
+    if(cvar_hget(cvarh_vr_gore_test_crowd) > 0)
     {
         VR_Gore_TestCrowd(ask, TRUE);
         self = oself;

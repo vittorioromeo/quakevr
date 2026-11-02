@@ -493,10 +493,10 @@ void(float xSpeed) VR_Crate_Impact =
         {
             self.vr_slam_thrown = 0;
         }
-        else if(xSpeed >= cvar("vr_crate_slam_throw_speed"))
+        else if(xSpeed >= cvar_hget(cvarh_vr_crate_slam_throw_speed))
         {
             self.vr_slam_thrown = 0;
-            float hurt = self.max_health * max(0, cvar("vr_crate_slam_throw_damage"));
+            float hurt = self.max_health * max(0, cvar_hget(cvarh_vr_crate_slam_throw_damage));
             dprint(sprintf("slam: %s thrown down from over the head hit %s at %.1f m/s: %.1f of its %.1f\n", self.model,
                 other == world ? "the level" : other.classname, xSpeed, hurt, self.health));
             T_Damage(self, world, world, hurt);
@@ -506,7 +506,7 @@ void(float xSpeed) VR_Crate_Impact =
             }
         }
     }
-    float threshold = cvar("vr_crate_impact");
+    float threshold = cvar_hget(cvarh_vr_crate_impact);
     if(threshold <= 0 || xSpeed < threshold * 0.7 || self.takedamage == DAMAGE_NO || self.health <= 0)
     {
         return;
@@ -808,7 +808,7 @@ void(entity p) VR_CratePiece_Setup =
 // Room for `xMore` pieces under Most Pieces (vr_crate_piece_max): the oldest lying about burst first (not one in a hand).
 void(float xMore) VR_CratePiece_MakeRoom =
 {
-    float most = max(0, cvar("vr_crate_piece_max"));
+    float most = max(0, cvar_hget(cvarh_vr_crate_piece_max));
     float count = 0;
     entity e = find(world, classname, "vr_crate_piece");
     while(e)
@@ -841,8 +841,8 @@ void(float xMore) VR_CratePiece_MakeRoom =
 // The pieces of `crate`, from all over its box, flung out from its middle `mid` and along the blow `dir`.
 void(entity crate, vector mid, vector dir) VR_Crate_Pieces =
 {
-    float n = floor(max(0, cvar("vr_crate_pieces")) * (crate.vr_cratekind == 2 ? 1.5 : 1) + 0.5);
-    n = min(n, max(0, cvar("vr_crate_piece_max")));
+    float n = floor(max(0, cvar_hget(cvarh_vr_crate_pieces)) * (crate.vr_cratekind == 2 ? 1.5 : 1) + 0.5);
+    n = min(n, max(0, cvar_hget(cvarh_vr_crate_piece_max)));
     if(n <= 0)
     {
         return;
@@ -889,7 +889,7 @@ void(vector at, float kind, vector mid, vector dir) VR_Crate_Item =
     dprint(sprintf("crate: holds %s\n", self.classname));
     if(VRPlaceItemNow())
     {
-        float pop = max(0, cvar("vr_crate_item_pop")) * VRMetersToUnits();
+        float pop = max(0, cvar_hget(cvarh_vr_crate_item_pop)) * VRMetersToUnits();
         if(pop > 0 && self.movetype != MOVETYPE_NONE)
         {
             vector away = at - mid;
@@ -924,7 +924,7 @@ void(entity crate, vector mid, vector dir) VR_Crate_Contents =
         return;
     }
     entity player = VR_Player();
-    if(player != world && random() < cvar("vr_crate_ammo"))
+    if(player != world && random() < cvar_hget(cvarh_vr_crate_ammo))
     {
         float nails = (VR_WeaponUtil_EntIsEligibleForWeapon(player, WID_NAILGUN) ||
                        VR_WeaponUtil_EntIsEligibleForWeapon(player, WID_SUPER_NAILGUN));
@@ -950,7 +950,7 @@ void(entity crate, vector mid, vector dir) VR_Crate_Contents =
         }
         VR_Crate_Item(at - '6 0 0', kind, mid, dir);
     }
-    if(random() < cvar("vr_crate_health_box"))
+    if(random() < cvar_hget(cvarh_vr_crate_health_box))
     {
         VR_Crate_Item(at + '6 0 0', 4, mid, dir);
     }
@@ -1016,7 +1016,7 @@ float(entity e) VR_Crate_FullHealth =
     {
         size = 1;
     }
-    return max(0, cvar("vr_crate_health")) * (e.vr_cratekind == 2 ? 1.6 : 1) * size * size;
+    return max(0, cvar_hget(cvarh_vr_crate_health)) * (e.vr_cratekind == 2 ? 1.6 : 1) * size * size;
 };
 
 // `e` (its model set, turned and placed: crateput, crateplace) made a crate of `kind` (1 small, 2 large).

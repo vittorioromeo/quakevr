@@ -1621,7 +1621,7 @@ void(vector at, float n, entity xFrom) VR_Burn_Doused =
 void() VR_Burn_LavaNailsWater =
 {
     entity n = find(world, classname, "lava_spike");
-    if(n == world || cvar("vr_burn_water_douse") <= 0)
+    if(n == world || cvar_hget(cvarh_vr_burn_water_douse) <= 0)
     {
         return;
     }

@@ -676,7 +676,7 @@ void(float xTest) VR_Limb_Test =
 void(float want) VR_TestCut;
 void() VR_TestCut_Frame =
 {
-    float want = cvar("vr_test_cut");
+    float want = cvar_hget(cvarh_vr_test_cut);
     if(want < 1)
     {
         return;
@@ -770,7 +770,7 @@ void() VR_Limb_TestFrame =
     }
     entity oself = self;
     self = p;
-    if(cvar("vr_gore_test_crowd") > 0)
+    if(cvar_hget(cvarh_vr_gore_test_crowd) > 0)
     {
         VR_Gore_TestCrowd(ask, FALSE);
         self = oself;
@@ -785,7 +785,7 @@ void() VR_Limb_TestFrame =
 // are not monsters; one killed or gibbed by a blow before its turn is passed over by the test's own check.)
 void(float xTest, float xDecap) VR_Gore_TestCrowd =
 {
-    float radius = cvar("vr_gore_test_crowd");
+    float radius = cvar_hget(cvarh_vr_gore_test_crowd);
     float cuts = vr_limb_cuts;
     float pops = vr_limb_pops;
     float heads = vr_decap_count;

@@ -1201,17 +1201,17 @@ entity(entity pl, vector at) VR_KdTrig_TestSpawn =
     self = m;
     setorigin(m, at);
     m.angles = '0 1 0' * vectoyaw(pl.origin - at);
-    if(cvar("vr_kdtrig_test_yaw") != 0)
+    if(cvar_hget(cvarh_vr_kdtrig_test_yaw) != 0)
     {
-        m.angles = '0 1 0' * (cvar("vr_kdtrig_test_yaw") + 180);
+        m.angles = '0 1 0' * (cvar_hget(cvarh_vr_kdtrig_test_yaw) + 180);
     }
-    if(cvar("vr_kdtrig_test_face") == 1) // (facing away: hit from behind)
+    if(cvar_hget(cvarh_vr_kdtrig_test_face) == 1) // (facing away: hit from behind)
     {
         m.angles_y = m.angles_y + 180;
     }
     // (0 a grunt, 3 a death knight, 4 an ogre, 5 a grunt named monster_boglord: a boss, 6 a knight, 7 an enforcer, 8 a
     // shambler)
-    float k = vr_kdt_spawn_grunt ? 0 : cvar("vr_kdtrig_test_class");
+    float k = vr_kdt_spawn_grunt ? 0 : cvar_hget(cvarh_vr_kdtrig_test_class);
     if(k == 6)
     {
         m.classname = "monster_knight";
@@ -1248,7 +1248,7 @@ entity(entity pl, vector at) VR_KdTrig_TestSpawn =
         m.classname = "monster_army";
         monster_army();
     }
-    float h = cvar("vr_kdtrig_test_health");
+    float h = cvar_hget(cvarh_vr_kdtrig_test_health);
     if(h > 1)
     {
         m.health = h;
@@ -1271,13 +1271,13 @@ void(entity pl, entity best, float xMode) VR_KdTrig_TestHit =
     vector dir = chest - eye;
     dir_z = 0;
     dir = normalize(dir);
-    float yaw = cvar("vr_kdtrig_test_yaw");
+    float yaw = cvar_hget(cvarh_vr_kdtrig_test_yaw);
     if(yaw != 0)
     {
         dir = '1 0 0' * cos(yaw * 0.0174533) + '0 1 0' * sin(yaw * 0.0174533);
     }
-    vr_kdt_test_dist = cvar("vr_kdtrig_test_dist");
-    vr_kdt_test_strength = cvar("vr_kdtrig_test_damage");
+    vr_kdt_test_dist = cvar_hget(cvarh_vr_kdtrig_test_dist);
+    vr_kdt_test_strength = cvar_hget(cvarh_vr_kdtrig_test_damage);
     entity oldSelf = self;
     self = pl;
     if(xMode == 1 || xMode == 2)
@@ -1318,7 +1318,7 @@ void(entity pl, entity best, float xMode) VR_KdTrig_TestHit =
         // as your pose is, VR_Parry), 10 knocked down at once (vr_knockdown_test 0's), 14 your shoulder charge
         // connecting (VR_KdTrig_ChargeHit); aware of you or not
         // (vr_kdtrig_test_aware), facing as vr_kdtrig_test_face put it.
-        best.enemy = cvar("vr_kdtrig_test_aware") ? pl : world;
+        best.enemy = cvar_hget(cvarh_vr_kdtrig_test_aware) ? pl : world;
         if(xMode == 8)
         {
             vr_bash_exhaust_dmg = 0;
@@ -1327,7 +1327,7 @@ void(entity pl, entity best, float xMode) VR_KdTrig_TestHit =
         }
         else if(xMode == 9)
         {
-            vr_parry_test_force = cvar("vr_kdtrig_test_parry"); // (a forced parry: combat.qc VR_Parry)
+            vr_parry_test_force = cvar_hget(cvarh_vr_kdtrig_test_parry); // (a forced parry: combat.qc VR_Parry)
             float before = pl.health;
             T_Damage(pl, best, best, 10);
             vr_parry_test_force = 0;
@@ -1338,7 +1338,7 @@ void(entity pl, entity best, float xMode) VR_KdTrig_TestHit =
             entity was = self;
             self = best;
             self.vr_eshove_target = pl;
-            vr_parry_test_force = cvar("vr_kdtrig_test_parry");
+            vr_parry_test_force = cvar_hget(cvarh_vr_kdtrig_test_parry);
             VR_EnemyShove_Hit();
             vr_parry_test_force = 0;
             self = was;
@@ -1382,7 +1382,7 @@ void() VR_KdTrig_TestClear =
 // Ragdoll `body` flung at `aim`'s middle at vr_kdtrig_test_speed (a throw's arc: up by the gravity over its flight).
 float(entity body, entity aim, float xTest) VR_KdTrig_TestFling =
 {
-    float spd = max(10, cvar("vr_kdtrig_test_speed"));
+    float spd = max(10, cvar_hget(cvarh_vr_kdtrig_test_speed));
     vector to = (aim.absmin + aim.absmax) * 0.5 - body.origin;
     float flight = vlen(to) / spd;
     vector vel = normalize(to) * spd + '0 0 1' * (0.5 * cvar_hget(cvarh_sv_gravity) * flight);
@@ -1406,7 +1406,7 @@ void() VR_KdTrig_TrialThink =
         remove(self);
         return;
     }
-    vector at = '1 0 0' * cvar("vr_kdtrig_test_x") + '0 1 0' * cvar("vr_kdtrig_test_y") + '0 0 1' * cvar("vr_kdtrig_test_z");
+    vector at = '1 0 0' * cvar_hget(cvarh_vr_kdtrig_test_x) + '0 1 0' * cvar_hget(cvarh_vr_kdtrig_test_y) + '0 0 1' * cvar_hget(cvarh_vr_kdtrig_test_z);
     entity tm = self.vr_kdt_trial_mon;
     if(self.vr_kdt_trial_mode == VR_KDT_TRIAL_THROWN && self.vr_kdt_trial_phase == 0)
     {
@@ -1454,7 +1454,7 @@ void() VR_KdTrig_TrialThink =
             dprint("kdtrig trial: thrown: no corpse ragdoll to fling\n");
         }
         self.vr_kdt_trial_phase = 2;
-        self.nextthink = time + (cvar("vr_kdtrig_test_wait") > 0 ? cvar("vr_kdtrig_test_wait") : 1.2);
+        self.nextthink = time + (cvar_hget(cvarh_vr_kdtrig_test_wait) > 0 ? cvar_hget(cvarh_vr_kdtrig_test_wait) : 1.2);
         return;
     }
     if(self.vr_kdt_trial_mode == VR_KDT_TRIAL_THROWN)
@@ -1463,7 +1463,7 @@ void() VR_KdTrig_TrialThink =
         vector moved = now - self.vr_kdt_trial_from;
         moved_z = 0;
         string what = tm.vr_kdt_bump == 2 ? "down" : tm.vr_kdt_bump == 1 ? "staggers" : "stands";
-        dprint(sprintf("kdtrig trial: thrown at %.0f u/s on %s: %s, pushed %.0f units\n", cvar("vr_kdtrig_test_speed"),
+        dprint(sprintf("kdtrig trial: thrown at %.0f u/s on %s: %s, pushed %.0f units\n", cvar_hget(cvarh_vr_kdtrig_test_speed),
             tm.classname, what, vlen(moved)));
         vr_kdt_trial_push = vr_kdt_trial_push + vlen(moved);
         vr_kdt_trial_downs = vr_kdt_trial_downs + (tm.vr_kdt_bump == 2);
@@ -1476,9 +1476,9 @@ void() VR_KdTrig_TrialThink =
             self.nextthink = time + 0.1;
             return;
         }
-        float tn = max(1, cvar("vr_kdtrig_test_n"));
+        float tn = max(1, cvar_hget(cvarh_vr_kdtrig_test_n));
         dprint(sprintf("kdtrig test thrown: %.0f u/s: down %g, staggered %g, stood %g of %g; mean push %.0f units\n",
-            cvar("vr_kdtrig_test_speed"), vr_kdt_trial_downs, vr_kdt_trial_staggers,
+            cvar_hget(cvarh_vr_kdtrig_test_speed), vr_kdt_trial_downs, vr_kdt_trial_staggers,
             tn - vr_kdt_trial_downs - vr_kdt_trial_staggers, tn, vr_kdt_trial_push / tn));
         pl.flags = pl.flags - (pl.flags & FL_NOTARGET);
         remove(self);
@@ -1497,7 +1497,7 @@ void() VR_KdTrig_TrialThink =
         m.vr_kdt_fired = 0;
         VR_KdTrig_TestHit(pl, m, self.vr_kdt_trial_mode);
         self.vr_kdt_trial_phase = 2;
-        self.nextthink = time + (cvar("vr_kdtrig_test_wait") > 0 ? cvar("vr_kdtrig_test_wait") : 0.2);
+        self.nextthink = time + (cvar_hget(cvarh_vr_kdtrig_test_wait) > 0 ? cvar_hget(cvarh_vr_kdtrig_test_wait) : 0.2);
         return;
     }
     float k = m.vr_kdt_fired;
@@ -1517,7 +1517,7 @@ void() VR_KdTrig_TrialThink =
         self.nextthink = time + 0.1;
         return;
     }
-    float n = max(1, cvar("vr_kdtrig_test_n"));
+    float n = max(1, cvar_hget(cvarh_vr_kdtrig_test_n));
     dprint(sprintf("kdtrig test: %g of %g (ledge %g, stairs %g, slope %g", self.vr_kdt_trial_fired, n, vr_kdt_took[0],
         vr_kdt_took[1], vr_kdt_took[2]));
     dprint(sprintf(", shotgun %g, wounded %g, blow %g, blast %g)\n", vr_kdt_took[3], vr_kdt_took[4], vr_kdt_took[5],
@@ -1543,7 +1543,7 @@ void() VR_KdTrig_Frame =
     {
         return;
     }
-    vector at = '1 0 0' * cvar("vr_kdtrig_test_x") + '0 1 0' * cvar("vr_kdtrig_test_y") + '0 0 1' * cvar("vr_kdtrig_test_z");
+    vector at = '1 0 0' * cvar_hget(cvarh_vr_kdtrig_test_x) + '0 1 0' * cvar_hget(cvarh_vr_kdtrig_test_y) + '0 0 1' * cvar_hget(cvarh_vr_kdtrig_test_z);
     if(want == 20)
     {
         VR_KdTrig_TestSpawn(pl, at);
@@ -1616,7 +1616,7 @@ void() VR_KdTrig_Frame =
         entity c = spawn();
         c.classname = "vr_kdtrig_trials";
         c.vr_kdt_trial_mode = want - 30;
-        c.vr_kdt_trial_left = max(1, cvar("vr_kdtrig_test_n"));
+        c.vr_kdt_trial_left = max(1, cvar_hget(cvarh_vr_kdtrig_test_n));
         c.think = VR_KdTrig_TrialThink;
         c.nextthink = time + 0.05;
         return;

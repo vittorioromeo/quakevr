@@ -19,7 +19,7 @@ void() MG_TestFinish = {
     remove(self);
 };
 void() MG_TestFrame = {
-    float request = cvar("vr_mg_world_test");
+    float request = cvar_hget(cvarh_vr_mg_world_test);
     if(!request) return;
     cvar_set("vr_mg_world_test", "0");
     if(!MG_WorldCampaign()) { dprint("mgworldtest: select a native developer campaign first\n"); return; }

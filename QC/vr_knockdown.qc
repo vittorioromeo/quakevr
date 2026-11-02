@@ -133,7 +133,7 @@ void(entity e) VR_Knockdown_RemoveBody =
 // engine wakes it (vr_box3d.cpp) and only farther lets a woken one that is no ragdoll sleep again.
 float(entity e) VR_PlacedCorpse_Near =
 {
-    float reach = max(0, cvar("vr_corpse_placed_wake")) * 1.5;
+    float reach = max(0, cvar_hget(cvarh_vr_corpse_placed_wake)) * 1.5;
     for(entity p = VR_Player(); p; p = VR_NextPlayer(p))
     {
         if(vlen(p.origin - e.origin) < reach)
@@ -149,7 +149,7 @@ float(entity e) VR_PlacedCorpse_Near =
 float vr_kd_room_dead_only; // (VR_KdTrig_Room: only a dead body goes)
 float(entity xFor) VR_Knockdown_MakeRoom =
 {
-    float most = cvar("vr_ragdoll_max");
+    float most = cvar_hget(cvarh_vr_ragdoll_max);
     if(most < 1)
     {
         return FALSE;
@@ -889,7 +889,7 @@ float(entity e, vector xForward, float xKind, float xHand, float xPush) VR_Knock
 // VR_Knockdown_MakeRoom counts it (the ragdolls it can free and those it cannot), side-effect free.
 void(entity m) VR_Knockdown_WhyNot =
 {
-    float most = cvar("vr_ragdoll_max");
+    float most = cvar_hget(cvarh_vr_ragdoll_max);
     dprint(sprintf("whynot: %s health %g, vr_knockdown %g, chance handle %g, flags fly/swim %g", m.classname, m.health,
         m.vr_knockdown, m.vr_kd_chance_h, m.flags & (FL_FLY | FL_SWIM))); // (sprintf: 8 arguments at most)
     dprint(sprintf(", monster group %g's chance %g x vr_knockdown_chance %g\n", monstergroup(m),

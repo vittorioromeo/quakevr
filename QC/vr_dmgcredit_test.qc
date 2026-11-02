@@ -228,7 +228,7 @@ void() VR_DCTest_Think =
         if(!vr_dctest_pass) { vr_dctest_by = ""; } // (what struck it in either pass)
         float clip = VRGetEntWeaponClip(p, cVR_MainHand);
         VR_DCTest_Fire(i);
-        if(cvar("developer"))
+        if(cvar_hget(cvarh_developer))
         {
             dprint(sprintf("dmgcredit: %s pass %g: muzzle %v aim %v target %v, clip %g -> %g\n", VR_DCTest_Name(i),
                 vr_dctest_pass, VRGetMuzzlePos(cVR_MainHand), VRGetWeaponFireRotFwd(cVR_MainHand),
@@ -308,7 +308,7 @@ void() VR_DCTest_Frame =
     }
     vr_dctest_home = p.origin;
     vr_dctest_godmode = p.flags & FL_GODMODE;
-    vr_dctest_grip = cvar("vr_weapon_grip_mode");
+    vr_dctest_grip = cvar_hget(cvarh_vr_weapon_grip_mode);
     cvar_set("vr_weapon_grip_mode", "1");
     p.flags = p.flags | FL_GODMODE; // (the blasts at the target: the player unhurt)
     entity d = spawn();

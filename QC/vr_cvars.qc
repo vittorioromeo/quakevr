@@ -1,118 +1,32 @@
 // ----------------------------------------------------------------------------
-// CVar Handle Variables: the engine's own cvars and the ones vr_cvars.inc makes through its macros. Quake VR's other
-// cvars the QC reads have theirs generated (vr_cvars_gen.qc: Misc/quakevr/gen_vr_cvars_qc.py, from vr_cvars.inc and
-// the QC's uses; a new cvarh_ of one: run it).
+// CVar handles: `cvar_hget(cvarh_<name>)` reads a cvar or a tuning constant by handle (an index read; cvar("<name>")
+// looks the name up every call). Writing cvarh_<name> in the QC is its whole declaration: Misc/quakevr/gen_vr_cvars_qc.py
+// writes every used handle's global and its make into vr_cvars_gen.qc (run it after adding or removing a use; the
+// kit's build.sh fails while it is stale, or on a name that is no cvar or tunable). The handles are made when a map
+// loads (OnSpawnServerBeforeLoad, before any entity spawns; again after a save's globals are read: OnLoadGame).
 // ----------------------------------------------------------------------------
 
-float cvarh_deathmatch;
-float cvarh_fraglimit;
-float cvarh_gamecfg;
-float cvarh_noexit;
-float cvarh_registered;
-float cvarh_samelevel;
-float cvarh_saved1;
-float cvarh_saved2;
-float cvarh_saved3;
-float cvarh_saved4;
-float cvarh_scratch1;
-float cvarh_scratch2;
-float cvarh_scratch3;
-float cvarh_scratch4;
-float cvarh_skill;
-float cvarh_sv_accelerate;
-float cvarh_sv_aim;
-float cvarh_sv_friction;
-float cvarh_sv_gravity;
-float cvarh_sv_maxspeed;
-float cvarh_sv_stopspeed;
-float cvarh_teamplay;
-float cvarh_temp1;
-float cvarh_timelimit;
-float cvarh_v_ipitch_level;
-float cvarh_v_iroll_level;
-float cvarh_v_iyaw_level;
-float cvarh_vr_knockdown_chance_army;
-float cvarh_vr_knockdown_chance_enforcer;
-float cvarh_vr_knockdown_chance_dog;
-float cvarh_vr_knockdown_chance_zombie;
-float cvarh_vr_knockdown_chance_mummy;
-float cvarh_vr_knockdown_chance_knight;
-float cvarh_vr_knockdown_chance_hknight;
-float cvarh_vr_knockdown_chance_ogre;
-float cvarh_vr_knockdown_chance_demon;
-float cvarh_vr_knockdown_chance_shambler;
-float cvarh_vr_knockdown_chance_gremlin;
-float cvarh_vr_knockdown_chance_crawler;
-float cvarh_vr_kdtrig_resist_army;
-float cvarh_vr_kdtrig_resist_enforcer;
-float cvarh_vr_kdtrig_resist_knight;
-float cvarh_vr_kdtrig_resist_hknight;
-float cvarh_vr_kdtrig_resist_ogre;
-float cvarh_vr_kdtrig_resist_zombie;
-float cvarh_developer;
+float vr_cvar_handles_bad; // handles made for a name the engine does not have (each a "cvar_hmake: unknown" line)
+
+// One handle made: -1 (and counted) for an unknown name; every QC test then fails (VR_Test_Begin).
+float(string name) VR_CVar_Make =
+{
+    float h = cvar_hmake(name);
+    if(h < 0)
+    {
+        vr_cvar_handles_bad = vr_cvar_handles_bad + 1;
+    }
+    return h;
+};
 
 #include "vr_cvars_gen.qc"
-
-// ----------------------------------------------------------------------------
-// CVar Handle Initialization
-// ----------------------------------------------------------------------------
 
 void() VR_CVars_InitAllHandles =
 {
     cvar_hclear();
-
-#define VR_CVAR_HMAKE(xName) \
-    cvarh_ ## xName = cvar_hmake(#xName)
-    VR_CVAR_HMAKE(developer);
-    VR_CVAR_HMAKE(deathmatch);
-    VR_CVAR_HMAKE(fraglimit);
-    VR_CVAR_HMAKE(gamecfg);
-    VR_CVAR_HMAKE(noexit);
-    VR_CVAR_HMAKE(registered);
-    VR_CVAR_HMAKE(samelevel);
-    VR_CVAR_HMAKE(saved1);
-    VR_CVAR_HMAKE(saved2);
-    VR_CVAR_HMAKE(saved3);
-    VR_CVAR_HMAKE(saved4);
-    VR_CVAR_HMAKE(scratch1);
-    VR_CVAR_HMAKE(scratch2);
-    VR_CVAR_HMAKE(scratch3);
-    VR_CVAR_HMAKE(scratch4);
-    VR_CVAR_HMAKE(skill);
-    VR_CVAR_HMAKE(sv_accelerate);
-    VR_CVAR_HMAKE(sv_aim);
-    VR_CVAR_HMAKE(sv_friction);
-    VR_CVAR_HMAKE(sv_gravity);
-    VR_CVAR_HMAKE(sv_maxspeed);
-    VR_CVAR_HMAKE(sv_stopspeed);
-    VR_CVAR_HMAKE(teamplay);
-    VR_CVAR_HMAKE(temp1);
-    VR_CVAR_HMAKE(timelimit);
-    VR_CVAR_HMAKE(v_ipitch_level);
-    VR_CVAR_HMAKE(v_iroll_level);
-    VR_CVAR_HMAKE(v_iyaw_level);
-    VR_CVAR_HMAKE(vr_knockdown_chance_army);
-    VR_CVAR_HMAKE(vr_knockdown_chance_enforcer);
-    VR_CVAR_HMAKE(vr_knockdown_chance_dog);
-    VR_CVAR_HMAKE(vr_knockdown_chance_zombie);
-    VR_CVAR_HMAKE(vr_knockdown_chance_mummy);
-    VR_CVAR_HMAKE(vr_knockdown_chance_knight);
-    VR_CVAR_HMAKE(vr_knockdown_chance_hknight);
-    VR_CVAR_HMAKE(vr_knockdown_chance_ogre);
-    VR_CVAR_HMAKE(vr_knockdown_chance_demon);
-    VR_CVAR_HMAKE(vr_knockdown_chance_shambler);
-    VR_CVAR_HMAKE(vr_knockdown_chance_gremlin);
-    VR_CVAR_HMAKE(vr_knockdown_chance_crawler);
-    VR_CVAR_HMAKE(vr_kdtrig_resist_army);
-    VR_CVAR_HMAKE(vr_kdtrig_resist_enforcer);
-    VR_CVAR_HMAKE(vr_kdtrig_resist_knight);
-    VR_CVAR_HMAKE(vr_kdtrig_resist_hknight);
-    VR_CVAR_HMAKE(vr_kdtrig_resist_ogre);
-    VR_CVAR_HMAKE(vr_kdtrig_resist_zombie);
-
-#undef VR_CVAR_HMAKE
+    vr_cvar_handles_bad = 0;
     VR_CVars_InitGenerated(); // (vr_cvars_gen.qc)
-}
+};
 
 // ----------------------------------------------------------------------------
 // Per-frame cvar values: read once a frame (StartFrame) for what every item's think asks (dozens

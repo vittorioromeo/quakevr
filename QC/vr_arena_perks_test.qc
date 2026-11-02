@@ -484,7 +484,7 @@ void() VR_APK3_Quart =
 void() VR_APK3_Spoils =
 {
     ar_mgr.ark_taken = ARK_SPOIL;
-    float gun0 = cvar("vr_arena_gun_max");
+    float gun0 = cvar_hget(cvarh_vr_arena_gun_max);
     cvar_set("vr_arena_gun_max", "24");
     VR_APK_Check(VR_ARK_Kept(), "Spoils: taken");
     VR_APK_Check(VR_ARENA_GunMost() == 48, "Spoils: taken, twice vr_arena_gun_max of the foes' guns lie about");
@@ -608,7 +608,7 @@ void() VR_APK4_Begin =
 
 void() VR_APK4_OfferChecks =
 {
-    float boss = cvar("vr_arena_boss_every");
+    float boss = cvar_hget(cvarh_vr_arena_boss_every);
 
     VR_APK_Check(ar_wave >= boss, "the run reached its first boss wave");
     VR_APK_Check(VR_ARENA_IsBossWave(ar_mgr.ark_offer_wave), "the offer came from a boss wave's clear");
@@ -686,7 +686,7 @@ void() VR_APK5_Begin =
     cvar_set("vr_arena_max_alive", "2");
     cvar_set("vr_arena_wave_rest", "1");
     cvar_set("vr_arena_countdown", "1");
-    VR_ARENA_FastForward(cvar("vr_arena_boss_every")); // (the first boss wave next: its clear makes the offer)
+    VR_ARENA_FastForward(cvar_hget(cvarh_vr_arena_boss_every)); // (the first boss wave next: its clear makes the offer)
     ark_t5_bad = 0;
     ark_t_until = time + 120;
     ark_t_step = 1;
@@ -789,7 +789,7 @@ void() VR_APK5_Frame =
 
 void() VR_ARENA_PERKS_Test_Frame =
 {
-    float c = cvar("vr_arena_perks_test");
+    float c = cvar_hget(cvarh_vr_arena_perks_test);
 
     if(c == 0)
     {

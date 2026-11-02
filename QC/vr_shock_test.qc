@@ -8,7 +8,7 @@
 // by a plain blow (its living shock carried on through its death: VR_Shock_Killed).
 void() VR_Shock_TestFrame =
 {
-    float damage = cvar("vr_shock_hit_test");
+    float damage = cvar_hget(cvarh_vr_shock_hit_test);
     if(!damage)
     {
         return;
@@ -46,7 +46,7 @@ void() VR_Shock_TestFrame =
         T_Damage(best, p, p, max(1, best.health + 1));
         bprint(sprintf("shockhittest: plain kill of %s: alive_before=%g health=%g shock_left %g -> %g", best.classname, alive,
             best.health, before, max(0, best.vr_shock_until - time)));
-        bprint(sprintf(" (whole from the last bolt %g, %g s ago) carried=%g\n", cvar("vr_shock_death_time"),
+        bprint(sprintf(" (whole from the last bolt %g, %g s ago) carried=%g\n", cvar_hget(cvarh_vr_shock_death_time),
             time - best.vr_shock_bolt, vr_shock_carried - carried));
         return;
     }

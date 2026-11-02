@@ -139,7 +139,7 @@ void() VR_AGX_Frame =
         vr_agx_side_x = vr_agx_fw_y;
         vr_agx_side_y = -vr_agx_fw_x;
         vr_agx_side_z = 0;
-        vr_agx_keep = cvar("vr_agrunt_aim_exposed");
+        vr_agx_keep = cvar_hget(cvarh_vr_agrunt_aim_exposed);
         vr_agx_w = 0;
         vr_agx_case = 0;
         vr_agx_mode = 0;
@@ -292,7 +292,7 @@ void() VR_AGX_Frame =
                 vr_agx_w = vr_agx_w + 1;
             }
         }
-        if(vr_agx_w >= VR_AGX_GUNS || (cvar("scratch1") > 0 && vr_agx_w >= cvar("scratch1")))
+        if(vr_agx_w >= VR_AGX_GUNS || (cvar_hget(cvarh_scratch1) > 0 && vr_agx_w >= cvar_hget(cvarh_scratch1)))
         {
             VR_AGX_End();
             return;

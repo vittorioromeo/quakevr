@@ -87,7 +87,7 @@ void() AD_MT_Nearest =
 
 void() AD_MonstersTestFrame =
 {
-    float request = cvar("vr_ad_mtest");
+    float request = cvar_hget(cvarh_vr_ad_mtest);
     if(!request)
     {
         return;

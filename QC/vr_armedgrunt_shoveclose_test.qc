@@ -92,7 +92,7 @@ void() VR_AGSC_Frame =
         g = vr_agt_grunt;
         g.enemy = pl;
         float reach = VR_EnemyShove_Reach(g);
-        float close = cvar("vr_agrunt_shove_close");
+        float close = cvar_hget(cvarh_vr_agrunt_shove_close);
         VR_AG_Ranges(g);
         float d = 420;
         if(vr_agsc_band == 0) { d = reach - 10; }

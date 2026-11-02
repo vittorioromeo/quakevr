@@ -240,7 +240,7 @@ float(float xWeapon) VR_STT2_GunReach =
 // The list of kinds scene 106 goes through (the dispenser's numbers).
 float(float i) VR_STT2_Kind =
 {
-    float n = cvar("vr_stealth_test_kinds");
+    float n = cvar_hget(cvarh_vr_stealth_test_kinds);
     if(n > 0)
     {
         return i == 0 ? n : -1;
@@ -300,7 +300,7 @@ void() VR_STT2_Frame =
             float room = VR_STT2_ClearWay(p.origin, normalize(aim), 1400);
             stt2_s = min(1, (room - 48) / (1.25 * base));
             cvar_set("vr_stealth_noise_guns", sprintf("%.3f", stt2_s));
-            stt2_s = cvar("vr_stealth_noise_guns");
+            stt2_s = cvar_hget(cvarh_vr_stealth_noise_guns);
             if(stt2_s < 0.08)
             {
                 VR_STT2_Report(sprintf("gun_%g", p.weapon), FALSE, sprintf("no room (%.0f units)", room));
@@ -390,7 +390,7 @@ void() VR_STT2_Frame =
             float room1 = VR_STT2_ClearWay(p.origin, '0 0 0', 1400);
             stt2_s = min(1, (room1 - 48) / (1.25 * 800));
             cvar_set("vr_stealth_noise_blasts", sprintf("%.3f", stt2_s));
-            stt2_s = cvar("vr_stealth_noise_blasts");
+            stt2_s = cvar_hget(cvarh_vr_stealth_noise_blasts);
             stt2_at = p.origin;
             stt2_r = 800 * stt2_s;
             cvar_set("vr_stealth_share_near", "0");
@@ -587,7 +587,7 @@ void() VR_STT2_Frame =
                 sprintf("state %g, its point %.0f from the client's lens (lamp on %g)", m.stl_state, vlen(m.stl_point - stt2_at),
                 beam2_x));
             bprint(sprintf("stealthtest: done, %g failed\n", stt2_fails));
-            if(cvar("vr_stealth_test_quitclient"))
+            if(cvar_hget(cvarh_vr_stealth_test_quitclient))
             {
                 stuffcmd(p2, "echo MARK told to quit;disconnect;quit\n"); // (stealth_mp_test.sh sets it: its client waits for this)
             }
@@ -604,7 +604,7 @@ void() VR_STT2_Frame =
     {
         if(stt2_stage == 0)
         {
-            float want = cvar("vr_stealth_test_count");
+            float want = cvar_hget(cvarh_vr_stealth_test_count);
             want = want > 0 ? want : 60;
             float n = 0;
             for(float ring = 80; ring < 1600 && n < want; ring = ring + 56)
@@ -630,7 +630,7 @@ void() VR_STT2_Frame =
                     }
                 }
             }
-            cvar_set("vr_stealth_light_force", ftos(cvar("vr_stealth_light_dark") + 0.5));
+            cvar_set("vr_stealth_light_force", ftos(cvar_hget(cvarh_vr_stealth_light_dark) + 0.5));
             bprint(sprintf("stealthtest: horde: %g grunts\n", n));
             stt2_v = n;
             stt2_tick = 0;

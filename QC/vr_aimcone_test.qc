@@ -88,12 +88,12 @@ void(entity p, float request) VR_AimConeTest_Start =
     vr_act_waits0 = vr_aimcone_waits;
     VR_AimConeTest_Place(best, p, angle, dist);
     bprint(sprintf("aimcone: start %s angle %g dist %g on %g (aim %g fire %g delay %g)\n", best.classname, angle, dist,
-        cvar("vr_enemy_aim_cone"), cvar("vr_enemy_aim_angle"), cvar("vr_enemy_aim_fire"), cvar("vr_enemy_aim_delay")));
+        cvar_hget(cvarh_vr_enemy_aim_cone), cvar_hget(cvarh_vr_enemy_aim_angle), cvar_hget(cvarh_vr_enemy_aim_fire), cvar_hget(cvarh_vr_enemy_aim_delay)));
 };
 
 void() VR_AimConeTest_Frame =
 {
-    float request = cvar("vr_test_aimcone");
+    float request = cvar_hget(cvarh_vr_test_aimcone);
     entity p = VR_Player();
     if(request)
     {
@@ -112,7 +112,7 @@ void() VR_AimConeTest_Frame =
     {
         vr_act_shottime = vr_aimcone_last_time;
         vr_act_shots++;
-        if(cvar("vr_enemy_aim_debug"))
+        if(cvar_hget(cvarh_vr_enemy_aim_debug))
         {
             vector d = p.origin - m.origin;
             bprint(sprintf("aimcone: test shot at %.2f: he is %.0f deg off its facing now, %.0f away, its think %s\n",
@@ -135,7 +135,7 @@ void() VR_AimConeTest_Frame =
     {
         // (two prints: a builtin takes at most 8 arguments)
         bprint(sprintf("aimcone: result %s angle %g dist %g on %g: shots %g first %.2f off %.0f", m.classname,
-            vr_act_angle, vr_act_dist, cvar("vr_enemy_aim_cone"), vr_act_shots, vr_act_first, vr_act_first_off));
+            vr_act_angle, vr_act_dist, cvar_hget(cvarh_vr_enemy_aim_cone), vr_act_shots, vr_act_first, vr_act_first_off));
         bprint(sprintf(" bent %.0f waits %g (last %.2f s) hits %g dmg %.0f\n", vr_act_first_bent,
             vr_aimcone_waits - vr_act_waits0,
             vr_aimcone_waits > vr_act_waits0 ? vr_aimcone_last_wait : 0, vr_act_hits, vr_act_dmg));

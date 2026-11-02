@@ -6,7 +6,7 @@ float vr_ai_test_yaw;
 
 void() VR_AI_TestFrame =
 {
-    float ask = cvar("vr_portals_ai_test");
+    float ask = cvar_hget(cvarh_vr_portals_ai_test);
     if(ask <= 0 || deathmatch || coop) { return; }
     cvar_set("vr_portals_ai_test", "0");
     entity player = self;

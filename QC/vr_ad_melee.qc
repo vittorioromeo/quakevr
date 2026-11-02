@@ -56,7 +56,7 @@ void(float xKind) VR_ADMelee_Ensure =
 
 void(float xClass) VR_ADMelee_Prepare =
 {
-    if(cvar("vr_admelee_drops"))
+    if(cvar_hget(cvarh_vr_admelee_drops))
     {
         VR_ADMelee_Ensure(VR_ADMelee_ForClass(xClass));
     }
@@ -114,7 +114,7 @@ float(float t) VR_ADMelee_KnightSwordOf =
 // it falls as the weapon (VR_ADMELEE_PHANTOM) and its body goes (rogue_invis_sw.qc sword_die removes it). TRUE: dropped.
 float() VR_ADMelee_PhantomDrop =
 {
-    if(!cvar("vr_admelee_drops") || self.classname != "monster_sword")
+    if(!cvar_hget(cvarh_vr_admelee_drops) || self.classname != "monster_sword")
     {
         return FALSE;
     }
@@ -125,7 +125,7 @@ float() VR_ADMelee_PhantomDrop =
 
 void() VR_ADMelee_Drop =
 {
-    if(!cvar("vr_admelee_drops"))
+    if(!cvar_hget(cvarh_vr_admelee_drops))
     {
         return;
     }
@@ -187,19 +187,19 @@ string VR_FLAIL_RATTLE = "gibs/gibchain.wav"; // (AD's: its flail's gib's)
 // sound from `p`, louder the faster (`xSpeed` m/s).
 void(entity p, float xHand, float xSpeed) VR_Flail_Rattle =
 {
-    if(!cvar("vr_flail_rattle") || !cvar_hget(cvarh_vr_ad_mounted))
+    if(!cvar_hget(cvarh_vr_flail_rattle) || !cvar_hget(cvarh_vr_ad_mounted))
     {
         return;
     }
     vr_flail_rattles++;
-    sound(p, CHAN_AUTO, VR_FLAIL_RATTLE, min(1, cvar("vr_flail_rattle") * (0.25 + xSpeed / 25)), ATTN_NORM);
+    sound(p, CHAN_AUTO, VR_FLAIL_RATTLE, min(1, cvar_hget(cvarh_vr_flail_rattle) * (0.25 + xSpeed / 25)), ATTN_NORM);
 };
 float vr_flail_last;      // and the last one's damage
 float vr_flail_last_speed;
 
 void(entity p, float xHand, entity t, vector xAt, vector xDir, float xSpeed, float xMass) VR_Flail_Hit =
 {
-    float least = max(0, cvar("vr_flail_min_speed"));
+    float least = max(0, cvar_hget(cvarh_vr_flail_min_speed));
     if(xSpeed <= least || p.health <= 0 || !(p.flags & FL_CLIENT))
     {
         return;
@@ -209,11 +209,11 @@ void(entity p, float xHand, entity t, vector xAt, vector xDir, float xSpeed, flo
     {
         return; // (a prop that takes no damage: the head knocks it, in the physics)
     }
-    float dmg = cvar("vr_flail_damage") * xMass * (xSpeed - least) * (xBoth ? max(0, cvar("vr_flail_2h")) : 1);
+    float dmg = cvar_hget(cvarh_vr_flail_damage) * xMass * (xSpeed - least) * (xBoth ? max(0, cvar_hget(cvarh_vr_flail_2h)) : 1);
     // A landed blow (faster than the least speed) deals at least vr_flail_min_damage, at most vr_flail_max_damage (the
     // author's note vrfiringrange_2026-10-23_17-33-56).
-    float most = max(0, cvar("vr_flail_max_damage"));
-    dmg = min(max(dmg, max(0, cvar("vr_flail_min_damage"))), most);
+    float most = max(0, cvar_hget(cvarh_vr_flail_max_damage));
+    dmg = min(max(dmg, max(0, cvar_hget(cvarh_vr_flail_min_damage))), most);
     if(dmg <= 0)
     {
         return;
@@ -264,7 +264,7 @@ void(entity p, float xHand, entity t, vector xAt, vector xDir, float xSpeed, flo
     vr_flail_hits++;
     vr_flail_last = dmg;
     vr_flail_last_speed = xSpeed;
-    if(cvar("vr_flail_debug"))
+    if(cvar_hget(cvarh_vr_flail_debug))
     {
         bprint(sprintf("flail: hand %g hit %s at %.1f m/s, %.1f kg%s: damage %.1f (health %g before)\n", xHand,
             t == world ? "the level" : t.classname, xSpeed, xMass, xBoth ? ", two hands" : "", dmg, before));
@@ -414,7 +414,7 @@ void(entity xGun, entity xFrom) VR_FlailHead_Attach =
         // Beside the handle (a death sergeant's drop, the toolgun's, an older save's), within its chain: lying off its
         // right, falling as it falls.
         makevectors('0 1 0' * xGun.angles_y);
-        at = xGun.origin + v_right * min(24, max(2, cvar("vr_flail_chain") * VRMetersToUnits() * 0.9)) + '0 0 4';
+        at = xGun.origin + v_right * min(24, max(2, cvar_hget(cvarh_vr_flail_chain) * VRMetersToUnits() * 0.9)) + '0 0 4';
         traceline(xGun.origin, at, TRUE, xGun);
         if(trace_fraction < 1)
         {
@@ -433,7 +433,7 @@ void(entity xGun, entity xFrom) VR_FlailHead_Attach =
     h.velocity = vel;
     h.vr_fuellink = xGun;
     xGun.vr_fuellink = h;
-    h.vr_prop_mass = max(0.2, cvar("vr_flail_mass"));
+    h.vr_prop_mass = max(0.2, cvar_hget(cvarh_vr_flail_mass));
     h.touch = SUB_Null;
     h.vr_impact = VR_FlailHead_Impact;
     h.throwhit = QVR_THROWHIT_HIT; // (not thrown yet: QVR_THROWHIT_NEVER_HIT, 0, is a throw in flight)

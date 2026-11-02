@@ -274,7 +274,7 @@ void(entity g, float c) VR_DRPT_Judge =
     }
     if(c == 10)
     {
-        got = sprintf("%s; contact distance %s (case 5: %.1f units apart)", got, ftos(cvar("vr_dirparry_contact")),
+        got = sprintf("%s; contact distance %s (case 5: %.1f units apart)", got, ftos(cvar_hget(cvarh_vr_dirparry_contact)),
             vr_drpt_gap5);
     }
     if((c == 11) || (c == 12))
@@ -312,7 +312,7 @@ void(entity g, float c) VR_DRPT_Judge =
     {
         float dp = VR_AG_SegDist(vr_drp_fx_at, vr_drp_fx_at, vr_drp_pa, vr_drp_pb);
         float de = VR_AG_SegDist(vr_drp_fx_at, vr_drp_fx_at, vr_drp_ea, vr_drp_eb);
-        float half = max(0.5, cvar("vr_dirparry_contact")) * 0.5 + 0.01; // (the meeting: the middle of the nearest points)
+        float half = max(0.5, cvar_hget(cvarh_vr_dirparry_contact)) * 0.5 + 0.01; // (the meeting: the middle of the nearest points)
         ok = ((hurt == 0) && (parries == 1) && (fx == 1) && (vlen(vr_drp_fx_at - vr_drp_at) <= 2) && (dp <= half) && (de <= half));
         got = sprintf("%s; sparks %.1f units off your line, %.1f off its blade", got, dp, de);
     }
@@ -334,13 +334,13 @@ void() VR_DRPT_Frame =
     {
         if(c == 0)
         {
-            vr_drpt_keep_on = cvar("vr_dirparry");
-            vr_drpt_keep_parry = cvar("vr_agrunt_parry");
-            vr_drpt_keep_contact = cvar("vr_dirparry_contact");
-            vr_drpt_keep_debug = cvar("vr_dirparry_debug");
-            vr_drpt_keep_speed = cvar("vr_agrunt_melee_speed");
-            vr_drpt_keep_knight = cvar("vr_agknight");
-            vr_drpt_keep_lust = cvar("vr_melee_bloodlust");
+            vr_drpt_keep_on = cvar_hget(cvarh_vr_dirparry);
+            vr_drpt_keep_parry = cvar_hget(cvarh_vr_agrunt_parry);
+            vr_drpt_keep_contact = cvar_hget(cvarh_vr_dirparry_contact);
+            vr_drpt_keep_debug = cvar_hget(cvarh_vr_dirparry_debug);
+            vr_drpt_keep_speed = cvar_hget(cvarh_vr_agrunt_melee_speed);
+            vr_drpt_keep_knight = cvar_hget(cvarh_vr_agknight);
+            vr_drpt_keep_lust = cvar_hget(cvarh_vr_melee_bloodlust);
             // (your melee's bloodlust off: a hit of yours (case 12's counter, your posed sword's pommel) heals you, and
             // a heal clamps your 1000 test health to the megahealth cap (T_Heal: 250): read as 750 damage)
             cvar_set("vr_melee_bloodlust", ftos(QVR_MELEEBLOODLUST_DISABLED)); // (0 is on: QVR_MELEEBLOODLUST_ENABLED)
@@ -348,9 +348,9 @@ void() VR_DRPT_Frame =
             localcmd("vr_mock_button main grip 1\n"); // (your weapon held: not let go of)
             p.flags = p.flags | FL_NOTARGET;
             vr_drpt_home = p.origin;
-            if(rint(cvar("scratch1")) >= 13)
+            if(rint(cvar_hget(cvarh_scratch1)) >= 13)
             {
-                c = vr_drpt_case = rint(cvar("scratch1")); // (scratch1 N >= 13: the line cases from N; they need no reference)
+                c = vr_drpt_case = rint(cvar_hget(cvarh_scratch1)); // (scratch1 N >= 13: the line cases from N; they need no reference)
             }
         }
         setorigin(p, vr_drpt_home); // (where the reference swings found you: a blow's knockback undone)
@@ -516,7 +516,7 @@ void() VR_DRPT_Frame =
         {
             vr_drpt_shot = TRUE;
             localcmd("vr_dirparry_linecheck dump\n"); // (its line and the drawn weapon's ends in its own frame, printed)
-            if(cvar("scratch2") > 0)
+            if(cvar_hget(cvarh_scratch2) > 0)
             {
                 // (scratch2 1: the eyes close to its weapon, both sides, then their image)
                 localcmd("vr_dirparry_linecheck look\nwait\nwait\nvr_eyeshot 3\n");

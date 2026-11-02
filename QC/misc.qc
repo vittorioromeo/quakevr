@@ -163,7 +163,7 @@ void() light_torch_small_walltorch =
     // QVR: made in a live game (the toolgun): an entity, its crackle on it (vr_walltorch.qc, vr_spawn_live).
     if(vr_spawn_live)
     {
-        if(cvar("vr_walltorch"))
+        if(cvar_hget(cvarh_vr_walltorch))
         {
             VR_WallTorch_Setup();
         }
@@ -182,7 +182,7 @@ void() light_torch_small_walltorch =
         FireAmbient();
 
     // QVR: an entity (a static one can't be taken): vr_walltorch.qc.
-    if(cvar("vr_walltorch"))
+    if(cvar_hget(cvarh_vr_walltorch))
     {
         VR_WallTorch_Setup();
         return;
@@ -345,7 +345,7 @@ void(float xSpeed) VR_Explobox_Impact =
 
 void() VR_Explobox_Setup =
 {
-    if(!cvar("vr_explobox_physics"))
+    if(!cvar_hget(cvarh_vr_explobox_physics))
     {
         return;
     }

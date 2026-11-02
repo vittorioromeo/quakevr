@@ -36,7 +36,7 @@ float() VR_TestImpulse =
         self = spawn();
         self.classname = "monster_army";
         setorigin(self, gruntAt);
-        float gruntFacing = cvar("vr_test_spawn_facing");
+        float gruntFacing = cvar_hget(cvarh_vr_test_spawn_facing);
         if(gruntFacing == 1 || gruntFacing == 2 || gruntFacing == 4 || gruntFacing == 5)
         {
             self.angles_y = VR_TestSpawn_FacingYaw(player);
@@ -192,8 +192,8 @@ float() VR_TestImpulse =
     if(self.impulse == 241) // QVR: a monster or a box ahead, facing you (vr_test_spawn; weapons against models)
     {
         makevectors('0 1 0' * self.v_viewangle_y);
-        vector spawnAt = self.origin + v_forward * cvar("vr_test_spawn_dist");
-        float spawnKind = cvar("vr_test_spawn");
+        vector spawnAt = self.origin + v_forward * cvar_hget(cvarh_vr_test_spawn_dist);
+        float spawnKind = cvar_hget(cvarh_vr_test_spawn);
         entity spawnPlayer = self;
         entity spawned = world;
         if(spawnKind == 105 || spawnKind == 106)
@@ -316,8 +316,8 @@ float() VR_TestImpulse =
                 self = world;
             }
             spawned = self;
-            float spawnYaw = cvar("vr_test_spawn_yaw");
-            float spawnTilt = cvar("vr_test_spawn_tilt");
+            float spawnYaw = cvar_hget(cvarh_vr_test_spawn_yaw);
+            float spawnTilt = cvar_hget(cvarh_vr_test_spawn_tilt);
             if(spawnYaw != 0 || spawnTilt != 0)
             {
                 // Loose (a physics prop), turned about its middle and tipped, its lowest corner on the floor where it
@@ -348,7 +348,7 @@ float() VR_TestImpulse =
         else
         {
             // The firing range's dispenser, as if its button were pressed (the same numbers).
-            float spawnFacing = cvar("vr_test_spawn_facing");
+            float spawnFacing = cvar_hget(cvarh_vr_test_spawn_facing);
             float spawnFaceYaw = VR_TestSpawn_FacingYaw(spawnPlayer); // (given before its spawn function: its ideal_yaw too)
             spawned = VR_Test_Spawn(spawnPlayer, spawnKind, spawnAt, spawnFaceYaw);
             if(spawned)
@@ -364,20 +364,20 @@ float() VR_TestImpulse =
             }
         }
         self = spawnPlayer;
-        if(spawned != world && spawnKind < 100 && cvar("vr_test_spawn_dead"))
+        if(spawned != world && spawnKind < 100 && cvar_hget(cvarh_vr_test_spawn_dead))
         {
             spawned.takedamage = DAMAGE_AIM; // (walkmonster_start gives it a moment later)
             // 2: gibbed (its head left lying: the flies' tests, VR_Head_StopFlies); 3: a ragdoll (vr_ragdoll on: he goes limp
             // as he falls, Gibs and Corpses > Ragdolls).
-            if(cvar("vr_test_spawn_dead") == 3 && !cvar("vr_ragdoll"))
+            if(cvar_hget(cvarh_vr_test_spawn_dead) == 3 && !cvar_hget(cvarh_vr_ragdoll))
             {
                 cvar_set("vr_ragdoll", "1");
                 dprint("vr_test_spawn_dead 3: ragdolls on (vr_ragdoll 1)\n");
             }
-            T_Damage(spawned, world, world, spawned.health + (cvar("vr_test_spawn_dead") == 2 ? 100 : 1));
+            T_Damage(spawned, world, world, spawned.health + (cvar_hget(cvarh_vr_test_spawn_dead) == 2 ? 100 : 1));
         }
         // A box or a crate put into the empty main hand (vr_test_spawn_hold: held props' tests, the blood on them).
-        if(spawned != world && spawnKind >= 100 && cvar("vr_test_spawn_hold"))
+        if(spawned != world && spawnKind >= 100 && cvar_hget(cvarh_vr_test_spawn_hold))
         {
             if(spawned.handtouch == VR_Carry_Handtouch && spawned.carry_player == world && VRIsHandEmpty(self, cVR_MainHand))
             {
@@ -412,16 +412,16 @@ float() VR_TestImpulse =
     }
 
     // QVR: a gib or a head in the empty off hand, each in turn (fitted hands tests, round 21).
-    float testHeldHand = cvar("vr_test_held_hand") ? cVR_MainHand : cVR_OffHand;
-    if(self.impulse == 252 && VRIsHandEmpty(self, testHeldHand) && cvar("vr_test_held_pick") >= 9)
+    float testHeldHand = cvar_hget(cvarh_vr_test_held_hand) ? cVR_MainHand : cVR_OffHand;
+    if(self.impulse == 252 && VRIsHandEmpty(self, testHeldHand) && cvar_hget(cvarh_vr_test_held_pick) >= 9)
     {
-        VR_Test_HeldProp(floor(cvar("vr_test_held_pick")), testHeldHand);
+        VR_Test_HeldProp(floor(cvar_hget(cvarh_vr_test_held_pick)), testHeldHand);
     }
     else if(self.impulse == 252 && VRIsHandEmpty(self, testHeldHand))
     {
-        if(cvar("vr_test_held_pick") >= 0)
+        if(cvar_hget(cvarh_vr_test_held_pick) >= 0)
         {
-            vr_test_held_kind = floor(cvar("vr_test_held_pick")); // (vr_test_held_pick: one model only)
+            vr_test_held_kind = floor(cvar_hget(cvarh_vr_test_held_pick)); // (vr_test_held_pick: one model only)
         }
         string testModel = "progs/gib1.mdl";
         if(vr_test_held_kind == 1) testModel = "progs/h_player.mdl";
@@ -440,7 +440,7 @@ float() VR_TestImpulse =
         testGib.think = SUB_Remove;
         testGib.nextthink = time + 60;
         VR_MakeGibGrabbable(testGib);
-        if(cvar("vr_test_held_destroy"))
+        if(cvar_hget(cvarh_vr_test_held_destroy))
         {
             VR_Gib_MakeDestroyable(testGib, (testModel == "progs/gib1.mdl" || testModel == "progs/gib2.mdl" || testModel == "progs/gib3.mdl") ? 1 : 1.5); // (a head 1.5)
         }
@@ -457,7 +457,7 @@ float() VR_TestImpulse =
     {
         makevectors('0 1 0' * self.v_viewangle_y);
         vector aim = VRGetHeadPos(self) + v_forward * 16 - '0 0 10';
-        float side = cvar("vr_test_projectile_side") * 0.0174533;
+        float side = cvar_hget(cvarh_vr_test_projectile_side) * 0.0174533;
         vector away = v_forward * cos(side) - v_right * sin(side);
         entity shooter = spawn();
         shooter.classname = "monster_test_shooter";
@@ -471,7 +471,7 @@ float() VR_TestImpulse =
         float kind = 0;
         if(player.impulse == 246)
         {
-            kind = cvar("vr_test_projectile");
+            kind = cvar_hget(cvarh_vr_test_projectile);
         }
         vector dir = normalize(aim - shooter.origin);
         self = shooter;
@@ -567,7 +567,7 @@ float() VR_TestImpulse =
             else
             {
                 float lobFlags = self.spawnflags;
-                if(cvar("vr_test_projectile") == 6)
+                if(cvar_hget(cvarh_vr_test_projectile) == 6)
                 {
                     self.spawnflags = self.spawnflags | OGRE_BOSS; // (a multi-grenade)
                 }

@@ -43,7 +43,7 @@ void() VR_RST_Frame =
     entity g = vr_agt_grunt;
     if(vr_agt_step == 0)
     {
-        vr_rst_freeze = cvar("vr_agrunt_freeze");
+        vr_rst_freeze = cvar_hget(cvarh_vr_agrunt_freeze);
         cvar_set("vr_agrunt_freeze", "1");
         vr_rst_end = vr_rst_events = vr_rst_timely = vr_rst_stopped = vr_rst_len = vr_rst_frames = 0;
         vr_rst_lastframe = -1;
@@ -125,7 +125,7 @@ void() VR_RST_TauntFrame =
     entity g = vr_agt_grunt;
     if(vr_agt_step == 0)
     {
-        vr_rst_taunt = cvar("vr_agrunt_taunt");
+        vr_rst_taunt = cvar_hget(cvarh_vr_agrunt_taunt);
         cvar_set("vr_agrunt_taunt", "1");
         vr_rst_waiting = vr_rst_len = vr_rst_shout = vr_rst_tend = 0;
         vr_agt_grunt = VR_AGT_Spawn(WID_SHOTGUN, 200);
@@ -252,8 +252,8 @@ void() VR_RST_KeysFrame =
         return;
     }
     // The engine's totals (each keyed bone drawn against its key) counted as this test's.
-    float pa = cvar("vr_rig2anim_check_passed");
-    float fa = cvar("vr_rig2anim_check_failed");
+    float pa = cvar_hget(cvarh_vr_rig2anim_check_passed);
+    float fa = cvar_hget(cvarh_vr_rig2anim_check_failed);
     if(fa < 0 && time < vr_agt_until)
     {
         return;

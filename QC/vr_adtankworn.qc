@@ -106,7 +106,7 @@ entity(entity p, entity m) VR_FuelTank_WornMake =
     t.touch = SUB_Null;
     t.think = VR_FuelTank_WornThink;
     t.nextthink = time + 0.05;
-    float hp = cvar("vr_adgun_tank_health");
+    float hp = cvar_hget(cvarh_vr_adgun_tank_health);
     if(hp > 0)
     {
         t.takedamage = DAMAGE_YES;

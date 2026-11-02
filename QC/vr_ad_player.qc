@@ -171,7 +171,7 @@ float(entity inflictor, entity attacker, float isVRMelee) AD_AmmoOf =
 // Whether `targ` resists by AD's rules here: in an AD map, anything with the keys; elsewhere AD's own entities.
 float(entity targ) AD_Resists =
 {
-    if(!VR_AD_FeatureScope(cvar("vr_ad_resistance"))) return FALSE;
+    if(!VR_AD_FeatureScope(cvar_hget(cvarh_vr_ad_resistance))) return FALSE;
     if(!targ.ad_resist_shells && !targ.ad_resist_nails && !targ.ad_resist_rockets && !targ.ad_resist_cells)
     {
         return FALSE;
@@ -337,5 +337,5 @@ void(float s) VR_AD_SetSkill =
 // Climbing and Hand-Climbed Ladders both on); otherwise AD's own jump/velocity climb keeps every ladder climbable.
 float(entity p) VR_AD_LadderManual =
 {
-    return VRHandsTracked(p) && cvar_hget(cvarh_vr_climb) && cvar("vr_climb_ladders");
+    return VRHandsTracked(p) && cvar_hget(cvarh_vr_climb) && cvar_hget(cvarh_vr_climb_ladders);
 };

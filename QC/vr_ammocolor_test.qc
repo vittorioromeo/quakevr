@@ -165,7 +165,7 @@ void() VR_ACT_Start =
 
 void() VR_AmmoColor_TestFrame =
 {
-    float req = cvar("vr_ammocolor_test");
+    float req = cvar_hget(cvarh_vr_ammocolor_test);
     if(req)
     {
         cvar_set("vr_ammocolor_test", "0");
@@ -185,12 +185,12 @@ void() VR_AmmoColor_TestFrame =
             return;
         }
         VR_Test_Begin("ammocolor");
-        vr_act_warn = cvar("vr_ammo_color_warn");
-        vr_act_debug = cvar("vr_ammo_color_debug");
-        vr_act_grip = cvar("vr_weapon_grip_mode");
+        vr_act_warn = cvar_hget(cvarh_vr_ammo_color_warn);
+        vr_act_debug = cvar_hget(cvarh_vr_ammo_color_debug);
+        vr_act_grip = cvar_hget(cvarh_vr_weapon_grip_mode);
         cvar_set("vr_weapon_grip_mode", "1");
-        vr_act_npText = cvar("vr_wofs_wpntxtmode_37");
-        vr_act_rvText = cvar("vr_wofs_wpntxtmode_39");
+        vr_act_npText = cvar_hget(cvarh_vr_wofs_wpntxtmode_37);
+        vr_act_rvText = cvar_hget(cvarh_vr_wofs_wpntxtmode_39);
         cvar_set("vr_wofs_wpntxtmode_37", "1");
         cvar_set("vr_wofs_wpntxtmode_39", "1");
         cvar_set("vr_ammo_color_debug", "1");
@@ -203,9 +203,9 @@ void() VR_AmmoColor_TestFrame =
         return;
     }
     // The readout showing this case: its loaded rounds (0 with the option off) and its magazine's size.
-    float seen = cvar(vr_act_mode == 1 ? "vr_ammo_color_seen3" : vr_act_mode == 2 ? "vr_ammo_color_seen4" :
-        vr_act_hand == cVR_OffHand ? "vr_ammo_color_seen2" : "vr_ammo_color_seen");
-    float wantLoaded = cvar("vr_ammo_color_warn") ? vr_act_loaded : 0;
+    float seen = cvar_hget(vr_act_mode == 1 ? cvarh_vr_ammo_color_seen3 : vr_act_mode == 2 ? cvarh_vr_ammo_color_seen4 :
+        vr_act_hand == cVR_OffHand ? cvarh_vr_ammo_color_seen2 : cvarh_vr_ammo_color_seen);
+    float wantLoaded = cvar_hget(cvarh_vr_ammo_color_warn) ? vr_act_loaded : 0;
     float loaded = floor(seen / 10000);
     float size = floor((seen - loaded * 10000) / 10);
     float state = seen - loaded * 10000 - size * 10;
@@ -229,7 +229,7 @@ void() VR_AmmoColor_TestFrame =
         string what = sprintf("case %g: %s, %s, %g of %g loaded", vr_act_case, VR_ACT_Name(VR_ACT_Gun(vr_act_case)),
             vr_act_mode == 1 ? "holstered" : vr_act_mode == 2 ? "lying" : vr_act_hand == cVR_OffHand ? "off hand" : "main hand", vr_act_loaded, vr_act_size);
         dprint(sprintf("ammocolor: %s %s%s: state %g (want %g)\n", ok ? "PASS" : "FAIL", what,
-            cvar("vr_ammo_color_warn") ? "" : ", the option off", state, vr_act_expect));
+            cvar_hget(cvarh_vr_ammo_color_warn) ? "" : ", the option off", state, vr_act_expect));
         VR_Test_Count(ok);
     }
     vr_act_case = vr_act_case + 1;

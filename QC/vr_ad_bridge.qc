@@ -436,7 +436,7 @@ void() AD_PlayerPostThink =
         ad_postthink = TRUE;
         ad_mapvar_cvar = TRUE;
         ad_sync_configflag();
-        ad_liquid_alpha = world.ad_water_alpha ? world.ad_water_alpha : cvar("r_wateralpha");
+        ad_liquid_alpha = world.ad_water_alpha ? world.ad_water_alpha : cvar_hget(cvarh_r_wateralpha);
         if(ad_fog_active) ad_change_fog(self);
         else ad_setup_fog_controller();
     }
@@ -908,7 +908,7 @@ void(entity targ, entity attacker) AD_MonsterKilled =
 // Whether AD's projectile rules play here (vr_ad_projectiles: Auto in AD maps, AD's wherever its data is mounted).
 float() AD_ProjectileRules =
 {
-    float mode = cvar("vr_ad_projectiles");
+    float mode = cvar_hget(cvarh_vr_ad_projectiles);
     if(mode == 1 || !cvar_hget(cvarh_vr_ad_mounted))
     {
         return FALSE;
@@ -952,9 +952,9 @@ void(float xHand, float shotcount, vector dir, vector spread, vector muzzle) AD_
     // The burst rifle is a bullet, not a shotgun blast: retain its tighter spread.
     if(wid == WID_GRUNTGUN && cvar_hget(cvarh_vr_grunt_burst)) shotgun = FALSE;
     vector pattern = (shotgun ? AD_SharpSpread(ssg ? ad_SPREAD_SSG : ad_SPREAD_SG) : spread);
-    pattern = pattern * cvar("vr_ad_pellet_spread");
-    float speed = (ssg ? ad_SPEED_PLAYERSSG : ad_SPEED_PLAYERSG) * max(0.1, cvar("vr_ad_pellet_speed"));
-    float scale = cvar("vr_ad_pellet_damage") * (vr_pellet_damage ? vr_pellet_damage : ad_DAMAGE_PSHELL) / ad_DAMAGE_PSHELL;
+    pattern = pattern * cvar_hget(cvarh_vr_ad_pellet_spread);
+    float speed = (ssg ? ad_SPEED_PLAYERSSG : ad_SPEED_PLAYERSG) * max(0.1, cvar_hget(cvarh_vr_ad_pellet_speed));
+    float scale = cvar_hget(cvarh_vr_ad_pellet_damage) * (vr_pellet_damage ? vr_pellet_damage : ad_DAMAGE_PSHELL) / ad_DAMAGE_PSHELL;
     if(shotgun && VRGet2HAiming(self))
     {
         pattern = pattern * cvar_hget(cvarh_vr_2h_spread_reduction);
@@ -1264,7 +1264,7 @@ float(float xHand) AD_ShadowAxeIn =
 // for the axe's 20).
 float(float xHand) AD_AxeScale =
 {
-    return AD_ShadowAxeIn(xHand) ? max(0, cvar("vr_dmg_ad_shadowaxe")) / max(1, cvar_hget(cvarh_vr_dmg_axe)) : 1;
+    return AD_ShadowAxeIn(xHand) ? max(0, cvar_hget(cvarh_vr_dmg_ad_shadowaxe)) / max(1, cvar_hget(cvarh_vr_dmg_axe)) : 1;
 };
 
 // W_FireAxe's blow of the axe in `xHand` on `xVictim`, before its damage: AD's mark of the axe that hit it (AD's W_FireAxe:
@@ -1356,7 +1356,7 @@ void(float xHand) AD_FireWidowmaker =
     sound(self, VRGetGunChannel(xHand), "vr/widowmaker_shot.wav", max(0, min(4, cvar_hget(cvarh_vr_ad_widowmaker_shot_volume))), ATTN_NORM);
     self.punchangle_x = -3;
     delAmmoOrClipAndUpdateCounter(xHand, AID_SHELLS, 1);
-    vr_pellet_damage = max(0, cvar("vr_dmg_ad_widowmaker"));
+    vr_pellet_damage = max(0, cvar_hget(cvarh_vr_dmg_ad_widowmaker));
     vr_decap_weapon = QVR_DECAP_SSG; // (head pops)
     FireBullets(xHand, max(1, rint(cvar_hget(cvarh_vr_ad_widowmaker_shot_pellets))), VRGetWeaponFireRotFwd(xHand),
         '0.045 0.03 0');
@@ -1480,11 +1480,11 @@ void(float xHand) AD_FirePlasma =
     delAmmoOrClipAndUpdateCounter(xHand, AID_CELLS, 1);
     if(ad_CheckZeroVector(world.ad_plasmagun_dmg)) // (Weapon Damage's, unless the map sets its own: AD's worldspawn key)
     {
-        ad_map_plasmagundmg_x = max(0, cvar("vr_dmg_ad_plasmagun"));
+        ad_map_plasmagundmg_x = max(0, cvar_hget(cvarh_vr_dmg_ad_plasmagun));
         ad_map_plasmagundmg_y = 0;
-        ad_map_plasmagundmg_z = max(0, cvar("vr_dmg_ad_plasmagun_splash"));
+        ad_map_plasmagundmg_z = max(0, cvar_hget(cvarh_vr_dmg_ad_plasmagun_splash));
     }
-    ad_launch_plasma(VRGetMuzzlePos(xHand), VRGetWeaponFireRotFwd(xHand), ad_CT_PLAYER, max(100, cvar("vr_ad_plasmagun_speed")));
+    ad_launch_plasma(VRGetMuzzlePos(xHand), VRGetWeaponFireRotFwd(xHand), ad_CT_PLAYER, max(100, cvar_hget(cvarh_vr_ad_plasmagun_speed)));
     VR_DamageCredit_FromHand(ad_newmis, self, xHand);
     // At the muzzle: blue-white sparks and a wisp (its kick and flash: weaponfired, slot 35's Effects in vr_weapons.inc).
     particle2(VRGetMuzzlePos(xHand), VRGetWeaponFireRotFwd(xHand) * 40, QVR_PARTICLE_PRESET_CONTACTSPARKS, 5);
@@ -1769,13 +1769,13 @@ void(entity missile) VR_AD_Ordnance =
 // AD native monsters and Quake VR's bridge both pass through this launch hook, exactly once.
 float(entity shooter, float speed) VR_AD_PelletSpeed =
 {
-    return speed * ((shooter.flags & FL_MONSTER) ? max(0.1, cvar("vr_ad_enemy_pellet_speed")) : 1);
+    return speed * ((shooter.flags & FL_MONSTER) ? max(0.1, cvar_hget(cvarh_vr_ad_enemy_pellet_speed)) : 1);
 };
 
 // AD ammo appearance only: preserve Quake VR's ammo counts, hands and force-grabbable physics.
 string(float ammo, float big, string fallback) AD_AmmoModel =
 {
-    if(!VR_AD_FeatureScope(cvar("vr_ad_ammo_models"))) return fallback;
+    if(!VR_AD_FeatureScope(cvar_hget(cvarh_vr_ad_ammo_models))) return fallback;
     string chosen = fallback;
     if(ammo == AID_SHELLS) chosen = big ? "progs/ammo_shells1.mdl" : "progs/ammo_shells0.mdl";
     else if(ammo == AID_NAILS) chosen = big ? "progs/ammo_nails1.mdl" : "progs/ammo_nails0.mdl";

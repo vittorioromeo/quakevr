@@ -92,7 +92,7 @@ void(float k, entity t, vector at, entity xFrom) VR_ImpTest_One =
 // Every server frame (StartFrame): the test asked for (vr_impact_qc_test).
 void() VR_ImpTest_Frame =
 {
-    float ask = cvar("vr_impact_qc_test");
+    float ask = cvar_hget(cvarh_vr_impact_qc_test);
     if(!ask)
     {
         return;
@@ -103,7 +103,7 @@ void() VR_ImpTest_Frame =
     {
         return;
     }
-    float dbg = cvar("vr_debug_impacts");
+    float dbg = cvar_hget(cvarh_vr_debug_impacts);
     cvar_set("vr_debug_impacts", "1");
     makevectors('0 1 0' * p.angles_y);
     vector fwd = v_forward;

@@ -105,7 +105,7 @@ void() VR_STT4_End =
 // The meter's verdict over a stage: `want` seen (its meter past the glimpse, or Alert, or Hostile) or not.
 float(entity m) VR_STT4_Saw =
 {
-    return m.stl_meter >= cvar("vr_stealth_glimpse") || m.stl_state == STL_ALERT || m.enemy != world;
+    return m.stl_meter >= cvar_hget(cvarh_vr_stealth_glimpse) || m.stl_state == STL_ALERT || m.enemy != world;
 };
 
 void() VR_STT4_Frame =

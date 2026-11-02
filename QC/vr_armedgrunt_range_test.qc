@@ -59,8 +59,8 @@ void() VR_AGRG_Frame =
 {
     entity p = vr_agt_player;
     entity g = vr_agt_grunt;
-    float one = rint(cvar("scratch1"));
-    float last = rint(cvar("scratch2")); // (scratch1 N, scratch2 M: weapons N..M)
+    float one = rint(cvar_hget(cvarh_scratch1));
+    float last = rint(cvar_hget(cvarh_scratch2)); // (scratch1 N, scratch2 M: weapons N..M)
     if(one < 1)
     {
         last = VR_AGRG_N;
@@ -76,12 +76,12 @@ void() VR_AGRG_Frame =
         vr_agrg_yaw0 = p.angles_y;
         vr_agrg_keepw = p.weapon;
         vr_agrg_keepw2 = p.weapon2;
-        vr_agrg_keepgrip = cvar("vr_weapon_grip_mode");
+        vr_agrg_keepgrip = cvar_hget(cvarh_vr_weapon_grip_mode);
         cvar_set("vr_weapon_grip_mode", "1");
         vr_agrg_w = (one >= 1 && one <= VR_AGRG_N) ? one - 1 : 0;
         vr_agrg_case = 0;
-        VR_AGT_Print(sprintf("range: vr_agrunt_range %g, scale %g, walkfire %g, kind %g", cvar("vr_agrunt_range"),
-            cvar("vr_agrunt_range_scale"), cvar("vr_agrunt_range_walkfire"), VR_AGT_Kind()));
+        VR_AGT_Print(sprintf("range: vr_agrunt_range %g, scale %g, walkfire %g, kind %g", cvar_hget(cvarh_vr_agrunt_range),
+            cvar_hget(cvarh_vr_agrunt_range_scale), cvar_hget(cvarh_vr_agrunt_range_walkfire), VR_AGT_Kind()));
         vr_agt_step = 1;
     }
     if(vr_agt_step == 1)
@@ -183,9 +183,9 @@ void() VR_AGRG_Frame =
     if(wid == WID_CHAINSAW && vr_agrg_case == 0)
     {
         // (its first thrust: begun within the saw's reach, and it reaches you)
-        s = strcat(s, sprintf(" first thrust at %.0f (reach %g), %s:", vr_agrg_saw_d, cvar("vr_agrunt_saw_start"),
+        s = strcat(s, sprintf(" first thrust at %.0f (reach %g), %s:", vr_agrg_saw_d, cvar_hget(cvarh_vr_agrunt_saw_start),
             vr_agrg_saw_hit > 0 ? "it cut you" : "missed"));
-        VR_AGT_Check(s, vr_agrg_saw_d > 0 && vr_agrg_saw_d <= cvar("vr_agrunt_saw_start") + 4 && vr_agrg_saw_hit > 0);
+        VR_AGT_Check(s, vr_agrg_saw_d > 0 && vr_agrg_saw_d <= cvar_hget(cvarh_vr_agrunt_saw_start) + 4 && vr_agrg_saw_hit > 0);
     }
     else if(!VR_AG_RangeOf(wid))
     {
@@ -268,12 +268,12 @@ void() VR_AGAIM_Frame =
     {
         vr_agrg_start = p.origin;
         vr_agrg_yaw0 = p.angles_y;
-        vr_agaim_keep_err = cvar("vr_agrunt_aim_error");
-        vr_agaim_keep_range = cvar("vr_agrunt_range");
+        vr_agaim_keep_err = cvar_hget(cvarh_vr_agrunt_aim_error);
+        vr_agaim_keep_range = cvar_hget(cvarh_vr_agrunt_range);
         cvar_set("vr_agrunt_aim_error", "0");
         cvar_set("vr_agrunt_range", "0");
         vr_agaim_w = 0;
-        VR_AGT_Print(sprintf("aim: vr_agrunt_aim_converge %g, kind %g", cvar("vr_agrunt_aim_converge"), VR_AGT_Kind()));
+        VR_AGT_Print(sprintf("aim: vr_agrunt_aim_converge %g, kind %g", cvar_hget(cvarh_vr_agrunt_aim_converge), VR_AGT_Kind()));
         vr_agt_step = 1;
     }
     if(vr_agt_step == 1)

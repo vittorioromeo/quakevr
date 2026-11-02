@@ -76,9 +76,9 @@ void(float xMode) VR_HitStagger_Test =
         setorigin(prop, mid - to * (40 + best.maxs_x) - (prop.mins + prop.maxs) * 0.5);
         prop.vr_spin = '0 0 0';
         prop.avelocity = '0 0 0';
-        VR_Carry_Throw(prop, to * cvar("vr_test_throw_up_speed") * VRMetersToUnits());
+        VR_Carry_Throw(prop, to * cvar_hget(cvarh_vr_test_throw_up_speed) * VRMetersToUnits());
         dprint(sprintf("hit stagger test: %s (%.1f kg) thrown at %s at %.1f m/s\n", prop.classname, VR_Thrown_Mass(prop),
-            best.classname, cvar("vr_test_throw_up_speed")));
+            best.classname, cvar_hget(cvarh_vr_test_throw_up_speed)));
         return;
     }
     float cooling = time < best.vr_hst_next;

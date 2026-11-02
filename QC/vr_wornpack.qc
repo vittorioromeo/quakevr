@@ -38,13 +38,13 @@ entity vr_wp_rip_pack;   // and its pack
 
 void(string s) VR_WP_Log =
 {
-    if(cvar("vr_worn_backpack_debug"))
+    if(cvar_hget(cvarh_vr_worn_backpack_debug))
     {
         dprint(sprintf("wornpack: %s\n", s));
     }
 };
 
-float() VR_WP_Scale = { return min(2, max(0.1, cvar("vr_worn_backpack_scale"))); };
+float() VR_WP_Scale = { return min(2, max(0.1, cvar_hget(cvarh_vr_worn_backpack_scale))); };
 
 // Its place on its wearer as drawn (its ragdoll's chest, else its posed model): FALSE when the wearer has none now (its
 // model not a wearer's: gibbed, its head).
@@ -92,7 +92,7 @@ void(entity pk, entity g) VR_WP_Stock =
 // pockets; what its weapons hold stays.
 void(entity pk, entity g) VR_WP_Lose =
 {
-    float share = min(1, max(0, cvar("vr_worn_backpack_reserve")));
+    float share = min(1, max(0, cvar_hget(cvarh_vr_worn_backpack_reserve)));
     float n = floor(g.vr_ag_reserve * share);
     VR_AG_Pocket(pk, g.vr_ag_wid, g.vr_ag_wflags, n);
     g.vr_ag_reserve = g.vr_ag_reserve - n;
@@ -148,7 +148,7 @@ void(entity pk, string why) VR_WP_Off =
         g.vr_wp_worn = 0;
     }
     pk.vr_wp_state = VR_WP_OFF;
-    sound(pk, CHAN_AUTO, VR_WP_RIP_SOUND, min(1, max(0, cvar("vr_worn_backpack_volume"))), ATTN_NORM);
+    sound(pk, CHAN_AUTO, VR_WP_RIP_SOUND, min(1, max(0, cvar_hget(cvarh_vr_worn_backpack_volume))), ATTN_NORM);
     vr_wp_rips = vr_wp_rips + 1;
     vr_wp_rip_why = why;
     vr_wp_rip_sound = VR_WP_RIP_SOUND;
@@ -181,12 +181,12 @@ float(entity g, entity pl, float pnum, float hand) VR_WP_HandPull =
         return -1; // (not held by its pack)
     }
     float s = ragdollbone(g, [3, pnum, hand], QVR_WORNPACK);
-    if(cvar("vr_worn_backpack_debug") >= 2)
+    if(cvar_hget(cvarh_vr_worn_backpack_debug) >= 2)
     {
         VR_WP_Log(sprintf("hand %g's hold: force %.0f N, the held point %.2f units off the hand (your fall %.0f u/s)", hand, f, s,
             -pl.velocity_z));
     }
-    return max(f, s * max(0, cvar("vr_worn_backpack_rip_stiffness")));
+    return max(f, s * max(0, cvar_hget(cvarh_vr_worn_backpack_rip_stiffness)));
 };
 
 float vr_wp_two_hands; // the last pull's hands (the tests: 2 both)
@@ -194,7 +194,7 @@ float vr_wp_lifts;     // wearers lifted by their packs (vr_worn_backpack_pull 1
 float vr_wp_lift_pull; // and the last one's pull (N)
 
 // vr_worn_backpack_pull 1: pulls lift, never tear.
-float() VR_WP_PullLifts = { return cvar("vr_worn_backpack_pull") == 1; };
+float() VR_WP_PullLifts = { return cvar_hget(cvarh_vr_worn_backpack_pull) == 1; };
 
 // vr_worn_backpack_pull 1: player `pl` (number `pnum`) pulling living `g` by its pack `pk` at `pull` N (`hands`): past
 // vr_worn_backpack_lift_force for vr_worn_backpack_rip_time it is lifted by the pack (standing: knocked down; a ragdoll
@@ -202,7 +202,7 @@ float() VR_WP_PullLifts = { return cvar("vr_worn_backpack_pull") == 1; };
 // free after vr_foegrab_lift_time). TRUE: lifted now.
 float(entity pk, entity g, entity pl, float pnum, float pull, float hands) VR_WP_Lift =
 {
-    if(g.health <= 0 || pk.vr_wp_lifted > 0 || pull < max(1, cvar("vr_worn_backpack_lift_force")))
+    if(g.health <= 0 || pk.vr_wp_lifted > 0 || pull < max(1, cvar_hget(cvarh_vr_worn_backpack_lift_force)))
     {
         pk.vr_wp_over_at = pk.vr_wp_lifted > 0 ? pk.vr_wp_over_at : 0;
         return FALSE;
@@ -211,7 +211,7 @@ float(entity pk, entity g, entity pl, float pnum, float pull, float hands) VR_WP
     {
         pk.vr_wp_over_at = time;
     }
-    if(time - pk.vr_wp_over_at < max(0, cvar("vr_worn_backpack_rip_time")))
+    if(time - pk.vr_wp_over_at < max(0, cvar_hget(cvarh_vr_worn_backpack_rip_time)))
     {
         return FALSE;
     }
@@ -222,7 +222,7 @@ float(entity pk, entity g, entity pl, float pnum, float pull, float hands) VR_WP
         {
             return FALSE; // (staggering: a hand on it takes it down first, then it can be lifted)
         }
-        g.vr_kd_until = max(g.vr_kd_until, time + (max(0.1, cvar("vr_foegrab_lift_time")) + 1) * VR_KD_DownScale(g));
+        g.vr_kd_until = max(g.vr_kd_until, time + (max(0.1, cvar_hget(cvarh_vr_foegrab_lift_time)) + 1) * VR_KD_DownScale(g));
     }
     float held = ragdollbone(g, [8, pnum, 0], QVR_WORNPACK);
     if(held < 1)
@@ -249,7 +249,7 @@ float(entity pk, entity g, entity pl, float pnum, float hand, float pull, float 
     {
         pk.vr_wp_hold_at = time;
     }
-    if(cvar("vr_worn_backpack_debug") >= 2)
+    if(cvar_hget(cvarh_vr_worn_backpack_debug) >= 2)
     {
         VR_WP_Log(sprintf("held %.3f s: pull %.0f N (%g hands)", time - pk.vr_wp_hold_at, pull, hands));
     }
@@ -264,7 +264,7 @@ float(entity pk, entity g, entity pl, float pnum, float hand, float pull, float 
         VR_WP_Lift(pk, g, pl, pnum, pull, hands); // (never torn off by a pull: a living one lifted by it)
         return FALSE;
     }
-    if(pull < max(1, cvar("vr_worn_backpack_rip_force")))
+    if(pull < max(1, cvar_hget(cvarh_vr_worn_backpack_rip_force)))
     {
         pk.vr_wp_over_at = 0;
         return FALSE;
@@ -273,7 +273,7 @@ float(entity pk, entity g, entity pl, float pnum, float hand, float pull, float 
     {
         pk.vr_wp_over_at = time;
     }
-    if(time - pk.vr_wp_over_at < max(0, cvar("vr_worn_backpack_rip_time")))
+    if(time - pk.vr_wp_over_at < max(0, cvar_hget(cvarh_vr_worn_backpack_rip_time)))
     {
         return FALSE;
     }
@@ -311,7 +311,7 @@ void(entity pk, entity g) VR_WP_Pulls =
                 float pull = max(0, pm) + max(0, po);
                 if(hands == 2)
                 {
-                    pull = pull * max(1, cvar("vr_worn_backpack_two_hand_mult"));
+                    pull = pull * max(1, cvar_hget(cvarh_vr_worn_backpack_two_hand_mult));
                 }
                 if(VR_WP_Pull(pk, g, pl, pnum, pm >= po ? cVR_MainHand : cVR_OffHand, pull, hands))
                 {
@@ -339,7 +339,7 @@ float vr_wp_tug_secs;  // the last living tug's time, from its first counted pul
 void(entity g, vector dir) VR_WP_Topple =
 {
     dir_z = 0;
-    if(!cvar("vr_worn_backpack_topple") || vlen(dir) < 0.01 || g.health <= 0 || g.vr_knockdown || !canragdoll(g))
+    if(!cvar_hget(cvarh_vr_worn_backpack_topple) || vlen(dir) < 0.01 || g.health <= 0 || g.vr_knockdown || !canragdoll(g))
     {
         return;
     }
@@ -360,7 +360,7 @@ void(entity g, vector dir) VR_WP_Topple =
         g.flags = wasFlags;
         return;
     }
-    ragdollshovetopple(g, dir, min(2, max(0.1, cvar("vr_worn_backpack_topple_push"))), FALSE, slide);
+    ragdollshovetopple(g, dir, min(2, max(0.1, cvar_hget(cvarh_vr_worn_backpack_topple_push))), FALSE, slide);
     vr_wp_topples = vr_wp_topples + 1;
     vr_wp_topple_dir = dir;
     VR_WP_Log(sprintf("torn off: %s topples along (%.2f %.2f)", g.classname, dir_x, dir_y));
@@ -372,7 +372,7 @@ void(entity g, vector dir) VR_WP_Topple =
 // hand (its spare rounds with it), and the grunt topples that way (VR_WP_Topple).
 void(entity pk, entity g) VR_WP_Tug =
 {
-    float need = max(0.5, cvar("vr_worn_backpack_tug_stretch"));
+    float need = max(0.5, cvar_hget(cvarh_vr_worn_backpack_tug_stretch));
     float cm = VRMetersToUnits() * 0.01;
     entity pl = nextent(world);
     float pnum = 1;
@@ -390,15 +390,15 @@ void(entity pk, entity g) VR_WP_Tug =
                 float pull = (max(0, sm) + max(0, so)) / cm;
                 if(hands == 2)
                 {
-                    pull = pull * max(1, cvar("vr_worn_backpack_two_hand_mult"));
+                    pull = pull * max(1, cvar_hget(cvarh_vr_worn_backpack_two_hand_mult));
                 }
                 pk.vr_wp_peak = max(pk.vr_wp_peak, pull);
                 if(VR_WP_PullLifts())
                 {
                     // (Never torn off by the tug: its pull (the hands' stretch as a force) lifts it past the lift force.)
-                    float force = (max(0, sm) + max(0, so)) * max(0, cvar("vr_worn_backpack_rip_stiffness"));
-                    force = force * (hands == 2 ? max(1, cvar("vr_worn_backpack_two_hand_mult")) : 1);
-                    if(cvar("vr_worn_backpack_debug") >= 2)
+                    float force = (max(0, sm) + max(0, so)) * max(0, cvar_hget(cvarh_vr_worn_backpack_rip_stiffness));
+                    force = force * (hands == 2 ? max(1, cvar_hget(cvarh_vr_worn_backpack_two_hand_mult)) : 1);
+                    if(cvar_hget(cvarh_vr_worn_backpack_debug) >= 2)
                     {
                         VR_WP_Log(sprintf("tug (pull lifts): %.0f N (%g hands; main %.1f, off %.1f units)", force, hands, sm, so));
                     }
@@ -422,12 +422,12 @@ void(entity pk, entity g) VR_WP_Tug =
                 {
                     pk.vr_wp_prog = max(0, pk.vr_wp_prog - frametime * 2); // (let up: it gets its footing back)
                 }
-                if(cvar("vr_worn_backpack_debug") >= 2)
+                if(cvar_hget(cvarh_vr_worn_backpack_debug) >= 2)
                 {
                     VR_WP_Log(sprintf("tug: pull %.1f cm (%g hands; main %.1f, off %.1f units), %.2f of %.2f s", pull, hands, sm,
-                        so, pk.vr_wp_prog, cvar("vr_worn_backpack_tug_time")));
+                        so, pk.vr_wp_prog, cvar_hget(cvarh_vr_worn_backpack_tug_time)));
                 }
-                if(pk.vr_wp_prog >= max(0.01, cvar("vr_worn_backpack_tug_time")))
+                if(pk.vr_wp_prog >= max(0.01, cvar_hget(cvarh_vr_worn_backpack_tug_time)))
                 {
                     // (Into the main hand if it holds it; the way: the hands' pull, each palm from its spot on the pack.)
                     float hand = sm >= 0 ? cVR_MainHand : cVR_OffHand;
@@ -572,12 +572,12 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_WP_Hit =
     float d = 0;
     if(hit_kind == QVR_HITKIND_SPLASH)
     {
-        share = min(1, max(0, cvar("vr_worn_backpack_pool_blast")));
+        share = min(1, max(0, cvar_hget(cvarh_vr_worn_backpack_pool_blast)));
         kind = "blast";
     }
     else if(inflictor.classname == "vr_burn" || inflictor.classname == "vr_adflame")
     {
-        share = min(1, max(0, cvar("vr_worn_backpack_pool_fire")));
+        share = min(1, max(0, cvar_hget(cvarh_vr_worn_backpack_pool_fire)));
         kind = "fire";
     }
     else
@@ -599,7 +599,7 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_WP_Hit =
     }
     vr_wp_hit_counted = take * share;
     pk.vr_wp_dmg = pk.vr_wp_dmg + vr_wp_hit_counted;
-    float pool = max(0, cvar("vr_worn_backpack_pool"));
+    float pool = max(0, cvar_hget(cvarh_vr_worn_backpack_pool));
     VR_WP_Log(sprintf("%s on its pack (%.1f units off): %.1f damage counted, %.1f of %g", kind, d, vr_wp_hit_counted, pk.vr_wp_dmg,
         pool));
     if((attacker.flags & FL_CLIENT) && targ.enemy == world && targ.health > 0 && (targ.th_run || VR_Stealth_AD(targ)))
@@ -615,7 +615,7 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_WP_Hit =
     {
         if(kind == "hit")
         {
-            float chance = min(1, max(0, cvar("vr_worn_backpack_hit_roll")) * take / max(1, cvar("vr_worn_backpack_hit_ref")));
+            float chance = min(1, max(0, cvar_hget(cvarh_vr_worn_backpack_hit_roll)) * take / max(1, cvar_hget(cvarh_vr_worn_backpack_hit_ref)));
             if(chance > 0)
             {
                 torn = random() < chance;
@@ -634,7 +634,7 @@ void(entity targ, entity inflictor, entity attacker, float take) VR_WP_Hit =
 void(entity m, vector xAt, float xSpeed) VR_WP_Impact =
 {
     entity pk = m.vr_wp_pack;
-    if(!pk || pk.vr_wp_state == VR_WP_OFF || xSpeed < max(0.5, cvar("vr_worn_backpack_impact")) || !isragdoll(m))
+    if(!pk || pk.vr_wp_state == VR_WP_OFF || xSpeed < max(0.5, cvar_hget(cvarh_vr_worn_backpack_impact)) || !isragdoll(m))
     {
         return;
     }

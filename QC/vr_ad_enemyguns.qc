@@ -75,7 +75,7 @@ void(float wid) VR_ADGun_Ensure =
 
 void(float xClass) VR_ADGun_Prepare =
 {
-    if(cvar("vr_adgun_drops"))
+    if(cvar_hget(cvarh_vr_adgun_drops))
     {
         VR_ADGun_Ensure(VR_ADGun_ForClass(xClass));
     }
@@ -203,7 +203,7 @@ void(entity p) VR_ADGun_EnsureCarried =
 // Self, an armed AD soldier dying: its own gun, where it held it, full (VR_DropEnemyGun).
 void() VR_ADGun_Drop =
 {
-    if(!cvar("vr_adgun_drops"))
+    if(!cvar_hget(cvarh_vr_adgun_drops))
     {
         return;
     }
@@ -426,7 +426,7 @@ void(entity xGun, entity xFrom) VR_FuelTank_Attach =
     setorigin(t, at);
     t.vr_fuellink = xGun;
     xGun.vr_fuellink = t;
-    t.vr_prop_mass = max(0.2, cvar("vr_adgun_tank_mass"));
+    t.vr_prop_mass = max(0.2, cvar_hget(cvarh_vr_adgun_tank_mass));
     t.touch = SUB_Null;
     t.vr_impact = VR_FuelTank_Impact;
     t.throwhit = QVR_THROWHIT_HIT; // (not thrown yet: QVR_THROWHIT_NEVER_HIT, 0, is a throw in flight)
@@ -434,7 +434,7 @@ void(entity xGun, entity xFrom) VR_FuelTank_Attach =
     VR_Carry_Setup(t);
     t.think = VR_FuelTank_Think;
     t.nextthink = time + 0.01;
-    float hp = cvar("vr_adgun_tank_health");
+    float hp = cvar_hget(cvarh_vr_adgun_tank_health);
     if(hp > 0)
     {
         t.takedamage = DAMAGE_YES; // (shots and missiles stop at it: a touchable that takes damage, the engine's MOVE_HITGIBS)
@@ -557,7 +557,7 @@ float(entity b, entity t, entity g, float xFrom) VR_HoseCut_Ribs =
 {
     vector line = b.mh_far - b.mh_grip;
     float len2 = line * line;
-    float least = max(0, cvar("vr_adgun_hosecut_speed"));
+    float least = max(0, cvar_hget(cvarh_vr_adgun_hosecut_speed));
     for(float k = 0; k < vr_rib_n; ++k)
     {
         float i = vr_rib_i[k];
@@ -607,7 +607,7 @@ void(float xHand, entity b) VR_HoseCut_Melee =
     {
         return; // (not a blade: a fist, a club, a gun, the crowbar, Mjolnir, the hammer, the mace; one held off its handle)
     }
-    if(!cvar("vr_adgun_hosecut"))
+    if(!cvar_hget(cvarh_vr_adgun_hosecut))
     {
         return;
     }
@@ -620,7 +620,7 @@ void(float xHand, entity b) VR_HoseCut_Melee =
     // The tanks lying about with their gun whose pair's box (widened by its rope) the swept lines' box meets.
     vector lo = vr_rib_lo - '1 1 1' * (vr_rib_rmax + 2);
     vector hi = vr_rib_hi + '1 1 1' * (vr_rib_rmax + 2);
-    float slack = max(0.4, cvar("vr_adgun_tank_rope")) * VRMetersToUnits() * 0.6;
+    float slack = max(0.4, cvar_hget(cvarh_vr_adgun_tank_rope)) * VRMetersToUnits() * 0.6;
     float from = thing == VR_MTHING_SAW ? VR_SAW_BAR_START : (thing == VR_MTHING_AXE ? VR_DECAP_BLADE_AXE : VR_DECAP_BLADE_SWORD);
     for(entity e = find(world, classname, "vr_fueltank"); e; e = find(e, classname, "vr_fueltank"))
     {
@@ -663,7 +663,7 @@ void(entity e, float xTakes) VR_ADGun_LimbCut =
         return;
     }
     e.vr_adgun_freddie_off = TRUE;
-    if(!cvar("vr_adgun_drops"))
+    if(!cvar_hget(cvarh_vr_adgun_drops))
     {
         return;
     }
@@ -692,7 +692,7 @@ void() VR_ADGun_FreddieGibbed =
         return;
     }
     self.vr_adgun_freddie_off = TRUE;
-    if(!cvar("vr_adgun_drops"))
+    if(!cvar_hget(cvarh_vr_adgun_drops))
     {
         return;
     }
@@ -759,7 +759,7 @@ float(entity xInflictor, float xDamage) VR_ADGun_BlastPush =
 {
     if(xInflictor.ad_classtype == ad_CT_PROJ_PLASMA)
     {
-        return max(xDamage, cvar("vr_ad_plasma_push"));
+        return max(xDamage, cvar_hget(cvarh_vr_ad_plasma_push));
     }
     return xDamage;
 };
@@ -768,7 +768,7 @@ float(entity xInflictor, float xDamage) VR_ADGun_BlastPush =
 // arcs (vr_adgun_bolt_fx; its trail is the engine's: vr_particles.cpp electricTrail).
 void(vector org, vector dir, float xHit) VR_ADGun_BoltFx =
 {
-    if(cvar("vr_adgun_bolt_fx"))
+    if(cvar_hget(cvarh_vr_adgun_bolt_fx))
     {
         dir = normalize(dir);
         particle2(xHit ? org - dir * 4 : org, xHit ? dir * -1 : dir, QVR_PARTICLE_PRESET_ELECTRICSPARKS, xHit ? 10 : 8);
@@ -913,7 +913,7 @@ void(float xHand) VR_ADGun_FireCrossbow =
     vector org = VRGetMuzzlePos(xHand);
     vector ofs = VR_IMPL_SELECT(xHand, self.offlaunchofs, self.launchofs);
     float drawn = 1;
-    if(cvar("vr_adgun_crossbow_anim") && ofs != '0 0 0')
+    if(cvar_hget(cvarh_vr_adgun_crossbow_anim) && ofs != '0 0 0')
     {
         // The bolt the client draws in the crossbow's groove, along the shot (vr_adcrossbow.cpp), is the one that leaves:
         // from its middle as drawn (.launchofs: from the muzzle in the shot's frame, however the crossbow is posed), at
@@ -1122,11 +1122,11 @@ void(entity f) VR_TankField_Unwhoosh =
 void(entity f) VR_TankField_Damage =
 {
     float fire = f.vr_tf_kind == 1;
-    float scale = max(0, cvar("vr_adgun_tank_field_damage"));
+    float scale = max(0, cvar_hget(cvarh_vr_adgun_tank_field_damage));
     float top = f.origin_z + (fire ? 48 : 72);
-    float burn = max(0, cvar("vr_adgun_tank_burst_burn")) * f.vr_tf_s;
-    float dps = max(0, cvar("vr_adgun_tank_burst_poison")) * f.vr_tf_s * scale;
-    float ptime = max(0, cvar("vr_adgun_tank_burst_poisontime")) * f.vr_tf_s;
+    float burn = max(0, cvar_hget(cvarh_vr_adgun_tank_burst_burn)) * f.vr_tf_s;
+    float dps = max(0, cvar_hget(cvarh_vr_adgun_tank_burst_poison)) * f.vr_tf_s * scale;
+    float ptime = max(0, cvar_hget(cvarh_vr_adgun_tank_burst_poisontime)) * f.vr_tf_s;
     vector eye = f.origin + '0 0 16';
     float reach = VR_TankField_Reach(f);
     for(entity e = findradius(f.origin, reach + 24); e; e = e.chain)
@@ -1227,7 +1227,7 @@ void(entity f, float xStrength, float xDt) VR_TankField_Look =
     vector look = '1 0 0' + '0 1 0' * (0.55 + 0.45 * xStrength) + '0 0 1' * (0.3 + 0.7 * xStrength);
     if(f.vr_tf_kind == 1)
     {
-        n = VR_TankField_SomeOf(max(0, cvar("vr_adgun_tank_field_flames")) * area * 3 * per * (0.25 + 0.75 * xStrength));
+        n = VR_TankField_SomeOf(max(0, cvar_hget(cvarh_vr_adgun_tank_field_flames)) * area * 3 * per * (0.25 + 0.75 * xStrength));
         for(i = 0; i < n; i++)
         {
             if(VR_TankField_Spot(f, reach) && (pointcontents(vr_tankfield_spot + '0 0 4') > CONTENT_WATER))
@@ -1236,7 +1236,7 @@ void(entity f, float xStrength, float xDt) VR_TankField_Look =
                 vr_tankfield_fx_fire++;
             }
         }
-        n = VR_TankField_SomeOf(max(0, cvar("vr_adgun_tank_field_smoke")) * clamp(area * 0.45, 0.5, 4) * per * xStrength);
+        n = VR_TankField_SomeOf(max(0, cvar_hget(cvarh_vr_adgun_tank_field_smoke)) * clamp(area * 0.45, 0.5, 4) * per * xStrength);
         for(i = 0; i < n; i++)
         {
             if(VR_TankField_Spot(f, reach) && (pointcontents(vr_tankfield_spot + '0 0 4') > CONTENT_WATER))
@@ -1248,7 +1248,7 @@ void(entity f, float xStrength, float xDt) VR_TankField_Look =
         return;
     }
     float burst = (time - f.vr_tf_start < f.vr_tf_spread + 0.3) ? 4 : 1; // (thick at once: a smoke bomb going off)
-    n = VR_TankField_SomeOf(max(0, cvar("vr_adgun_tank_field_cloud")) * clamp(area, 0.5, 9) * per * burst);
+    n = VR_TankField_SomeOf(max(0, cvar_hget(cvarh_vr_adgun_tank_field_cloud)) * clamp(area, 0.5, 9) * per * burst);
     for(i = 0; i < n; i++)
     {
         if(VR_TankField_Spot(f, reach))
@@ -1259,7 +1259,7 @@ void(entity f, float xStrength, float xDt) VR_TankField_Look =
             vr_tankfield_fx_cloud++;
         }
     }
-    n = VR_TankField_SomeOf(max(0, cvar("vr_adgun_tank_field_flames")) * area * 0.5 * per * xStrength);
+    n = VR_TankField_SomeOf(max(0, cvar_hget(cvarh_vr_adgun_tank_field_flames)) * area * 0.5 * per * xStrength);
     for(i = 0; i < n; i++)
     {
         if(VR_TankField_Spot(f, reach))
@@ -1313,7 +1313,7 @@ void() VR_TankFlame_Think =
 // The fire field `f`'s 3D flames (vr_adgun_tank_field_models at a full tank, the fuel's share `s` of it), its life `xLife`.
 void(entity f, float s, float xLife) VR_TankField_Flames =
 {
-    float n = floor(max(0, cvar("vr_adgun_tank_field_models")) * s + 0.5);
+    float n = floor(max(0, cvar_hget(cvarh_vr_adgun_tank_field_models)) * s + 0.5);
     float spread = max(0.05, f.vr_tf_spread);
     float lit = FALSE;
     for(float i = 0; i < n; i++)
@@ -1403,11 +1403,11 @@ entity(vector at, float poison, float s, float xFuel, entity xBy) VR_TankField_M
     f.vr_tf_kind = poison ? 2 : 1;
     f.vr_tf_s = s;
     f.vr_tf_start = time;
-    float life = xFuel > 0 ? max(0, cvar("vr_adgun_tank_field_time")) * s : 0;
+    float life = xFuel > 0 ? max(0, cvar_hget(cvarh_vr_adgun_tank_field_time)) * s : 0;
     f.vr_tf_end = time + life;
-    f.vr_tf_radius = max(16, cvar("vr_adgun_tank_field_radius")) * s;
+    f.vr_tf_radius = max(16, cvar_hget(cvarh_vr_adgun_tank_field_radius)) * s;
     f.vr_tf_tick = time + 0.2; // (the burst's own reach first)
-    f.vr_tf_spread = max(0, cvar("vr_adgun_tank_field_spread"));
+    f.vr_tf_spread = max(0, cvar_hget(cvarh_vr_adgun_tank_field_spread));
     f.vr_tf_looked = time;
     f.think = VR_TankField_Think;
     f.nextthink = time + (f.vr_tf_spread > 0 ? 0.05 : 0.1);
@@ -1521,11 +1521,11 @@ void(entity t, entity xBy) VR_FuelTank_BurstNow =
         return;
     }
     float s = 0.4 + 0.6 * f; // (its reach, burning and poison: 40% near empty, all of it full)
-    float radius = max(16, cvar("vr_adgun_tank_burst_radius")) * s;
-    float blast = max(0, cvar("vr_adgun_tank_burst_damage")) * f * (poison ? 0.5 : 1);
-    float burn = max(0, cvar("vr_adgun_tank_burst_burn")) * s;
-    float dps = max(0, cvar("vr_adgun_tank_burst_poison")) * s;
-    float ptime = max(0, cvar("vr_adgun_tank_burst_poisontime")) * s;
+    float radius = max(16, cvar_hget(cvarh_vr_adgun_tank_burst_radius)) * s;
+    float blast = max(0, cvar_hget(cvarh_vr_adgun_tank_burst_damage)) * f * (poison ? 0.5 : 1);
+    float burn = max(0, cvar_hget(cvarh_vr_adgun_tank_burst_burn)) * s;
+    float dps = max(0, cvar_hget(cvarh_vr_adgun_tank_burst_poison)) * s;
+    float ptime = max(0, cvar_hget(cvarh_vr_adgun_tank_burst_poisontime)) * s;
     // The look: fire or green poison thrown out through its reach, as much as the fuel; a flame's burst its explosion.
     float n = 4 + floor(14 * f);
     for(float i = 0; i < n; i++)
@@ -1615,7 +1615,7 @@ void(entity t, entity xBy) VR_FuelTank_BurstNow =
 // carried with it (vr_adgun_stream_fire a tenth of a second; green: poison). Not as smoke under water.
 void(entity flame, float poison) VR_ADGun_StreamFx =
 {
-    float a = cvar("vr_adgun_stream_alpha");
+    float a = cvar_hget(cvarh_vr_adgun_stream_alpha);
     flame.alpha = (a > 0 && a < 1) ? max(0.1, a) : 0; // (0: opaque)
     float n = cvar_hget(cvarh_vr_adgun_stream_fire) * (flame.classname == "vr_adflame" ? 0.5 : 1);
     if(n <= 0 || (!poison && flame.model != ad_SBURST_FLAME))
@@ -1659,7 +1659,7 @@ float(entity flame, float xStep) VR_ADGun_FlameDoused =
 {
     vector before = flame.oldorigin;
     flame.oldorigin = flame.origin;
-    if(flame.model != ad_SBURST_FLAME || !VR_Burn_InWater(flame.origin) || cvar("vr_burn_water_douse") <= 0)
+    if(flame.model != ad_SBURST_FLAME || !VR_Burn_InWater(flame.origin) || cvar_hget(cvarh_vr_burn_water_douse) <= 0)
     {
         return FALSE;
     }
@@ -1681,7 +1681,7 @@ float(entity flame, float xStep) VR_ADGun_FlameDoused =
 // a flame (a pyro's slides along the wall, touching it each frame). Fire only (not poison, not smoke).
 void(entity flame) VR_ADGun_FlameScorch =
 {
-    if(flame.vr_adgun_scorched || flame.model != ad_SBURST_FLAME || cvar("vr_adgun_fx_scorch") <= 0)
+    if(flame.vr_adgun_scorched || flame.model != ad_SBURST_FLAME || cvar_hget(cvarh_vr_adgun_fx_scorch) <= 0)
     {
         return;
     }

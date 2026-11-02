@@ -113,20 +113,20 @@ void() VR_AGSH_Frame =
     entity pl = vr_agt_player;
     entity g = vr_agt_grunt;
     float c = vr_agsh_case;
-    if((vr_agsh_step == 0) && (c == 0) && cvar("scratch2"))
+    if((vr_agsh_step == 0) && (c == 0) && cvar_hget(cvarh_scratch2))
     {
         vr_agsh_case = VR_AGSH_N; // (scratch2 1: the other classes)
         c = vr_agsh_case;
         vr_agsh_home = pl.origin;
         vr_agsh_yaw = pl.angles_y;
-        vr_agsh_keep = cvar("vr_agrunt_shove");
+        vr_agsh_keep = cvar_hget(cvarh_vr_agrunt_shove);
         cvar_set("vr_agrunt_shove", "2");
     }
     else if((vr_agsh_step == 0) && (c == 0))
     {
         vr_agsh_home = pl.origin;
         vr_agsh_yaw = pl.angles_y;
-        vr_agsh_keep = cvar("vr_agrunt_shove");
+        vr_agsh_keep = cvar_hget(cvarh_vr_agrunt_shove);
         cvar_set("vr_agrunt_shove", "2");
     }
     makevectors([0, vr_agsh_yaw, 0]);
@@ -194,7 +194,7 @@ void() VR_AGSH_Frame =
             vr_agsh_len = vr_agp_tw + vr_agp_ts + vr_agp_th + vr_agp_tr;
             vr_agsh_step = 3;
         }
-        else if(cvar("scratch1") && floor((time - vr_agsh_at) * 2) != floor((time - vr_agsh_at - frametime) * 2))
+        else if(cvar_hget(cvarh_scratch1) && floor((time - vr_agsh_at) * 2) != floor((time - vr_agsh_at - frametime) * 2))
         {
             VR_AGT_Print(sprintf("shove debug: act %g frame %g near %g next %g enemy %s time %g", g.vr_ag_act, g.frame,
                 g.vr_eshove_near, g.vr_eshove_next, g.enemy.classname, time));
@@ -289,7 +289,7 @@ void() VR_AGSH_Frame =
         vr_agt_grunt = world;
         vr_agsh_case = vr_agsh_case + 1;
         vr_agsh_step = 0;
-        if(vr_agsh_case >= VR_AGSH_N * (cvar("scratch2") ? 2 : 1))
+        if(vr_agsh_case >= VR_AGSH_N * (cvar_hget(cvarh_scratch2) ? 2 : 1))
         {
             vr_agsh_case = 0;
             cvar_set("vr_agrunt_shove", ftos(vr_agsh_keep));

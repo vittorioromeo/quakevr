@@ -66,7 +66,7 @@ void() VR_AD_WorldOnDemand =
 */
 void() item_healthvial =
 {
-    if(!AD_Rules() && cvar("vr_ad_everywhere") == 0)
+    if(!AD_Rules() && cvar_hget(cvarh_vr_ad_everywhere) == 0)
     {
         remove(self);
         return;
@@ -81,7 +81,7 @@ void() item_healthvial =
     self.handtouch = health_touch;
     // Drawn vr_ad_healthvial_scale times AD's tiny model (author's note 2026-10-22: 2.5); as an object, its box with it
     // (MakeItemGrabbable). Its touch box as ever.
-    self.vr_pickup_scale = max(0.1, cvar("vr_ad_healthvial_scale"));
+    self.vr_pickup_scale = max(0.1, cvar_hget(cvarh_vr_ad_healthvial_scale));
     VR_ScaleUtil_SetScale(self, VR_ScaleUtil_GetUniformScaleVector(self.vr_pickup_scale));
     setsize(self, '-8 -8 0', '8 8 32');
     StartItem();

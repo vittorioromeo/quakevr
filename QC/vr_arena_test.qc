@@ -783,7 +783,7 @@ void(float xImpact, float xEasy, float xHard, float xNight, string xWhat) VR_AT5
     for(sk = 0; sk <= 3; sk++)
     {
         VR_AT_SetSkill(sk);
-        dprint(sprintf("arena: t5 impact %g skill %g factor %g\n", cvar("vr_arena_skill_impact"), sk, VR_AT5_Factor()));
+        dprint(sprintf("arena: t5 impact %g skill %g factor %g\n", cvar_hget(cvarh_vr_arena_skill_impact), sk, VR_AT5_Factor()));
     }
 }
 
@@ -1609,7 +1609,7 @@ void() VR_AT6_Begin =
     vr_at6_gunbad = 0;
     vr_at6_blows = 0;
     vr_at6_gunscans = 0;
-    vr_at6_delay = cvar("vr_arena_wave_rest");
+    vr_at6_delay = cvar_hget(cvarh_vr_arena_wave_rest);
     cvar_set("vr_arena_wave_rest", "1");
     cvar_set("vr_arena_countdown", "0"); // (the soak: no countdown either; VR_AT_End puts it back)
     cvar_set("vr_arena_wave_size", "1.75"); // (the default's bigger waves: the soak is bounded with them)
@@ -1640,9 +1640,9 @@ void() VR_AT6_Finish =
     VR_AT_Check(vr_at6_long < AR_STALL, "no wave stalled");
     VR_AT_Check(grow <= AR_T6_LEAK * span, "the map grows no faster than a wave clear's drops");
     // The cleanup's caps (vr_arena.qc): the bodies lying (not fading), the foes' guns, a wave clear's drops.
-    VR_AT_Check(VR_AT_LyingBodies() <= cvar("vr_arena_corpse_max"), "no more bodies lie than vr_arena_corpse_max");
-    VR_AT_Check(VR_AT_FoeGuns() <= cvar("vr_arena_gun_max"), "no more of the foes' guns lie than vr_arena_gun_max");
-    VR_AT_Check(d1 <= AR_T6_DROPS * (cvar("vr_arena_item_waves") + 1), "a wave clear's drops go vr_arena_item_waves clears on");
+    VR_AT_Check(VR_AT_LyingBodies() <= cvar_hget(cvarh_vr_arena_corpse_max), "no more bodies lie than vr_arena_corpse_max");
+    VR_AT_Check(VR_AT_FoeGuns() <= cvar_hget(cvarh_vr_arena_gun_max), "no more of the foes' guns lie than vr_arena_gun_max");
+    VR_AT_Check(d1 <= AR_T6_DROPS * (cvar_hget(cvarh_vr_arena_item_waves) + 1), "a wave clear's drops go vr_arena_item_waves clears on");
     dprint(sprintf("arena: t6 gun scan: %g weapons scanned, %g broken, %g fades mended\n", vr_at6_gunscans, vr_at6_gunbad,
                    vr_dropcap_mended));
     // The fades' safety net (VR_EnemyWeapons_MendFades): a fade stopped midway (its think replaced) on again; one long
@@ -3038,8 +3038,8 @@ void() VR_AT16_Frame =
         if(left > 3) { if(VR_AT_KillOne(ar_wave)) { vr_at16_at = time; } return; }
         VR_AT_Check(left == 3, sprintf("three of the wave left (%g)", left));
         VR_AT_Check(VR_AT16_Marks(FALSE), "with three left no foe is marked");
-        VR_AT_Check(cvar("vr_arena_xray_shown") == 0, sprintf("with three left none is outlined (%g)",
-                                                                   cvar("vr_arena_xray_shown")));
+        VR_AT_Check(cvar_hget(cvarh_vr_arena_xray_shown) == 0, sprintf("with three left none is outlined (%g)",
+                                                                   cvar_hget(cvarh_vr_arena_xray_shown)));
         VR_AT_KillOne(ar_wave);
         vr_at16_at = time;
         vr_at16_state = 1;
@@ -3057,8 +3057,8 @@ void() VR_AT16_Frame =
     }
     if(vr_at16_state == 2)
     {
-        VR_AT_Check(cvar("vr_arena_xray_shown") == alive, sprintf("with two left both are outlined beyond 32 (%g of %g)",
-                                                                       cvar("vr_arena_xray_shown"), alive));
+        VR_AT_Check(cvar_hget(cvarh_vr_arena_xray_shown) == alive, sprintf("with two left both are outlined beyond 32 (%g of %g)",
+                                                                       cvar_hget(cvarh_vr_arena_xray_shown), alive));
         cvar_set("vr_arena_xray_distance", "5000");
         vr_at16_at = time;
         vr_at16_state = 3;
@@ -3066,8 +3066,8 @@ void() VR_AT16_Frame =
     }
     if(vr_at16_state == 3)
     {
-        VR_AT_Check(cvar("vr_arena_xray_shown") == 0, sprintf("none is outlined nearer than 5000 (%g)",
-                                                               cvar("vr_arena_xray_shown")));
+        VR_AT_Check(cvar_hget(cvarh_vr_arena_xray_shown) == 0, sprintf("none is outlined nearer than 5000 (%g)",
+                                                               cvar_hget(cvarh_vr_arena_xray_shown)));
         cvar_set("vr_arena_xray_distance", "32");
         cvar_set("vr_arena_xray", "0");
         vr_at16_at = time;
@@ -3075,7 +3075,7 @@ void() VR_AT16_Frame =
         return;
     }
     VR_AT_Check(VR_AT16_Marks(FALSE), "off: no foe is marked");
-    VR_AT_Check(cvar("vr_arena_xray_shown") == 0, sprintf("off: none is outlined (%g)", cvar("vr_arena_xray_shown")));
+    VR_AT_Check(cvar_hget(cvarh_vr_arena_xray_shown) == 0, sprintf("off: none is outlined (%g)", cvar_hget(cvarh_vr_arena_xray_shown)));
     VR_AT_End();
 }
 
@@ -3129,7 +3129,7 @@ void() VR_AT17_Run =
 
 void() VR_ARENA_Test_Frame =
 {
-    float c = cvar("vr_arena_test");
+    float c = cvar_hget(cvarh_vr_arena_test);
 
     if(c == 0)
     {
@@ -3144,7 +3144,7 @@ void() VR_ARENA_Test_Frame =
         vr_at_step = 0;
         vr_at_until = time + 30;
         VR_AT_Save();
-        vr_at_skill0 = cvar("skill");
+        vr_at_skill0 = cvar_hget(cvarh_skill);
         VR_AT_SetDefaults();
         dprint(sprintf("arena: test %g begin\n", c));
 

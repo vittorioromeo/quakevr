@@ -47,7 +47,7 @@ float(string xClass) MG3_ST_Count =
 void() MG3_ST_Report =
 {
     entity m = find(world, classname, "monster_oldone_new");
-    dprint(sprintf("mg3shubtest: report map %s campaign %g skill %g data %g\n", mapname, cvar("vr_campaign"), skill, MG3_Shub_Available()));
+    dprint(sprintf("mg3shubtest: report map %s campaign %g skill %g data %g\n", mapname, cvar_hget(cvarh_vr_campaign), skill, MG3_Shub_Available()));
     dprint(sprintf("mg3shubtest: shub %g phase %g health %g/%g immune %g free %g at %v\n", m != world, m.mg3_shub_phase,
         m.health, m.max_health, m.mg3_shub_immune, m.mg3_shub_free, m.origin));
     float spawns = MG3_ST_Count("info_szombie_spawn");
@@ -575,7 +575,7 @@ void() MG3_ShubTestFrame =
         else if(mg3st_step < 60) MG3_ST_ZombieStep();
         self = os; other = oo; activator = oa;
     }
-    float request = cvar("vr_mg3_shubtest");
+    float request = cvar_hget(cvarh_vr_mg3_shubtest);
     if(!request) return;
     cvar_set("vr_mg3_shubtest", "0");
     if(!VR_Player()) return;

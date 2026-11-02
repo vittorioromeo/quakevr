@@ -119,6 +119,22 @@ float(float k, vector at) VR_AgArmor_Rand =
     return x - floor(x);
 };
 
+// The skill's roll settings (sk 0..3): what 0 its chance (vr_agarmor_skill<sk>), 1 its best type (_type), 2 its
+// pieces (_pieces).
+float(float sk, float what) VR_AgArmor_SkillValue =
+{
+    float h;
+    if(sk <= 0)
+        h = what == 0 ? cvarh_vr_agarmor_skill0 : (what == 1 ? cvarh_vr_agarmor_skill0_type : cvarh_vr_agarmor_skill0_pieces);
+    else if(sk == 1)
+        h = what == 0 ? cvarh_vr_agarmor_skill1 : (what == 1 ? cvarh_vr_agarmor_skill1_type : cvarh_vr_agarmor_skill1_pieces);
+    else if(sk == 2)
+        h = what == 0 ? cvarh_vr_agarmor_skill2 : (what == 1 ? cvarh_vr_agarmor_skill2_type : cvarh_vr_agarmor_skill2_pieces);
+    else
+        h = what == 0 ? cvarh_vr_agarmor_skill3 : (what == 1 ? cvarh_vr_agarmor_skill3_type : cvarh_vr_agarmor_skill3_pieces);
+    return cvar_hget(h);
+};
+
 // The skill's armour for one spawn at `at` (vr_ar_roll_type 0: none).
 void(float sk, vector at) VR_AgArmor_Roll =
 {
@@ -126,15 +142,14 @@ void(float sk, vector at) VR_AgArmor_Roll =
     vr_ar_roll_type = 0;
     vr_ar_roll_mask = 0;
     sk = max(0, min(3, floor(sk)));
-    string base = strcat("vr_agarmor_skill", ftos(sk));
-    float chance = cvar(base);
+    float chance = VR_AgArmor_SkillValue(sk, 0);
     if(chance <= 0 || VR_AgArmor_Rand(0, at) >= chance)
     {
         return;
     }
-    float best = max(1, min(3, floor(cvar(strcat(base, "_type")))));
+    float best = max(1, min(3, floor(VR_AgArmor_SkillValue(sk, 1))));
     vr_ar_roll_type = 1 + min(best - 1, floor(VR_AgArmor_Rand(1, at) * best));
-    float n = max(1, min(VR_AR_PIECES, floor(cvar(strcat(base, "_pieces")))));
+    float n = max(1, min(VR_AR_PIECES, floor(VR_AgArmor_SkillValue(sk, 2))));
     vr_ar_roll_mask = n >= 2 ? 3 : 1;
     // The rest at random among the eight limb plates.
     float left = n - 2;
@@ -300,7 +315,7 @@ void(string base) VR_AgArmor_PrecacheOf =
 string vr_ar_break_sound_last; // the tests: the last break's sound
 float vr_ar_debris_grabs;      // the tests: debris taken in a hand
 
-float() VR_AgArmor_DebrisTime = { return max(0.1, cvar("vr_agarmor_debris_time")); };
+float() VR_AgArmor_DebrisTime = { return max(0.1, cvar_hget(cvarh_vr_agarmor_debris_time)); };
 
 // Its last second: fading out, then gone. Held (or taken since), it waits its whole time again (VR_AgArmor_DebrisGrabbed).
 void() VR_AgArmor_DebrisFade =
@@ -495,7 +510,7 @@ float(entity e, float joint) VR_AgArmor_Holds =
 {
     float i;
     if(vr_ar_plate_hit_ent == e && vr_ar_plate_hit_time == time && e.vr_ar_type > 0 &&
-       cvar(joint == 0 ? "vr_agarmor_helmet_head" : "vr_agarmor_block_cuts"))
+       cvar_hget(joint == 0 ? cvarh_vr_agarmor_helmet_head : cvarh_vr_agarmor_block_cuts))
     {
         return TRUE;
     }
@@ -505,9 +520,9 @@ float(entity e, float joint) VR_AgArmor_Holds =
     }
     if(joint == 0)
     {
-        return cvar("vr_agarmor_helmet_head") && VR_AgArmor_On(e, VR_AR_HELMET);
+        return cvar_hget(cvarh_vr_agarmor_helmet_head) && VR_AgArmor_On(e, VR_AR_HELMET);
     }
-    if(!cvar("vr_agarmor_block_cuts"))
+    if(!cvar_hget(cvarh_vr_agarmor_block_cuts))
     {
         return FALSE;
     }
@@ -588,7 +603,7 @@ float(entity targ, vector at, vector dir) VR_AgArmor_PushScale =
     {
         return 1;
     }
-    return max(0, cvar("vr_agarmor_impulse"));
+    return max(0, cvar_hget(cvarh_vr_agarmor_impulse));
 };
 
 
@@ -633,7 +648,7 @@ float(entity targ, vector org, vector vel, float damage) VR_AgArmor_HitFx =
     {
         return 1;
     }
-    float through = max(0, VR_AgArmor_Through(targ, p, damage, cvar("vr_agarmor_rule"))) / damage;
+    float through = max(0, VR_AgArmor_Through(targ, p, damage, cvar_hget(cvarh_vr_agarmor_rule))) / damage;
     vector out = vel == '0 0 0' ? '0 0 1' : normalize(vel); // (the blood's way: off the surface)
     particle2(org, (out + '0 0 0.3') * 60, QVR_PARTICLE_PRESET_SPARKS, max(6, min(16, 4 + damage)));
     vr_ar_fx_sparks = vr_ar_fx_sparks + 1;
@@ -695,14 +710,14 @@ void(entity targ) VR_AgArmor_Guard =
     }
     if(vr_decap_limb < 0)
     {
-        if(cvar("vr_agarmor_helmet_head") && VR_AgArmor_On(targ, VR_AR_HELMET))
+        if(cvar_hget(cvarh_vr_agarmor_helmet_head) && VR_AgArmor_On(targ, VR_AR_HELMET))
         {
             vr_decap_ent = world;
             dprint("agarmor: the helmet stops the head pop\n");
         }
         return;
     }
-    if(!cvar("vr_agarmor_block_cuts"))
+    if(!cvar_hget(cvarh_vr_agarmor_block_cuts))
     {
         return;
     }
@@ -730,7 +745,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     // its blast too (the plate met it at its face), even the plate broken by it. Before: the bolt's splash hurt the body
     // after its plate broke (test 10: plasma at every plate let 50 through).
     if(inflictor != world && inflictor != attacker && inflictor == vr_ar_block_inf && targ == vr_ar_block_ent &&
-       time == vr_ar_block_time && cvar("vr_agarmor_rule"))
+       time == vr_ar_block_time && cvar_hget(cvarh_vr_agarmor_rule))
     {
         vr_ar_last_save = damage;
         return 0;
@@ -765,7 +780,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
         }
         // A helmet takes half a headshot's extra off (the positional multiplier is in the damage already).
         float head = cvar_hget(cvarh_vr_headshot_mult);
-        if(p == VR_AR_HELMET && VR_Hit_Zone(targ) == VR_REGION_HEAD && VR_AgArmor_On(targ, p) && cvar("vr_agarmor_helmet_head") &&
+        if(p == VR_AR_HELMET && VR_Hit_Zone(targ) == VR_REGION_HEAD && VR_AgArmor_On(targ, p) && cvar_hget(cvarh_vr_agarmor_helmet_head) &&
            cvar_hget(cvarh_vr_positional_damage) && head > 1)
         {
             damage = damage * (1 + (head - 1) * 0.5) / head;
@@ -812,7 +827,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
         vr_ar_plate_hit_time = time;
     }
     float frac = VR_AgArmor_Frac(targ.vr_ar_type);
-    float rule = cvar("vr_agarmor_rule");
+    float rule = cvar_hget(cvarh_vr_agarmor_rule);
     float saved = 0;
     float cost = VR_ARK_PlateCost(attacker); // (1; the Survival Arena's Can Opener: a plate pays twice what it saves)
     for(i = 0; i < VR_AR_PIECES; i++)

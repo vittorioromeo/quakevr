@@ -93,8 +93,8 @@ void() VR_AG2_Frame =
     {
         if(ph == 0)
         {
-            vr_ag2_keep_drop = cvar("vr_agrunt_fall_drop");
-            vr_ag2_keep_scale = cvar("vr_agrunt_tug_downed_scale");
+            vr_ag2_keep_drop = cvar_hget(cvarh_vr_agrunt_fall_drop);
+            vr_ag2_keep_scale = cvar_hget(cvarh_vr_agrunt_tug_downed_scale);
             cvar_set("vr_agrunt_fall_drop", "0"); // (knocked down: it keeps it, for the tug)
             cvar_set("vr_agrunt_tug_downed_scale", "0.5");
         }

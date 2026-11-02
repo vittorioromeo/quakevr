@@ -204,7 +204,7 @@ void() OnLoadGame =
     entity p = VR_Player();
     while(p)
     {
-        p.vr_weapon_load_until = time + max(0, cvar("vr_weapon_load_grace"));
+        p.vr_weapon_load_until = time + max(0, cvar_hget(cvarh_vr_weapon_load_grace));
         p.vr_weapon_load_main = VRGetEntWeaponInst(p, cVR_MainHand);
         p.vr_weapon_load_off = VRGetEntWeaponInst(p, cVR_OffHand);
         // AD support: the AD weapons in its hands and holsters made and precached again (precached late in the saved
@@ -797,7 +797,7 @@ void() changelevel_touch =
     nextmap = self.map;
     // VR: the first start's calibration room leads to the tutorial (on Easy) until it has been started once
     // (vr_tutorial_started: vr_tutorial.qc; the engine's startGameCommands does the same at a start)
-    if(mapname == "vrcalibration" && nextmap == "vrstart" && !deathmatch && !coop && !cvar("vr_tutorial_started"))
+    if(mapname == "vrcalibration" && nextmap == "vrstart" && !deathmatch && !coop && !cvar_hget(cvarh_vr_tutorial_started))
     {
         nextmap = "vrtutorial";
         cvar_set("skill", "0");

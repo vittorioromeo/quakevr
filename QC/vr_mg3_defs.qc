@@ -230,7 +230,7 @@ void() MG3_BloodyNightmareLevel = {
 // Official Campaigns > Dawn of the Machine: Bloody Nightmare (shown once vr_mg3_bn_discovered): the menu sets skill 3
 // and vr_mg3_bn_start before the start map loads; its first frame turns the game into a Bloody Nightmare one.
 void() MG3_Frame = {
-    if(!cvar("vr_mg3_bn_start")) return;
+    if(!cvar_hget(cvarh_vr_mg3_bn_start)) return;
     if(time < 1 || !VR_Player()) return; // (once the player is in: he is told)
     cvar_set("vr_mg3_bn_start", "0");
     if(!MG3_Campaign()) return;

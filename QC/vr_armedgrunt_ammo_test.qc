@@ -162,8 +162,8 @@ void() VR_AGAM_ClearBackpacks =
 
 void() VR_AGAM_Begin =
 {
-    vr_agam_i = max(0, rint(cvar("scratch2")) - 1); // (scratch2 n: from case n-1; scratch3 k: k cases, 1 that one alone)
-    vr_agam_last = cvar("scratch3") > 0 ? min(VR_AGAM_COUNT, vr_agam_i + rint(cvar("scratch3"))) : VR_AGAM_COUNT;
+    vr_agam_i = max(0, rint(cvar_hget(cvarh_scratch2)) - 1); // (scratch2 n: from case n-1; scratch3 k: k cases, 1 that one alone)
+    vr_agam_last = cvar_hget(cvarh_scratch3) > 0 ? min(VR_AGAM_COUNT, vr_agam_i + rint(cvar_hget(cvarh_scratch3))) : VR_AGAM_COUNT;
     vr_agam_step = 0;
     vr_agam_nested = FALSE;
     vr_agam_org_set = FALSE;

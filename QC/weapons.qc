@@ -1477,11 +1477,11 @@ void(float xHand) W_SwordMelee =
     else if(VR_ADMelee_Heavy(kind))
     {
         float both = VRGet2HAiming(self) && VRIsHandEmpty(self, VRGetOtherHand(xHand));
-        xdmg = xdmg * cvar("vr_admelee_heavy_damage") * (both ? 1 : cvar_hget(cvarh_vr_admelee_heavy_1h));
+        xdmg = xdmg * cvar_hget(cvarh_vr_admelee_heavy_damage) * (both ? 1 : cvar_hget(cvarh_vr_admelee_heavy_1h));
     }
     else if(kind)
     {
-        xdmg = xdmg * cvar("vr_admelee_sword_damage");
+        xdmg = xdmg * cvar_hget(cvarh_vr_admelee_sword_damage);
     }
     else if(VRHasBit(VRGetWeaponFlags(xHand), QVR_WPNFLAG_USE_SECONDARY_AMMO))
     {
@@ -4350,7 +4350,7 @@ void(float xHand) ToggleSecondaryAmmo =
     }
 
     // vr_ammo_switch_empty_hand: pressable only with the other hand empty (nothing held at all): not akimbo.
-    if(cvar("vr_ammo_switch_empty_hand") && !VRIsHandEmpty(self, VRGetOtherHand(xHand)))
+    if(cvar_hget(cvarh_vr_ammo_switch_empty_hand) && !VRIsHandEmpty(self, VRGetOtherHand(xHand)))
     {
         dprint("ammo switch: refused, the other hand is full\n");
         VRGunHaptic(VRGetOtherHand(xHand), 0.15, 40, 0.6);

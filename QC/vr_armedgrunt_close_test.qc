@@ -48,8 +48,8 @@ void() VR_AGCT_Grab =
     {
         if(vr_agct_case == 0)
         {
-            vr_agct_keep1 = cvar("vr_agrunt_parry_chance");
-            vr_agct_keep2 = cvar("vr_agrunt_parry_react");
+            vr_agct_keep1 = cvar_hget(cvarh_vr_agrunt_parry_chance);
+            vr_agct_keep2 = cvar_hget(cvarh_vr_agrunt_parry_react);
             cvar_set("vr_agrunt_parry_chance", "1"); // (it sees every blow coming: a real one is always seen)
             cvar_set("vr_agrunt_parry_react", "0");
         }
@@ -59,7 +59,7 @@ void() VR_AGCT_Grab =
         cvar_set("vr_mock_hand_pull", "0");
         cvar_set("vr_mock_hand_lift", "0");
         cvar_set("vr_agrunt_disarm_yank", "0"); // (no grab before its press)
-        if(!cvar("vr_agrunt_debug"))
+        if(!cvar_hget(cvarh_vr_agrunt_debug))
         {
             cvar_set("vr_agrunt_debug", "0.5"); // (the engine's reading of the fist's gap: vr_agrunt_grab_gap)
         }
@@ -105,7 +105,7 @@ void() VR_AGCT_Grab =
             {
                 // (a held melee weapon swung: a real strike; the mock's grip isn't held from QC. A weapon stays in a
                 // hand not gripping with grip mode 1, as test 35's.)
-                vr_agct_keep3 = cvar("vr_weapon_grip_mode");
+                vr_agct_keep3 = cvar_hget(cvarh_vr_weapon_grip_mode);
                 cvar_set("vr_weapon_grip_mode", "1");
                 VRGiveEntWeapon(p, cVR_MainHand, WID_AXE, 0, 0);
                 vr_agt_until = time + 0.3;
@@ -120,16 +120,16 @@ void() VR_AGCT_Grab =
         vr_agct_w = max(vr_agct_w, g.vr_agpar_w);
         vector pn = VR_AGCT_Point(g, vr_agct_case);
         VR_AGT_HandToHeight(p, pn_z);
-        float on = vr_agct_case != VR_AGCT_FIST && vr_agct_d > 2 && cvar("vr_agrunt_grab_gap") < -0.25; // (on it, a little in)
+        float on = vr_agct_case != VR_AGCT_FIST && vr_agct_d > 2 && cvar_hget(cvarh_vr_agrunt_grab_gap) < -0.25; // (on it, a little in)
         if(!on && vr_agct_d < VR_AGCT_REACH + 6)
         {
-            if(vr_agct_case == VR_AGCT_FIST && cvar("vr_agrunt_debug") >= 1)
+            if(vr_agct_case == VR_AGCT_FIST && cvar_hget(cvarh_vr_agrunt_debug) >= 1)
             {
                 VR_AGT_Print(sprintf("grab anywhere: the hand at %.1f m/s (tracked), a strike %g, its parry %.2f, bits %g",
                     VR_AG_SwingSpeed(p, cVR_MainHand), VR_AG_HandStrikes(p, cVR_MainHand), g.vr_agpar_w, p.vrbits0));
             }
             float step = VR_AGCT_Speed(vr_agct_case) * frametime;
-            cvar_set("vr_mock_hand_pull", sprintf("%.4f", cvar("vr_mock_hand_pull") - step));
+            cvar_set("vr_mock_hand_pull", sprintf("%.4f", cvar_hget(cvarh_vr_mock_hand_pull) - step));
             vr_agct_d = vr_agct_d + step * VRMetersToUnits();
             return;
         }
@@ -155,7 +155,7 @@ void() VR_AGCT_Grab =
         vr_agct_w = max(vr_agct_w, g.vr_agpar_w);
         if(vr_agct_case != VR_AGCT_FIST)
         {
-            vr_agt_clip = cvar("vr_agrunt_grab_gap");
+            vr_agt_clip = cvar_hget(cvarh_vr_agrunt_grab_gap);
             cvar_set("vr_agrunt_disarm_yank", "1");
             localcmd("+grabmain\n");
             p.mainhand_lastgrabtime = time;
@@ -192,7 +192,7 @@ void() VR_AGCT_Grab =
         vr_agct_case = 0;
         VR_AGPT_Fresh();
         VR_AGPT_Clear();
-        if(cvar("vr_agrunt_debug") == 0.5)
+        if(cvar_hget(cvarh_vr_agrunt_debug) == 0.5)
         {
             cvar_set("vr_agrunt_debug", "0");
         }
@@ -217,8 +217,8 @@ void() VR_AGCT_Lying =
     {
         if(vr_agct_case == 0)
         {
-            vr_agct_keep1 = cvar("vr_agrunt_disarm_deliberate");
-            vr_agct_keep3 = cvar("vr_agrunt_disarm_yank");
+            vr_agct_keep1 = cvar_hget(cvarh_vr_agrunt_disarm_deliberate);
+            vr_agct_keep3 = cvar_hget(cvarh_vr_agrunt_disarm_yank);
         }
         cvar_set("vr_agrunt_disarm_deliberate", vr_agct_case == 0 ? ftos(vr_agct_keep1) : "0");
         cvar_set("vr_agrunt_disarm_yank", "0"); // (a grab would take it: only blows and falls here)
@@ -271,7 +271,7 @@ void() VR_AGCT_Lying =
         if(vr_agct_d < 24)
         {
             float step = 0.8 * frametime;
-            cvar_set("vr_mock_hand_pull", sprintf("%.4f", cvar("vr_mock_hand_pull") - step));
+            cvar_set("vr_mock_hand_pull", sprintf("%.4f", cvar_hget(cvarh_vr_mock_hand_pull) - step));
             vr_agct_d = vr_agct_d + step * u;
         }
         if(g.vr_ag_prop && time < vr_agt_until)

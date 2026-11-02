@@ -324,7 +324,7 @@ void() MG3_AggroDelayed = {
     remove(self);
 };
 void() MG3_AggroWake = {
-    if(!cvar("vr_mg3_aggro_groups")) return;
+    if(!cvar_hget(cvarh_vr_mg3_aggro_groups)) return;
     string name = self.aggro_target;
     self.aggro_target = string_null;
     entity b = find(world, aggro_target, name);

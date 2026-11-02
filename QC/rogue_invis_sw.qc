@@ -171,7 +171,7 @@ void() monster_sword =
     precache_sound("knight/sword1.wav");
     precache_sound("knight/ksight.wav");
     precache_sound("player/axhit2.wav");
-    if(cvar("vr_admelee_drops"))
+    if(cvar_hget(cvarh_vr_admelee_drops))
     {
         VR_ADMelee_Ensure(VR_ADMELEE_PHANTOM); // (the sword it falls as: made and precached now)
     }

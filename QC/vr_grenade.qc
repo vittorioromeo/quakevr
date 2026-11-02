@@ -453,7 +453,7 @@ float(entity xWho) VR_Grenade_OnBody =
     }
     vector d = self.origin + (self.mins + self.maxs) * 0.5 - xWho.origin;
     d_z = 0;
-    float r = max(1, cvar("vr_box3d_player_radius")) * 0.01 * VRMetersToUnits() + self.maxs_x + VR_GREN_BODY_MARGIN;
+    float r = max(1, cvar_hget(cvarh_vr_box3d_player_radius)) * 0.01 * VRMetersToUnits() + self.maxs_x + VR_GREN_BODY_MARGIN;
     return vlen(d) <= r;
 };
 

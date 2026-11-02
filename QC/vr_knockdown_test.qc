@@ -234,7 +234,7 @@ void(float xMode) VR_Knockdown_Test =
             best.enemy = self;
         }
         // (vr_test_shove_run: you running into it at that many u/s along the shove; 0: as you move.)
-        vr_test_shove_run = max(0, cvar("vr_test_shove_run"));
+        vr_test_shove_run = max(0, cvar_hget(cvarh_vr_test_shove_run));
         dprint(sprintf("knockdown test: %s shove of %s%s\n", two ? "two-handed" : "one-handed", best.classname,
             vr_test_shove_run > 0 ? sprintf(", running at %g u/s", vr_test_shove_run) : ""));
         VR_Bash_Hit(best, best.origin, normalize(away), QVR_HITKIND_SHOVE, two ? -1 : cVR_MainHand,

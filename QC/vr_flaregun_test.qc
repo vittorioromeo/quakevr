@@ -205,7 +205,7 @@ void() VR_FLC_Frame =
     {
         return;
     }
-    float req = cvar("vr_flare_test");
+    float req = cvar_hget(cvarh_vr_flare_test);
     if(req == 7)
     {
         VR_FLC_List("first plan");
@@ -214,7 +214,7 @@ void() VR_FLC_Frame =
         localcmd("restart\n");
         return;
     }
-    float first = cvar("temp1");
+    float first = cvar_hget(cvarh_temp1);
     VR_FLC_List("planned again");
     float ok = first == vr_flc_hash && vr_flc_n > 0 && vr_flc_far == 0;
     dprint(sprintf("flarecrates: %s: %s (%g, %g), %g on crates, %g not\n", ok ? "PASS" : "FAIL",
@@ -460,7 +460,7 @@ void() VR_FLT_Frame =
             // Up into the air: from the player's place, steeply, slowly (its top under any ceiling: 100 units).
             traceline(p.origin, p.origin + '0 0 400', TRUE, p);
             float room = vlen(trace_endpos - p.origin);
-            float sp = sqrt(2 * cvar_hget(cvarh_vr_flaregun_gravity) * cvar("sv_gravity") * min(100, room * 0.4));
+            float sp = sqrt(2 * cvar_hget(cvarh_vr_flaregun_gravity) * cvar_hget(cvarh_sv_gravity) * min(100, room * 0.4));
             cvar_set("vr_flare_air_time", "3");
             cvar_set("vr_flare_air_fall", "20");
             entity os6 = self;
@@ -510,7 +510,7 @@ void() VR_FLT_Frame =
                 pooled.vr_ag_main_wid == 0, sprintf("one from the pool: %s first, its %s stowed",
                 pooled.vr_ag_prop ? pooled.vr_ag_prop.netname : "fists", WeaponIdToWeaponName(pooled.vr_ag_main_wid)));
             VR_AGT_Remove(pooled);
-            vr_flt_e = VR_NPT_Grunt(300, cvar("temp1") > 0 ? cvar("temp1") : WID_SHOTGUN, 0);
+            vr_flt_e = VR_NPT_Grunt(300, cvar_hget(cvarh_temp1) > 0 ? cvar_hget(cvarh_temp1) : WID_SHOTGUN, 0);
             VR_AG_MaybeFlareGun(vr_flt_e, 0);
             VR_FLT_Next();
         }
@@ -622,7 +622,7 @@ void() VR_FLT_Frame =
 
 void() VR_FlareGun_TestFrame =
 {
-    float req = cvar("vr_flare_test");
+    float req = cvar_hget(cvarh_vr_flare_test);
     if(req == 7 || req == 8)
     {
         VR_FLC_Frame();
@@ -651,12 +651,12 @@ void() VR_FlareGun_TestFrame =
         }
         VR_Test_Begin(req == 5 ? "flaremuzzle" : "flaretest");
         vr_flt_mode = req;
-        vr_flt_grip = cvar("vr_weapon_grip_mode");
-        vr_flt_stick = cvar("vr_flare_stick_time");
-        vr_flt_air = cvar("vr_flare_air_time");
-        vr_flt_fall = cvar("vr_flare_air_fall");
-        vr_flt_agfg = cvar("vr_agrunt_flaregun");
-        vr_flt_dual = cvar("vr_agrunt_dual_chance");
+        vr_flt_grip = cvar_hget(cvarh_vr_weapon_grip_mode);
+        vr_flt_stick = cvar_hget(cvarh_vr_flare_stick_time);
+        vr_flt_air = cvar_hget(cvarh_vr_flare_air_time);
+        vr_flt_fall = cvar_hget(cvarh_vr_flare_air_fall);
+        vr_flt_agfg = cvar_hget(cvarh_vr_agrunt_flaregun);
+        vr_flt_dual = cvar_hget(cvarh_vr_agrunt_dual_chance);
         cvar_set("vr_weapon_grip_mode", "1");
         vr_flt_notarget = (vr_flt_player.flags & FL_NOTARGET) != 0;
         vr_flt_player.flags = vr_flt_player.flags | FL_NOTARGET;
