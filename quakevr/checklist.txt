@@ -102,6 +102,7 @@ Armed grunt knocked down: keeps its gun until it lands hard (no ledge/speed/flin
 Debug > Tunables shows submenus (Combat > Armed Grunts > AI Behaviour...), titled as you go down, Back goes up; Search opens a constant's own submenu.
 Shoreline Foam Settings shows only On, Opacity and Particles per liquid; Gore > Small Gibs keeps on/off, Max, Time and its switches (the rest in Debug > Tunables, same submenus).
 Ragdoll Tool > Joint Groups sliders still work live.
+vr_diagnostics 1 -> one start makes a diagnostics folder and prints that it set itself back to 0; the next start makes none.
 
 [2. Armed humanoids: disarming and armour]
 Show Disarm Volumes: the wireframe hulls sit on each drawn weapon (magenta, orange, red; the sword's orange line along its blade) and on the drawn hand and forearm (cyan). {test:disarm_hulls_melee}
