@@ -1,6 +1,7 @@
 // vr_armedgrunt_impact_test.qc -- vr_agrunt_test 202: armed humanoids' impact rule (VR_AG_FallImpact: sustained speed, a
-// real stop, real contact; his words 2026-11-02, ROUND23.md "Armed humanoids' impact rule"). A fresh shotgun humanoid each
-// case, you unseen, its get-up held off:
+// real stop, real contact; his words 2026-11-02, ROUND23.md "Armed humanoids' impact rule"). On a map with a flat wall in
+// sight of its start (vrfiringrange; vrtesthall has none: VR_AGIT_FindWall). A fresh shotgun humanoid each case, you
+// unseen, its get-up held off:
 //   keeps it: a small push lying; you walking into it lying (5 and 10 m/s); a gentle topple; held and swung, the hand
 //   reversing in mid-air. Drops it: a fall from height; a throw into the floor; a throw into a wall; held and banged into
 //   a wall. PASS: each as said, and a drop only after an impact over vr_agrunt_fall_keep_impact (never without one). A case
@@ -30,7 +31,7 @@ float VR_AGIT_WALL = 7;
 float VR_AGIT_BANG = 8;
 float VR_AGIT_CASES = 9;
 float VR_AGIT_ARM = 32;   // units: the reach you hold a body at, and the swing's length each way
-float VR_AGIT_HAND = 7;   // m/s: the hand's swing (a fast swing's; the body it drives is slower)
+float VR_AGIT_HAND = 8;   // m/s: the hand's swing (a fast swing's; the body it drives is slower)
 float VR_AGIT_GIVEUP = 5; // s
 
 string(float c) VR_AGIT_Name =
@@ -56,12 +57,14 @@ float(entity p, entity g, float t, float bang) VR_AGIT_Swing =
 {
     // (At your side: the body clear of you; ahead through the wall when banging.)
     vector mid = p.origin + VR_AGIT_Side() * VR_AGIT_ARM + '0 0 24';
-    vector back = mid - vr_agit_fw * 16;
+    vector back = mid - vr_agit_fw * 32; // (a good swing's way: your grip gets the body up to speed before your hand arrives)
     vector far = mid + vr_agit_fw * 72;
     if(vr_agit_swing >= 4 && cvar_hget(cvarh_vr_agrunt_debug) >= 2)
     {
-        VR_AGT_Print(sprintf("hand %.0f off the wall, its body %.0f (box %.0f), up %.0f", (vr_agit_wall - p.handpos) * vr_agit_fw,
-            (vr_agit_wall - g.origin) * vr_agit_fw, (vr_agit_wall - g.absmax) * vr_agit_fw, g.origin_z - p.origin_z));
+        traceline(p.handpos, p.handpos + vr_agit_fw * 128, TRUE, g); // (the rule's: VR_AG_FallImpact)
+        VR_AGT_Print(sprintf("hand %.0f off the wall, its body %.0f; ahead %.1f units (solid %g) normal %v, reach %g share %g", (vr_agit_wall - p.handpos) * vr_agit_fw,
+            (vr_agit_wall - g.origin) * vr_agit_fw, trace_fraction * 128, trace_startsolid, trace_plane_normal,
+            cvar_hget(cvarh_vr_agrunt_fall_impact_reach), cvar_hget(cvarh_vr_agrunt_fall_impact_held)));
     }
     float speed = cvar_hget(cvarh_scratch3) > 0 ? cvar_hget(cvarh_scratch3) : VR_AGIT_HAND; // (scratch3: the hand's m/s)
     float each = vlen(far - back) / (speed * VRMetersToUnits()); // s a swing's way
@@ -107,6 +110,35 @@ float(entity p, entity g, float t, float bang) VR_AGIT_Swing =
     return vr_agit_swing > 5;
 };
 
+// A real wall to bang things on (not a crate, a pillar or a low wall): the first of 8 ways from you, 100 units off or more,
+// whose surface is flat across a body's width and up to above your hand: vr_agit_fw, vr_agit_wall.
+void(entity p) VR_AGIT_FindWall =
+{
+    for(float k = 0; k < 8; k++)
+    {
+        makevectors('0 1 0' * (p.angles_y + k * 45));
+        vector fw = v_forward;
+        traceline(p.origin, p.origin + fw * 3000, TRUE, p);
+        vector at = trace_endpos;
+        float d = trace_fraction * 3000;
+        vr_agit_fw = fw;
+        vr_agit_wall = at;
+        float flat = (d >= 100 && d < 2900);
+        for(float i = 0; i < 9 && flat; i++)
+        {
+            vector o = p.origin + VR_AGIT_Side() * (floor(i / 3) - 1) * 48 + '0 0 1' * ((i - floor(i / 3) * 3) * 32 - 16);
+            traceline(o, o + fw * 3000, TRUE, p);
+            flat = (fabs(trace_fraction * 3000 - d) < 8);
+        }
+        if(flat)
+        {
+            VR_AGT_Print(sprintf("the wall: %.0f units off, way %g of 8", d, k));
+            return;
+        }
+    }
+    VR_AGT_Print("no flat wall found");
+};
+
 void() VR_AGIT_Frame =
 {
     entity p = vr_agt_player;
@@ -118,10 +150,7 @@ void() VR_AGIT_Frame =
         if(c == 0 && vr_agit_round == 0)
         {
             vr_agit_home = p.origin;
-            makevectors('0 1 0' * p.angles_y);
-            vr_agit_fw = v_forward;
-            traceline(p.origin, p.origin + v_forward * 3000, TRUE, p);
-            vr_agit_wall = trace_endpos;
+            VR_AGIT_FindWall(p);
             vr_agit_keep_yank = cvar_hget(cvarh_vr_agrunt_disarm_yank);
             cvar_set("vr_agrunt_disarm_yank", "0"); // (a hand on its body here, never on its weapon)
             if(cvar_hget(cvarh_scratch1) > 0)
@@ -141,12 +170,20 @@ void() VR_AGIT_Frame =
         {
             remove(w);
         }
+        for(entity k = find(world, classname, "vr_wornpack"); k != world; k = find(world, classname, "vr_wornpack"))
+        {
+            remove(k);
+        }
         // You stand well off the wall, but near it for its own cases; it ahead of you.
         float wallcase = c == VR_AGIT_WALL || c == VR_AGIT_BANG;
-        float off = c == VR_AGIT_BANG ? 48 : (vlen(vr_agit_wall - vr_agit_home) > 900 ? 900 : vlen(vr_agit_wall - vr_agit_home) - 16);
+        float off = c == VR_AGIT_BANG ? 40 : (vlen(vr_agit_wall - vr_agit_home) > 900 ? 900 : vlen(vr_agit_wall - vr_agit_home) - 16);
         off = wallcase ? min(off, 240) : off;
         vector stand = vr_agit_wall - vr_agit_fw * off;
         stand_z = vr_agit_home_z;
+        if(c == VR_AGIT_BANG)
+        {
+            stand = stand - VR_AGIT_Side() * VR_AGIT_ARM; // (your hand and the body on the line the wall was measured on)
+        }
         if(c == VR_AGIT_SWING)
         {
             // (Midway between the side walls: nothing in the swing's way.)
@@ -159,6 +196,7 @@ void() VR_AGIT_Frame =
         }
         setorigin(p, stand);
         p.velocity = '0 0 0';
+        VR_AGIT_HandTo(p.origin + '0 0 8', 0); // (out of any wall the last case left it in)
         vr_agt_grunt = g = VR_AGT_Spawn(WID_SHOTGUN, (c == VR_AGIT_BANG || c == VR_AGIT_SWING) ? 40 : 110);
         if(c == VR_AGIT_BANG || c == VR_AGIT_SWING)
         {
@@ -184,6 +222,11 @@ void() VR_AGIT_Frame =
         if(!g.takedamage || time < vr_agit_t0 + 0.3)
         {
             return; // (started)
+        }
+        if(g.vr_wp_pack)
+        {
+            remove(g.vr_wp_pack); // (a worn pack torn off by the landing can hit its weapon: another rule)
+            g.vr_wp_pack = world;
         }
         makevectors('0 1 0' * g.angles_y);
         VR_Knockdown_Start(g);
