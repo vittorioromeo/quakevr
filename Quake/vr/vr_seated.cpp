@@ -72,6 +72,12 @@ void heightNow_f()
         Con_Printf("vr_seated_height_now: no headset\n");
         return;
     }
+    if(t.head.position.y >= MAX_SHARE_OF_STANDING * vr_height_calibration.value)
+    {
+        Con_Printf("vr_seated_height_now: your eyes at %.2f m are not sitting (standing %.2f m): sit down first\n",
+            t.head.position.y, vr_height_calibration.value);
+        return;
+    }
     Cvar_SetValueQuick(&vr_seated_height, t.head.position.y);
     Con_Printf("vr_seated_height_now: your eyes at %.2f m sitting\n", t.head.position.y);
 }

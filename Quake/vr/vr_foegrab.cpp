@@ -401,7 +401,7 @@ struct Search
 }
 
 // The living wearer whose worn backpack the fist's spheres (`fist`, their bounds lo, hi) touch with the least gap (no
-// more than `lenient`; vr_worn_backpack_tug on): null none.
+// more than `lenient`): null none.
 struct PackFound
 {
     edict_t* m{nullptr};
@@ -411,10 +411,6 @@ struct PackFound
 [[nodiscard]] PackFound packSearch(const za::Vector<glm::vec4>& fist, const glm::vec3& lo, const glm::vec3& hi, float lenient)
 {
     PackFound r;
-    if(vr_worn_backpack_tug.value == 0.f)
-    {
-        return r;
-    }
     for(int num = svs.maxclients + 1; num < qcvm->num_edicts; num++)
     {
         edict_t* m = EDICT_NUM(num);

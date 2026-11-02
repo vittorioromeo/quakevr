@@ -23,6 +23,10 @@ namespace qvr::seated
 // Your eyes' height sitting, metres: vr_seated_height, or 0.74 of the standing height while it isn't measured.
 [[nodiscard]] float eyeHeight();
 
+// A seated eye height this share of the standing one (vr_height_calibration) or over is not one (measured standing):
+// vr_seated_height_now refuses it; config version 219 cleared a saved one.
+inline constexpr float MAX_SHARE_OF_STANDING = 0.9f;
+
 // Metres the tracking is raised in the game now: the standing eye height less the seated one (vr_seated_stand), less
 // vr_seated_crouch_depth as far as the crouch toggle has eased in; 0 standing.
 [[nodiscard]] float lift();

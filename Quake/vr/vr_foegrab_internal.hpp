@@ -86,7 +86,7 @@ struct Hold
     double overSince{-1.0}; // the stretch past vr_foegrab_break since (-1: not)
     glm::vec3 lastPalm{0.f}; // the tracked palm at the end of the last server frame (world): its move since is followed
     int dragWhere{-1};       // where this hand alone holds it (oneHandDrags' DragPart; -1 not yet), printed as it changes
-    // By its worn backpack (QC vr_wornpack.qc's tug, vr_worn_backpack_tug): the palm held on the pack's surface, in the
+    // By its worn backpack (QC vr_wornpack.qc's tug): the palm held on the pack's surface, in the
     // pack's frame (box3d::wornPackBox: its middle, its axes); it doesn't drag the wearer (it stands its ground).
     bool pack{false};
     glm::vec3 packLocal{0.f};

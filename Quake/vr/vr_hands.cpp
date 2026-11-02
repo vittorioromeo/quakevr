@@ -714,7 +714,7 @@ void placeTracked(const TrackingState& t, float m2u, float seatedLift)
     state.turnYaw = turnYaw;
     state.spaceOrigin = toWorld(glm::vec3{0.f});
     // The tracked body, as the head and hands (seated: raised as they are, the floor under it lowered).
-    bodytrack::place(base, floorBelowHead - glm::vec3{0.f, seatedLift, 0.f}, turnYaw, m2u);
+    bodytrack::place(base, floorBelowHead - glm::vec3{0.f, seatedLift, 0.f}, t.head.position, turnYaw, m2u);
 
     state.head = toWorld(t.head.position);
     state.headAngles = anglesFromTracking(t.head.orientation, turnYaw);
@@ -973,14 +973,13 @@ void addTurn(float degrees)
 // lean behind the head, swings round it: the lean (the head off the box's middle, kept in the world's axes) turns with
 // the play space, and the box goes where the body now stands -- for a smooth turn (vr_lean_turn 2), where the box fits
 // and has floor under it (sent as room-scale walking, as the body following a step is); else, and for a snap (the view
-// jumps anyway), the head swings round the body instead, which stays where it stands. Not turned, the lean pointed the
-// way it did in the world before the turn: the drawn body leant off its own forward (backwards, after a half turn) and
-// stood off where the real one is, and straightening up made it walk or slide to catch up. The lean's learnt hands
-// (LeanSense) are off the box's middle in the world's axes too, and turn the same.
+// jumps anyway), the head swings round the body instead, which stays where it stands. Not turned, the lean would point
+// the way it did in the world before the turn (the drawn body leant off its own forward and stood off where the real
+// one is). The lean's learnt hands (LeanSense) are off the box's middle in the world's axes too, and turn the same.
 void stickTurn(float degrees, bool snap)
 {
     const int mode = static_cast<int>(vr_lean_turn.value);
-    if(mode > 0 && vrActive())
+    if(vrActive())
     {
         const glm::vec3 turned = rotateYaw(lean, degrees);
         const glm::vec3 swing = lean - turned; // the box's move to keep the head where it is

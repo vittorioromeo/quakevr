@@ -100,7 +100,7 @@ uses no network: no add-on list download, the map index read from its cache only
 
 Main menu centring (ROUND22.md, "The main menu centred, the VR banner beside the buttons"): `togglemenu; wait30;
 menu_vr pos` prints `main rows x a..b (middle m; the title's 160)` (m near 160 with room) and, in VR, `banner x .. y ..
-(left of the buttons, from x <buttons' left>)` (`vr_menu_banner_beside 0`: "under"); flat (`vr_enabled 0`) its
+(left of the buttons, from x <buttons' left>)` ("under" where the margin is too narrow); flat (`vr_enabled 0`) its
 `banner x ..` ends left of the rows' a. `main title and rows y a..b (middle m; the canvas's y c..d, middle n)`: in VR m
 near n (ROUND22.md, "The VR main menu centred up and down"); flat a is Quake's 4.
 
@@ -419,7 +419,7 @@ where the held thing is in the hand and whether it was solved afresh at rest. Th
 `_curl_*`, `_thumb_across`.
 Hands remodelled (ROUND21.md): `python Misc/quakevr/make_hand_rig.py` regenerates the jointed hand (its mesh, rig,
 skins and `vr_handrig_data.inc`; rebuild the engine after it); `vr_grasp_spheres` lists the grasp solver's spheres and
-`vr_debug_hand_bones 1` draws them with the joints; `vr_hand_rig 0` draws the six old models.
+`vr_debug_hand_bones 1` draws them with the joints.
 Hand editable in Blender (ROUND21.md, HANDS_IN_BLENDER.md): the rig is read from `progs/hand_rig.md5mesh`;
 `vr_hand_reload` reads it again (a file it can't use is refused with the reason, the hand kept), `vr_hand_rig_info`
 says where the rig came from and whether it is the compiled one bit for bit (it is, with the shipped files).

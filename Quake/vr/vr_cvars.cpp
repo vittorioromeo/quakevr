@@ -11,6 +11,7 @@
 #include "vr_mgroups.hpp"
 #include "vr_monsterdata.hpp"
 #include "vr_props.hpp"
+#include "vr_seated.hpp"
 #include "vr_weapons.hpp"
 
 #include "Zancle/Base/Strncmp.hpp"
@@ -522,7 +523,9 @@ const NamedDefaultChange namedDefaultChanges[] = {
 // 217: vr_agarms_clavicle 0.35 -> 0.6 (vr_rig2_clavicle merged into it at the value both armed rigs used: refactor C1)
 // 218: sparse configs (Cvar_WriteVariables writes "vr_config_defaults", then only the vr_ settings changed from their
 // defaults: VR_ConfigSaves). The last version: the rows above are frozen, a changed default needs none from now on.
-constexpr int configVersion = 218;
+// 219: a vr_seated_height at or over 0.9 of the standing eye height (vr_height_calibration) back to 0 (not measured):
+// measured standing, no seated height (his config of 2026-11-02: 1.574 seated, 1.561 standing).
+constexpr int configVersion = 219;
 // 190: vr_struggle_classes retired for the monster groups' Struggle settings: the value of its line in the config just
 // executed (VR_RetiredCvar keeps it), moved into the groups by mgroups::migrateStruggleClasses if it was custom.
 za::String retiredStruggleClasses;
@@ -805,6 +808,13 @@ void migrateConfig()
         }
         Con_DPrintf("VR: vr_heat_haze_half: %s (graphics preset %d)\n", vr_heat_haze_half.string, level);
     }
+    if(from < 219 && vr_seated_height.value > 0.f &&
+        vr_seated_height.value >= seated::MAX_SHARE_OF_STANDING * vr_height_calibration.value)
+    {
+        Con_Printf("VR: Seated Height %.2f m is not a seated one (standing %.2f m): back to not measured\n",
+            vr_seated_height.value, vr_height_calibration.value);
+        Cvar_SetValueQuick(&vr_seated_height, 0.f);
+    }
     Cvar_SetValueQuick(&vr_cfg_version, static_cast<float>(configVersion));
 }
 
@@ -940,6 +950,14 @@ void registerCvars()
 // Settings removed (docs/vr-port/CVAR_AUDIT.md): a config, a shipped .cfg or a take that still sets one is not an
 // "Unknown command" (cmd.c asks here); the line is dropped quietly and the next config write leaves it out.
 constexpr const char* retiredCvars[] = {
+    // 2026-11-02: legacy options removed, their defaults kept (ROUND23.md, "Legacy options removed, group 1").
+    "vr_hand_rig",
+    "vr_gun_wall_slide",
+    "vr_box3d_hand_push_fist",
+    "vr_ragdoll_active_getup_hold",
+    "vr_menu_banner_beside",
+    "vr_worn_backpack_tug",
+    "vr_nailpistol_model",
     // 2026-11-02: the old melee options, their "on" kept (ROUND23.md, "Old melee options removed"): the swept blade, the
     // swing through enemies, the strike past walls and floor, one swing hitting everything, the curved blades, the
     // positional melee damage.

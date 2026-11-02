@@ -5,11 +5,10 @@
 # rolled), turns or moves with the stick, straightens up. Each line is the body's drift in the room from the mark
 # (pos cm, yaw degrees) and the lean in the body's frame; the truth is 0 drift throughout (the mock's feet never move).
 # Expected with vr_lean_turn 2 (and 1): about 1 cm (the lean's first instants walked before it is known: a 3-point
-# ambiguity) at every step, 0 after; with 0: 35-49 cm after the turn, 25 cm straightened up, gone after about 2 s (or
-# kept for good by a wall: wall180).
-#   modes: default "0 2"; cases: default "smooth180 smooth90 snap90 snap180 side180 move turnmove wall180"
+# ambiguity) at every step, 0 after.
+#   modes: default "1 2"; cases: default "smooth180 smooth90 snap90 snap180 side180 move turnmove wall180"
 A=${1:?agent}
-MODES=${2:-0 2}
+MODES=${2:-1 2}
 CASES=${3:-smooth180 smooth90 snap90 snap180 side180 move turnmove wall180}
 K=${KIT:-C:/OHWorkspace/qvr-kit}
 HANDS="vr_mock_hand off -0.25 0.9 -0.05; vr_mock_hand main 0.25 0.9 -0.05"

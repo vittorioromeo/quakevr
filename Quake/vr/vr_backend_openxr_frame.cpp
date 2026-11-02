@@ -128,7 +128,9 @@ bool OpenXrBackend::beginFrame(TrackingState& tracking, FrameState& frame)
             }
         }
     }
-    bodytrack::xr::locate(worldSpace, time); // the tracked body, as the hands (vr_bodytrack_xr.cpp)
+    // The tracked body, as the hands (vr_bodytrack_xr.cpp: its tracker made at the first focus, restarted when asked).
+    bodytrack::xr::frame(instance, systemId, session, sessionState == XR_SESSION_STATE_FOCUSED);
+    bodytrack::xr::locate(worldSpace, time);
 
     frame.shouldRender = viewsOk && frameState.shouldRender;
     // The runtime's menu has the focus (SteamVR's dashboard...): its last frame again, nothing rendered.

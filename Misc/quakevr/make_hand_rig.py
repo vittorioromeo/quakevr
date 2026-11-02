@@ -15,7 +15,7 @@
 # the edited files (or the .blend) aside first.
 #
 # The mesh is modelled here, procedurally, in the space and at the scale of the six hand models drawn before
-# (progs/hand_base.mdl and the five progs/finger_*.mdl, still the fallback: vr_hand_rig 0). Their skins (and
+# (progs/hand_base.mdl and the five progs/finger_*.mdl: sources only, no longer drawn). Their skins (and
 # the bloody ones, make_bloody_hands.py) are baked onto it, so the hand keeps its look and palette.
 #
 # Space ("rig space"): hand_base.mdl's model space, hand model units (about 1.2 cm at the default scale): +x

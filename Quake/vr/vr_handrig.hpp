@@ -1,7 +1,7 @@
 // vr_handrig.hpp -- the jointed hand (round 21, "fitted hands"; remodelled in "Hands remodelled"): the drawn hand
 // as one skinned model (progs/hand_rig.md5mesh, made by Misc/quakevr/make_hand_rig.py) with three hinged joints
 // per finger and a thumb that turns at its carpometacarpal joint near the wrist, instead of the palm and five
-// finger models turned by their six curl frames (vr_hand_rig 0 still draws those).
+// finger models turned by their six curl frames (make_hand_rig.py still builds the rig from them).
 //
 // Each joint has its own curl, in the old models' curl frames (0 open .. 4 the tightest fist; 5 is 3's shape, as
 // vr_view.cpp's full grip draws): the generator gives each joint its turn per frame, and a curl between frames
