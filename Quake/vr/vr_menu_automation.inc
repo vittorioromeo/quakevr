@@ -97,6 +97,9 @@ za::Vector<Item> pageDebugAutomation()
         command("Offer Perk Cards Now", "vr_arena_cards_offer")
             .help("The cards the next boss wave's clear would offer, now (between two waves only): the arena waits "
                   "until you pick one."),
+        command("Jump to Wave 6", "vr_arena_goto 6")
+            .help("The arena clears the field and starts wave 6 at once (no rest or countdown): armed foes mid-ladder. "
+                  "vr_arena_goto N jumps to any wave."),
         command("Perk Card Panel Test", "god; vr_arena_perks_test 5")
             .help("Jumps to the first boss wave, clears it, checks the arena stands still while the cards are up, "
                   "picks the second card with the mock laser (arena_cards: N passed, M failed)."),

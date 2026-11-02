@@ -1,0 +1,39 @@
+# Benchmark scene (Misc/quakevr/bench/qvrbench.py, BENCHMARKS.md): not a checklist test; places only.
+# Quake's own grunts, enforcers, knights and death knights. The benchmark sets the replacements before loading it:
+# crowd32_armed (vr_agrunt_repl, vr_agknight, vr_agdknight 1: every one an armed humanoid, its loadout rolled) against
+# crowd32_plain (all 0: the plain monsters, the reference). PERF_1102.md.
+title Benchmark: 32 grunts, enforcers, knights and death knights (armed or plain by the replacement settings)
+map vrtesthall
+god
+spawn "Grunt" 260 -210
+spawn "Enforcer" 260 -150
+spawn "Grunt" 260 -90
+spawn "Knight" 260 -30
+spawn "Grunt" 260 30
+spawn "Enforcer" 260 90
+spawn "Grunt" 260 150
+spawn "Enforcer" 260 210
+spawn "Enforcer" 350 -210
+spawn "Grunt" 350 -150
+spawn "Death Knight" 350 -90
+spawn "Enforcer" 350 -30
+spawn "Grunt" 350 30
+spawn "Knight" 350 90
+spawn "Enforcer" 350 150
+spawn "Grunt" 350 210
+spawn "Grunt" 440 -210
+spawn "Enforcer" 440 -150
+spawn "Grunt" 440 -90
+spawn "Death Knight" 440 -30
+spawn "Enforcer" 440 30
+spawn "Grunt" 440 90
+spawn "Knight" 440 150
+spawn "Enforcer" 440 210
+spawn "Enforcer" 530 -210
+spawn "Grunt" 530 -150
+spawn "Knight" 530 -90
+spawn "Grunt" 530 -30
+spawn "Death Knight" 530 30
+spawn "Enforcer" 530 90
+spawn "Death Knight" 530 150
+spawn "Grunt" 530 210

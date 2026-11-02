@@ -553,6 +553,39 @@ def scenarios():
     add("armed_16_enf", ["rig2"], "16 armed enforcers (guns, dual guns, melee) hunting you, your shotgun",
         "vrtesthall", "bench_armed16_enf: armed_16's weapons, all on enforcers.",
         scene="bench_armed16_enf", hostile=True, setup=gun(4), warm=60, load_wait=240, body=shoot_every(50))
+    # ---- armed humanoid crowds (2026-11-02, group `armed`; PERF_1102.md): mixed loadouts at 16 and 32 (the cost of each
+    # extra one), the same 32 places with Quake's own monsters replaced or not (the armed ones' premium over plain
+    # monsters), and the 16 with 8 corpses lying about. The player's shotgun on the nearest every 50 frames.
+    add("armed_mix16", ["armed", "combat"], "16 armed humanoids, mixed loadouts, knights, death knights, two disarmed",
+        "vrtesthall", "bench_armed_mix16: grunts and enforcers with shotguns, dual nail pistols, burst rifles, nailguns, "
+        "axe, sword, crowbar, dual shotguns, two disarmed going for the guns lying ahead, an armed knight and two casting "
+        "death knights; hostile, the player's shotgun on the nearest every 50 frames (knockdowns, deaths, ragdolls).",
+        scene="bench_armed_mix16", hostile=True, setup=gun(4), warm=60, load_wait=240, body=shoot_every(50))
+    add("armed_mix32", ["armed", "combat"], "32 armed humanoids, mixed loadouts (armed_mix16's and 16 more)",
+        "vrtesthall", "bench_armed_mix32: armed_mix16's loadouts and 16 more behind them (burst rifles, super nailgun, "
+        "revolver, laser rifle, double shotgun, dual axes, sword, a knight with a shotgun, more death knights); against armed_mix16: the cost of each extra one.",
+        scene="bench_armed_mix32", hostile=True, setup=gun(4), warm=60, load_wait=240, body=shoot_every(50))
+    REPL = lambda on: [f"vr_agrunt_repl {on}", f"vr_agknight {on}", f"vr_agdknight {on}"]
+    add("crowd32_armed", ["armed", "combat"], "32 of Quake's grunts, enforcers, knights, death knights, all replaced armed",
+        "vrtesthall", "bench_crowd_plain32 with vr_agrunt_repl, vr_agknight and vr_agdknight 1: each its armed version, "
+        "its loadout rolled (as on a map); against crowd32_plain: the armed humanoids' premium over plain monsters.",
+        scene="bench_crowd_plain32", header=REPL(1), hostile=True, setup=gun(4), warm=60, load_wait=240,
+        body=shoot_every(50))
+    add("crowd32_plain", ["armed", "combat", "control"], "control: crowd32_armed's 32 as Quake's plain monsters",
+        "vrtesthall", "bench_crowd_plain32 with vr_agrunt_repl, vr_agknight and vr_agdknight 0: the plain monsters.",
+        scene="bench_crowd_plain32", header=REPL(0), hostile=True, setup=gun(4), warm=60, load_wait=240,
+        body=shoot_every(50))
+    corpses = [x for i, l in enumerate((-50, -36, -22, -8, 8, 22, 36, 50)) for x in
+               ["vr_test_spawn 0", "vr_test_spawn_dead 1", f"vr_test_spawn_dist {100 + (i % 2) * 50}", f"vr_mock_look 0 {l}",
+                "impulse 241"] + waits(5)] + ["vr_test_spawn_dead 0", "vr_mock_look 0 0"] + waits(30)
+    add("armed_mix16_corpses", ["armed", "combat", "gore"], "armed_mix16 with 8 grunt corpses lying about",
+        "vrtesthall", "armed_mix16 with 8 grunts spawned dead ahead first (their ragdolls, settling and lying there).",
+        scene="bench_armed_mix16", hostile=True, setup=corpses + gun(4), warm=60, load_wait=240, body=shoot_every(50))
+    add("arena_wave6", ["armed", "combat", "maps"], "the Survival Arena mid-wave: wave 6 (armed foes) coming at you",
+        "vrarena", "vrarena (seed 7), jumped to wave 6 (vr_arena_goto: the field cleared, the wave planned at once), "
+        "a few seconds in; god, the player's shotgun on the nearest every 50 frames.",
+        header=["vr_arena_seed 7"], hostile=True, setup=["vr_arena_goto 6"] + waits(240) + gun(4), warm=60,
+        load_wait=240, body=shoot_every(50))
     add("ragdolls_32_enf", ["rig2"], "32 enforcer ragdolls tossed by blasts", RANGE,
         "ragdolls_32_active with enforcers.",
         setup=["vr_ragdoll_max 32"] + spawn_grid(32, ("monster_enforcer",), x0=100, dy=40) + waits(30)
