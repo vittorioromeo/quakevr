@@ -6582,7 +6582,7 @@ the main switches as cvars", "11. Address the remaining menu clutter as suggeste
   after the shot's checks), so the test's rates are over the span to his last attack.
 - Test 95's "knight death ... dead (50)" with a death knight failed once here: left 50 health by an armour roll on him; unrelated, not touched.
 - **Checklist:**
-  - [notes1102a] An armoured death knight (Debug > Tests > Helmets There: Knight and Death Knight): his eyes show under the helmet from the front, its back no wider than his head, the horns standing out of it. {test:armor}
+  - [notes1102a] An armoured death knight (Debug > Tests > Helmets There: Knight and Death Knight): his eyes show under the helmet from the front, its back no wider than his head, the horns standing out of it. {test:agarmor_helmets_knights}
   - [notes1102a] Fire a nail pistol's clip out: its slide locks open and the ammo screen stays flat on the slide's wall, not out past its back; and during a shot it stays on the wall.
   - [notes1102a] Feminine voice on: the grunt of a body, leg or backpack lift and of a throw is a woman's, as high as your jump's grunt.
   - [notes1102a] An armed death knight with a gun fires it and casts from his off hand's palm about every other attack (Gun Cast Cooldown 3 s; Debug > Tests > Death Knight's Gun and Casts); a group's first volleys come apart.
