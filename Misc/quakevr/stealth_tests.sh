@@ -23,7 +23,8 @@
 #            with 0, Quake's way, its time for comparison
 AGENT=${1:?agent}; WHICH=${2:-all}; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 W=C:/OHWorkspace/qvr-agents/$AGENT
-# The server's random numbers seeded (sv_random_seed: SEED, 1): with fixed frames, each scene plays the same every run.
+# The server's random numbers seeded (sv_random_seed: SEED, 1) in every scene (gates, liquid and props too since
+# 2026-11-02: their unseeded AI made gates flaky): with fixed frames, each scene plays the same every run.
 mkdir -p "$W/scratch"
 fail=0
 PRE="vr_fixed_frames 1;vr_fixed_frames_rate 90;sv_random_seed ${SEED:-1};map e1m1;wait60;god;vr_weapon_grip_mode 1;impulse 9;wait5"
@@ -53,13 +54,13 @@ if [ "$WHICH" = saveload ] || [ "$WHICH" = all ]; then
     run saveload "$PRE;vr_stealth_test 104;wait300;save qvr_stealth_mid;wait90;load qvr_stealth_mid;wait30;vr_stealth_test 105;wait4500;toggleconsole;quit"
 fi
 if [ "$WHICH" = liquid ] || [ "$WHICH" = all ]; then
-    run liquid "vr_fixed_frames 1;vr_fixed_frames_rate 90;map ${LIQMAP:-e1m7};wait60;god;notarget;${LIQPOS:+setpos $LIQPOS;wait5;}vr_stealth_test 108;wait1500;toggleconsole;quit"
+    run liquid "vr_fixed_frames 1;vr_fixed_frames_rate 90;sv_random_seed ${SEED:-1};map ${LIQMAP:-e1m7};wait60;god;notarget;${LIQPOS:+setpos $LIQPOS;wait5;}vr_stealth_test 108;wait1500;toggleconsole;quit"
 fi
 if [ "$WHICH" = kinds ] || [ "$WHICH" = all ]; then
-    run kinds "$PRE;vr_stealth_test 106;wait30000;toggleconsole;quit" # (the kit's games mount hipnotic and rogue too)
+    run kinds "$PRE;vr_stealth_test 106;wait30000;toggleconsole;quit" -QuitOn "stealthtest: kinds done" # (the kit's games mount hipnotic and rogue too)
 fi
 if [ "$WHICH" = gates ] || [ "$WHICH" = all ]; then
-    run gates "developer 1;vr_fixed_frames 1;vr_fixed_frames_rate 90;map vrteleporters;wait60;god;setpos -1100 1408 24 0 180 0;wait5;noclip 0;vr_stealth_test 110;wait16000;toggleconsole;quit" -QuitOn "stealthtest: gates done"
+    run gates "developer 1;vr_fixed_frames 1;vr_fixed_frames_rate 90;sv_random_seed ${SEED:-1};map vrteleporters;wait60;god;setpos -1100 1408 24 0 180 0;wait5;noclip 0;vr_stealth_test 110;wait16000;toggleconsole;quit" -QuitOn "stealthtest: gates done"
     grep -q "gates done" "$W/scratch/stealth_gates.log" || { echo "stealthtest: gates FAIL (never finished)"; fail=1; }
 fi
 if [ "$WHICH" = seethrough ] || [ "$WHICH" = all ]; then
@@ -80,7 +81,7 @@ if [ "$WHICH" = dogs ] || [ "$WHICH" = all ]; then
     done
 fi
 if [ "$WHICH" = props ] || [ "$WHICH" = all ]; then
-    run props "vr_fixed_frames 1;vr_fixed_frames_rate 90;map vrteleporters;wait60;god;vr_stealth_test 124;wait3500;toggleconsole;quit" -QuitOn "stealthtest: props done"
+    run props "vr_fixed_frames 1;vr_fixed_frames_rate 90;sv_random_seed ${SEED:-1};map vrteleporters;wait60;god;vr_stealth_test 124;wait3500;toggleconsole;quit" -QuitOn "stealthtest: props done"
     grep -q "props done" "$W/scratch/stealth_props.log" || { echo "stealthtest: props FAIL (never finished)"; fail=1; }
 fi
 if [ "$WHICH" = horde ]; then

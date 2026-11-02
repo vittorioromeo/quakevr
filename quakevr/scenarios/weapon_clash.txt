@@ -1,0 +1,11 @@
+# weapon_clash: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Your two weapons swung into
+# each other (Weapons > Weapon Effects > Weapon Clash; vr_clash_test): two swords in hand, two shotguns by you.
+title Weapon clash: two swords in hand, two shotguns lying by you
+map vrtesthall
+god
+notarget
+give "Knight's Sword" main
+give "Knight's Sword" off
+spawn "Shotgun" 40 -24
+spawn "Shotgun" 40 24
+hint Swing the swords into each other fast: sparks, a clang and a tink at the crossing; a slow cross does nothing. Then two shotguns (a dull knock, no sparks) and a sword on a shotgun (a few sparks, a clank).
