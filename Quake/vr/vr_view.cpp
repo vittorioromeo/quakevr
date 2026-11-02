@@ -116,10 +116,13 @@ void updateFingerFrames()
     {
         const bool holder = posingHotspot && hand == posing::session().weaponHand;
         const HandInput& in = holder ? holding : input.hands[hand];
+        // Holding something (the index finger closes with the grip, the trigger or not): the other hand's weapon, a prop,
+        // the torch, a body (an enemy, a limb, a tug's weapon: holdsBody).
+        const bool holdsOther = posingHotspot ? !holder
+                                              : twohand::helping(hand) || held::heldEntity(hand) != 0 || flashlight::holds(hand) ||
+                                                    holdsBody(hand);
         for(int finger = 0; finger < FingerCount; finger++)
         {
-            const bool holdsOther = posingHotspot ? !holder
-                                                  : twohand::helping(hand) || held::heldEntity(hand) != 0 || flashlight::holds(hand);
             approach(fingerFrames[hand][finger], targetCurl(in, finger, holdsOther) * 5.f);
             approach(fingerBias[hand][finger], biasFor(hand, finger));
         }
