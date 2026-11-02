@@ -164,12 +164,63 @@ were not started. Estimate: the CPU could gain 0.2-0.4 ms with stages 4-5 (the p
 on this driver. On a desktop RTX GPU at 90 Hz single-pass does not pay; it would matter on a CPU-bound or tiled
 (standalone) GPU, where multiview is native.
 
+## Both paths kept; new rendering multiview-ready (2026-11-02)
+
+Asked whether to keep only single-pass (the game should run standalone on Quest and Steam Frame one day): both stay.
+On his RTX the single pass is 0.1-0.3 ms of GPU behind; the views through teleporters, mirrors and drivers without
+multiview need two-pass; a standalone port needs a GLES or Vulkan renderer anyway. What keeps that port from being a
+rewrite is the rule in [CODE_STYLE.md](CODE_STYLE.md), "Rendering stays multiview-ready": per-view values through
+`QvrStereoUBO` / `QVR_VIEW`, every new graphics program with a twin that builds, every new pass placed against the
+multiview pass, no new desktop-only GL without its GLES/Vulkan way noted (below).
+
+### Multiview-ready: the check
+
+`vr_multiview_check` (Debug > Profiling and Memory, "Multiview Shader Check"; gl_shaders.c `GL_MultiviewCheck`)
+compiles and links the multiview twin of every graphics program gl_shaders.c has made (ported pass or not; into a
+program thrown away: the real twins are untouched), all begun before any is read so the driver compiles them side by
+side, and prints `vr_multiview_check: FAIL <program>: its twin does not build: <the driver's first line>` for each
+failure not on its allow-list (`multiviewExceptions`, vr_stereo_single.cpp: a name's start and why), then
+`vr_multiview_check: N passed, M failed`. It also fails when a graphics program was made with `gl_progsources` full
+(no room for its sources: no twin). Without GL_OVR_multiview2 it prints SKIP and `0 passed, 0 failed`.
+`Misc/quakevr/selfchecks_test.sh` runs it on e1m1 (the release suite's `selfchecks`; the run ends on its verdict).
+It sees the programs made by then: the start's and the map load's (the decals' retro world programs when the load
+makes them); a variant first made later is not checked.
+
+Today (2026-11-02, the mock, NVIDIA): 99 of 99 twins build (60 of them a ported pass's); the allow-list is empty.
+Checked that it catches one: a sprites vertex shader broken under `QVR_MULTIVIEW` gave two FAIL lines
+(`sprites|DITHER 0` and `1`), and with `sprites|` on the allow-list `allowed sprites|* (2 failing): ...` and a pass.
+
+Not covered by the twins: Quake VR's own programs, made through `gfx::glProgram` / `gfx::linkProgram` with their own
+sources (no `GL_CreateShader`, so no twin). `check_canonical.py`'s `gl-program-no-twin` family holds today's sites,
+each with why (Misc/quakevr/canonical_allowlist.txt), and fails the build on a new one:
+
+| Programs | Why no twin (today) |
+|---|---|
+| VR particles (7 variants, 4 composites), triangles, tube, bent mesh (vr_gfx_gl.cpp) | scene effects not ported (stage 4) |
+| bullet time trails, heat haze, bloom, TAA, FSR/NIS and compose | over each eye's image (stage 5; NIS, TAA's resolve and mask are compute) |
+| the liquids' scene distances (vr_water.cpp) | reads each eye's scene copy (liquids not ported) |
+| environment map, shadow depth, permanent decals' bake | a probe's, a light's or texture space, not an eye's view |
+| the desktop mirror | per eye for good |
+| foveation's debug overlay, dynamic resolution's load test | debug and test aids |
+
+### The standalone port: desktop GL in use and its way on GLES / Vulkan
+
+| Desktop GL here | GLES 3.x | Vulkan |
+|---|---|---|
+| `glTextureView` (the eyes' layers, the scene's views) | none: render to the array layer directly (`glFramebufferTextureLayer`) | image views |
+| bindless textures (`BINDLESS`) | none: texture arrays or atlases | descriptor indexing |
+| `glMultiDrawElementsIndirect` (the world's GPU-built draws) | single indirect draws (3.1), or a loop | `vkCmdDrawIndexedIndirect` with a count |
+| reversed Z (`GL_ARB_clip_control`) | `GL_EXT_clip_control` | native (depth 0..1) |
+| multisample arrays (`GL_EXT_multiview_texture_multisample`) | `GL_OVR_multiview_multisampled_render_to_texture` | multiview with a multisampled array |
+| compute, image load/store (culling, clusters) | 3.1 has both (format limits) | native |
+
 ## Debugging
 
 - `vr_stereo_single_info`: frames single-pass since the last call and why not, the multiview twins made, any twin that
   failed to compile (its name and uses: its pass draws nothing in the multiview pass until fixed).
+- `vr_multiview_check`: every graphics program's twin built and checked (above, "Multiview-ready: the check").
 - `vr_stereo_single_passes` (bits, default 3): 1 the world and brush models, 2 the alias models in the multiview pass;
   a bit off draws that pass per eye again (to find which pass a difference comes from).
-- Both are on Debug > Profiling and Memory.
+- All three are on Debug > Profiling and Memory.
 - The pixel check: `vr_eyeshot 1` with and without the toggle at the same fixed frame (`vr_fixed_frames 1`,
   `sv_random_seed 1`, `vr_particle_seed 1`, `vr_dither 0`), every eye image compared (ROUND22.md has the numbers).

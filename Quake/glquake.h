@@ -649,6 +649,7 @@ void R_StereoViewMatrices (float proj[16], float view[16], float viewproj[16]); 
 void GL_MultiviewStats (int *twins, int *missing); // QVR
 int GL_MultiviewPrepare (int async); // QVR: every ported program's twin begun now (single-pass stereo on)
 int GL_MultiviewPending (void); // QVR: ... how many are still compiling (async)
+int GL_MultiviewCheck (void (*report) (const char *name, int ported, int ok, const char *log, void *ctx), void *ctx); // QVR: vr_multiview_check
 void GL_ReloadShaders_f (void); // QVR: tests (vr_shader_reload)
 
 typedef struct glframebufs_s {

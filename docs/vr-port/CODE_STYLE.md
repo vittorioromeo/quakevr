@@ -163,6 +163,37 @@ GL names are plain ids (`gfx::Texture`, `gfx::Target`: no destructor), made and 
 (its reset, `VR_Shutdown`), never by a static's destructor after the context is gone. `vid_restart` keeps the GL
 context (only the engine's framebuffers are made again), so the VR module's GL objects live on.
 
+## Rendering stays multiview-ready
+
+Both stereo paths stay (two-pass and single-pass, `vr_stereo_single`; [STEREO.md](STEREO.md)), but the standalone
+headsets (Quest, Steam Frame) render with multiview only, on GLES or Vulkan. So new rendering is written so that it
+could be drawn in the multiview pass, even when it is not ported to it yet (decided 2026-11-02):
+
+- **Per-view values come from the shared per-view block.** A shader reads the view-projection, the eye's position and
+  anything else that differs per eye through `ViewProj` / `EyePos` (`FrameViewProj` / `FrameEyePos` in the alias
+  shaders), which under `QVR_MULTIVIEW` become `QvrStereoUBO`'s entry for `QVR_VIEW` (vr_glsl.h `QVR_STEREO_VIEWS`);
+  per-eye screen data is indexed by the view the same way (the light clusters: `QVR_LOAD_CLUSTER`, one image per eye).
+  Never a per-eye CPU value baked into a draw (a uniform set from `r_refdef` / `vr_eye` for this eye, a matrix in a
+  per-draw buffer): it would be eye 0's for both eyes in the pass. A new per-view value goes into `QvrStereoUBO`.
+- **Every new graphics program gets its multiview twin.** It is made in gl_shaders.c with `GL_CreateProgram` (its
+  sources are kept and the twin is the same text compiled under `QVR_MULTIVIEW`: `GL_CreateShader`), not through
+  `gfx::glProgram` / `gfx::linkProgram`, and its twin must build. `vr_multiview_check` builds every twin (run by
+  `Misc/quakevr/selfchecks_test.sh`); `check_canonical.py`'s `gl-program-no-twin` fails the build on a new program
+  made outside gl_shaders.c, unless its allowlist line says why it needs none (compute, a light's or a probe's view,
+  per eye for good).
+- **A new pass says where it sits.** In `R_RenderScene` (gl_rmain.c) the multiview pass (`R_RenderStereoSingle`)
+  draws the clear, the hidden area, the opaque world and brush models and the opaque alias models; everything after
+  follows per eye. A new scene pass states, in its comment and in STEREO.md's stages, whether it draws in the pass
+  (`VR_StereoSingleTakesBrush` / `VR_StereoSingleTakesAlias` style: skipped per eye when the pass drew it) or per eye,
+  and if per eye whether for now (a later stage) or for good, with why (the views through teleporters, mirrors, the
+  view entities' near-plane handling `VR_AliasNearEye`, a per-eye scene copy).
+- **No new desktop-only GL without its GLES/Vulkan way noted.** Already used, each with its port path in STEREO.md
+  ("The standalone port"): `glTextureView` (GLES none: render to the layer directly; Vulkan image views), bindless
+  textures (`BINDLESS`: GLES none, descriptor arrays in Vulkan), multi-draw indirect (GLES 3.1 has single indirect
+  draws only), `GL_ARB_clip_control` reversed Z (`EXT_clip_control`), multisample arrays
+  (`GL_EXT_multiview_texture_multisample`: GLES's `OVR_multiview_multisampled_render_to_texture`). A new one gets
+  a line there in the same commit.
+
 ## Allocations a frame
 
 The profiler counts the main thread's C++ allocations (`vr_profile_report`: "allocations", avg/max a frame; the systems

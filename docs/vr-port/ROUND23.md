@@ -6217,3 +6217,22 @@ Checklist: Shots and blows on armed humanoids and ragdolls land exactly where th
   the map boards (vrcalibration), the gadget's screen (`vr_gadget_screen_dump`), the Menu page.
 - **Note:** the world's and ammo screens' 3D glyphs are drawn alpha-tested (TextureCutout): a soft shadow's faint
   part is cut there.
+
+## Rule: new rendering stays multiview-ready, with a check (branch `agent/mvrule`, his words 2026-11-02)
+
+Both stereo paths stay; new rendering is written so that the standalone (GLES/Vulkan, multiview-only) port is not a
+rewrite. "Yes, add the rule."
+
+- **The rule:** CODE_STYLE.md, "Rendering stays multiview-ready" (per-view values through `QvrStereoUBO` / `QVR_VIEW`;
+  every new graphics program in gl_shaders.c with a twin that builds; every new pass placed against the multiview pass
+  in `R_RenderScene`; no new desktop-only GL without its GLES/Vulkan way). Pointed to from STEREO.md ("Both paths
+  kept"), ARCHITECTURE.md (sections 5-7) and TESTING.md.
+- **The check:** `vr_multiview_check` (Debug > Profiling and Memory; gl_shaders.c `GL_MultiviewCheck`): every graphics
+  program's twin compiled and linked (thrown away after), FAIL for each one not on `multiviewExceptions`
+  (vr_stereo_single.cpp, empty today) and for programs made with `gl_progsources` full. Run by
+  `Misc/quakevr/selfchecks_test.sh` (release suite `selfchecks`), which now ends on its verdict (`-QuitOn`).
+- **The programs outside it:** `check_canonical.py` family `gl-program-no-twin` (build): today's `gfx::glProgram` /
+  `linkProgram` sites, each with why (STEREO.md's table); a new one fails the build.
+- **Test:** 99 of 99 twins build (60 a ported pass's), `100 passed, 0 failed`; selfchecks 4/4 PASS. Proven to catch a
+  break: a sprites shader broken under `QVR_MULTIVIEW` gave two FAIL lines; allow-listed, a pass with its `allowed` line.
+  No rendering change, no default changed.

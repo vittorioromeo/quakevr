@@ -47,6 +47,7 @@ typedef struct {
 } glprogsource_t;
 static glprogsource_t gl_progsources[160];
 static int gl_num_progsources;
+static int gl_progsources_dropped; // graphics programs made with gl_progsources full: no twin (GL_MultiviewCheck)
 static int gl_multiview_compile; // GL_CreateShader: the twin's header (1); a failure is reported, not fatal
 static int gl_multiview_missing; // programs used in the multiview pass without a twin (VR_StereoSingleInfo)
 static qboolean gl_multiview_unprepared; // a ported program made since GL_MultiviewPrepare (its twin not yet)
@@ -346,6 +347,8 @@ static GLuint GL_CreateProgramFromSources (int count, const GLchar **sources, co
 				!strncmp (name, "world decal retro|", 18) || !strncmp (name, "world pdo decal retro|", 22) || !strncmp (name, "alias|", 6);
 			gl_multiview_unprepared = gl_multiview_unprepared || src->ported;
 		}
+		else if (count == 2 && !gl_multiview_compile)
+			gl_progsources_dropped++;
 		return program;
 	}
 }
@@ -501,6 +504,67 @@ void GL_MultiviewStats (int *twins, int *missing)
 	}
 	*missing = gl_multiview_missing;
 	gl_multiview_missing = 0;
+}
+
+/*
+====================
+GL_MultiviewCheck -- QVR
+
+vr_multiview_check (vr/vr_stereo_single.cpp, docs/vr-port/CODE_STYLE.md, "Rendering stays multiview-ready"): every
+graphics program's multiview twin, its pass ported or not, compiled and linked into a program thrown away after
+(nothing kept, the real twins untouched). All are begun first and read after, so the driver's threads can compile them
+side by side. `report` is called for each: its name, ported or not, built or not and the driver's log. Returns how many
+graphics programs were made with no room left to keep their sources (they can have no twin).
+====================
+*/
+int GL_MultiviewCheck (void (*report) (const char *name, int ported, int ok, const char *log, void *ctx), void *ctx)
+{
+	const GLenum types[2] = {GL_VERTEX_SHADER, GL_FRAGMENT_SHADER};
+	GLuint programs[countof (gl_progsources)];
+	GLuint shaders[countof (gl_progsources)][2];
+	int i, j;
+
+	gl_multiview_compile = 1;
+	gl_multiview_async = true; // (GL_CreateShader: no status read there)
+	for (i = 0; i < gl_num_progsources; i++)
+	{
+		const glprogsource_t *src = &gl_progsources[i];
+		programs[i] = GL_CreateProgramFunc ();
+		for (j = 0; j < 2; j++)
+		{
+			shaders[i][j] = src->sources[j] ? GL_CreateShader (types[j], src->sources[j], src->macros, src->name) : 0;
+			if (shaders[i][j])
+				GL_AttachShaderFunc (programs[i], shaders[i][j]);
+		}
+		GL_LinkProgramFunc (programs[i]);
+	}
+	gl_multiview_compile = 0;
+	gl_multiview_async = false;
+
+	for (i = 0; i < gl_num_progsources; i++)
+	{
+		char log[1024];
+		GLint status = GL_FALSE;
+		log[0] = 0;
+		GL_GetProgramivFunc (programs[i], GL_LINK_STATUS, &status);
+		for (j = 0; j < 2 && status != GL_TRUE && !log[0]; j++) // the first failing shader's log, else the link's
+		{
+			GLint compiled = GL_TRUE;
+			if (!shaders[i][j])
+				continue;
+			GL_GetShaderivFunc (shaders[i][j], GL_COMPILE_STATUS, &compiled);
+			if (compiled != GL_TRUE)
+				GL_GetShaderInfoLogFunc (shaders[i][j], sizeof (log), NULL, log);
+		}
+		if (status != GL_TRUE && !log[0])
+			GL_GetProgramInfoLogFunc (programs[i], sizeof (log), NULL, log);
+		report (gl_progsources[i].name, gl_progsources[i].ported, status == GL_TRUE, log, ctx);
+		for (j = 0; j < 2; j++)
+			if (shaders[i][j])
+				GL_DeleteShaderFunc (shaders[i][j]);
+		GL_DeleteProgramFunc (programs[i]);
+	}
+	return gl_progsources_dropped;
 }
 
 /*
@@ -732,6 +796,7 @@ void GL_DeleteShaders (void)
 	}
 	gl_num_programs = 0;
 	gl_num_progsources = 0; // QVR: (the twins were among gl_programs)
+	gl_progsources_dropped = 0; // QVR
 	gl_multiview_pending = 0; // QVR
 
 	GL_UseProgramFunc (0);

@@ -203,3 +203,23 @@ qc-busy-hand QC/vr_axestick_test.qc 5  # the hand slot's test (vr_pickup_test 7)
 
 # --- cpp-qc-constant: a QC constant is a #define in a Quake/vr/*_shared.h both include, not a literal copy
 # (qcConstants[], vr_agpose.cpp: no values now, read from the progs by name, progs::globalVec; ROUND23, "One hit record, part 5")
+
+# --- gl-program-no-twin: a GL program outside gl_shaders.c's GL_CreateProgram has no multiview twin (STEREO.md,
+# "Multiview-ready: the check"; CODE_STYLE.md, "Rendering stays multiview-ready"). Today's, each with why; a new one
+# goes to gl_shaders.c, or gets a line here saying why it needs no twin (compute, not an eye's view, per eye for good).
+gl-program-no-twin Quake/vr/vr_glutil.hpp 1  # gfx::linkProgram's declaration
+gl-program-no-twin Quake/vr/vr_glutil.cpp 1  # gfx::linkProgram: the one link of Quake VR's own programs
+gl-program-no-twin Quake/vr/vr_gfx.hpp 1  # gfx::glProgram's declaration
+gl-program-no-twin Quake/vr/vr_gfx_gl.cpp 10  # glProgram's definition and its link; VR particles (7 variants, 4 composites), triangles, tube, bent mesh: scene effects not ported yet (STEREO.md stage 4)
+gl-program-no-twin Quake/vr/vr_bttrails.cpp 1  # bullet time's distortion trails: a screen-space pass over each eye's image (stage 5)
+gl-program-no-twin Quake/vr/vr_haze.cpp 1  # heat haze: reads each eye's scene copy (stage 5)
+gl-program-no-twin Quake/vr/vr_water.cpp 1  # the scene's distances for the liquids: per eye's scene copy (stage 2's liquids, not ported)
+gl-program-no-twin Quake/vr/vr_bloom.cpp 4  # bloom: post on each eye's image (stage 5)
+gl-program-no-twin Quake/vr/vr_temporal.cpp 1  # TAA: compute resolve and mask, apply over each eye's image (its program() wrapper's calls are not counted)
+gl-program-no-twin Quake/vr/vr_upscale.cpp 7  # FSR/NIS upscaling and compose: post on each eye's image (NIS is compute)
+gl-program-no-twin Quake/vr/vr_envmap.cpp 1  # environment map capture: a probe's cube faces, not an eye's view
+gl-program-no-twin Quake/vr/vr_lighting.cpp 2  # shadow maps' depth: the light's views, not an eye's
+gl-program-no-twin Quake/vr/vr_permdecals.cpp 2  # permanent decals' atlas bake: texture space, not an eye's view
+gl-program-no-twin Quake/vr/vr_stereo.cpp 1  # the desktop mirror window: per eye for good
+gl-program-no-twin Quake/vr/vr_foveated.cpp 1  # foveation's debug overlay (debug only)
+gl-program-no-twin Quake/vr/vr_dynres.cpp 1  # dynamic resolution's load test (a test aid)

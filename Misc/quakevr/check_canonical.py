@@ -90,6 +90,11 @@ FAMILIES = {
     # next to its QC name (a table row "VR_X", {1.f, 2.f, 3.f} or "VR_X", 0.5f), it is a #define both include.
     "cpp-qc-constant": ("cpp", [r'"(?:VR|QVR)_[A-Z][A-Z0-9_]*"\s*,\s*(?:glm::vec3\s*)?[{(]?\s*-?\.?[0-9]'],
                         "a #define in a Quake/vr/*_shared.h that the QC #includes too (vr_agpose_shared.h VR_AGPS_*)"),
+    # Rendering stays multiview-ready (CODE_STYLE.md, "Rendering stays multiview-ready"; STEREO.md): a GL program made
+    # outside gl_shaders.c's GL_CreateProgram has no multiview twin, and vr_multiview_check cannot see it.
+    "gl-program-no-twin": ("cpp", [r"\b(?:glProgram|linkProgram|buildProgram|fsrProgram)\s*\("],
+                           "a program in gl_shaders.c (GL_CreateProgram: its twin is made and checked by "
+                           "vr_multiview_check); a compute or per-eye-for-good program: its allowlist line, with why"),
 }
 
 
@@ -120,6 +125,7 @@ NEEDLES = {
     "qc-test-spawn": r"func_enemy_dispenser_use",
     "qc-busy-hand": r"VR_Forcegrab_IsHandBusy|VR_Hand_Kind|VR_Hand_IsBusyKind|VR_Hand_CanTake",
     "cpp-qc-constant": r'"Q?VR_',
+    "gl-program-no-twin": r"Program\s*\(",
 }
 
 
