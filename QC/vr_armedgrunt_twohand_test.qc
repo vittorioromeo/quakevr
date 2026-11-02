@@ -225,7 +225,7 @@ void() VR_AG2_Frame =
         {
             vr_ag2_moved = max(vr_ag2_moved, vlen(g.vr_ag_prop.origin - vr_ag2_w0));
         }
-        if(ph == 4 && g.vr_ag_tug_pl && !g.vr_kd_stagger)
+        if(ph == 4 && g.vr_ag_tug_pl && !g.vr_ag_tug_down) // (VR_AG_TugFrame: up again, the eased tug over)
         {
             vr_ag2_rose = TRUE;
         }
