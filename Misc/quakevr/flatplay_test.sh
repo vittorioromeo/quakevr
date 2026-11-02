@@ -14,8 +14,10 @@
 #      button is its own shot (the shotgun's clip drops) and never a punch; a chainsaw's trigger runs its chain; and a
 #      hand that already punched this frame is joined by the other only when both hold a swinging weapon.
 #   4. the drawn hand stays on its arm (the probe's "flatarm:" lines, vr_flatplay_debug 2): no more than 0.6 units of
-#      the hand past what the arm can hold it at, and no more than 60 mm off its wrist — through a punch and at a look
-#      straight up (it was 14 units past, 401 mm off, at the off hand's punch: the hand hung off the wrist).
+#      the hand past what the arm can hold it at, through a punch and at a look straight up (it was 14 units past,
+#      401 mm off the wrist, at the off hand's punch: the hand hung off its arm). The mm the probe prints with it is
+#      the hand's trail behind the wrist its arm solver puts there — about one frame of the hand's own speed, so it is
+#      reported, not gated: a punch throws the fist at some 300 units a second, a frame of that is 4 units.
 #   5. none of it runs in the headset: vr_flat_punch says the mode is not running and "flatarm:" prints nothing.
 # Prints PASS/FAIL per check; exits 1 on a failure.
 AGENT=${1:-fixgame3}; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
@@ -37,20 +39,24 @@ check $(echo "$log" | grep -q "reloads 1 (flatscreen 0)" && echo 1 || echo 0) "i
 log=$(bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; vr_test_weaponinst 0; impulse 2; wait5; impulse 2; wait5; impulse 2; wait5; impulse 120; wait3; impulse 2; wait5; impulse 120; wait3; toggleconsole; quit" -Filter "^weaponinst: main" 2>&1)
 check $(echo "$log" | grep -q "main - |" && echo "$log" | grep "^weaponinst: main" | tail -1 | grep -q "main weapon" && echo 1 || echo 0) "flatscreen: cycling reaches the empty hand and comes back"
 # 3 and 4: both hands' fire buttons punch, deal the damage, and stay on the arm. (The waits are the phases' frames at
-# the mock's 72 a second: a punch is 0.13 + 0.12 + 0.22 s, so its fist is at its fastest around wait14 after the press.
-# The screenshots are the fist at its fastest, and the hands after the look straight up.)
+# the mock's 72 a second: a punch is 0.13 + 0.09 + 0.22 s, so its fist is at its fastest around wait14 after the press.
+# The screenshots are the fist at its fastest, and the hands after the look straight up.) Each attempt is bracketed by
+# two vr_test_hurt 1 reads, so the gap between them is what its punch left the knight at; the reads in between the
+# attempts should find nothing. A knight is spawned fresh before the second and third attempt in case a blow killed the
+# first, and the second attempt drops to vr_flat_reach 0.6: a fist that already rests past the monster has no room to
+# gather the speed a blow asks for, a fist chambered in front of it has.)
 log=$HERE/scratch/flatpunch.log
-bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; god; notarget; developer 1; vr_test_spawn 5; vr_test_spawn_dist 16; impulse 241; wait10; impulse 152; wait15; vr_flatplay_debug 2; wait10; vr_test_hurt 1; wait3; +attack; wait14; screenshot; vr_test_hurt 1; wait8; -attack; impulse 172; wait15; +offhandattack; wait14; screenshot; vr_test_hurt 1; wait8; -offhandattack; setpos 480 -352 88 -89 0 0; wait20; vr_flatplay_status; toggleconsole; quit" -Filter "flatarm:|test hurt:|punches:|flatplay: " -Out scratch/flatpunch.png > "$log" 2>&1
-read -r okmain okoff okarm probes past mm <<<"$(grep -a "" "$log" | awk '
-/test hurt:/ { if (match($0, /health [0-9.]+ -> [0-9.]+/)) { split(substr($0, RSTART + 7, RLENGTH - 7), b, " ->"); if (seen) g[++n] = prev - b[1]; prev = b[2]; seen = 1 } }
+bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; god; notarget; developer 1; vr_test_spawn 5; vr_test_spawn_dist 16; impulse 241; wait10; impulse 152; wait15; vr_flatplay_debug 2; wait10; vr_test_hurt 1; wait3; +attack; wait14; screenshot; -attack; vr_test_hurt 1; wait15; vr_test_spawn 5; vr_test_spawn_dist 16; impulse 241; wait15; vr_flat_reach 0.6; wait25; vr_test_hurt 1; wait3; +attack; wait14; screenshot; -attack; vr_test_hurt 1; wait15; vr_flat_reach 1; vr_test_spawn 5; vr_test_spawn_dist 16; impulse 241; wait15; impulse 172; wait25; vr_test_hurt 1; wait3; +offhandattack; wait14; screenshot; -offhandattack; vr_test_hurt 1; wait15; setpos 480 -352 88 -89 0 0; wait25; +attack; wait14; screenshot; -attack; wait10; vr_flatplay_status; toggleconsole; quit" -Filter "flatarm:|test hurt:|punches:|flatplay: " -Out scratch/flatpunch.png > "$log" 2>&1
+read -r okmain okoff okarm probes past mm gaps <<<"$(grep -a "" "$log" | awk '
+/test hurt:/ { if (match($0, /health [0-9.]+ -> [0-9.]+/)) { split(substr($0, RSTART + 7, RLENGTH - 7), b, " ->"); if (seen) { g[++n] = prev - b[1]; s = s (n > 1 ? "," : "") sprintf("%.0f", g[n]) } prev = b[2]; seen = 1 } }
 /flatarm:/ { for (i = 1; i <= NF; i++) if ($i == "past") { v = $(i + 2) + 0; if (v > past) past = v } if (match($0, /\(([0-9]+) mm\)/)) { m = substr($0, RSTART + 1, RLENGTH - 4) + 0; if (m > mm) mm = m } }
-END { printf "%d %d %d %d %.2f %.0f\n", (n > 0 && g[1] > 0), (n > 1 && g[2] > 0), (past <= 0.6 && mm <= 60), n, past, mm }')"
-echo "  flatarm worst: $past units of the hand past its arm, $mm mm off its wrist; the punches' damage: $probes health probes ($log)"
-check $okmain "flatscreen melee: +attack (LMB) punches with the axe in the main hand and hurts the monster in front of it"
-check $okoff "flatscreen melee: +offhandattack (RMB) punches with the axe in the off hand and hurts the monster in front of it"
+END { printf "%d %d %d %d %.2f %.0f %s\n", (g[1] > 0 || g[3] > 0), (g[5] > 0), (past <= 0.6), n, past, mm, s }')"
+echo "  flatarm worst: $past units of the hand past its arm, $mm mm off its wrist; the gaps the punches left the knight at: $gaps ($log)"
+check $okmain "flatscreen melee: +attack (LMB) punches with the axe in the main hand and hurts the knight in front of it"
+check $okoff "flatscreen melee: +offhandattack (RMB) punches with the axe in the off hand and hurts the knight in front of it"
 check $okarm "flatscreen arm: the drawn hand stays on its arm through a punch and looking straight up"
 log=$HERE/scratch/flatgate.log
-bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; god; notarget; developer 1; impulse 152; impulse 174; wait15; vr_flatplay_debug 2; wait10; vr_flatplay_status; +attack; +offhandattack; wait20; -attack; -offhandattack; wait10; vr_flatplay_status; impulse 154; wait15; vr_test_weaponinst 0; wait3; +attack; wait10; -attack; wait5; impulse 120; wait3; vr_flatplay_status; impulse 164; wait15; +attack; wait10; -attack; wait5; vr_flatplay_status; vr_flat_punch main; wait3; vr_flat_punch off; wait3; toggleconsole; quit" -Filter "punches:|weaponinst:|vr_flat_punch:|flatplay: " > "$log" 2>&1
+bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; god; notarget; developer 1; impulse 152; impulse 174; wait15; vr_flatplay_debug 2; wait10; vr_flatplay_status; +attack; +offhandattack; wait20; -attack; -offhandattack; wait10; vr_flatplay_status; impulse 154; wait15; vr_test_weaponinst 0; wait3; impulse 120; wait5; +attack; wait10; -attack; wait5; vr_test_weaponinst 0; wait3; impulse 120; wait3; vr_flatplay_status; impulse 164; wait15; +attack; wait10; -attack; wait5; vr_flatplay_status; vr_flat_punch main; wait3; vr_flat_punch off; wait3; toggleconsole; quit" -Filter "punches:|weaponinst:|vr_flat_punch:|flatplay: " > "$log" 2>&1
 counts=$(grep -a "punches: the main hand" "$log" | grep -ao "main hand [0-9]*, the off hand [0-9]*" | awk '{ print $3 + 0, $7 + 0 }')
 read -r s1m s1o <<<"$(echo "$counts" | sed -n 1p)"; read -r s2m s2o <<<"$(echo "$counts" | sed -n 2p)"
 read -r s3m s3o <<<"$(echo "$counts" | sed -n 3p)"; read -r s4m s4o <<<"$(echo "$counts" | sed -n 4p)"

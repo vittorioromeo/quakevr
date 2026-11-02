@@ -1,4 +1,4 @@
-# Flatscreen play (`-flatscreenmode`)
+﻿# Flatscreen play (`-flatscreenmode`)
 
 Quake VR's gameplay played on the desktop screen, with no headset. Everything here is behind the command-line flag
 `-flatscreenmode` and only while there is no headset session (`VR_IsActive() == 0`) — and the flag implies no session
@@ -40,9 +40,9 @@ straight-out-in-front pose). The pose is built from the view angles, the weapon 
   straight up, a knock or a punch can ask a hand for more than the arm has, and past that the drawn hand hangs off the
   wrist the arm ends at. Each drawn hand is kept within `armSpan()` — the model's bones with `vr_body_arm_length` and
   `vr_body_arm_stretch`, plus the shoulder's own `vr_body_shoulder_reach` — of the shoulder the body poses that arm on,
-  and the hands follow the view's up and down only as far as `vr_flat_pose_pitch`. A punch is a *swing* of the arm about
-  that shoulder (`punchSwing`: wound up, thrown, drawn back along the arc, the same 24 units of fist it threw before),
-  not the straight shove off the shoulder it used to be — that one asked the off hand's arm for 14 units more than it
+  and the hands follow the view's up and down only as far as `vr_flat_pose_pitch`. A punch is a *thrust along the aim* (`punchSwing`: chambered back along the arm's own line, thrown to what
+  the arm can hold the hand at, drawn back again — and not eased, because the game's melee rules ask the striking hand
+  for vr_melee_speed, and spread over some 19 frames of the throw: the game reads a blow through the held weapon's line, which follows the hand as it is drawn, so a punch that is over in 6 frames reaches it as one big step, which VR_Melee_Track (QC/vr_melee.qc) reads as the hand having jumped and counts no motion in it at all), not the straight shove off the shoulder it used to be: that one asked the off hand's arm for 14 units more than it
   had, and its hand ended 401 mm off its wrist.
 
 **The hands are locked to the view.** The game's pose is rigid in the view's frame (only a change of pose — a weapon
@@ -82,7 +82,7 @@ console.
 |---|---|
 | mouse LMB | fires the right hand (as in VR); with a weapon a swing strikes with in that hand — an empty hand (the fist), the axe, the maul, the sword, the crowbar, the super axe — it is also the punch `V` makes |
 | mouse RMB | fires the left hand (as in VR); the same punch with a swinging weapon in the off hand |
-| `E` | force-grabs what the view is pointed at, with the free hand (`impulse 46` → `VR_Forcegrab_FlatGrab`; the search, the flight and the catch are the game's own force grab). With both hands holding weapons there is no hand to collect with and E does nothing. |
+| `E` | force-grabs what the view is pointed at, with the free hand (`impulse 46` â†’ `VR_Forcegrab_FlatGrab`; the search, the flight and the catch are the game's own force grab). With both hands holding weapons there is no hand to collect with and E does nothing. |
 | `1` | cycles the **left** hand's weapon through the weapons collected |
 | `2` | cycles the **right** hand's weapon |
 | `V` | a punch with the right hand: a real motion of the hand (wound up, thrown, drawn back), so the game's own melee rules decide whether it lands. `vr_flat_punch [main\|off]` drives either hand's punch from the console. A weapon that no swing strikes with never punches from its fire button — the chainsaw's trigger runs its chain, a gun's fires (the mode's own weapon set: `punchesWith`, `vr_flatplay.cpp`); `V` is the hand's punch whatever it holds, as it was. A hand that already started a punch this very frame is joined by the other only when both hands hold a swinging weapon |
