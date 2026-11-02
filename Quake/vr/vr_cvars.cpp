@@ -470,7 +470,10 @@ const NamedDefaultChange namedDefaultChanges[] = {
 // defaults: VR_ConfigSaves). The last version: the rows above are frozen, a changed default needs none from now on.
 // 219: a vr_seated_height at or over 0.9 of the standing eye height (vr_height_calibration) back to 0 (not measured):
 // measured standing, no seated height (his config of 2026-11-02: 1.574 seated, 1.561 standing).
-constexpr int configVersion = 219;
+// 220: vr_body_step_rate's meaning changed (a cap that rarely counted -> the steps a second at a full run): the old number
+// can't be converted, so whatever was saved goes back to the default, the player's own choice too; vr_body_step_run to
+// its new range, 0 .. 1.
+constexpr int configVersion = 220;
 // 190: vr_struggle_classes retired for the monster groups' Struggle settings: the value of its line in the config just
 // executed (VR_RetiredCvar keeps it), moved into the groups by mgroups::migrateStruggleClasses if it was custom.
 za::String retiredStruggleClasses;
@@ -788,6 +791,17 @@ void migrateConfig()
             vr_seated_height.value, vr_height_calibration.value);
         Cvar_SetValueQuick(&vr_seated_height, 0.f);
     }
+    if(from < 220)
+    {
+        Con_DPrintf("VR: vr_body_step_rate: %s for %s (its meaning changed)\n", vr_body_step_rate.default_string,
+            vr_body_step_rate.string);
+        Cvar_SetQuick(&vr_body_step_rate, vr_body_step_rate.default_string);
+        const float run = CLAMP(0.f, vr_body_step_run.value, 1.f);
+        if(run != vr_body_step_run.value)
+        {
+            Cvar_SetValueQuick(&vr_body_step_run, run);
+        }
+    }
     Cvar_SetValueQuick(&vr_cfg_version, static_cast<float>(configVersion));
 }
 
@@ -939,6 +953,8 @@ void registerCvars()
 // Settings removed (docs/vr-port/CVAR_AUDIT.md): a config, a shipped .cfg or a take that still sets one is not an
 // "Unknown command" (cmd.c asks here); the line is dropped quietly and the next config write leaves it out.
 constexpr const char* retiredCvars[] = {
+    // 2026-11-02: the armed death knight's share of casts with a gun, a cooldown now (vr_agdknight_cast_cooldown).
+    "vr_agdknight_spell_share",
     // 2026-11-02: the option audit's removals (ROUND23.md, "Option audit: removals"): the hitbox category switches (the
     // width, vr_hull_ent_width, holds against all), the old sides of legacy switches (their "on" kept), the status
     // duplicates (vr_*_status 1), the retired migrations' cvars, Shoulder Charges' switch (its chance 0 is off), the

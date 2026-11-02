@@ -112,6 +112,12 @@ void PF_torchflametouch()
     }
 }
 
+// QC's old footstep trigger asks: is this player's step the drawn feet's now (vr_playersteps.cpp)?
+void PF_playerstepsilent()
+{
+    G_FLOAT(OFS_RETURN) = playersteps::oldStepSilent(NUM_FOR_EDICT(G_EDICT(OFS_PARM0))) ? 1.f : 0.f;
+}
+
 // A visible map flame capsule against the local tracked body, using the held torch contact shapes.
 void PF_mapflametouch()
 {

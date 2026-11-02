@@ -83,12 +83,21 @@ QVR_TOGGLE_BYNAME(vr_flail_world, "Flail Head Lying About",
 
 // vr_menu_body.inc: pageBody
 QVR_TOGGLE(vr_body_walk, "Walking Legs", "The legs (full body) walk as you move with the stick.")
-QVR_SLIDER(vr_body_step_rate, "Step Rate", 1.f, 5.f, 0.1f, "%.1f /s", ext(),
-    "How fast the legs step at most, in steps a second at full running speed (walking, somewhat fewer).")
-QVR_SLIDER(vr_body_step_run, "Running Cadence", 0.f, 1.5f, 0.05f, "%.2fx", noExt,
-    "At speed the legs step as often as a person's stride there (the bloody footprints' steps): a run looks "
-    "like a run. 1: a person's cadence; 0: only the Step Rate above (a run's legs step half as often as its "
-    "prints).")
+QVR_SLIDER(vr_body_step_rate, "Step Rate", 0.5f, 10.f, 0.1f, "%.1f /s", ext(),
+    "How many steps a second the legs take at a full run; slower, fewer, as Running Cadence says. The only limit: never "
+    "more than it takes to cover the ground with the stride (above about 13 a second at a run, more walking slowly).")
+QVR_SLIDER(vr_body_step_run, "Running Cadence", 0.f, 1.f, 0.05f, "%.2f", noExt,
+    "How the steps fall off below a full run. 1: as a person's cadence does (a walk at half the speed, about 70% of the "
+    "Step Rate; the bloody footprints' steps at the default Step Rate). 0: the Step Rate rules everywhere (70% of it at "
+    "the slowest, all of it at a run).")
+QVR_SLIDER(vr_body_stride, "Stride Length", 0.3f, 2.f, 0.05f, "%.2fx", ext(),
+    "How long the walk's strides are, times this. Longer: the planted foot slides less on the ground at speed (and slow "
+    "walking takes fewer steps), but the feet leave the floor further at the stride's ends, past the legs' reach.")
+QVR_SLIDER(vr_body_step_width, "Step Width", -0.08f, 0.25f, 0.01f, "%+.2f m", ext(),
+    "How much further apart each foot walks than it stands (hips' width apart): out, or in if negative.")
+QVR_TOGGLE(vr_body_step_sounds, "Footsteps on the Feet",
+    "Your footsteps play as the drawn feet touch down, from that foot, and softly for the small steps turning on the "
+    "spot. Off, or with no walking legs, swimming, climbing and in multiplayer: by the distance you cover, as in Quake.")
 QVR_SLIDER(vr_body_turn_step, "Turn Before Stepping", 15.f, 90.f, 5.f, "%.0f deg", ext(),
     "How far you turn over your planted feet before they step round to follow.")
 QVR_SLIDER(vr_body_wade, "Wading Heaviness", 0.f, 2.f, 0.1f, "%.1fx", ext(),
@@ -854,10 +863,11 @@ QVR_TOGGLE(vr_agdknight, "Armed Death Knights",
     "disarmed, tugged and grabbed like the armed humanoids', dropped when he dies; at range he still casts "
     "his fireball volley. A work in progress (ROUND23.md, \"Death knights as armed humanoids\"). Takes "
     "effect at the next map load (vr_agdknight).")
-QVR_SLIDER(vr_agdknight_spell_share, "Armed Death Knights: Spell Share", 0.f, 1.f, 0.05f, "%.2f", ext(0.f, 1.f),
-    "An armed death knight holding a gun casts his fireball volley (his off hand out, the fireballs from its palm: "
-    "the Cast pose) for this share of his ranged attacks and fires the gun for the rest. With a blade or his fists "
-    "he casts at range the same way, his sword kept in his hand (vr_agdknight_spell_share).")
+QVR_SLIDER(vr_agdknight_cast_cooldown, "Armed Death Knights: Gun Cast Cooldown", 0.f, 60.f, 0.5f, "%.1f s", ext(0.f, 600.f),
+    "An armed death knight holding a gun fires it, and casts his fireball volley (his off hand out, the fireballs from "
+    "its palm: the Cast pose) at his next attack once this long has passed since his last cast; each has his own clock, "
+    "starting on a random part of it, so a group doesn't volley together. With a blade or his fists he casts at range "
+    "by id's own chances, his sword kept in his hand (vr_agdknight_cast_cooldown).")
 QVR_TOGGLE(vr_agknight_ranged_pickup, "Armed Knights: Pick Up Ranged Weapons",
     "Off: armed knights and death knights take up only melee weapons lying about (a gun they drop stays "
     "on the floor). On: they take up guns too, as grunts do (for experiments). One spawned holding a gun "
@@ -2153,7 +2163,7 @@ QVR_SLIDER_BYNAME(vr_menu_section_gap, "Section Gap", 0.f, 2.f, 0.25f, "%.2f row
 QVR_TOGGLE_BYNAME(vr_menu_vr_style, "VR Menu Style",
     "The menus fill the panel with their rows spaced out, with modern sliders and switches, and a laser from your hand points at them: trigger to click and drag.")
 QVR_TOGGLE_BYNAME(vr_menu_bigfont, "Main Menu Lettering",
-    "The main menu's rows as text in Quake's own lettering (its letters cut from the menu pictures), VR Calibration among them. Off: Quake's picture of the rows, with VR Calibration above it in the console's letters.")
+    "The main menu's rows as text in Quake's own lettering (its letters cut from the menu pictures), VR Calibration among them, and the other menus' pictures of rows (difficulty, Single Player, Multiplayer) in the Fonts page's style. Off: Quake's pictures as they are, with VR Calibration above the main menu's in the console's letters.")
 QVR_TOGGLE_BYNAME(vr_menu_recolor, "Blood Red Menus",
     "The menus' browns and tans (the letters, Quake's pictures, sliders, switches and panels) turned blood red, in Quake VR's colours. Off: Quake's own browns.")
 QVR_SLIDER_BYNAME(vr_menu_recolor_strength, "Red Strength", 0.f, 1.f, 0.05f, "%.2f", noExt,
@@ -3426,7 +3436,9 @@ QVR_CYCLE_BYNAME(vr_dither, "Dither",
 QVR_TOGGLE_BYNAME(vr_model_lighting, "Model Lighting",
     "Monsters, items and weapons are shaded from the map's lights, not one fixed direction.")
 QVR_TOGGLE_BYNAME(vr_model_light_parity, "Models Lit as the World",
-    "Monsters and items as bright as the floor they stand on (off: Quake's brighter models).")
+    "Monsters and items as bright as the world around them (off: Quake's brighter models).")
+QVR_TOGGLE_BYNAME(vr_model_light_grid, "Models Lit From All Sides",
+    "Monsters, items, weapons and hands take the baked light of the walls, floor and ceiling around them (off: Quake's, the floor under their feet).")
 QVR_TOGGLE_BYNAME(vr_model_ambient_dir, "Directional Ambient",
     "Monsters, items, weapons and hands take the light around them: brighter on the side facing lit walls, darker facing shade.")
 QVR_SLIDER_BYNAME(vr_model_ambient_contrast, "Ambient Contrast", 0.f, 1.5f, 0.05f, "%.2f", ext(),
@@ -6154,6 +6166,10 @@ QVR_CYCLE(vr_hull_cache, "Hitboxes on Disk",
     "A big map's compiled hulls kept on disk (cache/hulls) and read at its next load instead of compiled "
     "again (vrstart: 9 s to 0.1 s). Check: read, then compiled anyway and compared (Hitbox Stats counts "
     "them). Off: compiled at every load (vr_hull_cache).",
+    {0.f, "Off"}, {1.f, "On"}, {2.f, "Check"})
+QVR_CYCLE(vr_model_light_grid_cache, "Model Light Grids on Disk",
+    "A big map's model light grid kept on disk (cache/lightgrid) and read at its next load instead of built "
+    "again (vrstart: 2.2 s). Check: read, then built anyway and compared. Off: built at every load (vr_model_light_grid_cache).",
     {0.f, "Off"}, {1.f, "On"}, {2.f, "Check"})
 QVR_CYCLE(vr_hull_async, "New Monster Sizes in Play",
     "A monster whose box size the map's load did not compile (a delayed or triggered spawn, the test "

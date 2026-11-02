@@ -24,6 +24,7 @@ committed or shipped: everything is derived from the player's own game files.
 | skins' normal maps | `normalmaps` | `vr_normalmaps.cpp` TexMgr_SkinToNormals | texels, size, heights, texels per unit, islands | `NORMALCACHE_VERSION` | `vr_normalmap_cache` | - |
 | guns' convex pieces | `gunpieces` | `vr_box3d.cpp` cutGun / `vr_convex.cpp` | triangles, cut settings | `cutVersion` (+ Box3D's) | `vr_gun_pieces_cache` | - |
 | compiled hull trees | `hulls` | `vr_hull.cpp` | world's nodes and planes, the box | `treeVersion` (+ layout, brushes' `buildVersion`) | `vr_hull_cache` | 1 GB |
+| big maps' model light grids | `lightgrid` | `vr_ambient.cpp` | lightmaps, styles and planes, the grid's size | `GRID_CACHE_VERSION` | `vr_model_light_grid_cache` | 256 MB |
 | occlusion bakes | `ao` | `vr_ao.cpp` | SHA-256 of poses, triangles, scale, origin, the bake's numbers | `BAKE_VERSION` | `vr_ao_cache` | 64 MB |
 | dequantised poses | `dequant` | `vr_mdldequant.cpp` | poses, frames (poses, names), the progs' loops it takes | `dequantVersion` | `vr_mdl_dequant_cache` | 256 MB |
 | ragdoll rigs | `rigs` | `vr_ragdoll.cpp` derive | the seed table, poses, scale and origin, triangles' vertices | `rigVersion` | `vr_ragdoll_rig_cache` | - |

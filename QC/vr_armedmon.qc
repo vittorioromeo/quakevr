@@ -72,7 +72,8 @@ vector vr_am_gun_fw;        // ... its own gun's way at rest
 float vr_am_range;          // its weapons' distances times this (under 1: it holds its ground nearer),
 float vr_am_range_threat;   // ... its least and best times this while you hold a melee weapon or charge it
 // Its own spell beside its weapon (the death knight's fireball volley): its monster's ranged attack, cast at range while
-// it holds a melee weapon or none (VR_AG_CheckAttack: VR_AM_SpellTry); a gun's holder uses the gun.
+// it holds a melee weapon or none (VR_AG_CheckAttack: VR_AM_SpellTry); a gun's holder fires the gun, casting on a
+// cooldown (VR_AM_GunCasts).
 var void() vr_am_spell;     // its frames' first function (SUB_Null: none)
 
 void(float k) VR_AM_Row =

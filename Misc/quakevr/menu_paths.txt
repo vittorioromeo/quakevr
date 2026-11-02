@@ -454,6 +454,9 @@ vr_gib_blood_trail|2|Gore|Gib Blood Trail|Advanced VR Options > Gore > Gib Blood
 vr_body_walk|1|Body|Walking Legs|Advanced VR Options > Body > Walking Legs
 vr_body_step_rate|1|Body|Step Rate|Advanced VR Options > Body > Step Rate
 vr_body_step_run|1|Body|Running Cadence|Advanced VR Options > Body > Running Cadence
+vr_body_stride|1|Body|Stride Length|Advanced VR Options > Body > Stride Length
+vr_body_step_width|1|Body|Step Width|Advanced VR Options > Body > Step Width
+vr_body_step_sounds|1|Body|Footsteps on the Feet|Advanced VR Options > Body > Footsteps on the Feet
 vr_body_turn_step|1|Body|Turn Before Stepping|Advanced VR Options > Body > Turn Before Stepping
 vr_body_wade|1|Body|Wading Heaviness|Advanced VR Options > Body > Wading Heaviness
 vr_body_swim_kick|1|Body|Swimming Kicks|Advanced VR Options > Body > Swimming Kicks
@@ -976,7 +979,7 @@ vr_agrunt_w_phantom|1|Armed Grunts (Experimental)|Phantom Sword (Rogue's Data)|A
 vr_agrunt_repl|1|Armed Humanoid Replacements|Replace All Humanoids|Advanced VR Options > Combat > Armed Humanoid 
 vr_agknight|1|Armed Humanoid Replacements|Armed Knights|Advanced VR Options > Combat > Armed Humanoid Replacements 
 vr_agdknight|1|Armed Humanoid Replacements|Armed Death Knights|Advanced VR Options > Combat > Armed Humanoid 
-vr_agdknight_spell_share|1|Armed Humanoid Replacements|Armed Death Knights: Spell Share|Advanced VR Options > 
+vr_agdknight_cast_cooldown|1|Armed Humanoid Replacements|Armed Death Knights: Gun Cast Cooldown|Advanced VR Options 
 vr_agknight_ranged_pickup|1|Armed Humanoid Replacements|Armed Knights: Pick Up Ranged Weapons|Advanced VR Options > 
 vr_agrunt_repl_common|1|Armed Humanoid Replacements|Common: Shotgun, Nail Pistol|Advanced VR Options > Combat > 
 vr_agrunt_repl_uncommon|1|Armed Humanoid Replacements|Uncommon: Nailguns, Super Shotgun|Advanced VR Options > 
@@ -2208,6 +2211,7 @@ vr_dither|1|Graphics - Post-processing|Dither|Advanced VR Options > Graphics > P
 @page|1|Graphics - Models and Effects||Advanced VR Options > Graphics > Models and Effects
 vr_model_lighting|1|Graphics - Models and Effects|Model Lighting|Advanced VR Options > Graphics > Models and 
 vr_model_light_parity|1|Graphics - Models and Effects|Models Lit as the World|Advanced VR Options > Graphics > 
+vr_model_light_grid|1|Graphics - Models and Effects|Models Lit From All Sides|Advanced VR Options > Graphics > 
 vr_model_ambient_dir|1|Graphics - Models and Effects|Directional Ambient|Advanced VR Options > Graphics > Models 
 vr_model_ambient_contrast|1|Graphics - Models and Effects|Ambient Contrast|Advanced VR Options > Graphics > Models 
 r_lerpmodels|1|Graphics - Models and Effects|Model Animation|Advanced VR Options > Graphics > Models and Effects > 
@@ -3230,6 +3234,21 @@ vr_enemy_melee_turn|2|Tunables|Swing Turn|Advanced VR Options > Debug > Tunables
 vr_enemy_aim_angle|2|Tunables|Aim Cone|Advanced VR Options > Debug > Tunables > Aim Cone
 vr_enemy_aim_fire|2|Tunables|Fire Cone|Advanced VR Options > Debug > Tunables > Fire Cone
 vr_enemy_aim_delay|2|Tunables|Max Delay|Advanced VR Options > Debug > Tunables > Max Delay
+vr_footstep_player_turn_vol|2|Tunables|Standing Step Volume|Advanced VR Options > Debug > Tunables > Standing Step 
+vr_footstep_volume|2|Tunables|Volume|Advanced VR Options > Debug > Tunables > Volume
+vr_footstep_walk_speed|2|Tunables|Walking Speed|Advanced VR Options > Debug > Tunables > Walking Speed
+vr_footstep_run_speed|2|Tunables|Running Speed|Advanced VR Options > Debug > Tunables > Running Speed
+vr_footstep_walk_vol|2|Tunables|Walking Volume|Advanced VR Options > Debug > Tunables > Walking Volume
+vr_footstep_run_vol|2|Tunables|Running Volume|Advanced VR Options > Debug > Tunables > Running Volume
+vr_footstep_walk_atten|2|Tunables|Walking Falloff|Advanced VR Options > Debug > Tunables > Walking Falloff
+vr_footstep_run_atten|2|Tunables|Running Falloff|Advanced VR Options > Debug > Tunables > Running Falloff
+vr_footstep_min_speed|2|Tunables|Least Speed|Advanced VR Options > Debug > Tunables > Least Speed
+vr_footstep_heavy_volume|2|Tunables|Heavy Feet Volume|Advanced VR Options > Debug > Tunables > Heavy Feet Volume
+vr_footstep_heavy_carry|2|Tunables|Heavy Feet Carry|Advanced VR Options > Debug > Tunables > Heavy Feet Carry
+vr_footstep_nearest|2|Tunables|Heard at Once|Advanced VR Options > Debug > Tunables > Heard at Once
+vr_footstep_range|2|Tunables|Range|Advanced VR Options > Debug > Tunables > Range
+vr_footstep_rate|2|Tunables|Most a Second|Advanced VR Options > Debug > Tunables > Most a Second
+vr_footstep_log|2|Tunables|Log Steps|Advanced VR Options > Debug > Tunables > Log Steps
 vr_enemy_shove_parry_reduction|2|Tunables|Parry Push Reduction|Advanced VR Options > Debug > Tunables > Parry Push 
 vr_enemy_shove_enforcer_damage|2|Tunables|Enforcer Damage|Advanced VR Options > Debug > Tunables > Enforcer Damage
 vr_enemy_shove_enforcer_distance|2|Tunables|Enforcer Push|Advanced VR Options > Debug > Tunables > Enforcer Push
@@ -3801,6 +3820,8 @@ vr_menu_body_clone_distance|2|Debug - Views|Body Clone Distance|Advanced VR Opti
 vr_menu_body_clone_side|2|Debug - Views|Body Clone Side|Advanced VR Options > Debug > Views > Body Clone Side
 vr_anim_surface|2|Debug - Views|Animated Surfaces|Advanced VR Options > Debug > Views > Animated Surfaces
 |2|Debug - Views|Retro Textures: List|Advanced VR Options > Debug > Views > Retro Textures: List
+|2|Debug - Views|Player's Walk Report|Advanced VR Options > Debug > Views > Player's Walk Report
+|2|Debug - Views|Enemy Footsteps: Contacts|Advanced VR Options > Debug > Views > Enemy Footsteps: Contacts
 |2|Debug - Views|Flame Lights Info|Advanced VR Options > Debug > Views > Flame Lights Info
 |2|Debug - Views|Lightstyle Rate (5 s)|Advanced VR Options > Debug > Views > Lightstyle Rate (5 s)
 |2|Debug - Views|Fog Check|Advanced VR Options > Debug > Views > Fog Check
@@ -3998,6 +4019,7 @@ vr_oit_lazy_clear|2|Debug - Profiling and Memory|Lazy OIT Clear|Advanced VR Opti
 vr_shadow_setup_share|2|Debug - Profiling and Memory|Shadow Caster Set-up Shared|Advanced VR Options > Debug > 
 vr_shadow_caster_cache|2|Debug - Profiling and Memory|Keep Light Casters|Advanced VR Options > Debug > Profiling 
 |2|Debug - Profiling and Memory|Check Kept Light Casters|Advanced VR Options > Debug > Profiling and Memory > Check 
+|2|Debug - Profiling and Memory|Model Light Grid Info|Advanced VR Options > Debug > Profiling and Memory > Model 
 |2|Debug - Profiling and Memory|Light Caster Stats|Advanced VR Options > Debug > Profiling and Memory > Light 
 vr_stereo_single|2|Debug - Profiling and Memory|Single-Pass Stereo (Experimental)|Advanced VR Options > Debug > 
 |2|Debug - Profiling and Memory|Single-Pass Stereo Info|Advanced VR Options > Debug > Profiling and Memory > 
@@ -4405,6 +4427,7 @@ vr_test_spawn_yaw|2|Debug - Tests|Box Turned|Advanced VR Options > Debug > Tests
 vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Tests > Box Tilted
 |2|Debug - Tests|Put It There|Advanced VR Options > Debug > Tests > Put It There
 |2|Debug - Tests|Armour on Armed Grunts|Advanced VR Options > Debug > Tests > Armour on Armed Grunts
+|2|Debug - Tests|Death Knight's Gun and Casts|Advanced VR Options > Debug > Tests > Death Knight's Gun and Casts
 |2|Debug - Tests|Armed Humanoid Tuning|Advanced VR Options > Debug > Tests > Armed Humanoid Tuning
 |2|Debug - Tests|Worn Backpacks|Advanced VR Options > Debug > Tests > Worn Backpacks
 |2|Debug - Tests|Grunts Wearing Packs There|Advanced VR Options > Debug > Tests > Grunts Wearing Packs There
@@ -4412,6 +4435,7 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Armoured Enforcers There|Advanced VR Options > Debug > Tests > Armoured Enforcers There
 |2|Debug - Tests|Armour Damage Marks There|Advanced VR Options > Debug > Tests > Armour Damage Marks There
 |2|Debug - Tests|Helmets There: Grunt and Enforcer|Advanced VR Options > Debug > Tests > Helmets There: Grunt and 
+|2|Debug - Tests|Helmets Alone There: Knight and Death Knight|Advanced VR Options > Debug > Tests > Helmets Alone 
 |2|Debug - Tests|Helmets There: Knight and Death Knight|Advanced VR Options > Debug > Tests > Helmets There: Knight 
 |2|Debug - Tests|Enemy Weapon Drop Cap|Advanced VR Options > Debug > Tests > Enemy Weapon Drop Cap
 |2|Debug - Tests|A Knight's Ragdoll There|Advanced VR Options > Debug > Tests > A Knight's Ragdoll There
@@ -4430,6 +4454,7 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Go to the Next Crate|Advanced VR Options > Debug > Tests > Go to the Next Crate
 |2|Debug - Tests|Crate Cover|Advanced VR Options > Debug > Tests > Crate Cover
 |2|Debug - Tests|Can the Grunt See You?|Advanced VR Options > Debug > Tests > Can the Grunt See You?
+|2|Debug - Tests|Enemy Footsteps Walkabout|Advanced VR Options > Debug > Tests > Enemy Footsteps Walkabout
 |2|Debug - Tests|Crouch Shots|Advanced VR Options > Debug > Tests > Crouch Shots
 |2|Debug - Tests|Crouch Status|Advanced VR Options > Debug > Tests > Crouch Status
 |2|Debug - Tests|Melee Sweep Test|Advanced VR Options > Debug > Tests > Melee Sweep Test
@@ -4684,6 +4709,7 @@ vr_debug_sound_log|2|Debug - Tests|Log Sounds|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Hitbox Stats|Advanced VR Options > Debug > Tests > Hitbox Stats
 vr_hull_keep|2|Debug - Tests|Keep Hitboxes for Reloads|Advanced VR Options > Debug > Tests > Keep Hitboxes for 
 vr_hull_cache|2|Debug - Tests|Hitboxes on Disk|Advanced VR Options > Debug > Tests > Hitboxes on Disk
+vr_model_light_grid_cache|2|Debug - Tests|Model Light Grids on Disk|Advanced VR Options > Debug > Tests > Model 
 vr_hull_async|2|Debug - Tests|New Monster Sizes in Play|Advanced VR Options > Debug > Tests > New Monster Sizes in 
 |2|Debug - Tests|The Gates In This Map|Advanced VR Options > Debug > Tests > The Gates In This Map
 |2|Debug - Tests|Teleporter Test Map|Advanced VR Options > Debug > Tests > Teleporter Test Map

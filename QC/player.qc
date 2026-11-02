@@ -172,21 +172,25 @@ void(float xHand) player_run =
                    {
                    self.spawnsilent = 0.5*(self.spawnsilent - 95);
                    }
-                r = random();
-                if(r < 0.14)
-                   VR_SoundVaried(self, CHAN_AUTO, "misc/foot1.wav", 0.5, ATTN_NORM);
-                else if(r < 0.29)
-                   VR_SoundVaried(self, CHAN_AUTO, "misc/foot2.wav", 0.5, ATTN_NORM);
-                else if(r < 0.43)
-                   VR_SoundVaried(self, CHAN_AUTO, "misc/foot3.wav", 0.5, ATTN_NORM);
-                else if(r < 0.58)
-                   VR_SoundVaried(self, CHAN_AUTO, "misc/foot4.wav", 0.5, ATTN_NORM);
-                else if(r < 0.72)
-                   VR_SoundVaried(self, CHAN_AUTO, "misc/foot5.wav", 0.5, ATTN_NORM);
-                else if(r < 0.86)
-                   VR_SoundVaried(self, CHAN_AUTO, "misc/foot6.wav", 0.5, ATTN_NORM);
-                else
-                   VR_SoundVaried(self, CHAN_AUTO, "misc/foot7.wav", 0.5, ATTN_NORM);
+                // QVR: heard from the drawn feet instead, as they touch down (vr_body_step_sounds, vr_playersteps.cpp).
+                if(!playerstepsilent(self))
+                {
+                    r = random();
+                    if(r < 0.14)
+                       VR_SoundVaried(self, CHAN_AUTO, "misc/foot1.wav", 0.5, ATTN_NORM);
+                    else if(r < 0.29)
+                       VR_SoundVaried(self, CHAN_AUTO, "misc/foot2.wav", 0.5, ATTN_NORM);
+                    else if(r < 0.43)
+                       VR_SoundVaried(self, CHAN_AUTO, "misc/foot3.wav", 0.5, ATTN_NORM);
+                    else if(r < 0.58)
+                       VR_SoundVaried(self, CHAN_AUTO, "misc/foot4.wav", 0.5, ATTN_NORM);
+                    else if(r < 0.72)
+                       VR_SoundVaried(self, CHAN_AUTO, "misc/foot5.wav", 0.5, ATTN_NORM);
+                    else if(r < 0.86)
+                       VR_SoundVaried(self, CHAN_AUTO, "misc/foot6.wav", 0.5, ATTN_NORM);
+                    else
+                       VR_SoundVaried(self, CHAN_AUTO, "misc/foot7.wav", 0.5, ATTN_NORM);
+                }
             }
         }
     }

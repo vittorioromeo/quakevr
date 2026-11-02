@@ -10,6 +10,7 @@ QVR_CVAR(vr_hull_width, "16", CVAR_ARCHIVE)            // the player's width aga
 QVR_CVAR(vr_hull_ent_width, "-1", CVAR_ARCHIVE)        // the player's width against monsters, players and solid boxes (8-32; 0: Quake's 32; -1: vr_hull_width's)
 QVR_CVAR(vr_hull_edge_probe, "1", CVAR_ARCHIVE)       // Quake's "over a ledge" friction test (double friction) looks down from your box's leading edge (half its width ahead; Quake: 16), and a point inside a step has floor under it; 0: Quake's (under a stairs' clip ramp that point was inside the steps: walking up slowed to a crawl, a jump there went nowhere)
 QVR_CVAR(vr_hull_brushmodels, "1", CVAR_ARCHIVE)       // the narrow width against brush models too (doors, lifts, func_walls, external .bsp models), not only the world
+QVR_CVAR(vr_model_light_grid_cache, "1", CVAR_ARCHIVE) // big maps' model light grids kept on disk (cache/lightgrid, vr_ambient.cpp: those that took 100 ms or more; vrstart cold 2.2 s): 0 built at every load, 2 read, built anyway and compared
 QVR_CVAR(vr_hull_cache, "1", CVAR_ARCHIVE)             // the world's compiled hulls kept on disk (cache/hulls, vr_hull.cpp: trees that took 250 ms or more; vrstart cold 10 s to under 1): 0 compiled at every load; 2 read, then compiled anyway and compared (vr_hull_stats)
 QVR_CVAR(vr_hull_async, "1", CVAR_NONE)               // a monster's box size first met in play (no tree from the load: AD's delayed spawns, the test spawner) compiled on the pool while it moves with Quake's hull, not in the frame (ad_tears' 40x88: a 1.3-1.9 s hitch); 0: compiled at its first move, the frame waiting (vr_hull.cpp, "Trees compiled in play")
 QVR_CVAR(vr_hull_keep, "1", CVAR_ARCHIVE)             // maps whose brushes and compiled hulls are kept in memory for a load of the same map again (a death's reload, restart, a changelevel back; 0: off)
@@ -840,7 +841,7 @@ QVR_CVAR(vr_menu_recolor, "1", CVAR_ARCHIVE)          // the menus' browns, tans
 QVR_CVAR(vr_menu_recolor_strength, "1", CVAR_ARCHIVE)  // with it, how far towards the hue (0 to 1)
 QVR_CVAR(vr_menu_recolor_hue, "0", CVAR_ARCHIVE)       // with it, the hue they turn to (degrees; 0 red, the banner's; 345 crimson, 20 red-orange; -1 vr_player_hue)
 QVR_CVAR(vr_menu_recolor_saturation, "3", CVAR_ARCHIVE)    // with it, their colourfulness times this (as far as the hue's colours go; 0.5 to 3; their lightness always kept)
-QVR_CVAR(vr_menu_bigfont, "1", CVAR_ARCHIVE)         // the main menu's rows as text in Quake's own lettering (vr_bigfont.cpp; 0: Quake's picture, VR Calibration above it in the console's letters)
+QVR_CVAR(vr_menu_bigfont, "1", CVAR_ARCHIVE)         // the main menu's rows as text in Quake's own lettering, the other menus' pictures of rows restyled (vr_bigfont.cpp; 0: Quake's pictures as they are, VR Calibration above the main menu's in the console's letters)
 // The console font restyled (vr_fontstyle.cpp), one set for each kind of text; each change rebuilds that one at once.
 // Classic, no outline, shadow opacity 0: Quake's own texture, as before. Shipped: the author's look (2026-11-02).
 // The menus and the 2D canvas (Menu > Fonts):
@@ -1351,8 +1352,11 @@ QVR_CVAR(vr_voice_formant, "17", CVAR_ARCHIVE)        // vr_voice 1: its formant
 QVR_CVAR(vr_voice_voicing, "0.4", CVAR_ARCHIVE)       // vr_voice 1: how rough a stretch of a voice sound may be and still be pitched up (YIN's threshold, 0.05..0.9: higher pitches more of the screams' growl; the rest only has its formants raised)
 QVR_CVAR(vr_body_bracers, "0", CVAR_ARCHIVE)         // the leather bracers on the forearms; 0: bare forearms (gadget straps fitted to the skin) (progs/vrbody*_bare, fitted round the jointed hand)
 QVR_CVAR(vr_body_walk, "1", CVAR_ARCHIVE)             // legs (vr_body_mode 3) walk as the player moves
-QVR_CVAR(vr_body_step_rate, "2.2", CVAR_ARCHIVE)      // at most this many steps a second at full running speed (fewer walking)
-QVR_CVAR(vr_body_step_run, "1", CVAR_ARCHIVE)         // at speed the legs step up to a person's cadence there (the bloody footprints' steps: a run's ~5.6 a second) above vr_body_step_rate: 1 all of it, 0 the cap alone (a run's ~2.5), up to 1.5
+QVR_CVAR(vr_body_step_rate, "4.9", CVAR_ARCHIVE)      // steps a second at a full run (320 units/s), 0.5 .. 10; below it a share of that (vr_body_step_run); never more than the speed over the stride
+QVR_CVAR(vr_body_stride, "1", CVAR_ARCHIVE)           // the walk's stride, times this (0.3 .. 2): longer, the planted foot slides less, and the fewer steps it takes when walking slowly
+QVR_CVAR(vr_body_step_width, "0", CVAR_ARCHIVE)       // metres each foot walks further out than it stands, the hips' width apart (-0.08 .. 0.25)
+QVR_CVAR(vr_body_step_sounds, "1", CVAR_ARCHIVE)       // the player's footsteps play as the drawn feet touch down, from that foot (vr_playersteps.cpp); 0: QC's old trigger, by distance. The old trigger too with no walking legs, in the air, swimming, climbing and in multiplayer
+QVR_CVAR(vr_body_step_run, "1", CVAR_ARCHIVE)         // below a full run, how the steps fall off: 1 as a person's cadence does (the bloody footprints' steps), 0 vr_body_step_rate rules everywhere (70% at the slowest, all of it at a run); 0 .. 1
 QVR_CVAR(vr_body_wade, "1", CVAR_ARCHIVE)             // wading, the legs walk heavier: shorter, higher, slower steps (0 as on land, up to 2)
 QVR_CVAR(vr_body_swim_kick, "1", CVAR_ARCHIVE)        // swimming, how wide the legs kick (0: they only trail behind; up to 2)
 QVR_CVAR(vr_body_swim_kick_rate, "1.5", CVAR_ARCHIVE) // and how many more kicks a second at full stick (0.7 treading water)
@@ -1785,6 +1789,7 @@ QVR_CVAR(vr_body_elbow_tuck_near, "0.6", CVAR_ARCHIVE)
 QVR_CVAR(vr_body_elbow_tuck_far, "0.9", CVAR_ARCHIVE)
 QVR_CVAR(vr_holster_haptics, "2", CVAR_ARCHIVE)
 QVR_CVAR(vr_model_lighting, "1", CVAR_ARCHIVE)        // models shaded from the map's lights (0: Quake's fixed direction; 0..1 blends)
+QVR_CVAR(vr_model_light_grid, "1", CVAR_ARCHIVE)      // models lit by the baked light from every side (probes over the map: vr_ambient.cpp, "The light grid"; 0: Quake's, the floor under them, and rays of their own for the sides)
 QVR_CVAR(vr_model_ambient_dir, "1", CVAR_ARCHIVE)     // models lit by the baked light around them, brighter on the side facing lit walls (vr_ambient.cpp; 0: one brightness all round)
 QVR_CVAR(vr_model_ambient_contrast, "1.5", CVAR_ARCHIVE) // how much the sides differ (0: not at all, 1: as the surroundings do)
 QVR_CVAR(vr_rim_light, "0.5", CVAR_ARCHIVE)           // a faint light round models' edges, in the light around them, so they stand out from dark backgrounds (vr_envmap.cpp; 0 off .. 1)
@@ -2031,6 +2036,7 @@ QVR_CVAR(vr_test_dispenser, "0", CVAR_NONE)                // the map's n-th mon
 QVR_CVAR(vr_dropcap_test, "0", CVAR_NONE)                  // the QC tests the cap on dropped enemy weapons: 1 grunts spawned and killed one by one (vr_dropcap_test_n, 0: 60) (vr_dropcap_test.qc; Debug > Tests)
 QVR_CVAR(vr_dropcap_test_n, "0", CVAR_NONE)
 QVR_CVAR(vr_prop_impact_test, "0", CVAR_NONE)              // the QC runs the props' impact rule test n (vr_propimpact_test.qc; Debug > Gore Tests): 1 every kind tapped, hit, struck hard, smashed held, thrown; propimpact: lines; 4 a fuel tank and a crate as heavy thrown at a grunt and an ogre (fueltankhit: lines)
+QVR_CVAR(vr_footstep_test, "0", CVAR_NONE)               // 1: each biped in turn walks, then runs, by the player; the steps' report (QC vr_footstep_test.qc; vr_footsteps.cpp), `footstep_test: N passed, M failed`
 QVR_CVAR(vr_crouch_test, "0", CVAR_NONE)                 // the QC fires n bullets from a grunt put 280 units ahead of the player at him (vr_crouch_test.qc; Debug > Tests > Crouch Shots): crouchtest: crouched, eyes, aim height, damage
 QVR_CVAR(vr_smallgibs_test, "0", CVAR_NONE)                // the QC runs small gib test n on the nearest monster or corpse (vr_smallgibs_test.qc; Debug)
 QVR_CVAR(vr_gibprops_test, "0", CVAR_NONE)                 // the QC's gib prop test n (vr_gibprops_test.qc; Debug > Gore Tests): 1 gib the nearest monster, 2 kill it whole, 3 gib the nearest corpse, 4 its head Box3D's and grabbed, 5 held and let go, 6 shot: burst
@@ -2376,7 +2382,7 @@ QVR_CVAR(vr_agrunt_reserve, "2", CVAR_ARCHIVE)         // the clips it carries b
 QVR_CVAR(vr_agknight, "0", CVAR_ARCHIVE)               // 1: every knight a map spawns is an armed humanoid holding a sword (QC vr_armedknight.qc; docs/vr-port/ARMED_MONSTERS.md)
 QVR_CVAR(vr_agknight_ranged_pickup, "0", CVAR_ARCHIVE) // armed knights and death knights taking up ranged weapons lying about (their own dropped gun too): 0 never (melee ones only), 1 as grunts do; spawned with a gun they hold it either way (QC vr_armedmon.qc VR_AM_Takes)
 QVR_CVAR(vr_agdknight, "0", CVAR_ARCHIVE)              // 1: every death knight (hell knight) a map spawns is an armed humanoid holding his sword, still casting his fireballs (QC vr_armedrepl.qc VR_AKN_Replace; docs/vr-port/ARMED_MONSTERS.md)
-QVR_CVAR(vr_agdknight_spell_share, "0.6", CVAR_ARCHIVE) // 0..1: an armed death knight holding a gun casts his fireball volley (his off hand's palm at you, the fireballs from it: the Cast pose) for this share of his ranged attacks, firing the gun for the rest (0.3 until 2026-11-01: too rare)
+QVR_CVAR(vr_agdknight_cast_cooldown, "3", CVAR_ARCHIVE) // s: an armed death knight holding a gun fires it, and casts his fireball volley (his off hand's palm at you: the Cast pose) when this has passed since his last cast (each his own clock, starting on a random part of it; QC VR_AM_GunCasts). With a blade or his fists he casts by id's chances (VR_AM_SpellTry)
 QVR_CVAR(vr_agrunt_repl, "1", CVAR_ARCHIVE)            // 1: every grunt and enforcer a map spawns is its armed version holding its own gun (its own damage, rate, aim, loot)
 QVR_CVAR(vr_agrunt_repl_common, "0.5", CVAR_ARCHIVE)     // 0..1: the chance one holds a shotgun or a nail pistol instead
 QVR_CVAR(vr_agrunt_repl_uncommon, "0.25", CVAR_ARCHIVE)   // 0..1: ... a nailgun, super nailgun or super shotgun (one a player owns)
@@ -2919,7 +2925,7 @@ QVR_CVAR(vr_agrunt_ai_accuracy, "1", CVAR_ARCHIVE)    // Accuracy: their aim err
 QVR_CVAR(vr_agrunt_ai_reaction, "1", CVAR_ARCHIVE)    // Reaction Time: seconds from first seeing you to their first attack (id's 1); Nightmare's none by Difficulty Impact
 QVR_CVAR(vr_agrunt_ai_retreat, "1", CVAR_ARCHIVE)     // Retreat Readiness: the distance a gun's holder backs off from (times this) and the health share it turns wary below (0.35 times this); 0 never backs off
 QVR_CVAR(vr_agrunt_ai_firerate, "1", CVAR_ARCHIVE)    // Fire Rate: their pause between attacks divided by this; 1 as before
-QVR_CVAR(vr_agtune_test, "0", CVAR_NONE)             // the QC tests of the armed humanoids' tuning (vr_agtune_test.qc; Debug > Tests): 1 fire interval, reload, speed sliders, swing steady, death knight's sweep (vrtesthall); 2 the loaded map's armour share; ends on "agtune: N passed, M failed"
+QVR_CVAR(vr_agtune_test, "0", CVAR_NONE)             // the QC tests of the armed humanoids' tuning (vr_agtune_test.qc; Debug > Tests): 1 fire interval, reload, speed sliders, swing steady, death knight's sweep (vrtesthall); 2 the loaded map's armour share; 3 a death knight with a gun over two minutes: his casts against his gun's attacks (vrtesthall); ends on "agtune: N passed, M failed"
 QVR_CVAR(vr_agrunt_speed, "1", CVAR_ARCHIVE)          // Movement Speed: every step they take times this (running, closing in, backing off, strafing); 1 as before
 QVR_CVAR(vr_agrunt_speed_back, "1", CVAR_ARCHIVE)     // Backpedal Speed: the part of a step backwards of their facing times this too (on top of vr_agrunt_speed)
 QVR_CVAR(vr_agrunt_speed_strafe, "1", CVAR_ARCHIVE)   // Strafe Speed: the part of a step sideways of their facing times this too (on top of vr_agrunt_speed)
