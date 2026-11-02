@@ -211,6 +211,29 @@ float(entity player, float hand) weaponanygrip = #0;
 // humanoid's kind * 1000 + its weapon's code (vr_armedgrunt_pose.qc VR_AGH_Code): '<hands 1 or 2; 0 no row> <its
 // setting: 0 Auto, 1 One-Handed, 2 Two-Handed> 0'.
 vector(entity player, float hand, float what) weapondrawnpose = #0;
+// The armed humanoids' lookups in one call each (PERF_1102.md, "Follow-up"), their results in these globals as
+// traceline's in trace_*. agposekey: pose key `code` (VR_AGK_Add; weapondrawnpose(world, code, 11..18, 25, 26) at once):
+// '1 0 0' and its parts in vr_agk_k_* (the right target's place and turn, the left's, the elbows' poles, the torso's turn,
+// the off hand's grip place and turn on the gun), or '0 0 0' (none: the globals left).
+vector(float code) agposekey = #0;
+vector vr_agk_k_rp;
+vector vr_agk_k_rr;
+vector vr_agk_k_lp;
+vector vr_agk_k_lr;
+vector vr_agk_k_er;
+vector vr_agk_k_el;
+vector vr_agk_k_t;
+vector vr_agk_k_gp;
+vector vr_agk_k_gr;
+// agdrawnframe: an armed humanoid's held weapon `p` as drawn lately (weapondrawnpose(p, 0, 30..32) at once): TRUE and its
+// origin, forward and up in vr_ag_df_o, vr_ag_df_fw, vr_ag_df_up (VR_AG_DrawnFrame's); FALSE not drawn lately (left).
+float(entity p) agdrawnframe = #0;
+// agweaponextent: weapon `p`'s drawn model along its long axis (weapondrawnpose(p, 0, 33..35) at once): '<its most off
+// that line> <its length> 0' and its back and front ends (its own axes from its origin) in vr_ag_wx_back, vr_ag_wx_front;
+// all '0 0 0' with no drawn surface.
+vector(entity p) agweaponextent = #0;
+vector vr_ag_wx_back;
+vector vr_ag_wx_front;
 // AD sword kind's (VR_ADMELEE_*) blade at share f of the line from the hand to its tip, off that line (shares of its
 // length): x along the line's normal in the blade's plane (the model's +y crossed with the line), y along its +y; z 1
 // if it is curved, else 0 (vr_admelee.cpp admelee::bend; QC VR_Melee_At).

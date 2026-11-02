@@ -443,6 +443,22 @@ extern "C" void VR_OnProgsLoaded()
         b.musicTrack = globalFloat("vr_music_track");
         b.spawnLive = globalFloat("vr_spawn_live");
         b.agrHold = globalFloat("vr_agr_hold");
+        const auto globalVector = [](const char* name) -> float* {
+            ddef_t* def = findGlobalDef(name);
+            return def && (def->type & ~DEF_SAVEGLOBAL) == ev_vector ? &qcvm->globals[def->ofs] : nullptr;
+        };
+        constexpr const char* agkParts[] = {"vr_agk_k_rp", "vr_agk_k_rr", "vr_agk_k_lp", "vr_agk_k_lr", "vr_agk_k_er",
+            "vr_agk_k_el", "vr_agk_k_t", "vr_agk_k_gp", "vr_agk_k_gr"};
+        static_assert(sizeof(agkParts) / sizeof(agkParts[0]) == sizeof(Bindings::agkPart) / sizeof(float*));
+        for(size_t i = 0; i < sizeof(agkParts) / sizeof(agkParts[0]); i++)
+        {
+            b.agkPart[i] = globalVector(agkParts[i]);
+        }
+        b.agDrawn[0] = globalVector("vr_ag_df_o");
+        b.agDrawn[1] = globalVector("vr_ag_df_fw");
+        b.agDrawn[2] = globalVector("vr_ag_df_up");
+        b.agExtent[0] = globalVector("vr_ag_wx_back");
+        b.agExtent[1] = globalVector("vr_ag_wx_front");
         for(int i = 0; i < numExtSpawnParms; i++)
         {
             b.extSpawnParms[i] = globalFloat(va("parm%d", firstExtSpawnParm + i));

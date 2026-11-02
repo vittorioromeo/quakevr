@@ -1493,18 +1493,18 @@ void(float code, float w, float mirror) VR_AGK_Add =
         float wr = min(w, 0.99); // (an enforcer's code past 2^16: its float's fraction in steps of 1/128)
         weapondrawnpose(vr_agk_repent, mirror ? -(code + wr) : code + wr, 23);
     }
-    vector has = weapondrawnpose(world, code, 18);
+    vector has = agposekey(code); // (the key looked up once: its parts in vr_agk_k_*)
     if(has_x == 0)
     {
         return;
     }
-    vector rp = weapondrawnpose(world, code, 11);
-    vector rr = weapondrawnpose(world, code, 12);
-    vector lp = weapondrawnpose(world, code, 13);
-    vector lr = weapondrawnpose(world, code, 14);
-    vector er = weapondrawnpose(world, code, 15);
-    vector el = weapondrawnpose(world, code, 16);
-    vector t = weapondrawnpose(world, code, 17);
+    vector rp = vr_agk_k_rp;
+    vector rr = vr_agk_k_rr;
+    vector lp = vr_agk_k_lp;
+    vector lr = vr_agk_k_lr;
+    vector er = vr_agk_k_er;
+    vector el = vr_agk_k_el;
+    vector t = vr_agk_k_t;
     if(mirror)
     {
         // (a place's y the other way; a turn's rotation vector: its x and z; the torso's yaw and roll)
@@ -1529,8 +1529,8 @@ void(float code, float w, float mirror) VR_AGK_Add =
     if(!mirror)
     {
         // (the off hand's grip on the gun: the gun's frame; a mirrored strike's left a blade's, none)
-        vr_agk_gp = vr_agk_gp + weapondrawnpose(world, code, 25) * w;
-        vr_agk_gr = vr_agk_gr + weapondrawnpose(world, code, 26) * w;
+        vr_agk_gp = vr_agk_gp + vr_agk_k_gp * w;
+        vr_agk_gr = vr_agk_gr + vr_agk_k_gr * w;
     }
     vr_agk_on = TRUE;
 };
