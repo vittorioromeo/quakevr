@@ -1,15 +1,16 @@
 # The known-flaky tests: one list for every runner (qvrtest.FLAKY). Format: <name> ...  # why
 # Names are the runners' case names: Misc/release/run_test_suite.py's tests (with --allow-flaky they only warn) and the
 # kit's refactor run_baseline.py cases (a change of counts is listed apart and does not fail its compare). Take one off
-# once it is steady again (several identical full runs).
+# once it is steady again (several identical full runs). ROUND23.md, "Flaky tests", has each one's findings.
 
-# Seeded already, yet varying (not the server's random numbers: physics, batching or a gate's timing; ROUND23.md,
-# "Flaky tests (2026-11-02)"): not root-caused yet.
+# Their scripts seed already, so the variance is not the server's random numbers. Not investigated yet.
 teleporters_chase ragdoll_ragtest ragdoll_grab ragdoll_guard judo
-# The console cases ran unseeded (run_baseline.py: no sv_random_seed before their map). Seeded (sv_random_seed 1),
-# each plays the same every run (5 of 5 identical in parallel lanes, 2026-11-02), but these then fail the same way
-# every run: kept here until each is fixed (ROUND23.md, "Flaky tests (2026-11-02)"). agrunt_67: ~10 min a run under
-# load (its run.sh timeout 600 s is too short beside other games); agrunt_71: a 150 s balance fight's statistics.
-agrunt_1 agrunt_67 agrunt_71 agrunt_76 agrunt_86 agarmor_5
-# stealth: its gates scene was unseeded (seeded since 2026-11-02); kept until 5 identical full runs.
+# Vary with sv_random_seed fixed (2026-11-02): agrunt_71's drops, agrunt_67's grab table.
+agrunt_67 agrunt_71
+# With the seed they repeat exactly, and fail: steady failures to fix, listed until they are. (Without it, agrunt_1 and
+# agrunt_76 are flaky: 2 of 3 passed.)
+agrunt_1 agrunt_76 agrunt_86 agarmor_5
+# Only its gates scene rerun (3 identical): not yet 5 identical full runs.
 stealth
+# Taken off 2026-11-02: agrunt_47, agrunt_63, agrunt_72 (fixed; 5 identical passes seeded). agrunt_60, rv_1: 5 identical
+# passes seeded, no other fix, so they rely on run_baseline.py's cases seeding (sv_random_seed 1 before the map).
