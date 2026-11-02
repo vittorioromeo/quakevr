@@ -6799,3 +6799,24 @@ the crown), 7.83 high. Other wearers' fit lines identical. Rigid on the head bon
 weighs 1 on it). `vr_agarmor_check` 20/0. Eyeshots in the worktree's scratch: `dkhelm2_after.png` (front, three-quarter, side,
 back), `dkhelm2_front_crop.png`, `dkhelm2_threequarter_crop.png`, `dkhelm2_fullarmour.png`.
 - **Checklist:** [dkhelm2] An armoured death knight from the front (Debug > Tests > Helmets Alone There: Knight and Death Knight): plates come down each side of his face from the brim, outside his cheeks, his eyes open between them; it reads as a helmet, not a hat, and they turn with his head. {test:agarmor_helmets_knights}
+
+## Big menu rows drawn from pictures get the font style (branch `agent/skillfont`, 2026-11-02)
+
+His words: "The big menu text for difficulty selection (e.g. "Easy", "Normal", "Hard") doesn't seem to use the outline/shadow effects,
+can that be fixed?" The rows are `gfx/skillmenu.lmp`, ironwail.pak's picture (180 x 82), not text. The main menu's way (rows as big font
+text) does not fit: the font has no E, N or h (nor G or J for New Game, Join a Game), its letters are cut from id's three pictures by hash,
+and fixed labels would hide a mod's own words. So the pictures are restyled whole: `VR_BigFont_DrawPicture` (vr_bigfont.cpp) gives
+`fontstyle::restyleStrip` the whole picture as one letter, keyed on the Menu surface's `generation` like the font's strip, and draws it
+where it was (`margin` further left and up). Menus call `M_DrawRowsPic`: skillmenu, sp_menu, sp_maps, mp_menu, netmen3/4, dim_ipx/tcp.
+Rows, cursor and mouse/laser hit areas are untouched: the picture's own coordinates. A mod's skillmenu.lmp shows as before
+(`m_skill_usegfx`'s logic unchanged, the same file search) and gets the style too. `vr_menu_bigfont 0` draws Quake's pictures as they
+are, as it does on the main menu (row help updated); no style at all (`fontstyle::active`) too.
+
+Left as they are: the titles' plates (ttl_main, ttl_sgl, ttl_cstm, p_skill, p_multi, p_option, p_load, p_save: dark letters cut into a
+red plate, their own art, an outline would only ring the plate); the main menu's picture rows when a mod's own mainmenu.lmp stops the
+font (a strip cut per row would clip the outline; menumods with them, to match); menuplyr, bigbox, help pages, qplaque (not rows).
+
+Checked: `vr_menu_bigfont 0` against 1 in one run: only the rows change (659 samples on the difficulty menu, 575 Single Player, 555
+Multiplayer; titles equal); `vr_font_outline`, its colour and `vr_font_shadow_x/y` changed on the open menu show on the next frame;
+`vr_mock_mouse 100 95` and `100 115` put the cursor on Hard and Nightmare, beside their rows. Not run with a real mod's picture.
+- **Checklist:** [skillfont] Difficulty menu (Play Custom Map, pick a map), Single Player and Multiplayer: the big rows have the same outline and shadow as the main menu's; change Menu > Fonts and they follow at once.
