@@ -43,9 +43,9 @@ static void QX_FUNC (func_t fnum)
 #define QX_RUNAWAY() do { if (QX_COUNT () > QX_LIMIT) QCExec_Runaway (off); } while (0)
 #define QX_NEXT() do { ++st; QX_DISPATCH (); } while (0)
 #define QX_JUMP(d) do { const int d_ = (d); QX_RUNAWAY (); off -= d_ - 1; st += d_; QX_DISPATCH (); } while (0)
-#define QX_A ((eval_t *)&glob[(unsigned short)st->a])
-#define QX_B ((eval_t *)&glob[(unsigned short)st->b])
-#define QX_C ((eval_t *)&glob[(unsigned short)st->c])
+#define QX_A ((eval_t *)&glob[st->a])
+#define QX_B ((eval_t *)&glob[st->b])
+#define QX_C ((eval_t *)&glob[st->c])
 #define QX_ABC eval_t *const a = QX_A, *const b = QX_B, *const c = QX_C; (void)a; (void)b; (void)c
 
 	if (!fnum || fnum >= qcvm->progs->numfunctions)
@@ -350,9 +350,9 @@ qx_dispatch:
 		vm->xfunction->profile += cur - startprofile;
 		startprofile = cur;
 		vm->xstatement = QX_IDX (st);
-		glob[OFS_RETURN] = glob[(unsigned short)st->a];
-		glob[OFS_RETURN + 1] = glob[(unsigned short)st->a + 1];
-		glob[OFS_RETURN + 2] = glob[(unsigned short)st->a + 2];
+		glob[OFS_RETURN] = glob[st->a];
+		glob[OFS_RETURN + 1] = glob[st->a + 1];
+		glob[OFS_RETURN + 2] = glob[st->a + 2];
 		{
 			const int ret = PR_LeaveFunction ();
 			if (vm->depth == exitdepth)

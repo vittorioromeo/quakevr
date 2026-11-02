@@ -109,6 +109,7 @@ Armed humanoids' sword, axe and club swings are parried by direction by default.
 The Grappling Hook, Fire Particles and Loot Beams pages are shorter: their numbers are under Debug > Tunables. The loot beam per-kind switches are still on the page.
 Armed humanoids hold and swing as you set them in the Pose Studio without your config: your poses, grips and arm stretch of 11-02 are now the defaults.
 Pose Studio strike keys: drag a diamond, Add Key, Remove Key, undo; the blow lands at the same moment.
+Old save loads and a new save/load works on the 32-bit progs (console: `progs.dat: 32-bit (FTE32)`).
 
 [2. Armed humanoids: disarming and armour]
 Show Disarm Volumes: the wireframe hulls sit on each drawn weapon (magenta, orange, red; the sword's orange line along its blade) and on the drawn hand and forearm (cyan). {test:disarm_hulls_melee}

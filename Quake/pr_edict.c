@@ -2233,6 +2233,7 @@ PR_LoadProgs
 qboolean PR_LoadProgs (const char *filename, qboolean fatal)
 {
 	int			i;
+	qboolean	known, is32;
 
 	PR_ClearProgs(qcvm);	//just in case.
 
@@ -2247,10 +2248,29 @@ qboolean PR_LoadProgs (const char *filename, qboolean fatal)
 	for (i = 0; i < (int) sizeof(*qcvm->progs) / 4; i++)
 		((int *)qcvm->progs)[i] = LittleLong ( ((int *)qcvm->progs)[i] );
 
-	if (qcvm->progs->version != PROG_VERSION)
+	// QVR: id's version 6 (16-bit statements and defs), or FTE's extended version 7 in its 16- or 32-bit kind (our
+	// own progs: FTEQCC -Ffte32). A compressed one, or another kind, is refused like a wrong version.
+	known = qcvm->progs->version == PROG_VERSION;
+	is32 = false;
+	if (qcvm->progs->version == PROG_EXTENDEDVERSION && com_filesize >= (int)(sizeof(dprograms_t) + sizeof(dprograms_ext_t)))
+	{
+		dprograms_ext_t *ext = (dprograms_ext_t *)(qcvm->progs + 1);
+		for (i = 0; i < (int) sizeof(*ext) / 4; i++)
+			((int *)ext)[i] = LittleLong ( ((int *)ext)[i] );
+		if (!ext->blockscompressed && (ext->secondaryversion == PROG_SECONDARYVERSION16 || ext->secondaryversion == PROG_SECONDARYVERSION32))
+		{
+			known = true;
+			is32 = ext->secondaryversion == PROG_SECONDARYVERSION32;
+		}
+	}
+	qcvm->progs32 = is32;
+	if (known)
+		Con_DPrintf ("%s: %s statements and defs, %d globals\n", filename, is32 ? "32-bit (FTE32)" : "16-bit", qcvm->progs->numglobals);
+
+	if (!known)
 	{
 		if (fatal)
-			Host_Error ("%s has wrong version number (%i should be %i)", filename, qcvm->progs->version, PROG_VERSION);
+			Host_Error ("%s has wrong version number (%i should be %i, or %i in FTE's uncompressed 16/32-bit kind)", filename, qcvm->progs->version, PROG_VERSION, PROG_EXTENDEDVERSION);
 		else
 		{
 			Con_Printf("%s ABI set not supported\n", filename);
@@ -2312,20 +2332,71 @@ qboolean PR_LoadProgs (const char *filename, qboolean fatal)
 	qcvm->firstfreeknownstring = NULL;
 	PR_SetEngineString("");
 
-	qcvm->globaldefs = (ddef_t *)((byte *)qcvm->progs + qcvm->progs->ofs_globaldefs);
-	qcvm->fielddefs = (ddef_t *)((byte *)qcvm->progs + qcvm->progs->ofs_fielddefs);
-	qcvm->statements = (dstatement_t *)((byte *)qcvm->progs + qcvm->progs->ofs_statements);
-
 	qcvm->globals = (float *)((byte *)qcvm->progs + qcvm->progs->ofs_globals);
 	pr_global_struct = (globalvars_t*)qcvm->globals;
 
-	// byte swap the lumps
-	for (i = 0; i < qcvm->progs->numstatements; i++)
+	// byte swap the lumps; a 16-bit progs' statements and defs are widened into the 32-bit in-memory form (its field
+	// defs on the heap, as PR_MergeEngineFieldDefs and PR_ClearProgs expect of defs not in the file)
+	if (is32)
 	{
-		qcvm->statements[i].op = LittleShort(qcvm->statements[i].op);
-		qcvm->statements[i].a = LittleShort(qcvm->statements[i].a);
-		qcvm->statements[i].b = LittleShort(qcvm->statements[i].b);
-		qcvm->statements[i].c = LittleShort(qcvm->statements[i].c);
+		qcvm->globaldefs = (ddef_t *)((byte *)qcvm->progs + qcvm->progs->ofs_globaldefs);
+		qcvm->fielddefs = (ddef_t *)((byte *)qcvm->progs + qcvm->progs->ofs_fielddefs);
+		qcvm->statements = (dstatement_t *)((byte *)qcvm->progs + qcvm->progs->ofs_statements);
+		for (i = 0; i < qcvm->progs->numstatements; i++)
+		{
+			qcvm->statements[i].op = LittleLong(qcvm->statements[i].op);
+			qcvm->statements[i].a = LittleLong(qcvm->statements[i].a);
+			qcvm->statements[i].b = LittleLong(qcvm->statements[i].b);
+			qcvm->statements[i].c = LittleLong(qcvm->statements[i].c);
+		}
+		for (i = 0; i < qcvm->progs->numglobaldefs; i++)
+		{
+			qcvm->globaldefs[i].type = LittleLong (qcvm->globaldefs[i].type);
+			qcvm->globaldefs[i].ofs = LittleLong (qcvm->globaldefs[i].ofs);
+			qcvm->globaldefs[i].s_name = LittleLong (qcvm->globaldefs[i].s_name);
+		}
+		for (i = 0; i < qcvm->progs->numfielddefs; i++)
+		{
+			qcvm->fielddefs[i].type = LittleLong (qcvm->fielddefs[i].type);
+			qcvm->fielddefs[i].ofs = LittleLong (qcvm->fielddefs[i].ofs);
+			qcvm->fielddefs[i].s_name = LittleLong (qcvm->fielddefs[i].s_name);
+		}
+	}
+	else
+	{
+		const dstatement16_t *st16 = (const dstatement16_t *)((byte *)qcvm->progs + qcvm->progs->ofs_statements);
+		const ddef16_t *gd16 = (const ddef16_t *)((byte *)qcvm->progs + qcvm->progs->ofs_globaldefs);
+		const ddef16_t *fd16 = (const ddef16_t *)((byte *)qcvm->progs + qcvm->progs->ofs_fielddefs);
+		qcvm->statements = (dstatement_t *) Hunk_AllocName (qcvm->progs->numstatements * sizeof(dstatement_t), "progsst");
+		qcvm->globaldefs = (ddef_t *) Hunk_AllocName (qcvm->progs->numglobaldefs * sizeof(ddef_t), "progsdef");
+		qcvm->fielddefs = (ddef_t *) VR_HeapMalloc (q_max(qcvm->progs->numfielddefs, 1) * sizeof(ddef_t));
+		if (!qcvm->fielddefs)
+			Sys_Error ("PR_LoadProgs: out of memory (%d field defs)", qcvm->progs->numfielddefs);
+		for (i = 0; i < qcvm->progs->numstatements; i++)
+		{
+			dstatement_t *st = &qcvm->statements[i];
+			st->op = (unsigned short)LittleShort(st16[i].op);
+			st->a = (unsigned short)LittleShort(st16[i].a);
+			st->b = (unsigned short)LittleShort(st16[i].b);
+			st->c = (unsigned short)LittleShort(st16[i].c);
+			// the jumps are signed: OP_GOTO's a, OP_IF/OP_IFNOT's b (pr_exec.c reads them as (int))
+			if (st->op == OP_GOTO)
+				st->a = (unsigned int)(int)(short)st->a;
+			else if (st->op == OP_IF || st->op == OP_IFNOT)
+				st->b = (unsigned int)(int)(short)st->b;
+		}
+		for (i = 0; i < qcvm->progs->numglobaldefs; i++)
+		{
+			qcvm->globaldefs[i].type = (unsigned short)LittleShort (gd16[i].type);
+			qcvm->globaldefs[i].ofs = (unsigned short)LittleShort (gd16[i].ofs);
+			qcvm->globaldefs[i].s_name = LittleLong (gd16[i].s_name);
+		}
+		for (i = 0; i < qcvm->progs->numfielddefs; i++)
+		{
+			qcvm->fielddefs[i].type = (unsigned short)LittleShort (fd16[i].type);
+			qcvm->fielddefs[i].ofs = (unsigned short)LittleShort (fd16[i].ofs);
+			qcvm->fielddefs[i].s_name = LittleLong (fd16[i].s_name);
+		}
 	}
 
 	for (i = 0; i < qcvm->progs->numfunctions; i++)
@@ -2338,20 +2409,10 @@ qboolean PR_LoadProgs (const char *filename, qboolean fatal)
 		qcvm->functions[i].locals = LittleLong (qcvm->functions[i].locals);
 	}
 
-	for (i = 0; i < qcvm->progs->numglobaldefs; i++)
-	{
-		qcvm->globaldefs[i].type = LittleShort (qcvm->globaldefs[i].type);
-		qcvm->globaldefs[i].ofs = LittleShort (qcvm->globaldefs[i].ofs);
-		qcvm->globaldefs[i].s_name = LittleLong (qcvm->globaldefs[i].s_name);
-	}
-
 	for (i = 0; i < qcvm->progs->numfielddefs; i++)
 	{
-		qcvm->fielddefs[i].type = LittleShort (qcvm->fielddefs[i].type);
 		if (qcvm->fielddefs[i].type & DEF_SAVEGLOBAL)
 			Host_Error ("PR_LoadProgs: pr_fielddefs[i].type & DEF_SAVEGLOBAL");
-		qcvm->fielddefs[i].ofs = LittleShort (qcvm->fielddefs[i].ofs);
-		qcvm->fielddefs[i].s_name = LittleLong (qcvm->fielddefs[i].s_name);
 	}
 
 	for (i = 0; i < qcvm->progs->numglobals; i++)

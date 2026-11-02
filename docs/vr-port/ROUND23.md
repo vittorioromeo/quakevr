@@ -6457,3 +6457,34 @@ the main switches as cvars", "11. Address the remaining menu clutter as suggeste
   0 failed. With the blow keys also moved 8 units: 22 passed, 2 failed (Grunt and Knight fists miss), the place moving
   the blow as above. No keys: 24/0 and 23/1 in two runs, so that test has one intermittent failure of its own (which
   one was not recorded).
+
+## 32-bit progs (branch `agent/progs32`, 2026-11-02)
+
+Our QC was ~2,100 globals short of the 65,536 that id's 16-bit progs format allows (63,405 now). It now always compiles
+to FTE's extended format (version 7, secondary version `PROG_SECONDARYVERSION32`: 32-bit statements and defs), so that
+limit is gone. The compiled code is the same.
+
+- **Compiler.** Our FTEQCC gets an `fte32` flag (`Tools/fteqcc/fte32.patch`, `-Ffte32` or `#pragma flag enable fte32`;
+  `QC/defs.qc` has the pragma). Stock FTEQCC already writes this format when the 16-bit one overflows; the flag takes
+  that path on every build, so the 32-bit loader is the one always exercised. The `-Fwasm` listing is identical; the
+  compile log differs in two lines. `Tools/fteqcc/README.md` has the details and the new SHA-256.
+- **Stock FTEQCC** warns about the unknown flag and writes version 6. `Misc/quakevr/check_progs_format.py` (`QC/build.sh`,
+  the Visual Studio build, the flatpak) then fails the build, and it prints the globals count. The flatpak's manifest
+  applies the patch to upstream `f937b9d88`.
+- **Engine.** Statements and defs are 32-bit in memory (`Quake/pr_comp.h`, `Quake/pr_edict.c`). id's 16-bit version 6 and
+  FTE16 are widened at load, jumps sign-extended, so other mods' stock progs still load. The startup line says which
+  format loaded; our game code in 16-bit gets a warning (`Quake/vr/vr_progs.cpp`).
+- **Cost.** About 4.9 MB more memory: 592,981 statements at 16 bytes instead of 8, defs at 12 instead of 8.
+- **Kit.** `kit/build.sh`'s stock-compiler comparison can never match on this branch, so when the QC changes it replaces
+  `progs.dat` with stock FTEQCC's 16-bit one and warns. It needs to skip the comparison for trees with the pragma.
+
+**Tested** (fast mode). Ours on e1m1: FTE32 loaded, 300 edicts before and after a save and load; a save from the older
+`5095e37b` build loaded (282 edicts). Hipnotic's stock progs on hip1m1 (16-bit, 21,151 globals): played 5 s, 355 edicts
+before and after a save and load.
+
+**Timings** (`--lto`, exclusive, fast; `kit/benchresults/progs32_before2` on `5216a22de`, `progs32_after` on `f24ef7613`,
+crowd32_armed, 3 reps each): frame p50 6.57 to 6.27 ms, p99 21.8 to 20.1 ms, CPU 6.73 to 6.14 ms: no measured cost. The
+"better" is noise, as is GPU eyes 3.2 to 4.7 ms (QC doesn't touch the GPU; the first after-rep ran cold). The QC VM
+micro-bench (`vr_qcexec_bench ad_mathlib_pow`, goto loop) read 83/73/80 ns/call before and 94/88/91 after, but a
+second after-run read 94/121/135, so it is too noisy here to credit or blame the format. Not settled: a small per-statement
+cost is possible; a quiet machine with both exes would settle it.
