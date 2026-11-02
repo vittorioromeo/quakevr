@@ -47,6 +47,10 @@
 // - 15 (vrarena): the scattered supplies (vr_arena_supply.qc): the walkable places (room, floor, the high ones), the
 //   picks over three seeds (apart, off the player, different per seed, the same for one seed), two live clears' 1 or
 //   2 shards and every supply settled on a walkable place, on its floor, clear of the brushes, dry, its line said.
+// - 17 (vrarena): the walls are flat: a player's box and an ogre's stop 16 out of each wall at every height, a shot meets
+//   the trim itself.
+// - 18 (vrarena; run it fresh, after `restart fresh` and after a load): a run starts with no ammunition, fists in hand.
+// - 19 (vrarena): the waves still arm an empty player: wave 1 comes by itself and a fallen foe's pack gives ammunition.
 
 // ---------------------------------------------------------------------------
 // The test's own state
@@ -3080,11 +3084,12 @@ void() VR_AT16_Frame =
 }
 
 // ---------------------------------------------------------------------------
-// Test 17: the walls' trim is no step (vrarena; the author, 2026-11-01: players and foes walked up onto the skirting).
-// A player's box (hull 1) and an ogre's (hull 2) pushed flat into the middle of each of the 8 walls, their bottoms
-// just off the floor, just over the skirting's top (16), at 40 and just over the wainscot's top (80): each stops a
-// full 8 out from the wall at every height (the trim's face and the clip over the wainscot), so there is no ledge to
-// stand on below the rail's top at 96. One frame; no foes needed.
+// Test 17: the walls are flat (vrarena; the author, 2026-11-01 and 2026-11-02: players and foes walked up onto the
+// skirting, and a player got up on the rail and climbed the trim above it). A player's box (hull 1) and an ogre's (hull
+// 2) pushed flat into the middle of each of the 8 walls at heights from just off the floor to over the wall walk: each
+// stops a full 16 out from the wall at every height (the clip's one face), whatever trim is behind it, so there is
+// nothing to stand on. A shot's line still meets the trim itself: the rail, 8 out. One frame; no foes needed. (That no
+// hold is left on the trim is vr_climb_try's: ROUND23.md.)
 // ---------------------------------------------------------------------------
 void(vector c, vector n, vector lo, vector hi, string what) VR_AT17_Wall =
 {
@@ -3092,19 +3097,23 @@ void(vector c, vector n, vector lo, vector hi, string what) VR_AT17_Wall =
     float b;
     float worst = 1000;
     float worstAt = 0;
-    for(b = 0; b < 4; b++)
+    for(b = 0; b < 8; b++)
     {
         float bottom = 1;
-        if(b == 1) { bottom = 17; }
+        if(b == 1) { bottom = 17; }      // over the skirting
         if(b == 2) { bottom = 40; }
-        if(b == 3) { bottom = 81; }
+        if(b == 3) { bottom = 81; }      // over the wainscot
+        if(b == 4) { bottom = 97; }      // over the rail (where the author stood)
+        if(b == 5) { bottom = 100; }     // a sconce behind it (and an ogre still under a deck)
+        if(b == 6) { bottom = 257; }     // on a deck's level, by an upright
+        if(b == 7) { bottom = 288; }     // ... over a lamp's level
         vector at = c + '0 0 1' * (bottom - lo_z);
         tracebox(at + n * 128, lo, hi, at, TRUE, world);
         float gap = (trace_endpos - c) * n - half; // (how far out of the wall its face stopped)
         if(gap < worst) { worst = gap; worstAt = bottom; }
     }
-    VR_AT_Check(worst >= 7.9, sprintf("%s: %s stops %g out of the wall (at %g up; want 8)", what, vtos(c), worst,
-                                      worstAt));
+    VR_AT_Check(worst >= 15.9, sprintf("%s: %s stops %g out of the wall (at %g up; want 16)", what, vtos(c), worst,
+                                       worstAt));
 }
 
 void() VR_AT17_Run =
@@ -3124,7 +3133,99 @@ void() VR_AT17_Run =
         vector n = normalize('0 0 0' - c);
         VR_AT17_Wall(c, n, VEC_HULL_MIN, VEC_HULL_MAX, "a player");
         VR_AT17_Wall(c, n, VEC_HULL2_MIN, VEC_HULL2_MAX, "an ogre");
+        traceline(c + n * 64 + '0 0 90', c + '0 0 90', TRUE, world);
+        float seen = (trace_endpos - c) * n;
+        VR_AT_Check(fabs(seen - 8) < 0.1, sprintf("a shot meets the rail itself at %s (%g out; want 8)", vtos(c), seen));
     }
+}
+
+// ---------------------------------------------------------------------------
+// Test 18: a run starts with no ammunition (vrarena; the author, 2026-11-02): fists in both hands, none of any kind.
+// Run it fresh, after `restart fresh` and after a load (the same checks): it waits only for the strip.
+// ---------------------------------------------------------------------------
+void() VR_AT18_Check =
+{
+    entity p = VR_Player();
+    VR_AT_Check(p != world, "there is a player");
+    if(!p) { return; }
+    float total = p.ammo_shells + p.ammo_nails + p.ammo_rockets + p.ammo_cells + p.ammo_lava_nails +
+                  p.ammo_multi_rockets + p.ammo_plasma;
+    VR_AT_Check(total == 0, sprintf("no ammunition at the start (shells %g, nails %g, rockets %g, cells %g, others %g)",
+                                    p.ammo_shells, p.ammo_nails, p.ammo_rockets, p.ammo_cells, p.ammo_lava_nails +
+                                    p.ammo_multi_rockets + p.ammo_plasma));
+    VR_AT_Check(p.currentammo == 0, "nothing in the hands' counter");
+    VR_AT_Check(VRGetEntWeapon(p, cVR_MainHand) == WID_FIST && VRGetEntWeapon(p, cVR_OffHand) == WID_FIST,
+                "fists in both hands");
+}
+
+void() VR_AT18_Frame =
+{
+    if(!ar_stripped) { return; } // (the run's first frame hasn't come yet)
+    VR_AT18_Check();
+    VR_AT_End();
+}
+
+// ---------------------------------------------------------------------------
+// Test 19: the waves still arm an empty player (vrarena): the run starts with nothing, wave 1 comes by itself, its foes
+// fall, and the first pack one leaves (its monster's own rounds, or an armed foe's spare ones), taken by a hand (its
+// handler called), gives the player ammunition. Every foe is felled by the test the frame it stands; the player is in
+// god mode for it.
+// ---------------------------------------------------------------------------
+void() VR_AT19_Begin =
+{
+    if(!ar_mgr) { VR_AT_Check(FALSE, "test 19 needs the arena (vrarena)"); VR_AT_End(); return; }
+    vr_at_until = time + 120;
+    vr_at_step = 0;
+}
+
+void() VR_AT19_Frame =
+{
+    entity p = VR_Player();
+    entity e;
+    if(vr_at_step == 0)
+    {
+        if(!ar_stripped || !p) { return; }
+        p.flags |= FL_GODMODE;
+        VR_AT18_Check();
+        vr_at_step = 1;
+        return;
+    }
+    if(ar_wave < 1) { return; }
+    if(vr_at_step == 1)
+    {
+        VR_AT_Check(ar_wave == 1, "wave 1 comes by itself");
+        vr_at_step = 2;
+    }
+    e = findflags(world, ar_slot, ar_wave);
+    while(e)
+    {
+        if(e.health > 0) { T_Damage(e, p, p, e.health + 1); }
+        e = findflags(e, ar_slot, ar_wave);
+    }
+    // (a worn pack whose wearer is dead, on the body: wave 1's foes wear them; a pack it didn't wear, on the floor)
+    entity pack = find(world, classname, "vr_wornpack");
+    while(pack && !(pack.vr_wp_state == VR_WP_DEAD && pack.ammo_shells + pack.ammo_nails + pack.ammo_rockets + pack.ammo_cells > 0))
+    {
+        pack = find(pack, classname, "vr_wornpack");
+    }
+    if(!pack)
+    {
+        pack = nextent(world);
+        while(pack && pack.handtouch != BackpackTouch) { pack = nextent(pack); }
+    }
+    if(!pack) { return; }
+    VR_AT_Check(p.ammo_shells + p.ammo_nails + p.ammo_rockets + p.ammo_cells == 0, "still none until a hand takes some");
+    entity oself = self;
+    entity oother = other;
+    self = pack;
+    other = p;
+    BackpackTouch();
+    self = oself;
+    other = oother;
+    VR_AT_Check(p.ammo_shells + p.ammo_nails + p.ammo_rockets + p.ammo_cells > 0,
+                sprintf("wave %g: a fallen foe's pack gives ammunition (shells %g, nails %g, rockets %g, cells %g)", ar_wave,
+                        p.ammo_shells, p.ammo_nails, p.ammo_rockets, p.ammo_cells));
+    VR_AT_End();
 }
 
 void() VR_ARENA_Test_Frame =
@@ -3171,6 +3272,8 @@ void() VR_ARENA_Test_Frame =
         if(c == 15) { VR_AT15_Begin(); return; }
         if(c == 16) { VR_AT16_Begin(); return; }
         if(c == 17) { VR_AT17_Run(); VR_AT_End(); return; }
+        if(c == 18) { return; } // (its frame: once the strip has been)
+        if(c == 19) { VR_AT19_Begin(); return; }
 
         VR_AT_Check(FALSE, "no such arena test");
         VR_AT_End();
@@ -3201,5 +3304,7 @@ void() VR_ARENA_Test_Frame =
     if(vr_at_case == 14) { VR_AT14_Frame(); return; }
     if(vr_at_case == 15) { VR_AT15_Frame(); return; }
     if(vr_at_case == 16) { VR_AT16_Frame(); return; }
+    if(vr_at_case == 18) { VR_AT18_Frame(); return; }
+    if(vr_at_case == 19) { VR_AT19_Frame(); return; }
 }
 #endif

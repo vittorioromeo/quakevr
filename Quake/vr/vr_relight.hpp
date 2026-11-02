@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Zancle/Container/Vector.hpp"
+
 // vr_relight.hpp -- relighting the map you are in, in the game (vr_relight.cpp; VR Settings > Advanced VR Options >
 // Graphics > Relighting): ericw-tools' light run in the background on a copy of the map, with the lamps, glowing
 // textures and liquids lit as Misc/quakevr/relight_maps.py lights them, then the map reloaded where you are. Or many
@@ -7,6 +9,9 @@
 
 namespace qvr::relight
 {
+
+// The BSPX lump `name` of the map file `path` (as the game finds it): its bytes, none if there's no file or no such lump.
+[[nodiscard]] za::Vector<unsigned char> mapBspxLump(const char* path, const char* name);
 
 // vr_relight, vr_relight_batch, vr_relight_cancel, vr_relight_revert, vr_relight_status, vr_relight_defaults,
 // vr_relight_lights, vr_relight_vispatch.
