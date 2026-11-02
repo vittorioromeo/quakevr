@@ -35,8 +35,8 @@ QVR_SLIDER_BYNAME(vr_adgun_ad_copies, "AD's Flames Frequency", 0.f, 3.f, 1.f, "%
     "fuller stream (drawn only: the flames that burn stay AD's). 0: AD's alone.")
 QVR_SLIDER_BYNAME(vr_adgun_fx_scorch, "Scorch Marks", 0.f, 3.f, 0.25f, "%.2fx", noExt,
     "Scorch marks where the flamethrowers' fire licks a wall or the floor: one where every flame is spent "
-    "(under 1: that share of them; over 1: a little bigger). 0: none. Cheap: with Permanent Decals on, "
-    "each is baked straight into them.")
+    "(under 1: that share of them; over 1: a little bigger). 0: none. Cheap: "
+    "each is baked straight into the walls.")
 QVR_SLIDER_BYNAME(vr_adgun_plasma_fx, "Plasma Bolt Arcs", 0.f, 3.f, 0.25f, "%.2fx", noExt,
     "Small lightning arcs crackling round the plasma bolts (the Plasma Gun's, the plasma soldiers' and "
     "centurions'). 0: none. Their blue light: Projectile Lights.")
@@ -454,7 +454,7 @@ QVR_TOGGLE(vr_foegrab, "Holding Enemies",
     "Experimental. Grip with an empty hand touching a living enemy to hold on to that spot of it: the hand "
     "stays on it as it moves, and the enemy is slowed and can be pulled a little. Small ones are held well, "
     "big ones (fiends, ogres) a little, huge ones (shamblers, vores) hardly. Let go of the grip, or pull too "
-    "far, and the hand lets go. Grabbing a sleeping or idle enemy wakes it. Needs Precise Hit Detection.")
+    "far, and the hand lets go. Grabbing a sleeping or idle enemy wakes it.")
 QVR_SLIDER(vr_foegrab_leniency, "Touch Leniency", 0.f, 5.f, 0.25f, "%.2f cm", ext(0.f, 20.f),
     "How far off the enemy's model your fist may be and still take hold.")
 QVR_SLIDER(vr_foegrab_break, "Let Go Beyond", 10.f, 80.f, 1.f, "%.0f cm", ext(5.f, 200.f),
@@ -1414,9 +1414,6 @@ QVR_SLIDER(vr_gunsfx_tail, "Room Tail", 0.f, 2.f, 0.1f, "%.1f", noExt,
 QVR_SLIDER(vr_gunsfx_vary, "Shot Variation", 0.f, 10.f, 1.f, "%.0f%%", noExt,
     "Each shot (and its layers) a little higher or lower, at random up to this much, and half as much louder "
     "or quieter, so a stream of shots isn't one recording again and again (0 off).")
-QVR_TOGGLE(vr_gunsfx_casings, "Casings by Surface",
-    "Spent casings ring on metal and knock on wood; stone as before, water's plips as before. Off: the one "
-    "tink everywhere.")
 QVR_SLIDER(vr_gunsfx_impacts, "Surface Impacts", 0.f, 2.f, 0.1f, "%.1f", noExt,
     "A bullet or a nail hitting a wall sounds of what it hit, from where it hit: a dull thud on stone, "
     "duller on dirt, a ricochet's ping on metal, a knock on wood (a nail's lighter, under its own tink). "
@@ -1469,12 +1466,6 @@ QVR_SLIDER(vr_blood_health_curve, "Health Scaling Curve", 0.25f, 4.f, 0.05f, "%.
     "Severity is the missing share below the threshold, raised to this power. 1: linear; above 1: gentler near the threshold; below 1: stronger sooner. Both opacity and rate use severity.")
 
 // vr_menu_gameplay.inc: pageDamage
-QVR_TOGGLE(vr_hit_precise, "Precise Hit Detection",
-    "Shots, projectiles, the grappling hook, melee blows and thrown things hit a monster's model as you see "
-    "it, not the big box round it: aim at the body. Off: Quake's boxes.")
-QVR_TOGGLE(vr_hit_drawn_pose, "Armed Bodies as Drawn",
-    "An armed enemy's body is hit where you see it: its raised guard, its swinging arm, its aimed gun "
-    "arm. Off: where its plain animation frame has it, as before.")
 QVR_SLIDER(vr_hit_tolerance_melee, "Melee Tolerance", 0.f, 12.f, 0.5f, "%.1f units", ext(),
     "How much bigger than the model a monster is to your melee blows and shoves.")
 QVR_TOGGLE(vr_hit_head_priority, "Head Priority",
@@ -2086,10 +2077,8 @@ QVR_TOGGLE(vr_dummy_healthbar, "Dummy Health Bar",
     "The training dummy's health over its head, as a bar and a number, turned to face you. Off: its sign only.")
 QVR_TOGGLE(vr_decals, "Decals",
     "Blood, scorch marks and bullet chips on walls and floors (the gore needs them).")
-QVR_TOGGLE(vr_permdecals, "Permanent Decals",
-    "Marks stay for good, baked into the walls, floors, doors and lifts they land on: as many as you like at no extra cost a frame. Off: only the newest Max Decals show, each for its Decal Lifetime, as without it; the others are kept and come back when it is on again.")
 QVR_TOGGLE(vr_decal_entities, "Marks on Moving Brushes",
-    "Shots, blows and blood mark the brush things with models of their own (the firing range's targets: its spawn buttons and panels), and doors and lifts with Permanent Decals off: moving with them, the newest 128, flat (vr_decal_entities).")
+    "Shots, blows and blood mark the brush things with models of their own (the firing range's targets: its spawn buttons and panels), and doors and lifts where the permanent layer is not laid out: moving with them, the newest 128, flat (vr_decal_entities).")
 QVR_SLIDER(vr_decal_max, "Max Decals", 64.f, 4096.f, 64.f, "%.0f", ext(),
     "The oldest go first. The gore makes many; more cost GPU time where they pile up (512 shipped).")
 QVR_SLIDER(vr_decal_bucket_max, "Decals Piled in One Spot", 8.f, 255.f, 8.f, "%.0f", noExt,
@@ -2107,7 +2096,7 @@ QVR_SLIDER(vr_decal_carve_steps, "Carving Quality", 4.f, 64.f, 4.f, "%.0f steps"
 QVR_SLIDER(vr_decal_carve_fade, "Carving Distance", 128.f, 4096.f, 128.f, "%.0f", noExt,
     "How far off holes and craters stop looking carved (they flatten from half as far; 1024 shipped).")
 QVR_SLIDER(vr_decal_carve_max, "Carved Marks Kept", 32.f, 1024.f, 32.f, "%.0f", noExt,
-    "How many of the newest holes and craters stay carved; with Permanent Decals the older ones stay, flat (256 shipped).")
+    "How many of the newest holes and craters stay carved; the older ones stay, flat (256 shipped).")
 QVR_CYCLE(vr_decal_carve_style, "Carve Style",
     "How holes, craters, dents and grooves are carved. Smooth: round and smooth. Retro: pixelated like the walls, block by block on the wall's own texels, their depth in steps. Faceted: low-poly, flat sides (8 round, 3 rings out). Auto, as shipped: Retro on walls with Retro Textures' blocks, else Smooth.",
     {-1.f, "Auto"}, {0.f, "Smooth"}, {1.f, "Retro"}, {2.f, "Faceted"})
@@ -3446,12 +3435,10 @@ QVR_CYCLE_BYNAME(r_lerpmodels, "Model Animation",
     {0.f, "Stepped"}, {1.f, "Quake's Blend"}, {3.f, "Smooth"})
 QVR_SLIDER_BYNAME(vr_anim_smooth_tension, "Animation Ease", 0.f, 1.f, 0.05f, "%.2f", noExt,
     "Smooth: 0 keeps the speed through each frame (the smoothest; a swing may swing a little past a frame between two); 1 eases to rest at each frame.")
-QVR_TOGGLE_BYNAME(vr_mdl_dequant, "Steady Model Vertices",
-    "Quake's models store each point rounded to a 255th of the model's size, frame by frame, so surfaces ripple as they animate. On: each point follows the smoothest path through its animation that stays within that rounding (no point moves further than the file's own error), round the loop where an animation loops (as the game plays it); the lighting's directions likewise, within their own rounding, so the shading does not flicker. Off: the points exactly as stored.")
 QVR_TOGGLE_BYNAME(vr_anim_smooth_rig, "Swing Limbs",
     "Smooth: a monster with a ragdoll rig (grunts, knights, ogres, the shambler and more) swings its limbs round their joints between frames at full length (off: the curves alone).")
 QVR_TOGGLE_BYNAME(vr_anim_smooth_rebuild, "Rebuild From Skeleton",
-    "A monster with a ragdoll rig is drawn from its skeleton every frame, with any Model Animation: each point keeps one place on its bone and moves with it, so the wobble left by the file's rounding is gone; points the skeleton fits less well (round the joints) keep the frames' places. Off: the frames' points as stored (steadied by Steady Model Vertices).")
+    "A monster with a ragdoll rig is drawn from its skeleton every frame, with any Model Animation: each point keeps one place on its bone and moves with it, so the wobble left by the file's rounding is gone; points the skeleton fits less well (round the joints) keep the frames' places. Off: the frames' points as stored (steadied: each one's smoothest path within the file's rounding).")
 QVR_SLIDER_BYNAME(vr_rim_light, "Rim Light", 0.f, 1.f, 0.05f, "%.2f", noExt,
     "A faint light round the edges of monsters and things, in the light around them, so they stand out from dark backgrounds (0 off).")
 QVR_SLIDER_BYNAME(vr_viewmodel_minlight, "Hands' Least Light", 0.f, 32.f, 1.f, "%.0f", ext(),

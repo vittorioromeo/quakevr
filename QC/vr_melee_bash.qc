@@ -785,7 +785,7 @@ float(float xHand, entity b, vector xForward) VR_Bash_Find =
     {
         if(e != self && e.takedamage && e.health > 0 && (e.flags & FL_MONSTER) && e.vr_bash_mark != time)
         {
-            // Precise hits (vr_hit_precise): the box (grown by VR_HITMODEL_REACH) the broad phase, the model as drawn
+            // Precise hits: the box (grown by VR_HITMODEL_REACH) the broad phase, the model as drawn
             // (grown by the pad and the melee tolerance) what is shoved.
             float precise = hitmodel_target(e);
             float boxPad = pad;
