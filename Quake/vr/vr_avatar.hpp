@@ -224,9 +224,23 @@ void hide();
 // World units per model unit of the posed entity (0 for any other entity).
 [[nodiscard]] float modelScale(const entity_t* e);
 
+// The walk as the legs draw it now (vr_playersteps.cpp).
+struct WalkState
+{
+    bool onFeet{false};              // on the ground on their own feet: not in the air, swimming or climbing
+    bool walking{false};             // the walk is drawn (its touchdowns, not the standing steps')
+    bool planted[2]{false, false};   // each foot in the part of its cycle where it stands on the ground
+    float stride{0.f};               // metres of the body
+    glm::vec3 dir{1.f, 0.f, 0.f};    // the way it walks
+};
+[[nodiscard]] WalkState walkState();
+
+// World units per metre of the body as last posed.
+[[nodiscard]] float legsMetreUnits();
+
 // A person's step length at a speed (metres of the body, metres a second of the body): a walk's 0.7 m at 1.4 m/s to a
-// sprint's 2.2 m (Quake's run is a sprint's). The bloody footprints' steps; the walk's legs step at that cadence at
-// speed as far as vr_body_step_run says.
+// sprint's 2.2 m (Quake's run is a sprint's). The bloody footprints' steps; below a full run the walk's legs' steps fall
+// off as this cadence does, as far as vr_body_step_run says.
 [[nodiscard]] float personStep(float speed);
 
 } // namespace qvr::avatar

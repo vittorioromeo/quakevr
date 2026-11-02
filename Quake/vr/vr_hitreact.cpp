@@ -9,6 +9,7 @@
 #include "vr_agbody.hpp"
 #include "vr_aglegs.hpp"
 #include "vr_footsteps.hpp"
+#include "vr_playersteps.hpp"
 #include "vr_aggrip.hpp"
 #include "vr_animsmooth.hpp"
 #include "vr_cvars.hpp"
@@ -1912,6 +1913,7 @@ void registerCommands()
     agarms::registerCommands();
     aglegs::registerCommands();
     footsteps::registerCommands();
+    playersteps::registerCommands();
 }
 
 } // namespace qvr::hitreact

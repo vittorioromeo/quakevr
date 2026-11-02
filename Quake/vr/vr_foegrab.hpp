@@ -84,15 +84,9 @@ void calcStats(edict_t* ent, int* statsi);
 // its worn backpack (QC vr_wornpack.qc's tug: a fist on a living wearer's pack takes the pack);
 // -1 none.
 [[nodiscard]] float packStretch(edict_t* player, int hand, edict_t* m);
-// Server: `player`'s hands' pull on standing `m`'s worn backpack now (units: each holding palm's travel since it took
-// hold, added: the tug's way).
-[[nodiscard]] glm::vec3 packPull(edict_t* player, edict_t* m);
 // Server: how far (cm) that hold's palm (where the hand is drawn) is off the pack's box now (-1 no such hold).
 [[nodiscard]] float packPalmGap(edict_t* player, int hand, edict_t* m);
-// Server: every hand holding `m` by its worn backpack lets go (it is torn off, into a hand: the grips the QC's again at
-// once, no Released call). How many.
-int packTorn(edict_t* m);
-// Server: `player` lifts living `m` by its worn backpack (vr_worn_backpack_pull 1, QC VR_WP_Lift: pulled past
+// Server: `player` lifts living `m` by its worn backpack (QC VR_WP_Lift: pulled past
 // vr_worn_backpack_lift_force): standing (his hands' pack holds), it is knocked down as a lift knocks it and each of those
 // hands holds its ragdoll by the pack (the chest part carrying it, at the lift's strength); a ragdoll already held by the
 // pack by his hands, those holds go on. Either way it is lifted: it flails and breaks free after vr_foegrab_lift_time (as

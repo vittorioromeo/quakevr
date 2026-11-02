@@ -63,6 +63,10 @@ za::Vector<Item> pageDebugViews()
         command("Retro Textures: List", "vr_retro_list")
             .help("vr_retro_list: prints each model drawn now with its retro textures kind (Graphics > Retro Textures), its "
                   "set and its skin's size, to the console."),
+        command("Player's Walk Report", "vr_body_step_report")
+            .help("vr_body_step_report: since the last time, the walk's counted steps a second, stride and the planted foot's "
+                  "slide, the footstep sounds from the feet and from the old trigger, and how far the sounds were from the "
+                  "drawn feet's touchdowns, to the console. Press it, walk, press it again."),
         command("Enemy Footsteps: Contacts", "vr_footstep_info")
             .help("vr_footstep_info: each biped seen so far with the frames its feet come down on, as read from its model, "
                   "to the console. vr_footstep_report: its steps heard, walking and running, and how far they were from the "

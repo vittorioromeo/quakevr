@@ -184,6 +184,12 @@ QVR_CVAR(vr_mock_hand_pull_off, "0", CVAR_NONE)       // m: ... the off mock han
 // Test runs: 1 makes every host frame 1/72 s of game time with a server frame (vr_motion_play.cpp hostFrameTime), so a
 // scripted run (vr_mock_play, "wait") logs the same numbers every time, whatever the machine's pace.
 QVR_CVAR(vr_fixed_frames, "0", CVAR_NONE)
+// 1: in VR a frame's game time is the time between the headset's predicted display times, not the wall clock's between
+// two frames' starts (vr_main.cpp VR_HostFrameTime): the world moves past you in even steps, as the head's pose is
+// already for its display time. His run at a steady 308 u/s moved 2.1..3.2 units a frame on the wall clock (2026-11-02,
+// frames 5.9..11 ms on a steady 8.33 ms display). 0: the wall clock. vr_fixed_frames_jitter: its frames' jitter is the
+// wall clock's, so this takes it away too; a test of the jitter sets 0.
+QVR_CVAR(vr_display_clock, "1", CVAR_NONE)
 // Test runs with vr_fixed_frames 1: the host frames a second of game time (72: a server tick with each; 90: a headset's
 // frame rate, the server's ticks on its own 72 Hz clock between them, as in the headset (host_fixedtick): the drawn
 // motion's smoothness tests, vr_drawn_motion_test, host_tickstats).
@@ -627,6 +633,15 @@ QVR_CVAR(vr_deadzone, "10", CVAR_ARCHIVE)
 // with it, "a hitch"); from 0.8 on is full, as the old response's top fifth was (running asked 400 against 320).
 QVR_CVAR(vr_deadzone_outer, "20", CVAR_ARCHIVE)
 QVR_CVAR(vr_move_curve, "1.6", CVAR_ARCHIVE)
+// Degrees off straight ahead, back or a side within which the moving stick's direction is exactly that way, the rest
+// of each quadrant spread over what is left (moveSnap; 0 off). A thumb "straight" reads a few degrees to 15 off (his
+// runs of 2026-11-02: x 0.13 at y 0.88, 8 degrees): the response of 2026-10-25 walks that angle, the per-axis deadzone
+// before it took it away.
+QVR_CVAR(vr_move_snap, "15", CVAR_ARCHIVE)
+// Seconds a full push is held as the thumb slips off it, then falling to the push in a moment (moveHold; 0 off). His
+// thumb held hard forward dips to 0.55..0.75 for a tenth of a second, about three times a second (2026-11-02, up to 28%
+// slower each time, 309 to 223 u/s: the hitch); a push let go (under a quarter of the travel) stops at once.
+QVR_CVAR(vr_move_hold, "0.4", CVAR_ARCHIVE)
 // 1: walking (cl_alwaysrun 0, the speed button up), the stick walks up to vr_move_autorun_threshold of its push (the
 // rescaled length, before the curve) and pushed past it eases into running in a moment; back under it, into walking.
 QVR_CVAR(vr_move_autorun, "0", CVAR_ARCHIVE)
@@ -841,7 +856,7 @@ QVR_CVAR(vr_menu_recolor, "1", CVAR_ARCHIVE)          // the menus' browns, tans
 QVR_CVAR(vr_menu_recolor_strength, "1", CVAR_ARCHIVE)  // with it, how far towards the hue (0 to 1)
 QVR_CVAR(vr_menu_recolor_hue, "0", CVAR_ARCHIVE)       // with it, the hue they turn to (degrees; 0 red, the banner's; 345 crimson, 20 red-orange; -1 vr_player_hue)
 QVR_CVAR(vr_menu_recolor_saturation, "3", CVAR_ARCHIVE)    // with it, their colourfulness times this (as far as the hue's colours go; 0.5 to 3; their lightness always kept)
-QVR_CVAR(vr_menu_bigfont, "1", CVAR_ARCHIVE)         // the main menu's rows as text in Quake's own lettering (vr_bigfont.cpp; 0: Quake's picture, VR Calibration above it in the console's letters)
+QVR_CVAR(vr_menu_bigfont, "1", CVAR_ARCHIVE)         // the main menu's rows as text in Quake's own lettering, the other menus' pictures of rows restyled (vr_bigfont.cpp; 0: Quake's pictures as they are, VR Calibration above the main menu's in the console's letters)
 // The console font restyled (vr_fontstyle.cpp), one set for each kind of text; each change rebuilds that one at once.
 // Classic, no outline, shadow opacity 0: Quake's own texture, as before. Shipped: the author's look (2026-11-02).
 // The menus and the 2D canvas (Menu > Fonts):
@@ -1090,6 +1105,7 @@ QVR_CVAR(vr_ghost_hands_fade_from, "9", CVAR_ARCHIVE)      // cm: no ghost while
 QVR_CVAR(vr_ghost_hands_fade_range, "7", CVAR_ARCHIVE)     // cm: and it fades in over this much further
 QVR_CVAR(vr_ghost_hands_ignore_recoil, "1", CVAR_ARCHIVE)  // 1: the programmatic recoil's kick of the drawn hand (vr_weaponfx.cpp) doesn't count as held off (no ghost from a shot); 0: it does
 QVR_CVAR(vr_ghost_hands_ignore_bodies, "1", CVAR_ARCHIVE)  // 1: no ghost for a hand holding a body (an enemy alive: the foe grab, the judo; a ragdoll, alive or dead: its limb or body); 0: those show it too
+QVR_CVAR(vr_ghost_hands_ignore_climb, "1", CVAR_ARCHIVE)   // 1: no ghost while climbing (either hand on a hold: the drawn hands stay on the ledge as you move); 0: those show it too
 QVR_CVAR(vr_ghost_hands_test_offset, "0", CVAR_NONE)       // test aid (Debug): cm the ghost is moved sideways, so it shows apart from the drawn hand
 QVR_CVAR(vr_heavy_damping_min,"0.8", CVAR_ARCHIVE)        // the least damping ratio of a weapon with a Heft (the struggle's and its own Spring Damping's no lower; 1 critical)
 QVR_CVAR(vr_debug_stamina_hold, "0", CVAR_NONE)          // tests: 1 keeps the game's stamina where it is, or where vr_stamina_set put it (a local game; vr_fatigue.cpp)
@@ -1352,8 +1368,11 @@ QVR_CVAR(vr_voice_formant, "17", CVAR_ARCHIVE)        // vr_voice 1: its formant
 QVR_CVAR(vr_voice_voicing, "0.4", CVAR_ARCHIVE)       // vr_voice 1: how rough a stretch of a voice sound may be and still be pitched up (YIN's threshold, 0.05..0.9: higher pitches more of the screams' growl; the rest only has its formants raised)
 QVR_CVAR(vr_body_bracers, "0", CVAR_ARCHIVE)         // the leather bracers on the forearms; 0: bare forearms (gadget straps fitted to the skin) (progs/vrbody*_bare, fitted round the jointed hand)
 QVR_CVAR(vr_body_walk, "1", CVAR_ARCHIVE)             // legs (vr_body_mode 3) walk as the player moves
-QVR_CVAR(vr_body_step_rate, "2.2", CVAR_ARCHIVE)      // at most this many steps a second at full running speed (fewer walking)
-QVR_CVAR(vr_body_step_run, "1", CVAR_ARCHIVE)         // at speed the legs step up to a person's cadence there (the bloody footprints' steps: a run's ~5.6 a second) above vr_body_step_rate: 1 all of it, 0 the cap alone (a run's ~2.5), up to 1.5
+QVR_CVAR(vr_body_step_rate, "4.9", CVAR_ARCHIVE)      // steps a second at a full run (320 units/s), 0.5 .. 10; below it a share of that (vr_body_step_run); never more than the speed over the stride
+QVR_CVAR(vr_body_stride, "1", CVAR_ARCHIVE)           // the walk's stride, times this (0.3 .. 2): longer, the planted foot slides less, and the fewer steps it takes when walking slowly
+QVR_CVAR(vr_body_step_width, "0", CVAR_ARCHIVE)       // metres each foot walks further out than it stands, the hips' width apart (-0.08 .. 0.25)
+QVR_CVAR(vr_body_step_sounds, "1", CVAR_ARCHIVE)       // the player's footsteps play as the drawn feet touch down, from that foot (vr_playersteps.cpp); 0: QC's old trigger, by distance. The old trigger too with no walking legs, in the air, swimming, climbing and in multiplayer
+QVR_CVAR(vr_body_step_run, "1", CVAR_ARCHIVE)         // below a full run, how the steps fall off: 1 as a person's cadence does (the bloody footprints' steps), 0 vr_body_step_rate rules everywhere (70% at the slowest, all of it at a run); 0 .. 1
 QVR_CVAR(vr_body_wade, "1", CVAR_ARCHIVE)             // wading, the legs walk heavier: shorter, higher, slower steps (0 as on land, up to 2)
 QVR_CVAR(vr_body_swim_kick, "1", CVAR_ARCHIVE)        // swimming, how wide the legs kick (0: they only trail behind; up to 2)
 QVR_CVAR(vr_body_swim_kick_rate, "1.5", CVAR_ARCHIVE) // and how many more kicks a second at full stick (0.7 treading water)
@@ -2450,7 +2469,7 @@ QVR_CVAR(vr_agrunt_shotdisarm_proj_max, "0.8", CVAR_ARCHIVE)   // ... the most o
 QVR_CVAR(vr_agrunt_shotdisarm_debug, "0", CVAR_NONE)           // 1: prints each shot's part (weapon/hand/body), the damage adding up, the roll; 2: also shows the hit volumes (sparks)
 QVR_CVAR(vr_agrunt_fall_drop, "1", CVAR_ARCHIVE)  // 1: knocked down (on the floor, not a stagger) it drops its weapon beside it, and takes it back when it gets up
 QVR_CVAR(vr_agrunt_fall_keep, "1", CVAR_ARCHIVE)  // 1: a gentle fall (a shove's backpedal to the floor) keeps the weapon in its hand, yours for a grab or a blow while it's down; a violent one drops it (below)
-QVR_CVAR(vr_agrunt_fall_keep_impact, "4.5", CVAR_ARCHIVE)   // m/s: down, it lets go only as its body meets the ground this hard (the speed it loses in a frame, coming down; not while your hands hold it): lifted, judo-thrown or shoulder-charged it holds on till a hard landing (0: never)
+QVR_CVAR(vr_agrunt_fall_keep_impact, "4.5", CVAR_ARCHIVE)   // m/s: down, it lets go only as its body, having kept up speed a moment (vr_agrunt_fall_impact_speed, _time), loses this much on a floor or wall it flew into (over vr_agrunt_fall_impact_window; thrown or banged by your hands too): a small push, a topple or a swing in the air keeps it (0: never)
 QVR_CVAR(vr_agrunt_rearm, "1", CVAR_ARCHIVE)           // 1: disarmed, it goes for a weapon lying near when it is safe enough
 QVR_CVAR(vr_agrunt_rearm_range, "384", CVAR_ARCHIVE)   // how far (units) it looks for one
 QVR_CVAR(vr_agrunt_test, "0", CVAR_NONE)                       // the QC's armed grunt tests (vr_armedgrunt_test.qc): 1 every weapon, 2 ammo/death/disarm/re-arm, 3 the yank, 4 save/load
@@ -2866,20 +2885,14 @@ QVR_CVAR(vr_worn_backpack_pitch, "0", CVAR_ARCHIVE)   // worn backpacks: tipped 
 QVR_CVAR(vr_worn_backpack_yaw, "0", CVAR_ARCHIVE)     // worn backpacks: turned (degrees)
 QVR_CVAR(vr_worn_backpack_roll, "0", CVAR_ARCHIVE)    // worn backpacks: rolled (degrees)
 QVR_CVAR(vr_worn_backpack_mass, "4", CVAR_ARCHIVE)    // worn backpacks: its weight on a ragdoll's chest (kg)
-QVR_CVAR(vr_worn_backpack_rip_force, "1500", CVAR_ARCHIVE) // worn backpacks: a hand's pull on a ragdoll held by its pack that tears the pack off (N: the hold's force, or its stretch times vr_worn_backpack_rip_stiffness if more)
 QVR_CVAR(vr_worn_backpack_impact, "9", CVAR_ARCHIVE)  // worn backpacks: a ragdoll's strike on the level at least this fast (m/s) tears it off
 QVR_CVAR(vr_worn_backpack_pool, "25", CVAR_ARCHIVE)  // worn backpacks: the damage a living one's pack takes before it tears off (hits on the pack: blows, throws, shots, projectiles; and the share below of blasts and fire anywhere on it; poison never; 0: never by damage)
 QVR_CVAR(vr_worn_backpack_pool_blast, "1", CVAR_ARCHIVE) // worn backpacks: the share of an explosion's damage to its wearer counted on the pack (0..1)
 QVR_CVAR(vr_worn_backpack_pool_fire, "1", CVAR_ARCHIVE)  // worn backpacks: the share of fire's damage (the flamethrower, burning) counted on the pack (0..1)
 QVR_CVAR(vr_worn_backpack_hit_roll, "0", CVAR_ARCHIVE) // worn backpacks: besides its damage, a hit on the pack tears it off with this chance at vr_worn_backpack_hit_ref damage (more: likelier; at most 1; 0 off: the damage alone, vr_worn_backpack_pool)
 QVR_CVAR(vr_worn_backpack_hit_ref, "20", CVAR_ARCHIVE) // worn backpacks: the damage of a hit whose chance is vr_worn_backpack_hit_roll
-QVR_CVAR(vr_worn_backpack_tug_stretch, "10", CVAR_ARCHIVE) // worn backpacks: cm a hand holding a living one's pack must pull it off its place for the pull to count (two hands: their pulls added, times vr_worn_backpack_two_hand_mult)
-QVR_CVAR(vr_worn_backpack_tug_time, "0.6", CVAR_ARCHIVE) // worn backpacks: s a pull of vr_worn_backpack_tug_stretch must be kept up to tear the pack off (twice as far: half as long)
-QVR_CVAR(vr_worn_backpack_two_hand_mult, "1.5", CVAR_ARCHIVE) // worn backpacks: both hands on the pack pull this many times their pulls together (a living one's tug, a ragdoll's pull)
-QVR_CVAR(vr_worn_backpack_topple, "1", CVAR_ARCHIVE)  // worn backpacks: a pack torn off a living one by your pull knocks it down, falling the way you tore (a ragdoll trigger); 0 it stands
-QVR_CVAR(vr_worn_backpack_topple_push, "0.8", CVAR_ARCHIVE) // worn backpacks: that knockdown's push (a shove's: two hands 1)
-QVR_CVAR(vr_worn_backpack_pull, "0", CVAR_ARCHIVE)    // worn backpacks: what a hand's pull on the pack does: 0 tears it off; 1 (experimental) never tears it (shots, blows, the force grab, damage still do): past vr_worn_backpack_lift_force a living wearer is lifted by its pack (knocked down, flailing, held by the pack on its chest)
-QVR_CVAR(vr_worn_backpack_lift_force, "1500", CVAR_ARCHIVE) // worn backpacks, Pull 1: N: a pull on the pack this hard (vr_worn_backpack_rip_time) lifts a living wearer (standing: the hands' stretch x vr_worn_backpack_rip_stiffness; a ragdoll: its hold's force)
+QVR_CVAR(vr_worn_backpack_two_hand_mult, "1.5", CVAR_ARCHIVE) // worn backpacks: both hands on the pack pull this many times their pulls together (a living one's and a ragdoll's)
+QVR_CVAR(vr_worn_backpack_lift_force, "1500", CVAR_ARCHIVE) // worn backpacks: N: a pull on the pack this hard (kept up vr_worn_backpack_lift_hold) lifts a living wearer (standing: the hands' stretch off the pack times vr_worn_backpack_lift_stiffness; a ragdoll held by it: its hold's force)
 QVR_CVAR(vr_worn_backpack_reserve, "1", CVAR_ARCHIVE) // worn backpacks: the share of an armed grunt's spare rounds in its pack (lost with it while alive)
 QVR_CVAR(vr_worn_backpack_volume, "1", CVAR_ARCHIVE)  // worn backpacks: the fabric rip's loudness
 QVR_CVAR(vr_worn_backpack_debug, "0", CVAR_NONE)      // worn backpacks: log each pack's state, pulls and rips (developer 1)
@@ -3537,6 +3550,11 @@ QVR_CVAR(vr_reload_pouch_npistol, "1", CVAR_ARCHIVE)
 // vr_reload_pouch_mag_contact cm of its top across it and along it, the well within vr_reload_pouch_mag_angle degrees of
 // it. 0: the whole row of rounds (vr_reload_pouch_contact, vr_reload_pouch_angle), as before.
 QVR_CVAR(vr_reload_pouch_mag_slots, "1", CVAR_ARCHIVE)
+// A magazine with rounds left out of a gun by itself (B/Y's eject, a hit), falling into the ammo pouch, is collected, drawn
+// going in (QC vr_reload.qc VR_Reload_PouchCatchFrame; his note 2026-11-02): on, and cm from the pouch's rounds it counts as
+// falling in (the magazine's own radius added).
+QVR_CVAR(vr_reload_pouch_catch, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_pouch_catch_reach, "10", CVAR_ARCHIVE)
 // A launcher's round's turn in the hand as it is taken from the ammo pouch (the author's note vrfiringrange_2026-10-08_
 // 22-18-19: the same for every round, easy to load): every round, whatever its Held Object Offsets, its middle in the
 // fist's grip channel, its long axis along the hand's forward, its nose ahead (the multi-grenade's too), then turned about

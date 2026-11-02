@@ -2608,6 +2608,33 @@ namespace
 constexpr glm::vec3 packLo{-10.01f, -8.29f, 0.f}, packHi{5.23f, 8.14f, 24.78f};
 constexpr float packChest = 0.62f; // its middle this far up the cuirass's height (its upper back)
 
+// By model: moved on its back (forward into it, up; the model's units: its own cuirass and rig), on the cvars; or `baked`:
+// the pack is in the model, this the box round it at rest (QC vr_wornpack.qc's lift zone: nothing drawn, nothing moved).
+struct PackFit
+{
+    const char* model;
+    float forward, up;
+    bool baked;
+    glm::vec3 lo, hi;
+};
+// (The enforcer's: its vertices behind the breastplate, Wearer::backCut -10.5, weighing mostly on the chest bone: x to -23.1,
+// y -11..10, z 5 to 34 over its head; the feet's and shins' stray ones under it left out.)
+// (The death knight's upper back is higher up his long cuirass: up 6, or it hung at his waist; rendered back and side on.)
+constexpr PackFit packFits[] = {{"progs/vrenforcer.mdl", 0.f, 0.f, true, {-23.1f, -11.f, 5.f}, {-10.5f, 10.f, 34.f}},
+    {"progs/vrhknight.mdl", 0.f, 6.f, false, {0.f, 0.f, 0.f}, {0.f, 0.f, 0.f}}};
+
+[[nodiscard]] const PackFit* packFitOf(const char* base)
+{
+    for(const PackFit& f : packFits)
+    {
+        if(base && !strcmp(base, f.model))
+        {
+            return &f;
+        }
+    }
+    return nullptr;
+}
+
 [[nodiscard]] float packScale()
 {
     return za::clamp(vr_worn_backpack_scale.value, 0.1f, 2.f);
@@ -2627,6 +2654,15 @@ bool packRest(edict_t* ent, glm::vec3& restOrigin, glm::mat3& restAxes, glm::vec
     {
         return false;
     }
+    const PackFit* fit = packFitOf(baseOf(ent));
+    if(fit && fit->baked)
+    {
+        restOrigin = glm::vec3{0.f};
+        restAxes = glm::mat3{1.f};
+        mid = (fit->lo + fit->hi) * 0.5f;
+        half = (fit->hi - fit->lo) * 0.5f;
+        return true;
+    }
     // At rest: the cuirass's height's span and its middle across; its back the outer face's least x where the pack lies
     // against it (within the pack's height and width there: not the small of the back below it).
     float lo = 1e9f, hi = -1e9f, across = 0.f;
@@ -2644,7 +2680,7 @@ bool packRest(edict_t* ent, glm::vec3& restOrigin, glm::mat3& restAxes, glm::vec
         return false;
     }
     packModelBox(mid, half);
-    const float midZ = lo + (hi - lo) * packChest + vr_worn_backpack_z.value;
+    const float midZ = lo + (hi - lo) * packChest + vr_worn_backpack_z.value + (fit ? fit->up : 0.f);
     const float midY = across / static_cast<float>(n) + vr_worn_backpack_y.value;
     float back = 1e9f;
     for(const Vert& v : s->verts)
@@ -2657,10 +2693,16 @@ bool packRest(edict_t* ent, glm::vec3& restOrigin, glm::mat3& restAxes, glm::vec
         return false;
     }
     const float k = packScale();
-    restOrigin = glm::vec3{back - packHi.x * k + vr_worn_backpack_x.value, midY, midZ - mid.z};
+    restOrigin = glm::vec3{back - packHi.x * k + vr_worn_backpack_x.value + (fit ? fit->forward : 0.f), midY, midZ - mid.z};
     const float turnAngles[3] = {vr_worn_backpack_pitch.value, vr_worn_backpack_yaw.value, vr_worn_backpack_roll.value};
     restAxes = held::axesFromAngles(turnAngles, false);
     return true;
+}
+
+bool packBaked(edict_t* ent)
+{
+    const PackFit* fit = packFitOf(baseOf(ent));
+    return fit && fit->baked;
 }
 
 int packBone(edict_t* ent)

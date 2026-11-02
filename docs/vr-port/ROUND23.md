@@ -5035,6 +5035,63 @@ few steps" the player slows abruptly and resumes a split second later.
   0 failed**.
 - **For him in VR**: run around the test hall holding the stick forward hard; the speed should stay put. Slow walking
   should feel as before at the bottom of the travel; the top fifth is all full speed.
+## Thumbstick walking: hitches and a slightly angled direction (branch `agent/stickhitch`)
+
+Vittorio (voice note vrarena_2026-11-02_23-15-25): still hitches running at full speed with the stick, and "a bit angled
+even if my thumbstick is completely straight". His note's replay and frames (3596 frames, 30 s; median 8.3 ms, 3 frame
+hitches of 20-21 ms), and his take of 2026-11-01 01:38.
+
+**Not frame-time hitches, and not the floor.** Three frames over 20 ms in 30 s. On the ground his height moved at most
+0.04 units a frame; `vr_stick_line_test` on his arena's lines: 704 units at 320.0..320.0, height flat; the only strays
+were a wall grazed (x stuck at 528.0, one line). Four causes, each a motion:
+
+1. **His thumb slips further than the last fix allowed.** Held hard forward it reads 0.53..1.0: dips to 0.55..0.75 for a
+   tenth of a second, about three a second (the note's frames 1301..: 0.74 0.87 0.65 0.77 0.87 0.61 0.80 0.91 ...). 26-34%
+   of his run's frames are under the 80% that `vr_deadzone_outer` 20 counts as full, and the speed follows: 309 -> 223
+   -> 309. Simulated on his takes (Quake's ground physics, the recorded stick, frames in sustained runs; dips: under 10%
+   of 320): now 20 dips in 894 frames (arena), 58 in 2796 (hall); **`vr_move_hold` 0.4 s: 0 and 0**, a wider plateau only
+   halves them (outer 35%: 7, 24), and costs fine walking. The hold is on a *full* push only, and under a quarter of the
+   travel it follows at once: letting go stops at once, slow walking answers as ever; a deliberate slow-down from full to a
+   lower push kept takes 0.4 s + a moment. (The 2026-11-01 note's "fall-rate hold added little": a fall rate without a hold.)
+2. **Game time on an uneven clock.** A frame's game time was the wall clock's between two frames' *starts*, read before
+   `xrWaitFrame`: 5.9..11 ms (p5..p95) on a display steady at 8.33 ms. At a steady stick and 308 u/s the world moved 2.09..3.20
+   units a frame (correlation with the last frame's dt 0.999), its path 0.32 units rms off a straight line in display time,
+   1.6 at most. `vr_display_clock` 1: a frame's game time is the step between predicted display times (a frame late, adding
+   up all the same; over 0.25 s or none, the wall clock's). Note frame files keep the wall clock (`motion::wallFrameTime`).
+3. **The straight push that isn't.** The response of 2026-10-25 (radial deadzone) walks the stick's exact angle, while the
+   per-axis deadzone before it zeroed a small side part: his "straight" reads x 0.13 at y 0.88 (8 degrees), -0.06 at 1.0 (3).
+   Near a cardinal his mean angle was 6.8 degrees now, 2.3 under the old deadzone. `vr_move_snap` 15: within 15 degrees of an
+   axis exactly on it, the rest of each quadrant spread over what is left. Some of his long pushes read 26-30 degrees (the
+   note's frames 635..1450): looking aside on purpose or a thumb that far off, the take can't say (`vr_debug_stick` now prints
+   the push's angle and the heading off the head's).
+4. **The head's pitch steered the walk.** The server's wish took the head's whole angles, so forward's level part shrank by
+   cos(pitch). Hidden while running asked 400 against 320; since 2026-10-25 a full push asks 320 exactly: looking 40 degrees
+   down ran 245 u/s, a diagonal turned 7.5 degrees. His hall take looks over 20 degrees down in 13% of its pushed frames. Walking
+   now steers by the yaw alone (`SV_AirMove`); flying keeps it all.
+
+Left alone: Quake's ground physics only sheds the velocity's sideways part by friction (a quarter of a second), so turning
+the head while running the heading trails (the take's 12 degrees after a sharp turn); from the code and the take, not
+a change here, and as old as Quake. `vr_closequarters` turns the wish near a live enemy by design (within its 1 m).
+
+**Test**: `vr_stick_run_test [x y z] [outer [snap [hold]]]` (run 2 his thumb as recorded, the drawn steps in run 0, a sweep of
+64 pushes: 16 angles, 2 lengths, the head level and 40 down) and `vr_stick_line_test x y z <length>`. Fast mode, verdict lines.
+
+| vr_stick_run_test -300 -150 24 | run 2 dip (limit 2%) | worst heading, sweep (limit 0.5) | worst speed, sweep (limit 1.5%) | verdict |
+|---|---|---|---|---|
+| snap 0, hold 0 | 30.2% (224 under 321) | 13.95 deg (stick +14 walks +13.95) | 0.53% | 27 passed, 41 failed |
+| head's pitch kept (a build) | - | 7.55 deg | 23.4% (245 of 320) | 42 passed, 26 failed |
+| now | 0.39% | 0.20 deg | 0.31% | 68 passed, 0 failed |
+
+Drawn steps of run 0, `vr_fixed_frames_rate 120; vr_fixed_frames_jitter 0.2` (his frames' spread), limit 3% rms:
+`vr_display_clock 0` 1.63..3.68 units, **16.08%**: 67 passed, 1 failed; `1` 2.66..2.70, **0.39%**: 68 passed, 0 failed. Even frames
+at 120 Hz: 0.39% too. `vr_stick_curve_test -300 -150 24`: 115 passed, 0 failed. `vr_stick_line_test 317 564 24 700` in vrarena
+(`vr_mock_turn_to 177` first): 320.0..320.0, height 24.00: 1 passed.
+
+Under the mock only the display clock's jittered test path runs; its real source (OpenXR's predicted display times) needs the
+headset. **For him in VR**: run the arena hard with the stick: no dips, the world going by evenly; straight runs go where
+he looks, looking down too; Debug > Tests: Stick: Show Speed for the push's angle and heading; "Game Time From the Display Clock" to
+compare.
+
 ## Monsters as data (branch `agent/datatables3`; design review 3, step 3: monsters)
 
 The per-monster cvar families that are plain per-classname values are data: 171 values of 17 classnames, no cvars.
@@ -6726,6 +6783,38 @@ setting (the player's own steps have none to sit beside; Volume 0 is off).
   grunts hunting you. `vr_footstep_info` prints each model's contacts, `vr_footstep_info <model> <frame> <count>` its feet
   over those frames, `tune vr_footstep_log 1` a line a step. Results and the bench are in the worktree's report.
 
+### Enemy footsteps: boots and heavy feet remade (branch `agent/footsteps2`)
+
+His words: "Grunt and enforcers sound a bit too metallic", "Struggling to hear ogres, fiends, and shamblers". Knights and
+zombies stay as they were (same WAV hashes). All of this is measured, not heard: no agent can listen to it.
+
+Means per set, from `scratch/stepspec.py` (band shares of the energy; "tone": the strongest line over its neighbours;
+A-100: the loudest 100 ms, A-weighted):
+
+| set | RMS | peak | <150 Hz | 150-800 | >2 kHz | tone dB | A-100 |
+|---|---|---|---|---|---|---|---|
+| old boot | 0.129 | 0.80 | 73% | 6% | 15.3% | 10.4 | 0.070 |
+| new boot | 0.090 | 0.60 | 24% | 50% | 3.8% | 10.6 | 0.083 |
+| metal (untouched) | 0.117 | 0.80 | 93% | 0% | 3.6% | 32.8 | 0.058 |
+| old thud | 0.217 | 0.90 | 99% | 0% | 0.1% | 11.0 | 0.034 |
+| new thud | 0.219 | 0.75 | 19% | 67% | 1.5% | 11.0 | 0.216 |
+| player's feet | 0.163 | 0.98 | 9% | 86% | 2.5% | 8.8 | 0.121 |
+
+- **Boots.** The old takes had no ringing line (tone 10 dB, as noise), so the metal was their bright edge: 1 ms attacks on
+  noise reaching past 2 kHz. Now a soft heel (3-5 ms attacks), a grainy scuff, the sole rolling down, all rolled off at 2 kHz.
+  Energy over 2 kHz is down 9 dB in absolute terms.
+- **Why the heavy feet were hard to hear.** The sample: 99% of its energy under 150 Hz, where headset speakers play little.
+  Its RMS was the highest of any set, but its A-weighted level was the lowest, under half a boot's. Neither budget nor range
+  was dropping them: a lone ogre was heard on all 12 of its steps at 300 and at 800 units (fiend 19, shambler 12-14). Falloff
+  made it worse at range: a mean gain of 0.097 at the head at 800 units.
+- **The fix.** New thuds carry a falling 420-170 Hz knock and a thick 170-750 Hz smack over a lighter low thump, with soft
+  saturation. Ogre gain 0.95 to 1.15, fiend 0.85 to 1, shambler 1.3 to 1.4. New tunables `vr_footstep_heavy_volume` (1) and
+  `vr_footstep_heavy_carry` (0.6): their distance counts times that for the falloff, the range (1000 becomes about 1670) and
+  who is nearest, so a heavy step is heard over nearer boots.
+- **Level at the head** (falloff gain times A-100): ogre at 300 units -39.9 to -20.8 dB, at 800 -49.8 to -24.5 dB; shambler
+  at 800 -42.1 to -19.2 dB; grunt at 300 -30.6 dB, at 800 -39.5 dB; the player's own steps -24.4 dB. Walls and air are not
+  in these. `vr_footstep_test <distance>` runs a lone grunt, ogre, fiend and shambler with you held that far behind.
+
 ## Tuned values can't be lost at release (branch `agent/promoguard`, 2026-11-02)
 
 His words: "Can we automate tweaks promotion so we can never forget?" Tuning constants are live in a development build
@@ -6754,6 +6843,57 @@ His words: "Can we automate tweaks promotion so we can never forget?" Tuning con
   kept in `tunables.cfg`. Gate: stops ("1 problem(s) ... nothing was built"), warns in a dry run, the override's banner,
   the absent path. A build with `QVR_RELEASE` was not run for this (the stub is two `(void)`s).
 
+## Armed humanoids' impact rule: sustained speed, a real stop, floors and walls
+
+His words (2026-11-02): "check for the body losing speed after it has been at a certain high enough speed for a while? So a
+small push wouldn't cause a weapon knock, but a fall from height, a throw, or banging the enemy against the wall would"; walls
+included. `VR_AG_FallImpact` (QC/vr_armedgrunt_play.qc) now runs anywhere, also while your hand holds the body:
+
+- **Sustained speed:** `vr_agrunt_fall_impact_speed` 3 m/s kept up for `vr_agrunt_fall_impact_time` 0.1 s (time, not frames; a
+  dip no longer than the window is the origin's jitter). A ring of 4 velocities paced by the window keeps the sustained moments.
+- **A real stop:** within `vr_agrunt_fall_impact_window` 0.085 s of such a moment the velocity changed by `most`
+  (`vr_agrunt_fall_keep_impact`, still 4.5 m/s). The brief's 2-3 frames were too short: a limp feet-first landing reads 6.5, 3.8,
+  4.9, 3.5, 3.9, 2.4, 1.4 m/s frame by frame, 4.3 lost in 3 frames and 5+ in 6.
+- **Real contact:** the ragdoll strikes' own contact (`VR_RagImpact_Hit`, the engine's `noteRagImpacts`: what the smash sound,
+  blood and impact damage use; reused, no second detector): the level struck it within the window from where it was going, and
+  the change points within 60 degrees out of that surface. `vr_ragimpact 0` no longer stops the engine reporting strikes (the QC
+  still ignores them for damage and worn packs). A strike's least speed is `vr_ragimpact_min_speed` (2.5), so raising that far
+  past 4 would hide contacts from this rule too.
+- **Your hands' bang (the one thing strikes can't see):** your grip's force (`vr_ragdoll_grab_force`) drives a body at about 5 m/s
+  at most, your hand stops dead at the wall, and the body stops softly at your hand (4.4 m/s to 2.4 over 0.3 s; the only strike
+  on the wall at 1.7 m/s, under the strikes' least). So: a holding hand swung within 0.4 s (`vr_ragimpact_drag_speed`, the
+  engine's `dragged()`: walking a body about is no blow), the body going at `vr_agrunt_fall_impact_held` 0.6 of `most` (2.7 m/s;
+  the same share of its sustained speed), and that hand within `vr_agrunt_fall_impact_reach` 8 units of a surface ahead (or in
+  it). A hand reversed in mid-air has no surface there. In the hand a strike counts only its change along the surface (a
+  reversal with a limb on the floor is your hand's change, not the floor's).
+- **Kept:** `struck`'s exception, `most` 0 = never. **Found:** a level strike's own damage went through `VR_AG_Hit` and set
+  `struck`, which blocked the rule at the very impact it should read (inflictor world no longer sets it).
+
+Speeds measured (m/s; 72 Hz, the body's origin; the rule stops measuring at the drop):
+
+| Case | Peak speed | Sustained for | Lost in the window |
+|---|---|---|---|
+| Test 66's walk-up and reach, lying | 8.1, one frame | 0.03 s at most | never counted (old rule: "met the ground at 6.8") |
+| Small push; you walking in at 5 or 10 m/s | 2.1-2.5 | never | 0 |
+| Gentle topple | 2.0-2.2 | never | 0 |
+| Fall from 1.3 m | 8.0 | 0.2 s | 4.6-6.6 at the first crossing |
+| Thrown down at 8 | 9.6 | 0.2 s | 4.7-7.2 |
+| Thrown at a wall at 9 | 9.4 | 0.2 s | 5.1-10.9 (8.9 to 2.5 in 2 frames) |
+| Held, hand 8 m/s into a wall | 4-5 | 0.1-0.4 s | body going 2.7-4 as the hand arrives (5 equals 3 / 0.6) |
+| Held, hand 8 m/s reversed in the air | 5-7.6 | 0.4 s | 0-2.5 along any surface |
+
+**A skid keeps it now.** A body flung low along the floor (test 38's and 69's "flung while down", 7.5 m/s) meets nothing ahead and
+holds on; the old rule let go ("a judo throw's skid"). A judo throw still drops it when it comes down hard enough or tumbles into
+a wall, and a long shallow throw onto the floor reads 3.4-6.3: either way by the same number.
+
+Tunables (Debug > Tunables, beside the armed grunts' grab rows): `vr_agrunt_fall_impact_speed` 3, `_time` 0.1, `_window` 0.085,
+`_held` 0.6, `_reach` 8. `vr_agrunt_debug 2` with `developer 1` prints the body's speeds each frame (`fall: speed ...`).
+
+**Tests.** `vr_agrunt_test 202` (new; `map vrfiringrange`, `vrtesthall` has no flat wall in sight of its start; `scratch4 n`
+rounds, `scratch1 n` case n - 1 alone): 54/54 in 6 rounds at 72 Hz, 36/36 in 4 at 144 Hz with 2% jitter. Test 66 (`scratch1 n`:
+the case n times): 8/8 unseeded. Test 69: 10/10. Test 38's flung case now expects it to hold on. Worn packs are taken off in 69 and
+202: one torn off by the landing can fly into its weapon (another rule's drop, and the cause of "dropped with no impact" flakes).
+
 ## The death knight's helmet: cheek plates (branch `agent/dkhelm2`)
 
 His words (11-02): "looks better in size, but looks more like a hat from the front. There should be vertical geometry that goes
@@ -6767,3 +6907,270 @@ the crown), 7.83 high. Other wearers' fit lines identical. Rigid on the head bon
 weighs 1 on it). `vr_agarmor_check` 20/0. Eyeshots in the worktree's scratch: `dkhelm2_after.png` (front, three-quarter, side,
 back), `dkhelm2_front_crop.png`, `dkhelm2_threequarter_crop.png`, `dkhelm2_fullarmour.png`.
 - **Checklist:** [dkhelm2] An armoured death knight from the front (Debug > Tests > Helmets Alone There: Knight and Death Knight): plates come down each side of his face from the brim, outside his cheeks, his eyes open between them; it reads as a helmet, not a hat, and they turn with his head. {test:agarmor_helmets_knights}
+
+## Big menu rows drawn from pictures get the font style (branch `agent/skillfont`, 2026-11-02)
+
+His words: "The big menu text for difficulty selection (e.g. "Easy", "Normal", "Hard") doesn't seem to use the outline/shadow effects,
+can that be fixed?" The rows are `gfx/skillmenu.lmp`, ironwail.pak's picture (180 x 82), not text. The main menu's way (rows as big font
+text) does not fit: the font has no E, N or h (nor G or J for New Game, Join a Game), its letters are cut from id's three pictures by hash,
+and fixed labels would hide a mod's own words. So the pictures are restyled whole: `VR_BigFont_DrawPicture` (vr_bigfont.cpp) gives
+`fontstyle::restyleStrip` the whole picture as one letter, keyed on the Menu surface's `generation` like the font's strip, and draws it
+where it was (`margin` further left and up). Menus call `M_DrawRowsPic`: skillmenu, sp_menu, sp_maps, mp_menu, netmen3/4, dim_ipx/tcp.
+Rows, cursor and mouse/laser hit areas are untouched: the picture's own coordinates. A mod's skillmenu.lmp shows as before
+(`m_skill_usegfx`'s logic unchanged, the same file search) and gets the style too. `vr_menu_bigfont 0` draws Quake's pictures as they
+are, as it does on the main menu (row help updated); no style at all (`fontstyle::active`) too.
+
+Left as they are: the titles' plates (ttl_main, ttl_sgl, ttl_cstm, p_skill, p_multi, p_option, p_load, p_save: dark letters cut into a
+red plate, their own art, an outline would only ring the plate); the main menu's picture rows when a mod's own mainmenu.lmp stops the
+font (a strip cut per row would clip the outline; menumods with them, to match); menuplyr, bigbox, help pages, qplaque (not rows).
+
+Checked: `vr_menu_bigfont 0` against 1 in one run: only the rows change (659 samples on the difficulty menu, 575 Single Player, 555
+Multiplayer; titles equal); `vr_font_outline`, its colour and `vr_font_shadow_x/y` changed on the open menu show on the next frame;
+`vr_mock_mouse 100 95` and `100 115` put the cursor on Hard and Nightmare, beside their rows. Not run with a real mod's picture.
+- **Checklist:** [skillfont] Difficulty menu (Play Custom Map, pick a map), Single Player and Multiplayer: the big rows have the same outline and shadow as the main menu's; change Menu > Fonts and they follow at once.
+
+## The player's walk: a step rate that does what it says, stride sliders, footsteps on the feet (branch `agent/playersteps`)
+
+His words (2026-11-02): "vr_body_step_rate" doesn't seem to affect the rate as I expect, is there any clamping going on? I
+would also like to be able to tweak the stride width and make player footsteps actually match the moving feet (optional, on
+by default).
+
+**The clamping, measured** (steps counted over 2 s on vrarena's flat floor, mock stick, about his height's body scale; the
+count's grain is 0.5/s; the new default over 3 s). The old rule: `min(speed / stride, max(cap, Running Cadence * person))`, with
+`cap = Step Rate * (0.7 + 0.3 run)` and Step Rate clamped to 0.5 .. 6 (menu 1 .. 5). `person` is 4.9 at a full run and 3.5 at
+190 u/s, so the cap only counted above that: from 2.2 to 3 nothing moved at those speeds, and 7 (6 by the clamp) gave 5.5 at
+a run.
+
+| stick, speed | old 2.2 (default) | old 3 | old 7 | new 3 | new 4.9 (default) | new 7 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 0.3, about 75 u/s | 2.5 | 2.0 | 4.0 | 1.0 | 2.67 | 3.5 |
+| 0.6, about 190 u/s | 3.5 | 3.5 | 4.5 | 2.5 | 3.67 | 4.5 |
+| 1, 320 u/s | 5.0 | 5.0 | 5.5 | 3.0 | 5.0 | 7.0 |
+
+(Running Cadence 1 in all of these. New with Running Cadence 0: 7 gives 4.0 / 5.5 / 7.0, 2.2 gives 1.5 / 2.0 / 2.0. The speed
+over the stride is about 13 a second at a run with the default stride: the only other limit.)
+
+**The rule now:** `vr_body_step_rate` (now 4.9, 0.5 .. 10, the menu the same) is the steps a second at a full run, 320 units
+a second, at any world or body scale. Below it a share of that: `vr_body_step_run` (Running Cadence, 0 .. 1, was 0 .. 1.5)
+blends from even (70% at the slowest) to a person's cadence over a person's at a run. Never more than the speed over the
+stride. This differs from the brief's proposal (Step Rate alone up to a run, a blend at a run) because at the default Running
+Cadence 1 the proposal leaves the slider dead at a full run, where he plays and where he tried it.
+
+**At defaults:** his look: 4.87 steps a second at a run at his height (1.56 m) against the new 4.9, and the same under it
+within the count's grain (old 2.5 / 3.5 / 5.0, new 2.67 / 3.67 / 5.0); the old cap of 2.2 survives as `SLOWEST_STEPS`, the least
+share at a crawl. Other heights change a little: the old rate at a run followed the body (4.6 at the models' own 1.65 m), the
+new one is the slider's number. The old number can't be converted, so configVersion 220 puts any saved `vr_body_step_rate` back to the
+default, a player's own choice too (a beta 4 config holds 2.2: under half today's rate otherwise), and clamps a saved
+`vr_body_step_run` to 0 .. 1 (`Misc/quakevr/config220_test.sh`).
+
+**Stride.** `vr_body_stride` (Stride Length, 1, 0.3 .. 2), times the stride; `vr_body_step_width` (Step Width, 0 m, -0.08 ..
+0.25), each foot further out than it stands, eased with the walk. No setting for either before (the feet stand the hips' width
+apart, 0.18 m, from the bind pose; `vr_body_legs_back` is fore and aft only). At a full run, default rate (3 s):
+
+| Stride Length | stride | steps/s | planted foot slides | a planted foot off the floor at the stride's ends |
+| --- | --- | --- | --- | --- |
+| 0.3 | 0.23 m | 4.67 | 90% | 5 cm |
+| 1 | 0.80 m | 5.0 | 63% | 12 cm |
+| 1.5 | 1.16 m | 4.67 | 47% | 20 cm |
+| 2 | 1.54 m | 4.67 | 30% | 27 cm |
+
+So the longer stride does bring the foot to the ground's pace (at a slow walk, stick 0.3, 2x: 3% slide, the speed-over-stride
+limit taking over), at the cost of the feet lifting at the ends: the hips don't drop for the reach. Today's 12 cm is that
+too. Step Width 0.25: 0.65 m apart; -0.08: 0.03 m.
+
+**The footsteps, before:** QC's `player_run`, one think in 0.1 s while moving, on the ground, every 95 units or so: one of
+misc/foot1..7.wav at 0.5, ATTN_NORM, on any free channel from the player (unplaced), pitch varied by `vr_snd_pitch_jitter`.
+At a run 3.3 a second whatever the legs do. There's no setting for it (the QC global `footsteps` is always 1).
+
+**Now** (`vr_body_step_sounds`, Footsteps on the Feet, default on; `Quake/vr/vr_playersteps.cpp`): a touchdown of the drawn legs
+(`Skeleton::steps`, the bloody footprints' count) plays the same sounds at the same volume and variation on the client, in
+the frame it is drawn, from that foot's place. (Placed under the listener, about 6% quieter than unplaced from the distance;
+at a run 4.9 steps a second against the old 3.3: more steps, as many as you see.) The old trigger asks `playerstepsilent` and
+keeps quiet; one rule, `fromLegs()`, answers for both sides. It keeps sounding: the setting off; no walking legs drawn (no
+legs, `vr_body_walk 0`, no VR); in the air, so a landing's step is as it was; swimming and climbing; multiplayer, bots too
+(the server's sound goes to all, it can't leave one player out, and the others don't have your feet's phase: everyone there
+hears the old trigger). A landing's old step and a touchdown within 0.12 s are one sound.
+
+Standing steps (turning on the spot, moving in the room): quiet, 0.35 of a step (`vr_footstep_player_turn_vol`, Debug >
+Tunables > Player > Footsteps; 0: none). The feet do visibly step, so silence would look wrong, but they are small steps, and
+snap turns make two at once. The old trigger had none.
+
+**Test:** `Misc/quakevr/playersteps_test.sh <agent>`, ends on `playersteps_test: N passed, M failed`; the report is
+`vr_body_step_report` (Debug > Player's Walk Report: press, walk, press). Sound error: from the frame the drawn foot's swing
+ends (its ankle against its hip stops going forward).
+
+| phase | speed | touchdowns | sounds from the feet | old played | old silenced | sound error |
+| --- | --- | --- | --- | --- | --- | --- |
+| walk, stick 0.4 | 112 u/s | 9 | 9 | 0 | 4 | 13.9 ms |
+| run | 320 u/s | 15 | 15 | 0 | 10 | 13.0 mean, 13.9 most |
+| strafe | 320 u/s | 15 | 15 | 0 | 10 | 13.9 ms |
+| turning on the spot | | 4 (2 standing) | 4 | 0 | 1 | not checked |
+| run, `vr_body_step_sounds 0` | 296 u/s | 14 | 0 | 9 | 0 | |
+| run, `vr_body_walk 0` | 295 u/s | 0 | 0 | 9 | 0 | |
+
+The one frame: the sound starts as the foot is first drawn planted, a frame (at 72 Hz) after its forward-most.
+
+
+## Falling magazines into the pouch; charge stamina; late flashlight grip; no ghost climbing; gibbing by blows and props
+
+His notes of 2026-11-02 night (typed list; e1m1_2026-11-02_23-26-45, vrarena_2026-11-02_23-20-22, _23-24-37).
+
+- **Falling magazines** (`vr_reload_pouch_catch` 1, `vr_reload_pouch_catch_reach` 10 cm; Immersive Reloading's "Reloading at
+  the Pouch"): a magazine with rounds left that came out of its gun by itself (B/Y's eject, a hit: `VR_Reload_Eject`, marked
+  `.vr_ammo_ejected_by`), falling within the reach of the pouch's rounds (its own radius added), goes in as a hand letting go
+  of it there does, with the put-away transition (`VR_CollectFx_Send`, hotspot 12). A hand's or a force grab's touch or its
+  landing ends that; an empty one, or a full reserve: it falls past, silently. The pouch lies inside the player's Box3D hull,
+  so a magazine dropped from above the hull rests on it: it reaches the pouch when it comes out inside the hull, as one
+  from a gun held over the belt does (`vr_prop_drop_pass_inside`). `Misc/quakevr/pouchcatch_test.sh` (`vr_reload_test 44`).
+- **Shoulder charge stamina** (`vr_kdtrig_tackle_stamina` 35; nothing before): paid when it connects (`VR_KdTrig_ChargeHit`,
+  after its knock's roll, which reads the stamina left), not when it misses; the training dummy too.
+- **Late flashlight grip** (`lateFor`, vr_flashlight.cpp): 0.6 -> 0.39 s, the grace after the press with the grip already
+  closed. The reach (`lateReach`) and the grab range are untouched; a slowed hand still gets its extension.
+- **Ghost hands climbing** (`vr_ghost_hands_ignore_climb` 1): none while either hand is on a hold. `ghost_climb_test.sh`.
+
+### Gibbing: overkill by blows and props
+
+Cause: the death code gibs on health (a grunt under -35), and nothing relates the damage of a heavy prop to that: a thrown
+prop's damage is its base times `VR_Thrown_HeavyMult` (mass / 8, at most 5), the weight's curve, and its speed over a full
+speed scaled down by the heavy leniency, with no cap: 60 for a 40 kg crate at 3 m/s, 100 at 5 m/s (a grunt gibs from 66; a 15
+hp one from 51). A pop's failed roll (`vr_decap_chance_scale`) fell through to that gib. Those numbers also must hurt an ogre,
+so the damage stays, and what changes is what counts towards the gib: `VR_Gib_Overkill` (combat.qc), where the slap's rule was:
+
+- `vr_gib_overkill_melee` 1 -> 0.5: a hand's blow, or a prop swung in the hand (the overhead slam);
+- `vr_gib_overkill_prop` 1 -> 0.1: a thrown, flung or fallen prop;
+- all of it under Quad; a slap none, as before; everything else (guns, blasts) as before.
+- `vr_corpse_dmg_props` 1 -> 0.25: a body keeps its own health to gib (160 for a grunt's), and one small crate at 7 m/s with
+  two hands (175) burst it.
+
+`Misc/quakevr/gibtable_test.sh` (`vr_prop_impact_test 7`, Debug > Gore Tests, "Blows and Props: What Gibs"): a grunt at 30 and
+15 health, no sneak bonus. Before (`tune` both shares 1, `vr_corpse_dmg_props` 1) -> after. Blows are the priced damage at
+that strength, delivered as a blow lands; props are their real hit (`VR_SolidProp_Impact`). hp15 "whole" for a small blow
+includes its knockdown's fall. "head": its head popped (a heavy prop's arming is as before; the table's prop is level with
+the chest, near enough the head zone that most of them pop it: not judged in a headset).
+
+```
+fist, light (x0.75)                                          10.3 | hp30 alive -> alive | hp15 alive -> alive
+fist, firm (x1.00)                                           13.8 | hp30 alive -> alive | hp15 alive -> alive
+fist, hardest (x1.75)                                        24.1 | hp30 alive -> alive | hp15 whole -> whole
+fist, hardest at the head (x2.25)                            30.9 | hp30 whole -> whole | hp15 whole -> whole
+fist, a counter, hardest at the head (x3.94)                 54.1 | hp30 whole -> whole | hp15 GIB   -> whole
+axe, light (x0.75)                                           16.5 | hp30 alive -> alive | hp15 whole -> whole
+axe, firm (x1.00)                                            22.0 | hp30 alive -> alive | hp15 whole -> whole
+axe, hardest (x1.75)                                         38.5 | hp30 whole -> whole | hp15 whole -> whole
+axe, hardest at the head (x2.25)                             49.5 | hp30 whole -> whole | hp15 whole -> whole
+axe, a counter, hardest at the head (x3.94)                  86.6 | hp30 GIB   -> whole | hp15 GIB   -> GIB  
+crowbar, light (x0.75)                                       16.5 | hp30 alive -> alive | hp15 whole -> whole
+crowbar, firm (x1.00)                                        22.0 | hp30 alive -> alive | hp15 whole -> whole
+crowbar, hardest (x1.75)                                     38.5 | hp30 whole -> whole | hp15 whole -> whole
+crowbar, hardest at the head (x2.25)                         49.5 | hp30 whole -> whole | hp15 whole -> whole
+crowbar, a counter, hardest at the head (x3.94)              86.6 | hp30 GIB   -> whole | hp15 GIB   -> GIB  
+knight's sword, light (x0.75)                                27.2 | hp30 alive -> alive | hp15 whole -> whole
+knight's sword, firm (x1.00)                                 36.3 | hp30 whole -> whole | hp15 whole -> whole
+knight's sword, hardest (x1.75)                              63.5 | hp30 whole -> whole | hp15 GIB   -> whole
+knight's sword, hardest at the head (x2.25)                  81.7 | hp30 GIB   -> whole | hp15 GIB   -> whole
+knight's sword, a counter, hardest at the head (x3.94)      142.9 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+war hammer, light (x0.75)                                    43.6 | hp30 whole -> whole | hp15 whole -> whole
+war hammer, firm (x1.00)                                     58.1 | hp30 whole -> whole | hp15 GIB   -> whole
+war hammer, hardest (x1.75)                                 101.6 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+war hammer, hardest at the head (x2.25)                     130.7 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+war hammer, a counter, hardest at the head (x3.94)          228.7 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+fist under Quad (x1.00)                                      60.5 | hp30 whole -> whole | hp15 GIB   -> GIB  
+fist under Quad (x1.75)                                     105.9 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+axe under Quad (x1.00)                                       96.8 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+axe under Quad (x1.75)                                      169.4 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+crowbar under Quad (x1.00)                                   96.8 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+crowbar under Quad (x1.75)                                  169.4 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+knight's sword under Quad (x1.00)                           159.7 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+knight's sword under Quad (x1.75)                           279.5 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+war hammer under Quad (x1.00)                               255.6 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+war hammer under Quad (x1.75)                               447.2 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+barrel thrown, 1 hand, 3 m/s                                 40.5 | hp30 whole -> whole | hp15 head  -> whole
+barrel thrown, 1 hand, 5 m/s                                 67.5 | hp30 GIB   -> whole | hp15 head  -> head 
+barrel thrown, 1 hand, 7 m/s                                 94.6 | hp30 GIB   -> whole | hp15 head  -> head 
+barrel thrown, 1 hand, 9 m/s                                121.6 | hp30 head  -> head  | hp15 GIB   -> head 
+barrel thrown, 1 hand, 12 m/s                               162.1 | hp30 head  -> head  | hp15 GIB   -> head 
+barrel thrown, 2 hands, 3 m/s                                50.7 | hp30 whole -> head  | hp15 GIB   -> head 
+barrel thrown, 2 hands, 5 m/s                                84.4 | hp30 head  -> head  | hp15 GIB   -> head 
+barrel thrown, 2 hands, 7 m/s                               118.2 | hp30 head  -> head  | hp15 GIB   -> head 
+barrel thrown, 2 hands, 9 m/s                               152.0 | hp30 head  -> head  | hp15 GIB   -> head 
+barrel thrown, 2 hands, 12 m/s                              202.6 | hp30 head  -> head  | hp15 head  -> head 
+small crate thrown, 1 hand, 3 m/s                            60.2 | hp30 whole -> head  | hp15 GIB   -> head 
+small crate thrown, 1 hand, 5 m/s                           100.3 | hp30 GIB   -> head  | hp15 head  -> head 
+small crate thrown, 1 hand, 7 m/s                           140.4 | hp30 GIB   -> head  | hp15 head  -> head 
+small crate thrown, 1 hand, 9 m/s                           180.6 | hp30 GIB   -> head  | hp15 GIB   -> head 
+small crate thrown, 1 hand, 12 m/s                          240.7 | hp30 head  -> head  | hp15 GIB   -> head 
+small crate thrown, 2 hands, 3 m/s                           75.2 | hp30 GIB   -> head  | hp15 head  -> head 
+small crate thrown, 2 hands, 5 m/s                          125.4 | hp30 GIB   -> head  | hp15 head  -> head 
+small crate thrown, 2 hands, 7 m/s                          175.5 | hp30 GIB   -> head  | hp15 GIB   -> head 
+small crate thrown, 2 hands, 9 m/s                          225.7 | hp30 GIB   -> head  | hp15 GIB   -> head 
+small crate thrown, 2 hands, 12 m/s                         300.9 | hp30 head  -> head  | hp15 GIB   -> head 
+large crate thrown, 1 hand, 3 m/s                            72.2 | hp30 head  -> head  | hp15 head  -> head 
+large crate thrown, 1 hand, 5 m/s                           120.3 | hp30 GIB   -> head  | hp15 GIB   -> head 
+large crate thrown, 1 hand, 7 m/s                           168.5 | hp30 head  -> head  | hp15 GIB   -> head 
+large crate thrown, 1 hand, 9 m/s                           216.6 | hp30 head  -> head  | hp15 GIB   -> head 
+large crate thrown, 1 hand, 12 m/s                          288.8 | hp30 GIB   -> head  | hp15 head  -> head 
+large crate thrown, 2 hands, 3 m/s                           90.3 | hp30 GIB   -> head  | hp15 head  -> head 
+large crate thrown, 2 hands, 5 m/s                          150.4 | hp30 GIB   -> head  | hp15 head  -> head 
+large crate thrown, 2 hands, 7 m/s                          210.6 | hp30 GIB   -> head  | hp15 head  -> head 
+large crate thrown, 2 hands, 9 m/s                          270.8 | hp30 GIB   -> head  | hp15 head  -> head 
+large crate thrown, 2 hands, 12 m/s                         361.0 | hp30 GIB   -> head  | hp15 GIB   -> head 
+barrel falling or flung, 8 m/s                               20.0 | hp30 alive -> alive | hp15 whole -> whole
+barrel falling or flung, 12 m/s                              30.0 | hp30 whole -> whole | hp15 whole -> whole
+barrel falling or flung, 20 m/s                              50.0 | hp30 whole -> whole | hp15 whole -> whole
+small crate falling or flung, 8 m/s                          20.0 | hp30 alive -> alive | hp15 whole -> whole
+small crate falling or flung, 12 m/s                         30.0 | hp30 whole -> whole | hp15 whole -> whole
+small crate falling or flung, 20 m/s                         50.0 | hp30 whole -> whole | hp15 whole -> whole
+large crate falling or flung, 8 m/s                          20.0 | hp30 alive -> alive | hp15 whole -> whole
+large crate falling or flung, 12 m/s                         30.0 | hp30 whole -> whole | hp15 whole -> whole
+large crate falling or flung, 20 m/s                         50.0 | hp30 whole -> whole | hp15 whole -> whole
+barrel thrown onto a body just killed, 2 hands, 7 m/s       118.2 | hp30 whole -> whole | hp15 whole -> whole
+small crate thrown onto a body just killed, 2 hands, 7 m/s  175.5 | hp30 whole -> whole | hp15 GIB   -> whole
+large crate thrown onto a body just killed, 2 hands, 7 m/s  210.6 | hp30 whole -> whole | hp15 whole -> whole
+barrel slammed down (speed x1)                               54.2 | hp30 whole -> whole | hp15 GIB   -> whole
+barrel slammed down (speed x2)                              108.3 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+small crate slammed down (speed x1)                          60.3 | hp30 whole -> whole | hp15 GIB   -> whole
+small crate slammed down (speed x2)                         120.7 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+large crate slammed down (speed x1)                          72.4 | hp30 GIB   -> whole | hp15 GIB   -> whole
+large crate slammed down (speed x2)                         144.8 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+blow: 50 rows, gibbed 17 -> 10
+quad: 20 rows, gibbed 19 -> 19
+throw: 60 rows, gibbed 32 -> 0
+fall: 18 rows, gibbed 0 -> 0
+body: 6 rows, gibbed 1 -> 0
+slam: 12 rows, gibbed 10 -> 6
+```
+
+## Lift only; who wears a backpack (branch `agent/packrules`, his notes of 2026-11-02 night)
+
+His words: "I want tearing to be gone only by pulling"; "Armed knights and death knights that carry a ranged weapon should also
+wear a real backpack ... It should be possible to lift them like other humanoids"; "Armed humanoids that carry only a melee
+weapon or are unarmed should not carry backpacks, this also includes grunts"; "For the enforcer, please make it a lift zone only
+for now."
+
+**A hand's pull only lifts.** The tear by pulling went with its branches and options (retired: `vr_worn_backpack_pull`, `_rip_force`,
+`_tug_stretch`, `_tug_time`, `_topple`, `_topple_push`; the tear's two tunables the lift still uses are `vr_worn_backpack_lift_hold`
+and `_lift_stiffness` now). The engine's `foegrab::packPull`, `packTorn` and `wornPack` 6 went with them. A pack still comes off, with
+the rip (`VR_WP_Off`, the one place it plays), on: damage on it to the pool (a shot, a blow, a throw, a projectile; an explosion's or
+fire's share), a hard landing, its wearer gibbed or gone, and a dead one's pack taken by hand or force grab. A slow drag of a downed
+wearer runs at about the lift force (1500 N: the old menu text said so), past it as the body catches on the floor, so it may lift
+any kind; the pack stays on and the body stays held, which is what a pull does now.
+
+**The rule.** `VR_WP_Spawn`: an armed one carrying a ranged weapon (in a hand, or stowed behind a flare gun) as it spawns wears the
+pack; melee-only and unarmed ones of every kind wear none and drop none (`VR_WP_Packless`: a replacement keeps its monster's chance
+of a weapon). It is read once, before anyone sees it: as it spawns, and again as a replacement's loadout is rolled (`VR_WP_Refit`, at
+the first player). One that picks up a gun later stays packless; one that loses its only gun keeps its pack, with its spare
+rounds: no pack pops in or out in view. AD's maps' `monster_army` armed by `vr_agrunt_repl` follows the rule by this path, so a
+melee-rolled one there has no pack now; AD's own humanoids are unarmed and unchanged.
+
+**Knights and death knights.** The same system: on each rig's `chest` bone (both authored rigs have it, the pack lying on the cuirass's
+back face). The knight's fits as it is; the death knight's goes up 6 (`agarmor::packFits`: it hung at his waist on his long
+cuirass; back and side renders). The size is the grunt's, not scaled by his 1.12. Their deaths have no drop of their own, so
+`VR_AG_Dying` puts what's left of their rounds in the pack; none: the row's loot, 5 shells (0 before, never used).
+
+**Enforcers: a lift zone.** With a ranged weapon: an unseen pack entity (`.vr_wp_baked`) and `.vr_wp_worn` for the engine's hold, lift and
+ragdoll box, on a box round the pack in its model (`packFits`: from its vertices). Shots meet the model (`wornPackSegment` skips
+it), nothing counts on it, it ends with its life, its own backpack still drops. Melee-only or unarmed: the model's pack still shows,
+no zone. The real one: BACKLOG.md, "The enforcer's backpack made a real one".
+
+Tests: `vr_wornpack_test` tens choose the kind (0 grunts, 10 knights, 20 death knights, 30 enforcers: 1, 2, 3 for each; 33 lifts an
+enforcer), 5 the zone, 6 the replacement's rule. `vr_agrunt_test 47` expects no backpack from melee and fists now.

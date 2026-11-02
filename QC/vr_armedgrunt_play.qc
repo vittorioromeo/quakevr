@@ -73,9 +73,19 @@ float vr_ag_tug_ease;     // VR_AG_TugBreak's thresholds times this (both hands 
 .float vr_ag_fall_fling;  // ... its body's fastest motion any way but down (units/s)
 .float vr_ag_fall_kept;   // ... kept its weapon as it fell (the tests)
 .vector vr_ag_fall_v;     // ... its body's velocity last frame (units/s; the impact rule)
-.float vr_ag_fall_hit;    // ... its hardest impact so far (units/s lost in a frame, coming down; vr_agrunt_fall_keep_impact)
+.float vr_ag_fall_fast;   // ... how long its body has kept up vr_agrunt_fall_impact_speed (s; VR_AG_FallImpact)
+.float vr_ag_fall_slow;   // ... how long it has been under it since (s: a moment's dip is the origin's jitter)
+.vector vr_ag_fall_ring[VR_AG_FALL_RING];   // ... its velocity at its last few moments moving fast and sustained
+.float vr_ag_fall_ring_t[VR_AG_FALL_RING];  // ... and when (0: none yet)
+.float vr_ag_fall_ring_n;                   // ... the slot written last
+.vector vr_ag_fall_into;      // ... the level's strikes on its parts of this slice of time, summed (VR_AG_FallTouch)
+.vector vr_ag_fall_into_was;  // ... of the slice before
+.float vr_ag_fall_into_at;    // ... when this slice began
+.float vr_ag_fall_swung;  // ... when a hand holding it last swung (vr_ragimpact_drag_speed)
+.float vr_ag_fall_hit;    // ... its hardest impact so far (units/s lost on a surface it flew into; your hands' bang: its speed over vr_agrunt_fall_impact_held; vr_agrunt_fall_keep_impact)
 .float vr_ag_fall_hit_at; // ... when (the tests)
 .float vr_ag_fall_held;   // ... held by your hands last frame (the tests)
+float VR_AG_FALL_DRAG = 0.4; // s a holding hand's swing counts after it (the engine's dragWindow, vr_box3d_step.cpp): else you only drag it
 float VR_AG_FALL_STRUCK = 1; // s after a blow on it (vr_ag_struck_at) its body's knocks are the blow's (VR_AG_FallImpact)
 float vr_ag_tug_force;    // ... the last frame's pull (N; the tests)
 float vr_ag_parried_n;    // its blows your weapons parried (VR_AG_Parried; the tests)
@@ -1308,12 +1318,61 @@ float(entity g) VR_AG_HeldByHand =
     return FALSE;
 };
 
+// Whether a hand holding `g` is swinging now (its own move, not your walk: the engine's dragged(), vr_ragimpact_drag_speed);
+// vr_ag_hold_at: where a hand holding it is (the swinging one's if any).
+vector vr_ag_hold_at;
+float(entity g) VR_AG_HeldSwinging =
+{
+    float fast = max(0, cvar_hget(cvarh_vr_ragimpact_drag_speed));
+    for(entity pl = VR_Player(); pl != world; pl = VR_NextPlayer(pl))
+    {
+        for(float h = 0; h < 2; h++)
+        {
+            float hand = h ? cVR_MainHand : cVR_OffHand;
+            if(VR_Carry_Held(pl, hand) == g)
+            {
+                vr_ag_hold_at = VRGetEntHandPos(pl, hand);
+                if(vlen(VRGetEntHandVel(pl, hand)) >= fast)
+                {
+                    return TRUE;
+                }
+            }
+        }
+    }
+    return FALSE;
+};
+
+// The level struck ragdoll `m` (the engine's strikes, VR_RagImpact_Hit: vr_box3d_step.cpp noteRagImpacts, the same contact
+// the smash sound and blood and the impacts' damage use): xInto the way out of the surface, xSpeed the part's speed into
+// it. Kept as two slices of time so the rule sees the last window's whatever the frame rate.
+void(entity m, float xSpeed, vector xInto) VR_AG_FallTouch =
+{
+    if(time - m.vr_ag_fall_into_at >= max(0.001, cvar_hget(cvarh_vr_agrunt_fall_impact_window)))
+    {
+        m.vr_ag_fall_into_was = m.vr_ag_fall_into;
+        m.vr_ag_fall_into = '0 0 0';
+        m.vr_ag_fall_into_at = time;
+    }
+    m.vr_ag_fall_into = m.vr_ag_fall_into + xInto * xSpeed;
+};
+
 // The impact rule (vr_agrunt_fall_keep_impact; his notes vrragtriggers_2026-10-27_01-43-08, 01-45-10: lifted, thrown or
-// shoulder-charged "they should try to hold on; the impact with the ground should make them drop it"): its body's place
-// each frame from its fall's start; it lets go only as it meets the ground (near the floor, coming down) losing `most`
-// units/s or more in a frame (its velocity's change: a slam, a hard landing; a topple's fall onto its back is gentle).
-// Flung through the air, carried in your hands, swung about, falling: it holds on. `most` 0: never. "" kept, else why it
-// lets go.
+// shoulder-charged "they should try to hold on; the impact with the ground should make them drop it"; 2026-11-02: "check
+// for the body losing speed after it has been at a certain high enough speed for a while", walls too). Its body's velocity
+// each frame from its fall's start. It lets go only when all of these hold:
+// - Sustained speed: it kept up vr_agrunt_fall_impact_speed m/s for vr_agrunt_fall_impact_time s (seconds, not frames; a
+//   dip no longer than the window is the origin's jitter). A shove's or your body's one-frame spike never gets there.
+// - A real stop: within vr_agrunt_fall_impact_window s of such a moment its velocity changed by `most` units/s or more.
+// - Real contact: the level struck it within the window (VR_AG_FallTouch) from where it was going, and the change points
+//   out of that surface. A hand reversing in mid-air strikes nothing; a floor under a body skidding along it, or a limb
+//   brushing the floor as you swing it, doesn't stop it that way.
+// - Or your hands' bang: a holding hand swung within VR_AG_FALL_DRAG, your grip driving it at vr_agrunt_fall_impact_held of
+//   `most` or more (at most about 5 m/s: the grip's force), and that hand reaches a surface ahead (within
+//   vr_agrunt_fall_impact_reach units, facing the way it was going). Your hand stops dead there and the body stops at your
+//   hand, softly and without striking anything hard (measured, ROUND23.md: 4.4 m/s to 2.4 over 0.3 s, the only strike on
+//   the wall at 1.7 m/s), so the loss can't be read off the body. A hand reversed in mid-air has no surface ahead of it.
+// So flung, carried, swung about, falling: it holds on; thrown down, banged on a wall or the floor by your hands too, it
+// lets go. Not just after a blow on it or a try at its weapon (`struck`). `most` 0: never. "" kept, else why it lets go.
 string(entity g, float most) VR_AG_FallImpact =
 {
     float u = VRMetersToUnits();
@@ -1321,40 +1380,102 @@ string(entity g, float most) VR_AG_FallImpact =
     if(frametime > 0)
     {
         vector v = (g.origin - g.vr_ag_fall_last) * (1 / frametime);
-        vector was = g.vr_ag_fall_v;
+        float speed = vlen(v);
         g.vr_ag_fall_v = v;
         g.vr_ag_fall_down = max(g.vr_ag_fall_down, -v_z);
         vector flat = v;
         flat_z = max(0, flat_z);
         g.vr_ag_fall_fling = max(g.vr_ag_fall_fling, vlen(flat));
+        float window = max(0.001, cvar_hget(cvarh_vr_agrunt_fall_impact_window));
         // (A blow on it or a try at its weapon as it lies knocks its body: no fall's impact. A disarm of one hand's weapon
         // lying took the other's too, his note vrragtriggers_2026-11-01_18-21-43: the punch's knock met the floor.)
         float struck = time - g.vr_ag_struck_at < VR_AG_FALL_STRUCK;
-        if(!held && !g.vr_ag_fall_held && !struck && (was_z < 0 || vlen(was) > 3 * u))
+        // (The slices older than the window are gone; the older slice's strikes are at most two windows old.)
+        vector into = (time - g.vr_ag_fall_into_at < window * 2) ? g.vr_ag_fall_into : '0 0 0';
+        if(time - g.vr_ag_fall_into_at < window)
         {
-            // (coming down, or flung along the floor: a judo throw's skid into it)
-            traceline(g.origin, g.origin - '0 0 24', TRUE, g);
-            if(trace_fraction < 1)
+            into = into + g.vr_ag_fall_into_was;
+        }
+        if(held && VR_AG_HeldSwinging(g))
+        {
+            g.vr_ag_fall_swung = time;
+        }
+        float share = max(0.01, cvar_hget(cvarh_vr_agrunt_fall_impact_held));
+        float swung = (held && g.vr_ag_fall_swung > 0 && time - g.vr_ag_fall_swung <= VR_AG_FALL_DRAG);
+        float lost = 0;
+        if(!struck)
+        {
+            vector out = (into != '0 0 0') ? normalize(into) : '0 0 0';
+            for(float k = 0; k < VR_AG_FALL_RING; k++)
             {
-                float hit = vlen(was - v);
-                if(hit > g.vr_ag_fall_hit)
+                float at = g.vr_ag_fall_ring_t[k];
+                if(at > 0 && at < time && time - at <= window + frametime * 0.5)
                 {
-                    g.vr_ag_fall_hit = hit;
-                    g.vr_ag_fall_hit_at = time;
+                    vector was = g.vr_ag_fall_ring[k];
+                    vector change = v - was;
+                    float big = vlen(change);
+                    float along = change * out;
+                    // (In your hand only what the surface took counts: a reversal's change along it, a limb brushing the
+                    // floor, is your hand's.)
+                    float worth = held ? along : big;
+                    if(worth > lost && into != '0 0 0' && was * out < 0 && along >= 0.5 * big)
+                    {
+                        lost = worth;
+                    }
+                    if(swung && most > 0 && vlen(was) / share > lost && vlen(was) >= most * share)
+                    {
+                        vector way = normalize(was);
+                        traceline(vr_ag_hold_at, vr_ag_hold_at + way * max(0, cvar_hget(cvarh_vr_agrunt_fall_impact_reach)), TRUE, g);
+                        // (Your hand already in the wall, the body still driving at it: as good.)
+                        if(trace_startsolid || (trace_fraction < 1 && way * trace_plane_normal <= -0.5))
+                        {
+                            lost = vlen(was) / share; // (counts as a stop this hard: `most` once it goes fast enough)
+                        }
+                    }
                 }
             }
+            if(lost > g.vr_ag_fall_hit)
+            {
+                g.vr_ag_fall_hit = lost;
+                g.vr_ag_fall_hit_at = time;
+            }
+        }
+        // (Your grip drives a body slower than a throw: the share of its least speed too.)
+        if(speed >= max(0, cvar_hget(cvarh_vr_agrunt_fall_impact_speed)) * u * (held ? share : 1))
+        {
+            g.vr_ag_fall_fast = g.vr_ag_fall_fast + frametime;
+            g.vr_ag_fall_slow = 0;
+            if(g.vr_ag_fall_fast >= cvar_hget(cvarh_vr_agrunt_fall_impact_time))
+            {
+                // (Paced by the window, so four slots span it at any frame rate.)
+                if(time - g.vr_ag_fall_ring_t[g.vr_ag_fall_ring_n] >= window / (VR_AG_FALL_RING - 1) - 0.0001)
+                {
+                    g.vr_ag_fall_ring_n = g.vr_ag_fall_ring_n + 1 >= VR_AG_FALL_RING ? 0 : g.vr_ag_fall_ring_n + 1;
+                    g.vr_ag_fall_ring[g.vr_ag_fall_ring_n] = v;
+                    g.vr_ag_fall_ring_t[g.vr_ag_fall_ring_n] = time;
+                }
+            }
+        }
+        else
+        {
+            g.vr_ag_fall_slow = g.vr_ag_fall_slow + frametime;
+            if(g.vr_ag_fall_slow > window)
+            {
+                g.vr_ag_fall_fast = 0;
+            }
+        }
+        if(cvar_hget(cvarh_vr_agrunt_debug) >= 2)
+        {
+            VR_AG_Log(sprintf("fall: speed %.1f m/s (fast %.2f s), v %v, into %v, lost %.1f, hardest %.1f%s", speed / u,
+                g.vr_ag_fall_fast, v * (1 / u), into, lost / u, g.vr_ag_fall_hit / u,
+                strcat(strcat(held ? ", held" : "", swung ? " swung" : ""), struck ? ", struck" : "")));
         }
     }
     g.vr_ag_fall_held = held;
     g.vr_ag_fall_last = g.origin;
-    if(cvar_hget(cvarh_vr_agrunt_debug) >= 2)
-    {
-        VR_AG_Log(sprintf("fall: hardest impact %.1f m/s, falling %.1f m/s, moving %.1f m/s%s", g.vr_ag_fall_hit / u,
-            g.vr_ag_fall_down / u, g.vr_ag_fall_fling / u, held ? ", held" : ""));
-    }
     if(most > 0 && g.vr_ag_fall_hit >= most)
     {
-        return sprintf("it met the ground at %.1f m/s", g.vr_ag_fall_hit / u);
+        return sprintf("it hit something at %.1f m/s", g.vr_ag_fall_hit / u);
     }
     return "";
 };
@@ -1375,6 +1496,13 @@ string(entity g) VR_AG_FallViolent =
         g.vr_ag_fall_hit = 0;
         g.vr_ag_fall_hit_at = 0;
         g.vr_ag_fall_held = 0;
+        g.vr_ag_fall_fast = 0;
+        g.vr_ag_fall_slow = 0;
+        g.vr_ag_fall_swung = 0;
+        for(float k = 0; k < VR_AG_FALL_RING; k++)
+        {
+            g.vr_ag_fall_ring_t[k] = 0;
+        }
         return "";
     }
     return VR_AG_FallImpact(g, max(0, cvar_hget(cvarh_vr_agrunt_fall_keep_impact)) * VRMetersToUnits());

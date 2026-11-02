@@ -470,7 +470,10 @@ const NamedDefaultChange namedDefaultChanges[] = {
 // defaults: VR_ConfigSaves). The last version: the rows above are frozen, a changed default needs none from now on.
 // 219: a vr_seated_height at or over 0.9 of the standing eye height (vr_height_calibration) back to 0 (not measured):
 // measured standing, no seated height (his config of 2026-11-02: 1.574 seated, 1.561 standing).
-constexpr int configVersion = 219;
+// 220: vr_body_step_rate's meaning changed (a cap that rarely counted -> the steps a second at a full run): the old number
+// can't be converted, so whatever was saved goes back to the default, the player's own choice too; vr_body_step_run to
+// its new range, 0 .. 1.
+constexpr int configVersion = 220;
 // 190: vr_struggle_classes retired for the monster groups' Struggle settings: the value of its line in the config just
 // executed (VR_RetiredCvar keeps it), moved into the groups by mgroups::migrateStruggleClasses if it was custom.
 za::String retiredStruggleClasses;
@@ -788,6 +791,17 @@ void migrateConfig()
             vr_seated_height.value, vr_height_calibration.value);
         Cvar_SetValueQuick(&vr_seated_height, 0.f);
     }
+    if(from < 220)
+    {
+        Con_DPrintf("VR: vr_body_step_rate: %s for %s (its meaning changed)\n", vr_body_step_rate.default_string,
+            vr_body_step_rate.string);
+        Cvar_SetQuick(&vr_body_step_rate, vr_body_step_rate.default_string);
+        const float run = CLAMP(0.f, vr_body_step_run.value, 1.f);
+        if(run != vr_body_step_run.value)
+        {
+            Cvar_SetValueQuick(&vr_body_step_run, run);
+        }
+    }
     Cvar_SetValueQuick(&vr_cfg_version, static_cast<float>(configVersion));
 }
 
@@ -978,6 +992,16 @@ constexpr const char* retiredCvars[] = {
     "vr_ragdoll_active_getup_hold",
     "vr_menu_banner_beside",
     "vr_worn_backpack_tug",
+    // 2026-11-02: a hand's pull only ever lifts a worn pack's wearer (ROUND23.md, "Lift only"); the tear by pulling and its
+    // options went, and its two tunables, still used by the lift, are named for it now.
+    "vr_worn_backpack_pull",
+    "vr_worn_backpack_rip_force",
+    "vr_worn_backpack_tug_stretch",
+    "vr_worn_backpack_tug_time",
+    "vr_worn_backpack_topple",
+    "vr_worn_backpack_topple_push",
+    "vr_worn_backpack_rip_time",
+    "vr_worn_backpack_rip_stiffness",
     "vr_nailpistol_model",
     // 2026-11-02: the old melee options, their "on" kept (ROUND23.md, "Old melee options removed"): the swept blade, the
     // swing through enemies, the strike past walls and floor, one swing hitting everything, the curved blades, the

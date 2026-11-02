@@ -5,187 +5,48 @@
 # Lines are only for something new or changed you can see or feel: one line per feature, never "works as before" (2026-11-01 streamline: 292 lines, 151 of them ticked and retired, down to 63).
 
 [Failed: waiting for your answer]
-Hold its gun with one hand and punch the gun with the other fist: the gun ends in the holding hand. {test:agrunt_tug}
 
 [1. Armed humanoids: fighting them]
-AI Behaviour (Combat > Armed Grunts): push Aggressiveness, Accuracy, Reaction Time, Fire Rate, Retreat Readiness and Weapon Search Distance to their extremes: each clearly changes how they fight. {test:agrunt_mix}
-AI Behaviour > Difficulty Impact 1: armed grunts are weaker on Easy and clearly stronger on Hard and Nightmare; at 0 the skill changes nothing.
-Gun grunts and enforcers keep their weapon's distance, strafe and fire; walk at them with an axe: they back off, still firing now and then (a super shotgun lets you in while it reloads). {test:agrunt_mix}
-Ammo: rifle grunts fire a magazine, reload, fire on; the double-barrelled shotgun grunt runs dry after 9 shots, picks its gun back up and reloads; the AD Plasma Gun grunt's shots are heard. {test:agrunt_ammo}
-Melee spacing: the sword and long-sword grunts stop a little out (about 45-57 units) and their swings land; the axe grunt comes right up; step in on a swordsman: it holds; back off: it follows (AI Behaviour > Melee Spacing > Reach Share). {test:agrunt_melee_spacing}
-Shoves: stand close to each grunt: the shotgun one thrusts its gun across its body, the pistol one pushes palm out, melee and fist ones only strike; the push lands as its arms reach you. {test:agrunt_shove}
-Directional Parry: the blue line runs along the sword's blade and the axe's haft, butt to far end, and each strike's score, angle, contact and timing stay up 3 s; loosen one Parry page knob (angle, contact, threshold, window): a near-miss now counts. {test:dirparry_show}
-Enemy Melee Speed 0.3 (Debug): the grunt's whole swing (wind-up, blow, recovery) is slow and your parries still register. {test:dirparry_slow}
-Dual-wielding blades: they swing in turn and together; knock or pull one out: it fights on with the other, then re-arms; grab the left-hand one: its own tug. {test:dual_wield}
-Dual-wielding guns: the toolgun's Left Hand gives a spawned grunt a second gun; with Pick Up a Second on, a one-gun grunt out of a fight fetches a second one lying near. {test:toolgun_bench}
-Weapon pickup: hit a grunt while it reaches down for its gun: the gun stays on the floor; its feet don't slide while it kneels. {test:agrunt_pickup}
-Replacements: "replace all" (Combat > Armed Grunts) in e1m1: as hard as the original grunts, and their guns can be grabbed, tugged and shot out. {test:agrunt_repl_map}
-Running: hold the stick hard forward: the speed no longer dips every few steps (full speed now from an 80% push); slow walking still easy. {test:stick_run}
-Death knight in a full helmet: it sits close round his skull, horns through it, face open (Debug > Tests > Helmets There: Knight and Death Knight). {test:agarmor_helmets_knights}
-Arena foes stand upright, never pitched toward you, enforcers on high places too. {test:arena_intro}
-The first armour plates broken after a new game cause no hitch.
-Tug-of-war with your tuned values as defaults; the tug's least time is now 0.4 s (Armed Grunts > Tug: Least Pull Time slider). {test:agrunt_tug}
-An armed death knight at range casts his fireballs with a sword swing, from the blade tip; holding a gun he sometimes (30%, Armed Humanoid Replacements > spell share) casts them from the muzzle with a thrust.
-Show Disarm Volumes, a grunt hunting you: the cyan hull sits on its drawn gun hand and forearm as it walks and aims, never floating off with its animation. {test:agrunt_tug}
-Combat > Armed Grunts (Experimental) > Disarm Leniency (Grab, Shot: Weapon, Shot: Hand, Melee Strike, Body Blow): raise Grab Leniency and grab near (not on) its gun: taken; raise Shot Leniency: Weapon and shoot just past the gun: it counts.
-(Re-test of the failed item, fixed: the punch was never checked during a tug) Hold its gun with one hand and punch the gun with the other fist: the gun ends in the holding hand. {test:agrunt_tug}
-Armour, Plate Blocks All: shots from every gun at any plate (cuirass, helmet, limb plates) never hurt the body, only sparks; a shot past a plate's edge does. {test:agarmor_guns}
-Debug > Show Armour Plates: each plate's outer edges bold and easy to see, standing and ragdolled. {test:agarmor_guns}
-Barrel heat on every gun: hold the nailgun about 1 s, then fire a few shotgun shots: the muzzle glows red to orange and smokes, then cools over about 3 s; tune Weapon Effects > Heat-Up Time / Cool-Down Time / Heat Glow Strength, and Weapon Offsets > Effects > Barrel Heat 0 for a gun that never heats. {test:gunfire_range}
-Hold a ragdoll (or a crate in both hands) and punch the dummy, a wall or a button with that hand: no blow, no press; your free hand still punches. {test:agrunt_tug}
-Ragdoll smash: slam a held grunt's limb (alive and down, or dead) into a wall and the floor: a fleshy thud, deeper when harder, blood on the surface at the contact; a gentle touch or a drag is silent and clean; sliding a body along a wall does not machine-gun. {test:ragsmash}
-Weapon clash: dual swords swung into each other fast spark with a clang and tink at the crossing; a slow cross does nothing; two shotguns give a dull knock, no sparks; sword on shotgun a few sparks and a clank (Weapons > Weapon Effects > Weapon Clash). {test:weapon_clash}
-Switch campaign (e.g. to Arcane Dimensions) with a menu panel open on the Levels, then play into the hub: no crash; reopened, the panel lists the new campaign's levels.
-A hot shotgun or nailgun glows like a torch-heated blade, on the metal itself: brightest at the muzzle, fading back along the barrel, red deepening to orange, fading as it cools; turning and walking with the sticks it stays exactly on the barrel. {test:barrelglow}
-A glowing barrel lights your hand and nearby walls (Weapon Effects > Heat Light Strength; 0 off); Weapon Offsets > Effects > Barrel Glow Length sets how much of each gun glows (0.5 = its front half).
-A torch-heated axe's light and embers follow it exactly when turning with the stick.
-Show Disarm Volumes on a grunt with a gun: two cyan hulls, one on its hand, one on its forearm; none round its biceps. {test:agrunt_tug}
-Show Disarm Volumes, grab a grunt's gun and tug: the readout over the gun shows your pull vs its break force, the time kept, the impulse and your hand's distance vs let-go; as it ends, TUG WON / TUG LOST with the reason stays about 4 s. {test:agrunt_tug}
-Run straight at a grunt: you slow noticeably in the last metre or so and still reach its face; strafing past it stays at almost full speed (Locomotion > Close Quarters sliders). {test:agrunt_melee_spacing}
-Ghost Hands on: grabbing an enemy, a knocked-down or a dead body shows no ghost hand; a two-handed gun still shows it (Ghost Hands > No Ghost Holding Bodies).
-Feminine voice on: an armed grunt's punch or blade hit on you plays a feminine grunt.
-Smashing a ragdoll into a wall sounds louder, and limbs pop slightly sooner (Smash Volume 1.35, Impact Multiplier 1.15). {test:ragsmash}
-notarget on, an idle shotgun grunt: punch its gun out: it staggers a moment and turns on you; shoot an idle grunt's gun: it turns on you (and staggers if it's knocked out). {test:disarm_hulls_melee}
-A grunt holding two swords or two guns: knock out one, then the other (both orders, also while it lies on the floor): only the struck weapon falls each time. {test:dual_wield}
 Strike a sword grunt's blade (away from its hand) while it hasn't seen you: sparks, no disarm, and it turns on you.
-An AD Plasma Gun grunt fires at your Plasma Gun's rate, not twice that; a super shotgun grunt reloads 15% faster. {test:agrunt_ammo}
-Armed Humanoids > AI Behaviour > Movement: Movement, Backpedal and Strafe Speed change how fast they run, back off and circle you.
-Enemy Melee Speed 0.3: raise your sword as a grunt starts its swing: its sword follows its own swing, not your blade. {test:dirparry_show}
-A death knight holding a gun casts the full fan of six fireballs, one after another.
-Nightmare on e1m2: about 6 in 10 armed humanoids wear armour (before: none, the skill was read too early).
-Arena: a wave's last two foes farther than 600 units glow red through towers, dais and walls (Combat > Survival Arena > The Last Foes: on, Foes Left, Distance). {test:arena_lastfoes}
-Arena: walking into the wall's skirting keeps you on the floor; foes no longer climb it. Stairs: riveted trim on every riser, a tube lamp every 3rd (dais) or 4th (tower) step, two lamps beside each dais flight. {test:arena_run}
-Grab a grunt's gun and hold it (the physical tug): its arm reaches a little longer toward your hand, the gun nearer your hand; Tug: Arm Stretch 1.0 removes it. {test:agrunt_tug}
-Push your hand slowly into a grunt facing you, on through its body: the drawn hand stays on its chest; close the hand there: its backpack is not taken; from behind it is. {test:worn_packs_lift}
-Shoot or strike a grunt in the forearm, upper arm or hand: each is an arm hit, as on the enforcer and the knights; chest is body, head is a headshot (Debug > Show Hit Zones shows arms in the arm colour). Melee blows on arms now deal arm damage too (your call). {test:disarm_hulls_melee}
-Hold the grunt's gun with one hand and punch it with the other fist: the gun ends in your holding hand, with a metal clatter and a hard knock in your punching fist; punch a calm grunt's gun the same way and it flies out of its hand. {test:agrunt_tug}
-Walk into a knocked-down or staggering grunt: no close-quarters slowdown; Locomotion > Close Quarters > Only Live Foes off brings it back. {test:closequarters}
-Drag a dead grunt or hold a live one: you walk about 25% slower; heavier bodies slow you more, up to 70% (Carrying and Throwing > Carrying > Drag Slowdown).
-A death knight at range raises his off hand, palm at you, and the fireballs come from the palm; with a sword he keeps it in his hand. About 60% of his ranged attacks.
 Rig Studio / Pose Studio: a "Cast (shared)" pose next to Pickup, editable on the rifle, with Make Override per class; set its look (the default is a rough guess).
 Arcane Dimensions (unverified in tests): plain grunts, enforcers, knights and death knights are armed; AD's rocket/grenade/plasma soldiers and point knights are not.
-The shotgun's barrel keeps glowing through the pump stroke after a shot, and the pump stays cold. {test:barrelfx}
-The heavy revolver's barrel glows when hot. {test:barrelfx}
-The burst rifle and the enforcer rifle leave smoke wisps after firing; the enforcer's are blue-grey. {test:barrelfx}
-Weapon Offsets > Effects > Paint Barrel Mask: aim the other hand, trigger paints, grip erases, the stick sizes the brush; cyan shows the barrel; Done keeps it, still there after a restart.
-Each gun's pre-marked barrel looks right when hot; fix any gun with the paint mode.
-Grab a grunt's gun and pull: it leans back and turns its holding shoulder away from you, rocking a little, while its other arm flails near the gun; Armed Grunts > Tug: Torso Sway / Tug: Free Arm Flail at 0 turn each off. {test:agrunt_tug}
-The tug is always physical: no "Tug: Physical", "Tug: Pull Time" or "Tug: It Fights Back Every" rows, and the grunt no longer shoves, headbutts or fires during a tug. {test:agrunt_tug}
-Combat > Melee: the "Swing Through Enemies", "Strike Past Walls and Floor" and "Hit Everything the Edge Passes" toggles are gone (always on); Combat > Damage and Knockback: "Melee Positional Damage" is gone (melee follows Positional Damage). {test:sword_multi}
-The nail pistol is always the full-slide model (the classic copper-slide option is gone); its slide still racks and the ammo screen rides it. {test:dual_wield}
-Start the game wearing the headset: full-body tracking is right from the start; if it starts broken, the console shows "Body tracking: restarting (automatic: ...)" within about 6 s and it recovers (Body > Body Tracking > Restart When Broken at Start). {test:vrstart}
-Body > Body Tracking > Restart Body Tracking, pressed while standing straight, fixes body tracking that started wrong, without restarting Virtual Desktop. {test:vrstart}
-Body > Seated Height is now 0 ("not measured": yours had been measured standing); Set Seated Height Now while standing says "sit down first".
-Grab an armed grunt's gun with the grip button only (trigger released) and tug: all fingers, index included, close round the gun and touch it rather than closing in the air. {test:agrunt_tug}
-Grab a downed grunt's arm or a corpse's limb with the grip only: the index finger curls with the others.
-Spawn a grunt with a nail pistol in each hand from the toolgun several times, right after loading the map: both guns visible every time; if one is missing, run Debug > Armed Monsters' Weapons: Drawn vs Server at once and take a note. {test:dual_wield}
-Run full speed at a grunt and let go of the stick within about 1.6 m: you brake and stop short of it instead of sliding into it; strafing past isn't slowed (Locomotion > Close Quarters > Brake Momentum, Braking). {test:closequarters}
-Throw a magazine or cell hard at a grunt: about 1 damage, a flinch and its pain, as a light prop does. {test:magthrow}
-Fight a crowd of armed grunts (shotgun up close, punches): smoother than last night, no change in hits, parries or worn packs {test:bench_armed_mix16}
-Rig Studio fly camera: W A S D, Q/E down/up, Shift faster (Preferences > Fly Speed); Select is now B, IK is K, Weights is V.
-Pose Studio Data, pick Shove: the timeline plays at 0.25x, Loop, scrub the bar, step with < > or Left/Right, Key returns to the phase. {test:rigstudio_strike}
-Timeline > Onion Skin: orange ghosts before, blue after (arms, hands, chest line, weapons); after a key edit they retake themselves; Phase Points spacing.
-Tools > Display > IK Ghost Right/Left: push a weapon past reach: the set weapon translucent, the diamond at the set hand, the "off" label.
 AD: kill a cleaver hunter ogre and a death sergeant: both fall as ragdolls (no "got 0 vertices" in the console at startup), the weapon dropped beside them, the fist on the arm.
-Far armed humanoids' arms move smoothly and their guns stay in their hands; turning your head to a group behind you never shows a stale arm (Graphics > Performance: Armed Arms LOD). {test:bench_armed_mix32}
-Menu > Fonts: switch Upscaling through Classic / Nearest 4x / Scale4x / 4xBR: menu text, main menu letters and console lines change at once; the slider bar and Quake text box join without notches.
-Menu > Fonts: Outline 1 and Shadow opacity 0.5+: letters get a dark rim and drop shadow without moving the text; box and slider pieces get none.
-Menu > Fonts > Show a Sample Message: console lines (and the centre message) in the chosen style; with defaults, text looks exactly as before.
-Text everywhere has your look by default (soft edges, thin dark outline, soft shadow down-right); Menu > Fonts and the new Wrist Gadget Font / Ammo Screen Font / World Text Font pages (from Wrist Gadget, Ammo Screens, Map Boards) each change only their own text at once. {test:vrcalibration}
-Fonts: Shadow Offset X/Y move the shadow, Shadow Size thickens it, Spread softens it.
-Ammo Screen Font: tweak it with a gun in hand and check the ammo screen text changes (not seen in tests: the mock never held a gun).
-Shots and blows on armed humanoids and ragdolls land exactly where they did (cheaper now). {test:bench_armed_mix32}
-Every armed grunt wears its backpack by default (no Worn Backpacks switch); killed or gibbed, its loot is in the pack and no second one drops; enforcers still drop theirs. {test:worn_packs}
-Ultra graphics preset: the glow looks as on High (four-level glow retired).
-Shoulder Charges: Chance 0 turns them off; the training dummy still judges them.
 Armed grunt knocked down: keeps its gun until it lands hard (no ledge/speed/fling let-go rules).
-Debug > Tunables shows submenus (Combat > Armed Grunts > AI Behaviour...), titled as you go down, Back goes up; Search opens a constant's own submenu.
-Shoreline Foam Settings shows only On, Opacity and Particles per liquid; Gore > Small Gibs keeps on/off, Max, Time and its switches (the rest in Debug > Tunables, same submenus).
-Ragdoll Tool > Joint Groups sliders still work live.
-vr_diagnostics 1 -> one start makes a diagnostics folder and prints that it set itself back to 0; the next start makes none.
-Screens > World Text Font / Ammo Screen Font / Wrist Gadget Font: moving the outline or shadow sliders updates the map boards, tip screens, ammo screens and the gadget hologram right away {test:vrcalibration}
-The Gore page shows one "Gore Volume" slider; per-sound volumes are under Debug > Tunables > Gore. {test:gore}
-Armed humanoids' sword, axe and club swings are parried by direction by default. {test:dirparry}
-The Grappling Hook, Fire Particles and Loot Beams pages are shorter: their numbers are under Debug > Tunables. The loot beam per-kind switches are still on the page.
-Armed humanoids hold and swing as you set them in the Pose Studio without your config: your poses, grips and arm stretch of 11-02 are now the defaults.
-Pose Studio strike keys: drag a diamond, Add Key, Remove Key, undo; the blow lands at the same moment.
-Old save loads and a new save/load works on the 32-bit progs (console: `progs.dat: 32-bit (FTE32)`).
-Shots and blows on armed enemies hit where they are drawn, on an AD map too. {test:bench_crowd_plain32}
-Graphics preset Off now keeps permanent marks.
-Release: make_release.ps1 -DryRun lists any tunables.cfg value not in the source, with the promote command; a real run stops on it before building.
-Console at start: when a setting becomes a tuning constant and your config set it, you see "X is a tuning constant now: the config's "v" is kept in tunables.cfg" and `tune` lists it.
-Smashing a ragdoll into a wall: your Impact Multiplier 1.25 is the default now.
-A grunt with a gun and an axe switches to its axe up close and swings it; it no longer stands and shoves you {test:agrunt_repl_gunaxe}
-An armoured death knight (Debug > Tests > Helmets There: Knight and Death Knight): his eyes show under the helmet from the front, its back no wider than his head, the horns standing out of it. {test:agarmor_helmets_knights}
-Fire a nail pistol's clip out: its slide locks open and the ammo screen stays flat on the slide's wall, not out past its back; and during a shot it stays on the wall.
-Feminine voice on: the grunt of a body, leg or backpack lift and of a throw is a woman's, as high as your jump's grunt.
-An armed death knight with a gun fires it and casts from his off hand's palm about every other attack (Gun Cast Cooldown 3 s; Debug > Tests > Death Knight's Gun and Casts); a group's first volleys come apart.
-Models lit from all sides (Graphics > Models and Effects, `vr_model_light_grid`): foes on dark floors under lit walls are visible, bright floors no longer make them glow, and no pop crossing floor seams; 0 restores the old look. {test:e1m1}
-Enemies' footsteps (Debug > Tests > Enemy Footsteps Walkabout) land on their feet, and you can place them by ear with your eyes shut.
-Walking enemies are soft, running ones louder and carry further.
-Boots for grunts and enforcers, metal for knights, wet feet for zombies, heavy thuds for ogres, fiends and shamblers: do they sound right?
-In a big crowd only the nearest few are heard, with no machine-gunning.
 
-An armoured death knight from the front (Debug > Tests > Helmets Alone There: Knight and Death Knight): plates come down each side of his face from the brim, outside his cheeks, his eyes open between them; it reads as a helmet, not a hat, and they turn with his head. {test:agarmor_helmets_knights}
+Body > Step Rate changes the legs' steps at a full run: 3 slow, 7 fast, the number is steps per second.
+Body > Running Cadence 0: about the same step rate at any stick push.
+Body > Stride Length 1.5: longer strides, less foot slide, feet lift more at the stride's ends.
+Body > Step Width +0.15: feet walk wider apart.
+Your footsteps land with the drawn feet, from that foot, one sound per step; turning on the spot gives soft shuffles. About 5 steps a second at a run: too busy?
+Body > Footsteps on the Feet off: the old distance-based steps.
+Armed grunt down: a small push, walking into it or a gentle topple keeps its weapon; a fall, a throw into the floor or a wall drops it.
+Hold a downed armed grunt and swing it hard into a wall or the floor: it drops its weapon; swing it and reverse in mid-air: it keeps it. Do the speeds feel right near walls?
+A downed armed grunt flung low along the floor without hitting anything keeps its weapon.
+Arena, run hard with the stick: speed holds, no dips every few steps, the world goes by evenly. Debug > Tests "Game Time From the Display Clock" off to compare (this one is only tested on a headset: if motion feels wrong, say so).
+Stick about straight: you run exactly where you look; looking down doesn't slow you or bend a diagonal. Debug > Tests "Stick: Show Speed" shows the push angle and heading on the console.
+Stick page "Stick Straight Zone" (15 deg) and "Stick Full Push Hold" (0.4 s): letting go still stops at once; easing to a lower push from a full run slows after about 0.4 s.
+A loaded magazine ejected over the ammo pouch falls in and is collected, drawn going in; an empty one falls past.
+A shoulder charge that connects costs 35 stamina.
+Flashlight: with the grip already closed, the grace to grab it is shorter (0.39 s).
+No ghost hands while climbing (Ghost Hands: No Ghost Climbing).
+A thrown crate or barrel kills a grunt or pops what it hit, never a full gib; Quad, a war hammer's hardest blows and heavy counters still gib.
+Pulling a worn pack never takes it off: pull hard and the wearer is lifted by it, flailing, and can be carried and thrown; shots, blows, landings and gibbing still knock it off.
+Knights and death knights holding a gun wear a backpack on their upper back and can be lifted by it. Does the pack look right on them?
+Grunts, knights and death knights with only a melee weapon or fists wear no pack and drop no backpack.
+An enforcer with a gun can be lifted by the pack on its back, which never comes off; with a sword or fists it can't.
 
-[2. Armed humanoids: disarming and armour]
-Show Disarm Volumes: the wireframe hulls sit on each drawn weapon (magenta, orange, red; the sword's orange line along its blade) and on the drawn hand and forearm (cyan). {test:disarm_hulls_melee}
-Disarm volume sliders (Combat > Armed Grunts > Disarming, Volume: Its Weapon, Its Hand, Strikes, Body Blows; 0 = exact): +4 and near misses count, -1 and they miss. {test:disarm_hulls_melee}
-Disarm by hand: punch its drawn hand or forearm: the weapon falls (a punch 5 units off its chest doesn't); grip its weapon where it is drawn: you take it; throw a gun at its gun hand: knocked out. {test:disarm_hulls_melee}
-Shoot a gun held across its body (shotgun, revolver, nailgun): sparks and a tink, no blood, its health untouched; Debug > Show Shot Disarms names the part hit. {test:disarm_volumes}
-Armour shot at: shotgun, revolver, nails and rockets on a grunt's cuirass and helmet only spark, no body damage; a plate is pushed about half as hard as a bare limb; Show Armour Plates outlines every worn plate (too thin to see?). {test:agarmor_guns}
-Armour worn down: plates spark and ring, look dented at 2/3 and battered at 1/3, break off and fade; a helmet stops head pops; a blade cuts no limb until its plate breaks; a thrown broken plate hurts. {test:agarmor_plates}
-Armour setup: toolgun Armed Humanoid Armour and Pieces apply to spawned grunts, Reset and Clear restore; on maps: Normal 15% green chest and helmet, Hard 35% up to yellow, Nightmare 60% full red (Combat > Armed Grunts > Armour). {test:agarmor_plates}
-Armour fit: cuirass and helmet fit at rest and through hits and ragdolls; the helmet reads as the Ranger's (its back may poke the upper back when the head is flung back). {test:agarmor_helmets}
 
 [3. Bodies: grabbing, throwing, hits]
-Judo: take a grunt with both hands and throw it; lift one: it flails, breaks free and shoves you back after Lift Time; kill one in your hands: no break free, limp when you let go. {test:grunts_to_throw}
 Neck snap standing and on a lifted body: it goes limp, still held. Leg grabs: pull one down by the shins, drag it by the legs, lift it by the legs. {test:grunts_to_throw}
-Pull a packed grunt or enforcer by its worn backpack: a tug, then it lifts. {test:worn_packs_lift}
-Shove a grunt: it staggers and recovers or goes over (arms braced), lies a moment, gets up; punch at its head mid-stagger: arms up to guard; kill one mid-stagger: limp; cut a limb off a dying one: its hand goes to the stump. {test:grunts_to_throw}
 Knock a grunt off a ledge: it grabs the lip, hangs, pulls up (or drops). Into the pool: it swims to where it can stand; killed in water: it paddles weakly, then goes limp. {test:ragdoll_behaviours}
-Hit spots: blood, wounds and gore land where blades, shots and blasts hit, at the flinch's spot; a blast's wounds face it; a stuck axe leaves a blade wound; underwater lightning zaps; gibs and statues never bleed. {test:props_range}
 A crowbar on an explosive box now knocks (blunt) instead of clanging: right, or should it clang? {test:props_range}
 
 [4. Survival Arena (Play > Survival Arena)]
-Start: you begin unarmed against one or two unarmed grunts, then climb through the guns they drop; no stuck, ungrabbable gun anywhere (if one appears: developer 1, note any 'dropcap:' line). {test:arena_run}
-Waves: text mid-view, a 5 s rest and a 5 s countdown (is 10 s too long?); about 1.75x bigger but trickled in (3, then one every 1.5-3 s, 6-8 alive) out of your sight. {test:arena_run}
-Who comes: zombies from wave 2, knights 4, dogs 6, ogres 8, fiends 12, death knights 16; a named boss every 5th wave after a warning. Too crowded in waves 1-4 while unarmed? {test:arena_run}
-Arrivals: every foe, medkit and pedestal teleports in (flash and sound) on the map's own places, never inside anything; fall off and the run says so and restarts in 10 s. {test:arena_run}
-Guns and loot: guns arrive gradually (SSG wave 3, NG 5, SNG 7, GL 10, RL 13, LG 16), from wave 8 an ogre can leave its launcher (too generous?); vr_enemy_drops and vr_ammobox_drops "never" stop all of it. {test:arena_run}
-Supplies: medkits after every clear, armour every 4th, 1-2 shards, lying all over the arena, never at your feet or in a wall; the clear's text names them. {test:arena_run}
-Boss clear: 2 / 3 / 4 / 5 pedestals at Easy / Normal / Hard / Nightmare; walk over one for the run's perk; perks work (melee kill's 2 s quad, neck snap's 20 health, a quad keeping its time through a Quad Strike kill). {test:arena_intro}
-Difficulty: the run names it from wave 1; Easy smaller, calmer and later to heavy guns, Nightmare bigger, quicker, two big bosses; Difficulty Impact 0 changes nothing. {test:arena_run}
-Armoured foes from wave 4 (Normal), more and heavier plates as waves go, bosses a kind above; armoured kills pay more; the wave line counts them. {test:arena_armour}
-Cleanup: bodies fade after about 14 s, a clear's medkits and armour go two waves later, dropped guns stop at 24 (48 with Spoils); a limb you hold stays till 3 s after you let go. {test:arena_run}
-Arena look: trimmed walls, 12 lit fluted uprights, 8 ceiling coffers, column lamps and wall sconces: anything too bright, too dark, washed out, or a texture cut mid-tile? Uprights in the right places? Its textures now ride in the bsp (346 to 446 KB): keep? {test:vrarena_calm}
+The arena is nice: play it, feels good? Note improvements. {test:arena_run}
 
 [5. Moving, weapons and the world]
-Climbing: take a ledge with one hand, then both, shimmy, let go (flung by the release), retake it after the short delay; mantle over; a ledge with no room gives a soft buzz.
-Climbing with Stamina and Slip on: hang till it runs out: a gasp and buzz, you sink and slip off; regrab once it's back: a normal hang. Hang from a lift or a crate: carried along; an explosion knocks you off.
-AD: on ad_azad's snowfield, turn and walk: no black frames, the sky steady, the lamps flicker as authored (Soften Flickering Lights now 0). {test:ad_fog_flicker}
-AD hub, lower level: walk into each original slipgate (E1-E4, end): that episode's first map (or the end) loads with AD's rules.
 Autosaves: Load Autosave (main, pause and death menus) lists this game's autosaves newest first; none is made while monsters are on you or your health is low.
 An enemy's lava nail sets you on fire.
 Moving water (a current) is water everywhere: blood drifts and splashes in it; looking at or near the sky never counts as being in water.
-Spent shells ring on metal floors and knock on wood.
 Disable Haptics on: bullet time's pulse and the gadget's gear-light buttons don't buzz.
-Sparse config: quit, ironwail.cfg is about 300 lines (starts with vr_config_defaults); restart: settings, weapon offsets and held-object offsets as you left them.
-[6. Rig Studio (flat screen, dev)]
-Rig Studio Subject > Armour: pick a type, toggle pieces, switch subject: the armour stays, never random.
-Rig Studio Pose Keys, Pickup: it says "Pickup (shared)" for every class and all take up their weapon the same way; Make Override / Remove Override (here and in Pose Studio) and Undo do what they say; Chest Bend changes the bend. Your call: drop the launcher, sprayer, laser cannon and Widowmaker Pickup overrides?
-Rig Studio off-hand: a pistol grunt's Carry/Run On the Gun cups the gun without the arm in the torso, Free hangs; an armed Knight's and Death Knight's Aim: the left hand on the fore-end, wrist straight, gun clear of chest and helmet; drag the "left hand: grip offset" dot: the hand follows.
-Rig Studio, armed Death Knight, Range of Motion and Random Pose: pauldrons, skirt and helmet stay clean (no see-through, no chin in chest); neck 25/15/15 and knees 125: OK or too stiff?
-Rig Studio, a sword grunt, Pose Studio Data: Swing at Swing Speed 0.25 plays slowly; Stop Swing stops it.
 
-[7. Pose Studio, Grip Editor, blade editor (dev)]
-Pose Studio panel: Pause in Live and walk up with the sticks; scrub with a grip on nothing and a stick; grip the top bar to move the panel (it stays), Recentre, Fold. {test:agrunt_pose_studio}
-Pose Studio drag: grab a grunt's weapon, turn it and let go (it stays); slide the left hand along the barrel; pull an elbow (violet), lean the chest (green); too far: the box turns orange with the reason. {test:agrunt_pose_studio}
-Pose Studio strikes and legs: Overhead, Key > to the blow, move it, Play; Pickup: grab pelvis, feet and knees (each stays); Copy > Enforcer, Done writes proposed_defaults. {test:agrunt_pose_studio}
-Pose Studio frozen rows (melee grunts here; also pose_grunts_guns, pose_enforcers_melee, pose_enforcers_guns): every one reachable and apart? {test:pose_grunts_melee}
-Grip Editor: Every Weapon gives one offset per humanoid kind; fit them by eye (Freeze Them), then Print as Defaults and send me the lines. {test:agrunt_grip_editor}
-Blade editor, Fury sword and mace: drag the green curve onto the drawn blade and the red tip onto its point, swing: the sweep follows; mace Head Box corners; your earlier edits are the defaults. {test:blade_editor}
-Blade editor, axe: the purple Blade Start (off the head's flat) sets where the striking part begins; the teal Line Start and red Tip go on the edge's corners: the white line lies along the edge. {test:blade_editor_axe}
-Blade editor at the hand: the handle under the other hand glows yellow; on the shotgun the bash tip is yours and shots still leave the muzzle. {test:blade_handles}
-Fist blow line (Show Melee Blades on): hooks, uppercuts and overheads land on the dummy; re-record punch_hook, punch_overhead, two punch_uppercut and a no_hit take. {test:fist_editor}
-Movement > Monster Hitbox, Ragdolls per class, Gore > Small Gibs per enemy: change one, quit and restart: the change sticks (these now live in quakevr/data/monsters.txt).

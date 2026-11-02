@@ -654,6 +654,11 @@ void() VR_AGGT_Hold69 =
         {
             return; // (started)
         }
+        if(g.vr_wp_pack)
+        {
+            remove(g.vr_wp_pack); // (a worn pack torn off by the landing can hit its weapon: another rule)
+            g.vr_wp_pack = world;
+        }
         makevectors('0 1 0' * g.angles_y);
         vector back = v_forward * -1;
         float c = vr_aggt_case69;
