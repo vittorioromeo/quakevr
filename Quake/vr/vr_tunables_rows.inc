@@ -386,6 +386,8 @@ QVR_TUNABLE_SLIDER(vr_forcegrab_catch_blend, "Catch Blend Time", 0.0f, 0.5f, 0.0
 QVR_TUNABLE_GROUP("Carrying and Throwing > Gibs and Corpses")
 QVR_TUNABLE_SLIDER(vr_gib_throw_damage, "Thrown Gib Damage", 0.0f, 50.0f, 1.0f, "%.0f", 0.0f, 250.0f, "Damage of a gib or head thrown at about 6 m/s; more the faster.")
 QVR_TUNABLE_SLIDER(vr_gib_health, "Gib Health", 1.0f, 60.0f, 1.0f, "%.0f", 1.0f, 296.0f, "The damage that destroys a gib; a head takes half as much again.")
+QVR_TUNABLE_SLIDER(vr_gib_overkill_melee, "Blow Overkill to Gib", 0.0f, 1.0f, 0.05f, "%.2f", 0.0f, 1.0f, "The share of a blow's damage past a monster's health that counts towards gibbing it (1: all of it). Quad counts all of it.")
+QVR_TUNABLE_SLIDER(vr_gib_overkill_prop, "Prop Overkill to Gib", 0.0f, 1.0f, 0.05f, "%.2f", 0.0f, 1.0f, "The same for a thrown, flung or fallen prop: a crate or a barrel kills and pops the limb it hit, an ordinary throw never gibs.")
 QVR_TUNABLE_SLIDER(vr_gib_splat_speed, "Gib Splat Speed", 100.0f, 600.0f, 25.0f, "%.0f", 100.0f, 2600.0f, "Units/s a thrown gib or head must hit a wall or a monster at to burst.")
 QVR_TUNABLE_SLIDER(vr_gib_splat_throw, "Hard Throw Bursts", 0.0f, 12.0f, 0.5f, "%.1f m/s", 0.0f, 30.0f, "A gib or head thrown with the hand this fast or faster bursts on a wall instead of sticking, however heavy (a heavy one leaves the hand slowly). Softer throws stick (Thrown Gibs Stick). 0: off.")
 QVR_TUNABLE_SLIDER(vr_gib_burst_speed, "Gib Burst Speed", 1.0f, 12.0f, 0.25f, "%.2f m/s", 0.1f, 40.0f, "A hand's or weapon's hit on a gib, or one held and smashed into a wall, the floor or a monster, this fast bursts it. From half as fast it is worn (two such hits burst it); a hand's hit short of bursting bounces it off the hand, like a volleyball.")
@@ -1362,6 +1364,7 @@ QVR_TUNABLE_SLIDER(vr_kdtrig_tackle_face, "Facing", 20.0f, 90.0f, 5.0f, "%.0f de
 QVR_TUNABLE_SLIDER(vr_kdtrig_tackle_leniency, "Charge Leniency", 0.0f, 1.0f, 0.05f, "%.2f", 0.0f, 1.0f, "All of the charge's thresholds below together: 0.5 uses them as set; higher is easier (1: the least ones halved, the most ones and the speed's shortfall from full doubled), lower stricter (0: 1.5 times).")
 QVR_TUNABLE_SLIDER(vr_kdtrig_tackle_knock, "Knock Back", 0.0f, 200.0f, 4.0f, "%.0f units", 0.0f, 200.0f, "How far one of your weight is knocked back before it falls (a lighter one up to 1.5 times; a heavier one staggers back 0.6 of it).")
 QVR_TUNABLE_SLIDER(vr_kdtrig_tackle_bump, "Bounce", 0.0f, 300.0f, 10.0f, "%.0f u/s", 0.0f, 300.0f, "You bounce back off it.")
+QVR_TUNABLE_SLIDER(vr_kdtrig_tackle_stamina, "Stamina Cost", 0.0f, 100.0f, 5.0f, "%.0f", 0.0f, 100.0f, "Stamina a charge that connects costs (0: none; one that misses costs nothing).")
 QVR_TUNABLE_SLIDER(vr_kdtrig_tackle_contact, "Contact", 0.0f, 24.0f, 1.0f, "%.0f units", 0.0f, 24.0f, "How near your body must be to the monster's for it to connect (0: touching).")
 QVR_TUNABLE_SLIDER(vr_kdtrig_tackle_cooldown, "Cooldown", 0.0f, 5.0f, 0.1f, "%.1f s", 0.0f, 5.0f, "Before you charge again.")
 
@@ -1638,8 +1641,8 @@ QVR_TUNABLE_SLIDER(vr_menu_grab_dist_max, "Menu Grab Dist Max", 0.0f, 1200.0f, 1
 QVR_TUNABLE_SLIDER(vr_menu_grab_deadzone, "Menu Grab Deadzone", 0.0f, 8.0f, 0.5f, "%.1f", 0.0f, 40.0f, "cm a hand moves with a grip held on the panel's face before it takes hold of the panel (vr_menu_grab 2)")
 
 QVR_TUNABLE_GROUP("Combat > Armed Grunts - Worn Backpacks")
-QVR_TUNABLE_SLIDER(vr_worn_backpack_rip_time, "Worn Backpack Rip Time", 0.0f, 0.08f, 0.005f, "%.3f", 0.0f, 0.4f, "worn backpacks: the pull kept past vr_worn_backpack_rip_force this long (s) tears it off (a yank, not a jolt)")
-QVR_TUNABLE_SLIDER(vr_worn_backpack_rip_stiffness, "Worn Backpack Rip Stiffness", 0.0f, 300.0f, 20.0f, "%.0f", 0.0f, 1500.0f, "worn backpacks: N a unit of the held point's lag behind the hand (the stretch's share of the pull)")
+QVR_TUNABLE_SLIDER(vr_worn_backpack_lift_hold, "Worn Backpack Lift Hold", 0.0f, 0.08f, 0.005f, "%.3f", 0.0f, 0.4f, "worn backpacks: the pull kept past vr_worn_backpack_lift_force this long (s) lifts its wearer (a yank, not a jolt)")
+QVR_TUNABLE_SLIDER(vr_worn_backpack_lift_stiffness, "Worn Backpack Lift Stiffness", 0.0f, 300.0f, 20.0f, "%.0f", 0.0f, 1500.0f, "worn backpacks: N a unit of the held point\'s lag behind the hand (the stretch\'s share of the pull)")
 
 QVR_TUNABLE_GROUP("Debug > Tests")
 QVR_TUNABLE_SLIDER(vr_climb_prop_pull, "Light Prop Pull", 0.0f, 100.0f, 5.0f, "%.0f kg", 0.0f, 100.0f, "vr_climb_prop_pull: the most weight a hand on a light prop pulls it with (your weight, Box3D's Player " "Mass, shared by the holding hands, towards your body).")

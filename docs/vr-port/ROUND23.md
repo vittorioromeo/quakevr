@@ -5035,6 +5035,63 @@ few steps" the player slows abruptly and resumes a split second later.
   0 failed**.
 - **For him in VR**: run around the test hall holding the stick forward hard; the speed should stay put. Slow walking
   should feel as before at the bottom of the travel; the top fifth is all full speed.
+## Thumbstick walking: hitches and a slightly angled direction (branch `agent/stickhitch`)
+
+Vittorio (voice note vrarena_2026-11-02_23-15-25): still hitches running at full speed with the stick, and "a bit angled
+even if my thumbstick is completely straight". His note's replay and frames (3596 frames, 30 s; median 8.3 ms, 3 frame
+hitches of 20-21 ms), and his take of 2026-11-01 01:38.
+
+**Not frame-time hitches, and not the floor.** Three frames over 20 ms in 30 s. On the ground his height moved at most
+0.04 units a frame; `vr_stick_line_test` on his arena's lines: 704 units at 320.0..320.0, height flat; the only strays
+were a wall grazed (x stuck at 528.0, one line). Four causes, each a motion:
+
+1. **His thumb slips further than the last fix allowed.** Held hard forward it reads 0.53..1.0: dips to 0.55..0.75 for a
+   tenth of a second, about three a second (the note's frames 1301..: 0.74 0.87 0.65 0.77 0.87 0.61 0.80 0.91 ...). 26-34%
+   of his run's frames are under the 80% that `vr_deadzone_outer` 20 counts as full, and the speed follows: 309 -> 223
+   -> 309. Simulated on his takes (Quake's ground physics, the recorded stick, frames in sustained runs; dips: under 10%
+   of 320): now 20 dips in 894 frames (arena), 58 in 2796 (hall); **`vr_move_hold` 0.4 s: 0 and 0**, a wider plateau only
+   halves them (outer 35%: 7, 24), and costs fine walking. The hold is on a *full* push only, and under a quarter of the
+   travel it follows at once: letting go stops at once, slow walking answers as ever; a deliberate slow-down from full to a
+   lower push kept takes 0.4 s + a moment. (The 2026-11-01 note's "fall-rate hold added little": a fall rate without a hold.)
+2. **Game time on an uneven clock.** A frame's game time was the wall clock's between two frames' *starts*, read before
+   `xrWaitFrame`: 5.9..11 ms (p5..p95) on a display steady at 8.33 ms. At a steady stick and 308 u/s the world moved 2.09..3.20
+   units a frame (correlation with the last frame's dt 0.999), its path 0.32 units rms off a straight line in display time,
+   1.6 at most. `vr_display_clock` 1: a frame's game time is the step between predicted display times (a frame late, adding
+   up all the same; over 0.25 s or none, the wall clock's). Note frame files keep the wall clock (`motion::wallFrameTime`).
+3. **The straight push that isn't.** The response of 2026-10-25 (radial deadzone) walks the stick's exact angle, while the
+   per-axis deadzone before it zeroed a small side part: his "straight" reads x 0.13 at y 0.88 (8 degrees), -0.06 at 1.0 (3).
+   Near a cardinal his mean angle was 6.8 degrees now, 2.3 under the old deadzone. `vr_move_snap` 15: within 15 degrees of an
+   axis exactly on it, the rest of each quadrant spread over what is left. Some of his long pushes read 26-30 degrees (the
+   note's frames 635..1450): looking aside on purpose or a thumb that far off, the take can't say (`vr_debug_stick` now prints
+   the push's angle and the heading off the head's).
+4. **The head's pitch steered the walk.** The server's wish took the head's whole angles, so forward's level part shrank by
+   cos(pitch). Hidden while running asked 400 against 320; since 2026-10-25 a full push asks 320 exactly: looking 40 degrees
+   down ran 245 u/s, a diagonal turned 7.5 degrees. His hall take looks over 20 degrees down in 13% of its pushed frames. Walking
+   now steers by the yaw alone (`SV_AirMove`); flying keeps it all.
+
+Left alone: Quake's ground physics only sheds the velocity's sideways part by friction (a quarter of a second), so turning
+the head while running the heading trails (the take's 12 degrees after a sharp turn); from the code and the take, not
+a change here, and as old as Quake. `vr_closequarters` turns the wish near a live enemy by design (within its 1 m).
+
+**Test**: `vr_stick_run_test [x y z] [outer [snap [hold]]]` (run 2 his thumb as recorded, the drawn steps in run 0, a sweep of
+64 pushes: 16 angles, 2 lengths, the head level and 40 down) and `vr_stick_line_test x y z <length>`. Fast mode, verdict lines.
+
+| vr_stick_run_test -300 -150 24 | run 2 dip (limit 2%) | worst heading, sweep (limit 0.5) | worst speed, sweep (limit 1.5%) | verdict |
+|---|---|---|---|---|
+| snap 0, hold 0 | 30.2% (224 under 321) | 13.95 deg (stick +14 walks +13.95) | 0.53% | 27 passed, 41 failed |
+| head's pitch kept (a build) | - | 7.55 deg | 23.4% (245 of 320) | 42 passed, 26 failed |
+| now | 0.39% | 0.20 deg | 0.31% | 68 passed, 0 failed |
+
+Drawn steps of run 0, `vr_fixed_frames_rate 120; vr_fixed_frames_jitter 0.2` (his frames' spread), limit 3% rms:
+`vr_display_clock 0` 1.63..3.68 units, **16.08%**: 67 passed, 1 failed; `1` 2.66..2.70, **0.39%**: 68 passed, 0 failed. Even frames
+at 120 Hz: 0.39% too. `vr_stick_curve_test -300 -150 24`: 115 passed, 0 failed. `vr_stick_line_test 317 564 24 700` in vrarena
+(`vr_mock_turn_to 177` first): 320.0..320.0, height 24.00: 1 passed.
+
+Under the mock only the display clock's jittered test path runs; its real source (OpenXR's predicted display times) needs the
+headset. **For him in VR**: run the arena hard with the stick: no dips, the world going by evenly; straight runs go where
+he looks, looking down too; Debug > Tests: Stick: Show Speed for the push's angle and heading; "Game Time From the Display Clock" to
+compare.
+
 ## Monsters as data (branch `agent/datatables3`; design review 3, step 3: monsters)
 
 The per-monster cvar families that are plain per-classname values are data: 171 values of 17 classnames, no cvars.
@@ -6998,3 +7055,168 @@ Only direct hits are looked for: a burst beside a friend (one fighting you, say)
 
 Held ogres strafed about 90 units a hold. Hits left when careful: its give-up (a friend in the way twice running). Shots a minute an
 ogre: 24 careless, 15 careful, 11 always blocked; never idle.
+
+
+## Falling magazines into the pouch; charge stamina; late flashlight grip; no ghost climbing; gibbing by blows and props
+
+His notes of 2026-11-02 night (typed list; e1m1_2026-11-02_23-26-45, vrarena_2026-11-02_23-20-22, _23-24-37).
+
+- **Falling magazines** (`vr_reload_pouch_catch` 1, `vr_reload_pouch_catch_reach` 10 cm; Immersive Reloading's "Reloading at
+  the Pouch"): a magazine with rounds left that came out of its gun by itself (B/Y's eject, a hit: `VR_Reload_Eject`, marked
+  `.vr_ammo_ejected_by`), falling within the reach of the pouch's rounds (its own radius added), goes in as a hand letting go
+  of it there does, with the put-away transition (`VR_CollectFx_Send`, hotspot 12). A hand's or a force grab's touch or its
+  landing ends that; an empty one, or a full reserve: it falls past, silently. The pouch lies inside the player's Box3D hull,
+  so a magazine dropped from above the hull rests on it: it reaches the pouch when it comes out inside the hull, as one
+  from a gun held over the belt does (`vr_prop_drop_pass_inside`). `Misc/quakevr/pouchcatch_test.sh` (`vr_reload_test 44`).
+- **Shoulder charge stamina** (`vr_kdtrig_tackle_stamina` 35; nothing before): paid when it connects (`VR_KdTrig_ChargeHit`,
+  after its knock's roll, which reads the stamina left), not when it misses; the training dummy too.
+- **Late flashlight grip** (`lateFor`, vr_flashlight.cpp): 0.6 -> 0.39 s, the grace after the press with the grip already
+  closed. The reach (`lateReach`) and the grab range are untouched; a slowed hand still gets its extension.
+- **Ghost hands climbing** (`vr_ghost_hands_ignore_climb` 1): none while either hand is on a hold. `ghost_climb_test.sh`.
+
+### Gibbing: overkill by blows and props
+
+Cause: the death code gibs on health (a grunt under -35), and nothing relates the damage of a heavy prop to that: a thrown
+prop's damage is its base times `VR_Thrown_HeavyMult` (mass / 8, at most 5), the weight's curve, and its speed over a full
+speed scaled down by the heavy leniency, with no cap: 60 for a 40 kg crate at 3 m/s, 100 at 5 m/s (a grunt gibs from 66; a 15
+hp one from 51). A pop's failed roll (`vr_decap_chance_scale`) fell through to that gib. Those numbers also must hurt an ogre,
+so the damage stays, and what changes is what counts towards the gib: `VR_Gib_Overkill` (combat.qc), where the slap's rule was:
+
+- `vr_gib_overkill_melee` 1 -> 0.5: a hand's blow, or a prop swung in the hand (the overhead slam);
+- `vr_gib_overkill_prop` 1 -> 0.1: a thrown, flung or fallen prop;
+- all of it under Quad; a slap none, as before; everything else (guns, blasts) as before.
+- `vr_corpse_dmg_props` 1 -> 0.25: a body keeps its own health to gib (160 for a grunt's), and one small crate at 7 m/s with
+  two hands (175) burst it.
+
+`Misc/quakevr/gibtable_test.sh` (`vr_prop_impact_test 7`, Debug > Gore Tests, "Blows and Props: What Gibs"): a grunt at 30 and
+15 health, no sneak bonus. Before (`tune` both shares 1, `vr_corpse_dmg_props` 1) -> after. Blows are the priced damage at
+that strength, delivered as a blow lands; props are their real hit (`VR_SolidProp_Impact`). hp15 "whole" for a small blow
+includes its knockdown's fall. "head": its head popped (a heavy prop's arming is as before; the table's prop is level with
+the chest, near enough the head zone that most of them pop it: not judged in a headset).
+
+```
+fist, light (x0.75)                                          10.3 | hp30 alive -> alive | hp15 alive -> alive
+fist, firm (x1.00)                                           13.8 | hp30 alive -> alive | hp15 alive -> alive
+fist, hardest (x1.75)                                        24.1 | hp30 alive -> alive | hp15 whole -> whole
+fist, hardest at the head (x2.25)                            30.9 | hp30 whole -> whole | hp15 whole -> whole
+fist, a counter, hardest at the head (x3.94)                 54.1 | hp30 whole -> whole | hp15 GIB   -> whole
+axe, light (x0.75)                                           16.5 | hp30 alive -> alive | hp15 whole -> whole
+axe, firm (x1.00)                                            22.0 | hp30 alive -> alive | hp15 whole -> whole
+axe, hardest (x1.75)                                         38.5 | hp30 whole -> whole | hp15 whole -> whole
+axe, hardest at the head (x2.25)                             49.5 | hp30 whole -> whole | hp15 whole -> whole
+axe, a counter, hardest at the head (x3.94)                  86.6 | hp30 GIB   -> whole | hp15 GIB   -> GIB  
+crowbar, light (x0.75)                                       16.5 | hp30 alive -> alive | hp15 whole -> whole
+crowbar, firm (x1.00)                                        22.0 | hp30 alive -> alive | hp15 whole -> whole
+crowbar, hardest (x1.75)                                     38.5 | hp30 whole -> whole | hp15 whole -> whole
+crowbar, hardest at the head (x2.25)                         49.5 | hp30 whole -> whole | hp15 whole -> whole
+crowbar, a counter, hardest at the head (x3.94)              86.6 | hp30 GIB   -> whole | hp15 GIB   -> GIB  
+knight's sword, light (x0.75)                                27.2 | hp30 alive -> alive | hp15 whole -> whole
+knight's sword, firm (x1.00)                                 36.3 | hp30 whole -> whole | hp15 whole -> whole
+knight's sword, hardest (x1.75)                              63.5 | hp30 whole -> whole | hp15 GIB   -> whole
+knight's sword, hardest at the head (x2.25)                  81.7 | hp30 GIB   -> whole | hp15 GIB   -> whole
+knight's sword, a counter, hardest at the head (x3.94)      142.9 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+war hammer, light (x0.75)                                    43.6 | hp30 whole -> whole | hp15 whole -> whole
+war hammer, firm (x1.00)                                     58.1 | hp30 whole -> whole | hp15 GIB   -> whole
+war hammer, hardest (x1.75)                                 101.6 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+war hammer, hardest at the head (x2.25)                     130.7 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+war hammer, a counter, hardest at the head (x3.94)          228.7 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+fist under Quad (x1.00)                                      60.5 | hp30 whole -> whole | hp15 GIB   -> GIB  
+fist under Quad (x1.75)                                     105.9 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+axe under Quad (x1.00)                                       96.8 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+axe under Quad (x1.75)                                      169.4 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+crowbar under Quad (x1.00)                                   96.8 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+crowbar under Quad (x1.75)                                  169.4 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+knight's sword under Quad (x1.00)                           159.7 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+knight's sword under Quad (x1.75)                           279.5 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+war hammer under Quad (x1.00)                               255.6 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+war hammer under Quad (x1.75)                               447.2 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+barrel thrown, 1 hand, 3 m/s                                 40.5 | hp30 whole -> whole | hp15 head  -> whole
+barrel thrown, 1 hand, 5 m/s                                 67.5 | hp30 GIB   -> whole | hp15 head  -> head 
+barrel thrown, 1 hand, 7 m/s                                 94.6 | hp30 GIB   -> whole | hp15 head  -> head 
+barrel thrown, 1 hand, 9 m/s                                121.6 | hp30 head  -> head  | hp15 GIB   -> head 
+barrel thrown, 1 hand, 12 m/s                               162.1 | hp30 head  -> head  | hp15 GIB   -> head 
+barrel thrown, 2 hands, 3 m/s                                50.7 | hp30 whole -> head  | hp15 GIB   -> head 
+barrel thrown, 2 hands, 5 m/s                                84.4 | hp30 head  -> head  | hp15 GIB   -> head 
+barrel thrown, 2 hands, 7 m/s                               118.2 | hp30 head  -> head  | hp15 GIB   -> head 
+barrel thrown, 2 hands, 9 m/s                               152.0 | hp30 head  -> head  | hp15 GIB   -> head 
+barrel thrown, 2 hands, 12 m/s                              202.6 | hp30 head  -> head  | hp15 head  -> head 
+small crate thrown, 1 hand, 3 m/s                            60.2 | hp30 whole -> head  | hp15 GIB   -> head 
+small crate thrown, 1 hand, 5 m/s                           100.3 | hp30 GIB   -> head  | hp15 head  -> head 
+small crate thrown, 1 hand, 7 m/s                           140.4 | hp30 GIB   -> head  | hp15 head  -> head 
+small crate thrown, 1 hand, 9 m/s                           180.6 | hp30 GIB   -> head  | hp15 GIB   -> head 
+small crate thrown, 1 hand, 12 m/s                          240.7 | hp30 head  -> head  | hp15 GIB   -> head 
+small crate thrown, 2 hands, 3 m/s                           75.2 | hp30 GIB   -> head  | hp15 head  -> head 
+small crate thrown, 2 hands, 5 m/s                          125.4 | hp30 GIB   -> head  | hp15 head  -> head 
+small crate thrown, 2 hands, 7 m/s                          175.5 | hp30 GIB   -> head  | hp15 GIB   -> head 
+small crate thrown, 2 hands, 9 m/s                          225.7 | hp30 GIB   -> head  | hp15 GIB   -> head 
+small crate thrown, 2 hands, 12 m/s                         300.9 | hp30 head  -> head  | hp15 GIB   -> head 
+large crate thrown, 1 hand, 3 m/s                            72.2 | hp30 head  -> head  | hp15 head  -> head 
+large crate thrown, 1 hand, 5 m/s                           120.3 | hp30 GIB   -> head  | hp15 GIB   -> head 
+large crate thrown, 1 hand, 7 m/s                           168.5 | hp30 head  -> head  | hp15 GIB   -> head 
+large crate thrown, 1 hand, 9 m/s                           216.6 | hp30 head  -> head  | hp15 GIB   -> head 
+large crate thrown, 1 hand, 12 m/s                          288.8 | hp30 GIB   -> head  | hp15 head  -> head 
+large crate thrown, 2 hands, 3 m/s                           90.3 | hp30 GIB   -> head  | hp15 head  -> head 
+large crate thrown, 2 hands, 5 m/s                          150.4 | hp30 GIB   -> head  | hp15 head  -> head 
+large crate thrown, 2 hands, 7 m/s                          210.6 | hp30 GIB   -> head  | hp15 head  -> head 
+large crate thrown, 2 hands, 9 m/s                          270.8 | hp30 GIB   -> head  | hp15 head  -> head 
+large crate thrown, 2 hands, 12 m/s                         361.0 | hp30 GIB   -> head  | hp15 GIB   -> head 
+barrel falling or flung, 8 m/s                               20.0 | hp30 alive -> alive | hp15 whole -> whole
+barrel falling or flung, 12 m/s                              30.0 | hp30 whole -> whole | hp15 whole -> whole
+barrel falling or flung, 20 m/s                              50.0 | hp30 whole -> whole | hp15 whole -> whole
+small crate falling or flung, 8 m/s                          20.0 | hp30 alive -> alive | hp15 whole -> whole
+small crate falling or flung, 12 m/s                         30.0 | hp30 whole -> whole | hp15 whole -> whole
+small crate falling or flung, 20 m/s                         50.0 | hp30 whole -> whole | hp15 whole -> whole
+large crate falling or flung, 8 m/s                          20.0 | hp30 alive -> alive | hp15 whole -> whole
+large crate falling or flung, 12 m/s                         30.0 | hp30 whole -> whole | hp15 whole -> whole
+large crate falling or flung, 20 m/s                         50.0 | hp30 whole -> whole | hp15 whole -> whole
+barrel thrown onto a body just killed, 2 hands, 7 m/s       118.2 | hp30 whole -> whole | hp15 whole -> whole
+small crate thrown onto a body just killed, 2 hands, 7 m/s  175.5 | hp30 whole -> whole | hp15 GIB   -> whole
+large crate thrown onto a body just killed, 2 hands, 7 m/s  210.6 | hp30 whole -> whole | hp15 whole -> whole
+barrel slammed down (speed x1)                               54.2 | hp30 whole -> whole | hp15 GIB   -> whole
+barrel slammed down (speed x2)                              108.3 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+small crate slammed down (speed x1)                          60.3 | hp30 whole -> whole | hp15 GIB   -> whole
+small crate slammed down (speed x2)                         120.7 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+large crate slammed down (speed x1)                          72.4 | hp30 GIB   -> whole | hp15 GIB   -> whole
+large crate slammed down (speed x2)                         144.8 | hp30 GIB   -> GIB   | hp15 GIB   -> GIB  
+blow: 50 rows, gibbed 17 -> 10
+quad: 20 rows, gibbed 19 -> 19
+throw: 60 rows, gibbed 32 -> 0
+fall: 18 rows, gibbed 0 -> 0
+body: 6 rows, gibbed 1 -> 0
+slam: 12 rows, gibbed 10 -> 6
+```
+
+## Lift only; who wears a backpack (branch `agent/packrules`, his notes of 2026-11-02 night)
+
+His words: "I want tearing to be gone only by pulling"; "Armed knights and death knights that carry a ranged weapon should also
+wear a real backpack ... It should be possible to lift them like other humanoids"; "Armed humanoids that carry only a melee
+weapon or are unarmed should not carry backpacks, this also includes grunts"; "For the enforcer, please make it a lift zone only
+for now."
+
+**A hand's pull only lifts.** The tear by pulling went with its branches and options (retired: `vr_worn_backpack_pull`, `_rip_force`,
+`_tug_stretch`, `_tug_time`, `_topple`, `_topple_push`; the tear's two tunables the lift still uses are `vr_worn_backpack_lift_hold`
+and `_lift_stiffness` now). The engine's `foegrab::packPull`, `packTorn` and `wornPack` 6 went with them. A pack still comes off, with
+the rip (`VR_WP_Off`, the one place it plays), on: damage on it to the pool (a shot, a blow, a throw, a projectile; an explosion's or
+fire's share), a hard landing, its wearer gibbed or gone, and a dead one's pack taken by hand or force grab. A slow drag of a downed
+wearer runs at about the lift force (1500 N: the old menu text said so), past it as the body catches on the floor, so it may lift
+any kind; the pack stays on and the body stays held, which is what a pull does now.
+
+**The rule.** `VR_WP_Spawn`: an armed one carrying a ranged weapon (in a hand, or stowed behind a flare gun) as it spawns wears the
+pack; melee-only and unarmed ones of every kind wear none and drop none (`VR_WP_Packless`: a replacement keeps its monster's chance
+of a weapon). It is read once, before anyone sees it: as it spawns, and again as a replacement's loadout is rolled (`VR_WP_Refit`, at
+the first player). One that picks up a gun later stays packless; one that loses its only gun keeps its pack, with its spare
+rounds: no pack pops in or out in view. AD's maps' `monster_army` armed by `vr_agrunt_repl` follows the rule by this path, so a
+melee-rolled one there has no pack now; AD's own humanoids are unarmed and unchanged.
+
+**Knights and death knights.** The same system: on each rig's `chest` bone (both authored rigs have it, the pack lying on the cuirass's
+back face). The knight's fits as it is; the death knight's goes up 6 (`agarmor::packFits`: it hung at his waist on his long
+cuirass; back and side renders). The size is the grunt's, not scaled by his 1.12. Their deaths have no drop of their own, so
+`VR_AG_Dying` puts what's left of their rounds in the pack; none: the row's loot, 5 shells (0 before, never used).
+
+**Enforcers: a lift zone.** With a ranged weapon: an unseen pack entity (`.vr_wp_baked`) and `.vr_wp_worn` for the engine's hold, lift and
+ragdoll box, on a box round the pack in its model (`packFits`: from its vertices). Shots meet the model (`wornPackSegment` skips
+it), nothing counts on it, it ends with its life, its own backpack still drops. Melee-only or unarmed: the model's pack still shows,
+no zone. The real one: BACKLOG.md, "The enforcer's backpack made a real one".
+
+Tests: `vr_wornpack_test` tens choose the kind (0 grunts, 10 knights, 20 death knights, 30 enforcers: 1, 2, 3 for each; 33 lifts an
+enforcer), 5 the zone, 6 the replacement's rule. `vr_agrunt_test 47` expects no backpack from melee and fists now.

@@ -1089,9 +1089,21 @@ void() VR_KdTrig_Tackle =
     VR_KdTrig_ChargeHit(best, run, speed, least, how, dummy);
 };
 
+// A charge that connected costs `self` stamina (vr_kdtrig_tackle_stamina; his note 2026-11-02; one that misses costs
+// nothing). After its knock's roll: that reads the stamina left (vr_knockdown_stamina) and isn't paid out of its own cost.
+void() VR_KdTrig_ChargeStamina =
+{
+    if(VR_Stamina_On())
+    {
+        float cost = cvar_hget(cvarh_vr_kdtrig_tackle_stamina);
+        VR_Stamina_Effort(cost, "a shoulder charge");
+        dprint(sprintf("kdtrig: the charge cost %g stamina, %g left\n", cost, rint(VR_Stamina_Left(self))));
+    }
+};
+
 // A shoulder charge of `self` (a player) running `speed` along level unit `run` connecting with `best` (VR_KdTrig_Tackle;
 // `vr_kdtrig_test 14`): he bounces back, the thud on its body and both controllers' rumble, its knock by weight
-// (VR_KdTrig_Bump: the strike speed over `least`) and its pain cry as it goes. The training dummy only stands.
+// (VR_KdTrig_Bump: the strike speed over `least`), its pain cry as it goes and his stamina. The training dummy only stands.
 void(entity best, vector run, float speed, float least, string how, float dummy) VR_KdTrig_ChargeHit =
 {
     float loud = cvar_hget(cvarh_vr_kdtrig_debug);
@@ -1131,10 +1143,12 @@ void(entity best, vector run, float speed, float least, string how, float dummy)
     if(dummy)
     {
         dprint(sprintf("kdtrig: shoulder charge on the training dummy (it stands): %s\n", how));
+        VR_KdTrig_ChargeStamina();
         return;
     }
     float weight = max(1, cvar_hget(cvarh_vr_kdtrig_tackle_weight));
     float got = VR_KdTrig_Bump(VR_KDT_TACKLE, best, self, weight, run, speed / least, how);
+    VR_KdTrig_ChargeStamina();
     // Toppled or staggered back: its pain cry as it goes.
     string cry = (feel && got > 0) ? VR_PainCrySound(best) : "";
     if(cry != "")

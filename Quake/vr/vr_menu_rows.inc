@@ -798,20 +798,15 @@ QVR_SLIDER(vr_agarmor_debris_time, "Broken Plates Last", 1.f, 60.f, 1.f, "%.0f s
     "A broken plate falls as debris (you can't force-grab it) and fades out after this long.")
 
 // vr_menu_gameplay.inc: pageArmedPacks
-QVR_CYCLE_BYNAME(vr_worn_backpack_pull, "Pulling the Pack",
-    "Experimental. What a hand's hard pull on a worn pack does. Tears It Off: the pack rips off into the hand. "
-    "Lifts Its Wearer: a pull never tears it (shots, blows, the force grab and damage still do); pulled hard "
-    "enough, a living grunt is lifted by its pack as by its torso: it goes down flailing, held by the pack "
-    "on its back, and you can carry, swing and throw it until it breaks free. A gentler pull drags it.",
-    {0.f, "Tears It Off"}, {1.f, "Lifts Its Wearer"})
 QVR_SLIDER(vr_worn_backpack_lift_force, "Pull That Lifts", 500.f, 4000.f, 100.f, "%.0f N", noExt,
-    "Lifts Its Wearer: a pull on the pack this hard lifts a living grunt (standing, the hands' pull off the "
-    "pack counts at 150 N a unit; held down by its pack, its hold's force).")
-QVR_SLIDER(vr_worn_backpack_rip_force, "Pull That Tears It", 500.f, 4000.f, 100.f, "%.0f N", noExt,
-    "A hand holding a ragdoll by its pack and yanking this hard (kept up a moment) tears the pack off into "
-    "the hand. A slow drag pulls about 1500 N; a hold's spring gives 4000 N at most (Ragdoll Grab Force).")
+    "A pull on the pack this hard lifts its living wearer as by its torso: it goes down flailing, held by the pack on "
+    "its back, and you can carry, swing and throw it until it breaks free. A gentler pull drags it; a pull never takes "
+    "the pack off. Standing, the hands' pull off the pack counts at 150 N a unit; held down by its pack, its hold's "
+    "force.")
+QVR_SLIDER(vr_worn_backpack_two_hand_mult, "Two-Hand Pull", 1.f, 4.f, 0.1f, "%.1fx", noExt,
+    "Both hands on the pack pull this many times harder together.")
 QVR_SLIDER(vr_worn_backpack_pool, "Damage That Tears It", 0.f, 200.f, 5.f, "%.0f", noExt,
-    "A living one's pack tears off once it has taken this much damage: blows, throws, shots and projectiles "
+    "A living one's pack comes off once it has taken this much damage: blows, throws, shots and projectiles "
     "on the pack, and explosions and fire on its wearer (their shares below). Poison never. 0: never by "
     "damage.")
 QVR_SLIDER(vr_worn_backpack_pool_blast, "Explosions' Share", 0.f, 1.f, 0.05f, "%.2f", noExt,
@@ -822,20 +817,10 @@ QVR_SLIDER(vr_worn_backpack_hit_roll, "Extra Hit Chance", 0.f, 1.f, 0.05f, "%.2f
     "Besides its damage, a hit on the pack tears it off at once with this chance at the Hit Damage below "
     "(more damage: likelier). 0: off.")
 QVR_SLIDER(vr_worn_backpack_hit_ref, "Hit Damage", 1.f, 100.f, 1.f, "%.0f", noExt, "The damage of a hit whose chance is the Extra Hit Chance.")
-QVR_SLIDER(vr_worn_backpack_tug_stretch, "Pull That Counts", 2.f, 40.f, 1.f, "%.0f cm", noExt,
-    "How far your hand must pull the pack off its place for the pull to count.")
-QVR_SLIDER(vr_worn_backpack_tug_time, "Pull Time", 0.05f, 3.f, 0.05f, "%.2f s", noExt,
-    "How long that pull must be kept up to tear the pack off (twice as far: half as long).")
-QVR_SLIDER(vr_worn_backpack_two_hand_mult, "Two-Hand Pull", 1.f, 4.f, 0.1f, "%.1fx", noExt,
-    "Both hands on the pack pull this many times harder together (a living one's and a ragdoll's).")
-QVR_TOGGLE(vr_worn_backpack_topple, "Tearing Topples It",
-    "A ragdoll trigger: a pack torn off a living grunt by your pull knocks it down, falling the way you "
-    "tore.")
-QVR_SLIDER(vr_worn_backpack_topple_push, "Topple Push", 0.1f, 2.f, 0.1f, "%.1f", noExt, "That knockdown's push (a two-hand shove's: 1).")
 QVR_SLIDER(vr_worn_backpack_impact, "Landing That Tears It", 2.f, 30.f, 0.5f, "%.1f m/s", noExt,
     "A ragdoll striking the level at least this fast loses its pack.")
 QVR_SLIDER(vr_worn_backpack_reserve, "Spare Ammo in It", 0.f, 1.f, 0.05f, "%.2f", noExt,
-    "The share of a grunt's spare rounds it carries in its pack: lost with the pack while it lives (it "
+    "The share of its spare rounds a wearer carries in its pack: lost with the pack while it lives (it "
     "fights on with what its gun holds).")
 QVR_SLIDER(vr_worn_backpack_volume, "Rip Volume", 0.f, 1.f, 0.05f, "%.2f", noExt, "The fabric rip's loudness.")
 QVR_SLIDER(vr_worn_backpack_scale, "Size", 0.3f, 1.2f, 0.05f, "%.2f", noExt, "The pack's size on the back.")
@@ -2261,6 +2246,13 @@ QVR_SLIDER(vr_deadzone_outer, "Stick Outer Deadzone", 0.f, 30.f, 1.f, "%.0f%%", 
     "The last part of the moving stick's travel that already counts as a full push, so you reach full "
     "speed without pressing the stick hard against its edge, and a thumb slipping a little off the "
     "edge does not slow a run (vr_deadzone_outer; 20%).")
+QVR_SLIDER(vr_move_snap, "Stick Straight Zone", 0.f, 30.f, 1.f, "%.0f deg", noExt,
+    "A push within this many degrees of straight ahead, back or a side goes exactly that way, so a thumb "
+    "a little off straight does not walk you at an angle; other angles are spread over the rest, without "
+    "a jump. 0 walks the stick's exact angle (vr_move_snap; 15).")
+QVR_SLIDER(vr_move_hold, "Stick Full Push Hold", 0.f, 1.f, 0.05f, "%.2f s", noExt,
+    "How long a full push still counts while your thumb slips off it, so a run keeps its speed. A push "
+    "kept lower slows you after this; letting go stops you at once (vr_move_hold; 0.4 s, 0 off).")
 QVR_SLIDER(vr_move_curve, "Stick Response Curve", 1.f, 3.f, 0.1f, "%.1f", noExt,
     "How the moving stick's push becomes speed. 1: straight (half the push, half the speed). Higher: "
     "more of the travel for slow speeds, for careful walking, the top speed still at a full push. 1.6: "
@@ -3109,6 +3101,11 @@ QVR_TOGGLE_BYNAME(vr_reload_pouch_mag_slots, "Magazines Where Drawn",
     "The nailguns' and thunderbolt's well against each magazine as drawn in the pouch (the nearest one): "
     "Magazine Contact and Magazine Angle. Off: anywhere along the row of rounds, by Pouch Contact and Pouch "
     "Angle.")
+QVR_TOGGLE_BYNAME(vr_reload_pouch_catch, "Falling Magazines Go In",
+    "A magazine with rounds left that drops out of a gun (its eject button, a hit) and falls into the ammo pouch is "
+    "collected, drawn going in. An empty one still falls.")
+QVR_SLIDER_BYNAME(vr_reload_pouch_catch_reach, "Falling In Reach", 0.f, 20.f, 1.f, "%.0f cm", noExt,
+    "How near the pouch's rounds a falling magazine must come to go in (its own size added).")
 QVR_TOGGLE_BYNAME(vr_ammo_pouch_show, "Show", "Draw the pouch (off: it still works where it is).")
 QVR_SLIDER_BYNAME(vr_ammo_pouch_x, "X", -10.f, 10.f, 0.25f, "%.2f", ext(),
     "Forward (negative: back, round the hips). With the body drawn, 0 is on the belly.")
@@ -4518,6 +4515,9 @@ QVR_TOGGLE(vr_ghost_hands_ignore_bodies, "No Ghost Holding Bodies",
     "On: a hand holding an enemy (grabbed alive, the judo) or a ragdoll (knocked down or dead) shows no ghost, "
     "only the hand drawn on the body; the ghost still shows for a weapon in two hands, heavy weapons and walls. "
     "Off: those holds show it too (vr_ghost_hands_ignore_bodies).")
+QVR_TOGGLE(vr_ghost_hands_ignore_climb, "No Ghost Climbing",
+    "On: no ghost while either hand is on a hold, only the hands drawn on the ledge. Off: climbing shows it too "
+    "(vr_ghost_hands_ignore_climb).")
 
 // vr_menu_settings.inc: pageBodyDisplay
 QVR_CYCLE(vr_handedness, "Handedness",
@@ -5942,8 +5942,12 @@ QVR_TOGGLE(vr_mg3_aggro_groups, "Aggro Groups",
     "A waking monster wakes what its aggro_target names (map3, map7, map8). Upstream ships this off; off by default.")
 QVR_TOGGLE(vr_lootbeam_debug, "Loot Beams: Debug Lines", "vr_lootbeam_debug: those counts once a second.")
 QVR_TOGGLE(vr_debug_stick, "Stick: Show Speed",
-    "vr_debug_stick: twice a second on the console, the moving stick's push (raw, and past the "
-    "deadzones), the speed it asks (and the walking and running tops) and the speed you move at.")
+    "vr_debug_stick: twice a second on the console, the moving stick's push (raw, its angle off straight, and "
+    "past the deadzones), the speed it asks (and the walking and running tops), the speed you move at and "
+    "your heading off the head's.")
+QVR_TOGGLE(vr_display_clock, "Game Time From the Display Clock",
+    "vr_display_clock: a frame's game time is the time between the headset's display times, so running moves "
+    "you in even steps; off, the wall clock's time between frames (uneven: what running looked like before).")
 QVR_TOGGLE(vr_debug_touch, "Doom: Show Touches",
     "vr_debug_touch: each touch's start and end printed (2: every frame).")
 QVR_TOGGLE(vr_debug_doom, "Doom: Debug",

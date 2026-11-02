@@ -493,6 +493,7 @@ void(entity g) VR_AGR_Resolve =
     vr_ag_arm_roll = VR_AGR_Rand();
     VR_AM_ArmAll(want, flags, inst, want2, 0);
     VR_AGR_MarkNative(self);
+    VR_WP_Refit(self); // (its pack by its new loadout: no player has seen it yet)
     VR_AG_Log(sprintf("replacement rolled: %s%s%s", self.vr_ag_prop ? self.vr_ag_prop.netname : "fists",
         self.vr_ag_prop2 ? " and " : "", self.vr_ag_prop2 ? self.vr_ag_prop2.netname : ""));
     self = oldself;
@@ -540,6 +541,8 @@ void() VR_AGR_PrecacheArmour =
     {
         return;
     }
+    precache_model("progs/backpack.mdl"); // (a replacement's worn pack comes as its loadout is rolled: VR_WP_Refit)
+    precache_sound(VR_WP_RIP_SOUND_FILE);
     float k;
     for(k = 0; k < VR_AM_COUNT; k++)
     {

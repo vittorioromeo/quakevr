@@ -3152,6 +3152,10 @@ float() VR_AG_SoldierDrop =
     {
         return FALSE;
     }
+    if(VR_WP_Packless(self))
+    {
+        return !self.vr_agr; // (melee-only or unarmed: no pack, no loot; a replacement keeps its monster's chance of a weapon)
+    }
     // Its backpack: the spare rounds of its weapons, of their real ammo kinds: in its hands (if it still holds them),
     // stowed (its flare gun's), in its pockets (VR_AG_Dying dropped the held ones: their spare rounds pocketed). A
     // single-use gun's spare magazines (no ammo kind of yours) are not in it.
@@ -3174,7 +3178,7 @@ float() VR_AG_SoldierDrop =
     {
         if(self.vr_agr && !self.vr_wp_had)
         {
-            return FALSE; // (a replacement with none: the loot of the monster it replaced, its chance of a weapon too)
+            return FALSE; // (a replacement with none, not under the pack's rule: the loot of the monster it replaced, its chance of a weapon too)
         }
         // None of a real ammo kind (fists, melee weapons, single-use guns, all spent): its monster's own loot (a grunt's
         // 5 shells, an enforcer's 5 cells).
@@ -3207,6 +3211,10 @@ float() VR_AG_Dying =
     VR_AG_DropHeld(self, v_forward * 25 - v_right * 20 + v_right * (crandom() * 15) + '0 0 70');
     VR_AG_DropHeld(self, v_forward * 25 + v_right * 20 + v_right * (crandom() * 15) + '0 0 70'); // (its other, if two)
     VR_AG_DropMain(self, v_forward * 15 + v_right * (crandom() * 25) + '0 0 60'); // (its own, stowed behind a flare gun)
+    if(self.vr_ag_kind == VR_AM_KNIGHT || self.vr_ag_kind == VR_AM_DKNIGHT)
+    {
+        VR_AG_SoldierDrop(); // (their deaths drop no loot of their own: what's left of its rounds into the pack it wears)
+    }
     return TRUE;
 };
 void() VR_AG_Die = { army_die(); }; // (a save from before: its th_die)
@@ -3368,7 +3376,7 @@ void(float kind) VR_AM_Spawn =
     vr_ag_arm_roll = random();
     VR_AM_ArmAll(want, flags, inst, want2, flags2);
     VR_AgArmor_Spawn(self); // (its armour by the skill: vr_agarmor.qc)
-    VR_WP_Spawn(self);      // (its backpack on its back: vr_wornpack.qc)
+    VR_WP_Spawn(self);      // (its backpack on its back if it carries a ranged weapon: vr_wornpack.qc)
 };
 
 // Its weapons from its keys (as VR_AM_Spawn's: "weapon" decoded to `want`, `flags`, `inst`; "weapon2" `want2`,

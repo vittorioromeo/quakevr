@@ -391,8 +391,8 @@ namespace
 // `fit` false: a tug's, the hand on the weapon the limb holds, its lever kept).
 // `still`: the hold begins unstretched, the limb's point held where it is from the hand (that offset kept in the hand's
 // frame) rather than drawn onto the hand: a worn pack's (the hand reached into the pack and the fit moved its point 4.5
-// units back out: the spring began stretched by that and drove the pinned body past a still hand at its 4000 N cap,
-// ripping the pack off a slow drag: vr_wornpack_test 1).
+// units back out: the spring began stretched by that and drove the pinned body past a still hand at its 4000 N cap: a
+// slow drag read as a hard pull: vr_wornpack_test 3).
 void startHold(World::RagdollGrab& g, edict_t* player, const RagdollBodies& r, b3Vec3 grip, bool fit = true, bool still = false)
 {
     glm::vec3 at;

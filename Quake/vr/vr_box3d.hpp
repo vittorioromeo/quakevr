@@ -418,7 +418,7 @@ float ragdollTug(edict_t* ent, edict_t* player, int hand, int what, const glm::v
 // `reach` and 12 units more (the neck snap's: the hands held its head). `torso` (a lift): its chest or pelvis instead of
 // an arm across it (an enforcer's forearms before his chest, his rifle in both hands), the torso's surface within 10
 // units more than the arm's (else that arm: lifted by it, it hung slack and could not flail). `pack` (lifted by its worn
-// backpack, vr_worn_backpack_pull 1): its pack's point nearest the hand instead, within `reach` (the chest part that
+// backpack): its pack's point nearest the hand instead, within `reach` (the chest part that
 // carries the pack's shape, the hold on the pack: wornPack 2 and 3 read it).
 bool ragdollHoldSoft(edict_t* ent, edict_t* player, int hand, float reach, float force, float hertz, float stuck,
     bool head = false, bool torso = false, bool pack = false);
@@ -529,10 +529,8 @@ bool ragdollCutLimb(edict_t* ent, int bone, const glm::vec3& blade, float settle
 // wears it (1; 0 not, -1 no ragdoll); 1 torn off its ragdoll (1 if it was on); 2 the pull (N) of player `a`'s hand `b`'s
 // hold if it is on e's pack (-1 none); 3 that hold's stretch (units: the hand from the pack's point it took); 4 how far
 // point `p` is from its box (units; -1 none worn: not a wearer); 5 the stretch (units) of player `a`'s hand `b`'s hold on
-// e's pack while e stands (foegrab's pack hold: the tracked palm from its spot on the pack; -1 none); 6 every standing
-// hold on e's pack let go of, the grips the QC's again (the pack torn off into a hand): how many; 7 how far (cm) that
-// hold's drawn palm is off the pack's box (-1 none); 8 player `a` lifts living e by its pack (vr_worn_backpack_pull 1:
-// foegrab::packLift; how many hands hold it, 0 not lifted); 9 how far (units) its pack's middle is from its chest part's
+// e's pack while e stands (foegrab's pack hold: the tracked palm from its spot on the pack; -1 none); 7 how far (cm) that
+// hold's drawn palm is off the pack's box (-1 none); 8 player `a` lifts living e by its pack (foegrab::packLift; how many hands hold it, 0 not lifted); 9 how far (units) its pack's middle is from its chest part's
 // bone (the part carrying it; -1 none on: the tests).
 [[nodiscard]] float wornPack(edict_t* ent, int what, int a, int b, const glm::vec3& p);
 // Where e's worn backpack is drawn (its ragdoll's chest part, else as its model is posed: agarmor::packWhere): `what` 0 its

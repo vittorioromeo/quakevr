@@ -991,11 +991,363 @@ void() VR_PropImp_MtStep =
     }
 };
 
+// ----------------------------------------------------------------------------
+// vr_prop_impact_test 7 (Debug > Gore Tests, "Blows and Props: What Gibs"; ROUND23.md, "Gibbing: overkill by blows and
+// props"; Misc/quakevr/gibtable_test.sh): a table of what gibs a grunt at full health (30) and wounded (15): a blow of each
+// weapon at each strength (dealt as a blow lands, T_DamageImpl), under Quad too; a barrel and a small and a large crate
+// thrown (one hand, two; VR_SolidProp_Impact, their real hit), flung and falling, slammed, and thrown onto a body just
+// killed. One "gibtable:" line a row: the damage, the health left, what became of it. The checks: an ordinary throw never
+// gibs, a fist's, axe's or crowbar's hard blow neither, Quad's and the very strongest still do.
+float vr_gt_on;
+float vr_gt_row;
+float vr_gt_hurt;     // 0 full health, 1 wounded
+float vr_gt_phase;
+float vr_gt_frames;
+entity vr_gt_mon;
+entity vr_gt_prop;
+vector vr_gt_at;
+float vr_gt_kind;     // the row's: 0 a blow, 1 thrown, 2 flung or falling, 3 thrown onto a body, 4 slammed
+string vr_gt_name;
+float vr_gt_dmg;      // a blow's, a slam's damage (Quad's x4 apart: T_Damage's)
+float vr_gt_quad;
+float vr_gt_pk;       // a prop row's: 0 the barrel, 1 the small crate, 2 the large
+float vr_gt_speed;    // m/s
+float vr_gt_hands;
+float vr_gt_gibbed_throw; // the tallies: gibbed / rows
+float vr_gt_rows_throw;
+float vr_gt_gibbed_light; // (a fist's, an axe's, a crowbar's up to its hardest to the body, no Quad)
+float vr_gt_rows_light;
+float vr_gt_gibbed_quad;
+float vr_gt_rows_quad;
+float vr_gt_gibbed_top;   // (the hammer's hardest, a counter of the sword's or hammer's)
+float vr_gt_rows_top;
+float VR_GT_MELEE_ROWS = 25;
+float VR_GT_QUAD_ROWS = 10;
+float VR_GT_THROW_ROWS = 30;
+float VR_GT_FLUNG_ROWS = 9;
+float VR_GT_BODY_ROWS = 3;
+float VR_GT_SLAM_ROWS = 6;
+
+string(float xPk) VR_GT_PropName =
+{
+    return xPk == 0 ? "barrel" : (xPk == 1 ? "small crate" : "large crate");
+};
+
+float(float xPk) VR_GT_PropMass =
+{
+    return xPk == 0 ? 30 : (xPk == 1 ? 40 : 65); // (props.txt; printed by the row against VR_Thrown_Mass)
+};
+
+string(float xW) VR_GT_WeaponName =
+{
+    return xW == 0 ? "fist" : (xW == 1 ? "axe" : (xW == 2 ? "crowbar" : (xW == 3 ? "knight's sword" : "war hammer")));
+};
+
+// The base damage of weapon `xW` times its Melee Damage x and weight (VRMeleeDmg, at strength 1).
+float(float xW) VR_GT_WeaponDamage =
+{
+    string model = xW == 0 ? "progs/hand.mdl" : (xW == 1 ? "progs/v_axe.mdl" : (xW == 2 ? "progs/v_crowbar.mdl" :
+                   (xW == 3 ? "progs/v_ksword.mdl" : "progs/v_hammer.mdl")));
+    float base = xW == 0 ? cvar_hget(cvarh_vr_dmg_fist) * cvar_hget(cvarh_vr_melee_punch_mult) :
+                 (xW == 1 ? cvar_hget(cvarh_vr_dmg_axe) : (xW == 2 ? cvar_hget(cvarh_vr_crowbar_damage) :
+                 (xW == 3 ? 30 * cvar_hget(cvarh_vr_sword_damage_mult) :
+                 30 * cvar_hget(cvarh_vr_sword_damage_mult) * cvar_hget(cvarh_vr_admelee_heavy_damage))));
+    return base * weaponvalue(model, "w_meleedmg") * weightdamage(weaponvalue(model, "w_mass")) *
+           cvar_hget(cvarh_vr_melee_dmg_multiplier);
+};
+
+// Row `n` into the globals: FALSE past the last.
+float(float n) VR_GT_Row =
+{
+    vr_gt_quad = FALSE;
+    vr_gt_dmg = 0;
+    vr_gt_hands = 1;
+    vr_gt_speed = 0;
+    if(n < VR_GT_MELEE_ROWS)
+    {
+        float w = floor(n / 5);
+        float s = mod(n, 5);
+        float strength = s == 0 ? 0.75 : (s == 1 ? 1 : (s == 2 ? 1.75 : (s == 3 ? 2.25 : 2.25 * cvar_hget(cvarh_vr_counter_damage))));
+        string how = s == 0 ? "light" : (s == 1 ? "firm" : (s == 2 ? "hardest" : (s == 3 ? "hardest at the head" : "a counter, hardest at the head")));
+        vr_gt_kind = 0;
+        vr_gt_dmg = VR_GT_WeaponDamage(w) * strength;
+        vr_gt_name = sprintf("%s, %s (x%.2f)", VR_GT_WeaponName(w), how, strength);
+        return TRUE;
+    }
+    n = n - VR_GT_MELEE_ROWS;
+    if(n < VR_GT_QUAD_ROWS)
+    {
+        float qw = floor(n / 2);
+        float qs = mod(n, 2) ? 1.75 : 1;
+        vr_gt_kind = 0;
+        vr_gt_quad = TRUE;
+        vr_gt_dmg = VR_GT_WeaponDamage(qw) * qs * cvar_hget(cvarh_vr_quad_melee_damage);
+        vr_gt_name = sprintf("%s under Quad (x%.2f)", VR_GT_WeaponName(qw), qs);
+        return TRUE;
+    }
+    n = n - VR_GT_QUAD_ROWS;
+    if(n < VR_GT_THROW_ROWS)
+    {
+        vr_gt_kind = 1;
+        vr_gt_pk = floor(n / 10);
+        float t = mod(n, 10);
+        vr_gt_hands = t >= 5 ? 2 : 1;
+        float i = mod(t, 5);
+        vr_gt_speed = i == 0 ? 3 : (i == 1 ? 5 : (i == 2 ? 7 : (i == 3 ? 9 : 12)));
+        vr_gt_name = sprintf("%s thrown, %g hand%s, %g m/s", VR_GT_PropName(vr_gt_pk), vr_gt_hands, vr_gt_hands > 1 ? "s" : "", vr_gt_speed);
+        return TRUE;
+    }
+    n = n - VR_GT_THROW_ROWS;
+    if(n < VR_GT_FLUNG_ROWS)
+    {
+        vr_gt_kind = 2;
+        vr_gt_pk = floor(n / 3);
+        float f = mod(n, 3);
+        vr_gt_speed = f == 0 ? 8 : (f == 1 ? 12 : 20);
+        vr_gt_name = sprintf("%s falling or flung, %g m/s", VR_GT_PropName(vr_gt_pk), vr_gt_speed);
+        return TRUE;
+    }
+    n = n - VR_GT_FLUNG_ROWS;
+    if(n < VR_GT_BODY_ROWS)
+    {
+        vr_gt_kind = 3;
+        vr_gt_pk = n;
+        vr_gt_hands = 2;
+        vr_gt_speed = 7;
+        vr_gt_name = sprintf("%s thrown onto a body just killed, 2 hands, 7 m/s", VR_GT_PropName(n));
+        return TRUE;
+    }
+    n = n - VR_GT_BODY_ROWS;
+    if(n < VR_GT_SLAM_ROWS)
+    {
+        // (VR_Crate_SlamDown's: a punch's with it in hand, its curve, the speed over the least up to twice.)
+        vr_gt_kind = 4;
+        vr_gt_pk = floor(n / 2);
+        float by = mod(n, 2) ? 2 : 1;
+        vr_gt_dmg = cvar_hget(cvarh_vr_dmg_fist) * cvar_hget(cvarh_vr_carry_melee_mult) * weightdamage(VR_GT_PropMass(vr_gt_pk)) *
+                    cvar_hget(cvarh_vr_melee_dmg_multiplier) * by * cvar_hget(cvarh_vr_carry_slam_damage);
+        vr_gt_name = sprintf("%s slammed down (speed x%g)", VR_GT_PropName(vr_gt_pk), by);
+        return TRUE;
+    }
+    return FALSE;
+};
+
+entity(float xPk, vector xAt) VR_GT_MakeProp =
+{
+    if(xPk > 0)
+    {
+        entity c = VR_Crate_TestSpawn(xAt, xPk, 0, FALSE);
+        c.flags = c.flags - (c.flags & FL_ONGROUND);
+        return c;
+    }
+    entity os = self;
+    self = spawn();
+    setorigin(self, xAt);
+    vr_barrel();
+    entity b = self;
+    self = os;
+    b.flags = b.flags - (b.flags & FL_ONGROUND);
+    return b;
+};
+
+void() VR_GT_Clear =
+{
+    if(vr_gt_prop != world && vr_gt_prop.modelindex)
+    {
+        VR_Carry_Forget(vr_gt_prop);
+        remove(vr_gt_prop);
+    }
+    if(vr_gt_mon != world && vr_gt_mon.modelindex)
+    {
+        remove(vr_gt_mon);
+    }
+    vr_gt_prop = world;
+    vr_gt_mon = world;
+};
+
+// The row's hit on `m` by the player (self), `vr_gt_prop` being its prop. The damage it means (Quad's x4 in it).
+float(entity m) VR_GT_Deliver =
+{
+    float mean = vr_gt_dmg;
+    vector dir = normalize(m.origin - self.origin);
+    if(vr_gt_kind == 0)
+    {
+        if(vr_gt_quad)
+        {
+            self.super_damage_finished = time + 1;
+            mean = mean * 4;
+        }
+        VR_Hit_Begin(QVR_HITKIND_MELEE, cVR_MainHand, m.origin, dir);
+        T_DamageImpl(m, self, self, vr_gt_dmg, 1);
+        VR_Hit_End();
+        self.super_damage_finished = 0;
+        return mean;
+    }
+    // Touching it as it meets it: thrown, level with the chest from the player's side (the prop's box against the grunt's);
+    // flung or falling, on top of its head; slammed, as a throw.
+    entity pr = VR_GT_MakeProp(vr_gt_pk, m.origin + (vr_gt_kind == 2 ? '0 0 80' : '0 0 8'));
+    if(vr_gt_kind != 2)
+    {
+        setorigin(pr, m.origin - dir * (16 + vlen(pr.maxs - pr.mins) * 0.4) - '0 0 1' * ((pr.maxs_z + pr.mins_z) * 0.5 - 12));
+    }
+    vr_gt_prop = pr;
+    if(vr_gt_kind == 4)
+    {
+        pr.carry_player = self; // (still in the hands as it lands: VR_Crate_SlamFrame)
+        T_Damage(m, pr, self, vr_gt_dmg);
+        pr.carry_player = world;
+        return mean;
+    }
+    float m2u = VRMetersToUnits();
+    if(vr_gt_kind == 2)
+    {
+        pr.throwhit = QVR_THROWHIT_HIT;
+        pr.owner = world;
+        pr.velocity = '0 0 -1' * vr_gt_speed * m2u;
+        pr.carry_letgo = self;
+        pr.carry_letgo_time = time;
+        // (VR_Prop_Flung's, for the row's line.)
+        float least = max(1, cvar_hget(cvarh_vr_prop_impact_min_speed) * m2u);
+        mean = cvar_hget(cvarh_vr_carry_throw_damage) * propvalue(pr, "throw_dmg") * cvar_hget(cvarh_vr_prop_impact_mult) *
+               min(vr_gt_speed * m2u / least, cvar_hget(cvarh_vr_prop_impact_speed_max)) * VR_Prop_ImpactWeight(VR_Thrown_Mass(pr));
+    }
+    else
+    {
+        pr.throwhit = QVR_THROWHIT_NEVER_HIT;
+        pr.owner = self;
+        pr.carry_thrown = time;
+        pr.throwdmgspeed = VR_Throw_DmgSpeed();
+        pr.vr_throw_2h = vr_gt_hands > 1;
+        SetThrownWeaponBaseDamage(pr, cvar_hget(cvarh_vr_carry_throw_damage));
+        pr.velocity = dir * vr_gt_speed * m2u;
+        mean = VR_Thrown_Damage(pr, vr_gt_speed * m2u);
+    }
+    entity os = self;
+    entity oo = other;
+    self = pr;
+    other = m;
+    VR_SolidProp_Impact(vr_gt_speed);
+    self = os;
+    other = oo;
+    return mean;
+};
+
+float vr_gt_mean;
+float vr_gt_was;   // the health it had as it was hit
+
+// Each frame while it runs; self the player.
+void() VR_GT_Step =
+{
+    entity m = vr_gt_mon;
+    vr_gt_frames++;
+    if(vr_gt_phase == 0)
+    {
+        VR_GT_Clear();
+        if(!VR_GT_Row(vr_gt_row))
+        {
+            vr_gt_on = FALSE;
+            VR_Test_Check(vr_gt_gibbed_throw == 0, sprintf("an ordinary throw, fall or fling of a barrel or a crate never gibs (%g of %g did)", vr_gt_gibbed_throw, vr_gt_rows_throw));
+            VR_Test_Check(vr_gt_gibbed_light == 0, sprintf("a fist's, axe's or crowbar's blow to the body never gibs at full health or wounded (%g of %g did)", vr_gt_gibbed_light, vr_gt_rows_light));
+            VR_Test_Check(vr_gt_gibbed_quad > 0, sprintf("Quad still gibs (%g of %g)", vr_gt_gibbed_quad, vr_gt_rows_quad));
+            VR_Test_Check(vr_gt_gibbed_top > 0, sprintf("the very strongest blows still gib (%g of %g)", vr_gt_gibbed_top, vr_gt_rows_top));
+            VR_Test_Verdict();
+            return;
+        }
+        entity oself = self;
+        self = spawn();
+        self.classname = "monster_army";
+        setorigin(self, vr_gt_at);
+        self.angles_y = oself.angles_y + 180;
+        monster_army();
+        vr_gt_mon = self;
+        self = oself;
+        vr_gt_phase = 1;
+        vr_gt_frames = 0;
+        return;
+    }
+    if(vr_gt_phase == 1) // (armed by its start: walkmonster_start's think)
+    {
+        if(m.takedamage == DAMAGE_NO)
+        {
+            if(vr_gt_frames > 120)
+            {
+                VR_Test_Check(FALSE, sprintf("timed out waiting for a grunt, row %g", vr_gt_row));
+                vr_gt_phase = 0;
+                vr_gt_row++;
+            }
+            return;
+        }
+        m.vr_ar_type = 0; // (its armour's own rules apart: vr_agarmor.qc)
+        m.armorvalue = 0;
+        m.health = vr_gt_hurt ? 15 : 30;
+        vr_gt_was = m.health;
+        if(vr_gt_kind == 3)
+        {
+            T_Damage(m, self, self, m.health + 2); // (killed whole; the body's hit next)
+            vr_gt_phase = 2;
+            vr_gt_frames = 0;
+            return;
+        }
+        vr_gt_mean = VR_GT_Deliver(m);
+        vr_gt_phase = 3;
+        vr_gt_frames = 0;
+        return;
+    }
+    if(vr_gt_phase == 2) // (a body just killed: hittable again)
+    {
+        if(m.vr_gib || (m.takedamage != DAMAGE_NO && (m.vr_corpse == 2 || m.vr_corpse_dying)) || vr_gt_frames > 240)
+        {
+            vr_gt_mean = VR_GT_Deliver(m);
+            vr_gt_phase = 3;
+            vr_gt_frames = 0;
+        }
+        return;
+    }
+    if(vr_gt_frames < 3)
+    {
+        return;
+    }
+    float gibbed = m.vr_gib || m.modelindex == 0;
+    float limbs = (m.modelindex && !m.vr_gib) ? (ragdolllimbs(m, 2) & 2047) : 0;
+    string fate = gibbed ? "GIBBED" : (m.vr_headless ? "dead, head popped" : (limbs ? "dead, a limb popped" :
+                  (m.health <= 0 ? "dead, whole" : "alive")));
+    VR_Test_Print(sprintf("gibtable: hp %g | %s | %.1f damage | health %.0f | %s | %s %g\n", vr_gt_was, vr_gt_name, vr_gt_mean, m.health, fate,
+        m.model, m.vr_gib));
+    if(gibbed)
+    {
+        if(vr_gt_kind == 1 || vr_gt_kind == 2 || vr_gt_kind == 3) { vr_gt_gibbed_throw++; }
+        else if(vr_gt_quad) { vr_gt_gibbed_quad++; }
+        else if(vr_gt_kind == 0 && vr_gt_row < 15 && mod(vr_gt_row, 5) <= 2) { vr_gt_gibbed_light++; }
+        else if(vr_gt_kind == 0 && vr_gt_row >= 15 && mod(vr_gt_row, 5) >= 3) { vr_gt_gibbed_top++; }
+    }
+    if(vr_gt_kind == 1 || vr_gt_kind == 2 || vr_gt_kind == 3) { vr_gt_rows_throw++; }
+    else if(vr_gt_quad) { vr_gt_rows_quad++; }
+    else if(vr_gt_kind == 0 && vr_gt_row < 15 && mod(vr_gt_row, 5) <= 2) { vr_gt_rows_light++; }
+    else if(vr_gt_kind == 0 && vr_gt_row >= 15 && mod(vr_gt_row, 5) >= 3) { vr_gt_rows_top++; }
+    vr_gt_phase = 0;
+    vr_gt_hurt = !vr_gt_hurt;
+    if(!vr_gt_hurt)
+    {
+        vr_gt_row++;
+    }
+};
+
 // Every server frame (StartFrame): a test asked for (vr_prop_impact_test).
 void() VR_PropImp_TestFrame =
 {
     entity p;
     entity oself;
+    if(vr_gt_on)
+    {
+        p = VR_Player();
+        if(p != world)
+        {
+            oself = self;
+            self = p;
+            VR_GT_Step();
+            self = oself;
+        }
+    }
     if(vr_propimp_ft_on)
     {
         p = VR_Player();
@@ -1070,6 +1422,17 @@ void() VR_PropImp_TestFrame =
         vr_propimp_lt_thing = world;
         vr_propimp_lt_crate = world;
         VR_PropImp_LightStep();
+    }
+    else if(ask == 7)
+    {
+        VR_Test_BeginFlags("gibtable", VR_TEST_LOUD);
+        vr_gt_on = TRUE;
+        vr_gt_row = 0;
+        vr_gt_hurt = FALSE;
+        vr_gt_phase = 0;
+        vr_gt_at = self.origin + normalize('1 0 0' * cos(self.angles_y * 0.0174533) + '0 1 0' * sin(self.angles_y * 0.0174533)) * 200;
+        vr_gt_gibbed_throw = vr_gt_rows_throw = vr_gt_gibbed_light = vr_gt_rows_light = 0;
+        vr_gt_gibbed_quad = vr_gt_rows_quad = vr_gt_gibbed_top = vr_gt_rows_top = 0;
     }
     else if(ask == 4)
     {

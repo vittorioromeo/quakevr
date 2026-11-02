@@ -74,6 +74,8 @@ void plateWhere(struct edict_s* ent, int piece, int what, float* out);
 // `mid`, `half` its box in its own space (packModelBox). The bone it rides: packBone (the rig's "chest"; -1 none).
 [[nodiscard]] bool packRest(struct edict_s* ent, glm::vec3& restOrigin, glm::mat3& restAxes, glm::vec3& mid, glm::vec3& half);
 [[nodiscard]] int packBone(struct edict_s* ent);
+// Whether `ent`'s pack is in its model (the enforcer's: packRest the box round it, its lift zone; shots meet the model).
+[[nodiscard]] bool packBaked(edict_t* ent);
 // The pack model's box in its own space at vr_worn_backpack_scale: its middle and half sizes (units).
 void packModelBox(glm::vec3& mid, glm::vec3& half);
 // Mod_LoadModel (VR_DerivedModelFile): "<model>#plate<piece>"'s .mdl file (VR_HeapMalloc'd), or null.
