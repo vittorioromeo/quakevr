@@ -6843,6 +6843,57 @@ His words: "Can we automate tweaks promotion so we can never forget?" Tuning con
   kept in `tunables.cfg`. Gate: stops ("1 problem(s) ... nothing was built"), warns in a dry run, the override's banner,
   the absent path. A build with `QVR_RELEASE` was not run for this (the stub is two `(void)`s).
 
+## Armed humanoids' impact rule: sustained speed, a real stop, floors and walls
+
+His words (2026-11-02): "check for the body losing speed after it has been at a certain high enough speed for a while? So a
+small push wouldn't cause a weapon knock, but a fall from height, a throw, or banging the enemy against the wall would"; walls
+included. `VR_AG_FallImpact` (QC/vr_armedgrunt_play.qc) now runs anywhere, also while your hand holds the body:
+
+- **Sustained speed:** `vr_agrunt_fall_impact_speed` 3 m/s kept up for `vr_agrunt_fall_impact_time` 0.1 s (time, not frames; a
+  dip no longer than the window is the origin's jitter). A ring of 4 velocities paced by the window keeps the sustained moments.
+- **A real stop:** within `vr_agrunt_fall_impact_window` 0.085 s of such a moment the velocity changed by `most`
+  (`vr_agrunt_fall_keep_impact`, still 4.5 m/s). The brief's 2-3 frames were too short: a limp feet-first landing reads 6.5, 3.8,
+  4.9, 3.5, 3.9, 2.4, 1.4 m/s frame by frame, 4.3 lost in 3 frames and 5+ in 6.
+- **Real contact:** the ragdoll strikes' own contact (`VR_RagImpact_Hit`, the engine's `noteRagImpacts`: what the smash sound,
+  blood and impact damage use; reused, no second detector): the level struck it within the window from where it was going, and
+  the change points within 60 degrees out of that surface. `vr_ragimpact 0` no longer stops the engine reporting strikes (the QC
+  still ignores them for damage and worn packs). A strike's least speed is `vr_ragimpact_min_speed` (2.5), so raising that far
+  past 4 would hide contacts from this rule too.
+- **Your hands' bang (the one thing strikes can't see):** your grip's force (`vr_ragdoll_grab_force`) drives a body at about 5 m/s
+  at most, your hand stops dead at the wall, and the body stops softly at your hand (4.4 m/s to 2.4 over 0.3 s; the only strike
+  on the wall at 1.7 m/s, under the strikes' least). So: a holding hand swung within 0.4 s (`vr_ragimpact_drag_speed`, the
+  engine's `dragged()`: walking a body about is no blow), the body going at `vr_agrunt_fall_impact_held` 0.6 of `most` (2.7 m/s;
+  the same share of its sustained speed), and that hand within `vr_agrunt_fall_impact_reach` 8 units of a surface ahead (or in
+  it). A hand reversed in mid-air has no surface there. In the hand a strike counts only its change along the surface (a
+  reversal with a limb on the floor is your hand's change, not the floor's).
+- **Kept:** `struck`'s exception, `most` 0 = never. **Found:** a level strike's own damage went through `VR_AG_Hit` and set
+  `struck`, which blocked the rule at the very impact it should read (inflictor world no longer sets it).
+
+Speeds measured (m/s; 72 Hz, the body's origin; the rule stops measuring at the drop):
+
+| Case | Peak speed | Sustained for | Lost in the window |
+|---|---|---|---|
+| Test 66's walk-up and reach, lying | 8.1, one frame | 0.03 s at most | never counted (old rule: "met the ground at 6.8") |
+| Small push; you walking in at 5 or 10 m/s | 2.1-2.5 | never | 0 |
+| Gentle topple | 2.0-2.2 | never | 0 |
+| Fall from 1.3 m | 8.0 | 0.2 s | 4.6-6.6 at the first crossing |
+| Thrown down at 8 | 9.6 | 0.2 s | 4.7-7.2 |
+| Thrown at a wall at 9 | 9.4 | 0.2 s | 5.1-10.9 (8.9 to 2.5 in 2 frames) |
+| Held, hand 8 m/s into a wall | 4-5 | 0.1-0.4 s | body going 2.7-4 as the hand arrives (5 equals 3 / 0.6) |
+| Held, hand 8 m/s reversed in the air | 5-7.6 | 0.4 s | 0-2.5 along any surface |
+
+**A skid keeps it now.** A body flung low along the floor (test 38's and 69's "flung while down", 7.5 m/s) meets nothing ahead and
+holds on; the old rule let go ("a judo throw's skid"). A judo throw still drops it when it comes down hard enough or tumbles into
+a wall, and a long shallow throw onto the floor reads 3.4-6.3: either way by the same number.
+
+Tunables (Debug > Tunables, beside the armed grunts' grab rows): `vr_agrunt_fall_impact_speed` 3, `_time` 0.1, `_window` 0.085,
+`_held` 0.6, `_reach` 8. `vr_agrunt_debug 2` with `developer 1` prints the body's speeds each frame (`fall: speed ...`).
+
+**Tests.** `vr_agrunt_test 202` (new; `map vrfiringrange`, `vrtesthall` has no flat wall in sight of its start; `scratch4 n`
+rounds, `scratch1 n` case n - 1 alone): 54/54 in 6 rounds at 72 Hz, 36/36 in 4 at 144 Hz with 2% jitter. Test 66 (`scratch1 n`:
+the case n times): 8/8 unseeded. Test 69: 10/10. Test 38's flung case now expects it to hold on. Worn packs are taken off in 69 and
+202: one torn off by the landing can fly into its weapon (another rule's drop, and the cause of "dropped with no impact" flakes).
+
 ## The death knight's helmet: cheek plates (branch `agent/dkhelm2`)
 
 His words (11-02): "looks better in size, but looks more like a hat from the front. There should be vertical geometry that goes

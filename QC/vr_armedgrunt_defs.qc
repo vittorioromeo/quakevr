@@ -241,6 +241,8 @@ void(entity h) VR_AgArmor_DebrisGrabbed;                  // VR_Carry_Start: a p
 .float vr_wp_peak;    // a pack's: the hardest pull on it so far (N; the tests)
 void(entity e) VR_WP_Spawn;                                              // VR_AM_Spawn: an armed grunt's pack put on
 void(entity targ, entity inflictor, entity attacker, float take) VR_WP_Hit; // T_Damage: a hit on the pack may tear it off
+void(entity m, float xSpeed, vector xInto) VR_AG_FallTouch;                // VR_RagImpact_Hit: its body met the level (VR_AG_FallImpact)
+#define VR_AG_FALL_RING 4                                                  // velocities the impact rule keeps (VR_AG_FallImpact)
 void(entity m, vector xAt, float xSpeed) VR_WP_Impact;                    // VR_RagImpact_Hit: a hard landing tears it off
 void(entity e) VR_WP_Taken;                                              // VR_Carry_Start, VR_Forcegrab_Launch: a dead one's pack taken
 float(entity m, entity pl, float hand) VR_WP_HandOnPack;                  // VR_Ragdoll_Handtouch: the hand on a dead one's pack takes the pack
