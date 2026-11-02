@@ -112,7 +112,7 @@ struct Scratch
 {
     Image half, yuva;                 // Scale4x's 2x step; 4xBR's colours in YUV + alpha
     Image padded, scaled, cell;       // a cell padded, upscaled, then with its effects
-    za::Vector<float> cover, shadow, blurTmp; // the outline's coverage; the shadow's alpha
+    za::Vector<float> alpha, cover, shadow, blurTmp; // a cell's alpha; the outline's coverage (or the grown shadow); the shadow's alpha
 };
 Scratch scratch;
 
@@ -328,69 +328,110 @@ void upscalePadded(int mode, const Image& src, int x0, int y0, int w, int h, con
 struct Style
 {
     int upscale{Classic};
-    float outline{0.f}, shadowOpacity{0.f}, shadowSize{0.f}, shadowSpread{0.f};
+    float outline{0.f}, shadowOpacity{0.f}, shadowGrow{0.f}, shadowSpread{0.f};
+    glm::vec2 shadowOffset{0.f};
     glm::vec3 outlineColour{0.f}, shadowColour{0.f};
 
     [[nodiscard]] bool effects() const { return outline > 0.f || shadowOpacity > 0.f; }
     [[nodiscard]] bool active() const { return upscale != Classic || effects(); }
     [[nodiscard]] bool smooth() const { return upscale != Classic; }
+    // Source pixels the effects reach past a letter (its cell's margin needs as many): the outline, or the shadow cast
+    // by letter and outline, grown, moved and blurred.
+    [[nodiscard]] int reach() const
+    {
+        const float shadow = shadowOpacity > 0.f ?
+            outline + shadowGrow + glm::max(glm::abs(shadowOffset.x), glm::abs(shadowOffset.y)) + shadowSpread : 0.f;
+        return static_cast<int>(ceilf(glm::max(outline, shadow) - 1e-4f));
+    }
 };
 
-[[nodiscard]] Style readStyle()
+[[nodiscard]] Style readStyle(const fontstyle::SurfaceCvars& c)
 {
+    const auto rgb = [](cvar_t* const* v) {
+        return glm::clamp(glm::vec3{v[0]->value, v[1]->value, v[2]->value}, glm::vec3{0.f}, glm::vec3{1.f});
+    };
     Style s;
-    s.upscale = glm::clamp(static_cast<int>(vr_font_upscale.value), 0, 3);
-    s.outline = glm::clamp(vr_font_outline.value, 0.f, 2.f);
-    s.outlineColour = glm::clamp(glm::vec3{vr_font_outline_r.value, vr_font_outline_g.value, vr_font_outline_b.value},
-        glm::vec3{0.f}, glm::vec3{1.f});
-    s.shadowOpacity = glm::clamp(vr_font_shadow_opacity.value, 0.f, 1.f);
-    s.shadowSize = glm::clamp(vr_font_shadow_size.value, 0.f, 2.f);
-    s.shadowSpread = glm::clamp(vr_font_shadow_spread.value, 0.f, 2.f);
-    s.shadowColour = glm::clamp(glm::vec3{vr_font_shadow_r.value, vr_font_shadow_g.value, vr_font_shadow_b.value},
-        glm::vec3{0.f}, glm::vec3{1.f});
+    s.upscale = glm::clamp(static_cast<int>(c.upscale->value), 0, 3);
+    s.outline = glm::clamp(c.outline->value, 0.f, 2.f);
+    s.outlineColour = rgb(c.outlineRgb);
+    s.shadowOpacity = glm::clamp(c.shadowOpacity->value, 0.f, 1.f);
+    s.shadowGrow = glm::clamp(c.shadowGrow->value, 0.f, 2.f);
+    s.shadowSpread = glm::clamp(c.shadowSpread->value, 0.f, 2.f);
+    s.shadowOffset = glm::clamp(glm::vec2{c.shadowX->value, c.shadowY->value}, glm::vec2{-2.f}, glm::vec2{2.f});
+    s.shadowColour = rgb(c.shadowRgb);
     return s;
 }
 
-constexpr int margin = 6;           // source pixels round a letter for its effects: outline 2 + shadow 2 + spread 2
-constexpr int cell4 = (8 + 2 * margin) * 4; // a conchars cell in the texture: 80 x 80
-constexpr int atlas4 = 16 * cell4;  // the texture: 1280 x 1280
+// Where conchars' glyphs are in a restyled atlas: 16 x 16 cells, each the 32 x 32 glyph (4x) with `margin` source
+// pixels round it (the effects' reach; at least the tiling pieces' padding, their neighbours' texels for smooth
+// sampling).
+struct Layout
+{
+    int margin{2};
+    int cell{48};  // texels a cell: (8 + 2 * margin) * 4
+    int size{768}; // the texture's side: 16 cells
+};
+
+[[nodiscard]] Layout layoutOf(const Style& st)
+{
+    Layout l;
+    l.margin = glm::max(2, st.effects() ? st.reach() : 0);
+    l.cell = (8 + 2 * l.margin) * 4;
+    l.size = 16 * l.cell;
+    return l;
+}
+
+// A disc of radius R (4x pixels, smooth edge) round every texel of `alpha` (0..1), into `out` (the most of each).
+void dilate(const za::Vector<float>& alpha, int w, int h, float R, za::Vector<float>& out)
+{
+    out.clear();
+    out.resize(static_cast<za::SizeT>(w) * h, 0.f);
+    const int reach = static_cast<int>(ceilf(R + 0.5f));
+    for(int y = 0; y < h; y++)
+    {
+        for(int x = 0; x < w; x++)
+        {
+            const float a = alpha[static_cast<za::SizeT>(y) * w + x];
+            if(a <= 0.f)
+            {
+                continue;
+            }
+            for(int dy = -reach; dy <= reach; dy++)
+            {
+                for(int dx = -reach; dx <= reach; dx++)
+                {
+                    const int tx = x + dx, ty = y + dy;
+                    if(tx < 0 || ty < 0 || tx >= w || ty >= h)
+                    {
+                        continue;
+                    }
+                    const float c = glm::clamp(R + 0.5f - sqrtf(static_cast<float>(dx * dx + dy * dy)), 0.f, 1.f) * a;
+                    float& o = out[static_cast<za::SizeT>(ty) * w + tx];
+                    o = c > o ? c : o;
+                }
+            }
+        }
+    }
+}
 
 // The outline and the shadow round what `img` holds (4x pixels; transparent margins wide enough for them).
 void applyEffects(const Style& st, Image& img)
 {
     const int n = img.w * img.h;
+    za::Vector<float>& alpha = scratch.alpha;
+    const auto alphaOf = [&] {
+        alpha.clear();
+        alpha.resize(static_cast<za::SizeT>(n), 0.f);
+        for(int i = 0; i < n; i++)
+        {
+            alpha[static_cast<za::SizeT>(i)] = img.px[static_cast<za::SizeT>(i)].a / 255.f;
+        }
+    };
     if(st.outline > 0.f)
     {
-        const float R = st.outline * 4.f;
-        const int reach = static_cast<int>(ceilf(R + 0.5f));
+        alphaOf();
         za::Vector<float>& cover = scratch.cover;
-        cover.clear();
-        cover.resize(static_cast<za::SizeT>(n), 0.f);
-        for(int y = 0; y < img.h; y++)
-        {
-            for(int x = 0; x < img.w; x++)
-            {
-                const float a = img.at(x, y).a / 255.f;
-                if(a <= 0.f)
-                {
-                    continue;
-                }
-                for(int dy = -reach; dy <= reach; dy++)
-                {
-                    for(int dx = -reach; dx <= reach; dx++)
-                    {
-                        const int tx = x + dx, ty = y + dy;
-                        if(tx < 0 || ty < 0 || tx >= img.w || ty >= img.h)
-                        {
-                            continue;
-                        }
-                        const float c = glm::clamp(R + 0.5f - sqrtf(static_cast<float>(dx * dx + dy * dy)), 0.f, 1.f) * a;
-                        float& o = cover[static_cast<za::SizeT>(ty) * img.w + tx];
-                        o = c > o ? c : o;
-                    }
-                }
-            }
-        }
+        dilate(alpha, img.w, img.h, st.outline * 4.f, cover);
         const glm::vec3 rgb = st.outlineColour * 255.f;
         for(int i = 0; i < n; i++)
         {
@@ -401,18 +442,33 @@ void applyEffects(const Style& st, Image& img)
     }
     if(st.shadowOpacity > 0.f)
     {
-        const int off = static_cast<int>(lroundf(st.shadowSize * 4.f));
+        // Cast by the letter and its outline: grown (a disc), moved by the offset, then blurred (the spread).
+        alphaOf();
+        za::Vector<float>& grown = scratch.cover;
+        if(st.shadowGrow > 0.f)
+        {
+            dilate(alpha, img.w, img.h, st.shadowGrow * 4.f, grown);
+        }
+        else
+        {
+            grown = alpha;
+        }
+        const int ox = static_cast<int>(lroundf(st.shadowOffset.x * 4.f)), oy = static_cast<int>(lroundf(st.shadowOffset.y * 4.f));
         za::Vector<float>& s = scratch.shadow;
         za::Vector<float>& t = scratch.blurTmp;
         s.clear();
         s.resize(static_cast<za::SizeT>(n), 0.f);
         t.clear();
         t.resize(static_cast<za::SizeT>(n), 0.f);
-        for(int y = off; y < img.h; y++)
+        for(int y = 0; y < img.h; y++)
         {
-            for(int x = off; x < img.w; x++)
+            for(int x = 0; x < img.w; x++)
             {
-                s[static_cast<za::SizeT>(y) * img.w + x] = img.at(x - off, y - off).a / 255.f;
+                const int sx = x - ox, sy = y - oy;
+                if(sx >= 0 && sy >= 0 && sx < img.w && sy < img.h)
+                {
+                    s[static_cast<za::SizeT>(y) * img.w + x] = grown[static_cast<za::SizeT>(sy) * img.w + sx];
+                }
             }
         }
         const float r = st.shadowSpread * 4.f;
@@ -578,18 +634,48 @@ struct BoxPic
     bool made{false};
 };
 
+// A restyled conchars: one per surface and brightness (the wrist gadget's and ammo screens' brightened font).
+struct Atlas
+{
+    Layout layout;
+    za::Vector<za::U32> rgba;      // its texels (reloads of the texture read them)
+    gltexture_t* texture{nullptr};
+    int generation{-1};            // its surface's style it was made for (-1: none yet)
+};
+
+constexpr int surfaceCount = static_cast<int>(fontstyle::Surface::Count);
+constexpr const char* surfaceNames[surfaceCount] = {"menu", "gadget", "ammo", "world"};
+
+struct SurfaceState
+{
+    Style style;
+    int generation{0};             // bumped as its settings change
+    za::Array<Atlas, 2> atlas{};   // [0] as conchars, [1] brightened
+};
+
 struct State
 {
-    bool ready{false};          // conchars loaded (Draw_LoadPics): textures can be made
-    int generation{0};
-    Style style;
-    Image chars;                // conchars as 16 x 16 cells of 8 x 8 (premultiplied)
-    za::Vector<za::U32> atlas;  // the restyled font, atlas4 square (reloads of the texture read it)
-    gltexture_t* texture{nullptr};
-    gltexture_t* source{nullptr}; // char_texture it was made from (another, the wrist gadget's: drawn as it is)
+    bool ready{false};             // conchars loaded (Draw_LoadPics): textures can be made
+    Image chars;                   // conchars as 16 x 16 cells of 8 x 8 (premultiplied)
+    gltexture_t* source{nullptr};  // char_texture they came from
+    za::Array<SurfaceState, surfaceCount> surfaces{};
+    fontstyle::Surface current{fontstyle::Surface::Menu}; // the text being drawn (fontstyle::Use)
     za::Array<BoxPic, boxCount> box{};
 };
 State state;
+
+// consoleGreyTop: the lightest of the palette's greys (1..15) in conchars' white half, as gl_draw.c keeps it.
+[[nodiscard]] int consoleGreyTopOf()
+{
+    constexpr int size = 16 * 10, whiteRows = 8 * 10; // characters 0..127, padded 10 x 10 cells
+    int top = 0;
+    for(int t = 0; t < size * whiteRows; t++)
+    {
+        const int b = char_texture_data[t];
+        top = b < 16 && b > top ? b : top;
+    }
+    return top;
+}
 
 void freeTexture(gltexture_t*& t)
 {
@@ -606,11 +692,58 @@ void freeTexture(gltexture_t*& t)
         (smooth ? TEXPREF_LINEAR | TEXPREF_MIPMAP : TEXPREF_NEAREST);
 }
 
-// The atlas of conchars restyled (state.atlas) for `st`, from state.chars.
-void buildAtlas(const Style& st)
+// The wrist gadget's brightening (its screens' font: vr_gadget.cpp, brightFontTexture) on upscaled texels: a grey of
+// the palette's ramp 0..15 (or a blend along it, as the scalers make) moved along the ramp as its index b would be, to
+// b * 15 / top (`top`: consoleGreyTop). Other colours stay.
+void brightenGreys(Image& img, int top)
 {
-    state.atlas.clear();
-    state.atlas.resize(static_cast<za::SizeT>(atlas4) * atlas4, 0u);
+    if(top <= 0 || top >= 15)
+    {
+        return;
+    }
+    za::Array<float, 16> ramp{};
+    for(int i = 0; i < 16; i++)
+    {
+        ramp[static_cast<za::SizeT>(i)] = reinterpret_cast<const byte*>(&d_8to24table[i])[0];
+    }
+    const auto at = [&](float f) {
+        const int i = glm::clamp(static_cast<int>(f), 0, 14);
+        return ramp[static_cast<za::SizeT>(i)] + (ramp[static_cast<za::SizeT>(i + 1)] - ramp[static_cast<za::SizeT>(i)]) * (f - i);
+    };
+    for(glm::vec4& p : img.px)
+    {
+        if(p.a <= 0.f)
+        {
+            continue;
+        }
+        const glm::vec3 s = glm::vec3{p} * (255.f / p.a);
+        const float lo = glm::min(s.r, glm::min(s.g, s.b)), hi = glm::max(s.r, glm::max(s.g, s.b));
+        const float m = (s.r + s.g + s.b) / 3.f;
+        if(hi - lo > 3.f || m <= 0.f)
+        {
+            continue;
+        }
+        float f = static_cast<float>(top); // its place on the ramp (at most the lightest grey there is)
+        for(int i = 0; i < top; i++)
+        {
+            const float a = ramp[static_cast<za::SizeT>(i)], b = ramp[static_cast<za::SizeT>(i + 1)];
+            if(m <= b)
+            {
+                f = i + (b > a ? (glm::max(m, a) - a) / (b - a) : 0.f);
+                break;
+            }
+        }
+        p = glm::vec4{glm::vec3{p} * (at(glm::min(15.f, f * 15.f / top)) / m), p.a};
+    }
+}
+
+// The atlas of conchars restyled (into `atlas`, laid out as `L`) for `st`, from state.chars; `bright`: the white half's greys
+// stretched as the wrist gadget's screens draw them (brightenGreys), before the outline and shadow.
+void buildAtlas(const Style& st, const Layout& L, bool bright, za::Vector<za::U32>& atlas)
+{
+    const int top = bright ? consoleGreyTopOf() : 0;
+    atlas.clear();
+    atlas.resize(static_cast<za::SizeT>(L.size) * L.size, 0u);
     za::Array<Image, 3> mids{}; // 129, 30, 158 (the tiles' middles), on their own
     const auto cellImage = [](int c, Image& out) {
         out.reset(8, 8);
@@ -641,22 +774,26 @@ void buildAtlas(const Style& st)
         upscalePadded(mode, state.chars, (c & 15) * 8, (c >> 4) * 8, 8, 8, n, scratch.scaled);
         // Into the cell: the glyph at the margin; a tile's padding too (its neighbours' texels, for smooth sampling).
         Image& cell = scratch.cell;
-        cell.reset(cell4, cell4);
+        cell.reset(L.cell, L.cell);
         const int keep = kind == CellKind::Tile ? pad * 4 : 0;
         for(int y = -keep; y < 32 + keep; y++)
         {
             for(int x = -keep; x < 32 + keep; x++)
             {
-                cell.at(margin * 4 + x, margin * 4 + y) = scratch.scaled.at(pad * 4 + x, pad * 4 + y);
+                cell.at(L.margin * 4 + x, L.margin * 4 + y) = scratch.scaled.at(pad * 4 + x, pad * 4 + y);
             }
+        }
+        if(c < 128 && top > 0)
+        {
+            brightenGreys(cell, top);
         }
         if(kind == CellKind::Letter && st.effects())
         {
             applyEffects(st, cell);
         }
-        store(cell, state.atlas.data(), atlas4, (c & 15) * cell4, (c >> 4) * cell4);
+        store(cell, atlas.data(), L.size, (c & 15) * L.cell, (c >> 4) * L.cell);
     }
-    edgeFix(state.atlas.data(), atlas4, atlas4);
+    edgeFix(atlas.data(), L.size, L.size);
 }
 
 void loadBoxSources()
@@ -726,31 +863,70 @@ void buildBox(const Style& st)
     }
 }
 
-// Everything made again for the cvars' style (or freed: Classic without effects).
-void rebuild()
+[[nodiscard]] SurfaceState& surface(fontstyle::Surface s)
 {
-    state.generation++;
-    state.style = readStyle();
-    if(!state.ready)
-    {
-        return;
-    }
-    freeTexture(state.texture);
-    if(!state.style.active())
-    {
-        state.atlas = {};
-        return;
-    }
-    buildAtlas(state.style);
-    state.texture = TexMgr_LoadImage(nullptr, "vr_fontstyle_conchars", atlas4, atlas4, SRC_RGBA,
-        reinterpret_cast<byte*>(state.atlas.data()), "", reinterpret_cast<src_offset_t>(state.atlas.data()),
-        textureFlags(state.style.smooth()));
-    buildBox(state.style);
+    return state.surfaces[static_cast<za::SizeT>(s)];
 }
 
-void onStyleChanged(cvar_t*)
+// The surface's atlas (`bright`: brightened), made if its style changed since (or freed: Classic without effects).
+gltexture_t* ensureAtlas(fontstyle::Surface s, bool bright)
 {
-    rebuild();
+    SurfaceState& ss = surface(s);
+    Atlas& a = ss.atlas[bright ? 1 : 0];
+    if(!state.ready || !ss.style.active())
+    {
+        freeTexture(a.texture);
+        a.rgba = {};
+        a.generation = -1;
+        return nullptr;
+    }
+    if(a.generation != ss.generation || !a.texture)
+    {
+        freeTexture(a.texture);
+        a.layout = layoutOf(ss.style);
+        buildAtlas(ss.style, a.layout, bright, a.rgba);
+        a.texture = TexMgr_LoadImage(nullptr, va("vr_fontstyle_%s%s", surfaceNames[static_cast<int>(s)], bright ? "_bright" : ""),
+            a.layout.size, a.layout.size, SRC_RGBA, reinterpret_cast<byte*>(a.rgba.data()), "",
+            reinterpret_cast<src_offset_t>(a.rgba.data()), textureFlags(ss.style.smooth()));
+        a.generation = ss.generation;
+    }
+    return a.texture;
+}
+
+// A surface's style read again and its atlases made again at once (those in use; the others when first drawn).
+void rebuild(fontstyle::Surface s)
+{
+    SurfaceState& ss = surface(s);
+    ss.generation++;
+    ss.style = readStyle(fontstyle::cvars(s));
+    for(int bright = 0; bright < 2; bright++)
+    {
+        if(ss.atlas[static_cast<za::SizeT>(bright)].texture || (s == fontstyle::Surface::Menu && !bright) || !ss.style.active())
+        {
+            (void)ensureAtlas(s, bright != 0);
+        }
+    }
+    if(s == fontstyle::Surface::Menu && state.ready && ss.style.active())
+    {
+        buildBox(ss.style);
+    }
+}
+
+void onStyleChanged(cvar_t* var)
+{
+    for(int i = 0; i < surfaceCount; i++)
+    {
+        const fontstyle::SurfaceCvars& c = fontstyle::cvars(static_cast<fontstyle::Surface>(i));
+        for(cvar_t* v : {c.upscale, c.outline, c.outlineRgb[0], c.outlineRgb[1], c.outlineRgb[2], c.shadowOpacity,
+                c.shadowGrow, c.shadowSpread, c.shadowX, c.shadowY, c.shadowRgb[0], c.shadowRgb[1], c.shadowRgb[2]})
+        {
+            if(v == var)
+            {
+                rebuild(static_cast<fontstyle::Surface>(i));
+                return;
+            }
+        }
+    }
 }
 
 // ---- vr_fontstyle_test: each mode's texture made at its size, the tiling pieces joined without a notch ----
@@ -765,7 +941,7 @@ void testCommand()
         tally.verdict("fontstyle test");
         return;
     }
-    const Style saved = state.style;
+    za::Vector<za::U32> atlas;
     for(int mode = 0; mode < 4; mode++)
     {
         for(int fx = 0; fx < 2; fx++)
@@ -774,7 +950,7 @@ void testCommand()
             st.upscale = mode;
             st.outline = fx ? 1.f : 0.f;
             st.shadowOpacity = fx ? 0.8f : 0.f;
-            st.shadowSize = 1.f;
+            st.shadowOffset = glm::vec2{1.f};
             st.shadowSpread = 0.5f;
             st.shadowColour = glm::vec3{0.f};
             st.outlineColour = glm::vec3{0.f};
@@ -782,25 +958,27 @@ void testCommand()
             {
                 continue;
             }
-            buildAtlas(st);
-            check(state.atlas.size() == static_cast<za::SizeT>(atlas4) * atlas4, va("mode %d fx %d: atlas size", mode, fx));
+            const Layout L = layoutOf(st);
+            buildAtlas(st, L, false, atlas);
+            check(atlas.size() == static_cast<za::SizeT>(L.size) * L.size && L.size == 16 * (8 + 2 * L.margin) * 4,
+                va("mode %d fx %d: atlas size", mode, fx));
             // 'A' (65) has texels; with effects, its margin has some (the outline), else none.
-            const auto alphaIn = [](int c, int x0, int y0, int x1, int y1) {
+            const auto alphaIn = [&](int c, int x0, int y0, int x1, int y1) {
                 int n = 0;
                 for(int y = y0; y < y1; y++)
                 {
                     for(int x = x0; x < x1; x++)
                     {
-                        n += (state.atlas[static_cast<za::SizeT>((c >> 4) * cell4 + y) * atlas4 + (c & 15) * cell4 + x] >> 24) > 0;
+                        n += (atlas[static_cast<za::SizeT>((c >> 4) * L.cell + y) * L.size + (c & 15) * L.cell + x] >> 24) > 0;
                     }
                 }
                 return n;
             };
-            check(alphaIn(65, margin * 4, margin * 4, margin * 4 + 32, margin * 4 + 32) > 0, va("mode %d fx %d: A drawn", mode, fx));
+            check(alphaIn(65, L.margin * 4, L.margin * 4, L.margin * 4 + 32, L.margin * 4 + 32) > 0, va("mode %d fx %d: A drawn", mode, fx));
             const int outside =
-                alphaIn(65, 0, 0, cell4, cell4) - alphaIn(65, margin * 4, margin * 4, margin * 4 + 32, margin * 4 + 32);
+                alphaIn(65, 0, 0, L.cell, L.cell) - alphaIn(65, L.margin * 4, L.margin * 4, L.margin * 4 + 32, L.margin * 4 + 32);
             check(fx ? outside > 0 : outside == 0, va("mode %d fx %d: effects round A only when on", mode, fx));
-            check(alphaIn(4, 0, 0, cell4, margin * 4 - 1) == 0, va("mode %d fx %d: no effects on a box cell", mode, fx));
+            check(alphaIn(4, 0, 0, L.cell, L.margin * 4 - 1) == 0, va("mode %d fx %d: no effects on a box cell", mode, fx));
             // The tiling pieces (slider 128 129 130, lines 29 30 31 and 157 158 159; L M R) as drawn against the
             // middle: each end piece beside two middles, a middle between two, against upscaling that row of three at
             // once: equal texel for texel.
@@ -833,8 +1011,8 @@ void testCommand()
                     {
                         for(int x = 0; x < 32; x++)
                         {
-                            const za::U32 a = state.atlas[static_cast<za::SizeT>((c >> 4) * cell4 + margin * 4 + y) * atlas4 +
-                                (c & 15) * cell4 + margin * 4 + x];
+                            const za::U32 a = atlas[static_cast<za::SizeT>((c >> 4) * L.cell + L.margin * 4 + y) * L.size +
+                                (c & 15) * L.cell + L.margin * 4 + x];
                             const za::U32 b = ref[static_cast<za::SizeT>(pad * 4 + y) * whole.w + pad * 4 + which * 32 + x];
                             differ += (a >> 24) != (b >> 24) || ((a >> 24) && a != b);
                         }
@@ -844,8 +1022,36 @@ void testCommand()
             }
         }
     }
-    state.style = saved;
-    rebuild(); // the cvars' own again
+    // The gadget's brightened copy (4xBR, outline, shadow): the white half's 'A' lighter, the gold half's the same.
+    {
+        Style st;
+        st.upscale = Xbr4x;
+        st.outline = 1.f;
+        st.shadowOpacity = 0.8f;
+        st.shadowOffset = glm::vec2{1.f};
+        st.shadowSpread = 0.5f;
+        za::Vector<za::U32> plain, bright;
+        const Layout L = layoutOf(st);
+        buildAtlas(st, L, false, plain);
+        buildAtlas(st, L, true, bright);
+        const auto lightest = [&](const za::Vector<za::U32>& a, int c) {
+            int most = 0;
+            for(int y = 0; y < L.cell; y++)
+            {
+                for(int x = 0; x < L.cell; x++)
+                {
+                    const za::U32 v = a[static_cast<za::SizeT>((c >> 4) * L.cell + y) * L.size + (c & 15) * L.cell + x];
+                    most = (v >> 24) > 128 ? glm::max(most, static_cast<int>(v & 255)) : most;
+                }
+            }
+            return most;
+        };
+        const int top = consoleGreyTopOf();
+        check(top <= 0 || top >= 15 || lightest(bright, 'A') > lightest(plain, 'A'),
+            va("bright: A lighter (%d over %d, grey top %d)", lightest(bright, 'A'), lightest(plain, 'A'), top));
+        check(lightest(bright, 'A' | 128) == lightest(plain, 'A' | 128), "bright: the gold half unchanged");
+        Con_Printf("fontstyle test: bright A %d over %d (grey top %d)\n", lightest(bright, 'A'), lightest(plain, 'A'), top);
+    }
     tally.verdict("fontstyle test");
 }
 
@@ -868,33 +1074,68 @@ void sampleCommand()
 namespace qvr::fontstyle
 {
 
+// The settings of each surface (Surface's order). Menu: Menu > Fonts; the others: Screens' font pages.
+#define QVR_FONT_CVARS(p) \
+    {&p##upscale, &p##outline, {&p##outline_r, &p##outline_g, &p##outline_b}, &p##shadow_opacity, &p##shadow_grow, \
+        &p##shadow_spread, &p##shadow_x, &p##shadow_y, {&p##shadow_r, &p##shadow_g, &p##shadow_b}}
+const SurfaceCvars surfaceCvars[surfaceCount] = {
+    QVR_FONT_CVARS(vr_font_), QVR_FONT_CVARS(vr_font_gadget_), QVR_FONT_CVARS(vr_font_ammo_), QVR_FONT_CVARS(vr_font_world_)};
+#undef QVR_FONT_CVARS
+
+const SurfaceCvars& cvars(Surface s)
+{
+    return surfaceCvars[static_cast<int>(s)];
+}
+
 void init()
 {
-    for(cvar_t* v : {&vr_font_upscale, &vr_font_outline, &vr_font_outline_r, &vr_font_outline_g, &vr_font_outline_b,
-            &vr_font_shadow_opacity, &vr_font_shadow_size, &vr_font_shadow_spread, &vr_font_shadow_r, &vr_font_shadow_g,
-            &vr_font_shadow_b})
+    for(const SurfaceCvars& c : surfaceCvars)
     {
-        Cvar_SetCallback(v, onStyleChanged);
+        for(cvar_t* v : {c.upscale, c.outline, c.outlineRgb[0], c.outlineRgb[1], c.outlineRgb[2], c.shadowOpacity,
+                c.shadowGrow, c.shadowSpread, c.shadowX, c.shadowY, c.shadowRgb[0], c.shadowRgb[1], c.shadowRgb[2]})
+        {
+            Cvar_SetCallback(v, onStyleChanged);
+        }
     }
     Cmd_AddCommand("vr_fontstyle_test", testCommand);
     Cmd_AddCommand("vr_fontstyle_sample", sampleCommand);
 }
 
+Use::Use(Surface s) : previous{state.current}
+{
+    state.current = s;
+}
+
+Use::~Use()
+{
+    state.current = previous;
+}
+
 int generation()
 {
-    return state.generation;
+    return surface(Surface::Menu).generation;
 }
 
 bool active()
 {
-    return state.ready && state.style.active();
+    return state.ready && surface(Surface::Menu).style.active();
+}
+
+int consoleGreyTop()
+{
+    return consoleGreyTopOf();
+}
+
+gltexture_s* brightChars()
+{
+    return ensureAtlas(state.current, true);
 }
 
 void restyleStrip(const za::U8* data, int width, int height, const int* x, const int* w, int count, const char* name,
     Strip& out)
 {
-    const Style& st = state.style;
-    out.margin = st.effects() ? margin : 0;
+    const Style& st = surface(Surface::Menu).style;
+    out.margin = st.effects() ? st.reach() : 0;
     out.column.clear();
     out.column.resize(static_cast<za::SizeT>(count), -1);
     Image src;
@@ -969,29 +1210,67 @@ extern "C" void VR_FontStyle_Rebuild(void)
     state.source = char_texture;
     state.ready = true;
     loadBoxSources();
-    rebuild();
+    for(int i = 0; i < surfaceCount; i++)
+    {
+        rebuild(static_cast<qvr::fontstyle::Surface>(i));
+    }
 }
+
+namespace
+{
+// The atlas whose texture `t` is, or null.
+[[nodiscard]] const Atlas* atlasOf(const gltexture_t* t)
+{
+    for(const SurfaceState& ss : state.surfaces)
+    {
+        for(const Atlas& a : ss.atlas)
+        {
+            if(t && a.texture == t)
+            {
+                return &a;
+            }
+        }
+    }
+    return nullptr;
+}
+} // namespace
 
 extern "C" gltexture_t* VR_FontStyle_Chars(gltexture_t* conchars)
 {
-    return state.texture && conchars == state.source ? state.texture : nullptr;
+    if(!conchars)
+    {
+        return nullptr;
+    }
+    if(atlasOf(conchars))
+    {
+        return conchars; // (already a restyled one: the gadget's brightened, swapped in by useBrightFont)
+    }
+    return conchars == state.source ? ensureAtlas(state.current, false) : nullptr;
 }
 
-extern "C" int VR_FontStyle_CharCell(int num, float* s, float* t, float* size, float* grow)
+extern "C" int VR_FontStyle_CharCell(gltexture_t* font, int num, float* s, float* t, float* size, float* grow)
 {
+    const Atlas* a = atlasOf(font);
+    const Layout L = a ? a->layout : Layout{};
+    const Style* st = nullptr;
+    for(const SurfaceState& ss : state.surfaces)
+    {
+        st = a && (a == &ss.atlas[0] || a == &ss.atlas[1]) ? &ss.style : st;
+    }
     num &= 255;
-    const bool fx = cellKind(num) == CellKind::Letter && state.style.effects();
-    const float inset = fx ? 0.f : margin * 4.f;
-    *s = ((num & 15) * cell4 + inset) / atlas4;
-    *t = ((num >> 4) * cell4 + inset) / atlas4;
-    *size = (cell4 - 2.f * inset) / atlas4;
-    *grow = fx ? margin / 8.f : 0.f;
-    return fx ? (state.style.outline > 0.f ? 3 : 1) : 0;
+    const bool fx = st && cellKind(num) == CellKind::Letter && st->effects();
+    const float inset = fx ? 0.f : L.margin * 4.f;
+    const float n = static_cast<float>(L.size);
+    *s = ((num & 15) * L.cell + inset) / n;
+    *t = ((num >> 4) * L.cell + inset) / n;
+    *size = (L.cell - 2.f * inset) / n;
+    *grow = fx ? L.margin / 8.f : 0.f;
+    return fx ? (st->outline > 0.f ? 3 : 1) : 0;
 }
 
 extern "C" qpic_t* VR_FontStyle_Pic(const char* name, qpic_t* pic)
 {
-    if(!state.texture)
+    if(!surface(qvr::fontstyle::Surface::Menu).atlas[0].texture)
     {
         return pic;
     }

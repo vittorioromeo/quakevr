@@ -956,7 +956,7 @@ void Draw_CharacterQuadEx (float x, float y, float dimx, float dimy, char num)
 	if (glcanvas.texture && glcanvas.texture == VR_FontStyle_Chars (char_texture))
 	{
 		float grow;
-		if (VR_FontStyle_CharCell ((unsigned char) num, &fcol, &frow, &fsize, &grow) & 2)
+		if (VR_FontStyle_CharCell (glcanvas.texture, (unsigned char) num, &fcol, &frow, &fsize, &grow) & 2)
 			stepx = 0.f;
 		x -= dimx * grow;
 		y -= dimy * grow;
