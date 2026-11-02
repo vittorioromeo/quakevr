@@ -553,6 +553,7 @@ vr_armedgrunt_bugs_test.qc
 vr_armedgrunt_close_test.qc
 vr_armedgrunt_grab_test.qc
 vr_armedgrunt_impact_test.qc
+vr_armedgrunt_dualdisarm_test.qc
 vr_armedgrunt_downtug_test.qc
 vr_armedgrunt_ragweapon_test.qc
 vr_armedknight_test.qc

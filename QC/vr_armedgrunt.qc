@@ -871,14 +871,14 @@ void() VR_AG_PropThink =
         remove(self);
         return;
     }
+    // Again next frame, whatever comes below; a drop removes it. (A blow seen here may take its OTHER weapon, the nearer of
+    // the two the fist met, VR_AG_StrikeFrame: this one, its first, had no next think then, so nothing placed it or its
+    // second or sent their pose, floating where it stood. His note vrfiringrange_2026-11-02_23-10-50.)
+    self.nextthink = time;
     // (held still, vr_agrunt_freeze: the Grip Editor, the Pose Studio, hands reaching into its weapons: no tug, no blow)
     float still = VR_AG_Still(g);
     if(!still && VR_AG_TugFrame(g, self)) // (a tug-of-war over it: vr_armedgrunt_play.qc)
     {
-        if(g.vr_ag_prop == self)
-        {
-            self.nextthink = time;
-        }
         return;
     }
     if(!still && VR_AG_WeaponStruck(g, self)) // (a hard blow or a throw on the weapon itself: vr_armedgrunt_play.qc)
@@ -896,7 +896,6 @@ void() VR_AG_PropThink =
         VR_ADGun_MonsterStreamEnd(g, self.weapon, FALSE); // (no flame for a while: its attack cut short, a pain)
     }
     VR_FuelTank_Wear(self); // (a flamethrower's or sprayer's tank on its back: vr_adtankworn.qc)
-    self.nextthink = time;
 };
 
 // A weapon one hand swings (dual wielding pairs these: VR_AG_ArmLeft): a sword (not AD's hammer and mace), the crowbar,
@@ -1159,6 +1158,7 @@ entity(entity g, vector vel) VR_AG_DropHeld =
     }
     entity w = CreateThrownWeapon(g, p.weapon, p.weaponflags, inst, p.origin, p.v_angle, vel, randomVec(90),
         FALSE /* disappear on hit */, FALSE /* deal damage */, WeaponIdToThrowDamage(p.weapon));
+    w.vr_ag_knock_at = time; // (not a thrown weapon on its other one as it leaves its hand: VR_AG_WeaponStruck knocked that out too)
     float fought = g.vr_ag_saw_fought || (g.health > 0 && g.enemy && (g.enemy.flags & FL_CLIENT)); // (alive: after you now)
     if(w && p.weapon == WID_CHAINSAW && inst.wi_clip > 0 && fought && cvar_hget(cvarh_vr_agrunt_saw_drop_running))
     {
