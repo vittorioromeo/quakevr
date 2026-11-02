@@ -6442,3 +6442,47 @@ the main switches as cvars", "11. Address the remaining menu clutter as suggeste
   3 runs, this branch in 3 of 3 (18/2 every run). Case 10
   (contact by `tune`): PASS. e1m1/start: loot beams 9 drawn, fire particles 400 made, gore sounds played, the grapple
   reels at 300 u/s.
+
+## Notes of 11-02 evening: the death knight's helmet, the nail pistol's screen, the lifts' grunt, his cast on a cooldown (branch `agent/notes1102a`)
+
+- **The death knight's helmet** ("still a bit too big, and covers his eyes ... the back of the helmet is also too wide"): his eye
+  sockets are 0.78-0.88 of the head bone's length up, the brim was at 0.62. New `Wearer` fields in vr_agarmor.cpp (brow, cheek,
+  jaw, nape, top chamfer, brow flare, how far the back's corners may be cut), defaults the old numbers, so the grunt's, the
+  enforcer's and the knight's fit lines are the same to the digit. His: sides to 0.44, brim 0.97 (its ledge 0.91), guards to his
+  cheekbones (0.52), nape 0.45, top chamfer 0.06 (its 0.18 pushed the front and sides out), flare 0.01, the back's corners cut 0.9.
+  Outside 13.73 deep x 12.40 wide x 11.79 high -> 11.70 x 10.27 x 7.51 (his head 10.65 wide at its widest). A skullcap; the horns
+  stand out of it. `vr_agarmor_test 14` (Debug > Tests > Helmets Alone There): the knights in helmets alone. Eyeshots in the
+  worktree's scratch: `dkhelm_before.png`, `dkhelm_after.png` (front, side, back), `hk_front.png` (his bare head, lines each 0.1 up).
+- **The nail pistol's ammo screen at full open** (vrfiringrange_2026-11-02_19-31-10): its anchor binds to the slide's wall (the
+  10-30 note said the receiver: true of the classic look, not of the slide that replaced it), so the server's back frame already
+  had it 0.65 back, and `nailslide::screenShift` added the slide's whole drawn travel on top: 2.15 where the slide is 1.5. Now
+  `screenShift` takes the frame's move out first, so the slide's drawn place alone moves the screen (each shot's jump gone with it;
+  ride off: really fixed on the gun). Closed: frame 0, nothing to take out, unchanged. `vr_np_seen_screen` now reads the screen
+  as drawn from its closed place, so `vr_np_test 1` catches this (without the fix 38/1, with it 39/0, 1.500 want 1.500).
+  Close-ups: `npscreen_before_crop.png`, `npscreen_after_crop.png`.
+- **The lifts' grunt and the feminine voice** (vrfiringrange_2026-11-02_19-33-12): every lift (body: vr_foegrab.cpp liftCheck; legs;
+  backpack: packLift) and every throw and leg pull goes through `climb::grunt`, sample `vr_foegrab_throw_grunt_sound` (default 2,
+  `vr/derived/plyrjmp8_low.wav`); all five samples of that list are in `voiceSounds`, so it was transformed. But the derived copy
+  is played at 0.8 rate first: 4.5 - 3.9 = 0.6 semitones over the man's recording, formants 0.8 x 1.17 = 0.94 of his: it sounded
+  a man's. Fixed in the voice's own path (`voiceShift`, used by VR_SndVoice and the test): a derived copy's slowing is made up for in
+  pitch and formants, only its length stays. plyrjmp8_low in the voice: 451 Hz, centroid 1147 Hz; plyrjmp8: 452 Hz, 1119 Hz (was
+  0.8 of those). land2_low (a mantle choice, a hard landing's) too. No throat sound found outside the list: every `player/*.wav`
+  in QC and the engine was checked, the rest are splashes, ladders, gibs, the heartbeat, teleports. `vr_voice_test` 38/0;
+  a `-Sound` run logs `voicelog: transformed vr/derived/plyrjmp8_low.wav`. Vr_voice_hear's list has the grunt now.
+- **The death knight's cast with a gun** (vrfiringrange_2026-11-02_19-34-46; his correction: 3 s, not the transcript's 30):
+  `vr_agdknight_spell_share` retired for `vr_agdknight_cast_cooldown` 3 s (Gameplay's Replacements row, "Gun Cast Cooldown"). `VR_AM_GunCasts`: each
+  his own clock (`vr_ag_cast_ready`), started at his first attack on a random part of it (not at spawn: a group met late would
+  all be ready and volley together); once it has passed he casts at his next attack, else fires. With a blade or fists:
+  unchanged, `VR_AM_SpellTry` (id's chance, near 0.2, mid 0.05 a check, times the aggression, not in reach, no cooldown). `vr_agtune_test 3`
+  (Debug > Tests > Death Knight's Gun and Casts), two minutes against a still player: 17 casts and 22 gun attacks over 64 s (a cast
+  per 3.8 s, the closest 3.1 s; 44% casts), another seed 17 and 23 (42%), another 12 and 13 (48%). So at 3 s he alternates about
+  one for one: his attacks come about 1.6-5 s apart, and the cooldown is up at nearly every second one. "Mostly the gun" needs
+  about 8 s or more; the row goes to 60. Seen in that test and not looked into: on some seeds he stops attacking at about 115
+  from the still mock player for the rest of the two minutes (his `attack_finished` long past; not the cast's path: it's asked only
+  after the shot's checks), so the test's rates are over the span to his last attack.
+- Test 95's "knight death ... dead (50)" with a death knight failed once here: left 50 health by an armour roll on him; unrelated, not touched.
+- **Checklist:**
+  - [notes1102a] An armoured death knight (Debug > Tests > Helmets There: Knight and Death Knight): his eyes show under the helmet from the front, its back no wider than his head, the horns standing out of it. {test:armor}
+  - [notes1102a] Fire a nail pistol's clip out: its slide locks open and the ammo screen stays flat on the slide's wall, not out past its back; and during a shot it stays on the wall.
+  - [notes1102a] Feminine voice on: the grunt of a body, leg or backpack lift and of a throw is a woman's, as high as your jump's grunt.
+  - [notes1102a] An armed death knight with a gun fires it and casts from his off hand's palm about every other attack (Gun Cast Cooldown 3 s; Debug > Tests > Death Knight's Gun and Casts); a group's first volleys come apart.
