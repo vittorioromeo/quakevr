@@ -17,9 +17,9 @@
 //           in flight after the last.
 // `vr_agtune_test 2` (any map, after loading it: `vr_agrunt_repl 1; skill 3; map e1m2`): the map's own armed humanoids'
 // armour: the share wearing it near vr_agarmor_skill<skill> (their rolls read the server's skill as the map spawns).
-// `vr_agtune_test 3` (vrtesthall; on its own, two minutes of game time): an armed death knight with a shotgun hunting you:
-// his casts against his gun's attacks as they come in play, at vr_agdknight_cast_cooldown as set: no two casts closer than
-// it, the gun firing between them.
+// `vr_agtune_test 3` (vrtesthall; on its own, till his gun is spent, 70-80 s of game time): an armed death knight with a
+// shotgun hunting you: his casts against his gun's attacks as they come in play, at vr_agdknight_cast_cooldown as set: no
+// two casts closer than it, at least one every two of it, the gun firing between them.
 // Each `agtune: PASS|FAIL <case>: ...`; ends on `agtune: N passed, M failed`.
 // ----------------------------------------------------------------------------
 
@@ -42,7 +42,7 @@ vector vr_agtt_home;     // ... where the reference swing began, its facing
 float vr_agtt_yaw;
 float vr_agtt_shots0;    // cast: vr_am_cast_shots at its start
 float vr_agtt_casts0;
-float VR_AGTT_DKCOOL_S = 120; // dkcool: how long he is watched (s of game time)
+float VR_AGTT_DKCOOL_S = 120; // dkcool: the most he is watched (s of game time)
 float vr_agtt_rolls0;    // dkcool: vr_am_gun_rolls at its start
 float vr_agtt_seen;      // ... its casts seen
 float vr_agtt_rolls;     // ... its attacks seen
@@ -523,6 +523,24 @@ void() VR_AGTune_TestFrame =
             monster_hell_knight();
             vr_agtt_g = self;
             self = oldself;
+            vr_agtt_t0 = time;
+            vr_agtt_phase = 1;
+            return;
+        }
+        if(vr_agtt_phase == 1)
+        {
+            // (His spawn's last step first, walkmonster_start_go, up to 0.5 s: its turning speed and eyes. Hunted before it,
+            // its pending think was lost: a knight who never turned, walked or saw over a low wall, standing for good
+            // wherever he first lost sight of you.)
+            if(g.view_ofs_z <= 0)
+            {
+                if(time - vr_agtt_t0 > 2)
+                {
+                    VR_Test_Check(FALSE, "dkcool: his spawn finished (timed out)");
+                    VR_AGTT_End();
+                }
+                return;
+            }
             pl.flags = pl.flags - (pl.flags & FL_NOTARGET);
             VR_AGTT_Hunt(vr_agtt_g);
             vr_agtt_rolls0 = vr_am_gun_rolls;
@@ -534,7 +552,7 @@ void() VR_AGTune_TestFrame =
             vr_agtt_seen = 0;
             vr_agtt_rolls = 0;
             vr_agtt_lastatk = time;
-            vr_agtt_phase = 1;
+            vr_agtt_phase = 2;
             return;
         }
         g.health = 1000;
@@ -563,17 +581,19 @@ void() VR_AGTune_TestFrame =
             vr_agtt_last = time;
             vr_agtt_seen = seen;
         }
-        if(time - vr_agtt_t0 >= VR_AGTT_DKCOOL_S)
+        // (Until his gun is spent, 24 shells, thrown away: 70-80 s; a safety net past that.)
+        float armed = g.vr_ag_prop && VR_AG_Class(g.vr_ag_wid) != VR_AG_CLASS_MELEE;
+        if(!armed || time - vr_agtt_t0 >= VR_AGTT_DKCOOL_S)
         {
             float cd = cvar_hget(cvarh_vr_agdknight_cast_cooldown);
             float gun = vr_am_gun_rolls - vr_agtt_rolls0 - seen;
-            float span = max(1, vr_agtt_lastatk - vr_agtt_t0); // (to his last attack: he can run out of a clear shot at you)
+            float span = max(1, vr_agtt_lastatk - vr_agtt_t0); // (to his last attack)
             dprint(sprintf("agtune: dkcool: cooldown %g s, over the %.0f s to his last attack: %g casts (one per %.1f s, the closest %.1f s apart, his first at %.1f s)\n",
                 cd, span, seen, span / max(1, seen), vr_agtt_gap, vr_agtt_dev));
             dprint(sprintf("agtune: dkcool: %g gun attacks (%.0f%% of his ranged attacks are casts), holding %g (class %g), his health %g\n",
                 gun, 100 * seen / max(1, seen + gun), g.vr_ag_wid, VR_AG_Class(g.vr_ag_wid), g.health));
-            VR_Test_Check(g.vr_ag_prop && VR_AG_Class(g.vr_ag_wid) != VR_AG_CLASS_MELEE && seen >= 1 && gun >= seen * 0.5 &&
-                vr_agtt_gap >= cd - 0.02, "dkcool: he still holds his gun, casts no closer than the cooldown, and fires between");
+            VR_Test_Check(span >= 30 && seen >= span / (2 * cd) && gun >= seen * 0.5 && vr_agtt_gap >= cd - 0.02,
+                "dkcool: he attacks until his gun is spent, a cast at least every two cooldowns, none closer than one, firing between");
             VR_AGTT_End();
         }
         return;

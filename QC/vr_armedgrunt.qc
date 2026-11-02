@@ -577,6 +577,10 @@ float(float dt, float firing) VR_AG_WalkFire =
         return FALSE; // (you up close: not backing off, its shove next: VR_AG_ShoveCloseIn)
     }
     float d = vlen(VR_AI_Origin(self.enemy) - self.origin);
+    if(VR_AGR_AxeNear(self, d))
+    {
+        return FALSE; // (you up close: its axe next)
+    }
     float yaw = vectoyaw(VR_AI_Origin(self.enemy) - self.origin);
     float step = v * dt;
     float side = self.lefty ? 1 : -1;

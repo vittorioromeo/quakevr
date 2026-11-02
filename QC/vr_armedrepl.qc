@@ -766,6 +766,10 @@ void(entity p) VR_AGR_NativeShot =
 float VR_AGR_AXE_NEAR = 84;  // its target nearer than this: the axe (a swing starts within VR_AG_GRIP_REACH + 10)
 float VR_AGR_GUN_FAR = 150;  // ... further than this, the gun again while it has rounds (in it or in reserve)
 
+// `g`, a gun and an axe in hand, its target `d` away: near enough for the axe (VR_AG_WalkFire: it stands for its next
+// attack's check, VR_AGR_GunAxe, not backing off past this in its gun's frames: it never would swap).
+float(entity g, float d) VR_AGR_AxeNear = { return g.vr_ag_gunaxe && g.vr_ag_prop2 && d < VR_AGR_AXE_NEAR; };
+
 // VR_AG_CheckAttack: the weapon its layer acts on (the first slot) the gun or the axe, its target `d` away.
 void(float d) VR_AGR_GunAxe =
 {
