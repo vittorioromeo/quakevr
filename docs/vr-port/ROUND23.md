@@ -6402,3 +6402,46 @@ possible, implement a check that always verifies that all handles are valid and 
   renderScreens): settles (images drawn, then none for 3 frames), then changes each surface's outline and shadow in
   turn: that surface's images drawn again on the next frame, the others' not, none the frame after; settings restored.
   vrcalibration: 24 passed, 0 failed (world 6 images a change, ammo 1, gadget 1).
+
+
+## Flaky tests (branch `agent/flaky`, his words 2026-11-02: "Please sort out the flaky tests")
+
+**The common cause: the console cases run unseeded.** The kit's run_baseline.py starts every `vr_agrunt_test N`,
+`vr_rv_test`, `vr_agarmor_test` and `vr_nail_test` case with `map vrtesthall` and no `sv_random_seed`, so the server's
+random numbers come from the clock: the AI, the parries and the damage rolls differ every run. With `sv_random_seed 1;`
+before the map (TESTING.md, the existing way), every one of them played the same in all 5 runs in 5 parallel lanes
+(the same counts and the same lines: test 47's logs diff empty). **Kit change needed (coordinator):** run_baseline.py's
+HALL/ARENA/STUDIO prefixes and the agrunt case script start with `sv_random_seed 1;`. The script suites (ragdoll, judo,
+teleporters chase) seed already; stealth's gates/liquid/props scenes did not (fixed here).
+
+Per test (runs: before = unseeded, 3 in 6 lanes beside 3 other workers; after = seeded, 5 in 5 lanes):
+
+| Test | Cause | Class | Fix | Before | After |
+|---|---|---|---|---|---|
+| agrunt_63 | its careless run's hit count stored in `vr_test_fail` (the tally's failed count): "0 passed, N failed" every run, N the hits | a | own variable; the verdict a counted check | 0/3 | 5/5 PASS 1/0 |
+| agrunt_72 | the close shove (vr_agrunt_shove_close, 10-29) took a gun-and-axe holder up close before its switch to the axe: 0 blows, 0 switches; the gun-side check wanted > 2 units, the aim pose holds the grip 0.3-0.8 right of its middle | b + a | VR_AG_ShoveClose: not for a gun and an axe (its axe up close, as designed); the check: right of its middle | 0/3 | 5/5 PASS 7/0 |
+| agrunt_47 | the 5000 kill blow sometimes doesn't land (health 30 after it, takedamage 2: blocked, a parry's draw); its pack then never drops: "no backpack" | a | the blow dealt again until it dies (3 s at most), a line printed when it was needed | 0/3 (1-3 fails) | 3/3 PASS 77/0 (seeded, after the fix) |
+| agrunt_60, 66 | unseeded | a | the kit's seed | 3/3, 3/3 | 5/5, 5/5 PASS |
+| rv_1 | unseeded damage rolls ("dead to 3 slugs") | a | the kit's seed | 2/3 | 5/5 PASS |
+| nail_1 | "precise hits (its model)" 1 of 3 (vr_hit_precise: agent/opt2remove's area, left) | a | the kit's seed | 2/3 | 5/5 PASS |
+| agrunt_1 | seeded: Rocket Launcher, Thunderbolt and 3 more "0 shots" every run (seed 1) | open | - | 2/3 | 0/5 (the same 12/5) |
+| agrunt_76 | 8 shots in its 10 s, the Heavy Revolver behind the crate 1 hit (12% < 25%): a sample too small for its threshold | open (a) | more shots per case (wait on 16, longer give-up) | 1/3 | 0/5 (the same) |
+| agrunt_86 | aggressiveness 0.5: mean 281 vs 1's 267 (+20 wanted); retreat 0: 15 steps backing off (0 wanted; "0 never backs off"). Not walk-fire's reload step (tried, the same 15): another path | open (b?) | - | 0/3 | 0/5 (the same) |
+| agarmor_5 | "corpse's right thigh and shin worn as their own pieces 1 of 2: plate 7" every run | open | - | 0/3 | 0/5 |
+| agrunt_67 | 640 grab tries: ~10 min a run under load, past run.sh -Timeout 600 (the baseline's 1200 too, 2 of 8) | a | the kit's seed; its timeout | 2 TIMEOUT | not rerun |
+| agrunt_71 | four 150 s fights' statistics and 40 kills counted 1.5 s after the blow | open (a) | wait on the deaths' drops, not 1.5 s | 0/3 | seeded the same 5/5 fails (probe) |
+| stealth | gates scene unseeded (gate_seen_walk/back) | a | seeded; kinds ends on "kinds done" | - | not rerun |
+
+Not reached (seeded already, so their variance is not the server's random numbers: physics threads, testbatch's
+carried state or a gate's timing): teleporters_chase, ragdoll_ragtest/grab/guard, judo; and reload 112/3, parry_pose,
+weapon_catch 3/2, dead_gear 7/2, teleporter edges' empty split lines.
+
+**Checklist scenarios:** 11 new files (magthrow, barrelfx, barrelglow, closequarters, rigstudio_strike, vrstart,
+vrcalibration, and agarmor_helmets_knights, weapon_clash, ragsmash, stick_run for tags that named commands);
+`vr_scenario runall`: 11 run, 0 failed. validate: 6 missing left, all tags to rename in checklist.txt (coordinator):
+`vr_stick_run_test` -> `stick_run`, `vr_agarmor_test 8` -> `agarmor_helmets_knights`, `vr_ragsmash_test 1` (2 lines) ->
+`ragsmash`, `vr_clash_test 2` -> `weapon_clash`, `bench_crowd32_armed` -> `bench_armed_mix32`.
+
+**Question for him (agrunt_66, class c):** a lying grunt drops its gun when you walk into it (the 4.5 m/s impact rule
+reads your body's push as a landing). Options: (1) your body's push counts as a knock (no fall's impact, as a blow or a
+try at its weapon already does); (2) only falls count (coming down); (3) as now. Recommendation: (1).

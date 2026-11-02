@@ -572,9 +572,7 @@ float(float dt, float firing) VR_AG_WalkFire =
     float yaw = vectoyaw(VR_AI_Origin(self.enemy) - self.origin);
     float step = v * dt;
     float side = self.lefty ? 1 : -1;
-    // (A reload's step away towards its best distance is a retreat too: none at Retreat Readiness 0, which "never backs
-    // off"; its least, the weapon's own floor, still holds: VR_AG_Ranges.)
-    if(d < vr_ag_rmin || (!firing && d < vr_ag_rpref && VR_AGAI_Retreat() > 0))
+    if(d < vr_ag_rmin || (!firing && d < vr_ag_rpref))
     {
         // (faster nearer than its least, a reload's too: you with a blade gain on it otherwise)
         float back = d < vr_ag_rmin ? (vr_ag_rthreat ? 1.6 : 1.3) : 1;

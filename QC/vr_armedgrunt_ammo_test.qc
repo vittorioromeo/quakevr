@@ -302,6 +302,14 @@ void() VR_AGAM_Frame =
         vr_agam_until = time;
         return;
     }
+    if(g && g.health > 0 && g.classname == "monster_army" && time < vr_agam_until + 3)
+    {
+        // (The blow didn't kill it: printed with its state, dealt again next frame until it dies, 3 s at most.)
+        VR_AGAM_Print(sprintf("%s still alive after the blow: health %g, takedamage %g, knockdown %g, deadflag %g",
+            vr_agam_name, g.health, g.takedamage, g.vr_knockdown, g.deadflag));
+        T_Damage(g, pl, pl, 5000);
+        return;
+    }
     entity b = VR_AGAM_Backpack();
     if(!b && time < vr_agam_until + 3)
     {
