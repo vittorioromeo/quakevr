@@ -4234,6 +4234,7 @@ vr_maps_debug_free_mb|2|Debug - Tools|Pretend Free Disk Space|Advanced VR Option
 |2|Debug - Tools|Clear Search's Recent List|Advanced VR Options > Debug > Tools > Clear Search's Recent List
 |2|Debug - Tools|Open the Map Browser|Advanced VR Options > Debug > Tools > Open the Map Browser
 |2|Debug - Tools|Font Sample Message|Advanced VR Options > Debug > Tools > Font Sample Message
+|2|Debug - Tools|Font Style Live Test|Advanced VR Options > Debug > Tools > Font Style Live Test
 |2|Debug - Tools|Blood and Gore|Advanced VR Options > Debug > Tools > Blood and Gore
 |2|Debug - Tools|Gore Burst|Advanced VR Options > Debug > Tools > Gore Burst
 |2|Debug - Tools|Gore Sounds: a Crowd's Tears|Advanced VR Options > Debug > Tools > Gore Sounds: a Crowd's Tears
