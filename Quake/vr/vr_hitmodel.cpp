@@ -574,7 +574,39 @@ bool firstCrossing(const Drawn& d, const glm::vec3& a, const glm::vec3& dir, flo
     };
     if(d.skinned)
     {
-        // A ragdoll: every triangle (its frames' hierarchy doesn't bound it).
+        // A ragdoll, an armed humanoid as drawn: every triangle (its frames' hierarchy doesn't bound it), unless the
+        // segment misses the box round all its vertices as grown (made here, each into the cache the triangles read).
+        glm::vec3 lo{1e30f}, hi{-1e30f};
+        for(int vi = 0; vi < m.numverts; vi++)
+        {
+            vcache.stamp[vi] = vcache.now;
+            const glm::vec3 p = vcache.pos[vi] = vs.at(d, vi, grow);
+            lo = glm::min(lo, p);
+            hi = glm::max(hi, p);
+        }
+        const glm::vec3 slack = (hi - lo) * 1e-3f + glm::vec3{0.05f}; // (the crossing's rounding: never a hit missed)
+        lo -= slack;
+        hi += slack;
+        float t0 = 0.f, t1 = best;
+        for(int i = 0; i < 3 && t0 <= t1; i++)
+        {
+            if(za::fabs(dir[i]) < 1e-12f)
+            {
+                t1 = a[i] < lo[i] || a[i] > hi[i] ? -1.f : t1;
+                continue;
+            }
+            float ta = (lo[i] - a[i]) / dir[i], tb = (hi[i] - a[i]) / dir[i];
+            if(ta > tb)
+            {
+                za::genericSwap(ta, tb);
+            }
+            t0 = za::max(t0, ta);
+            t1 = za::min(t1, tb);
+        }
+        if(t0 > t1)
+        {
+            return false;
+        }
         for(za::U32 k = 0; k < m.tris.size(); k++)
         {
             test(k);
