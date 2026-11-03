@@ -7521,6 +7521,29 @@ outcome from every armed kind: open, a narrow slot, boxed in), `vr_toolgun_armed
 health and score still go by skill); the wave clear's drops stay the director's (by wave number); a preset can't name maps'
 spawn groups (a delay instead); kinds from the mission packs and AD aren't in the table (a row each when wanted).
 
+## An enemy's armour plate breaking: a metal crack from a recording (branch `agent/armorcrack`, his request 2026-11-03)
+
+`vr/armor_crack.wav` (0.42 s) replaces `vr/derived/armor_break.wav` (the pickup's chime backwards), which is gone from
+vr_sndlayer.cpp with its layer's `reversed` flag (nothing else used it). QC `VR_AR_BREAK_SOUND`, the precache and
+`vr_agarmor_test 5` name the new file. Cut by `make_recorded_steps.py --crack`; sources are CC0 HQ previews (CREDITS.md).
+
+Measured by script, not heard: no agent can listen, he judges. One take per row, cut the same way (0.85 rate, the crack an
+octave down at 0.3 under it, drive for the old loudness); "tonal" is the share of the raw slice's energy in the spectrum's
+strongest 2% of bins (a ring or a clang is high).
+
+| Take | Raw slice: attack, tail to -40 dB, tonal | Cut: peak, loudest 100 ms, centroid, 500-6k share | Why |
+|---|---|---|---|
+| **51263** @1.281 *Metal Cracking 2.wav*, RutgerMuller (shipped) | 2 ms, 370 ms, 12% | 0.90, -13.1 dB, 2.6 kHz, 74% | a broken noise, no ring; falls 16x in 80 ms; a faint creak and one small tick after it |
+| 518731 @0.744 *Cracking, snapping, and clanging (metal can)*, Ashley12275 | 2 ms, 602 ms, 36% | 0.90, -13.0 dB, 2.6 kHz, 89% | a thinner can; more ring |
+| 875432 @2.724 *Egg Steel Crack Hard*, loganzsound | 4 ms, 204 ms, 34% | 0.90, -13.5 dB, 2.0 kHz, 83% | more knock than crack (an egg on steel) |
+
+The old break: peak 0.91, -12.8 dB, a 266 ms swell. Turned down on the numbers: 497427 (84% at 500-2k, tonal 65%: a hum),
+719927 (over 6 kHz: a tiny clip), 562198 (tonal 56%, no decay: a ring), 273863 and 875433 (tonal over 80%, mostly under
+500 Hz), 752070 (a 358 ms swell).
+
+To swap: `python Misc/quakevr/make_recorded_steps.py <folder of fs_<id>.wav> --crack=518731` (or 875432). Test:
+`vr_agarmor_test 5` 24 passed, 0 failed.
+
 ## The heavy revolver: ejecting takes a push; a cylinder with real holes (branch `agent/revolver2`, his notes of 2026-11-03)
 
 His notes: tilting it dropped the shells with no motion ("I should have to actually perform a small amount of motion with my

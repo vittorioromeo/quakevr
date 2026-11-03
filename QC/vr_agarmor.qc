@@ -4,7 +4,7 @@
 // a plate (its bone, as drawn: ragdollbone's QVR_ARMOR_PIECE_AT) is absorbed by the player's rule (vr_agarmor_rule 0:
 // ceil(type x damage) from the pool) or stopped whole (1) while the pool lasts; a shotgun's pellets each count on their
 // own piece; a blast or a hit with no point is shared by the pieces facing it. At 0 the plate breaks: its bit off (the
-// engine sends the mask), the pickup's chime backwards (vr/derived/armor_break.wav), and it falls as debris
+// engine sends the mask), a metal crack (vr/armor_crack.wav), and it falls as debris
 // ("<model>#plate<piece>": a prop you take in a hand, never force-grab or wear, fading out after
 // vr_agarmor_debris_time, its time counted again when taken). Helmets halve a headshot's extra and stop head pops
 // (vr_agarmor_helmet_head); no limb is cut under an unbroken plate (vr_agarmor_block_cuts). Quad Damage does not pass
@@ -83,7 +83,7 @@ void(entity e, float type, float mask) VR_AgArmor_Give =
     if(type > 0)
     {
         precache_sound("items/armor1.wav");
-        precache_sound("vr/derived/armor_break.wav"); // (VR_AgArmor_Break's)
+        precache_sound("vr/armor_crack.wav"); // (VR_AgArmor_Break's)
     }
 };
 
@@ -288,9 +288,8 @@ string(string base, float i) VR_AgArmor_ModelOf =
 
 string(entity e, float i) VR_AgArmor_Model = { return VR_AgArmor_ModelOf(e.model, i); };
 
-// A plate breaking: the armour pickup's chime backwards and lower (the engine makes it from items/armor1.wav as it loads:
-// vr_audio.cpp derivedSounds), so it is never heard as armour picked up.
-string VR_AR_BREAK_SOUND = "vr/derived/armor_break.wav";
+// A plate breaking: a recorded metal crack (his note 2026-11-03; CREDITS.md, SOUNDS_OURS.md), never heard as armour picked up.
+string VR_AR_BREAK_SOUND = "vr/armor_crack.wav";
 
 // Every piece's debris model of the wearer `base` (already precached: its plates are cut from its shell) and the break's
 // sounds, precached ahead: each plate's model is made as it loads (vr_agarmor.cpp derivedFile), and loaded late, at a
