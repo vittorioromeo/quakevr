@@ -57,6 +57,6 @@ run_case away '' 'setpos -96 545 375 0 90 0; wait150; edict 1'
 take='setpos 1714 -170 312 0 243 0; vr_mock_hand main 0.4 1.2 -0.1 70 0 0; +grabright; vr_mock_button main grip 1; wait10; vr_test_walltorch_shot 24; wait20'
 run_case detach '' "$take; vr_burn_test 7; wait5; vr_mock_hand_to off 1706 -206 324; wait150; edict 1"
 run_case portable_held '' "$take; vr_burn_test 7; wait5; vr_mock_hand_to off 1701.8 -166.6 341.5; wait20; edict 1; wait60; vr_mock_hand_to off 1750 -150 324; wait120; edict 1"
-run_case portable_dropped 'sv_gravity 0' "$take; -grabright; vr_mock_button main grip 0; wait10; vr_rigid_place 52 1800 -300 330 0 0 0; setpos 1800 -300 312 0 0 0; wait120; edict 1"
-run_case portable_unlit 'vr_walltorch_die_time 0.1; vr_walltorch_relight 0' "$take; -grabright; vr_mock_button main grip 0; wait40; sv_gravity 0; vr_rigid_place 52 1800 -300 330 0 0 0; setpos 1800 -300 312 0 0 0; wait120; edict 1"
+run_case portable_dropped 'sv_gravity 0' "$take; -grabright; vr_mock_button main grip 0; wait10; vr_rigid_place near:light_torch_small_walltorch 1800 -300 330 0 0 0; setpos 1800 -300 312 0 0 0; wait120; edict 1"
+run_case portable_unlit 'vr_walltorch_die_time 0.1; vr_walltorch_relight 0' "$take; -grabright; vr_mock_button main grip 0; wait40; sv_gravity 0; vr_rigid_place near:light_torch_small_walltorch 1800 -300 330 0 0 0; setpos 1800 -300 312 0 0 0; wait120; edict 1"
 run_case warning_time 'vr_burn_self_time 1.5' 'setpos -96 595 375 0 90 0; wait30; vr_mock_hand_to main -96 634 414; wait80; edict 1; wait50; vr_mock_hand_to main -96 550 412; wait120; edict 1'
