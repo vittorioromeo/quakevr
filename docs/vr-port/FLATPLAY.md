@@ -205,11 +205,11 @@ frame and clamped at the read (`poseNum`: -30..30, `nearNum`: 8..60 units, `camO
 **Debug > Reports > Flatscreen Play** so they can be driven from the menu while the game runs. `vr_flatplay_status` prints
 the pose and the eye's place, and `vr_flatplay_debug 2` prints them every frame (`flatsight:`, `flatcam:`, `flatmove:`).
 
-**The held weapon** â€” **Weapon Forward** (`vr_flat_gun_fwd`, 17), **Weapon Down** (`vr_flat_gun_down`, 9), **Weapon Out**
+**The held weapon** â€” **Flatscreen Gun Forward** (`vr_flat_gun_fwd`, 17), **Flatscreen Gun Down** (`vr_flat_gun_down`, 9), **Flatscreen Gun Out**
 (`vr_flat_gun_out`, 2.5): how far out in front of the chest the gun sits, how far below the chest, and how far to one side.
 Forward is along the look; *down* is written as a positive number of units *below*, and *out* as a positive number of units
 *away from the body's centre line* â€” the main hand's right, the off hand's left, which is the side `twohand` measures its
-grips to. Each is scaled by `vr_flat_reach`, as the pose always was. **Weapon Keep** (`vr_flat_gun_near`, 24, 8..60) is how
+grips to. Each is scaled by `vr_flat_reach`, as the pose always was. **Flatscreen Gun With The Crosshair** (`vr_flat_gun_near`, 24, 8..60) is how
 far the drawn view may stand from his head and still carry the gun with it; below that the gun is left on his body while the
 view comes down, which is what a small `vr_flat_crouch_drop` with a small keep distance looks like.
 
@@ -226,8 +226,8 @@ vr_flat_gun_out 8 vr_flat_gun_near 14`. Either way **every shot still leaves alo
 degrees, which is what the whole suite has never exceeded: 0.0000 over 230 records in the run that nudges everything).
 `vr_flatplay_status` prints "a held weapon 26 4 8 â€¦ within 14 of his head" so the number he set is the number he reads.
 
-**The ironsight's own set** â€” **Sight Forward** (`vr_flat_ads_fwd`, 0), **Sight Up** (`vr_flat_ads_up`, 0), **Sight Out**
-(`vr_flat_ads_out`, 0) and **Sight Keep** (`vr_flat_ads_near`, 24): the same four numbers for the sight picture, so the
+**The ironsight's own set** â€” **Flatscreen Ironsight Forward** (`vr_flat_ads_fwd`, 0), **Flatscreen Ironsight Up** (`vr_flat_ads_up`, 0), **Flatscreen Ironsight Out**
+(`vr_flat_ads_out`, 0) and **Flatscreen Ironsight With The Crosshair** (`vr_flat_ads_near`, 24): the same four numbers for the sight picture, so the
 ironsight pose and the hip-fire pose are independent. They are written in the same view's frame and the same side
 convention as the gun's, except that this set is called *up* and counts *up* as positive. They are put on the pose the mode
 just made â€” before the muzzle is measured and the weapon brought onto the crosshair's ray â€” over `vr_flat_aim_time`'s
@@ -250,7 +250,7 @@ him the sight picture sits. That is stated here rather than tuned away: with thi
 crosshair, a settled sight cannot both stand several units to the side of the crosshair's ray and hit what the crosshair
 points at.
 
-**His eye on the screen** â€” **Eye Forward** (`vr_flat_cam_fwd`, 0), **Eye Up** (`vr_flat_cam_up`, 0), **Eye Side**
+**His eye on the screen** â€” **Flatscreen View Forward** (`vr_flat_cam_fwd`, 0), **Flatscreen View Up** (`vr_flat_cam_up`, 0), **Flatscreen View Sideways**
 (`vr_flat_cam_side`, 0), -20..20 units: where the flatscreen camera stands in the view's own frame of reference â€”
 `+vr_flat_cam_fwd` along the look, the way he is looking, `+vr_flat_cam_up` higher, `+vr_flat_cam_side` to **the view's own
 right** (a look due east with no pitch is the case where the view's frame is the world's: there the three read as `+x`,
@@ -284,7 +284,7 @@ briefly. Over those runs' 230 `flatmove:` records, the worst angle between the s
 line is **0.0000** of a degree; the harnesses gate it at **0.1** of a degree, a tolerance the measurement never came near.
 
 
-**Look Up** (`vr_flat_pitch_up`, 85) and **Look Down** (`vr_flat_pitch_down`, 85): the flatscreen view's own window on the
+`vr_flat_pitch_up` (85) and `vr_flat_pitch_down` (85; console only, no menu row): the flatscreen view's own window on the
 pitch, in degrees from straight ahead, and both written as a plain positive number of degrees (0..90 â€” 0: he cannot look
 that way at all, 90: as far as the plain game let him). Quake's pitch counts *down* as positive, so the view he is held
 to is between `-vr_flat_pitch_up` and `+vr_flat_pitch_down`: at the defaults that is -85 to +85, and the last five degrees

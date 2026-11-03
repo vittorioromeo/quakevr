@@ -12,6 +12,7 @@
 
 #pragma once
 
+#include "vr_engine.hpp"
 #include "vr_hands.hpp"
 
 namespace qvr::flatplay
@@ -23,6 +24,13 @@ namespace qvr::flatplay
 // -flatscreenmode was given, whatever the headset: vr_main.cpp's backend selection, which the flag implies no backend
 // for (noteBackendImplied).
 [[nodiscard]] bool flagGiven();
+
+// The weapon `h` holds, as its settings' slot; -1 for an empty hand.
+[[nodiscard]] int heldIn(int h);
+
+// A pose number (vr_flat_gun_*, vr_flat_ads_*, vr_flat_empty_*, vr_flat_support_*) clamped to the room it may move in, the
+// view's frame either way: -30..30 units.
+[[nodiscard]] float poseNum(const cvar_t& c);
 
 // The one console line for that implication (vr_main.cpp asks before it starts a backend).
 void noteBackendImplied();

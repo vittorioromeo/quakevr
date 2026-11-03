@@ -1,7 +1,7 @@
-// vr_flatsight.cpp -- the flatscreen player's ironsight, and his free hand on a grip (Vittorio's flatscreen list,
-// items 3 and 4). Read vr_flatsight.hpp for what the two parts do; here is how they are measured.
+// vr_flatsight.cpp -- the flatscreen player's ironsight, and his free hand on a grip. Read vr_flatsight.hpp for what the
+// two parts do; here is how they are measured.
 //
-// Item 3 (the grip). The view already offers the held weapon's two-handed grip point every frame it draws a weapon:
+// The grip. The view already offers the held weapon's two-handed grip point every frame it draws a weapon:
 // hands::State::grip2H[holding], the hotspot it chose for the helping hand, placed with the muzzles (vr_view.cpp's
 // placeHotspots, vr_view_weapon.cpp's chooseGrip). A placed point is only good for the frame it was placed in, so it is
 // carried to this frame's pose the way a muzzle is -- from hands::State::placedFrom, where the hand was when the view
@@ -10,8 +10,8 @@
 // hold by its own tolerances (foregripTake 5.5 units to take, foregripKeep 20 times the hotspot's stickiness to keep),
 // its helpKind is 1, the game code gets the two-handed aiming bits, and the weapon's weight, recoil and spread become
 // the two-handed ones. E's reach is added on top of the pin, staying inside the keep. Only a weapon whose model has
-// such a hotspot is held this way: without one the hand keeps flatplay's pose, and a weapon whose Two-Handed setting is
-// "Not Allowed" is refused by vr_twohand itself. Dual wielding never enters here: both hands hold, so there is no empty
+// such a hotspot ahead of the holding hand is held this way (carryToGrip, in apply): any other keeps flatplay's pose,
+// and a weapon whose Two-Handed setting is "Not Allowed" is refused by vr_twohand itself. Dual wielding never enters here: both hands hold, so there is no empty
 // hand to put anywhere, and their pose is today's.
 //
 // A flatscreen hand is always gripping (vr_client.cpp's gripping), so there is no press for a hotspot to be taken on:
@@ -23,7 +23,7 @@
 // on the flat screen the crosshair is, and the shots must go along it (vr_flatplay.cpp's own rule). What is kept is the
 // grip: the help, its transition, and everything the game code reads off them.
 //
-// Item 4 (the ironsight). Only for a gun with a sight line (sightalign::alignable: a ranged weapon; the melee weapons
+// The ironsight. Only for a gun with a sight line (sightalign::alignable: a ranged weapon; the melee weapons
 // have none) held in one hand alone. The weapon's model, its muzzle and its shot all follow the holding hand, and the
 // shot's direction is already the crosshair's (aimRotAtCrosshair solves the hand's turn out of the weapon's Shot Pitch
 // and Yaw), so what is left is where the shot comes from: the muzzle stands beside the crosshair's ray -- the sights
@@ -47,7 +47,6 @@
 #include "vr_hands.hpp"
 #include "vr_sightalign.hpp"
 #include "vr_twohand.hpp"
-#include "vr_weapons.hpp"
 
 #include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -68,7 +67,6 @@ struct Sight
 {
     bool ads{false};            // the ironsight is asked for (the mouse wheel's button, vr_flat_aim)
     bool keyWas{false};         // K_MOUSE3 last frame: a press edge
-    double since{-1e9};         // when it was last toggled
     int toggles{0};
 
     double lastTime{-1e9};      // the eases below step once a frame (the pose is made several times a frame)
@@ -80,13 +78,13 @@ struct Sight
     int holding{-1};            // this frame: the hand that holds a weapon while the other is empty (-1: neither)
     int helping{-1};            // ... and the empty hand that holds on to it
     bool pinned{false};         // it was put on the weapon's hotspot (the weapon has one)
-    int edgeFrame{-1};          // the frame the arrival at a grip was decided in (the pose is made twice a frame)
+    int edgeFrame{-1};          // the frame the arrival at a grip was decided in (the pose is made several times a frame)
     bool armed{false};          // ... and the press it stands for, kept for both poses of that frame
     bool atGrip{false};         // last frame: the empty hand stood on a hotspot (its own take distance) -- the edge
     int lastHolding{-1};        // last frame's pair: a weapon changing disarms the hand that was reaching
     int lastHelping{-1};
-    glm::vec3 shift{0.f};       // item 4: how far the holding hand moved onto the crosshair's ray (world, units)
-    glm::vec3 adsOff{0.f};      // item 1's ironsight numbers: and how far vr_flat_ads_fwd / _up / _out moved it from there
+    glm::vec3 shift{0.f};       // how far the holding hand moved onto the crosshair's ray (world, units)
+    glm::vec3 adsOff{0.f};      // and how far vr_flat_ads_fwd / _up / _out moved it before that
     float offBefore{0.f};       // its muzzle off that ray before the move, and after it (units)
     float offAfter{0.f};
     float sightAngle{0.f};      // the same offset as an angle, at the muzzle's own distance (degrees)
@@ -108,15 +106,6 @@ Sight st;
 constexpr float gripEase = 9.f;  // how fast an empty hand travels onto a grip, and back off it (1/s)
 constexpr float aimTimeMin = 0.05f;  // vr_flat_aim_time's shortest travel, and what a smaller nonzero setting reads as
 constexpr float aimTimeMax = 1.f;    // and its longest
-constexpr float adsOffMax = 30.f;    // vr_flat_ads_fwd / vr_flat_ads_up / vr_flat_ads_out: how far the ironsight may move
-                                     // the weapon off the pose it was aligned from -- the same room flatplay's pose
-                                     // cvars are clamped to (vr_flat_gun_*, vr_flat_empty_*, vr_flat_support_*)
-
-// vr_flat_ads_fwd / vr_flat_ads_up / vr_flat_ads_out, each clamped to that room.
-[[nodiscard]] float adsNum(const cvar_t& c)
-{
-    return za::clamp(c.value, -adsOffMax, adsOffMax);
-}
 
 [[nodiscard]] float ease(float k, float dt)
 {
@@ -132,13 +121,6 @@ constexpr float adsOffMax = 30.f;    // vr_flat_ads_fwd / vr_flat_ads_up / vr_fl
     return t <= 0.f ? 0.f : za::clamp(t, aimTimeMin, aimTimeMax);
 }
 
-// The weapon `h` holds, as its settings' slot; -1 for an empty hand (flatplay's heldIn, the same rule).
-[[nodiscard]] int heldIn(int h)
-{
-    const int slot = weapons::heldSlot(h);
-    return slot >= 0 && slot != weapons::fistSlot() ? slot : -1;
-}
-
 // The muzzle the hand's shots go from this frame: the one the view placed last frame, carried with the hand since
 // (hands::handMuzzle does exactly this for the shot itself, vr_client.cpp).
 [[nodiscard]] glm::vec3 muzzleNow(const hands::State& s, int h)
@@ -150,11 +132,6 @@ constexpr float adsOffMax = 30.f;    // vr_flat_ads_fwd / vr_flat_ads_up / vr_fl
     return s.muzzle[h] + (s.pos[h] - s.placedFrom[h]);
 }
 
-// The crosshair: the centre of the screen as the player sees it. flatplay's own ray (flatplay::crosshairRay), from the
-// camera its drawnOffset locks the drawn hands onto -- the drawn view's origin and angles with its crouch drop and its
-// eye's nudges (vr_flat_cam_fwd / _up / _side) already in them, or the pose's head when the view is not the player's own
-// (a chase cam, the ragdoll tool's orbit, a view standing further off than flatplay::keepNear). The ironsight measures
-// and centres against this ray and the view draws against that one: they cannot end up on different cameras.
 // How far a point stands off a ray: across it, and as an angle at the point's own distance along it.
 void offTheRay(const glm::vec3& org, const glm::vec3& dir, const glm::vec3& p, float& units, float& degrees)
 {
@@ -164,28 +141,16 @@ void offTheRay(const glm::vec3& org, const glm::vec3& dir, const glm::vec3& p, f
     degrees = len > 1.f ? glm::degrees(za::acos(za::clamp(glm::dot(d, dir) / len, -1.f, 1.f))) : 0.f;
 }
 
-// Item 3's case: one hand holds a weapon and the other is empty.
-bool oneHanded(int& holding, int& helping)
+// The grip's case: one hand holds a weapon and the other is empty; both -1 otherwise.
+void oneHanded(int& holding, int& helping)
 {
-    const bool mainHolds = heldIn(HAND_MAIN) >= 0;
-    const bool offHolds = heldIn(HAND_OFF) >= 0;
-    if(mainHolds && !offHolds)
-    {
-        holding = HAND_MAIN;
-        helping = HAND_OFF;
-        return true;
-    }
-    if(offHolds && !mainHolds)
-    {
-        holding = HAND_OFF;
-        helping = HAND_MAIN;
-        return true;
-    }
-    holding = helping = -1;
-    return false;
+    const bool mainHolds = flatplay::heldIn(HAND_MAIN) >= 0;
+    const bool offHolds = flatplay::heldIn(HAND_OFF) >= 0;
+    holding = mainHolds == offHolds ? -1 : mainHolds ? HAND_MAIN : HAND_OFF;
+    helping = mainHolds == offHolds ? -1 : mainHolds ? HAND_OFF : HAND_MAIN;
 }
 
-// Item 3's press. A flatscreen hand is always gripping (vr_client.cpp's gripping), so the pose putting the empty hand
+// The grip's press. A flatscreen hand is always gripping (vr_client.cpp's gripping), so the pose putting the empty hand
 // onto a grip has no press to be taken on; this is the frame that stands for it, measured the way vr_twohand measures
 // the take: the hotspot's own point, less its bias, within its take distance, and the line from the held hand to the
 // free one past the dot twohand asks for (vr_2h_angle_threshold) against the held hand's forward. A cup (grip2HCup)
@@ -225,7 +190,7 @@ bool adsApplies()
     {
         return 0.f;
     }
-    return za::clamp(vr_flat_aim_fov.value, 0.f, 60.f) * done;
+    return za::clamp(vr_flat_aim_fov.value, 0.f, 45.f) * done;
 }
 
 void setAds(bool on, const char* by)
@@ -235,7 +200,6 @@ void setAds(bool on, const char* by)
         return;
     }
     st.ads = on;
-    st.since = vr_gametime;
     st.toggles++;
     if(vr_flatplay_debug.value)
     {
@@ -286,8 +250,8 @@ void aim_f()
     }
 }
 
-// Item 3: the empty hand onto the held weapon's two-handed grip hotspot, eased from where flatplay put it. Only for a
-// grip the pose can actually bring a hand to (carryToGrip, in apply below).
+// The empty hand onto the held weapon's two-handed grip hotspot, eased from where flatplay put it. Only for a grip the
+// pose can actually bring a hand to (carryToGrip, in apply below).
 void pinToGrip(hands::State& s, const glm::vec3& reach, bool carry)
 {
     st.pinned = false;
@@ -297,21 +261,17 @@ void pinToGrip(hands::State& s, const glm::vec3& reach, bool carry)
     }
     // The hotspot as the view placed it last frame, carried to this frame's pose with the holding hand.
     const glm::vec3 grip = s.grip2H[st.holding] + (s.pos[st.holding] - s.placedFrom[st.holding]);
-    // A cup (a two-handed pistol grip) is taken by the palm: move the hand so that its palm lands there.
-    const glm::vec3 to = s.grip2HPalm[st.holding]
-                             ? grip + (s.pos[st.helping] - hands::palmPoint(s, st.helping))
-                             : grip;
     const glm::vec3 out = st.helping == HAND_OFF ? reach * st.gripT : glm::vec3{0.f}; // E still reaches out with it
-    s.pos[st.helping] += (to - s.pos[st.helping]) * st.gripT + out;
-    // vr_twohand measures the take and the keep against the point this pose reaches; the view places it again with the
-    // weapon it draws (with this frame's drawn hand), which is the same point moved the same way.
+    s.pos[st.helping] += (grip - s.pos[st.helping]) * st.gripT + out;
+    // vr_twohand measures the take and the keep against the point this pose reaches (apply puts the view's own point
+    // back after it); the view places it again with the weapon it draws, which is the same point moved the same way.
     s.grip2H[st.holding] = grip;
     st.pinned = true;
 }
 
-// Item 4: the held weapon brought onto the crosshair's ray, by the muzzle its shots go from; and item 1's ironsight
-// numbers (vr_flat_ads_fwd / vr_flat_ads_up / vr_flat_ads_out), put on the pose before that bringing so the bringing
-// works on the muzzle they leave.
+// The held weapon brought onto the crosshair's ray, by the muzzle its shots go from; and the ironsight's own numbers
+// (vr_flat_ads_fwd / vr_flat_ads_up / vr_flat_ads_out), put on the pose before that bringing so the bringing works on the
+// muzzle they leave.
 void centreOnCrosshair(hands::State& s, const glm::vec3& aim)
 {
     st.shift = st.adsOff = glm::vec3{0.f};
@@ -321,7 +281,7 @@ void centreOnCrosshair(hands::State& s, const glm::vec3& aim)
         return;
     }
 
-    // Item 1's ironsight set first, on the pose the mode made and over the same seconds: forward, up and out at the
+    // The ironsight's own numbers first, on the pose the mode made and over the same seconds: forward, up and out at the
     // holding hand's own side (the same side flatplay's vr_flat_gun_out measures out to), in the view's own frame -- the
     // frame the sight picture lives in. It goes on before the muzzle is measured and the weapon brought onto the crosshair
     // because the bringing is what answers the muzzle's distance off that ray: applied after it, the offsets would carry
@@ -331,7 +291,8 @@ void centreOnCrosshair(hands::State& s, const glm::vec3& aim)
     glm::vec3 fwd{}, right{}, up{};
     hands::angleVectors(aim, fwd, right, up);
     const float side = st.holding == HAND_MAIN ? 1.f : -1.f;
-    st.adsOff = (fwd * adsNum(vr_flat_ads_fwd) + right * (side * adsNum(vr_flat_ads_out)) + up * adsNum(vr_flat_ads_up))
+    st.adsOff = (fwd * flatplay::poseNum(vr_flat_ads_fwd) + right * (side * flatplay::poseNum(vr_flat_ads_out)) +
+                    up * flatplay::poseNum(vr_flat_ads_up))
                 * st.adsT;
     if(st.pinned)
     {
@@ -391,6 +352,9 @@ void frame()
         st.gripWanted = st.adsWanted = false;
         st.gripT = st.adsT = 0.f;
         st.lastTime = -1e9;
+        st.holding = st.helping = st.lastHolding = st.lastHelping = -1;
+        st.pinned = st.atGrip = st.armed = false;
+        st.edgeFrame = -1;
         if(st.fovNarrow != 0.f)
         {
             st.fovNarrow = 0.f; // a headset took the game back with the ironsight on: the view is the player's own again
@@ -427,34 +391,15 @@ void frame()
 
 void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
 {
-    // The mode's own gate. s.valid is not asked for: the flat pose is made in hands::placeFlat, which runs before
-    // hands::update raises that flag for the frame (vr_hands.cpp), and what is read here is the pose flatplay just made
-    // and the hotspot and muzzle the view placed last frame -- the same thing flatplay's own pose works on.
-    if(!flatplay::active())
-    {
-        st.holding = st.helping = -1;
-        st.pinned = false;
-        st.gripOff = st.gripDot = st.handGap = st.muzzleGap = 0.f;
-        st.gripReach = st.gripFwd = st.gripRight = st.gripUp = 0.f;
-        st.gripWanted = st.adsWanted = false;
-        if(st.lastHelping >= 0)
-        {
-            twohand::armFlatGrip(st.lastHelping, false); // his hands are reaching nothing any more
-        }
-        st.atGrip = false;
-        st.armed = false;
-        st.edgeFrame = -1;
-        st.lastHolding = st.lastHelping = -1;
-        return;
-    }
-
-    st.holding = st.helping = -1;
+    // Only flatplay::poseHands calls this, so only in the mode. s.valid is not asked for: the flat pose is made in
+    // hands::placeFlat, which runs before hands::update raises that flag for the frame (vr_hands.cpp), and what is read
+    // here is the pose flatplay just made and the hotspot and muzzle the view placed last frame -- the same thing
+    // flatplay's own pose works on.
     oneHanded(st.holding, st.helping);
-    st.gripWanted = st.holding >= 0 && s.grip2HValid[st.holding];
     st.adsWanted = adsApplies();
-    // The pose is made twice a frame in flatscreen play (vr_client.cpp's buildMove: the hands made again with this
-    // frame's mouse turn), so the arrival at a grip, and the press it stands for, is decided once a frame and the same
-    // for both poses.
+    // The pose is made several times a frame in flatscreen play (flatplay::poseHands: at the frame's start, for the move,
+    // for the view), so the arrival at a grip, and the press it stands for, is decided once a frame and the same for all
+    // of them.
     const bool freshFrame = st.edgeFrame != host_framecount;
     if(freshFrame)
     {
@@ -476,14 +421,18 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
     // turns of them.
     const glm::vec3 crosshair[2]{s.rot[HAND_OFF], s.rot[HAND_MAIN]};
 
-    // Where the held weapon's grip stands from the hand that holds it, read before anything here moves: the flat pose's
-    // own reach to it, in the held hand's frame (the hotspot as the view placed it last frame).
+    // The hotspot as the view placed it last frame. This pose moves it with the weapon for vr_twohand's measures and puts
+    // it back at the end: each of the frame's poses carries it from the view's own point, so the carries do not add up.
+    const glm::vec3 placedGrip = st.holding >= 0 ? s.grip2H[st.holding] : glm::vec3{0.f};
+
+    // Where the held weapon's grip stands from the hand that holds it, as the view placed the two together last frame
+    // (this frame's pose is not on the crosshair yet: the ironsight's move is still to come), in the held hand's frame.
     st.gripReach = st.gripFwd = st.gripRight = st.gripUp = 0.f;
     if(st.holding >= 0 && s.grip2HValid[st.holding])
     {
         glm::vec3 fwd, right, up;
         hands::angleVectors(s.rot[st.holding], fwd, right, up);
-        const glm::vec3 d = s.grip2H[st.holding] - s.pos[st.holding];
+        const glm::vec3 d = placedGrip - s.placedFrom[st.holding];
         st.gripReach = glm::length(d);
         st.gripFwd = glm::dot(d, fwd);
         st.gripRight = glm::dot(d, right);
@@ -497,10 +446,11 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
     // today, with the hands where that pose puts them.
     const bool carryToGrip = st.holding >= 0 && st.helping >= 0 && s.grip2HValid[st.holding] && !s.grip2HCup[st.holding] &&
                              !s.grip2HPalm[st.holding] && st.gripFwd > vr_2h_angle_threshold.value * st.gripReach;
+    st.gripWanted = carryToGrip;
     pinToGrip(s, reach, carryToGrip);
     centreOnCrosshair(s, aim);
 
-    // Item 3's press, and only its press: true on the frame the empty hand arrives on the hotspot, false the frame it
+    // The grip's press, and only its press: true on the frame the empty hand arrives on the hotspot, false the frame it
     // leaves it or the weapon changes. applyHotspots' goodDistance, goodDot, the stickiness and the weapon's own
     // Two-Handed setting decide the hold from here on, exactly as they do for a controller's grip button.
     const bool inside = gripArrival(s, st.gripOff, st.gripDot);
@@ -530,17 +480,17 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
     // not a look.
     twohand::apply(s);
 
+    if(st.holding >= 0)
+    {
+        s.grip2H[st.holding] = placedGrip;
+    }
+
     // On the flat screen the crosshair is the aim, whatever the grip made of the held hand's turn (in a headset that
     // turn is the aim, and is kept): put the pose's angles back, and the shots keep going along the crosshair.
     for(int h = 0; h < HAND_COUNT; h++)
     {
         s.rot[h] = crosshair[h];
     }
-}
-
-bool aiming()
-{
-    return adsApplies();
 }
 
 float adsShare()
@@ -565,7 +515,7 @@ void statusLine()
                "taken over %g s of travel (vr_flat_aim_time); %d toggles this session; its own offsets on top of the "
                "aligned pose vr_flat_ads_fwd %g vr_flat_ads_up %g vr_flat_ads_out %g, in the view's frame)%s\n",
         st.ads ? "asked for" : "off", vr_flat_aim_fov.value, vr_flat_aim_time.value, st.toggles,
-        adsNum(vr_flat_ads_fwd), adsNum(vr_flat_ads_up), adsNum(vr_flat_ads_out),
+        flatplay::poseNum(vr_flat_ads_fwd), flatplay::poseNum(vr_flat_ads_up), flatplay::poseNum(vr_flat_ads_out),
         st.ads && st.holding >= 0 && !sightalign::alignable(st.holding) ? ", no sights on the weapon held" : "");
     if(st.holding >= 0)
     {
@@ -621,19 +571,14 @@ void print(const hands::State& s)
         vr_gametime, adsApplies() ? "on" : (st.ads ? "no sights" : "off"), st.adsT, r_refdef.fov_x, r_refdef.fov_y,
         st.holding == HAND_MAIN ? "main" : "off", st.pinned ? "hotspot" : "none", twohand::helping(st.helping) ? 1 : 0,
         twohand::helpKind(st.helping), twohand::transition(st.holding), st.offBefore, units, degrees,
-        glm::length(st.shift), vr_flat_aim_fov.value, adsNum(vr_flat_ads_fwd), adsNum(vr_flat_ads_up),
-        adsNum(vr_flat_ads_out));
+        glm::length(st.shift), vr_flat_aim_fov.value, flatplay::poseNum(vr_flat_ads_fwd),
+        flatplay::poseNum(vr_flat_ads_up), flatplay::poseNum(vr_flat_ads_out));
 }
 
 } // namespace qvr::flatsight
 
 // gl_screen.c (VR_FlatAdsFov, vr_api.h): the flatscreen FOV, narrowed while the ironsight is on. Off, or outside the
 // mode, it is the FOV asked for -- unchanged for a headset run and for plain flatscreen play.
-extern "C" int VR_FlatAdsActive(void)
-{
-    return qvr::flatsight::aiming() ? 1 : 0;
-}
-
 extern "C" float VR_FlatAdsFov(float basefov)
 {
     return qvr::flatsight::fov(basefov);

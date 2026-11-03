@@ -111,4 +111,4 @@ read -r eyeStand eyeCouch orgC <<<"$(recs "$log" | grep -a "^flatcam: " | awk '
 echo "  the nudges held, Left Ctrl with them: the game's own readings -- eye $h0 units above the bottom of his box standing, $h1 held, $h2 let go again, his origin $o0 / $o1 / $o2; the drawn eye $eyeStand units above his origin standing and $eyeCouch held (his origin $orgC), $log"
 check $(awk -v a="$o0" -v b="$o1" -v c="$o2" 'BEGIN { exit !(a == 88 && b == 88 && c == 88) }' && echo 1 || echo 0) "view: his origin is 88 standing, crouched and let go again, with the nudges held"
 check $(awk -v a="$h0" -v b="$h1" -v c="$k1" 'BEGIN { exit !(c == 1 && a - b > 17 && a - b < 19) }' && echo 1 || echo 0) "view: the crouch still lets his head 18 units down with the nudges held"
-verdict
+verdict; exit $fail

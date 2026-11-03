@@ -41,8 +41,12 @@ eyes=$(grep -a "^flatkeys: crouched" "$S/crouchflat.log" | sed 's/.*eye \([0-9.]
 n=$(echo "$eyes" | grep -c .)
 top=$(echo "$eyes" | head -1); low=$(echo "$eyes" | sort -g | head -1); back=$(echo "$eyes" | tail -1)
 deep=$(grep -ac "^flatkeys: crouched 1 stand 0\." "$S/crouchflat.log")
-check $([ "$n" = 3 ] && awk -v a="$top" -v b="$low" -v c="$back" 'BEGIN{exit !((a-b)>=15 && c==a)}' && echo 1 || echo 0) \
-    "crouch: eyes $top -> $low -> $back units, crouched while held ($deep of 3 readings), the drop at least 15 of the 18 vr_flat_crouch_drop asks for"
+check $([ "$n" = 3 ] && awk -v a="$top" -v b="$low" -v c="$back" 'BEGIN{exit !((a-b)>=17.5 && (a-b)<=18.5 && c==a)}' && echo 1 || echo 0) \
+    "crouch: eyes $top -> $low -> $back units, crouched while held ($deep of 3 readings), the drop the 18 vr_flat_crouch_drop asks for"
+# Held, the eye stays put: the drawn eye's height over him, frame by frame once the ease is over (flatcam:).
+run crouchstill flat "$P; r_norefresh 0; vr_mock_eye_size 256; +flatcrouch; wait40; vr_flatplay_debug 2; wait12; vr_flatplay_debug 0; -flatcrouch" "^flatcam: "
+still=$(grep -ao "above him [0-9.-]*" "$S/crouchstill.log" | sed 's/above him //' | sort -u | tr '\n' ' ')
+check $([ "$(echo $still | wc -w)" = 1 ] && echo 1 || echo 0) "crouch: held, the drawn eye does not move frame by frame (heights over 12 frames: $still)"
 # The crouched box follows the key, not his eyes' height: a flatscreen player's eyes stand at Quake's viewheight, which
 # is under the tallest crouched box's top, so vr_hull.cpp is asked with his key (flatscreenCrouch) -- held crouched,
 # let go standing again (vr_crouch_speed: his full speed) as long as his box fits where he is.

@@ -3833,18 +3833,16 @@ QVR_CVAR(vr_flat_crouch_drop, "18", CVAR_NONE)          // Left Ctrl / +flatcrou
 QVR_CVAR(vr_flat_crouch_fire, "0", CVAR_NONE)           // Left Ctrl and firing: 0 (the default) while flatscreen play runs CTRL is the crouch key only -- the mode takes the key off +attack (its own bind: Quake/default_cfg.h binds CTRL +attack) and gives it back when the mode ends and before the game writes its config out; 1: CTRL keeps its bind, so holding it crouches and fires
 QVR_CVAR(vr_flat_aim_fov, "12", CVAR_NONE)              // the flatscreen ironsight (vr_flat_aim, the mouse wheel's button; vr_flatsight.cpp): how many degrees the field of view narrows while it is on, on the view's own base fov (0..45; 0: the view stays wide). The look's speed keeps its measure (in_sdl.c IN_FovScale) and the HUD is unchanged
 QVR_CVAR(vr_flat_aim_time, "0.25", CVAR_NONE)           // the same ironsight: how long its whole travel takes, in seconds -- onto the crosshair, and back off it (0.05..1.00; 0: at once). The field of view is narrowed by vr_flat_aim_fov's degrees times how far that travel has gone, so the view closes and opens with the weapon instead of at the press
-// Where the weapon and the hands sit (item 1 of Vittorio's list): the pose's own numbers, which were named constants at
-// the top of vr_flatplay.cpp (gunFwd 17, gunDown 9, gunOut 2.5, supportFwd 12, supportDown 11, supportOut 5, emptyFwd 5,
-// emptyDown 13, emptyOut 7, camNear 24) and are these cvars now, at the same defaults. Forward / sideways / down in the
-// view's own frame, Quake units; vr_flat_reach multiplies them as it multiplied the constants. None of them moves the
+// Where the weapon and the hands sit: the pose's own numbers. Forward / sideways / down in the view's own frame, Quake
+// units, vr_flat_reach times them. None of them moves the
 // shot off the crosshair: the hand's turn is solved from the crosshair (aimRotAtCrosshair) whatever the hand sits at.
 QVR_CVAR(vr_flat_gun_fwd, "17", CVAR_NONE)              // the held weapon, hipfire: how far in front of its shoulder it sits (-30..30 units; 17: where the pose put it)
 QVR_CVAR(vr_flat_gun_down, "9", CVAR_NONE)              // the held weapon, hipfire: how far below its shoulder it sits (-30..30; positive is lower; 9 as before)
 QVR_CVAR(vr_flat_gun_out, "2.5", CVAR_NONE)             // the held weapon, hipfire: how far off the body's centre line it sits, out at the holding hand's own side (-30..30; 2.5 as before; negative brings it across the centre line)
 QVR_CVAR(vr_flat_gun_near, "24", CVAR_NONE)             // the held weapon, hipfire: how far the drawn view may stand from his own head before the hands stop being kept on the drawn view and stay on the body (8..60 units; 24: the mode's camNear). The view at his eyes counts 0, a full crouch counts vr_flat_crouch_drop; the camera's own nudges (vr_flat_cam_fwd / _up / _side) are put back before the measure, so moving the eye does not read as "the view is somewhere else" and the gun keeps following it
-QVR_CVAR(vr_flat_ads_fwd, "0", CVAR_NONE)               // the same weapon with the ironsight on (vr_flat_aim, vr_flatsight.cpp): its own forward offset, added on top of the pose once that pose has been brought onto the crosshair's ray, over vr_flat_aim_time's seconds -- so at full ads the weapon sits where he puts it and not where the ease alone leaves it (-30..30 units; 0: today's result)
+QVR_CVAR(vr_flat_ads_fwd, "0", CVAR_NONE)               // the same weapon with the ironsight on (vr_flat_aim, vr_flatsight.cpp): its own forward offset, along the crosshair's ray, put on the pose before the pose is brought onto that ray, over vr_flat_aim_time's seconds (-30..30 units; 0: the aligned pose as it is)
 QVR_CVAR(vr_flat_ads_up, "0", CVAR_NONE)                // the same, up (+: higher; -30..30)
-QVR_CVAR(vr_flat_ads_out, "0", CVAR_NONE)               // the same, sideways (+: out at the holding hand's own side; -30..30). The ironsight's centring is measured before this, so what these leave is the muzzle standing off the crosshair's ray by this much -- the shot still goes along the crosshair, parallel to it
+QVR_CVAR(vr_flat_ads_out, "0", CVAR_NONE)               // the same, sideways (+: out at the holding hand's own side; -30..30). Up and out are put on before the ironsight's centring, which answers them: they show during the travel, and at full ironsight the muzzle is back on the crosshair's ray
 QVR_CVAR(vr_flat_ads_near, "24", CVAR_NONE)             // vr_flat_gun_near with the ironsight on, eased to it over the same seconds (8..60; 24: the same distance, so the ironsight changes nothing about it by default)
 QVR_CVAR(vr_flat_empty_fwd, "5", CVAR_NONE)             // an empty hand: how far in front of its shoulder it hangs (-30..30; 5 as before)
 QVR_CVAR(vr_flat_empty_down, "13", CVAR_NONE)           // an empty hand: how far below its shoulder it hangs (-30..30; positive is lower; 13 as before)
@@ -3852,7 +3850,7 @@ QVR_CVAR(vr_flat_empty_out, "7", CVAR_NONE)             // an empty hand: how fa
 QVR_CVAR(vr_flat_support_fwd, "12", CVAR_NONE)          // the free hand next to the other hand's gun: how far in front of its shoulder it rests (-30..30; 12 as before). A weapon whose grip a second hand can actually reach takes it to the grip instead (vr_flatsight.cpp, vr_twohand), and the grip travels with the gun
 QVR_CVAR(vr_flat_support_down, "11", CVAR_NONE)         // the same free hand: how far below its shoulder (-30..30; positive is lower; 11 as before)
 QVR_CVAR(vr_flat_support_out, "5", CVAR_NONE)           // the same free hand: how far out at its own side (-30..30; 5 as before)
-// The flatscreen eye, nudged (item 8 of Vittorio's list): the drawn view and the crosshair's ray move together, in the
+// The flatscreen eye, nudged: the drawn view and the crosshair's ray move together, in the
 // view's own frame -- forward, up and the view's right -- so looking down feels less like looking down from the top of
 // the head. Only the drawn view: the player's own origin, his collision box and the crouch's box (vr_hull.cpp,
 // vr_server.cpp) are measured from where he really stands and stay where they are. Applied where the mode already moves

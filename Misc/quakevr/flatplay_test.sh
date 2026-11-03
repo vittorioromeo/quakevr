@@ -151,7 +151,7 @@ check $(awk -v s="${shot:-0}" -v n="$(grep -c "ads on" "$log")" 'BEGIN { exit !(
 # press a flatscreen hand is always making).
 log=$HERE/scratch/flatgrip.log
 bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; god; notarget; developer 1; vr_mock_eye_size 256; vr_debug_2h_grip 1; impulse 154; wait40; vr_flatplay_status; wait5; impulse 158; wait40; vr_flatplay_status; wait5; impulse 159; wait60; vr_flatplay_status; toggleconsole; quit" -Filter "^  two hands:|^  grip:|^  hotspot:|^2h grip: " > "$log" 2>&1
-grep -a "^  two hands:|^  hotspot:" "$log" | sed 's/^/  /'
+grep -aE "^  two hands:|^  hotspot:" "$log" | sed 's/^/  /'
 check $(grep -q "off hand where the mode's pose puts it" "$log" && awk '/hotspot: / { if (match($0, /fwd -[0-9.]+/)) behind = 1 } END { exit !behind }' "$log" && echo 1 || echo 0) "flatscreen grip: a grip standing behind the held hand (the shotgun's) is left alone: the free hand stays on the mode's support pose, and nothing is folded onto the held hand"
 check $(grep -q "on its grip hotspot (held holding: helpKind 1" "$log" && grep -q "2h grip: off hand took it" "$log" && echo 1 || echo 0) "flatscreen grip: a grip ahead of the held hand (the rocket launcher's, the proximity gun's) is taken: helpKind 1, the transition in full, on vr_twohand's own rules"
 # 9: in the headset the ironsight is not running at all: vr_flat_aim says so, the ironsight and the grip lines never

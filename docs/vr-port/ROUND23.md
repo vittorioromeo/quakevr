@@ -7818,6 +7818,23 @@ Seeded runs on `vrtesthall`, drawn, on next at 10362cc5f plus this branch.
 
 Checklist line, item 2: a replaced grunt or enforcer, whatever it holds, drops what it holds and its backpack, never an extra weapon; a plain grunt or enforcer (`vr_agrunt_repl` 0) still sometimes does. {test:vrtesthall}
 
+## Review of the flatscreen commits (2026-11-03)
+
+The local model's flatscreen commits of 2026-11-02 and 11-03 read against the rules. Fixed: a held crouch stepped back and
+forth (the eye moved 1 unit every other frame; `flatkeys_test` gated "at least 15 of 18", which hid it); the crouched box
+grew without a fit test while the head came back up; each of the frame's three poses carried the grip hotspot on from the
+last one's result, and its reach was measured against a hand not yet on the crosshair (14.0 for 12.6 with the ironsight on);
+the free hand's ease ran for grips it is never carried to; dead code (`Sight::since`, `flatsight::aiming`,
+`VR_FlatAdsActive`, the palm branch of `pinToGrip`, the mode-off block of `apply`); copies of `heldIn` and the pose clamp;
+comments and row help that said the opposite of the code (`vr_flat_ads_up` / `_out` only show during the travel).
+
+Left for the author: the pose numbers are `CVAR_NONE` cvars with Debug rows, not tunables (a value set in the menu is lost at
+quit); a pinned free hand does not punch; a second press restarts a running punch from the rest pose; the server asks the
+host's crouch key for every flatscreen client; `vr_stand` reads under 1 on stairs; `vr_flat_ads_up` / `_out` have no effect at
+full ironsight; the shot misses with the eye nudged.
+`flatplay_test`'s off-hand axe case fails in the suite's order (the third knight takes nothing) and passes
+alone (19 damage), before and after these fixes.
+
 ## Flare guns on crates; wave presets ship (branch `agent/crateflare`, 2026-11-03)
 
 His words: "vr_crate_flaregun: Please enable it. Spawn a flaregun on top of crates/barrels rarely, roughly same spawn rate as

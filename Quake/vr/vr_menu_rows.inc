@@ -5912,7 +5912,7 @@ QVR_SLIDER(vr_flat_aim_fov, "Flatscreen Ironsight Field of View", 0.f, 45.f, 1.f
 QVR_SLIDER(vr_flat_aim_time, "Flatscreen Ironsight Time", 0.f, 1.f, 0.05f, "%.2f s", noExt,
     "How long the flatscreen ironsight takes to come onto the crosshair, and back off it (0: at once). The field of "
     "view narrows and opens over the same seconds, in step with the weapon (vr_flat_aim_time).")
-QVR_SLIDER(vr_flat_crouch_time, "Flatscreen Crouch Time", 0.f, 2.f, 0.05f, "%.2f s", noExt,
+QVR_SLIDER(vr_flat_crouch_time, "Flatscreen Crouch Time", 0.05f, 2.f, 0.05f, "%.2f s", noExt,
     "How long holding Left Ctrl and letting it go take to ease in and out (0: at once). His head, his height and the "
     "drawn view come down and go back over this long (vr_flat_crouch_time).")
 QVR_SLIDER(vr_flat_crouch_drop, "Flatscreen Crouch Drop", 0.f, 40.f, 1.f, "%.0f units", noExt,
@@ -5933,15 +5933,16 @@ QVR_SLIDER(vr_flat_gun_near, "Flatscreen Gun With The Crosshair", 8.f, 60.f, 1.f
     "the gun on the crosshair while he crouches or the view is pushed (vr_flat_gun_near, eased to "
     "vr_flat_ads_near while the ironsight is on). Too small and the gun stays with his body while the view moves off.")
 QVR_SLIDER(vr_flat_ads_fwd, "Flatscreen Ironsight Forward", -30.f, 30.f, 0.5f, "%.1f", noExt,
-    "While the ironsight is on, how much further along his look the held weapon is carried, on top of the pose it "
-    "was aligned to, over the same seconds (vr_flat_ads_fwd). The shot stays parallel to the crosshair: a big "
-    "number leaves the muzzle that many units short of or past it.")
+    "While the ironsight is on, how much further along his look the held weapon is carried, over the same seconds "
+    "(vr_flat_ads_fwd). The shot stays on the crosshair: a big number leaves the muzzle that many units short of or "
+    "past where it was.")
 QVR_SLIDER(vr_flat_ads_up, "Flatscreen Ironsight Up", -30.f, 30.f, 0.5f, "%.1f", noExt,
-    "While the ironsight is on, how much higher the held weapon is carried, in the view's frame (up is up): "
-    "negative lowers it (vr_flat_ads_up).")
+    "How much higher the held weapon is carried on its way onto the crosshair, in the view's frame (negative lowers "
+    "it). Only while it travels: at full ironsight the centring has answered it (vr_flat_ads_up).")
 QVR_SLIDER(vr_flat_ads_out, "Flatscreen Ironsight Out", -30.f, 30.f, 0.5f, "%.1f", noExt,
-    "While the ironsight is on, how much further to the holding hand's own side the weapon is carried, in the view's "
-    "frame (negative towards the other side): the sight line of a gun held off to the side (vr_flat_ads_out).")
+    "How much further to the holding hand's own side the weapon is carried on its way onto the crosshair, in the "
+    "view's frame (negative towards the other side). Only while it travels: at full ironsight the centring has "
+    "answered it (vr_flat_ads_out).")
 QVR_SLIDER(vr_flat_ads_near, "Flatscreen Ironsight With The Crosshair", 8.f, 60.f, 1.f, "%.0f units", noExt,
     "The distance the keep-the-gun-with-the-view distance eases to while the ironsight is on (vr_flat_ads_near, "
     "from vr_flat_gun_near over vr_flat_aim_time).")
