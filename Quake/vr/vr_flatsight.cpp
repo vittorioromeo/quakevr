@@ -263,11 +263,12 @@ void aim_f()
     }
 }
 
-// Item 3: the empty hand onto the held weapon's two-handed grip hotspot, eased from where flatplay put it.
-void pinToGrip(hands::State& s, const glm::vec3& reach)
+// Item 3: the empty hand onto the held weapon's two-handed grip hotspot, eased from where flatplay put it. Only for a
+// grip the pose can actually bring a hand to (carryToGrip, in apply below).
+void pinToGrip(hands::State& s, const glm::vec3& reach, bool carry)
 {
     st.pinned = false;
-    if(st.holding < 0 || st.gripT <= 0.f)
+    if(!carry || st.holding < 0 || st.gripT <= 0.f)
     {
         return;
     }
@@ -432,7 +433,14 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
         st.gripUp = glm::dot(d, up);
     }
 
-    pinToGrip(s, reach);
+    // The free hand is carried to a grip that stands where a second hand can reach it: ahead of the held hand, along the
+    // line vr_twohand asks its dot about. A grip that stands on or behind the hand holding the weapon (the shotgun's, the
+    // super shotgun's, the nail gun's: measured 5 units off it, 3 to 5 units to the rear) is not a place a second hand
+    // can go, and a cup or a palm grip is held by vr_twohand's own rules. Both keep the support pose flatplay gives them
+    // today, with the hands where that pose puts them.
+    const bool carryToGrip = st.holding >= 0 && st.helping >= 0 && s.grip2HValid[st.holding] && !s.grip2HCup[st.holding] &&
+                             !s.grip2HPalm[st.holding] && st.gripFwd > vr_2h_angle_threshold.value * st.gripReach;
+    pinToGrip(s, reach, carryToGrip);
     centreOnCrosshair(s, aim);
 
     // Item 3's press, and only its press: true on the frame the empty hand arrives on the hotspot, false the frame it
@@ -447,7 +455,10 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
     }
     if(freshFrame)
     {
-        st.armed = st.helping >= 0 && inside && !st.atGrip;
+        // Once per arrival, and again on each frame the pose still holds the hand on a grip nothing has taken: a
+        // flatscreen hand is not lifted off a grip it was placed on, so a press missed on the frame the weapon changed
+        // would never come again. It stops the frame vr_twohand takes the hold.
+        st.armed = st.helping >= 0 && inside && (!st.atGrip || !twohand::helping(st.helping));
         st.atGrip = inside;
         st.lastHolding = st.holding;
         st.lastHelping = st.helping;
@@ -494,7 +505,7 @@ void statusLine()
     {
         Con_Printf("  two hands: %s hand holds, the %s hand %s (%s holding: helpKind %d, transition %.2f)\n",
             st.holding == HAND_MAIN ? "main" : "off", st.helping == HAND_MAIN ? "main" : "off",
-            st.pinned ? "on its grip hotspot" : "free (no grip hotspot on that weapon)",
+            st.pinned ? "on its grip hotspot" : "where the mode's pose puts it (no grip there a second hand can take)",
             twohand::helping(st.helping) ? "held" : "not held", twohand::helpKind(st.helping),
             twohand::transition(st.holding));
         if(st.pinned)
@@ -505,6 +516,11 @@ void statusLine()
             Con_Printf("  grip: %.2f units off the hotspot (take %.2f), dot %.2f (needs %.2f), hands %.1f apart, "
                        "muzzle %.1f off the held hand\n",
                 st.gripOff, twohand::gripTakeUnits, st.gripDot, vr_2h_angle_threshold.value, st.handGap, st.muzzleGap);
+        }
+        if(st.gripReach > 0.f)
+        {
+            // Where the held weapon's grip stands from the hand holding it, printed whatever the mode makes of it: the
+            // measure the choice above rests on (a grip to the rear of that hand is not a place a second hand can go).
             Con_Printf("  hotspot: %.1f units from the held hand (fwd %.1f, right %.1f, up %.1f of it)\n",
                 st.gripReach, st.gripFwd, st.gripRight, st.gripUp);
         }
