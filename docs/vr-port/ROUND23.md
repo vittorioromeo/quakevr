@@ -7716,10 +7716,12 @@ since 5095e37b4 (`scratch/r1103_bisect.py`: one build and probe per merge, about
   are tied to a wearer by `.vr_wp_wearer`, not `.owner`, so the studio neither removed them nor counted them as the subject's:
   each change of subject tore the old one's pack off ("its wearer gone") and left it lying there. `VR_RigStudio_Remove` removes it,
   the census counts it. Back to 13/1; the one left is the baseline's (step 4, a grunt given weapon 26 holds nothing).
-- **agrunt_35: a test that passed by luck.** 7576310ed (Flaky round 3) made the tests' `VR_AGT_Hunt` finish a spawn first, so a
-  test's monster turns like a map's. Mjolnir's swing then passes 20 units off a crowbar held still and lands: the directional
-  parry is right (restoring the old blow line for Mjolnir alone changes nothing: the hunt is what moved it). Test 35 now moves
-  your weapon onto the way of a blow that landed, as a player would, and still wants a parry per weapon: 6/0, Mjolnir score 1.00.
+- **agrunt_35: a test that passed by luck.** 7576310ed (Flaky round 3) aimed every blow at its target and made the tests'
+  `VR_AGT_Hunt` finish a spawn first, so a test's monster turns like a map's. Mjolnir's swing now passes about 20 units off a
+  crowbar held still and lands. Undoing either change alone doesn't bring the parry back (the old line for Mjolnir: gap 20.3;
+  the old hunt: gap 18.4; that one read with test 35's new move on), so it took both. The directional parry is right that it lands.
+  Test 35 now moves your weapon onto the way of a blow that landed, as a player would, and still wants a parry per weapon: 6/0,
+  Mjolnir score 1.00. Whether a grunt's Mjolnir should swing that wide is the author's question: only the test was changed.
 - **eval: no melee regression.** Exit 1 is two takes differing from `kit/eval_baseline.csv`, all PASS -> PASS with the same decap.
   `slash_diagonal_down_left 12-30-13`: zone in 3.7 -> 4.7 of 12.3, damage 49.5 the same, every run. 9b90e2859 (his tweaks as
   defaults): the new `vr_closequarters_*`; with the old six set the replay reads 3.7 again. A second take moves by 0.1 damage and

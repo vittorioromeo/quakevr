@@ -787,8 +787,8 @@ void() VR_AGPT_Parry =
         return;
     }
     // Your weapon held still is on most swings' way, not on all (Mjolnir's passes 20 units off: the directional parry is
-    // right that it lands, vr_dirparry.qc; it was parried here only while the test's monster hunted with no turning speed,
-    // ROUND23.md "Regressions of 2026-11-03"). A blow that landed moves it onto that blow's way, as a player would: the
+    // right that it lands, vr_dirparry.qc; it met the crowbar only with its old blow line and a test's monster hunting with
+    // no turning speed, ROUND23.md "Regressions of 2026-11-03"). A blow that landed moves it onto that blow's way, as a player would: the
     // next one meets it. (Test 78 reads the angles and the margins; this one the parry's outcome per weapon.)
     if(vr_ag_player_dmg > vr_agpt_seen)
     {
