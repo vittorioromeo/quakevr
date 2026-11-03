@@ -7294,3 +7294,26 @@ cuts them from decoded previews (its header has the sources and the ffmpeg line)
 - `pack_rip.wav`: the first 0.62 s of 591527 from its onset, high-passed 150 Hz, one pole at 8 kHz, tanh 5, a 0.14 s fade. Nearly all
   over 800 Hz; its sample-to-sample jumps are the tear's dense crackle (the source has the same, against its peak), not lone clicks.
 - All files start and end at 0.
+
+## The gentle press that killed: a headbutt; high falls on its feet
+
+His note vrragtriggers_2026-11-03_02-18-13: gently grabbing a lying grunt "is detected as an impact and kills"; high falls off
+ledges hurt but never drop the weapon.
+
+- **It was never the impact rule or the strikes: it was your head.** The take's events show `headbutt` at each death: 25.0 at
+  0.79 s (health 25 to -1), 24.1 at 8.21 s (25 to 0), 24.7 at 25.36 s (23 to -1). Bending down to grab, his head moved at 1.5 m/s
+  (`vr_headbutt_speed` 1.5, `vr_headbutt_damage` 24 at that speed) and was still 31 units off the body's origin, about a metre
+  (25 off its stale standing box's middle), and `VR_Headbutt_Target` is forgiving by design: a monster's box middle within reach.
+  A ragdoll lies apart from that box. Older than the impact rule (headbutts date from before 2026-10-23); nothing in the rule's
+  commits touched it. Fix: a ragdoll is headbutted only if the lunge meets its drawn body (`VR_Headbutt_Reaches`, 22 units,
+  `hitmodel_segment`); standing monsters as before.
+- **His hard slams were strikes, correctly:** the take's other damage, hand at -5.5 m/s (2 damage) and -9.3 m/s (9, then 10). No
+  change to the strikes' numbers. A real grip pressed down at 2-2.5 m/s (every part the mock could take: 0, 1, 2, 7, 8, 9, 13)
+  dealt no strike and lost no health before the fix too (the fastest strike reported: 1.7 m/s, held, and refused as dragged), so
+  held-limb speed is not the cause.
+- **High falls.** Knocked down or staggering over a real ledge it already let go (vrclimb: 280 and 240-unit drops, 46 and 24
+  damage, "hit something" at 5.0-9.6 m/s). On its feet (a shove that doesn't knock it down, sliding off) no ragdoll exists, so no
+  impact was ever read: it landed at 678 u/s for 55 damage, armed. New `VR_AG_FallLanded`: a landing that hurts it (`VR_Monster_Fall`,
+  a drop past `VR_SHOVE_SAFEFALL` 150 units, the whole body coming down that fast), standing or down, lets go.
+- **Test 202:** on any map with a flat wall, 4 press cases (floor by 3 parts, wall) and the head check; `map vrclimb` runs the 6 ledge
+  cases instead.
