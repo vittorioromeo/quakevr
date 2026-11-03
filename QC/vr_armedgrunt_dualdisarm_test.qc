@@ -222,9 +222,12 @@ void() VR_AGDD_Frame =
         if(g.vr_ag_tug_pl != pl && vr_agdd_frames < 11) { return; }
         if(g.vr_ag_tug_pl != pl)
         {
-            // (the press's 0.125 s window can close with the engine's hand touch not yet in, some full runs in fast mode:
-            // the grab it would have made, VR_AG_HandGrab's; what this test is after is what the tug leaves)
-            VR_AGT_Print(sprintf("dualdisarm %g: the press found no weapon: grabbed directly", c));
+            // (By seed, not by timing: drawn or not, seed 2's cases 10-12 and no other. The mock hand ends 7.5-13.1 units off its
+            // weapon's grip, 4.8 on seed 1, its hand's turn and your place the same: the fist never reaches it. Why the mock's
+            // placing differs: not found (ROUND23.md, "Flaky tests, round 3"). The grab it would have made, VR_AG_HandGrab's;
+            // what this test is after is what the tug leaves.)
+            VR_AGT_Print(sprintf("dualdisarm %g: the press found no weapon: grabbed directly (hand %.1f off its left grip)", c,
+                vlen(pl.handpos - ((g.vr_ag_prop2 && g.vr_ag_prop2.vr_ag_left) ? g.vr_ag_prop2.origin : g.vr_ag_prop.origin))));
             if(!g.vr_ag_prop.vr_ag_left)
             {
                 VR_AG_Swap(g);

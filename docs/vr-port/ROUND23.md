@@ -7296,6 +7296,32 @@ real bug hiding behind tests that measured the wrong thing.
 
 **Kit (coordinator):** run.ps1's `Select-String` output wraps at the console's width: a filtered long line arrives in pieces (`-Filter` drops nothing, but a grep on the capture does). Test 76 took 82 s free and timed out at 400 s five times over beside other work: run_baseline's 300 s would too.
 
+## Flaky tests, round 3 (branch `agent/flaky3`)
+
+Seeded runs repeated; "identical" compares the PASS/FAIL lines' hash. Rules as round 2.
+
+| Test | Cause (evidence) | Class | Fix | Before | After |
+|---|---|---|---|---|---|
+| agrunt_18, a missed blow | a short weapon's or a punch's blow line was never aimed at you. Grunt with Mjolnir: began 51-54 off, 41-44 at the blow, grip 31 off you, line (0.67, -0.67, -0.33): past your side into the floor, on seeds 1, 2, 3; enforcer's and knight's the same distance landed. Death knight's uppercut: 42 to 38, line up over your head. The keys' turn or the punch's path; `VR_AGP_Strike` only corrected a long blade from its standoff | b | every blow at you from the hand (`g.enemy`), whatever the keys or the punch's path. Reach stays the weapon's own: too far, the line ends short | 23/1, 22/2 by seed | seeds 1-3 24/0; 5/5 identical |
+| agrunt_18, "attack" | a death knight's spell (act 5) counted as its melee attack: never struck, hurt nobody yet, ended phase B at 125 off (dB -1) | a | casts and shoves are not counted | 22/2 | as above |
+| agrunt_18, phase C | you put 36 from it with its volley still flying: `SV_CheckStuck` put you back on your old origin, it then walked in to its 54 standoff: "stepped in to 36, it struck from 53.9" | a | the placing is repeated until it holds | fails by seed | as above |
+| `VR_AGT_Hunt`, tests 76, 86 and 38 files | a hunt on the spawn's frame replaced `walkmonster_start_go`'s think: no turning speed, eyes at the waist, no takedamage, as `vr_agtune_test 3` | a | the helper runs the pending start first | - | 200 agrunt cases compared: nothing changed verdict with it off |
+| agrunt_78, the chainsaw's line | a constant 2.56 on 466 frames: the line's back end (-3.5 0.1 -4.7) against `butt` (-3.3 0.1 -2.2): two middles of the same broad rear face, one along the line, one along the model's x. Not off the weapon | a | the check takes its butt as it takes its tip, along the line | 18/2 | 19/1 |
+| nail_1, the timeout | 44 nails, those past the bag flying on to a far crate about 800 units off, against one 1200-frame net for the step: "timed out (step 4)" on seed 5 | a | the net is per nail | seed 5 fails | 12 seeds 10/0; 5/5 identical on seed 1 |
+| dead_gear 7/2 | `hidden()` asked for a "grenades" field the status line has called "rounds" since 6d07806ca (2026-10-22): empty, so never "0". Every count was 0 | a | the field's name | 7/2 | see below |
+
+**Not found / not fixed.**
+- nail_1 "no nail flew on through it having pushed it (1 did)": not reproduced in 12 seeds on this merge (round 2: 3 of 3 on seed 1). What moved the bag: not found. Stays on the list.
+- agrunt_71's enforcer damage a shot, why it moved: it sits on the check's edge. 15.04 against 18.10 is 3.06 off with 3.01 allowed: over 150 shots, about 8 damage in 2,715, less than one laser's part (12.8), flips it, so any change in the random stream can. 5 of 5 identical on this build, 9/1. The real difference: the replaced enforcer's shot lands in 1.41 parts (212 events, 150 shots), vanilla's in 1.00 (189, 188), at 1.00 against 1.25 shots a second, damage a second within 4%. Why 1.41 parts: not found. The check's name says accuracy; this isn't that. Not loosened.
+- Test 203's "press found no weapon" (test 68 presses the same way): by seed, not timing, drawn or undrawn: seed 2's cases 10-12, none on seeds 1, 3, 4, 5. The mock hand ends 7.5-13.1 units off the left weapon's grip (4.8 on seed 1) with the same hand turn and your place, so the fist never reaches it; keeping it placed through the press did not help (75/6 on seed 2), so the fallback stays. Why the mock's placing differs: not found. **Nothing here shows real grabs affected**, and nothing rules it out.
+- reload 112/3, parry_pose's dragon, judo 4/12, ragdoll_ragtest's crawl: run once, not looked into beyond the below.
+  parry_pose: every other kind parries (40-48); the dragon's 0 parries. Its "Error: Dragon cannot get to next target!" is only `dragon_stop_attack`'s print, not the cause.
+- Passed once here, variance not looked into: weapon_catch 5/0, teleporters_chase 6/0, ragdoll_grab 19/0, ragdoll_guard 8/0, stealth 59/0, rv_1 36/0. teleporter_edges reports 0/0.
+
+**New steady failures on next, not on test_flaky.txt** (drawn, seed 1; the same with this branch's two game-side changes off, so not from them): agrunt_30 1/1 (thrown at 14 m/s it keeps its gun, 0 sounds), agrunt_37 7/1 (tughand), agrunt_39 4/1 (tug's palm 5.92 cm), agrunt_92 21/1, agrunt_94 14/2 (a gun thrown across its barrel or hand: parried 0, disarmed 0), agrunt_202 9/4 (impact: hardest 0.0 m/s), agrunt_86 26/1 (weapon search 384: went for the weapon after 0.0 s). All but 202 and 86 passed on 2026-11-01's full run; 86 was 27/0 in round 2. agrunt_3 fails as ever: it needs a script's hand. Causes not looked into. agrunt_19 and 21 fail only undrawn (`vr_mock_fast 2`, run_baseline's default with --jobs).
+
+**Question for him (test 78):** his "horizontal" swing (kind 2) is a diagonal cut where it meets you: blade (0.65, 0.55, -0.52), way (-0.72, 0.24, -0.65), so a sword held level is 38 degrees off square, gap 3.6: inside `vr_dirparry_angle` 40 and `vr_dirparry_contact` 6, parried. The test wants it to land and its notes say a 16-unit gap, from older keys; its case 10 (contact just past that gap) no longer shows anything while the gap is under 6. Options: (1) accept it as a diagonal cut, as he did for the overhead on 2026-10-31, and the test expects a parry; (2) a truer horizontal in `VR_AGP_SwingKeys`; (3) a tighter angle (about 30, which also stops the level guard against the overhead at 45). Recommendation: (1). agrunt_78 stays on test_flaky.txt until answered.
+
 ## Heavy footsteps and the pack's rip from recordings (branch `agent/freesounds`, his notes of 2026-11-02 night)
 
 His words: the ogres' and fiends' footsteps sound "very artificial"; the rip sounds "too much like a fiend attack"; find free sounds.
