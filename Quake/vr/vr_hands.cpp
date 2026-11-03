@@ -889,7 +889,11 @@ void update()
     body::updateHotspots(state);
     twohand::updateHotspots(state); // a carried gun's handle
 
-    state.poseTime = t.time;
+    // The poses' own clock (vr_move.hpp: the melee and the legs' sweep measure a blow over these times when the client
+    // sends them). A headset's poses carry the tracking's sample time; the flat game's are made from the view at the
+    // client's clock, so they carry that instead of nothing - and a pose that carries nothing reads as no news, which is
+    // what a flatscreen fist's blows were up against (QC vr_melee.qc VR_Melee_Track, vr_legsweep.cpp).
+    state.poseTime = vrActive() ? t.time : vr_gametime;
     state.valid = true;
 
     // Body drift's log (vr_debug_body_error): marked where the body is when turned on.

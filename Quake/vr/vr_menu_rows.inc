@@ -5904,6 +5904,12 @@ QVR_SLIDER(vr_flat_turnlag, "Flatscreen Turn Lag", 0.f, 3.f, 0.05f, "%.2f", noEx
     "the view). Looks only: the shots go along the crosshair.")
 QVR_SLIDER(vr_flat_turnlag_speed, "Flatscreen Turn Lag Recovery", 0.1f, 5.f, 0.05f, "%.2fx", noExt,
     "How fast the flatscreen hands catch up with a turn: higher, quicker and less lag.")
+QVR_SLIDER(vr_flat_arm_hold, "Flatscreen Arm Hold", 0.f, 2.f, 0.05f, "%.2fx", noExt,
+    "How far a flatscreen hand may sit from its arm's shoulder, times what that arm can hold it at (0: no limit). "
+    "Keeps the hand on the arm through a punch, a knock or a look (0: the hands as they are placed).")
+QVR_SLIDER(vr_flat_pose_pitch, "Flatscreen Hand Pitch", 0.f, 90.f, 1.f, "%.0f deg", noExt,
+    "How far the flatscreen hands follow the view up and down (90: all the way, as before). Held to a pitch they stay "
+    "in the arc the arms sweep when you look straight up or down.")
 QVR_TOGGLE(vr_ao_cache, "Keep AO Bakes on Disk",
     "vr_ao_cache: the models' occlusion bakes kept on disk, so a later session's loads bake nothing (off: baked at every first load; 2 in the console: baked anyway and compared with the file).")
 QVR_TOGGLE(vr_menu_link_dryrun, "Menu Links: Print, Do Not Open",
