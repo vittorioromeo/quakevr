@@ -724,6 +724,7 @@ za::Vector<Item> pageDebugReports()
         row(opt::vr_flat_arm_hold),
         row(opt::vr_flat_pose_pitch),
         row(opt::vr_flat_aim_fov),
+        row(opt::vr_flat_aim_time),
         row(opt::vr_flat_crouch_time),
         row(opt::vr_flat_crouch_drop),
         command("Flatscreen Punch", "vr_flat_punch")

@@ -5913,6 +5913,9 @@ QVR_SLIDER(vr_flat_pose_pitch, "Flatscreen Hand Pitch", 0.f, 90.f, 1.f, "%.0f de
 QVR_SLIDER(vr_flat_aim_fov, "Flatscreen Ironsight Field of View", 0.f, 45.f, 1.f, "%.0f", noExt,
     "How many degrees the field of view narrows while the flatscreen ironsight is on (vr_flat_aim, or the mouse "
     "wheel's button). The look's speed and the HUD are unchanged: the crosshair keeps its distance on the screen.")
+QVR_SLIDER(vr_flat_aim_time, "Flatscreen Ironsight Time", 0.f, 1.f, 0.05f, "%.2f s", noExt,
+    "How long the flatscreen ironsight takes to come onto the crosshair, and back off it (0: at once). The field of "
+    "view narrows and opens over the same seconds, in step with the weapon (vr_flat_aim_time).")
 QVR_SLIDER(vr_flat_crouch_time, "Flatscreen Crouch Time", 0.f, 2.f, 0.05f, "%.2f s", noExt,
     "How long holding Left Ctrl and letting it go take to ease in and out (0: at once). His head, his height and the "
     "drawn view come down and go back over this long (vr_flat_crouch_time).")

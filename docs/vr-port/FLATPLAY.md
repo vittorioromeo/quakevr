@@ -181,6 +181,16 @@ so the look and the crosshair keep their feel. It refuses while dual wielding, a
 `vr_flatplay_status` prints both hands and the ironsight, and `vr_flatplay_debug 2` adds a `flatsight:` line each frame
 with where the muzzle stands off the crosshair before and after the turn.
 
+The narrowing is no step at the press. `vr_flat_aim_time` (0.25, 0.05..1.00 seconds, 0: at once) is how long the
+ironsight's whole travel takes — onto the crosshair, and back off it — and the field of view is narrowed by
+`vr_flat_aim_fov`'s degrees times how far that travel has gone, so it closes over those seconds and opens back off them
+in step with the weapon: both the hand's move and the view go by the same fraction (`st.adsT`, `fovNarrowNow`), and the
+depth the view settles at is the one it always settled at. Measured on the `flatsight:` lines, which print the field of
+view being drawn every frame: at the default 0.25 it steps from 106.3 down to 94.4 degrees (fov_x) over 18 frames,
+0.236 s, and back up over the same 18; at 0.05 it is done in 4 frames (0.042 s); at 0 it is one frame; at 1.00 it was
+still closing 60 frames after the press with 9.84 of the 11.87 degrees taken, and 5 in the console is read as 1.00.
+`Misc/quakevr/flatkeys_test.sh` section 7.
+
 A flatscreen hand is always gripping (`gripping`, in `vr_client.cpp`), so the frame the pose brings the empty hand onto a
 grip is stood in for the grip button's press by `twohand::armFlatGrip` — the one thing this adds to `vr_twohand`,
 next to `setFreeCandidate`, which is the same shape: a public setter for one internal flag. It arms on the frame the pose
@@ -209,8 +219,9 @@ at 90 they stop at -90 and +90. `Misc/quakevr/flatkeys_test.sh` section 6.
 ## Tuning
 
 `vr_flat_reach` (1), `vr_flat_sway` (1), `vr_flat_bob` (1), `vr_flat_turnlag` (1), `vr_flat_turnlag_speed` (1),
-`vr_flat_arm_hold` (1), `vr_flat_pose_pitch` (65) and `vr_flat_aim_fov` (12) — all not saved, all in the Debug menu,
-and `vr_flat_pitch_up` (85) with `vr_flat_pitch_down` (85) not saved too, at the console only. `vr_flat_arm_hold` is how
+`vr_flat_arm_hold` (1), `vr_flat_pose_pitch` (65), `vr_flat_aim_fov` (12) and `vr_flat_aim_time` (0.25) — all not saved,
+all in the Debug menu, and `vr_flat_pitch_up` (85) with `vr_flat_pitch_down` (85) not saved too, at the console only.
+`vr_flat_arm_hold` is how
 far a drawn hand may sit from its arm's shoulder, times what that arm can hold a hand at (`armSpan`: the model's bones
 with `vr_body_arm_length` and `vr_body_arm_stretch`, the shoulder's own `vr_body_shoulder_reach`; 0: no limit, the hands
 where they are placed). `vr_flat_pose_pitch` is how far the hands follow the view up and down, in degrees (90: all the

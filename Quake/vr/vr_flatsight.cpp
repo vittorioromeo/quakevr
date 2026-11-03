@@ -105,12 +105,22 @@ struct Sight
 Sight st;
 
 constexpr float gripEase = 9.f;  // how fast an empty hand travels onto a grip, and back off it (1/s)
-constexpr float adsEase = 12.f;  // how fast a held weapon comes onto the crosshair, and back off it (1/s)
 constexpr float camNear = 24.f;  // flatplay::camNear: the camera the flat hands are kept on (drawnOffset)
+constexpr float aimTimeMin = 0.05f;  // vr_flat_aim_time's shortest travel, and what a smaller nonzero setting reads as
+constexpr float aimTimeMax = 1.f;    // and its longest
 
 [[nodiscard]] float ease(float k, float dt)
 {
     return dt > 0.f ? 1.f - za::exp(-k * dt) : 1.f;
+}
+
+// vr_flat_aim_time: how long the ironsight's whole travel takes -- onto the crosshair, and back off it -- in seconds
+// (0.05..1.00; 0: at once). How far that travel has gone is st.adsT, which is also what the field of view is narrowed
+// by (fovNarrowNow), so the view closes and opens with the weapon rather than at the press.
+[[nodiscard]] float aimSeconds()
+{
+    const float t = vr_flat_aim_time.value;
+    return t <= 0.f ? 0.f : za::clamp(t, aimTimeMin, aimTimeMax);
 }
 
 // The weapon `h` holds, as its settings' slot; -1 for an empty hand (flatplay's heldIn, the same rule).
@@ -203,6 +213,20 @@ bool gripArrival(const hands::State& s, float& offGrip, float& dot)
 bool adsApplies()
 {
     return flatplay::active() && st.ads && st.holding >= 0 && sightalign::alignable(st.holding);
+}
+
+// How much of the field of view the ironsight is taking this frame: vr_flat_aim_fov's degrees times how far the weapon
+// has travelled onto the crosshair (st.adsT, over vr_flat_aim_time) -- so the view closes over those same seconds and
+// opens back off them, whatever the toggle says meanwhile, and nothing is taken outside flatscreen play or once the
+// travel is back to nothing.
+[[nodiscard]] float fovNarrowNow()
+{
+    const float done = za::clamp(st.adsT, 0.f, 1.f);
+    if(!flatplay::active() || done <= 0.f)
+    {
+        return 0.f;
+    }
+    return za::clamp(vr_flat_aim_fov.value, 0.f, 60.f) * done;
 }
 
 void setAds(bool on, const char* by)
@@ -353,14 +377,19 @@ void frame()
     const float dt = st.lastTime > -1e8 ? za::clamp(static_cast<float>(t - st.lastTime), 0.f, 0.1f) : 0.f;
     st.lastTime = t;
     st.gripT = za::clamp(st.gripT + (st.gripWanted ? 1.f : -1.f) * ease(gripEase, dt), 0.f, 1.f);
-    st.adsT = za::clamp(st.adsT + (st.adsWanted ? 1.f : -1.f) * ease(adsEase, dt), 0.f, 1.f);
+    // The ironsight's travel is spent at a steady rate, so it is over in the cvar's own seconds; 0 asks for the whole
+    // of it this frame. The weapon's shift onto the crosshair (apply) and the field of view go by the same fraction.
+    const float aim = aimSeconds();
+    st.adsT = aim <= 0.f ? (st.adsWanted ? 1.f : 0.f)
+                         : za::clamp(st.adsT + (st.adsWanted ? 1.f : -1.f) * dt / aim, 0.f, 1.f);
 
     pollKey();
 
     // The field of view is chosen when the engine recalculates its view (gl_screen.c's SCR_CalcRefdef through
-    // VR_FlatAdsFov), and that happens on demand: ask for it the frame the ironsight's share of it changes -- its
-    // toggle, a weapon with no sights taken up while it is on, or a vr_flat_aim_fov moved from the console or the menu.
-    const float narrow = adsApplies() ? za::clamp(vr_flat_aim_fov.value, 0.f, 60.f) : 0.f;
+    // VR_FlatAdsFov), and that happens on demand: ask for it the frame the ironsight's share of it changes, which
+    // while it is travelling is every frame -- and a weapon with no sights taken up while it is on, or a
+    // vr_flat_aim_fov or vr_flat_aim_time moved from the console or the menu.
+    const float narrow = fovNarrowNow();
     if(narrow != st.fovNarrow)
     {
         st.fovNarrow = narrow;
@@ -488,18 +517,17 @@ bool aiming()
 
 float fov(float basefov)
 {
-    if(!adsApplies())
-    {
-        return basefov;
-    }
-    return za::max(20.f, basefov - za::clamp(vr_flat_aim_fov.value, 0.f, 60.f));
+    // The eased share, not the toggle (fovNarrowNow): the view closes and opens with the weapon. A base field of view
+    // is never taken under 20 degrees, where the engine's own view stops making sense.
+    const float narrow = fovNarrowNow();
+    return narrow > 0.f ? za::max(20.f, basefov - narrow) : basefov;
 }
 
 void statusLine()
 {
-    Con_Printf("  ironsight: %s (vr_flat_aim, or the mouse wheel's button; vr_flat_aim_fov %g off the field of view; "
-               "%d toggles this session)%s\n",
-        st.ads ? "asked for" : "off", vr_flat_aim_fov.value, st.toggles,
+    Con_Printf("  ironsight: %s (vr_flat_aim, or the mouse wheel's button; vr_flat_aim_fov %g off the field of view, "
+               "taken over %g s of travel (vr_flat_aim_time); %d toggles this session)%s\n",
+        st.ads ? "asked for" : "off", vr_flat_aim_fov.value, vr_flat_aim_time.value, st.toggles,
         st.ads && st.holding >= 0 && !sightalign::alignable(st.holding) ? ", no sights on the weapon held" : "");
     if(st.holding >= 0)
     {

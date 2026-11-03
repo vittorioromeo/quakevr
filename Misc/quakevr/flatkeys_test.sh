@@ -159,4 +159,57 @@ q4=$(span "$S/pitchplain.log")
 check $(reaching "$q4" -90 90) \
     "pitch in plain play (no -flatscreenmode, vr_backend none): the cvars at 85 bound nothing there (r_pos ranged $q4 = min max frames, the same look keys held 40 frames)"
 
+# 7. The ironsight's field of view comes and goes with the weapon: vr_flat_aim_time is how long its whole travel takes
+# (0.05..1.00 s, 0 at once) and the view is narrowed by vr_flat_aim_fov's degrees times how far that travel has gone, so
+# it closes over those seconds and opens back off them. vr_flatplay_debug 2 prints a "flatsight:" line every frame with
+# the field of view being drawn (fov_x) and the frame's time; the ironsight's own toggle line prints no field of view,
+# so it is skipped. impulse 154 holds a weapon with sights; the console turns the ironsight on, holds it 60 frames,
+# turns it off and holds 60 more.
+AIM="vr_mock_eye_size 256; impulse 154; wait20; vr_flat_aim 1; wait60; vr_flat_aim 0; wait60"
+# -> "wide narrow frames seconds": the widest field of view the run drew, the narrowest, how many frames the closing
+# ramp was caught over, and the seconds between its first frame and the frame it stopped at.
+adsramp() {
+    awk '
+    { if ($0 ~ /^flatsight: /) { if (rec != "") recs[++n] = rec; rec = $0 } else if (rec != "") rec = rec " " $0 }
+    END {
+        if (rec != "") recs[++n] = rec
+        for (i = 1; i <= n; i++) {
+            split(recs[i], a, " "); f = -1
+            for (j = 1; j <= length(a); j++) if (a[j] == "fov") { f = a[j + 1] + 0; break }
+            if (f < 0) continue
+            m++; T[m] = a[3] + 0; F[m] = f
+            if (wide == 0 || f > wide) wide = f
+            if (tight == 0 || f < tight) tight = f
+        }
+        i0 = 0; for (i = 1; i <= m; i++) if (F[i] < wide - 0.5) { i0 = i; break }
+        i1 = 0; for (i = i0; i <= m; i++) if (F[i] <= tight + 0.05) { i1 = i; break }
+        print wide + 0, tight + 0, i1 - i0 + 1, T[i1] - T[i0] + 0
+    }' "$1"
+}
+# "wide narrow frames seconds": the full vr_flat_aim_fov depth reached (deg), the ramp over so many frames, in so long.
+ramped() { awk -v w="$1" -v d="$2" -v f1="$3" -v f2="$4" -v s1="$5" -v s2="$6" \
+    'BEGIN{split(w,x," "); exit !(x[1]-x[2] >= d-1.5 && x[1]-x[2] <= d+1.5 && x[3] >= f1 && x[3] <= f2 && x[4] >= s1 && x[4] <= s2)}' && echo 1 || echo 0; }
+# The ramp had not finished when the ironsight was let go 60 frames after the press: less than the whole depth taken,
+# still moving when it was.
+midway() { awk -v w="$1" 'BEGIN{split(w,x," "); exit !(x[1]-x[2] < 11 && x[3] >= 40 && x[4] >= 0.6)}' && echo 1 || echo 0; }
+
+run adsflat flat "$P; vr_flatplay_debug 2; $AIM; vr_flatplay_status" 'flatsight:|  ironsight:'
+r1=$(adsramp "$S/adsflat.log")
+check $(ramped "$r1" 12 14 22 0.18 0.30) \
+    "ironsight ease: vr_flat_aim_time 0.25 closes the field of view by vr_flat_aim_fov 12 over 18 frames and opens it back over the same ($r1 = wide narrow frames seconds)"
+check $(grep -qa 'vr_flat_aim_time' "$S/adsflat.log" && echo 1 || echo 0) \
+    "ironsight ease: vr_flatplay_status prints the travel's own seconds alongside the field of view it takes off ($(grep -a 'ironsight:' "$S/adsflat.log" | head -1 | sed 's/ (.*//'))"
+run adsfast flat "$P; vr_flatplay_debug 2; vr_flat_aim_time 0; $AIM" 'flatsight:'
+r2=$(adsramp "$S/adsfast.log")
+check $(ramped "$r2" 12 1 2 0 0.03) \
+    "ironsight ease: vr_flat_aim_time 0 is instant -- the whole vr_flat_aim_fov in one frame, no ramp at all ($r2)"
+run adslow flat "$P; vr_flatplay_debug 2; vr_flat_aim_time 1; $AIM" 'flatsight:'
+r3=$(adsramp "$S/adslow.log")
+check $(midway "$r3") \
+    "ironsight ease: vr_flat_aim_time 1 is still closing 60 frames after the press ($r3) -- the depth is reached over the cvar's seconds, not at the press"
+run adsfloor flat "$P; vr_flatplay_debug 2; vr_flat_aim_time 0.05; $AIM" 'flatsight:'
+r4=$(adsramp "$S/adsfloor.log")
+check $(ramped "$r4" 12 3 6 0.03 0.07) \
+    "ironsight ease: vr_flat_aim_time 0.05, the slider's floor, is over in a few frames ($r4)"
+
 verdict; exit $fail
