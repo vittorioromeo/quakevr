@@ -1,5 +1,6 @@
 // vr_muzzlewisps.cpp -- see vr_muzzlewisps.hpp.
 
+#include "vr_ambient.hpp"
 #include "vr_muzzlewisps.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -114,8 +115,7 @@ mem::Scratch<WispScratch> scratch{"muzzlewisps"};
     {
         return 1.f;
     }
-    vec3_t v{at.x, at.y, at.z};
-    return za::clamp(static_cast<float>(R_LightPoint(v, 0.f, &lightCache)) / 128.f, 0.f, 1.6f);
+    return za::clamp(static_cast<float>(ambient::lightPoint(at, lightCache)) / 128.f, 0.f, 1.6f);
 }
 
 // A slow swirling flow (each component -1.35 .. 1.35): each a wave across the other two axes (an ABC flow, two octaves),
