@@ -6736,8 +6736,9 @@ map's green lava lights green). Lava was on the cube at a fixed colour from the 
 off the cube too), on the grid path only. The `vr_model_light_grid` 0 path is untouched, for his comparison.
 Effects read it too: smoke over lava is lit by lava, as the model in it.
 
-**Knobs** (Graphics > Models and Effects > Light Grid; `vr_model_light_grid_...`, defaults = the look before, but for the
-liquids): `_intensity` 1 (the level, live), `_near` 64 (was `GRID_NEAR`: in the probes, so a change builds the grid again at
+**Knobs** (tuning constants, not settings, as he asked: `tune`, Debug > Tunables > Graphics > Models and Effects > Light Grid, kept in
+`tunables.cfg`; constants in a release build; `vr_model_light_grid` itself stays a setting. Defaults = the look before, but for the
+liquids; `vr_model_light_grid_...`): `_intensity` 1 (the level, live), `_near` 64 (was `GRID_NEAR`: in the probes, so a change builds the grid again at
 once, 26 ms on e1m7, no map reload), `_mix` 0.5 (0: only the map's lights' directional shading, cube off; 0.5: the cube, half
 the directional, as before; 1: only the cube; live; grid path only). `vr_model_light_lava` 1, `_range` 512; `vr_model_light_slime`
 0.35, `_range` 384; `vr_model_light_teleport` 0.35, `_range` 256: all live.
@@ -6749,7 +6750,7 @@ count took a bit from its first entry (4 bits; 134 million entries).
 walk (grid 22..184, step 8.6). Maps with one change only near it: e1m1's walk the same, its cube checksum 304 -> 299 (2618
 probes near slime); e2m1, e1m3 the same but for teleporter entries.
 
-**Test.** `vr_model_light_grid_test` (Debug menu, this map; verdict `light grid test: N passed, M failed`; e1m7 and e1m1 21,
+**Test.** `vr_model_light_grid_test` (Debug menu, this map, a development build; sets the constants by `tune`'s setter; verdict `light grid test: N passed, M failed`; e1m7 and e1m1 21,
 0): an effect's light = the model's read there, intensity x2, the mix's shares, near moved and back (grid hash the same),
 `vr_model_light_grid` 0 = R_LightPoint, each liquid: adds to the level and sides, linear in strength, range 0 = strength 0,
 near > 3 x far, and every ray that counted a liquid is clear by `worldtrace::line`, another tracer (e1m7 lava all of 3109; a

@@ -503,7 +503,7 @@ void setOff(float out[6][4])
 // A model reads the eight probes round it, each frame, with no rays: blended by distance, so nothing pops; a probe in a
 // wall, or one the model can't see (the next room's, through a thin wall), left out and the rest weighted up. What's drawn
 // beside a model reads the same probes (ambient::lightPoint; the particles, gridLightOf). Lit liquids: below, "GLOW".
-// The knobs, on Graphics > Models and Effects > Light Grid: vr_model_light_grid_intensity, _mix, the liquids' strengths and
+// The knobs, tuning constants (tune; Debug > Tunables > Graphics > Models and Effects > Light Grid): vr_model_light_grid_intensity, _mix, the liquids' strengths and
 // ranges are read at each read; vr_model_light_grid_near is in the probes' values, and a change builds the grid again.
 
 constexpr float GRID_CELL = 48.f;
@@ -546,7 +546,6 @@ constexpr int GRID_GLOW_KIND_SHIFT = 12;
 constexpr unsigned short GRID_GLOW_DISTANCE = 0x0FFFu;
 constexpr int GLOW_KINDS = 3;
 constexpr int GLOW_STOP = SURF_DRAWLAVA | SURF_DRAWSLIME | SURF_DRAWTELE;
-constexpr const char* GLOW_NAMES[GLOW_KINDS] = {"lava", "slime", "teleporter"};
 constexpr float GLOW_BRIGHTEST = 220.f;              // a liquid's colour: its texture's mean, its top channel this bright
 constexpr float GLOW_GAIN = 1.5f;                    // strength 1: a model on a pool's shore (a twentieth of its view) gets some 50, over the pool some 190
 constexpr glm::vec3 GLOW_COLOURS[GLOW_KINDS] = {{220.f, 100.f, 35.f}, {90.f, 220.f, 60.f}, {140.f, 90.f, 220.f}}; // (no texture to read)
@@ -556,8 +555,8 @@ constexpr int GLOW_BLOCK = 4;                        // cells: a part of the gri
 
 struct GlowKnob
 {
-    cvar_t* strength;
-    cvar_t* range;
+    const Tunable* strength;
+    const Tunable* range;
 };
 const GlowKnob GLOW_KNOBS[GLOW_KINDS] = {{&vr_model_light_lava, &vr_model_light_lava_range},
                                          {&vr_model_light_slime, &vr_model_light_slime_range},
@@ -1906,9 +1905,22 @@ int ambient::lightPoint(const glm::vec3& p, lightcache_t& cache)
 namespace
 {
 
-// vr_model_light_grid_test: on this map, the reads' sums and every knob; ends with its verdict line.
+// vr_model_light_grid_test: on this map, the reads' sums and every knob; ends with its verdict line. (A development
+// build's: it sets tuning constants, by the setter `tune` uses, and puts them back.)
+#ifdef QVR_RELEASE
 void gridTest_f()
 {
+    Con_Printf("vr_model_light_grid_test: a development build's\n");
+}
+#else
+void setKnob(const Tunable& knob, float value)
+{
+    tunableSet(tunableIndex(knob.name), va("%g", static_cast<double>(value)));
+}
+
+void gridTest_f()
+{
+    static constexpr const char* GLOW_NAMES[GLOW_KINDS] = {"lava", "slime", "teleporter"};
     testkit::Tally tally;
     const auto check = [&](bool ok, const char* what, double a, double b) {
         tally.check(ok);
@@ -1988,9 +2000,9 @@ void gridTest_f()
         const glm::vec3 p = spots[spots.size() / 2];
         glm::vec3 one{0.f}, two{0.f};
         (void)ambient::gridLightAt(p, one);
-        Cvar_SetValueQuick(&vr_model_light_grid_intensity, was * 2.f);
+        setKnob(vr_model_light_grid_intensity, was * 2.f);
         (void)ambient::gridLightAt(p, two);
-        Cvar_SetValueQuick(&vr_model_light_grid_intensity, was);
+        setKnob(vr_model_light_grid_intensity, was);
         check(glm::distance(one * 2.f, two) < 0.05f, "intensity x2 doubles the level", static_cast<double>(luma(one)), static_cast<double>(luma(two)));
     }
 
@@ -2010,11 +2022,11 @@ void gridTest_f()
         const float wantDir[3] = {1.f, 0.5f, 0.f};
         for(int m = 0; m < 3; m++)
         {
-            Cvar_SetValueQuick(&vr_model_light_grid_mix, mixes[m]);
+            setKnob(vr_model_light_grid_mix, mixes[m]);
             ambient::entityCube(entity, nullptr, nullptr, true, cube);
             check(cube[0][3] == wantCube[m] && cube[1][3] == wantDir[m], "the mix's cube and directional shares", static_cast<double>(cube[0][3]), static_cast<double>(cube[1][3]));
         }
-        Cvar_SetValueQuick(&vr_model_light_grid_mix, was);
+        setKnob(vr_model_light_grid_mix, was);
     }
     else
     {
@@ -2026,11 +2038,11 @@ void gridTest_f()
         const float was = vr_model_light_grid_near.value;
         const unsigned long long before = gridHash();
         const za::SizeT entries = grid.entries.size();
-        Cvar_SetValueQuick(&vr_model_light_grid_near, was * 0.25f);
+        setKnob(vr_model_light_grid_near, was * 0.25f);
         (void)ambient::gridOn();
         const unsigned long long nearer = gridHash();
         const za::SizeT entriesNearer = grid.entries.size();
-        Cvar_SetValueQuick(&vr_model_light_grid_near, was);
+        setKnob(vr_model_light_grid_near, was);
         (void)ambient::gridOn();
         check(nearer != before && entriesNearer == entries, "another near weight: new values, same entries", static_cast<double>(entriesNearer), static_cast<double>(entries));
         check(gridHash() == before, "the near weight put back: the same grid", 0.0, 0.0);
@@ -2055,16 +2067,16 @@ void gridTest_f()
             Con_Printf("light grid test: no %s here\n", GLOW_NAMES[kind]);
             continue;
         }
-        cvar_t* strength = GLOW_KNOBS[kind].strength;
-        cvar_t* range = GLOW_KNOBS[kind].range;
-        const float wasStrength = strength->value, wasRange = range->value;
+        const Tunable& strength = *GLOW_KNOBS[kind].strength;
+        const Tunable& range = *GLOW_KNOBS[kind].range;
+        const float wasStrength = strength.value, wasRange = range.value;
         const float testStrength = za::max(wasStrength, 0.5f);
         int counted = 0, warmer = 0, linear = 0, rangeZero = 0, sideLit = 0;
         float nearGlow = 0.f, farGlow = 0.f;
         int nearCount = 0, farCount = 0;
         int rays = 0, raysClear = 0;
-        const auto readAt = [](const GridSpot& spot, float s, cvar_t* knob) {
-            Cvar_SetValueQuick(knob, s);
+        const auto readAt = [](const GridSpot& spot, float s, const Tunable& knob) {
+            setKnob(knob, s);
             GridRead r;
             (void)gridRead(spot, 1u, r);
             return r;
@@ -2101,14 +2113,14 @@ void gridTest_f()
                     spot.y = y;
                     spot.z = z;
                     spot.across = glm::vec3{0.f};
-                    Cvar_SetValueQuick(range, wasRange);
+                    setKnob(range, wasRange);
                     const GridRead none = readAt(spot, 0.f, strength);
                     const GridRead some = readAt(spot, testStrength, strength);
                     const GridRead twice = readAt(spot, testStrength * 2.f, strength);
                     const glm::vec3 glow = some.level - none.level;
-                    Cvar_SetValueQuick(strength, testStrength);
+                    setKnob(strength, testStrength);
                     const GridRead rangeOff = readAt(spot, 0.f, range);
-                    Cvar_SetValueQuick(range, wasRange);
+                    setKnob(range, wasRange);
                     const float distance = static_cast<float>(mine->style & GRID_GLOW_DISTANCE);
                     if(glow.r + glow.g + glow.b > 0.f || distance >= wasRange || mine->level[0] + mine->level[1] + mine->level[2] < 8)
                     {
@@ -2151,8 +2163,8 @@ void gridTest_f()
                 }
             }
         }
-        Cvar_SetValueQuick(strength, wasStrength);
-        Cvar_SetValueQuick(range, wasRange);
+        setKnob(strength, wasStrength);
+        setKnob(range, wasRange);
         Con_Printf("light grid test: %s: %d probes read; near (under 96) mean %.1f of %d, far (256 up) mean %.1f of %d\n", GLOW_NAMES[kind], counted,
                    nearCount ? static_cast<double>(nearGlow) / nearCount : 0.0, nearCount, farCount ? static_cast<double>(farGlow) / farCount : 0.0, farCount);
         check(warmer == counted, "its light adds to the probes in range", static_cast<double>(warmer), static_cast<double>(counted));
@@ -2167,6 +2179,7 @@ void gridTest_f()
     }
     tally.verdict("light grid test");
 }
+#endif
 
 } // namespace
 

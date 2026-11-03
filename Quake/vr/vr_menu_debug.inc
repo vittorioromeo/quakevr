@@ -535,7 +535,7 @@ za::Vector<Item> pageDebugProfiling()
                   "much light its probes out of sight would add through thin walls, in the console."),
         command("Model Light Grid Test", "vr_model_light_grid_test")
             .help("vr_model_light_grid_test: on this map, whether effects read what a model reads, and what each of the Light "
-                  "Grid settings and lit liquids does; a verdict in the console."),
+                  "Grid tuning constants and lit liquids does; a verdict in the console."),
         command("Light Caster Stats", "vr_shadow_caster_stats")
             .help("vr_shadow_caster_stats: since the last time, the dynamic lights' world caster sets kept and collected, "
                   "in the console."),
