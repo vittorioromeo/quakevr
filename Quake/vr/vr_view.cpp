@@ -4895,7 +4895,7 @@ extern "C" void VR_SetupViewEntities()
         disarmviz::draw(s.head); // vr_debug_disarm
         dirparryviz::draw(s.head); // vr_dirparry_debug
         rope::debugDraw();     // vr_debug_rope
-        axestick::debugDraw(s.head); // vr_embed_debug_show
+        axestick::debugDraw(s.head, s.headAngles); // vr_debug_embed
         foegrab::neckDebugDraw(s.head); // vr_foegrab_necksnap_debug
         foegrab::grabDebugDraw(s.head); // vr_foegrab_lift_debug, vr_foegrab_throw_debug
         box3d::struggleDraw(s.head);    // vr_struggle_debug

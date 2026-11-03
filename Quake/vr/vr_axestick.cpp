@@ -51,6 +51,8 @@
 #include "Zancle/Math/Asin.hpp"
 #include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Cos.hpp"
+#include "Zancle/Math/Sin.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "vr_zancle.hpp"
 #include "vr_geom.hpp"
@@ -504,6 +506,17 @@ constexpr float incidenceLeniency = 10.f;
 constexpr float stillGlance = 20.f; // degrees less glancing an axe that hardly turns may be (beforeStep)
 constexpr float handleLeniency = 25.f;
 
+// Embedded Blades' panel (vr_debug_embed): the last reasons.
+constexpr int sayMost = 7;
+constexpr double sayKeep = 8.0; // s of real time: read in slow motion
+struct SayLine
+{
+    double when{-1.0};
+    char text[150]{};
+};
+SayLine sayLines[sayMost];
+int sayNext = 0;
+
 void report(edict_t* ent, const char* fmt, ...)
 {
     if(!vr_debug_axestick.value)
@@ -516,6 +529,28 @@ void report(edict_t* ent, const char* fmt, ...)
     q_vsnprintf(text, sizeof(text), fmt, args);
     va_end(args);
     Con_Printf("axestick: %d %s\n", NUM_FOR_EDICT(ent), text);
+}
+
+// report(), and on the panel. (Forward: the namespace's.)
+void reason(edict_t* ent, const char* fmt, ...)
+{
+    if(!vr_debug_axestick.value && !vr_debug_embed.value)
+    {
+        return;
+    }
+    char text[512];
+    va_list args;
+    va_start(args, fmt);
+    q_vsnprintf(text, sizeof(text), fmt, args);
+    va_end(args);
+    report(ent, "%s", text);
+    if(vr_debug_embed.value)
+    {
+        SayLine& l = sayLines[sayNext];
+        q_strlcpy(l.text, text, sizeof(l.text));
+        l.when = realtime;
+        sayNext = (sayNext + 1) % sayMost;
+    }
 }
 
 // What the axe's sample `sample` (`local`, going from `from` to `to` this step) strikes first. `from` is `back` units
@@ -1008,18 +1043,18 @@ void easeOnBody(edict_t* ent, const Blade& blade, glm::vec3& origin, glm::mat3& 
     }
     if(why)
     {
-        report(ent, "the point struck %s at %.0f u/s (%.1f m/s), %.0f deg off its line, %.0f deg off straight in, %.2f of the step: "
+        reason(ent, "the point struck %s at %.0f u/s (%.1f m/s), %.0f deg off its line, %.0f deg off straight in, %.2f of the step: "
                     "bounces (%s)",
             hostName, speed, speed / m2u, sideOn, incidence, best.fraction, why);
         return false;
     }
     if(!keepPose(ent, blade, best, 0, stuckOrigin, axesAt, tipDepth, pointVel))
     {
-        report(ent, "no frame on %s: bounces", hostName);
+        reason(ent, "no frame on %s: bounces", hostName);
         return false;
     }
     setFieldFloat(ent, fields().vr_stick_bladelen, bladeLength);
-    report(ent, "the point stuck in %s (%d, kind %d) at %.0f u/s (%.1f m/s), %.0f deg off its line, %.0f deg off straight in, "
+    reason(ent, "the point stuck in %s (%d, kind %d) at %.0f u/s (%.1f m/s), %.0f deg off its line, %.0f deg off straight in, "
                 "%.2f of the step, %.1f units deep (%.0f%% of the blade %.1f long)",
         hostName, NUM_FOR_EDICT(host), best.kind, speed, speed / m2u, sideOn, incidence, best.fraction, tipDepth,
         depth / za::max(bladeLength, 1e-3f) * 100.f, bladeLength);
@@ -1069,7 +1104,7 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
     if(touched || changed)
     {
         setFieldFloat(ent, f.vr_stick_kind, static_cast<float>(Out));
-        report(ent, "hit something with %s (%.0f u/s, spin %.1f rad/s changed): never sticks now",
+        reason(ent, "hit something with %s (%.0f u/s, spin %.1f rad/s changed): never sticks now",
             touched ? partOf(ent, *blade, touch) : "?", glm::length(dv), glm::length(spin - lastSpin));
         return false;
     }
@@ -1183,7 +1218,7 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
         }
         if(now || vr_debug_axestick.value >= 2)
         {
-            report(ent, "%s%s struck %s first, %.2f of the step (the blade %s): bounces (%s first)%s", partName(ent, *blade, s),
+            reason(ent, "%s%s struck %s first, %.2f of the step (the blade %s): bounces (%s first)%s", partName(ent, *blade, s),
                 s.bit >= 0 ? va(" (blade %d, %.0f%% behind its edge)", s.bit, s.back * 100.f) : "", firstHost,
                 first.fraction, cut.host ? va("%.1f units after", (cut.fraction - first.fraction) * first.len) : "not near",
                 partName(ent, *blade, s), now ? ", never sticks now" : "");
@@ -1253,7 +1288,7 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
     // way the point goes in the blade's plane (a corner along the way it came, the edge straight in).
     const glm::vec3 inPlane = relDir - across * glm::dot(relDir, across);
     const glm::vec3 push = glm::length(inPlane) > 1e-3f ? glm::normalize(inPlane) : facing;
-    const float depthMax = za::max(0.f, vr_axestick_depth.value) * 0.01f * m2u;
+    const float depthMax = za::max(0.f, vr_embed.value ? vr_embed_axe_depth.value : vr_axestick_depth.value) * 0.01f * m2u;
     const float depth = za::min(depthMax * za::clamp(speed / (2.f * minSpeed), 0.5f, 1.f), 0.6f * edge.width);
     const float along = depth / za::max(0.35f, glm::dot(push, -best.normal));
     glm::vec3 stuckOrigin = originAt + (best.point - pointAt) + push * along;
@@ -1314,7 +1349,7 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
     }
     if(why)
     {
-        report(ent, "blade %d (%s) struck %s at %.0f u/s (%.1f m/s), %.0f deg side on, %.0f deg off straight in (%.0f off its "
+        reason(ent, "blade %d (%s) struck %s at %.0f u/s (%.1f m/s), %.0f deg side on, %.0f deg off straight in (%.0f off its "
                     "facing), %.2f of the step: bounces (%s)",
             part.bit, partLabel, hostName, speed, speed / m2u, sideOn, incidence, offFacing, best.fraction, why);
         return false;
@@ -1324,10 +1359,10 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
     const int kind = best.kind;
     if(!keepPose(ent, *blade, best, part.bit, stuckOrigin, stuckAxes, 0.f, edgeVel))
     {
-        report(ent, "no frame on %s: bounces", hostName);
+        reason(ent, "no frame on %s: bounces", hostName);
         return false;
     }
-    report(ent, "blade %d stuck in %s (%d, kind %d) by %s (%.0f%% behind its edge) at %.0f u/s (%.1f m/s), %.0f deg side on, "
+    reason(ent, "blade %d stuck in %s (%d, kind %d) by %s (%.0f%% behind its edge) at %.0f u/s (%.1f m/s), %.0f deg side on, "
                 "%.0f deg off straight in (%.0f off its facing), spin in %.0f u/s, %.2f of the step, %.2f units deep (%.1f cm; the "
                 "blade %.2f wide)%s",
         part.bit, hostName, NUM_FOR_EDICT(host), kind, partLabel, part.back * 100.f, speed, speed / m2u, sideOn, incidence,
@@ -1380,7 +1415,7 @@ bool stickHeld(edict_t* ent, edict_t* host, const glm::vec3& at, const glm::vec3
     }
     else
     {
-        report(ent, "a hand's blow at %s, %.1f units from its model: not stuck", hostName, away);
+        reason(ent, "a hand's blow at %s, %.1f units from its model: not stuck", hostName, away);
         return false;
     }
 
@@ -1427,11 +1462,11 @@ bool stickHeld(edict_t* ent, edict_t* host, const glm::vec3& at, const glm::vec3
         constexpr float handleMost = 0.8f; // the way the blow goes along the handle: more, driven head first, a stab
         if(sideOn > vr_embed_swing_angle.value || bestLead < leadLeast || alongHandle > handleMost)
         {
-            report(ent, "a hand's blow at %s: %.0f deg side on, %.2f its edge's facing, %.2f along its handle: not stuck", hostName, sideOn,
-                bestLead, alongHandle);
+            reason(ent, "swing at %s NOT STUCK: side on %.0f of %.0f deg, edge first %.2f (least %.2f), along the handle %.2f (most %.2f)", hostName, sideOn,
+                vr_embed_swing_angle.value, bestLead, leadLeast, alongHandle, handleMost);
             return false;
         }
-        const float most = za::max(0.f, vr_axestick_depth.value) * 0.01f * m2u;
+        const float most = za::max(0.f, vr_embed_axe_depth.value) * 0.01f * m2u;
         const float wanted = za::min(most * za::clamp(speed / (2.f * vr_embed_swing_speed.value * m2u), 0.5f, 1.f), 0.6f * e.width);
         const float now = glm::dot(origin + axes * e.mid - best.point, out);
         constexpr float shiftMost = 8.f; // units a blow's edge is moved to its depth (a hand must not be flung there)
@@ -1439,18 +1474,18 @@ bool stickHeld(edict_t* ent, edict_t* host, const glm::vec3& at, const glm::vec3
     }
     if((best.kind == Model || best.kind == MonsterBox) && plateStops(ent, host, best.point, way))
     {
-        report(ent, "a hand's blow at %s: an unbroken plate", hostName);
+        reason(ent, "a hand's blow at %s: an unbroken plate", hostName);
         return false;
     }
     setFieldFloat(ent, f.vr_stick_slide, 0.f);
     if(!keepPose(ent, *blade, best, bit, stuckOrigin, axes, depth, vel))
     {
-        report(ent, "a hand's blow at %s: no frame there", hostName);
+        reason(ent, "a hand's blow at %s: no frame there", hostName);
         return false;
     }
     setFieldFloat(ent, f.vr_stick_goal, goal);
     setFieldFloat(ent, f.vr_stick_bladelen, bladeLength);
-    report(ent, "a hand's blow stuck in %s (%d, kind %d) at %.1f m/s, %.1f units deep, going to %.1f (the blade %.1f long)", hostName,
+    reason(ent, "STUCK by the hand in %s (%d, kind %d) at %.1f m/s, %.1f units deep, going to %.1f (the blade %.1f long)", hostName,
         NUM_FOR_EDICT(host), best.kind, speed / m2u, depth, goal, bladeLength);
     SV_LinkEdict(ent, false);
     callStuck(stuckFn, ent, host, best.kind, speed);
@@ -1515,11 +1550,58 @@ void serverFrame()
     });
 }
 
-void debugDraw(const glm::vec3& eye)
+// `text`'s lines (split at \n and wrapped) one under another from `at`, facing `eye`; the overlay itself draws one line.
+static void overlayLines(const char* text, glm::vec3 at, const glm::vec3& eye, float scale, int wrap, float step)
 {
-#ifndef QVR_RELEASE
+    const glm::vec3 toText = at - eye;
+    const glm::vec3 turn{0.f, glm::degrees(za::atan2(toText.y, toText.x)), 0.f};
+    char row[96];
+    int n = 0;
+    for(const char* c = text;; c++)
+    {
+        const bool end = !*c || *c == '\n';
+        if(!end)
+        {
+            row[n++] = *c;
+        }
+        if(end || n >= za::min(wrap, static_cast<int>(sizeof(row)) - 1))
+        {
+            row[n] = 0;
+            if(n > 0)
+            {
+                text3d::queueOverlay(row, at, turn, scale);
+                at.z -= step;
+            }
+            n = 0;
+        }
+        if(!*c)
+        {
+            return;
+        }
+    }
+}
+
+void say(const char* fmt, ...)
+{
+    if(!vr_debug_embed.value)
+    {
+        return;
+    }
+    char text[512];
+    va_list args;
+    va_start(args, fmt);
+    q_vsnprintf(text, sizeof(text), fmt, args);
+    va_end(args);
+    SayLine& l = sayLines[sayNext];
+    q_strlcpy(l.text, text, sizeof(l.text));
+    l.when = realtime;
+    sayNext = (sayNext + 1) % sayMost;
+}
+
+void debugDraw(const glm::vec3& eye, const glm::vec3& headAngles)
+{
     const FieldOffsets& f = fields();
-    if(vr_embed_debug_show.value == 0.f || !sv.active || f.vr_stick_kind < 0 || f.vr_stick_ent < 0)
+    if(vr_debug_embed.value == 0.f || !sv.active || f.vr_stick_kind < 0 || f.vr_stick_ent < 0)
     {
         return;
     }
@@ -1571,12 +1653,34 @@ void debugDraw(const glm::vec3& eye)
                 lines::point(limb, 1.5f, green);
             }
         }
-        char text[96];
-        q_snprintf(text, sizeof(text), "%s%.1f in, %.0f N", blade->how == howPoint ? "point " : "edge ", depth, force);
-        const glm::vec3 toText = at - eye;
-        text3d::queueOverlay(text, at - dir * 2.f + glm::vec3{0.f, 0.f, 4.f}, glm::vec3{0.f, glm::degrees(za::atan2(toText.y, toText.x)), 0.f}, 0.06f);
+        const float cmPer = 100.f / units::metresToUnits();
+        char text[160];
+        q_snprintf(text, sizeof(text), "%s %.1f in\nalong %.1f of %.1f cm, off %.1f of %.0f cm\nfurther %.1f of %.0f cm, %.0f N", blade->how == howPoint ? "point" : "edge", depth,
+            fieldFloatOr(ent, f.vr_hold_err, 0.f) * cmPer, fieldFloatOr(ent, f.vr_hold_stick, 0.f), glm::length(fieldVec(ent, f.vr_hold_off)) * cmPer, vr_embed_hold_break.value,
+            fieldFloatOr(ent, f.vr_hold_far, 0.f), fieldFloatOr(ent, f.vr_hold_farmost, 0.f), force);
+        overlayLines(text, at - dir * 2.f + glm::vec3{0.f, 0.f, 6.f}, eye, 0.05f, 60, 1.6f);
     });
-#endif
+
+    // The reasons, newest last, ahead of you and a little low, in real time.
+    char panel[(sizeof(SayLine::text) + 1) * sayMost + 1];
+    panel[0] = 0;
+    for(int i = 0; i < sayMost; i++)
+    {
+        const SayLine& l = sayLines[(sayNext + i) % sayMost];
+        if(l.when >= 0.0 && realtime - l.when < sayKeep)
+        {
+            q_strlcat(panel, l.text, sizeof(panel));
+            q_strlcat(panel, "\n", sizeof(panel));
+        }
+    }
+    if(panel[0])
+    {
+        const float yaw = glm::radians(headAngles.y);
+        const float pitch = glm::radians(za::clamp(headAngles.x, -30.f, 30.f));
+        const glm::vec3 fw{za::cos(pitch) * za::cos(yaw), za::cos(pitch) * za::sin(yaw), -za::sin(pitch)};
+        const glm::vec3 at = eye + fw * 44.f + glm::vec3{0.f, 0.f, -8.f};
+        overlayLines(panel, at, eye, 0.07f, 60, 2.2f);
+    }
 }
 
 } // namespace qvr::axestick

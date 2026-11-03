@@ -31,6 +31,9 @@
 .float  vr_hold_stoff;    // the off hand's grip's states towards opening (VR_Embed_HandOpen)
 .float  vr_hold_stmain;
 .float  vr_hold_last;     // the last frame's time
+.float  vr_hold_far;      // cm further from where it went in than the hand held it (for the debug view)
+.float  vr_hold_farmost;  // and its limit
+.float  vr_hold_stick;    // cm the hand moves before it does, now
 .float  vr_hold_pulled;   // units it has come out, in a dead body (vr_embed_tug_corpse)
 .float  vr_hold_owed;     // sliding deeper's damage not dealt yet
 .float  vr_hold_buzz;     // the next slide's buzz
@@ -198,6 +201,10 @@ void(entity e, string xWhy) VR_Embed_Free =
     {
         dprint(sprintf("embedhold: %s comes free: %s, hand %g, %.1f units in\n", e.netname, xWhy, hand, e.vr_stick_depth + e.vr_stick_slide));
     }
+    if(cvar_hget(cvarh_vr_debug_embed))
+    {
+        embedsay(sprintf("CAME OUT: %s (%.1f units in)", xWhy, e.vr_stick_depth + e.vr_stick_slide));
+    }
     VR_Embed_DropHands(e, xWhy);
     if(p.classname != "player" || p.health <= 0 || !VR_Hand_Free(p, hand, VR_HANDFREE_LOCKED))
     {
@@ -291,6 +298,20 @@ void(entity e, entity p, float xHand) VR_Embed_HandFrame =
     {
         VR_Embed_DropHand(e, xHand, "let go");
     }
+};
+
+// A line on the debug panel; a reason with its value against its limit.
+void(string xText) VR_Embed_Say =
+{
+    if(cvar_hget(cvarh_vr_debug_embed))
+    {
+        embedsay(xText);
+    }
+};
+
+string(string xWhy, float xValue, float xLimit, string xUnit) VR_Embed_Why =
+{
+    return cvar_hget(cvarh_vr_debug_embed) ? sprintf("%s: %.1f of %.1f %s", xWhy, xValue, xLimit, xUnit) : xWhy;
 };
 
 // How it holds the hand back now (`xIn`: how far in, 0..1): how far the hand moves before it does, cm...
@@ -562,15 +583,17 @@ float() VR_Embed_HoldThink =
     }
     if(off > max(0, cvar_hget(cvarh_vr_embed_hold_break)) * cm)
     {
-        VR_Embed_Free(e, "off its axis");
+        VR_Embed_Free(e, VR_Embed_Why("off its axis", off / cm, cvar_hget(cvarh_vr_embed_hold_break), "cm"));
         return TRUE;
     }
     // (A body dying or knocked down falls away from the hand: the hold goes on, further.)
+    e.vr_hold_far = far / cm;
     float reachBy = h.health <= 0 ? max(1, cvar_hget(cvarh_vr_embed_hold_reach_corpse)) :
                     ((h.vr_knockdown && !h.vr_kd_stagger) ? max(1, cvar_hget(cvarh_vr_embed_hold_reach_down)) : 1);
+    e.vr_hold_farmost = max(0, cvar_hget(cvarh_vr_embed_hold_reach)) * reachBy;
     if(far > max(0, cvar_hget(cvarh_vr_embed_hold_reach)) * cm * reachBy)
     {
-        VR_Embed_Free(e, "too far from the hand");
+        VR_Embed_Free(e, VR_Embed_Why("too far from the hand", far / cm, cvar_hget(cvarh_vr_embed_hold_reach) * reachBy, "cm"));
         return TRUE;
     }
 
@@ -598,6 +621,7 @@ float() VR_Embed_HoldThink =
     }
     float stick = VR_Embed_Stick(e, inShare, corpse) * cm;
     float rate = VR_Embed_Rate(e, inShare, corpse) * cm;
+    e.vr_hold_stick = stick / cm;
     float over = fabs(along) - stick;
     if(over > 0)
     {
@@ -651,7 +675,9 @@ float() VR_Embed_HoldThink =
     }
     if(free)
     {
-        VR_Embed_Free(e, "pulled out");
+        VR_Embed_Free(e, !point ? VR_Embed_Why("pulled out: slid", -e.vr_stick_slide / cm, cvar_hget(cvarh_vr_embed_hold_axe_travel), "cm") :
+                         ((corpse && (e.vr_hold_pulled >= max(0, cvar_hget(cvarh_vr_embed_tug_corpse)) * cm)) ? VR_Embed_Why("tugged out of a dead body", e.vr_hold_pulled / cm, cvar_hget(cvarh_vr_embed_tug_corpse), "cm") :
+                          VR_Embed_Why("pulled out: left in", (e.vr_stick_depth + e.vr_stick_slide) / cm, cvar_hget(cvarh_vr_embed_hold_sword_out), "cm")));
         return TRUE;
     }
     return FALSE;
@@ -694,32 +720,33 @@ void(float xHand, entity b, entity m, vector xAt, vector xDir, float xSpeed, flo
     {
         // (What strikes: the blow's point; a corpse's has none, where it met it.)
         float tip = xKind >= 0 ? 1 - b.mh_c_f : (len > 0.01 ? vlen(b.mh_far - xAt) / len : 1);
+        float deg = atan2(sqrt(max(0, 1 - along * along)), along) * (180 / 3.14159265);
         if(xKind >= 0 && xKind != VR_MKIND_STAB)
         {
-            why = "not a stab";
+            why = sprintf("the blow read as no stab (kind %g, not %g)", xKind, VR_MKIND_STAB);
         }
         else if(xSpeed < cvar_hget(cvarh_vr_embed_stab_speed))
         {
-            why = "too slow";
+            why = sprintf("too slow: %.1f, least %.1f m/s", xSpeed, cvar_hget(cvarh_vr_embed_stab_speed));
         }
         else if(along < cos(cvar_hget(cvarh_vr_embed_stab_angle) * (3.14159265 / 180)))
         {
-            why = "off its line";
+            why = sprintf("off its line: %.0f, most %.0f deg", deg, cvar_hget(cvarh_vr_embed_stab_angle));
         }
         else if(tip > cvar_hget(cvarh_vr_embed_stab_tip) * 0.01)
         {
-            why = "not by its tip";
+            why = sprintf("not by its tip: %.0f, most %.0f%% of the blade", tip * 100, cvar_hget(cvarh_vr_embed_stab_tip));
         }
     }
     else
     {
         if(xKind >= 0 && xKind != VR_MKIND_SLASH)
         {
-            why = "not a swing";
+            why = sprintf("the blow read as no swing (kind %g, not %g)", xKind, VR_MKIND_SLASH);
         }
         else if(xSpeed < cvar_hget(cvarh_vr_embed_swing_speed))
         {
-            why = "too slow";
+            why = sprintf("too slow: %.1f, least %.1f m/s", xSpeed, cvar_hget(cvarh_vr_embed_swing_speed));
         }
         // (Edge first, not its side nor along the handle: the engine, embedstick.)
     }
@@ -727,6 +754,10 @@ void(float xHand, entity b, entity m, vector xAt, vector xDir, float xSpeed, flo
     {
         dprint(sprintf("embedhold: blow of hand %g at %s, kind %g, %.1f m/s, along %.2f, point %.2f: %s\n", xHand, m.classname, xKind, xSpeed, along, b.mh_c_f,
             why == string_null ? "may stay in" : why));
+    }
+    if(cvar_hget(cvarh_vr_debug_embed))
+    {
+        embedsay(why == string_null ? sprintf("blow at %s may stay in: %.1f m/s, along %.2f, point %.2f", m.classname, xSpeed, along, b.mh_c_f) : sprintf("blow at %s NOT STUCK: %s", m.classname, why));
     }
     if(why != string_null)
     {

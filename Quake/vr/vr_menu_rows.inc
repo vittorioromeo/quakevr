@@ -5484,6 +5484,9 @@ QVR_TOGGLE(vr_debug_angvel, "Controller Spin",
 QVR_TOGGLE(vr_debug_highlights, "Highlights",
     "Each moment the highlight log takes (Graphics > Recording > Log Highlights): its time from the sync "
     "mark, kind, score and what it was done to and with.")
+QVR_TOGGLE(vr_debug_embed, "Embedded Blades: Why",
+    "On screen ahead of you for a few seconds: why each blow or throw stuck or not, and why a blade came out, each with its value against its limit (speed, angle, tip, off its axis, reach). "
+    "On each blade: its axis (red inside, white out, yellow held), tip, where it went in, its anchor, how deep, the hold's numbers, its spring in green.")
 QVR_TOGGLE(vr_debug_axestick, "Axe Sticks",
     "Each thrown axe's blade striking something: stuck (how fast, how deep, at what angles) or why it bounced; "
     "its bleeding, its fall, its pull. Needs Developer Messages for the last.")

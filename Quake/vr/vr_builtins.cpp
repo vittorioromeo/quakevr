@@ -807,6 +807,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"admeleebend", PF_admeleebend},
     {"admeleehead", PF_admeleehead},
     {"meleeshow", PF_meleeshow},
+    {"embedsay", PF_embedsay},
     {"magholsterpoll", PF_magholsterpoll},
     {"holsterpos", PF_holsterpos},
     {"modelbounds", PF_modelbounds},

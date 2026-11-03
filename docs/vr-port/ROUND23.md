@@ -8053,6 +8053,17 @@ Tests: `vr_embed_test 11` (`embedmove: N passed, M failed`). Mock-hand speeds re
 
 For stage 4: saves with a spring on it (holds reset on load; the next think takes it again, untested); a two-handed hold has one spring, on the handle's hand; armed enemies; multiplayer. A hand-held axe's "depth" isn't stored (`.vr_stick_depth` 0): stagger goes by the speed.
 
+## Embedded blades, stage 4 (cut short by his VR test: tokens)
+
+- **The man's grunt on every hit:** `player/axhit1.wav` has a grunt in it (vr_voice.cpp's note); VR_AxeStick_Stuck played it at every blade that stayed in, PulledOut at every pull. Under vr_embed a hand's blow plays nothing more, a throw and a pull `fisthit.wav`; vr_embed 0 as before.
+- **Debug > Embedded Blades: Why** (`vr_debug_embed`): a panel ahead of you, 8 real seconds, the last 7 reasons with values against limits (`embedsay`, `axestick::say`, VR_Embed_Blow, stickHeld, the throws, VR_Embed_Free); each blade drawn with its numbers (axestick::debugDraw).
+- **Axe:** `vr_embed_axe_depth` 12 cm (new; vr_embed 0 still vr_axestick_depth 5), `vr_embed_hold_axe_stick` 0.8 to 2.5, `_rate` 180 to 70, `_travel` 5 to 9.
+- **Tunables:** Combat > Embedded Blades > Thrown, Stab, Axe, Hold, Moving the Body; names kept.
+- **test 7's flakes:** "dead: held still" was real: a dying monster has takedamage 0 and a solid box for about 0.2 s, stopAtWall (vr_handpose.cpp) stopped the hand on that box, the hold read a tug. A hand on a blade now stops at walls only. "A grip takes it again" was the test: the arm reaches 50 units from the chest (maxReach), a flinch held the hilt 65 away; the test steps to it. Its `cvar_set vr_embed_tug_corpse` did nothing since tunables. `vr_knockdown 0` in test 7 stays; not rechecked with it on.
+- **test 1's 59 or 53:** each limb tried was a check. Now one. A throw at a lying body sometimes bounces (1 run in 3, kind -1, cause not found).
+- **Hold in bullet time:** dt is the hand's real time (vr_hand_time_scale). **Haptics:** a hold's buzz went to `self`, the blade: never felt; now the holder's.
+- **Not done (dropped from scope):** saves, level change, teleporter checks unresolved, real heavies, multiplayer run, eval, perf. `vr_embed_test 13-20` (QC/vr_embed_edge_test.qc) exist; 13 reads 63/70, most failures the test's own (map weapons counted, reach, timing), "the body teleported: still held" not looked into.
+
 ## Flatscreen: his decisions (branch `agent/flat2`, 2026-11-03)
 
 His words: "I am happy with all our proposed changes, but I would like to be able to tweak the ads position. At the moment the variables vr_flat_ads_up and vr_flat_ads_out do nothing at full ironsights as you mentioned, but I'd actually like them to affect the final ironsight position so that I can position the guns so that the sights are actually visible on screen. The angle should still be dynamically pointing towards the target of the ray casted through the center of the screen"

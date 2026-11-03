@@ -32,8 +32,11 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
 // (.vr_stick_wiggle), its blade's edge and facing written for QC (.vr_stick_at, .vr_stick_dir).
 void serverFrame();
 
-// Show Stuck Blades (vr_embed_debug_show), each eye's lines; a development build's.
-void debugDraw(const glm::vec3& eye);
+// Embedded Blades: Why (vr_debug_embed): each blade drawn, and the panel of reasons.
+void debugDraw(const glm::vec3& eye, const glm::vec3& headAngles);
+
+// A line on its panel, for a few seconds (vr_debug_embed on).
+void say(const char* fmt, ...);
 
 // Embedded blades, stage 2 (QC/vr_embedhold.qc): the blade `ent` (a thrown weapon just made, at rest) a hand's blow has just
 // put into the body `host` at `at`, going at `vel` (units/s). Set where the hand's weapon is drawn (`hand`; a player not the
