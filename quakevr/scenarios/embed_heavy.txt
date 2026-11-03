@@ -1,5 +1,6 @@
 # embed_heavy: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Blades in bodies too heavy to move.
 title Embedded blades: an Ogre and a Shambler, too heavy to stagger or drag
+cvar vr_embed 1
 map vrtesthall
 god
 notarget

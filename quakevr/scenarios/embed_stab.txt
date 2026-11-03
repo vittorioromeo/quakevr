@@ -1,5 +1,6 @@
 # embed_stab: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Held stabs and swung axes stuck in bodies.
 title Embedded blades: stab with the sword, swing the axe at the grunts, one in plate
+cvar vr_embed 1
 map vrtesthall
 god
 notarget

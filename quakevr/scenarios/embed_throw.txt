@@ -1,5 +1,6 @@
 # embed_throw: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Thrown swords stuck in walls and bodies.
 title Embedded blades: thrown swords, a grunt and a sword to throw at the wall and at it
+cvar vr_embed 1
 map vrtesthall
 god
 notarget
