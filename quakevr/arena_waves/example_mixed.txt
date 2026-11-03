@@ -1,0 +1,16 @@
+arena_waves 1
+after last
+wave pool=0
+  entry kind=grunt main="Nail Pistol" off=none armour=none pieces=full infected=none count=3 delay=0 boss=0
+  entry kind=zombie main=none off=none armour=none pieces=full infected=none count=2 delay=5 boss=0
+wave pool=0
+  entry kind=grunt main=Axe off=Axe armour=green pieces=chest+helmet infected=none count=2 delay=0 boss=0
+  entry kind=enforcer main=random off=none armour=none pieces=full infected=zombie count=2 delay=0 boss=0
+  entry kind=dog main=none off=none armour=none pieces=full infected=none count=3 delay=8 boss=0
+wave pool=6
+  entry kind=armed_knight main=Axe off=none armour=green pieces=full infected=demon count=2 delay=0 boss=0
+  entry kind=plain_grunt main=none off=none armour=none pieces=full infected=none count=4 delay=0 boss=0
+  entry kind=ogre main=none off=none armour=none pieces=full infected=none count=1 delay=10 boss=0
+wave pool=0
+  entry kind=enforcer main=Nailgun off=none armour=yellow pieces=full infected=ogre count=3 delay=0 boss=0
+  entry kind=armed_deathknight main=random off=none armour=red pieces=full infected=shambler count=1 delay=6 boss=1

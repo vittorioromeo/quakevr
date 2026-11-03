@@ -1368,8 +1368,8 @@ QVR_CVAR(vr_voice_formant, "17", CVAR_ARCHIVE)        // vr_voice 1: its formant
 QVR_CVAR(vr_voice_voicing, "0.4", CVAR_ARCHIVE)       // vr_voice 1: how rough a stretch of a voice sound may be and still be pitched up (YIN's threshold, 0.05..0.9: higher pitches more of the screams' growl; the rest only has its formants raised)
 QVR_CVAR(vr_body_bracers, "0", CVAR_ARCHIVE)         // the leather bracers on the forearms; 0: bare forearms (gadget straps fitted to the skin) (progs/vrbody*_bare, fitted round the jointed hand)
 QVR_CVAR(vr_body_walk, "1", CVAR_ARCHIVE)             // legs (vr_body_mode 3) walk as the player moves
-QVR_CVAR(vr_body_step_rate, "4.9", CVAR_ARCHIVE)      // steps a second at a full run (320 units/s), 0.5 .. 10; below it a share of that (vr_body_step_run); never more than the speed over the stride
-QVR_CVAR(vr_body_stride, "1", CVAR_ARCHIVE)           // the walk's stride, times this (0.3 .. 2): longer, the planted foot slides less, and the fewer steps it takes when walking slowly
+QVR_CVAR(vr_body_step_rate, "3.6", CVAR_ARCHIVE)      // steps a second at a full run (320 units/s), 0.5 .. 10; below it a share of that (vr_body_step_run); never more than the speed over the stride
+QVR_CVAR(vr_body_stride, "1.25", CVAR_ARCHIVE)           // the walk's stride, times this (0.3 .. 2): longer, the planted foot slides less, and the fewer steps it takes when walking slowly
 QVR_CVAR(vr_body_step_width, "0", CVAR_ARCHIVE)       // metres each foot walks further out than it stands, the hips' width apart (-0.08 .. 0.25)
 QVR_CVAR(vr_body_step_sounds, "1", CVAR_ARCHIVE)       // the player's footsteps play as the drawn feet touch down, from that foot (vr_playersteps.cpp); 0: QC's old trigger, by distance. The old trigger too with no walking legs, in the air, swimming, climbing and in multiplayer
 QVR_CVAR(vr_body_step_run, "1", CVAR_ARCHIVE)         // below a full run, how the steps fall off: 1 as a person's cadence does (the bloody footprints' steps), 0 vr_body_step_rate rules everywhere (70% at the slowest, all of it at a run); 0 .. 1
@@ -2496,6 +2496,9 @@ QVR_CVAR(vr_arena_foe_armor, "1", CVAR_ARCHIVE)               // 1: the waves' g
 QVR_CVAR(vr_arena_foe_armor_scale, "1", CVAR_ARCHIVE)         // the arena armour's chance times this (1: 10% at its first wave at Normal, 3% more a wave, cap 85%)
 QVR_CVAR(vr_arena_foe_armor_from, "4", CVAR_ARCHIVE)          // the first wave a foe may wear armour at Normal (moved by the skill as every gate: 7 / 4 / 2 / 2)
 QVR_CVAR(vr_arena_seed, "0", CVAR_NONE)                       // the waves' rolls: 0 a different ladder every run, else that seed's ladder
+QVR_CVAR(vr_arena_waves_dir, "arena_waves", CVAR_NONE)         // the folder of the arena's wave presets, under the game folder (vr_arenawaves.hpp; the tests' keep apart)
+QVR_CVAR(vr_waveeditor_width, "54", CVAR_ARCHIVE)              // the Arena Wave Editor's panel in the headset: its width (units)
+QVR_CVAR(vr_waveeditor_distance, "42", CVAR_ARCHIVE)           // ... how far in front of the head it opens (units)
 QVR_CVAR(vr_arena_goto, "0", CVAR_NONE)                       // debug/benchmarks: set to N, the running arena jumps to wave N now (the field cleared, no rest or countdown; back to 0 after)
 // Survival Arena's last foes seen through walls (QC VR_ARENA_XrayMark marks them, .vr_xray; vr_arenaxray.cpp draws them)
 QVR_CVAR(vr_arena_xray, "1", CVAR_ARCHIVE)                    // 1: a wave's last foes glow through walls (an outline in front of everything)
@@ -3798,6 +3801,7 @@ QVR_CVAR(vr_toolgun_armed_kind, "0", CVAR_ARCHIVE)      // the spawn panel's Arm
 QVR_CVAR(vr_toolgun_armed_weapon, "0", CVAR_ARCHIVE)    // ... its right hand's weapon (the "weapon" key: 0 random from the pool, -1 unarmed, else the weapon's code)
 QVR_CVAR(vr_toolgun_armed_weapon2, "0", CVAR_ARCHIVE)   // ... its left hand's ("weapon2": 0 none; a one-handed weapon, with a one-handed one in the right)
 QVR_CVAR(vr_toolgun_armed_armor, "0", CVAR_ARCHIVE)     // ... its armour (vr_agarmor.qc VR_AgArmor_Toolgun): 0 none, 1 green, 2 yellow, 3 red, 4 one of them at random
+QVR_CVAR(vr_toolgun_armed_infected, "0", CVAR_ARCHIVE)  // ... what it is infected with: a row of QC's VR_INFECT_ROWS (0 none; killed, it bursts and rises as that monster)
 QVR_CVAR(vr_toolgun_armed_pieces, "1", CVAR_ARCHIVE)    // ... its armour's pieces: 0 the cuirass and the helmet, 1 all ten, 2 random (the cuirass, the helmet and some of the rest)
 QVR_CVAR(vr_toolgun_armed_tiles,"0", CVAR_ARCHIVE)     // 1: the Monsters tab also lists the Armed Grunt and Armed Enforcer tiles for each weapon (the page replaces them)
 QVR_CVAR(vr_toolgun_brush_texlock, "1", CVAR_ARCHIVE)   // ... Rotate turns the textures with the faces (0: each face gets the world's alignment)
