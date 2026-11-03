@@ -581,6 +581,12 @@ void(float kind, vector a, vector b) debugdirparry = #0;
 // its striker `which` as drawn tau s from now: vr_blow_a its near end, vr_blow_b its far end, vr_blow_more '<how far ahead it
 // reaches in its animation> <its length> <its sweep>'.
 float(entity m, float tau, float which) blowline = #0;
+// Whether monster m's frame now is in a lunge of its block in quakevr/data/monsters.txt (lunge_a_from ..: vr_dirparry.qc VR_DRP_Lunge).
+float(entity m) blowlunge = #0;
+// Your weapons' lines of late (vr_blowline.cpp; a parry's timing: vr_dirparry.qc VR_DRP_BecameValid): this server frame's (a == b:
+// no weapon), and the one `back` frames ago into vr_blow_a, vr_blow_b, returning when it was (-1: none).
+void(entity pl, float hand, vector a, vector b) handlineadd = #0;
+float(entity pl, float hand, float back) handlineat = #0;
 vector vr_blow_a;
 vector vr_blow_b;
 vector vr_blow_more;

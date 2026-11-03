@@ -3133,6 +3133,9 @@ vr_dirparry_contact|2|Tunables|Contact Distance|Advanced VR Options > Debug > Tu
 vr_dirparry_falloff|2|Tunables|Contact Falloff|Advanced VR Options > Debug > Tunables > Contact Falloff
 vr_dirparry_threshold|2|Tunables|Score to Parry|Advanced VR Options > Debug > Tunables > Score to Parry
 vr_dirparry_window|2|Tunables|Parry Window|Advanced VR Options > Debug > Tunables > Parry Window
+vr_dirparry_through_armed|2|Tunables|Let Through: Armed Humanoids|Advanced VR Options > Debug > Tunables > Let Through: Armed Humanoids
+vr_dirparry_through_monster|2|Tunables|Let Through: Monsters|Advanced VR Options > Debug > Tunables > Let Through: Monsters
+vr_dirparry_timed_window|2|Tunables|Timing Window|Advanced VR Options > Debug > Tunables > Timing Window
 vr_dirparry_stroke|2|Tunables|Stroke Window|Advanced VR Options > Debug > Tunables > Stroke Window
 vr_agrunt_repl_skill0|2|Tunables|Easy|Advanced VR Options > Debug > Tunables > Easy
 vr_agrunt_repl_skill1|2|Tunables|Normal|Advanced VR Options > Debug > Tunables > Normal

@@ -26,6 +26,7 @@
 #include "vr_engine.hpp"
 #include "vr_mdldequant.hpp"
 #include "vr_mem.hpp"
+#include "vr_monsterdata.hpp"
 #include "vr_progs.hpp"
 
 #include "Zancle/Container/Vector.hpp"
@@ -583,6 +584,28 @@ void dump_f()
     PR_SwitchQCVM(nullptr);
 }
 
+// Your weapons' lines of late (a parry's timing: QC VR_DRP_BecameValid), per client and hand, a server frame each. Not saved:
+// a game loaded or a map changed starts it again.
+struct HandLine
+{
+    float at{0.f};
+    glm::vec3 a{0.f}, b{0.f};
+};
+constexpr int historyLength = 128; // (at a server's fastest, about a second: the timing window's slider's end)
+struct HandHistory
+{
+    HandLine lines[historyLength];
+    int newest{-1};
+};
+HandHistory handHistory[MAX_SCOREBOARD][2];
+
+HandHistory* historyOf(const edict_t* pl, float hand)
+{
+    const int slot = NUM_FOR_EDICT(const_cast<edict_t*>(pl)) - 1;
+    const int h = static_cast<int>(hand);
+    return (slot >= 0 && slot < MAX_SCOREBOARD && (h == 0 || h == 1)) ? &handHistory[slot][h] : nullptr;
+}
+
 } // namespace
 
 namespace qvr::blowline
@@ -591,6 +614,71 @@ namespace qvr::blowline
 void registerCommands()
 {
     Cmd_AddCommand("vr_blowline_dump", dump_f);
+}
+
+void PF_blowlunge()
+{
+    const edict_t* e = G_EDICT(OFS_PARM0);
+    const char* name = PR_GetString(e->v.classname);
+    bool in = false;
+    for(const char run : {'a', 'b'})
+    {
+        char key[96];
+        q_snprintf(key, sizeof(key), "vr_mlunge_%s_%c_to", name, run);
+        const cvar_t* to = monsterdata::findStandIn(key);
+        q_snprintf(key, sizeof(key), "vr_mlunge_%s_%c_from", name, run);
+        const cvar_t* from = monsterdata::findStandIn(key);
+        in = in || (from && to && e->v.frame >= from->value && e->v.frame <= to->value);
+    }
+    G_FLOAT(OFS_RETURN) = in ? 1.f : 0.f;
+}
+
+void PF_handlineadd()
+{
+    HandHistory* history = historyOf(G_EDICT(OFS_PARM0), G_FLOAT(OFS_PARM1));
+    if(!history)
+    {
+        return;
+    }
+    const float now = static_cast<float>(qcvm->time);
+    if(history->newest >= 0 && now < history->lines[history->newest].at)
+    {
+        history->newest = -1; // (its clock went back: a new map)
+    }
+    if(history->newest < 0 || now > history->lines[history->newest].at)
+    {
+        history->newest = (history->newest + 1) % historyLength;
+    }
+    const float* a = G_VECTOR(OFS_PARM2);
+    const float* b = G_VECTOR(OFS_PARM3);
+    history->lines[history->newest] = HandLine{now, glm::vec3{a[0], a[1], a[2]}, glm::vec3{b[0], b[1], b[2]}};
+}
+
+void PF_handlineat()
+{
+    G_FLOAT(OFS_RETURN) = -1.f;
+    const HandHistory* history = historyOf(G_EDICT(OFS_PARM0), G_FLOAT(OFS_PARM1));
+    const int back = static_cast<int>(G_FLOAT(OFS_PARM2));
+    if(!history || history->newest < 0 || back < 0 || back >= historyLength)
+    {
+        return;
+    }
+    const HandLine& line = history->lines[(history->newest - back + historyLength) % historyLength];
+    if(line.at <= 0.f || line.at > static_cast<float>(qcvm->time))
+    {
+        return;
+    }
+    const progs::Bindings& b = progs::bindings();
+    if(b.blowLine[0] && b.blowLine[1])
+    {
+        b.blowLine[0][0] = line.a.x;
+        b.blowLine[0][1] = line.a.y;
+        b.blowLine[0][2] = line.a.z;
+        b.blowLine[1][0] = line.b.x;
+        b.blowLine[1][1] = line.b.y;
+        b.blowLine[1][2] = line.b.z;
+    }
+    G_FLOAT(OFS_RETURN) = line.at;
 }
 
 void PF_blowline()
