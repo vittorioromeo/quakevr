@@ -37,6 +37,11 @@ Debug > Show Disarm Volumes near a monster: its blow's line on its weapon or lim
 A monster's or armed grunt's swing: hold your weapon across its way early: parried, no damage, plain. Turn it to the angle or move it in just before the blade arrives: a stronger parry (it staggers where a plain one flinches, by the parry balance).
 A monster's directional parry lets nothing through. Debug > Tunables > Combat > Directional Parry: Let Through: Armed Humanoids, Monsters, Timing Window.
 A dog's bite or leap, a fiend's leap: a weapon held level across in front parries; upright, the blow lands.
+Throw a sword point first at a wall: it sticks and sags with a little spring; flat or by the hilt it bounces. {test:embed_throw}
+Throw a sword into a grunt: it bleeds; kill it and the blade stays in the corpse, riding the body. {test:embed_throw}
+Grip a blade in a corpse: it only comes out once you pull about 8 cm; letting go leaves it in. {test:embed_throw}
+Gib the body or cut off the limb with a blade in it: the blade falls. {test:embed_throw}
+Combat > Embedded Blades: turn Embedded Blades off and only axes stick, falling out when the body dies. {test:embed_throw}
 
 [3. Bodies: grabbing, throwing, hits]
 Neck snap standing and on a lifted body: it goes limp, still held. Leg grabs: pull one down by the shins, drag it by the legs, lift it by the legs. {test:grunts_to_throw}
