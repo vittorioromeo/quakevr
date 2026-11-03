@@ -25,6 +25,9 @@ Toolgun > Spawn > Armed Humanoid > Infected With > Ogre: kill him; his weapon fa
 Debug > Tools > Arena Wave Editor: build a wave with an armed grunt, dual axes, red armour and infected with shambler; save it, assign it to Normal, then Play from wave 1. Is the panel readable, do the laser, stick scrolling and panel keys work? {test:vrarena_calm}
 Rig Studio: changing the subject leaves no backpack lying on the floor. {test:agrunt_pose_studio}
 A fiend, dog or spawn killed by a blast its own leap set off stays dead. {test:leap_blast}
+Crates and upright barrels about the maps sometimes have a loaded flare gun lying on top, about as often as a crowbar, at most 2 a map {test:flaregun_crates}
+A crate can have both a crowbar and a flare gun, side by side and not touching: take each {test:flaregun_crates}
+Wave presets you save in the Arena Wave Editor now show in git status (arena_waves/), to commit and ship.
 
 [3. Bodies: grabbing, throwing, hits]
 Neck snap standing and on a lifted body: it goes limp, still held. Leg grabs: pull one down by the shins, drag it by the legs, lift it by the legs. {test:grunts_to_throw}
