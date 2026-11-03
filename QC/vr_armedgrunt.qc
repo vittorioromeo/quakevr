@@ -2612,7 +2612,7 @@ entity() VR_AG_FindWeapon =
     {
         if(e.classname == "thrown_weapon" && VR_AG_Usable(e.weapon) && !e.vr_depleted && !VR_EnemyWeapons_Spared(e) &&
            !e.vr_drop_fade && // (fading past the cap: not to be taken)
-           VR_AM_Takes(self, e.weapon) && // (its row's: a knight no gun, vr_agknight_ranged_pickup 0)
+           VR_AM_Takes(self, e.weapon) && // (a map's sword knight no gun, vr_agknight_ranged_pickup 0)
            (VR_AG_Class(e.weapon) == VR_AG_CLASS_MELEE || e.weaponinst.wi_clip > 0) &&
            (!self.vr_ag_prop || VR_AG_PairsFor(self, self.vr_ag_wid, self.vr_ag_wflags, e.weapon, e.weaponflags))) // (armed: its pair's second only)
         {
@@ -3252,7 +3252,7 @@ An armed enforcer (experimental): an enforcer holding one of your weapons (its l
 void() monster_vr_enforcer = { VR_AM_Spawn(VR_AM_ENFORCER); };
 
 /*QUAKED monster_vr_knight (1 0 0) (-16 -16 -24) (16 16 40) Ambush
-An armed knight (experimental): a knight holding one of your weapons as the armed humanoids hold theirs (his own sword's
+An armed knight: a knight holding one of your weapons as the armed humanoids hold theirs (his own sword's
 place). "weapon": its weapon (as monster_vr_grunt's: WID_*, any class; 13 the sword, the default; -1 its fists).
 "weaponflags": that weapon's flags. "weapon2", "weaponflags2": a second one-handed weapon in its left hand (as
 monster_vr_grunt's).
@@ -3267,7 +3267,7 @@ void() monster_vr_knight =
 };
 
 /*QUAKED monster_vr_hknight (1 0 0) (-16 -16 -24) (16 16 40) Ambush
-An armed death knight (experimental): a hell knight holding a weapon as the armed humanoids hold theirs (his own sword's
+An armed death knight: a hell knight holding a weapon as the armed humanoids hold theirs (his own sword's
 place); at range he still casts his fireball volley while he holds a melee weapon or none.
 "weapon": its weapon (13 the sword, the default; any weapon: 2 the axe, 3 the shotgun, ...; -1 its fists). "weapon2": a
 second one in its left hand.
@@ -3388,6 +3388,7 @@ void(float kind) VR_AM_Spawn =
     vr_ag_arm_rolled = (pooled && want2 == 0); // (a flare gun too: one from the pool, one weapon)
     vr_ag_arm_roll = random();
     VR_AM_ArmAll(want, flags, inst, want2, flags2);
+    self.vr_ag_born_ranged = VR_WP_CarriesRanged(self); // (whoever arms it: the toolgun, a wave, a map's "weapon")
     VR_AgArmor_Spawn(self); // (its armour by the skill: vr_agarmor.qc)
     VR_WP_Spawn(self);      // (its backpack on its back if it carries a ranged weapon: vr_wornpack.qc)
 };

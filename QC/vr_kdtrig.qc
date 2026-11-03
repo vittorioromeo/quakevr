@@ -1229,7 +1229,9 @@ entity(entity pl, vector at) VR_KdTrig_TestSpawn =
     if(k == 6)
     {
         m.classname = "monster_knight";
+        vr_agr_hold = vr_agr_hold + 1; // (the stock knight, as these tests' class 6 has always been)
         monster_knight();
+        vr_agr_hold = vr_agr_hold - 1;
     }
     else if(k == 7)
     {
@@ -1239,7 +1241,9 @@ entity(entity pl, vector at) VR_KdTrig_TestSpawn =
     else if(k == 3)
     {
         m.classname = "monster_hell_knight";
+        vr_agr_hold = vr_agr_hold + 1; // (the stock death knight, as above)
         monster_hell_knight();
+        vr_agr_hold = vr_agr_hold - 1;
     }
     else if(k == 5)
     {
