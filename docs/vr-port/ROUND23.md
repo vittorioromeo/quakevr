@@ -7294,6 +7294,40 @@ cuts them from decoded previews (its header has the sources and the ffmpeg line)
 - `pack_rip.wav`: the first 0.62 s of 591527 from its onset, high-passed 150 Hz, one pole at 8 kHz, tanh 5, a 0.14 s fade. Nearly all
   over 800 Hz; its sample-to-sample jumps are the tear's dense crackle (the source has the same, against its peak), not lone clicks.
 - All files start and end at 0.
+
+## The player's footsteps: volume by speed, the body's small adjustments silent (branch `agent/playersteps2`)
+
+His notes (vrfiringrange_2026-11-03_01-57-12 and on): slow walking's footsteps much quieter, with sliders for the curve; "way
+too many sounds" turning in real life or with the thumbstick, or moving a little in the room.
+
+**Volume** (Debug > Tunables > Body > Player Footsteps, all `vr_footstep_player_*`): `_volume` 1, times everything; `_walk_vol`
+0.1 at `_walk_speed` 60 u/s or slower, up to `_run_vol` 0.5 (the old flat volume) at `_run_speed` 320 u/s or faster, along
+`_curve` 1.5 (an exponent: 1 even, higher staying quiet longer). The by-distance old trigger keeps its own 0.5 (setting off, no
+walking legs, multiplayer).
+
+**The small adjustments:** two sources, and the first fix (the standing steps alone) wouldn't have done: the mock's head and
+stick turns and room moves also made the walk itself step, because they move the body (mean 7 to 30 u/s, spikes past 90). So
+an adjustment is a standing step, or a walk's touchdown with the stick not moving you (`cl.cmd`) while the pace, smoothed over
+0.3 s so a quick head move doesn't count, is under `_room_speed` 60 u/s (about 2 m/s of real walking at his scale). All are
+silent by default: `_adjust_vol` 0; turned up, at most one in `_adjust_gap` 1 s. Real steps in the room are silent too, unless
+you go faster than `_room_speed`: that's the one way a room walk is heard, and lowering it hears more of them. Stepping with the
+stick is always heard, however slowly. The feet still count every touchdown for the bloody footprints.
+
+**Test** (`Misc/quakevr/playersteps_test.sh`: 10 passed, 0 failed):
+
+| phase | speed | touchdowns taken as adjustments | sounds | mean volume |
+| --- | --- | --- | --- | --- |
+| slow walk, stick 0.15 | 48 u/s | 0 | 6 | 0.100 |
+| walk, stick 0.4 | 112 u/s | 0 | 9 | 0.136 |
+| run | 319 u/s | 0 | 14 | 0.500 |
+| strafe | 311 u/s | 0 | 15 | 0.490 |
+| head turning | 7 u/s | 8 | 0 | |
+| stick turning | 29 u/s | 2 | 0 | |
+| small room moves | 30 u/s | 5 | 0 | |
+| stick turning, `_adjust_vol` 0.2 | 9 u/s | 3 | 1 in 3.4 s | 0.200 |
+
+Each footstep is still within a frame of the drawn touchdown (13.9 ms most), and the old trigger plays none in these phases.
+
 ## Arena wave editor and generic infection (branch `agent/waveeditor`)
 
 His words: "a simple wave editor tool so that I can set up waves the way I want ... any armed humanoid configuration with
