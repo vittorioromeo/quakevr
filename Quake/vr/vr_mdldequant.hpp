@@ -41,4 +41,8 @@ void prepare(const qmodel_s* model);
 // `progs` 1 where a progs' loop says so (r_lerpmodels 3's spline keys: vr_animsmooth.cpp). Both hold numposes values.
 void poseSuccessors(const void* aliashdr, const char* model, short* next, unsigned char* progs);
 
+// A QuakeC frame function's frame and next function, in the progs loaded now (qcvm; its first statement an OP_STATE:
+// void() knight_atk6 = [$attackb6, knight_atk7]), or false.
+[[nodiscard]] bool frameFunction(int func, int& frame, int& next);
+
 } // namespace qvr::mdldequant

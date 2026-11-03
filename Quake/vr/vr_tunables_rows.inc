@@ -998,6 +998,7 @@ QVR_TUNABLE_SLIDER(vr_dirparry_contact, "Contact Distance", 0.5f, 20.0f, 0.5f, "
 QVR_TUNABLE_SLIDER(vr_dirparry_falloff, "Contact Falloff", 1.0f, 5.0f, 0.25f, "%.2fx", 1.0f, 10.0f, "The contact's marks fall from full at Contact Distance to none at this times it (2: none at twice " "it). 1: none past the contact distance.")
 QVR_TUNABLE_SLIDER(vr_dirparry_threshold, "Score to Parry", 0.0f, 1.0f, 0.05f, "%.2f", 0.0f, 1.0f, "The score (the angle's marks times the contact's, 0 to 1) that parries. Less: more lenient. Under it " "the blow lands.")
 QVR_TUNABLE_SLIDER(vr_dirparry_window, "Parry Window", 0.0f, 0.4f, 0.01f, "%.2f s", 0.0f, 1.0f, "At its blow its blade's way is followed on this long: your weapon in it then, where the blade would " "meet it in the swing's rest, still parries. More: more lenient (slowed by Enemy Melee Speed).")
+QVR_TUNABLE_SLIDER(vr_dirparry_stroke, "Stroke Window", 0.0f, 0.6f, 0.05f, "%.2f s", 0.0f, 3.0f, "A monster's own blow is dealt before its blade gets there: held back at most this long for it to meet your weapon.")
 
 QVR_TUNABLE_GROUP("Combat > Armed Humanoid Replacements")
 QVR_TUNABLE_SLIDER(vr_agrunt_repl_skill0, "Easy", 0.0f, 4.0f, 0.25f, "%.2fx", 0.0f, 4.0f, "The variety chances above times this at that skill (each chance at most 1).")

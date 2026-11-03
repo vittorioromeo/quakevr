@@ -577,6 +577,13 @@ void(entity e, float kind, vector a, vector b, float radius) debugdisarm = #0;
 // the gap, full within, none at; marks: the angle's, the contact's; more: 1 your main hand (0 the off), when on its way
 // (s), the swing's speed). 1: shown (0: off, nothing kept).
 void(float kind, vector a, vector b) debugdirparry = #0;
+// A monster's melee blow as read from its model's frames (vr_blowline.cpp): how many lines its frame now has (0: none), and
+// its striker `which` as drawn tau s from now: vr_blow_a its near end, vr_blow_b its far end, vr_blow_more '<how far ahead it
+// reaches in its animation> <its length> <its sweep>'.
+float(entity m, float tau, float which) blowline = #0;
+vector vr_blow_a;
+vector vr_blow_b;
+vector vr_blow_more;
 // ... and each held melee weapon's line every server frame as the parry reads it (VR_AG_WeaponLine: back a, front b)
 // and last frame's (a0, b0); returns how far (units) its ends are from the drawn weapon's own butt and tip (the
 // renderer's last matrix for it), the worse; -1 not measured (off, not drawn lately).

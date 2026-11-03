@@ -1534,11 +1534,6 @@ QVR_SLIDER_BYNAME(vr_parry_drop_chance, "Parry Drop Chance", 0.f, 1.f, 0.05f, "%
 QVR_SLIDER_BYNAME(vr_parry_wobble, "Parry Arm Knock", 0.f, 2.f, 0.1f, "%.1f", ext(), "How much a parried blow knocks your hand and arm.")
 QVR_TOGGLE(vr_parry_unarmed, "Unarmed Parry",
     "Cross your arms in an X in front of you to block a blow with your forearms.")
-QVR_TOGGLE(vr_dirparry, "Directional Parry (Experimental)",
-    "An armed humanoid's sword, axe or club swung at you is parried only by your weapon held across its "
-    "blade's way where they meet: an overhead strike by a weapon held level across, a side swing by one "
-    "held upright. Parried: no damage, sparks where the weapons met, its swing stopped. Tunables: Combat "
-    "> Directional Parry. Off: the level-across parry for every blow.")
 QVR_TOGGLE(vr_parry_cooldown_attack, "Parry Cooldown: Whole Attack", nullptr)
 QVR_TOGGLE(vr_parry_balance, "Parry Balance",
     "A parry's strength (its tool, times its grip, times its timing) over the monster's Parry Poise (Monster "

@@ -105,8 +105,8 @@ void(entity xTarg, entity xAttacker, float xDamage, float xIsVRMelee) VR_Motion_
 // Each server frame while a take is recorded or played (the engine calls it; self: the player,
 // `xTarget` the take's monster or world): the striking points of each hand (vr_melee.qc's layout, as last
 // swept; six of a sword's nine: the pommel, the hilt, the blade's root, mid-blade, the blade, the tip), and
-//  parry  x, y: whether the main, the off hand's weapon would parry a monster's blow from the target
-//         (or from straight ahead without one; VR_Parry_Blocks), z: crossed arms would (unarmed)
+//  parry  z: crossed arms would parry a blow from the target (unarmed; a weapon's parry is the blow's own line now, no
+//         pose of its own: vr_dirparry.qc; the pose it held for a bash and for a blow with no line: guard)
 //  guard  x: the hand in the parry stance (a weapon across; 0 off, 1 main, -1 none), y: the hand pushing it
 //         as a bash does (-1 none), z: how far that push has gone (m)
 //  m_blow, o_blow  the hand's motion (VR_Melee_Track): x the far end's speed (m/s: a sword's tip, the
@@ -174,14 +174,7 @@ void(entity xTarget) VR_Motion_Sample =
     vector oldForward = v_forward;
     vector oldRight = v_right;
     vector oldUp = v_up;
-    vector parry;
-    if(xTarget != world)
-    {
-        vr_parry_from = xTarget.origin + (xTarget.mins + xTarget.maxs) * 0.5;
-    }
-    parry_x = VR_Parry_Blocks(self, cVR_MainHand, to);
-    parry_y = VR_Parry_Blocks(self, cVR_OffHand, to);
-    vr_parry_from = '0 0 0';
+    vector parry = '0 0 0';
     parry_z = VR_Parry_ArmsCrossed(self, to);
     motionvalue("parry", parry);
 

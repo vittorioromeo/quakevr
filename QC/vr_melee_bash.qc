@@ -1413,6 +1413,10 @@ void() VR_Melee_Frame =
     VR_HeavyMelee_Frame();
     VR_Counter_Frame();
     VR_Parry_GuardFrame(); // (when each guard came up: a parry's timing, combat.qc)
+    if(vr_dv_on)
+    {
+        VR_DRP_ShowLines(self); // (Show Disarm Volumes: the monsters' blows' lines)
+    }
     VR_Melee_Hud();
 };
 

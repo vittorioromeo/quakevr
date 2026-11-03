@@ -2,7 +2,6 @@
 title Directional Parry readout: a sword grunt and an axe grunt swinging at you, Show Directional Parry on, a sword in hand (god)
 map vrtesthall
 god
-cvar vr_dirparry 1
 cvar vr_dirparry_debug 1
 give "Knight's Sword" main
 spawn "Armed Grunt: Sword" 160 40

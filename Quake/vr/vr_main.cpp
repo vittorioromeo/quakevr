@@ -46,6 +46,7 @@
 #include "vr_angvel.hpp"
 #include "vr_animsmooth.hpp"
 #include "vr_mdldequant.hpp"
+#include "vr_blowline.hpp"
 #include "vr_dirparryviz.hpp"
 #include "vr_hitreact.hpp"
 #include "vr_backend.hpp"
@@ -2128,6 +2129,7 @@ extern "C" void VR_Init()
     warmup::registerCommands();
     hitreact::registerCommands();
     dirparryviz::registerCommands();
+    blowline::registerCommands();
     temporal::registerCommands(); // vr_temporal_error (vr_temporal.cpp)
     edictindex::registerCommands();
     weapons::registerCvars();

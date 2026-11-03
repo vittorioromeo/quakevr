@@ -787,7 +787,6 @@ vr_parry_drop_chance|1|Parry and Bash|Parry Drop Chance|Advanced VR Options > Co
 vr_parry_wobble|1|Parry and Bash|Parry Arm Knock|Advanced VR Options > Combat > Parry and Bash > Parry Arm Knock
 vr_parry_unarmed|1|Parry and Bash|Unarmed Parry|Advanced VR Options > Combat > Parry and Bash > Unarmed Parry
 vr_parry_cooldown_attack|1|Parry and Bash|Parry Cooldown: Whole Attack|Advanced VR Options > Combat > Parry and Bash > Parry Cooldown: Whole Attack
-vr_dirparry|1|Parry and Bash|Directional Parry (Experimental)|Advanced VR Options > Combat > Parry and Bash > Directional Parry (Experimental)
 vr_dirparry_debug|1|Parry and Bash|Show Directional Parry|Advanced VR Options > Combat > Parry and Bash > Show Directional Parry
 vr_agrunt_melee_speed|1|Parry and Bash|Enemy Melee Speed|Advanced VR Options > Combat > Parry and Bash > Enemy Melee Speed
 vr_parry_balance|1|Parry and Bash|Parry Balance|Advanced VR Options > Combat > Parry and Bash > Parry Balance
@@ -3134,6 +3133,7 @@ vr_dirparry_contact|2|Tunables|Contact Distance|Advanced VR Options > Debug > Tu
 vr_dirparry_falloff|2|Tunables|Contact Falloff|Advanced VR Options > Debug > Tunables > Contact Falloff
 vr_dirparry_threshold|2|Tunables|Score to Parry|Advanced VR Options > Debug > Tunables > Score to Parry
 vr_dirparry_window|2|Tunables|Parry Window|Advanced VR Options > Debug > Tunables > Parry Window
+vr_dirparry_stroke|2|Tunables|Stroke Window|Advanced VR Options > Debug > Tunables > Stroke Window
 vr_agrunt_repl_skill0|2|Tunables|Easy|Advanced VR Options > Debug > Tunables > Easy
 vr_agrunt_repl_skill1|2|Tunables|Normal|Advanced VR Options > Debug > Tunables > Normal
 vr_agrunt_repl_skill2|2|Tunables|Hard|Advanced VR Options > Debug > Tunables > Hard
@@ -4198,6 +4198,7 @@ vr_flat_cam_side|2|Debug - Reports|Flatscreen View Sideways|Advanced VR Options 
 |2|Debug - Reports|Every Ragdoll Rig|Advanced VR Options > Debug > Reports > Every Ragdoll Rig
 |2|Debug - Reports|Grunt's Ragdoll Rig|Advanced VR Options > Debug > Reports > Grunt's Ragdoll Rig
 |2|Debug - Reports|Smooth Animation Check|Advanced VR Options > Debug > Reports > Smooth Animation Check
+|2|Debug - Reports|Monsters' Blow Lines|Advanced VR Options > Debug > Reports > Monsters' Blow Lines
 |2|Debug - Reports|Steady Vertices Check|Advanced VR Options > Debug > Reports > Steady Vertices Check
 |2|Debug - Reports|Smooth Animation Rig Hashes|Advanced VR Options > Debug > Reports > Smooth Animation Rig Hashes
 |2|Debug - Reports|Smooth Animation Models|Advanced VR Options > Debug > Reports > Smooth Animation Models
