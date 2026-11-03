@@ -20,6 +20,14 @@
 #      the hand's trail behind the wrist its arm solver puts there — about one frame of the hand's own speed, so it is
 #      reported, not gated: a punch throws the fist at some 250 units a second, a frame of that is 3 units.
 #   5. none of it runs in the headset: vr_flat_punch says the mode is not running and "flatarm:" prints nothing.
+#   6. the ironsight (vr_flat_aim, what the mouse wheel's button is, and vr_flat_aim_fov) and the free hand's grip: with
+#      one hand holding a weapon that has sights, the held hand is brought onto the crosshair's ray (the muzzle's distance
+#      off it, before and after the move), the field of view narrows by vr_flat_aim_fov and only while it is on (0 keeps
+#      it wide, 30 narrows it further), a weapon without sights and dual wielding refuse it, and a shot fired with it on
+#      still hits what the crosshair points at. The empty hand is carried to the held weapon's two-handed grip when that
+#      grip stands where a second hand can reach it (the rocket launcher's, the proximity gun's: vr_twohand takes the hold,
+#      helpKind 1) and left on the mode's support pose when it does not (the shotgun's stands behind the held hand). None
+#      of it runs in the headset: vr_flat_aim says the mode is not running, and no ironsight or grip line prints.
 # Prints PASS/FAIL per check; exits 1 on a failure.
 AGENT=${1:-fixgame3}; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 fail=0
@@ -94,5 +102,57 @@ check $([ "$s4m" = "$s3m" ] && [ "$s4o" = "$s3o" ] && grep -q "does not strike w
 log=$HERE/scratch/flatvr.log
 bash $KIT/run.sh $AGENT -Script "map e1m1; wait60; developer 1; vr_flatplay_debug 2; wait10; vr_flat_punch main; wait3; vr_flat_punch off; wait5; +attack; wait10; -attack; wait10; vr_flatplay_status; toggleconsole; quit" -Filter "vr_flat_punch:|flatarm:|flatscreen play|punches:" > "$log" 2>&1
 check $(grep -q "vr_flat_punch: flatscreen play is not running" "$log" && ! grep -q "flatarm:" "$log" && grep -q "the mode off" "$log" && echo 1 || echo 0) "in the headset: vr_flat_punch does nothing, the arm probe prints nothing, the mode is off"
+# 6 to 9: the ironsight (vr_flat_aim, what the mouse wheel's button is; vr_flat_aim_fov) and the free hand carried to
+# the held weapon's grip (docs/vr-port/FLATPLAY.md, "The ironsight, and the free hand's grip"). The fov numbers come
+# from vr_flatplay_debug 2's "flatsight:" lines (the field of view the view is drawing, and the muzzle's distance off
+# the crosshair's ray before and after the held hand's move, with vr_flat_aim_fov's value at the line's end); the grip
+# measures come from vr_flatplay_status.
+maxfov() { awk '{ if (match($0, / fov [0-9.]+/)) { f = substr($0, RSTART + 5, RLENGTH - 5) + 0; if (f > best) best = f } } END { printf "%.2f", best + 0 }'; }
+# The field of view is read at the last record of a class: the frame a change is asked for still reports the value from
+# before it (the pose and its probe run before the view is made), so a class's first line or two are stale.
+lastfov() { awk '{ if (match($0, / fov [0-9.]+/)) { f = substr($0, RSTART + 5, RLENGTH - 5) + 0; if (f > 0) last = f } } END { printf "%.2f", last + 0 }'; }
+# The console wraps a long line, so a "flatsight:" record is read as that line plus the lines that follow it.
+flatrecs() { awk '{ if ($0 ~ /^flatsight: /) { if (rec != "") print rec; rec = $0 } else if (rec != "") { rec = rec " " $0 } } END { if (rec != "") print rec }' "$1"; }
+log=$HERE/scratch/flatads.log
+bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; god; notarget; developer 1; vr_mock_eye_size 256; vr_flatplay_debug 2; impulse 154; wait25; vr_flat_aim 1; wait25; vr_flat_aim_fov 30; wait25; vr_flat_aim_fov 0; wait25; vr_flat_aim_fov 12; wait25; impulse 172; wait30; vr_flatplay_status; toggleconsole; quit" -Filter "^flatsight: " > "$log" 2>&1
+wide=$(flatrecs "$log" | grep -a "ads off" | maxfov)
+on12=$(flatrecs "$log" | grep -a "fov take 12" | lastfov)
+on30=$(flatrecs "$log" | grep -a "fov take 30" | lastfov)
+on0=$(flatrecs "$log" | grep -a "fov take 0" | lastfov)
+refused=$(flatrecs "$log" | grep -a "ads asked for" | lastfov)
+read -r offbefore offafter handmoved <<<"$(flatrecs "$log" | grep -a "fov take 12" | tail -1 | awk '{
+  if (match($0, /crosshair [0-9.]+ -> [0-9.]+/)) { split(substr($0, RSTART + 10, RLENGTH - 10), m, " -> "); b = m[1] + 0; a = m[2] + 0 }
+  if (match($0, /moved [0-9.]+/)) { mv = substr($0, RSTART + 6, RLENGTH - 6) + 0 }
+ } END { printf "%.2f %.2f %.2f", b, a, mv }')"
+echo "  muzzle off the crosshair's ray $offbefore units before the held hand's move, $offafter after it ($handmoved units of move); field of view $wide plain, $on12 with the ironsight on (vr_flat_aim_fov 12), $on30 at 30, $on0 at 0, $refused while dual wielding ($log)"
+check $(awk -v b="$offbefore" -v a="$offafter" -v m="$handmoved" 'BEGIN { exit !(b > 0 && a > 0 && m > 0 && b - a >= 2 && m >= 2) }' && echo 1 || echo 0) "flatscreen aim: the ironsight brings the held weapon onto the crosshair's ray (the muzzle off it, before and after the move)"
+check $(awk -v w="$wide" -v o="$on12" 'BEGIN { exit !(w > 0 && o > 0 && w - o >= 8 && w - o <= 16) }' && echo 1 || echo 0) "flatscreen aim: the field of view narrows by vr_flat_aim_fov (12) while the ironsight is on"
+check $(awk -v w="$wide" -v o="$on30" 'BEGIN { exit !(w > 0 && o > 0 && w - o >= 24) }' && echo 1 || echo 0) "flatscreen aim: vr_flat_aim_fov 30 narrows it by more; vr_flat_aim_fov is the whole of it"
+check $(awk -v w="$wide" -v o="$on0" 'BEGIN { exit !(w - o <= 1.5 && w - o >= -1.5) }' && echo 1 || echo 0) "flatscreen aim: vr_flat_aim_fov 0 leaves the view as wide as it is with the ironsight off"
+check $(grep -q "nothing held one-handed" "$log" && awk -v w="$wide" -v r="$refused" 'BEGIN { exit !(r - w <= 1.5 && r - w >= -1.5) }' && echo 1 || echo 0) "flatscreen aim: dual wielding is posed as it was and its field of view is untouched, and the ironsight is refused"
+# 7: the shot. The knight stands where the crosshair points it; the ironsight is on when the gun is fired (the pair of
+# vr_test_hurt 1 reads brackets the damage, as in the check above).
+log=$HERE/scratch/flatadsshot.log
+bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; god; notarget; developer 1; r_norefresh 0; vr_mock_eye_size 256; impulse 154; wait15; vr_test_spawn 5; vr_test_spawn_dist 24; impulse 241; wait20; vr_flatplay_debug 2; vr_flat_aim 1; wait25; vr_test_hurt 1; wait3; +attack; wait10; -attack; wait5; vr_test_hurt 1; wait10; toggleconsole; quit" -Filter "test hurt:|^flatsight: " > "$log" 2>&1
+shot=$(grep -a 'test hurt:' "$log" | awk '{ if (match($0, /health [0-9.]+ -> [0-9.]+/)) { split(substr($0, RSTART + 7, RLENGTH - 7), b, " ->"); if (seen) { print prev - b[1]; exit } prev = b[2]; seen = 1 } }')
+adsline=$(grep -a "ads on" "$log" | head -1)
+echo "  with the ironsight on the knight takes $(awk -v s="${shot:-0}" 'BEGIN { printf "%.1f", s + 0 }') units of damage; $adsline ($log)"
+check $(awk -v s="${shot:-0}" -v n="$(grep -c "ads on" "$log")" 'BEGIN { exit !(s + 0 > 0 && n > 0) }' && echo 1 || echo 0) "flatscreen aim: with the ironsight on the shot still hits what the crosshair points at"
+# 8: the free hand and the held weapon's grip. The shotgun's hotspot (measured here, and the same in the headset's view:
+# 5 units off the held hand, 3.2 to its rear and 3.8 below it) is not a place a second hand can take, so the mode keeps
+# its support pose; the rocket launcher's and the proximity gun's stand 12.5 and 12.8 units ahead of it, and vr_twohand
+# takes the hold there (its own goodDistance, goodDot and foregrip stickiness decide it; vr_flatsight only supplies the
+# press a flatscreen hand is always making).
+log=$HERE/scratch/flatgrip.log
+bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; god; notarget; developer 1; vr_mock_eye_size 256; vr_debug_2h_grip 1; impulse 154; wait40; vr_flatplay_status; wait5; impulse 158; wait40; vr_flatplay_status; wait5; impulse 159; wait60; vr_flatplay_status; toggleconsole; quit" -Filter "^  two hands:|^  grip:|^  hotspot:|^2h grip: " > "$log" 2>&1
+grep -a "^  two hands:|^  hotspot:" "$log" | sed 's/^/  /'
+check $(grep -q "off hand where the mode's pose puts it" "$log" && awk '/hotspot: / { if (match($0, /fwd -[0-9.]+/)) behind = 1 } END { exit !behind }' "$log" && echo 1 || echo 0) "flatscreen grip: a grip standing behind the held hand (the shotgun's) is left alone: the free hand stays on the mode's support pose, and nothing is folded onto the held hand"
+check $(grep -q "on its grip hotspot (held holding: helpKind 1" "$log" && grep -q "2h grip: off hand took it" "$log" && echo 1 || echo 0) "flatscreen grip: a grip ahead of the held hand (the rocket launcher's, the proximity gun's) is taken: helpKind 1, the transition in full, on vr_twohand's own rules"
+# 9: in the headset the ironsight is not running at all: vr_flat_aim says so, the ironsight and the grip lines never
+# print, and nothing of the mode's prints either (VR_FlatAdsFov hands gl_screen.c back the field of view it was asked
+# for: the headset's own, whatever vr_flat_aim_fov says).
+log=$HERE/scratch/flatadsinheadset.log
+bash $KIT/run.sh $AGENT -Script "map e1m1; wait60; developer 1; vr_flatplay_debug 2; vr_flat_aim_fov 30; vr_flat_aim 1; wait20; vr_flat_aim; wait5; vr_flatplay_status; toggleconsole; quit" -Filter "^flatsight:|Flatscreen aim:|flatscreen play:|  ironsight:|  two hands:|^2h grip: " > "$log" 2>&1
+check $(grep -q "Flatscreen aim: flatscreen play only" "$log" && grep -q "the mode off" "$log" && ! grep -q "^flatsight:" "$log" && ! grep -q "  ironsight:" "$log" && ! grep -q "^  two hands:" "$log" && echo 1 || echo 0) "in the headset: vr_flat_aim says flatscreen play is not running, and no ironsight or grip line prints"
 verdict
 exit $fail

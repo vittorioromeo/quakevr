@@ -169,6 +169,12 @@ void VR_FileCacheForgetMoved (const char *from, const char *to);	// a file moved
 // ("RELIGHT 3/12 45% 2:10") and how far it is (0..1), or null when none runs, the wrist gadget shows it, or a menu does.
 const char *VR_RelightIndicator (float *fraction);
 
+// The flatscreen ironsight (vr_flatsight.cpp, -flatscreenmode): whether it is on, and the field of view to render at.
+// Both answer for flatscreen play only -- a headset's field of view is its own, and there the answers are 0 and the
+// base fov given, whatever the player pressed.
+int VR_FlatAdsActive (void);				// nonzero while the ironsight is on (the mouse wheel's button, or vr_flat_aim)
+float VR_FlatAdsFov (float basefov);		// basefov narrowed by vr_flat_aim_fov while it is on; basefov unchanged when it is off, and outside flatscreen play
+
 // Images decoded ahead on worker threads (vr_imgprefetch.cpp; image.c Image_LoadImage).
 unsigned char *VR_ImagePrefetchTake (const char *name, FILE *f, int length, int *width, int *height);
 void VR_ImagePrefetchNote (const char *name, double seconds);

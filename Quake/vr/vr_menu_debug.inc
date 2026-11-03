@@ -723,6 +723,7 @@ za::Vector<Item> pageDebugReports()
         row(opt::vr_flat_turnlag_speed),
         row(opt::vr_flat_arm_hold),
         row(opt::vr_flat_pose_pitch),
+        row(opt::vr_flat_aim_fov),
         command("Flatscreen Punch", "vr_flat_punch")
             .help("A punch with the main hand (`vr_flat_punch off` for the off hand): the same motion the fire button of a "
                   "hand holding a swinging weapon makes, and V's punch. Flatscreen play only."),

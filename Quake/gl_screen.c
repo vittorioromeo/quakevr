@@ -556,7 +556,10 @@ static void SCR_CalcRefdef (void)
 
 	zoom = cl.zoom;
 	zoom *= zoom * (3.f - 2.f * zoom); // smoothstep
-	r_refdef.basefov = LERP (scr_fov.value, scr_zoomfov.value, zoom);
+	// QVR: on a flatscreen (vr_flatplay.cpp) the ironsight narrows this (vr_flat_aim_fov, vr_flatsight.cpp); in the
+	// headset, or with it off, VR_FlatAdsFov returns the LERP unchanged. in_sdl.c IN_FovScale reads basefov, so the
+	// mouse look's speed and the crosshair's distance on the screen keep their measure.
+	r_refdef.basefov = VR_FlatAdsFov (LERP (scr_fov.value, scr_zoomfov.value, zoom));
 	r_refdef.fov_x = AdaptFovx (r_refdef.basefov, vid.width, vid.height);
 	r_refdef.fov_y = CalcFovy (r_refdef.fov_x, r_refdef.vrect.width, r_refdef.vrect.height);
 

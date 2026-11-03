@@ -39,6 +39,7 @@
 #include "vr_carry2h.hpp"
 #include "vr_client.hpp"
 #include "vr_cvars.hpp"
+#include "vr_flatplay.hpp"
 #include "vr_handpose.hpp"
 #include "vr_held.hpp"
 #include "vr_main.hpp"
@@ -1429,6 +1430,20 @@ void setFreeCandidate(int hand, bool on)
     {
         candidateTime[hand] = vr_gametime;
     }
+}
+
+void armFlatGrip(int helping, bool armed)
+{
+    // Flatscreen play only (vr_flatsight.cpp): his hands are always gripping (vr_client.cpp's gripping), so the empty
+    // hand the flat pose brings onto a grip has no press's rising edge to be taken on. This stands in for that press:
+    // the frame it is armed is the frame the hand arrives on the grip, and nothing else here reads it differently --
+    // applyHotspots' goodDistance, goodDot, the stickiness and the weapon's own setting decide the hold as they do for
+    // a controller. A headset's gripArmed is its press's own, and is not touched.
+    if(!flatplay::active() || helping < 0 || helping >= HAND_COUNT)
+    {
+        return;
+    }
+    gripArmed[helping] = armed;
 }
 
 bool freeHelping(int hand)
