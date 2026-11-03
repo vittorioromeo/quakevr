@@ -15,6 +15,13 @@
 #   collect a box grabbed with E (impulse 46) is collected as soon as it is grabbed — vr_carry_autocollect 0 and the box
 #           ahead, taken at once ("carry: taken at once", "You got the shells"). In the headset, with the same setting off,
 #           a grabbed box is held and not taken (vr_carry_autocollect stays the headset player's own setting).
+#   ctrl    Left Ctrl is the plain game's firing key (Quake/default_cfg.h: bind CTRL +attack) and the flatscreen player's
+#           crouch key, so holding it would crouch and fire at once. While flatscreen play runs the mode holds the key
+#           itself: bindlist shows CTRL bound to +flatcrouch and nothing driving +attack. The plain game's bind comes back
+#           the frame the mode is not running, and every time the engine is about to write its key bindings out
+#           (VR_FlatKeysForConfigWrite in Quake/host.c: quitting, the menu closed with a setting changed, host_writeconfig),
+#           so the config on disk keeps CTRL "+attack" and a plain run after a flatscreen one is bound as always.
+#           vr_flat_crouch_fire 1: Ctrl keeps its own bind, so it fires as it crouches.
 AGENT=${1:-fixgame3}; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 fail=0
 source "$(dirname "$0")/qvrtest.sh"
@@ -75,5 +82,43 @@ check $([ "$got" = 1 ] && [ "$took" = 1 ] && echo 1 || echo 0) \
 run boxvr vr "$P; vr_carry_autocollect 0; vr_test_spawn_dist 48; $GRIP; vr_holster_zones_report" "^(carry:|You got|zone hand main:)"
 check $(! grep -qa "You got the shells" "$S/boxvr.log" && ! grep -qa "carry: taken at once" "$S/boxvr.log" && echo 1 || echo 0) \
     "collect in the headset: with the setting off a grabbed box is held, not taken (vr_carry_autocollect stays his setting)"
+
+# 5. Left Ctrl: the crouch key fires nothing, and the plain game's CTRL bind is what the config keeps.
+# vr_flatplay_debug 1 first: the whole script lands in autoexec.cfg, run before the map and its waits, so the setting is in
+# by the mode's second frame -- and the mode prints each frame it takes Ctrl, with what it found on the key.
+run ctrlflat flat "vr_flatplay_debug 1; $P; bind CTRL; bindlist; bind CTRL +lookspin; wait40; bind CTRL; vr_flatplay_status" "CTRL"
+# Ctrl's bind, read twice: the mode's own, and the mode's again after a `bind CTRL +lookspin` said on the console took it
+# away (a two-word bind answers nothing, so the next reading is the mode's asking for its key back on its next frame).
+cb=$(grep -a '^"CTRL" = ' "$S/ctrlflat.log" | sed 's/.*= "\(.*\)"/\1/')
+c0=$(echo "$cb" | sed -n 1p); c1=$(echo "$cb" | sed -n 2p); cn=$(echo "$cb" | grep -c .)
+check $([ "$cn" = 2 ] && [ "$c0" = "+flatcrouch" ] && [ "$c1" = "+flatcrouch" ] \
+        && grep -qa '^   CTRL "+flatcrouch"' "$S/ctrlflat.log" && ! grep -qa 'CTRL "+attack"' "$S/ctrlflat.log" \
+        && echo 1 || echo 0) \
+    "ctrl: flatscreen play holds Ctrl for the crouch alone ($c0, +lookspin said on the console, $c1 the mode's key taken back; bindlist: $(grep -a '^   CTRL ' "$S/ctrlflat.log" | tr -s ' ' | tr '\n' ' '), no bind of Ctrl sends +attack)"
+# What the mode found on Ctrl each time it took it: the config's own +attack (its bind line lands over the mode's a frame
+# after the mode's first frame), and what the player bound on the console a moment ago. Either is what it hands back.
+check $(grep -qa 'flatplay: CTRL `+attack` -> +flatcrouch' "$S/ctrlflat.log" \
+        && grep -qa 'flatplay: CTRL `+lookspin` -> +flatcrouch' "$S/ctrlflat.log" && echo 1 || echo 0) \
+    "ctrl: the mode remembers what Ctrl held before it took it, each time it took it ($(grep -a 'flatplay: CTRL' "$S/ctrlflat.log" | sed 's/ (.*//' | tr '\n' '; ' ))"
+check $(grep -qa 'Ctrl is bound to `+flatcrouch`' "$S/ctrlflat.log" && echo 1 || echo 0) \
+    "ctrl: vr_flatplay_status says which bind Ctrl holds now and what vr_flat_crouch_fire would change"
+# The config write (writeconfig: Ironwail's name for it, Quake/host.c): the engine writes its key bindings with the mode's
+# key handed back, and the file the game reads says so.
+run ctrlwrite flat "$P; writeconfig; bind CTRL; exec ironwail.cfg; bind CTRL; wait40; bind CTRL" "CTRL|Wrote"
+wb=$(grep -a '^"CTRL" = ' "$S/ctrlwrite.log" | sed 's/.*= "\(.*\)"/\1/')
+w0=$(echo "$wb" | sed -n 1p); w1=$(echo "$wb" | sed -n 2p); w2=$(echo "$wb" | sed -n 3p); wn=$(echo "$wb" | grep -c .)
+check $([ "$wn" = 3 ] && grep -qa 'Wrote ironwail.cfg' "$S/ctrlwrite.log" && [ "$w0" = "+attack" ] && [ "$w1" = "+attack" ] \
+        && [ "$w2" = "+flatcrouch" ] && echo 1 || echo 0) \
+    "ctrl: the config keeps the plain game's Ctrl ($w0 as the engine wrote ironwail.cfg, $w1 read back from the file it wrote, $w2 the mode's bind again on its next frame)"
+run ctrlvr vr "$P; bind CTRL; bindlist; wait" "CTRL"
+check $(grep -qa '^   CTRL "+attack"' "$S/ctrlvr.log" && ! grep -qa 'CTRL "+flatcrouch"' "$S/ctrlvr.log" && echo 1 || echo 0) \
+    "ctrl in the headset and in plain play: Ctrl is the plain game's key still (bindlist: $(grep -a '^   CTRL ' "$S/ctrlvr.log" | tr -s ' ' | tr '\n' ' '), the mode never ran so it never took it)"
+# vr_flat_crouch_fire 1: Ctrl keeps its own bind, so it fires as it crouches.
+run ctrlfire flat "$P; vr_flat_crouch_fire 1; wait40; bind CTRL; wait40; bind CTRL; vr_flatplay_status" "CTRL"
+fb=$(grep -a '^"CTRL" = ' "$S/ctrlfire.log" | sed 's/.*= "\(.*\)"/\1/')
+fn=$(echo "$fb" | grep -c .); fbad=$(echo "$fb" | grep -c 'flatcrouch')
+check $([ "$fn" = 2 ] && [ "$fbad" = 0 ] && grep -qa 'Ctrl is bound to `+attack`' "$S/ctrlfire.log" \
+        && echo 1 || echo 0) \
+    "ctrl with vr_flat_crouch_fire 1: Ctrl keeps its firing bind both times ($(echo "$fb" | tr '\n' ' ')) and the status says so"
 
 verdict; exit $fail

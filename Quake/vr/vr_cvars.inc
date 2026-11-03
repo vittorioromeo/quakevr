@@ -3829,6 +3829,7 @@ QVR_CVAR(vr_flat_arm_hold, "1", CVAR_NONE)              // how far a drawn hand 
 QVR_CVAR(vr_flat_pose_pitch, "65", CVAR_NONE)           // how far the hands follow the view up and down, in degrees (0..90; 90: the full look, as before)
 QVR_CVAR(vr_flat_crouch_time, "0.25", CVAR_NONE)        // Left Ctrl / +flatcrouch: the seconds it takes to ease down to a full crouch, and back up (0.05..2)
 QVR_CVAR(vr_flat_crouch_drop, "18", CVAR_NONE)          // Left Ctrl / +flatcrouch: how far the crouch puts his head and eyes down (0..40 units, about 0.65 m); the crouched boxes (vr_crouch_height, vr_crouch_step) and the body follow
+QVR_CVAR(vr_flat_crouch_fire, "0", CVAR_NONE)           // Left Ctrl and firing: 0 (the default) while flatscreen play runs CTRL is the crouch key only -- the mode takes the key off +attack (its own bind: Quake/default_cfg.h binds CTRL +attack) and gives it back when the mode ends and before the game writes its config out; 1: CTRL keeps its bind, so holding it crouches and fires
 QVR_CVAR(vr_flat_aim_fov, "12", CVAR_NONE)              // the flatscreen ironsight (vr_flat_aim, the mouse wheel's button; vr_flatsight.cpp): how many degrees the field of view narrows while it is on, on the view's own base fov (0..45; 0: the view stays wide). The look's speed keeps its measure (in_sdl.c IN_FovScale) and the HUD is unchanged
 
 

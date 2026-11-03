@@ -41,6 +41,12 @@ void frame();
 [[nodiscard]] float crouchRatio();
 [[nodiscard]] float crouchDrop();
 
+// Quake/host.c's Host_WriteConfigurationToFile, just before it writes the key bindings (VR_FlatKeysForConfigWrite,
+// vr_api.h): the config on disk is the plain game's, so while flatscreen play holds Ctrl (+flatcrouch, the crouch key
+// that must not fire: vr_flat_crouch_fire) the bind is given back for the write and taken up again on the mode's next
+// frame. Nothing to give back when the mode is not holding it.
+void keysForConfigWrite();
+
 // vr_hands.cpp's flat-screen branch: where each hand goes and how it is turned, in world space: the hands placed in the
 // view's frame held to vr_flat_pose_pitch, each hand's punch a swing of that arm about its shoulder (punchSwing). The
 // straight out-in-front pose stands when the mode is off.
