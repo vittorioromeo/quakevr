@@ -33,9 +33,13 @@ BOX="vr_test_spawn_dist 48; vr_test_spawn_hold 1; vr_test_spawn 101; impulse 241
 # The headset's own way of taking it: the mock hand's grip (the pattern holsteritems_test.sh uses).
 GRIP="vr_test_spawn_hold 1; vr_mock_hand main 0.25 1.1 -0.3 0 0 0; wait5; +grabmain; vr_mock_button main grip 1; wait2; vr_test_spawn 101; impulse 241; wait10; vr_mock_button main grip 0; -grabmain; wait20"
 run() { local tag=$1 flat=$2 script=$3 filter=$4; local a=(); [ "$flat" = flat ] && a=(-ExtraArgs "-flatscreenmode")
-        bash $KIT/run.sh $AGENT "${a[@]}" -Low -Script "$script; wait10; toggleconsole; quit" -Filter "$filter" > "$S/$tag.log" 2>&1; }
+        bash $KIT/run.sh $AGENT "${a[@]}" -Low -Script "$script; wait10; tune_reset; toggleconsole; quit" -Filter "$filter" > "$S/$tag.log" 2>&1; }
 
-# 1. crouch: down while the key is held, back up when it is released.
+# 1. crouch: down while the key is held, back up when it is released. Standing reads 1 whatever vr_floor_offset says
+# (his client's crouch bit is what lowers it, not his head against that offset).
+run crouchfloor flat "$P; vr_floor_offset -10; wait20; vr_flatkeys_test 1; wait5; +flatcrouch; wait40; vr_flatkeys_test 1; wait5; -flatcrouch; wait40; vr_flatkeys_test 1; wait5; vr_floor_offset -22" "^flatkeys:"
+fl=$(grep -a "^flatkeys: crouched" "$S/crouchfloor.log" | sed 's/.*crouched \([0-9.]*\) stand \([0-9.]*\).*/\1:\2/' | tr '\n' ' ')
+check $(echo "$fl" | grep -qE '^0:1 1:0\.[0-9]+ 0:1 $' && echo 1 || echo 0) "crouch: vr_stand is 1 standing with vr_floor_offset moved, under 1 only for the crouch he holds ($fl= crouched:stand)"
 run crouchflat flat "$P; vr_flatkeys_test 1; +flatcrouch; wait40; vr_flatkeys_test 1; -flatcrouch; wait40; vr_flatkeys_test 1" "^flatkeys:"
 eyes=$(grep -a "^flatkeys: crouched" "$S/crouchflat.log" | sed 's/.*eye \([0-9.]*\).*/\1/')
 n=$(echo "$eyes" | grep -c .)
@@ -203,15 +207,15 @@ check $(ramped "$r1" 12 14 22 0.18 0.30) \
     "ironsight ease: vr_flat_aim_time 0.25 closes the field of view by vr_flat_aim_fov 12 over 18 frames and opens it back over the same ($r1 = wide narrow frames seconds)"
 check $(grep -qa 'vr_flat_aim_time' "$S/adsflat.log" && echo 1 || echo 0) \
     "ironsight ease: vr_flatplay_status prints the travel's own seconds alongside the field of view it takes off ($(grep -a 'ironsight:' "$S/adsflat.log" | head -1 | sed 's/ (.*//'))"
-run adsfast flat "$P; vr_flatplay_debug 2; vr_flat_aim_time 0; $AIM" 'flatsight:'
+run adsfast flat "$P; vr_flatplay_debug 2; tune vr_flat_aim_time 0; $AIM" 'flatsight:'
 r2=$(adsramp "$S/adsfast.log")
 check $(ramped "$r2" 12 1 2 0 0.03) \
     "ironsight ease: vr_flat_aim_time 0 is instant -- the whole vr_flat_aim_fov in one frame, no ramp at all ($r2)"
-run adslow flat "$P; vr_flatplay_debug 2; vr_flat_aim_time 1; $AIM" 'flatsight:'
+run adslow flat "$P; vr_flatplay_debug 2; tune vr_flat_aim_time 1; $AIM" 'flatsight:'
 r3=$(adsramp "$S/adslow.log")
 check $(midway "$r3") \
     "ironsight ease: vr_flat_aim_time 1 is still closing 60 frames after the press ($r3) -- the depth is reached over the cvar's seconds, not at the press"
-run adsfloor flat "$P; vr_flatplay_debug 2; vr_flat_aim_time 0.05; $AIM" 'flatsight:'
+run adsfloor flat "$P; vr_flatplay_debug 2; tune vr_flat_aim_time 0.05; $AIM" 'flatsight:'
 r4=$(adsramp "$S/adsfloor.log")
 check $(ramped "$r4" 12 3 6 0.03 0.07) \
     "ironsight ease: vr_flat_aim_time 0.05, the slider's floor, is over in a few frames ($r4)"

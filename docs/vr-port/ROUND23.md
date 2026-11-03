@@ -8014,3 +8014,51 @@ gates all of them; off, thrown axes stick as they did and nothing else does (tes
   off level. A sword that keeps its pose then lands "side on" and bounces: throw hard, or raise `vr_embed_sword_angle`. His call in VR.
 
 Debug: `vr_debug_axestick 1` says why each one stuck or bounced. Test: `vr_embed_test 1` on vrtesthall. Scene: `embed_throw`.
+
+## Flatscreen: his decisions (branch `agent/flat2`, 2026-11-03)
+
+His words: "I am happy with all our proposed changes, but I would like to be able to tweak the ads position. At the moment the variables vr_flat_ads_up and vr_flat_ads_out do nothing at full ironsights as you mentioned, but I'd actually like them to affect the final ironsight position so that I can position the guns so that the sights are actually visible on screen. The angle should still be dynamically pointing towards the target of the ray casted through the center of the screen"
+
+The review's open list (above), done. FLATPLAY.md has the mechanism ("The aim", "The ironsight's place").
+
+- **Tunables.** The 28 `vr_flat_*` numbers (pose, eye, aim, crouch's, looks') are tuning constants, Debug > Tunables > Flatscreen > Held Weapon, Free Hands, Ironsight, Eye, Crouch, Looks; their Debug > Reports rows gone. `vr_flat_crouch_fire`, `vr_flat_pitch_up`, `vr_flat_pitch_down` are saved settings, Movement > Locomotion > Desktop Screen Play. The tests use `tune` and `tune_reset`.
+- **Punches.** A free hand on a grip lets go of it for its punch (the pin eases off by `gripEase`, `twohand` lets go while `flatplay::punching`, its fist hits for 15, the grip is taken again after). A press while a punch runs is no new punch.
+- **Crouch.** `protocol::moveFlatCrouchBit` (bit 14 of the move's `vrBits0`, set by the client from its eased crouch) is what the server asks, per client, for the box and for `.vr_stand`; `.vr_stand` is 1 standing whatever `vr_floor_offset` or a step's easing says. No protocol step: the bit was never set on the wire, and demos hold no moves. Two clients were not run: the host-only keys are gone from the server by reading the code, the bit by test.
+- **The aim.** Every gun points from its muzzle at what the crosshair is on, each pose (`aimAtPoint`), hipfire too. Found on the way: `aimRotAtCrosshair` turned the shot's frame instead of the hand's, so any weapon with a Shot Pitch or Yaw shot off by it, and Hand and Weapon Together moved the hand after the solve; the shotgun was 1.2 degrees off the view, not the 0.0000 the old notes measured.
+- **The ironsight's place.** `vr_flat_ads_fwd/up/out` plus the weapon's own `flat_ads_fwd/up/out` are the muzzle's final place. Per weapon: `weapons.txt` has the place (Weapon Offsets > Flatscreen Ironsight), every gun ships forward 4, up -3.
+- **The checks that changed**, none loosened on what they say: `shot off the view` became `off its point` (the gun is meant to leave the view's direction now), gated at the same 0.1 degrees; the lock tests run with `vr_flat_aim_point 0` (a gun following its point is not a loose hand); "the muzzle back on the ray" became "the muzzle where its place asks". A knight at 24 is inside the gun's reach: with a moved sight it is printed, and the moved sights are gated at 64 and 300, with a control that misses. The off-hand axe has its own run (FLATPLAY.md, "The off hand's axe in the suite's order": the cause is the read before the blow, not the order).
+- **Not changed:** a client not hosting has no world to trace, so its guns point far along the ray.
+
+What to try (no checklist lines yet, his ask): Debug > Tunables > Flatscreen > Ironsight, Up and Out on any gun with the wheel's button on: the gun moves on the screen and stays pointed at the crosshair; Weapon Offsets > Flatscreen Ironsight, the same for that gun alone. Shoot walls and monsters at any range with the sight on and off: the shot lands on the crosshair. Sweep the crosshair across a near monster's edge: the gun swings, no snap. Rocket launcher in one hand, RMB: the free hand comes off the grip, hits, goes back. Mash V: no snapping. Hold Left Ctrl on stairs.
+
+## Parry follow-ups: timing, nothing through, lunges (branch `agent/parry2`)
+
+His answers (2026-11-03) to "Directional parry: the only parry". His words: "I also think turning the weapon at the last moment to match the
+necessary direction for the parry should also contribute to a good parry."; "Match as none, yes. Keep the tunable for both armed humanoids and
+regular monsters for me to tweak in the future, if needed."; "Dog lunges and fiend lunges should count as "vertical lines", so that the player
+can parry them by holding their weapon leveled horizontally." The 0.45 s hold waits on his answer: unchanged.
+- **Well timed** (`VR_DRP_BecameValid`, armed humanoids and monsters alike): your weapons' lines are kept a server frame each (`handlineadd`,
+  a second's worth; vr_blowline.cpp). At the contact, your line as it was over the last `vr_dirparry_timed_window` s (new, 0.3, Debug > Tunables >
+  Combat > Directional Parry) is scored against that contact's line by the same marks: if any of those failed (too far, wrong angle, no
+  weapon) it became valid within the window: well timed. All passing: held early, not. In the world's frame: its charging onto a weapon you hold still is
+  held early, your stepping it in is moved in. What it gives is unchanged (`vr_parry_timed`). The guard's raise (`vr_guard_up_*`, `vr_parry_timed_window`)
+  stays for what the guard reads, and crossed arms.
+- **Nothing through:** `vr_dirparry_through_armed`, `vr_dirparry_through_monster` (new, 0: share of a parried blow that still hurts). **Melee number changed: a monster's
+  blow parried directionally used to let 25% through, now none.** Armed humanoids: unchanged. `vr_parry_reduction` stays: the guard's (a blow with no
+  line); its help says so. A monster's stagger is still the parry balance's.
+- **Lunges** (data: `lunge_a_from/_to`, `lunge_b_from/_to` in `quakevr/data/monsters.txt`, runs of frames, by monster and attack; `vr_monsterdata.inc`
+  `vr_mlunge_<classname>_...`; builtin `blowlunge`): dog: its bite (`$attack`, 0-7) and leap (`$leap`, 60-68); fiend: its leap (27-38; its claws keep their lines). A blow in
+  such a frame is a vertical line from the lower of your feet and its to the higher of your head and its top, where the way from it to you
+  comes nearest your weapon, its way towards you, read at the blow (no hold): level across parries, upright lands (90 off), pointing at it lands.
+- **Spawns and AD's leapers:** no key, so as before: the spawn's leap, AD's dogs' and fiends' leaps (off the ground: no line) by the guard, which also
+  wants a weapon level across in front, upright doesn't; AD's bites and claws by their frames' lines if they have any. A key in their block makes them lunges: his call.
+- A freed monster's held blow: its follower now checks `modelindex` (a freed entity keeps its health): found by the test: a removed monster's blow landing later.
+- **Tests:** test 78: 47/0, 4 runs of 4: moved in and turned in well timed, held early not (knight, armed grunt); nothing through by default, 0.5 lets it
+  through (both); dog's bite and fiend's leap: level parries, upright lands. The leap's case deals its blow at `$leap10` directly (a real jump doesn't always
+  land on you in time); real jumps were seen parried in earlier runs of the case. Your weapon moved or turned in one frame is a blow of yours, whose hit reaction changed the knight's attack: the test makes it take no damage in those cases.
+
+Checklist:
+- [parry2] A monster's or armed grunt's swing: hold your weapon across its way early: parried, no damage, plain. Turn it to the angle or move it in just before the blade arrives: a stronger parry (it staggers where a plain one flinches, by the parry balance).
+- [parry2] A monster's directional parry lets nothing through. Debug > Tunables > Combat > Directional Parry: Let Through: Armed Humanoids, Monsters, Timing Window.
+- [parry2] A dog's bite or leap, a fiend's leap: a weapon held level across in front parries; upright, the blow lands.
+

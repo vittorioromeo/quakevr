@@ -186,3 +186,12 @@ QVR_MONSTER_VALUE(vr_ragdoll_centroid_limits, monster_scourge, ragdoll_limits)
 QVR_MONSTER_VALUE(vr_ragdoll_centroid_damping, monster_scourge, ragdoll_damping)
 QVR_MONSTER_VALUE(vr_ragdoll_centroid_blast, monster_scourge, ragdoll_blast)
 QVR_MONSTER_VALUE(vr_ragdoll_centroid_inherit, monster_scourge, ragdoll_inherit)
+
+// A monster's lunges (QC vr_dirparry.qc VR_DRP_Lunge, by the name vr_mlunge_<classname>_<key>): runs of its frames in which a
+// blow reads as a vertical line coming at you. A new one: these lines, its keys in its block.
+QVR_MONSTER_VALUE(vr_mlunge_monster_dog_a_from, monster_dog, lunge_a_from)
+QVR_MONSTER_VALUE(vr_mlunge_monster_dog_a_to, monster_dog, lunge_a_to)
+QVR_MONSTER_VALUE(vr_mlunge_monster_dog_b_from, monster_dog, lunge_b_from)
+QVR_MONSTER_VALUE(vr_mlunge_monster_dog_b_to, monster_dog, lunge_b_to)
+QVR_MONSTER_VALUE(vr_mlunge_monster_demon1_a_from, monster_demon1, lunge_a_from)
+QVR_MONSTER_VALUE(vr_mlunge_monster_demon1_a_to, monster_demon1, lunge_a_to)

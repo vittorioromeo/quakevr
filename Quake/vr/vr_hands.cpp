@@ -821,7 +821,12 @@ void placeFlat(const glm::vec3& aim, float yaw)
         state.gripPos[h] = state.pos[h];
         state.gripRot[h] = state.rot[h];
         state.wholeTurn[h] = glm::mat3{1.f};
-        applyWholeOffset(h);
+        // (Not -flatscreenmode's: Hand and Weapon Together corrects a controller's hold. His hands are posed in the view's
+        // frame, the shots solved from the crosshair (vr_flatsight.cpp): moved and turned after that, a gun's shot was off.)
+        if(!flatplay::active())
+        {
+            applyWholeOffset(h);
+        }
     }
 }
 

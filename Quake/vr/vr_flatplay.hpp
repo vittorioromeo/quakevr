@@ -12,6 +12,7 @@
 
 #pragma once
 
+#include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
 
@@ -30,7 +31,15 @@ namespace qvr::flatplay
 
 // A pose number (vr_flat_gun_*, vr_flat_ads_*, vr_flat_empty_*, vr_flat_support_*) clamped to the room it may move in, the
 // view's frame either way: -30..30 units.
-[[nodiscard]] float poseNum(const cvar_t& c);
+[[nodiscard]] float poseNum(const Tunable& c);
+
+// Whether this hand's punch is running (its clock: flatplay's own, so never in a headset). The free hand on a grip lets go
+// of it for as long (vr_flatsight.cpp, vr_twohand.cpp), and a press meanwhile is not a new punch.
+[[nodiscard]] bool punching(int h);
+
+// How hand `h` must be turned for the weapon it holds to shoot along the forward of `angles`, whatever its Shot Pitch and
+// Yaw (the drawn gun and its muzzle follow the hand). A hand holding nothing: `angles`.
+[[nodiscard]] glm::vec3 aimRotAt(const glm::vec3& angles, int h);
 
 // The one console line for that implication (vr_main.cpp asks before it starts a backend).
 void noteBackendImplied();
@@ -72,12 +81,11 @@ void poseHands(hands::State& s, const glm::vec3& aim);
 // from so the hand stays on its arm. Zero outside the mode.
 void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles);
 
-// The crosshair's ray: the middle of the screen as the player sees it, from the same camera drawnOffset above keeps the
-// drawn hands on -- the drawn view's own origin and angles (its crouch drop and its eye's nudges vr_flat_cam_fwd /
-// vr_flat_cam_up / vr_flat_cam_side included, VR_FlatViewDrop), or the pose's head and its aim when that view is not the
-// player's own (a chase view, the ragdoll tool's orbit, a view standing further from his head than vr_flat_gun_near,
-// eased to vr_flat_ads_near while the ironsight is on). The one ray the ironsight measures and centres the held weapon
-// onto (vr_flatsight.cpp): the gun and the crosshair read the same camera, so a camera nudge moves both together.
+// The crosshair's ray as this pose has it: the pose's head (its crouch's drop in it) with the eye's nudges vr_flat_cam_fwd
+// / _up / _side, along the aim; the head alone when the drawn view is not the player's own (a chase view, the ragdoll
+// tool's orbit, a view standing further from his head than vr_flat_gun_near, eased to vr_flat_ads_near while the ironsight
+// is on). The one ray the ironsight centres the held weapon on and the guns aim along (vr_flatsight.cpp): the hands carry
+// the same nudge, so a camera nudge moves all of it together.
 void crosshairRay(const hands::State& s, const glm::vec3& aim, glm::vec3& org, glm::vec3& dir);
 
 // Tests (vr_flatplay_debug 2): the drawn weapon in the camera's frame, a line a frame.
