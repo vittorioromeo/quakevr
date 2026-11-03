@@ -1150,6 +1150,7 @@ struct Census
     Census c;
     const progs::ServerVm vm;
     const int instOfs = progs::fields().weaponinst;
+    const int wearerOfs = progs::fields().vr_wp_wearer;
     const edict_t* subj = subjectEdict();
     const int sp = subj ? EDICT_TO_PROG(subj) : -1;
     for(int i = 1; i < sv.qcvm.num_edicts; i++)
@@ -1171,7 +1172,8 @@ struct Census
             continue;
         }
         const edict_t* o = PROG_TO_EDICT(e->v.owner);
-        const bool mine = e->v.owner == sp || (e->v.owner != 0 && o->v.owner == sp && o != subj);
+        const bool mine = e->v.owner == sp || (e->v.owner != 0 && o->v.owner == sp && o != subj) ||
+                          progs::fieldInt(e, wearerOfs) == sp; // (a worn pack or lift zone: tied by .vr_wp_wearer)
         c.owned += mine;
         c.mineW += mine && weapon;
         c.mineT += mine && tank;

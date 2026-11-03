@@ -43,8 +43,8 @@ void(entity m) VR_RigSeq_Stop =
 };
 
 // The Rig Studio's subject gone (vr_rigstudio.cpp removeSubject: another subject or weapon picked, the studio closed or
-// opened again): `m`, whatever it owns (its held weapons, vr_ag_weapon, with their records; its worn tank) and whatever
-// those own, each as the scene's cleanup removes it (VR_Scene_Remove: a fire out, AD's attachments).
+// opened again): `m`, whatever it owns (its held weapons, vr_ag_weapon, with their records; its worn tank), whatever
+// those own and its worn pack, each as the scene's cleanup removes it (VR_Scene_Remove: a fire out, AD's attachments).
 void(entity m) VR_RigStudio_Remove =
 {
     if(m == world || (m.flags & FL_CLIENT))
@@ -69,6 +69,13 @@ void(entity m) VR_RigStudio_Remove =
             }
             e = nextent(e); // (after the removal: nextent skips the freed)
         }
+    }
+    if(m.vr_wp_pack)
+    {
+        // (Its worn pack or lift zone, tied by .vr_wp_wearer, not owned: left alone it tears off "its wearer gone" and
+        // lies in the studio, one more with each subject.)
+        remove(m.vr_wp_pack);
+        m.vr_wp_pack = world;
     }
     VR_Scene_Remove(m);
 };
