@@ -45,11 +45,14 @@ check $(echo "$log" | grep -q "main - |" && echo "$log" | grep "^weaponinst: mai
 # then 0.22 s drawing back; so its fist is at its fastest in the middle of the throw, around wait14 after the press.
 # These two runs carry r_norefresh 0: with the refresh off the held weapon is not redrawn, and the blow line the game
 # measures is the drawn weapon's, so a refreshing run measures the weapon instead of the hand. What the check is really
-# up against is how finely the game sees the punch — it counts a motion only from a pose the client actually sent, and a
-# flatscreen pose is built a handful of times a second, so a 0.12 s throw arrives as a few steps of 1 to 4 units (as
-# measured on 2026-11-03: 2.4 to 8.2 m/s across the throw's frames, and one frame of 6.8 units as the chamber lands).
-# The line is then faster than a landed blow asks for and still deals nothing, so these two checks fail until that is
-# settled: the gaps below are what says so.) Each attempt is
+# up against is how finely the game sees the punch — it counts a motion only from a pose the client actually sent, and
+# how often a flatscreen pose is built follows the mock's rendering. At the mock's default eyes (vr_mock_eye_size 1024)
+# the client managed about 18 poses a second, four ticks apart, so a 0.12 s throw arrived as three frames of 7, 16 and
+# 22 units — longer than the 3 units a blow has to find in its sweep. With the eyes at their smallest (192; the mock
+# clamps it up to 256) a pose lands on nearly every tick — 539 of 764 tracked frames at 0.0139 s — the throw arrives as
+# frames of 0.3 to 3.9 units and mh_fast peaks at 7.76 m/s against the 4.3 a landed fist asks for (measured 2026-11-03).
+# That is the cadence a blow needs and the knight still takes nothing beyond the probe reads, so these two checks fail
+# until the rest of it is settled: the gaps below are what says so.) Each attempt is
 # bracketed by
 # two vr_test_hurt 1 reads, so the gap between them is what its punch left the knight at; the reads in between the
 # attempts should find nothing. A knight is spawned fresh before the second and third attempt in case a blow killed the
