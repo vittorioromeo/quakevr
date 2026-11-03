@@ -27,6 +27,7 @@
 #include "vr_avatar.hpp"
 #include "vr_cvars.hpp"
 #include "vr_client.hpp"
+#include "vr_flatsight.hpp"
 #include "vr_hands.hpp"
 #include "vr_main.hpp"
 #include "vr_protocol.hpp"
@@ -589,12 +590,15 @@ void init()
     fs.flag = COM_CheckParm("-flatscreenmode") != 0 || ragtool::flagGiven(); // (-ragtool: the ragdoll tool, flat)
     Cmd_AddCommand("vr_flatplay_status", status_f);
     Cmd_AddCommand("vr_flat_punch", punch_f);
+    flatsight::init(); // vr_flat_aim, the ironsight (vr_flatsight.cpp): registered either way, so a headset run can be
+                       // told it is flatscreen play only
 }
 
 void frame()
 {
     const bool on = active();
     Cvar_SetValue("vr_flatplay", on ? 1.f : 0.f);
+    flatsight::frame(); // the ironsight's key edge, and the eases; it resets itself when the mode is off
 
     if(on && !fs.announced)
     {
@@ -673,6 +677,10 @@ void poseHands(hands::State& s, const glm::vec3& aim)
         s.rot[h] = aimRotAtCrosshair(aim, h);
         s.rot[h].z += vr_fakevr_handroll.value;
     }
+
+    // The ironsight and the free hand on a grip (vr_flatsight.cpp): over the pose just made, with E's reach for the
+    // empty hand so a force grab still reaches out with it.
+    flatsight::apply(s, aim, fwd * grabOffset().x + right * grabOffset().y + up * grabOffset().z);
 
     if(vr_flatplay_debug.value && host_framecount % 30 == 0 && dt > 0.0)
     {
@@ -818,6 +826,7 @@ void printMove(const hands::State& s)
     const glm::vec3 v = hands::forward(geom::vec(cl.viewangles));
     Con_Printf("flatmove: t %.4f weapon %d shot off the view %.4f deg (view %.2f %.2f)\n", vr_gametime, slot,
         glm::degrees(za::acos(za::clamp(glm::dot(f, v), -1.f, 1.f))), cl.viewangles[0], cl.viewangles[1]);
+    flatsight::print(s); // and what the ironsight and the free hand did to this frame's pose (vr_flatsight.cpp)
 }
 
 void printDrawn(const float* origin, const float* angles)
@@ -855,6 +864,7 @@ void status_f()
         fs.grabs, fs.punches[HAND_MAIN], fs.punches[HAND_OFF]);
     Con_Printf("  the game code: reloading off, the flashlight worn and always lit, body interactions on, 1, 2 and the wheel cycle (empty hand included) "
                "the weapons collected into the left and right hand.\n");
+    flatsight::statusLine(); // the ironsight, and where the free hand is (vr_flatsight.cpp)
 }
 
 // vr_flat_punch [main|off]: a hand's punch, driven from the console (the tests' button: V and the mouse buttons cannot
