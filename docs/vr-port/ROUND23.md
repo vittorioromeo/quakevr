@@ -7567,3 +7567,20 @@ triangles; it goes by triangle count: **a mask he painted himself on the old mod
 
 Tests: `vr_rv_test 1` step 13 rewritten (`map vrtesthall;wait30;developer 1;vr_rv_test 1`, ends on "rvtest: N passed, M failed").
 Models: 26 directions x frames 0, 1, 3: covered with back faces but not culled: 0 pixels; every edge of the Cylinder shared by two faces.
+
+## The release flavour builds again (branch `agent/relbuild`)
+
+Found 2026-11-03: no release could be cut from `next`. Three separate stops, each only visible on release day:
+
+- `fteqcc -DQVR_NO_TESTS` failed: five `*_test.qc` (agarmor, agarmor_fx, agarmor_shot, ammocolor, wornpack) had no
+  `#ifdef QVR_TESTS`, and used the test helpers: 17 errors. Guarded like the others; no game file called into them.
+- The engine's exe held the text `tunables.cfg` (the Debug menu's help of Save My Settings as Defaults), which
+  make_release.ps1's exe check reads as "a development exe": it would have refused every release. The help now says
+  what a release does. The code itself compiled and linked as it was.
+- make_release.ps1's default fteqcc was the author's stock copy, which writes the 16-bit progs format: the build's
+  check_progs_format.py refuses it. The repo's `Tools/fteqcc/fteqcc64.exe` is the default now.
+
+`Misc/quakevr/check_release_qc.py` (~3 s; QC/build.sh, QC/build.bat, Visual Studio's QC step, make_release.ps1's source
+checks) compiles the flavour to `build/qcrelease/` and fails on an error, a warning, the wrong progs format, a `*_test.qc`
+not wholly inside its guard, or `quakevr/progs.dat` changing. Globals: 51,358 without the tests (64,511 with them); the
+format is 32-bit, so no 65,536 limit applies to either.
