@@ -1736,6 +1736,7 @@ float cvarh_vr_worn_backpack_impact;
 float cvarh_vr_worn_backpack_lift_force;
 float cvarh_vr_worn_backpack_lift_hold;
 float cvarh_vr_worn_backpack_lift_stiffness;
+float cvarh_vr_worn_backpack_pitch;
 float cvarh_vr_worn_backpack_pool;
 float cvarh_vr_worn_backpack_pool_blast;
 float cvarh_vr_worn_backpack_pool_fire;
@@ -1743,6 +1744,8 @@ float cvarh_vr_worn_backpack_reserve;
 float cvarh_vr_worn_backpack_scale;
 float cvarh_vr_worn_backpack_two_hand_mult;
 float cvarh_vr_worn_backpack_volume;
+float cvarh_vr_worn_backpack_yaw;
+float cvarh_vr_worn_backpack_z;
 float cvarh_vr_wornpack_test;
 
 void() VR_CVars_InitGenerated =
@@ -3482,6 +3485,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_worn_backpack_lift_force = VR_CVar_Make("vr_worn_backpack_lift_force");
     cvarh_vr_worn_backpack_lift_hold = VR_CVar_Make("vr_worn_backpack_lift_hold");
     cvarh_vr_worn_backpack_lift_stiffness = VR_CVar_Make("vr_worn_backpack_lift_stiffness");
+    cvarh_vr_worn_backpack_pitch = VR_CVar_Make("vr_worn_backpack_pitch");
     cvarh_vr_worn_backpack_pool = VR_CVar_Make("vr_worn_backpack_pool");
     cvarh_vr_worn_backpack_pool_blast = VR_CVar_Make("vr_worn_backpack_pool_blast");
     cvarh_vr_worn_backpack_pool_fire = VR_CVar_Make("vr_worn_backpack_pool_fire");
@@ -3489,5 +3493,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_worn_backpack_scale = VR_CVar_Make("vr_worn_backpack_scale");
     cvarh_vr_worn_backpack_two_hand_mult = VR_CVar_Make("vr_worn_backpack_two_hand_mult");
     cvarh_vr_worn_backpack_volume = VR_CVar_Make("vr_worn_backpack_volume");
+    cvarh_vr_worn_backpack_yaw = VR_CVar_Make("vr_worn_backpack_yaw");
+    cvarh_vr_worn_backpack_z = VR_CVar_Make("vr_worn_backpack_z");
     cvarh_vr_wornpack_test = VR_CVar_Make("vr_wornpack_test");
 }

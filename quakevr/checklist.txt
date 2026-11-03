@@ -40,6 +40,7 @@ Knock a dual wielder's left weapon out (a punch, a tug): the other stays in its 
 Ogres with friends running ahead of them: they hold and strafe rather than lob or fire into a friend's back, and still attack.
 Ogres, fiends and shamblers: footsteps now cut from real recordings: heavy and not artificial, on the foot, and still easy to hear in the headset?
 Worn pack coming off (shot, blow, hard landing, gibbed, taken): a clear cloth rip, nothing like a fiend's swipe?
+Your settings are the defaults now (43 values and 7 barrel masks): tug, close quarters, fonts (no drop shadow, outline 1), gun heat and wisps, the pack's pose and volume; nothing should change for you.
 
 
 [3. Bodies: grabbing, throwing, hits]
