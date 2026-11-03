@@ -228,8 +228,9 @@ expression that compiles differently under C's priorities; the repro that showed
 Test code stays out of releases: a QC file of tests (`*_test.qc`, listed in `progs.src`) is wrapped whole in
 `#ifdef QVR_TESTS` ... `#endif` (the macro is defined in `QC/vr_macros.qc` unless fteqcc is given `-DQVR_NO_TESTS`, which
 the release packaging does), and every call or declaration of it from game code is wrapped the same way. A new test file:
-wrap it, and compile once with `-DQVR_NO_TESTS` (no errors allowed; the compile writes `quakevr/progs.dat`: build again
-for the development one).
+wrap it. `Misc/quakevr/check_release_qc.py` (run by `QC/build.sh`, `QC/build.bat`, Visual Studio's QC step and the kit's
+`build.sh`; ~3 s) fails on a `*_test.qc` not wholly inside the guard and on any error or warning of the `-DQVR_NO_TESTS`
+compile, which it writes to `build/qcrelease/` (`quakevr/progs.dat` is not touched).
 
 ## Settings and the config
 
