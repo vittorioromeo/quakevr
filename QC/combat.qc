@@ -2240,9 +2240,9 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
 
 // ----------------------------------------------------------------------------
 // Parrying (vr_parry): a monster's melee blow on a VR player who holds a weapon (a sword, the axe, any gun; one hand or
-// two) across its way, where it meets (the directional parry: vr_dirparry.qc; a blow with no way to be across, a bite or
-// a leap, by the guard: about level across in front of them, between them and the monster, VR_Parry_Blocks) is partly
-// blocked (vr_parry_reduction): a clang, sparks, the hand knocked back. Held in one hand, the weapon may be knocked out of it
+// two) across its way, where it meets (the directional parry: vr_dirparry.qc: all of it stopped, vr_dirparry_through_*) or,
+// with no way to be across, by the guard (about level across in front of them, between them and the monster,
+// VR_Parry_Blocks: partly blocked, vr_parry_reduction): a clang, sparks, the hand knocked back. Held in one hand, the weapon may be knocked out of it
 // (vr_parry_drop_chance); held in two, never. With parry stamina on (vr_parry_stamina) the chance is
 // not used: each parry tires you, and the one that leaves you none knocks the weapon away, one hand or
 // two. Any parry opens a counter's window (vr_counter): the next melee attack hits harder.
@@ -2582,6 +2582,7 @@ void() VR_Dragon_ParryInterrupt;
 .float vr_parry_rep_time; // ... when its last began
 float vr_parry_strength;  // the parry VR_Parry just met a blow with: its strength
 float vr_parry_welltimed; // ... well timed
+float vr_parry_dir_timed; // VR_Parry: this directional parry was well timed (-1: not one; VR_Parry_Strength)
 float vr_parry_test_force; // (vr_kdtrig_test_parry while a test's blow is dealt: vr_kdtrig.qc) forced, not the pose's
 // VR_Parry_Ragdoll may not send it down stairs, a ledge, a slope (parry balance: a stagger of 2 or under). (Not an
 // initialised global: QC makes that a constant, its value shared with the literal's; assigned, every 1 changed.)
@@ -2612,6 +2613,10 @@ float(entity e) VR_Poise_Factor =
 // The pose as for a blow from straight ahead (the view's yaw); a blow parried from the side is never well timed.
 void() VR_Parry_GuardFrame =
 {
+    if(cvar_hget(cvarh_vr_parry) && VRHandsTracked(self))
+    {
+        VR_DRP_HandLines(self); // (a directional parry's timing: vr_dirparry.qc VR_DRP_BecameValid)
+    }
     if(!cvar_hget(cvarh_vr_parry) || !cvar_hget(cvarh_vr_parry_balance) || !VRHandsTracked(self))
     {
         self.vr_guard_up_m = 0;
@@ -2655,7 +2660,9 @@ float(entity p, float hand, float xCrossed) VR_Parry_Strength =
         twoHands = vr_parry_test_force ? f == 3 : VRGet2HAiming(p);
     }
     float since = xCrossed ? p.vr_guard_up_x : VR_HAND_FIELD(p, hand, vr_guard_up_m, vr_guard_up_o);
+    // (A directional parry's timing: your weapon became valid just before the contact: VR_DRP_BecameValid. The guard's: its raise.)
     vr_parry_welltimed = vr_parry_test_force ? vr_parry_test_force >= 10 :
+                         vr_parry_dir_timed >= 0 ? vr_parry_dir_timed :
                          since > 0 && time - since <= max(0, cvar_hget(cvarh_vr_parry_timed_window));
     return tool * (twoHands ? max(0, cvar_hget(cvarh_vr_parry_grip_2h)) : 1) *
            (vr_parry_welltimed ? max(0, cvar_hget(cvarh_vr_parry_timed)) : 1);
@@ -2918,6 +2925,7 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
     vr_parry_welltimed = FALSE;
     if(hand >= 0 || armsCrossed)
     {
+        vr_parry_dir_timed = (drp && hand >= 0 && !armsCrossed) ? (baked ? attacker.vr_drp_timed : vr_drp_ag_timed) : -1;
         vr_parry_strength = VR_Parry_Strength(targ, hand, armsCrossed);
     }
     // The parry's cooldown, per monster (vr_parry_cooldown; NOTES.md vrfiringrange_2026-10-01_16-44-46, _22-58-06,
@@ -2984,10 +2992,13 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
         v_right = oldRight;
         v_up = oldUp;
         float cut = armsCrossed ? cvar_hget(cvarh_vr_parry_unarmed_reduction) : cvar_hget(cvarh_vr_parry_reduction);
-        if(drp && !baked && hand >= 0)
+        if(drp && hand >= 0)
         {
-            VR_DRP_Effects(targ, attacker, hand); // (its own meeting: sparks there, the clang; all of it stopped)
-            cut = 1;
+            if(!baked)
+            {
+                VR_DRP_Effects(targ, attacker, hand); // (its own meeting: sparks there, the clang)
+            }
+            cut = 1 - cvar_hget(baked ? cvarh_vr_dirparry_through_monster : cvarh_vr_dirparry_through_armed);
         }
         return damage * (1 - min(1, max(0, cut)));
     }
@@ -3085,7 +3096,9 @@ float(entity targ, entity inflictor, entity attacker, float damage) VR_Parry =
         }
         VR_Highlight_Parry(targ, attacker, hand);
         VR_Counter_Open(targ, hand);
-        damage = damage * (1 - min(1, max(0, (drp && !baked) ? 1 : cvar_hget(cvarh_vr_parry_reduction))));
+        // (a blow with a line: vr_dirparry_through_*; the guard's: vr_parry_reduction)
+        damage = damage * (1 - min(1, max(0, !drp ? cvar_hget(cvarh_vr_parry_reduction) :
+            1 - cvar_hget(baked ? cvarh_vr_dirparry_through_monster : cvarh_vr_dirparry_through_armed))));
     }
     else if(drp && !armsCrossed && vr_drp_cut > 0)
     {

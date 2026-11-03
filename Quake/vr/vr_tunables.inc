@@ -995,6 +995,9 @@ QVR_TUNABLE(vr_dirparry_contact, "6") // ... units: its blade's line and your we
 QVR_TUNABLE(vr_dirparry_falloff, "2") // ... the meeting's marks fall to none at this times the contact distance
 QVR_TUNABLE(vr_dirparry_threshold, "0.75") // ... the score (angle x meeting, 0..1) that parries
 QVR_TUNABLE(vr_dirparry_window, "0.1") // ... s: at its blow, its blade's way followed on this long (where it would meet your weapon in the rest of the swing)
+QVR_TUNABLE(vr_dirparry_through_armed, "0") // ... share of a parried blow that still hurts you: an armed humanoid's
+QVR_TUNABLE(vr_dirparry_through_monster, "0") // ... a monster's own
+QVR_TUNABLE(vr_dirparry_timed_window, "0.3") // ... s: well timed: your weapon became a valid parry (moved into its way, or turned to the angle) at most this long before the contact
 QVR_TUNABLE(vr_dirparry_stroke, "0.45") // ... s: a monster's own blow (its line read from its frames): its blow held back at most this long for its blade to get to your weapon
 
 // Combat > Armed Humanoid Replacements

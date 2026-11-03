@@ -7974,3 +7974,35 @@ His words 2026-11-03: "Can anything be coealesced/simplified? Can "test" buttons
 - **New scenes** (14): flat_guns, flat_melee, flat_keys, agrunt_ledge (vrclimb's tower and block, the spots of test 202's ledge cases), ad_armed_mix, ad_sergeant_ogre, worn_packs_kinds, toolgun_armed, agrunt_reach, knights_e1m4, leap_blast, no_haptics, burn_lava_nail (`vr_burn_test 16`: no armed weapon code fires lava nails), autosave_e1m1 (no god: autosaves refuse cheats).
 - **Changed scenes**: agrunt_ammo gains a super nailgun holder; agrunt_mix a replaced gun-and-axe grunt; props_range a crowbar in hand (its line is about one); worn_packs and worn_packs_lift lose `vr_worn_backpack_pull`, a setting that no longer exists (validate was failing on them); agrunt_fall, agrunt_repl_map and stick_run lose their file `hint`, which overrode the line's text with something else.
 - **Checked**: `vr_scenario validate` 127 files, 37 tags, 0 missing; `vr_scenario runall quit` 127 run, 3 failed: ad_breakables, ad_fog_flicker, ad_lighting, AD maps absent from the mock base, as before. The flat scenes also run with `-flatscreenmode` (hands held). burn_lava_nail: "burning: test 16 ... PASS you burn". agrunt_ledge lands its grunts at 112 -160 305 and 16 -310 121. worn_packs_kinds looked at once (backs to you, packs on). Not checked: anything a scene is for (a leap setting off a box, the AD rows being armed or not) needs his eye.
+
+## Parry follow-ups: timing, nothing through, lunges (branch `agent/parry2`)
+
+His answers (2026-11-03) to "Directional parry: the only parry". His words: "I also think turning the weapon at the last moment to match the
+necessary direction for the parry should also contribute to a good parry."; "Match as none, yes. Keep the tunable for both armed humanoids and
+regular monsters for me to tweak in the future, if needed."; "Dog lunges and fiend lunges should count as "vertical lines", so that the player
+can parry them by holding their weapon leveled horizontally." The 0.45 s hold waits on his answer: unchanged.
+- **Well timed** (`VR_DRP_BecameValid`, armed humanoids and monsters alike): your weapons' lines are kept a server frame each (`handlineadd`,
+  a second's worth; vr_blowline.cpp). At the contact, your line as it was over the last `vr_dirparry_timed_window` s (new, 0.3, Debug > Tunables >
+  Combat > Directional Parry) is scored against that contact's line by the same marks: if any of those failed (too far, wrong angle, no
+  weapon) it became valid within the window: well timed. All passing: held early, not. In the world's frame: its charging onto a weapon you hold still is
+  held early, your stepping it in is moved in. What it gives is unchanged (`vr_parry_timed`). The guard's raise (`vr_guard_up_*`, `vr_parry_timed_window`)
+  stays for what the guard reads, and crossed arms.
+- **Nothing through:** `vr_dirparry_through_armed`, `vr_dirparry_through_monster` (new, 0: share of a parried blow that still hurts). **Melee number changed: a monster's
+  blow parried directionally used to let 25% through, now none.** Armed humanoids: unchanged. `vr_parry_reduction` stays: the guard's (a blow with no
+  line); its help says so. A monster's stagger is still the parry balance's.
+- **Lunges** (data: `lunge_a_from/_to`, `lunge_b_from/_to` in `quakevr/data/monsters.txt`, runs of frames, by monster and attack; `vr_monsterdata.inc`
+  `vr_mlunge_<classname>_...`; builtin `blowlunge`): dog: its bite (`$attack`, 0-7) and leap (`$leap`, 60-68); fiend: its leap (27-38; its claws keep their lines). A blow in
+  such a frame is a vertical line from the lower of your feet and its to the higher of your head and its top, where the way from it to you
+  comes nearest your weapon, its way towards you, read at the blow (no hold): level across parries, upright lands (90 off), pointing at it lands.
+- **Spawns and AD's leapers:** no key, so as before: the spawn's leap, AD's dogs' and fiends' leaps (off the ground: no line) by the guard, which also
+  wants a weapon level across in front, upright doesn't; AD's bites and claws by their frames' lines if they have any. A key in their block makes them lunges: his call.
+- A freed monster's held blow: its follower now checks `modelindex` (a freed entity keeps its health): found by the test: a removed monster's blow landing later.
+- **Tests:** test 78: 47/0, 4 runs of 4: moved in and turned in well timed, held early not (knight, armed grunt); nothing through by default, 0.5 lets it
+  through (both); dog's bite and fiend's leap: level parries, upright lands. The leap's case deals its blow at `$leap10` directly (a real jump doesn't always
+  land on you in time); real jumps were seen parried in earlier runs of the case. Your weapon moved or turned in one frame is a blow of yours, whose hit reaction changed the knight's attack: the test makes it take no damage in those cases.
+
+Checklist:
+- [parry2] A monster's or armed grunt's swing: hold your weapon across its way early: parried, no damage, plain. Turn it to the angle or move it in just before the blade arrives: a stronger parry (it staggers where a plain one flinches, by the parry balance).
+- [parry2] A monster's directional parry lets nothing through. Debug > Tunables > Combat > Directional Parry: Let Through: Armed Humanoids, Monsters, Timing Window.
+- [parry2] A dog's bite or leap, a fiend's leap: a weapon held level across in front parries; upright, the blow lands.
+

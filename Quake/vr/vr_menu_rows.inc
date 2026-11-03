@@ -1528,7 +1528,7 @@ QVR_SLIDER(vr_parry_stagger, "Parry Stagger", 0.1f, 1.5f, 0.05f, "%.2f s", ext(0
     "With Parry Balance off: how long the monster pauses after a successful parry before it can move and "
     "attack again.")
 QVR_TOGGLE(vr_parry_ragdoll, "Parry Stagger as Ragdoll", nullptr)
-QVR_SLIDER_BYNAME(vr_parry_reduction, "Parry Damage Reduction", 0.f, 1.f, 0.05f, "%.2f", noExt, "Share of a parried blow's damage taken away.")
+QVR_SLIDER_BYNAME(vr_parry_reduction, "Parry Damage Reduction", 0.f, 1.f, 0.05f, "%.2f", noExt, "Share of the damage taken away from a blow parried by the guard (a blow with no line). A blow with a line: Debug > Tunables > Combat > Directional Parry, Let Through.")
 QVR_SLIDER_BYNAME(vr_parry_drop_chance, "Parry Drop Chance", 0.f, 1.f, 0.05f, "%.2f", noExt,
     "Chance a one-handed parry knocks the weapon out of your hand (two hands: never). Not used with Parry Stamina on (Parry, Bash and Headbutt), which replaces it.")
 QVR_SLIDER_BYNAME(vr_parry_wobble, "Parry Arm Knock", 0.f, 2.f, 0.1f, "%.1f", ext(), "How much a parried blow knocks your hand and arm.")

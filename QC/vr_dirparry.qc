@@ -13,15 +13,19 @@
 // - Whose blows. An armed humanoid's melee-weapon swing, and any other monster's blow its frames give a line for
 //   (VR_DRP_Baked: vr_blowline.cpp: a knight's or a hell knight's sword, an ogre's chainsaw, a fiend's and a shambler's
 //   arms, a mod's monster alike). Those with none are read by the guard (a weapon held across in front, combat.qc
-//   VR_Parry_Blocks, the bash's stance too), or crossed arms: a blow with no blade's way to be square to: a dog's bite, a
-//   leap landing on you (a fiend's, a dog's, the spawn's), an armed humanoid's punch, butt, shove or chainsaw thrust, the
-//   training dummy's.
+//   VR_Parry_Blocks, the bash's stance too), or crossed arms: a blow with no blade's way to be square to: a leap landing on
+//   you (the spawn's, AD's), a fish's bite, an armed humanoid's punch, butt, shove or chainsaw thrust, the training dummy's.
+// - A lunge (his words, 2026-11-03: "Dog lunges and fiend lunges should count as "vertical lines""; VR_DRP_Lunge: runs of
+//   frames in quakevr/data/monsters.txt: a dog's bite and leap, a fiend's leap): the whole of it comes at you, so its line
+//   is vertical, between it and you, at your weapon; its way towards you: a weapon level across parries, read at the blow.
+// - Well timed (VR_DRP_BecameValid): your weapon became a valid parry shortly before the contact, moved in or turned to the
+//   angle: within vr_dirparry_timed_window s, your line as it was then failed against its line at the contact.
+// - What a parry lets through: vr_dirparry_through_armed, _monster (0: nothing).
 // - Baked: the line is read as drawn at any moment of the stroke, ahead too (its frames are known). A blow is dealt as its
 //   frame starts, the frame before still drawn, up to vr_dirparry_stroke s before its blade gets there; so with your
 //   weapon near its way the blow is held back (a follower entity: VR_DRP_HeldThink) until it meets your weapon or that
-//   long is over. Its stagger and damage cut stay the parry's own (the parry balance, vr_parry_reduction): the rule says
-//   which pose parries, not what a parry does. One attack, one parry: the rest of its blows go on as the parry's cooldown
-//   has them. A blow from further than its limb is drawn reaching (Quake's melee range is longer) reads as coming on
+//   long is over. Its stagger stays the parry's own (the parry balance). One attack, one parry: the rest of its blows go on
+//   as the parry's cooldown has them. A blow from further than its limb is drawn reaching (Quake's melee range is longer) reads as coming on
 //   as far as your weapon, up to VR_DRP_STRETCH.
 // - Its side: while it swings (VR_AGP_SWING, a melee weapon; not the chainsaw's thrust), every frame its blade's line as
 //   drawn (VR_AG_WeaponLine: the engine's hitreact::drawnWeapon, held::drawnExtent) and last frame's give its axis and
@@ -112,6 +116,32 @@ float(entity pl, float h) VR_DRP_PlayerSeg =
     return TRUE;
 };
 
+// Whether a monster's blow now is a lunge (the top; its frame in a run of its block in quakevr/data/monsters.txt).
+float(entity g) VR_DRP_Lunge =
+{
+    if(g.vr_ag || g.vr_eshove_striking || g.vr_dummy_striking || vr_parry_test_force || cvar_hget(cvarh_vr_parry_test_guard))
+    {
+        return FALSE;
+    }
+    return blowlunge(g);
+};
+
+// A lunge's line, for your weapon `a` .. `b`: vertical, from the lower of your feet and its to the higher of your head and its
+// top, where the way from it to you comes nearest your weapon. Into vr_drp_la, vr_drp_lb.
+vector vr_drp_la;
+vector vr_drp_lb;
+void(entity g, entity pl, vector a, vector b) VR_DRP_LungeLine =
+{
+    vector from = g.origin;
+    vector to = pl.origin;
+    from_z = to_z = a_z = b_z = 0;
+    VR_AG_SegDist(from, to, a, b);
+    vector at = from + (to - from) * vr_ag_seg_s;
+    vector head = VRGetHeadPos(pl);
+    vr_drp_la = [at_x, at_y, min(g.absmin_z, pl.absmin_z)];
+    vr_drp_lb = [at_x, at_y, max(g.absmax_z, head_z)];
+};
+
 // How many lines a monster's own blow has now (vr_blowline.cpp; 0: read by the guard): one on its feet (or flying,
 // swimming): not a leap landing on you, no stroke but the flight. vr_parry_test_guard, a test's forced parry: none.
 float(entity g) VR_DRP_Baked =
@@ -130,7 +160,7 @@ float(entity g) VR_DRP_Applies =
 {
     if(!g.vr_ag)
     {
-        return VR_DRP_Baked(g) > 0;
+        return VR_DRP_Lunge(g) || VR_DRP_Baked(g) > 0;
     }
     if(g.vr_ag_act != VR_AGP_SWING || g.vr_eshove_striking)
     {
@@ -163,6 +193,23 @@ vector(entity g, vector m) VR_DRP_Stretch =
     return fw * min(VR_DRP_STRETCH, max(0, (m - g.origin) * fw - vr_blow_more_x));
 };
 
+// The score of your line `px` (unit) `gap` units from its line, `sq` the ideal: the angle's marks times the meeting's. Out:
+// vr_drp_m_off (degrees off the ideal), vr_drp_m_angle, vr_drp_m_contact (the marks).
+float vr_drp_m_off;
+float vr_drp_m_angle;
+float vr_drp_m_contact;
+float(vector px, vector sq, float gap) VR_DRP_Marks =
+{
+    float contact = max(0.5, cvar_hget(cvarh_vr_dirparry_contact));
+    float lenient = min(89, max(0, cvar_hget(cvarh_vr_dirparry_angle)));
+    float zero = min(90, max(lenient + 1, cvar_hget(cvarh_vr_dirparry_angle_zero))); // (the angle's marks none)
+    float fall = contact * (max(1, cvar_hget(cvarh_vr_dirparry_falloff)) - 1); // (the meeting's marks none this past it)
+    vr_drp_m_off = atan2(vlen(VR_Cross(px, sq)), fabs(px * sq)) * 57.29578;
+    vr_drp_m_angle = vr_drp_m_off <= lenient ? 1 : max(0, (zero - vr_drp_m_off) / max(1, zero - lenient));
+    vr_drp_m_contact = gap <= contact ? 1 : fall <= 0 ? 0 : max(0, 1 - (gap - contact) / fall);
+    return vr_drp_m_angle * vr_drp_m_contact;
+};
+
 // One reading: `g`'s weapon `w` swung at `pl`, its way followed on `ahead` s from its line now (a monster's own blow: `w` is
 // `g`, its line vr_blowline.cpp's, from vr_drp_back s ago). Out: vr_drp_* (the best hand's). Its score.
 float(entity g, entity w, entity pl, float ahead) VR_DRP_Eval =
@@ -174,13 +221,18 @@ float(entity g, entity w, entity pl, float ahead) VR_DRP_Eval =
     vr_drp_tau = 0;
     vr_drp_evals = vr_drp_evals + 1;
     float baked = !g.vr_ag;
+    float lunge = baked && VR_DRP_Lunge(g);
     float strikers = 1;
     vector a1 = '0 0 0';
     vector b1 = '0 0 0';
     float dt = 0;
     vector va = '0 0 0';
     vector vb = '0 0 0';
-    if(baked)
+    if(lunge)
+    {
+        ahead = 0; // (read at the blow)
+    }
+    else if(baked)
     {
         strikers = VR_DRP_Baked(g);
         if(strikers > 0)
@@ -227,7 +279,7 @@ float(entity g, entity w, entity pl, float ahead) VR_DRP_Eval =
         for(float st = 0; st < strikers; st++)
         {
             vector on = '0 0 0'; // (a baked line's stretch)
-            if(baked)
+            if(baked && !lunge)
             {
                 blowline(g, 0, st);
                 on = VR_DRP_Stretch(g, (pa + pb) * 0.5);
@@ -238,7 +290,16 @@ float(entity g, entity w, entity pl, float ahead) VR_DRP_Eval =
             float bp = 0;
             vector ea = '0 0 0';
             vector eb = '0 0 0';
-            for(float k = 0; k <= n; k++)
+            if(lunge)
+            {
+                VR_DRP_LungeLine(g, pl, pa, pb);
+                ea = vr_drp_la;
+                eb = vr_drp_lb;
+                best = VR_AG_SegDist(ea, eb, pa, pb);
+                bs = vr_ag_seg_s;
+                bp = vr_ag_seg_t;
+            }
+            for(float k = 0; !lunge && k <= n; k++)
             {
                 float tau = -dt + span * k / n;
                 vector sa = a1 + va * tau;
@@ -271,7 +332,13 @@ float(entity g, entity w, entity pl, float ahead) VR_DRP_Eval =
             vector sw = '0 0 0';
             vector v = va + (vb - va) * bs;
             vector turn = '0 0 0';
-            if(baked)
+            if(lunge)
+            {
+                v = pl.origin - g.origin; // (towards you)
+                v_z = 0;
+                v = normalize(v) * 1000;
+            }
+            else if(baked)
             {
                 blowline(g, bt - 0.02, st);
                 vector ba0 = vr_blow_a;
@@ -298,10 +365,10 @@ float(entity g, entity w, entity pl, float ahead) VR_DRP_Eval =
             sw = normalize(sw);
             vector sq = normalize(VR_Cross(axis, sw)); // (square to its blade and its way)
             vector px = normalize(pb - pa);
-            float off = atan2(vlen(VR_Cross(px, sq)), fabs(px * sq)) * 57.29578;
-            float angleScore = off <= lenient ? 1 : max(0, (zero - off) / max(1, zero - lenient));
-            float cs = best <= contact ? 1 : fall <= 0 ? 0 : max(0, 1 - (best - contact) / fall);
-            float score = angleScore * cs;
+            float score = VR_DRP_Marks(px, sq, best);
+            float off = vr_drp_m_off;
+            float angleScore = vr_drp_m_angle;
+            float cs = vr_drp_m_contact;
             if(vr_drp_hand < 0 || score > vr_drp_score)
             {
                 vr_drp_hand = h;
@@ -320,7 +387,12 @@ float(entity g, entity w, entity pl, float ahead) VR_DRP_Eval =
                 vr_drp_limz = contact + fall;
                 vr_drp_amark = angleScore;
                 vr_drp_cmark = cs;
-                if(baked)
+                if(lunge)
+                {
+                    vr_drp_s0a = vr_drp_s1a = ea;
+                    vr_drp_s0b = vr_drp_s1b = eb;
+                }
+                else if(baked)
                 {
                     blowline(g, -dt, st);
                     vr_drp_s0a = vr_blow_a + on;
@@ -466,9 +538,14 @@ void(entity g, entity w) VR_DRP_Frame =
         {
             vr_drp_forced = TRUE;
             vr_drp_w = w;
-            VR_Parry(pl, g, g, pending ? g.vr_drp_pend : 20); // (nothing is dealt: the parry's events')
+            float through = VR_Parry(pl, g, g, pending ? g.vr_drp_pend : 20); // (the parry's events; dealt: vr_dirparry_through_armed's)
             vr_drp_w = world;
             vr_drp_forced = FALSE;
+            if(through > 0)
+            {
+                vr_dmg_dealonly = TRUE;
+                T_Damage(pl, g, g, through);
+            }
             vr_drp_early = vr_drp_early + 1;
             g.vr_ag_act_hit = 1; // (no blow from this swing)
             g.vr_ag_act_hitl = 1;
@@ -492,6 +569,64 @@ void(entity g, entity w) VR_DRP_Frame =
     w.vr_drp_t0 = time;
 };
 
+// StartFrame's player think (VR_Parry_GuardFrame; `pl` self): each hand's weapon's parry line this frame, for its timing.
+void(entity pl) VR_DRP_HandLines =
+{
+    vector keepA = vr_drp_pa; // (the last reading's)
+    vector keepB = vr_drp_pb;
+    for(float h = 0; h < 2; h++)
+    {
+        if(VR_DRP_PlayerSeg(pl, h))
+        {
+            handlineadd(pl, h, vr_drp_pa, vr_drp_pb);
+        }
+        else
+        {
+            handlineadd(pl, h, '0 0 0', '0 0 0');
+        }
+    }
+    vr_drp_pa = keepA;
+    vr_drp_pb = keepB;
+};
+
+// The parry just read by your hand `h` against `g`'s blow (vr_drp_*): well timed: your weapon became a valid parry shortly
+// before now: as it was within vr_dirparry_timed_window s, it failed against this contact's line (too far from it, or at the
+// wrong angle, or not in your hand). Held there all that time: not.
+float(entity g, entity pl, float h) VR_DRP_BecameValid =
+{
+    float window = max(0, cvar_hget(cvarh_vr_dirparry_timed_window));
+    float threshold = cvar_hget(cvarh_vr_dirparry_threshold);
+    float lunge = !g.vr_ag && VR_DRP_Lunge(g);
+    vector ea = vr_drp_ea;
+    vector eb = vr_drp_eb;
+    vector sq = vr_drp_sq;
+    for(float back = 0; back < 128; back++)
+    {
+        float at = handlineat(pl, h, back);
+        if(at < 0 || time - at > window)
+        {
+            return FALSE;
+        }
+        vector a = vr_blow_a;
+        vector b = vr_blow_b;
+        if(a == b)
+        {
+            return TRUE; // (no weapon in that hand then)
+        }
+        if(lunge)
+        {
+            VR_DRP_LungeLine(g, pl, a, b); // (a lunge's line is wherever its way meets your weapon)
+            ea = vr_drp_la;
+            eb = vr_drp_lb;
+        }
+        if(VR_DRP_Marks(normalize(b - a), sq, VR_AG_SegDist(ea, eb, a, b)) < threshold)
+        {
+            return TRUE;
+        }
+    }
+    return FALSE;
+};
+
 // A monster's own blow held back (VR_DRP_Blow; self a follower, its owner the monster, its enemy you): each frame its line
 // followed as drawn: met across your weapon, parried now; that long over, it lands.
 void() VR_DRP_HeldThink =
@@ -500,7 +635,7 @@ void() VR_DRP_HeldThink =
     entity g = f.owner;
     entity pl = f.enemy;
     float keep = FALSE;
-    if(g && g.health > 0 && (g.flags & FL_MONSTER) && g.vr_drp_pend > 0 && pl && (pl.flags & FL_CLIENT) && pl.health > 0 &&
+    if(g && g.modelindex && g.health > 0 && (g.flags & FL_MONSTER) && g.vr_drp_pend > 0 && pl && (pl.flags & FL_CLIENT) && pl.health > 0 && // (modelindex: removed since: a freed entity keeps the rest)
        VRHandsTracked(pl) && g.vr_parry_stagger_until <= time)
     {
         self = g;
@@ -557,7 +692,7 @@ float(entity pl, entity g, float damage) VR_DRP_Blow =
 {
     float threshold = cvar_hget(cvarh_vr_dirparry_threshold);
     float baked = !g.vr_ag;
-    float window = baked ? max(0, cvar_hget(cvarh_vr_dirparry_stroke)) :
+    float window = (baked && VR_DRP_Lunge(g)) ? 0 : baked ? max(0, cvar_hget(cvarh_vr_dirparry_stroke)) :
                    max(0, cvar_hget(cvarh_vr_dirparry_window)) / VR_AGP_Speed(g); // (a slowed swing's: as long a way)
     vr_drp_deferred = FALSE;
     vr_drp_cut = 0;
@@ -612,6 +747,7 @@ float(entity pl, entity g, float damage) VR_DRP_Blow =
     }
     g.vr_drp_swing = !baked ? g.vr_ag_act_at : g.vr_melee_begun > 0 ? g.vr_melee_begun : time;
     g.vr_drp_by = vr_drp_hand;
+    g.vr_drp_timed = vr_drp_ag_timed = VR_DRP_BecameValid(g, pl, vr_drp_hand);
     vr_drp_parries = vr_drp_parries + 1;
     vr_parry_at = vr_drp_at;
     dprint(sprintf("dirparry: %s's blow parried by hand %g: score %.2f (%.0f deg off square, gap %.1f units, %.3f s %s)\n",

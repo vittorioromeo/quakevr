@@ -30,21 +30,22 @@
 //   swing's end, the line's ends (VR_AG_WeaponLine) within 1 unit of the drawn weapon's own butt and tip (its model's,
 //   by the renderer's matrix: debugdirparryline); case 13's eye image mid-strike. `scratch1 N` (13 on): from case N;
 //   `scratch2 1`: each line case's eye image from close up (vr_dirparry_linecheck look), its line printed in its frame.
-// A monster's own blow, its line read from its frames (vr_blowline.cpp; ROUND23.md, "Directional parry: the only parry").
-// Stock models, 20 on, a monster held ahead of you and its attack forced; each kind's reference (your fists: the blow
-// lands, its line and the plane it sweeps taken), then your sword at that place: across (square to its line and its way):
-// parried, sparks; along its way: lands:
-//   20-22 a knight's chop (vr_agknight 0; the plane upright: a weapon level across);  23-25 an ogre's chainsaw swing (the
-//   plane level: a weapon upright);  26-27 an ogre's overhead smash (its first blow while its saw is still going up; the plane upright: level across);
-//   28-29 a fiend's claw, 30-31 a shambler's smash (no along cases: an arm's line turns its own way as it comes, its way at
-//   the first meeting isn't the reference's);  32-34 a dog's bite (its lunge's line: the whole dog, pitching);  35-36 a
-//   knight's blow as it stands (no stroke in its frames: no line, the guard's, as a fish's bite, a leap landing): your
-//   fists: lands, no reading; your sword level across ahead: parried, no reading. Your weapon's place follows the monster
-//   (its charge varies from run to run). `scratch2 1` with Show Disarm Volumes on: screenshots of the knight's and the ogre's lines on them.
+// A blow by your weapon where the reference's line is (20 on), a monster held ahead of you and its attack forced; each kind's
+// reference (your fists: the blow lands, its line and the plane it sweeps taken), then your weapon there:
+//   across: parried, sparks, nothing through, not well timed (held there from before its attack); along its way: lands;
+//   moved in, turned in: well timed (0.15 s before its line gets there, from aside; from along its way); through 0.5: half of it
+//   gets through:
+//   20-25 a knight's chop (vr_agknight 0; the plane upright: a weapon level across): reference, across, along, moved in, turned in,
+//   through;  26-28 an ogre's swing (the plane level: a weapon upright), across, along;  29-30 an ogre's smash, across;  31-32 a
+//   fiend's claw, across;  33-34 a shambler's smash, across;  35-37 a dog's bite and 38-40 a fiend's leap (lunges, data: a vertical
+//   line): reference, level across parried, upright lands;  41-42 a knight's blow as it stands (no line: the guard's):
+//   fists land, level across parried, no reading;  43-47 an armed sword grunt's overhead: reference, across, moved in, turned in,
+//   through. The monster's kept at its place (its charge varies from run to run, and your weapon's held still in the world). `scratch2 1` with Show Disarm Volumes
+//   on: screenshots of the knight's and the ogre's lines on them.
 // Each `agtest: PASS|FAIL dirparry <case>: ...`; ends on `agtest: test 78 over: P passed, F failed`.
 // ----------------------------------------------------------------------------
 
-float VR_DRPT_CASES = 37;
+float VR_DRPT_CASES = 48;
 float VR_DRPT_BAKED = 20; // the first monster's own blow case
 float vr_drpt_case;      // the case running
 float vr_drpt_lk;        // a line case's swing (0-3 its kinds, 4 the chainsaw's thrust)
@@ -55,6 +56,11 @@ float vr_drpt_b_len;     // ... its attack's whole length (s)
 vector vr_drpt_b_a;      // ... its line then
 vector vr_drpt_b_b;
 vector vr_drpt_b_rel;    // ... its middle's place from the monster's origin
+vector vr_drpt_b_pin;    // ... the monster's place
+vector vr_drpt_b_pa;     // ... an armed one's line last frame
+vector vr_drpt_b_pb;
+vector vr_drpt_b_rot1;   // your hand's turn at the end (turned in: another until shortly before its line gets there)
+vector vr_drpt_b_aside;  // ... your weapon off its place until then (moved in)
 vector vr_drpt_b_way;    // ... its way (unit)
 vector vr_drpt_b_sq;     // ... square to its line and its way (unit)
 float vr_drpt_b_hurt;    // ... the reference's damage
@@ -226,7 +232,7 @@ void() VR_DRPT_End =
 {
     entity p = vr_agt_player;
     cvar_set("vr_agrunt_parry", ftos(vr_drpt_keep_parry));
-    localcmd(sprintf("tune vr_dirparry_contact %g\n", vr_drpt_keep_contact)); // (a tunable: set by `tune`)
+    localcmd(sprintf("tune vr_dirparry_contact %g\ntune vr_dirparry_through_monster 0\ntune vr_dirparry_through_armed 0\n", vr_drpt_keep_contact)); // (tunables: set by `tune`)
     cvar_set("vr_dirparry_debug", ftos(vr_drpt_keep_debug));
     cvar_set("vr_agrunt_melee_speed", ftos(vr_drpt_keep_speed));
     cvar_set("vr_agknight", ftos(vr_drpt_keep_knight));
@@ -336,25 +342,49 @@ void(entity g, float c) VR_DRPT_Judge =
         "the meeting" : "the blow lands"), ok);
 };
 
-// A monster's own blow's case `c`'s kind: 0 a knight's chop, 1 an ogre's swing, 2 an ogre's smash, 3 a fiend's claw, 4 a
-// shambler's smash, 5 a dog's bite, 6 a blow from a knight as it stands.
+// A blow case `c`'s kind: 0 a knight's chop, 1 an ogre's swing, 2 an ogre's smash, 3 a fiend's claw, 4 a shambler's smash, 5 a
+// dog's bite, 6 a blow from a knight as it stands, 7 a fiend's leap, 8 an armed grunt's overhead.
 float(float c) VR_DRPT_BKind =
 {
-    return c < 23 ? 0 : c < 26 ? 1 : c < 28 ? 2 : c < 30 ? 3 : c < 32 ? 4 : c < 35 ? 5 : 6;
+    return c < 26 ? 0 : c < 29 ? 1 : c < 31 ? 2 : c < 33 ? 3 : c < 35 ? 4 : c < 38 ? 5 : c < 41 ? 7 : c < 43 ? 6 : 8;
 };
 
-// ... its role: 0 the reference (your fists), 1 your sword across, 2 along its way, 3 the guard.
+// ... its role: 0 the reference (your fists), 1 your sword across, 2 along its way, 3 the guard, level across ahead, 4 moved in,
+// 5 turned in, 6 across with half let through, 7 a lunge: level across, 8 a lunge: upright.
 float(float c) VR_DRPT_BRole =
 {
-    if(c == 36)
-    {
-        return 3;
-    }
-    if((c == 20) || (c == 23) || (c == 26) || (c == 28) || (c == 30) || (c == 32) || (c == 35))
+    if((c == 20) || (c == 26) || (c == 29) || (c == 31) || (c == 33) || (c == 35) || (c == 38) || (c == 41) || (c == 43))
     {
         return 0;
     }
-    return ((c == 22) || (c == 25) || (c == 34)) ? 2 : 1;
+    if((c == 22) || (c == 28))
+    {
+        return 2;
+    }
+    if((c == 23) || (c == 45))
+    {
+        return 4;
+    }
+    if((c == 24) || (c == 46))
+    {
+        return 5;
+    }
+    if((c == 25) || (c == 47))
+    {
+        return 6;
+    }
+    return c == 42 ? 3 : ((c == 36) || (c == 39)) ? 7 : ((c == 37) || (c == 40)) ? 8 : 1;
+};
+
+// ... how long after its attack's start its line gets to the reference's place.
+float(entity g, float k) VR_DRPT_BMark =
+{
+    if(k == 8)
+    {
+        VR_AGP_Times(g);
+        return vr_agp_tw + vr_agp_ts * 0.75;
+    }
+    return k == 0 ? 0.75 : k == 1 ? 0.45 : k == 2 ? 0.85 : k == 3 ? 0.55 : k == 4 ? 0.9 : k == 5 ? 0.31 : 0.01;
 };
 
 string(float c) VR_DRPT_BName =
@@ -362,9 +392,11 @@ string(float c) VR_DRPT_BName =
     float k = VR_DRPT_BKind(c);
     float r = VR_DRPT_BRole(c);
     string who = k == 0 ? "a knight's chop" : k == 1 ? "an ogre's swing" : k == 2 ? "an ogre's smash" : k == 3 ?
-        "a fiend's claw" : k == 4 ? "a shambler's smash" : k == 5 ? "a dog's bite" : "a knight's blow as it stands";
-    return sprintf("%s vs %s", who, r == 0 ? "your fists (reference)" : r == 1 ? "your sword across it" : r == 2 ?
-        "your sword along its way" : "your sword level across ahead (the guard)");
+        "a fiend's claw" : k == 4 ? "a shambler's smash" : k == 5 ? "a dog's bite" : k == 6 ? "a knight's blow as it stands" :
+        k == 7 ? "a fiend's leap" : "an armed grunt's overhead";
+    return sprintf("%s vs %s", who, r == 0 ? "your fists (reference)" : r == 1 ? "your sword across it, held early" : r == 2 ?
+        "your sword along its way" : r == 3 ? "your sword level across ahead (the guard)" : r == 4 ? "your sword moved in" : r == 5 ?
+        "your sword turned in" : r == 6 ? "your sword across it, half let through" : r == 7 ? "your sword level across" : "your sword upright");
 };
 
 void(entity g, float k) VR_DRPT_BStart =
@@ -372,13 +404,30 @@ void(entity g, float k) VR_DRPT_BStart =
     entity was = self;
     self = g;
     g.enemy = VR_Player();
-    g.vr_melee_begun = time;
+    if(k != 8)
+    {
+        g.vr_melee_begun = time;
+    }
     if(k == 0) { knight_atk1(); }
     else if(k == 1) { ogre_swing1(); }
     else if(k == 2) { ogre_smash1(); }
     else if(k == 3) { demon1_atta1(); }
     else if(k == 4) { sham_smash1(); }
     else if(k == 5) { dog_atta1(); }
+    else if(k == 7)
+    {
+        // (its leap's blow, as Demon_JumpTouch deals it in its $leap10: whether a real jump lands on you is no test's to wait for)
+        g.frame = 36;
+        g.flags = g.flags - (g.flags & FL_ONGROUND);
+        T_Damage(g.enemy, g, g, 30);
+    }
+    else if(k == 8)
+    {
+        VR_AGP_Begin(VR_AGP_SWING);
+        g.vr_ag_act_kind = 0;
+        g.vr_ag_act_hand = 0;
+        g.vr_ag_act_var = 0.5;
+    }
     else { T_Damage(g.enemy, g, g, 10); }
     self = was;
 };
@@ -397,6 +446,7 @@ void() VR_DRPT_BFrame =
         p.velocity = '0 0 0';
         cvar_set("vr_agknight", "0");
         localcmd(sprintf("tune vr_dirparry_contact %g\n", vr_drpt_keep_contact));
+        localcmd(sprintf("tune vr_dirparry_through_monster %g\ntune vr_dirparry_through_armed %g\n", ((r == 6) && (k != 8)) ? 0.5 : 0, ((r == 6) && (k == 8)) ? 0.5 : 0));
         cvar_set("vr_dirparry_debug", ftos(vr_drpt_keep_debug));
         cvar_set("vr_agrunt_melee_speed", ftos(vr_drpt_keep_speed));
         VR_AGPT_Clear();
@@ -433,41 +483,68 @@ void() VR_DRPT_BFrame =
             vector ahead = v_forward;
             ahead_z = 0;
             ahead = normalize(ahead);
-            if(r == 3)
+            if((r == 3) || (r == 7) || (r == 8))
             {
-                vr_drpt_axis = normalize(VR_Cross(ahead, '0 0 1'));
+                vr_drpt_axis = r == 8 ? '0 0 1' : normalize(VR_Cross(ahead, '0 0 1'));
                 vr_drpt_center = p.origin + ahead * 22 + '0 0 18';
             }
             else
             {
-                vr_drpt_axis = r == 1 ? vr_drpt_b_sq : vr_drpt_b_way;
+                vr_drpt_axis = r == 2 ? vr_drpt_b_way : vr_drpt_b_sq;
                 vr_drpt_center = vr_drpt_b_a + (vr_drpt_b_b - vr_drpt_b_a) * 0.6;
             }
             vr_drpt_rot = VR_DRPT_Solve(vr_drpt_axis);
+            vr_drpt_b_rot1 = vr_drpt_rot; // (its pose at the end; turned in: along its way until then)
+            vr_drpt_b_aside = '0 0 0';
+            if(r == 5)
+            {
+                vr_drpt_rot = VR_DRPT_Solve(vr_drpt_b_way);
+            }
+            if(r == 4)
+            {
+                vr_drpt_b_aside = normalize(VR_Cross(ahead, '0 0 1')) * 30;
+            }
             vr_drpt_posed = TRUE;
             VR_DRPT_Apply(p);
         }
-        float dist = ((k == 0) || (k == 6)) ? 50 : k < 4 ? 70 : k == 4 ? 80 : 45;
+        float dist = ((k == 0) || (k == 6)) ? 50 : (k < 4 || k == 7) ? 70 : k == 4 ? 80 : k == 8 ? 60 : 45;
         makevectors(p.angles);
         vector fw = v_forward;
         fw_z = 0;
         fw = normalize(fw);
         vector at = p.origin + fw * dist;
-        vr_agt_grunt = VR_Test_Spawn(world, ((k == 0) || (k == 6)) ? 5 : k < 3 ? 1 : k == 3 ? 9 : k == 4 ? 3 : 7, at, vectoyaw(fw * -1));
+        vr_agt_grunt = k == 8 ? VR_AGT_Spawn(WID_SWORD, dist) :
+            VR_Test_Spawn(world, ((k == 0) || (k == 6)) ? 5 : k < 3 ? 1 : ((k == 3) || (k == 7)) ? 9 : k == 4 ? 3 : 7, at, vectoyaw(fw * -1));
         vr_agt_step = 2;
         return;
     }
+    if((vr_agt_step == 3) && (k != 5) && (k != 8))
+    {
+        setorigin(g, vr_drpt_b_pin);
+        g.pain_finished = time + 1;
+        g.health = max(g.health, 500);
+        if((r == 4) || (r == 5))
+        {
+            g.takedamage = DAMAGE_NO; // (your weapon moved or turned in a frame is a blow of yours: a hit reaction would change its attack)
+        }
+    }
     if(vr_drpt_posed)
     {
-        if((r == 1) || (r == 2))
+        if((r == 1) || (r == 2) || (r == 4) || (r == 5) || (r == 6))
         {
-            vr_drpt_center = g.origin + vr_drpt_b_rel;
+            // (moved in, turned in: as it was until shortly before its line gets there)
+            float late = (vr_agt_step == 3) && (time - vr_drpt_t0 >= VR_DRPT_BMark(g, k) - 0.15);
+            vr_drpt_center = g.origin + vr_drpt_b_rel + (late ? '0 0 0' : vr_drpt_b_aside);
+            if(late)
+            {
+                vr_drpt_rot = vr_drpt_b_rot1;
+            }
         }
         VR_DRPT_Apply(p);
     }
     if(vr_agt_step == 2)
     {
-        if(!g.takedamage)
+        if(!g.takedamage || (k == 8 && !(g.vr_ag_prop && g.vr_ag_prop.vr_ag_was_n >= 1 && weapondrawnpose(g.vr_ag_prop, 0, 31) != '0 0 0')))
         {
             if(time > vr_drpt_until)
             {
@@ -476,6 +553,11 @@ void() VR_DRPT_BFrame =
             }
             return;
         }
+        if(k == 8)
+        {
+            VR_AGST_Hold(g, 0);
+        }
+        vr_drpt_b_pin = g.origin;
         p.health = 1000;
         p.armorvalue = 0;
         p.vr_stamina_used = 0;
@@ -486,11 +568,17 @@ void() VR_DRPT_BFrame =
         vr_drp_hand = -1;
         vr_parried = 0;
         vr_drpt_b_len = (k == 0 ? 11 : k < 3 ? 14 : k == 3 ? 15 : k == 4 ? 12 : k == 5 ? 8 : 1) * 0.1;
+        vr_parry_welltimed = FALSE;
         vr_drpt_shot = FALSE;
         vr_drpt_t0 = time;
-        // (where its stroke goes, by its frames from now: the knight's and the fiend's after their first blows, the others' at it)
-        vr_drpt_b_mark = time + (k == 0 ? 0.75 : k == 1 ? 0.45 : k == 2 ? 0.85 : k == 3 ? 0.55 : k == 4 ? 0.9 : k == 5 ? 0.31 : 0.01);
+        vr_drpt_shot = FALSE;
         VR_DRPT_BStart(g, k);
+        // (where its stroke goes, by its frames from now: the knight's and the fiend's after their first blows, the others' at it)
+        vr_drpt_b_mark = time + VR_DRPT_BMark(g, k);
+        if(k == 8)
+        {
+            vr_drpt_b_len = VR_AGP_Length(g) + 0.05;
+        }
         vr_agt_step = 3;
         return;
     }
@@ -509,27 +597,50 @@ void() VR_DRPT_BFrame =
                 VR_AGT_Print(sprintf("dirparryshot: %s", VR_DRPT_BName(c)));
             }
             float tt = k == 4 ? 0.05 : 0;
-            vr_drpt_b_n = blowline(g, tt - 0.02, 0);
-            if(vr_drpt_b_n > 0)
+            vector ra0;
+            vector rb0;
+            vector ra1;
+            vector rb1;
+            vr_drpt_b_n = 1;
+            if(k == 8)
             {
-                vector a0 = vr_blow_a;
-                vector b0 = vr_blow_b;
-                blowline(g, tt, 0);
-                vr_drpt_b_a = vr_blow_a;
-                vr_drpt_b_b = vr_blow_b;
-                vr_drpt_b_rel = vr_blow_a + (vr_blow_b - vr_blow_a) * 0.6 - g.origin;
+                VR_AG_WeaponLine(g.vr_ag_prop);
+                ra1 = vr_ag_wa;
+                rb1 = vr_ag_wb;
+                ra0 = vr_drpt_b_pa;
+                rb0 = vr_drpt_b_pb;
+            }
+            else
+            {
+                vr_drpt_b_n = blowline(g, tt - 0.02, 0);
+                ra0 = vr_blow_a;
+                rb0 = vr_blow_b;
                 blowline(g, tt + 0.02, 0);
-                vector ax = normalize(vr_blow_b - vr_blow_a);
-                vector way = ax - normalize(b0 - a0); // (its way as VR_DRP_Eval reads it: the turn of its line)
+                ra1 = vr_blow_a;
+                rb1 = vr_blow_b;
+                blowline(g, tt, 0);
+            }
+            if((vr_drpt_b_n > 0) && (k != 5) && (k != 7) && (k != 6))
+            {
+                vr_drpt_b_a = k == 8 ? ra1 : vr_blow_a;
+                vr_drpt_b_b = k == 8 ? rb1 : vr_blow_b;
+                vr_drpt_b_rel = vr_drpt_b_a + (vr_drpt_b_b - vr_drpt_b_a) * 0.6 - g.origin;
+                vector ax = normalize(rb1 - ra1);
+                vector way = ax - normalize(rb0 - ra0); // (its way as VR_DRP_Eval reads it: the turn of its line)
                 way = normalize(way - ax * (way * ax));
                 vr_drpt_b_way = way;
                 vr_drpt_b_sq = normalize(VR_Cross(ax, way));
                 vector ptr = normalize(p.origin - g.origin);
                 string lt = sprintf("dirparry %s: its line %.1f long, along (to you, up) [%.2f %.2f], way (to you, up) [%.2f %.2f]",
                     VR_DRPT_BName(c), vlen(vr_drpt_b_b - vr_drpt_b_a), ax * ptr, ax_z, way * ptr, way_z);
-                VR_AGT_Print(sprintf("%s, square (up) %.2f; reach %.1f, sweep %.0f, %g lines at its blow", lt, vr_drpt_b_sq_z,
-                    vr_blow_more_x, vr_blow_more_z, vr_drpt_b_n));
+                VR_AGT_Print(sprintf("%s, square (up) %.2f; %g lines at its blow", lt, vr_drpt_b_sq_z, vr_drpt_b_n));
             }
+        }
+        if(k == 8)
+        {
+            VR_AG_WeaponLine(g.vr_ag_prop); // (last frame's: the reference's way)
+            vr_drpt_b_pa = vr_ag_wa;
+            vr_drpt_b_pb = vr_ag_wb;
         }
         if((cvar_hget(cvarh_scratch2) > 0) && (k == 2) && (r == 0) && !vr_drpt_shot && (time - vr_drpt_t0 >= 1.05))
         {
@@ -546,8 +657,8 @@ void() VR_DRPT_BFrame =
         float parries = vr_drp_parries - vr_drpt_pr0;
         float fx = vr_drp_fx_n - vr_drpt_fx0;
         float ok;
-        string got = sprintf("hurt %g at %.2f s, directional parries %g, sparks %g, readings %g, vr_parried %g", hurt, vr_drpt_hurt_at,
-            parries, fx, evals, vr_parried);
+        string got = sprintf("hurt %g at %.2f s, directional parries %g, sparks %g, readings %g, vr_parried %g, well timed %g", hurt,
+            vr_drpt_hurt_at, parries, fx, evals, vr_parried, vr_parry_welltimed);
         if(vr_drp_hand >= 0)
         {
             got = sprintf("%s; last: score %.2f, %.0f deg off square, gap %.1f, %.2f s", got, vr_drp_score, vr_drp_off, vr_drp_gap,
@@ -556,7 +667,7 @@ void() VR_DRPT_BFrame =
         if(r == 0)
         {
             vr_drpt_b_hurt = hurt;
-            ok = k == 6 ? ((hurt > 0) && (evals == 0)) : ((hurt > 0) && (parries == 0) && (vr_drpt_b_n > 0) && (evals > 0));
+            ok = k == 6 ? ((hurt > 0) && (evals == 0)) : ((hurt > 0) && (parries == 0) && (k == 5 || k == 7 || vr_drpt_b_n > 0) && (evals > 0));
             if(k == 0)
             {
                 ok = (ok && (fabs(vr_drpt_b_sq_z) < 0.5)); // (a chop: its plane upright: a weapon level across)
@@ -572,11 +683,23 @@ void() VR_DRPT_BFrame =
         }
         else if(r == 1)
         {
-            ok = ((parries == 1) && (fx >= 1)); // (what the parry lets through of a blow of random damage: printed)
+            ok = ((parries == 1) && (fx >= 1) && (hurt == 0) && !vr_parry_welltimed);
         }
-        else if(r == 2)
+        else if((r == 2) || (r == 8))
         {
             ok = ((parries == 0) && (fx == 0) && (hurt > 0));
+        }
+        else if((r == 4) || (r == 5))
+        {
+            ok = ((parries == 1) && (fx >= 1) && (hurt == 0) && vr_parry_welltimed);
+        }
+        else if(r == 6)
+        {
+            ok = ((parries == 1) && (hurt > 0));
+        }
+        else if(r == 7)
+        {
+            ok = ((parries == 1) && (fx >= 1) && (hurt == 0));
         }
         else
         {

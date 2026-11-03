@@ -15,4 +15,13 @@ void registerCommands();
 // the monster's origin the striker gets in its animation).
 void PF_blowline();
 
+// float(entity m) blowlunge: whether m's frame now is in a run of frames its block in quakevr/data/monsters.txt calls a lunge.
+void PF_blowlunge();
+
+// Your weapons' lines of late, for a parry's timing (QC VR_DRP_BecameValid). void(entity pl, float hand, vector a, vector b)
+// handlineadd: this server frame's (again in one frame: the last stands; a == b: no weapon). float(entity pl, float hand,
+// float back) handlineat: the one `back` frames ago into vr_blow_a, vr_blow_b, and when (-1: none).
+void PF_handlineadd();
+void PF_handlineat();
+
 } // namespace qvr::blowline
