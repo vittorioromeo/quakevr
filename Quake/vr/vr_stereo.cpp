@@ -22,6 +22,7 @@
 #include "vr_crosshair.hpp"
 #include "vr_cvars.hpp"
 #include "vr_dynres.hpp"
+#include "vr_flatplay.hpp"
 #include "vr_hands.hpp"
 #include "vr_lines.hpp"
 #include "vr_loading.hpp"
@@ -81,6 +82,7 @@ PortalTargets eyePortals, spectatorPortals; // separate sizes avoid reallocating
 bool creatingSceneTargets = false; // VR_SceneColorFormat, VR_SceneSamples
 unsigned creatingFormat = 0;
 unsigned creatingDepth = 0;
+bool flatFloatDepth = false; // the window's targets were made with the eyes' float depth for flatscreen play (VR_SceneDepthFormat)
 float creatingFsaa = 0.f;
 GLuint targetFbo = 0;
 
@@ -1205,7 +1207,26 @@ extern "C" unsigned VR_SceneColorFormat(unsigned format)
 
 extern "C" unsigned VR_SceneDepthFormat(unsigned format)
 {
-    return stereo::creatingSceneTargets ? stereo::creatingDepth : format;
+    if(stereo::creatingSceneTargets)
+    {
+        return stereo::creatingDepth;
+    }
+    // The window's own targets. Flatscreen play draws the VR body at a monitor's camera, so it takes the eyes' depth too
+    // (VR_FlatNearPlane); a config's vr_depth_float comes after the first of these, and applies when they are next made.
+    stereo::flatFloatDepth = flatplay::flagGiven() && stereo::sceneDepthFormat() == GL_DEPTH32F_STENCIL8;
+    return stereo::flatFloatDepth ? GL_DEPTH32F_STENCIL8 : format;
+}
+
+// Flatscreen play's near plane, the headset's (vr_nearclip), with the window's targets holding the eyes' float depth: the
+// desktop's near plane of up to 4 units (12 cm) cuts open the hands, the arms and the weapons the mode holds at the camera
+// (a shouldered gun at the ironsight, a hand raised to the face). Everything takes the one projection, the world too, so
+// the model's shadows, outlines and the overlays on it line up as they do in a headset, and its depth against nearby world
+// is the true one. Reversed Z in float depth loses nothing by it: a relative 2^-24 at any near plane and distance, against
+// the 24-bit depth's z/(4 * 2^24) at the desktop's. 0: the desktop's plane is kept (no clip control, or vr_depth_float 0:
+// 24 bits have no precision to spare, so held items are only drawn at the plane, VR_AliasNearEye).
+extern "C" float VR_FlatNearPlane()
+{
+    return stereo::flatFloatDepth && flatplay::active() ? CLAMP(0.02f, vr_nearclip.value, 4.f) : 0.f;
 }
 
 extern "C" int VR_SceneSamples(int samples)
@@ -1222,6 +1243,22 @@ extern "C" unsigned VR_PostProcessTarget()
     return stereo::resampling ? stereo::resample.fbo : stereo::targetFbo;
 }
 
+// The projection's depth terms for near plane n.
+static void setProjectionNear(float matrix[16], const float n)
+{
+    const float f = gl_farclip.value;
+    if(gl_clipcontrol_able)
+    {
+        matrix[0 * 4 + 2] = -n / (f - n);
+        matrix[3 * 4 + 2] = f * n / (f - n);
+    }
+    else
+    {
+        matrix[0 * 4 + 2] = (f + n) / (f - n);
+        matrix[3 * 4 + 2] = -2.f * f * n / (f - n);
+    }
+}
+
 // Replaces the symmetric projection with the eye's asymmetric one. Ironwail's projection maps
 // Quake view space (x forward, y left, z up) to clip space; only the terms producing clip x/y
 // change, the (reversed-Z) depth terms are kept.
@@ -1229,6 +1266,10 @@ extern "C" void VR_OverrideProjection(float matrix[16])
 {
     if(!stereo::renderingEye)
     {
+        if(const float flatNear = VR_FlatNearPlane(); flatNear > 0.f)
+        {
+            setProjectionNear(matrix, flatNear);
+        }
         return;
     }
 
@@ -1260,16 +1301,5 @@ extern "C" void VR_OverrideProjection(float matrix[16])
     // stock and receiver. Reversed Z in a float depth buffer keeps the precision far away at any near plane; a
     // 24-bit one loses it below 1 unit (held items are never cut anyway: vr_nearclip_held).
     const unsigned depth = (stereo::spectatorView ? stereo::spectatorTargets : stereo::eyeTargets).depth;
-    const float n = CLAMP(depth == GL_DEPTH32F_STENCIL8 ? 0.02f : 1.f, vr_nearclip.value, 4.f);
-    const float f = gl_farclip.value;
-    if(gl_clipcontrol_able)
-    {
-        matrix[0 * 4 + 2] = -n / (f - n);
-        matrix[3 * 4 + 2] = f * n / (f - n);
-    }
-    else
-    {
-        matrix[0 * 4 + 2] = (f + n) / (f - n);
-        matrix[3 * 4 + 2] = -2.f * f * n / (f - n);
-    }
+    setProjectionNear(matrix, CLAMP(depth == GL_DEPTH32F_STENCIL8 ? 0.02f : 1.f, vr_nearclip.value, 4.f));
 }
