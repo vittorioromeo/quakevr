@@ -40,9 +40,11 @@ fail=0
 source "$(dirname "$0")/qvrtest.sh"
 HERE=$(dirname "$0"); mkdir -p "$HERE/scratch"
 for MODE in locked feel; do
-  SET=""; [ "$MODE" = "locked" ] && SET="vr_flat_sway 0; vr_flat_bob 0; vr_flat_turnlag 0;"
+  # (vr_flat_aim_point 0: a gun's aim at the crosshair's point turns it as the point moves, which is what it is for; this
+  # measures the lock under it. flatpose_test.sh section f gates the aim itself, moving nothing.)
+  SET="tune vr_flat_aim_point 0;"; [ "$MODE" = "locked" ] && SET="$SET tune vr_flat_sway 0; tune vr_flat_bob 0; tune vr_flat_turnlag 0;"
   # (setpos turns noclip on, noclip off again: walking. The waits are the phases' frames: strafe, stop, turn, settle.)
-  bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; god; notarget; setpos 480 -352 88 0 0 0; noclip; impulse 2; $SET cl_yawspeed 360; wait30; vr_flatplay_debug 2; wait20; +moveleft; wait80; -moveleft; wait30; +right; wait60; -right; wait80; vr_flatplay_debug 0; toggleconsole; quit" -Filter "^flat(view|move):" > "$HERE/scratch/flatlock_$MODE.log" 2>&1
+  bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; god; notarget; setpos 480 -352 88 0 0 0; noclip; impulse 2; $SET cl_yawspeed 360; wait30; vr_flatplay_debug 2; wait20; +moveleft; wait80; -moveleft; wait30; +right; wait60; -right; wait80; vr_flatplay_debug 0; tune_reset; toggleconsole; quit" -Filter "^flat(view|move):" > "$HERE/scratch/flatlock_$MODE.log" 2>&1
   while read -r line; do
     echo "$line"; case "$line" in FAIL*) fail=1;; esac
   done < <(python "$HERE/flatplay_lock.py" "$HERE/scratch/flatlock_$MODE.log" $MODE)
@@ -85,12 +87,19 @@ check $(echo "$log" | grep -q "main - |" && echo "$log" | grep "^weaponinst: mai
 # wiggle refusals on its own and lifts the grip to 8.12 m/s, but the weapon then rests inside the knight's box, so no
 # rib of its sweep is creditable — which is why the settled lever is the spawn distance and not the rest offset.)
 log=$HERE/scratch/flatpunch.log
-bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; god; notarget; developer 1; r_norefresh 0; vr_mock_eye_size 256; vr_test_spawn 5; vr_test_spawn_dist 24; impulse 241; wait10; impulse 152; wait15; vr_flatplay_debug 2; wait10; vr_test_hurt 1; wait3; +attack; wait30; screenshot; -attack; vr_test_hurt 1; wait15; vr_test_kill 1; wait10; vr_test_kill 1; wait10; vr_test_spawn 5; vr_test_spawn_dist 24; impulse 241; wait15; vr_flat_reach 0.6; wait25; vr_test_hurt 1; wait3; +attack; wait30; screenshot; -attack; vr_test_hurt 1; wait15; vr_flat_reach 1; vr_test_kill 1; wait10; vr_test_kill 1; wait10; vr_test_spawn 5; vr_test_spawn_dist 24; impulse 241; wait15; impulse 172; wait25; vr_test_hurt 1; wait3; +offhandattack; wait30; screenshot; -offhandattack; vr_test_hurt 1; wait15; setpos 480 -352 88 -89 0 0; wait25; +attack; wait30; screenshot; -attack; wait10; vr_flatplay_status; toggleconsole; quit" -Filter "flatarm:|test hurt:|punches:|flatplay: " -Out scratch/flatpunch.png > "$log" 2>&1
-read -r okmain okoff okarm probes past mm gaps <<<"$(grep -a "" "$log" | awk '
+bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; god; notarget; developer 1; r_norefresh 0; vr_mock_eye_size 256; vr_test_spawn 5; vr_test_spawn_dist 24; impulse 241; wait10; impulse 152; wait15; vr_flatplay_debug 2; wait10; vr_test_hurt 1; wait3; +attack; wait30; screenshot; -attack; vr_test_hurt 1; wait15; vr_test_kill 1; wait10; vr_test_kill 1; wait10; vr_test_spawn 5; vr_test_spawn_dist 24; impulse 241; wait15; tune vr_flat_reach 0.6; wait25; vr_test_hurt 1; wait3; +attack; wait30; screenshot; -attack; vr_test_hurt 1; wait15; tune vr_flat_reach 1; setpos 480 -352 88 -89 0 0; wait25; +attack; wait30; screenshot; -attack; wait10; vr_flatplay_status; tune_reset; toggleconsole; quit" -Filter "flatarm:|test hurt:|punches:|flatplay: " -Out scratch/flatpunch.png > "$log" 2>&1
+read -r okmain okarm probes past mm gaps <<<"$(grep -a "" "$log" | awk '
 /test hurt:/ { if (match($0, /health [0-9.]+ -> [0-9.]+/)) { split(substr($0, RSTART + 7, RLENGTH - 7), b, " ->"); if (seen) { g[++n] = prev - b[1]; s = s (n > 1 ? "," : "") sprintf("%.0f", g[n]) } prev = b[2]; seen = 1 } }
 /flatarm:/ { for (i = 1; i <= NF; i++) if ($i == "past") { v = $(i + 2) + 0; if (v > past) past = v } if (match($0, /\(([0-9]+) mm\)/)) { m = substr($0, RSTART + 1, RLENGTH - 4) + 0; if (m > mm) mm = m } }
-END { printf "%d %d %d %d %.2f %.0f %s\n", (g[1] > 0 || g[3] > 0), (g[5] > 0), (past <= 0.6), n, past, mm, s }')"
-echo "  flatarm worst: $past units of the hand past its arm, $mm mm off its wrist; the gaps the punches left the knight at: $gaps ($log)"
+END { printf "%d %d %d %.2f %.0f %s\n", (g[1] > 0 || g[3] > 0), (past <= 0.6), n, past, mm, s }')"
+# The off hand's axe, its own run from a fresh map, its knight left alone until the blow: one read, after it, against the 75
+# he starts with. The read before a blow (vr_test_hurt's own 1 unit of damage) is what this case used to fail on, not the
+# order of the suite: he flinches and the blow passes where he stood (0 in any order, and 40 here; FLATPLAY.md).
+offlog=$HERE/scratch/flatpunchoff.log
+bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; god; notarget; developer 1; r_norefresh 0; vr_mock_eye_size 256; impulse 152; wait15; vr_test_spawn 5; vr_test_spawn_dist 24; impulse 241; wait15; impulse 172; wait25; +offhandattack; wait30; -offhandattack; vr_test_hurt 1; wait15; toggleconsole; quit" -Filter "test hurt:|melee event: slash, hand 0" > "$offlog" 2>&1
+offgap=$(grep -a 'test hurt:' "$offlog" | awk '{ if (match($0, /health [0-9.]+ -> [0-9.]+/)) { split(substr($0, RSTART + 7, RLENGTH - 7), b, " ->"); print 75 - b[1]; exit } }')
+okoff=$(awk -v g="${offgap:-0}" 'BEGIN { print (g + 0 > 0) ? 1 : 0 }')
+echo "  flatarm worst: $past units of the hand past its arm, $mm mm off its wrist; the gaps the punches left the knight at: $gaps ($log); the off hand's axe alone: ${offgap:-0} ($offlog)"
 check $okmain "flatscreen melee: +attack (LMB) punches with the axe in the main hand and hurts the knight in front of it"
 check $okoff "flatscreen melee: +offhandattack (RMB) punches with the axe in the off hand and hurts the knight in front of it"
 check $okarm "flatscreen arm: the drawn hand stays on its arm through a punch and looking straight up"
@@ -104,6 +113,18 @@ echo "  punches after each step: $s1m/$s1o then $s2m/$s2o then $s3m/$s3o then $s
 check $([ "${s2m:-0}" -gt "${s1m:-0}" ] && [ "${s2o:-0}" = "${s1o:-0}" ] && echo 1 || echo 0) "flatscreen melee: the other hand's fire button does not disturb a hand that already punched, unless both hold a swinging weapon"
 check $([ "${shot:-0}" -gt 0 ] && [ "$s3m" = "$s2m" ] && [ "$s3o" = "$s2o" ] && echo 1 || echo 0) "flatscreen melee: a gun's fire button is its own shot (the knight it is aimed at takes the blast) and not a punch"
 check $([ "$s4m" = "$s3m" ] && [ "$s4o" = "$s3o" ] && grep -q "does not strike with" "$log" && echo 1 || echo 0) "flatscreen melee: a chainsaw's trigger runs its chain, and vr_flat_punch says so"
+# A second press while a hand's punch runs is no new punch (it was: the hand snapped back to the rest pose), and the next
+# one after it is. The free hand on a grip (the rocket launcher's: held, helpKind 1) lets go of it for its punch, hits what
+# stands in front of it, and takes the grip again after.
+log=$HERE/scratch/flatpunch2.log
+bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; god; notarget; developer 1; r_norefresh 0; vr_mock_eye_size 256; impulse 152; wait15; vr_flat_punch main; wait10; vr_flat_punch main; wait10; vr_flat_punch main; wait5; vr_flatplay_status; wait50; vr_flat_punch main; wait5; vr_flatplay_status; wait50; impulse 160; wait60; vr_test_spawn 5; vr_test_spawn_dist 24; impulse 241; wait20; vr_flatplay_status; vr_test_hurt 1; wait3; vr_flat_punch off; wait27; vr_flatplay_status; vr_test_hurt 1; wait60; vr_flatplay_status; toggleconsole; quit" -Filter "punches:|^  two hands:|test hurt:" > "$log" 2>&1
+counts=$(grep -a "punches: the main hand" "$log" | grep -ao "main hand [0-9]*" | awk '{ print $3 + 0 }' | head -2 | tr '\n' ' ')
+hold=$(grep -a "^  two hands:" "$log" | grep -ao "on its grip\|where the mode" | tail -3 | sed 's/on its grip/grip/; s/where the mode/off/' | tr '\n' ' ')
+pgap=$(grep -a 'test hurt:' "$log" | awk '{ if (match($0, /health [0-9.]+ -> [0-9.]+/)) { split(substr($0, RSTART + 7, RLENGTH - 7), b, " ->"); if (seen) { print prev - b[1]; exit } prev = b[2]; seen = 1 } }')
+echo "  main punches after a press, two more while it runs, and a later one: $counts; the free hand on the launcher's grip: $hold(before, during and after its punch), its fist left the knight ${pgap:-0} units down ($log)"
+check $([ "$counts" = "1 2 " ] && echo 1 || echo 0) "flatscreen melee: presses while a punch runs are no new punch"
+check $([ "$hold" = "grip off grip " ] && echo 1 || echo 0) "flatscreen grip: the free hand lets go of the grip to punch and takes it again after"
+check $(awk -v g="${pgap:-0}" 'BEGIN { exit !(g + 0 > 0) }' && echo 1 || echo 0) "flatscreen grip: the free hand on a grip punches: the knight takes it"
 # 5: in the headset none of this is running.
 log=$HERE/scratch/flatvr.log
 bash $KIT/run.sh $AGENT -Script "map e1m1; wait60; developer 1; vr_flatplay_debug 2; wait10; vr_flat_punch main; wait3; vr_flat_punch off; wait5; +attack; wait10; -attack; wait10; vr_flatplay_status; toggleconsole; quit" -Filter "vr_flat_punch:|flatarm:|flatscreen play|punches:" > "$log" 2>&1
@@ -120,7 +141,7 @@ lastfov() { awk '{ if (match($0, / fov [0-9.]+/)) { f = substr($0, RSTART + 5, R
 # The console wraps a long line, so a "flatsight:" record is read as that line plus the lines that follow it.
 flatrecs() { awk '{ if ($0 ~ /^flatsight: /) { if (rec != "") print rec; rec = $0 } else if (rec != "") { rec = rec " " $0 } } END { if (rec != "") print rec }' "$1"; }
 log=$HERE/scratch/flatads.log
-bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; god; notarget; developer 1; vr_mock_eye_size 256; vr_flatplay_debug 2; impulse 154; wait25; vr_flat_aim 1; wait25; vr_flat_aim_fov 30; wait25; vr_flat_aim_fov 0; wait25; vr_flat_aim_fov 12; wait25; impulse 172; wait30; vr_flatplay_status; toggleconsole; quit" -Filter "^flatsight: " > "$log" 2>&1
+bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; god; notarget; developer 1; vr_mock_eye_size 256; vr_flatplay_debug 2; impulse 154; wait25; vr_flat_aim 1; wait25; tune vr_flat_aim_fov 30; wait25; tune vr_flat_aim_fov 0; wait25; tune vr_flat_aim_fov 12; wait25; impulse 172; wait30; vr_flatplay_status; tune_reset; toggleconsole; quit" -Filter "^flatsight: " > "$log" 2>&1
 wide=$(flatrecs "$log" | grep -a "ads off" | maxfov)
 on12=$(flatrecs "$log" | grep -a "fov take 12" | lastfov)
 on30=$(flatrecs "$log" | grep -a "fov take 30" | lastfov)
@@ -158,7 +179,7 @@ check $(grep -q "on its grip hotspot (held holding: helpKind 1" "$log" && grep -
 # print, and nothing of the mode's prints either (VR_FlatAdsFov hands gl_screen.c back the field of view it was asked
 # for: the headset's own, whatever vr_flat_aim_fov says).
 log=$HERE/scratch/flatadsinheadset.log
-bash $KIT/run.sh $AGENT -Script "map e1m1; wait60; developer 1; vr_flatplay_debug 2; vr_flat_aim_fov 30; vr_flat_aim 1; wait20; vr_flat_aim; wait5; vr_flatplay_status; toggleconsole; quit" -Filter "^flatsight:|^flatcam:|Flatscreen aim:|flatscreen play:|  ironsight:|  two hands:|^2h grip: " > "$log" 2>&1
+bash $KIT/run.sh $AGENT -Script "map e1m1; wait60; developer 1; vr_flatplay_debug 2; tune vr_flat_aim_fov 30; vr_flat_aim 1; wait20; vr_flat_aim; wait5; vr_flatplay_status; tune_reset; toggleconsole; quit" -Filter "^flatsight:|^flatcam:|Flatscreen aim:|flatscreen play:|  ironsight:|  two hands:|^2h grip: " > "$log" 2>&1
 check $(grep -q "Flatscreen aim: flatscreen play only" "$log" && grep -q "the mode off" "$log" && ! grep -q "^flatsight:" "$log" && ! grep -q "  ironsight:" "$log" && ! grep -q "^  two hands:" "$log" && ! grep -q "^flatcam:" "$log" && echo 1 || echo 0) "in the headset: vr_flat_aim says flatscreen play is not running, and no ironsight, grip or eye-nudge line prints"
 # 10 to 13: the pose numbers he drives from the Debug menu (vr_flat_gun_*, vr_flat_empty_*, vr_flat_support_*), the
 # ironsight's own set on top of the pose it aligned to (vr_flat_ads_*), and the eye's nudges (vr_flat_cam_*). Two things
@@ -172,7 +193,9 @@ check $(grep -q "Flatscreen aim: flatscreen play only" "$log" && grep -q "the mo
 # place, flatsight: the muzzle's distance off the crosshair's ray, flatmove: the frame's shot against the view.
 recs() { awk '{ if ($0 ~ /^(flatsight|flatcam|flatmove): /) { if (rec != "") print rec; rec = $0 } else if (rec != "") { rec = rec " " $0 } } END { if (rec != "") print rec }' "$1"; }
 # The worst shot-off-the-view over a run's flatmove: lines, and how many records carried one.
-shotdeg() { awk '{ if (match($0, /off the view [0-9.]+/)) { d = substr($0, RSTART + 11, RLENGTH - 11) + 0; if (d > best) best = d; n++ } } END { printf "%.4f %d", best + 0, n + 0 }'; }
+shotdeg() { awk '{ if (match($0, /off its point [0-9.]+/)) { d = substr($0, RSTART + 14, RLENGTH - 14) + 0; if (d > best) best = d; n++ } } END { printf "%.4f %d", best + 0, n + 0 }'; }
+# How far the last record's muzzle is off the ray against what the sight's place asks (its "asked" number).
+offasked() { awk '{ for (i = 1; i <= NF; i++) { if ($i == "crosshair") a = $(i+3) + 0; if ($i == "asked") k = $(i+1) + 0 } } END { d = a - k; printf "%.2f %.2f", (d < 0 ? -d : d), a + 0 }'; }
 # The last record's "crosshair B -> A" pair (a class's first records are stale: the pose and its probe run before the
 # view is made, as in the fov reads above).
 muzzle() { awk '{ for (i = 1; i <= NF; i++) if ($i == "crosshair") { b = $(i+1) + 0; a = $(i+3) + 0 } } END { printf "%.2f %.2f", b + 0, a + 0 }'; }
@@ -180,34 +203,32 @@ muzzle() { awk '{ for (i = 1; i <= NF; i++) if ($i == "crosshair") { b = $(i+1) 
 # then 999 asked for both (vr_flat_gun_fwd stops at 30, vr_flat_gun_near at 60: vr_flatplay_status prints what the code
 # reads). Standing still, so the muzzle's distance off the ray is the pose's own, with nothing centring it.
 log=$HERE/scratch/flatpose.log
-bash $KIT/run.sh $AGENT -Low -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; god; notarget; developer 1; r_norefresh 0; vr_mock_eye_size 256; setpos 480 -352 88 0 0 0; impulse 154; wait25; vr_flatplay_debug 2; wait30; vr_flat_gun_fwd 26; vr_flat_gun_down 4; vr_flat_gun_out 8; vr_flat_gun_near 14; wait30; vr_flat_gun_fwd 999; vr_flat_gun_near 999; wait15; vr_flatplay_status; toggleconsole; quit" -Filter "^flatsight:|^flatmove:|held weapon|of his head" > "$log" 2>&1
+bash $KIT/run.sh $AGENT -Low -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; god; notarget; developer 1; r_norefresh 0; vr_mock_eye_size 256; setpos 480 -352 88 0 0 0; impulse 154; wait25; vr_flatplay_debug 2; wait30; tune vr_flat_gun_fwd 26; tune vr_flat_gun_down 4; tune vr_flat_gun_out 8; tune vr_flat_gun_near 14; wait30; tune vr_flat_gun_fwd 999; tune vr_flat_gun_near 999; wait15; vr_flatplay_status; tune_reset; toggleconsole; quit" -Filter "^flatsight:|^flataim:|held weapon|of his head" > "$log" 2>&1
 read -r p0b p0a <<<"$(recs "$log" | grep -a "^flatsight: " | head -6 | muzzle)"
 read -r p1b p1a <<<"$(recs "$log" | grep -a "^flatsight: " | tail -6 | muzzle)"
-deg=$(recs "$log" | grep -a "^flatmove: " | shotdeg)
+deg=$(grep -a "^flataim: " "$log" | tail -n +8 | shotdeg)
 grep -a "^  where the weapon" "$log" | sed 's/^/  /'
-echo "  muzzle off the crosshair's ray, nothing centring it: $p0b units with the defaults, $p1b with vr_flat_gun_down 4 _out 8 and vr_flat_gun_fwd at its 30 clamp (999 asked for); the shots over the whole run at most ${deg% *} deg off the crosshair ($deg records, $log)"
+echo "  muzzle off the crosshair's ray, nothing centring it: $p0b units with the defaults, $p1b with vr_flat_gun_down 4 _out 8 and vr_flat_gun_fwd at its 30 clamp (999 asked for); the shots at most ${deg% *} deg off the point the crosshair is on ($deg records, $log)"
 check $(grep -q "held weapon 30 4 8" "$log" && grep -q "within 60 of his head" "$log" && echo 1 || echo 0) "flatscreen pose: the numbers are his to drive and stop at their clamp (999 reads as 30 and 60 in the code)"
 check $(awk -v b="$p0b" -v c="$p1b" -v d="${deg% *}" -v n="${deg#* }" 'BEGIN { exit !(b > 0 && c > 0 && (c - b > 1 || b - c > 1) && n > 20 && d <= 0.1) }' && echo 1 || echo 0) "flatscreen pose: the held weapon's place moves with the numbers and every shot stays on the crosshair"
-# 11: the ironsight's own set, put on the pose the mode made *before* the weapon is brought onto the crosshair's ray, so
-# the bringing answers the muzzle the offsets leave rather than being undone by them: with vr_flat_ads_out 20 the muzzle
-# stands some twenty units to one side of the ray before it and back on the ray after it, and the knight standing on the
-# crosshair is hit either way. What the bringing answers is the part across the ray; what is left of the offsets at the end
-# of the travel is the part along it -- vr_flat_ads_fwd, how far out from him the sight picture sits. The shots stay along
-# the crosshair's direction (the flatmove: lines). Misc/quakevr/flatpose_test.sh measures the pair for all three numbers.
+# 11: the ironsight's final place: vr_flat_ads_up and _out leave the muzzle that far off the crosshair's ray at full
+# ironsight, and the gun points at what the crosshair is on from there, so the knight standing on it is hit either way.
+# Misc/quakevr/flatpose_test.sh measures the same at more ranges.
 log=$HERE/scratch/flatadsoffsets.log
-bash $KIT/run.sh $AGENT -Low -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; god; notarget; developer 1; r_norefresh 0; vr_mock_eye_size 256; setpos 480 -352 88 0 0 0; impulse 154; wait15; vr_flatplay_debug 2; vr_flat_aim 1; wait25; vr_flat_ads_fwd 6; vr_flat_ads_up 3; vr_flat_ads_out -4; wait20; vr_test_spawn 5; vr_test_spawn_dist 24; impulse 241; wait20; vr_test_hurt 1; wait3; +attack; wait10; -attack; wait5; vr_test_hurt 1; wait10; vr_flat_ads_out 20; wait35; toggleconsole; quit" -Filter "test hurt:|^flatsight: |^flatmove: " > "$log" 2>&1
-read -r ab aa <<<"$(recs "$log" | grep -a "^flatsight: " | grep -a "ads 6 3 -4" | tail -6 | muzzle)"
-read -r ob oa <<<"$(recs "$log" | grep -a "^flatsight: " | grep -a "ads 6 3 20" | tail -6 | muzzle)"
-deg=$(recs "$log" | grep -a "^flatmove: " | shotdeg)
+bash $KIT/run.sh $AGENT -Low -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; god; notarget; developer 1; r_norefresh 0; vr_mock_eye_size 256; setpos 480 -352 88 0 0 0; impulse 154; wait15; vr_flatplay_debug 2; vr_flat_aim 1; wait25; tune vr_flat_ads_fwd -4; tune vr_flat_ads_up 3; tune vr_flat_ads_out -4; wait20; vr_test_spawn 5; vr_test_spawn_dist 24; impulse 241; wait20; vr_test_hurt 1; wait3; +attack; wait10; -attack; wait5; vr_test_hurt 1; wait10; tune vr_flat_ads_out 20; wait35; tune_reset; toggleconsole; quit" -Filter "test hurt:|^flatsight: |^flataim: " > "$log" 2>&1
+read -r ab aa <<<"$(recs "$log" | grep -a "^flatsight: " | grep -a "ads -4 3 -4" | tail -6 | offasked)"
+read -r ob oa <<<"$(recs "$log" | grep -a "^flatsight: " | grep -a "ads -4 3 20" | tail -6 | offasked)"
+deg=$(grep -a "^flataim: " "$log" | tail -n +8 | shotdeg)
 shot=$(grep -a 'test hurt:' "$log" | awk '{ if (match($0, /health [0-9.]+ -> [0-9.]+/)) { split(substr($0, RSTART + 7, RLENGTH - 7), b, " ->"); if (seen) { print prev - b[1]; exit } prev = b[2]; seen = 1 } }')
-echo "  with vr_flat_ads_fwd 6 _up 3 _out -4 the muzzle stands $aa units off the ray ($ab before the weapon is brought onto it) and the knight on the crosshair takes ${shot:-0} units; with vr_flat_ads_out 20 alone it stands $ob units off it before the bringing and $oa after it; the shots at most ${deg% *} deg off the crosshair ($deg records, $log)"
-check $(awk -v a="$aa" -v o="$oa" -v p="$ob" -v s="${shot:-0}" -v d="${deg% *}" 'BEGIN { exit !(a <= 0.5 && o <= 0.5 && p > 10 && s + 0 > 0 && d <= 0.1) }' && echo 1 || echo 0) "flatscreen aim: its own offsets go on before the weapon is brought onto the crosshair's ray, and the shot still hits what the crosshair points at"
+echo "  with vr_flat_ads_fwd -4 _up 3 _out -4 the muzzle stands $aa units off the ray ($ab off what the place asks) and the knight on the crosshair takes ${shot:-0} units; with vr_flat_ads_out 20 alone it stands $ob units off it before the bringing and $oa after it; the shots at most ${deg% *} deg off the crosshair ($deg records, $log)"
+check $(awk -v a="$ab" -v o="$ob" -v p="$oa" -v d="${deg% *}" 'BEGIN { exit !(a <= 0.5 && o <= 0.5 && p > 15 && d <= 0.1) }' && echo 1 || echo 0) "flatscreen aim: its offsets are the muzzle's final place off the crosshair's ray, and the gun points at what the crosshair is on (flatpose_test.sh section f: the server's shot against that point)"
 # 12: the eye's nudges. vr_flat_cam_fwd 12, vr_flat_cam_up 6, vr_flat_cam_side 4, at a look due east with no pitch, where
 # the view's own frame is the world's: forward is +x, its right is +y, up is +z, so the flatcam: line's world components
 # are the nudges themselves. The eye's height above his origin goes from 22 to 28 (standing, no crouch held) and his
 # origin stays at 88 -- the mode moved the camera it draws from, not the player it draws for. The shot is fired twice, once
 # before the nudges and once after, each at its own freshly spawned knight 24 units down the line the game aims along. The
-# first is gated on hurting that knight; the second is measured and printed, not gated, and here is the honest reason
+# The first is gated on hurting that knight; the second is printed: the nudge's 12 forward carries the gun past a knight at
+# 24. flatpose_test.sh section f gates the shot with the eye nudged, against knights further off and the far wall.
 # (measured 2026-11-03 here and again at vr_test_spawn_dist 24, 40 and 64 in a probe): impulse 241 stands the knight on the
 # player's own axis, at the yaw the game sees, while vr_flat_cam_up 6 and vr_flat_cam_side 4 move the crosshair's ray 6 up
 # and 4 to the side off that axis -- a shot leaving the drawn muzzle along the nudged crosshair's ray is aimed at a line
@@ -215,7 +236,7 @@ check $(awk -v a="$aa" -v o="$oa" -v p="$ob" -v s="${shot:-0}" -v d="${deg% *}" 
 # gates on is the aiming's own readings: the checks below, and the shot before the nudges. Each shot is bracketed by two
 # vr_test_hurt 1 reads (read 1 with read 2, read 3 with read 4; what sits between the pairs is that knight's health).
 log=$HERE/scratch/flatcam.log
-bash $KIT/run.sh $AGENT -Low -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; god; notarget; developer 1; r_norefresh 0; vr_mock_eye_size 256; setpos 480 -352 88 0 0 0; impulse 154; wait15; vr_flatplay_debug 2; vr_flat_aim 1; wait20; vr_test_spawn 5; vr_test_spawn_dist 24; impulse 241; wait20; vr_test_hurt 1; wait3; +attack; wait10; -attack; wait5; vr_test_hurt 1; wait10; vr_flat_cam_fwd 12; vr_flat_cam_up 6; vr_flat_cam_side 4; vr_test_kill 1; vr_test_spawn 5; vr_test_spawn_dist 24; impulse 241; wait20; vr_test_hurt 1; wait3; +attack; wait10; -attack; wait5; vr_test_hurt 1; wait10; vr_flatplay_status; toggleconsole; quit" -Filter "^flatsight:|^flatcam: |test hurt: |^  his eye on the screen" > "$log" 2>&1
+bash $KIT/run.sh $AGENT -Low -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; god; notarget; developer 1; r_norefresh 0; vr_mock_eye_size 256; setpos 480 -352 88 0 0 0; impulse 154; wait15; vr_flatplay_debug 2; tune vr_flat_ads_up 3; vr_flat_aim 1; wait20; vr_test_spawn 5; vr_test_spawn_dist 24; impulse 241; wait20; vr_test_hurt 1; wait3; +attack; wait10; -attack; wait5; vr_test_hurt 1; wait10; tune vr_flat_cam_fwd 12; tune vr_flat_cam_up 6; tune vr_flat_cam_side 4; vr_test_kill 1; vr_test_spawn 5; vr_test_spawn_dist 24; impulse 241; wait20; vr_test_hurt 1; wait3; +attack; wait10; -attack; wait5; vr_test_hurt 1; wait10; vr_flatplay_status; tune_reset; toggleconsole; quit" -Filter "^flatsight:|^flatcam: |test hurt: |^  his eye on the screen" > "$log" 2>&1
 read -r eye0 org0 eye1 org1 nx ny nz <<<"$(recs "$log" | awk '
     /^flatcam: / { for (i = 1; i <= NF; i++) { if ($i == "origin") z = $(i+3) + 0; if ($i == "above") h = $(i+2) + 0
                   if ($i == "nudge") { nx = $(i+1) + 0; ny = $(i+2) + 0; nz = $(i+3) + 0 } }
@@ -239,13 +260,13 @@ read -r dmg0 dmg1 <<<"$dmg"
 grep -a "^  his eye on the screen" "$log" | sed 's/^/  /'
 echo "  nudged: the eye $eye0 units above his origin and $eye1 after (his origin $org0 and $org1: unmoved), the nudges read as $nx $ny $nz in the world; the muzzle $c0b units off the ray before the weapon's move onto it and $c0a after, and $c1b / $c1a with the eye nudged; the knight on the crosshair took $dmg0 units before the nudges and $dmg1 after ($log)"
 check $(awk -v e0="$eye0" -v e1="$eye1" -v o0="$org0" -v o1="$org1" -v x="$nx" -v y="$ny" -v z="$nz" 'BEGIN { exit !(e1 - e0 > 5 && e1 - e0 < 7 && o0 == o1 && x > 11 && y > 3 && z > 5) }' && echo 1 || echo 0) "flatscreen view: the nudges move the drawn eye in the view's own frame and leave his origin where it was"
-check $(awk -v a0="$c0a" -v a1="$c1a" -v b0="$c0b" -v b1="$c1b" -v d0="$dmg0" 'BEGIN { exit !(a0 <= 0.5 && a1 <= 0.5 && b1 > b0 && d0 + 0 > 0) }' && echo 1 || echo 0) "flatscreen view: the aiming measures read the nudged camera -- the muzzle's distance off the ray grows with it and the centring closes it again -- and the foe on the crosshair is hit by the shot fired before the nudges (the damage after them is measured and printed above, not gated: the spawner stands the knight on the player's own axis, and a nudged crosshair aims along a line beside it)"
+check $(awk -v a0="$c0a" -v a1="$c1a" -v b0="$c0b" -v b1="$c1b" -v d0="$dmg0" 'BEGIN { d = b1 - b0; if (d < 0) d = -d; exit !(a0 <= 0.5 && a1 <= 0.5 && d <= 0.5 && d0 + 0 > 0) }' && echo 1 || echo 0) "flatscreen view: the aiming measures read the nudged camera, the hands carried with it (the muzzle off the ray the same, and the sight closes it) -- and the foe on the crosshair is hit before the nudges"
 # 13: what a keep distance too small for the crouch does, said plainly (vr_flat_gun_near is how far the drawn view may
 # stand from his head and still carry the gun with it; holding Left Ctrl -- +flatcrouch, the console's way -- lets his
 # head vr_flat_crouch_drop units down): at 8 with the drop at 18 the crouched view stands further from his head than the
 # keep distance asks, so the gun is left on his body while the view comes down -- which is why the default is 24.
 log=$HERE/scratch/flatkeep.log
-bash $KIT/run.sh $AGENT -Low -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; god; notarget; developer 1; vr_mock_eye_size 256; vr_flatplay_debug 2; vr_flat_gun_near 8; vr_flat_crouch_drop 18; wait25; +flatcrouch; wait40; vr_flatplay_status; -flatcrouch; wait20; vr_flatplay_status; toggleconsole; quit" -Filter "^flatcam: |^  his eye on the screen" > "$log" 2>&1
+bash $KIT/run.sh $AGENT -Low -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; god; notarget; developer 1; vr_mock_eye_size 256; vr_flatplay_debug 2; tune vr_flat_gun_near 8; tune vr_flat_crouch_drop 18; wait25; +flatcrouch; wait40; vr_flatplay_status; -flatcrouch; wait20; vr_flatplay_status; tune_reset; toggleconsole; quit" -Filter "^flatcam: |^  his eye on the screen" > "$log" 2>&1
 read -r low high span keep <<<"$(recs "$log" | awk '
     /^flatcam: / { h = 0; for (i = 1; i <= NF; i++) { if ($i == "above") { h = $(i+2) + 0; if (h > top) top = h; if (bottom == 0 || h < bottom) bottom = h }
                   if ($i == "keep") k = $(i+1) + 0 } }

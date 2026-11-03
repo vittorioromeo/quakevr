@@ -19,6 +19,7 @@
 #include "vr_seated.hpp"
 #include "vr_ragtool.hpp"
 #include "vr_flatplay.hpp"
+#include "vr_flatsight.hpp"
 #include "vr_geom.hpp"
 #include <glm/gtc/type_ptr.hpp>
 
@@ -5071,6 +5072,7 @@ extern "C" void VR_SetupViewEntities()
     {
         s.placedFrom[hand] = s.pos[hand]; // the hands the muzzles and ports were placed on (hands::State::placedFrom)
     }
+    flatsight::notePlaced(s); // (flatscreen play: the muzzles in their hands' frames)
 
     // The ring of shadows fades the hands and weapons too (as the old engine did); the gadget
     // stays readable.

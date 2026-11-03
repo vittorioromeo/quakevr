@@ -31,8 +31,8 @@ straight-out-in-front pose). The pose is built from the view angles, the weapon 
 - a held weapon sits out in front of the chest, on the centre line; an empty hand hangs at its side; the free hand
   rests near the other hand's gun;
 - the hands are turned so the weapon in them shoots along the crosshair, whatever that weapon's Shot Pitch and Yaw
-  (`aimRotAtCrosshair` inverts `weapons::shotAngles`); the drawn gun and its muzzle follow the hand, so the shot and the
-  viewmodel agree;
+  (`aimRotAtCrosshair` inverts `weapons::shotAngles`), and a gun points from its muzzle at what the crosshair is on
+  (see The aim, below); the drawn gun and its muzzle follow the hand, so the shot and the viewmodel agree;
 - the whole pose is measured from the shoulders (`hands::bodyAnchor` with `vr_shoulder_offset`), so it follows the body
   whatever the height calibration; `vr_flat_reach` scales how far the hands sit from them;
 - the drawn hands are held to what the arm can hold them at (`vr_flat_arm_hold`, in `drawnOffset`): the flat anchor does
@@ -54,7 +54,8 @@ view bob, strafe roll, kick and step easing). With the three looks below at 0 th
 at all (0.014 units strafing and turning; it was 23.7 units strafing and 7.5 degrees at 540 degrees a second turning).
 
 **The looks** are the drawn hands' only (`flatplay::drawnOffset`, added like the fatigue shake; the muzzle is put back on
-the steady hand), so the shots and the aim stay on the crosshair whatever they are set to:
+the steady hand), so the shots and the aim stay on the crosshair whatever they are set to (the drawn gun also eases onto
+the aim's turn, 18/s, where the game's hand has it at once: the crosshair crossing a near edge moves its point by metres):
 
 - **Move Sway** (`vr_flat_sway`, 1): each change of the player's velocity kicks the hands the other way and a spring
   settles them, a little overshoot: they lag as he starts and stops (~1.3 units), dip on a jump and on a landing. At a
@@ -66,12 +67,12 @@ the steady hand), so the shots and the aim stay on the crosshair whatever they a
   ~2 degrees behind at 180 degrees a second, at most 4 (softly), back within a quarter second. A view set in one frame
   (a teleporter, a respawn) leaves no lag.
 
-These are plain (not saved) cvars, and they are in the Debug menu: **Debug > Reports > Flatscreen Play** â€” Status, Print
-(`vr_flatplay_debug`: prints each E and V press, each hand's punch and where the hands are; 2: each frame the drawn
-weapon in the camera's frame, `flatview:`, each move's shot against the view, `flatmove:`, and each drawn hand against
-the arm the body poses for it, `flatarm:` â€” how far its wrist is off the body's wrist, how far the hand is past what the
-arm can hold it at, its speed and its wrist's bend), Hand Reach, Move Sway, Walk Bob, Turn Lag, Turn Lag Recovery, Arm
-Hold, Hand Pitch, Punch (`vr_flat_punch`). Test: `bash Misc/quakevr/flatplay_test.sh <agent>`.
+These are tuning constants (`tune <name> <value>`; **Debug > Tunables > Flatscreen > Looks**, saved in `tunables.cfg`). Debug
+> Reports > Flatscreen Play has Status, Print (`vr_flatplay_debug`: prints each E and V press, each hand's punch and where
+the hands are; 2: each frame the drawn weapon in the camera's frame, `flatview:`, each move's shot against the view,
+`flatmove:`, each gun's aim, `flataim:`, and each drawn hand against the arm the body poses for it, `flatarm:` -- how far its
+wrist is off the body's wrist, how far the hand is past what the arm can hold it at, its speed and its wrist's bend), and
+Punch (`vr_flat_punch`). Test: `bash Misc/quakevr/flatplay_test.sh <agent>`.
 
 **The keys.** Read from the keyboard state, not from bindings â€” nothing is rebound and no config changes (Left Ctrl is the
 one exception: the mode holds it while it runs and hands it back before the game writes its config, below); they only work
@@ -86,7 +87,7 @@ console.
 | `E` | force-grabs what the view is pointed at, with the free hand (`impulse 46` Ã¢â€ â€™ `VR_Forcegrab_FlatGrab`; the search, the flight and the catch are the game's own force grab). With both hands holding weapons there is no hand to collect with and E does nothing. |
 | `1` | cycles the **left** hand's weapon through the weapons collected |
 | `2` | cycles the **right** hand's weapon |
-| `V` | a punch with the right hand: a real motion of the hand (wound up, thrown, drawn back), so the game's own melee rules decide whether it lands. `vr_flat_punch [main\|off]` drives either hand's punch from the console. A weapon that no swing strikes with never punches from its fire button â€” the chainsaw's trigger runs its chain, a gun's fires (the mode's own weapon set: `punchesWith`, `vr_flatplay.cpp`); `V` is the hand's punch whatever it holds, as it was. A hand that already started a punch this very frame is joined by the other only when both hands hold a swinging weapon |
+| `V` | a punch with the right hand: a real motion of the hand (wound up, thrown, drawn back), so the game's own melee rules decide whether it lands. `vr_flat_punch [main\|off]` drives either hand's punch from the console. A weapon that no swing strikes with never punches from its fire button â€” the chainsaw's trigger runs its chain, a gun's fires (the mode's own weapon set: `punchesWith`, `vr_flatplay.cpp`); `V` is the hand's punch whatever it holds, as it was. A hand that already started a punch this very frame is joined by the other only when both hands hold a swinging weapon. A press while that hand's punch runs is no new punch. An empty hand on the held weapon's grip lets go of it for its punch and takes it again after |
 | Left Ctrl | crouches while it is held, stands up as it is let go; `+flatcrouch` and `-flatcrouch` hold and release the same from the console (see Crouching below). Right Ctrl is the same key to the engine (`K_CTRL`: `Quake/in_sdl.c`). While the mode runs it is the crouch key **only** â€” the plain game's `+attack` is taken off it, so holding Ctrl crouches and fires nothing; `vr_flat_crouch_fire 1` gives Ctrl its own bind back and then it fires as it crouches (see Ctrl's firing bind below) |
 | `F` | switches the flashlight: the engine's own `vr_flashlight_toggle`; put out, it stays out (a level change and a saved game included) |
 | `G` | lets go of what a hand holds, the main hand first and the off hand after (`impulse 47` â†’ `VR_Forcegrab_FlatDrop`, `QC/vr_wpnforcegrab.qc`): a weapon out of the hand the way the game drops one, a box or a prop carried in it let go at his feet (physics again, free to take again); carried in both hands, one press frees both |
@@ -118,7 +119,10 @@ number stands for `vr_flat_crouch_drop` units: `VR_FlatViewDrop` takes them off 
 follows the view. The pose's head goes over the move wire as any other head does, and the game's own crouching does the
 rest: `hull::updateCrouch` (`Quake/vr/vr_hull.cpp`) chooses a crouched box for the eyes' new height (36 at the default 18,
 out of `vr_crouch_height` and `vr_crouch_step`), the CROUCHED bit (23 of `vrBits0`) arrives as it does for a headset player
-who crouches, and `crouchSpeedMax` slows him as it slows him there. Nothing is added to the move wire, and nothing new
+who crouches, and `crouchSpeedMax` slows him as it slows him there. What the server asks is the move's own word, per client
+(`protocol::moveFlatCrouchBit`, bit 14 of `vrBits0`, set while his eased crouch is above 0), never the host's keys, and it
+needs no protocol step: nothing else ever set that bit of the wire, a client that does not set it reads as not crouching by
+it, and a demo records the server's messages, not moves. Nothing is added to the move wire, and nothing new
 collides: a crouch is not a jump. `.vr_stand` â€” how upright the game thinks he is, read by `QC/vr_kdtrig.qc` â€” is worked out
 from the same numbers in `Quake/vr/vr_server.cpp`: 1 while he stands, less as he comes down (a headset player's value is
 computed as it was). Outside the mode nothing moves: `crouchDrop()` answers 0 and `VR_FlatViewDrop` returns at once.
@@ -136,8 +140,7 @@ of once. Before the engine writes its config out â€” at a quit, at the shut
 changed, with `writeconfig` â€” `VR_FlatKeysForConfigWrite` (`Quake/host.c`, `Host_WriteConfigurationToFile`, just before
 `Key_WriteBindings`) hands the key back, so the file on disk keeps the plain game's Ctrl and never keeps a `+flatcrouch`;
 at a quit there is no next frame for the mode to take the key up again, which is the point. In a headset session, and in a
-game started without the flag, the mode never ran and never took the key. `vr_flat_crouch_fire 1` (not saved) skips the
-whole exchange: Ctrl keeps `+attack`, so holding it crouches and fires as it does in the plain game.
+game started without the flag, the mode never ran and never took the key. whole exchange: Ctrl keeps `+attack`: Ctrl keeps `+attack`, so holding it crouches and fires as it does in the plain game.
 `vr_flatplay_status` prints which bind Ctrl holds now, and `vr_flatplay_debug 1` prints the frame it was taken.
 
 **The flashlight is worn on the head, and `F` switches it.** `vr_flashlight`'s "Always on Head" behaviour (`vr_flashlight 2`)
@@ -173,13 +176,13 @@ hands onto each other. A weapon whose model has no such hotspot, a grip a second
 the pose above exactly as it is, and `vr_flatplay_status` prints the measure the choice rests on: "hotspot: 5.0 units from
 the held hand (fwd -3.2, right 0.4, up -3.8 of it)".
 
-The mouse wheel's button (`K_MOUSE3`), or `vr_flat_aim` from the console, turns the ironsight on: the held hand is turned
-so that the muzzle's own point â€” the one the shot starts from (`muzzleNow`) â€” sits on the crosshair's ray
-(`centreOnCrosshair`), and the field of view narrows by `vr_flat_aim_fov`: `gl_screen.c` asks `VR_FlatAdsFov` where it
-chooses `r_refdef.basefov`, and the mouse look's own measure comes from the same `basefov` (`in_sdl.c`'s `IN_FovScale`),
-so the look and the crosshair keep their feel. It refuses while dual wielding, and on a weapon with no sight line.
+The mouse wheel's button (`K_MOUSE3`), or `vr_flat_aim` from the console, turns the ironsight on: the held hand is moved
+so that the muzzle's own point -- the one the shot starts from -- stands at the sight's place (`centreOnCrosshair`, see
+below), and the field of view narrows by `vr_flat_aim_fov`: `gl_screen.c` asks `VR_FlatAdsFov` where it chooses
+`r_refdef.basefov`, and the mouse look's own measure comes from the same `basefov` (`in_sdl.c`'s `IN_FovScale`), so the look and
+the crosshair keep their feel. It refuses while dual wielding, and on a weapon with no sight line.
 `vr_flatplay_status` prints both hands and the ironsight, and `vr_flatplay_debug 2` adds a `flatsight:` line each frame
-with where the muzzle stands off the crosshair before and after the turn.
+with where the muzzle stands off the crosshair before and after the move, and what its place asks.
 
 The narrowing is no step at the press. `vr_flat_aim_time` (0.25, 0.05..1.00 seconds, 0: at once) is how long the
 ironsight's whole travel takes â€” onto the crosshair, and back off it â€” and the field of view is narrowed by
@@ -200,10 +203,11 @@ Its own distances, its angle test, the foregrip's stickiness and the weapon's Tw
 
 ## Where the weapon sits, and where his eye is on the screen
 
-The pose's places used to be named constants at the top of `vr_flatplay.cpp`. They are cvars now, read in the view's own
-frame and clamped at the read (`poseNum`: -30..30, `nearNum`: 8..60 units, `camOffMax`: 20), and all seventeen are rows on
-**Debug > Reports > Flatscreen Play** so they can be driven from the menu while the game runs. `vr_flatplay_status` prints
-the pose and the eye's place, and `vr_flatplay_debug 2` prints them every frame (`flatsight:`, `flatcam:`, `flatmove:`).
+The pose's numbers are tuning constants (`tune <name> <value>`; **Debug > Tunables > Flatscreen**: Held Weapon, Free Hands,
+Ironsight, Eye, Crouch, Looks; a value tuned stays, in `tunables.cfg`, and `Misc/quakevr/tune_promote.py` makes it the
+default), read in the view's own frame and clamped at the read (`poseNum`: -30..30, `nearNum`: 8..60 units, `camOffMax`: 20).
+`vr_flatplay_status` prints the pose and the eye's place, and `vr_flatplay_debug 2` prints them every frame (`flatsight:`,
+`flatcam:`, `flatmove:`).
 
 **The held weapon** â€” **Flatscreen Gun Forward** (`vr_flat_gun_fwd`, 17), **Flatscreen Gun Down** (`vr_flat_gun_down`, 9), **Flatscreen Gun Out**
 (`vr_flat_gun_out`, 2.5): how far out in front of the chest the gun sits, how far below the chest, and how far to one side.
@@ -219,72 +223,56 @@ is where it waits before a grip takes it. Neither is a look bolted on: the empty
 two-hand hotspot (`pinToGrip`, `helpKind 1`) and `twohand::apply` still runs over the pose, so the two-handed grip, its
 `helpKind` and its transition are the game's own whatever these are set to.
 
-Measured on `Misc/quakevr/flatpose_test.sh`, at `setpos 480 -352 88 0 0 0` with the shotgun in hand: the muzzle stands
-**6.38** units off the crosshair's ray with the ironsight off, and **10.48** with `vr_flat_gun_fwd 26 vr_flat_gun_down 4
-vr_flat_gun_out 8 vr_flat_gun_near 14`. Either way **every shot still leaves along the crosshair's direction**: the
-`flatmove:` lines say the shot is `0.0000` degrees off the view, over 71 records in that run (the harness gates it at 0.1
-degrees, which is what the whole suite has never exceeded: 0.0000 over 230 records in the run that nudges everything).
-`vr_flatplay_status` prints "a held weapon 26 4 8 â€¦ within 14 of his head" so the number he set is the number he reads.
+**The aim.** A gun (a weapon with a sight line, in either hand, ironsight or not) points from its muzzle at what the ray
+through the middle of the screen hits, recomputed every pose (`aimAtPoint`, `vr_flatsight.cpp`): the line is traced as a shot's
+is (the world, monsters' models, gibs and heads, him left out), far along the ray (4096) if nothing is there. QC fires along
+the shot's angles on the line through the muzzle (`VR_ShotBackPoint`, from behind it), so the shot goes through the crosshair's
+point wherever the muzzle stands: any range, any pose, any offset, the eye nudged. The hand's turn moves the muzzle the aim is
+measured from, so the pose settles the two (8 passes) and hands the shot the muzzle of the hand's final turn (the view's
+placed muzzle, kept in the hand's own frame: `notePlaced`, `keepMuzzle`; `hands::handMuzzle` only carries the move).
+`vr_flat_aim_point 0` puts the old aim back, along the view. Three limits: a point nearer than 12 units past the muzzle (a wall
+in his face, the gun inside a monster's box) is not pointed at, so no gun turns back on itself: the shot goes along the ray from
+where the muzzle stands; a shot from inside a knight at 24 units is a shot from wherever the muzzle stands in him, and may
+pass him; and a client not hosting has no world to trace (`vr_trace.hpp`), so its guns point far along the ray and a co-op client
+keeps the muzzle's offset at near targets. Hand and Weapon Together (`whole_*`) corrects a controller's hold and does not apply
+here (it moved and turned the hand after the shot was solved: 1.2 degrees off, on the shotgun).
 
-**The ironsight's own set** â€” **Flatscreen Ironsight Forward** (`vr_flat_ads_fwd`, 0), **Flatscreen Ironsight Up** (`vr_flat_ads_up`, 0), **Flatscreen Ironsight Out**
-(`vr_flat_ads_out`, 0) and **Flatscreen Ironsight With The Crosshair** (`vr_flat_ads_near`, 24): the same four numbers for the sight picture, so the
-ironsight pose and the hip-fire pose are independent. They are written in the same view's frame and the same side
-convention as the gun's, except that this set is called *up* and counts *up* as positive. They are put on the pose the mode
-just made â€” before the muzzle is measured and the weapon brought onto the crosshair's ray â€” over `vr_flat_aim_time`'s
-seconds, and with them at 0 the defaults reproduce the muzzle-on-the-ray numbers exactly. `vr_flat_ads_near` is the keep
-distance the sight uses, mixed out of `vr_flat_gun_near` by how far the sight's travel has gone.
+**The ironsight's place** -- **Ironsight Forward** (`vr_flat_ads_fwd`), **Ironsight Up** (`vr_flat_ads_up`), **Ironsight Out**
+(`vr_flat_ads_out`), all 0 on every gun, and each weapon's own `flat_ads_fwd`, `flat_ads_up`, `flat_ads_out` on top
+(`quakevr/data/weapons.txt`, Weapon Offsets > Flatscreen Ironsight; every gun ships at forward 4, up -3, from images of the
+shotgun, the nail gun, the rocket launcher and the nail pistol: the muzzle stands just under the crosshair, the sights along
+its top are in view, the crosshair is clear). This is the muzzle's final place: on the crosshair's ray, then up and out off it,
+and forward along it, over `vr_flat_aim_time`. The gun still points at what the crosshair is on, from there. Sights with a muzzle
+exactly on the ray look along the barrel from behind the receiver, which fills the middle of the screen. **Flatscreen Ironsight
+With The Crosshair** (`vr_flat_ads_near`, 24) is the keep distance the sight uses, mixed out of `vr_flat_gun_near` by how far the
+sight's travel has gone.
 
-They go on *before* the centring, and that ordering is the whole story of these four. `centreOnCrosshair` measures the
-muzzle and translates the held hand â€” and the grip the free hand holds and that hand with it â€” across the crosshair's ray
-until the muzzle stands on it, and `aimRotAtCrosshair` has already made the shot leave along that ray whatever the hand
-sits at: the two together are what puts a shot on the crosshair. Offsets applied *after* it would carry an already-centred
-weapon aside, and the shot would leave parallel to the crosshair's line from a muzzle standing beside it. Measured that way
-first, `vr_flat_ads_fwd 6 vr_flat_ads_up 3 vr_flat_ads_out -4` left the muzzle **4.81** units to one side of the ray (and
-`vr_flat_ads_out 20` alone, **20.05**) and a knight standing 24 units down the crosshair took **none** of the shot, while
-the same sight with the offsets at zero hit it for 36. Applied before it, the centring answers what the offsets did to the
-muzzle: the same `6 3 -4` leaves the muzzle 1.40 units off the ray before the bringing and **0.27** after it, `vr_flat_ads_out
-20` leaves it 25.26 off before and **0.27** after, and each of those shots hit the knight on the crosshair for 36. So at the
-settled sight the parts of `vr_flat_ads_up` / `vr_flat_ads_out` that lie across the ray are answered by the centring â€” they
-move the weapon on the way and leave where it ends up to the part that lies along it, `vr_flat_ads_fwd`, how far out from
-him the sight picture sits. That is stated here rather than tuned away: with this mode's rule that the shot stays on the
-crosshair, a settled sight cannot both stand several units to the side of the crosshair's ray and hit what the crosshair
-points at.
+**His eye on the screen** -- **View Forward** (`vr_flat_cam_fwd`, 0), **View Up** (`vr_flat_cam_up`, 0), **View Sideways**
+(`vr_flat_cam_side`, 0), -20..20 units: where the flatscreen camera stands in the view's own frame of reference --
+`+vr_flat_cam_fwd` along the look, `+vr_flat_cam_up` higher, `+vr_flat_cam_side` to **the view's own right**. The nudges go where
+the mode already moves the view (`VR_FlatViewDrop`, at the end of `V_CalcRefdef` after Quake's bob, roll, kick and punchangle,
+added on top of the crouch drop), and they move the camera, and the hands with it: his collision box and his server origin
+stay where they are (origin 88.0 standing, 88.0 with Left Ctrl held; the drawn eye 28.0 above it with `vr_flat_cam_up 6`), while
+the pose's hands carry the nudge, so the muzzle the shots go from is the one he sees, and it stands where the crosshair's ray
+is read (`flatplay::crosshairRay`: the pose's head, its crouch in it, plus the nudge, along the aim; not `r_refdef`, a frame
+behind the mouse at the move's pose). A nudged eye used to leave the shot parallel to a crosshair standing beside it: 36 units of
+damage to a knight without the nudges, none with. Now the shot goes through the point: `flatpose_test.sh` section f.
 
-**His eye on the screen** â€” **Flatscreen View Forward** (`vr_flat_cam_fwd`, 0), **Flatscreen View Up** (`vr_flat_cam_up`, 0), **Flatscreen View Sideways**
-(`vr_flat_cam_side`, 0), -20..20 units: where the flatscreen camera stands in the view's own frame of reference â€”
-`+vr_flat_cam_fwd` along the look, the way he is looking, `+vr_flat_cam_up` higher, `+vr_flat_cam_side` to **the view's own
-right** (a look due east with no pitch is the case where the view's frame is the world's: there the three read as `+x`,
-`+y` and `+z` in order, and the run's `flatcam: nudge 12.00 4.00 6.00` line â€” east, north, up â€” is those three in world
-order, 12 forward, 4 to the view's right, 6 up). The nudges go
-where the mode already moves the view (`VR_FlatViewDrop`, at the end of `V_CalcRefdef` after Quake's bob, roll, kick and
-punchangle, added on top of the crouch drop), and they move the camera only: his collision box and his server origin stay
-where they are, measured with the game's own readings â€” origin 88.0 standing, 88.0 with Left Ctrl held, 88.0 again when it
-is let go, his eye 47.0 units above the bottom of his box standing and 29.0 held, while the drawn eye stood **28.0** above
-his origin with `vr_flat_cam_up 6` and 10.0 with the crouch held on top of it.
+`Misc/quakevr/flatpose_test.sh` is the measurement suite: the defaults, a gun pose, the sight's places at a knight on the
+crosshair, the eye's nudges, the nudges held with the crouch keys, and section f: the server's own shot (`vr_debug_shots`' line)
+against the crosshair's point (`flataim:`), for a moved sight, a nudged eye and hipfire, at a knight 64 and 300 away and the
+far wall of `vrtesthall` (at most 0.09 units off the line, and every pellet count above 0 at the knights), and the control:
+the moved sight with `vr_flat_aim_point 0` passes 26.4 units off the point and misses him.
 
-Every aiming measure reads the same camera the screen is drawn from, which is the point of putting the nudges there:
-`flatplay::crosshairRay` hands `centreOnCrosshair` â€” and so `muzzleNow` and the sight's turn â€” the drawn view's own origin
-and direction (`r_refdef.vieworg`, `r_refdef.viewangles`) whenever the camera is his own. Measured with the three at 12 / 6
-/ 4: the muzzle stands **10.09** units off the nudged camera's crosshair ray before the bringing and **0.27** after it, so
-the sight closes onto the ray the crosshair is drawn on and not onto the head the camera was moved off of. What a shot does
-to a test knight is a separate measurement, and the honest version of it is this: the knight 24 units down the line the
-game aims along takes **36** units of damage from the shot with the nudges off, and none with them on â€” tried at
-`vr_test_spawn_dist` 24, 40 and 64, and he was unhurt in all three. The spawner is the reason, not the aim: that knight is
-stood on **the player's** axis, from the server origin along the yaw the game sees, while the nudges move the crosshair's
-ray 12 forward, 6 up and 4 to the view's right off that same axis â€” at 24 units `vr_flat_cam_fwd 12` also carries the
-muzzle inside the monster's own box (a knight's box is 32 units across, so it runs from about 8 to 40 units ahead of him),
-and 6 up and 4 to the side move the line away from him. The suites therefore gate on the shot fired **before** the nudges
-and print the one fired after them rather than pretend it hit; whether the drawn eye should also move where the server's
-own shot starts is a question this increment does not answer.
+**The off hand's axe in the suite's order.** `flatplay_test`'s off-hand axe case read 0 damage when it stood third in a run, and
+was put down to two corpses at one spot. Measured on its own run on `origin/next` and on this: 0 in every order, alone included,
+with the blow landing (`melee swish: blow, hand 0, 1.74`) in all of them. The difference is the read before the blow: with
+`vr_test_hurt 1` three frames before it, 0 (75 -> 73, then 73 -> 72); with no read before it, the same blow lands
+(`melee event: slash, hand 0 ... monster_knight`, 40.5 dealt). That read's own 1 unit of damage makes him react, and the blow
+passes where he stood (that it is his flinch is read from that, not measured frame by frame). So the case has its own run, its
+knight left alone until the blow, and one read after it against the 75 he starts with.
 
-`Misc/quakevr/flatpose_test.sh` is the measurement suite for all seventeen (`bash Misc/quakevr/flatpose_test.sh <agent>`:
-five runs â€” the defaults, a gun pose, the sight's offsets at a knight on the crosshair, the eye's nudges at a knight on the
-crosshair, and the nudges held with the crouch keys); `flatplay_test.sh` sections 10 to 13 gate the same ground more
-briefly. Over those runs' 230 `flatmove:` records, the worst angle between the shot leaving the muzzle and the crosshair's
-line is **0.0000** of a degree; the harnesses gate it at **0.1** of a degree, a tolerance the measurement never came near.
-
-
-`vr_flat_pitch_up` (85) and `vr_flat_pitch_down` (85; console only, no menu row): the flatscreen view's own window on the
+`vr_flat_pitch_up` (85) and `vr_flat_pitch_down` (85; saved settings, Movement > Locomotion > Desktop Screen Play): the flatscreen view's own window on the
 pitch, in degrees from straight ahead, and both written as a plain positive number of degrees (0..90 â€” 0: he cannot look
 that way at all, 90: as far as the plain game let him). Quake's pitch counts *down* as positive, so the view he is held
 to is between `-vr_flat_pitch_up` and `+vr_flat_pitch_down`: at the defaults that is -85 to +85, and the last five degrees
@@ -302,19 +290,14 @@ at 90 they stop at -90 and +90. `Misc/quakevr/flatkeys_test.sh` section 6.
 
 ## Tuning
 
-`vr_flat_reach` (1), `vr_flat_sway` (1), `vr_flat_bob` (1), `vr_flat_turnlag` (1), `vr_flat_turnlag_speed` (1),
-`vr_flat_arm_hold` (1), `vr_flat_pose_pitch` (65), `vr_flat_aim_fov` (12) and `vr_flat_aim_time` (0.25) â€” all not saved,
-all in the Debug menu, and `vr_flat_pitch_up` (85) with `vr_flat_pitch_down` (85) not saved too, at the console only.
-`vr_flat_arm_hold` is how
-far a drawn hand may sit from its arm's shoulder, times what that arm can hold a hand at (`armSpan`: the model's bones
-with `vr_body_arm_length` and `vr_body_arm_stretch`, the shoulder's own `vr_body_shoulder_reach`; 0: no limit, the hands
-where they are placed). `vr_flat_pose_pitch` is how far the hands follow the view up and down, in degrees (90: all the
-way, as before). `vr_flat_crouch_time` (0.25), `vr_flat_crouch_drop` (18) and `vr_flat_crouch_fire` (0), also not saved,
-are at the console, and `vr_flatplay_status` prints them with what the keys did â€” including which bind Left Ctrl holds. The
-seventeen numbers of the pose and of the eye â€” `vr_flat_gun_fwd`, `vr_flat_gun_down`, `vr_flat_gun_out` and
-`vr_flat_gun_near`; `vr_flat_empty_fwd`, `vr_flat_empty_down`, `vr_flat_empty_out`; `vr_flat_support_fwd`,
-`vr_flat_support_down`, `vr_flat_support_out`; `vr_flat_ads_fwd`, `vr_flat_ads_up`, `vr_flat_ads_out` and
-`vr_flat_ads_near`; `vr_flat_cam_fwd`, `vr_flat_cam_up`, `vr_flat_cam_side` â€” are plain (not saved) too, and rows on
-**Debug > Reports > Flatscreen Play**, and `vr_flatplay_status` prints what they add up to. What is left of the pose's own
+Tuning constants (Debug > Tunables > Flatscreen, `tune`, `tunables.cfg`): `vr_flat_reach` (1), `vr_flat_pose_pitch` (65),
+`vr_flat_arm_hold` (1), `vr_flat_gun_*`, `vr_flat_empty_*`, `vr_flat_support_*`; `vr_flat_ads_*`, `vr_flat_aim_fov` (12),
+`vr_flat_aim_time` (0.25), `vr_flat_aim_point` (1); `vr_flat_cam_*`; `vr_flat_crouch_time` (0.25), `vr_flat_crouch_drop` (18);
+`vr_flat_sway`, `vr_flat_bob`, `vr_flat_turnlag`, `vr_flat_turnlag_speed` (1). A release build has them as constants. Saved
+settings (Movement > Locomotion > Desktop Screen Play): `vr_flat_crouch_fire` (0), `vr_flat_pitch_up`, `vr_flat_pitch_down` (85).
+`vr_flat_arm_hold` is how far a drawn hand may sit from its arm's shoulder, times what that arm can hold it at (`armSpan`: the
+model's bones with `vr_body_arm_length` and `vr_body_arm_stretch`, the shoulder's own `vr_body_shoulder_reach`; 0: no limit).
+`vr_flat_pose_pitch` is how far the hands follow the view up and down, in degrees (90: all the way, as before).
+What is left of the pose's own
 numbers (how far a punch throws the fist, how long it takes, how the arm's hold is measured) are named constants at the top
 of `vr_flatplay.cpp`, and the sight's (`vr_flatsight.cpp`).

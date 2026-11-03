@@ -1279,6 +1279,9 @@ cl_movespeedkey|1|Locomotion|Running Mult.|Advanced VR Options > Movement > Loco
 vr_crouch_speed|1|Locomotion|Slower When Crouched|Advanced VR Options > Movement > Locomotion > Slower When Crouched
 vr_crouch_speed_scale|1|Locomotion|Crouched Speed|Advanced VR Options > Movement > Locomotion > Crouched Speed
 vr_slope_walk|1|Locomotion|Walk Up Slopes Slowly|Advanced VR Options > Movement > Locomotion > Walk Up Slopes Slowly
+vr_flat_crouch_fire|1|Locomotion|Left Ctrl Also Fires|Advanced VR Options > Movement > Locomotion > Left Ctrl Also Fires
+vr_flat_pitch_up|1|Locomotion|Look Up Limit|Advanced VR Options > Movement > Locomotion > Look Up Limit
+vr_flat_pitch_down|1|Locomotion|Look Down Limit|Advanced VR Options > Movement > Locomotion > Look Down Limit
 vr_closequarters|1|Locomotion|Close-Quarters Slowdown|Advanced VR Options > Movement > Locomotion > Close-Quarters Slowdown
 vr_closequarters_live|1|Locomotion|Only Live Foes|Advanced VR Options > Movement > Locomotion > Only Live Foes
 vr_closequarters_start|1|Locomotion|Start Radius|Advanced VR Options > Movement > Locomotion > Start Radius
@@ -3803,6 +3806,35 @@ vr_model_light_slime|2|Tunables|Slime Light|Advanced VR Options > Debug > Tunabl
 vr_model_light_slime_range|2|Tunables|Slime Light Range|Advanced VR Options > Debug > Tunables > Slime Light Range
 vr_model_light_teleport|2|Tunables|Teleporter Light|Advanced VR Options > Debug > Tunables > Teleporter Light
 vr_model_light_teleport_range|2|Tunables|Teleporter Light Range|Advanced VR Options > Debug > Tunables > Teleporter Light Range
+vr_flat_gun_fwd|2|Tunables|Gun Forward|Advanced VR Options > Debug > Tunables > Gun Forward
+vr_flat_gun_down|2|Tunables|Gun Down|Advanced VR Options > Debug > Tunables > Gun Down
+vr_flat_gun_out|2|Tunables|Gun Out|Advanced VR Options > Debug > Tunables > Gun Out
+vr_flat_gun_near|2|Tunables|Gun With The Crosshair|Advanced VR Options > Debug > Tunables > Gun With The Crosshair
+vr_flat_reach|2|Tunables|Hand Reach|Advanced VR Options > Debug > Tunables > Hand Reach
+vr_flat_pose_pitch|2|Tunables|Hand Pitch|Advanced VR Options > Debug > Tunables > Hand Pitch
+vr_flat_arm_hold|2|Tunables|Arm Hold|Advanced VR Options > Debug > Tunables > Arm Hold
+vr_flat_empty_fwd|2|Tunables|Empty Hand Forward|Advanced VR Options > Debug > Tunables > Empty Hand Forward
+vr_flat_empty_down|2|Tunables|Empty Hand Down|Advanced VR Options > Debug > Tunables > Empty Hand Down
+vr_flat_empty_out|2|Tunables|Empty Hand Out|Advanced VR Options > Debug > Tunables > Empty Hand Out
+vr_flat_support_fwd|2|Tunables|Both Hands Forward|Advanced VR Options > Debug > Tunables > Both Hands Forward
+vr_flat_support_down|2|Tunables|Both Hands Down|Advanced VR Options > Debug > Tunables > Both Hands Down
+vr_flat_support_out|2|Tunables|Both Hands Out|Advanced VR Options > Debug > Tunables > Both Hands Out
+vr_flat_ads_fwd|2|Tunables|Ironsight Forward|Advanced VR Options > Debug > Tunables > Ironsight Forward
+vr_flat_ads_up|2|Tunables|Ironsight Up|Advanced VR Options > Debug > Tunables > Ironsight Up
+vr_flat_ads_out|2|Tunables|Ironsight Out|Advanced VR Options > Debug > Tunables > Ironsight Out
+vr_flat_ads_near|2|Tunables|Ironsight With The Crosshair|Advanced VR Options > Debug > Tunables > Ironsight With The Crosshair
+vr_flat_aim_fov|2|Tunables|Ironsight Field of View|Advanced VR Options > Debug > Tunables > Ironsight Field of View
+vr_flat_aim_time|2|Tunables|Ironsight Time|Advanced VR Options > Debug > Tunables > Ironsight Time
+vr_flat_aim_point|2|Tunables|Aim Through the Crosshair|Advanced VR Options > Debug > Tunables > Aim Through the Crosshair
+vr_flat_cam_fwd|2|Tunables|View Forward|Advanced VR Options > Debug > Tunables > View Forward
+vr_flat_cam_up|2|Tunables|View Up|Advanced VR Options > Debug > Tunables > View Up
+vr_flat_cam_side|2|Tunables|View Sideways|Advanced VR Options > Debug > Tunables > View Sideways
+vr_flat_crouch_time|2|Tunables|Crouch Time|Advanced VR Options > Debug > Tunables > Crouch Time
+vr_flat_crouch_drop|2|Tunables|Crouch Drop|Advanced VR Options > Debug > Tunables > Crouch Drop
+vr_flat_sway|2|Tunables|Move Sway|Advanced VR Options > Debug > Tunables > Move Sway
+vr_flat_bob|2|Tunables|Walk Bob|Advanced VR Options > Debug > Tunables > Walk Bob
+vr_flat_turnlag|2|Tunables|Turn Lag|Advanced VR Options > Debug > Tunables > Turn Lag
+vr_flat_turnlag_speed|2|Tunables|Turn Lag Recovery|Advanced VR Options > Debug > Tunables > Turn Lag Recovery
 |2|Tunables|Reset This Page|Advanced VR Options > Debug > Tunables > Reset This Page
 @page|2|Debug - Cheats and Recording||Advanced VR Options > Debug > Cheats and Recording
 |2|Debug - Cheats and Recording|God Mode|Advanced VR Options > Debug > Cheats and Recording > God Mode
@@ -4136,34 +4168,6 @@ vr_xr_skip_incompatible_layers|2|Debug - Profiling and Memory|Skip Incompatible 
 @page|2|Debug - Reports||Advanced VR Options > Debug > Reports
 |2|Debug - Reports|Flatscreen Play Status|Advanced VR Options > Debug > Reports > Flatscreen Play Status
 vr_flatplay_debug|2|Debug - Reports|Flatscreen Play Print|Advanced VR Options > Debug > Reports > Flatscreen Play Print
-vr_flat_reach|2|Debug - Reports|Flatscreen Hand Reach|Advanced VR Options > Debug > Reports > Flatscreen Hand Reach
-vr_flat_sway|2|Debug - Reports|Flatscreen Move Sway|Advanced VR Options > Debug > Reports > Flatscreen Move Sway
-vr_flat_bob|2|Debug - Reports|Flatscreen Walk Bob|Advanced VR Options > Debug > Reports > Flatscreen Walk Bob
-vr_flat_turnlag|2|Debug - Reports|Flatscreen Turn Lag|Advanced VR Options > Debug > Reports > Flatscreen Turn Lag
-vr_flat_turnlag_speed|2|Debug - Reports|Flatscreen Turn Lag Recovery|Advanced VR Options > Debug > Reports > Flatscreen Turn Lag Recovery
-vr_flat_arm_hold|2|Debug - Reports|Flatscreen Arm Hold|Advanced VR Options > Debug > Reports > Flatscreen Arm Hold
-vr_flat_pose_pitch|2|Debug - Reports|Flatscreen Hand Pitch|Advanced VR Options > Debug > Reports > Flatscreen Hand Pitch
-vr_flat_aim_fov|2|Debug - Reports|Flatscreen Ironsight Field of View|Advanced VR Options > Debug > Reports > Flatscreen Ironsight Field of View
-vr_flat_aim_time|2|Debug - Reports|Flatscreen Ironsight Time|Advanced VR Options > Debug > Reports > Flatscreen Ironsight Time
-vr_flat_crouch_time|2|Debug - Reports|Flatscreen Crouch Time|Advanced VR Options > Debug > Reports > Flatscreen Crouch Time
-vr_flat_crouch_drop|2|Debug - Reports|Flatscreen Crouch Drop|Advanced VR Options > Debug > Reports > Flatscreen Crouch Drop
-vr_flat_gun_fwd|2|Debug - Reports|Flatscreen Gun Forward|Advanced VR Options > Debug > Reports > Flatscreen Gun Forward
-vr_flat_gun_down|2|Debug - Reports|Flatscreen Gun Down|Advanced VR Options > Debug > Reports > Flatscreen Gun Down
-vr_flat_gun_out|2|Debug - Reports|Flatscreen Gun Out|Advanced VR Options > Debug > Reports > Flatscreen Gun Out
-vr_flat_gun_near|2|Debug - Reports|Flatscreen Gun With The Crosshair|Advanced VR Options > Debug > Reports > Flatscreen Gun With The Crosshair
-vr_flat_ads_fwd|2|Debug - Reports|Flatscreen Ironsight Forward|Advanced VR Options > Debug > Reports > Flatscreen Ironsight Forward
-vr_flat_ads_up|2|Debug - Reports|Flatscreen Ironsight Up|Advanced VR Options > Debug > Reports > Flatscreen Ironsight Up
-vr_flat_ads_out|2|Debug - Reports|Flatscreen Ironsight Out|Advanced VR Options > Debug > Reports > Flatscreen Ironsight Out
-vr_flat_ads_near|2|Debug - Reports|Flatscreen Ironsight With The Crosshair|Advanced VR Options > Debug > Reports > Flatscreen Ironsight With The Crosshair
-vr_flat_empty_fwd|2|Debug - Reports|Flatscreen Empty Hand Forward|Advanced VR Options > Debug > Reports > Flatscreen Empty Hand Forward
-vr_flat_empty_down|2|Debug - Reports|Flatscreen Empty Hand Down|Advanced VR Options > Debug > Reports > Flatscreen Empty Hand Down
-vr_flat_empty_out|2|Debug - Reports|Flatscreen Empty Hand Out|Advanced VR Options > Debug > Reports > Flatscreen Empty Hand Out
-vr_flat_support_fwd|2|Debug - Reports|Flatscreen Both Hands Forward|Advanced VR Options > Debug > Reports > Flatscreen Both Hands Forward
-vr_flat_support_down|2|Debug - Reports|Flatscreen Both Hands Down|Advanced VR Options > Debug > Reports > Flatscreen Both Hands Down
-vr_flat_support_out|2|Debug - Reports|Flatscreen Both Hands Out|Advanced VR Options > Debug > Reports > Flatscreen Both Hands Out
-vr_flat_cam_fwd|2|Debug - Reports|Flatscreen View Forward|Advanced VR Options > Debug > Reports > Flatscreen View Forward
-vr_flat_cam_up|2|Debug - Reports|Flatscreen View Up|Advanced VR Options > Debug > Reports > Flatscreen View Up
-vr_flat_cam_side|2|Debug - Reports|Flatscreen View Sideways|Advanced VR Options > Debug > Reports > Flatscreen View Sideways
 |2|Debug - Reports|Flatscreen Punch|Advanced VR Options > Debug > Reports > Flatscreen Punch
 |2|Debug - Reports|Official Campaign Status|Advanced VR Options > Debug > Reports > Official Campaign Status
 |2|Debug - Reports|Dopa Finale Text|Advanced VR Options > Debug > Reports > Dopa Finale Text

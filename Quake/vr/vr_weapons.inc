@@ -492,6 +492,11 @@ QVR_WEAPON_KEY(ReloadHoldCurlIndex, "reload_hold_curl_index")
 QVR_WEAPON_KEY(ReloadHoldCurlMiddle, "reload_hold_curl_middle")
 QVR_WEAPON_KEY(ReloadHoldCurlRing, "reload_hold_curl_ring")
 QVR_WEAPON_KEY(ReloadHoldCurlPinky, "reload_hold_curl_pinky")
+// Flatscreen play (vr_flatsight.cpp): this weapon's ironsight place, added to vr_flat_ads_fwd / _up / _out (units in the
+// view's frame: forward, up, out at the holding hand's side): what brings its sights to the crosshair.
+QVR_WEAPON_KEY(FlatAdsFwd, "flat_ads_fwd")
+QVR_WEAPON_KEY(FlatAdsUp, "flat_ads_up")
+QVR_WEAPON_KEY(FlatAdsOut, "flat_ads_out")
 #endif
 
 

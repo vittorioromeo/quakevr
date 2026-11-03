@@ -28,4 +28,4 @@ runcase crouched 0.9 "echo" 240 0
 runcase crouched_scale1 0.9 "vr_crouch_speed_scale 1" 252 0
 runcase standing 1.69 "echo" 320 1
 runcase off_crouched 0.9 "vr_crouch_speed 0" 320 1
-echo "crouchspeed: done, $FAILS failed"
+echo "crouchspeed: $((4 - FAILS)) passed, $FAILS failed"

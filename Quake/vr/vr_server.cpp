@@ -775,7 +775,7 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
         clientBits.resize(clientNum + 1);
     }
     ClientBits& bits = clientBits[clientNum];
-    bits.received = move.vrBits0 & ~protocol::moveFlatplayBit;
+    bits.received = move.vrBits0 & ~(protocol::moveFlatplayBit | protocol::moveFlatCrouchBit);
     // This player plays flatscreen (-flatscreenmode, his own client's: vr_flatplay.cpp): the QC's per-player gate
     // (VR_FlatPlay: no reloading, E's grab, 1 and 2 cycling; the hands' touch below).
     setFieldFloat(ent, f.vr_flatscreen, (move.vrBits0 & protocol::moveFlatplayBit) ? 1.f : 0.f);
@@ -793,11 +793,12 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
                         ((move.buttons & QVR_BUTTON_MAINHANDPRIMARY) ? (1 << 22) : 0);
     // Bit 23 (QVR_VRBITS0_CROUCHED): the player has his crouched box (vr_crouch_hull: vr_hull.cpp). Flatscreen play
     // (his own client: vr_flatplay.cpp) crouches with a key, not with a head, and his eyes stand under the tallest
-    // crouched box's top either way -- so his eased crouch (vr_flat_crouch_time: still easing up for a quarter second
-    // after Left Ctrl is let go, 0 standing) is what vr_hull.cpp is asked with. A headset player is asked as before,
-    // with his own head deciding (true).
+    // crouched box's top either way -- so his client's word for it (protocol::moveFlatCrouchBit: his eased crouch, still
+    // easing up for vr_flat_crouch_time after Left Ctrl is let go) is what vr_hull.cpp is asked with. A headset player is
+    // asked as before, with his own head deciding (true).
     const bool flat = (move.vrBits0 & protocol::moveFlatplayBit) != 0;
-    hull::updateCrouch(ent, move.headPos, !flat || flatplay::crouchRatio() > 0.f);
+    const bool flatCrouch = flat && (move.vrBits0 & protocol::moveFlatCrouchBit) != 0;
+    hull::updateCrouch(ent, move.headPos, !flat || flatCrouch);
     const int crouched = hull::isCrouched(ent) ? (1 << 23) : 0;
     setFieldFloat(ent, f.vrbits0, static_cast<float>(
         withPreviousBits(bits.received, bits.previousFrame) | tracked | busy | secondary | primary | crouched));
@@ -806,10 +807,11 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
     // or flatscreen: 1. QC's shoulder charge asks for him standing tall (vr_kdtrig_tackle_stand).
     const float standing = units::eyeHeight() * units::metresToUnits();
     // Flatscreen: his eyes stand at Quake's viewheight over his box, not at the height the calibration gives a headset
-    // player's head, so the share would read under 1 whatever he does -- it stays 1, and only the crouch he holds (Left
-    // Ctrl, vr_flat_crouch_drop; vr_flatplay.cpp, vr_hands.cpp lowers his head with it) lowers it, by that much of his
-    // standing height. A headset player takes the line below exactly as before (flatDrop is 0 for him).
-    const float flatDrop = flat ? za::max(0.f, -vr_floor_offset.value - (move.headPos.z - ent->v.origin[2])) : 0.f;
+    // player's head, so the share would read under 1 whatever he does -- it stays 1, and only the crouch his client says
+    // he holds (Left Ctrl, vr_flat_crouch_drop; vr_flatplay.cpp, vr_hands.cpp lowers his head with it) lowers it, by how far
+    // his head is under his view height, of his standing height: not a step's easing, nor vr_floor_offset. A headset
+    // player takes the line below exactly as before (flatDrop is 0 for him).
+    const float flatDrop = flatCrouch ? za::max(0.f, ent->v.view_ofs[2] - (move.headPos.z - ent->v.origin[2])) : 0.f;
     const bool upright = seated::active() || (flat && flatDrop <= 0.f) || move.headPos == glm::vec3{0.f} ||
                          standing <= 0.f;
     setFieldFloat(ent, f.vr_stand,
