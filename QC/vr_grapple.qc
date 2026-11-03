@@ -1276,7 +1276,7 @@ void() GrappleAnchor =
             return;
         }
 
-        VR_SoundVaried(self, CHAN_WEAPON, "player/axhit1.wav", 1, ATTN_NORM);
+        VR_SoundVaried(self, CHAN_WEAPON, "vr/blade_flesh_in.wav", 1, ATTN_NORM);
         if(T_Damage(other, self, self.owner, 10))
         {
             VR_QuadSound(self.owner, "the hook bit");

@@ -143,16 +143,8 @@ void(float xKind, float xSpeed) VR_AxeStick_Stuck =
     }
     if(VR_AxeStick_InMonster(self))
     {
-        // (Under vr_embed not id's axhit1: there's a man's grunt in it (vr_voice.cpp), and every stab and swing that stays in played it. A
-        // hand's blow has made its own sound.)
-        if(!cvar_hget(cvarh_vr_embed))
-        {
-            VR_SoundVaried(self, CHAN_AUTO, "player/axhit1.wav", 1, ATTN_NORM);
-        }
-        else if(!vr_embed_stabbing)
-        {
-            VR_SoundVaried(self, CHAN_AUTO, "fisthit.wav", 1, ATTN_NORM);
-        }
+        // (Not id's axhit1: there's a man's grunt in it, vr_voice.cpp.)
+        VR_SoundVaried(self, CHAN_AUTO, "vr/blade_flesh_in.wav", 1, ATTN_NORM);
         SpawnBlood(self.vr_stick_at, self.vr_stick_dir * -60, 12);
     }
     else
@@ -199,7 +191,7 @@ void(entity e) VR_AxeStick_PulledOut =
     if(VR_AxeStick_InMonster(e))
     {
         SpawnBlood(e.vr_stick_at, e.vr_stick_dir * -120, 20);
-        VR_SoundVaried(e, CHAN_AUTO, cvar_hget(cvarh_vr_embed) ? "fisthit.wav" : "player/axhit1.wav", 0.5, ATTN_NORM);
+        VR_SoundVaried(e, CHAN_AUTO, "vr/blade_flesh_out.wav", 1, ATTN_NORM);
     }
     else
     {
