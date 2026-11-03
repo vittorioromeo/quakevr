@@ -345,6 +345,14 @@ void() VR_AGIT_Frame =
         VR_AGIT_Ledge();
         return;
     }
+    if(mapname != "vrfiringrange")
+    {
+        // (Its wall cases want a flat wall in sight of the start, which only that map has: elsewhere they read impacts of
+        // 0.0 m/s and fail, saying nothing about the game. Run elsewhere, it says so and ends with no verdict either way.)
+        VR_AGT_Print(sprintf("impact: NOT RUN on %s: map vrfiringrange (its ledges: map vrclimb)", mapname));
+        cvar_set("vr_agrunt_test", "0");
+        return;
+    }
     entity p = vr_agt_player;
     entity g = vr_agt_grunt;
     float u = VRMetersToUnits();

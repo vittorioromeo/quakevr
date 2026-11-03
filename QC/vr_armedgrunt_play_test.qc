@@ -202,6 +202,7 @@ entity(float wid, vector at, float stay) VR_AGPT_Weapon =
     VR_AGT_Remove(src);
     setorigin(w, at);
     w.velocity = '0 0 0';
+    w.vr_ag_knock_at = 0; // (a weapon of the test's, not one knocked out of a hand just now: VR_AG_DropHeld's stamp keeps those off VR_AG_WeaponStruck)
     if(stay)
     {
         w.movetype = MOVETYPE_NONE;
@@ -240,6 +241,7 @@ void() VR_AGPT_TugSway =
     {
         if(vr_agpt_sw_ph == 0)
         {
+            VR_AGT_NeedsDrawn();
             vr_agpt_sw_keep_s = cvar_hget(cvarh_vr_agrunt_tug_sway);
             vr_agpt_sw_keep_f = cvar_hget(cvarh_vr_agrunt_tug_flail);
             vr_agpt_h0b = cvar_hget(cvarh_vr_agrunt_tug_break_impulse);
@@ -1247,6 +1249,8 @@ float vr_agpt_thlagl;
 float vr_agpt_thpalm;  // ... the drawn palm's most off the drawn weapon's surface (cm, either way: vr_agrunt_tug_hand_palm)
 float vr_agpt_thidx;   // ... the drawn index finger's least curl (the grip pressed, the trigger not: vr_agrunt_tug_hand_index)
 float vr_agpt_thchan;  // ... the drawn grip channel's most off the drawn weapon's surface (cm, either way: vr_agrunt_tug_hand_channel)
+float vr_agpt_thsway;  // ... vr_agrunt_tug_sway and _flail as they were
+float vr_agpt_thflail;
 
 void() VR_AGPT_TugHand =
 {
@@ -1268,6 +1272,12 @@ void() VR_AGPT_TugHand =
         }
         vr_agpt_h0a = cvar_hget(cvarh_vr_agrunt_tug_break_force);
         vr_agpt_h0b = cvar_hget(cvarh_vr_agrunt_tug_break_impulse);
+        // (Its body still for "snug": how the hand is placed on a still weapon. His sway and flail of 2026-11-01 move the
+        // weapon under a rest eased over 0.06 s: at most 1.32 cm at the sway's peak, 0.24 with them off.)
+        vr_agpt_thsway = cvar_hget(cvarh_vr_agrunt_tug_sway);
+        vr_agpt_thflail = cvar_hget(cvarh_vr_agrunt_tug_flail);
+        cvar_set("vr_agrunt_tug_sway", "0");
+        cvar_set("vr_agrunt_tug_flail", "0");
         if(cvar_hget(cvarh_scratch1) > 0)
         {
             cvar_set("vr_agrunt_tug_break_force", "100000");
@@ -1537,6 +1547,8 @@ void() VR_AGPT_TugHand =
     localcmd("vr_mock_fingers main 0 0\n");
     cvar_set("vr_agrunt_tug_break_force", ftos(vr_agpt_h0a));
     cvar_set("vr_agrunt_tug_break_impulse", ftos(vr_agpt_h0b));
+    cvar_set("vr_agrunt_tug_sway", ftos(vr_agpt_thsway));
+    cvar_set("vr_agrunt_tug_flail", ftos(vr_agpt_thflail));
     cvar_set("vr_agrunt_test", "0");
 };
 
@@ -1684,7 +1696,8 @@ void() VR_AGPT_Grab =
 
 // Test 37: a tug-of-war, not a yank. The physical tug with the hold's pull replaced by a steady one (vr_ag_tug_test_force):
 // the break force for 0.3 s (case 0): it holds on; for 0.6 s (case 1): torn out at vr_agrunt_tug_pull_time; 2.6 x the
-// break force (case 2): torn out at once (a yank, vr_agrunt_tug_snap); 300 N (case 3): pulled out by the impulse. Each
+// break force (case 2): torn out at once (a yank, vr_agrunt_tug_snap); 300 N (case 3): under the break force, so pulled
+// out by the impulse, at vr_agrunt_tug_break_impulse / 300 s (his 200 N s of 2026-11-03: 0.67 s; 350 before: 1.17 s). Each
 // win: up again (its stumble, vr_agrunt_tug_won_stumble) without going down.
 string(float i) VR_AGPT_PullCase =
 {
@@ -1746,7 +1759,8 @@ void() VR_AGPT_Pull =
         float won = !g.vr_ag_prop && p.weapon == WID_SHOTGUN;
         float ok = vr_agpt_case == 0 ? !won && g.vr_ag_tug_pl == p :
                    vr_agpt_case == 1 ? won && took >= cvar_hget(cvarh_vr_agrunt_tug_pull_time) - 0.03 :
-                   vr_agpt_case == 2 ? won && took < 0.05 : won && took > 1;
+                   vr_agpt_case == 2 ? won && took < 0.05 :
+                   won && fabs(took - cvar_hget(cvarh_vr_agrunt_tug_break_impulse) / 300) < 0.05;
         VR_AGT_Check(sprintf("pull %s: %s after %.2f s (%s), pulled %.2f s:", VR_AGPT_PullCase(vr_agpt_case),
             won ? "torn out" : "it holds on", took, vr_ag_tug_why, g.vr_ag_tug_held), ok);
         if(!won)

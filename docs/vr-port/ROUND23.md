@@ -7322,6 +7322,31 @@ Seeded runs repeated; "identical" compares the PASS/FAIL lines' hash. Rules as r
 
 **Question for him (test 78):** his "horizontal" swing (kind 2) is a diagonal cut where it meets you: blade (0.65, 0.55, -0.52), way (-0.72, 0.24, -0.65), so a sword held level is 38 degrees off square, gap 3.6: inside `vr_dirparry_angle` 40 and `vr_dirparry_contact` 6, parried. The test wants it to land and its notes say a 16-unit gap, from older keys; its case 10 (contact just past that gap) no longer shows anything while the gap is under 6. Options: (1) accept it as a diagonal cut, as he did for the overhead on 2026-10-31, and the test expects a parry; (2) a truer horizontal in `VR_AGP_SwingKeys`; (3) a tighter angle (about 30, which also stops the level guard against the overhead at 45). Recommendation: (1). agrunt_78 stays on test_flaky.txt until answered.
 
+## Flaky tests, round 4: steady failures new on next (branch `agent/flaky4`)
+
+Seeded, on next with round 3 merged; "5/5" is five runs with the same counts. One real game bug (judo); the rest are tests whose premise a decision or a fix moved, or a runner's mistake.
+
+| Test | Cause (evidence) | Class | Fix | Before | After |
+|---|---|---|---|---|---|
+| agrunt_30, agrunt_94 | 303fbb742 (dual wielder's blow, 11-03): `VR_AG_DropHeld` stamps `vr_ag_knock_at`, so a dropped weapon can't knock its other one out; `VR_AG_WeaponStruck` then ignores it for 0.5 s. The tests make their thrown nailgun with `VR_AGPT_Weapon`, by `VR_AG_DropHeld`, and throw it at once. A player's throw has no stamp | a | the helper clears the stamp | 1/1, 14/2 | 5/5 2/0, 16/0 |
+| agrunt_37 | his `vr_agrunt_tug_break_impulse` 200 of 2026-11-03 (de0268f96; 350 before): 300 N pulls it out in 0.67 s, the test wanted over 1 s (with the old five tug values: 8/0) | a, his decision | the expectation is impulse / 300, within 0.05 s | 7/1 | 5/5 8/0 |
+| agrunt_92 phase 4 | the same promotion: 450 N and let go at 85 cm (750, 40 before). The 0.7 m pull no longer tears the hand away; a 568 N peak wins once it stands. Old values: 22/0 | a, his decision | standing rules: won only over the full break force or impulse, not the eased share; or torn away | 21/1 | 5/5 22/0 |
+| agrunt_39 | his sway and flail (e0b824013: "too static") move the weapon under the hand's rest, eased over 0.06 s: at most 1.32 cm at the sway's peak, 1 allowed. Sway and flail off: 0.24 cm. Not the tug values (1.26 with the old ones), nor the rest's reach | a, his decision | "snug" reads the placing on a still weapon: sway and flail off for this test | 4/1 | 5/5 5/0 |
+| agrunt_86 | came with round 3's hunt helper: the pending start's stand ran before `.enemy` was set, so the unarmed one chose the shotgun as if nobody were near. "Punches within 200" went for it after 0.0 s | a | `VR_AGT_Hunt` sets the enemy before that start | 26/1 | 5/5 27/0, undrawn too |
+| agrunt_202 | run on `vrtesthall`, which has no flat wall: not a failure. On `vrfiringrange` 13/0 on seeds 1, 2, 3; `vrclimb` ledges 6/0 | a | anywhere else it says NOT RUN and ends 0/0. **The kit's run_baseline must run it with `map vrfiringrange`** | 9/4 | 5/5 13/0 there |
+| agrunt_19, 21, undrawn | they read drawn things: the stretch on the drawn arm is laid at drawing (x1.000 undrawn), and the same tug's lean is 0.49 against 0.87 units. A game always draws | a | `VR_AGT_NeedsDrawn`: an undrawn run draws until the test's over | 4/1, 6/1 | 3/3 5/0, 7/0 |
+| reload 112/3 | `ssg_checks.py` by a path relative to the current directory: run from elsewhere the three checks on it read nothing | a | by the script's own place | 112/3 | 115/0 |
+| parry_pose's dragon | parry balance (2026-10-19): the dragon's poise only blocks, so no stagger pose to look at. The "Error: Dragon..." line is `dragon_stop_attack`'s print | a | the dragon's case `vr_parry_balance 0`: it is about how a stagger is drawn | no parry | 1 parry, 0 squashed, 0 broken |
+| judo 4/12 | **a real bug, from 804d9fdc3** (a hand pushed into a live body is drawn held out of it, the hold taken there). Two things: the tracked palm stays inside, so the hold's stretch began at up to 54 cm, over the 20 cm break by far: released on the next frame with a "breaks free" shove; and held out by the box's face a hand at the waist is 8-15 cm off the skin, so gripping found nothing | b | `Hold::slack`: how far the tracked palm was from the spot at the take, shrinking as it comes to it, off the stretch and the pull; `lastPalm` the tracked palm, not the jump. Nothing at the held-out place: that same body's skin nearest the real hand, never a pack behind it | 4/12 | 5/5 16/0, seed fixed |
+| judo low | at 0.35 the palm is 13 units over its feet, below the knee: a leg grip, no throw, by design | a | low 0.51 (the thigh), mid 0.66 | - | as above |
+| ragdoll_ragtest crawl | a crawl needs him face down, and the death animation decides that, not the shot in the back. On his back he flails, as "Flail on His Back" (2447387ae) says. It hung on the dice | a | the crawl's case: `vr_ragdoll_active_crawl_back 0` (he rolls over first), three tries | 30/1 | crawl on 5 seeds; 31/0 in 3 of 5 |
+
+Judo's related cases: hold 2/0, lift 10/0, neck 28/9 (25/12 without this fix; the same 9 fail without it, not looked into; neck isn't in the baseline). `vr_wornpack_test` 3: 12/0, 4 (a hand through a facing wearer doesn't take its pack): 4/0.
+
+**Not found / not fixed.**
+- ragdoll_ragtest stays on test_flaky.txt: 2 of 5 full runs with the seed fixed lost another case once each (ledge "NOT begun", catch "NOT begun" in its 3 tries). Not looked into.
+- Test 203's "press found no weapon": on seed 2 the mock hand stands 12.7 units higher than on seed 1 in all three cases (z 36.5, 38.9, 38.3 against 23.9, 26.2, 25.4; x and y within about 1), the same weapons, the left one in the second slot on seed 2 and the first on seed 1. So the mock aims at a drawn left weapon placed differently by seed, or moved after it aimed. Why: not found. A real hand reaches for where the weapon is, so nothing here points at real grabs, and nothing proves them unaffected.
+
 ## Heavy footsteps and the pack's rip from recordings (branch `agent/freesounds`, his notes of 2026-11-02 night)
 
 His words: the ogres' and fiends' footsteps sound "very artificial"; the rip sounds "too much like a fiend attack"; find free sounds.

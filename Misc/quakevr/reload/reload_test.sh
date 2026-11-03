@@ -273,16 +273,17 @@ for off in "${!CLOSE_STEP[@]}"; do
     check $([ "$(opens "$log")" = 11010101 ] && echo 1 || echo 0) "$off 0: that way doesn't shut it, the other three do ($(opens "$log"), want 11010101)"
 done
 PY=${PY:-py -3.13}
-check $($PY Misc/quakevr/reload/ssg_checks.py ring | grep -q "ring barrels [1-9][0-9]* frame 0" && echo 1 || echo 0) "the rear sight's ring is on the barrels part (it swings open with them), none on the frame"
+SSGCHECKS="$(dirname "$0")/ssg_checks.py" # (by the script's own place: run from elsewhere the three checks on it read nothing and failed)
+check $($PY "$SSGCHECKS" ring | grep -q "ring barrels [1-9][0-9]* frame 0" && echo 1 || echo 0) "the rear sight's ring is on the barrels part (it swings open with them), none on the frame"
 # The sights' colour: recoloured (the player's hue) on the super shotgun shut, fired, open and shut again, and on the
 # shotgun's auto pump's parts (its fore-end held back), as on the gun itself.
 SHOTS=C:/OHWorkspace/qvr-kit/bases/$AGENT/qbase${QVR_LANE:+.lane$QVR_LANE}/quakevr/screenshots
 SEE="vr_weapon_screen 0;vr_shells 0;r_particles 0;vr_muzzle_flash 0;vr_mock_hand off -0.1 1.3 -0.5 0 0 0;vr_mock_hand main 0.45 0.9 -0.1 0 0 0;vr_shot_hide 5;vr_mock_camera 0.35 1.38 -0.62 8 90;wait20"
 tb_run_sh -Clean -Script "${SSG/vr_reload_debug 1/vr_reload_debug 0};$SEE;screenshot;$FIRE;screenshot;$FLICK;screenshot;$FLICK;screenshot;toggleconsole;quit" -Filter "^x" > /dev/null 2>&1
-s1=$($PY Misc/quakevr/reload/ssg_checks.py sights $(ls -tr $SHOTS/*.png | tail -4))
+s1=$($PY "$SSGCHECKS" sights $(ls -tr $SHOTS/*.png | tail -4))
 check $(echo "$s1" | awk '{ok = 1; for(i = 2; i <= NF; i++) { split($i, a, "/"); if(a[1] < 50 || a[2] > a[1] / 2) ok = 0 } print ok}') "the super shotgun's sights keep their colour shut, fired, open, shut again ($s1: recoloured/red pixels)"
 tb_run_sh -Clean -Script "${SSG/impulse 155/impulse 154};$SEE;screenshot;vr_autopump_hold 0.4;wait20;screenshot;vr_autopump_hold -1;wait20;screenshot;toggleconsole;quit" -Filter "^x" > /dev/null 2>&1
-s2=$($PY Misc/quakevr/reload/ssg_checks.py sights $(ls -tr $SHOTS/*.png | tail -3))
+s2=$($PY "$SSGCHECKS" sights $(ls -tr $SHOTS/*.png | tail -3))
 check $(echo "$s2" | awk '{ok = 1; for(i = 2; i <= NF; i++) { split($i, a, "/"); if(a[1] < 50 || a[2] > a[1] / 2) ok = 0 } print ok}') "the shotgun's sights keep their colour as it pumps (its parts drawn) ($s2)"
 log=$(tb_run_sh -Script "$SSG;vr_reload_ssg_break 0;$FIRE;$REP;$FLICK;$REP;toggleconsole;quit" -Filter "$F7" 2>&1)
 holds=$(echo "$log" | grep "^reload: off hand")
@@ -293,7 +294,7 @@ check $(h 1 | grep -q "weapon 5 clip 0 " && h 2 | grep -q "weapon 5 clip 2 " && 
 BLOODY="vr_gore_spatter_test propoff;wait2;vr_gore_spatter_test propoff;wait2;vr_gore_spatter_test propoff -1;wait10"
 for gear in 1 0; do
     tb_run_sh -Clean -Script "${SSG/vr_reload_debug 1/vr_reload_debug 0;vr_gore_gear $gear};$SEE;$FIRE;$BLOODY;screenshot;$BY;screenshot;$FLICK;screenshot;toggleconsole;quit" -Filter "^x" > /dev/null 2>&1
-    [ $gear = 1 ] && b1=$($PY Misc/quakevr/reload/ssg_checks.py blood $(ls -tr $SHOTS/*.png | tail -3)) || b0=$($PY Misc/quakevr/reload/ssg_checks.py blood $(ls -tr $SHOTS/*.png | tail -3))
+    [ $gear = 1 ] && b1=$($PY "$SSGCHECKS" blood $(ls -tr $SHOTS/*.png | tail -3)) || b0=$($PY "$SSGCHECKS" blood $(ls -tr $SHOTS/*.png | tail -3))
 done
 check $(echo "$b1 $b0" | awk '{ shut = $2 - $6; open = $3 - $7; again = $4 - $8; print (shut > 300 && open > 0.6 * shut && again > 0.6 * shut) ? 1 : 0 }') "the super shotgun's blood stays on it open and shut again (bloody $b1, clean $b0: shut, open, shut)"
 
@@ -440,7 +441,7 @@ check $(! echo "$log" | grep -q "contact sparks" && awk -v t="$st" 'BEGIN { prin
 # The super nailgun's well flush on the flat band of its face (23-58-30), its collar out along the magazine (2026-10-08
 # 10-33-00: it went into the body and looked turned backwards): at most 1.2 units off the face (the nailgun's collar is
 # 1.1), inside its edges, seated into the body (its flange's back below the face).
-sw=$($PY Misc/quakevr/reload/ssg_checks.py snailwell)
+sw=$($PY "$SSGCHECKS" snailwell)
 check $(echo "$sw" | awk '{ok = NF >= 16; for(i = 1; i <= NF; i += 8) { if($(i + 3) > 1.2 || $(i + 3) < 0.5 || $(i + 5) > 0 || $(i + 7) <= 0) ok = 0 } print ok ? 1 : 0}') "the super nailgun's well flush on its face, its collar out ($sw)"
 # The super shotgun's firing animation paced by vr_ssg_fire_anim_speed (23-54-46): B/Y pressed every other frame from the
 # shot, it opens as the animation ends: about 0.6 s after the shot at 1 (id's), 0.43 s at 1.4 (the default), 0.3 s at 2.
