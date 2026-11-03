@@ -3807,6 +3807,8 @@ int qvr::menu::retroOverridePage()
 
 // `togglemenu` in a menu: VR Calibration waiting on Body Calibration's page (paused, or the body's result not trusted)
 // closes it at once, as the menu button does; elsewhere Quake's way (to the main menu first).
+extern "C" qboolean M_ListPosition(int* cursor, int* scroll, qboolean set); // menu.c
+
 extern "C" int VR_MenuToggleCloses()
 {
     return m_state == m_vr && key_dest == key_menu && ui().page == pageIndex(pageBodyCalibration) &&
@@ -4187,6 +4189,9 @@ void qvr::menu::command_f()
         const char* corner = menuui::toolbarFocused() ? ", corner buttons selected" : "";
         if(key_dest == key_menu)
         {
+            int listCursor = 0, listScroll = 0;
+            const bool onList = M_ListPosition(&listCursor, &listScroll, false);
+            Con_Printf("menu_vr pos: state %d, %s cursor %d scroll %d\n", m_state, onList ? "list" : "no list", listCursor, listScroll);
             // The layout (menu coordinates): the corner's column left of the menu's text, the rows from the top.
             Con_Printf("menu_vr pos: text from x %.0f, buttons to x %.0f (%s), y %.1f\n", menu::contentLeft(),
                 menuui::toolbarRight(), menuui::toolbarBeside() ? "beside" : "over", menuui::toolbarBottom());

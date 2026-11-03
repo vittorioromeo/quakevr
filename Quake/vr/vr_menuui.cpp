@@ -3176,7 +3176,7 @@ extern "C" int VR_MenuReopen()
 {
     const Remembered r = remembered;
     remembered = {};
-    if(!vr_menu_remember.value || !vrActive() || r.state == m_none)
+    if(!vr_menu_remember.value || r.state == m_none) // (flat screen too: vr_menu_flat_shortcuts' Back to game)
     {
         return 0;
     }
