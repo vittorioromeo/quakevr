@@ -342,6 +342,23 @@ void parse()
     }
 }
 
+bool chamberFilling(int hand, int chamber)
+{
+    const float span = vr_reload_insert_time.value;
+    for(const Item& it : items)
+    {
+        if(it.live && it.chamber == chamber && it.gunHand == hand && it.ent.model && span > 0.f)
+        {
+            const float t = static_cast<float>((vr_gametime - it.start) / span); // (as frame() ends it)
+            if(t >= 0.f && t < 1.f)
+            {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 void frame(const hands::State& s)
 {
     QVR_PROFILE("collect fx");

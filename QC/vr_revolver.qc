@@ -631,7 +631,18 @@ float(float xGunHand, entity xRound, float xHeld) VR_Revolver_LoadInto =
     return FALSE;
 };
 
-// The wrist's roll for the flicks (`xRate` degrees a second towards the cylinder's side, over `xDt` s; VR_Revolver_Flick):
+// The force on the cylinder of a wrist rolling `xRoll` degrees a second (towards its side: + out, - home) with the hand
+// moving `xAlong` m/s that side: the roll, plus the hand's motion the same way at vr_revolver_flick_hand_weight degrees a
+// second per m/s, that help at most vr_revolver_flick_hand_cap times the roll. So a flick with the arm in it counts as a
+// flick; the hand alone (no roll) is no force at all, and against the roll it takes nothing away.
+float(float xRoll, float xAlong) VR_Revolver_FlickForce =
+{
+    float s = xRoll < 0 ? -1 : 1;
+    float help = max(0, cvar_hget(cvarh_vr_revolver_flick_hand_weight)) * max(0, xAlong * s);
+    return xRoll + s * min(fabs(xRoll) * max(0, cvar_hget(cvarh_vr_revolver_flick_hand_cap)), help);
+};
+
+// The force for the flicks (`xRate` degrees a second towards the cylinder's side, over `xDt` s; VR_Revolver_Flick):
 // +1 a flick that way (it swings out: vr_revolver_open_flick_speed at its fastest, vr_revolver_open_flick_angle in one
 // go), -1 the other way (home: vr_revolver_close_flick_*), else 0. A roll under vr_revolver_flick_sustain (0.3) of the speed ends
 // a flick; its angle must come within vr_revolver_*_flick_time seconds of its start (older: it restarts).
@@ -719,23 +730,46 @@ float(entity h, float xHand) VR_Revolver_Flick =
     {
         dprint(sprintf("revolver: hand %g's wrist rolls %.0f deg/s towards the cylinder's side\n", xHand, vr_rv_rollrate));
     }
-    return VR_Revolver_FlickRate(h, vr_rv_rollrate, frametime);
+    return VR_Revolver_FlickRate(h, VR_Revolver_FlickForce(vr_rv_rollrate, VRGetEntHandVel(self, xHand) * side), frametime);
 };
 
-// The hand `xHand` of self pushing its swung-out cylinder the way its chambers open (back along the bore, -vr_rv_axis), a
-// short linear move of the hand: TRUE when it has gone vr_revolver_eject_travel metres that way, at vr_revolver_eject_speed
-// m/s at its fastest, within vr_revolver_eject_cone degrees of that way all along and the hand not turning faster than
-// vr_revolver_eject_turn degrees a second. The speed is the hand's own, at the grip (.handvel, the player's own motion
-// left out), not the cylinder's: a flick of the wrist swings the cylinder fast but the grip hardly moves, and a flick hard
-// enough to move it too turns too fast to count. Tilting it moves nothing: nothing.
-float RV_PUSH_SUSTAIN = 0.5;   // a push goes on while it stays above this share of vr_revolver_eject_speed
+// One frame (`xDt` s) of the hand's motion along the way its chambers open: `xSpeed` m/s that way, `xOff` degrees off it, the
+// hand turning `xTurn` degrees a second. The push is that motion accumulated over a short window (it fades with
+// vr_revolver_eject_window seconds): TRUE when it comes to vr_revolver_eject_travel metres, having reached
+// vr_revolver_eject_speed m/s. Curving and wiggling reset nothing: a frame further off than vr_revolver_eject_cone or turning
+// faster than vr_revolver_eject_turn just doesn't add (a flick of the wrist, all turn, adds nothing), one going back takes
+// away (a wiggle in place cancels out). Tilting it moves nothing: nothing.
+float(entity h, float xSpeed, float xOff, float xTurn, float xDt) VR_Revolver_PushStep =
+{
+    float turn = cvar_hget(cvarh_vr_revolver_eject_turn);
+    float leak = max(0, 1 - xDt / max(0.02, cvar_hget(cvarh_vr_revolver_eject_window)));
+    h.rvh_ejrun = h.rvh_ejrun * leak;
+    h.rvh_ejpeak = h.rvh_ejpeak * leak;
+    if(xSpeed > 0 && xOff <= cvar_hget(cvarh_vr_revolver_eject_cone) && (turn <= 0 || xTurn <= turn))
+    {
+        h.rvh_ejrun = h.rvh_ejrun + xSpeed * xDt;
+        h.rvh_ejpeak = max(h.rvh_ejpeak, xSpeed);
+        h.rvh_ejframes++;
+    }
+    else if(xSpeed < 0)
+    {
+        h.rvh_ejrun = max(0, h.rvh_ejrun + xSpeed * xDt);
+    }
+    if(h.rvh_ejrun < 0.002)
+    {
+        h.rvh_ejframes = 0;
+    }
+    return h.rvh_ejframes >= 2 && h.rvh_ejpeak >= max(0.05, cvar_hget(cvarh_vr_revolver_eject_speed)) &&
+        h.rvh_ejrun >= cvar_hget(cvarh_vr_revolver_eject_travel);
+};
+
+// The hand `xHand` of self pushing its swung-out cylinder the way its chambers open (back along the bore, -vr_rv_axis;
+// VR_Revolver_PushStep). The speed is the hand's own, at the grip (.handvel, the player's own motion left out).
 vector vr_rv_push;             // the hand's velocity then (m/s)
 float vr_rv_pushmax;           // (the fastest speed that way seen, m/s; the turn then: the tests reset them)
 float vr_rv_pushturn;
 float(entity h, float xHand) VR_Revolver_Push =
 {
-    float need = max(0.05, cvar_hget(cvarh_vr_revolver_eject_speed));
-    float turn = cvar_hget(cvarh_vr_revolver_eject_turn);
     VR_Revolver_Frame(xHand);
     vr_rv_push = VRGetEntHandVel(self, xHand);
     vector way = -vr_rv_axis;
@@ -746,15 +780,7 @@ float(entity h, float xHand) VR_Revolver_Push =
         vr_rv_pushturn = vr_rv_turnrate;
     }
     float off = atan2(vlen(vr_rv_push - way * speed), speed) * 57.29578;
-    if(speed < need * RV_PUSH_SUSTAIN || off > cvar_hget(cvarh_vr_revolver_eject_cone) || (turn > 0 && vr_rv_turnrate > turn))
-    {
-        h.rvh_ejrun = h.rvh_ejpeak = h.rvh_ejframes = 0;
-        return FALSE;
-    }
-    h.rvh_ejrun = h.rvh_ejrun + speed * frametime;
-    h.rvh_ejpeak = max(h.rvh_ejpeak, speed);
-    h.rvh_ejframes++;
-    return h.rvh_ejframes >= 2 && h.rvh_ejpeak >= need && h.rvh_ejrun >= cvar_hget(cvarh_vr_revolver_eject_travel);
+    return VR_Revolver_PushStep(h, speed, off, vr_rv_turnrate, frametime);
 };
 
 // The other hand of `xHand` of self at the swung-out cylinder of record `r`: pushing the ejector rod's head back drops its

@@ -676,9 +676,12 @@ QVR_TUNABLE(vr_cellcord_superaxe_z, "0")
 QVR_TUNABLE(vr_revolver_close_flick_time, "0.25") // the same for the flick shut
 QVR_TUNABLE(vr_revolver_flick_sustain, "0.3") // a flick goes on while the roll stays above this share of its speed (both flicks)
 QVR_TUNABLE(vr_revolver_close_push_speed, "0.8") // m/s that push must reach (the hands' relative speed, along the cylinder's way home)
-QVR_TUNABLE(vr_revolver_eject_travel, "0.03") // out, the hand's push the way the chambers open (vr_revolver_eject_speed) must go this far that way (m)
-QVR_TUNABLE(vr_revolver_eject_cone, "35") // and how far off that way it may be (degrees)
-QVR_TUNABLE(vr_revolver_eject_turn, "350") // and how fast the hand may turn meanwhile (degrees a second: a flick of the wrist doesn't count; 0: any)
+QVR_TUNABLE(vr_revolver_flick_hand_weight, "150") // the flicks' force: degrees a second of roll each m/s of the hand's own motion the same way adds (0: the roll alone)
+QVR_TUNABLE(vr_revolver_flick_hand_cap, "1") // and that help at most, times the roll itself (so the hand alone, with no roll, is no force)
+QVR_TUNABLE(vr_revolver_eject_travel, "0.05") // out, the hand's motion the way the chambers open, accumulated, must come to this (m), having reached vr_revolver_eject_speed
+QVR_TUNABLE(vr_revolver_eject_window, "0.2") // seconds that motion fades over (what it accumulates over)
+QVR_TUNABLE(vr_revolver_eject_cone, "60") // a frame further off that way than this adds nothing, resets nothing (degrees)
+QVR_TUNABLE(vr_revolver_eject_turn, "600") // and one with the hand turning faster than this (degrees a second: a flick of the wrist adds nothing; 0: any)
 QVR_TUNABLE(vr_revolver_spin_mult, "1") // how fast a swipe spins it, times
 QVR_TUNABLE(vr_revolver_spin_friction, "760") // degrees a second, each second, a spin slows by (it stops on a chamber)
 QVR_TUNABLE(vr_revolver_spin_max, "900") // degrees a second at most
@@ -1167,6 +1170,8 @@ QVR_TUNABLE(vr_enemy_shove_enforcer_distance, "1.5") // an enforcer's shove's pu
 QVR_TUNABLE(vr_enemy_shove_vore_damage, "2") // a vore's shove's damage, times vr_enemy_shove_damage
 QVR_TUNABLE(vr_enemy_shove_vore_distance, "2") // a vore's shove's push, times vr_enemy_shove_distance (harder than anyone's)
 QVR_TUNABLE(vr_agrunt_shove_close, "24") // a gun-holding armed humanoid, you this many units beyond its shove's reach (vr_enemy_shove_range) or nearer: it steps in and shoves (its shove ready) instead of backing off; 0 it always backs off (as before; QC vr_armedgrunt.qc VR_AG_ShoveCloseIn)
+QVR_TUNABLE(vr_agrunt_armor_crack_volume, "2.5") // an armour plate's crack as it breaks (vr_agarmor.qc; 0..4, over 1 louder than full)
+QVR_TUNABLE(vr_agrunt_armor_crack_attn, "0.5") // and how fast it fades with distance (1: as other sounds; 0: everywhere)
 
 // Combat > Enemy Weapons
 QVR_TUNABLE(vr_chainsaw_fuel_use, "5") // fuel (percent of a tank) a second the chain uses, the trigger held
