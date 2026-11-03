@@ -296,12 +296,12 @@ QVR_CVAR(vr_mirror, "1", CVAR_ARCHIVE)
 // its image turned to a steadied head orientation and cropped to the window; 2 the spectator camera: the scene
 // rendered a third time for the window, from the head, steadied, with its own field of view; 3 both eyes as they are,
 // side by side; 4 the right eye as it is; 5 the right eye's smoothed mirror.
-QVR_CVAR(vr_window_view, "0", CVAR_ARCHIVE)
+QVR_CVAR(vr_window_view, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_window_smooth, "0.5", CVAR_ARCHIVE)      // seconds: the steadied orientation's lag (0 none .. 0.5); both modes
 QVR_CVAR(vr_window_level, "0.5", CVAR_ARCHIVE)          // 0 .. 1: how much of the head's roll is taken out (1: the horizon level); both modes
 QVR_CVAR(vr_window_zoom, "1.2", CVAR_ARCHIVE)         // smoothed mirror: 1 the widest crop of the eye's image .. 2 (the margin the steadying turns in)
-QVR_CVAR(vr_spectator_fov, "120", CVAR_ARCHIVE)        // spectator camera: horizontal field of view, degrees (40 .. 160; the slider 60 .. 150)
-QVR_CVAR(vr_spectator_scale, "1.5", CVAR_ARCHIVE)    // spectator camera: its resolution, times the window's (0.25 .. 2)
+QVR_CVAR(vr_spectator_fov, "130", CVAR_ARCHIVE)        // spectator camera: horizontal field of view, degrees (40 .. 160; the slider 60 .. 150)
+QVR_CVAR(vr_spectator_scale, "1", CVAR_ARCHIVE)    // spectator camera: its resolution, times the window's (0.25 .. 2)
 QVR_CVAR(vr_spectator_rate, "60", CVAR_ARCHIVE)        // spectator camera: drawn every frame (1), every 2nd or 3rd (2, 3), or at most this many times a second (more than 3); the window shows the last between
 QVR_CVAR(vr_spectator_skip_hidden, "1", CVAR_ARCHIVE)  // spectator camera: 1 not drawn while the desktop window is minimized or hidden (nothing to see; drawn again the frame it shows; the menus' preview keeps it drawn while a menu shows it); 0 always drawn
 QVR_CVAR(vr_spectator_bullettime_fx, "1", CVAR_ARCHIVE) // 1: bullet time's colour, tint and darkened edges in the spectator camera; 0: its normal look (headset unchanged)
@@ -1020,7 +1020,7 @@ QVR_CVAR(vr_melee_range_multiplier, "1.0", CVAR_ARCHIVE)
 // discharge (every cell at once, round you).
 QVR_CVAR(vr_lg_water, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_body_interactions, "0", CVAR_ARCHIVE)
-QVR_CVAR(vr_notes, "1", CVAR_ARCHIVE)                  // voice notes: off hand at the mouth, hold Y to talk (vr_voicenotes.cpp); off in a new install (a playtesting tool: a saved config keeps its own, no migration)
+QVR_CVAR(vr_notes, "0", CVAR_ARCHIVE)                  // voice notes: off hand at the mouth, hold Y to talk (vr_voicenotes.cpp); off in a new install (a playtesting tool: a saved config keeps its own, no migration)
 QVR_CVAR(vr_note_device, "Virtual Desktop", CVAR_ARCHIVE) // the microphone: part of its name (none such, or empty: the default; vr_note_devices lists them)
 // The motion recorder (vr_motion.cpp, docs/vr-port/MOTIONS.md): takes of the player's motions for tuning the melee.
 QVR_CVAR(vr_motion_armed, "0", CVAR_NONE)          // 1: the record button (vr_motion_button) starts and ends takes of the chosen category
@@ -1351,19 +1351,19 @@ QVR_CVAR(vr_body_head_roll, "0", CVAR_ARCHIVE)        // degrees, tilted right (
 QVR_CVAR(vr_body_head_size, "1.3", CVAR_ARCHIVE)      // times the first version's size (0.5 to 2)
 QVR_CVAR(vr_body_head_sink, "9", CVAR_ARCHIVE)      // cm the head is lowered over the neck, the neck's top with it (0 to 12)
 QVR_CVAR(vr_skin_tone, "0", CVAR_ARCHIVE) // skin-only shader: -1 dark, 0 authored skin, +1 light
-QVR_CVAR(vr_gloves, "1", CVAR_ARCHIVE)                // gloves on the jointed hands: 0 none, 1 fingerless (the fingertips bare), 2 full; with bare forearms a cuff over the wrist (make_skin_masks.py's G, B)
-QVR_CVAR(vr_glove_hue, "0", CVAR_ARCHIVE)            // their leather's colour: hue in degrees (0 red, 25 brown, 120 green, 240 blue),
-QVR_CVAR(vr_glove_saturation, "0", CVAR_ARCHIVE)   // saturation (0 grey .. 1),
-QVR_CVAR(vr_glove_lightness, "0.05", CVAR_ARCHIVE)     // and lightness (0 black, 0.5 the full colour, 1 white); the hand's own shading kept
-QVR_CVAR(vr_glove_thickness, "1.25", CVAR_ARCHIVE)       // their leather's thickness in mm (0..4): a shell over the hand (vr_handrig.cpp gloveShells) pushed out by it, its edge a wall down to the skin; 0 painted on the skin only
+QVR_CVAR(vr_gloves, "0", CVAR_ARCHIVE)                // gloves on the jointed hands: 0 none, 1 fingerless (the fingertips bare), 2 full; with bare forearms a cuff over the wrist (make_skin_masks.py's G, B)
+QVR_CVAR(vr_glove_hue, "25", CVAR_ARCHIVE)            // their leather's colour: hue in degrees (0 red, 25 brown, 120 green, 240 blue),
+QVR_CVAR(vr_glove_saturation, "0.45", CVAR_ARCHIVE)   // saturation (0 grey .. 1),
+QVR_CVAR(vr_glove_lightness, "0.2", CVAR_ARCHIVE)     // and lightness (0 black, 0.5 the full colour, 1 white); the hand's own shading kept
+QVR_CVAR(vr_glove_thickness, "2.25", CVAR_ARCHIVE)       // their leather's thickness in mm (0..4): a shell over the hand (vr_handrig.cpp gloveShells) pushed out by it, its edge a wall down to the skin; 0 painted on the skin only
 QVR_CVAR(vr_glove_paint, "1", CVAR_ARCHIVE)         // their painted leather (progs/hand_rig_0N_00_glove*.png, make_glove_paint.py; docs/vr-port/GLOVES.md): worn knuckles, creases, stitches; 0 the plain leather
 QVR_CVAR(vr_glove_relief, "1.25", CVAR_ARCHIVE)        // the painted leather's relief (a normal map made from _glove_height as it loads): stitches, seams, creases, grain in the light; 0 flat, 1 as the bracers', up to 2
-QVR_CVAR(vr_nails, "1", CVAR_ARCHIVE)                 // painted nails on the jointed hands (progs/hand_rig_0N_00_nails.png, make_nail_mask.py; docs/vr-port/GLOVES.md): full gloves cover them, fingerless ones show them
-QVR_CVAR(vr_nail_hue, "280", CVAR_ARCHIVE)            // the polish's colour: hue in degrees (0 red, 330 pink, 270 violet, 210 blue),
-QVR_CVAR(vr_nail_saturation, "0.65", CVAR_ARCHIVE)    // saturation (0 grey .. 1),
-QVR_CVAR(vr_nail_lightness, "0.3", CVAR_ARCHIVE)     // and lightness (0 black, 0.5 the full colour, 1 white); not tinted by vr_skin_tone, the hand's own shading kept
-QVR_CVAR(vr_nail_gloss, "0.75", CVAR_ARCHIVE)          // the polish's gloss (0 matte .. 1 a glassy top coat): a sharp highlight and the room mirrored in it
-QVR_CVAR(vr_hand_shape, "1", CVAR_ARCHIVE)            // the jointed hands' shape: 0 standard, 1 feminine (progs/hand_rig_f.md5mesh, make_hand_feminine.py: slimmer, the same joints and skins); live
+QVR_CVAR(vr_nails, "0", CVAR_ARCHIVE)                 // painted nails on the jointed hands (progs/hand_rig_0N_00_nails.png, make_nail_mask.py; docs/vr-port/GLOVES.md): full gloves cover them, fingerless ones show them
+QVR_CVAR(vr_nail_hue, "355", CVAR_ARCHIVE)            // the polish's colour: hue in degrees (0 red, 330 pink, 270 violet, 210 blue),
+QVR_CVAR(vr_nail_saturation, "0.85", CVAR_ARCHIVE)    // saturation (0 grey .. 1),
+QVR_CVAR(vr_nail_lightness, "0.32", CVAR_ARCHIVE)     // and lightness (0 black, 0.5 the full colour, 1 white); not tinted by vr_skin_tone, the hand's own shading kept
+QVR_CVAR(vr_nail_gloss, "0.6", CVAR_ARCHIVE)          // the polish's gloss (0 matte .. 1 a glassy top coat): a sharp highlight and the room mirrored in it
+QVR_CVAR(vr_hand_shape, "0", CVAR_ARCHIVE)            // the jointed hands' shape: 0 standard, 1 feminine (progs/hand_rig_f.md5mesh, make_hand_feminine.py: slimmer, the same joints and skins); live
 QVR_CVAR(vr_voice, "0", CVAR_ARCHIVE)                 // the player's own voice (pain, death, jump, gasps, drowning, burning: vr_voice.cpp voiceSounds): 0 masculine (Quake's recordings), 1 feminine (the same recordings pitched up and their formants raised as they load); live (those sounds loaded again)
 QVR_CVAR(vr_voice_pitch, "4.5", CVAR_ARCHIVE)         // vr_voice 1: the voice's pitch raised by this many semitones (TD-PSOLA: the duration kept), 0..8
 QVR_CVAR(vr_voice_formant, "17", CVAR_ARCHIVE)        // vr_voice 1: its formants (the vocal tract's resonances) raised by this many percent (so it isn't a chipmunk's), 0..30
@@ -2765,7 +2765,7 @@ QVR_CVAR(vr_ragdoll_start, "0.3", CVAR_ARCHIVE)       // when a dying grunt goes
 QVR_CVAR(vr_ragdoll_max, "8", CVAR_ARCHIVE)           // the most ragdolls at once; one more death retires the oldest body to make room (QC VR_Knockdown_MakeRoom), else it lies as a corpse (Corpse Collision)
 QVR_CVAR(vr_corpse_placed, "1", CVAR_ARCHIVE)         // a mapper's corpses (misc_corpse: Dimension and Dawn of the Machine; QC vr_mg_corpses.qc) are dead monsters' bodies: shot, gibbed, burnt, and near a player ragdolls a hand takes and cuts (their room under vr_ragdoll_max: one no player is near lies as placed again); 0 scenery (the next map load)
 // ragdoll rig down as a ragdoll, alive; after a while it gets up (its own fall-and-rise frames, or its death backwards).
-QVR_CVAR(vr_knockdown, "0", CVAR_ARCHIVE)                 // the feature: 0 off (shoves stagger as before)
+QVR_CVAR(vr_knockdown, "1", CVAR_ARCHIVE)                 // the feature: 0 off (shoves stagger as before)
 QVR_CVAR(vr_knockdown_chance, "0.6", CVAR_ARCHIVE)          // every monster's chance times this (testing: 100, every shove)
 // (Each monster group's base chance, vr_knockdown_chance_<group>: quakevr/data/groups.txt, Combat > Monster Groups.)
 QVR_CVAR(vr_knockdown_onehand, "1", CVAR_ARCHIVE)         // the chance times this for a one-handed shove,
@@ -3328,7 +3328,7 @@ QVR_CVAR(vr_show_sight_line, "0", CVAR_NONE)
 // moved and turned to match the real controllers: centimetres along its drawn axes (x red: along the handle, y green:
 // left, z blue: up), degrees (pitch up, yaw left, roll). The main hand's; the off hand's mirrors them (y, yaw and roll
 // the other way) unless vr_show_controller_off_own is 1, then it takes its own.
-QVR_CVAR(vr_show_controller_off_own, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_show_controller_off_own, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_show_controller_off_x, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_show_controller_off_roll, "0", CVAR_ARCHIVE)
 QVR_CVAR(vr_pose_weapon_hand, "1", CVAR_NONE)           // the weapon posing mode (vr_posing.cpp): the hand that holds the floating weapon and poses it (1 main, 0 off: mirrored); the other poses its hotspots and confirms
@@ -3413,7 +3413,7 @@ QVR_CVAR(vr_reload_mode_light, "-1", CVAR_ARCHIVE)
 QVR_CVAR(vr_reload_mode_widow, "-1", CVAR_ARCHIVE)    // AD support: the Widowmaker's (the super shotgun with AD's upgrade)
 QVR_CVAR(vr_reload_mode_adplasma, "-1", CVAR_ARCHIVE) // AD support: the Plasma Gun's (the thunderbolt with AD's upgrade)
 QVR_CVAR(vr_reload_mode_npistol, "-1", CVAR_ARCHIVE)  // the nail pistol's
-QVR_CVAR(vr_reload_mode_revolver, "3", CVAR_ARCHIVE) // the heavy revolver's
+QVR_CVAR(vr_reload_mode_revolver, "-1", CVAR_ARCHIVE) // the heavy revolver's
 // The ammo pouch (vr_reload_mode 3; QC vr_reload.qc, vr_view.cpp setupAmmoPouch): on the front of the belt between the
 // hip holsters. X forward, units: with the body drawn, the default (0) is on the belly and X moves it from there; Y to
 // the right; Z up (times the height calibration, as the holsters'). Reach: units a hand must be within to be at it (the
