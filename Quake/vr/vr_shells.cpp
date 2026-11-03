@@ -55,6 +55,7 @@ namespace
 enum Flags : int
 {
     FlagFlick = 1, // a flick reload: flung by the spinning weapon
+    FlagPushed = 2, // thrown out by the hand's push (the heavy revolver's: QC VR_Revolver_Push): on with the port's velocity
 };
 
 // A weapon's ejection ports, in its model's space (as its frames' vertices: +x forward, +y left,
@@ -426,7 +427,14 @@ void eject(const view::ViewEntity (&weapons)[2], const Pending& p)
         {
             const float speed = w->speed * upm * vrand::range(rng, 0.8f, 1.2f);
             const glm::vec3 scatter = onSphere() * (speed * 0.15f);
-            s.vel = dir * speed + scatter + tracks[p.hand].vel * 0.9f;
+            const float carried = (p.flags & FlagPushed) ? vr_revolver_eject_impulse.value : 0.9f;
+            s.vel = dir * speed + scatter + tracks[p.hand].vel * carried;
+            if(vr_debug_weaponfx.value && (p.flags & FlagPushed))
+            {
+                Con_Printf("shells pushed hand %d: port %.2f m/s, out at %.2f m/s, %.2f along the port's velocity\n", p.hand,
+                    glm::length(tracks[p.hand].vel) / upm, glm::length(s.vel) / upm,
+                    glm::dot(s.vel, glm::normalize(tracks[p.hand].vel + glm::vec3{1e-4f})) / upm);
+            }
             if(pumped)
             {
                 // Thrown back a little with the action, as fast as the stroke went back on average (a share of it).

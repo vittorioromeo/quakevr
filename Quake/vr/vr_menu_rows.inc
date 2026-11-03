@@ -2911,6 +2911,10 @@ QVR_SLIDER_BYNAME(vr_revolver_open_flick_time, "Flick Open Time", 0.05f, 1.f, 0.
     "The wrist flick must be rolled within this long of the flick's start; a slower roll starts over (0: no limit).")
 QVR_TOGGLE_BYNAME(vr_revolver_open_button, "Eject Button Opens",
     "B/Y swings it out; out, B/Y pushes the ejector (its shells drop).")
+QVR_SLIDER_BYNAME(vr_revolver_eject_speed, "Eject Push Speed", 0.2f, 4.f, 0.05f, "%.2f m/s", ext(0.05f, 10.f),
+    "Swung out, a short push of the hand back along the bore, the way the chambers open, throws its shells out: how fast at its fastest. Tilting it or a flick of the wrist doesn't count.")
+QVR_SLIDER_BYNAME(vr_revolver_eject_impulse, "Eject Push Force", 0.f, 4.f, 0.05f, "x%.2f", ext(0.f, 20.f),
+    "The shells go on the way the hand went, at its speed times this.")
 QVR_TOGGLE_BYNAME(vr_revolver_eject_rod, "Ejector Rod",
     "Out, the other hand pushing the ejector rod's head (in front of the cylinder) back drops them.")
 QVR_SLIDER_BYNAME(vr_revolver_eject_rod_reach, "Ejector Rod Reach", 0.f, 8.f, 0.25f, "%.2f units", ext(0.f, 40.f), "How near its head the other hand must be.")
