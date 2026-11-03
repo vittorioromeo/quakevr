@@ -145,9 +145,15 @@ hands, its flashlight, its keys).
 ## The ironsight, and the free hand's grip
 
 `vr_flatsight.cpp` works on the pose `poseHands` just made, and only while the mode runs. With one hand holding and the
-other empty, the empty hand is put on the held weapon's two-hand grip (`pinToGrip`) and `twohand::apply` runs over the
+other empty, the empty hand is carried onto the held weapon's two-hand grip (`pinToGrip`) and `twohand::apply` runs over the
 pose, so the hold is the game's own — its helping flag, its `helpKind`, its transition, the weight and recoil that follow
-them — and not a look. A weapon whose model has no such hotspot, and dual wielding, keep the pose above exactly as it is.
+them — and not a look, and only for a grip the pose can bring a hand to. In the flat view the hotspot stands 12.5 and 12.8
+units *ahead* of the hand holding the weapon for the rocket launcher and the proximity gun, whose grips `vr_twohand` then
+takes (`helpKind 1`, the transition in full); it stands 5 units off that hand, 3 to 5 units to its *rear*, for the shotgun,
+the super shotgun and the nail gun, where a second hand has nowhere to go and carrying one there would only fold the two
+hands onto each other. A weapon whose model has no such hotspot, a grip a second hand cannot reach, and dual wielding keep
+the pose above exactly as it is, and `vr_flatplay_status` prints the measure the choice rests on: "hotspot: 5.0 units from
+the held hand (fwd -3.2, right 0.4, up -3.8 of it)".
 
 The mouse wheel's button (`K_MOUSE3`), or `vr_flat_aim` from the console, turns the ironsight on: the held hand is turned
 so that the muzzle's own point — the one the shot starts from (`muzzleOf`) — sits on the crosshair's ray
@@ -158,9 +164,11 @@ so the look and the crosshair keep their feel. It refuses while dual wielding, a
 with where the muzzle stands off the crosshair before and after the turn.
 
 A flatscreen hand is always gripping (`gripping`, in `vr_client.cpp`), so the frame the pose brings the empty hand onto a
-grip is stood in for the grip button's press by `twohand::armFlatGrip` — armed once per arrival, let go the frame the hand
-leaves the grip or the weapon changes; `vr_twohand`'s own distances, its angle test, the foregrip's stickiness and the
-weapon's Two-Handed setting decide the hold from there, unchanged.
+grip is stood in for the grip button's press by `twohand::armFlatGrip` — the one thing the ironsight adds to `vr_twohand`,
+next to `setFreeCandidate`, which is the same shape: a public setter for one internal flag. It arms on the frame the pose
+brings the empty hand onto a grip, and on each frame it still holds the hand on one nothing has taken: a flatscreen hand
+is not lifted off a grip it was placed on; it stops the frame `vr_twohand` takes the hold, or the frame the weapon changes.
+Its own distances, its angle test, the foregrip's stickiness and the weapon's Two-Handed setting decide the hold, unchanged.
 
 ## Tuning
 
