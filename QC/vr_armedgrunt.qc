@@ -2599,7 +2599,7 @@ entity() VR_AG_FindWeapon =
     {
         if(e.classname == "thrown_weapon" && VR_AG_Usable(e.weapon) && !e.vr_depleted && !VR_EnemyWeapons_Spared(e) &&
            !e.vr_drop_fade && // (fading past the cap: not to be taken)
-           VR_AM_Takes(self, e.weapon) && // (its row's: a knight no gun, vr_agknight_ranged_pickup 0)
+           VR_AM_Takes(self, e.weapon) && // (a map's sword knight no gun, vr_agknight_ranged_pickup 0)
            (VR_AG_Class(e.weapon) == VR_AG_CLASS_MELEE || e.weaponinst.wi_clip > 0) &&
            (!self.vr_ag_prop || VR_AG_PairsFor(self, self.vr_ag_wid, self.vr_ag_wflags, e.weapon, e.weaponflags))) // (armed: its pair's second only)
         {
@@ -3375,6 +3375,7 @@ void(float kind) VR_AM_Spawn =
     vr_ag_arm_rolled = (pooled && want2 == 0); // (a flare gun too: one from the pool, one weapon)
     vr_ag_arm_roll = random();
     VR_AM_ArmAll(want, flags, inst, want2, flags2);
+    self.vr_ag_born_ranged = VR_WP_CarriesRanged(self); // (whoever arms it: the toolgun, a wave, a map's "weapon")
     VR_AgArmor_Spawn(self); // (its armour by the skill: vr_agarmor.qc)
     VR_WP_Spawn(self);      // (its backpack on its back if it carries a ranged weapon: vr_wornpack.qc)
 };

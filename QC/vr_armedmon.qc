@@ -54,7 +54,7 @@ string vr_am_pain2;
 float vr_am_loot_aid;       // its backpack with no reserve: this ammo (AID_*),
 float vr_am_loot_n;         // ... this many
 float vr_am_classes;        // the weapon classes it may hold (VR_AM_CLASSES_ALL: any; others: its fists)
-float vr_am_takes_ranged;   // it takes up ranged weapons lying about (VR_AM_Takes; else melee ones only: spawned with a gun it holds it)
+float vr_am_takes_ranged;   // it takes up ranged weapons lying about (VR_AM_Takes; else melee ones only, unless it spawned with a gun: .vr_ag_born_ranged)
 vector vr_am_fit_scale;     // the poses' body space (vr_armedgrunt_pose.qc, made on the grunt) to its: scaled,
 vector vr_am_fit_shift;     // ... then moved (its shoulders against the grunt's)
 vector vr_am_back_lo;       // its back's vertices (two, x y: their middle) low (the waist) and high (the shoulder blades):
@@ -368,7 +368,7 @@ float(entity g, float c) VR_AM_Holds =
 float(entity g, float wid) VR_AM_Takes =
 {
     float c = VR_AG_Class(wid);
-    return VR_AM_Holds(g, c) && (c == VR_AG_CLASS_MELEE || vr_am_takes_ranged);
+    return VR_AM_Holds(g, c) && (c == VR_AG_CLASS_MELEE || vr_am_takes_ranged || g.vr_ag_born_ranged);
 };
 
 string(entity g) VR_AM_Pain =

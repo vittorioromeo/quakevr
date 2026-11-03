@@ -209,6 +209,7 @@ float(float r) VR_AGR_NativeChance;                                        // VR
 void() VR_AGR_NativeFinished;                                              // ... and its pause after
 void() VR_AGR_NativeAttack;                                                // VR_AG_Missile: its monster's attack frames
 void(float d) VR_AGR_GunAxe;                                               // VR_AG_CheckAttack: the gun or the axe now
+.float vr_ag_born_ranged; // it spawned holding a ranged weapon (VR_AM_Spawn): takes ranged weapons up whatever its row says (VR_AM_Takes)
 .string vr_agr_mdl;        // a held weapon's model while its holder waits unseen (MG_deferred: VR_AG_PropThink)
 .float vr_agk_live; // run live by the Pose Studio (its real loops where it stands: vr_armedgrunt_pose.qc VR_AGK_Live)
 // Held still (vr_agrunt_freeze: the Grip Editor, the Pose Studio; not the studio's Live subject): no AI, no tug, no blow.
@@ -245,6 +246,7 @@ void(entity h) VR_AgArmor_DebrisGrabbed;                  // VR_Carry_Start: a p
 .float vr_wp_peak;    // a pack's: the hardest pull on it so far (N; the tests)
 float(entity e) VR_WP_Packless;                                          // VR_AG_SoldierDrop, SoldierDrop: left without a pack by the rule: no backpack
 void(entity e) VR_WP_Refit;                                              // VR_AGR_Resolve: its loadout changed unseen
+float(entity e) VR_WP_CarriesRanged;
 void(entity e) VR_WP_Spawn;                                              // VR_AM_Spawn: an armed grunt's pack put on
 void(entity targ, entity inflictor, entity attacker, float take) VR_WP_Hit; // T_Damage: a hit on the pack may tear it off
 void(entity m, float xSpeed, vector xInto) VR_AG_FallTouch;                // VR_RagImpact_Hit: its body met the level (VR_AG_FallImpact)

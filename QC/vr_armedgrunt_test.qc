@@ -5,8 +5,8 @@
 //   player its enemy, for a few seconds: `agtest: <weapon>: <shots> shots, <dmg> damage to you, clip <c>, reserve <r>,
 //   <n> reloads: PASS|FAIL` (PASS: it hurt the player), then `agtest: every weapon: <p> passed, <f> failed`.
 // - 2: a shotgun grunt with half a reserve: it fires, reloads (`reload PASS`), is struck on its gun hand (`disarm PASS`:
-//   its gun lies about, its clip with it), goes back for it (`rearm PASS`; a knight with vr_agknight_ranged_pickup 0
-//   leaves it lying: `rearm (takes no guns) PASS`), and is killed (`drop PASS`: the gun lies
+//   its gun lies about, its clip with it), goes back for it (`rearm PASS`; a kind that takes no guns: `rearm (takes no
+//   guns) PASS`, it leaves it lying), and is killed (`drop PASS`: the gun lies
 //   where it died, its rounds in it).
 // - 3: the yank: a shotgun grunt standing ahead (the player unseen), the player's main hand (a script's vr_mock_hand)
 //   emptied, the grunt moved to it, the hand to its gun's height (vr_mock_hand_lift: each kind's own) and closed (the
@@ -269,7 +269,7 @@ void() VR_AGTest_Sequence =
             g.enemy.classname, g.health, lying ? vlen(lying.origin - g.origin) : -1, vlen(lying.velocity), lying.vr_depleted));
         VR_AGT_Print(sprintf("rearm: next think in %g, knockdown %g, movetype %g, seek %s, seek next in %g", g.nextthink - time,
             g.vr_knockdown, g.movetype, g.vr_ag_seek.classname, g.vr_ag_seek_next - time));
-        // (a kind that takes no ranged weapons up, a knight with vr_agknight_ranged_pickup 0: it leaves the gun lying)
+        // (one that takes no ranged weapons up, VR_AM_Takes: it leaves the gun lying)
         float takes = VR_AM_Takes(g, WID_SHOTGUN);
         VR_AGT_Check(sprintf("rearm (%s): %g pickups, holds %s:", takes ? "takes guns" : "takes no guns", g.vr_ag_pickups,
             g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing"),

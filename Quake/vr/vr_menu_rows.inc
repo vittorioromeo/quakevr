@@ -852,9 +852,9 @@ QVR_SLIDER(vr_agdknight_cast_cooldown, "Armed Death Knights: Gun Cast Cooldown",
     "starting on a random part of it, so a group doesn't volley together. With a blade or his fists he casts at range "
     "by id's own chances, his sword kept in his hand (vr_agdknight_cast_cooldown).")
 QVR_TOGGLE(vr_agknight_ranged_pickup, "Armed Knights: Pick Up Ranged Weapons",
-    "Off: armed knights and death knights take up only melee weapons lying about (a gun they drop stays "
-    "on the floor). On: they take up guns too, as grunts do (for experiments). One spawned holding a gun "
-    "(the toolgun, the Rig Studio, a map's \"weapon\") holds it either way (vr_agknight_ranged_pickup).")
+    "Off: armed knights and death knights with swords take up only melee weapons lying about. On: they take up "
+    "guns too, as grunts do. One spawned holding a gun (the toolgun, the Rig Studio, a wave, a map's \"weapon\") "
+    "takes guns up either way (vr_agknight_ranged_pickup).")
 QVR_SLIDER(vr_agrunt_repl_rare_map, "Rare From Map", 0.f, 8.f, 1.f, "%.0f", noExt,
     "Rare weapons only from this map of an episode on (e1m4, hip1m4, r2m4, ...); maps with no number in "
     "their name never. 0: any map (vr_agrunt_repl_rare_map).")

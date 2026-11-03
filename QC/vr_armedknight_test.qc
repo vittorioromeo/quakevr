@@ -206,6 +206,12 @@ void() VR_AKNT_Frame =
     }
     if(vr_aknt_case == 4)
     {
+        if(g.health > 0 && t < 5)
+        {
+            T_Damage(g, p, p, g.health + 10); // (its armour, rolled by the skill, took some of the blow)
+            vr_aknt_t0 = time;
+            return;
+        }
         if(t < 0.3)
         {
             return;
@@ -268,13 +274,15 @@ void() VR_AKNT_Frame =
 //   205  the census; one with a target that is no path killed: counted, its target used (a door moves); one's sword
 //        knocked out and gone, a gun lying by it: it never takes it (the same one takes it with
 //        vr_agknight_ranged_pickup 1: the wait is long enough); on MG's maps one waiting for its trigger comes armed;
-//        a monster_vr_knight and monster_vr_hknight spawned with a shotgun hold it and wear the pack; an arena wave's
-//        hold their swords; a knight hurt by an ogre turns on it, by another knight doesn't.
+//        a monster_vr_knight and monster_vr_hknight spawned with a shotgun hold it, wear the pack and, disarmed, take a gun
+//        up with the setting off (his note of 2026-11-03: .vr_ag_born_ranged), one spawned with its sword takes none; an
+//        arena wave's hold their swords; a knight hurt by an ogre turns on it, by another knight doesn't.
 //   207  a save from before (`vr_agknight 0`, saved, then loaded with it on): the census with none armed, the kill.
 // Ends on `agtest: test N over: P passed, F failed`.
 // ----------------------------------------------------------------------------
 
-float vr_kmt_step;   // 0 census, 1 the kill, 2 gun holder's made, 3 its gun down, 4 no gun taken, 5 the control, 6 the rest, 7 infighting, 8 a deferred one woken, 9 the gun's turn
+entity vr_kmt_gun1, vr_kmt_gun2; // the knight and the death knight spawned with a gun
+float vr_kmt_step;   // 0 census, 1 the kill, 2 gun holder's made, 3 its gun down, 4 no gun taken, 5 the control, 6 the rest, 7 infighting, 8 a deferred one woken, 9 the gun's turn, 10, 11 spawned gun holders disarmed
 float vr_kmt_t0;
 float vr_kmt_killed; // killed_monsters before the kill
 float vr_kmt_fired;  // its target's use ran
@@ -428,6 +436,22 @@ entity(float w, vector at) VR_KMT_Lying =
     return best;
 };
 
+// Every weapon lying about but shotguns gone (a knight takes melee ones up whatever the settings: a dead grunt's axe, an
+// ogre's chainsaw would fill the hand the gun is tried on).
+void() VR_KMT_OnlyGuns =
+{
+    entity e = find(world, classname, "thrown_weapon");
+    while(e)
+    {
+        entity n = find(e, classname, "thrown_weapon");
+        if(e.weapon != WID_SHOTGUN)
+        {
+            remove(e);
+        }
+        e = n;
+    }
+};
+
 // The last checks: the guns of spawned ones, who a knight turns on.
 void() VR_KMT_Rest =
 {
@@ -435,12 +459,17 @@ void() VR_KMT_Rest =
     makevectors([0, p.angles_y, 0]);
     traceline(p.origin, p.origin + v_forward * 220, TRUE, p);
     vector at = trace_endpos - v_forward * 48;
+    // (a wearer by the pack's rule; Dawn of the Machine's monsters carry none)
     entity g = VR_KMT_SpawnArmed(FALSE, WID_SHOTGUN, at + v_right * 40);
-    VR_AGT_Check(sprintf("a knight spawned with a shotgun holds it (%g), wears the pack (%g)", g.vr_ag_wid, g.vr_wp_pack != world),
-        g.vr_ag_wid == WID_SHOTGUN && g.vr_wp_pack != world);
+    VR_AGT_Check(sprintf("a knight spawned with a shotgun holds it (%g), wears the pack (%g), takes guns up (%g) with the setting %g",
+        g.vr_ag_wid, g.vr_wp_pack != world, VR_AM_Takes(g, WID_SHOTGUN), cvar_hget(cvarh_vr_agknight_ranged_pickup)),
+        g.vr_ag_wid == WID_SHOTGUN && (g.vr_wp_pack != world || MG3_Campaign()) && VR_AM_Takes(g, WID_SHOTGUN));
+    vr_kmt_gun1 = g;
     g = VR_KMT_SpawnArmed(TRUE, WID_SHOTGUN, at - v_right * 40);
-    VR_AGT_Check(sprintf("a death knight spawned with a shotgun holds it (%g), wears the pack (%g)", g.vr_ag_wid, g.vr_wp_pack != world),
-        g.vr_ag_wid == WID_SHOTGUN && g.vr_wp_pack != world);
+    VR_AGT_Check(sprintf("a death knight spawned with a shotgun holds it (%g), wears the pack (%g), takes guns up (%g) with the setting %g",
+        g.vr_ag_wid, g.vr_wp_pack != world, VR_AM_Takes(g, WID_SHOTGUN), cvar_hget(cvarh_vr_agknight_ranged_pickup)),
+        g.vr_ag_wid == WID_SHOTGUN && (g.vr_wp_pack != world || MG3_Campaign()) && VR_AM_Takes(g, WID_SHOTGUN));
+    vr_kmt_gun2 = g;
 
     entity oldself = self;
     self = spawn();
@@ -483,6 +512,21 @@ void() VR_KMT_Infight =
         k1.enemy != k2 && k1.health < 75);
     T_Damage(k1, ogre, ogre, 1);
     VR_AGT_Check(sprintf("infighting: hurt by an ogre, a knight turns on it (enemy %s)", k1.enemy.classname), k1.enemy == ogre);
+    VR_AGT_Check(sprintf("a knight spawned with its sword takes no gun up (%g)", VR_AM_Takes(k2, WID_SHOTGUN)), !VR_AM_Takes(k2, WID_SHOTGUN));
+    VR_AGT_Remove(k1); // (gone, with what they hold: nothing else to take up below)
+    VR_AGT_Remove(k2);
+    remove(ogre);
+};
+
+// A spawned gun holder awake, you unseen, its gun knocked out: it goes back for it.
+void(entity g) VR_KMT_DisarmGun =
+{
+    VR_AGT_Hunt(g);
+    vr_agt_player.flags = vr_agt_player.flags | FL_NOTARGET;
+    g.enemy = world;
+    makevectors(g.angles);
+    VR_AG_Disarm(g, v_right, 120, "test 205");
+    VR_KMT_OnlyGuns();
 };
 
 void(float t) VR_KMT_Frame =
@@ -615,11 +659,7 @@ void(float t) VR_KMT_Frame =
         vr_kmt_k.enemy = world;
         makevectors(vr_kmt_k.angles);
         VR_AG_Disarm(vr_kmt_k, v_right, 120, "test 205");
-        entity sw = VR_KMT_Lying(WID_SWORD, vr_kmt_k.origin);
-        if(sw)
-        {
-            remove(sw);
-        }
+        VR_KMT_OnlyGuns();
         vr_kmt_t0 = time;
         vr_kmt_step = 4;
         return;
@@ -648,7 +688,7 @@ void(float t) VR_KMT_Frame =
         }
         VR_AGT_Check(sprintf("control: with vr_agknight_ranged_pickup 1 it takes it in %.1f s (%g pickups, holds %s)", dt,
             vr_kmt_k.vr_ag_pickups, vr_kmt_k.vr_ag_prop ? vr_kmt_k.vr_ag_prop.netname : "nothing"),
-            vr_kmt_k.vr_ag_pickups >= 1 && vr_kmt_k.vr_ag_prop != world);
+            vr_kmt_k.vr_ag_pickups >= 1 && vr_kmt_k.vr_ag_wid == WID_SHOTGUN);
         cvar_set("vr_agknight_ranged_pickup", "0");
         vr_kmt_step = 6;
         return;
@@ -660,11 +700,41 @@ void(float t) VR_KMT_Frame =
         vr_kmt_step = 7;
         return;
     }
-    if(dt < 3 && !((vr_kmt_k.flags & FL_MONSTER) && (vr_kmt_k.takedamage != DAMAGE_NO) && (vr_kmt_t.flags & FL_MONSTER)))
+    if(vr_kmt_step == 7 && dt < 3 && !((vr_kmt_k.flags & FL_MONSTER) && (vr_kmt_k.takedamage != DAMAGE_NO) && (vr_kmt_t.flags & FL_MONSTER) &&
+        (vr_kmt_gun1.flags & FL_MONSTER) && (vr_kmt_gun2.flags & FL_MONSTER)))
     {
         return;
     }
-    VR_KMT_Infight();
+    if(vr_kmt_step == 7)
+    {
+        VR_KMT_Infight();
+        VR_KMT_DisarmGun(vr_kmt_gun1);
+        vr_kmt_t0 = time;
+        vr_kmt_step = 10;
+        return;
+    }
+    if(vr_kmt_step == 10)
+    {
+        if((!vr_kmt_gun1.vr_ag_prop || vr_kmt_gun1.vr_ag_pickups < 1) && dt < 20)
+        {
+            return;
+        }
+        VR_AGT_Check(sprintf("the setting %g: a knight spawned with a shotgun, disarmed, takes it up in %.1f s (%g pickups, holds %s)",
+            cvar_hget(cvarh_vr_agknight_ranged_pickup), dt, vr_kmt_gun1.vr_ag_pickups, vr_kmt_gun1.vr_ag_prop ? vr_kmt_gun1.vr_ag_prop.netname : "nothing"),
+            vr_kmt_gun1.vr_ag_pickups >= 1 && vr_kmt_gun1.vr_ag_wid == WID_SHOTGUN);
+        T_Damage(vr_kmt_gun1, p, p, 5000);
+        VR_KMT_DisarmGun(vr_kmt_gun2);
+        vr_kmt_t0 = time;
+        vr_kmt_step = 11;
+        return;
+    }
+    if((!vr_kmt_gun2.vr_ag_prop || vr_kmt_gun2.vr_ag_pickups < 1) && dt < 20)
+    {
+        return;
+    }
+    VR_AGT_Check(sprintf("the setting %g: a death knight spawned with a shotgun, disarmed, takes a gun up in %.1f s (%g pickups, holds %s)",
+        cvar_hget(cvarh_vr_agknight_ranged_pickup), dt, vr_kmt_gun2.vr_ag_pickups, vr_kmt_gun2.vr_ag_prop ? vr_kmt_gun2.vr_ag_prop.netname : "nothing"),
+        vr_kmt_gun2.vr_ag_pickups >= 1 && vr_kmt_gun2.vr_ag_wid == WID_SHOTGUN);
     cvar_set("vr_agrunt_test", "0");
 };
 #endif
