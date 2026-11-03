@@ -877,6 +877,17 @@ void(entity p) VR_WPR_Run =
     self = oldself;
     VR_Test_Check(!g.vr_wp_pack && !g.vr_wp_worn && !g.vr_wp_had, "rolled a sword: its pack gone");
     VR_Test_Check(k.vr_wp_pack && k.vr_wp_worn == 1 && k.vr_wp_had, "rolled a gun: it wears one");
+    // Never an extra weapon ("Never drop extra weapons", 2026-11-03): TRUE means its monster's own drop, with its chance of
+    // one, doesn't run. As a replacement: the sword's (no pack, no loot), and an enforcer's sword (its monster's cells).
+    entity e = VR_WPT_SpawnKind(p, VR_AM_ENFORCER, WID_SWORD, -60, 120, FALSE);
+    g.vr_agr = 1;
+    e.vr_agr = 1;
+    self = g;
+    float dropG = VR_AG_SoldierDrop();
+    self = e;
+    float dropE = VR_AG_SoldierDrop();
+    self = oldself;
+    VR_Test_Check(dropG && dropE, sprintf("a melee replacement's loot its own: grunt's %g, enforcer's %g", dropG, dropE));
     VR_WPT_End();
 };
 

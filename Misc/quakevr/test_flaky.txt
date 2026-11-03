@@ -5,13 +5,12 @@
 
 # Their scripts seed already, so the variance is not the server's random numbers. Not investigated yet.
 teleporters_chase ragdoll_ragtest ragdoll_grab ragdoll_guard
-# Varies with sv_random_seed fixed, cause not found; its 90% floor is a question for him (ROUND23.md, "Flaky tests, round 2").
-agrunt_67
-# Two checks hang on the draw: a replaced grunt drops no extra weapon, a vanilla one 8-13 of 40 (his call); the enforcer's
-# damage a shot within 20% (not looked into).
+# The grab table (67 normal time, 209 bullet time). Its 90% floor is on idle, ready and running only, his call, and it
+# still flips: the tries and the takings vary with sv_random_seed fixed, cause not found (ROUND23.md, "His decisions of 2026-11-03").
+agrunt_67 agrunt_209
+# The enforcer's damage a shot within 20%: on its edge on some merges (ROUND23.md, "Flaky tests, round 3"). Its balance is
+# measured at range 0: the replaced ones' fighting distance is his decision, 2026-11-03, "Leave as is".
 agrunt_71
-# Case 5: a level sword parries the "horizontal" swing, a diagonal cut where it meets you (his call: ROUND23.md, "Flaky tests, round 3").
-agrunt_78
 # Failed 3 of 3 on seed 1 in round 2 ("no nail flew on through it"), not reproduced in 12 seeds since: the cause not found.
 nail_1
 # Only its gates scene rerun (3 identical): not yet 5 identical full runs.
@@ -21,3 +20,4 @@ agrunt_60 rv_1
 # Taken off 2026-11-02: agrunt_47, agrunt_63, agrunt_72 (fixed; 5 identical passes seeded).
 # Taken off 2026-11-03: agrunt_1, agrunt_76, agrunt_86, agarmor_5 (causes found and fixed; 5 identical passes seeded).
 # Taken off 2026-11-03: agrunt_18 (cause found and fixed; 5 identical passes seeded, 24/0 on seeds 1-3).
+# Taken off 2026-11-03: agrunt_78 (case 10's premise fixed; 5 identical passes seeded, 20/0).

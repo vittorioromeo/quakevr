@@ -1,20 +1,22 @@
 #ifdef QVR_TESTS
 // Grabbing an active armed humanoid's weapon (ROUND22.md, "Armed humanoids: grabs, holding on, running chainsaws";
-// his notes vrragtriggers_2026-10-27_01-38-30 .. 01-41-43): test 67, the grab table. Each weapon class (axe, sword,
+// his notes vrragtriggers_2026-10-27_01-38-30 .. 01-41-43): tests 67 (normal time) and 209 (bullet time: the slow one, so
+// split, each within the runners' timeout), the grab table. Each weapon class (axe, sword,
 // crowbar, chainsaw, shotgun, nailgun, a dual wielder's left shotgun, a dual wielder's left axe) on a humanoid idle (it
 // hasn't seen you), running at you, ready (aiming a gun, a blade raised) and mid-strike (a swing under way, a shot just
 // fired), with your empty main hand put on its weapon at 10 points along it (5% .. 95% from the end behind its grip to
 // its muzzle or tip: vr_mock_hand_to agweaponpalm), following the weapon a few frames as a hand catching it would, then
-// closing: a tug (or the weapon at once) is a success. In and out of bullet time (vr_timescale 0.3). Each group prints
+// closing: a tug (or the weapon at once) is a success. Bullet time is vr_timescale 0.3. Each group prints
 // "grabtable: <weapon> <state> <normal|bullet time>: <n>/<tries> (tug, at once; refused too fast, the fist off it,
 // knocked away, nothing; state not reached)", then the totals and the verdict: 90% of the tries taken or more (each time
 // scale) on one idle, ready or running. A swing under way is only reported: a hand on a blade going that fast is refused
 // by design ("too fast"). His call 2026-11-03 (ROUND23.md, "Flaky tests, round 2", question).
-// scratch1: n > 0 only weapon case n - 1; scratch2: n > 0 only state n - 1; scratch3: 1 only normal time, 2 only bullet.
+// scratch1: n > 0 only weapon case n - 1; scratch2: n > 0 only state n - 1.
 float vr_aggt_case;     // the weapon case
 float vr_aggt_state;    // 0 idle, 1 running, 2 ready, 3 striking
 float vr_aggt_pt;       // the point along it (0..9)
 float vr_aggt_bt;       // 0 normal time, 1 bullet time
+float vr_aggt_which;    // the time this test runs in: 0 test 67's, 1 test 209's
 float vr_aggt_t0;       // the try's start, its press
 float vr_aggt_press;
 float vr_aggt_track;    // frames the hand has followed the weapon
@@ -62,11 +64,11 @@ entity(entity g) VR_AGGT_Target =
     return g.vr_ag_prop;
 };
 
-// Whether this case, state and time are run (scratch1..3).
+// Whether this case, state and time are run (scratch1, scratch2, the test's number).
 float() VR_AGGT_Wanted =
 {
-    float c = cvar_hget(cvarh_scratch1), s = cvar_hget(cvarh_scratch2), b = cvar_hget(cvarh_scratch3);
-    return (c <= 0 || vr_aggt_case == c - 1) && (s <= 0 || vr_aggt_state == s - 1) && (b <= 0 || vr_aggt_bt == b - 1);
+    float c = cvar_hget(cvarh_scratch1), s = cvar_hget(cvarh_scratch2);
+    return (c <= 0 || vr_aggt_case == c - 1) && (s <= 0 || vr_aggt_state == s - 1) && vr_aggt_bt == vr_aggt_which;
 };
 
 void() VR_AGGT_GroupEnd =
@@ -747,7 +749,11 @@ void() VR_AGGT_Hold69 =
 
 void(float t) VR_AGGT_Frame =
 {
-    if(t == 67) { VR_AGGT_Run(); }
+    if(t == 67 || t == 209)
+    {
+        vr_aggt_which = t == 209;
+        VR_AGGT_Run();
+    }
     else if(t == 68) { VR_AGGT_Dual68(); }
     else if(t == 69) { VR_AGGT_Hold69(); }
 };

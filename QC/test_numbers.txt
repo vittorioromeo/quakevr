@@ -120,7 +120,8 @@ vr_agrunt_test   60       vr_armedgrunt_parry_test.qc      they parry your blows
 vr_agrunt_test   61-64    vr_armedgrunt_bugs_test.qc       pickups drawn, drops up close, friendly fire
 vr_agrunt_test   65       vr_armedgrunt_close_test.qc      grab anywhere, never a blow; a lying one reached for
 vr_agrunt_test   66       vr_armedgrunt_close_test.qc      grab anywhere, never a blow; a lying one reached for
-vr_agrunt_test   67-69    vr_armedgrunt_grab_test.qc       the grab table, a dual wielder's off hand, holding on
+vr_agrunt_test   67-69    vr_armedgrunt_grab_test.qc       the grab table (normal time), a dual wielder's off hand, holding on
+vr_agrunt_test   209      vr_armedgrunt_grab_test.qc       the grab table in bullet time
 vr_agrunt_test   70-73    vr_armedrepl_test.qc             armed humanoid replacements
 vr_agrunt_test   74       vr_armedgrunt_downtug_test.qc    a knocked-down one's weapon grabbed; shots on the weapon
 vr_agrunt_test   75       vr_armedgrunt_downtug_test.qc    a knocked-down one's weapon grabbed; shots on the weapon

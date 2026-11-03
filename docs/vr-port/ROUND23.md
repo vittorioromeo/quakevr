@@ -7728,3 +7728,28 @@ since 5095e37b4 (`scratch/r1103_bisect.py`: one build and probe per merge, about
   changes between runs (`slash_backswing_up_left` with 6 copies, `slash_overhead 12-33-47` with 8); alone, six replays never moved.
   So a row does depend a little on the shard, against eval.sh's header. The source of that isn't found.
 - **ragdoll_stagger:** 51/6 in nearly every run since 2026-10-31 (52/5 once): the baseline's 52/5 is the odd one, not a new failure.
+
+## His decisions of 2026-11-03 (branch `agent/decisions1103`)
+
+Seeded runs on `vrtesthall`, drawn, on next at 10362cc5f plus this branch.
+
+1. **Test 71, the replaced ones' fighting distance: "Leave as is".** Nothing in the game changed. The balance stays measured at `vr_agrunt_range` 0; its comment and the flaky list say the distance is his decision.
+2. **Extra weapons: "Never drop extra weapons".** The roll is in `SoldierDrop` and `EnforcerDrop`, after `VR_AG_SoldierDrop`, which handed a replacement back to them (FALSE) in two cases: melee-only or unarmed under the pack's rule, and no real ammo with no worn pack (every replaced enforcer with its own gun, which is why grunts got 0 and enforcers 7-13). It now answers TRUE for every armed humanoid. The loot is unchanged: a gun from each, the same backpacks and ammo.
+   - Replacements on maps, spawners and MG's horde (`vr_mg_horde.qc` spawns the plain `monster_army`, replaced like any map's): no extra weapon now.
+   - Armed spawns (`monster_vr_grunt`, `monster_vr_enforcer`, knights) and the arena's wave entries (`arenaSpawn`: the same armed spawns, `.vr_agr` 0): never rolled, no change. Knights and death knights have no roll at all. AD's soldiers aren't replaced (`VR_AGR_ADVariant`).
+   - Stock monsters unchanged: test 71 still counts their extras, grunt 8 and enforcer 11 of 40, against 0 and 0 replaced. Scourges, shamblers and ogres keep theirs.
+   - One side effect, from the code only: an infected replaced enforcer outside Mission Pack 3's campaign (`MG3_Infected_DropWeapon`) now drops its 5 cells, as its death would; before, nothing.
+   - Test 71: 10/0, 2 of 2 identical. `vr_wornpack_test` 6 (a melee replacement, both kinds) 4/0, test 47 77/0.
+3. **Test 78, the level sword against the "horizontal" swing: "Accept as is", but the parry he accepted isn't there on next.** The case now lands, 83 degrees off square and gap 15.3 (blade level along yours, its way at you), so expecting a parry would fail; I did not loosen or change the swing. Case 5 keeps "lands", and its comment states his call. Logged history: parried up to 2026-11-01 04:34 (15 degrees, gap 3.7), landing at 2026-11-03 08:14. Round 3's QC on today's engine lands too, with the same numbers. What flipped it: not found, not bisected. Round 3's numbers (38 degrees; blade 0.65, 0.55, -0.52) look like another case's: case 7's overhead reads blade 0.65, 0.58, -0.49; not proven.
+   The one real failure on next was case 10: contact just past case 5's gap could not flip a blade 83 degrees off. It now takes case 7's geometry (the sword out of reach to the side), contact just past its gap: parried. 20/0, 5 of 5 identical, off `test_flaky.txt`.
+4. **Mjolnir's swing 20 units off a weapon held still: "Leave as is".** Nothing to do.
+6. **Eval: accepted.** `kit/eval_baseline.csv` not edited. The row as a fresh run gives it (canary and full agree):
+   `slash_diagonal_down_left_2026-10-12_12-30-13.csv,slash_diagonal_down_left,axe,melee/slash weapon:sword|axe|mjolnir|chainsaw|crowbar,PASS,,melee/slash main 49.5 (the head) @0.617; decap/yes main (zone in 4.7/12.3 off -1.6 below the head's middle part 0.77 (the head) slash 77 deg flat 1 deg tilt -21 deg speed 17.2 m/s kind slash) @0.617,melee/slash main 61.8 (the head) @0.617; decap/yes main (zone in 4.0/12.3 off -1.9 below the head's middle part 1.03 (the head) slash 88 deg flat 0 deg tilt -25 deg speed 23.4 m/s kind slash) @0.617,yes,206,20.103`
+   The same run also moves `slash_overhead_2026-10-12_12-28-58` by 0.1 damage in the full set, the shard variance noted above.
+7. **Test 67: "Please apply as suggested", and its verdict is still not stable.** The floor is on idle, ready and running; striking is printed, not floored. Split, since the whole table took 488 s against run_baseline's 300 s: 67 normal time (64-200 s), new 209 bullet time (193-362 s beside other work; `scratch3` retired). Taken of the floored tries:
+   - Normal: 154/164, 156/171, 153/163, 153/163 PASS, 147/165 FAIL (154/170 PASS in the whole table's run).
+   - Bullet: 141/147 PASS (whole), 130/147 FAIL, 148/158 PASS.
+   - Striking, reported: normal 40-47 of 79, bullet 40-53 of 59-67.
+   The number of tries changes as well as the takings: the same idle nailgun group is 3/6 with 4 not reached, then 9/9 with 1. The losses that vary are mostly "fist off" and "state not reached"; 90% sits inside that spread. What varies with the seed fixed: not found; wall time shows no pattern (a fail at 68 s, passes at 64 s and 200 s). So both stay on `test_flaky.txt`. The floor was not lowered.
+
+Checklist line, item 2: a replaced grunt or enforcer, whatever it holds, drops what it holds and its backpack, never an extra weapon; a plain grunt or enforcer (`vr_agrunt_repl` 0) still sometimes does. {test:vrtesthall}
