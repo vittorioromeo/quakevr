@@ -3156,37 +3156,6 @@ void() VR_AT18_Check =
     VR_AT_Check(p.currentammo == 0, "nothing in the hands' counter");
     VR_AT_Check(VRGetEntWeapon(p, cVR_MainHand) == WID_FIST && VRGetEntWeapon(p, cVR_OffHand) == WID_FIST,
                 "fists in both hands");
-// Test 30: Default as it is: every skill's first 30 plans hashed and one live wave's foes printed under a fixed seed
-// ("arenaplan" and "arena: foe" lines, developer 1), to compare two builds: no preset chosen must print the same.
-// ---------------------------------------------------------------------------
-
-void() VR_AT30_Begin =
-{
-    cvar_set("vr_arena_seed", "4242");
-    float sk;
-    float w;
-    float i;
-    for(sk = 0; sk < 4; sk++)
-    {
-        VR_AT_SetSkill(sk);
-        for(w = 1; w <= 30; w++)
-        {
-            VR_ARENA_Plan(w);
-            float h = ar_plan_n;
-            for(i = 0; i < ar_plan_n; i++)
-            {
-                h = VR_ARENA_Mod(h * 31 + ar_plan_kind[i], 1000003);
-                h = VR_ARENA_Mod(h * 31 + ar_plan_gun[i] + 1, 1000003);
-                h = VR_ARENA_Mod(h * 31 + ar_plan_tier[i], 1000003);
-                h = VR_ARENA_Mod(h * 31 + ar_plan_boss[i], 1000003);
-                h = VR_ARENA_Mod(h * 31 + ar_plan_armour[i], 1000003);
-                h = VR_ARENA_Mod(h * 31 + ar_plan_amask[i], 1000003);
-            }
-            dprint(sprintf("arenaplan skill %g wave %g foes %g hash %g\n", sk, w, ar_plan_n, h));
-        }
-    }
-    VR_AT_SetSkill(1);
-    VR_ARENA_FastForward(6);
 }
 
 void() VR_AT18_Frame =
@@ -3257,6 +3226,44 @@ void() VR_AT19_Frame =
                 sprintf("wave %g: a fallen foe's pack gives ammunition (shells %g, nails %g, rockets %g, cells %g)", ar_wave,
                         p.ammo_shells, p.ammo_nails, p.ammo_rockets, p.ammo_cells));
     VR_AT_End();
+}
+
+// ---------------------------------------------------------------------------
+// Test 30: Default as it is: every skill's first 30 plans hashed and one live wave's foes printed under a fixed seed
+// ("arenaplan" and "arena: foe" lines, developer 1), to compare two builds: no preset chosen must print the same.
+// ---------------------------------------------------------------------------
+
+void() VR_AT30_Begin =
+{
+    cvar_set("vr_arena_seed", "4242");
+    float sk;
+    float w;
+    float i;
+    for(sk = 0; sk < 4; sk++)
+    {
+        VR_AT_SetSkill(sk);
+        for(w = 1; w <= 30; w++)
+        {
+            VR_ARENA_Plan(w);
+            float h = ar_plan_n;
+            for(i = 0; i < ar_plan_n; i++)
+            {
+                h = VR_ARENA_Mod(h * 31 + ar_plan_kind[i], 1000003);
+                h = VR_ARENA_Mod(h * 31 + ar_plan_gun[i] + 1, 1000003);
+                h = VR_ARENA_Mod(h * 31 + ar_plan_tier[i], 1000003);
+                h = VR_ARENA_Mod(h * 31 + ar_plan_boss[i], 1000003);
+                h = VR_ARENA_Mod(h * 31 + ar_plan_armour[i], 1000003);
+                h = VR_ARENA_Mod(h * 31 + ar_plan_amask[i], 1000003);
+            }
+            dprint(sprintf("arenaplan skill %g wave %g foes %g hash %g\n", sk, w, ar_plan_n, h));
+        }
+    }
+    VR_AT_SetSkill(1);
+    VR_ARENA_FastForward(6);
+}
+
+void() VR_AT30_Frame =
+{
     if(ar_wave == 6 && ar_plan_n - ar_plan_left >= 3)
     {
         VR_AT_Check(TRUE, "wave 6's first foes in");
@@ -3440,7 +3447,7 @@ entity at35_b2;
 entity(vector xLo, vector xHi) VR_AT35_Block =
 {
     entity b = spawn();
-    b.classname = "vr_at23_block";
+    b.classname = "vr_at35_block";
     b.solid = SOLID_BBOX;
     b.movetype = MOVETYPE_NONE;
     setorigin(b, '0 0 0');
@@ -3645,6 +3652,7 @@ void() VR_ARENA_Test_Frame =
     if(vr_at_case == 16) { VR_AT16_Frame(); return; }
     if(vr_at_case == 18) { VR_AT18_Frame(); return; }
     if(vr_at_case == 19) { VR_AT19_Frame(); return; }
+    if(vr_at_case == 30) { VR_AT30_Frame(); return; }
     if(vr_at_case == 32) { VR_AT32_Frame(); return; }
     if(vr_at_case == 35) { VR_AT35_Frame(); return; }
 }
