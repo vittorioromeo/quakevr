@@ -18,7 +18,6 @@ struct SoundLayer
     float delay{0.f};  // s into the sound it starts
     float length{0.f}; // s of it kept (0: all of it), its last `fade` s faded out
     float fade{0.f};
-    bool reversed{false}; // played backwards
 };
 
 // What is done to the layers' sum before it is saturated (all off by default: the sum as it is).
