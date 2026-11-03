@@ -473,7 +473,9 @@ const NamedDefaultChange namedDefaultChanges[] = {
 // 220: vr_body_step_rate's meaning changed (a cap that rarely counted -> the steps a second at a full run): the old number
 // can't be converted, so whatever was saved goes back to the default, the player's own choice too; vr_body_step_run to
 // its new range, 0 .. 1.
-constexpr int configVersion = 220;
+// 221: the worn pack's one fit (vr_worn_backpack_x, _y, _z, _scale, _pitch, _yaw, _roll, retired) split per kind: a config line's
+// value goes on each kind's slider once (the death knight's Up with the 6 his pack always sat higher: the look kept).
+constexpr int configVersion = 221;
 // 190: vr_struggle_classes retired for the monster groups' Struggle settings: the value of its line in the config just
 // executed (VR_RetiredCvar keeps it), moved into the groups by mgroups::migrateStruggleClasses if it was custom.
 za::String retiredStruggleClasses;
@@ -481,6 +483,26 @@ bool retiredStruggleSeen = false;
 // 203: Gun Model Pitch (vr_gunmodelpitch, retired 2026-11-02) moved into Hand Pitch: its line's value in the config just
 // executed (VR_RetiredCvar keeps it; its default 7 when there is none).
 float retiredGunModelPitch = weapons::gunModelPitchBase;
+// 221: the worn pack's one fit: its config lines' values (VR_RetiredCvar keeps them), each kind's slider, what the death knight adds.
+struct RetiredPackFit
+{
+    const char* name;
+    cvar_t& grunt;
+    cvar_t& knight;
+    cvar_t& dknight;
+    float dknightAdds;
+    bool seen;
+    float value;
+};
+RetiredPackFit retiredPackFits[] = {
+    {"vr_worn_backpack_x", vr_worn_backpack_grunt_x, vr_worn_backpack_knight_x, vr_worn_backpack_dknight_x, 0.f, false, 0.f},
+    {"vr_worn_backpack_y", vr_worn_backpack_grunt_y, vr_worn_backpack_knight_y, vr_worn_backpack_dknight_y, 0.f, false, 0.f},
+    {"vr_worn_backpack_z", vr_worn_backpack_grunt_z, vr_worn_backpack_knight_z, vr_worn_backpack_dknight_z, 6.f, false, 0.f},
+    {"vr_worn_backpack_scale", vr_worn_backpack_grunt_scale, vr_worn_backpack_knight_scale, vr_worn_backpack_dknight_scale, 0.f, false, 0.f},
+    {"vr_worn_backpack_pitch", vr_worn_backpack_grunt_pitch, vr_worn_backpack_knight_pitch, vr_worn_backpack_dknight_pitch, 0.f, false, 0.f},
+    {"vr_worn_backpack_yaw", vr_worn_backpack_grunt_yaw, vr_worn_backpack_knight_yaw, vr_worn_backpack_dknight_yaw, 0.f, false, 0.f},
+    {"vr_worn_backpack_roll", vr_worn_backpack_grunt_roll, vr_worn_backpack_knight_roll, vr_worn_backpack_dknight_roll, 0.f, false, 0.f},
+};
 // 1.0.0's version: an older config is reset (resetOldConfig), not migrated; its changes' rows were dropped.
 constexpr int oldestMigrated = 122;
 
@@ -802,6 +824,19 @@ void migrateConfig()
             Cvar_SetValueQuick(&vr_body_step_run, run);
         }
     }
+    if(from < 221)
+    {
+        for(RetiredPackFit& r : retiredPackFits)
+        {
+            if(r.seen)
+            {
+                Cvar_SetValueQuick(&r.grunt, r.value);
+                Cvar_SetValueQuick(&r.knight, r.value);
+                Cvar_SetValueQuick(&r.dknight, r.value + r.dknightAdds);
+                Con_DPrintf("VR: %s %g on each kind's pack fit\n", r.name, r.value);
+            }
+        }
+    }
     Cvar_SetValueQuick(&vr_cfg_version, static_cast<float>(configVersion));
 }
 
@@ -992,6 +1027,14 @@ constexpr const char* retiredCvars[] = {
     "vr_ragdoll_active_getup_hold",
     "vr_menu_banner_beside",
     "vr_worn_backpack_tug",
+    // 2026-11-03: the pack's fit split per kind (his note vrragtriggers_2026-11-03_02-21-38; configVersion 221 moves their values).
+    "vr_worn_backpack_x",
+    "vr_worn_backpack_y",
+    "vr_worn_backpack_z",
+    "vr_worn_backpack_scale",
+    "vr_worn_backpack_pitch",
+    "vr_worn_backpack_yaw",
+    "vr_worn_backpack_roll",
     // 2026-11-02: a hand's pull only ever lifts a worn pack's wearer (ROUND23.md, "Lift only"); the tear by pulling and its
     // options went, and its two tunables, still used by the lift, are named for it now.
     "vr_worn_backpack_pull",
@@ -1257,6 +1300,14 @@ extern "C" int VR_RetiredCvar(const char* name)
             {
                 // (Shoulder Charges turned off: now its chance 0. Before 177 off was the default, which 177 turned on.)
                 Cvar_SetQuick(&qvr::vr_kdtrig_tackle, "0");
+            }
+            for(qvr::RetiredPackFit& r : qvr::retiredPackFits)
+            {
+                if(Cmd_Argc() > 1 && !q_strcasecmp(name, r.name))
+                {
+                    r.seen = true;
+                    r.value = static_cast<float>(Q_atof(Cmd_Argv(1)));
+                }
             }
             if(!q_strcasecmp(name, "vr_gunmodelpitch") && Cmd_Argc() > 1)
             {

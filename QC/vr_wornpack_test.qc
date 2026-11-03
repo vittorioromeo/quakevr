@@ -8,7 +8,7 @@
 // it off; a wearer killed drops no other backpack, its pack takeable then, and taken it comes off. Ends on
 // `wornpack: <p> passed, <f> failed`.
 // 2: the eyeshot's: wearers back on, side on and knocked down. 3: lifted by the pack (below). 4: a hand through the body.
-// 5: the enforcer's lift zone: on a gun's, none on a sword's or fists'; nothing takes it off, nothing drawn, its loot its own.
+// 5: the enforcer's lift zone: on a gun's, a sword's and fists'; nothing takes it off, nothing drawn, its loot its own.
 // 6: a replacement's rule: a loadout rolled unseen gives or takes the pack.
 
 float vr_wpt_state;
@@ -19,8 +19,19 @@ entity vr_wpt_a, vr_wpt_b, vr_wpt_c, vr_wpt_d, vr_wpt_e, vr_wpt_f, vr_wpt_g;
 vector vr_wpt_pull;     // the tug's way (level, towards the player)
 float vr_wpt_gapmax;    // the drawn palm's farthest off the pack's box while pulled (cm)
 float vr_wpt_old_pool, vr_wpt_old_roll;
-float vr_wpt_pinned;
-float vr_wpt_old_z,vr_wpt_old_pitch, vr_wpt_old_yaw; // (the pose test 1 checks is the original one: pinned, put back at the end)
+
+// The fit's slider of the kind under test, now (its handle for each kind).
+float(float grunt, float knight, float dknight) VR_WPT_FitNow =
+{
+    return cvar_hget(vr_wpt_kind == VR_AM_KNIGHT ? knight : (vr_wpt_kind == VR_AM_DKNIGHT ? dknight : grunt));
+};
+
+// The fit's sliders of the kind under test: this one's name.
+string(string which) VR_WPT_FitCvar =
+{
+    return strcat(vr_wpt_kind == VR_AM_KNIGHT ? "vr_worn_backpack_knight_" : (vr_wpt_kind == VR_AM_DKNIGHT ? "vr_worn_backpack_dknight_" :
+        "vr_worn_backpack_grunt_"), which);
+};
 vector vr_wpt_b0;       // B's pack before its knockdown
 float vr_wpt_loose0;    // loose backpacks before the deaths
 float vr_wpt_rips0;
@@ -83,13 +94,6 @@ void() VR_WPT_End =
 {
     cvar_set("vr_worn_backpack_pool", ftos(vr_wpt_old_pool));
     cvar_set("vr_worn_backpack_hit_roll", ftos(vr_wpt_old_roll));
-    if(vr_wpt_pinned)
-    {
-        cvar_set("vr_worn_backpack_z", ftos(vr_wpt_old_z));
-        cvar_set("vr_worn_backpack_pitch", ftos(vr_wpt_old_pitch));
-        cvar_set("vr_worn_backpack_yaw", ftos(vr_wpt_old_yaw));
-        vr_wpt_pinned = FALSE;
-    }
     localcmd("-graboff\n");
     cvar_set("vr_worn_backpack_hit_roll", ftos(vr_wpt_old_chance));
     cvar_set("vr_worn_backpack_hit_ref", ftos(vr_wpt_old_ref));
@@ -123,13 +127,6 @@ void(entity p) VR_WPT_Begin =
     vr_wpt_old_debug = cvar_hget(cvarh_vr_worn_backpack_debug);
     cvar_set("vr_worn_backpack_debug", ftos(max(1, vr_wpt_old_debug)));
     vr_wpt_e = VR_WPT_SpawnKind(p, VR_AM_ENFORCER, WID_SHOTGUN, 60, 120, FALSE); // (the loot's control: an enforcer drops its own)
-    vr_wpt_old_z = cvar_hget(cvarh_vr_worn_backpack_z);
-    vr_wpt_old_pitch = cvar_hget(cvarh_vr_worn_backpack_pitch);
-    vr_wpt_old_yaw = cvar_hget(cvarh_vr_worn_backpack_yaw);
-    vr_wpt_pinned = TRUE;
-    cvar_set("vr_worn_backpack_z", "-3");
-    cvar_set("vr_worn_backpack_pitch", "0");
-    cvar_set("vr_worn_backpack_yaw", "0");
     cvar_set("vr_worn_backpack_pool", "30");
     cvar_set("vr_worn_backpack_hit_roll", "0");
     vr_wpt_a = VR_WPT_Spawn(p, WID_SHOTGUN, -60, 120, TRUE);
@@ -183,23 +180,46 @@ void(entity p) VR_WPT_Standing =
     float up = mid_z - a.origin_z;
     // (Its entity on the pack's place: limbpiece's is the .mdl frame pose's, the pack rides the chest bone as drawn since
     // drawnpose::bone, a fraction of a unit off it: within test 99's 3 units.)
-    VR_Test_Check(back < -4 && back > -20 && up > 4 && up < 30 && vlen(pk.origin - limbpiece(a, 0, 20)) < 3,
-        sprintf("on its back: %.1f units behind its middle, %.1f up, its entity %.2f units off the pack's frame place", back, up,
+    // (Its rear face: where its middle lies depends on the fit (turned 180 it sits further in) and on the kind (a knight's middle is
+    // further forward of its origin): the pack is on its back if its rear stands out behind its middle.)
+    vector packExt = limbpiece(a, 0, 23);
+    float rear = back - fabs(v_forward_x) * packExt_x - fabs(v_forward_y) * packExt_y;
+    VR_Test_Check(rear < -4 && rear > -24 && up > 4 && up < 30 && vlen(pk.origin - limbpiece(a, 0, 20)) < 3,
+        sprintf("on its back: its rear %.1f units behind its middle (its own middle %.1f), %.1f up, its entity %.2f units off the pack's frame place", rear, back, up,
         vlen(pk.origin - limbpiece(a, 0, 20))));
     VR_Test_Check(pk.solid == SOLID_NOT && !(pk.flags & FL_FORCEGRABBABLE) && !(pk.flags & FL_ITEM) &&
         pk.handtouch != VR_Carry_Handtouch, "not takeable from the living (not touchable, not force-grabbable)");
+    // Its kind's Up moves it now; another kind's doesn't.
+    float up0 = mid_z;
+    string upName = VR_WPT_FitCvar("z");
+    string otherName = vr_wpt_kind == VR_AM_KNIGHT ? "vr_worn_backpack_grunt_z" : "vr_worn_backpack_knight_z";
+    float otherWas = vr_wpt_kind == VR_AM_KNIGHT ? cvar_hget(cvarh_vr_worn_backpack_grunt_z) : cvar_hget(cvarh_vr_worn_backpack_knight_z);
+    float upWas = VR_WPT_FitNow(cvarh_vr_worn_backpack_grunt_z, cvarh_vr_worn_backpack_knight_z, cvarh_vr_worn_backpack_dknight_z);
+    cvar_set(otherName, ftos(otherWas + 5));
+    vector atOther = limbpiece(a, 0, 22);
+    float upOther = atOther_z;
+    cvar_set(otherName, ftos(otherWas));
+    cvar_set(upName, ftos(upWas + 4));
+    vector atMine = limbpiece(a, 0, 22);
+    float upMine = atMine_z;
+    cvar_set(upName, ftos(upWas));
+    VR_Test_Check(fabs(upOther - up0) < 0.01 && upMine - up0 > 3 && upMine - up0 < 5, sprintf("its kind's Up 4 moves the pack %.2f up at once; another kind's 5 moves it %.2f",
+        upMine - up0, upOther - up0));
     // A hit on its chest: the pack stays.
     float r0 = a.vr_ag_reserve;
     float s0 = a.ammo_shells;
     VR_WPT_Hit(a, p, a.origin + v_forward * 12 + '0 0 18', 10);
     VR_Test_Check(pk.vr_wp_state == VR_WP_WORN, sprintf("a hit on its chest leaves the pack on (%g units from it)",
         ragdollbone(a, a.origin + v_forward * 12 + '0 0 18', QVR_WORNPACK_AT)));
-    // Upright on its back, turned with it (not spinning: the engine keeps a worn pack's angles), its box the model's.
-    float dyaw = pk.angles_y - a.angles_y;
+    // On its back as its fit says, turned with it (not spinning: the engine keeps a worn pack's angles), its box the model's.
+    float fitYaw = VR_WPT_FitNow(cvarh_vr_worn_backpack_grunt_yaw, cvarh_vr_worn_backpack_knight_yaw, cvarh_vr_worn_backpack_dknight_yaw);
+    float fitPitch = VR_WPT_FitNow(cvarh_vr_worn_backpack_grunt_pitch, cvarh_vr_worn_backpack_knight_pitch, cvarh_vr_worn_backpack_dknight_pitch);
+    float dyaw = pk.angles_y - a.angles_y - fitYaw;
     dyaw = dyaw - 360 * floor((dyaw + 180) / 360);
     vector sz = pk.maxs - pk.mins;
-    VR_Test_Check(fabs(dyaw) < 25 && fabs(pk.angles_x) < 30 && fabs(pk.angles_z) < 25 && pk.vr_wp_state == VR_WP_WORN,
-        sprintf("upright on its back, turned with it: yaw %.1f off its own, pitch %.1f, roll %.1f", dyaw, pk.angles_x, pk.angles_z));
+    VR_Test_Check(fabs(dyaw) < 25 && fabs(pk.angles_x) < 30 + fabs(fitPitch) && fabs(pk.angles_z) < 25 && pk.vr_wp_state == VR_WP_WORN,
+        sprintf("on its back as its fit says, turned with it: yaw %.1f off its own + %g, pitch %.1f (fit %g + its chest's lean), roll %.1f", dyaw, fitYaw,
+        pk.angles_x, fitPitch, pk.angles_z));
     VR_Test_Check(sz_x < 17 && sz_y < 17 && sz_z < 20 && sz_z > 10, sprintf("its box round its model as turned: %.1f x %.1f x %.1f",
         sz_x, sz_y, sz_z));
     // Shots across it from behind: they meet it where its model's box is, and nowhere off it.
@@ -564,8 +584,11 @@ void(entity p) VR_WPL_Standing =
         return;
     }
     vector flew = limbpiece(g, 0, 22) - vr_wpt_b0;
-    VR_Test_Check(flew * (vr_wpt_pull * -1) >= 20 && p.mainhand_held != g, sprintf("thrown: it went %.1f units the way of the throw, let go of (holds %s)",
-        flew * (vr_wpt_pull * -1), p.mainhand_held.classname));
+    // (A throw: it goes with the swing and is let go of. At least half the hand's own swing: on the fit of 2026-11-03, five runs each, grunts 33.7-45.7
+    // units, knights 14.6-27.6, death knights 36.9-44, enforcers 40.9-47; the swing about 22. The old 20 came from the old fit.)
+    float swing = 10 * 4 * VRMetersToUnits() / 72;
+    VR_Test_Check(flew * (vr_wpt_pull * -1) >= swing * 0.5 && p.mainhand_held != g, sprintf("thrown: it went %.1f units the way of the throw (the hand's swing %.1f), let go of (holds %s)",
+        flew * (vr_wpt_pull * -1), swing, p.mainhand_held.classname));
     VR_Test_Check(vr_wpt_gapmax <= 3 && pk.vr_wp_state == VR_WP_WORN && vr_wp_rips == vr_wpt_rips0,
         sprintf("the pack on its chest throughout: at most %.2f units off its place from the chest bone (%.1f), never torn (%g rips)", vr_wpt_gapmax,
         vr_wpt_d0, vr_wp_rips - vr_wpt_rips0));
@@ -770,8 +793,8 @@ void(entity p) VR_WPB_Frame =
         }
         VR_Test_Check(pk && pk.vr_wp_baked && a.vr_wp_worn == 1 && pk.model == "" && !a.vr_wp_had && pk.solid == SOLID_NOT,
             sprintf("A (a gun): a lift zone, nothing drawn (worn %g, its model '%s')", a.vr_wp_worn, pk.model));
-        VR_Test_Check(!vr_wpt_s.vr_wp_pack && !vr_wpt_u.vr_wp_pack && !vr_wpt_s.vr_wp_worn && !vr_wpt_u.vr_wp_worn,
-            "a sword's and fists' enforcers: no lift zone");
+        VR_Test_Check(vr_wpt_s.vr_wp_pack.vr_wp_baked && vr_wpt_u.vr_wp_pack.vr_wp_baked && vr_wpt_s.vr_wp_worn == 1 && vr_wpt_u.vr_wp_worn == 1 &&
+            !vr_wpt_s.vr_wp_had && !vr_wpt_u.vr_wp_had, "a sword's and fists' enforcers: a lift zone too");
         vector mid = limbpiece(a, 0, 22);
         makevectors([0, a.angles_y, 0]);
         float back = (mid - a.origin) * v_forward;

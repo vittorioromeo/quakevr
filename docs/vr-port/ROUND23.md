@@ -7294,3 +7294,19 @@ cuts them from decoded previews (its header has the sources and the ffmpeg line)
 - `pack_rip.wav`: the first 0.62 s of 591527 from its onset, high-passed 150 Hz, one pole at 8 kHz, tanh 5, a 0.14 s fade. Nearly all
   over 800 Hz; its sample-to-sample jumps are the tear's dense crackle (the source has the same, against its peak), not lone clicks.
 - All files start and end at 0.
+
+## The pack's fit per kind; enforcers always liftable (branch `agent/packfit`, his notes 2026-11-03 02:21:38, 02:25:39)
+
+His words: "Can you add per armed humanoid type sliders for the backpack fit? I would like to tweak the position only for knights or
+death knights"; "An enforcer should always be liftable from his back even if he has a melee weapon".
+Worn Backpacks > Fit opens Grunts, Knights and Death Knights: Forward, Left, Up, Size, Pitch, Yaw, Roll
+(`vr_worn_backpack_<grunt|knight|dknight>_x/_y/_z/_scale/_pitch/_yaw/_roll`), live: position and turn read each frame, the drawn size
+each frame (`VR_WP_Size`); a ragdoll's box keeps the size it was made with. Defaults are the shared values as promoted (forward 1.5, up
+1.5, size 0.6, pitch 21, yaw 180); the death knight's up 7.5 takes in `packFits`' old lift of 6, which went. Config 221: a saved shared
+value goes on all three once, the death knight's up with that 6 added, so his look doesn't move. The enforcer's lift zone is now on
+every armed enforcer, whatever it holds (Mission Pack 3's too), since the model always shows the pack.
+Tests run on the fit as configured (the old-pose pin went; `vr_wornpack_test` checks the fit's yaw and the pack's rear face). His fit turns
+the pack 180 degrees about its own origin while `packRest` still lays the unturned front against the back, so about half the box is
+inside the body at Forward 1.5: what he tuned by eye on the grunt; Forward on each kind's page moves it. The throw's check is half the
+hand's swing (22 units at 4 m/s for 10 frames): five runs each went 33.7-45.7 (grunts), 14.6-27.6 (knights), 36.9-44 (death knights),
+40.9-47 (enforcers). On the mock the body rises far less than the hand on the carry (of 24 up: 8.5, -0.1..5.8, 0.5..2.4, -2.8..-0.9).
