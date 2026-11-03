@@ -7793,7 +7793,7 @@ assign.cfg, so nothing new was committed. Before this round his saves there were
 `flaretops: N passed, M failed`; needs a map with barrels):
 `tune vr_crate_flaregun 1;tune vr_crate_flaregun_max 64;tune vr_crate_crowbar 1;tune vr_crate_crowbar_max 64;map e4m2;wait5;vr_flare_test 10`
 with `developer 1`. e4m2, e1m3, e1m5, e2m1, e3m1: 4 passed, 0 failed each; e1m1 seed 3 (no barrels): only the barrel check fails.
-With `vr_debug_crates 1` each item's box on its top is printed: 59 crates with both, least gap 1.9 units. `vr_flare_test 7` (one
+With `vr_debug_crates 1` each item's box on its top is printed: 56 crates with both, least gap 1.9 units. `vr_flare_test 7` (one
 plan, twice) failed once it listed 11 guns: its two lists were at different moments while the guns settled by a fraction of a unit,
 across a rounding edge. Both lists are now at time 2 on the map's clock. `vr_arena_waves_test` has 8 more checks (the rule above,
 with the shipped files' bytes compared): 23 passed. `vr_waveeditor_test` 19 passed. Not built: a real `QVR_RELEASE` exe.
@@ -7804,3 +7804,13 @@ Checklist lines:
 - Crates and upright barrels about the maps sometimes have a loaded flare gun lying on top, about as often as a crowbar, at most 2 a map {test:flaregun_crates}
 - A crate can have both a crowbar and a flare gun, side by side and not touching: take each {test:flaregun_crates}
 - Wave presets you save in the Arena Wave Editor now show in git status (arena_waves/), to commit and ship
+
+## Checklist: fewer lines, a Test button on nearly all (branch `agent/clbuttons`)
+
+His words 2026-11-03: "Can anything be coealesced/simplified? Can "test" buttons be added to most items that do not have them to help me test more efficiently?"
+
+- **Lines**: 86 items -> 39. 25 ticked items retired (the header's own rule; their marks stay in checklist_ticks.txt, their text in git). 37 items merged into 14 (flat crouch, flat look and hands, flat ironsight, flat keys, flat melee, a downed grunt's weapon, worn packs beyond the grunts, knights' guns, armed steps, stick running, footsteps, revolver, flat pose and eye). The headset remarks of the flat lines became one line. No ticked line was reworded. Sections 1 and 5 regrouped: stick, footsteps and revolver lines moved to "Moving, weapons and the world", the flat-screen menu line to section 0.
+- **Buttons**: 37 of 39 (was 9, of which 5 named cvars, no scene). Without: the flat-screen menu's Back to game line (a menu flow, no scene to stand in) and moving water (a scan of the 464 BSPs in the kit's base and quakevr/maps finds no CONTENTS_CURRENT leaf in any map).
+- **New scenes** (14): flat_guns, flat_melee, flat_keys, agrunt_ledge (vrclimb's tower and block, the spots of test 202's ledge cases), ad_armed_mix, ad_sergeant_ogre, worn_packs_kinds, toolgun_armed, agrunt_reach, knights_e1m4, leap_blast, no_haptics, burn_lava_nail (`vr_burn_test 16`: no armed weapon code fires lava nails), autosave_e1m1 (no god: autosaves refuse cheats).
+- **Changed scenes**: agrunt_ammo gains a super nailgun holder; agrunt_mix a replaced gun-and-axe grunt; props_range a crowbar in hand (its line is about one); worn_packs and worn_packs_lift lose `vr_worn_backpack_pull`, a setting that no longer exists (validate was failing on them); agrunt_fall, agrunt_repl_map and stick_run lose their file `hint`, which overrode the line's text with something else.
+- **Checked**: `vr_scenario validate` 127 files, 37 tags, 0 missing; `vr_scenario runall quit` 127 run, 3 failed: ad_breakables, ad_fog_flicker, ad_lighting, AD maps absent from the mock base, as before. The flat scenes also run with `-flatscreenmode` (hands held). burn_lava_nail: "burning: test 16 ... PASS you burn". agrunt_ledge lands its grunts at 112 -160 305 and 16 -310 121. worn_packs_kinds looked at once (backs to you, packs on). Not checked: anything a scene is for (a leap setting off a box, the AD rows being armed or not) needs his eye.

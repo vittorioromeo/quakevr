@@ -1,0 +1,13 @@
+# worn_packs_kinds: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Who wears a pack beyond the grunts, calm, your hands free.
+title Worn packs on the others: knight and death knight with guns, enforcers with a gun, a sword and fists; hands empty
+map vrtesthall
+god
+notarget
+cvar vr_agknight 1
+cvar vr_agdknight 1
+spawnarmed monster_vr_knight 4 0 90 60 0 0
+spawnarmed monster_vr_hknight 4 0 90 -60 0 0
+spawn "Armed Enforcer: Shotgun" 180 100 0 0
+spawnarmed monster_vr_enforcer 13 0 180 0 0 0
+spawnarmed monster_vr_enforcer -1 0 180 -100 0 0
+hint They stand with their backs to you. Grip a pack and pull up.

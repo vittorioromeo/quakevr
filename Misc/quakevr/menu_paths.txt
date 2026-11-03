@@ -4134,6 +4134,23 @@ vr_flat_aim_fov|2|Debug - Reports|Flatscreen Ironsight Field of View|Advanced VR
 vr_flat_aim_time|2|Debug - Reports|Flatscreen Ironsight Time|Advanced VR Options > Debug > Reports > Flatscreen Ironsight Time
 vr_flat_crouch_time|2|Debug - Reports|Flatscreen Crouch Time|Advanced VR Options > Debug > Reports > Flatscreen Crouch Time
 vr_flat_crouch_drop|2|Debug - Reports|Flatscreen Crouch Drop|Advanced VR Options > Debug > Reports > Flatscreen Crouch Drop
+vr_flat_gun_fwd|2|Debug - Reports|Flatscreen Gun Forward|Advanced VR Options > Debug > Reports > Flatscreen Gun Forward
+vr_flat_gun_down|2|Debug - Reports|Flatscreen Gun Down|Advanced VR Options > Debug > Reports > Flatscreen Gun Down
+vr_flat_gun_out|2|Debug - Reports|Flatscreen Gun Out|Advanced VR Options > Debug > Reports > Flatscreen Gun Out
+vr_flat_gun_near|2|Debug - Reports|Flatscreen Gun With The Crosshair|Advanced VR Options > Debug > Reports > Flatscreen Gun With The Crosshair
+vr_flat_ads_fwd|2|Debug - Reports|Flatscreen Ironsight Forward|Advanced VR Options > Debug > Reports > Flatscreen Ironsight Forward
+vr_flat_ads_up|2|Debug - Reports|Flatscreen Ironsight Up|Advanced VR Options > Debug > Reports > Flatscreen Ironsight Up
+vr_flat_ads_out|2|Debug - Reports|Flatscreen Ironsight Out|Advanced VR Options > Debug > Reports > Flatscreen Ironsight Out
+vr_flat_ads_near|2|Debug - Reports|Flatscreen Ironsight With The Crosshair|Advanced VR Options > Debug > Reports > Flatscreen Ironsight With The Crosshair
+vr_flat_empty_fwd|2|Debug - Reports|Flatscreen Empty Hand Forward|Advanced VR Options > Debug > Reports > Flatscreen Empty Hand Forward
+vr_flat_empty_down|2|Debug - Reports|Flatscreen Empty Hand Down|Advanced VR Options > Debug > Reports > Flatscreen Empty Hand Down
+vr_flat_empty_out|2|Debug - Reports|Flatscreen Empty Hand Out|Advanced VR Options > Debug > Reports > Flatscreen Empty Hand Out
+vr_flat_support_fwd|2|Debug - Reports|Flatscreen Both Hands Forward|Advanced VR Options > Debug > Reports > Flatscreen Both Hands Forward
+vr_flat_support_down|2|Debug - Reports|Flatscreen Both Hands Down|Advanced VR Options > Debug > Reports > Flatscreen Both Hands Down
+vr_flat_support_out|2|Debug - Reports|Flatscreen Both Hands Out|Advanced VR Options > Debug > Reports > Flatscreen Both Hands Out
+vr_flat_cam_fwd|2|Debug - Reports|Flatscreen View Forward|Advanced VR Options > Debug > Reports > Flatscreen View Forward
+vr_flat_cam_up|2|Debug - Reports|Flatscreen View Up|Advanced VR Options > Debug > Reports > Flatscreen View Up
+vr_flat_cam_side|2|Debug - Reports|Flatscreen View Sideways|Advanced VR Options > Debug > Reports > Flatscreen View Sideways
 |2|Debug - Reports|Flatscreen Punch|Advanced VR Options > Debug > Reports > Flatscreen Punch
 |2|Debug - Reports|Official Campaign Status|Advanced VR Options > Debug > Reports > Official Campaign Status
 |2|Debug - Reports|Dopa Finale Text|Advanced VR Options > Debug > Reports > Dopa Finale Text
