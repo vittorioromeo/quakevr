@@ -135,6 +135,22 @@ void() VR_AGT_ClearWeapons =
     }
 };
 
+// Every grenade, rocket and mine still about goes (between test 1's tries: the last try's grenade, its fuse still
+// running at the try's end, killed the next try's grunt where it spawned).
+void() VR_AGT_ClearShots =
+{
+    entity e = nextent(world);
+    while(e)
+    {
+        entity n = nextent(e);
+        if(e.classname == "grenade" || e.classname == "missile" || e.classname == "proximity_grenade")
+        {
+            remove(e);
+        }
+        e = n;
+    }
+};
+
 void(string s) VR_AGT_Print = { bprint(sprintf("agtest: %s\n", s)); };
 
 // One check (vr_testutil's tally and line: `agtest: PASS|FAIL <what>`).
@@ -174,6 +190,7 @@ void() VR_AGTest_Weapons =
             return;
         }
         VR_AGT_ClearWeapons();
+        VR_AGT_ClearShots();
         float wid = VR_AGT_Wid(vr_agt_index);
         float c = VR_AGT_Class(wid);
         float dist = (c == VR_AG_CLASS_MELEE || c == VR_AG_CLASS_FISTS) ? 70 : c == VR_AG_CLASS_EXPLOSIVE ? 360 : 240;
