@@ -156,7 +156,7 @@ void(entity p) VR_AFT_Run =
     VR_ART_Check(armed && b.health <= 0 && !VR_AgArmor_On(b, pb) && vr_ar_debris_made == made + 1 && ragdolllimbs(b, 2) == 0,
         sprintf("active ragdoll: a killing cut armed at joint %g (armed %g) under the plate: the plate broke (debris %g), no limb cut (cut %g)",
         joint, armed, vr_ar_debris_made - made, ragdolllimbs(b, 2)));
-    VR_ART_Check(vr_ar_break_sound_last == "vr/derived/armor_break.wav" && vr_ar_break_sound_last != "items/armor1.wav",
+    VR_ART_Check(vr_ar_break_sound_last == "vr/armor_crack.wav" && vr_ar_break_sound_last != "items/armor1.wav",
         sprintf("the break's sound %s (not the pickup's items/armor1.wav)", vr_ar_break_sound_last));
 
     // --- The dead ragdolls (A; B now dead): the limb stays on until its plate breaks, then pops.
