@@ -3085,6 +3085,7 @@ QVR_CVAR(vr_kdtrig_test_dist, "0", CVAR_NONE)         // units: the test shotgun
 QVR_CVAR(vr_kdtrig_test_wait, "0", CVAR_NONE)         // the trials (vr_kdtrig_test 30 + k): seconds after the hit before it is judged (0: 0.2)
 QVR_CVAR(vr_kdtrig_test_face, "0", CVAR_NONE)         // the test monster: 0 facing the test hits' source, 1 facing away (hit from behind)
 QVR_CVAR(vr_kdtrig_test_aware, "1", CVAR_NONE)        // the test monster: 1 its enemy the player as it is hit, 0 none (unaware)
+QVR_CVAR(vr_parry_test_guard, "0", CVAR_NONE)         // tests about what a parry does (a stagger, its pose, the parry balance): a monster's own blow read by the guard, not its line
 QVR_CVAR(vr_kdtrig_test_parry, "0", CVAR_NONE)        // tests 9 and 11 (its blow, its shove on you): 0 parried as your pose is; forced (the pose not looked at): 1 bare hands (the arms crossed), 2 the main hand's weapon in one hand, 3 in two hands; + 10 well timed
 QVR_CVAR(vr_test_guard, "0", CVAR_NONE)               // 1: the live monster nearest you guards its head as from a swing of yours (QC vr_hitreact.qc; Debug > Tests)
 // Struggling in the hands (vr_ragstruggle.cpp, vr_box3d_struggle.cpp; docs/vr-port/STRUGGLE.md; Combat > Holding
@@ -3125,7 +3126,6 @@ QVR_CVAR(vr_parry_ragdoll, "1", CVAR_ARCHIVE)        // a parried humanoid (its 
 QVR_CVAR(vr_parry_reduction, "0.75", CVAR_ARCHIVE)    // share of a parried blow's damage taken away
 QVR_CVAR(vr_parry_drop_chance, "0", CVAR_ARCHIVE)   // chance a one-handed parry knocks the weapon out of your hand (two hands: never); not used with vr_parry_stamina on
 QVR_CVAR(vr_parry_unarmed, "1", CVAR_ARCHIVE)          // parry unarmed with the arms crossed in an X in front
-QVR_CVAR(vr_dirparry, "1", CVAR_ARCHIVE)               // an armed humanoid's melee swing is parried only by a weapon held across its blade's way, meeting it (QC vr_dirparry.qc; its leniencies are tuning constants); 0: the level-across parry as before (1 since 2026-11-02, his config's)
 QVR_CVAR(vr_dirparry_debug, "0", CVAR_NONE)             // debug: Show Directional Parry: each armed humanoid's swing's reading drawn (its blade, its way, your line, the ideal, the numbers), the last strike's held 3 s (vr_dirparryviz.cpp)
 QVR_CVAR(vr_agrunt_melee_speed, "1", CVAR_NONE)         // debug (parry practice): armed humanoids' melee swings and punches at this speed (0.1..1: their wind-up, strike, blow and recovery slowed together)
 QVR_CVAR(vr_bash, "1", CVAR_ARCHIVE)                   // hold a guard (a weapon across, both hands together), then push it forward to bash; or shove with one open palm

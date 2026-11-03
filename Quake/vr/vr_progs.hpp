@@ -135,6 +135,7 @@ struct Bindings
     float* agkPart[9]{};
     float* agDrawn[3]{};
     float* agExtent[2]{};
+    float* blowLine[3]{}; // blowline's (vr_blowline.cpp): vr_blow_a, vr_blow_b, vr_blow_more
     float* extSpawnParms[numExtSpawnParms]{};
 };
 

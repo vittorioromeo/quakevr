@@ -46,7 +46,7 @@ def run(label, commands):
 
 def setup():
     return ["map vrtesthall", wait(60), "setpos 0 0 24 0 0 0", "developer 1", "notarget", "give h 250",
-            "vr_enemy_shove 1", "vr_stealth_meter 0", "vr_parry 1", "vr_parry_balance 1", "vr_parry_stamina 0",
+            "vr_enemy_shove 1", "vr_stealth_meter 0", "vr_parry_test_guard 1", "vr_parry 1", "vr_parry_balance 1", "vr_parry_stamina 0",
             "vr_parry_drop_chance 0", "vr_parry_push_enemy 0", "vr_parry_push_player 0", "vr_kdtrig_test_x 0",
             "vr_kdtrig_test_y 0", "vr_kdtrig_test_z 0", "vr_kdtrig_test_n 1", "vr_kdtrig_test_wait 0.3",
             "vr_weapon_grip_mode 1", "impulse 167", wait(10), LOWER]  # (the crowbar in the main hand: Heft 0)

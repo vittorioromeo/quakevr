@@ -1422,6 +1422,11 @@ void restVertex(const void* aliashdr, int meshVertex, float xyz[3], signed char 
     }
 }
 
+bool frameFunction(int func, int& frame, int& next)
+{
+    return qcvm && qcvm->progs && stateOf(*qcvm, func, frame, next);
+}
+
 void poseSuccessors(const void* aliashdr, const char* model, short* next, unsigned char* progs)
 {
     const auto* hdr = static_cast<const aliashdr_t*>(aliashdr);

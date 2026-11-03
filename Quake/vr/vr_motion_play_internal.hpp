@@ -118,8 +118,7 @@ struct Report
     double errMax[HAND_COUNT]{};
     double errSum[HAND_COUNT]{};
     int errCount{0};
-    int parryFrames[HAND_COUNT]{};
-    int parryAnyFrames{0}; // either hand's weapon or crossed arms
+    int parryAnyFrames{0}; // the guard or crossed arms
     int guardFrames{0};
     int recFrames{0};
     int wid[HAND_COUNT]{};

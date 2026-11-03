@@ -1077,12 +1077,6 @@ void ikStretchReset()
                   "(a fiend's two claws, the Overlord's double smash, a shambler's chained swings): one parry and one "
                   "stamina cost per attack. Off: only the Parry Cooldown's time."),
         header("Directional Parry"),
-        toggle("Directional Parry (Experimental)", vr_dirparry)
-            .help("An armed humanoid's sword, axe or club swung at you is parried only by your weapon held across its "
-                  "blade's way where they meet: an overhead strike by a weapon held level across, a side swing by one "
-                  "held upright. Parried: no damage, sparks where the weapons met, its swing stopped. Its leniencies "
-                  "are tuning constants (Debug > Tunables > Combat > Directional Parry). Off: the level-across parry "
-                  "for every blow."),
         toggle("Show Directional Parry", vr_dirparry_debug)
             .help("Debug view: each swing's reading drawn where the weapons meet: its blade (white; faint where it was "
                   "and where it goes in the window), its way (yellow arrow), your weapon's parry line and the ideal "

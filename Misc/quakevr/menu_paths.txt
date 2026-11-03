@@ -787,7 +787,6 @@ vr_parry_drop_chance|1|Parry and Bash|Parry Drop Chance|Advanced VR Options > Co
 vr_parry_wobble|1|Parry and Bash|Parry Arm Knock|Advanced VR Options > Combat > Parry and Bash > Parry Arm Knock
 vr_parry_unarmed|1|Parry and Bash|Unarmed Parry|Advanced VR Options > Combat > Parry and Bash > Unarmed Parry
 vr_parry_cooldown_attack|1|Parry and Bash|Parry Cooldown: Whole Attack|Advanced VR Options > Combat > Parry and Bash > Parry Cooldown: Whole Attack
-vr_dirparry|1|Parry and Bash|Directional Parry (Experimental)|Advanced VR Options > Combat > Parry and Bash > Directional Parry (Experimental)
 vr_dirparry_debug|1|Parry and Bash|Show Directional Parry|Advanced VR Options > Combat > Parry and Bash > Show Directional Parry
 vr_agrunt_melee_speed|1|Parry and Bash|Enemy Melee Speed|Advanced VR Options > Combat > Parry and Bash > Enemy Melee Speed
 vr_parry_balance|1|Parry and Bash|Parry Balance|Advanced VR Options > Combat > Parry and Bash > Parry Balance

@@ -2,7 +2,7 @@
 # parry_pose_test.sh <agent> [frames] [kinds...] -- parried monsters are never drawn squashed (ROUND21.md, "Parried monsters
 # drawn squashed"). Each kind (vr_test_spawn: 1 ogre, 5 knight, 6 hell knight, 7 dog, 9 fiend, 15 phantom swordsman,
 # 17 overlord, 33 death knight; "dragon": Dissolution of Eternity's dragon, its own tail swing) is put ahead of you on vrcalibration and attacks you for real (god, the stealth meter off,
-# the crowbar held across: every blow parried, vr_parry_stamina 0) while vr_debug_pose_check 1 watches how it is drawn.
+# the crowbar held across: every blow parried by the guard (vr_parry_test_guard: this is about the stagger), vr_parry_stamina 0) while vr_debug_pose_check 1 watches how it is drawn.
 # Prints per kind the staggers and the "posecheck:" findings; exits 1 on a FAIL: a body held squashed between two poses
 # over 0.2 s, a pose out of its model's range or a broken blend, or no parry at all for a kind that swings.
 # (Before the fix: an ogre 20 squashes of about 0.5 s in 24 parries, an overlord 7, a hell knight 4, a death knight 4.)
@@ -13,7 +13,7 @@ W=C:/OHWorkspace/qvr-agents/$AGENT
 mkdir -p "$W/scratch"
 fail=0
 for k in $KINDS; do
-    S="developer 1;vr_fixed_frames 1;vr_fixed_frames_rate 90;map vrcalibration;wait60;vr_setup_stop;god;vr_parry_stamina 0;vr_stealth_meter 0"
+    S="developer 1;vr_fixed_frames 1;vr_fixed_frames_rate 90;map vrcalibration;wait60;vr_setup_stop;god;vr_parry_stamina 0;vr_stealth_meter 0;vr_parry_test_guard 1"
     S="$S;vr_weapon_grip_mode 1;impulse 167;wait10;vr_mock_hand main 0.15 1.35 -0.35 0 90 0;vr_debug_pose_check 1"
     if [ "$k" = dragon ]; then # (Dissolution of Eternity's dragon: its own tail swing, parried as it lands; QC vr_parry_test.qc)
         # (vr_parry_balance 0: since the parry balance of 2026-10-19 a parry against the dragon's poise is only blocked, its
