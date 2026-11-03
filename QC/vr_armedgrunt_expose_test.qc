@@ -10,15 +10,19 @@
 // a wall (all of you behind it). Each case for each gun (shotgun, nailgun, the enforcer's rifle, the revolver, the
 // rocket launcher) twice, vr_agrunt_aim_exposed 0 (before) and 1, its normal aim error and spread: 16 shots, or 10 s;
 // its shots, its hits on you (damage events), the attacks it held (nothing of you its gun's line reached) and the parts
-// it aimed at (as it sees you: shoulderL its left, your right). Checked: in the open the same hits (within 20%) and its
-// aim on your chest (70% of shots at least); behind the low wall, the door frame and the crate a quarter of its shots
-// at least, and no more than 25% fewer than before (the door frame's is near the old: noise); behind the wall no shots.
+// it aimed at (as it sees you: shoulderL its left, your right). Checked per gun (what its aim decides): in the open its
+// aim on your chest (70% of shots at least); behind the low wall and the crate never on your chest; behind the door frame
+// some shots; behind the wall no shots. Checked per cover over all the guns (hits are dice on a small mark: one gun's 8
+// shots moved 12% a hit, 25% or not by the seed): in the open the same hits (within 10%); behind the low wall and the crate
+// more hits than before and a quarter of its shots at least; behind the door frame a quarter at least and within 10% of
+// before (its chest's edge showing, the old aim already near).
 // The looks' traces per armed grunt per second printed (the cost). Run with sv_random_seed for the same numbers.
 
 float VR_AGX_GUNS = 5;
 float VR_AGX_CASES = 5;
 float VR_AGX_SHOTS = 16;
 float VR_AGX_SECS = 10;
+float vr_agx_pool[20];  // over the guns: per case, its shots and hits, old then new (case * 4 + 0..3)
 float vr_agx_w;
 float vr_agx_case;
 float vr_agx_mode;
@@ -29,8 +33,6 @@ float vr_agx_hits0;
 float vr_agx_held0;
 float vr_agx_tr0;
 float vr_agx_keep;
-float vr_agx_old_shots; // the case's run before (vr_agrunt_aim_exposed 0)
-float vr_agx_old_hits;
 float vr_agx_tr_n;      // the new runs' traces, their seconds
 float vr_agx_tr_secs;
 vector vr_agx_start;
@@ -145,6 +147,10 @@ void() VR_AGX_Frame =
         vr_agx_mode = 0;
         vr_agx_tr_n = 0;
         vr_agx_tr_secs = 0;
+        for(i = 0; i < 20; i++)
+        {
+            vr_agx_pool[i] = 0;
+        }
         VR_AGT_Print(sprintf("expose: yaw %.1f, your box %v..%v, eyes %.1f, headset %.1f over your origin, kind %g", p.angles_y,
             p.mins, p.maxs, p.view_ofs_z, p.headpos != '0 0 0' ? p.headpos_z - p.origin_z : p.view_ofs_z, VR_AGT_Kind()));
         vr_agt_step = 1;
@@ -256,32 +262,34 @@ void() VR_AGX_Frame =
             vr_agx_mode ? "new" : "old");
         what = strcat(what, sprintf("shots %g, hits %g (%.0f%%), held %g, aimed at:%s", shots, hits,
             100 * hits / max(1, shots), held, parts));
+        float pool = vr_agx_case * 4 + vr_agx_mode * 2;
+        vr_agx_pool[pool] = vr_agx_pool[pool] + shots;
+        vr_agx_pool[pool + 1] = vr_agx_pool[pool + 1] + hits;
         if(vr_agx_mode == 0)
         {
             VR_AGT_Print(what);
-            vr_agx_old_shots = shots;
-            vr_agx_old_hits = hits;
             vr_agx_mode = 1;
         }
         else
         {
             vr_agx_tr_n = vr_agx_tr_n + vr_ag_xtraces - vr_agx_tr0;
             vr_agx_tr_secs = vr_agx_tr_secs + time - vr_agx_t0;
-            float rate = hits / max(1, shots);
-            float oldRate = vr_agx_old_hits / max(1, vr_agx_old_shots);
             float ok;
             if(vr_agx_case == 0)
             {
-                ok = (shots > 0 && rate >= oldRate - 0.2 && chest >= 0.7 * aimed);
+                ok = (shots > 0 && chest >= 0.7 * aimed);
             }
             else if(vr_agx_case == 4)
             {
                 ok = shots == 0;
             }
+            else if(vr_agx_case == 2)
+            {
+                ok = shots > 0;
+            }
             else
             {
-                // (the door frame's: its chest's edge showing, the old aim already near; 9 shots' noise)
-                ok = (shots > 0 && rate >= oldRate - 0.25 && rate >= 0.25);
+                ok = (shots > 0 && chest == 0); // (your chest behind it)
             }
             VR_AGT_Check(what, ok);
             vr_agx_mode = 0;
@@ -294,6 +302,15 @@ void() VR_AGX_Frame =
         }
         if(vr_agx_w >= VR_AGX_GUNS || (cvar_hget(cvarh_scratch1) > 0 && vr_agx_w >= cvar_hget(cvarh_scratch1)))
         {
+            for(i = 0; i < VR_AGX_CASES - 1; i++)
+            {
+                float oldHit = vr_agx_pool[i * 4 + 1] / max(1, vr_agx_pool[i * 4]);
+                float newHit = vr_agx_pool[i * 4 + 3] / max(1, vr_agx_pool[i * 4 + 2]);
+                float pooled = i == 0 ? newHit >= oldHit - 0.1 :
+                               i == 2 ? (newHit >= 0.25 && newHit >= oldHit - 0.1) : (newHit >= 0.25 && newHit > oldHit);
+                VR_AGT_Check(sprintf("expose: %s, all guns: hits %.0f%% of %g shots, before %.0f%% of %g", VR_AGX_CaseName(i), 100 * newHit,
+                    vr_agx_pool[i * 4 + 2], 100 * oldHit, vr_agx_pool[i * 4]), pooled);
+            }
             VR_AGX_End();
             return;
         }

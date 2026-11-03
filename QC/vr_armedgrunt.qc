@@ -240,11 +240,18 @@ float vr_ag_rthreat; // ... its enemy threatens it up close (a melee weapon in h
 .float vr_ag_rwalk_at;    // its last step walking as it fired (VR_AG_WalkFire)
 float vr_ag_range_backs;  // steps it took backing off (the tests)
 
+// Weapon `wid` keeps a fighting distance (not a melee weapon or its fists).
+float(float wid) VR_AG_HasRanges =
+{
+    float c = VR_AG_Class(wid);
+    return c != VR_AG_CLASS_FISTS && c != VR_AG_CLASS_MELEE;
+};
+
 // The fighting distances of weapon `wid` (vr_ag_rmin, vr_ag_rpref, vr_ag_rmax; FALSE: a melee weapon or its fists).
 float(float wid) VR_AG_RangeOf =
 {
+    if(!VR_AG_HasRanges(wid)) { return FALSE; }
     float c = VR_AG_Class(wid);
-    if(c == VR_AG_CLASS_FISTS || c == VR_AG_CLASS_MELEE) { return FALSE; }
     vr_ag_rmin = 128; vr_ag_rpref = 220; vr_ag_rmax = 380; // (a shotgun, the grunt's gun, a pistol: near)
     if(wid == WID_SUPER_SHOTGUN) { vr_ag_rmin = 96; vr_ag_rpref = 150; vr_ag_rmax = 260; } // (close, out of reach)
     else if(VR_AG_Stream(wid))
@@ -506,7 +513,7 @@ float(entity g) VR_AG_ShoveClose =
 {
     float close = cvar_hget(cvarh_vr_agrunt_shove_close);
     entity e = g.enemy;
-    if(close <= 0 || !cvar_hget(cvarh_vr_enemy_shove) || !g.vr_ag_prop || !VR_AG_RangeOf(g.vr_ag_wid) || !g.th_vrshove ||
+    if(close <= 0 || !cvar_hget(cvarh_vr_enemy_shove) || !g.vr_ag_prop || !VR_AG_HasRanges(g.vr_ag_wid) || !g.th_vrshove ||
        g.vr_oblivious || !(e.flags & FL_CLIENT) || e.health <= 0 || (e.flags & FL_NOTARGET) || time < g.vr_eshove_next ||
        !VR_EnemyShove_Ready(g) || g.vr_ag_tug_pl || g.vr_ag_gunaxe)
     {
@@ -570,10 +577,14 @@ float(float dt, float firing) VR_AG_WalkFire =
         return FALSE; // (you up close: not backing off, its shove next: VR_AG_ShoveCloseIn)
     }
     float d = vlen(VR_AI_Origin(self.enemy) - self.origin);
+    if(VR_AGR_AxeNear(self, d))
+    {
+        return FALSE; // (you up close: its axe next)
+    }
     float yaw = vectoyaw(VR_AI_Origin(self.enemy) - self.origin);
     float step = v * dt;
     float side = self.lefty ? 1 : -1;
-    if(d < vr_ag_rmin || (!firing && d < vr_ag_rpref))
+    if(d < vr_ag_rmin || (!firing && d < vr_ag_rpref && VR_AGAI_Retreat() > 0))
     {
         // (faster nearer than its least, a reload's too: you with a blade gain on it otherwise)
         float back = d < vr_ag_rmin ? (vr_ag_rthreat ? 1.6 : 1.3) : 1;
@@ -2050,8 +2061,10 @@ void(entity p) VR_AG_ShootProp =
         }
     }
     else if(wid == WID_SUPER_SHOTGUN)   { W_FireSuperShotgun(h); }
-    else if(wid == WID_NAILGUN)         { W_FireSpikes(h, (self.vr_ag_shots & 1) ? -2.35 : 2.35); }
-    else if(wid == WID_SUPER_NAILGUN)   { W_FireSuperSpikes(h); }
+    else if(wid == WID_NAILGUN || wid == WID_SUPER_NAILGUN)
+    {
+        W_FireSpikes(h, (self.vr_ag_shots & 1) ? -2.35 : 2.35); // (a super nailgun's: as yours, its last odd round a lone nail)
+    }
     else if(wid == WID_NAILPISTOL)      { W_FireNailPistol(h); VR_NailPistol_PropShot(p); } // (vr_nailpistol.qc: its slide)
     else if(wid == WID_FLAREGUN)        { W_FireFlareGun(h); } // (vr_flaregun.qc: the clip below)
     else if(wid == WID_REVOLVER)        { W_FireRevolver(h); } // (vr_revolver.qc: a slug a shot)

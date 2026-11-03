@@ -209,6 +209,7 @@ float(entity g) VR_AGR_NativeAlone;                                        // it
 float(float r) VR_AGR_NativeChance;                                        // VR_AG_CheckAttack: its monster's chance at range r
 void() VR_AGR_NativeFinished;                                              // ... and its pause after
 void() VR_AGR_NativeAttack;                                                // VR_AG_Missile: its monster's attack frames
+float(entity g, float d) VR_AGR_AxeNear;
 void(float d) VR_AGR_GunAxe;                                               // VR_AG_CheckAttack: the gun or the axe now
 .string vr_agr_mdl;        // a held weapon's model while its holder waits unseen (MG_deferred: VR_AG_PropThink)
 .float vr_agk_live; // run live by the Pose Studio (its real loops where it stands: vr_armedgrunt_pose.qc VR_AGK_Live)
