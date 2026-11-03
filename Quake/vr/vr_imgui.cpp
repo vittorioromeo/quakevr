@@ -27,6 +27,15 @@ struct ImState
     bool frameOpen{false}; // NewFrame called, Render not yet
     int theme{-1};
     char iniPath[MAX_OSPATH]{};
+    unsigned panelFb{0};   // setPanel's (0: the desktop window)
+    int panelW{0};
+    int panelH{0};
+    float panelTexels{1.f};
+    bool fed{false};       // feedMouse's, for the next frame
+    float fedX{0.f};
+    float fedY{0.f};
+    bool fedDown{false};
+    float fedWheel{0.f};
 };
 ImState im;
 
@@ -74,9 +83,9 @@ bool ensure()
     {
         return im.ready;
     }
-    if(VR_IsActive())
+    if(VR_IsActive() && !im.panelFb)
     {
-        return false; // (a headset session: the desktop window is its mirror; the tools are flat-screen only)
+        return false; // (a headset session: the desktop window is its mirror; the other tools are flat-screen only)
     }
     SDL_Window* window = static_cast<SDL_Window*>(VID_GetWindow());
     SDL_GLContext context = SDL_GL_GetCurrentContext();
@@ -111,6 +120,23 @@ bool ensure()
     return true;
 }
 
+void setPanel(unsigned framebuffer, int width, int height, float texels)
+{
+    im.panelFb = framebuffer;
+    im.panelW = width;
+    im.panelH = height;
+    im.panelTexels = texels;
+}
+
+void feedMouse(float x, float y, bool down, float wheel)
+{
+    im.fed = true;
+    im.fedX = x;
+    im.fedY = y;
+    im.fedDown = down;
+    im.fedWheel = wheel;
+}
+
 void setTheme(int theme)
 {
     im.theme = theme;
@@ -140,6 +166,22 @@ bool beginFrame()
     }
     ImGui_ImplOpenGL3_NewFrame();
     ImGui_ImplSDL2_NewFrame();
+    ImGuiIO& io = ImGui::GetIO();
+    if(im.panelFb)
+    {
+        io.DisplaySize = ImVec2{static_cast<float>(im.panelW), static_cast<float>(im.panelH)};
+        io.DisplayFramebufferScale = ImVec2{im.panelTexels, im.panelTexels};
+    }
+    if(im.fed)
+    {
+        io.AddMousePosEvent(im.fedX, im.fedY);
+        io.AddMouseButtonEvent(ImGuiMouseButton_Left, im.fedDown);
+        if(im.fedWheel != 0.f)
+        {
+            io.AddMouseWheelEvent(0.f, im.fedWheel);
+        }
+        im.fed = false;
+    }
     ImGui::NewFrame();
     im.frameOpen = true;
     return true;
@@ -180,6 +222,11 @@ extern "C" int VR_ImGuiEvent(const void* event)
             ImGui_ImplSDL2_ProcessEvent(ev);
         }
         return 0;
+    }
+    const bool mouse = ev->type == SDL_MOUSEMOTION || ev->type == SDL_MOUSEBUTTONDOWN || ev->type == SDL_MOUSEBUTTONUP || ev->type == SDL_MOUSEWHEEL;
+    if(im.panelFb && mouse)
+    {
+        return 1; // (on a panel the laser is its mouse: feedMouse)
     }
     ImGui_ImplSDL2_ProcessEvent(ev);
     if(!input)
@@ -235,7 +282,7 @@ extern "C" void VR_ImGuiRender(void)
     glGetBooleanv(GL_DEPTH_WRITEMASK, &depthMask);
     glGetBooleanv(GL_COLOR_WRITEMASK, colorMask);
     const GLboolean srgb = glIsEnabled(GL_FRAMEBUFFER_SRGB);
-    GL_BindFramebufferFunc(GL_FRAMEBUFFER, 0);
+    GL_BindFramebufferFunc(GL_FRAMEBUFFER, im.panelFb);
     if(srgb)
     {
         glDisable(GL_FRAMEBUFFER_SRGB);
@@ -245,6 +292,21 @@ extern "C" void VR_ImGuiRender(void)
     glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
     glPixelStorei(GL_UNPACK_SKIP_ROWS, 0);
     glPixelStorei(GL_UNPACK_SKIP_PIXELS, 0);
+    if(im.panelFb)
+    {
+        // (a target of its own: nothing of the last frame under the windows)
+        GLfloat clear[4] = {0.f, 0.f, 0.f, 0.f};
+        glGetFloatv(GL_COLOR_CLEAR_VALUE, clear);
+        const GLboolean scissor = glIsEnabled(GL_SCISSOR_TEST);
+        glDisable(GL_SCISSOR_TEST);
+        glClearColor(0.06f, 0.06f, 0.07f, 1.f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        glClearColor(clear[0], clear[1], clear[2], clear[3]);
+        if(scissor)
+        {
+            glEnable(GL_SCISSOR_TEST);
+        }
+    }
     ImGui_ImplOpenGL3_RenderDrawData(data); // (its own state saved and put back: programs, buffers, textures, blend, ...)
     glPixelStorei(GL_UNPACK_ALIGNMENT, unpackAlign);
     glPixelStorei(GL_UNPACK_ROW_LENGTH, unpackRow);

@@ -488,6 +488,7 @@ void select(int i)
 
 constexpr int armedMaxKinds = 8;
 constexpr int armedMaxWeapons = 96;
+constexpr int armedMaxInfect = 16;
 constexpr int armedCodeTop = 128; // the "weapon" keys asked: 1..127 (QC VR_AG_Decode's codes; 120 the last now)
 constexpr float armedLift = 24.f;  // (the armed entries' lift: a monster's)
 
@@ -518,6 +519,8 @@ struct ArmedCatalogue
     int kindCount{0};
     ArmedKind kinds[armedMaxKinds];
     za::InPlaceVector<ArmedWeapon, armedMaxWeapons> weapons; // by class (melee first), then code
+    int infectCount{0};
+    char infect[armedMaxInfect][24]{}; // QC's VR_INFECT_ROWS' names
 };
 ArmedCatalogue armedCat;
 
@@ -571,6 +574,13 @@ void armedRefresh()
         progs::qcText(r.spawn, sizeof(r.spawn), kindSpawn, static_cast<float>(k));
         progs::qcText(r.model, sizeof(r.model), kindModel, static_cast<float>(k));
         r.frame = static_cast<int>(progs::qcFloat(kindFrame, static_cast<float>(k)));
+    }
+    const func_t infectCount = findFunction("VR_Infect_UiCount");
+    const func_t infectName = findFunction("VR_Infect_UiName");
+    c.infectCount = za::clamp(static_cast<int>(progs::qcFloat(infectCount)), 0, armedMaxInfect);
+    for(int i = 0; i < c.infectCount; i++)
+    {
+        progs::qcText(c.infect[i], sizeof(c.infect[i]), infectName, static_cast<float>(i));
     }
     c.weapons.clear();
     for(int code = 1; code < armedCodeTop && c.weapons.size() < c.weapons.capacity(); code++)
@@ -1525,6 +1535,8 @@ const char* codeName(int code) { return armedCodeName(code); }
 int fits(int kind, int code) { return armedFits(kind, code); }
 bool oneHanded(int kind, int code) { return armedOneHanded(kind, code); }
 bool pairs(int kind, int code, int code2) { return armedPairs(kind, code, code2); }
+int infectCount() { return armedCat.valid ? armedCat.infectCount : 0; }
+const char* infectName(int row) { return row >= 0 && row < infectCount() ? armedCat.infect[row] : ""; }
 bool chosen() { return tg.sel.valid && tg.sel.armed; }
 
 void choose()
@@ -1982,7 +1994,7 @@ void reset_f()
 void armedDefaults()
 {
     for(cvar_t* cv : {&vr_toolgun_armed_kind, &vr_toolgun_armed_weapon, &vr_toolgun_armed_weapon2, &vr_toolgun_armed_armor,
-            &vr_toolgun_armed_pieces})
+            &vr_toolgun_armed_pieces, &vr_toolgun_armed_infected})
     {
         Cvar_SetQuick(cv, cv->default_string ? cv->default_string : "0");
     }
@@ -2010,6 +2022,61 @@ void armedClear_f()
     toolgun::selectSpawnable(-1);
     Con_Printf("toolgun: armed humanoid cleared (kind %g, right %g, left %g; spawn nothing)\n", vr_toolgun_armed_kind.value,
         vr_toolgun_armed_weapon.value, vr_toolgun_armed_weapon2.value);
+}
+
+// vr_toolgun_armed_infected_test: the Armed Humanoid page's Infected With on what it spawns: each armed kind with each
+// outcome, spawned ahead of the player as the spawn tool does (spawnChoice), killed and looked at by QC (VR_Infect_TestOne),
+// the choices back to their defaults. Ends on "toolgun infected test: N passed, M failed".
+void armedInfectedTest_f()
+{
+    int passed = 0, failed = 0;
+    armedRefresh();
+    const func_t one = sv.active ? [] { const progs::ServerVm vm; return findFunction("VR_Infect_TestOne"); }() : 0;
+    if(!sv.active || !armedCat.valid || armedCat.kindCount < 2 || armedCat.infectCount < 3 || !one)
+    {
+        Con_Printf("toolgun infected test: FAIL: a game with the armed monsters' table, the outcomes and the tests' QC\n");
+        qvr::testkit::verdict("toolgun infected test", passed, 1);
+        return;
+    }
+    glm::vec3 at{0.f}, angles{0.f};
+    {
+        const progs::ServerVm vm;
+        const edict_t* player = progs::playerEdict();
+        const float yaw = glm::radians(player->v.angles[1]);
+        at = glm::vec3{player->v.origin[0] + za::cos(yaw) * 200.f, player->v.origin[1] + za::sin(yaw) * 200.f, player->v.origin[2] + 8.f};
+        angles = glm::vec3{0.f, player->v.angles[1] + 180.f, 0.f};
+    }
+    for(int kind = 0; kind < armedCat.kindCount; kind++)
+    {
+        Cvar_SetValueQuick(&vr_toolgun_armed_kind, static_cast<float>(kind));
+        Cvar_SetValueQuick(&vr_toolgun_armed_weapon, -1.f); // (its fists: the quickest spawn)
+        Cvar_SetValueQuick(&vr_toolgun_armed_weapon2, 0.f);
+        toolgun::armed::choose();
+        for(int row = 1; row < armedCat.infectCount; row++)
+        {
+            Cvar_SetValueQuick(&vr_toolgun_armed_infected, static_cast<float>(row));
+            edict_t* e = spawnChoice(tg.sel, at, angles);
+            const progs::ServerVm vm;
+            bool ok = false;
+            if(e)
+            {
+                pr_global_struct->time = qcvm->time;
+                pr_global_struct->self = EDICT_TO_PROG(progs::playerEdict());
+                G_INT(OFS_PARM0) = EDICT_TO_PROG(e);
+                G_FLOAT(OFS_PARM1) = static_cast<float>(row);
+                PR_ExecuteProgram(one);
+                ok = G_FLOAT(OFS_RETURN) != 0.f;
+            }
+            if(!ok)
+            {
+                Con_Printf("toolgun infected test: FAIL: %s infected with %s\n", armedCat.kinds[kind].name, armedCat.infect[row]);
+            }
+            (ok ? passed : failed)++;
+        }
+    }
+    armedDefaults();
+    Con_Printf("toolgun infected test: the choice back to %g\n", vr_toolgun_armed_infected.value);
+    qvr::testkit::verdict("toolgun infected test", passed, failed + (vr_toolgun_armed_infected.value != 0.f ? 1 : 0));
 }
 
 // vr_toolgun_armed_armor_test: the Armed Humanoid page's Armour and Pieces on what it spawns: a grunt and an enforcer
@@ -2230,6 +2297,7 @@ void qvr::toolgun::registerCommands()
     Cmd_AddCommand("vr_toolgun_armed_reset", armedReset_f);
     Cmd_AddCommand("vr_toolgun_armed_clear", armedClear_f);
     Cmd_AddCommand("vr_toolgun_armed_armor_test", armedArmourTest_f);
+    Cmd_AddCommand("vr_toolgun_armed_infected_test", armedInfectedTest_f);
     Cmd_AddCommand("vr_toolgun_menu", menu_f);
     Cmd_AddCommand("vr_toolgun_next", next_f);
     Cmd_AddCommand("vr_toolgun_unfreeze_all", unfreezeAll_f);

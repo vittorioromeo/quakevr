@@ -2496,6 +2496,9 @@ QVR_CVAR(vr_arena_foe_armor, "1", CVAR_ARCHIVE)               // 1: the waves' g
 QVR_CVAR(vr_arena_foe_armor_scale, "1", CVAR_ARCHIVE)         // the arena armour's chance times this (1: 10% at its first wave at Normal, 3% more a wave, cap 85%)
 QVR_CVAR(vr_arena_foe_armor_from, "4", CVAR_ARCHIVE)          // the first wave a foe may wear armour at Normal (moved by the skill as every gate: 7 / 4 / 2 / 2)
 QVR_CVAR(vr_arena_seed, "0", CVAR_NONE)                       // the waves' rolls: 0 a different ladder every run, else that seed's ladder
+QVR_CVAR(vr_arena_waves_dir, "arena_waves", CVAR_NONE)         // the folder of the arena's wave presets, under the game folder (vr_arenawaves.hpp; the tests' keep apart)
+QVR_CVAR(vr_waveeditor_width, "54", CVAR_ARCHIVE)              // the Arena Wave Editor's panel in the headset: its width (units)
+QVR_CVAR(vr_waveeditor_distance, "42", CVAR_ARCHIVE)           // ... how far in front of the head it opens (units)
 QVR_CVAR(vr_arena_goto, "0", CVAR_NONE)                       // debug/benchmarks: set to N, the running arena jumps to wave N now (the field cleared, no rest or countdown; back to 0 after)
 // Survival Arena's last foes seen through walls (QC VR_ARENA_XrayMark marks them, .vr_xray; vr_arenaxray.cpp draws them)
 QVR_CVAR(vr_arena_xray, "1", CVAR_ARCHIVE)                    // 1: a wave's last foes glow through walls (an outline in front of everything)
@@ -3784,6 +3787,7 @@ QVR_CVAR(vr_toolgun_armed_kind, "0", CVAR_ARCHIVE)      // the spawn panel's Arm
 QVR_CVAR(vr_toolgun_armed_weapon, "0", CVAR_ARCHIVE)    // ... its right hand's weapon (the "weapon" key: 0 random from the pool, -1 unarmed, else the weapon's code)
 QVR_CVAR(vr_toolgun_armed_weapon2, "0", CVAR_ARCHIVE)   // ... its left hand's ("weapon2": 0 none; a one-handed weapon, with a one-handed one in the right)
 QVR_CVAR(vr_toolgun_armed_armor, "0", CVAR_ARCHIVE)     // ... its armour (vr_agarmor.qc VR_AgArmor_Toolgun): 0 none, 1 green, 2 yellow, 3 red, 4 one of them at random
+QVR_CVAR(vr_toolgun_armed_infected, "0", CVAR_ARCHIVE)  // ... what it is infected with: a row of QC's VR_INFECT_ROWS (0 none; killed, it bursts and rises as that monster)
 QVR_CVAR(vr_toolgun_armed_pieces, "1", CVAR_ARCHIVE)    // ... its armour's pieces: 0 the cuirass and the helmet, 1 all ten, 2 random (the cuirass, the helmet and some of the rest)
 QVR_CVAR(vr_toolgun_armed_tiles,"0", CVAR_ARCHIVE)     // 1: the Monsters tab also lists the Armed Grunt and Armed Enforcer tiles for each weapon (the page replaces them)
 QVR_CVAR(vr_toolgun_brush_texlock, "1", CVAR_ARCHIVE)   // ... Rotate turns the textures with the faces (0: each face gets the world's alignment)

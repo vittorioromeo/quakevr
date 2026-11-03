@@ -948,6 +948,7 @@ struct ArmedLists
     za::InPlaceVector<int, armedListMax> rightCode;
     za::InPlaceVector<const char*, armedListMax> left; // None, the weapons that pair with the right hand's
     za::InPlaceVector<int, armedListMax> leftCode;
+    za::InPlaceVector<const char*, 16> infected; // None, what it may rise as
 };
 ArmedLists armedLists;
 
@@ -962,6 +963,11 @@ const ArmedLists& armedListsFor(int kind, int code)
     l.generation = toolgun::armed::generation();
     l.kind = kind;
     l.code = code;
+    l.infected.clear();
+    for(int i = 0; i < toolgun::armed::infectCount() && l.infected.size() < l.infected.capacity(); i++)
+    {
+        l.infected.pushBack(i == 0 ? "None" : toolgun::armed::infectName(i));
+    }
     for(int k = 0; k < toolgun::armed::kindCount() && l.kinds.size() < l.kinds.capacity(); k++)
     {
         l.kinds.pushBack(toolgun::armed::kindName(k));
@@ -1024,13 +1030,13 @@ void armedPage(Ui& ui)
     }
     else
     {
-        const int k = dropdown(ui, Rect{x0, 64.f, x1, 77.f}, "Kind", l.kinds.data(), static_cast<int>(l.kinds.size()), kind);
+        const int k = dropdown(ui, Rect{x0, 63.f, x1, 75.f}, "Kind", l.kinds.data(), static_cast<int>(l.kinds.size()), kind);
         if(k >= 0)
         {
             Cvar_SetValueQuick(&vr_toolgun_armed_kind, static_cast<float>(k));
             toolgun::armed::choose();
         }
-        const int r = dropdown(ui, Rect{x0, 81.f, x1, 94.f}, "Right Hand", l.right.data(), static_cast<int>(l.right.size()),
+        const int r = dropdown(ui, Rect{x0, 77.f, x1, 89.f}, "Right Hand", l.right.data(), static_cast<int>(l.right.size()),
             indexOfCode(l.rightCode, code));
         if(r >= 0)
         {
@@ -1039,7 +1045,7 @@ void armedPage(Ui& ui)
         }
         const bool pairs = code > 0 && toolgun::armed::oneHanded(kind, code);
         const bool melee = (toolgun::armed::fits(kind, code) >> 2) == VR_AG_CLASS_MELEE;
-        const int lc = dropdown(ui, Rect{x0, 98.f, x1, 111.f}, "Left Hand", l.left.data(), static_cast<int>(l.left.size()),
+        const int lc = dropdown(ui, Rect{x0, 91.f, x1, 103.f}, "Left Hand", l.left.data(), static_cast<int>(l.left.size()),
             pairs ? za::max(0, indexOfCode(l.leftCode, code2)) : 0, pairs);
         if(lc >= 0)
         {
@@ -1048,22 +1054,29 @@ void armedPage(Ui& ui)
         }
         // Its armour (vr_agarmor.qc VR_AgArmor_Toolgun, on each one spawned): the type, and which pieces.
         const float xm = (x0 + x1) * 0.5f;
-        const int ar = dropdown(ui, Rect{x0, 115.f, xm - 2.f, 128.f}, "Armour", armedArmours, 5,
+        const int ar = dropdown(ui, Rect{x0, 105.f, xm - 2.f, 117.f}, "Armour", armedArmours, 5,
             za::clamp(static_cast<int>(vr_toolgun_armed_armor.value), 0, 4));
         if(ar >= 0)
         {
             Cvar_SetValueQuick(&vr_toolgun_armed_armor, static_cast<float>(ar));
         }
-        const int ap = dropdown(ui, Rect{xm + 2.f, 115.f, x1, 128.f}, "Pieces", armedPieceSets, 3,
+        const int ap = dropdown(ui, Rect{xm + 2.f, 105.f, x1, 117.f}, "Pieces", armedPieceSets, 3,
             za::clamp(static_cast<int>(vr_toolgun_armed_pieces.value), 0, 2), vr_toolgun_armed_armor.value != 0.f);
         if(ap >= 0)
         {
             Cvar_SetValueQuick(&vr_toolgun_armed_pieces, static_cast<float>(ap));
         }
+        // What it rises as when first killed (QC vr_mg3_infected.qc VR_INFECT_ROWS; on each one spawned).
+        const int inf = dropdown(ui, Rect{x0, 119.f, x1, 131.f}, "Infected With", l.infected.data(), static_cast<int>(l.infected.size()),
+            za::clamp(static_cast<int>(vr_toolgun_armed_infected.value), 0, za::max(0, static_cast<int>(l.infected.size()) - 1)));
+        if(inf >= 0)
+        {
+            Cvar_SetValueQuick(&vr_toolgun_armed_infected, static_cast<float>(inf));
+        }
         if(ui.mode == Mode::Draw && !ps.drop.name[0]) // (none under an open list: the pictures are drawn after it)
         {
             // The pictures: the kind, its right hand's, its left hand's; a word on what it will do.
-            const float y0 = 132.f, y1 = 171.f, w = 50.f;
+            const float y0 = 134.f, y1 = 172.f, w = 50.f;
             pictureBox(Rect{x0, y0, x0 + w, y1}, toolgun::armed::kindModel(kind), false, toolgun::armed::kindName(kind), nullptr);
             pictureBox(Rect{x0 + w + 3.f, y0, x0 + 2.f * w + 3.f, y1}, toolgun::armed::ghostModel(0), true,
                 code == 0 ? "Random" : code < 0 ? "Fists" : toolgun::armed::codeName(code), code == 0 ? "?" : "-");

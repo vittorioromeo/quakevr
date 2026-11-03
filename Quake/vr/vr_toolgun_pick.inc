@@ -212,6 +212,15 @@ void armedArmour(edict_t* e)
     G_FLOAT(OFS_PARM1) = static_cast<float>(za::clamp(static_cast<int>(vr_toolgun_armed_armor.value), 0, 4));
     G_FLOAT(OFS_PARM2) = static_cast<float>(za::clamp(static_cast<int>(vr_toolgun_armed_pieces.value), 0, 2));
     PR_ExecuteProgram(fn);
+    // And what it is infected with (QC VR_Infect_Toolgun: its outcome precached now, the spawn tool's late precache).
+    if(const func_t infect = qvr::progs::findFunction("VR_Infect_Toolgun"); infect && !e->free)
+    {
+        pr_global_struct->time = qcvm->time;
+        pr_global_struct->self = EDICT_TO_PROG(progs::playerEdict());
+        G_INT(OFS_PARM0) = EDICT_TO_PROG(e);
+        G_FLOAT(OFS_PARM1) = vr_toolgun_armed_infected.value;
+        PR_ExecuteProgram(infect);
+    }
 }
 
 [[nodiscard]] edict_t* spawnChoice(const Selection& sel, const glm::vec3& origin, const glm::vec3& angles)

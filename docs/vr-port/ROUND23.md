@@ -7327,3 +7327,71 @@ stick is always heard, however slowly. The feet still count every touchdown for 
 | stick turning, `_adjust_vol` 0.2 | 9 u/s | 3 | 1 in 3.4 s | 0.200 |
 
 Each footstep is still within a frame of the drawn touchdown (13.9 ms most), and the old trigger plays none in these phases.
+
+## Arena wave editor and generic infection (branch `agent/waveeditor`)
+
+His words: "a simple wave editor tool so that I can set up waves the way I want ... any armed humanoid configuration with
+any weapon/armor combination ... save/load wave presets and pick one per difficulty ... easily extensible to multiple arena
+maps", and "Could infection be a generic dynamic addition to any armed humanoid?" ... "Also add it to the toolgun menu".
+
+**Open it:** Debug > Tools > Arena Wave Editor (also Debug > Automation, Survival Arena; `vr_waveeditor`). With no game
+running it loads vrarena for the game's lists. The game is held while it is open.
+
+**Flat screen and headset.** The Rig Studio turned out flat-screen only (`imgui::ensure` refused a headset session), so
+"like the Rig Studio" could not be followed in VR as it stood. The editor is one ImGui window reached two ways: the desktop
+window with the mouse and keyboard (`-flatscreenmode`), or in a headset on a panel in front of the head (a target of its
+own, as the toolgun's panel and the perk cards): either hand's laser, its trigger the click, the stick the wheel, the
+window's own keys for a name, Recentre to bring it back. `imgui::setPanel` and `imgui::feedMouse` are the only additions to
+vr_imgui; the Rig Studio stays flat-screen. Both ways run the same code, so `vr_waveeditor_test` covers them both.
+
+**The data** (`Quake/vr/vr_arenawaves.hpp` has the format): a preset is `quakevr/arena_waves/<name>.txt`, versioned, line
+based, one `entry` a line (kind, main, off, armour, pieces, infected, count, delay, boss) under its `wave` (pool). Loading
+and saving is byte-stable; a hand-written file is canonical after its first save (comments go). `assign.cfg` holds
+`<map>.<skill> <name>`: no line, Default. A map named there is an arena map (QC `VR_ARENA_On`, asked once a map): **a new
+arena needs only its name there**; `vr_arena_assign <map> <skill> <preset|default>` from the console.
+
+**The path to QC.** Three builtins: `arenawavesload(skill)` makes the preset for this map and skill (or the editor's Play)
+the running one, `arenawavesfield(wave, entry, field)` hands its fields as text, `arenawavesreport(s)` says a line. No new
+entity fields; the plan gets three more arrays (`ar_plan_gun2`, `_infect`, `_at`). `VR_ARENA_Plan` writes the wave's plan
+from the entries in place of `PlanFoes`, and the director runs as ever. A preset's delays hold the next foe
+(`VR_ARENA_NextDue`); a wave's `pool` replaces its alive pool; bosses are the entries marked so (their health as any boss's,
+their warning, the perk offer after the wave), in the order written (no BossMidway). After the last wave: `end` (ARENA
+CLEARED, the arena stands still), `last` or `loop`. No preset: all of that is skipped, nothing rolled: **Default is the same
+to the hash** (below).
+
+**Validation.** As the map starts QC walks every entry: an unknown kind, weapon or infection, a weapon its kind can't hold,
+two that don't pair, an unknown armour or pieces word: reported (console, and the editor's bottom line) and that entry
+skipped. The editor marks them red, keeps them, and saves them as they were.
+
+**Kinds.** `VR_WAVE_KINDS` gets `armed_knight`, `armed_deathknight`, `plain_grunt`, `plain_enforcer` (the arena's rows
+`grunt` and `enforcer` are its armed ones, as ever). A preset's plain kinds are held from `vr_agrunt_repl` and
+`vr_agknight`'s replacement: what it says it brings, it brings.
+
+**Generic infection** (`QC/vr_mg3_infected.qc`): `.vr_mg3_infected` is a row of `VR_INFECT_ROWS`: zombie and demon (Dawn of
+the Machine's two, set up by hand as they always were, first frames their pains), dog, knight, ogre, hellknight, shambler,
+shalrath, wizard (each through its monster's own spawn function, its start's think dropped, not counted again; he comes to
+on his run, with its sight sound). A new row is a line.
+- *What falls:* an armed humanoid's held and stowed weapons as at any death (`VR_AG_Dying`), his spare rounds and worn pack
+  as at any death (`VR_AG_SoldierDrop`: gun holders, or any wearing a pack), his plates as at a gibbing (`VR_AgArmor_Shed`:
+  they fly off as debris). Then nothing of the armed layer stays on the new body.
+- *Room:* the row's own box (its hull); for the rows other than zombie and demon, then a zombie (`fallback`: the smallest
+  body); zombie and demon then try the old body's box, as ever; none fits: he doesn't rise, gibbed and counted.
+- *Counting:* the first death never counts; he keeps `.ar_slot` and has health at once, so the wave waits for him (never
+  ends early), `AR_STALL` still lets a stuck wave go (never hangs), and only the riser's fall pays. A riser with no room
+  falls at once and pays there.
+- *Precaching:* a preset's outcomes at the map's start (with their fallback's), from its list. The toolgun's page: at the
+  spawn, through the engine's late precache every toolgun entry already uses (`VR_AllowLatePrecache`, `VR_WriteRecentPrecaches`):
+  it can't error in Quake VR's progs, nothing is added to every map's list; the cost is the toolgun's usual one, a frame's
+  load the first time an outcome is chosen, never at the burst.
+- *Toolgun:* the Armed Humanoid page gets Infected With (`vr_toolgun_armed_infected`, in Reset and Clear). No general setting
+  for normal maps.
+
+**Tests** (the fixtures: `vr_arena_waves_dir arena_waves_test; vr_arena_waves_fixture`): `vr_arena_waves_test` (format,
+round trip, names, assign.cfg), `vr_waveeditor_test` (every button, list and popup through a test mouse, in either mode),
+`vr_arena_test 30` (Default's plans hashed and a live wave's foes printed, to compare two builds), 31 (a preset's plans), 32
+(a live run: each wave as written, the riser, ARENA CLEARED), 33 (bad entries), 34 (another map by its name alone), 35 (every
+outcome from every armed kind: open, a narrow slot, boxed in), `vr_toolgun_armed_infected_test` (the page's spawns).
+
+**Not done:** no 3D preview (as asked: its text line); no per-skill scaling of a preset (it is exact at every skill; only
+health and score still go by skill); the wave clear's drops stay the director's (by wave number); a preset can't name maps'
+spawn groups (a delay instead); kinds from the mission packs and AD aren't in the table (a row each when wanted).

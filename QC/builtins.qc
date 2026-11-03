@@ -210,6 +210,14 @@ float(entity player, float hand) weaponanygrip = #0;
 // held weapon, vr_armedgrunt.qc weaponmuzzle). what 24: the Weapon Holds (the engine's vr_agholds.inc), `hand` an armed
 // humanoid's kind * 1000 + its weapon's code (vr_armedgrunt_pose.qc VR_AGH_Code): '<hands 1 or 2; 0 no row> <its
 // setting: 0 Auto, 1 One-Handed, 2 Two-Handed> 0'.
+// The Survival Arena's preset (vr_arenawaves.cpp): arenawavesload: the preset chosen for this map and `skill` (or the
+// editor's Play) made the running one: its waves (0: none, Default). arenawavesfield: what it holds, as text: (wave, entry,
+// field) an entry's (vr_arena.qc AR_F_*); (wave, -1, 0) a wave's entries, (wave, -1, 1) its alive pool; (-1, -1, 0) what
+// comes after the last wave (AR_AFTER_*); (-2, 0, 0) "1" when this map has a preset assigned for any skill.
+// arenawavesreport: a line for the console and the editor.
+float(float skill) arenawavesload = #0;
+string(float wave, float entry, float field) arenawavesfield = #0;
+void(string s) arenawavesreport = #0;
 vector(entity player, float hand, float what) weapondrawnpose = #0;
 // The armed humanoids' lookups in one call each (PERF_1102.md, "Follow-up"), their results in these globals as
 // traceline's in trace_*. agposekey: pose key `code` (VR_AGK_Add; weapondrawnpose(world, code, 11..18, 25, 26) at once):

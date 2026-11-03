@@ -44,6 +44,8 @@ Your settings are the defaults now (43 values and 7 barrel masks): tug, close qu
 Heavy Feet Speed (Debug > Tunables > Combat > Enemy Footsteps) makes ogre, fiend and shambler steps deeper and longer or sharper and shorter, live as you drag it.
 Slow stick walking is much quieter than a run; adjust under Debug > Tunables > Body > Player Footsteps.
 Turning in the room or with the stick, or moving a little in the room: no footstep sounds.
+Debug > Tools > Arena Wave Editor: build a wave with an armed grunt, dual axes, red armour and infected with shambler; save it, assign it to Normal, then Play from wave 1. Is the panel readable, do the laser, stick scrolling and panel keys work?
+Toolgun > Spawn > Armed Humanoid > Infected With > Ogre: kill him; his weapon falls and he rises as an ogre.
 
 
 [3. Bodies: grabbing, throwing, hits]

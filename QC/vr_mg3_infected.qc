@@ -34,8 +34,18 @@
 // An infected death knight placed as a corpse (spawnflags 65536 or 8388608: MG3's CORPSE_FLAG_A, _B) lies in his death's
 // last frame, not solid, until he is woken (his targetname used: monster_use), then rises (his death backwards; tried
 // again every 5 s while something stands in his way). Alive all the while: no ragdoll, no corpse (his health is his).
+//
+// Generic (ROUND23.md, "Arena wave editor: generic infection"): .vr_mg3_infected is a row of VR_INFECT_ROWS, any monster
+// that can carry the mark rises as that row's monster. The rows zombie and fiend are Dawn of the Machine's own, set up by
+// hand as they always were; the others go through their monster's own spawn function, so a new row is one line. What
+// falls as he bursts: an armed humanoid's held and stowed weapons as at any death (VR_AG_Dying), his spare rounds and his
+// worn pack as at any death (VR_AG_SoldierDrop), his armour's plates as at a gibbing (VR_AgArmor_Shed). Room: the
+// outcome's own box (its hull), then a row's `fallback` (a zombie, the smallest body) with its box; the fiend and the
+// zombie then the old body's box, as ever; none fits: he does not rise (gibbed and counted, as upstream).
+// Counting: his first death never counts; in the arena he stays the same foe (.ar_slot kept, health > 0 at once), so a
+// wave waits for the riser and pays once, for the riser's fall. A riser with no room falls at once and is paid there.
 
-// .vr_mg3_infected (combat.qc): MG3_INFECTED_*, what he becomes when first killed (0: not infected, or already turned)
+// .vr_mg3_infected (combat.qc): a row of VR_INFECT_ROWS, what he becomes when first killed (0: not infected, or turned)
 float vr_mg3_infected_turned;   // infected turned since the map started (the tests)
 
 float MG3_INFECTED_ZOMBIE = 1;  // a grunt or a knight: a zombie
@@ -86,6 +96,59 @@ void() MG3_Infected_PrecacheFiend =
     precache_sound("demon/idle1.wav");
     precache_sound("demon/sight2.wav");
     precache_sound("player/udeath.wav");
+};
+
+void() VR_Infect_PrecacheDog =
+{
+    precache_model("progs/h_dog.mdl");
+    precache_model("progs/dog.mdl");
+    precache_sound("dog/dattack1.wav");
+    precache_sound("dog/ddeath.wav");
+    precache_sound("dog/dpain1.wav");
+    precache_sound("dog/dsight.wav");
+    precache_sound("dog/idle.wav");
+};
+
+void() VR_Infect_PrecacheKnight =
+{
+    precache_model("progs/knight.mdl");
+    precache_model("progs/h_knight.mdl");
+    precache_sound("knight/kdeath.wav");
+    precache_sound("knight/khurt.wav");
+    precache_sound("knight/ksight.wav");
+    precache_sound("knight/sword1.wav");
+    precache_sound("knight/sword2.wav");
+    precache_sound("knight/idle.wav");
+};
+
+void() VR_Infect_PrecacheHKnight =
+{
+    precache_model("progs/hknight.mdl");
+    precache_model("progs/k_spike.mdl");
+    precache_model("progs/h_hellkn.mdl");
+    precache_sound("hknight/attack1.wav");
+    precache_sound("hknight/death1.wav");
+    precache_sound("hknight/pain1.wav");
+    precache_sound("hknight/sight1.wav");
+    precache_sound("hknight/hit.wav");
+    precache_sound("hknight/slash1.wav");
+    precache_sound("hknight/idle.wav");
+    precache_sound("hknight/grunt.wav");
+    precache_sound("knight/sword1.wav");
+    precache_sound("knight/sword2.wav");
+};
+
+void() VR_Infect_PrecacheShalrath =
+{
+    precache_model("progs/shalrath.mdl");
+    precache_model("progs/h_shal.mdl");
+    precache_model("progs/v_spike.mdl");
+    precache_sound("shalrath/attack.wav");
+    precache_sound("shalrath/attack2.wav");
+    precache_sound("shalrath/death.wav");
+    precache_sound("shalrath/idle.wav");
+    precache_sound("shalrath/pain.wav");
+    precache_sound("shalrath/sight.wav");
 };
 
 // After the change: an enemy of the class he now is (infighting he was drawn into) gives way to a living player
@@ -150,7 +213,18 @@ float vr_mg3_infected_drops; // the weapons infected dropped as they turned (the
 void() MG3_Infected_DropWeapon =
 {
     float before = vr_mg3_infected_drops;
-    if(self.classname == "monster_army")
+    if(self.vr_ag)
+    {
+        // An armed humanoid: all he has goes as at any death of his (see the file's head), then nothing of the armed
+        // layer stays on the new body.
+        VR_AG_Dying();
+        if(self.vr_ag_kind < 2 || self.vr_wp_had) { VR_AG_SoldierDrop(); } // (the gun holders: VR_AM_GUN_KINDS)
+        VR_AgArmor_Shed(self, self.health);
+        self.vr_ag = 0;
+        self.vr_agr = 0;
+        vr_mg3_infected_drops++;
+    }
+    else if(self.classname == "monster_army")
     {
         VR_DropEnemyGun(WID_GRUNTGUN);
         vr_mg3_infected_drops++;
@@ -169,6 +243,134 @@ void() MG3_Infected_DropWeapon =
     if(vr_mg3_infected_drops > before)
     {
         dprint(sprintf("mg3: the infected %s drops his weapon as he turns\n", self.classname));
+    }
+};
+
+// Dawn of the Machine's two, by hand (as they always were: their first frames are their pain's).
+void() MG3_Infected_BecomeFiend =
+{
+    setmodel(self, "progs/demon.mdl");
+    setsize(self, '-16 -16 -24', '16 16 24'); // (monster_demon1's)
+    self.noise = "demon/sight2.wav";
+    self.health = 300;
+    self.max_health = 300;
+    self.th_stand = demon1_stand1;
+    self.th_walk = demon1_walk1;
+    self.th_run = demon1_run1;
+    self.th_die = demon_die;
+    self.th_melee = Demon_MeleeAttack;
+    self.th_missile = demon1_jump1;
+    self.th_pain = demon1_pain;
+    VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_demon, MG3_DEMON_DEATH9, MG3_DEMON_DEATH1, -1, -1);
+};
+
+void() MG3_Infected_BecomeZombie =
+{
+    setmodel(self, "progs/zombie.mdl");
+    setsize(self, '-12 -12 -24', '12 12 24'); // (monster_zombie's)
+    self.noise = "zombie/z_idle.wav";
+    self.health = 60;
+    self.max_health = 60;
+    self.th_stand = zombie_stand1;
+    self.th_walk = zombie_walk1;
+    self.th_run = zombie_run1;
+    self.th_die = zombie_die;
+    self.th_missile = zombie_missile;
+    self.th_melee = world.th_melee; // (none: the zombie's flesh is its missile)
+    self.th_pain = zombie_pain;
+    VR_Knockdown_SetupOwn(cvarh_vr_knockdown_chance_zombie, MG3_ZOMBIE_PAINE12, zombie_paine13);
+};
+
+// The outcomes. Its `name` the presets' word and the toolgun's choice, `classname` what he is then, `precache` what he
+// needs (the map's start for a preset's list; the toolgun's spawn for its choice: the engine's late precache, as all its
+// spawn list), `become` his monster's own spawn function (rows 1 and 2: the ones above), `rise` the sound he rises with
+// ("": his first frames' own), `fallback` the row to try when he doesn't fit (0: he doesn't rise).
+typedef struct
+{
+    string name, classname;
+    void() precache, become;
+    string rise;
+    float fallback;
+} vr_infect_row;
+
+vr_infect_row VR_INFECT_ROWS[] =
+{
+    { "none", "", SUB_Null, SUB_Null, "", 0 },
+    { "zombie", "monster_zombie", MG3_Infected_PrecacheZombie, MG3_Infected_BecomeZombie, "", 0 },
+    { "demon", "monster_demon1", MG3_Infected_PrecacheFiend, MG3_Infected_BecomeFiend, "", 0 },
+    { "dog", "monster_dog", VR_Infect_PrecacheDog, monster_dog, "dog/dsight.wav", MG3_INFECTED_ZOMBIE },
+    { "knight", "monster_knight", VR_Infect_PrecacheKnight, monster_knight, "knight/ksight.wav", MG3_INFECTED_ZOMBIE },
+    { "ogre", "monster_ogre", monster_ogre_precache, monster_ogre, "ogre/ogwake.wav", MG3_INFECTED_ZOMBIE },
+    { "hellknight", "monster_hell_knight", VR_Infect_PrecacheHKnight, monster_hell_knight, "hknight/sight1.wav", MG3_INFECTED_ZOMBIE },
+    { "shambler", "monster_shambler", monster_shambler_precache, monster_shambler, "shambler/ssight.wav", MG3_INFECTED_ZOMBIE },
+    { "shalrath", "monster_shalrath", VR_Infect_PrecacheShalrath, monster_shalrath, "shalrath/sight.wav", MG3_INFECTED_ZOMBIE },
+    { "wizard", "monster_wizard", monster_wizard_precache, monster_wizard, "wizard/wsight.wav", MG3_INFECTED_ZOMBIE }
+};
+#define VR_INFECT_N 10
+
+// A word's row (presets), -1: none such.
+float(string xName) VR_Infect_ByName =
+{
+    for(float i = 0; i < VR_INFECT_N; i++)
+    {
+        if(VR_INFECT_ROWS[i].name == xName) { return i; }
+    }
+    return -1;
+};
+
+// What row `xRow` can come to need: its own, and its fallback's.
+void(float xRow) VR_Infect_Precache =
+{
+    if(xRow <= 0 || xRow >= VR_INFECT_N) { return; }
+    void() f = VR_INFECT_ROWS[xRow].precache;
+    f();
+    if(VR_INFECT_ROWS[xRow].fallback) { VR_Infect_Precache(VR_INFECT_ROWS[xRow].fallback); }
+    precache_sound("player/udeath.wav");
+};
+
+// The engine's lists (vr_toolgun_panel.cpp, vr_waveeditor.cpp).
+float() VR_Infect_UiCount = { return VR_INFECT_N; };
+string(float xRow) VR_Infect_UiName = { return VR_INFECT_ROWS[max(0, min(VR_INFECT_N - 1, xRow))].name; };
+
+// The toolgun's armed humanoid just made (vr_toolgun_pick.inc): he carries row `xRow` (precached now: the toolgun's
+// spawns are the engine's late precaches, which reach the client before they are used).
+void(entity e, float xRow) VR_Infect_Toolgun =
+{
+    xRow = max(0, min(VR_INFECT_N - 1, floor(xRow)));
+    e.vr_mg3_infected = xRow;
+    VR_Infect_Precache(xRow);
+    if(xRow) { dprint(sprintf("infect: toolgun: %s infected with %s\n", e.classname, VR_INFECT_ROWS[xRow].name)); }
+};
+
+// self made row `xRow`'s monster (a fallback's after another's: all of it again).
+void(float xRow) VR_Infect_Become =
+{
+    self.classname = VR_INFECT_ROWS[xRow].classname;
+    self.th_melee = world.th_melee;
+    self.th_missile = world.th_missile;
+    self.th_vrshove = world.th_vrshove; // (the grunt's and the enforcer's shove: vr_enemyshove.qc)
+    void() f = VR_INFECT_ROWS[xRow].become;
+    if(xRow == MG3_INFECTED_ZOMBIE || xRow == MG3_INFECTED_FIEND)
+    {
+        f();
+    }
+    else
+    {
+        // Its own spawn function, as if placed here: never replaced by its armed version, nor a second count; its start
+        // (walkmonster_start's think) never runs: he comes to below, at once.
+        float monsters = total_monsters;
+        vr_agr_hold = vr_agr_hold + 1;
+        f();
+        vr_agr_hold = vr_agr_hold - 1;
+        total_monsters = monsters;
+        self.think = SUB_Null;
+        self.nextthink = 0;
+        self.max_health = self.health;
+        self.takedamage = DAMAGE_AIM;
+        self.flags = self.flags | FL_MONSTER;
+        self.view_ofs = '0 0 25';
+        self.use = monster_use;
+        if(!self.yaw_speed) { self.yaw_speed = 20; }
     }
 };
 
@@ -222,65 +424,41 @@ void(entity attacker) MG3_Infected_Turn =
     self.pain_finished = time + 1;
     self.attack_finished = 0;
 
-    if(kind == MG3_INFECTED_FIEND)
+    // The new body: the row's box first, then its fallback's (a zombie); knocked down, each stands up where his body
+    // lay: its box on the floor under him. Rows 1 and 2 then try the old body's box, as ever (a fiend is wider than a
+    // death knight; monsters crowd), where it stood.
+    vector at = self.origin;
+    float row = kind;
+    float room = FALSE;
+    while(row > 0 && row < VR_INFECT_N)
     {
-        setmodel(self, "progs/demon.mdl");
-        setsize(self, '-16 -16 -24', '16 16 24'); // (monster_demon1's)
-        self.classname = "monster_demon1";
-        self.noise = "demon/sight2.wav";
-        self.health = 300;
-        self.max_health = 300;
-        self.th_stand = demon1_stand1;
-        self.th_walk = demon1_walk1;
-        self.th_run = demon1_run1;
-        self.th_die = demon_die;
-        self.th_melee = Demon_MeleeAttack;
-        self.th_missile = demon1_jump1;
-        self.th_pain = demon1_pain;
-        VR_Knockdown_SetupReverse(cvarh_vr_knockdown_chance_demon, MG3_DEMON_DEATH9, MG3_DEMON_DEATH1, -1, -1);
-    }
-    else
-    {
-        setmodel(self, "progs/zombie.mdl");
-        setsize(self, '-12 -12 -24', '12 12 24'); // (monster_zombie's)
-        self.classname = "monster_zombie";
-        self.noise = "zombie/z_idle.wav";
-        self.health = 60;
-        self.max_health = 60;
-        self.th_stand = zombie_stand1;
-        self.th_walk = zombie_walk1;
-        self.th_run = zombie_run1;
-        self.th_die = zombie_die;
-        self.th_missile = zombie_missile;
-        self.th_melee = world.th_melee; // (none: the zombie's flesh is its missile)
-        self.th_pain = zombie_pain;
-        VR_Knockdown_SetupOwn(cvarh_vr_knockdown_chance_zombie, MG3_ZOMBIE_PAINE12, zombie_paine13);
-    }
-    self.th_vrshove = world.th_vrshove; // (the grunt's and the enforcer's shove: vr_enemyshove.qc)
-    setorigin(self, self.origin);
-    MG3_Infected_SetEnemy(self.classname);
-
-    // Knocked down, he stands up where his body lay: his box on the floor under him.
-    if(wasDown)
-    {
-        traceline(self.origin + '0 0 8', self.origin - '0 0 64', TRUE, self);
-        if(!trace_startsolid)
+        VR_Infect_Become(row);
+        setorigin(self, at);
+        MG3_Infected_SetEnemy(self.classname);
+        if(wasDown)
         {
-            setorigin(self, trace_endpos + '0 0 1' * (1 - self.mins_z));
+            traceline(self.origin + '0 0 8', self.origin - '0 0 64', TRUE, self);
+            if(!trace_startsolid)
+            {
+                setorigin(self, trace_endpos + '0 0 1' * (1 - self.mins_z));
+            }
         }
-    }
-    float room = MG3_Infected_Room(self.origin);
-    if(!room && oldMaxs_x > 0)
-    {
-        // The new body's box is in another monster or the wall (a fiend is wider than a death knight; monsters crowd):
-        // the old body's, as upstream (which never changes the box), where it stood.
-        vector newMins = self.mins, newMaxs = self.maxs;
-        setsize(self, oldMins, oldMaxs);
         room = MG3_Infected_Room(self.origin);
-        if(!room)
+        if(!room && oldMaxs_x > 0 && (row == MG3_INFECTED_ZOMBIE || row == MG3_INFECTED_FIEND))
         {
-            setsize(self, newMins, newMaxs);
+            vector newMins = self.mins, newMaxs = self.maxs;
+            setsize(self, oldMins, oldMaxs);
+            room = MG3_Infected_Room(self.origin);
+            if(!room)
+            {
+                setsize(self, newMins, newMaxs);
+            }
         }
+        if(room || !VR_INFECT_ROWS[row].fallback)
+        {
+            break;
+        }
+        row = VR_INFECT_ROWS[row].fallback;
     }
     if(!room)
     {
@@ -289,26 +467,26 @@ void(entity attacker) MG3_Infected_Turn =
         Killed(self, attacker);
         return;
     }
-    if(kind == MG3_INFECTED_FIEND)
+    if(row == MG3_INFECTED_FIEND)
     {
         demon1_pain1();
     }
-    else
+    else if(row == MG3_INFECTED_ZOMBIE)
     {
         zombie_paina1();
     }
+    else
+    {
+        // (his first step his run: a pain's flinch is a matter of chance for these)
+        if(VR_INFECT_ROWS[row].rise != "") { sound(self, CHAN_VOICE, VR_INFECT_ROWS[row].rise, 1, ATTN_NORM); }
+        self.th_run();
+    }
+    dprint(sprintf("infect: rose as %s (row %g of %g)\n", self.classname, row, kind));
 };
 
 void() MG3_Infected_Mark =
 {
-    if(self.vr_mg3_infected == MG3_INFECTED_FIEND)
-    {
-        MG3_Infected_PrecacheFiend();
-    }
-    else
-    {
-        MG3_Infected_PrecacheZombie();
-    }
+    VR_Infect_Precache(self.vr_mg3_infected);
 };
 
 /*QUAKED monster_army_infected (1 0 0) (-16 -16 -24) (16 16 40) Ambush
