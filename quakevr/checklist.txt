@@ -60,6 +60,8 @@ Revolver: see through the empty chambers swung out; shells seat cleanly in them.
 Armour plate breaking on an armed enemy: a short metal crack from a recording, no longer the armour chime backwards. If it sounds wrong, name a runner-up (518731 or 875432).
 A knight's or death knight's gun stays with its body as it sidesteps and circles.
 A fiend, dog or spawn killed by a blast its own leap set off stays dead.
+Fresh settings, e1m4 (or any map with knights): every knight holds a sword in his hand, swings it, can be parried and disarmed; killing the one by the door opens it as before; no knight ever takes up a gun lying about. Map knights now roll armour by skill: do kills take too long?
+Toolgun (or a wave's armed knight with a gun): a knight or death knight with a shotgun or pistol: knock it out of his hand: he picks up a gun again, with "Pick Up Ranged Weapons" off; one with a sword doesn't.
 
 
 [3. Bodies: grabbing, throwing, hits]
