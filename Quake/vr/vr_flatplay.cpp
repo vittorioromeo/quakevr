@@ -155,19 +155,42 @@ constexpr float breathPitch = 0.15f;
 // orbit): then the pose's own head.
 constexpr float camNear = 24.f;
 
-// V's punch, seconds from the press: wound up, thrown, drawn back.
-constexpr float punchWind = 0.13f;
+// V's punch, seconds from the press: folded, thrown, held, drawn back.
+constexpr float punchWind = 0.19f;   // the fold takes about as long as the throw, on purpose: the game reads the hand's
+                                     // motion, not its plan. A pose whose grip moves backward along the punch's own line
+                                     // at more than 0.6 of the speed the fist hits with reads as a blow that wiggled out
+                                     // and back (VR_MELEE_WIGGLE_BACK, VR_MELEE_WIGGLE_TIME 0.25 s) and is refused, and a
+                                     // far point moving backward along its arm reads as pulled back (VR_MELEE_PULLBACK).
+                                     // 11 units of fold in 0.19 s peaks at some 2.7 m/s, under the 3.6 that is 0.6 of the
+                                     // 6 m/s the fist arrives at; the same fold in the old 0.13 s peaked past 4.5 (2026-11-03).
 constexpr float punchStrike = 0.12f;   // the throw is quick on purpose: what the game's melee rules read is the hand's
                                        // speed (vr_melee_speed 3.2 m/s, a weapon's swing 1.25 times that), not how far
-                                       // the fist goes, and its reach is capped by the arm (armSpan, punchSwing)
+                                       // the fist goes, and its reach is capped by the arm (armSpan, punchSwing). Its
+                                       // length is also the window the wrist rule measures over (VR_MELEE_WRIST_TIME
+                                       // 0.12 s), so a swing thrown this long is judged on this same distance.
+constexpr float punchDwell = 0.07f;    // the extension is held a moment at its end before the arm draws back: what it
+                                       // reached stays reached, and the draw-back is its own move rather than the tail of
+                                       // the throw (measured: without the hold the fist was already on its way back
+                                       // through what it punched while the game read the blow, so the only contacts the
+                                       // monster's box gave were on the way out)
 constexpr float punchBack = 0.22f;
 constexpr float punchReach = 24.f;   // units the fist goes forward in the strike
-constexpr float punchWindUp = 16.f;  // and how far back along its own line it chamberes first. The strike can only throw
-                                     // as far as the arm reaches (armSpan, about 22 units here) and the hand already rests
-                                     // 18 of them out, so the throw by itself moves the fist 4 units: read as the hand's
-                                     // speed that is well under what a landed blow needs (QC VR_Melee_LandNeed: 4.32 m/s
-                                     // a fist, 4.00 an axe). Chambering to where the arm folds gathers the rest of its
-                                     // length: the throw travels about 20 units in 0.12 s, about 170 units/s.
+constexpr float punchFold = 6.f;     // where the chambered hand sits: this far out from its shoulder along the arm's own
+                                     // line, and punchWindBack below it — the arm folds and the hand drops, so the chamber
+                                     // is a bend rather than a walk back through the world (it used to bring the hand to
+                                     // 2 units out, 14 units back: the game read that as a punch that pulled back, and its
+                                     // speed as a blow that wiggled out and back — both refusals, measured 2026-11-03).
+                                     // The fold is as deep as it is because the strike can only throw as far as the arm
+                                     // reaches (armSpan, about 22 units here) and the hand already rests 16 of them out: an
+                                     // extension from where it rests moves the fist 6 units, which read as the hand's speed
+                                     // is well under what a landed blow needs (QC VR_Melee_LandNeed: 4.32 m/s a fist, 4.00
+                                     // an axe), so the fold gathers the rest of the arm's length. At punchFold 6 the
+                                     // chambered hand sits 5.8 out and 8.5 below its shoulder; measured the same day, the
+                                     // throw then travels 17.6 units (16.1 of them forward) in its 0.12 s — a fist about
+                                     // 6.7 m/s against the 4.0 an axe's blow asks for, a grip net of 0.49 m against the
+                                     // 0.33 a swing at that speed is charged (VR_MELEE_RUN 0.2 with VR_MELEE_SLOW_RUN 0.4),
+                                     // and a wrist 0.35 m over the wrist rule's own 0.12 s window against the 2.53 m/s a
+                                     // swing's wrist is charged (vr_melee_wrist_speed 1.1 times VR_MELEE_WRIST_SWING 2.3).
 constexpr float punchWindBack = 7.f;   // and how much lower it sits there
 constexpr float punchLevel = 0.25f;    // the thrown fist's height, times where its hand rests at (0: level with its shoulder, 1: as it rests)
 
@@ -179,7 +202,7 @@ constexpr float grabReach = 12.f;
 constexpr float handEase = 15.f;
 
 // V's punch and E's reach last this long after the press (vr_flatplay_status).
-constexpr float punchTotal = punchWind + punchStrike + punchBack;
+constexpr float punchTotal = punchWind + punchStrike + punchDwell + punchBack;
 
 [[nodiscard]] float ease(float k, float dt)
 {
@@ -278,9 +301,16 @@ constexpr float punchTotal = punchWind + punchStrike + punchBack;
     return from + (to - from) * u;
 }
 
-// A hand's punch: the arm chambered, the fist thrown, the arm drawn back, from where the hand rests. The fist is
-// chambered punchWindUp back along the arm's own line and punchWindBack lower (a wind-up: a punch thrown from where a
-// hand hangs has to gather its speed somewhere). It is thrown to what the arm can hold it at - armSpan, no further
+// A hand's punch: the arm folded, the fist thrown along the arm's own line, the extension held, the arm drawn back, from
+// where the hand rests. The fist is chambered to punchFold out from its shoulder along the arm's own line and
+// punchWindBack lower — the arm folds and the hand drops. A punch thrown from where a hand hangs has to gather its speed
+// somewhere, and gathering it by dragging the hand back through the world is what the game charges it for: it used to
+// chamber 16 units back along the line, some 12 units of travel arriving as over 4 m/s of backward grip speed, and the
+// game's own rules read that as a punch that pulled back and a blow that wiggled out and back, and refused it both ways
+// (measured 2026-11-03). The throw is then an extension: from the fold out to what the arm can hold it at, along the same
+// line the arm already lies on, so the arm straightens and the wrist travels with it — the arm solver puts the wrist on
+// the shoulder-to-hand line, which is what the game's wrist rule measures, while a hand shoved along the aim over a bent
+// arm moves the wrist nothing.
 // (punchReach is the punch asking for its whole length; what the arm has is what it gets. The punch used to be a
 // straight shove off the shoulder, past the arm's reach by as much as 14 units and its hand left hanging off the wrist:
 // flatarm's `past its arm` said so, and drawnOffset holds a look, a knock or a shake to the same arm). The thrown fist
@@ -304,7 +334,7 @@ constexpr float punchTotal = punchWind + punchStrike + punchBack;
     const float span = za::max(4.f, armSpan());
     const glm::vec2 plane{rest.x, rest.z};                                     // the punch's plane: the view's forward, its up and down
     const float r0 = za::max(0.5f, glm::length(plane));
-    const float wound_share = za::max(2.f, r0 - punchWindUp) / r0;             // chambered along the arm's own line
+    const float wound_share = za::min(r0, punchFold) / r0;                     // folded along its own line, to punchFold out
     const glm::vec3 wound{plane.x * wound_share, rest.y, plane.y * wound_share - punchWindBack};
     const glm::vec2 throwDir{plane.x, plane.y * punchLevel};                   // thrown along the aim, kept near its own height
     const float hit_share = za::min(span, r0 + punchReach) / za::max(0.05f, glm::length(throwDir));
@@ -317,7 +347,14 @@ constexpr float punchTotal = punchWind + punchStrike + punchBack;
     {
         return punchPoint(wound, thrown, slide(t, punchWind, punchStrike));
     }
-    return punchPoint(thrown, rest, slide(t, punchWind + punchStrike, punchBack));
+    if(t < punchWind + punchStrike + punchDwell)
+    {
+        return thrown;   // the extension held where it reached: what the punch got to stays got to, and the draw-back is
+                         // its own move after it rather than the tail of the throw. Measured without the hold, the fist
+                         // was already on its way back through what it punched while the game read the blow, and the only
+                         // contacts the monster's box gave came on the way out (2026-11-03).
+    }
+    return punchPoint(thrown, rest, slide(t, punchWind + punchStrike + punchDwell, punchBack));
 }
 
 [[nodiscard]] bool punching(int h)
