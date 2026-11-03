@@ -42,9 +42,14 @@ while IFS='|' read -r name label; do
     # (A catch needs a death animation that falls forwards: about half the grunt's; three tries, one must catch.)
     tries=1
     [ "$name" = catch ] && tries=3
+    # (A crawl begins lying face down: the death animation decides, the shot in the back doesn't. On his back he flails
+    # instead, Flail on His Back (vr_ragdoll_active_crawl_back, 2026-10-19), so with it on the crawl hung on the dice: off
+    # here he rolls over first, and three tries, a tall body propped on its arm may not.)
+    [ "$name" = crawl ] && { tries=3; at="vr_ragdoll_active_crawl_back 0;$at"; }
     for ((i = 0; i < tries; i++)); do
         S="$S;vr_knockdown_test 20;vr_scene_clean all;wait5;$at;wait5;vr_test_spawn $MON;impulse 241;wait40;vr_menu_press $PAGE > $label;wait$wait"
     done
+    [ "$name" = crawl ] && S="$S;vr_ragdoll_active_crawl_back 1"
 done <<< "$ROWS"
 for name in $LEDGES; do
     label=$(echo "$ROWS" | grep "^$name|" | cut -d'|' -f2)

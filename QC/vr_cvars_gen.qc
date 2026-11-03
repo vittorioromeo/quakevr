@@ -1174,6 +1174,7 @@ float cvarh_vr_mg_hub_test;
 float cvarh_vr_mg_route_stage;
 float cvarh_vr_mg_trigger_test;
 float cvarh_vr_mg_world_test;
+float cvarh_vr_mock_fast;
 float cvarh_vr_mock_hand_lift;
 float cvarh_vr_mock_hand_pull;
 float cvarh_vr_mock_turn_velocity;
@@ -2936,6 +2937,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_mg_route_stage = VR_CVar_Make("vr_mg_route_stage");
     cvarh_vr_mg_trigger_test = VR_CVar_Make("vr_mg_trigger_test");
     cvarh_vr_mg_world_test = VR_CVar_Make("vr_mg_world_test");
+    cvarh_vr_mock_fast = VR_CVar_Make("vr_mock_fast");
     cvarh_vr_mock_hand_lift = VR_CVar_Make("vr_mock_hand_lift");
     cvarh_vr_mock_hand_pull = VR_CVar_Make("vr_mock_hand_pull");
     cvarh_vr_mock_turn_velocity = VR_CVar_Make("vr_mock_turn_velocity");

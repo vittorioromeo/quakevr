@@ -75,6 +75,7 @@ A fiend, dog or spawn killed by a blast its own leap set off stays dead.
 Fresh settings, e1m4 (or any map with knights): every knight holds a sword in his hand, swings it, can be parried and disarmed; killing the one by the door opens it as before; no knight ever takes up a gun lying about. Map knights now roll armour by skill: do kills take too long?
 Toolgun (or a wave's armed knight with a gun): a knight or death knight with a shotgun or pistol: knock it out of his hand: he picks up a gun again, with "Pick Up Ranged Weapons" off; one with a sword doesn't.
 An armed grunt's Mjolnir swung from the far end of its reach, and a death knight's uppercut, now connect with you standing still instead of passing beside or over you; stepping back out of reach still makes them miss.
+Push a hand into a grunt's belly and grip, with both hands for a judo throw: it takes hold and stays held, with no instant "breaks free" shove, and doesn't take the pack behind it.
 
 
 [3. Bodies: grabbing, throwing, hits]

@@ -16,11 +16,13 @@ for k in $KINDS; do
     S="developer 1;vr_fixed_frames 1;vr_fixed_frames_rate 90;map vrcalibration;wait60;vr_setup_stop;god;vr_parry_stamina 0;vr_stealth_meter 0"
     S="$S;vr_weapon_grip_mode 1;impulse 167;wait10;vr_mock_hand main 0.15 1.35 -0.35 0 90 0;vr_debug_pose_check 1"
     if [ "$k" = dragon ]; then # (Dissolution of Eternity's dragon: its own tail swing, parried as it lands; QC vr_parry_test.qc)
-        S="$S;vr_physics_spawn VR_Parry_DragonSwing 120;wait300;toggleconsole;quit"
+        # (vr_parry_balance 0: since the parry balance of 2026-10-19 a parry against the dragon's poise is only blocked, its
+        # attack going on, so no stagger pose to look at and "no parry" here. This test is about how the stagger is drawn.)
+        S="$S;vr_parry_balance 0;vr_physics_spawn VR_Parry_DragonSwing 120;wait300;toggleconsole;quit"
     else
         S="$S;vr_test_spawn $k;impulse 241;wait$FRAMES;toggleconsole;quit"
     fi
-    bash $KIT/run.sh $AGENT -Script "$S" -Filter "parry interrupt|posecheck|rror|ENGINE" -Timeout 900 > "$W/scratch/parrypose_$k.log" 2>&1 &
+    bash $KIT/run.sh $AGENT -Script "$S" -Filter "parry interrupt|parry outcome|posecheck|rror|ENGINE" -Timeout 900 > "$W/scratch/parrypose_$k.log" 2>&1 &
 done
 wait
 for k in $KINDS; do

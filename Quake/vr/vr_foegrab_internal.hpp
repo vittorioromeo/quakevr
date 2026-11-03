@@ -81,7 +81,8 @@ struct Hold
     glm::vec3 anim{0.f};    // the model's animation's move of the spot since (world), eased (animTime) and capped (animMax)
     glm::vec3 palmAt{0.f}; // where the palm is held now (world)
     float strength{0.f};   // this hand's hold on it (QC VR_FoeGrab_Strength)
-    float stretch{0.f};    // units from the tracked palm to palmAt (last frame)
+    float stretch{0.f};    // units from the tracked palm to palmAt (last frame), less slack
+    float slack{0.f};      // taken from inside its body (drawn held out of it, the hold where drawn): how far the tracked palm was, shrinking as it comes to the spot
     double since{0.0};
     double overSince{-1.0}; // the stretch past vr_foegrab_break since (-1: not)
     glm::vec3 lastPalm{0.f}; // the tracked palm at the end of the last server frame (world): its move since is followed

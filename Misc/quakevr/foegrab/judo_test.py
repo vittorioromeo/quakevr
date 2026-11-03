@@ -45,7 +45,9 @@ PRE = ("sv_random_seed 7;map vrfiringrange;wait30;god;notarget;developer 1;vr_fo
 
 # The grunt's box (its origin 1.93 m ahead; the hand's point 0.896 m up in tracking space is 20 units over its origin,
 # 31 units a metre): its shoulders, its box's middle (origin + 8), low (origin - 4).
-HEIGHTS = {"high": 1.02, "mid": 0.51, "low": 0.35}
+# (Measured: the palm at 0.51 is 4 under its origin, at 0.35 12 under, 13 over its feet, below the knee: a leg grip, no
+# throw by design ("Dragging by the legs"). Low stays on the thigh, above that.)
+HEIGHTS = {"high": 1.02, "mid": 0.66, "low": 0.51}
 NEAR = -1.15   # the hands' depth (on its near side)
 GAP = 0.09     # each hand this far from the middle, aside
 PULL = 0.45    # metres pulled in PULL_T seconds (3 m/s)
