@@ -110,6 +110,7 @@ enum VrBits0 : int
     // (Not a QC bit: this client plays flatscreen, -flatscreenmode; the server takes it out of the bits and sets the
     // player's .vr_flatscreen: vr_server.cpp, protocol::moveFlatplayBit.)
     VRBITS0_FLATPLAY = protocol::moveFlatplayBit,
+    VRBITS0_FLATCROUCH = protocol::moveFlatCrouchBit,
 };
 
 // ----------------------------------------------------------------------------
@@ -369,6 +370,7 @@ void setVrBits(VrMove& move, const hands::State& hs)
     set(twohand::aiming(), VRBITS0_2H_AIMING);
     set(teleport::update(hs, move.teleportTarget), VRBITS0_TELEPORTING);
     set(flatplay::active(), VRBITS0_FLATPLAY);
+    set(flatplay::crouchRatio() > 0.f, VRBITS0_FLATCROUCH);
     move.vrBits0 = static_cast<za::U16>(bits);
 }
 

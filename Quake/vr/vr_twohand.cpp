@@ -928,8 +928,11 @@ void applyHotspots(hands::State& s, const glm::vec3 (&originalRots)[2], int hold
         s.muzzleValid[holding] ? glm::distance(holdingPos, s.muzzle[holding]) + 7.5f * stick : 0.f;
     const bool beforeMuzzle = !s.muzzleValid[holding] || handDist <= muzzleDist;
 
+    // (flatplay::punching: a flatscreen hand is always gripping, so a free hand on a grip lets go of it by its punch; the
+    // mode's own clock, never running in a headset.)
     const bool canGrab = client::grabbing(helping) && wpnMode != WPN_2H_FORBIDDEN &&
-                         held::handEmpty(helping) && beforeMuzzle && !handpose::gunColliding(holding);
+                         held::handEmpty(helping) && beforeMuzzle && !handpose::gunColliding(holding) &&
+                         !flatplay::punching(helping);
     // A cup (a two-handed pistol grip) is held wherever the hands point: it doesn't aim.
     const bool cup = fixedMode && s.grip2HCup[holding];
     const float dotNeed = wasHeld ? heldDot(vr_2h_angle_threshold.value, stick) : vr_2h_angle_threshold.value;

@@ -42,6 +42,7 @@
 #include "vr_weapons.hpp"
 
 #include "Zancle/Math/Acos.hpp"
+#include "Zancle/Math/Asin.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Exp.hpp"
@@ -110,6 +111,10 @@ struct Feel
     float phase{0.f};            // the walk's cycle
     float amp{0.f};              // how much of a walk's bob (eased with the speed, none in the air)
     float breath{0.f};
+    float dt{0.f};               // the frame's step, for what steps per hand (below)
+    glm::quat gunTurn[2]{glm::quat{1.f, 0.f, 0.f, 0.f}, glm::quat{1.f, 0.f, 0.f, 0.f}}; // each drawn hand's turn in the view's
+    bool gunTurnSeen[2]{false, false};                                                   // frame, eased (gunTurnEase)
+    double gunTurnAt[2]{-1e9, -1e9};
 };
 
 Feel feel;
@@ -159,6 +164,11 @@ constexpr float lagStiffness = 18.f;
 constexpr float lagShown = 0.12f;
 constexpr float maxLagDeg = 4.f;
 constexpr float lagSnapDeg = 45.f; // a view turned more than this in a frame was set (a teleporter, a respawn): no lag
+
+// The drawn gun's turn onto what the crosshair is on (flatsight: a gun points from its muzzle at that point). The game's
+// hand has it at once and the shot goes there, but the crosshair crossing a near edge moves that point by metres in a
+// frame: drawn, the gun swings to it at this rate (1/s) instead of snapping. A look, like the sway.
+constexpr float gunTurnEase = 18.f;
 
 // The step's sway (vr_flat_sway): each change of the player's velocity kicks the hands the other way (units/s for each
 // unit/s of change; more up and down: a jump's and a landing's dip), a spring this stiff and damped settles them.
@@ -438,17 +448,15 @@ constexpr float punchTotal = punchWind + punchStrike + punchDwell + punchBack;
     return punchPoint(thrown, rest, slide(t, punchWind + punchStrike + punchDwell, punchBack));
 }
 
-[[nodiscard]] bool punching(int h)
-{
-    const double t = vr_gametime - fs.punchAt[h];
-    return t >= 0.0 && t <= punchTotal;
-}
-
 // A hand's punch, from V, from its fire button, or from vr_flat_punch. Each hand has its own clock; a hand that started
 // one this very frame keeps it, and the other hand joins in only when both hold a weapon a swing strikes with — so the
 // main hand's punch is what it has always been.
 void startPunch(int h, const char* from)
 {
+    if(punching(h))
+    {
+        return; // a press while it runs is not a new punch: restarted, the hand snaps back to the rest pose
+    }
     if(fs.punchFrame[1 - h] == host_framecount && !(punchesWith(HAND_OFF) && punchesWith(HAND_MAIN)))
     {
         return;
@@ -497,7 +505,10 @@ void startPunch(int h, const char* from)
         {
             break;
         }
-        const glm::quat turn = glm::angleAxis(ang, glm::normalize(axis));
+        // The hand turned by what its shot is off. Its own frame: the shot's is the hand's with Shot Pitch and Yaw on it,
+        // and turning that one instead left every shot off by them.
+        const glm::quat turn = glm::angleAxis(za::asin(za::min(ang, 1.f)), glm::normalize(axis));
+        hands::angleVectors(rot, f, r, u);
         rot = hands::anglesFromVectors(glm::normalize(turn * f), glm::normalize(turn * u));
     }
     return rot;
@@ -684,6 +695,7 @@ void stepFeel()
     }
     const float dt = static_cast<float>(za::min(t - feel.lastTime, 0.1));
     feel.lastTime = t;
+    feel.dt = dt;
 
     // The turn's lag: the hands keep their direction as the view turns, the spring brings them back.
     glm::vec2 turned{za::remainder(view.x - feel.view.x, 360.f), za::remainder(view.y - feel.view.y, 360.f)};
@@ -758,9 +770,20 @@ int heldIn(int h)
     return slot >= 0 && slot != weapons::fistSlot() ? slot : -1;
 }
 
-float poseNum(const cvar_t& c)
+float poseNum(const Tunable& c)
 {
     return za::clamp(c.value, -30.f, 30.f);
+}
+
+bool punching(int h)
+{
+    const double t = vr_gametime - fs.punchAt[h];
+    return t >= 0.0 && t <= punchTotal;
+}
+
+glm::vec3 aimRotAt(const glm::vec3& angles, int h)
+{
+    return aimRotAtCrosshair(angles, h);
 }
 
 bool active()
@@ -913,6 +936,10 @@ void poseHands(hands::State& s, const glm::vec3& aim)
     const bool mainHolds = heldIn(HAND_MAIN) >= 0;
     const bool offHolds = heldIn(HAND_OFF) >= 0;
 
+    // The eye's nudge (vr_flat_cam_*) carries the hands: the drawn hands stay where they are on the screen, and these are
+    // the drawn hands, so the muzzle the shots go from is the one he sees, and it stands where the crosshair's ray is read.
+    const glm::vec3 nudge = viewIsHisOwn(s) ? camShiftWorld(aim) : glm::vec3{0.f};
+
     for(int h = 0; h < HAND_COUNT; h++)
     {
         // Where the hand sits off its shoulder, in the view's frame: locked to the view. The looks (the sway, the bob, a
@@ -933,7 +960,7 @@ void poseHands(hands::State& s, const glm::vec3& aim)
         // full blow): eased toward the punch's own target at handEase the hand never gets there, and the punch lands as
         // a shove with no blow in it. Where a hand sits and what E reaches for are eased, as they were.
         const glm::vec3 off = fs.local[h] + (punchSwing(h, rest) - rest);
-        s.pos[h] = shoulder(s, h) + fwd * off.x + right * off.y + up * off.z;
+        s.pos[h] = shoulder(s, h) + nudge + fwd * off.x + right * off.y + up * off.z;
         s.rot[h] = aimRotAtCrosshair(aim, h);
         s.rot[h].z += vr_fakevr_handroll.value;
     }
@@ -1019,7 +1046,7 @@ void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles
     const glm::vec3 aim{cl.viewangles[0], cl.viewangles[1], cl.viewangles[2]};
     const glm::vec3 cam{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
     const bool onCam = viewIsHisOwn(s);
-    const glm::vec3 from = s.head;
+    const glm::vec3 from = onCam ? s.head + camShiftWorld(aim) : s.head; // (the pose's hands carry the nudge: poseHands)
     const glm::vec3 to = onCam ? cam : s.head;
     const glm::vec3 camAngles = onCam ? geom::vec(r_refdef.viewangles)
                                       : aim;
@@ -1066,7 +1093,19 @@ void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles
 
     pos = drawn - s.pos[h];
 
-    const glm::mat3 handAxes = turn * axes(s.rot[h]);
+    // The hand's turn in the view's frame (the pose's: onto what the crosshair is on), eased as gunTurnEase says.
+    const glm::quat gunTurn = glm::quat_cast(glm::transpose(poseAxes) * axes(s.rot[h]));
+    if(!feel.gunTurnSeen[h])
+    {
+        feel.gunTurn[h] = gunTurn;
+        feel.gunTurnSeen[h] = true;
+    }
+    else if(feel.gunTurnAt[h] != feel.lastTime)
+    {
+        feel.gunTurn[h] = glm::slerp(feel.gunTurn[h], gunTurn, ease(gunTurnEase, feel.dt));
+    }
+    feel.gunTurnAt[h] = feel.lastTime;
+    const glm::mat3 handAxes = drawnAxes * glm::mat3_cast(feel.gunTurn[h]);
     const glm::vec3 drawnRot = hands::anglesFromVectors(handAxes[0], handAxes[2]);
     for(int i = 0; i < 3; i++)
     {
@@ -1079,21 +1118,15 @@ void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles
     probeArm(s, h, drawn, drawnRot);
 }
 
-// The crosshair's ray: where the middle of the screen points, from the camera the screen is drawn from. The drawn view's
-// own origin and angles -- its crouch drop (VR_FlatViewDrop) and the eye's nudges (vr_flat_cam_fwd / _up / _side)
-// included -- when that view is his own eyes; the pose's head and its aim when it is not (a chase view, the ragdoll
-// tool's orbit, a view standing further off than keepNear). This one ray is what the ironsight measures and centres the
-// held weapon onto (vr_flatsight.cpp), and it is the same camera drawnOffset above locks the drawn hands onto: the gun
-// and the crosshair cannot be measuring from different places, whatever the camera cvars say.
+// The crosshair's ray: where the middle of the screen points, as this pose has it: the pose's head (its crouch's drop in
+// it) with the eye's nudges (vr_flat_cam_fwd / _up / _side; not in a chase view, the ragdoll tool's orbit, a view standing
+// further off than keepNear), along the aim. Not r_refdef's: the move's pose is made before the frame's view, and that
+// one is a frame behind the mouse and the player's move. This one ray is what the ironsight measures and centres the held
+// weapon onto and what a gun aims at the point of (vr_flatsight.cpp), and the head and the nudge are what drawnOffset
+// carries the drawn hands from: the gun and the crosshair cannot be measuring from different places.
 void crosshairRay(const hands::State& s, const glm::vec3& aim, glm::vec3& org, glm::vec3& dir)
 {
-    if(viewIsHisOwn(s))
-    {
-        org = glm::vec3{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
-        dir = hands::forward(geom::vec(r_refdef.viewangles));
-        return;
-    }
-    org = s.head;
+    org = viewIsHisOwn(s) ? s.head + camShiftWorld(aim) : s.head;
     dir = hands::forward(aim);
 }
 
@@ -1156,7 +1189,7 @@ void status_f()
         vr_flat_pitch_up.value, vr_flat_pitch_down.value, -lookUp, lookDown);
     // Short lines: the console wraps a long one, and these numbers are meant to be read off it and typed back in.
     Con_Printf("  where the weapon and the hands sit, in the view's frame (forward, out at the hand's own side, down):\n"
-               "    held weapon %g %g %g, the ironsight on top of that %g %g %g (vr_flat_gun_*, vr_flat_ads_*)\n"
+               "    held weapon %g %g %g; the ironsight's place, every gun: forward %g up %g out %g (vr_flat_gun_*, vr_flat_ads_*)\n"
                "    an empty hand %g %g %g, a supporting hand %g %g %g (vr_flat_empty_*, vr_flat_support_*)\n"
                "    vr_flat_reach %g times their size; a bigger _down is the lower hand\n"
                "    the drawn view counts as his own eyes while it stands within %g of his head (vr_flat_gun_near),\n"

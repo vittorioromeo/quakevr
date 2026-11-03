@@ -5884,97 +5884,17 @@ QVR_TOGGLE(vr_xr_skip_incompatible_layers, "Skip Incompatible API Layers",
     "vr_xr_skip_incompatible_layers, from the next VR start: the implicit OpenXR API layers known not to "
     "work with this OpenGL game (OBS's OpenXR mirror: Direct3D only) are turned off by their own switch, "
     "each said in the console and qvr_openxr.txt. Off: allowed.")
+QVR_TOGGLE(vr_flat_crouch_fire, "Left Ctrl Also Fires",
+    "Playing on the desktop screen (-flatscreenmode), Left Ctrl crouches. Off: that is all it does. On: it keeps its own "
+    "bind too, so it fires as it crouches (vr_flat_crouch_fire).")
+QVR_SLIDER(vr_flat_pitch_up, "Look Up Limit", 0.f, 90.f, 1.f, "%.0f deg", noExt,
+    "Playing on the desktop screen (-flatscreenmode): how far up the view may look, from straight ahead "
+    "(90: all the way; vr_flat_pitch_up). A headset is not limited by this.")
+QVR_SLIDER(vr_flat_pitch_down, "Look Down Limit", 0.f, 90.f, 1.f, "%.0f deg", noExt,
+    "Playing on the desktop screen (-flatscreenmode): how far down the view may look, from straight ahead "
+    "(90: all the way; vr_flat_pitch_down). A headset is not limited by this.")
 QVR_TOGGLE(vr_flatplay_debug, "Flatscreen Play Print",
     "Prints each E and V press, and where the flatscreen hands are, to the console.")
-QVR_SLIDER(vr_flat_reach, "Flatscreen Hand Reach", 0.25f, 3.f, 0.05f, "%.2f", noExt,
-    "How far the flatscreen hands sit from the shoulders: a held gun out in front of the chest, an empty "
-    "hand at its side.")
-QVR_SLIDER(vr_flat_sway, "Flatscreen Move Sway", 0.f, 3.f, 0.05f, "%.2f", noExt,
-    "How much the flatscreen hands lag and settle as you start, stop, jump and land (0: none). Looks only: "
-    "the shots go along the crosshair.")
-QVR_SLIDER(vr_flat_bob, "Flatscreen Walk Bob", 0.f, 3.f, 0.05f, "%.2f", noExt,
-    "How much the flatscreen hands bob as you walk (with your speed) and breathe at rest (0: none). Looks "
-    "only.")
-QVR_SLIDER(vr_flat_turnlag, "Flatscreen Turn Lag", 0.f, 3.f, 0.05f, "%.2f", noExt,
-    "How much the flatscreen hands trail a turn before catching up, as in modern shooters (0: locked to "
-    "the view). Looks only: the shots go along the crosshair.")
-QVR_SLIDER(vr_flat_turnlag_speed, "Flatscreen Turn Lag Recovery", 0.1f, 5.f, 0.05f, "%.2fx", noExt,
-    "How fast the flatscreen hands catch up with a turn: higher, quicker and less lag.")
-QVR_SLIDER(vr_flat_arm_hold, "Flatscreen Arm Hold", 0.f, 2.f, 0.05f, "%.2fx", noExt,
-    "How far a flatscreen hand may sit from its arm's shoulder, times what that arm can hold it at (0: no limit). "
-    "Keeps the hand on the arm through a punch, a knock or a look (0: the hands as they are placed).")
-QVR_SLIDER(vr_flat_pose_pitch, "Flatscreen Hand Pitch", 0.f, 90.f, 1.f, "%.0f deg", noExt,
-    "How far the flatscreen hands follow the view up and down (90: all the way, as before). Held to a pitch they stay "
-    "in the arc the arms sweep when you look straight up or down.")
-QVR_SLIDER(vr_flat_aim_fov, "Flatscreen Ironsight Field of View", 0.f, 45.f, 1.f, "%.0f", noExt,
-    "How many degrees the field of view narrows while the flatscreen ironsight is on (vr_flat_aim, or the mouse "
-    "wheel's button). The look's speed and the HUD are unchanged: the crosshair keeps its distance on the screen.")
-QVR_SLIDER(vr_flat_aim_time, "Flatscreen Ironsight Time", 0.f, 1.f, 0.05f, "%.2f s", noExt,
-    "How long the flatscreen ironsight takes to come onto the crosshair, and back off it (0: at once). The field of "
-    "view narrows and opens over the same seconds, in step with the weapon (vr_flat_aim_time).")
-QVR_SLIDER(vr_flat_crouch_time, "Flatscreen Crouch Time", 0.05f, 2.f, 0.05f, "%.2f s", noExt,
-    "How long holding Left Ctrl and letting it go take to ease in and out (0: at once). His head, his height and the "
-    "drawn view come down and go back over this long (vr_flat_crouch_time).")
-QVR_SLIDER(vr_flat_crouch_drop, "Flatscreen Crouch Drop", 0.f, 40.f, 1.f, "%.0f units", noExt,
-    "How far holding Left Ctrl lets his head down: the crouched box he is given is the one his eyes are let down "
-    "under, and the drawn view is lowered by the same (vr_flat_crouch_drop).")
-QVR_SLIDER(vr_flat_gun_fwd, "Flatscreen Gun Forward", -30.f, 30.f, 0.5f, "%.1f", noExt,
-    "How far the held gun's hand sits in front of its shoulder, times how far the hands reach (vr_flat_reach): "
-    "17 stands it out in front. Looks and reach only: the shot still goes along the crosshair "
-    "(vr_flat_gun_fwd).")
-QVR_SLIDER(vr_flat_gun_down, "Flatscreen Gun Down", -30.f, 30.f, 0.5f, "%.1f", noExt,
-    "How far below its shoulder the held gun's hand stands, times the reach: 9 holds the gun at chest height, a "
-    "bigger number the lower (vr_flat_gun_down).")
-QVR_SLIDER(vr_flat_gun_out, "Flatscreen Gun Out", -30.f, 30.f, 0.5f, "%.1f", noExt,
-    "How far to the side the held gun's hand stands from the body's centre line, times the reach: 2.5 out to the "
-    "holding hand's own side, negative towards the other (vr_flat_gun_out).")
-QVR_SLIDER(vr_flat_gun_near, "Flatscreen Gun With The Crosshair", 8.f, 60.f, 1.f, "%.0f units", noExt,
-    "How close the drawn view must stand to his head for the gun to be carried along with it -- which is what keeps "
-    "the gun on the crosshair while he crouches or the view is pushed (vr_flat_gun_near, eased to "
-    "vr_flat_ads_near while the ironsight is on). Too small and the gun stays with his body while the view moves off.")
-QVR_SLIDER(vr_flat_ads_fwd, "Flatscreen Ironsight Forward", -30.f, 30.f, 0.5f, "%.1f", noExt,
-    "While the ironsight is on, how much further along his look the held weapon is carried, over the same seconds "
-    "(vr_flat_ads_fwd). The shot stays on the crosshair: a big number leaves the muzzle that many units short of or "
-    "past where it was.")
-QVR_SLIDER(vr_flat_ads_up, "Flatscreen Ironsight Up", -30.f, 30.f, 0.5f, "%.1f", noExt,
-    "How much higher the held weapon is carried on its way onto the crosshair, in the view's frame (negative lowers "
-    "it). Only while it travels: at full ironsight the centring has answered it (vr_flat_ads_up).")
-QVR_SLIDER(vr_flat_ads_out, "Flatscreen Ironsight Out", -30.f, 30.f, 0.5f, "%.1f", noExt,
-    "How much further to the holding hand's own side the weapon is carried on its way onto the crosshair, in the "
-    "view's frame (negative towards the other side). Only while it travels: at full ironsight the centring has "
-    "answered it (vr_flat_ads_out).")
-QVR_SLIDER(vr_flat_ads_near, "Flatscreen Ironsight With The Crosshair", 8.f, 60.f, 1.f, "%.0f units", noExt,
-    "The distance the keep-the-gun-with-the-view distance eases to while the ironsight is on (vr_flat_ads_near, "
-    "from vr_flat_gun_near over vr_flat_aim_time).")
-QVR_SLIDER(vr_flat_empty_fwd, "Flatscreen Empty Hand Forward", -30.f, 30.f, 0.5f, "%.1f", noExt,
-    "How far in front of its shoulder a hand holding nothing stands, times the reach (5), when the other hand holds "
-    "a weapon one-handed (vr_flat_empty_fwd).")
-QVR_SLIDER(vr_flat_empty_down, "Flatscreen Empty Hand Down", -30.f, 30.f, 0.5f, "%.1f", noExt,
-    "How far below its shoulder that empty hand stands, times the reach (13: at his side); a bigger number the lower "
-    "(vr_flat_empty_down).")
-QVR_SLIDER(vr_flat_empty_out, "Flatscreen Empty Hand Out", -30.f, 30.f, 0.5f, "%.1f", noExt,
-    "How far to its own side that empty hand stands, away from the body's centre line, times the reach (7) "
-    "(vr_flat_empty_out).")
-QVR_SLIDER(vr_flat_support_fwd, "Flatscreen Both Hands Forward", -30.f, 30.f, 0.5f, "%.1f", noExt,
-    "How far in front of their shoulders both hands stand when no two-handed grip is taken, times the reach (12) "
-    "(vr_flat_support_fwd).")
-QVR_SLIDER(vr_flat_support_down, "Flatscreen Both Hands Down", -30.f, 30.f, 0.5f, "%.1f", noExt,
-    "How far below their shoulders both hands stand when no two-handed grip is taken, times the reach (11); a bigger "
-    "number the lower (vr_flat_support_down).")
-QVR_SLIDER(vr_flat_support_out, "Flatscreen Both Hands Out", -30.f, 30.f, 0.5f, "%.1f", noExt,
-    "How far apart, to their own sides, both hands stand when no two-handed grip is taken, times the reach (5) "
-    "(vr_flat_support_out). The grip hotspots still pull the free hand onto a weapon's grip whatever this says.")
-QVR_SLIDER(vr_flat_cam_fwd, "Flatscreen View Forward", -20.f, 20.f, 0.5f, "%.1f units", noExt,
-    "How far the flatscreen camera is moved forwards from where he stands, in the view's own frame: positive towards "
-    "what he is looking at, negative behind him. Only the drawn view and the crosshair move: his position, his box "
-    "and where the server puts him are untouched (vr_flat_cam_fwd).")
-QVR_SLIDER(vr_flat_cam_up, "Flatscreen View Up", -20.f, 20.f, 0.5f, "%.1f units", noExt,
-    "How far the flatscreen camera is moved up or down from his eye height (vr_flat_cam_up): positive higher, "
-    "negative lower, on top of what holding Left Ctrl lets his head down (vr_flat_crouch_drop). Only the drawn view "
-    "moves, not his box.")
-QVR_SLIDER(vr_flat_cam_side, "Flatscreen View Sideways", -20.f, 20.f, 0.5f, "%.1f units", noExt,
-    "How far the flatscreen camera is moved sideways, in the view's own frame: positive to the view's own right, "
-    "negative to its left (vr_flat_cam_side). Only the drawn view and the crosshair move.")
 QVR_TOGGLE(vr_ao_cache, "Keep AO Bakes on Disk",
     "vr_ao_cache: the models' occlusion bakes kept on disk, so a later session's loads bake nothing (off: baked at every first load; 2 in the console: baked anyway and compared with the file).")
 QVR_TOGGLE(vr_menu_link_dryrun, "Menu Links: Print, Do Not Open",

@@ -12,6 +12,7 @@
 
 #pragma once
 
+#include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_hands.hpp"
 
@@ -30,7 +31,15 @@ namespace qvr::flatplay
 
 // A pose number (vr_flat_gun_*, vr_flat_ads_*, vr_flat_empty_*, vr_flat_support_*) clamped to the room it may move in, the
 // view's frame either way: -30..30 units.
-[[nodiscard]] float poseNum(const cvar_t& c);
+[[nodiscard]] float poseNum(const Tunable& c);
+
+// Whether this hand's punch is running (its clock: flatplay's own, so never in a headset). The free hand on a grip lets go
+// of it for as long (vr_flatsight.cpp, vr_twohand.cpp), and a press meanwhile is not a new punch.
+[[nodiscard]] bool punching(int h);
+
+// How hand `h` must be turned for the weapon it holds to shoot along the forward of `angles`, whatever its Shot Pitch and
+// Yaw (the drawn gun and its muzzle follow the hand). A hand holding nothing: `angles`.
+[[nodiscard]] glm::vec3 aimRotAt(const glm::vec3& angles, int h);
 
 // The one console line for that implication (vr_main.cpp asks before it starts a backend).
 void noteBackendImplied();

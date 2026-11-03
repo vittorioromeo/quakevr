@@ -10,15 +10,19 @@
 // The ironsight: the mouse wheel's button (K_MOUSE3) toggles it, vr_flat_aim from the console the same way.
 // A gun with a sight line (sightalign::alignable: a ranged weapon), held in one hand alone. The field of view narrows
 // (vr_flat_aim_fov degrees off the plain flatscreen FOV, through VR_FlatAdsFov in gl_screen.c), and the holding hand is
-// moved sideways so that the muzzle its weapon shoots from stands on the crosshair's ray: the sights come to the
-// middle of the screen and the shots go through it. The hand's turn stays the crosshair's aim, so what moves is where
-// the shot comes from, not where it is going. Its own offsets (vr_flat_ads_fwd / vr_flat_ads_up / vr_flat_ads_out) go on
-// before that move, over the same seconds: the move answers what they do across the ray, so only vr_flat_ads_fwd (along
-// the ray) is left at full ads, and the shots stay on the crosshair.
+// moved so that the muzzle its weapon shoots from stands where vr_flat_ads_fwd / _up / _out and the weapon's own
+// flat_ads_fwd / _up / _out (weapons.txt) put it, off the crosshair's ray: its final place on the screen, reached over
+// the same seconds.
+//
+// The aim, ironsight or not: every gun points from its muzzle at what the ray through the middle of the screen hits (far
+// along the ray if nothing), recomputed every frame from wherever the pose put the muzzle, so the shots go through the
+// crosshair at any range and whatever the offsets or the eye's nudges (vr_flat_aim_point 0: along the view instead).
 //
 // The crosshair's ray itself is flatplay's (flatplay::crosshairRay): the camera the screen is drawn from, the same one
 // its drawnOffset locks the hands onto, so the gun and the crosshair are measured from one place whatever vr_flat_cam_*
 // says about that camera.
+//
+// A client not hosting has no world to trace (vr_trace.hpp): its guns point far along the ray.
 //
 // See vr_flatsight.cpp for how each part is measured.
 
@@ -40,6 +44,10 @@ void frame();
 // (its own view-frame offset), so a force grab still reaches out. Safe to call with nothing held: it says so and
 // leaves the pose alone.
 void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach);
+
+// vr_view.cpp, the frame's muzzles just placed on the steady hands: each one's place in its hand's frame, what a turn of
+// the hand before the next placing carries it by. Nothing outside the mode.
+void notePlaced(const hands::State& s);
 
 // How far the ironsight's travel has gone this frame (st.adsT, 0..1): the fraction its shift onto the crosshair and the
 // field of view's narrowing are spent over, and what flatplay eases vr_flat_gun_near to vr_flat_ads_near by when it

@@ -3819,46 +3819,9 @@ QVR_CVAR(vr_brush_autoload, "0", CVAR_ARCHIVE)         // a map started (not a s
 // exactly as before without the flag.
 QVR_CVAR(vr_flatplay, "0", CVAR_NONE)                   // 1 while the mode runs (the flag given and no headset session): set by the engine every frame, read by the game code (QC vr_flatplay) for the controls it takes over
 QVR_CVAR(vr_flatplay_debug, "0", CVAR_NONE)             // each frame's flatscreen pose: the aim, the hands, the punch, what the keys did
-QVR_CVAR(vr_flat_reach, "1", CVAR_NONE)                 // times how far the hands sit from the head (0.25..3): the whole viewmodel's size
-QVR_CVAR(vr_flat_sway, "1", CVAR_NONE)                  // the drawn hands' sway as he starts, stops, jumps and lands (0..3): a lag that settles; 0 none
-QVR_CVAR(vr_flat_bob, "1", CVAR_NONE)                   // the drawn hands' bob on a walk, with his speed, and the breathing at rest (0..3); 0 none
-QVR_CVAR(vr_flat_turnlag, "1", CVAR_NONE)               // the drawn hands trail a turn and catch up (0..3, at most 4 degrees each): "weapon inertia"; 0 the hands locked to the view
-QVR_CVAR(vr_flat_turnlag_speed, "1", CVAR_NONE)         // how fast they catch up (0.1..5, times a critically damped spring's 18/s)
-QVR_CVAR(vr_flat_arm_hold, "1", CVAR_NONE)              // how far a drawn hand may sit from its arm's shoulder, times what the arm can hold it at (0..2; 0: no limit, the hands as placed)
-QVR_CVAR(vr_flat_pose_pitch, "65", CVAR_NONE)           // how far the hands follow the view up and down, in degrees (0..90; 90: the full look, as before)
-QVR_CVAR(vr_flat_pitch_up, "85", CVAR_NONE)             // flatscreen look: how far up the view may look, in degrees from straight ahead (0..90; 90: all the way up, as the plain game's cl_minpitch -90 allowed it). Only the flatscreen view is bounded this way (vr_flatplay.cpp VR_FlatPitchClamp, Quake/cl_main.c): plain and headset play keep cl_maxpitch / cl_minpitch as they were
-QVR_CVAR(vr_flat_pitch_down, "85", CVAR_NONE)           // the same, looking down (0..90; 90: all the way down, as the plain game's cl_maxpitch 90 allowed it)
-QVR_CVAR(vr_flat_crouch_time, "0.25", CVAR_NONE)        // Left Ctrl / +flatcrouch: the seconds it takes to ease down to a full crouch, and back up (0.05..2)
-QVR_CVAR(vr_flat_crouch_drop, "18", CVAR_NONE)          // Left Ctrl / +flatcrouch: how far the crouch puts his head and eyes down (0..40 units, about 0.65 m); the crouched boxes (vr_crouch_height, vr_crouch_step) and the body follow
-QVR_CVAR(vr_flat_crouch_fire, "0", CVAR_NONE)           // Left Ctrl and firing: 0 (the default) while flatscreen play runs CTRL is the crouch key only -- the mode takes the key off +attack (its own bind: Quake/default_cfg.h binds CTRL +attack) and gives it back when the mode ends and before the game writes its config out; 1: CTRL keeps its bind, so holding it crouches and fires
-QVR_CVAR(vr_flat_aim_fov, "12", CVAR_NONE)              // the flatscreen ironsight (vr_flat_aim, the mouse wheel's button; vr_flatsight.cpp): how many degrees the field of view narrows while it is on, on the view's own base fov (0..45; 0: the view stays wide). The look's speed keeps its measure (in_sdl.c IN_FovScale) and the HUD is unchanged
-QVR_CVAR(vr_flat_aim_time, "0.25", CVAR_NONE)           // the same ironsight: how long its whole travel takes, in seconds -- onto the crosshair, and back off it (0.05..1.00; 0: at once). The field of view is narrowed by vr_flat_aim_fov's degrees times how far that travel has gone, so the view closes and opens with the weapon instead of at the press
-// Where the weapon and the hands sit: the pose's own numbers. Forward / sideways / down in the view's own frame, Quake
-// units, vr_flat_reach times them. None of them moves the
-// shot off the crosshair: the hand's turn is solved from the crosshair (aimRotAtCrosshair) whatever the hand sits at.
-QVR_CVAR(vr_flat_gun_fwd, "17", CVAR_NONE)              // the held weapon, hipfire: how far in front of its shoulder it sits (-30..30 units; 17: where the pose put it)
-QVR_CVAR(vr_flat_gun_down, "9", CVAR_NONE)              // the held weapon, hipfire: how far below its shoulder it sits (-30..30; positive is lower; 9 as before)
-QVR_CVAR(vr_flat_gun_out, "2.5", CVAR_NONE)             // the held weapon, hipfire: how far off the body's centre line it sits, out at the holding hand's own side (-30..30; 2.5 as before; negative brings it across the centre line)
-QVR_CVAR(vr_flat_gun_near, "24", CVAR_NONE)             // the held weapon, hipfire: how far the drawn view may stand from his own head before the hands stop being kept on the drawn view and stay on the body (8..60 units; 24: the mode's camNear). The view at his eyes counts 0, a full crouch counts vr_flat_crouch_drop; the camera's own nudges (vr_flat_cam_fwd / _up / _side) are put back before the measure, so moving the eye does not read as "the view is somewhere else" and the gun keeps following it
-QVR_CVAR(vr_flat_ads_fwd, "0", CVAR_NONE)               // the same weapon with the ironsight on (vr_flat_aim, vr_flatsight.cpp): its own forward offset, along the crosshair's ray, put on the pose before the pose is brought onto that ray, over vr_flat_aim_time's seconds (-30..30 units; 0: the aligned pose as it is)
-QVR_CVAR(vr_flat_ads_up, "0", CVAR_NONE)                // the same, up (+: higher; -30..30)
-QVR_CVAR(vr_flat_ads_out, "0", CVAR_NONE)               // the same, sideways (+: out at the holding hand's own side; -30..30). Up and out are put on before the ironsight's centring, which answers them: they show during the travel, and at full ironsight the muzzle is back on the crosshair's ray
-QVR_CVAR(vr_flat_ads_near, "24", CVAR_NONE)             // vr_flat_gun_near with the ironsight on, eased to it over the same seconds (8..60; 24: the same distance, so the ironsight changes nothing about it by default)
-QVR_CVAR(vr_flat_empty_fwd, "5", CVAR_NONE)             // an empty hand: how far in front of its shoulder it hangs (-30..30; 5 as before)
-QVR_CVAR(vr_flat_empty_down, "13", CVAR_NONE)           // an empty hand: how far below its shoulder it hangs (-30..30; positive is lower; 13 as before)
-QVR_CVAR(vr_flat_empty_out, "7", CVAR_NONE)             // an empty hand: how far out at its own side it hangs (-30..30; 7 as before)
-QVR_CVAR(vr_flat_support_fwd, "12", CVAR_NONE)          // the free hand next to the other hand's gun: how far in front of its shoulder it rests (-30..30; 12 as before). A weapon whose grip a second hand can actually reach takes it to the grip instead (vr_flatsight.cpp, vr_twohand), and the grip travels with the gun
-QVR_CVAR(vr_flat_support_down, "11", CVAR_NONE)         // the same free hand: how far below its shoulder (-30..30; positive is lower; 11 as before)
-QVR_CVAR(vr_flat_support_out, "5", CVAR_NONE)           // the same free hand: how far out at its own side (-30..30; 5 as before)
-// The flatscreen eye, nudged: the drawn view and the crosshair's ray move together, in the
-// view's own frame -- forward, up and the view's right -- so looking down feels less like looking down from the top of
-// the head. Only the drawn view: the player's own origin, his collision box and the crouch's box (vr_hull.cpp,
-// vr_server.cpp) are measured from where he really stands and stay where they are. Applied where the mode already moves
-// the view (VR_FlatViewDrop, Quake/view.c's V_CalcRefdef), and read by every aiming measurement (flatplay::crosshairRay,
-// vr_flatsight.cpp), so the crosshair and the gun agree whatever these say. 0 0 0 (defaults) is the head's own eye.
-QVR_CVAR(vr_flat_cam_fwd, "0", CVAR_NONE)               // how far the flatscreen eye is nudged forward, in the view's frame (-20..20 units; + is forward, towards what he looks at)
-QVR_CVAR(vr_flat_cam_up, "0", CVAR_NONE)                // the same, up (-20..20; + is higher; the crouch's own drop (vr_flat_crouch_drop) is added to it, not replaced by it)
-QVR_CVAR(vr_flat_cam_side, "0", CVAR_NONE)              // the same, sideways (-20..20; + is the view's own right, which is his left when he looks at it on the screen)
+QVR_CVAR(vr_flat_pitch_up, "85", CVAR_ARCHIVE)          // flatscreen look: how far up the view may look, in degrees from straight ahead (0..90; 90: all the way up, as the plain game's cl_minpitch -90 allowed it). Only the flatscreen view is bounded this way (vr_flatplay.cpp VR_FlatPitchClamp, Quake/cl_main.c): plain and headset play keep cl_maxpitch / cl_minpitch as they were
+QVR_CVAR(vr_flat_pitch_down, "85", CVAR_ARCHIVE)        // the same, looking down (0..90; 90: all the way down, as the plain game's cl_maxpitch 90 allowed it)
+QVR_CVAR(vr_flat_crouch_fire, "0", CVAR_ARCHIVE)        // Left Ctrl and firing: 0 (the default) while flatscreen play runs CTRL is the crouch key only -- the mode takes the key off +attack (its own bind: Quake/default_cfg.h binds CTRL +attack) and gives it back when the mode ends and before the game writes its config out; 1: CTRL keeps its bind, so holding it crouches and fires
 
 
 QVR_CVAR(vr_ragimpact_crush_push, "1", CVAR_ARCHIVE)     // a landing that crushes a ragdoll (down or a corpse) pushes the part under your feet down and out at this times your landing speed (the body jolts up at 0.6 of that); 0: it lies still
