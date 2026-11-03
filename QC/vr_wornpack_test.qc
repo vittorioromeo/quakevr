@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // vr_wornpack_test.qc -- worn backpacks' test (vr_wornpack.qc; Debug > Tests; ROUND23.md, "Worn backpacks").
 // `vr_wornpack_test <n>` (any map with room ahead: e1m1's start; god, notarget), the tens the kind: 0 grunts, 10 knights, 20
 // death knights, 30 enforcers (33 only).
@@ -1089,3 +1090,4 @@ void() VR_WornPack_TestFrame =
         VR_WPT_Gibbed(p);
     }
 };
+#endif

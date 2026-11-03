@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // vr_agarmor_fx_test.qc -- armour's ragdolls, cuts, debris and effects (vr_agarmor.qc; ROUND23.md, "Armour: ragdolls,
 // dislodging, debris, sparks"). `vr_agarmor_test 5`: four armed grunts ahead of the player: A killed (a dead ragdoll),
 // B knocked down (an active ragdoll), C killed (cut, beheaded and gibbed), D standing (shots). Checks: a plate found and
@@ -352,3 +353,4 @@ void(float start) VR_AgArmor_FxTestFrame =
     vr_aft_busy = 3;
     vr_aft_until = time + 5;
 };
+#endif

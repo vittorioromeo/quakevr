@@ -7,6 +7,15 @@ if "%FTEQCC%"=="" set FTEQCC=fteqcc64
 cd /d "%~dp0"
 "%FTEQCC%" -O3 -Fautoproto -Olo -Fiffloat -Fifvector -Fvectorlogic -Flo -Fsubscope -Wall -Wextra -Wno-F209 -Wno-F208
 if errorlevel 1 exit /b 1
+rem The release flavour's QC (-DQVR_NO_TESTS, to a work folder: progs.dat is not touched) compiles with no error or
+rem warning (Misc\quakevr\check_release_qc.py; ~3 s; set NO_RELEASE_QC_CHECK=1 to skip it).
+if "%NO_RELEASE_QC_CHECK%"=="" (
+    where python >nul 2>nul
+    if not errorlevel 1 (
+        python ..\Misc\quakevr\check_release_qc.py --fteqcc "%FTEQCC%"
+        if errorlevel 1 exit /b 1
+    )
+)
 rem No expression that reads differently under C's operator priorities (docs\vr-port\CODE_STYLE.md, QuakeC; ~7 s;
 rem set NO_PREC_CHECK=1 to skip it).
 if "%NO_PREC_CHECK%"=="" (

@@ -117,7 +117,7 @@ param(
     [string[]]$Assets = @(),
     # Download address templates for latest.json ({tag}, {file}), in order. Default: the GitHub release's own assets.
     [string[]]$UrlBase = @(),
-    # fteqcc64.exe. Default: $env:FTEQCC, QC\fteqcc64.exe, C:\OHWorkspace\quakevr\QC\fteqcc64.exe, then PATH.
+    # fteqcc64.exe. Default: $env:FTEQCC, the repo's Tools\fteqcc\fteqcc64.exe, then PATH.
     [string]$Fteqcc = "",
     # MSBuild.exe. Default: the newest Visual Studio with MSBuild and the ClangCL toolset (vswhere).
     [string]$MSBuild = "",
@@ -631,11 +631,12 @@ else { Say ".NET SDK $($dotnetSdk.Text)" }
 $python = if (Get-Command python -ErrorAction SilentlyContinue) { "python" } else { $null }
 if (-not $python) { Problem "python not found (the checks and make_release.py need Python 3)" }
 if (-not $Fteqcc) {
-    $Fteqcc = @($env:FTEQCC, (Join-Path $root "QC\fteqcc64.exe"), "C:\OHWorkspace\quakevr\QC\fteqcc64.exe") |
+    # The repo's own first (Tools/fteqcc/README.md): a stock FTEQCC writes the 16-bit progs format, which the build refuses.
+    $Fteqcc = @($env:FTEQCC, (Join-Path $root "Tools\fteqcc\fteqcc64.exe")) |
         Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) } | Select-Object -First 1
     if (-not $Fteqcc) { $Fteqcc = (Get-Command fteqcc64 -ErrorAction SilentlyContinue | Select-Object -First 1).Source }
 }
-if (-not $Fteqcc -or -not (Test-Path -LiteralPath $Fteqcc)) { Problem "fteqcc64.exe not found (-Fteqcc, FTEQCC, QC\fteqcc64.exe or PATH)" } else { $Fteqcc = (Resolve-Path $Fteqcc).Path; Say "fteqcc: $Fteqcc" }
+if (-not $Fteqcc -or -not (Test-Path -LiteralPath $Fteqcc)) { Problem "fteqcc64.exe not found (-Fteqcc, FTEQCC, Tools\fteqcc\fteqcc64.exe or PATH)" } else { $Fteqcc = (Resolve-Path $Fteqcc).Path; Say "fteqcc: $Fteqcc" }
 # The tuned constants: live in a development build, kept in tunables.cfg; a release folds in vr_tunables.inc's defaults,
 # so a value not promoted is lost (RELEASING.md, "Step by step"). A -Local test release ships to nobody: a warning.
 $tunablesFile = if ($TunablesCfg) { $TunablesCfg } else { "C:\OHWorkspace\quakevr-iw\quakevr\tunables.cfg" }
@@ -763,7 +764,7 @@ if ($DryRun) {
     $seq = New-Object System.Collections.Generic.List[string]
     if ($RunTests) { $seq.Add("tests: python Misc\release\run_test_suite.py $TestAgent --build --log-dir $outDir\tests $($testArgs -join ' ')   (kit build.sh $TestAgent, then $testCount one at a time; a failure stops here)") }
     if ($bumpPending) { $seq.Add("write VERSION = $Version; git commit -m ""Version $Version"" -- VERSION   (local)") }
-    $seq.Add("build: out\release\$Version moved aside if there; check_statics.py, check_qc_precedence.py, fgdgen.py --check; MSBuild ironwail.sln Release|x64 /p:QvrReleaseVersion=$Version; package-quakevr.ps1 (recompiles the QC without the tests: fteqcc -DQVR_NO_TESTS; the checkout gets its development progs.dat back); dotnet publish QuakeVR.Installer; dotnet build QuakeVR.Installer.sln; the installer self-tests")
+    $seq.Add("build: out\release\$Version moved aside if there; check_statics.py, check_qc_precedence.py, check_release_qc.py, fgdgen.py --check; MSBuild ironwail.sln Release|x64 /p:QvrReleaseVersion=$Version; package-quakevr.ps1 (recompiles the QC without the tests: fteqcc -DQVR_NO_TESTS; the checkout gets its development progs.dat back); dotnet publish QuakeVR.Installer; dotnet build QuakeVR.Installer.sln; the installer self-tests")
     $seq.Add("assets: make_release.py (QuakeVR.zip, QuakeVR-Setup.exe, latest.json); checks: the zip = the allowlist, qvr-setup feed --file latest.json --assets, QuakeVR-Setup.exe's install harness + qvr-setup verify$(if ($quakeOk -and -not $SkipSmoke) { ", the smoke launch with $QuakeDir" } elseif ($detectAfterBuild) { ', the smoke launch with the Quake qvr-setup detect finds after the build' } else { ' (no smoke launch)' })")
     $seq.Add("notes: $(if ($notesSource) { $notesSource } else { "draft_release_notes.py -> $notesDraftPath" }) -> $outDir\release-body.md (+ the files' table, SHA256SUMS.txt)")
     if ($online) {
@@ -842,6 +843,8 @@ if (Test-Path (Join-Path $root "Misc\quakevr\check_qc_precedence.py")) {
     Invoke-Logged $python @("Misc\quakevr\check_qc_precedence.py", "--fteqcc", $Fteqcc) (Join-Path $logs "check_qc_precedence.log") | Out-Null
     Say "QC precedence: ok"
 }
+Invoke-Logged $python @("Misc\quakevr\check_release_qc.py", "--fteqcc", $Fteqcc) (Join-Path $logs "check_release_qc.log") | Out-Null
+Say "release QC (-DQVR_NO_TESTS): ok"
 Invoke-Logged $python @("Misc\trenchbroom\fgdgen.py", "--check") (Join-Path $logs "fgd_check.log") | Out-Null
 Say "FGD: ok"
 

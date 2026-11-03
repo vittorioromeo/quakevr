@@ -168,6 +168,7 @@ One implementation each; the full tables with signatures are in CODE_STYLE.md, "
 | `Misc/quakevr/gen_vr_cvars_qc.py --check` | a stale `QC/vr_cvars_gen.qc` |
 | `Misc/quakevr/check_canonical.py` | a NEW copy of a canonical helper (families: `geom-vec`, `geom-math`, `rnd-wrapper`, `strings-copy`, `haptic-direct`, `qcvm-push`, `player-edict`, `cvar-by-name`, `field-by-name`, `qc-find-player`, `qc-math-copy`, `qc-test-check`, `gl-program-no-twin`, ...): a file holding more sites than `Misc/quakevr/canonical_allowlist.txt` allows. `--list <family>` shows the sites; after migrating some, `--tighten` lowers the allowlist; a meant new site is a hand-written allowlist line with its reason |
 | `Misc/quakevr/check_qc_precedence.py` | QC that compiles differently under C's operator priorities |
+| `Misc/quakevr/check_release_qc.py` | the release flavour's QC (`-DQVR_NO_TESTS`): a `*_test.qc` outside its guard, or any compile error or warning |
 | MSBuild | errors; warnings are listed (keep 0) |
 
 ## 8. Tests and benches
