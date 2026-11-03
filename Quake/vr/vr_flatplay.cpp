@@ -615,8 +615,8 @@ void pollKeysFlat()
     const float want = (ctrl || keyState.cmdHeld) ? 1.f : 0.f;
     if(dt > 0.0)
     {
-        const float time = za::clamp(vr_flat_crouch_time.value, 0.05f, 2.f);
-        keyState.ratio = za::clamp(keyState.ratio + (want > keyState.ratio ? 1.f : -1.f) * static_cast<float>(dt) / time, 0.f, 1.f);
+        const float step = static_cast<float>(dt) / za::clamp(vr_flat_crouch_time.value, 0.05f, 2.f);
+        keyState.ratio += za::clamp(want - keyState.ratio, -step, step);
     }
 }
 
