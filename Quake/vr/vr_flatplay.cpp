@@ -1160,12 +1160,13 @@ void status_f()
                "positive looking down). Plain play and a headset are bounded by cl_maxpitch / cl_minpitch instead, which "
                "stay the player's own setting.\n",
         vr_flat_pitch_up.value, vr_flat_pitch_down.value, -lookUp, lookDown);
-    Con_Printf("  where the weapon and the hands sit, in the view's frame (forward, out at the hand's own side, down): a "
-               "held weapon %g %g %g (vr_flat_gun_fwd / _down / _out), with the ironsight on top of that pose %g %g %g "
-               "(vr_flat_ads_fwd / _up / _out), an empty hand %g %g %g (vr_flat_empty_*), the free hand next to the other "
-               "hand's gun %g %g %g (vr_flat_support_*), all of them vr_flat_reach %g times their size; a bigger _down is "
-               "a lower hand. The drawn view counts as his own eyes while it stands within %g of his head "
-               "(vr_flat_gun_near), eased to %g while the ironsight is on (vr_flat_ads_near).\n",
+    // Short lines: the console wraps a long one, and these numbers are meant to be read off it and typed back in.
+    Con_Printf("  where the weapon and the hands sit, in the view's frame (forward, out at the hand's own side, down):\n"
+               "    held weapon %g %g %g, the ironsight on top of that %g %g %g (vr_flat_gun_*, vr_flat_ads_*)\n"
+               "    an empty hand %g %g %g, a supporting hand %g %g %g (vr_flat_empty_*, vr_flat_support_*)\n"
+               "    vr_flat_reach %g times their size; a bigger _down is the lower hand\n"
+               "    the drawn view counts as his own eyes while it stands within %g of his head (vr_flat_gun_near),\n"
+               "    eased to %g while the ironsight is on (vr_flat_ads_near).\n",
         poseNum(vr_flat_gun_fwd), poseNum(vr_flat_gun_down), poseNum(vr_flat_gun_out), poseNum(vr_flat_ads_fwd),
         poseNum(vr_flat_ads_up), poseNum(vr_flat_ads_out), poseNum(vr_flat_empty_fwd), poseNum(vr_flat_empty_down),
         poseNum(vr_flat_empty_out), poseNum(vr_flat_support_fwd), poseNum(vr_flat_support_down),

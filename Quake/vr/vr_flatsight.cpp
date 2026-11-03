@@ -310,7 +310,8 @@ void pinToGrip(hands::State& s, const glm::vec3& reach, bool carry)
 }
 
 // Item 4: the held weapon brought onto the crosshair's ray, by the muzzle its shots go from; and item 1's ironsight
-// numbers (vr_flat_ads_fwd / vr_flat_ads_up / vr_flat_ads_out) on top of the pose that alignment leaves.
+// numbers (vr_flat_ads_fwd / vr_flat_ads_up / vr_flat_ads_out), put on the pose before that bringing so the bringing
+// works on the muzzle they leave.
 void centreOnCrosshair(hands::State& s, const glm::vec3& aim)
 {
     st.shift = st.adsOff = glm::vec3{0.f};
@@ -319,6 +320,27 @@ void centreOnCrosshair(hands::State& s, const glm::vec3& aim)
     {
         return;
     }
+
+    // Item 1's ironsight set first, on the pose the mode made and over the same seconds: forward, up and out at the
+    // holding hand's own side (the same side flatplay's vr_flat_gun_out measures out to), in the view's own frame -- the
+    // frame the sight picture lives in. It goes on before the muzzle is measured and the weapon brought onto the crosshair
+    // because the bringing is what answers the muzzle's distance off that ray: applied after it, the offsets would carry
+    // an already-centred weapon aside and the shot, which leaves the muzzle along the crosshair's own direction
+    // (aimRotAtCrosshair solves the hand's turn from the crosshair, whatever the hand sits at), would pass a foe standing
+    // on the crosshair that far wide. Measured here as st.adsOff and re-measured as offBefore / offAfter.
+    glm::vec3 fwd{}, right{}, up{};
+    hands::angleVectors(aim, fwd, right, up);
+    const float side = st.holding == HAND_MAIN ? 1.f : -1.f;
+    st.adsOff = (fwd * adsNum(vr_flat_ads_fwd) + right * (side * adsNum(vr_flat_ads_out)) + up * adsNum(vr_flat_ads_up))
+                * st.adsT;
+    if(st.pinned)
+    {
+        // The grip the other hand is holding travels with the hand it holds on to: their distance apart is unchanged.
+        s.grip2H[st.holding] += st.adsOff;
+        s.pos[st.helping] += st.adsOff;
+    }
+    s.pos[st.holding] += st.adsOff;
+
     // Measured whatever the ironsight is doing: where the muzzle this frame's pose leaves the crosshair's ray stands,
     // which the ironsight's own turn is measured against and printed as the pair before -> after.
     glm::vec3 org, dir;
@@ -331,36 +353,26 @@ void centreOnCrosshair(hands::State& s, const glm::vec3& aim)
         return;
     }
 
-    // Brought onto the ray: the shift is across it, nothing along it, spent over the travel (st.adsT).
+    // Brought onto the ray: the shift is across it, nothing along it, spent over the travel (st.adsT) -- the easing of the
+    // weapon onto the crosshair, whatever the offsets did to the muzzle on the way. What is left of them at the end of
+    // the travel is what lies along the ray: vr_flat_ads_fwd, how far out from him the sight picture sits. The parts
+    // across the ray are answered by the centring, which is what keeps the shot on the crosshair; the same seconds, and
+    // at 0 0 0 nothing happens at all, which is why the defaults reproduce the muzzle-on-the-ray numbers.
     const glm::vec3 lat = m - org - dir * glm::dot(m - org, dir); // off the ray: across it, nothing along it
     st.shift = -lat * st.adsT;
-    // Item 1's ironsight set, on top of the aligned pose and over the same seconds: forward, up and out at the holding
-    // hand's own side (the same side flatplay's vr_flat_gun_out measures out to), in the view's own frame -- the frame
-    // the sight picture lives in. So at full ads the weapon sits where he puts it and not where the centring alone
-    // leaves it; at 0 0 0 this is nothing at all, which is why the defaults reproduce the muzzle-on-the-ray numbers. The
-    // hand's turn is unchanged (aimRotAtCrosshair solves it from the crosshair, whatever the hand sits at), so the shot
-    // still goes along the crosshair -- parallel to it, this much to one side of it: what the offsets leave is measured
-    // as offAfter, printed and reported rather than hidden. The other hand and the grip it holds travel with the gun, as
-    // they do for the centring: the offsets move the weapon and both hands, not the weapon alone.
-    glm::vec3 fwd{}, right{}, up{};
-    hands::angleVectors(aim, fwd, right, up);
-    const float side = st.holding == HAND_MAIN ? 1.f : -1.f;
-    st.adsOff = (fwd * adsNum(vr_flat_ads_fwd) + right * (side * adsNum(vr_flat_ads_out)) + up * adsNum(vr_flat_ads_up))
-                * st.adsT;
-    if(glm::dot(st.shift, st.shift) + glm::dot(st.adsOff, st.adsOff) < 1e-8f)
+    if(glm::dot(st.shift, st.shift) < 1e-8f)
     {
         st.offAfter = glm::length(lat);
         return;
     }
-    s.pos[st.holding] += st.shift + st.adsOff;
+    s.pos[st.holding] += st.shift;
     if(st.pinned)
     {
-        // The grip the other hand is holding travels with the hand it holds on to: their distance apart is unchanged.
-        s.grip2H[st.holding] += st.shift + st.adsOff;
-        s.pos[st.helping] += st.shift + st.adsOff;
+        s.grip2H[st.holding] += st.shift;
+        s.pos[st.helping] += st.shift;
     }
-    // Re-measured from the muzzle the pose now leaves: the shot goes from there, so this is what the offsets do to the
-    // crosshair's own line.
+    // Re-measured from the muzzle the pose now leaves: the shot goes from there, so this is what the crosshair's own line
+    // ends up standing to.
     offTheRay(org, dir, muzzleNow(s, st.holding), st.offAfter, st.sightAngle);
 }
 
