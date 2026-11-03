@@ -27,6 +27,8 @@ float vr_agmr_dB;       // phase B: the time to its next attack, its distance as
 float vr_agmr_tB;
 float vr_agmr_dC0;      // phase C: the distance you stepped in to, its distance as its blow landed
 float vr_agmr_dC;
+float vr_agmr_placed;   // phase C: you are where it put you (a death knight's volley in the way bounces you back)
+float vr_agmr_d0;       // the attack under way: how far off it began
 float vr_agmr_s;        // its standoff (0: none)
 float vr_agmr_stuck;     // a phase timed out
 vector vr_agmr_home;
@@ -97,7 +99,8 @@ void(entity pl, entity g) VR_AGMR_Watch =
             else { vr_agmr_dC = d; }
         }
     }
-    float on = g.vr_ag_act != 0 && g.vr_ag_act != VR_AGP_SHOVE;
+    // (its melee weapon's attacks; a death knight's spell and a shove are not what this measures)
+    float on = g.vr_ag_act != 0 && g.vr_ag_act != VR_AGP_SHOVE && g.vr_ag_act != VR_AGP_CAST;
     if(vr_agmr_actat && (!on || g.vr_ag_act_at != vr_agmr_actat) && vr_agmr_actph != vr_agmr_phase)
     {
         vr_agmr_actat = 0; // (begun before you moved: not the phase's)
@@ -116,8 +119,8 @@ void(entity pl, entity g) VR_AGMR_Watch =
             traceline(g.handpos - dir * 6, g.handpos + dir * 85, MOVE_HITMODEL_MELEE, g);
             string met = sprintf("the line met %s at %.2f; parries %g", trace_ent.classname, trace_fraction,
                 vr_drp_parries);
-            VR_AGT_Print(sprintf("melee reach: an attack missed (phase %g, %.0f apart, struck %g; its grip %v off you, "
-                "its tip %v, its way %v: %s)", vr_agmr_phase, d, vr_agmr_struck, g.handpos - pl.origin,
+            VR_AGT_Print(sprintf("melee reach: an attack missed (phase %g, began %.0f, %.0f apart; grip %v off you, "
+                "its tip %v, its way %v: %s)", vr_agmr_phase, vr_agmr_d0, d, g.handpos - pl.origin,
                 g.muzzlepos - pl.origin, dir, met));
         }
         vr_agmr_actat = 0;
@@ -128,6 +131,7 @@ void(entity pl, entity g) VR_AGMR_Watch =
         vr_agmr_actph = vr_agmr_phase;
         vr_agmr_dmg0 = vr_ag_player_dmg;
         vr_agmr_struck = 0;
+        vr_agmr_d0 = d;
         if(vr_agmr_phase == 2 && vr_agmr_tB < 0)
         {
             vr_agmr_tB = time - vr_agmr_at;
@@ -199,6 +203,15 @@ void() VR_AGMR_Frame =
         pl.velocity_x = 0; // (you standing still)
         pl.velocity_y = 0;
         VR_AGMR_Watch(pl, g);
+        if(vr_agmr_phase == 3 && !vr_agmr_placed)
+        {
+            // (a volley still flying where you were put: the engine's stuck check put you back. Again until it holds.)
+            vr_agmr_placed = fabs(VR_AGMR_Dist(g, pl) - vr_agmr_dC0) <= 4;
+            if(!vr_agmr_placed)
+            {
+                VR_AGMR_PlaceYou(pl, g, vr_agmr_dC0);
+            }
+        }
         float t = time - vr_agmr_at;
         if(t > 12)
         {
@@ -221,6 +234,7 @@ void() VR_AGMR_Frame =
                 vr_agmr_dC0 = max(36, vr_agmr_s - 24);
                 VR_AGMR_PlaceYou(pl, g, vr_agmr_dC0);
                 vr_agmr_phase = 3;
+                vr_agmr_placed = 0;
                 vr_agmr_at = time;
                 vr_agmr_n = 0;
             }

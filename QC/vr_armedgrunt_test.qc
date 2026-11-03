@@ -96,11 +96,17 @@ entity(float wid, float dist) VR_AGT_Spawn =
     return g;
 };
 
-// It sees the player (FoundTarget).
+// It sees the player (FoundTarget). A spawn's last step first if it is still pending (walkmonster_start_go, up to 0.5 s
+// after the spawn: its turning speed, eyes and takedamage): FoundTarget's run would replace that think, and the monster
+// would hunt with none of them, unlike any in a map (ROUND23.md, "Flaky tests, round 3").
 void(entity g) VR_AGT_Hunt =
 {
     entity oldself = self;
     self = g;
+    if(self.think == walkmonster_start_go)
+    {
+        walkmonster_start_go();
+    }
     self.enemy = vr_agt_player;
     FoundTarget();
     self = oldself;

@@ -228,8 +228,8 @@ void() VR_NLT_BagTouch =
 {
     if(cvar_hget(cvarh_developer) > 1)
     {
-        dprint(sprintf("nailtest: debug bag nail %g across, %g up met %s at %v\n", self.vr_nlt_off, self.vr_nlt_up,
-            other == vr_nlt_bag ? "the bag" : other.classname, self.origin));
+        dprint(sprintf("nailtest: debug bag nail %g across, %g up met %s at %v, the bag at %v\n", self.vr_nlt_off, self.vr_nlt_up,
+            other == vr_nlt_bag ? "the bag" : other.classname, self.origin, vr_nlt_bag.origin));
     }
     if(VR_OwnerSpared(other))
     {
@@ -274,6 +274,7 @@ void(float xOff, float xUp) VR_NLT_BagNail =
     n.vr_nlt_off = xOff;
     n.vr_nlt_up = xUp;
     n.vr_nlt_wide = ((fabs(xOff) > vr_nlt_reach + 1) || (xUp > vr_nlt_reachup + 1));
+    vr_nlt_frames = 2; // (the step's safety net is per nail: past the bag one flies on to a far wall, 44 of them over 16 s)
 };
 
 float() VR_NLT_BagLeft =

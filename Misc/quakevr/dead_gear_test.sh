@@ -24,7 +24,7 @@ field() { step "$1" | grep -oE "$2 +-?[0-9]+" | head -1 | grep -oE -- "-?[0-9]+$
 # The worn gear's counts, drawn (all over 0) or not (all 0).
 drawn() { for k in "holstered guns" "holster sleeves" "ammo pouch" "grenade pouch" "flashlight" "wrist gadget" "straps" "body"; do
     [ "$(field "$1" "$k")" -gt 0 ] 2>/dev/null || { echo 0; return; }; done; echo 1; }
-hidden() { for k in "holstered guns" "their parts" "holster sleeves" "ammo pouch" "grenades" "grenade pouch" "flashlight" "cord" \
+hidden() { for k in "holstered guns" "their parts" "holster sleeves" "ammo pouch" "rounds" "grenade pouch" "flashlight" "cord" \
     "wrist gadget" "drawn" "straps" "body" "pauldrons"; do [ "$(field "$1" "$k")" = "0" ] || { echo 0; return; }; done; echo 1; }
 for s in alive dead respawned dead2 loaded dead_settingoff; do echo "  $s: $(step $s | sed -E 's/^STEP [a-z0-9_]+ +//' | cut -c1-400)"; done
 check $(drawn alive) "alive: the gear drawn"
