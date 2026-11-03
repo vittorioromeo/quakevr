@@ -130,6 +130,9 @@ struct Bindings
     float* agrHold{nullptr};   // vr_agr_hold: > 0 while a tool spawns (no armed replacement: progs::ToolSpawn)
     float* playerTimeOffset{nullptr}; // vr_player_time_offset: the player's clock ahead of time (vr_timescale.cpp)
     float* handTimeScale{nullptr};    // vr_hand_time_scale: the hands' velocities to real time (timescale::handScale)
+    float* arenaWave{nullptr};        // ar_wave: the wave in the field (vr_waveeditor's test: what Play started)
+    float* arenaWaveAt{nullptr};      // ar_wave_at: when it began (0: none yet in this map)
+    float* arenaPresetWaves{nullptr}; // ar_preset_n: the waves of the preset playing (0: Default)
     // The armed humanoids' one-call lookups' results, QC globals they set as traceline sets trace_* (vr_builtins_held.inc):
     // agposekey's key parts (vr_agk_k_rp, _rr, _lp, _lr, _er, _el, _t, _gp, _gr), agdrawnframe's weapon frame (vr_ag_df_o,
     // _fw, _up), agweaponextent's ends (vr_ag_wx_back, _front). Null: no such global (then not set).

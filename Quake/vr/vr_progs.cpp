@@ -450,6 +450,9 @@ extern "C" void VR_OnProgsLoaded()
         b.handTimeScale = globalFloat("vr_hand_time_scale");
         b.musicTrack = globalFloat("vr_music_track");
         b.spawnLive = globalFloat("vr_spawn_live");
+        b.arenaWave = globalFloat("ar_wave");
+        b.arenaWaveAt = globalFloat("ar_wave_at");
+        b.arenaPresetWaves = globalFloat("ar_preset_n");
         b.agrHold = globalFloat("vr_agr_hold");
         const auto globalVector = [](const char* name) -> float* {
             ddef_t* def = findGlobalDef(name);

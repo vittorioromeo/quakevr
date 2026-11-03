@@ -1136,14 +1136,14 @@ QVR_TUNABLE(vr_enemy_aim_fire, "40") // Combat > Enemy Melee > Fire Cone: degree
 QVR_TUNABLE(vr_enemy_aim_delay, "0.3") // Combat > Enemy Melee > Max Delay: seconds a shot waits at most with you outside its fire cone (turning after you meanwhile), then fires clamped; 0: no wait
 
 // Body > Player Footsteps (vr_playersteps.cpp)
-QVR_TUNABLE(vr_footstep_player_volume, "1") // all the steps on the drawn feet, times this
-QVR_TUNABLE(vr_footstep_player_walk_vol, "0.1") // a step's volume at the walking speed or slower
-QVR_TUNABLE(vr_footstep_player_run_vol, "0.5") // ... at the running speed or faster
+QVR_TUNABLE(vr_footstep_player_volume, "0.85") // all the steps on the drawn feet, times this
+QVR_TUNABLE(vr_footstep_player_walk_vol, "0.075") // a step's volume at the walking speed or slower
+QVR_TUNABLE(vr_footstep_player_run_vol, "0.35") // ... at the running speed or faster
 QVR_TUNABLE(vr_footstep_player_walk_speed, "60") // units/s: a step this slow or slower has the walking volume
 QVR_TUNABLE(vr_footstep_player_run_speed, "320") // units/s: this fast or faster the running volume
-QVR_TUNABLE(vr_footstep_player_curve, "1.5") // how the volume rises from walk to run: 1 evenly, higher staying quiet longer
-QVR_TUNABLE(vr_footstep_player_adjust_vol, "0") // the body's small adjustments (standing steps, slow room moves), this volume (0: silent)
-QVR_TUNABLE(vr_footstep_player_adjust_gap, "1") // s: at most one adjustment's sound in this long
+QVR_TUNABLE(vr_footstep_player_curve, "1.4") // how the volume rises from walk to run: 1 evenly, higher staying quiet longer
+QVR_TUNABLE(vr_footstep_player_adjust_vol, "0.15") // the body's small adjustments (standing steps, slow room moves), this volume (0: silent)
+QVR_TUNABLE(vr_footstep_player_adjust_gap, "0.6") // s: at most one adjustment's sound in this long
 QVR_TUNABLE(vr_footstep_player_room_speed, "60") // units/s: the walk's steps with the stick still (moving in the room) slower than this are adjustments
 
 // Combat > Enemy Footsteps (vr_footsteps.cpp)
@@ -1773,9 +1773,9 @@ QVR_TUNABLE(vr_model_light_teleport, "0.35") // ... teleporters
 QVR_TUNABLE(vr_model_light_teleport_range, "256")
 
 // Flatscreen > Held Weapon
-QVR_TUNABLE(vr_flat_gun_fwd, "17") // the held weapon, hipfire: how far in front of its shoulder it sits (-30..30 units; 17: where the pose put it)
-QVR_TUNABLE(vr_flat_gun_down, "9") // the held weapon, hipfire: how far below its shoulder it sits (-30..30; positive is lower; 9 as before)
-QVR_TUNABLE(vr_flat_gun_out, "2.5") // the held weapon, hipfire: how far off the body's centre line it sits, out at the holding hand's own side (-30..30; 2.5 as before; negative brings it across the centre line)
+QVR_TUNABLE(vr_flat_gun_fwd, "3.5") // the held weapon, hipfire: how far in front of its shoulder it sits (-30..30 units; 17: where the pose put it)
+QVR_TUNABLE(vr_flat_gun_down, "10") // the held weapon, hipfire: how far below its shoulder it sits (-30..30; positive is lower; 9 as before)
+QVR_TUNABLE(vr_flat_gun_out, "2") // the held weapon, hipfire: how far off the body's centre line it sits, out at the holding hand's own side (-30..30; 2.5 as before; negative brings it across the centre line)
 QVR_TUNABLE(vr_flat_gun_near, "24") // the held weapon, hipfire: how far the drawn view may stand from his own head before the hands stop being kept on the drawn view and stay on the body (8..60 units; 24: the mode's camNear). The view at his eyes counts 0, a full crouch counts vr_flat_crouch_drop; the camera's own nudges (vr_flat_cam_fwd / _up / _side) are put back before the measure, so moving the eye does not read as "the view is somewhere else" and the gun keeps following it
 QVR_TUNABLE(vr_flat_reach, "1") // times how far the hands sit from the head (0.25..3): the whole viewmodel's size
 QVR_TUNABLE(vr_flat_pose_pitch, "65") // how far the hands follow the view up and down, in degrees (0..90; 90: the full look, as before)
@@ -1790,17 +1790,17 @@ QVR_TUNABLE(vr_flat_support_down, "11") // the same free hand: how far below its
 QVR_TUNABLE(vr_flat_support_out, "5") // the same free hand: how far out at its own side (-30..30; 5 as before)
 
 // Flatscreen > Ironsight
-QVR_TUNABLE(vr_flat_ads_fwd, "0") // the ironsight's final place, on every gun (the weapon's own flat_ads_fwd, weapons.txt, on top): forward along the crosshair's ray, units off where the hipfire pose has the muzzle (-30..30)
-QVR_TUNABLE(vr_flat_ads_up, "0") // the same, up off the crosshair's ray (+ higher: a negative number lowers the gun so its sights come up to the crosshair; the weapon's flat_ads_up on top). The gun stays pointed at what the ray hits
-QVR_TUNABLE(vr_flat_ads_out, "0") // the same, sideways off the ray (+ out at the holding hand's own side; the weapon's flat_ads_out on top)
+QVR_TUNABLE(vr_flat_ads_fwd, "-3.5") // the ironsight's final place, on every gun (the weapon's own flat_ads_fwd, weapons.txt, on top): forward along the crosshair's ray, units off where the hipfire pose has the muzzle (-30..30)
+QVR_TUNABLE(vr_flat_ads_up, "2") // the same, up off the crosshair's ray (+ higher: a negative number lowers the gun so its sights come up to the crosshair; the weapon's flat_ads_up on top). The gun stays pointed at what the ray hits
+QVR_TUNABLE(vr_flat_ads_out, "-0.15") // the same, sideways off the ray (+ out at the holding hand's own side; the weapon's flat_ads_out on top)
 QVR_TUNABLE(vr_flat_ads_near, "24") // vr_flat_gun_near with the ironsight on, eased to it over the same seconds (8..60; 24: the same distance, so the ironsight changes nothing about it by default)
-QVR_TUNABLE(vr_flat_aim_fov, "12") // the flatscreen ironsight (vr_flat_aim, the mouse wheel's button; vr_flatsight.cpp): how many degrees the field of view narrows while it is on, on the view's own base fov (0..45; 0: the view stays wide). The look's speed keeps its measure (in_sdl.c IN_FovScale) and the HUD is unchanged
-QVR_TUNABLE(vr_flat_aim_time, "0.25") // the same ironsight: how long its whole travel takes, in seconds -- onto the crosshair, and back off it (0.05..1.00; 0: at once). The field of view is narrowed by vr_flat_aim_fov's degrees times how far that travel has gone, so the view closes and opens with the weapon instead of at the press
+QVR_TUNABLE(vr_flat_aim_fov, "40") // the flatscreen ironsight (vr_flat_aim, the mouse wheel's button; vr_flatsight.cpp): how many degrees the field of view narrows while it is on, on the view's own base fov (0..45; 0: the view stays wide). The look's speed keeps its measure (in_sdl.c IN_FovScale) and the HUD is unchanged
+QVR_TUNABLE(vr_flat_aim_time, "0.15") // the same ironsight: how long its whole travel takes, in seconds -- onto the crosshair, and back off it (0.05..1.00; 0: at once). The field of view is narrowed by vr_flat_aim_fov's degrees times how far that travel has gone, so the view closes and opens with the weapon instead of at the press
 QVR_TUNABLE(vr_flat_aim_point, "1") // 1: a gun points from its muzzle at what the ray through the screen's centre hits, every frame, hipfire and ironsight (the shot goes through the crosshair at any range); 0: along the view, beside the crosshair by the muzzle's distance off the ray
 
 // Flatscreen > Eye
-QVR_TUNABLE(vr_flat_cam_fwd, "0") // how far the flatscreen eye is nudged forward, in the view's frame (-20..20 units; + is forward, towards what he looks at)
-QVR_TUNABLE(vr_flat_cam_up, "0") // the same, up (-20..20; + is higher; the crouch's own drop (vr_flat_crouch_drop) is added to it, not replaced by it)
+QVR_TUNABLE(vr_flat_cam_fwd, "3.5") // how far the flatscreen eye is nudged forward, in the view's frame (-20..20 units; + is forward, towards what he looks at)
+QVR_TUNABLE(vr_flat_cam_up, "3.5") // the same, up (-20..20; + is higher; the crouch's own drop (vr_flat_crouch_drop) is added to it, not replaced by it)
 QVR_TUNABLE(vr_flat_cam_side, "0") // the same, sideways (-20..20; + is the view's own right, which is his left when he looks at it on the screen)
 
 // Flatscreen > Crouch
@@ -1809,30 +1809,30 @@ QVR_TUNABLE(vr_flat_crouch_drop, "18") // Left Ctrl / +flatcrouch: how far the c
 
 // Flatscreen > Looks
 QVR_TUNABLE(vr_flat_sway, "1") // the drawn hands' sway as he starts, stops, jumps and lands (0..3): a lag that settles; 0 none
-QVR_TUNABLE(vr_flat_bob, "1") // the drawn hands' bob on a walk, with his speed, and the breathing at rest (0..3); 0 none
+QVR_TUNABLE(vr_flat_bob, "0") // the drawn hands' bob on a walk, with his speed, and the breathing at rest (0..3); 0 none
 QVR_TUNABLE(vr_flat_turnlag, "1") // the drawn hands trail a turn and catch up (0..3, at most 4 degrees each): "weapon inertia"; 0 the hands locked to the view
 QVR_TUNABLE(vr_flat_turnlag_speed, "1") // how fast they catch up (0.1..5, times a critically damped spring's 18/s)
 
 // Combat > Embedded Blades: held stabs and swung axes (QC/vr_embedhold.qc; ROUND23.md, "Embedded blades, stage 2")
-QVR_TUNABLE(vr_embed_stab_speed, "3.5") // m/s the hand must drive a held sword or pointed blade at (a stab's own need is 2.4)
-QVR_TUNABLE(vr_embed_stab_angle, "35") // degrees at most between the way its tip goes and the blade's line
-QVR_TUNABLE(vr_embed_stab_tip, "40") // % of the blade from its tip that may be what strikes first
-QVR_TUNABLE(vr_embed_swing_speed, "6") // m/s the hand must drive a swung axe at
-QVR_TUNABLE(vr_embed_swing_angle, "45") // degrees at most the blow goes off the blade's plane
+QVR_TUNABLE(vr_embed_stab_speed, "2.5") // m/s the hand must drive a held sword or pointed blade at (a stab's own need is 2.4)
+QVR_TUNABLE(vr_embed_stab_angle, "90") // degrees at most between the way its tip goes and the blade's line
+QVR_TUNABLE(vr_embed_stab_tip, "100") // % of the blade from its tip that may be what strikes first
+QVR_TUNABLE(vr_embed_swing_speed, "1") // m/s the hand must drive a swung axe at
+QVR_TUNABLE(vr_embed_swing_angle, "90") // degrees at most the blow goes off the blade's plane
 QVR_TUNABLE(vr_embed_enter_time, "0.12") // s a stab takes to go on to its depth (by its speed) once it has struck
 QVR_TUNABLE(vr_embed_hold_follow, "15") // 1/s: how fast the blade follows the hand past the stick
 QVR_TUNABLE(vr_embed_hold_sword_stick, "2") // cm the hand moves along the axis before a sword moves, barely in
-QVR_TUNABLE(vr_embed_hold_sword_stick_deep, "5") // ... in as far as it goes
+QVR_TUNABLE(vr_embed_hold_sword_stick_deep, "8") // ... in as far as it goes
 QVR_TUNABLE(vr_embed_hold_sword_rate, "100") // cm/s a sword slides at most, barely in
 QVR_TUNABLE(vr_embed_hold_sword_rate_deep, "35") // ... in as far as it goes
-QVR_TUNABLE(vr_embed_hold_sword_most, "85") // % of the blade it goes in at most
-QVR_TUNABLE(vr_embed_hold_sword_out, "2") // cm of its tip still in as it comes free
-QVR_TUNABLE(vr_embed_hold_axe_stick, "0.8") // cm before an axe moves
+QVR_TUNABLE(vr_embed_hold_sword_most, "90") // % of the blade it goes in at most
+QVR_TUNABLE(vr_embed_hold_sword_out, "0") // cm of its tip still in as it comes free
+QVR_TUNABLE(vr_embed_hold_axe_stick, "2") // cm before an axe moves
 QVR_TUNABLE(vr_embed_hold_axe_rate, "180") // cm/s an axe slides at most
-QVR_TUNABLE(vr_embed_hold_axe_travel, "5") // cm an axe is pulled to come free
+QVR_TUNABLE(vr_embed_hold_axe_travel, "10") // cm an axe is pulled to come free
 QVR_TUNABLE(vr_embed_hold_corpse, "0.5") // times the stick in a dead body (the rate divided by it)
-QVR_TUNABLE(vr_embed_hold_break, "30") // cm the hand may go off the axis before the blade comes free
-QVR_TUNABLE(vr_embed_hold_reach, "60") // cm the hand may have gone further from where the blade went in before it comes free (a limb moved away)
+QVR_TUNABLE(vr_embed_hold_break, "45") // cm the hand may go off the axis before the blade comes free
+QVR_TUNABLE(vr_embed_hold_reach, "90.5") // cm the hand may have gone further from where the blade went in before it comes free (a limb moved away)
 QVR_TUNABLE(vr_embed_hold_reach_corpse, "4") // times that in a dead body (it falls away from the hand, the hold goes on)
 QVR_TUNABLE(vr_embed_hold_slide_damage, "0") // damage per 10 cm slid deeper
 QVR_TUNABLE(vr_embed_limb_follow, "6") // 1/s: how fast a blade in an arm or a leg takes the limb's turn (0: rigid)
