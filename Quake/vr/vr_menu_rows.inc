@@ -2499,32 +2499,6 @@ QVR_CYCLE_BYNAME(vr_model_collide, "Weapons Stop at Models",
     "and shots still come from your hand.",
     {0.f, "Off"}, {1.f, "Monsters"}, {2.f, "Monsters and Objects"})
 
-// vr_menu_settings.inc: pageEmbeddedBlades
-QVR_SLIDER(vr_embed_sword_speed, "Thrown Sword: Least Speed", 0.5f, 10.f, 0.25f, "%.2f m/s", ext(0.f, 30.f),
-    "How fast a thrown sword's tip must go into what it meets to stick. Slower: it bounces.")
-QVR_SLIDER(vr_embed_sword_tip, "Thrown Sword: Point Length", 2.f, 40.f, 1.f, "%.0f%%", noExt,
-    "How much of the sword behind its tip counts as its point when it goes in first (a share of the way from the "
-    "hand to the tip). More: more forgiving. The rest of the blade and the hilt going in first bounce.")
-QVR_SLIDER(vr_embed_sword_angle, "Thrown Sword: Most Off Its Line", 5.f, 90.f, 5.f, "%.0f deg", noExt,
-    "How far the way the tip goes may be off the blade's line. More than this, it lands side on and bounces.")
-QVR_SLIDER(vr_embed_sword_incidence, "Thrown Sword: Most Glancing", 10.f, 89.f, 5.f, "%.0f deg", noExt,
-    "How far the way the tip goes may be off straight into the surface. More than this, it skids off.")
-QVR_SLIDER(vr_embed_sword_depth_min, "Depth at Least Speed", 0.f, 100.f, 5.f, "%.0f%%", noExt,
-    "How much of the blade goes in at the least speed.")
-QVR_SLIDER(vr_embed_sword_depth_max, "Depth at Full Speed", 0.f, 100.f, 5.f, "%.0f%%", noExt,
-    "How much of the blade goes in at Full Depth Speed.")
-QVR_SLIDER(vr_embed_sword_depth_speed, "Full Depth Speed", 1.f, 20.f, 0.5f, "%.1f m/s", noExt,
-    "The speed at which it goes in deepest.")
-QVR_SLIDER(vr_embed_sword_wall, "Depth in Walls", 0.1f, 1.f, 0.05f, "%.2fx", noExt,
-    "Times that depth in walls, doors and props: a sword only bites into stone.")
-QVR_SLIDER(vr_embed_sag_stiffness, "Sag: Stiffness", 20.f, 1000.f, 10.f, "%.0f", noExt,
-    "How hard a wall holds a stuck sword up. Less: it sags further and swings slower.")
-QVR_SLIDER(vr_embed_sag_damping, "Sag: Damping", 0.f, 30.f, 0.5f, "%.1f", noExt,
-    "How fast its springing dies down after the hit. Less: it wobbles longer.")
-QVR_SLIDER(vr_embed_sag_most, "Sag: Most", 0.f, 45.f, 1.f, "%.0f deg", noExt,
-    "The furthest a stuck sword sags under its weight (0: it stays as it struck).")
-QVR_SLIDER(vr_embed_tug_corpse, "Tug From a Corpse", 0.f, 30.f, 1.f, "%.0f cm", noExt,
-    "How far a hand gripping a blade in a dead body must pull before it comes out (0: at once).")
 // vr_menu_pages.inc: pageMeleeSettings
 QVR_SLIDER_BYNAME(vr_melee_speed, "Swing Speed", 1.f, 8.f, 0.25f, "%.2f m/s", ext(),
     "How fast the striking hand must move to hit: a punch, a pommel strike; a weapon's swing a quarter faster, a stab three quarters of it. Any part of the blade then hits. At this speed a hit is weak; twice it, a full hit; faster, harder still (up to Most Blow Damage). A sword's cuts and stabs are measured at its tip, which swings about three times as fast as the hand.")
@@ -3733,7 +3707,7 @@ QVR_TOGGLE(vr_axestick, "Axes Stick",
 QVR_TOGGLE(vr_embed, "Embedded Blades",
     "Swords thrown point first stick in walls and bodies, Super Axes stick as axes do, a stuck blade stays in a dead "
     "body until you tug it out. Off: only thrown axes stick, and they fall out when the body dies. Its numbers: "
-    "Combat > Embedded Blades.")
+    "Debug > Tunables > Combat > Embedded Blades.")
 QVR_TOGGLE(vr_prop_impact_damage, "Flung Props Hurt",
     "A prop you didn't throw (swung on the grapple's rope, batted, knocked flying) hurts the monster it flies "
     "into fast enough. Off: only what you throw by hand.")

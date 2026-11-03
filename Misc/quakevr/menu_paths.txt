@@ -777,6 +777,9 @@ vr_melee_multi_max|1|Melee|Most Things a Swing|Advanced VR Options > Combat > Me
 vr_headbutt|1|Melee|Headbutt|Advanced VR Options > Combat > Melee > Headbutt
 vr_headbutt_speed|1|Melee|Headbutt Speed|Advanced VR Options > Combat > Melee > Headbutt Speed
 |1|Melee|Reset This Page|Advanced VR Options > Combat > Melee > Reset This Page
+@page|1|Embedded Blades||Advanced VR Options > Combat > Embedded Blades
+vr_embed|1|Embedded Blades|Embedded Blades|Advanced VR Options > Combat > Embedded Blades > Embedded Blades
+|1|Embedded Blades|Reset This Page|Advanced VR Options > Combat > Embedded Blades > Reset This Page
 @page|1|Parry and Bash||Advanced VR Options > Combat > Parry and Bash
 vr_parry|1|Parry and Bash|Parry|Advanced VR Options > Combat > Parry and Bash > Parry
 vr_parry_stagger|1|Parry and Bash|Parry Stagger|Advanced VR Options > Combat > Parry and Bash > Parry Stagger
@@ -1493,6 +1496,7 @@ vr_angvel_frame|2|Throwing and Physics|Controller Spin Frame|Advanced VR Options
 vr_throw_wrist_dist|2|Throwing and Physics|Wrist to Controller|Advanced VR Options > Carrying and Throwing > Throwing and Physics > Wrist to Controller
 vr_throw_spin_drag|2|Throwing and Physics|Spin Drag|Advanced VR Options > Carrying and Throwing > Throwing and Physics > Spin Drag
 vr_axestick|2|Throwing and Physics|Axes Stick|Advanced VR Options > Carrying and Throwing > Throwing and Physics > Axes Stick
+vr_embed|2|Throwing and Physics|Embedded Blades|Advanced VR Options > Carrying and Throwing > Throwing and Physics > Embedded Blades
 vr_prop_impact_damage|2|Throwing and Physics|Flung Props Hurt|Advanced VR Options > Carrying and Throwing > Throwing and Physics > Flung Props Hurt
 vr_prop_impact_players|2|Throwing and Physics|Flung Props Hurt Players|Advanced VR Options > Carrying and Throwing > Throwing and Physics > Flung Props Hurt Players
 vr_gib_spawn_harmless|2|Throwing and Physics|Fresh Gibs Harmless For|Advanced VR Options > Carrying and Throwing > Throwing and Physics > Fresh Gibs Harmless For
@@ -3835,6 +3839,56 @@ vr_flat_sway|2|Tunables|Move Sway|Advanced VR Options > Debug > Tunables > Move 
 vr_flat_bob|2|Tunables|Walk Bob|Advanced VR Options > Debug > Tunables > Walk Bob
 vr_flat_turnlag|2|Tunables|Turn Lag|Advanced VR Options > Debug > Tunables > Turn Lag
 vr_flat_turnlag_speed|2|Tunables|Turn Lag Recovery|Advanced VR Options > Debug > Tunables > Turn Lag Recovery
+vr_embed_stab_speed|2|Tunables|Stab: Least Speed|Advanced VR Options > Debug > Tunables > Stab: Least Speed
+vr_embed_stab_angle|2|Tunables|Stab: Most Off Its Line|Advanced VR Options > Debug > Tunables > Stab: Most Off Its Line
+vr_embed_stab_tip|2|Tunables|Stab: Point Length|Advanced VR Options > Debug > Tunables > Stab: Point Length
+vr_embed_swing_speed|2|Tunables|Axe Swing: Least Speed|Advanced VR Options > Debug > Tunables > Axe Swing: Least Speed
+vr_embed_swing_angle|2|Tunables|Axe Swing: Most Off Its Plane|Advanced VR Options > Debug > Tunables > Axe Swing: Most Off Its Plane
+vr_embed_enter_time|2|Tunables|Stab: Time Going In|Advanced VR Options > Debug > Tunables > Stab: Time Going In
+vr_embed_hold_follow|2|Tunables|Hold: Follow|Advanced VR Options > Debug > Tunables > Hold: Follow
+vr_embed_hold_sword_stick|2|Tunables|Sword: Stick, Barely In|Advanced VR Options > Debug > Tunables > Sword: Stick, Barely In
+vr_embed_hold_sword_stick_deep|2|Tunables|Sword: Stick, All the Way In|Advanced VR Options > Debug > Tunables > Sword: Stick, All the Way In
+vr_embed_hold_sword_rate|2|Tunables|Sword: Slide Speed, Barely In|Advanced VR Options > Debug > Tunables > Sword: Slide Speed, Barely In
+vr_embed_hold_sword_rate_deep|2|Tunables|Sword: Slide Speed, All the Way In|Advanced VR Options > Debug > Tunables > Sword: Slide Speed, All the Way In
+vr_embed_hold_sword_most|2|Tunables|Sword: Most In|Advanced VR Options > Debug > Tunables > Sword: Most In
+vr_embed_hold_sword_out|2|Tunables|Sword: Comes Free At|Advanced VR Options > Debug > Tunables > Sword: Comes Free At
+vr_embed_hold_axe_stick|2|Tunables|Axe: Stick|Advanced VR Options > Debug > Tunables > Axe: Stick
+vr_embed_hold_axe_rate|2|Tunables|Axe: Slide Speed|Advanced VR Options > Debug > Tunables > Axe: Slide Speed
+vr_embed_hold_axe_travel|2|Tunables|Axe: Pull to Free|Advanced VR Options > Debug > Tunables > Axe: Pull to Free
+vr_embed_hold_corpse|2|Tunables|Dead Body: Stick|Advanced VR Options > Debug > Tunables > Dead Body: Stick
+vr_embed_hold_break|2|Tunables|Off the Axis: Breaks At|Advanced VR Options > Debug > Tunables > Off the Axis: Breaks At
+vr_embed_hold_reach|2|Tunables|Too Far: Breaks At|Advanced VR Options > Debug > Tunables > Too Far: Breaks At
+vr_embed_hold_reach_corpse|2|Tunables|Too Far: In a Dead Body|Advanced VR Options > Debug > Tunables > Too Far: In a Dead Body
+vr_embed_hold_slide_damage|2|Tunables|Sliding Deeper: Damage|Advanced VR Options > Debug > Tunables > Sliding Deeper: Damage
+vr_embed_limb_follow|2|Tunables|Arms and Legs: Follow|Advanced VR Options > Debug > Tunables > Arms and Legs: Follow
+vr_embed_torso_follow|2|Tunables|Torso and Head: Follow|Advanced VR Options > Debug > Tunables > Torso and Head: Follow
+vr_embed_stagger_sword_speed|2|Tunables|Stagger: Sword's Least Speed|Advanced VR Options > Debug > Tunables > Stagger: Sword's Least Speed
+vr_embed_stagger_axe_speed|2|Tunables|Stagger: Axe's Least Speed|Advanced VR Options > Debug > Tunables > Stagger: Axe's Least Speed
+vr_embed_stagger_sword|2|Tunables|Stagger: Sword's Time|Advanced VR Options > Debug > Tunables > Stagger: Sword's Time
+vr_embed_stagger_axe|2|Tunables|Stagger: Axe's Time|Advanced VR Options > Debug > Tunables > Stagger: Axe's Time
+vr_embed_stagger_shallow|2|Tunables|Stagger: Barely In|Advanced VR Options > Debug > Tunables > Stagger: Barely In
+vr_embed_stagger_push|2|Tunables|Stagger: Push|Advanced VR Options > Debug > Tunables > Stagger: Push
+vr_embed_light_hold|2|Tunables|Light: Least Hold|Advanced VR Options > Debug > Tunables > Light: Least Hold
+vr_embed_move_sword_force|2|Tunables|Moving: Sword's Force|Advanced VR Options > Debug > Tunables > Moving: Sword's Force
+vr_embed_move_sword_force_deep|2|Tunables|Moving: Sword's Force, Deep|Advanced VR Options > Debug > Tunables > Moving: Sword's Force, Deep
+vr_embed_move_axe_force|2|Tunables|Moving: Axe's Force|Advanced VR Options > Debug > Tunables > Moving: Axe's Force
+vr_embed_move_give|2|Tunables|Moving: Stance Gives Way|Advanced VR Options > Debug > Tunables > Moving: Stance Gives Way
+vr_embed_drag_slack|2|Tunables|Dragging: Slack|Advanced VR Options > Debug > Tunables > Dragging: Slack
+vr_embed_hold_reach_down|2|Tunables|Reach: Knocked Down|Advanced VR Options > Debug > Tunables > Reach: Knocked Down
+vr_embed_tether_speed|2|Tunables|Tether: Your Speed|Advanced VR Options > Debug > Tunables > Tether: Your Speed
+vr_embed_tether_far|2|Tunables|Tether: Dead Body|Advanced VR Options > Debug > Tunables > Tether: Dead Body
+vr_embed_sword_speed|2|Tunables|Thrown Sword: Least Speed|Advanced VR Options > Debug > Tunables > Thrown Sword: Least Speed
+vr_embed_sword_tip|2|Tunables|Thrown Sword: Point Length|Advanced VR Options > Debug > Tunables > Thrown Sword: Point Length
+vr_embed_sword_angle|2|Tunables|Thrown Sword: Most Off Its Line|Advanced VR Options > Debug > Tunables > Thrown Sword: Most Off Its Line
+vr_embed_sword_incidence|2|Tunables|Thrown Sword: Most Glancing|Advanced VR Options > Debug > Tunables > Thrown Sword: Most Glancing
+vr_embed_sword_depth_min|2|Tunables|Depth at Least Speed|Advanced VR Options > Debug > Tunables > Depth at Least Speed
+vr_embed_sword_depth_max|2|Tunables|Depth at Full Speed|Advanced VR Options > Debug > Tunables > Depth at Full Speed
+vr_embed_sword_depth_speed|2|Tunables|Full Depth Speed|Advanced VR Options > Debug > Tunables > Full Depth Speed
+vr_embed_sword_wall|2|Tunables|Depth in Walls|Advanced VR Options > Debug > Tunables > Depth in Walls
+vr_embed_sag_stiffness|2|Tunables|Sag: Stiffness|Advanced VR Options > Debug > Tunables > Sag: Stiffness
+vr_embed_sag_damping|2|Tunables|Sag: Damping|Advanced VR Options > Debug > Tunables > Sag: Damping
+vr_embed_sag_most|2|Tunables|Sag: Most|Advanced VR Options > Debug > Tunables > Sag: Most
+vr_embed_tug_corpse|2|Tunables|Tug From a Corpse|Advanced VR Options > Debug > Tunables > Tug From a Corpse
 |2|Tunables|Reset This Page|Advanced VR Options > Debug > Tunables > Reset This Page
 @page|2|Debug - Cheats and Recording||Advanced VR Options > Debug > Cheats and Recording
 |2|Debug - Cheats and Recording|God Mode|Advanced VR Options > Debug > Cheats and Recording > God Mode
@@ -4727,6 +4781,10 @@ vr_test_held_destroy|2|Debug - Tests|Real Gib|Advanced VR Options > Debug > Test
 vr_test_throw_up_speed|2|Debug - Tests|Throw Up Speed|Advanced VR Options > Debug > Tests > Throw Up Speed
 vr_test_throw_up_body|2|Debug - Tests|Throw Up From Your Body|Advanced VR Options > Debug > Tests > Throw Up From Your Body
 |2|Debug - Tests|Throw the Nearest Prop Up|Advanced VR Options > Debug > Tests > Throw the Nearest Prop Up
+|2|Debug - Tests|Embedded Blades Check|Advanced VR Options > Debug > Tests > Embedded Blades Check
+|2|Debug - Tests|Held Stabs and Swung Axes Check|Advanced VR Options > Debug > Tests > Held Stabs and Swung Axes Check
+|2|Debug - Tests|Moving the Body Check|Advanced VR Options > Debug > Tests > Moving the Body Check
+|2|Debug - Tests|Sword in a Wall and a Corpse|Advanced VR Options > Debug > Tests > Sword in a Wall and a Corpse
 vr_test_axe|2|Debug - Tests|Axe Throw|Advanced VR Options > Debug > Tests > Axe Throw
 vr_test_axe_speed|2|Debug - Tests|Axe Speed|Advanced VR Options > Debug > Tests > Axe Speed
 vr_test_axe_what|2|Debug - Tests|Throw Instead|Advanced VR Options > Debug > Tests > Throw Instead

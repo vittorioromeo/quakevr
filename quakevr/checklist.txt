@@ -48,6 +48,13 @@ Pull hard to the side: it comes free into your hand. {test:embed_stab}
 Open your hand: the sword stays in the body, bleeding, not thrown. Grip it: back on the same axis. Force grab from afar: it tugs out and flies to you. {test:embed_stab}
 Swing the axe hard, edge first: it sticks, and comes out after a short 5 cm pull. An axe driven head first along its handle doesn't stick. {test:embed_stab}
 Kill or gib the grunt with the sword held: dead, you still hold it and a light tug takes it; gibbed, it's back in your hand. {test:embed_stab}
+Stab a grunt hard: it staggers about 0.6 s, your hand still on the hilt. A weaker stab stays in with no stagger, and it keeps attacking. {test:embed_stab}
+While it staggers, pull or push the sword slowly: the whole body comes with it, more when the blade is deep. Yank hard and the blade comes out. {test:embed_stab}
+Swing the axe very hard: a short stagger, and pulling barely moves the body before the axe comes out. {test:embed_stab}
+Walk away holding a blade in a standing grunt: it drags along and you walk at about a third of your speed. If it's blocked, the blade comes out past arm's reach and your speed returns. {test:embed_stab}
+Knock the grunt down with the sword held: it hangs on the blade and you still hold it. {test:embed_stab}
+Kill it with the sword held: no slowdown standing over it, slowed only while walking off with it, and an arm's tug takes the blade out. {test:embed_stab}
+Stab the Shambler as hard as you can: no stagger, no drag, you're slowed, and walking off pulls the blade out. {test:embed_stab}
 
 [3. Bodies: grabbing, throwing, hits]
 Neck snap standing and on a lifted body: it goes limp, still held. Leg grabs: pull one down by the shins, drag it by the legs, lift it by the legs. {test:grunts_to_throw}

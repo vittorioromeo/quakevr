@@ -35,6 +35,8 @@ vr_embed_test    7        vr_embed_test.qc                 held stabs and swung 
 vr_embed_test    8        vr_embed_test.qc                 the pictures' scene: a stab held
 vr_embed_test    9        vr_embed_test.qc                 the pictures' scene: that stab let go of
 vr_embed_test    10       vr_embed_test.qc                 the pictures' scene: its end
+vr_embed_test    11       vr_embed_test.qc                 moving the body: stagger, pull, knocked down, drag, past reach, your speed, heavy, boss
+vr_embed_test    12       vr_embed_test.qc                 the pictures' scene: a body being moved
 vr_ad_test       1        vr_ad_bridge_test.qc             (see vr_ad_bridge_test.qc)
 vr_ad_test       2*       vr_ad_bridge_test.qc             (the cinematic report (AD_Test's fall-through))
 vr_ad_test       3        vr_ad_bridge_test.qc             (VRGiveEntWeapon)
