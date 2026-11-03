@@ -1,0 +1,5 @@
+# knights_e1m4: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Armed Knights on in e1m4, the map with the knight by the door.
+title e1m4 with Armed Knights on: every knight holds a sword
+map e1m4
+cvar vr_agknight 1
+hint Every knight holds a sword, swings it, can be parried and disarmed; killing the one by the door opens it.
