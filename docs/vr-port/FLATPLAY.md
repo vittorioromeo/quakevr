@@ -156,7 +156,7 @@ the pose above exactly as it is, and `vr_flatplay_status` prints the measure the
 the held hand (fwd -3.2, right 0.4, up -3.8 of it)".
 
 The mouse wheel's button (`K_MOUSE3`), or `vr_flat_aim` from the console, turns the ironsight on: the held hand is turned
-so that the muzzle's own point — the one the shot starts from (`muzzleOf`) — sits on the crosshair's ray
+so that the muzzle's own point — the one the shot starts from (`muzzleNow`) — sits on the crosshair's ray
 (`centreOnCrosshair`), and the field of view narrows by `vr_flat_aim_fov`: `gl_screen.c` asks `VR_FlatAdsFov` where it
 chooses `r_refdef.basefov`, and the mouse look's own measure comes from the same `basefov` (`in_sdl.c`'s `IN_FovScale`),
 so the look and the crosshair keep their feel. It refuses while dual wielding, and on a weapon with no sight line.
@@ -164,7 +164,7 @@ so the look and the crosshair keep their feel. It refuses while dual wielding, a
 with where the muzzle stands off the crosshair before and after the turn.
 
 A flatscreen hand is always gripping (`gripping`, in `vr_client.cpp`), so the frame the pose brings the empty hand onto a
-grip is stood in for the grip button's press by `twohand::armFlatGrip` — the one thing the ironsight adds to `vr_twohand`,
+grip is stood in for the grip button's press by `twohand::armFlatGrip` — the one thing this adds to `vr_twohand`,
 next to `setFreeCandidate`, which is the same shape: a public setter for one internal flag. It arms on the frame the pose
 brings the empty hand onto a grip, and on each frame it still holds the hand on one nothing has taken: a flatscreen hand
 is not lifted off a grip it was placed on; it stops the frame `vr_twohand` takes the hold, or the frame the weapon changes.
