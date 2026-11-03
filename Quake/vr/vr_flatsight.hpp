@@ -12,7 +12,12 @@
 // (vr_flat_aim_fov degrees off the plain flatscreen FOV, through VR_FlatAdsFov in gl_screen.c), and the holding hand is
 // moved sideways so that the muzzle its weapon shoots from stands on the crosshair's ray: the sights come to the
 // middle of the screen and the shots go through it. The hand's turn stays the crosshair's aim, so what moves is where
-// the shot comes from, not where it is going.
+// the shot comes from, not where it is going. Its own offsets (vr_flat_ads_fwd / vr_flat_ads_up / vr_flat_ads_out) are
+// applied on top of that aligned pose, over the same seconds, so at full ads the weapon sits where the player puts it.
+//
+// The crosshair's ray itself is flatplay's (flatplay::crosshairRay): the camera the screen is drawn from, the same one
+// its drawnOffset locks the hands onto, so the gun and the crosshair are measured from one place whatever vr_flat_cam_*
+// says about that camera.
 //
 // See vr_flatsight.cpp for how each part is measured.
 
@@ -37,6 +42,11 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach);
 
 // The ironsight is on for a weapon it applies to (vr_flatplay_status, gl_screen.c).
 [[nodiscard]] bool aiming();
+
+// How far the ironsight's travel has gone this frame (st.adsT, 0..1): the fraction its shift onto the crosshair and the
+// field of view's narrowing are spent over, and what flatplay eases vr_flat_gun_near to vr_flat_ads_near by when it
+// decides whether a drawn view counts as the player's own eyes (flatplay::keepNear). 0 outside the mode.
+[[nodiscard]] float adsShare();
 
 // The field of view to render with: `basefov`, narrowed by vr_flat_aim_fov while the ironsight is on. Outside the
 // mode, or with it off, exactly `basefov` (gl_screen.c through VR_FlatAdsFov).
