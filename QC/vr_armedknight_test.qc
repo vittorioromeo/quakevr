@@ -274,16 +274,16 @@ void() VR_AKNT_Frame =
 
 // ----------------------------------------------------------------------------
 // A map's own knights and death knights (ROUND23.md, "Armed knights by default"; run on a map with them, `god; notarget`):
-//   206  the census: `knightmap: <map> ...`, one line, the same frame: every one armed by the rule (not statues, a
+//   207  the census: `knightmap: <map> ...`, one line, the same frame: every one armed by the rule (not statues, a
 //        trigger's copies, MG3's infected, AD's variants, a campaign switched off), each with a sword alone, no pack,
 //        taking no gun up. The map's monster count is in the line: the same with the settings off.
-//   205  the census; one with a target that is no path killed: counted, its target used (a door moves); one's sword
+//   206  the census; one with a target that is no path killed: counted, its target used (a door moves); one's sword
 //        knocked out and gone, a gun lying by it: it never takes it (the same one takes it with
 //        vr_agknight_ranged_pickup 1: the wait is long enough); on MG's maps one waiting for its trigger comes armed;
 //        a monster_vr_knight and monster_vr_hknight spawned with a shotgun hold it, wear the pack and, disarmed, take a gun
 //        up with the setting off (his note of 2026-11-03: .vr_ag_born_ranged), one spawned with its sword takes none; an
 //        arena wave's hold their swords; a knight hurt by an ogre turns on it, by another knight doesn't.
-//   207  a save from before (`vr_agknight 0`, saved, then loaded with it on): the census with none armed, the kill.
+//   208  a save from before (`vr_agknight 0`, saved, then loaded with it on): the census with none armed, the kill.
 // Ends on `agtest: test N over: P passed, F failed`.
 // ----------------------------------------------------------------------------
 
@@ -337,7 +337,7 @@ void(float t) VR_KMT_Census =
             if(e.classname == "monster_knight") { kn = kn + 1; } else { dk = dk + 1; }
             if(e.vr_ag) { armed = armed + 1; } else { kept = kept + 1; }
             if(e.MG_deferred) { deferred = deferred + 1; }
-            if(VR_KMT_Armed(e) != (t == 207 ? FALSE : VR_KMT_ExpectArmed(e)))
+            if(VR_KMT_Armed(e) != (t == 208 ? FALSE : VR_KMT_ExpectArmed(e)))
             {
                 wrong = wrong + 1;
                 bprint(sprintf("knightmap: wrong: %s at %v health %g dead %g flags %g model %s\n", e.classname, e.origin, e.health,
@@ -551,7 +551,7 @@ void(entity g) VR_KMT_DisarmGun =
     vr_agt_player.flags = vr_agt_player.flags | FL_NOTARGET;
     g.enemy = world;
     makevectors(g.angles);
-    VR_AG_Disarm(g, v_right, 120, "test 205");
+    VR_AG_Disarm(g, v_right, 120, "test 206");
     VR_KMT_OnlyGuns();
 };
 
@@ -562,12 +562,12 @@ void(float t) VR_KMT_Frame =
     if(vr_kmt_step == 0)
     {
         VR_KMT_Census(t);
-        if(t == 206)
+        if(t == 207)
         {
             cvar_set("vr_agrunt_test", "0");
             return;
         }
-        vr_kmt_k = VR_KMT_TargetKnight(t == 205);
+        vr_kmt_k = VR_KMT_TargetKnight(t == 206);
         if(!vr_kmt_k)
         {
             VR_AGT_Print(sprintf("%s: none with a target that is no path: the kill not run", mapname));
@@ -603,7 +603,7 @@ void(float t) VR_KMT_Frame =
         VR_AGT_Check(sprintf("the kill: counted (%g -> %g), its target used (%g times), a door moved", vr_kmt_killed,
             killed_monsters, vr_kmt_fired), killed_monsters == vr_kmt_killed + 1 && vr_kmt_fired >= 1 &&
             (vr_kmt_t.classname != "func_door" || vr_kmt_t.state != vr_kmt_state0));
-        if(t == 207)
+        if(t == 208)
         {
             cvar_set("vr_agrunt_test", "0");
             return;
@@ -615,7 +615,7 @@ void(float t) VR_KMT_Frame =
     }
     if(vr_kmt_step == 2) // (and 8: a deferred one woken first)
     {
-        if(t == 207)
+        if(t == 208)
         {
             cvar_set("vr_agrunt_test", "0");
             return;
@@ -684,7 +684,7 @@ void(float t) VR_KMT_Frame =
         p.flags = p.flags | FL_NOTARGET;
         vr_kmt_k.enemy = world;
         makevectors(vr_kmt_k.angles);
-        VR_AG_Disarm(vr_kmt_k, v_right, 120, "test 205");
+        VR_AG_Disarm(vr_kmt_k, v_right, 120, "test 206");
         VR_KMT_OnlyGuns();
         vr_kmt_t0 = time;
         vr_kmt_step = 4;

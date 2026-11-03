@@ -157,9 +157,10 @@ vr_agrunt_test   200      vr_armedgrunt_aware_test.qc      disarm attempts on un
 vr_agrunt_test   202      vr_armedgrunt_impact_test.qc     the impact rule: a push, you walking into it, a topple or a swing in the air keep the weapon; a fall, a throw into the floor or a wall, a body banged into a wall drop it
 vr_agrunt_test   203      vr_armedgrunt_dualdisarm_test.qc a dual wielder disarmed of its off hand, then its main: slots, each weapon drawn on its hand, its pick-up
 vr_agrunt_test   204      vr_ogre_friends_test.qc          ogres (and MG3 rocket ogres) behind a friend: friendly hits careless, careful, its attack rate, one always in the way
-vr_agrunt_test   205      vr_armedknight_test.qc           a map's own knights: the census, a kill with its trigger, no gun taken up, spawned ones keep theirs, infighting
-vr_agrunt_test   206      vr_armedknight_test.qc           (the census alone: one line, one frame)
-vr_agrunt_test   207      vr_armedknight_test.qc           (a save from before the replacement: none armed, the kill)
+vr_agrunt_test   205      vr_armedgrunt_gunlag_test.qc     a held gun stays with its body as it walks
+vr_agrunt_test   206      vr_armedknight_test.qc           a map's own knights: the census, a kill with its trigger, no gun taken up, spawned ones keep theirs, infighting
+vr_agrunt_test   207      vr_armedknight_test.qc           (the census alone: one line, one frame)
+vr_agrunt_test   208      vr_armedknight_test.qc           (a save from before the replacement: none armed, the kill)
 vr_agrunt_test   201      vr_armedgrunt_test.qc            dual wielders' both guns drawn: 30 dual nail pistol spawns (VR_AGTest_DualSpawns)
 
 vr_flare_test    1*       vr_flaregun_test.qc              (the self-test (its fall-through))
@@ -344,6 +345,9 @@ vr_deadanim_test 6        vr_deadanim.qc                   (T_Damage)
 vr_deadanim_test 7        vr_deadanim.qc                   (VR_DeadAnim_AiThink)
 vr_deadanim_test 8        vr_deadanim.qc                   (ad_zombiek_onground)
 vr_deadanim_test 9        vr_deadanim.qc                   (isragdoll)
+vr_deadanim_test 20       vr_deadleap_test.qc              (VR_DeadLeap_Start: a fiend)
+vr_deadanim_test 21       vr_deadleap_test.qc              (VR_DeadLeap_Start: a dog)
+vr_deadanim_test 22       vr_deadleap_test.qc              (VR_DeadLeap_Start: a spawn)
 
 vr_decap_test    1*       vr_decap_test.qc                 (the Debug menu runs it: the dispatcher's fall-through)
 vr_decap_test    2        vr_decap_test.qc                 (see vr_decap_test.qc)

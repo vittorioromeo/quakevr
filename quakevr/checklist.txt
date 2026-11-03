@@ -58,6 +58,8 @@ Revolver out: tilting it or a wrist flick drops nothing; a short push back along
 Revolver out: a quick pull back with a shell in the other hand keeps the loaded shells in.
 Revolver: see through the empty chambers swung out; shells seat cleanly in them.
 Armour plate breaking on an armed enemy: a short metal crack from a recording, no longer the armour chime backwards. If it sounds wrong, name a runner-up (518731 or 875432).
+A knight's or death knight's gun stays with its body as it sidesteps and circles.
+A fiend, dog or spawn killed by a blast its own leap set off stays dead.
 
 
 [3. Bodies: grabbing, throwing, hits]

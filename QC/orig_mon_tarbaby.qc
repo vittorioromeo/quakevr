@@ -98,9 +98,9 @@ void()    Tar_JumpTouch =
         {
             ldmg = 10 + 10*random();
             T_Damage(other, self, self, ldmg);
-            if(self.vr_parry_stagger_until > time)
+            if(VR_Leap_BlowEnded())
             {
-                return; // successful parry owns the recovery think and has cancelled the leap touch
+                return; // a parry owns the recovery think, its death its dying (VR_Leap_BlowEnded)
             }
             sound(self, CHAN_WEAPON, "blob/hit1.wav", 1, ATTN_NORM);
         }

@@ -500,6 +500,7 @@ vr_gunprep.qc
 vr_ad_monsters_test.qc
 // Dead monsters stay dead: the watch (vr_debug_deadanim) and its test (after AD's files: its animation callbacks).
 vr_deadanim.qc
+vr_deadleap_test.qc
 vr_ad_shots_test.qc
 vr_projhit_test.qc
 // The Shadow Axe's rules through our axe (vr_ad_test 140; after the bridge: AD_AxeMark, AD_ShadowAxeChop).
@@ -563,6 +564,7 @@ vr_footstep_test.qc
 vr_armedgrunt_range_test.qc
 vr_disarmhull_view_test.qc // test 17: his two views of Show Disarm Volumes (an eyeshot aid)
 vr_disarmviz_test.qc
+vr_armedgrunt_gunlag_test.qc // test 205: a held gun stays with its body as it walks
 vr_drawnpose_test.qc // test 99: the drawn pose (worn packs, disarm volumes)
 vr_stalepose_test.qc // test 79: shots and grip spheres from the drawn pose
 vr_disarmhull_test.qc // test 16: the disarm volumes as hulls of the drawn triangles
