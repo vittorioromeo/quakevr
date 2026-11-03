@@ -465,11 +465,13 @@ void() VR_KMT_Rest =
         g.vr_ag_wid, g.vr_wp_pack != world, VR_AM_Takes(g, WID_SHOTGUN), cvar_hget(cvarh_vr_agknight_ranged_pickup)),
         g.vr_ag_wid == WID_SHOTGUN && (g.vr_wp_pack != world || MG3_Campaign()) && VR_AM_Takes(g, WID_SHOTGUN));
     vr_kmt_gun1 = g;
+    g.health = 2000; // (the map's own may fight them meanwhile: an Arcane Dimensions room's did)
     g = VR_KMT_SpawnArmed(TRUE, WID_SHOTGUN, at - v_right * 40);
     VR_AGT_Check(sprintf("a death knight spawned with a shotgun holds it (%g), wears the pack (%g), takes guns up (%g) with the setting %g",
         g.vr_ag_wid, g.vr_wp_pack != world, VR_AM_Takes(g, WID_SHOTGUN), cvar_hget(cvarh_vr_agknight_ranged_pickup)),
         g.vr_ag_wid == WID_SHOTGUN && (g.vr_wp_pack != world || MG3_Campaign()) && VR_AM_Takes(g, WID_SHOTGUN));
     vr_kmt_gun2 = g;
+    g.health = 2000;
 
     entity oldself = self;
     self = spawn();
@@ -488,6 +490,24 @@ void() VR_KMT_Rest =
     vr_ar_hold_roll = 0;
     VR_AGT_Check(sprintf("an arena wave's death knight: armed %g, holds %g (the sword)", self.vr_ag, self.vr_ag_wid),
         self.vr_ag && self.vr_ag_wid == WID_SWORD);
+    self = spawn();
+    setorigin(self, at + '0 192 512');
+    self.classname = VR_ARENA_ClassName(AR_SP_AKNIGHT);
+    self.weapon = WID_SHOTGUN;
+    vr_ar_hold_roll = 1;
+    VR_ARENA_CallSpawn(AR_SP_AKNIGHT);
+    vr_ar_hold_roll = 0;
+    VR_AGT_Check(sprintf("a wave's armed knight given a shotgun: holds %g, takes guns up (%g)", self.vr_ag_wid, VR_AM_Takes(self, WID_SHOTGUN)),
+        self.vr_ag_wid == WID_SHOTGUN && VR_AM_Takes(self, WID_SHOTGUN));
+    self = spawn();
+    setorigin(self, at + '0 288 512');
+    self.classname = VR_ARENA_ClassName(AR_SP_ADKNIGHT);
+    self.weapon = WID_SHOTGUN;
+    vr_ar_hold_roll = 1;
+    VR_ARENA_CallSpawn(AR_SP_ADKNIGHT);
+    vr_ar_hold_roll = 0;
+    VR_AGT_Check(sprintf("a wave's armed death knight given a shotgun: holds %g, takes guns up (%g)", self.vr_ag_wid, VR_AM_Takes(self, WID_SHOTGUN)),
+        self.vr_ag_wid == WID_SHOTGUN && VR_AM_Takes(self, WID_SHOTGUN));
     self = oldself;
     vr_kmt_k = VR_KMT_SpawnArmed(FALSE, 0, at);
     vr_kmt_h = VR_KMT_SpawnArmed(FALSE, 0, at + v_forward * 40);
@@ -722,7 +742,7 @@ void(float t) VR_KMT_Frame =
         VR_AGT_Check(sprintf("the setting %g: a knight spawned with a shotgun, disarmed, takes it up in %.1f s (%g pickups, holds %s)",
             cvar_hget(cvarh_vr_agknight_ranged_pickup), dt, vr_kmt_gun1.vr_ag_pickups, vr_kmt_gun1.vr_ag_prop ? vr_kmt_gun1.vr_ag_prop.netname : "nothing"),
             vr_kmt_gun1.vr_ag_pickups >= 1 && vr_kmt_gun1.vr_ag_wid == WID_SHOTGUN);
-        T_Damage(vr_kmt_gun1, p, p, 5000);
+        T_Damage(vr_kmt_gun1, p, p, 9000);
         VR_KMT_DisarmGun(vr_kmt_gun2);
         vr_kmt_t0 = time;
         vr_kmt_step = 11;
@@ -732,6 +752,9 @@ void(float t) VR_KMT_Frame =
     {
         return;
     }
+    entity lying = VR_KMT_Lying(WID_SHOTGUN, vr_kmt_gun2.origin);
+    VR_AGT_Print(sprintf("death knight: a shotgun %.0f away (%.0f up), it reaches it %g, seek %s, health %g, frame %g", lying ? vlen(lying.origin - vr_kmt_gun2.origin) : -1,
+        lying ? lying.origin_z - vr_kmt_gun2.origin_z : 0, lying ? VR_AG_Reachable(vr_kmt_gun2, lying) : 0, vr_kmt_gun2.vr_ag_seek.classname, vr_kmt_gun2.health, vr_kmt_gun2.frame));
     VR_AGT_Check(sprintf("the setting %g: a death knight spawned with a shotgun, disarmed, takes a gun up in %.1f s (%g pickups, holds %s)",
         cvar_hget(cvarh_vr_agknight_ranged_pickup), dt, vr_kmt_gun2.vr_ag_pickups, vr_kmt_gun2.vr_ag_prop ? vr_kmt_gun2.vr_ag_prop.netname : "nothing"),
         vr_kmt_gun2.vr_ag_pickups >= 1 && vr_kmt_gun2.vr_ag_wid == WID_SHOTGUN);

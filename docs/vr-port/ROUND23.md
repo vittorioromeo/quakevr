@@ -7287,7 +7287,60 @@ only CC0 recordings the game already ships. Candidates for the real thing, pages
 His words: "If you mean replacing stock knights and death knights with the armed humanoid version, yes. If you mean knights
 and death knights picking up ranged weapons autonomously, no -- let's keep that for spawned ones and arena waves."
 
-KNIGHTSON_NOTES_PLACEHOLDER
+And his note `vrragtriggers_2026-11-03_02-24-29`: a knight or death knight spawned wielding a ranged weapon, "either from a
+tool gun or from an arena wave ... should be able to pick up other ranged weapons as they fight", whatever the menu says.
+
+**What changed.** `vr_agknight` and `vr_agdknight` default to 1 (sparse configs: no migration row; a config that saved 0
+keeps it). `VR_AKN_Replace` takes the grunts' scope (`VR_AGR_InScope`: `vr_agrunt_repl_id`, `_mp`, `_ad`; it read only `_ad`)
+and leaves MG3's infected alone, as `VR_AGR_Replace` does: replaced, an infected one lost his burst and a lying death knight
+his corpse. `vr_agknight_ranged_pickup` stays 0 for a map's sword knights; `.vr_ag_born_ranged`, set in `VR_AM_Spawn` from
+what it was armed with and read by `VR_AM_Takes`, lets one spawned with a ranged weapon take ranged weapons up whatever the
+setting says (the toolgun, a wave's `armed_knight` / `armed_deathknight`, a map's "weapon"). Tests about the stock knight
+hold the replacement off with the tools' own `vr_agr_hold` (`impulse 248`, `vr_parry_test`, `vr_kdtrig_test_class` 3 and 6,
+`vr_mg_activation_test`). Debug > Automation & Self-Tests: "Armed Knights: This Map's Knights" (206), "A Map's Knights in
+Play" (205).
+
+**What it reaches** (`vr_agrunt_test 206` on each map at Normal, settings on then off; the monster count the same on every
+map; the raw counts by reading the BSPs, all skills):
+
+| Campaign | Maps run | Knights + death knights there | Armed | Left plain, and why |
+| --- | --- | --- | --- | --- |
+| Quake | 20 | 219 | 219 | none |
+| Scourge, Dissolution | 19 | 398 | 369 | 29: r2m1's statues (stock, as before) |
+| Dimension of the Past | 7 | 150 | 150 | none |
+| Dimension of the Machine | 10 | 290 | 290 | none (MG's placed bodies wear the classnames: scenery, not counted) |
+| Dawn of the Machine | 10 | 369 | 319 | 50: the infected (map2 17, map8 1, boss 32) |
+| Arcane Dimensions | 4 of about 80 | 103 | 103 | none here; AD's point knights and ghosts by rule |
+
+AD: its map knights are replaced like its grunts (`vr_agrunt_repl_ad` 1, since 2026-11-01); AD's own variants never. Ambush
+and targetnames are kept: only the flags of a trigger's copies are ever cleared and those are never replaced. Honey's
+trigger-spawned copies keep their maker's spawn (stock). The training dummy holds the replacement off (`VR_Dummy_Make`, read,
+not run). The arena: "knight" and "hellknight" in a wave are now armed with swords, the waves' plan unchanged (they get no
+plan armour: `VR_ARENA_ArmsHumanoid` is the grunts', the wave editor's kinds and the new `armed_*` are separate rows).
+
+Two things he may notice. A map's knights now **roll armour by the skill** like the other armed ones (`vr_agarmor_skill*`:
+15% on Normal, 60% on Nightmare), so a kill can take more than it did: test 95 caught it, a blow of health + 10 leaving a
+death knight on 50. And **the cost**: not measured again (he was playing): a fresh install now has what his config had when
+`PERF_1102.md` measured it, about 0.16 ms of CPU a frame per armed humanoid more than a plain one.
+
+**Tests.** `vr_agrunt_test 205` (new): census; a knight with a target killed: counted, its target used, a door moving (e1m4 t49,
+e2m3 t31); woken from waiting unseen, armed (MG, AD); a map's knight disarmed leaves a gun alone for 8 s with the setting off
+and takes it with it on (the control); spawned with a shotgun they hold it, wear the pack, and disarmed take a gun up with the
+setting off; a sword one takes none; a wave's kinds; infighting. e1m4 15/0, e2m3, mge4m1, map4, ad_e2m2: all pass. On
+`ad_ac` 14/1: the death knight is drawn into the room's fight 800 units from the gun (health 2000 -> 1141), the rule itself
+passing there; left failing rather than loosened: run it somewhere quieter. `vr_agrunt_test 207`, a save made with the settings
+off and loaded with them on: 2/0, those knights stay stock and their kills count. Test 95 knight 7/0, death knight 11/0 (its
+death case now repeats the blow if armour took it); test 1 kind 2 17/0; 88 `ragweapon: 6/0`; wornpack 11 and 21 24/0 each;
+`vr_mg3_mtest 2` 19/0; `vr_ad_test 198` on ad_ac 5/0; `vr_footstep_test 1` 8/0; arena 1 257/0, arena 6 (32 waves) 8/0;
+parryinterrupt no failures; bench `--validate` crowd32_armed, crowd32_plain, armed_mix32 run (armed_mix32 flagged a decal
+difference once, 40/43, and passed the repeat). `vr_mg3_mtest 3` fails "woken, he rose" (e1m1), **the same with both settings
+off**: not this change (he has no room to rise there within the test's 2.5 s).
+
+Checklist:
+- [knightson] Fresh settings, e1m4 (or any map with knights): every knight holds a sword in his hand, swings it, can be parried
+  and disarmed; killing the one by the door opens it as before; no knight ever takes up a gun lying about. {test:knights_e1m2}
+- [knightson] Toolgun (or a wave's armed knight with a gun): a knight or death knight with a shotgun or pistol: knock it out of
+  his hand: he picks up a gun again, with "Pick Up Ranged Weapons" off; one with a sword doesn't. {test:knight_guns}
 
 ## Heavy footsteps and the pack's rip: the real recordings (branch `agent/freesounds2`)
 
