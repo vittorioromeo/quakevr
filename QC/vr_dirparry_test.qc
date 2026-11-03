@@ -40,7 +40,7 @@
 //   the first meeting isn't the reference's);  32-34 a dog's bite (its lunge's line: the whole dog, pitching);  35-36 a
 //   knight's blow as it stands (no stroke in its frames: no line, the guard's, as a fish's bite, a leap landing): your
 //   fists: lands, no reading; your sword level across ahead: parried, no reading. Your weapon's place follows the monster
-//   (its charge varies from run to run). `scratch2 1` with Show Disarm Volumes on: a screenshot of the knight's and the ogre's lines on them.
+//   (its charge varies from run to run). `scratch2 1` with Show Disarm Volumes on: screenshots of the knight's and the ogre's lines on them.
 // Each `agtest: PASS|FAIL dirparry <case>: ...`; ends on `agtest: test 78 over: P passed, F failed`.
 // ----------------------------------------------------------------------------
 
@@ -486,6 +486,7 @@ void() VR_DRPT_BFrame =
         vr_drp_hand = -1;
         vr_parried = 0;
         vr_drpt_b_len = (k == 0 ? 11 : k < 3 ? 14 : k == 3 ? 15 : k == 4 ? 12 : k == 5 ? 8 : 1) * 0.1;
+        vr_drpt_shot = FALSE;
         vr_drpt_t0 = time;
         // (where its stroke goes, by its frames from now: the knight's and the fiend's after their first blows, the others' at it)
         vr_drpt_b_mark = time + (k == 0 ? 0.75 : k == 1 ? 0.45 : k == 2 ? 0.85 : k == 3 ? 0.55 : k == 4 ? 0.9 : k == 5 ? 0.31 : 0.01);
@@ -529,6 +530,12 @@ void() VR_DRPT_BFrame =
                 VR_AGT_Print(sprintf("%s, square (up) %.2f; reach %.1f, sweep %.0f, %g lines at its blow", lt, vr_drpt_b_sq_z,
                     vr_blow_more_x, vr_blow_more_z, vr_drpt_b_n));
             }
+        }
+        if((cvar_hget(cvarh_scratch2) > 0) && (k == 2) && (r == 0) && !vr_drpt_shot && (time - vr_drpt_t0 >= 1.05))
+        {
+            vr_drpt_shot = TRUE; // (its saw near still after its chop: the line against the drawn saw, a frame's lag no matter)
+            localcmd("screenshot\n");
+            VR_AGT_Print(sprintf("dirparryshot: %s, its saw at rest", VR_DRPT_BName(c)));
         }
         if(time - vr_drpt_t0 < vr_drpt_b_len)
         {

@@ -639,7 +639,8 @@ void(entity pl, entity g, float h) VR_DRP_Effects =
     vr_drp_fx_at = x;
 };
 
-// Show Disarm Volumes (StartFrame's player think): each monster near you whose frame now has a line: that line as drawn.
+// Show Disarm Volumes (StartFrame's player think): each monster near you whose frame now has a line: that line as drawn
+// (white; a second limb's yellow).
 void(entity pl) VR_DRP_ShowLines =
 {
     for(entity e = findradius(pl.origin, 300); e; e = e.chain)
@@ -650,7 +651,7 @@ void(entity pl) VR_DRP_ShowLines =
             for(float st = 0; st < n; st++)
             {
                 blowline(e, 0, st);
-                debugdisarm(e, VR_DV_DIR_BLADE, vr_blow_a, vr_blow_b, 0);
+                debugdisarm(e, st == 0 ? VR_DV_DIR_BLADE : VR_DV_DIR_WAY, vr_blow_a, vr_blow_b, 0); // (the second limb's: its own colour)
             }
         }
     }

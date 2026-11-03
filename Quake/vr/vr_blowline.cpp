@@ -76,6 +76,7 @@ struct Run
 {
     za::Vector<int> poses;
     bool analysed{false};
+    bool chained{true}; // the progs' chain's; else the dequantiser's, kept for its one pose: a chain read later replaces it
     Striker striker[2];
     int strikers{0};
 };
@@ -410,15 +411,16 @@ int runFor(ModelBlows& m, int frame, int then)
     {
         return -1;
     }
-    if(m.runOf[static_cast<za::SizeT>(pose)] >= 0)
+    int thenFrame = -1, thenNext = 0;
+    const bool chained = mdldequant::frameFunction(then, thenFrame, thenNext);
+    const int had = m.runOf[static_cast<za::SizeT>(pose)];
+    if(had >= 0 && (m.runs[static_cast<za::SizeT>(had)].chained || !chained))
     {
-        return m.runOf[static_cast<za::SizeT>(pose)];
+        return had;
     }
     za::Vector<int> ahead; // its frames after `frame`
     za::Vector<int> back;  // ... before it, nearest first
     const za::Vector<int>& before = chainTable();
-    int thenFrame = -1, thenNext = 0;
-    const bool chained = mdldequant::frameFunction(then, thenFrame, thenNext);
     int fn = then;
     int f = thenFrame, nx = thenNext;
     int last = frame;
@@ -470,6 +472,7 @@ int runFor(ModelBlows& m, int frame, int then)
     }
     else
     {
+        run.chained = false;
         int first = pose;
         for(int k = 0; k < maxRunFrames && m.prev[static_cast<za::SizeT>(first)] >= 0; k++)
         {
@@ -490,13 +493,14 @@ int runFor(ModelBlows& m, int frame, int then)
     for(za::SizeT k = 0; k < run.poses.size(); k++)
     {
         const za::SizeT q = static_cast<za::SizeT>(run.poses[k]);
-        if(m.runOf[q] < 0)
+        const bool free = m.runOf[q] < 0 || !m.runs[static_cast<za::SizeT>(m.runOf[q])].chained;
+        // (a frame played in two animations: the one it's first struck in)
+        if((run.chained && free) || static_cast<int>(q) == pose)
         {
             m.runOf[q] = index;
             m.placeIn[q] = static_cast<int>(k);
         }
     }
-    m.runOf[static_cast<za::SizeT>(pose)] = index; // (a frame played in two animations: the one it's first struck in)
     m.runs.pushBack(static_cast<Run&&>(run));
     analyse(m, m.runs.back());
     return index;
