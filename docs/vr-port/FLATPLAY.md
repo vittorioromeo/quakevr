@@ -86,6 +86,9 @@ console.
 | `1` | cycles the **left** hand's weapon through the weapons collected |
 | `2` | cycles the **right** hand's weapon |
 | `V` | a punch with the right hand: a real motion of the hand (wound up, thrown, drawn back), so the game's own melee rules decide whether it lands. `vr_flat_punch [main\|off]` drives either hand's punch from the console. A weapon that no swing strikes with never punches from its fire button — the chainsaw's trigger runs its chain, a gun's fires (the mode's own weapon set: `punchesWith`, `vr_flatplay.cpp`); `V` is the hand's punch whatever it holds, as it was. A hand that already started a punch this very frame is joined by the other only when both hands hold a swinging weapon |
+| Left Ctrl | crouches while it is held, stands up as it is let go; `+flatcrouch` and `-flatcrouch` hold and release the same from the console (see Crouching below). Right Ctrl is the same key to the engine (`K_CTRL`: `Quake/in_sdl.c`) |
+| `F` | switches the flashlight: the engine's own `vr_flashlight_toggle`; put out, it stays out (a level change and a saved game included) |
+| `G` | lets go of what a hand holds, the main hand first and the off hand after (`impulse 47` → `VR_Forcegrab_FlatDrop`, `QC/vr_wpnforcegrab.qc`): a weapon out of the hand the way the game drops one, a box or a prop carried in it let go at his feet (physics again, free to take again); carried in both hands, one press frees both |
 
 `1` and `2` go through the existing weapon cycling (`CycleWeaponCommand`, the controller's B and Y); `getWeaponCycleMode`
 In this mode the cycle (1, 2 and the mouse wheel) also stops at the empty hand (the fist), both directions; VR cycling is unchanged.
@@ -97,14 +100,34 @@ weapon select.
 while the mode runs. The game's hold checks ask for that bit (`VRWeaponLetGo` in `QC/weapons.qc`, the carried thing's
 upkeep in `QC/vr_carry.qc`), and with an open hand everything a flatscreen player is given leaves the hand on the frame
 it arrives in. With it, what the mode puts in a hand stays there: `E` takes, `1` and `2` move weapons between the hands,
-and a hand lets go of nothing by itself (the mode has no key for letting go).
+and a hand lets go of nothing by itself (`G` is the key for letting go).
 
 **No reloading.** `VRIsWeaponReloadingEnabled` (`QC/vr_util.qc`) is off: a magazine is refilled from the reserve as it
 empties, with no handling step.
 
-**The flashlight is worn and always lit.** `vr_flashlight`'s "Always on Head" behaviour (`vr_flashlight 2`) is what the
-mode stands in for: `enabled()` and `headMode()` in `Quake/vr/vr_flashlight.cpp` answer as they do for it. There is no
-belt to reach for on the screen.
+**A box grabbed with `E` is taken at once.** `VR_Carry_AutoCollect` (`QC/vr_carry.qc`) follows `vr_carry_autocollect`, the
+menu's Item Pickup Mode; for a player in the mode it counts as at least 1 — mode 1's collectable set, ammo and health
+(backpacks are mode 2's) — whatever he has saved, since there is no hand-to-hand step on the screen to confirm a pickup. The
+cvar itself is never written, so a headset player on the same save keeps what he set.
+
+**Crouching (Left Ctrl).** `pollKeysFlat` (`Quake/vr/vr_flatplay.cpp`) reads Left Ctrl with `E`, `F` and `G` and eases one
+number from 0 to 1 over `vr_flat_crouch_time`; `+flatcrouch` and `-flatcrouch` hold and release it from the console. That
+number stands for `vr_flat_crouch_drop` units: `VR_FlatViewDrop` takes them off `r_refdef.vieworg` (`Quake/view.c`), and
+`placeFlat` (`Quake/vr/vr_hands.cpp`) puts the head it poses, and `headHeight` with it, down the same, so the drawn body
+follows the view. The pose's head goes over the move wire as any other head does, and the game's own crouching does the
+rest: `hull::updateCrouch` (`Quake/vr/vr_hull.cpp`) chooses a crouched box for the eyes' new height (36 at the default 18,
+out of `vr_crouch_height` and `vr_crouch_step`), the CROUCHED bit (23 of `vrBits0`) arrives as it does for a headset player
+who crouches, and `crouchSpeedMax` slows him as it slows him there. Nothing is added to the move wire, and nothing new
+collides: a crouch is not a jump. `.vr_stand` — how upright the game thinks he is, read by `QC/vr_kdtrig.qc` — is worked out
+from the same numbers in `Quake/vr/vr_server.cpp`: 1 while he stands, less as he comes down (a headset player's value is
+computed as it was). Outside the mode nothing moves: `crouchDrop()` answers 0 and `VR_FlatViewDrop` returns at once.
+
+**The flashlight is worn on the head, and `F` switches it.** `vr_flashlight`'s "Always on Head" behaviour (`vr_flashlight 2`)
+is what the mode stands in for: `enabled()` and `headMode()` in `Quake/vr/vr_flashlight.cpp` answer as they do for it. There
+is no belt to reach for on the screen: the torch is worn at the temple and lit at a fresh start (`reset`). `F` sends the
+engine's own `vr_flashlight_toggle`, and in the mode the state the engine saves each frame is left as it is when a game is
+restored (`restoreState`): a torch put out with `F` stays out, over a level change. A headset game is as it was — its
+restored state still forces the head-worn torch lit.
 
 **The body presses the buttons it walks into.** `Quake/vr/vr_physics.cpp` lets a flatscreen player's body do the hand
 touch it does for an untracked player, whatever `vr_body_interactions` says.
@@ -126,6 +149,6 @@ hands, its flashlight, its keys).
 far a drawn hand may sit from its arm's shoulder, times what that arm can hold a hand at (`armSpan`: the model's bones
 with `vr_body_arm_length` and `vr_body_arm_stretch`, the shoulder's own `vr_body_shoulder_reach`; 0: no limit, the hands
 where they are placed). `vr_flat_pose_pitch` is how far the hands follow the view up and down, in degrees (90: all the
-way, as before). The looks' own numbers are named constants at the top of `vr_flatplay.cpp` too. The pose's own
-numbers (where a hand sits, how far a punch throws the fist, how long it takes) are named constants at the top of
-`vr_flatplay.cpp`.
+way, as before). `vr_flat_crouch_time` (0.25) and `vr_flat_crouch_drop` (18), also not saved, are at the console, and
+`vr_flatplay_status` prints them with what the keys did. The looks' own numbers and the pose's own numbers (where a hand
+sits, how far a punch throws the fist, how long it takes) are named constants at the top of `vr_flatplay.cpp`.

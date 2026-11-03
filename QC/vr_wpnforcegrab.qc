@@ -371,6 +371,53 @@ void() VR_Forcegrab_FlatGrab =
     VR_Forcegrab_SetPulled(xHand, g);
 };
 
+// Flatscreen play (-flatscreenmode): G. What `xHand` holds goes down, TRUE if it held something. A weapon: the game's own
+// path of a hand losing one (VRTryHandOff first, so a weapon held in both hands goes to the other hand; else
+// DropWeaponInHand, vr_wpnholster.qc — the hand empty, his ammo as it was). A box or a prop carried in the hand: let go of
+// as VR_Carry_HandFrame lets go of what it lost (VR_Hand_Release, VR_Carry_Loose) — physics again at his feet, free to
+// take again; held in both hands, one press lets go of both hands (it is too heavy for one). An empty hand drops nothing.
+float(float xHand) VR_Forcegrab_FlatDropHand =
+{
+    if(!VRIsHandWeaponless(self, xHand))
+    {
+        float wid = VRGetEntWeapon(self, xHand);
+        float flags = VRGetEntWeaponFlags(self, xHand);
+        if(!VRTryHandOff(self, xHand, wid, flags))
+        {
+            DropWeaponInHand(self, xHand, wid, flags);
+        }
+        VRHandStopFiring(self, xHand);
+        dprint(sprintf("flat drop: weapon %g out of hand %g\n", wid, xHand));
+        return TRUE;
+    }
+
+    entity box = VR_Carry_Held(self, xHand);
+    if(box == world)
+    {
+        return FALSE;
+    }
+    float other = VRGetOtherHand(xHand);
+    if(box.carry_2h && box == VR_Carry_Held(self, other))
+    {
+        VR_Hand_Release(self, other, "drop");
+    }
+    VR_Hand_Release(self, xHand, "drop");
+    VR_Carry_Loose(box);
+    dprint(sprintf("flat drop: %s let go by hand %g%s\n", box.classname, xHand, box.carry_2h ? " (it was held in both)" : ""));
+    return TRUE;
+};
+
+// One press, one thing: the main hand first, then the off hand (his words 2026-11-02: "main hand first, off hand second").
+// What a hand holds as its own work — a grapple, a foe grabbed, a ragdoll's limb held — is not dropped by it; the
+// flashlight worn on the head (flat play wears it: vr_flashlight.cpp's head mode) is F's, not G's.
+void() VR_Forcegrab_FlatDrop =
+{
+    if(!VR_Forcegrab_FlatDropHand(cVR_MainHand) && !VR_Forcegrab_FlatDropHand(cVR_OffHand))
+    {
+        dprint("flat drop: neither hand holds anything\n");
+    }
+};
+
 // Whether the hand closes in time: empty, gripping, and the grip pressed at most
 // vr_forcegrab_catch_early seconds before `xArrive`.
 float(entity xPlayer, float xHand, float xArrive) VR_Forcegrab_CanCatch =
