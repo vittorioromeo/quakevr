@@ -548,7 +548,12 @@ void() VR_AGIT_Frame =
     float dropped = vr_agit_drop_at > 0;
     float hard = g.vr_ag_fall_hit >= most;
     localcmd("-grabmain\n");
-    if(c >= VR_AGIT_PRESS)
+    if(c == VR_AGIT_PRESS_WALL && !vr_agit_held)
+    {
+        // (The mock hand doesn't get a grip on a body slumped at a wall: not a result either way.)
+        VR_AGT_Print(sprintf("impact %s: NOT RUN, no grip (health %g to %g)", VR_AGIT_Name(c), vr_agit_health, g.health));
+    }
+    else if(c >= VR_AGIT_PRESS)
     {
         VR_AGT_Check(sprintf("impact %s: %s; hardest impact %.1f m/s, health %g to %g, %g impacts dealt, held %g:", VR_AGIT_Name(c),
             dropped ? "dropped" : "kept", g.vr_ag_fall_hit / u, vr_agit_health, g.health, vr_rimp_dealt - vr_agit_dealt, vr_agit_held),
