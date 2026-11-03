@@ -6758,6 +6758,16 @@ grid's read by 1.9 (0..255), off the floor's by 38.5. `vr_model_light_grid_info`
 drawn, the floor's (e1m7 on a ledge over the lava: baked 130, with liquids 162 138 132; over the lava 108 -> 226 138 117; e2m6
 start floor 71, grid 67).
 
+**Cost.** A point read 1-1.5 us with its lines (no-LTO), 0.008 us from the frame's cache. Interleaved LTO runs (`benchresults/lightgrid2_*`,
+A base, B this branch, 90 Hz paced, 1 rep x 6: three of the six disturbed by other work, frame p50 27-29 ms or busy averages off, so
+only the quiet ones count): `crowd32_armed` CPU busy p50 A 6.09, B 6.15, 6.02; `particles_dense` (smoke, blood) A 3.54, 3.47, B 3.47,
+3.63; its `vr particles` phase A 0.98-1.05, B 0.89-0.96 ms. No cost that shows; not a clean bench. Build: vrstart cold 2174 ms (no lit liquids,
+2203 before), e1m7 20 ms LTO. **Over the read budget** a new particle takes the latest read, not Quake's full light for a frame.
+
+**Scenes.** `light_grid_lava`, `light_grid_dark` (checklist Test buttons).
+
+**Not run:** coils and ropes on screen (their `worldLight` is the two-line swap; `lightPoint` is what the test checks). No VR.
+
 ## Strike keys: times and in-betweens (agent/posekeys)
 
 - **What.** In the Pose Studio a strike's keys have times and can be added: the Phase slider is replaced by the Key
