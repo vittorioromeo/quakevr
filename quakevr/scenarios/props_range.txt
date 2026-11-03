@@ -3,6 +3,7 @@ title Props to grab and shoot: a crate, a box, a wall torch, guns on the floor, 
 map vrtesthall
 god
 notarget
+give "Crowbar" main
 spawn "Wooden Crate" 60 40
 spawn "Wall Torch" 50 0
 spawn "Nail Pistol" 40 -60

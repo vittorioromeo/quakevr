@@ -3,7 +3,6 @@ title Worn backpacks: calm packed grunts, one with its back to you; a shotgun in
 map vrtesthall
 god
 notarget
-cvar vr_worn_backpack_pull 0
 give "Shotgun" main
 spawn "Armed Grunt: Shotgun" 70 0 0 0
 spawn "Armed Grunt: Nailgun" 200 80

@@ -1,91 +1,40 @@
-# Quake VR playtest checklist (VR menu > Checklist). One line = one quick check; tick what works, tell me what doesn't.
+# Quake VR playtest checklist (VR menu > Checklist). One line = one thing to try: what to do and what to look for; tick what works, tell me what doesn't.
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired (their marks stay in checklist_ticks.txt); older items are in git history.
 # Sections run in test order: newest and most important first, dev tools last. A line's text is the key of its tick: reword a line and it is untested again.
 # A line ending in {test:<id>} has a Test button: it loads quakevr/scenarios/<id>.txt's scene (docs/vr-port/TESTING.md, "Checklist scenarios"); give new lines one whenever a scene fits.
-# Lines are only for something new or changed you can see or feel: one line per feature, never "works as before" (2026-11-01 streamline: 292 lines, 151 of them ticked and retired, down to 63).
+# Lines are only for something new or changed you can see or feel: one line per feature or flow, never "works as before" (2026-11-03 coalesce: 103 lines down to 37, 25 of them retired as ticked, 35 with a Test button).
 
 [Failed: waiting for your answer]
 
 [0. Flatscreen play (-flatscreenmode)]
-the crouch key is only the crouch in flatscreen play: CTRL is taken over for +flatcrouch while the mode runs and the plain CTRL +attack is restored whenever it is not and before every config write, so a headset run and ironwail.cfg keep it as it was (bindlist reads CTRL "+flatcrouch" in flatscreen, CTRL "+attack" outside it; vr_flat_crouch_fire 1 gives the old both-ways behaviour back) {test:vr_flat_crouch_fire}
-the flatscreen look has its own window: vr_flat_pitch_up 85 and vr_flat_pitch_down 85 (both 0..90, written as positive degrees) clamp the pitch at CL_AccumulateCmd, measured pinned at -85/+85, at 0/+20 when set from the console, at -90/+90 with both at 90, while a plain run still reaches both extremes {test:vr_flat_pitch_up}
-the ironsight now narrows the view with the weapon instead of at the press: vr_flat_aim_time (0.25 s, 0.05..1.00, 0 = at once) drives vr_flat_aim_fov's degrees through the same fraction the hand travels, measured 18 frames each way at the default, 106.3 -> 94.4 in 4 frames at 0.05, still travelling 60 frames after the press at 1.00; a slider sits beside the field-of-view one {test:vr_flat_aim_time}
-Flatscreen, standing: standing counts as standing. The crouched box follows Left Ctrl rather than his eyes' height (vr_hull's crouch update is asked with the key now): held he is crouched and walks at Crouched Speed 0.75x, let go he is back in his standing box at his full speed (Flat Keys' crouch case measures it as crouched 0 standing, 1 held, 0 let go, eyes 47 down to 29 and back to 47; the headset's own crouch speeds measured unchanged: 240 crouched, 320 standing). Letting go under a low ceiling gives him the tallest crouched box that fits there instead of standing up into the brush
-Flatscreen: the mouse wheel's button (vr_flat_aim 1 / 0 / toggle in the console) aims down the sights: the view narrows by Flatscreen Ironsight Field of View 12 (vr_flat_aim_fov; 0 leaves it as wide as it was) and the gun swings onto the crosshair in about a fifth of a second and stays there while you turn, so a shot fired with it on lands where the crosshair points (measured: the muzzle 6.4 units off the crosshair's ray, 0.3 after the move)
-Flatscreen, a gun in one hand and the other hand empty: the empty hand is carried onto that gun's own two-handed grip when the grip stands in front of the holding hand (the rocket launcher's, the grenade and proximity launchers'), and vr_flatplay_status prints it as the off hand on its grip hotspot. Where the grip stands behind the held hand (the shotgun's, the nail gun's, the lightning gun's, the super shotgun's) the empty hand stays on the mode's support pose instead of folding onto the gun, and the status line prints the measure that choice rests on. Dual wielding is posed exactly as it was
-Flatscreen: the ironsight is refused where there is nothing to align (a melee weapon, dual wielding) and vr_flat_aim in a headset answers that flatscreen play is not running; nothing about the two-handed hold or the field of view changed for a headset player
-Flatscreen: Left Ctrl crouches while you hold it and you stand back up when you let go (vr_flat_crouch_time 0.25 for the move, vr_flat_crouch_drop 18 for how far your eyes come down; Debug > Tests > Flat Keys runs all four of these headless)
-Flatscreen: F switches the head torch: out and packed away, then lit and worn again. In a headset nothing about the torch changed
-Flatscreen: G drops what your hands hold, main hand first, off hand second (a weapon on the floor, a box or prop let go, "flat drop:" on the console). In a headset G still does what it did
-Flatscreen: an ammo or health box grabbed with E is taken at once, so you keep moving; a worn pack is still worn by its own cue. the Auto-Collect row stays the headset player's own setting
-Flatscreen (-flatscreenmode): an axe in the main hand, LMB swings it and the foe in front takes the blow; RMB does the same for the off hand; V still punches
-Flatscreen melee: a gun's fire button is its own shot and a chainsaw's trigger only runs its chain — neither one swings; a hand that already swung is not disturbed by the other hand's button unless both hold a swinging weapon
-Flatscreen: the drawn hands stay on their arms through a punch, a knock and when you look straight up (Flatscreen Arm Hold 1; 0 puts them back where they were placed)
-Flatscreen: Flatscreen Hand Pitch 65 keeps the hands inside the arc the arms sweep when you look up or down (90: all the way, as before)
-Flatscreen: Debug > Flatplay Punch, or vr_flat_punch main/off in the console, swings from the keyboard; in a headset it answers that flatscreen play is not running
-
-[1. Armed humanoids: fighting them]
-Strike a sword grunt's blade (away from its hand) while it hasn't seen you: sparks, no disarm, and it turns on you.
-Rig Studio / Pose Studio: a "Cast (shared)" pose next to Pickup, editable on the rifle, with Make Override per class; set its look (the default is a rough guess).
-Arcane Dimensions (unverified in tests): plain grunts, enforcers, knights and death knights are armed; AD's rocket/grenade/plasma soldiers and point knights are not.
-AD: kill a cleaver hunter ogre and a death sergeant: both fall as ragdolls (no "got 0 vertices" in the console at startup), the weapon dropped beside them, the fist on the arm.
-Armed grunt knocked down: keeps its gun until it lands hard (no ledge/speed/fling let-go rules).
-
-Body > Step Rate changes the legs' steps at a full run: 3 slow, 7 fast, the number is steps per second.
-Body > Running Cadence 0: about the same step rate at any stick push.
-Body > Stride Length 1.5: longer strides, less foot slide, feet lift more at the stride's ends.
-Body > Step Width +0.15: feet walk wider apart.
-Your footsteps land with the drawn feet, from that foot, one sound per step; turning on the spot gives soft shuffles. About 5 steps a second at a run: too busy?
-Body > Footsteps on the Feet off: the old distance-based steps.
-Armed grunt down: a small push, walking into it or a gentle topple keeps its weapon; a fall, a throw into the floor or a wall drops it.
-Hold a downed armed grunt and swing it hard into a wall or the floor: it drops its weapon; swing it and reverse in mid-air: it keeps it. Do the speeds feel right near walls?
-A downed armed grunt flung low along the floor without hitting anything keeps its weapon.
-Arena, run hard with the stick: speed holds, no dips every few steps, the world goes by evenly. Debug > Tests "Game Time From the Display Clock" off to compare (this one is only tested on a headset: if motion feels wrong, say so).
-Stick about straight: you run exactly where you look; looking down doesn't slow you or bend a diagonal. Debug > Tests "Stick: Show Speed" shows the push angle and heading on the console.
-Stick page "Stick Straight Zone" (15 deg) and "Stick Full Push Hold" (0.4 s): letting go still stops at once; easing to a lower push from a full run slows after about 0.4 s.
-A loaded magazine ejected over the ammo pouch falls in and is collected, drawn going in; an empty one falls past.
-A shoulder charge that connects costs 35 stamina.
-Flashlight: with the grip already closed, the grace to grab it is shorter (0.39 s).
-No ghost hands while climbing (Ghost Hands: No Ghost Climbing).
-A thrown crate or barrel kills a grunt or pops what it hit, never a full gib; Quad, a war hammer's hardest blows and heavy counters still gib.
-Pulling a worn pack never takes it off: pull hard and the wearer is lifted by it, flailing, and can be carried and thrown; shots, blows, landings and gibbing still knock it off.
-Knights and death knights holding a gun wear a backpack on their upper back and can be lifted by it. Does the pack look right on them?
-Grunts, knights and death knights with only a melee weapon or fists wear no pack and drop no backpack.
-An enforcer with a gun can be lifted by the pack on its back, which never comes off; with a sword or fists it can't.
-Ogres, fiends and shamblers: footsteps now layered from recordings: heavy, not artificial, loud enough in the headset?
-Worn pack coming off: stand-in rip, no fiend claw in it: does it read as fabric?
-Knock a dual wielder's left weapon out (a punch, a tug): the other stays in its hand, moving with it; it picks up another and holds both.
-Ogres with friends running ahead of them: they hold and strafe rather than lob or fire into a friend's back, and still attack.
-Ogres, fiends and shamblers: footsteps now cut from real recordings: heavy and not artificial, on the foot, and still easy to hear in the headset?
-Worn pack coming off (shot, blow, hard landing, gibbed, taken): a clear cloth rip, nothing like a fiend's swipe?
-Your settings are the defaults now (43 values and 7 barrel masks): tug, close quarters, fonts (no drop shadow, outline 1), gun heat and wisps, the pack's pose and volume; nothing should change for you.
-Heavy Feet Speed (Debug > Tunables > Combat > Enemy Footsteps) makes ogre, fiend and shambler steps deeper and longer or sharper and shorter, live as you drag it.
-Slow stick walking is much quieter than a run; adjust under Debug > Tunables > Body > Player Footsteps.
-Turning in the room or with the stick, or moving a little in the room: no footstep sounds.
-Debug > Tools > Arena Wave Editor: build a wave with an armed grunt, dual axes, red armour and infected with shambler; save it, assign it to Normal, then Play from wave 1. Is the panel readable, do the laser, stick scrolling and panel keys work?
-Toolgun > Spawn > Armed Humanoid > Infected With > Ogre: kill him; his weapon falls and he rises as an ogre.
-Worn Backpacks > Fit has a page each for grunts, knights and death knights; moving a slider moves only that kind's pack, at once.
-An enforcer holding a sword or nothing can be lifted by the pack on its back too.
-Lifting by the pack: does the body really come off the floor? (On the mock it barely rises: knights and death knights a few units, enforcers none.)
-Bending down to grab a lying grunt never hurts it, against the floor or a wall; a headbutt on a lying body lands only when your head reaches its body.
-A grunt shoved off a high ledge drops its weapon on landing, even if it wasn't knocked down; a low drop that doesn't hurt it keeps it.
-Armed humanoids' steps while firing now follow Retreat Readiness, Aggressiveness, their kind and your blade; expect them further back when you hold a melee weapon.
-A gun-and-axe holder up close stands and swings its axe rather than backing away firing.
-A super nailgun holder's last odd round is a single nail, with no console error.
-Revolver out: tilting it or a wrist flick drops nothing; a short push back along the bore throws the shells that way. Pulling it in to inspect at speed may eject: raise Eject Push Speed if so.
-Revolver out: a quick pull back with a shell in the other hand keeps the loaded shells in.
-Revolver: see through the empty chambers swung out; shells seat cleanly in them.
-Armour plate breaking on an armed enemy: a short metal crack from a recording, no longer the armour chime backwards. If it sounds wrong, name a runner-up (518731 or 875432).
-A knight's or death knight's gun stays with its body as it sidesteps and circles.
-A fiend, dog or spawn killed by a blast its own leap set off stays dead.
-Fresh settings, e1m4 (or any map with knights): every knight holds a sword in his hand, swings it, can be parried and disarmed; killing the one by the door opens it as before; no knight ever takes up a gun lying about. Map knights now roll armour by skill: do kills take too long?
-Toolgun (or a wave's armed knight with a gun): a knight or death knight with a shotgun or pistol: knock it out of his hand: he picks up a gun again, with "Pick Up Ranged Weapons" off; one with a sword doesn't.
-An armed grunt's Mjolnir swung from the far end of its reach, and a death knight's uppercut, now connect with you standing still instead of passing beside or over you; stepping back out of reach still makes them miss.
-Push a hand into a grunt's belly and grip, with both hands for a judo throw: it takes hold and stays held, with no instant "breaks free" shove, and doesn't take the pack behind it.
-Rig Studio: changing the subject leaves no backpack lying on the floor.
-A replaced grunt or enforcer, whatever it holds, drops what it holds and its backpack, never an extra weapon; a plain grunt or enforcer (`vr_agrunt_repl` 0) still sometimes does.
+Flatscreen crouch: hold Left Ctrl: your eyes come down (vr_flat_crouch_drop 18, in vr_flat_crouch_time 0.25 s) and you walk at Crouched Speed 0.75x; let go: you stand up at full speed, and under a low ceiling you keep the tallest crouched box that fits. Ctrl is only the crouch in this mode: bindlist reads CTRL "+flatcrouch" here and "+attack" in a headset run and in ironwail.cfg (vr_flat_crouch_fire 1: both at once, the old way). {test:flat_keys}
+Flatscreen look and hands: look all the way up and down with the mouse: it stops at 85 degrees each way (vr_flat_pitch_up, vr_flat_pitch_down, 0..90). The drawn hands stay on their arms, through a punch and a knock too (Flatscreen Arm Hold 1; 0: where they were placed), inside the arc the arms sweep (Flatscreen Hand Pitch 65; 90: all the way). {test:flat_melee}
+Flatscreen ironsight: a gun in hand, the mouse wheel's button (vr_flat_aim 1 / 0 / toggle): the gun swings onto the crosshair and the view narrows with it by Flatscreen Ironsight Field of View 12 (0: not at all), both in vr_flat_aim_time 0.25 s (its slider 0.05..1, 0 at once); it stays there while you turn and shots land on the crosshair. Take the axe or a second gun: refused. {test:flat_guns}
+Flatscreen, a gun in one hand, the other empty: with the rocket and grenade launchers (the proximity launcher too) the empty hand goes onto the gun's two-handed grip; with the shotgun, nailgun, lightning gun and super shotgun (the grip is behind the holding hand) it stays on the support pose. vr_flatplay_status prints which and why. Dual wielding is posed as it was. {test:flat_guns}
+Flatscreen keys: F: the head torch out and packed away, then lit and worn again. G: drops what your hands hold, main hand first, off hand second (a weapon on the floor, a box or prop let go, "flat drop:" on the console). E on an ammo or health box: taken at once, so you keep moving; a worn pack is still worn by its own cue, and the Auto-Collect row stays the headset player's own. {test:flat_keys}
+Flatscreen melee: an axe in each hand: LMB swings the main hand, RMB the off hand, and the foe in front takes the blow; V still punches, and so do Debug > Flatplay Punch and vr_flat_punch main/off. A hand that already swung is not disturbed by the other hand's button unless both hold a swinging weapon. Take the shotgun or the chainsaw: its button only shoots, the trigger only runs the chain; neither swings. {test:flat_melee}
+In a headset: vr_flat_aim and vr_flat_punch answer that flatscreen play is not running; G, the torch, the two-handed hold and the field of view are the headset's own, none of the above touches them. {test:flat_keys}
 Flat screen: go deep in a menu, click Back to game (top left), press ESC. The menu reopens on the same page, cursor and scroll. ESC then backs out page by page.
 
+[1. Armed humanoids: fighting them]
+Arcane Dimensions (unverified in tests): plain grunts, enforcers, knights and death knights are armed; AD's rocket/grenade/plasma soldiers and point knights are not. {test:ad_armed_mix}
+AD: kill a cleaver hunter ogre and a death sergeant: both fall as ragdolls (no "got 0 vertices" in the console at startup), the weapon dropped beside them, the fist on the arm. {test:ad_sergeant_ogre}
+Armed grunt knocked down: it keeps its gun until it lands hard. Hold a downed one and swing it hard into a wall or the floor: it drops it; swing it and reverse in mid-air, or fling it low along the floor hitting nothing: it keeps it. Do the speeds feel right near walls? {test:agrunt_fall}
+A grunt shoved off a high ledge drops its weapon on landing, even if it wasn't knocked down; a low drop that doesn't hurt it keeps it. {test:agrunt_ledge}
+Worn packs beyond the grunts: knights and death knights holding a gun (on the upper back) and enforcers holding anything: grip the pack and pull up: does the body really come off the floor (on the mock it barely rises: knights and death knights a few units, enforcers none), and does the pack look right on them? Worn Backpacks > Fit has a page each for grunts, knights and death knights; moving a slider moves only that kind's pack, at once. {test:worn_packs_kinds}
+Push a hand into a grunt's belly and grip, with both hands for a judo throw: it takes hold and stays held, with no instant "breaks free" shove, and doesn't take the pack behind it. {test:punch_grunts}
+Bending down to grab a lying grunt never hurts it, against the floor or a wall; a headbutt on a lying body lands only when your head reaches its body. {test:grunts_to_throw}
+Armed humanoids fighting: their steps while firing follow Retreat Readiness, Aggressiveness, their kind and your blade: expect them further back when you hold a melee weapon (the axe at your feet). A gun-and-axe holder up close stands and swings its axe rather than backing away firing. {test:agrunt_mix}
+An armed grunt's Mjolnir swung from the far end of its reach, and a death knight's uppercut, now connect with you standing still instead of passing beside or over you; stepping back out of reach still makes them miss. {test:agrunt_reach}
+A super nailgun holder's last odd round is a single nail, with no console error. {test:agrunt_ammo}
+Knights and death knights with a gun (a shotgun or pistol, also from the toolgun or a wave): the gun stays with the body as it sidesteps and circles. Knock it out of his hand: he picks up a gun again, with "Pick Up Ranged Weapons" off; one with a sword doesn't. {test:knight_guns}
+Fresh settings, e1m4 (or any map with knights): every knight holds a sword in his hand, swings it, can be parried and disarmed; killing the one by the door opens it as before; no knight ever takes up a gun lying about. Map knights now roll armour by skill: do kills take too long? {test:knights_e1m4}
+Armour plate breaking on an armed enemy: a short metal crack from a recording, no longer the armour chime backwards. If it sounds wrong, name a runner-up (518731 or 875432). {test:agarmor_plates}
+A replaced grunt or enforcer, whatever it holds, drops what it holds and its backpack, never an extra weapon; a plain grunt or enforcer (`vr_agrunt_repl` 0) still sometimes does. {test:agrunt_repl_map}
+Toolgun > Spawn > Armed Humanoid > Infected With > Ogre: kill him; his weapon falls and he rises as an ogre. {test:toolgun_armed}
+Debug > Tools > Arena Wave Editor: build a wave with an armed grunt, dual axes, red armour and infected with shambler; save it, assign it to Normal, then Play from wave 1. Is the panel readable, do the laser, stick scrolling and panel keys work? {test:vrarena_calm}
+Rig Studio: changing the subject leaves no backpack lying on the floor. {test:agrunt_pose_studio}
+A fiend, dog or spawn killed by a blast its own leap set off stays dead. {test:leap_blast}
 
 [3. Bodies: grabbing, throwing, hits]
 Neck snap standing and on a lifted body: it goes limp, still held. Leg grabs: pull one down by the shins, drag it by the legs, lift it by the legs. {test:grunts_to_throw}
@@ -96,8 +45,10 @@ A crowbar on an explosive box now knocks (blunt) instead of clanging: right, or 
 The arena is nice: play it, feels good? Note improvements. {test:arena_run}
 
 [5. Moving, weapons and the world]
-Autosaves: Load Autosave (main, pause and death menus) lists this game's autosaves newest first; none is made while monsters are on you or your health is low.
-An enemy's lava nail sets you on fire.
+Run hard with the stick (and in the arena if you like): speed holds, no dips every few steps, the world goes by evenly (Debug > Tests "Game Time From the Display Clock" off to compare; only tested on a headset: if motion feels wrong, say so). Stick about straight: you run exactly where you look; looking down doesn't slow you or bend a diagonal (Debug > Tests "Stick: Show Speed" shows the push angle and heading). Stick page "Stick Straight Zone" (15 deg) and "Stick Full Push Hold" (0.4 s): letting go still stops at once; easing to a lower push from a full run slows after about 0.4 s. {test:stick_run}
+Your footsteps: slow stick walking is much quieter than a run (adjust under Debug > Tunables > Body > Player Footsteps); turning in the room or with the stick, or moving a little in the room: no footstep sounds. {test:stick_run}
+Revolver out: tilting it or a wrist flick drops nothing; a short push back along the bore throws the shells that way (pulling it in to inspect at speed may eject: raise Eject Push Speed if so); a quick pull back with a shell in the other hand keeps the loaded shells in. See through the empty chambers swung out; shells seat cleanly in them. {test:revolver}
+Autosaves: Load Autosave (main, pause and death menus) lists this game's autosaves newest first; none is made while monsters are on you or your health is low. {test:autosave_e1m1}
+An enemy's lava nail sets you on fire. {test:burn_lava_nail}
 Moving water (a current) is water everywhere: blood drifts and splashes in it; looking at or near the sky never counts as being in water.
-Disable Haptics on: bullet time's pulse and the gadget's gear-light buttons don't buzz.
-
+Disable Haptics on: bullet time's pulse and the gadget's gear-light buttons don't buzz. {test:no_haptics}

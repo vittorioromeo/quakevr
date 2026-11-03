@@ -1,0 +1,8 @@
+# agrunt_reach: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Long reach blows at a player standing still: real damage, plenty of health, so a hit shows.
+title A Mjolnir grunt and a death knight coming at you, hands empty, 500 health
+map vrtesthall
+health 500
+cvar vr_agdknight 1
+spawnarmed monster_vr_grunt 3 0 300 60
+spawnarmed monster_vr_hknight 0 0 400 -60
+hint Stand still: the Mjolnir from the far end of its reach and the death knight's uppercut hit you. Step back: they miss.
