@@ -188,8 +188,19 @@ struct CrowbarOn
     float u, v;
 };
 za::Vector<CrowbarOn> crowbars;
-// A flare gun lying on a crate's top (vr_crate_flaregun): as a crowbar's, on a top with no crowbar (QC vr_flaregun.qc).
+// A flare gun lying on a top (vr_crate_flaregun): as a crowbar's (QC vr_flaregun.qc); a crate may have both.
 za::Vector<CrowbarOn> flareGuns;
+
+// The crowbar just laid on a crate with both (putCrowbar: the crowbar first, then the flare gun beside it): the side of
+// the top it takes.
+struct SharedTop
+{
+    int crate{-1};
+    bool alongLeft{false}; // which of the top's axes the two lie apart along (else its forward)
+    float side{1.f};       // the crowbar's end of it
+    float span{0.f};       // its width across it
+};
+SharedTop sharedTop;
 
 // The last plan, kept for its key (debris::PlanKey: the map, the settings, the entities) for the session
 // (vr_place_keep): a restart of the map plans the same crates. Another game directory drops it.
@@ -255,9 +266,10 @@ void planCrowbars(uint64_t seed)
     }
 }
 
-// Rolls the flare guns on the crates' tops (after the crowbars): each top with nothing on it at vr_crate_flaregun's
-// chance, at most vr_crate_flaregun_max; a random way and place, as the crowbars'. Its own random numbers (from the
-// map's name and vr_crates_seed): the crates and the crowbars are the same whatever its chance.
+// Rolls the flare guns on the tops: each top (a crate with none on it) at vr_crate_flaregun's chance, at most
+// vr_crate_flaregun_max, whether or not a crowbar lies there (the two rolls are apart: both may pass); a random way and
+// place, as the crowbars'. Its own random numbers (from the map's name and vr_crates_seed): the crates and the crowbars
+// are the same whatever its chance.
 void planFlareGuns(uint64_t seed)
 {
     flareGuns.clear();
@@ -268,24 +280,21 @@ void planFlareGuns(uint64_t seed)
         return;
     }
     Rng rng{seed ^ 0xBB67AE8584CAA73Bull};
-    za::Vector<bool> taken(placements.size(), false);
+    za::Vector<bool> covered(placements.size(), false);
     for(const Placement& p : placements)
     {
         if(p.below >= 0)
         {
-            taken[static_cast<size_t>(p.below)] = true;
+            covered[static_cast<size_t>(p.below)] = true;
         }
-    }
-    for(const CrowbarOn& c : crowbars)
-    {
-        taken[static_cast<size_t>(c.crate)] = true;
     }
     for(size_t i = 0; i < placements.size() && static_cast<int>(flareGuns.size()) < most; i++)
     {
-        // (Not on a barrel's round top, nor on a crate standing on a barrel: as the crowbars.)
-        const int under = placements[i].below;
-        if(taken[i] || placements[i].model == barrelModel || (under >= 0 && placements[static_cast<size_t>(under)].model == barrelModel) ||
-           rng.uniform() >= chance)
+        // (A barrel's flat head: an upright one's, not a lying one's round side. Not on anything standing on a barrel: as
+        // the crowbars, its weight off the middle tipped it.)
+        const Placement& p = placements[i];
+        const bool lying = p.model == barrelModel && za::abs(p.o.axes[2].z) < 0.5f;
+        if(covered[i] || lying || (p.below >= 0 && placements[static_cast<size_t>(p.below)].model == barrelModel) || rng.uniform() >= chance)
         {
             continue;
         }
@@ -990,10 +999,10 @@ int plan()
             leastClear = za::min(leastClear, p.clearance);
         }
         Con_Printf("crates: %s: %d crates (%d large, %d barrels, %d of them lying, %d stacked on another, %d of those a barrel "
-                   "and a crate; %d in corners; %d crowbars on them) from %d spots, %d rolled; limit %d; least clearance %.0f "
-                   "units; %.1f ms; layout %08x\n",
+                   "and a crate; %d in corners; %d crowbars and %d flare guns on them) from %d spots, %d rolled; limit %d; least "
+                   "clearance %.0f units; %.1f ms; layout %08x\n",
             sv.name, static_cast<int>(placements.size()), large, barrels, lying, stacks, mixed, corners,
-            static_cast<int>(crowbars.size()),
+            static_cast<int>(crowbars.size()), static_cast<int>(flareGuns.size()),
             static_cast<int>(spots.size()), rolled, most,
             placements.empty() ? 0.f : leastClear, (Sys_DoubleTime() - t0) * 1000.0, layoutHash());
         if(vr_debug_crates.value >= 1)
@@ -1010,6 +1019,11 @@ int plan()
             for(const CrowbarOn& c : crowbars)
             {
                 Con_Printf("crates: a crowbar on crate %d (yaw %.0f, place %.2f %.2f)\n", c.crate, c.yaw, c.u, c.v);
+            }
+            for(const CrowbarOn& c : flareGuns)
+            {
+                Con_Printf("crates: a flare gun on %s %d (yaw %.0f, place %.2f %.2f)\n",
+                    placements[static_cast<size_t>(c.crate)].model == barrelModel ? "barrel" : "crate", c.crate, c.yaw, c.u, c.v);
             }
         }
         if(vr_debug_crates.value >= 2)
@@ -1098,20 +1112,32 @@ int put(edict_t* e, int i)
     return models[p.model].kind;
 }
 
-bool putCrowbar(edict_t* e, int i)
+bool putCrowbar(edict_t* e, int i, TopItem what)
 {
-    // (A crowbar's or a flare gun's: a crate has one or none.)
-    const auto onCrate = [i](const CrowbarOn& c) { return c.crate == i; };
-    auto it = za::findIf(crowbars.begin(), crowbars.end(), onCrate);
-    const bool found = it != crowbars.end() || (it = za::findIf(flareGuns.begin(), flareGuns.end(), onCrate)) != flareGuns.end();
+    const za::Vector<CrowbarOn>& list = what == TopCrowbar ? crowbars : flareGuns;
+    const auto it = za::findIf(list.begin(), list.end(), [i](const CrowbarOn& c) { return c.crate == i; });
     const int index = static_cast<int>(e->v.modelindex);
     const qmodel_t* model = index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
-    if(!found || !model)
+    if(it == list.end() || !model)
     {
         return false;
     }
     const CrowbarOn& c = *it;
     const Placement& p = placements[static_cast<size_t>(c.crate)];
+    // A crate with both: the two square to the top, apart along one of its axes; the crowbar at one end of it (below), the
+    // flare gun in what the crowbar left at the other.
+    const bool both = hasCrowbar(i) && hasFlareGun(i);
+    constexpr float apart = 1.f; // units between them at least
+    float halfF = p.o.hf, halfL = p.o.hl, midF = 0.f, midL = 0.f;
+    const bool beside = what == TopFlareGun && both && sharedTop.crate == i;
+    if(beside)
+    {
+        float& half = sharedTop.alongLeft ? halfL : halfF;
+        float& mid = sharedTop.alongLeft ? midL : midF;
+        const float left = za::max(0.f, half * 2.f - sharedTop.span - apart);
+        mid = -sharedTop.side * (half - left * 0.5f);
+        half = left * 0.5f;
+    }
     // Its box as drawn (the weapon's scaling), in its axes from its origin.
     const progs::FieldOffsets& f = fields();
     glm::vec3 lo, hi;
@@ -1126,7 +1152,8 @@ bool putCrowbar(edict_t* e, int i)
     Fit best{};
     for(int k = 0; k < 2; k++)
     {
-        const float yaw = za::fmod(c.yaw + 90.f * static_cast<float>(k), 360.f);
+        const float squared = p.o.yaw + (c.yaw >= 180.f ? 180.f : 0.f); // (its random way: either end first)
+        const float yaw = za::fmod((both ? squared : c.yaw) + 90.f * static_cast<float>(k), 360.f);
         const float angles[3] = {0.f, yaw, 90.f};
         const glm::mat3 axes = held::axesFromAngles(angles, false);
         Fit fit{yaw, 1e9f, -1e9f, 1e9f, -1e9f, 1e9f, 0.f};
@@ -1140,17 +1167,34 @@ bool putCrowbar(edict_t* e, int i)
             fit.lHi = za::max(fit.lHi, lf);
             fit.zLo = za::min(fit.zLo, w.z);
         }
-        fit.over = za::max(0.f, (fit.fHi - fit.fLo) * 0.5f - p.o.hf) + za::max(0.f, (fit.lHi - fit.lLo) * 0.5f - p.o.hl);
+        fit.over = za::max(0.f, (fit.fHi - fit.fLo) * 0.5f - halfF) + za::max(0.f, (fit.lHi - fit.lLo) * 0.5f - halfL);
         if(k == 0 || fit.over < best.over - 0.01f)
         {
             best = fit;
         }
     }
     // Somewhere on the top it stays within (the plan's u, v of the room left; none left: in the middle).
-    const float roomF = za::max(0.f, p.o.hf - (best.fHi - best.fLo) * 0.5f);
-    const float roomL = za::max(0.f, p.o.hl - (best.lHi - best.lLo) * 0.5f);
-    const float atF = c.u * roomF * 0.9f - (best.fLo + best.fHi) * 0.5f;
-    const float atL = c.v * roomL * 0.9f - (best.lLo + best.lHi) * 0.5f;
+    const float spanF = best.fHi - best.fLo, spanL = best.lHi - best.lLo;
+    const float roomF = za::max(0.f, halfF - spanF * 0.5f);
+    const float roomL = za::max(0.f, halfL - spanL * 0.5f);
+    // (A barrel: in the middle of its round head. Near its edge one ended up on the floor, e4m2's barrel 1; in the middle none.)
+    const float jitter = p.model == barrelModel ? 0.f : 0.9f;
+    float placeF = midF + c.u * roomF * jitter, placeL = midL + c.v * roomL * jitter;
+    if(beside && (sharedTop.alongLeft ? spanL > halfL * 2.f : spanF > halfF * 2.f))
+    {
+        return false; // no room beside the crowbar: it stays out rather than lie on it
+    }
+    if(what == TopCrowbar && both)
+    {
+        // To one end of the axis with the more room across it, which the flare gun then has.
+        sharedTop.crate = i;
+        sharedTop.alongLeft = roomL >= roomF;
+        sharedTop.side = (sharedTop.alongLeft ? c.v : c.u) >= 0.f ? 1.f : -1.f;
+        sharedTop.span = sharedTop.alongLeft ? spanL : spanF;
+        (sharedTop.alongLeft ? placeL : placeF) = sharedTop.side * (sharedTop.alongLeft ? roomL : roomF);
+    }
+    const float atF = placeF - (best.fLo + best.fHi) * 0.5f;
+    const float atL = placeL - (best.lLo + best.lHi) * 0.5f;
     const float topZ = p.centre.z + p.o.hu;
     const glm::vec3 origin = glm::vec3{p.centre.x, p.centre.y, topZ + 0.25f - best.zLo} + p.o.fwd * atF + p.o.left * atL;
     for(int k = 0; k < 3; k++)
@@ -1165,9 +1209,11 @@ bool putCrowbar(edict_t* e, int i)
     SV_LinkEdict(e, false);
     if(vr_debug_crates.value)
     {
-        Con_Printf("crates: a %s on crate %d: %.1f x %.1f units lying at yaw %.0f on its %.0f x %.0f top (z %.1f), %.1f units "
-                   "past its edges; origin (%.1f %.1f %.1f)\n", hasCrowbar(c.crate) ? "crowbar" : "flare gun", c.crate, best.fHi - best.fLo, best.lHi - best.lLo, best.yaw,
-            p.o.hf * 2.f, p.o.hl * 2.f, topZ, best.over, origin.x, origin.y, origin.z);
+        Con_Printf("crates: a %s on %s %d: %.1f x %.1f units lying at yaw %.0f on its %.0f x %.0f top (z %.1f), %.1f units "
+                   "past its edges; origin (%.1f %.1f %.1f); box f %.1f .. %.1f l %.1f .. %.1f%s\n",
+            what == TopCrowbar ? "crowbar" : "flare gun", p.model == barrelModel ? "barrel" : "crate", c.crate, spanF, spanL, best.yaw,
+            p.o.hf * 2.f, p.o.hl * 2.f, topZ, best.over, origin.x, origin.y, origin.z, placeF - spanF * 0.5f, placeF + spanF * 0.5f,
+            placeL - spanL * 0.5f, placeL + spanL * 0.5f, both ? " (both on this top)" : "");
     }
     return true;
 }

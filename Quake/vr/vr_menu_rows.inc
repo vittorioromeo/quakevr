@@ -4069,10 +4069,6 @@ QVR_TOGGLE(vr_carry_slam, "Overhead Slam",
     "A crate or barrel held in both hands over your head and swung down onto a monster, a prop or a wall breaks "
     "at once (what it hits takes a heavy blow); thrown down from there, it takes heavy damage (two such "
     "throws break it).")
-QVR_SLIDER(vr_crate_flaregun, "Flare Gun on Crates", 0.f, 1.f, 0.05f, "%.2f", noExt,
-    "The chance a crate placed about the map (the top one of a stack, no crowbar on it) has a loaded "
-    "flare gun lying on it; the same crates each load. Experimental: off (0) by default. Next map.")
-QVR_SLIDER(vr_crate_flaregun_max, "Most Flare Guns", 0.f, 4.f, 1.f, "%.0f", ext(0.f, 64.f), "Most flare guns lying on crates in a map. Next map.")
 QVR_TOGGLE(vr_crate_sight, "Crates Hide You",
     "Monsters can't see you through crates and explosive boxes lying about (crouch behind a small one). "
     "Carrying one, they see you through it.")

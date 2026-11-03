@@ -369,6 +369,8 @@ QVR_TUNABLE_SLIDER(vr_crate_health_box, "Health Box", 0.0f, 1.0f, 0.05f, "%.2f",
 QVR_TUNABLE_SLIDER(vr_crate_item_pop, "Pop Out", 0.0f, 8.0f, 0.5f, "%.1f m/s", 0.0f, 20.0f, "How hard what a crate held pops out when it breaks: up, and a little outwards (along the blow). 0: it is left lying where the crate stood.")
 QVR_TUNABLE_SLIDER(vr_crate_crowbar, "Crowbar on Crates", 0.0f, 1.0f, 0.05f, "%.2f", 0.0f, 1.0f, "The chance a crate placed about the map (the top one of a stack) has a crowbar lying on it; the same crates each load. Next map.")
 QVR_TUNABLE_SLIDER(vr_crate_crowbar_max, "Most Crowbars", 0.0f, 4.0f, 1.0f, "%.0f", 0.0f, 64.0f, "Most crowbars lying on crates in a map. Next map.")
+QVR_TUNABLE_SLIDER(vr_crate_flaregun, "Flare Gun on Crates", 0.0f, 1.0f, 0.05f, "%.2f", 0.0f, 1.0f, "The chance a crate or an upright barrel placed about the map (the top one of a stack) has a loaded flare gun lying on it, rolled apart from the crowbars (both may pass); the same ones each load. Next map.")
+QVR_TUNABLE_SLIDER(vr_crate_flaregun_max, "Most Flare Guns", 0.0f, 4.0f, 1.0f, "%.0f", 0.0f, 64.0f, "Most flare guns lying on crates in a map. Next map.")
 
 QVR_TUNABLE_GROUP("Carrying and Throwing > Force Grab")
 QVR_TUNABLE_SLIDER(vr_forcegrab_outline, "Outline", 0.0f, 2.0f, 0.1f, "%.1f", 0.0f, 10.0f, "The soft glow round the object a hand points at (0 off).")

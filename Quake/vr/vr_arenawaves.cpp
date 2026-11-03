@@ -6,6 +6,7 @@
 #include "vr_engine.hpp"
 #include "vr_testkit.hpp"
 
+#include "Zancle/Algorithm/AnyOf.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 
@@ -20,6 +21,7 @@ namespace
 
 constexpr int fileVersion = 1;
 constexpr const char* const assignFile = "assign.cfg";
+constexpr const char* const assignDefault = "default"; // (assign.cfg: this map and skill plays Default)
 constexpr int fieldTexts = 16; // (what one QC entry look-up holds at once: VR_ARENA_PresetEntry's)
 
 // arenawavesfield's fields (QC AR_F_*).
@@ -70,9 +72,52 @@ void setText(char (&dst)[N], const char* src)
     return za::String{com_gamedir} + "/" + (vr_arena_waves_dir.string[0] ? vr_arena_waves_dir.string : "arena_waves");
 }
 
+// Whose files where (vr_arenawaves.hpp, "Shipped and the player's"): a release build reads the shipped folder and writes
+// only <folder>_user; a development build (his, the agents') has no second folder, it writes the shipped one.
+[[nodiscard]] bool keepsPlayersApart()
+{
+#ifdef QVR_RELEASE
+    return true;
+#else
+    return vr_arena_waves_as_release.value != 0.f;
+#endif
+}
+
+[[nodiscard]] za::String playerFolder()
+{
+    return folder() + "_user";
+}
+
+[[nodiscard]] za::String writeFolder()
+{
+    return keepsPlayersApart() ? playerFolder() : folder();
+}
+
+[[nodiscard]] bool fileThere(const char* path)
+{
+    FILE* f = fopen(path, "rb");
+    if(f)
+    {
+        fclose(f);
+    }
+    return f != nullptr;
+}
+
 [[nodiscard]] za::String presetPath(const char* name)
 {
     return folder() + "/" + name + ".txt";
+}
+
+[[nodiscard]] za::String writePath(const char* name)
+{
+    return writeFolder() + "/" + name + ".txt";
+}
+
+// Where a preset is read from: the player's copy, else the shipped one.
+[[nodiscard]] za::String readPath(const char* name)
+{
+    const za::String own = writePath(name);
+    return fileThere(own.cStr()) ? own : presetPath(name);
 }
 
 [[nodiscard]] bool readAll(const char* path, za::String& out)
@@ -96,7 +141,13 @@ void setText(char (&dst)[N], const char* src)
 
 bool writeAll(const char* path, const za::String& text)
 {
-    Sys_mkdir(folder().cStr());
+    char dir[MAX_OSPATH];
+    copyText(dir, sizeof(dir), path);
+    if(char* slash = strrchr(dir, '/'))
+    {
+        *slash = '\0';
+        Sys_mkdir(dir);
+    }
     FILE* f = fopen(path, "wb");
     if(!f)
     {
@@ -257,11 +308,11 @@ struct AssignLine
     char name[64]{};
 };
 
-[[nodiscard]] za::Vector<AssignLine> readAssign()
+[[nodiscard]] za::Vector<AssignLine> readAssignFile(const za::String& dir)
 {
     za::Vector<AssignLine> lines;
     za::String text;
-    if(!readAll((folder() + "/" + assignFile).cStr(), text))
+    if(!readAll((dir + "/" + assignFile).cStr(), text))
     {
         return lines;
     }
@@ -291,6 +342,34 @@ struct AssignLine
         setText(a.map, head);
         setText(a.name, t[1].key);
         lines.pushBack(a);
+    }
+    return lines;
+}
+
+// The assignments in force: the shipped ones, the player's over them line by line (a `default` line of the player's: a
+// shipped one undone).
+[[nodiscard]] za::Vector<AssignLine> readAssign()
+{
+    za::Vector<AssignLine> lines = readAssignFile(folder());
+    if(!keepsPlayersApart())
+    {
+        return lines;
+    }
+    for(const AssignLine& own : readAssignFile(playerFolder()))
+    {
+        za::SizeT i = 0;
+        while(i < lines.size() && !(lines[i].skill == own.skill && !strcmp(lines[i].map, own.map)))
+        {
+            i++;
+        }
+        if(i < lines.size())
+        {
+            lines.erase(lines.begin() + i);
+        }
+        if(strcmp(own.name, assignDefault) != 0)
+        {
+            lines.insert(lines.begin() + i, own);
+        }
     }
     return lines;
 }
@@ -518,7 +597,7 @@ void test_f()
         "an unknown armour or pieces word is a reason; the kind is QC's");
     verdict(!parse("arena_waves 99\n", q, why), "a version from the future is refused");
     verdict(!parse("hello\n", q, why), "not a preset is refused");
-    verdict(validName("My_waves-2") && !validName("../evil") && !validName("") && !validName("a b") && !validName("assign"), "names are file names, never paths");
+    verdict(validName("My_waves-2") && !validName("../evil") && !validName("") && !validName("a b") && !validName("assign") && !validName("default"), "names are file names, never paths");
     verdict(piecesMask("chest+helmet") == 3 && piecesMask("full") == 1023 && piecesMask("random") == -1 && piecesMask("shins") == 768 && piecesMask("wings") == -2, "the pieces' words");
 
     // The assignments: keyed by map and skill, in any map's name; "" clears.
@@ -532,6 +611,45 @@ void test_f()
     setAssigned("someothermap", 2, "");
     verdict(assigned("vrarena", 1).empty() && !mapListed("someothermap"), "cleared again");
     removeFile("fixture_roundtrip");
+
+    // Shipped and the player's, as a release keeps them (vr_arena_waves_as_release): the shipped files are never written.
+    Preset one;
+    (void)parse(fixtureGood, one, why);
+    one.waves.resize(1);
+    (void)save("fixture_shipped", p, why); // (a development build: the shipped folder)
+    setAssigned("vrarena", 1, "fixture_shipped");
+    setAssigned("vrarena", 2, "fixture_shipped");
+    za::String shippedBytes, shippedAssign, now;
+    (void)readAll(presetPath("fixture_shipped").cStr(), shippedBytes);
+    (void)readAll((folder() + "/" + assignFile).cStr(), shippedAssign);
+    Cvar_SetValueQuick(&vr_arena_waves_as_release, 1.f);
+    Preset read;
+    verdict(load("fixture_shipped", read, why) && read.waves.size() == p.waves.size() && !removable("fixture_shipped"),
+        "a player reads a shipped preset, and can't delete it");
+    verdict(save("fixture_shipped", one, why) && fileThere(writePath("fixture_shipped").cStr()) && load("fixture_shipped", read, why) &&
+            read.waves.size() == 1 && readAll(presetPath("fixture_shipped").cStr(), now) && !strcmp(now.cStr(), shippedBytes.cStr()),
+        "saving over it keeps a copy of their own, which wins; the shipped file's bytes the same");
+    int seen = 0;
+    for(const za::String& n : list())
+    {
+        seen += !strcmp(n.cStr(), "fixture_shipped");
+    }
+    verdict(seen == 1, "the list has the name once");
+    verdict(removable("fixture_shipped") && removeFile("fixture_shipped") && load("fixture_shipped", read, why) && read.waves.size() == p.waves.size(),
+        "deleting their copy brings the shipped one back");
+    setAssigned("vrarena", 1, "fixture_good");
+    setAssigned("vrarena", 2, "");
+    setAssigned("anothermap", 0, "fixture_good");
+    verdict(!strcmp(assigned("vrarena", 1).cStr(), "fixture_good") && assigned("vrarena", 2).empty() && !strcmp(assigned("anothermap", 0).cStr(), "fixture_good"),
+        "their assignments win over the shipped ones, a cleared one too");
+    verdict(readAll((folder() + "/" + assignFile).cStr(), now) && !strcmp(now.cStr(), shippedAssign.cStr()), "the shipped assign.cfg's bytes the same");
+    setAssigned("vrarena", 1, "");
+    setAssigned("anothermap", 0, "");
+    verdict(assigned("vrarena", 1).empty() && !mapListed("anothermap"), "cleared again");
+    Cvar_SetValueQuick(&vr_arena_waves_as_release, 0.f);
+    setAssigned("vrarena", 1, "");
+    setAssigned("vrarena", 2, "");
+    removeFile("fixture_shipped");
     qvr::testkit::verdict("arena waves test", passed, failed);
 }
 
@@ -684,7 +802,7 @@ const char* badReason(const Entry& e)
 bool validName(const char* name)
 {
     const size_t n = strlen(name);
-    if(n == 0 || n > 48 || !strcmp(name, "assign"))
+    if(n == 0 || n > 48 || !strcmp(name, "assign") || !strcmp(name, assignDefault))
     {
         return false;
     }
@@ -709,9 +827,9 @@ bool load(const char* name, Preset& out, za::String& report)
         return false;
     }
     za::String text;
-    if(!readAll(presetPath(name).cStr(), text))
+    if(!readAll(readPath(name).cStr(), text))
     {
-        report += va("arena preset: %s not found (%s)\n", name, presetPath(name).cStr());
+        report += va("arena preset: %s not found (%s)\n", name, readPath(name).cStr());
         return false;
     }
     return parse(text.cStr(), out, report);
@@ -724,9 +842,9 @@ bool save(const char* name, const Preset& p, za::String& report)
         report += va("arena preset: \"%s\" is not a preset's name\n", name);
         return false;
     }
-    if(!writeAll(presetPath(name).cStr(), write(p)))
+    if(!writeAll(writePath(name).cStr(), write(p)))
     {
-        report += va("arena preset: can't write %s\n", presetPath(name).cStr());
+        report += va("arena preset: can't write %s\n", writePath(name).cStr());
         return false;
     }
     return true;
@@ -734,30 +852,44 @@ bool save(const char* name, const Preset& p, za::String& report)
 
 bool removeFile(const char* name)
 {
-    return validName(name) && remove(presetPath(name).cStr()) == 0;
+    return validName(name) && remove(writePath(name).cStr()) == 0;
+}
+
+bool removable(const char* name)
+{
+    return validName(name) && fileThere(writePath(name).cStr());
 }
 
 za::Vector<za::String> list()
 {
     za::Vector<za::String> names;
-    const za::String dir = folder();
-    for(findfile_t* find = Sys_FindFirst(dir.cStr(), "txt"); find; find = Sys_FindNext(find))
-    {
-        if(!(find->attribs & FA_DIRECTORY))
+    const auto addFrom = [&names](const za::String& dir) {
+        for(findfile_t* find = Sys_FindFirst(dir.cStr(), "txt"); find; find = Sys_FindNext(find))
         {
-            char base[MAX_QPATH];
-            COM_StripExtension(find->name, base, sizeof(base));
-            if(validName(base))
+            if(!(find->attribs & FA_DIRECTORY))
             {
-                // (kept sorted)
-                za::SizeT at = 0;
-                while(at < names.size() && q_strcasecmp(names[at].cStr(), base) < 0)
+                char base[MAX_QPATH];
+                COM_StripExtension(find->name, base, sizeof(base));
+                if(validName(base))
                 {
-                    at++;
+                    // (kept sorted, a name once: a player's copy of a shipped one)
+                    za::SizeT at = 0;
+                    while(at < names.size() && q_strcasecmp(names[at].cStr(), base) < 0)
+                    {
+                        at++;
+                    }
+                    if(at == names.size() || q_strcasecmp(names[at].cStr(), base) != 0)
+                    {
+                        names.insert(names.begin() + at, za::String{base});
+                    }
                 }
-                names.insert(names.begin() + at, za::String{base});
             }
         }
+    };
+    addFrom(folder());
+    if(keepsPlayersApart())
+    {
+        addFrom(playerFolder());
     }
     return names;
 }
@@ -774,9 +906,15 @@ za::String assigned(const char* map, int skill)
     return za::String{};
 }
 
-void setAssigned(const char* map, int skill, const char* name)
+void setAssigned(const char* map, int skill, const char* nameOrNone)
 {
-    za::Vector<AssignLine> lines = readAssign();
+    // Only the writer's own file changes: clearing what a shipped line says takes a line of its own (readAssign).
+    const za::String dir = writeFolder();
+    za::Vector<AssignLine> lines = readAssignFile(dir);
+    const auto shipped = readAssignFile(folder());
+    const bool shippedLine = keepsPlayersApart() &&
+        za::anyOf(shipped.begin(), shipped.end(), [&](const AssignLine& a) { return a.skill == skill && !strcmp(a.map, map); });
+    const char* name = !nameOrNone[0] && shippedLine ? assignDefault : nameOrNone;
     bool found = false;
     for(za::SizeT i = 0; i < lines.size();)
     {
@@ -816,7 +954,7 @@ void setAssigned(const char* map, int skill, const char* name)
     {
         out += va("%s.%d %s\n", a.map, a.skill, a.name);
     }
-    writeAll((folder() + "/" + assignFile).cStr(), out);
+    writeAll((dir + "/" + assignFile).cStr(), out);
 }
 
 bool mapListed(const char* map)

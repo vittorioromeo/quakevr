@@ -46,12 +46,12 @@ entity(entity xFrom, vector xOrg, vector xAngles, vector xVel) VR_Crowbar_Spawn 
 // it; it settles there by physics.
 void(entity xCrate, float i) VR_Crowbar_OnCrate =
 {
-    if(cratecrowbar(i) != 1) // (2: a flare gun there, vr_flaregun.qc)
+    if(!(cratecrowbar(i) & CRATETOP_CROWBAR))
     {
         return;
     }
     entity c = VR_Crowbar_Spawn(xCrate, xCrate.origin, '0 0 90', '0 0 0');
-    if(!cratecrowbarput(c, i))
+    if(!cratecrowbarput(c, i, CRATETOP_CROWBAR))
     {
         remove(c);
     }
