@@ -150,17 +150,7 @@ CtrlBind ctrlBind;
 
 // The pose, measured from the shoulders (hands::bodyAnchor with vr_shoulder_offset, the same anchor the body's own
 // holsters are placed at): the arms stay on the body whatever the height calibration. Forward, side and down in the
-// view's own frame, Quake units. These were named constants here (emptyFwd 5, emptyDown 13, emptyOut 7; gunFwd 17,
-// gunDown 9, gunOut 2.5; supportFwd 12, supportDown 11, supportOut 5) and are flatscreen cvars now, at the same
-// defaults (vr_flat_empty_*, vr_flat_gun_*, vr_flat_support_*): the same places, reachable from the Debug menu, and
-// clamped to the room they may move in. poseNum is that clamp; the defaults read back as the constants did.
-constexpr float poseMin = -30.f; // how far a pose's offset may reach in either direction, in the view's frame
-constexpr float poseMax = 30.f;
-
-[[nodiscard]] float poseNum(const cvar_t& c)
-{
-    return za::clamp(c.value, poseMin, poseMax);
-}
+// view's own frame, Quake units: vr_flat_empty_*, vr_flat_gun_*, vr_flat_support_*, each read through poseNum.
 
 // The turn's lag (vr_flat_turnlag, vr_flat_turnlag_speed): the drawn hands keep their direction as the view turns and a
 // critically damped spring (this stiff, rad/s) brings them back; this much of what it leaves shown, never more than
@@ -325,13 +315,6 @@ constexpr float punchTotal = punchWind + punchStrike + punchDwell + punchBack;
 {
     const glm::vec3 off{vr_shoulder_offset_x.value, vr_shoulder_offset_y.value, vr_shoulder_offset_z.value};
     return h == HAND_OFF ? hands::bodyAnchor(s, {-off.x, -off.y, off.z}) : hands::bodyAnchor(s, off);
-}
-
-// The weapon `h` holds, as its settings' slot; -1 for an empty hand.
-[[nodiscard]] int heldIn(int h)
-{
-    const int slot = weapons::heldSlot(h);
-    return slot >= 0 && slot != weapons::fistSlot() ? slot : -1;
 }
 
 // The weapon id `h` holds (STAT_QVR_WEAPON / STAT_QVR_WEAPON2: the ids the game code and the engine share,
@@ -563,8 +546,8 @@ void pollKeys()
 }
 
 // Left Ctrl crouches while it is held and stands up when it is let go, F switches the flashlight, G drops what a hand
-// holds. Read from the keyboard state like E and V: nothing is rebound, and only while the game has the keys.
-// (+flatcrouch / -flatcrouch hold the crouch the same way, for the console and a bind.)
+// holds. Read from the keyboard state like E and V, and only while the game has the keys. (+flatcrouch / -flatcrouch hold
+// the crouch the same way, for the console and the mode's own Ctrl bind: CtrlBind above.)
 void pollKeysFlat()
 {
     const bool inGame = key_dest == key_game;
@@ -768,6 +751,17 @@ void stepFeel()
 }
 
 } // namespace
+
+int heldIn(int h)
+{
+    const int slot = weapons::heldSlot(h);
+    return slot >= 0 && slot != weapons::fistSlot() ? slot : -1;
+}
+
+float poseNum(const cvar_t& c)
+{
+    return za::clamp(c.value, -30.f, 30.f);
+}
 
 bool active()
 {
