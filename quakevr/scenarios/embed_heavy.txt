@@ -1,0 +1,10 @@
+# embed_heavy: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Blades in bodies too heavy to move.
+title Embedded blades: an Ogre and a Shambler, too heavy to stagger or drag
+map vrtesthall
+god
+notarget
+give "Knight's Sword" main
+give "Axe" off
+spawn "Ogre" 140 -50
+spawn "Shambler" 320 60
+hint Stab the Ogre hard: the sword stays in, but it doesn't stagger and you can't drag it. You crawl while you hold on, and walking off pulls the blade out. The Shambler the same.

@@ -416,9 +416,10 @@ void() VR_ET_Step =
                 }
                 vr_et_v2 = vr_et_v;
             }
-            VR_Test_Check(vr_et_v >= 0, sprintf("a %s to aim at (bone %g)", vr_et_case == 8 ? "head" : "limb", vr_et_v));
+            // (One check, not one for each limb tried: their number goes by the body's pose, and read as 59 or 53 passed.)
             if(vr_et_v < 0)
             {
+                VR_Test_Check(FALSE, sprintf("a %s to aim at", vr_et_case == 8 ? "head" : "limb"));
                 VR_ET_NextCase();
                 return;
             }
