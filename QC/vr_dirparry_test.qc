@@ -12,15 +12,16 @@
 //   2 overhead vs your sword held level across: parried (no damage, sparks within 2 units of both lines);
 //   3 overhead vs your sword upright: parried (the grunt's overhead is a diagonal cut, ~30 deg off vertical, so an
 //   upright sword is across it too; his call 2026-10-31: accepted as a diagonal cut);  4 horizontal vs upright: parried;
-//   5 horizontal vs level across:
-//   lands;  6 overhead vs a shotgun's barrel level across: parried;  7 overhead vs the sword level across 40 units to
+//   5 horizontal vs level across: lands: its blade comes in level, along yours, 83 deg off square, gap 15.3. (Up to
+//   2026-11-01's runs it was parried, a diagonal cut, and his call of 2026-11-03 on that was "Accept as is": no change to
+//   the swing. The parry he accepted isn't there on next: ROUND23.md, "His decisions of 2026-11-03".);
+//   6 overhead vs a shotgun's barrel level across: parried;  7 overhead vs the sword level across 40 units to
 //   the side (out of reach): lands;  8 vr_dirparry 0, horizontal vs level across: the level-across rule as before (its
 //   own verdict at the blow), no directional reading.
 // Its debug view and its settings (each case as the one named, its cvars put back after):
 //   9 Show Directional Parry on (vr_dirparry_debug), case 2: parried as before; the view takes its live readings and
 //   the strike's verdict (the engine prints `dirparryviz: drawn PARRIED ...` as it draws it held; an eye image taken);
-//   10 case 5 (its blade's way passes 16 units from your sword, out of the contact's marks) with vr_dirparry_contact
-//   just past that gap (1 unit): the borderline case flips, parried;
+//   10 case 7 (the sword out of reach to the side) with vr_dirparry_contact just past its gap: the case flips, parried;
 //   11 Enemy Melee Speed 0.5 (vr_agrunt_melee_speed), case 0: the blow lands as hard, at twice the time into the swing,
 //   the swing twice as long (its times, VR_AGP_Length; and as measured, to its think's 0.1 s);  12 speed 0.5, case 2:
 //   parried as at full speed.
@@ -50,7 +51,7 @@ float vr_drpt_ref_hurt;  // case 0's: the damage, when, the swing's end and leng
 float vr_drpt_ref_at;
 float vr_drpt_ref_swung;
 float vr_drpt_ref_len;
-float vr_drpt_gap5;      // case 5's gap between the lines (case 10's leniency)
+float vr_drpt_gap7;      // case 7's gap between the lines (case 10's leniency)
 float vr_drpt_dbg0;      // Show Directional Parry's counters at the swing's start
 float vr_drpt_dbgf0;
 float vr_drpt_ln0;       // the line check's frames at the case's start
@@ -89,7 +90,7 @@ string(float c) VR_DRPT_Name =
     if(c == 7) { return "overhead vs your sword level across, 40 units to the side"; }
     if(c == 8) { return "vr_dirparry 0: horizontal vs your sword level across (the old rule)"; }
     if(c == 9) { return "Show Directional Parry on: overhead vs your sword level across"; }
-    if(c == 10) { return "contact distance past its gap: horizontal vs your sword level across"; }
+    if(c == 10) { return "contact distance past its gap: overhead vs your sword level across, 40 units to the side"; }
     if(c == 11) { return "Enemy Melee Speed 0.5: overhead vs your fists"; }
     if(c == 12) { return "Enemy Melee Speed 0.5: overhead vs your sword level across"; }
     if(c == 13) { return "the line on the drawn weapon: a grunt's sword, swings 0-3"; }
@@ -123,7 +124,7 @@ entity(float dist) VR_DRPT_Knight =
 };
 
 // The case whose geometry (its swing, your weapon and its pose) case `c` takes.
-float(float c) VR_DRPT_Geo = { return ((c == 9) || (c == 12)) ? 2 : (c == 10) ? 5 : (c == 11) ? 0 : (c >= 13) ? 1 : c; };
+float(float c) VR_DRPT_Geo = { return ((c == 9) || (c == 12)) ? 2 : (c == 10) ? 7 : (c == 11) ? 0 : (c >= 13) ? 1 : c; };
 
 // A line case's weapon (13 on): a sword, an axe, (15 the armed knight's sword), Mjolnir, a chainsaw, AD's crowbar and
 // its super axe.
@@ -142,7 +143,7 @@ float(float c) VR_DRPT_Kind =
     float g = VR_DRPT_Geo(c);
     return (g == 0 || g == 2 || g == 3 || g == 6 || g == 7) ? 0 : 2;
 };
-float(float c) VR_DRPT_Wants = { return (c == 2) || (c == 3) || (c == 4) || (c == 6) || (c >= 9 && c <= 12 && c != 11); };
+float(float c) VR_DRPT_Wants = { return (c == 2) || (c == 3) || (c == 4) || (c == 6) || (c == 9) || (c == 10) || (c == 12); };
 
 vector(vector d, vector ang) VR_DRPT_Local =
 {
@@ -258,9 +259,9 @@ void(entity g, float c) VR_DRPT_Judge =
         vr_drpt_ref_swung = vr_drpt_swung;
         vr_drpt_ref_len = vr_drpt_len;
     }
-    if(c == 5)
+    if(c == 7)
     {
-        vr_drpt_gap5 = vr_drp_gap;
+        vr_drpt_gap7 = vr_drp_gap;
     }
     float extra = TRUE;
     if(c == 9)
@@ -274,8 +275,8 @@ void(entity g, float c) VR_DRPT_Judge =
     }
     if(c == 10)
     {
-        got = sprintf("%s; contact distance %s (case 5: %.1f units apart)", got, ftos(cvar_hget(cvarh_vr_dirparry_contact)),
-            vr_drpt_gap5);
+        got = sprintf("%s; contact distance %s (case 7: %.1f units apart)", got, ftos(cvar_hget(cvarh_vr_dirparry_contact)),
+            vr_drpt_gap7);
     }
     if((c == 11) || (c == 12))
     {
@@ -363,7 +364,7 @@ void() VR_DRPT_Frame =
         cvar_set("vr_dirparry", c == 8 ? "0" : "1");
         cvar_set("vr_dirparry_debug", ((c == 9) || (c >= 13)) ? "1" : ftos(vr_drpt_keep_debug));
         cvar_set("vr_agknight", c == 15 ? "1" : ftos(vr_drpt_keep_knight));
-        localcmd(sprintf("tune vr_dirparry_contact %g\n", c == 10 ? ceil(vr_drpt_gap5) + 1 : vr_drpt_keep_contact));
+        localcmd(sprintf("tune vr_dirparry_contact %g\n", c == 10 ? ceil(vr_drpt_gap7) + 1 : vr_drpt_keep_contact));
         cvar_set("vr_agrunt_melee_speed", ((c == 11) || (c == 12)) ? "0.5" : ftos(vr_drpt_keep_speed));
         float geo = VR_DRPT_Geo(c);
         VR_AGPT_Clear();

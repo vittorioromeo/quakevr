@@ -3159,6 +3159,9 @@ void(entity g, vector vel) VR_AG_DropMain =
     VR_AG_Log(sprintf("its stowed %s dropped", WeaponIdToWeaponName(wid)));
 };
 
+// Any armed humanoid's loot, armed spawn or replacement: TRUE, so its monster's own (SoldierDrop, EnforcerDrop) doesn't
+// run. So never the stock monster's chance of an extra weapon: his call 2026-11-03, "Never drop extra weapons". What it
+// held fell as it died (VR_AG_Dying).
 float() VR_AG_SoldierDrop =
 {
     if(!self.vr_ag)
@@ -3167,7 +3170,7 @@ float() VR_AG_SoldierDrop =
     }
     if(VR_WP_Packless(self))
     {
-        return !self.vr_agr; // (melee-only or unarmed: no pack, no loot; a replacement keeps its monster's chance of a weapon)
+        return TRUE; // (melee-only or unarmed: no pack, no loot)
     }
     // Its backpack: the spare rounds of its weapons, of their real ammo kinds: in its hands (if it still holds them),
     // stowed (its flare gun's), in its pockets (VR_AG_Dying dropped the held ones: their spare rounds pocketed). A
@@ -3189,10 +3192,6 @@ float() VR_AG_SoldierDrop =
     if(!(self.ammo_shells + self.ammo_nails + self.ammo_rockets + self.ammo_cells + self.ammo_lava_nails +
          self.ammo_multi_rockets + self.ammo_plasma))
     {
-        if(self.vr_agr && !self.vr_wp_had)
-        {
-            return FALSE; // (a replacement with none, not under the pack's rule: the loot of the monster it replaced, its chance of a weapon too)
-        }
         // None of a real ammo kind (fists, melee weapons, single-use guns, all spent): its monster's own loot (a grunt's
         // 5 shells, an enforcer's 5 cells).
         VR_AM_Row(self.vr_ag_kind);

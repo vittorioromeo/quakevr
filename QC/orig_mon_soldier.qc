@@ -266,11 +266,8 @@ void() SoldierDrop =
     {
         return; // VR: the firing range's training dummy killed as a grunt (vr_dummy.qc): no loot
     }
-    if(!VR_WP_Packless(self)) // VR: a melee-only or unarmed replacement drops no backpack (vr_wornpack.qc)
-    {
-        self.ammo_shells = 5;
-        DropBackpack();
-    }
+    self.ammo_shells = 5;
+    DropBackpack();
 
     if(entPlayer != world && ShouldDropEnemyWpn(0.45))
     {

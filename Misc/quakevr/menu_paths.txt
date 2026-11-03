@@ -4903,6 +4903,7 @@ vr_ragtool_log|2|Ragdoll Tool|Log|Advanced VR Options > Debug > Ragdoll Tool > L
 |2|Debug - Automation & Self-Tests|Armed Knights: Spawn One Before You|Advanced VR Options > Debug > Automation & Self-Tests > Armed Knights: Spawn One Before You
 |2|Debug - Automation & Self-Tests|Armed Grunts: Parry Their Blows|Advanced VR Options > Debug > Automation & Self-Tests > Armed Grunts: Parry Their Blows
 |2|Debug - Automation & Self-Tests|Armed Grunts: Grab Table|Advanced VR Options > Debug > Automation & Self-Tests > Armed Grunts: Grab Table
+|2|Debug - Automation & Self-Tests|Armed Grunts: Grab Table in Bullet Time|Advanced VR Options > Debug > Automation & Self-Tests > Armed Grunts: Grab Table in Bullet Time
 |2|Debug - Automation & Self-Tests|Armed Grunts: Dual Wielder's Off Hand|Advanced VR Options > Debug > Automation & Self-Tests > Armed Grunts: Dual Wielder's Off Hand
 |2|Debug - Automation & Self-Tests|Armed Grunts: Holding On|Advanced VR Options > Debug > Automation & Self-Tests > Armed Grunts: Holding On
 |2|Debug - Automation & Self-Tests|Armed Grunts: Grab a Downed One's Weapon|Advanced VR Options > Debug > Automation & Self-Tests > Armed Grunts: Grab a Downed One's Weapon

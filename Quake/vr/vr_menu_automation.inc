@@ -362,8 +362,11 @@ za::Vector<Item> pageDebugAutomation()
         command("Armed Grunts: Grab Table", "vr_agrunt_test 67")
             .help("vr_agrunt_test 67 (vrtesthall; a few minutes): your hand put on each weapon (axe, sword, crowbar, "
                   "chainsaw, shotgun, nailgun, a dual wielder's left shotgun and axe) at 10 points along it, on humanoids "
-                  "idle, running, ready and mid-strike, in and out of bullet time, and closed: the share that starts the "
-                  "tug (agtest: grabtable ...; PASS when every one does). scratch1..3 pick a weapon, state, time."),
+                  "idle, running, ready and mid-strike, and closed: the share that starts the tug (agtest: grabtable ...; "
+                  "PASS at 90% or more idle, ready and running, mid-strike only reported: a hand on a blade going that "
+                  "fast is refused). scratch1, scratch2 pick a weapon, state."),
+        command("Armed Grunts: Grab Table in Bullet Time", "vr_agrunt_test 209")
+            .help("vr_agrunt_test 209 (vrtesthall; a few minutes): the grab table at vr_timescale 0.3, as test 67."),
         command("Armed Grunts: Dual Wielder's Off Hand", "vr_agrunt_test 68")
             .help("vr_agrunt_test 68: a shotgun and nailgun dual wielder: its left-hand nailgun grabbed (a tug, won: "
                   "yours, it keeps the shotgun), then its shotgun (a tug too)."),
@@ -434,7 +437,8 @@ za::Vector<Item> pageDebugAutomation()
         command("Armed Replacements: Balance", "vr_agrunt_test 71")
             .help("vr_agrunt_test 71 (vrtesthall; about 10 minutes of game time): a vanilla grunt, a replaced one, a "
                   "vanilla enforcer, a replaced one, each alone against you for 150 s (shots, damage a shot, damage a "
-                  "second), then 40 of each killed (guns, backpacks and their ammo, extra weapons)."),
+                  "second), then 40 of each killed (guns, backpacks and their ammo; extra weapons from the vanilla "
+                  "ones only)."),
         command("Armed Replacements: Gun and Axe", "vr_agrunt_test 72")
             .help("vr_agrunt_test 72 (vrtesthall): a grunt with its rifle and an axe fires at range, takes the axe up "
                   "close, the gun again when you back off; a spent shotgun thrown away for the axe; a gun lying near "
