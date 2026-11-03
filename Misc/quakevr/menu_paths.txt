@@ -4128,6 +4128,12 @@ vr_flat_sway|2|Debug - Reports|Flatscreen Move Sway|Advanced VR Options > Debug 
 vr_flat_bob|2|Debug - Reports|Flatscreen Walk Bob|Advanced VR Options > Debug > Reports > Flatscreen Walk Bob
 vr_flat_turnlag|2|Debug - Reports|Flatscreen Turn Lag|Advanced VR Options > Debug > Reports > Flatscreen Turn Lag
 vr_flat_turnlag_speed|2|Debug - Reports|Flatscreen Turn Lag Recovery|Advanced VR Options > Debug > Reports > Flatscreen Turn Lag Recovery
+vr_flat_arm_hold|2|Debug - Reports|Flatscreen Arm Hold|Advanced VR Options > Debug > Reports > Flatscreen Arm Hold
+vr_flat_pose_pitch|2|Debug - Reports|Flatscreen Hand Pitch|Advanced VR Options > Debug > Reports > Flatscreen Hand Pitch
+vr_flat_aim_fov|2|Debug - Reports|Flatscreen Ironsight Field of View|Advanced VR Options > Debug > Reports > Flatscreen Ironsight Field of View
+vr_flat_crouch_time|2|Debug - Reports|Flatscreen Crouch Time|Advanced VR Options > Debug > Reports > Flatscreen Crouch Time
+vr_flat_crouch_drop|2|Debug - Reports|Flatscreen Crouch Drop|Advanced VR Options > Debug > Reports > Flatscreen Crouch Drop
+|2|Debug - Reports|Flatscreen Punch|Advanced VR Options > Debug > Reports > Flatscreen Punch
 |2|Debug - Reports|Official Campaign Status|Advanced VR Options > Debug > Reports > Official Campaign Status
 |2|Debug - Reports|Dopa Finale Text|Advanced VR Options > Debug > Reports > Dopa Finale Text
 |2|Debug - Reports|Campaign File Sources|Advanced VR Options > Debug > Reports > Campaign File Sources
@@ -4485,6 +4491,7 @@ vr_test_spawn_tilt|2|Debug - Tests|Box Tilted|Advanced VR Options > Debug > Test
 |2|Debug - Tests|Enemy Footsteps Walkabout|Advanced VR Options > Debug > Tests > Enemy Footsteps Walkabout
 |2|Debug - Tests|Crouch Shots|Advanced VR Options > Debug > Tests > Crouch Shots
 |2|Debug - Tests|Crouch Status|Advanced VR Options > Debug > Tests > Crouch Status
+|2|Debug - Tests|Flat Keys|Advanced VR Options > Debug > Tests > Flat Keys
 |2|Debug - Tests|Melee Sweep Test|Advanced VR Options > Debug > Tests > Melee Sweep Test
 |2|Debug - Tests|One Swing, Many Hits Test|Advanced VR Options > Debug > Tests > One Swing, Many Hits Test
 |2|Debug - Tests|Check the Parry Pose|Advanced VR Options > Debug > Tests > Check the Parry Pose
