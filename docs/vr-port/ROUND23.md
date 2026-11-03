@@ -7879,7 +7879,9 @@ checked: knight chop and ogre smash upright, ogre swing level; a standing knight
 this branch and on origin/next alike, a different weapon each time), 60 6/0, 96 8/0, 98 6/0. parry_pose kinds 1, 5, 9: 0 squashed.
 parryinterrupt pass. parrybalance: `examples` pass; `pose`, `repeat`, `chances` fail with the same numbers on origin/next (not from this
 branch; left alone). `vr_menu_path_check maps/vrcalibration.map`: 0 missing.
-A screenshot of test 78's `scratch2 1` with Show Disarm Volumes showed the knight's line on its drawn sword.
+A screenshot of test 78's `scratch2 1` with Show Disarm Volumes showed the knight's line on its drawn sword. The ogre's wasn't seen on a
+picture (it charges into the mock's eye, its saw out of view): its line is checked by its numbers (40 long, the swing's plane level, the
+smash's upright) and by test 78's parries, and is by construction two of the drawn model's vertices.
 
 **Questions for him:** (1) A directional parry with an upright weapon is never "well timed" (`vr_guard_up_*` is the guard's raise), armed
 humanoids' as before: count a raise of any kind? (2) A monster's parried blow still lets 25% through (`vr_parry_reduction`), an
