@@ -1,6 +1,7 @@
 // vr_modelcollide.cpp -- see vr_modelcollide.hpp.
 
 #include "vr_modelcollide.hpp"
+#include "vr_protocol.hpp"
 #include "vr_geom.hpp"
 #include "vr_engine.hpp"
 #include "vr_api_render.h"
@@ -807,6 +808,11 @@ void gather(const glm::vec3& lo, const glm::vec3& hi, Stats& stats)
     if(!vr_model_collide.value)
     {
         return "vr_model_collide 0";
+    }
+    // (Its place only says how the blade slides: QC/vr_embedhold.qc. Stopped at the body, it would never go deeper.)
+    if(cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_EMBEDMAIN : protocol::STAT_QVR_EMBEDOFF] > 0)
+    {
+        return "holding a blade in a body";
     }
     // A prop held in one hand (a club): its drawn model, against the monsters (ROUND21.md, "Held props against weapons,
     // monsters and walls").

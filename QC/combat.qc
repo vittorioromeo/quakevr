@@ -1323,6 +1323,9 @@ void(float xHand, entity c, vector at, vector dir, float speed, float xBlunt) VR
     VR_HotBlade_Struck(self, xHand, c, FALSE, at, dir);
 };
 
+void(float xHand, entity b, entity m, vector xAt, vector xDir, float xSpeed, float xKind) VR_Embed_Blow; // (vr_embedhold.qc)
+void(float xHand) VR_Embed_BlowsDone;
+
 // Every player frame, for each hand (self is the player; VR_Carry_HandFrame): a hand swung at a
 // blow's speed (vr_melee_speed) through a corpse, or what it holds, strikes it.
 void(float xHand) VR_Corpse_StrikeFrame =
@@ -1371,7 +1374,9 @@ void(float xHand) VR_Corpse_StrikeFrame =
         blunt = vr_cstrike_blunt;
     }
 
+    VR_Embed_Blow(xHand, VR_Blow(xHand), c, at, dir, speed, -1); // (it may stay in: vr_embedhold.qc)
     VR_Corpse_Struck(xHand, c, at, dir, speed, blunt);
+    VR_Embed_BlowsDone(xHand);
 };
 
 float() getVRMeleeBloodlust =

@@ -230,18 +230,21 @@ float(entity p, float xHand) VR_Hand_HeldOff =
         return TRUE; // drawn on its hold (vr_climb.cpp)
     }
     float k = VR_Hand_Kind(p, xHand);
-    if(k == VR_HOLD_FOE || k == VR_HOLD_RAGDOLL || k == VR_HOLD_TUG || k == VR_HOLD_SSGGRIP)
+    if(k == VR_HOLD_FOE || k == VR_HOLD_RAGDOLL || k == VR_HOLD_TUG || k == VR_HOLD_SSGGRIP || k == VR_HOLD_EMBED)
     {
-        return TRUE; // drawn on the spot it holds (vr_foegrab.cpp, the limb: vr_view_hands.cpp limbDrawnHand), on the gun
+        return TRUE; // drawn on the spot it holds (vr_foegrab.cpp, the limb: vr_view_hands.cpp limbDrawnHand), on the gun, on the blade
     }
     entity t = VR_Hand_Thing(p, xHand);
     return t != world && t == VR_Hand_Thing(p, VRGetOtherHand(xHand)); // drawn on its grip on it (vr_held.cpp drawnHand)
 };
 
+void(entity p) VR_Embed_Derive; // (vr_embedhold.qc)
+
 void(entity xPlayer) VR_Hand_Derive =
 {
     VR_Hand_DeriveHand(xPlayer, cVR_OffHand);
     VR_Hand_DeriveHand(xPlayer, cVR_MainHand);
+    VR_Embed_Derive(xPlayer);
     float heldOff = (VR_Hand_HeldOff(xPlayer, cVR_OffHand) ? 1 : 0) + (VR_Hand_HeldOff(xPlayer, cVR_MainHand) ? 2 : 0);
     if(heldOff != xPlayer.vr_hand_heldoff)
     {
@@ -253,6 +256,7 @@ void(entity xPlayer) VR_Hand_Derive =
 
 float(entity p, float xHand) VR_Reload_SsgBreaks;                  // (vr_reload.qc)
 float(entity e, entity xPlayer, float xHand) VR_AxeStick_TuggedBy; // (vr_axestick.qc)
+float(entity e, entity xPlayer, float xHand) VR_Embed_HeldBy;      // (vr_embedhold.qc)
 
 // Whether the busy kind in `xHand` of `xPlayer` still holds: one its writer left (a tugged axe gone, the gun no longer a
 // super shotgun) ends, with a line.
@@ -262,6 +266,10 @@ float(entity xPlayer, float xHand, float xKind) VR_Hand_BusyHolds =
     if(xKind == VR_HOLD_TUG)
     {
         return VR_AxeStick_TuggedBy(e, xPlayer, xHand);
+    }
+    if(xKind == VR_HOLD_EMBED)
+    {
+        return VR_Embed_HeldBy(e, xPlayer, xHand);
     }
     if(xKind == VR_HOLD_SSGGRIP)
     {

@@ -123,6 +123,13 @@ QVR_FIELD(vr_stick_embed)  // how it stuck (weapons.txt embed: 1 by its point, 2
 QVR_FIELD(vr_stick_depth)  // by its point: units from the tip back to where it went in
 QVR_FIELD(vr_stick_sag)    // by its point, in the level: degrees it sags under its weight now, and
 QVR_FIELD(vr_stick_sagv)   // how fast (degrees a second)
+QVR_FIELD(vr_stick_slide)  // QC's: units it has slid along its axis since it stuck (+ deeper, - out: a hand's hold)
+QVR_FIELD(vr_stick_goal)   // a held stab's: the depth (units from the tip) it goes on to as it enters (0: there)
+QVR_FIELD(vr_stick_bladelen) // a held stab's: the blade's length (units)
+QVR_FIELD(vr_stick_loose)  // QC's: in an arm or a leg: its turn follows the limb's eased (vr_embed_limb_follow), not rigidly
+QVR_FIELD(vr_embed_off)    // on a player: the blade its off hand holds in a body (VR_HOLD_EMBED: QC, world none)
+QVR_FIELD(vr_embed_main)   // the main hand's
+QVR_FIELD(vr_embed_handle) // bits, 1 the off hand, 2 the main: that hand holds it by its handle (else where it took hold)
 
 // Model transforms (networked as entity update extras).
 QVR_FIELD(model_scale)

@@ -2147,6 +2147,87 @@ bool tugGrab(int hand, const LimbHold& limb, TugGrab& out)
     return true;
 }
 
+// A hand holding a blade in a body (STAT_QVR_EMBED*: VR_HOLD_EMBED, QC/vr_embedhold.qc): drawn on it, as it is drawn. The first
+// hand on it holds it by its handle, as a weapon in the hand is held (setupWeapon's place and turn undone: the same hand on the
+// same weapon); another where it took hold of it.
+namespace
+{
+constexpr float embedPinIn = 0.06f;  // s
+constexpr float embedPinOut = 0.1f;  // s
+struct EmbedPin
+{
+    int ent{0};          // the blade's edict (0: none)
+    bool byHandle{false};
+    float weight{0.f};
+    double last{-1.0};
+    glm::vec3 local{0.f};    // not by its handle: the hand in the blade's axes, as it took hold
+    glm::mat3 localTurn{1.f};
+};
+EmbedPin embedPins[2];
+
+[[nodiscard]] bool embedPinUsable(const EmbedPin& pin)
+{
+    return pin.ent > 0 && pin.ent < cl.num_entities && cl_entities[pin.ent].model;
+}
+
+// `pos`, `rot` (the controller's pose of `hand`) moved onto the blade it holds, as if its controller were there.
+void embedDrawnHand(const hands::State& s, int hand, bool mirrored, glm::vec3& pos, glm::vec3& rot)
+{
+    EmbedPin& pin = embedPins[hand];
+    const float dt = pin.last >= 0.0 ? static_cast<float>(CLAMP(0.0, vr_gametime - pin.last, 0.1)) : 0.f;
+    pin.last = vr_gametime;
+    const int stat = cl.stats[hand == HAND_MAIN ? protocol::STAT_QVR_EMBEDMAIN : protocol::STAT_QVR_EMBEDOFF];
+    if(stat > 0 && (stat / 2 != pin.ent || pin.weight <= 0.f))
+    {
+        pin.ent = stat / 2;
+        pin.byHandle = (stat & 1) != 0;
+        if(embedPinUsable(pin))
+        {
+            const entity_t& e = cl_entities[pin.ent];
+            const glm::mat3 turn = glm::transpose(entityTurn(e));
+            pin.local = turn * (s.pos[hand] - glm::vec3{e.origin[0], e.origin[1], e.origin[2]});
+            pin.localTurn = turn * anglesBasis(s.rot[hand]);
+        }
+    }
+    pin.weight = stat > 0 ? za::fmin(1.f, pin.weight + dt / embedPinIn) : za::fmax(0.f, pin.weight - dt / embedPinOut);
+    if(pin.weight <= 0.f || !embedPinUsable(pin))
+    {
+        pin.weight = 0.f;
+        return;
+    }
+    const entity_t& e = cl_entities[pin.ent];
+    const glm::vec3 origin{e.origin[0], e.origin[1], e.origin[2]};
+    glm::vec3 onPos, onRot;
+    if(pin.byHandle)
+    {
+        const glm::vec3 o = weaponAngleOffsets(weapons::slotForModel(e.model), mirrored);
+        onPos = origin;
+        onRot = glm::vec3{o.x - e.angles[0], e.angles[1] - o.y, e.angles[2] - o.z};
+    }
+    else
+    {
+        const glm::mat3 turn = entityTurn(e);
+        onPos = origin + turn * pin.local;
+        onRot = basisAngles(turn * pin.localTurn);
+    }
+    const float w = pin.weight * pin.weight * (3.f - 2.f * pin.weight);
+    if(vr_debug_axestick.value >= 3)
+    {
+        Con_Printf("embedpin: hand %d on %d (by its handle %d), weight %.2f: from %.1f %.1f %.1f rot %.1f %.1f %.1f to %.1f %.1f %.1f rot %.1f %.1f %.1f\n", hand, pin.ent,
+            pin.byHandle ? 1 : 0, pin.weight, pos.x, pos.y, pos.z, rot.x, rot.y, rot.z, onPos.x, onPos.y, onPos.z, onRot.x, onRot.y, onRot.z);
+    }
+    pos = glm::mix(pos, onPos, w);
+    rot = basisAngles(glm::mat3_cast(glm::slerp(glm::quat_cast(anglesBasis(rot)), glm::quat_cast(anglesBasis(onRot)), w)));
+}
+
+// The weapon's slot `hand` is drawn holding by its handle, on a blade in a body (-1: not so). Its blade's entity in `out`.
+[[nodiscard]] int embedHandleSlot(int hand)
+{
+    const EmbedPin& pin = embedPins[hand];
+    return pin.weight > 0.f && pin.byHandle && embedPinUsable(pin) ? weapons::slotForModel(cl_entities[pin.ent].model) : -1;
+}
+} // namespace
+
 namespace
 {
 constexpr float limbEaseTime = 0.1f; // s
@@ -2277,6 +2358,8 @@ void limbDrawnHand(int hand, glm::vec3& pos, glm::vec3& angles)
     const float onHold = climb::drawnHand(s, hand, anglesBasis(weaponAngleOffsets(fist, mirrored)), controllerPos, controllerRot, lightShift);
     // A hand holding an enemy: drawn on the spot it holds, as the model moves (vr_foegrab.cpp).
     (void)foegrab::drawnHand(s, hand, controllerPos, controllerRot);
+    // A hand holding a blade in a body: drawn on it (QC/vr_embedhold.qc).
+    embedDrawnHand(s, hand, mirrored, controllerPos, controllerRot);
     if(onHold > 0.f)
     {
         // Drawn on its hold, it shakes there too (tired arms: vr_fatigue.cpp; the shake is in s's hands).
@@ -2466,6 +2549,27 @@ void steadyOther(const HandPose& hp, glm::vec3& pos, glm::vec3& handRot, bool& h
             }
         }
     }
+    else if(embedPins[hand].weight > 0.f && embedPinUsable(embedPins[hand]))
+    {
+        // A blade in a body (QC/vr_embedhold.qc): by its handle, as a weapon in the hand; else wrapped where the hand is on it.
+        const EmbedPin& pin = embedPins[hand];
+        held = {&cl_entities[pin.ent], false, -1, true};
+        if(const int embedSlot = embedHandleSlot(hand); embedSlot >= 0 && embedSlot != fist)
+        {
+            weaponFingers(held, embedSlot);
+            if(handrig::usable(viewModel(handrig::modelName())))
+            {
+                held.canonical = true;
+                held.canonicalInRig = canonicalOwnGrip(hand, embedSlot, cl_entities[pin.ent].model);
+                held.offset = weapons::vec(embedSlot, Key::HandOnlyX, Key::HandOnlyY, Key::HandOnlyZ) != glm::vec3{0.f} ||
+                              weapons::vec(embedSlot, Key::HandOnlyPitch, Key::HandOnlyYaw, Key::HandOnlyRoll) != glm::vec3{0.f};
+                if(held.offset)
+                {
+                    held.fitInRig = canonicalOwnGrip(hand, embedSlot, cl_entities[pin.ent].model, false);
+                }
+            }
+        }
+    }
     else if(const int ent = held::heldEntity(hand))
     {
         held = {&cl_entities[ent], false, -1};
@@ -2563,6 +2667,15 @@ void setupHand(const hands::State& s, int hand)
             weapons::vec(slot, Key::HandOnlyPitch, Key::HandOnlyYaw, Key::HandOnlyRoll), mirrored, pos, handRot);
         motion = animationMotion(weapon, pos);
     }
+    else if(const int embedSlot = embedHandleSlot(hand); embedSlot >= 0 && embedSlot != fist)
+    {
+        // On a blade in a body, by its handle: as it held it (the branch above's, from where it is drawn on it).
+        hide = weapons::value(embedSlot, Key::HideHand) != 0.f;
+        handRot = attachedTurn(controllerRot, embedSlot, mirrored, weaponAngleOffsets(fist, mirrored), hand);
+        moveDrawnHand(hand, mirrored, attachedTurn(controllerRot, embedSlot, mirrored, glm::vec3{0.f}, hand),
+            weapons::vec(embedSlot, Key::HandOnlyX, Key::HandOnlyY, Key::HandOnlyZ),
+            weapons::vec(embedSlot, Key::HandOnlyPitch, Key::HandOnlyYaw, Key::HandOnlyRoll), mirrored, pos, handRot);
+    }
 
     // Steadying the other hand's weapon in the "fixed" two-handed display mode: the hand moves
     // onto the weapon's foregrip (blending in and out with the grip), turned like the holding
@@ -2590,7 +2703,7 @@ void setupHand(const hands::State& s, int hand)
     // most: past that it passes into it until it is out again (vr_hand_collide).
     pushOut(hand,
         gripBlend <= 0.f && !freeHelp && (slot < 0 || slot == fist) && !held::heldEntity(hand) && !flashlight::holds(hand) &&
-            limbEase[hand].blend <= 0.f,
+            limbEase[hand].blend <= 0.f && embedPins[hand].weight <= 0.f,
         pos, handRot, mirrored);
 
     // The hand-off (vr_twohand.cpp): a helping hand's drawn pose is what it carries a gun by, and a

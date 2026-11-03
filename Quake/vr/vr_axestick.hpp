@@ -32,4 +32,13 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
 // (.vr_stick_wiggle), its blade's edge and facing written for QC (.vr_stick_at, .vr_stick_dir).
 void serverFrame();
 
+// Embedded blades, stage 2 (QC/vr_embedhold.qc): the blade `ent` (a thrown weapon just made, at rest) a hand's blow has just
+// put into the body `host` at `at`, going at `vel` (units/s). Set where the hand's weapon is drawn (`hand`; a player not the
+// local one: where QC put it), its checks made (an axe's edge first, not its side; a plate: its spark): stuck, by its point
+// or its edge, with QC's VR_AxeStick_Stuck called. False: no, QC removes it and the hand keeps its weapon.
+[[nodiscard]] bool stickHeld(edict_t* ent, edict_t* host, const glm::vec3& at, const glm::vec3& vel, int hand);
+
+// Server: the player's hands' blades as stats (STAT_QVR_EMBEDOFF, STAT_QVR_EMBEDMAIN).
+void calcStats(edict_t* player, int* statsi);
+
 } // namespace qvr::axestick

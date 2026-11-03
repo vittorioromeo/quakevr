@@ -13,6 +13,7 @@
 #include "vr_melee_shared.h"
 #include "vr_agarmor.hpp"
 #include "vr_agarms.hpp"
+#include "vr_axestick.hpp"
 #include "vr_box3d.hpp"
 #include "vr_toolgun.hpp"
 #include "vr_carry2h.hpp"
@@ -794,6 +795,7 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"weapongrabspot", PF_weapongrabspot},
     {"weaponanygrip", PF_weaponanygrip},
     {"weapondrawnpose", PF_weapondrawnpose},
+    {"embedstick", PF_embedstick},
     {"arenawavesload", arenawaves::pfLoad},
     {"arenawavesfield", arenawaves::pfField},
     {"arenawavesreport", arenawaves::pfReport},
