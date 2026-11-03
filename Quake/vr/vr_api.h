@@ -575,6 +575,7 @@ int VR_RuntimeMenuPause (void);							// Host_ServerFrame, SV_RunClients: nonzer
 int VR_RagtoolHolds (void);								// Host_ServerFrame: nonzero while the ragdoll tool is paused (vr_ragtool.cpp; its single steps run)
 int VR_RagtoolView (float *origin, float *angles);		// V_CalcRefdef: the ragdoll tool's orbit camera set over the view (nonzero: set)
 void VR_FlatViewDrop (float *vieworg);					// V_CalcRefdef: a flatscreen player holding his crouch sees from lower (vr_flatplay.cpp); outside the mode the view is left as it was
+float VR_FlatPitchClamp (float pitch);					// CL_AccumulateCmd, once the frame's looking has all landed in cl.viewangles: the flatscreen look's window, vr_flat_pitch_up / vr_flat_pitch_down (vr_flatplay.cpp); outside the mode the angle comes back as it was, so plain play and a headset are bounded by cl_maxpitch / cl_minpitch alone
 int VR_RagtoolKey (int key, int down);					// Key_Event in the game: nonzero if the ragdoll tool took the key
 int VR_ArenaCardsKey (int key, int down);				// Key_Event in the game: nonzero if the Survival Arena's perk cards took the key (1 .. their count)
 void VR_RagtoolOverlay (void);							// V_RenderView, after R_RenderView: the debug lines over a flat view while the ragdoll tool runs

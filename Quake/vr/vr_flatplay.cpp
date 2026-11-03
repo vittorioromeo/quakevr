@@ -750,6 +750,25 @@ float crouchRatio()
     return active() ? keyState.ratio : 0.f;
 }
 
+// The flatscreen look's window, in the plain game's pitch -- Quake's pitch is positive looking down, so looking up is
+// negative: the view sits between -vr_flat_pitch_up and +vr_flat_pitch_down. It is asked at the one place where the
+// frame's looking has all landed in cl.viewangles (Quake/cl_main.c CL_AccumulateCmd: the look keys, the arrow keys and the
+// mouse wheel in CL_AdjustAngles just above it, the mouse, the stick and the gyro in IN_Move just above it too), so one
+// clamp covers every way of looking, and it lands before the frame's move is sent and before the view is built. Outside
+// the mode the angle comes back as it was: plain play and a headset keep cl_maxpitch / cl_minpitch, which is their own
+// setting. The window only narrows what those already let through this frame -- they each clamped first -- so a player
+// who set cl_maxpitch to 40 still looks only 40 degrees down in flatscreen play.
+[[nodiscard]] float pitchClamp(float pitch)
+{
+    if(!active())
+    {
+        return pitch;
+    }
+    const float up = za::clamp(vr_flat_pitch_up.value, 0.f, 90.f);
+    const float down = za::clamp(vr_flat_pitch_down.value, 0.f, 90.f);
+    return za::clamp(pitch, -up, down);
+}
+
 // Quake/host.c is about to write the key bindings out: Ctrl's bind given back, so the config on disk keeps the plain
 // game's CTRL (+attack, unless the player had it bound to something else). The mode's next frame takes it up again; at a
 // quit there is no next frame, and that is the point -- a flatscreen session leaves no +flatcrouch in the config.
@@ -1047,6 +1066,12 @@ void status_f()
                "(recovery %g), vr_flat_arm_hold %g, vr_flat_pose_pitch %g\n",
         vr_flatplay.value, vr_flat_reach.value, vr_flat_sway.value, vr_flat_bob.value, vr_flat_turnlag.value,
         vr_flat_turnlag_speed.value, vr_flat_arm_hold.value, vr_flat_pose_pitch.value);
+    const float lookUp = za::clamp(vr_flat_pitch_up.value, 0.f, 90.f);
+    const float lookDown = za::clamp(vr_flat_pitch_down.value, 0.f, 90.f);
+    Con_Printf("  the look: vr_flat_pitch_up %g, vr_flat_pitch_down %g: his view stays between %g and %g (Quake's pitch, "
+               "positive looking down). Plain play and a headset are bounded by cl_maxpitch / cl_minpitch instead, which "
+               "stay the player's own setting.\n",
+        vr_flat_pitch_up.value, vr_flat_pitch_down.value, -lookUp, lookDown);
     Con_Printf("  E pressed %d times (force grab); punches: the main hand %d, the off hand %d. E and V are read from the "
                "keyboard, not from bindings; each hand's punch starts from V, from its fire button with a weapon a swing "
                "strikes with (LMB / +attack the main hand, RMB / +offhandattack the off hand), or from vr_flat_punch.\n",
@@ -1113,4 +1138,12 @@ extern "C" void VR_FlatViewDrop(float* vieworg)
 extern "C" void VR_FlatKeysForConfigWrite(void)
 {
     qvr::flatplay::keysForConfigWrite();
+}
+
+// Quake/cl_main.c's CL_AccumulateCmd, once the frame's looking has all landed in cl.viewangles: the flatscreen look's
+// window (vr_flat_pitch_up above, vr_flat_pitch_down below; Quake's pitch is positive looking down). Outside the mode the
+// angle comes back as it was -- plain play and a headset keep cl_maxpitch / cl_minpitch, their own setting.
+extern "C" float VR_FlatPitchClamp(float pitch)
+{
+    return qvr::flatplay::pitchClamp(pitch);
 }

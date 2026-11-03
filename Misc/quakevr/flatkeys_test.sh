@@ -121,4 +121,42 @@ check $([ "$fn" = 2 ] && [ "$fbad" = 0 ] && grep -qa 'Ctrl is bound to `+attack`
         && echo 1 || echo 0) \
     "ctrl with vr_flat_crouch_fire 1: Ctrl keeps its firing bind both times ($(echo "$fb" | tr '\n' ' ')) and the status says so"
 
+# 6. The look's window in flatscreen play: vr_flat_pitch_up (how far up) and vr_flat_pitch_down (how far down), both of
+# them read the plain game's way -- Quake's pitch is positive looking down, so the view stays between -vr_flat_pitch_up
+# and +vr_flat_pitch_down. r_pos prints the view's angles on every drawn frame (Quake/gl_rmain.c), so the extremes it
+# printed are the window's own edges. cl_pitchspeed is raised so the look reaches its bound inside the waits given: it
+# changes how fast the player turns, not where the bound is. Each vr_flatplay_status opens the next phase of a run (its
+# first line starts "flatscreen play:" whether the mode ran or not).
+LOOK="r_pos 1; cl_pitchspeed 600; wait10; vr_flatplay_status; +lookdown; wait40; -lookdown; wait10; +lookup; wait40; -lookup;"
+LOOK="$LOOK centerview; wait10; vr_flat_pitch_up 0; vr_flat_pitch_down 20; vr_flatplay_status; +lookdown; wait40; -lookdown; wait10; +lookup; wait40; -lookup; wait20"
+phases() { awk '/^flatscreen play:/{ph++; next} /\(pitch/{for(i=1;i<=NF;i++) if($i=="(pitch") print ph, $(i+1)+0}' "$1" > "$2"; }
+limits() { awk -v p="$2" '$1==p{c++; if(mn==""||$2<mn)mn=$2; if(mx==""||$2>mx)mx=$2} END{print mn+0, mx+0, c+0}' "$1"; }
+span() { awk '/\(pitch/{for(i=1;i<=NF;i++) if($i=="(pitch"){v=$(i+1)+0; c++; if(mn==""||v<mn)mn=v; if(mx==""||v>mx)mx=v}} END{print mn+0, mx+0, c+0}' "$1"; }
+# "min max frames" from one of those readings: pinned to the window (each end within a degree of it), or reaching it.
+pinned() { awk -v w="$1" -v lo="$2" -v hi="$3" 'BEGIN{split(w,x," "); exit !(x[1]>=lo-1 && x[1]<=lo+1 && x[2]>=hi-1 && x[2]<=hi+1 && x[3]>=40)}' && echo 1 || echo 0; }
+reaching() { awk -v w="$1" -v lo="$2" -v hi="$3" 'BEGIN{split(w,x," "); exit !(x[1]<=lo && x[2]>=hi && x[3]>=40)}' && echo 1 || echo 0; }
+
+run pitchflat flat "$P; $LOOK" 'pitch|flatscreen play:'
+phases "$S/pitchflat.log" "$S/pitchflat.phase"
+q1=$(limits "$S/pitchflat.phase" 1); q2=$(limits "$S/pitchflat.phase" 2)
+check $(pinned "$q1" -85 85) \
+    "pitch: flatscreen play keeps the view inside vr_flat_pitch_up 85 / vr_flat_pitch_down 85 (r_pos ranged $q1 = min max frames, +lookdown then +lookup each held 40 frames)"
+check $(pinned "$q2" 0 20) \
+    "pitch: the same look inside vr_flat_pitch_up 0 / vr_flat_pitch_down 20 set on the console ($q2) -- the window is the cvars, not a constant baked into the clamp"
+check $(grep -qa 'the look: vr_flat_pitch_up 85, vr_flat_pitch_down 85' "$S/pitchflat.log" \
+        && grep -qa 'the look: vr_flat_pitch_up 0, vr_flat_pitch_down 20' "$S/pitchflat.log" && echo 1 || echo 0) \
+    "pitch: vr_flatplay_status prints the window it is holding, both times ($(grep -a 'the look:' "$S/pitchflat.log" | sed 's/ (.*//' | tr '\n' '; '))"
+run pitchwide flat "$P; vr_flat_pitch_up 90; vr_flat_pitch_down 90; $LOOK" 'pitch|flatscreen play:'
+phases "$S/pitchwide.log" "$S/pitchwide.phase"
+q3=$(limits "$S/pitchwide.phase" 1)
+check $(reaching "$q3" -90 90) \
+    "pitch: with both cvars at 90 the plain game's full look comes back, bounded by cl_minpitch / cl_maxpitch as it always was ($q3)"
+# A run with neither -flatscreenmode nor a VR backend: `vr_backend none` (the engine warns and plays plain,
+# Quake/vr/vr_main.cpp) -- the look's cvars sitting at their 85 defaults bound nothing there, which is what the mode's
+# gate means for a play the mode never ran in.
+run pitchplain vr "vr_backend none; $P; r_pos 1; cl_pitchspeed 600; wait10; +lookdown; wait40; -lookdown; wait10; +lookup; wait40; -lookup; wait20" 'pitch'
+q4=$(span "$S/pitchplain.log")
+check $(reaching "$q4" -90 90) \
+    "pitch in plain play (no -flatscreenmode, vr_backend none): the cvars at 85 bound nothing there (r_pos ranged $q4 = min max frames, the same look keys held 40 frames)"
+
 verdict; exit $fail

@@ -188,10 +188,29 @@ brings the empty hand onto a grip, and on each frame it still holds the hand on 
 is not lifted off a grip it was placed on; it stops the frame `vr_twohand` takes the hold, or the frame the weapon changes.
 Its own distances, its angle test, the foregrip's stickiness and the weapon's Two-Handed setting decide the hold, unchanged.
 
+## How far the view may look
+
+**Look Up** (`vr_flat_pitch_up`, 85) and **Look Down** (`vr_flat_pitch_down`, 85): the flatscreen view's own window on the
+pitch, in degrees from straight ahead, and both written as a plain positive number of degrees (0..90 — 0: he cannot look
+that way at all, 90: as far as the plain game let him). Quake's pitch counts *down* as positive, so the view he is held
+to is between `-vr_flat_pitch_up` and `+vr_flat_pitch_down`: at the defaults that is -85 to +85, and the last five degrees
+at each end are the ones taken off. The clamp is the mode's own (`flatplay::pitchClamp`, `vr_flatplay.cpp`, through
+`VR_FlatPitchClamp` at the point where the flatscreen view's angles are finished for the frame, `CL_AccumulateCmd` in
+`Quake/cl_main.c`), so the keyboard's look keys, the mouse wheel, the mouse and a stick all come to the same edge, and it
+comes after the engine's own clamp to `cl_maxpitch` / `cl_minpitch` — the window can only narrow what those already
+allowed, never widen it. It asks for the mode first: outside flatscreen play it hands the angle back untouched, so the
+plain game and a headset session are bounded by `cl_maxpitch` / `cl_minpitch` exactly as they were — measured on a plain
+run, no `-flatscreenmode` and no backend either (`vr_backend none`), which pitches to -90 and +90 with these cvars at
+their 85 defaults. `vr_flatplay_status` prints the window it is holding, in the same positive reading. Measured with
+`r_pos` (which prints the view's angles every drawn frame, `Quake/gl_rmain.c`): holding `+lookdown` and then `+lookup`
+the view stops at -85 and +85; with the cvars set to 0 and 20 on the console the same holds stop at 0 and +20; with both
+at 90 they stop at -90 and +90. `Misc/quakevr/flatkeys_test.sh` section 6.
+
 ## Tuning
 
 `vr_flat_reach` (1), `vr_flat_sway` (1), `vr_flat_bob` (1), `vr_flat_turnlag` (1), `vr_flat_turnlag_speed` (1),
-`vr_flat_arm_hold` (1), `vr_flat_pose_pitch` (65) and `vr_flat_aim_fov` (12) — all not saved, all in the Debug menu. `vr_flat_arm_hold` is how
+`vr_flat_arm_hold` (1), `vr_flat_pose_pitch` (65) and `vr_flat_aim_fov` (12) — all not saved, all in the Debug menu,
+and `vr_flat_pitch_up` (85) with `vr_flat_pitch_down` (85) not saved too, at the console only. `vr_flat_arm_hold` is how
 far a drawn hand may sit from its arm's shoulder, times what that arm can hold a hand at (`armSpan`: the model's bones
 with `vr_body_arm_length` and `vr_body_arm_stretch`, the shoulder's own `vr_body_shoulder_reach`; 0: no limit, the hands
 where they are placed). `vr_flat_pose_pitch` is how far the hands follow the view up and down, in degrees (90: all the
