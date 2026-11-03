@@ -130,6 +130,7 @@ vr_ghost_hands_fade_from|0|VR Settings - Player Appearance|Ghost Hidden Within|V
 vr_ghost_hands_fade_range|0|VR Settings - Player Appearance|Ghost Fade-In Range|VR Settings > Player Appearance > 
 vr_ghost_hands_ignore_recoil|0|VR Settings - Player Appearance|No Ghost from Recoil|VR Settings > Player Appearance 
 vr_ghost_hands_ignore_bodies|0|VR Settings - Player Appearance|No Ghost Holding Bodies|VR Settings > Player 
+vr_ghost_hands_ignore_climb|0|VR Settings - Player Appearance|No Ghost Climbing|VR Settings > Player Appearance > 
 |0|VR Settings - Player Appearance|Reset This Page|VR Settings > Player Appearance > Reset This Page
 @page|0|VR Settings - HUD, Haptics and Sound||VR Settings > HUD, Haptics and Sound
 vr_hud_mode|0|VR Settings - HUD, Haptics and Sound|HUD|VR Settings > HUD, Haptics and Sound > HUD
@@ -1268,6 +1269,8 @@ vr_comfort_preset|1|Locomotion|Comfort|Advanced VR Options > Movement > Locomoti
 vr_movement_mode|1|Locomotion|Move Towards|Advanced VR Options > Movement > Locomotion > Move Towards
 vr_deadzone|1|Locomotion|Stick Deadzone|Advanced VR Options > Movement > Locomotion > Stick Deadzone
 vr_deadzone_outer|1|Locomotion|Stick Outer Deadzone|Advanced VR Options > Movement > Locomotion > Stick Outer 
+vr_move_snap|1|Locomotion|Stick Straight Zone|Advanced VR Options > Movement > Locomotion > Stick Straight Zone
+vr_move_hold|1|Locomotion|Stick Full Push Hold|Advanced VR Options > Movement > Locomotion > Stick Full Push Hold
 vr_move_curve|1|Locomotion|Stick Response Curve|Advanced VR Options > Movement > Locomotion > Stick Response Curve
 vr_move_autorun|1|Locomotion|Walk Into Run|Advanced VR Options > Movement > Locomotion > Walk Into Run
 vr_move_autorun_threshold|1|Locomotion|Run From Push|Advanced VR Options > Movement > Locomotion > Run From Push
@@ -1852,6 +1855,8 @@ vr_reload_pouch_snail|1|Reloading|Super Nailgun|Advanced VR Options > Weapons > 
 vr_reload_pouch_light|1|Reloading|Thunderbolt|Advanced VR Options > Weapons > Reloading > Thunderbolt
 vr_reload_pouch_npistol|1|Reloading|Nail Pistol|Advanced VR Options > Weapons > Reloading > Nail Pistol
 vr_reload_pouch_mag_slots|1|Reloading|Magazines Where Drawn|Advanced VR Options > Weapons > Reloading > Magazines 
+vr_reload_pouch_catch|1|Reloading|Falling Magazines Go In|Advanced VR Options > Weapons > Reloading > Falling 
+vr_reload_pouch_catch_reach|1|Reloading|Falling In Reach|Advanced VR Options > Weapons > Reloading > Falling In 
 vr_ammo_pouch_show|1|Reloading|Show|Advanced VR Options > Weapons > Reloading > Show
 vr_ammo_pouch_x|1|Reloading|X|Advanced VR Options > Weapons > Reloading > X
 vr_ammo_pouch_y|1|Reloading|Y|Advanced VR Options > Weapons > Reloading > Y
@@ -2595,6 +2600,8 @@ vr_forcegrab_catch_early|2|Tunables|Catch Early|Advanced VR Options > Debug > Tu
 vr_forcegrab_catch_blend|2|Tunables|Catch Blend Time|Advanced VR Options > Debug > Tunables > Catch Blend Time
 vr_gib_throw_damage|2|Tunables|Thrown Gib Damage|Advanced VR Options > Debug > Tunables > Thrown Gib Damage
 vr_gib_health|2|Tunables|Gib Health|Advanced VR Options > Debug > Tunables > Gib Health
+vr_gib_overkill_melee|2|Tunables|Blow Overkill to Gib|Advanced VR Options > Debug > Tunables > Blow Overkill to Gib
+vr_gib_overkill_prop|2|Tunables|Prop Overkill to Gib|Advanced VR Options > Debug > Tunables > Prop Overkill to Gib
 vr_gib_splat_speed|2|Tunables|Gib Splat Speed|Advanced VR Options > Debug > Tunables > Gib Splat Speed
 vr_gib_splat_throw|2|Tunables|Hard Throw Bursts|Advanced VR Options > Debug > Tunables > Hard Throw Bursts
 vr_gib_burst_speed|2|Tunables|Gib Burst Speed|Advanced VR Options > Debug > Tunables > Gib Burst Speed
@@ -3012,11 +3019,11 @@ vr_agrunt_tug_hold_max|2|Tunables|Tug: Longest|Advanced VR Options > Debug > Tun
 vr_agrunt_tug_ik_stretch|2|Tunables|Tug: Arm Stretch|Advanced VR Options > Debug > Tunables > Tug: Arm Stretch
 vr_agrunt_grab_slack|2|Tunables|Grab: Precision|Advanced VR Options > Debug > Tunables > Grab: Precision
 vr_agrunt_grab_sweep|2|Tunables|Grab: Moving Weapon|Advanced VR Options > Debug > Tunables > Grab: Moving Weapon
-vr_agrunt_fall_impact_speed|2|Tunables|Fall Impact: Body Speed|Advanced VR Options > Debug > Tunables > Fall Impact: Body Speed
-vr_agrunt_fall_impact_time|2|Tunables|Fall Impact: Sustained Time|Advanced VR Options > Debug > Tunables > Fall Impact: Sustained Time
-vr_agrunt_fall_impact_window|2|Tunables|Fall Impact: Stop Window|Advanced VR Options > Debug > Tunables > Fall Impact: Stop Window
-vr_agrunt_fall_impact_held|2|Tunables|Fall Impact: Held Share|Advanced VR Options > Debug > Tunables > Fall Impact: Held Share
-vr_agrunt_fall_impact_reach|2|Tunables|Fall Impact: Held Reach|Advanced VR Options > Debug > Tunables > Fall Impact: Held Reach
+vr_agrunt_fall_impact_speed|2|Tunables|Fall Impact: Body Speed|Advanced VR Options > Debug > Tunables > Fall 
+vr_agrunt_fall_impact_time|2|Tunables|Fall Impact: Sustained Time|Advanced VR Options > Debug > Tunables > Fall 
+vr_agrunt_fall_impact_window|2|Tunables|Fall Impact: Stop Window|Advanced VR Options > Debug > Tunables > Fall 
+vr_agrunt_fall_impact_held|2|Tunables|Fall Impact: Held Share|Advanced VR Options > Debug > Tunables > Fall Impact: 
+vr_agrunt_fall_impact_reach|2|Tunables|Fall Impact: Held Reach|Advanced VR Options > Debug > Tunables > Fall 
 vr_agrunt_rag_grab_weapon|2|Tunables|Grab: Ragdoll's Weapon Within|Advanced VR Options > Debug > Tunables > Grab: 
 vr_agrunt_rag_limb_grab|2|Tunables|Grab: Ragdoll's Weapon Hand|Advanced VR Options > Debug > Tunables > Grab: 
 vr_agrunt_tug_pull_force|2|Tunables|Tug: Least Pull|Advanced VR Options > Debug > Tunables > Tug: Least Pull
@@ -3055,6 +3062,10 @@ vr_agrunt_aim_exposed_hold|2|Tunables|Keep Aim On a Part|Advanced VR Options > D
 vr_agrunt_range_scale|2|Tunables|Distance Scale|Advanced VR Options > Debug > Tunables > Distance Scale
 vr_agrunt_range_walkfire|2|Tunables|Walking Fire|Advanced VR Options > Debug > Tunables > Walking Fire
 vr_agrunt_friendly_care|2|Tunables|Careful of Friends|Advanced VR Options > Debug > Tunables > Careful of Friends
+vr_ogre_friendly_care|2|Tunables|Ogres: Careful of Friends|Advanced VR Options > Debug > Tunables > Ogres: Careful 
+vr_ogre_friendly_giveup|2|Tunables|Ogres: Gives Up After|Advanced VR Options > Debug > Tunables > Ogres: Gives Up 
+vr_ogre_friendly_step|2|Tunables|Ogres: Sidestep For|Advanced VR Options > Debug > Tunables > Ogres: Sidestep For
+vr_ogre_friendly_spread|2|Tunables|Ogres: Shot Check Spread|Advanced VR Options > Debug > Tunables > Ogres: Shot 
 vr_agrunt_preparry_range|2|Tunables|Preventive: Range|Advanced VR Options > Debug > Tunables > Preventive: Range
 vr_agrunt_preparry_chance|2|Tunables|Preventive: Chance per Check|Advanced VR Options > Debug > Tunables > 
 vr_agrunt_preparry_interval|2|Tunables|Preventive: Check Interval|Advanced VR Options > Debug > Tunables > 
@@ -3443,6 +3454,7 @@ vr_kdtrig_tackle_face|2|Tunables|Facing|Advanced VR Options > Debug > Tunables >
 vr_kdtrig_tackle_leniency|2|Tunables|Charge Leniency|Advanced VR Options > Debug > Tunables > Charge Leniency
 vr_kdtrig_tackle_knock|2|Tunables|Knock Back|Advanced VR Options > Debug > Tunables > Knock Back
 vr_kdtrig_tackle_bump|2|Tunables|Bounce|Advanced VR Options > Debug > Tunables > Bounce
+vr_kdtrig_tackle_stamina|2|Tunables|Stamina Cost|Advanced VR Options > Debug > Tunables > Stamina Cost
 vr_kdtrig_tackle_contact|2|Tunables|Contact|Advanced VR Options > Debug > Tunables > Contact
 vr_kdtrig_tackle_cooldown|2|Tunables|Cooldown|Advanced VR Options > Debug > Tunables > Cooldown
 vr_kdtrig_slope|2|Tunables|Chance|Advanced VR Options > Debug > Tunables > Chance
@@ -4373,6 +4385,7 @@ vr_brush_shade|2|Debug - Tools|Shade the Boxes' Faces|Advanced VR Options > Debu
 |2|Debug - Tests|Loot Beams: Report|Advanced VR Options > Debug > Tests > Loot Beams: Report
 vr_lootbeam_debug|2|Debug - Tests|Loot Beams: Debug Lines|Advanced VR Options > Debug > Tests > Loot Beams: Debug 
 vr_debug_stick|2|Debug - Tests|Stick: Show Speed|Advanced VR Options > Debug > Tests > Stick: Show Speed
+vr_display_clock|2|Debug - Tests|Game Time From the Display Clock|Advanced VR Options > Debug > Tests > Game Time 
 |2|Debug - Tests|Stick: Curve Table|Advanced VR Options > Debug > Tests > Stick: Curve Table
 |2|Debug - Tests|Stick: Run Steadiness|Advanced VR Options > Debug > Tests > Stick: Run Steadiness
 |2|Debug - Tests|Doom: Info|Advanced VR Options > Debug > Tests > Doom: Info
@@ -4888,6 +4901,8 @@ vr_ragtool_log|2|Ragdoll Tool|Log|Advanced VR Options > Debug > Ragdoll Tool > L
 |2|Debug - Automation & Self-Tests|Armed Grunts: Grab Anywhere, Never a Blow|Advanced VR Options > Debug > 
 |2|Debug - Automation & Self-Tests|Armed Grunts: Grab Test's Cost|Advanced VR Options > Debug > Automation & 
 |2|Debug - Automation & Self-Tests|Armed Grunts: Reach for a Lying One's Weapon|Advanced VR Options > Debug > 
+|2|Debug - Automation & Self-Tests|Armed Grunts: Dual Wielder Disarmed|Advanced VR Options > Debug > Automation & 
+|2|Debug - Automation & Self-Tests|Ogres: Friendly Fire|Advanced VR Options > Debug > Automation & Self-Tests > 
 |2|Debug - Automation & Self-Tests|Armed Grunts: Friendly Fire|Advanced VR Options > Debug > Automation & 
 vr_agrunt_ik_debug|2|Debug - Automation & Self-Tests|Armed Grunts: Grip Distances|Advanced VR Options > Debug > 
 vr_agrunt_strike_demo|2|Debug - Automation & Self-Tests|Armed Humanoids: Strike Demo|Advanced VR Options > Debug > 
@@ -4967,6 +4982,7 @@ vr_smallgibs_test_dummy|2|Debug - Automation & Self-Tests|On the Training Dummy|
 |2|Debug - Automation & Self-Tests|Light Ammo Thrown at a Crate|Advanced VR Options > Debug > Automation & 
 |2|Debug - Automation & Self-Tests|Blasts Push Props: AD and Quake|Advanced VR Options > Debug > Automation & 
 |2|Debug - Automation & Self-Tests|Fuel Tank and Crate Thrown at Monsters|Advanced VR Options > Debug > Automation 
+|2|Debug - Automation & Self-Tests|Blows and Props: What Gibs|Advanced VR Options > Debug > Automation & Self-Tests 
 |2|Debug - Automation & Self-Tests|Flail Head Hits|Advanced VR Options > Debug > Automation & Self-Tests > Flail 
 |2|Debug - Automation & Self-Tests|Magazines Thrown at a Grunt|Advanced VR Options > Debug > Automation & 
 |2|Debug - Automation & Self-Tests|Press Down on a Crate|Advanced VR Options > Debug > Automation & Self-Tests > 

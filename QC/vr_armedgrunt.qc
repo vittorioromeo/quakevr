@@ -871,14 +871,14 @@ void() VR_AG_PropThink =
         remove(self);
         return;
     }
+    // Again next frame, whatever comes below; a drop removes it. (A blow seen here may take its OTHER weapon, the nearer of
+    // the two the fist met, VR_AG_StrikeFrame: this one, its first, had no next think then, so nothing placed it or its
+    // second or sent their pose, floating where it stood. His note vrfiringrange_2026-11-02_23-10-50.)
+    self.nextthink = time;
     // (held still, vr_agrunt_freeze: the Grip Editor, the Pose Studio, hands reaching into its weapons: no tug, no blow)
     float still = VR_AG_Still(g);
     if(!still && VR_AG_TugFrame(g, self)) // (a tug-of-war over it: vr_armedgrunt_play.qc)
     {
-        if(g.vr_ag_prop == self)
-        {
-            self.nextthink = time;
-        }
         return;
     }
     if(!still && VR_AG_WeaponStruck(g, self)) // (a hard blow or a throw on the weapon itself: vr_armedgrunt_play.qc)
@@ -896,7 +896,6 @@ void() VR_AG_PropThink =
         VR_ADGun_MonsterStreamEnd(g, self.weapon, FALSE); // (no flame for a while: its attack cut short, a pain)
     }
     VR_FuelTank_Wear(self); // (a flamethrower's or sprayer's tank on its back: vr_adtankworn.qc)
-    self.nextthink = time;
 };
 
 // A weapon one hand swings (dual wielding pairs these: VR_AG_ArmLeft): a sword (not AD's hammer and mace), the crowbar,
@@ -1159,6 +1158,7 @@ entity(entity g, vector vel) VR_AG_DropHeld =
     }
     entity w = CreateThrownWeapon(g, p.weapon, p.weaponflags, inst, p.origin, p.v_angle, vel, randomVec(90),
         FALSE /* disappear on hit */, FALSE /* deal damage */, WeaponIdToThrowDamage(p.weapon));
+    w.vr_ag_knock_at = time; // (not a thrown weapon on its other one as it leaves its hand: VR_AG_WeaponStruck knocked that out too)
     float fought = g.vr_ag_saw_fought || (g.health > 0 && g.enemy && (g.enemy.flags & FL_CLIENT)); // (alive: after you now)
     if(w && p.weapon == WID_CHAINSAW && inst.wi_clip > 0 && fought && cvar_hget(cvarh_vr_agrunt_saw_drop_running))
     {
@@ -1719,9 +1719,6 @@ void(entity p, vector dir) VR_AG_SetHand =
 // Its friends not shot (vr_agrunt_friendly_care): a friend in its line of fire, it holds and sidesteps
 // ----------------------------------------------------------------------------
 
-.float vr_ag_ff_until;    // stepping aside (a friend in its line of fire) until then (VR_AG_Run)
-.float vr_ag_ff_since;    // held for friends since then (0: its line clear): vr_agrunt_friendly_giveup
-.float vr_ag_ff_last;     // ... the last time it held
 float vr_ag_ff_held;      // armed humanoids' shots and blows held for friends (the tests)
 float vr_ag_ff_hits;      // ... their hits on other monsters (VR_AG_DamageScale: the tests)
 float vr_ag_ff_dmg;       // ... those hits' damage
@@ -1736,8 +1733,14 @@ float(float wid) VR_AG_FriendSpread =
     return 2;
 };
 
-// A friend in its line of fire: a living monster (not its enemy, not fighting it) that the line from `from` to its
-// enemy meets first, or one of four more lines `deg` degrees about it (left, right, up, down). world: clear.
+// A friend of `self`'s not to be shot: a living monster, not its enemy, not fighting it (armed humanoids, ogres).
+float(entity e) VR_AI_IsFriend =
+{
+    return e && e != self && e != self.enemy && (e.flags & FL_MONSTER) && e.health > 0 && e.enemy != self;
+};
+
+// A friend in its line of fire: the first thing the line from `from` to its enemy meets, or one of four more lines `deg`
+// degrees about it (left, right, up, down). world: clear.
 entity(vector from, float deg) VR_AG_FriendInLine =
 {
     entity targ = self.enemy;
@@ -1749,7 +1752,7 @@ entity(vector from, float deg) VR_AG_FriendInLine =
     }
     // (A friend against it, its muzzle at or in it: the line from its own middle out to the muzzle first.)
     traceline(self.origin + '0 0 8', from, FALSE, self);
-    if(trace_ent && trace_ent != targ && (trace_ent.flags & FL_MONSTER) && trace_ent.health > 0 && trace_ent.enemy != self)
+    if(VR_AI_IsFriend(trace_ent))
     {
         return trace_ent;
     }
@@ -1768,37 +1771,30 @@ entity(vector from, float deg) VR_AG_FriendInLine =
         else if(i == 3) { r = VR_AG_Rotate(dir, side, deg); }
         else if(i == 4) { r = VR_AG_Rotate(dir, side, -deg); }
         traceline(from, from + r * dist, self.vr_ai_gate > 0 ? MOVE_PORTALS : FALSE, self);
-        entity e = trace_ent;
-        if(e && e != targ && e != self && (e.flags & FL_MONSTER) && e.health > 0 && e.enemy != self)
+        if(VR_AI_IsFriend(trace_ent))
         {
-            return e;
+            return trace_ent;
         }
     }
     return world;
 };
 
-// Before it fires (each shot) or swings, from `from`: TRUE when it holds for a friend in its line of fire (by
-// vr_agrunt_friendly_care's chance) and steps aside, away from it, for a clear line (VR_AG_Run); held so for
-// vr_agrunt_friendly_giveup, it fires anyway (once, then it is careful again).
-float(vector from, float deg) VR_AG_FriendHold =
+// A friend `f` (world: none) in the way of `self`'s shot: TRUE when it holds (by `care`'s chance) and steps aside, away
+// from it, for a clear line, until .vr_ag_ff_until (`step` to 2 x `step` s from now; lefty: which way); held so for `giveup`
+// s (with no more than `forget` s between holds), it fires anyway, once, then it is careful again. Armed humanoids
+// (VR_AG_FriendHold), ogres (vr_ogre_friends.qc).
+float(entity f, float care, float giveup, float step, float forget) VR_AI_FriendCare =
 {
-    float care = cvar_hget(cvarh_vr_agrunt_friendly_care);
-    if(care <= 0 || !self.enemy)
-    {
-        return FALSE;
-    }
-    entity f = VR_AG_FriendInLine(from, deg);
     if(!f)
     {
         self.vr_ag_ff_since = 0;
         return FALSE;
     }
-    if(self.vr_ag_ff_since <= 0 || time - self.vr_ag_ff_last > 1.5)
+    if(self.vr_ag_ff_since <= 0 || time - self.vr_ag_ff_last > forget)
     {
         self.vr_ag_ff_since = time;
     }
     self.vr_ag_ff_last = time;
-    float giveup = cvar_hget(cvarh_vr_agrunt_friendly_giveup);
     if(giveup > 0 && time - self.vr_ag_ff_since >= giveup)
     {
         VR_AG_Log(sprintf("its %s in the way %.1f s: fires anyway", f.classname, time - self.vr_ag_ff_since));
@@ -1809,7 +1805,6 @@ float(vector from, float deg) VR_AG_FriendHold =
     {
         return FALSE;
     }
-    vr_ag_ff_held = vr_ag_ff_held + 1;
     // Its step: away from the friend's side of its line (on the line itself: either way).
     vector toEnemy = self.enemy.origin - self.origin;
     makevectors([0, vectoyaw(toEnemy), 0]);
@@ -1823,7 +1818,24 @@ float(vector from, float deg) VR_AG_FriendHold =
         VR_AG_Log(sprintf("holds: its %s in the way, %.0f off its line; stepping %s", f.classname, off,
             self.lefty ? "left" : "right"));
     }
-    self.vr_ag_ff_until = time + 0.4 + random() * 0.4;
+    self.vr_ag_ff_until = time + step * (1 + random());
+    return TRUE;
+};
+
+// Before it fires (each shot) or swings, from `from`: TRUE when it holds for a friend in its line of fire
+// (vr_agrunt_friendly_care, vr_agrunt_friendly_giveup) and steps aside (VR_AG_Run).
+float(vector from, float deg) VR_AG_FriendHold =
+{
+    float care = cvar_hget(cvarh_vr_agrunt_friendly_care);
+    if(care <= 0 || !self.enemy)
+    {
+        return FALSE;
+    }
+    if(!VR_AI_FriendCare(VR_AG_FriendInLine(from, deg), care, cvar_hget(cvarh_vr_agrunt_friendly_giveup), 0.4, 1.5))
+    {
+        return FALSE;
+    }
+    vr_ag_ff_held = vr_ag_ff_held + 1;
     return TRUE;
 };
 
@@ -1852,10 +1864,17 @@ vector(float wid, vector from, vector dir) VR_AG_BlastPoint =
     vector a = VR_AG_Angles(dir);
     a_x = -a_x;
     makevectors(a);
-    vector vel = v_forward * 600 + v_up * 200;
+    return VR_AG_ArcBurst(from, v_forward * 600 + v_up * 200, wid == WID_PROXIMITY_GUN);
+};
+
+// Where a bouncing round thrown from `from` at `vel` bursts, as MOVETYPE_BOUNCE flies it (`mine`: where it first lands);
+// vr_ag_arc_hit what it burst on (world: nothing it may hurt, at its fuse).
+entity vr_ag_arc_hit;
+vector(vector from, vector vel, float mine) VR_AG_ArcBurst =
+{
+    vr_ag_arc_hit = world;
     vector pos = from;
     float g = cvar_hget(cvarh_sv_gravity);
-    float mine = (wid == WID_PROXIMITY_GUN);
     float dt = 0.05;
     float t;
     for(t = 0; t < 2.5; t = t + dt)
@@ -1874,9 +1893,14 @@ vector(float wid, vector from, vector dir) VR_AG_BlastPoint =
             continue;
         }
         pos = trace_endpos + trace_plane_normal * 0.5;
-        if(mine || (trace_ent != world && trace_ent.takedamage == DAMAGE_AIM))
+        if(trace_ent != world && trace_ent.takedamage == DAMAGE_AIM)
         {
-            return trace_endpos; // (a mine lands; a grenade bursts on what it may hurt)
+            vr_ag_arc_hit = trace_ent;
+            return trace_endpos; // (a grenade bursts on what it may hurt)
+        }
+        if(mine)
+        {
+            return trace_endpos; // (a mine lands)
         }
         vel = vel - trace_plane_normal * ((vel * trace_plane_normal) * 1.5);
         if(trace_plane_normal_z > 0.7 && vel_z < 60)
