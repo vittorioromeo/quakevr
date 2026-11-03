@@ -113,6 +113,12 @@ enum FreeMode : int
 // The view, each frame: whether the empty `hand`'s palm is on the other hand's weapon (held or carried), far enough from
 // its handle and (held by its handle) from its grip and blade hotspots (vr_weapon_grab_anywhere_min).
 void setFreeCandidate(int hand, bool on);
+// Flatscreen play (vr_flatsight.cpp, -flatscreenmode): the flat pose brings the empty hand onto the grip, and a
+// flatscreen hand is always gripping (vr_client.cpp's gripping), so there is no press's rising edge for the hotspot to
+// be taken on. This is that edge: armed true on the frame the hand arrives on the grip, false on every other frame.
+// applyHotspots' goodDistance, goodDot, the stickiness and the weapon's Two-Handed setting decide the take as they do
+// for a controller's press; nothing here changes, and outside flatscreen play this does nothing.
+void armFlatGrip(int helping, bool armed);
 // Whether `hand` holds the other hand's weapon anywhere (a free grip), and as what (FreeMode; -1 none).
 [[nodiscard]] bool freeHelping(int hand);
 [[nodiscard]] int freeMode(int holding);
