@@ -3245,7 +3245,15 @@ vr_enemy_melee_turn|2|Tunables|Swing Turn|Advanced VR Options > Debug > Tunables
 vr_enemy_aim_angle|2|Tunables|Aim Cone|Advanced VR Options > Debug > Tunables > Aim Cone
 vr_enemy_aim_fire|2|Tunables|Fire Cone|Advanced VR Options > Debug > Tunables > Fire Cone
 vr_enemy_aim_delay|2|Tunables|Max Delay|Advanced VR Options > Debug > Tunables > Max Delay
-vr_footstep_player_turn_vol|2|Tunables|Standing Step Volume|Advanced VR Options > Debug > Tunables > Standing Step 
+vr_footstep_player_volume|2|Tunables|Volume|Advanced VR Options > Debug > Tunables > Volume
+vr_footstep_player_walk_vol|2|Tunables|Walking Volume|Advanced VR Options > Debug > Tunables > Walking Volume
+vr_footstep_player_run_vol|2|Tunables|Running Volume|Advanced VR Options > Debug > Tunables > Running Volume
+vr_footstep_player_walk_speed|2|Tunables|Walking Speed|Advanced VR Options > Debug > Tunables > Walking Speed
+vr_footstep_player_run_speed|2|Tunables|Running Speed|Advanced VR Options > Debug > Tunables > Running Speed
+vr_footstep_player_curve|2|Tunables|Volume Curve|Advanced VR Options > Debug > Tunables > Volume Curve
+vr_footstep_player_adjust_vol|2|Tunables|Small Adjustments Volume|Advanced VR Options > Debug > Tunables > Small 
+vr_footstep_player_adjust_gap|2|Tunables|Small Adjustments Gap|Advanced VR Options > Debug > Tunables > Small 
+vr_footstep_player_room_speed|2|Tunables|Room Move Speed|Advanced VR Options > Debug > Tunables > Room Move Speed
 vr_footstep_volume|2|Tunables|Volume|Advanced VR Options > Debug > Tunables > Volume
 vr_footstep_walk_speed|2|Tunables|Walking Speed|Advanced VR Options > Debug > Tunables > Walking Speed
 vr_footstep_run_speed|2|Tunables|Running Speed|Advanced VR Options > Debug > Tunables > Running Speed
