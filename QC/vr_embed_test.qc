@@ -1211,6 +1211,14 @@ void() VR_EH_Step =
         else if(vr_et_s == 12 && t > 1.1)
         {
             VR_Test_Check(vr_et_m.health <= vr_et_v - 3, sprintf("it bleeds it left in (%g to %g)", vr_et_v, vr_et_m.health));
+            // (The arm reaches 50 units from the chest, and the body's flinch can hold the hilt 65 from you: you'd step to it.)
+            vector toHilt = vr_et_w.origin - p.origin;
+            toHilt_z = 0;
+            if(vlen(toHilt) > 36)
+            {
+                setorigin(p, p.origin + normalize(toHilt) * (vlen(toHilt) - 36));
+                p.velocity = '0 0 0';
+            }
             vr_eh_end = vr_et_w.origin;
             VR_EH_HandTo(vr_eh_end, 0);
             vr_et_v2 = 0;
@@ -1307,8 +1315,6 @@ void() VR_EH_Step =
         }
         else if(vr_et_s == 10 && t > vr_eh_for + 0.1)
         {
-            // (While it falls, a nudge of you by it isn't what's looked at here: a long tug, then its own.)
-            cvar_set("vr_embed_tug_corpse", "40");
             vr_et_m.health = 1;
             T_Damage(vr_et_m, p, p, 2);
             VR_ET_To(11);
@@ -1316,7 +1322,6 @@ void() VR_EH_Step =
         else if(vr_et_s == 11 && t > 0.5)
         {
             VR_Test_Check(vr_et_m.health <= 0 && VR_EH_Blade() == vr_et_w && VR_AxeStick_InMonster(vr_et_w), sprintf("dead: held still (health %g, kind %g)", vr_et_m.health, VR_Hand_Kind(p, h)));
-            cvar_set("vr_embed_tug_corpse", "8");
             vr_et_w.vr_hold_pulled = 0;
             VR_EH_HandTo(VRGetHandPos(h) - vr_et_w.vr_stick_dir * 8, 0.3); // (about 30 cm of hand)
             VR_ET_To(12);

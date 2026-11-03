@@ -558,7 +558,7 @@ float() VR_Embed_HoldThink =
     float off = vlen(e.vr_hold_off);
     if(cvar_hget(cvarh_vr_debug_axestick) >= 3)
     {
-        dprint(sprintf("embedhold: %s along %.1f off %.1f units, %.1f further, %.1f in\n", e.netname, along, off, far, e.vr_stick_depth + e.vr_stick_slide));
+        dprint(sprintf("embedhold: %s along %.1f off %.1f units, %.1f further, %.1f in; this frame the hand %.1f, it %.1f along it\n", e.netname, along, off, far, e.vr_stick_depth + e.vr_stick_slide, moved3 * dir, wound * dir));
     }
     if(off > max(0, cvar_hget(cvarh_vr_embed_hold_break)) * cm)
     {

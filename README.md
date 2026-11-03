@@ -146,6 +146,10 @@ them all, and each page's *Reset This Page* puts its settings back. [docs/SETTIN
 
 - **Melee that reads real swings:** punches, blades, clubs and pistol-whips that land on the monster's real shape;
   axes that stick where you throw them.
+- **Embedded blades:** a hard stab with a sword or a pointed blade, or a hard swing of an axe, stays in the body: slide it along its
+  axis against the flesh, pull it out, let go and it stays and bleeds, grip it again or force grab it. A strong one staggers a light
+  enemy, and you can move the body by the blade; heavy monsters and bosses don't budge. Thrown swords stick point first too. One
+  setting, Combat > Embedded Blades.
 - **Parry** with a weapon or crossed forearms (it stops the attack), **counter-attack**, **bash**, **shove**,
   **headbutt**, and **bat** spikes, lasers and grenades back. Catch grenades, or shoot them.
 - **Bullet time**, from your wrist or a stick, with an optional Sandevistan mode.
