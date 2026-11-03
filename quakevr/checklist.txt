@@ -3,6 +3,11 @@
 # Sections run in test order: newest and most important first, dev tools last. A line's text is the key of its tick: reword a line and it is untested again.
 
 [0. Flatscreen play (-flatscreenmode)]
+Flatscreen: Left Ctrl crouches while you hold it and you stand back up when you let go (vr_flat_crouch_time 0.25 for the move, vr_flat_crouch_drop 18 for how far your eyes come down; Debug > Tests > Flat Keys runs all four of these headless)
+Flatscreen: F switches the head torch: out and packed away, then lit and worn again. In a headset nothing about the torch changed
+Flatscreen: G drops what your hands hold, main hand first, off hand second (a weapon on the floor, a box or prop let go, "flat drop:" on the console). In a headset G still does what it did
+Flatscreen: an ammo or health box grabbed with E is taken at once, so you keep moving; a worn pack is still worn by its own cue. the Auto-Collect row stays the headset player's own setting
+Flatscreen, standing: you are counted as crouched (vr_crouch_status: box 52, eyes 47), so you walk at 0.75x and never rise out of the crouched box. Should standing count as standing?
 Flatscreen (-flatscreenmode): an axe in the main hand, LMB swings it and the foe in front takes the blow; RMB does the same for the off hand; V still punches
 Flatscreen melee: a gun's fire button is its own shot and a chainsaw's trigger only runs its chain — neither one swings; a hand that already swung is not disturbed by the other hand's button unless both hold a swinging weapon
 Flatscreen: the drawn hands stay on their arms through a punch, a knock and when you look straight up (Flatscreen Arm Hold 1; 0 puts them back where they were placed)
