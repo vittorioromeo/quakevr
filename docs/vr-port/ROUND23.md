@@ -7258,6 +7258,44 @@ no zone. The real one: BACKLOG.md, "The enforcer's backpack made a real one".
 Tests: `vr_wornpack_test` tens choose the kind (0 grunts, 10 knights, 20 death knights, 30 enforcers: 1, 2, 3 for each; 33 lifts an
 enforcer), 5 the zone, 6 the replacement's rule. `vr_agrunt_test 47` expects no backpack from melee and fists now.
 
+## Flaky tests, round 2 (branch `agent/flaky2`, his words 2026-11-02: "Please sort out the flaky tests")
+
+Runs seeded (`sv_random_seed 1`) and repeated; "identical" compares the PASS/FAIL lines' hash. The steady failures were one
+real bug hiding behind tests that measured the wrong thing.
+
+| Test | Cause (evidence) | Class | Fix | Before | After |
+|---|---|---|---|---|---|
+| agrunt_86 retreat, aggressiveness | `VR_AG_ShoveClose` called `VR_AG_RangeOf` for a yes or no, resetting `vr_ag_rmin/rpref/rmax` to the weapon's raw row between `VR_AG_Ranges` and their use in `VR_AG_WalkFire`: retreat, aggressiveness, range scale, kind and threat never reached the steps taken while firing. Printed: rmin 224 at retreat 0, 15 steps at d 129..221 | b | `VR_AG_HasRanges` asks without touching them; a reload's step away is off at retreat 0, as the cvar says | 25/2 | 5/5 identical, 27/0. Retreat 0: 0 steps, 128 away; aggressiveness 0.5: 333 against 266 |
+| agrunt_86 accuracy, reaction | a mean of 8 random draws (accuracy 2 at 0.73 of 1 on seed 1, 0.7 wanted), and one first shot's dice (Nightmare 0.51..0.71, under 0.7 wanted; 0.4..0.9 s after its wait in every case). The code divides by the knob exactly | a | 24 shots (0.48 of 1 on every seed); the reaction read from its wait (`attack_finished` after the hunt) | fails by seed | as above |
+| agrunt_1 | the last try's grenade, fuse running, killed the next try's Rocket Launcher grunt where it spawned (health -21 after 0.9 s, a grenade still about). Round 1's longer tail (12/5) was not seen on this merge | a | shots cleared between tries | 16/1 | 5/5 identical, 17/0 |
+| agrunt_76 | hits are dice on a small mark: one gun's 8 shots move 12% a hit, 25% wanted (2 of 9 fails). The aim itself: head on every shot behind the crate, chest before | a | per gun what its aim decides; hit rates per cover over all guns (crate 41% against 11-17%, low wall 52-57% against 22-29%) | 24/1, 23/2 | 5/5 identical, 29/0 |
+| agarmor_5 | the hit was at the plate's origin (`limbpiece` 10): plate 9's read as the torso's (joint -1) | a | at its outer face (14), where a hit meets it | 23/1 | 5/5 identical, 24/0 |
+| agrunt_72 gun's side | read off its origin: 0.8..8.2 for the same 13.9 from the axe at every first shot. Its hands follow its drawn body, eased over the 0.1 s run frame, while its origin has already stepped aside as it strafes. Not a change in how it uses the gun | a | read off each other, > 8 | loosened to > 0 | 5/5 identical, 7/0 |
+| agrunt_72 up close | at the first shot it backed off past the axe's 84 in its gun's frames (56 to 102 before its next check), so it never swapped. On origin/next without my range fix too (tried) | b | `VR_AGR_AxeNear`: `VR_AG_WalkFire` holds its step there | 6/1 | as above |
+| vr_agtune_test 3 | hunted on its spawn's frame: `walkmonster_start_go`'s pending think was lost, so no turning speed and eyes at its waist. The first low wall ended it: `enemy_vis` false, no turn, no step (yaw 270, ideal 215, walkmove free all round), for good. Then he outlasts his 24 shells | a | waits for the spawn; watched until his gun is spent; a cast at least every two cooldowns (17-21 casts in 71-81 s) | 3 of 6 seeds | 5 of 5 seeds |
+| agrunt_95, death knight | "dead (50)": Plate Blocks All, a plate takes its whole share of any blow | a | the blow again until it dies (as test 47) | fails by seed | 3 seeds, 11/0 |
+| agrunt_71 drops | three things: a lethal blow an armoured one's plate took (guns 32 of 40); ten corpses at once against `vr_ragdoll_max` 8 (two gone, one's pack sometimes with it: the flip with the seed fixed); the fight's grunt's torn pack in the first count (41 of 40) | a | the blow again; 8 at a time; only the test's own packs | 4/6, varied | drops pass; 5/5 identical on 5eaf76b6c, 9/1 (10/0 in 2 runs one merge earlier): the enforcer's damage a shot, within 20%, moved with the merge's random stream: not looked into |
+| agrunt_71 balance | `vr_agrunt_range` 0 and the numbers match: grunt 11.93 and 11.52 damage/s, enforcer 18.70 and 18.25. On, the replaced ones stand 283 and 222 away against 45 and 85 | c | the balance measured at range 0; the question below | failed | passes |
+| test 47 "ammo count less than zero" | a super nailgun spends 2; `wi_clip < 1` let a last odd round through at -1, shown to players with bprint | b | through `W_FireSpikes` as yours: the last odd round a lone nail | case 9 printed it | 0 printed, 77/0 |
+| `vr_menu_dump_paths` | not reproduced: 8,440 rows and its end line in the game's log. run.sh -Filter's output is word-wrapped at the console's width; `menu_paths.py` kept each row's first line, so 1,877 rows of menu_paths.txt ended mid-path. In the wrapped capture the first mummy_struggle row is at line 8,406, about the row count: a likely reason it looked like the end (not proven) | a | it joins them and refuses a row without 5 fields; regenerated: identical to the game's log, in order | cut | 8,459 rows |
+
+**Not found / not fixed.**
+- agrunt_67: one seeded run, timed out at 900 s beside other work at 37 of 64 groups (301-406 s free, round 1). Normal 195/247: idle 67/73, ready 41/47, running 37/47, striking 50/80; losses 31 too fast, 14 knocked, 7 fist off. What varies with the seed fixed: not found.
+- agrunt_18: "Death Knight fists: standoff 0, stood 33.0 as its blows landed; backed off" 23/1, 2 of 2 identical on seed 1: not looked into.
+- agrunt_78: the same two fails (horizontal vs your sword level parried; the chainsaw's line): not looked into.
+- nail_1: "a lying backpack: no nail flew on through it having pushed it (1 did)", 3 of 3 identical: not looked into.
+- agrunt_60, rv_1: pass on seed 1 (2 of 2): their unseeded fails not looked into.
+- Not run: teleporters_chase, ragdoll_ragtest/grab/guard, judo, reload 112/3, parry_pose, weapon_catch 3/2, dead_gear 7/2, teleporter edges' split lines, stealth's full run.
+- A lead, from the code only: tests 76 and 86 also hunt on the spawn's frame (`VR_AGT_Spawn` then `VR_AGT_Hunt`), so their grunts should lack the same turning speed and eyes.
+
+**Question for him (test 71):** a replaced grunt or enforcer holding its own gun keeps its fighting distance, so against a still player it deals half a vanilla grunt's damage a second and a third of a vanilla enforcer's (same gun, same numbers at the same distance). Options: (1) as now, the distance is what makes them harder to reach; (2) `vr_agrunt_range` off for their own guns, as id's; (3) nearer for them. Recommendation: (1).
+
+**Question for him (test 71):** a replaced grunt never drops the extra weapon a vanilla grunt does (0 of 40 against 8-13); a replaced enforcer does (7-13). `VR_AG_SoldierDrop` returns before the roll for one under the pack's rule. Options: (1) grunts roll too, as enforcers; (2) neither; (3) as now. Recommendation: (1). The check ("within 12") failed at 13 against 0 on one merge and passed at 8 against 0 on another, so test 71 stays on test_flaky.txt until this is answered.
+
+**Question for him (test 67):** its 90% floor mixes a swing under way, where a hand is refused as too fast by design, with standing still: striking 63%, idle 92%. Options: (1) the floor on idle, ready and running only, striking printed; (2) the too-fast rule eased for a blade mid-swing; (3) as now. Recommendation: (1).
+
+**Kit (coordinator):** run.ps1's `Select-String` output wraps at the console's width: a filtered long line arrives in pieces (`-Filter` drops nothing, but a grep on the capture does). Test 76 took 82 s free and timed out at 400 s five times over beside other work: run_baseline's 300 s would too.
+
 ## Heavy footsteps and the pack's rip from recordings (branch `agent/freesounds`, his notes of 2026-11-02 night)
 
 His words: the ogres' and fiends' footsteps sound "very artificial"; the rip sounds "too much like a fiend attack"; find free sounds.
@@ -7294,3 +7332,238 @@ cuts them from decoded previews (its header has the sources and the ffmpeg line)
 - `pack_rip.wav`: the first 0.62 s of 591527 from its onset, high-passed 150 Hz, one pole at 8 kHz, tanh 5, a 0.14 s fade. Nearly all
   over 800 Hz; its sample-to-sample jumps are the tear's dense crackle (the source has the same, against its peak), not lone clicks.
 - All files start and end at 0.
+
+## The pack's fit per kind; enforcers always liftable (branch `agent/packfit`, his notes 2026-11-03 02:21:38, 02:25:39)
+
+His words: "Can you add per armed humanoid type sliders for the backpack fit? I would like to tweak the position only for knights or
+death knights"; "An enforcer should always be liftable from his back even if he has a melee weapon".
+Worn Backpacks > Fit opens Grunts, Knights and Death Knights: Forward, Left, Up, Size, Pitch, Yaw, Roll
+(`vr_worn_backpack_<grunt|knight|dknight>_x/_y/_z/_scale/_pitch/_yaw/_roll`), live: position and turn read each frame, the drawn size
+each frame (`VR_WP_Size`); a ragdoll's box keeps the size it was made with. Defaults are the shared values as promoted (forward 1.5, up
+1.5, size 0.6, pitch 21, yaw 180); the death knight's up 7.5 takes in `packFits`' old lift of 6, which went. Config 221: a saved shared
+value goes on all three once, the death knight's up with that 6 added, so his look doesn't move. The enforcer's lift zone is now on
+every armed enforcer, whatever it holds (Mission Pack 3's too), since the model always shows the pack.
+Tests run on the fit as configured (the old-pose pin went; `vr_wornpack_test` checks the fit's yaw and the pack's rear face). His fit turns
+the pack 180 degrees about its own origin while `packRest` still lays the unturned front against the back, so about half the box is
+inside the body at Forward 1.5: what he tuned by eye on the grunt; Forward on each kind's page moves it. The throw's check is half the
+hand's swing (22 units at 4 m/s for 10 frames): five runs each went 33.7-45.7 (grunts), 14.6-27.6 (knights), 36.9-44 (death knights),
+40.9-47 (enforcers). On the mock the body rises far less than the hand on the carry (of 24 up: 8.5, -0.1..5.8, 0.5..2.4, -2.8..-0.9).
+
+## The gentle press that killed: a headbutt; high falls on its feet
+
+His note vrragtriggers_2026-11-03_02-18-13: gently grabbing a lying grunt "is detected as an impact and kills"; high falls off
+ledges hurt but never drop the weapon.
+
+- **It was never the impact rule or the strikes: it was your head.** The take's events show `headbutt` at each death: 25.0 at
+  0.79 s (health 25 to -1), 24.1 at 8.21 s (25 to 0), 24.7 at 25.36 s (23 to -1). Bending down to grab, his head moved at 1.5 m/s
+  (`vr_headbutt_speed` 1.5, `vr_headbutt_damage` 24 at that speed) and was still 31 units off the body's origin, about a metre
+  (25 off its stale standing box's middle), and `VR_Headbutt_Target` is forgiving by design: a monster's box middle within reach.
+  A ragdoll lies apart from that box. Older than the impact rule (headbutts date from before 2026-10-23); nothing in the rule's
+  commits touched it. Fix: a ragdoll is headbutted only if the lunge meets its drawn body (`VR_Headbutt_Reaches`, 22 units,
+  `hitmodel_segment`); standing monsters as before.
+- **His hard slams were strikes, correctly:** the take's other damage, hand at -5.5 m/s (2 damage) and -9.3 m/s (9, then 10). No
+  change to the strikes' numbers. A real grip pressed down at 2-2.5 m/s (every part the mock could take: 0, 1, 2, 7, 8, 9, 13)
+  dealt no strike and lost no health before the fix too (the fastest strike reported: 1.7 m/s, held, and refused as dragged), so
+  held-limb speed is not the cause.
+- **High falls.** Knocked down or staggering over a real ledge it already let go (vrclimb: 280 and 240-unit drops, 46 and 24
+  damage, "hit something" at 5.0-9.6 m/s). On its feet (a shove that doesn't knock it down, sliding off) no ragdoll exists, so no
+  impact was ever read: it landed at 678 u/s for 55 damage, armed. New `VR_AG_FallLanded`: a landing that hurts it (`VR_Monster_Fall`,
+  a drop past `VR_SHOVE_SAFEFALL` 150 units, the whole body coming down that fast), standing or down, lets go.
+- **Test 202:** on any map with a flat wall, 4 press cases (floor by 3 parts, wall) and the head check; `map vrclimb` runs the 6 ledge
+  cases instead.
+
+## The player's footsteps: volume by speed, the body's small adjustments silent (branch `agent/playersteps2`)
+
+His notes (vrfiringrange_2026-11-03_01-57-12 and on): slow walking's footsteps much quieter, with sliders for the curve; "way
+too many sounds" turning in real life or with the thumbstick, or moving a little in the room.
+
+**Volume** (Debug > Tunables > Body > Player Footsteps, all `vr_footstep_player_*`): `_volume` 1, times everything; `_walk_vol`
+0.1 at `_walk_speed` 60 u/s or slower, up to `_run_vol` 0.5 (the old flat volume) at `_run_speed` 320 u/s or faster, along
+`_curve` 1.5 (an exponent: 1 even, higher staying quiet longer). The by-distance old trigger keeps its own 0.5 (setting off, no
+walking legs, multiplayer).
+
+**The small adjustments:** two sources, and the first fix (the standing steps alone) wouldn't have done: the mock's head and
+stick turns and room moves also made the walk itself step, because they move the body (mean 7 to 30 u/s, spikes past 90). So
+an adjustment is a standing step, or a walk's touchdown with the stick not moving you (`cl.cmd`) while the pace, smoothed over
+0.3 s so a quick head move doesn't count, is under `_room_speed` 60 u/s (about 2 m/s of real walking at his scale). All are
+silent by default: `_adjust_vol` 0; turned up, at most one in `_adjust_gap` 1 s. Real steps in the room are silent too, unless
+you go faster than `_room_speed`: that's the one way a room walk is heard, and lowering it hears more of them. Stepping with the
+stick is always heard, however slowly. The feet still count every touchdown for the bloody footprints.
+
+**Test** (`Misc/quakevr/playersteps_test.sh`: 10 passed, 0 failed):
+
+| phase | speed | touchdowns taken as adjustments | sounds | mean volume |
+| --- | --- | --- | --- | --- |
+| slow walk, stick 0.15 | 48 u/s | 0 | 6 | 0.100 |
+| walk, stick 0.4 | 112 u/s | 0 | 9 | 0.136 |
+| run | 319 u/s | 0 | 14 | 0.500 |
+| strafe | 311 u/s | 0 | 15 | 0.490 |
+| head turning | 7 u/s | 8 | 0 | |
+| stick turning | 29 u/s | 2 | 0 | |
+| small room moves | 30 u/s | 5 | 0 | |
+| stick turning, `_adjust_vol` 0.2 | 9 u/s | 3 | 1 in 3.4 s | 0.200 |
+
+Each footstep is still within a frame of the drawn touchdown (13.9 ms most), and the old trigger plays none in these phases.
+
+## A dead fiend leapt on; armed knights' guns trailed their sidesteps (branch `agent/fiendgun`, his notes of 2026-11-03)
+
+**The dead fiend** (vrfiringrange_2026-11-03_02-01-47). Its entities file: health -1, `vr_corpse` 2, a ragdoll, think
+`demon1_jump1..10` round and round for good, enemy a thing gone (id 234), velocity 0 sampled (the ragdoll takes each leap's
+velocity at once). Shots, blows and a neck snap, on the ground and in mid-leap, knocked down, staggered, and every poke at a
+lying corpse leave it dead (scenes 1-8, 10-18 pass before the fix too). What does it: a fiend's leap strikes something that
+dies of the blow and blows up (the range's barrels), the blast kills the fiend **inside `Demon_JumpTouch`**, inside its
+`T_Damage(other, ...)`; Killed sets its death's think and the touch goes on and writes its landing's over it (`demon1_jump11`,
+then run, then its AI leaps again: `Demon_JumpTouch` itself returns at once on a dead one, so its leap never ends and its
+three-second retry goes round). Its enemy, set by Killed, is the barrel since removed; its limbs' blast pop makes its health -1
+and its body not solid, so it arms as a corpse in a held frame. The first line's health check could not see this: it was
+alive when the touch began. Fix: `VR_Leap_BlowEnded()` (combat.qc: parried or dead), asked after the blow by Quake's fiend, dog
+and spawn in place of their parry-only check; AD's leaps (fiend, dog, fury, minotaur, spider, swampling, spawn, voreling, elf,
+zombie knight, Judicator) ask their health before their landing. Those set their exit think before the blow, so only their
+re-jump branch (no floor under it) could rise: read in the code, not run. The gremlin's blow is commented out, the hunter ogre's
+touch and the steel claw's set no think after a blow. `vr_deadanim_test 20`, `21`, `22` (`Misc/quakevr/deadleap_test.sh`,
+QC `vr_deadleap_test.qc`; Debug > Tests): 18 scenes each: before 17 passed, scene 9 failed for all three (a fiend's body 29 frames of its AI, a
+dog's 43, a spawn's 28 and 1114 units on); after 18 passed. His own kill is not on record (the take starts with it already
+leaping): this cause is the one path that gives his numbers, not a replay of it; in the test's 5 s the dead fiend ran its AI
+and did not yet reach its leap's loop.
+
+**The guns** (vrragtriggers_2026-11-03_02-23-27). Test 205 (`vr_agrunt_test 205`, `vr_armedgrunt_gunlag_test.qc`): each kind
+with a nail pistol plays its run frames, moved at 120 u/s by the test; the numbers its drawn hand from its drawn head, off its
+run on the spot's (forward, left, up):
+
+| | forward | right | backwards | left |
+|---|---|---|---|---|
+| Grunt before | 0, 0, 0.1 | 0.4, 2.2, -0.1 | 0.1, -0.3, 0.1 | 0.7, -2.3, -0.1 |
+| Grunt after | 0, 0, 0.1 | 0, 0, 0 | 0, 0, 0.1 | 0, -0.1, 0 |
+| Enforcer before | -0.2, 0, 0.1 | 2.2, 0.5, 0.8 | -0.2, 0.3, 0 | 0.9, 0, 0.5 |
+| Enforcer after | -0.2, 0, 0.1 | 0, 0.2, -0.1 | -0.2, 0, 0.1 | -0.1, -0.1, 0.1 |
+| Knight before | 0.1, 0, 0 | **-5.8, 6.5, -2.4** | 0.3, -1.7, 0 | **0.1, -9.7, -0.8** |
+| Knight after | 0.1, 0.1, 0 | 0, 0.1, 0 | 0.6, -0.5, -0.1 | 0.4, -0.4, -0.1 |
+| Death knight before | 0.1, 0, 0.1 | **-3.5, 8.9, 0.3** | -0.3, -2, 0 | **-3.5, -10.2, -0.4** |
+| Death knight after | 0, 0, 0 | 0, 0.2, 0 | 0, -0.1, 0 | 0.1, -0.3, 0.1 |
+
+The cause: the strafe lean and turn (`aglegs::lean`, `vr_agrunt_strafe_lean`, `_turn`) are laid on every bone, moving the chest
+across (the upper body's hold keeps its turn out, its place stays: "its waist where the hips have it"), while the targets are
+placed from its anchor vertex as the frames have it, carried only by the hold (`anchorShift`). The turn's upright goes through
+its middle, so the chest moves by how far it stands from it: a knight's and a death knight's stand forward of it and their lean
+adds to that (their chests 3 to 4 units across each way); a grunt's and an enforcer's stand behind it, against the lean (under
+1 and 3 units, with the gun off the chest by at most 2.6). Not the body root, last frame's pose, the IK order, smoothing or
+`vr_agarms_lod` (which reuses the same targets past its near range; test 205 is near). Fix: the anchor rides the lean and turn too
+(`anchorRide`, vr_hitreact_skin.cpp). A general rule, so the grunts' and enforcers' sideways numbers go to 0 as well; the rest of
+theirs are unchanged. At a steady straight walk there was no offset to speak of: what he saw coming on and backing off would be
+the sideways part of a real path, which test 205 does not play (its own moves, no AI). The frames' own sway of the gun on
+the chest stays (rms about the mean: knight 1.2, others 0.5 to 0.8). Side-view frames: test 205 with `scratch1 1`.
+
+## Arena wave editor and generic infection (branch `agent/waveeditor`)
+
+His words: "a simple wave editor tool so that I can set up waves the way I want ... any armed humanoid configuration with
+any weapon/armor combination ... save/load wave presets and pick one per difficulty ... easily extensible to multiple arena
+maps", and "Could infection be a generic dynamic addition to any armed humanoid?" ... "Also add it to the toolgun menu".
+
+**Open it:** Debug > Tools > Arena Wave Editor (also Debug > Automation, Survival Arena; `vr_waveeditor`). With no game
+running it loads vrarena for the game's lists. The game is held while it is open.
+
+**Flat screen and headset.** The Rig Studio turned out flat-screen only (`imgui::ensure` refused a headset session), so
+"like the Rig Studio" could not be followed in VR as it stood. The editor is one ImGui window reached two ways: the desktop
+window with the mouse and keyboard (`-flatscreenmode`), or in a headset on a panel in front of the head (a target of its
+own, as the toolgun's panel and the perk cards): either hand's laser, its trigger the click, the stick the wheel, the
+window's own keys for a name, Recentre to bring it back. `imgui::setPanel` and `imgui::feedMouse` are the only additions to
+vr_imgui; the Rig Studio stays flat-screen. Both ways run the same code, so `vr_waveeditor_test` covers them both.
+
+**The data** (`Quake/vr/vr_arenawaves.hpp` has the format): a preset is `quakevr/arena_waves/<name>.txt`, versioned, line
+based, one `entry` a line (kind, main, off, armour, pieces, infected, count, delay, boss) under its `wave` (pool). Loading
+and saving is byte-stable; a hand-written file is canonical after its first save (comments go). `assign.cfg` holds
+`<map>.<skill> <name>`: no line, Default. A map named there is an arena map (QC `VR_ARENA_On`, asked once a map): **a new
+arena needs only its name there**; `vr_arena_assign <map> <skill> <preset|default>` from the console.
+
+**The path to QC.** Three builtins: `arenawavesload(skill)` makes the preset for this map and skill (or the editor's Play)
+the running one, `arenawavesfield(wave, entry, field)` hands its fields as text, `arenawavesreport(s)` says a line. No new
+entity fields; the plan gets three more arrays (`ar_plan_gun2`, `_infect`, `_at`). `VR_ARENA_Plan` writes the wave's plan
+from the entries in place of `PlanFoes`, and the director runs as ever. A preset's delays hold the next foe
+(`VR_ARENA_NextDue`); a wave's `pool` replaces its alive pool; bosses are the entries marked so (their health as any boss's,
+their warning, the perk offer after the wave), in the order written (no BossMidway). After the last wave: `end` (ARENA
+CLEARED, the arena stands still), `last` or `loop`. No preset: all of that is skipped, nothing rolled: **Default is the same
+to the hash** (below).
+
+**Validation.** As the map starts QC walks every entry: an unknown kind, weapon or infection, a weapon its kind can't hold,
+two that don't pair, an unknown armour or pieces word: reported (console, and the editor's bottom line) and that entry
+skipped. The editor marks them red, keeps them, and saves them as they were.
+
+**Kinds.** `VR_WAVE_KINDS` gets `armed_knight`, `armed_deathknight`, `plain_grunt`, `plain_enforcer` (the arena's rows
+`grunt` and `enforcer` are its armed ones, as ever). A preset's plain kinds are held from `vr_agrunt_repl` and
+`vr_agknight`'s replacement: what it says it brings, it brings.
+
+**Generic infection** (`QC/vr_mg3_infected.qc`): `.vr_mg3_infected` is a row of `VR_INFECT_ROWS`: zombie and demon (Dawn of
+the Machine's two, set up by hand as they always were, first frames their pains), dog, knight, ogre, hellknight, shambler,
+shalrath, wizard (each through its monster's own spawn function, its start's think dropped, not counted again; he comes to
+on his run, with its sight sound). A new row is a line.
+- *What falls:* an armed humanoid's held and stowed weapons as at any death (`VR_AG_Dying`), his spare rounds and worn pack
+  as at any death (`VR_AG_SoldierDrop`: gun holders, or any wearing a pack), his plates as at a gibbing (`VR_AgArmor_Shed`:
+  they fly off as debris). Then nothing of the armed layer stays on the new body.
+- *Room:* the row's own box (its hull); for the rows other than zombie and demon, then a zombie (`fallback`: the smallest
+  body); zombie and demon then try the old body's box, as ever; none fits: he doesn't rise, gibbed and counted.
+- *Counting:* the first death never counts; he keeps `.ar_slot` and has health at once, so the wave waits for him (never
+  ends early), `AR_STALL` still lets a stuck wave go (never hangs), and only the riser's fall pays. A riser with no room
+  falls at once and pays there.
+- *Precaching:* a preset's outcomes at the map's start (with their fallback's), from its list. The toolgun's page: at the
+  spawn, through the engine's late precache every toolgun entry already uses (`VR_AllowLatePrecache`, `VR_WriteRecentPrecaches`):
+  it can't error in Quake VR's progs, nothing is added to every map's list; the cost is the toolgun's usual one, a frame's
+  load the first time an outcome is chosen, never at the burst.
+- *Toolgun:* the Armed Humanoid page gets Infected With (`vr_toolgun_armed_infected`, in Reset and Clear). No general setting
+  for normal maps.
+
+**Tests** (the fixtures: `vr_arena_waves_dir arena_waves_test; vr_arena_waves_fixture`): `vr_arena_waves_test` (format,
+round trip, names, assign.cfg), `vr_waveeditor_test` (every button, list and popup through a test mouse, in either mode),
+`vr_arena_test 30` (Default's plans hashed and a live wave's foes printed, to compare two builds), 31 (a preset's plans), 32
+(a live run: each wave as written, the riser, ARENA CLEARED), 33 (bad entries), 34 (another map by its name alone), 35 (every
+outcome from every armed kind: open, a narrow slot, boxed in), `vr_toolgun_armed_infected_test` (the page's spawns).
+
+**Not done:** no 3D preview (as asked: its text line); no per-skill scaling of a preset (it is exact at every skill; only
+health and score still go by skill); the wave clear's drops stay the director's (by wave number); a preset can't name maps'
+spawn groups (a delay instead); kinds from the mission packs and AD aren't in the table (a row each when wanted).
+
+## An enemy's armour plate breaking: a metal crack from a recording (branch `agent/armorcrack`, his request 2026-11-03)
+
+`vr/armor_crack.wav` (0.42 s) replaces `vr/derived/armor_break.wav` (the pickup's chime backwards), which is gone from
+vr_sndlayer.cpp with its layer's `reversed` flag (nothing else used it). QC `VR_AR_BREAK_SOUND`, the precache and
+`vr_agarmor_test 5` name the new file. Cut by `make_recorded_steps.py --crack`; sources are CC0 HQ previews (CREDITS.md).
+
+Measured by script, not heard: no agent can listen, he judges. One take per row, cut the same way (0.85 rate, the crack an
+octave down at 0.3 under it, drive for the old loudness); "tonal" is the share of the raw slice's energy in the spectrum's
+strongest 2% of bins (a ring or a clang is high).
+
+| Take | Raw slice: attack, tail to -40 dB, tonal | Cut: peak, loudest 100 ms, centroid, 500-6k share | Why |
+|---|---|---|---|
+| **51263** @1.281 *Metal Cracking 2.wav*, RutgerMuller (shipped) | 2 ms, 370 ms, 12% | 0.90, -13.1 dB, 2.6 kHz, 74% | a broken noise, no ring; falls 16x in 80 ms; a faint creak and one small tick after it |
+| 518731 @0.744 *Cracking, snapping, and clanging (metal can)*, Ashley12275 | 2 ms, 602 ms, 36% | 0.90, -13.0 dB, 2.6 kHz, 89% | a thinner can; more ring |
+| 875432 @2.724 *Egg Steel Crack Hard*, loganzsound | 4 ms, 204 ms, 34% | 0.90, -13.5 dB, 2.0 kHz, 83% | more knock than crack (an egg on steel) |
+
+The old break: peak 0.91, -12.8 dB, a 266 ms swell. Turned down on the numbers: 497427 (84% at 500-2k, tonal 65%: a hum),
+719927 (over 6 kHz: a tiny clip), 562198 (tonal 56%, no decay: a ring), 273863 and 875433 (tonal over 80%, mostly under
+500 Hz), 752070 (a 358 ms swell).
+
+To swap: `python Misc/quakevr/make_recorded_steps.py <folder of fs_<id>.wav> --crack=518731` (or 875432). Test:
+`vr_agarmor_test 5` 24 passed, 0 failed.
+
+## The heavy revolver: ejecting takes a push; a cylinder with real holes (branch `agent/revolver2`, his notes of 2026-11-03)
+
+His notes: tilting it dropped the shells with no motion ("I should have to actually perform a small amount of motion with my
+hand... a linear hand motion towards the direction the holes are pointing"), and the chambers were black paint.
+
+**The push** (QC `VR_Revolver_Push`, replacing `vr_revolver_eject_tilt`, gone). Swung out, its shells leave when the hand moves
+back along the bore (the way the chambers open: -`vr_rv_axis`) at `vr_revolver_eject_speed` (1 m/s, Heavy Revolver page) at its
+fastest, over `vr_revolver_eject_travel` (0.03 m) and at least two frames (one alone: a tracking glitch), within
+`vr_revolver_eject_cone` (35 deg) of that way, the hand turning no faster than `vr_revolver_eject_turn` (350 deg/s; the last three
+Debug > Tunables). The speed is the hand's own at the grip (`.handvel`), not the cylinder's, so a flick of the wrist hardly
+moves it and one hard enough to is over the turn limit; tilting moves nothing. No eject with a shell in the other hand or
+within `vr_revolver_spin_hold` of loading (the gun is brought back quickly then), nor two-handed. No tilt condition: the way the
+holes point is the gun's, wherever it points. Out, live shells go at the hand's velocity x `vr_revolver_eject_impulse` (1.5, Heavy
+Revolver page) with a little scatter; the spent casings (client, `QVR_CASING_PUSHED`, vr_shells.cpp) at the port's tracked velocity x
+the same. B/Y and the ejector rod drop them as before. The other reload modes never reach this code (`VR_Revolver_ReloadFrame`: manual only).
+
+**The holes** (`Misc/quakevr/models_src/revolver/cut_chambers.py`, its README, "The chambers"): real geometry, not alpha: ten-sided
+through holes, walls inside, in the .blend without touching his hand-edited skin but for 18 freed texels. Gun 1021 -> 1285
+triangles (the cylinder 256 -> 520). All the revolver's MDLs re-exported (the shell's unchanged); the barrel mask re-marked (92
+triangles; it goes by triangle count: **a mask he painted himself on the old model reads as none now**; his cfg had none).
+
+Tests: `vr_rv_test 1` step 13 rewritten (`map vrtesthall;wait30;developer 1;vr_rv_test 1`, ends on "rvtest: N passed, M failed").
+Models: 26 directions x frames 0, 1, 3: covered with back faces but not culled: 0 pixels; every edge of the Cylinder shared by two faces.

@@ -20,6 +20,9 @@ float VR_DA_SETTLE = 3;  // s after its death: its death animation is over
 float VR_DA_AGAIN = 0.5; // s: its frame changing twice within this, it animates
 float VR_DA_WARN_MOST = 3;
 
+void() VR_DeadLeap_Frame; // (vr_deadleap_test.qc)
+void(float xAsk) VR_DeadLeap_Start;
+
 float(entity e) VR_DeadAnim_IsDead =
 {
     return (e.flags & FL_MONSTER) && (e.health <= 0 || e.deadflag != DEAD_NO);
@@ -133,6 +136,11 @@ entity(float xLive) VR_DeadAnim_Nearest =
 
 void(float xMode) VR_DeadAnim_Test =
 {
+    if(xMode == 20 || xMode == 21 || xMode == 22)
+    {
+        VR_DeadLeap_Start(xMode); // (the leapers' scenes: vr_deadleap_test.qc)
+        return;
+    }
     if(xMode == 1)
     {
         float n = 0;
@@ -241,9 +249,10 @@ void(float xMode) VR_DeadAnim_Test =
         m.vr_knockdown, isragdoll(m)));
 };
 
-// StartFrame: a test asked for (vr_deadanim_test).
+// StartFrame: a test asked for (vr_deadanim_test; 20-22 the leapers' scenes: vr_deadleap_test.qc).
 void() VR_DeadAnim_TestFrame =
 {
+    VR_DeadLeap_Frame();
     float ask = cvar_hget(cvarh_vr_deadanim_test);
     if(!ask)
     {

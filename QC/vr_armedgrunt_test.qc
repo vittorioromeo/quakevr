@@ -135,6 +135,22 @@ void() VR_AGT_ClearWeapons =
     }
 };
 
+// Every grenade, rocket and mine still about goes (between test 1's tries: the last try's grenade, its fuse still
+// running at the try's end, killed the next try's grunt where it spawned).
+void() VR_AGT_ClearShots =
+{
+    entity e = nextent(world);
+    while(e)
+    {
+        entity n = nextent(e);
+        if(e.classname == "grenade" || e.classname == "missile" || e.classname == "proximity_grenade")
+        {
+            remove(e);
+        }
+        e = n;
+    }
+};
+
 void(string s) VR_AGT_Print = { bprint(sprintf("agtest: %s\n", s)); };
 
 // One check (vr_testutil's tally and line: `agtest: PASS|FAIL <what>`).
@@ -174,6 +190,7 @@ void() VR_AGTest_Weapons =
             return;
         }
         VR_AGT_ClearWeapons();
+        VR_AGT_ClearShots();
         float wid = VR_AGT_Wid(vr_agt_index);
         float c = VR_AGT_Class(wid);
         float dist = (c == VR_AG_CLASS_MELEE || c == VR_AG_CLASS_FISTS) ? 70 : c == VR_AG_CLASS_EXPLOSIVE ? 360 : 240;
@@ -1444,6 +1461,7 @@ void() VR_AGRW_Frame; // (vr_armedgrunt_ragweapon_test.qc)
 void() VR_AKNT_Frame; // (vr_armedknight_test.qc)
 void() VR_DVT_Frame; // (vr_disarmviz_test.qc)
 void() VR_DHV_Frame; // (vr_disarmhull_view_test.qc)
+void() VR_AGL_Frame; // (vr_armedgrunt_gunlag_test.qc)
 void() VR_DPT_Frame; // (vr_drawnpose_test.qc)
 void() VR_SPT_Frame; // (vr_stalepose_test.qc)
 void(float t) VR_AGRT_Frame; // (armed humanoid replacements: vr_armedrepl_test.qc)
@@ -1556,6 +1574,7 @@ void() VR_AGTest_Frame =
     else if(t == 78) { VR_DRPT_Frame(); } // (the directional parry of its swing: vr_dirparry_test.qc)
     else if(t == 94) { VR_AGST_Frame(); } // (a deliberate strike or throw on its weapon or hand: vr_armedgrunt_strike_test.qc)
     else if(t == 96 || t == 98) { VR_AGPP_Frame(t); } // (its guard: the preventive and wind-up parries: vr_armedgrunt_preparry_test.qc)
+    else if(t == 205) { VR_AGL_Frame(); } // (a held gun stays with its body as it walks: vr_armedgrunt_gunlag_test.qc)
     else if(t == 99) { VR_DPT_Frame(); } // (the drawn pose: worn packs and disarm volumes on the body as drawn: vr_drawnpose_test.qc)
     else if(t == 79) { VR_SPT_Frame(); } // (shots and grip spheres from the drawn pose: vr_stalepose_test.qc)
     else if(t == 16) { VR_DHT_Frame(); } // (the disarm volumes as hulls of the drawn triangles: vr_disarmhull_test.qc)

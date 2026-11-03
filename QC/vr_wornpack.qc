@@ -4,7 +4,7 @@
 // with it (vr_box3d_wornpack.cpp). Melee-only and unarmed ones wear none and drop none (VR_WP_Packless); the rule is read
 // once, before it is seen: a pack never pops in or out in view, so one that picks up a gun later stays packless and one that
 // loses its only gun keeps its pack. Not Mission Pack 3's campaign's (MG3_NoBackpack). An enforcer's is baked into its model
-// (BACKLOG.md, making it a real one): holding a ranged weapon it has only the lift zone (.vr_wp_baked: an unseen pack entity,
+// (BACKLOG.md, making it a real one): whatever it holds, it has only the lift zone (.vr_wp_baked: an unseen pack entity,
 // the engine's agarmor::packRest box round the drawn pack): lifted by it like any other, it never comes off, nothing counts
 // on it, its loot its own.
 // A hand's pull never takes it off: a living wearer pulled by its pack past vr_worn_backpack_lift_force is lifted by it
@@ -23,6 +23,7 @@
 float VR_WP_WORN = 1; // on a living one
 float VR_WP_DEAD = 2; // on a dead one: takeable
 float VR_WP_OFF = 3;  // torn off, taken: a backpack item
+.float vr_wp_size;    // a pack's: its size as drawn (its kind's vr_worn_backpack_<kind>_scale; the engine reads it, a hand on a dead one's)
 .float vr_wp_baked;   // a pack's: an enforcer's lift zone, its pack the one in its model (nothing to draw, it can't come off)
 string VR_WP_RIP_SOUND = VR_WP_RIP_SOUND_FILE;
 float VR_WP_HIT_REACH = 3;  // units: a blow, a throw, a projectile this near the pack's box is on it
@@ -49,7 +50,24 @@ void(string s) VR_WP_Log =
     }
 };
 
-float() VR_WP_Scale = { return min(2, max(0.1, cvar_hget(cvarh_vr_worn_backpack_scale))); };
+// Its size by its wearer's kind (.vr_ag_kind: the pack keeps it, its wearer may be gone).
+float(entity pk) VR_WP_Scale =
+{
+    float s = pk.vr_ag_kind == VR_AM_KNIGHT ? cvar_hget(cvarh_vr_worn_backpack_knight_scale) :
+        pk.vr_ag_kind == VR_AM_DKNIGHT ? cvar_hget(cvarh_vr_worn_backpack_dknight_scale) : cvar_hget(cvarh_vr_worn_backpack_grunt_scale);
+    return min(2, max(0.1, s));
+};
+
+// Drawn at its size now (its slider shows at once).
+void(entity pk) VR_WP_Size =
+{
+    float s = VR_WP_Scale(pk);
+    if(s != pk.vr_wp_size)
+    {
+        pk.vr_wp_size = s;
+        VR_ScaleUtil_SetScale(pk, VR_ScaleUtil_GetUniformScaleVector(s));
+    }
+};
 
 // Its place on its wearer as drawn (its ragdoll's chest, else its posed model): FALSE when the wearer has none now (its
 // model not a wearer's: gibbed, its head).
@@ -66,7 +84,7 @@ float(entity pk, entity g) VR_WP_Place =
     vector ext = limbpiece(g, 0, 33); // (the level box round its model's box as it is turned)
     if(ext == '0 0 0')
     {
-        ext = '1 1 1' * 16.6 * VR_WP_Scale();
+        ext = '1 1 1' * 16.6 * VR_WP_Scale(pk);
     }
     setsize(pk, mid - ext, mid + ext);
     pk.velocity = g.velocity;
@@ -123,7 +141,7 @@ void(entity pk, vector vel) VR_WP_Free =
 {
     vector mn = pk.mins;
     vector mx = pk.maxs;
-    Backpack_Setup(pk, VR_WP_Scale());
+    Backpack_Setup(pk, VR_WP_Scale(pk));
     setsize(pk, mn, mx); // (its box round it as it was turned on the back)
     pk.vr_monster_drop = time; // (it can't hurt players just yet: VR_Prop_Flung)
     pk.velocity = vel;
@@ -349,7 +367,7 @@ void(entity pk) VR_WP_Dead =
     pk.vr_wp_state = VR_WP_DEAD;
     vector mn = pk.mins;
     vector mx = pk.maxs;
-    Backpack_Setup(pk, VR_WP_Scale());
+    Backpack_Setup(pk, VR_WP_Scale(pk));
     setsize(pk, mn, mx);
     pk.model_offset = '0 0 0'; // (drawn where it sits on the back: not a lying item's offset)
     pk.movetype = MOVETYPE_NONE; // (placed on its back each frame, not falling: VR_WP_Think)
@@ -417,6 +435,7 @@ void() VR_WP_Think =
     {
         setmodel(pk, "progs/backpack.mdl");
     }
+    VR_WP_Size(pk);
     if(!VR_WP_Place(pk, g))
     {
         // (Gibbed: its model a head now.)
@@ -454,12 +473,13 @@ float(entity e) VR_WP_Packless =
 
 void(entity e) VR_WP_Spawn =
 {
-    if(!e.vr_ag || e.vr_wp_pack || MG3_NoBackpack(e) || e.vr_dummy_dead || !VR_WP_CarriesRanged(e))
+    if(!e.vr_ag || e.vr_wp_pack || e.vr_dummy_dead)
     {
         return;
     }
     if(e.vr_ag_kind == VR_AM_ENFORCER)
     {
+        // (Whatever it holds, Mission Pack 3's too: the pack is on its model for all to see. His note 2026-11-03 02:25:39.)
         entity zone = spawn();
         zone.classname = "vr_wornpack";
         zone.netname = "backpack";
@@ -476,13 +496,18 @@ void(entity e) VR_WP_Spawn =
         VR_WP_Log(sprintf("%s has a lift zone on its model's pack", e.classname));
         return;
     }
+    if(MG3_NoBackpack(e) || !VR_WP_CarriesRanged(e))
+    {
+        return;
+    }
     precache_model("progs/backpack.mdl");
     precache_sound(VR_WP_RIP_SOUND);
     entity pk = spawn();
     pk.classname = "vr_wornpack";
     pk.netname = "backpack";
     setmodel(pk, "progs/backpack.mdl");
-    VR_ScaleUtil_SetScale(pk, VR_ScaleUtil_GetUniformScaleVector(VR_WP_Scale()));
+    pk.vr_ag_kind = e.vr_ag_kind;
+    VR_WP_Size(pk);
     pk.solid = SOLID_NOT; // (no hand takes it from the living, no force grab finds it)
     pk.movetype = MOVETYPE_NONE;
     pk.vr_wp_wearer = e;
@@ -499,7 +524,7 @@ void(entity e) VR_WP_Spawn =
 // Its loadout changed before anyone saw it (a replacement's, rolled as a player came in: VR_AGR_Resolve): the rule read again.
 void(entity e) VR_WP_Refit =
 {
-    if(e.vr_wp_pack && !VR_WP_CarriesRanged(e))
+    if(e.vr_wp_pack && !e.vr_wp_pack.vr_wp_baked && !VR_WP_CarriesRanged(e))
     {
         remove(e.vr_wp_pack);
         e.vr_wp_pack = world;

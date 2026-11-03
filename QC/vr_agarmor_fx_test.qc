@@ -87,7 +87,8 @@ void(entity e, string xWhat) VR_AFT_PiecesAt =
 };
 
 // Corpse `e`'s right leg (the authored rig's joints 17 and 18: past the old 16 slots) worn as its own piece by a hit
-// there, the whole body's health untouched (it wore as the torso's).
+// there, the whole body's health untouched (it wore as the torso's). The hit: on the plate's outer face (limbpiece 14,
+// where a hit meets it); its origin (10) can lie nearer the body than the leg: plate 9's read as the torso's.
 void(entity e) VR_AFT_RightLegWear =
 {
     float keepType = e.vr_ar_type;
@@ -99,7 +100,7 @@ void(entity e) VR_AFT_RightLegWear =
     string got = "";
     for(i = 7; i <= 9; i = i + 2)
     {
-        vector at = limbpiece(e, i, 10);
+        vector at = limbpiece(e, i, 14);
         float j = VR_Limb_WearPiece(e, at);
         float d0 = (j >= 0) ? e.vr_limb_corpse_dmg[j] : 0;
         float hp0 = e.vr_corpse_hp;
@@ -156,7 +157,7 @@ void(entity p) VR_AFT_Run =
     VR_ART_Check(armed && b.health <= 0 && !VR_AgArmor_On(b, pb) && vr_ar_debris_made == made + 1 && ragdolllimbs(b, 2) == 0,
         sprintf("active ragdoll: a killing cut armed at joint %g (armed %g) under the plate: the plate broke (debris %g), no limb cut (cut %g)",
         joint, armed, vr_ar_debris_made - made, ragdolllimbs(b, 2)));
-    VR_ART_Check(vr_ar_break_sound_last == "vr/derived/armor_break.wav" && vr_ar_break_sound_last != "items/armor1.wav",
+    VR_ART_Check(vr_ar_break_sound_last == "vr/armor_crack.wav" && vr_ar_break_sound_last != "items/armor1.wav",
         sprintf("the break's sound %s (not the pickup's items/armor1.wav)", vr_ar_break_sound_last));
 
     // --- The dead ragdolls (A; B now dead): the limb stays on until its plate breaks, then pops.

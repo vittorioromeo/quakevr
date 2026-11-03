@@ -2,6 +2,7 @@
 
 #include "vr_worldtext.hpp"
 #include "vr_arenacards.hpp"
+#include "vr_waveeditor.hpp"
 #include "vr_engine.hpp"
 #include "vr_main.hpp"
 #include "vr_menu.hpp"
@@ -319,7 +320,7 @@ bool viewMessageShowing()
 
 void viewMessageFrame()
 {
-    if(!viewMessageShowing() || key_dest != key_game || cl.paused || arenacards::shown()) // (not over the perk cards)
+    if(!viewMessageShowing() || key_dest != key_game || cl.paused || arenacards::shown() || waveeditor::shown()) // (not over the perk cards)
     {
         return;
     }

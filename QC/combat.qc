@@ -1424,6 +1424,7 @@ void(entity m, float xSpeed) VR_Monster_Fall =
     dprint(sprintf("fall: %s landed at %g u/s (a %g unit drop): %g damage%s\n", m.classname, xSpeed, drop, dmg,
         m.vr_knockdown ? " (knocked down)" : ""));
     T_Damage(m, world, world, dmg);
+    VR_AG_FallLanded(m, xSpeed);
 };
 
 .entity vr_shove; // on a monster: its slide (a "vr_shove" entity; world when none)
@@ -2556,6 +2557,15 @@ void(entity m) VR_Parry_Pose =
         m.angles_z = m.vr_parry_sway * sin(t * 6.9);
         m.angles_x = m.vr_parry_sway * 0.6 * sin(t * 4.4 + 1.3);
     }
+};
+
+// A leap's touch (self the leaper) after dealing its blow: did that blow end the leap? A parry staggered it (VR_Parry_Recover
+// owns its think and has cancelled the touch), or it died of it: a barrel it struck blew up, its blast killed the leaper
+// inside its own touch (its death's think set; a landing written over that left a dead body leaping and running on:
+// vrfiringrange_2026-11-03_02-01-47, vr_deadanim_test 20-22). AD's own leaps ask the same with their health.
+float() VR_Leap_BlowEnded =
+{
+    return self.health <= 0 || self.vr_parry_stagger_until > time;
 };
 
 void() VR_Parry_Recover =

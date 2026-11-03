@@ -86,6 +86,14 @@ float AR_SP_KNIGHT   = 4; // monster_knight
 float AR_SP_OGRE     = 5; // monster_ogre
 float AR_SP_FIEND    = 6; // monster_demon1: a fiend
 float AR_SP_HKNIGHT  = 7; // monster_hell_knight: a death knight
+// (the rest only a preset brings: vr_arena's own waves never plan them)
+float AR_SP_SHAMBLER = 8;
+float AR_SP_SHALRATH = 9;
+float AR_SP_WIZARD   = 10;
+float AR_SP_AKNIGHT  = 11; // monster_vr_knight: a knight with one of the melee weapons
+float AR_SP_ADKNIGHT = 12; // monster_vr_hknight: a death knight likewise
+float AR_SP_PGRUNT   = 13; // monster_army: id's grunt
+float AR_SP_PENFORCER = 14; // monster_enforcer: id's enforcer
 
 // The waves' monster kinds, the arena's and the horde's (vr_mg_horde.qc MGH_SpawnMonster): a row an arena kind (AR_SP_*,
 // its row), then the horde's others. Its horde name, its classname, its spawn as the horde brings it (id's monster) and
@@ -109,9 +117,13 @@ vr_wave_kind VR_WAVE_KINDS[] =
     { "hellknight", "monster_hell_knight", monster_hell_knight, monster_hell_knight },
     { "shambler", "monster_shambler", monster_shambler, monster_shambler },
     { "shalrath", "monster_shalrath", monster_shalrath, monster_shalrath },
-    { "wizard", "monster_wizard", monster_wizard, monster_wizard }
+    { "wizard", "monster_wizard", monster_wizard, monster_wizard },
+    { "armed_knight", "monster_knight", monster_vr_knight, monster_vr_knight },
+    { "armed_deathknight", "monster_hell_knight", monster_vr_hknight, monster_vr_hknight },
+    { "plain_grunt", "monster_army", monster_army, monster_army },
+    { "plain_enforcer", "monster_enforcer", monster_enforcer, monster_enforcer }
 };
-#define VR_WAVE_KINDS_N 11
+#define VR_WAVE_KINDS_N 15
 
 // A horde name's row, or -1.
 float(string xName) VR_WaveKind_ByName =
@@ -183,6 +195,9 @@ float ar_plan_tier[AR_PLAN_MAX];
 float ar_plan_boss[AR_PLAN_MAX];
 float ar_plan_armour[AR_PLAN_MAX]; // its armour's type (0 none; vr_agarmor.qc's 1 green, 2 yellow, 3 red)
 float ar_plan_amask[AR_PLAN_MAX];  // and its plates (vr_agarmor.qc's piece bits)
+float ar_plan_gun2[AR_PLAN_MAX];   // a preset's: its left hand's weapon (0 none; vr_arena's own waves never plan one)
+float ar_plan_infect[AR_PLAN_MAX]; // ... what it is infected with (VR_INFECT_ROWS' row, 0 none)
+float ar_plan_at[AR_PLAN_MAX];     // ... seconds into the wave it may come in at the earliest
 float ar_arm_type;         // VR_ARENA_ArmourRoll's answer: the type (0 none) and the plates
 float ar_arm_mask;
 float ar_next_spawn;       // the time the next planned foe may come in
@@ -218,6 +233,13 @@ float ar_count;            // the countdown's seconds still to say (VR_ARENA_Cou
 float ar_count_at;         // the time the countdown to the next wave began (0: none; the tests read it)
 float ar_rest_at;          // the time the rest before it began (a wave clear, the run's start)
 float ar_count_said;       // the countdown's lines said so far (the tests read it)
+float ar_spawn_gun2;       // VR_ARENA_SpawnNext's to VR_ARENA_SpawnMonster: the plan's left hand and infection
+float ar_spawn_infect;
+float ar_preset_n;         // the waves of the preset playing (vr_arenawaves.cpp; 0: Default, the director's own waves)
+float ar_preset_after;     // what comes after its last wave: AR_AFTER_*
+float ar_preset_over;      // it has ended (AR_AFTER_END)
+float ar_listed_asked;     // VR_ARENA_On asked the engine whether this map is listed in the presets' assignments
+float ar_listed;
 
 // The director's own beats (vr_arena.qc's own cycle; world.qc only calls WorldSpawn and Frame).
 void() VR_ARENA_WaveStart;
@@ -250,7 +272,12 @@ void() VR_ARK_HoldThink;
 float() VR_ARENA_On =
 {
     if(mapname == "vrarena") { return TRUE; }
-    return cvar_hget(cvarh_vr_arena) != 0;
+    if(!ar_listed_asked)
+    {
+        ar_listed_asked = 1;
+        ar_listed = stof(arenawavesfield(-2, 0, 0)); // (a preset assigned to this map: an arena map, by its name)
+    }
+    return ar_listed || cvar_hget(cvarh_vr_arena) != 0;
 }
 
 float(float x, float xMod) VR_ARENA_Mod =
@@ -668,8 +695,11 @@ float(float xWave) VR_ARENA_PickEarlyGun =
     return VR_ARENA_PickGun(xWave);
 }
 
+float(float xWave) VR_ARENA_PresetIsBossWave;
+string(float xWave) VR_ARENA_PresetBossName;
 float(float xWave) VR_ARENA_IsBossWave =
 {
+    if(ar_preset_n > 0) { return VR_ARENA_PresetIsBossWave(xWave); }
     float every = VR_ARENA_BossEvery(); // (vr_arena_boss_every, a wave longer at Easy)
     if(every <= 0) { return FALSE; }
     return VR_ARENA_Mod(xWave, every) == 0;
@@ -710,6 +740,9 @@ void(float xKind, float xGun, float xBoss) VR_ARENA_PlanAdd =
     ar_plan_tier[ar_plan_n]  = VR_ARENA_WeaponTier(xKind, xGun);
     ar_plan_armour[ar_plan_n] = 0; // (VR_ARENA_PlanArmour dresses the humanoids once the plan is written)
     ar_plan_amask[ar_plan_n]  = 0;
+    ar_plan_gun2[ar_plan_n]   = 0;
+    ar_plan_infect[ar_plan_n] = 0;
+    ar_plan_at[ar_plan_n]     = 0;
     ar_plan_n = ar_plan_n + 1;
 }
 
@@ -1033,11 +1066,258 @@ void(float xWave) VR_ARENA_PlanTrickle =
 
 // The wave's plan: who it sends (VR_ARENA_PlanFoes), the schedule's newest guns dealt over its humanoids
 // (VR_ARENA_PlanTrickle), then what armour its humanoids wear (VR_ARENA_PlanArmour).
+void(float xWave) VR_ARENA_PresetPlan;
 void(float xWave) VR_ARENA_Plan =
 {
+    if(ar_preset_n > 0)
+    {
+        VR_ARENA_PresetPlan(xWave);
+        return;
+    }
     VR_ARENA_PlanFoes(xWave);
     VR_ARENA_PlanTrickle(xWave);
     VR_ARENA_PlanArmour(xWave);
+}
+
+// ---------------------------------------------------------------------------
+// A preset's waves (docs/vr-port/ROUND23.md, "Arena wave editor"; vr_arenawaves.cpp reads the file, arenawavesfield
+// hands its fields here): each wave a list of entries (a kind, its weapons, armour, infection, count, delay, boss), each
+// entry that many foes in the wave's plan. An entry this game can't make (an unknown kind or weapon, a weapon its kind
+// can't hold, two that don't pair) is reported (arenawavesreport: the console, and the editor's line) and skipped.
+// ---------------------------------------------------------------------------
+
+float AR_AFTER_END  = 0; // the last wave's clear ends the run: ARENA CLEARED
+float AR_AFTER_LAST = 1; // the last wave again and again
+float AR_AFTER_LOOP = 2; // from the first wave again (the wave's number goes on rising)
+#define AR_ENTRY_MAX 64  // a wave's entries at most (the engine's too: vr_arenawaves.hpp maxEntries)
+
+// arenawavesfield's fields (vr_arenawaves.cpp Field).
+float AR_F_KIND = 0;
+float AR_F_MAIN = 1;
+float AR_F_OFF = 2;
+float AR_F_ARMOUR = 3;
+float AR_F_PIECES = 4;
+float AR_F_COUNT = 5;
+float AR_F_DELAY = 6;
+float AR_F_INFECTED = 7;
+float AR_F_BOSS = 8;
+float AR_F_BAD = 9;
+
+float ar_pe_kind; // VR_ARENA_PresetEntry's answer
+float ar_pe_gun;
+float ar_pe_gun2;
+float ar_pe_armour;
+float ar_pe_pieces;
+float ar_pe_count;
+float ar_pe_infect;
+float ar_pe_boss;
+float ar_pe_delays[AR_ENTRY_MAX];
+float ar_pe_used[AR_ENTRY_MAX];
+float vr_ar_preset_skipped; // the entries skipped when the map started (the tests)
+float vr_ar_preset_foes;    // the foes its waves hold (the tests)
+
+float(float k, float code) VR_AM_UiWeapon;
+string(float code) VR_AM_UiWeaponName;
+float(float w1, float w2) VR_AM_UiPairs;
+
+// The monsters' table's row a preset's kind is on (vr_armedmon.qc VR_AM_*), -1: a plain monster.
+float(float xKind) VR_ARENA_ArmedRow =
+{
+    if(xKind == AR_SP_GRUNT) { return 0; }
+    if(xKind == AR_SP_ENFORCER) { return 1; }
+    if(xKind == AR_SP_AKNIGHT) { return 2; }
+    if(xKind == AR_SP_ADKNIGHT) { return 3; }
+    return -1;
+}
+
+// The engine's lists (the editor's Kind combo; its words in the file).
+float() VR_ARENA_KindCount = { return VR_WAVE_KINDS_N; }
+string(float xKind) VR_ARENA_KindName = { return VR_WAVE_KINDS[max(0, min(VR_WAVE_KINDS_N - 1, xKind))].name; }
+
+// The game's wave number's wave in the file (0-based).
+float(float xWave) VR_ARENA_PresetWave =
+{
+    float w = max(xWave, 1) - 1;
+    if(w < ar_preset_n) { return w; }
+    if(ar_preset_after == AR_AFTER_LOOP) { return VR_ARENA_Mod(w, ar_preset_n); }
+    return ar_preset_n - 1;
+}
+
+// The weapon of name `xName` armed row `xRow` holds (its code: VR_AG_Decode's), 0: none such.
+float(string xName, float xRow) VR_ARENA_WeaponCode =
+{
+    float code;
+    for(code = 1; code < 128; code++)
+    {
+        if(VR_AM_UiWeapon(xRow, code) && VR_AM_UiWeaponName(code) == xName) { return code; }
+    }
+    return 0;
+}
+
+// Wave `w` entry `e` (0-based) into ar_pe_*. FALSE: it can't be made (with `xReport`, said why).
+float(float w, float e, float xReport) VR_ARENA_PresetEntry =
+{
+    string why = arenawavesfield(w, e, AR_F_BAD);
+    string kindName = arenawavesfield(w, e, AR_F_KIND);
+    ar_pe_kind = VR_WaveKind_ByName(kindName);
+    if(why == "" && ar_pe_kind < 0) { why = sprintf("unknown kind \"%s\"", kindName); }
+    ar_pe_gun = AR_FIST;
+    ar_pe_gun2 = 0;
+    ar_pe_armour = 0;
+    ar_pe_pieces = 0;
+    if(why == "")
+    {
+        float row = VR_ARENA_ArmedRow(ar_pe_kind);
+        if(row >= 0)
+        {
+            string gunName = arenawavesfield(w, e, AR_F_MAIN);
+            if(gunName == "random") { ar_pe_gun = 0; }
+            else if(gunName != "none")
+            {
+                ar_pe_gun = VR_ARENA_WeaponCode(gunName, row);
+                if(!ar_pe_gun) { why = sprintf("unknown weapon \"%s\" for %s", gunName, kindName); }
+            }
+            gunName = arenawavesfield(w, e, AR_F_OFF);
+            if(why == "" && gunName != "none")
+            {
+                ar_pe_gun2 = VR_ARENA_WeaponCode(gunName, row);
+                if(!ar_pe_gun2) { why = sprintf("unknown off hand weapon \"%s\" for %s", gunName, kindName); }
+                else if(ar_pe_gun <= 0 || !VR_AM_UiPairs(VR_AM_UiWeapon(row, ar_pe_gun), VR_AM_UiWeapon(row, ar_pe_gun2)))
+                {
+                    why = sprintf("\"%s\" doesn't pair with the main hand's weapon", gunName);
+                }
+            }
+            ar_pe_armour = stof(arenawavesfield(w, e, AR_F_ARMOUR));
+            ar_pe_pieces = stof(arenawavesfield(w, e, AR_F_PIECES));
+        }
+    }
+    string infectName = arenawavesfield(w, e, AR_F_INFECTED);
+    ar_pe_infect = VR_Infect_ByName(infectName);
+    if(why == "" && ar_pe_infect < 0) { why = sprintf("unknown infection \"%s\"", infectName); }
+    ar_pe_count = max(0, stof(arenawavesfield(w, e, AR_F_COUNT)));
+    ar_pe_boss = stof(arenawavesfield(w, e, AR_F_BOSS)) != 0;
+    if(why != "")
+    {
+        if(xReport) { arenawavesreport(sprintf("arena preset: wave %g entry %g: %s: skipped\n", w + 1, e + 1, why)); }
+        return FALSE;
+    }
+    return TRUE;
+}
+
+float(float xWave) VR_ARENA_PresetIsBossWave =
+{
+    float w = VR_ARENA_PresetWave(xWave);
+    float n = stof(arenawavesfield(w, -1, 0));
+    float e;
+    for(e = 0; e < n; e++)
+    {
+        if(stof(arenawavesfield(w, e, AR_F_BOSS)) != 0 && stof(arenawavesfield(w, e, AR_F_COUNT)) > 0 && arenawavesfield(w, e, AR_F_BAD) == "") { return TRUE; }
+    }
+    return FALSE;
+}
+
+// Its boss by the file's word for its kind ("" none).
+string(float xWave) VR_ARENA_PresetBossName =
+{
+    float w = VR_ARENA_PresetWave(xWave);
+    float n = stof(arenawavesfield(w, -1, 0));
+    float e;
+    for(e = 0; e < n; e++)
+    {
+        if(stof(arenawavesfield(w, e, AR_F_BOSS)) != 0) { return arenawavesfield(w, e, AR_F_KIND); }
+    }
+    return "";
+}
+
+// The map's start: every entry looked at once (what's wrong is said now, not at its wave), what they need precached
+// (a preset's infection outcomes above all: a riser's body is never loaded mid-fight).
+void() VR_ARENA_PresetCheck =
+{
+    ar_preset_after = stof(arenawavesfield(-1, -1, 0));
+    vr_ar_preset_skipped = 0;
+    vr_ar_preset_foes = 0;
+    float w;
+    float e;
+    for(w = 0; w < ar_preset_n; w++)
+    {
+        float n = stof(arenawavesfield(w, -1, 0));
+        float foes = 0;
+        for(e = 0; e < n; e++)
+        {
+            if(!VR_ARENA_PresetEntry(w, e, TRUE))
+            {
+                vr_ar_preset_skipped = vr_ar_preset_skipped + 1;
+                continue;
+            }
+            foes = foes + ar_pe_count;
+            VR_Infect_Precache(ar_pe_infect);
+            float row = VR_ARENA_ArmedRow(ar_pe_kind);
+            if(row >= 0)
+            {
+                VR_AM_Row(row);
+                precache_model(vr_am_model);
+            }
+        }
+        if(foes > AR_PLAN_MAX)
+        {
+            arenawavesreport(sprintf("arena preset: wave %g holds %g foes: only the first %g come\n", w + 1, foes, AR_PLAN_MAX));
+            foes = AR_PLAN_MAX;
+        }
+        if(foes <= 0) { arenawavesreport(sprintf("arena preset: wave %g has no foes to bring: it clears at once\n", w + 1)); }
+        vr_ar_preset_foes = vr_ar_preset_foes + foes;
+    }
+    arenawavesreport(sprintf("arena preset: %g waves, %g foes, %g entries skipped\n", ar_preset_n, vr_ar_preset_foes, vr_ar_preset_skipped));
+}
+
+// The wave's plan from its entries: in the file's order, those with a shorter delay first.
+void(float xWave) VR_ARENA_PresetPlan =
+{
+    VR_ARENA_SeedWaves(xWave); // (a preset's random armour: this wave's rolls)
+    ar_plan_n = 0;
+    ar_trickle_n = 0;
+    float w = VR_ARENA_PresetWave(xWave);
+    float n = min(stof(arenawavesfield(w, -1, 0)), AR_ENTRY_MAX);
+    float e;
+    float pick;
+    for(e = 0; e < n; e++)
+    {
+        ar_pe_delays[e] = max(0, stof(arenawavesfield(w, e, AR_F_DELAY)));
+        ar_pe_used[e] = 0;
+    }
+    for(pick = 0; pick < n; pick++)
+    {
+        float best = -1;
+        for(e = 0; e < n; e++)
+        {
+            if(!ar_pe_used[e] && (best < 0 || ar_pe_delays[e] < ar_pe_delays[best])) { best = e; }
+        }
+        ar_pe_used[best] = 1;
+        if(!VR_ARENA_PresetEntry(w, best, FALSE)) { continue; }
+        float c;
+        for(c = 0; c < ar_pe_count && ar_plan_n < AR_PLAN_MAX; c++)
+        {
+            float i = ar_plan_n;
+            VR_ARENA_PlanAdd(ar_pe_kind, ar_pe_gun, ar_pe_boss);
+            ar_plan_gun2[i] = ar_pe_gun2;
+            ar_plan_infect[i] = ar_pe_infect;
+            ar_plan_at[i] = ar_pe_delays[best];
+            if(ar_pe_armour > 0 && VR_ARENA_ArmsHumanoid(ar_pe_kind))
+            {
+                ar_plan_armour[i] = ar_pe_armour >= 4 ? 1 + floor(VR_ARENA_Rand() * 2.999) : ar_pe_armour;
+                float mask = ar_pe_pieces;
+                if(mask < 0) // (random: the cuirass, the helmet and any of the rest, as the toolgun's)
+                {
+                    mask = 3;
+                    float b;
+                    for(b = 2; b < VR_AR_PIECES; b++)
+                    {
+                        if(VR_ARENA_Rand() < 0.5) { mask = mask | VR_AgArmor_Bit(b); }
+                    }
+                }
+                ar_plan_amask[i] = mask;
+            }
+        }
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -1408,7 +1688,10 @@ void(float xKind) VR_ARENA_CallSpawn =
     kindSpawn();
 }
 
-float(float xKind) VR_ARENA_ArmsHumanoid = { return xKind == AR_SP_GRUNT || xKind == AR_SP_ENFORCER; }
+float(float xKind) VR_ARENA_ArmsHumanoid =
+{
+    return xKind == AR_SP_GRUNT || xKind == AR_SP_ENFORCER || xKind == AR_SP_AKNIGHT || xKind == AR_SP_ADKNIGHT;
+}
 
 // The wave's monster at its place: an armed humanoid holding its plan's gun (or its fists), or one of Quake's
 // own monsters. Its kind's spawn function does the rest (its health, its sounds, its pains, its death).
@@ -1417,8 +1700,9 @@ entity(float xKind, float xGun, float xTier, float xBoss, float xArmour, float x
 {
     entity manager = self;
     entity m = spawn();
-    ar_place_big = (xKind == AR_SP_OGRE || xKind == AR_SP_FIEND || xKind == AR_SP_HKNIGHT || xKind == AR_SP_DOG);
-    vector o = VR_ARENA_SpawnPlace(xKind == AR_SP_FIEND || xKind == AR_SP_ENFORCER);
+    ar_place_big = (xKind == AR_SP_OGRE || xKind == AR_SP_FIEND || xKind == AR_SP_HKNIGHT || xKind == AR_SP_DOG ||
+                    xKind == AR_SP_SHAMBLER || xKind == AR_SP_SHALRATH || xKind == AR_SP_ADKNIGHT);
+    vector o = VR_ARENA_SpawnPlace(xKind == AR_SP_FIEND || xKind == AR_SP_ENFORCER || xKind == AR_SP_WIZARD);
     ar_place_big = 0;
     ar_place_drop = 0;
     if(!ar_place_ok)
@@ -1437,7 +1721,7 @@ entity(float xKind, float xGun, float xTier, float xBoss, float xArmour, float x
     if(VR_ARENA_ArmsHumanoid(xKind))
     {
         m.weapon = xGun; // (monster_vr_grunt's "weapon": a WID_*, -1 its fists; its own spawn clears it)
-        m.weapon2 = 0;
+        m.weapon2 = ar_spawn_gun2;
         m.weaponflags = 0;
         m.weaponflags2 = 0;
     }
@@ -1447,9 +1731,13 @@ entity(float xKind, float xGun, float xTier, float xBoss, float xArmour, float x
     if(p != world) { m.angles = [0, vectoyaw(p.origin - o), 0]; }
     setorigin(m, o + '0 0 32');
 
-    // (the monster's own spawn, on self; its armour is the plan's, so the skill's roll is held: vr_agarmor.qc)
+    // (the monster's own spawn, on self; its armour is the plan's, so the skill's roll is held: vr_agarmor.qc. A
+    // preset's plain kinds are what it says: never replaced by their armed versions.)
+    m.vr_mg3_infected = ar_spawn_infect;
     vr_ar_hold_roll = 1;
+    if(ar_preset_n > 0) { vr_agr_hold = vr_agr_hold + 1; }
     VR_ARENA_CallSpawn(xKind);
+    if(ar_preset_n > 0) { vr_agr_hold = vr_agr_hold - 1; }
     vr_ar_hold_roll = 0;
 
     if(!self.modelindex && !self.MG_deferred)
@@ -1878,8 +2166,12 @@ void() VR_ARENA_BossMidway =
 float() VR_ARENA_SpawnNext =
 {
     float i = ar_plan_n - ar_plan_left;
+    ar_spawn_gun2 = ar_plan_gun2[i];
+    ar_spawn_infect = ar_plan_infect[i];
     entity m = VR_ARENA_SpawnMonster(ar_plan_kind[i], ar_plan_gun[i], ar_plan_tier[i], ar_plan_boss[i],
                                      ar_plan_armour[i], ar_plan_amask[i]);
+    ar_spawn_gun2 = 0;
+    ar_spawn_infect = 0;
     if(!m) { return FALSE; }
     ar_plan_left = ar_plan_left - 1;
     ar_plan_live = ar_plan_live + 1;
@@ -1889,6 +2181,9 @@ float() VR_ARENA_SpawnNext =
 
 // Is the wave's next planned foe one of its bosses.
 float() VR_ARENA_NextIsBoss = { return ar_plan_left > 0 && ar_plan_boss[ar_plan_n - ar_plan_left] > 0; }
+
+// Has the wave's next planned foe's time come (a preset's delays: 0 for all of vr_arena's own waves).
+float() VR_ARENA_NextDue = { return ar_plan_left <= 0 || time >= ar_wave_at + ar_plan_at[ar_plan_n - ar_plan_left]; }
 
 void() VR_ARENA_WaveStart =
 {
@@ -1907,6 +2202,11 @@ void() VR_ARENA_WaveStart =
     // The alive pool: the wave opens with a small burst, then the rest trickle in a gap after each other while a
     // slot is free (VR_ARENA_ManagerThink). Its boss comes in halfway through, announced.
     ar_pool = VR_ARENA_Pool(ar_wave);
+    if(ar_preset_n > 0)
+    {
+        float presetPool = stof(arenawavesfield(VR_ARENA_PresetWave(ar_wave), -1, 1)); // (a preset's wave's own, 0: as above)
+        if(presetPool > 0) { ar_pool = min(presetPool, AR_PLAN_MAX); }
+    }
     ar_burst_left = min(VR_ARENA_Opt_Burst(), ar_pool);
     ar_gap_from = 0;
     ar_last_spawn = time;
@@ -1914,7 +2214,7 @@ void() VR_ARENA_WaveStart =
     ar_gap_lo = 0;
     ar_gap_hi = 0;
     ar_gap_n = 0;
-    VR_ARENA_BossMidway();
+    if(ar_preset_n <= 0) { VR_ARENA_BossMidway(); } // (a preset's come in the order it has them)
 
     float armoured = 0;
     float i;
@@ -1991,6 +2291,7 @@ void(float xLeft) VR_ARENA_CountSound =
 string(float xWave) VR_ARENA_BossName =
 {
     if(!VR_ARENA_IsBossWave(xWave)) { return ""; }
+    if(ar_preset_n > 0) { return VR_ARENA_PresetBossName(xWave); }
     float k = VR_ARENA_BossKind(xWave);
     if(VR_ARENA_BossTwice())
     {
@@ -2036,6 +2337,16 @@ float() VR_ARENA_Between =
 
 void() VR_ARENA_CountStart =
 {
+    if(ar_preset_n > 0 && ar_preset_after == AR_AFTER_END && ar_wave >= ar_preset_n)
+    {
+        // The preset's last wave is down: the run is won. The arena stands still (a jump, or a restart, goes on).
+        ar_preset_over = 1;
+        VR_ARENA_ShowAll(sprintf("ARENA CLEARED\n\n%g waves\nscore %g\n", ar_wave, ar_score), 12);
+        dprint(sprintf("arena: preset over after wave %g score %g\n", ar_wave, ar_score));
+        self.think = SUB_Null;
+        self.nextthink = 0;
+        return;
+    }
     ar_count = VR_ARENA_Opt_Countdown();
     ar_count_said = 0;
     ar_count_at = time;
@@ -2062,7 +2373,7 @@ void() VR_ARENA_ManagerThink =
 
     // The alive pool (ar_pool, VR_ARENA_Pool): its opening burst comes in at once; after that, each free slot is
     // filled a randomized gap after it freed up (vr_arena_spawn_gap), a boss after its warning instead.
-    while(ar_burst_left > 0 && ar_plan_left > 0 && alive < ar_pool && !VR_ARENA_NextIsBoss())
+    while(ar_burst_left > 0 && ar_plan_left > 0 && alive < ar_pool && !VR_ARENA_NextIsBoss() && VR_ARENA_NextDue())
     {
         if(!VR_ARENA_SpawnNext()) { break; } // (held back: the next beat tries again)
         ar_burst_left = ar_burst_left - 1;
@@ -2070,7 +2381,7 @@ void() VR_ARENA_ManagerThink =
     }
     if(ar_burst_left > 0 && VR_ARENA_NextIsBoss()) { ar_burst_left = 0; } // (a thin wave: its boss ends the burst)
 
-    if(ar_burst_left <= 0 && ar_plan_left > 0 && alive < ar_pool)
+    if(ar_burst_left <= 0 && ar_plan_left > 0 && alive < ar_pool && VR_ARENA_NextDue())
     {
         if(ar_gap_from <= 0)
         {
@@ -2204,6 +2515,11 @@ void() VR_ARENA_WorldSpawn =
 
     MGH_PrecacheMonsters(); // (vr_mg_horde.qc: the models and sounds of the monsters the waves bring)
 
+    // A preset chosen for this map and skill (vr_arenawaves.cpp): its waves in place of the director's own.
+    ar_preset_over = 0;
+    ar_preset_n = arenawavesload(VR_ARENA_SkillLevel());
+    if(ar_preset_n > 0) { VR_ARENA_PresetCheck(); }
+
     // QVR: the supplies' and the countdown's own (vr_arena_supply.qc): the shard's model (Dawn of the Machine's, else
     // the armour's), the beeps.
     ar_shard_mg3 = (VR_Has("progs/armorshard.mdl") || VR_Has("owned/mg3/progs/armorshard.mdl"));
@@ -2267,6 +2583,8 @@ void(float xWave) VR_ARENA_FastForward =
     if(!ar_mgr) { return; }
     VR_ARENA_ClearField(ar_wave);
     ar_plan_left = 0;
+    if(ar_preset_n > 0 && ar_preset_after == AR_AFTER_END) { xWave = min(xWave, ar_preset_n); } // (the last it has)
+    ar_preset_over = 0;
     ar_wave = xWave - 1;
     ar_count = 0; // (a jump: no rest or countdown first)
     ar_count_at = 0;

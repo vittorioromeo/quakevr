@@ -128,6 +128,7 @@
 #include "vr_rigdata.hpp"
 #include "vr_rigseq.hpp"
 #include "vr_rigstudio.hpp"
+#include "vr_waveeditor.hpp"
 #include "vr_gearlights.hpp"
 #include "vr_grasp.hpp"
 #include "vr_gripfit.hpp"
@@ -2102,6 +2103,7 @@ extern "C" void VR_Init()
     registerCvars();
     ragtool::init();  // -ragtool, vr_ragtool (vr_ragtool.cpp): before flatplay, whose mode the flag implies
     flatplay::init(); // -flatscreenmode (vr_flatplay.cpp): the flag the whole mode hangs on, read once here
+    waveeditor::init(); // vr_waveeditor, vr_arena_play (vr_waveeditor.cpp, vr_arenawaves.cpp)
     rigstudio::init(); // vr_rigstudio (vr_rigstudio.cpp), its data (vr_rigdata.cpp) and the game's side (vr_rigseq.cpp): their commands
     agarmor::init();   // the armed humanoids' armour shells (vr_agarmor.cpp): vr_agarmor_info, _check, _rebuild, _set
     VR_RegisterPackStatus();
@@ -2326,6 +2328,7 @@ extern "C" void VR_StopDownloads()
 
 extern "C" void VR_Shutdown()
 {
+    waveeditor::shutdown();
     rigstudio::shutdown(); // (the studio closed: its settings put back; ImGui let go, the GL context still there)
     doom::shutdown(); // Doom's settings saved, qvr_doom.dll unloaded
     hull::finishLoads(); // (a map load's builds, if a quit came in the middle of one)
@@ -2485,6 +2488,7 @@ extern "C" void VR_BeginFrame()
         flatplay::frame(); // -flatscreenmode: its keys, and the settings the mode stands in for (before the hands are posed)
         ragtool::clientFrame(); // -ragtool: the ragdoll tool started once the game is up (vr_ragtool.cpp)
         rigstudio::clientFrame(); // vr_rigstudio: its ImGui frame and windows (vr_rigstudio.cpp; nothing while closed)
+        waveeditor::clientFrame(); // vr_waveeditor: likewise (never both: it won't open with the studio's up)
     }
 
     // Update the hands now, before the move is built (it carries the aim in the view angles).
@@ -2493,13 +2497,14 @@ extern "C" void VR_BeginFrame()
         input::roomscaleJump(hands::current());
         toolgun::frame(hands::current()); // the toolgun's tools, with the hands of this frame
         arenacards::frame(hands::current()); // the Survival Arena's perk cards: the offer, the panel, the lasers
+        waveeditor::frame(hands::current()); // the Arena Wave Editor's panel and lasers, in a headset
         brushes::frame(); // the boxes made in the game: their slots written (vr_brushes.cpp)
     }
 }
 
 extern "C" int VR_RuntimeMenuPause()
 {
-    return runtimeMenuPaused() || holstersetup::pausesGame() ? 1 : 0; // (Holster Setup pauses it too)
+    return runtimeMenuPaused() || holstersetup::pausesGame() || waveeditor::holds() ? 1 : 0; // (Holster Setup and the wave editor pause it too)
 }
 
 extern "C" int VR_IsActive()

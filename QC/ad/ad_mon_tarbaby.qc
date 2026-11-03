@@ -126,6 +126,7 @@ void()	ad_Tar_JumpTouch =
 	}
 	else sound (self, ad_CHAN_WEAPON, "blob/land1.wav", 1, ad_ATTN_NORM);
 
+	if (self.health < 1) return; // QVR: dead of its own blow (a barrel's blast): its death's frames stand (VR_Leap_BlowEnded)
 	// Is the tarbaby floating in the air?
 	if (!checkbottom(self)) {
 		// Is the tarbaby standing on something?		

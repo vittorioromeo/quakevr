@@ -13,11 +13,12 @@ Same pipeline as the nail pistol (`../nailpistol/`).
 | `revolver_skin.png` | The gun's skin, 384x384 RGB, already in Quake's palette: paint this one. `revolver_skin_pal.png`: the indexed copy every export writes (what the MDLs hold). |
 | `revolver_shell.png`, `revolver_shell_slug.png`, `revolver_shell_spent.png`, `revolver_shell_slug_spent.png` | The shell's four skins (64x64, one UV layout): red, the blue slug, both spent (darker, the crimp open, the primer struck). The Shell's `skins` property lists them in skin order. |
 | `export_mdl.py` | Writes the MDLs from the .blend (below). |
-| `build_revolver.py` | Makes the .blend from nothing (shapes, UVs, a procedurally painted skin), checks the crane's swing and exports. It **overwrites** the .blend and the skins: once they are edited by hand, don't run it. |
+| `build_revolver.py` | Makes the .blend from nothing (shapes, UVs, a procedurally painted skin), checks the crane's swing and exports. It **overwrites** the .blend and the skins: once they are edited by hand, don't run it. (It makes the Cylinder with solid ends: `cut_chambers.py` after it.) |
+| `cut_chambers.py` | Bores the six chambers through the Cylinder in the .blend (below, "The chambers"). Run once; it stops if they are cut already. |
 | `render_revolver.py` | Renders the exported MDLs (`renders/`): `blender -b --factory-startup -P render_revolver.py -- <out folder> [size] [view ...]`. |
 | `renders/` | `three` (three-quarter, as the mockup), `vs_mockup` (beside it), `side`, `right`, `cocked`, `open` and `openfront` (swung out, shells chambered), `sights` (from behind along the sight line), `fp` (about as held), `shells`, `scale` (with the nail pistol and the shotgun, each at its in-hand scale). |
 
-Triangles: the gun 1021 (Body 597 with the sights, Hammer 88, Trigger 28, Crane 52, Cylinder and EjectorRod 256);
+Triangles: the gun 1285 (Body 597 with the sights, Hammer 88, Trigger 28, Crane 52, Cylinder and EjectorRod 520);
 `v_revolver_shell.mdl` 76. Skin 384x384 (the nail pistol's 256x256: the runes need the texels).
 
 ## Axes, origins, scale
@@ -67,6 +68,15 @@ Look along it from behind: the blade sits in the notch, between the hammer's pro
 - `v_revolver_shell.mdl`: the shell, skins 0 red, 1 blue slug, 2 red spent, 3 blue spent.
 - `vr_revolver_preview.mdl`: all of it with six shells chambered (red and blue in turn), at `preview_scale`: frames 0
   rest, 1 swung out, 2 cocked. Its skin is the gun's with the red and blue shell skins below it (384x448).
+
+## The chambers
+
+Real holes, right through the Cylinder (`cut_chambers.py`): ten sides each, 0.6 from a chamber's middle to its walls (the
+shell's hull is 0.59: it seats without touching them, its rim 0.66 on the face), walled inside. Swung out you see through
+the empty ones. Their walls take a small patch of grey ramp in `revolver_skin.png` (18 texels at 154..156, 18..23, inside
+a chamber disc that the end faces no longer show), the end faces their UVs as before (the rims drawn from radius 0.48 of
+the painted discs, so that the painted lips stay at the mouths). `renders/through.png`: along the axis, swung out.
+After a change that moves triangles: `barrel_masks.py --write --only v_revolver.mdl` (the mask is by triangle count).
 
 ## Editing in Blender
 
