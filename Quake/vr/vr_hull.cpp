@@ -4740,7 +4740,7 @@ int playerBoxFits(qmodel_t* world, const glm::vec3& start, const glm::vec3& end)
     return !tr.startsolid && !tr.allsolid && tr.fraction >= 1.f;
 }
 
-void updateCrouch(edict_t* ent, const glm::vec3& head)
+void updateCrouch(edict_t* ent, const glm::vec3& head, bool flatscreenCrouch)
 {
     const int num = clientNum(ent);
     if(num < 1 || num >= crouchSlots)
@@ -4755,20 +4755,40 @@ void updateCrouch(edict_t* ent, const glm::vec3& head)
         return;
     }
     const float eye = head.z - (ent->v.origin[2] + ent->v.mins[2]);
+    // Flatscreen play (-flatscreenmode, the player's own client: vr_flatplay.cpp): his crouch is a key held (Left
+    // Ctrl) and his head is let back down by vr_flat_crouch_drop, so his eyes stand at Quake's viewheight -- under
+    // the tallest crouched box's top -- and he never asks to stand outright, whatever the box he is in. His key says
+    // it instead (flatscreenCrouch, from vr_flatplay.cpp's eased crouchRatio, which is easing back up for
+    // vr_flat_crouch_time after the key is let go and 0 standing), and he is asked the way a headset player is:
+    // standing first, and the tallest crouched box that fits where he is when standing does not.
+    const bool flatscreen = progs::fieldFloatOr(ent, progs::fields().vr_flatscreen, 0.f) != 0.f;
+    if(flatscreen && !flatscreenCrouch)
+    {
+        if(boxFitsAt(ent, num, 0.f))
+        {
+            c = 0.f; // the key let go: up, if his box fits standing where he is
+            return;
+        }
+        float levels[maxCrouchLevels];
+        for(int i = crouchLevels(sv.worldmodel, levels); i-- > 0;)
+        {
+            if(boxFitsAt(ent, num, levels[i]))
+            {
+                c = levels[i]; // under a low ceiling: the tallest crouched box that fits, as the rise below picks it
+                return;
+            }
+        }
+        return; // nothing fits where he is: he keeps the box he had
+    }
     const float want = crouchLevelFor(sv.worldmodel, eye);
+    if(flatscreen)
+    {
+        c = want; // the key held: the level his head is let down to, the one he had before the key
+        return;
+    }
     if(want > 0.f && (c <= 0.f || want <= c))
     {
         c = want; // lower: always (a smaller box fits wherever the taller one does)
-        return;
-    }
-    // Flatscreen play (-flatscreenmode, the player's own client: vr_flatplay.cpp): his crouch is a key held (Left
-    // Ctrl) and his head is let back down by vr_flat_crouch_drop, so his eyes stand at Quake's viewheight -- under
-    // the tallest crouched box's top -- and he never asks to stand outright, whatever the box he is in. Take the
-    // level his eyes ask for at once: it is the one he had before the key. (The fit test below is for a headset
-    // player rising under a low ceiling; a flatscreen player's box was this level anyway, chosen the same way.)
-    if(want > 0.f && progs::fieldFloatOr(ent, progs::fields().vr_flatscreen, 0.f) != 0.f)
-    {
-        c = want;
         return;
     }
     if(c <= 0.f || eye < c + crouchStandMargin)

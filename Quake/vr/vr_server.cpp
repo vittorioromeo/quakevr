@@ -21,6 +21,7 @@
 #include "vr_move.hpp"
 #include "vr_motion.hpp"
 #include "vr_engine.hpp"
+#include "vr_flatplay.hpp"
 #include "vr_progs.hpp"
 #include "vr_protocol.hpp"
 #include "vr_server.hpp"
@@ -790,8 +791,13 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
     // Bits 21 and 22 (QVR_VRBITS0_OFFHAND_PRIMARY, _MAINHAND_PRIMARY): the hand's A/X held (the grapple's unreel).
     const int primary = ((move.buttons & QVR_BUTTON_OFFHANDPRIMARY) ? (1 << 21) : 0) |
                         ((move.buttons & QVR_BUTTON_MAINHANDPRIMARY) ? (1 << 22) : 0);
-    // Bit 23 (QVR_VRBITS0_CROUCHED): the player has his crouched box (vr_crouch_hull: vr_hull.cpp).
-    hull::updateCrouch(ent, move.headPos);
+    // Bit 23 (QVR_VRBITS0_CROUCHED): the player has his crouched box (vr_crouch_hull: vr_hull.cpp). Flatscreen play
+    // (his own client: vr_flatplay.cpp) crouches with a key, not with a head, and his eyes stand under the tallest
+    // crouched box's top either way -- so his eased crouch (vr_flat_crouch_time: still easing up for a quarter second
+    // after Left Ctrl is let go, 0 standing) is what vr_hull.cpp is asked with. A headset player is asked as before,
+    // with his own head deciding (true).
+    const bool flat = (move.vrBits0 & protocol::moveFlatplayBit) != 0;
+    hull::updateCrouch(ent, move.headPos, !flat || flatplay::crouchRatio() > 0.f);
     const int crouched = hull::isCrouched(ent) ? (1 << 23) : 0;
     setFieldFloat(ent, f.vrbits0, static_cast<float>(
         withPreviousBits(bits.received, bits.previousFrame) | tracked | busy | secondary | primary | crouched));
@@ -803,7 +809,6 @@ extern "C" void VR_ReadMoveExtras(client_t* client)
     // player's head, so the share would read under 1 whatever he does -- it stays 1, and only the crouch he holds (Left
     // Ctrl, vr_flat_crouch_drop; vr_flatplay.cpp, vr_hands.cpp lowers his head with it) lowers it, by that much of his
     // standing height. A headset player takes the line below exactly as before (flatDrop is 0 for him).
-    const bool flat = (move.vrBits0 & protocol::moveFlatplayBit) != 0;
     const float flatDrop = flat ? za::max(0.f, -vr_floor_offset.value - (move.headPos.z - ent->v.origin[2])) : 0.f;
     const bool upright = seated::active() || (flat && flatDrop <= 0.f) || move.headPos == glm::vec3{0.f} ||
                          standing <= 0.f;
