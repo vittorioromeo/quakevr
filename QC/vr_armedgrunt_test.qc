@@ -103,6 +103,7 @@ void(entity g) VR_AGT_Hunt =
 {
     entity oldself = self;
     self = g;
+    self.enemy = vr_agt_player; // (first: an unarmed one's stand in that start looks for a weapon, and would not know you are near)
     if(self.think == walkmonster_start_go)
     {
         walkmonster_start_go();
@@ -110,6 +111,19 @@ void(entity g) VR_AGT_Hunt =
     self.enemy = vr_agt_player;
     FoundTarget();
     self = oldself;
+};
+
+// A test that reads what drawing does: the drawn arm's stretch (ragdolltug 9, ragdoll::drawnPose) and with it how the
+// tug's body moves. In an undrawn run (vr_mock_fast 2, the lanes') none of that happens, in a game it always does, so the
+// frames are drawn until the test's over (VR_AGTest_Frame).
+float vr_agt_was_undrawn;
+void() VR_AGT_NeedsDrawn =
+{
+    if(cvar_hget(cvarh_vr_mock_fast) >= 2)
+    {
+        vr_agt_was_undrawn = TRUE;
+        cvar_set("vr_mock_fast", "1");
+    }
 };
 
 void(entity g) VR_AGT_Remove =
@@ -1507,6 +1521,11 @@ void() VR_AGTest_Frame =
             // (Every test's last line: the runs end on it, run.sh -QuitOn "agtest: test [0-9]+ over".)
             VR_Test_VerdictPart(sprintf("test %g over:", vr_agt_running));
             vr_agt_running = 0;
+            if(vr_agt_was_undrawn)
+            {
+                vr_agt_was_undrawn = FALSE;
+                cvar_set("vr_mock_fast", "2");
+            }
         }
         vr_agt_player = world;
         vr_agt_row_made = 0;

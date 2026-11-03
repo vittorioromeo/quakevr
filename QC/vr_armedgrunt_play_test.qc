@@ -241,6 +241,7 @@ void() VR_AGPT_TugSway =
     {
         if(vr_agpt_sw_ph == 0)
         {
+            VR_AGT_NeedsDrawn();
             vr_agpt_sw_keep_s = cvar_hget(cvarh_vr_agrunt_tug_sway);
             vr_agpt_sw_keep_f = cvar_hget(cvarh_vr_agrunt_tug_flail);
             vr_agpt_h0b = cvar_hget(cvarh_vr_agrunt_tug_break_impulse);
@@ -1546,6 +1547,8 @@ void() VR_AGPT_TugHand =
     localcmd("vr_mock_fingers main 0 0\n");
     cvar_set("vr_agrunt_tug_break_force", ftos(vr_agpt_h0a));
     cvar_set("vr_agrunt_tug_break_impulse", ftos(vr_agpt_h0b));
+    cvar_set("vr_agrunt_tug_sway", ftos(vr_agpt_thsway));
+    cvar_set("vr_agrunt_tug_flail", ftos(vr_agpt_thflail));
     cvar_set("vr_agrunt_test", "0");
 };
 

@@ -24,6 +24,7 @@ void() VR_AGTP_Frame =
     {
         vr_agtp_yank = cvar_hget(cvarh_vr_agrunt_disarm_yank);
         cvar_set("vr_agrunt_disarm_yank", "0"); // (no grab by the hands' own touches: the test's grab)
+        VR_AGT_NeedsDrawn();
         VR_AGPT_Clear();
         VR_AGPT_EmptyHand(p);
         p.weapon2 = WID_FIST;
