@@ -159,11 +159,15 @@ constexpr float camNear = 24.f;
 constexpr float punchWind = 0.13f;
 constexpr float punchStrike = 0.12f;   // the throw is quick on purpose: what the game's melee rules read is the hand's
                                        // speed (vr_melee_speed 3.2 m/s, a weapon's swing 1.25 times that), not how far
-                                       // the fist goes, so the punch is measured for that (see the flatarm probe's
-                                       // speed) and its reach is capped elsewhere (armSpan, punchSwing)
+                                       // the fist goes, and its reach is capped by the arm (armSpan, punchSwing)
 constexpr float punchBack = 0.22f;
 constexpr float punchReach = 24.f;   // units the fist goes forward in the strike
-constexpr float punchWindUp = 5.f;   // and how it rises on the way back
+constexpr float punchWindUp = 16.f;  // and how far back along its own line it chamberes first. The strike can only throw
+                                     // as far as the arm reaches (armSpan, about 22 units here) and the hand already rests
+                                     // 18 of them out, so the throw by itself moves the fist 4 units: read as the hand's
+                                     // speed that is well under what a landed blow needs (QC VR_Melee_LandNeed: 4.32 m/s
+                                     // a fist, 4.00 an axe). Chambering to where the arm folds gathers the rest of its
+                                     // length: the throw travels about 20 units in 0.12 s, about 170 units/s.
 constexpr float punchWindBack = 7.f;   // and how much lower it sits there
 constexpr float punchLevel = 0.25f;    // the thrown fist's height, times where its hand rests at (0: level with its shoulder, 1: as it rests)
 
@@ -287,7 +291,12 @@ constexpr float punchTotal = punchWind + punchStrike + punchBack;
 // to rise into an upper-cut and dealt no damage at all to a knight standing in front of the player.
 [[nodiscard]] glm::vec3 punchSwing(int h, const glm::vec3& rest)
 {
-    const double t = vr_gametime - fs.punchAt[h];
+    const double t = vr_gametime - fs.punchAt[h];   // the press's own clock: seconds since the punch was started. Each
+                                                    // phase's start is on that same clock, so a phase eased from its
+                                                    // start actually moves: given the press's absolute time instead, the
+                                                    // easing never got past its first step and the whole punch arrived as
+                                                    // three snaps between its poses (measured: 7, 16 and 22 units in a
+                                                    // frame - longer than the 3 units a blow has to find in its sweep).
     if(t < 0.0 || t > punchTotal)
     {
         return rest;
@@ -302,13 +311,13 @@ constexpr float punchTotal = punchWind + punchStrike + punchBack;
     const glm::vec3 thrown{plane.x * hit_share, rest.y, plane.y * punchLevel * hit_share};
     if(t < punchWind)
     {
-        return punchPoint(rest, wound, slide(t, fs.punchAt[h], punchWind));
+        return punchPoint(rest, wound, slide(t, 0.0, punchWind));
     }
     if(t < punchWind + punchStrike)
     {
-        return punchPoint(wound, thrown, slide(t, fs.punchAt[h] + punchWind, punchStrike));
+        return punchPoint(wound, thrown, slide(t, punchWind, punchStrike));
     }
-    return punchPoint(thrown, rest, slide(t, fs.punchAt[h] + punchWind + punchStrike, punchBack));
+    return punchPoint(thrown, rest, slide(t, punchWind + punchStrike, punchBack));
 }
 
 [[nodiscard]] bool punching(int h)
@@ -344,8 +353,8 @@ void startPunch(int h, const char* from)
     {
         return glm::vec3{0.f};
     }
-    const float out = t < grabTime * 0.45f ? slide(t, fs.grabAt, grabTime * 0.45f)
-                                           : 1.f - slide(t, fs.grabAt + grabTime * 0.45f, grabTime * 0.55f);
+    const float out = t < grabTime * 0.45f ? slide(t, 0.0, grabTime * 0.45f)
+                                           : 1.f - slide(t, grabTime * 0.45f, grabTime * 0.55f);
     return {grabReach * out, 0.f, -2.f * out};
 }
 
@@ -623,7 +632,6 @@ void poseHands(hands::State& s, const glm::vec3& aim)
         // full blow): eased toward the punch's own target at handEase the hand never gets there, and the punch lands as
         // a shove with no blow in it. Where a hand sits and what E reaches for are eased, as they were.
         const glm::vec3 off = fs.local[h] + (punchSwing(h, rest) - rest);
-
         s.pos[h] = shoulder(s, h) + fwd * off.x + right * off.y + up * off.z;
         s.rot[h] = aimRotAtCrosshair(aim, h);
         s.rot[h].z += vr_fakevr_handroll.value;
