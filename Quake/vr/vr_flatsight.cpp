@@ -86,6 +86,7 @@ struct Sight
     int lastHolding{-1};        // last frame's pair: a weapon changing disarms the hand that was reaching
     int lastHelping{-1};
     glm::vec3 shift{0.f};       // item 4: how far the holding hand moved onto the crosshair's ray (world, units)
+    glm::vec3 adsOff{0.f};      // item 1's ironsight numbers: and how far vr_flat_ads_fwd / _up / _out moved it from there
     float offBefore{0.f};       // its muzzle off that ray before the move, and after it (units)
     float offAfter{0.f};
     float sightAngle{0.f};      // the same offset as an angle, at the muzzle's own distance (degrees)
@@ -105,9 +106,17 @@ struct Sight
 Sight st;
 
 constexpr float gripEase = 9.f;  // how fast an empty hand travels onto a grip, and back off it (1/s)
-constexpr float camNear = 24.f;  // flatplay::camNear: the camera the flat hands are kept on (drawnOffset)
 constexpr float aimTimeMin = 0.05f;  // vr_flat_aim_time's shortest travel, and what a smaller nonzero setting reads as
 constexpr float aimTimeMax = 1.f;    // and its longest
+constexpr float adsOffMax = 30.f;    // vr_flat_ads_fwd / vr_flat_ads_up / vr_flat_ads_out: how far the ironsight may move
+                                     // the weapon off the pose it was aligned from -- the same room flatplay's pose
+                                     // cvars are clamped to (vr_flat_gun_*, vr_flat_empty_*, vr_flat_support_*)
+
+// vr_flat_ads_fwd / vr_flat_ads_up / vr_flat_ads_out, each clamped to that room.
+[[nodiscard]] float adsNum(const cvar_t& c)
+{
+    return za::clamp(c.value, -adsOffMax, adsOffMax);
+}
 
 [[nodiscard]] float ease(float k, float dt)
 {
@@ -141,21 +150,11 @@ constexpr float aimTimeMax = 1.f;    // and its longest
     return s.muzzle[h] + (s.pos[h] - s.placedFrom[h]);
 }
 
-// The crosshair: the centre of the screen as the player sees it (the camera flatplay keeps the drawn hands on). A
-// camera that is not on the player's own head (a chase cam) is stood in for by the pose's head along the aim.
-void crosshairRay(const hands::State& s, const glm::vec3& aim, glm::vec3& org, glm::vec3& dir)
-{
-    const glm::vec3 cam{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
-    if(!chase_active.value && glm::length(cam - s.head) < camNear)
-    {
-        org = cam;
-        dir = hands::forward(glm::vec3{r_refdef.viewangles[0], r_refdef.viewangles[1], r_refdef.viewangles[2]});
-        return;
-    }
-    org = s.head;
-    dir = hands::forward(aim);
-}
-
+// The crosshair: the centre of the screen as the player sees it. flatplay's own ray (flatplay::crosshairRay), from the
+// camera its drawnOffset locks the drawn hands onto -- the drawn view's origin and angles with its crouch drop and its
+// eye's nudges (vr_flat_cam_fwd / _up / _side) already in them, or the pose's head when the view is not the player's own
+// (a chase cam, the ragdoll tool's orbit, a view standing further off than flatplay::keepNear). The ironsight measures
+// and centres against this ray and the view draws against that one: they cannot end up on different cameras.
 // How far a point stands off a ray: across it, and as an angle at the point's own distance along it.
 void offTheRay(const glm::vec3& org, const glm::vec3& dir, const glm::vec3& p, float& units, float& degrees)
 {
@@ -310,10 +309,11 @@ void pinToGrip(hands::State& s, const glm::vec3& reach, bool carry)
     st.pinned = true;
 }
 
-// Item 4: the held weapon brought onto the crosshair's ray, by the muzzle its shots go from.
+// Item 4: the held weapon brought onto the crosshair's ray, by the muzzle its shots go from; and item 1's ironsight
+// numbers (vr_flat_ads_fwd / vr_flat_ads_up / vr_flat_ads_out) on top of the pose that alignment leaves.
 void centreOnCrosshair(hands::State& s, const glm::vec3& aim)
 {
-    st.shift = glm::vec3{0.f};
+    st.shift = st.adsOff = glm::vec3{0.f};
     st.offBefore = st.offAfter = st.sightAngle = 0.f;
     if(st.holding < 0)
     {
@@ -322,7 +322,7 @@ void centreOnCrosshair(hands::State& s, const glm::vec3& aim)
     // Measured whatever the ironsight is doing: where the muzzle this frame's pose leaves the crosshair's ray stands,
     // which the ironsight's own turn is measured against and printed as the pair before -> after.
     glm::vec3 org, dir;
-    crosshairRay(s, aim, org, dir);
+    flatplay::crosshairRay(s, aim, org, dir);
     const glm::vec3 m = muzzleNow(s, st.holding);
     offTheRay(org, dir, m, st.offBefore, st.sightAngle);
     st.offAfter = st.offBefore;
@@ -331,21 +331,37 @@ void centreOnCrosshair(hands::State& s, const glm::vec3& aim)
         return;
     }
 
+    // Brought onto the ray: the shift is across it, nothing along it, spent over the travel (st.adsT).
     const glm::vec3 lat = m - org - dir * glm::dot(m - org, dir); // off the ray: across it, nothing along it
     st.shift = -lat * st.adsT;
-    if(glm::dot(st.shift, st.shift) < 1e-8f)
+    // Item 1's ironsight set, on top of the aligned pose and over the same seconds: forward, up and out at the holding
+    // hand's own side (the same side flatplay's vr_flat_gun_out measures out to), in the view's own frame -- the frame
+    // the sight picture lives in. So at full ads the weapon sits where he puts it and not where the centring alone
+    // leaves it; at 0 0 0 this is nothing at all, which is why the defaults reproduce the muzzle-on-the-ray numbers. The
+    // hand's turn is unchanged (aimRotAtCrosshair solves it from the crosshair, whatever the hand sits at), so the shot
+    // still goes along the crosshair -- parallel to it, this much to one side of it: what the offsets leave is measured
+    // as offAfter, printed and reported rather than hidden. The other hand and the grip it holds travel with the gun, as
+    // they do for the centring: the offsets move the weapon and both hands, not the weapon alone.
+    glm::vec3 fwd{}, right{}, up{};
+    hands::angleVectors(aim, fwd, right, up);
+    const float side = st.holding == HAND_MAIN ? 1.f : -1.f;
+    st.adsOff = (fwd * adsNum(vr_flat_ads_fwd) + right * (side * adsNum(vr_flat_ads_out)) + up * adsNum(vr_flat_ads_up))
+                * st.adsT;
+    if(glm::dot(st.shift, st.shift) + glm::dot(st.adsOff, st.adsOff) < 1e-8f)
     {
-        st.offAfter = 0.f;
+        st.offAfter = glm::length(lat);
         return;
     }
-    s.pos[st.holding] += st.shift;
+    s.pos[st.holding] += st.shift + st.adsOff;
     if(st.pinned)
     {
         // The grip the other hand is holding travels with the hand it holds on to: their distance apart is unchanged.
-        s.grip2H[st.holding] += st.shift;
-        s.pos[st.helping] += st.shift;
+        s.grip2H[st.holding] += st.shift + st.adsOff;
+        s.pos[st.helping] += st.shift + st.adsOff;
     }
-    st.offAfter = glm::length(lat + st.shift);
+    // Re-measured from the muzzle the pose now leaves: the shot goes from there, so this is what the offsets do to the
+    // crosshair's own line.
+    offTheRay(org, dir, muzzleNow(s, st.holding), st.offAfter, st.sightAngle);
 }
 
 } // namespace
@@ -515,6 +531,14 @@ bool aiming()
     return adsApplies();
 }
 
+float adsShare()
+{
+    // How far this frame's travel has gone, whatever the toggle says about the next one: what the weapon's shift onto the
+    // crosshair, the field of view's narrowing and flatplay's easing of vr_flat_gun_near into vr_flat_ads_near are all
+    // spent over. 0 outside flatscreen play (frame() puts the travel back to nothing there).
+    return za::clamp(st.adsT, 0.f, 1.f);
+}
+
 float fov(float basefov)
 {
     // The eased share, not the toggle (fovNarrowNow): the view closes and opens with the weapon. A base field of view
@@ -526,8 +550,10 @@ float fov(float basefov)
 void statusLine()
 {
     Con_Printf("  ironsight: %s (vr_flat_aim, or the mouse wheel's button; vr_flat_aim_fov %g off the field of view, "
-               "taken over %g s of travel (vr_flat_aim_time); %d toggles this session)%s\n",
+               "taken over %g s of travel (vr_flat_aim_time); %d toggles this session; its own offsets on top of the "
+               "aligned pose vr_flat_ads_fwd %g vr_flat_ads_up %g vr_flat_ads_out %g, in the view's frame)%s\n",
         st.ads ? "asked for" : "off", vr_flat_aim_fov.value, vr_flat_aim_time.value, st.toggles,
+        adsNum(vr_flat_ads_fwd), adsNum(vr_flat_ads_up), adsNum(vr_flat_ads_out),
         st.ads && st.holding >= 0 && !sightalign::alignable(st.holding) ? ", no sights on the weapon held" : "");
     if(st.holding >= 0)
     {
@@ -566,7 +592,7 @@ void print(const hands::State& s)
     // the hand to it; flatplay::printMove's own line above says which way the shot is going.
     const int h = st.holding >= 0 ? st.holding : HAND_MAIN;
     glm::vec3 org, dir;
-    crosshairRay(s, geom::vec(cl.viewangles), org, dir);
+    flatplay::crosshairRay(s, geom::vec(cl.viewangles), org, dir);
     float units = 0.f;
     float degrees = 0.f;
     offTheRay(org, dir, muzzleNow(s, h), units, degrees);
@@ -579,11 +605,12 @@ void print(const hands::State& s)
         return;
     }
     Con_Printf("flatsight: t %.4f ads %s t %.2f fov %.2f x %.2f hand %s grip %s held %d helpKind %d transition %.2f "
-               "muzzle off the crosshair %.2f -> %.2f units (%.2f deg) hand moved %.2f fov take %g\n",
+               "muzzle off the crosshair %.2f -> %.2f units (%.2f deg) hand moved %.2f fov take %g ads %g %g %g\n",
         vr_gametime, adsApplies() ? "on" : (st.ads ? "no sights" : "off"), st.adsT, r_refdef.fov_x, r_refdef.fov_y,
         st.holding == HAND_MAIN ? "main" : "off", st.pinned ? "hotspot" : "none", twohand::helping(st.helping) ? 1 : 0,
         twohand::helpKind(st.helping), twohand::transition(st.holding), st.offBefore, units, degrees,
-        glm::length(st.shift), vr_flat_aim_fov.value);
+        glm::length(st.shift), vr_flat_aim_fov.value, adsNum(vr_flat_ads_fwd), adsNum(vr_flat_ads_up),
+        adsNum(vr_flat_ads_out));
 }
 
 } // namespace qvr::flatsight

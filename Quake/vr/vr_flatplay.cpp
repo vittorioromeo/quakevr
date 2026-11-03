@@ -150,16 +150,17 @@ CtrlBind ctrlBind;
 
 // The pose, measured from the shoulders (hands::bodyAnchor with vr_shoulder_offset, the same anchor the body's own
 // holsters are placed at): the arms stay on the body whatever the height calibration. Forward, side and down in the
-// view's own frame, Quake units.
-constexpr float emptyFwd = 5.f;    // an empty hand: a little in front of its shoulder...
-constexpr float emptyDown = 13.f;  // ... and down at its side, where a relaxed hand hangs
-constexpr float emptyOut = 7.f;
-constexpr float gunFwd = 17.f;     // a held weapon: out in front of the chest, on the centre line
-constexpr float gunDown = 9.f;
-constexpr float gunOut = 2.5f;
-constexpr float supportFwd = 12.f; // the free hand next to the other hand's gun: ready under it
-constexpr float supportDown = 11.f;
-constexpr float supportOut = 5.f;
+// view's own frame, Quake units. These were named constants here (emptyFwd 5, emptyDown 13, emptyOut 7; gunFwd 17,
+// gunDown 9, gunOut 2.5; supportFwd 12, supportDown 11, supportOut 5) and are flatscreen cvars now, at the same
+// defaults (vr_flat_empty_*, vr_flat_gun_*, vr_flat_support_*): the same places, reachable from the Debug menu, and
+// clamped to the room they may move in. poseNum is that clamp; the defaults read back as the constants did.
+constexpr float poseMin = -30.f; // how far a pose's offset may reach in either direction, in the view's frame
+constexpr float poseMax = 30.f;
+
+[[nodiscard]] float poseNum(const cvar_t& c)
+{
+    return za::clamp(c.value, poseMin, poseMax);
+}
 
 // The turn's lag (vr_flat_turnlag, vr_flat_turnlag_speed): the drawn hands keep their direction as the view turns and a
 // critically damped spring (this stiff, rad/s) brings them back; this much of what it leaves shown, never more than
@@ -192,8 +193,61 @@ constexpr float breathSide = 0.1f;
 constexpr float breathPitch = 0.15f;
 
 // The camera the hands are kept on: the drawn view, unless it is somewhere else (the chase camera, the ragdoll tool's
-// orbit): then the pose's own head.
-constexpr float camNear = 24.f;
+// orbit, a view standing further from his own head than keepNear): then the pose's own head. vr_flat_gun_near, eased to
+// vr_flat_ads_near over the ironsight's travel -- and the mode's own nudges of the eye (vr_flat_cam_*) are put back
+// before that distance is measured, so moving the eye does not read as "the view is somewhere else" and leave the hands
+// and the crosshair measuring from the head while the screen is drawn from the nudged eye.
+constexpr float nearMin = 8.f;    // vr_flat_gun_near / vr_flat_ads_near's range
+constexpr float nearMax = 60.f;
+constexpr float camOffMax = 20.f; // vr_flat_cam_fwd / vr_flat_cam_up / vr_flat_cam_side: how far the eye may be nudged
+
+// The flatscreen eye's own nudge, in the view's frame: (forward, the view's right, up). 0 0 0 outside the mode, and 0 0 0
+// at the defaults -- which is why the defaults leave every number the mode measures exactly as they were.
+[[nodiscard]] glm::vec3 camShift()
+{
+    if(!active())
+    {
+        return glm::vec3{0.f, 0.f, 0.f};
+    }
+    return {za::clamp(vr_flat_cam_fwd.value, -camOffMax, camOffMax), za::clamp(vr_flat_cam_side.value, -camOffMax, camOffMax),
+        za::clamp(vr_flat_cam_up.value, -camOffMax, camOffMax)};
+}
+
+// The same nudge, in the world, along the axes of the view it is drawn with (the drawn view's angles: its own forward,
+// right and up, punch and idle bob included -- "in the view's own frame of reference" is what the eye follows).
+[[nodiscard]] glm::vec3 camShiftWorld(const glm::vec3& viewAngles)
+{
+    const glm::vec3 off = camShift();
+    if(off == glm::vec3{0.f, 0.f, 0.f}) // nothing to nudge (the defaults, and outside the mode): the view stays where it is
+    {
+        return off;
+    }
+    glm::vec3 fwd{}, right{}, up{};
+    hands::angleVectors(viewAngles, fwd, right, up);
+    return fwd * off.x + right * off.y + up * off.z;
+}
+
+// The distance the drawn hands and the crosshair's ray stop counting the drawn view as his own eyes at: vr_flat_gun_near
+// with the hipfire pose, eased to vr_flat_ads_near over the ironsight's travel.
+[[nodiscard]] float keepNear()
+{
+    const float hip = za::clamp(vr_flat_gun_near.value, nearMin, nearMax);
+    const float ads = za::clamp(vr_flat_ads_near.value, nearMin, nearMax);
+    return hip + (ads - hip) * za::clamp(flatsight::adsShare(), 0.f, 1.f);
+}
+
+// Whether the drawn view is his own eyes: not a chase view, and not standing further from his own head than keepNear --
+// with the mode's own nudges put back first (see the block above). drawnOffset and crosshairRay both ask this, so the
+// drawn weapon and the shot's crosshair can never be measuring from different cameras.
+[[nodiscard]] bool viewIsHisOwn(const hands::State& s)
+{
+    if(chase_active.value)
+    {
+        return false;
+    }
+    const glm::vec3 cam{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
+    return glm::length(cam - camShiftWorld(geom::vec(r_refdef.viewangles)) - s.head) < keepNear();
+}
 
 // V's punch, seconds from the press: folded, thrown, held, drawn back.
 constexpr float punchWind = 0.19f;   // the fold takes about as long as the throw, on purpose: the game reads the hand's
@@ -318,19 +372,23 @@ constexpr float punchTotal = punchWind + punchStrike + punchDwell + punchBack;
     return bones * za::max(1.f, vr_body_arm_stretch.value) + za::max(0.f, vr_body_shoulder_reach.value) * m2w;
 }
 
-// Where a hand sits relative to its shoulder, in the view's frame.
+// Where a hand sits relative to its shoulder, in the view's frame: the held weapon's pose (vr_flat_gun_fwd / _down /
+// _out), the free hand's next to the other hand's gun (vr_flat_support_*), an empty hand's (vr_flat_empty_*). Positive
+// is forward, out at that hand's own side, and down (the z term reads the negative of the cvar, which is why the cvars
+// read "how far below": a bigger number is a lower hand, as it was when these were the constants). vr_flat_reach
+// multiplies the whole thing, as it did before.
 [[nodiscard]] glm::vec3 targetOffset(int h, float reach, bool otherHolds)
 {
     const float side = h == HAND_OFF ? -1.f : 1.f;
     if(heldIn(h) >= 0)
     {
-        return {gunFwd * reach, side * gunOut * reach, -gunDown * reach};
+        return {poseNum(vr_flat_gun_fwd) * reach, side * poseNum(vr_flat_gun_out) * reach, -poseNum(vr_flat_gun_down) * reach};
     }
     if(otherHolds)
     {
-        return {supportFwd * reach, side * supportOut * reach, -supportDown * reach};
+        return {poseNum(vr_flat_support_fwd) * reach, side * poseNum(vr_flat_support_out) * reach, -poseNum(vr_flat_support_down) * reach};
     }
-    return {emptyFwd * reach, side * emptyOut * reach, -emptyDown * reach};
+    return {poseNum(vr_flat_empty_fwd) * reach, side * poseNum(vr_flat_empty_out) * reach, -poseNum(vr_flat_empty_down) * reach};
 }
 
 // A point on the punch's line: u of the way from `from` to `to` (both where a hand sits off its shoulder, in the view's
@@ -960,10 +1018,13 @@ void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles
     stepFeel();
 
     // The pose's frame (its head, the view's angles it was made with) and the drawn view's (its bob, roll and kick, its
-    // own easing up a step): the hands moved from one onto the other, so they are locked to what is drawn.
+    // own easing up a step, and where vr_flat_cam_fwd / _up / _side put the eye -- V_CalcRefdef has already moved this
+    // origin by them, VR_FlatViewDrop below): the hands moved from one onto the other, so they are locked to what is
+    // drawn, the nudged eye included. Whether the drawn view still counts as his own eyes is viewIsHisOwn's, the same
+    // answer crosshairRay gives the shot's crosshair.
     const glm::vec3 aim{cl.viewangles[0], cl.viewangles[1], cl.viewangles[2]};
     const glm::vec3 cam{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
-    const bool onCam = !chase_active.value && glm::length(cam - s.head) < camNear;
+    const bool onCam = viewIsHisOwn(s);
     const glm::vec3 from = s.head;
     const glm::vec3 to = onCam ? cam : s.head;
     const glm::vec3 camAngles = onCam ? geom::vec(r_refdef.viewangles)
@@ -1024,6 +1085,24 @@ void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles
     probeArm(s, h, drawn, drawnRot);
 }
 
+// The crosshair's ray: where the middle of the screen points, from the camera the screen is drawn from. The drawn view's
+// own origin and angles -- its crouch drop (VR_FlatViewDrop) and the eye's nudges (vr_flat_cam_fwd / _up / _side)
+// included -- when that view is his own eyes; the pose's head and its aim when it is not (a chase view, the ragdoll
+// tool's orbit, a view standing further off than keepNear). This one ray is what the ironsight measures and centres the
+// held weapon onto (vr_flatsight.cpp), and it is the same camera drawnOffset above locks the drawn hands onto: the gun
+// and the crosshair cannot be measuring from different places, whatever the camera cvars say.
+void crosshairRay(const hands::State& s, const glm::vec3& aim, glm::vec3& org, glm::vec3& dir)
+{
+    if(viewIsHisOwn(s))
+    {
+        org = glm::vec3{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
+        dir = hands::forward(geom::vec(r_refdef.viewangles));
+        return;
+    }
+    org = s.head;
+    dir = hands::forward(aim);
+}
+
 void printMove(const hands::State& s)
 {
     // The main hand's shot as the move sends it (its weapon's Shot Pitch and Yaw on the hand's angles) against the view
@@ -1051,6 +1130,15 @@ void printDrawn(const float* origin, const float* angles)
         vr_gametime,
         glm::dot(d, f), glm::dot(d, r), glm::dot(d, u), dyaw, angles[0] + camAngles.x, camAngles.x, camAngles.y,
         glm::length(glm::vec2{cl.velocity[0], cl.velocity[1]}), feel.amp, cl.onground ? 1 : 0, feel.lag.y);
+    // The camera this frame is drawn from, and the player it is drawn for: the eye's place and the eye's own nudges
+    // (vr_flat_cam_fwd forward, vr_flat_cam_side the view's right, vr_flat_cam_up), against the origin he really stands
+    // at -- which these do not touch (his box and his server-side position are measured from there: vr_hull.cpp,
+    // vr_server.cpp). His eye's height above that origin is what the mode moves: the crouch's drop and these, nothing else.
+    const glm::vec3 off = camShift();
+    const glm::vec3 his = geom::vec(cl_entities[cl.viewentity].origin);
+    Con_Printf("flatcam: t %.4f origin %.1f %.1f %.1f eye %.1f above him %.1f nudge %.2f %.2f %.2f keep %.1f\n",
+        vr_gametime, his.x, his.y, his.z, r_refdef.vieworg[2], r_refdef.vieworg[2] - his.z,
+        off.x, off.y, off.z, keepNear());
 }
 
 void status_f()
@@ -1072,6 +1160,24 @@ void status_f()
                "positive looking down). Plain play and a headset are bounded by cl_maxpitch / cl_minpitch instead, which "
                "stay the player's own setting.\n",
         vr_flat_pitch_up.value, vr_flat_pitch_down.value, -lookUp, lookDown);
+    Con_Printf("  where the weapon and the hands sit, in the view's frame (forward, out at the hand's own side, down): a "
+               "held weapon %g %g %g (vr_flat_gun_fwd / _down / _out), with the ironsight on top of that pose %g %g %g "
+               "(vr_flat_ads_fwd / _up / _out), an empty hand %g %g %g (vr_flat_empty_*), the free hand next to the other "
+               "hand's gun %g %g %g (vr_flat_support_*), all of them vr_flat_reach %g times their size; a bigger _down is "
+               "a lower hand. The drawn view counts as his own eyes while it stands within %g of his head "
+               "(vr_flat_gun_near), eased to %g while the ironsight is on (vr_flat_ads_near).\n",
+        poseNum(vr_flat_gun_fwd), poseNum(vr_flat_gun_down), poseNum(vr_flat_gun_out), poseNum(vr_flat_ads_fwd),
+        poseNum(vr_flat_ads_up), poseNum(vr_flat_ads_out), poseNum(vr_flat_empty_fwd), poseNum(vr_flat_empty_down),
+        poseNum(vr_flat_empty_out), poseNum(vr_flat_support_fwd), poseNum(vr_flat_support_down),
+        poseNum(vr_flat_support_out), za::clamp(vr_flat_reach.value, 0.25f, 3.f), keepNear(),
+        za::clamp(vr_flat_ads_near.value, nearMin, nearMax));
+    const glm::vec3 eye = camShift();
+    Con_Printf("  his eye on the screen: %g forward, %g up, %g to the view's right (vr_flat_cam_fwd / _up / _side: + is "
+               "towards what he looks at, + is higher, + is the view's own right), in the view's own frame and on top of "
+               "the crouch's own drop. Only the drawn view moves, and with it the crosshair's ray every aiming measurement "
+               "uses (vr_flat_gun_near %g measures it with these put back): his origin, his collision box and his body are "
+               "measured from where he stands.\n",
+        eye.x, eye.y, eye.z, za::clamp(vr_flat_gun_near.value, nearMin, nearMax));
     Con_Printf("  E pressed %d times (force grab); punches: the main hand %d, the off hand %d. E and V are read from the "
                "keyboard, not from bindings; each hand's punch starts from V, from its fire button with a weapon a swing "
                "strikes with (LMB / +attack the main hand, RMB / +offhandattack the off hand), or from vr_flat_punch.\n",
@@ -1122,14 +1228,23 @@ void punch_f()
 } // namespace qvr::flatplay
 
 // view.c's V_CalcRefdef: a flatscreen player holding his crouch (Left Ctrl, +flatcrouch) sees from lower, the same
-// vr_flat_crouch_drop the game poses his body with. Outside the mode, and in a chase view, the view is left exactly as it was.
-extern "C" void VR_FlatViewDrop(float* vieworg)
+// vr_flat_crouch_drop the game poses his body with; and he sees from wherever vr_flat_cam_fwd / vr_flat_cam_up /
+// vr_flat_cam_side put his eye -- forward, up and the view's own right, in the frame of the view this frame draws (its
+// punch and idle bob included: the nudge is the view's, not the body's). This is the one place the mode moves the eye, so
+// it is the one camera every aiming measurement reads: flatplay::crosshairRay takes the crosshair's ray from the origin
+// set here and drawnOffset keeps the drawn hands on it, so the crosshair moves with the eye and the gun stays on the
+// crosshair. His own origin, his collision box and the crouch's box are not touched (vr_hull.cpp, vr_server.cpp measure
+// them from where he stands). Outside the mode, and in a chase view, the view is left exactly as it was.
+extern "C" void VR_FlatViewDrop(float* vieworg, const float* viewangles)
 {
     if(!qvr::flatplay::active() || chase_active.value)
     {
         return;
     }
-    vieworg[2] -= qvr::flatplay::crouchDrop();
+    const glm::vec3 nudge = qvr::flatplay::camShiftWorld(qvr::geom::vec(viewangles));
+    vieworg[0] += nudge.x;
+    vieworg[1] += nudge.y;
+    vieworg[2] += nudge.z - qvr::flatplay::crouchDrop();
 }
 
 // Quake/host.c's Host_WriteConfigurationToFile, before Key_WriteBindings: flatscreen play's Ctrl bind given back so the
