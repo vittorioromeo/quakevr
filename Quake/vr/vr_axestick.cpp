@@ -14,6 +14,14 @@
 // blade's plane) until it is its depth under the surface (vr_axestick_depth at twice the least speed, half at it, never
 // more than 60% of the blade), and only if its handle stays out of the wall.
 //
+// Embedded blades (ROUND23.md, "Embedded blades"): weapons.txt's `embed` says how a weapon sticks: by its edge (the test
+// above, the edges' numbers its own keys) or by its point (a sword: its tip, from the Muzzle anchor; what goes in first
+// must be within vr_embed_sword_tip of it, going along the blade's line within vr_embed_sword_angle and within
+// vr_embed_sword_incidence of straight in; vr_embed_sword_depth_* say how deep). A sword in the level sags under its
+// weight on a spring about where it went in (stepSag), stopping at what is below. Bodies lying down (touchable, not solid:
+// SV_Move's MOVE_NORMAL passes them) are looked for too (findBodies). An unbroken plate stops either (QC's
+// VR_AxeStick_Plate). vr_embed 0: the two axes alone, as before.
+//
 // Where it is kept: the axe's pose in the frame of what it is in (its origin and angles: a door's, a prop's as drawn,
 // a monster's yaw; the world's; or the monster model's triangle it went into, as drawn now: vr_hitmodel.cpp's
 // anchorFrame), in QC fields, so that a saved game keeps it. Each server frame puts it back there.
@@ -29,6 +37,8 @@
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
 #include "vr_units.hpp"
+#include "vr_view.hpp"
+#include "vr_weapons.hpp"
 
 #include "Zancle/Base/SizeT.hpp"
 #include "Zancle/Container/Array.hpp"
@@ -57,27 +67,21 @@ struct Edge
     glm::vec3 a, b, out;
 };
 
+// How a weapon sticks (weapons.txt's `embed`; QC AXESTICK_POINT, AXESTICK_EDGE).
+constexpr int howNone = 0;
+constexpr int howPoint = 1;
+constexpr int howEdge = 2;
+
+// A weapon's blade, in its model's own space (shapeOf: from its weapons.txt keys).
 struct Blade
 {
-    modelmeta::Id model;
-    za::Array<Edge, 2> edges;
-    glm::vec3 head;   // the head's middle on the handle's axis (the blade's width: from it to the edge)
-    glm::vec3 handle; // the handle's far end
-};
-
-// Quake VR's axe (quakevr/progs/v_axe.mdl, frame 0): the handle from (0.2, 0, -3.55) along (4.2, 0, 11.55) (as
-// Misc/quakevr/make_swords.py measures it), the head from 25 to 37 units up it, double-bitted: an edge 12 units out on
-// each side (vertices 10 to 20, and 16 to 19), the blade thin across y.
-constexpr glm::vec3 axeOut{0.9398f, 0.f, -0.3417f};
-const Blade blades[] = {
-    {modelmeta::Id::VAxe,
-        {{{{20.13f, -0.12f, 15.81f}, {24.18f, -0.10f, 27.30f}, axeOut}, {{-3.00f, -0.10f, 24.50f}, {1.27f, -0.07f, 35.52f}, -axeOut}}},
-        {10.79f, 0.f, 25.58f}, {0.2f, 0.f, -3.55f}},
-    // AD support: the Shadow Axe (vr_adweapons.cpp, laid on the axe's handle; vr_adweapon_models prints its edge): one
-    // bit, its crescent's edge from 17.08 to 22.11 out (its two edges the same).
-    {modelmeta::Id::AdVrAxe,
-        {{{{17.08f, 0.11f, 11.64f}, {22.11f, -0.04f, 26.36f}, axeOut}, {{17.08f, 0.11f, 11.64f}, {22.11f, -0.04f, 26.36f}, axeOut}}},
-        {9.71f, 0.f, 22.58f}, {0.2f, 0.f, -3.55f}},
+    int how{howNone};
+    za::Array<Edge, 2> edges{};
+    glm::vec3 head{0.f};   // an edge's: the head's middle on the handle's axis (the blade's width: from it to the edge)
+    glm::vec3 handle{0.f}; // the handle's far end
+    glm::vec3 tip{0.f};    // a point's: its tip (the Muzzle anchor and offset),
+    glm::vec3 hand{0.f};   // where the hand holds it (the line to its tip: the blade's axis),
+    glm::vec3 from{0.f};   // and where the blade proper starts on that line (BladeFrom)
 };
 
 // The kinds of thing it is in (.vr_stick_kind).
@@ -99,24 +103,6 @@ using geom::store;
 {
     const int index = static_cast<int>(ent->v.modelindex);
     return index > 0 && index < MAX_MODELS ? sv.models[index] : nullptr;
-}
-
-[[nodiscard]] const Blade* bladeOf(edict_t* ent)
-{
-    const qmodel_t* model = modelOf(ent);
-    if(!model || model->type != mod_alias)
-    {
-        return nullptr;
-    }
-    const auto& info = modelmeta::get(model);
-    for(const Blade& b : blades)
-    {
-        if(info.is(b.model))
-        {
-            return &b;
-        }
-    }
-    return nullptr;
 }
 
 [[nodiscard]] bool isProp(edict_t* ent)
@@ -165,7 +151,8 @@ bool frameOf(edict_t* host, int kind, const glm::vec3& anchor, glm::vec3& point,
             return true;
         }
         case Model:
-            return hitmodel::anchorFrame(host, static_cast<int>(anchor.x), anchor.y, anchor.z, point, axes);
+            // (vr_embed: it stays in a body dying, not solid for now.)
+            return hitmodel::anchorFrame(host, static_cast<int>(anchor.x), anchor.y, anchor.z, point, axes, vr_embed.value != 0.f);
         case MonsterBox:
         {
             const float yaw[3]{0.f, host->v.angles[1], 0.f};
@@ -210,12 +197,19 @@ struct Sample
     float along{0.f}; // where along the edge (0 and 1: its corners)
 };
 
-// The samples of the model they were made from (models' slots: a game dir change, a model reload).
+// Each model's blade and its samples, as they were made (models' slots: a game dir change, a model reload).
+struct Shape
+{
+    const qmodel_t* model{nullptr};
+    Blade blade;
+    za::SizeT firstSample{0}, sampleCount{0};
+    bool sampled{false};
+};
 struct StickCache
 {
     za::Vector<Sample> samples;
-    const qmodel_t* model{nullptr};
-    auto members() { return qvr::mem::list(samples, model); }
+    za::Vector<Shape> shapes;
+    auto members() { return qvr::mem::list(samples, shapes); }
 };
 mem::Cache<StickCache> cache{"axe stick", mem::GameDirChange | mem::ModelReload};
 
@@ -223,7 +217,8 @@ mem::Cache<StickCache> cache{"axe stick", mem::GameDirChange | mem::ModelReload}
 struct StickScratch
 {
     za::Vector<glm::vec3> drawn; // the samples as drawn, in the axe's axes from its origin (beforeStep)
-    auto members() { return qvr::mem::list(drawn); }
+    za::Vector<int> bodies;      // the lying bodies near it (findBodies)
+    auto members() { return qvr::mem::list(drawn, bodies); }
 };
 mem::Scratch<StickScratch> scratch{"axe stick"};
 
@@ -238,6 +233,19 @@ constexpr za::SizeT maxSamples = 256;
 {
     Sample s;
     s.p = p;
+    if(blade.how == howPoint)
+    {
+        // How far behind its tip, a share of the way from the hand to it (the front half: vr_embed_sword_tip takes less).
+        const glm::vec3 line = blade.tip - blade.hand;
+        const float back = glm::dot(blade.tip - p, line) / za::max(1e-6f, glm::dot(line, line));
+        if(back >= -0.1f && back <= 0.5f)
+        {
+            s.bit = 0;
+            s.back = za::max(0.f, back);
+            s.along = 0.5f;
+        }
+        return s;
+    }
     for(int e = 0; e < 2; e++)
     {
         const Edge& edge = blade.edges[static_cast<za::SizeT>(e)];
@@ -255,41 +263,159 @@ constexpr za::SizeT maxSamples = 256;
     return s;
 }
 
-// (The cache is keyed on the model alone: bladeOf gives one blade a model, so `blade` is implied by it.)
-[[nodiscard]] const za::Vector<Sample>& samplesOf(const qmodel_t* model, const Blade& blade)
+// A point's blade, from the weapon's Muzzle anchor and offset (view::weaponLocalGeometry: as drawn from its origin, where a
+// hand holds it; turned back into its model's own space, as the drawn transform is a scale and a move).
+[[nodiscard]] Blade pointBlade(edict_t* ent, qmodel_t* model, int slot)
 {
-    za::Vector<Sample>& out = cache.samples;
-    if(cache.model == model && !out.empty())
+    Blade b;
+    glm::vec3 muzzle{0.f}, butt{0.f}, second{0.f};
+    int secondType = 0;
+    if(!view::weaponLocalGeometry(model, muzzle, butt, second, secondType) || glm::length(muzzle) < 1.f)
     {
-        return out;
+        return b;
     }
-    out.clear();
-    cache.model = model;
+    const glm::vec3 zero = held::drawnModelPoint(ent, glm::vec3{0.f});
+    const glm::vec3 scale = held::drawnModelPoint(ent, glm::vec3{1.f}) - zero;
+    if(za::abs(scale.x) < 1e-4f || za::abs(scale.y) < 1e-4f || za::abs(scale.z) < 1e-4f)
+    {
+        return b;
+    }
+    const auto own = [&](const glm::vec3& drawn) { return (drawn - zero) / scale; };
+    constexpr float guessedFrom = 0.25f; // (bl_from -1: the kind's own, QC VR_Melee_Layout's; about the guard's)
+    const float from = weapons::value(slot, weapons::Key::BladeFrom);
+    b.how = howPoint;
+    b.tip = own(muzzle);
+    b.hand = own(glm::vec3{0.f});
+    b.handle = own(butt);
+    b.from = glm::mix(b.hand, b.tip, from >= 0.f ? za::min(from, 0.9f) : guessedFrom);
+    return b;
+}
+
+// The blade of the model `ent` is drawn with, as its weapons.txt keys say.
+[[nodiscard]] Blade bladeFromKeys(edict_t* ent, qmodel_t* model)
+{
+    using weapons::Key;
+    Blade b;
+    const int slot = weapons::slotForModel(model);
+    if(slot < 0)
+    {
+        return b;
+    }
+    const int how = static_cast<int>(weapons::value(slot, Key::Embed));
+    if(how == howPoint)
+    {
+        return pointBlade(ent, model, slot);
+    }
+    if(how == howEdge)
+    {
+        b.how = howEdge;
+        b.edges[0] = {weapons::vec(slot, Key::EmbedE1AX, Key::EmbedE1AY, Key::EmbedE1AZ),
+            weapons::vec(slot, Key::EmbedE1BX, Key::EmbedE1BY, Key::EmbedE1BZ),
+            weapons::vec(slot, Key::EmbedE1OX, Key::EmbedE1OY, Key::EmbedE1OZ)};
+        b.edges[1] = {weapons::vec(slot, Key::EmbedE2AX, Key::EmbedE2AY, Key::EmbedE2AZ),
+            weapons::vec(slot, Key::EmbedE2BX, Key::EmbedE2BY, Key::EmbedE2BZ),
+            weapons::vec(slot, Key::EmbedE2OX, Key::EmbedE2OY, Key::EmbedE2OZ)};
+        b.head = weapons::vec(slot, Key::EmbedHeadX, Key::EmbedHeadY, Key::EmbedHeadZ);
+        b.handle = weapons::vec(slot, Key::EmbedButtX, Key::EmbedButtY, Key::EmbedButtZ);
+    }
+    return b;
+}
+
+[[nodiscard]] Shape& shapeOf(edict_t* ent, qmodel_t* model)
+{
+    for(Shape& s : cache.shapes)
+    {
+        if(s.model == model)
+        {
+            return s;
+        }
+    }
+    Shape made;
+    made.model = model;
+    made.blade = bladeFromKeys(ent, model);
+    cache.shapes.pushBack(made);
+    return cache.shapes.back();
+}
+
+// How `ent` sticks (null: it doesn't). vr_embed 0: the axe and the Shadow Axe alone, as before it.
+[[nodiscard]] const Blade* bladeOf(edict_t* ent)
+{
+    qmodel_t* model = modelOf(ent);
+    if(!model || model->type != mod_alias)
+    {
+        return nullptr;
+    }
+    if(!vr_embed.value)
+    {
+        const auto& info = modelmeta::get(model);
+        if(!info.is(modelmeta::Id::VAxe) && !info.is(modelmeta::Id::AdVrAxe))
+        {
+            return nullptr;
+        }
+    }
+    const Blade& blade = shapeOf(ent, model).blade;
+    return blade.how != howNone ? &blade : nullptr;
+}
+
+// A view of a model's samples.
+struct SampleRange
+{
+    const Sample* first{nullptr};
+    za::SizeT count{0};
+    [[nodiscard]] za::SizeT size() const { return count; }
+    [[nodiscard]] const Sample& operator[](za::SizeT i) const { return first[i]; }
+    [[nodiscard]] const Sample* begin() const { return first; }
+    [[nodiscard]] const Sample* end() const { return first + count; }
+};
+
+[[nodiscard]] SampleRange samplesOf(edict_t* ent, const Blade& blade)
+{
+    qmodel_t* model = modelOf(ent);
+    Shape& shape = shapeOf(ent, model);
+    za::Vector<Sample>& out = cache.samples;
+    if(shape.sampled)
+    {
+        return {out.data() + shape.firstSample, shape.sampleCount};
+    }
+    shape.sampled = true;
+    shape.firstSample = out.size();
+    const za::SizeT firstOfThis = out.size();
+    const auto done = [&] {
+        shape.sampleCount = out.size() - firstOfThis;
+        return SampleRange{out.data() + firstOfThis, shape.sampleCount};
+    };
     const auto add = [&](const glm::vec3& p, float spacing) {
-        if(out.size() >= maxSamples)
+        if(out.size() - firstOfThis >= maxSamples)
         {
             return;
         }
-        for(const Sample& s : out)
+        for(za::SizeT i = firstOfThis; i < out.size(); i++)
         {
-            if(glm::distance(s.p, p) < spacing)
+            if(glm::distance(out[i].p, p) < spacing)
             {
                 return;
             }
         }
         out.pushBack(classify(blade, p));
     };
-    for(const Edge& e : blade.edges)
+    if(blade.how == howPoint)
     {
-        for(int i = 0; i < edgePoints; i++)
+        add(blade.tip, 0.5f);
+    }
+    else
+    {
+        for(const Edge& e : blade.edges)
         {
-            add(glm::mix(e.a, e.b, static_cast<float>(i) / static_cast<float>(edgePoints - 1)), 0.5f);
+            for(int i = 0; i < edgePoints; i++)
+            {
+                add(glm::mix(e.a, e.b, static_cast<float>(i) / static_cast<float>(edgePoints - 1)), 0.5f);
+            }
         }
     }
     const auto* hdr = static_cast<const aliashdr_t*>(Mod_Extradata(const_cast<qmodel_t*>(model)));
     if(hdr->poseverttype != aliashdr_t::PV_QUAKE1 || !hdr->vertexes || !hdr->indexes || !hdr->meshdesc || hdr->numframes <= 0)
     {
-        return out; // (its edges alone)
+        return done(); // (its edges alone)
     }
     const auto* base = reinterpret_cast<const byte*>(hdr);
     const auto* verts = reinterpret_cast<const trivertx_t*>(base + hdr->vertexes) + hdr->frames[0].firstpose * hdr->numverts;
@@ -320,12 +446,21 @@ constexpr za::SizeT maxSamples = 256;
             }
         }
     }
-    return out;
+    return done();
 }
 
 // What the sample `s` of the axe is (the debug's lines).
 [[nodiscard]] const char* partName(edict_t* ent, const Blade& blade, const Sample& s)
 {
+    if(blade.how == howPoint)
+    {
+        if(s.bit >= 0)
+        {
+            return s.back * 100.f <= vr_embed_sword_tip.value ? "the tip" : "the blade";
+        }
+        const glm::vec3 line = blade.tip - blade.hand;
+        return glm::dot(s.p - blade.from, line) >= 0.f ? "the blade" : "the hilt";
+    }
     if(s.bit >= 0)
     {
         return s.back > 0.1f ? "the blade behind its edge" : (s.along < 0.1f || s.along > 0.9f) ? "a corner" : "an edge";
@@ -442,6 +577,26 @@ void report(edict_t* ent, const char* fmt, ...)
         }
     }
 
+    // A body lying down (touchable, not solid: SV_Move passed it).
+    for(const int num : scratch.bodies)
+    {
+        edict_t* h = EDICT_NUM(num);
+        hitmodel::Hit hit;
+        if(hitmodel::segment(h, from, to, hitmodel::tolerance(hitmodel::Class::Thrown), 1.f, hitmodel::Class::Thrown, hit) &&
+            hit.tri >= 0 && stepShare(hit.t) < best.fraction)
+        {
+            best = Strike{};
+            best.fraction = stepShare(hit.t);
+            best.host = h;
+            best.kind = Model;
+            best.sample = sample;
+            best.local = local;
+            best.point = hit.surface;
+            best.normal = hit.normal;
+            best.anchor = glm::vec3{static_cast<float>(hit.tri), hit.u, hit.v};
+        }
+    }
+
     box3d::PropHit ph;
     if(!monsters && box3d::castProps(from, to, NUM_FOR_EDICT(ent), ph) && stepShare(ph.fraction) < best.fraction)
     {
@@ -463,6 +618,30 @@ void report(edict_t* ent, const char* fmt, ...)
         }
     }
     return best;
+}
+
+// The bodies lying down within `reach` units of the blade's centre `com` and that its sweeps look at (scratch.bodies):
+// a corpse, a knocked down monster: touchable, a move passes them.
+void findBodies(edict_t* ent, const glm::vec3& com, float reach)
+{
+    za::Vector<int>& out = scratch.bodies;
+    out.clear();
+    if(!vr_embed.value)
+    {
+        return;
+    }
+    constexpr float limbs = 48.f; // (units a limb lies out of its box)
+    progs::forEachEdict(svs.maxclients + 1, [&](edict_t* e) {
+        if(e == ent || static_cast<int>(e->v.solid) != SOLID_NOT_BUT_TOUCHABLE || !(static_cast<int>(e->v.flags) & FL_MONSTER))
+        {
+            return;
+        }
+        const glm::vec3 lo = vec(e->v.absmin), hi = vec(e->v.absmax);
+        if(glm::distance(com, (lo + hi) * 0.5f) <= reach + glm::distance(lo, hi) * 0.5f + limbs && hitmodel::target(e))
+        {
+            out.pushBack(NUM_FOR_EDICT(e));
+        }
+    });
 }
 
 // Whether anything (the level, a door, a monster's box, a prop) is within `size` units of the axe's centre `com` along
@@ -490,7 +669,7 @@ void report(edict_t* ent, const char* fmt, ...)
 [[nodiscard]] const char* partOf(edict_t* ent, const Blade& blade, const glm::vec3& p)
 {
     const glm::vec3 local = glm::transpose(held::axesFromAngles(ent->v.angles, false)) * (p - vec(ent->v.origin));
-    const za::Vector<Sample>& samples = samplesOf(modelOf(ent), blade);
+    const SampleRange samples = samplesOf(ent, blade);
     const Sample* nearest = nullptr;
     float best = 1e9f;
     for(const Sample& s : samples)
@@ -519,29 +698,17 @@ void callStuck(func_t fn, edict_t* ent, edict_t* host, int kind, float speed)
     pr_global_struct->other = oldOther;
 }
 
-// The axe in what it is in: its pose there (the frame's), the blade's edge and facing in the world.
-void place(edict_t* ent, const Blade& blade, const glm::vec3& origin, const glm::mat3& axes)
+// The pose `o`, `r` given: the entity's, and for QC the place it went in at (`at`) and the way into what it is in (`dir`).
+void setPose(edict_t* ent, const glm::vec3& o, const glm::mat3& r, const glm::vec3& at, const glm::vec3& dir)
 {
     const FieldOffsets& f = fields();
-    const DrawnEdge e = drawnEdge(ent, blade, za::clamp(static_cast<int>(fieldFloat(ent, f.vr_stick_edge)), 0, 1));
-    glm::vec3 o = origin;
-    glm::mat3 r = axes;
-    const float wiggle = fieldFloatOr(ent, f.vr_stick_wiggle, 0.f);
-    if(wiggle != 0.f)
-    {
-        // Rocked about the edge's middle, across the blade (the head is thin along its model's y).
-        const glm::vec3 pivot = o + r * e.mid;
-        const glm::mat3 turn = glm::mat3_cast(glm::angleAxis(glm::radians(wiggle), glm::normalize(r[1])));
-        r = turn * r;
-        o = pivot + turn * (o - pivot);
-    }
     vec3_t angles;
     held::anglesFromAxes(r, angles, false);
     const bool moved = glm::distance(o, vec(ent->v.origin)) > 1e-3f || glm::distance(vec(angles), vec(ent->v.angles)) > 1e-3f;
     store(o, ent->v.origin);
     store(vec(angles), ent->v.angles);
-    setFieldVec(ent, f.vr_stick_at, o + r * e.mid);
-    setFieldVec(ent, f.vr_stick_dir, r * e.out);
+    setFieldVec(ent, f.vr_stick_at, at);
+    setFieldVec(ent, f.vr_stick_dir, dir);
     if(vr_debug_axestick.value >= 3)
     {
         const glm::vec3 d = fieldVec(ent, f.vr_stick_dir);
@@ -553,6 +720,274 @@ void place(edict_t* ent, const Blade& blade, const glm::vec3& origin, const glm:
     }
 }
 
+// A sword's way along its line (the model's own turned by its axes: from the hand to the tip), as drawn, and where it went
+// in (from its origin): `.vr_stick_depth` back from its tip.
+struct PointLine
+{
+    glm::vec3 tip{0.f}, entry{0.f}, butt{0.f}, along{1.f, 0.f, 0.f};
+};
+[[nodiscard]] PointLine pointLine(edict_t* ent, const Blade& blade)
+{
+    PointLine l;
+    l.tip = held::drawnModelPoint(ent, blade.tip);
+    l.butt = held::drawnModelPoint(ent, blade.handle);
+    const glm::vec3 line = l.tip - held::drawnModelPoint(ent, blade.hand);
+    l.along = glm::length(line) > 1e-3f ? glm::normalize(line) : l.along;
+    l.entry = l.tip - l.along * fieldFloatOr(ent, fields().vr_stick_depth, 0.f);
+    return l;
+}
+
+// The turn a sag of `degrees` makes of a blade going `in` (its tip's way): about where it went in, its hilt towards the
+// floor. None for a blade upright (nothing to pull it over).
+[[nodiscard]] glm::mat3 sagTurn(const glm::vec3& in, float deg)
+{
+    const glm::vec3 side = glm::cross(-in, glm::vec3{0.f, 0.f, -1.f});
+    const float lever = glm::length(side);
+    return lever > 0.05f ? glm::mat3_cast(glm::angleAxis(glm::radians(deg), side / lever)) : glm::mat3{1.f};
+}
+
+// A sword in the level: its sag's spring this frame (`origin`, `axes`: as it stuck, in the world). Gravity pulls it as a
+// rod hung where it went in (1.5 g / length, by how level it lies), the spring vr_embed_sag_stiffness and
+// vr_embed_sag_damping hold it back, at most vr_embed_sag_most; what is under its hilt stops it.
+void stepSag(edict_t* ent, const Blade& blade, const glm::vec3& origin, const glm::mat3& axes, float dt)
+{
+    const FieldOffsets& f = fields();
+    const float most = za::max(0.f, vr_embed_sag_most.value);
+    float sag = fieldFloatOr(ent, f.vr_stick_sag, 0.f);
+    float rate = fieldFloatOr(ent, f.vr_stick_sagv, 0.f);
+    if(most <= 0.f)
+    {
+        setFieldFloat(ent, f.vr_stick_sag, 0.f);
+        setFieldFloat(ent, f.vr_stick_sagv, 0.f);
+        return;
+    }
+    if(dt <= 0.f)
+    {
+        return;
+    }
+    dt = za::min(dt, 0.05f);
+    const PointLine l = pointLine(ent, blade);
+    const glm::vec3 pivot = origin + axes * l.entry;
+    const glm::vec3 butt = origin + axes * l.butt;
+    const glm::vec3 in = axes * l.along;
+    const float length = za::max(8.f, glm::distance(pivot, butt));
+    const float lever = glm::length(glm::cross(in, glm::vec3{0.f, 0.f, 1.f}));
+    const float pull = glm::degrees(1.5f * sv_gravity.value / length * lever);
+    rate += (pull - za::max(1.f, vr_embed_sag_stiffness.value) * sag - za::max(0.f, vr_embed_sag_damping.value) * rate) * dt;
+    float next = sag + rate * dt;
+    if(next < 0.f || next > most)
+    {
+        next = za::clamp(next, 0.f, most);
+        rate = 0.f;
+    }
+    if(za::abs(next - sag) > 0.02f)
+    {
+        // From just out of the wall to its hilt, sagged that far: anything there holds it where it was (it bounces a little).
+        const glm::vec3 buttNext = pivot + sagTurn(in, next) * (butt - pivot);
+        vec3_t a, b, zero{0.f, 0.f, 0.f};
+        store(pivot + glm::normalize(buttNext - pivot) * 2.f, a);
+        store(buttNext, b);
+        const trace_t tr = SV_Move(a, zero, zero, b, MOVE_NOMONSTERS, ent);
+        if(!tr.startsolid && tr.fraction < 1.f)
+        {
+            next = sag;
+            rate *= -0.3f;
+        }
+    }
+    setFieldFloat(ent, f.vr_stick_sag, next);
+    setFieldFloat(ent, f.vr_stick_sagv, rate);
+}
+
+// The blade in what it is in: its pose there (the frame's), the blade's edge (or where its point went in) and facing in the
+// world.
+void place(edict_t* ent, const Blade& blade, const glm::vec3& origin, const glm::mat3& axes)
+{
+    const FieldOffsets& f = fields();
+    glm::vec3 o = origin;
+    glm::mat3 r = axes;
+    const float wiggle = fieldFloatOr(ent, f.vr_stick_wiggle, 0.f);
+    if(blade.how == howPoint)
+    {
+        const PointLine l = pointLine(ent, blade);
+        const glm::vec3 pivot = o + r * l.entry;
+        const auto turnAbout = [&](const glm::mat3& turn) {
+            r = turn * r;
+            o = pivot + turn * (o - pivot);
+        };
+        const float sag = fieldFloatOr(ent, f.vr_stick_sag, 0.f);
+        if(sag != 0.f)
+        {
+            turnAbout(sagTurn(r * l.along, sag));
+        }
+        if(wiggle != 0.f)
+        {
+            turnAbout(glm::mat3_cast(glm::angleAxis(glm::radians(wiggle), glm::normalize(r[1]))));
+        }
+        setPose(ent, o, r, pivot, r * l.along);
+        return;
+    }
+    const DrawnEdge e = drawnEdge(ent, blade, za::clamp(static_cast<int>(fieldFloat(ent, f.vr_stick_edge)), 0, 1));
+    if(wiggle != 0.f)
+    {
+        // Rocked about the edge's middle, across the blade (the head is thin along its model's y).
+        const glm::vec3 pivot = o + r * e.mid;
+        const glm::mat3 turn = glm::mat3_cast(glm::angleAxis(glm::radians(wiggle), glm::normalize(r[1])));
+        r = turn * r;
+        o = pivot + turn * (o - pivot);
+    }
+    setPose(ent, o, r, o + r * e.mid, r * e.out);
+}
+
+// Whether an unbroken plate of the body `host` stops the blade at `at` going along `dir` (QC's, with its spark). It never
+// sticks after.
+[[nodiscard]] bool plateStops(edict_t* ent, edict_t* host, const glm::vec3& at, const glm::vec3& dir)
+{
+    const func_t fn = bindings().AxeStick_Plate;
+    if(!fn || !vr_embed.value)
+    {
+        return false;
+    }
+    const int oldSelf = pr_global_struct->self;
+    const int oldOther = pr_global_struct->other;
+    pr_global_struct->self = EDICT_TO_PROG(ent);
+    pr_global_struct->other = EDICT_TO_PROG(host);
+    pr_global_struct->time = qcvm->time;
+    store(at, G_VECTOR(OFS_PARM0));
+    store(dir, G_VECTOR(OFS_PARM1));
+    PR_ExecuteProgram(fn);
+    const bool stops = G_FLOAT(OFS_RETURN) != 0.f;
+    pr_global_struct->self = oldSelf;
+    pr_global_struct->other = oldOther;
+    if(stops)
+    {
+        setFieldFloat(ent, fields().vr_stick_kind, static_cast<float>(Out));
+    }
+    return stops;
+}
+
+// Stuck: `ent`'s pose in what it is in (`best`'s), for the frames to come. False: no frame there.
+[[nodiscard]] bool keepPose(edict_t* ent, const Blade& blade, const Strike& best, int bit, const glm::vec3& stuckOrigin,
+    const glm::mat3& stuckAxes, float depth, const glm::vec3& pointVel)
+{
+    const FieldOffsets& f = fields();
+    glm::vec3 framePoint;
+    glm::mat3 frameAxes;
+    if(!frameOf(best.host, best.kind, best.anchor, framePoint, frameAxes))
+    {
+        return false;
+    }
+    const glm::mat3 inv = glm::transpose(frameAxes); // (orthonormal)
+    vec3_t localAngles;
+    held::anglesFromAxes(inv * stuckAxes, localAngles, true);
+    setFieldFloat(ent, f.vr_stick_kind, static_cast<float>(best.kind));
+    fieldInt(ent, f.vr_stick_ent) = EDICT_TO_PROG(best.host);
+    setFieldVec(ent, f.vr_stick_ofs, inv * (stuckOrigin - framePoint));
+    setFieldVec(ent, f.vr_stick_ang, vec(localAngles));
+    setFieldVec(ent, f.vr_stick_anchor, best.anchor);
+    setFieldFloat(ent, f.vr_stick_edge, static_cast<float>(bit));
+    setFieldFloat(ent, f.vr_stick_wiggle, 0.f);
+    setFieldFloat(ent, f.vr_stick_embed, static_cast<float>(blade.how));
+    setFieldFloat(ent, f.vr_stick_depth, depth);
+    setFieldFloat(ent, f.vr_stick_sag, 0.f);
+    setFieldFloat(ent, f.vr_stick_sagv, 0.f);
+    store(pointVel, ent->v.velocity); // (the throw's, for QC's blow)
+    place(ent, blade, stuckOrigin, stuckAxes);
+
+    // A prop takes the blow.
+    if(best.kind == Prop)
+    {
+        box3d::push(best.host, best.point, pointVel, box3d::propMass(ent));
+    }
+    return true;
+}
+
+// A sword's point going in (its checks and its depth; what went in first: `best`): true if it stuck.
+[[nodiscard]] bool stickByPoint(edict_t* ent, const Blade& blade, const Strike& best, const glm::vec3& com, const glm::vec3& vel,
+    const glm::vec3& spin, float dt, float minSpeed, func_t stuckFn)
+{
+    const float m2u = units::metresToUnits();
+    edict_t* host = best.host;
+    const float stepAt = za::clamp(best.fraction, 0.f, 1.f); // (of the step; a monster further on: its end)
+    const glm::mat3 turnAt = rotation(spin, dt * stepAt);
+    const glm::mat3 axesAt = turnAt * held::axesFromAngles(ent->v.angles, false);
+    const glm::vec3 originAt = com + vel * dt * stepAt + turnAt * (vec(ent->v.origin) - com);
+    const glm::vec3 pointAt = originAt + axesAt * best.local;
+    const glm::vec3 hostVel = host == qcvm->edicts ? glm::vec3{0.f} : vec(host->v.velocity);
+    const glm::vec3 pointVel = vel + glm::cross(spin, pointAt - com);
+    const glm::vec3 rel = pointVel - hostVel;
+    const float speed = glm::length(rel);
+    const glm::vec3 tip = held::drawnModelPoint(ent, blade.tip);
+    const glm::vec3 line = tip - held::drawnModelPoint(ent, blade.hand);
+    const glm::vec3 along = axesAt * glm::normalize(line);
+    const glm::vec3 relDir = speed > 1e-3f ? rel / speed : along;
+    const float sideOn = degrees(relDir, along);
+    const float incidence = degrees(relDir, -best.normal);
+    const char* hostName = host == qcvm->edicts ? "the level" : PR_GetString(host->v.classname);
+    const bool inBody = best.kind == Model || best.kind == MonsterBox;
+
+    const char* why = best.why;
+    if(!why && speed < minSpeed)
+    {
+        why = "too slow";
+    }
+    else if(!why && glm::dot(rel, best.normal) >= 0.f)
+    {
+        why = "not going into it";
+    }
+    else if(!why && sideOn > vr_embed_sword_angle.value)
+    {
+        why = "side on";
+    }
+    else if(!why && incidence > vr_embed_sword_incidence.value)
+    {
+        why = "too glancing";
+    }
+
+    // How deep, by its speed: a share of the blade, less in the level and props; along its line from where it struck.
+    const float bladeLength = glm::distance(tip, held::drawnModelPoint(ent, blade.from));
+    const float least = za::max(0.f, vr_embed_sword_depth_min.value), full = za::max(least, vr_embed_sword_depth_max.value);
+    const float share = za::clamp((speed - minSpeed) / za::max(1.f, vr_embed_sword_depth_speed.value * m2u - minSpeed), 0.f, 1.f);
+    const float depth = glm::mix(least, full, share) * 0.01f * bladeLength * (inBody ? 1.f : za::max(0.f, vr_embed_sword_wall.value));
+    const glm::vec3 stuckOrigin = originAt + (best.point - pointAt) + along * depth;
+    const float tipDepth = glm::dot(stuckOrigin + axesAt * tip - best.point, along);
+
+    // Its hilt out of the wall (the level's, a door's, a prop's).
+    if(!why && !inBody)
+    {
+        vec3_t a, b, zero{0.f, 0.f, 0.f};
+        const glm::vec3 entry = best.point - along * 2.f;
+        store(entry, a);
+        store(glm::mix(entry, stuckOrigin + axesAt * held::drawnModelPoint(ent, blade.handle), 0.9f), b);
+        const trace_t tr = SV_Move(a, zero, zero, b, MOVE_NOMONSTERS, ent);
+        if(tr.startsolid || tr.fraction < 1.f)
+        {
+            why = "its hilt would be in the wall";
+        }
+    }
+    if(!why && inBody && plateStops(ent, host, best.point, relDir))
+    {
+        why = "an unbroken plate";
+    }
+    if(why)
+    {
+        report(ent, "the point struck %s at %.0f u/s (%.1f m/s), %.0f deg off its line, %.0f deg off straight in, %.2f of the step: "
+                    "bounces (%s)",
+            hostName, speed, speed / m2u, sideOn, incidence, best.fraction, why);
+        return false;
+    }
+    if(!keepPose(ent, blade, best, 0, stuckOrigin, axesAt, tipDepth, pointVel))
+    {
+        report(ent, "no frame on %s: bounces", hostName);
+        return false;
+    }
+    report(ent, "the point stuck in %s (%d, kind %d) at %.0f u/s (%.1f m/s), %.0f deg off its line, %.0f deg off straight in, "
+                "%.2f of the step, %.1f units deep (%.0f%% of the blade %.1f long)",
+        hostName, NUM_FOR_EDICT(host), best.kind, speed, speed / m2u, sideOn, incidence, best.fraction, tipDepth,
+        depth / za::max(bladeLength, 1e-3f) * 100.f, bladeLength);
+    callStuck(stuckFn, ent, host, best.kind, speed);
+    return true;
+}
+
 } // namespace
 
 namespace qvr::axestick
@@ -561,7 +996,8 @@ namespace qvr::axestick
 bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const glm::vec3& spin, float dt)
 {
     const FieldOffsets& f = fields();
-    if(!vr_axestick.value || f.vr_stick_kind < 0 || f.vr_stick_ent < 0 || fieldFloat(ent, f.vr_stick_kind) != 0.f || dt <= 0.f)
+    if((!vr_axestick.value && !vr_embed.value) || f.vr_stick_kind < 0 || f.vr_stick_ent < 0 ||
+        fieldFloat(ent, f.vr_stick_kind) != 0.f || dt <= 0.f)
     {
         return false;
     }
@@ -572,10 +1008,11 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
         return false;
     }
     const Blade* blade = bladeOf(ent);
-    if(!blade)
+    if(!blade || (blade->how == howEdge && !vr_axestick.value))
     {
         return false;
     }
+    const bool byPoint = blade->how == howPoint;
 
     // Only its first contact may stick it: Box3D's body pushed against something last step (the handle first, the
     // head's side), or its flight changed more than gravity does (a touch QC made): it never sticks after. (Not its
@@ -599,8 +1036,10 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
     }
 
     const float m2u = units::metresToUnits();
-    const float minSpeed = za::max(0.1f, vr_axestick_speed.value) * m2u;
-    if(glm::length(vel) + glm::length(spin) * 40.f < minSpeed) // (a blade 40 units from its centre at most)
+    const float minSpeed = za::max(0.1f, byPoint ? vr_embed_sword_speed.value : vr_axestick_speed.value) * m2u;
+    // (A blade 40 units from its centre at most; a sword's point its length.)
+    const float bladeReach = byPoint ? glm::distance(blade->tip, blade->handle) : 40.f;
+    if(glm::length(vel) + glm::length(spin) * bladeReach < minSpeed)
     {
         return false;
     }
@@ -627,11 +1066,11 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
     // blade about to meet what the body meets first), how glancing, how far it may be turned to keep its handle out.
     const float leniency = za::clamp(vr_axestick_leniency.value, 0.f, 2.f);
     const float ahead = aheadUnits * leniency;
-    const float band = bandBase + bandLeniency * leniency;
+    const float band = byPoint ? za::max(0.f, vr_embed_sword_tip.value) * 0.01f : bandBase + bandLeniency * leniency;
     const float tie = tieUnits * leniency;
 
     // The axe's points as drawn now, and how far they reach from its centre.
-    const za::Vector<Sample>& samples = samplesOf(modelOf(ent), *blade);
+    const SampleRange samples = samplesOf(ent, *blade);
     za::Vector<glm::vec3>& drawn = scratch.drawn;
     drawn.clear();
     float radius = 0.f;
@@ -640,7 +1079,9 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
         drawn.pushBack(held::drawnModelPoint(ent, s.p));
         radius = za::max(radius, glm::distance(origin + axes * drawn.back(), com));
     }
-    if(!anythingNear(ent, com, move, radius * (1.f + glm::length(spin) * dt) + sweepBack + 1.f, za::max(lookAhead, ahead)))
+    const float nearSize = radius * (1.f + glm::length(spin) * dt) + sweepBack + 1.f;
+    findBodies(ent, com, nearSize + glm::length(move) + za::max(lookAhead, ahead));
+    if(scratch.bodies.empty() && !anythingNear(ent, com, move, nearSize, za::max(lookAhead, ahead)))
     {
         return false;
     }
@@ -714,6 +1155,10 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
     // As it strikes: its turn, where it is, the point's velocity (relative to what it strikes), the blade's facing and
     // the way across it.
     const Strike& best = cut;
+    if(byPoint)
+    {
+        return stickByPoint(ent, *blade, best, com, vel, spin, dt, minSpeed, stuckFn);
+    }
     const Sample& part = samples[static_cast<za::SizeT>(best.sample)];
     edict_t* host = best.host;
     const DrawnEdge edge = drawnEdge(ent, *blade, part.bit);
@@ -824,6 +1269,10 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
             ent->v.angles[0], ent->v.angles[1], ent->v.angles[2], spin.x, spin.y, spin.z, static_cast<int>(samples.size()),
             part.bit, edge.width, partLabel, part.back * 100.f, band * 100.f, first.fraction, best.fraction);
     }
+    if(!why && (best.kind == Model || best.kind == MonsterBox) && plateStops(ent, host, best.point, relDir))
+    {
+        why = "an unbroken plate";
+    }
     if(why)
     {
         report(ent, "blade %d (%s) struck %s at %.0f u/s (%.1f m/s), %.0f deg side on, %.0f deg off straight in (%.0f off its "
@@ -834,30 +1283,10 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
 
     // Stuck: its pose in what it is in.
     const int kind = best.kind;
-    glm::vec3 framePoint;
-    glm::mat3 frameAxes;
-    if(!frameOf(host, kind, best.anchor, framePoint, frameAxes))
+    if(!keepPose(ent, *blade, best, part.bit, stuckOrigin, stuckAxes, 0.f, edgeVel))
     {
         report(ent, "no frame on %s: bounces", hostName);
         return false;
-    }
-    const glm::mat3 inv = glm::transpose(frameAxes); // (orthonormal)
-    vec3_t localAngles;
-    held::anglesFromAxes(inv * stuckAxes, localAngles, true);
-    setFieldFloat(ent, f.vr_stick_kind, static_cast<float>(kind));
-    fieldInt(ent, f.vr_stick_ent) = EDICT_TO_PROG(host);
-    setFieldVec(ent, f.vr_stick_ofs, inv * (stuckOrigin - framePoint));
-    setFieldVec(ent, f.vr_stick_ang, vec(localAngles));
-    setFieldVec(ent, f.vr_stick_anchor, best.anchor);
-    setFieldFloat(ent, f.vr_stick_edge, static_cast<float>(part.bit));
-    setFieldFloat(ent, f.vr_stick_wiggle, 0.f);
-    store(edgeVel, ent->v.velocity); // (the throw's, for QC's blow)
-    place(ent, *blade, stuckOrigin, stuckAxes);
-
-    // A prop takes the blow.
-    if(kind == Prop)
-    {
-        box3d::push(host, best.point, edgeVel, box3d::propMass(ent));
     }
     report(ent, "blade %d stuck in %s (%d, kind %d) by %s (%.0f%% behind its edge) at %.0f u/s (%.1f m/s), %.0f deg side on, "
                 "%.0f deg off straight in (%.0f off its facing), spin in %.0f u/s, %.2f of the step, %.2f units deep (%.1f cm; the "
@@ -893,7 +1322,13 @@ void serverFrame()
         }
         const glm::vec3 ang = fieldVec(ent, f.vr_stick_ang);
         const float a[3]{ang.x, ang.y, ang.z};
-        place(ent, *blade, point + axes * fieldVec(ent, f.vr_stick_ofs), axes * held::axesFromAngles(a, true));
+        const glm::vec3 stuckAt = point + axes * fieldVec(ent, f.vr_stick_ofs);
+        const glm::mat3 stuckAxes = axes * held::axesFromAngles(a, true);
+        if(blade->how == howPoint && static_cast<int>(fieldFloat(ent, f.vr_stick_kind)) == Level)
+        {
+            stepSag(ent, *blade, stuckAt, stuckAxes, static_cast<float>(host_frametime));
+        }
+        place(ent, *blade, stuckAt, stuckAxes);
     });
 }
 

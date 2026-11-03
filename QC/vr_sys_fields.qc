@@ -313,6 +313,10 @@
 .float  vr_stick_wiggle; // degrees the axe is rocked about its edge (a force grab's tug)
 .vector vr_stick_vel;    // in flight: its velocity and spin at the last step (the engine's: one that changes has hit
 .vector vr_stick_spin;   // something, and it never sticks after: a handle-first throw bounces)
+.float  vr_stick_embed;  // how it stuck (the engine's; weapons.txt embed): AXESTICK_POINT, AXESTICK_EDGE
+.float  vr_stick_depth;  // by its point: units from the tip back to where it went in (the engine's)
+.float  vr_stick_sag;    // by its point, in the level: degrees it sags under its weight now (the engine's)
+.float  vr_stick_sagv;   // how fast (degrees a second; the engine's)
 .void(float xSpeed) vr_impact; // a rigid body hitting something (the world, a prop, a monster) at xSpeed m/s (at least
                                // 2): self the body, other what it hit (world for the level). Box3D's hits, after its step.
 .float vr_blocksight; // a solid prop monsters can't see through while it lies about (a crate, an explosive box: sightblocked)

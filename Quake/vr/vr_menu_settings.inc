@@ -785,10 +785,36 @@ za::Vector<Item> pageAdvanced()
     };
 }
 
+za::Vector<Item> pageEmbeddedBlades()
+{
+    return {
+        row(opt::vr_embed),
+        header("Thrown Swords"),
+        row(opt::vr_embed_sword_speed),
+        row(opt::vr_embed_sword_tip),
+        row(opt::vr_embed_sword_angle),
+        row(opt::vr_embed_sword_incidence),
+        header("How Deep"),
+        row(opt::vr_embed_sword_depth_min),
+        row(opt::vr_embed_sword_depth_max),
+        row(opt::vr_embed_sword_depth_speed),
+        row(opt::vr_embed_sword_wall),
+        header("Sag in Walls"),
+        row(opt::vr_embed_sag_stiffness),
+        row(opt::vr_embed_sag_damping),
+        row(opt::vr_embed_sag_most),
+        header("Taking It Out"),
+        row(opt::vr_embed_tug_corpse),
+    };
+}
+
 za::Vector<Item> pageCombat()
 {
     return {
         open("Melee", pageIndex(pageMeleeSettings)).help("Swings and punches, bloodlust, the headbutt."),
+        open("Embedded Blades", pageIndex(pageEmbeddedBlades))
+            .help("Thrown swords stuck point first in walls and bodies: how fast, how square, how deep; their sag in walls; "
+                  "the tug to take a blade out of a dead body."),
         open("Parry and Bash", pageIndex(pageParryBash)).help("Parrying, bashing and shoving, counter-attacks, the training dummy's blows."),
         open("Stamina", pageIndex(pageStamina)).help("What parries, shoves, blows and hanging from a hold cost, and being exhausted."),
         open("Batting and Catching", pageIndex(pageBatting)).help("Batting projectiles back; catching and returning grenades; hand grenades."),

@@ -1,4 +1,6 @@
 // vr_axestick.hpp -- thrown axes stick (ROUND21.md, "Thrown axes stick", "Thrown axes: the blade decides"): a thrown
+// Embedded blades (vr_embed; ROUND23.md, "Embedded blades"): weapons.txt's `embed` says which weapons stick and how: by the
+// edge as below (the axes), or by the point (swords: vr_axestick.cpp stickByPoint), also in bodies lying down.
 // axe whose blade goes into something first -- its edge, its corners or the blade just behind them
 // (vr_axestick_leniency: how much of it), not the handle or the head's middle, and not its side first
 // (vr_axestick_angle) nor glancing (vr_axestick_incidence), fast enough (vr_axestick_speed) -- sticks in it with that part

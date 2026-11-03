@@ -7974,3 +7974,43 @@ His words 2026-11-03: "Can anything be coealesced/simplified? Can "test" buttons
 - **New scenes** (14): flat_guns, flat_melee, flat_keys, agrunt_ledge (vrclimb's tower and block, the spots of test 202's ledge cases), ad_armed_mix, ad_sergeant_ogre, worn_packs_kinds, toolgun_armed, agrunt_reach, knights_e1m4, leap_blast, no_haptics, burn_lava_nail (`vr_burn_test 16`: no armed weapon code fires lava nails), autosave_e1m1 (no god: autosaves refuse cheats).
 - **Changed scenes**: agrunt_ammo gains a super nailgun holder; agrunt_mix a replaced gun-and-axe grunt; props_range a crowbar in hand (its line is about one); worn_packs and worn_packs_lift lose `vr_worn_backpack_pull`, a setting that no longer exists (validate was failing on them); agrunt_fall, agrunt_repl_map and stick_run lose their file `hint`, which overrode the line's text with something else.
 - **Checked**: `vr_scenario validate` 127 files, 37 tags, 0 missing; `vr_scenario runall quit` 127 run, 3 failed: ad_breakables, ad_fog_flicker, ad_lighting, AD maps absent from the mock base, as before. The flat scenes also run with `-flatscreenmode` (hands held). burn_lava_nail: "burning: test 16 ... PASS you burn". agrunt_ledge lands its grunts at 112 -160 305 and 16 -310 121. worn_packs_kinds looked at once (backs to you, packs on). Not checked: anything a scene is for (a leap setting off a box, the AD rows being armed or not) needs his eye.
+
+## Embedded blades, stage 1: data, thrown blades, stuck in corpses
+
+His plan (2026-11-03): Blade and Sorcery style blades, four stages, each shipped alone. This is the first; `vr_embed` (on)
+gates all of them; off, thrown axes stick as they did and nothing else does (test case 12-14).
+
+- **Data**: weapons.txt's `embed` (0 none, 1 point, 2 edge; a key not listed: 0): 1 on slots 18, 19 (the knight's swords), 40-43,
+  46-49 (AD's fury, death knight, zombie knight, death guard, phantom, dark prince, justice, judge); 2 on 0 (axe), 24, 25 (Super
+  Axes), 33 (Shadow Axe); none on Mjolnir, crowbar, chainsaw, AD's hammer, mace, flail. An edge's numbers, once vr_axestick.cpp's
+  blades[], are the `em_*` keys. A point's come from what exists: tip the Muzzle anchor and offset (view::weaponLocalGeometry),
+  its line from the hand, the blade's start `bl_from`. AD's models were looked at from their pak (outline of each: all pointed);
+  the Super Axe's edges measured on MG3's model as superAxePoses lays it. Stage 2 gets these from `Blade`, or `.vr_stick_embed`,
+  `.vr_stick_depth`, `.vr_stick_bone` on a stuck one.
+- **Thrown swords** (vr_axestick.cpp stickByPoint): the same sweep as the axes' over the sword's points; what goes in first must
+  be within `vr_embed_sword_tip` (12%) of the tip, else it bounces and never sticks after (flat: the blade; by the hilt: the hilt).
+  Then fast enough (`vr_embed_sword_speed` 2.5 m/s), along its line (`_angle` 35), not glancing (`_incidence` 65). Depth 30-60% of
+  the blade by speed up to `_depth_speed` (8 m/s), times `_wall` (0.4) in walls, doors and props. Stabs cut nothing off.
+- **Sag** (stepSag): only in the level. A rod hung where it went in: `1.5 g / length * how level it lies` against
+  `vr_embed_sag_stiffness` (170) and `_damping` (5), at most `_most` (18 deg), stopping at anything under the hilt. 33 units out
+  it settles at about 12 deg after a springy overshoot. `.vr_stick_sag`, `.vr_stick_sagv` are QC fields: saved. No wobble when
+  struck (not cheap: nothing tells it it was struck).
+- **Bodies** (findBodies): touchable bodies near the flight, which MOVE_NORMAL passes, are swept too; `hitmodel::anchorFrame`
+  takes `notSolid` so a body dying stays a frame. VR_AxeStick_Think no longer lets go at death under vr_embed; it stays until the
+  model changes or goes (gib, head, removal). Bleeding only while `health > 0`. Cuts: the bone it went in is kept
+  (`.vr_stick_bone`: asked after the death its pose has moved and the head's point read as the torso); VR_Limb_Cut and VR_Decap_Cut
+  mark and drop those in what they take.
+- **Tug**: a grip on a blade in a dead body makes the hand busy (VR_HOLD_TUG) until it has moved `vr_embed_tug_corpse` (8 cm) from
+  where it gripped (it comes), or lets go (nothing). A force grab's tug stays `vr_axestick_tug`. Live bodies and walls: as before,
+  stage 2 changes those.
+- **Plates**: VR_AxeStick_Plate (QVR_ARMOR_PIECE_AT at the point it meets): sparks, a ring, never sticks after; the plate gone, it
+  sticks. A bare arm in front of the plate is what it meets.
+- **Kept**: VR_AxeStick_Kept: armed enemies' search and their own-gun search skip a stuck blade, the drop cap doesn't count it.
+- **Checked by reading, no code needed**: `dropGrabsOf` is about hand grabs on a ragdoll, nothing here holds one; a level change
+  drops thrown weapons with the level; teleporting bodies carry it (the anchor is the model). **Save and load** (vr_embed_test 3, 4):
+  all three stay stuck, by their point; the one in the wall where it was, with its sag; the ones in bodies follow the body, which
+  the load reposes (moved up to 28 units in the test, still on their triangle).
+- **Gravity against the 35 degrees**: at Quake's 800 u/s2 a throw at 8 m/s (252 u/s) over 3 m falls so far that it goes in 45 degrees
+  off level. A sword that keeps its pose then lands "side on" and bounces: throw hard, or raise `vr_embed_sword_angle`. His call in VR.
+
+Debug: `vr_debug_axestick 1` says why each one stuck or bounced. Test: `vr_embed_test 1` on vrtesthall. Scene: `embed_throw`.

@@ -8,6 +8,12 @@
 // - a hand gripping it takes it (its handtouch: wpnthrow_handtouch), out of what it is in;
 // - a force grab tugs it (vr_axestick_tug seconds, rocking it and the hand) before it comes free and flies to the hand.
 // vr_axestick 0 lets every stuck axe fall.
+//
+// Embedded blades (ROUND23.md, "Embedded blades"; vr_embed): swords stick too, point first, and whatever is stuck stays in
+// a body that dies, riding where it went in: it bleeds only while the body lives, falls when the limb it is in is cut off
+// or the body gibbed or gone (VR_AxeStick_CutPrepare, _CutDone; its model changing or gone), and a hand gripping it there
+// must tug it out (vr_embed_tug_corpse: VR_AxeStick_HandTug). A plate stops it (VR_AxeStick_Plate). Armed enemies and the
+// drop cap leave it alone (VR_AxeStick_Kept). vr_embed 0: axes alone, as before.
 
 float AXESTICK_LEVEL = 1;       // the level or a brush entity
 float AXESTICK_PROP = 2;        // a prop
@@ -15,6 +21,8 @@ float AXESTICK_MODEL = 3;       // a monster's model
 float AXESTICK_MONSTERBOX = 4;  // a monster's box
 float AXESTICK_OUT = -1;        // it came out: it never sticks again
 float AXESTICK_BLEED_TICK = 0.5; // seconds between two bleedings
+float AXESTICK_POINT = 1;       // .vr_stick_embed: by its point (weapons.txt embed)
+float AXESTICK_EDGE = 2;        // by its edge
 
 .entity vr_stick_by;      // who threw it: the bleeding's attacker
 .float  vr_stick_model;   // what it is in's model when it stuck (another, or none: gibbed, gone)
@@ -24,6 +32,11 @@ float AXESTICK_BLEED_TICK = 0.5; // seconds between two bleedings
 .float  vr_stick_tugstart;
 .float  vr_stick_tughand;
 .entity vr_stick_tugger;
+.float  vr_stick_tugdist; // a hand's tug on a blade in a dead body: units to pull it (0: not a hand's)
+.vector vr_stick_tugfrom; // where the hand gripped it
+.float  vr_stick_tugstep; // the quarters of the way pulled so far (each a buzz in the hand)
+.float  vr_stick_cutmark; // when the cut under way (VR_AxeStick_CutPrepare) was found to take the limb it is in
+.float  vr_stick_bone;    // the bone of the body it went into, as the body stood then (ragdolllimb: -1 the torso, -2 no rig)
 
 float(entity e) VR_AxeStick_IsStuck =
 {
@@ -49,6 +62,7 @@ void(entity e) VR_AxeStick_EndTug =
         VR_Hand_Unbusy(e.vr_stick_tugger, e.vr_stick_tughand, VR_HOLD_TUG, "axe tug over");
     }
     e.vr_stick_tug = 0;
+    e.vr_stick_tugdist = 0;
 };
 
 float(entity e) VR_AxeStick_InMonster =
@@ -56,15 +70,34 @@ float(entity e) VR_AxeStick_InMonster =
     return e.vr_stick_kind == AXESTICK_MODEL || e.vr_stick_kind == AXESTICK_MONSTERBOX;
 };
 
+// One that armed enemies don't take and the drop cap doesn't fade (vr_embed 0: as before, it may).
+float(entity e) VR_AxeStick_Kept =
+{
+    return VR_AxeStick_IsStuck(e) && cvar_hget(cvarh_vr_embed);
+};
+
+// Whether what it is stays stuck by the settings: an edge's (the Super Axes need vr_embed too), a point's.
+float(entity e) VR_AxeStick_On =
+{
+    if(e.vr_stick_embed == AXESTICK_POINT)
+    {
+        return cvar_hget(cvarh_vr_embed);
+    }
+    return cvar_hget(cvarh_vr_axestick) && (e.weapon == WID_AXE || cvar_hget(cvarh_vr_embed));
+};
+
 // The engine: `self` has just stuck in `other` (what: xKind), its edge going into it at xSpeed units/s; self.velocity
 // is still the throw's.
 void(float xKind, float xSpeed) VR_AxeStick_Stuck =
 {
+    self.vr_stick_bone = (xKind == AXESTICK_MODEL || xKind == AXESTICK_MONSTERBOX) ? ragdolllimb(other, self.vr_stick_at) : -1;
     // The throw's blow, as its touch would have struck (damage, blood, the sound), unless it had struck already (its
     // hit box meets a monster before its blade does).
     // Edge first into a monster's head (vr_decap.qc): its blow beheads it if it kills (a zombie: whatever).
     entity decapped = world;
-    if((xKind == AXESTICK_MODEL || xKind == AXESTICK_MONSTERBOX) && VR_Dismember_Thrown(other, self))
+    // (A point stabs: it cuts nothing off.)
+    if((xKind == AXESTICK_MODEL || xKind == AXESTICK_MONSTERBOX) && self.vr_stick_embed != AXESTICK_POINT &&
+       VR_Dismember_Thrown(other, self))
     {
         decapped = other;
     }
@@ -120,6 +153,10 @@ void(entity e, vector xVel) VR_AxeStick_Free =
     e.vr_stick_vel = '0 0 0';
     e.vr_stick_spin = '0 0 0';
     e.vr_stick_wiggle = 0;
+    e.vr_stick_embed = 0;
+    e.vr_stick_depth = 0;
+    e.vr_stick_sag = 0;
+    e.vr_stick_sagv = 0;
     VR_AxeStick_EndTug(e);
     e.movetype = MOVETYPE_TOSS;
     e.solid = SOLID_NOT_BUT_TOUCHABLE;
@@ -182,15 +219,82 @@ void(entity e, entity xPlayer, float xHand) VR_AxeStick_Tug =
     }
 };
 
+// A hand's grip starting on `e`, in a dead body: it has to tug it out (TRUE: the hand holds it for now, VR_HOLD_TUG, its pull
+// watched by VR_AxeStick_HandTugThink). In a living body, or in a wall: as before, it comes.
+float(entity e, entity xPlayer, float xHand) VR_AxeStick_HandTug =
+{
+    float pull = max(0, cvar_hget(cvarh_vr_embed_tug_corpse)) * 0.01 * VRMetersToUnits();
+    if(!VR_AxeStick_IsStuck(e) || !cvar_hget(cvarh_vr_embed) || !VR_AxeStick_InMonster(e) || e.vr_stick_ent.health > 0 ||
+       pull <= 0 || VR_AxeStick_Tugging(e))
+    {
+        return FALSE;
+    }
+    e.vr_stick_tugstart = time;
+    e.vr_stick_tug = 1; // (its end is the hand's pull, not a time)
+    e.vr_stick_tugger = xPlayer;
+    e.vr_stick_tughand = xHand;
+    e.vr_stick_tugdist = pull;
+    e.vr_stick_tugfrom = VRGetEntHandPos(xPlayer, xHand);
+    e.vr_stick_tugstep = 0;
+    VR_Hand_Busy(xPlayer, xHand, VR_HOLD_TUG, e, "blade tug");
+    haptic(xHand, 0.0, 0.08, 40, 0.5);
+    if(cvar_hget(cvarh_vr_debug_axestick))
+    {
+        dprint(sprintf("axestick: %s gripped in a dead %s: pull it %.0f units\n", e.netname, e.vr_stick_ent.classname, pull));
+    }
+    return TRUE;
+};
+
+// A hand's tug going on (its think): the grip let go ends it; rocked harder as it comes; pulled far enough, it is the hand's.
+void() VR_AxeStick_HandTugThink =
+{
+    entity p = self.vr_stick_tugger;
+    float hand = self.vr_stick_tughand;
+    if(p.classname != "player" || p.health <= 0 || !VR_HandGrabUtil_IsHandGrabbing(p, hand))
+    {
+        self.vr_stick_wiggle = 0;
+        VR_AxeStick_EndTug(self);
+        return;
+    }
+    float k = vlen(VRGetEntHandPos(p, hand) - self.vr_stick_tugfrom) / self.vr_stick_tugdist;
+    self.vr_stick_wiggle = sin((time - self.vr_stick_tugstart) * 75) * (1 + 5 * min(1, k));
+    if(floor(k * 4) > self.vr_stick_tugstep)
+    {
+        self.vr_stick_tugstep = floor(k * 4);
+        haptic(hand, 0.0, 0.06, 60, 0.4 + 0.4 * min(1, k));
+    }
+    if(k < 1)
+    {
+        return;
+    }
+    if(cvar_hget(cvarh_vr_debug_axestick))
+    {
+        dprint(sprintf("axestick: %s tugged out by a hand after %.2f s\n", self.netname, time - self.vr_stick_tugstart));
+    }
+    VR_AxeStick_EndTug(self);
+    if(!VR_Hand_Free(p, hand, VR_HANDFREE_LOCKED))
+    {
+        return;
+    }
+    wpnthrow_handtouch_impl(hand, self, p, VRGetEntWeaponPtr(p, hand), VRGetEntWeaponFlagsPtr(p, hand)); // (self is the player after)
+};
+
 // While stuck (its think, every 0.02 s): what it is in still holds it; a tug; the bleeding.
 void() VR_AxeStick_Think =
 {
     entity h = self.vr_stick_ent;
-    if(!cvar_hget(cvarh_vr_axestick) ||
+    // (vr_embed: it stays in a dead body until the model it is in changes or goes: gibbed, removed.)
+    if(!VR_AxeStick_On(self) ||
        (h != world && (h.modelindex != self.vr_stick_model || h.model == string_null)) ||
-       (VR_AxeStick_InMonster(self) && (h.health <= 0 || h.solid == SOLID_NOT)))
+       (!cvar_hget(cvarh_vr_embed) && VR_AxeStick_InMonster(self) && (h.health <= 0 || h.solid == SOLID_NOT)))
     {
         VR_AxeStick_Fall(self);
+        return;
+    }
+
+    if(self.vr_stick_tugdist > 0)
+    {
+        VR_AxeStick_HandTugThink();
         return;
     }
 
@@ -222,7 +326,7 @@ void() VR_AxeStick_Think =
 
     // The bleeding: the thrower's damage, without a flinch each time (it bleeds, it isn't struck).
     float rate = cvar_hget(cvarh_vr_axestick_bleed);
-    if(VR_AxeStick_InMonster(self) && time >= self.vr_stick_next)
+    if(VR_AxeStick_InMonster(self) && h.health > 0 && time >= self.vr_stick_next)
     {
         self.vr_stick_next = max(self.vr_stick_next + AXESTICK_BLEED_TICK, time); // (its cadence kept: the rate exact)
         // Whole points (Quake's damage is rounded up): the fraction owed until the next.
@@ -252,6 +356,71 @@ void() VR_AxeStick_Think =
                 dprint(sprintf("axestick: %s bleeds %s at %.2f s: health %g -> %g (%g a second, by %s)\n", self.netname,
                     h.classname, time, before, h.health, rate, by.classname));
             }
+        }
+    }
+};
+
+// The engine, as `self` is about to stick in the body `other` at xAt going along xDir: whether an unbroken plate is there,
+// which stops it: a spark, a ring, and it bounces.
+float(vector xAt, vector xDir) VR_AxeStick_Plate =
+{
+    if(other.vr_ar_type <= 0 || !other.vr_ar_mask)
+    {
+        return FALSE;
+    }
+    float piece = VR_AgArmor_PieceAt(other, xAt); // (QVR_ARMOR_PIECE_AT: a blade has no shot's line)
+    if(cvar_hget(cvarh_vr_debug_axestick))
+    {
+        dprint(sprintf("axestick: %s at %s's piece %g\n", self.netname, other.classname, piece));
+    }
+    if(piece < 0 || piece >= VR_AR_PIECES || !VR_AgArmor_On(other, piece))
+    {
+        return FALSE;
+    }
+    VR_AgArmor_HitFx(other, xAt, xDir * -1, 10);
+    VR_SoundVaried(self, CHAN_AUTO, "player/axhit2.wav", 1, ATTN_NORM);
+    if(cvar_hget(cvarh_vr_debug_axestick))
+    {
+        dprint(sprintf("axestick: %s rings off %s's plate %g\n", self.netname, other.classname, piece));
+    }
+    return TRUE;
+};
+
+// A limb or head of `e` about to be cut (`xTakes`, the bones it takes: ragdolllimbs): the blades stuck in those bones marked,
+// and after the cut (VR_AxeStick_CutDone) they fall.
+void(entity e, float xTakes) VR_AxeStick_CutPrepare =
+{
+    if(!cvar_hget(cvarh_vr_embed))
+    {
+        return;
+    }
+    for(entity w = find(world, classname, "thrown_weapon"); w; w = find(w, classname, "thrown_weapon"))
+    {
+        if(w.vr_stick_ent == e && VR_AxeStick_InMonster(w))
+        {
+            if(w.vr_stick_bone >= 0 && (xTakes & VR_AgArmor_Bit(w.vr_stick_bone)))
+            {
+                w.vr_stick_cutmark = time;
+            }
+            if(cvar_hget(cvarh_vr_debug_axestick))
+            {
+                dprint(sprintf("axestick: %s on bone %g, the cut takes %g\n", w.netname, w.vr_stick_bone, xTakes));
+            }
+        }
+    }
+};
+
+void(entity e) VR_AxeStick_CutDone =
+{
+    if(!cvar_hget(cvarh_vr_embed))
+    {
+        return;
+    }
+    for(entity w = find(world, classname, "thrown_weapon"); w; w = find(w, classname, "thrown_weapon"))
+    {
+        if(w.vr_stick_ent == e && VR_AxeStick_InMonster(w) && w.vr_stick_cutmark == time)
+        {
+            VR_AxeStick_Fall(w);
         }
     }
 };

@@ -77,6 +77,7 @@ struct Bindings
     // piece's, a thrown weapon's: vr_physics.cpp's touch spares the calls that can do nothing).
     func_t propTouches[4]{};
     func_t ClipSizeOf{0}; // a weapon's own magazine size, by id and record (QC VR_ClipSizeOf: vr_server.cpp, the ammo screens' warnings)
+    func_t AxeStick_Plate{0}; // a thrown blade about to stick in a body: whether an unbroken plate stops it there (QC vr_axestick.qc)
     func_t AxeStick_Stuck{0}; // a thrown axe's blade stuck in something (QC vr_axestick.qc; vr_axestick.cpp)
     // The ragdolls' per-frame QC (vr_box3d_step.cpp's callBodyHits, callRagImpacts, monsterFell; vr_box3d_ragdoll.cpp's
     // makeRagdollRoom): resolved here, not by name each frame (findFunction scans every function).

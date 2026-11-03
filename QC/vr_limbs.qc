@@ -354,6 +354,7 @@ float(entity e, entity by, vector xVel, float xHow, float xBone, float xLive) VR
         settle = max(0, cvar_hget(cvarh_vr_decap_pop_body_speed)) * 0.5 + 0.5;
     }
     VR_AgArmor_CutPrepare(e, ragdolllimbs(e, 4, xBone)); // (the plates it carries: vr_agarmor.qc)
+    VR_AxeStick_CutPrepare(e, ragdolllimbs(e, 4, xBone)); // (the blades stuck in it fall: vr_axestick.qc)
     if(!ragdollcutlimb(e, xBone, xVel, settle))
     {
         VR_AgArmor_CutDone(e, FALSE, xVel);
@@ -363,6 +364,7 @@ float(entity e, entity by, vector xVel, float xHow, float xBone, float xLive) VR
     }
     vector mid = ragdollcut(e, 0);
     VR_AgArmor_CutDone(e, TRUE, pop ? xVel * 0.5 : ragdollcut(e, 2)); // (dislodged, flying off with the limb's way)
+    VR_AxeStick_CutDone(e);
     if(pop)
     {
         VR_Limb_PopEffects(e, mid, xVel);

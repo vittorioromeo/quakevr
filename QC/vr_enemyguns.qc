@@ -119,7 +119,7 @@ float(float xWid) VR_EnemyWeapons_Capped = { return VR_IsEnemyGun(xWid) || xWid 
 // .vr_enemy_drop), lying about (or flying), not one fading.
 float(entity e) VR_EnemyWeapons_Counted =
 {
-    return VR_EnemyWeapons_Capped(e.weapon) && e.weaponinst.vr_enemy_drop && !e.vr_drop_fade;
+    return VR_EnemyWeapons_Capped(e.weapon) && e.weaponinst.vr_enemy_drop && !e.vr_drop_fade && !VR_AxeStick_Kept(e);
 };
 
 // One the cap never takes away: carried, pulled to a hand, in flight.

@@ -17,6 +17,7 @@
         row(opt::vr_throw_spin_drag),
         header("Thrown Axes"),
         row(opt::vr_axestick),
+        row(opt::vr_embed),
         header("Flung Props"),
         row(opt::vr_prop_impact_damage),
         row(opt::vr_prop_impact_players),

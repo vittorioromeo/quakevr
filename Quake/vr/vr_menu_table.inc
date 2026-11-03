@@ -160,6 +160,7 @@ struct Page
 [[nodiscard]] za::Vector<Item> pageWofsEffects();
 [[nodiscard]] za::Vector<Item> pageWofsFlashlight();
 [[nodiscard]] za::Vector<Item> pageCombat();
+[[nodiscard]] za::Vector<Item> pageEmbeddedBlades();
 [[nodiscard]] za::Vector<Item> pageMovement();
 [[nodiscard]] za::Vector<Item> pageCarryingHub();
 [[nodiscard]] za::Vector<Item> pageWeaponsHub();
@@ -438,6 +439,7 @@ inline constexpr Page pages[] = {
     {"VR Settings - Item Collection", pageVrsItemCollection, pageMain, LevelStandard},
     {"Armed Grunts (Experimental)", pageArmedGrunts, pageCombat}, // (vr_menu_gameplay.inc; QC vr_armedgrunt.qc)
     {"Armed Grunts - Grip Editor", pageArmedGrips, pageArmedGrunts}, // (vr_menu_gameplay.inc; vr_aggrip.cpp)
+    {"Embedded Blades", pageEmbeddedBlades, pageCombat}, // (vr_menu_settings.inc)
     {"Armed Humanoid Replacements", pageArmedRepl, pageArmedGrunts}, // (vr_menu_gameplay.inc; QC vr_armedrepl.qc)
     {"Armour", pageArmedArmour, pageArmedGrunts}, // (vr_menu_gameplay.inc; QC vr_agarmor.qc)
     {"Worn Backpacks", pageArmedPacks, pageArmedGrunts}, // (vr_menu_gameplay.inc; QC vr_wornpack.qc)

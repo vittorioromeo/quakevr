@@ -1,0 +1,10 @@
+# embed_throw: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Thrown swords stuck in walls and bodies.
+title Embedded blades: thrown swords, a grunt and a sword to throw at the wall and at it
+map vrtesthall
+god
+notarget
+give "Knight's Sword" main
+give "Axe" off
+spawn "Grunt" 200 -60
+spawn "Armed Grunt: Axe" 200 60
+hint Throw the sword point first at the wall and at the grunts: it sticks and, in a wall, sags. Reset to try again.

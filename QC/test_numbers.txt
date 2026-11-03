@@ -23,7 +23,14 @@ dispatch vr_np_test QC/vr_nailpistol_test.qc VR_NailPistol_TestFrame req
 dispatch vr_flare_test QC/vr_flaregun_test.qc VR_FlareGun_TestFrame req
 dispatch vr_reload_test QC/vr_reload_test.qc VR_Reload_Test step
 dispatch vr_pickup_test QC/vr_pickup_test.qc VR_PickupTest_Frame ask
+dispatch vr_embed_test QC/vr_embed_test.qc VR_Embed_TestFrame ask
 
+vr_embed_test    1        vr_embed_test.qc                 embedded blades: thrown swords, sag, bodies, cuts, plates, vr_embed 0
+vr_embed_test    2        vr_embed_test.qc                 the pictures' scene: a sword in the wall, one in a corpse
+vr_embed_test    3        vr_embed_test.qc                 the save's scene: the same plus one in a live grunt
+vr_embed_test    4        vr_embed_test.qc                 after the load: each still stuck where it was
+vr_embed_test    6        vr_embed_test.qc                 every other blade at the wall: AD's, the Super Axe, what never sticks
+vr_embed_test    5        vr_embed_test.qc                 the pictures' scene: you before the sword in the corpse
 vr_ad_test       1        vr_ad_bridge_test.qc             (see vr_ad_bridge_test.qc)
 vr_ad_test       2*       vr_ad_bridge_test.qc             (the cinematic report (AD_Test's fall-through))
 vr_ad_test       3        vr_ad_bridge_test.qc             (VRGiveEntWeapon)
