@@ -1,0 +1,10 @@
+# no_haptics: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Haptics off (Disable Haptics) for the buttons and bullet time; a calm grunt.
+title Haptics off: a shotgun in hand, a calm grunt, the gadget to try
+map vrtesthall
+god
+notarget
+cvar vr_disablehaptics 1
+give "Shotgun" main
+spawn "Grunt" 300 0
+cmd impulse 9
+hint Haptics off: a hard tap on the gadget's screen for bullet time, then its gear-light buttons: no buzz.

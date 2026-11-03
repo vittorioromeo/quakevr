@@ -86,7 +86,8 @@
 /doom/wads/*
 !/doom/wads/README.txt
 /bodytrack_solve_dump.csv
-# The arena wave editor: his own presets and choices (only the example ships), the tests' folder
-/arena_waves/*
-!/arena_waves/example_mixed.txt
+# The arena wave editor: arena_waves/ is versioned and ships (his presets, assign.cfg); a release build's player's own
+# (vr_arenawaves.hpp, "Shipped and the player's") and the tests' folders are not
+/arena_waves_user/
 /arena_waves_test/
+/arena_waves_test_user/

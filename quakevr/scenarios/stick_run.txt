@@ -4,4 +4,3 @@ title Running with the stick: a long free stretch ahead
 map vrtesthall
 god
 notarget
-hint Hold the stick hard forward: full speed from an 80% push, no dip every few steps; slow walking stays easy.

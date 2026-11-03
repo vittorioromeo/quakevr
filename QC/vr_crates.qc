@@ -14,7 +14,8 @@
 // crates do, then burn away (VR_CratePiece_BurnAway).
 //
 // A crowbar may lie on a crate's top (vr_crate_crowbar, at most vr_crate_crowbar_max a map; the top of a stack): the
-// engine rolls which and where with the layout (deterministic), VR_Crowbar_OnCrate (vr_crowbar.qc) lays it there.
+// engine rolls which and where with the layout (deterministic), VR_Crowbar_OnCrate (vr_crowbar.qc) lays it there. A flare
+// gun too, rolled apart (vr_crate_flaregun, vr_crate_flaregun_max; on an upright barrel as well: VR_FlareGun_OnCrate).
 //
 // Sight (vr_crate_sight): a monster doesn't see you behind a crate or an explosive box lying about (visible(), ai.qc:
 // VR_Crate_HidesFrom); carrying one, you are seen through it.
@@ -1117,6 +1118,6 @@ void() VR_Crates_Frame =
         }
         VR_Crate_Setup(e, kind);
         VR_Crowbar_OnCrate(e, i); // (a stack's top comes after the crate under it)
-        VR_FlareGun_OnCrate(e, i); // (vr_crate_flaregun: a top with no crowbar)
+        VR_FlareGun_OnCrate(e, i); // (vr_crate_flaregun; after the crowbar: it lies beside one there)
     }
 };

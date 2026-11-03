@@ -33,13 +33,23 @@ int plan();
 // Whether the last plan puts a crowbar on crate `i` (vr_crate_crowbar, vr_crate_crowbar_max: tops only, the top one of a
 // stack; deterministic as the layout).
 [[nodiscard]] bool hasCrowbar(int i);
-// ... a flare gun (vr_crate_flaregun, vr_crate_flaregun_max: a top with no crowbar; deterministic as the layout).
+// ... a flare gun (vr_crate_flaregun, vr_crate_flaregun_max: rolled apart from the crowbars, so a crate may have both; a
+// top, a crate's or an upright barrel's; deterministic as the layout).
 [[nodiscard]] bool hasFlareGun(int i);
 
-// Lays `e` (a crowbar lying about: QC's thrown weapon, its model set) on crate `i`'s top as the plan says: flat (the hook's
-// plane level), at the plan's yaw (or a quarter turn more if that fits the top better), its drawn box within the top where
-// it can be, just above it (it settles by physics). False if the plan has no crowbar there.
-bool putCrowbar(edict_t* e, int i);
+// What lies on a crate's top (QC's cratecrowbar and cratecrowbarput: bits, a crate may have both).
+enum TopItem
+{
+    TopCrowbar = 1,
+    TopFlareGun = 2
+};
+
+// Lays `e` (a crowbar or a flare gun lying about: QC's thrown weapon, its model set) on crate `i`'s top as the plan says:
+// flat (the hook's plane level), at the plan's yaw (or a quarter turn more if that fits the top better), its drawn box
+// within the top where it can be, just above it (it settles by physics). On a crate with both (the crowbar laid first)
+// the two lie side by side, square to the top, apart. False if the plan has none there, or no room is left beside the
+// crowbar (the flare gun then stays out).
+bool putCrowbar(edict_t* e, int i, TopItem what);
 
 // The model of crate `i` of the last plan ("" if none).
 [[nodiscard]] const char* modelOf(int i);

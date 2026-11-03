@@ -7806,3 +7806,64 @@ Seeded runs on `vrtesthall`, drawn, on next at 10362cc5f plus this branch.
    The number of tries changes as well as the takings: the same idle nailgun group is 3/6 with 4 not reached, then 9/9 with 1. The losses that vary are mostly "fist off" and "state not reached"; 90% sits inside that spread. What varies with the seed fixed: not found; wall time shows no pattern (a fail at 68 s, passes at 64 s and 200 s). So both stay on `test_flaky.txt`. The floor was not lowered.
 
 Checklist line, item 2: a replaced grunt or enforcer, whatever it holds, drops what it holds and its backpack, never an extra weapon; a plain grunt or enforcer (`vr_agrunt_repl` 0) still sometimes does. {test:vrtesthall}
+
+## Flare guns on crates; wave presets ship (branch `agent/crateflare`, 2026-11-03)
+
+His words: "vr_crate_flaregun: Please enable it. Spawn a flaregun on top of crates/barrels rarely, roughly same spawn rate as
+the crowbar (but do not replace the crowbar). It should be possible for both a flaregun and crowbar to spawn on the same
+crate, if the rolls both pass."; "created wave presets should ship and be versioned"; `vr_agrunt_dual_pickup` off, revisit.
+
+**Flare guns.** `vr_crate_flaregun` 0.1 (the crowbar's chance), `vr_crate_flaregun_max` 2 (crowbars: 4): now tuning constants
+beside `vr_crate_crowbar` (Debug > Tunables), no longer player rows on the Crates page (its "What They Hold" header went with
+them), and defaultChanges' row 207 with them (it pointed at the cvar; an old config's line for a tunable is ignored).
+`vr_crates.cpp planFlareGuns` rolls every top apart from the crowbars, a crate with a crowbar included, and upright barrels too
+(not a lying barrel's round side; nothing standing on a barrel, as the crowbars). QC's `cratecrowbar(i)` returns bits
+(`CRATETOP_CROWBAR`, `CRATETOP_FLAREGUN`) and `cratecrowbarput(e, i, what)` says which of them it lays.
+
+Placing: alone, as before (a random way and place on the top). A crate with both: square to the top, the crowbar at one end of
+the axis with more room, the gun in what is left, at least 1 unit apart; if it doesn't fit the gun stays out (never seen:
+crowbar 9 x 18 units, gun 8 x 5.5, tops 32, 40, 48). On a barrel (head 23 across, gun 6-10 at any yaw): in the middle. A gun
+placed off the middle ended up on the floor on e4m2's barrel 1 (its plan's place -0.91 0.64: seen once; why not traced further);
+in the middle none did.
+
+**Count** at the shipped chances, 13 id maps (e1m1-6, e2m1-3, e3m1-2, e4m1-2) x 8 seeds, 104 maps, 1115 crates (142 barrels, 10
+of them lying, 161 stacked on another): crowbars 63 (0.61 a map, 5.7% of all crates), flare guns 84 (0.81 a map, 7.5%; 13 on
+barrels), both on one crate 4 (e3m1 at the shipped seed: crate 9). The gun's rate is a little above the crowbar's because
+barrels count for it. A map with 2 guns (the limit): 24 of 104; 3 would no longer be rare, so the limit stays.
+
+**Presets: the rule.** `quakevr/arena_waves/` is versioned, out of .gitignore: what git tracks there ships (package-quakevr.ps1's
+allowlist; `-DryRun` lists `quakevr/arena_waves/example_mixed.txt`), nothing else does. A development build (his) saves straight
+there: a preset he makes shows as a new file to commit (assign.cfg likewise). A release build (`QVR_RELEASE`) never writes
+there: a player's saves and assignments go to `arena_waves_user/` (git-ignored, not in a package, no update touches it) and win
+by name, or by map and skill (`<map>.<skill> default` undoes a shipped assignment). Save on a shipped preset keeps the player's
+copy; Delete takes only that copy (the button is grey on a shipped one), and the shipped one is back. `vr_arena_waves_as_release 1`
+gives a development build the same behaviour, for the test. `default` is no longer a valid preset name (`vr_arena_assign`'s word).
+
+**He has none yet** (2026-11-03): his `quakevr/arena_waves/` holds only `example_mixed.txt`, byte for byte the tracked one, and no
+assign.cfg, so nothing new was committed. Before this round his saves there were git-ignored; from now on they show in git status.
+
+**Tests.** `vr_flare_test 10` (new; the crates' tops settled for 3 s at chances 1, limits 64: on a top, unmoved, ends on
+`flaretops: N passed, M failed`; needs a map with barrels):
+`tune vr_crate_flaregun 1;tune vr_crate_flaregun_max 64;tune vr_crate_crowbar 1;tune vr_crate_crowbar_max 64;map e4m2;wait5;vr_flare_test 10`
+with `developer 1`. e4m2, e1m3, e1m5, e2m1, e3m1: 4 passed, 0 failed each; e1m1 seed 3 (no barrels): only the barrel check fails.
+With `vr_debug_crates 1` each item's box on its top is printed: 56 crates with both, least gap 1.9 units. `vr_flare_test 7` (one
+plan, twice) failed once it listed 11 guns: its two lists were at different moments while the guns settled by a fraction of a unit,
+across a rounding edge. Both lists are now at time 2 on the map's clock. `vr_arena_waves_test` has 8 more checks (the rule above,
+with the shipped files' bytes compared): 23 passed. `vr_waveeditor_test` 19 passed. Not built: a real `QVR_RELEASE` exe.
+
+Scene `flaregun_crates`: now the shipped chances on e3m1, in front of crate 9 (no tunables set: a scene's `cvar` can't).
+
+Checklist lines:
+- Crates and upright barrels about the maps sometimes have a loaded flare gun lying on top, about as often as a crowbar, at most 2 a map {test:flaregun_crates}
+- A crate can have both a crowbar and a flare gun, side by side and not touching: take each {test:flaregun_crates}
+- Wave presets you save in the Arena Wave Editor now show in git status (arena_waves/), to commit and ship
+
+## Checklist: fewer lines, a Test button on nearly all (branch `agent/clbuttons`)
+
+His words 2026-11-03: "Can anything be coealesced/simplified? Can "test" buttons be added to most items that do not have them to help me test more efficiently?"
+
+- **Lines**: 86 items -> 39. 25 ticked items retired (the header's own rule; their marks stay in checklist_ticks.txt, their text in git). 37 items merged into 14 (flat crouch, flat look and hands, flat ironsight, flat keys, flat melee, a downed grunt's weapon, worn packs beyond the grunts, knights' guns, armed steps, stick running, footsteps, revolver, flat pose and eye). The headset remarks of the flat lines became one line. No ticked line was reworded. Sections 1 and 5 regrouped: stick, footsteps and revolver lines moved to "Moving, weapons and the world", the flat-screen menu line to section 0.
+- **Buttons**: 37 of 39 (was 9, of which 5 named cvars, no scene). Without: the flat-screen menu's Back to game line (a menu flow, no scene to stand in) and moving water (a scan of the 464 BSPs in the kit's base and quakevr/maps finds no CONTENTS_CURRENT leaf in any map).
+- **New scenes** (14): flat_guns, flat_melee, flat_keys, agrunt_ledge (vrclimb's tower and block, the spots of test 202's ledge cases), ad_armed_mix, ad_sergeant_ogre, worn_packs_kinds, toolgun_armed, agrunt_reach, knights_e1m4, leap_blast, no_haptics, burn_lava_nail (`vr_burn_test 16`: no armed weapon code fires lava nails), autosave_e1m1 (no god: autosaves refuse cheats).
+- **Changed scenes**: agrunt_ammo gains a super nailgun holder; agrunt_mix a replaced gun-and-axe grunt; props_range a crowbar in hand (its line is about one); worn_packs and worn_packs_lift lose `vr_worn_backpack_pull`, a setting that no longer exists (validate was failing on them); agrunt_fall, agrunt_repl_map and stick_run lose their file `hint`, which overrode the line's text with something else.
+- **Checked**: `vr_scenario validate` 127 files, 37 tags, 0 missing; `vr_scenario runall quit` 127 run, 3 failed: ad_breakables, ad_fog_flicker, ad_lighting, AD maps absent from the mock base, as before. The flat scenes also run with `-flatscreenmode` (hands held). burn_lava_nail: "burning: test 16 ... PASS you burn". agrunt_ledge lands its grunts at 112 -160 305 and 16 -310 121. worn_packs_kinds looked at once (backs to you, packs on). Not checked: anything a scene is for (a leap setting off a box, the AD rows being armed or not) needs his eye.

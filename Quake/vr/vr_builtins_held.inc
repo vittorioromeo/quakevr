@@ -635,18 +635,19 @@ void PF_crateput()
     G_FLOAT(OFS_RETURN) = static_cast<float>(crates::put(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1))));
 }
 
-// float(float i) cratecrowbar: whether the plan puts a crowbar on crate i (vr_crate_crowbar: 1), or a flare gun
-// (vr_crate_flaregun: 2; no builtin numbers left for one of its own); float(entity e, float i)
-// cratecrowbarput: lays the crowbar `e` (a thrown weapon, its model set) on it (crates::putCrowbar).
+// float(float i) cratecrowbar: what the plan puts on crate i, bits: a crowbar (vr_crate_crowbar: 1), a flare gun
+// (vr_crate_flaregun: 2; no builtin numbers left for one of its own); float(entity e, float i, float what)
+// cratecrowbarput: lays `e` (a thrown weapon, its model set), that one of them, on it (crates::putCrowbar).
 void PF_cratecrowbar()
 {
     const int i = static_cast<int>(G_FLOAT(OFS_PARM0));
-    G_FLOAT(OFS_RETURN) = crates::hasCrowbar(i) ? 1.f : crates::hasFlareGun(i) ? 2.f : 0.f; // (2: a flare gun, vr_crate_flaregun)
+    G_FLOAT(OFS_RETURN) = static_cast<float>((crates::hasCrowbar(i) ? crates::TopCrowbar : 0) | (crates::hasFlareGun(i) ? crates::TopFlareGun : 0));
 }
 
 void PF_cratecrowbarput()
 {
-    G_FLOAT(OFS_RETURN) = crates::putCrowbar(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1))) ? 1.f : 0.f;
+    const crates::TopItem what = G_FLOAT(OFS_PARM2) == static_cast<float>(crates::TopFlareGun) ? crates::TopFlareGun : crates::TopCrowbar;
+    G_FLOAT(OFS_RETURN) = crates::putCrowbar(G_EDICT(OFS_PARM0), static_cast<int>(G_FLOAT(OFS_PARM1)), what) ? 1.f : 0.f;
 }
 
 void PF_crateplace()

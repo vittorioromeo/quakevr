@@ -588,17 +588,18 @@ entity(entity xFrom, vector xOrg, vector xAngles, vector xVel, float xClip) VR_F
         WeaponIdToThrowDamage(WID_FLAREGUN));
 };
 
-// A flare gun lying on crate `xCrate`, number `i` of the engine's plan, if the plan puts one there (vr_crate_flaregun;
-// the top of a stack with no crowbar on it): the engine lays it on its side on the top at the plan's yaw and place
-// (vr_crates.cpp putCrowbar, the crowbars' fitting), just above it; it settles there by physics.
+// A flare gun lying on crate `xCrate`, number `i` of the engine's plan, if the plan puts one there (vr_crate_flaregun; the
+// top of a stack, a crate or an upright barrel, its roll apart from the crowbars'): the engine lays it on its side on the
+// top at the plan's yaw and place (vr_crates.cpp putCrowbar, the crowbars' fitting; beside a crowbar laid first), just
+// above it; it settles there by physics.
 void(entity xCrate, float i) VR_FlareGun_OnCrate =
 {
-    if(cratecrowbar(i) != 2) // (1: a crowbar there, vr_crowbar.qc)
+    if(!(cratecrowbar(i) & CRATETOP_FLAREGUN))
     {
         return;
     }
     entity g = VR_FlareGun_Spawn(xCrate, xCrate.origin, '0 0 90', '0 0 0', VR_FlareGun_Barrels());
-    if(!g || !cratecrowbarput(g, i))
+    if(!g || !cratecrowbarput(g, i, CRATETOP_FLAREGUN))
     {
         if(g) { remove(g); }
         return;

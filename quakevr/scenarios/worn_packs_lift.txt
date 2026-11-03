@@ -3,7 +3,6 @@ title Worn backpacks, Pulling the Pack: Lifts Its Wearer: packed grunts, one wit
 map vrtesthall
 god
 notarget
-cvar vr_worn_backpack_pull 1
 give "Shotgun" off
 spawn "Armed Grunt: Shotgun" 70 0 0 0
 spawn "Armed Grunt: Nailgun" 200 80
