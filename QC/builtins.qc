@@ -325,8 +325,10 @@ float() crateplan = #0;
 string(float i) cratemodel = #0;
 float(entity e, float i) crateput = #0;
 float(entity e) crateplace = #0;
-float(float i) cratecrowbar = #0; // whether the plan puts a crowbar on crate i (vr_crate_crowbar: 1), or a flare gun (vr_crate_flaregun: 2)
-float(entity e, float i) cratecrowbarput = #0; // lays the crowbar e (lying about, its model set) flat on crate i's top, as the plan says
+float CRATETOP_CROWBAR = 1;  // what lies on a crate's top, bits (crates::TopItem)
+float CRATETOP_FLAREGUN = 2;
+float(float i) cratecrowbar = #0; // what the plan puts on crate i, bits: a crowbar (vr_crate_crowbar), a flare gun (vr_crate_flaregun)
+float(entity e, float i, float xWhat) cratecrowbarput = #0; // lays e, that one of them (lying about, its model set), flat on crate i's top, as the plan says
 // The solid prop that blocks monsters' sight (.vr_blocksight: a crate, an explosive box; not one in a hand) between
 // `start` and `end`, met by its shape as it lies (Box3D's), not `ignore` nor `ignore2`; world if none.
 entity(vector start, vector end, entity ignore, entity ignore2) sightblocked = #0;
