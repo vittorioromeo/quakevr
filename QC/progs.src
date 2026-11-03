@@ -517,6 +517,7 @@ vr_rigseq.qc
 vr_armedmon.qc
 vr_armedgrunt_ai.qc
 vr_armedgrunt.qc
+vr_ogre_friends.qc // ogres mind their friends (with the armed humanoids' VR_AI_FriendCare)
 vr_armedgrunt_pose.qc
 vr_armedgrunt_play.qc
 vr_armedgrunt_shot.qc
@@ -553,6 +554,8 @@ vr_armedgrunt_bugs_test.qc
 vr_armedgrunt_close_test.qc
 vr_armedgrunt_grab_test.qc
 vr_armedgrunt_impact_test.qc
+vr_armedgrunt_dualdisarm_test.qc
+vr_ogre_friends_test.qc
 vr_armedgrunt_downtug_test.qc
 vr_armedgrunt_ragweapon_test.qc
 vr_armedknight_test.qc

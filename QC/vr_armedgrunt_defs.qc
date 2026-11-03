@@ -30,6 +30,9 @@
 .entity vr_ag_prop2;
 .float vr_ag_reserve2;
 .float vr_ag_left;         // a held weapon's prop: in its left hand
+.float vr_ag_ff_until;     // any monster: stepping aside (a friend in its line of fire) until then (VR_AI_FriendCare; VR_AG_Run, ai_run)
+.float vr_ag_ff_since;     // ... held for friends since then (0: its line clear)
+.float vr_ag_ff_last;      // ... the last time it held
 .vector vr_ag_was_o1;      // ... its place and turn a frame before (VR_AG_PropWas: the grab's sweep, the engine's handOn,
 .vector vr_ag_was_a1;      //     vr_agrunt_grab_sweep: the drawn weapon lags the server's),
 .vector vr_ag_was_o2;      // ... two frames before
@@ -233,7 +236,7 @@ void(entity e, float done, vector vel) VR_AgArmor_CutDone; // and after it: thos
 float(entity e, float joint) VR_AgArmor_Holds;            // VR_Limb_WearInto: a corpse's piece kept on by an unbroken plate
 void(entity h) VR_AgArmor_DebrisGrabbed;                  // VR_Carry_Start: a plate's debris taken, its fade put off
 
-#define VR_WP_RIP_SOUND_FILE "vr/derived/fabric_rip.wav"
+#define VR_WP_RIP_SOUND_FILE "vr/pack_rip.wav"
 // Worn backpacks (vr_wornpack.qc; ROUND23.md, "Worn backpacks"; armed ones with a ranged weapon): the fields and the hooks.
 .float vr_wp_worn;    // a wearer's: 1 its pack on its back (the engine reads it: its ragdoll made with the pack on its chest)
 .entity vr_wp_pack;   // a wearer's pack (on it or torn off; world: none)

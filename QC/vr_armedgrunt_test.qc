@@ -1483,6 +1483,8 @@ void(float t) VR_AGPP_Frame; // (vr_armedgrunt_preparry_test.qc)
 void() VR_AGAM_Frame; // (vr_armedgrunt_ammo_test.qc)
 void() VR_AGAM_Begin;
 void() VR_AGAW_Frame; // (vr_armedgrunt_aware_test.qc)
+void() VR_AGDD_Frame; // (vr_armedgrunt_dualdisarm_test.qc)
+void() VR_OGFT_Frame; // (vr_ogre_friends_test.qc)
 
 float vr_agt_running; // the test running (vr_agrunt_test) last frame; 0 none
 
@@ -1581,6 +1583,8 @@ void() VR_AGTest_Frame =
     else if(t == 202) { VR_AGIT_Frame(); } // (the impact rule: vr_armedgrunt_impact_test.qc)
     else if(t == 201) { VR_AGTest_DualSpawns(); } // (dual wielders' both guns drawn, 30 spawns)
     else if(t == 200) { VR_AGAW_Frame(); } // (disarm attempts on unaware grunts; dual wield: vr_armedgrunt_aware_test.qc)
+    else if(t == 203) { VR_AGDD_Frame(); } // (a dual wielder disarmed of its off hand's: vr_armedgrunt_dualdisarm_test.qc)
+    else if(t == 204) { VR_OGFT_Frame(); } // (ogres behind a friend: vr_ogre_friends_test.qc)
     else if(t >= 6 && t <= 9) // a row of armed grunts ahead, 30 units apart (eyeshots): 6 guns, 7 melee, 8 more guns, 9 the rest
     {
         float base = (t - 6) * 4;

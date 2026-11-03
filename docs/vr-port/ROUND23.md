@@ -6783,6 +6783,13 @@ setting (the player's own steps have none to sit beside; Volume 0 is off).
   grunts hunting you. `vr_footstep_info` prints each model's contacts, `vr_footstep_info <model> <frame> <count>` its feet
   over those frames, `tune vr_footstep_log 1` a line a step. Results and the bench are in the worktree's report.
 
+### Enemy footsteps: Heavy Feet Speed (branch `agent/thudspeed`)
+
+His ask: a slider for the speed of the thuds, pitch and tempo together, to tweak in game. `vr_footstep_heavy_speed` (1; Combat
+> Enemy Footsteps, 0.5-2) multiplies the playback rate of every `Sole::Thud` kind's step, live, on its own pitch and the jitter.
+The rate is a real resample: `S_StartSoundPitch` sets the channel's end to `length / pitch` and the mixer and the voices read at
+it. The wire and mixer clamp to 0.25-4, which the slider's range can't reach with any kind's pitch and 10% jitter (0.38-2.75).
+
 ### Enemy footsteps: boots and heavy feet remade (branch `agent/footsteps2`)
 
 His words: "Grunt and enforcers sound a bit too metallic", "Struggling to hear ogres, fiends, and shamblers". Knights and
@@ -7010,6 +7017,82 @@ ends (its ankle against its hip stops going forward).
 
 The one frame: the sound starts as the foot is first drawn planted, a frame (at 72 Hz) after its forward-most.
 
+## A dual wielder's off hand disarmed; ogres mind their friends (his notes of 2026-11-02 night)
+
+**The floating weapons (vrfiringrange_2026-11-02_23-10-50).** A blow on a dual wielder's weapons is tested once for both by the
+first slot's think (`VR_AG_StrikeFrame`: the nearer of the two the fist met). Its left weapon struck, the slots swapped and that
+one dropped; `VR_AG_PropThink` took `VR_AG_WeaponStruck`'s TRUE to mean "this weapon is gone" and returned with no next think,
+but this weapon, the first, was still held. It never thought again: nothing placed it, nothing sent the arm pose (the second's
+think never places: "placed with the first"), so it hung where it stood; whatever it picked up next hung too, and on its death
+it stayed. A blow on its right weapon seen by the same think lost that very weapon, so only the off hand showed it. Fixed at the
+cause: `VR_AG_PropThink` asks for its next think before anything can drop a weapon (a drop removes it).
+Second cause of "it all gets screwed up": the weapon just knocked out, flying at 150-180 u/s from its hand, counted as a weapon
+thrown at the other one (`VR_AG_WeaponStruck`, a sword's 42 kg m/s) and knocked that out too: a dropped weapon now starts with
+`.vr_ag_knock_at` as a blow's had (0.5 s).
+
+**Test 203** (`vr_agrunt_test 203`, `map vrtesthall`; Debug > Tests): each kind with a pair; its left weapon out by nobody, your
+fist (test 200's blow, in the frame order the engine runs) or a real tug won (test 68's way), the one left watched 0.8 s, it goes
+for a fallen one, its right out, then the last. Each frame: slots, wids, the left flag, each think going on, each weapon as drawn
+on its hand. Before the fix: `FAIL dualdisarm 7 ... bad slots 58 (its think stopped ...)`, and "holds nothing" from the second cause; after: 81/81.
+Test 200's own blow called both thinks itself, which hid this.
+
+**Ogres (`QC/vr_ogre_friends.qc`).** "Avoid shooting grenades/rockets directly into friendlies." An ogre's attack already begins
+only with a clear sight line (`CheckAttack`, stock Quake); what hit friends is the friend who walks in during its 0.4 s wind-up,
+and a rocket volley's second rocket (64 units aside). So at its shot's frame (`ogre_nail4`: id's, Honey's, MG3's rocket ogre) the
+shot's way is checked: a grenade's own throw (`OgreGrenadeAim`, split out of `OgreFireGrenade`) flown by `VR_AG_ArcBurst` (the
+launcher safety's arc, split out of `VR_AG_BlastPoint`), a rocket's line by `VR_AG_FriendInLine`. A friend first on it: the armed
+humanoids' rule (`VR_AI_FriendCare`, split out of `VR_AG_FriendHold`; `VR_AI_IsFriend`): it gives the attack up, strafes
+(`AS_SLIDING`, `ai_run_slide`) away from the friend's side and tries again; held so long it fires anyway. MG3's Bloody Nightmare
+burst skips a grenade with a friend on its way. Arcane Dimensions' ogres have code of their own (`ad_ogre_shoot*`,
+`ad_MonsterFireGrenade`): not covered. Tunables (Debug > Tunables): `vr_ogre_friendly_care` 1 (0: the old way),
+`vr_ogre_friendly_giveup` 2.5 s, `vr_ogre_friendly_step` 0.5 s (to twice that), `vr_ogre_friendly_spread` 4 degrees.
+Only direct hits are looked for: a burst beside a friend (one fighting you, say) still splashes it.
+
+**Test 204** (`vr_agrunt_test 204`, Debug > Tests), 30 s runs, three ogres 420 ahead (kept off you, on you alone), each with a
+friend who walks onto its line 110 ahead in half its wind-ups (all of them in the third run):
+
+| kind | run | friendly hits (per wind-up walked into) | shots (a minute an ogre) | held |
+| --- | --- | --- | --- | --- |
+| ogre | careless | 25 (0.93) | 54 (36) | 0 |
+| ogre | careful | 3 (0.11) | 28 (19) | 28 |
+| ogre | always in the way | 15 (0.28) | 23 (15) | 31 |
+| rocket ogre | careless | 46 (1.77) | 86 (57) | 0 |
+| rocket ogre | careful | 4 (0.14) | 52 (35) | 32 |
+| rocket ogre | always in the way | 29 (0.44) | 29 (19) | 65 |
+
+Held ogres strafed about 90 units a hold. The hits left when careful are its give-up's (a friend in the way 2.5 s running). Its
+attacks don't stop: careful, tries (attacks that fired, a rocket ogre's volley of 2, plus holds) stay at or above the careless
+attacks; shots halve here because the scene blocks half its wind-ups. The first numbers were noise until the test kept you in
+place (a blast's push put the next run's ogres in a wall: idle) and its ogres on you (a stray blast started fights among them).
+
+## The arena: towers, light, flat walls, no starting ammunition (2026-11-02 night)
+
+The author's notes vrarena_2026-11-02_23-13-15 and 23-19-02, and his list.
+
+- **Towers.** Their own plates (`tech07_2`, `fit` 2 across 3 up), pinned to each face's own edges: 90 x 85 tiles, so every
+  corner is a plate's end on both faces. A wall's `tech14_1` at world scale had cut 1.4 tiles across a 180 face.
+- **Light.** 12 hooded lamps on the towers' open faces (z 128..160, light 125, wait 0.66) and 8 lit panels under the decks
+  (light 160, wait 0.65). A first try at 185/0.55 on the towers overbrightened the floor (mean 140), so it came down. From
+  the lit file, area-weighted luxel luminance, before -> after: E/W walls under the decks 52 -> 81 (under 48: 47% -> 26%),
+  deck undersides 66 -> 99, tower faces 90 -> 108, floor round the towers 90 -> 101, the rest of the floor 98 -> 105, walls
+  over the decks 127 -> 128, N/S walls under 192 94 -> 95. Models read the same grid: foes at their corner spawns are a
+  little brighter, the most under the decks.
+- **Flat walls.** One clip per wall, floor to ceiling, 16 out (all the trim stands within it: `--check` counts any point
+  past it). The old clip only covered the wainscot.
+- **Climbing honours clip.** It didn't: the ledge map reads hull 0, which has no clip brushes, so the rail, the sconce
+  plates and the lamp hoods stayed holds behind a clip. A test on hull 1 (is the box solid with no hull 0 in it?) can't
+  say: it cost vrstart 26% of its lip with no clip brush in the map (a grown slanted brush reaches past its shape) and
+  missed the sconces under the decks. So the ledge map reads the brushes themselves from the BSP's BSPX `BRUSHLIST` lump
+  (`qbsp -wrbrushes`), read once per map (`relight::mapBspxLump`), and a hold inside a clip brush is no ledge. A map
+  without the lump is untouched: the ledge hashes of e1m1, e2m1, e1m3, vrclimb, vrstart and vrcalibration are identical
+  before and after. vrarena: 448 -> 262 ledges; deck and tower lips stay.
+- **No ammunition.** `VR_ARENA_StripPlayers` zeroes all 7 kinds and `currentammo` (a new game's parms give 25 shells).
+  Fists as before. Test 18 fresh, after `restart fresh`, from a load; test 19 takes a fallen foe's pack.
+
+Tests: `vr_arena_test` 17 (24 passed), 18 (4 passed, three times), 19 (7 passed), 15 (130 passed). A real grip (mock play)
+on an upright lamp's hood from the deck: the old map holds and climbs from z 280 to 287.6, the new one says "no hold".
+`vr_climb_try` on the sconce plate and hood: old lenient hold, new none; deck and tower lips hold on both.
+
 
 ## Falling magazines into the pouch; charge stamina; late flashlight grip; no ghost climbing; gibbing by blows and props
 
@@ -7212,3 +7295,40 @@ real bug hiding behind tests that measured the wrong thing.
 **Question for him (test 67):** its 90% floor mixes a swing under way, where a hand is refused as too fast by design, with standing still: striking 63%, idle 92%. Options: (1) the floor on idle, ready and running only, striking printed; (2) the too-fast rule eased for a blade mid-swing; (3) as now. Recommendation: (1).
 
 **Kit (coordinator):** run.ps1's `Select-String` output wraps at the console's width: a filtered long line arrives in pieces (`-Filter` drops nothing, but a grep on the capture does). Test 76 took 82 s free and timed out at 400 s five times over beside other work: run_baseline's 300 s would too.
+
+## Heavy footsteps and the pack's rip from recordings (branch `agent/freesounds`, his notes of 2026-11-02 night)
+
+His words: the ogres' and fiends' footsteps sound "very artificial"; the rip sounds "too much like a fiend attack"; find free sounds.
+
+**No new files were downloaded.** The agent rules forbid downloads and an approval relayed by another agent does not count, so this uses
+only CC0 recordings the game already ships. Candidates for the real thing, pages read and CC0 as shown there, nothing fetched:
+
+| For | Freesound | Author | Length, file |
+|---|---|---|---|
+| rip | [591527](https://freesound.org/people/Rudmer_Rotteveel/sounds/591527/) Cloth Rip Even Long | Rudmer_Rotteveel | 3.6 s, WAV 620 KB |
+| rip | [93346](https://freesound.org/people/fotoshop/sounds/93346/) Fabric Rip.wav | fotoshop | 5.0 s, WAV 431 KB (echoey room) |
+| rip | [627626](https://freesound.org/people/ValentinPetiteau/sounds/627626/) Clothes - fabric - tear - rip - bedsheet - close.wav | ValentinPetiteau | 18.8 s, WAV 2.6 MB |
+| feet | [721601](https://freesound.org/people/DasWaff/sounds/721601/) Giant step | DasWaff | 1.5 s, WAV 252 KB (breaking branches) |
+| feet | [542858](https://freesound.org/people/thebestmaker/sounds/542858/) Giant footsteps | thebestmaker | 6.5 s, WAV 608 KB |
+| feet | [622737](https://freesound.org/people/RobHorror240/sounds/622737/) GiantStompFootsteps.mp3 | RobHorror240 | 25 s, MP3 396 KB |
+
+- `step_thud1..5.wav` (same path, rate, count; `make_footstep_sounds.py` `THUD_TAKES`): `phys/soft_h` (weight, rate 0.66-0.78), `flesh_h`
+  (smack, 0.72-0.88), `wood_h` (knock, 0.58-0.70, low-passed 1.8 kHz), `grab_stone` (concrete grit), the sum lifted over 180 Hz, tanh 1.5.
+  Peak -2.5 dBFS as before; loudest 100 ms -7.0..-8.4 dB (the synthesised ones: -7.8); low -10..-12 (was -14), mid -15 (was -12), high -25
+  (was -17: the old noise). The kinds' pitch and gain in `vr_footsteps.cpp` are unchanged. Boots, metal and bare come out byte-identical.
+- `pack_rip.wav`: **a stand-in**, not a cloth recording: `phys/scrape_wood1..3` quickened and high-passed at 1.1 kHz, `soft_m1` quiet at
+  the end. It replaces `vr/derived/fabric_rip.wav` (the fiend's `demon/dhit2` was its main layer; the layer table's entry is gone). Still
+  played by `VR_WP_Off` on every way a pack comes off. Against the old mix: high -15.7 (was -15.2), mid -25 (was -17), low -25.5 (was -15.7).
+
+## Heavy footsteps and the pack's rip: the real recordings (branch `agent/freesounds2`)
+
+He approved the three clips in chat; the coordinator fetched them. These replace the stand-ins of the section above (their layering left
+`make_footstep_sounds.py`, which now writes only boots, metal and bare: those files are byte-identical). `Misc/quakevr/make_recorded_steps.py`
+cuts them from decoded previews (its header has the sources and the ffmpeg line); sources are not in the repository. Credits: CREDITS.md.
+
+- `step_thud1..5.wav`: a stamp of 542858 (top softened, one pole at 2.5 kHz) over 721601's stomp low-passed at 900 Hz (no branches), rates
+  in `THUD_TAKES`, saturated (tanh 2.2), peak -2.5 dBFS. Same paths, rate, count; the kinds' pitch and gain unchanged. Against the stand-ins:
+  loudest 100 ms -6.0..-6.7 dB (was -7.0..-8.4), mid -13.1..-14.5 (was -15), low -8.8..-12.3 (was -10..-12), high -14..-17 (was -25). 0.50 s.
+- `pack_rip.wav`: the first 0.62 s of 591527 from its onset, high-passed 150 Hz, one pole at 8 kHz, tanh 5, a 0.14 s fade. Nearly all
+  over 800 Hz; its sample-to-sample jumps are the tear's dense crackle (the source has the same, against its peak), not lone clicks.
+- All files start and end at 0.

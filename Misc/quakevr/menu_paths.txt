@@ -3062,6 +3062,10 @@ vr_agrunt_aim_exposed_hold|2|Tunables|Keep Aim On a Part|Advanced VR Options > D
 vr_agrunt_range_scale|2|Tunables|Distance Scale|Advanced VR Options > Debug > Tunables > Distance Scale
 vr_agrunt_range_walkfire|2|Tunables|Walking Fire|Advanced VR Options > Debug > Tunables > Walking Fire
 vr_agrunt_friendly_care|2|Tunables|Careful of Friends|Advanced VR Options > Debug > Tunables > Careful of Friends
+vr_ogre_friendly_care|2|Tunables|Ogres: Careful of Friends|Advanced VR Options > Debug > Tunables > Ogres: Careful of Friends
+vr_ogre_friendly_giveup|2|Tunables|Ogres: Gives Up After|Advanced VR Options > Debug > Tunables > Ogres: Gives Up After
+vr_ogre_friendly_step|2|Tunables|Ogres: Sidestep For|Advanced VR Options > Debug > Tunables > Ogres: Sidestep For
+vr_ogre_friendly_spread|2|Tunables|Ogres: Shot Check Spread|Advanced VR Options > Debug > Tunables > Ogres: Shot Check Spread
 vr_agrunt_preparry_range|2|Tunables|Preventive: Range|Advanced VR Options > Debug > Tunables > Preventive: Range
 vr_agrunt_preparry_chance|2|Tunables|Preventive: Chance per Check|Advanced VR Options > Debug > Tunables > Preventive: Chance per Check
 vr_agrunt_preparry_interval|2|Tunables|Preventive: Check Interval|Advanced VR Options > Debug > Tunables > Preventive: Check Interval
@@ -3251,6 +3255,7 @@ vr_footstep_walk_atten|2|Tunables|Walking Falloff|Advanced VR Options > Debug > 
 vr_footstep_run_atten|2|Tunables|Running Falloff|Advanced VR Options > Debug > Tunables > Running Falloff
 vr_footstep_min_speed|2|Tunables|Least Speed|Advanced VR Options > Debug > Tunables > Least Speed
 vr_footstep_heavy_volume|2|Tunables|Heavy Feet Volume|Advanced VR Options > Debug > Tunables > Heavy Feet Volume
+vr_footstep_heavy_speed|2|Tunables|Heavy Feet Speed|Advanced VR Options > Debug > Tunables > Heavy Feet Speed
 vr_footstep_heavy_carry|2|Tunables|Heavy Feet Carry|Advanced VR Options > Debug > Tunables > Heavy Feet Carry
 vr_footstep_nearest|2|Tunables|Heard at Once|Advanced VR Options > Debug > Tunables > Heard at Once
 vr_footstep_range|2|Tunables|Range|Advanced VR Options > Debug > Tunables > Range
@@ -4897,6 +4902,8 @@ vr_ragtool_log|2|Ragdoll Tool|Log|Advanced VR Options > Debug > Ragdoll Tool > L
 |2|Debug - Automation & Self-Tests|Armed Grunts: Grab Anywhere, Never a Blow|Advanced VR Options > Debug > Automation & Self-Tests > Armed Grunts: Grab Anywhere, Never a Blow
 |2|Debug - Automation & Self-Tests|Armed Grunts: Grab Test's Cost|Advanced VR Options > Debug > Automation & Self-Tests > Armed Grunts: Grab Test's Cost
 |2|Debug - Automation & Self-Tests|Armed Grunts: Reach for a Lying One's Weapon|Advanced VR Options > Debug > Automation & Self-Tests > Armed Grunts: Reach for a Lying One's Weapon
+|2|Debug - Automation & Self-Tests|Armed Grunts: Dual Wielder Disarmed|Advanced VR Options > Debug > Automation & Self-Tests > Armed Grunts: Dual Wielder Disarmed
+|2|Debug - Automation & Self-Tests|Ogres: Friendly Fire|Advanced VR Options > Debug > Automation & Self-Tests > Ogres: Friendly Fire
 |2|Debug - Automation & Self-Tests|Armed Grunts: Friendly Fire|Advanced VR Options > Debug > Automation & Self-Tests > Armed Grunts: Friendly Fire
 vr_agrunt_ik_debug|2|Debug - Automation & Self-Tests|Armed Grunts: Grip Distances|Advanced VR Options > Debug > Automation & Self-Tests > Armed Grunts: Grip Distances
 vr_agrunt_strike_demo|2|Debug - Automation & Self-Tests|Armed Humanoids: Strike Demo|Advanced VR Options > Debug > Automation & Self-Tests > Armed Humanoids: Strike Demo

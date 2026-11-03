@@ -19,6 +19,8 @@ entity vr_wpt_a, vr_wpt_b, vr_wpt_c, vr_wpt_d, vr_wpt_e, vr_wpt_f, vr_wpt_g;
 vector vr_wpt_pull;     // the tug's way (level, towards the player)
 float vr_wpt_gapmax;    // the drawn palm's farthest off the pack's box while pulled (cm)
 float vr_wpt_old_pool, vr_wpt_old_roll;
+float vr_wpt_pinned;
+float vr_wpt_old_z,vr_wpt_old_pitch, vr_wpt_old_yaw; // (the pose test 1 checks is the original one: pinned, put back at the end)
 vector vr_wpt_b0;       // B's pack before its knockdown
 float vr_wpt_loose0;    // loose backpacks before the deaths
 float vr_wpt_rips0;
@@ -81,6 +83,13 @@ void() VR_WPT_End =
 {
     cvar_set("vr_worn_backpack_pool", ftos(vr_wpt_old_pool));
     cvar_set("vr_worn_backpack_hit_roll", ftos(vr_wpt_old_roll));
+    if(vr_wpt_pinned)
+    {
+        cvar_set("vr_worn_backpack_z", ftos(vr_wpt_old_z));
+        cvar_set("vr_worn_backpack_pitch", ftos(vr_wpt_old_pitch));
+        cvar_set("vr_worn_backpack_yaw", ftos(vr_wpt_old_yaw));
+        vr_wpt_pinned = FALSE;
+    }
     localcmd("-graboff\n");
     cvar_set("vr_worn_backpack_hit_roll", ftos(vr_wpt_old_chance));
     cvar_set("vr_worn_backpack_hit_ref", ftos(vr_wpt_old_ref));
@@ -114,6 +123,13 @@ void(entity p) VR_WPT_Begin =
     vr_wpt_old_debug = cvar_hget(cvarh_vr_worn_backpack_debug);
     cvar_set("vr_worn_backpack_debug", ftos(max(1, vr_wpt_old_debug)));
     vr_wpt_e = VR_WPT_SpawnKind(p, VR_AM_ENFORCER, WID_SHOTGUN, 60, 120, FALSE); // (the loot's control: an enforcer drops its own)
+    vr_wpt_old_z = cvar_hget(cvarh_vr_worn_backpack_z);
+    vr_wpt_old_pitch = cvar_hget(cvarh_vr_worn_backpack_pitch);
+    vr_wpt_old_yaw = cvar_hget(cvarh_vr_worn_backpack_yaw);
+    vr_wpt_pinned = TRUE;
+    cvar_set("vr_worn_backpack_z", "-3");
+    cvar_set("vr_worn_backpack_pitch", "0");
+    cvar_set("vr_worn_backpack_yaw", "0");
     cvar_set("vr_worn_backpack_pool", "30");
     cvar_set("vr_worn_backpack_hit_roll", "0");
     vr_wpt_a = VR_WPT_Spawn(p, WID_SHOTGUN, -60, 120, TRUE);

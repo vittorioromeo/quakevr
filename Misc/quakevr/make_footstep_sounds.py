@@ -4,10 +4,9 @@
 #                       rolling down after; nothing rings and nothing clicks (no energy to speak of over 2 kHz)
 #   step_metal1..5.wav  an armoured boot (knights): the same knock, heavier, a plate's short clink and a rattle after
 #   step_bare1..5.wav   a wet bare foot (zombies, gremlins): a flesh slap, a soft low thud and a small squelch
-#   step_thud1..5.wav   a great bare foot (ogres, shamblers, fiends): the weight's mid-range knock and thick smack (150-800
-#                       Hz, what a headset's speakers can play), over a deep thump and a rumble and grit after
-# Five takes of each, apart in timing, pitch and grit. The monsters' size is the engine's (a playback rate and a weight per
-# kind: vr_footsteps.cpp, kinds). Everything is seeded: the same files every run.
+# The great bare feet (step_thud1..5.wav) and the pack's rip are recordings: make_recorded_steps.py.
+# Five takes of each step, apart in timing, pitch and grit. The monsters' size is the engine's (a playback rate and a weight
+# per kind: vr_footsteps.cpp, kinds). Everything is seeded: the same files every run.
 #
 # Usage: python Misc/quakevr/make_footstep_sounds.py [out_dir]   (default: quakevr/sound/vr)
 
@@ -145,20 +144,6 @@ def bare(rng):
     return out
 
 
-def thud(rng):
-    out = buffer(0.42)
-    k = rng.uniform(0.9, 1.1)
-    thump(out, 0.0, 90 * k, 48 * k, 0.1, 0.3, attack=0.004)
-    thump(out, 0.001, 420 * k, 170 * k, 0.075, 0.75, attack=0.003)
-    noise(out, 0.0, 170, 750 * k, 0.085, 4.5, rng, attack=0.004)
-    noise(out, rng.uniform(0.04, 0.07), 110, 480, 0.09, 1.6, rng, attack=0.015)
-    scuff(out, rng.uniform(0.03, 0.05), 0.15, 320, 1000, 1.5, rng)
-    rolled_off(out, 1800, 2)
-    for i, x in enumerate(out):
-        out[i] = math.tanh(1.8 * x)  # (thick: its loudness held up to the peak, not one sharp edge)
-    return out
-
-
 def finish(out, level):
     """Peak to `level`, the tail faded (no click), the first sample at the attack."""
     fade = int(0.02 * RATE)
@@ -175,7 +160,7 @@ def main():
     os.makedirs(out_dir, exist_ok=True)
     # (each under full scale: its level is the engine's. Levels by what is heard, not by the peak: A-weighted, the loudest
     # 100 ms of a boot near the player's own steps at their volumes, a thud's well over it)
-    for name, make, level, seed in (("boot", boot, 0.6, 101), ("metal", metal, 0.8, 202), ("bare", bare, 0.7, 303), ("thud", thud, 0.75, 404)):
+    for name, make, level, seed in (("boot", boot, 0.6, 101), ("metal", metal, 0.8, 202), ("bare", bare, 0.7, 303)):
         for take in range(5):
             rng = random.Random(seed + take)
             samples = finish(make(rng), level)
