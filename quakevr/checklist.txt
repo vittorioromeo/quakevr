@@ -6,6 +6,13 @@
 
 [Failed: waiting for your answer]
 
+[0. Flatscreen play (-flatscreenmode)]
+Flatscreen (-flatscreenmode): an axe in the main hand, LMB swings it and the foe in front takes the blow; RMB does the same for the off hand; V still punches
+Flatscreen melee: a gun's fire button is its own shot and a chainsaw's trigger only runs its chain — neither one swings; a hand that already swung is not disturbed by the other hand's button unless both hold a swinging weapon
+Flatscreen: the drawn hands stay on their arms through a punch, a knock and when you look straight up (Flatscreen Arm Hold 1; 0 puts them back where they were placed)
+Flatscreen: Flatscreen Hand Pitch 65 keeps the hands inside the arc the arms sweep when you look up or down (90: all the way, as before)
+Flatscreen: Debug > Flatplay Punch, or vr_flat_punch main/off in the console, swings from the keyboard; in a headset it answers that flatscreen play is not running
+
 [1. Armed humanoids: fighting them]
 Strike a sword grunt's blade (away from its hand) while it hasn't seen you: sparks, no disarm, and it turns on you.
 Rig Studio / Pose Studio: a "Cast (shared)" pose next to Pickup, editable on the rifle, with Make Override per class; set its look (the default is a rough guess).
