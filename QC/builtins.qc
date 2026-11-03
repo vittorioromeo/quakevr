@@ -699,6 +699,8 @@ float(entity b, float xFloor) meleearc = #0;
 // end (xA); 2 a swept line (xA to xB); 3 a head's box (admeleehead's corners); 4 the head's line; 5 its model +y (xA);
 // 6 a blow landed (xA where, xV its damage or -1).
 void(float xHand, float xWhat, vector xA, vector xB, float xV) meleeshow = #0;
+// A line on Embedded Blades' debug panel (vr_debug_embed; axestick::debugDraw).
+void(string xText) embedsay = #0;
 // weaponheft's `kick` 1: its heavy recoil in one hand instead (deg/s up a shot: vr_heavy_recoil_kick x heft x its own).
 float(string model, optional float kick) weaponheft = #0;
 // The impact table (Quake/vr/vr_impacts.cpp; its keys VR_MAT_*, VR_HIT_*: vr_impact_shared.h). impact: the effect of a

@@ -37,6 +37,14 @@ vr_embed_test    9        vr_embed_test.qc                 the pictures' scene: 
 vr_embed_test    10       vr_embed_test.qc                 the pictures' scene: its end
 vr_embed_test    11       vr_embed_test.qc                 moving the body: stagger, pull, knocked down, drag, past reach, your speed, heavy, boss
 vr_embed_test    12       vr_embed_test.qc                 the pictures' scene: a body being moved
+vr_embed_test    13       vr_embed_edge_test.qc            the edges: vr_embed off, teleporters, armed enemies, a body going, two hands, knockdowns, the other hand, bullet time
+vr_embed_test    14       vr_embed_edge_test.qc            the save's scene: a stab held
+vr_embed_test    15       vr_embed_edge_test.qc            after the load: nothing lost, it comes out into the hand
+vr_embed_test    16       vr_embed_edge_test.qc            the save's scene: held, a spring on it
+vr_embed_test    17       vr_embed_edge_test.qc            the save's scene: left in a staggering body
+vr_embed_test    18       vr_embed_edge_test.qc            after a level change: the blade held is in the hand
+vr_embed_test    19       vr_embed_edge_test.qc            the map's own Ogre, Shambler or boss
+vr_embed_test    20       vr_embed_edge_test.qc            after a level change: what you have of a blade left
 vr_ad_test       1        vr_ad_bridge_test.qc             (see vr_ad_bridge_test.qc)
 vr_ad_test       2*       vr_ad_bridge_test.qc             (the cinematic report (AD_Test's fall-through))
 vr_ad_test       3        vr_ad_bridge_test.qc             (VRGiveEntWeapon)

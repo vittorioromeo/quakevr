@@ -618,6 +618,7 @@ float cvarh_vr_debug_crates;
 float cvarh_vr_debug_damage_numbers;
 float cvarh_vr_debug_deadanim;
 float cvarh_vr_debug_disarm;
+float cvarh_vr_debug_embed;
 float cvarh_vr_debug_grab;
 float cvarh_vr_debug_hitzones;
 float cvarh_vr_debug_impacts;
@@ -2429,6 +2430,7 @@ void() VR_CVars_InitGenerated =
     cvarh_vr_debug_damage_numbers = VR_CVar_Make("vr_debug_damage_numbers");
     cvarh_vr_debug_deadanim = VR_CVar_Make("vr_debug_deadanim");
     cvarh_vr_debug_disarm = VR_CVar_Make("vr_debug_disarm");
+    cvarh_vr_debug_embed = VR_CVar_Make("vr_debug_embed");
     cvarh_vr_debug_grab = VR_CVar_Make("vr_debug_grab");
     cvarh_vr_debug_hitzones = VR_CVar_Make("vr_debug_hitzones");
     cvarh_vr_debug_impacts = VR_CVar_Make("vr_debug_impacts");

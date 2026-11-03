@@ -36,6 +36,9 @@ Walk away holding a blade in a standing grunt: it drags along and you walk at ab
 Knock the grunt down with the sword held: it hangs on the blade and you still hold it. {test:embed_stab}
 Kill it with the sword held: no slowdown standing over it, slowed only while walking off with it, and an arm's tug takes the blade out. {test:embed_stab}
 Stab the Shambler as hard as you can: no stagger, no drag, you're slowed, and walking off pulls the blade out. {test:embed_stab}
+Debug > Embedded Blades: Why: in slow motion, each stab says why it stuck or not and why it came out. {test:embed_stab}
+No man's grunt when a blade stays in or comes out. {test:embed_stab}
+The axe goes deeper and takes a real tug to pull out. {test:embed_stab}
 
 [3. Bodies: grabbing, throwing, hits]
 Neck snap standing and on a lifted body: it goes limp, still held. Leg grabs: pull one down by the shins, drag it by the legs, lift it by the legs. {test:grunts_to_throw}

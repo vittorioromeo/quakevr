@@ -616,6 +616,12 @@ void PF_watersplash()
         static_cast<physics::SplashSound>(CLAMP(0, static_cast<int>(G_FLOAT(OFS_PARM3)), 2)));
 }
 
+// embedsay(text): a line on Embedded Blades' debug panel.
+void PF_embedsay()
+{
+    axestick::say("%s", G_STRING(OFS_PARM0));
+}
+
 // haptic(hand, delay, duration, frequency, amplitude), for the `self` player.
 void PF_haptic()
 {

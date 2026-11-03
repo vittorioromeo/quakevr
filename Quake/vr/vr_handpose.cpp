@@ -83,10 +83,10 @@ constexpr float strikePassEase = 0.15f; // s from let in to held out whole again
 // Monsters (anything that bleeds, not a brush) don't stop it: their boxes are much bigger than they
 // look, and a sword stopped at one jerked the hand back, which the server's melee took for a new
 // stroke (no hit), so blows with a weapon's far end didn't register (ROUND15.md (removed 2026-10-06; git history)).
-void stopAtWall(glm::vec3& pos, const glm::vec3 from, const glm::vec3 to)
+void stopAtWall(glm::vec3& pos, const glm::vec3 from, const glm::vec3 to, bool xWallsOnly = false)
 {
     const glm::vec3 box{1.f};
-    auto tr = worldtrace::move(from, -box, box, to, MOVE_NORMAL | MOVE_PORTALS);
+    auto tr = worldtrace::move(from, -box, box, to, (xWallsOnly ? MOVE_NOMONSTERS : MOVE_NORMAL) | MOVE_PORTALS);
     if(tr && tr->fraction < 1.f && tr->ent && tr->ent->v.takedamage != 0.f && static_cast<int>(tr->ent->v.solid) != SOLID_BSP)
     {
         tr = worldtrace::move(from, -box, box, to, MOVE_NOMONSTERS | MOVE_PORTALS);
@@ -421,7 +421,10 @@ void resolvePositions(hands::State& s, float /* turnYaw */)
     {
         HandMemory& m = memory[h];
         glm::vec3 pos = s.pos[h];
-        stopAtWall(pos, torso, s.pos[h]);
+        // (A hand on a blade in a body: its place says how the blade slides. A body dying is no monster to the stop above for the moment
+        // its box is still solid, and a stop that comes and goes, a hand inside that box, read as a tug that pulled it out.)
+        const bool onBlade = cl.stats[h == HAND_MAIN ? protocol::STAT_QVR_EMBEDMAIN : protocol::STAT_QVR_EMBEDOFF] > 0;
+        stopAtWall(pos, torso, s.pos[h], onBlade);
 
         // The weapon (and what the hand holds) must not go through walls either: from where it was placed last frame.
         // However it is held: by its handle, or carried off it (by a hotspot, anywhere on it, after the hand-off), its

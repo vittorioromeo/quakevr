@@ -326,6 +326,7 @@ za::Vector<Item> pageDebugLogging()
         row(opt::vr_debug_throw),
         row(opt::vr_debug_angvel),
         row(opt::vr_debug_highlights),
+        row(opt::vr_debug_embed),
         row(opt::vr_debug_axestick),
         row(opt::vr_climb_debug),
         row(opt::vr_debug_hands),

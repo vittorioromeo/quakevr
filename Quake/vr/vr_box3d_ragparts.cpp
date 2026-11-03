@@ -1569,6 +1569,23 @@ bool ragdollHoldPoint(int player, int hand, glm::vec3& out)
     return true;
 }
 
+bool ragdollBladeSpring(int player, int hand, glm::vec3& limb, glm::vec3& target, float& force)
+{
+    const int index = world ? grabIndex(player, hand) : -1;
+    if(index < 0 || !world->ragdollGrabs[static_cast<za::SizeT>(index)].blade || !ragdollHoldPoint(player, hand, limb))
+    {
+        return false;
+    }
+    const World::RagdollGrab& g = world->ragdollGrabs[static_cast<za::SizeT>(index)];
+    if(B3_IS_NULL(g.anchor) || !b3Body_IsValid(g.anchor))
+    {
+        return false;
+    }
+    target = world->toU(b3Body_GetWorldPoint(g.anchor, b3Joint_GetLocalFrameA(g.joint).p));
+    force = g.force;
+    return true;
+}
+
 int ragdollPartCentre(const glm::vec3& from, int part, glm::vec3& out, const char* name)
 {
     if(!world)

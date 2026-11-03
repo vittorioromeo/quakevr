@@ -91,6 +91,7 @@ QVR_CVAR(vr_angvel_frame, "-1", CVAR_ARCHIVE)
 // evidence, the runtime's vector and the fixed one against the pose's turn (cosines), the hand's speed before and after.
 QVR_CVAR(vr_debug_angvel, "0", CVAR_NONE)
 QVR_CVAR(vr_debug_throw, "0", CVAR_NONE)           // print each throw's estimate (2: and its timing)
+QVR_CVAR(vr_debug_embed, "0", CVAR_NONE)          // Embedded Blades on screen: why each blade did or did not stick or came out, and each blade drawn (axestick::debugDraw)
 QVR_CVAR(vr_debug_axestick, "0", CVAR_NONE)       // print each thrown axe's blade meeting something: stuck (how deep, at what angles) or why not
 QVR_CVAR(vr_debug_missiles, "0", CVAR_NONE)        // print each missile's hit (rockets, nails, grenades...): what it met, where, the surface's normal; a solid prop met: its drawn box as it stands
 QVR_CVAR(vr_debug_shots, "0", CVAR_NONE)           // print each hitscan shot: where it starts, its direction, what its pellets hit; each prop a shot pushes
