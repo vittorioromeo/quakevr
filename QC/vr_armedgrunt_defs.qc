@@ -94,7 +94,7 @@ float vr_agbc_stopped;     // ... stopped on its blade (VR_AG_BladeContact: T_Da
 .vector vr_agbc_mark;      // ... [that hand + 1, when]: that motion's later blows on it stop there too
 float(entity targ, entity inflictor, entity attacker, float damage) VR_AGPar_Blow; // T_Damage, T_Damage_VRMelee
 float(entity g) VR_AGPar_Guards;                                           // VR_Guard_Hand: it parries instead
-// Directional parry (vr_dirparry.qc; vr_dirparry, experimental): your weapon held across an armed humanoid's swing.
+// Directional parry (vr_dirparry.qc): your weapon held across a blow's line.
 .vector vr_drp_a0;         // (a held weapon) its drawn line's two ends last frame, and when (0: none)
 .vector vr_drp_b0;
 .float vr_drp_t0;
@@ -103,8 +103,15 @@ entity vr_drp_w;           // the weapon whose blow VR_AGP_Strike deals now (wor
 float(entity g) VR_DRP_Applies;                                            // VR_Parry: its blow is judged by the direction
 float(entity g) VR_DRP_Done;                                               // VR_Parry: this swing was stopped already
 float(entity pl, entity g, float damage) VR_DRP_Blow;                      // VR_Parry: the parrying hand (-1: none)
+float vr_drp_ag_timed;     // VR_DRP_Blow, an armed humanoid's: this parry was well timed
 float vr_drp_deferred;     // VR_DRP_Blow held the blow back (VR_Parry deals nothing now)
+float vr_drp_release;      // a held-back blow dealt now (VR_DRP_Blow holds it no more)
+float vr_drp_forced;       // VR_DRP_Frame's, VR_DRP_HeldThink's meeting: VR_Parry takes vr_drp_hand at once
+.float vr_drp_by;          // (a monster) the hand that parried this attack (VR_DRP_Done)
+.float vr_drp_timed;       // (a monster) ... that parry was well timed (VR_DRP_BecameValid)
+void(entity pl) VR_DRP_HandLines;                                          // StartFrame's player think
 void(entity pl, entity g, float h) VR_DRP_Effects;                         // VR_Parry: sparks and the clang at the meeting
+void(entity pl) VR_DRP_ShowLines;                                          // the player's think: the lines shown
 void(entity g, entity w) VR_DRP_Frame;                                     // VR_AGP_Pose: its swing met your weapon
 float vr_drp_cut;          // VR_DRP_Blow's partial parry: the share of the blow taken off (0: none)
 void(entity g) VR_AGPar_Frame;                                             // VR_AG_PropThink: a blow coming

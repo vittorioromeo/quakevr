@@ -511,7 +511,7 @@ from `0.135 1.17 -0.56` to `0.13 1.113 -0.70`); `vr_debug_2h_grip 1` prints each
 hand", "took the blade"), 2 also how far along the bar the other hand holds it. Synthetic swings: `motion_synth.py
 slash_horizontal_rtl --weapon crowbar --distance 0.85` (the sword presets, the crowbar in hand; it is shorter: stand
 closer), played with `vr_motion_play <take>` in the firing range (`developer 1`: "Dummy: 23.6 damage - melee: Crowbar,
-strike (horizontal) with the bar"). Parry: `god; notarget`, the crowbar held level across (`vr_mock_hand main 0.15 1.35
+strike (horizontal) with the bar"). Parry (`vr_parry_test_guard 1`: a test about what a parry does, not which pose: a monster's own blow read by the guard, not its line): `god; notarget`, the crowbar held level across (`vr_mock_hand main 0.15 1.35
 -0.35 0 90 0`), `impulse 248` (a knight ahead), `impulse 242` (it strikes): "parry: monster_knight with hand 1".
 `Misc/quakevr/make_crowbar.py` makes the model (then `bake_normals.py v_crowbar.mdl`).
 Enemy guns (ROUND21.md, "Enemy weapons: the grunts' shotguns and the enforcers' laser rifles"): `impulse 165` puts a

@@ -1821,16 +1821,10 @@ void playFrameEnd(za::Vector<Event>& events, bool tick, double svDt)
             if(r.phase == PhaseRec && r.sv && r.sv->qc)
             {
                 report.recFrames++;
-                if(const glm::vec3* p = r.sv->value("parry"))
-                {
-                    report.parryFrames[HAND_MAIN] += p->x != 0.f;
-                    report.parryFrames[HAND_OFF] += p->y != 0.f;
-                    report.parryAnyFrames += p->x != 0.f || p->y != 0.f || p->z != 0.f;
-                }
-                if(const glm::vec3* g = r.sv->value("guard"))
-                {
-                    report.guardFrames += g->x >= 0.f;
-                }
+                const glm::vec3* p = r.sv->value("parry");
+                const glm::vec3* g = r.sv->value("guard");
+                report.guardFrames += g && g->x >= 0.f;
+                report.parryAnyFrames += (g && g->x >= 0.f) || (p && p->z != 0.f);
             }
             if(opts.save)
             {

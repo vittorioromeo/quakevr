@@ -1528,17 +1528,12 @@ QVR_SLIDER(vr_parry_stagger, "Parry Stagger", 0.1f, 1.5f, 0.05f, "%.2f s", ext(0
     "With Parry Balance off: how long the monster pauses after a successful parry before it can move and "
     "attack again.")
 QVR_TOGGLE(vr_parry_ragdoll, "Parry Stagger as Ragdoll", nullptr)
-QVR_SLIDER_BYNAME(vr_parry_reduction, "Parry Damage Reduction", 0.f, 1.f, 0.05f, "%.2f", noExt, "Share of a parried blow's damage taken away.")
+QVR_SLIDER_BYNAME(vr_parry_reduction, "Parry Damage Reduction", 0.f, 1.f, 0.05f, "%.2f", noExt, "Share of the damage taken away from a blow parried by the guard (a blow with no line). A blow with a line: Debug > Tunables > Combat > Directional Parry, Let Through.")
 QVR_SLIDER_BYNAME(vr_parry_drop_chance, "Parry Drop Chance", 0.f, 1.f, 0.05f, "%.2f", noExt,
     "Chance a one-handed parry knocks the weapon out of your hand (two hands: never). Not used with Parry Stamina on (Parry, Bash and Headbutt), which replaces it.")
 QVR_SLIDER_BYNAME(vr_parry_wobble, "Parry Arm Knock", 0.f, 2.f, 0.1f, "%.1f", ext(), "How much a parried blow knocks your hand and arm.")
 QVR_TOGGLE(vr_parry_unarmed, "Unarmed Parry",
     "Cross your arms in an X in front of you to block a blow with your forearms.")
-QVR_TOGGLE(vr_dirparry, "Directional Parry (Experimental)",
-    "An armed humanoid's sword, axe or club swung at you is parried only by your weapon held across its "
-    "blade's way where they meet: an overhead strike by a weapon held level across, a side swing by one "
-    "held upright. Parried: no damage, sparks where the weapons met, its swing stopped. Tunables: Combat "
-    "> Directional Parry. Off: the level-across parry for every blow.")
 QVR_TOGGLE(vr_parry_cooldown_attack, "Parry Cooldown: Whole Attack", nullptr)
 QVR_TOGGLE(vr_parry_balance, "Parry Balance",
     "A parry's strength (its tool, times its grip, times its timing) over the monster's Parry Poise (Monster "

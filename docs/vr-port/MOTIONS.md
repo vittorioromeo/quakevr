@@ -62,9 +62,9 @@ with them off.
 | Expected Stab | `stab` | a sword's tip thrust into the target (a sword only) | one_hand, two_hands |
 | No Hit | `no_hit` | nothing at all: no blow, bash, shove, headbutt or batting | wiggling, weak, idle, slow_waving, reloading, aiming, walking, reaching |
 | Expected Bash | `bash` | the weapon's guard pushed into the target | sword_1h, sword_2h, gun |
-| Expected Parry Pose | `parry_pose` | a guard that parries a blow from the target, held (no hit) | sword_1h, sword_2h_blade (a hand on the blade), sword_2h, gun |
-| Not Parry Pose | `not_parry_pose` | a pose that must not count as a parry stance (near a guard but not one), and no melee event | weapon_angled, hands_up, resting, aiming, other |
-| Expected Parry Bash | `parry_bash` | the parry pose, then pushed into the target | sword_1h, sword_2h_blade, sword_2h, gun |
+| Expected Guard Pose | `parry_pose` | a weapon's guard (or crossed arms) held, no hit | sword_1h, sword_2h_blade (a hand on the blade), sword_2h, gun |
+| Not Guard Pose | `not_parry_pose` | a pose that must not count as a guard (near one but not one), and no melee event | weapon_angled, hands_up, resting, aiming, other |
+| Expected Guard Bash | `parry_bash` | the guard, then pushed into the target | sword_1h, sword_2h_blade, sword_2h, gun |
 | Expected Hilt/Pommel | `hilt_pommel` | a hit with the hilt, the pommel or the handle's end (sword, axe, hammer), not the blade or head | |
 | Expected Punch | `punch` | a fist's blow | straight, jab, hook, uppercut, overhead |
 | Expected Palm Shove 1H | `palm_shove_1h` | one open palm shoving | |
@@ -82,11 +82,13 @@ with them off.
 | Shoulder Charge Not Expected | `no_shoulder_charge` | running (or walking) into the dummy in another pose: no charge | running_guard, running_shove, running_gun, walking, sidestep, running_idle, running_melee |
 | Other | `other` | anything else (`vr_motion_note`) | |
 
-The "parry state" the evaluation reads, each server frame of the replay's labelled part (phase `rec`): the parry test
-is `m_parry`, `o_parry` or `parry_arms` (QC `VR_Parry_Blocks` towards the target for either hand's weapon, or
-crossed empty arms, `VR_Parry_ArmsCrossed`); the bash guard is `guard` >= 0 (QC `VR_Bash_Guard`). Expected Parry Pose
-needs the parry test in at least half of those frames; Not Parry Pose in none of them, nor the guard, nor any melee
-event.
+The poses the evaluation reads, each server frame of the replay's labelled part (phase `rec`): the guard is `guard` >= 0
+(QC `VR_Bash_Stance`: the weapon's line level, across and in front, `VR_Parry_Blocks`: the bash's stance, and what a blow
+with no line is parried by), crossed empty arms `parry_arms` (`VR_Parry_ArmsCrossed`). Expected Guard Pose needs one of
+them in at least half of those frames; Not Guard Pose neither in any, nor any melee event. A weapon's parry of a blow
+with a line (QC `vr_dirparry.qc`) has no pose to record: it is your weapon across that blow's way, where they meet
+(test 78). The categories keep their ids (`parry_pose`...) so his takes keep their labels; until 2026-11-03 the replay
+also tested each hand towards the target (columns `m_parry`, `o_parry`: gone).
 
 ### Decapitation takes
 
@@ -320,7 +322,6 @@ Each hand, `m_` the main hand and `o_` the off hand:
 | `m_muzzle_ok`, `m_muzzle_*`, `m_muzzle_d_*` | the weapon's far end as the engine finds it on the model (a sword's tip, the axe's head, a muzzle): player and dummy frames |
 | `m_pt_names`, `m_pt0..5_*_u/_m` | the striking points as the melee computes them (QC `VR_Blow_Points`), names separated by `\|`: a sword's pommel, hilt, guard, mid-blade, blade, tip; the axe's and the hammer's hand, handle, head; a gun's grip, barrel, muzzle; a fist's fist and knuckles. Player frame |
 | `m_butt_*`, `m_end_*` (and `_d_`) | the weapon's line (QC `VR_Parry_WeaponLine`): its butt (a sword's pommel, the axe's or the hammer's handle end, a gun's grip) and its far end. Empty for an empty hand |
-| `m_parry` | the QC's parry test: 1 while this hand's weapon would parry a blow from the monster (`VR_Parry_Blocks`; from straight ahead without one) |
 
 The melee's state (QC, the last server frame):
 
@@ -488,7 +489,7 @@ From the agent kit: `bash <kit>/run.sh <agent> -Script "map vrmelee-recording;wa
 comments for the grammar: required events (any of them: `melee`, `melee/stab`, `shove/both`,
 `melee@the_pommel|the_hilt`, `decap/yes`), forbidden ones (`!push`), hit kinds allowed without being required
 (`+melee`), `none` (no melee event at all: no hit, stroke, push or
-batting), poses held for half the take (`pose:parry`: the parry test, a weapon's or crossed arms'; `pose:guard`) or
+batting), poses held for half the take (`pose:parry`: the guard or crossed arms; `pose:guard`) or
 never (`!pose:parry`, `!pose:guard`: not one frame), and
 the weapons a category is for (`weapon:sword|axe|mjolnir`: with another weapon the take is N/A, reported apart). A
 hit whose kind isn't required fails the take. A line for a label (`slash_overhead melee/overhead_blow`) wins over its

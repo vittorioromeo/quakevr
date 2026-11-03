@@ -986,6 +986,8 @@ void registerCvars()
 // Settings removed (docs/vr-port/CVAR_AUDIT.md): a config, a shipped .cfg or a take that still sets one is not an
 // "Unknown command" (cmd.c asks here); the line is dropped quietly and the next config write leaves it out.
 constexpr const char* retiredCvars[] = {
+    // 2026-11-03: the directional parry the only parry (ROUND23.md, "Directional parry: the only parry"): its switch, on since 2026-11-02.
+    "vr_dirparry",
     // 2026-11-02: the armed death knight's share of casts with a gun, a cooldown now (vr_agdknight_cast_cooldown).
     "vr_agdknight_spell_share",
     // 2026-11-02: the option audit's removals (ROUND23.md, "Option audit: removals"): the hitbox category switches (the

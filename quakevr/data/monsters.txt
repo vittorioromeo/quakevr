@@ -9,6 +9,9 @@
 //   smallgibs         its small gibs, times this (vr_smallgibs_mult_<m>)
 //   smallgibs_brains  its brain chunks, times this (vr_smallgibs_brains_mult_<m>)
 //   ragdoll_<key>     its ragdoll's (vr_ragdoll_<m>_<key>): -1 the global vr_ragdoll_<key>; mass in kg
+//   lunge_a_from, lunge_a_to, lunge_b_from, lunge_b_to   its lunges (vr_mlunge_<classname>_...): up to two runs of its frames in
+//                     which a blow is a lunge: the whole of it coming at you, parried as a vertical line, by a weapon held
+//                     level across in front (QC vr_dirparry.qc VR_DRP_Lunge). Left out: none.
 
 defaults
 {
@@ -60,6 +63,10 @@ monster monster_enforcer
 
 monster monster_dog
 {
+    lunge_a_from "0" // its bite ($attack1)
+    lunge_a_to "7"
+    lunge_b_from "60" // its leap ($leap1)
+    lunge_b_to "68"
     hull "-1"
     smallgibs "1" // a rottweiler's
     smallgibs_brains "1" // a rottweiler's
@@ -76,6 +83,8 @@ monster monster_dog
 
 monster monster_demon1
 {
+    lunge_a_from "27" // its leap ($leap1; its claws have lines of their own)
+    lunge_a_to "38"
     hull "-1"
     smallgibs "1.25" // a fiend's
     smallgibs_brains "1.25" // a fiend's

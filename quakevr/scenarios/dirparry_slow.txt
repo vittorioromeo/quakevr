@@ -2,7 +2,6 @@
 title Slowed enemy swings: a sword grunt at Enemy Melee Speed 0.3, Directional Parry and its readout on, a sword in hand (god)
 map vrtesthall
 god
-cvar vr_dirparry 1
 cvar vr_dirparry_debug 1
 cvar vr_agrunt_melee_speed 0.3
 give "Knight's Sword" main

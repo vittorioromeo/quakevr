@@ -466,6 +466,9 @@ extern "C" void VR_OnProgsLoaded()
         b.agDrawn[2] = globalVector("vr_ag_df_up");
         b.agExtent[0] = globalVector("vr_ag_wx_back");
         b.agExtent[1] = globalVector("vr_ag_wx_front");
+        b.blowLine[0] = globalVector("vr_blow_a");
+        b.blowLine[1] = globalVector("vr_blow_b");
+        b.blowLine[2] = globalVector("vr_blow_more");
         for(int i = 0; i < numExtSpawnParms; i++)
         {
             b.extSpawnParms[i] = globalFloat(va("parm%d", firstExtSpawnParm + i));

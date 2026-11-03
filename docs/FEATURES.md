@@ -139,9 +139,12 @@ through walls, so it can't get stuck. Settings: Carrying and Throwing > *Force G
   fast enough (*Swing Speed*) and far enough (*Blow Distance*), so waving and flicks don't hit. Harder blows do more
   damage, and straight punches more than slaps. Hits land on the monster's real shape, not its box. You can hit a gib
   held in your other hand.
-- **Parry:** hold a weapon (one or two hands) level across in front of you as a monster's blow lands. It takes less
-  damage, with a clang and sparks, and stops the rest of that attack, the monster staggered (*Parry Stops Attacks*,
-  *Parry Stagger*). Every melee monster can be parried. A one-handed parry may knock the weapon out of your hand.
+- **Parry:** hold a weapon (one or two hands) across the way of a monster's blow, where it comes: level across an
+  overhead chop, upright against a side swing (it's read from the blade's or limb's own line, armed humanoids' and
+  monsters' alike; a dog's or a fiend's lunge by a weapon held level across in front; a blow with no line, a fish's bite, by a weapon held across in front of you). Turning or moving it there just before the contact is a stronger parry.
+  It takes no damage (a blow with no line: less), with a clang and sparks where they met, and stops the rest
+  of that attack, the monster staggered (*Parry Stops Attacks*, *Parry Stagger*). Every melee monster can be parried. A
+  one-handed parry may knock the weapon out of your hand.
   *Unarmed Parry*: cross your forearms in an X. A quick blow after a parry is a counter-attack.
 - **Bash:** from a guard (a weapon held level across, or both hands together), push forward hard. It does little
   damage, but it throws the monster back and staggers it. One open hand, palm ahead, shoves half as hard. Shove

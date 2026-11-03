@@ -31,6 +31,12 @@ Wave presets you save in the Arena Wave Editor now show in git status (arena_wav
 Monsters beside lava warm on the side facing it, in the lava's colour, and a wall between them blocks it; Debug > Tunables > Graphics > Models and Effects > Light Grid: Lava Light and its range change it at once. {test:light_grid_lava}
 Blood, dust and gun smoke beside a monster in a dark room are lit from the same probes as the monster; vr_model_light_grid 0 for the floor's, to compare. {test:light_grid_dark}
 Models near slime and teleporters take a light tint too (e1m1's slime); Slime Light and Teleporter Light set how much (same Tunables page).
+Plain monsters parry by direction: with vr_agknight 0, a knight's chop: sword level across where its blade comes down: sparks, it staggers; upright: the blow lands. Ogre's side swing: upright in its way; its overhead smash: level across. Fiend's claws, shambler's arms: across each as it comes. Dog: low, level across its head.
+A leap landing on you, a fish's bite: a weapon level across in front parries, as before.
+Debug > Show Disarm Volumes near a monster: its blow's line on its weapon or limb (white; a second limb's yellow). Combat > Parry and Bash has no Directional Parry toggle.
+A monster's or armed grunt's swing: hold your weapon across its way early: parried, no damage, plain. Turn it to the angle or move it in just before the blade arrives: a stronger parry (it staggers where a plain one flinches, by the parry balance).
+A monster's directional parry lets nothing through. Debug > Tunables > Combat > Directional Parry: Let Through: Armed Humanoids, Monsters, Timing Window.
+A dog's bite or leap, a fiend's leap: a weapon held level across in front parries; upright, the blow lands.
 
 [3. Bodies: grabbing, throwing, hits]
 Neck snap standing and on a lifted body: it goes limp, still held. Leg grabs: pull one down by the shins, drag it by the legs, lift it by the legs. {test:grunts_to_throw}

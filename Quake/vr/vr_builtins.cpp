@@ -18,6 +18,7 @@
 #include "vr_carry2h.hpp"
 #include "vr_crates.hpp"
 #include "vr_debris.hpp"
+#include "vr_blowline.hpp"
 #include "vr_dirparryviz.hpp"
 #include "vr_disarmviz.hpp"
 #include "vr_disarmhull.hpp"
@@ -963,6 +964,10 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"debughitzone", PF_debughitzone},
     {"debugdisarm", disarmviz::PF_debugdisarm},
     {"debugdisarmnote", disarmviz::PF_debugdisarmnote},
+    {"blowline", blowline::PF_blowline},
+    {"blowlunge", blowline::PF_blowlunge},
+    {"handlineadd", blowline::PF_handlineadd},
+    {"handlineat", blowline::PF_handlineat},
     {"debugdirparry", dirparryviz::PF_debugdirparry},
     {"debugdirparryline", dirparryviz::PF_debugdirparryline},
     {"debugdirparrynote", dirparryviz::PF_debugdirparrynote},

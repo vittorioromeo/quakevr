@@ -74,10 +74,10 @@ const za::Vector<Category> categoryList = {
             {"heavy_wiggle_rl", "Heavy: Wrist Wiggle, Rocket Launcher"}, {"heavy_flick_chainsaw", "Heavy: Chainsaw Flick"},
             {"heavy_wiggle_hammer", "Heavy: Hammer 1H Wiggle"}, {"heavy_hammer_2h_ground", "Heavy: Hammer 2H Blow on the Ground"}}},
     {{"bash", "Expected Bash"}, {any, {"sword_1h", "Sword 1H"}, {"sword_2h", "Sword 2H"}, {"gun", "Gun"}}},
-    {{"parry_pose", "Expected Parry Pose"},
+    {{"parry_pose", "Expected Guard Pose"},
         {any, {"sword_1h", "Sword 1H"}, {"sword_2h_blade", "Sword 2H on Blade"}, {"sword_2h", "Sword 2H"},
             {"gun", "Gun"}}},
-    {{"parry_bash", "Expected Parry Bash"},
+    {{"parry_bash", "Expected Guard Bash"},
         {any, {"sword_1h", "Sword 1H"}, {"sword_2h_blade", "Sword 2H on Blade"}, {"sword_2h", "Sword 2H"},
             {"gun", "Gun"}}},
     {{"hilt_pommel", "Expected Hilt/Pommel"}, {any}},
@@ -90,7 +90,7 @@ const za::Vector<Category> categoryList = {
     {{"other", "Other (vr_motion_note)"}, {any}},
     // Added later: at the end, so vr_motion_category's saved index keeps its category (the menu shows them in
     // categoryOrder's order).
-    {{"not_parry_pose", "Not Parry Pose"},
+    {{"not_parry_pose", "Not Guard Pose"},
         {any, {"weapon_angled", "Weapon Angled"}, {"hands_up", "Hands Up"}, {"resting", "Resting"},
             {"aiming", "Aiming"}, {"other", "Other"}}},
     // Decapitation (ROUND21.md, "Decapitation takes"): a blade's blow that should (should not) behead the target if it
@@ -160,7 +160,7 @@ const za::Vector<Category>& categories()
 
 za::Vector<int> categoryOrder()
 {
-    // The menu's order: each category after its kin (Not Parry Pose after Expected Parry Pose).
+    // The menu's order: each category after its kin (Not Guard Pose after Expected Guard Pose).
     static constexpr const char* order[] = {"slash", "stab", "no_hit", "bash", "parry_pose", "not_parry_pose", "parry_bash",
         "hilt_pommel", "punch", "slap", "palm_shove_1h", "palm_shove_2h", "gun_strike", "decapitation", "no_decapitation",
         "neck_snap", "no_neck_snap", "leg_sweep", "no_leg_sweep", "lift", "no_lift", "judo_throw", "no_judo_throw", "shoulder_charge", "no_shoulder_charge", "other"};
@@ -544,15 +544,6 @@ void emitRow(Sink& s, const Row& r, int frame, const TakeInfo& info, float u2m)
         s.pos(p + "end", end != nullptr, end ? pf(*end) : glm::vec3{0.f}, u2m);
         s.pos(p + "butt_d", butt != nullptr && mon, butt ? df(*butt) : glm::vec3{0.f}, u2m);
         s.pos(p + "end_d", end != nullptr && mon, end ? df(*end) : glm::vec3{0.f}, u2m);
-        const glm::vec3* parry = qc ? sv->value("parry") : nullptr;
-        if(parry)
-        {
-            s.integer(name("parry").cStr(), (h == HAND_MAIN ? parry->x : parry->y) != 0.f ? 1 : 0);
-        }
-        else
-        {
-            s.empty(name("parry").cStr());
-        }
     }
 
     // The QC's guard state, and its other values.

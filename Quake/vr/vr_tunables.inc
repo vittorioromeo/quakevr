@@ -986,7 +986,7 @@ QVR_TUNABLE(vr_agrunt_blade_stagger_time, "0.5") // s that stagger lasts
 QVR_TUNABLE(vr_agrunt_blade_arm, "0.5") // the knock on its weapon arm: the hit reaction's share of its health per 10 m/s of the blow (0: none)
 QVR_TUNABLE(vr_agrunt_blade_fx, "1") // the contact's sparks and sound times this (0: none)
 
-// Combat > Directional Parry (vr_dirparry, experimental: QC vr_dirparry.qc)
+// Combat > Directional Parry (QC vr_dirparry.qc)
 QVR_TUNABLE(vr_dirparry_partial, "0") // under the threshold, the blow cut by this x score / threshold (0: off, the full blow)
 QVR_TUNABLE(vr_dirparry_opening, "0.5") // s: its flinch when the parry balance gave no stagger (its swing stopped: the opening)
 QVR_TUNABLE(vr_dirparry_angle, "40") // Directional Parry: degrees your weapon may be off square to its blade and its way and still count fully
@@ -995,6 +995,10 @@ QVR_TUNABLE(vr_dirparry_contact, "6") // ... units: its blade's line and your we
 QVR_TUNABLE(vr_dirparry_falloff, "2") // ... the meeting's marks fall to none at this times the contact distance
 QVR_TUNABLE(vr_dirparry_threshold, "0.75") // ... the score (angle x meeting, 0..1) that parries
 QVR_TUNABLE(vr_dirparry_window, "0.1") // ... s: at its blow, its blade's way followed on this long (where it would meet your weapon in the rest of the swing)
+QVR_TUNABLE(vr_dirparry_through_armed, "0") // ... share of a parried blow that still hurts you: an armed humanoid's
+QVR_TUNABLE(vr_dirparry_through_monster, "0") // ... a monster's own
+QVR_TUNABLE(vr_dirparry_timed_window, "0.3") // ... s: well timed: your weapon became a valid parry (moved into its way, or turned to the angle) at most this long before the contact
+QVR_TUNABLE(vr_dirparry_stroke, "0.45") // ... s: a monster's own blow (its line read from its frames): its blow held back at most this long for its blade to get to your weapon
 
 // Combat > Armed Humanoid Replacements
 QVR_TUNABLE(vr_agrunt_repl_skill0, "0.5") // the chances above times this on Easy
