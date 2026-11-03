@@ -71,6 +71,7 @@ float VR_HOLD_FLASHLIGHT = 7; // the flashlight in the hand (the client's: .vrbi
 float VR_HOLD_SSGGRIP = 8;    // on the other hand's super shotgun, the two-handed hold (vr_reload.qc VR_Reload_SsgFrame)
 float VR_HOLD_MAGREHOLD = 9;  // still gripping the magazine it just seated (vr_reload.qc: to the next VR_Reload_MagFrame)
 float VR_HOLD_TUG = 10;       // a force grab's tug on a stuck axe (vr_axestick.qc; the axe in .vr_hold_ent_*)
+float VR_HOLD_EMBED = 11;     // holding a blade stuck in a body, on its axis (vr_embedhold.qc; the blade in .vr_hold_ent_*)
 .entity vr_hold_ent_main;     // a busy kind's thing (the tugged axe; else world)
 .entity vr_hold_ent_off;
 // A grab site's exceptions to "free to grab" (VR_Hand_Free's `xAllow`, vr_wpnforcegrab.qc; 0: none, the usual):

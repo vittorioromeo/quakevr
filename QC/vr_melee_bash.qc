@@ -1421,6 +1421,7 @@ void() VR_Melee_Frame =
 };
 
 float(float xHand, entity b, float xStruck) VR_Melee_StrikeAfter; // (below)
+float(entity p, float xHand) VR_Embed_HandMayStrike; // (vr_embedhold.qc)
 
 // The blow of `xHand` this frame, if any (PlayerVRMeleeImpl): FALSE, or TRUE with the contact in mh_c_*, the kind and
 // strength set.
@@ -1440,6 +1441,10 @@ float(float xHand) VR_Melee_Strike =
     if(!VR_Throw_HandMayStrike(self, xHand))
     {
         return FALSE; // a two-handed throw's follow-through, not a blow (vr_throw_2h_nomelee)
+    }
+    if(!VR_Embed_HandMayStrike(self, xHand))
+    {
+        return FALSE; // a blade just pulled out of a body, not a blow (vr_embedhold.qc)
     }
     VR_Melee_Whoosh(xHand, b);
     VR_Swish_Frame(xHand, b); // (swings short of a blow: vr_melee_swish)

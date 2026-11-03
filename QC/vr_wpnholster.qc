@@ -389,8 +389,8 @@ float(entity ent, float xHand) wpnthrow_handtouch_ent_hand =
 
     if(performWeaponSwitch)
     {
-        // A blade in a dead body comes with a tug, not at once (vr_axestick.qc).
-        if(!forcegrabCatching && VR_AxeStick_HandTug(ent, entPlayer, xHand))
+        // A blade in a body: the hand takes hold of it on its axis, it doesn't come at once (vr_embedhold.qc).
+        if(!forcegrabCatching && VR_Embed_Grip(ent, entPlayer, xHand))
         {
             return TRUE;
         }

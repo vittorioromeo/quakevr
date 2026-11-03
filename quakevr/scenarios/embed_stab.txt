@@ -1,0 +1,11 @@
+# embed_stab: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Held stabs and swung axes stuck in bodies.
+title Embedded blades: stab with the sword, swing the axe at the grunts, one in plate
+map vrtesthall
+god
+notarget
+give "Knight's Sword" main
+give "Axe" off
+spawn "Grunt" 120 -60
+spawn "Grunt" 120 60
+spawn "Armed Grunt: Axe" 200 0
+hint Stab hard, tip first: the sword stays in. Slide it in and out, pull it free, or open your hand and grip it again. Swing the axe hard, edge first. Reset to try again.

@@ -23,9 +23,12 @@ void() info_intermission =
 void() VR_MagHolster_EncodeParms;
 void() VR_MagHolster_DecodeParms;
 
+void(entity p) VR_Embed_LevelEnd; // (vr_embedhold.qc)
+
 void() SetChangeParms =
 {
     if(AD_SetChangeParms()) return; // AD support: AD's level state (parm57..72), an exit's inventory reset (vr_ad_bridge.qc)
+    VR_Embed_LevelEnd(self); // (a blade held in a body: back in the hand, vr_embedhold.qc)
     MG3_EncodeParms(); // (Dawn of the Machine's upgrades: kept even by the SetNewParms below, vr_mg3_defs.qc)
     VR_MagHolster_EncodeParms(); // (parm73: the bound weapons home first, so the holsters' parms below have them)
 
@@ -2818,6 +2821,7 @@ float(float xHand, float xWpnId, string xSound, void(float xHand) xWpnFn) DoXHan
 void(float xHand) VR_Melee_Deal =
 {
     entity b = VR_Blow(xHand);
+    VR_Embed_Blow(xHand, b, b.mh_c_ent, b.mh_c_pos, b.mh_c_dir, b.mh_speed, b.mh_kind); // (it may stay in: vr_embedhold.qc)
     // Each thing struck sounds (a swing through two monsters sounds twice).
     float spent = VRGetMeleeHitSoundPlayed(xHand);    if(spent && b.mh_c_ent != b.mh_hit_ent)
     {
@@ -2868,6 +2872,9 @@ void(float xHand) VR_Melee_Deal =
     }
 };
 
+void(float xHand, entity b, entity m, vector xAt, vector xDir, float xSpeed, float xKind) VR_Embed_Blow; // (vr_embedhold.qc)
+void(float xHand) VR_Embed_BlowsDone;
+
 // The blows of `xHand` this frame (vr_melee.qc VR_Melee_Strike): the first, and (one swing, many things:
 // VR_Melee_Multi) every other thing, and the world, the same sweep crossed.
 void(float xHand) VR_Melee_DealAll =
@@ -2890,6 +2897,7 @@ void(float xHand, float xInMelee, float* xOutMeleeAttackFinished, float* xOutInM
     if(VRHandsTracked(self) && (time >= xInMelee || VR_Melee_Multi(VR_Blow(xHand))) && VR_Melee_Strike(xHand))
     {
         VR_Melee_DealAll(xHand);
+        VR_Embed_BlowsDone(xHand);
         *xOutMeleeAttackFinished = time + 0.1;
         *xOutInMelee = time + 0.02;
     }

@@ -36,6 +36,7 @@
 #include "vr_mem.hpp"
 #include "vr_profile.hpp"
 #include "vr_progs.hpp"
+#include "vr_protocol.hpp"
 #include "vr_units.hpp"
 #include "vr_view.hpp"
 #include "vr_weapons.hpp"
@@ -733,7 +734,8 @@ struct PointLine
     l.butt = held::drawnModelPoint(ent, blade.handle);
     const glm::vec3 line = l.tip - held::drawnModelPoint(ent, blade.hand);
     l.along = glm::length(line) > 1e-3f ? glm::normalize(line) : l.along;
-    l.entry = l.tip - l.along * fieldFloatOr(ent, fields().vr_stick_depth, 0.f);
+    // (Slid: its tip further in, or back, where it went in the same place.)
+    l.entry = l.tip - l.along * (fieldFloatOr(ent, fields().vr_stick_depth, 0.f) + fieldFloatOr(ent, fields().vr_stick_slide, 0.f));
     return l;
 }
 
@@ -806,9 +808,11 @@ void place(edict_t* ent, const Blade& blade, const glm::vec3& origin, const glm:
     glm::vec3 o = origin;
     glm::mat3 r = axes;
     const float wiggle = fieldFloatOr(ent, f.vr_stick_wiggle, 0.f);
+    const float slide = fieldFloatOr(ent, f.vr_stick_slide, 0.f);
     if(blade.how == howPoint)
     {
         const PointLine l = pointLine(ent, blade);
+        o += r * l.along * slide; // (a hand's hold: along its line, QC's)
         const glm::vec3 pivot = o + r * l.entry;
         const auto turnAbout = [&](const glm::mat3& turn) {
             r = turn * r;
@@ -827,6 +831,8 @@ void place(edict_t* ent, const Blade& blade, const glm::vec3& origin, const glm:
         return;
     }
     const DrawnEdge e = drawnEdge(ent, blade, za::clamp(static_cast<int>(fieldFloat(ent, f.vr_stick_edge)), 0, 1));
+    const glm::vec3 wound = o + r * e.mid; // (a hand's hold slides it along its facing, from where it went in)
+    o += r * e.out * slide;
     if(wiggle != 0.f)
     {
         // Rocked about the edge's middle, across the blade (the head is thin along its model's y).
@@ -835,7 +841,36 @@ void place(edict_t* ent, const Blade& blade, const glm::vec3& origin, const glm:
         r = turn * r;
         o = pivot + turn * (o - pivot);
     }
-    setPose(ent, o, r, o + r * e.mid, r * e.out);
+    setPose(ent, o, r, wiggle != 0.f ? o + r * e.mid : wound, r * e.out);
+}
+
+// Where a blade went in, in its own axes from its origin (not slid: as it stuck; a sword's where its depth says, an edge's middle).
+[[nodiscard]] glm::vec3 woundLocal(edict_t* ent, const Blade& blade)
+{
+    if(blade.how == howPoint)
+    {
+        const PointLine l = pointLine(ent, blade);
+        return l.tip - l.along * fieldFloatOr(ent, fields().vr_stick_depth, 0.f);
+    }
+    return drawnEdge(ent, blade, za::clamp(static_cast<int>(fieldFloat(ent, fields().vr_stick_edge)), 0, 1)).mid;
+}
+
+// A blade in a body's model: where it went in stays on its triangle, its turn follows the triangle's eased (from how it lies now, its
+// angles): fast in the torso, the pelvis and the head (vr_embed_torso_follow), slower in an arm or a leg (.vr_stick_loose,
+// vr_embed_limb_follow; their animations are fast). 0: rigid. `origin`, `axes`: rigid on it, then as it is.
+void easeOnBody(edict_t* ent, const Blade& blade, glm::vec3& origin, glm::mat3& axes, float dt)
+{
+    const float follow = fieldFloatOr(ent, fields().vr_stick_loose, 0.f) != 0.f ? vr_embed_limb_follow.value : vr_embed_torso_follow.value;
+    if(follow <= 0.f || dt <= 0.f)
+    {
+        return;
+    }
+    const glm::vec3 local = woundLocal(ent, blade);
+    const glm::vec3 wound = origin + axes * local;
+    const glm::quat from = glm::quat_cast(held::axesFromAngles(ent->v.angles, false));
+    const glm::quat to = glm::quat_cast(axes);
+    axes = glm::mat3_cast(glm::slerp(from, to, 1.f - za::exp(-za::min(dt, 0.05f) * follow)));
+    origin = wound - axes * local;
 }
 
 // Whether an unbroken plate of the body `host` stops the blade at `at` going along `dir` (QC's, with its spark). It never
@@ -980,6 +1015,7 @@ void place(edict_t* ent, const Blade& blade, const glm::vec3& origin, const glm:
         report(ent, "no frame on %s: bounces", hostName);
         return false;
     }
+    setFieldFloat(ent, fields().vr_stick_bladelen, bladeLength);
     report(ent, "the point stuck in %s (%d, kind %d) at %.0f u/s (%.1f m/s), %.0f deg off its line, %.0f deg off straight in, "
                 "%.2f of the step, %.1f units deep (%.0f%% of the blade %.1f long)",
         hostName, NUM_FOR_EDICT(host), best.kind, speed, speed / m2u, sideOn, incidence, best.fraction, tipDepth,
@@ -1299,6 +1335,146 @@ bool beforeStep(edict_t* ent, const glm::vec3& com, const glm::vec3& vel, const 
     return true;
 }
 
+bool stickHeld(edict_t* ent, edict_t* host, const glm::vec3& at, const glm::vec3& vel, int hand)
+{
+    const FieldOffsets& f = fields();
+    const func_t stuckFn = bindings().AxeStick_Stuck;
+    const Blade* blade = bladeOf(ent);
+    if(!stuckFn || !blade || blade->how == howNone || !vr_embed.value || host == qcvm->edicts || host->free)
+    {
+        return false;
+    }
+    // Where the hand's weapon is drawn (the local player's; the hand's own place, QC's, is off it by its settings' angles).
+    glm::vec3 drawnAt, drawnAngles;
+    if(hand >= 0 && view::drawnWeaponPlace(hand, modelOf(ent), drawnAt, drawnAngles))
+    {
+        store(drawnAt, ent->v.origin);
+        store(drawnAngles, ent->v.angles);
+    }
+    const glm::vec3 origin = vec(ent->v.origin);
+    const glm::mat3 axes = held::axesFromAngles(ent->v.angles, false);
+    const float speed = glm::length(vel);
+    const glm::vec3 way = speed > 1e-3f ? vel / speed : axes[0];
+    const char* hostName = PR_GetString(host->v.classname);
+
+    Strike best;
+    best.host = host;
+    hitmodel::Hit hit;
+    float away = 0.f;
+    constexpr float nearEnough = 32.f; // units: its model no longer there (the blow cut it off): no
+    if(hitmodel::nearestAny(host, at, hit, away) && hit.tri >= 0 && away <= nearEnough)
+    {
+        best.kind = Model;
+        best.point = hit.surface;
+        best.normal = hit.normal;
+        best.anchor = glm::vec3{static_cast<float>(hit.tri), hit.u, hit.v};
+    }
+    else if((static_cast<int>(host->v.flags) & FL_MONSTER) && !hitmodel::target(host))
+    {
+        best.kind = MonsterBox;
+        best.point = at;
+        best.normal = -way;
+    }
+    else
+    {
+        report(ent, "a hand's blow at %s, %.1f units from its model: not stuck", hostName, away);
+        return false;
+    }
+
+    const float m2u = units::metresToUnits();
+    glm::vec3 stuckOrigin = origin;
+    int bit = 0;
+    float depth = 0.f, goal = 0.f, bladeLength = 0.f;
+    if(blade->how == howPoint)
+    {
+        const glm::vec3 tip = held::drawnModelPoint(ent, blade->tip);
+        const glm::vec3 along = axes * glm::normalize(tip - held::drawnModelPoint(ent, blade->hand));
+        bladeLength = glm::distance(tip, held::drawnModelPoint(ent, blade->from));
+        // How deep it goes on to, by the blow's speed; as it is struck it is in as far as it is, the hand's own motion
+        // and QC's ease take it on (a hand must not be flung there).
+        const float least = vr_embed_stab_speed.value * m2u;
+        const float lo = za::max(0.f, vr_embed_sword_depth_min.value), hi = za::max(lo, vr_embed_sword_depth_max.value);
+        const float share = za::clamp((speed - least) / za::max(1.f, vr_embed_sword_depth_speed.value * m2u - least), 0.f, 1.f);
+        goal = glm::mix(lo, hi, share) * 0.01f * bladeLength;
+        const float now = glm::dot(origin + axes * tip - best.point, along);
+        depth = za::clamp(now, za::min(1.f, goal), za::max(goal, 1.f));
+        stuckOrigin = origin + along * (depth - now);
+    }
+    else
+    {
+        // The edge leading the blow: edge first, not its side nor along the handle.
+        float bestLead = -2.f;
+        for(int e = 0; e < 2; e++)
+        {
+            const float lead = glm::dot(axes * drawnEdge(ent, *blade, e).out, way);
+            if(lead > bestLead)
+            {
+                bestLead = lead;
+                bit = e;
+            }
+        }
+        const DrawnEdge e = drawnEdge(ent, *blade, bit);
+        const glm::vec3 out = axes * e.out;
+        const glm::vec3 run = axes * (e.b - e.a);
+        const glm::vec3 across = glm::length(glm::cross(run, out)) > 1e-4f ? glm::normalize(glm::cross(run, out)) : glm::vec3{0.f, 0.f, 1.f};
+        const float sideOn = glm::degrees(za::asin(za::clamp(za::abs(glm::dot(way, across)), 0.f, 1.f)));
+        const glm::vec3 handleWay = axes * (held::drawnModelPoint(ent, blade->head) - held::drawnModelPoint(ent, blade->handle));
+        const float alongHandle = glm::length(handleWay) > 1e-3f ? za::abs(glm::dot(way, glm::normalize(handleWay))) : 0.f;
+        constexpr float leadLeast = 0.25f; // the way the blow goes on the edge's facing: less, along its edge
+        constexpr float handleMost = 0.8f; // the way the blow goes along the handle: more, driven head first, a stab
+        if(sideOn > vr_embed_swing_angle.value || bestLead < leadLeast || alongHandle > handleMost)
+        {
+            report(ent, "a hand's blow at %s: %.0f deg side on, %.2f its edge's facing, %.2f along its handle: not stuck", hostName, sideOn,
+                bestLead, alongHandle);
+            return false;
+        }
+        const float most = za::max(0.f, vr_axestick_depth.value) * 0.01f * m2u;
+        const float wanted = za::min(most * za::clamp(speed / (2.f * vr_embed_swing_speed.value * m2u), 0.5f, 1.f), 0.6f * e.width);
+        const float now = glm::dot(origin + axes * e.mid - best.point, out);
+        constexpr float shiftMost = 8.f; // units a blow's edge is moved to its depth (a hand must not be flung there)
+        stuckOrigin = origin + out * za::clamp(wanted - now, -shiftMost, shiftMost);
+    }
+    if((best.kind == Model || best.kind == MonsterBox) && plateStops(ent, host, best.point, way))
+    {
+        report(ent, "a hand's blow at %s: an unbroken plate", hostName);
+        return false;
+    }
+    setFieldFloat(ent, f.vr_stick_slide, 0.f);
+    if(!keepPose(ent, *blade, best, bit, stuckOrigin, axes, depth, vel))
+    {
+        report(ent, "a hand's blow at %s: no frame there", hostName);
+        return false;
+    }
+    setFieldFloat(ent, f.vr_stick_goal, goal);
+    setFieldFloat(ent, f.vr_stick_bladelen, bladeLength);
+    report(ent, "a hand's blow stuck in %s (%d, kind %d) at %.1f m/s, %.1f units deep, going to %.1f (the blade %.1f long)", hostName,
+        NUM_FOR_EDICT(host), best.kind, speed / m2u, depth, goal, bladeLength);
+    SV_LinkEdict(ent, false);
+    callStuck(stuckFn, ent, host, best.kind, speed);
+    return true;
+}
+
+void calcStats(edict_t* player, int* statsi)
+{
+    using namespace protocol;
+    const FieldOffsets& f = fields();
+    const int handle = static_cast<int>(fieldFloatOr(player, f.vr_embed_handle, 0.f));
+    for(int h = 0; h < 2; h++)
+    {
+        const int ofs = h ? f.vr_embed_main : f.vr_embed_off;
+        int stat = 0;
+        if(ofs >= 0)
+        {
+            const edict_t* w = PROG_TO_EDICT(fieldInt(player, ofs));
+            if(w != qcvm->edicts && !w->free)
+            {
+                stat = NUM_FOR_EDICT(const_cast<edict_t*>(w)) * 2 + ((handle & (1 << h)) ? 1 : 0);
+            }
+        }
+        statsi[h ? STAT_QVR_EMBEDMAIN : STAT_QVR_EMBEDOFF] = stat;
+    }
+}
+
 void serverFrame()
 {
     const FieldOffsets& f = fields();
@@ -1322,8 +1498,12 @@ void serverFrame()
         }
         const glm::vec3 ang = fieldVec(ent, f.vr_stick_ang);
         const float a[3]{ang.x, ang.y, ang.z};
-        const glm::vec3 stuckAt = point + axes * fieldVec(ent, f.vr_stick_ofs);
-        const glm::mat3 stuckAxes = axes * held::axesFromAngles(a, true);
+        glm::vec3 stuckAt = point + axes * fieldVec(ent, f.vr_stick_ofs);
+        glm::mat3 stuckAxes = axes * held::axesFromAngles(a, true);
+        if(vr_embed.value && static_cast<int>(fieldFloat(ent, f.vr_stick_kind)) == Model)
+        {
+            easeOnBody(ent, *blade, stuckAt, stuckAxes, static_cast<float>(host_frametime));
+        }
         if(blade->how == howPoint && static_cast<int>(fieldFloat(ent, f.vr_stick_kind)) == Level)
         {
             stepSag(ent, *blade, stuckAt, stuckAxes, static_cast<float>(host_frametime));

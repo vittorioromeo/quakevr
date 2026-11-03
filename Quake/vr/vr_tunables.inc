@@ -1807,3 +1807,28 @@ QVR_TUNABLE(vr_flat_sway, "1") // the drawn hands' sway as he starts, stops, jum
 QVR_TUNABLE(vr_flat_bob, "1") // the drawn hands' bob on a walk, with his speed, and the breathing at rest (0..3); 0 none
 QVR_TUNABLE(vr_flat_turnlag, "1") // the drawn hands trail a turn and catch up (0..3, at most 4 degrees each): "weapon inertia"; 0 the hands locked to the view
 QVR_TUNABLE(vr_flat_turnlag_speed, "1") // how fast they catch up (0.1..5, times a critically damped spring's 18/s)
+
+// Combat > Embedded Blades: held stabs and swung axes (QC/vr_embedhold.qc; ROUND23.md, "Embedded blades, stage 2")
+QVR_TUNABLE(vr_embed_stab_speed, "3.5") // m/s the hand must drive a held sword or pointed blade at (a stab's own need is 2.4)
+QVR_TUNABLE(vr_embed_stab_angle, "35") // degrees at most between the way its tip goes and the blade's line
+QVR_TUNABLE(vr_embed_stab_tip, "40") // % of the blade from its tip that may be what strikes first
+QVR_TUNABLE(vr_embed_swing_speed, "6") // m/s the hand must drive a swung axe at
+QVR_TUNABLE(vr_embed_swing_angle, "45") // degrees at most the blow goes off the blade's plane
+QVR_TUNABLE(vr_embed_enter_time, "0.12") // s a stab takes to go on to its depth (by its speed) once it has struck
+QVR_TUNABLE(vr_embed_hold_follow, "15") // 1/s: how fast the blade follows the hand past the stick
+QVR_TUNABLE(vr_embed_hold_sword_stick, "2") // cm the hand moves along the axis before a sword moves, barely in
+QVR_TUNABLE(vr_embed_hold_sword_stick_deep, "5") // ... in as far as it goes
+QVR_TUNABLE(vr_embed_hold_sword_rate, "100") // cm/s a sword slides at most, barely in
+QVR_TUNABLE(vr_embed_hold_sword_rate_deep, "35") // ... in as far as it goes
+QVR_TUNABLE(vr_embed_hold_sword_most, "85") // % of the blade it goes in at most
+QVR_TUNABLE(vr_embed_hold_sword_out, "2") // cm of its tip still in as it comes free
+QVR_TUNABLE(vr_embed_hold_axe_stick, "0.8") // cm before an axe moves
+QVR_TUNABLE(vr_embed_hold_axe_rate, "180") // cm/s an axe slides at most
+QVR_TUNABLE(vr_embed_hold_axe_travel, "5") // cm an axe is pulled to come free
+QVR_TUNABLE(vr_embed_hold_corpse, "0.5") // times the stick in a dead body (the rate divided by it)
+QVR_TUNABLE(vr_embed_hold_break, "30") // cm the hand may go off the axis before the blade comes free
+QVR_TUNABLE(vr_embed_hold_reach, "60") // cm the hand may have gone further from where the blade went in before it comes free (a limb moved away)
+QVR_TUNABLE(vr_embed_hold_reach_corpse, "4") // times that in a dead body (it falls away from the hand, the hold goes on)
+QVR_TUNABLE(vr_embed_hold_slide_damage, "0") // damage per 10 cm slid deeper
+QVR_TUNABLE(vr_embed_limb_follow, "6") // 1/s: how fast a blade in an arm or a leg takes the limb's turn (0: rigid)
+QVR_TUNABLE(vr_embed_torso_follow, "25") // 1/s: how fast a blade in the torso, the pelvis or the head takes its turn (0: rigid)

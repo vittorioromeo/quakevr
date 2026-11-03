@@ -483,6 +483,7 @@ float(float xHand, entity b, float xI, float xKind) VR_Melee_Decide =
     }
     float minSpeed = VR_Melee_MinSpeedOf(b);
     float f = vr_mpt_f[xI];
+    b.mh_c_f = f;
     vector vp = VR_Melee_PointVel(b, f);
     vector axis = normalize(b.mh_rfar - b.mh_rgrip);
     float vfar = vlen(b.mh_vfar);

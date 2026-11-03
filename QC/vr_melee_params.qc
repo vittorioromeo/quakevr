@@ -284,6 +284,7 @@ float VR_MKIND_SLAP = 4;   // an open hand swung across (VR_Melee_Slaps): a punc
 .vector mh_c_pos;
 .vector mh_c_dir;
 .vector mh_c_normal;
+.float mh_c_f;          // the point that struck: how far along the line (vr_mpt_f; VR_Melee_Decide; vr_embedhold.qc)
 .float mh_c_blunt;      // a wall's: struck by a blunt part (not VR_MPT_EDGE: a pommel, a butt, a handle; VR_Melee_WallMark)
 .float mh_c_gib;        // it is a loose gib or head (it bursts: gone by VR_Melee_Landed)
 // The stance and the push (VR_Bash).

@@ -727,6 +727,18 @@ const DrawnWeapon& drawnWeapon(int hand)
     return drawnWeapons[hand == 0 ? 0 : 1];
 }
 
+bool drawnWeaponPlace(int hand, const qmodel_t* model, glm::vec3& origin, glm::vec3& angles)
+{
+    if(hand < 0 || hand >= HAND_COUNT || !model || entities.weapon[hand].ent.model != model)
+    {
+        return false;
+    }
+    const entity_t& e = entities.weapon[hand].ent;
+    origin = glm::vec3{e.origin[0], e.origin[1], e.origin[2]};
+    angles = glm::vec3{e.angles[0], e.angles[1], e.angles[2]};
+    return true;
+}
+
 bool drawnIndexTip(int hand, glm::vec3& local)
 {
     if(hand != 0 && hand != 1)

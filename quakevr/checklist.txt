@@ -42,6 +42,12 @@ Throw a sword into a grunt: it bleeds; kill it and the blade stays in the corpse
 Grip a blade in a corpse: it only comes out once you pull about 8 cm; letting go leaves it in. {test:embed_throw}
 Gib the body or cut off the limb with a blade in it: the blade falls. {test:embed_throw}
 Combat > Embedded Blades: turn Embedded Blades off and only axes stick, falling out when the body dies. {test:embed_throw}
+Stab a grunt hard, tip first: the sword stays in, your hand on the hilt. A slow stab or one off the blade's line doesn't stick. {test:embed_stab}
+Push it deeper or pull it a little: it slides along its axis, harder the deeper it is. Pull right out: a small spurt, in your hand, no second hit. {test:embed_stab}
+Pull hard to the side: it comes free into your hand. {test:embed_stab}
+Open your hand: the sword stays in the body, bleeding, not thrown. Grip it: back on the same axis. Force grab from afar: it tugs out and flies to you. {test:embed_stab}
+Swing the axe hard, edge first: it sticks, and comes out after a short 5 cm pull. An axe driven head first along its handle doesn't stick. {test:embed_stab}
+Kill or gib the grunt with the sword held: dead, you still hold it and a light tug takes it; gibbed, it's back in your hand. {test:embed_stab}
 
 [3. Bodies: grabbing, throwing, hits]
 Neck snap standing and on a lifted body: it goes limp, still held. Leg grabs: pull one down by the shins, drag it by the legs, lift it by the legs. {test:grunts_to_throw}

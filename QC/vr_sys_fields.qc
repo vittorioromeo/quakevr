@@ -315,6 +315,13 @@
 .vector vr_stick_spin;   // something, and it never sticks after: a handle-first throw bounces)
 .float  vr_stick_embed;  // how it stuck (the engine's; weapons.txt embed): AXESTICK_POINT, AXESTICK_EDGE
 .float  vr_stick_depth;  // by its point: units from the tip back to where it went in (the engine's)
+.float  vr_stick_slide;  // units it has slid along its axis since it stuck (+ deeper, - out: vr_embedhold.qc)
+.float  vr_stick_goal;   // a held stab's: the depth it goes on to as it enters (the engine's; 0: there)
+.float  vr_stick_bladelen; // a held stab's: the blade's length (the engine's)
+.float  vr_stick_loose;  // in an arm or a leg: its turn follows the limb's eased (the engine reads it)
+.entity vr_embed_off;    // on a player: the blade its off hand holds in a body (VR_Embed_Derive; the engine reads it)
+.entity vr_embed_main;   // the main hand's
+.float  vr_embed_handle; // the hands on theirs by the handle (bits)
 .float  vr_stick_sag;    // by its point, in the level: degrees it sags under its weight now (the engine's)
 .float  vr_stick_sagv;   // how fast (degrees a second; the engine's)
 .void(float xSpeed) vr_impact; // a rigid body hitting something (the world, a prop, a monster) at xSpeed m/s (at least

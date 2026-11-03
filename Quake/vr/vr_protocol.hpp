@@ -181,7 +181,11 @@ enum Stat : int
     STAT_QVR_REVOLVERCYL,
     STAT_QVR_REVOLVERCYL2,
     STAT_QVR_HOLSTERCLIPSIZE0, // 6: each holster's weapon's own magazine size (QC VR_ClipSizeOf): its ammo screen's warning colour
-    STAT_QVR_END = STAT_QVR_HOLSTERCLIPSIZE0 + 6
+    // The blade each hand holds in a body (vr_axestick.cpp, VR_HOLD_EMBED): its edict * 2 + 1 if by its handle; 0 none. The
+    // hand is drawn on it (vr_view_hands.cpp embedDrawnHand).
+    STAT_QVR_EMBEDOFF = STAT_QVR_HOLSTERCLIPSIZE0 + 6,
+    STAT_QVR_EMBEDMAIN,
+    STAT_QVR_END
 
 };
 

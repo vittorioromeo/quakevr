@@ -73,6 +73,19 @@ void PF_weapongrabspot()
 // 1 by a hotspot, 2 anywhere on it (vr_weapon_grab_anywhere: a free grip, or both hands on a carried weapon; or a moment
 // ago). QC VRTryHandOff: letting go of the other hand leaves the weapon carried by this one where it holds it. The local
 // player's only (others' are 0).
+// float embedstick(entity w, entity host, vector at, vector vel, float hand): axestick::stickHeld.
+void PF_embedstick()
+{
+    edict_t* w = G_EDICT(OFS_PARM0);
+    edict_t* host = G_EDICT(OFS_PARM1);
+    const float* at = G_VECTOR(OFS_PARM2);
+    const float* vel = G_VECTOR(OFS_PARM3);
+    const glm::vec3 place{at[0], at[1], at[2]};
+    const glm::vec3 going{vel[0], vel[1], vel[2]};
+    const int hand = static_cast<int>(G_FLOAT(OFS_PARM4));
+    G_FLOAT(OFS_RETURN) = axestick::stickHeld(w, host, place, going, hand) ? 1.f : 0.f;
+}
+
 void PF_weaponanygrip()
 {
     edict_t* player = G_EDICT(OFS_PARM0);

@@ -220,6 +220,9 @@ float(float skill) arenawavesload = #0;
 string(float wave, float entry, float field) arenawavesfield = #0;
 void(string s) arenawavesreport = #0;
 vector(entity player, float hand, float what) weapondrawnpose = #0;
+// Embedded blades (vr_embedhold.qc; vr_axestick.cpp stickHeld): the just-made blade w put into the body host at `at`, going at
+// `vel` (units/s), from where `hand`'s weapon is drawn: TRUE if it stuck (VR_AxeStick_Stuck called).
+float(entity w, entity host, vector at, vector vel, float hand) embedstick = #0;
 // The armed humanoids' lookups in one call each (PERF_1102.md, "Follow-up"), their results in these globals as
 // traceline's in trace_*. agposekey: pose key `code` (VR_AGK_Add; weapondrawnpose(world, code, 11..18, 25, 26) at once):
 // '1 0 0' and its parts in vr_agk_k_* (the right target's place and turn, the left's, the elbows' poles, the torso's turn,

@@ -857,6 +857,7 @@ extern "C" void VR_CalcStats(client_t* client, int* statsi, float* statsf)
 {
     climb::calcStats(client->edict, statsi); // any progs
     foegrab::calcStats(client->edict, statsi);
+    axestick::calcStats(client->edict, statsi);
     if(!bindings().isVrProgs)
     {
         return;

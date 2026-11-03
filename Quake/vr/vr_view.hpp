@@ -355,6 +355,9 @@ struct DrawnWeapon
     glm::vec3 magBox[4]{};
 };
 [[nodiscard]] const DrawnWeapon& drawnWeapon(int hand);
+// Where `hand`'s weapon `model` was placed last (its origin, its entity's angles). False: another model, none, not the local
+// player's view (a server without one).
+[[nodiscard]] bool drawnWeaponPlace(int hand, const qmodel_t* model, glm::vec3& origin, glm::vec3& angles);
 
 // The jointed hand's index fingertip as `hand` was drawn last (its pose then: pointing, curled, holding), from its
 // tracked place (hands::State::pos) along its tracked turn's forward, right and up (units): the gadget's side button

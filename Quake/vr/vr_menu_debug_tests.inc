@@ -1148,6 +1148,9 @@ za::Vector<Item> pageDebugTests()
             .help("Destructive: in the open with god and notarget (vrtesthall): swords thrown at the wall ahead (point first, "
                   "flat, by the hilt; its sag), at a live body, a corpse, a knocked down one, a ragdoll; dying, gibbing and "
                   "cutting with one in; a plate; vr_embed 0. Prints embedtest: N passed, M failed."),
+        command("Held Stabs and Swung Axes Check", "vr_embed_test 7")
+            .help("Held stabs and swung axes with the hand driven by the mock: what sticks, the hold's slide, coming free, letting "
+                  "go, gripping again, plates, bodies dying or going with it held, vr_embed 0. Prints embedheld: N passed, M failed."),
         command("Sword in a Wall and a Corpse", "vr_embed_test 2")
             .help("A sword thrown into the wall ahead and one into a corpse beside it, to look at."),
         header("Thrown Axe"),

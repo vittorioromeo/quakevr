@@ -23,7 +23,8 @@ float(entity e) VR_AxeStick_Tugging;
 void(entity e, entity xPlayer, float xHand) VR_AxeStick_Tug;
 void() VR_AxeStick_Think;
 float(entity e) VR_AxeStick_Kept;
-float(entity e, entity xPlayer, float xHand) VR_AxeStick_HandTug;
+float(entity e, entity xPlayer, float xHand) VR_Embed_Grip;
+float(entity e) VR_Embed_Held;
 void(entity e, float xTakes) VR_AxeStick_CutPrepare;
 void(entity e) VR_AxeStick_CutDone;
 void(entity e) VR_AxeStick_PulledOut;
@@ -188,7 +189,7 @@ float(entity e) VR_Forcegrab_IsEligible =
     // Cheapest first: no model (triggers, most of what findradius finds around the hand), then
     // what kind of thing (monsters and doors are none): a dropped or thrown object, or a weapon lying
     // in the level in single player (in coop and deathmatch they stay for all).
-    if(e.model == string_null || e.fg_state != 0 || e == world || VR_AxeStick_Tugging(e))
+    if(e.model == string_null || e.fg_state != 0 || e == world || VR_AxeStick_Tugging(e) || VR_Embed_Held(e))
     {
         return FALSE;
     }
