@@ -157,6 +157,7 @@ vr_agrunt_test   200      vr_armedgrunt_aware_test.qc      disarm attempts on un
 vr_agrunt_test   202      vr_armedgrunt_impact_test.qc     the impact rule: a push, you walking into it, a topple or a swing in the air keep the weapon; a fall, a throw into the floor or a wall, a body banged into a wall drop it
 vr_agrunt_test   203      vr_armedgrunt_dualdisarm_test.qc a dual wielder disarmed of its off hand, then its main: slots, each weapon drawn on its hand, its pick-up
 vr_agrunt_test   204      vr_ogre_friends_test.qc          ogres (and MG3 rocket ogres) behind a friend: friendly hits careless, careful, its attack rate, one always in the way
+vr_agrunt_test   205      vr_armedgrunt_gunlag_test.qc     a held gun stays with its body as it walks
 vr_agrunt_test   201      vr_armedgrunt_test.qc            dual wielders' both guns drawn: 30 dual nail pistol spawns (VR_AGTest_DualSpawns)
 
 vr_flare_test    1*       vr_flaregun_test.qc              (the self-test (its fall-through))

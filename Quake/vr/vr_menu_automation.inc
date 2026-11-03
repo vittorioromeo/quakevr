@@ -391,6 +391,14 @@ za::Vector<Item> pageDebugAutomation()
                   "(Rifle, Pistol, Shoulder Launcher, Sprayer, Laser Cannon, Widowmaker) against the built-in table; a "
                   "Pistol Aim key moved 5 forward moves the pistols' keys only (then reset: vr_agrunt_pose_key <code> "
                   "reset); a Pose Category set changes that kind's only. agtest lines, then a verdict."),
+        command("Armed Humanoids: Gun on the Move", "scratch1 1; vr_agrunt_test 205")
+            .help("vr_agrunt_test 205 (vrtesthall; about 40 s): each kind with a nail pistol runs on the spot, forward, right, "
+                  "backwards and left across one place beside you: its drawn hand from its drawn head in each, off the spot's "
+                  "by at most 3 units; a screenshot of its side in each. agtest lines, then a verdict."),
+        command("Dead Fiend, Dog and Spawn Stay Dead", "vr_deadanim_test 20")
+            .help("vr_deadanim_test 20 (21 a dog, 22 a spawn; vrfiringrange; about 2 minutes): killed by shots, blows and a neck "
+                  "snap, on the ground and in mid-leap, knocked down, staggered, by a blast its own leap set off; its corpse "
+                  "poked: its body never runs its AI or leaps again. deadleap lines, then a verdict."),
         command("Armed Humanoids: Glitch Finder", "scratch2 0; scratch3 0; vr_agglitch_shots 0; vr_agrunt_test 46")
             .help("vr_agrunt_test 46 (vrtesthall; about 11 minutes): you unseen, each kind with each weapon class in turn "
                   "(fists, sword, axe, the guns, the chainsaw, two shotguns, two axes, Mjolnir) plays its real fights "
