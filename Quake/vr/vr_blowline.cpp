@@ -25,6 +25,7 @@
 
 #include "vr_engine.hpp"
 #include "vr_mdldequant.hpp"
+#include "vr_mem.hpp"
 #include "vr_progs.hpp"
 
 #include "Zancle/Container/Vector.hpp"
@@ -97,10 +98,17 @@ struct ChainTable
 {
     const void* progs{nullptr};
     za::Vector<int> before;
+    auto members() { return mem::list(progs, before); }
 };
-ChainTable chains;
+mem::Cache<ChainTable> chains{"blow lines' frame chains", mem::GameDirChange};
 
-za::Vector<ModelBlows*> known; // the models read so far (for the program's life: a model's frames don't change)
+// The models read so far.
+struct KnownModels
+{
+    za::Vector<ModelBlows> models;
+    auto members() { return mem::list(models); }
+};
+mem::Cache<KnownModels> known{"blow lines", mem::GameDirChange};
 
 const aliashdr_t* headerOf(const qmodel_t* model)
 {
@@ -123,15 +131,16 @@ ModelBlows* modelFor(qmodel_t* model)
     {
         return nullptr;
     }
-    for(ModelBlows* m : known)
+    for(ModelBlows& m : known.models)
     {
-        if(m->model == model && m->numVerts == hdr->numverts && m->numPoses == hdr->numposes)
+        if(m.model == model && m.numVerts == hdr->numverts && m.numPoses == hdr->numposes)
         {
-            return m;
+            return &m;
         }
     }
     mdldequant::prepare(model);
-    ModelBlows* m = new ModelBlows();
+    known.models.pushBack(ModelBlows{});
+    ModelBlows* m = &known.models.back();
     m->model = model;
     m->numVerts = hdr->numverts;
     m->numPoses = hdr->numposes;
@@ -156,7 +165,6 @@ ModelBlows* modelFor(qmodel_t* model)
             m->prev[static_cast<za::SizeT>(m->next[p])] = static_cast<short>(p);
         }
     }
-    known.pushBack(m);
     return m;
 }
 
@@ -414,7 +422,7 @@ int runFor(ModelBlows& m, int frame, int then)
     int fn = then;
     int f = thenFrame, nx = thenNext;
     int last = frame;
-    while(fn > 0 && f == last + 1 && static_cast<int>(ahead.size()) < maxRunFrames)
+    while(fn > 0 && f == last + 1 && f < hdr->numframes && static_cast<int>(ahead.size()) < maxRunFrames)
     {
         ahead.pushBack(f);
         last = f;
@@ -437,7 +445,7 @@ int runFor(ModelBlows& m, int frame, int then)
             }
         }
         int at = frame;
-        while(cur > 0 && static_cast<int>(back.size()) < maxRunFrames)
+        while(cur > 0 && at > 0 && static_cast<int>(back.size()) < maxRunFrames)
         {
             cur = before[static_cast<za::SizeT>(cur)];
             if(cur > 0)

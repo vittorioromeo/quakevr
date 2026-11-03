@@ -7753,3 +7753,79 @@ Seeded runs on `vrtesthall`, drawn, on next at 10362cc5f plus this branch.
    The number of tries changes as well as the takings: the same idle nailgun group is 3/6 with 4 not reached, then 9/9 with 1. The losses that vary are mostly "fist off" and "state not reached"; 90% sits inside that spread. What varies with the seed fixed: not found; wall time shows no pattern (a fail at 68 s, passes at 64 s and 200 s). So both stay on `test_flaky.txt`. The floor was not lowered.
 
 Checklist line, item 2: a replaced grunt or enforcer, whatever it holds, drops what it holds and its backpack, never an extra weapon; a plain grunt or enforcer (`vr_agrunt_repl` 0) still sometimes does. {test:vrtesthall}
+
+## Directional parry: the only parry (branch `agent/parryonly`)
+
+His words (2026-11-03): "Directional parry: remove the old level-parry fallback now that it's on by default?" "Yes, and cleanup all
+code paths. Motion recorder poses could also be cleaned up, since they use the old parry system. Also check what should be done
+for monsters that do not use the armed humanoid IK system -- are we able to reasonably estimate the melee blow direction from
+their baked melee animations?"
+
+**Yes, it's reasonable: the frames give a good line.** `Quake/vr/vr_blowline.cpp`, builtin `blowline(m, tau, which)`, generated from
+the drawn model when it first strikes (nothing per monster by hand). Before: every blow but an armed humanoid's melee swing was read
+by level-across (`VR_Parry_Blocks`), so a stock ogre's side swing was parried by a sword level across, not an upright one.
+- **Its animation** is the QuakeC's frame functions' chain (`[$attackb6, knight_atk7]`, an OP_STATE: `mdldequant::frameFunction`). The
+  shipped models' names don't say (`quakevr/progs/knight.mdl`'s frames are "1", "2"..., its shambler's all "From ASE", its dog's empty)
+  nor do the dequantiser's runs (a fiend's stroke is one big jump it cuts at).
+- **The striker:** the vertex that travels furthest over the animation, and what stays rigid with it (2.5 units; a sword, a saw, a
+  forearm and claw). Its two furthest vertices are the line. A second limb that travels 60% as far, sharing no vertex, is a second one.
+- **A blow's line at a frame:** the striker that travels furthest from 3 frames back to 2 ahead; a line if it's 16 long, reaches 20 ahead
+  of the origin, its far end sweeps 30 square to it and it turns 25 degrees. Both limbs if the other goes 70% as far.
+- **As drawn at a time:** the frames' lerp over the 0.1 s think: `tau` s along the chain.
+- **The rule's the same** (`VR_DRP_Eval`): your weapon square to its line and its way (the line's turn), within `vr_dirparry_contact`.
+  Its line can be read ahead, so: a blow is dealt as its frame starts, the one before still drawn, some before their blade has even
+  gone up (an ogre's smash: first blow 0.5 s, its chop 0.8-0.9 s). With your weapon within 48 units of its way the blow is held back
+  (a follower entity, `VR_DRP_HeldThink`) until it meets your weapon, or `vr_dirparry_stroke` (new tunable, 0.45 s) is over. Blows dealt
+  meanwhile add up. Read back 0.1 s at the blow. From further than it's drawn reaching (Quake's reach is longer) the line reads as coming as far as
+  your weapon, 40 units at most.
+- **Not retuned:** a parry of a monster's own blow does what it did (`vr_parry_reduction`, parry balance, cooldown, one attack one
+  parry). An armed humanoid's swing still takes none and always flinches. Only which pose parries changed. His call if they should match.
+- **Who, measured with `vr_blowline_dump` (this game's models, not id's) and test 78:**
+  | monster | line | your weapon |
+  |---|---|---|
+  | knight (`vr_agknight 0`; 1, the default: armed, as before) | sword, 37 long | attackb chop: level across; runattack: upright, then level |
+  | ogre | chainsaw, 40 long | swing: upright; smash: level across |
+  | fiend | each forearm and claw, 20 and 25 | as each claw comes |
+  | shambler | each arm, 21-47 | smash: level (both arms); swings: as each comes |
+  | dog, its bite | the whole dog pitching, 46-48 | level across at its head, thigh height. Not a blade, but it's what's there |
+  | hell knight (`vr_agknight 0`) | smash only: sword 45. slice, w_attack, charges: none: this model's blade tip isn't rigid with its blade there | smash: level; others the guard |
+  | fish | none: its tail is what moves | the guard |
+  | a fiend's or dog's leap landing, the spawn's | none: off the ground, the stroke is the flight | the guard |
+  | an armed humanoid's punch, butt, shove, chainsaw thrust; a grunt's shove; the training dummy | none | the guard |
+  | zombie, others | no melee blow (flesh is a missile) | - |
+  | mission packs', AD's | read the same way, not measured | line, else guard |
+  The guard, level across in front, is `VR_Parry_Blocks`, the bash's stance too, and crossed arms stay for empty hands: so
+  nothing is unparryable or always parried by accident.
+
+**Removed:** `vr_dirparry` (retired: a config's line is dropped), its menu row and toggle text, test 78's case 8, `VR_Parry_HandAcross`,
+`vr_parry_old_hand`, "experimental". **Kept:** `VR_Parry_Blocks`, `VR_Parry_Guard`, `vr_parry_angle`, `_reach`, `_muzzle_angle`: the
+guard, used above and by the bash. All `vr_dirparry_*` tunables. New: `vr_dirparry_stroke` 0.45, test knob `vr_parry_test_guard` 0
+(tests of what a parry does: parry_pose, parryinterrupt, parrybalance).
+
+**Motion recorder:** the poses' test towards the target (`VR_Parry_Blocks` per hand, QC sample `parry` x, y; columns `m_parry`, `o_parry`)
+went: a parry of a weapon has no pose now. All recordings stay and still drive the eval: `pose:parry` now means the guard (`guard` >= 0,
+the bash's stance) or crossed arms (`parry_arms`); the ids stay (`parry_pose`, `not_parry_pose`, `parry_bash`: his takes' labels), their
+menu names became Expected Guard Pose, Not Guard Pose, Expected Guard Bash. `eval.sh` (full, 171 takes): 169 verdicts the same, 2 move
+FAIL -> PASS, `not_parry_pose_2026-10-12_12-38-35` and `-38` (a sword; the test towards the target said parry in 174/174 and 46/180
+frames, the facing guard doesn't). Hits unchanged; 10 takes' damage differs by 0.1 (not traced: no melee code touched). The baseline
+(`kit/eval_baseline.csv`) wants those 2 rows updated.
+
+**Tests** (3 runs each where noted). Test 78: 36/0 (armed 19, monsters' 17: reference, across parried, along lands; the lines' planes
+checked: knight chop and ogre smash upright, ogre swing level; a standing knight's blow the guard). Agtests 35 flaky as before (5/1 or 6/0 on
+this branch and on origin/next alike, a different weapon each time), 60 6/0, 96 8/0, 98 6/0. parry_pose kinds 1, 5, 9: 0 squashed.
+parryinterrupt pass. parrybalance: `pose` fails on origin/next too (not well timed); `repeat`, see the report.
+A screenshot of test 78's `scratch2 1` with Show Disarm Volumes showed the knight's line on its drawn sword.
+
+**Questions for him:** (1) A directional parry with an upright weapon is never "well timed" (`vr_guard_up_*` is the guard's raise), armed
+humanoids' as before: count a raise of any kind? (2) A monster's parried blow still lets 25% through (`vr_parry_reduction`), an
+armed humanoid's none: match? (3) A held blow lands up to 0.45 s after it was dealt if your weapon was near but not across.
+
+Checklist:
+- [parryonly] `vr_agknight 0`, {test:dirparry}-like: a plain knight's chop: hold your sword level across where its blade comes down: sparks
+  there, it staggers; upright against the same chop: the blow lands.
+- [parryonly] An ogre's side swing: hold your weapon upright in its way: sparks; level across: the blow lands. Its overhead smash: level across.
+- [parryonly] A fiend's claws and a shambler's arms: your weapon across each as it comes. A dog: low, level across its head.
+- [parryonly] A leap landing on you (a fiend's), a fish's bite: a weapon held level across in front of you parries, as before.
+- [parryonly] Debug > Show Disarm Volumes near a monster: its blow's line drawn on its weapon or limb during its attack.
+- [parryonly] VR Settings > Combat > Parry and Bash: no Directional Parry toggle any more. Motion recorder: Expected Guard Pose, Not Guard Pose, Expected Guard Bash.
+
