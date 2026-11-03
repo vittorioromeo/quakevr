@@ -288,6 +288,19 @@ their 85 defaults. `vr_flatplay_status` prints the window it is holding, in the 
 the view stops at -85 and +85; with the cvars set to 0 and 20 on the console the same holds stop at 0 and +20; with both
 at 90 they stop at -90 and +90. `Misc/quakevr/flatkeys_test.sh` section 6.
 
+## The near plane
+
+The plain desktop's near plane is up to 4 units (12 cm; `R_ViewMatrices`, `gl_rmain.c`), and the mode holds the VR body's hands
+and weapons right at the camera: it cut them open and showed what stands behind through them. In the mode the scene is drawn as
+a headset's eye is: at `vr_nearclip` (0.1), on the eyes' float depth with reversed Z, with `vr_nearclip_held` for what is nearer
+still (`VR_FlatNearPlane`, `vr_stereo.cpp`; `VR_AliasNearEye`, `vr_render.cpp`). It is the one projection for everything,
+the world too, so a model's shadows, outlines and overlays line up, and a gun against a wall reads the true depth as it always did
+(no view model's depth range: it is hidden where it enters a wall, as in a headset). The world's plane moving loses it no precision:
+a relative 2^-24 at any near plane and distance against the 24-bit depth's z/(4 * 2^24) at 4 units. The window's own framebuffer has
+no float depth, so the mode always draws through the post-process's target (`GL_NeedsPostprocess`), one full-screen pass. No clip
+control or `vr_depth_float 0` (read when those targets are next made: a new window size or `vid_fsaa`): the desktop's plane stays and only `vr_nearclip_held` applies.
+`vr_flatplay_status` prints which. `flatpose_test.sh` section g.
+
 ## Tuning
 
 Tuning constants (Debug > Tunables > Flatscreen, `tune`, `tunables.cfg`): `vr_flat_reach` (1), `vr_flat_pose_pitch` (65),

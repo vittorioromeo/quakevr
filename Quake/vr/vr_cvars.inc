@@ -390,7 +390,7 @@ QVR_CVAR(vr_highlights_min_score, "2", CVAR_ARCHIVE)  // the least score a momen
 QVR_CVAR(vr_highlights_multikill, "3", CVAR_ARCHIVE)  // game seconds at most between two kills of one multi-kill
 QVR_CVAR(vr_debug_highlights, "0", CVAR_NONE)         // 1: each highlight printed as it is logged
 
-// Near clipping plane in the headset, in units (the desktop's is up to 4; a unit is 3 cm at World Scale 1.25):
+// Near clipping plane in the headset and in flatscreen play, in units (the plain desktop's is up to 4; a unit is 3 cm at World Scale 1.25):
 // 0.02 .. 4 with the eyes' float depth (vr_depth_float), 1 .. 4 without (a 24-bit depth's precision far away).
 QVR_CVAR(vr_nearclip, "0.1", CVAR_ARCHIVE)
 // What you hold (weapons, hands) right at the eyes: 0 cut by the near plane like the rest, 1 never cut (depth clamp:

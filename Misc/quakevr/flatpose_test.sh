@@ -17,6 +17,7 @@
 #   f. the crosshair's point against the server's shot, at offsets and with the eye nudged, near and far: in vrtesthall, from
 #      its start, a knight at 64 and at 300, the far wall (the shot lines of vr_debug_shots against the flataim: lines' point),
 #      and with vr_flat_aim_point 0 the control: the same offsets, and the shot misses.
+#   g. the near plane: a gun held at the camera, as shipped against the desktop's plane (vr_nearclip 4, vr_nearclip_held 0).
 # Each run's log is kept under Misc/quakevr/scratch. Prints the readings; a PASS/FAIL line for the two things that must
 # hold whatever these are set to: the shot goes through what the crosshair is on, and his origin does not move.
 AGENT=${1:-fixgame3}; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
@@ -152,4 +153,19 @@ check $(gate 8 280 1) "point: hipfire, a knight 300 away: the same"
 check $(gate 9 500 0) "point: hipfire, the far wall: the same"
 read -r coff caway con <<<"$(pointline 10)"
 check $(awk -v o="${coff:-0}" -v p="${con:-1}" 'BEGIN { exit !(o > 8 && p + 0 == 0) }' && echo 1 || echo 0) "point: the control: the same offsets along the view, and the shot passes ${coff:-?} units off the point and misses him"
+
+# g. The near plane at a gun held at the camera: the author's own close pose, the ironsight on. Two frames as shipped, and
+# one with vr_nearclip 4 and vr_nearclip_held 0, the desktop's plane this mode drew at. Without the mode's near plane
+# (VR_FlatNearPlane) vr_nearclip does nothing here: the third frame reads as the first and the check fails.
+log=$HERE/scratch/pose_near.log
+CLOSE="tune vr_flat_gun_fwd 3.5; tune vr_flat_gun_down 10; tune vr_flat_gun_out 2; tune vr_flat_ads_fwd -3.5; tune vr_flat_ads_up 2; tune vr_flat_ads_out -0.15; tune vr_flat_aim_fov 40; tune vr_flat_aim_time 0.15; tune vr_flat_cam_fwd 3.5; tune vr_flat_cam_up 3.5; tune vr_flat_bob 0"
+bash $KIT/run.sh $AGENT -Low -Clean -ExtraArgs "-flatscreenmode" -Script "$P; wait60; $CLOSE; vr_flat_aim 1; wait40; vr_flatplay_status; screenshot; wait2; screenshot; vr_nearclip 4; vr_nearclip_held 0; wait2; screenshot; toggleconsole; quit" -Full -Filter "near plane" > "$log" 2>&1
+SHOTS="$KIT/bases/$AGENT/qbase/quakevr/screenshots"
+mapfile -t near < <(ls -tr "$SHOTS"/*.png | tail -3)
+mad() { python "$HERE/pixdiff_ab.py" "$1" "$2" | grep -a -o "per channel [0-9.]*" | awk '{ print $3 }'; }
+same=$(mad "${near[0]}" "${near[1]}"); cut=$(mad "${near[0]}" "${near[2]}")
+grep -a "near plane:" "$log" | head -1 | sed 's/^/  status:/' | cut -c1-120
+echo "  a gun at the camera: two frames as shipped differ by $same a channel, the desktop's near plane against them by $cut"
+check $(grep -aq "near plane: 0.1 units (vr_nearclip), float depth" "$log" && echo 1 || echo 0) "near: the mode's near plane is the headset's, on float depth"
+check $(awk -v s="${same:-99}" -v c="${cut:-0}" 'BEGIN { exit !(s <= 0.5 && c >= 3) }' && echo 1 || echo 0) "near: the gun at the camera is not cut as the desktop's near plane cuts it"
 verdict; exit $fail

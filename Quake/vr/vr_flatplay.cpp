@@ -1206,6 +1206,14 @@ void status_f()
                "uses (vr_flat_gun_near %g measures it with these put back): his origin, his collision box and his body are "
                "measured from where he stands.\n",
         eye.x, eye.y, eye.z, za::clamp(vr_flat_gun_near.value, nearMin, nearMax));
+    if(const float flatNear = VR_FlatNearPlane(); flatNear > 0.f)
+    {
+        Con_Printf("  near plane: %g units (vr_nearclip), float depth\n", flatNear);
+    }
+    else
+    {
+        Con_Printf("  near plane: the desktop's, 24-bit depth (held items drawn at it: vr_nearclip_held)\n");
+    }
     Con_Printf("  E pressed %d times (force grab); punches: the main hand %d, the off hand %d. E and V are read from the "
                "keyboard, not from bindings; each hand's punch starts from V, from its fire button with a weapon a swing "
                "strikes with (LMB / +attack the main hand, RMB / +offhandattack the off hand), or from vr_flat_punch.\n",
