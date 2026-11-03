@@ -7421,8 +7421,10 @@ and spawn in place of their parry-only check; AD's leaps (fiend, dog, fury, mino
 zombie knight, Judicator) ask their health before their landing. Those set their exit think before the blow, so only their
 re-jump branch (no floor under it) could rise: read in the code, not run. The gremlin's blow is commented out, the hunter ogre's
 touch and the steel claw's set no think after a blow. `vr_deadanim_test 20`, `21`, `22` (`Misc/quakevr/deadleap_test.sh`,
-QC `vr_deadleap_test.qc`; Debug > Tests): 18 scenes each: before 17 passed, scene 9 failed for all three (fiend: AI frames, a dog
-43, a spawn's body 1114 units on); after 18 passed.
+QC `vr_deadleap_test.qc`; Debug > Tests): 18 scenes each: before 17 passed, scene 9 failed for all three (a fiend's body 29 frames of its AI, a
+dog's 43, a spawn's 28 and 1114 units on); after 18 passed. His own kill is not on record (the take starts with it already
+leaping): this cause is the one path that gives his numbers, not a replay of it; in the test's 5 s the dead fiend ran its AI
+and did not yet reach its leap's loop.
 
 **The guns** (vrragtriggers_2026-11-03_02-23-27). Test 205 (`vr_agrunt_test 205`, `vr_armedgrunt_gunlag_test.qc`): each kind
 with a nail pistol plays its run frames, moved at 120 u/s by the test; the numbers its drawn hand from its drawn head, off its
