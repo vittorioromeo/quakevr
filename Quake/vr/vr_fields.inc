@@ -127,6 +127,11 @@ QVR_FIELD(vr_stick_slide)  // QC's: units it has slid along its axis since it st
 QVR_FIELD(vr_stick_goal)   // a held stab's: the depth (units from the tip) it goes on to as it enters (0: there)
 QVR_FIELD(vr_stick_bladelen) // a held stab's: the blade's length (units)
 QVR_FIELD(vr_stick_loose)  // QC's: in an arm or a leg: its turn follows the limb's eased (vr_embed_limb_follow), not rigidly
+QVR_FIELD(vr_hold_player) // QC's (vr_embedhold.qc): who holds a blade stuck in a body, for the debug view
+QVR_FIELD(vr_hold_hands)  // the hands on it (bits: 1 the off hand, 2 the main)
+QVR_FIELD(vr_hold_handle) // the hand on it by its handle: the spring's
+QVR_FIELD(vr_hold_err)    // units of the hand's motion along its axis the blade hasn't followed
+QVR_FIELD(vr_hold_off)    // and off its axis
 QVR_FIELD(vr_embed_off)    // on a player: the blade its off hand holds in a body (VR_HOLD_EMBED: QC, world none)
 QVR_FIELD(vr_embed_main)   // the main hand's
 QVR_FIELD(vr_embed_handle) // bits, 1 the off hand, 2 the main: that hand holds it by its handle (else where it took hold)

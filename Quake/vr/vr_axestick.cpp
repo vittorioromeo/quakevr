@@ -30,6 +30,8 @@
 #include "vr_axestick.hpp"
 
 #include "vr_box3d.hpp"
+#include "vr_lines.hpp"
+#include "vr_text3d.hpp"
 #include "vr_cvars.hpp"
 #include "vr_held.hpp"
 #include "vr_hitmodel.hpp"
@@ -47,6 +49,7 @@
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Asin.hpp"
+#include "Zancle/Math/Atan2.hpp"
 #include "Zancle/Math/Clamp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "vr_zancle.hpp"
@@ -1510,6 +1513,70 @@ void serverFrame()
         }
         place(ent, *blade, stuckAt, stuckAxes);
     });
+}
+
+void debugDraw(const glm::vec3& eye)
+{
+#ifndef QVR_RELEASE
+    const FieldOffsets& f = fields();
+    if(vr_embed_debug_show.value == 0.f || !sv.active || f.vr_stick_kind < 0 || f.vr_stick_ent < 0)
+    {
+        return;
+    }
+    const progs::ServerVm vm; // (the view's: the edicts and the fields need the server's VM)
+    const glm::vec4 white{1.f, 1.f, 1.f, 0.9f}, yellow{1.f, 0.9f, 0.1f, 1.f}, red{1.f, 0.15f, 0.1f, 1.f}, green{0.2f, 1.f, 0.3f, 1.f},
+        blue{0.3f, 0.6f, 1.f, 1.f}, magenta{1.f, 0.2f, 1.f, 1.f};
+    progs::forEachEdict(1, [&](edict_t* ent) {
+        const int kind = static_cast<int>(fieldFloat(ent, f.vr_stick_kind));
+        const Blade* blade = kind > 0 && static_cast<int>(ent->v.movetype) == MOVETYPE_NONE ? bladeOf(ent) : nullptr;
+        if(!blade)
+        {
+            return;
+        }
+        edict_t* host = PROG_TO_EDICT(fieldInt(ent, f.vr_stick_ent));
+        const glm::vec3 at = fieldVec(ent, f.vr_stick_at);
+        const glm::vec3 dir = fieldVec(ent, f.vr_stick_dir);
+        const int hands = static_cast<int>(fieldFloatOr(ent, f.vr_hold_hands, 0.f));
+        const float slide = fieldFloatOr(ent, f.vr_stick_slide, 0.f);
+        const float depth = blade->how == howPoint ? fieldFloatOr(ent, f.vr_stick_depth, 0.f) + slide : slide;
+        const glm::vec3 from = vec(ent->v.origin);
+        // The axis: outside as far back as the handle (an edge's: a hand's length), inside to the tip, which is the depth.
+        const float back = blade->how == howPoint ? za::max(glm::distance(from, at), 4.f) : 12.f;
+        lines::line(at - dir * back, at, 0.25f, hands ? yellow : white, hands ? yellow : white);
+        const glm::vec3 tip = at + dir * za::max(depth, 0.f);
+        lines::line(at, tip, 0.35f, red, red);
+        lines::point(tip, 1.2f, red);   // its tip
+        lines::point(at, 1.2f, yellow); // where it went in
+        lines::point(from, 1.f, white); // its origin, the handle
+        glm::vec3 anchor;
+        glm::mat3 axes;
+        if(frameOf(host, kind, fieldVec(ent, f.vr_stick_anchor), anchor, axes))
+        {
+            lines::point(anchor, 1.2f, magenta); // what carries it: on the body's triangle, or its box
+            lines::line(anchor, at, 0.1f, magenta, magenta);
+        }
+        float force = 0.f;
+        if(hands && f.vr_hold_player >= 0)
+        {
+            // The hold: the hand's motion along the axis it hasn't followed, and off it, drawn from where it went in; the spring, on the handle's hand.
+            const float err = fieldFloatOr(ent, f.vr_hold_err, 0.f);
+            lines::line(at, at + dir * err, 0.5f, blue, blue);
+            lines::line(at, at + fieldVec(ent, f.vr_hold_off), 0.5f, blue, blue);
+            const int handle = static_cast<int>(fieldFloatOr(ent, f.vr_hold_handle, 0.f));
+            const int player = NUM_FOR_EDICT(PROG_TO_EDICT(fieldInt(ent, f.vr_hold_player)));
+            glm::vec3 limb, target;
+            if(box3d::ragdollBladeSpring(player, (handle ? handle : hands) == 2 ? 1 : 0, limb, target, force))
+            {
+                lines::line(limb, target, 0.4f, green, green);
+                lines::point(limb, 1.5f, green);
+            }
+        }
+        char text[96];
+        q_snprintf(text, sizeof(text), "%s%.1f in, %.0f N", blade->how == howPoint ? "point " : "edge ", depth, force);
+        const glm::vec3 toText = at - eye;
+        text3d::queueOverlay(text, at - dir * 2.f + glm::vec3{0.f, 0.f, 4.f}, glm::vec3{0.f, glm::degrees(za::atan2(toText.y, toText.x)), 0.f}, 0.06f);
+    });
+#endif
 }
 
 } // namespace qvr::axestick

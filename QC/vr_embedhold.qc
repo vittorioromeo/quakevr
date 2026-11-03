@@ -96,6 +96,15 @@ void(entity e, entity p, float xHand) VR_Embed_SetG0 =
     e.vr_hold_off = '0 0 0';
 };
 
+// A buzz in `xHand` of `p` (haptic is `self`'s, and the hold's think and a hand's touch run as the blade).
+void(entity p, float xHand, float xFor, float xFreq, float xAmp) VR_Embed_Haptic =
+{
+    entity was = self;
+    self = p;
+    haptic(xHand, 0.0, xFor, xFreq, xAmp);
+    self = was;
+};
+
 // `xHand` of `xPlayer` holds the stuck blade `e` now.
 void(entity e, entity xPlayer, float xHand) VR_Embed_TakeHand =
 {
@@ -128,7 +137,7 @@ void(entity e, entity xPlayer, float xHand) VR_Embed_TakeHand =
     {
         e.vr_hold_stoff = st;
     }
-    haptic(xHand, 0.0, 0.08, 50, 0.6);
+    VR_Embed_Haptic(xPlayer, xHand, 0.08, 50, 0.6);
     if(cvar_hget(cvarh_vr_debug_axestick))
     {
         dprint(sprintf("embedhold: %s held by hand %g, %.1f units in, axis %v\n", e.netname, xHand, e.vr_stick_depth + e.vr_stick_slide,
@@ -455,7 +464,9 @@ float() VR_Embed_HoldThink =
     {
         return FALSE;
     }
-    float dt = max(0, time - e.vr_hold_last);
+    // (The hand's own time, what its pull and the resistance to it go by: bullet time's hands move at their real speed, 3 times as far
+    // a game second at 0.3. By the game's seconds a blade would hold 3 times as hard, and a real pull of 3 m/s read as a jump.)
+    float dt = max(0, time - e.vr_hold_last) * (vr_hand_time_scale > 0 ? 1 / vr_hand_time_scale : 1);
     e.vr_hold_last = time;
     float cm = 0.01 * VRMetersToUnits(); // units a cm
     vector dir = e.vr_stick_dir;
@@ -622,11 +633,11 @@ float() VR_Embed_HoldThink =
             float amp = 0.25 + 0.35 * inShare;
             if(e.vr_hold_hands & 1)
             {
-                haptic(cVR_OffHand, 0.0, 0.05, 45, amp);
+                VR_Embed_Haptic(p, cVR_OffHand, 0.05, 45, amp);
             }
             if(e.vr_hold_hands & 2)
             {
-                haptic(cVR_MainHand, 0.0, 0.05, 45, amp);
+                VR_Embed_Haptic(p, cVR_MainHand, 0.05, 45, amp);
             }
         }
     }

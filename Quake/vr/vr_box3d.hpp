@@ -463,6 +463,8 @@ struct RagdollHold
 // Where on the ragdoll that hand's hold grips now (its anchor on the part, world units): the neck snap's head zone test
 // (vr_foegrab.cpp ragdollNeckCheck). False: no ragdoll hold.
 [[nodiscard]] bool ragdollHoldPoint(int player, int hand, glm::vec3& out);
+// A blade's spring on this hand (ragdollTug what 12): where it holds the limb, where it pulls it to, its most force (N). For the debug view.
+[[nodiscard]] bool ragdollBladeSpring(int player, int hand, glm::vec3& limb, glm::vec3& target, float& force);
 // A limb's point (flames on a ragdoll: vr_burning.qc): the limb nearest `at` (-1: not a ragdoll); a point into a limb's
 // space (units) and back.
 [[nodiscard]] int ragdollBone(int num, const glm::vec3& at, float within = -1.f); // (within >= 0: -1 when farther)

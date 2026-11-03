@@ -1847,6 +1847,7 @@ QVR_TUNABLE(vr_embed_move_give, "2.5") // 1/s: how readily a staggering body's s
 QVR_TUNABLE(vr_embed_drag_slack, "4") // cm further from the wound than the hand held it before walking away drags a standing body
 QVR_TUNABLE(vr_embed_hold_reach_down, "1.5") // times the hold's reach for a body knocked down (it falls away from the hand)
 QVR_TUNABLE(vr_embed_tether_speed, "0.35") // times your walking speed while a blade ties you to a body
+QVR_TUNABLE(vr_embed_debug_show, "0") // draws each blade stuck: its axis, tip, depth, anchor, the hold's spring (axestick::debugDraw)
 QVR_TUNABLE(vr_embed_tether_far, "10") // cm further from a dead body's wound than the hand held it, for that body to count: dragging it
 // ... stage 1's: thrown swords, their depth, their sag in walls, a corpse's tug
 QVR_TUNABLE(vr_embed_sword_speed, "2.5") // m/s a thrown sword's tip must go at into what it meets

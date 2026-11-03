@@ -825,6 +825,8 @@ vector vr_eh_end;
 vector vr_eh_start;          // where the blow starts from
 vector vr_eh_home;           // where you stood as the test began
 float vr_eh_ahead;           // how far ahead the body stands (0: as these cases have it)
+float vr_eh_down;            // the blow goes down so steeply (0: level; a body lying)
+entity vr_ee_target;         // the body the blow is at (world: a grunt spawned; vr_embed_edge_test.qc)
 
 void(float xWid, float xFlags) VR_EH_Give =
 {
@@ -853,7 +855,7 @@ float(float xWid, float xSpeed, float xOff, float xSwing, float t) VR_EH_Blow =
     {
         setorigin(self, vr_eh_home); // (where every case starts; the last's body may have punched you off it)
         self.velocity = '0 0 0';
-        vr_et_m = VR_ET_Grunt(xWid == WID_AXE ? 44 : (vr_eh_ahead > 0 ? vr_eh_ahead : 54)); // (the hand reaches 50 units from you; an axe is short)
+        vr_et_m = vr_ee_target != world ? vr_ee_target : VR_ET_Grunt(xWid == WID_AXE ? 44 : (vr_eh_ahead > 0 ? vr_eh_ahead : 54)); // (the hand reaches 50 units from you; an axe is short)
         localcmd("+grabmain\n");
         VR_ET_To(1);
     }
@@ -865,6 +867,10 @@ float(float xWid, float xSpeed, float xOff, float xSwing, float t) VR_EH_Blow =
         vr_eh_fw = chest - hand;
         vr_eh_fw_z = 0;
         vr_eh_fw = normalize(vr_eh_fw);
+        if(vr_eh_down)
+        {
+            vr_eh_fw = normalize(vr_eh_fw - '0 0 1' * vr_eh_down);
+        }
         // Aimed along the way it goes (so far off as asked): below, by what it is seen to do.
         vr_eh_want = VR_AxeStick_Turn(vr_eh_fw, '0 0 1', xOff);
         vr_eh_aim = vr_eh_want;
@@ -920,6 +926,20 @@ float(float xWid, float xSpeed, float xOff, float xSwing, float t) VR_EH_Blow =
     return FALSE;
 };
 
+// (A gib lying about would take the next blow.)
+void() VR_EH_ClearGibs =
+{
+    for(entity g = nextent(world); g; )
+    {
+        entity gn = nextent(g);
+        if(g.vr_gib)
+        {
+            remove(g);
+        }
+        g = gn;
+    }
+};
+
 void() VR_EH_NextCase =
 {
     localcmd("-grabmain\nvr_mock_hand_aim main off\nvr_mock_hand_glide 0\n");
@@ -930,16 +950,7 @@ void() VR_EH_NextCase =
     }
     VRSetHandEmpty(self, cVR_MainHand);
     vr_eh_flags = 0;
-    // (A gib lying about would take the next blow.)
-    for(entity g = nextent(world); g; )
-    {
-        entity gn = nextent(g);
-        if(g.vr_gib)
-        {
-            remove(g);
-        }
-        g = gn;
-    }
+    VR_EH_ClearGibs();
     VR_ET_NextCase();
 };
 
@@ -2110,12 +2121,19 @@ void() VR_EM_Scene =
     }
 };
 
+void(float ask) VR_EE_Ask;       // (vr_embed_edge_test.qc)
+float(entity p) VR_EE_Frame;
+
 void() VR_Embed_TestFrame =
 {
     float ask = cvar_hget(cvarh_vr_embed_test);
     if(ask)
     {
         cvar_set("vr_embed_test", "0");
+        if(ask == 13 || ask == 14 || ask == 15 || ask == 16 || ask == 17 || ask == 18 || ask == 19 || ask == 20)
+        {
+            VR_EE_Ask(ask);
+        }
         if(ask == 1)
         {
             VR_Test_BeginFlags("embedtest", VR_TEST_LOUD);
@@ -2212,6 +2230,11 @@ cvar_set("vr_hit_stagger", "0"); // (a blow's own chances: it's the blade's stag
     }
     entity oself = self;
     self = p;
+    if(VR_EE_Frame(p))
+    {
+        self = oself;
+        return;
+    }
     if(vr_et_on == 1)
     {
         if(time - vr_et_t0 > VR_ET_GIVEUP)
