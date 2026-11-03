@@ -117,7 +117,7 @@ param(
     [string[]]$Assets = @(),
     # Download address templates for latest.json ({tag}, {file}), in order. Default: the GitHub release's own assets.
     [string[]]$UrlBase = @(),
-    # fteqcc64.exe. Default: $env:FTEQCC, QC\fteqcc64.exe, C:\OHWorkspace\quakevr\QC\fteqcc64.exe, then PATH.
+    # fteqcc64.exe. Default: $env:FTEQCC, the repo's Tools\fteqcc\fteqcc64.exe, then PATH.
     [string]$Fteqcc = "",
     # MSBuild.exe. Default: the newest Visual Studio with MSBuild and the ClangCL toolset (vswhere).
     [string]$MSBuild = "",
@@ -631,11 +631,12 @@ else { Say ".NET SDK $($dotnetSdk.Text)" }
 $python = if (Get-Command python -ErrorAction SilentlyContinue) { "python" } else { $null }
 if (-not $python) { Problem "python not found (the checks and make_release.py need Python 3)" }
 if (-not $Fteqcc) {
-    $Fteqcc = @($env:FTEQCC, (Join-Path $root "QC\fteqcc64.exe"), "C:\OHWorkspace\quakevr\QC\fteqcc64.exe") |
+    # The repo's own first (Tools/fteqcc/README.md): a stock FTEQCC writes the 16-bit progs format, which the build refuses.
+    $Fteqcc = @($env:FTEQCC, (Join-Path $root "Tools\fteqcc\fteqcc64.exe")) |
         Where-Object { $_ -and (Test-Path -LiteralPath $_ -PathType Leaf) } | Select-Object -First 1
     if (-not $Fteqcc) { $Fteqcc = (Get-Command fteqcc64 -ErrorAction SilentlyContinue | Select-Object -First 1).Source }
 }
-if (-not $Fteqcc -or -not (Test-Path -LiteralPath $Fteqcc)) { Problem "fteqcc64.exe not found (-Fteqcc, FTEQCC, QC\fteqcc64.exe or PATH)" } else { $Fteqcc = (Resolve-Path $Fteqcc).Path; Say "fteqcc: $Fteqcc" }
+if (-not $Fteqcc -or -not (Test-Path -LiteralPath $Fteqcc)) { Problem "fteqcc64.exe not found (-Fteqcc, FTEQCC, Tools\fteqcc\fteqcc64.exe or PATH)" } else { $Fteqcc = (Resolve-Path $Fteqcc).Path; Say "fteqcc: $Fteqcc" }
 # The tuned constants: live in a development build, kept in tunables.cfg; a release folds in vr_tunables.inc's defaults,
 # so a value not promoted is lost (RELEASING.md, "Step by step"). A -Local test release ships to nobody: a warning.
 $tunablesFile = if ($TunablesCfg) { $TunablesCfg } else { "C:\OHWorkspace\quakevr-iw\quakevr\tunables.cfg" }
