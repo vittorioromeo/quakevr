@@ -383,6 +383,8 @@ QVR_TUNABLE(vr_forcegrab_catch_blend, "0.15") // seconds a caught weapon takes t
 // Carrying and Throwing > Gibs and Corpses
 QVR_TUNABLE(vr_gib_throw_damage, "4") // and of a gib or head
 QVR_TUNABLE(vr_gib_health, "12") // the damage that destroys a gib (a head takes half as much again)
+QVR_TUNABLE(vr_gib_overkill_melee, "0.5") // the share of a hand's blow's overkill (damage past its health) that counts towards gibbing a monster; Quad's all of it (QC combat.qc VR_Gib_Overkill; 1 before his note 2026-11-02)
+QVR_TUNABLE(vr_gib_overkill_prop, "0.1") // and of a thrown, flung or fallen prop's (a limb or head it hit still pops; 1 before his note 2026-11-02)
 QVR_TUNABLE(vr_gib_splat_speed, "250") // units/s a thrown gib or head must hit a wall or a monster at to burst
 QVR_TUNABLE(vr_gib_splat_throw, "7") // m/s of the throwing hand from which a thrown gib or head bursts on a wall instead of sticking, however heavy; 0 off
 QVR_TUNABLE(vr_gib_burst_speed, "5") // m/s: a hand's or weapon's hit on a gib, or one held and smashed into something, this fast (relative) bursts it; from half as fast it wears it (and bounces off the hand)
@@ -418,7 +420,7 @@ QVR_TUNABLE(vr_corpse_dmg_blunt, "1") // times the damage corpses and ragdolls t
 QVR_TUNABLE(vr_corpse_dmg_fists, "1") // times the damage corpses and ragdolls take from an empty fist
 QVR_TUNABLE(vr_corpse_dmg_blades, "1") // times the damage corpses and ragdolls take from the axe's and a sword's edge or point, swung or thrown; a stuck axe bleeding it
 QVR_TUNABLE(vr_corpse_dmg_chainsaw, "1") // times the damage corpses and ragdolls take from the chainsaw
-QVR_TUNABLE(vr_corpse_dmg_props, "1") // times the damage corpses and ragdolls take from thrown or flung boxes, gibs, heads and weapons, deflected shots, a prop in the fist
+QVR_TUNABLE(vr_corpse_dmg_props, "0.25") // times the damage corpses and ragdolls take from thrown or flung boxes, gibs, heads and weapons, deflected shots, a prop in the fist (0.25: one crate or barrel thrown does not burst a body, his note 2026-11-02; 1 before)
 QVR_TUNABLE(vr_corpse_dmg_fire, "1") // times the damage corpses and ragdolls take from burning (vr_burn_corpse_damage first)
 QVR_TUNABLE(vr_corpse_dmg_bash, "1") // times the damage corpses and ragdolls take from bashes, shoves and headbutts
 QVR_TUNABLE(vr_corpse_dmg_other, "1") // times the damage corpses and ragdolls take from anything else: monsters' blows, kicks, crushers
@@ -907,6 +909,10 @@ QVR_TUNABLE(vr_agrunt_aim_exposed_hold, "0.5") // seconds it keeps aiming at the
 QVR_TUNABLE(vr_agrunt_range_scale, "1") // armed humanoids' fighting distances (vr_agrunt_range) times this
 QVR_TUNABLE(vr_agrunt_range_walkfire, "50") // units/s: with vr_agrunt_range, an armed humanoid walks while it fires (on, back or round you, by its fighting distance); 0: it stands to fire, as before
 QVR_TUNABLE(vr_agrunt_friendly_care, "1") // 0..1: how careful an armed humanoid is not to shoot or strike its friends: the chance it holds fire (and sidesteps) when a monster not its enemy is in its line of fire (0: never, the old way)
+QVR_TUNABLE(vr_ogre_friendly_care, "1") // 0..1: how careful an ogre is not to lob or fire into a friend: the chance it holds and sidesteps with one on its shot's way (0: never, the old way; vr_ogre_friends.qc)
+QVR_TUNABLE(vr_ogre_friendly_giveup, "2.5") // s: held so long for friends in the way (sidestepping), an ogre fires anyway (0: never gives up)
+QVR_TUNABLE(vr_ogre_friendly_step, "0.5") // s: an ogre's sidestep for a clear shot, this to twice this
+QVR_TUNABLE(vr_ogre_friendly_spread, "4") // degrees: the lines checked either side of an ogre's shot for friends
 
 // Combat > Armed Grunts - Preventive Parry
 QVR_TUNABLE(vr_agrunt_preparry_range, "64") // units (its middle to yours, level): you this near, it may raise its guard (times the category's range)
@@ -1131,6 +1137,7 @@ QVR_TUNABLE(vr_footstep_walk_atten, "1.6") // how fast a walking step dies with 
 QVR_TUNABLE(vr_footstep_run_atten, "1") // a running step's
 QVR_TUNABLE(vr_footstep_min_speed, "6") // units/s: slower is no step (a shift of weight on the spot)
 QVR_TUNABLE(vr_footstep_heavy_volume, "1") // the heavy feet (ogres, fiends, shamblers), times this as well
+QVR_TUNABLE(vr_footstep_heavy_speed, "1") // their playback rate, times this: pitch and length together (on each kind's own pitch and the jitter)
 QVR_TUNABLE(vr_footstep_heavy_carry, "0.6") // their distance counted times this: heard from further, over nearer boots
 QVR_TUNABLE(vr_footstep_nearest, "6") // only the nearest this many of those moving are heard (0-16)
 QVR_TUNABLE(vr_footstep_range, "1000") // units from a player: farther isn't heard or counted
@@ -1356,6 +1363,7 @@ QVR_TUNABLE(vr_kdtrig_tackle_face, "60") // ... deg: running within this of the 
 QVR_TUNABLE(vr_kdtrig_tackle_leniency, "0.4") // ... 0..1: the pose's thresholds together (0.5 as set; 1 half as strict: least ones halved, most ones and the speed's shortfall doubled; 0 1.5 times as strict) (his 0.4, 0.2 before vr_cfg_version 191, 0.85 before 184)
 QVR_TUNABLE(vr_kdtrig_tackle_knock, "148") // ... units a monster of your weight is knocked back, then toppled (a lighter one up to 1.5 times; a heavier class staggers back 0.6 of it) (his 148, 152 before vr_cfg_version 184)
 QVR_TUNABLE(vr_kdtrig_tackle_bump, "120") // ... units/s you bounce back off it (his 120, 100 before vr_cfg_version 184)
+QVR_TUNABLE(vr_kdtrig_tackle_stamina, "35") // ... stamina a charge that connects costs (0: none; one that misses costs nothing)
 QVR_TUNABLE(vr_kdtrig_tackle_contact, "0") // ... units: it connects with your body this near the monster's as the two meet (the engine's narrowed, inset boxes: QC bodygap; 0 touching; plus this frame's run), not before (his 0, 2 before vr_cfg_version 184)
 QVR_TUNABLE(vr_kdtrig_tackle_cooldown, "1.5") // ... s before you charge again
 
@@ -1632,8 +1640,8 @@ QVR_TUNABLE(vr_menu_grab_dist_max, "600") // cm: farthest it can be pushed (a pa
 QVR_TUNABLE(vr_menu_grab_deadzone, "4") // cm a hand moves with a grip held on the panel's face before it takes hold of the panel (vr_menu_grab 2)
 
 // Combat > Armed Grunts - Worn Backpacks
-QVR_TUNABLE(vr_worn_backpack_rip_time, "0.04") // worn backpacks: the pull kept past vr_worn_backpack_rip_force this long (s) tears it off (a yank, not a jolt)
-QVR_TUNABLE(vr_worn_backpack_rip_stiffness, "150") // worn backpacks: N a unit of the held point's lag behind the hand (the stretch's share of the pull)
+QVR_TUNABLE(vr_worn_backpack_lift_hold, "0.04") // worn backpacks: the pull kept past vr_worn_backpack_lift_force this long (s) lifts its wearer (a yank, not a jolt)
+QVR_TUNABLE(vr_worn_backpack_lift_stiffness, "150") // worn backpacks: N a unit of the held point's lag behind the hand (the stretch's share of the pull)
 
 // Debug > Tests
 QVR_TUNABLE(vr_climb_prop_pull, "40") // kg: the most weight a hand on a light prop pulls it with (the player's, vr_box3d_player_mass, shared by the holding hands, towards the body; a body over the hold presses it down)

@@ -90,7 +90,6 @@ struct Hold
     // pack's frame (box3d::wornPackBox: its middle, its axes); it doesn't drag the wearer (it stands its ground).
     bool pack{false};
     glm::vec3 packLocal{0.f};
-    glm::vec3 packFrom{0.f}; // the palm as it took hold (world): its travel since is the tug's way (packPull)
 };
 
 // The hands on a standing enemy (twoHandCheck, each frame; transition): none (Free), one (OneHand: or each on another

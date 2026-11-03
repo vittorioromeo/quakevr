@@ -105,8 +105,11 @@ engine finds them when the map loads, `vr_debug_ledges 1` shows them):
   wall within 16 units at hand height (2 over the top) means no drop.
 - so: ledges, window sills over a drop, beams, rungs (a rung against a wall: its front and its ends), a wall's top.
   Not: floors, stairs (their treads come every 8 to 16 units down), the edge of a step, a sill over a floor within 32.
-- clip brushes don't count (they aren't in the hands' collision); `func_illusionary` doesn't either (not solid); sky
-  and liquid tops don't.
+- clip brushes aren't in the hands' collision and make no ledge of their own, but in a map compiled with `qbsp
+  -wrbrushes` (its BRUSHLIST lump says where they are) they take one away: a top whose hold lies inside a clip brush is
+  no ledge. So a clip over a wall's trim leaves it to be seen and touched, not climbed (`vrarena`'s walls). Without the
+  lump (id's maps, most of ours) clip brushes don't count. `func_illusionary` doesn't count (not solid); sky and liquid
+  tops don't.
 - brush entities (`func_plat`, `func_train`, `func_door`, `func_wall`...) have their own ledges, which move with them:
   a hand holds on and rides it. A ledge on one only counts where the world (or another brush entity) doesn't fill its
   drop now: a plat level with the floor is no ledge. Rotating brushes don't rotate their ledges (Quake's collision

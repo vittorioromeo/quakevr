@@ -386,6 +386,8 @@ QVR_TUNABLE_SLIDER(vr_forcegrab_catch_blend, "Catch Blend Time", 0.0f, 0.5f, 0.0
 QVR_TUNABLE_GROUP("Carrying and Throwing > Gibs and Corpses")
 QVR_TUNABLE_SLIDER(vr_gib_throw_damage, "Thrown Gib Damage", 0.0f, 50.0f, 1.0f, "%.0f", 0.0f, 250.0f, "Damage of a gib or head thrown at about 6 m/s; more the faster.")
 QVR_TUNABLE_SLIDER(vr_gib_health, "Gib Health", 1.0f, 60.0f, 1.0f, "%.0f", 1.0f, 296.0f, "The damage that destroys a gib; a head takes half as much again.")
+QVR_TUNABLE_SLIDER(vr_gib_overkill_melee, "Blow Overkill to Gib", 0.0f, 1.0f, 0.05f, "%.2f", 0.0f, 1.0f, "The share of a blow's damage past a monster's health that counts towards gibbing it (1: all of it). Quad counts all of it.")
+QVR_TUNABLE_SLIDER(vr_gib_overkill_prop, "Prop Overkill to Gib", 0.0f, 1.0f, 0.05f, "%.2f", 0.0f, 1.0f, "The same for a thrown, flung or fallen prop: a crate or a barrel kills and pops the limb it hit, an ordinary throw never gibs.")
 QVR_TUNABLE_SLIDER(vr_gib_splat_speed, "Gib Splat Speed", 100.0f, 600.0f, 25.0f, "%.0f", 100.0f, 2600.0f, "Units/s a thrown gib or head must hit a wall or a monster at to burst.")
 QVR_TUNABLE_SLIDER(vr_gib_splat_throw, "Hard Throw Bursts", 0.0f, 12.0f, 0.5f, "%.1f m/s", 0.0f, 30.0f, "A gib or head thrown with the hand this fast or faster bursts on a wall instead of sticking, however heavy (a heavy one leaves the hand slowly). Softer throws stick (Thrown Gibs Stick). 0: off.")
 QVR_TUNABLE_SLIDER(vr_gib_burst_speed, "Gib Burst Speed", 1.0f, 12.0f, 0.25f, "%.2f m/s", 0.1f, 40.0f, "A hand's or weapon's hit on a gib, or one held and smashed into a wall, the floor or a monster, this fast bursts it. From half as fast it is worn (two such hits burst it); a hand's hit short of bursting bounces it off the hand, like a volleyball.")
@@ -910,6 +912,10 @@ QVR_TUNABLE_SLIDER(vr_agrunt_aim_exposed_hold, "Keep Aim On a Part", 0.0f, 2.0f,
 QVR_TUNABLE_SLIDER(vr_agrunt_range_scale, "Distance Scale", 0.5f, 2.0f, 0.05f, "%.2fx", 0.5f, 2.0f, "Their fighting distances times this (vr_agrunt_range_scale).")
 QVR_TUNABLE_SLIDER(vr_agrunt_range_walkfire, "Walking Fire", 0.0f, 120.0f, 5.0f, "%.0f u/s", 0.0f, 120.0f, "How fast it walks while it fires (on, back or round you, by its distance) and steps back while it reloads. 0: it stands to fire, as before (vr_agrunt_range_walkfire).")
 QVR_TUNABLE_SLIDER(vr_agrunt_friendly_care, "Careful of Friends", 0.0f, 1.0f, 0.05f, "%.2f", 0.0f, 1.0f, "How careful it is not to shoot or strike its friends: with another monster in its line of fire (a " "few lines for a shotgun's spread), the chance it holds fire and sidesteps for a clear shot. 1: " "always, 0: never, it fires through them as before (vr_agrunt_friendly_care).")
+QVR_TUNABLE_SLIDER(vr_ogre_friendly_care, "Ogres: Careful of Friends", 0.0f, 1.0f, 0.05f, "%.2f", 0.0f, 1.0f, "How careful an ogre is not to lob or fire into its friends: with another monster on its shot's way, the chance it holds and sidesteps for a clear shot. 1: always, 0: never, the old way (vr_ogre_friendly_care).")
+QVR_TUNABLE_SLIDER(vr_ogre_friendly_giveup, "Ogres: Gives Up After", 0.0f, 10.0f, 0.5f, "%.1f s", 0.0f, 10.0f, "Held so long for friends in the way (sidestepping), an ogre fires anyway. 0: never gives up (vr_ogre_friendly_giveup).")
+QVR_TUNABLE_SLIDER(vr_ogre_friendly_step, "Ogres: Sidestep For", 0.1f, 2.0f, 0.1f, "%.1f s", 0.1f, 2.0f, "An ogre's sidestep for a clear shot lasts this to twice this (vr_ogre_friendly_step).")
+QVR_TUNABLE_SLIDER(vr_ogre_friendly_spread, "Ogres: Shot Check Spread", 0.0f, 15.0f, 0.5f, "%.1f deg", 0.0f, 15.0f, "The lines checked either side of an ogre's shot for friends (vr_ogre_friendly_spread).")
 
 QVR_TUNABLE_GROUP("Combat > Armed Grunts - Preventive Parry")
 QVR_TUNABLE_SLIDER(vr_agrunt_preparry_range, "Preventive: Range", 0.0f, 200.0f, 1.0f, "%.0f u", 0.0f, 400.0f, "Units (its middle to yours, level): you this near, it may raise its guard (times the category's range) (vr_agrunt_preparry_range).")
@@ -1133,6 +1139,7 @@ QVR_TUNABLE_SLIDER(vr_footstep_walk_atten, "Walking Falloff", 0.5f, 4.0f, 0.1f, 
 QVR_TUNABLE_SLIDER(vr_footstep_run_atten, "Running Falloff", 0.5f, 4.0f, 0.1f, "%.1f", 0.0f, 8.0f, "How fast a running step dies with distance.")
 QVR_TUNABLE_SLIDER(vr_footstep_min_speed, "Least Speed", 0.0f, 30.0f, 1.0f, "%.0f u/s", 0.0f, 100.0f, "Slower is no step (a shift of weight on the spot, a pain's stagger).")
 QVR_TUNABLE_SLIDER(vr_footstep_heavy_volume, "Heavy Feet Volume", 0.0f, 2.0f, 0.05f, "%.2fx", 0.0f, 4.0f, "Ogres, fiends and shamblers, times this as well.")
+QVR_TUNABLE_SLIDER(vr_footstep_heavy_speed, "Heavy Feet Speed", 0.5f, 2.0f, 0.05f, "%.2fx", 0.25f, 4.0f, "Ogres, fiends and shamblers: how fast their steps play, pitch and length together. Lower is deeper and longer, higher is sharper and shorter.")
 QVR_TUNABLE_SLIDER(vr_footstep_heavy_carry, "Heavy Feet Carry", 0.2f, 1.0f, 0.05f, "%.2fx", 0.05f, 1.0f, "Their distance counted times this for the falloff, the range and who is nearest: lower is heard from further, and over nearer boots.")
 QVR_TUNABLE_SLIDER(vr_footstep_nearest, "Heard at Once", 0.0f, 16.0f, 1.0f, "%.0f", 0.0f, 16.0f, "Only the nearest this many of the enemies moving are heard, so that a crowd doesn't machine-gun.")
 QVR_TUNABLE_SLIDER(vr_footstep_range, "Range", 200.0f, 2000.0f, 50.0f, "%.0f u", 0.0f, 8000.0f, "Farther from every player than this isn't heard or counted among the nearest.")
@@ -1358,6 +1365,7 @@ QVR_TUNABLE_SLIDER(vr_kdtrig_tackle_face, "Facing", 20.0f, 90.0f, 5.0f, "%.0f de
 QVR_TUNABLE_SLIDER(vr_kdtrig_tackle_leniency, "Charge Leniency", 0.0f, 1.0f, 0.05f, "%.2f", 0.0f, 1.0f, "All of the charge's thresholds below together: 0.5 uses them as set; higher is easier (1: the least ones halved, the most ones and the speed's shortfall from full doubled), lower stricter (0: 1.5 times).")
 QVR_TUNABLE_SLIDER(vr_kdtrig_tackle_knock, "Knock Back", 0.0f, 200.0f, 4.0f, "%.0f units", 0.0f, 200.0f, "How far one of your weight is knocked back before it falls (a lighter one up to 1.5 times; a heavier one staggers back 0.6 of it).")
 QVR_TUNABLE_SLIDER(vr_kdtrig_tackle_bump, "Bounce", 0.0f, 300.0f, 10.0f, "%.0f u/s", 0.0f, 300.0f, "You bounce back off it.")
+QVR_TUNABLE_SLIDER(vr_kdtrig_tackle_stamina, "Stamina Cost", 0.0f, 100.0f, 5.0f, "%.0f", 0.0f, 100.0f, "Stamina a charge that connects costs (0: none; one that misses costs nothing).")
 QVR_TUNABLE_SLIDER(vr_kdtrig_tackle_contact, "Contact", 0.0f, 24.0f, 1.0f, "%.0f units", 0.0f, 24.0f, "How near your body must be to the monster's for it to connect (0: touching).")
 QVR_TUNABLE_SLIDER(vr_kdtrig_tackle_cooldown, "Cooldown", 0.0f, 5.0f, 0.1f, "%.1f s", 0.0f, 5.0f, "Before you charge again.")
 
@@ -1634,8 +1642,8 @@ QVR_TUNABLE_SLIDER(vr_menu_grab_dist_max, "Menu Grab Dist Max", 0.0f, 1200.0f, 1
 QVR_TUNABLE_SLIDER(vr_menu_grab_deadzone, "Menu Grab Deadzone", 0.0f, 8.0f, 0.5f, "%.1f", 0.0f, 40.0f, "cm a hand moves with a grip held on the panel's face before it takes hold of the panel (vr_menu_grab 2)")
 
 QVR_TUNABLE_GROUP("Combat > Armed Grunts - Worn Backpacks")
-QVR_TUNABLE_SLIDER(vr_worn_backpack_rip_time, "Worn Backpack Rip Time", 0.0f, 0.08f, 0.005f, "%.3f", 0.0f, 0.4f, "worn backpacks: the pull kept past vr_worn_backpack_rip_force this long (s) tears it off (a yank, not a jolt)")
-QVR_TUNABLE_SLIDER(vr_worn_backpack_rip_stiffness, "Worn Backpack Rip Stiffness", 0.0f, 300.0f, 20.0f, "%.0f", 0.0f, 1500.0f, "worn backpacks: N a unit of the held point's lag behind the hand (the stretch's share of the pull)")
+QVR_TUNABLE_SLIDER(vr_worn_backpack_lift_hold, "Worn Backpack Lift Hold", 0.0f, 0.08f, 0.005f, "%.3f", 0.0f, 0.4f, "worn backpacks: the pull kept past vr_worn_backpack_lift_force this long (s) lifts its wearer (a yank, not a jolt)")
+QVR_TUNABLE_SLIDER(vr_worn_backpack_lift_stiffness, "Worn Backpack Lift Stiffness", 0.0f, 300.0f, 20.0f, "%.0f", 0.0f, 1500.0f, "worn backpacks: N a unit of the held point\'s lag behind the hand (the stretch\'s share of the pull)")
 
 QVR_TUNABLE_GROUP("Debug > Tests")
 QVR_TUNABLE_SLIDER(vr_climb_prop_pull, "Light Prop Pull", 0.0f, 100.0f, 5.0f, "%.0f kg", 0.0f, 100.0f, "vr_climb_prop_pull: the most weight a hand on a light prop pulls it with (your weight, Box3D's Player " "Mass, shared by the holding hands, towards your body).")

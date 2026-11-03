@@ -322,10 +322,12 @@ void() VR_AGAM_Frame =
     {
         same = (same && (VR_AmmoUtil_GetAmmoCountByAmmoId(b, k) == vr_agam_e[k]));
     }
+    float none = VR_WP_Packless(g); // (melee-only, its fists: no pack, no loot: vr_wornpack.qc)
+    same = none ? !b : same;
     // (Three sprintfs: a varargs builtin takes at most 8 parameters.)
     string got = b ? sprintf("backpack %g %g %g %g (+%g %g %g)", b.ammo_shells, b.ammo_nails, b.ammo_rockets,
         b.ammo_cells, b.ammo_lava_nails, b.ammo_multi_rockets, b.ammo_plasma) : "no backpack";
-    VR_AGAM_Check(strcat(sprintf("%s loot: %s, ", vr_agam_name, got), sprintf("expected %g %g %g %g (+%g %g %g):",
+    VR_AGAM_Check(strcat(sprintf("%s loot: %s, ", vr_agam_name, got), sprintf(none ? "expected none (%g %g %g %g +%g %g %g not dropped):" : "expected %g %g %g %g (+%g %g %g):",
         vr_agam_e[1], vr_agam_e[2], vr_agam_e[3], vr_agam_e[4], vr_agam_e[5], vr_agam_e[6], vr_agam_e[7])), same);
     VR_AGAM_Print("case end");
     vr_agam_i = vr_agam_i + 1;

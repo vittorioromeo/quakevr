@@ -47,6 +47,10 @@
 // - 15 (vrarena): the scattered supplies (vr_arena_supply.qc): the walkable places (room, floor, the high ones), the
 //   picks over three seeds (apart, off the player, different per seed, the same for one seed), two live clears' 1 or
 //   2 shards and every supply settled on a walkable place, on its floor, clear of the brushes, dry, its line said.
+// - 17 (vrarena): the walls are flat: a player's box and an ogre's stop 16 out of each wall at every height, a shot meets
+//   the trim itself.
+// - 18 (vrarena; run it fresh, after `restart fresh` and after a load): a run starts with no ammunition, fists in hand.
+// - 19 (vrarena): the waves still arm an empty player: wave 1 comes by itself and a fallen foe's pack gives ammunition.
 
 // ---------------------------------------------------------------------------
 // The test's own state
@@ -3080,11 +3084,12 @@ void() VR_AT16_Frame =
 }
 
 // ---------------------------------------------------------------------------
-// Test 17: the walls' trim is no step (vrarena; the author, 2026-11-01: players and foes walked up onto the skirting).
-// A player's box (hull 1) and an ogre's (hull 2) pushed flat into the middle of each of the 8 walls, their bottoms
-// just off the floor, just over the skirting's top (16), at 40 and just over the wainscot's top (80): each stops a
-// full 8 out from the wall at every height (the trim's face and the clip over the wainscot), so there is no ledge to
-// stand on below the rail's top at 96. One frame; no foes needed.
+// Test 17: the walls are flat (vrarena; the author, 2026-11-01 and 2026-11-02: players and foes walked up onto the
+// skirting, and a player got up on the rail and climbed the trim above it). A player's box (hull 1) and an ogre's (hull
+// 2) pushed flat into the middle of each of the 8 walls at heights from just off the floor to over the wall walk: each
+// stops a full 16 out from the wall at every height (the clip's one face), whatever trim is behind it, so there is
+// nothing to stand on. A shot's line still meets the trim itself: the rail, 8 out. One frame; no foes needed. (That no
+// hold is left on the trim is vr_climb_try's: ROUND23.md.)
 // ---------------------------------------------------------------------------
 void(vector c, vector n, vector lo, vector hi, string what) VR_AT17_Wall =
 {
@@ -3092,19 +3097,23 @@ void(vector c, vector n, vector lo, vector hi, string what) VR_AT17_Wall =
     float b;
     float worst = 1000;
     float worstAt = 0;
-    for(b = 0; b < 4; b++)
+    for(b = 0; b < 8; b++)
     {
         float bottom = 1;
-        if(b == 1) { bottom = 17; }
+        if(b == 1) { bottom = 17; }      // over the skirting
         if(b == 2) { bottom = 40; }
-        if(b == 3) { bottom = 81; }
+        if(b == 3) { bottom = 81; }      // over the wainscot
+        if(b == 4) { bottom = 97; }      // over the rail (where the author stood)
+        if(b == 5) { bottom = 100; }     // a sconce behind it (and an ogre still under a deck)
+        if(b == 6) { bottom = 257; }     // on a deck's level, by an upright
+        if(b == 7) { bottom = 288; }     // ... over a lamp's level
         vector at = c + '0 0 1' * (bottom - lo_z);
         tracebox(at + n * 128, lo, hi, at, TRUE, world);
         float gap = (trace_endpos - c) * n - half; // (how far out of the wall its face stopped)
         if(gap < worst) { worst = gap; worstAt = bottom; }
     }
-    VR_AT_Check(worst >= 7.9, sprintf("%s: %s stops %g out of the wall (at %g up; want 8)", what, vtos(c), worst,
-                                      worstAt));
+    VR_AT_Check(worst >= 15.9, sprintf("%s: %s stops %g out of the wall (at %g up; want 16)", what, vtos(c), worst,
+                                       worstAt));
 }
 
 void() VR_AT17_Run =
@@ -3124,15 +3133,34 @@ void() VR_AT17_Run =
         vector n = normalize('0 0 0' - c);
         VR_AT17_Wall(c, n, VEC_HULL_MIN, VEC_HULL_MAX, "a player");
         VR_AT17_Wall(c, n, VEC_HULL2_MIN, VEC_HULL2_MAX, "an ogre");
+        traceline(c + n * 64 + '0 0 90', c + '0 0 90', TRUE, world);
+        float seen = (trace_endpos - c) * n;
+        VR_AT_Check(fabs(seen - 8) < 0.1, sprintf("a shot meets the rail itself at %s (%g out; want 8)", vtos(c), seen));
     }
 }
 
 // ---------------------------------------------------------------------------
-// Test 18: Default as it is: every skill's first 30 plans hashed and one live wave's foes printed under a fixed seed
+// Test 18: a run starts with no ammunition (vrarena; the author, 2026-11-02): fists in both hands, none of any kind.
+// Run it fresh, after `restart fresh` and after a load (the same checks): it waits only for the strip.
+// ---------------------------------------------------------------------------
+void() VR_AT18_Check =
+{
+    entity p = VR_Player();
+    VR_AT_Check(p != world, "there is a player");
+    if(!p) { return; }
+    float total = p.ammo_shells + p.ammo_nails + p.ammo_rockets + p.ammo_cells + p.ammo_lava_nails +
+                  p.ammo_multi_rockets + p.ammo_plasma;
+    VR_AT_Check(total == 0, sprintf("no ammunition at the start (shells %g, nails %g, rockets %g, cells %g, others %g)",
+                                    p.ammo_shells, p.ammo_nails, p.ammo_rockets, p.ammo_cells, p.ammo_lava_nails +
+                                    p.ammo_multi_rockets + p.ammo_plasma));
+    VR_AT_Check(p.currentammo == 0, "nothing in the hands' counter");
+    VR_AT_Check(VRGetEntWeapon(p, cVR_MainHand) == WID_FIST && VRGetEntWeapon(p, cVR_OffHand) == WID_FIST,
+                "fists in both hands");
+// Test 30: Default as it is: every skill's first 30 plans hashed and one live wave's foes printed under a fixed seed
 // ("arenaplan" and "arena: foe" lines, developer 1), to compare two builds: no preset chosen must print the same.
 // ---------------------------------------------------------------------------
 
-void() VR_AT18_Begin =
+void() VR_AT30_Begin =
 {
     cvar_set("vr_arena_seed", "4242");
     float sk;
@@ -3163,6 +3191,72 @@ void() VR_AT18_Begin =
 
 void() VR_AT18_Frame =
 {
+    if(!ar_stripped) { return; } // (the run's first frame hasn't come yet)
+    VR_AT18_Check();
+    VR_AT_End();
+}
+
+// ---------------------------------------------------------------------------
+// Test 19: the waves still arm an empty player (vrarena): the run starts with nothing, wave 1 comes by itself, its foes
+// fall, and the first pack one leaves (its monster's own rounds, or an armed foe's spare ones), taken by a hand (its
+// handler called), gives the player ammunition. Every foe is felled by the test the frame it stands; the player is in
+// god mode for it.
+// ---------------------------------------------------------------------------
+void() VR_AT19_Begin =
+{
+    if(!ar_mgr) { VR_AT_Check(FALSE, "test 19 needs the arena (vrarena)"); VR_AT_End(); return; }
+    vr_at_until = time + 120;
+    vr_at_step = 0;
+}
+
+void() VR_AT19_Frame =
+{
+    entity p = VR_Player();
+    entity e;
+    if(vr_at_step == 0)
+    {
+        if(!ar_stripped || !p) { return; }
+        p.flags |= FL_GODMODE;
+        VR_AT18_Check();
+        vr_at_step = 1;
+        return;
+    }
+    if(ar_wave < 1) { return; }
+    if(vr_at_step == 1)
+    {
+        VR_AT_Check(ar_wave == 1, "wave 1 comes by itself");
+        vr_at_step = 2;
+    }
+    e = findflags(world, ar_slot, ar_wave);
+    while(e)
+    {
+        if(e.health > 0) { T_Damage(e, p, p, e.health + 1); }
+        e = findflags(e, ar_slot, ar_wave);
+    }
+    // (a worn pack whose wearer is dead, on the body: wave 1's foes wear them; a pack it didn't wear, on the floor)
+    entity pack = find(world, classname, "vr_wornpack");
+    while(pack && !(pack.vr_wp_state == VR_WP_DEAD && pack.ammo_shells + pack.ammo_nails + pack.ammo_rockets + pack.ammo_cells > 0))
+    {
+        pack = find(pack, classname, "vr_wornpack");
+    }
+    if(!pack)
+    {
+        pack = nextent(world);
+        while(pack && pack.handtouch != BackpackTouch) { pack = nextent(pack); }
+    }
+    if(!pack) { return; }
+    VR_AT_Check(p.ammo_shells + p.ammo_nails + p.ammo_rockets + p.ammo_cells == 0, "still none until a hand takes some");
+    entity oself = self;
+    entity oother = other;
+    self = pack;
+    other = p;
+    BackpackTouch();
+    self = oself;
+    other = oother;
+    VR_AT_Check(p.ammo_shells + p.ammo_nails + p.ammo_rockets + p.ammo_cells > 0,
+                sprintf("wave %g: a fallen foe's pack gives ammunition (shells %g, nails %g, rockets %g, cells %g)", ar_wave,
+                        p.ammo_shells, p.ammo_nails, p.ammo_rockets, p.ammo_cells));
+    VR_AT_End();
     if(ar_wave == 6 && ar_plan_n - ar_plan_left >= 3)
     {
         VR_AT_Check(TRUE, "wave 6's first foes in");
@@ -3171,11 +3265,11 @@ void() VR_AT18_Frame =
 }
 
 // ---------------------------------------------------------------------------
-// Tests 19..22: a preset's waves. Their presets: vr_arena_waves_dir arena_waves_test; vr_arena_waves_fixture, then
-// vr_arena_play fixture_good (19, 20), fixture_bad (21); 22 in another map with a preset assigned.
+// Tests 31..34: a preset's waves. Their presets: vr_arena_waves_dir arena_waves_test; vr_arena_waves_fixture, then
+// vr_arena_play fixture_good (31, 32), fixture_bad (33); 34 in another map with a preset assigned.
 // ---------------------------------------------------------------------------
 
-void() VR_AT19_Run =
+void() VR_AT31_Run =
 {
     VR_AT_Check(ar_preset_n == 3 && vr_ar_preset_skipped == 0 && vr_ar_preset_foes == 8,
         sprintf("the preset's waves %g, skipped %g, foes %g", ar_preset_n, vr_ar_preset_skipped, vr_ar_preset_foes));
@@ -3198,58 +3292,58 @@ void() VR_AT19_Run =
     VR_AT_Check(stof(arenawavesfield(1, -1, 1)) == 3, "wave 2's pool");
 }
 
-float at20_plan[7];
-float at20_seen[7];
-float at20_wave;
-float at20_checked;
-float at20_waves_done;
-float at20_rose;
-entity at20_riser;
+float at32_plan[7];
+float at32_seen[7];
+float at32_wave;
+float at32_checked;
+float at32_waves_done;
+float at32_rose;
+entity at32_riser;
 
 // The waves' table's first row of a classname (id's grunt and the armed one are one class: their hands tell them apart).
-float(string xClass) VR_AT20_ClassRow =
+float(string xClass) VR_AT32_ClassRow =
 {
     float i;
     for(i = 0; i < VR_WAVE_KINDS_N; i++) { if(VR_WAVE_KINDS[i].classname == xClass) { return i; } }
     return -1;
 }
 
-void() VR_AT20_Begin =
+void() VR_AT32_Begin =
 {
     vr_at_until = time + 400;
-    at20_wave = 0;
-    at20_checked = 0;
-    at20_waves_done = 0;
-    at20_rose = 0;
-    at20_riser = world;
+    at32_wave = 0;
+    at32_checked = 0;
+    at32_waves_done = 0;
+    at32_rose = 0;
+    at32_riser = world;
     VR_ARENA_FastForward(1);
 }
 
-void() VR_AT20_Frame =
+void() VR_AT32_Frame =
 {
     float i;
     if(ar_preset_over)
     {
-        VR_AT_Check(at20_waves_done == 3 && at20_rose == 1, sprintf("all three waves came, one riser (%g, %g); ARENA CLEARED", at20_waves_done, at20_rose));
+        VR_AT_Check(at32_waves_done == 3 && at32_rose == 1, sprintf("all three waves came, one riser (%g, %g); ARENA CLEARED", at32_waves_done, at32_rose));
         VR_AT_End();
         return;
     }
     if(ar_wave <= 0 || VR_ARENA_Between()) { return; }
-    if(ar_wave != at20_wave)
+    if(ar_wave != at32_wave)
     {
-        at20_wave = ar_wave;
-        at20_checked = 0;
-        for(i = 0; i < 7; i++) { at20_plan[i] = 0; at20_seen[i] = 0; }
+        at32_wave = ar_wave;
+        at32_checked = 0;
+        for(i = 0; i < 7; i++) { at32_plan[i] = 0; at32_seen[i] = 0; }
         for(i = 0; i < ar_plan_n; i++)
         {
             float armed = VR_ARENA_ArmedRow(ar_plan_kind[i]) >= 0;
-            at20_plan[0] += VR_AT20_ClassRow(VR_ARENA_ClassName(ar_plan_kind[i])) + 1;
-            at20_plan[1] += armed ? ar_plan_gun[i] + 2 : 0;
-            at20_plan[2] += ar_plan_gun2[i] > 0;
-            at20_plan[3] += ar_plan_armour[i];
-            at20_plan[4] += ar_plan_amask[i];
-            at20_plan[5] += ar_plan_infect[i];
-            at20_plan[6] += ar_plan_boss[i] > 0;
+            at32_plan[0] += VR_AT32_ClassRow(VR_ARENA_ClassName(ar_plan_kind[i])) + 1;
+            at32_plan[1] += armed ? ar_plan_gun[i] + 2 : 0;
+            at32_plan[2] += ar_plan_gun2[i] > 0;
+            at32_plan[3] += ar_plan_armour[i];
+            at32_plan[4] += ar_plan_amask[i];
+            at32_plan[5] += ar_plan_infect[i];
+            at32_plan[6] += ar_plan_boss[i] > 0;
         }
     }
     entity p = VR_Player();
@@ -3259,21 +3353,21 @@ void() VR_AT20_Frame =
         entity next = findflags(e, ar_slot, ar_wave);
         if(e.ar_slot == ar_wave && e.health > 0 && e.takedamage)
         {
-            if(e == at20_riser)
+            if(e == at32_riser)
             {
-                at20_riser = world;
+                at32_riser = world;
                 T_Damage(e, p, p, 100000);
                 VR_AT_Check(e.ar_slot == -ar_wave, "the riser's fall is the kill");
             }
             else
             {
-                at20_seen[0] += VR_AT20_ClassRow(e.classname) + 1;
-                at20_seen[1] += e.vr_ag ? e.vr_ag_code + 2 : 0;
-                at20_seen[2] += e.vr_ag_prop2 != world;
-                at20_seen[3] += e.vr_ar_type;
-                at20_seen[4] += e.vr_ar_mask;
-                at20_seen[5] += e.vr_mg3_infected;
-                at20_seen[6] += e.ar_tier >= AR_BOSS_MARK;
+                at32_seen[0] += VR_AT32_ClassRow(e.classname) + 1;
+                at32_seen[1] += e.vr_ag ? e.vr_ag_code + 2 : 0;
+                at32_seen[2] += e.vr_ag_prop2 != world;
+                at32_seen[3] += e.vr_ar_type;
+                at32_seen[4] += e.vr_ar_mask;
+                at32_seen[5] += e.vr_mg3_infected;
+                at32_seen[6] += e.ar_tier >= AR_BOSS_MARK;
                 if(e.classname == "monster_zombie")
                 {
                     VR_AT_Check(time >= ar_wave_at + 1, sprintf("a delayed entry waits: in at %g s", time - ar_wave_at));
@@ -3284,8 +3378,8 @@ void() VR_AT20_Frame =
                 for(tries = 0; tries < 6 && e.health > 0 && e.vr_mg3_infected == was; tries++) { T_Damage(e, p, p, 100000); }
                 if(was)
                 {
-                    at20_rose = at20_rose + 1;
-                    at20_riser = e;
+                    at32_rose = at32_rose + 1;
+                    at32_riser = e;
                     VR_AT_Check(e.health > 0 && e.classname == "monster_shambler" && e.ar_slot == ar_wave && ar_wave_kills == kills && !e.vr_ag,
                         sprintf("the infected enforcer rose a shambler, the same foe, no kill yet (%s health %g slot %g kills %g)", e.classname, e.health, e.ar_slot, ar_wave_kills));
                     VR_AT_Check(VR_ARENA_CountAlive() >= 1, "the wave waits for the riser");
@@ -3298,20 +3392,20 @@ void() VR_AT20_Frame =
         }
         e = next;
     }
-    if(!at20_checked && ar_plan_left == 0 && VR_ARENA_CountAlive() == 0 && ar_wave_kills == ar_plan_n)
+    if(!at32_checked && ar_plan_left == 0 && VR_ARENA_CountAlive() == 0 && ar_wave_kills == ar_plan_n)
     {
-        at20_checked = 1;
-        at20_waves_done = at20_waves_done + 1;
+        at32_checked = 1;
+        at32_waves_done = at32_waves_done + 1;
         // (0 class, 1 main hand, 2 off hand, 3 armour, 4 pieces, 5 infection, 6 boss)
         for(i = 0; i < 7; i++)
         {
-            VR_AT_Check(at20_plan[i] == at20_seen[i], sprintf("wave %g came as written: field %g: %g, written %g", ar_wave, i, at20_seen[i], at20_plan[i]));
+            VR_AT_Check(at32_plan[i] == at32_seen[i], sprintf("wave %g came as written: field %g: %g, written %g", ar_wave, i, at32_seen[i], at32_plan[i]));
         }
         VR_AT_Check(ar_wave_kills == ar_plan_n, sprintf("wave %g: %g kills, %g foes", ar_wave, ar_wave_kills, ar_plan_n));
     }
 }
 
-void() VR_AT21_Run =
+void() VR_AT33_Run =
 {
     VR_AT_Check(ar_preset_n == 1 && vr_ar_preset_skipped == 6 && vr_ar_preset_foes == 1,
         sprintf("the bad preset still plays: waves %g, skipped %g, foes %g", ar_preset_n, vr_ar_preset_skipped, vr_ar_preset_foes));
@@ -3319,7 +3413,7 @@ void() VR_AT21_Run =
     VR_AT_Check(ar_plan_n == 1 && ar_plan_kind[0] == AR_SP_DOG, sprintf("only what it can make: a dog (%g foes)", ar_plan_n));
 }
 
-void() VR_AT22_Run =
+void() VR_AT34_Run =
 {
     VR_AT_Check(mapname != "vrarena" && ar_mgr != world, sprintf("%s runs the arena: its name is assigned", mapname));
     VR_AT_Check(ar_preset_n == 1, sprintf("its preset loaded (%g waves)", ar_preset_n));
@@ -3328,22 +3422,22 @@ void() VR_AT22_Run =
 }
 
 // ---------------------------------------------------------------------------
-// Test 23: generic infection: every outcome from every armed kind, with room, in a slot too narrow for a big body, and
+// Test 35: generic infection: every outcome from every armed kind, with room, in a slot too narrow for a big body, and
 // walled in (no room at all). The director held; each spawned, killed, looked at and removed in turn.
 // ---------------------------------------------------------------------------
 
-float at23_kind;
-float at23_row;
-float at23_room; // 0 open, 1 a slot 40 wide, 2 boxed in
-float at23_state;
-float at23_at;
-float at23_kills;
-float at23_drops;
-entity at23_m;
-entity at23_b1;
-entity at23_b2;
+float at35_kind;
+float at35_row;
+float at35_room; // 0 open, 1 a slot 40 wide, 2 boxed in
+float at35_state;
+float at35_at;
+float at35_kills;
+float at35_drops;
+entity at35_m;
+entity at35_b1;
+entity at35_b2;
 
-entity(vector xLo, vector xHi) VR_AT23_Block =
+entity(vector xLo, vector xHi) VR_AT35_Block =
 {
     entity b = spawn();
     b.classname = "vr_at23_block";
@@ -3354,103 +3448,103 @@ entity(vector xLo, vector xHi) VR_AT23_Block =
     return b;
 }
 
-void() VR_AT23_Spawn =
+void() VR_AT35_Spawn =
 {
     entity p = VR_Player();
     makevectors([0, p.v_angle_y, 0]);
     entity oself = self;
     self = spawn();
-    at23_m = self;
+    at35_m = self;
     setorigin(self, p.origin + v_forward * 200 + '0 0 8');
     self.angles = [0, p.v_angle_y + 180, 0];
-    self.weapon = at23_kind < 2 ? WID_NAILGUN : WID_AXE;
-    self.vr_mg3_infected = at23_row;
-    VR_Infect_Precache(at23_row);
-    if(at23_kind == VR_AM_GRUNT) { monster_vr_grunt(); }
-    else if(at23_kind == VR_AM_ENFORCER) { monster_vr_enforcer(); }
-    else if(at23_kind == VR_AM_KNIGHT) { monster_vr_knight(); }
+    self.weapon = at35_kind < 2 ? WID_NAILGUN : WID_AXE;
+    self.vr_mg3_infected = at35_row;
+    VR_Infect_Precache(at35_row);
+    if(at35_kind == VR_AM_GRUNT) { monster_vr_grunt(); }
+    else if(at35_kind == VR_AM_ENFORCER) { monster_vr_enforcer(); }
+    else if(at35_kind == VR_AM_KNIGHT) { monster_vr_knight(); }
     else { monster_vr_hknight(); }
     self = oself;
-    at23_state = 1;
+    at35_state = 1;
 }
 
-void() VR_AT23_Next =
+void() VR_AT35_Next =
 {
-    if(at23_m) { remove(at23_m); }
-    if(at23_b1) { remove(at23_b1); }
-    if(at23_b2) { remove(at23_b2); }
-    at23_m = world;
-    at23_b1 = world;
-    at23_b2 = world;
-    at23_room = at23_room + 1;
-    if(at23_room > 2) { at23_room = 0; at23_row = at23_row + 1; }
-    if(at23_row >= VR_INFECT_N) { at23_row = 1; at23_kind = at23_kind + 1; }
-    at23_state = 0;
+    if(at35_m) { remove(at35_m); }
+    if(at35_b1) { remove(at35_b1); }
+    if(at35_b2) { remove(at35_b2); }
+    at35_m = world;
+    at35_b1 = world;
+    at35_b2 = world;
+    at35_room = at35_room + 1;
+    if(at35_room > 2) { at35_room = 0; at35_row = at35_row + 1; }
+    if(at35_row >= VR_INFECT_N) { at35_row = 1; at35_kind = at35_kind + 1; }
+    at35_state = 0;
 }
 
-void() VR_AT23_Begin =
+void() VR_AT35_Begin =
 {
     vr_at_until = time + 600;
     ar_mgr.think = SUB_Null; // (no waves)
     ar_mgr.nextthink = 0;
-    at23_kind = 0;
-    at23_row = 1;
-    at23_room = 0;
-    at23_state = 0;
-    at23_m = world;
+    at35_kind = 0;
+    at35_row = 1;
+    at35_room = 0;
+    at35_state = 0;
+    at35_m = world;
 }
 
-void() VR_AT23_Frame =
+void() VR_AT35_Frame =
 {
-    if(at23_kind >= VR_AM_COUNT)
+    if(at35_kind >= VR_AM_COUNT)
     {
         VR_AT_End();
         return;
     }
-    if(at23_state == 0) { VR_AT23_Spawn(); return; }
-    entity m = at23_m;
-    string what = sprintf("armed kind %g row %s room %g", at23_kind, VR_INFECT_ROWS[at23_row].name, at23_room);
-    if(at23_state == 1)
+    if(at35_state == 0) { VR_AT35_Spawn(); return; }
+    entity m = at35_m;
+    string what = sprintf("armed kind %g row %s room %g", at35_kind, VR_INFECT_ROWS[at35_row].name, at35_room);
+    if(at35_state == 1)
     {
         if(!m.takedamage) { return; } // (its own start's think)
         VR_AgArmor_Give(m, 1, 1023); // (after its own start's roll for the skill)
         vector o = m.origin;
-        if(at23_room == 1)
+        if(at35_room == 1)
         {
-            at23_b1 = VR_AT23_Block(o + '20 -400 -60', o + '400 400 300');
-            at23_b2 = VR_AT23_Block(o + '-400 -400 -60', o + '-20 400 300');
+            at35_b1 = VR_AT35_Block(o + '20 -400 -60', o + '400 400 300');
+            at35_b2 = VR_AT35_Block(o + '-400 -400 -60', o + '-20 400 300');
         }
-        else if(at23_room == 2)
+        else if(at35_room == 2)
         {
-            at23_b1 = VR_AT23_Block(o + '-140 -140 -60', o + '140 140 300');
+            at35_b1 = VR_AT35_Block(o + '-140 -140 -60', o + '140 140 300');
         }
-        at23_kills = killed_monsters;
-        at23_drops = vr_mg3_infected_drops;
+        at35_kills = killed_monsters;
+        at35_drops = vr_mg3_infected_drops;
         entity p = VR_Player();
         VR_AT_Check(m.vr_ag != 0 && m.vr_ar_type == 1, sprintf("%s: armed and armoured (armed %g, type %g)", what, m.vr_ag, m.vr_ar_type));
         T_Damage(m, p, p, 100000);
         float tries;
         for(tries = 0; tries < 6 && m.vr_mg3_infected; tries++) { T_Damage(m, p, p, 100000); }
-        VR_AT_Check(vr_mg3_infected_drops == at23_drops + 1 && m.vr_ag == 0 && m.vr_ag_prop == world, sprintf("%s: his weapon fell, the armed layer gone", what));
+        VR_AT_Check(vr_mg3_infected_drops == at35_drops + 1 && m.vr_ag == 0 && m.vr_ag_prop == world, sprintf("%s: his weapon fell, the armed layer gone", what));
         VR_AT_Check(m.vr_ar_type == 0 && m.vr_ar_mask == 0, sprintf("%s: his plates shed", what));
-        if(at23_room == 2)
+        if(at35_room == 2)
         {
-            VR_AT_Check(m.health <= 0 && killed_monsters == at23_kills + 1, sprintf("%s: no room: he doesn't rise, counted (health %g, kills +%g)", what, m.health, killed_monsters - at23_kills));
-            at23_m = m.classname == "" ? world : world; // (his body's the game's now: gibbed, it goes on its own)
-            VR_AT23_Next();
+            VR_AT_Check(m.health <= 0 && killed_monsters == at35_kills + 1, sprintf("%s: no room: he doesn't rise, counted (health %g, kills +%g)", what, m.health, killed_monsters - at35_kills));
+            at35_m = m.classname == "" ? world : world; // (his body's the game's now: gibbed, it goes on its own)
+            VR_AT35_Next();
             return;
         }
-        string want = VR_INFECT_ROWS[at23_row].classname;
-        if(at23_room == 1 && (want == "monster_ogre" || want == "monster_shambler" || want == "monster_shalrath")) { want = "monster_zombie"; }
-        VR_AT_Check(m.classname == want && m.health > 0 && killed_monsters == at23_kills, sprintf("%s: rose as %s (%s, health %g, kills +%g)", what, want, m.classname, m.health, killed_monsters - at23_kills));
-        at23_state = 2;
-        at23_at = time + 0.2;
+        string want = VR_INFECT_ROWS[at35_row].classname;
+        if(at35_room == 1 && (want == "monster_ogre" || want == "monster_shambler" || want == "monster_shalrath")) { want = "monster_zombie"; }
+        VR_AT_Check(m.classname == want && m.health > 0 && killed_monsters == at35_kills, sprintf("%s: rose as %s (%s, health %g, kills +%g)", what, want, m.classname, m.health, killed_monsters - at35_kills));
+        at35_state = 2;
+        at35_at = time + 0.2;
         return;
     }
-    if(time < at23_at) { return; }
+    if(time < at35_at) { return; }
     // (the blow that burst him may knock the new body down, as any blow may: his ragdoll, then he gets up)
     VR_AT_Check(m.classname != "" && m.health > 0 && (m.solid == SOLID_SLIDEBOX || m.vr_knockdown) && m.takedamage && m.nextthink > time - 0.2, sprintf("%s: up and running a moment later (%s health %g solid %g dmg %g frame %g)", what, m.classname, m.health, m.solid, m.takedamage, m.frame));
-    VR_AT23_Next();
+    VR_AT35_Next();
 }
 
 // The toolgun's spawn with outcome `xRow` (vr_toolgun_armed_infected_test, vr_toolgun.cpp): it carries it, and rises as it.
@@ -3511,12 +3605,14 @@ void() VR_ARENA_Test_Frame =
         if(c == 15) { VR_AT15_Begin(); return; }
         if(c == 16) { VR_AT16_Begin(); return; }
         if(c == 17) { VR_AT17_Run(); VR_AT_End(); return; }
-        if(c == 18) { VR_AT18_Begin(); return; }
-        if(c == 19) { VR_AT19_Run(); VR_AT_End(); return; }
-        if(c == 20) { VR_AT20_Begin(); return; }
-        if(c == 21) { VR_AT21_Run(); VR_AT_End(); return; }
-        if(c == 22) { VR_AT22_Run(); VR_AT_End(); return; }
-        if(c == 23) { VR_AT23_Begin(); return; }
+        if(c == 18) { return; } // (its frame: once the strip has been)
+        if(c == 19) { VR_AT19_Begin(); return; }
+        if(c == 30) { VR_AT30_Begin(); return; }
+        if(c == 31) { VR_AT31_Run(); VR_AT_End(); return; }
+        if(c == 32) { VR_AT32_Begin(); return; }
+        if(c == 33) { VR_AT33_Run(); VR_AT_End(); return; }
+        if(c == 34) { VR_AT34_Run(); VR_AT_End(); return; }
+        if(c == 35) { VR_AT35_Begin(); return; }
 
         VR_AT_Check(FALSE, "no such arena test");
         VR_AT_End();
@@ -3548,7 +3644,8 @@ void() VR_ARENA_Test_Frame =
     if(vr_at_case == 15) { VR_AT15_Frame(); return; }
     if(vr_at_case == 16) { VR_AT16_Frame(); return; }
     if(vr_at_case == 18) { VR_AT18_Frame(); return; }
-    if(vr_at_case == 20) { VR_AT20_Frame(); return; }
-    if(vr_at_case == 23) { VR_AT23_Frame(); return; }
+    if(vr_at_case == 19) { VR_AT19_Frame(); return; }
+    if(vr_at_case == 32) { VR_AT32_Frame(); return; }
+    if(vr_at_case == 35) { VR_AT35_Frame(); return; }
 }
 #endif

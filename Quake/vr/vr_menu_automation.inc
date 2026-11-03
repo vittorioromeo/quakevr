@@ -452,6 +452,12 @@ za::Vector<Item> pageDebugAutomation()
             .help("vr_agrunt_test 66: a shotgun grunt shoved to the floor keeps its gun in its hand; you walk up to it "
                   "and reach for the gun with an open hand at 0.8 m/s for 3 s: it keeps it. Then the old rules (printed: "
                   "vr_agrunt_disarm_deliberate 0)."),
+        command("Armed Grunts: Dual Wielder Disarmed", "vr_agrunt_test 203")
+            .help("vr_agrunt_test 203: each kind with two weapons has its left one knocked out (by nobody, your fist, a tug), "
+                  "goes for a fallen one, loses its right, then the last: each weapon's think goes on, each drawn on its hand."),
+        command("Ogres: Friendly Fire", "vr_agrunt_test 204")
+            .help("vr_agrunt_test 204: ogres far ahead, a friend held still in each one's way: friendly hits and attacks "
+                  "careless, careful, and with the friend always in the way (vr_ogre_friendly_care)."),
         command("Armed Grunts: Friendly Fire", "vr_agrunt_test 63")
             .help("vr_agrunt_test 63: four gunners far ahead, their friends held still in their lines of fire, 15 s "
                   "careless (Careful of Friends 0), then 15 s careful: friendly hits each (vr_agrunt_friendly_care)."),
@@ -648,6 +654,10 @@ za::Vector<Item> pageDebugAutomation()
                   "lying about and a small crate as heavy as it, each thrown at 10, 13 and 16 m/s into a grunt, then an "
                   "ogre, made ahead of you. The tank hurts as the crate does and stays whole. The console (fueltankhit: "
                   "lines, then N passed, M failed)."),
+        command("Blows and Props: What Gibs", "god 1; notarget 1; vr_prop_impact_test 7")
+            .help("vr_prop_impact_test 7 (god and notarget on; 200 units of open floor ahead): a grunt at full health and "
+                  "wounded, a blow of each weapon at each strength, under Quad too, then a barrel and the crates thrown, "
+                  "falling, slammed, and thrown onto a body. The console (gibtable: a line a row, then N passed, M failed)."),
         command("Flail Head Hits", "god 0; notarget 1; vr_prop_impact_test 5")
             .help("vr_prop_impact_test 5 (Arcane Dimensions; notarget on, god off; 200 units of open floor ahead): a "
                   "flail's loose head flung at 13, 16 and 19 m/s into a grunt (once, about as a small crate as heavy), "

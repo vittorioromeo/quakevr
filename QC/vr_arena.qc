@@ -2451,7 +2451,9 @@ void() VR_ARENA_RestartThink =
     localcmd("restart fresh\n");
 }
 
-// The players put down to their fists, once a run begins (vr_trailer.qc's own strip, every rung of the ladder).
+// The players put down to their fists and no ammunition of any kind, once a run begins (vr_trailer.qc's own strip, every
+// rung of the ladder; a new game's parms give 25 shells, and a level change whatever was carried): what a run has it
+// took from its foes and its supplies.
 void() VR_ARENA_StripPlayers =
 {
     entity p = VR_Player();
@@ -2462,6 +2464,14 @@ void() VR_ARENA_StripPlayers =
         {
             VR_Trailer_TakeWeapon(p, wid);
         }
+        p.ammo_shells = 0;
+        p.ammo_nails = 0;
+        p.ammo_rockets = 0;
+        p.ammo_cells = 0;
+        p.ammo_lava_nails = 0;
+        p.ammo_multi_rockets = 0;
+        p.ammo_plasma = 0;
+        p.currentammo = 0;
         p = VR_NextPlayer(p);
     }
 }

@@ -1313,6 +1313,7 @@ void(float dist) ai_run =
         movedist = dist;
     }
 
+    VR_Ogre_FriendStepOver(); // QVR: an ogre's sidestep for a clear shot over (vr_ogre_friends.qc)
     if(self.attack_state == AS_SLIDING)
     {
         ai_run_slide();
