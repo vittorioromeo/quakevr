@@ -142,10 +142,30 @@ VR host gets `E`, `1` and `2` and no reloading. The punches need no gate of thei
 in VR. The engine's `vr_flatplay` cvar is the local client's mode only (its
 hands, its flashlight, its keys).
 
+## The ironsight, and the free hand's grip
+
+`vr_flatsight.cpp` works on the pose `poseHands` just made, and only while the mode runs. With one hand holding and the
+other empty, the empty hand is put on the held weapon's two-hand grip (`pinToGrip`) and `twohand::apply` runs over the
+pose, so the hold is the game's own — its helping flag, its `helpKind`, its transition, the weight and recoil that follow
+them — and not a look. A weapon whose model has no such hotspot, and dual wielding, keep the pose above exactly as it is.
+
+The mouse wheel's button (`K_MOUSE3`), or `vr_flat_aim` from the console, turns the ironsight on: the held hand is turned
+so that the muzzle's own point — the one the shot starts from (`muzzleOf`) — sits on the crosshair's ray
+(`centreOnCrosshair`), and the field of view narrows by `vr_flat_aim_fov`: `gl_screen.c` asks `VR_FlatAdsFov` where it
+chooses `r_refdef.basefov`, and the mouse look's own measure comes from the same `basefov` (`in_sdl.c`'s `IN_FovScale`),
+so the look and the crosshair keep their feel. It refuses while dual wielding, and on a weapon with no sight line.
+`vr_flatplay_status` prints both hands and the ironsight, and `vr_flatplay_debug 2` adds a `flatsight:` line each frame
+with where the muzzle stands off the crosshair before and after the turn.
+
+A flatscreen hand is always gripping (`gripping`, in `vr_client.cpp`), so the frame the pose brings the empty hand onto a
+grip is stood in for the grip button's press by `twohand::armFlatGrip` — armed once per arrival, let go the frame the hand
+leaves the grip or the weapon changes; `vr_twohand`'s own distances, its angle test, the foregrip's stickiness and the
+weapon's Two-Handed setting decide the hold from there, unchanged.
+
 ## Tuning
 
 `vr_flat_reach` (1), `vr_flat_sway` (1), `vr_flat_bob` (1), `vr_flat_turnlag` (1), `vr_flat_turnlag_speed` (1),
-`vr_flat_arm_hold` (1) and `vr_flat_pose_pitch` (65) — all not saved, all in the Debug menu. `vr_flat_arm_hold` is how
+`vr_flat_arm_hold` (1), `vr_flat_pose_pitch` (65) and `vr_flat_aim_fov` (12) — all not saved, all in the Debug menu. `vr_flat_arm_hold` is how
 far a drawn hand may sit from its arm's shoulder, times what that arm can hold a hand at (`armSpan`: the model's bones
 with `vr_body_arm_length` and `vr_body_arm_stretch`, the shoulder's own `vr_body_shoulder_reach`; 0: no limit, the hands
 where they are placed). `vr_flat_pose_pitch` is how far the hands follow the view up and down, in degrees (90: all the
