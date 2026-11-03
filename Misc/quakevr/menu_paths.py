@@ -54,14 +54,27 @@ def board(title, label=None, cvar=None, entries=None):
 def main():
     if len(sys.argv) != 2:
         raise SystemExit(__doc__)
+    # (run.sh -Filter's output is word-wrapped at the console's width: a long row goes on over the lines after it, which
+    # kept apart would cut its path. A row's lines end at the next MP| line or a blank one; the game's own qconsole.log,
+    # not wrapped, reads the same.)
     lines = []
+    open_row = False
     for line in open(sys.argv[1], encoding="utf-8", errors="replace"):
-        at = line.find("MP|")
+        text = line.rstrip("\r\n")
+        at = text.find("MP|")
         if at >= 0:
-            lines.append(line[at + 3:].rstrip("\r\n") + "\n")
+            lines.append(text[at + 3:])
+            open_row = True
+        elif not text.strip() or text.startswith("menu paths dumped"):
+            open_row = False
+        elif open_row:
+            lines[-1] += text
     if not lines:
         raise SystemExit("no MP| lines in " + sys.argv[1])
-    open(PATHS, "w", encoding="utf-8", newline="\n").write(HEAD + "".join(lines))
+    bad = [r for r in lines if r.count("|") != 4]
+    if bad:
+        raise SystemExit(f"{len(bad)} rows without their 5 fields, the first: {bad[0]}")
+    open(PATHS, "w", encoding="utf-8", newline="\n").write(HEAD + "".join(r + "\n" for r in lines))
     print(f"wrote {os.path.relpath(PATHS)}: {len(lines)} entries")
 
 
