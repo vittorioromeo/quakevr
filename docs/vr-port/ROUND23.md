@@ -7877,7 +7877,8 @@ frames, the facing guard doesn't). Hits unchanged; 10 takes' damage differs by 0
 **Tests** (3 runs each where noted). Test 78: 36/0 (armed 19, monsters' 17: reference, across parried, along lands; the lines' planes
 checked: knight chop and ogre smash upright, ogre swing level; a standing knight's blow the guard). Agtests 35 flaky as before (5/1 or 6/0 on
 this branch and on origin/next alike, a different weapon each time), 60 6/0, 96 8/0, 98 6/0. parry_pose kinds 1, 5, 9: 0 squashed.
-parryinterrupt pass. parrybalance: `pose` fails on origin/next too (not well timed); `repeat`, see the report.
+parryinterrupt pass. parrybalance: `examples` pass; `pose`, `repeat`, `chances` fail with the same numbers on origin/next (not from this
+branch; left alone). `vr_menu_path_check maps/vrcalibration.map`: 0 missing.
 A screenshot of test 78's `scratch2 1` with Show Disarm Volumes showed the knight's line on its drawn sword.
 
 **Questions for him:** (1) A directional parry with an upright weapon is never "well timed" (`vr_guard_up_*` is the guard's raise), armed
