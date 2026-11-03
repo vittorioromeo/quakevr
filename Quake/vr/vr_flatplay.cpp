@@ -712,7 +712,11 @@ void probeArm(const hands::State& s, int h, const glm::vec3& drawn, const glm::v
     }
     const glm::vec3 joint = k.shoulder[h];
     const glm::mat3 handAxes = axes(drawnRot);
-    if(!punching(h) && glm::distance(joint, drawn) < span)
+    // The mount is learned whenever the arm is really holding this hand — a unit or more inside its reach — punch running
+    // or not. Learned only at rest, it went stale across a look: the wrist's bend changes, and an old mount maps the
+    // arm's wrist through the wrong bend, which read as an 857 mm gap on one frame after a scripted straight-up look when
+    // the arm itself was 0.00 units short of the hand (measured 2026-11-03). A fresh mount reads 0 where it should.
+    if(glm::distance(joint, drawn) + 1.f < span)
     {
         fs.armMount[h] = glm::transpose(handAxes) * (f.point - drawn); // the arm's wrist, in the hand's own frame
         fs.mountSeen[h] = true;

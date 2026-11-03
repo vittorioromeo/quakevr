@@ -60,15 +60,18 @@ check $(echo "$log" | grep -q "main - |" && echo "$log" | grep "^weaponinst: mai
 # Both melee runs set vr_mock_eye_size 256 — what the mock clamps its floor up to — so they keep measuring at that cadence
 # and nobody has to re-derive it.
 # Each attempt is bracketed by two vr_test_hurt 1 reads, so the gap between them is what its punch left the knight at;
-# the reads in between the attempts should find nothing, and a knight is spawned fresh before the second and third
-# attempt in case a blow killed the first. Measured 2026-11-03 with the punch above at 24 and the hand at its normal
+# the reads in between the attempts should find nothing. Before each fresh knight the live ones are killed (vr_test_kill
+# 1, twice: by the third attempt two can be standing), because vr_test_hurt reads the live monster NEAREST the player
+# and a knight left over from an earlier attempt stands at the very same 24 units ahead: measured 2026-11-03, the third
+# attempt's off-hand blow landed (19 to that knight) while its read reported the leftover at 75 -> 73, so the gap came
+# out 0. A knight is still spawned fresh before the second and third attempt in case a blow killed the first. Measured 2026-11-03 with the punch above at 24 and the hand at its normal
 # rest: the main hand left a gap of 8, the off hand 19 (melee swish: blow, hand 1 and hand 0, 1.74 of the fist's landing
 # speed), so these two checks gate on the knight's health actually moving rather than being known failures. The second
 # attempt drops to vr_flat_reach 0.6, kept as the other lever that was on the table: it clears the pull-back and the
 # wiggle refusals on its own and lifts the grip to 8.12 m/s, but the weapon then rests inside the knight's box, so no
 # rib of its sweep is creditable — which is why the settled lever is the spawn distance and not the rest offset.)
 log=$HERE/scratch/flatpunch.log
-bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; god; notarget; developer 1; r_norefresh 0; vr_mock_eye_size 256; vr_test_spawn 5; vr_test_spawn_dist 24; impulse 241; wait10; impulse 152; wait15; vr_flatplay_debug 2; wait10; vr_test_hurt 1; wait3; +attack; wait30; screenshot; -attack; vr_test_hurt 1; wait15; vr_test_spawn 5; vr_test_spawn_dist 24; impulse 241; wait15; vr_flat_reach 0.6; wait25; vr_test_hurt 1; wait3; +attack; wait30; screenshot; -attack; vr_test_hurt 1; wait15; vr_flat_reach 1; vr_test_spawn 5; vr_test_spawn_dist 24; impulse 241; wait15; impulse 172; wait25; vr_test_hurt 1; wait3; +offhandattack; wait30; screenshot; -offhandattack; vr_test_hurt 1; wait15; setpos 480 -352 88 -89 0 0; wait25; +attack; wait30; screenshot; -attack; wait10; vr_flatplay_status; toggleconsole; quit" -Filter "flatarm:|test hurt:|punches:|flatplay: " -Out scratch/flatpunch.png > "$log" 2>&1
+bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; god; notarget; developer 1; r_norefresh 0; vr_mock_eye_size 256; vr_test_spawn 5; vr_test_spawn_dist 24; impulse 241; wait10; impulse 152; wait15; vr_flatplay_debug 2; wait10; vr_test_hurt 1; wait3; +attack; wait30; screenshot; -attack; vr_test_hurt 1; wait15; vr_test_kill 1; wait10; vr_test_kill 1; wait10; vr_test_spawn 5; vr_test_spawn_dist 24; impulse 241; wait15; vr_flat_reach 0.6; wait25; vr_test_hurt 1; wait3; +attack; wait30; screenshot; -attack; vr_test_hurt 1; wait15; vr_flat_reach 1; vr_test_kill 1; wait10; vr_test_kill 1; wait10; vr_test_spawn 5; vr_test_spawn_dist 24; impulse 241; wait15; impulse 172; wait25; vr_test_hurt 1; wait3; +offhandattack; wait30; screenshot; -offhandattack; vr_test_hurt 1; wait15; setpos 480 -352 88 -89 0 0; wait25; +attack; wait30; screenshot; -attack; wait10; vr_flatplay_status; toggleconsole; quit" -Filter "flatarm:|test hurt:|punches:|flatplay: " -Out scratch/flatpunch.png > "$log" 2>&1
 read -r okmain okoff okarm probes past mm gaps <<<"$(grep -a "" "$log" | awk '
 /test hurt:/ { if (match($0, /health [0-9.]+ -> [0-9.]+/)) { split(substr($0, RSTART + 7, RLENGTH - 7), b, " ->"); if (seen) { g[++n] = prev - b[1]; s = s (n > 1 ? "," : "") sprintf("%.0f", g[n]) } prev = b[2]; seen = 1 } }
 /flatarm:/ { for (i = 1; i <= NF; i++) if ($i == "past") { v = $(i + 2) + 0; if (v > past) past = v } if (match($0, /\(([0-9]+) mm\)/)) { m = substr($0, RSTART + 1, RLENGTH - 4) + 0; if (m > mm) mm = m } }
