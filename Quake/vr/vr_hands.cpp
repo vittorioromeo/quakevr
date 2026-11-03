@@ -784,6 +784,19 @@ void placeFlat(const glm::vec3& aim, float yaw)
     state.headAngles = aim;
     state.headHeight = vr_height_calibration.value;
 
+    // -flatscreenmode holding his crouch (Left Ctrl, +flatcrouch: vr_flatplay.cpp) puts his head down by the eased
+    // vr_flat_crouch_drop, and his height with it: crouchRatio (below, the same way a tracked crouch reads), the body's
+    // crouch and the legs' bend (vr_avatar.cpp), the shoulder anchor the hands are posed from (bodyAnchor), the drawn
+    // view (view.c's VR_FlatViewDrop) and the crouched box his move's head gives (vr_hull.cpp, vr_server.cpp) all follow.
+    // 0 standing, and 0 outside the mode: a headset player's head comes from the tracking, not from here.
+    const float crouchDown = flatplay::crouchDrop();
+    if(crouchDown > 0.f)
+    {
+        state.head[2] -= crouchDown;
+        state.headHeight = vr_height_calibration.value - crouchDown / units::metresToUnits();
+    }
+
+
     const glm::vec3 centre = state.playerOrigin + fwd * 16.5f + up * 15.5f;
     if(flatplay::active())
     {

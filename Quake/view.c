@@ -900,6 +900,7 @@ void V_CalcRefdef (void)
 
 	VR_RagtoolView (r_refdef.vieworg, r_refdef.viewangles); // QVR: the ragdoll tool's orbit camera
 	VR_RigStudioView (r_refdef.vieworg, r_refdef.viewangles); // QVR: the Rig Studio's camera (vr/vr_rigstudio.cpp)
+	VR_FlatViewDrop (r_refdef.vieworg); // QVR: a flatscreen player holding his crouch (Left Ctrl) sees from lower (vr/vr_flatplay.cpp)
 }
 
 /*

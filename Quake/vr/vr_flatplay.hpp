@@ -27,13 +27,19 @@ namespace qvr::flatplay
 // The one console line for that implication (vr_main.cpp asks before it starts a backend).
 void noteBackendImplied();
 
-// VR_Init: reads the flag, registers vr_flatplay_status and vr_flat_punch.
+// VR_Init: reads the flag, registers vr_flatplay_status, vr_flat_punch, +flatcrouch / -flatcrouch.
 void init();
 
-// VR_BeginFrame, before the hands are posed: the keys (E, V) and each hand's fire button (the game's own fire state:
-// with a weapon a swing strikes with it starts that hand's punch), the cvars the mode stands in for (reloading off, the
-// flashlight worn and always lit, body interactions on), vr_flatplay itself.
+// VR_BeginFrame, before the hands are posed: the keys (E, V, Left Ctrl, F, G) and each hand's fire button (the game's
+// own fire state: with a weapon a swing strikes with it, that button starts that hand's punch), the cvars the mode
+// stands in for (reloading off, the flashlight worn with F switching it, body interactions on), vr_flatplay itself.
 void frame();
+
+// The crouch Left Ctrl / +flatcrouch holds, eased 0 standing .. 1 crouched, and how far it puts his head down (units):
+// vr_hands.cpp's flat branch lowers his head and his height with it, view.c's VR_FlatViewDrop the drawn view. 0 standing,
+// and 0 outside the mode (a headset player crouches with his own tracked head).
+[[nodiscard]] float crouchRatio();
+[[nodiscard]] float crouchDrop();
 
 // vr_hands.cpp's flat-screen branch: where each hand goes and how it is turned, in world space: the hands placed in the
 // view's frame held to vr_flat_pose_pitch, each hand's punch a swing of that arm about its shoulder (punchSwing). The
