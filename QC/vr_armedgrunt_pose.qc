@@ -390,13 +390,15 @@ void(entity g, entity p, vector from, vector dir) VR_AGP_Strike =
         {
             dir = VR_AG_Rotate(dir, normalize(VR_AGP_ToWorld(kr)), vlen(kr));
         }
-        if(p && g.enemy && VR_AG_MeleeStandoff(g) > 0)
-        {
-            // A long blade's swing from its standoff (vr_agrunt_mspace): its blow still at you from its keyed grip (the
-            // keys' turn swung a knight's line past you from there; up close it starts inside you and lands anyway).
-            entity t = g.enemy;
-            dir = normalize(VR_AI_Origin(t) + '0 0 1' * ((t.flags & FL_CLIENT) ? 8 : (t.mins_z + t.maxs_z) * 0.5) - from);
-        }
+    }
+    if(g.enemy)
+    {
+        // Its blow at you from its hand, whatever the keys' turn (a knight's long blade from its standoff, a grunt's
+        // Mjolnir from the far end of a swing: past you) or the punch's path (a death knight's uppercut: over your head)
+        // make of the line. Reach is still the weapon's own: too far off, the line ends short of you. Up close it starts
+        // inside you and lands anyway.
+        entity t = g.enemy;
+        dir = normalize(VR_AI_Origin(t) + '0 0 1' * ((t.flags & FL_CLIENT) ? 8 : (t.mins_z + t.maxs_z) * 0.5) - from);
     }
     entity oldself = self;
     self = g;

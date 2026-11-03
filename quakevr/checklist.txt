@@ -6,6 +6,18 @@
 
 [Failed: waiting for your answer]
 
+[0. Flatscreen play (-flatscreenmode)]
+Flatscreen: Left Ctrl crouches while you hold it and you stand back up when you let go (vr_flat_crouch_time 0.25 for the move, vr_flat_crouch_drop 18 for how far your eyes come down; Debug > Tests > Flat Keys runs all four of these headless)
+Flatscreen: F switches the head torch: out and packed away, then lit and worn again. In a headset nothing about the torch changed
+Flatscreen: G drops what your hands hold, main hand first, off hand second (a weapon on the floor, a box or prop let go, "flat drop:" on the console). In a headset G still does what it did
+Flatscreen: an ammo or health box grabbed with E is taken at once, so you keep moving; a worn pack is still worn by its own cue. the Auto-Collect row stays the headset player's own setting
+Flatscreen, standing: you are counted as crouched (vr_crouch_status: box 52, eyes 47), so you walk at 0.75x and never rise out of the crouched box. Should standing count as standing?
+Flatscreen (-flatscreenmode): an axe in the main hand, LMB swings it and the foe in front takes the blow; RMB does the same for the off hand; V still punches
+Flatscreen melee: a gun's fire button is its own shot and a chainsaw's trigger only runs its chain — neither one swings; a hand that already swung is not disturbed by the other hand's button unless both hold a swinging weapon
+Flatscreen: the drawn hands stay on their arms through a punch, a knock and when you look straight up (Flatscreen Arm Hold 1; 0 puts them back where they were placed)
+Flatscreen: Flatscreen Hand Pitch 65 keeps the hands inside the arc the arms sweep when you look up or down (90: all the way, as before)
+Flatscreen: Debug > Flatplay Punch, or vr_flat_punch main/off in the console, swings from the keyboard; in a headset it answers that flatscreen play is not running
+
 [1. Armed humanoids: fighting them]
 Strike a sword grunt's blade (away from its hand) while it hasn't seen you: sparks, no disarm, and it turns on you.
 Rig Studio / Pose Studio: a "Cast (shared)" pose next to Pickup, editable on the rifle, with Make Override per class; set its look (the default is a rough guess).
@@ -62,6 +74,7 @@ A knight's or death knight's gun stays with its body as it sidesteps and circles
 A fiend, dog or spawn killed by a blast its own leap set off stays dead.
 Fresh settings, e1m4 (or any map with knights): every knight holds a sword in his hand, swings it, can be parried and disarmed; killing the one by the door opens it as before; no knight ever takes up a gun lying about. Map knights now roll armour by skill: do kills take too long?
 Toolgun (or a wave's armed knight with a gun): a knight or death knight with a shotgun or pistol: knock it out of his hand: he picks up a gun again, with "Pick Up Ranged Weapons" off; one with a sword doesn't.
+An armed grunt's Mjolnir swung from the far end of its reach, and a death knight's uppercut, now connect with you standing still instead of passing beside or over you; stepping back out of reach still makes them miss.
 
 
 [3. Bodies: grabbing, throwing, hits]

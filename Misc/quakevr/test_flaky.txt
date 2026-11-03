@@ -10,11 +10,14 @@ agrunt_67
 # Two checks hang on the draw: a replaced grunt drops no extra weapon, a vanilla one 8-13 of 40 (his call); the enforcer's
 # damage a shot within 20% (not looked into).
 agrunt_71
-# With the seed they repeat exactly, and fail: not looked into.
-agrunt_18 agrunt_78 nail_1
+# Case 5: a level sword parries the "horizontal" swing, a diagonal cut where it meets you (his call: ROUND23.md, "Flaky tests, round 3").
+agrunt_78
+# Failed 3 of 3 on seed 1 in round 2 ("no nail flew on through it"), not reproduced in 12 seeds since: the cause not found.
+nail_1
 # Only its gates scene rerun (3 identical): not yet 5 identical full runs.
 stealth
 # Pass seeded but flaky unseeded, cause not found: a fixed seed hides the failure, it doesn't fix it.
 agrunt_60 rv_1
 # Taken off 2026-11-02: agrunt_47, agrunt_63, agrunt_72 (fixed; 5 identical passes seeded).
 # Taken off 2026-11-03: agrunt_1, agrunt_76, agrunt_86, agarmor_5 (causes found and fixed; 5 identical passes seeded).
+# Taken off 2026-11-03: agrunt_18 (cause found and fixed; 5 identical passes seeded, 24/0 on seeds 1-3).
