@@ -5261,13 +5261,6 @@ vr_worn_backpack_hit_ref|1|Worn Backpacks|Hit Damage|Advanced VR Options > Comba
 vr_worn_backpack_impact|1|Worn Backpacks|Landing That Tears It|Advanced VR Options > Combat > Armed Grunts 
 vr_worn_backpack_reserve|1|Worn Backpacks|Spare Ammo in It|Advanced VR Options > Combat > Armed Grunts 
 vr_worn_backpack_volume|1|Worn Backpacks|Rip Volume|Advanced VR Options > Combat > Armed Grunts (Experimental) > 
-vr_worn_backpack_scale|1|Worn Backpacks|Size|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn 
-vr_worn_backpack_x|1|Worn Backpacks|Forward|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn 
-vr_worn_backpack_y|1|Worn Backpacks|Left|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn 
-vr_worn_backpack_z|1|Worn Backpacks|Up|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks 
-vr_worn_backpack_pitch|1|Worn Backpacks|Pitch|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn 
-vr_worn_backpack_yaw|1|Worn Backpacks|Yaw|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn 
-vr_worn_backpack_roll|1|Worn Backpacks|Roll|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn 
 vr_worn_backpack_mass|1|Worn Backpacks|Weight|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn 
 |1|Worn Backpacks|Reset This Page|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks > 
 @page|1|Armed Grunts - Weapon Holds||Advanced VR Options > Combat > Armed Grunts (Experimental) > Weapon Holds
@@ -8306,6 +8299,33 @@ vr_mg3_aggro_groups|2|Dawn of the Machine Tests|Aggro Groups|Advanced VR Options
 |2|Dawn of the Machine: Chthon|Chthon Report|Advanced VR Options > Debug > Automation & Self-Tests > Dawn of the 
 |2|Dawn of the Machine: Chthon|Chthon Test|Advanced VR Options > Debug > Automation & Self-Tests > Dawn of the 
 |2|Dawn of the Machine: Chthon|The Boss Map's Fight|Advanced VR Options > Debug > Automation & Self-Tests > Dawn of 
+@page|1|Worn Backpacks - Grunts||Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks > 
+vr_worn_backpack_grunt_x|1|Worn Backpacks - Grunts|Forward|Advanced VR Options > Combat > Armed Grunts 
+vr_worn_backpack_grunt_y|1|Worn Backpacks - Grunts|Left|Advanced VR Options > Combat > Armed Grunts (Experimental) 
+vr_worn_backpack_grunt_z|1|Worn Backpacks - Grunts|Up|Advanced VR Options > Combat > Armed Grunts (Experimental) > 
+vr_worn_backpack_grunt_scale|1|Worn Backpacks - Grunts|Size|Advanced VR Options > Combat > Armed Grunts 
+vr_worn_backpack_grunt_pitch|1|Worn Backpacks - Grunts|Pitch|Advanced VR Options > Combat > Armed Grunts 
+vr_worn_backpack_grunt_yaw|1|Worn Backpacks - Grunts|Yaw|Advanced VR Options > Combat > Armed Grunts (Experimental) 
+vr_worn_backpack_grunt_roll|1|Worn Backpacks - Grunts|Roll|Advanced VR Options > Combat > Armed Grunts 
+|1|Worn Backpacks - Grunts|Reset This Page|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn 
+@page|1|Worn Backpacks - Knights||Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks > 
+vr_worn_backpack_knight_x|1|Worn Backpacks - Knights|Forward|Advanced VR Options > Combat > Armed Grunts 
+vr_worn_backpack_knight_y|1|Worn Backpacks - Knights|Left|Advanced VR Options > Combat > Armed Grunts 
+vr_worn_backpack_knight_z|1|Worn Backpacks - Knights|Up|Advanced VR Options > Combat > Armed Grunts (Experimental) 
+vr_worn_backpack_knight_scale|1|Worn Backpacks - Knights|Size|Advanced VR Options > Combat > Armed Grunts 
+vr_worn_backpack_knight_pitch|1|Worn Backpacks - Knights|Pitch|Advanced VR Options > Combat > Armed Grunts 
+vr_worn_backpack_knight_yaw|1|Worn Backpacks - Knights|Yaw|Advanced VR Options > Combat > Armed Grunts 
+vr_worn_backpack_knight_roll|1|Worn Backpacks - Knights|Roll|Advanced VR Options > Combat > Armed Grunts 
+|1|Worn Backpacks - Knights|Reset This Page|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn 
+@page|1|Worn Backpacks - Death Knights||Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn Backpacks 
+vr_worn_backpack_dknight_x|1|Worn Backpacks - Death Knights|Forward|Advanced VR Options > Combat > Armed Grunts 
+vr_worn_backpack_dknight_y|1|Worn Backpacks - Death Knights|Left|Advanced VR Options > Combat > Armed Grunts 
+vr_worn_backpack_dknight_z|1|Worn Backpacks - Death Knights|Up|Advanced VR Options > Combat > Armed Grunts 
+vr_worn_backpack_dknight_scale|1|Worn Backpacks - Death Knights|Size|Advanced VR Options > Combat > Armed Grunts 
+vr_worn_backpack_dknight_pitch|1|Worn Backpacks - Death Knights|Pitch|Advanced VR Options > Combat > Armed Grunts 
+vr_worn_backpack_dknight_yaw|1|Worn Backpacks - Death Knights|Yaw|Advanced VR Options > Combat > Armed Grunts 
+vr_worn_backpack_dknight_roll|1|Worn Backpacks - Death Knights|Roll|Advanced VR Options > Combat > Armed Grunts 
+|1|Worn Backpacks - Death Knights|Reset This Page|Advanced VR Options > Combat > Armed Grunts (Experimental) > Worn 
 @page|2|Ragdolls - Grunt||Advanced VR Options > Carrying and Throwing > Gibs and Corpses > Ragdoll Settings > Grunt
 vr_ragdoll_army_start|2|Ragdolls - Grunt|Go Limp At|Advanced VR Options > Carrying and Throwing > Gibs and Corpses 
 vr_ragdoll_army_mass|2|Ragdolls - Grunt|Mass|Advanced VR Options > Carrying and Throwing > Gibs and Corpses > 

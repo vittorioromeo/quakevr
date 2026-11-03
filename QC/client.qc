@@ -2902,7 +2902,15 @@ void(float xHand, float xInMelee, float* xOutMeleeAttackFinished, float* xOutInM
 // vr_headbutt_speed (m/s), hits what is in front of the eyes as the head slows down, for
 // vr_headbutt_damage times the lunge's speed over the threshold (at most three times). Forgiving:
 // any monster within reach ahead counts (not just one on a thin line), and one the head is already
-// in is hit at once. A headbutt waits 0.4 s after the last.
+// in is hit at once. A headbutt waits 0.4 s after the last. A ragdoll lies apart from its box: only its drawn body counts
+// (his note vrragtriggers_2026-11-03_02-18-13: bending down to grab a lying grunt, the head at 1.5 m/s and still 31 units off
+// its middle, "headbutted" it for 24: 25 to 0, 23 to -1, read as an impact).
+
+// Whether a headbutt from `xHead` along `xDir` reaches ragdoll `e`'s drawn body.
+float(entity e, vector xHead, vector xDir) VR_Headbutt_Reaches =
+{
+    return hitmodel_segment(e, xHead, xHead + xDir * 22, 6, HITCLASS_MELEE) >= 0;
+};
 
 // The monster a headbutt from `xHead` along `xDir` hits, or world.
 entity(vector xHead, vector xDir) VR_Headbutt_Target =
@@ -2912,7 +2920,8 @@ entity(vector xHead, vector xDir) VR_Headbutt_Target =
     entity e = findradius(xHead + xDir * 14, 30);
     while(e)
     {
-        if(e != self && e.takedamage && e.health > 0 && e.solid != SOLID_NOT)
+        if(e != self && e.takedamage && e.health > 0 && e.solid != SOLID_NOT &&
+           (!isragdoll(e) || VR_Headbutt_Reaches(e, xHead, xDir)))
         {
             vector nearest = e.origin + (e.mins + e.maxs) * 0.5;
             vector to = nearest - xHead;
@@ -2946,6 +2955,10 @@ void(float xThreshold) VR_Headbutt_Hit =
         }
         victim = trace_ent;
         at = trace_endpos;
+        if(isragdoll(victim) && !VR_Headbutt_Reaches(victim, head, dir))
+        {
+            return; // (its box, not its body)
+        }
     }
     else
     {

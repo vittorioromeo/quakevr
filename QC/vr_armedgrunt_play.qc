@@ -1508,6 +1508,32 @@ string(entity g) VR_AG_FallViolent =
     return VR_AG_FallImpact(g, max(0, cvar_hget(cvarh_vr_agrunt_fall_keep_impact)) * VRMetersToUnits());
 };
 
+// It lets go of what it holds (both hands), in a fall. `why`: the log's.
+void(entity g, string why) VR_AG_FallLetGo =
+{
+    entity p = g.vr_ag_prop;
+    vector at = g.origin + '0 0 4';
+    if(vlen(p.origin - g.origin) < 48)
+    {
+        at = p.origin;
+    }
+    setorigin(p, at);
+    makevectors('0 1 0' * random() * 360);
+    vector vel = v_forward * (20 + random() * 30) + '0 0 60';
+    float wid = g.vr_ag_wid;
+    entity w = VR_AG_DropHeld(g, vel);
+    g.vr_ag_own = w;
+    g.vr_ag_disarms = g.vr_ag_disarms + 1;
+    VR_AG_DisarmFeedback(g, wid);
+    VR_AG_Log(sprintf("dropped its weapon as it fell (%s)", why));
+    if(g.vr_ag_prop) // (its other hand's too)
+    {
+        makevectors('0 1 0' * random() * 360);
+        setorigin(g.vr_ag_prop, vlen(g.vr_ag_prop.origin - g.origin) < 48 ? g.vr_ag_prop.origin : g.origin + '0 0 4');
+        VR_AG_DropHeld(g, v_forward * (20 + random() * 30) + '0 0 60');
+    }
+};
+
 float(entity g) VR_AG_FallDrop =
 {
     if(!cvar_hget(cvarh_vr_agrunt_fall_drop) || g.vr_knockdown != 1)
@@ -1535,30 +1561,24 @@ float(entity g) VR_AG_FallDrop =
     {
         return FALSE;
     }
-    entity p = g.vr_ag_prop;
-    vector at = g.origin + '0 0 4';
-    if(vlen(p.origin - g.origin) < 48)
-    {
-        at = p.origin;
-    }
-    setorigin(p, at);
-    makevectors('0 1 0' * random() * 360);
-    vector vel = v_forward * (20 + random() * 30) + '0 0 60';
-    float wid = g.vr_ag_wid;
-    entity w = VR_AG_DropHeld(g, vel);
-    g.vr_ag_own = w;
-    g.vr_ag_disarms = g.vr_ag_disarms + 1;
-    VR_AG_DisarmFeedback(g, wid);
-    VR_AG_Log(sprintf("dropped its weapon as it fell (%s)", why));
-    if(g.vr_ag_prop) // (its other hand's too)
-    {
-        makevectors('0 1 0' * random() * 360);
-        setorigin(g.vr_ag_prop, vlen(g.vr_ag_prop.origin - g.origin) < 48 ? g.vr_ag_prop.origin : g.origin + '0 0 4');
-        VR_AG_DropHeld(g, v_forward * (20 + random() * 30) + '0 0 60');
-    }
+    VR_AG_FallLetGo(g, why);
     return TRUE;
 };
 
+// A landing that hurt it (VR_Monster_Fall: a drop past VR_SHOVE_SAFEFALL, its whole body coming down that fast): it lets go,
+// whatever else it was doing. On its feet no ragdoll reads an impact at all: shoved off a ledge without being knocked down, it
+// walks away hurt and armed (his note vrragtriggers_2026-11-03_02-18-13: "they never drop their weapon"). `vr_agrunt_fall_keep_impact`
+// 0: never.
+void(entity m, float xSpeed) VR_AG_FallLanded =
+{
+    float most = max(0, cvar_hget(cvarh_vr_agrunt_fall_keep_impact)) * VRMetersToUnits();
+    if(!m.vr_ag || !m.vr_ag_prop || m.health <= 0 || !cvar_hget(cvarh_vr_agrunt_fall_drop) || !cvar_hget(cvarh_vr_agrunt_disarm) ||
+       m.vr_ag_tug_pl || most <= 0 || xSpeed < most)
+    {
+        return;
+    }
+    VR_AG_FallLetGo(m, sprintf("it landed at %.1f m/s", xSpeed / VRMetersToUnits()));
+};
 // ----------------------------------------------------------------------------
 // Reach
 // ----------------------------------------------------------------------------

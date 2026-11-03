@@ -2882,13 +2882,27 @@ QVR_CVAR(vr_agarmor_block_cuts, "1", CVAR_ARCHIVE)    // armour: no limb is cut 
 QVR_CVAR(vr_agarmor_debris_time, "12", CVAR_ARCHIVE)  // armour: a broken plate's debris lies about this long (s), then fades out
 QVR_CVAR(vr_agarmor_impulse, "0.5", CVAR_ARCHIVE)     // armour: a shot a plate absorbs still pushes the body (a ragdoll's limb) this much of a bare hit's push (0..1)
 QVR_CVAR(vr_agarmor_debug, "0", CVAR_NONE)            // debug (Debug > Show Armour Plates): every armoured body's unbroken plates drawn as the shot test poses them, a colour per plate
-QVR_CVAR(vr_worn_backpack_scale, "0.6", CVAR_ARCHIVE) // worn backpacks: the pack's size on the back (times the backpack model's)
-QVR_CVAR(vr_worn_backpack_x, "1.5", CVAR_ARCHIVE)      // worn backpacks: moved forward (into the back; out: negative), units
-QVR_CVAR(vr_worn_backpack_y, "0", CVAR_ARCHIVE)       // worn backpacks: moved left, units
-QVR_CVAR(vr_worn_backpack_z, "1.5", CVAR_ARCHIVE)      // worn backpacks: moved up, units
-QVR_CVAR(vr_worn_backpack_pitch, "21", CVAR_ARCHIVE)   // worn backpacks: tipped (degrees)
-QVR_CVAR(vr_worn_backpack_yaw, "180", CVAR_ARCHIVE)     // worn backpacks: turned (degrees)
-QVR_CVAR(vr_worn_backpack_roll, "0", CVAR_ARCHIVE)    // worn backpacks: rolled (degrees)
+QVR_CVAR(vr_worn_backpack_grunt_scale, "0.6", CVAR_ARCHIVE) // worn backpacks, Grunt: the pack's size on the back (times the backpack model's)
+QVR_CVAR(vr_worn_backpack_grunt_x, "1.5", CVAR_ARCHIVE) // worn backpacks, Grunt: moved forward (into the back; out: negative), units
+QVR_CVAR(vr_worn_backpack_grunt_y, "0", CVAR_ARCHIVE) // worn backpacks, Grunt: moved left, units
+QVR_CVAR(vr_worn_backpack_grunt_z, "1.5", CVAR_ARCHIVE) // worn backpacks, Grunt: moved up, units
+QVR_CVAR(vr_worn_backpack_grunt_pitch, "21", CVAR_ARCHIVE) // worn backpacks, Grunt: tipped (degrees)
+QVR_CVAR(vr_worn_backpack_grunt_yaw, "180", CVAR_ARCHIVE) // worn backpacks, Grunt: turned (degrees)
+QVR_CVAR(vr_worn_backpack_grunt_roll, "0", CVAR_ARCHIVE) // worn backpacks, Grunt: rolled (degrees)
+QVR_CVAR(vr_worn_backpack_knight_scale, "0.6", CVAR_ARCHIVE) // worn backpacks, Knight: the pack's size on the back (times the backpack model's)
+QVR_CVAR(vr_worn_backpack_knight_x, "1.5", CVAR_ARCHIVE) // worn backpacks, Knight: moved forward (into the back; out: negative), units
+QVR_CVAR(vr_worn_backpack_knight_y, "0", CVAR_ARCHIVE) // worn backpacks, Knight: moved left, units
+QVR_CVAR(vr_worn_backpack_knight_z, "1.5", CVAR_ARCHIVE) // worn backpacks, Knight: moved up, units
+QVR_CVAR(vr_worn_backpack_knight_pitch, "21", CVAR_ARCHIVE) // worn backpacks, Knight: tipped (degrees)
+QVR_CVAR(vr_worn_backpack_knight_yaw, "180", CVAR_ARCHIVE) // worn backpacks, Knight: turned (degrees)
+QVR_CVAR(vr_worn_backpack_knight_roll, "0", CVAR_ARCHIVE) // worn backpacks, Knight: rolled (degrees)
+QVR_CVAR(vr_worn_backpack_dknight_scale, "0.6", CVAR_ARCHIVE) // worn backpacks, Death Knight: the pack's size on the back (times the backpack model's)
+QVR_CVAR(vr_worn_backpack_dknight_x, "1.5", CVAR_ARCHIVE) // worn backpacks, Death Knight: moved forward (into the back; out: negative), units
+QVR_CVAR(vr_worn_backpack_dknight_y, "0", CVAR_ARCHIVE) // worn backpacks, Death Knight: moved left, units
+QVR_CVAR(vr_worn_backpack_dknight_z, "7.5", CVAR_ARCHIVE) // worn backpacks, Death Knight: moved up, units
+QVR_CVAR(vr_worn_backpack_dknight_pitch, "21", CVAR_ARCHIVE) // worn backpacks, Death Knight: tipped (degrees)
+QVR_CVAR(vr_worn_backpack_dknight_yaw, "180", CVAR_ARCHIVE) // worn backpacks, Death Knight: turned (degrees)
+QVR_CVAR(vr_worn_backpack_dknight_roll, "0", CVAR_ARCHIVE) // worn backpacks, Death Knight: rolled (degrees)
 QVR_CVAR(vr_worn_backpack_mass, "4", CVAR_ARCHIVE)    // worn backpacks: its weight on a ragdoll's chest (kg)
 QVR_CVAR(vr_worn_backpack_impact, "9", CVAR_ARCHIVE)  // worn backpacks: a ragdoll's strike on the level at least this fast (m/s) tears it off
 QVR_CVAR(vr_worn_backpack_pool, "25", CVAR_ARCHIVE)  // worn backpacks: the damage a living one's pack takes before it tears off (hits on the pack: blows, throws, shots, projectiles; and the share below of blasts and fire anywhere on it; poison never; 0: never by damage)

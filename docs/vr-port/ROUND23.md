@@ -7295,6 +7295,45 @@ cuts them from decoded previews (its header has the sources and the ffmpeg line)
   over 800 Hz; its sample-to-sample jumps are the tear's dense crackle (the source has the same, against its peak), not lone clicks.
 - All files start and end at 0.
 
+## The pack's fit per kind; enforcers always liftable (branch `agent/packfit`, his notes 2026-11-03 02:21:38, 02:25:39)
+
+His words: "Can you add per armed humanoid type sliders for the backpack fit? I would like to tweak the position only for knights or
+death knights"; "An enforcer should always be liftable from his back even if he has a melee weapon".
+Worn Backpacks > Fit opens Grunts, Knights and Death Knights: Forward, Left, Up, Size, Pitch, Yaw, Roll
+(`vr_worn_backpack_<grunt|knight|dknight>_x/_y/_z/_scale/_pitch/_yaw/_roll`), live: position and turn read each frame, the drawn size
+each frame (`VR_WP_Size`); a ragdoll's box keeps the size it was made with. Defaults are the shared values as promoted (forward 1.5, up
+1.5, size 0.6, pitch 21, yaw 180); the death knight's up 7.5 takes in `packFits`' old lift of 6, which went. Config 221: a saved shared
+value goes on all three once, the death knight's up with that 6 added, so his look doesn't move. The enforcer's lift zone is now on
+every armed enforcer, whatever it holds (Mission Pack 3's too), since the model always shows the pack.
+Tests run on the fit as configured (the old-pose pin went; `vr_wornpack_test` checks the fit's yaw and the pack's rear face). His fit turns
+the pack 180 degrees about its own origin while `packRest` still lays the unturned front against the back, so about half the box is
+inside the body at Forward 1.5: what he tuned by eye on the grunt; Forward on each kind's page moves it. The throw's check is half the
+hand's swing (22 units at 4 m/s for 10 frames): five runs each went 33.7-45.7 (grunts), 14.6-27.6 (knights), 36.9-44 (death knights),
+40.9-47 (enforcers). On the mock the body rises far less than the hand on the carry (of 24 up: 8.5, -0.1..5.8, 0.5..2.4, -2.8..-0.9).
+
+## The gentle press that killed: a headbutt; high falls on its feet
+
+His note vrragtriggers_2026-11-03_02-18-13: gently grabbing a lying grunt "is detected as an impact and kills"; high falls off
+ledges hurt but never drop the weapon.
+
+- **It was never the impact rule or the strikes: it was your head.** The take's events show `headbutt` at each death: 25.0 at
+  0.79 s (health 25 to -1), 24.1 at 8.21 s (25 to 0), 24.7 at 25.36 s (23 to -1). Bending down to grab, his head moved at 1.5 m/s
+  (`vr_headbutt_speed` 1.5, `vr_headbutt_damage` 24 at that speed) and was still 31 units off the body's origin, about a metre
+  (25 off its stale standing box's middle), and `VR_Headbutt_Target` is forgiving by design: a monster's box middle within reach.
+  A ragdoll lies apart from that box. Older than the impact rule (headbutts date from before 2026-10-23); nothing in the rule's
+  commits touched it. Fix: a ragdoll is headbutted only if the lunge meets its drawn body (`VR_Headbutt_Reaches`, 22 units,
+  `hitmodel_segment`); standing monsters as before.
+- **His hard slams were strikes, correctly:** the take's other damage, hand at -5.5 m/s (2 damage) and -9.3 m/s (9, then 10). No
+  change to the strikes' numbers. A real grip pressed down at 2-2.5 m/s (every part the mock could take: 0, 1, 2, 7, 8, 9, 13)
+  dealt no strike and lost no health before the fix too (the fastest strike reported: 1.7 m/s, held, and refused as dragged), so
+  held-limb speed is not the cause.
+- **High falls.** Knocked down or staggering over a real ledge it already let go (vrclimb: 280 and 240-unit drops, 46 and 24
+  damage, "hit something" at 5.0-9.6 m/s). On its feet (a shove that doesn't knock it down, sliding off) no ragdoll exists, so no
+  impact was ever read: it landed at 678 u/s for 55 damage, armed. New `VR_AG_FallLanded`: a landing that hurts it (`VR_Monster_Fall`,
+  a drop past `VR_SHOVE_SAFEFALL` 150 units, the whole body coming down that fast), standing or down, lets go.
+- **Test 202:** on any map with a flat wall, 4 press cases (floor by 3 parts, wall) and the head check; `map vrclimb` runs the 6 ledge
+  cases instead.
+
 ## The player's footsteps: volume by speed, the body's small adjustments silent (branch `agent/playersteps2`)
 
 His notes (vrfiringrange_2026-11-03_01-57-12 and on): slow walking's footsteps much quieter, with sliders for the curve; "way

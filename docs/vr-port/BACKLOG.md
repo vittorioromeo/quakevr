@@ -91,13 +91,12 @@ ML at runtime. Borrow ideas only unless noted. Not started.
 ### The enforcer's backpack made a real one (author, 2026-11-02)
 
 His words: "For the enforcer, please make it a lift zone only for now. Add a backlog item to make it a real backpack."
-Today (ROUND23.md, "Lift only") an armed enforcer with a ranged weapon has only a lift zone on the pack baked into
-vrenforcer.mdl (`agarmor::packFits`, `.vr_wp_baked`): it can't come off, nothing counts on it, its loot is its own, and a
-melee-only or unarmed one's pack still shows, with no zone. To make it real: split the pack's vertices out of the model
+Today (ROUND23.md, "Lift only") an armed enforcer, whatever it holds, has only a lift zone on the pack baked into
+vrenforcer.mdl (`agarmor::bakedPackLo`, `.vr_wp_baked`): it can't come off, nothing counts on it, its loot is its own. To make it real: split the pack's vertices out of the model
 (behind `Wearer::backCut` -10.5, mostly on the chest bone) so they hide when it comes off (a mesh split or a skin), a
 matching detached prop (backpack.mdl is smaller and looks different), and the back underneath, probably unpainted, painted.
 Then the usual three parts as the grunt's: the anchor, the ragdoll box, the loot through `VR_WP_DeathLoot`; drop
-`.vr_wp_baked`, and melee-only ones then lose it as the rule says.
+`.vr_wp_baked`. (His note 2026-11-03 02:25:39: a melee-only enforcer stays liftable while the model shows the pack.)
 
 ### Worn backpacks for AD's armed humanoids (author, 2026-11-02)
 

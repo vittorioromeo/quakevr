@@ -414,7 +414,7 @@ void armedGripsDragMode()
 }
 
 // Combat > Armed Grunts > Worn Backpacks (QC vr_wornpack.qc; vr_box3d_wornpack.cpp; ROUND23.md, "Worn backpacks"):
-// armed ones with a ranged weapon wear theirs (VR_WP_Spawn's rule); the page tunes them.
+// armed ones with a ranged weapon wear theirs (VR_WP_Spawn's rule); the page tunes them, its fit per kind.
 [[nodiscard]] za::Vector<Item> pageArmedPacks()
 {
     return {
@@ -431,14 +431,55 @@ void armedGripsDragMode()
         row(opt::vr_worn_backpack_reserve),
         row(opt::vr_worn_backpack_volume),
         header("Fit"),
-        row(opt::vr_worn_backpack_scale),
-        row(opt::vr_worn_backpack_x),
-        row(opt::vr_worn_backpack_y),
-        row(opt::vr_worn_backpack_z),
-        row(opt::vr_worn_backpack_pitch),
-        row(opt::vr_worn_backpack_yaw),
-        row(opt::vr_worn_backpack_roll),
+        open("Grunts", pageIndex(pageArmedPackGrunt)).help("Where the pack sits on a grunt's back; changes show at once."),
+        open("Knights", pageIndex(pageArmedPackKnight)).help("Where the pack sits on a knight's back; changes show at once."),
+        open("Death Knights", pageIndex(pageArmedPackDKnight)).help("Where the pack sits on a death knight's back; changes show at once."),
         row(opt::vr_worn_backpack_mass),
+    };
+}
+
+// Worn Backpacks > Grunts (agarmor::packRest reads them each frame).
+[[nodiscard]] za::Vector<Item> pageArmedPackGrunt()
+{
+    return {
+        header("Grunts: Pack Fit"),
+        row(opt::vr_worn_backpack_grunt_x),
+        row(opt::vr_worn_backpack_grunt_y),
+        row(opt::vr_worn_backpack_grunt_z),
+        row(opt::vr_worn_backpack_grunt_scale),
+        row(opt::vr_worn_backpack_grunt_pitch),
+        row(opt::vr_worn_backpack_grunt_yaw),
+        row(opt::vr_worn_backpack_grunt_roll),
+    };
+}
+
+// Worn Backpacks > Knights (agarmor::packRest reads them each frame).
+[[nodiscard]] za::Vector<Item> pageArmedPackKnight()
+{
+    return {
+        header("Knights: Pack Fit"),
+        row(opt::vr_worn_backpack_knight_x),
+        row(opt::vr_worn_backpack_knight_y),
+        row(opt::vr_worn_backpack_knight_z),
+        row(opt::vr_worn_backpack_knight_scale),
+        row(opt::vr_worn_backpack_knight_pitch),
+        row(opt::vr_worn_backpack_knight_yaw),
+        row(opt::vr_worn_backpack_knight_roll),
+    };
+}
+
+// Worn Backpacks > Death Knights (agarmor::packRest reads them each frame).
+[[nodiscard]] za::Vector<Item> pageArmedPackDKnight()
+{
+    return {
+        header("Death Knights: Pack Fit"),
+        row(opt::vr_worn_backpack_dknight_x),
+        row(opt::vr_worn_backpack_dknight_y),
+        row(opt::vr_worn_backpack_dknight_z),
+        row(opt::vr_worn_backpack_dknight_scale),
+        row(opt::vr_worn_backpack_dknight_pitch),
+        row(opt::vr_worn_backpack_dknight_yaw),
+        row(opt::vr_worn_backpack_dknight_roll),
     };
 }
 
@@ -742,7 +783,7 @@ void ikStretchReset()
             .help("Armed grunts wearing breakable armour (a cuirass, a helmet, pauldrons, bracers, thigh and shin "
                   "plates): how it absorbs, helmets and headshots, cuts, and how often they wear it at each skill."),
         open("Worn Backpacks", pageIndex(pageArmedPacks))
-            .help("Experimental: armed grunts wearing their backpack, ragdolls too, torn off by pulls, landings and hits."),
+            .help("Armed ones with a ranged weapon wear a backpack: lifted by it, knocked off by hits and landings; its fit for each kind."),
         open("Weapon Holds", pageIndex(pageArmedHolds))
             .help("Per weapon, for grunts and for enforcers: held in one hand or two (Auto: the axe and the enforcer's "
                   "pistols in one hand, the rest as built in)."),
