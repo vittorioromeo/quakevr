@@ -12,15 +12,16 @@
 //   2 overhead vs your sword held level across: parried (no damage, sparks within 2 units of both lines);
 //   3 overhead vs your sword upright: parried (the grunt's overhead is a diagonal cut, ~30 deg off vertical, so an
 //   upright sword is across it too; his call 2026-10-31: accepted as a diagonal cut);  4 horizontal vs upright: parried;
-//   5 horizontal vs level across:
-//   lands;  6 overhead vs a shotgun's barrel level across: parried;  7 overhead vs the sword level across 40 units to
+//   5 horizontal vs level across: parried (where it meets you the "horizontal" swing is a diagonal cut, 38 deg off square
+//   to a level sword, gap 3.6, inside vr_dirparry_angle and vr_dirparry_contact; his call 2026-11-03: "Accept as is");
+//   6 overhead vs a shotgun's barrel level across: parried;  7 overhead vs the sword level across 40 units to
 //   the side (out of reach): lands;  8 vr_dirparry 0, horizontal vs level across: the level-across rule as before (its
 //   own verdict at the blow), no directional reading.
 // Its debug view and its settings (each case as the one named, its cvars put back after):
 //   9 Show Directional Parry on (vr_dirparry_debug), case 2: parried as before; the view takes its live readings and
 //   the strike's verdict (the engine prints `dirparryviz: drawn PARRIED ...` as it draws it held; an eye image taken);
-//   10 case 5 (its blade's way passes 16 units from your sword, out of the contact's marks) with vr_dirparry_contact
-//   just past that gap (1 unit): the borderline case flips, parried;
+//   10 case 5 with vr_dirparry_contact at half its gap (its blade's way now passes out of the contact's marks): the
+//   borderline case flips, the blow lands;
 //   11 Enemy Melee Speed 0.5 (vr_agrunt_melee_speed), case 0: the blow lands as hard, at twice the time into the swing,
 //   the swing twice as long (its times, VR_AGP_Length; and as measured, to its think's 0.1 s);  12 speed 0.5, case 2:
 //   parried as at full speed.
@@ -89,7 +90,7 @@ string(float c) VR_DRPT_Name =
     if(c == 7) { return "overhead vs your sword level across, 40 units to the side"; }
     if(c == 8) { return "vr_dirparry 0: horizontal vs your sword level across (the old rule)"; }
     if(c == 9) { return "Show Directional Parry on: overhead vs your sword level across"; }
-    if(c == 10) { return "contact distance past its gap: horizontal vs your sword level across"; }
+    if(c == 10) { return "contact distance short of its gap: horizontal vs your sword level across"; }
     if(c == 11) { return "Enemy Melee Speed 0.5: overhead vs your fists"; }
     if(c == 12) { return "Enemy Melee Speed 0.5: overhead vs your sword level across"; }
     if(c == 13) { return "the line on the drawn weapon: a grunt's sword, swings 0-3"; }
@@ -142,7 +143,7 @@ float(float c) VR_DRPT_Kind =
     float g = VR_DRPT_Geo(c);
     return (g == 0 || g == 2 || g == 3 || g == 6 || g == 7) ? 0 : 2;
 };
-float(float c) VR_DRPT_Wants = { return (c == 2) || (c == 3) || (c == 4) || (c == 6) || (c >= 9 && c <= 12 && c != 11); };
+float(float c) VR_DRPT_Wants = { return (c == 2) || (c == 3) || (c == 4) || (c == 5) || (c == 6) || (c == 9) || (c == 12); };
 
 vector(vector d, vector ang) VR_DRPT_Local =
 {
@@ -363,7 +364,7 @@ void() VR_DRPT_Frame =
         cvar_set("vr_dirparry", c == 8 ? "0" : "1");
         cvar_set("vr_dirparry_debug", ((c == 9) || (c >= 13)) ? "1" : ftos(vr_drpt_keep_debug));
         cvar_set("vr_agknight", c == 15 ? "1" : ftos(vr_drpt_keep_knight));
-        localcmd(sprintf("tune vr_dirparry_contact %g\n", c == 10 ? ceil(vr_drpt_gap5) + 1 : vr_drpt_keep_contact));
+        localcmd(sprintf("tune vr_dirparry_contact %g\n", c == 10 ? vr_drpt_gap5 * 0.5 : vr_drpt_keep_contact));
         cvar_set("vr_agrunt_melee_speed", ((c == 11) || (c == 12)) ? "0.5" : ftos(vr_drpt_keep_speed));
         float geo = VR_DRPT_Geo(c);
         VR_AGPT_Clear();

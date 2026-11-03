@@ -7,7 +7,9 @@
 // its muzzle or tip: vr_mock_hand_to agweaponpalm), following the weapon a few frames as a hand catching it would, then
 // closing: a tug (or the weapon at once) is a success. In and out of bullet time (vr_timescale 0.3). Each group prints
 // "grabtable: <weapon> <state> <normal|bullet time>: <n>/<tries> (tug, at once; refused too fast, the fist off it,
-// knocked away, nothing; state not reached)", then the totals and the verdict: 90% of the tries taken or more (each time scale).
+// knocked away, nothing; state not reached)", then the totals and the verdict: 90% of the tries taken or more (each time
+// scale) on one idle, ready or running. A swing under way is only reported: a hand on a blade going that fast is refused
+// by design ("too fast"). His call 2026-11-03 (ROUND23.md, "Flaky tests, round 2", question).
 // scratch1: n > 0 only weapon case n - 1; scratch2: n > 0 only state n - 1; scratch3: 1 only normal time, 2 only bullet.
 float vr_aggt_case;     // the weapon case
 float vr_aggt_state;    // 0 idle, 1 running, 2 ready, 3 striking
@@ -26,7 +28,8 @@ float vr_aggt_hunted;   // the try's humanoid set hunting you (once started)
 float vr_aggt_reach;    // ... from your eyes (units)
 float vr_aggt_lt, vr_aggt_dt; // ... the frame before's time, the frame's
 float vr_aggt_tug, vr_aggt_yank, vr_aggt_fast, vr_aggt_off, vr_aggt_knock, vr_aggt_none, vr_aggt_nost;
-float vr_aggt_all_ok[2], vr_aggt_all_n[2];
+float vr_aggt_all_ok[2], vr_aggt_all_n[2];       // idle, ready, running: the verdict's
+float vr_aggt_strike_ok[2], vr_aggt_strike_n[2]; // striking: reported
 float vr_aggt_keepscale;
 
 float VR_AGGT_CASES = 8;
@@ -80,8 +83,16 @@ void() VR_AGGT_GroupEnd =
     string b = sprintf(" (tug %g, at once %g; too fast %g, fist off %g, knocked %g, nothing %g; state not reached %g)",
         vr_aggt_tug, vr_aggt_yank, vr_aggt_fast, vr_aggt_off, vr_aggt_knock, vr_aggt_none, vr_aggt_nost);
     VR_AGT_Print(strcat(a, b));
-    vr_aggt_all_ok[vr_aggt_bt] = vr_aggt_all_ok[vr_aggt_bt] + vr_aggt_tug + vr_aggt_yank;
-    vr_aggt_all_n[vr_aggt_bt] = vr_aggt_all_n[vr_aggt_bt] + n;
+    if(vr_aggt_state == 3)
+    {
+        vr_aggt_strike_ok[vr_aggt_bt] = vr_aggt_strike_ok[vr_aggt_bt] + vr_aggt_tug + vr_aggt_yank;
+        vr_aggt_strike_n[vr_aggt_bt] = vr_aggt_strike_n[vr_aggt_bt] + n;
+    }
+    else
+    {
+        vr_aggt_all_ok[vr_aggt_bt] = vr_aggt_all_ok[vr_aggt_bt] + vr_aggt_tug + vr_aggt_yank;
+        vr_aggt_all_n[vr_aggt_bt] = vr_aggt_all_n[vr_aggt_bt] + n;
+    }
     vr_aggt_tug = 0;
     vr_aggt_yank = 0;
     vr_aggt_fast = 0;
@@ -191,6 +202,10 @@ void() VR_AGGT_Run =
             vr_aggt_all_ok[1] = 0;
             vr_aggt_all_n[0] = 0;
             vr_aggt_all_n[1] = 0;
+            vr_aggt_strike_ok[0] = 0;
+            vr_aggt_strike_ok[1] = 0;
+            vr_aggt_strike_n[0] = 0;
+            vr_aggt_strike_n[1] = 0;
             if(!VR_AGGT_Wanted())
             {
                 vr_aggt_pt = VR_AGGT_POINTS - 1;
@@ -237,12 +252,16 @@ void() VR_AGGT_Run =
         float i;
         for(i = 0; i < 2; i++)
         {
+            if(vr_aggt_strike_n[i] > 0)
+            {
+                VR_AGT_Print(sprintf("grabtable %s, striking: %g/%g taken (reported, no floor)", i ? "bullet time" : "normal time",
+                    vr_aggt_strike_ok[i], vr_aggt_strike_n[i]));
+            }
             if(vr_aggt_all_n[i] > 0)
             {
                 // (At least 90% taken: the table is a measure; every try taken never held, not even when it was
-                // written: 198/214 normal, 173/178 bullet time; 2026-10-28 184/198, 160/170. ROUND23.md, "Armed-grunt
-                // tests fixed".)
-                VR_AGT_Check(sprintf("grabtable %s: %g/%g taken (90%% or more):", i ? "bullet time" : "normal time",
+                // written. ROUND23.md, "Armed-grunt tests fixed".)
+                VR_AGT_Check(sprintf("grabtable %s, idle, ready and running: %g/%g taken (90%% or more):", i ? "bullet time" : "normal time",
                     vr_aggt_all_ok[i], vr_aggt_all_n[i]), vr_aggt_all_ok[i] >= 0.9 * vr_aggt_all_n[i]);
             }
         }

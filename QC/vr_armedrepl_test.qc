@@ -7,9 +7,10 @@
 //   dual and gun-and-axe chances, determinism (the same seed twice; real spawns at the same spots twice).
 // - 71 (vrtesthall): the balance: a vanilla grunt, then a replaced one with its own rifle, then the enforcers, each
 //   alone against you for 150 s, vr_agrunt_range 0 for all (`agrtest: balance ...`: shots, hits, accuracy, damage a second;
-//   the same gun's numbers from the same distance: with the replaced one's fighting distance on, 283 away against the
-//   vanilla's 45, it deals half of it, the enforcer a third: ROUND23.md, "Flaky tests, round 2", question), then 40 of each
-//   killed, 8 at a time (their drops: guns, backpacks and their ammo, extra weapons).
+//   the same gun's numbers from the same distance. With the replaced one's fighting distance on, 283 away against the
+//   vanilla's 45, it deals half of it, the enforcer a third: that distance is his decision, 2026-11-03, "Leave as is", so
+//   the balance stays measured at range 0), then 40 of each killed, 8 at a time (their drops: a gun from each, the same
+//   backpacks and ammo; extra weapons from the vanilla ones only: "Never drop extra weapons", his call 2026-11-03).
 // - 72 (vrtesthall): a gun and an axe: the gun at range, the axe up close, the gun again backed off; a spent shotgun
 //   with no reserve: the axe; a gun lying near: taken up.
 // - 73 (any map): the census: the map's monsters, the armed ones and their loadouts, all killed (`agrtest: map ...`).
@@ -452,8 +453,8 @@ void() VR_AGRT_Balance =
                 VR_AGT_Check(sprintf("drops %s: a gun from each, the same backpacks", nm),
                     vr_agrt_res[a * 8 + 3] == VR_AGRT_KILLS && vr_agrt_res[b * 8 + 3] == VR_AGRT_KILLS &&
                     vr_agrt_res[a * 8 + 4] == vr_agrt_res[b * 8 + 4] && vr_agrt_res[a * 8 + 5] == vr_agrt_res[b * 8 + 5]);
-                VR_AGT_Check(sprintf("drops %s: extra weapons within 12 of each other", nm),
-                    fabs(vr_agrt_res[a * 8 + 6] - vr_agrt_res[b * 8 + 6]) <= 12);
+                VR_AGT_Check(sprintf("drops %s: no extra weapon from a replaced one, the vanilla one's chance kept", nm),
+                    vr_agrt_res[b * 8 + 6] == 0 && vr_agrt_res[a * 8 + 6] > 0);
             }
             VR_AGRT_Restore();
             cvar_set("vr_agrunt_range", ftos(vr_agrt_range_keep));

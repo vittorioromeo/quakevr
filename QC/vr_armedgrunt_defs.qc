@@ -246,7 +246,7 @@ void(entity h) VR_AgArmor_DebrisGrabbed;                  // VR_Carry_Start: a p
 .float vr_wp_state;   // a pack's: 1 worn by the living, 2 worn by the dead (takeable), 3 off
 .entity vr_wp_wearer; // a pack's wearer
 .float vr_wp_peak;    // a pack's: the hardest pull on it so far (N; the tests)
-float(entity e) VR_WP_Packless;                                          // VR_AG_SoldierDrop, SoldierDrop: left without a pack by the rule: no backpack
+float(entity e) VR_WP_Packless;                                          // VR_AG_SoldierDrop: left without a pack by the rule: no backpack
 void(entity e) VR_WP_Refit;                                              // VR_AGR_Resolve: its loadout changed unseen
 float(entity e) VR_WP_CarriesRanged;
 void(entity e) VR_WP_Spawn;                                              // VR_AM_Spawn: an armed grunt's pack put on

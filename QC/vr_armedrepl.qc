@@ -9,8 +9,8 @@
 // is its armed version (vr_armedgrunt.qc VR_AM_Spawn), holding its own gun: the grunt's rifle, the enforcer's laser
 // rifle. That gun is "native" (its prop's .vr_ag_native): it fires as the monster it replaced fires (its attack frames,
 // chances and pauses, its own shots and damage: army_burst_round, army_fire, enforcer_fire's laser; not times
-// vr_agrunt_damage_scale), never runs dry, and its backpack is that monster's (SoldierDrop, EnforcerDrop: the ammo and
-// the chance of a weapon); dying it drops the gun as the monster would (full). So the balance is the monster's while it
+// vr_agrunt_damage_scale), never runs dry, and its backpack holds that monster's ammo (VR_AG_SoldierDrop; no chance of an
+// extra weapon: his call 2026-11-03); dying it drops the gun as the monster would (full). So the balance is the monster's while it
 // can be disarmed, tugged, parried, its gun shot out, its weapon held by its ragdoll, its gun taken.
 //
 // On top of it, each with its own chance (0 by default), times the skill's vr_agrunt_repl_skill<N>:
