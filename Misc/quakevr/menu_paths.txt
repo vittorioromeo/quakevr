@@ -4891,6 +4891,8 @@ vr_ragtool_log|2|Ragdoll Tool|Log|Advanced VR Options > Debug > Ragdoll Tool > L
 |2|Debug - Automation & Self-Tests|Armed Grunts: Preventive Parry|Advanced VR Options > Debug > Automation & Self-Tests > Armed Grunts: Preventive Parry
 |2|Debug - Automation & Self-Tests|Armed Grunts: Wind-up Parry|Advanced VR Options > Debug > Automation & Self-Tests > Armed Grunts: Wind-up Parry
 |2|Debug - Automation & Self-Tests|Armed Knights: Spawn, Swing, Disarm, Death|Advanced VR Options > Debug > Automation & Self-Tests > Armed Knights: Spawn, Swing, Disarm, Death
+|2|Debug - Automation & Self-Tests|Armed Knights: This Map's Knights|Advanced VR Options > Debug > Automation & Self-Tests > Armed Knights: This Map's Knights
+|2|Debug - Automation & Self-Tests|Armed Knights: A Map's Knights in Play|Advanced VR Options > Debug > Automation & Self-Tests > Armed Knights: A Map's Knights in Play
 |2|Debug - Automation & Self-Tests|Armed Knights: Spawn One Before You|Advanced VR Options > Debug > Automation & Self-Tests > Armed Knights: Spawn One Before You
 |2|Debug - Automation & Self-Tests|Armed Grunts: Parry Their Blows|Advanced VR Options > Debug > Automation & Self-Tests > Armed Grunts: Parry Their Blows
 |2|Debug - Automation & Self-Tests|Armed Grunts: Grab Table|Advanced VR Options > Debug > Automation & Self-Tests > Armed Grunts: Grab Table
@@ -4905,6 +4907,8 @@ vr_ragtool_log|2|Ragdoll Tool|Log|Advanced VR Options > Debug > Ragdoll Tool > L
 |2|Debug - Automation & Self-Tests|Armed Grunts: Arms' Contact Sheet|Advanced VR Options > Debug > Automation & Self-Tests > Armed Grunts: Arms' Contact Sheet
 |2|Debug - Automation & Self-Tests|Armed Humanoids: Ammo, Loot, Damage, Sounds|Advanced VR Options > Debug > Automation & Self-Tests > Armed Humanoids: Ammo, Loot, Damage, Sounds
 |2|Debug - Automation & Self-Tests|Armed Humanoids: Gun Pose Categories|Advanced VR Options > Debug > Automation & Self-Tests > Armed Humanoids: Gun Pose Categories
+|2|Debug - Automation & Self-Tests|Armed Humanoids: Gun on the Move|Advanced VR Options > Debug > Automation & Self-Tests > Armed Humanoids: Gun on the Move
+|2|Debug - Automation & Self-Tests|Dead Fiend, Dog and Spawn Stay Dead|Advanced VR Options > Debug > Automation & Self-Tests > Dead Fiend, Dog and Spawn Stay Dead
 |2|Debug - Automation & Self-Tests|Armed Humanoids: Glitch Finder|Advanced VR Options > Debug > Automation & Self-Tests > Armed Humanoids: Glitch Finder
 |2|Debug - Automation & Self-Tests|Armed Replacements: Rolls|Advanced VR Options > Debug > Automation & Self-Tests > Armed Replacements: Rolls
 |2|Debug - Automation & Self-Tests|Armed Replacements: Balance|Advanced VR Options > Debug > Automation & Self-Tests > Armed Replacements: Balance

@@ -5,8 +5,8 @@
 //   player its enemy, for a few seconds: `agtest: <weapon>: <shots> shots, <dmg> damage to you, clip <c>, reserve <r>,
 //   <n> reloads: PASS|FAIL` (PASS: it hurt the player), then `agtest: every weapon: <p> passed, <f> failed`.
 // - 2: a shotgun grunt with half a reserve: it fires, reloads (`reload PASS`), is struck on its gun hand (`disarm PASS`:
-//   its gun lies about, its clip with it), goes back for it (`rearm PASS`; a knight with vr_agknight_ranged_pickup 0
-//   leaves it lying: `rearm (takes no guns) PASS`), and is killed (`drop PASS`: the gun lies
+//   its gun lies about, its clip with it), goes back for it (`rearm PASS`; a kind that takes no guns: `rearm (takes no
+//   guns) PASS`, it leaves it lying), and is killed (`drop PASS`: the gun lies
 //   where it died, its rounds in it).
 // - 3: the yank: a shotgun grunt standing ahead (the player unseen), the player's main hand (a script's vr_mock_hand)
 //   emptied, the grunt moved to it, the hand to its gun's height (vr_mock_hand_lift: each kind's own) and closed (the
@@ -286,7 +286,7 @@ void() VR_AGTest_Sequence =
             g.enemy.classname, g.health, lying ? vlen(lying.origin - g.origin) : -1, vlen(lying.velocity), lying.vr_depleted));
         VR_AGT_Print(sprintf("rearm: next think in %g, knockdown %g, movetype %g, seek %s, seek next in %g", g.nextthink - time,
             g.vr_knockdown, g.movetype, g.vr_ag_seek.classname, g.vr_ag_seek_next - time));
-        // (a kind that takes no ranged weapons up, a knight with vr_agknight_ranged_pickup 0: it leaves the gun lying)
+        // (one that takes no ranged weapons up, VR_AM_Takes: it leaves the gun lying)
         float takes = VR_AM_Takes(g, WID_SHOTGUN);
         VR_AGT_Check(sprintf("rearm (%s): %g pickups, holds %s:", takes ? "takes guns" : "takes no guns", g.vr_ag_pickups,
             g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing"),
@@ -1459,6 +1459,7 @@ void() VR_AGIT_Frame; // (vr_armedgrunt_impact_test.qc)
 void(float t) VR_AGDT_Frame; // (vr_armedgrunt_downtug_test.qc)
 void() VR_AGRW_Frame; // (vr_armedgrunt_ragweapon_test.qc)
 void() VR_AKNT_Frame; // (vr_armedknight_test.qc)
+void(float t) VR_KMT_Frame;
 void() VR_DVT_Frame; // (vr_disarmviz_test.qc)
 void() VR_DHV_Frame; // (vr_disarmhull_view_test.qc)
 void() VR_AGL_Frame; // (vr_armedgrunt_gunlag_test.qc)
@@ -1587,6 +1588,9 @@ void() VR_AGTest_Frame =
     else if(t == 200) { VR_AGAW_Frame(); } // (disarm attempts on unaware grunts; dual wield: vr_armedgrunt_aware_test.qc)
     else if(t == 203) { VR_AGDD_Frame(); } // (a dual wielder disarmed of its off hand's: vr_armedgrunt_dualdisarm_test.qc)
     else if(t == 204) { VR_OGFT_Frame(); } // (ogres behind a friend: vr_ogre_friends_test.qc)
+    else if(t == 206) { VR_KMT_Frame(t); } // (a map's knights: the census, the kill, no gun taken: vr_armedknight_test.qc)
+    else if(t == 207) { VR_KMT_Frame(t); }
+    else if(t == 208) { VR_KMT_Frame(t); }
     else if(t >= 6 && t <= 9) // a row of armed grunts ahead, 30 units apart (eyeshots): 6 guns, 7 melee, 8 more guns, 9 the rest
     {
         float base = (t - 6) * 4;

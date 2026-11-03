@@ -597,7 +597,9 @@ float() VR_TestImpulse =
         self.classname = "monster_knight";
         setorigin(self, knightAt);
         self.angles_y = knightPlayer.v_viewangle_y + 180;
+        vr_agr_hold = vr_agr_hold + 1; // (the stock knight: these tests are its)
         monster_knight();
+        vr_agr_hold = vr_agr_hold - 1;
         self = knightPlayer;
     }
 
