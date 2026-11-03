@@ -10,6 +10,7 @@ QVR_CVAR(vr_hull_width, "16", CVAR_ARCHIVE)            // the player's width aga
 QVR_CVAR(vr_hull_ent_width, "-1", CVAR_ARCHIVE)        // the player's width against monsters, players and solid boxes (8-32; 0: Quake's 32; -1: vr_hull_width's)
 QVR_CVAR(vr_hull_edge_probe, "1", CVAR_ARCHIVE)       // Quake's "over a ledge" friction test (double friction) looks down from your box's leading edge (half its width ahead; Quake: 16), and a point inside a step has floor under it; 0: Quake's (under a stairs' clip ramp that point was inside the steps: walking up slowed to a crawl, a jump there went nowhere)
 QVR_CVAR(vr_hull_brushmodels, "1", CVAR_ARCHIVE)       // the narrow width against brush models too (doors, lifts, func_walls, external .bsp models), not only the world
+QVR_CVAR(vr_model_light_grid_cache, "1", CVAR_ARCHIVE) // big maps' model light grids kept on disk (cache/lightgrid, vr_ambient.cpp: those that took 100 ms or more; vrstart cold 2.2 s): 0 built at every load, 2 read, built anyway and compared
 QVR_CVAR(vr_hull_cache, "1", CVAR_ARCHIVE)             // the world's compiled hulls kept on disk (cache/hulls, vr_hull.cpp: trees that took 250 ms or more; vrstart cold 10 s to under 1): 0 compiled at every load; 2 read, then compiled anyway and compared (vr_hull_stats)
 QVR_CVAR(vr_hull_async, "1", CVAR_NONE)               // a monster's box size first met in play (no tree from the load: AD's delayed spawns, the test spawner) compiled on the pool while it moves with Quake's hull, not in the frame (ad_tears' 40x88: a 1.3-1.9 s hitch); 0: compiled at its first move, the frame waiting (vr_hull.cpp, "Trees compiled in play")
 QVR_CVAR(vr_hull_keep, "1", CVAR_ARCHIVE)             // maps whose brushes and compiled hulls are kept in memory for a load of the same map again (a death's reload, restart, a changelevel back; 0: off)
@@ -44,14 +45,14 @@ QVR_CVAR(vr_pickup_prop_models, "1", CVAR_ARCHIVE)   // the map's weapons drawn 
 QVR_CVAR(vr_unstick, "1", CVAR_ARCHIVE)             // a player found inside the map or a door, button or lift is moved to the nearest free spot (vr_unstick.cpp); 0: Quake's small nudge only
 QVR_CVAR(vr_closequarters, "1", CVAR_ARCHIVE)                  // close-quarters slowdown (vr_closequarters.cpp): walking straight at a live enemy near it is gradually slowed; strafing past it keeps (nearly) full speed
 QVR_CVAR(vr_closequarters_live, "1", CVAR_ARCHIVE)             // only fully live enemies count: not one in ragdoll or active ragdoll form (knocked down, staggering, held, rising)
-QVR_CVAR(vr_closequarters_start, "1.6", CVAR_ARCHIVE)          // metres from your centre to the nearest live enemy's box (horizontally) where it starts
-QVR_CVAR(vr_closequarters_end, "0.7", CVAR_ARCHIVE)             // metres: at this and nearer it is full (your body touches a grunt at about 0.6)
-QVR_CVAR(vr_closequarters_min, "0.5", CVAR_ARCHIVE)             // the part of your move straight at it times this at End Radius (1: none)
-QVR_CVAR(vr_closequarters_strafe, "0.95", CVAR_ARCHIVE)         // the sideways part of your move times this at End Radius (1: none)
-QVR_CVAR(vr_closequarters_angle, "30", CVAR_ARCHIVE)            // degrees off straight at it still counted fully as towards it
+QVR_CVAR(vr_closequarters_start, "1", CVAR_ARCHIVE)          // metres from your centre to the nearest live enemy's box (horizontally) where it starts
+QVR_CVAR(vr_closequarters_end, "0", CVAR_ARCHIVE)             // metres: at this and nearer it is full (your body touches a grunt at about 0.6)
+QVR_CVAR(vr_closequarters_min, "0.8", CVAR_ARCHIVE)             // the part of your move straight at it times this at End Radius (1: none)
+QVR_CVAR(vr_closequarters_strafe, "0.85", CVAR_ARCHIVE)         // the sideways part of your move times this at End Radius (1: none)
+QVR_CVAR(vr_closequarters_angle, "45", CVAR_ARCHIVE)            // degrees off straight at it still counted fully as towards it
 QVR_CVAR(vr_closequarters_angle_falloff, "75", CVAR_ARCHIVE)    // degrees off it past which a move counts as not towards it at all (between: less and less)
 QVR_CVAR(vr_closequarters_brake, "1", CVAR_ARCHIVE)             // your own momentum towards it braked too (on the ground, not shoved or knocked back): its part towards it eased down to the slowed move's
-QVR_CVAR(vr_closequarters_braking, "80", CVAR_ARCHIVE)          // m/s^2: how fast that brake sheds it at End Radius straight at it (less further out and further off it)
+QVR_CVAR(vr_closequarters_braking, "60", CVAR_ARCHIVE)          // m/s^2: how fast that brake sheds it at End Radius straight at it (less further out and further off it)
 QVR_CVAR(vr_slope_walk, "1", CVAR_ARCHIVE)          // standing on a walkable slope, gravity only presses you into it (none of it pulls you downhill): with the stick pushed a little you walk up slopes and stairs' ramps from a standstill (Quake: under about a quarter stick you never got going); flat floors unchanged; 0: Quake's
 QVR_CVAR(vr_unstick_monsters, "1", CVAR_ARCHIVE)     // a monster (any live walking body) inside the map or a door, lift or wall, not moving, for vr_unstick_monsters_time is moved to the nearest free spot (vr_unstick.cpp; developer 1 prints each); 0: it stays stuck
 QVR_CVAR(vr_unstick_monsters_time, "1", CVAR_ARCHIVE) // ... seconds inside before it is moved
@@ -59,8 +60,6 @@ QVR_CVAR(vr_debug_walkmove, "0", CVAR_NONE)       // each of the first player's 
 
 // Precise hit detection (vr_hitmodel.cpp; ROUND21 "Precise hit detection (models, not boxes)"): shots, missiles, the
 // grappling hook, melee blows and thrown things meet a monster's model as drawn (grown by the tolerance), not Quake's box.
-QVR_CVAR(vr_hit_precise, "1", CVAR_ARCHIVE)           // Quake's boxes, as before
-QVR_CVAR(vr_hit_drawn_pose, "1", CVAR_ARCHIVE)        // an armed humanoid's body met as drawn (drawnpose::armedMesh); 0 its animation frame, as before
 QVR_CVAR(vr_hit_tolerance_melee, "2", CVAR_ARCHIVE)   // for melee blows and shoves (on top of the striking points' own thickness, 3 units)
 QVR_CVAR(vr_debug_sound_log, "0", CVAR_NONE)          // each sound the server starts printed ("sndlog: t <time> ent <n> <classname> chan <c> <sample> vol <v>", dropped ones and why: vr_server.cpp VR_SoundLog); 2: not the players'
 QVR_CVAR(vr_debug_hits, "0", CVAR_NONE)             // each precise hit drawn (the model as drawn then, the triangle hit, the point on the model) and printed; 2: also the shots through a box that missed the model
@@ -185,6 +184,12 @@ QVR_CVAR(vr_mock_hand_pull_off, "0", CVAR_NONE)       // m: ... the off mock han
 // Test runs: 1 makes every host frame 1/72 s of game time with a server frame (vr_motion_play.cpp hostFrameTime), so a
 // scripted run (vr_mock_play, "wait") logs the same numbers every time, whatever the machine's pace.
 QVR_CVAR(vr_fixed_frames, "0", CVAR_NONE)
+// 1: in VR a frame's game time is the time between the headset's predicted display times, not the wall clock's between
+// two frames' starts (vr_main.cpp VR_HostFrameTime): the world moves past you in even steps, as the head's pose is
+// already for its display time. His run at a steady 308 u/s moved 2.1..3.2 units a frame on the wall clock (2026-11-02,
+// frames 5.9..11 ms on a steady 8.33 ms display). 0: the wall clock. vr_fixed_frames_jitter: its frames' jitter is the
+// wall clock's, so this takes it away too; a test of the jitter sets 0.
+QVR_CVAR(vr_display_clock, "1", CVAR_NONE)
 // Test runs with vr_fixed_frames 1: the host frames a second of game time (72: a server tick with each; 90: a headset's
 // frame rate, the server's ticks on its own 72 Hz clock between them, as in the headset (host_fixedtick): the drawn
 // motion's smoothness tests, vr_drawn_motion_test, host_tickstats).
@@ -268,7 +273,6 @@ QVR_CVAR(vr_gunsfx, "1", CVAR_ARCHIVE)               // the gunfire's extras bel
 QVR_CVAR(vr_gunsfx_layers, "1", CVAR_ARCHIVE)        // a shot's close mechanical layer and low thump: volume (0 none)
 QVR_CVAR(vr_gunsfx_tail, "1", CVAR_ARCHIVE)          // a shot's tail sized to the room (short indoors, long with an echo outdoors): volume (0 none)
 QVR_CVAR(vr_gunsfx_vary, "4", CVAR_ARCHIVE)          // percent: each shot (and its layers) up to this much higher or lower, and half as much louder or quieter (0 off)
-QVR_CVAR(vr_gunsfx_casings, "1", CVAR_ARCHIVE)       // spent casings sound of what they land on (stone, metal, wood; water as before); 0: the one tink everywhere
 QVR_CVAR(vr_gunsfx_impacts, "1", CVAR_ARCHIVE)       // a bullet's or a nail's hit on a wall sounds of its surface (stone, dirt, metal, wood), at the surface: volume (0 none)
 QVR_CVAR(vr_gunsfx_dryfire, "1", CVAR_ARCHIVE)      // an empty gun's dry click: its volume and a small tick in the hand (0 silent)
 QVR_CVAR(vr_gunsfx_action, "1", CVAR_ARCHIVE)        // a gun's actions (breaking open, closing, a magazine in or out) heard from the action, not the muzzle
@@ -629,6 +633,15 @@ QVR_CVAR(vr_deadzone, "10", CVAR_ARCHIVE)
 // with it, "a hitch"); from 0.8 on is full, as the old response's top fifth was (running asked 400 against 320).
 QVR_CVAR(vr_deadzone_outer, "20", CVAR_ARCHIVE)
 QVR_CVAR(vr_move_curve, "1.6", CVAR_ARCHIVE)
+// Degrees off straight ahead, back or a side within which the moving stick's direction is exactly that way, the rest
+// of each quadrant spread over what is left (moveSnap; 0 off). A thumb "straight" reads a few degrees to 15 off (his
+// runs of 2026-11-02: x 0.13 at y 0.88, 8 degrees): the response of 2026-10-25 walks that angle, the per-axis deadzone
+// before it took it away.
+QVR_CVAR(vr_move_snap, "15", CVAR_ARCHIVE)
+// Seconds a full push is held as the thumb slips off it, then falling to the push in a moment (moveHold; 0 off). His
+// thumb held hard forward dips to 0.55..0.75 for a tenth of a second, about three times a second (2026-11-02, up to 28%
+// slower each time, 309 to 223 u/s: the hitch); a push let go (under a quarter of the travel) stops at once.
+QVR_CVAR(vr_move_hold, "0.4", CVAR_ARCHIVE)
 // 1: walking (cl_alwaysrun 0, the speed button up), the stick walks up to vr_move_autorun_threshold of its push (the
 // rescaled length, before the curve) and pushed past it eases into running in a moment; back under it, into walking.
 QVR_CVAR(vr_move_autorun, "0", CVAR_ARCHIVE)
@@ -673,10 +686,6 @@ QVR_CVAR(vr_melee_slap_mult, "0.5", CVAR_ARCHIVE)    // a slap's damage, times a
 // Swing sounds by speed (QC vr_melee.qc VR_Swish): a fist's, open hand's or melee weapon's whoosh for any motion that moves
 // air, its volume by its speed as a share of the speed its blow would land at (the melee model's own, per hand and blow).
 QVR_CVAR(vr_melee_swish, "1", CVAR_ARCHIVE)          // 1: swings short of a blow whoosh softly, fast blows louder than full; 0: only a blow whooshes, at full volume (as before)
-QVR_CVAR(vr_melee_swish_min, "0.3", CVAR_ARCHIVE)    // share of the blow's landing speed from which a swing is heard (slower: silent)
-QVR_CVAR(vr_melee_swish_sub, "0.35", CVAR_ARCHIVE)   // volume of the loudest swing short of a blow (just under its landing speed; a blow is 1 and more)
-QVR_CVAR(vr_melee_swish_full, "1.75", CVAR_ARCHIVE)   // share of the landing speed at which a blow's whoosh is loudest (vr_melee_swish_gain; the author's punches land at 1.4-1.6, his overhead cuts 1.9-2.7)
-QVR_CVAR(vr_melee_swish_gain, "2",   CVAR_ARCHIVE)   // volume of the fastest blows' whoosh (1: full volume, as a blow's was; up to 4), a little higher too
 QVR_CVAR(vr_melee_wrist_speed, "1.1", CVAR_ARCHIVE)   // m/s the hand itself (its wrist: the hand's turn taken out) must have moved on average over the last 0.12 s to hit (a punch twice this): a wiggle flicks the tip fast but barely moves the wrist (QC vr_melee.qc)
 QVR_CVAR(vr_melee_pommel_wait, "0.05", CVAR_ARCHIVE)  // s a pommel's (a handle's end's, a gun butt's) touch waits for the blade or head to reach the same thing, so a cut from close by is a cut; only pommel strikes wait (QC vr_melee.qc)
 // Melee phasing (Combat > Melee; vr_modelcollide.cpp; ROUND21.md, "Melee phasing"): while a hand swings fast its fist and
@@ -847,20 +856,20 @@ QVR_CVAR(vr_menu_recolor, "1", CVAR_ARCHIVE)          // the menus' browns, tans
 QVR_CVAR(vr_menu_recolor_strength, "1", CVAR_ARCHIVE)  // with it, how far towards the hue (0 to 1)
 QVR_CVAR(vr_menu_recolor_hue, "0", CVAR_ARCHIVE)       // with it, the hue they turn to (degrees; 0 red, the banner's; 345 crimson, 20 red-orange; -1 vr_player_hue)
 QVR_CVAR(vr_menu_recolor_saturation, "3", CVAR_ARCHIVE)    // with it, their colourfulness times this (as far as the hue's colours go; 0.5 to 3; their lightness always kept)
-QVR_CVAR(vr_menu_bigfont, "1", CVAR_ARCHIVE)         // the main menu's rows as text in Quake's own lettering (vr_bigfont.cpp; 0: Quake's picture, VR Calibration above it in the console's letters)
+QVR_CVAR(vr_menu_bigfont, "1", CVAR_ARCHIVE)         // the main menu's rows as text in Quake's own lettering, the other menus' pictures of rows restyled (vr_bigfont.cpp; 0: Quake's pictures as they are, VR Calibration above the main menu's in the console's letters)
 // The console font restyled (vr_fontstyle.cpp), one set for each kind of text; each change rebuilds that one at once.
 // Classic, no outline, shadow opacity 0: Quake's own texture, as before. Shipped: the author's look (2026-11-02).
 // The menus and the 2D canvas (Menu > Fonts):
 QVR_CVAR(vr_font_upscale, "1", CVAR_ARCHIVE) // 0 Classic (nearest, as Quake); 1 nearest 4x sampled smooth (even strokes); 2 Scale4x (rounded diagonals, no new colours); 3 4xBR (smooth slopes, blended edges); 1-3 linear and mipmapped
-QVR_CVAR(vr_font_outline, "0.75", CVAR_ARCHIVE) // the letters' outline: its thickness in font pixels (an 8 x 8 glyph's; 0 to 2; 0 off); never the box, slider or textured pieces
+QVR_CVAR(vr_font_outline, "1", CVAR_ARCHIVE) // the letters' outline: its thickness in font pixels (an 8 x 8 glyph's; 0 to 2; 0 off); never the box, slider or textured pieces
 QVR_CVAR(vr_font_outline_r, "0", CVAR_ARCHIVE) // its colour: red, 0 to 1
 QVR_CVAR(vr_font_outline_g, "0", CVAR_ARCHIVE) // green
 QVR_CVAR(vr_font_outline_b, "0", CVAR_ARCHIVE) // blue
-QVR_CVAR(vr_font_shadow_opacity, "0.65", CVAR_ARCHIVE) // the letters' drop shadow (cast by the letter and its outline): its opacity, 0 to 1 (0 off)
+QVR_CVAR(vr_font_shadow_opacity, "0", CVAR_ARCHIVE) // the letters' drop shadow (cast by the letter and its outline): its opacity, 0 to 1 (0 off)
 QVR_CVAR(vr_font_shadow_grow, "0", CVAR_ARCHIVE) // its size: the shape grown by this many font pixels (0 to 2; 0 the letter's own)
-QVR_CVAR(vr_font_shadow_spread, "1", CVAR_ARCHIVE) // its softness: the blur's radius in font pixels (0 to 2; 0 a hard copy)
-QVR_CVAR(vr_font_shadow_x, "1", CVAR_ARCHIVE) // its offset right, in font pixels (-2 to 2)
-QVR_CVAR(vr_font_shadow_y, "1", CVAR_ARCHIVE) // its offset down, in font pixels (-2 to 2)
+QVR_CVAR(vr_font_shadow_spread, "0", CVAR_ARCHIVE) // its softness: the blur's radius in font pixels (0 to 2; 0 a hard copy)
+QVR_CVAR(vr_font_shadow_x, "-2", CVAR_ARCHIVE) // its offset right, in font pixels (-2 to 2)
+QVR_CVAR(vr_font_shadow_y, "-2", CVAR_ARCHIVE) // its offset down, in font pixels (-2 to 2)
 QVR_CVAR(vr_font_shadow_r, "0", CVAR_ARCHIVE) // its colour: red, 0 to 1
 QVR_CVAR(vr_font_shadow_g, "0", CVAR_ARCHIVE) // green
 QVR_CVAR(vr_font_shadow_b, "0", CVAR_ARCHIVE) // blue
@@ -870,39 +879,39 @@ QVR_CVAR(vr_font_gadget_outline, "0.75", CVAR_ARCHIVE) // the letters' outline: 
 QVR_CVAR(vr_font_gadget_outline_r, "0", CVAR_ARCHIVE) // its colour: red, 0 to 1
 QVR_CVAR(vr_font_gadget_outline_g, "0", CVAR_ARCHIVE) // green
 QVR_CVAR(vr_font_gadget_outline_b, "0", CVAR_ARCHIVE) // blue
-QVR_CVAR(vr_font_gadget_shadow_opacity, "0.65", CVAR_ARCHIVE) // the letters' drop shadow (cast by the letter and its outline): its opacity, 0 to 1 (0 off)
+QVR_CVAR(vr_font_gadget_shadow_opacity, "0", CVAR_ARCHIVE) // the letters' drop shadow (cast by the letter and its outline): its opacity, 0 to 1 (0 off)
 QVR_CVAR(vr_font_gadget_shadow_grow, "0", CVAR_ARCHIVE) // its size: the shape grown by this many font pixels (0 to 2; 0 the letter's own)
-QVR_CVAR(vr_font_gadget_shadow_spread, "1", CVAR_ARCHIVE) // its softness: the blur's radius in font pixels (0 to 2; 0 a hard copy)
-QVR_CVAR(vr_font_gadget_shadow_x, "1", CVAR_ARCHIVE) // its offset right, in font pixels (-2 to 2)
-QVR_CVAR(vr_font_gadget_shadow_y, "1", CVAR_ARCHIVE) // its offset down, in font pixels (-2 to 2)
+QVR_CVAR(vr_font_gadget_shadow_spread, "0", CVAR_ARCHIVE) // its softness: the blur's radius in font pixels (0 to 2; 0 a hard copy)
+QVR_CVAR(vr_font_gadget_shadow_x, "-2", CVAR_ARCHIVE) // its offset right, in font pixels (-2 to 2)
+QVR_CVAR(vr_font_gadget_shadow_y, "-2", CVAR_ARCHIVE) // its offset down, in font pixels (-2 to 2)
 QVR_CVAR(vr_font_gadget_shadow_r, "0", CVAR_ARCHIVE) // its colour: red, 0 to 1
 QVR_CVAR(vr_font_gadget_shadow_g, "0", CVAR_ARCHIVE) // green
 QVR_CVAR(vr_font_gadget_shadow_b, "0", CVAR_ARCHIVE) // blue
 // The weapons' ammo screens:
-QVR_CVAR(vr_font_ammo_upscale, "1", CVAR_ARCHIVE) // 0 Classic (nearest, as Quake); 1 nearest 4x sampled smooth (even strokes); 2 Scale4x (rounded diagonals, no new colours); 3 4xBR (smooth slopes, blended edges); 1-3 linear and mipmapped
-QVR_CVAR(vr_font_ammo_outline, "0.75", CVAR_ARCHIVE) // the letters' outline: its thickness in font pixels (an 8 x 8 glyph's; 0 to 2; 0 off); never the box, slider or textured pieces
+QVR_CVAR(vr_font_ammo_upscale, "0", CVAR_ARCHIVE) // 0 Classic (nearest, as Quake); 1 nearest 4x sampled smooth (even strokes); 2 Scale4x (rounded diagonals, no new colours); 3 4xBR (smooth slopes, blended edges); 1-3 linear and mipmapped
+QVR_CVAR(vr_font_ammo_outline, "0.5", CVAR_ARCHIVE) // the letters' outline: its thickness in font pixels (an 8 x 8 glyph's; 0 to 2; 0 off); never the box, slider or textured pieces
 QVR_CVAR(vr_font_ammo_outline_r, "0", CVAR_ARCHIVE) // its colour: red, 0 to 1
 QVR_CVAR(vr_font_ammo_outline_g, "0", CVAR_ARCHIVE) // green
 QVR_CVAR(vr_font_ammo_outline_b, "0", CVAR_ARCHIVE) // blue
-QVR_CVAR(vr_font_ammo_shadow_opacity, "0.65", CVAR_ARCHIVE) // the letters' drop shadow (cast by the letter and its outline): its opacity, 0 to 1 (0 off)
+QVR_CVAR(vr_font_ammo_shadow_opacity, "0", CVAR_ARCHIVE) // the letters' drop shadow (cast by the letter and its outline): its opacity, 0 to 1 (0 off)
 QVR_CVAR(vr_font_ammo_shadow_grow, "0", CVAR_ARCHIVE) // its size: the shape grown by this many font pixels (0 to 2; 0 the letter's own)
-QVR_CVAR(vr_font_ammo_shadow_spread, "1", CVAR_ARCHIVE) // its softness: the blur's radius in font pixels (0 to 2; 0 a hard copy)
-QVR_CVAR(vr_font_ammo_shadow_x, "1", CVAR_ARCHIVE) // its offset right, in font pixels (-2 to 2)
-QVR_CVAR(vr_font_ammo_shadow_y, "1", CVAR_ARCHIVE) // its offset down, in font pixels (-2 to 2)
+QVR_CVAR(vr_font_ammo_shadow_spread, "0", CVAR_ARCHIVE) // its softness: the blur's radius in font pixels (0 to 2; 0 a hard copy)
+QVR_CVAR(vr_font_ammo_shadow_x, "-2", CVAR_ARCHIVE) // its offset right, in font pixels (-2 to 2)
+QVR_CVAR(vr_font_ammo_shadow_y, "-2", CVAR_ARCHIVE) // its offset down, in font pixels (-2 to 2)
 QVR_CVAR(vr_font_ammo_shadow_r, "0", CVAR_ARCHIVE) // its colour: red, 0 to 1
 QVR_CVAR(vr_font_ammo_shadow_g, "0", CVAR_ARCHIVE) // green
 QVR_CVAR(vr_font_ammo_shadow_b, "0", CVAR_ARCHIVE) // blue
 // The world's texts: map boards, floating texts, tips, tools' hints:
-QVR_CVAR(vr_font_world_upscale, "1", CVAR_ARCHIVE) // 0 Classic (nearest, as Quake); 1 nearest 4x sampled smooth (even strokes); 2 Scale4x (rounded diagonals, no new colours); 3 4xBR (smooth slopes, blended edges); 1-3 linear and mipmapped
+QVR_CVAR(vr_font_world_upscale, "0", CVAR_ARCHIVE) // 0 Classic (nearest, as Quake); 1 nearest 4x sampled smooth (even strokes); 2 Scale4x (rounded diagonals, no new colours); 3 4xBR (smooth slopes, blended edges); 1-3 linear and mipmapped
 QVR_CVAR(vr_font_world_outline, "0.75", CVAR_ARCHIVE) // the letters' outline: its thickness in font pixels (an 8 x 8 glyph's; 0 to 2; 0 off); never the box, slider or textured pieces
 QVR_CVAR(vr_font_world_outline_r, "0", CVAR_ARCHIVE) // its colour: red, 0 to 1
 QVR_CVAR(vr_font_world_outline_g, "0", CVAR_ARCHIVE) // green
 QVR_CVAR(vr_font_world_outline_b, "0", CVAR_ARCHIVE) // blue
-QVR_CVAR(vr_font_world_shadow_opacity, "0.65", CVAR_ARCHIVE) // the letters' drop shadow (cast by the letter and its outline): its opacity, 0 to 1 (0 off)
+QVR_CVAR(vr_font_world_shadow_opacity, "0", CVAR_ARCHIVE) // the letters' drop shadow (cast by the letter and its outline): its opacity, 0 to 1 (0 off)
 QVR_CVAR(vr_font_world_shadow_grow, "0", CVAR_ARCHIVE) // its size: the shape grown by this many font pixels (0 to 2; 0 the letter's own)
-QVR_CVAR(vr_font_world_shadow_spread, "1", CVAR_ARCHIVE) // its softness: the blur's radius in font pixels (0 to 2; 0 a hard copy)
-QVR_CVAR(vr_font_world_shadow_x, "1", CVAR_ARCHIVE) // its offset right, in font pixels (-2 to 2)
-QVR_CVAR(vr_font_world_shadow_y, "1", CVAR_ARCHIVE) // its offset down, in font pixels (-2 to 2)
+QVR_CVAR(vr_font_world_shadow_spread, "0", CVAR_ARCHIVE) // its softness: the blur's radius in font pixels (0 to 2; 0 a hard copy)
+QVR_CVAR(vr_font_world_shadow_x, "-2", CVAR_ARCHIVE) // its offset right, in font pixels (-2 to 2)
+QVR_CVAR(vr_font_world_shadow_y, "-2", CVAR_ARCHIVE) // its offset down, in font pixels (-2 to 2)
 QVR_CVAR(vr_font_world_shadow_r, "0", CVAR_ARCHIVE) // its colour: red, 0 to 1
 QVR_CVAR(vr_font_world_shadow_g, "0", CVAR_ARCHIVE) // green
 QVR_CVAR(vr_font_world_shadow_b, "0", CVAR_ARCHIVE) // blue
@@ -1096,6 +1105,7 @@ QVR_CVAR(vr_ghost_hands_fade_from, "9", CVAR_ARCHIVE)      // cm: no ghost while
 QVR_CVAR(vr_ghost_hands_fade_range, "7", CVAR_ARCHIVE)     // cm: and it fades in over this much further
 QVR_CVAR(vr_ghost_hands_ignore_recoil, "1", CVAR_ARCHIVE)  // 1: the programmatic recoil's kick of the drawn hand (vr_weaponfx.cpp) doesn't count as held off (no ghost from a shot); 0: it does
 QVR_CVAR(vr_ghost_hands_ignore_bodies, "1", CVAR_ARCHIVE)  // 1: no ghost for a hand holding a body (an enemy alive: the foe grab, the judo; a ragdoll, alive or dead: its limb or body); 0: those show it too
+QVR_CVAR(vr_ghost_hands_ignore_climb, "1", CVAR_ARCHIVE)   // 1: no ghost while climbing (either hand on a hold: the drawn hands stay on the ledge as you move); 0: those show it too
 QVR_CVAR(vr_ghost_hands_test_offset, "0", CVAR_NONE)       // test aid (Debug): cm the ghost is moved sideways, so it shows apart from the drawn hand
 QVR_CVAR(vr_heavy_damping_min,"0.8", CVAR_ARCHIVE)        // the least damping ratio of a weapon with a Heft (the struggle's and its own Spring Damping's no lower; 1 critical)
 QVR_CVAR(vr_debug_stamina_hold, "0", CVAR_NONE)          // tests: 1 keeps the game's stamina where it is, or where vr_stamina_set put it (a local game; vr_fatigue.cpp)
@@ -1358,8 +1368,11 @@ QVR_CVAR(vr_voice_formant, "17", CVAR_ARCHIVE)        // vr_voice 1: its formant
 QVR_CVAR(vr_voice_voicing, "0.4", CVAR_ARCHIVE)       // vr_voice 1: how rough a stretch of a voice sound may be and still be pitched up (YIN's threshold, 0.05..0.9: higher pitches more of the screams' growl; the rest only has its formants raised)
 QVR_CVAR(vr_body_bracers, "0", CVAR_ARCHIVE)         // the leather bracers on the forearms; 0: bare forearms (gadget straps fitted to the skin) (progs/vrbody*_bare, fitted round the jointed hand)
 QVR_CVAR(vr_body_walk, "1", CVAR_ARCHIVE)             // legs (vr_body_mode 3) walk as the player moves
-QVR_CVAR(vr_body_step_rate, "2.2", CVAR_ARCHIVE)      // at most this many steps a second at full running speed (fewer walking)
-QVR_CVAR(vr_body_step_run, "1", CVAR_ARCHIVE)         // at speed the legs step up to a person's cadence there (the bloody footprints' steps: a run's ~5.6 a second) above vr_body_step_rate: 1 all of it, 0 the cap alone (a run's ~2.5), up to 1.5
+QVR_CVAR(vr_body_step_rate, "3.6", CVAR_ARCHIVE)      // steps a second at a full run (320 units/s), 0.5 .. 10; below it a share of that (vr_body_step_run); never more than the speed over the stride
+QVR_CVAR(vr_body_stride, "1.25", CVAR_ARCHIVE)           // the walk's stride, times this (0.3 .. 2): longer, the planted foot slides less, and the fewer steps it takes when walking slowly
+QVR_CVAR(vr_body_step_width, "0", CVAR_ARCHIVE)       // metres each foot walks further out than it stands, the hips' width apart (-0.08 .. 0.25)
+QVR_CVAR(vr_body_step_sounds, "1", CVAR_ARCHIVE)       // the player's footsteps play as the drawn feet touch down, from that foot (vr_playersteps.cpp); 0: QC's old trigger, by distance. The old trigger too with no walking legs, in the air, swimming, climbing and in multiplayer
+QVR_CVAR(vr_body_step_run, "1", CVAR_ARCHIVE)         // below a full run, how the steps fall off: 1 as a person's cadence does (the bloody footprints' steps), 0 vr_body_step_rate rules everywhere (70% at the slowest, all of it at a run); 0 .. 1
 QVR_CVAR(vr_body_wade, "1", CVAR_ARCHIVE)             // wading, the legs walk heavier: shorter, higher, slower steps (0 as on land, up to 2)
 QVR_CVAR(vr_body_swim_kick, "1", CVAR_ARCHIVE)        // swimming, how wide the legs kick (0: they only trail behind; up to 2)
 QVR_CVAR(vr_body_swim_kick_rate, "1.5", CVAR_ARCHIVE) // and how many more kicks a second at full stick (0.7 treading water)
@@ -1656,10 +1669,10 @@ QVR_CVAR(vr_gunfx_port, "1", CVAR_ARCHIVE)             // a small quick puff out
 QVR_CVAR(vr_gunfx_backblast, "1", CVAR_ARCHIVE)        // a rocket launcher's backblast smoke behind it, and dust off the floor under it
 QVR_CVAR(vr_gunfx_heat, "1", CVAR_ARCHIVE)             // barrels hot after sustained fire (every gun's, not the flamethrowers' or melee): wisps of smoke off the muzzle, a red-hot glow
 // Barrel heat (vr_gunfx.cpp heatShot / heatCool / heatGlow; each weapon's fx_gfx_heat / fx_gfx_cool multipliers):
-QVR_CVAR(vr_gunfx_heat_time, "1", CVAR_ARCHIVE)        // Heat-Up Time: seconds of sustained fire (at the gun's own rate) to full heat (a single shot: at most 0.35 of it; 0.1-10)
-QVR_CVAR(vr_gunfx_cool_time, "3", CVAR_ARCHIVE)        // Cool-Down Time: seconds a barrel at full heat takes to cool once you stop (0.1-20)
-QVR_CVAR(vr_gunfx_heat_glow, "1", CVAR_ARCHIVE)        // Glow Strength: the hot barrel's metal's glow (vr_hotblade.cpp), times (0 none; 0-3)
-QVR_CVAR(vr_gunfx_heat_light, "1", CVAR_ARCHIVE)       // Heat Light Strength: the light a glowing barrel casts, following its glow (0 none; 0-3)
+QVR_CVAR(vr_gunfx_heat_time, "0.75", CVAR_ARCHIVE)        // Heat-Up Time: seconds of sustained fire (at the gun's own rate) to full heat (a single shot: at most 0.35 of it; 0.1-10)
+QVR_CVAR(vr_gunfx_cool_time, "3.25", CVAR_ARCHIVE)        // Cool-Down Time: seconds a barrel at full heat takes to cool once you stop (0.1-20)
+QVR_CVAR(vr_gunfx_heat_glow, "3", CVAR_ARCHIVE)        // Glow Strength: the hot barrel's metal's glow (vr_hotblade.cpp), times (0 none; 0-3)
+QVR_CVAR(vr_gunfx_heat_light, "0.3", CVAR_ARCHIVE)       // Heat Light Strength: the light a glowing barrel casts, following its glow (0 none; 0-3)
 // Muzzle wisps (vr_muzzlewisps.cpp): thin soft lines of smoke trailing off your guns' barrels after you stop firing.
 QVR_CVAR(vr_gunfx_wisps, "1", CVAR_ARCHIVE)            // 0: none
 QVR_CVAR(vr_gunfx_wisp_delay, "0", CVAR_ARCHIVE)    // seconds after the last shot they start (0-3)
@@ -1669,7 +1682,7 @@ QVR_CVAR(vr_gunfx_wisp_width, "1.5", CVAR_ARCHIVE)     // cm thick at the muzzle
 QVR_CVAR(vr_gunfx_wisp_spread, "3", CVAR_ARCHIVE)      // times thicker (and fainter) when it fades (1-10)
 QVR_CVAR(vr_gunfx_wisp_amount, "1", CVAR_ARCHIVE)      // their opacity, times (0-4)
 QVR_CVAR(vr_gunfx_wisp_opacity, "1", CVAR_ARCHIVE)     // the most opaque they get (0.02-1: a cap on Wisp Amount's opacity)
-QVR_CVAR(vr_gunfx_wisp_rise, "31.5", CVAR_ARCHIVE)       // cm a second the smoke rises (0-200; vr_gunfx_turbulence curls it)
+QVR_CVAR(vr_gunfx_wisp_rise, "90", CVAR_ARCHIVE)       // cm a second the smoke rises (0-200; vr_gunfx_turbulence curls it)
 QVR_CVAR(vr_gunfx_impacts, "1", CVAR_ARCHIVE)          // bullets' and nails' wall hits by the surface's material (vr_impacts.cpp): dust off stone, sparks off metal, chips off wood
 QVR_CVAR(vr_gunfx_ozone, "1", CVAR_ARCHIVE)            // a faint bluish ozone haze where the thunderbolt's beam plays on a surface
 QVR_CVAR(vr_gunfx_enemies, "1", CVAR_ARCHIVE)          // the monsters' guns too (the grunts', the enforcers', the armed grunts')
@@ -1792,6 +1805,7 @@ QVR_CVAR(vr_body_elbow_tuck_near, "0.6", CVAR_ARCHIVE)
 QVR_CVAR(vr_body_elbow_tuck_far, "0.9", CVAR_ARCHIVE)
 QVR_CVAR(vr_holster_haptics, "2", CVAR_ARCHIVE)
 QVR_CVAR(vr_model_lighting, "1", CVAR_ARCHIVE)        // models shaded from the map's lights (0: Quake's fixed direction; 0..1 blends)
+QVR_CVAR(vr_model_light_grid, "1", CVAR_ARCHIVE)      // models lit by the baked light from every side (probes over the map: vr_ambient.cpp, "The light grid"; 0: Quake's, the floor under them, and rays of their own for the sides)
 QVR_CVAR(vr_model_ambient_dir, "1", CVAR_ARCHIVE)     // models lit by the baked light around them, brighter on the side facing lit walls (vr_ambient.cpp; 0: one brightness all round)
 QVR_CVAR(vr_model_ambient_contrast, "1.5", CVAR_ARCHIVE) // how much the sides differ (0: not at all, 1: as the surroundings do)
 QVR_CVAR(vr_rim_light, "0.5", CVAR_ARCHIVE)           // a faint light round models' edges, in the light around them, so they stand out from dark backgrounds (vr_envmap.cpp; 0 off .. 1)
@@ -1812,7 +1826,7 @@ QVR_CVAR(vr_relight_maplights, "1", CVAR_ARCHIVE)    // the map's own lights (as
 QVR_CVAR(vr_relight_sunlight, "1", CVAR_ARCHIVE)     // the map's sunlight and sky light (maps that have them)
 QVR_CVAR(vr_relight_bounce, "1", CVAR_ARCHIVE)       // bounced light (light -bounce -bouncescale; 0 none, as relight_maps.py)
 QVR_CVAR(vr_relight_ao, "1.2", CVAR_ARCHIVE)         // ambient occlusion in corners (light -dirt -dirtscale; 0 none)
-QVR_CVAR(vr_relight_minlight, "64", CVAR_ARCHIVE)     // Ambient Light Level: light added everywhere (on top of the worldspawn's own minlight, not darkened by the AO; 0 the map's own)
+QVR_CVAR(vr_relight_minlight, "32", CVAR_ARCHIVE)     // Ambient Light Level: light added everywhere (on top of the worldspawn's own minlight, not darkened by the AO; 0 the map's own)
 QVR_CVAR(vr_relight_quality, "1", CVAR_ARCHIVE)      // shadows' edges: 1 smooth (-extra4, relight_maps.py's), 0 fast (-extra)
 QVR_CVAR(vr_relight_seethrough, "1", CVAR_ARCHIVE)   // id's maps relit with see-through water, slime and teleporters: VisPatch's water-vised visibility put in (vr_relight_vis.cpp; needs its data files, quakevr/tools/vispatch; 0: the map's own, liquids opaque)
 QVR_CVAR(vr_relight_vispatch_dir, "", CVAR_NONE)     // testing: the only folder the VisPatch data (id1.vis, hipnotic.vis, rogue.vis) is looked for in ("": tools/vispatch in each game folder, then QUAKEVR_VISPATCH)
@@ -1828,18 +1842,6 @@ QVR_CVAR(vr_relight_indicator, "1", CVAR_ARCHIVE)     // while a relighting runs
 QVR_CVAR(vr_particles, "1", CVAR_ARCHIVE)             // Quake VR's textured particles for the QC's effects (0: Quake's own)
 // Rising particles over low-poly fire models (static fires, burning bodies, taken torches).
 QVR_CVAR(vr_fire_particles, "1", CVAR_ARCHIVE)
-QVR_CVAR(vr_fire_particles_count, "8", CVAR_ARCHIVE) // exact particles in each emission burst
-QVR_CVAR(vr_fire_particles_frequency, "10", CVAR_ARCHIVE) // bursts per second per flame model
-QVR_CVAR(vr_fire_particles_origin, "0.2", CVAR_ARCHIVE) // emission height along flame: 0 base, 1 tip
-QVR_CVAR(vr_fire_particles_speed_min, "0.1", CVAR_ARCHIVE) // horizontal outward speed, m/s
-QVR_CVAR(vr_fire_particles_speed_max, "0.4", CVAR_ARCHIVE)
-QVR_CVAR(vr_fire_particles_up_min, "0.3", CVAR_ARCHIVE) // upward speed in world axes, regardless of torch tilt
-QVR_CVAR(vr_fire_particles_up_max, "0.9", CVAR_ARCHIVE)
-QVR_CVAR(vr_fire_particles_life_min, "0.25", CVAR_ARCHIVE)
-QVR_CVAR(vr_fire_particles_life_max, "0.65", CVAR_ARCHIVE)
-QVR_CVAR(vr_fire_particles_size, "2.5", CVAR_ARCHIVE)
-QVR_CVAR(vr_fire_particles_alpha, "1", CVAR_ARCHIVE)
-QVR_CVAR(vr_fire_particles_range, "1216", CVAR_ARCHIVE)
 // Flames stirred by a hand passing them fast (vr_flamewobble.cpp; Graphics > Fire Model Particles > Flames in the Air):
 // they lean the hand's way, swing back a little and settle; the fire and smoke particles near it are carried along.
 QVR_CVAR(vr_flame_wobble, "1", CVAR_ARCHIVE)          // 1: on
@@ -1968,7 +1970,7 @@ QVR_CVAR(vr_decal_carve_size, "1", CVAR_ARCHIVE)     // ... how wide the holes a
 QVR_CVAR(vr_decal_carve_rim, "1.25", CVAR_ARCHIVE)      // ... how high their raised rim is, times each kind's own (0 none)
 QVR_CVAR(vr_decal_carve_steps, "8", CVAR_ARCHIVE)   // ... the most steps a pixel's ray takes into one (4-64; fewer where it spans few pixels)
 QVR_CVAR(vr_decal_carve_fade, "1024", CVAR_ARCHIVE)  // ... units from the eye past which they are flat (flattening from half as far)
-QVR_CVAR(vr_decal_carve_max, "128", CVAR_ARCHIVE)    // ... how many of the newest stay carved, live (with vr_permdecals the older are baked flat into the layer)
+QVR_CVAR(vr_decal_carve_max, "128", CVAR_ARCHIVE)    // ... how many of the newest stay carved, live (the older are baked flat into the permanent layer)
 QVR_CVAR(vr_decal_carve_style, "-1", CVAR_ARCHIVE)   // ... how they are carved: 0 smooth, 1 retro (blocky: the wall's texel blocks, the depth in steps), 2 faceted (low-poly: 8 flat sides, 3 rings); -1: retro on retro textures' blocks, else smooth
 QVR_CVAR(vr_decal_melee, "1", CVAR_ARCHIVE)          // melee blows on walls and floors carve their own marks (vr_decal_carve on): blunt ones (the crowbar, a gun's butt or barrel, a pommel, Mjolnir, a club, a fist holding a prop, a prop hitting hard) round dents, blades (a sword's, an axe's, the chainsaw's bar) grooves along the swing; both scaled by the blow's damage (0: the old shallow pits)
 QVR_CVAR(vr_decal_melee_blunt_depth, "1", CVAR_ARCHIVE) // ... a blunt dent's depth, times its own (0.25-4; shallower than a pellet's pit)
@@ -1976,8 +1978,7 @@ QVR_CVAR(vr_decal_melee_blunt_size, "1", CVAR_ARCHIVE)  // ... and width (0.5-2)
 QVR_CVAR(vr_decal_melee_slash_depth, "1", CVAR_ARCHIVE) // ... a blade's groove's depth, times its own (0.25-4)
 QVR_CVAR(vr_decal_melee_slash_length, "1", CVAR_ARCHIVE) // ... its length (0.5-2)
 QVR_CVAR(vr_decal_melee_slash_width, "1", CVAR_ARCHIVE)  // ... and width (0.5-2)
-QVR_CVAR(vr_decal_entities, "1", CVAR_ARCHIVE)       // marks (shots, blows, blood) on brush entities of their own files (the firing range's targets: its spawn buttons and panels), and on the map's doors and lifts with vr_permdecals 0: live, moving with them, the newest 128 (flat: no carved relief)
-QVR_CVAR(vr_permdecals, "1", CVAR_ARCHIVE)         // settled marks baked for good into a layer of the world's and its brush models' faces (vr_permdecals.cpp): they never go, and cost the same however many (0: as before, the newest vr_decal_max live; the others kept, shown again when on: PERM_DECALS.md "On and off")
+QVR_CVAR(vr_decal_entities, "1", CVAR_ARCHIVE)       // marks (shots, blows, blood) on brush entities of their own files (the firing range's targets: its spawn buttons and panels), and on the map's doors and lifts where the permanent layer is not laid out: live, moving with them, the newest 128 (flat: no carved relief)
 QVR_CVAR(vr_permdecal_density, "0.5", CVAR_ARCHIVE)  // the baked layer's units a texel (0.25-8; read at a map's load; 1: a little softer than the live marks, 2: blurred)
 QVR_CVAR(vr_permdecal_show, "0", CVAR_NONE)           // debug: the baked layer's pages drawn unlit and green, the marks on them (vr_permdecals.cpp)
 QVR_CVAR(vr_permdecal_atlas, "4096", CVAR_ARCHIVE)   // the baked layer's atlas, texels a side of each of its layers (1024-8192; 4096: 16384 pages of 30 x 30 texels a layer, 85 MB with its mips; made again, what was baked baked again, when changed)
@@ -1996,20 +1997,10 @@ QVR_CVAR(vr_gore_pools, "1", CVAR_ARCHIVE)             // pools of blood spreadi
 QVR_CVAR(vr_gore_drips, "1", CVAR_ARCHIVE)             // blood dripping from splats on the ceiling and from hanging gibs: how long and how much (0 none)
 // Gore sounds (vr_goresound.cpp; ROUND22.md, "Gore sounds"): stump spurts, streams splattering, chokes, tears, squelches,
 // wet steps, gibs slapping walls (sound/vr/gore/*.wav, make_gore_sounds.py). Silent with vr_gore 0.
-QVR_CVAR(vr_gore_sound, "1", CVAR_ARCHIVE)             // their volume (0 none; up to 2)
+QVR_CVAR(vr_gore_sound, "1", CVAR_ARCHIVE)             // Gore Volume: their volume (0 none; up to 2), times each kind's (the tuning constants vr_gore_sound_vol_<kind>)
 QVR_CVAR(vr_gore_sound_debug, "0", CVAR_NONE)          // 1: each gore sound played or dropped (capped, rate-limited, too far, off), and why; each file loaded and its length (at a map load)
 QVR_CVAR(vr_gore_sound_choke, "0", CVAR_ARCHIVE)       // a beheaded or face-smashed monster's wet choke instead of its cry (0: never, its cries never muted)
-// Each kind's volume, times vr_gore_sound (0 none; up to 2):
-QVR_CVAR(vr_gore_sound_vol_spurt, "0.75", CVAR_ARCHIVE)   // a stump's spurts
-QVR_CVAR(vr_gore_sound_vol_pour, "0.75", CVAR_ARCHIVE)    // blood streams splattering on the floor
-QVR_CVAR(vr_gore_sound_vol_choke, "0.75", CVAR_ARCHIVE)   // the chokes (vr_gore_sound_choke 1)
-QVR_CVAR(vr_gore_sound_vol_tear, "0.75", CVAR_ARCHIVE)    // limbs and heads torn off
-QVR_CVAR(vr_gore_sound_vol_squelch, "0.75", CVAR_ARCHIVE) // a hand taking a gib or a dead body
-QVR_CVAR(vr_gore_sound_vol_step, "0.75", CVAR_ARCHIVE)    // your wet steps after a pool
-QVR_CVAR(vr_gore_sound_vol_slap, "0.75", CVAR_ARCHIVE)    // gibs slapping into walls
-QVR_CVAR(vr_gore_sound_vol_splash, "0.75", CVAR_ARCHIVE)  // your foot splashing into a pool of blood
-QVR_CVAR(vr_gore_sound_vol_drip, "0.35", CVAR_ARCHIVE)       // drops of blood hitting the floor: yours (vr_body_blood), the ceilings' and stuck gibs' (vr_gore_drips) (his 0.35, 1 before vr_cfg_version 182)
-QVR_CVAR(vr_gore_sound_drips, "0.65", CVAR_ARCHIVE)          // ... the share of the drops heard (1: every drop; 0 none) (his 0.65, 1 before vr_cfg_version 182)
+QVR_CVAR(vr_gore_sound_drips, "0.65", CVAR_ARCHIVE)          // the share of the blood drops heard (1: every drop; 0 none) (his 0.65, 1 before vr_cfg_version 182)
 // Bloody footprints and handprints (vr_bloodprints.cpp; ROUND22.md, "Bloody footprints and handprints"): decals as the
 // blood's, permanent as theirs (vr_decals 0: none).
 QVR_CVAR(vr_footprints, "1", CVAR_ARCHIVE)             // stepping in a pool of blood or on a bloody body leaves bloody footprints
@@ -2061,6 +2052,7 @@ QVR_CVAR(vr_test_dispenser, "0", CVAR_NONE)                // the map's n-th mon
 QVR_CVAR(vr_dropcap_test, "0", CVAR_NONE)                  // the QC tests the cap on dropped enemy weapons: 1 grunts spawned and killed one by one (vr_dropcap_test_n, 0: 60) (vr_dropcap_test.qc; Debug > Tests)
 QVR_CVAR(vr_dropcap_test_n, "0", CVAR_NONE)
 QVR_CVAR(vr_prop_impact_test, "0", CVAR_NONE)              // the QC runs the props' impact rule test n (vr_propimpact_test.qc; Debug > Gore Tests): 1 every kind tapped, hit, struck hard, smashed held, thrown; propimpact: lines; 4 a fuel tank and a crate as heavy thrown at a grunt and an ogre (fueltankhit: lines)
+QVR_CVAR(vr_footstep_test, "0", CVAR_NONE)               // 1: each biped in turn walks, then runs, by the player; the steps' report (QC vr_footstep_test.qc; vr_footsteps.cpp), `footstep_test: N passed, M failed`
 QVR_CVAR(vr_crouch_test, "0", CVAR_NONE)                 // the QC fires n bullets from a grunt put 280 units ahead of the player at him (vr_crouch_test.qc; Debug > Tests > Crouch Shots): crouchtest: crouched, eyes, aim height, damage
 QVR_CVAR(vr_flatkeys_test, "0", CVAR_NONE)               // -flatscreenmode only: the QC reports what the flatscreen keys left behind (vr_flatkeys_test.qc; Debug > Tests > Flat Keys): flatkeys: line; 1 the crouch, the hands, the flashlight's switch; 2 sends G (impulse 47) and reports whether the main hand is empty
 QVR_CVAR(vr_smallgibs_test, "0", CVAR_NONE)                // the QC runs small gib test n on the nearest monster or corpse (vr_smallgibs_test.qc; Debug)
@@ -2358,8 +2350,10 @@ QVR_CVAR(vr_revolver_close_flick_speed, "350", CVAR_ARCHIVE) // the flick shut (
 QVR_CVAR(vr_revolver_close_flick_angle, "75", CVAR_ARCHIVE) // and its wrist flick, degrees
 QVR_CVAR(vr_revolver_open_flick_time, "0.25", CVAR_ARCHIVE) // the flick open's time window: its wrist flick must be rolled within this many seconds of the flick's start (0: no limit)
 QVR_CVAR(vr_revolver_open_button, "1", CVAR_ARCHIVE) // B/Y (its eject button) swings the cylinder out; out, B/Y pushes the ejector
-QVR_CVAR(vr_revolver_close_button, "0", CVAR_ARCHIVE) // out, B/Y swings it home instead (an accessibility option: the shells then drop by the tilt or the ejector rod alone)
+QVR_CVAR(vr_revolver_close_button, "0", CVAR_ARCHIVE) // out, B/Y swings it home instead (an accessibility option: the shells then leave by the hand's push or the ejector rod alone)
 QVR_CVAR(vr_revolver_close_push, "1", CVAR_ARCHIVE) // the other hand pushing the swung-out cylinder up from below swings it home
+QVR_CVAR(vr_revolver_eject_speed, "1", CVAR_ARCHIVE) // out, the hand's push back along the bore, the way the chambers open, this fast at its fastest (m/s) throws its shells out, spent and live
+QVR_CVAR(vr_revolver_eject_impulse, "1.5", CVAR_ARCHIVE) // they go on at the hand's velocity times this
 QVR_CVAR(vr_revolver_eject_rod, "1", CVAR_ARCHIVE) // out, the other hand pushing the ejector rod's head back drops them
 QVR_CVAR(vr_revolver_eject_rod_reach, "1.1", CVAR_ARCHIVE) // units from the rod's head the other hand pushes it within
 QVR_CVAR(vr_revolver_eject_rod_speed, "0.325", CVAR_ARCHIVE) // m/s back along the cylinder that push must reach
@@ -2404,10 +2398,10 @@ QVR_CVAR(vr_agrunt_damage_scale, "0.5", CVAR_ARCHIVE)  // its weapon's damage to
 QVR_CVAR(vr_agrunt_reserve, "2", CVAR_ARCHIVE)         // the clips it carries beyond the one in its gun (reloads: a short pause); at 2 each weapon's own count (QC VR_AG_SpareClips: the double-barrelled shotgun 8, the flare gun 4, the super nailgun 3), scaled by this / 2
 // Armed humanoid replacements (QC vr_armedrepl.qc; ROUND22.md "Armed humanoid replacements"): a map's grunts and
 // enforcers as armed ones. All off by default.
-QVR_CVAR(vr_agknight, "0", CVAR_ARCHIVE)               // 1: every knight a map spawns is an armed humanoid holding a sword (QC vr_armedknight.qc; docs/vr-port/ARMED_MONSTERS.md)
-QVR_CVAR(vr_agknight_ranged_pickup, "0", CVAR_ARCHIVE) // armed knights and death knights taking up ranged weapons lying about (their own dropped gun too): 0 never (melee ones only), 1 as grunts do; spawned with a gun they hold it either way (QC vr_armedmon.qc VR_AM_Takes)
-QVR_CVAR(vr_agdknight, "0", CVAR_ARCHIVE)              // 1: every death knight (hell knight) a map spawns is an armed humanoid holding his sword, still casting his fireballs (QC vr_armedrepl.qc VR_AKN_Replace; docs/vr-port/ARMED_MONSTERS.md)
-QVR_CVAR(vr_agdknight_spell_share, "0.6", CVAR_ARCHIVE) // 0..1: an armed death knight holding a gun casts his fireball volley (his off hand's palm at you, the fireballs from it: the Cast pose) for this share of his ranged attacks, firing the gun for the rest (0.3 until 2026-11-01: too rare)
+QVR_CVAR(vr_agknight, "1", CVAR_ARCHIVE)               // 1: every knight a map spawns is an armed humanoid holding a sword (0 until 2026-11-03; QC vr_armedrepl.qc VR_AKN_Replace; docs/vr-port/ARMED_MONSTERS.md)
+QVR_CVAR(vr_agknight_ranged_pickup, "0", CVAR_ARCHIVE) // armed knights and death knights taking up ranged weapons lying about: 0 melee ones only, 1 as grunts do; one spawned holding a ranged weapon (the toolgun, a wave, a map's "weapon") takes them up either way (QC vr_armedmon.qc VR_AM_Takes, .vr_ag_born_ranged)
+QVR_CVAR(vr_agdknight, "1", CVAR_ARCHIVE)              // 1: every death knight (hell knight) a map spawns is an armed humanoid holding his sword, still casting his fireballs (0 until 2026-11-03; QC vr_armedrepl.qc VR_AKN_Replace; docs/vr-port/ARMED_MONSTERS.md)
+QVR_CVAR(vr_agdknight_cast_cooldown, "6", CVAR_ARCHIVE) // s: an armed death knight holding a gun fires it, and casts his fireball volley (his off hand's palm at you: the Cast pose) when this has passed since his last cast (each his own clock, starting on a random part of it; QC VR_AM_GunCasts). With a blade or his fists he casts by id's chances (VR_AM_SpellTry)
 QVR_CVAR(vr_agrunt_repl, "1", CVAR_ARCHIVE)            // 1: every grunt and enforcer a map spawns is its armed version holding its own gun (its own damage, rate, aim, loot)
 QVR_CVAR(vr_agrunt_repl_common, "0.5", CVAR_ARCHIVE)     // 0..1: the chance one holds a shotgun or a nail pistol instead
 QVR_CVAR(vr_agrunt_repl_uncommon, "0.25", CVAR_ARCHIVE)   // 0..1: ... a nailgun, super nailgun or super shotgun (one a player owns)
@@ -2428,12 +2422,12 @@ QVR_CVAR(vr_agrunt_disarm_yank, "1", CVAR_ARCHIVE)     // 1: your empty hand gra
 QVR_CVAR(vr_agrunt_disarm_deliberate, "1", CVAR_ARCHIVE) // 1: only a deliberate blow knocks its weapon out (a closed fist or something held, swung over more than a frame; never an open hand or a jolted idle hand); 0: any hand that fast
 QVR_CVAR(vr_agrunt_strike_first, "1", CVAR_ARCHIVE) // 1: a deliberate strike (fist, held gun or prop) meeting its weapon or gun hand disarms it unless its parry was raised for it (then a roll, vr_agrunt_strike_beat); 0: such a blow parries whenever it can (the old order)
 QVR_CVAR(vr_agrunt_tug, "1", CVAR_ARCHIVE)        // 1: your empty hand closing on its weapon starts a tug-of-war: it stands as an active ragdoll, your hand holding its weapon in its hand, its arm pulling back (pull to win; 0: the grab takes it at once)
-QVR_CVAR(vr_agrunt_tug_break_force, "750", CVAR_ARCHIVE) // N: a pull this hard on its weapon (the hold's force) tears it out of its hand at once (a sharp yank)
-QVR_CVAR(vr_agrunt_tug_break_impulse, "350", CVAR_ARCHIVE) // N s: the pull over time (force x time, above a tenth of the break force) that tears it out (a steady pull)
-QVR_CVAR(vr_agrunt_tug_pull_time, "0.4", CVAR_ARCHIVE) // (0.5 until his ask 2026-11-01: 20% lower) s you must keep pulling above Tug: Least Pull before its weapon can come out (the physical tug's least time; a tuning constant until his ask for a slider, note 2026-11-01)
+QVR_CVAR(vr_agrunt_tug_break_force, "450", CVAR_ARCHIVE) // N: a pull this hard on its weapon (the hold's force) tears it out of its hand at once (a sharp yank)
+QVR_CVAR(vr_agrunt_tug_break_impulse, "200", CVAR_ARCHIVE) // N s: the pull over time (force x time, above a tenth of the break force) that tears it out (a steady pull)
+QVR_CVAR(vr_agrunt_tug_pull_time, "0.35", CVAR_ARCHIVE) // (0.5 until his ask 2026-11-01: 20% lower) s you must keep pulling above Tug: Least Pull before its weapon can come out (the physical tug's least time; a tuning constant until his ask for a slider, note 2026-11-01)
 QVR_CVAR(vr_agrunt_tug_sway, "1", CVAR_ARCHIVE)  // its torso in the tug leaning back and twisting against your pull, rocking with the struggle (0..3; 1: about 11 deg back at its break force; 0 off; vr_ragactive.cpp staggerTugSway)
 QVR_CVAR(vr_agrunt_tug_flail, "1", CVAR_ARCHIVE) // its free arm in the tug flailing about near the weapon (0..3; 1: about a third of its arm's length; 0 off: it reaches for the weapon; vr_ragactive.cpp staggerArms)
-QVR_CVAR(vr_agrunt_tug_strength, "1.2", CVAR_ARCHIVE) // its arms' pull back in the tug (0..3: its reach's strength)
+QVR_CVAR(vr_agrunt_tug_strength, "1", CVAR_ARCHIVE) // its arms' pull back in the tug (0..3: its reach's strength)
 // A deliberate tug (ROUND22.md "Armed monsters: a deliberate tug-of-war"; QC vr_armedgrunt_play.qc VR_AG_TugBreak).
 QVR_CVAR(vr_agrunt_tug_hand_gap, "999", CVAR_NONE)      // (the tests' reading: vr_ragdoll_hand_probe in a tug, the main drawn hand to its grab on the weapon as drawn, cm)
 QVR_CVAR(vr_agrunt_tug_hand_reach, "999", CVAR_NONE)    // (... and its controller to it, cm)
@@ -2444,7 +2438,7 @@ QVR_CVAR(vr_agrunt_weapon_undrawn, "-1", CVAR_NONE)  // (the tests' reading: vr_
 QVR_CVAR(vr_agrunt_grab_gap, "999", CVAR_NONE)         // (the tests' reading: with vr_agrunt_debug, the main fist's last gap to an armed monster's weapon, cm)
 QVR_CVAR(vr_agrunt_saw_drop_running, "1", CVAR_ARCHIVE) // 1: an armed humanoid that was fighting you with a chainsaw drops it running (dead, disarmed, a tug won), as yours runs on as it lies (vr_chainsaw_drop_run): taken up meanwhile, no cord to pull; one that never saw you drops it off
 QVR_CVAR(vr_agrunt_grab_speed, "1.25", CVAR_ARCHIVE)     // m/s: a hand moving faster than this (relative to you: a punch, a swipe) doesn't take hold of its weapon (0: any speed)
-QVR_CVAR(vr_agrunt_tug_let_go, "40", CVAR_ARCHIVE)      // cm: in the physical tug, your hand lets go of its weapon (lost) once its controller is this far from where it holds it (pulled away, or you stepped back) before its grip gives; till then your drawn hand stays on the weapon
+QVR_CVAR(vr_agrunt_tug_let_go, "85", CVAR_ARCHIVE)      // cm: in the physical tug, your hand lets go of its weapon (lost) once its controller is this far from where it holds it (pulled away, or you stepped back) before its grip gives; till then your drawn hand stays on the weapon
 QVR_CVAR(vr_agrunt_tug_downed_scale, "0.5", CVAR_ARCHIVE) // a staggering or downed one: its weapon still needs a tug, its time this share of a standing one's (0: the grab takes it at once, as before)
 QVR_CVAR(vr_agrunt_tug_second_grab, "0", CVAR_ARCHIVE)  // your other hand grabbing its weapon in a tug: 0 joins it (both pulls count, it gives sooner), 1 tears it free at once
 QVR_CVAR(vr_agrunt_tug_strike, "1", CVAR_ARCHIVE)       // 1: in a tug, your other fist striking its weapon (vr_agrunt_tug_strike_swing of the disarm swing) tears it free into your holding hand
@@ -2478,7 +2472,7 @@ QVR_CVAR(vr_agrunt_shotdisarm_proj_max, "0.8", CVAR_ARCHIVE)   // ... the most o
 QVR_CVAR(vr_agrunt_shotdisarm_debug, "0", CVAR_NONE)           // 1: prints each shot's part (weapon/hand/body), the damage adding up, the roll; 2: also shows the hit volumes (sparks)
 QVR_CVAR(vr_agrunt_fall_drop, "1", CVAR_ARCHIVE)  // 1: knocked down (on the floor, not a stagger) it drops its weapon beside it, and takes it back when it gets up
 QVR_CVAR(vr_agrunt_fall_keep, "1", CVAR_ARCHIVE)  // 1: a gentle fall (a shove's backpedal to the floor) keeps the weapon in its hand, yours for a grab or a blow while it's down; a violent one drops it (below)
-QVR_CVAR(vr_agrunt_fall_keep_impact, "4.5", CVAR_ARCHIVE)   // m/s: down, it lets go only as its body meets the ground this hard (the speed it loses in a frame, coming down; not while your hands hold it): lifted, judo-thrown or shoulder-charged it holds on till a hard landing (0: never)
+QVR_CVAR(vr_agrunt_fall_keep_impact, "4.5", CVAR_ARCHIVE)   // m/s: down, it lets go only as its body, having kept up speed a moment (vr_agrunt_fall_impact_speed, _time), loses this much on a floor or wall it flew into (over vr_agrunt_fall_impact_window; thrown or banged by your hands too): a small push, a topple or a swing in the air keeps it (0: never)
 QVR_CVAR(vr_agrunt_rearm, "1", CVAR_ARCHIVE)           // 1: disarmed, it goes for a weapon lying near when it is safe enough
 QVR_CVAR(vr_agrunt_rearm_range, "384", CVAR_ARCHIVE)   // how far (units) it looks for one
 QVR_CVAR(vr_agrunt_test, "0", CVAR_NONE)                       // the QC's armed grunt tests (vr_armedgrunt_test.qc): 1 every weapon, 2 ammo/death/disarm/re-arm, 3 the yank, 4 save/load
@@ -2505,11 +2499,14 @@ QVR_CVAR(vr_arena_foe_armor, "1", CVAR_ARCHIVE)               // 1: the waves' g
 QVR_CVAR(vr_arena_foe_armor_scale, "1", CVAR_ARCHIVE)         // the arena armour's chance times this (1: 10% at its first wave at Normal, 3% more a wave, cap 85%)
 QVR_CVAR(vr_arena_foe_armor_from, "4", CVAR_ARCHIVE)          // the first wave a foe may wear armour at Normal (moved by the skill as every gate: 7 / 4 / 2 / 2)
 QVR_CVAR(vr_arena_seed, "0", CVAR_NONE)                       // the waves' rolls: 0 a different ladder every run, else that seed's ladder
+QVR_CVAR(vr_arena_waves_dir, "arena_waves", CVAR_NONE)         // the folder of the arena's wave presets, under the game folder (vr_arenawaves.hpp; the tests' keep apart)
+QVR_CVAR(vr_waveeditor_width, "54", CVAR_ARCHIVE)              // the Arena Wave Editor's panel in the headset: its width (units)
+QVR_CVAR(vr_waveeditor_distance, "42", CVAR_ARCHIVE)           // ... how far in front of the head it opens (units)
 QVR_CVAR(vr_arena_goto, "0", CVAR_NONE)                       // debug/benchmarks: set to N, the running arena jumps to wave N now (the field cleared, no rest or countdown; back to 0 after)
 // Survival Arena's last foes seen through walls (QC VR_ARENA_XrayMark marks them, .vr_xray; vr_arenaxray.cpp draws them)
 QVR_CVAR(vr_arena_xray, "1", CVAR_ARCHIVE)                    // 1: a wave's last foes glow through walls (an outline in front of everything)
 QVR_CVAR(vr_arena_xray_left, "2", CVAR_ARCHIVE)               // ... once this many of its foes are left (up, and still to come)
-QVR_CVAR(vr_arena_xray_distance, "600", CVAR_ARCHIVE)         // ... and only those farther than this from your eyes (units; 0: at any distance)
+QVR_CVAR(vr_arena_xray_distance, "800", CVAR_ARCHIVE)         // ... and only those farther than this from your eyes (units; 0: at any distance)
 QVR_CVAR(vr_arena_xray_shown, "0", CVAR_ROM)                  // (read-only: the foes the last view outlined through walls; arena test 16 reads it)
 // Survival Arena's difficulty (QC/vr_arena.qc, VR_ARENA_Skill): every 1 above is today's arena at Normal skill, and
 // this moves the rest of them by the skill level -- the shape of the armed humanoids' vr_agrunt_ai_skill, its own knob.
@@ -2565,7 +2562,6 @@ QVR_CVAR(vr_agrunt_w_justice, "0.15", CVAR_ARCHIVE)
 QVR_CVAR(vr_agrunt_w_judge, "0.1", CVAR_ARCHIVE)
 QVR_CVAR(vr_agrunt_rearm_idle, "1", CVAR_ARCHIVE)      // 1: unarmed and out of a fight, it walks to a weapon lying near too (with vr_agrunt_rearm)
 QVR_CVAR(vr_agrunt_blast_safe, "1", CVAR_ARCHIVE)      // 1: it fires a launcher only when the round's predicted burst (its arc, bounces, a wall ahead) is clear of it; else it backs off or sidesteps
-QVR_CVAR(vr_agrunt_friendly_care, "1", CVAR_ARCHIVE)   // 0..1: how careful an armed humanoid is not to shoot or strike its friends: the chance it holds fire (and sidesteps) when a monster not its enemy is in its line of fire (0: never, the old way)
 QVR_CVAR(vr_agrunt_range, "1", CVAR_ARCHIVE)           // 1: an armed humanoid with a gun keeps its weapon's fighting distance (vr_armedgrunt.qc VR_AG_RangeOf: backs off nearer than its least, strafes about its best, comes on beyond its most; further while you hold a melee weapon or charge); 0: it closes in as before. Melee weapons and fists: vr_agrunt_mspace
 QVR_CVAR(vr_agrunt_mspace, "1", CVAR_ARCHIVE)          // 1: an armed humanoid with a long melee weapon (a sword) keeps a standoff from its weapon's reach (vr_armedgrunt.qc VR_AG_MeleeStandoff: its arm's reach plus the weapon's length from its grip), swings from there and holds its ground when you step in; fists, the axe, the hammers and the chainsaw close in as before. 0: every melee weapon closes in (before)
 QVR_CVAR(vr_agrunt_mspace_reach, "0.8", CVAR_ARCHIVE)  // where in its swing's reach (arm plus weapon, beyond your body's front) a melee holder stands: 1 its tip just meeting you, 0.8 a fifth of its reach inside you; less: nearer
@@ -2887,30 +2883,38 @@ QVR_CVAR(vr_agarmor_block_cuts, "1", CVAR_ARCHIVE)    // armour: no limb is cut 
 QVR_CVAR(vr_agarmor_debris_time, "12", CVAR_ARCHIVE)  // armour: a broken plate's debris lies about this long (s), then fades out
 QVR_CVAR(vr_agarmor_impulse, "0.5", CVAR_ARCHIVE)     // armour: a shot a plate absorbs still pushes the body (a ragdoll's limb) this much of a bare hit's push (0..1)
 QVR_CVAR(vr_agarmor_debug, "0", CVAR_NONE)            // debug (Debug > Show Armour Plates): every armoured body's unbroken plates drawn as the shot test poses them, a colour per plate
-QVR_CVAR(vr_worn_backpack_scale, "0.6", CVAR_ARCHIVE) // worn backpacks: the pack's size on the back (times the backpack model's)
-QVR_CVAR(vr_worn_backpack_x, "1.5", CVAR_ARCHIVE)      // worn backpacks: moved forward (into the back; out: negative), units
-QVR_CVAR(vr_worn_backpack_y, "0", CVAR_ARCHIVE)       // worn backpacks: moved left, units
-QVR_CVAR(vr_worn_backpack_z, "-3", CVAR_ARCHIVE)      // worn backpacks: moved up, units
-QVR_CVAR(vr_worn_backpack_pitch, "0", CVAR_ARCHIVE)   // worn backpacks: tipped (degrees)
-QVR_CVAR(vr_worn_backpack_yaw, "0", CVAR_ARCHIVE)     // worn backpacks: turned (degrees)
-QVR_CVAR(vr_worn_backpack_roll, "0", CVAR_ARCHIVE)    // worn backpacks: rolled (degrees)
+QVR_CVAR(vr_worn_backpack_grunt_scale, "0.6", CVAR_ARCHIVE) // worn backpacks, Grunt: the pack's size on the back (times the backpack model's)
+QVR_CVAR(vr_worn_backpack_grunt_x, "1.5", CVAR_ARCHIVE) // worn backpacks, Grunt: moved forward (into the back; out: negative), units
+QVR_CVAR(vr_worn_backpack_grunt_y, "0", CVAR_ARCHIVE) // worn backpacks, Grunt: moved left, units
+QVR_CVAR(vr_worn_backpack_grunt_z, "1.5", CVAR_ARCHIVE) // worn backpacks, Grunt: moved up, units
+QVR_CVAR(vr_worn_backpack_grunt_pitch, "21", CVAR_ARCHIVE) // worn backpacks, Grunt: tipped (degrees)
+QVR_CVAR(vr_worn_backpack_grunt_yaw, "180", CVAR_ARCHIVE) // worn backpacks, Grunt: turned (degrees)
+QVR_CVAR(vr_worn_backpack_grunt_roll, "0", CVAR_ARCHIVE) // worn backpacks, Grunt: rolled (degrees)
+QVR_CVAR(vr_worn_backpack_knight_scale, "0.6", CVAR_ARCHIVE) // worn backpacks, Knight: the pack's size on the back (times the backpack model's)
+QVR_CVAR(vr_worn_backpack_knight_x, "1.5", CVAR_ARCHIVE) // worn backpacks, Knight: moved forward (into the back; out: negative), units
+QVR_CVAR(vr_worn_backpack_knight_y, "0", CVAR_ARCHIVE) // worn backpacks, Knight: moved left, units
+QVR_CVAR(vr_worn_backpack_knight_z, "1.5", CVAR_ARCHIVE) // worn backpacks, Knight: moved up, units
+QVR_CVAR(vr_worn_backpack_knight_pitch, "21", CVAR_ARCHIVE) // worn backpacks, Knight: tipped (degrees)
+QVR_CVAR(vr_worn_backpack_knight_yaw, "180", CVAR_ARCHIVE) // worn backpacks, Knight: turned (degrees)
+QVR_CVAR(vr_worn_backpack_knight_roll, "0", CVAR_ARCHIVE) // worn backpacks, Knight: rolled (degrees)
+QVR_CVAR(vr_worn_backpack_dknight_scale, "0.6", CVAR_ARCHIVE) // worn backpacks, Death Knight: the pack's size on the back (times the backpack model's)
+QVR_CVAR(vr_worn_backpack_dknight_x, "1.5", CVAR_ARCHIVE) // worn backpacks, Death Knight: moved forward (into the back; out: negative), units
+QVR_CVAR(vr_worn_backpack_dknight_y, "0", CVAR_ARCHIVE) // worn backpacks, Death Knight: moved left, units
+QVR_CVAR(vr_worn_backpack_dknight_z, "7.5", CVAR_ARCHIVE) // worn backpacks, Death Knight: moved up, units
+QVR_CVAR(vr_worn_backpack_dknight_pitch, "21", CVAR_ARCHIVE) // worn backpacks, Death Knight: tipped (degrees)
+QVR_CVAR(vr_worn_backpack_dknight_yaw, "180", CVAR_ARCHIVE) // worn backpacks, Death Knight: turned (degrees)
+QVR_CVAR(vr_worn_backpack_dknight_roll, "0", CVAR_ARCHIVE) // worn backpacks, Death Knight: rolled (degrees)
 QVR_CVAR(vr_worn_backpack_mass, "4", CVAR_ARCHIVE)    // worn backpacks: its weight on a ragdoll's chest (kg)
-QVR_CVAR(vr_worn_backpack_rip_force, "1500", CVAR_ARCHIVE) // worn backpacks: a hand's pull on a ragdoll held by its pack that tears the pack off (N: the hold's force, or its stretch times vr_worn_backpack_rip_stiffness if more)
 QVR_CVAR(vr_worn_backpack_impact, "9", CVAR_ARCHIVE)  // worn backpacks: a ragdoll's strike on the level at least this fast (m/s) tears it off
 QVR_CVAR(vr_worn_backpack_pool, "25", CVAR_ARCHIVE)  // worn backpacks: the damage a living one's pack takes before it tears off (hits on the pack: blows, throws, shots, projectiles; and the share below of blasts and fire anywhere on it; poison never; 0: never by damage)
 QVR_CVAR(vr_worn_backpack_pool_blast, "1", CVAR_ARCHIVE) // worn backpacks: the share of an explosion's damage to its wearer counted on the pack (0..1)
 QVR_CVAR(vr_worn_backpack_pool_fire, "1", CVAR_ARCHIVE)  // worn backpacks: the share of fire's damage (the flamethrower, burning) counted on the pack (0..1)
 QVR_CVAR(vr_worn_backpack_hit_roll, "0", CVAR_ARCHIVE) // worn backpacks: besides its damage, a hit on the pack tears it off with this chance at vr_worn_backpack_hit_ref damage (more: likelier; at most 1; 0 off: the damage alone, vr_worn_backpack_pool)
 QVR_CVAR(vr_worn_backpack_hit_ref, "20", CVAR_ARCHIVE) // worn backpacks: the damage of a hit whose chance is vr_worn_backpack_hit_roll
-QVR_CVAR(vr_worn_backpack_tug_stretch, "10", CVAR_ARCHIVE) // worn backpacks: cm a hand holding a living one's pack must pull it off its place for the pull to count (two hands: their pulls added, times vr_worn_backpack_two_hand_mult)
-QVR_CVAR(vr_worn_backpack_tug_time, "0.6", CVAR_ARCHIVE) // worn backpacks: s a pull of vr_worn_backpack_tug_stretch must be kept up to tear the pack off (twice as far: half as long)
-QVR_CVAR(vr_worn_backpack_two_hand_mult, "1.5", CVAR_ARCHIVE) // worn backpacks: both hands on the pack pull this many times their pulls together (a living one's tug, a ragdoll's pull)
-QVR_CVAR(vr_worn_backpack_topple, "1", CVAR_ARCHIVE)  // worn backpacks: a pack torn off a living one by your pull knocks it down, falling the way you tore (a ragdoll trigger); 0 it stands
-QVR_CVAR(vr_worn_backpack_topple_push, "0.8", CVAR_ARCHIVE) // worn backpacks: that knockdown's push (a shove's: two hands 1)
-QVR_CVAR(vr_worn_backpack_pull, "0", CVAR_ARCHIVE)    // worn backpacks: what a hand's pull on the pack does: 0 tears it off; 1 (experimental) never tears it (shots, blows, the force grab, damage still do): past vr_worn_backpack_lift_force a living wearer is lifted by its pack (knocked down, flailing, held by the pack on its chest)
-QVR_CVAR(vr_worn_backpack_lift_force, "1500", CVAR_ARCHIVE) // worn backpacks, Pull 1: N: a pull on the pack this hard (vr_worn_backpack_rip_time) lifts a living wearer (standing: the hands' stretch x vr_worn_backpack_rip_stiffness; a ragdoll: its hold's force)
+QVR_CVAR(vr_worn_backpack_two_hand_mult, "1.5", CVAR_ARCHIVE) // worn backpacks: both hands on the pack pull this many times their pulls together (a living one's and a ragdoll's)
+QVR_CVAR(vr_worn_backpack_lift_force, "1500", CVAR_ARCHIVE) // worn backpacks: N: a pull on the pack this hard (kept up vr_worn_backpack_lift_hold) lifts a living wearer (standing: the hands' stretch off the pack times vr_worn_backpack_lift_stiffness; a ragdoll held by it: its hold's force)
 QVR_CVAR(vr_worn_backpack_reserve, "1", CVAR_ARCHIVE) // worn backpacks: the share of an armed grunt's spare rounds in its pack (lost with it while alive)
-QVR_CVAR(vr_worn_backpack_volume, "1", CVAR_ARCHIVE)  // worn backpacks: the fabric rip's loudness
+QVR_CVAR(vr_worn_backpack_volume, "0.5", CVAR_ARCHIVE)  // worn backpacks: the fabric rip's loudness
 QVR_CVAR(vr_worn_backpack_debug, "0", CVAR_NONE)      // worn backpacks: log each pack's state, pulls and rips (developer 1)
 QVR_CVAR(vr_wornpack_test, "0", CVAR_NONE)            // the QC test of worn backpacks (vr_wornpack_test.qc; Debug > Tests): 1 all, ends on "wornpack: N passed, M failed"; 2 the eyeshot's grunts (back on, side on, knocked down); 3 vr_worn_backpack_pull 1 (pulls lift), ends on "wornpull: N passed, M failed"
 QVR_CVAR(vr_agarmor_skill0, "0", CVAR_ARCHIVE)        // armour: the chance an armed grunt spawns armoured on Easy
@@ -2951,7 +2955,7 @@ QVR_CVAR(vr_agrunt_ai_accuracy, "1", CVAR_ARCHIVE)    // Accuracy: their aim err
 QVR_CVAR(vr_agrunt_ai_reaction, "1", CVAR_ARCHIVE)    // Reaction Time: seconds from first seeing you to their first attack (id's 1); Nightmare's none by Difficulty Impact
 QVR_CVAR(vr_agrunt_ai_retreat, "1", CVAR_ARCHIVE)     // Retreat Readiness: the distance a gun's holder backs off from (times this) and the health share it turns wary below (0.35 times this); 0 never backs off
 QVR_CVAR(vr_agrunt_ai_firerate, "1", CVAR_ARCHIVE)    // Fire Rate: their pause between attacks divided by this; 1 as before
-QVR_CVAR(vr_agtune_test, "0", CVAR_NONE)             // the QC tests of the armed humanoids' tuning (vr_agtune_test.qc; Debug > Tests): 1 fire interval, reload, speed sliders, swing steady, death knight's sweep (vrtesthall); 2 the loaded map's armour share; ends on "agtune: N passed, M failed"
+QVR_CVAR(vr_agtune_test, "0", CVAR_NONE)             // the QC tests of the armed humanoids' tuning (vr_agtune_test.qc; Debug > Tests): 1 fire interval, reload, speed sliders, swing steady, death knight's sweep (vrtesthall); 2 the loaded map's armour share; 3 a death knight with a gun over two minutes: his casts against his gun's attacks (vrtesthall); ends on "agtune: N passed, M failed"
 QVR_CVAR(vr_agrunt_speed, "1", CVAR_ARCHIVE)          // Movement Speed: every step they take times this (running, closing in, backing off, strafing); 1 as before
 QVR_CVAR(vr_agrunt_speed_back, "1", CVAR_ARCHIVE)     // Backpedal Speed: the part of a step backwards of their facing times this too (on top of vr_agrunt_speed)
 QVR_CVAR(vr_agrunt_speed_strafe, "1", CVAR_ARCHIVE)   // Strafe Speed: the part of a step sideways of their facing times this too (on top of vr_agrunt_speed)
@@ -3121,13 +3125,7 @@ QVR_CVAR(vr_parry_ragdoll, "1", CVAR_ARCHIVE)        // a parried humanoid (its 
 QVR_CVAR(vr_parry_reduction, "0.75", CVAR_ARCHIVE)    // share of a parried blow's damage taken away
 QVR_CVAR(vr_parry_drop_chance, "0", CVAR_ARCHIVE)   // chance a one-handed parry knocks the weapon out of your hand (two hands: never); not used with vr_parry_stamina on
 QVR_CVAR(vr_parry_unarmed, "1", CVAR_ARCHIVE)          // parry unarmed with the arms crossed in an X in front
-QVR_CVAR(vr_dirparry, "0", CVAR_ARCHIVE)               // experimental: an armed humanoid's melee swing is parried only by a weapon held across its blade's way, meeting it (QC vr_dirparry.qc); 0: the level-across parry as before
-QVR_CVAR(vr_dirparry_angle, "40", CVAR_ARCHIVE)         // Directional Parry: degrees your weapon may be off square to its blade and its way and still count fully
-QVR_CVAR(vr_dirparry_angle_zero, "90", CVAR_ARCHIVE)    // ... degrees off where the angle's marks reach none (from full at vr_dirparry_angle, falling evenly)
-QVR_CVAR(vr_dirparry_contact, "6", CVAR_ARCHIVE)        // ... units: its blade's line and your weapon's within this meet (full marks)
-QVR_CVAR(vr_dirparry_falloff, "2", CVAR_ARCHIVE)        // ... the meeting's marks fall to none at this times the contact distance
-QVR_CVAR(vr_dirparry_threshold, "0.75", CVAR_ARCHIVE)   // ... the score (angle x meeting, 0..1) that parries
-QVR_CVAR(vr_dirparry_window, "0.1", CVAR_ARCHIVE)       // ... s: at its blow, its blade's way followed on this long (where it would meet your weapon in the rest of the swing)
+QVR_CVAR(vr_dirparry, "1", CVAR_ARCHIVE)               // an armed humanoid's melee swing is parried only by a weapon held across its blade's way, meeting it (QC vr_dirparry.qc; its leniencies are tuning constants); 0: the level-across parry as before (1 since 2026-11-02, his config's)
 QVR_CVAR(vr_dirparry_debug, "0", CVAR_NONE)             // debug: Show Directional Parry: each armed humanoid's swing's reading drawn (its blade, its way, your line, the ideal, the numbers), the last strike's held 3 s (vr_dirparryviz.cpp)
 QVR_CVAR(vr_agrunt_melee_speed, "1", CVAR_NONE)         // debug (parry practice): armed humanoids' melee swings and punches at this speed (0.1..1: their wind-up, strike, blow and recovery slowed together)
 QVR_CVAR(vr_bash, "1", CVAR_ARCHIVE)                   // hold a guard (a weapon across, both hands together), then push it forward to bash; or shove with one open palm
@@ -3196,25 +3194,16 @@ QVR_CVAR(vr_forcegrab_catch_late, "0.15", CVAR_ARCHIVE)    // or this late
 QVR_CVAR(vr_forcegrab_eligible_particles, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_forcegrab_eligible_haptics, "1", CVAR_ARCHIVE)
 QVR_CVAR(vr_grapple_rope, "1", CVAR_ARCHIVE)             // grappling hook (QC vr_grapple.qc): 1 a rope, held at its length, that reels in only while the hand's B/Y is held; 0 Rogue's grapple, pulling you in as soon as it hooks
-QVR_CVAR(vr_grapple_reel_speed, "300", CVAR_ARCHIVE)     // units/s the reel pulls you in (to walls, huge monsters, props too heavy to move)
-QVR_CVAR(vr_grapple_min_length, "40", CVAR_ARCHIVE)      // the shortest the reel takes the rope (units)
-QVR_CVAR(vr_grapple_unreel_speed, "300", CVAR_ARCHIVE)   // units/s the hand's A/X pays the rope out at (lets you down, lets a load go farther); 0: no unreel
 QVR_CVAR(vr_grapple_unreel_airborne, "1", CVAR_ARCHIVE)  // the unreel button (A/X) doesn't unreel as it jumps (A, by default: it unreels only in the air); X (the reload) unreels on the ground too; 0: anywhere (its key still pressed)
-QVR_CVAR(vr_grapple_prop_speed, "300", CVAR_ARCHIVE)     // units/s a light prop comes in at (weapons, pickups, keys)
-QVR_CVAR(vr_grapple_small_speed, "400", CVAR_ARCHIVE)    // units/s a small monster is reeled in at
-QVR_CVAR(vr_grapple_medium_speed, "160", CVAR_ARCHIVE)   // and a medium one
 QVR_CVAR(vr_grapple_stagger, "1", CVAR_ARCHIVE)          // small monsters reeled in are staggered (their pain, forced; again every second of reeling)
 QVR_CVAR(vr_grapple_stamina, "0", CVAR_ARCHIVE)          // stamina a second reeling a monster in costs (the parry/shove/strike pool); short of it, it comes slower. 0: free
 QVR_CVAR(vr_grapple_haptics, "1", CVAR_ARCHIVE)          // strength of the rope's haptics (the hook biting, the reel, the rope snapping taut); 0 none
-QVR_CVAR(vr_grapple_quick_speed, "1800", CVAR_ARCHIVE)   // units/s the quick release (the button on the gun) brings the hook back at, with vr_grapple_quick_time 0 (and the fastest it goes with it: a long rope takes longer)
 QVR_CVAR(vr_grapple_drop_grace, "0.12", CVAR_ARCHIVE)    // seconds the trigger let go waits before the hook comes off: dropping or passing the gun by then keeps it in
 QVR_CVAR(vr_grapple_rope_sim, "1", CVAR_ARCHIVE)         // the rope is a physical thing (vr_ropesim.cpp): it hangs, lies and wraps round the world and the props, never through them, and pulls along where it lies; 0: a straight line (drawn sagging)
 QVR_CVAR(vr_grapple_trigger_release, "0", CVAR_ARCHIVE)  // the trigger let go: 0 nothing (the hook stays in: the detach button on the gun takes it off); 1 it comes straight back (as the reel-in button); 2 it comes loose on its rope (reel it in with B/Y)
-QVR_CVAR(vr_grapple_max_length, "1500", CVAR_ARCHIVE)    // units: the longest the rope is (the hook flies no farther; the unreel pays out no more)
 QVR_CVAR(vr_grapple_shootable, "1", CVAR_ARCHIVE)        // shooting a hook that is in the world or a door (any weapon) takes it off
 QVR_CVAR(vr_grapple_front_button, "1", CVAR_ARCHIVE)     // the grappling gun's front button (near the muzzle): the instant reel-in (the back one only detaches)
 QVR_CVAR(vr_grapple_sag, "1", CVAR_ARCHIVE)              // a slack rope is drawn hanging (0: always straight)
-QVR_CVAR(vr_grapple_tow_speed, "320", CVAR_ARCHIVE)      // units/s you can drag a light prop at on a taut rope (walking away from it); heavier, slower (vr_grapple_tow_light); 0: no limit (it comes at your speed)
 QVR_CVAR(vr_grapple_debug, "0", CVAR_NONE)               // with developer 1: what the hook bites and each reel (mass, class, speeds); 2 also the rope four times a second; 3 every frame the rope holds you; 4 also every rope drawn, every frame (the client)
 QVR_CVAR(vr_grapple_quick_time, "0.5", CVAR_ARCHIVE)     // seconds the front button's reel-in takes (the hook reeled in, speeding up then slowing down; a short rope quicker); 0: straight back at vr_grapple_quick_speed
 QVR_CVAR(vr_weapondrop_particles, "1", CVAR_ARCHIVE)
@@ -3581,6 +3570,11 @@ QVR_CVAR(vr_reload_pouch_npistol, "1", CVAR_ARCHIVE)
 // vr_reload_pouch_mag_contact cm of its top across it and along it, the well within vr_reload_pouch_mag_angle degrees of
 // it. 0: the whole row of rounds (vr_reload_pouch_contact, vr_reload_pouch_angle), as before.
 QVR_CVAR(vr_reload_pouch_mag_slots, "1", CVAR_ARCHIVE)
+// A magazine with rounds left out of a gun by itself (B/Y's eject, a hit), falling into the ammo pouch, is collected, drawn
+// going in (QC vr_reload.qc VR_Reload_PouchCatchFrame; his note 2026-11-02): on, and cm from the pouch's rounds it counts as
+// falling in (the magazine's own radius added).
+QVR_CVAR(vr_reload_pouch_catch, "1", CVAR_ARCHIVE)
+QVR_CVAR(vr_reload_pouch_catch_reach, "10", CVAR_ARCHIVE)
 // A launcher's round's turn in the hand as it is taken from the ammo pouch (the author's note vrfiringrange_2026-10-08_
 // 22-18-19: the same for every round, easy to load): every round, whatever its Held Object Offsets, its middle in the
 // fist's grip channel, its long axis along the hand's forward, its nose ahead (the multi-grenade's too), then turned about
@@ -3766,7 +3760,6 @@ QVR_CVAR(vr_ai_prop_push, "1", CVAR_ARCHIVE)         // and pushes it as it meet
 QVR_CVAR(vr_stealth_gem, "1", CVAR_ARCHIVE)          // a gem on the wrist gadget: how visible (its glow) and how loud (its ring) you are
 QVR_CVAR(vr_stealth_marks, "0", CVAR_ARCHIVE)        // a "?" over a monster turning Alert, "!" turning Hostile
 QVR_CVAR(vr_stealth_debug, "0", CVAR_NONE)           // 1: state changes printed; 2: each sighting's meter and each noise heard
-QVR_CVAR(vr_mdl_dequant, "1", CVAR_ARCHIVE)          // .mdl vertices dequantised at load (vr_mdldequant.cpp): each vertex's smoothest path through its animations within half a byte step of every stored value (no wobble); 0: the stored bytes, exactly as before
 QVR_CVAR(vr_anim_smooth_tension, "0", CVAR_ARCHIVE)  // r_lerpmodels 3 (vr_animsmooth.cpp): the spline's tension: 0 Catmull-Rom (the speed carried through each frame), 1 easing to rest at each frame; between: less overshoot
 QVR_CVAR(vr_anim_smooth_rig, "1", CVAR_ARCHIVE)      // ... and a rigged monster's limbs (vr_ragdoll.cpp's rig) swung round their joints between frames, keeping their length (0: the spline alone)
 QVR_CVAR(vr_anim_smooth_rebuild, "1", CVAR_ARCHIVE)  // a rigged monster drawn from its fitted skeleton every frame (vr_animsmooth.cpp): each vertex its rest place on its bone moved with it, the frames' rounding gone (any Model Animation); a vertex its bone fits worse keeps the frames' place
@@ -3811,6 +3804,7 @@ QVR_CVAR(vr_toolgun_armed_kind, "0", CVAR_ARCHIVE)      // the spawn panel's Arm
 QVR_CVAR(vr_toolgun_armed_weapon, "0", CVAR_ARCHIVE)    // ... its right hand's weapon (the "weapon" key: 0 random from the pool, -1 unarmed, else the weapon's code)
 QVR_CVAR(vr_toolgun_armed_weapon2, "0", CVAR_ARCHIVE)   // ... its left hand's ("weapon2": 0 none; a one-handed weapon, with a one-handed one in the right)
 QVR_CVAR(vr_toolgun_armed_armor, "0", CVAR_ARCHIVE)     // ... its armour (vr_agarmor.qc VR_AgArmor_Toolgun): 0 none, 1 green, 2 yellow, 3 red, 4 one of them at random
+QVR_CVAR(vr_toolgun_armed_infected, "0", CVAR_ARCHIVE)  // ... what it is infected with: a row of QC's VR_INFECT_ROWS (0 none; killed, it bursts and rises as that monster)
 QVR_CVAR(vr_toolgun_armed_pieces, "1", CVAR_ARCHIVE)    // ... its armour's pieces: 0 the cuirass and the helmet, 1 all ten, 2 random (the cuirass, the helmet and some of the rest)
 QVR_CVAR(vr_toolgun_armed_tiles,"0", CVAR_ARCHIVE)     // 1: the Monsters tab also lists the Armed Grunt and Armed Enforcer tiles for each weapon (the page replaces them)
 QVR_CVAR(vr_toolgun_brush_texlock, "1", CVAR_ARCHIVE)   // ... Rotate turns the textures with the faces (0: each face gets the world's alignment)
@@ -3831,6 +3825,8 @@ QVR_CVAR(vr_flat_sway, "1", CVAR_NONE)                  // the drawn hands' sway
 QVR_CVAR(vr_flat_bob, "1", CVAR_NONE)                   // the drawn hands' bob on a walk, with his speed, and the breathing at rest (0..3); 0 none
 QVR_CVAR(vr_flat_turnlag, "1", CVAR_NONE)               // the drawn hands trail a turn and catch up (0..3, at most 4 degrees each): "weapon inertia"; 0 the hands locked to the view
 QVR_CVAR(vr_flat_turnlag_speed, "1", CVAR_NONE)         // how fast they catch up (0.1..5, times a critically damped spring's 18/s)
+QVR_CVAR(vr_flat_arm_hold, "1", CVAR_NONE)              // how far a drawn hand may sit from its arm's shoulder, times what the arm can hold it at (0..2; 0: no limit, the hands as placed)
+QVR_CVAR(vr_flat_pose_pitch, "65", CVAR_NONE)           // how far the hands follow the view up and down, in degrees (0..90; 90: the full look, as before)
 QVR_CVAR(vr_flat_crouch_time, "0.25", CVAR_NONE)        // Left Ctrl / +flatcrouch: the seconds it takes to ease down to a full crouch, and back up (0.05..2)
 QVR_CVAR(vr_flat_crouch_drop, "18", CVAR_NONE)          // Left Ctrl / +flatcrouch: how far the crouch puts his head and eyes down (0..40 units, about 0.65 m); the crouched boxes (vr_crouch_height, vr_crouch_step) and the body follow
 QVR_CVAR(vr_ragimpact_crush_push, "1", CVAR_ARCHIVE)     // a landing that crushes a ragdoll (down or a corpse) pushes the part under your feet down and out at this times your landing speed (the body jolts up at 0.6 of that); 0: it lies still
@@ -3849,24 +3845,4 @@ QVR_CVAR(vr_lootbeam_armor, "0", CVAR_ARCHIVE)          // armour
 QVR_CVAR(vr_lootbeam_powerups, "0", CVAR_ARCHIVE)       // power-ups (quad, pentagram, ring, suit; the expansions')
 QVR_CVAR(vr_lootbeam_keys, "0", CVAR_ARCHIVE)           // keys and runes
 QVR_CVAR(vr_lootbeam_backpacks, "0", CVAR_ARCHIVE)      // backpacks
-QVR_CVAR(vr_lootbeam_mag_min, "0.25", CVAR_ARCHIVE)     // a magazine's beam only fuller than this share of its rounds (0..1; 0: any not empty)
-QVR_CVAR(vr_lootbeam_opacity, "0.15", CVAR_ARCHIVE)      // its brightness (0..1)
-QVR_CVAR(vr_lootbeam_length, "1.5", CVAR_ARCHIVE)       // metres it rises from the thing's middle
-QVR_CVAR(vr_lootbeam_thickness, "0.03", CVAR_ARCHIVE)   // metres across its bright core (its soft glow three times that)
-QVR_CVAR(vr_lootbeam_saturation, "0.75", CVAR_ARCHIVE)  // its colours' saturation (0 white)
-QVR_CVAR(vr_lootbeam_hue_weapons, "40", CVAR_ARCHIVE)   // each category's hue (degrees): weapons gold
-QVR_CVAR(vr_lootbeam_hue_mags, "190", CVAR_ARCHIVE)     // ... magazines cyan
-QVR_CVAR(vr_lootbeam_hue_ammo, "55", CVAR_ARCHIVE)      // ... ammo yellow
-QVR_CVAR(vr_lootbeam_hue_health, "0", CVAR_ARCHIVE)     // ... health red
-QVR_CVAR(vr_lootbeam_hue_armor, "120", CVAR_ARCHIVE)    // ... armour green
-QVR_CVAR(vr_lootbeam_hue_powerups, "285", CVAR_ARCHIVE) // ... power-ups violet
-QVR_CVAR(vr_lootbeam_hue_keys, "225", CVAR_ARCHIVE)     // ... keys and runes blue
-QVR_CVAR(vr_lootbeam_hue_backpacks, "25", CVAR_ARCHIVE) // ... backpacks orange
-QVR_CVAR(vr_lootbeam_hue_weapons_empty, "0", CVAR_ARCHIVE) // a reloadable weapon lying with its magazine empty (or out; reloading on): red, so it is known as needing ammo before it is grabbed (his note 2026-10-29); below 0: the weapons' hue
-QVR_CVAR(vr_lootbeam_hue_toolgun, "305", CVAR_ARCHIVE)  // a dropped toolgun's (a weapon, but its own): magenta, found among many weapons (his note vrfiringrange_2026-10-23_21-18-02)
-QVR_CVAR(vr_lootbeam_toolgun_length, "2", CVAR_ARCHIVE) // a dropped toolgun's beam this many times vr_lootbeam_length
-QVR_CVAR(vr_lootbeam_fade_in, "0.5", CVAR_ARCHIVE)      // seconds it takes to fade in once the thing has rested vr_lootbeam_settle seconds
-QVR_CVAR(vr_lootbeam_settle, "0.3", CVAR_ARCHIVE)       // seconds a thing must lie still (within a few units) before its beam shows
-QVR_CVAR(vr_lootbeam_near, "0.5", CVAR_ARCHIVE)         // metres (across the floor) from your head within which it fades out, not in your face as you pick it up (0: never)
-QVR_CVAR(vr_lootbeam_far, "12", CVAR_ARCHIVE)            // metres beyond which it fades out (over the last quarter; 0: never)
 QVR_CVAR(vr_lootbeam_debug, "0", CVAR_NONE)             // a console line a second: the beams drawn by category, and the things skipped (held, moving, an empty magazine)

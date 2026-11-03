@@ -197,7 +197,10 @@ void() MG3_OgreBurstThink =
     self = ogre;
     self.mg3_burst = self.mg3_burst - 1;
     self.mg3_bursting = TRUE;
-    OgreFireGrenade();
+    if(cvar_hget(cvarh_vr_ogre_friendly_care) <= 0 || !VR_Ogre_FriendInWay()) // (a friend come in the way: this one not thrown)
+    {
+        OgreFireGrenade();
+    }
     self.mg3_bursting = FALSE;
     self = oldself;
     mg3_bn_extra = mg3_bn_extra + 1;

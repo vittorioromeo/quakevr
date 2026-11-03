@@ -787,4 +787,28 @@ void appendNumber(za::String& out, double v)
     return merged;
 }
 } // namespace detail
+
+za::Vector<unsigned char> mapBspxLump(const char* path, const char* name)
+{
+    za::Vector<unsigned char> out;
+    byte* bytes = COM_LoadMallocFile(path, nullptr);
+    if(!bytes)
+    {
+        return out;
+    }
+    Bsp b;
+    b.data = bytes;
+    b.size = static_cast<za::SizeT>(com_filesize);
+    for(const BspxLump& l : bspxLumps(b))
+    {
+        if(!q_strncasecmp(l.name, name, sizeof(l.name)))
+        {
+            out.resize(static_cast<za::SizeT>(l.length));
+            memcpy(out.data(), b.data + l.offset, out.size());
+            break;
+        }
+    }
+    VR_HeapFree(bytes);
+    return out;
+}
 } // namespace qvr::relight

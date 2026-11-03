@@ -55,6 +55,7 @@
                          // thrown out): it goes in again only once it has left the well
 .float vr_ammo_fresh_at;   // and when it came out (vr_reload_eject_cooldown),
 .entity vr_ammo_fresh_from; // and whose gun it came out of (only that player's own load points keep it fresh)
+.float vr_ammo_ejected_hand; // (.vr_ammo_ejected_by: vr_fields.qc) and his hand that held the gun
 .float vr_ammo_pass;     // a loose round passing through the guns of a player to their load points (VR_Reload_LooseFrame;
                          // the engine's vr_box3d.cpp reachSkips): the hands (1 off, 2 main) of
 .entity vr_ammo_passer;  // that player
@@ -530,6 +531,12 @@ float(entity r) VR_Reload_IsSpentMag =
     return r.vr_ammo_wid && r.vr_ammo_count <= 0;
 };
 
+// Whether the reserve of `p` has room for what `r` holds.
+float(entity p, entity r) VR_Reload_RefundFits =
+{
+    return VR_AmmoUtil_GetAmmoCountByAmmoId(p, r.vr_ammo_aid) + r.vr_ammo_count <= VR_MaxAmmo(p, r.vr_ammo_aid);
+};
+
 // Back into the reserve of `p` (a hand let go of it at the pouch, or took it as a pickup): TRUE if it fit (and it is
 // gone), FALSE if the reserve is full or it is a spent magazine (it stays). A magazine gives its rounds back.
 float(entity p, entity r, float xHand) VR_Reload_Refund =
@@ -539,7 +546,7 @@ float(entity p, entity r, float xHand) VR_Reload_Refund =
         VR_Reload_Log(sprintf("%s is spent: not back in the pouch, it falls (hand %g)", VR_Reload_Desc(r), xHand));
         return FALSE;
     }
-    if(VR_AmmoUtil_GetAmmoCountByAmmoId(p, r.vr_ammo_aid) + r.vr_ammo_count > VR_MaxAmmo(p, r.vr_ammo_aid))
+    if(!VR_Reload_RefundFits(p, r))
     {
         VR_Reload_Haptic(p, xHand, 0.12, 30, 0.8);
         VR_Reload_Log("the pouch is full: the round stays out");
@@ -899,6 +906,8 @@ entity(entity p, float xHand, vector xVel, float xInto, string xHow) VR_Reload_E
     else
     {
         r.velocity = xVel;
+        r.vr_ammo_ejected_by = p; // (falling into his pouch, it's collected: VR_Reload_PouchCatchFrame)
+        r.vr_ammo_ejected_hand = xHand;
         VR_Reload_MarkFresh(r, p); // (not back in by contact until it has left the wells: VR_Reload_LooseFrame)
         r.avelocity = '0 0 1' * (crandom() * 200) + '1 0 0' * (crandom() * 300);
         r.flags = r.flags - (r.flags & FL_ONGROUND);
@@ -1961,6 +1970,7 @@ void(float xHand) VR_Reload_SsgFrame =
 // hand takes one (VR_Reload_Take).
 void(float xHand) VR_Reload_LooseFrame;
 void(float xHand) VR_Reload_PouchFrame;
+void() VR_Reload_PouchCatchFrame;
 
 // The grab query's ammo pouch (vr_grab.qc; self is the player): an empty hand at the pouch (immersive reloads: a kind it
 // gives the other hand's gun), its grip just pressed (once a press: vr_reload_tried).
@@ -1994,6 +2004,10 @@ void(float xHand) VR_Reload_HandFrame =
     VR_Reload_SsgFrame(xHand);
     VR_Reload_LooseFrame(xHand);
     VR_Reload_PouchFrame(xHand);
+    if(xHand == cVR_MainHand)
+    {
+        VR_Reload_PouchCatchFrame(); // (one pass a frame)
+    }
     if(!at || !self.ishuman || (!deathmatch && time < readytime))
     {
         return;
@@ -2463,6 +2477,40 @@ float(entity p, vector xPoint) VR_Reload_PouchDist =
         }
     }
     return vlen(xPoint - nearest);
+};
+
+// Each player frame (VR_Reload_HandFrame): a magazine with rounds left that came out of his gun by itself (B/Y's eject, a
+// hit knocking it out: VR_Reload_Eject), falling into his ammo pouch, goes in as a hand letting go of it there does, drawn
+// going in (vr_reload_pouch_catch; his note 2026-11-02). Within vr_reload_pouch_catch_reach cm of the rounds, the magazine's
+// own radius added. A hand's or a force grab's touch, or its landing, ends that; with no room it just falls past.
+void() VR_Reload_PouchCatchFrame =
+{
+    if(!cvar_hget(cvarh_vr_reload_pouch_catch) || self.ammopouchz == '0 0 0' || self.health <= 0)
+    {
+        return;
+    }
+    float reach = max(0, cvar_hget(cvarh_vr_reload_pouch_catch_reach)) * VRMetersToUnits() / 100;
+    entity r = find(world, classname, VR_RELOAD_MAGCLASS);
+    while(r)
+    {
+        entity next = find(r, classname, VR_RELOAD_MAGCLASS);
+        if(r.vr_ammo_ejected_by == self)
+        {
+            if(r.fg_state != 0 || (r.flags & FL_ONGROUND))
+            {
+                r.vr_ammo_ejected_by = world;
+            }
+            else if(!VR_Reload_IsSpentMag(r) && r.velocity_z < 0 && VR_Reload_RefundFits(self, r) &&
+                    VR_Reload_PouchDist(self, r.origin) <= VR_Reload_MagRadius(r.vr_ammo_wid) + reach)
+            {
+                float hand = r.vr_ammo_ejected_hand;
+                VR_CollectFx_Note(r);
+                VR_Reload_Refund(self, r, hand);
+                VR_CollectFx_Send(hand, r, QVR_HS_AMMO_POUCH); // (drawn going in: vr_collect_fx)
+            }
+        }
+        r = next;
+    }
 };
 
 // Whether the gun `xWeapon` reloads at the pouch (its toggle; never the launchers).

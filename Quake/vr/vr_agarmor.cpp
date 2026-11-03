@@ -67,15 +67,31 @@ struct Wearer
     float backCut;
     float headTop{1.06f}, headSide{0.75f};
     float collar{0.5f}; // (the guards fit the head where it weighs this much on the head bone, not the collar)
+    // The helmet's rows up the head bone's length (the brow -1: vr_agarmor_brow_front; the nape -1: vr_agarmor_brow_back),
+    // the top's chamfer, how much wider its brow is than its crown, and how far the back's corners may be cut (of its half
+    // width).
+    float brow{-1.f}, cheek{0.3f}, jaw{0.04f}, nape{-1.f}, chamfer{0.18f}, taper{0.03f}, backCut2{0.7f};
+    // Its guards below the ledge as plates of their own, not fitted to the vertices round them (-1: fitted): half width, half
+    // width where they turn to the back, and their front edge's place and distance from the middle of the face at the cheek
+    // row and at the jaw row.
+    float plateWide{-1.f}, plateBack{-1.f}, plateFront[2]{-1.f, -1.f}, plateOpen[2]{-1.f, -1.f};
 };
 // The armed knight and death knight (vr_agknight, vr_agdknight: their swordless models on their authored rigs) wear it
 // too: every piece found on their own rigs' bones and skin weights as the grunt's are; nothing on their backs to cut round.
 // The death knight's head proper is narrower and his crown higher: his skull 0.51 of its length to each side and 1.11
 // up, rigid on it the horns' stalks from his temples (0.55-0.62 out, up from 0.93; their roots left out with them) and
 // under it his gorget (to 0.9 out, weighing 0.52-0.78 on his head, his face 0.93 and more): fitted round, they made his
-// helmet a hat 18 wide over a skull 10.7 wide (his ask, 2026-11-01).
+// helmet a hat 18 wide over a skull 10.7 wide (his ask, 2026-11-01). And it still came down over his eyes (their sockets
+// 0.78-0.88 up), and it was wider than his head from behind (his ask, 2026-11-02): his sides to 0.44 (the skull's; what's out
+// to 0.47 stays inside the shell's thickness), the brim at 0.97 (its ledge 0.91, over the eyes), a short top's chamfer and hardly
+// a flare (they pushed its front and sides out), the guards ending at his cheekbones (0.52 up: 0.51 out under them) and the
+// back's corners cut further round his narrow nape. It read as a hat from the front (his note, 2026-11-02): his face's
+// vertices are left out of the guards' fit, so nothing held them out and they sank into his cheeks; they are plates now, down each
+// side of his face to 0.42, outside the head's real width (0.53 at its most, at 0.2 forward), their front edges following his face as it widens down (0.35
+// out at 0.53 forward at the cheek row, 0.46 at 0.4 at the jaw row), so they sweep back to a point. Outside 11.7 deep, 11.1 wide (the crown 10.3, his head 10.65 at its widest).
 constexpr Wearer wearers[] = {{"progs/vrgrunt.mdl", -1e9f}, {"progs/soldier.mdl", -1e9f}, {"progs/vrenforcer.mdl", -10.5f},
-    {"progs/enforcer.mdl", -10.5f}, {"progs/vrknight.mdl", -1e9f}, {"progs/vrhknight.mdl", -1e9f, 1.12f, 0.53f, 0.8f}};
+    {"progs/enforcer.mdl", -10.5f}, {"progs/vrknight.mdl", -1e9f},
+    {"progs/vrhknight.mdl", -1e9f, 1.12f, 0.44f, 0.8f, 0.97f, 0.68f, 0.42f, 0.45f, 0.06f, 0.01f, 0.9f, 0.49f, 0.44f, {0.54f, 0.42f}, {0.37f, 0.44f}}};
 
 // The atlas (make_agarmor.py's REGIONS): texels of its 256 x 128 skins.
 struct Block
@@ -816,6 +832,7 @@ struct Ring
 {
     float F{0.f}, B{0.f}, W{0.f}; // front, back, half width
     float Df{0.f}, Db{0.f};       // the chamfers: x + |y| <= Df, -x + |y| <= Db
+    float Wb{-1.f};               // the half width where the side meets the back chamfer (-1: W; less: the side slants in)
 };
 enum HelmRow : int
 {
@@ -845,7 +862,12 @@ constexpr float helmU[numHelmPoints] = {0.f, 0.16f, 0.3f, 0.7f, 0.84f, 1.f};
     case 0: p = {r.F, 0.f}; break;
     case 1: p = {r.F, r.Df - r.F}; break;
     case 2: p = {r.Df - r.W, r.W}; break;
-    case 3: p = {r.W - r.Db, r.W}; break;
+    case 3:
+    {
+        const float w = r.Wb >= 0.f ? r.Wb : r.W;
+        p = {w - r.Db, w};
+        break;
+    }
     case 4: p = {-r.B, r.Db - r.B}; break;
     default: p = {-r.B, 0.f}; break;
     }
@@ -854,7 +876,7 @@ constexpr float helmU[numHelmPoints] = {0.f, 0.16f, 0.3f, 0.7f, 0.84f, 1.f};
 [[nodiscard]] Ring grown(const Ring& r, float d)
 {
     constexpr float root2 = 1.41421356f;
-    return Ring{r.F + d, r.B + d, r.W + d, r.Df + d * root2, r.Db + d * root2};
+    return Ring{r.F + d, r.B + d, r.W + d, r.Df + d * root2, r.Db + d * root2, r.Wb >= 0.f ? r.Wb + d : -1.f};
 }
 // The lowest row of the strip from column c to c + 1: the face's two strips end under the bucket.
 [[nodiscard]] int stripBottom(int c)
@@ -958,10 +980,11 @@ void helmetOf(Shell& s, const Body& b, const PieceFrame& f, int headBone, const 
     }
     // The rows' heights (inner surface) per point: the bucket's lower edge and the guards' rows lower toward the back,
     // the jaw's down to the nape there.
-    const float chamfer = 0.18f * L, faceHalf = 0.4f * L, taper = 0.03f * L;
+    const float chamfer = who.chamfer * L, faceHalf = 0.4f * L, taper = who.taper * L;
     const float zTop = top + gap;
     float rowZ[NumHelmRows][numHelmPoints];
-    const float zRow[NumHelmRows] = {zTop, zTop - chamfer, vr_agarmor_brow_front.value * L, (vr_agarmor_brow_front.value - 0.06f) * L, 0.3f * L, 0.04f * L};
+    const float browAt = who.brow >= 0.f ? who.brow : vr_agarmor_brow_front.value;
+    const float zRow[NumHelmRows] = {zTop, zTop - chamfer, browAt * L, (browAt - 0.06f) * L, who.cheek * L, who.jaw * L};
     constexpr float browDrop[numHelmPoints] = {0.f, 0.f, 0.04f, 0.13f, 0.2f, 0.2f}, cheekDrop[numHelmPoints] = {0.f, 0.f, 0.f, 0.03f, 0.07f, 0.07f};
     for(int r = 0; r < NumHelmRows; r++)
     {
@@ -971,7 +994,7 @@ void helmetOf(Shell& s, const Body& b, const PieceFrame& f, int headBone, const 
             rowZ[r][k] = zRow[r] - drop * L;
         }
     }
-    const float nape = za::min(vr_agarmor_brow_back.value * L, rowZ[HCheek][5] - 0.05f * L);
+    const float nape = za::min((who.nape >= 0.f ? who.nape : vr_agarmor_brow_back.value) * L, rowZ[HCheek][5] - 0.05f * L);
     rowZ[HJaw][3] = nape; // (the side's back corner clear of the neck as the head turns)
     rowZ[HJaw][4] = rowZ[HJaw][5] = nape;
     // The fit: each ring round every vertex of its bands (the cap's ring the crown's, stepped in).
@@ -1058,10 +1081,19 @@ void helmetOf(Shell& s, const Body& b, const PieceFrame& f, int headBone, const 
         Ring& x = ring[r];
         const float cut = (r <= HBrow ? 0.7f : 0.5f) * x.W; // the bucket rounder than the guards
         x.Df = za::clamp(za::max(x.Df, x.F + x.W - cut), 0.f, x.F + x.W);
-        x.Db = za::clamp(za::max(x.Db, x.B + x.W - 0.7f * x.W), 0.f, x.B + x.W); // (the back round: clear of the upper back)
+        x.Db = za::clamp(za::max(x.Db, x.B + x.W - who.backCut2 * x.W), 0.f, x.B + x.W); // (the back round: clear of the upper back)
         x.Df = r >= HLedge ? za::clamp(x.F + faceHalf, x.Df, x.F + x.W) : x.Df;
     }
     ring[HCap] = grown(crown, -chamfer);
+    // The guards as plates (Wearer), the back's chamfer as fitted.
+    for(int r = HCheek; r < NumHelmRows && who.plateWide >= 0.f; r++)
+    {
+        Ring& x = ring[r];
+        x.W = za::max(x.W, who.plateWide * L);
+        x.Wb = za::max(x.Wb, who.plateBack * L);
+        x.F = za::max(x.F, who.plateFront[r - HCheek] * L);
+        x.Df = za::clamp(x.F + who.plateOpen[r - HCheek] * L, 0.f, x.F + x.W);
+    }
 
     HelmBuild hb{s, f.origin, f.fwd, f.left, f.up, W{}};
     hb.w.w[headBone] = 1.f;
@@ -2576,16 +2608,63 @@ namespace
 constexpr glm::vec3 packLo{-10.01f, -8.29f, 0.f}, packHi{5.23f, 8.14f, 24.78f};
 constexpr float packChest = 0.62f; // its middle this far up the cuirass's height (its upper back)
 
-[[nodiscard]] float packScale()
+// The fit's sliders, by model (each kind's page in the menu; read every frame: they show at once). Any other wearer model: the
+// grunt's.
+struct PackFit
 {
-    return za::clamp(vr_worn_backpack_scale.value, 0.1f, 2.f);
+    const char* model;
+    const cvar_t& scale;
+    const cvar_t& x;
+    const cvar_t& y;
+    const cvar_t& z;
+    const cvar_t& pitch;
+    const cvar_t& yaw;
+    const cvar_t& roll;
+};
+const PackFit packFits[] = {
+    {"progs/vrgrunt.mdl", vr_worn_backpack_grunt_scale, vr_worn_backpack_grunt_x, vr_worn_backpack_grunt_y, vr_worn_backpack_grunt_z,
+        vr_worn_backpack_grunt_pitch, vr_worn_backpack_grunt_yaw, vr_worn_backpack_grunt_roll},
+    {"progs/vrknight.mdl", vr_worn_backpack_knight_scale, vr_worn_backpack_knight_x, vr_worn_backpack_knight_y, vr_worn_backpack_knight_z,
+        vr_worn_backpack_knight_pitch, vr_worn_backpack_knight_yaw, vr_worn_backpack_knight_roll},
+    {"progs/vrhknight.mdl", vr_worn_backpack_dknight_scale, vr_worn_backpack_dknight_x, vr_worn_backpack_dknight_y, vr_worn_backpack_dknight_z,
+        vr_worn_backpack_dknight_pitch, vr_worn_backpack_dknight_yaw, vr_worn_backpack_dknight_roll},
+};
+
+[[nodiscard]] const PackFit& packFitOf(const char* base)
+{
+    for(const PackFit& f : packFits)
+    {
+        if(base && !strcmp(base, f.model))
+        {
+            return f;
+        }
+    }
+    return packFits[0];
 }
+
+// The pack in the model (QC vr_wornpack.qc's lift zone: nothing drawn, nothing moved), the box round it at rest: the enforcer's,
+// its vertices behind the breastplate, Wearer::backCut -10.5, weighing mostly on the chest bone: x to -23.1, y -11..10, z 5 to 34
+// over its head; the feet's and shins' stray ones under it left out.
+constexpr const char* bakedPackModel = "progs/vrenforcer.mdl";
+constexpr glm::vec3 bakedPackLo{-23.1f, -11.f, 5.f}, bakedPackHi{-10.5f, 10.f, 34.f};
 } // namespace
 
-void packModelBox(glm::vec3& mid, glm::vec3& half)
+bool packBaked(edict_t* ent)
 {
-    mid = (packLo + packHi) * 0.5f * packScale();
-    half = (packHi - packLo) * 0.5f * packScale();
+    const char* base = baseOf(ent);
+    return base && !strcmp(base, bakedPackModel);
+}
+
+void packModelBoxSized(float size, glm::vec3& mid, glm::vec3& half)
+{
+    const float k = za::clamp(size, 0.1f, 2.f);
+    mid = (packLo + packHi) * 0.5f * k;
+    half = (packHi - packLo) * 0.5f * k;
+}
+
+void packModelBox(edict_t* ent, glm::vec3& mid, glm::vec3& half)
+{
+    packModelBoxSized(packFitOf(baseOf(ent)).scale.value, mid, half);
 }
 
 bool packRest(edict_t* ent, glm::vec3& restOrigin, glm::mat3& restAxes, glm::vec3& mid, glm::vec3& half)
@@ -2595,6 +2674,15 @@ bool packRest(edict_t* ent, glm::vec3& restOrigin, glm::mat3& restAxes, glm::vec
     {
         return false;
     }
+    if(packBaked(ent))
+    {
+        restOrigin = glm::vec3{0.f};
+        restAxes = glm::mat3{1.f};
+        mid = (bakedPackLo + bakedPackHi) * 0.5f;
+        half = (bakedPackHi - bakedPackLo) * 0.5f;
+        return true;
+    }
+    const PackFit& fit = packFitOf(baseOf(ent));
     // At rest: the cuirass's height's span and its middle across; its back the outer face's least x where the pack lies
     // against it (within the pack's height and width there: not the small of the back below it).
     float lo = 1e9f, hi = -1e9f, across = 0.f;
@@ -2611,9 +2699,9 @@ bool packRest(edict_t* ent, glm::vec3& restOrigin, glm::mat3& restAxes, glm::vec
     {
         return false;
     }
-    packModelBox(mid, half);
-    const float midZ = lo + (hi - lo) * packChest + vr_worn_backpack_z.value;
-    const float midY = across / static_cast<float>(n) + vr_worn_backpack_y.value;
+    packModelBoxSized(fit.scale.value, mid, half);
+    const float midZ = lo + (hi - lo) * packChest + fit.z.value;
+    const float midY = across / static_cast<float>(n) + fit.y.value;
     float back = 1e9f;
     for(const Vert& v : s->verts)
     {
@@ -2624,9 +2712,9 @@ bool packRest(edict_t* ent, glm::vec3& restOrigin, glm::mat3& restAxes, glm::vec
     {
         return false;
     }
-    const float k = packScale();
-    restOrigin = glm::vec3{back - packHi.x * k + vr_worn_backpack_x.value, midY, midZ - mid.z};
-    const float turnAngles[3] = {vr_worn_backpack_pitch.value, vr_worn_backpack_yaw.value, vr_worn_backpack_roll.value};
+    const float k = za::clamp(fit.scale.value, 0.1f, 2.f);
+    restOrigin = glm::vec3{back - packHi.x * k + fit.x.value, midY, midZ - mid.z};
+    const float turnAngles[3] = {fit.pitch.value, fit.yaw.value, fit.roll.value};
     restAxes = held::axesFromAngles(turnAngles, false);
     return true;
 }

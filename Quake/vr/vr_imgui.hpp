@@ -10,6 +10,9 @@
 //   render() last in the frame (GL_EndRendering, after the post-process, before the swap and vr_screenshot_frames'
 //   shot), into the window's framebuffer, the GL state the engine relies on saved and put back.
 // - Its settings (the windows' places and sizes) in quakevr/imgui.ini.
+// - In a headset session the desktop window is the mirror: a tool that works there (the Arena Wave Editor) draws into a
+//   target of its own (setPanel), shows it on a quad and feeds ImGui its laser and trigger (feedMouse); the SDL mouse is
+//   then ignored, the keyboard still types.
 
 #pragma once
 
@@ -27,6 +30,13 @@ bool ensure();
 // The frame's start (once a host frame while wanted): ImGui::NewFrame. False: none begun (not ready).
 bool beginFrame();
 [[nodiscard]] bool frameOpen();
+
+// A tool's frames go to framebuffer `framebuffer`, a window of width x height pixels, `texels` texels each, not the
+// desktop window (0: the desktop window, the default; only then does a headset session keep ImGui from starting).
+void setPanel(unsigned framebuffer, int width, int height, float texels);
+// The mouse for the next frame: where it is (-FLT_MAX: nowhere), its button, the wheel's turn. Goes in after the SDL
+// backend's own, so it wins.
+void feedMouse(float x, float y, bool down, float wheel);
 
 // The style: 0 dark, 1 light, 2 classic.
 void setTheme(int theme);

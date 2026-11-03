@@ -535,7 +535,7 @@ float actionPlace(const char* sfxName)
 
 const char* casingSound(const glm::vec3& at, const glm::vec3& normal, int variant)
 {
-    if(!on() || vr_gunsfx_casings.value == 0.f || !cl.worldmodel)
+    if(!on() || !cl.worldmodel)
     {
         return nullptr;
     }

@@ -54,7 +54,7 @@ string vr_am_pain2;
 float vr_am_loot_aid;       // its backpack with no reserve: this ammo (AID_*),
 float vr_am_loot_n;         // ... this many
 float vr_am_classes;        // the weapon classes it may hold (VR_AM_CLASSES_ALL: any; others: its fists)
-float vr_am_takes_ranged;   // it takes up ranged weapons lying about (VR_AM_Takes; else melee ones only: spawned with a gun it holds it)
+float vr_am_takes_ranged;   // it takes up ranged weapons lying about (VR_AM_Takes; else melee ones only, unless it spawned with a gun: .vr_ag_born_ranged)
 vector vr_am_fit_scale;     // the poses' body space (vr_armedgrunt_pose.qc, made on the grunt) to its: scaled,
 vector vr_am_fit_shift;     // ... then moved (its shoulders against the grunt's)
 vector vr_am_back_lo;       // its back's vertices (two, x y: their middle) low (the waist) and high (the shoulder blades):
@@ -72,7 +72,8 @@ vector vr_am_gun_fw;        // ... its own gun's way at rest
 float vr_am_range;          // its weapons' distances times this (under 1: it holds its ground nearer),
 float vr_am_range_threat;   // ... its least and best times this while you hold a melee weapon or charge it
 // Its own spell beside its weapon (the death knight's fireball volley): its monster's ranged attack, cast at range while
-// it holds a melee weapon or none (VR_AG_CheckAttack: VR_AM_SpellTry); a gun's holder uses the gun.
+// it holds a melee weapon or none (VR_AG_CheckAttack: VR_AM_SpellTry); a gun's holder fires the gun, casting on a
+// cooldown (VR_AM_GunCasts).
 var void() vr_am_spell;     // its frames' first function (SUB_Null: none)
 
 void(float k) VR_AM_Row =
@@ -108,7 +109,7 @@ void(float k) VR_AM_Row =
         vr_am_pain1 = "hknight/pain1.wav";
         vr_am_pain2 = "hknight/pain1.wav";
         vr_am_loot_aid = AID_SHELLS;
-        vr_am_loot_n = 0;
+        vr_am_loot_n = 5; // (a grunt's: its worn pack's when its gun's spare rounds are spent)
         vr_am_classes = VR_AM_CLASSES_ALL;
         vr_am_takes_ranged = cvar_hget(cvarh_vr_agknight_ranged_pickup); // (the knights' one setting: 0, a blade)
         vr_am_back_lo = '105 106 0'; // (his back at the belt, x -5.3, z 11.8)
@@ -161,7 +162,7 @@ void(float k) VR_AM_Row =
         vr_am_pain1 = "knight/khurt.wav";
         vr_am_pain2 = "knight/khurt.wav";
         vr_am_loot_aid = AID_SHELLS;
-        vr_am_loot_n = 0;
+        vr_am_loot_n = 5; // (a grunt's: its worn pack's when its gun's spare rounds are spent)
         vr_am_classes = VR_AM_CLASSES_ALL;
         vr_am_takes_ranged = cvar_hget(cvarh_vr_agknight_ranged_pickup); // (0, the game's: a knight's a blade)
         vr_am_back_lo = '145 172 0'; // (his back at the belt, x -2, z 1.9)
@@ -367,7 +368,7 @@ float(entity g, float c) VR_AM_Holds =
 float(entity g, float wid) VR_AM_Takes =
 {
     float c = VR_AG_Class(wid);
-    return VR_AM_Holds(g, c) && (c == VR_AG_CLASS_MELEE || vr_am_takes_ranged);
+    return VR_AM_Holds(g, c) && (c == VR_AG_CLASS_MELEE || vr_am_takes_ranged || g.vr_ag_born_ranged);
 };
 
 string(entity g) VR_AM_Pain =

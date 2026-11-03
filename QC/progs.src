@@ -501,6 +501,7 @@ vr_gunprep.qc
 vr_ad_monsters_test.qc
 // Dead monsters stay dead: the watch (vr_debug_deadanim) and its test (after AD's files: its animation callbacks).
 vr_deadanim.qc
+vr_deadleap_test.qc
 vr_ad_shots_test.qc
 vr_projhit_test.qc
 // The Shadow Axe's rules through our axe (vr_ad_test 140; after the bridge: AD_AxeMark, AD_ShadowAxeChop).
@@ -518,6 +519,7 @@ vr_rigseq.qc
 vr_armedmon.qc
 vr_armedgrunt_ai.qc
 vr_armedgrunt.qc
+vr_ogre_friends.qc // ogres mind their friends (with the armed humanoids' VR_AI_FriendCare)
 vr_armedgrunt_pose.qc
 vr_armedgrunt_play.qc
 vr_armedgrunt_shot.qc
@@ -527,7 +529,7 @@ vr_armedgrunt_guard.qc // its guard: the preventive and wind-up parries (vr_agru
 vr_dirparry.qc // the directional parry of an armed humanoid's swing (vr_dirparry, experimental)
 vr_disarmviz.qc // Debug > Show Disarm Volumes: the armed humanoids' disarm volumes (the engine draws them: vr_disarmviz.cpp)
 vr_armedrepl.qc
-vr_wornpack.qc // worn backpacks (armed grunts')
+vr_wornpack.qc // worn backpacks (armed ones with a ranged weapon)
 // Survival Arena: the wave director (the waves, their ladder, their boss, their drops).
 vr_arena.qc
 vr_arena_perks.qc // Survival Arena: the boss wave's perk choice (its offers, and what each perk does)
@@ -553,12 +555,17 @@ vr_armedgrunt_preparry_test.qc
 vr_armedgrunt_bugs_test.qc
 vr_armedgrunt_close_test.qc
 vr_armedgrunt_grab_test.qc
+vr_armedgrunt_impact_test.qc
+vr_armedgrunt_dualdisarm_test.qc
+vr_ogre_friends_test.qc
 vr_armedgrunt_downtug_test.qc
 vr_armedgrunt_ragweapon_test.qc
 vr_armedknight_test.qc
+vr_footstep_test.qc
 vr_armedgrunt_range_test.qc
 vr_disarmhull_view_test.qc // test 17: his two views of Show Disarm Volumes (an eyeshot aid)
 vr_disarmviz_test.qc
+vr_armedgrunt_gunlag_test.qc // test 205: a held gun stays with its body as it walks
 vr_drawnpose_test.qc // test 99: the drawn pose (worn packs, disarm volumes)
 vr_stalepose_test.qc // test 79: shots and grip spheres from the drawn pose
 vr_disarmhull_test.qc // test 16: the disarm volumes as hulls of the drawn triangles

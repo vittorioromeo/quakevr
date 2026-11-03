@@ -1,6 +1,6 @@
 #!/bin/sh
-# Builds ../quakevr/progs.dat. Needs FTEQCC: FTEQCC=/path/to/fteqcc, or fteqcc on PATH (on Windows:
-# ../Tools/fteqcc/fteqcc64.exe by default).
+# Builds ../quakevr/progs.dat. Needs FTEQCC with the fte32 flag: FTEQCC=/path/to/fteqcc, or fteqcc on PATH (on Windows:
+# ../Tools/fteqcc/fteqcc64.exe by default; elsewhere build it with Tools/fteqcc/fte32.patch).
 # Then checks that TrenchBroom's entity definitions cover every spawn function (Misc/trenchbroom/fgdgen.py
 # --check, needs Python 3; skipped without it, NO_FGD_CHECK=1 skips it).
 set -e
@@ -11,6 +11,16 @@ if [ -z "$FTEQCC" ] && [ -f ../Tools/fteqcc/fteqcc64.exe ]; then
 fi
 "${FTEQCC:-fteqcc}" -O3 -Fautoproto -Olo -Fiffloat -Fifvector -Fvectorlogic -Flo -Fsubscope -Wall -Wextra -Wno-F209 -Wno-F208
 PY=$(command -v python3 || command -v python || true)
+# The 32-bit progs format (QC/defs.qc's fte32 pragma, a flag of our FTEQCC: Tools/fteqcc/README.md): a 16-bit
+# progs.dat fails the build. Prints the globals count.
+if [ -n "$PY" ]; then
+    "$PY" ../Misc/quakevr/check_progs_format.py ../quakevr/progs.dat
+fi
+# The release flavour's QC (-DQVR_NO_TESTS, to a work folder: progs.dat is not touched) compiles with no error or
+# warning (Misc/quakevr/check_release_qc.py; ~3 s; NO_RELEASE_QC_CHECK=1 skips it).
+if [ -z "$NO_RELEASE_QC_CHECK" ] && [ -n "$PY" ]; then
+    "$PY" ../Misc/quakevr/check_release_qc.py --fteqcc "${FTEQCC:-fteqcc}"
+fi
 # No expression that reads differently under C's operator priorities (docs/vr-port/CODE_STYLE.md, QuakeC; ~7 s;
 # NO_PREC_CHECK=1 skips it).
 if [ -z "$NO_PREC_CHECK" ] && [ -n "$PY" ]; then

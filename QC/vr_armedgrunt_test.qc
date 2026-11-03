@@ -5,8 +5,8 @@
 //   player its enemy, for a few seconds: `agtest: <weapon>: <shots> shots, <dmg> damage to you, clip <c>, reserve <r>,
 //   <n> reloads: PASS|FAIL` (PASS: it hurt the player), then `agtest: every weapon: <p> passed, <f> failed`.
 // - 2: a shotgun grunt with half a reserve: it fires, reloads (`reload PASS`), is struck on its gun hand (`disarm PASS`:
-//   its gun lies about, its clip with it), goes back for it (`rearm PASS`; a knight with vr_agknight_ranged_pickup 0
-//   leaves it lying: `rearm (takes no guns) PASS`), and is killed (`drop PASS`: the gun lies
+//   its gun lies about, its clip with it), goes back for it (`rearm PASS`; a kind that takes no guns: `rearm (takes no
+//   guns) PASS`, it leaves it lying), and is killed (`drop PASS`: the gun lies
 //   where it died, its rounds in it).
 // - 3: the yank: a shotgun grunt standing ahead (the player unseen), the player's main hand (a script's vr_mock_hand)
 //   emptied, the grunt moved to it, the hand to its gun's height (vr_mock_hand_lift: each kind's own) and closed (the
@@ -135,6 +135,22 @@ void() VR_AGT_ClearWeapons =
     }
 };
 
+// Every grenade, rocket and mine still about goes (between test 1's tries: the last try's grenade, its fuse still
+// running at the try's end, killed the next try's grunt where it spawned).
+void() VR_AGT_ClearShots =
+{
+    entity e = nextent(world);
+    while(e)
+    {
+        entity n = nextent(e);
+        if(e.classname == "grenade" || e.classname == "missile" || e.classname == "proximity_grenade")
+        {
+            remove(e);
+        }
+        e = n;
+    }
+};
+
 void(string s) VR_AGT_Print = { bprint(sprintf("agtest: %s\n", s)); };
 
 // One check (vr_testutil's tally and line: `agtest: PASS|FAIL <what>`).
@@ -174,6 +190,7 @@ void() VR_AGTest_Weapons =
             return;
         }
         VR_AGT_ClearWeapons();
+        VR_AGT_ClearShots();
         float wid = VR_AGT_Wid(vr_agt_index);
         float c = VR_AGT_Class(wid);
         float dist = (c == VR_AG_CLASS_MELEE || c == VR_AG_CLASS_FISTS) ? 70 : c == VR_AG_CLASS_EXPLOSIVE ? 360 : 240;
@@ -269,7 +286,7 @@ void() VR_AGTest_Sequence =
             g.enemy.classname, g.health, lying ? vlen(lying.origin - g.origin) : -1, vlen(lying.velocity), lying.vr_depleted));
         VR_AGT_Print(sprintf("rearm: next think in %g, knockdown %g, movetype %g, seek %s, seek next in %g", g.nextthink - time,
             g.vr_knockdown, g.movetype, g.vr_ag_seek.classname, g.vr_ag_seek_next - time));
-        // (a kind that takes no ranged weapons up, a knight with vr_agknight_ranged_pickup 0: it leaves the gun lying)
+        // (one that takes no ranged weapons up, VR_AM_Takes: it leaves the gun lying)
         float takes = VR_AM_Takes(g, WID_SHOTGUN);
         VR_AGT_Check(sprintf("rearm (%s): %g pickups, holds %s:", takes ? "takes guns" : "takes no guns", g.vr_ag_pickups,
             g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing"),
@@ -1438,11 +1455,14 @@ void() VR_AGLT_Frame; // (vr_armedgrunt_ai_test.qc)
 void(float t) VR_AGBT_Frame; // (vr_armedgrunt_bugs_test.qc)
 void(float t) VR_AGCT_Frame; // (vr_armedgrunt_close_test.qc)
 void(float t) VR_AGGT_Frame; // (vr_armedgrunt_grab_test.qc)
+void() VR_AGIT_Frame; // (vr_armedgrunt_impact_test.qc)
 void(float t) VR_AGDT_Frame; // (vr_armedgrunt_downtug_test.qc)
 void() VR_AGRW_Frame; // (vr_armedgrunt_ragweapon_test.qc)
 void() VR_AKNT_Frame; // (vr_armedknight_test.qc)
+void(float t) VR_KMT_Frame;
 void() VR_DVT_Frame; // (vr_disarmviz_test.qc)
 void() VR_DHV_Frame; // (vr_disarmhull_view_test.qc)
+void() VR_AGL_Frame; // (vr_armedgrunt_gunlag_test.qc)
 void() VR_DPT_Frame; // (vr_drawnpose_test.qc)
 void() VR_SPT_Frame; // (vr_stalepose_test.qc)
 void(float t) VR_AGRT_Frame; // (armed humanoid replacements: vr_armedrepl_test.qc)
@@ -1465,6 +1485,8 @@ void(float t) VR_AGPP_Frame; // (vr_armedgrunt_preparry_test.qc)
 void() VR_AGAM_Frame; // (vr_armedgrunt_ammo_test.qc)
 void() VR_AGAM_Begin;
 void() VR_AGAW_Frame; // (vr_armedgrunt_aware_test.qc)
+void() VR_AGDD_Frame; // (vr_armedgrunt_dualdisarm_test.qc)
+void() VR_OGFT_Frame; // (vr_ogre_friends_test.qc)
 
 float vr_agt_running; // the test running (vr_agrunt_test) last frame; 0 none
 
@@ -1553,6 +1575,7 @@ void() VR_AGTest_Frame =
     else if(t == 78) { VR_DRPT_Frame(); } // (the directional parry of its swing: vr_dirparry_test.qc)
     else if(t == 94) { VR_AGST_Frame(); } // (a deliberate strike or throw on its weapon or hand: vr_armedgrunt_strike_test.qc)
     else if(t == 96 || t == 98) { VR_AGPP_Frame(t); } // (its guard: the preventive and wind-up parries: vr_armedgrunt_preparry_test.qc)
+    else if(t == 205) { VR_AGL_Frame(); } // (a held gun stays with its body as it walks: vr_armedgrunt_gunlag_test.qc)
     else if(t == 99) { VR_DPT_Frame(); } // (the drawn pose: worn packs and disarm volumes on the body as drawn: vr_drawnpose_test.qc)
     else if(t == 79) { VR_SPT_Frame(); } // (shots and grip spheres from the drawn pose: vr_stalepose_test.qc)
     else if(t == 16) { VR_DHT_Frame(); } // (the disarm volumes as hulls of the drawn triangles: vr_disarmhull_test.qc)
@@ -1560,8 +1583,14 @@ void() VR_AGTest_Frame =
     else if(t == 91) { VR_AGRB_Frame(); } // (an active ragdoll's weapon grabbed at the gun or its hand: vr_armedgrunt_raggrab_test.qc)
     else if(t == 92) { VR_AG2_Frame(); } // (two hands in the tug, a staggering or downed one's eased tug: vr_armedgrunt_twohand_test.qc)
     else if(t == 19) { VR_AGTP_Frame(); } // (the other fist's real punch in a tug: vr_armedgrunt_tugpunch_test.qc)
+    else if(t == 202) { VR_AGIT_Frame(); } // (the impact rule: vr_armedgrunt_impact_test.qc)
     else if(t == 201) { VR_AGTest_DualSpawns(); } // (dual wielders' both guns drawn, 30 spawns)
     else if(t == 200) { VR_AGAW_Frame(); } // (disarm attempts on unaware grunts; dual wield: vr_armedgrunt_aware_test.qc)
+    else if(t == 203) { VR_AGDD_Frame(); } // (a dual wielder disarmed of its off hand's: vr_armedgrunt_dualdisarm_test.qc)
+    else if(t == 204) { VR_OGFT_Frame(); } // (ogres behind a friend: vr_ogre_friends_test.qc)
+    else if(t == 206) { VR_KMT_Frame(t); } // (a map's knights: the census, the kill, no gun taken: vr_armedknight_test.qc)
+    else if(t == 207) { VR_KMT_Frame(t); }
+    else if(t == 208) { VR_KMT_Frame(t); }
     else if(t >= 6 && t <= 9) // a row of armed grunts ahead, 30 units apart (eyeshots): 6 guns, 7 melee, 8 more guns, 9 the rest
     {
         float base = (t - 6) * 4;

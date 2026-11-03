@@ -66,7 +66,7 @@ void plateWhere(struct edict_s* ent, int piece, int what, float* out);
 // The worn backpack (QC vr_wornpack.qc; box3d's wornPack): progs/backpack.mdl on `ent`'s back as its body is drawn now
 // (its chest bone: drawnpose::bone, the authored rig's pose or its ragdoll's part as drawn; `drawn` false, or not drawn
 // lately: the chest's frame as hitmodel's frame poses it, else its rest pose where it stands), behind its back's surface at
-// its upper chest, vr_worn_backpack_scale large, moved and turned by vr_worn_backpack_x/_y/_z/_pitch/_yaw/_roll. `origin`
+// its upper chest, its kind's vr_worn_backpack_<kind>_scale large, moved and turned by its _x/_y/_z/_pitch/_yaw/_roll. `origin`
 // the pack model's, `axes` its forward, left, up; `mid`, `half` its box (half sizes along those axes). False: not a wearer.
 [[nodiscard]] bool packWhere(struct edict_s* ent, glm::vec3& origin, glm::mat3& axes, glm::vec3& mid, glm::vec3& half,
     bool drawn = true);
@@ -74,8 +74,12 @@ void plateWhere(struct edict_s* ent, int piece, int what, float* out);
 // `mid`, `half` its box in its own space (packModelBox). The bone it rides: packBone (the rig's "chest"; -1 none).
 [[nodiscard]] bool packRest(struct edict_s* ent, glm::vec3& restOrigin, glm::mat3& restAxes, glm::vec3& mid, glm::vec3& half);
 [[nodiscard]] int packBone(struct edict_s* ent);
-// The pack model's box in its own space at vr_worn_backpack_scale: its middle and half sizes (units).
-void packModelBox(glm::vec3& mid, glm::vec3& half);
+// Whether `ent`'s pack is in its model (the enforcer's: packRest the box round it, its lift zone; shots meet the model).
+[[nodiscard]] bool packBaked(edict_t* ent);
+// The pack model's box in its own space at `ent`'s kind's size (vr_worn_backpack_<kind>_scale), or at `size`: its middle and half
+// sizes (units).
+void packModelBox(edict_t* ent, glm::vec3& mid, glm::vec3& half);
+void packModelBoxSized(float size, glm::vec3& mid, glm::vec3& half);
 // Mod_LoadModel (VR_DerivedModelFile): "<model>#plate<piece>"'s .mdl file (VR_HeapMalloc'd), or null.
 [[nodiscard]] unsigned char* derivedFile(const char* name, unsigned int* path_id);
 

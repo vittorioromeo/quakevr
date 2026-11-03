@@ -34,7 +34,16 @@ straight-out-in-front pose). The pose is built from the view angles, the weapon 
   (`aimRotAtCrosshair` inverts `weapons::shotAngles`); the drawn gun and its muzzle follow the hand, so the shot and the
   viewmodel agree;
 - the whole pose is measured from the shoulders (`hands::bodyAnchor` with `vr_shoulder_offset`), so it follows the body
-  whatever the height calibration; `vr_flat_reach` scales how far the hands sit from them.
+  whatever the height calibration; `vr_flat_reach` scales how far the hands sit from them;
+- the drawn hands are held to what the arm can hold them at (`vr_flat_arm_hold`, in `drawnOffset`): the flat anchor does
+  not tip with the head (`hands::bodyAnchor`) while the body the arms hang from does (`avatar::solveTorso`), so a look
+  straight up, a knock or a punch can ask a hand for more than the arm has, and past that the drawn hand hangs off the
+  wrist the arm ends at. Each drawn hand is kept within `armSpan()` — the model's bones with `vr_body_arm_length` and
+  `vr_body_arm_stretch`, plus the shoulder's own `vr_body_shoulder_reach` — of the shoulder the body poses that arm on,
+  and the hands follow the view's up and down only as far as `vr_flat_pose_pitch`. A punch is a *thrust along the aim* (`punchSwing`: chambered back along the arm's own line, thrown to what
+  the arm can hold the hand at, drawn back again — and not eased, because the game's melee rules ask the striking hand
+  for vr_melee_speed, and thrown no further than the arm can hold it (0.13 s chambered, 0.12 s out, 0.22 s back: a punch peaks near 7 m/s against the 3.2 m/s the game asks a striking hand for), not the straight shove off the shoulder it used to be: that one asked the off hand's arm for 14 units more than it
+  had, and its hand ended 401 mm off its wrist.
 
 **The hands are locked to the view.** The game's pose is rigid in the view's frame (only a change of pose — a weapon
 taken, a punch, E's reach — is eased, in that frame). The hands are made at the frame's start, before the mouse turns the
@@ -58,21 +67,25 @@ the steady hand), so the shots and the aim stay on the crosshair whatever they a
   (a teleporter, a respawn) leaves no lag.
 
 These are plain (not saved) cvars, and they are in the Debug menu: **Debug > Reports > Flatscreen Play** — Status, Print
-(`vr_flatplay_debug`: prints each E and V press and where the hands are; 2: each frame the drawn weapon in the camera's
-frame, `flatview:`, and each move's shot against the view, `flatmove:`), Hand Reach, Move Sway, Walk Bob, Turn Lag, Turn
-Lag Recovery. Test: `bash Misc/quakevr/flatplay_test.sh <agent>`.
+(`vr_flatplay_debug`: prints each E and V press, each hand's punch and where the hands are; 2: each frame the drawn
+weapon in the camera's frame, `flatview:`, each move's shot against the view, `flatmove:`, and each drawn hand against
+the arm the body poses for it, `flatarm:` — how far its wrist is off the body's wrist, how far the hand is past what the
+arm can hold it at, its speed and its wrist's bend), Hand Reach, Move Sway, Walk Bob, Turn Lag, Turn Lag Recovery, Arm
+Hold, Hand Pitch, Punch (`vr_flat_punch`). Test: `bash Misc/quakevr/flatplay_test.sh <agent>`.
 
 **The keys.** Read from the keyboard state, not from bindings — nothing is rebound and no config changes; they only work
-while the game has the keys (`key_dest == key_game`).
+while the game has the keys (`key_dest == key_game`). A punch is not a key: it reads the hand's own fire button
+(`client::attacking`, what LMB and RMB drive in VR), so `+attack`, `+offhandattack` and `vr_flat_punch` reach it from the
+console.
 
 | Key | |
 |---|---|
-| mouse LMB | fires the right hand (as in VR) |
-| mouse RMB | fires the left hand (as in VR) |
-| `E` | force-grabs what the view is pointed at, with the free hand (`impulse 46` → `VR_Forcegrab_FlatGrab`; the search, the flight and the catch are the game's own force grab). With both hands holding weapons there is no hand to collect with and E does nothing. |
+| mouse LMB | fires the right hand (as in VR); with a weapon a swing strikes with in that hand — an empty hand (the fist), the axe, the maul, the sword, the crowbar, the super axe — it is also the punch `V` makes |
+| mouse RMB | fires the left hand (as in VR); the same punch with a swinging weapon in the off hand |
+| `E` | force-grabs what the view is pointed at, with the free hand (`impulse 46` â†’ `VR_Forcegrab_FlatGrab`; the search, the flight and the catch are the game's own force grab). With both hands holding weapons there is no hand to collect with and E does nothing. |
 | `1` | cycles the **left** hand's weapon through the weapons collected |
 | `2` | cycles the **right** hand's weapon |
-| `V` | a punch with the right hand: a real motion of the hand (wound up, thrown, drawn back), so the game's own melee rules decide whether it lands |
+| `V` | a punch with the right hand: a real motion of the hand (wound up, thrown, drawn back), so the game's own melee rules decide whether it lands. `vr_flat_punch [main\|off]` drives either hand's punch from the console. A weapon that no swing strikes with never punches from its fire button — the chainsaw's trigger runs its chain, a gun's fires (the mode's own weapon set: `punchesWith`, `vr_flatplay.cpp`); `V` is the hand's punch whatever it holds, as it was. A hand that already started a punch this very frame is joined by the other only when both hands hold a swinging weapon |
 | Left Ctrl | crouches while it is held, stands up as it is let go; `+flatcrouch` and `-flatcrouch` hold and release the same from the console (see Crouching below). Right Ctrl is the same key to the engine (`K_CTRL`: `Quake/in_sdl.c`) |
 | `F` | switches the flashlight: the engine's own `vr_flashlight_toggle`; put out, it stays out (a level change and a saved game included) |
 | `G` | lets go of what a hand holds, the main hand first and the off hand after (`impulse 47` → `VR_Forcegrab_FlatDrop`, `QC/vr_wpnforcegrab.qc`): a weapon out of the hand the way the game drops one, a box or a prop carried in it let go at his feet (physics again, free to take again); carried in both hands, one press frees both |
@@ -124,12 +137,18 @@ touch it does for an untracked player, whatever `vr_body_interactions` says.
 `.vr_flatscreen` (`Quake/vr/vr_server.cpp`). Every game-side gate asks for the player it is about (`VR_FlatPlay(player)`
 in `QC/vr_util.qc`: reloading, `E`'s grab, `1` and `2`, the grip-less catch; the body's hand touch in
 `vr_physics.cpp`). So a flatscreen host leaves reloading on for the VR players who join it, and a flatscreen client on a
-VR host gets `E`, `1` and `2` and no reloading. The engine's `vr_flatplay` cvar is the local client's mode only (its
+VR host gets `E`, `1` and `2` and no reloading. The punches need no gate of their own: they are a motion of the hand, and
+`VR_Melee_Deal` / `VR_Melee_Strike` (`QC/weapons.qc`) deal the damage of whatever that hand holds, as they do for a hand
+in VR. The engine's `vr_flatplay` cvar is the local client's mode only (its
 hands, its flashlight, its keys).
 
 ## Tuning
 
-`vr_flat_reach` (1), `vr_flat_sway` (1), `vr_flat_bob` (1), `vr_flat_turnlag` (1), `vr_flat_turnlag_speed` (1) — all
-not saved, all in the Debug menu. `vr_flat_crouch_time` (0.25) and `vr_flat_crouch_drop` (18), also not saved, are at the
-console, and `vr_flatplay_status` prints them with what the keys did. The pose's own numbers (where a hand sits, how far
-a punch throws the fist, how long it takes) are named constants at the top of `vr_flatplay.cpp`.
+`vr_flat_reach` (1), `vr_flat_sway` (1), `vr_flat_bob` (1), `vr_flat_turnlag` (1), `vr_flat_turnlag_speed` (1),
+`vr_flat_arm_hold` (1) and `vr_flat_pose_pitch` (65) — all not saved, all in the Debug menu. `vr_flat_arm_hold` is how
+far a drawn hand may sit from its arm's shoulder, times what that arm can hold a hand at (`armSpan`: the model's bones
+with `vr_body_arm_length` and `vr_body_arm_stretch`, the shoulder's own `vr_body_shoulder_reach`; 0: no limit, the hands
+where they are placed). `vr_flat_pose_pitch` is how far the hands follow the view up and down, in degrees (90: all the
+way, as before). `vr_flat_crouch_time` (0.25) and `vr_flat_crouch_drop` (18), also not saved, are at the console, and
+`vr_flatplay_status` prints them with what the keys did. The looks' own numbers and the pose's own numbers (where a hand
+sits, how far a punch throws the fist, how long it takes) are named constants at the top of `vr_flatplay.cpp`.

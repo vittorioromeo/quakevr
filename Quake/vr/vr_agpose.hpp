@@ -107,6 +107,11 @@ enum Part : int
     GripPos,  // its grip target on the gun (a second grip, a cup) moved in the weapon's frame (x forward, y left, z up; units)
     GripTurn, // ... turned about its grip point (a rotation vector in the weapon's frame; degrees)
     OffHand,  // x: OffMode (the rest unused)
+    // A strike's key's time (2026-11-02, agent/posekeys; ROUND23.md, "Strike keys: their times and in-betweens"): x its
+    // place in its act (actPlace: 0 the act's start, 1 the wind-up's end, 2 the strike's, 3 the hold's, 4 the act's end;
+    // the fraction that share of the phase), y 1 when set (0: its phase's own place, defaultPlace; an in-between key
+    // with y 0 is none). Missing from older text (read as zero: the phases' own places).
+    Time,
     NumParts
 };
 inline constexpr int numOldParts = 7; // (the parts before 2026-10-27: every text and row has these; the rest may be missing)
@@ -170,6 +175,63 @@ inline constexpr int kindStride = VR_AGK_KIND;
 {
     return pose >= Jab && pose < NumPoses;
 }
+
+// A strike's keys (2026-11-02, agent/posekeys; ROUND23.md, "Strike keys: their times and in-betweens"): its phase digits.
+// 0..2 its named keys (the wind-up's, the blow's, the follow-through's; the shove's push and recover), always there (all
+// zero: QC's pose as it is); 3..9 in-between keys added in the Pose Studio Data window (a key there only while its Time
+// part's y is set). Each key has a place in its act (Time; unset, defaultPlace); the game blends the two keys either
+// side of its time now (the stance before the first and after the last), along the act's own progress (actProgress: as
+// the three keys always moved), so a key added where the act is changes nothing until it is edited. The act's phases'
+// lengths (QC VR_AGP_Times: the wind-up, the strike, the hold, the recovery) and the blow (its hit, a parry's timing,
+// the sounds) are QC's, never the keys': moving a key changes the look, not when the blow lands.
+inline constexpr int maxStrikeKeys = 10;
+inline constexpr float placeGap = 0.01f; // (keys kept at least this far apart in place)
+// The act's phases' lengths (s): the wind-up, the strike, the hold (a chainsaw's cut; the shove's recover), the recovery.
+struct ActTimes
+{
+    float t[4]{};
+    [[nodiscard]] float length() const { return t[0] + t[1] + t[2] + t[3]; }
+};
+// The time `place` is at (s), and the place of time `s` (a phase of no length skipped).
+[[nodiscard]] float placeTime(const ActTimes& a, float place);
+[[nodiscard]] float actPlace(const ActTimes& a, float s);
+// The act's progress at time `s` (QC's phases' shares as they always were): -1 the stance at its start, 0 the wind-up's key
+// whole, 1 the blow's, 2 the follow-through's (held through a hold), 3 the stance at its end. A punch's, a swing's (the
+// chainsaw's) and the shove's each their own (vr_agrunt_punch_ease the punch's).
+[[nodiscard]] float actProgress(int pose, const ActTimes& a, float s);
+// Phase `phase`'s own place in pose `pose`'s act (where its key was always whole).
+[[nodiscard]] float defaultPlace(int pose, int phase);
+struct ActKey
+{
+    int phase{0};
+    float place{0.f};
+    float progress{0.f};
+    bool timed{false}; // (its Time set)
+};
+// Strike `pose`'s keys of `kind` and `cls`, in their act's order (times `a`); returns how many (at most maxStrikeKeys).
+int actKeys(int kind, int cls, int pose, const ActTimes& a, ActKey* out);
+// The two keys either side of time `s` (their phases; -1 the stance) and the second's share.
+struct ActBlend
+{
+    int a{-1}, b{-1};
+    float f{0.f};
+};
+[[nodiscard]] ActBlend actBlend(int kind, int cls, int pose, const ActTimes& a, float s);
+// The keys as the game blends them at time `s` (an in-between key's start: its Time left zero).
+[[nodiscard]] Key keyAt(int kind, int cls, int pose, const ActTimes& a, float s);
+// Key `code`'s place (its Time, else its phase's own) and its time; the Cast's key: past its raise.
+[[nodiscard]] float keyPlace(int code);
+[[nodiscard]] float keyTime(int code, const ActTimes& a);
+// Whether strike key `code` is there (a named key always; an in-between key while its Time is set).
+[[nodiscard]] bool hasKey(int code);
+// An in-between key added at time `s` (as the keys blend there); its phase, or -1 (all seven in use, or a key there).
+int addKey(int kind, int cls, int pose, const ActTimes& a, float s);
+// In-between key `code` removed (a named key never: false).
+bool removeKey(int code);
+// Key `code` moved to `place` (kept between its neighbours, placeGap apart); returns the place it took. clearKeyTime: a
+// named key back on its phase's own place.
+float setKeyPlace(int code, float place);
+void clearKeyTime(int code);
 
 // A pose's legs (vr_aglegs.cpp; the Pickup's kneel): a key of its own, the pose's phase 1 on class 0 (the legs the same
 // with any weapon; QC never reads it), its parts so (its body's space as the arms' keys: changes on the procedural
@@ -278,7 +340,7 @@ void setStretch(int kind, int cls, float by); // (rounded to 0.01; the shipped v
 [[nodiscard]] const char* classTitle(int cls); // the windows' ("Rifle")
 [[nodiscard]] const char* poseName(int cls, int pose);
 [[nodiscard]] const char* phaseName(int phase);
-[[nodiscard]] const char* phaseName(int pose, int phase); // (the Shove's: "wind-up", "push", "recover")
+[[nodiscard]] const char* phaseName(int pose, int phase); // (the Shove's: "wind-up", "push", "recover"; 3..9 "in-between")
 // The poses class `cls` steps through (the Pose Studio's < Pose >), in order; returns how many (at most `max`).
 int posesOf(int cls, int* out, int max);
 

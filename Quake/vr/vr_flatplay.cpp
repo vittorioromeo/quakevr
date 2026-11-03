@@ -7,8 +7,10 @@
 //   - the hands are posed from the view angles, the weapon in each hand and the player's own movement: they hold a gun
 //     the way a first-person viewmodel does, aim at the crosshair, trail a turn, bob on a walk and breathe at rest
 //     (poseHands, called from vr_hands.cpp in place of the straight-out-in-front pose);
-//   - E force-grabs what the view is pointed at, V punches with the right hand: both go through the game's own force
-//     grab and melee, a punch being a real motion of the hand, so the melee rules decide whether it lands;
+//   - E force-grabs what the view is pointed at, V punches with the right hand, and either hand's fire button punches
+//     with a weapon a swing strikes with: all of it goes through the game's own force grab and melee, a punch being a
+//     real motion of the hand, so the melee rules decide whether it lands (vr_flat_punch drives either hand's punch from
+//     the console);
 //   - 1 and 2 cycle the weapons collected, into the left and the right hand (QC weapons.qc, on the flag);
 //   - reloading is off, the flashlight is worn on the head (F switches it off and on), and the body presses the buttons it
 //     walks into.
@@ -23,10 +25,15 @@
 
 #include "vr_engine.hpp"
 #include "vr_api.h"
+#include "vr_avatar.hpp"
 #include "vr_cvars.hpp"
+#include "vr_client.hpp"
 #include "vr_hands.hpp"
 #include "vr_main.hpp"
+#include "vr_protocol.hpp"
 #include "vr_ragtool.hpp"
+#include "vr_units.hpp"
+#include "vr_weapon_ids.h"
 #include "vr_weapons.hpp"
 
 #include "Zancle/Math/Acos.hpp"
@@ -58,17 +65,27 @@ struct FlatState
     bool wasOn{false};           // last frame: to say so when a headset takes the game back
 
     bool keyGrab{false};         // E, last frame (press edges)
-    bool keyMelee{false};        // V, last frame
-    double punchAt{-1e9};        // V: the time the punch started (vr_gametime)
+    bool keyV{false};            // V, last frame
+    bool keyFire[2]{false, false}; // each hand's fire button, last frame: LMB / +attack the main hand,
+                                   // RMB / +offhandattack the off hand (vr_client.cpp's attacking)
+    int punchFrame[2]{-1, -1};   // the frame each hand's punch started (two hands punching at once)
+    double punchAt[2]{-1e9, -1e9}; // per hand: the time its punch started (vr_gametime)
     double grabAt{-1e9};         // E: the time the reach started
     int grabs{0};                // vr_flatplay_status's counts
-    int punches{0};
+    int punches[2]{0, 0};        // and the punch's, per hand
 
     // The game's pose (poseHands): each hand's place off its shoulder in the view's own frame (forward, right, up), eased
     // from one pose to the next (a weapon taken, a punch). In the view's frame, so the hands stay locked to the view.
     glm::vec3 local[2]{glm::vec3{0.f}, glm::vec3{0.f}};
     bool localSeen[2]{false, false};
     double lastTime{-1e9};
+
+    // The tests' probe (probeArm): where each drawn hand's wrist sits on its own arm, learned in the hand's own frame
+    // while the arm is long enough to hold it there (so it is the same measure vr_body_wrist_info prints).
+    glm::vec3 armMount[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    bool mountSeen[2]{false, false};
+    glm::vec3 lastDrawn[2]{glm::vec3{0.f}, glm::vec3{0.f}}; // (its place last probe: the hand's speed, a punch's strength)
+    double probeTime[2]{-1e9, -1e9};
 };
 
 FlatState fs;
@@ -158,13 +175,44 @@ constexpr float breathPitch = 0.15f;
 // orbit): then the pose's own head.
 constexpr float camNear = 24.f;
 
-// V's punch, seconds from the press: wound up, thrown, drawn back.
-constexpr float punchWind = 0.13f;
-constexpr float punchStrike = 0.12f;
+// V's punch, seconds from the press: folded, thrown, held, drawn back.
+constexpr float punchWind = 0.19f;   // the fold takes about as long as the throw, on purpose: the game reads the hand's
+                                     // motion, not its plan. A pose whose grip moves backward along the punch's own line
+                                     // at more than 0.6 of the speed the fist hits with reads as a blow that wiggled out
+                                     // and back (VR_MELEE_WIGGLE_BACK, VR_MELEE_WIGGLE_TIME 0.25 s) and is refused, and a
+                                     // far point moving backward along its arm reads as pulled back (VR_MELEE_PULLBACK).
+                                     // 11 units of fold in 0.19 s peaks at some 2.7 m/s, under the 3.6 that is 0.6 of the
+                                     // 6 m/s the fist arrives at; the same fold in the old 0.13 s peaked past 4.5 (2026-11-03).
+constexpr float punchStrike = 0.12f;   // the throw is quick on purpose: what the game's melee rules read is the hand's
+                                       // speed (vr_melee_speed 3.2 m/s, a weapon's swing 1.25 times that), not how far
+                                       // the fist goes, and its reach is capped by the arm (armSpan, punchSwing). Its
+                                       // length is also the window the wrist rule measures over (VR_MELEE_WRIST_TIME
+                                       // 0.12 s), so a swing thrown this long is judged on this same distance.
+constexpr float punchDwell = 0.07f;    // the extension is held a moment at its end before the arm draws back: what it
+                                       // reached stays reached, and the draw-back is its own move rather than the tail of
+                                       // the throw (measured: without the hold the fist was already on its way back
+                                       // through what it punched while the game read the blow, so the only contacts the
+                                       // monster's box gave were on the way out)
 constexpr float punchBack = 0.22f;
 constexpr float punchReach = 24.f;   // units the fist goes forward in the strike
-constexpr float punchWindUp = 5.f;   // and how it rises on the way back
-constexpr float punchWindBack = 7.f;
+constexpr float punchFold = 6.f;     // where the chambered hand sits: this far out from its shoulder along the arm's own
+                                     // line, and punchWindBack below it — the arm folds and the hand drops, so the chamber
+                                     // is a bend rather than a walk back through the world (it used to bring the hand to
+                                     // 2 units out, 14 units back: the game read that as a punch that pulled back, and its
+                                     // speed as a blow that wiggled out and back — both refusals, measured 2026-11-03).
+                                     // The fold is as deep as it is because the strike can only throw as far as the arm
+                                     // reaches (armSpan, about 22 units here) and the hand already rests 16 of them out: an
+                                     // extension from where it rests moves the fist 6 units, which read as the hand's speed
+                                     // is well under what a landed blow needs (QC VR_Melee_LandNeed: 4.32 m/s a fist, 4.00
+                                     // an axe), so the fold gathers the rest of the arm's length. At punchFold 6 the
+                                     // chambered hand sits 5.8 out and 8.5 below its shoulder; measured the same day, the
+                                     // throw then travels 17.6 units (16.1 of them forward) in its 0.12 s — a fist about
+                                     // 6.7 m/s against the 4.0 an axe's blow asks for, a grip net of 0.49 m against the
+                                     // 0.33 a swing at that speed is charged (VR_MELEE_RUN 0.2 with VR_MELEE_SLOW_RUN 0.4),
+                                     // and a wrist 0.35 m over the wrist rule's own 0.12 s window against the 2.53 m/s a
+                                     // swing's wrist is charged (vr_melee_wrist_speed 1.1 times VR_MELEE_WRIST_SWING 2.3).
+constexpr float punchWindBack = 7.f;   // and how much lower it sits there
+constexpr float punchLevel = 0.25f;    // the thrown fist's height, times where its hand rests at (0: level with its shoulder, 1: as it rests)
 
 // E's reach: the collecting (left) hand goes out towards what the view is on.
 constexpr float grabTime = 0.30f;
@@ -174,7 +222,7 @@ constexpr float grabReach = 12.f;
 constexpr float handEase = 15.f;
 
 // V's punch and E's reach last this long after the press (vr_flatplay_status).
-constexpr float punchTotal = punchWind + punchStrike + punchBack;
+constexpr float punchTotal = punchWind + punchStrike + punchDwell + punchBack;
 
 [[nodiscard]] float ease(float k, float dt)
 {
@@ -212,6 +260,44 @@ constexpr float punchTotal = punchWind + punchStrike + punchBack;
     return slot >= 0 && slot != weapons::fistSlot() ? slot : -1;
 }
 
+// The weapon id `h` holds (STAT_QVR_WEAPON / STAT_QVR_WEAPON2: the ids the game code and the engine share,
+// vr_weapon_ids.h); WID_FIST for an empty hand.
+[[nodiscard]] int heldWid(int h)
+{
+    return cl.stats[h == HAND_MAIN ? protocol::STAT_QVR_WEAPON : protocol::STAT_QVR_WEAPON2];
+}
+
+// The hands a fire button punches with: the weapon's own trigger does the striking, so only a hand that strikes with a
+// swing punches — an empty hand (the fist: it is in the flatscreen cycle, QC weapons.qc), the axe, HIPNOTIC's mjolnir, a
+// knight's sword, the crowbar, the super axe. Not the chainsaw (its trigger runs the chain: vr_chainsaw.qc), not the
+// toolgun or the grapple, not a gun (its trigger fires it).
+[[nodiscard]] bool punchesWith(int h)
+{
+    switch(heldWid(h))
+    {
+    case WID_FIST:
+    case WID_AXE:
+    case WID_MJOLNIR:
+    case WID_SWORD:
+    case WID_CROWBAR:
+    case WID_SUPERAXE: return true;
+    default: return false;
+    }
+}
+
+// What the drawn arm can hold a hand at, world units from its shoulder: the body's arm (vr_body_arm_length times the
+// model's bones), stretched up to vr_body_arm_stretch, then the shoulder reaching out by vr_body_shoulder_reach — the
+// same order and the same numbers vr_avatar.cpp solves the arm with ("only past all of it does the hand leave the arm").
+// Body Calibration's own measured arms differ from the model's; the tests run without it.
+[[nodiscard]] float armSpan()
+{
+    const float m2w = units::metresToUnits() * units::bodyScale();
+    float upper, fore;
+    avatar::armBones(upper, fore);
+    const float bones = (upper + fore) * m2w * za::clamp(vr_body_arm_length.value, 0.5f, 2.f);
+    return bones * za::max(1.f, vr_body_arm_stretch.value) + za::max(0.f, vr_body_shoulder_reach.value) * m2w;
+}
+
 // Where a hand sits relative to its shoulder, in the view's frame.
 [[nodiscard]] glm::vec3 targetOffset(int h, float reach, bool otherHolds)
 {
@@ -227,32 +313,93 @@ constexpr float punchTotal = punchWind + punchStrike + punchBack;
     return {emptyFwd * reach, side * emptyOut * reach, -emptyDown * reach};
 }
 
-// V's punch, as an offset along the aim (x) and up (z).
-[[nodiscard]] glm::vec3 punchOffset()
+// A point on the punch's line: u of the way from `from` to `to` (both where a hand sits off its shoulder, in the view's
+// frame). The line lies in the view's forward and up, the plane the old straight punch moved in: a punch stays a punch
+// along the aim, and the hand's side off the centre line is held all the way along.
+[[nodiscard]] glm::vec3 punchPoint(const glm::vec3& from, const glm::vec3& to, float u)
 {
-    const double t = vr_gametime - fs.punchAt;
+    return from + (to - from) * u;
+}
+
+// A hand's punch: the arm folded, the fist thrown along the arm's own line, the extension held, the arm drawn back, from
+// where the hand rests. The fist is chambered to punchFold out from its shoulder along the arm's own line and
+// punchWindBack lower — the arm folds and the hand drops. A punch thrown from where a hand hangs has to gather its speed
+// somewhere, and gathering it by dragging the hand back through the world is what the game charges it for: it used to
+// chamber 16 units back along the line, some 12 units of travel arriving as over 4 m/s of backward grip speed, and the
+// game's own rules read that as a punch that pulled back and a blow that wiggled out and back, and refused it both ways
+// (measured 2026-11-03). The throw is then an extension: from the fold out to what the arm can hold it at, along the same
+// line the arm already lies on, so the arm straightens and the wrist travels with it — the arm solver puts the wrist on
+// the shoulder-to-hand line, which is what the game's wrist rule measures, while a hand shoved along the aim over a bent
+// arm moves the wrist nothing.
+// (punchReach is the punch asking for its whole length; what the arm has is what it gets. The punch used to be a
+// straight shove off the shoulder, past the arm's reach by as much as 14 units and its hand left hanging off the wrist:
+// flatarm's `past its arm` said so, and drawnOffset holds a look, a knock or a shake to the same arm). The thrown fist
+// keeps near the height its hand rests at (punchLevel): a hanging hand's fist goes forward rather than down, and a fist
+// already out in front goes further forward rather than up into an upper-cut. Forward is what a blow needs - a part of
+// what the hand holds must sweep through the thing in front of it, at vr_melee_speed (3.2 m/s, a weapon's swing 1.25
+// times that, a stab 0.75: QC vr_melee.qc), and a fist thrown over what it was aimed at sweeps nothing: the punch used
+// to rise into an upper-cut and dealt no damage at all to a knight standing in front of the player.
+[[nodiscard]] glm::vec3 punchSwing(int h, const glm::vec3& rest)
+{
+    const double t = vr_gametime - fs.punchAt[h];   // the press's own clock: seconds since the punch was started. Each
+                                                    // phase's start is on that same clock, so a phase eased from its
+                                                    // start actually moves: given the press's absolute time instead, the
+                                                    // easing never got past its first step and the whole punch arrived as
+                                                    // three snaps between its poses (measured: 7, 16 and 22 units in a
+                                                    // frame - longer than the 3 units a blow has to find in its sweep).
     if(t < 0.0 || t > punchTotal)
     {
-        return glm::vec3{0.f};
+        return rest;
     }
+    const float span = za::max(4.f, armSpan());
+    const glm::vec2 plane{rest.x, rest.z};                                     // the punch's plane: the view's forward, its up and down
+    const float r0 = za::max(0.5f, glm::length(plane));
+    const float wound_share = za::min(r0, punchFold) / r0;                     // folded along its own line, to punchFold out
+    const glm::vec3 wound{plane.x * wound_share, rest.y, plane.y * wound_share - punchWindBack};
+    const glm::vec2 throwDir{plane.x, plane.y * punchLevel};                   // thrown along the aim, kept near its own height
+    const float hit_share = za::min(span, r0 + punchReach) / za::max(0.05f, glm::length(throwDir));
+    const glm::vec3 thrown{plane.x * hit_share, rest.y, plane.y * punchLevel * hit_share};
     if(t < punchWind)
     {
-        const float u = slide(t, fs.punchAt, punchWind);
-        return {-punchWindBack * u, 0.f, punchWindUp * u};
+        return punchPoint(rest, wound, slide(t, 0.0, punchWind));
     }
     if(t < punchWind + punchStrike)
     {
-        const float u = slide(t, fs.punchAt + punchWind, punchStrike);
-        return {punchReach * u - punchWindBack * (1.f - u), 0.f, punchWindUp * (1.f - u)};
+        return punchPoint(wound, thrown, slide(t, punchWind, punchStrike));
     }
-    const float u = slide(t, fs.punchAt + punchWind + punchStrike, punchBack);
-    return {punchReach * (1.f - u), 0.f, 0.f};
+    if(t < punchWind + punchStrike + punchDwell)
+    {
+        return thrown;   // the extension held where it reached: what the punch got to stays got to, and the draw-back is
+                         // its own move after it rather than the tail of the throw. Measured without the hold, the fist
+                         // was already on its way back through what it punched while the game read the blow, and the only
+                         // contacts the monster's box gave came on the way out (2026-11-03).
+    }
+    return punchPoint(thrown, rest, slide(t, punchWind + punchStrike + punchDwell, punchBack));
 }
 
-[[nodiscard]] bool punching()
+[[nodiscard]] bool punching(int h)
 {
-    const double t = vr_gametime - fs.punchAt;
+    const double t = vr_gametime - fs.punchAt[h];
     return t >= 0.0 && t <= punchTotal;
+}
+
+// A hand's punch, from V, from its fire button, or from vr_flat_punch. Each hand has its own clock; a hand that started
+// one this very frame keeps it, and the other hand joins in only when both hold a weapon a swing strikes with — so the
+// main hand's punch is what it has always been.
+void startPunch(int h, const char* from)
+{
+    if(fs.punchFrame[1 - h] == host_framecount && !(punchesWith(HAND_OFF) && punchesWith(HAND_MAIN)))
+    {
+        return;
+    }
+    fs.punchAt[h] = vr_gametime;
+    fs.punchFrame[h] = host_framecount;
+    fs.punches[h]++;
+    if(vr_flatplay_debug.value)
+    {
+        Con_Printf("flatplay: %s punch (%s): %s\n", h == HAND_MAIN ? "main" : "off", from,
+            punchesWith(h) ? "melee" : "not a swinging weapon");
+    }
 }
 
 // E's reach with the collecting hand.
@@ -263,8 +410,8 @@ constexpr float punchTotal = punchWind + punchStrike + punchBack;
     {
         return glm::vec3{0.f};
     }
-    const float out = t < grabTime * 0.45f ? slide(t, fs.grabAt, grabTime * 0.45f)
-                                           : 1.f - slide(t, fs.grabAt + grabTime * 0.45f, grabTime * 0.55f);
+    const float out = t < grabTime * 0.45f ? slide(t, 0.0, grabTime * 0.45f)
+                                           : 1.f - slide(t, grabTime * 0.45f, grabTime * 0.55f);
     return {grabReach * out, 0.f, -2.f * out};
 }
 
@@ -295,12 +442,18 @@ constexpr float punchTotal = punchWind + punchStrike + punchBack;
     return rot;
 }
 
-// The keys, read from the keyboard state: nothing is rebound, and only while the game has the keys.
+// The keys, read from the keyboard state: nothing is rebound, and E and V only while the game has the keyboard (the
+// console takes it). The hands' fire buttons come from the same source the game's fire uses (vr_client.cpp's attacking:
+// its +attack / +offhandattack state, which is what the mouse buttons drive), so a bound key, the mouse and a `+attack`
+// said on the console are the same press.
 void pollKeys()
 {
     const bool inGame = key_dest == key_game;
     const bool grab = inGame && keydown['e'] != 0;
-    const bool melee = inGame && keydown['v'] != 0;
+    const bool v = inGame && keydown['v'] != 0;
+    bool fire[2];
+    fire[HAND_OFF] = client::attacking(HAND_OFF);
+    fire[HAND_MAIN] = client::attacking(HAND_MAIN);
 
     if(grab && !fs.keyGrab)
     {
@@ -313,17 +466,22 @@ void pollKeys()
             Con_Printf("flatplay: E: force grab\n");
         }
     }
-    if(melee && !fs.keyMelee)
+    if(v && !fs.keyV)
     {
-        fs.punchAt = vr_gametime;
-        fs.punches++;
-        if(vr_flatplay_debug.value)
+        startPunch(HAND_MAIN, "V"); // as it has always been: V punches with the main hand
+    }
+    for(int h = 0; h < HAND_COUNT; h++)
+    {
+        // The fire button punches only with a weapon a swing strikes with; a gun's trigger fires the gun as it does now.
+        if(fire[h] && !fs.keyFire[h] && punchesWith(h))
         {
-            Con_Printf("flatplay: V: punch\n");
+            startPunch(h, h == HAND_MAIN ? "the main hand's fire button" : "the off hand's fire button");
         }
     }
     fs.keyGrab = grab;
-    fs.keyMelee = melee;
+    fs.keyV = v;
+    fs.keyFire[HAND_OFF] = fire[HAND_OFF];
+    fs.keyFire[HAND_MAIN] = fire[HAND_MAIN];
 }
 
 // Left Ctrl crouches while it is held and stands up when it is let go, F switches the flashlight, G drops what a hand
@@ -537,6 +695,7 @@ void init()
     Cmd_AddCommand("vr_flatplay_status", status_f);
     Cmd_AddCommand("+flatcrouch", crouchHold_f); // Left Ctrl's hold, the console's way (a bind or a script can hold it)
     Cmd_AddCommand("-flatcrouch", crouchRelease_f);
+    Cmd_AddCommand("vr_flat_punch", punch_f);
 }
 
 void frame()
@@ -548,9 +707,10 @@ void frame()
     {
         fs.announced = true;
         Con_Printf("Quake VR: flatscreen play (-flatscreenmode): the VR gameplay on the desktop screen. E grabs what you "
-                   "look at, 1 and 2 cycle the weapons you collected (and the empty hand) into the left and right hand, V punches, the mouse "
-                   "fires the hand it fires in VR. Left Ctrl crouches while you hold it, F switches the flashlight, G drops "
-                   "what a hand holds. vr_flatplay_status says what the mode is doing.\n");
+                   "look at, 1 and 2 cycle the weapons collected (and the empty hand) into the left and right hand, V punches, either "
+                   "hand's fire button punches with a weapon a swing strikes with (with a gun it fires the gun, as in VR), Left Ctrl "
+                   "crouches while you hold it, F switches the flashlight, G drops what a hand holds. vr_flatplay_status says what "
+                   "the mode is doing.\n");
     }
     if(!on && fs.wasOn)
     {
@@ -561,6 +721,8 @@ void frame()
     if(!on)
     {
         fs.localSeen[0] = fs.localSeen[1] = false;
+        fs.mountSeen[0] = fs.mountSeen[1] = false;
+        fs.probeTime[0] = fs.probeTime[1] = -1e9;
         fs.lastTime = -1e9;
         feel = Feel{};
         keyState = FlatKeys{}; // no crouch held, no key edges: a headset player crouches with his own head
@@ -583,8 +745,16 @@ void poseHands(hands::State& s, const glm::vec3& aim)
 
     const float reach = za::clamp(vr_flat_reach.value, 0.25f, 3.f);
 
+    // The frame the hands are placed in: the view's way and roll, its up and down held to vr_flat_pose_pitch degrees.
+    // The anchor the flat hands are built on does not tip with the head (hands::bodyAnchor, vr_hands.cpp) while the body
+    // the arms hang from does (avatar::solveTorso, vr_avatar.cpp): a look straight up or down carries the hands past
+    // where the anchor is, so the arms are asked for what they do not have. Held to a pitch, they stay in the arc the
+    // arms sweep; the hands still turn with the view (90 places them as before).
+    const float posePitch = za::clamp(vr_flat_pose_pitch.value, 0.f, 90.f);
+    const glm::vec3 placeAngles{za::clamp(aim.x, -posePitch, posePitch), aim.y, aim.z};
+
     glm::vec3 fwd, right, up;
-    hands::angleVectors(aim, fwd, right, up);
+    hands::angleVectors(placeAngles, fwd, right, up);
 
     const bool mainHolds = heldIn(HAND_MAIN) >= 0;
     const bool offHolds = heldIn(HAND_OFF) >= 0;
@@ -593,19 +763,22 @@ void poseHands(hands::State& s, const glm::vec3& aim)
     {
         // Where the hand sits off its shoulder, in the view's frame: locked to the view. The looks (the sway, the bob, a
         // turn's lag) are the drawn hands' only (drawnOffset): the game's hands, and the shots, stay on the crosshair.
-        const glm::vec3 target = targetOffset(h, reach, h == HAND_OFF ? mainHolds : offHolds) +
-                                 (h == HAND_MAIN ? punchOffset() : grabOffset());
+        const glm::vec3 rest = targetOffset(h, reach, h == HAND_OFF ? mainHolds : offHolds) +
+            (h == HAND_OFF ? grabOffset() : glm::vec3{0.f});
         if(!fs.localSeen[h])
         {
-            fs.local[h] = target;
+            fs.local[h] = rest;
             fs.localSeen[h] = true;
         }
         else if(dt > 0.0)
         {
-            fs.local[h] += (target - fs.local[h]) * ease(handEase, static_cast<float>(dt));
+            fs.local[h] += (rest - fs.local[h]) * ease(handEase, static_cast<float>(dt));
         }
-        const glm::vec3& off = fs.local[h];
-
+        // The punch is not eased. Its own phases (chambered, thrown, drawn back) are its motion, and the game's melee
+        // rules ask the striking hand for vr_melee_speed (3.2 m/s, a weapon's swing 1.25 times that, twice that for a
+        // full blow): eased toward the punch's own target at handEase the hand never gets there, and the punch lands as
+        // a shove with no blow in it. Where a hand sits and what E reaches for are eased, as they were.
+        const glm::vec3 off = fs.local[h] + (punchSwing(h, rest) - rest);
         s.pos[h] = shoulder(s, h) + fwd * off.x + right * off.y + up * off.z;
         s.rot[h] = aimRotAtCrosshair(aim, h);
         s.rot[h].z += vr_fakevr_handroll.value;
@@ -616,10 +789,59 @@ void poseHands(hands::State& s, const glm::vec3& aim)
         const glm::vec3 a = s.pos[HAND_OFF] - s.head;
         const glm::vec3 b = s.pos[HAND_MAIN] - s.head;
         const float speed = glm::length(glm::vec2{cl.velocity[0], cl.velocity[1]});
-        Con_Printf("flatplay: aim %.1f %.1f speed %.0f punch %s grab %d hands: off (%.1f, %.1f, %.1f) "
+        Con_Printf("flatplay: aim %.1f %.1f speed %.0f punch off %s main %s grab %d hands: off (%.1f, %.1f, %.1f) "
                    "main (%.1f, %.1f, %.1f) from the head\n",
-            aim.x, aim.y, speed, punching() ? "running" : "no", fs.grabs, a.x, a.y, a.z, b.x, b.y, b.z);
+            aim.x, aim.y, speed, punching(HAND_OFF) ? "running" : "no", punching(HAND_MAIN) ? "running" : "no", fs.grabs,
+            a.x, a.y, a.z, b.x, b.y, b.z);
     }
+}
+
+// The tests' probe (vr_flatplay_debug 2, flatscreen only): each drawn hand against the arm the body poses for it.
+// `off-wrist` is how far the drawn hand's wrist sits off the body's wrist, the same measure vr_body_wrist_info prints
+// (world units, and the millimetres of the body: what the hand is off the arm by) — the arm's own wrist, mapped through
+// the mount learned while the arm was long enough to reach the hand, so that it reads 0 where the arm holds the hand.
+// `arm` is what the arm can hold a hand at from its shoulder (vr_body_arm_length, vr_body_arm_stretch,
+// vr_body_shoulder_reach), `past its arm` how far the drawn hand is beyond that, `shoulder to hand` where the drawn hand
+// is, `bend` the wrist's bend against the forearm the body poses. One line a hand a frame while that hand punches, else
+// one every half second.
+void probeArm(const hands::State& s, int h, const glm::vec3& drawn, const glm::vec3& drawnRot)
+{
+    if(vr_flatplay_debug.value < 2 || (!punching(h) && host_framecount % 45 != 0))
+    {
+        return;
+    }
+    const float m2w = units::metresToUnits() * units::bodyScale();
+    const float span = armSpan();
+    avatar::ForearmFrame f;
+    avatar::Skeleton k;
+    if(!avatar::forearmFrame(h, 1.f, f) || !avatar::skeleton(k))
+    {
+        Con_Printf("flatarm: hand %s t %.4f punch %d no body posed this frame\n", h == HAND_MAIN ? "main" : "off",
+            vr_gametime, punching(h) ? 1 : 0);
+        return;
+    }
+    const glm::vec3 joint = k.shoulder[h];
+    const glm::mat3 handAxes = axes(drawnRot);
+    // The mount is learned whenever the arm is really holding this hand — a unit or more inside its reach — punch running
+    // or not. Learned only at rest, it went stale across a look: the wrist's bend changes, and an old mount maps the
+    // arm's wrist through the wrong bend, which read as an 857 mm gap on one frame after a scripted straight-up look when
+    // the arm itself was 0.00 units short of the hand (measured 2026-11-03). A fresh mount reads 0 where it should.
+    if(glm::distance(joint, drawn) + 1.f < span)
+    {
+        fs.armMount[h] = glm::transpose(handAxes) * (f.point - drawn); // the arm's wrist, in the hand's own frame
+        fs.mountSeen[h] = true;
+    }
+    const float d = glm::distance(joint, drawn);
+    const float gap = fs.mountSeen[h] ? glm::distance(f.point, drawn + handAxes * fs.armMount[h]) : -1.f;
+    const float bend = glm::degrees(za::acos(za::clamp(glm::dot(f.axes[0], hands::forward(drawnRot)), -1.f, 1.f)));
+    const double dt = vr_gametime - fs.probeTime[h];
+    fs.probeTime[h] = vr_gametime;
+    const float speed = dt > 0.0 ? glm::distance(drawn, fs.lastDrawn[h]) / static_cast<float>(dt) : 0.f;
+    fs.lastDrawn[h] = drawn;
+    Con_Printf("flatarm: hand %s t %.4f punch %d off-wrist %.2f u (%.0f mm) past its arm %.2f u arm %.2f shoulder to "
+               "hand %.2f ik %.2f speed %.0f bend %.0f pitch %.1f\n",
+        h == HAND_MAIN ? "main" : "off", vr_gametime, punching(h) ? 1 : 0, gap, gap * 1000.f / m2w,
+        za::max(0.f, d - span), span, d, d / span, speed, bend, drawnRot.x);
 }
 
 void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles)
@@ -659,7 +881,28 @@ void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles
         bob * (bobUp * feel.amp * (za::cos(2.f * feel.phase) - 1.f) * 0.5f + breathUp * rest * za::sin(feel.breath))};
     const glm::vec3 local = feel.sway + bobLocal;
 
-    const glm::vec3 drawn = to + turn * (s.pos[h] - from) + camAxes * local;
+    glm::vec3 drawn = to + turn * (s.pos[h] - from) + camAxes * local;
+
+    // The arm holds the hand it can reach. A punch throws the fist, a look turns the whole frame, a knock or a shake
+    // moves the hand: any of them can ask the arm for more than it has, and then the drawn hand hangs off the wrist the
+    // arm ends at. The drawn hand is put back where the arm can hold it: a straight line out of the shoulder the body
+    // poses that arm on, at most vr_flat_arm_hold times what the arm reaches (armSpan: the bones, their stretch and the
+    // shoulder's own reach; 0: no limit, the hands as they were placed). The hand keeps its angles: the look, the shot
+    // and the crosshair are the rotation's, and this is only ever the drawn hand (the mode's own, vr_flatplay.cpp).
+    const float hold = za::clamp(vr_flat_arm_hold.value, 0.f, 2.f);
+    if(hold > 0.f)
+    {
+        avatar::Skeleton k;
+        const glm::vec3 root = avatar::skeleton(k) ? k.shoulder[h] : shoulder(s, h);
+        const float span = armSpan() * hold;
+        const glm::vec3 reachOut = drawn - root;
+        const float d = glm::length(reachOut);
+        if(span > 0.f && d > span)
+        {
+            drawn = root + reachOut * (span / d);
+        }
+    }
+
     pos = drawn - s.pos[h];
 
     const glm::mat3 handAxes = turn * axes(s.rot[h]);
@@ -671,6 +914,8 @@ void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles
     angles.x += bob * breathPitch * rest * za::sin(feel.breath);
     angles.y += bob * bobYaw * feel.amp * za::sin(feel.phase);
     angles.z += bob * bobRoll * feel.amp * za::sin(feel.phase);
+
+    probeArm(s, h, drawn, drawnRot);
 }
 
 void printMove(const hands::State& s)
@@ -711,11 +956,13 @@ void status_f()
         return;
     }
     Con_Printf("  vr_flatplay %g (the game code's gate), vr_flat_reach %g, vr_flat_sway %g, vr_flat_bob %g, vr_flat_turnlag %g "
-               "(recovery %g)\n",
+               "(recovery %g), vr_flat_arm_hold %g, vr_flat_pose_pitch %g\n",
         vr_flatplay.value, vr_flat_reach.value, vr_flat_sway.value, vr_flat_bob.value, vr_flat_turnlag.value,
-        vr_flat_turnlag_speed.value);
-    Con_Printf("  E pressed %d times (force grab), V %d (punch); E and V are read from the keyboard, not from bindings.\n",
-        fs.grabs, fs.punches);
+        vr_flat_turnlag_speed.value, vr_flat_arm_hold.value, vr_flat_pose_pitch.value);
+    Con_Printf("  E pressed %d times (force grab); punches: the main hand %d, the off hand %d. E and V are read from the "
+               "keyboard, not from bindings; each hand's punch starts from V, from its fire button with a weapon a swing "
+               "strikes with (LMB / +attack the main hand, RMB / +offhandattack the off hand), or from vr_flat_punch.\n",
+        fs.grabs, fs.punches[HAND_MAIN], fs.punches[HAND_OFF]);
     Con_Printf("  Left Ctrl pressed %d times (crouch), F %d (the flashlight), G %d (what the hand holds dropped), read the "
                "same way. Crouched %g (held %d): his head %.1f units down of %g standing, eased in %g s each way.\n",
         keyState.crouches, keyState.toggles, keyState.drops, keyState.ratio,
@@ -725,6 +972,34 @@ void status_f()
                "the weapons collected into the left and right hand, an ammo or health box grabbed with E taken at once.\n");
     Con_Printf("  the flashlight: worn on the head, lit until F puts it out, and it stays out (a level change, a saved "
                "game).\n");
+}
+
+// vr_flat_punch [main|off]: a hand's punch, driven from the console (the tests' button: V and the mouse buttons cannot
+// be driven from a script). The same gate as the fire button: only a weapon a swing strikes with punches with.
+void punch_f()
+{
+    if(!active())
+    {
+        Con_Printf("vr_flat_punch: flatscreen play is not running (no -flatscreenmode, or a headset has the game): "
+                   "nothing to punch with.\n");
+        return;
+    }
+    const char* arg = Cmd_Argc() >= 2 ? Cmd_Argv(1) : "main";
+    const bool mainHand = !q_strcasecmp(arg, "main") || !q_strcasecmp(arg, "right");
+    const bool offHand = !q_strcasecmp(arg, "off") || !q_strcasecmp(arg, "offhand") || !q_strcasecmp(arg, "left");
+    if(!mainHand && !offHand)
+    {
+        Con_Printf("vr_flat_punch: say `vr_flat_punch main` or `vr_flat_punch off` (not `%s`).\n", arg);
+        return;
+    }
+    const int h = offHand ? HAND_OFF : HAND_MAIN;
+    if(!punchesWith(h))
+    {
+        Con_Printf("vr_flat_punch: the %s hand holds weapon %d, which its trigger does not strike with: no punch.\n",
+            h == HAND_MAIN ? "main" : "off", heldWid(h));
+        return;
+    }
+    startPunch(h, "vr_flat_punch");
 }
 
 } // namespace qvr::flatplay

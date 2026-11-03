@@ -1,8 +1,8 @@
 #include "vr_alloccount.h"
 // vr_box3d_wornpack.cpp -- the worn backpack on a ragdoll (QC vr_wornpack.qc; ROUND23.md, "Worn backpacks"): a box shape
 // of its chest part's body where the pack sits on its back (agarmor::packWhere as it is made), so the pack weighs, collides
-// and is held with the body; a hand's hold taken on it (beginGrab: RagdollGrab::onPack) is measured for the QC, which
-// tears the pack off (wornPack 1) on a hard pull, a hard landing or a hit on it. Its place for the drawn pack (QC's
+// and is held with the body; a hand's hold taken on it (beginGrab: RagdollGrab::onPack) is measured for the QC, which lifts
+// its living wearer on a hard pull, and takes the pack off (wornPack 1) on a hard landing or a hit on it. Its place for the drawn pack (QC's
 // entity) is the shape's while it is on a ragdoll, else the posed model's.
 
 #include "vr_box3d_internal.hpp"
@@ -50,7 +50,7 @@ void createRagdollPack(RagdollBodies& r, edict_t* ent, int num, const Slot& s)
 {
     r.pack = b3_nullShapeId;
     r.packPart = -1;
-    if(fieldFloatOr(ent, fields().vr_wp_worn, 0.f) != 1.f || !r.rig) // (worn: the QC gave it one: an armed grunt's)
+    if(fieldFloatOr(ent, fields().vr_wp_worn, 0.f) != 1.f || !r.rig) // (worn: the QC gave it one: VR_WP_Spawn's rule)
     {
         return;
     }
@@ -140,6 +140,10 @@ bool wornPackBox(edict_t* ent, glm::vec3& mid, glm::mat3& axes, glm::vec3& half)
 
 float wornPackSegment(edict_t* ent, const glm::vec3& a, const glm::vec3& b, float grow, glm::vec3& point, glm::vec3& normal)
 {
+    if(qvr::agarmor::packBaked(ent))
+    {
+        return -1.f; // (the model's own pack: shots meet the model)
+    }
     glm::vec3 mid, half;
     glm::mat3 axes;
     if(!wornPackBox(ent, mid, axes, half))
@@ -214,10 +218,6 @@ float wornPack(edict_t* ent, int what, int a, int b, const glm::vec3& p)
     {
         edict_t* player = a >= 1 && a <= svs.maxclients ? EDICT_NUM(a) : nullptr;
         return player ? qvr::foegrab::packPalmGap(player, b, ent) : -1.f;
-    }
-    if(what == 6)
-    {
-        return static_cast<float>(qvr::foegrab::packTorn(ent));
     }
     if(what == 8)
     {
@@ -301,7 +301,7 @@ void wornPackAll(edict_t* ent, glm::vec3 out[4])
         packBox(*r, mid, turn);
         axes = glm::mat3_cast(turn);
         glm::vec3 modelMid;
-        qvr::agarmor::packModelBox(modelMid, half);
+        qvr::agarmor::packModelBox(ent, modelMid, half);
         origin = mid - axes * modelMid;
     }
     else if(!qvr::agarmor::packWhere(ent, origin, axes, mid, half))
@@ -343,7 +343,7 @@ glm::vec3 wornPackWhere(edict_t* ent, int what)
         packBox(*r, mid, turn);
         axes = glm::mat3_cast(turn);
         glm::vec3 modelMid;
-        qvr::agarmor::packModelBox(modelMid, half);
+        qvr::agarmor::packModelBox(ent, modelMid, half);
         origin = mid - axes * modelMid;
     }
     else if(!qvr::agarmor::packWhere(ent, origin, axes, mid, half))

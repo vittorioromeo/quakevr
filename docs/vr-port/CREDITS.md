@@ -65,6 +65,17 @@ articles, talks and other engines' source are credited with where they came from
   Quake's palette and its own models (for example, the armour colours come from `progs/armor.mdl`). `mdlpolish.py`
   embeds Quake's palette (id Software's `gfx/palette.lmp`, as GPL tools such as ericw-tools embed it) to match
   colours.
+- **Enemy footsteps** (`make_footstep_sounds.py`, `quakevr/sound/vr/step_*.wav`): boots, metal and bare feet synthesised,
+  nothing recorded. The great bare feet and the worn pack's rip are recordings, cut by `make_recorded_steps.py` (its header has
+  the steps), all [CC0 1.0](https://creativecommons.org/publicdomain/zero/1.0/), each page checked to say so; Freesound's HQ MP3
+  previews, as the originals need a login:
+  - `step_thud1..5.wav`: [542858](https://freesound.org/people/thebestmaker/sounds/542858/) *Giant footsteps*, thebestmaker
+    (stamps at 0.64, 2.13, 3.42, 4.73 s) over [721601](https://freesound.org/people/DasWaff/sounds/721601/) *Giant step*, DasWaff
+    (its stomps at 0.70 and 1.09 s, low-passed at 900 Hz).
+  - `pack_rip.wav`: [591527](https://freesound.org/people/Rudmer_Rotteveel/sounds/591527/) *Cloth Rip Even Long*, Rudmer_Rotteveel
+    (the first 0.62 s of the tear).
+  - `armor_crack.wav`: [51263](https://freesound.org/people/RutgerMuller/sounds/51263/) *Metal Cracking 2.wav*, RutgerMuller
+    (0.42 s from its crack at 1.281 s, at 0.85 its rate, over the same crack an octave down low-passed at 2.5 kHz; lightly driven).
 - **Synthesised sounds** (`make_sounds.py`, in `quakevr/sound/vr/`): made from sine partials and filtered noise by
   the script, with no recordings. They are the headshot tick, the shells' tinks, the shove, bash, parry-bash and
   parry, and (round 21) the pommel, hilt and butt knocks `pommel1..3.wav`.

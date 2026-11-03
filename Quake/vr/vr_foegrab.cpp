@@ -487,7 +487,6 @@ bool takePack(edict_t* player, Holder& hd, int h, edict_t* m, const glm::vec3& p
     g.modelindex = static_cast<int>(m->v.modelindex);
     g.pack = true;
     g.packLocal = palmLocal;
-    g.packFrom = palm;
     g.local = glm::transpose(body) * (spot - origin);
     g.palmOff = glm::transpose(body) * (palmAt - spot);
     g.palmAt = palmAt;
@@ -2457,7 +2456,7 @@ namespace
 {
 [[nodiscard]] bool enabledFor(edict_t* ent, const VrMove* move)
 {
-    return vr_foegrab.value != 0.f && bindings().isVrProgs && hitmodel::enabled() && move &&
+    return vr_foegrab.value != 0.f && bindings().isVrProgs && move &&
            (move->buttons & protocol::QVR_BUTTON_HANDSTRACKED) && static_cast<int>(ent->v.movetype) == MOVETYPE_WALK &&
            ent->v.health > 0.f;
 }
@@ -2602,7 +2601,7 @@ void qvr::foegrab::preThink(edict_t* ent)
             if(debug() && (!enabled || !climb::handFree(ent, h)))
             {
                 Con_Printf("foegrab: %s hand grips: %s\n", handName(h),
-                    vr_foegrab.value == 0.f ? "off" : !hitmodel::enabled() ? "precise hits off (vr_hit_precise)" :
+                    vr_foegrab.value == 0.f ? "off" :
                     !(move->buttons & protocol::QVR_BUTTON_HANDSTRACKED) ? "hands not tracked" :
                     !enabled ? "the player can't (dead, noclip, other progs)" : "the hand isn't free");
             }
@@ -3030,8 +3029,8 @@ void qvr::foegrab::afterPoses()
             }
             // Past the break for a moment (a step up a stair, a lurch: the drag may bring it back), or far past it.
             g.overSince = g.stretch <= breakAt ? -1.0 : g.overSince < 0.0 ? qcvm->time : g.overSince;
-            // (Never on a worn backpack: pulled, the pack tears off instead, the QC's tug reading the stretch: VR_WP_Tug.)
-            // (Only very far off: the tug off, or a pack too strong for it.)
+            // (Never on a worn backpack: pulled, its wearer is lifted instead, the QC's tug reading the stretch: VR_WP_Tug.)
+            // (Only very far off: a lift that can't happen now.)
             if((!g.pack && g.overSince >= 0.0 &&
                    (qcvm->time - g.overSince >= gameSeconds(breakGrace) || g.stretch > breakAt * breakFar)) ||
                 (g.pack && g.stretch > breakAt * packBreakFar))
@@ -3085,63 +3084,6 @@ float qvr::foegrab::packPalmGap(edict_t* player, int hand, edict_t* m)
     }
     const glm::vec3 local = glm::abs(glm::transpose(axes) * (holderOf(player)->holds[hand].palmAt - mid)) - half;
     return glm::length(glm::max(local, glm::vec3{0.f})) / cm();
-}
-
-glm::vec3 qvr::foegrab::packPull(edict_t* player, edict_t* m)
-{
-    const Holder* hd = holderOf(player);
-    const VrMove* move = server::clientMove(player);
-    glm::vec3 pull{0.f};
-    for(int h = 0; h < 2 && hd && move && m; h++)
-    {
-        const Hold& g = hd->holds[h];
-        // (The hand's own travel since it took hold: the way it yanks, not its spot's swing as the wearer turns.)
-        pull += g.active && g.pack && g.ent == NUM_FOR_EDICT(m) ? palmOf(player, *move, h) - g.packFrom : glm::vec3{0.f};
-    }
-    return pull;
-}
-
-int qvr::foegrab::packTorn(edict_t* m)
-{
-    if(!m || !sv.active)
-    {
-        return 0;
-    }
-    const int e = NUM_FOR_EDICT(m);
-    const int players = za::min(svs.maxclients, static_cast<int>(MAX_SCOREBOARD));
-    int n = 0;
-    for(int c = 0; c < players; c++)
-    {
-        Holder& hd = holders[c];
-        for(int h = 0; h < 2; h++)
-        {
-            Hold& g = hd.holds[h];
-            if(!g.active || !g.pack || g.ent != e)
-            {
-                continue;
-            }
-            // (Let go of quietly, the QC's call: the grip is the QC's again at once, the pack its hand's.)
-            g.active = false;
-            hd.owned[h] = hd.ownedLast[h] = false;
-            n++;
-            // (This frame's bits the QC reads too: the grip held on, not a new press.)
-            edict_t* player = EDICT_NUM(c + 1);
-            const VrMove* move = server::clientMove(player);
-            if(fields().vrbits0 >= 0 && move && (move->vrBits0 & grabBit[h]))
-            {
-                const int bits = static_cast<int>(fieldFloat(player, fields().vrbits0)) | grabBit[h] | prevGrabBit[h];
-                fieldFloat(player, fields().vrbits0) = static_cast<float>(bits);
-            }
-            const int handBits = static_cast<int>(fieldFloatOr(player, fields().vr_foegrab_hands, 0.f)) & ~(1 << h);
-            setFieldFloat(player, fields().vr_foegrab_hands, static_cast<float>(handBits));
-            if(debug() || vr_worn_backpack_debug.value)
-            {
-                Con_Printf("foegrab: %s hand's hold on %s (%d)'s backpack ends: torn off (held %.2f s)\n", handName(h),
-                    PR_GetString(m->v.classname), e, qcvm->time - g.since);
-            }
-        }
-    }
-    return n;
 }
 
 int qvr::foegrab::packLift(edict_t* player, edict_t* m)

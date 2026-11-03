@@ -656,6 +656,7 @@ void(entity xPlayer, float xHand, entity xBox) VR_Carry_Start =
     dprint("carry: taken\n");
     VR_WP_Taken(xBox); // (a dead one's worn backpack: off its back, vr_wornpack.qc)
     xBox.carry_player = xPlayer;
+    xBox.vr_ammo_ejected_by = world; // (a hand has it: no longer falling into a pouch by itself)
     VR_AgArmor_DebrisGrabbed(xBox); // (a plate's debris: its fade put off, vr_agarmor.qc)
     xBox.vr_slam_armed = 0;
     xBox.vr_slam_thrown = 0;

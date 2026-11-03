@@ -1,0 +1,7 @@
+# vrstart: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Body tracking at start and Body >
+# Body Tracking > Restart Body Tracking: the start map, nothing placed.
+title Body tracking: start up and Restart Body Tracking
+map start
+god
+notarget
+hint Stand straight and look down at your body; Body > Body Tracking > Restart Body Tracking fixes body tracking that started wrong. A broken start recovers by itself within about 6 s ("Body tracking: restarting" in the console).

@@ -94,9 +94,17 @@ za::Vector<Item> pageDebugAutomation()
             .help("Whose meaning this map's spawnflags have (Quake's, Machine Games', Arcane Dimensions'), and where "
                   "monsters look for you (crouched: your real eyes)."),
         header("Survival Arena (map vrarena)"),
+        command("Arena Wave Editor", "vr_waveeditor")
+            .help("The waves made to order, saved as presets, one chosen per map and difficulty (also Debug > Tools)."),
         command("Offer Perk Cards Now", "vr_arena_cards_offer")
             .help("The cards the next boss wave's clear would offer, now (between two waves only): the arena waits "
                   "until you pick one."),
+        command("Arena Presets: Format Test", "vr_arena_waves_dir arena_waves_test; vr_arena_waves_fixture; vr_arena_waves_test")
+            .help("A preset's text round trip, bad words, names, assign.cfg (arena waves test: N passed, M failed; the tests' own folder)."),
+        command("Arena Wave Editor: Click Through Test", "vr_arena_waves_dir arena_waves_test; vr_waveeditor; vr_waveeditor_test")
+            .help("Every button, list and popup of the editor clicked by the test's mouse (waveeditor test: N passed, M failed)."),
+        command("Armed Humanoids: Infection Test", "vr_toolgun_armed_infected_test")
+            .help("Each armed kind with each outcome from the toolgun's page, spawned, killed, rising (toolgun infected test: N passed, M failed)."),
         command("Jump to Wave 6", "vr_arena_goto 6")
             .help("The arena clears the field and starts wave 6 at once (no rest or countdown): armed foes mid-ladder. "
                   "vr_arena_goto N jumps to any wave."),
@@ -332,6 +340,15 @@ za::Vector<Item> pageDebugAutomation()
                   "Knights off (a plain knight) and on (an armed one holding a sword at its hand), its sword hurting "
                   "you, knocked out of its hand and taken up again, and its death dropping the sword once (vr_agknight "
                   "put back after; agtest: test 95 over: N passed, M failed)."),
+        command("Armed Knights: This Map's Knights", "vr_agrunt_test 207")
+            .help("vr_agrunt_test 207 (one frame, any map): counts the map's knights and death knights: how many are armed "
+                  "and plain, the monster count, and that each armed one holds a sword alone, wears no pack and takes "
+                  "no gun up (the console: knightmap: ...; agtest: test 207 over: N passed, M failed)."),
+        command("Armed Knights: A Map's Knights in Play", "god; notarget; vr_agrunt_test 206")
+            .help("vr_agrunt_test 206 (a map with armed knights, e1m4 for the door; about 20 s): the count above; one "
+                  "with a target killed, its door moving; one disarmed leaving a gun by it alone until "
+                  "vr_agknight_ranged_pickup is on for a moment; a knight and a death knight spawned with a shotgun "
+                  "holding it; who a hurt knight turns on (agtest: test 206 over: N passed, M failed)."),
         command("Armed Knights: Spawn One Before You", "vr_agknight 1; vr_toolgun_select_armed 2 13")
             .help("Turns Armed Knights on (vr_agknight) and picks an armed knight with a sword as the toolgun's spawn "
                   "(Spawn > Monsters > Armed Humanoid, Kind Knight): fire the toolgun to place one."),
@@ -391,6 +408,14 @@ za::Vector<Item> pageDebugAutomation()
                   "(Rifle, Pistol, Shoulder Launcher, Sprayer, Laser Cannon, Widowmaker) against the built-in table; a "
                   "Pistol Aim key moved 5 forward moves the pistols' keys only (then reset: vr_agrunt_pose_key <code> "
                   "reset); a Pose Category set changes that kind's only. agtest lines, then a verdict."),
+        command("Armed Humanoids: Gun on the Move", "scratch1 1; vr_agrunt_test 205")
+            .help("vr_agrunt_test 205 (vrtesthall; about 40 s): each kind with a nail pistol runs on the spot, forward, right, "
+                  "backwards and left across one place beside you: its drawn hand from its drawn head in each, off the spot's "
+                  "by at most 3 units; a screenshot of its side in each. agtest lines, then a verdict."),
+        command("Dead Fiend, Dog and Spawn Stay Dead", "vr_deadanim_test 20")
+            .help("vr_deadanim_test 20 (21 a dog, 22 a spawn; vrfiringrange; about 2 minutes): killed by shots, blows and a neck "
+                  "snap, on the ground and in mid-leap, knocked down, staggered, by a blast its own leap set off; its corpse "
+                  "poked: its body never runs its AI or leaps again. deadleap lines, then a verdict."),
         command("Armed Humanoids: Glitch Finder", "scratch2 0; scratch3 0; vr_agglitch_shots 0; vr_agrunt_test 46")
             .help("vr_agrunt_test 46 (vrtesthall; about 11 minutes): you unseen, each kind with each weapon class in turn "
                   "(fists, sword, axe, the guns, the chainsaw, two shotguns, two axes, Mjolnir) plays its real fights "
@@ -444,6 +469,12 @@ za::Vector<Item> pageDebugAutomation()
             .help("vr_agrunt_test 66: a shotgun grunt shoved to the floor keeps its gun in its hand; you walk up to it "
                   "and reach for the gun with an open hand at 0.8 m/s for 3 s: it keeps it. Then the old rules (printed: "
                   "vr_agrunt_disarm_deliberate 0)."),
+        command("Armed Grunts: Dual Wielder Disarmed", "vr_agrunt_test 203")
+            .help("vr_agrunt_test 203: each kind with two weapons has its left one knocked out (by nobody, your fist, a tug), "
+                  "goes for a fallen one, loses its right, then the last: each weapon's think goes on, each drawn on its hand."),
+        command("Ogres: Friendly Fire", "vr_agrunt_test 204")
+            .help("vr_agrunt_test 204: ogres far ahead, a friend held still in each one's way: friendly hits and attacks "
+                  "careless, careful, and with the friend always in the way (vr_ogre_friendly_care)."),
         command("Armed Grunts: Friendly Fire", "vr_agrunt_test 63")
             .help("vr_agrunt_test 63: four gunners far ahead, their friends held still in their lines of fire, 15 s "
                   "careless (Careful of Friends 0), then 15 s careful: friendly hits each (vr_agrunt_friendly_care)."),
@@ -640,6 +671,10 @@ za::Vector<Item> pageDebugAutomation()
                   "lying about and a small crate as heavy as it, each thrown at 10, 13 and 16 m/s into a grunt, then an "
                   "ogre, made ahead of you. The tank hurts as the crate does and stays whole. The console (fueltankhit: "
                   "lines, then N passed, M failed)."),
+        command("Blows and Props: What Gibs", "god 1; notarget 1; vr_prop_impact_test 7")
+            .help("vr_prop_impact_test 7 (god and notarget on; 200 units of open floor ahead): a grunt at full health and "
+                  "wounded, a blow of each weapon at each strength, under Quad too, then a barrel and the crates thrown, "
+                  "falling, slammed, and thrown onto a body. The console (gibtable: a line a row, then N passed, M failed)."),
         command("Flail Head Hits", "god 0; notarget 1; vr_prop_impact_test 5")
             .help("vr_prop_impact_test 5 (Arcane Dimensions; notarget on, god off; 200 units of open floor ahead): a "
                   "flail's loose head flung at 13, 16 and 19 m/s into a grunt (once, about as a small crate as heavy), "

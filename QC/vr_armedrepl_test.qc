@@ -6,8 +6,10 @@
 //   super shotgun before a player owns one, no rare weapon before the episode's vr_agrunt_repl_rare_map), the caps,
 //   dual and gun-and-axe chances, determinism (the same seed twice; real spawns at the same spots twice).
 // - 71 (vrtesthall): the balance: a vanilla grunt, then a replaced one with its own rifle, then the enforcers, each
-//   alone against you for 150 s (`agrtest: balance ...`: shots, hits, accuracy, damage a second), then 40 of each
-//   killed (their drops: guns, backpacks and their ammo, extra weapons).
+//   alone against you for 150 s, vr_agrunt_range 0 for all (`agrtest: balance ...`: shots, hits, accuracy, damage a second;
+//   the same gun's numbers from the same distance: with the replaced one's fighting distance on, 283 away against the
+//   vanilla's 45, it deals half of it, the enforcer a third: ROUND23.md, "Flaky tests, round 2", question), then 40 of each
+//   killed, 8 at a time (their drops: guns, backpacks and their ammo, extra weapons).
 // - 72 (vrtesthall): a gun and an axe: the gun at range, the axe up close, the gun again backed off; a spent shotgun
 //   with no reserve: the axe; a gun lying near: taken up.
 // - 73 (any map): the census: the map's monsters, the armed ones and their loadouts, all killed (`agrtest: map ...`).
@@ -350,6 +352,9 @@ void() VR_AGRT_Stats =
 // ----------------------------------------------------------------------------
 
 float VR_AGRT_FIGHT = 150;     // s each fight
+float vr_agrt_range_keep;      // vr_agrunt_range to put back
+float vr_agrt_dsum;            // its distance from you over the fight, summed
+float vr_agrt_dn;              // ... frames
 float VR_AGRT_KILLS = 40;      // kills each for the drops
 float vr_agrt_res[32];         // per case (kind * 2 + replaced): shots, hits, dmg, guns, packs, ammo, extra, n
 float vr_agrt_shots0;
@@ -399,10 +404,13 @@ void(float c) VR_AGRT_CountDrops =
             e.weaponinst = world;
             remove(e);
         }
-        else if(e.model == "progs/backpack.mdl" && e.vr_wp_state != VR_WP_WORN) // (a dead grunt's worn pack: its loot)
+        else if(e.model == "progs/backpack.mdl" && (!on || e.vr_wp_state != VR_WP_WORN)) // (a dead grunt's worn pack: its loot)
         {
-            vr_agrt_res[at + 4] = vr_agrt_res[at + 4] + on;
-            vr_agrt_res[at + 5] = vr_agrt_res[at + 5] + on * (e.ammo_shells + e.ammo_cells + e.ammo_nails + e.ammo_rockets);
+            // (Not the fight's grunt's: its pack, empty, torn off as it was removed, turned up in the first count: 41 of 40.
+            // A pack dropped outright has no wearer.)
+            float mine = on && (!e.vr_wp_state || e.vr_wp_wearer.vr_agrt_mark);
+            vr_agrt_res[at + 4] = vr_agrt_res[at + 4] + mine;
+            vr_agrt_res[at + 5] = vr_agrt_res[at + 5] + mine * (e.ammo_shells + e.ammo_cells + e.ammo_nails + e.ammo_rockets);
             remove(e);
         }
         e = next;
@@ -430,10 +438,10 @@ void() VR_AGRT_Balance =
                 float accB = vr_agrt_res[b * 8 + 2] / max(1, vr_agrt_res[b * 8]);
                 float rateA = vr_agrt_res[a * 8] / VR_AGRT_FIGHT;
                 float rateB = vr_agrt_res[b * 8] / VR_AGRT_FIGHT;
-                VR_AGT_Print(sprintf("balance %s vanilla: %g shots (%.2f/s), %g damage events, %.2f damage a shot, %.2f damage/s",
-                    nm, vr_agrt_res[a * 8], rateA, vr_agrt_res[a * 8 + 1], accA, dpsA));
-                VR_AGT_Print(sprintf("balance %s replaced: %g shots (%.2f/s), %g damage events, %.2f damage a shot, %.2f damage/s",
-                    nm, vr_agrt_res[b * 8], rateB, vr_agrt_res[b * 8 + 1], accB, dpsB));
+                VR_AGT_Print(sprintf("balance %s vanilla: %g shots (%.2f/s), %g damage events, %.2f damage a shot, %.2f damage/s, %.0f away",
+                    nm, vr_agrt_res[a * 8], rateA, vr_agrt_res[a * 8 + 1], accA, dpsA, vr_agrt_res[a * 8 + 7]));
+                VR_AGT_Print(sprintf("balance %s replaced: %g shots (%.2f/s), %g damage events, %.2f damage a shot, %.2f damage/s, %.0f away",
+                    nm, vr_agrt_res[b * 8], rateB, vr_agrt_res[b * 8 + 1], accB, dpsB, vr_agrt_res[b * 8 + 7]));
                 VR_AGT_Print(sprintf("drops %s vanilla (%g kills): guns %g, backpacks %g (ammo %g), extra weapons %g",
                     nm, VR_AGRT_KILLS, vr_agrt_res[a * 8 + 3], vr_agrt_res[a * 8 + 4], vr_agrt_res[a * 8 + 5], vr_agrt_res[a * 8 + 6]));
                 VR_AGT_Print(sprintf("drops %s replaced (%g kills): guns %g, backpacks %g (ammo %g), extra weapons %g",
@@ -448,12 +456,15 @@ void() VR_AGRT_Balance =
                     fabs(vr_agrt_res[a * 8 + 6] - vr_agrt_res[b * 8 + 6]) <= 12);
             }
             VR_AGRT_Restore();
+            cvar_set("vr_agrunt_range", ftos(vr_agrt_range_keep));
             cvar_set("vr_agrunt_test", "0");
             return;
         }
         if(vr_agrt_case == 0)
         {
             VR_AGRT_Save();
+            vr_agrt_range_keep = cvar_hget(cvarh_vr_agrunt_range);
+            cvar_set("vr_agrunt_range", "0");
             vr_agrt_home = pl.origin;
         }
         VR_AGRT_Set(0, 0, 0, 0, 0);
@@ -472,6 +483,8 @@ void() VR_AGRT_Balance =
         vr_agrt_dmg0 = vr_agr_pl_dmg;
         vr_agrt_step = 2;
         vr_agrt_until = time + VR_AGRT_FIGHT;
+        vr_agrt_dsum = 0;
+        vr_agrt_dn = 0;
         return;
     }
     if(vr_agrt_step == 2)
@@ -480,15 +493,18 @@ void() VR_AGRT_Balance =
         {
             VR_AGT_Hunt(g); // (always on the player)
         }
+        vr_agrt_dsum = vr_agrt_dsum + vlen(g.origin - pl.origin);
+        vr_agrt_dn = vr_agrt_dn + 1;
         if(time < vr_agrt_until) { return; }
         float c = vr_agrt_case;
         vr_agrt_res[c * 8] = VR_AGRT_Shots() - vr_agrt_shots0;
         vr_agrt_res[c * 8 + 1] = vr_agr_pl_hits - vr_agrt_hits0;
         vr_agrt_res[c * 8 + 2] = vr_agr_pl_dmg - vr_agrt_dmg0;
+        vr_agrt_res[c * 8 + 7] = vr_agrt_dsum / max(1, vr_agrt_dn); // (its mean distance from you)
         VR_AGRT_Clear();
-        VR_AGRT_CountDrops(-1); // (none counted: what lay about before)
         vr_agrt_killed = 0;
         vr_agrt_step = 3;
+        vr_agrt_until = time + 0.2; // (what it dropped lands)
         return;
     }
     if(vr_agrt_step == 3)
@@ -499,15 +515,22 @@ void() VR_AGRT_Balance =
             vr_agrt_step = 0;
             return;
         }
-        // Ten in a row ahead, up a second (their walkmonster_start_go: hurt only then), then killed (not gibbed: their
-        // deaths' frames drop the loot), counted 1.5 s later.
-        float j;
-        for(j = 0; j < 10; j++)
+        if(vr_agrt_killed == 0)
         {
-            entity m = VR_AGRT_Make(kind, VR_AGRT_Ahead(260, (j - 4.5) * 48), repl);
+            if(time < vr_agrt_until) { return; }
+            VR_AGRT_CountDrops(-1); // (none counted: what lay about before)
+        }
+        // Eight in a row ahead (vr_ragdoll_max's: of ten, two corpses went at once, one's pack sometimes with it), up a
+        // second (their walkmonster_start_go: hurt only then), then killed (not gibbed: their
+        // deaths' frames drop the loot), counted once they all lie dead and 1.5 s on (the blow again on any still up: Plate
+        // Blocks All, an armoured one's plate can take the whole of it, so 8 of 40 replaced grunts lived, without a drop).
+        float j;
+        for(j = 0; j < 8; j++)
+        {
+            entity m = VR_AGRT_Make(kind, VR_AGRT_Ahead(260, (j - 3.5) * 48), repl);
             m.vr_agrt_mark = 1;
         }
-        vr_agrt_killed = vr_agrt_killed + 10;
+        vr_agrt_killed = vr_agrt_killed + 8;
         vr_agrt_step = 4;
         vr_agrt_until = time + 1;
         return;
@@ -516,13 +539,19 @@ void() VR_AGRT_Balance =
     entity e = nextent(world);
     if(vr_agrt_step == 4)
     {
+        float up = 0;
         while(e)
         {
             if(e.vr_agrt_mark && e.health > 0)
             {
                 T_Damage(e, pl, pl, e.health + 10);
+                up = up + (e.health > 0);
             }
             e = nextent(e);
+        }
+        if(up > 0)
+        {
+            return; // (again next frame: its plates break at last)
         }
         vr_agrt_step = 5;
         vr_agrt_until = time + 1.5;
@@ -575,12 +604,14 @@ void() VR_AGRT_GunAxe =
     {
         if(g.vr_ag_total_shots > vr_agrt_shots0 || timedOut)
         {
-            // (its weapons where its hands are: the gun on its right, the axe on its left)
+            // (Its weapons where its hands are: the gun on its right, the axe on its left: read off each other. Off its
+            // origin they read 0.8 .. 8.2 for the same 13.9 between them: its hands follow its drawn body, which eases
+            // over each 0.1 s run frame, while its origin has already stepped up to 4 units aside as it strafes.)
             makevectors(g.angles);
             float gunSide = (g.vr_ag_prop.origin - g.origin) * v_right;
             float axeSide = (g.vr_ag_prop2.origin - g.origin) * v_right;
-            VR_AGT_Check(sprintf("gun and axe: held in their hands: the gun %.1f to its right, the axe %.1f", gunSide,
-                axeSide), gunSide > 2 && axeSide < -2);
+            VR_AGT_Check(sprintf("gun and axe: held in their hands: the gun %.1f right of the axe (%.1f and %.1f off its origin)",
+                gunSide - axeSide, gunSide, axeSide), gunSide - axeSide > 8);
             VR_AGRT_StepCheck(sprintf("gun and axe: at range, the gun fires (%g shots, the axe %s)", g.vr_ag_total_shots,
                 VR_AGRT_OnAxe() ? "in use" : "carried"), !VR_AGRT_OnAxe() && !timedOut);
             setorigin(g, VR_AGRT_Ahead(56, 0)); // (up close)

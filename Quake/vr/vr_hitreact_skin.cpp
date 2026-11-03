@@ -75,6 +75,8 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
         leanHips = rig->bones[leanHips].parent;
     }
     float leanPelvis = 0.f;
+    rigpose::Rigid leanTurn; // (the strafe lean and turn laid on its bones: the targets placed from its anchor ride them too)
+    bool leaned = false;
     {
         QVR_TRACY_SCOPE(tracyLegs, "armed pose: legs and lean");
         // A take's kneel (vr_aglegs: its legs posed, the body above carried by its pelvis, the arms solved on it)
@@ -107,9 +109,9 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
         }
         // The strafe lean (vr_agrunt_strafe_lean): moving sideways, its pelvis and legs tipped toward the way it goes,
         // about the floor under it, on every bone; the upper body's hold below keeps the chest aimed on the hips.
-        rigpose::Rigid leanTurn;
         if(aglegs::lean(e, *rig, origin, yawDeg, s.take > 0.002f, leanTurn))
         {
+            leaned = true;
             const float before = leanHips >= 0 ? rollOf(posed[leanHips]) : 0.f;
             const float beforeYaw = leanHips >= 0 ? yawOf(posed[leanHips]) : 0.f;
             for(int i = 0; i < rig->numBones; i++)
@@ -140,7 +142,11 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
     }
     aglegs::leanMeasured(e, leanPelvis, spec.chest >= 0 ? rollOf(posed[spec.chest]) : 0.f, leanPelvisYaw,
         spec.chest >= 0 ? std::remainder(yawOf(posed[spec.chest]) - yawOf(rigpose::key(*rig, 0, spec.chest)), 360.f) : 0.f);
-    const glm::vec3 anchorShift = uppered ? rigpose::apply(upperCorr, s.anchorAt) - s.anchorAt : glm::vec3{0.f};
+    // Its anchor as it rides the chest drawn: the frames' place (s.anchorAt) carried by the strafe lean and turn, then by the
+    // hold on the hips (without the lean a strafing body's chest went a few units one way and its gun stayed, by how far
+    // its chest stands from the turn's upright: the knights' and the death knights' most, vr_agrunt_test 205).
+    const rigpose::Rigid anchorRide = uppered ? composeRigid(upperCorr, leanTurn) : leanTurn;
+    const glm::vec3 anchorShift = uppered || leaned ? rigpose::apply(anchorRide, s.anchorAt) - s.anchorAt : glm::vec3{0.f};
     // A strike's body (bodyTurn: the torso, hips and head turned as QC turned the hands' targets) under the arms; the
     // same turns drawn on the bones (boneTurns).
     rigpose::Rigid body[ragdoll::maxBones];
@@ -227,7 +233,7 @@ void relinkSkinned(const ArmPose& s, const entity_t* e, const aliashdr_t* hdr, i
         t.freeOff = rigpose::Rigid{rotOf(s.freeTurn), s.freePos};
     }
     t.stretch = s.stretch;
-    if(uppered)
+    if(uppered || leaned)
     {
         t.weapon[0].pos += anchorShift * s.wr;
         t.weapon[1].pos += anchorShift * s.wl;

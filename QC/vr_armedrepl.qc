@@ -417,11 +417,11 @@ float(float kind) VR_AGR_Replace =
 
 // monster_knight, monster_hell_knight: its armed version in its place with a sword (vr_agknight, vr_agdknight; ROUND23.md,
 // "Knights as armed humanoids", "Death knights as armed humanoids"). FALSE: not replaced (off, VR_AM_Spawn's own call, a
-// statue, Honey's trigger-spawned copies' maker, a dummy).
+// statue, Honey's trigger-spawned copies' maker, a dummy, MG3's infected). Where: the grunts' rule (VR_AGR_InScope).
 float() VR_AKN_Replace =
 {
     float kind = self.classname == "monster_knight" ? VR_AM_KNIGHT : self.classname == "monster_hell_knight" ? VR_AM_DKNIGHT : -1;
-    if(vr_am_spawning || vr_agr_hold > 0 || kind < 0 ||
+    if(vr_am_spawning || vr_agr_hold > 0 || kind < 0 || self.vr_mg3_infected ||
        !cvar_hget(kind == VR_AM_KNIGHT ? cvarh_vr_agknight : cvarh_vr_agdknight))
     {
         return FALSE;
@@ -430,9 +430,9 @@ float() VR_AKN_Replace =
     {
         return FALSE; // (a statue; a trigger's copies: their maker keeps its own spawn)
     }
-    if((AD_Rules() || cvar_hget(cvarh_vr_campaign) == 6) && (!cvar_hget(cvarh_vr_agrunt_repl_ad) || VR_AGR_ADVariant(self)))
+    if(!VR_AGR_InScope() || VR_AGR_ADVariant(self))
     {
-        return FALSE; // (Arcane Dimensions' maps: vr_agrunt_repl_ad's, as the grunts; AD's own variants never)
+        return FALSE; // (a campaign switched off, as the grunts; AD's own variants never)
     }
     if(!self.weapon)
     {
@@ -493,6 +493,7 @@ void(entity g) VR_AGR_Resolve =
     vr_ag_arm_roll = VR_AGR_Rand();
     VR_AM_ArmAll(want, flags, inst, want2, 0);
     VR_AGR_MarkNative(self);
+    VR_WP_Refit(self); // (its pack by its new loadout: no player has seen it yet)
     VR_AG_Log(sprintf("replacement rolled: %s%s%s", self.vr_ag_prop ? self.vr_ag_prop.netname : "fists",
         self.vr_ag_prop2 ? " and " : "", self.vr_ag_prop2 ? self.vr_ag_prop2.netname : ""));
     self = oldself;
@@ -540,6 +541,8 @@ void() VR_AGR_PrecacheArmour =
     {
         return;
     }
+    precache_model("progs/backpack.mdl"); // (a replacement's worn pack comes as its loadout is rolled: VR_WP_Refit)
+    precache_sound(VR_WP_RIP_SOUND_FILE);
     float k;
     for(k = 0; k < VR_AM_COUNT; k++)
     {
@@ -765,6 +768,10 @@ void(entity p) VR_AGR_NativeShot =
 
 float VR_AGR_AXE_NEAR = 84;  // its target nearer than this: the axe (a swing starts within VR_AG_GRIP_REACH + 10)
 float VR_AGR_GUN_FAR = 150;  // ... further than this, the gun again while it has rounds (in it or in reserve)
+
+// `g`, a gun and an axe in hand, its target `d` away: near enough for the axe (VR_AG_WalkFire: it stands for its next
+// attack's check, VR_AGR_GunAxe, not backing off past this in its gun's frames: it never would swap).
+float(entity g, float d) VR_AGR_AxeNear = { return g.vr_ag_gunaxe && g.vr_ag_prop2 && d < VR_AGR_AXE_NEAR; };
 
 // VR_AG_CheckAttack: the weapon its layer acts on (the first slot) the gun or the axe, its target `d` away.
 void(float d) VR_AGR_GunAxe =

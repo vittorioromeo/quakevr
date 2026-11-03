@@ -534,7 +534,7 @@ struct TouchProvider
     const glm::vec3 o = vec(target->v.origin);
     const glm::mat3 axes = held::axesFromAngles(target->v.angles, false);
     glm::vec3 mid, half;
-    agarmor::packModelBox(mid, half);
+    agarmor::packModelBoxSized(fieldFloatOr(target, f().vr_wp_size, 0.6f), mid, half);
     float best = 1e30f;
     for(const glm::vec4& s : armedFist)
     {

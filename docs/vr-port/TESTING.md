@@ -26,7 +26,8 @@ numbers in less time (`wait600`: 6.7 s at `host_maxfps 90`, 1.7 s fast). Frames 
 waits for a server frame: on the real clock that is 1/72 s whatever the frame rate, so `wait600` is 8.3 s there;
 with `vr_fixed_frames 1` every frame is one at 72 Hz (`vr_fixed_frames_rate`; at 90, four frames in five; below 72 a frame
 that runs two ticks counts once). Server ticks (ROUND21.md, "Server tick rate"): `vr_fixed_frames_rate <hz>` with
-`vr_fixed_frames_jitter 0.02` (each frame's time off by up to 2%, as a headset's), then `host_tickstats reset`, `wait...`,
+`vr_fixed_frames_jitter 0.02` (each frame's time off by up to 2%, as a headset's; the wall clock's jitter, which
+`vr_display_clock` takes away: `vr_display_clock 0` to test it), then `host_tickstats reset`, `wait...`,
 `host_tickstats`: ticks a second, their lengths, each frame's tick count, the server's clock, Box3D's steps;
 `host_fixedtick 0` for the old cadence. `vr_motion_play`/`vr_motion_eval ... rate <hz> [jitter <fraction>]` print them
 over the take. Sound (off in the kit) plays at the wall clock's pace, ahead of the game.
@@ -437,10 +438,10 @@ both hands every frame to `carry_trace.txt` (and prints the second hand's reach 
 Put the off hand out of the way first (`vr_mock_hand off -0.35 1.1 -0.2 0 0 0`): at its default pose it touches the
 box before the main hand (no `carry: taken`, and the box drops). Carrying across a save (round 21):
 `save c1; wait10; load c1; wait60; screenshot`; the box should still be in the hand(s).
-Precise hit detection (ROUND21.md, "Precise hit detection (models, not boxes)"): `vr_hit_precise 0|1`,
+Precise hit detection (ROUND21.md, "Precise hit detection (models, not boxes)"; always on since 2026-11-02),
 `vr_hit_tolerance_guns|grapple|melee|thrown <units>`; `vr_debug_hits 1` draws and prints each hit (`hit model: ...`),
 `2` also the moves through a box that missed its model. Tests (single player, at the monster spawned last with `impulse
-241`): `impulse 238` prints `hittest` lines, boxes then models (rays through the box's
+241`): `impulse 238` prints `hittest` lines, models (rays through the box's
 corner columns and its middle, the hook's, melee segments, thrown boxes; 24 rays at the head and at the chest with their
 regions; `developer 2` adds each head ray's distance from the head sphere; removes the monster); `impulse 237` / `236` /
 `234` fire one nail / rocket / hook-class nail through the next corner column (then the middle; the target takes no

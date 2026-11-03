@@ -11,7 +11,8 @@ vr_cvars.inc.
     python Misc/quakevr/cvar_inventory.py [--csv out.csv] [--dead] [--name regex]
 
 With no options it prints the counts. --dead lists the cvars no code reads (engine logic or QC): the candidates for
-"definitely dead" (check each: a name built at run time, `"vr_mhull_" + cls`, is not seen). The generated families
+"definitely dead". It knows the indirect uses (menu code other than the row declarations, token-pasting macro
+families, change callbacks, published Cvar_SetROM status cvars); only a name built at run time is still not seen. The generated families
 (vr_prop_*, vr_wofs_*, vr_retro_*: built from tables in vr_props.cpp, vr_weapons.cpp, vr_retro.cpp) are not listed.
 """
 
@@ -29,6 +30,14 @@ DECL_RE = re.compile(r'^\s*QVR_CVAR\(\s*([A-Za-z_0-9]+)\s*,\s*"((?:[^"\\]|\\.)*)
 STANDALONE_RE = re.compile(r'^\s*cvar_t\s+([A-Za-z_0-9]+)\s*=?\s*\{\s*"([a-z_0-9]+)"\s*,\s*"((?:[^"\\]|\\.)*)"\s*,\s*([A-Z_| ]+)\}')
 TOKEN_RE = re.compile(r"[A-Za-z_][A-Za-z_0-9]*")
 WRITE_RE = re.compile(r"Cvar_Set\w*\s*\(|cvar_set\s*\(|Cvar_SetQuick|Cvar_SetValue|Cvar_SetROM|vr_default\b")
+# A callback registered on the cvar (Cvar_SetCallback(&x, ...)) is how its change is acted on: a use.
+CALLBACK_RE = re.compile(r"Cvar_SetCallback\s*\(\s*&?\s*[A-Za-z_]")
+# A status cvar the engine publishes (Cvar_SetROM) for configs, scripts and the console to read: not dead.
+PUBLISH_RE = re.compile(r"Cvar_SetROM\s*\(")
+STRING_RE = re.compile(r'"(?:[^"\\]|\\.)*"')
+# Macros that paste a parameter to a suffix (`p##upscale`) and their invocations (`FONT_CVARS(vr_font_)`) name a
+# family of cvars without ever spelling them.
+MACRO_DEF_RE = re.compile(r"^[ \t]*#[ \t]*define[ \t]+(\w+)\(([\w, ]+)\)((?:[^\n]*\\\n)*[^\n]*)", re.M)
 
 # Engine files whose references read a setting without it doing anything there.
 MENU_FILES = re.compile(r"vr_menu[^/\\]*\.(cpp|inc|hpp)$|vr_menuui\.cpp$")
@@ -61,6 +70,25 @@ def strip_comments(text):
             out.append(c)
             i += 1
     return "".join(out)
+
+
+def pasted_families(text):
+    """[(line number, ident)] spelled by token-pasting macros: `#define M(p) ... p##a ... p##b` with `M(x_)` gives
+    x_a and x_b."""
+    found = []
+    for m in MACRO_DEF_RE.finditer(text):
+        macro, params, body = m.group(1), [x.strip() for x in m.group(2).split(",")], m.group(3)
+        if len(params) != 1:
+            continue
+        suffixes = re.findall(r"\b" + re.escape(params[0]) + r"##(\w+)", body)
+        if not suffixes:
+            continue
+        for inv in re.finditer(r"\b" + re.escape(macro) + r"\(\s*([A-Za-z_]\w*)\s*\)", text):
+            if inv.start() <= m.end():
+                continue
+            no = text.count("\n", 0, inv.start()) + 1
+            found.extend((no, inv.group(1) + suf) for suf in suffixes)
+    return found
 
 
 def git_files():
@@ -145,9 +173,15 @@ def scan(cvars):
             continue
         if is_code or is_qc:
             text = strip_comments(text)
+        if is_code:
+            for no, ident in pasted_families(text):
+                if ident in idents:
+                    add(idents[ident], "read", path, no)
         for no, line in enumerate(text.splitlines(), 1):
             if not is_code and "vr" not in line and "cvarh_" not in line:
                 continue
+            if is_code and MENU_FILES.search(path):
+                line = STRING_RE.sub('""', line)  # a menu's help and label texts name settings; they don't use them
             for tok in set(TOKEN_RE.findall(line)):
                 name = idents.get(tok) if is_code else None
                 if name is None and tok in names:
@@ -162,11 +196,19 @@ def scan(cvars):
                         continue
                     reads = re.search(r"\b" + tok + r"\.(value|string)", line)
                     if MENU_FILES.search(path):
-                        cat = "menu_read" if reads else "menu"
-                    elif MIGRATION_FILES.search(path):
+                        # A row declaration (QVR_CYCLE(x, ...), row(opt::x), cycle("Label", x, ...)) only shows the
+                        # setting; any other menu code (a choice table, a callback, hue::color(x), x.value) uses it.
+                        e = re.escape(tok)
+                        row = re.search(r"QVR_[A-Z_]+\(\s*" + e + r"\b|opt::" + e + r"\b|\"\"\s*,\s*&?" + e + r"\b", line)
+                        cat = "menu" if row else "menu_read"
+                    elif not reads and MIGRATION_FILES.search(path):
                         cat = "migration"
-                    elif RECORDER_FILES.search(path) and not name.startswith("vr_motion"):
+                    elif not reads and RECORDER_FILES.search(path) and not name.startswith("vr_motion"):
                         cat = "recorder"
+                    elif CALLBACK_RE.search(line):
+                        cat = "read"
+                    elif PUBLISH_RE.search(line):
+                        cat = "published"
                     else:
                         cat = "write" if WRITE_RE.search(line) and not reads else "read"
                     add(name, cat, path, no)
@@ -206,7 +248,7 @@ def main():
         row = dict(
             name=c["name"], default=c["default"], archived=int("CVAR_ARCHIVE" in c["flags"]), flags=c["flags"],
             decl=c["decl"], reads_cpp=len(r.get("read", [])), writes_cpp=len(r.get("write", [])),
-            reads_qc=len(r.get("qc", [])), writes_qc=len(r.get("qc_write", [])), menu=len(r.get("menu", [])), menu_reads=len(r.get("menu_read", [])),
+            published=len(r.get("published", [])), reads_qc=len(r.get("qc", [])), writes_qc=len(r.get("qc_write", [])), menu=len(r.get("menu", [])), menu_reads=len(r.get("menu_read", [])),
             migration=len(r.get("migration", [])), recorder=len(r.get("recorder", [])), cfg=len(r.get("cfg", [])),
             board=len(r.get("board", [])), tools=len(r.get("tool", [])), docs=len(r.get("doc", [])),
             last_commit=lines.get(no, ""), comment=c["comment"][:160],
@@ -227,7 +269,7 @@ def main():
         return
     if args.dead:
         for x in rows:
-            if x["reads_cpp"] == 0 and x["reads_qc"] == 0:
+            if x["reads_cpp"] == 0 and x["reads_qc"] == 0 and x["menu_reads"] == 0 and x["published"] == 0:
                 print(f"{x['name']:44s} menu={x['menu']}/{x['menu_reads']} mig={x['migration']} rec={x['recorder']} w={x['writes_cpp']}"
                       f"+{x['writes_qc']} cfg={x['cfg']} tools={x['tools']} docs={x['docs']}  {x['decl']}")
         return

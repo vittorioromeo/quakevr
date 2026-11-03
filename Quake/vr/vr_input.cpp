@@ -39,6 +39,8 @@
 #include "vr_holsterzones.hpp"
 #include "vr_toolgun.hpp"
 #include "vr_arenacards.hpp"
+#include "vr_waveeditor.hpp"
+#include "vr_geom.hpp"
 
 #include "Zancle/Base/IsFinite.hpp"
 #include "Zancle/Base/Swap.hpp"
@@ -332,6 +334,34 @@ za::Vector<PendingHaptic> pendingHaptics;
     return (v - za::copysign(dz, v)) / (1.f - dz);
 }
 
+// vr_move_snap: a stick's direction within that many degrees of an axis (straight ahead, back, a side) exactly on it, the
+// rest of the 45 degrees to the diagonal spread over what is left: no jump, the diagonals stay, the length is kept.
+[[nodiscard]] glm::vec2 moveSnap(glm::vec2 stick)
+{
+    const float snap = CLAMP(0.f, vr_move_snap.value, 40.f);
+    if(snap <= 0.f)
+    {
+        return stick;
+    }
+    const float deg = glm::degrees(za::atan2(stick.x, stick.y));
+    const float axis = 90.f * glm::floor(deg / 90.f + 0.5f);
+    const float off = deg - axis;
+    const float away = za::fabs(off);
+    const float kept = away <= snap ? 0.f : za::copysign((away - snap) * 45.f / (45.f - snap), off);
+    if(kept == 0.f)
+    {
+        // (Exactly: a straight push's side part is 0, not a float's cosine of 90 degrees.)
+        const float len = glm::length(stick);
+        const int quarter = static_cast<int>(axis / 90.f);
+        return quarter == 0 ? glm::vec2{0.f, len}
+               : quarter == 1 ? glm::vec2{len, 0.f}
+               : quarter == -1 ? glm::vec2{-len, 0.f}
+                               : glm::vec2{0.f, -len};
+    }
+    const float rad = glm::radians(axis + kept);
+    return glm::length(stick) * glm::vec2{glm::sin(rad), glm::cos(rad)};
+}
+
 // Thumbstick locomotion (ROUND22.md "Thumbstick locomotion response"). The moving stick's radial deadzone: the push's
 // length past vr_deadzone (inner, %) up to 1 - vr_deadzone_outer (%) rescaled onto 0..1 (just past the inner one
 // starts from 0; the last outer % is full), its direction kept: a diagonal as a straight push, and a push longer than 1
@@ -346,7 +376,52 @@ za::Vector<PendingHaptic> pendingHaptics;
         return glm::vec2{0.f};
     }
     const float m = za::min(1.f, (len - inner) / (1.f - inner - outer));
-    return stick * (m / len);
+    return moveSnap(stick) * (m / len);
+}
+
+// vr_move_hold: a full push kept as the thumb slips off it (his thumb held hard forward, 2026-11-02: 0.55..0.75 for a
+// tenth of a second about three times a second, each a run up to 28% slower for a moment). It stays full for vr_move_hold
+// seconds, then falls to the push at moveHoldFall a second; under moveHoldLeast (letting go, creeping) it follows at
+// once. A push that never was full follows at once too: slow walking answers as ever.
+constexpr float moveHoldFall = 4.f;
+constexpr float moveHoldLeast = 0.25f;
+constexpr float moveHoldFull = 0.999f;
+struct MoveHold
+{
+    float push{0.f};
+    float left{0.f};
+};
+MoveHold moveHeld;
+
+[[nodiscard]] glm::vec2 moveHold(glm::vec2 axes, float dt)
+{
+    MoveHold& h = moveHeld;
+    const float m = glm::length(axes);
+    const float hold = vr_move_hold.value;
+    if(hold <= 0.f || m < moveHoldLeast)
+    {
+        h = MoveHold{m, 0.f};
+        return axes;
+    }
+    if(m >= moveHoldFull)
+    {
+        h = MoveHold{1.f, hold};
+        return axes;
+    }
+    if(h.push <= m)
+    {
+        h.push = m;
+        return axes;
+    }
+    if(h.left > 0.f)
+    {
+        h.left -= dt;
+    }
+    else
+    {
+        h.push = za::max(m, h.push - moveHoldFall * dt);
+    }
+    return axes * (h.push / m);
 }
 
 // The stick's push (moveStick's length, 0..1) on the response curve (vr_move_curve: its power; 1 linear).
@@ -606,7 +681,7 @@ struct StickTest
     int failed{0};
     // the settings it changes, put back after
     float alwaysrun{0.f}, speedkey{0.f}, forward{0.f}, maxspeed{0.f}, crouch{0.f}, stamina{0.f}, mode{0.f};
-    float curve{0.f}, autorun{0.f}, threshold{0.f}, inner{0.f}, outer{0.f}, least{0.f};
+    float curve{0.f}, autorun{0.f}, threshold{0.f}, inner{0.f}, outer{0.f}, least{0.f}, snap{0.f}, hold{0.f};
     // vr_stick_run_test: its run (-1: the curve test), that run's frames, full speed reached (at frame), the most and
     // the least speed since, the least asked
     int run{-1};
@@ -614,6 +689,19 @@ struct StickTest
     int runReachedAt{-1};
     int runLowAt{0};
     float runTop{0.f}, runLow{0.f}, runAskedLow{0.f};
+    // The drawn steps (run 0): the client's origin last frame, the frames left unmeasured after a put-back, and the steps'
+    // count, sum, sum of squares, least and most.
+    glm::vec3 drawnLast{0.f};
+    int drawnSkip{0};
+    int drawnSteps{0};
+    double drawnSum{0.0}, drawnSquares{0.0};
+    float drawnLeast{0.f}, drawnMost{0.f};
+    // The sweep's case and its worst heading and speed errors; the line's distance to go, where it began and its height.
+    int sweepCase{0};
+    float sweepHeading{0.f}, sweepSpeed{0.f}, sweepPushed{0.f};
+    float lineLength{0.f}, lineZLow{0.f}, lineZHigh{0.f}, lineZStep{0.f};
+    int lineAir{0};
+    int lineStrays{0};
 };
 StickTest stickTest;
 int stickDebugFrames = 0; // vr_debug_stick: frames since its last line
@@ -673,6 +761,8 @@ void stickTestRestore()
     Cvar_SetValueQuick(&vr_deadzone, t.inner);
     Cvar_SetValueQuick(&vr_deadzone_outer, t.outer);
     Cvar_SetValueQuick(&vr_move_min_speed, t.least);
+    Cvar_SetValueQuick(&vr_move_snap, t.snap);
+    Cvar_SetValueQuick(&vr_move_hold, t.hold);
 }
 
 void stickTestFinish()
@@ -684,7 +774,8 @@ void stickTestFinish()
     {
         p->v.movetype = static_cast<float>(MOVETYPE_WALK); // (out of the noclip cases)
     }
-    qvr::testkit::verdict(stickTest.run >= 0 ? "stick run test" : "stick curve test", stickTest.passed, stickTest.failed);
+    qvr::testkit::verdict(stickTest.run == 100 ? "stick line test" : stickTest.run >= 0 ? "stick run test" : "stick curve test",
+                          stickTest.passed, stickTest.failed);
 }
 
 // The response's own checks and its table (the test's first part; also Debug > Tests > Stick: Curve Table).
@@ -820,6 +911,10 @@ void stickTestSetUp()
     t.inner = vr_deadzone.value;
     t.outer = vr_deadzone_outer.value;
     t.least = vr_move_min_speed.value;
+    t.snap = vr_move_snap.value;
+    t.hold = vr_move_hold.value;
+    // (The curve test holds each push; the run test sets its own.)
+    Cvar_SetValueQuick(&vr_move_hold, 0.f);
     Cvar_SetValueQuick(&cl_alwaysrun, 0.f);
     Cvar_SetValueQuick(&cl_movespeedkey, 2.f);
     Cvar_SetValueQuick(&cl_forwardspeed, stickTestWalk);
@@ -874,22 +969,34 @@ void stickTest_f()
     stickTestSetCase();
 }
 
-// ---- vr_stick_run_test [x y z] [outer]: a run held at a full push (his voice note of 2026-11-01: "once every few steps,
-// the player slows down a little bit ... like a hitch"; ROUND23.md "Running hitch"). Two runs of 10 s (720 frames)
-// forward, running (320), the head steering, from x y z (default: where the player stands; flat floor round it for 96
-// units): 0 the stick pushed fully forward, still; 1 a thumb held hard forward as it slips (his take read 0.7..1.0):
-// the push's length 0.82..1.0, its angle +-8 degrees. Each: once the speed is full (320 within 1%), it never dips more
-// than 2% under the most it reached. Each time the player is 96 units from the start it is put back there, its velocity
-// kept (a run of 3200 units in a room). vr_deadzone_outer: outer (5: the response before this fix), else its default.
-// The settings the curve test sets (stickTestSetUp), put back after. Ends "stick run test: N passed, M failed".
+// ---- vr_stick_run_test [x y z] [outer [snap [hold]]]: a run held at a full push (his voice notes of 2026-11-01: "once
+// every few steps, the player slows down a little bit ... like a hitch"; of 2026-11-02: hitches still, and "a bit
+// angled even if my thumbstick is completely straight"; ROUND23.md "Running hitch" and "Thumbstick walking"). Three runs
+// of 10 s (720 frames) forward, running (320), the head steering, from x y z (default: where the player stands; flat floor
+// round it for 96 units): 0 the stick pushed fully forward, still; 1 a thumb held hard forward as it slips: the push's
+// length 0.82..1.0, its angle +-8 degrees; 2 his thumb as recorded (stickRunThumb, 0.61..0.91). Each: once the speed is
+// full (320 within 1%), it never dips more than 2% under the most it reached. Each time the player is 96 units from the
+// start it is put back there, its velocity kept (a run of 3200 units in a room). In run 0 the steps the client draws must
+// be even: within 3% (rms) of their mean (at vr_fixed_frames_rate 120 and vr_fixed_frames_jitter 0.2, a headset's, what
+// vr_display_clock takes away). Then the sweep: stickSweepCases pushes from rest, each angle at two lengths, the head level
+// and 40 degrees down: the velocity's heading within 0.5 degrees of what the stick's angle asks through a straight zone
+// of 15 degrees, the speed within 1.5%. outer, snap, hold: vr_deadzone_outer, vr_move_snap, vr_move_hold (the responses
+// before these fixes: 5, 0, 0), else their defaults. The settings the curve test sets (stickTestSetUp), put back after.
+// Ends "stick run test: N passed, M failed".
 constexpr int stickRunFrames = 720;      // a run: 10 s
 constexpr int stickRunReachFrames = 216; // not full by then: FAIL (a safety net)
 constexpr float stickRunDip = 0.02f;     // the most a run may dip under its top
 constexpr float stickRunRoom = 96.f;     // how far from the start the player runs before it is put back
-constexpr int stickRunCount = 2;
+constexpr int stickRunCount = 3;
+constexpr float stickDrawnEven = 0.03f;  // the most the drawn steps may spread (rms over their mean)
+constexpr int stickDrawnSkip = 6;        // frames not measured from a put-back (the client catching up with it)
+
+// His thumb in his run of 2026-11-02 (the note's replay, frames 1301.., every 0.1 s, the push's length).
+constexpr float stickRunThumb[] = {0.74f, 0.87f, 0.65f, 0.77f, 0.87f, 0.61f, 0.80f, 0.91f, 0.86f, 0.67f, 0.79f, 0.85f, 0.70f};
+constexpr int stickRunThumbCount = static_cast<int>(sizeof(stickRunThumb) / sizeof(stickRunThumb[0]));
 
 // The push on frame f of run r: 0 full, still; 1 a slow wobble and a tremor (0.86..1.0) and, every 40 frames (0.55 s)
-// for 7 (0.1 s), a slip to 0.82; the angle swaying +-8 degrees.
+// for 7 (0.1 s), a slip to 0.82; the angle swaying +-8 degrees; 2 his thumb's lengths, the same sway.
 [[nodiscard]] glm::vec2 stickRunPush(int r, int f)
 {
     if(r == 0)
@@ -898,9 +1005,200 @@ constexpr int stickRunCount = 2;
     }
     constexpr float tau = 6.2831853f;
     const float s = static_cast<float>(f) / 72.f;
-    const float len = f % 40 < 7 ? 0.82f : 0.93f + 0.05f * glm::sin(tau * 1.7f * s) + 0.02f * glm::sin(tau * 7.3f * s);
+    float len = f % 40 < 7 ? 0.82f : 0.93f + 0.05f * glm::sin(tau * 1.7f * s) + 0.02f * glm::sin(tau * 7.3f * s);
+    if(r == 2)
+    {
+        const float at = s * 10.f;
+        const int i = static_cast<int>(at);
+        const float u = at - static_cast<float>(i);
+        const float a = stickRunThumb[i % stickRunThumbCount];
+        len = a + (stickRunThumb[(i + 1) % stickRunThumbCount] - a) * u;
+    }
     const float a = 8.f * (tau / 360.f) * glm::sin(tau * 0.9f * s);
     return {len * glm::sin(a), len * glm::cos(a)};
+}
+
+void stickRunPlace(edict_t* p, bool still);
+
+// The sweep: the angles (degrees clockwise from straight ahead), the lengths and the head's pitches.
+constexpr float stickSweepAngles[] = {0.f, 5.f, 10.f, 14.f, -5.f, -10.f, -14.f, 20.f, 30.f, 45.f, 60.f, 80.f, 90.f, -90.f, 135.f, 180.f};
+constexpr float stickSweepLengths[] = {1.f, 0.6f};
+constexpr float stickSweepPitches[] = {0.f, 40.f};
+constexpr int stickSweepAngleCount = static_cast<int>(sizeof(stickSweepAngles) / sizeof(stickSweepAngles[0]));
+constexpr int stickSweepCases = stickSweepAngleCount * 2 * 2;
+constexpr int stickSweepRest = 4;     // frames at rest with the head turned, before a push
+constexpr float stickSweepPushSeconds = 14.f / 72.f; // pushed for: the speed full (Quake's acceleration) in under 60 units
+constexpr float stickSweepZone = 15.f; // vr_move_snap's default, worked out apart from moveSnap
+constexpr float stickSweepHeadingMost = 0.5f;
+constexpr float stickSweepSpeedMost = 0.015f;
+
+// The heading a stick's angle asks through the straight zone, off the head's (clockwise, degrees).
+[[nodiscard]] float stickSweepWanted(float angle)
+{
+    const float axis = 90.f * glm::floor(angle / 90.f + 0.5f);
+    const float off = angle - axis;
+    const float away = za::fabs(off);
+    return axis + (away <= stickSweepZone ? 0.f : za::copysign((away - stickSweepZone) * 45.f / (45.f - stickSweepZone), off));
+}
+
+// Each frame of the sweep (the head's pitch by vr_mock_look: a real head's stays its own; level or not, it must not matter).
+void stickSweepTick(edict_t* p)
+{
+    StickTest& t = stickTest;
+    const int perLength = stickSweepAngleCount;
+    const float angle = stickSweepAngles[t.sweepCase % perLength];
+    const float length = stickSweepLengths[(t.sweepCase / perLength) % 2];
+    const float pitch = stickSweepPitches[t.sweepCase / (perLength * 2)];
+    if(t.runFrames == 0)
+    {
+        t.stick = glm::vec2{0.f};
+        Cbuf_AddText(va("vr_mock_look %g 0\n", pitch));
+    }
+    ++t.runFrames;
+    if(t.runFrames <= stickSweepRest)
+    {
+        stickRunPlace(p, true); // (at rest: the last case's push is gone a frame late)
+        t.sweepPushed = 0.f;
+    }
+    if(t.runFrames == stickSweepRest)
+    {
+        const float rad = glm::radians(angle);
+        t.stick = length * glm::vec2{glm::sin(rad), glm::cos(rad)};
+        return;
+    }
+    t.sweepPushed += static_cast<float>(host_frametime);
+    if(t.runFrames < stickSweepRest || t.sweepPushed < stickSweepPushSeconds)
+    {
+        return;
+    }
+    // The heading against the head's yaw now; the speed against what the push asks (running, from the least speed).
+    const float speed = stickPlayerSpeed();
+    const float heading = geom::yawDelta(hands::current().headAngles.y, glm::degrees(za::atan2(p->v.velocity[1], p->v.velocity[0])));
+    const float err = za::fabs(geom::yawDelta(heading, stickSweepWanted(angle)));
+    const float least = 1.1f * sv_stopspeed.value * sv_friction.value / sv_accelerate.value;
+    const float m = CLAMP(0.f, (length - 0.1f) / stickTestFull, 1.f);
+    const float wantedSpeed = least + (stickTestRun - least) * za::pow(m, vr_move_curve.value);
+    const float speedErr = za::fabs(speed / wantedSpeed - 1.f);
+    t.sweepHeading = za::max(t.sweepHeading, err);
+    t.sweepSpeed = za::max(t.sweepSpeed, speedErr);
+    if(pitch == 0.f && length == 1.f)
+    {
+        Con_Printf("stick run: sweep: stick %+.0f deg: heading %+.2f off the head's (asks %+.2f), speed %.1f\n", angle, heading,
+                   stickSweepWanted(angle), speed);
+    }
+    char what[200];
+    q_snprintf(what, sizeof(what), "sweep: stick %+.0f deg, push %.1f, head pitch %.0f: heading %.2f deg off (%.2f the most), speed %.1f (asks %.1f)",
+               angle, length, pitch, err, stickSweepHeadingMost, speed, wantedSpeed);
+    stickCheck(err <= stickSweepHeadingMost && speedErr <= stickSweepSpeedMost, what);
+    t.runFrames = 0;
+    if(++t.sweepCase < stickSweepCases)
+    {
+        return;
+    }
+    Con_Printf("stick run: sweep: %d pushes: worst heading error %.2f deg, worst speed error %.2f%%\n", stickSweepCases,
+               t.sweepHeading, 100.f * t.sweepSpeed);
+    Cbuf_AddText("vr_mock_look 0 0\n");
+    stickTestFinish();
+}
+
+// vr_stick_line_test x y z <length>: from x y z the stick fully forward along where the head looks (vr_mock_turn_to first),
+// running, without a put-back: over a real floor and its seams (his arena's). Once full, the speed within 2% of its
+// top, on the ground all the way, the height never moving more than 0.1 unit a frame, until <length> units or blocked (a
+// wall: the line ends there, what it crossed counts). Ends "stick line test: N passed, M failed".
+constexpr int stickLineRun = 100; // StickTest::run's value
+constexpr float stickLineZStep = 0.1f;
+constexpr int stickLineStrayLines = 14;
+
+void stickLine_f()
+{
+    if(stickTest.active || Cmd_Argc() != 5)
+    {
+        Con_Printf(stickTest.active ? "stick line: a stick test is already running\n" : "usage: vr_stick_line_test x y z <length>\n");
+        return;
+    }
+    edict_t* p = stickPlayer();
+    if(!p || !vrActive())
+    {
+        Con_Printf("stick line: no player in VR (a map, in VR)\n");
+        return;
+    }
+    stickTestSetUp();
+    StickTest& t = stickTest;
+    Cvar_SetValueQuick(&cl_alwaysrun, 1.f);
+    Cvar_SetQuick(&vr_deadzone_outer, vr_deadzone_outer.default_string);
+    t.start = {static_cast<float>(atof(Cmd_Argv(1))), static_cast<float>(atof(Cmd_Argv(2))), static_cast<float>(atof(Cmd_Argv(3)))};
+    t.lineLength = static_cast<float>(atof(Cmd_Argv(4)));
+    t.active = true;
+    t.run = stickLineRun;
+    t.runReachedAt = -1;
+    t.runLow = 1e9f;
+    t.lineZLow = 1e9f;
+    t.lineZHigh = -1e9f;
+    t.stick = glm::vec2{0.f, 1.f};
+    stickRunPlace(p, true);
+}
+
+void stickLineTick(edict_t* p)
+{
+    StickTest& t = stickTest;
+    const float speed = stickPlayerSpeed();
+    const float z = p->v.origin[2];
+    ++t.runFrames;
+    if(t.runReachedAt < 0)
+    {
+        if(speed >= stickTestRun * 0.99f - 1.f)
+        {
+            t.runReachedAt = t.runFrames;
+            t.lineZHigh = t.lineZLow = z;
+        }
+        else if(t.runFrames >= stickRunReachFrames)
+        {
+            Con_Printf("stick line: FAIL never full (%.1f after %d frames)\n", speed, t.runFrames);
+            ++t.failed;
+            stickTestFinish();
+        }
+        t.drawnLast = glm::vec3{p->v.origin[0], p->v.origin[1], z};
+        return;
+    }
+    const float dx = p->v.origin[0] - t.start.x;
+    const float dy = p->v.origin[1] - t.start.y;
+    const float gone = za::sqrt(dx * dx + dy * dy);
+    const bool blocked = speed < stickTestRun * 0.5f; // (a wall: stopped; a seam's catch would show in the dip first)
+    if(!blocked)
+    {
+        t.runTop = za::max(t.runTop, speed);
+        if(speed < t.runLow)
+        {
+            t.runLow = speed;
+            t.runLowAt = t.runFrames;
+        }
+        t.lineZLow = za::min(t.lineZLow, z);
+        t.lineZHigh = za::max(t.lineZHigh, z);
+        t.lineZStep = za::max(t.lineZStep, za::fabs(z - t.drawnLast.z));
+        t.lineAir += (static_cast<int>(p->v.flags) & FL_ONGROUND) ? 0 : 1;
+        // (Where it strays from the speed asked: the first few frames' places, to look at.)
+        if(za::fabs(speed / stickTestRun - 1.f) > stickRunDip * 0.5f && t.lineStrays++ < stickLineStrayLines)
+        {
+            Con_Printf("stick line: frame %d at %.1f %.1f %.2f (%.0f units): speed %.1f, velocity %.1f %.1f %.1f, %s\n", t.runFrames,
+                       p->v.origin[0], p->v.origin[1], z, gone, speed, p->v.velocity[0], p->v.velocity[1], p->v.velocity[2],
+                       (static_cast<int>(p->v.flags) & FL_ONGROUND) ? "on the ground" : "in the air");
+        }
+    }
+    t.drawnLast = glm::vec3{p->v.origin[0], p->v.origin[1], z};
+    if(!blocked && gone < t.lineLength)
+    {
+        return;
+    }
+    const float dip = t.runTop > 0.f ? 1.f - t.runLow / t.runTop : 1.f;
+    Con_Printf("stick line: %.0f units%s to %.0f %.0f: speed %.1f..%.1f (dip %.2f%%), height %.2f..%.2f, most a frame %.3f, "
+               "frames in the air %d\n",
+               gone, blocked ? " (blocked)" : "", p->v.origin[0], p->v.origin[1], t.runLow, t.runTop, 100.f * dip, t.lineZLow,
+               t.lineZHigh, t.lineZStep, t.lineAir);
+    char what[120];
+    q_snprintf(what, sizeof(what), "line: dipped %.2f%%, %.3f units a frame in height, %d frames in the air", 100.f * dip,
+               t.lineZStep, t.lineAir);
+    stickCheck(dip <= stickRunDip && t.lineZStep <= stickLineZStep && t.lineAir == 0, what);
+    stickTestFinish();
 }
 
 void stickRunPlace(edict_t* p, bool still)
@@ -925,6 +1223,11 @@ void stickRunStart(int r)
     t.runTop = 0.f;
     t.runLow = 1e9f;
     t.runAskedLow = 1e9f;
+    t.drawnSteps = 0;
+    t.drawnSum = t.drawnSquares = 0.0;
+    t.drawnLeast = 1e9f;
+    t.drawnMost = 0.f;
+    t.drawnSkip = stickDrawnSkip;
     t.stick = stickRunPush(r, 0);
     if(edict_t* p = stickPlayer())
     {
@@ -949,14 +1252,11 @@ void stickRun_f()
     StickTest& t = stickTest;
     Cvar_SetValueQuick(&cl_alwaysrun, 1.f);
     const int argc = Cmd_Argc();
-    if(argc == 2 || argc >= 5)
-    {
-        Cvar_SetValueQuick(&vr_deadzone_outer, static_cast<float>(atof(Cmd_Argv(argc == 2 ? 1 : 4))));
-    }
-    else
-    {
-        Cvar_SetQuick(&vr_deadzone_outer, vr_deadzone_outer.default_string);
-    }
+    // (x y z first, or none: outer, snap and hold after them.)
+    const int settings = argc >= 4 ? 4 : 1;
+    Cvar_SetQuick(&vr_deadzone_outer, argc > settings ? Cmd_Argv(settings) : vr_deadzone_outer.default_string);
+    Cvar_SetQuick(&vr_move_snap, argc > settings + 1 ? Cmd_Argv(settings + 1) : vr_move_snap.default_string);
+    Cvar_SetQuick(&vr_move_hold, argc > settings + 2 ? Cmd_Argv(settings + 2) : vr_move_hold.default_string);
     t.start = argc >= 4 ? glm::vec3{static_cast<float>(atof(Cmd_Argv(1))), static_cast<float>(atof(Cmd_Argv(2))),
                                     static_cast<float>(atof(Cmd_Argv(3)))}
                         : glm::vec3{p->v.origin[0], p->v.origin[1], p->v.origin[2]};
@@ -964,7 +1264,8 @@ void stickRun_f()
     {
         p->v.movetype = static_cast<float>(MOVETYPE_WALK);
     }
-    Con_Printf("stick run: vr_deadzone_outer %g, from %.0f %.0f %.0f\n", vr_deadzone_outer.value, t.start.x, t.start.y,
+    Con_Printf("stick run: vr_deadzone_outer %g, vr_move_snap %g, vr_move_hold %g, vr_display_clock %g, from %.0f %.0f %.0f\n",
+               vr_deadzone_outer.value, vr_move_snap.value, vr_move_hold.value, vr_display_clock.value, t.start.x, t.start.y,
                t.start.z);
     t.active = true;
     stickRunStart(0);
@@ -976,6 +1277,16 @@ void stickRunTick()
 {
     StickTest& t = stickTest;
     edict_t* p = stickPlayer();
+    if(t.run == stickLineRun)
+    {
+        stickLineTick(p);
+        return;
+    }
+    if(t.run == stickRunCount)
+    {
+        stickSweepTick(p);
+        return;
+    }
     const float speed = stickPlayerSpeed();
     ++t.runFrames;
     t.stick = stickRunPush(t.run, t.runFrames);
@@ -984,8 +1295,25 @@ void stickRunTick()
     if(dx * dx + dy * dy > stickRunRoom * stickRunRoom)
     {
         stickRunPlace(p, false);
+        t.drawnSkip = stickDrawnSkip;
     }
-    static constexpr const char* names[stickRunCount] = {"full push, still", "a thumb held hard forward, slipping"};
+    // The step the client draws this frame (the camera's, against the world).
+    const glm::vec3 drawn{cl_entities[cl.viewentity].origin[0], cl_entities[cl.viewentity].origin[1], cl_entities[cl.viewentity].origin[2]};
+    if(t.drawnSkip > 0)
+    {
+        --t.drawnSkip;
+    }
+    else if(t.runReachedAt >= 0)
+    {
+        const float step = glm::length(drawn - t.drawnLast);
+        ++t.drawnSteps;
+        t.drawnSum += step;
+        t.drawnSquares += static_cast<double>(step) * step;
+        t.drawnLeast = za::min(t.drawnLeast, step);
+        t.drawnMost = za::max(t.drawnMost, step);
+    }
+    t.drawnLast = drawn;
+    static constexpr const char* names[stickRunCount] = {"full push, still", "a thumb held hard forward, slipping", "his thumb as recorded"};
     char what[200];
     if(t.runReachedAt < 0)
     {
@@ -1024,13 +1352,22 @@ void stickRunTick()
         q_snprintf(what, sizeof(what), "run %d (%s): dipped %.2f%% (%.1f under %.1f), at most %.0f%%", t.run,
                    names[t.run], 100.f * dip, t.runLow, t.runTop, 100.f * stickRunDip);
         stickCheck(dip <= stickRunDip, what);
+        if(t.run == 0 && t.drawnSteps > 0)
+        {
+            const double mean = t.drawnSum / t.drawnSteps;
+            const double spread = za::sqrt(za::max(0.0, t.drawnSquares / t.drawnSteps - mean * mean)) / za::max(mean, 1e-6);
+            Con_Printf("stick run: run 0: drawn steps %d, mean %.3f units, %.3f..%.3f, rms %.2f%% of the mean\n", t.drawnSteps,
+                       mean, t.drawnLeast, t.drawnMost, 100.0 * spread);
+            q_snprintf(what, sizeof(what), "run 0: the drawn steps spread %.2f%%, at most %.0f%%", 100.0 * spread, 100.f * stickDrawnEven);
+            stickCheck(spread <= stickDrawnEven, what);
+        }
     }
-    if(t.run + 1 >= stickRunCount)
+    stickRunStart(t.run + 1); // (run stickRunCount: the sweep)
+    if(t.run == stickRunCount)
     {
-        stickTestFinish();
-        return;
+        t.runFrames = 0;
+        t.sweepCase = 0;
     }
-    stickRunStart(t.run + 1);
 }
 
 // Each frame (update): a case's speed settled (held still over stickSettleSpan frames, at least 48 frames in), its line
@@ -1123,8 +1460,16 @@ void stickDebug(glm::vec2 raw)
         return;
     }
     stickDebugFrames = 0;
-    Con_Printf("stick: push %.2f -> %.3f, asked %.0f (top %.0f walk, %.0f run), moved %.0f\n", glm::length(raw),
-               glm::length(moveAxes), lastStickSpeed, moveTopSpeed(false), moveTopSpeed(true), stickPlayerSpeed());
+    const edict_t* p = stickPlayer();
+    const float speed = stickPlayerSpeed();
+    const float heading = p && speed > 1.f
+                              ? geom::yawDelta(hands::current().headAngles.y,
+                                               glm::degrees(za::atan2(p->v.velocity[1], p->v.velocity[0])))
+                              : 0.f;
+    Con_Printf("stick: push %.2f at %.1f deg -> %.3f, asked %.0f (top %.0f walk, %.0f run), moved %.0f, heading %.1f deg "
+               "off the head's\n",
+               glm::length(raw), glm::degrees(za::atan2(raw.x, raw.y)), glm::length(moveAxes), lastStickSpeed,
+               moveTopSpeed(false), moveTopSpeed(true), speed, heading);
 }
 
 } // namespace
@@ -1144,6 +1489,7 @@ void init()
     Cmd_AddCommand("vr_bindings_check", guardBindings); // what vr_startgame runs (tests)
     Cmd_AddCommand("vr_stick_curve_test", stickTest_f);
     Cmd_AddCommand("vr_stick_run_test", stickRun_f);
+    Cmd_AddCommand("vr_stick_line_test", stickLine_f);
 }
 
 // 1.0.1 (ROUND22.md "Controls as if another controller": a player's left trigger jumped, his grips grabbed nothing, A
@@ -1245,6 +1591,12 @@ void buttonChanged(const InputState& in, int h, const ButtonKeys& b, bool now)
     if(posing::button(h, posingButton(b.button), now))
     {
         logButton(h, b, now, b.key[h], "the weapon posing mode");
+        return;
+    }
+    // The Arena Wave Editor: a trigger while it's open is its click (vr_waveeditor.cpp).
+    if(waveeditor::button(h, posingButton(b.button), now))
+    {
+        logButton(h, b, now, b.key[h], "the wave editor");
         return;
     }
     // The Survival Arena's perk cards: a trigger with its laser on their panel picks (vr_arenacards.cpp).
@@ -1385,6 +1737,16 @@ void routeSticks(const InputState& in, const HandInput& off, const HandInput& ma
         stickKey(stickKeys[3], stick.x, true);
         moveAxes = glm::vec2{0.f};
     }
+    else if(waveeditor::shown())
+    {
+        // The Arena Wave Editor open: the sticks are its wheel (no walking, no turning).
+        for(StickKey& k : stickKeys)
+        {
+            stickKey(k, 0.f, false);
+        }
+        moveAxes = glm::vec2{0.f};
+        (void)waveeditor::sticks(in.hands[HAND_OFF].stick, in.hands[HAND_MAIN].stick);
+    }
     else if(poselive::sticksTaken())
     {
         // The Pose Studio's Live mode paused: either stick left or right scrubs its tape (no walking, no turning).
@@ -1454,7 +1816,9 @@ void routeSticks(const InputState& in, const HandInput& off, const HandInput& ma
         stickKey(stickKeys[3], 0.f, false);
         // (vr_stick_curve_test drives the moving stick while it runs.)
         const glm::vec2 moving = stickTest.active ? stickTest.stick : off.stick;
-        moveAxes = vr_move_legacy.value != 0.f ? glm::vec2{deadzone(moving.x), deadzone(moving.y)} : moveStick(moving);
+        moveAxes = vr_move_legacy.value != 0.f
+                       ? glm::vec2{deadzone(moving.x), deadzone(moving.y)}
+                       : moveHold(moveStick(moving), CLAMP(0.f, static_cast<float>(host_frametime), 0.1f));
         stickDebug(off.stick);
         if(active)
         {

@@ -414,38 +414,72 @@ void armedGripsDragMode()
 }
 
 // Combat > Armed Grunts > Worn Backpacks (QC vr_wornpack.qc; vr_box3d_wornpack.cpp; ROUND23.md, "Worn backpacks"):
-// armed grunts always wear theirs; the page tunes them.
+// armed ones with a ranged weapon wear theirs (VR_WP_Spawn's rule); the page tunes them, its fit per kind.
 [[nodiscard]] za::Vector<Item> pageArmedPacks()
 {
     return {
-        header("Worn Backpacks"),
-        row(opt::vr_worn_backpack_pull),
+        header("Lifting by the Pack"),
         row(opt::vr_worn_backpack_lift_force),
-        header("Tearing Off"),
-        row(opt::vr_worn_backpack_rip_force),
+        row(opt::vr_worn_backpack_two_hand_mult),
+        header("Coming Off"),
         row(opt::vr_worn_backpack_pool),
         row(opt::vr_worn_backpack_pool_blast),
         row(opt::vr_worn_backpack_pool_fire),
         row(opt::vr_worn_backpack_hit_roll),
         row(opt::vr_worn_backpack_hit_ref),
-        header("Tearing It Off a Living One"),
-        row(opt::vr_worn_backpack_tug_stretch),
-        row(opt::vr_worn_backpack_tug_time),
-        row(opt::vr_worn_backpack_two_hand_mult),
-        row(opt::vr_worn_backpack_topple),
-        row(opt::vr_worn_backpack_topple_push),
         row(opt::vr_worn_backpack_impact),
         row(opt::vr_worn_backpack_reserve),
         row(opt::vr_worn_backpack_volume),
         header("Fit"),
-        row(opt::vr_worn_backpack_scale),
-        row(opt::vr_worn_backpack_x),
-        row(opt::vr_worn_backpack_y),
-        row(opt::vr_worn_backpack_z),
-        row(opt::vr_worn_backpack_pitch),
-        row(opt::vr_worn_backpack_yaw),
-        row(opt::vr_worn_backpack_roll),
+        open("Grunts", pageIndex(pageArmedPackGrunt)).help("Where the pack sits on a grunt's back; changes show at once."),
+        open("Knights", pageIndex(pageArmedPackKnight)).help("Where the pack sits on a knight's back; changes show at once."),
+        open("Death Knights", pageIndex(pageArmedPackDKnight)).help("Where the pack sits on a death knight's back; changes show at once."),
         row(opt::vr_worn_backpack_mass),
+    };
+}
+
+// Worn Backpacks > Grunts (agarmor::packRest reads them each frame).
+[[nodiscard]] za::Vector<Item> pageArmedPackGrunt()
+{
+    return {
+        header("Grunts: Pack Fit"),
+        row(opt::vr_worn_backpack_grunt_x),
+        row(opt::vr_worn_backpack_grunt_y),
+        row(opt::vr_worn_backpack_grunt_z),
+        row(opt::vr_worn_backpack_grunt_scale),
+        row(opt::vr_worn_backpack_grunt_pitch),
+        row(opt::vr_worn_backpack_grunt_yaw),
+        row(opt::vr_worn_backpack_grunt_roll),
+    };
+}
+
+// Worn Backpacks > Knights (agarmor::packRest reads them each frame).
+[[nodiscard]] za::Vector<Item> pageArmedPackKnight()
+{
+    return {
+        header("Knights: Pack Fit"),
+        row(opt::vr_worn_backpack_knight_x),
+        row(opt::vr_worn_backpack_knight_y),
+        row(opt::vr_worn_backpack_knight_z),
+        row(opt::vr_worn_backpack_knight_scale),
+        row(opt::vr_worn_backpack_knight_pitch),
+        row(opt::vr_worn_backpack_knight_yaw),
+        row(opt::vr_worn_backpack_knight_roll),
+    };
+}
+
+// Worn Backpacks > Death Knights (agarmor::packRest reads them each frame).
+[[nodiscard]] za::Vector<Item> pageArmedPackDKnight()
+{
+    return {
+        header("Death Knights: Pack Fit"),
+        row(opt::vr_worn_backpack_dknight_x),
+        row(opt::vr_worn_backpack_dknight_y),
+        row(opt::vr_worn_backpack_dknight_z),
+        row(opt::vr_worn_backpack_dknight_scale),
+        row(opt::vr_worn_backpack_dknight_pitch),
+        row(opt::vr_worn_backpack_dknight_yaw),
+        row(opt::vr_worn_backpack_dknight_roll),
     };
 }
 
@@ -461,7 +495,7 @@ void armedGripsDragMode()
         row(opt::vr_agrunt_repl),
         row(opt::vr_agknight),
         row(opt::vr_agdknight),
-        row(opt::vr_agdknight_spell_share),
+        row(opt::vr_agdknight_cast_cooldown),
         row(opt::vr_agknight_ranged_pickup),
         header("Weapon Variety (on top)"),
         chance("Common: Shotgun, Nail Pistol", vr_agrunt_repl_common,
@@ -653,7 +687,6 @@ void ikStretchReset()
         row(opt::vr_agrunt_aim_converge),
         row(opt::vr_agrunt_aim_exposed),
         header("Friends and Blasts"),
-        row(opt::vr_agrunt_friendly_care),
         row(opt::vr_agrunt_blast_safe),
         header("Weapons Lying About"),
         row(opt::vr_agrunt_rearm),
@@ -750,7 +783,7 @@ void ikStretchReset()
             .help("Armed grunts wearing breakable armour (a cuirass, a helmet, pauldrons, bracers, thigh and shin "
                   "plates): how it absorbs, helmets and headshots, cuts, and how often they wear it at each skill."),
         open("Worn Backpacks", pageIndex(pageArmedPacks))
-            .help("Experimental: armed grunts wearing their backpack, ragdolls too, torn off by pulls, landings and hits."),
+            .help("Armed ones with a ranged weapon wear a backpack: lifted by it, knocked off by hits and landings; its fit for each kind."),
         open("Weapon Holds", pageIndex(pageArmedHolds))
             .help("Per weapon, for grunts and for enforcers: held in one hand or two (Auto: the axe and the enforcer's "
                   "pistols in one hand, the rest as built in)."),
@@ -951,7 +984,6 @@ void ikStretchReset()
         row(opt::vr_gunsfx_layers),
         row(opt::vr_gunsfx_tail),
         row(opt::vr_gunsfx_vary),
-        row(opt::vr_gunsfx_casings),
         row(opt::vr_gunsfx_impacts),
         row(opt::vr_gunsfx_dryfire),
         row(opt::vr_gunsfx_action),
@@ -991,8 +1023,6 @@ void ikStretchReset()
 {
     return {
         header("Hit Detection"),
-        row(opt::vr_hit_precise),
-        row(opt::vr_hit_drawn_pose),
         row(opt::vr_hit_tolerance_melee),
         row(opt::vr_hit_head_priority),
         header("Damage"),
@@ -1051,25 +1081,8 @@ void ikStretchReset()
             .help("An armed humanoid's sword, axe or club swung at you is parried only by your weapon held across its "
                   "blade's way where they meet: an overhead strike by a weapon held level across, a side swing by one "
                   "held upright. Parried: no damage, sparks where the weapons met, its swing stopped. Its leniencies "
-                  "below. Off: the level-across parry for every blow."),
-        slider("Angle: Full Marks Within", vr_dirparry_angle, 0.f, 85.f, 1.f, "%.0f deg").extend(0.f, 89.f)
-            .help("Your weapon this far off the ideal (square to its blade and to its way) still gets the angle's full "
-                  "marks. More: more lenient. The score is the angle's marks times the contact's."),
-        slider("Angle: No Marks At", vr_dirparry_angle_zero, 10.f, 90.f, 1.f, "%.0f deg")
-            .help("This far off the ideal the angle's marks reach none, falling evenly from full at Full Marks Within "
-                  "(90: none only along its blade or its way). Less: stricter. Kept above Full Marks Within."),
-        slider("Contact Distance", vr_dirparry_contact, 0.5f, 20.f, 0.5f, "%.1f units").extend(0.5f, 60.f)
-            .help("Its blade's line and your weapon's this near (units; 1 is about 2.5 cm) meet: the contact's full "
-                  "marks, and a parry before its blow needs this. More: more lenient."),
-        slider("Contact Falloff", vr_dirparry_falloff, 1.f, 5.f, 0.25f, "%.2fx").extend(1.f, 10.f)
-            .help("The contact's marks fall from full at Contact Distance to none at this times it (2: none at twice "
-                  "it). 1: none past the contact distance."),
-        slider("Score to Parry", vr_dirparry_threshold, 0.f, 1.f, 0.05f, "%.2f")
-            .help("The score (the angle's marks times the contact's, 0 to 1) that parries. Less: more lenient. Under it "
-                  "the blow lands."),
-        slider("Parry Window", vr_dirparry_window, 0.f, 0.4f, 0.01f, "%.2f s").extend(0.f, 1.f)
-            .help("At its blow its blade's way is followed on this long: your weapon in it then, where the blade would "
-                  "meet it in the swing's rest, still parries. More: more lenient (slowed by Enemy Melee Speed)."),
+                  "are tuning constants (Debug > Tunables > Combat > Directional Parry). Off: the level-across parry "
+                  "for every blow."),
         toggle("Show Directional Parry", vr_dirparry_debug)
             .help("Debug view: each swing's reading drawn where the weapons meet: its blade (white; faint where it was "
                   "and where it goes in the window), its way (yellow arrow), your weapon's parry line and the ideal "

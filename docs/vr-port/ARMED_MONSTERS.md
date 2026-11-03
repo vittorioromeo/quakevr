@@ -6,9 +6,13 @@ nothing of the monster that holds the weapon: what it needs is the monster's **r
 Rows now: the grunt (`monster_vr_grunt`, row 0), the enforcer (`monster_vr_enforcer`, row 1) and the knight
 (`monster_vr_knight`, row 2: every weapon class, a sword by default; guns lying about taken up only with
 `vr_agknight_ranged_pickup` 1 (`vr_am_takes_ranged`, `VR_AM_Takes`); the grunt's shipped pose keys, fitted (C++
-`agpose` `shippedFrom`); a map's knights with `vr_agknight` 1, QC
-`VR_AKN_Replace`; ROUND23.md, "Knights as armed humanoids"). `VR_AM_GUN_KINDS` (2): the kinds the gun holders' loops
-mean (pose categories, replacements); the toolgun lists the knight only with `vr_agknight` on.
+`agpose` `shippedFrom`); a map's knights and death knights (`monster_vr_hknight`, row 3) are these rows by default:
+`vr_agknight` 1, `vr_agdknight` 1 (since 2026-11-03), QC `VR_AKN_Replace`, in the grunts' scope `VR_AGR_InScope`, not
+statues, a trigger's copies, MG3's infected or AD's variants; a sword alone, so no pack; `ROUND23.md`, "Knights as armed
+humanoids", "Armed knights by default"). Their ranged pickups stay off for those: a gun comes only from a spawn's
+weapon (the toolgun, the Rig Studio, a wave, a map's "weapon"), and one spawned holding a ranged weapon takes ranged
+weapons up whatever the setting says (`.vr_ag_born_ranged`, set in `VR_AM_Spawn`, read by `VR_AM_Takes`). `VR_AM_GUN_KINDS` (2): the kinds the gun holders' loops mean (pose categories,
+replacements); the toolgun lists the knights while their settings are on.
 
 ## Where things are
 
@@ -126,8 +130,10 @@ fall. Test: `vr_agrunt_test 40`; eyeshots `vr_agrunt_test 14` with `scratch4 1` 
   force at once; wounds weaken the grip by `vr_agrunt_tug_hurt_ease` (no pain halving). Won: it stumbles
   `vr_agrunt_tug_won_stumble` s.
 - Falls (`vr_agrunt_fall_keep`): a gentle one keeps the weapon on the ragdoll's hand (`VR_AG_FallViolent`: the impact
-  rule, `VR_AG_FallImpact`: it lets go only as its body meets the ground at `vr_agrunt_fall_keep_impact` m/s or harder;
-  the older height, speed and fling rules were retired 2026-11-02); down, a grab takes it at once and a blow over
+  rule, `VR_AG_FallImpact`: it lets go only as its body, having kept up `vr_agrunt_fall_impact_speed` for
+  `vr_agrunt_fall_impact_time`, loses `vr_agrunt_fall_keep_impact` m/s within `vr_agrunt_fall_impact_window` on a floor or
+  wall it flew into, held by your hands too; contact is the ragdoll strikes' own, `VR_RagImpact_Hit`; test
+  `vr_agrunt_test 202`; the older height, speed and fling rules were retired 2026-11-02); down, a grab takes it at once and a blow over
   `VR_AG_DOWN_SWING` knocks it away.
 - Pickups: the row's `vr_am_f_take`, `vr_am_n_take` (down to the lowest frame, held there while the hand closes, back
   up: `vr_ag_takestep`); while it bends the hand reaches down with the bend and the weapon is sent as none (the client

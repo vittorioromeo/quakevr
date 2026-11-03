@@ -22,6 +22,7 @@
 #include "vr_cvars.hpp"
 #include "vr_mem.hpp"
 #include "vr_physics.hpp"
+#include "vr_footsteps.hpp"
 #include "vr_physsound.hpp"
 #include "vr_server.hpp"
 #include "vr_walltorch.hpp"
@@ -363,6 +364,12 @@ extern "C" void VR_OnProgsLoaded()
     Bindings b;
 
     b.isVrProgs = ED_FindFieldOffset("handpos") >= 0;
+    if(b.isVrProgs && !qcvm->progs32)
+    {
+        // Ours compiles to the 32-bit format (QC/defs.qc's fte32 pragma; check_progs_format.py fails the build
+        // otherwise): a 16-bit one came from a stock FTEQCC, and stops compiling at 65,536 globals.
+        Con_Warning("progs.dat is the 16-bit format: compile the QC with Tools/fteqcc (its fte32 flag)\n");
+    }
     if(b.isVrProgs)
     {
 #define QVR_FIELD(name) b.fields.name = ED_FindFieldOffset(#name);
@@ -543,6 +550,7 @@ extern "C" void VR_OnSpawnServerBeforeLoad()
     VR_EdictIndex_Reset(); // (the edicts cleared)
     qvr::physics::precacheWaterSounds();
     qvr::physsound::precache(); // the props' knocks and scrapes, the climbing grab
+    qvr::footsteps::precache(); // the enemies' footsteps
     qvr::climb::precache();     // the mantle's grunts
     // The training dummy's attacks (parry practice; QC vr_dummy.qc) are off at every map load, a saved game's too.
     Cvar_SetQuick(&qvr::vr_dummy_attacks, "0");

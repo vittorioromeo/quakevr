@@ -34,7 +34,7 @@ void touchNearby(edict_t* ent, const glm::vec3& from, const glm::vec3& to)
     store(to, end);
     const int throwhit = fields().throwhit;
     const bool thrown = throwhit >= 0 && fieldFloat(ent, throwhit) == 0.f;
-    // Precise hits (vr_hit_precise, vr_hitmodel.cpp): a monster is met at its model as drawn, grown by the hit box's
+    // Precise hits (vr_hitmodel.cpp): a monster is met at its model as drawn, grown by the hit box's
     // half-size and the thrown tolerance, not at its box.
     const int precise = MOVE_HITMODEL | (static_cast<int>(hitmodel::Class::Thrown) << MOVE_HITMODEL_CLASS_SHIFT);
     const trace_t tr = SV_Move(start, mins, maxs, end, (thrown ? (MOVE_NORMAL | MOVE_HITGIBS) : MOVE_NORMAL) | precise, ent);
@@ -836,11 +836,7 @@ void noteRagImpacts(const b3ContactEvents& events)
 {
     const float least = za::max(vr_ragimpact_min_speed.value, 0.5f);
     const float leastHeld = za::max(vr_ragimpact_held_speed.value, 0.25f);
-    if(vr_ragimpact.value == 0.f)
-    {
-        return;
-    }
-    noteDragSwings();
+    noteDragSwings(); // (vr_ragimpact off too: the QC's own check; armed humanoids' impact rule still reads the contact)
     const auto kindAt = [](int n) { return n > 0 && n < static_cast<int>(world->slots.size()) ? world->slots[n].kind : Kind::None; };
     for(int i = 0; i < events.hitCount; i++)
     {

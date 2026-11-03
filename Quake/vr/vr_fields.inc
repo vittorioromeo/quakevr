@@ -238,6 +238,7 @@ QVR_FIELD(vr_ar_type) // an armed humanoid's armour (vr_agarmor.qc): 0 none, 1 g
 QVR_FIELD(vr_ar_mask) // its armour pieces still on (bits: vr_agarmor.hpp's Piece)
 QVR_FIELD(vr_xray) // one of a Survival Arena wave's last foes (QC vr_arena.qc VR_ARENA_XrayMark): sent past the PVS, outlined through walls (vr_arenaxray.cpp)
 QVR_FIELD(vr_wp_state) // a worn backpack's (QC vr_wornpack.qc): 1 on a living one, 2 on a dead one, 3 off; worn (1, 2) it keeps its angles (U_QVR_NOROTATE: no EF_ROTATE spin)
+QVR_FIELD(vr_wp_size) // a worn backpack's (QC vr_wornpack.qc): its size as drawn (its kind's vr_worn_backpack_<kind>_scale)
 QVR_FIELD(vr_wp_worn) // a monster's worn backpack (QC vr_wornpack.qc): 1 on its back (its ragdoll made with the pack on its chest: vr_box3d_wornpack.cpp), else 0
 QVR_FIELD(vr_ar_wear) // its pieces' damage marks (bits 0-9 at two thirds of their pool or under, 10-19 at a third or under; sent with the rest)
 QVR_FIELD(attack_finished) // slow motion with the player in its own time (vr_timescale.cpp: vr_sandevistan, vr_timescale_move_realtime): its timers set in its frame run in its time
@@ -310,7 +311,6 @@ QVR_FIELD(vr_rs_aim)
 QVR_FIELD(vr_rs_aimon)
 QVR_FIELD(vr_rs_times)
 QVR_FIELD(vr_rs_trec)
-QVR_FIELD(vr_rs_keys)
 QVR_FIELD(stl_state)
 QVR_FIELD(stl_phase)
 QVR_FIELD(stl_meter)

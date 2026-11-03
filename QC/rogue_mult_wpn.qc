@@ -397,7 +397,7 @@ void(vector p1, vector p2, entity from, float damage) PlasmaDamage =
 
     // (The discharge's credit is `from`'s, the bolt's: its plasma gun's, VR_ShotLaunched; vr_dmgcredit.qc.)
 
-    traceline(p1, p2, MOVE_HITMODEL, self); // VR: monsters' models (vr_hit_precise)
+    traceline(p1, p2, MOVE_HITMODEL, self); // VR: monsters' models (precise hits)
     if(trace_ent.takedamage)
     {
         SpawnBloodSplash (trace_endpos, damage*5);

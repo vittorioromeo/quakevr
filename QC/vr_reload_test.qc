@@ -1046,11 +1046,174 @@ void() VR_Reload_TestMagForceGrab =
     VR_Test_Verdict();
 };
 
+// Test step 44 (Misc/quakevr/pouchcatch_test.sh): a magazine out of the main hand's nailgun, the hand 14 units above
+// the pouch's rounds (real physics; the cases in turn): 0 with rounds: it goes in, the reserve the fuller; 1 empty: it falls
+// past; 2 with rounds, vr_reload_pouch_catch 0: it falls past; 3 with rounds, the reserve full: it falls past, no complaint;
+// 4 with rounds, 40 units to the side: it falls past; 5 with rounds, taken by a hand on the way: it stays in the hand.
+// Ends with `pouchcatch: N passed, M failed`; a case's give-up (3 s) is a FAIL.
+float vr_rt_pc_case;
+float vr_rt_pc_before;
+float vr_rt_pc_at;
+float vr_rt_pc_near;  // how near the pouch's rounds it came, and how fast it fell
+float vr_rt_pc_vz;
+float vr_rt_pc_settle;
+float vr_rt_pc_from;  // how far from the pouch it came out
+entity vr_rt_pc_mag;
+entity vr_rt_pc_watch;
+
+void() VR_Reload_TestPouchCatchNext;
+
+// The watcher's think, every frame: the case's end.
+void() VR_Reload_TestPouchCatchWatch =
+{
+    entity p = self.owner;
+    if(vr_rt_pc_settle > 0)
+    {
+        vr_rt_pc_settle--;
+        if(vr_rt_pc_settle == 0)
+        {
+            entity w = self;
+            self = p;
+            VR_Reload_TestPouchCatchEject();
+            self = w;
+        }
+        self.nextthink = time;
+        return;
+    }
+    entity r = vr_rt_pc_mag;
+    float c = vr_rt_pc_case;
+    float gone = !r.modelindex; // (removed)
+    float past = !gone && (r.origin_z < p.ammopouchpos_z - 12 || (r.flags & FL_ONGROUND));
+    float late = time > vr_rt_pc_at + 3;
+    if(c == 5)
+    {
+        past = FALSE;
+        late = time > vr_rt_pc_at + 0.2; // (held: a counted moment for the frames to see the hand has it)
+    }
+    if(!gone)
+    {
+        vr_rt_pc_near = min(vr_rt_pc_near, VR_Reload_PouchDist(p, r.origin));
+        vr_rt_pc_vz = min(vr_rt_pc_vz, r.velocity_z);
+    }
+    if(!gone && !past && !late)
+    {
+        self.nextthink = time;
+        return;
+    }
+    float now = p.ammo_nails;
+    if(c == 0)
+    {
+        VR_Reload_Check(gone && now == vr_rt_pc_before + 24, sprintf("with rounds: into the pouch (gone %g), reserve %g -> %g; "
+            "out %.1f from it, came within %.1f, fell at %.0f", gone, vr_rt_pc_before, now, vr_rt_pc_from, vr_rt_pc_near, vr_rt_pc_vz));
+    }
+    else if(c == 1)
+    {
+        VR_Reload_Check(past && now == vr_rt_pc_before, sprintf("empty: falls past (past %g), reserve %g -> %g", past, vr_rt_pc_before, now));
+    }
+    else if(c == 2)
+    {
+        VR_Reload_Check(past && now == vr_rt_pc_before, sprintf("option off: falls past (past %g), reserve %g -> %g", past, vr_rt_pc_before, now));
+        cvar_set("vr_reload_pouch_catch", "1");
+    }
+    else if(c == 3)
+    {
+        VR_Reload_Check(past && now == vr_rt_pc_before, sprintf("reserve full: falls past (past %g), reserve %g -> %g", past, vr_rt_pc_before, now));
+    }
+    else if(c == 4)
+    {
+        VR_Reload_Check(past && now == vr_rt_pc_before, sprintf("40 units aside: falls past (past %g), reserve %g -> %g", past, vr_rt_pc_before, now));
+    }
+    else
+    {
+        // (Let go of at once where the mock's off hand has no grip: it is a magazine a hand has had, as any other.)
+        VR_Reload_Check(!gone && r.vr_ammo_ejected_by == world, sprintf("taken by a hand: no longer falling in (gone %g)", gone));
+        if(!gone && VR_Carry_Held(p, cVR_OffHand) == r)
+        {
+            VR_Hand_Release(p, cVR_OffHand, "test");
+        }
+    }
+    if(!gone)
+    {
+        VR_Carry_Forget(r);
+        remove(r);
+    }
+    vr_rt_pc_case = c + 1;
+    entity os = self;
+    self = p;
+    VR_Reload_TestPouchCatchNext();
+    self = os;
+    if(vr_rt_pc_watch != world)
+    {
+        vr_rt_pc_watch.nextthink = time;
+    }
+};
+
+void() VR_Reload_TestPouchCatchNext =
+{
+    float c = vr_rt_pc_case;
+    if(c > 5)
+    {
+        remove(vr_rt_pc_watch);
+        vr_rt_pc_watch = world;
+        VR_Test_Verdict();
+        return;
+    }
+    VR_WeaponUtil_EntAddWeapon(self, WID_NAILGUN);
+    VRGiveEntWeapon(self, cVR_MainHand, WID_NAILGUN, 0, c == 1 ? 0 : 24);
+    self.ammo_nails = c == 3 ? VR_MaxAmmo(self, WeaponIdToAmmoId(WID_NAILGUN, 0)) : 50;
+    VR_Reload_AmmoChanged(self);
+    if(c == 2)
+    {
+        cvar_set("vr_reload_pouch_catch", "0");
+    }
+    vr_rt_pc_before = self.ammo_nails;
+    vector above = self.ammopouchpos + self.ammopouchz + '0 0 14';
+    if(c == 4)
+    {
+        above = above + normalize(self.ammopouchy) * 40;
+    }
+    localcmd(sprintf("vr_mock_hand_to main %g %g %g\n", above_x, above_y, above_z));
+    vr_rt_pc_mag = world;
+    vr_rt_pc_settle = 12; // (frames for the mock hand to be there)
+};
+
+// The hand over the pouch: the magazine out of the gun as B/Y lets it (self the player).
+void() VR_Reload_TestPouchCatchEject =
+{
+    vr_rt_pc_at = time;
+    vr_rt_pc_near = 999999;
+    vr_rt_pc_vz = 0;
+    entity r = VR_Reload_Eject(self, cVR_MainHand, '0 0 -1', -1, "test");
+    vr_rt_pc_mag = r;
+    vr_rt_pc_from = vlen(r.origin - self.ammopouchpos);
+    if(vr_rt_pc_case == 5)
+    {
+        VRGiveEntWeapon(self, cVR_OffHand, WID_FIST, 0, 0);
+        VR_Carry_Start(self, cVR_OffHand, r);
+    }
+};
+
+void() VR_Reload_TestPouchCatch =
+{
+    VR_Test_BeginFlags("pouchcatch", VR_TEST_LOUD);
+    VR_Reload_Check(self.ammopouchz != '0 0 0', "the pouch is reported");
+    vr_rt_pc_case = 0;
+    vr_rt_pc_watch = spawn();
+    vr_rt_pc_watch.owner = self;
+    vr_rt_pc_watch.think = VR_Reload_TestPouchCatchWatch;
+    vr_rt_pc_watch.nextthink = time;
+    VR_Reload_TestPouchCatchNext();
+};
+
 void() VR_Reload_Test =
 {
     float step = cvar_hget(cvarh_vr_reload_test);
     entity r = VR_Carry_Held(self, cVR_MainHand);
-    if(step == 1)
+    if(step == 44)
+    {
+        VR_Reload_TestPouchCatch();
+    }
+    else if(step == 1)
     {
         if(r != world || !VRIsHandEmpty(self, cVR_MainHand))
         {

@@ -167,6 +167,7 @@ vector(entity e) forcegrabpoint = #0;
 void(float hand, float kind, float count, float delay, float flags) ejectcasings = #0;
 float QVR_CASING_SHOTGUNSHELL = 0;
 float QVR_CASING_SLUG = 1; // the heavy revolver's: the blue slug shell (vr_shell.mdl's skin 1)
+float QVR_CASING_PUSHED = 2; // (flags) thrown out by the hand's push: on with the port's velocity x vr_revolver_eject_impulse
 float QVR_EJECT_FLICK = 1; // a flick reload: flung by the spinning weapon
 // Weapon effects (engine vr_weaponfx.cpp): `shooter` fired the weapon in its `hand` (-1: a monster's gun): its drawn
 // weapon kicks and its muzzle flashes, as that weapon's settings say (Weapon Offsets > Effects); a grunt's gun flashes
@@ -210,12 +211,26 @@ float(entity player, float hand) weaponanygrip = #0;
 // held weapon, vr_armedgrunt.qc weaponmuzzle). what 24: the Weapon Holds (the engine's vr_agholds.inc), `hand` an armed
 // humanoid's kind * 1000 + its weapon's code (vr_armedgrunt_pose.qc VR_AGH_Code): '<hands 1 or 2; 0 no row> <its
 // setting: 0 Auto, 1 One-Handed, 2 Two-Handed> 0'.
+// The Survival Arena's preset (vr_arenawaves.cpp): arenawavesload: the preset chosen for this map and `skill` (or the
+// editor's Play) made the running one: its waves (0: none, Default). arenawavesfield: what it holds, as text: (wave, entry,
+// field) an entry's (vr_arena.qc AR_F_*); (wave, -1, 0) a wave's entries, (wave, -1, 1) its alive pool; (-1, -1, 0) what
+// comes after the last wave (AR_AFTER_*); (-2, 0, 0) "1" when this map has a preset assigned for any skill.
+// arenawavesreport: a line for the console and the editor.
+float(float skill) arenawavesload = #0;
+string(float wave, float entry, float field) arenawavesfield = #0;
+void(string s) arenawavesreport = #0;
 vector(entity player, float hand, float what) weapondrawnpose = #0;
 // The armed humanoids' lookups in one call each (PERF_1102.md, "Follow-up"), their results in these globals as
 // traceline's in trace_*. agposekey: pose key `code` (VR_AGK_Add; weapondrawnpose(world, code, 11..18, 25, 26) at once):
 // '1 0 0' and its parts in vr_agk_k_* (the right target's place and turn, the left's, the elbows' poles, the torso's turn,
 // the off hand's grip place and turn on the gun), or '0 0 0' (none: the globals left).
 vector(float code) agposekey = #0;
+// A strike's keys and their times (agent/posekeys; the engine's agpose::actBlend, keyTime). agstrikeblend: strike
+// `code`'s keys (its kind, class and pose) either side of `s` seconds into its act (`times` its wind-up, strike and hold,
+// `trec` its recovery: VR_AGP_Times): '<phase a> <phase b> <b's share>', -1 the stance. agkeytime: when key `code` is
+// whole in that act (s).
+vector(float code, float s, vector times, float trec) agstrikeblend = #0;
+float(float code, vector times, float trec) agkeytime = #0;
 vector vr_agk_k_rp;
 vector vr_agk_k_rr;
 vector vr_agk_k_lp;
@@ -498,11 +513,11 @@ vector(entity e) modelcentre = #0; // the middle of the drawn model (turned with
 // (a unit vector) whose cosine is mincos (a little wider: test each again), or within a unit of org.
 entity(vector org, float rad, vector dir, float mincos) findcone = #0;
 void(vector v1, vector mins, vector maxs, vector v2, float nomonsters, entity forent) tracebox = #0; // traceline with a box
-// Precise hit detection (engine vr_hitmodel.cpp; the option vr_hit_precise): shots, missiles, the grappling hook, melee
+// Precise hit detection (engine vr_hitmodel.cpp): shots, missiles, the grappling hook, melee
 // blows and thrown things meet a monster's (or a corpse's) model as drawn, grown by their class's tolerance
 // (vr_hit_tolerance_*), not Quake's box round it. Added to a traceline's "nomonsters" (FALSE, MOVE_HITGIBS): monsters are
-// met at their models, the class in the two bits above (a missile's move has it from .vr_hitclass). With the option off,
-// ignored: the boxes, as before.
+// met at their models, the class in the two bits above (a missile's move has it from .vr_hitclass). A monster
+// without a model to go by (no Quake .mdl): its box.
 float MOVE_HITMODEL = 512;          // a gun's shot (vr_hit_tolerance_guns)
 float MOVE_HITMODEL_GRAPPLE = 1536; // the grappling hook's (MOVE_HITMODEL + 1 * 1024)
 float MOVE_HITMODEL_MELEE = 2560;   // a melee blow's (+ 2 * 1024)
@@ -581,6 +596,7 @@ float(entity t) torchflametouch = #0;
 // parts selects eligible contacts (15 hands/arms, 48 torso/legs/head, 63 all).
 // A negative radius only requests tracked body shapes for the next frame (returns 0).
 float(entity p, vector a, vector b, float radius, float parts) mapflametouch = #0;
+float(entity p) playerstepsilent = #0; // QVR: the old footsteps' trigger: this player's step is the drawn feet's now, or just was (vr_playersteps.cpp)
 
 float(string s) cvar_hmake = #0;
 float(float h) cvar_hget = #0;

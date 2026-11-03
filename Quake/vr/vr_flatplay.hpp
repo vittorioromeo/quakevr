@@ -27,11 +27,12 @@ namespace qvr::flatplay
 // The one console line for that implication (vr_main.cpp asks before it starts a backend).
 void noteBackendImplied();
 
-// VR_Init: reads the flag, registers vr_flatplay_status, +flatcrouch / -flatcrouch.
+// VR_Init: reads the flag, registers vr_flatplay_status, vr_flat_punch, +flatcrouch / -flatcrouch.
 void init();
 
-// VR_BeginFrame, before the hands are posed: the keys (E, V, Left Ctrl, F, G), the cvars the mode stands in for
-// (reloading off, the flashlight worn with F switching it, body interactions on), vr_flatplay itself.
+// VR_BeginFrame, before the hands are posed: the keys (E, V, Left Ctrl, F, G) and each hand's fire button (the game's
+// own fire state: with a weapon a swing strikes with it, that button starts that hand's punch), the cvars the mode
+// stands in for (reloading off, the flashlight worn with F switching it, body interactions on), vr_flatplay itself.
 void frame();
 
 // The crouch Left Ctrl / +flatcrouch holds, eased 0 standing .. 1 crouched, and how far it puts his head down (units):
@@ -40,13 +41,15 @@ void frame();
 [[nodiscard]] float crouchRatio();
 [[nodiscard]] float crouchDrop();
 
-// vr_hands.cpp's flat-screen branch: where each hand goes and how it is turned, in world space. The straight
-// out-in-front pose stands when the mode is off.
+// vr_hands.cpp's flat-screen branch: where each hand goes and how it is turned, in world space: the hands placed in the
+// view's frame held to vr_flat_pose_pitch, each hand's punch a swing of that arm about its shoulder (punchSwing). The
+// straight out-in-front pose stands when the mode is off.
 void poseHands(hands::State& s, const glm::vec3& aim);
 
 // The drawn hand's looks (vr_view.cpp VR_SetupViewEntities, as a shake: the game's hands and the shots don't move): kept
 // on the drawn view (its bob, roll and kick), with the step's sway (vr_flat_sway), the walk's bob (vr_flat_bob) and the
-// turn's lag (vr_flat_turnlag, vr_flat_turnlag_speed). Zero outside the mode.
+// turn's lag (vr_flat_turnlag, vr_flat_turnlag_speed), and held within vr_flat_arm_hold of the shoulder the arm hangs
+// from so the hand stays on its arm. Zero outside the mode.
 void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles);
 
 // Tests (vr_flatplay_debug 2): the drawn weapon in the camera's frame, a line a frame.
@@ -57,5 +60,10 @@ void printMove(const hands::State& s);
 
 // vr_flatplay_status: what the mode is, and its pose.
 void status_f();
+
+// vr_flat_punch [main|off]: a hand's punch from the console, for the tests (V is a key and cannot be driven from a
+// script; the fire buttons can, through +attack and +offhandattack). Only while the mode runs, and only with a weapon a
+// swing strikes with.
+void punch_f();
 
 } // namespace qvr::flatplay

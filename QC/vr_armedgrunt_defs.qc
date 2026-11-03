@@ -30,6 +30,9 @@
 .entity vr_ag_prop2;
 .float vr_ag_reserve2;
 .float vr_ag_left;         // a held weapon's prop: in its left hand
+.float vr_ag_ff_until;     // any monster: stepping aside (a friend in its line of fire) until then (VR_AI_FriendCare; VR_AG_Run, ai_run)
+.float vr_ag_ff_since;     // ... held for friends since then (0: its line clear)
+.float vr_ag_ff_last;      // ... the last time it held
 .vector vr_ag_was_o1;      // ... its place and turn a frame before (VR_AG_PropWas: the grab's sweep, the engine's handOn,
 .vector vr_ag_was_a1;      //     vr_agrunt_grab_sweep: the drawn weapon lags the server's),
 .vector vr_ag_was_o2;      // ... two frames before
@@ -164,6 +167,7 @@ float(entity g, string why) VR_AG_TugDisarm; // VR_AG_Disarm in a tug: into the 
 // Gameplay (vr_armedgrunt_play.qc: disarming, falls, reach), called from vr_armedgrunt.qc.
 float(entity g, entity p) VR_AG_TugFrame;
 float(entity g) VR_AG_FallDrop;
+void(entity m, float xSpeed) VR_AG_FallLanded; // VR_Monster_Fall: a landing that hurt it lets go of its weapon
 void(entity g, entity pl, float h) VR_AG_GrabBy;
 void(entity p, entity pl, float h) VR_AG_HandGrab; // (vr_armedgrunt.qc: a hand grabbing its weapon, refused when busy)
 float(entity g) VR_AG_DisarmDamage;
@@ -205,7 +209,9 @@ float(entity g) VR_AGR_NativeAlone;                                        // it
 float(float r) VR_AGR_NativeChance;                                        // VR_AG_CheckAttack: its monster's chance at range r
 void() VR_AGR_NativeFinished;                                              // ... and its pause after
 void() VR_AGR_NativeAttack;                                                // VR_AG_Missile: its monster's attack frames
+float(entity g, float d) VR_AGR_AxeNear;
 void(float d) VR_AGR_GunAxe;                                               // VR_AG_CheckAttack: the gun or the axe now
+.float vr_ag_born_ranged; // it spawned holding a ranged weapon (VR_AM_Spawn): takes ranged weapons up whatever its row says (VR_AM_Takes)
 .string vr_agr_mdl;        // a held weapon's model while its holder waits unseen (MG_deferred: VR_AG_PropThink)
 .float vr_agk_live; // run live by the Pose Studio (its real loops where it stands: vr_armedgrunt_pose.qc VR_AGK_Live)
 // Held still (vr_agrunt_freeze: the Grip Editor, the Pose Studio; not the studio's Live subject): no AI, no tug, no blow.
@@ -232,15 +238,21 @@ void(entity e, float done, vector vel) VR_AgArmor_CutDone; // and after it: thos
 float(entity e, float joint) VR_AgArmor_Holds;            // VR_Limb_WearInto: a corpse's piece kept on by an unbroken plate
 void(entity h) VR_AgArmor_DebrisGrabbed;                  // VR_Carry_Start: a plate's debris taken, its fade put off
 
-// Worn backpacks (vr_wornpack.qc; ROUND23.md, "Worn backpacks"; armed grunts'): the fields and the hooks.
+#define VR_WP_RIP_SOUND_FILE "vr/pack_rip.wav"
+// Worn backpacks (vr_wornpack.qc; ROUND23.md, "Worn backpacks"; armed ones with a ranged weapon): the fields and the hooks.
 .float vr_wp_worn;    // a wearer's: 1 its pack on its back (the engine reads it: its ragdoll made with the pack on its chest)
 .entity vr_wp_pack;   // a wearer's pack (on it or torn off; world: none)
 .float vr_wp_had;     // a wearer's: it was given one (it drops no backpack as it dies)
 .float vr_wp_state;   // a pack's: 1 worn by the living, 2 worn by the dead (takeable), 3 off
 .entity vr_wp_wearer; // a pack's wearer
 .float vr_wp_peak;    // a pack's: the hardest pull on it so far (N; the tests)
+float(entity e) VR_WP_Packless;                                          // VR_AG_SoldierDrop, SoldierDrop: left without a pack by the rule: no backpack
+void(entity e) VR_WP_Refit;                                              // VR_AGR_Resolve: its loadout changed unseen
+float(entity e) VR_WP_CarriesRanged;
 void(entity e) VR_WP_Spawn;                                              // VR_AM_Spawn: an armed grunt's pack put on
 void(entity targ, entity inflictor, entity attacker, float take) VR_WP_Hit; // T_Damage: a hit on the pack may tear it off
+void(entity m, float xSpeed, vector xInto) VR_AG_FallTouch;                // VR_RagImpact_Hit: its body met the level (VR_AG_FallImpact)
+#define VR_AG_FALL_RING 4                                                  // velocities the impact rule keeps (VR_AG_FallImpact)
 void(entity m, vector xAt, float xSpeed) VR_WP_Impact;                    // VR_RagImpact_Hit: a hard landing tears it off
 void(entity e) VR_WP_Taken;                                              // VR_Carry_Start, VR_Forcegrab_Launch: a dead one's pack taken
 float(entity m, entity pl, float hand) VR_WP_HandOnPack;                  // VR_Ragdoll_Handtouch: the hand on a dead one's pack takes the pack

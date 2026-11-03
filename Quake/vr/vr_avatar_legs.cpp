@@ -82,13 +82,15 @@ namespace
 
 // Walking: a gait cycle driven by the player's own movement (the stick, not the room). The feet
 // take turns: one on the ground going back under the body, the other swinging forward, lifted,
-// along the direction of travel. The cadence follows the speed over the stride (so the planted
-// foot keeps up with the ground), but only up to a natural rate (vr_body_step_rate steps per
-// second at full running speed, somewhat fewer walking; at speed a person's cadence there,
-// vr_body_step_run): Quake moves far faster than anyone walks, and legs spinning to keep up
-// with a stride as short as the legs' look silly. Strides lengthen and the feet lift higher with
-// speed, less so sideways and backwards; the whole of it eases in and out as the player starts
-// and stops, and the feet tuck up in the air. The legs' IK does the knees.
+// along the direction of travel. The cadence: vr_body_step_rate steps a second at a full run,
+// fewer below it as a person's cadence falls with the speed (vr_body_step_run: 1 a person's, 0
+// nearly even); never more than the speed over the stride (the planted foot would run ahead of the
+// ground). Quake moves far faster than anyone walks, and legs spinning to keep up with a stride as
+// short as the legs' look silly, so the planted foot slides at speed: less with a longer stride
+// (vr_body_stride). Strides lengthen and the feet lift higher with speed, less so sideways and
+// backwards; the feet walk vr_body_step_width further apart than the hips; the whole of it eases in
+// and out as the player starts and stops, and the feet tuck up in the air. The legs' IK does the
+// knees.
 
 } // namespace
 
@@ -118,7 +120,12 @@ namespace
 
 // Full running speed (Quake's 320 units per second), in metres per second of the body at
 // vr_world_scale 1.
-constexpr float RUN_SPEED = 320.f / UNITS;
+constexpr float RUN_UNITS = 320.f;
+constexpr float RUN_SPEED = RUN_UNITS / UNITS;
+
+// A person's cadence falling with the speed is only followed down to this share of the even rate: very slowly, a step
+// every second or so looks stuck.
+constexpr float SLOWEST_STEPS = 0.45f;
 
 // In water (found at the body on the client: what the player sees). Wading, on the bottom in water
 // above the knees, the walk gets heavier (vr_body_wade): shorter strides, the knees lifted higher
@@ -223,7 +230,9 @@ namespace
         along = -0.5f + s * s * (3.f - 2.f * s);
         lift = za::sin(glm::pi<float>() * s);
     }
-    return (gait.dir * (along * gait.stride * gait.amount) + UP * (lift * gait.lift * gait.amount + 0.18f * gait.air)) *
+    const float apart = (side == 0 ? 1.f : -1.f) * CLAMP(-0.08f, vr_body_step_width.value, 0.25f) * gait.amount;
+    return (gait.dir * (along * gait.stride * gait.amount) + b.left * apart +
+               UP * (lift * gait.lift * gait.amount + 0.18f * gait.air)) *
            b.m2w;
 }
 
@@ -250,16 +259,18 @@ void updateGait(const Body& b, float dt)
         // Wading: shorter, higher steps, fewer of them.
         const float wade = water.wade * CLAMP(0.f, vr_body_wade.value, 2.f);
         gait.stride = CLAMP(0.45f, 0.45f + speed * 0.06f, 0.8f) * (1.f - 0.45f * sideways) * (1.f - 0.2f * backwards) *
-                      za::max(0.3f, 1.f - 0.2f * wade);
+                      za::max(0.3f, 1.f - 0.2f * wade) * CLAMP(0.3f, vr_body_stride.value, 2.f);
         gait.lift = 0.07f + 0.07f * run + 0.1f * wade;
 
-        // Steps per second: as many as it takes to cover the ground, up to the cap. At speed the cap rises to a person's
-        // cadence there (the footprints' steps: a run's 5-6 a second), as far as vr_body_step_run says (0: the cap
-        // alone, the legs stepping half as often as the prints at a run); the planted foot slides less, not more.
-        const float cap =
-            CLAMP(0.5f, vr_body_step_rate.value, 6.f) * (0.7f + 0.3f * run) * za::max(0.3f, 1.f - 0.3f * wade);
-        const float person = speed / personStep(speed) * za::max(0.3f, 1.f - 0.3f * wade);
-        const float rate = za::min(speed / gait.stride, za::max(cap, CLAMP(0.f, vr_body_step_run.value, 1.5f) * person));
+        // Steps per second: vr_body_step_rate at a full run, whatever the world's or the body's scale. Below it a share of
+        // that: even (70% at the slowest) or a person's cadence (the footprints' steps) over a person's at a full run,
+        // as far as vr_body_step_run says. Never more than it takes to cover the ground.
+        const float fullRun = RUN_UNITS / b.m2w;
+        const float even = 0.7f + 0.3f * za::min(1.f, speed / fullRun);
+        const float person = (speed / personStep(speed)) / (fullRun / personStep(fullRun));
+        const float share = glm::mix(even, za::max(person, SLOWEST_STEPS * even), CLAMP(0.f, vr_body_step_run.value, 1.f));
+        const float rate = za::min(speed / gait.stride,
+            CLAMP(0.5f, vr_body_step_rate.value, 10.f) * share * za::max(0.3f, 1.f - 0.3f * wade));
         const float before = gait.phase;
         gait.phase = za::fmod(gait.phase + rate * dt * glm::pi<float>(), glm::two_pi<float>());
         // A foot's swing ends (its cycle wraps: the left's at the phase's wrap, the right's at half of it): a touchdown.
@@ -599,5 +610,18 @@ void solveLeg(Body& b, const glm::vec3& stand, int side, bool shown, glm::mat3& 
 }
 
 } // namespace detail
+
+WalkState walkState()
+{
+    WalkState w;
+    w.onFeet = gait.air < 0.5f && water.swim < 0.5f && climbing.weight < 0.5f;
+    w.walking = gait.amount > 0.5f;
+    const float u = za::fmod(gait.phase / glm::two_pi<float>(), 1.f);
+    w.planted[0] = u < 0.5f;
+    w.planted[1] = u >= 0.5f;
+    w.stride = gait.stride;
+    w.dir = gait.dir;
+    return w;
+}
 
 } // namespace qvr::avatar

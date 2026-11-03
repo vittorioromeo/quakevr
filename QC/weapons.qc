@@ -395,7 +395,7 @@ float PositionalRegion(entity xTarget, vector xEndpos, vector xDirection) =
         return VR_REGION_NONE;
     }
 
-    // Precise hits (vr_hit_precise): the shot struck the model as drawn (at xEndpos, within its tolerance of it). Where
+    // Precise hits: the shot struck the model as drawn (at xEndpos, within its tolerance of it). Where
     // that place is on the model standing (hitmodel_rest: the same place of the same triangle in its stand frame, at its
     // origin, turned with its yaw) decides: in the head sphere (and VR_HEAD_MARGIN: the sphere is fitted to the head's
     // middle), and the struck triangle's part (hitmodel_part: its rig's bones; with none known, far out from its middle,
@@ -2223,7 +2223,7 @@ void(float shotcount, vector dir, vector spread, vector src, float xRange, float
         vr_fire_dev_sum = vr_fire_dev_sum + atan2(vlen(direction - dir * (direction * dir)), direction * dir) * 57.29578;
         vr_fire_dev_n = vr_fire_dev_n + 1;
 
-        traceline(src, src + direction*xRange, MOVE_HITGIBS | MOVE_HITMODEL | MOVE_PORTALS, self); // VR: gibs and heads too (vr_gib_destroy), monsters' models (vr_hit_precise), on through teleporters (vr_portals.cpp),
+        traceline(src, src + direction*xRange, MOVE_HITGIBS | MOVE_HITMODEL | MOVE_PORTALS, self); // VR: gibs and heads too (vr_gib_destroy), monsters' models (precise hits), on through teleporters (vr_portals.cpp),
         if(xStartHits && trace_startsolid && trace_ent != world && trace_ent.takedamage)
         {
             trace_fraction = 0; // started inside it: hit there
@@ -2657,7 +2657,7 @@ void(vector p1, vector p2, entity from, float damage) LightningDamage =
     e1 = e2 = world;
 
     // (The bolt's credit is `from`'s: a player's by his lightning gun, W_FireLightning; vr_dmgcredit.qc.)
-    traceline(p1, p2, MOVE_HITGIBS | MOVE_HITMODEL | vr_lightning_hitpass, self); // VR: gibs and heads too (vr_gib_destroy), monsters' models (vr_hit_precise),
+    traceline(p1, p2, MOVE_HITGIBS | MOVE_HITMODEL | vr_lightning_hitpass, self); // VR: gibs and heads too (vr_gib_destroy), monsters' models (precise hits),
     // VR: the prop the beam hits or goes through, pushed (a player's bolt: 30; a shambler's by its damage).
     VR_ShotPush(trace_ent, p1, trace_endpos, p2 - p1, QVR_SHOTPUSH_LIGHTNING, damage / 30);
     VR_Gib_TraceHeld(p1, p2);              // and one held in the other hand

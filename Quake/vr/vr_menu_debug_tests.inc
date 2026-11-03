@@ -340,13 +340,15 @@ za::Vector<Item> pageDebugTests()
         row(opt::vr_lootbeam_debug),
         header("Stick Locomotion"),
         row(opt::vr_debug_stick),
+        row(opt::vr_display_clock),
         command("Stick: Curve Table", "vr_stick_curve_test table")
             .help("vr_stick_curve_test table: the stick's push against speed, straight and on the 1.6 curve, walking "
                   "and running, and the response's checks, on the console (the full test also drives the stick)."),
         command("Stick: Run Steadiness", "vr_stick_run_test")
-            .help("vr_stick_run_test: two 10 s runs from where you stand (put back every 96 units, flat floor "
-                  "needed): the stick fully forward, then a thumb slipping 0.82..1.0; each must keep its full speed "
-                  "within 2%. Results on the console."),
+            .help("vr_stick_run_test: three 10 s runs from where you stand (put back every 96 units, flat floor "
+                  "needed): the stick fully forward, a thumb slipping 0.82..1.0, his thumb as recorded 0.61..0.91; each "
+                  "must keep its full speed within 2%, and the steps drawn be even; then pushes at 16 angles, the heading "
+                  "within 0.5 degrees. Results on the console."),
         header("Doom"),
         command("Doom: Info", "vr_doom_info")
             .help("vr_doom_info: Doom's state (level, health, ammo, place), its focus, the screen's distance and angle "
@@ -519,21 +521,30 @@ za::Vector<Item> pageDebugTests()
         row(opt::vr_test_spawn_tilt),
         adSpawnRow(static_cast<int>(vr_test_spawn.value), command("Put It There", "impulse 241").help("Puts the Thing ahead of you.")) , // AD support
         command("Armour on Armed Grunts", "developer 1; vr_agarmor_test 1"),
+        command("Death Knight's Gun and Casts", "vr_agtune_test 3")
+            .help("vr_agtune_test 3 (vrtesthall): an armed death knight with a shotgun hunts you for two minutes of game "
+                  "time: his casts against his gun's attacks at Gun Cast Cooldown, printed at the end."),
         command("Armed Humanoid Tuning", "vr_agtune_test 1")
             .help("vr_agtune_test 1 (vrtesthall): the Plasma Gun's fire interval as yours, the super shotgun's reload "
                   "(vr_agrunt_reload_ssg), the Movement / Backpedal / Strafe Speed sliders, a slowed swing's weapon "
                   "steady with its parry dropped, an armed death knight's full fireball sweep. vr_agtune_test 2 on a "
                   "loaded map: its armed humanoids' armour share by the skill."),
         command("Worn Backpacks", "developer 1; vr_wornpack_test 1")
-            .help("Armed grunts ahead wearing packs: hits, knockdowns, landings, a pull by the pack, deaths (vr_wornpack_test "
-                  "1; ends on \"wornpack: N passed, M failed\")."),
+            .help("Armed grunts ahead, packs on those with guns, none on a sword's or fists': shots, blows, knockdowns, "
+                  "landings, deaths (vr_wornpack_test 1; 11 knights, 21 death knights; ends on \"wornpack: N passed, M failed\")."),
         command("Grunts Wearing Packs There", "vr_wornpack_test 2")
-            .help("Three armed grunts ahead wearing packs (Worn Backpacks on): back on, side on and knocked down "
-                  "(vr_wornpack_test 2)."),
+            .help("Three armed grunts ahead wearing packs: back on, side on and knocked down (vr_wornpack_test 2)."),
+        command("Knights Wearing Packs There", "vr_wornpack_test 12")
+            .help("Three knights with guns ahead wearing packs: back on, side on and knocked down (vr_wornpack_test 12)."),
+        command("Death Knights Wearing Packs There", "vr_wornpack_test 22")
+            .help("Three death knights with guns ahead wearing packs: back on, side on and knocked down (vr_wornpack_test 22)."),
         command("Worn Backpacks: Pulling Lifts", "developer 1; vr_wornpack_test 3")
-            .help("Pulling the Pack: Lifts Its Wearer: a grunt held by its pack lifted by a strong pull (not a gentle one), "
-                  "carried and thrown with the pack on its chest; a knocked-down one dragged, then lifted; hits and the "
-                  "force grab still tear packs off (vr_wornpack_test 3; ends on \"wornpull: N passed, M failed\")."),
+            .help("A grunt held by its pack lifted by a strong pull (not a gentle one), carried and thrown with the pack on "
+                  "its chest; a knocked-down one dragged, then lifted; hits and the force grab still take packs off "
+                  "(vr_wornpack_test 3; 13 knights, 23 death knights, 33 enforcers; ends on \"wornpull: N passed, M failed\")."),
+        command("Enforcer's Lift Zone", "developer 1; vr_wornpack_test 5")
+            .help("An enforcer has a lift zone on the pack in its model, whatever it holds; nothing takes "
+                  "it off; its own loot drops (vr_wornpack_test 5; ends on \"wornpack: N passed, M failed\")."),
         command("Armoured Enforcers There", "vr_agarmor_test 3")
             .help("Three armed enforcers ahead in full green, yellow and red armour (vr_agarmor_test 3)."),
         command("Armour Damage Marks There", "vr_agarmor_test 4")
@@ -544,6 +555,10 @@ za::Vector<Item> pageDebugTests()
             .help("An armed grunt and an armed enforcer close ahead in full yellow armour, facing you, standing still "
                   "(vr_agarmor_test 6): the helmets' fit up close. vr_agarmor_headcam 1-4 (the mock headset) puts the "
                   "eyes on their heads: front, side, three-quarter, behind."),
+        command("Helmets Alone There: Knight and Death Knight", "vr_agarmor_test 14")
+            .help("A knight and a death knight close ahead in yellow helmets and nothing else (vr_agarmor_test 14): the "
+                  "fit from every side. vr_agarmor_headcam <1 front | 2 side | 3 three-quarter | 4 behind> 18 1 (the mock "
+                  "headset) puts the screenshot's eye on the death knight."),
         command("Helmets There: Knight and Death Knight", "vr_agarmor_test 8")
             .help("An armed knight and an armed death knight close ahead in full yellow armour, facing you "
                   "(vr_agarmor_test 8): the helmets' fit up close. vr_agarmor_headcam <1-4> 26 1 (the mock headset) puts "
@@ -589,6 +604,10 @@ za::Vector<Item> pageDebugTests()
                   "asleep); standing up, or holding the small crate up, it should (Crates Hide You)."),
         command("Can the Grunt See You?", "impulse 224")
             .help("impulse 224: whether Crate Cover's grunt sees you now, how high your head is, and whether it woke."),
+        command("Enemy Footsteps Walkabout", "vr_footstep_test 1")
+            .help("vr_footstep_test 1 (load a map with room first; reload it to stop): each biped in turn walks, then runs, "
+                  "ahead of you: listen for the steps on its feet, softer walking. The console's report at the end "
+                  "(vr_footstep_report). vr_footstep_test 2: 32 grunts hunting you, for the nearest-win budget."),
         command("Crouch Shots", "developer 1; vr_crouch_test 12")
             .help("vr_crouch_test 12: a grunt put ahead of you fires 12 bullets at you as it aims them, then goes: whether "
                   "you are crouched (Player Hitbox > Crouching), your eyes' height, the aim's height over your feet and "
@@ -1211,6 +1230,7 @@ za::Vector<Item> pageDebugTests()
         command("Hitbox Stats", "vr_hull_stats").help("Prints the map's rebuilt brushes and compiled hull: counts, memory, build times."),
         row(opt::vr_hull_keep),
         row(opt::vr_hull_cache),
+        row(opt::vr_model_light_grid_cache),
         row(opt::vr_hull_async),
         header("Teleporters: Crossing One (the start map; developer 1: VR portal: ...)"),
         command("The Gates In This Map", "vr_portals_info")

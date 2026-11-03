@@ -88,26 +88,13 @@ void() OgreGrenadeTouch =
 OgreFireGrenade
 ================
 */
-void() OgreFireGrenade =
+// QVR: its throw: `missile`'s velocity (OgreFireGrenade's; the friends on its way: vr_ogre_friends.qc).
+void(entity missile) OgreGrenadeAim =
 {
-    if(!VR_AI_ShotReady(self.origin)) { return; }
-    entity missile;
-
     // HONEY
     vector trajectory;
-    float dist, vol, speeeed, zmul;
+    float speeeed, zmul;
     vector nozdistancedelta;
-
-    self.effects = self.effects | EF_MUZZLEFLASH;
-
-    sound(self, CHAN_WEAPON, "weapons/grenade.wav", 1, ATTN_NORM);
-
-    missile = spawn();
-    missile.owner = self;
-    VR_AI_Tag(missile);
-    missile.movetype = MOVETYPE_BOUNCE;
-    missile.solid = SOLID_BBOX;
-    missile.classname = "ogre_grenade";
 
     // HONEY
     trajectory = VR_AI_Origin(self.enemy) - self.origin;
@@ -144,10 +131,39 @@ void() OgreFireGrenade =
         missile.velocity = missile.velocity * speeeed;   //give it more power
 
         missile.velocity_z = missile.velocity_z + vlen(nozdistancedelta)*zmul; //add extra height for extra distance
+    }
+    else
+    {
+        missile.velocity = missile.velocity * AD_MonsterSpeed(600, AD_PROJ_OGRE); // AD support: AD's speed for the skill by the Projectile Rules (vr_ad_bridge.qc)
+        missile.velocity_z = 200;
+        VR_Lob_Aim(missile, self.origin); // QVR: at the enemy's height (vr_ogre_aim_height)
+        missile.velocity = MG3_OgreBurstVelocity(missile.velocity); // QVR: Dawn of the Machine's Bloody Nightmare burst
+    }
 
-        //Manually attenuate the sound based on distance to player. This is not good for coop :/
-        dist = vlen(trajectory);
-        vol = 1 - (dist / 2048);
+    missile.velocity = VR_AimCone_Bend(missile.velocity, VR_AIM_WIDE); // QVR: bent to its facing's aim cone (vr_aimcone.qc)
+};
+
+void() OgreFireGrenade =
+{
+    if(!VR_AI_ShotReady(self.origin)) { return; }
+    entity missile;
+
+    self.effects = self.effects | EF_MUZZLEFLASH;
+
+    sound(self, CHAN_WEAPON, "weapons/grenade.wav", 1, ATTN_NORM);
+
+    missile = spawn();
+    missile.owner = self;
+    VR_AI_Tag(missile);
+    missile.movetype = MOVETYPE_BOUNCE;
+    missile.solid = SOLID_BBOX;
+    missile.classname = "ogre_grenade";
+
+    OgreGrenadeAim(missile);
+    if(VR_IsHoneyMarksman(self))
+    {
+        // HONEY: Manually attenuate the sound based on distance to player. This is not good for coop :/
+        float vol = 1 - (vlen(VR_AI_Origin(self.enemy) - self.origin) / 2048);
         if(vol > 0 && vol <= 1)
         {
             sound(self, CHAN_ITEM, "weapons/grenade.wav", vol, ATTN_NONE);
@@ -156,14 +172,9 @@ void() OgreFireGrenade =
     else
     {
         sound(self, CHAN_WEAPON, "weapons/grenade.wav", 1, ATTN_NORM);
-        missile.velocity = missile.velocity * AD_MonsterSpeed(600, AD_PROJ_OGRE); // AD support: AD's speed for the skill by the Projectile Rules (vr_ad_bridge.qc)
-        missile.velocity_z = 200;
-        VR_Lob_Aim(missile, self.origin); // QVR: at the enemy's height (vr_ogre_aim_height)
-        missile.velocity = MG3_OgreBurstVelocity(missile.velocity); // QVR: Dawn of the Machine's Bloody Nightmare burst
     }
 
     missile.avelocity = '300 300 300';
-    missile.velocity = VR_AimCone_Bend(missile.velocity, VR_AIM_WIDE); // QVR: bent to its facing's aim cone (vr_aimcone.qc)
     missile.angles = vectoangles(missile.velocity);
 
     // set missile duration
@@ -341,6 +352,7 @@ void() ogre_nail4    =[    $shoot3,        ogre_nail5    ]
     if(VR_AimCone_Wait(ogre_nail4, VR_AIM_WIDE)) return; // QVR: far off its facing it waits, turning (vr_aimcone.qc)
 
     ai_face();
+    if(VR_Ogre_FriendHold()) return; // QVR: a friend on its shot's way: holds, sidesteps (vr_ogre_friends.qc)
     if(self.vr_mg3_mon) // QVR: MG3's rocket ogre: a volley of rockets (vr_mg3_ogre.qc), aiming again for the next
     {
         if(MG3_RocketOgre_Shoot()) { self.think = ogre_nail2; }

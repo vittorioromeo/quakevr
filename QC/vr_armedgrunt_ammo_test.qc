@@ -302,6 +302,15 @@ void() VR_AGAM_Frame =
         vr_agam_until = time;
         return;
     }
+    if(g && g.health > 0 && g.classname == "monster_army" && time < vr_agam_until + 3)
+    {
+        // (An armoured one's plate can take the whole blow, health untouched: "plate's save 5000". Dealt again next frame
+        // until it dies, 3 s at most: this case is about its loot.)
+        VR_AGAM_Print(sprintf("%s still alive after the blow: health %g, takedamage %g, knockdown %g, armour type %g mask %g, plate's save %g",
+            vr_agam_name, g.health, g.takedamage, g.vr_knockdown, g.vr_ar_type, g.vr_ar_mask, vr_ar_last_save));
+        T_Damage(g, pl, pl, 5000);
+        return;
+    }
     entity b = VR_AGAM_Backpack();
     if(!b && time < vr_agam_until + 3)
     {
@@ -313,10 +322,12 @@ void() VR_AGAM_Frame =
     {
         same = (same && (VR_AmmoUtil_GetAmmoCountByAmmoId(b, k) == vr_agam_e[k]));
     }
+    float none = VR_WP_Packless(g); // (melee-only, its fists: no pack, no loot: vr_wornpack.qc)
+    same = none ? !b : same;
     // (Three sprintfs: a varargs builtin takes at most 8 parameters.)
     string got = b ? sprintf("backpack %g %g %g %g (+%g %g %g)", b.ammo_shells, b.ammo_nails, b.ammo_rockets,
         b.ammo_cells, b.ammo_lava_nails, b.ammo_multi_rockets, b.ammo_plasma) : "no backpack";
-    VR_AGAM_Check(strcat(sprintf("%s loot: %s, ", vr_agam_name, got), sprintf("expected %g %g %g %g (+%g %g %g):",
+    VR_AGAM_Check(strcat(sprintf("%s loot: %s, ", vr_agam_name, got), sprintf(none ? "expected none (%g %g %g %g +%g %g %g not dropped):" : "expected %g %g %g %g (+%g %g %g):",
         vr_agam_e[1], vr_agam_e[2], vr_agam_e[3], vr_agam_e[4], vr_agam_e[5], vr_agam_e[6], vr_agam_e[7])), same);
     VR_AGAM_Print("case end");
     vr_agam_i = vr_agam_i + 1;

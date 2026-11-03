@@ -7,6 +7,7 @@
 #include "vr_temporal.hpp"
 #include "vr_cheats.hpp"
 #include "vr_modelmetadata.hpp"
+#include "vr_ambient.hpp"
 #include "vr_audio.hpp"
 #include "vr_admelee.hpp"
 #include "vr_agarmor.hpp"
@@ -127,6 +128,7 @@
 #include "vr_rigdata.hpp"
 #include "vr_rigseq.hpp"
 #include "vr_rigstudio.hpp"
+#include "vr_waveeditor.hpp"
 #include "vr_gearlights.hpp"
 #include "vr_grasp.hpp"
 #include "vr_gripfit.hpp"
@@ -1937,6 +1939,7 @@ constexpr PrewarmStep prewarmSteps[] = {
     {"auto pump", autopump::prepare, false},
     {"AD crossbow", adcrossbow::prepare, false}, // AD support: its next bolt's sound
     {"Widowmaker", adweapons::prepare, false},   // AD support: its barrels' motor
+    {"model light grid", ambient::prepareGrid, false},
     {"explosion debris", explosiondebris::prepare, false},
     {"muzzle flash", weaponfx::prepare, false},
     {"wall torches", walltorch::prepare, false},
@@ -2100,6 +2103,7 @@ extern "C" void VR_Init()
     registerCvars();
     ragtool::init();  // -ragtool, vr_ragtool (vr_ragtool.cpp): before flatplay, whose mode the flag implies
     flatplay::init(); // -flatscreenmode (vr_flatplay.cpp): the flag the whole mode hangs on, read once here
+    waveeditor::init(); // vr_waveeditor, vr_arena_play (vr_waveeditor.cpp, vr_arenawaves.cpp)
     rigstudio::init(); // vr_rigstudio (vr_rigstudio.cpp), its data (vr_rigdata.cpp) and the game's side (vr_rigseq.cpp): their commands
     agarmor::init();   // the armed humanoids' armour shells (vr_agarmor.cpp): vr_agarmor_info, _check, _rebuild, _set
     VR_RegisterPackStatus();
@@ -2165,6 +2169,7 @@ extern "C" void VR_Init()
     Cmd_AddCommand("vr_mock_key", menuui::mockKey_f);
     Cmd_AddCommand("vr_bigfont", bigfont::report_f);
     fontstyle::init(); // Menu > Fonts (vr_fontstyle.cpp): its cvars rebuild the font as they change; vr_fontstyle_test
+    text3d::init();    // vr_fontstyle_live_test (vr_text3d.cpp)
     Cmd_AddCommand("vr_checklist", checklist::command_f);
     Cmd_AddCommand("vr_scenario", scenario::command_f);
     lightstyle::registerCommands();
@@ -2184,7 +2189,6 @@ extern "C" void VR_Init()
     closequarters::init();
     rangerhead::init();
     Cmd_AddCommand("vr_body_head_info", rangerhead::info_f);
-    mdldequant::init();
     posing::init();
     holstersetup::init();
     blade::init();
@@ -2324,6 +2328,7 @@ extern "C" void VR_StopDownloads()
 
 extern "C" void VR_Shutdown()
 {
+    waveeditor::shutdown();
     rigstudio::shutdown(); // (the studio closed: its settings put back; ImGui let go, the GL context still there)
     doom::shutdown(); // Doom's settings saved, qvr_doom.dll unloaded
     hull::finishLoads(); // (a map load's builds, if a quit came in the middle of one)
@@ -2354,6 +2359,25 @@ extern "C" void VR_Shutdown()
     jobs::shutdown(); // last: whatever the systems above left queued run, the workers joined
 }
 
+// vr_display_clock (VR_HostFrameTime): the display times' steps, and this frame's time on the wall clock (the diagnostics').
+namespace
+{
+constexpr double displayClockLongest = 0.25; // a longer step (a session paused, a stall): the wall clock's time instead
+struct DisplayClock
+{
+    double last{-1.0}; // the last frame's predicted display time, seconds (-1: none)
+    double step{0.0};  // the step to it from the one before (0: none)
+    double wall{0.0};
+};
+DisplayClock displayClock;
+
+void noteDisplayTime(double time)
+{
+    displayClock.step = time >= 0.0 && displayClock.last >= 0.0 ? time - displayClock.last : 0.0;
+    displayClock.last = time;
+}
+} // namespace
+
 extern "C" void VR_BeginFrame()
 {
     if(!state || cls.state == ca_dedicated)
@@ -2377,6 +2401,7 @@ extern "C" void VR_BeginFrame()
     profile::begin("xr wait", false); // the runtime's pacing (xrWaitFrame) and the tracking
     const bool began = !state->backend || state->backend->beginFrame(state->tracking, state->frame);
     profile::end();
+    noteDisplayTime(began && state->backend ? motion::displayTimeFor(state->tracking.displayTime) : -1.0);
     bench::poseSampled(); // (the latency's proxy: from here to the submit)
     QVR_PROFILE("vr frame setup"); // the rest: the recorder, the texts queued anew, the input
     if(!began)
@@ -2463,6 +2488,7 @@ extern "C" void VR_BeginFrame()
         flatplay::frame(); // -flatscreenmode: its keys, and the settings the mode stands in for (before the hands are posed)
         ragtool::clientFrame(); // -ragtool: the ragdoll tool started once the game is up (vr_ragtool.cpp)
         rigstudio::clientFrame(); // vr_rigstudio: its ImGui frame and windows (vr_rigstudio.cpp; nothing while closed)
+        waveeditor::clientFrame(); // vr_waveeditor: likewise (never both: it won't open with the studio's up)
     }
 
     // Update the hands now, before the move is built (it carries the aim in the view angles).
@@ -2471,13 +2497,14 @@ extern "C" void VR_BeginFrame()
         input::roomscaleJump(hands::current());
         toolgun::frame(hands::current()); // the toolgun's tools, with the hands of this frame
         arenacards::frame(hands::current()); // the Survival Arena's perk cards: the offer, the panel, the lasers
+        waveeditor::frame(hands::current()); // the Arena Wave Editor's panel and lasers, in a headset
         brushes::frame(); // the boxes made in the game: their slots written (vr_brushes.cpp)
     }
 }
 
 extern "C" int VR_RuntimeMenuPause()
 {
-    return runtimeMenuPaused() || holstersetup::pausesGame() ? 1 : 0; // (Holster Setup pauses it too)
+    return runtimeMenuPaused() || holstersetup::pausesGame() || waveeditor::holds() ? 1 : 0; // (Holster Setup and the wave editor pause it too)
 }
 
 extern "C" int VR_IsActive()
@@ -2830,7 +2857,20 @@ extern "C" void VR_HostFrameEnd()
 
 extern "C" double VR_HostFrameTime(double time)
 {
-    return qvr::motion::hostFrameTime(time);
+    using namespace qvr;
+    const double wall = motion::hostFrameTime(time);
+    displayClock.wall = wall;
+    // (The newest step known is the last frame's: this frame's display time comes with its xrWaitFrame, after this. They
+    // add up to the display's time all the same: a dropped frame's long step comes a frame late, nothing is lost.)
+    return vr_display_clock.value != 0.f && motion::displayClocked() && displayClock.step > 0.0 &&
+                   displayClock.step <= displayClockLongest
+               ? displayClock.step
+               : wall;
+}
+
+double qvr::motion::wallFrameTime()
+{
+    return displayClock.wall;
 }
 
 extern "C" int VR_ServerFrameOverride(double* frametime)

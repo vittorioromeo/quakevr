@@ -97,8 +97,8 @@ void zonesCheck_f()
 
 void stats_f()
 {
-    Con_Printf("precise hit detection: %s; tolerances: guns %.1f, grapple %.1f, melee %.1f, thrown %.1f\n",
-        enabled() ? "on" : "off", tolerance(Class::Guns), tolerance(Class::Grapple), tolerance(Class::Melee), tolerance(Class::Thrown));
+    Con_Printf("precise hit detection: tolerances: guns %.1f, grapple %.1f, melee %.1f, thrown %.1f\n",
+        tolerance(Class::Guns), tolerance(Class::Grapple), tolerance(Class::Melee), tolerance(Class::Thrown));
     Con_Printf("  %lld broad tests, %lld model tests: %lld hits (%lld started inside), %lld through the box\n", stats.clips,
         stats.narrow, stats.hits, stats.insides, stats.throughs);
     if(stats.narrow)
@@ -228,12 +228,6 @@ void bench_f()
     const bool newest = Cmd_Argc() > 3 && !strcmp(Cmd_Argv(3), "newest"); // only the monster spawned last
     qcvm_t* oldvm = nullptr;
     PR_PushQCVM(&sv.qcvm, &oldvm);
-    const bool wasOn = enabled();
-    const za::String preciseWas{vr_hit_precise.string};
-    if(!wasOn)
-    {
-        Cvar_SetQuick(&vr_hit_precise, "1");
-    }
     za::FastNonCryptoRng rng{1234u}; // the same rays every run
     const auto uni = [&rng] { return rng.getF(0.f, 1.f); };
     const float saveDebug = vr_debug_hits.value;
@@ -320,10 +314,6 @@ void bench_f()
         Con_Printf("  hits %016llx %s\n", static_cast<unsigned long long>(hitHash), name.cStr());
     }
     vr_debug_hits.value = saveDebug;
-    if(!wasOn)
-    {
-        Cvar_SetQuick(&vr_hit_precise, preciseWas.cStr());
-    }
     PR_PopQCVM(oldvm);
 }
 

@@ -116,12 +116,8 @@ struct Pending
 };
 Pending pending;
 
-// What was baked, for the saves (in its model's space); the newest last. While the layer is off (vr_permdecals 0) the
-// marks the live ring lets go of are kept too, not baked (from `unbakedFrom` on: baked once it is on, rebake; the atlas
-// keeps what was baked before, untouched while off).
+// What was baked, for the saves (in its model's space); the newest last.
 za::Vector<Stamp> stamps;
-constexpr za::SizeT noneUnbaked = ~za::SizeT{0};
-za::SizeT unbakedFrom = noneUnbaked;
 
 // Marks on brush models (doors, lifts) that show later (the gore's flying blood: vr_decals.cpp's delay), in their
 // model's space as they were laid: baked when they show (bakeDue), as the static world's live marks show then.
@@ -600,10 +596,6 @@ void keep(const Stamp& s)
     if(stamps.size() >= stampsMax)
     {
         stamps.erase(stamps.begin(), stamps.begin() + stampsMax / 8);
-        if(unbakedFrom != noneUnbaked)
-        {
-            unbakedFrom = unbakedFrom > stampsMax / 8 ? unbakedFrom - stampsMax / 8 : 0;
-        }
     }
     stamps.pushBack(s);
     counts.stamps++;
@@ -759,62 +751,9 @@ void main()
 
 bool on()
 {
-    return vr_permdecals.value != 0.f && vr_decals.value != 0.f && cl.worldmodel && laidOut();
+    return vr_decals.value != 0.f && cl.worldmodel && laidOut();
 }
 
-bool kept()
-{
-    return vr_permdecals.value == 0.f && vr_decals.value != 0.f && cl.worldmodel && laidOut();
-}
-
-void record(const Stamp& s)
-{
-    if(kept())
-    {
-        Stamp w = s;
-        w.model = 0;
-        unbakedFrom = za::min(unbakedFrom, stamps.size());
-        keep(w);
-    }
-}
-
-bool rebake()
-{
-    if(unbakedFrom == noneUnbaked || !on())
-    {
-        return false;
-    }
-    QVR_PROFILE("permanent decals baked again");
-    const za::SizeT first = za::min(unbakedFrom, stamps.size());
-    unbakedFrom = noneUnbaked;
-    if(atlas.layers == 0)
-    {
-        (void)ensureAtlas(); // (made: bakes them all)
-        return true;
-    }
-    for(za::SizeT i = first; i < stamps.size(); i++)
-    {
-        bakeStamp(stamps[i]);
-    }
-    return true;
-}
-
-void newestWorld(int max, za::Vector<Stamp>& out)
-{
-    out.clear();
-    za::SizeT first = stamps.size();
-    for(int n = 0; first > 0 && n < max;)
-    {
-        n += stamps[--first].model == 0;
-    }
-    for(za::SizeT i = first; i < stamps.size(); i++)
-    {
-        if(stamps[i].model == 0)
-        {
-            out.pushBack(stamps[i]);
-        }
-    }
-}
 
 int pendingPages()
 {
@@ -1206,7 +1145,6 @@ void clear()
 {
     stamps.clear();
     waiting.clear();
-    unbakedFrom = noneUnbaked;
     counts = Counts{};
     freeAllSlots(atlas.layers > 0 ? 1 : 0); // (a new map: the atlas one layer again, at the next flush)
 }
@@ -1220,7 +1158,7 @@ void info_f()
         laid += l.across != 0;
     }
     Con_Printf("permdecals: %s, %.2f units/texel; %d faces laid out, %d pages in the table\n",
-        vr_permdecals.value ? (on() ? "on" : "on (no map)") : "off", map.density,
+        on() ? "on" : "off (no map)", map.density,
         static_cast<int>(laid), static_cast<int>(map.table.size()));
     Con_Printf("permdecals: atlas %d^2 x %d layers (%.1f MB with mips; %d at most), %d of %d slots used, grown %lld times\n",
         atlas.size, atlas.layers, layerBytes(atlas.size) * atlas.layers / (1024.0 * 1024.0), layersMax(),
@@ -1238,9 +1176,8 @@ void info_f()
         Con_Printf("permdecals: %d marks on brush models waiting to show\n", static_cast<int>(waiting.size()));
     }
     Con_Printf("permdecals: %lld flushes drew %lld quads (%lld the most in one, %lld slots emptied the most in one), "
-               "%.1f KB of page table uploaded%s\n",
-        counts.flushes, counts.quads, counts.worstQuads, counts.worstClears, static_cast<double>(counts.tableBytes) / 1024.0,
-        unbakedFrom != noneUnbaked ? "; some kept while off, to bake once on" : "");
+               "%.1f KB of page table uploaded\n",
+        counts.flushes, counts.quads, counts.worstQuads, counts.worstClears, static_cast<double>(counts.tableBytes) / 1024.0);
     Con_Printf("permdecals: flush CPU %.3f ms at most, %lld over 0.5 ms\n", counts.worstMs, counts.slowFlushes);
 }
 
@@ -1336,27 +1273,20 @@ int restore()
     s.pendingAfterLoad = -1;
     int result = 0;
     const int count = static_cast<int>(s.pending.size() / recordBytes);
-    if((on() || kept()) && !ZA_STRCMP(s.pendingMap, map.name))
+    if(on() && !ZA_STRCMP(s.pendingMap, map.name))
     {
         int baked = 0;
         for(int i = 0; i < count; i++)
         {
             const Stamp st = decode(s.pending.data() + static_cast<za::SizeT>(i) * recordBytes);
-            if(kept())
-            {
-                unbakedFrom = za::min(unbakedFrom, stamps.size());
-                keep(st); // (off: kept, the newest shown live: vr_decals.cpp's showRecord)
-                result = 2;
-            }
-            else if(bakeOn(st) > 0)
+            if(bakeOn(st) > 0)
             {
                 keep(st);
                 baked++;
                 result = 1;
             }
         }
-        Con_DPrintf("permdecals: %d of the saved game's %d marks %s\n", result == 2 ? count : baked, count,
-            result == 2 ? "kept (the layer off)" : "baked again");
+        Con_DPrintf("permdecals: %d of the saved game's %d marks baked again\n", baked, count);
     }
     s.pending.clear();
     return result;
@@ -1457,7 +1387,6 @@ extern "C" void VR_PermDecalsLayout(void)
     }
     stamps.clear();
     waiting.clear();
-    unbakedFrom = noneUnbaked;
     counts = Counts{};
     freeAllSlots(atlas.layers > 0 ? 1 : 0);
     // The bake program and the atlas's first layer made now, in the load (with the layer on): not at the first mark (a
@@ -1467,7 +1396,7 @@ extern "C" void VR_PermDecalsLayout(void)
         atlas.program = gfx::glProgram(bakeVertexSource, bakeFragmentSource, "vr permanent decals bake");
         atlas.programFailed = !atlas.program;
     }
-    if(vr_permdecals.value != 0.f && ensureAtlas())
+    if(ensureAtlas())
     {
         prepareTexture();
     }

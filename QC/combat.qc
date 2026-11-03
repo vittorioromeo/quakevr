@@ -1354,7 +1354,7 @@ void(float xHand) VR_Corpse_StrikeFrame =
     float blunt = FALSE;
 
     // The hand, along its swing.
-    traceline(hand - dir * 6, hand + dir * 8, MOVE_HITGIBS | MOVE_HITMODEL_MELEE, self); // VR: the corpse's model (vr_hit_precise)
+    traceline(hand - dir * 6, hand + dir * 8, MOVE_HITGIBS | MOVE_HITMODEL_MELEE, self); // VR: the corpse's model (precise hits)
     if(trace_ent.vr_corpse == 2 || trace_ent.vr_corpse_dying)
     {
         c = trace_ent;
@@ -1424,6 +1424,7 @@ void(entity m, float xSpeed) VR_Monster_Fall =
     dprint(sprintf("fall: %s landed at %g u/s (a %g unit drop): %g damage%s\n", m.classname, xSpeed, drop, dmg,
         m.vr_knockdown ? " (knocked down)" : ""));
     T_Damage(m, world, world, dmg);
+    VR_AG_FallLanded(m, xSpeed);
 };
 
 .entity vr_shove; // on a monster: its slide (a "vr_shove" entity; world when none)
@@ -1669,6 +1670,38 @@ float(entity inflictor, entity attacker, float isVRMelee) VR_GibKind =
         }
     }
     return r;
+};
+
+// A monster's death code gibs it under some health (a grunt -35, most -40: its overkill), and the damage a hand's blow or a
+// heavy prop deals is far past what its health asks for (ROUND23.md, "Gibbing: overkill by blows and props": a 40 kg crate
+// thrown at 5 m/s deals 100, a barrel 67; his notes 2026-11-02): only a share of that overkill counts: a blow's (or a prop
+// swung, still in the hand) vr_gib_overkill_melee, a thrown, flung or fallen prop's vr_gib_overkill_prop; a slap's none
+// (vr_melee_slap: it kills, never gibs); all of it under Quad and for everything else. Its limb or head still pops
+// (vr_decap.qc, vr_limbs.qc), and it still dies: never over -1. Called with the damage just taken.
+void(entity targ, entity inflictor, entity attacker, float isVRMelee) VR_Gib_Overkill =
+{
+    if(!(targ.flags & FL_MONSTER) || targ.health >= -1)
+    {
+        return;
+    }
+    float share = 1;
+    if(isVRMelee && vr_melee_slap)
+    {
+        share = 0;
+    }
+    else if(attacker.super_damage_finished > time)
+    {
+        return;
+    }
+    else if(VR_GibKind(inflictor, attacker, isVRMelee) == QVR_GIBKIND_MELEE || (inflictor.carry_player != world && inflictor.carry_player == attacker))
+    {
+        share = cvar_hget(cvarh_vr_gib_overkill_melee);
+    }
+    else if(VR_Corpse_DamageKind(inflictor, attacker) == QVR_CDMG_PROPS)
+    {
+        share = cvar_hget(cvarh_vr_gib_overkill_prop);
+    }
+    targ.health = min(-1, targ.health * max(0, share));
 };
 
 float(entity inflictor, entity attacker, float isVRMelee) VR_GibSpeedScale =
@@ -2088,10 +2121,7 @@ float(entity targ, entity inflictor, entity attacker, float damage, float isVRMe
     float healthBefore = targ.health;
     targ.health = targ.health - take;
     VR_BulletTime_Earn(targ, attacker, take, healthBefore); // VR: earned bullet time's meter
-    if(isVRMelee && vr_melee_slap && (targ.flags & FL_MONSTER) && targ.health < -1)
-    {
-        targ.health = -1; // VR: a slap kills but never gibs (vr_melee_slap): no overkill
-    }
+    VR_Gib_Overkill(targ, inflictor, attacker, isVRMelee); // VR: how much of a blow's or a prop's overkill counts to gib it
 
     if(targ.health <= 0)
     {
@@ -2527,6 +2557,15 @@ void(entity m) VR_Parry_Pose =
         m.angles_z = m.vr_parry_sway * sin(t * 6.9);
         m.angles_x = m.vr_parry_sway * 0.6 * sin(t * 4.4 + 1.3);
     }
+};
+
+// A leap's touch (self the leaper) after dealing its blow: did that blow end the leap? A parry staggered it (VR_Parry_Recover
+// owns its think and has cancelled the touch), or it died of it: a barrel it struck blew up, its blast killed the leaper
+// inside its own touch (its death's think set; a landing written over that left a dead body leaping and running on:
+// vrfiringrange_2026-11-03_02-01-47, vr_deadanim_test 20-22). AD's own leaps ask the same with their health.
+float() VR_Leap_BlowEnded =
+{
+    return self.health <= 0 || self.vr_parry_stagger_until > time;
 };
 
 void() VR_Parry_Recover =

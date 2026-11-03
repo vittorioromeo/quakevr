@@ -88,30 +88,24 @@ ML at runtime. Borrow ideas only unless noted. Not started.
   https://github.com/YoucefNabil/skyrim-delirium (a Skyrim port). Not read yet: check their licences before borrowing
   anything beyond ideas.
 
-### Worn backpacks for the remaining armed humanoids (author, 2026-11-02)
+### The enforcer's backpack made a real one (author, 2026-11-02)
 
-His words: "Make worn backpacks the default and only valid code path. Add a backlog note to review/apply this setting
-to the remaining armed humanoids (it currently only works for grunts)." Since 2026-11-02 (ROUND23.md, "Worn backpacks
-always on") every armed grunt wears its pack: `VR_WP_Spawn` gates on `vr_ag_kind == VR_AM_GRUNT` (monster_vr_grunt and
-the grunts `vr_agrunt_repl` arms, AD maps' standard monster_army included), never in Mission Pack 3's campaign
-(`MG3_NoBackpack`) or on the test dummy. Review and apply it to the others; each needs the pack's anchor
-(`agarmor::packRest`: the armour shell's cuirass back face, today the only rule), its ragdoll box
-(`createRagdollPack`: the rig's `chest` bone, which all four rigs have), its loot rule (`VR_AG_SoldierDrop` /
-`VR_WP_DeathLoot`), then the kind added to `VR_WP_Spawn`'s gate and to `vr_wornpack_test` (whose control is an armed
-enforcer today: pick another non-wearer then):
-- **Enforcers** (`VR_AM_ENFORCER`, vrenforcer.mdl): the model already has a power pack on its back, and its armour
-  shell stops at `Wearer::backCut` -10.5 (a breastplate), so `packRest` would put the pack inside it. Decide: the
-  modelled power pack becomes the worn pack (hidden on the body when torn off: a mesh split or a skin), or a backpack
-  on top of it (its own anchor offset). Loot exists already (its rounds, else 5 cells, through `VR_AG_SoldierDrop`).
-- **Knights and death knights** (`VR_AM_KNIGHT`, `VR_AM_DKNIGHT`, vrknight/vrhknight.mdl): armour shells exist
-  (`agarmor.cpp` wearers), so `packRest` should place it as is (check the fit: their cuirass and the death knight's
-  1.12 scale). They drop no backpack in Quake: decide what the pack holds (nothing, a few of the player's ammo, health)
-  or keep them packless.
-- **AD's own humanoids** (AD's variants are never armed: `VR_AGR_ADVariant`): they need arming first (rows, rigs,
-  shells), then the same three parts.
-Cost: PERF_1102.md measured the worn packs (`limbpiece` 0.97 ms a frame in E1M1's fight with 29 wearers, cut by about
-that much with one look a wearer (`box3d::wornPackAll`) and one link a pack a frame): each wearer costs a little; more
-kinds wearing packs add to it.
+His words: "For the enforcer, please make it a lift zone only for now. Add a backlog item to make it a real backpack."
+Today (ROUND23.md, "Lift only") an armed enforcer, whatever it holds, has only a lift zone on the pack baked into
+vrenforcer.mdl (`agarmor::bakedPackLo`, `.vr_wp_baked`): it can't come off, nothing counts on it, its loot is its own. To make it real: split the pack's vertices out of the model
+(behind `Wearer::backCut` -10.5, mostly on the chest bone) so they hide when it comes off (a mesh split or a skin), a
+matching detached prop (backpack.mdl is smaller and looks different), and the back underneath, probably unpainted, painted.
+Then the usual three parts as the grunt's: the anchor, the ragdoll box, the loot through `VR_WP_DeathLoot`; drop
+`.vr_wp_baked`. (His note 2026-11-03 02:25:39: a melee-only enforcer stays liftable while the model shows the pack.)
+
+### Worn backpacks for AD's armed humanoids (author, 2026-11-02)
+
+The rule (ROUND23.md, "Lift only"): armed humanoids that carry a ranged weapon wear a real backpack; melee-only or unarmed
+ones none. Grunts, knights and death knights follow it. AD's own humanoids (AD's variants are never armed:
+`VR_AGR_ADVariant`) need arming first (rows, rigs, shells), then the anchor (`agarmor::packRest`), the ragdoll box
+(`createRagdollPack`: the rig's `chest` bone) and the loot. Cost: PERF_1102.md measured the worn packs (`limbpiece` 0.97 ms
+a frame in E1M1's fight with 29 wearers, cut by about that much with one look a wearer (`box3d::wornPackAll`) and one link a
+pack a frame): each wearer costs a little.
 
 ### Pillar/pipe climbing (brace a hand on each side) (23:10:39, 2026-10-14)
 
@@ -347,3 +341,5 @@ stats), the jump boots' power level, coop.
   - Also consider flare guns and heavy revolvers.
 - **Player armour parity** (Vittorio, 2026-10-28, from the armed humanoids' armour plan: C:\OHWorkspace\qvr-kit\scratch\research_agarmor.md, question 8): once armed humanoids wear generated per-limb plates (helmet, cuirass, pauldrons, bracers, thighs, shins), consider giving the player the same plates fitted to the player body (the generator can fit vrbody too), instead of the armour painted on the body skin; per-piece damage for the player too? Decide after the humanoids' armour ships.
 - **Ammo type follows the loaded magazine:** with pouch reloading (v1.1), the magazine/ammo you load picks the gun's ammo type (e.g. a lava-nail magazine fires lava nails), making the ammo switch button unnecessary for magazine-fed weapons (his idea via a player exchange, 2026-10-16).
+- **Gremlins as armed humanoids** (Vittorio, 2026-11-02): Scourge of Armagon's gremlin already steals the player's weapon and fires it, so an armed gremlin fits its character: a small body with a full-size gun. Check its rig and hands first (a kind's fit on the grunt's keys may not carry over).
+- **Player lying down and physical crawling** (Vittorio, 2026-11-03): the player can lie down and crawl by moving their body and arms.
