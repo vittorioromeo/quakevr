@@ -362,6 +362,7 @@ float vr_agpt_k0;
 float vr_agpt_dmg0;
 float vr_agpt_path; // test 33's disarm path
 float vr_agpt_t0;
+float vr_agpt_seen;   // test 35: your damage counted so far
 float vr_agpt_m0;   // test 34's: the most the weapon moved before its hand closed
 float vr_agpt_n0;   // test 35's: weapon index,
 float vr_agpt_grip0;   // ... your vr_weapon_grip_mode before it (as it was again at the end),
@@ -780,9 +781,26 @@ void() VR_AGPT_Parry =
         VR_AGPT_Watch(vr_agt_grunt);
         vr_agpt_m0 = vr_ag_parried_n;
         vr_agpt_t0 = 0;
+        vr_agpt_seen = vr_ag_player_dmg;
         vr_agt_step = 1;
         vr_agt_until = time + 6;
         return;
+    }
+    // Your weapon held still is on most swings' way, not on all (Mjolnir's passes 20 units off: the directional parry is
+    // right that it lands, vr_dirparry.qc; it was parried here only while the test's monster hunted with no turning speed,
+    // ROUND23.md "Regressions of 2026-11-03"). A blow that landed moves it onto that blow's way, as a player would: the
+    // next one meets it. (Test 78 reads the angles and the margins; this one the parry's outcome per weapon.)
+    if(vr_ag_player_dmg > vr_agpt_seen)
+    {
+        vr_agpt_seen = vr_ag_player_dmg;
+        if(g.vr_ag_prop && vr_ag_parried_n == vr_agpt_m0 && VR_DRP_PlayerSeg(p, cVR_MainHand))
+        {
+            VR_AG_WeaponLine(g.vr_ag_prop); // (the frame after its blow: its blade where it met nothing)
+            VR_AG_SegDist(vr_ag_wa, vr_ag_wb, vr_drp_pa, vr_drp_pb);
+            vector to = p.handpos + (vr_ag_wa + (vr_ag_wb - vr_ag_wa) * vr_ag_seg_s) -
+                        (vr_drp_pa + (vr_drp_pb - vr_drp_pa) * vr_ag_seg_t);
+            localcmd(sprintf("vr_mock_hand_to main %g %g %g\n", to_x, to_y, to_z));
+        }
     }
     if(vr_ag_parried_n > vr_agpt_m0 && vr_agpt_t0 == 0)
     {
