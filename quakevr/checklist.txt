@@ -46,6 +46,9 @@ Slow stick walking is much quieter than a run; adjust under Debug > Tunables > B
 Turning in the room or with the stick, or moving a little in the room: no footstep sounds.
 Debug > Tools > Arena Wave Editor: build a wave with an armed grunt, dual axes, red armour and infected with shambler; save it, assign it to Normal, then Play from wave 1. Is the panel readable, do the laser, stick scrolling and panel keys work?
 Toolgun > Spawn > Armed Humanoid > Infected With > Ogre: kill him; his weapon falls and he rises as an ogre.
+Worn Backpacks > Fit has a page each for grunts, knights and death knights; moving a slider moves only that kind's pack, at once.
+An enforcer holding a sword or nothing can be lifted by the pack on its back too.
+Lifting by the pack: does the body really come off the floor? (On the mock it barely rises: knights and death knights a few units, enforcers none.)
 
 
 [3. Bodies: grabbing, throwing, hits]
