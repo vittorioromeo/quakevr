@@ -6703,7 +6703,71 @@ fragment shader (all its variants), from the same light list (muzzle flash, expl
 `CL_AllocDlight`). Seen: `vr_light_test` lights the ogre, grunt and armour in `shot_e1m1.png`'s third frame. Muzzle
 flash, explosions and flashlight read from the code, not separately shot. Nothing to fix.
 
-**Not changed.** Coils, ropes, gore, blood, impacts and gun smoke still read the floor's `R_LightPoint` for their own light.
+**Not changed then** (done next, below): coils, ropes, gore, blood, impacts and gun smoke still read the floor's `R_LightPoint`.
+
+## The rest follow the light grid; lit liquids light models; its knobs (branch `agent/lightgrid2`, his words 2026-11-03)
+
+His words: "everything you mentioned should follow the new light and lava should brighten models. Also please add tunables
+to control the intensity/effect of the light probes and things like lava."
+
+**What reads the grid now.** `ambient::lightPoint(p, cache)` is R_LightPoint's drop-in (sets `lightcolor`, returns the
+brightness): the grid's `level` at the point; R_LightPoint's where it has nothing or with `vr_model_light_grid` 0. A read
+for each 16 units a frame at most (`pointReads`, 256 slots, this frame's only). Users: coil, rope (per their `worldLight`:
+through `VR_AliasLightCurve`, as a model), gore drops, blood streams, body blood, particle trails' shade, impacts, gun
+smoke, muzzle wisps (each keeps its own floor and clamp: they were tuned so as not to go black in the dark). Lit particles
+(`vr_particle_light`) have their own cell cache: `gridLightOf`, one read a 16-unit cell shared (`gridLights`), at most 128
+reads a frame, again when moved 8 units, on a style-lit cell once a frame (a quarter of its particles asking), and every
+half second for a moved slider to show.
+
+**Left on the floor's light, on purpose.** `vr_stealth.cpp` (a game rule: how visible the player is, not something drawn),
+`vr_water.cpp` `viewLight` (the water's look from inside, not beside a model), `vr_brushlight.cpp` (a bake at load onto brush
+models at the style's mean, BRUSH_TOOL.md), `vr_debris.cpp` and `vr_lighting.cpp`'s `vr_light_probe`, `vr_model_light_walk`
+(diagnostics that show the floor). Decals read their wall's lightmap, as the wall.
+
+**Lit liquids.** Lava, slime, teleporters (flags `SURF_DRAWLAVA`, `_SLIME`, `_TELE`). Not water, which doesn't glow. Not the
+sky: a sky-lit room's surfaces have the sky's light already, and it is everywhere outdoors, so it would light every
+outdoor model alike (the cube still takes the sky as before). A probe in reach of one (768 units; blocks of 4 cells with
+none skip this) traces 128 rays on a spiral (the 26 miss a pool past a shore's edge) that stop at the first wall or liquid,
+and adds an entry per kind: colour by the square root of how much of its view the liquid fills, the sides by cosine lobes,
+the mean distance in the entry's `style` field (`GRID_GLOW`). Read at each read: strength x 1.5 x (1 - distance / range)^2,
+so strength and range are live. Additive on the styles' light, as styles add. The colour is the liquid's texture's mean with
+the brighter texels counting more, top channel 220: `*lava1` 220 55 16, `*slime0` 220 180 68, `*teleport` 220 169 130 (a
+map's green lava lights green). Lava was on the cube at a fixed colour from the 26 rays; it is now only this (so 0 takes it
+off the cube too), on the grid path only. The `vr_model_light_grid` 0 path is untouched, for his comparison.
+Effects read it too: smoke over lava is lit by lava, as the model in it.
+
+**Knobs** (tuning constants, not settings, as he asked: `tune`, Debug > Tunables > Graphics > Models and Effects > Light Grid, kept in
+`tunables.cfg`; constants in a release build; `vr_model_light_grid` itself stays a setting. Defaults = the look before, but for the
+liquids; `vr_model_light_grid_...`): `_intensity` 1 (the level, live), `_near` 64 (was `GRID_NEAR`: in the probes, so a change builds the grid again at
+once, 26 ms on e1m7, no map reload), `_mix` 0.5 (0: only the map's lights' directional shading, cube off; 0.5: the cube, half
+the directional, as before; 1: only the cube; live; grid path only). `vr_model_light_lava` 1, `_range` 512; `vr_model_light_slime`
+0.35, `_range` 384; `vr_model_light_teleport` 0.35, `_range` 256: all live.
+
+**Disk cache.** `GRID_CACHE_VERSION` 2; the key has the near weight and the liquids' colours. Entries stay 44 bytes; a cell's
+count took a bit from its first entry (4 bits; 134 million entries).
+
+**Unchanged on a map with no lit liquid:** vrarena, base -> this branch: the same probes, entries (6115), cube checksum (276),
+walk (grid 22..184, step 8.6). Maps with one change only near it: e1m1's walk the same, its cube checksum 304 -> 299 (2618
+probes near slime); e2m1, e1m3 the same but for teleporter entries.
+
+**Test.** `vr_model_light_grid_test` (Debug menu, this map, a development build; sets the constants by `tune`'s setter; verdict `light grid test: N passed, M failed`; e1m7 and e1m1 21,
+0): an effect's light = the model's read there, intensity x2, the mix's shares, near moved and back (grid hash the same),
+`vr_model_light_grid` 0 = R_LightPoint, each liquid: adds to the level and sides, linear in strength, range 0 = strength 0,
+near > 3 x far, and every ray that counted a liquid is clear by `worldtrace::line`, another tracer (e1m7 lava all of 3109; a
+teleporter 66 of 68: its frame's edges). `vr_particle_light_report`'s new `grid:` line: 256 lit particles in a dark room off the
+grid's read by 1.9 (0..255), off the floor's by 38.5. `vr_model_light_grid_info`'s `at the view` line: baked, with liquids,
+drawn, the floor's (e1m7 on a ledge over the lava: baked 130, with liquids 162 138 132; over the lava 108 -> 226 138 117; e2m6
+start floor 71, grid 67).
+
+**Cost.** A point read 1-1.5 us with its lines (no-LTO), 0.008 us from the frame's cache. Interleaved LTO runs (`benchresults/lightgrid2_*`,
+A base, B this branch, 90 Hz paced, 1 rep x 6: three of the six disturbed by other work, frame p50 27-29 ms or busy averages off, so
+only the quiet ones count): `crowd32_armed` CPU busy p50 A 6.09, B 6.15, 6.02; `particles_dense` (smoke, blood) A 3.54, 3.47, B 3.47,
+3.63; its `vr particles` phase A 0.98-1.05, B 0.89-0.96 ms. No cost that shows; not a clean bench. Build: vrstart cold 2174 ms (no lit liquids,
+2203 before), e1m7 20 ms LTO. **Over the read budget** a new particle takes the latest read, not Quake's full light for a frame.
+
+**Scenes.** `light_grid_lava`, `light_grid_dark` (checklist Test buttons).
+
+**Not run:** coils and ropes on screen (their `worldLight` is the two-line swap; `lightPoint` is what the test checks). No VR.
 
 ## Strike keys: times and in-betweens (agent/posekeys)
 

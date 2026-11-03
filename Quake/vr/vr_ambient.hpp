@@ -31,4 +31,15 @@ void prepareGrid();
 
 void entityCube(const entity_t* e, const float modelMatrix[16], const void* aliashdr, bool enabled, float out[6][4]);
 
+// The light at a point for what is drawn beside the models (coils, ropes, gore, blood, impacts, smoke): what a model
+// there is lit by, so that they don't differ. As R_LightPoint: `lightcolor` set, its brightness returned; where the grid
+// has nothing (vr_model_light_grid 0, no probe in sight, a point in a wall) R_LightPoint's, with `cache`. A read for each
+// 16 units a frame at most: as cheap as a cached R_LightPoint for a burst in one place.
+int lightPoint(const glm::vec3& p, lightcache_t& cache);
+
+// For a system with its own cache (the particles'): whether the grid is on, and one read (false: nothing there; `styled`:
+// whether it moves with a light style). A read looks at the 8 probes round it, with lines to them near walls: 1-3 us.
+[[nodiscard]] bool gridOn();
+[[nodiscard]] bool gridLightAt(const glm::vec3& p, glm::vec3& out, bool* styled = nullptr);
+
 } // namespace qvr::ambient

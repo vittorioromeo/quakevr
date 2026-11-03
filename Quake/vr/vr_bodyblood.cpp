@@ -1,5 +1,6 @@
 // vr_bodyblood.cpp -- see vr_bodyblood.hpp.
 
+#include "vr_ambient.hpp"
 #include "vr_random.hpp"
 #include "vr_bodyblood.hpp"
 #include "vr_engine.hpp"
@@ -304,8 +305,7 @@ lightcache_t shadeLight{}; // shade's light lookup (the client's frame)
         return 1.f;
     }
     const glm::vec3 p = (s.pos[0] + s.pos[1]) * 0.5f;
-    vec3_t v = {p.x, p.y, p.z};
-    const float light = static_cast<float>(R_LightPoint(v, 0.f, &cache)); // 128: Quake's full light
+    const float light = static_cast<float>(ambient::lightPoint(p, cache)); // 128: Quake's full light
     return za::clamp(za::max(light, 24.f) / 110.f, 0.2f, 1.4f);
 }
 
