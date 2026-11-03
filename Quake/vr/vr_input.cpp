@@ -39,6 +39,7 @@
 #include "vr_holsterzones.hpp"
 #include "vr_toolgun.hpp"
 #include "vr_arenacards.hpp"
+#include "vr_waveeditor.hpp"
 #include "vr_geom.hpp"
 
 #include "Zancle/Base/IsFinite.hpp"
@@ -1592,6 +1593,12 @@ void buttonChanged(const InputState& in, int h, const ButtonKeys& b, bool now)
         logButton(h, b, now, b.key[h], "the weapon posing mode");
         return;
     }
+    // The Arena Wave Editor: a trigger while it's open is its click (vr_waveeditor.cpp).
+    if(waveeditor::button(h, posingButton(b.button), now))
+    {
+        logButton(h, b, now, b.key[h], "the wave editor");
+        return;
+    }
     // The Survival Arena's perk cards: a trigger with its laser on their panel picks (vr_arenacards.cpp).
     if(arenacards::button(h, posingButton(b.button), now))
     {
@@ -1729,6 +1736,16 @@ void routeSticks(const InputState& in, const HandInput& off, const HandInput& ma
         stickKey(stickKeys[2], -stick.x, true);
         stickKey(stickKeys[3], stick.x, true);
         moveAxes = glm::vec2{0.f};
+    }
+    else if(waveeditor::shown())
+    {
+        // The Arena Wave Editor open: the sticks are its wheel (no walking, no turning).
+        for(StickKey& k : stickKeys)
+        {
+            stickKey(k, 0.f, false);
+        }
+        moveAxes = glm::vec2{0.f};
+        (void)waveeditor::sticks(in.hands[HAND_OFF].stick, in.hands[HAND_MAIN].stick);
     }
     else if(poselive::sticksTaken())
     {

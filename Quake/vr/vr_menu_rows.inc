@@ -96,8 +96,9 @@ QVR_SLIDER(vr_body_stride, "Stride Length", 0.3f, 2.f, 0.05f, "%.2fx", ext(),
 QVR_SLIDER(vr_body_step_width, "Step Width", -0.08f, 0.25f, 0.01f, "%+.2f m", ext(),
     "How much further apart each foot walks than it stands (hips' width apart): out, or in if negative.")
 QVR_TOGGLE(vr_body_step_sounds, "Footsteps on the Feet",
-    "Your footsteps play as the drawn feet touch down, from that foot, and softly for the small steps turning on the "
-    "spot. Off, or with no walking legs, swimming, climbing and in multiplayer: by the distance you cover, as in Quake.")
+    "Your footsteps play as the drawn feet touch down, from that foot, quieter the slower you go. Turning and small moves "
+    "in the room are silent. Off, or with no walking legs, swimming, climbing and in multiplayer: by the distance you "
+    "cover, as in Quake.")
 QVR_SLIDER(vr_body_turn_step, "Turn Before Stepping", 15.f, 90.f, 5.f, "%.0f deg", ext(),
     "How far you turn over your planted feet before they step round to follow.")
 QVR_SLIDER(vr_body_wade, "Wading Heaviness", 0.f, 2.f, 0.1f, "%.1fx", ext(),

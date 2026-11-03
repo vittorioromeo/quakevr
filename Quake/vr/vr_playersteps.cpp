@@ -10,8 +10,14 @@
 //   only sounds on the ground: the landing's step, as it always was); swimming and climbing (the legs aren't walking,
 //   whatever the ground says); multiplayer (bots too): the server's sound goes to every client and can't leave one out, and
 //   the others can't see your feet's phase, so everyone there hears the old trigger.
-// - Standing steps (turning on the spot, moving in the room) are a shuffle: vr_footstep_player_turn_vol of a step's volume.
-//   The old trigger had none: it only runs while the stick moves you.
+// - How loud: by the speed at the touchdown, vr_footstep_player_walk_vol at vr_footstep_player_walk_speed up to
+//   vr_footstep_player_run_vol at vr_footstep_player_run_speed along a curve (vr_footstep_player_curve), all times
+//   vr_footstep_player_volume. The old trigger keeps its own 0.5.
+// - The body's small adjustments are silent by default: the standing steps (turning in the room or with the stick, small
+//   room moves), and the walk's touchdowns when the stick isn't moving you and you're slower than
+//   vr_footstep_player_room_speed (the room's moves make the walk step too: a turn swings the head, and the body after
+//   it). For anyone who wants them: vr_footstep_player_adjust_vol, at most one in vr_footstep_player_adjust_gap s. The old
+//   trigger had none of them: it only runs while you move, and stays silent here.
 // - One step never twice: a landing's old step right before the first touchdown, or the other way round, within mergeGap,
 //   is the one sound (the touchdown is still counted, and the footprints have it).
 
@@ -26,7 +32,9 @@
 #include "Zancle/Base/IntTypes.hpp"
 #include "Zancle/Math/Abs.hpp"
 #include "Zancle/Math/Clamp.hpp"
+#include "Zancle/Math/Exp.hpp"
 #include "Zancle/Math/MinMax.hpp"
+#include "Zancle/Math/Pow.hpp"
 
 #include <glm/glm.hpp>
 
@@ -38,10 +46,10 @@ namespace
 constexpr const char* stepSounds[] = {"misc/foot1.wav", "misc/foot2.wav", "misc/foot3.wav", "misc/foot4.wav",
                                       "misc/foot5.wav", "misc/foot6.wav", "misc/foot7.wav"};
 constexpr int stepSoundCount = static_cast<int>(sizeof(stepSounds) / sizeof(stepSounds[0]));
-constexpr float stepVolume = 0.5f;  // QC player_run's
 constexpr float stepAtten = 1.f;    // ATTN_NORM
 constexpr float soleLift = 6.f;     // units: the sound this far over the floor (as the enemies': not in it, for occlusion)
 constexpr double mergeGap = 0.12;   // s: two steps closer than this, from the two sources, are one
+constexpr float roomEase = 0.3f;    // s: the pace a room move is judged by, smoothed (a head's quick move isn't a walk)
 
 // vr_body_step_report's numbers since its last call.
 struct Report
@@ -52,8 +60,11 @@ struct Report
     double apartSum{0.0}; // the feet's distance across the walk, world units
     int frames{0};
     int touchdowns[2]{0, 0};
-    int standing{0};  // of those, a standing step's
+    int standing{0};  // of those, an adjustment's (a standing step, a room move)
     int sounds{0};    // played from a foot
+    double volumeSum{0.0};
+    float volumeLeast{1e9f};
+    float volumeMost{0.f};
     int merged{0};    // a touchdown heard as the old step just before it
     int oldPlayed{0};
     int oldSilent{0};
@@ -70,6 +81,10 @@ struct State
     za::U32 pick{0x51ed2701u};
     double lastFoot{-1.0}; // vr_gametime: the last sound from a foot
     double lastOld{-1.0};  // ... of the old trigger's
+    double lastAdjust{-1000.0}; // ... of a small adjustment's
+    double lastPace{-1.0};      // when roomPace was last eased
+    float roomPace{0.f};        // units a second, smoothed
+    double lastVolume{0.0}; // the report's last phase: its mean volume
     bool armed{false};     // vr_body_step_report has been called: the frames are measured
     double lastFrame{-1.0};
     double soundAt[2]{-1.0, -1.0}; // each foot's last sound, until its contact is seen
@@ -89,6 +104,24 @@ State state;
     }
     avatar::Skeleton k;
     return avatar::skeleton(k) && k.legs && avatar::walkState().onFeet;
+}
+
+// A walking step's volume at a speed (units a second).
+[[nodiscard]] float walkVolume(float pace)
+{
+    const float span = za::max(vr_footstep_player_run_speed.value - vr_footstep_player_walk_speed.value, 1.f);
+    const float along = za::clamp((pace - vr_footstep_player_walk_speed.value) / span, 0.f, 1.f);
+    const float curved = za::pow(along, za::max(vr_footstep_player_curve.value, 0.1f));
+    const float volume = vr_footstep_player_walk_vol.value +
+                         (vr_footstep_player_run_vol.value - vr_footstep_player_walk_vol.value) * curved;
+    return za::clamp(volume * vr_footstep_player_volume.value, 0.f, 1.f);
+}
+
+// A touchdown that is only the body adjusting: a standing step, or the walk's in a slow room move.
+[[nodiscard]] bool adjusting(const avatar::WalkState& walk)
+{
+    const bool stick = za::abs(cl.cmd.forwardmove) > 1.f || za::abs(cl.cmd.sidemove) > 1.f;
+    return !walk.walking || (!stick && state.roomPace < vr_footstep_player_room_speed.value);
 }
 
 void playStep(const avatar::Skeleton& k, int side, float volume)
@@ -146,10 +179,12 @@ void measure(const avatar::Skeleton& k, const avatar::WalkState& walk, double no
     }
 }
 
-// vr_body_step_report [<label> [legs|old|standing]]: the walk since the last call: its rate (counted touchdowns, not the
-// formula), stride, how the planted foot slides, each source's sounds and how far they were from the drawn contact. legs:
-// every touchdown was heard once from its foot, none from the old trigger. old: the reverse. standing: standing steps, each
-// heard. `reset`: forgets them, unprinted. `done`: the verdict line, `playersteps_test: N passed, M failed`.
+// vr_body_step_report [<label> [legs|louder|quiet|spaced|old]]: the walk since the last call: its rate (counted touchdowns,
+// not the formula), stride, how the planted foot slides, each source's sounds, their volumes and how far they were from the
+// drawn contact. legs: every touchdown was heard once from its foot, none from the old trigger. louder: that, at over
+// twice the last phase's mean volume. quiet: adjustments, none heard. spaced: adjustments heard, no closer than their
+// gap. old: the old trigger's alone. `reset`: forgets them, unprinted. `done`: the verdict line,
+// `playersteps_test: N passed, M failed`.
 void report_f()
 {
     state.armed = true;
@@ -171,22 +206,26 @@ void report_f()
     const double m2w = avatar::legsMetreUnits();
     const double rate = r.time > 0.0 ? static_cast<double>(walked) / r.time : 0.0;
     const double stride = r.frames > 0 ? r.strideSum / r.frames : 0.0;
+    const double volume = r.sounds > 0 ? r.volumeSum / r.sounds : 0.0;
     const double slide = uPerS > 1.0 ? 100.0 * (1.0 - stride * rate / (uPerS / m2w)) : 0.0;
     Con_Printf("playersteps %s: %.2f s at %.0f u/s (%.2f m/s): L %d R %d, %.2f steps/s, stride %.2f m, planted foot slides "
-               "%.0f%%, off the floor %.1f cm, feet apart %.2f m; sounds %d merged %d standing %d, old played %d silent %d; sound error mean "
-               "%.1f ms most %.1f ms (%d)\n",
+               "%.0f%%, off the floor %.1f cm, feet apart %.2f m; sounds %d merged %d adjustments %d, volume mean %.3f least %.3f most %.3f, "
+               "old played %d silent %d; sound error mean %.1f ms most %.1f ms (%d)\n",
         label, r.time, uPerS, uPerS / m2w, r.touchdowns[0], r.touchdowns[1], rate, stride, slide, r.plantedMost * 100.f,
         r.frames > 0 ? r.apartSum / r.frames / m2w : 0.0, r.sounds,
-        r.merged, r.standing, r.oldPlayed, r.oldSilent, r.errCount > 0 ? 1000.0 * r.errSum / r.errCount : 0.0, 1000.0 * r.errMost,
+        r.merged, r.standing, volume, r.sounds > 0 ? r.volumeLeast : 0.f, r.volumeMost, r.oldPlayed, r.oldSilent, r.errCount > 0 ? 1000.0 * r.errSum / r.errCount : 0.0, 1000.0 * r.errMost,
         r.errCount);
     if(Cmd_Argc() > 2)
     {
         const char* expect = Cmd_Argv(2);
-        const bool ok = !strcmp(expect, "legs")
-                            ? walked >= 4 && r.sounds + r.merged == steps && r.oldPlayed == 0 && r.errCount > 0 && r.errMost < 0.03
-                        : !strcmp(expect, "standing") ? r.standing >= 2 && r.sounds == steps && r.oldPlayed == 0
-                                                      : r.sounds == 0 && r.oldPlayed > 0;
+        const bool heard = walked >= 4 && r.sounds + r.merged == steps && r.oldPlayed == 0 && r.errCount > 0 && r.errMost < 0.03;
+        const bool ok = !strcmp(expect, "legs")     ? heard
+                        : !strcmp(expect, "louder") ? heard && volume > 2.0 * state.lastVolume
+                        : !strcmp(expect, "quiet")  ? r.standing >= 1 && r.sounds == 0 && r.oldPlayed == 0
+                        : !strcmp(expect, "spaced") ? r.sounds >= 1 && r.sounds * vr_footstep_player_adjust_gap.value <= r.time + vr_footstep_player_adjust_gap.value && r.oldPlayed == 0
+                                                    : r.sounds == 0 && r.oldPlayed > 0;
         state.tally.check(ok, "playersteps_test", label);
+        state.lastVolume = volume;
     }
 }
 
@@ -200,6 +239,14 @@ void frame(const avatar::Skeleton& k)
     const bool feet = fromLegs();
     const avatar::WalkState walk = avatar::walkState();
     const double now = vr_gametime;
+    const float pace = glm::length(glm::vec2{cl.velocity[0], cl.velocity[1]});
+    if(now > state.lastPace)
+    {
+        const float dt = state.lastPace >= 0.0 ? za::min(static_cast<float>(now - state.lastPace), 0.1f) : 0.f;
+        state.roomPace += (pace - state.roomPace) * (1.f - za::exp(-dt / roomEase));
+        state.lastPace = now;
+    }
+    const bool adjust = adjusting(walk);
     for(int side = 0; side < 2; side++)
     {
         if(state.heard[side] == k.steps[side])
@@ -209,7 +256,7 @@ void frame(const avatar::Skeleton& k)
         state.heard[side] = k.steps[side];
         Report& r = state.report;
         r.touchdowns[side]++;
-        r.standing += walk.walking ? 0 : 1;
+        r.standing += adjust ? 1 : 0;
         if(!feet)
         {
             continue;
@@ -219,11 +266,17 @@ void frame(const avatar::Skeleton& k)
             r.merged++;
             continue;
         }
-        const float share = walk.walking ? 1.f : za::clamp(vr_footstep_player_turn_vol.value, 0.f, 1.f);
-        if(share > 0.f)
+        const float volume = adjust ? za::clamp(vr_footstep_player_adjust_vol.value * vr_footstep_player_volume.value, 0.f, 1.f)
+                                    : walkVolume(pace);
+        if(volume <= 0.f || (adjust && now - state.lastAdjust < vr_footstep_player_adjust_gap.value))
         {
-            playStep(k, side, stepVolume * share);
+            continue;
         }
+        state.lastAdjust = adjust ? now : state.lastAdjust;
+        playStep(k, side, volume);
+        r.volumeSum += volume;
+        r.volumeLeast = za::min(r.volumeLeast, volume);
+        r.volumeMost = za::max(r.volumeMost, volume);
         state.lastFoot = now;
         state.soundAt[side] = now;
         r.sounds++;

@@ -6783,6 +6783,13 @@ setting (the player's own steps have none to sit beside; Volume 0 is off).
   grunts hunting you. `vr_footstep_info` prints each model's contacts, `vr_footstep_info <model> <frame> <count>` its feet
   over those frames, `tune vr_footstep_log 1` a line a step. Results and the bench are in the worktree's report.
 
+### Enemy footsteps: Heavy Feet Speed (branch `agent/thudspeed`)
+
+His ask: a slider for the speed of the thuds, pitch and tempo together, to tweak in game. `vr_footstep_heavy_speed` (1; Combat
+> Enemy Footsteps, 0.5-2) multiplies the playback rate of every `Sole::Thud` kind's step, live, on its own pitch and the jitter.
+The rate is a real resample: `S_StartSoundPitch` sets the channel's end to `length / pitch` and the mixer and the voices read at
+it. The wire and mixer clamp to 0.25-4, which the slider's range can't reach with any kind's pitch and 10% jitter (0.38-2.75).
+
 ### Enemy footsteps: boots and heavy feet remade (branch `agent/footsteps2`)
 
 His words: "Grunt and enforcers sound a bit too metallic", "Struggling to hear ogres, fiends, and shamblers". Knights and
@@ -7294,3 +7301,104 @@ cuts them from decoded previews (its header has the sources and the ffmpeg line)
 - `pack_rip.wav`: the first 0.62 s of 591527 from its onset, high-passed 150 Hz, one pole at 8 kHz, tanh 5, a 0.14 s fade. Nearly all
   over 800 Hz; its sample-to-sample jumps are the tear's dense crackle (the source has the same, against its peak), not lone clicks.
 - All files start and end at 0.
+
+## The player's footsteps: volume by speed, the body's small adjustments silent (branch `agent/playersteps2`)
+
+His notes (vrfiringrange_2026-11-03_01-57-12 and on): slow walking's footsteps much quieter, with sliders for the curve; "way
+too many sounds" turning in real life or with the thumbstick, or moving a little in the room.
+
+**Volume** (Debug > Tunables > Body > Player Footsteps, all `vr_footstep_player_*`): `_volume` 1, times everything; `_walk_vol`
+0.1 at `_walk_speed` 60 u/s or slower, up to `_run_vol` 0.5 (the old flat volume) at `_run_speed` 320 u/s or faster, along
+`_curve` 1.5 (an exponent: 1 even, higher staying quiet longer). The by-distance old trigger keeps its own 0.5 (setting off, no
+walking legs, multiplayer).
+
+**The small adjustments:** two sources, and the first fix (the standing steps alone) wouldn't have done: the mock's head and
+stick turns and room moves also made the walk itself step, because they move the body (mean 7 to 30 u/s, spikes past 90). So
+an adjustment is a standing step, or a walk's touchdown with the stick not moving you (`cl.cmd`) while the pace, smoothed over
+0.3 s so a quick head move doesn't count, is under `_room_speed` 60 u/s (about 2 m/s of real walking at his scale). All are
+silent by default: `_adjust_vol` 0; turned up, at most one in `_adjust_gap` 1 s. Real steps in the room are silent too, unless
+you go faster than `_room_speed`: that's the one way a room walk is heard, and lowering it hears more of them. Stepping with the
+stick is always heard, however slowly. The feet still count every touchdown for the bloody footprints.
+
+**Test** (`Misc/quakevr/playersteps_test.sh`: 10 passed, 0 failed):
+
+| phase | speed | touchdowns taken as adjustments | sounds | mean volume |
+| --- | --- | --- | --- | --- |
+| slow walk, stick 0.15 | 48 u/s | 0 | 6 | 0.100 |
+| walk, stick 0.4 | 112 u/s | 0 | 9 | 0.136 |
+| run | 319 u/s | 0 | 14 | 0.500 |
+| strafe | 311 u/s | 0 | 15 | 0.490 |
+| head turning | 7 u/s | 8 | 0 | |
+| stick turning | 29 u/s | 2 | 0 | |
+| small room moves | 30 u/s | 5 | 0 | |
+| stick turning, `_adjust_vol` 0.2 | 9 u/s | 3 | 1 in 3.4 s | 0.200 |
+
+Each footstep is still within a frame of the drawn touchdown (13.9 ms most), and the old trigger plays none in these phases.
+
+## Arena wave editor and generic infection (branch `agent/waveeditor`)
+
+His words: "a simple wave editor tool so that I can set up waves the way I want ... any armed humanoid configuration with
+any weapon/armor combination ... save/load wave presets and pick one per difficulty ... easily extensible to multiple arena
+maps", and "Could infection be a generic dynamic addition to any armed humanoid?" ... "Also add it to the toolgun menu".
+
+**Open it:** Debug > Tools > Arena Wave Editor (also Debug > Automation, Survival Arena; `vr_waveeditor`). With no game
+running it loads vrarena for the game's lists. The game is held while it is open.
+
+**Flat screen and headset.** The Rig Studio turned out flat-screen only (`imgui::ensure` refused a headset session), so
+"like the Rig Studio" could not be followed in VR as it stood. The editor is one ImGui window reached two ways: the desktop
+window with the mouse and keyboard (`-flatscreenmode`), or in a headset on a panel in front of the head (a target of its
+own, as the toolgun's panel and the perk cards): either hand's laser, its trigger the click, the stick the wheel, the
+window's own keys for a name, Recentre to bring it back. `imgui::setPanel` and `imgui::feedMouse` are the only additions to
+vr_imgui; the Rig Studio stays flat-screen. Both ways run the same code, so `vr_waveeditor_test` covers them both.
+
+**The data** (`Quake/vr/vr_arenawaves.hpp` has the format): a preset is `quakevr/arena_waves/<name>.txt`, versioned, line
+based, one `entry` a line (kind, main, off, armour, pieces, infected, count, delay, boss) under its `wave` (pool). Loading
+and saving is byte-stable; a hand-written file is canonical after its first save (comments go). `assign.cfg` holds
+`<map>.<skill> <name>`: no line, Default. A map named there is an arena map (QC `VR_ARENA_On`, asked once a map): **a new
+arena needs only its name there**; `vr_arena_assign <map> <skill> <preset|default>` from the console.
+
+**The path to QC.** Three builtins: `arenawavesload(skill)` makes the preset for this map and skill (or the editor's Play)
+the running one, `arenawavesfield(wave, entry, field)` hands its fields as text, `arenawavesreport(s)` says a line. No new
+entity fields; the plan gets three more arrays (`ar_plan_gun2`, `_infect`, `_at`). `VR_ARENA_Plan` writes the wave's plan
+from the entries in place of `PlanFoes`, and the director runs as ever. A preset's delays hold the next foe
+(`VR_ARENA_NextDue`); a wave's `pool` replaces its alive pool; bosses are the entries marked so (their health as any boss's,
+their warning, the perk offer after the wave), in the order written (no BossMidway). After the last wave: `end` (ARENA
+CLEARED, the arena stands still), `last` or `loop`. No preset: all of that is skipped, nothing rolled: **Default is the same
+to the hash** (below).
+
+**Validation.** As the map starts QC walks every entry: an unknown kind, weapon or infection, a weapon its kind can't hold,
+two that don't pair, an unknown armour or pieces word: reported (console, and the editor's bottom line) and that entry
+skipped. The editor marks them red, keeps them, and saves them as they were.
+
+**Kinds.** `VR_WAVE_KINDS` gets `armed_knight`, `armed_deathknight`, `plain_grunt`, `plain_enforcer` (the arena's rows
+`grunt` and `enforcer` are its armed ones, as ever). A preset's plain kinds are held from `vr_agrunt_repl` and
+`vr_agknight`'s replacement: what it says it brings, it brings.
+
+**Generic infection** (`QC/vr_mg3_infected.qc`): `.vr_mg3_infected` is a row of `VR_INFECT_ROWS`: zombie and demon (Dawn of
+the Machine's two, set up by hand as they always were, first frames their pains), dog, knight, ogre, hellknight, shambler,
+shalrath, wizard (each through its monster's own spawn function, its start's think dropped, not counted again; he comes to
+on his run, with its sight sound). A new row is a line.
+- *What falls:* an armed humanoid's held and stowed weapons as at any death (`VR_AG_Dying`), his spare rounds and worn pack
+  as at any death (`VR_AG_SoldierDrop`: gun holders, or any wearing a pack), his plates as at a gibbing (`VR_AgArmor_Shed`:
+  they fly off as debris). Then nothing of the armed layer stays on the new body.
+- *Room:* the row's own box (its hull); for the rows other than zombie and demon, then a zombie (`fallback`: the smallest
+  body); zombie and demon then try the old body's box, as ever; none fits: he doesn't rise, gibbed and counted.
+- *Counting:* the first death never counts; he keeps `.ar_slot` and has health at once, so the wave waits for him (never
+  ends early), `AR_STALL` still lets a stuck wave go (never hangs), and only the riser's fall pays. A riser with no room
+  falls at once and pays there.
+- *Precaching:* a preset's outcomes at the map's start (with their fallback's), from its list. The toolgun's page: at the
+  spawn, through the engine's late precache every toolgun entry already uses (`VR_AllowLatePrecache`, `VR_WriteRecentPrecaches`):
+  it can't error in Quake VR's progs, nothing is added to every map's list; the cost is the toolgun's usual one, a frame's
+  load the first time an outcome is chosen, never at the burst.
+- *Toolgun:* the Armed Humanoid page gets Infected With (`vr_toolgun_armed_infected`, in Reset and Clear). No general setting
+  for normal maps.
+
+**Tests** (the fixtures: `vr_arena_waves_dir arena_waves_test; vr_arena_waves_fixture`): `vr_arena_waves_test` (format,
+round trip, names, assign.cfg), `vr_waveeditor_test` (every button, list and popup through a test mouse, in either mode),
+`vr_arena_test 30` (Default's plans hashed and a live wave's foes printed, to compare two builds), 31 (a preset's plans), 32
+(a live run: each wave as written, the riser, ARENA CLEARED), 33 (bad entries), 34 (another map by its name alone), 35 (every
+outcome from every armed kind: open, a narrow slot, boxed in), `vr_toolgun_armed_infected_test` (the page's spawns).
+
+**Not done:** no 3D preview (as asked: its text line); no per-skill scaling of a preset (it is exact at every skill; only
+health and score still go by skill); the wave clear's drops stay the director's (by wave number); a preset can't name maps'
+spawn groups (a delay instead); kinds from the mission packs and AD aren't in the table (a row each when wanted).

@@ -3,6 +3,7 @@
 // The QC declares these as `= #0`; after Ironwail's own by-name binding they are still
 // unbound, so they are given numbers from a private range here and bound by name.
 
+#include "vr_arenawaves.hpp"
 #include "vr_progs.hpp"
 #include "vr_playersteps.hpp"
 #include "vr_brushes.hpp"
@@ -792,6 +793,9 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"weapongrabspot", PF_weapongrabspot},
     {"weaponanygrip", PF_weaponanygrip},
     {"weapondrawnpose", PF_weapondrawnpose},
+    {"arenawavesload", arenawaves::pfLoad},
+    {"arenawavesfield", arenawaves::pfField},
+    {"arenawavesreport", arenawaves::pfReport},
     {"agposekey", PF_agposekey},
     {"agstrikeblend", PF_agstrikeblend},
     {"agkeytime", PF_agkeytime},

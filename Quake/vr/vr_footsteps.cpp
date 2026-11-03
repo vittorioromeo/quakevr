@@ -15,7 +15,8 @@
 //   vr_footstep_min_speed or faster (a pain's or an attack's shift of weight on the spot is silent).
 // - How loud. By its speed over its last frames: vr_footstep_walk_vol at vr_footstep_walk_speed up to vr_footstep_run_vol at
 //   vr_footstep_run_speed, carrying from vr_footstep_walk_atten to vr_footstep_run_atten; its kind's weight on top.
-// - The heavy ones (Sole::Thud) carry: vr_footstep_heavy_volume louder, and vr_footstep_heavy_carry on their distance for the
+// - The heavy ones (Sole::Thud) play at vr_footstep_heavy_speed (the playback rate: pitch and length together, as the kind's
+//   own pitch and the jitter, which it multiplies). They carry: vr_footstep_heavy_volume louder, and vr_footstep_heavy_carry on their distance for the
 //   falloff, the range and who counts as nearest: a heavy step is heard from further, over nearer boots.
 // - The budget. Any free channel (never its voice's or its weapon's). Only the nearest vr_footstep_nearest of those moving
 //   within vr_footstep_range of a player are heard, at vr_footstep_rate steps a second at most: a crowd is the few by you.
@@ -507,7 +508,8 @@ void play(const edict_t* e, int num, EntSteps& st, int side, float pace, float d
     const glm::vec2 foot = st.foot[side];
     const glm::vec3 at{e->v.origin[0] + foot.x * cs - foot.y * sn, e->v.origin[1] + foot.x * sn + foot.y * cs,
         e->v.origin[2] + e->v.mins[2] + soleLift};
-    if(!physsound::emitSound(num, 0, state.indices[sole][take], volume, atten, at, kind.pitch * physsound::jitterPitch()))
+    const float rate = kind.pitch * (kind.sole == Sole::Thud ? vr_footstep_heavy_speed.value : 1.f) * physsound::jitterPitch();
+    if(!physsound::emitSound(num, 0, state.indices[sole][take], volume, atten, at, rate))
     {
         return;
     }
@@ -547,8 +549,8 @@ void play(const edict_t* e, int num, EntSteps& st, int side, float pace, float d
     s.liftSum += za::max(lift, -lift);
     if(vr_footstep_log.value > 0.f)
     {
-        Con_Printf("footstep: %s ent %d %s frame %d pace %.0f vol %.2f atten %.2f dist %.0f ear %.3f err %.0f ms lift %.1f t %.3f\n", m.model->name, num,
-            side == 0 ? "right" : "left", st.footFrame[side], pace, volume, atten, dist, ear, err, lift, now);
+        Con_Printf("footstep: %s ent %d %s frame %d pace %.0f vol %.2f rate %.3f atten %.2f dist %.0f ear %.3f err %.0f ms lift %.1f t %.3f\n", m.model->name, num,
+            side == 0 ? "right" : "left", st.footFrame[side], pace, volume, rate, atten, dist, ear, err, lift, now);
     }
 }
 
