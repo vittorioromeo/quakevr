@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // vr_agarmor_shot_test.qc -- armour against real shots (vr_agarmor.qc; ROUND23.md, "Armour: the plate a shot meets").
 // `vr_agarmor_test 10`: Plate Blocks All (vr_agarmor_rule 1): an armed grunt, enforcer, knight and death knight (kinds
 // 0-3) ahead in full red, still, one at a time; at every plate a line that meets the plate's outer face first (a MOVE_HITMODEL trace
@@ -583,3 +584,4 @@ void(float request) VR_ARS_Frame =
     VR_ART_Check(g.health < vr_ars_h0, sprintf("the thrown plate hurt the grunt (%g, else timed out)", vr_ars_h0 - g.health));
     VR_ARS_End();
 };
+#endif

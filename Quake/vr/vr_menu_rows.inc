@@ -856,22 +856,20 @@ QVR_TOGGLE(vr_agrunt_repl, "Replace All Humanoids",
 QVR_TOGGLE(vr_agknight, "Armed Knights",
     "Every knight a map spawns is an armed humanoid holding a sword: swung with the armed humanoids' "
     "melee, parried, disarmed, tugged and grabbed like theirs, dropped when it dies; its ragdoll keeps "
-    "hold of it. A work in progress (ROUND23.md, \"Knights as armed humanoids\"). Takes effect at the "
-    "next map load (vr_agknight).")
+    "hold of it. Off: the game's own knights. Takes effect at the next map load (vr_agknight).")
 QVR_TOGGLE(vr_agdknight, "Armed Death Knights",
     "Every death knight (hell knight) a map spawns is an armed humanoid holding his sword: swung, parried, "
     "disarmed, tugged and grabbed like the armed humanoids', dropped when he dies; at range he still casts "
-    "his fireball volley. A work in progress (ROUND23.md, \"Death knights as armed humanoids\"). Takes "
-    "effect at the next map load (vr_agdknight).")
+    "his fireball volley. Off: the game's own death knights. Takes effect at the next map load (vr_agdknight).")
 QVR_SLIDER(vr_agdknight_cast_cooldown, "Armed Death Knights: Gun Cast Cooldown", 0.f, 60.f, 0.5f, "%.1f s", ext(0.f, 600.f),
     "An armed death knight holding a gun fires it, and casts his fireball volley (his off hand out, the fireballs from "
     "its palm: the Cast pose) at his next attack once this long has passed since his last cast; each has his own clock, "
     "starting on a random part of it, so a group doesn't volley together. With a blade or his fists he casts at range "
     "by id's own chances, his sword kept in his hand (vr_agdknight_cast_cooldown).")
 QVR_TOGGLE(vr_agknight_ranged_pickup, "Armed Knights: Pick Up Ranged Weapons",
-    "Off: armed knights and death knights take up only melee weapons lying about (a gun they drop stays "
-    "on the floor). On: they take up guns too, as grunts do (for experiments). One spawned holding a gun "
-    "(the toolgun, the Rig Studio, a map's \"weapon\") holds it either way (vr_agknight_ranged_pickup).")
+    "Off: armed knights and death knights with swords take up only melee weapons lying about. On: they take up "
+    "guns too, as grunts do. One spawned holding a gun (the toolgun, the Rig Studio, a wave, a map's \"weapon\") "
+    "takes guns up either way (vr_agknight_ranged_pickup).")
 QVR_SLIDER(vr_agrunt_repl_rare_map, "Rare From Map", 0.f, 8.f, 1.f, "%.0f", noExt,
     "Rare weapons only from this map of an episode on (e1m4, hip1m4, r2m4, ...); maps with no number in "
     "their name never. 0: any map (vr_agrunt_repl_rare_map).")
@@ -2925,6 +2923,10 @@ QVR_SLIDER_BYNAME(vr_revolver_open_flick_time, "Flick Open Time", 0.05f, 1.f, 0.
     "The wrist flick must be rolled within this long of the flick's start; a slower roll starts over (0: no limit).")
 QVR_TOGGLE_BYNAME(vr_revolver_open_button, "Eject Button Opens",
     "B/Y swings it out; out, B/Y pushes the ejector (its shells drop).")
+QVR_SLIDER_BYNAME(vr_revolver_eject_speed, "Eject Push Speed", 0.2f, 4.f, 0.05f, "%.2f m/s", ext(0.05f, 10.f),
+    "Swung out, a short push of the hand back along the bore, the way the chambers open, throws its shells out: how fast at its fastest. Tilting it or a flick of the wrist doesn't count.")
+QVR_SLIDER_BYNAME(vr_revolver_eject_impulse, "Eject Push Force", 0.f, 4.f, 0.05f, "x%.2f", ext(0.f, 20.f),
+    "The shells go on the way the hand went, at its speed times this.")
 QVR_TOGGLE_BYNAME(vr_revolver_eject_rod, "Ejector Rod",
     "Out, the other hand pushing the ejector rod's head (in front of the cylinder) back drops them.")
 QVR_SLIDER_BYNAME(vr_revolver_eject_rod_reach, "Ejector Rod Reach", 0.f, 8.f, 0.25f, "%.2f units", ext(0.f, 40.f), "How near its head the other hand must be.")
@@ -5902,6 +5904,12 @@ QVR_SLIDER(vr_flat_turnlag, "Flatscreen Turn Lag", 0.f, 3.f, 0.05f, "%.2f", noEx
     "the view). Looks only: the shots go along the crosshair.")
 QVR_SLIDER(vr_flat_turnlag_speed, "Flatscreen Turn Lag Recovery", 0.1f, 5.f, 0.05f, "%.2fx", noExt,
     "How fast the flatscreen hands catch up with a turn: higher, quicker and less lag.")
+QVR_SLIDER(vr_flat_arm_hold, "Flatscreen Arm Hold", 0.f, 2.f, 0.05f, "%.2fx", noExt,
+    "How far a flatscreen hand may sit from its arm's shoulder, times what that arm can hold it at (0: no limit). "
+    "Keeps the hand on the arm through a punch, a knock or a look (0: the hands as they are placed).")
+QVR_SLIDER(vr_flat_pose_pitch, "Flatscreen Hand Pitch", 0.f, 90.f, 1.f, "%.0f deg", noExt,
+    "How far the flatscreen hands follow the view up and down (90: all the way, as before). Held to a pitch they stay "
+    "in the arc the arms sweep when you look straight up or down.")
 QVR_TOGGLE(vr_ao_cache, "Keep AO Bakes on Disk",
     "vr_ao_cache: the models' occlusion bakes kept on disk, so a later session's loads bake nothing (off: baked at every first load; 2 in the console: baked anyway and compared with the file).")
 QVR_TOGGLE(vr_menu_link_dryrun, "Menu Links: Print, Do Not Open",

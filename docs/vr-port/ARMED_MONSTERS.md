@@ -6,9 +6,13 @@ nothing of the monster that holds the weapon: what it needs is the monster's **r
 Rows now: the grunt (`monster_vr_grunt`, row 0), the enforcer (`monster_vr_enforcer`, row 1) and the knight
 (`monster_vr_knight`, row 2: every weapon class, a sword by default; guns lying about taken up only with
 `vr_agknight_ranged_pickup` 1 (`vr_am_takes_ranged`, `VR_AM_Takes`); the grunt's shipped pose keys, fitted (C++
-`agpose` `shippedFrom`); a map's knights with `vr_agknight` 1, QC
-`VR_AKN_Replace`; ROUND23.md, "Knights as armed humanoids"). `VR_AM_GUN_KINDS` (2): the kinds the gun holders' loops
-mean (pose categories, replacements); the toolgun lists the knight only with `vr_agknight` on.
+`agpose` `shippedFrom`); a map's knights and death knights (`monster_vr_hknight`, row 3) are these rows by default:
+`vr_agknight` 1, `vr_agdknight` 1 (since 2026-11-03), QC `VR_AKN_Replace`, in the grunts' scope `VR_AGR_InScope`, not
+statues, a trigger's copies, MG3's infected or AD's variants; a sword alone, so no pack; `ROUND23.md`, "Knights as armed
+humanoids", "Armed knights by default"). Their ranged pickups stay off for those: a gun comes only from a spawn's
+weapon (the toolgun, the Rig Studio, a wave, a map's "weapon"), and one spawned holding a ranged weapon takes ranged
+weapons up whatever the setting says (`.vr_ag_born_ranged`, set in `VR_AM_Spawn`, read by `VR_AM_Takes`). `VR_AM_GUN_KINDS` (2): the kinds the gun holders' loops mean (pose categories,
+replacements); the toolgun lists the knights while their settings are on.
 
 ## Where things are
 

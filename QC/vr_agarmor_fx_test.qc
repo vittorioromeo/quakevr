@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // vr_agarmor_fx_test.qc -- armour's ragdolls, cuts, debris and effects (vr_agarmor.qc; ROUND23.md, "Armour: ragdolls,
 // dislodging, debris, sparks"). `vr_agarmor_test 5`: four armed grunts ahead of the player: A killed (a dead ragdoll),
 // B knocked down (an active ragdoll), C killed (cut, beheaded and gibbed), D standing (shots). Checks: a plate found and
@@ -157,7 +158,7 @@ void(entity p) VR_AFT_Run =
     VR_ART_Check(armed && b.health <= 0 && !VR_AgArmor_On(b, pb) && vr_ar_debris_made == made + 1 && ragdolllimbs(b, 2) == 0,
         sprintf("active ragdoll: a killing cut armed at joint %g (armed %g) under the plate: the plate broke (debris %g), no limb cut (cut %g)",
         joint, armed, vr_ar_debris_made - made, ragdolllimbs(b, 2)));
-    VR_ART_Check(vr_ar_break_sound_last == "vr/derived/armor_break.wav" && vr_ar_break_sound_last != "items/armor1.wav",
+    VR_ART_Check(vr_ar_break_sound_last == "vr/armor_crack.wav" && vr_ar_break_sound_last != "items/armor1.wav",
         sprintf("the break's sound %s (not the pickup's items/armor1.wav)", vr_ar_break_sound_last));
 
     // --- The dead ragdolls (A; B now dead): the limb stays on until its plate breaks, then pops.
@@ -352,3 +353,4 @@ void(float start) VR_AgArmor_FxTestFrame =
     vr_aft_busy = 3;
     vr_aft_until = time + 5;
 };
+#endif

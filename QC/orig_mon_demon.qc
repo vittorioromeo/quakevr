@@ -349,9 +349,9 @@ void()    Demon_JumpTouch =
         {
             ldmg = 40 + 10*random();
             T_Damage(other, self, self, ldmg);
-            if(self.vr_parry_stagger_until > time)
+            if(VR_Leap_BlowEnded())
             {
-                return; // successful parry owns the recovery think and has cancelled the leap touch
+                return; // a parry owns the recovery think, its death its dying (VR_Leap_BlowEnded)
             }
         }
     }

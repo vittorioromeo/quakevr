@@ -88,7 +88,9 @@ void() VR_Parry_SameCallbackTest =
     makevectors('0 1 0' * p.v_viewangle_y);
     setorigin(self, p.origin + v_forward * 48);
     self.classname = "monster_knight";
+    vr_agr_hold = vr_agr_hold + 1; // (the stock knight's attack frames below)
     monster_knight();
+    vr_agr_hold = vr_agr_hold - 1;
     self.flags = self.flags | FL_MONSTER;
     self.enemy = p;
     self.solid = SOLID_NOT;

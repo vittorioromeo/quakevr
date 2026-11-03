@@ -7346,6 +7346,66 @@ only CC0 recordings the game already ships. Candidates for the real thing, pages
   the end. It replaces `vr/derived/fabric_rip.wav` (the fiend's `demon/dhit2` was its main layer; the layer table's entry is gone). Still
   played by `VR_WP_Off` on every way a pack comes off. Against the old mix: high -15.7 (was -15.2), mid -25 (was -17), low -25.5 (was -15.7).
 
+## Armed knights by default (branch `agent/knightson`, his decision of 2026-11-03)
+
+His words: "If you mean replacing stock knights and death knights with the armed humanoid version, yes. If you mean knights
+and death knights picking up ranged weapons autonomously, no -- let's keep that for spawned ones and arena waves."
+
+And his note `vrragtriggers_2026-11-03_02-24-29`: a knight or death knight spawned wielding a ranged weapon, "either from a
+tool gun or from an arena wave ... should be able to pick up other ranged weapons as they fight", whatever the menu says.
+
+**What changed.** `vr_agknight` and `vr_agdknight` default to 1 (sparse configs: no migration row; a config that saved 0
+keeps it). `VR_AKN_Replace` takes the grunts' scope (`VR_AGR_InScope`: `vr_agrunt_repl_id`, `_mp`, `_ad`; it read only `_ad`)
+and leaves MG3's infected alone, as `VR_AGR_Replace` does: replaced, an infected one lost his burst and a lying death knight
+his corpse. `vr_agknight_ranged_pickup` stays 0 for a map's sword knights; `.vr_ag_born_ranged`, set in `VR_AM_Spawn` from
+what it was armed with and read by `VR_AM_Takes`, lets one spawned with a ranged weapon take ranged weapons up whatever the
+setting says (the toolgun, a wave's `armed_knight` / `armed_deathknight`, a map's "weapon"). Tests about the stock knight
+hold the replacement off with the tools' own `vr_agr_hold` (`impulse 248`, `vr_parry_test`, `vr_kdtrig_test_class` 3 and 6,
+`vr_mg_activation_test`). Debug > Automation & Self-Tests: "Armed Knights: This Map's Knights" (207), "A Map's Knights in
+Play" (206).
+
+**What it reaches** (`vr_agrunt_test 207` on each map at Normal, settings on then off; the monster count the same on every
+map; the raw counts by reading the BSPs, all skills):
+
+| Campaign | Maps run | Knights + death knights there | Armed | Left plain, and why |
+| --- | --- | --- | --- | --- |
+| Quake | 20 | 219 | 219 | none |
+| Scourge, Dissolution | 19 | 398 | 369 | 29: r2m1's statues (stock, as before) |
+| Dimension of the Past | 7 | 150 | 150 | none |
+| Dimension of the Machine | 10 | 290 | 290 | none (MG's placed bodies wear the classnames: scenery, not counted) |
+| Dawn of the Machine | 10 | 369 | 319 | 50: the infected (map2 17, map8 1, boss 32) |
+| Arcane Dimensions | 4 of about 80 | 103 | 103 | none here; AD's point knights and ghosts by rule |
+
+AD: its map knights are replaced like its grunts (`vr_agrunt_repl_ad` 1, since 2026-11-01); AD's own variants never. Ambush
+and targetnames are kept: only the flags of a trigger's copies are ever cleared and those are never replaced. Honey's
+trigger-spawned copies keep their maker's spawn (stock). The training dummy holds the replacement off (`VR_Dummy_Make`, read,
+not run). The arena: "knight" and "hellknight" in a wave are now armed with swords, the waves' plan unchanged (they get no
+plan armour: `VR_ARENA_ArmsHumanoid` is the grunts', the wave editor's kinds and the new `armed_*` are separate rows).
+
+Two things he may notice. A map's knights now **roll armour by the skill** like the other armed ones (`vr_agarmor_skill*`:
+15% on Normal, 60% on Nightmare), so a kill can take more than it did: test 95 caught it, a blow of health + 10 leaving a
+death knight on 50. And **the cost**: not measured again (he was playing): a fresh install now has what his config had when
+`PERF_1102.md` measured it, about 0.16 ms of CPU a frame per armed humanoid more than a plain one.
+
+**Tests.** `vr_agrunt_test 206` (new): census; a knight with a target killed: counted, its target used, a door moving (e1m4 t49,
+e2m3 t31); woken from waiting unseen, armed (MG, AD); a map's knight disarmed leaves a gun alone for 8 s with the setting off
+and takes it with it on (the control); spawned with a shotgun they hold it, wear the pack, and disarmed take a gun up with the
+setting off; a sword one takes none; a wave's kinds; infighting. e1m4 15/0, e2m3, mge4m1, map4, ad_e2m2: all pass. On
+`ad_ac` 14/1: the death knight is drawn into the room's fight 800 units from the gun (health 2000 -> 1141), the rule itself
+passing there; left failing rather than loosened: run it somewhere quieter. `vr_agrunt_test 208`, a save made with the settings
+off and loaded with them on: 2/0, those knights stay stock and their kills count. Test 95 knight 7/0, death knight 11/0 (its
+death case now repeats the blow if armour took it); test 1 kind 2 17/0; 88 `ragweapon: 6/0`; wornpack 11 and 21 25/0 each;
+`vr_mg3_mtest 2` 19/0; `vr_ad_test 198` on ad_ac 5/0; `vr_footstep_test 1` 8/0; arena 1 257/0, arena 6 (32 waves) 8/0;
+parryinterrupt no failures; bench `--validate` crowd32_armed, crowd32_plain, armed_mix32 run (armed_mix32 flagged a decal
+difference once, 40/43, and passed the repeat). `vr_mg3_mtest 3` fails "woken, he rose" (e1m1), **the same with both settings
+off**: not this change (he has no room to rise there within the test's 2.5 s).
+
+Checklist:
+- [knightson] Fresh settings, e1m4 (or any map with knights): every knight holds a sword in his hand, swings it, can be parried
+  and disarmed; killing the one by the door opens it as before; no knight ever takes up a gun lying about. {test:knights_e1m2}
+- [knightson] Toolgun (or a wave's armed knight with a gun): a knight or death knight with a shotgun or pistol: knock it out of
+  his hand: he picks up a gun again, with "Pick Up Ranged Weapons" off; one with a sword doesn't. {test:knight_guns}
+
 ## Heavy footsteps and the pack's rip: the real recordings (branch `agent/freesounds2`)
 
 He approved the three clips in chat; the coordinator fetched them. These replace the stand-ins of the section above (their layering left
@@ -7431,6 +7491,54 @@ stick is always heard, however slowly. The feet still count every touchdown for 
 
 Each footstep is still within a frame of the drawn touchdown (13.9 ms most), and the old trigger plays none in these phases.
 
+## A dead fiend leapt on; armed knights' guns trailed their sidesteps (branch `agent/fiendgun`, his notes of 2026-11-03)
+
+**The dead fiend** (vrfiringrange_2026-11-03_02-01-47). Its entities file: health -1, `vr_corpse` 2, a ragdoll, think
+`demon1_jump1..10` round and round for good, enemy a thing gone (id 234), velocity 0 sampled (the ragdoll takes each leap's
+velocity at once). Shots, blows and a neck snap, on the ground and in mid-leap, knocked down, staggered, and every poke at a
+lying corpse leave it dead (scenes 1-8, 10-18 pass before the fix too). What does it: a fiend's leap strikes something that
+dies of the blow and blows up (the range's barrels), the blast kills the fiend **inside `Demon_JumpTouch`**, inside its
+`T_Damage(other, ...)`; Killed sets its death's think and the touch goes on and writes its landing's over it (`demon1_jump11`,
+then run, then its AI leaps again: `Demon_JumpTouch` itself returns at once on a dead one, so its leap never ends and its
+three-second retry goes round). Its enemy, set by Killed, is the barrel since removed; its limbs' blast pop makes its health -1
+and its body not solid, so it arms as a corpse in a held frame. The first line's health check could not see this: it was
+alive when the touch began. Fix: `VR_Leap_BlowEnded()` (combat.qc: parried or dead), asked after the blow by Quake's fiend, dog
+and spawn in place of their parry-only check; AD's leaps (fiend, dog, fury, minotaur, spider, swampling, spawn, voreling, elf,
+zombie knight, Judicator) ask their health before their landing. Those set their exit think before the blow, so only their
+re-jump branch (no floor under it) could rise: read in the code, not run. The gremlin's blow is commented out, the hunter ogre's
+touch and the steel claw's set no think after a blow. `vr_deadanim_test 20`, `21`, `22` (`Misc/quakevr/deadleap_test.sh`,
+QC `vr_deadleap_test.qc`; Debug > Tests): 18 scenes each: before 17 passed, scene 9 failed for all three (a fiend's body 29 frames of its AI, a
+dog's 43, a spawn's 28 and 1114 units on); after 18 passed. His own kill is not on record (the take starts with it already
+leaping): this cause is the one path that gives his numbers, not a replay of it; in the test's 5 s the dead fiend ran its AI
+and did not yet reach its leap's loop.
+
+**The guns** (vrragtriggers_2026-11-03_02-23-27). Test 205 (`vr_agrunt_test 205`, `vr_armedgrunt_gunlag_test.qc`): each kind
+with a nail pistol plays its run frames, moved at 120 u/s by the test; the numbers its drawn hand from its drawn head, off its
+run on the spot's (forward, left, up):
+
+| | forward | right | backwards | left |
+|---|---|---|---|---|
+| Grunt before | 0, 0, 0.1 | 0.4, 2.2, -0.1 | 0.1, -0.3, 0.1 | 0.7, -2.3, -0.1 |
+| Grunt after | 0, 0, 0.1 | 0, 0, 0 | 0, 0, 0.1 | 0, -0.1, 0 |
+| Enforcer before | -0.2, 0, 0.1 | 2.2, 0.5, 0.8 | -0.2, 0.3, 0 | 0.9, 0, 0.5 |
+| Enforcer after | -0.2, 0, 0.1 | 0, 0.2, -0.1 | -0.2, 0, 0.1 | -0.1, -0.1, 0.1 |
+| Knight before | 0.1, 0, 0 | **-5.8, 6.5, -2.4** | 0.3, -1.7, 0 | **0.1, -9.7, -0.8** |
+| Knight after | 0.1, 0.1, 0 | 0, 0.1, 0 | 0.6, -0.5, -0.1 | 0.4, -0.4, -0.1 |
+| Death knight before | 0.1, 0, 0.1 | **-3.5, 8.9, 0.3** | -0.3, -2, 0 | **-3.5, -10.2, -0.4** |
+| Death knight after | 0, 0, 0 | 0, 0.2, 0 | 0, -0.1, 0 | 0.1, -0.3, 0.1 |
+
+The cause: the strafe lean and turn (`aglegs::lean`, `vr_agrunt_strafe_lean`, `_turn`) are laid on every bone, moving the chest
+across (the upper body's hold keeps its turn out, its place stays: "its waist where the hips have it"), while the targets are
+placed from its anchor vertex as the frames have it, carried only by the hold (`anchorShift`). The turn's upright goes through
+its middle, so the chest moves by how far it stands from it: a knight's and a death knight's stand forward of it and their lean
+adds to that (their chests 3 to 4 units across each way); a grunt's and an enforcer's stand behind it, against the lean (under
+1 and 3 units, with the gun off the chest by at most 2.6). Not the body root, last frame's pose, the IK order, smoothing or
+`vr_agarms_lod` (which reuses the same targets past its near range; test 205 is near). Fix: the anchor rides the lean and turn too
+(`anchorRide`, vr_hitreact_skin.cpp). A general rule, so the grunts' and enforcers' sideways numbers go to 0 as well; the rest of
+theirs are unchanged. At a steady straight walk there was no offset to speak of: what he saw coming on and backing off would be
+the sideways part of a real path, which test 205 does not play (its own moves, no AI). The frames' own sway of the gun on
+the chest stays (rms about the mean: knight 1.2, others 0.5 to 0.8). Side-view frames: test 205 with `scratch1 1`.
+
 ## Arena wave editor and generic infection (branch `agent/waveeditor`)
 
 His words: "a simple wave editor tool so that I can set up waves the way I want ... any armed humanoid configuration with
@@ -7498,3 +7606,67 @@ outcome from every armed kind: open, a narrow slot, boxed in), `vr_toolgun_armed
 **Not done:** no 3D preview (as asked: its text line); no per-skill scaling of a preset (it is exact at every skill; only
 health and score still go by skill); the wave clear's drops stay the director's (by wave number); a preset can't name maps'
 spawn groups (a delay instead); kinds from the mission packs and AD aren't in the table (a row each when wanted).
+
+## An enemy's armour plate breaking: a metal crack from a recording (branch `agent/armorcrack`, his request 2026-11-03)
+
+`vr/armor_crack.wav` (0.42 s) replaces `vr/derived/armor_break.wav` (the pickup's chime backwards), which is gone from
+vr_sndlayer.cpp with its layer's `reversed` flag (nothing else used it). QC `VR_AR_BREAK_SOUND`, the precache and
+`vr_agarmor_test 5` name the new file. Cut by `make_recorded_steps.py --crack`; sources are CC0 HQ previews (CREDITS.md).
+
+Measured by script, not heard: no agent can listen, he judges. One take per row, cut the same way (0.85 rate, the crack an
+octave down at 0.3 under it, drive for the old loudness); "tonal" is the share of the raw slice's energy in the spectrum's
+strongest 2% of bins (a ring or a clang is high).
+
+| Take | Raw slice: attack, tail to -40 dB, tonal | Cut: peak, loudest 100 ms, centroid, 500-6k share | Why |
+|---|---|---|---|
+| **51263** @1.281 *Metal Cracking 2.wav*, RutgerMuller (shipped) | 2 ms, 370 ms, 12% | 0.90, -13.1 dB, 2.6 kHz, 74% | a broken noise, no ring; falls 16x in 80 ms; a faint creak and one small tick after it |
+| 518731 @0.744 *Cracking, snapping, and clanging (metal can)*, Ashley12275 | 2 ms, 602 ms, 36% | 0.90, -13.0 dB, 2.6 kHz, 89% | a thinner can; more ring |
+| 875432 @2.724 *Egg Steel Crack Hard*, loganzsound | 4 ms, 204 ms, 34% | 0.90, -13.5 dB, 2.0 kHz, 83% | more knock than crack (an egg on steel) |
+
+The old break: peak 0.91, -12.8 dB, a 266 ms swell. Turned down on the numbers: 497427 (84% at 500-2k, tonal 65%: a hum),
+719927 (over 6 kHz: a tiny clip), 562198 (tonal 56%, no decay: a ring), 273863 and 875433 (tonal over 80%, mostly under
+500 Hz), 752070 (a 358 ms swell).
+
+To swap: `python Misc/quakevr/make_recorded_steps.py <folder of fs_<id>.wav> --crack=518731` (or 875432). Test:
+`vr_agarmor_test 5` 24 passed, 0 failed.
+
+## The heavy revolver: ejecting takes a push; a cylinder with real holes (branch `agent/revolver2`, his notes of 2026-11-03)
+
+His notes: tilting it dropped the shells with no motion ("I should have to actually perform a small amount of motion with my
+hand... a linear hand motion towards the direction the holes are pointing"), and the chambers were black paint.
+
+**The push** (QC `VR_Revolver_Push`, replacing `vr_revolver_eject_tilt`, gone). Swung out, its shells leave when the hand moves
+back along the bore (the way the chambers open: -`vr_rv_axis`) at `vr_revolver_eject_speed` (1 m/s, Heavy Revolver page) at its
+fastest, over `vr_revolver_eject_travel` (0.03 m) and at least two frames (one alone: a tracking glitch), within
+`vr_revolver_eject_cone` (35 deg) of that way, the hand turning no faster than `vr_revolver_eject_turn` (350 deg/s; the last three
+Debug > Tunables). The speed is the hand's own at the grip (`.handvel`), not the cylinder's, so a flick of the wrist hardly
+moves it and one hard enough to is over the turn limit; tilting moves nothing. No eject with a shell in the other hand or
+within `vr_revolver_spin_hold` of loading (the gun is brought back quickly then), nor two-handed. No tilt condition: the way the
+holes point is the gun's, wherever it points. Out, live shells go at the hand's velocity x `vr_revolver_eject_impulse` (1.5, Heavy
+Revolver page) with a little scatter; the spent casings (client, `QVR_CASING_PUSHED`, vr_shells.cpp) at the port's tracked velocity x
+the same. B/Y and the ejector rod drop them as before. The other reload modes never reach this code (`VR_Revolver_ReloadFrame`: manual only).
+
+**The holes** (`Misc/quakevr/models_src/revolver/cut_chambers.py`, its README, "The chambers"): real geometry, not alpha: ten-sided
+through holes, walls inside, in the .blend without touching his hand-edited skin but for 18 freed texels. Gun 1021 -> 1285
+triangles (the cylinder 256 -> 520). All the revolver's MDLs re-exported (the shell's unchanged); the barrel mask re-marked (92
+triangles; it goes by triangle count: **a mask he painted himself on the old model reads as none now**; his cfg had none).
+
+Tests: `vr_rv_test 1` step 13 rewritten (`map vrtesthall;wait30;developer 1;vr_rv_test 1`, ends on "rvtest: N passed, M failed").
+Models: 26 directions x frames 0, 1, 3: covered with back faces but not culled: 0 pixels; every edge of the Cylinder shared by two faces.
+
+## The release flavour builds again (branch `agent/relbuild`)
+
+Found 2026-11-03: no release could be cut from `next`. Three separate stops, each only visible on release day:
+
+- `fteqcc -DQVR_NO_TESTS` failed: five `*_test.qc` (agarmor, agarmor_fx, agarmor_shot, ammocolor, wornpack) had no
+  `#ifdef QVR_TESTS`, and used the test helpers: 17 errors. Guarded like the others; no game file called into them.
+- The engine's exe held the text `tunables.cfg` (the Debug menu's help of Save My Settings as Defaults), which
+  make_release.ps1's exe check reads as "a development exe": it would have refused every release. The help now says
+  what a release does. The code itself compiled and linked as it was.
+- make_release.ps1's default fteqcc was the author's stock copy, which writes the 16-bit progs format: the build's
+  check_progs_format.py refuses it. The repo's `Tools/fteqcc/fteqcc64.exe` is the default now.
+
+`Misc/quakevr/check_release_qc.py` (~3 s; QC/build.sh, QC/build.bat, Visual Studio's QC step, make_release.ps1's source
+checks) compiles the flavour to `build/qcrelease/` and fails on an error, a warning, the wrong progs format, a `*_test.qc`
+not wholly inside its guard, or `quakevr/progs.dat` changing. Globals: 51,358 without the tests (64,511 with them); the
+format is 32-bit, so no 65,536 limit applies to either.

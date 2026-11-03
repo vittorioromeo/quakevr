@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // vr_agarmor_test.qc -- armour for armed humanoids' test (vr_agarmor.qc; Debug > Tests; ROUND23.md, "Armour for armed
 // humanoids, P1"). `vr_agarmor_test 1`: two armed grunts ahead of the player (one armoured, one not) hit through T_Damage
 // at their plates' places: the absorb math by both rules, a headshot with and without the helmet (and its pop), a
@@ -721,3 +722,4 @@ void() VR_AgArmor_TestFrame =
     vr_art_state = 0;
     VR_Test_Verdict();
 };
+#endif

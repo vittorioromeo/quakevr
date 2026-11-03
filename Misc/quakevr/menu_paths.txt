@@ -2859,7 +2859,9 @@ vr_cellcord_superaxe_z|2|Tunables|Up|Advanced VR Options > Debug > Tunables > Up
 vr_revolver_close_flick_time|2|Tunables|Flick Close Time|Advanced VR Options > Debug > Tunables > Flick Close Time
 vr_revolver_flick_sustain|2|Tunables|Flick Sustain|Advanced VR Options > Debug > Tunables > Flick Sustain
 vr_revolver_close_push_speed|2|Tunables|Push Speed|Advanced VR Options > Debug > Tunables > Push Speed
-vr_revolver_eject_tilt|2|Tunables|Muzzle Up|Advanced VR Options > Debug > Tunables > Muzzle Up
+vr_revolver_eject_travel|2|Tunables|Eject Push Travel|Advanced VR Options > Debug > Tunables > Eject Push Travel
+vr_revolver_eject_cone|2|Tunables|Eject Push Cone|Advanced VR Options > Debug > Tunables > Eject Push Cone
+vr_revolver_eject_turn|2|Tunables|Eject Push Turn|Advanced VR Options > Debug > Tunables > Eject Push Turn
 vr_revolver_spin_mult|2|Tunables|Spin Strength|Advanced VR Options > Debug > Tunables > Spin Strength
 vr_revolver_spin_friction|2|Tunables|Spin Friction|Advanced VR Options > Debug > Tunables > Spin Friction
 vr_revolver_spin_max|2|Tunables|Fastest Spin|Advanced VR Options > Debug > Tunables > Fastest Spin
@@ -4889,6 +4891,8 @@ vr_ragtool_log|2|Ragdoll Tool|Log|Advanced VR Options > Debug > Ragdoll Tool > L
 |2|Debug - Automation & Self-Tests|Armed Grunts: Preventive Parry|Advanced VR Options > Debug > Automation & Self-Tests > Armed Grunts: Preventive Parry
 |2|Debug - Automation & Self-Tests|Armed Grunts: Wind-up Parry|Advanced VR Options > Debug > Automation & Self-Tests > Armed Grunts: Wind-up Parry
 |2|Debug - Automation & Self-Tests|Armed Knights: Spawn, Swing, Disarm, Death|Advanced VR Options > Debug > Automation & Self-Tests > Armed Knights: Spawn, Swing, Disarm, Death
+|2|Debug - Automation & Self-Tests|Armed Knights: This Map's Knights|Advanced VR Options > Debug > Automation & Self-Tests > Armed Knights: This Map's Knights
+|2|Debug - Automation & Self-Tests|Armed Knights: A Map's Knights in Play|Advanced VR Options > Debug > Automation & Self-Tests > Armed Knights: A Map's Knights in Play
 |2|Debug - Automation & Self-Tests|Armed Knights: Spawn One Before You|Advanced VR Options > Debug > Automation & Self-Tests > Armed Knights: Spawn One Before You
 |2|Debug - Automation & Self-Tests|Armed Grunts: Parry Their Blows|Advanced VR Options > Debug > Automation & Self-Tests > Armed Grunts: Parry Their Blows
 |2|Debug - Automation & Self-Tests|Armed Grunts: Grab Table|Advanced VR Options > Debug > Automation & Self-Tests > Armed Grunts: Grab Table
@@ -4903,6 +4907,8 @@ vr_ragtool_log|2|Ragdoll Tool|Log|Advanced VR Options > Debug > Ragdoll Tool > L
 |2|Debug - Automation & Self-Tests|Armed Grunts: Arms' Contact Sheet|Advanced VR Options > Debug > Automation & Self-Tests > Armed Grunts: Arms' Contact Sheet
 |2|Debug - Automation & Self-Tests|Armed Humanoids: Ammo, Loot, Damage, Sounds|Advanced VR Options > Debug > Automation & Self-Tests > Armed Humanoids: Ammo, Loot, Damage, Sounds
 |2|Debug - Automation & Self-Tests|Armed Humanoids: Gun Pose Categories|Advanced VR Options > Debug > Automation & Self-Tests > Armed Humanoids: Gun Pose Categories
+|2|Debug - Automation & Self-Tests|Armed Humanoids: Gun on the Move|Advanced VR Options > Debug > Automation & Self-Tests > Armed Humanoids: Gun on the Move
+|2|Debug - Automation & Self-Tests|Dead Fiend, Dog and Spawn Stay Dead|Advanced VR Options > Debug > Automation & Self-Tests > Dead Fiend, Dog and Spawn Stay Dead
 |2|Debug - Automation & Self-Tests|Armed Humanoids: Glitch Finder|Advanced VR Options > Debug > Automation & Self-Tests > Armed Humanoids: Glitch Finder
 |2|Debug - Automation & Self-Tests|Armed Replacements: Rolls|Advanced VR Options > Debug > Automation & Self-Tests > Armed Replacements: Rolls
 |2|Debug - Automation & Self-Tests|Armed Replacements: Balance|Advanced VR Options > Debug > Automation & Self-Tests > Armed Replacements: Balance
@@ -7432,6 +7438,8 @@ vr_revolver_open_flick_speed|1|Reloading - Heavy Revolver|Flick Open Speed|Advan
 vr_revolver_open_flick_angle|1|Reloading - Heavy Revolver|Flick Open Wrist Flick|Advanced VR Options > Weapons > Reloading > Heavy Revolver > Flick Open Wrist Flick
 vr_revolver_open_flick_time|1|Reloading - Heavy Revolver|Flick Open Time|Advanced VR Options > Weapons > Reloading > Heavy Revolver > Flick Open Time
 vr_revolver_open_button|1|Reloading - Heavy Revolver|Eject Button Opens|Advanced VR Options > Weapons > Reloading > Heavy Revolver > Eject Button Opens
+vr_revolver_eject_speed|1|Reloading - Heavy Revolver|Eject Push Speed|Advanced VR Options > Weapons > Reloading > Heavy Revolver > Eject Push Speed
+vr_revolver_eject_impulse|1|Reloading - Heavy Revolver|Eject Push Force|Advanced VR Options > Weapons > Reloading > Heavy Revolver > Eject Push Force
 vr_revolver_eject_rod|1|Reloading - Heavy Revolver|Ejector Rod|Advanced VR Options > Weapons > Reloading > Heavy Revolver > Ejector Rod
 vr_revolver_eject_rod_reach|1|Reloading - Heavy Revolver|Ejector Rod Reach|Advanced VR Options > Weapons > Reloading > Heavy Revolver > Ejector Rod Reach
 vr_revolver_eject_rod_speed|1|Reloading - Heavy Revolver|Ejector Rod Push|Advanced VR Options > Weapons > Reloading > Heavy Revolver > Ejector Rod Push

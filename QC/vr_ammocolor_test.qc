@@ -1,3 +1,4 @@
+#ifdef QVR_TESTS
 // vr_ammocolor_test.qc -- the ammo screens' warning colours (vr_ammo_color_warn; vr_view_weapon.cpp gunWarning).
 //
 // vr_ammocolor_test 1: guns put in your hands (the shotgun, the nailgun, the nail pistol, the revolver and AD's
@@ -240,3 +241,4 @@ void() VR_AmmoColor_TestFrame =
     }
     VR_ACT_Start();
 };
+#endif

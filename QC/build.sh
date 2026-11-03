@@ -16,6 +16,11 @@ PY=$(command -v python3 || command -v python || true)
 if [ -n "$PY" ]; then
     "$PY" ../Misc/quakevr/check_progs_format.py ../quakevr/progs.dat
 fi
+# The release flavour's QC (-DQVR_NO_TESTS, to a work folder: progs.dat is not touched) compiles with no error or
+# warning (Misc/quakevr/check_release_qc.py; ~3 s; NO_RELEASE_QC_CHECK=1 skips it).
+if [ -z "$NO_RELEASE_QC_CHECK" ] && [ -n "$PY" ]; then
+    "$PY" ../Misc/quakevr/check_release_qc.py --fteqcc "${FTEQCC:-fteqcc}"
+fi
 # No expression that reads differently under C's operator priorities (docs/vr-port/CODE_STYLE.md, QuakeC; ~7 s;
 # NO_PREC_CHECK=1 skips it).
 if [ -z "$NO_PREC_CHECK" ] && [ -n "$PY" ]; then

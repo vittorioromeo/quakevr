@@ -407,5 +407,8 @@ copy "$(SolutionDir)..\zlib\$(PlatformShortName)\*.dll" "$(TargetDir)"</Command>
     <!-- The 32-bit progs format (QC/defs.qc's fte32 pragma): a 16-bit progs.dat fails the build (skipped without Python). -->
     <Exec Condition="Exists('$(QvrQcCompiler)')" WorkingDirectory="$(MSBuildProjectDirectory)\..\.."
           Command="where python &gt;nul 2&gt;nul || exit /b 0&#xD;&#xA;python Misc\quakevr\check_progs_format.py quakevr\progs.dat" />
+    <!-- The release flavour's QC (-DQVR_NO_TESTS, to a work folder) compiles with no error or warning (~3 s; skipped without Python). -->
+    <Exec Condition="Exists('$(QvrQcCompiler)')" WorkingDirectory="$(MSBuildProjectDirectory)\..\.."
+          Command="where python &gt;nul 2&gt;nul || exit /b 0&#xD;&#xA;python Misc\quakevr\check_release_qc.py --fteqcc &quot;$(QvrQcCompiler)&quot;" />
   </Target>
 </Project>

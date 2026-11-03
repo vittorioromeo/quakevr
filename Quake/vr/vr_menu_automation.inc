@@ -340,6 +340,15 @@ za::Vector<Item> pageDebugAutomation()
                   "Knights off (a plain knight) and on (an armed one holding a sword at its hand), its sword hurting "
                   "you, knocked out of its hand and taken up again, and its death dropping the sword once (vr_agknight "
                   "put back after; agtest: test 95 over: N passed, M failed)."),
+        command("Armed Knights: This Map's Knights", "vr_agrunt_test 207")
+            .help("vr_agrunt_test 207 (one frame, any map): counts the map's knights and death knights: how many are armed "
+                  "and plain, the monster count, and that each armed one holds a sword alone, wears no pack and takes "
+                  "no gun up (the console: knightmap: ...; agtest: test 207 over: N passed, M failed)."),
+        command("Armed Knights: A Map's Knights in Play", "god; notarget; vr_agrunt_test 206")
+            .help("vr_agrunt_test 206 (a map with armed knights, e1m4 for the door; about 20 s): the count above; one "
+                  "with a target killed, its door moving; one disarmed leaving a gun by it alone until "
+                  "vr_agknight_ranged_pickup is on for a moment; a knight and a death knight spawned with a shotgun "
+                  "holding it; who a hurt knight turns on (agtest: test 206 over: N passed, M failed)."),
         command("Armed Knights: Spawn One Before You", "vr_agknight 1; vr_toolgun_select_armed 2 13")
             .help("Turns Armed Knights on (vr_agknight) and picks an armed knight with a sword as the toolgun's spawn "
                   "(Spawn > Monsters > Armed Humanoid, Kind Knight): fire the toolgun to place one."),
@@ -399,6 +408,14 @@ za::Vector<Item> pageDebugAutomation()
                   "(Rifle, Pistol, Shoulder Launcher, Sprayer, Laser Cannon, Widowmaker) against the built-in table; a "
                   "Pistol Aim key moved 5 forward moves the pistols' keys only (then reset: vr_agrunt_pose_key <code> "
                   "reset); a Pose Category set changes that kind's only. agtest lines, then a verdict."),
+        command("Armed Humanoids: Gun on the Move", "scratch1 1; vr_agrunt_test 205")
+            .help("vr_agrunt_test 205 (vrtesthall; about 40 s): each kind with a nail pistol runs on the spot, forward, right, "
+                  "backwards and left across one place beside you: its drawn hand from its drawn head in each, off the spot's "
+                  "by at most 3 units; a screenshot of its side in each. agtest lines, then a verdict."),
+        command("Dead Fiend, Dog and Spawn Stay Dead", "vr_deadanim_test 20")
+            .help("vr_deadanim_test 20 (21 a dog, 22 a spawn; vrfiringrange; about 2 minutes): killed by shots, blows and a neck "
+                  "snap, on the ground and in mid-leap, knocked down, staggered, by a blast its own leap set off; its corpse "
+                  "poked: its body never runs its AI or leaps again. deadleap lines, then a verdict."),
         command("Armed Humanoids: Glitch Finder", "scratch2 0; scratch3 0; vr_agglitch_shots 0; vr_agrunt_test 46")
             .help("vr_agrunt_test 46 (vrtesthall; about 11 minutes): you unseen, each kind with each weapon class in turn "
                   "(fists, sword, axe, the guns, the chainsaw, two shotguns, two axes, Mjolnir) plays its real fights "
