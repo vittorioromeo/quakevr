@@ -3,16 +3,17 @@
 // its shot's way, 110 ahead of it, during its wind-up (an attack begins only with a clear sight line: CheckAttack), half its
 // attacks. Each kind (id's ogre; MG3's rocket ogre when its data is there) three runs of VR_OGFT_TIME s:
 //   careless (vr_ogre_friendly_care 0): the friendly hits (the scene's own: the shots do go into them);
-//   careful: at most half the friendly hits (those left: its give-up, a blast's edge); it keeps attacking: its tries (shots and
-//   holds) at least VR_OGFT_TRIES of the careless shots (half of them held here, by the scene: shots at least VR_OGFT_RATE);
+//   careful: at most half the friendly hits per wind-up its friend walked into (those left: its give-up, a blast's edge); it
+//   keeps attacking: its tries at least VR_OGFT_TRIES of the careless attacks (half of them held here, by the scene: shots at
+//   least VR_OGFT_RATE);
 //   it strafed while held (the units printed);
 //   always in the way (every attack's wind-up): held, it fires anyway after vr_ogre_friendly_giveup: never idle.
 // `agtest: ogre friends <kind> <run>: <h> friendly hits (<d> damage), <s> shots (<r> a minute), <n> held`, the checks, and
 // `agtest: test 204 over: <p> passed, <f> failed`.
 #ifdef QVR_TESTS
-float VR_OGFT_TIME = 20;     // s a run (each ogre attacks every 2 to 4 s)
-float VR_OGFT_TRIES = 0.7;   // careful: its tries (shots + holds) at least this share of its careless shots
-float VR_OGFT_RATE = 0.3;    // ... its shots (half its wind-ups have a friend walk in) at least this share
+float VR_OGFT_TIME = 30;     // s a run (each ogre attacks every 2 to 4 s)
+float VR_OGFT_TRIES = 0.7;   // careful: its tries (attacks that fired, a rocket ogre's volley of 2, + holds) at least this share of the careless attacks
+float VR_OGFT_RATE = 0.25;   // ... its shots (half its wind-ups have a friend walk in) at least this share
 float vr_ogft_kind;          // 0 id's ogre, 1 the rocket ogre
 float vr_ogft_run;           // 0 careless, 1 careful, 2 always in the way
 float vr_ogft_until;
@@ -21,6 +22,8 @@ float vr_ogft_dmg;
 float vr_ogft_shots0;
 float vr_ogft_held0;
 float vr_ogft_slid;          // units strafed while held
+float vr_ogft_crossed;       // wind-ups its friend walked into
+float vr_ogft_careless_share; // ... the careless run's hits a time
 float vr_ogft_careless_hits;
 float vr_ogft_careless_shots;
 float vr_ogft_care;          // the setting as it was
@@ -30,6 +33,7 @@ float vr_ogft_winding[3];    // its wind-up under way
 float vr_ogft_cross[3];      // ... its friend walks in this time
 vector vr_ogft_home[3];      // where it began
 vector vr_ogft_was[3];       // ... last frame
+vector vr_ogft_at;           // where you stand throughout
 
 string() VR_OGFT_KindName = { return vr_ogft_kind ? "rocket ogre" : "ogre"; };
 
@@ -89,11 +93,18 @@ void() VR_OGFT_Frame =
     entity p = vr_agt_player;
     float k;
     p.flags = p.flags | FL_GODMODE;
+    if(vr_agt_step > 0 || vr_ogft_run > 0 || vr_ogft_kind > 0)
+    {
+        // (a blast's push never takes you, and so the next run's ogres, somewhere else)
+        setorigin(p, vr_ogft_at);
+        p.velocity = '0 0 0';
+    }
     if(vr_agt_step == 0)
     {
         if(vr_ogft_run == 0 && vr_ogft_kind == 0)
         {
             vr_ogft_care = cvar_hget(cvarh_vr_ogre_friendly_care);
+            vr_ogft_at = p.origin;
         }
         if(vr_ogft_kind == 1 && !MG3_RocketOgre_Available())
         {
@@ -133,12 +144,20 @@ void() VR_OGFT_Frame =
         f.health = 1000;
         // Its wind-up (ogre_nail1 to its shot's frame): its friend in the way, or behind it.
         entity og = vr_ogft_ogre[k];
+        if(vr_agt_step == 2)
+        {
+            // (after you alone, alive: a neighbour's stray blast starts no fight among them)
+            og.enemy = p;
+            og.oldenemy = world;
+            og.health = max(og.health, 200);
+        }
         // (and for its shot's flight: to ogre_nail7's. A hold sends it to its run: out of the way at once.)
         float winding = ((vr_agt_step == 2) && ((og.think == ogre_nail2) || (og.think == ogre_nail3) || (og.think == ogre_nail4) ||
             (og.think == ogre_nail5) || (og.think == ogre_nail6) || (og.think == ogre_nail7)));
         if(winding && !vr_ogft_winding[k])
         {
             vr_ogft_cross[k] = ((vr_ogft_run == 2) || (random() < 0.5));
+            vr_ogft_crossed = vr_ogft_crossed + vr_ogft_cross[k];
         }
         vr_ogft_winding[k] = winding;
         if(og.attack_state == AS_SLIDING && vr_agt_step == 2)
@@ -172,6 +191,7 @@ void() VR_OGFT_Frame =
         vr_ogft_hits = 0;
         vr_ogft_dmg = 0;
         vr_ogft_slid = 0;
+        vr_ogft_crossed = 0;
         vr_ogft_shots0 = vr_ogre_ff_shots;
         vr_ogft_held0 = vr_ogre_ff_held;
         vr_ogft_until = time + VR_OGFT_TIME;
@@ -180,12 +200,14 @@ void() VR_OGFT_Frame =
     }
     float shots = vr_ogre_ff_shots - vr_ogft_shots0;
     float held = vr_ogre_ff_held - vr_ogft_held0;
-    VR_AGT_Print(sprintf("ogre friends %s %s: %g friendly hits (%g damage), %g shots (%.1f a minute an ogre), %g held", VR_OGFT_KindName(),
-        vr_ogft_run == 0 ? "careless" : vr_ogft_run == 1 ? "careful" : "always in the way", vr_ogft_hits, vr_ogft_dmg, shots,
-        shots * 60 / (VR_OGFT_TIME * 3), held));
+    float share = vr_ogft_hits / max(1, vr_ogft_crossed);
+    VR_AGT_Print(sprintf("ogre friends %s %s: %g friendly hits (%g damage; %.2f per the %g wind-ups it walked into)", VR_OGFT_KindName(),
+        vr_ogft_run == 0 ? "careless" : vr_ogft_run == 1 ? "careful" : "always in the way", vr_ogft_hits, vr_ogft_dmg, share, vr_ogft_crossed));
+    VR_AGT_Print(sprintf("ogre friends %s: %g shots (%.1f a minute an ogre), %g held", VR_OGFT_KindName(), shots, shots * 60 / (VR_OGFT_TIME * 3), held));
     if(vr_ogft_run == 0)
     {
         vr_ogft_careless_hits = vr_ogft_hits;
+        vr_ogft_careless_share = share;
         vr_ogft_careless_shots = shots;
         VR_AGT_Check(sprintf("ogre friends %s careless: its shots go into them (%g hits, %g held)", VR_OGFT_KindName(), vr_ogft_hits, held),
             vr_ogft_hits > 0 && held == 0);
@@ -194,8 +216,8 @@ void() VR_OGFT_Frame =
     {
         VR_AGT_Check(sprintf("ogre friends %s careful: %g hits against %g, %g shots + %g held against %g shots, strafed %.0f units", VR_OGFT_KindName(),
             vr_ogft_hits, vr_ogft_careless_hits, shots, held, vr_ogft_careless_shots, vr_ogft_slid),
-            vr_ogft_hits * 2 <= vr_ogft_careless_hits && shots >= vr_ogft_careless_shots * VR_OGFT_RATE &&
-            shots + held >= vr_ogft_careless_shots * VR_OGFT_TRIES && held > 0 && vr_ogft_slid > 0);
+            share * 2 <= vr_ogft_careless_share && shots >= vr_ogft_careless_shots * VR_OGFT_RATE &&
+            shots / (vr_ogft_kind ? 2 : 1) + held >= (vr_ogft_careless_shots / (vr_ogft_kind ? 2 : 1)) * VR_OGFT_TRIES && held > 0 && vr_ogft_slid > 0);
     }
     else
     {

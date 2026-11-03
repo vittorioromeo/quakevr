@@ -7041,20 +7041,22 @@ burst skips a grenade with a friend on its way. Arcane Dimensions' ogres have co
 `vr_ogre_friendly_giveup` 2.5 s, `vr_ogre_friendly_step` 0.5 s (to twice that), `vr_ogre_friendly_spread` 4 degrees.
 Only direct hits are looked for: a burst beside a friend (one fighting you, say) still splashes it.
 
-**Test 204** (`vr_agrunt_test 204`, Debug > Tests), 20 s runs, three ogres 420 ahead, each with a friend who walks onto its line
-110 ahead in half its wind-ups (all of them in the third run):
+**Test 204** (`vr_agrunt_test 204`, Debug > Tests), 30 s runs, three ogres 420 ahead (kept off you, on you alone), each with a
+friend who walks onto its line 110 ahead in half its wind-ups (all of them in the third run):
 
-| kind | run | friendly hits (damage) | shots | held |
+| kind | run | friendly hits (per wind-up walked into) | shots (a minute an ogre) | held |
 | --- | --- | --- | --- | --- |
-| ogre | careless | 10 | 24 | 0 |
-| ogre | careful | 1 (24) | 15 | 21 |
-| ogre | always in the way | 7 (170) | 11 | 24 |
-| rocket ogre | careless | 21 (420) | 56 | 0 |
-| rocket ogre | careful | 4 (80) | 24 | 22 |
-| rocket ogre | always in the way | 12 (240) | 12 | 34 |
+| ogre | careless | 25 (0.93) | 54 (36) | 0 |
+| ogre | careful | 3 (0.11) | 28 (19) | 28 |
+| ogre | always in the way | 15 (0.28) | 23 (15) | 31 |
+| rocket ogre | careless | 46 (1.77) | 86 (57) | 0 |
+| rocket ogre | careful | 4 (0.14) | 52 (35) | 32 |
+| rocket ogre | always in the way | 29 (0.44) | 29 (19) | 65 |
 
-Held ogres strafed about 90 units a hold. Hits left when careful: its give-up (a friend in the way twice running). Shots a minute an
-ogre: 24 careless, 15 careful, 11 always blocked; never idle.
+Held ogres strafed about 90 units a hold. The hits left when careful are its give-up's (a friend in the way 2.5 s running). Its
+attacks don't stop: careful, tries (attacks that fired, a rocket ogre's volley of 2, plus holds) stay at or above the careless
+attacks; shots halve here because the scene blocks half its wind-ups. The first numbers were noise until the test kept you in
+place (a blast's push put the next run's ogres in a wall: idle) and its ogres on you (a stray blast started fights among them).
 
 
 ## Falling magazines into the pouch; charge stamina; late flashlight grip; no ghost climbing; gibbing by blows and props

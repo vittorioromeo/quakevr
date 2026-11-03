@@ -18,6 +18,7 @@ float vr_agdd_frames;
 float vr_agdd_until;
 float vr_agdd_gap;          // the worst gap of the phase
 float vr_agdd_undrawn;      // frames a held weapon wasn't drawn
+float vr_agdd_tries;        // presses of your grip on its weapon
 float vr_agdd_bad;          // frames its slots didn't agree
 string vr_agdd_badwhy;
 entity vr_agdd_kept;        // the weapon that should be left
@@ -165,6 +166,7 @@ void() VR_AGDD_Frame =
         {
             // Your empty main hand on its left weapon (test 68's way), closing: a tug; pulled hard: torn out, yours.
             cvar_set("vr_mock_hand_to_absolute", "1");
+            vr_agdd_tries = 0;
             VR_AGPT_EmptyHand(pl);
             localcmd("-grabmain\n");
             cvar_set("vr_agrunt_disarm_yank", "0");
@@ -220,6 +222,17 @@ void() VR_AGDD_Frame =
     if(vr_agt_step == 11)
     {
         if(g.vr_ag_tug_pl != pl && vr_agdd_frames < 11) { return; }
+        if(g.vr_ag_tug_pl != pl && vr_agdd_tries < 5)
+        {
+            // (the press's 0.125 s window closed with the hand not yet on its drawn weapon: open your hand, again)
+            vr_agdd_tries = vr_agdd_tries + 1;
+            localcmd("-grabmain\n");
+            pl.mainhand_lastgrabtime = time - 2;
+            pl.mainhand_lastreleasetime = time - 1;
+            vr_agdd_frames = 0;
+            vr_agt_step = 10;
+            return;
+        }
         VR_AGT_Check(sprintf("dualdisarm %g: a tug %g over its %s (left %g)", c, g.vr_ag_tug_pl == pl, g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing",
             g.vr_ag_prop.vr_ag_left), g.vr_ag_tug_pl == pl && g.vr_ag_prop.vr_ag_left);
         vr_ag_tug_test_force = max(1, cvar_hget(cvarh_vr_agrunt_tug_break_force)) * 1.3;
