@@ -1,5 +1,6 @@
 // vr_bloodstream.cpp -- see vr_bloodstream.hpp.
 
+#include "vr_ambient.hpp"
 #include "vr_random.hpp"
 #include "vr_bloodstream.hpp"
 #include "vr_anchor.hpp"
@@ -194,8 +195,7 @@ za::Vector<glm::vec3> scratchRest, scratchNow, scratchTris;
 
 [[nodiscard]] glm::vec3 lightColor(const glm::vec3& p)
 {
-    vec3_t v = {p.x, p.y, p.z};
-    const float l = cl.worldmodel ? static_cast<float>(R_LightPoint(v, 0.f, &light)) : 110.f;
+    const float l = cl.worldmodel ? static_cast<float>(ambient::lightPoint(p, light)) : 110.f;
     const float k = za::clamp(za::max(l, 40.f) / 100.f, 0.4f, 1.4f);
     return glm::min(glm::vec3{0.45f, 0.025f, 0.02f} * k, glm::vec3{1.f});
 }

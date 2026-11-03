@@ -3453,6 +3453,24 @@ QVR_TOGGLE_BYNAME(vr_model_light_parity, "Models Lit as the World",
     "Monsters and items as bright as the world around them (off: Quake's brighter models).")
 QVR_TOGGLE_BYNAME(vr_model_light_grid, "Models Lit From All Sides",
     "Monsters, items, weapons and hands take the baked light of the walls, floor and ceiling around them (off: Quake's, the floor under their feet).")
+QVR_SLIDER_BYNAME(vr_model_light_grid_intensity, "Probe Intensity", 0.f, 3.f, 0.05f, "%.2f", noExt,
+    "How bright the light around models makes them, and the coils, ropes, blood, impacts and smoke beside them. Live.")
+QVR_SLIDER_BYNAME(vr_model_light_grid_near, "Near Surfaces Weigh", 8.f, 256.f, 8.f, "%.0f", noExt,
+    "Less: the surfaces nearest a model decide its light (a lamp's pool beside it lights it). More: everything in sight counts alike. A change builds the map's light probes again, a moment's pause on a big map.")
+QVR_SLIDER_BYNAME(vr_model_light_grid_mix, "Ambient or Directional", 0.f, 1.f, 0.05f, "%.2f", noExt,
+    "How models are shaded round their sides. Less: more by the map's lights' direction. More: by the light of the surroundings. Live.")
+QVR_SLIDER_BYNAME(vr_model_light_lava, "Lava Light", 0.f, 4.f, 0.05f, "%.2f", noExt,
+    "How much lava lights models beside it, in its colour, unless a wall is in the way. Off: only the baked light. Live.")
+QVR_SLIDER_BYNAME(vr_model_light_lava_range, "Lava Light Range", 0.f, 768.f, 32.f, "%.0f", noExt,
+    "How far lava's light reaches, fading all the way. Live.")
+QVR_SLIDER_BYNAME(vr_model_light_slime, "Slime Light", 0.f, 4.f, 0.05f, "%.2f", noExt,
+    "How much slime lights models beside it, in its colour. Live.")
+QVR_SLIDER_BYNAME(vr_model_light_slime_range, "Slime Light Range", 0.f, 768.f, 32.f, "%.0f", noExt,
+    "How far slime's light reaches. Live.")
+QVR_SLIDER_BYNAME(vr_model_light_teleport, "Teleporter Light", 0.f, 4.f, 0.05f, "%.2f", noExt,
+    "How much a teleporter's surface lights models beside it, in its colour. Live.")
+QVR_SLIDER_BYNAME(vr_model_light_teleport_range, "Teleporter Light Range", 0.f, 768.f, 32.f, "%.0f", noExt,
+    "How far a teleporter's light reaches. Live.")
 QVR_TOGGLE_BYNAME(vr_model_ambient_dir, "Directional Ambient",
     "Monsters, items, weapons and hands take the light around them: brighter on the side facing lit walls, darker facing shade.")
 QVR_SLIDER_BYNAME(vr_model_ambient_contrast, "Ambient Contrast", 0.f, 1.5f, 0.05f, "%.2f", ext(),

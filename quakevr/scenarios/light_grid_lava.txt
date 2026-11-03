@@ -1,0 +1,8 @@
+title Lava lights models: a grunt and an ogre on a ledge over E1M7's lava (Graphics > Models and Effects > Light Grid)
+map e1m7
+start -130 48 60 0
+god
+notarget
+spawn monster_army 80 -24
+spawn monster_ogre 80 24
+hint They warm on the side facing the lava. Lava Light and its range on the Light Grid page change it at once.

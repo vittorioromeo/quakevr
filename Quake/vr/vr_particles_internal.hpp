@@ -144,6 +144,7 @@ struct Particle
     lightcache_t lightCache{};
     za::U8 lightmap[3]{128, 128, 128};
     bool lightKnown{false};
+    bool lightStyled{false}; // (the model light grid's: its cell's light moves with a light style)
     Lighting lighting{Lighting::Auto};
 };
 

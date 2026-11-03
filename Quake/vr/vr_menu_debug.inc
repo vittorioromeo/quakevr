@@ -533,6 +533,9 @@ za::Vector<Item> pageDebugProfiling()
         command("Model Light Grid Info", "vr_model_light_grid_info")
             .help("vr_model_light_grid_info: the map's model light grid: its cells, probes, memory and build time, and how "
                   "much light its probes out of sight would add through thin walls, in the console."),
+        command("Model Light Grid Test", "vr_model_light_grid_test")
+            .help("vr_model_light_grid_test: on this map, whether effects read what a model reads, and what each of the Light "
+                  "Grid settings and lit liquids does; a verdict in the console."),
         command("Light Caster Stats", "vr_shadow_caster_stats")
             .help("vr_shadow_caster_stats: since the last time, the dynamic lights' world caster sets kept and collected, "
                   "in the console."),

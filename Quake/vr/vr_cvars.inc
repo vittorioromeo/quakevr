@@ -1806,6 +1806,15 @@ QVR_CVAR(vr_body_elbow_tuck_far, "0.9", CVAR_ARCHIVE)
 QVR_CVAR(vr_holster_haptics, "2", CVAR_ARCHIVE)
 QVR_CVAR(vr_model_lighting, "1", CVAR_ARCHIVE)        // models shaded from the map's lights (0: Quake's fixed direction; 0..1 blends)
 QVR_CVAR(vr_model_light_grid, "1", CVAR_ARCHIVE)      // models lit by the baked light from every side (probes over the map: vr_ambient.cpp, "The light grid"; 0: Quake's, the floor under them, and rays of their own for the sides)
+QVR_CVAR(vr_model_light_grid_intensity, "1", CVAR_ARCHIVE) // the probes' light on models and what's drawn beside them, times this
+QVR_CVAR(vr_model_light_grid_near, "64", CVAR_ARCHIVE) // each surface's say over a probe is over its distance + this: less, the nearest surfaces count more (a change builds the map's grid again)
+QVR_CVAR(vr_model_light_grid_mix, "0.5", CVAR_ARCHIVE) // 0: only the map's lights' directional shading on models, 0.5: half of it under the light around them, 1: only the light around them
+QVR_CVAR(vr_model_light_lava, "1", CVAR_ARCHIVE)      // how much lava lights models and what's drawn beside them, in its colour (the grid's probes: 0 none)
+QVR_CVAR(vr_model_light_lava_range, "512", CVAR_ARCHIVE) // ... out to this far, fading (up to 768)
+QVR_CVAR(vr_model_light_slime, "0.35", CVAR_ARCHIVE)   // ... slime
+QVR_CVAR(vr_model_light_slime_range, "384", CVAR_ARCHIVE)
+QVR_CVAR(vr_model_light_teleport, "0.35", CVAR_ARCHIVE) // ... teleporters
+QVR_CVAR(vr_model_light_teleport_range, "256", CVAR_ARCHIVE)
 QVR_CVAR(vr_model_ambient_dir, "1", CVAR_ARCHIVE)     // models lit by the baked light around them, brighter on the side facing lit walls (vr_ambient.cpp; 0: one brightness all round)
 QVR_CVAR(vr_model_ambient_contrast, "1.5", CVAR_ARCHIVE) // how much the sides differ (0: not at all, 1: as the surroundings do)
 QVR_CVAR(vr_rim_light, "0.5", CVAR_ARCHIVE)           // a faint light round models' edges, in the light around them, so they stand out from dark backgrounds (vr_envmap.cpp; 0 off .. 1)

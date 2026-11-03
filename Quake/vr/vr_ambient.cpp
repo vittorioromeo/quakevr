@@ -10,6 +10,7 @@
 #include "vr_jobs.hpp"
 #include "vr_lighting.hpp"
 #include "vr_profile.hpp"
+#include "vr_testkit.hpp"
 #include "vr_trace.hpp"
 
 #include "Zancle/Algorithm/Copy.hpp"
@@ -104,7 +105,8 @@ enum class HitKind
     None,
     Surface,
     Sky,
-    Lava
+    Lava,
+    Liquid // (a ray told to stop at slime or a teleporter: trace's stopAt)
 };
 
 struct Hit
@@ -145,9 +147,9 @@ glm::vec3 lightmapAt(const msurface_t* surf, int ds, int dt)
 }
 
 // RecursiveLightPoint (gl_rlight.c) along any ray: the first world surface the ray crosses that
-// faces it, where its texture's extents hold the crossing. Liquids other than lava are seen
+// faces it, where its texture's extents hold the crossing. Liquids other than `stopAt`'s are seen
 // through (the floor under them is lit); surfaces without a lightmap are passed.
-bool trace(const mnode_t* node, const glm::vec3& dir, glm::vec3 start, const glm::vec3& end, Hit& hit)
+bool trace(const mnode_t* node, const glm::vec3& dir, glm::vec3 start, const glm::vec3& end, Hit& hit, int stopAt = SURF_DRAWLAVA)
 {
     while(node->contents >= 0)
     {
@@ -171,7 +173,7 @@ bool trace(const mnode_t* node, const glm::vec3& dir, glm::vec3 start, const glm
         }
 
         const glm::vec3 mid = start + (end - start) * (front / (front - back));
-        if(trace(node->children[front < 0.f], dir, start, mid, hit))
+        if(trace(node->children[front < 0.f], dir, start, mid, hit, stopAt))
         {
             return true;
         }
@@ -212,9 +214,10 @@ bool trace(const mnode_t* node, const glm::vec3& dir, glm::vec3 start, const glm
             }
             if(surf->flags & SURF_DRAWTURB)
             {
-                if(surf->flags & SURF_DRAWLAVA)
+                if(surf->flags & stopAt)
                 {
-                    hit.kind = HitKind::Lava;
+                    hit.kind = (surf->flags & SURF_DRAWLAVA) ? HitKind::Lava : HitKind::Liquid;
+                    hit.surf = surf;
                     return true;
                 }
                 continue;
@@ -498,7 +501,10 @@ void setOff(float out[6][4])
 // over the map, each gathering the same rays as above at the map's load (the light of every surface round it, whatever
 // its side) and keeping one set of values per light style, so that flickering and switched lights still move on models.
 // A model reads the eight probes round it, each frame, with no rays: blended by distance, so nothing pops; a probe in a
-// wall, or one the model can't see (the next room's, through a thin wall), left out and the rest weighted up.
+// wall, or one the model can't see (the next room's, through a thin wall), left out and the rest weighted up. What's drawn
+// beside a model reads the same probes (ambient::lightPoint; the particles, gridLightOf). Lit liquids: below, "GLOW".
+// The knobs, on Graphics > Models and Effects > Light Grid: vr_model_light_grid_intensity, _mix, the liquids' strengths and
+// ranges are read at each read; vr_model_light_grid_near is in the probes' values, and a change builds the grid again.
 
 constexpr float GRID_CELL = 48.f;
 constexpr za::SizeT GRID_MAX_CELLS = 32u * 1024u * 1024u; // a larger map's cells are made twice the size until it fits
@@ -508,9 +514,7 @@ constexpr za::SizeT GRID_MAX_CELLS = 32u * 1024u * 1024u; // a larger map's cell
 // up. Uniform surroundings come out exactly as their light.
 constexpr float GRID_POWER = 2.5f;
 
-constexpr float GRID_NEAR = 64.f;                   // what a model's brightness reads: each surface over its distance + this
-
-constexpr unsigned GRID_CACHE_VERSION = 1u;         // a build's: bumped when gridProbe's values change
+constexpr unsigned GRID_CACHE_VERSION = 2u;         // a build's: bumped when gridProbe's values change
 constexpr double GRID_CACHE_SECONDS = 0.1;          // a grid that took this long is kept on disk (the smaller read no faster)
 constexpr float GRID_AIR = 256.f;                  // a probe has a surface within this straight below it
 constexpr float GRID_FIXED = 128.f;                 // a GridEntry's values over Quake's lightmap units
@@ -520,15 +524,77 @@ constexpr float GRID_TELEPORT = 128.f;              // moved this far in a frame
 // One light style's light at a probe, at the style's value 256.
 struct GridEntry
 {
-    unsigned short style;
+    unsigned short style;       // or GRID_GLOW: a lit liquid's light, after the styles' (gridGlow)
     unsigned short level[3];    // what lights the model: the surfaces' light (the sky and lava as the rest; see gridProbe)
     unsigned short faces[6][3]; // the cube's six cosine lobes (as shade()'s)
 };
 
-// A cell (its probe, at its low corner): GRID_CLEAR, the style count less one, the first entry.
+// A cell (its probe, at its low corner): GRID_CLEAR, the entry count less one, the first entry.
 constexpr unsigned GRID_CLEAR = 1u << 31; // its eight corners are probes that all see each other: no lines to look
-constexpr unsigned GRID_COUNT_SHIFT = 28;
+constexpr unsigned GRID_COUNT_SHIFT = 27;
+constexpr unsigned GRID_COUNT_MASK = 15u; // (MAX_PROBE_STYLES styles and a liquid of each kind)
 constexpr unsigned GRID_FIRST = (1u << GRID_COUNT_SHIFT) - 1u;
+
+// Lit liquids: what lights a model besides the baked light. Lava, slime and teleporters glow and no lightmap says so
+// (water doesn't; a sky-lit room's surfaces already have the sky's light, and the sky is everywhere outdoors: neither
+// counts). Each kind's entries are worked out with no strength and read with vr_model_light_<kind> and its _range, so
+// both are live: `level` and `faces` are the liquid's colour by the square root of how much of the probe's view it fills
+// (all of it: the colour; a bit of a pool past a shore's edge still lights a model, and over the pool it doesn't burn),
+// and the style field holds the mean distance to it.
+constexpr unsigned short GRID_GLOW = 0x8000u;
+constexpr int GRID_GLOW_KIND_SHIFT = 12;
+constexpr unsigned short GRID_GLOW_DISTANCE = 0x0FFFu;
+constexpr int GLOW_KINDS = 3;
+constexpr int GLOW_STOP = SURF_DRAWLAVA | SURF_DRAWSLIME | SURF_DRAWTELE;
+constexpr const char* GLOW_NAMES[GLOW_KINDS] = {"lava", "slime", "teleporter"};
+constexpr float GLOW_BRIGHTEST = 220.f;              // a liquid's colour: its texture's mean, its top channel this bright
+constexpr float GLOW_GAIN = 1.5f;                    // strength 1: a model on a pool's shore (a twentieth of its view) gets some 50, over the pool some 190
+constexpr glm::vec3 GLOW_COLOURS[GLOW_KINDS] = {{220.f, 100.f, 35.f}, {90.f, 220.f, 60.f}, {140.f, 90.f, 220.f}}; // (no texture to read)
+constexpr float GLOW_REACH = 768.f;                  // the farthest a liquid counts (the range sliders' top)
+constexpr int GLOW_RAYS = 128;                       // a pool beside a model takes more rays to find than the 26
+constexpr int GLOW_BLOCK = 4;                        // cells: a part of the grid with no liquid in reach traces none of them
+
+struct GlowKnob
+{
+    cvar_t* strength;
+    cvar_t* range;
+};
+const GlowKnob GLOW_KNOBS[GLOW_KINDS] = {{&vr_model_light_lava, &vr_model_light_lava_range},
+                                         {&vr_model_light_slime, &vr_model_light_slime_range},
+                                         {&vr_model_light_teleport, &vr_model_light_teleport_range}};
+
+struct GlowRayTable
+{
+    glm::vec3 dir[GLOW_RAYS];
+    float weight[GLOW_RAYS][6]; // as Rays'
+};
+
+// A spiral over the sphere. Built before main (no first-call guard): read by any thread.
+const GlowRayTable glowRays = [] {
+    GlowRayTable r{};
+    constexpr float GOLDEN_ANGLE = 2.39996323f;
+    for(int i = 0; i < GLOW_RAYS; i++)
+    {
+        const float z = 1.f - (2.f * static_cast<float>(i) + 1.f) / static_cast<float>(GLOW_RAYS);
+        const float across = glm::sqrt(za::max(0.f, 1.f - z * z));
+        const float turn = GOLDEN_ANGLE * static_cast<float>(i);
+        r.dir[i] = glm::vec3{glm::cos(turn) * across, glm::sin(turn) * across, z};
+    }
+    for(int f = 0; f < 6; f++)
+    {
+        float sum = 0.f;
+        for(int i = 0; i < GLOW_RAYS; i++)
+        {
+            r.weight[i][f] = za::max(0.f, glm::dot(r.dir[i], AXES[f]));
+            sum += r.weight[i][f];
+        }
+        for(int i = 0; i < GLOW_RAYS; i++)
+        {
+            r.weight[i][f] /= sum;
+        }
+    }
+    return r;
+}();
 
 struct Grid
 {
@@ -541,6 +607,12 @@ struct Grid
     za::Vector<GridEntry> entries;
     za::SizeT probes{0}, clearCells{0}, styledProbes{0};
     double buildMs{0.0};
+    float nearWeight{64.f};                                              // vr_model_light_grid_near when it was built
+    ankerl::unordered_dense::map<const texture_t*, glm::vec3> glowColours; // the map's lit liquids' textures
+    za::Vector<unsigned char> glowBlocks;                            // 1: a liquid within reach of the block (GLOW_BLOCK)
+    int blocks[3]{0, 0, 0};
+    unsigned long long glowKey{0};                                   // the colours, for the disk cache's key
+    za::SizeT glowProbes[GLOW_KINDS]{};
 
     [[nodiscard]] za::SizeT index(int x, int y, int z) const
     {
@@ -561,10 +633,160 @@ jobs::Site gridClearSite{"model light grid cells"};
     return static_cast<unsigned short>(za::clamp(v * GRID_FIXED + 0.5f, 0.f, 65535.f));
 }
 
+// How far along a ray from `p` the surface it hit is.
+[[nodiscard]] float distanceTo(const msurface_t* surf, const glm::vec3& p, const glm::vec3& dir, float reach)
+{
+    const mplane_t* plane = surf->plane;
+    const glm::vec3 n{plane->normal[0], plane->normal[1], plane->normal[2]};
+    const float across = glm::dot(n, dir);
+    return glm::abs(across) > 1e-4f ? za::clamp((plane->dist - glm::dot(n, p)) / across, 0.f, reach) : reach;
+}
+
+[[nodiscard]] int glowKindOf(int surfFlags)
+{
+    return (surfFlags & SURF_DRAWLAVA) ? 0 : (surfFlags & SURF_DRAWSLIME) ? 1 : 2;
+}
+
+[[nodiscard]] const texture_t* surfaceTexture(const msurface_t* surf)
+{
+    return cl.worldmodel->textures[surf->texinfo->texnum];
+}
+
+// A lit liquid's colour: its texture's mean, its brighter texels counting more (what glows; the dark cracks don't), as
+// bright as GLOW_BRIGHTEST (a map's green lava lights green).
+[[nodiscard]] glm::vec3 glowColourOf(const texture_t* tx, int kind)
+{
+    const size_t pixels = tx ? static_cast<size_t>(tx->width) * static_cast<size_t>(tx->height) : 0u;
+    if(pixels == 0u || cl.worldmodel->bspversion == BSPVERSION_QUAKE64)
+    {
+        return GLOW_COLOURS[kind];
+    }
+    const byte* in = reinterpret_cast<const byte*>(tx + 1);
+    glm::vec3 sum{0.f};
+    for(size_t i = 0; i < pixels; i++)
+    {
+        const unsigned rgba = d_8to24table[in[i]];
+        const glm::vec3 texel{static_cast<float>(rgba & 255u), static_cast<float>((rgba >> 8) & 255u), static_cast<float>((rgba >> 16) & 255u)};
+        const float top = za::max(texel.r, za::max(texel.g, texel.b));
+        sum += texel * top * top;
+    }
+    const float top = za::max(sum.r, za::max(sum.g, sum.b));
+    return top > 0.f ? sum * (GLOW_BRIGHTEST / top) : GLOW_COLOURS[kind];
+}
+
+// Before the probes: the lit liquids' colours, and which blocks of the grid one can reach.
+void glowPrepare()
+{
+    const qmodel_t* world = cl.worldmodel;
+    grid.glowColours.clear();
+    grid.glowKey = diskcache::fnvStart;
+    za::SizeT total = 1;
+    for(int i = 0; i < 3; i++)
+    {
+        grid.blocks[i] = grid.size[i] / GLOW_BLOCK + 1;
+        total *= static_cast<za::SizeT>(grid.blocks[i]);
+    }
+    grid.glowBlocks.clear();
+    grid.glowBlocks.resize(total, static_cast<unsigned char>(0));
+    const float block = grid.cell * static_cast<float>(GLOW_BLOCK);
+    for(int s = 0; s < world->numsurfaces; s++)
+    {
+        const msurface_t& surf = world->surfaces[s];
+        if(!(surf.flags & SURF_DRAWTURB) || !(surf.flags & GLOW_STOP))
+        {
+            continue;
+        }
+        const texture_t* tx = surfaceTexture(&surf);
+        if(!grid.glowColours.contains(tx))
+        {
+            const glm::vec3 colour = glowColourOf(tx, glowKindOf(surf.flags));
+            grid.glowColours[tx] = colour;
+            grid.glowKey = diskcache::fnv(grid.glowKey, &colour, sizeof(colour));
+        }
+        int lo[3], hi[3];
+        for(int i = 0; i < 3; i++)
+        {
+            lo[i] = za::clamp(static_cast<int>((surf.mins[i] - GLOW_REACH - grid.origin[i]) / block), 0, grid.blocks[i] - 1);
+            hi[i] = za::clamp(static_cast<int>((surf.maxs[i] + GLOW_REACH - grid.origin[i]) / block), 0, grid.blocks[i] - 1);
+        }
+        for(int z = lo[2]; z <= hi[2]; z++)
+        {
+            for(int y = lo[1]; y <= hi[1]; y++)
+            {
+                for(int x = lo[0]; x <= hi[0]; x++)
+                {
+                    grid.glowBlocks[(static_cast<za::SizeT>(z) * grid.blocks[1] + y) * grid.blocks[0] + x] = 1;
+                }
+            }
+        }
+    }
+}
+
+// A probe's lit liquids: an entry for each kind its rays reach (walls stop them, as any ray). Water is seen through.
+void gridGlow(const glm::vec3& p, int x, int y, int z, za::Vector<GridEntry>& out, int& entries)
+{
+    if(grid.glowColours.empty() ||
+       !grid.glowBlocks[(static_cast<za::SizeT>(z / GLOW_BLOCK) * grid.blocks[1] + y / GLOW_BLOCK) * grid.blocks[0] + x / GLOW_BLOCK])
+    {
+        return;
+    }
+    struct Sum
+    {
+        glm::vec3 level{0.f};
+        glm::vec3 faces[6]{};
+        float distance{0.f};
+        int rays{0};
+    };
+    Sum sums[GLOW_KINDS];
+    for(int i = 0; i < GLOW_RAYS; i++)
+    {
+        const glm::vec3& dir = glowRays.dir[i];
+        Hit hit;
+        trace(cl.worldmodel->nodes, dir, p, p + dir * GLOW_REACH, hit, GLOW_STOP);
+        if((hit.kind != HitKind::Lava && hit.kind != HitKind::Liquid) || !hit.surf)
+        {
+            continue;
+        }
+        Sum& sum = sums[glowKindOf(hit.surf->flags)];
+        const auto colour = grid.glowColours.find(surfaceTexture(hit.surf));
+        const glm::vec3 c = colour != grid.glowColours.end() ? colour->second : GLOW_COLOURS[glowKindOf(hit.surf->flags)];
+        sum.level += c;
+        for(int f = 0; f < 6; f++)
+        {
+            sum.faces[f] += c * glowRays.weight[i][f];
+        }
+        sum.distance += distanceTo(hit.surf, p, dir, GLOW_REACH);
+        sum.rays++;
+    }
+    for(int k = 0; k < GLOW_KINDS; k++)
+    {
+        const Sum& sum = sums[k];
+        if(sum.rays == 0)
+        {
+            continue;
+        }
+        GridEntry entry{};
+        const int distance = za::min(static_cast<int>(sum.distance / static_cast<float>(sum.rays) + 0.5f), static_cast<int>(GRID_GLOW_DISTANCE));
+        entry.style = static_cast<unsigned short>(GRID_GLOW | (k << GRID_GLOW_KIND_SHIFT) | distance);
+        const float eased = 1.f / glm::sqrt(static_cast<float>(sum.rays) / static_cast<float>(GLOW_RAYS)); // (the square root's, on the sum)
+        for(int c = 0; c < 3; c++)
+        {
+            entry.level[c] = gridFixed(sum.level[c] * eased / static_cast<float>(GLOW_RAYS));
+            for(int f = 0; f < 6; f++)
+            {
+                entry.faces[f][c] = gridFixed(sum.faces[f][c] * eased);
+            }
+        }
+        out.pushBack(entry);
+        entries++;
+    }
+}
+
 // One probe: the entries of the styles of the surfaces its rays hit (the first MAX_PROBE_STYLES, later ones as the
-// first). The sky is brighter than the walls round it and lava glows, on the cube as in shade(), but neither is baked
-// light: what lights the model (`level`) takes them as the rest of the surfaces, as it does the rays that hit nothing.
-void gridProbe(const glm::vec3& p, za::Vector<GridEntry>& out, unsigned& cellValue)
+// first), then its lit liquids' (gridGlow). The sky is brighter than the walls round it, on the cube as in shade(), but
+// it isn't baked light: what lights the model (`level`) takes it as the rest of the surfaces, as it does the rays that
+// hit nothing or lava (whose light is its own entry).
+void gridProbe(const glm::vec3& p, int x, int y, int z, za::Vector<GridEntry>& out, unsigned& cellValue)
 {
     const Rays& r = rays();
     Hit hits[NUM_RAYS];
@@ -625,7 +847,6 @@ void gridProbe(const glm::vec3& p, za::Vector<GridEntry>& out, unsigned& cellVal
         const glm::vec3 mean = surfaces ? sum[s] / static_cast<float>(surfaces) : glm::vec3{s == 0 ? 96.f : 0.f};
         const float meanLuma = luma(mean);
         const glm::vec3 sky{(s == 0 ? za::max(meanLuma, 48.f) : meanLuma) * 1.5f};
-        const glm::vec3 lava = s == 0 ? glm::vec3{220.f, 100.f, 35.f} : glm::vec3{0.f};
         glm::vec3 faces[6]{};
         glm::vec3 level{0.f};
         float levelWeight = 0.f;
@@ -647,7 +868,7 @@ void gridProbe(const glm::vec3& p, za::Vector<GridEntry>& out, unsigned& cellVal
             else
             {
                 surface = mean;
-                lobes = hits[i].kind == HitKind::Sky ? sky : hits[i].kind == HitKind::Lava ? lava : mean;
+                lobes = hits[i].kind == HitKind::Sky ? sky : mean;
             }
             const glm::vec3 lobesGathered = gathered(lobes);
             const glm::vec3 surfaceGathered = gathered(surface);
@@ -662,12 +883,9 @@ void gridProbe(const glm::vec3& p, za::Vector<GridEntry>& out, unsigned& cellVal
             float along = RAY_LENGTH;
             if(hits[i].kind == HitKind::Surface)
             {
-                const mplane_t* plane = hits[i].surf->plane;
-                const glm::vec3 n{plane->normal[0], plane->normal[1], plane->normal[2]};
-                const float across = glm::dot(n, r.dir[i]);
-                along = glm::abs(across) > 1e-4f ? za::clamp((plane->dist - glm::dot(n, p)) / across, 0.f, RAY_LENGTH) : RAY_LENGTH;
+                along = distanceTo(hits[i].surf, p, r.dir[i], RAY_LENGTH);
             }
-            rayWeight /= along + GRID_NEAR;
+            rayWeight /= along + grid.nearWeight;
             level += surfaceGathered * rayWeight;
             levelWeight += rayWeight;
         }
@@ -688,7 +906,9 @@ void gridProbe(const glm::vec3& p, za::Vector<GridEntry>& out, unsigned& cellVal
         }
         out.pushBack(entry);
     }
-    cellValue = first | (static_cast<unsigned>(numStyles - 1) << GRID_COUNT_SHIFT);
+    int entries = numStyles;
+    gridGlow(p, x, y, z, out, entries);
+    cellValue = first | (static_cast<unsigned>(entries - 1) << GRID_COUNT_SHIFT);
 }
 
 // The file's key: all that gridProbe reads that can change without the planes changing (the lightmaps, their styles),
@@ -715,6 +935,8 @@ void gridProbe(const glm::vec3& p, za::Vector<GridEntry>& out, unsigned& cellVal
     }
     h = diskcache::wideHash(h, world->lightdata, lightBytes);
     h = diskcache::wideHash(h, world->planes, static_cast<size_t>(world->numplanes) * sizeof(mplane_t));
+    h = diskcache::fnv(h, &grid.nearWeight, sizeof(grid.nearWeight));
+    h = diskcache::fnv(h, &grid.glowKey, sizeof(grid.glowKey));
     return diskcache::fnv(h, grid.size, sizeof(grid.size));
 }
 
@@ -722,12 +944,25 @@ void gridProbe(const glm::vec3& p, za::Vector<GridEntry>& out, unsigned& cellVal
 void gridFinish(double start)
 {
     grid.probes = grid.clearCells = grid.styledProbes = 0;
+    for(za::SizeT& n : grid.glowProbes)
+    {
+        n = 0;
+    }
     for(const unsigned cell : grid.cells)
     {
         if((cell & GRID_FIRST) != GRID_FIRST)
         {
             grid.probes++;
-            grid.styledProbes += ((cell >> GRID_COUNT_SHIFT) & 7u) != 0u ? 1u : 0u;
+            const GridEntry* entry = &grid.entries[cell & GRID_FIRST];
+            const unsigned count = ((cell >> GRID_COUNT_SHIFT) & GRID_COUNT_MASK) + 1u;
+            grid.styledProbes += count > 1u && !(entry[1].style & GRID_GLOW) ? 1u : 0u;
+            for(unsigned k = 0; k < count; k++)
+            {
+                if(entry[k].style & GRID_GLOW)
+                {
+                    grid.glowProbes[(entry[k].style >> GRID_GLOW_KIND_SHIFT) & 7]++;
+                }
+            }
             grid.clearCells += (cell & GRID_CLEAR) != 0u ? 1u : 0u;
         }
     }
@@ -736,6 +971,11 @@ void gridFinish(double start)
                 grid.size[2], grid.cell, static_cast<size_t>(grid.probes), static_cast<size_t>(grid.entries.size()),
                 static_cast<double>(grid.cells.size() * sizeof(unsigned) + grid.entries.size() * sizeof(GridEntry)) / 1048576.0,
                 grid.buildMs);
+}
+
+[[nodiscard]] float gridNearSetting()
+{
+    return za::clamp(vr_model_light_grid_near.value, 1.f, 1024.f);
 }
 
 // The grid of the current map: built when it loads, on the job threads (there are no rays left to trace after this).
@@ -748,6 +988,7 @@ void gridBuild()
     grid.generation = worldGeneration();
     grid.probes = grid.clearCells = grid.styledProbes = 0;
     grid.size[0] = grid.size[1] = grid.size[2] = 0;
+    grid.nearWeight = gridNearSetting();
     if(!cl.worldmodel || !cl.worldmodel->lightdata)
     {
         return;
@@ -772,6 +1013,8 @@ void gridBuild()
         }
         grid.cell *= 2.f;
     }
+
+    glowPrepare();
 
     // A big map's grid, kept from an earlier load (vr_model_light_grid_cache).
     const int cacheMode = diskcache::modeOf(diskcache::Product::LightGrid);
@@ -816,7 +1059,7 @@ void gridBuild()
                     trace(cl.worldmodel->nodes, DOWN, p, p + DOWN * GRID_AIR, below);
                     if(below.kind == HitKind::Surface || below.kind == HitKind::Lava)
                     {
-                        gridProbe(p, out, grid.cells[grid.index(x, y, z)]);
+                        gridProbe(p, x, y, z, out, grid.cells[grid.index(x, y, z)]);
                     }
                 }
             }
@@ -903,9 +1146,9 @@ void gridBuild()
 
 [[nodiscard]] bool gridReady()
 {
-    if(grid.world != cl.worldmodel || grid.generation != worldGeneration())
+    if(grid.world != cl.worldmodel || grid.generation != worldGeneration() || grid.nearWeight != gridNearSetting())
     {
-        gridBuild(); // (on switching the setting on: a map's load has built it otherwise)
+        gridBuild(); // (on switching the setting on or moving vr_model_light_grid_near: a map's load has built it otherwise)
     }
     return grid.probes != 0;
 }
@@ -963,8 +1206,18 @@ struct GridSpot
     return seen;
 }
 
-// The light at a spot from the corners seen, weighted up to make up for the rest; false when there are none.
-[[nodiscard]] bool gridRead(const GridSpot& s, unsigned seen, GridRead& out)
+// What a lit liquid's entry is read at: the kind's strength, fading out by its range from the probe's distance to it.
+[[nodiscard]] float glowScale(unsigned short style)
+{
+    const GlowKnob& knob = GLOW_KNOBS[(style >> GRID_GLOW_KIND_SHIFT) & 7];
+    const float range = knob.range->value;
+    const float left = range > 0.f ? 1.f - static_cast<float>(style & GRID_GLOW_DISTANCE) / range : 0.f;
+    return left > 0.f ? GLOW_GAIN * za::max(knob.strength->value, 0.f) * left * left : 0.f;
+}
+
+// The light at a spot from the corners seen, weighted up to make up for the rest; false when there are none. (`withFaces`
+// false: its level only, what's drawn beside the models needs no more.)
+[[nodiscard]] bool gridRead(const GridSpot& s, unsigned seen, GridRead& out, bool withFaces = true)
 {
     out = GridRead{};
     float total = 0.f;
@@ -978,12 +1231,12 @@ struct GridSpot
         }
         total += w;
         const GridEntry* entry = &grid.entries[cell & GRID_FIRST];
-        const int count = static_cast<int>((cell >> GRID_COUNT_SHIFT) & 7u) + 1;
+        const int count = static_cast<int>((cell >> GRID_COUNT_SHIFT) & GRID_COUNT_MASK) + 1;
         for(int k = 0; k < count; k++, entry++)
         {
-            const float scale = w * static_cast<float>(d_lightstylevalue[entry->style]) / (256.f * GRID_FIXED);
+            const float scale = w * ((entry->style & GRID_GLOW) ? glowScale(entry->style) : static_cast<float>(d_lightstylevalue[entry->style]) / 256.f) / GRID_FIXED;
             out.level += glm::vec3{entry->level[0], entry->level[1], entry->level[2]} * scale;
-            for(int f = 0; f < 6; f++)
+            for(int f = 0; withFaces && f < 6; f++)
             {
                 out.faces[f] += glm::vec3{entry->faces[f][0], entry->faces[f][1], entry->faces[f][2]} * scale;
             }
@@ -993,13 +1246,49 @@ struct GridSpot
     {
         return false;
     }
-    out.level /= total;
+    out.level *= za::max(vr_model_light_grid_intensity.value, 0.f) / total;
     for(glm::vec3& f : out.faces)
     {
         f /= total;
     }
     return true;
 }
+
+// Whether the light of the corners seen moves with a light style.
+[[nodiscard]] bool gridStyled(const GridSpot& s, unsigned seen)
+{
+    for(int c = 0; c < 8; c++)
+    {
+        const unsigned cell = grid.cells[s.corner(c)];
+        if(!(seen & (1u << c)) || (cell & GRID_FIRST) == GRID_FIRST)
+        {
+            continue;
+        }
+        const GridEntry* entry = &grid.entries[cell & GRID_FIRST];
+        const int count = static_cast<int>((cell >> GRID_COUNT_SHIFT) & GRID_COUNT_MASK) + 1;
+        for(int k = 0; k < count; k++, entry++)
+        {
+            if(!(entry->style & GRID_GLOW) && entry->style != 0)
+            {
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+// What's drawn beside the models reads the same probes (ambient::lightPoint), a read for each 16 units a frame at most:
+// a burst of blood asks a few hundred times, all in one place.
+struct PointRead
+{
+    int frame{-1};
+    int key[3]{};
+    bool found{false};
+    glm::vec3 level{0.f};
+};
+constexpr za::SizeT POINT_READS = 256; // (a power of two)
+constexpr float POINT_READ_SIZE = 16.f;
+PointRead pointReads[POINT_READS];
 
 // One entity's reading, once a frame. `drawnLevel`, `drawnCube`: what it is lit by; off them by the part of a step (a
 // probe coming into sight or going out of it) still fading, so that those don't pop either.
@@ -1154,6 +1443,54 @@ void gridInfo_f()
                grid.size[0], grid.size[1], grid.size[2], grid.cell, static_cast<size_t>(grid.probes), static_cast<size_t>(grid.styledProbes),
                static_cast<size_t>(grid.clearCells),
                static_cast<double>(grid.cells.size() * sizeof(unsigned) + grid.entries.size() * sizeof(GridEntry)) / 1048576.0, grid.buildMs);
+    Con_Printf("model light grid: lit liquids in reach of %zu probes (lava), %zu (slime), %zu (teleporter); %zu entries\n",
+               static_cast<size_t>(grid.glowProbes[0]), static_cast<size_t>(grid.glowProbes[1]), static_cast<size_t>(grid.glowProbes[2]),
+               static_cast<size_t>(grid.entries.size()));
+    for(const auto& [tx, colour] : grid.glowColours)
+    {
+        Con_Printf("model light grid: liquid %s lights %.0f %.0f %.0f\n", tx ? tx->name : "?", colour.r, colour.g, colour.b);
+    }
+
+    // At the view (the eye: a model's middle, about): the grid's level with and without the liquids, the floor's.
+    {
+        const glm::vec3 eye = geom::vec(r_refdef.vieworg);
+        const GridSpot spot = gridSpot(eye);
+        const unsigned seen = gridSeen(spot, eye);
+        GridRead read;
+        if(gridRead(spot, seen, read, false))
+        {
+            glm::vec3 baked{0.f};
+            float total = 0.f;
+            for(int c = 0; c < 8; c++)
+            {
+                const unsigned cell = grid.cells[spot.corner(c)];
+                if(!(seen & (1u << c)) || (cell & GRID_FIRST) == GRID_FIRST || spot.weight(c) <= 0.f)
+                {
+                    continue;
+                }
+                total += spot.weight(c);
+                const GridEntry* entry = &grid.entries[cell & GRID_FIRST];
+                const int count = static_cast<int>((cell >> GRID_COUNT_SHIFT) & GRID_COUNT_MASK) + 1;
+                for(int k = 0; k < count; k++)
+                {
+                    if(!(entry[k].style & GRID_GLOW))
+                    {
+                        baked += glm::vec3{entry[k].level[0], entry[k].level[1], entry[k].level[2]} * spot.weight(c) *
+                                 (static_cast<float>(d_lightstylevalue[entry[k].style]) / (256.f * GRID_FIXED));
+                    }
+                }
+            }
+            baked *= za::max(vr_model_light_grid_intensity.value, 0.f) / za::max(total, 1e-4f);
+            vec3_t v{eye.x, eye.y, eye.z};
+            lightcache_t floorCache{};
+            (void)R_LightPoint(v, 0.f, &floorCache);
+            const glm::vec3 floorLight{lightcolor[0], lightcolor[1], lightcolor[2]};
+            glm::vec3 drawn = read.level;
+            lighting::lightCurve(&drawn.x);
+            Con_Printf("model light grid: at the view: baked %.0f %.0f %.0f, with liquids %.0f %.0f %.0f, drawn %.0f %.0f %.0f; the floor's %.0f %.0f %.0f\n",
+                       baked.r, baked.g, baked.b, read.level.r, read.level.g, read.level.b, drawn.r, drawn.g, drawn.b, floorLight.r, floorLight.g, floorLight.b);
+        }
+    }
 
     // Thin walls: at the middle of each cell with something in it, how much light the probes out of sight would add.
     int spots = 0, kept = 0;
@@ -1235,7 +1572,7 @@ void gridInfo_f()
     {
         const unsigned cell = grid.cells[i];
         const GridEntry* entry = (cell & GRID_FIRST) != GRID_FIRST ? &grid.entries[cell & GRID_FIRST] : nullptr;
-        if(entry && ((cell >> GRID_COUNT_SHIFT) & 7u) != 0u && entry[1].level[0] >= 16.f * GRID_FIXED && d_lightstylevalue[entry[1].style] != 0)
+        if(entry && ((cell >> GRID_COUNT_SHIFT) & GRID_COUNT_MASK) != 0u && !(entry[1].style & GRID_GLOW) && entry[1].level[0] >= 16.f * GRID_FIXED && d_lightstylevalue[entry[1].style] != 0)
         {
             const float now = (static_cast<float>(entry[0].level[0]) * static_cast<float>(d_lightstylevalue[entry[0].style]) +
                                static_cast<float>(entry[1].level[0]) * static_cast<float>(d_lightstylevalue[entry[1].style])) / (256.f * GRID_FIXED);
@@ -1360,8 +1697,11 @@ void ambient::entityCube(const entity_t* e, const float modelMatrix[16], const v
             out[f][1] = lit->drawnCube[f].g;
             out[f][2] = lit->drawnCube[f].b;
         }
-        out[0][3] = 1.f;
-        out[1][3] = 1.f - DIR_REPLACED;
+        // vr_model_light_grid_mix: 0 the map's lights' directional shading alone, 0.5 half of it under the whole cube (as
+        // the rays below), 1 the cube alone.
+        const float mix = za::clamp(vr_model_light_grid_mix.value, 0.f, 1.f);
+        out[0][3] = za::min(mix * 2.f, 1.f);
+        out[1][3] = 1.f - mix;
         return;
     }
     if(cl.worldmodel != loadedWorld || worldGeneration() != loadedGeneration) // the same model can hold another map: a map name loaded again (vr_relit_maps switched)
@@ -1514,6 +1854,322 @@ extern "C" int VR_ModelLightGrid(const entity_t* e, float out[3])
     return 1;
 }
 
+bool ambient::gridOn()
+{
+    return vr_model_light_grid.value != 0.f && cl.worldmodel && cl.worldmodel->lightdata && gridReady();
+}
+
+bool ambient::gridLightAt(const glm::vec3& p, glm::vec3& out, bool* styled)
+{
+    const GridSpot spot = gridSpot(p);
+    const unsigned seen = gridSeen(spot, p);
+    GridRead read;
+    if(!gridRead(spot, seen, read, false))
+    {
+        return false;
+    }
+    out = read.level;
+    if(styled)
+    {
+        *styled = gridStyled(spot, seen);
+    }
+    return true;
+}
+
+int ambient::lightPoint(const glm::vec3& p, lightcache_t& cache)
+{
+    if(gridOn())
+    {
+        const int key[3] = {static_cast<int>(glm::floor(p.x / POINT_READ_SIZE)), static_cast<int>(glm::floor(p.y / POINT_READ_SIZE)),
+                            static_cast<int>(glm::floor(p.z / POINT_READ_SIZE))};
+        const unsigned hash = (static_cast<unsigned>(key[0]) * 73856093u) ^ (static_cast<unsigned>(key[1]) * 19349663u) ^
+                              (static_cast<unsigned>(key[2]) * 83492791u);
+        PointRead& read = pointReads[hash & (POINT_READS - 1)];
+        if(read.frame != host_framecount || read.key[0] != key[0] || read.key[1] != key[1] || read.key[2] != key[2])
+        {
+            read.frame = host_framecount;
+            za::copy(key, key + 3, read.key);
+            read.found = gridLightAt(p, read.level);
+        }
+        if(read.found)
+        {
+            lightcolor[0] = read.level.r;
+            lightcolor[1] = read.level.g;
+            lightcolor[2] = read.level.b;
+            return static_cast<int>((lightcolor[0] + lightcolor[1] + lightcolor[2]) * (1.f / 3.f));
+        }
+    }
+    vec3_t v{p.x, p.y, p.z};
+    return R_LightPoint(v, 0.f, &cache);
+}
+
+namespace
+{
+
+// vr_model_light_grid_test: on this map, the reads' sums and every knob; ends with its verdict line.
+void gridTest_f()
+{
+    testkit::Tally tally;
+    const auto check = [&](bool ok, const char* what, double a, double b) {
+        tally.check(ok);
+        Con_Printf("light grid test: %s: %s (%.3f, %.3f)\n", ok ? "ok" : "FAIL", what, a, b);
+    };
+    if(!ambient::gridOn() || grid.probes == 0)
+    {
+        check(false, "the map has a grid", 0.0, 0.0);
+        tally.verdict("light grid test");
+        return;
+    }
+    const auto gridHash = [] {
+        unsigned long long h = diskcache::fnv(diskcache::fnvStart, grid.cells.data(), grid.cells.size() * sizeof(unsigned));
+        return diskcache::fnv(h, grid.entries.data(), grid.entries.size() * sizeof(GridEntry));
+    };
+    Con_Printf("light grid test: %s, %zu probes, %zu entries, %zu lava, %zu slime, %zu teleporter\n", cl.worldmodel->name, static_cast<size_t>(grid.probes),
+               static_cast<size_t>(grid.entries.size()), static_cast<size_t>(grid.glowProbes[0]), static_cast<size_t>(grid.glowProbes[1]), static_cast<size_t>(grid.glowProbes[2]));
+
+    // Spots over the map: the middles of cells with a reading.
+    za::Vector<glm::vec3> spots;
+    for(int z = 0; z + 1 < grid.size[2]; z += 2)
+    {
+        for(int y = 0; y + 1 < grid.size[1]; y += 3)
+        {
+            for(int x = 0; x + 1 < grid.size[0] && spots.size() < 2000; x += 3)
+            {
+                const glm::vec3 p = grid.point(x, y, z) + glm::vec3{grid.cell * 0.5f};
+                const GridSpot spot = gridSpot(p);
+                GridRead read;
+                if(!solid(p) && gridRead(spot, gridSeen(spot, p), read, false))
+                {
+                    spots.pushBack(p);
+                }
+            }
+        }
+    }
+    check(!spots.empty(), "spots with a reading", static_cast<double>(spots.size()), 0.0);
+
+    // What's drawn beside a model reads what the model there reads; cached in its cell within a frame; costs little.
+    const za::Clock readClock;
+    float worst = 0.f;
+    for(const glm::vec3& p : spots)
+    {
+        const GridSpot spot = gridSpot(p);
+        GridRead read;
+        (void)gridRead(spot, gridSeen(spot, p), read);
+        for(PointRead& r : pointReads)
+        {
+            r.frame = -1;
+        }
+        lightcache_t cache{};
+        (void)ambient::lightPoint(p, cache);
+        worst = za::max(worst, glm::distance(read.level, glm::vec3{lightcolor[0], lightcolor[1], lightcolor[2]}));
+    }
+    check(worst < 0.01f, "an effect's light = a model's there, largest difference", static_cast<double>(worst), 0.0);
+    const double readUs = static_cast<double>(readClock.getElapsedTime().asMicroseconds()) / za::max(static_cast<int>(spots.size()), 1);
+    {
+        for(PointRead& r : pointReads)
+        {
+            r.frame = -1;
+        }
+        lightcache_t cache{};
+        const glm::vec3 p = spots[0];
+        const za::Clock clock;
+        int sum = 0;
+        for(int i = 0; i < 10000; i++)
+        {
+            sum += ambient::lightPoint(p, cache);
+        }
+        Con_Printf("light grid test: both reads of a spot %.2f us; a cached read %.4f us (checksum %d)\n", readUs,
+                   static_cast<double>(clock.getElapsedTime().asMicroseconds()) / 10000.0, sum);
+    }
+
+    // Overall intensity: the level, live; not the probes.
+    {
+        const float was = vr_model_light_grid_intensity.value;
+        const glm::vec3 p = spots[spots.size() / 2];
+        glm::vec3 one{0.f}, two{0.f};
+        (void)ambient::gridLightAt(p, one);
+        Cvar_SetValueQuick(&vr_model_light_grid_intensity, was * 2.f);
+        (void)ambient::gridLightAt(p, two);
+        Cvar_SetValueQuick(&vr_model_light_grid_intensity, was);
+        check(glm::distance(one * 2.f, two) < 0.05f, "intensity x2 doubles the level", static_cast<double>(luma(one)), static_cast<double>(luma(two)));
+    }
+
+    // The mix: how the cube and the map's lights' directional shading share the model.
+    const entity_t* entity = cl.viewent.model ? &cl.viewent : nullptr;
+    for(int i = 1; !entity && i < cl.num_entities; i++)
+    {
+        const entity_t* e = &cl_entities[i];
+        entity = e->model && e->model->type == mod_alias && !(e->model->flags & MOD_FBRIGHTHACK) ? e : nullptr;
+    }
+    if(entity && gridLight(entity))
+    {
+        const float was = vr_model_light_grid_mix.value;
+        float cube[6][4];
+        const float mixes[3] = {0.f, 0.5f, 1.f};
+        const float wantCube[3] = {0.f, 1.f, 1.f};
+        const float wantDir[3] = {1.f, 0.5f, 0.f};
+        for(int m = 0; m < 3; m++)
+        {
+            Cvar_SetValueQuick(&vr_model_light_grid_mix, mixes[m]);
+            ambient::entityCube(entity, nullptr, nullptr, true, cube);
+            check(cube[0][3] == wantCube[m] && cube[1][3] == wantDir[m], "the mix's cube and directional shares", static_cast<double>(cube[0][3]), static_cast<double>(cube[1][3]));
+        }
+        Cvar_SetValueQuick(&vr_model_light_grid_mix, was);
+    }
+    else
+    {
+        Con_Printf("light grid test: no model to read the mix from (not counted)\n");
+    }
+
+    // The near weight: another grid at once, and the same one back. Nothing else changes.
+    {
+        const float was = vr_model_light_grid_near.value;
+        const unsigned long long before = gridHash();
+        const za::SizeT entries = grid.entries.size();
+        Cvar_SetValueQuick(&vr_model_light_grid_near, was * 0.25f);
+        (void)ambient::gridOn();
+        const unsigned long long nearer = gridHash();
+        const za::SizeT entriesNearer = grid.entries.size();
+        Cvar_SetValueQuick(&vr_model_light_grid_near, was);
+        (void)ambient::gridOn();
+        check(nearer != before && entriesNearer == entries, "another near weight: new values, same entries", static_cast<double>(entriesNearer), static_cast<double>(entries));
+        check(gridHash() == before, "the near weight put back: the same grid", 0.0, 0.0);
+    }
+
+    // Off: the floor's, as R_LightPoint.
+    {
+        const float was = vr_model_light_grid.value;
+        Cvar_SetValueQuick(&vr_model_light_grid, 0.f);
+        vec3_t v{spots[0].x, spots[0].y, spots[0].z};
+        lightcache_t a{}, b{};
+        const int floorLight = R_LightPoint(v, 0.f, &a);
+        check(ambient::lightPoint(spots[0], b) == floorLight, "vr_model_light_grid 0: effects read the floor", static_cast<double>(floorLight), 0.0);
+        Cvar_SetValueQuick(&vr_model_light_grid, was);
+    }
+
+    // Each kind of lit liquid, probe by probe (a probe's own place: only it is read).
+    for(int kind = 0; kind < GLOW_KINDS; kind++)
+    {
+        if(grid.glowProbes[kind] == 0)
+        {
+            Con_Printf("light grid test: no %s here\n", GLOW_NAMES[kind]);
+            continue;
+        }
+        cvar_t* strength = GLOW_KNOBS[kind].strength;
+        cvar_t* range = GLOW_KNOBS[kind].range;
+        const float wasStrength = strength->value, wasRange = range->value;
+        const float testStrength = za::max(wasStrength, 0.5f);
+        int counted = 0, warmer = 0, linear = 0, rangeZero = 0, sideLit = 0;
+        float nearGlow = 0.f, farGlow = 0.f;
+        int nearCount = 0, farCount = 0;
+        int rays = 0, raysClear = 0;
+        const auto readAt = [](const GridSpot& spot, float s, cvar_t* knob) {
+            Cvar_SetValueQuick(knob, s);
+            GridRead r;
+            (void)gridRead(spot, 1u, r);
+            return r;
+        };
+        for(int z = 0; z + 1 < grid.size[2]; z++)
+        {
+            for(int y = 0; y + 1 < grid.size[1]; y++)
+            {
+                for(int x = 0; x + 1 < grid.size[0] && counted < 4000; x++)
+                {
+                    const unsigned cell = grid.cells[grid.index(x, y, z)];
+                    if((cell & GRID_FIRST) == GRID_FIRST)
+                    {
+                        continue;
+                    }
+                    const GridEntry* entry = &grid.entries[cell & GRID_FIRST];
+                    const int count = static_cast<int>((cell >> GRID_COUNT_SHIFT) & GRID_COUNT_MASK) + 1;
+                    const GridEntry* mine = nullptr;
+                    for(int k = 0; k < count; k++)
+                    {
+                        if((entry[k].style & GRID_GLOW) && ((entry[k].style >> GRID_GLOW_KIND_SHIFT) & 7) == kind)
+                        {
+                            mine = &entry[k];
+                        }
+                    }
+                    if(!mine)
+                    {
+                        continue;
+                    }
+                    counted++;
+                    const glm::vec3 p = grid.point(x, y, z);
+                    GridSpot spot{};
+                    spot.x = x;
+                    spot.y = y;
+                    spot.z = z;
+                    spot.across = glm::vec3{0.f};
+                    Cvar_SetValueQuick(range, wasRange);
+                    const GridRead none = readAt(spot, 0.f, strength);
+                    const GridRead some = readAt(spot, testStrength, strength);
+                    const GridRead twice = readAt(spot, testStrength * 2.f, strength);
+                    const glm::vec3 glow = some.level - none.level;
+                    Cvar_SetValueQuick(strength, testStrength);
+                    const GridRead rangeOff = readAt(spot, 0.f, range);
+                    Cvar_SetValueQuick(range, wasRange);
+                    const float distance = static_cast<float>(mine->style & GRID_GLOW_DISTANCE);
+                    if(glow.r + glow.g + glow.b > 0.f || distance >= wasRange || mine->level[0] + mine->level[1] + mine->level[2] < 8)
+                    {
+                        warmer++;
+                    }
+                    linear += glm::distance(twice.level - none.level, glow * 2.f) < 0.1f ? 1 : 0;
+                    rangeZero += glm::distance(rangeOff.level, none.level) < 0.01f ? 1 : 0;
+                    float sideDiff = 0.f;
+                    for(int f = 0; f < 6; f++)
+                    {
+                        sideDiff += glm::distance(some.faces[f], none.faces[f]);
+                    }
+                    sideLit += sideDiff > 0.f || distance >= wasRange || mine->level[0] + mine->level[1] + mine->level[2] < 8 ? 1 : 0;
+                    if(distance < 96.f)
+                    {
+                        nearGlow += luma(glow);
+                        nearCount++;
+                    }
+                    else if(distance >= 256.f)
+                    {
+                        farGlow += luma(glow);
+                        farCount++;
+                    }
+                    // Walls: each ray that counted a liquid, by the world's own line (another tracer than the rays').
+                    if((counted & 15) == 0)
+                    {
+                        for(int i = 0; i < GLOW_RAYS; i++)
+                        {
+                            const glm::vec3& dir = glowRays.dir[i];
+                            Hit hit;
+                            trace(cl.worldmodel->nodes, dir, p, p + dir * GLOW_REACH, hit, GLOW_STOP);
+                            if((hit.kind == HitKind::Lava || hit.kind == HitKind::Liquid) && hit.surf && glowKindOf(hit.surf->flags) == kind)
+                            {
+                                const float along = distanceTo(hit.surf, p, dir, GLOW_REACH);
+                                rays++;
+                                raysClear += worldtrace::line(p, p + dir * za::max(along - 2.f, 0.f)) >= 1.f ? 1 : 0;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        Cvar_SetValueQuick(strength, wasStrength);
+        Cvar_SetValueQuick(range, wasRange);
+        Con_Printf("light grid test: %s: %d probes read; near (under 96) mean %.1f of %d, far (256 up) mean %.1f of %d\n", GLOW_NAMES[kind], counted,
+                   nearCount ? static_cast<double>(nearGlow) / nearCount : 0.0, nearCount, farCount ? static_cast<double>(farGlow) / farCount : 0.0, farCount);
+        check(warmer == counted, "its light adds to the probes in range", static_cast<double>(warmer), static_cast<double>(counted));
+        check(sideLit == counted, "and to the cube's sides", static_cast<double>(sideLit), static_cast<double>(counted));
+        check(linear == counted, "strength x2 doubles it", static_cast<double>(linear), static_cast<double>(counted));
+        check(rangeZero == counted, "range 0: as strength 0", static_cast<double>(rangeZero), static_cast<double>(counted));
+        if(nearCount && farCount)
+        {
+            check(nearGlow / static_cast<float>(nearCount) > 3.f * farGlow / static_cast<float>(farCount), "falls off with distance", static_cast<double>(nearGlow) / nearCount, static_cast<double>(farGlow) / farCount);
+        }
+        check(rays > 0 && static_cast<float>(raysClear) >= 0.97f * static_cast<float>(rays), "walls block it: the rays that count it are clear by the world's line", static_cast<double>(raysClear), static_cast<double>(rays));
+    }
+    tally.verdict("light grid test");
+}
+
+} // namespace
+
 // VR_NewMap (prewarm): the grid is built with the map's load, not at its first frame.
 void ambient::prepareGrid()
 {
@@ -1525,6 +2181,7 @@ void ambient::prepareGrid()
     {
         Cmd_AddCommand("vr_model_light_grid_info", gridInfo_f);
         Cmd_AddCommand("vr_model_light_walk", gridWalk_f);
+        Cmd_AddCommand("vr_model_light_grid_test", gridTest_f);
     }
 }
 

@@ -1,5 +1,6 @@
 // vr_rope.cpp -- see vr_rope.hpp.
 
+#include "vr_ambient.hpp"
 #include "vr_modelmetadata.hpp"
 #include "vr_geom.hpp"
 #include "vr_rope.hpp"
@@ -234,9 +235,8 @@ glm::vec3 worldLight(const glm::vec3& p)
     {
         return glm::vec3{0.5f};
     }
-    vec3_t v{p.x, p.y, p.z};
     lightcache_t cache{};
-    R_LightPoint(v, 0.f, &cache);
+    ambient::lightPoint(p, cache);
     float c[3] = {lightcolor[0], lightcolor[1], lightcolor[2]};
     VR_AliasLightCurve(c);
     const float add = 3.f * VR_ViewModelMinLight() - (c[0] + c[1] + c[2]);
