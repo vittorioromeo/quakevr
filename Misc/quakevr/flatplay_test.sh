@@ -92,11 +92,12 @@ read -r okmain okarm probes past mm gaps <<<"$(grep -a "" "$log" | awk '
 /test hurt:/ { if (match($0, /health [0-9.]+ -> [0-9.]+/)) { split(substr($0, RSTART + 7, RLENGTH - 7), b, " ->"); if (seen) { g[++n] = prev - b[1]; s = s (n > 1 ? "," : "") sprintf("%.0f", g[n]) } prev = b[2]; seen = 1 } }
 /flatarm:/ { for (i = 1; i <= NF; i++) if ($i == "past") { v = $(i + 2) + 0; if (v > past) past = v } if (match($0, /\(([0-9]+) mm\)/)) { m = substr($0, RSTART + 1, RLENGTH - 4) + 0; if (m > mm) mm = m } }
 END { printf "%d %d %d %.2f %.0f %s\n", (g[1] > 0 || g[3] > 0), (past <= 0.6), n, past, mm, s }')"
-# The off hand's axe, its own run from a fresh map: in the order it had inside the run above, its knight took nothing (and
-# 19 alone), which said nothing about the off hand: see FLATPLAY.md, "The off hand's axe in the suite's order".
+# The off hand's axe, its own run from a fresh map, its knight left alone until the blow: one read, after it, against the 75
+# he starts with. The read before a blow (vr_test_hurt's own 1 unit of damage) is what this case used to fail on, not the
+# order of the suite: he flinches and the blow passes where he stood (0 in any order, and 40 here; FLATPLAY.md).
 offlog=$HERE/scratch/flatpunchoff.log
-bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; god; notarget; developer 1; r_norefresh 0; vr_mock_eye_size 256; vr_test_spawn 5; vr_test_spawn_dist 24; impulse 241; wait10; impulse 172; wait25; vr_test_hurt 1; wait3; +offhandattack; wait30; -offhandattack; vr_test_hurt 1; wait15; toggleconsole; quit" -Filter "test hurt:" > "$offlog" 2>&1
-offgap=$(grep -a 'test hurt:' "$offlog" | awk '{ if (match($0, /health [0-9.]+ -> [0-9.]+/)) { split(substr($0, RSTART + 7, RLENGTH - 7), b, " ->"); if (seen) { print prev - b[1]; exit } prev = b[2]; seen = 1 } }')
+bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; god; notarget; developer 1; r_norefresh 0; vr_mock_eye_size 256; impulse 152; wait15; vr_test_spawn 5; vr_test_spawn_dist 24; impulse 241; wait15; impulse 172; wait25; +offhandattack; wait30; -offhandattack; vr_test_hurt 1; wait15; toggleconsole; quit" -Filter "test hurt:|melee event: slash, hand 0" > "$offlog" 2>&1
+offgap=$(grep -a 'test hurt:' "$offlog" | awk '{ if (match($0, /health [0-9.]+ -> [0-9.]+/)) { split(substr($0, RSTART + 7, RLENGTH - 7), b, " ->"); print 75 - b[1]; exit } }')
 okoff=$(awk -v g="${offgap:-0}" 'BEGIN { print (g + 0 > 0) ? 1 : 0 }')
 echo "  flatarm worst: $past units of the hand past its arm, $mm mm off its wrist; the gaps the punches left the knight at: $gaps ($log); the off hand's axe alone: ${offgap:-0} ($offlog)"
 check $okmain "flatscreen melee: +attack (LMB) punches with the axe in the main hand and hurts the knight in front of it"
