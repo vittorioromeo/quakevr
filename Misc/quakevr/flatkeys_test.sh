@@ -5,8 +5,9 @@
 # flatscreen's: the game code says so and the engine does nothing). Prints PASS/FAIL, exits 1 on a failure.
 #   crouch  Left Ctrl holds and releases (+flatcrouch / -flatcrouch, the console's way): vr_flatkeys_test 1 read standing,
 #           held and let go again — his eyes come down vr_flat_crouch_drop (18 units) while the key is held and go back to
-#           where they were when it is released; while held he is crouched (.vr_stand under 1, vr_crouch_status's box).
-#           Without the flag the same key does nothing: the game code answers "flat play off".
+#           where they were when it is released, and the crouched box (vr_crouch_hull) follows the key: held crouched, let
+#           go standing again, since his eyes stand under the tallest crouched box's top whatever he does. Without the
+#           flag the same key does nothing: the game code answers "flat play off".
 #   torch   F switches the flashlight (the engine's vr_flashlight_toggle): worn on the head and lit at the start, put out
 #           by F (the packed state read back: bit 0 clear), lit again by F.
 #   drop    G (impulse 47, weapons.qc, VR_Forcegrab_FlatDrop): the axe in the main hand leaves the hand the way the game
@@ -35,6 +36,13 @@ top=$(echo "$eyes" | head -1); low=$(echo "$eyes" | sort -g | head -1); back=$(e
 deep=$(grep -ac "^flatkeys: crouched 1 stand 0\." "$S/crouchflat.log")
 check $([ "$n" = 3 ] && awk -v a="$top" -v b="$low" -v c="$back" 'BEGIN{exit !((a-b)>=15 && c==a)}' && echo 1 || echo 0) \
     "crouch: eyes $top -> $low -> $back units, crouched while held ($deep of 3 readings), the drop at least 15 of the 18 vr_flat_crouch_drop asks for"
+# The crouched box follows the key, not his eyes' height: a flatscreen player's eyes stand at Quake's viewheight, which
+# is under the tallest crouched box's top, so vr_hull.cpp is asked with his key (flatscreenCrouch) -- held crouched,
+# let go standing again (vr_crouch_speed: his full speed) as long as his box fits where he is.
+cro=$(grep -a "^flatkeys: crouched" "$S/crouchflat.log" | sed 's/^flatkeys: crouched \([01]\).*/\1/')
+c0=$(echo "$cro" | sed -n 1p); c1=$(echo "$cro" | sed -n 2p); c2=$(echo "$cro" | sed -n 3p)
+check $([ "$cro" = "$(printf '0\n1\n0')" ] && echo 1 || echo 0) \
+    "crouch: the crouched box follows the key (vr_crouch_hull): $c0 standing, $c1 held, $c2 let go -- up again, at his full speed"
 check $(grep -qa "torch lit 1" "$S/crouchflat.log" && echo 1 || echo 0) "crouch: the run itself is flatscreen (the torch worn and lit at the start)"
 run crouchvr vr "$P; +flatcrouch; wait40; vr_flatkeys_test 1" "^flatkeys:"
 check $(grep -qa "flat play off" "$S/crouchvr.log" && ! grep -qa "^flatkeys: crouched" "$S/crouchvr.log" && echo 1 || echo 0) \

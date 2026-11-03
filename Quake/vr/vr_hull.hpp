@@ -70,8 +70,11 @@ void afterLoad();
 
 // A client's move received (vr_server.cpp): his crouch (vr_crouch_hull) from his head's height over his feet: crouched
 // when his eyes are under the crouched box's top (vr_crouch_height); standing again once they are back over it and the
-// standing box fits where he is.
-void updateCrouch(edict_t* ent, const glm::vec3& head);
+// standing box fits where he is. flatscreenCrouch (vr_flatplay.cpp, vr_server.cpp): whether the flatscreen player's
+// crouch key is held now -- his eyes stand under the tallest crouched box's top whatever he does, so his key, not their
+// height, says whether he is crouched. True for a headset player, who crouches with his own head: nothing about him
+// changes.
+void updateCrouch(edict_t* ent, const glm::vec3& head, bool flatscreenCrouch);
 // Whether a client has his crouched box (the box moveBox, entBox, touchBox and hitBox give him).
 [[nodiscard]] bool isCrouched(const edict_t* ent);
 // SV_AirMove (vr_crouch_speed): the stick's most speed `maxspeed` for a client crouched (his eyes from updateCrouch under

@@ -5913,6 +5913,12 @@ QVR_SLIDER(vr_flat_pose_pitch, "Flatscreen Hand Pitch", 0.f, 90.f, 1.f, "%.0f de
 QVR_SLIDER(vr_flat_aim_fov, "Flatscreen Ironsight Field of View", 0.f, 45.f, 1.f, "%.0f", noExt,
     "How many degrees the field of view narrows while the flatscreen ironsight is on (vr_flat_aim, or the mouse "
     "wheel's button). The look's speed and the HUD are unchanged: the crosshair keeps its distance on the screen.")
+QVR_SLIDER(vr_flat_crouch_time, "Flatscreen Crouch Time", 0.f, 2.f, 0.05f, "%.2f s", noExt,
+    "How long holding Left Ctrl and letting it go take to ease in and out (0: at once). His head, his height and the "
+    "drawn view come down and go back over this long (vr_flat_crouch_time).")
+QVR_SLIDER(vr_flat_crouch_drop, "Flatscreen Crouch Drop", 0.f, 40.f, 1.f, "%.0f units", noExt,
+    "How far holding Left Ctrl lets his head down: the crouched box he is given is the one his eyes are let down "
+    "under, and the drawn view is lowered by the same (vr_flat_crouch_drop).")
 QVR_TOGGLE(vr_ao_cache, "Keep AO Bakes on Disk",
     "vr_ao_cache: the models' occlusion bakes kept on disk, so a later session's loads bake nothing (off: baked at every first load; 2 in the console: baked anyway and compared with the file).")
 QVR_TOGGLE(vr_menu_link_dryrun, "Menu Links: Print, Do Not Open",
