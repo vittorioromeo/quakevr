@@ -38,6 +38,8 @@ Ogres, fiends and shamblers: footsteps now layered from recordings: heavy, not a
 Worn pack coming off: stand-in rip, no fiend claw in it: does it read as fabric?
 Knock a dual wielder's left weapon out (a punch, a tug): the other stays in its hand, moving with it; it picks up another and holds both.
 Ogres with friends running ahead of them: they hold and strafe rather than lob or fire into a friend's back, and still attack.
+Ogres, fiends and shamblers: footsteps now cut from real recordings: heavy and not artificial, on the foot, and still easy to hear in the headset?
+Worn pack coming off (shot, blow, hard landing, gibbed, taken): a clear cloth rip, nothing like a fiend's swipe?
 
 
 [3. Bodies: grabbing, throwing, hits]
