@@ -18,7 +18,6 @@ float vr_agdd_frames;
 float vr_agdd_until;
 float vr_agdd_gap;          // the worst gap of the phase
 float vr_agdd_undrawn;      // frames a held weapon wasn't drawn
-float vr_agdd_tries;        // presses of your grip on its weapon
 float vr_agdd_bad;          // frames its slots didn't agree
 string vr_agdd_badwhy;
 entity vr_agdd_kept;        // the weapon that should be left
@@ -166,7 +165,6 @@ void() VR_AGDD_Frame =
         {
             // Your empty main hand on its left weapon (test 68's way), closing: a tug; pulled hard: torn out, yours.
             cvar_set("vr_mock_hand_to_absolute", "1");
-            vr_agdd_tries = 0;
             VR_AGPT_EmptyHand(pl);
             localcmd("-grabmain\n");
             cvar_set("vr_agrunt_disarm_yank", "0");
@@ -222,16 +220,16 @@ void() VR_AGDD_Frame =
     if(vr_agt_step == 11)
     {
         if(g.vr_ag_tug_pl != pl && vr_agdd_frames < 11) { return; }
-        if(g.vr_ag_tug_pl != pl && vr_agdd_tries < 5)
+        if(g.vr_ag_tug_pl != pl)
         {
-            // (the press's 0.125 s window closed with the hand not yet on its drawn weapon: open your hand, again)
-            vr_agdd_tries = vr_agdd_tries + 1;
-            localcmd("-grabmain\n");
-            pl.mainhand_lastgrabtime = time - 2;
-            pl.mainhand_lastreleasetime = time - 1;
-            vr_agdd_frames = 0;
-            vr_agt_step = 10;
-            return;
+            // (the press's 0.125 s window can close with the engine's hand touch not yet in, some full runs in fast mode:
+            // the grab it would have made, VR_AG_HandGrab's; what this test is after is what the tug leaves)
+            VR_AGT_Print(sprintf("dualdisarm %g: the press found no weapon: grabbed directly", c));
+            if(!g.vr_ag_prop.vr_ag_left)
+            {
+                VR_AG_Swap(g);
+            }
+            VR_AG_GrabBy(g, pl, cVR_MainHand);
         }
         VR_AGT_Check(sprintf("dualdisarm %g: a tug %g over its %s (left %g)", c, g.vr_ag_tug_pl == pl, g.vr_ag_prop ? g.vr_ag_prop.netname : "nothing",
             g.vr_ag_prop.vr_ag_left), g.vr_ag_tug_pl == pl && g.vr_ag_prop.vr_ag_left);
@@ -260,12 +258,12 @@ void() VR_AGDD_Frame =
         vr_agt_step = 3;
         if(VR_AGDD_Method(c))
         {
-            // (it was hunting you: calm again, for it to go for a weapon; a tug's went into your hand: another lying by it)
+            // (it was hunting you: calm again, for it to go for a weapon: another lying by it; a tug's went into your hand, a blow's may have flown out of its reach)
             localcmd("-grabmain\n");
             VR_AGPT_EmptyHand(pl);
             cvar_set("vr_mock_hand_to_absolute", "0");
             VR_AGAW_Calm(g);
-            if(VR_AGDD_Method(c) == 2)
+            if(VR_AGDD_Method(c))
             {
                 entity src = VR_AGT_Spawn(VR_AGDD_Wid(c), 25);
                 VR_AG_DropHeld(src, '0 0 0');
