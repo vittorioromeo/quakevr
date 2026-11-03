@@ -7274,3 +7274,16 @@ only CC0 recordings the game already ships. Candidates for the real thing, pages
 - `pack_rip.wav`: **a stand-in**, not a cloth recording: `phys/scrape_wood1..3` quickened and high-passed at 1.1 kHz, `soft_m1` quiet at
   the end. It replaces `vr/derived/fabric_rip.wav` (the fiend's `demon/dhit2` was its main layer; the layer table's entry is gone). Still
   played by `VR_WP_Off` on every way a pack comes off. Against the old mix: high -15.7 (was -15.2), mid -25 (was -17), low -25.5 (was -15.7).
+
+## Heavy footsteps and the pack's rip: the real recordings (branch `agent/freesounds2`)
+
+He approved the three clips in chat; the coordinator fetched them. These replace the stand-ins of the section above (their layering left
+`make_footstep_sounds.py`, which now writes only boots, metal and bare: those files are byte-identical). `Misc/quakevr/make_recorded_steps.py`
+cuts them from decoded previews (its header has the sources and the ffmpeg line); sources are not in the repository. Credits: CREDITS.md.
+
+- `step_thud1..5.wav`: a stamp of 542858 (top softened, one pole at 2.5 kHz) over 721601's stomp low-passed at 900 Hz (no branches), rates
+  in `THUD_TAKES`, saturated (tanh 2.2), peak -2.5 dBFS. Same paths, rate, count; the kinds' pitch and gain unchanged. Against the stand-ins:
+  loudest 100 ms -6.0..-6.7 dB (was -7.0..-8.4), mid -13.1..-14.5 (was -15), low -8.8..-12.3 (was -10..-12), high -14..-17 (was -25). 0.50 s.
+- `pack_rip.wav`: the first 0.62 s of 591527 from its onset, high-passed 150 Hz, one pole at 8 kHz, tanh 5, a 0.14 s fade. Nearly all
+  over 800 Hz; its sample-to-sample jumps are the tear's dense crackle (the source has the same, against its peak), not lone clicks.
+- All files start and end at 0.

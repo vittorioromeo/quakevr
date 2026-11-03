@@ -4,10 +4,7 @@
 #                       rolling down after; nothing rings and nothing clicks (no energy to speak of over 2 kHz)
 #   step_metal1..5.wav  an armoured boot (knights): the same knock, heavier, a plate's short clink and a rattle after
 #   step_bare1..5.wav   a wet bare foot (zombies, gremlins): a flesh slap, a soft low thud and a small squelch
-# and, recorded (his note 2026-11-02: the synthesised ones sounded artificial), from CC0 recordings the game already ships
-# in quakevr/sound/vr/phys (THUD_TAKES; nothing to download; sources in docs/vr-port/CREDITS.md):
-#   step_thud1..5.wav   a great bare foot (ogres, shamblers, fiends): the weight, the skin's smack, a knock and grit
-#   pack_rip.wav        a worn backpack torn off (QC vr_wornpack.qc): the fibres' crackle, a stand-in for a cloth recording
+# The great bare feet (step_thud1..5.wav) and the pack's rip are recordings: make_recorded_steps.py.
 # Five takes of each step, apart in timing, pitch and grit. The monsters' size is the engine's (a playback rate and a weight
 # per kind: vr_footsteps.cpp, kinds). Everything is seeded: the same files every run.
 #
@@ -18,11 +15,8 @@ import os
 import random
 import struct
 import sys
-import wave
 
 RATE = 22050
-THUD_PEAK = 0.75  # (the peak the synthesised thuds had; loudest 100 ms within 1 dB of theirs: the engine's levels hold)
-RIP_PEAK = 0.8
 
 
 def write_wav(path, samples):
@@ -150,83 +144,6 @@ def bare(rng):
     return out
 
 
-def read_wav(path):
-    """A shipped 16-bit mono recording as floats."""
-    with wave.open(path, "rb") as w:
-        raw = w.readframes(w.getnframes())
-    return [v / 32768.0 for v in struct.unpack("<%dh" % (len(raw) // 2), raw)]
-
-
-def at_rate(samples, rate):
-    """Played at `rate` (under 1: lower and longer), its onset (a tenth of its peak) moved to the first sample."""
-    peak = max(abs(s) for s in samples) or 1.0
-    start = next(i for i, s in enumerate(samples) if abs(s) >= 0.1 * peak)
-    n = int((len(samples) - start - 1) / rate)
-    out = []
-    for i in range(n):
-        at = start + i * rate
-        j = int(at)
-        out.append(samples[j] + (samples[j + 1] - samples[j]) * (at - j))
-    return out
-
-
-def lay(out, samples, at, level):
-    """`samples` into `out`, `at` seconds in."""
-    start = int(at * RATE)
-    for i, s in enumerate(samples[:max(0, len(out) - start)]):
-        out[start + i] += level * s
-
-
-def high_passed(samples, cut):
-    lo = OnePole(cut)
-    return [s - lo(s) for s in samples]
-
-
-def low_passed(samples, cut):
-    lo = OnePole(cut)
-    return [lo(s) for s in samples]
-
-
-# The great bare feet, one line a take (recordings the game already ships, CC0, docs/vr-port/CREDITS.md; the monster's size is
-# the engine's on top): the weight (phys/soft_h), the skin's smack (phys/flesh_h), the mid-range knock a headset's speakers can
-# play (phys/wood_h, muffled so that no wood is heard), and the grit underfoot (phys/grab_stone).
-THUD_TAKES = (
-    # soft_h, its rate; flesh_h, its rate; wood_h, its rate; grab_stone, its delay (s)
-    (1, 0.72, 1, 0.80, 1, 0.62, 1, 0.006),
-    (2, 0.78, 2, 0.72, 2, 0.68, 2, 0.012),
-    (3, 0.68, 1, 0.88, 3, 0.58, 3, 0.003),
-    (4, 0.74, 2, 0.84, 4, 0.64, 1, 0.016),
-    (2, 0.66, 1, 0.74, 3, 0.70, 2, 0.009),
-)
-
-
-def thud(phys, take):
-    soft, soft_rate, flesh, flesh_rate, wood, wood_rate, grit, grit_at = THUD_TAKES[take]
-    out = buffer(0.5)
-    lay(out, at_rate(read_wav(os.path.join(phys, "soft_h%d.wav" % soft)), soft_rate), 0.0, 0.7)
-    lay(out, at_rate(read_wav(os.path.join(phys, "flesh_h%d.wav" % flesh)), flesh_rate), 0.0, 1.0)
-    lay(out, low_passed(at_rate(read_wav(os.path.join(phys, "wood_h%d.wav" % wood)), wood_rate), 1800), 0.002, 0.8)
-    lay(out, at_rate(read_wav(os.path.join(phys, "grab_stone%d.wav" % grit)), 0.85), grit_at, 1.6)
-    # (the weight's body lifted over 180 Hz, as the synthesised thuds had it: a headset's speakers barely play under that)
-    lifted = high_passed(out, 180)
-    return [math.tanh(1.5 * (x + 1.6 * y)) for x, y in zip(out, lifted)]  # (thick: loudness held up to the peak)
-
-
-# The fabric rip (QC vr_wornpack.qc VR_WP_Off): a stand-in until a recorded cloth tear is approved for download (ROUND23.md,
-# "Heavy footsteps and the pack's rip"). Recorded stick-slip (phys/scrape_wood: CC0, CREDITS.md) quickened and with its body
-# taken off, so that only the fibres' crackle is left: nothing of a fiend's claw, which is mid-range and has a sharp attack.
-def rip(phys):
-    out = buffer(0.42)
-    for name, at, rate, level in (("scrape_wood2.wav", 0.0, 1.45, 1.0), ("scrape_wood1.wav", 0.12, 1.7, 0.85), ("scrape_wood3.wav", 0.24, 2.0, 0.6)):
-        lay(out, high_passed(high_passed(at_rate(read_wav(os.path.join(phys, name)), rate), 1100), 1100), at, level)
-    n = len(out)
-    for i in range(n):
-        t = i / RATE
-        out[i] *= min(t / 0.012, 1.0) * (1.0 - 0.75 * i / n)  # (no hard edge in: it opens up, and thins as the cloth parts)
-    lay(out, at_rate(read_wav(os.path.join(phys, "soft_m1.wav")), 1.0), 0.33, 0.12)  # (the pack coming free)
-    return [math.tanh(1.2 * x) for x in out]
-
-
 def finish(out, level):
     """Peak to `level`, the tail faded (no click), the first sample at the attack."""
     fade = int(0.02 * RATE)
@@ -251,10 +168,6 @@ def main():
             write_wav(path, samples)
             rms = math.sqrt(sum(s * s for s in samples) / len(samples))
             print("%s: %.2f s, rms %.3f" % (os.path.basename(path), len(samples) / RATE, rms))
-    phys = os.path.join(root, "phys")  # (always the shipped recordings, wherever the output goes)
-    for take in range(len(THUD_TAKES)):
-        write_wav(os.path.join(out_dir, "step_thud%d.wav" % (take + 1)), finish(thud(phys, take), THUD_PEAK))
-    write_wav(os.path.join(out_dir, "pack_rip.wav"), finish(rip(phys), RIP_PEAK))
 
 
 if __name__ == "__main__":
