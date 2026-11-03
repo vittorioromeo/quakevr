@@ -51,7 +51,6 @@
 
 #include "Zancle/Math/Acos.hpp"
 #include "Zancle/Math/Clamp.hpp"
-#include "Zancle/Math/Cos.hpp"
 #include "Zancle/Math/Exp.hpp"
 #include "Zancle/Math/MinMax.hpp"
 #include "vr_zancle.hpp"
@@ -90,6 +89,15 @@ struct Sight
     float offBefore{0.f};       // its muzzle off that ray before the move, and after it (units)
     float offAfter{0.f};
     float sightAngle{0.f};      // the same offset as an angle, at the muzzle's own distance (degrees)
+
+    float gripOff{0.f};         // the grip's own measures, printed by the status: the free hand off the hotspot, less
+    float gripDot{0.f};         // its bias, and the hands' line against the held hand's forward (vr_2h_angle_threshold)
+    float handGap{0.f};         // the hands' distance, and the muzzle's off the held hand (twohand's beforeMuzzle)
+    float muzzleGap{0.f};
+    float gripReach{0.f};       // where the weapon's grip is from the hand holding it, in that hand's own frame
+    float gripFwd{0.f};         // (read before this file moves the free hand onto it: the flat pose's own reach)
+    float gripRight{0.f};
+    float gripUp{0.f};
 
     float fovNarrow{0.f};       // the field of view the ironsight is narrowing by this frame (gl_screen.c reads it)
 };
@@ -170,24 +178,24 @@ bool oneHanded(int& holding, int& helping)
 
 // Item 3's press. A flatscreen hand is always gripping (vr_client.cpp's gripping), so the pose putting the empty hand
 // onto a grip has no press to be taken on; this is the frame that stands for it, measured the way vr_twohand measures
-// the take: the hotspot's own point, less its bias, within its take distance, and the hands' line within
-// vr_2h_angle_threshold of the held weapon's own. A cup (grip2HCup) and a palm grip (grip2HPalm) are held by twohand's
-// own rules rather than by an arrival here, so those keep flatplay's support pose as it is today.
-bool arrivedAtGrip(const hands::State& s)
+// the take: the hotspot's own point, less its bias, within its take distance, and the line from the held hand to the
+// free one past the dot twohand asks for (vr_2h_angle_threshold) against the held hand's forward. A cup (grip2HCup)
+// and a palm grip (grip2HPalm) are held by twohand's own rules rather than by an arrival here, so those keep
+// flatplay's support pose as it is today.
+bool gripArrival(const hands::State& s, float& offGrip, float& dot)
 {
-    if(st.helping < 0 || !s.grip2HValid[st.holding] || s.grip2HCup[st.holding] || s.grip2HPalm[st.holding])
+    offGrip = dot = 0.f;
+    if(st.helping < 0 || st.holding < 0 || !s.grip2HValid[st.holding] || s.grip2HCup[st.holding] || s.grip2HPalm[st.holding])
     {
         return false;
     }
-    if(glm::distance(s.pos[st.helping], s.grip2H[st.holding]) - s.grip2HBias[st.holding] >= twohand::gripTakeUnits)
-    {
-        return false;
-    }
+    offGrip = glm::distance(s.pos[st.helping], s.grip2H[st.holding]) - s.grip2HBias[st.holding];
     glm::vec3 fwd, right, up;
     hands::angleVectors(s.rot[st.holding], fwd, right, up);
     const glm::vec3 line = s.pos[st.helping] - s.pos[st.holding];
-    return glm::length(line) > 1e-4f &&
-           glm::dot(glm::normalize(line), fwd) > za::cos(glm::radians(vr_2h_angle_threshold.value));
+    // vr_2h_angle_threshold is twohand's dot, not an angle in degrees (vr_twohand.cpp's goodDot): compared as it is there.
+    dot = glm::length(line) > 1e-4f ? glm::dot(glm::normalize(line), fwd) : 0.f;
+    return offGrip < twohand::gripTakeUnits && dot > vr_2h_angle_threshold.value;
 }
 
 // The ironsight asked for, and holding what it applies to: a ranged weapon, in one hand alone. In flatscreen play
@@ -282,14 +290,21 @@ void centreOnCrosshair(hands::State& s, const glm::vec3& aim)
 {
     st.shift = glm::vec3{0.f};
     st.offBefore = st.offAfter = st.sightAngle = 0.f;
-    if(st.adsT <= 0.f || st.holding < 0)
+    if(st.holding < 0)
     {
         return;
     }
+    // Measured whatever the ironsight is doing: where the muzzle this frame's pose leaves the crosshair's ray stands,
+    // which the ironsight's own turn is measured against and printed as the pair before -> after.
     glm::vec3 org, dir;
     crosshairRay(s, aim, org, dir);
     const glm::vec3 m = muzzleNow(s, st.holding);
     offTheRay(org, dir, m, st.offBefore, st.sightAngle);
+    st.offAfter = st.offBefore;
+    if(st.adsT <= 0.f)
+    {
+        return;
+    }
 
     const glm::vec3 lat = m - org - dir * glm::dot(m - org, dir); // off the ray: across it, nothing along it
     st.shift = -lat * st.adsT;
@@ -354,10 +369,15 @@ void frame()
 
 void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
 {
-    if(!flatplay::active() || !s.valid)
+    // The mode's own gate. s.valid is not asked for: the flat pose is made in hands::placeFlat, which runs before
+    // hands::update raises that flag for the frame (vr_hands.cpp), and what is read here is the pose flatplay just made
+    // and the hotspot and muzzle the view placed last frame -- the same thing flatplay's own pose works on.
+    if(!flatplay::active())
     {
         st.holding = st.helping = -1;
         st.pinned = false;
+        st.gripOff = st.gripDot = st.handGap = st.muzzleGap = 0.f;
+        st.gripReach = st.gripFwd = st.gripRight = st.gripUp = 0.f;
         st.gripWanted = st.adsWanted = false;
         if(st.lastHelping >= 0)
         {
@@ -398,13 +418,33 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach)
     // turns of them.
     const glm::vec3 crosshair[2]{s.rot[HAND_OFF], s.rot[HAND_MAIN]};
 
+    // Where the held weapon's grip stands from the hand that holds it, read before anything here moves: the flat pose's
+    // own reach to it, in the held hand's frame (the hotspot as the view placed it last frame).
+    st.gripReach = st.gripFwd = st.gripRight = st.gripUp = 0.f;
+    if(st.holding >= 0 && s.grip2HValid[st.holding])
+    {
+        glm::vec3 fwd, right, up;
+        hands::angleVectors(s.rot[st.holding], fwd, right, up);
+        const glm::vec3 d = s.grip2H[st.holding] - s.pos[st.holding];
+        st.gripReach = glm::length(d);
+        st.gripFwd = glm::dot(d, fwd);
+        st.gripRight = glm::dot(d, right);
+        st.gripUp = glm::dot(d, up);
+    }
+
     pinToGrip(s, reach);
     centreOnCrosshair(s, aim);
 
     // Item 3's press, and only its press: true on the frame the empty hand arrives on the hotspot, false the frame it
     // leaves it or the weapon changes. applyHotspots' goodDistance, goodDot, the stickiness and the weapon's own
     // Two-Handed setting decide the hold from here on, exactly as they do for a controller's grip button.
-    const bool inside = arrivedAtGrip(s);
+    const bool inside = gripArrival(s, st.gripOff, st.gripDot);
+    st.handGap = st.muzzleGap = 0.f;
+    if(st.holding >= 0 && st.helping >= 0)
+    {
+        st.handGap = glm::distance(s.pos[st.helping], s.pos[st.holding]);
+        st.muzzleGap = s.muzzleValid[st.holding] ? glm::distance(s.pos[st.holding], s.muzzle[st.holding]) : 0.f;
+    }
     if(freshFrame)
     {
         st.armed = st.helping >= 0 && inside && !st.atGrip;
@@ -457,6 +497,17 @@ void statusLine()
             st.pinned ? "on its grip hotspot" : "free (no grip hotspot on that weapon)",
             twohand::helping(st.helping) ? "held" : "not held", twohand::helpKind(st.helping),
             twohand::transition(st.holding));
+        if(st.pinned)
+        {
+            // The measures vr_twohand takes the hold on, read at the frame's pose: the free hand off the hotspot (less
+            // its bias, against the take distance an untaken grip asks for), the hands' line against the held hand's
+            // forward (against its dot), and the two distances of its muzzle test.
+            Con_Printf("  grip: %.2f units off the hotspot (take %.2f), dot %.2f (needs %.2f), hands %.1f apart, "
+                       "muzzle %.1f off the held hand\n",
+                st.gripOff, twohand::gripTakeUnits, st.gripDot, vr_2h_angle_threshold.value, st.handGap, st.muzzleGap);
+            Con_Printf("  hotspot: %.1f units from the held hand (fwd %.1f, right %.1f, up %.1f of it)\n",
+                st.gripReach, st.gripFwd, st.gripRight, st.gripUp);
+        }
     }
     else
     {
