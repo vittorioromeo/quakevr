@@ -2859,7 +2859,9 @@ vr_cellcord_superaxe_z|2|Tunables|Up|Advanced VR Options > Debug > Tunables > Up
 vr_revolver_close_flick_time|2|Tunables|Flick Close Time|Advanced VR Options > Debug > Tunables > Flick Close Time
 vr_revolver_flick_sustain|2|Tunables|Flick Sustain|Advanced VR Options > Debug > Tunables > Flick Sustain
 vr_revolver_close_push_speed|2|Tunables|Push Speed|Advanced VR Options > Debug > Tunables > Push Speed
-vr_revolver_eject_tilt|2|Tunables|Muzzle Up|Advanced VR Options > Debug > Tunables > Muzzle Up
+vr_revolver_eject_travel|2|Tunables|Eject Push Travel|Advanced VR Options > Debug > Tunables > Eject Push Travel
+vr_revolver_eject_cone|2|Tunables|Eject Push Cone|Advanced VR Options > Debug > Tunables > Eject Push Cone
+vr_revolver_eject_turn|2|Tunables|Eject Push Turn|Advanced VR Options > Debug > Tunables > Eject Push Turn
 vr_revolver_spin_mult|2|Tunables|Spin Strength|Advanced VR Options > Debug > Tunables > Spin Strength
 vr_revolver_spin_friction|2|Tunables|Spin Friction|Advanced VR Options > Debug > Tunables > Spin Friction
 vr_revolver_spin_max|2|Tunables|Fastest Spin|Advanced VR Options > Debug > Tunables > Fastest Spin
@@ -3870,6 +3872,7 @@ vr_agrunt_shotdisarm_debug|2|Debug - Views|Show Shot Disarms|Advanced VR Options
 |2|Debug - Views|Edit Blade Shape (Main Hand)|Advanced VR Options > Debug > Views > Edit Blade Shape (Main Hand)
 |2|Debug - Views|Pose Studio (Armed Humanoids' Grips)|Advanced VR Options > Debug > Views > Pose Studio (Armed 
 |2|Debug - Views|Pose Studio: Live On/Off|Advanced VR Options > Debug > Views > Pose Studio: Live On/Off
+|2|Debug - Views|Arena Wave Editor|Advanced VR Options > Debug > Views > Arena Wave Editor
 |2|Debug - Views|Rig Studio (Flat Screen)|Advanced VR Options > Debug > Views > Rig Studio (Flat Screen)
 |2|Debug - Views|Rig Studio: Range of Motion (Authored Rig)|Advanced VR Options > Debug > Views > Rig Studio: Range 
 |2|Debug - Views|Rig Studio: Test Weapons on the Authored Rig|Advanced VR Options > Debug > Views > Rig Studio: 
@@ -4822,7 +4825,11 @@ vr_ragtool_log|2|Ragdoll Tool|Log|Advanced VR Options > Debug > Ragdoll Tool > L
 |2|Debug - Automation & Self-Tests|Arcane Dimensions: Ladder Rung Probes|Advanced VR Options > Debug > Automation & 
 |2|Debug - Automation & Self-Tests|Arcane Dimensions: Ladders Report|Advanced VR Options > Debug > Automation & 
 |2|Debug - Automation & Self-Tests|Arcane Dimensions: Spawnflags and Sight Report|Advanced VR Options > Debug > 
+|2|Debug - Automation & Self-Tests|Arena Wave Editor|Advanced VR Options > Debug > Automation & Self-Tests > Arena 
 |2|Debug - Automation & Self-Tests|Offer Perk Cards Now|Advanced VR Options > Debug > Automation & Self-Tests > 
+|2|Debug - Automation & Self-Tests|Arena Presets: Format Test|Advanced VR Options > Debug > Automation & Self-Tests 
+|2|Debug - Automation & Self-Tests|Arena Wave Editor: Click Through Test|Advanced VR Options > Debug > Automation & 
+|2|Debug - Automation & Self-Tests|Armed Humanoids: Infection Test|Advanced VR Options > Debug > Automation & 
 |2|Debug - Automation & Self-Tests|Jump to Wave 6|Advanced VR Options > Debug > Automation & Self-Tests > Jump to 
 |2|Debug - Automation & Self-Tests|Perk Card Panel Test|Advanced VR Options > Debug > Automation & Self-Tests > 
 |2|Debug - Automation & Self-Tests|Spatial Audio Tests|Advanced VR Options > Debug > Automation & Self-Tests > 
@@ -7427,6 +7434,8 @@ vr_revolver_open_flick_speed|1|Reloading - Heavy Revolver|Flick Open Speed|Advan
 vr_revolver_open_flick_angle|1|Reloading - Heavy Revolver|Flick Open Wrist Flick|Advanced VR Options > Weapons > 
 vr_revolver_open_flick_time|1|Reloading - Heavy Revolver|Flick Open Time|Advanced VR Options > Weapons > Reloading 
 vr_revolver_open_button|1|Reloading - Heavy Revolver|Eject Button Opens|Advanced VR Options > Weapons > Reloading > 
+vr_revolver_eject_speed|1|Reloading - Heavy Revolver|Eject Push Speed|Advanced VR Options > Weapons > Reloading > 
+vr_revolver_eject_impulse|1|Reloading - Heavy Revolver|Eject Push Force|Advanced VR Options > Weapons > Reloading > 
 vr_revolver_eject_rod|1|Reloading - Heavy Revolver|Ejector Rod|Advanced VR Options > Weapons > Reloading > Heavy 
 vr_revolver_eject_rod_reach|1|Reloading - Heavy Revolver|Ejector Rod Reach|Advanced VR Options > Weapons > 
 vr_revolver_eject_rod_speed|1|Reloading - Heavy Revolver|Ejector Rod Push|Advanced VR Options > Weapons > Reloading 
