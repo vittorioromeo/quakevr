@@ -6783,6 +6783,13 @@ setting (the player's own steps have none to sit beside; Volume 0 is off).
   grunts hunting you. `vr_footstep_info` prints each model's contacts, `vr_footstep_info <model> <frame> <count>` its feet
   over those frames, `tune vr_footstep_log 1` a line a step. Results and the bench are in the worktree's report.
 
+### Enemy footsteps: Heavy Feet Speed (branch `agent/thudspeed`)
+
+His ask: a slider for the speed of the thuds, pitch and tempo together, to tweak in game. `vr_footstep_heavy_speed` (1; Combat
+> Enemy Footsteps, 0.5-2) multiplies the playback rate of every `Sole::Thud` kind's step, live, on its own pitch and the jitter.
+The rate is a real resample: `S_StartSoundPitch` sets the channel's end to `length / pitch` and the mixer and the voices read at
+it. The wire and mixer clamp to 0.25-4, which the slider's range can't reach with any kind's pitch and 10% jitter (0.38-2.75).
+
 ### Enemy footsteps: boots and heavy feet remade (branch `agent/footsteps2`)
 
 His words: "Grunt and enforcers sound a bit too metallic", "Struggling to hear ogres, fiends, and shamblers". Knights and

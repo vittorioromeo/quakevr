@@ -3255,6 +3255,7 @@ vr_footstep_walk_atten|2|Tunables|Walking Falloff|Advanced VR Options > Debug > 
 vr_footstep_run_atten|2|Tunables|Running Falloff|Advanced VR Options > Debug > Tunables > Running Falloff
 vr_footstep_min_speed|2|Tunables|Least Speed|Advanced VR Options > Debug > Tunables > Least Speed
 vr_footstep_heavy_volume|2|Tunables|Heavy Feet Volume|Advanced VR Options > Debug > Tunables > Heavy Feet Volume
+vr_footstep_heavy_speed|2|Tunables|Heavy Feet Speed|Advanced VR Options > Debug > Tunables > Heavy Feet Speed
 vr_footstep_heavy_carry|2|Tunables|Heavy Feet Carry|Advanced VR Options > Debug > Tunables > Heavy Feet Carry
 vr_footstep_nearest|2|Tunables|Heard at Once|Advanced VR Options > Debug > Tunables > Heard at Once
 vr_footstep_range|2|Tunables|Range|Advanced VR Options > Debug > Tunables > Range
