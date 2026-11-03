@@ -7767,8 +7767,8 @@ comments and row help that said the opposite of the code (`vr_flat_ads_up` / `_o
 Left for the author: the pose numbers are `CVAR_NONE` cvars with Debug rows, not tunables (a value set in the menu is lost at
 quit); a pinned free hand does not punch; a second press restarts a running punch from the rest pose; the server asks the
 host's crouch key for every flatscreen client; `vr_stand` reads under 1 on stairs; `vr_flat_ads_up` / `_out` have no effect at
-full ironsight; the shot misses with the eye nudged (the checklist's OPEN line); five checklist lines carry `{test:}` tags
-with no scenario. `flatplay_test`'s off-hand axe case fails in the suite's order (the third knight takes nothing) and passes
+full ironsight; the shot misses with the eye nudged.
+`flatplay_test`'s off-hand axe case fails in the suite's order (the third knight takes nothing) and passes
 alone (19 damage), before and after these fixes.
 
 ## Flare guns on crates; wave presets ship (branch `agent/crateflare`, 2026-11-03)
