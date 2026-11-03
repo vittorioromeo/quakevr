@@ -3239,7 +3239,7 @@ An armed enforcer (experimental): an enforcer holding one of your weapons (its l
 void() monster_vr_enforcer = { VR_AM_Spawn(VR_AM_ENFORCER); };
 
 /*QUAKED monster_vr_knight (1 0 0) (-16 -16 -24) (16 16 40) Ambush
-An armed knight (experimental): a knight holding one of your weapons as the armed humanoids hold theirs (his own sword's
+An armed knight: a knight holding one of your weapons as the armed humanoids hold theirs (his own sword's
 place). "weapon": its weapon (as monster_vr_grunt's: WID_*, any class; 13 the sword, the default; -1 its fists).
 "weaponflags": that weapon's flags. "weapon2", "weaponflags2": a second one-handed weapon in its left hand (as
 monster_vr_grunt's).
@@ -3254,7 +3254,7 @@ void() monster_vr_knight =
 };
 
 /*QUAKED monster_vr_hknight (1 0 0) (-16 -16 -24) (16 16 40) Ambush
-An armed death knight (experimental): a hell knight holding a weapon as the armed humanoids hold theirs (his own sword's
+An armed death knight: a hell knight holding a weapon as the armed humanoids hold theirs (his own sword's
 place); at range he still casts his fireball volley while he holds a melee weapon or none.
 "weapon": its weapon (13 the sword, the default; any weapon: 2 the axe, 3 the shotgun, ...; -1 its fists). "weapon2": a
 second one in its left hand.

@@ -841,13 +841,11 @@ QVR_TOGGLE(vr_agrunt_repl, "Replace All Humanoids",
 QVR_TOGGLE(vr_agknight, "Armed Knights",
     "Every knight a map spawns is an armed humanoid holding a sword: swung with the armed humanoids' "
     "melee, parried, disarmed, tugged and grabbed like theirs, dropped when it dies; its ragdoll keeps "
-    "hold of it. A work in progress (ROUND23.md, \"Knights as armed humanoids\"). Takes effect at the "
-    "next map load (vr_agknight).")
+    "hold of it. Off: the game's own knights. Takes effect at the next map load (vr_agknight).")
 QVR_TOGGLE(vr_agdknight, "Armed Death Knights",
     "Every death knight (hell knight) a map spawns is an armed humanoid holding his sword: swung, parried, "
     "disarmed, tugged and grabbed like the armed humanoids', dropped when he dies; at range he still casts "
-    "his fireball volley. A work in progress (ROUND23.md, \"Death knights as armed humanoids\"). Takes "
-    "effect at the next map load (vr_agdknight).")
+    "his fireball volley. Off: the game's own death knights. Takes effect at the next map load (vr_agdknight).")
 QVR_SLIDER(vr_agdknight_cast_cooldown, "Armed Death Knights: Gun Cast Cooldown", 0.f, 60.f, 0.5f, "%.1f s", ext(0.f, 600.f),
     "An armed death knight holding a gun fires it, and casts his fireball volley (his off hand out, the fireballs from "
     "its palm: the Cast pose) at his next attack once this long has passed since his last cast; each has his own clock, "

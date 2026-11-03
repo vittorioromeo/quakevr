@@ -7275,6 +7275,13 @@ only CC0 recordings the game already ships. Candidates for the real thing, pages
   the end. It replaces `vr/derived/fabric_rip.wav` (the fiend's `demon/dhit2` was its main layer; the layer table's entry is gone). Still
   played by `VR_WP_Off` on every way a pack comes off. Against the old mix: high -15.7 (was -15.2), mid -25 (was -17), low -25.5 (was -15.7).
 
+## Armed knights by default (branch `agent/knightson`, his decision of 2026-11-03)
+
+His words: "If you mean replacing stock knights and death knights with the armed humanoid version, yes. If you mean knights
+and death knights picking up ranged weapons autonomously, no -- let's keep that for spawned ones and arena waves."
+
+KNIGHTSON_NOTES_PLACEHOLDER
+
 ## Heavy footsteps and the pack's rip: the real recordings (branch `agent/freesounds2`)
 
 He approved the three clips in chat; the coordinator fetched them. These replace the stand-ins of the section above (their layering left

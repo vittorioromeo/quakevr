@@ -417,11 +417,11 @@ float(float kind) VR_AGR_Replace =
 
 // monster_knight, monster_hell_knight: its armed version in its place with a sword (vr_agknight, vr_agdknight; ROUND23.md,
 // "Knights as armed humanoids", "Death knights as armed humanoids"). FALSE: not replaced (off, VR_AM_Spawn's own call, a
-// statue, Honey's trigger-spawned copies' maker, a dummy).
+// statue, Honey's trigger-spawned copies' maker, a dummy, MG3's infected). Where: the grunts' rule (VR_AGR_InScope).
 float() VR_AKN_Replace =
 {
     float kind = self.classname == "monster_knight" ? VR_AM_KNIGHT : self.classname == "monster_hell_knight" ? VR_AM_DKNIGHT : -1;
-    if(vr_am_spawning || vr_agr_hold > 0 || kind < 0 ||
+    if(vr_am_spawning || vr_agr_hold > 0 || kind < 0 || self.vr_mg3_infected ||
        !cvar_hget(kind == VR_AM_KNIGHT ? cvarh_vr_agknight : cvarh_vr_agdknight))
     {
         return FALSE;
@@ -430,9 +430,9 @@ float() VR_AKN_Replace =
     {
         return FALSE; // (a statue; a trigger's copies: their maker keeps its own spawn)
     }
-    if((AD_Rules() || cvar_hget(cvarh_vr_campaign) == 6) && (!cvar_hget(cvarh_vr_agrunt_repl_ad) || VR_AGR_ADVariant(self)))
+    if(!VR_AGR_InScope() || VR_AGR_ADVariant(self))
     {
-        return FALSE; // (Arcane Dimensions' maps: vr_agrunt_repl_ad's, as the grunts; AD's own variants never)
+        return FALSE; // (a campaign switched off, as the grunts; AD's own variants never)
     }
     if(!self.weapon)
     {

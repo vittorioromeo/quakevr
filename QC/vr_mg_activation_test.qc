@@ -43,7 +43,7 @@ void() MG_ActivationTest = {
     setorigin(e, p.origin + '256 0 32'); monster_ogre_marksman();
     MG_TestCheck(e.wad == "progs/ogre.mdl", "official marksman uses authored ogre without Honey crown"); remove(e);
     e = spawn(); self = e; e.classname = "monster_knight"; e.spawnflags = 2;
-    setorigin(e, p.origin + '256 0 32'); monster_knight();
+    setorigin(e, p.origin + '256 0 32'); vr_agr_hold = vr_agr_hold + 1; monster_knight(); vr_agr_hold = vr_agr_hold - 1; // (the stock knight's statue code)
     MG_TestCheck(e.health == 75 && e.skin == 0, "official monster flags do not enable Rogue statue"); remove(e);
     e = spawn(); self = e; e.classname = "monster_army"; e.spawnflags = 4096;
     entity path = spawn(); path.classname = "path_corner"; path.targetname = "mg_activation_path";
