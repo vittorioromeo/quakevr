@@ -488,6 +488,7 @@ void select(int i)
 
 constexpr int armedMaxKinds = 8;
 constexpr int armedMaxWeapons = 96;
+constexpr int armedMaxInfect = 16;
 constexpr int armedCodeTop = 128; // the "weapon" keys asked: 1..127 (QC VR_AG_Decode's codes; 120 the last now)
 constexpr float armedLift = 24.f;  // (the armed entries' lift: a monster's)
 
@@ -518,6 +519,8 @@ struct ArmedCatalogue
     int kindCount{0};
     ArmedKind kinds[armedMaxKinds];
     za::InPlaceVector<ArmedWeapon, armedMaxWeapons> weapons; // by class (melee first), then code
+    int infectCount{0};
+    char infect[armedMaxInfect][24]{}; // QC's VR_INFECT_ROWS' names
 };
 ArmedCatalogue armedCat;
 
@@ -571,6 +574,13 @@ void armedRefresh()
         progs::qcText(r.spawn, sizeof(r.spawn), kindSpawn, static_cast<float>(k));
         progs::qcText(r.model, sizeof(r.model), kindModel, static_cast<float>(k));
         r.frame = static_cast<int>(progs::qcFloat(kindFrame, static_cast<float>(k)));
+    }
+    const func_t infectCount = findFunction("VR_Infect_UiCount");
+    const func_t infectName = findFunction("VR_Infect_UiName");
+    c.infectCount = za::clamp(static_cast<int>(progs::qcFloat(infectCount)), 0, armedMaxInfect);
+    for(int i = 0; i < c.infectCount; i++)
+    {
+        progs::qcText(c.infect[i], sizeof(c.infect[i]), infectName, static_cast<float>(i));
     }
     c.weapons.clear();
     for(int code = 1; code < armedCodeTop && c.weapons.size() < c.weapons.capacity(); code++)
@@ -1525,6 +1535,8 @@ const char* codeName(int code) { return armedCodeName(code); }
 int fits(int kind, int code) { return armedFits(kind, code); }
 bool oneHanded(int kind, int code) { return armedOneHanded(kind, code); }
 bool pairs(int kind, int code, int code2) { return armedPairs(kind, code, code2); }
+int infectCount() { return armedCat.valid ? armedCat.infectCount : 0; }
+const char* infectName(int row) { return row >= 0 && row < infectCount() ? armedCat.infect[row] : ""; }
 bool chosen() { return tg.sel.valid && tg.sel.armed; }
 
 void choose()
@@ -1982,7 +1994,7 @@ void reset_f()
 void armedDefaults()
 {
     for(cvar_t* cv : {&vr_toolgun_armed_kind, &vr_toolgun_armed_weapon, &vr_toolgun_armed_weapon2, &vr_toolgun_armed_armor,
-            &vr_toolgun_armed_pieces})
+            &vr_toolgun_armed_pieces, &vr_toolgun_armed_infected})
     {
         Cvar_SetQuick(cv, cv->default_string ? cv->default_string : "0");
     }

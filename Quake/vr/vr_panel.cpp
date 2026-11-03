@@ -43,6 +43,7 @@
 #include "vr_zancle.hpp"
 #include "vr_toolgun.hpp"
 #include "vr_arenacards.hpp"
+#include "vr_waveeditor.hpp"
 
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -440,6 +441,7 @@ void drawInEye(const hands::State& s, bool headText)
         }
         toolgun::panel::drawInEye(s); // (the toolgun's panel over the gun, and the laser at it: open in the game)
         arenacards::drawInEye(s);     // (the Survival Arena's perk cards in front of you, and the lasers at them)
+        waveeditor::drawInEye(s);     // (the Arena Wave Editor's panel in front of you, and the lasers at it)
         return;
     }
     hudAnglesValid = false;

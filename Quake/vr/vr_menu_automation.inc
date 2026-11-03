@@ -94,6 +94,8 @@ za::Vector<Item> pageDebugAutomation()
             .help("Whose meaning this map's spawnflags have (Quake's, Machine Games', Arcane Dimensions'), and where "
                   "monsters look for you (crouched: your real eyes)."),
         header("Survival Arena (map vrarena)"),
+        command("Arena Wave Editor", "vr_waveeditor")
+            .help("The waves made to order, saved as presets, one chosen per map and difficulty (also Debug > Tools)."),
         command("Offer Perk Cards Now", "vr_arena_cards_offer")
             .help("The cards the next boss wave's clear would offer, now (between two waves only): the arena waits "
                   "until you pick one."),

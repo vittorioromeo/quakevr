@@ -3127,6 +3127,49 @@ void() VR_AT17_Run =
     }
 }
 
+// ---------------------------------------------------------------------------
+// Test 18: Default as it is: every skill's first 30 plans hashed and one live wave's foes printed under a fixed seed
+// ("arenaplan" and "arena: foe" lines, developer 1), to compare two builds: no preset chosen must print the same.
+// ---------------------------------------------------------------------------
+
+void() VR_AT18_Begin =
+{
+    cvar_set("vr_arena_seed", "4242");
+    float sk;
+    float w;
+    float i;
+    for(sk = 0; sk < 4; sk++)
+    {
+        VR_AT_SetSkill(sk);
+        for(w = 1; w <= 30; w++)
+        {
+            VR_ARENA_Plan(w);
+            float h = ar_plan_n;
+            for(i = 0; i < ar_plan_n; i++)
+            {
+                h = VR_ARENA_Mod(h * 31 + ar_plan_kind[i], 1000003);
+                h = VR_ARENA_Mod(h * 31 + ar_plan_gun[i] + 1, 1000003);
+                h = VR_ARENA_Mod(h * 31 + ar_plan_tier[i], 1000003);
+                h = VR_ARENA_Mod(h * 31 + ar_plan_boss[i], 1000003);
+                h = VR_ARENA_Mod(h * 31 + ar_plan_armour[i], 1000003);
+                h = VR_ARENA_Mod(h * 31 + ar_plan_amask[i], 1000003);
+            }
+            dprint(sprintf("arenaplan skill %g wave %g foes %g hash %g\n", sk, w, ar_plan_n, h));
+        }
+    }
+    VR_AT_SetSkill(1);
+    VR_ARENA_FastForward(6);
+}
+
+void() VR_AT18_Frame =
+{
+    if(ar_wave == 6 && ar_plan_n - ar_plan_left >= 3)
+    {
+        VR_AT_Check(TRUE, "wave 6's first foes in");
+        VR_AT_End();
+    }
+}
+
 void() VR_ARENA_Test_Frame =
 {
     float c = cvar_hget(cvarh_vr_arena_test);
@@ -3171,6 +3214,7 @@ void() VR_ARENA_Test_Frame =
         if(c == 15) { VR_AT15_Begin(); return; }
         if(c == 16) { VR_AT16_Begin(); return; }
         if(c == 17) { VR_AT17_Run(); VR_AT_End(); return; }
+        if(c == 18) { VR_AT18_Begin(); return; }
 
         VR_AT_Check(FALSE, "no such arena test");
         VR_AT_End();
@@ -3201,5 +3245,6 @@ void() VR_ARENA_Test_Frame =
     if(vr_at_case == 14) { VR_AT14_Frame(); return; }
     if(vr_at_case == 15) { VR_AT15_Frame(); return; }
     if(vr_at_case == 16) { VR_AT16_Frame(); return; }
+    if(vr_at_case == 18) { VR_AT18_Frame(); return; }
 }
 #endif
