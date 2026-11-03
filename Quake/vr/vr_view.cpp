@@ -2135,7 +2135,7 @@ void setupRevolverParts()
         {
             view::ViewEntity& sh = entities.rvShell[hand][i];
             const int c = (bits >> (2 * i)) & 3;
-            if(c == 0)
+            if(c == 0 || collectfx::chamberFilling(hand, i)) // (a shell going in: its own copy until it is in)
             {
                 sh.visible = false;
                 continue;

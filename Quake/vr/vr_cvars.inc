@@ -391,7 +391,7 @@ QVR_CVAR(vr_highlights_min_score, "2", CVAR_ARCHIVE)  // the least score a momen
 QVR_CVAR(vr_highlights_multikill, "3", CVAR_ARCHIVE)  // game seconds at most between two kills of one multi-kill
 QVR_CVAR(vr_debug_highlights, "0", CVAR_NONE)         // 1: each highlight printed as it is logged
 
-// Near clipping plane in the headset, in units (the desktop's is up to 4; a unit is 3 cm at World Scale 1.25):
+// Near clipping plane in the headset and in flatscreen play, in units (the plain desktop's is up to 4; a unit is 3 cm at World Scale 1.25):
 // 0.02 .. 4 with the eyes' float depth (vr_depth_float), 1 .. 4 without (a 24-bit depth's precision far away).
 QVR_CVAR(vr_nearclip, "0.1", CVAR_ARCHIVE)
 // What you hold (weapons, hands) right at the eyes: 0 cut by the near plane like the rest, 1 never cut (depth clamp:
@@ -2355,8 +2355,8 @@ QVR_CVAR(vr_revolver_open_flick_time, "0.25", CVAR_ARCHIVE) // the flick open's 
 QVR_CVAR(vr_revolver_open_button, "1", CVAR_ARCHIVE) // B/Y (its eject button) swings the cylinder out; out, B/Y pushes the ejector
 QVR_CVAR(vr_revolver_close_button, "0", CVAR_ARCHIVE) // out, B/Y swings it home instead (an accessibility option: the shells then leave by the hand's push or the ejector rod alone)
 QVR_CVAR(vr_revolver_close_push, "1", CVAR_ARCHIVE) // the other hand pushing the swung-out cylinder up from below swings it home
-QVR_CVAR(vr_revolver_eject_speed, "1", CVAR_ARCHIVE) // out, the hand's push back along the bore, the way the chambers open, this fast at its fastest (m/s) throws its shells out, spent and live
-QVR_CVAR(vr_revolver_eject_impulse, "1.5", CVAR_ARCHIVE) // they go on at the hand's velocity times this
+QVR_CVAR(vr_revolver_eject_speed, "0.6", CVAR_ARCHIVE) // out, the hand's push back along the bore, the way the chambers open, this fast at its fastest (m/s) throws its shells out, spent and live
+QVR_CVAR(vr_revolver_eject_impulse, "1.75", CVAR_ARCHIVE) // they go on at the hand's velocity times this
 QVR_CVAR(vr_revolver_eject_rod, "1", CVAR_ARCHIVE) // out, the other hand pushing the ejector rod's head back drops them
 QVR_CVAR(vr_revolver_eject_rod_reach, "1.1", CVAR_ARCHIVE) // units from the rod's head the other hand pushes it within
 QVR_CVAR(vr_revolver_eject_rod_speed, "0.325", CVAR_ARCHIVE) // m/s back along the cylinder that push must reach
@@ -2460,9 +2460,9 @@ QVR_CVAR(vr_agrunt_shotdisarm_parts, "2", CVAR_ARCHIVE)        // what counts: 0
 // The disarm leniency (Armed Grunts > Disarm Leniency): a grab's, then the volumes.
 QVR_CVAR(vr_agrunt_grab_leniency, "5", CVAR_ARCHIVE)           // cm more than vr_agrunt_grab_slack: your fist closing within this of its weapon's drawn surface takes it (a tug), however it moves (ROUND22.md, "Armed humanoids: grabs, holding on, running chainsaws"; a tunable till 2026-11-01)
 // The disarm volumes: the hulls of the triangles drawn (vr_disarmhull.hpp), each grown (or, under 0, shrunk) by these units.
-QVR_CVAR(vr_agrunt_vol_shot_weapon, "0", CVAR_ARCHIVE)         // a shot on its weapon: its drawn model's hull grown by this
-QVR_CVAR(vr_agrunt_vol_shot_hand, "0", CVAR_ARCHIVE)           // a shot on the hand holding it: its drawn hand and forearm's hull grown by this
-QVR_CVAR(vr_agrunt_vol_strike, "0", CVAR_ARCHIVE)              // your blow's sweep striking its weapon or that hand: both hulls grown by this
+QVR_CVAR(vr_agrunt_vol_shot_weapon, "1", CVAR_ARCHIVE)         // a shot on its weapon: its drawn model's hull grown by this
+QVR_CVAR(vr_agrunt_vol_shot_hand, "1", CVAR_ARCHIVE)           // a shot on the hand holding it: its drawn hand and forearm's hull grown by this
+QVR_CVAR(vr_agrunt_vol_strike, "1", CVAR_ARCHIVE)              // your blow's sweep striking its weapon or that hand: both hulls grown by this
 QVR_CVAR(vr_agrunt_vol_blow, "0", CVAR_ARCHIVE)                // a body blow this near its weapon or that hand disarms it (was a 10-unit sphere round its grip)
 QVR_CVAR(vr_agrunt_shotdisarm_chance, "0.25", CVAR_ARCHIVE)    // the roll's chance at the threshold
 QVR_CVAR(vr_agrunt_shotdisarm_chance_scale, "0.8", CVAR_ARCHIVE) // ... plus this for each threshold past it (24 on 16: +0.4; at most 0.95)
@@ -2475,7 +2475,7 @@ QVR_CVAR(vr_agrunt_shotdisarm_proj_max, "0.8", CVAR_ARCHIVE)   // ... the most o
 QVR_CVAR(vr_agrunt_shotdisarm_debug, "0", CVAR_NONE)           // 1: prints each shot's part (weapon/hand/body), the damage adding up, the roll; 2: also shows the hit volumes (sparks)
 QVR_CVAR(vr_agrunt_fall_drop, "1", CVAR_ARCHIVE)  // 1: knocked down (on the floor, not a stagger) it drops its weapon beside it, and takes it back when it gets up
 QVR_CVAR(vr_agrunt_fall_keep, "1", CVAR_ARCHIVE)  // 1: a gentle fall (a shove's backpedal to the floor) keeps the weapon in its hand, yours for a grab or a blow while it's down; a violent one drops it (below)
-QVR_CVAR(vr_agrunt_fall_keep_impact, "4.5", CVAR_ARCHIVE)   // m/s: down, it lets go only as its body, having kept up speed a moment (vr_agrunt_fall_impact_speed, _time), loses this much on a floor or wall it flew into (over vr_agrunt_fall_impact_window; thrown or banged by your hands too): a small push, a topple or a swing in the air keeps it (0: never)
+QVR_CVAR(vr_agrunt_fall_keep_impact, "12", CVAR_ARCHIVE)   // m/s: down, it lets go only as its body, having kept up speed a moment (vr_agrunt_fall_impact_speed, _time), loses this much on a floor or wall it flew into (over vr_agrunt_fall_impact_window; thrown or banged by your hands too): a small push, a topple or a swing in the air keeps it (0: never)
 QVR_CVAR(vr_agrunt_rearm, "1", CVAR_ARCHIVE)           // 1: disarmed, it goes for a weapon lying near when it is safe enough
 QVR_CVAR(vr_agrunt_rearm_range, "384", CVAR_ARCHIVE)   // how far (units) it looks for one
 QVR_CVAR(vr_agrunt_test, "0", CVAR_NONE)                       // the QC's armed grunt tests (vr_armedgrunt_test.qc): 1 every weapon, 2 ammo/death/disarm/re-arm, 3 the yank, 4 save/load
@@ -2895,16 +2895,16 @@ QVR_CVAR(vr_worn_backpack_grunt_pitch, "21", CVAR_ARCHIVE) // worn backpacks, Gr
 QVR_CVAR(vr_worn_backpack_grunt_yaw, "180", CVAR_ARCHIVE) // worn backpacks, Grunt: turned (degrees)
 QVR_CVAR(vr_worn_backpack_grunt_roll, "0", CVAR_ARCHIVE) // worn backpacks, Grunt: rolled (degrees)
 QVR_CVAR(vr_worn_backpack_knight_scale, "0.6", CVAR_ARCHIVE) // worn backpacks, Knight: the pack's size on the back (times the backpack model's)
-QVR_CVAR(vr_worn_backpack_knight_x, "1.5", CVAR_ARCHIVE) // worn backpacks, Knight: moved forward (into the back; out: negative), units
-QVR_CVAR(vr_worn_backpack_knight_y, "0", CVAR_ARCHIVE) // worn backpacks, Knight: moved left, units
-QVR_CVAR(vr_worn_backpack_knight_z, "1.5", CVAR_ARCHIVE) // worn backpacks, Knight: moved up, units
+QVR_CVAR(vr_worn_backpack_knight_x, "0", CVAR_ARCHIVE) // worn backpacks, Knight: moved forward (into the back; out: negative), units
+QVR_CVAR(vr_worn_backpack_knight_y, "1", CVAR_ARCHIVE) // worn backpacks, Knight: moved left, units
+QVR_CVAR(vr_worn_backpack_knight_z, "-0.5", CVAR_ARCHIVE) // worn backpacks, Knight: moved up, units
 QVR_CVAR(vr_worn_backpack_knight_pitch, "21", CVAR_ARCHIVE) // worn backpacks, Knight: tipped (degrees)
 QVR_CVAR(vr_worn_backpack_knight_yaw, "180", CVAR_ARCHIVE) // worn backpacks, Knight: turned (degrees)
 QVR_CVAR(vr_worn_backpack_knight_roll, "0", CVAR_ARCHIVE) // worn backpacks, Knight: rolled (degrees)
-QVR_CVAR(vr_worn_backpack_dknight_scale, "0.6", CVAR_ARCHIVE) // worn backpacks, Death Knight: the pack's size on the back (times the backpack model's)
-QVR_CVAR(vr_worn_backpack_dknight_x, "1.5", CVAR_ARCHIVE) // worn backpacks, Death Knight: moved forward (into the back; out: negative), units
+QVR_CVAR(vr_worn_backpack_dknight_scale, "0.7", CVAR_ARCHIVE) // worn backpacks, Death Knight: the pack's size on the back (times the backpack model's)
+QVR_CVAR(vr_worn_backpack_dknight_x, "0", CVAR_ARCHIVE) // worn backpacks, Death Knight: moved forward (into the back; out: negative), units
 QVR_CVAR(vr_worn_backpack_dknight_y, "0", CVAR_ARCHIVE) // worn backpacks, Death Knight: moved left, units
-QVR_CVAR(vr_worn_backpack_dknight_z, "7.5", CVAR_ARCHIVE) // worn backpacks, Death Knight: moved up, units
+QVR_CVAR(vr_worn_backpack_dknight_z, "4", CVAR_ARCHIVE) // worn backpacks, Death Knight: moved up, units
 QVR_CVAR(vr_worn_backpack_dknight_pitch, "21", CVAR_ARCHIVE) // worn backpacks, Death Knight: tipped (degrees)
 QVR_CVAR(vr_worn_backpack_dknight_yaw, "180", CVAR_ARCHIVE) // worn backpacks, Death Knight: turned (degrees)
 QVR_CVAR(vr_worn_backpack_dknight_roll, "0", CVAR_ARCHIVE) // worn backpacks, Death Knight: rolled (degrees)

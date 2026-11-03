@@ -8111,3 +8111,41 @@ Checklist:
 - [parry2] A monster's directional parry lets nothing through. Debug > Tunables > Combat > Directional Parry: Let Through: Armed Humanoids, Monsters, Timing Window.
 - [parry2] A dog's bite or leap, a fiend's leap: a weapon held level across in front parries; upright, the blow lands.
 
+## Revolver feel, armour crack volume (2026-11-03)
+
+- A loaded shell shows in its chamber only when its slide in ends (`collectfx::chamberFilling`, game time: plain in bullet time).
+- Eject push (`VR_Revolver_PushStep`): the hand's motion along the way the shells fall, accumulated with a fade
+  (`vr_revolver_eject_window` 0.2 s) to `vr_revolver_eject_travel` (0.05 m), having reached `vr_revolver_eject_speed`.
+  Frames off the cone (now 60) or turning too fast (now 600 deg/s) no longer reset: they just add nothing; going back subtracts.
+- Flicks: one force, `VR_Revolver_FlickForce`: roll + `vr_revolver_flick_hand_weight` (150 deg/s per m/s) x the hand's motion the
+  same way, capped at `vr_revolver_flick_hand_cap` (1) x the roll: no roll, no force.
+- Armour crack: `vr_agrunt_armor_crack_volume` 2.5 (was 1), `vr_agrunt_armor_crack_attn` 0.5 (was 1). It was already on CHAN_AUTO,
+  which nothing on the body cuts off, so the channel is unchanged: it was being masked, not cut.
+
+
+## The wave editor's Play and Close crashed (branch `agent/wavecrash`)
+
+His report (2026-11-03): "Crash when pressing "Play from wave" in wave editor, flatscreen, while in vrarena map". Access
+violation reading 0x14 at `ImGui::End` (imgui.cpp:8255), from `drawWindow`.
+
+The cause: `playBar`'s Play and Close called `closeEditor()` from inside the window. `closeEditor` calls `imgui::want(false)`,
+which ends ImGui's frame (`endOpenFrame`, `ImGui::EndFrame`), so the window's `ImGui::End()` then ran with no current window.
+The window's X never had it: it closes after `End`. Close crashed the same way as Play, and both did in the headset's panel.
+
+The fix: Play and Close set `ed.askClose`; `drawWindow` closes after its `End`, beside the X. `closeEditor` also clears a
+test's click left half way.
+
+What else can close inside a window: nothing. `popups()` and the other bars never call `closeEditor`. `close_f`
+(`vr_waveeditor_close`) comes from the command buffer, which runs outside the tools' windows (the tools queue commands, none
+calls `Cmd_ExecuteString`). `waveeditor::shutdown` comes from `VR_Shutdown`: a quit, from the command buffer again, or a
+`Sys_Error` raised inside a window, which never returns to the `End`. The Rig Studio doesn't have the mistake: its Close Studio
+is `Cbuf_AddText("vr_rigstudio_close")`, and `close()`'s other callers are the command, its shutdown, `clientFrame` before
+`beginFrame` and `subjectTestTick` (the server frame). Those two and the wave editor are the only tools with ImGui windows
+(the Range of Motion window is the studio's).
+
+The test: `vr_waveeditor_test` goes on past its old end with real clicks through the window: Close (the editor shut, no frame
+open, the panel's target released), then it reopens, adds two waves, clicks Play from wave 1, reopens, clicks the slider (wave
+3) and Play. After each Play it waits for the new map's first wave to begin (`ar_wave_at`, new bindings `arenaWave`,
+`arenaWaveAt`, `arenaPresetWaves`) and checks `ar_wave` is the wave asked for and the preset is the one playing. It plays in
+vrarena whatever map it began in, and `playOff` at the verdict leaves the next map to what's assigned. The clicks that close
+are followed by steps only an editor still open reaches, which fail, so a missed click ends on a verdict too.

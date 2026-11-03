@@ -101,6 +101,7 @@ struct Editor
     bool askDiscard{false};
     bool askDelete{false};
     bool askSaveAs{false};
+    bool askClose{false}; // Play and Close, from inside the window: drawWindow closes after its End
     bool hold{true};
     float columnsBottom{0.f}; // the window's middle row's bottom (its lists end there)
 
@@ -131,6 +132,12 @@ struct Editor
     int testWait{0};
     int testPassed{0};
     int testFailed{0};
+    // The test past a click that shuts the editor (testClosedFrame): armed, the step to reopen on (0: the verdict), the
+    // wave Play asked for (0: it was Close), the frames waited for that wave.
+    bool testClosing{false};
+    int testResume{0};
+    int testPlayed{0};
+    int testPlayFrames{0};
 };
 Editor ed;
 
@@ -992,7 +999,8 @@ void assignBar()
     }
 }
 
-// Closed by Play, the Close button, the window's X, a headset session's change.
+// Closed by the Play and Close buttons and the window's X (all after the window's End: it ends ImGui's frame, imgui::want,
+// so never between a Begin and its End), the console's vr_waveeditor_close, the game's shutdown.
 void closeEditor();
 
 void playBar()
@@ -1007,7 +1015,7 @@ void playBar()
     {
         const char* name = ed.name[0] ? ed.name : "(unsaved)";
         aw::play(ed.map, name, ed.preset, ed.playWave);
-        closeEditor();
+        ed.askClose = true;
         return;
     }
     if(ed.panelUp)
@@ -1021,7 +1029,7 @@ void playBar()
     ImGui::SameLine();
     if(btn("Close"))
     {
-        closeEditor();
+        ed.askClose = true;
         return;
     }
     ImGui::TextWrapped("%s", ed.status);
@@ -1208,12 +1216,9 @@ void drawWindow()
     }
     assignBar();
     popups();
-    if(ed.open)
-    {
-        playBar();
-    }
+    playBar();
     ImGui::End();
-    if(!keep && ed.open)
+    if(!keep || ed.askClose)
     {
         closeEditor();
     }
@@ -1222,7 +1227,9 @@ void drawWindow()
 void closeEditor()
 {
     ed.open = false;
+    ed.askClose = false;
     ed.testing = false;
+    ed.clickPhase = 0;
     imgui::want(false);
     imgui::setPanel(0, 0, 0, 1.f);
     gfx::releaseTarget(ed.target);
@@ -1285,10 +1292,33 @@ void feedMock()
     ed.clickPhase = ed.clickPhase >= 4 ? 0 : ed.clickPhase + 1;
 }
 
+// How long the test waits for Play's arena to begin its first wave (frames; a stuck run's net, not its end).
+static constexpr int testPlayGiveUp = 72 * 30;
+
 void check(bool ok, const char* what)
 {
     (ok ? ed.testPassed : ed.testFailed)++;
     Con_Printf("waveeditor test: %s: %s\n", ok ? "PASS" : "FAIL", what);
+}
+
+void open_f();
+
+void testVerdict()
+{
+    ed.testing = false;
+    ed.testClosing = false;
+    aw::playOff(); // (the next map: what's assigned, not the test's preset)
+    qvr::testkit::verdict("waveeditor test", ed.testPassed, ed.testFailed);
+}
+
+// A click that should shut the editor; then testClosedFrame goes on (0: to the verdict, else reopening on that step).
+void clickToClose(const char* name, int played, int resume)
+{
+    ed.testClosing = true;
+    ed.testPlayed = played;
+    ed.testPlayFrames = 0;
+    ed.testResume = resume;
+    click(name);
 }
 
 // The whole editor through its widgets, as a hand would. One step each time the last click is over.
@@ -1349,12 +1379,61 @@ void testFrame()
             left = left || !strcmp(f.cStr(), testName);
         }
         check(!left, "Yes, Delete: its file is gone");
-        ed.testing = false;
-        qvr::testkit::verdict("waveeditor test", ed.testPassed, ed.testFailed);
+        clickToClose("Close", 0, 32);
         break;
     }
+    // (31, 35, 38: the click before should have shut the editor; a step only an editor still open comes to)
+    case 31: check(false, "Close: the editor stayed open"); testVerdict(); break;
+    case 32: click("Add Wave"); break;
+    case 33: click("Add Wave"); break;
+    case 34: check(ed.preset.waves.size() == 3, "three waves to play"); setText(ed.map, "vrarena"); ed.playWave = 1; clickToClose("Play", 1, 36); break;
+    case 35: check(false, "Play from wave 1: the editor stayed open"); testVerdict(); break;
+    case 36: click("Play from wave"); break;
+    case 37:
+        check(ed.playWave > 1, va("the slider, clicked: wave %d", ed.playWave));
+        clickToClose("Play", ed.playWave, 0);
+        break;
+    case 38: check(false, "Play from a later wave: the editor stayed open"); testVerdict(); break;
     default: break;
     }
+}
+
+// The test while the editor's shut by its click: it really shut, and Play's arena began at the wave asked for.
+void testClosedFrame()
+{
+    if(!ed.testClosing)
+    {
+        return;
+    }
+    if(ed.testPlayed == 0)
+    {
+        check(!imgui::wanted() && !imgui::frameOpen() && !ed.panelUp && !ed.target.framebuffer, "Close: the editor's shut, its frame and panel gone");
+    }
+    else
+    {
+        // (Play's map command ran before this frame: these are the new map's globals)
+        const progs::Bindings& b = progs::bindings();
+        const float began = sv.active && b.arenaWaveAt ? *b.arenaWaveAt : 0.f;
+        if(began <= 0.f && ++ed.testPlayFrames < testPlayGiveUp)
+        {
+            return;
+        }
+        const int wave = began > 0.f ? static_cast<int>(*b.arenaWave) : 0;
+        const int waves = b.arenaPresetWaves ? static_cast<int>(*b.arenaPresetWaves) : 0;
+        check(!imgui::wanted() && !ed.panelUp, "Play: the editor's shut");
+        check(wave == ed.testPlayed, va("Play from wave %d: the arena began at wave %d (%s, %d frames)", ed.testPlayed, wave, sv.name, ed.testPlayFrames));
+        check(waves == static_cast<int>(ed.preset.waves.size()) && aw::playing(), va("its preset is the one playing (%d waves)", waves));
+    }
+    ed.testClosing = false;
+    if(ed.testResume == 0)
+    {
+        testVerdict();
+        return;
+    }
+    open_f();
+    ed.testing = true;
+    ed.testStep = ed.testResume;
+    ed.testWait = 2;
 }
 
 // ---- Commands -----------------------------------------------------------------------------------------------------
@@ -1461,6 +1540,7 @@ void clientFrame()
 {
     if(!ed.open)
     {
+        testClosedFrame();
         return;
     }
     ed.panelUp = VR_IsActive() != 0;

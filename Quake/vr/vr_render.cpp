@@ -18,6 +18,7 @@
 #include "vr_client.hpp"
 #include "vr_collectfx.hpp"
 #include "vr_cvars.hpp"
+#include "vr_flatplay.hpp"
 #include "vr_handrig.hpp"
 #include "vr_props.hpp"
 #include "vr_ragdoll.hpp"
@@ -272,12 +273,12 @@ extern "C" int VR_ViewEntityGroup(const entity_t* e)
 
 // What you hold, right at the eyes (vr_nearclip_held): 1 its parts nearer than the near plane are drawn at it (depth
 // clamp) rather than cut away, which showed the world through a shouldered gun; 2 also both sides of it while the eye
-// is inside its bounds, so a gun pushed into the face blocks the view with its inside. `matrix` maps its vertices to
-// the world (R_DrawAliasModel's, all of VR_AliasPreTransform's and VR_AliasPostTransform's in it).
+// is inside its bounds, so a gun pushed into the face blocks the view with its inside. In a headset and in flatscreen play.
+// `matrix` maps its vertices to the world (R_DrawAliasModel's, all of VR_AliasPreTransform's and VR_AliasPostTransform's in it).
 extern "C" int VR_AliasNearEye(const entity_t* e, const float matrix[16], const void* aliashdr)
 {
     const int mode = static_cast<int>(vr_nearclip_held.value);
-    if(mode <= 0 || !VR_RenderingEye() || !VR_IsViewEntity(e))
+    if(mode <= 0 || (!VR_RenderingEye() && !flatplay::active()) || !VR_IsViewEntity(e))
     {
         return 0;
     }

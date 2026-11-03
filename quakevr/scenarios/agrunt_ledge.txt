@@ -1,9 +1,0 @@
-# agrunt_ledge: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". vrclimb's rung tower (a 280-unit drop) and its block (96), as test 202's ledge cases.
-title Armed grunts on real ledges: one on the tower with you, one on the block below (god, calm)
-map vrclimb
-start 152 -160 304 180
-god
-notarget
-spawn "Armed Grunt: Shotgun" 40 0
-spawn "Armed Grunt: Nailgun" 136 150
-hint Shove the grunt ahead off the tower's edge: its weapon falls as it lands, not before. The one on the block below to your left: a drop too low to hurt it keeps its weapon.

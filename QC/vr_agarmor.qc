@@ -409,7 +409,9 @@ void(entity e, float i) VR_AgArmor_Break =
     e.vr_ar_hp[i] = 0;
     e.vr_ar_mask = e.vr_ar_mask - (e.vr_ar_mask & VR_AgArmor_Bit(i));
     precache_sound(VR_AR_BREAK_SOUND);
-    sound(e, CHAN_AUTO, VR_AR_BREAK_SOUND, 1, ATTN_NORM);
+    // (CHAN_AUTO: no other sound on the body cuts it off. Louder than full, over the hit's own sounds.)
+    sound(e, CHAN_AUTO, VR_AR_BREAK_SOUND, max(0, min(4, cvar_hget(cvarh_vr_agrunt_armor_crack_volume))),
+        max(0, cvar_hget(cvarh_vr_agrunt_armor_crack_attn)));
     vr_ar_break_sound_last = VR_AR_BREAK_SOUND;
     VR_AgArmor_Debris(e, i);
     dprint(sprintf("agarmor: %s (kind %g): piece %g broke (left %g)\n", e.classname, e.vr_ag_kind, i, e.vr_ar_mask));
