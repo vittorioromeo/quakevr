@@ -7368,7 +7368,7 @@ setting off; a sword one takes none; a wave's kinds; infighting. e1m4 15/0, e2m3
 `ad_ac` 14/1: the death knight is drawn into the room's fight 800 units from the gun (health 2000 -> 1141), the rule itself
 passing there; left failing rather than loosened: run it somewhere quieter. `vr_agrunt_test 207`, a save made with the settings
 off and loaded with them on: 2/0, those knights stay stock and their kills count. Test 95 knight 7/0, death knight 11/0 (its
-death case now repeats the blow if armour took it); test 1 kind 2 17/0; 88 `ragweapon: 6/0`; wornpack 11 and 21 24/0 each;
+death case now repeats the blow if armour took it); test 1 kind 2 17/0; 88 `ragweapon: 6/0`; wornpack 11 and 21 25/0 each;
 `vr_mg3_mtest 2` 19/0; `vr_ad_test 198` on ad_ac 5/0; `vr_footstep_test 1` 8/0; arena 1 257/0, arena 6 (32 waves) 8/0;
 parryinterrupt no failures; bench `--validate` crowd32_armed, crowd32_plain, armed_mix32 run (armed_mix32 flagged a decal
 difference once, 40/43, and passed the repeat). `vr_mg3_mtest 3` fails "woken, he rose" (e1m1), **the same with both settings
