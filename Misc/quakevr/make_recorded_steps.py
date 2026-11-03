@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # make_recorded_steps.py -- cuts the great bare feet and the worn backpack's rip from recordings (quakevr/sound/vr):
 #   step_thud1..5.wav   ogres, shamblers, fiends (vr_footsteps.cpp; the monsters' size is the engine's: a rate and a gain per kind)
-#   pack_rip.wav        a worn backpack coming off (QC vr_wornpack.qc VR_WP_Off)
+#   pack_rip.wav        a worn backpack coming off (QC vr_wornpack.qc VR_WP_Off): only with --rip, into fs_pack_rip.wav beside the
+#                       sources: the shipped file has his own edit on it (2026-11-03)
 #
 # Sources, all CC0 (each page checked to say so). Freesound's HQ MP3 previews: the originals need a login. Not in the repository:
 #       542858  "Giant footsteps", thebestmaker                  https://freesound.org/people/thebestmaker/sounds/542858/
@@ -130,15 +131,17 @@ def rip(cloth):
 def main():
     if len(sys.argv) < 2:
         raise SystemExit(__doc__ or "usage: make_recorded_steps.py <folder of fs_<id>.wav> [out_dir]")
-    src = sys.argv[1]
+    src = next(a for a in sys.argv[1:] if a != "--rip")
     root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "quakevr", "sound", "vr")
-    out_dir = sys.argv[2] if len(sys.argv) > 2 else root
+    args = [a for a in sys.argv[1:] if a != "--rip"]
+    out_dir = args[1] if len(args) > 1 else root
     os.makedirs(out_dir, exist_ok=True)
     stamps = read_wav(os.path.join(src, "fs_542858.wav"))
     stomps = read_wav(os.path.join(src, "fs_721601.wav"))
     for take in range(len(THUD_TAKES)):
         write_wav(os.path.join(out_dir, "step_thud%d.wav" % (take + 1)), thud(stamps, stomps, take))
-    write_wav(os.path.join(out_dir, "pack_rip.wav"), rip(read_wav(os.path.join(src, "fs_591527.wav"))))
+    if "--rip" in sys.argv:
+        write_wav(os.path.join(src, "fs_pack_rip.wav"), rip(read_wav(os.path.join(src, "fs_591527.wav"))))
 
 
 if __name__ == "__main__":
