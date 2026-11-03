@@ -461,13 +461,14 @@ float(entity p, float xHand) VR_ADMelee_VeryHeavy =
     return wid == WID_SWORD && VR_ADMelee_Heavy(VR_ADMelee_Kind(flags));
 };
 
-// Each frame (VR_Stamina_Frame's caller): the move speed's share for the very heavy melee weapon in either hand (.vr_heavy_move:
-// the engine's SV_AirMove reads it; 0 or 1: full speed).
+float(entity p) VR_Embed_TetherShare; // (vr_embedhold.qc: a blade held in a body)
+// Each frame (VR_Stamina_Frame's caller): the move speed's share for the very heavy melee weapon in either hand and a blade tying you
+// to a body (.vr_heavy_move: the engine's SV_AirMove reads it; 0 or 1: full speed).
 .float vr_heavy_move;
 void() VR_HeavyMelee_Frame =
 {
     float slow = VR_ADMelee_VeryHeavy(self, cVR_MainHand) || VR_ADMelee_VeryHeavy(self, cVR_OffHand);
-    self.vr_heavy_move = slow ? clamp(cvar_hget(cvarh_vr_admelee_heavy_speed), 0.05, 1) : 1;
+    self.vr_heavy_move = (slow ? clamp(cvar_hget(cvarh_vr_admelee_heavy_speed), 0.05, 1) : 1) * VR_Embed_TetherShare(self);
 };
 
 // A blow of `xHand` of `self` (VR_Melee_Strike) landing on something that takes damage: its motion's stamina (once a
@@ -825,6 +826,8 @@ float(float xBoth) VR_Shove_HandsPush =
 // him: asleep, idle, fighting another), 2, shoved from behind (the shove's way within vr_knockdown_surprise_angle of
 // where it faces), 0 neither. Taken as the blow finds it, before its damage wakes it (VR_Bash_Hit: vr_kd_surprise).
 float vr_kd_surprise;
+float vr_kd_stagger_recover;   // VR_Embed_Stagger: up again that many seconds on (0: by its balance)
+float vr_kd_stagger_sure;      // ... and it does not go over by itself
 float vr_kd_stagger_far;       // VR_Bash_Hit's: its stagger's travel limit times this (vr_knockdown.qc VR_Knockdown_Stagger; 0: 1)
 float VR_SHOVE_RUN_MIN = 40;   // u/s along the shove: slower is standing (vr_shove_run_carry carries nothing)
 float vr_test_shove_run;       // u/s: vr_knockdown_test 21/22's run into the shove (vr_test_shove_run; 0: your own velocity)

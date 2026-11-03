@@ -880,7 +880,7 @@ group boss // Bosses
     necksnap "0"
     manhandle "0"
     throw "0"
-    hold "-1"
+    hold "0"
     poise "-1"
     health "1"
     kdscale "1"

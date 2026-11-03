@@ -1151,6 +1151,10 @@ za::Vector<Item> pageDebugTests()
         command("Held Stabs and Swung Axes Check", "vr_embed_test 7")
             .help("Held stabs and swung axes with the hand driven by the mock: what sticks, the hold's slide, coming free, letting "
                   "go, gripping again, plates, bodies dying or going with it held, vr_embed 0. Prints embedheld: N passed, M failed."),
+        command("Moving the Body Check", "vr_embed_test 11")
+            .help("Stabs and swings that stagger or don't, pulling and pushing a staggering body, knocked down with it held, dragging "
+                  "a standing body, past arm's reach, your speed, a dead body, a heavy one, a boss, vr_embed 0. Prints embedmove: N "
+                  "passed, M failed."),
         command("Sword in a Wall and a Corpse", "vr_embed_test 2")
             .help("A sword thrown into the wall ahead and one into a corpse beside it, to look at."),
         header("Thrown Axe"),

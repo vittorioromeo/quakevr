@@ -362,7 +362,9 @@ float(entity e, entity player, float hand, optional float tug, optional vector g
 // hold holds the limb, 8 the distance it lets go at (units; -1 none: the tug readout, VR_AG_TugReadout); 9 its held arm
 // drawn up to `strength` times longer towards the hand (VR_AGK_TugStretch; the drawn pose only): 1 if this hand holds it;
 // 10 its body in the tug (its torso's lean, its free arm's flail: vr_agrunt_tug_sway, _flail): the pull's share of what
-// breaks its grip `strength`, its way to this hand: 1 if it stands in a tug; 11 its free arm's end part (-1 none; the tests).
+// breaks its grip `strength`, its way to this hand: 1 if it stands in a tug; 11 its free arm's end part (-1 none; the tests);
+// 12 a blade stuck in it, any ragdoll of it (vr_embedhold.qc): the hand holds the limb nearest `grip` (where it went in), not a loose piece, by a
+// spring of at most `force` N, where the hand is, no manhandling, let go of only by 4: 1 if it does; 13 that spring's `force` now.
 float(entity e, entity player, float hand, float what, optional vector grip, optional float strength,
       optional float force) ragdolltug =
 {

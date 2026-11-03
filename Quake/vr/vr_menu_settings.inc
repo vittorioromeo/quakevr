@@ -789,22 +789,6 @@ za::Vector<Item> pageEmbeddedBlades()
 {
     return {
         row(opt::vr_embed),
-        header("Thrown Swords"),
-        row(opt::vr_embed_sword_speed),
-        row(opt::vr_embed_sword_tip),
-        row(opt::vr_embed_sword_angle),
-        row(opt::vr_embed_sword_incidence),
-        header("How Deep"),
-        row(opt::vr_embed_sword_depth_min),
-        row(opt::vr_embed_sword_depth_max),
-        row(opt::vr_embed_sword_depth_speed),
-        row(opt::vr_embed_sword_wall),
-        header("Sag in Walls"),
-        row(opt::vr_embed_sag_stiffness),
-        row(opt::vr_embed_sag_damping),
-        row(opt::vr_embed_sag_most),
-        header("Taking It Out"),
-        row(opt::vr_embed_tug_corpse),
     };
 }
 

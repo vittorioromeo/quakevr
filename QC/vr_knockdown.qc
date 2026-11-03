@@ -781,7 +781,7 @@ float(entity e, vector xForward, float xPush, float xBalance) VR_Knockdown_Stagg
     {
         return FALSE;
     }
-    if(ragdollstagger(e, xForward, xPush, xBalance, slide, 0, 0, max(1, vr_kd_stagger_far)))
+    if(ragdollstagger(e, xForward, xPush, xBalance, slide, vr_kd_stagger_recover, vr_kd_stagger_sure, max(1, vr_kd_stagger_far)))
     {
         e.vr_kd_stagger = 1;
         e.vr_kd_balance = xBalance;

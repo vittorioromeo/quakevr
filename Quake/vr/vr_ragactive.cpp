@@ -3628,7 +3628,22 @@ void drivePin(DriveWork& w, State& s, const Parts& p, const Context& c)
         }
         if(s.mode == Mode::Stagger)
         {
-            offset = s.stagger.lift + s.stagger.dir * (s.stagger.travel * staggerShare(s.stagger, t)) -
+            // Held by a blade in it (ragdollTug what 12): what its pin must hold against, level, moves its pin that way: the
+            // whole body comes along, its feet stepping after it; a body's mass over `ledGive` N for each m/s.
+            Stagger& led = s.stagger;
+            if(led.ledGive > 0.f && B3_IS_NON_NULL(s.pin.joint) && b3Joint_IsValid(s.pin.joint) && B3_IS_NON_NULL(s.pin.anchor) &&
+                b3Body_IsValid(s.pin.anchor))
+            {
+                const glm::vec3 load = level(glmv(b3Joint_GetConstraintForce(s.pin.joint)));
+                const glm::vec3 off = level(glmv(b3Body_GetPosition(p.body[0])) - glmv(b3Body_GetPosition(s.pin.anchor)));
+                const float offLen = glm::length(off);
+                if(offLen > 1e-5f)
+                {
+                    led.led += off * (glm::length(load) / za::max(s.totalMass * led.ledGive, 1.f) * c.dt / offLen);
+                }
+            }
+            led.ledGive = 0.f;
+            offset = s.stagger.lift + s.stagger.dir * (s.stagger.travel * staggerShare(s.stagger, t)) + led.led -
                      glm::vec3{0.f, 0.f, staggerDip(s.stagger, t)};
         }
         glm::vec3 at = s.origin + s.turn * (pose.pos[0] * p.k) + offset;

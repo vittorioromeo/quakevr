@@ -144,19 +144,7 @@ QVR_CVAR(vr_axestick, "1", CVAR_ARCHIVE)             // on
 // Embedded blades (vr_axestick.cpp, QC/vr_axestick.qc; ROUND23.md, "Embedded blades"; Combat > Embedded Blades): off
 // restores thrown axes as they were and nothing else sticks.
 QVR_CVAR(vr_embed, "1", CVAR_ARCHIVE)                // on
-QVR_CVAR(vr_embed_sword_speed, "2.5", CVAR_ARCHIVE)  // m/s a thrown sword's tip must go at into what it meets
-QVR_CVAR(vr_embed_sword_tip, "12", CVAR_ARCHIVE)     // % of the way from the hand to the tip that counts as its point when it goes in first
-QVR_CVAR(vr_embed_sword_angle, "35", CVAR_ARCHIVE)   // degrees at most between the way the tip goes and the blade's line (more: side on, it bounces)
-QVR_CVAR(vr_embed_sword_incidence, "65", CVAR_ARCHIVE) // degrees at most between the way the tip goes and straight into the surface
-QVR_CVAR(vr_embed_sword_depth_min, "30", CVAR_ARCHIVE) // % of the blade in at the least speed
-QVR_CVAR(vr_embed_sword_depth_max, "60", CVAR_ARCHIVE) // % of the blade in at vr_embed_sword_depth_speed
-QVR_CVAR(vr_embed_sword_depth_speed, "8", CVAR_ARCHIVE) // m/s
-QVR_CVAR(vr_embed_sword_wall, "0.4", CVAR_ARCHIVE)   // times that depth in walls, doors and props
-QVR_CVAR(vr_embed_sag_stiffness, "170", CVAR_ARCHIVE) // 1/s^2: how hard a wall holds a stuck sword's blade up (its gravity's pull 1.5 g / length: less, it sags further)
-QVR_CVAR(vr_embed_sag_damping, "5", CVAR_ARCHIVE)    // 1/s: how fast its swing dies
-QVR_CVAR(vr_embed_sag_most, "18", CVAR_ARCHIVE)      // degrees at most it sags
 QVR_CVAR(vr_embed_test, "0", CVAR_NONE)              // 1 the embedded blades' test (QC/vr_embed_test.qc; 2, 3, 4 its scenes)
-QVR_CVAR(vr_embed_tug_corpse, "8", CVAR_ARCHIVE)     // cm a hand gripping a blade in a dead body must pull to take it (0: at once)
 // Aim assist (QC; on, the author's values, NOTES.md vrfiringrange_2026-09-30_11-25-52): bends a throw by up to vr_throw_assist_strength onto a monster or
 // breakable within vr_throw_assist_cone degrees of it (fully within vr_throw_assist_full), in
 // range and in sight, on a ballistic arc, allowing vr_throw_assist_speed more speed.

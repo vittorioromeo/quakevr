@@ -837,6 +837,57 @@ float tugRagdoll(edict_t* ent, edict_t* player, int hand, int what, const glm::v
         }
         return 1.f;
     }
+    if(what == 12)
+    {
+        // A blade stuck in it (QC vr_embedhold.qc; any ragdoll of it, alive or dead): the hand holds the limb nearest `grip`
+        // (where it went in; a loose piece, its weapon, isn't one) where it is now, by a spring of at most `force` N. Never a manhandling
+        // (vr_foegrab_manhandle_stagger: grabRagdoll's): the blade staggered it, the hand on it doesn't fell it.
+        GrabStart bgs;
+        if(!r || !r->rig || r->count < 1 || !grabStart(ent, player, hand, bgs))
+        {
+            return 0.f;
+        }
+        int bpart = -1;
+        float bd = 1e30f;
+        for(int b = 0; b < r->count; b++)
+        {
+            if(partCut(*r, b) || r->rig->bones[b].joint == ragdoll::Joint::Loose)
+            {
+                continue;
+            }
+            b3Vec3 closest;
+            const float d = b3Body_GetClosestPoint(r->body[static_cast<za::SizeT>(b)], &closest, world->toM(grip));
+            if(d < bd)
+            {
+                bd = d;
+                bpart = b;
+            }
+        }
+        if(bpart < 0)
+        {
+            return 0.f;
+        }
+        World::RagdollGrab bg;
+        bg.force = za::max(force, 0.f);
+        bg.tug = true;
+        bg.blade = true;
+        beginGrab(bg, bgs, player, hand, bpart);
+        if(vr_debug_ragdoll.value || vr_knockdown_debug.value)
+        {
+            Con_Printf("embed: %d %s: hand %d holds its part %d (%s) by the blade, %.0f N at most\n", num,
+                PR_GetString(ent->v.classname), hand, bpart, r->rig->bones[bpart].name, bg.force);
+        }
+        return 1.f;
+    }
+    if(what == 13)
+    {
+        // That hold's force now (N): by how deep the blade is.
+        if(ours)
+        {
+            g->force = za::max(force, 0.f);
+        }
+        return ours ? 1.f : 0.f;
+    }
     GrabStart gs;
     if(!r || !r->rig || !r->active.on || !r->active.stagger.on || !grabStart(ent, player, hand, gs))
     {
@@ -1190,7 +1241,15 @@ void syncRagdollGrabs(float dt)
         // (A downed one's, tugBack: its body still falling or staggering drags the limb further than a standing one's
         // pinned arm; let go only at the limb grab's own lag, `stuck`.)
         const float tugGo = g.tugBack > 0.f ? za::max(letGo, g.stuck) : letGo;
-        if(glm::distance(held, at) > (g.tug ? tugGo : g.stuck > 0.f ? g.stuck : grabStuck))
+        if(g.blade)
+        {
+            // (A blade's: how far is the QC's. Staggering, its stance gives way to what the hold passes on to its pelvis.)
+            if(RagdollBodies* moved = ragdollOf(g.num); moved && moved->active.on && moved->active.stagger.on)
+            {
+                moved->active.stagger.ledGive = za::max(vr_embed_move_give.value, 0.01f);
+            }
+        }
+        else if(glm::distance(held, at) > (g.tug ? tugGo : g.stuck > 0.f ? g.stuck : grabStuck))
         {
             if(g.farSince < 0.0 && !g.tug)
             {
@@ -1471,7 +1530,8 @@ bool ragdollHold(int player, int hand, RagdollHold& out)
     }
     const World::RagdollGrab& g = world->ragdollGrabs[static_cast<za::SizeT>(index)];
     const RagdollBodies* r = ragdollOf(g.num);
-    if(!r || g.part >= r->count || B3_IS_NULL(g.joint) || !b3Joint_IsValid(g.joint))
+    // (A blade's: the hand is drawn on the blade, its load is the tether's, no struggle against it: no hold on a limb.)
+    if(!r || g.blade || g.part >= r->count || B3_IS_NULL(g.joint) || !b3Joint_IsValid(g.joint))
     {
         return false;
     }

@@ -763,6 +763,9 @@ struct World
         // ... its held arm drawn this much longer at most towards your hand (QC VR_AGK_TugStretch: vr_agrunt_tug_ik_stretch,
         // eased with the tug; ragdollTug what 9): the drawn pose only (ragdoll::drawnPose), the physics never.
         float tugStretch{1.f};
+        // ... a hand on a blade stuck in the body, moving it by the limb it is in (ragdollTug what 12; QC vr_embedhold.qc):
+        // never let go of for how far it is (the QC's `far`), not a hold on a limb to anything else (ragdollHold).
+        bool blade{false};
         // The toolgun's physgun's hold (player 0, no hand: vr_box3d_ragparts.cpp, "The physgun's hold"): where its
         // anchor is driven to (units).
         glm::vec3 target{0.f};

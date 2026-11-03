@@ -1832,3 +1832,32 @@ QVR_TUNABLE(vr_embed_hold_reach_corpse, "4") // times that in a dead body (it fa
 QVR_TUNABLE(vr_embed_hold_slide_damage, "0") // damage per 10 cm slid deeper
 QVR_TUNABLE(vr_embed_limb_follow, "6") // 1/s: how fast a blade in an arm or a leg takes the limb's turn (0: rigid)
 QVR_TUNABLE(vr_embed_torso_follow, "25") // 1/s: how fast a blade in the torso, the pelvis or the head takes its turn (0: rigid)
+// ... moving the body (stage 3; ROUND23.md, "Embedded blades, stage 3")
+QVR_TUNABLE(vr_embed_stagger_sword_speed, "5") // m/s a held stab goes at to stagger the body
+QVR_TUNABLE(vr_embed_stagger_axe_speed, "9") // m/s a swung axe does
+QVR_TUNABLE(vr_embed_stagger_sword, "0.6") // s a sword's stagger lasts, in as deep as a stab goes
+QVR_TUNABLE(vr_embed_stagger_axe, "0.3") // s an axe's does
+QVR_TUNABLE(vr_embed_stagger_shallow, "0.5") // times that barely in
+QVR_TUNABLE(vr_embed_stagger_push, "0.3") // the stagger's push along the blow (a shove of two hands: 1)
+QVR_TUNABLE(vr_embed_light_hold, "0.5") // the least one hand's hold on a body (VR_FoeGrab_Strength) for it to be light: staggered, moved and dragged
+QVR_TUNABLE(vr_embed_move_sword_force, "400") // N a sword barely in moves a body with at most
+QVR_TUNABLE(vr_embed_move_sword_force_deep, "2200") // ... in as far as it goes
+QVR_TUNABLE(vr_embed_move_axe_force, "400") // N an axe does
+QVR_TUNABLE(vr_embed_move_give, "2.5") // 1/s: how readily a staggering body's stance gives way (its mass over this: N for each m/s it is moved at)
+QVR_TUNABLE(vr_embed_drag_slack, "4") // cm further from the wound than the hand held it before walking away drags a standing body
+QVR_TUNABLE(vr_embed_hold_reach_down, "1.5") // times the hold's reach for a body knocked down (it falls away from the hand)
+QVR_TUNABLE(vr_embed_tether_speed, "0.35") // times your walking speed while a blade ties you to a body
+QVR_TUNABLE(vr_embed_tether_far, "10") // cm further from a dead body's wound than the hand held it, for that body to count: dragging it
+// ... stage 1's: thrown swords, their depth, their sag in walls, a corpse's tug
+QVR_TUNABLE(vr_embed_sword_speed, "2.5") // m/s a thrown sword's tip must go at into what it meets
+QVR_TUNABLE(vr_embed_sword_tip, "12") // % of the way from the hand to the tip that counts as its point when it goes in first
+QVR_TUNABLE(vr_embed_sword_angle, "35") // degrees at most between the way the tip goes and the blade's line (more: side on, it bounces)
+QVR_TUNABLE(vr_embed_sword_incidence, "65") // degrees at most between the way the tip goes and straight into the surface
+QVR_TUNABLE(vr_embed_sword_depth_min, "30") // % of the blade in at the least speed
+QVR_TUNABLE(vr_embed_sword_depth_max, "60") // % of the blade in at vr_embed_sword_depth_speed
+QVR_TUNABLE(vr_embed_sword_depth_speed, "8") // m/s
+QVR_TUNABLE(vr_embed_sword_wall, "0.4") // times that depth in walls, doors and props
+QVR_TUNABLE(vr_embed_sag_stiffness, "170") // 1/s^2: how hard a wall holds a stuck sword's blade up (its gravity's pull 1.5 g / length: less, it sags further)
+QVR_TUNABLE(vr_embed_sag_damping, "5") // 1/s: how fast its swing dies
+QVR_TUNABLE(vr_embed_sag_most, "18") // degrees at most it sags
+QVR_TUNABLE(vr_embed_tug_corpse, "8") // cm a hand gripping a blade in a dead body must pull to take it (0: at once)
