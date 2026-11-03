@@ -1220,7 +1220,7 @@ void() VR_EH_Step =
         }
         else if(vr_et_s == 14 && (VR_EH_Blade() != world || t > 0.5))
         {
-            VR_Test_Check(VR_EH_Blade() == vr_et_w, sprintf("a grip on it takes it again (kind %g)", VR_Hand_Kind(p, h)));
+            VR_Test_Check(VR_EH_Blade() == vr_et_w, sprintf("a grip on it takes it again (kind %g, %.1f from it, gripping %g, its kind %g, v2 %g)", VR_Hand_Kind(p, h), vlen(VRGetHandPos(h) - vr_et_w.origin), VR_HandGrabUtil_IsHandGrabbing(p, h), vr_et_w.vr_stick_kind, vr_et_v2));
             VR_Test_Check(vr_et_w.vr_stick_ang == vr_et_at, "on the same axis (its turn on the limb as it stuck)");
             VR_Test_Check(VR_AxeStick_InMonster(vr_et_w), "still in the body");
             localcmd("-grabmain\n");
