@@ -28,6 +28,9 @@ A fiend, dog or spawn killed by a blast its own leap set off stays dead. {test:l
 Crates and upright barrels about the maps sometimes have a loaded flare gun lying on top, about as often as a crowbar, at most 2 a map {test:flaregun_crates}
 A crate can have both a crowbar and a flare gun, side by side and not touching: take each {test:flaregun_crates}
 Wave presets you save in the Arena Wave Editor now show in git status (arena_waves/), to commit and ship.
+Monsters beside lava warm on the side facing it, in the lava's colour, and a wall between them blocks it; Debug > Tunables > Graphics > Models and Effects > Light Grid: Lava Light and its range change it at once. {test:light_grid_lava}
+Blood, dust and gun smoke beside a monster in a dark room are lit from the same probes as the monster; vr_model_light_grid 0 for the floor's, to compare. {test:light_grid_dark}
+Models near slime and teleporters take a light tint too (e1m1's slime); Slime Light and Teleporter Light set how much (same Tunables page).
 
 [3. Bodies: grabbing, throwing, hits]
 Neck snap standing and on a lifted body: it goes limp, still held. Leg grabs: pull one down by the shins, drag it by the legs, lift it by the legs. {test:grunts_to_throw}
