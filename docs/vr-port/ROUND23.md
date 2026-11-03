@@ -7010,6 +7010,34 @@ ends (its ankle against its hip stops going forward).
 
 The one frame: the sound starts as the foot is first drawn planted, a frame (at 72 Hz) after its forward-most.
 
+## The arena: towers, light, flat walls, no starting ammunition (2026-11-02 night)
+
+The author's notes vrarena_2026-11-02_23-13-15 and 23-19-02, and his list.
+
+- **Towers.** Their own plates (`tech07_2`, `fit` 2 across 3 up), pinned to each face's own edges: 90 x 85 tiles, so every
+  corner is a plate's end on both faces. A wall's `tech14_1` at world scale had cut 1.4 tiles across a 180 face.
+- **Light.** 12 hooded lamps on the towers' open faces (z 128..160, light 125, wait 0.66) and 8 lit panels under the decks
+  (light 160, wait 0.65). A first try at 185/0.55 on the towers overbrightened the floor (mean 140), so it came down. From
+  the lit file, area-weighted luxel luminance, before -> after: E/W walls under the decks 52 -> 81 (under 48: 47% -> 26%),
+  deck undersides 66 -> 99, tower faces 90 -> 108, floor round the towers 90 -> 101, the rest of the floor 98 -> 105, walls
+  over the decks 127 -> 128, N/S walls under 192 94 -> 95. Models read the same grid: foes at their corner spawns are a
+  little brighter, the most under the decks.
+- **Flat walls.** One clip per wall, floor to ceiling, 16 out (all the trim stands within it: `--check` counts any point
+  past it). The old clip only covered the wainscot.
+- **Climbing honours clip.** It didn't: the ledge map reads hull 0, which has no clip brushes, so the rail, the sconce
+  plates and the lamp hoods stayed holds behind a clip. A test on hull 1 (is the box solid with no hull 0 in it?) can't
+  say: it cost vrstart 26% of its lip with no clip brush in the map (a grown slanted brush reaches past its shape) and
+  missed the sconces under the decks. So the ledge map reads the brushes themselves from the BSP's BSPX `BRUSHLIST` lump
+  (`qbsp -wrbrushes`), read once per map (`relight::mapBspxLump`), and a hold inside a clip brush is no ledge. A map
+  without the lump is untouched: the ledge hashes of e1m1, e2m1, e1m3, vrclimb, vrstart and vrcalibration are identical
+  before and after. vrarena: 448 -> 262 ledges; deck and tower lips stay.
+- **No ammunition.** `VR_ARENA_StripPlayers` zeroes all 7 kinds and `currentammo` (a new game's parms give 25 shells).
+  Fists as before. Test 18 fresh, after `restart fresh`, from a load; test 19 takes a fallen foe's pack.
+
+Tests: `vr_arena_test` 17 (24 passed), 18 (4 passed, three times), 19 (7 passed), 15 (130 passed). A real grip (mock play)
+on an upright lamp's hood from the deck: the old map holds and climbs from z 280 to 287.6, the new one says "no hold".
+`vr_climb_try` on the sconce plate and hood: old lenient hold, new none; deck and tower lips hold on both.
+
 
 ## Falling magazines into the pouch; charge stamina; late flashlight grip; no ghost climbing; gibbing by blows and props
 
@@ -7174,3 +7202,27 @@ no zone. The real one: BACKLOG.md, "The enforcer's backpack made a real one".
 
 Tests: `vr_wornpack_test` tens choose the kind (0 grunts, 10 knights, 20 death knights, 30 enforcers: 1, 2, 3 for each; 33 lifts an
 enforcer), 5 the zone, 6 the replacement's rule. `vr_agrunt_test 47` expects no backpack from melee and fists now.
+
+## Heavy footsteps and the pack's rip from recordings (branch `agent/freesounds`, his notes of 2026-11-02 night)
+
+His words: the ogres' and fiends' footsteps sound "very artificial"; the rip sounds "too much like a fiend attack"; find free sounds.
+
+**No new files were downloaded.** The agent rules forbid downloads and an approval relayed by another agent does not count, so this uses
+only CC0 recordings the game already ships. Candidates for the real thing, pages read and CC0 as shown there, nothing fetched:
+
+| For | Freesound | Author | Length, file |
+|---|---|---|---|
+| rip | [591527](https://freesound.org/people/Rudmer_Rotteveel/sounds/591527/) Cloth Rip Even Long | Rudmer_Rotteveel | 3.6 s, WAV 620 KB |
+| rip | [93346](https://freesound.org/people/fotoshop/sounds/93346/) Fabric Rip.wav | fotoshop | 5.0 s, WAV 431 KB (echoey room) |
+| rip | [627626](https://freesound.org/people/ValentinPetiteau/sounds/627626/) Clothes - fabric - tear - rip - bedsheet - close.wav | ValentinPetiteau | 18.8 s, WAV 2.6 MB |
+| feet | [721601](https://freesound.org/people/DasWaff/sounds/721601/) Giant step | DasWaff | 1.5 s, WAV 252 KB (breaking branches) |
+| feet | [542858](https://freesound.org/people/thebestmaker/sounds/542858/) Giant footsteps | thebestmaker | 6.5 s, WAV 608 KB |
+| feet | [622737](https://freesound.org/people/RobHorror240/sounds/622737/) GiantStompFootsteps.mp3 | RobHorror240 | 25 s, MP3 396 KB |
+
+- `step_thud1..5.wav` (same path, rate, count; `make_footstep_sounds.py` `THUD_TAKES`): `phys/soft_h` (weight, rate 0.66-0.78), `flesh_h`
+  (smack, 0.72-0.88), `wood_h` (knock, 0.58-0.70, low-passed 1.8 kHz), `grab_stone` (concrete grit), the sum lifted over 180 Hz, tanh 1.5.
+  Peak -2.5 dBFS as before; loudest 100 ms -7.0..-8.4 dB (the synthesised ones: -7.8); low -10..-12 (was -14), mid -15 (was -12), high -25
+  (was -17: the old noise). The kinds' pitch and gain in `vr_footsteps.cpp` are unchanged. Boots, metal and bare come out byte-identical.
+- `pack_rip.wav`: **a stand-in**, not a cloth recording: `phys/scrape_wood1..3` quickened and high-passed at 1.1 kHz, `soft_m1` quiet at
+  the end. It replaces `vr/derived/fabric_rip.wav` (the fiend's `demon/dhit2` was its main layer; the layer table's entry is gone). Still
+  played by `VR_WP_Off` on every way a pack comes off. Against the old mix: high -15.7 (was -15.2), mid -25 (was -17), low -25.5 (was -15.7).

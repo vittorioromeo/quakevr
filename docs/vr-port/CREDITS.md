@@ -65,7 +65,11 @@ articles, talks and other engines' source are credited with where they came from
   Quake's palette and its own models (for example, the armour colours come from `progs/armor.mdl`). `mdlpolish.py`
   embeds Quake's palette (id Software's `gfx/palette.lmp`, as GPL tools such as ericw-tools embed it) to match
   colours.
-- **Enemy footsteps** (`make_footstep_sounds.py`, `quakevr/sound/vr/step_*.wav`): synthesised, nothing recorded.
+- **Enemy footsteps** (`make_footstep_sounds.py`, `quakevr/sound/vr/step_*.wav`): boots, metal and bare feet synthesised,
+  nothing recorded. The great bare feet (`step_thud1..5.wav`) and the worn pack's rip (`pack_rip.wav`) are layered by the same
+  script from recordings the game already ships (the physics sounds below, CC0): thuds from Kenney's `impactSoft_heavy`,
+  `impactPunch_heavy`, `impactWood_heavy` and `footstep_concrete` by way of `soft_h`, `flesh_h`, `wood_h`, `grab_stone`;
+  the rip from craigsmith's drag (Freesound 481861, by way of `scrape_wood1..3`) and `soft_m1`. Nothing new downloaded.
 - **Synthesised sounds** (`make_sounds.py`, in `quakevr/sound/vr/`): made from sine partials and filtered noise by
   the script, with no recordings. They are the headshot tick, the shells' tinks, the shove, bash, parry-bash and
   parry, and (round 21) the pommel, hilt and butt knocks `pommel1..3.wav`.

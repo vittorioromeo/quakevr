@@ -10,7 +10,7 @@
 // A hand's pull never takes it off: a living wearer pulled by its pack past vr_worn_backpack_lift_force is lifted by it
 // (VR_WP_Lift: the engine's foegrab::packLift, as a two-hand lift: down, flailing, held by the pack on its chest part,
 // carried and thrown, breaking free after vr_foegrab_lift_time); a gentler pull drags a ragdoll.
-// It comes off, with a fabric rip (vr/derived/fabric_rip.wav), on
+// It comes off, with a fabric rip (vr/pack_rip.wav), on
 // - a ragdoll's hard landing (vr_worn_backpack_impact, m/s);
 // - damage on the pack itself or an explosion's or fire's share (a blow, a throw, a shot, a projectile: vr_worn_backpack_pool;
 //   vr_worn_backpack_hit_roll, if on, at once);
