@@ -7,6 +7,14 @@
 [Failed: waiting for your answer]
 
 [0. Flatscreen play (-flatscreenmode)]
+Flatscreen: the mouse wheel's button (vr_flat_aim 1 / 0 / toggle in the console) aims down the sights: the view narrows by Flatscreen Ironsight Field of View 12 (vr_flat_aim_fov; 0 leaves it as wide as it was) and the gun swings onto the crosshair in about a fifth of a second and stays there while you turn, so a shot fired with it on lands where the crosshair points (measured: the muzzle 6.4 units off the crosshair's ray, 0.3 after the move)
+Flatscreen, a gun in one hand and the other hand empty: the empty hand is carried onto that gun's own two-handed grip when the grip stands in front of the holding hand (the rocket launcher's, the grenade and proximity launchers'), and vr_flatplay_status prints it as the off hand on its grip hotspot. Where the grip stands behind the held hand (the shotgun's, the nail gun's, the lightning gun's, the super shotgun's) the empty hand stays on the mode's support pose instead of folding onto the gun, and the status line prints the measure that choice rests on. Dual wielding is posed exactly as it was
+Flatscreen: the ironsight is refused where there is nothing to align (a melee weapon, dual wielding) and vr_flat_aim in a headset answers that flatscreen play is not running; nothing about the two-handed hold or the field of view changed for a headset player
+Flatscreen: Left Ctrl crouches while you hold it and you stand back up when you let go (vr_flat_crouch_time 0.25 for the move, vr_flat_crouch_drop 18 for how far your eyes come down; Debug > Tests > Flat Keys runs all four of these headless)
+Flatscreen: F switches the head torch: out and packed away, then lit and worn again. In a headset nothing about the torch changed
+Flatscreen: G drops what your hands hold, main hand first, off hand second (a weapon on the floor, a box or prop let go, "flat drop:" on the console). In a headset G still does what it did
+Flatscreen: an ammo or health box grabbed with E is taken at once, so you keep moving; a worn pack is still worn by its own cue. the Auto-Collect row stays the headset player's own setting
+Flatscreen, standing: you are counted as crouched (vr_crouch_status: box 52, eyes 47), so you walk at 0.75x and never rise out of the crouched box. Should standing count as standing?
 Flatscreen (-flatscreenmode): an axe in the main hand, LMB swings it and the foe in front takes the blow; RMB does the same for the off hand; V still punches
 Flatscreen melee: a gun's fire button is its own shot and a chainsaw's trigger only runs its chain — neither one swings; a hand that already swung is not disturbed by the other hand's button unless both hold a swinging weapon
 Flatscreen: the drawn hands stay on their arms through a punch, a knock and when you look straight up (Flatscreen Arm Hold 1; 0 puts them back where they were placed)
@@ -69,6 +77,8 @@ A knight's or death knight's gun stays with its body as it sidesteps and circles
 A fiend, dog or spawn killed by a blast its own leap set off stays dead.
 Fresh settings, e1m4 (or any map with knights): every knight holds a sword in his hand, swings it, can be parried and disarmed; killing the one by the door opens it as before; no knight ever takes up a gun lying about. Map knights now roll armour by skill: do kills take too long?
 Toolgun (or a wave's armed knight with a gun): a knight or death knight with a shotgun or pistol: knock it out of his hand: he picks up a gun again, with "Pick Up Ranged Weapons" off; one with a sword doesn't.
+An armed grunt's Mjolnir swung from the far end of its reach, and a death knight's uppercut, now connect with you standing still instead of passing beside or over you; stepping back out of reach still makes them miss.
+Push a hand into a grunt's belly and grip, with both hands for a judo throw: it takes hold and stays held, with no instant "breaks free" shove, and doesn't take the pack behind it.
 
 
 [3. Bodies: grabbing, throwing, hits]

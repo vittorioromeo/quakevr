@@ -5910,6 +5910,9 @@ QVR_SLIDER(vr_flat_arm_hold, "Flatscreen Arm Hold", 0.f, 2.f, 0.05f, "%.2fx", no
 QVR_SLIDER(vr_flat_pose_pitch, "Flatscreen Hand Pitch", 0.f, 90.f, 1.f, "%.0f deg", noExt,
     "How far the flatscreen hands follow the view up and down (90: all the way, as before). Held to a pitch they stay "
     "in the arc the arms sweep when you look straight up or down.")
+QVR_SLIDER(vr_flat_aim_fov, "Flatscreen Ironsight Field of View", 0.f, 45.f, 1.f, "%.0f", noExt,
+    "How many degrees the field of view narrows while the flatscreen ironsight is on (vr_flat_aim, or the mouse "
+    "wheel's button). The look's speed and the HUD are unchanged: the crosshair keeps its distance on the screen.")
 QVR_TOGGLE(vr_ao_cache, "Keep AO Bakes on Disk",
     "vr_ao_cache: the models' occlusion bakes kept on disk, so a later session's loads bake nothing (off: baked at every first load; 2 in the console: baked anyway and compared with the file).")
 QVR_TOGGLE(vr_menu_link_dryrun, "Menu Links: Print, Do Not Open",
