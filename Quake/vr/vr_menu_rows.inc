@@ -96,8 +96,9 @@ QVR_SLIDER(vr_body_stride, "Stride Length", 0.3f, 2.f, 0.05f, "%.2fx", ext(),
 QVR_SLIDER(vr_body_step_width, "Step Width", -0.08f, 0.25f, 0.01f, "%+.2f m", ext(),
     "How much further apart each foot walks than it stands (hips' width apart): out, or in if negative.")
 QVR_TOGGLE(vr_body_step_sounds, "Footsteps on the Feet",
-    "Your footsteps play as the drawn feet touch down, from that foot, and softly for the small steps turning on the "
-    "spot. Off, or with no walking legs, swimming, climbing and in multiplayer: by the distance you cover, as in Quake.")
+    "Your footsteps play as the drawn feet touch down, from that foot, quieter the slower you go. Turning and small moves "
+    "in the room are silent. Off, or with no walking legs, swimming, climbing and in multiplayer: by the distance you "
+    "cover, as in Quake.")
 QVR_SLIDER(vr_body_turn_step, "Turn Before Stepping", 15.f, 90.f, 5.f, "%.0f deg", ext(),
     "How far you turn over your planted feet before they step round to follow.")
 QVR_SLIDER(vr_body_wade, "Wading Heaviness", 0.f, 2.f, 0.1f, "%.1fx", ext(),
@@ -823,13 +824,27 @@ QVR_SLIDER(vr_worn_backpack_reserve, "Spare Ammo in It", 0.f, 1.f, 0.05f, "%.2f"
     "The share of its spare rounds a wearer carries in its pack: lost with the pack while it lives (it "
     "fights on with what its gun holds).")
 QVR_SLIDER(vr_worn_backpack_volume, "Rip Volume", 0.f, 1.f, 0.05f, "%.2f", noExt, "The fabric rip's loudness.")
-QVR_SLIDER(vr_worn_backpack_scale, "Size", 0.3f, 1.2f, 0.05f, "%.2f", noExt, "The pack's size on the back.")
-QVR_SLIDER(vr_worn_backpack_x, "Forward", -8.f, 8.f, 0.25f, "%.2f", noExt, "Moves the pack into the back (out: negative).")
-QVR_SLIDER(vr_worn_backpack_y, "Left", -8.f, 8.f, 0.25f, "%.2f", noExt, nullptr)
-QVR_SLIDER(vr_worn_backpack_z, "Up", -12.f, 12.f, 0.25f, "%.2f", noExt, nullptr)
-QVR_SLIDER(vr_worn_backpack_pitch, "Pitch", -45.f, 45.f, 1.f, "%.0f", noExt, nullptr)
-QVR_SLIDER(vr_worn_backpack_yaw, "Yaw", -180.f, 180.f, 5.f, "%.0f", noExt, nullptr)
-QVR_SLIDER(vr_worn_backpack_roll, "Roll", -45.f, 45.f, 1.f, "%.0f", noExt, nullptr)
+QVR_SLIDER(vr_worn_backpack_grunt_scale, "Size", 0.3f, 1.2f, 0.05f, "%.2f", noExt, "The pack's size on its back.")
+QVR_SLIDER(vr_worn_backpack_grunt_x, "Forward", -8.f, 8.f, 0.25f, "%.2f", noExt, "Moves the pack into its back (out: negative).")
+QVR_SLIDER(vr_worn_backpack_grunt_y, "Left", -8.f, 8.f, 0.25f, "%.2f", noExt, nullptr)
+QVR_SLIDER(vr_worn_backpack_grunt_z, "Up", -12.f, 12.f, 0.25f, "%.2f", noExt, nullptr)
+QVR_SLIDER(vr_worn_backpack_grunt_pitch, "Pitch", -45.f, 45.f, 1.f, "%.0f", noExt, nullptr)
+QVR_SLIDER(vr_worn_backpack_grunt_yaw, "Yaw", -180.f, 180.f, 5.f, "%.0f", noExt, nullptr)
+QVR_SLIDER(vr_worn_backpack_grunt_roll, "Roll", -45.f, 45.f, 1.f, "%.0f", noExt, nullptr)
+QVR_SLIDER(vr_worn_backpack_knight_scale, "Size", 0.3f, 1.2f, 0.05f, "%.2f", noExt, "The pack's size on its back.")
+QVR_SLIDER(vr_worn_backpack_knight_x, "Forward", -8.f, 8.f, 0.25f, "%.2f", noExt, "Moves the pack into its back (out: negative).")
+QVR_SLIDER(vr_worn_backpack_knight_y, "Left", -8.f, 8.f, 0.25f, "%.2f", noExt, nullptr)
+QVR_SLIDER(vr_worn_backpack_knight_z, "Up", -12.f, 12.f, 0.25f, "%.2f", noExt, nullptr)
+QVR_SLIDER(vr_worn_backpack_knight_pitch, "Pitch", -45.f, 45.f, 1.f, "%.0f", noExt, nullptr)
+QVR_SLIDER(vr_worn_backpack_knight_yaw, "Yaw", -180.f, 180.f, 5.f, "%.0f", noExt, nullptr)
+QVR_SLIDER(vr_worn_backpack_knight_roll, "Roll", -45.f, 45.f, 1.f, "%.0f", noExt, nullptr)
+QVR_SLIDER(vr_worn_backpack_dknight_scale, "Size", 0.3f, 1.2f, 0.05f, "%.2f", noExt, "The pack's size on its back.")
+QVR_SLIDER(vr_worn_backpack_dknight_x, "Forward", -8.f, 8.f, 0.25f, "%.2f", noExt, "Moves the pack into its back (out: negative).")
+QVR_SLIDER(vr_worn_backpack_dknight_y, "Left", -8.f, 8.f, 0.25f, "%.2f", noExt, nullptr)
+QVR_SLIDER(vr_worn_backpack_dknight_z, "Up", -12.f, 12.f, 0.25f, "%.2f", noExt, nullptr)
+QVR_SLIDER(vr_worn_backpack_dknight_pitch, "Pitch", -45.f, 45.f, 1.f, "%.0f", noExt, nullptr)
+QVR_SLIDER(vr_worn_backpack_dknight_yaw, "Yaw", -180.f, 180.f, 5.f, "%.0f", noExt, nullptr)
+QVR_SLIDER(vr_worn_backpack_dknight_roll, "Roll", -45.f, 45.f, 1.f, "%.0f", noExt, nullptr)
 QVR_SLIDER(vr_worn_backpack_mass, "Weight", 0.5f, 20.f, 0.5f, "%.1f kg", noExt, "Its weight on a ragdoll's chest.")
 
 // vr_menu_gameplay.inc: pageArmedRepl

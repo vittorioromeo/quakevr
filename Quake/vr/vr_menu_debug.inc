@@ -145,6 +145,11 @@ za::Vector<Item> pageDebugViews()
                   "place, its frames taped; Pause, scrub (a stick, or < 0.5 s >), Next Glitch, drag the key the readout "
                   "names at that frame. vr_posestudio_live_report prints the tape's playhead: its keys and the glitch "
                   "finder's measures."),
+        command("Arena Wave Editor", "vr_waveeditor")
+            .help("vr_waveeditor: the Survival Arena's waves made to order: any armed humanoid with any weapons and armour, "
+                  "plain monsters, infection, counts and delays; saved as presets (quakevr/arena_waves), one chosen per "
+                  "map and difficulty; Play from any wave. A window on a flat screen, a panel in a headset (either hand's "
+                  "laser, its trigger the click, the stick the wheel). The game is held while it is open."),
         command("Rig Studio (Flat Screen)", "vr_rigstudio")
             .help("vr_rigstudio: the rigged humanoids' skeletons, skin weights, poses and animations edited on the desktop "
                   "screen, with Blender's mouse (docs/vr-port/RIGSTUDIO.md): a room, an armed grunt frozen in it, an "

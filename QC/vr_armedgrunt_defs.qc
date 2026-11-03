@@ -167,6 +167,7 @@ float(entity g, string why) VR_AG_TugDisarm; // VR_AG_Disarm in a tug: into the 
 // Gameplay (vr_armedgrunt_play.qc: disarming, falls, reach), called from vr_armedgrunt.qc.
 float(entity g, entity p) VR_AG_TugFrame;
 float(entity g) VR_AG_FallDrop;
+void(entity m, float xSpeed) VR_AG_FallLanded; // VR_Monster_Fall: a landing that hurt it lets go of its weapon
 void(entity g, entity pl, float h) VR_AG_GrabBy;
 void(entity p, entity pl, float h) VR_AG_HandGrab; // (vr_armedgrunt.qc: a hand grabbing its weapon, refused when busy)
 float(entity g) VR_AG_DisarmDamage;
