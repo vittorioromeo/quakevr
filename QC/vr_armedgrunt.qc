@@ -2037,8 +2037,10 @@ void(entity p) VR_AG_ShootProp =
         }
     }
     else if(wid == WID_SUPER_SHOTGUN)   { W_FireSuperShotgun(h); }
-    else if(wid == WID_NAILGUN)         { W_FireSpikes(h, (self.vr_ag_shots & 1) ? -2.35 : 2.35); }
-    else if(wid == WID_SUPER_NAILGUN)   { W_FireSuperSpikes(h); }
+    else if(wid == WID_NAILGUN || wid == WID_SUPER_NAILGUN)
+    {
+        W_FireSpikes(h, (self.vr_ag_shots & 1) ? -2.35 : 2.35); // (a super nailgun's: as yours, its last odd round a lone nail)
+    }
     else if(wid == WID_NAILPISTOL)      { W_FireNailPistol(h); VR_NailPistol_PropShot(p); } // (vr_nailpistol.qc: its slide)
     else if(wid == WID_FLAREGUN)        { W_FireFlareGun(h); } // (vr_flaregun.qc: the clip below)
     else if(wid == WID_REVOLVER)        { W_FireRevolver(h); } // (vr_revolver.qc: a slug a shot)

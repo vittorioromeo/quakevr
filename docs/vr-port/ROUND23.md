@@ -7174,3 +7174,41 @@ no zone. The real one: BACKLOG.md, "The enforcer's backpack made a real one".
 
 Tests: `vr_wornpack_test` tens choose the kind (0 grunts, 10 knights, 20 death knights, 30 enforcers: 1, 2, 3 for each; 33 lifts an
 enforcer), 5 the zone, 6 the replacement's rule. `vr_agrunt_test 47` expects no backpack from melee and fists now.
+
+## Flaky tests, round 2 (branch `agent/flaky2`, his words 2026-11-02: "Please sort out the flaky tests")
+
+Runs seeded (`sv_random_seed 1`) and repeated; "identical" compares the PASS/FAIL lines' hash. The steady failures were one
+real bug hiding behind tests that measured the wrong thing.
+
+| Test | Cause (evidence) | Class | Fix | Before | After |
+|---|---|---|---|---|---|
+| agrunt_86 retreat, aggressiveness | `VR_AG_ShoveClose` called `VR_AG_RangeOf` for a yes or no, resetting `vr_ag_rmin/rpref/rmax` to the weapon's raw row between `VR_AG_Ranges` and their use in `VR_AG_WalkFire`: retreat, aggressiveness, range scale, kind and threat never reached the steps taken while firing. Printed: rmin 224 at retreat 0, 15 steps at d 129..221 | b | `VR_AG_HasRanges` asks without touching them; a reload's step away is off at retreat 0, as the cvar says | 25/2 | 5/5 identical, 27/0. Retreat 0: 0 steps, 128 away; aggressiveness 0.5: 333 against 266 |
+| agrunt_86 accuracy, reaction | a mean of 8 random draws (accuracy 2 at 0.73 of 1 on seed 1, 0.7 wanted), and one first shot's dice (Nightmare 0.51..0.71, under 0.7 wanted; 0.4..0.9 s after its wait in every case). The code divides by the knob exactly | a | 24 shots (0.48 of 1 on every seed); the reaction read from its wait (`attack_finished` after the hunt) | fails by seed | as above |
+| agrunt_1 | the last try's grenade, fuse running, killed the next try's Rocket Launcher grunt where it spawned (health -21 after 0.9 s, a grenade still about). Round 1's longer tail (12/5) was not seen on this merge | a | shots cleared between tries | 16/1 | 5/5 identical, 17/0 |
+| agrunt_76 | hits are dice on a small mark: one gun's 8 shots move 12% a hit, 25% wanted (2 of 9 fails). The aim itself: head on every shot behind the crate, chest before | a | per gun what its aim decides; hit rates per cover over all guns (crate 41% against 11-17%, low wall 52-57% against 22-29%) | 24/1, 23/2 | 5/5 identical, 29/0 |
+| agarmor_5 | the hit was at the plate's origin (`limbpiece` 10): plate 9's read as the torso's (joint -1) | a | at its outer face (14), where a hit meets it | 23/1 | 5/5 identical, 24/0 |
+| agrunt_72 gun's side | read off its origin: 0.8..8.2 for the same 13.9 from the axe at every first shot. Its hands follow its drawn body, eased over the 0.1 s run frame, while its origin has already stepped aside as it strafes. Not a change in how it uses the gun | a | read off each other, > 8 | loosened to > 0 | 5/5 identical, 7/0 |
+| agrunt_72 up close | at the first shot it backed off past the axe's 84 in its gun's frames (56 to 102 before its next check), so it never swapped. On origin/next without my range fix too (tried) | b | `VR_AGR_AxeNear`: `VR_AG_WalkFire` holds its step there | 6/1 | as above |
+| vr_agtune_test 3 | hunted on its spawn's frame: `walkmonster_start_go`'s pending think was lost, so no turning speed and eyes at its waist. The first low wall ended it: `enemy_vis` false, no turn, no step (yaw 270, ideal 215, walkmove free all round), for good. Then he outlasts his 24 shells | a | waits for the spawn; watched until his gun is spent; a cast at least every two cooldowns (17-21 casts in 71-81 s) | 3 of 6 seeds | 5 of 5 seeds |
+| agrunt_95, death knight | "dead (50)": Plate Blocks All, a plate takes its whole share of any blow | a | the blow again until it dies (as test 47) | fails by seed | 3 seeds, 11/0 |
+| agrunt_71 drops | three things: a lethal blow an armoured one's plate took (guns 32 of 40); ten corpses at once against `vr_ragdoll_max` 8 (two gone, one's pack sometimes with it: the flip with the seed fixed); the fight's grunt's torn pack in the first count (41 of 40) | a | the blow again; 8 at a time; only the test's own packs | 4/6, varied | 5/5 identical on seed 1 (one check still hangs on the seed: below) |
+| agrunt_71 balance | `vr_agrunt_range` 0 and the numbers match: grunt 11.93 and 11.52 damage/s, enforcer 18.70 and 18.25. On, the replaced ones stand 283 and 222 away against 45 and 85 | c | the balance measured at range 0; the question below | failed | passes |
+| test 47 "ammo count less than zero" | a super nailgun spends 2; `wi_clip < 1` let a last odd round through at -1, shown to players with bprint | b | through `W_FireSpikes` as yours: the last odd round a lone nail | case 9 printed it | 0 printed, 77/0 |
+| `vr_menu_dump_paths` | not reproduced: 8,440 rows and its end line in the game's log. run.sh -Filter's output is word-wrapped at the console's width; `menu_paths.py` kept each row's first line, so 1,877 rows of menu_paths.txt ended mid-path. In the wrapped capture the first mummy_struggle row is at line 8,406, about the row count: a likely reason it looked like the end (not proven) | a | it joins them and refuses a row without 5 fields; regenerated: identical to the game's log, in order | cut | 8,459 rows |
+
+**Not found / not fixed.**
+- agrunt_67: one seeded run, timed out at 900 s beside other work at 37 of 64 groups (301-406 s free, round 1). Normal 195/247: idle 67/73, ready 41/47, running 37/47, striking 50/80; losses 31 too fast, 14 knocked, 7 fist off. What varies with the seed fixed: not found.
+- agrunt_18: "Death Knight fists: standoff 0, stood 33.0 as its blows landed; backed off" 23/1, 2 of 2 identical on seed 1: not looked into.
+- agrunt_78: the same two fails (horizontal vs your sword level parried; the chainsaw's line): not looked into.
+- nail_1: "a lying backpack: no nail flew on through it having pushed it (1 did)", 3 of 3 identical: not looked into.
+- agrunt_60, rv_1: pass on seed 1 (2 of 2): their unseeded fails not looked into.
+- Not run: teleporters_chase, ragdoll_ragtest/grab/guard, judo, reload 112/3, parry_pose, weapon_catch 3/2, dead_gear 7/2, teleporter edges' split lines, stealth's full run.
+- A lead, from the code only: tests 76 and 86 also hunt on the spawn's frame (`VR_AGT_Spawn` then `VR_AGT_Hunt`), so their grunts should lack the same turning speed and eyes.
+
+**Question for him (test 71):** a replaced grunt or enforcer holding its own gun keeps its fighting distance, so against a still player it deals half a vanilla grunt's damage a second and a third of a vanilla enforcer's (same gun, same numbers at the same distance). Options: (1) as now, the distance is what makes them harder to reach; (2) `vr_agrunt_range` off for their own guns, as id's; (3) nearer for them. Recommendation: (1).
+
+**Question for him (test 71):** a replaced grunt never drops the extra weapon a vanilla grunt does (0 of 40 against 8-13); a replaced enforcer does (7-13). `VR_AG_SoldierDrop` returns before the roll for one under the pack's rule. Options: (1) grunts roll too, as enforcers; (2) neither; (3) as now. Recommendation: (1). The check ("within 12") passes on seed 1 and fails on others, so test 71 stays on test_flaky.txt until this is answered.
+
+**Question for him (test 67):** its 90% floor mixes a swing under way, where a hand is refused as too fast by design, with standing still: striking 63%, idle 92%. Options: (1) the floor on idle, ready and running only, striking printed; (2) the too-fast rule eased for a blade mid-swing; (3) as now. Recommendation: (1).
+
+**Kit (coordinator):** run.ps1's `Select-String` output wraps at the console's width: a filtered long line arrives in pieces (`-Filter` drops nothing, but a grep on the capture does). Test 76 took 82 s free and timed out at 400 s five times over beside other work: run_baseline's 300 s would too.

@@ -5,13 +5,15 @@
 
 # Their scripts seed already, so the variance is not the server's random numbers. Not investigated yet.
 teleporters_chase ragdoll_ragtest ragdoll_grab ragdoll_guard judo
-# Vary with sv_random_seed fixed (2026-11-02): agrunt_71's drops, agrunt_67's grab table.
-agrunt_67 agrunt_71
-# With the seed they repeat exactly, and fail: steady failures to fix, listed until they are. (Without it, agrunt_1 and
-# agrunt_76 are flaky: 2 of 3 passed.)
-agrunt_1 agrunt_76 agrunt_86 agarmor_5
+# Varies with sv_random_seed fixed, cause not found; its 90% floor is a question for him (ROUND23.md, "Flaky tests, round 2").
+agrunt_67
+# Its one check left depends on the seed: a replaced grunt drops no extra weapon, a vanilla one 8-13 of 40: his call.
+agrunt_71
+# With the seed they repeat exactly, and fail: not looked into.
+agrunt_18 agrunt_78 nail_1
 # Only its gates scene rerun (3 identical): not yet 5 identical full runs.
 stealth
-# Pass 5 of 5 seeded but flaky unseeded, cause not found: a fixed seed hides the failure, it doesn't fix it.
+# Pass seeded but flaky unseeded, cause not found: a fixed seed hides the failure, it doesn't fix it.
 agrunt_60 rv_1
 # Taken off 2026-11-02: agrunt_47, agrunt_63, agrunt_72 (fixed; 5 identical passes seeded).
+# Taken off 2026-11-03: agrunt_1, agrunt_76, agrunt_86, agarmor_5 (causes found and fixed; 5 identical passes seeded).
