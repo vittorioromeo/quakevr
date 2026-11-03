@@ -73,7 +73,8 @@ the arm the body poses for it, `flatarm:` — how far its wrist is off the body'
 arm can hold it at, its speed and its wrist's bend), Hand Reach, Move Sway, Walk Bob, Turn Lag, Turn Lag Recovery, Arm
 Hold, Hand Pitch, Punch (`vr_flat_punch`). Test: `bash Misc/quakevr/flatplay_test.sh <agent>`.
 
-**The keys.** Read from the keyboard state, not from bindings — nothing is rebound and no config changes; they only work
+**The keys.** Read from the keyboard state, not from bindings — nothing is rebound and no config changes (Left Ctrl is the
+one exception: the mode holds it while it runs and hands it back before the game writes its config, below); they only work
 while the game has the keys (`key_dest == key_game`). A punch is not a key: it reads the hand's own fire button
 (`client::attacking`, what LMB and RMB drive in VR), so `+attack`, `+offhandattack` and `vr_flat_punch` reach it from the
 console.
@@ -86,7 +87,7 @@ console.
 | `1` | cycles the **left** hand's weapon through the weapons collected |
 | `2` | cycles the **right** hand's weapon |
 | `V` | a punch with the right hand: a real motion of the hand (wound up, thrown, drawn back), so the game's own melee rules decide whether it lands. `vr_flat_punch [main\|off]` drives either hand's punch from the console. A weapon that no swing strikes with never punches from its fire button — the chainsaw's trigger runs its chain, a gun's fires (the mode's own weapon set: `punchesWith`, `vr_flatplay.cpp`); `V` is the hand's punch whatever it holds, as it was. A hand that already started a punch this very frame is joined by the other only when both hands hold a swinging weapon |
-| Left Ctrl | crouches while it is held, stands up as it is let go; `+flatcrouch` and `-flatcrouch` hold and release the same from the console (see Crouching below). Right Ctrl is the same key to the engine (`K_CTRL`: `Quake/in_sdl.c`) |
+| Left Ctrl | crouches while it is held, stands up as it is let go; `+flatcrouch` and `-flatcrouch` hold and release the same from the console (see Crouching below). Right Ctrl is the same key to the engine (`K_CTRL`: `Quake/in_sdl.c`). While the mode runs it is the crouch key **only** — the plain game's `+attack` is taken off it, so holding Ctrl crouches and fires nothing; `vr_flat_crouch_fire 1` gives Ctrl its own bind back and then it fires as it crouches (see Ctrl's firing bind below) |
 | `F` | switches the flashlight: the engine's own `vr_flashlight_toggle`; put out, it stays out (a level change and a saved game included) |
 | `G` | lets go of what a hand holds, the main hand first and the off hand after (`impulse 47` → `VR_Forcegrab_FlatDrop`, `QC/vr_wpnforcegrab.qc`): a weapon out of the hand the way the game drops one, a box or a prop carried in it let go at his feet (physics again, free to take again); carried in both hands, one press frees both |
 
@@ -121,6 +122,23 @@ who crouches, and `crouchSpeedMax` slows him as it slows him there. Nothing is a
 collides: a crouch is not a jump. `.vr_stand` — how upright the game thinks he is, read by `QC/vr_kdtrig.qc` — is worked out
 from the same numbers in `Quake/vr/vr_server.cpp`: 1 while he stands, less as he comes down (a headset player's value is
 computed as it was). Outside the mode nothing moves: `crouchDrop()` answers 0 and `VR_FlatViewDrop` returns at once.
+
+**Left Ctrl's firing bind, taken and given back.** In the plain game Left Ctrl is the fire key: `bind CTRL +attack` is in
+`Quake/default_cfg.h` and, saved, in `ironwail.cfg` (`bind "CTRL" "+attack"`). The mode needs that same key for the
+crouch, and one key that does both is a crouch that shoots — so while flatscreen play runs the engine's binding table
+holds Ctrl for `+flatcrouch` (`Key_SetBinding`, `Quake/keys.c`): the key read by `pollKeysFlat` and the bind lead to the
+one eased crouch, and pressing it fires nothing. The plain game's bind is remembered, not thrown away, and it is
+remembered afresh on any frame the mode finds Ctrl holding something else, because whatever that is is what the player
+has: a config's own bind line, a `bind CTRL …` said on the console, an `unbindall`. The mode's frames begin inside
+`VR_BeginFrame` (`Quake/host.c`), ahead of the same frame's `Cbuf_Execute` where the start-up configs run — the configs
+put `+attack` back over the mode's bind a frame later — which is why the mode asks for its key again every frame instead
+of once. Before the engine writes its config out — at a quit, at the shutdown, with the Debug menu closed on a setting
+changed, with `writeconfig` — `VR_FlatKeysForConfigWrite` (`Quake/host.c`, `Host_WriteConfigurationToFile`, just before
+`Key_WriteBindings`) hands the key back, so the file on disk keeps the plain game's Ctrl and never keeps a `+flatcrouch`;
+at a quit there is no next frame for the mode to take the key up again, which is the point. In a headset session, and in a
+game started without the flag, the mode never ran and never took the key. `vr_flat_crouch_fire 1` (not saved) skips the
+whole exchange: Ctrl keeps `+attack`, so holding it crouches and fires as it does in the plain game.
+`vr_flatplay_status` prints which bind Ctrl holds now, and `vr_flatplay_debug 1` prints the frame it was taken.
 
 **The flashlight is worn on the head, and `F` switches it.** `vr_flashlight`'s "Always on Head" behaviour (`vr_flashlight 2`)
 is what the mode stands in for: `enabled()` and `headMode()` in `Quake/vr/vr_flashlight.cpp` answer as they do for it. There
@@ -163,6 +181,16 @@ so the look and the crosshair keep their feel. It refuses while dual wielding, a
 `vr_flatplay_status` prints both hands and the ironsight, and `vr_flatplay_debug 2` adds a `flatsight:` line each frame
 with where the muzzle stands off the crosshair before and after the turn.
 
+The narrowing is no step at the press. `vr_flat_aim_time` (0.25, 0.05..1.00 seconds, 0: at once) is how long the
+ironsight's whole travel takes — onto the crosshair, and back off it — and the field of view is narrowed by
+`vr_flat_aim_fov`'s degrees times how far that travel has gone, so it closes over those seconds and opens back off them
+in step with the weapon: both the hand's move and the view go by the same fraction (`st.adsT`, `fovNarrowNow`), and the
+depth the view settles at is the one it always settled at. Measured on the `flatsight:` lines, which print the field of
+view being drawn every frame: at the default 0.25 it steps from 106.3 down to 94.4 degrees (fov_x) over 18 frames,
+0.236 s, and back up over the same 18; at 0.05 it is done in 4 frames (0.042 s); at 0 it is one frame; at 1.00 it was
+still closing 60 frames after the press with 9.84 of the 11.87 degrees taken, and 5 in the console is read as 1.00.
+`Misc/quakevr/flatkeys_test.sh` section 7.
+
 A flatscreen hand is always gripping (`gripping`, in `vr_client.cpp`), so the frame the pose brings the empty hand onto a
 grip is stood in for the grip button's press by `twohand::armFlatGrip` — the one thing this adds to `vr_twohand`,
 next to `setFreeCandidate`, which is the same shape: a public setter for one internal flag. It arms on the frame the pose
@@ -170,13 +198,33 @@ brings the empty hand onto a grip, and on each frame it still holds the hand on 
 is not lifted off a grip it was placed on; it stops the frame `vr_twohand` takes the hold, or the frame the weapon changes.
 Its own distances, its angle test, the foregrip's stickiness and the weapon's Two-Handed setting decide the hold, unchanged.
 
+## How far the view may look
+
+**Look Up** (`vr_flat_pitch_up`, 85) and **Look Down** (`vr_flat_pitch_down`, 85): the flatscreen view's own window on the
+pitch, in degrees from straight ahead, and both written as a plain positive number of degrees (0..90 — 0: he cannot look
+that way at all, 90: as far as the plain game let him). Quake's pitch counts *down* as positive, so the view he is held
+to is between `-vr_flat_pitch_up` and `+vr_flat_pitch_down`: at the defaults that is -85 to +85, and the last five degrees
+at each end are the ones taken off. The clamp is the mode's own (`flatplay::pitchClamp`, `vr_flatplay.cpp`, through
+`VR_FlatPitchClamp` at the point where the flatscreen view's angles are finished for the frame, `CL_AccumulateCmd` in
+`Quake/cl_main.c`), so the keyboard's look keys, the mouse wheel, the mouse and a stick all come to the same edge, and it
+comes after the engine's own clamp to `cl_maxpitch` / `cl_minpitch` — the window can only narrow what those already
+allowed, never widen it. It asks for the mode first: outside flatscreen play it hands the angle back untouched, so the
+plain game and a headset session are bounded by `cl_maxpitch` / `cl_minpitch` exactly as they were — measured on a plain
+run, no `-flatscreenmode` and no backend either (`vr_backend none`), which pitches to -90 and +90 with these cvars at
+their 85 defaults. `vr_flatplay_status` prints the window it is holding, in the same positive reading. Measured with
+`r_pos` (which prints the view's angles every drawn frame, `Quake/gl_rmain.c`): holding `+lookdown` and then `+lookup`
+the view stops at -85 and +85; with the cvars set to 0 and 20 on the console the same holds stop at 0 and +20; with both
+at 90 they stop at -90 and +90. `Misc/quakevr/flatkeys_test.sh` section 6.
+
 ## Tuning
 
 `vr_flat_reach` (1), `vr_flat_sway` (1), `vr_flat_bob` (1), `vr_flat_turnlag` (1), `vr_flat_turnlag_speed` (1),
-`vr_flat_arm_hold` (1), `vr_flat_pose_pitch` (65) and `vr_flat_aim_fov` (12) — all not saved, all in the Debug menu. `vr_flat_arm_hold` is how
+`vr_flat_arm_hold` (1), `vr_flat_pose_pitch` (65), `vr_flat_aim_fov` (12) and `vr_flat_aim_time` (0.25) — all not saved,
+all in the Debug menu, and `vr_flat_pitch_up` (85) with `vr_flat_pitch_down` (85) not saved too, at the console only.
+`vr_flat_arm_hold` is how
 far a drawn hand may sit from its arm's shoulder, times what that arm can hold a hand at (`armSpan`: the model's bones
 with `vr_body_arm_length` and `vr_body_arm_stretch`, the shoulder's own `vr_body_shoulder_reach`; 0: no limit, the hands
 where they are placed). `vr_flat_pose_pitch` is how far the hands follow the view up and down, in degrees (90: all the
-way, as before). `vr_flat_crouch_time` (0.25) and `vr_flat_crouch_drop` (18), also not saved, are at the console, and
-`vr_flatplay_status` prints them with what the keys did. The looks' own numbers and the pose's own numbers (where a hand
+way, as before). `vr_flat_crouch_time` (0.25), `vr_flat_crouch_drop` (18) and `vr_flat_crouch_fire` (0), also not saved,
+are at the console, and `vr_flatplay_status` prints them with what the keys did — including which bind Left Ctrl holds. The looks' own numbers and the pose's own numbers (where a hand
 sits, how far a punch throws the fist, how long it takes) are named constants at the top of `vr_flatplay.cpp`.

@@ -15,8 +15,12 @@
 //   - reloading is off, the flashlight is worn on the head (F switches it off and on), and the body presses the buttons it
 //     walks into.
 //
-// The keys are read from the keyboard state, not from bindings: nothing is rebound and no config changes. The keys Quake
-// already uses (1 and 2, its own weapon select) are answered by the game code only while the flag is on.
+// The keys are read from the keyboard state, not from bindings, with one exception named below: Left Ctrl is the engine's
+// fire key by default (Quake/default_cfg.h binds CTRL +attack) and the mode's crouch key, so while the mode runs CTRL is
+// bound to +flatcrouch and nothing fires from it (vr_flat_crouch_fire 1 gives the plain game's bind back). The bind is
+// given back when the mode ends and before the engine writes its config out (VR_FlatKeysForConfigWrite, Quake/host.c), so
+// the config on disk stays the plain game's. The keys Quake already uses (1 and 2, its own weapon select) are answered by
+// the game code only while the flag is on.
 //
 // -flatscreenmode implies no VR backend (vr_main.cpp's startBackend): the mode runs only while no headset session is up,
 // so the flag is what asks for no backend at all, and noteBackendImplied says so once.
@@ -128,6 +132,21 @@ struct FlatKeys
 };
 
 FlatKeys keyState;
+
+// Left Ctrl, the bind the mode takes over (the crouch key must not fire the weapon). Ctrl is the engine's fire key in the
+// plain game -- Quake/default_cfg.h binds CTRL +attack -- and flatscreen play reads Ctrl itself for the crouch, so a hold
+// would crouch and fire at once. While the mode runs CTRL is bound to +flatcrouch instead, the console's way of the very
+// same hold (pollKeysFlat reads the key and the command, and both feed one eased crouch: no second crouch). What CTRL was
+// bound to is kept here and not in FlatKeys, because FlatKeys is reset the frame the mode ends and the bind outlives it:
+// it is given back when the mode ends, when vr_flat_crouch_fire asks Ctrl to keep firing, and every time the engine is
+// about to write its config out (VR_FlatKeysForConfigWrite below, called from Quake/host.c).
+struct CtrlBind
+{
+    char was[1024]{};    // what CTRL held when the mode last took it (empty: it was unbound)
+    bool taken{false};   // the mode has it (+flatcrouch)
+};
+
+CtrlBind ctrlBind;
 
 // The pose, measured from the shoulders (hands::bodyAnchor with vr_shoulder_offset, the same anchor the body's own
 // holsters are placed at): the arms stay on the body whatever the height calibration. Forward, side and down in the
@@ -443,10 +462,10 @@ void startPunch(int h, const char* from)
     return rot;
 }
 
-// The keys, read from the keyboard state: nothing is rebound, and E and V only while the game has the keyboard (the
-// console takes it). The hands' fire buttons come from the same source the game's fire uses (vr_client.cpp's attacking:
-// its +attack / +offhandattack state, which is what the mouse buttons drive), so a bound key, the mouse and a `+attack`
-// said on the console are the same press.
+// The keys, read from the keyboard state (Ctrl's bind is the one exception, named at the top of the file), and E and V
+// only while the game has the keyboard (the console takes it). The hands' fire buttons come from the same source the
+// game's fire uses (vr_client.cpp's attacking: its +attack / +offhandattack state, which is what the mouse buttons drive),
+// so a bound key, the mouse and a `+attack` said on the console are the same press.
 void pollKeys()
 {
     const bool inGame = key_dest == key_game;
@@ -552,6 +571,47 @@ void crouchHold_f()
 void crouchRelease_f()
 {
     keyState.cmdHeld = false;
+}
+
+// Ctrl's bind, taken over and given back (CtrlBind above). Key_SetBinding is what the console's `bind` uses, so the mode's
+// bind is an ordinary one: bindlist shows it, Key_WriteBindings would write it out (VR_FlatKeysForConfigWrite below stops
+// that), and a `bind CTRL ...` said on the console during the mode takes it away until the mode asks for it again.
+[[nodiscard]] bool ctrlHolds()
+{
+    return ctrlBind.taken && keybindings[K_CTRL] && !q_strcasecmp(keybindings[K_CTRL], "+flatcrouch");
+}
+
+void takeCtrlBind()
+{
+    if(ctrlHolds())
+    {
+        return; // still the mode's bind
+    }
+    // Remember what Ctrl holds now, every time -- not only the first time. The mode's frames start inside VR_BeginFrame
+    // (Quake/host.c), before the frame's Cbuf_Execute runs the start-up configs, so at the very first frame Ctrl has no
+    // bind at all yet; its own line (bind "CTRL" "+attack", Quake/default_cfg.h, the saved config) lands a moment later,
+    // over the mode's, and the mode asks for the key again on the next frame. Each later ask happens for the same reason:
+    // something else has just changed Ctrl's bind -- a config, a `bind CTRL ...` said on the console, an unbindall -- and
+    // that value is the plain game's, so it is what the mode gives back before the engine writes its config out. Keeping
+    // only the first one remembered would keep the empty state of that first frame and write it out as the player's bind.
+    q_strlcpy(ctrlBind.was, keybindings[K_CTRL] ? keybindings[K_CTRL] : "", sizeof(ctrlBind.was));
+    Key_SetBinding(K_CTRL, "+flatcrouch");
+    ctrlBind.taken = true;
+    if(vr_flatplay_debug.value)
+    {
+        Con_Printf("flatplay: CTRL `%s` -> +flatcrouch (vr_flat_crouch_fire 0: the crouch key does not fire the "
+                   "weapon)\n", ctrlBind.was[0] ? ctrlBind.was : "unbound");
+    }
+}
+
+void giveCtrlBindBack()
+{
+    if(!ctrlBind.taken)
+    {
+        return;
+    }
+    ctrlBind.taken = false;
+    Key_SetBinding(K_CTRL, ctrlBind.was[0] ? ctrlBind.was : nullptr);
 }
 
 // Quake angles' axes as columns: forward, right, up.
@@ -690,6 +750,33 @@ float crouchRatio()
     return active() ? keyState.ratio : 0.f;
 }
 
+// The flatscreen look's window, in the plain game's pitch -- Quake's pitch is positive looking down, so looking up is
+// negative: the view sits between -vr_flat_pitch_up and +vr_flat_pitch_down. It is asked at the one place where the
+// frame's looking has all landed in cl.viewangles (Quake/cl_main.c CL_AccumulateCmd: the look keys, the arrow keys and the
+// mouse wheel in CL_AdjustAngles just above it, the mouse, the stick and the gyro in IN_Move just above it too), so one
+// clamp covers every way of looking, and it lands before the frame's move is sent and before the view is built. Outside
+// the mode the angle comes back as it was: plain play and a headset keep cl_maxpitch / cl_minpitch, which is their own
+// setting. The window only narrows what those already let through this frame -- they each clamped first -- so a player
+// who set cl_maxpitch to 40 still looks only 40 degrees down in flatscreen play.
+[[nodiscard]] float pitchClamp(float pitch)
+{
+    if(!active())
+    {
+        return pitch;
+    }
+    const float up = za::clamp(vr_flat_pitch_up.value, 0.f, 90.f);
+    const float down = za::clamp(vr_flat_pitch_down.value, 0.f, 90.f);
+    return za::clamp(pitch, -up, down);
+}
+
+// Quake/host.c is about to write the key bindings out: Ctrl's bind given back, so the config on disk keeps the plain
+// game's CTRL (+attack, unless the player had it bound to something else). The mode's next frame takes it up again; at a
+// quit there is no next frame, and that is the point -- a flatscreen session leaves no +flatcrouch in the config.
+void keysForConfigWrite()
+{
+    giveCtrlBindBack();
+}
+
 void init()
 {
     fs.flag = COM_CheckParm("-flatscreenmode") != 0 || ragtool::flagGiven(); // (-ragtool: the ragdoll tool, flat)
@@ -713,14 +800,25 @@ void frame()
         Con_Printf("Quake VR: flatscreen play (-flatscreenmode): the VR gameplay on the desktop screen. E grabs what you "
                    "look at, 1 and 2 cycle the weapons collected (and the empty hand) into the left and right hand, V punches, either "
                    "hand's fire button punches with a weapon a swing strikes with (with a gun it fires the gun, as in VR), Left Ctrl "
-                   "crouches while you hold it, F switches the flashlight, G drops what a hand holds. vr_flatplay_status says what "
-                   "the mode is doing.\n");
+                   "crouches while you hold it and no longer fires (vr_flat_crouch_fire 1 gives Ctrl its firing bind back), F "
+                   "switches the flashlight, G drops what a hand holds. vr_flatplay_status says what the mode is doing.\n");
     }
     if(!on && fs.wasOn)
     {
         Con_Warning("Quake VR: a headset took the game back: flatscreen play is off.\n");
     }
     fs.wasOn = on;
+
+    // Left Ctrl, the crouch key that is also the plain game's fire key: while the mode runs it is the mode's bind
+    // (+flatcrouch) unless vr_flat_crouch_fire asks Ctrl to keep firing. Given back the frame the mode is not running.
+    if(on && vr_flat_crouch_fire.value == 0.f)
+    {
+        takeCtrlBind();
+    }
+    else
+    {
+        giveCtrlBindBack();
+    }
 
     if(!on)
     {
@@ -968,15 +1066,24 @@ void status_f()
                "(recovery %g), vr_flat_arm_hold %g, vr_flat_pose_pitch %g\n",
         vr_flatplay.value, vr_flat_reach.value, vr_flat_sway.value, vr_flat_bob.value, vr_flat_turnlag.value,
         vr_flat_turnlag_speed.value, vr_flat_arm_hold.value, vr_flat_pose_pitch.value);
+    const float lookUp = za::clamp(vr_flat_pitch_up.value, 0.f, 90.f);
+    const float lookDown = za::clamp(vr_flat_pitch_down.value, 0.f, 90.f);
+    Con_Printf("  the look: vr_flat_pitch_up %g, vr_flat_pitch_down %g: his view stays between %g and %g (Quake's pitch, "
+               "positive looking down). Plain play and a headset are bounded by cl_maxpitch / cl_minpitch instead, which "
+               "stay the player's own setting.\n",
+        vr_flat_pitch_up.value, vr_flat_pitch_down.value, -lookUp, lookDown);
     Con_Printf("  E pressed %d times (force grab); punches: the main hand %d, the off hand %d. E and V are read from the "
                "keyboard, not from bindings; each hand's punch starts from V, from its fire button with a weapon a swing "
                "strikes with (LMB / +attack the main hand, RMB / +offhandattack the off hand), or from vr_flat_punch.\n",
         fs.grabs, fs.punches[HAND_MAIN], fs.punches[HAND_OFF]);
     Con_Printf("  Left Ctrl pressed %d times (crouch), F %d (the flashlight), G %d (what the hand holds dropped), read the "
-               "same way. Crouched %g (held %d): his head %.1f units down of %g standing, eased in %g s each way.\n",
+               "same way. Crouched %g (held %d): his head %.1f units down of %g standing, eased in %g s each way. Ctrl is "
+               "bound to `%s` now (vr_flat_crouch_fire %g: 0 the mode holds +flatcrouch, so the crouch key fires nothing, "
+               "and the plain game's bind is what the config keeps; 1 Ctrl keeps its own bind and fires as it crouches).\n",
         keyState.crouches, keyState.toggles, keyState.drops, keyState.ratio,
         (keyState.cmdHeld || keyState.keyCtrl) ? 1 : 0, crouchDrop(),
-        za::clamp(vr_flat_crouch_drop.value, 0.f, 40.f), za::clamp(vr_flat_crouch_time.value, 0.05f, 2.f));
+        za::clamp(vr_flat_crouch_drop.value, 0.f, 40.f), za::clamp(vr_flat_crouch_time.value, 0.05f, 2.f),
+        keybindings[K_CTRL] ? keybindings[K_CTRL] : "nothing", vr_flat_crouch_fire.value);
     Con_Printf("  the game code: reloading off, body interactions on, 1, 2 and the wheel cycle (empty hand included) "
                "the weapons collected into the left and right hand, an ammo or health box grabbed with E taken at once.\n");
     Con_Printf("  the flashlight: worn on the head, lit until F puts it out, and it stays out (a level change, a saved "
@@ -1023,4 +1130,20 @@ extern "C" void VR_FlatViewDrop(float* vieworg)
         return;
     }
     vieworg[2] -= qvr::flatplay::crouchDrop();
+}
+
+// Quake/host.c's Host_WriteConfigurationToFile, before Key_WriteBindings: flatscreen play's Ctrl bind given back so the
+// config on disk stays the plain game's (Ctrl +attack). Called whatever asked for the write -- quitting, the shutdown, the
+// menu closing with a setting changed, writeconfig -- and while the mode is not holding Ctrl it does nothing.
+extern "C" void VR_FlatKeysForConfigWrite(void)
+{
+    qvr::flatplay::keysForConfigWrite();
+}
+
+// Quake/cl_main.c's CL_AccumulateCmd, once the frame's looking has all landed in cl.viewangles: the flatscreen look's
+// window (vr_flat_pitch_up above, vr_flat_pitch_down below; Quake's pitch is positive looking down). Outside the mode the
+// angle comes back as it was -- plain play and a headset keep cl_maxpitch / cl_minpitch, their own setting.
+extern "C" float VR_FlatPitchClamp(float pitch)
+{
+    return qvr::flatplay::pitchClamp(pitch);
 }

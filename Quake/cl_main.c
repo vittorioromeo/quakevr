@@ -915,6 +915,14 @@ void CL_AccumulateCmd (void)
 
 		//accumulate movement from other devices
 		IN_Move (&cl.pendingcmd);
+
+		// QVR: flatscreen play looks within vr_flat_pitch_up / vr_flat_pitch_down (vr/vr_flatplay.cpp). The look keys, the
+		// arrow keys and the wheel (CL_AdjustAngles, just above) and the mouse, the stick and the gyro (IN_Move, just above)
+		// have all had their say by here, so one bound covers every way of looking, before the frame's move is sent
+		// (CL_SendCmd) and before the view is built. Outside the mode the angle comes back as it was, so plain play and a
+		// headset are bounded by cl_maxpitch / cl_minpitch alone -- and those each ran first this frame, so the mode's
+		// window only ever narrows what they let through.
+		cl.viewangles[PITCH] = VR_FlatPitchClamp (cl.viewangles[PITCH]); // QVR
 	}
 }
 

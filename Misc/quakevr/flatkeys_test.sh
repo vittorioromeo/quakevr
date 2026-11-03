@@ -15,6 +15,13 @@
 #   collect a box grabbed with E (impulse 46) is collected as soon as it is grabbed — vr_carry_autocollect 0 and the box
 #           ahead, taken at once ("carry: taken at once", "You got the shells"). In the headset, with the same setting off,
 #           a grabbed box is held and not taken (vr_carry_autocollect stays the headset player's own setting).
+#   ctrl    Left Ctrl is the plain game's firing key (Quake/default_cfg.h: bind CTRL +attack) and the flatscreen player's
+#           crouch key, so holding it would crouch and fire at once. While flatscreen play runs the mode holds the key
+#           itself: bindlist shows CTRL bound to +flatcrouch and nothing driving +attack. The plain game's bind comes back
+#           the frame the mode is not running, and every time the engine is about to write its key bindings out
+#           (VR_FlatKeysForConfigWrite in Quake/host.c: quitting, the menu closed with a setting changed, host_writeconfig),
+#           so the config on disk keeps CTRL "+attack" and a plain run after a flatscreen one is bound as always.
+#           vr_flat_crouch_fire 1: Ctrl keeps its own bind, so it fires as it crouches.
 AGENT=${1:-fixgame3}; KIT=${KIT:-C:/OHWorkspace/qvr-kit}
 fail=0
 source "$(dirname "$0")/qvrtest.sh"
@@ -75,5 +82,134 @@ check $([ "$got" = 1 ] && [ "$took" = 1 ] && echo 1 || echo 0) \
 run boxvr vr "$P; vr_carry_autocollect 0; vr_test_spawn_dist 48; $GRIP; vr_holster_zones_report" "^(carry:|You got|zone hand main:)"
 check $(! grep -qa "You got the shells" "$S/boxvr.log" && ! grep -qa "carry: taken at once" "$S/boxvr.log" && echo 1 || echo 0) \
     "collect in the headset: with the setting off a grabbed box is held, not taken (vr_carry_autocollect stays his setting)"
+
+# 5. Left Ctrl: the crouch key fires nothing, and the plain game's CTRL bind is what the config keeps.
+# vr_flatplay_debug 1 first: the whole script lands in autoexec.cfg, run before the map and its waits, so the setting is in
+# by the mode's second frame -- and the mode prints each frame it takes Ctrl, with what it found on the key.
+run ctrlflat flat "vr_flatplay_debug 1; $P; bind CTRL; bindlist; bind CTRL +lookspin; wait40; bind CTRL; vr_flatplay_status" "CTRL"
+# Ctrl's bind, read twice: the mode's own, and the mode's again after a `bind CTRL +lookspin` said on the console took it
+# away (a two-word bind answers nothing, so the next reading is the mode's asking for its key back on its next frame).
+cb=$(grep -a '^"CTRL" = ' "$S/ctrlflat.log" | sed 's/.*= "\(.*\)"/\1/')
+c0=$(echo "$cb" | sed -n 1p); c1=$(echo "$cb" | sed -n 2p); cn=$(echo "$cb" | grep -c .)
+check $([ "$cn" = 2 ] && [ "$c0" = "+flatcrouch" ] && [ "$c1" = "+flatcrouch" ] \
+        && grep -qa '^   CTRL "+flatcrouch"' "$S/ctrlflat.log" && ! grep -qa 'CTRL "+attack"' "$S/ctrlflat.log" \
+        && echo 1 || echo 0) \
+    "ctrl: flatscreen play holds Ctrl for the crouch alone ($c0, +lookspin said on the console, $c1 the mode's key taken back; bindlist: $(grep -a '^   CTRL ' "$S/ctrlflat.log" | tr -s ' ' | tr '\n' ' '), no bind of Ctrl sends +attack)"
+# What the mode found on Ctrl each time it took it: the config's own +attack (its bind line lands over the mode's a frame
+# after the mode's first frame), and what the player bound on the console a moment ago. Either is what it hands back.
+check $(grep -qa 'flatplay: CTRL `+attack` -> +flatcrouch' "$S/ctrlflat.log" \
+        && grep -qa 'flatplay: CTRL `+lookspin` -> +flatcrouch' "$S/ctrlflat.log" && echo 1 || echo 0) \
+    "ctrl: the mode remembers what Ctrl held before it took it, each time it took it ($(grep -a 'flatplay: CTRL' "$S/ctrlflat.log" | sed 's/ (.*//' | tr '\n' '; ' ))"
+check $(grep -qa 'Ctrl is bound to `+flatcrouch`' "$S/ctrlflat.log" && echo 1 || echo 0) \
+    "ctrl: vr_flatplay_status says which bind Ctrl holds now and what vr_flat_crouch_fire would change"
+# The config write (writeconfig: Ironwail's name for it, Quake/host.c): the engine writes its key bindings with the mode's
+# key handed back, and the file the game reads says so.
+run ctrlwrite flat "$P; writeconfig; bind CTRL; exec ironwail.cfg; bind CTRL; wait40; bind CTRL" "CTRL|Wrote"
+wb=$(grep -a '^"CTRL" = ' "$S/ctrlwrite.log" | sed 's/.*= "\(.*\)"/\1/')
+w0=$(echo "$wb" | sed -n 1p); w1=$(echo "$wb" | sed -n 2p); w2=$(echo "$wb" | sed -n 3p); wn=$(echo "$wb" | grep -c .)
+check $([ "$wn" = 3 ] && grep -qa 'Wrote ironwail.cfg' "$S/ctrlwrite.log" && [ "$w0" = "+attack" ] && [ "$w1" = "+attack" ] \
+        && [ "$w2" = "+flatcrouch" ] && echo 1 || echo 0) \
+    "ctrl: the config keeps the plain game's Ctrl ($w0 as the engine wrote ironwail.cfg, $w1 read back from the file it wrote, $w2 the mode's bind again on its next frame)"
+run ctrlvr vr "$P; bind CTRL; bindlist; wait" "CTRL"
+check $(grep -qa '^   CTRL "+attack"' "$S/ctrlvr.log" && ! grep -qa 'CTRL "+flatcrouch"' "$S/ctrlvr.log" && echo 1 || echo 0) \
+    "ctrl in the headset and in plain play: Ctrl is the plain game's key still (bindlist: $(grep -a '^   CTRL ' "$S/ctrlvr.log" | tr -s ' ' | tr '\n' ' '), the mode never ran so it never took it)"
+# vr_flat_crouch_fire 1: Ctrl keeps its own bind, so it fires as it crouches.
+run ctrlfire flat "$P; vr_flat_crouch_fire 1; wait40; bind CTRL; wait40; bind CTRL; vr_flatplay_status" "CTRL"
+fb=$(grep -a '^"CTRL" = ' "$S/ctrlfire.log" | sed 's/.*= "\(.*\)"/\1/')
+fn=$(echo "$fb" | grep -c .); fbad=$(echo "$fb" | grep -c 'flatcrouch')
+check $([ "$fn" = 2 ] && [ "$fbad" = 0 ] && grep -qa 'Ctrl is bound to `+attack`' "$S/ctrlfire.log" \
+        && echo 1 || echo 0) \
+    "ctrl with vr_flat_crouch_fire 1: Ctrl keeps its firing bind both times ($(echo "$fb" | tr '\n' ' ')) and the status says so"
+
+# 6. The look's window in flatscreen play: vr_flat_pitch_up (how far up) and vr_flat_pitch_down (how far down), both of
+# them read the plain game's way -- Quake's pitch is positive looking down, so the view stays between -vr_flat_pitch_up
+# and +vr_flat_pitch_down. r_pos prints the view's angles on every drawn frame (Quake/gl_rmain.c), so the extremes it
+# printed are the window's own edges. cl_pitchspeed is raised so the look reaches its bound inside the waits given: it
+# changes how fast the player turns, not where the bound is. Each vr_flatplay_status opens the next phase of a run (its
+# first line starts "flatscreen play:" whether the mode ran or not).
+LOOK="r_pos 1; cl_pitchspeed 600; wait10; vr_flatplay_status; +lookdown; wait40; -lookdown; wait10; +lookup; wait40; -lookup;"
+LOOK="$LOOK centerview; wait10; vr_flat_pitch_up 0; vr_flat_pitch_down 20; vr_flatplay_status; +lookdown; wait40; -lookdown; wait10; +lookup; wait40; -lookup; wait20"
+phases() { awk '/^flatscreen play:/{ph++; next} /\(pitch/{for(i=1;i<=NF;i++) if($i=="(pitch") print ph, $(i+1)+0}' "$1" > "$2"; }
+limits() { awk -v p="$2" '$1==p{c++; if(mn==""||$2<mn)mn=$2; if(mx==""||$2>mx)mx=$2} END{print mn+0, mx+0, c+0}' "$1"; }
+span() { awk '/\(pitch/{for(i=1;i<=NF;i++) if($i=="(pitch"){v=$(i+1)+0; c++; if(mn==""||v<mn)mn=v; if(mx==""||v>mx)mx=v}} END{print mn+0, mx+0, c+0}' "$1"; }
+# "min max frames" from one of those readings: pinned to the window (each end within a degree of it), or reaching it.
+pinned() { awk -v w="$1" -v lo="$2" -v hi="$3" 'BEGIN{split(w,x," "); exit !(x[1]>=lo-1 && x[1]<=lo+1 && x[2]>=hi-1 && x[2]<=hi+1 && x[3]>=40)}' && echo 1 || echo 0; }
+reaching() { awk -v w="$1" -v lo="$2" -v hi="$3" 'BEGIN{split(w,x," "); exit !(x[1]<=lo && x[2]>=hi && x[3]>=40)}' && echo 1 || echo 0; }
+
+run pitchflat flat "$P; $LOOK" 'pitch|flatscreen play:'
+phases "$S/pitchflat.log" "$S/pitchflat.phase"
+q1=$(limits "$S/pitchflat.phase" 1); q2=$(limits "$S/pitchflat.phase" 2)
+check $(pinned "$q1" -85 85) \
+    "pitch: flatscreen play keeps the view inside vr_flat_pitch_up 85 / vr_flat_pitch_down 85 (r_pos ranged $q1 = min max frames, +lookdown then +lookup each held 40 frames)"
+check $(pinned "$q2" 0 20) \
+    "pitch: the same look inside vr_flat_pitch_up 0 / vr_flat_pitch_down 20 set on the console ($q2) -- the window is the cvars, not a constant baked into the clamp"
+check $(grep -qa 'the look: vr_flat_pitch_up 85, vr_flat_pitch_down 85' "$S/pitchflat.log" \
+        && grep -qa 'the look: vr_flat_pitch_up 0, vr_flat_pitch_down 20' "$S/pitchflat.log" && echo 1 || echo 0) \
+    "pitch: vr_flatplay_status prints the window it is holding, both times ($(grep -a 'the look:' "$S/pitchflat.log" | sed 's/ (.*//' | tr '\n' '; '))"
+run pitchwide flat "$P; vr_flat_pitch_up 90; vr_flat_pitch_down 90; $LOOK" 'pitch|flatscreen play:'
+phases "$S/pitchwide.log" "$S/pitchwide.phase"
+q3=$(limits "$S/pitchwide.phase" 1)
+check $(reaching "$q3" -90 90) \
+    "pitch: with both cvars at 90 the plain game's full look comes back, bounded by cl_minpitch / cl_maxpitch as it always was ($q3)"
+# A run with neither -flatscreenmode nor a VR backend: `vr_backend none` (the engine warns and plays plain,
+# Quake/vr/vr_main.cpp) -- the look's cvars sitting at their 85 defaults bound nothing there, which is what the mode's
+# gate means for a play the mode never ran in.
+run pitchplain vr "vr_backend none; $P; r_pos 1; cl_pitchspeed 600; wait10; +lookdown; wait40; -lookdown; wait10; +lookup; wait40; -lookup; wait20" 'pitch'
+q4=$(span "$S/pitchplain.log")
+check $(reaching "$q4" -90 90) \
+    "pitch in plain play (no -flatscreenmode, vr_backend none): the cvars at 85 bound nothing there (r_pos ranged $q4 = min max frames, the same look keys held 40 frames)"
+
+# 7. The ironsight's field of view comes and goes with the weapon: vr_flat_aim_time is how long its whole travel takes
+# (0.05..1.00 s, 0 at once) and the view is narrowed by vr_flat_aim_fov's degrees times how far that travel has gone, so
+# it closes over those seconds and opens back off them. vr_flatplay_debug 2 prints a "flatsight:" line every frame with
+# the field of view being drawn (fov_x) and the frame's time; the ironsight's own toggle line prints no field of view,
+# so it is skipped. impulse 154 holds a weapon with sights; the console turns the ironsight on, holds it 60 frames,
+# turns it off and holds 60 more.
+AIM="vr_mock_eye_size 256; impulse 154; wait20; vr_flat_aim 1; wait60; vr_flat_aim 0; wait60"
+# -> "wide narrow frames seconds": the widest field of view the run drew, the narrowest, how many frames the closing
+# ramp was caught over, and the seconds between its first frame and the frame it stopped at.
+adsramp() {
+    awk '
+    { if ($0 ~ /^flatsight: /) { if (rec != "") recs[++n] = rec; rec = $0 } else if (rec != "") rec = rec " " $0 }
+    END {
+        if (rec != "") recs[++n] = rec
+        for (i = 1; i <= n; i++) {
+            split(recs[i], a, " "); f = -1
+            for (j = 1; j <= length(a); j++) if (a[j] == "fov") { f = a[j + 1] + 0; break }
+            if (f < 0) continue
+            m++; T[m] = a[3] + 0; F[m] = f
+            if (wide == 0 || f > wide) wide = f
+            if (tight == 0 || f < tight) tight = f
+        }
+        i0 = 0; for (i = 1; i <= m; i++) if (F[i] < wide - 0.5) { i0 = i; break }
+        i1 = 0; for (i = i0; i <= m; i++) if (F[i] <= tight + 0.05) { i1 = i; break }
+        print wide + 0, tight + 0, i1 - i0 + 1, T[i1] - T[i0] + 0
+    }' "$1"
+}
+# "wide narrow frames seconds": the full vr_flat_aim_fov depth reached (deg), the ramp over so many frames, in so long.
+ramped() { awk -v w="$1" -v d="$2" -v f1="$3" -v f2="$4" -v s1="$5" -v s2="$6" \
+    'BEGIN{split(w,x," "); exit !(x[1]-x[2] >= d-1.5 && x[1]-x[2] <= d+1.5 && x[3] >= f1 && x[3] <= f2 && x[4] >= s1 && x[4] <= s2)}' && echo 1 || echo 0; }
+# The ramp had not finished when the ironsight was let go 60 frames after the press: less than the whole depth taken,
+# still moving when it was.
+midway() { awk -v w="$1" 'BEGIN{split(w,x," "); exit !(x[1]-x[2] < 11 && x[3] >= 40 && x[4] >= 0.6)}' && echo 1 || echo 0; }
+
+run adsflat flat "$P; vr_flatplay_debug 2; $AIM; vr_flatplay_status" 'flatsight:|  ironsight:'
+r1=$(adsramp "$S/adsflat.log")
+check $(ramped "$r1" 12 14 22 0.18 0.30) \
+    "ironsight ease: vr_flat_aim_time 0.25 closes the field of view by vr_flat_aim_fov 12 over 18 frames and opens it back over the same ($r1 = wide narrow frames seconds)"
+check $(grep -qa 'vr_flat_aim_time' "$S/adsflat.log" && echo 1 || echo 0) \
+    "ironsight ease: vr_flatplay_status prints the travel's own seconds alongside the field of view it takes off ($(grep -a 'ironsight:' "$S/adsflat.log" | head -1 | sed 's/ (.*//'))"
+run adsfast flat "$P; vr_flatplay_debug 2; vr_flat_aim_time 0; $AIM" 'flatsight:'
+r2=$(adsramp "$S/adsfast.log")
+check $(ramped "$r2" 12 1 2 0 0.03) \
+    "ironsight ease: vr_flat_aim_time 0 is instant -- the whole vr_flat_aim_fov in one frame, no ramp at all ($r2)"
+run adslow flat "$P; vr_flatplay_debug 2; vr_flat_aim_time 1; $AIM" 'flatsight:'
+r3=$(adsramp "$S/adslow.log")
+check $(midway "$r3") \
+    "ironsight ease: vr_flat_aim_time 1 is still closing 60 frames after the press ($r3) -- the depth is reached over the cvar's seconds, not at the press"
+run adsfloor flat "$P; vr_flatplay_debug 2; vr_flat_aim_time 0.05; $AIM" 'flatsight:'
+r4=$(adsramp "$S/adsfloor.log")
+check $(ramped "$r4" 12 3 6 0.03 0.07) \
+    "ironsight ease: vr_flat_aim_time 0.05, the slider's floor, is over in a few frames ($r4)"
 
 verdict; exit $fail

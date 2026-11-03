@@ -556,6 +556,7 @@ int VR_MenuKey (int key, int repeat);					// M_Keydown: nonzero if the buttons t
 void VR_MenuBounds (int *left, int *top, int *width, int *height);	// M_UpdateBounds: the menus laid out from the canvas's bounds beside the corner's buttons
 void VR_MenuSavePositions (void);						// Host_WriteConfigurationToFile: each VR page's selection and scroll into vr_menu_positions
 void VR_ConfigMergeOthers (const char *path);			// Host_WriteConfigurationToFile, the game folder's config: another copy's changes in it kept (vr_cvars.cpp)
+void VR_FlatKeysForConfigWrite (void);					// Host_WriteConfigurationToFile, before Key_WriteBindings: flatscreen play's Ctrl bind (+flatcrouch, the crouch key that does not fire: vr_flat_crouch_fire) given back, so the config keeps the plain game's CTRL (vr_flatplay.cpp)
 void VR_ConfigWritten (const char *path);				// and after writing it
 int VR_ConfigSaves (const struct cvar_s *var);			// Cvar_WriteVariables, an archived cvar: nonzero if the config gets its line (a vr_ one only if changed from its default)
 void VR_ScenarioConfigWrite (int begin);			// around Cvar_WriteVariables: a test scene's settings written as they were before it (vr_scenario.cpp)
@@ -574,6 +575,7 @@ int VR_RuntimeMenuPause (void);							// Host_ServerFrame, SV_RunClients: nonzer
 int VR_RagtoolHolds (void);								// Host_ServerFrame: nonzero while the ragdoll tool is paused (vr_ragtool.cpp; its single steps run)
 int VR_RagtoolView (float *origin, float *angles);		// V_CalcRefdef: the ragdoll tool's orbit camera set over the view (nonzero: set)
 void VR_FlatViewDrop (float *vieworg);					// V_CalcRefdef: a flatscreen player holding his crouch sees from lower (vr_flatplay.cpp); outside the mode the view is left as it was
+float VR_FlatPitchClamp (float pitch);					// CL_AccumulateCmd, once the frame's looking has all landed in cl.viewangles: the flatscreen look's window, vr_flat_pitch_up / vr_flat_pitch_down (vr_flatplay.cpp); outside the mode the angle comes back as it was, so plain play and a headset are bounded by cl_maxpitch / cl_minpitch alone
 int VR_RagtoolKey (int key, int down);					// Key_Event in the game: nonzero if the ragdoll tool took the key
 int VR_ArenaCardsKey (int key, int down);				// Key_Event in the game: nonzero if the Survival Arena's perk cards took the key (1 .. their count)
 void VR_RagtoolOverlay (void);							// V_RenderView, after R_RenderView: the debug lines over a flat view while the ragdoll tool runs

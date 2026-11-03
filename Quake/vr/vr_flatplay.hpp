@@ -41,6 +41,18 @@ void frame();
 [[nodiscard]] float crouchRatio();
 [[nodiscard]] float crouchDrop();
 
+// The flatscreen look's window (vr_flat_pitch_up, vr_flat_pitch_down), in the plain game's pitch (positive looking down):
+// asked at Quake/cl_main.c's CL_AccumulateCmd, where the frame's looking has all landed in cl.viewangles (VR_FlatPitchClamp,
+// vr_api.h). Outside the mode the angle comes back as it was, so plain play and a headset are bounded only by
+// cl_maxpitch / cl_minpitch, as they were.
+[[nodiscard]] float pitchClamp(float pitch);
+
+// Quake/host.c's Host_WriteConfigurationToFile, just before it writes the key bindings (VR_FlatKeysForConfigWrite,
+// vr_api.h): the config on disk is the plain game's, so while flatscreen play holds Ctrl (+flatcrouch, the crouch key
+// that must not fire: vr_flat_crouch_fire) the bind is given back for the write and taken up again on the mode's next
+// frame. Nothing to give back when the mode is not holding it.
+void keysForConfigWrite();
+
 // vr_hands.cpp's flat-screen branch: where each hand goes and how it is turned, in world space: the hands placed in the
 // view's frame held to vr_flat_pose_pitch, each hand's punch a swing of that arm about its shoulder (punchSwing). The
 // straight out-in-front pose stands when the mode is off.

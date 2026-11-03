@@ -4131,6 +4131,7 @@ vr_flat_turnlag_speed|2|Debug - Reports|Flatscreen Turn Lag Recovery|Advanced VR
 vr_flat_arm_hold|2|Debug - Reports|Flatscreen Arm Hold|Advanced VR Options > Debug > Reports > Flatscreen Arm Hold
 vr_flat_pose_pitch|2|Debug - Reports|Flatscreen Hand Pitch|Advanced VR Options > Debug > Reports > Flatscreen Hand Pitch
 vr_flat_aim_fov|2|Debug - Reports|Flatscreen Ironsight Field of View|Advanced VR Options > Debug > Reports > Flatscreen Ironsight Field of View
+vr_flat_aim_time|2|Debug - Reports|Flatscreen Ironsight Time|Advanced VR Options > Debug > Reports > Flatscreen Ironsight Time
 vr_flat_crouch_time|2|Debug - Reports|Flatscreen Crouch Time|Advanced VR Options > Debug > Reports > Flatscreen Crouch Time
 vr_flat_crouch_drop|2|Debug - Reports|Flatscreen Crouch Drop|Advanced VR Options > Debug > Reports > Flatscreen Crouch Drop
 |2|Debug - Reports|Flatscreen Punch|Advanced VR Options > Debug > Reports > Flatscreen Punch
