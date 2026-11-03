@@ -6703,7 +6703,71 @@ fragment shader (all its variants), from the same light list (muzzle flash, expl
 `CL_AllocDlight`). Seen: `vr_light_test` lights the ogre, grunt and armour in `shot_e1m1.png`'s third frame. Muzzle
 flash, explosions and flashlight read from the code, not separately shot. Nothing to fix.
 
-**Not changed.** Coils, ropes, gore, blood, impacts and gun smoke still read the floor's `R_LightPoint` for their own light.
+**Not changed then** (done next, below): coils, ropes, gore, blood, impacts and gun smoke still read the floor's `R_LightPoint`.
+
+## The rest follow the light grid; lit liquids light models; its knobs (branch `agent/lightgrid2`, his words 2026-11-03)
+
+His words: "everything you mentioned should follow the new light and lava should brighten models. Also please add tunables
+to control the intensity/effect of the light probes and things like lava."
+
+**What reads the grid now.** `ambient::lightPoint(p, cache)` is R_LightPoint's drop-in (sets `lightcolor`, returns the
+brightness): the grid's `level` at the point; R_LightPoint's where it has nothing or with `vr_model_light_grid` 0. A read
+for each 16 units a frame at most (`pointReads`, 256 slots, this frame's only). Users: coil, rope (per their `worldLight`:
+through `VR_AliasLightCurve`, as a model), gore drops, blood streams, body blood, particle trails' shade, impacts, gun
+smoke, muzzle wisps (each keeps its own floor and clamp: they were tuned so as not to go black in the dark). Lit particles
+(`vr_particle_light`) have their own cell cache: `gridLightOf`, one read a 16-unit cell shared (`gridLights`), at most 128
+reads a frame, again when moved 8 units, on a style-lit cell once a frame (a quarter of its particles asking), and every
+half second for a moved slider to show.
+
+**Left on the floor's light, on purpose.** `vr_stealth.cpp` (a game rule: how visible the player is, not something drawn),
+`vr_water.cpp` `viewLight` (the water's look from inside, not beside a model), `vr_brushlight.cpp` (a bake at load onto brush
+models at the style's mean, BRUSH_TOOL.md), `vr_debris.cpp` and `vr_lighting.cpp`'s `vr_light_probe`, `vr_model_light_walk`
+(diagnostics that show the floor). Decals read their wall's lightmap, as the wall.
+
+**Lit liquids.** Lava, slime, teleporters (flags `SURF_DRAWLAVA`, `_SLIME`, `_TELE`). Not water, which doesn't glow. Not the
+sky: a sky-lit room's surfaces have the sky's light already, and it is everywhere outdoors, so it would light every
+outdoor model alike (the cube still takes the sky as before). A probe in reach of one (768 units; blocks of 4 cells with
+none skip this) traces 128 rays on a spiral (the 26 miss a pool past a shore's edge) that stop at the first wall or liquid,
+and adds an entry per kind: colour by the square root of how much of its view the liquid fills, the sides by cosine lobes,
+the mean distance in the entry's `style` field (`GRID_GLOW`). Read at each read: strength x 1.5 x (1 - distance / range)^2,
+so strength and range are live. Additive on the styles' light, as styles add. The colour is the liquid's texture's mean with
+the brighter texels counting more, top channel 220: `*lava1` 220 55 16, `*slime0` 220 180 68, `*teleport` 220 169 130 (a
+map's green lava lights green). Lava was on the cube at a fixed colour from the 26 rays; it is now only this (so 0 takes it
+off the cube too), on the grid path only. The `vr_model_light_grid` 0 path is untouched, for his comparison.
+Effects read it too: smoke over lava is lit by lava, as the model in it.
+
+**Knobs** (tuning constants, not settings, as he asked: `tune`, Debug > Tunables > Graphics > Models and Effects > Light Grid, kept in
+`tunables.cfg`; constants in a release build; `vr_model_light_grid` itself stays a setting. Defaults = the look before, but for the
+liquids; `vr_model_light_grid_...`): `_intensity` 1 (the level, live), `_near` 64 (was `GRID_NEAR`: in the probes, so a change builds the grid again at
+once, 26 ms on e1m7, no map reload), `_mix` 0.5 (0: only the map's lights' directional shading, cube off; 0.5: the cube, half
+the directional, as before; 1: only the cube; live; grid path only). `vr_model_light_lava` 1, `_range` 512; `vr_model_light_slime`
+0.35, `_range` 384; `vr_model_light_teleport` 0.35, `_range` 256: all live.
+
+**Disk cache.** `GRID_CACHE_VERSION` 2; the key has the near weight and the liquids' colours. Entries stay 44 bytes; a cell's
+count took a bit from its first entry (4 bits; 134 million entries).
+
+**Unchanged on a map with no lit liquid:** vrarena, base -> this branch: the same probes, entries (6115), cube checksum (276),
+walk (grid 22..184, step 8.6). Maps with one change only near it: e1m1's walk the same, its cube checksum 304 -> 299 (2618
+probes near slime); e2m1, e1m3 the same but for teleporter entries.
+
+**Test.** `vr_model_light_grid_test` (Debug menu, this map, a development build; sets the constants by `tune`'s setter; verdict `light grid test: N passed, M failed`; e1m7 and e1m1 21,
+0): an effect's light = the model's read there, intensity x2, the mix's shares, near moved and back (grid hash the same),
+`vr_model_light_grid` 0 = R_LightPoint, each liquid: adds to the level and sides, linear in strength, range 0 = strength 0,
+near > 3 x far, and every ray that counted a liquid is clear by `worldtrace::line`, another tracer (e1m7 lava all of 3109; a
+teleporter 66 of 68: its frame's edges). `vr_particle_light_report`'s new `grid:` line: 256 lit particles in a dark room off the
+grid's read by 1.9 (0..255), off the floor's by 38.5. `vr_model_light_grid_info`'s `at the view` line: baked, with liquids,
+drawn, the floor's (e1m7 on a ledge over the lava: baked 130, with liquids 162 138 132; over the lava 108 -> 226 138 117; e2m6
+start floor 71, grid 67).
+
+**Cost.** A point read 1-1.5 us with its lines (no-LTO), 0.008 us from the frame's cache. Interleaved LTO runs (`benchresults/lightgrid2_*`,
+A base, B this branch, 90 Hz paced, 1 rep x 6: three of the six disturbed by other work, frame p50 27-29 ms or busy averages off, so
+only the quiet ones count): `crowd32_armed` CPU busy p50 A 6.09, B 6.15, 6.02; `particles_dense` (smoke, blood) A 3.54, 3.47, B 3.47,
+3.63; its `vr particles` phase A 0.98-1.05, B 0.89-0.96 ms. No cost that shows; not a clean bench. Build: vrstart cold 2174 ms (no lit liquids,
+2203 before), e1m7 20 ms LTO. **Over the read budget** a new particle takes the latest read, not Quake's full light for a frame.
+
+**Scenes.** `light_grid_lava`, `light_grid_dark` (checklist Test buttons).
+
+**Not run:** coils and ropes on screen (their `worldLight` is the two-line swap; `lightPoint` is what the test checks). No VR.
 
 ## Strike keys: times and in-betweens (agent/posekeys)
 
@@ -7829,3 +7893,81 @@ Checklist:
 - [parryonly] Debug > Show Disarm Volumes near a monster: its blow's line drawn on its weapon or limb during its attack.
 - [parryonly] VR Settings > Combat > Parry and Bash: no Directional Parry toggle any more. Motion recorder: Expected Guard Pose, Not Guard Pose, Expected Guard Bash.
 
+
+## Review of the flatscreen commits (2026-11-03)
+
+The local model's flatscreen commits of 2026-11-02 and 11-03 read against the rules. Fixed: a held crouch stepped back and
+forth (the eye moved 1 unit every other frame; `flatkeys_test` gated "at least 15 of 18", which hid it); the crouched box
+grew without a fit test while the head came back up; each of the frame's three poses carried the grip hotspot on from the
+last one's result, and its reach was measured against a hand not yet on the crosshair (14.0 for 12.6 with the ironsight on);
+the free hand's ease ran for grips it is never carried to; dead code (`Sight::since`, `flatsight::aiming`,
+`VR_FlatAdsActive`, the palm branch of `pinToGrip`, the mode-off block of `apply`); copies of `heldIn` and the pose clamp;
+comments and row help that said the opposite of the code (`vr_flat_ads_up` / `_out` only show during the travel).
+
+Left for the author: the pose numbers are `CVAR_NONE` cvars with Debug rows, not tunables (a value set in the menu is lost at
+quit); a pinned free hand does not punch; a second press restarts a running punch from the rest pose; the server asks the
+host's crouch key for every flatscreen client; `vr_stand` reads under 1 on stairs; `vr_flat_ads_up` / `_out` have no effect at
+full ironsight; the shot misses with the eye nudged.
+`flatplay_test`'s off-hand axe case fails in the suite's order (the third knight takes nothing) and passes
+alone (19 damage), before and after these fixes.
+
+## Flare guns on crates; wave presets ship (branch `agent/crateflare`, 2026-11-03)
+
+His words: "vr_crate_flaregun: Please enable it. Spawn a flaregun on top of crates/barrels rarely, roughly same spawn rate as
+the crowbar (but do not replace the crowbar). It should be possible for both a flaregun and crowbar to spawn on the same
+crate, if the rolls both pass."; "created wave presets should ship and be versioned"; `vr_agrunt_dual_pickup` off, revisit.
+
+**Flare guns.** `vr_crate_flaregun` 0.1 (the crowbar's chance), `vr_crate_flaregun_max` 2 (crowbars: 4): now tuning constants
+beside `vr_crate_crowbar` (Debug > Tunables), no longer player rows on the Crates page (its "What They Hold" header went with
+them), and defaultChanges' row 207 with them (it pointed at the cvar; an old config's line for a tunable is ignored).
+`vr_crates.cpp planFlareGuns` rolls every top apart from the crowbars, a crate with a crowbar included, and upright barrels too
+(not a lying barrel's round side; nothing standing on a barrel, as the crowbars). QC's `cratecrowbar(i)` returns bits
+(`CRATETOP_CROWBAR`, `CRATETOP_FLAREGUN`) and `cratecrowbarput(e, i, what)` says which of them it lays.
+
+Placing: alone, as before (a random way and place on the top). A crate with both: square to the top, the crowbar at one end of
+the axis with more room, the gun in what is left, at least 1 unit apart; if it doesn't fit the gun stays out (never seen:
+crowbar 9 x 18 units, gun 8 x 5.5, tops 32, 40, 48). On a barrel (head 23 across, gun 6-10 at any yaw): in the middle. A gun
+placed off the middle ended up on the floor on e4m2's barrel 1 (its plan's place -0.91 0.64: seen once; why not traced further);
+in the middle none did.
+
+**Count** at the shipped chances, 13 id maps (e1m1-6, e2m1-3, e3m1-2, e4m1-2) x 8 seeds, 104 maps, 1115 crates (142 barrels, 10
+of them lying, 161 stacked on another): crowbars 63 (0.61 a map, 5.7% of all crates), flare guns 84 (0.81 a map, 7.5%; 13 on
+barrels), both on one crate 4 (e3m1 at the shipped seed: crate 9). The gun's rate is a little above the crowbar's because
+barrels count for it. A map with 2 guns (the limit): 24 of 104; 3 would no longer be rare, so the limit stays.
+
+**Presets: the rule.** `quakevr/arena_waves/` is versioned, out of .gitignore: what git tracks there ships (package-quakevr.ps1's
+allowlist; `-DryRun` lists `quakevr/arena_waves/example_mixed.txt`), nothing else does. A development build (his) saves straight
+there: a preset he makes shows as a new file to commit (assign.cfg likewise). A release build (`QVR_RELEASE`) never writes
+there: a player's saves and assignments go to `arena_waves_user/` (git-ignored, not in a package, no update touches it) and win
+by name, or by map and skill (`<map>.<skill> default` undoes a shipped assignment). Save on a shipped preset keeps the player's
+copy; Delete takes only that copy (the button is grey on a shipped one), and the shipped one is back. `vr_arena_waves_as_release 1`
+gives a development build the same behaviour, for the test. `default` is no longer a valid preset name (`vr_arena_assign`'s word).
+
+**He has none yet** (2026-11-03): his `quakevr/arena_waves/` holds only `example_mixed.txt`, byte for byte the tracked one, and no
+assign.cfg, so nothing new was committed. Before this round his saves there were git-ignored; from now on they show in git status.
+
+**Tests.** `vr_flare_test 10` (new; the crates' tops settled for 3 s at chances 1, limits 64: on a top, unmoved, ends on
+`flaretops: N passed, M failed`; needs a map with barrels):
+`tune vr_crate_flaregun 1;tune vr_crate_flaregun_max 64;tune vr_crate_crowbar 1;tune vr_crate_crowbar_max 64;map e4m2;wait5;vr_flare_test 10`
+with `developer 1`. e4m2, e1m3, e1m5, e2m1, e3m1: 4 passed, 0 failed each; e1m1 seed 3 (no barrels): only the barrel check fails.
+With `vr_debug_crates 1` each item's box on its top is printed: 56 crates with both, least gap 1.9 units. `vr_flare_test 7` (one
+plan, twice) failed once it listed 11 guns: its two lists were at different moments while the guns settled by a fraction of a unit,
+across a rounding edge. Both lists are now at time 2 on the map's clock. `vr_arena_waves_test` has 8 more checks (the rule above,
+with the shipped files' bytes compared): 23 passed. `vr_waveeditor_test` 19 passed. Not built: a real `QVR_RELEASE` exe.
+
+Scene `flaregun_crates`: now the shipped chances on e3m1, in front of crate 9 (no tunables set: a scene's `cvar` can't).
+
+Checklist lines:
+- Crates and upright barrels about the maps sometimes have a loaded flare gun lying on top, about as often as a crowbar, at most 2 a map {test:flaregun_crates}
+- A crate can have both a crowbar and a flare gun, side by side and not touching: take each {test:flaregun_crates}
+- Wave presets you save in the Arena Wave Editor now show in git status (arena_waves/), to commit and ship
+
+## Checklist: fewer lines, a Test button on nearly all (branch `agent/clbuttons`)
+
+His words 2026-11-03: "Can anything be coealesced/simplified? Can "test" buttons be added to most items that do not have them to help me test more efficiently?"
+
+- **Lines**: 86 items -> 39. 25 ticked items retired (the header's own rule; their marks stay in checklist_ticks.txt, their text in git). 37 items merged into 14 (flat crouch, flat look and hands, flat ironsight, flat keys, flat melee, a downed grunt's weapon, worn packs beyond the grunts, knights' guns, armed steps, stick running, footsteps, revolver, flat pose and eye). The headset remarks of the flat lines became one line. No ticked line was reworded. Sections 1 and 5 regrouped: stick, footsteps and revolver lines moved to "Moving, weapons and the world", the flat-screen menu line to section 0.
+- **Buttons**: 37 of 39 (was 9, of which 5 named cvars, no scene). Without: the flat-screen menu's Back to game line (a menu flow, no scene to stand in) and moving water (a scan of the 464 BSPs in the kit's base and quakevr/maps finds no CONTENTS_CURRENT leaf in any map).
+- **New scenes** (14): flat_guns, flat_melee, flat_keys, agrunt_ledge (vrclimb's tower and block, the spots of test 202's ledge cases), ad_armed_mix, ad_sergeant_ogre, worn_packs_kinds, toolgun_armed, agrunt_reach, knights_e1m4, leap_blast, no_haptics, burn_lava_nail (`vr_burn_test 16`: no armed weapon code fires lava nails), autosave_e1m1 (no god: autosaves refuse cheats).
+- **Changed scenes**: agrunt_ammo gains a super nailgun holder; agrunt_mix a replaced gun-and-axe grunt; props_range a crowbar in hand (its line is about one); worn_packs and worn_packs_lift lose `vr_worn_backpack_pull`, a setting that no longer exists (validate was failing on them); agrunt_fall, agrunt_repl_map and stick_run lose their file `hint`, which overrode the line's text with something else.
+- **Checked**: `vr_scenario validate` 127 files, 37 tags, 0 missing; `vr_scenario runall quit` 127 run, 3 failed: ad_breakables, ad_fog_flicker, ad_lighting, AD maps absent from the mock base, as before. The flat scenes also run with `-flatscreenmode` (hands held). burn_lava_nail: "burning: test 16 ... PASS you burn". agrunt_ledge lands its grunts at 112 -160 305 and 16 -310 121. worn_packs_kinds looked at once (backs to you, packs on). Not checked: anything a scene is for (a leap setting off a box, the AD rows being armed or not) needs his eye.

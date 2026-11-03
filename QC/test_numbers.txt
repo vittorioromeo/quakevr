@@ -171,6 +171,7 @@ vr_flare_test    6        vr_flaregun_test.qc              (VR_FLT_Scene)
 vr_flare_test    7        vr_flaregun_test.qc              (VR_FLC_Frame)
 vr_flare_test    8        vr_flaregun_test.qc              (VR_FLC_Frame)
 vr_flare_test    9        vr_flaregun_test.qc              (VR_FLT_Scene)
+vr_flare_test    10       vr_flaregun_test.qc              (VR_FLC_Frame: the tops, settled)
 
 vr_np_test       1*       vr_nailpistol_test.qc            (the self-test (its fall-through))
 vr_np_test       2        vr_nailpistol_test.qc            (VR_WeaponUtil_EntAddWeapon)

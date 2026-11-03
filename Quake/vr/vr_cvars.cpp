@@ -374,9 +374,7 @@ const DefaultChange defaultChanges[] = {
     // 206: Ambient Light 0.1 by default (his config, approved 2026-10-26): a config still at 0 takes it; any other
     // value stays.
     {206, &vr_ambient_light, "0"}, // 0.1
-    // 207: the flare gun on crates is experimental for beta4: off by default; a config still at the old 0.05 takes 0, any
-    // other chance stays.
-    {207, &vr_crate_flaregun, "0.05"}, // 0
+    // 207 (the flare gun on crates off by default for beta4): gone with its setting, a tuning constant since 2026-11-03.
     // 208: Soften Flickering Lights off by default again (round 22, "AD flicker": AD's flicker was a NaN fog frame, not
     // its lamps; beta4 shipped 0.5): a config still at 0.5 takes 0, any other value stays.
     {208, &vr_lightstyle_comfort, "0.5"}, // 0

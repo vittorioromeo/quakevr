@@ -21,7 +21,8 @@
 //     spent flare gun thrown away (depleted) and its own weapon in its hand.
 //   9 a grunt killed (its corpse, a ragdoll): a flare into it sets it on fire; 10 a flare lying burning under it: on fire.
 // vr_flare_test 5: its muzzles ("flaremuzzle: N passed, M failed"). 7: the crates' flare guns, twice from the same plan
-// ("flarecrates: ..."). 2-4, 6: test aids (in your hands, the holsters, the flares' scene).
+// ("flarecrates: ..."). 10: the crates' and barrels' tops, settled ("flaretops: N passed, M failed"). 2-4, 6: test aids (in
+// your hands, the holsters, the flares' scene).
 
 float vr_flt_step;      // 0 idle
 float vr_flt_frames;    // frames into the step
@@ -168,6 +169,7 @@ void() VR_FLT_Scene =
 // again: vr_place_keep 0 meanwhile); the two the same. The guns lying near a crate's top, each.
 float vr_flc_frames;
 float vr_flc_n, vr_flc_far, vr_flc_hash; // VR_FLC_List's: the guns, those not on a crate, their places' checksum
+float vr_flc_listed; // this map's list made
 
 // Prints the crates' flare guns (their places to the unit) and sets vr_flc_*.
 void(string xWhen) VR_FLC_List =
@@ -198,14 +200,106 @@ void(string xWhen) VR_FLC_List =
     dprint(sprintf("flarecrates: %s: %g flare guns, %g not on a crate, checksum %g\n", xWhen, vr_flc_n, vr_flc_far, vr_flc_hash));
 };
 
+// ----------------------------------------------------------------------------
+// vr_flare_test 10: what lies on the crates' tops, settled (run with the chances at 1 and the limits at 64, see TESTING.md's
+// line: `tune vr_crate_flaregun 1` ...). Each crowbar and flare gun on a top a few frames in, and still there, in the same
+// place, once physics has had 3 seconds; some crates have both, some barrels a gun. Ends on "flaretops: N passed, M failed";
+// the two boxes' gap on a crate with both is in vr_debug_crates's lines.
+const float VR_FLC_ITEMS = 256;
+const float VR_FLC_SETTLE_FRAMES = 216; // (72 a second)
+float vr_flc_x[256], vr_flc_y[256], vr_flc_z[256];
+
+// The crate whose top `e` lies on (world: none).
+entity(entity e) VR_FLC_CrateUnder =
+{
+    entity c = findradius(e.origin, 64);
+    while(c)
+    {
+        vector d = e.origin - c.origin;
+        if(VR_Crate_Is(c) && fabs(d_x) <= c.maxs_x + 1 && fabs(d_y) <= c.maxs_y + 1 && d_z >= c.maxs_z - 1 && d_z <= c.maxs_z + 16)
+        {
+            return c;
+        }
+        c = c.chain;
+    }
+    return world;
+};
+
+void(float xSettled) VR_FLC_Tops =
+{
+    float i = 0, guns = 0, bars = 0, barrelGuns = 0, off = 0, moved = 0;
+    entity e = find(world, classname, "thrown_weapon");
+    while(e && (i < VR_FLC_ITEMS))
+    {
+        if(e.weapon == WID_FLAREGUN || e.weapon == WID_CROWBAR)
+        {
+            entity c = VR_FLC_CrateUnder(e);
+            if(e.weapon == WID_CROWBAR)
+            {
+                bars++;
+            }
+            else
+            {
+                guns++;
+                if(c && (strstrofs(c.model, "barrel", 0) >= 0))
+                {
+                    barrelGuns++;
+                }
+            }
+            if(!c)
+            {
+                off++;
+                dprint(sprintf("flaretops: weapon %g at %v on no top\n", e.weapon, e.origin));
+            }
+            if(!xSettled)
+            {
+                vr_flc_x[i] = e.origin_x;
+                vr_flc_y[i] = e.origin_y;
+                vr_flc_z[i] = e.origin_z;
+            }
+            else if(fabs(e.origin_x - vr_flc_x[i]) > 2 || fabs(e.origin_y - vr_flc_y[i]) > 2 || fabs(e.origin_z - vr_flc_z[i]) > 2)
+            {
+                moved++;
+                dprint(sprintf("flaretops: weapon %g moved from %g %g %g to %v\n", e.weapon, vr_flc_x[i], vr_flc_y[i], vr_flc_z[i], e.origin));
+            }
+            i++;
+        }
+        e = find(e, classname, "thrown_weapon");
+    }
+    if(!xSettled)
+    {
+        dprint(sprintf("flaretops: laid %g flare guns (%g on barrels), %g crowbars, %g on no top\n", guns, barrelGuns, bars, off));
+        return;
+    }
+    VR_Test_Begin("flaretops");
+    VR_Test_Check(guns > 0 && bars > 0, sprintf("settled: %g flare guns, %g crowbars", guns, bars));
+    VR_Test_Check(barrelGuns > 0, sprintf("%g flare guns on barrels", barrelGuns));
+    VR_Test_Check(!off, sprintf("%g on no top", off));
+    VR_Test_Check(!moved, sprintf("%g moved", moved));
+    VR_Test_Verdict();
+};
+
 void() VR_FLC_Frame =
 {
     vr_flc_frames++;
-    if(vr_flc_frames != 3) // (the crates and their guns laid: a few frames in)
+    float req = cvar_hget(cvarh_vr_flare_test);
+    if(req == 10)
+    {
+        if(vr_flc_frames == 3) { VR_FLC_Tops(FALSE); }
+        if(vr_flc_frames == 3 + VR_FLC_SETTLE_FRAMES)
+        {
+            VR_FLC_Tops(TRUE);
+            cvar_set("vr_flare_test", "0");
+        }
+        return;
+    }
+    // (Both lists at one moment of their map's clock: the guns still settle a little, so a different moment is a different
+    // place. restart zeroes vr_flc_listed.)
+    if(vr_flc_listed || (time < 2))
     {
         return;
     }
-    float req = cvar_hget(cvarh_vr_flare_test);
+    vr_flc_listed = TRUE;
     if(req == 7)
     {
         VR_FLC_List("first plan");
@@ -623,7 +717,7 @@ void() VR_FLT_Frame =
 void() VR_FlareGun_TestFrame =
 {
     float req = cvar_hget(cvarh_vr_flare_test);
-    if(req == 7 || req == 8)
+    if(req == 7 || req == 8 || req == 10)
     {
         VR_FLC_Frame();
         return;

@@ -1,18 +1,24 @@
-// vr_flatsight.hpp -- the flatscreen player's ironsight, and his free hand on a grip (Vittorio's flatscreen list,
-// items 3 and 4; docs/vr-port/FLATPLAY.md). All of it qvr::flatplay only: in a headset these do nothing.
+// vr_flatsight.hpp -- the flatscreen player's ironsight, and his free hand on a grip (docs/vr-port/FLATPLAY.md). All of
+// it qvr::flatplay only: in a headset these do nothing.
 //
-// Item 3, the two-handed grab: one hand holds a weapon and the other is empty, so the empty hand is brought onto that
+// The two-handed grab: one hand holds a weapon and the other is empty, so the empty hand is brought onto that
 // weapon's own two-handed grip hotspot -- the point the view already offers in VR (hands::State::grip2H, carried to
 // this frame's pose the way a muzzle is) -- and vr_twohand.cpp takes hold of it there: helpKind 1 (a hotspot), the
 // game code gets its two-handed aiming bits, and the weapon's weight, recoil and spread become the two-handed ones.
 // Dual wielding is not this: both hands are full, so the case never arises and their pose is untouched.
 //
-// Item 4, the ironsight: the mouse wheel's button (K_MOUSE3) toggles it, vr_flat_aim from the console the same way.
-// A gun with a sight line (sightalign::sightLine: a ranged weapon), held in one hand alone. The field of view narrows
+// The ironsight: the mouse wheel's button (K_MOUSE3) toggles it, vr_flat_aim from the console the same way.
+// A gun with a sight line (sightalign::alignable: a ranged weapon), held in one hand alone. The field of view narrows
 // (vr_flat_aim_fov degrees off the plain flatscreen FOV, through VR_FlatAdsFov in gl_screen.c), and the holding hand is
 // moved sideways so that the muzzle its weapon shoots from stands on the crosshair's ray: the sights come to the
 // middle of the screen and the shots go through it. The hand's turn stays the crosshair's aim, so what moves is where
-// the shot comes from, not where it is going.
+// the shot comes from, not where it is going. Its own offsets (vr_flat_ads_fwd / vr_flat_ads_up / vr_flat_ads_out) go on
+// before that move, over the same seconds: the move answers what they do across the ray, so only vr_flat_ads_fwd (along
+// the ray) is left at full ads, and the shots stay on the crosshair.
+//
+// The crosshair's ray itself is flatplay's (flatplay::crosshairRay): the camera the screen is drawn from, the same one
+// its drawnOffset locks the hands onto, so the gun and the crosshair are measured from one place whatever vr_flat_cam_*
+// says about that camera.
 //
 // See vr_flatsight.cpp for how each part is measured.
 
@@ -29,14 +35,16 @@ void init();
 // flatplay::frame: the mouse wheel's button edge (K_MOUSE3), once a frame.
 void frame();
 
-// flatplay::poseHands: item 3's grip (the empty hand onto the held weapon's hotspot), the two-handed machinery over
-// it, and item 4's centring of the held weapon on the crosshair. `reach` is flatplay's E reach for the empty hand
+// flatplay::poseHands: the grip (the empty hand onto the held weapon's hotspot), the two-handed machinery over it, and
+// the centring of the held weapon on the crosshair. `reach` is flatplay's E reach for the empty hand
 // (its own view-frame offset), so a force grab still reaches out. Safe to call with nothing held: it says so and
 // leaves the pose alone.
 void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach);
 
-// The ironsight is on for a weapon it applies to (vr_flatplay_status, gl_screen.c).
-[[nodiscard]] bool aiming();
+// How far the ironsight's travel has gone this frame (st.adsT, 0..1): the fraction its shift onto the crosshair and the
+// field of view's narrowing are spent over, and what flatplay eases vr_flat_gun_near to vr_flat_ads_near by when it
+// decides whether a drawn view counts as the player's own eyes (flatplay::keepNear). 0 outside the mode.
+[[nodiscard]] float adsShare();
 
 // The field of view to render with: `basefov`, narrowed by vr_flat_aim_fov while the ironsight is on. Outside the
 // mode, or with it off, exactly `basefov` (gl_screen.c through VR_FlatAdsFov).

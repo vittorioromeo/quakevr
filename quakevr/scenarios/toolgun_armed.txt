@@ -1,0 +1,8 @@
+# toolgun_armed: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". The toolgun in hand and a shotgun to kill what it spawns.
+title Toolgun in the main hand, a shotgun in the off hand, open floor (god)
+map vrtesthall
+god
+give "Toolgun" main
+give "Shotgun" off
+cmd impulse 9
+hint Toolgun > Spawn > Armed Humanoid: pick the kind, weapon and Infected With, place him, kill him with the shotgun.

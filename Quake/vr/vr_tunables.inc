@@ -366,6 +366,8 @@ QVR_TUNABLE(vr_crate_health_box, "0.2") // the chance a crate holds a small heal
 QVR_TUNABLE(vr_crate_item_pop, "3.5") // how hard what a crate held pops out when it breaks (m/s: up, and a little outwards)
 QVR_TUNABLE(vr_crate_crowbar, "0.1") // the chance a crate placed about the map (the top of a stack) has a crowbar lying on it (next map)
 QVR_TUNABLE(vr_crate_crowbar_max, "4") // most crowbars on crates in a map
+QVR_TUNABLE(vr_crate_flaregun, "0.1") // the chance a top placed about the map (a crate's or an upright barrel's) has a loaded flare gun lying on it, rolled apart from the crowbars (next map)
+QVR_TUNABLE(vr_crate_flaregun_max, "2") // most flare guns on crates in a map
 
 // Carrying and Throwing > Force Grab
 QVR_TUNABLE(vr_forcegrab_outline, "1") // the glow round what a hand's force grab points at (strength, 0 off)
@@ -1750,3 +1752,14 @@ QVR_TUNABLE(vr_gore_sound_vol_step, "0.75") // your wet steps after a pool
 QVR_TUNABLE(vr_gore_sound_vol_slap, "0.75") // gibs slapping into walls
 QVR_TUNABLE(vr_gore_sound_vol_choke, "0.75") // the chokes (vr_gore_sound_choke 1)
 QVR_TUNABLE(vr_gore_sound_vol_drip, "0.35") // drops of blood hitting the floor: yours (vr_body_blood), the ceilings' and stuck gibs' (vr_gore_drips) (his 0.35, 1 before vr_cfg_version 182)
+
+// Graphics > Models and Effects > Light Grid (vr_ambient.cpp, "The light grid")
+QVR_TUNABLE(vr_model_light_grid_intensity, "1") // the probes' light on models and what's drawn beside them, times this
+QVR_TUNABLE(vr_model_light_grid_near, "64") // each surface's say over a probe is over its distance + this: less, the nearest surfaces count more (a change builds the map's grid again)
+QVR_TUNABLE(vr_model_light_grid_mix, "0.5") // 0: only the map's lights' directional shading on models, 0.5: half of it under the light around them, 1: only the light around them
+QVR_TUNABLE(vr_model_light_lava, "1") // how much lava lights models and what's drawn beside them, in its colour (0: none)
+QVR_TUNABLE(vr_model_light_lava_range, "512") // ... out to this far, fading (up to 768)
+QVR_TUNABLE(vr_model_light_slime, "0.35") // ... slime
+QVR_TUNABLE(vr_model_light_slime_range, "384")
+QVR_TUNABLE(vr_model_light_teleport, "0.35") // ... teleporters
+QVR_TUNABLE(vr_model_light_teleport_range, "256")

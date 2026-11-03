@@ -1140,8 +1140,6 @@ QVR_CVAR(vr_prop_break_piece, "4", CVAR_ARCHIVE)         // m/s: a crate's piece
 // Overhead slams (QC vr_crates.qc VR_Crate_SlamFrame; NOTES.md vrfiringrange_2026-10-07_23-08-07): a crate or barrel held
 // in both hands over the head, swung down onto something, breaks at once; let go of from there, its first landing hurts it.
 QVR_CVAR(vr_carry_slam, "1", CVAR_ARCHIVE)             // 1: on; 0: off
-QVR_CVAR(vr_crate_flaregun, "0", CVAR_ARCHIVE)           // (experimental, off by default; was 0.05 until configVersion 207) the chance a crate placed about the map (the top of a stack, none on it) has a flare gun lying on it (next map)
-QVR_CVAR(vr_crate_flaregun_max, "2", CVAR_ARCHIVE)       // most flare guns on crates in a map
 QVR_CVAR(vr_crate_sight, "1", CVAR_ARCHIVE)              // 1: crates and explosive boxes lying about hide you from monsters (not one you carry)
 QVR_CVAR(vr_crate_shield, "2", CVAR_ARCHIVE)             // a crate you hold stops monsters' bullets (it takes them); 2: explosive boxes too; 2: an explosive box too (it blows up); 0: they pass through what you hold
 QVR_CVAR(vr_debug_crates, "0", CVAR_NONE)                // 1: a line per map (crates, spots, rejections, the layout's hash); 2: each crate and its clearance; 3: each spot rejected
@@ -2500,6 +2498,7 @@ QVR_CVAR(vr_arena_foe_armor_scale, "1", CVAR_ARCHIVE)         // the arena armou
 QVR_CVAR(vr_arena_foe_armor_from, "4", CVAR_ARCHIVE)          // the first wave a foe may wear armour at Normal (moved by the skill as every gate: 7 / 4 / 2 / 2)
 QVR_CVAR(vr_arena_seed, "0", CVAR_NONE)                       // the waves' rolls: 0 a different ladder every run, else that seed's ladder
 QVR_CVAR(vr_arena_waves_dir, "arena_waves", CVAR_NONE)         // the folder of the arena's wave presets, under the game folder (vr_arenawaves.hpp; the tests' keep apart)
+QVR_CVAR(vr_arena_waves_as_release, "0", CVAR_NONE)            // 1: a development build keeps the presets as a release does (saves in <folder>_user: the tests'; a release always does)
 QVR_CVAR(vr_waveeditor_width, "54", CVAR_ARCHIVE)              // the Arena Wave Editor's panel in the headset: its width (units)
 QVR_CVAR(vr_waveeditor_distance, "42", CVAR_ARCHIVE)           // ... how far in front of the head it opens (units)
 QVR_CVAR(vr_arena_goto, "0", CVAR_NONE)                       // debug/benchmarks: set to N, the running arena jumps to wave N now (the field cleared, no rest or countdown; back to 0 after)
@@ -3834,6 +3833,32 @@ QVR_CVAR(vr_flat_crouch_drop, "18", CVAR_NONE)          // Left Ctrl / +flatcrou
 QVR_CVAR(vr_flat_crouch_fire, "0", CVAR_NONE)           // Left Ctrl and firing: 0 (the default) while flatscreen play runs CTRL is the crouch key only -- the mode takes the key off +attack (its own bind: Quake/default_cfg.h binds CTRL +attack) and gives it back when the mode ends and before the game writes its config out; 1: CTRL keeps its bind, so holding it crouches and fires
 QVR_CVAR(vr_flat_aim_fov, "12", CVAR_NONE)              // the flatscreen ironsight (vr_flat_aim, the mouse wheel's button; vr_flatsight.cpp): how many degrees the field of view narrows while it is on, on the view's own base fov (0..45; 0: the view stays wide). The look's speed keeps its measure (in_sdl.c IN_FovScale) and the HUD is unchanged
 QVR_CVAR(vr_flat_aim_time, "0.25", CVAR_NONE)           // the same ironsight: how long its whole travel takes, in seconds -- onto the crosshair, and back off it (0.05..1.00; 0: at once). The field of view is narrowed by vr_flat_aim_fov's degrees times how far that travel has gone, so the view closes and opens with the weapon instead of at the press
+// Where the weapon and the hands sit: the pose's own numbers. Forward / sideways / down in the view's own frame, Quake
+// units, vr_flat_reach times them. None of them moves the
+// shot off the crosshair: the hand's turn is solved from the crosshair (aimRotAtCrosshair) whatever the hand sits at.
+QVR_CVAR(vr_flat_gun_fwd, "17", CVAR_NONE)              // the held weapon, hipfire: how far in front of its shoulder it sits (-30..30 units; 17: where the pose put it)
+QVR_CVAR(vr_flat_gun_down, "9", CVAR_NONE)              // the held weapon, hipfire: how far below its shoulder it sits (-30..30; positive is lower; 9 as before)
+QVR_CVAR(vr_flat_gun_out, "2.5", CVAR_NONE)             // the held weapon, hipfire: how far off the body's centre line it sits, out at the holding hand's own side (-30..30; 2.5 as before; negative brings it across the centre line)
+QVR_CVAR(vr_flat_gun_near, "24", CVAR_NONE)             // the held weapon, hipfire: how far the drawn view may stand from his own head before the hands stop being kept on the drawn view and stay on the body (8..60 units; 24: the mode's camNear). The view at his eyes counts 0, a full crouch counts vr_flat_crouch_drop; the camera's own nudges (vr_flat_cam_fwd / _up / _side) are put back before the measure, so moving the eye does not read as "the view is somewhere else" and the gun keeps following it
+QVR_CVAR(vr_flat_ads_fwd, "0", CVAR_NONE)               // the same weapon with the ironsight on (vr_flat_aim, vr_flatsight.cpp): its own forward offset, along the crosshair's ray, put on the pose before the pose is brought onto that ray, over vr_flat_aim_time's seconds (-30..30 units; 0: the aligned pose as it is)
+QVR_CVAR(vr_flat_ads_up, "0", CVAR_NONE)                // the same, up (+: higher; -30..30)
+QVR_CVAR(vr_flat_ads_out, "0", CVAR_NONE)               // the same, sideways (+: out at the holding hand's own side; -30..30). Up and out are put on before the ironsight's centring, which answers them: they show during the travel, and at full ironsight the muzzle is back on the crosshair's ray
+QVR_CVAR(vr_flat_ads_near, "24", CVAR_NONE)             // vr_flat_gun_near with the ironsight on, eased to it over the same seconds (8..60; 24: the same distance, so the ironsight changes nothing about it by default)
+QVR_CVAR(vr_flat_empty_fwd, "5", CVAR_NONE)             // an empty hand: how far in front of its shoulder it hangs (-30..30; 5 as before)
+QVR_CVAR(vr_flat_empty_down, "13", CVAR_NONE)           // an empty hand: how far below its shoulder it hangs (-30..30; positive is lower; 13 as before)
+QVR_CVAR(vr_flat_empty_out, "7", CVAR_NONE)             // an empty hand: how far out at its own side it hangs (-30..30; 7 as before)
+QVR_CVAR(vr_flat_support_fwd, "12", CVAR_NONE)          // the free hand next to the other hand's gun: how far in front of its shoulder it rests (-30..30; 12 as before). A weapon whose grip a second hand can actually reach takes it to the grip instead (vr_flatsight.cpp, vr_twohand), and the grip travels with the gun
+QVR_CVAR(vr_flat_support_down, "11", CVAR_NONE)         // the same free hand: how far below its shoulder (-30..30; positive is lower; 11 as before)
+QVR_CVAR(vr_flat_support_out, "5", CVAR_NONE)           // the same free hand: how far out at its own side (-30..30; 5 as before)
+// The flatscreen eye, nudged: the drawn view and the crosshair's ray move together, in the
+// view's own frame -- forward, up and the view's right -- so looking down feels less like looking down from the top of
+// the head. Only the drawn view: the player's own origin, his collision box and the crouch's box (vr_hull.cpp,
+// vr_server.cpp) are measured from where he really stands and stay where they are. Applied where the mode already moves
+// the view (VR_FlatViewDrop, Quake/view.c's V_CalcRefdef), and read by every aiming measurement (flatplay::crosshairRay,
+// vr_flatsight.cpp), so the crosshair and the gun agree whatever these say. 0 0 0 (defaults) is the head's own eye.
+QVR_CVAR(vr_flat_cam_fwd, "0", CVAR_NONE)               // how far the flatscreen eye is nudged forward, in the view's frame (-20..20 units; + is forward, towards what he looks at)
+QVR_CVAR(vr_flat_cam_up, "0", CVAR_NONE)                // the same, up (-20..20; + is higher; the crouch's own drop (vr_flat_crouch_drop) is added to it, not replaced by it)
+QVR_CVAR(vr_flat_cam_side, "0", CVAR_NONE)              // the same, sideways (-20..20; + is the view's own right, which is his left when he looks at it on the screen)
 
 
 QVR_CVAR(vr_ragimpact_crush_push, "1", CVAR_ARCHIVE)     // a landing that crushes a ragdoll (down or a corpse) pushes the part under your feet down and out at this times your landing speed (the body jolts up at 0.6 of that); 0: it lies still

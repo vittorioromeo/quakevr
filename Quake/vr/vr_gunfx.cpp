@@ -1,5 +1,6 @@
 // vr_gunfx.cpp -- see vr_gunfx.hpp.
 
+#include "vr_ambient.hpp"
 #include "vr_gunfx.hpp"
 #include "vr_adguns.hpp"
 #include "vr_body.hpp"
@@ -275,7 +276,7 @@ struct Counts
 
 lightcache_t placeCache; // (placeLight's)
 
-// The place's light at `at` (the lightmap under it, R_LightPoint: 1 at Quake's full light), once a shot: the smoke's
+// The place's light at `at` (what a model there has, ambient::lightPoint: 1 at Quake's full light), once a shot: the smoke's
 // grey follows it (drawn emissive, as the flash lit it: never black in the dark, never glowing in a lit room).
 [[nodiscard]] float placeLight(const glm::vec3& at)
 {
@@ -283,8 +284,7 @@ lightcache_t placeCache; // (placeLight's)
     {
         return 1.f;
     }
-    vec3_t v{at.x, at.y, at.z};
-    return za::clamp(static_cast<float>(R_LightPoint(v, 0.f, &placeCache)) / 128.f, 0.f, 1.6f);
+    return za::clamp(static_cast<float>(ambient::lightPoint(at, placeCache)) / 128.f, 0.f, 1.6f);
 }
 
 int put(const particles::GunParticle& g)

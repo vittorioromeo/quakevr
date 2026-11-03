@@ -1,6 +1,7 @@
 // vr_particles_diag.cpp -- part of vr_particles.cpp (see vr_particles.hpp, vr_particles_internal.hpp): the test and
 // report commands (vr_particle_mist_test, the blood spray test, shore foam info, the light and waste reports).
 
+#include "vr_ambient.hpp"
 #include "vr_particles_internal.hpp"
 
 namespace qvr::particles
@@ -80,6 +81,30 @@ void lightReport_f()
     lightMsSum = 0.0;
     lightFrames = 0;
     lightTraceSum = lightLitSum = 0;
+    // What they read (vr_model_light_grid): how far each one's kept light is from the grid's and the floor's at its place.
+    if(ambient::gridOn())
+    {
+        double fromGrid = 0.0, fromFloor = 0.0;
+        int asked = 0;
+        for(za::SizeT i = 0; i < za::min(lightCount, pool.size()) && asked < 256; i++)
+        {
+            const Particle& p = pool[i];
+            glm::vec3 level{0.f};
+            if(p.lighting != Lighting::Lit || !p.lightKnown || !ambient::gridLightAt(p.org, level))
+            {
+                continue;
+            }
+            vec3_t at{p.org.x, p.org.y, p.org.z};
+            lightcache_t cache{};
+            (void)R_LightPoint(at, 2.f, &cache);
+            const glm::vec3 mine{p.lightmap[0], p.lightmap[1], p.lightmap[2]};
+            fromGrid += glm::distance(mine, glm::min(level, glm::vec3{255.f}));
+            fromFloor += glm::distance(mine, glm::vec3{lightcolor[0], lightcolor[1], lightcolor[2]});
+            asked++;
+        }
+        Con_Printf("  grid: %d lit particles read, their light off the grid's by %.1f, off the floor's by %.1f (0..255)\n", asked,
+            fromGrid / za::max(asked, 1), fromFloor / za::max(asked, 1));
+    }
 }
 
 constexpr const char* cellNames[CellCount] = {"circle", "explosion", "smoke", "blood", "blood mist", "lightning",

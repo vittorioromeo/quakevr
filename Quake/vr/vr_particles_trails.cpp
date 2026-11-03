@@ -2,6 +2,7 @@
 // impacts and splashes (rockets, sparkles, blobs, lava, teleports), liquids (mist, splash), fire, AD's streams, tank
 // fire, electricity, embers and shells.
 
+#include "vr_ambient.hpp"
 #include "vr_particles_internal.hpp"
 
 namespace qvr::particles
@@ -464,8 +465,7 @@ lightcache_t shadeLight{}; // shadeAt's light lookup (the client's frame)
     {
         return 1.f;
     }
-    vec3_t v{org.x, org.y, org.z + 1.f};
-    const float light = static_cast<float>(R_LightPoint(v, 0.f, &cache)); // 128: Quake's full light
+    const float light = static_cast<float>(ambient::lightPoint(org + glm::vec3{0.f, 0.f, 1.f}, cache)); // 128: Quake's full light
     return za::clamp(za::max(light, 20.f) / 120.f, 0.18f, 1.3f);
 }
 

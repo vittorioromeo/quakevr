@@ -1542,8 +1542,6 @@ vr_prop_break_metal|1|Crates|Break Speed: Metal|Advanced VR Options > Carrying a
 vr_prop_break_explosive|1|Crates|Break Speed: Explosive|Advanced VR Options > Carrying and Throwing > Crates > Break Speed: Explosive
 vr_prop_break_piece|1|Crates|Break Speed: Pieces|Advanced VR Options > Carrying and Throwing > Crates > Break Speed: Pieces
 vr_carry_slam|1|Crates|Overhead Slam|Advanced VR Options > Carrying and Throwing > Crates > Overhead Slam
-vr_crate_flaregun|1|Crates|Flare Gun on Crates|Advanced VR Options > Carrying and Throwing > Crates > Flare Gun on Crates
-vr_crate_flaregun_max|1|Crates|Most Flare Guns|Advanced VR Options > Carrying and Throwing > Crates > Most Flare Guns
 vr_crate_sight|1|Crates|Crates Hide You|Advanced VR Options > Carrying and Throwing > Crates > Crates Hide You
 vr_crate_shield|1|Crates|Held Crate Shields You|Advanced VR Options > Carrying and Throwing > Crates > Held Crate Shields You
 |1|Crates|Reset This Page|Advanced VR Options > Carrying and Throwing > Crates > Reset This Page
@@ -2586,6 +2584,8 @@ vr_crate_health_box|2|Tunables|Health Box|Advanced VR Options > Debug > Tunables
 vr_crate_item_pop|2|Tunables|Pop Out|Advanced VR Options > Debug > Tunables > Pop Out
 vr_crate_crowbar|2|Tunables|Crowbar on Crates|Advanced VR Options > Debug > Tunables > Crowbar on Crates
 vr_crate_crowbar_max|2|Tunables|Most Crowbars|Advanced VR Options > Debug > Tunables > Most Crowbars
+vr_crate_flaregun|2|Tunables|Flare Gun on Crates|Advanced VR Options > Debug > Tunables > Flare Gun on Crates
+vr_crate_flaregun_max|2|Tunables|Most Flare Guns|Advanced VR Options > Debug > Tunables > Most Flare Guns
 vr_forcegrab_outline|2|Tunables|Outline|Advanced VR Options > Debug > Tunables > Outline
 vr_forcegrab_distance|2|Tunables|Distance|Advanced VR Options > Debug > Tunables > Distance
 vr_forcegrab_cone|2|Tunables|Aim Cone|Advanced VR Options > Debug > Tunables > Aim Cone
@@ -3790,6 +3790,15 @@ vr_gore_sound_vol_step|2|Tunables|Gore Sounds: Wet Steps|Advanced VR Options > D
 vr_gore_sound_vol_slap|2|Tunables|Gore Sounds: Slaps|Advanced VR Options > Debug > Tunables > Gore Sounds: Slaps
 vr_gore_sound_vol_choke|2|Tunables|Gore Sounds: Chokes Volume|Advanced VR Options > Debug > Tunables > Gore Sounds: Chokes Volume
 vr_gore_sound_vol_drip|2|Tunables|Gore Sounds: Drips|Advanced VR Options > Debug > Tunables > Gore Sounds: Drips
+vr_model_light_grid_intensity|2|Tunables|Probe Intensity|Advanced VR Options > Debug > Tunables > Probe Intensity
+vr_model_light_grid_near|2|Tunables|Near Surfaces Weigh|Advanced VR Options > Debug > Tunables > Near Surfaces Weigh
+vr_model_light_grid_mix|2|Tunables|Ambient or Directional|Advanced VR Options > Debug > Tunables > Ambient or Directional
+vr_model_light_lava|2|Tunables|Lava Light|Advanced VR Options > Debug > Tunables > Lava Light
+vr_model_light_lava_range|2|Tunables|Lava Light Range|Advanced VR Options > Debug > Tunables > Lava Light Range
+vr_model_light_slime|2|Tunables|Slime Light|Advanced VR Options > Debug > Tunables > Slime Light
+vr_model_light_slime_range|2|Tunables|Slime Light Range|Advanced VR Options > Debug > Tunables > Slime Light Range
+vr_model_light_teleport|2|Tunables|Teleporter Light|Advanced VR Options > Debug > Tunables > Teleporter Light
+vr_model_light_teleport_range|2|Tunables|Teleporter Light Range|Advanced VR Options > Debug > Tunables > Teleporter Light Range
 |2|Tunables|Reset This Page|Advanced VR Options > Debug > Tunables > Reset This Page
 @page|2|Debug - Cheats and Recording||Advanced VR Options > Debug > Cheats and Recording
 |2|Debug - Cheats and Recording|God Mode|Advanced VR Options > Debug > Cheats and Recording > God Mode
@@ -4043,6 +4052,7 @@ vr_shadow_setup_share|2|Debug - Profiling and Memory|Shadow Caster Set-up Shared
 vr_shadow_caster_cache|2|Debug - Profiling and Memory|Keep Light Casters|Advanced VR Options > Debug > Profiling and Memory > Keep Light Casters
 |2|Debug - Profiling and Memory|Check Kept Light Casters|Advanced VR Options > Debug > Profiling and Memory > Check Kept Light Casters
 |2|Debug - Profiling and Memory|Model Light Grid Info|Advanced VR Options > Debug > Profiling and Memory > Model Light Grid Info
+|2|Debug - Profiling and Memory|Model Light Grid Test|Advanced VR Options > Debug > Profiling and Memory > Model Light Grid Test
 |2|Debug - Profiling and Memory|Light Caster Stats|Advanced VR Options > Debug > Profiling and Memory > Light Caster Stats
 vr_stereo_single|2|Debug - Profiling and Memory|Single-Pass Stereo (Experimental)|Advanced VR Options > Debug > Profiling and Memory > Single-Pass Stereo (Experimental)
 |2|Debug - Profiling and Memory|Single-Pass Stereo Info|Advanced VR Options > Debug > Profiling and Memory > Single-Pass Stereo Info
@@ -4133,6 +4143,23 @@ vr_flat_aim_fov|2|Debug - Reports|Flatscreen Ironsight Field of View|Advanced VR
 vr_flat_aim_time|2|Debug - Reports|Flatscreen Ironsight Time|Advanced VR Options > Debug > Reports > Flatscreen Ironsight Time
 vr_flat_crouch_time|2|Debug - Reports|Flatscreen Crouch Time|Advanced VR Options > Debug > Reports > Flatscreen Crouch Time
 vr_flat_crouch_drop|2|Debug - Reports|Flatscreen Crouch Drop|Advanced VR Options > Debug > Reports > Flatscreen Crouch Drop
+vr_flat_gun_fwd|2|Debug - Reports|Flatscreen Gun Forward|Advanced VR Options > Debug > Reports > Flatscreen Gun Forward
+vr_flat_gun_down|2|Debug - Reports|Flatscreen Gun Down|Advanced VR Options > Debug > Reports > Flatscreen Gun Down
+vr_flat_gun_out|2|Debug - Reports|Flatscreen Gun Out|Advanced VR Options > Debug > Reports > Flatscreen Gun Out
+vr_flat_gun_near|2|Debug - Reports|Flatscreen Gun With The Crosshair|Advanced VR Options > Debug > Reports > Flatscreen Gun With The Crosshair
+vr_flat_ads_fwd|2|Debug - Reports|Flatscreen Ironsight Forward|Advanced VR Options > Debug > Reports > Flatscreen Ironsight Forward
+vr_flat_ads_up|2|Debug - Reports|Flatscreen Ironsight Up|Advanced VR Options > Debug > Reports > Flatscreen Ironsight Up
+vr_flat_ads_out|2|Debug - Reports|Flatscreen Ironsight Out|Advanced VR Options > Debug > Reports > Flatscreen Ironsight Out
+vr_flat_ads_near|2|Debug - Reports|Flatscreen Ironsight With The Crosshair|Advanced VR Options > Debug > Reports > Flatscreen Ironsight With The Crosshair
+vr_flat_empty_fwd|2|Debug - Reports|Flatscreen Empty Hand Forward|Advanced VR Options > Debug > Reports > Flatscreen Empty Hand Forward
+vr_flat_empty_down|2|Debug - Reports|Flatscreen Empty Hand Down|Advanced VR Options > Debug > Reports > Flatscreen Empty Hand Down
+vr_flat_empty_out|2|Debug - Reports|Flatscreen Empty Hand Out|Advanced VR Options > Debug > Reports > Flatscreen Empty Hand Out
+vr_flat_support_fwd|2|Debug - Reports|Flatscreen Both Hands Forward|Advanced VR Options > Debug > Reports > Flatscreen Both Hands Forward
+vr_flat_support_down|2|Debug - Reports|Flatscreen Both Hands Down|Advanced VR Options > Debug > Reports > Flatscreen Both Hands Down
+vr_flat_support_out|2|Debug - Reports|Flatscreen Both Hands Out|Advanced VR Options > Debug > Reports > Flatscreen Both Hands Out
+vr_flat_cam_fwd|2|Debug - Reports|Flatscreen View Forward|Advanced VR Options > Debug > Reports > Flatscreen View Forward
+vr_flat_cam_up|2|Debug - Reports|Flatscreen View Up|Advanced VR Options > Debug > Reports > Flatscreen View Up
+vr_flat_cam_side|2|Debug - Reports|Flatscreen View Sideways|Advanced VR Options > Debug > Reports > Flatscreen View Sideways
 |2|Debug - Reports|Flatscreen Punch|Advanced VR Options > Debug > Reports > Flatscreen Punch
 |2|Debug - Reports|Official Campaign Status|Advanced VR Options > Debug > Reports > Official Campaign Status
 |2|Debug - Reports|Dopa Finale Text|Advanced VR Options > Debug > Reports > Dopa Finale Text

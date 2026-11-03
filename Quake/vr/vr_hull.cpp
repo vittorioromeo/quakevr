@@ -4783,7 +4783,12 @@ void updateCrouch(edict_t* ent, const glm::vec3& head, bool flatscreenCrouch)
     const float want = crouchLevelFor(sv.worldmodel, eye);
     if(flatscreen)
     {
-        c = want; // the key held: the level his head is let down to, the one he had before the key
+        // The key held: the level his head is let down to. Lower always; taller (his head coming back up as the key is let
+        // go, under a low ceiling) only if it fits, as for a headset player.
+        if((want > 0.f && (c <= 0.f || want <= c)) || boxFitsAt(ent, num, want))
+        {
+            c = want;
+        }
         return;
     }
     if(want > 0.f && (c <= 0.f || want <= c))

@@ -533,6 +533,9 @@ za::Vector<Item> pageDebugProfiling()
         command("Model Light Grid Info", "vr_model_light_grid_info")
             .help("vr_model_light_grid_info: the map's model light grid: its cells, probes, memory and build time, and how "
                   "much light its probes out of sight would add through thin walls, in the console."),
+        command("Model Light Grid Test", "vr_model_light_grid_test")
+            .help("vr_model_light_grid_test: on this map, whether effects read what a model reads, and what each of the Light "
+                  "Grid tuning constants and lit liquids does; a verdict in the console."),
         command("Light Caster Stats", "vr_shadow_caster_stats")
             .help("vr_shadow_caster_stats: since the last time, the dynamic lights' world caster sets kept and collected, "
                   "in the console."),
@@ -727,6 +730,23 @@ za::Vector<Item> pageDebugReports()
         row(opt::vr_flat_aim_time),
         row(opt::vr_flat_crouch_time),
         row(opt::vr_flat_crouch_drop),
+        row(opt::vr_flat_gun_fwd),
+        row(opt::vr_flat_gun_down),
+        row(opt::vr_flat_gun_out),
+        row(opt::vr_flat_gun_near),
+        row(opt::vr_flat_ads_fwd),
+        row(opt::vr_flat_ads_up),
+        row(opt::vr_flat_ads_out),
+        row(opt::vr_flat_ads_near),
+        row(opt::vr_flat_empty_fwd),
+        row(opt::vr_flat_empty_down),
+        row(opt::vr_flat_empty_out),
+        row(opt::vr_flat_support_fwd),
+        row(opt::vr_flat_support_down),
+        row(opt::vr_flat_support_out),
+        row(opt::vr_flat_cam_fwd),
+        row(opt::vr_flat_cam_up),
+        row(opt::vr_flat_cam_side),
         command("Flatscreen Punch", "vr_flat_punch")
             .help("A punch with the main hand (`vr_flat_punch off` for the off hand): the same motion the fire button of a "
                   "hand holding a swinging weapon makes, and V's punch. Flatscreen play only."),

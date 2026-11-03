@@ -3,6 +3,7 @@
 // numbers; the drawing is camera-facing quads of 1.5 x scale units, turned by their angle about
 // the view direction, as the old geometry shader built them.
 
+#include "vr_ambient.hpp"
 #include "vr_random.hpp"
 #include "vr_geom.hpp"
 #include "vr_modelmetadata.hpp"
@@ -1054,6 +1055,10 @@ void lieOnLiquid(const Particle& p, const glm::vec3& r, const glm::vec3& u, cons
 // changing light style, a quarter of them each frame read their lightmap texels again for the flicker (a cached
 // R_LightPoint: no trace). About 25 to 40 ns a lit particle a frame (vr_particle_light_report: 0.15 to 0.25 ms with 5000
 // to 6500 of them in particles_dense).
+//
+// With the model light grid (vr_model_light_grid) they read its probes, what a model beside them has, in the same way:
+// one read a cell (gridLights), shared, at most gridReadBudget a frame; again when a cell's light moves with a light style
+// (once a frame), or at gridLightFrames for the tunables to reach it (and vr_model_light_grid 0: the above, whole).
 
 // What a particle is, for its light (Lighting::Auto): the explicit list of what is light itself. Glows added to the
 // scene are; so are the explosions' and the tarbaby's colour ramps and lightning, and everything in or of lava (its
@@ -1122,6 +1127,20 @@ constexpr float retraceRise = 16.f;         // units up or down (the trace finds
 constexpr float lightCellSize = 16.f;       // a kept trace's cell, across and up (a luxel)
 LightTrace lightTraces[lightTraceSlots];
 
+// The grid's light of a cell, as a kept trace.
+struct GridLight
+{
+    const qmodel_t* world{nullptr};
+    int key[3]{};
+    int frame{0}; // when it was read
+    bool styled{false};
+    za::U8 rgb[3]{};
+};
+constexpr int gridReadBudget = 128;  // reads a frame at most (a read costs some 40 times a kept trace's copy)
+constexpr int gridLightFrames = 36;  // a cell read again after this long: half a second for a moved slider to show
+GridLight gridLights[lightTraceSlots];
+za::U8 gridLastRead[3]{128, 128, 128}; // the latest read: what a new particle takes over the budget (it's near: a burst's)
+
 // This frame's dynamic lights that may reach particles (indices into r_lightbuffer.lights), and each particle's light
 // (by pool index; 1 for emissive ones).
 struct FrameLight
@@ -1164,6 +1183,64 @@ long long lightLitSum = 0;   // ... and the particles it lit
         }
     }
     return false;
+}
+
+// lightmapOf with the grid on (the block comment above).
+void gridLightOf(Particle& p, za::SizeT index, LightStats& st)
+{
+    const glm::vec3 d = glm::abs(p.org - geom::vec(p.lightCache.pos));
+    const bool kept = p.lightKnown && za::max(d.x, za::max(d.y, d.z)) < retraceDistance;
+    if(kept && !(p.lightStyled && ((index + static_cast<za::SizeT>(host_framecount)) & 3) == 0))
+    {
+        return;
+    }
+    const int key[3] = {static_cast<int>(za::floor(p.org.x / lightCellSize)), static_cast<int>(za::floor(p.org.y / lightCellSize)),
+        static_cast<int>(za::floor(p.org.z / lightCellSize))};
+    const za::U32 hash = (static_cast<za::U32>(key[0]) * 73856093u) ^ (static_cast<za::U32>(key[1]) * 19349663u) ^
+                         (static_cast<za::U32>(key[2]) * 83492791u);
+    GridLight& t = gridLights[hash & (lightTraceSlots - 1)];
+    const bool same = t.world == cl.worldmodel && t.key[0] == key[0] && t.key[1] == key[1] && t.key[2] == key[2];
+    if(same && !(t.styled && t.frame != host_framecount) && host_framecount - t.frame < gridLightFrames)
+    {
+        st.shared++;
+    }
+    else if(st.traces >= gridReadBudget)
+    {
+        st.stale++; // its last light a frame longer
+        if(!p.lightKnown)
+        {
+            ZA_MEMCPY(p.lightmap, gridLastRead, sizeof(p.lightmap));
+        }
+        return;
+    }
+    else
+    {
+        glm::vec3 level{0.f};
+        bool styled = false;
+        if(!ambient::gridLightAt(p.org, level, &styled))
+        {
+            vec3_t at{p.org.x, p.org.y, p.org.z}; // (no probe in sight: the floor's, as a model's)
+            lightcache_t cache{};
+            (void)R_LightPoint(at, 2.f, &cache);
+            level = glm::vec3{lightcolor[0], lightcolor[1], lightcolor[2]};
+        }
+        st.traces++;
+        t.world = cl.worldmodel;
+        ZA_MEMCPY(t.key, key, sizeof(t.key));
+        t.frame = host_framecount;
+        t.styled = styled;
+        for(int c = 0; c < 3; c++)
+        {
+            t.rgb[c] = lightByte(level[c]);
+            gridLastRead[c] = t.rgb[c];
+        }
+    }
+    ZA_MEMCPY(p.lightmap, t.rgb, sizeof(p.lightmap));
+    p.lightStyled = t.styled;
+    p.lightCache.pos[0] = p.org.x;
+    p.lightCache.pos[1] = p.org.y;
+    p.lightCache.pos[2] = p.org.z;
+    p.lightKnown = true;
 }
 
 // The lightmap's light at the particle (p.lightmap: 0..255, 128 Quake's full).
@@ -1348,6 +1425,7 @@ void lightParticles()
     // else in the same pass (splitLightWork).
     const za::SizeT work = static_cast<za::SizeT>(lightStats.lit) * static_cast<za::SizeT>(frameLightCount) + 4 * lightStats.reached;
     const bool split = jobs::workers() > 0 && work >= splitLightWork;
+    const bool gridLit = ambient::gridOn();
     {
         // (profiling builds: on this thread, every particle's lightmap light; the dynamic lights too unless split)
         QVR_TRACY_SCOPE(zoneLightmap, "particle light: lightmap pass");
@@ -1364,7 +1442,14 @@ void lightParticles()
                 lightOf[i] = glm::vec3{1.f};
                 continue;
             }
-            lightmapOf(p, i, st);
+            if(gridLit)
+            {
+                gridLightOf(p, i, st);
+            }
+            else
+            {
+                lightmapOf(p, i, st);
+            }
             if(!split)
             {
                 lightOf[i] = litLight(p, lf, st.reached);

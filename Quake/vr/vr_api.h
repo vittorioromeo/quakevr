@@ -169,10 +169,8 @@ void VR_FileCacheForgetMoved (const char *from, const char *to);	// a file moved
 // ("RELIGHT 3/12 45% 2:10") and how far it is (0..1), or null when none runs, the wrist gadget shows it, or a menu does.
 const char *VR_RelightIndicator (float *fraction);
 
-// The flatscreen ironsight (vr_flatsight.cpp, -flatscreenmode): whether it is on, and the field of view to render at.
-// Both answer for flatscreen play only -- a headset's field of view is its own, and there the answers are 0 and the
-// base fov given, whatever the player pressed.
-int VR_FlatAdsActive (void);				// nonzero while the ironsight is on (the mouse wheel's button, or vr_flat_aim)
+// The flatscreen ironsight (vr_flatsight.cpp, -flatscreenmode): the field of view to render at. For flatscreen play only
+// -- a headset's field of view is its own, and there the answer is the base fov given, whatever the player pressed.
 float VR_FlatAdsFov (float basefov);		// basefov narrowed by vr_flat_aim_fov while it is on; basefov unchanged when it is off, and outside flatscreen play
 
 // Images decoded ahead on worker threads (vr_imgprefetch.cpp; image.c Image_LoadImage).
@@ -574,7 +572,7 @@ int VR_MenuRunsGame (void);								// Host_ServerFrame: nonzero if a single play
 int VR_RuntimeMenuPause (void);							// Host_ServerFrame, SV_RunClients: nonzero while the runtime's menu pauses a single player game (vr_xr_unfocused_pause)
 int VR_RagtoolHolds (void);								// Host_ServerFrame: nonzero while the ragdoll tool is paused (vr_ragtool.cpp; its single steps run)
 int VR_RagtoolView (float *origin, float *angles);		// V_CalcRefdef: the ragdoll tool's orbit camera set over the view (nonzero: set)
-void VR_FlatViewDrop (float *vieworg);					// V_CalcRefdef: a flatscreen player holding his crouch sees from lower (vr_flatplay.cpp); outside the mode the view is left as it was
+void VR_FlatViewDrop (float *vieworg, const float *viewangles);	// V_CalcRefdef: a flatscreen player holding his crouch sees from lower (vr_flatplay.cpp), and from wherever vr_flat_cam_fwd / vr_flat_cam_up / vr_flat_cam_side put his eye -- forward, up and the view's own right, in the frame of the view being drawn; the crosshair's ray that every aiming measurement of the mode uses is taken from this same view (flatplay::crosshairRay), so the gun and the crosshair move with it. His origin, his collision box and his body are not touched. Outside the mode the view is left as it was
 float VR_FlatPitchClamp (float pitch);					// CL_AccumulateCmd, once the frame's looking has all landed in cl.viewangles: the flatscreen look's window, vr_flat_pitch_up / vr_flat_pitch_down (vr_flatplay.cpp); outside the mode the angle comes back as it was, so plain play and a headset are bounded by cl_maxpitch / cl_minpitch alone
 int VR_RagtoolKey (int key, int down);					// Key_Event in the game: nonzero if the ragdoll tool took the key
 int VR_ArenaCardsKey (int key, int down);				// Key_Event in the game: nonzero if the Survival Arena's perk cards took the key (1 .. their count)

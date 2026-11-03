@@ -1,5 +1,6 @@
 // vr_impacts.cpp -- see vr_impacts.hpp.
 
+#include "vr_ambient.hpp"
 #include "vr_impacts.hpp"
 #include "vr_impact_shared.h"
 #include "vr_cvars.hpp"
@@ -647,8 +648,7 @@ void at(HitKind kind, const glm::vec3& org, const glm::vec3& prefer, float reach
         return;
     }
     const float k = za::clamp(vr_gunfx_intensity.value, 0.f, 3.f);
-    vec3_t lp{s.at.x + s.normal.x * 2.f, s.at.y + s.normal.y * 2.f, s.at.z + s.normal.z * 2.f};
-    const float light = za::clamp(static_cast<float>(R_LightPoint(lp, 0.f, &lightCache)) / 128.f, 0.f, 1.6f);
+    const float light = za::clamp(static_cast<float>(ambient::lightPoint(s.at + s.normal * 2.f, lightCache)) / 128.f, 0.f, 1.6f);
     // (dust and chips drawn as their colour, shaded once by the place's light: dim in the dark, never black)
     const Made m = emit(row, s.material, s, k, 0.35f + 0.5f * za::min(light, 1.3f));
     if(vr_debug_gunfx.value)

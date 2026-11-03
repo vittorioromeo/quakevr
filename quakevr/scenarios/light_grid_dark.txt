@@ -1,0 +1,7 @@
+title Gore and smoke beside a monster in a dark room: as lit as it is (E2M6, a shotgun in hand)
+map e2m6
+god
+notarget
+give "Shotgun" main
+spawn monster_army 110 0
+hint Shoot it: blood, dust and gun smoke take the light the grunt has. vr_model_light_grid 0 for the floor's, to compare.
