@@ -1124,8 +1124,16 @@ QVR_TUNABLE(vr_enemy_aim_angle, "20") // Combat > Enemy Melee > Aim Cone: degree
 QVR_TUNABLE(vr_enemy_aim_fire, "40") // Combat > Enemy Melee > Fire Cone: degrees each side of its facing you must be inside for it to shoot at once (else it waits, turning; times the kind's multiplier too)
 QVR_TUNABLE(vr_enemy_aim_delay, "0.3") // Combat > Enemy Melee > Max Delay: seconds a shot waits at most with you outside its fire cone (turning after you meanwhile), then fires clamped; 0: no wait
 
-// Player > Footsteps (vr_playersteps.cpp)
-QVR_TUNABLE(vr_footstep_player_turn_vol, "0.35") // a standing step (turning on the spot, moving in the room), times a step's volume (0: none)
+// Body > Player Footsteps (vr_playersteps.cpp)
+QVR_TUNABLE(vr_footstep_player_volume, "1") // all the steps on the drawn feet, times this
+QVR_TUNABLE(vr_footstep_player_walk_vol, "0.1") // a step's volume at the walking speed or slower
+QVR_TUNABLE(vr_footstep_player_run_vol, "0.5") // ... at the running speed or faster
+QVR_TUNABLE(vr_footstep_player_walk_speed, "60") // units/s: a step this slow or slower has the walking volume
+QVR_TUNABLE(vr_footstep_player_run_speed, "320") // units/s: this fast or faster the running volume
+QVR_TUNABLE(vr_footstep_player_curve, "1.5") // how the volume rises from walk to run: 1 evenly, higher staying quiet longer
+QVR_TUNABLE(vr_footstep_player_adjust_vol, "0") // the body's small adjustments (standing steps, slow room moves), this volume (0: silent)
+QVR_TUNABLE(vr_footstep_player_adjust_gap, "1") // s: at most one adjustment's sound in this long
+QVR_TUNABLE(vr_footstep_player_room_speed, "60") // units/s: the walk's steps with the stick still (moving in the room) slower than this are adjustments
 
 // Combat > Enemy Footsteps (vr_footsteps.cpp)
 QVR_TUNABLE(vr_footstep_volume, "0.9") // all of them, times this (0: none)
