@@ -1424,6 +1424,7 @@ void(entity m, float xSpeed) VR_Monster_Fall =
     dprint(sprintf("fall: %s landed at %g u/s (a %g unit drop): %g damage%s\n", m.classname, xSpeed, drop, dmg,
         m.vr_knockdown ? " (knocked down)" : ""));
     T_Damage(m, world, world, dmg);
+    VR_AG_FallLanded(m, xSpeed);
 };
 
 .entity vr_shove; // on a monster: its slide (a "vr_shove" entity; world when none)

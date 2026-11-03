@@ -44,6 +44,19 @@ Your settings are the defaults now (43 values and 7 barrel masks): tug, close qu
 Heavy Feet Speed (Debug > Tunables > Combat > Enemy Footsteps) makes ogre, fiend and shambler steps deeper and longer or sharper and shorter, live as you drag it.
 Slow stick walking is much quieter than a run; adjust under Debug > Tunables > Body > Player Footsteps.
 Turning in the room or with the stick, or moving a little in the room: no footstep sounds.
+Debug > Tools > Arena Wave Editor: build a wave with an armed grunt, dual axes, red armour and infected with shambler; save it, assign it to Normal, then Play from wave 1. Is the panel readable, do the laser, stick scrolling and panel keys work?
+Toolgun > Spawn > Armed Humanoid > Infected With > Ogre: kill him; his weapon falls and he rises as an ogre.
+Worn Backpacks > Fit has a page each for grunts, knights and death knights; moving a slider moves only that kind's pack, at once.
+An enforcer holding a sword or nothing can be lifted by the pack on its back too.
+Lifting by the pack: does the body really come off the floor? (On the mock it barely rises: knights and death knights a few units, enforcers none.)
+Bending down to grab a lying grunt never hurts it, against the floor or a wall; a headbutt on a lying body lands only when your head reaches its body.
+A grunt shoved off a high ledge drops its weapon on landing, even if it wasn't knocked down; a low drop that doesn't hurt it keeps it.
+Armed humanoids' steps while firing now follow Retreat Readiness, Aggressiveness, their kind and your blade; expect them further back when you hold a melee weapon.
+A gun-and-axe holder up close stands and swings its axe rather than backing away firing.
+A super nailgun holder's last odd round is a single nail, with no console error.
+Revolver out: tilting it or a wrist flick drops nothing; a short push back along the bore throws the shells that way. Pulling it in to inspect at speed may eject: raise Eject Push Speed if so.
+Revolver out: a quick pull back with a shell in the other hand keeps the loaded shells in.
+Revolver: see through the empty chambers swung out; shells seat cleanly in them.
 
 
 [3. Bodies: grabbing, throwing, hits]

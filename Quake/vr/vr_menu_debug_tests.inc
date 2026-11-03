@@ -543,7 +543,7 @@ za::Vector<Item> pageDebugTests()
                   "its chest; a knocked-down one dragged, then lifted; hits and the force grab still take packs off "
                   "(vr_wornpack_test 3; 13 knights, 23 death knights, 33 enforcers; ends on \"wornpull: N passed, M failed\")."),
         command("Enforcer's Lift Zone", "developer 1; vr_wornpack_test 5")
-            .help("An enforcer with a gun has a lift zone on the pack in its model, a sword's or fists' none; nothing takes "
+            .help("An enforcer has a lift zone on the pack in its model, whatever it holds; nothing takes "
                   "it off; its own loot drops (vr_wornpack_test 5; ends on \"wornpack: N passed, M failed\")."),
         command("Armoured Enforcers There", "vr_agarmor_test 3")
             .help("Three armed enforcers ahead in full green, yellow and red armour (vr_agarmor_test 3)."),

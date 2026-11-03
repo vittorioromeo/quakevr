@@ -10,7 +10,8 @@
 // at 80 u/s and one standing (the eyeshots).
 
 float VR_AGAIT_REACT = 0;  // the time to its first shot (a shotgun at 260)
-float VR_AGAIT_AIM = 1;    // its shots' aim error and spread, its hits (a gun at 300, 8 shots)
+float VR_AGAIT_AIM = 1;    // its shots' aim error and spread, its hits (a gun at 300, VR_AGAIT_AIM_SHOTS shots)
+float VR_AGAIT_AIM_SHOTS = 24; // (a mean of random draws: at 8 shots accuracy 2's half came out 0.5..0.73 of accuracy 1's by the seed)
 float VR_AGAIT_PRESS = 2;  // its distance and shots (a shotgun at 400, 8 s)
 float VR_AGAIT_BACK = 3;   // its backing off (a nailgun at 150, 5 s)
 float VR_AGAIT_SEEK = 4;   // unarmed 136 ahead, a shotgun lying 140 behind it: does it go for it (4 s)
@@ -20,6 +21,8 @@ float vr_agait_case;
 float vr_agait_t0;
 float vr_agait_shots0;
 float vr_agait_first;  // its first shot's time after the hunt (-1 none)
+float vr_agait_gate;   // its wait on first seeing you (attack_finished after the hunt, off now): the reaction itself; the first
+                       // shot comes 0.4..0.9 s later by its run frames' dice, so a first shot alone can't compare two cases
 float vr_agait_dsum;
 float vr_agait_dn;
 float vr_agait_backs0;
@@ -182,6 +185,7 @@ void() VR_AGAIT_Begin =
         VR_AGR_MarkNative(g); // (a replacement's own gun: its monster's own shots)
     }
     VR_AGT_Hunt(g);
+    vr_agait_gate = max(0, g.attack_finished - time);
     vr_agait_t0 = time;
     vr_agait_shots0 = g.vr_ag_total_shots;
     vr_agait_first = -1;
@@ -260,10 +264,10 @@ void() VR_AGAIT_Frame =
     p.health = 500;
     vr_agait_hp = p.health;
     vr_agait_dmg = vr_ag_player_dmg;
-    // Each case's end: its first shot (reaction, 6 s at most), 8 shots (aim, 30 s at most), its seconds.
+    // Each case's end: its first shot (reaction, 6 s at most), its shots (aim, 90 s at most), its seconds.
     float done = !alive;
     if(vr_agait_kind == VR_AGAIT_REACT) { done = (done || (shots > 0) || (t > 6)); }
-    else if(vr_agait_kind == VR_AGAIT_AIM) { done = (done || (shots >= 8) || (t > 30)); }
+    else if(vr_agait_kind == VR_AGAIT_AIM) { done = (done || (shots >= VR_AGAIT_AIM_SHOTS) || (t > 90)); }
     else if(vr_agait_kind == VR_AGAIT_PRESS) { done = (done || (t >= 8)); }
     else if(vr_agait_kind == VR_AGAIT_BACK) { done = (done || (t >= 5)); }
     else { done = (done || vr_agait_went || (t >= 4)); }
@@ -279,11 +283,8 @@ void() VR_AGAIT_Frame =
     {
         vr_agait_val[c] = vr_agait_first;
         float want = VR_AGAI_Reaction(); // (the case's skill still set)
-        s = strcat(s, sprintf(": first shot after %.2f s (reaction %.2f s)", vr_agait_first, want));
-        ok = (vr_agait_first >= want - 0.05 && vr_agait_first <= want + 2.5);
-        if(c == 1) { ok = (ok && vr_agait_first < vr_agait_val[0]); }
-        if(c == 2) { ok = (ok && vr_agait_first > vr_agait_val[0]); }
-        if(c == 5) { ok = (ok && vr_agait_first < 0.7); }
+        s = strcat(s, sprintf(": waits %.2f s, first shot after %.2f s (reaction %.2f s)", vr_agait_gate, vr_agait_first, want));
+        ok = (fabs(vr_agait_gate - want) < 0.02 && vr_agait_first >= want - 0.05 && vr_agait_first <= want + 2.5);
     }
     else if(vr_agait_kind == VR_AGAIT_AIM)
     {
@@ -292,7 +293,7 @@ void() VR_AGAIT_Frame =
         vr_agait_val[c] = vr_agait_native ? dev : aim + dev;
         s = strcat(s, sprintf(": %g shots in %.1f s%s, aim off %.2f deg, pellets off it %.2f deg, hits %g", shots, t,
             alive ? "" : " (it died)", aim, dev, vr_agait_hits));
-        ok = (shots >= 8 || vr_agait_native);
+        ok = (shots >= VR_AGAIT_AIM_SHOTS || vr_agait_native);
         if(c == 8) { ok = (ok && vr_agait_val[8] < 0.7 * vr_agait_val[7]); }
         if(c == 9) { ok = (ok && vr_agait_val[9] > 1.4 * vr_agait_val[7]); }
         if(c == 10) { ok = (ok && vr_agait_val[10] < vr_agait_val[7]); }

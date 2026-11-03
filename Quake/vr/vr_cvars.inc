@@ -2349,8 +2349,10 @@ QVR_CVAR(vr_revolver_close_flick_speed, "350", CVAR_ARCHIVE) // the flick shut (
 QVR_CVAR(vr_revolver_close_flick_angle, "75", CVAR_ARCHIVE) // and its wrist flick, degrees
 QVR_CVAR(vr_revolver_open_flick_time, "0.25", CVAR_ARCHIVE) // the flick open's time window: its wrist flick must be rolled within this many seconds of the flick's start (0: no limit)
 QVR_CVAR(vr_revolver_open_button, "1", CVAR_ARCHIVE) // B/Y (its eject button) swings the cylinder out; out, B/Y pushes the ejector
-QVR_CVAR(vr_revolver_close_button, "0", CVAR_ARCHIVE) // out, B/Y swings it home instead (an accessibility option: the shells then drop by the tilt or the ejector rod alone)
+QVR_CVAR(vr_revolver_close_button, "0", CVAR_ARCHIVE) // out, B/Y swings it home instead (an accessibility option: the shells then leave by the hand's push or the ejector rod alone)
 QVR_CVAR(vr_revolver_close_push, "1", CVAR_ARCHIVE) // the other hand pushing the swung-out cylinder up from below swings it home
+QVR_CVAR(vr_revolver_eject_speed, "1", CVAR_ARCHIVE) // out, the hand's push back along the bore, the way the chambers open, this fast at its fastest (m/s) throws its shells out, spent and live
+QVR_CVAR(vr_revolver_eject_impulse, "1.5", CVAR_ARCHIVE) // they go on at the hand's velocity times this
 QVR_CVAR(vr_revolver_eject_rod, "1", CVAR_ARCHIVE) // out, the other hand pushing the ejector rod's head back drops them
 QVR_CVAR(vr_revolver_eject_rod_reach, "1.1", CVAR_ARCHIVE) // units from the rod's head the other hand pushes it within
 QVR_CVAR(vr_revolver_eject_rod_speed, "0.325", CVAR_ARCHIVE) // m/s back along the cylinder that push must reach
@@ -2496,6 +2498,9 @@ QVR_CVAR(vr_arena_foe_armor, "1", CVAR_ARCHIVE)               // 1: the waves' g
 QVR_CVAR(vr_arena_foe_armor_scale, "1", CVAR_ARCHIVE)         // the arena armour's chance times this (1: 10% at its first wave at Normal, 3% more a wave, cap 85%)
 QVR_CVAR(vr_arena_foe_armor_from, "4", CVAR_ARCHIVE)          // the first wave a foe may wear armour at Normal (moved by the skill as every gate: 7 / 4 / 2 / 2)
 QVR_CVAR(vr_arena_seed, "0", CVAR_NONE)                       // the waves' rolls: 0 a different ladder every run, else that seed's ladder
+QVR_CVAR(vr_arena_waves_dir, "arena_waves", CVAR_NONE)         // the folder of the arena's wave presets, under the game folder (vr_arenawaves.hpp; the tests' keep apart)
+QVR_CVAR(vr_waveeditor_width, "54", CVAR_ARCHIVE)              // the Arena Wave Editor's panel in the headset: its width (units)
+QVR_CVAR(vr_waveeditor_distance, "42", CVAR_ARCHIVE)           // ... how far in front of the head it opens (units)
 QVR_CVAR(vr_arena_goto, "0", CVAR_NONE)                       // debug/benchmarks: set to N, the running arena jumps to wave N now (the field cleared, no rest or countdown; back to 0 after)
 // Survival Arena's last foes seen through walls (QC VR_ARENA_XrayMark marks them, .vr_xray; vr_arenaxray.cpp draws them)
 QVR_CVAR(vr_arena_xray, "1", CVAR_ARCHIVE)                    // 1: a wave's last foes glow through walls (an outline in front of everything)
@@ -2877,13 +2882,27 @@ QVR_CVAR(vr_agarmor_block_cuts, "1", CVAR_ARCHIVE)    // armour: no limb is cut 
 QVR_CVAR(vr_agarmor_debris_time, "12", CVAR_ARCHIVE)  // armour: a broken plate's debris lies about this long (s), then fades out
 QVR_CVAR(vr_agarmor_impulse, "0.5", CVAR_ARCHIVE)     // armour: a shot a plate absorbs still pushes the body (a ragdoll's limb) this much of a bare hit's push (0..1)
 QVR_CVAR(vr_agarmor_debug, "0", CVAR_NONE)            // debug (Debug > Show Armour Plates): every armoured body's unbroken plates drawn as the shot test poses them, a colour per plate
-QVR_CVAR(vr_worn_backpack_scale, "0.6", CVAR_ARCHIVE) // worn backpacks: the pack's size on the back (times the backpack model's)
-QVR_CVAR(vr_worn_backpack_x, "1.5", CVAR_ARCHIVE)      // worn backpacks: moved forward (into the back; out: negative), units
-QVR_CVAR(vr_worn_backpack_y, "0", CVAR_ARCHIVE)       // worn backpacks: moved left, units
-QVR_CVAR(vr_worn_backpack_z, "1.5", CVAR_ARCHIVE)      // worn backpacks: moved up, units
-QVR_CVAR(vr_worn_backpack_pitch, "21", CVAR_ARCHIVE)   // worn backpacks: tipped (degrees)
-QVR_CVAR(vr_worn_backpack_yaw, "180", CVAR_ARCHIVE)     // worn backpacks: turned (degrees)
-QVR_CVAR(vr_worn_backpack_roll, "0", CVAR_ARCHIVE)    // worn backpacks: rolled (degrees)
+QVR_CVAR(vr_worn_backpack_grunt_scale, "0.6", CVAR_ARCHIVE) // worn backpacks, Grunt: the pack's size on the back (times the backpack model's)
+QVR_CVAR(vr_worn_backpack_grunt_x, "1.5", CVAR_ARCHIVE) // worn backpacks, Grunt: moved forward (into the back; out: negative), units
+QVR_CVAR(vr_worn_backpack_grunt_y, "0", CVAR_ARCHIVE) // worn backpacks, Grunt: moved left, units
+QVR_CVAR(vr_worn_backpack_grunt_z, "1.5", CVAR_ARCHIVE) // worn backpacks, Grunt: moved up, units
+QVR_CVAR(vr_worn_backpack_grunt_pitch, "21", CVAR_ARCHIVE) // worn backpacks, Grunt: tipped (degrees)
+QVR_CVAR(vr_worn_backpack_grunt_yaw, "180", CVAR_ARCHIVE) // worn backpacks, Grunt: turned (degrees)
+QVR_CVAR(vr_worn_backpack_grunt_roll, "0", CVAR_ARCHIVE) // worn backpacks, Grunt: rolled (degrees)
+QVR_CVAR(vr_worn_backpack_knight_scale, "0.6", CVAR_ARCHIVE) // worn backpacks, Knight: the pack's size on the back (times the backpack model's)
+QVR_CVAR(vr_worn_backpack_knight_x, "1.5", CVAR_ARCHIVE) // worn backpacks, Knight: moved forward (into the back; out: negative), units
+QVR_CVAR(vr_worn_backpack_knight_y, "0", CVAR_ARCHIVE) // worn backpacks, Knight: moved left, units
+QVR_CVAR(vr_worn_backpack_knight_z, "1.5", CVAR_ARCHIVE) // worn backpacks, Knight: moved up, units
+QVR_CVAR(vr_worn_backpack_knight_pitch, "21", CVAR_ARCHIVE) // worn backpacks, Knight: tipped (degrees)
+QVR_CVAR(vr_worn_backpack_knight_yaw, "180", CVAR_ARCHIVE) // worn backpacks, Knight: turned (degrees)
+QVR_CVAR(vr_worn_backpack_knight_roll, "0", CVAR_ARCHIVE) // worn backpacks, Knight: rolled (degrees)
+QVR_CVAR(vr_worn_backpack_dknight_scale, "0.6", CVAR_ARCHIVE) // worn backpacks, Death Knight: the pack's size on the back (times the backpack model's)
+QVR_CVAR(vr_worn_backpack_dknight_x, "1.5", CVAR_ARCHIVE) // worn backpacks, Death Knight: moved forward (into the back; out: negative), units
+QVR_CVAR(vr_worn_backpack_dknight_y, "0", CVAR_ARCHIVE) // worn backpacks, Death Knight: moved left, units
+QVR_CVAR(vr_worn_backpack_dknight_z, "7.5", CVAR_ARCHIVE) // worn backpacks, Death Knight: moved up, units
+QVR_CVAR(vr_worn_backpack_dknight_pitch, "21", CVAR_ARCHIVE) // worn backpacks, Death Knight: tipped (degrees)
+QVR_CVAR(vr_worn_backpack_dknight_yaw, "180", CVAR_ARCHIVE) // worn backpacks, Death Knight: turned (degrees)
+QVR_CVAR(vr_worn_backpack_dknight_roll, "0", CVAR_ARCHIVE) // worn backpacks, Death Knight: rolled (degrees)
 QVR_CVAR(vr_worn_backpack_mass, "4", CVAR_ARCHIVE)    // worn backpacks: its weight on a ragdoll's chest (kg)
 QVR_CVAR(vr_worn_backpack_impact, "9", CVAR_ARCHIVE)  // worn backpacks: a ragdoll's strike on the level at least this fast (m/s) tears it off
 QVR_CVAR(vr_worn_backpack_pool, "25", CVAR_ARCHIVE)  // worn backpacks: the damage a living one's pack takes before it tears off (hits on the pack: blows, throws, shots, projectiles; and the share below of blasts and fire anywhere on it; poison never; 0: never by damage)
@@ -3784,6 +3803,7 @@ QVR_CVAR(vr_toolgun_armed_kind, "0", CVAR_ARCHIVE)      // the spawn panel's Arm
 QVR_CVAR(vr_toolgun_armed_weapon, "0", CVAR_ARCHIVE)    // ... its right hand's weapon (the "weapon" key: 0 random from the pool, -1 unarmed, else the weapon's code)
 QVR_CVAR(vr_toolgun_armed_weapon2, "0", CVAR_ARCHIVE)   // ... its left hand's ("weapon2": 0 none; a one-handed weapon, with a one-handed one in the right)
 QVR_CVAR(vr_toolgun_armed_armor, "0", CVAR_ARCHIVE)     // ... its armour (vr_agarmor.qc VR_AgArmor_Toolgun): 0 none, 1 green, 2 yellow, 3 red, 4 one of them at random
+QVR_CVAR(vr_toolgun_armed_infected, "0", CVAR_ARCHIVE)  // ... what it is infected with: a row of QC's VR_INFECT_ROWS (0 none; killed, it bursts and rises as that monster)
 QVR_CVAR(vr_toolgun_armed_pieces, "1", CVAR_ARCHIVE)    // ... its armour's pieces: 0 the cuirass and the helmet, 1 all ten, 2 random (the cuirass, the helmet and some of the rest)
 QVR_CVAR(vr_toolgun_armed_tiles,"0", CVAR_ARCHIVE)     // 1: the Monsters tab also lists the Armed Grunt and Armed Enforcer tiles for each weapon (the page replaces them)
 QVR_CVAR(vr_toolgun_brush_texlock, "1", CVAR_ARCHIVE)   // ... Rotate turns the textures with the faces (0: each face gets the world's alignment)

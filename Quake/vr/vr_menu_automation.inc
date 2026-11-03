@@ -94,9 +94,17 @@ za::Vector<Item> pageDebugAutomation()
             .help("Whose meaning this map's spawnflags have (Quake's, Machine Games', Arcane Dimensions'), and where "
                   "monsters look for you (crouched: your real eyes)."),
         header("Survival Arena (map vrarena)"),
+        command("Arena Wave Editor", "vr_waveeditor")
+            .help("The waves made to order, saved as presets, one chosen per map and difficulty (also Debug > Tools)."),
         command("Offer Perk Cards Now", "vr_arena_cards_offer")
             .help("The cards the next boss wave's clear would offer, now (between two waves only): the arena waits "
                   "until you pick one."),
+        command("Arena Presets: Format Test", "vr_arena_waves_dir arena_waves_test; vr_arena_waves_fixture; vr_arena_waves_test")
+            .help("A preset's text round trip, bad words, names, assign.cfg (arena waves test: N passed, M failed; the tests' own folder)."),
+        command("Arena Wave Editor: Click Through Test", "vr_arena_waves_dir arena_waves_test; vr_waveeditor; vr_waveeditor_test")
+            .help("Every button, list and popup of the editor clicked by the test's mouse (waveeditor test: N passed, M failed)."),
+        command("Armed Humanoids: Infection Test", "vr_toolgun_armed_infected_test")
+            .help("Each armed kind with each outcome from the toolgun's page, spawned, killed, rising (toolgun infected test: N passed, M failed)."),
         command("Jump to Wave 6", "vr_arena_goto 6")
             .help("The arena clears the field and starts wave 6 at once (no rest or countdown): armed foes mid-ladder. "
                   "vr_arena_goto N jumps to any wave."),
