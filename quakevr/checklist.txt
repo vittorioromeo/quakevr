@@ -84,6 +84,7 @@ An armed grunt's Mjolnir swung from the far end of its reach, and a death knight
 Push a hand into a grunt's belly and grip, with both hands for a judo throw: it takes hold and stays held, with no instant "breaks free" shove, and doesn't take the pack behind it.
 Rig Studio: changing the subject leaves no backpack lying on the floor.
 A replaced grunt or enforcer, whatever it holds, drops what it holds and its backpack, never an extra weapon; a plain grunt or enforcer (`vr_agrunt_repl` 0) still sometimes does.
+Flat screen: go deep in a menu, click Back to game (top left), press ESC. The menu reopens on the same page, cursor and scroll. ESC then backs out page by page.
 
 
 [3. Bodies: grabbing, throwing, hits]
