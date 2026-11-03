@@ -101,6 +101,7 @@ struct Editor
     bool askDiscard{false};
     bool askDelete{false};
     bool askSaveAs{false};
+    bool askClose{false}; // Play and Close, from inside the window: drawWindow closes after its End
     bool hold{true};
     float columnsBottom{0.f}; // the window's middle row's bottom (its lists end there)
 
@@ -998,7 +999,8 @@ void assignBar()
     }
 }
 
-// Closed by Play, the Close button, the window's X, a headset session's change.
+// Closed by the Play and Close buttons and the window's X (all after the window's End: it ends ImGui's frame, imgui::want,
+// so never between a Begin and its End), the console's vr_waveeditor_close, the game's shutdown.
 void closeEditor();
 
 void playBar()
@@ -1013,7 +1015,7 @@ void playBar()
     {
         const char* name = ed.name[0] ? ed.name : "(unsaved)";
         aw::play(ed.map, name, ed.preset, ed.playWave);
-        closeEditor();
+        ed.askClose = true;
         return;
     }
     if(ed.panelUp)
@@ -1027,7 +1029,7 @@ void playBar()
     ImGui::SameLine();
     if(btn("Close"))
     {
-        closeEditor();
+        ed.askClose = true;
         return;
     }
     ImGui::TextWrapped("%s", ed.status);
@@ -1214,12 +1216,9 @@ void drawWindow()
     }
     assignBar();
     popups();
-    if(ed.open)
-    {
-        playBar();
-    }
+    playBar();
     ImGui::End();
-    if(!keep && ed.open)
+    if(!keep || ed.askClose)
     {
         closeEditor();
     }
@@ -1228,7 +1227,9 @@ void drawWindow()
 void closeEditor()
 {
     ed.open = false;
+    ed.askClose = false;
     ed.testing = false;
+    ed.clickPhase = 0;
     imgui::want(false);
     imgui::setPanel(0, 0, 0, 1.f);
     gfx::releaseTarget(ed.target);
