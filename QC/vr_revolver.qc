@@ -23,9 +23,10 @@
 //   - its cylinder swings out (to the left in the right hand) by a flick of the wrist that way (vr_revolver_open_flick,
 //     on; its force vr_revolver_open_flick_speed and its wrist flick vr_revolver_open_flick_angle) or B/Y (its eject
 //     button: vr_revolver_open_button);
-//   - out, its shells drop, spent and live (the spent ones as casings, the live ones as shells to pick up again), when
-//     the muzzle is tilted up (vr_revolver_eject_tilt), B/Y is pressed, or the other hand pushes the ejector rod's head
-//     back (vr_revolver_eject_rod);
+//   - out, its shells leave, spent and live (the spent ones as casings, the live ones as shells to pick up again), when
+//     the hand pushes the gun the way its chambers open, back along the bore (VR_Revolver_Push: vr_revolver_eject_speed,
+//     thrown on with that push: vr_revolver_eject_impulse; tilting it alone drops nothing, nor does a flick of the
+//     wrist), B/Y is pressed, or the other hand pushes the ejector rod's head back (vr_revolver_eject_rod);
 //   - a shell from the pouch (one at a time: VR_Reload_Take) held to the cylinder's back face goes into the empty chamber
 //     nearest it (VR_Revolver_LoadInto, from vr_reload.qc's VR_Reload_LoadInto);
 //   - the other hand swiping across it spins it (vr_revolver_spin): it slows and stops on a chamber, which changes which
@@ -71,10 +72,13 @@ float RV_SWING = -95;        // the crane's swing out, degrees about the bore (+
 .float rvh_spun;    // its last swipe
 .float rvh_held_at; // the last time the other hand held anything (a shell) or a shell went in: no spin a moment after
 .float rvh_sec;     // B/Y held last frame
-.float rvh_tilt;    // the muzzle tilted up (its eject done; again once it is lowered)
+.float rvh_ejrun;   // the hand's push along the chambers' way out: how far so far (m),
+.float rvh_ejpeak;  // its fastest (m/s),
+.float rvh_ejframes; // and its frames (one alone is no push: a tracking glitch)
 .entity rvh_inst;   // the record the hand held last frame
-.vector rvh_up;     // the hand's up last frame, and its side towards the cylinder (the flicks' roll)
+.vector rvh_up;     // the hand's up last frame, and its side towards the cylinder (the flicks' roll),
 .vector rvh_side;
+.vector rvh_fwd;    // and its aim (how fast it turns: VR_Revolver_Push)
 .float rvh_upok;
 
 // For the engine (STAT_QVR_REVOLVER, _REVOLVER2, _REVOLVERCYL, _REVOLVERCYL2: vr_view.cpp setupRevolverParts): the
@@ -489,7 +493,7 @@ void(float xHand, entity r, string xHow) VR_Revolver_Open =
     r.wi_rv_spin = 0;
     r.wi_rv_ofs = 0;
     h.rvh_toggled = time;
-    h.rvh_tilt = 0;
+    h.rvh_ejrun = h.rvh_ejpeak = h.rvh_ejframes = 0;
     VR_RV_Sound(self, VRGetGunChannel(xHand), "vr/reload_ssg_open.wav", 0.9, 135);
     VR_Reload_Haptic(self, xHand, 0.06, 90, 0.8);
     vr_rv_opened++;
@@ -513,9 +517,12 @@ void(float xHand, entity r, string xHow) VR_Revolver_Close =
         VR_Revolver_Count(r, 1)));
 };
 
-// Its shells drop out of the swung-out cylinder in `xHand` of self, spent and live: the spent ones as casings (the
-// clients', vr_shells.cpp, out of the cylinder as drawn), the live ones as shells lying about to take again.
-void(float xHand, entity r, string xHow) VR_Revolver_Eject =
+// Its shells leave the swung-out cylinder in `xHand` of self, spent and live: the spent ones as casings (the clients',
+// vr_shells.cpp, out of the cylinder as drawn), the live ones as shells lying about to take again. `xPush`: the hand's
+// velocity (m/s) that threw them out (VR_Revolver_Push; they go that way at that speed x vr_revolver_eject_impulse),
+// '0 0 0' when something else let them drop.
+vector vr_rv_ej_vel; // (the last live shell's velocity, units a second: the tests)
+void(float xHand, entity r, string xHow, vector xPush) VR_Revolver_Eject =
 {
     entity h = VR_Revolver_Hand(self, xHand);
     float spent = VR_Revolver_Count(r, 2);
@@ -528,7 +535,7 @@ void(float xHand, entity r, string xHow) VR_Revolver_Eject =
     VR_Reload_Haptic(self, xHand, 0.05, 140, 0.6);
     if(spent > 0)
     {
-        ejectcasings(xHand, QVR_CASING_SLUG, spent, 0.02, 0); // (blue, as the chambers' spent slugs)
+        ejectcasings(xHand, QVR_CASING_SLUG, spent, 0.02, xPush == '0 0 0' ? 0 : QVR_CASING_PUSHED); // (blue, as the chambers' spent slugs)
     }
     VR_Revolver_Frame(xHand);
     vector at = vr_rv_port;
@@ -543,15 +550,24 @@ void(float xHand, entity r, string xHow) VR_Revolver_Eject =
         entity s = VR_Reload_MakeRound(0, AID_SHELLS, 1, from, vectoangles(vr_rv_axis));
         s.skin = 1; // (the blue slug, as in its chambers: vr_shell_live.mdl's skin 1)
         VR_Reload_MarkFresh(s, self); // (not back in by contact until it has left the cylinder)
-        s.velocity = VRGetEntHandVel(self, xHand) * VRMetersToUnits() - vr_rv_axis * 40 + '0 0 1' * (20 + random() * 20) +
-                     (vr_rv_left * crandom() + vr_rv_up * crandom()) * 15;
+        if(xPush == '0 0 0')
+        {
+            s.velocity = VRGetEntHandVel(self, xHand) * VRMetersToUnits() - vr_rv_axis * 40 + '0 0 1' * (20 + random() * 20) +
+                         (vr_rv_left * crandom() + vr_rv_up * crandom()) * 15;
+        }
+        else
+        {
+            s.velocity = xPush * VRMetersToUnits() * max(0, cvar_hget(cvarh_vr_revolver_eject_impulse)) +
+                         (vr_rv_left * crandom() + vr_rv_up * crandom()) * 4;
+        }
+        vr_rv_ej_vel = s.velocity;
         s.avelocity = '0 1 0' * (crandom() * 300) + '1 0 0' * (crandom() * 300);
         s.flags = s.flags - (s.flags & FL_ONGROUND);
     }
     vr_rv_ej_spent += spent;
     vr_rv_ej_live += live;
     vr_rv_lasthow = xHow;
-    VR_Reload_Log(sprintf("the revolver (hand %g): its shells dropped by %s: %g spent, %g live", xHand, xHow, spent, live));
+    VR_Reload_Log(sprintf("the revolver (hand %g): its shells out by %s: %g spent, %g live", xHand, xHow, spent, live));
 };
 
 // A round `xRound` goes into the revolver in `xGunHand` of self (vr_reload.qc VR_Reload_LoadInto; from the other hand,
@@ -675,6 +691,7 @@ float(entity h, float xRate, float xDt) VR_Revolver_FlickRate =
 // right hand, its right in the left: the gun mirrored) and the flick it makes (VR_Revolver_FlickRate).
 float vr_rv_rollrate;
 float vr_rv_rollmax; // (the fastest roll seen, signed: the tests reset it)
+float vr_rv_turnrate; // how fast the hand turns now, about any axis (degrees a second; VR_Revolver_Push)
 float(entity h, float xHand) VR_Revolver_Flick =
 {
     // (From the hand's turn since the last frame: how far its up swung about its aim towards its left, or its right in the
@@ -683,12 +700,15 @@ float(entity h, float xHand) VR_Revolver_Flick =
     vector up = v_up;
     vector side = xHand == cVR_OffHand ? v_right : -v_right;
     float roll = 0;
+    vr_rv_turnrate = 0;
     if(h.rvh_upok && frametime > 0)
     {
         roll = atan2(up * h.rvh_side, up * h.rvh_up) * 57.29578 / frametime;
+        vr_rv_turnrate = max(vlen(up - h.rvh_up), vlen(v_forward - h.rvh_fwd)) * 57.29578 / frametime;
     }
     h.rvh_up = up;
     h.rvh_side = side;
+    h.rvh_fwd = v_forward;
     h.rvh_upok = TRUE;
     vr_rv_rollrate = roll;
     if(fabs(vr_rv_rollrate) > fabs(vr_rv_rollmax))
@@ -700,6 +720,41 @@ float(entity h, float xHand) VR_Revolver_Flick =
         dprint(sprintf("revolver: hand %g's wrist rolls %.0f deg/s towards the cylinder's side\n", xHand, vr_rv_rollrate));
     }
     return VR_Revolver_FlickRate(h, vr_rv_rollrate, frametime);
+};
+
+// The hand `xHand` of self pushing its swung-out cylinder the way its chambers open (back along the bore, -vr_rv_axis), a
+// short linear move of the hand: TRUE when it has gone vr_revolver_eject_travel metres that way, at vr_revolver_eject_speed
+// m/s at its fastest, within vr_revolver_eject_cone degrees of that way all along and the hand not turning faster than
+// vr_revolver_eject_turn degrees a second. The speed is the hand's own, at the grip (.handvel, the player's own motion
+// left out), not the cylinder's: a flick of the wrist swings the cylinder fast but the grip hardly moves, and a flick hard
+// enough to move it too turns too fast to count. Tilting it moves nothing: nothing.
+float RV_PUSH_SUSTAIN = 0.5;   // a push goes on while it stays above this share of vr_revolver_eject_speed
+vector vr_rv_push;             // the hand's velocity then (m/s)
+float vr_rv_pushmax;           // (the fastest speed that way seen, m/s; the turn then: the tests reset them)
+float vr_rv_pushturn;
+float(entity h, float xHand) VR_Revolver_Push =
+{
+    float need = max(0.05, cvar_hget(cvarh_vr_revolver_eject_speed));
+    float turn = cvar_hget(cvarh_vr_revolver_eject_turn);
+    VR_Revolver_Frame(xHand);
+    vr_rv_push = VRGetEntHandVel(self, xHand);
+    vector way = -vr_rv_axis;
+    float speed = vr_rv_push * way;
+    if(speed > vr_rv_pushmax)
+    {
+        vr_rv_pushmax = speed;
+        vr_rv_pushturn = vr_rv_turnrate;
+    }
+    float off = atan2(vlen(vr_rv_push - way * speed), speed) * 57.29578;
+    if(speed < need * RV_PUSH_SUSTAIN || off > cvar_hget(cvarh_vr_revolver_eject_cone) || (turn > 0 && vr_rv_turnrate > turn))
+    {
+        h.rvh_ejrun = h.rvh_ejpeak = h.rvh_ejframes = 0;
+        return FALSE;
+    }
+    h.rvh_ejrun = h.rvh_ejrun + speed * frametime;
+    h.rvh_ejpeak = max(h.rvh_ejpeak, speed);
+    h.rvh_ejframes++;
+    return h.rvh_ejframes >= 2 && h.rvh_ejpeak >= need && h.rvh_ejrun >= cvar_hget(cvarh_vr_revolver_eject_travel);
 };
 
 // The other hand of `xHand` of self at the swung-out cylinder of record `r`: pushing the ejector rod's head back drops its
@@ -724,7 +779,7 @@ void(float xHand, entity h, entity r) VR_Revolver_OtherHand =
        vlen(hp - tip) <= cvar_hget(cvarh_vr_revolver_eject_rod_reach) &&
        rel * -vr_rv_axis >= cvar_hget(cvarh_vr_revolver_eject_rod_speed))
     {
-        VR_Revolver_Eject(xHand, r, sprintf("the ejector rod pushed (%.2f m/s)", rel * -vr_rv_axis));
+        VR_Revolver_Eject(xHand, r, sprintf("the ejector rod pushed (%.2f m/s)", rel * -vr_rv_axis), '0 0 0');
         return;
     }
     float half = RV_CYL_LEN * 0.5 * RV_SCALE;
@@ -857,7 +912,7 @@ void(float xHand, entity h, entity r) VR_Revolver_ReloadFrame =
         }
         else
         {
-            VR_Revolver_Eject(xHand, r, "the eject button");
+            VR_Revolver_Eject(xHand, r, "the eject button", '0 0 0');
         }
         return;
     }
@@ -866,23 +921,13 @@ void(float xHand, entity h, entity r) VR_Revolver_ReloadFrame =
         VR_Revolver_Close(xHand, r, vr_rv_lasthow);
         return;
     }
-    // The muzzle tilted up: its shells drop (once; again once it is lowered).
-    float tilt = cvar_hget(cvarh_vr_revolver_eject_tilt);
-    makevectors(VRGetEntHandRot(self, xHand));
-    if(tilt > 0 && v_forward_z >= sin(min(89, tilt) * 0.0174533))
+    // The hand's push the way its chambers open: its shells leave with it. (Not just after loading or with a shell in the
+    // other hand, which is when a gun is brought back to it quickly; not two-handed.)
+    if(VR_Revolver_Push(h, xHand) && VR_Revolver_Count(r, 0) < RV_CHAMBERS && !VRGet2HAiming(self) &&
+       time >= h.rvh_held_at + max(0, cvar_hget(cvarh_vr_revolver_spin_hold)))
     {
-        if(!h.rvh_tilt)
-        {
-            h.rvh_tilt = 1;
-            if(VR_Revolver_Count(r, 0) < RV_CHAMBERS)
-            {
-                VR_Revolver_Eject(xHand, r, sprintf("the muzzle tilted up (%.0f deg)", atan2(v_forward_z, sqrt(max(0, 1 - v_forward_z * v_forward_z))) * 57.29578));
-            }
-        }
-    }
-    else if(v_forward_z < sin(max(0, tilt - 10) * 0.0174533))
-    {
-        h.rvh_tilt = 0;
+        VR_Revolver_Eject(xHand, r, sprintf("a push of the hand (%.2f m/s over %.0f cm)", h.rvh_ejpeak, h.rvh_ejrun * 100), vr_rv_push);
+        h.rvh_ejrun = h.rvh_ejpeak = h.rvh_ejframes = 0;
     }
     VR_Revolver_OtherHand(xHand, h, r);
 };

@@ -24,8 +24,11 @@
 //     deliberate one does. Then a spin (900 degrees a second): it slows, stops on a chamber; the chamber under the hammer moved with its turn.
 //  10 a flick of the wrist the other way (the mock's roll with vr_mock_turn_velocity 1): it swings home.
 //  11 pulls until two shots: each pull a shot or a click as its chambers say, from the one after the hammer's on.
-//  12 a flick towards its cylinder's side: it swings out. 13 the muzzle tilted up: its two spent and two live shells drop
-//     (two live rounds lying about).
+//  12 a flick towards its cylinder's side: it swings out. 13 its shells leave only by a linear push of the hand: the muzzle
+//     tilted up, a flick of the wrist (720 deg/s about a wrist right under the hand), a push across it, a slower one
+//     along it and one right after loading drop nothing; a push along it (1.6 m/s) throws its two spent and two live shells
+//     out (two live rounds lying about), the live ones at the hand's velocity x vr_revolver_eject_impulse. Then the same
+//     push in reload modes 1 and 2: nothing leaves it.
 //  14 the flicks' thresholds: the force (vr_revolver_*_flick_speed) and the wrist flick (_angle), both ways.
 //  15 its damage: a grunt to one slug at its head (x1.5, its head popped), another to two in its body, an ogre to 4-5 in its
 //     body (vr_revolver_heavy_mult); the head pop's chance by range against the shotguns'.
@@ -111,6 +114,13 @@ void() VR_RVT_End =
 };
 
 void() VR_RVT_Next = { vr_rvt_step++; vr_rvt_frames = 0; };
+
+// The mock main hand moved this frame at `xMs` (world axes, metres a second; it reports that move's velocity).
+void(vector xMs) VR_RVT_HandMove =
+{
+    vector d = xMs * (VRMetersToUnits() * frametime);
+    localcmd(sprintf("vr_mock_hand_to main by %.4f %.4f %.4f\n", d_x, d_y, d_z));
+};
 
 // A target (a box that takes damage) `xDist` ahead along the main hand's aim, from its muzzle.
 void(float xDist) VR_RVT_Target =
@@ -664,22 +674,134 @@ void() VR_Revolver_TestFrame =
             VR_RVT_Next();
         }
     }
-    else if(s == 13)
+    else if(s == 13 && vr_rvt_frames < 300)
     {
-        if(vr_rvt_frames == 26) { localcmd("vr_mock_hand main 0.15 1.3 -0.3 130 0 0\n"); } // (the muzzle 60 degrees up)
-        if(vr_rv_ej_spent + vr_rv_ej_live > vr_rvt_shots0 + vr_rvt_dry0 || vr_rvt_frames == 80)
+        float f13 = vr_rvt_frames;
+        float dropped13 = vr_rv_ej_spent + vr_rv_ej_live - vr_rvt_shots0 - vr_rvt_dry0;
+        VR_Revolver_Frame(cVR_MainHand);
+        vector way13 = -vr_rv_axis;
+        if(f13 == 1)
+        {
+            localcmd("vr_mock_hand main 0.15 1.2 -0.45 70 0 0\n"); // (its roll from the flick undone: just swung out, no flick counts)
+        }
+        else if(f13 >= 30 && f13 < 90)
+        {
+            localcmd("vr_mock_hand_turn main 1 0 0\n"); // (the muzzle up, slowly: 72 deg/s, the hand's place kept)
+        }
+        else if(f13 == 95)
         {
             makevectors(VRGetEntHandRot(p, cVR_MainHand));
-            float sp = vr_rv_ej_spent - vr_rvt_shots0;
-            float lv = vr_rv_ej_live - vr_rvt_dry0;
-            VR_Test_Check(sp == 2 && lv == 2 && VR_Revolver_Desc(rec) == "------" && VR_RVT_LiveRounds() == vr_rvt_live0 + 2,
-                sprintf("the muzzle tilted up (aim z %.2f): %g spent and %g live shells dropped (want 2, 2), %g live rounds lying (+%g), chambers %s",
-                    v_forward_z, sp, lv, VR_RVT_LiveRounds(), VR_RVT_LiveRounds() - vr_rvt_live0, VR_Revolver_Desc(rec)));
-            VR_Test_Check(VR_RVT_BlueRounds() - vr_rvt_blue0 == 2,
-                sprintf("its live shells dropped are blue slugs: +%g blue (skin 1) of +%g lying (want 2)",
-                    VR_RVT_BlueRounds() - vr_rvt_blue0, VR_RVT_LiveRounds() - vr_rvt_live0));
+            VR_Test_Check(dropped13 == 0 && v_forward_z > 0.75, sprintf("tilting alone: the muzzle up (aim z %.2f), %g shells out (want 0)", v_forward_z, dropped13));
+            localcmd("vr_mock_hand main 0.15 1.2 -0.45 70 0 0\n");
+        }
+        else if(f13 >= 100 && f13 < 112)
+        {
+            // A flick of the wrist at its worst: 720 deg/s about a wrist 15 cm right under the hand, so that the hand itself moves
+            // back along the bore at 1.9 m/s (over the push's speed, in its cone): only the turn gives it away.
+            if(f13 == 106)
+            {
+                vr_rv_pushmax = 0; // (from here on: the drawn hand settled from the pose put back before it)
+            }
+            makevectors(VRGetEntHandRot(p, cVR_MainHand));
+            vector d13 = v_forward * (-10 * 0.0174533 * 0.15 * VRMetersToUnits());
+            localcmd(sprintf("vr_mock_hand_turn main 10 0 0;vr_mock_hand_to main by %.4f %.4f %.4f\n", d13_x, d13_y, d13_z));
+        }
+        else if(f13 == 113)
+        {
+            VR_Test_Check(dropped13 == 0 && vr_rv_pushmax >= cvar_hget(cvarh_vr_revolver_eject_speed) && vr_rv_pushturn > cvar_hget(cvarh_vr_revolver_eject_turn),
+                sprintf("a flick of the wrist: the hand %.2f m/s back along the bore turning %.0f deg/s, %g shells out (want 0)", vr_rv_pushmax, vr_rv_pushturn, dropped13));
+            localcmd("vr_mock_hand main 0.15 1.2 -0.45 70 0 0\n");
+        }
+        else if(f13 == 121)
+        {
+            vr_rv_pushmax = 0;
+        }
+        else if(f13 >= 122 && f13 < 142)
+        {
+            VR_RVT_HandMove(vr_rv_left * 2); // (2 m/s across it)
+        }
+        else if(f13 == 145)
+        {
+            VR_Test_Check(dropped13 == 0, sprintf("a push of 2 m/s across it: at most %.2f m/s along it, %g shells out (want 0)", vr_rv_pushmax, dropped13));
+            vr_rv_pushmax = 0;
+        }
+        else if(f13 >= 150 && f13 < 170)
+        {
+            VR_RVT_HandMove(way13 * 0.8); // (under vr_revolver_eject_speed)
+        }
+        else if(f13 == 173)
+        {
+            VR_Test_Check(dropped13 == 0 && vr_rv_pushmax > 0.5, sprintf("a slow push along it: %.2f m/s over 22 cm, %g shells out (want 0)", vr_rv_pushmax, dropped13));
+            vr_rv_pushmax = 0;
+        }
+        else if(f13 >= 180 && f13 < 190)
+        {
+            VR_Revolver_Hand(p, cVR_MainHand).rvh_held_at = time; // (a shell in the other hand, or one just gone in)
+            VR_RVT_HandMove(way13 * 1.6);
+        }
+        else if(f13 == 192)
+        {
+            VR_Test_Check(dropped13 == 0 && vr_rv_pushmax > 1.4, sprintf("a push along it with a shell in the other hand: %.2f m/s, %g shells out (want 0)", vr_rv_pushmax, dropped13));
+        }
+        else if(f13 >= 225)
+        {
+            if(dropped13 > 0 || f13 >= 260)
+            {
+                float sp = vr_rv_ej_spent - vr_rvt_shots0;
+                float lv = vr_rv_ej_live - vr_rvt_dry0;
+                VR_Test_Check(sp == 2 && lv == 2 && VR_Revolver_Desc(rec) == "------" && VR_RVT_LiveRounds() == vr_rvt_live0 + 2 && substring(vr_rv_lasthow, 0, 6) == "a push",
+                    sprintf("%s: %g spent and %g live shells out (want 2, 2), %g live rounds lying (+%g), chambers %s",
+                        vr_rv_lasthow, sp, lv, VR_RVT_LiveRounds(), VR_RVT_LiveRounds() - vr_rvt_live0, VR_Revolver_Desc(rec)));
+                VR_Test_Check(VR_RVT_BlueRounds() - vr_rvt_blue0 == 2,
+                    sprintf("its live shells out are blue slugs: +%g blue (skin 1) of +%g lying (want 2)",
+                        VR_RVT_BlueRounds() - vr_rvt_blue0, VR_RVT_LiveRounds() - vr_rvt_live0));
+                float want13 = 1.6 * VRMetersToUnits() * cvar_hget(cvarh_vr_revolver_eject_impulse);
+                float along13 = vr_rv_ej_vel * way13;
+                VR_Test_Check(fabs(along13 - want13) < want13 * 0.25 && along13 > vlen(vr_rv_ej_vel) * 0.9,
+                    sprintf("the live shells go the hand's way: %.0f units/s that way of %.0f (want %.0f: the hand's 1.6 m/s x %g)", along13, vlen(vr_rv_ej_vel), want13,
+                        cvar_hget(cvarh_vr_revolver_eject_impulse)));
+                localcmd("vr_mock_hand main 0.15 1.2 -0.45 70 0 0\n");
+                vr_rvt_frames = 300; // (on: the other reload modes)
+                vr_rvt_shots0 = vr_rv_ej_spent;
+                vr_rvt_dry0 = vr_rv_ej_live;
+            }
+            else
+            {
+                VR_RVT_HandMove(way13 * 1.6);
+            }
+        }
+    }
+    else if(s == 13 && vr_rvt_frames >= 300)
+    {
+        // The other reload modes (1, then 2): 3 in its clip, the same push: nothing leaves it, it isn't swung out.
+        float f13b = vr_rvt_frames - 300;
+        float m13 = f13b < 40 ? 1 : 2;
+        float g13 = f13b % 40;
+        if(f13b >= 80)
+        {
+            cvar_set("vr_reload_mode_revolver", "3");
+            VRSetEntWeaponClip(p, cVR_MainHand, 0);
+            rec.wi_rv = 0;
+            rec.wi_rv_open = 1;
             localcmd("vr_mock_hand main 0.15 1.2 -0.45 70 0 0\n");
             VR_RVT_Next();
+        }
+        else if(g13 == 1)
+        {
+            cvar_set("vr_reload_mode_revolver", ftos(m13));
+            VRSetEntWeaponClip(p, cVR_MainHand, 3);
+        }
+        else if(g13 >= 10 && g13 < 22)
+        {
+            VR_Revolver_Frame(cVR_MainHand);
+            VR_RVT_HandMove(-vr_rv_axis * 1.6);
+        }
+        else if(g13 == 25)
+        {
+            VR_Test_Check(vr_rv_ej_spent + vr_rv_ej_live == vr_rvt_shots0 + vr_rvt_dry0 && VRGetEntWeaponClip(p, cVR_MainHand) == 3 && !rec.wi_rv_open,
+                sprintf("reload mode %g: a push along it: clip %g (want 3), out %g, chambers %s, %g shells out (want 0)", m13, VRGetEntWeaponClip(p, cVR_MainHand), rec.wi_rv_open,
+                    VR_Revolver_Desc(rec), vr_rv_ej_spent + vr_rv_ej_live - vr_rvt_shots0 - vr_rvt_dry0));
+            localcmd("vr_mock_hand main 0.15 1.2 -0.45 70 0 0\n");
         }
     }
     else if(s == 14 && vr_rvt_frames == 2)

@@ -29,7 +29,12 @@ float VR_AGIT_FALL = 5;
 float VR_AGIT_FLOOR = 6;
 float VR_AGIT_WALL = 7;
 float VR_AGIT_BANG = 8;
-float VR_AGIT_CASES = 9;
+float VR_AGIT_PRESS = 9;       // a gentle press with a real grip: 9 torso, 10 head side, 11 a limb, on the floor; 12 torso, on a wall
+float VR_AGIT_PRESS_WALL = 12;
+float VR_AGIT_CASES = 13;
+float vr_agit_health;  // the press: its health as your hand arrived
+float vr_agit_dealt;   // ... the impacts dealt till then (vr_rimp_dealt)
+float vr_agit_phase;   // ... how far along
 float VR_AGIT_ARM = 32;   // units: the reach you hold a body at, and the swing's length each way
 float VR_AGIT_HAND = 8;   // m/s: the hand's swing (a fast swing's; the body it drives is slower)
 float VR_AGIT_GIVEUP = 5; // s
@@ -39,7 +44,10 @@ string(float c) VR_AGIT_Name =
     return c == VR_AGIT_PUSH ? "small push, lying" : c == VR_AGIT_WALK ? "you walking into it at 5 m/s, lying" :
            c == VR_AGIT_RUN ? "you walking into it at 10 m/s, lying" : c == VR_AGIT_TOPPLE ? "gentle topple" :
            c == VR_AGIT_SWING ? "held, the hand reversed in mid-air" : c == VR_AGIT_FALL ? "fall from height" :
-           c == VR_AGIT_FLOOR ? "thrown into the floor" : c == VR_AGIT_WALL ? "thrown into a wall" : "held, banged into a wall";
+           c == VR_AGIT_FLOOR ? "thrown into the floor" : c == VR_AGIT_WALL ? "thrown into a wall" :
+           c == VR_AGIT_BANG ? "held, banged into a wall" : c == VR_AGIT_PRESS ? "gentle press, its torso on the floor" :
+           c == VR_AGIT_PRESS + 1 ? "gentle press, part 1 on the floor" : c == VR_AGIT_PRESS + 2 ? "gentle press, part 8 on the floor" :
+           "gentle press, its torso on a wall";
 };
 
 // To your right, the wall ahead.
@@ -110,6 +118,76 @@ float(entity p, entity g, float t, float bang) VR_AGIT_Swing =
     return vr_agit_swing > 5;
 };
 
+// The press (his note vrragtriggers_2026-11-03_02-18-13: the hand coming down at 2-3 m/s, the grip closing on the way, and
+// on down a little: health 25 to 0, 23 to -1 at once): a real grip on a lying body: your hand above it comes down at 2 m/s,
+// the grip closes just before it arrives, and it goes on the same way 16 units (in the floor or the wall), stays a moment
+// and lets go. Done: TRUE.
+float(entity p, entity g, float t, float c) VR_AGIT_Press =
+{
+    float part = c == VR_AGIT_PRESS + 1 ? 1 : c == VR_AGIT_PRESS + 2 ? 8 : 0;
+    part = cvar_hget(cvarh_scratch2) > 0 ? cvar_hget(cvarh_scratch2) - 1 : part; // (scratch2 n: part n - 1)
+    part = cvar_hget(cvarh_scratch2) < 0 ? vr_agit_round : part; // (scratch2 -1, with scratch4: each round the next part)
+    float u = VRMetersToUnits();
+    vector way = c == VR_AGIT_PRESS_WALL ? vr_agit_fw : '0 0 -1';
+    if(vr_agit_phase == 0)
+    {
+        vector to = c == VR_AGIT_PRESS_WALL ? vr_agit_fw : g.origin - p.origin;
+        to_z = 0;
+        vector at = g.origin - normalize(to) * 28; // (you step up to it)
+        at_z = p.origin_z;
+        setorigin(p, at);
+        p.velocity = '0 0 0';
+        VR_AGIT_HandTo(p.origin + '0 0 8', 0);
+        vr_agit_health = g.health;
+        vr_agit_dealt = vr_rimp_dealt;
+        vr_agit_phase = 1;
+    }
+    else if(vr_agit_phase == 1 && t >= 0.1)
+    {
+        localcmd(sprintf("vr_mock_hand_glide 0.4\nvr_mock_hand_to main ragdoll %g\n", part));
+        vr_agit_phase = 2;
+    }
+    else if(vr_agit_phase == 2 && t >= 0.55)
+    {
+        localcmd("+grabmain\n");
+        vr_agit_phase = 3;
+    }
+    else if(vr_agit_phase == 3 && t >= 0.6)
+    {
+        float press = cvar_hget(cvarh_scratch3) > 0 ? cvar_hget(cvarh_scratch3) : 2; // (scratch3: the press's m/s)
+        VR_AGIT_HandTo(p.handpos + way * 16, 16 / (press * u));
+        vr_agit_phase = 4;
+    }
+    else if(vr_agit_phase == 4 && t >= 0.75)
+    {
+        vr_agit_held = VR_AG_HeldByHand(g);
+        VR_AGT_Print(sprintf("%s: part %g taken %g, health %g, your hand %.0f up from your feet", VR_AGIT_Name(c), part, vr_agit_held, g.health,
+            p.handpos_z - p.absmin_z));
+        vr_agit_phase = 5;
+    }
+    else if(vr_agit_phase == 5 && t >= 1.5)
+    {
+        localcmd("-grabmain\n");
+        return TRUE;
+    }
+    return FALSE;
+};
+
+// His note's real cause (ROUND23.md): bending over it. VR_Headbutt_Target from his own measure, 31 units from its middle, the
+// head coming down at it: no target; with the head in its drawn body: it.
+void(entity p, entity g) VR_AGIT_HeadCheck =
+{
+    entity oldself = self;
+    self = p;
+    vector over = g.origin + '13 5 28';
+    entity far = VR_Headbutt_Target(over, normalize(g.origin - over));
+    vector in = g.origin + '0 0 12';
+    entity near = VR_Headbutt_Target(in, '0 0 -1');
+    self = oldself;
+    VR_AGT_Check(sprintf("impact bending over it, lying: a head 31 units off its middle hits %s, one in its body hits %s:", far.classname,
+        near.classname), far != g && near == g);
+};
+
 // A real wall to bang things on (not a crate, a pillar or a low wall): the first of 8 ways from you, 100 units off or more,
 // whose surface is flat across a body's width and up to above your hand: vr_agit_fw, vr_agit_wall.
 void(entity p) VR_AGIT_FindWall =
@@ -139,8 +217,134 @@ void(entity p) VR_AGIT_FindWall =
     VR_AGT_Print("no flat wall found");
 };
 
+// On vrclimb (its ledges): shoved off a real ledge, your real shove (his note vrragtriggers_2026-11-03_02-18-13: "they get
+// damaged correctly, but they never drop their weapon"): over the rung tower's edge (a 280-unit drop), the long ledge's (240,
+// into the trench), the block's (96); the tower's with Over a Ledge off (so a stagger goes over it), and with knockdowns off
+// (it slides off on its feet); the block's on its feet (96: under VR_SHOVE_SAFEFALL, unhurt: it keeps it). PASS: its weapon
+// dropped, on landing, not before; the last: kept, and it did fall. The block's knocked down: its ragdoll usually topples on
+// the block's edge and stays up (fell 24-36 units, as measured): kept then, dropped if it does go over.
+float vr_agit_lc;       // the case
+float vr_agit_lz;       // its height at the shove
+float vr_agit_lowest;   // ... the lowest it got
+float vr_agit_lkeep1, vr_agit_lkeep2;
+vector vr_agit_llast;
+float VR_AGIT_LEDGES = 6;
+
+string(float c) VR_AGIT_LedgeName =
+{
+    return c == 0 ? "off the tower (280)" : c == 1 ? "off the long ledge (240)" : c == 2 ? "off the block (96)" :
+           c == 3 ? "off the tower, staggering (280)" : c == 4 ? "off the tower, on its feet (280)" : "off the block, on its feet (96)";
+};
+
+void() VR_AGIT_Ledge =
+{
+    entity p = vr_agt_player;
+    entity g = vr_agt_grunt;
+    float u = VRMetersToUnits();
+    float c = vr_agit_lc;
+    vector at = c == 1 ? '112 400 72' : (c == 2 || c == 5) ? '16 -310 120' : '112 -160 304';
+    if(vr_agt_step == 0)
+    {
+        if(c == 0)
+        {
+            vr_agit_lkeep1 = cvar_hget(cvarh_vr_knockdown_ledge);
+            vr_agit_lkeep2 = cvar_hget(cvarh_vr_knockdown_chance);
+            if(cvar_hget(cvarh_scratch1) > 0)
+            {
+                c = vr_agit_lc = cvar_hget(cvarh_scratch1) - 1;
+                at = c == 1 ? '112 400 72' : (c == 2 || c == 5) ? '16 -310 120' : '112 -160 304';
+            }
+        }
+        cvar_set("vr_knockdown_ledge", c == 3 ? "0" : ftos(vr_agit_lkeep1));
+        cvar_set("vr_knockdown_chance", c >= 4 ? "0" : "100");
+        p.flags = p.flags | FL_NOTARGET;
+        VR_AGPT_EmptyHand(p);
+        VR_AGPT_Clear();
+        setorigin(p, at + '40 0 0');
+        p.velocity = '0 0 0';
+        vr_agt_grunt = g = VR_AGT_Spawn(WID_SHOTGUN, 40);
+        setorigin(g, at);
+        g.angles_y = 180;
+        vr_agit_t0 = time;
+        vr_agit_drop_at = 0;
+        vr_agit_still = 0;
+        vr_agt_step = 1;
+        return;
+    }
+    if(vr_agt_step == 1)
+    {
+        if(!g.takedamage || time < vr_agit_t0 + 0.4)
+        {
+            return; // (started)
+        }
+        if(g.vr_wp_pack)
+        {
+            remove(g.vr_wp_pack); // (as VR_AGIT_Frame)
+            g.vr_wp_pack = world;
+        }
+        g.health = 2000; // (the fall's damage never kills it: a death drops it anyway)
+        traceline(g.origin - '40 0 0', g.origin - '40 0 2000', TRUE, g);
+        VR_AGT_Print(sprintf("%s: at %v, on the floor %g, the ground past its edge %.0f units below it", VR_AGIT_LedgeName(c), g.origin,
+            (g.flags & FL_ONGROUND) != 0, g.absmin_z - trace_endpos_z));
+        vector oldpos = g.origin;
+        entity oldself = self;
+        self = p;
+        vr_bash_exhaust_dmg = 0;
+        vr_bash_exhaust_push = 0;
+        VR_Bash_Hit(g, g.origin, '-1 0 0', QVR_HITKIND_SHOVE, -1, 1, 1);
+        self = oldself;
+        VR_AGT_Print(sprintf("%s: shoved: down %g, stagger %g, velocity %v", VR_AGIT_LedgeName(c), g.vr_knockdown, g.vr_kd_stagger, g.velocity));
+        vr_agit_lz = oldpos_z;
+        vr_agit_lowest = oldpos_z;
+        vr_agit_llast = g.origin;
+        vr_agit_t0 = time;
+        vr_agt_step = 2;
+        return;
+    }
+    if(vr_agt_step == 2)
+    {
+        float t = time - vr_agit_t0;
+        vr_agit_lowest = min(vr_agit_lowest, g.origin_z);
+        if(!g.vr_ag_prop && vr_agit_drop_at == 0)
+        {
+            vr_agit_drop_at = time;
+        }
+        vr_agit_still = (vlen(g.origin - vr_agit_llast) < 1) ? vr_agit_still + 1 : 0;
+        vr_agit_llast = g.origin;
+        if(cvar_hget(cvarh_vr_agrunt_debug) >= 2)
+        {
+            VR_AGT_Print(sprintf("t %.2f z %.0f health %g down %g stagger %g", t, g.origin_z, g.health, g.vr_knockdown, g.vr_kd_stagger));
+        }
+        float fell = vr_agit_lz - vr_agit_lowest;
+        if(vr_agit_drop_at == 0 && t < 7 && vr_agit_still < 40)
+        {
+            return;
+        }
+        VR_AGT_Check(sprintf("ledge %s: %s; fell %.0f units, health 2000 to %g; hardest impact %.1f m/s, fell at %.1f m/s, down %g:",
+            VR_AGIT_LedgeName(c), vr_agit_drop_at > 0 ? sprintf("dropped at %.2f s", vr_agit_drop_at - vr_agit_t0) : "kept", fell, g.health,
+            g.vr_ag_fall_hit / u, g.vr_ag_fall_down / u, g.vr_knockdown),
+            c == 2 ? (vr_agit_drop_at > 0) == (fell >= 64) : ((c == 5 ? vr_agit_drop_at == 0 : vr_agit_drop_at > 0) && fell >= 64));
+        vr_agit_lc = vr_agit_lc + 1;
+        vr_agt_step = 0;
+        if(vr_agit_lc >= VR_AGIT_LEDGES || cvar_hget(cvarh_scratch1) > 0)
+        {
+            vr_agit_lc = 0;
+            VR_AGPT_Clear();
+            cvar_set("vr_knockdown_ledge", ftos(vr_agit_lkeep1));
+            cvar_set("vr_knockdown_chance", ftos(vr_agit_lkeep2));
+            p.flags = p.flags - (p.flags & FL_NOTARGET);
+            cvar_set("vr_agrunt_test", "0");
+        }
+    }
+};
+
 void() VR_AGIT_Frame =
 {
+    if(mapname == "vrclimb")
+    {
+        VR_AGIT_Ledge();
+        return;
+    }
     entity p = vr_agt_player;
     entity g = vr_agt_grunt;
     float u = VRMetersToUnits();
@@ -206,7 +410,17 @@ void() VR_AGIT_Frame =
         {
             setorigin(g, vr_agit_wall - vr_agit_fw * 72); // (it reaches the wall before it touches the floor)
         }
-        g.health = 400; // (an impact's damage never kills it: a death drops it anyway)
+        if(c == VR_AGIT_PRESS_WALL)
+        {
+            // (It falls against the wall, you beside it.)
+            setorigin(p, vr_agit_wall - vr_agit_fw * 48 - VR_AGIT_Side() * VR_AGIT_ARM);
+            setorigin(g, vr_agit_wall - vr_agit_fw * 24);
+        }
+        vr_agit_phase = 0;
+        if(c < VR_AGIT_PRESS)
+        {
+            g.health = 400; // (an impact's damage never kills it: a death drops it anyway; a press: its own, it must lose none)
+        }
         VR_AGT_Print(sprintf("%s: you %.0f units off the wall, it %.0f", VR_AGIT_Name(c), vlen(p.origin - vr_agit_wall),
             vlen(g.origin - vr_agit_wall)));
         vr_agit_t0 = time;
@@ -231,7 +445,7 @@ void() VR_AGIT_Frame =
         makevectors('0 1 0' * g.angles_y);
         VR_Knockdown_Start(g);
         g.vr_kd_until = time + 30; // (it lies till the case ends)
-        if(c == VR_AGIT_TOPPLE || c == VR_AGIT_PUSH || c == VR_AGIT_WALK || c == VR_AGIT_RUN || c == VR_AGIT_SWING || c == VR_AGIT_BANG)
+        if(c == VR_AGIT_TOPPLE || c == VR_AGIT_PUSH || c == VR_AGIT_WALK || c == VR_AGIT_RUN || c == VR_AGIT_SWING || c == VR_AGIT_BANG || c >= VR_AGIT_PRESS)
         {
             ragdollshovetopple(g, v_forward * -1, 1, FALSE, 40);
         }
@@ -261,9 +475,9 @@ void() VR_AGIT_Frame =
     {
         over = TRUE;
     }
-    else if(c == VR_AGIT_PUSH || c == VR_AGIT_WALK || c == VR_AGIT_RUN)
+    else if(c == VR_AGIT_PUSH || c == VR_AGIT_WALK || c == VR_AGIT_RUN || c >= VR_AGIT_PRESS)
     {
-        // Down and still first (it lies), then the push: a shove's one kick, or you walking through it.
+        // Down and still first (it lies), then the push: a shove's one kick, you walking through it, or your hand's press.
         if(vr_agt_step == 2)
         {
             vr_agit_still = (vlen(g.vr_ag_fall_v) < 40 && t > 0.5) ? vr_agit_still + 1 : 0;
@@ -283,7 +497,15 @@ void() VR_AGIT_Frame =
             }
             return;
         }
-        if(c == VR_AGIT_PUSH)
+        if(c >= VR_AGIT_PRESS)
+        {
+            if(vr_agit_phase == 0 && c == VR_AGIT_PRESS)
+            {
+                VR_AGIT_HeadCheck(p, g);
+            }
+            over = VR_AGIT_Press(p, g, t, c);
+        }
+        else if(c == VR_AGIT_PUSH)
         {
             over = t >= 1;
         }
@@ -317,11 +539,27 @@ void() VR_AGIT_Frame =
     {
         return;
     }
+    if(g.health <= 0 && c >= VR_AGIT_PRESS && vr_agit_phase < 4)
+    {
+        VR_AGT_Print("press: it died before the press");
+    }
     float most = cvar_hget(cvarh_vr_agrunt_fall_keep_impact) * u;
-    float wants = c >= VR_AGIT_FALL;
+    float wants = (c >= VR_AGIT_FALL && c < VR_AGIT_PRESS);
     float dropped = vr_agit_drop_at > 0;
     float hard = g.vr_ag_fall_hit >= most;
     localcmd("-grabmain\n");
+    if(c == VR_AGIT_PRESS_WALL && !vr_agit_held)
+    {
+        // (The mock hand doesn't get a grip on a body slumped at a wall: not a result either way.)
+        VR_AGT_Print(sprintf("impact %s: NOT RUN, no grip (health %g to %g)", VR_AGIT_Name(c), vr_agit_health, g.health));
+    }
+    else if(c >= VR_AGIT_PRESS)
+    {
+        VR_AGT_Check(sprintf("impact %s: %s; hardest impact %.1f m/s, health %g to %g, %g impacts dealt, held %g:", VR_AGIT_Name(c),
+            dropped ? "dropped" : "kept", g.vr_ag_fall_hit / u, vr_agit_health, g.health, vr_rimp_dealt - vr_agit_dealt, vr_agit_held),
+            t < VR_AGIT_GIVEUP + 10 && !dropped && !hard && vr_agit_held && g.health == vr_agit_health && vr_rimp_dealt == vr_agit_dealt);
+    }
+    else
     VR_AGT_Check(strcat(sprintf("impact %s: %s; hardest impact %.1f m/s (lets go at %g), flung %.1f, fell %.1f m/s, held %g:",
         VR_AGIT_Name(c), dropped ? sprintf("dropped at %.2f s", vr_agit_drop_at - vr_agit_t0) : "kept", g.vr_ag_fall_hit / u,
         most / u, g.vr_ag_fall_fling / u, g.vr_ag_fall_down / u, vr_agit_held), t >= VR_AGIT_GIVEUP ? " GAVE UP:" : ""),

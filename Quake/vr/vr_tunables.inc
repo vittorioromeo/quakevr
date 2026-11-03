@@ -674,7 +674,9 @@ QVR_TUNABLE(vr_cellcord_superaxe_z, "0")
 QVR_TUNABLE(vr_revolver_close_flick_time, "0.25") // the same for the flick shut
 QVR_TUNABLE(vr_revolver_flick_sustain, "0.3") // a flick goes on while the roll stays above this share of its speed (both flicks)
 QVR_TUNABLE(vr_revolver_close_push_speed, "0.8") // m/s that push must reach (the hands' relative speed, along the cylinder's way home)
-QVR_TUNABLE(vr_revolver_eject_tilt, "50") // out, the muzzle tilted up this many degrees drops its shells, spent and live (0: never)
+QVR_TUNABLE(vr_revolver_eject_travel, "0.03") // out, the hand's push the way the chambers open (vr_revolver_eject_speed) must go this far that way (m)
+QVR_TUNABLE(vr_revolver_eject_cone, "35") // and how far off that way it may be (degrees)
+QVR_TUNABLE(vr_revolver_eject_turn, "350") // and how fast the hand may turn meanwhile (degrees a second: a flick of the wrist doesn't count; 0: any)
 QVR_TUNABLE(vr_revolver_spin_mult, "1") // how fast a swipe spins it, times
 QVR_TUNABLE(vr_revolver_spin_friction, "760") // degrees a second, each second, a spin slows by (it stops on a chamber)
 QVR_TUNABLE(vr_revolver_spin_max, "900") // degrees a second at most

@@ -214,6 +214,12 @@ void() VR_AKNT_Frame =
         }
         if(t < 0.3)
         {
+            // (Plate Blocks All: a plate takes its whole share of any blow, so an armoured knight can outlive it, on seeds
+            // that dress it so: "dead (50)". This case is about its death: the blow again until it dies.)
+            if(g.health > 0)
+            {
+                T_Damage(g, p, p, g.health + 10);
+            }
             return;
         }
         VR_AGT_Check(sprintf("knight death: its sword fell once (%g lying), dead (%g)", VR_AKNT_Lying(g.origin),

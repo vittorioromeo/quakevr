@@ -301,7 +301,7 @@ void wornPackAll(edict_t* ent, glm::vec3 out[4])
         packBox(*r, mid, turn);
         axes = glm::mat3_cast(turn);
         glm::vec3 modelMid;
-        qvr::agarmor::packModelBox(modelMid, half);
+        qvr::agarmor::packModelBox(ent, modelMid, half);
         origin = mid - axes * modelMid;
     }
     else if(!qvr::agarmor::packWhere(ent, origin, axes, mid, half))
@@ -343,7 +343,7 @@ glm::vec3 wornPackWhere(edict_t* ent, int what)
         packBox(*r, mid, turn);
         axes = glm::mat3_cast(turn);
         glm::vec3 modelMid;
-        qvr::agarmor::packModelBox(modelMid, half);
+        qvr::agarmor::packModelBox(ent, modelMid, half);
         origin = mid - axes * modelMid;
     }
     else if(!qvr::agarmor::packWhere(ent, origin, axes, mid, half))
