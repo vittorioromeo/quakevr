@@ -7695,3 +7695,36 @@ Found 2026-11-03: no release could be cut from `next`. Three separate stops, eac
 checks) compiles the flavour to `build/qcrelease/` and fails on an error, a warning, the wrong progs format, a `*_test.qc`
 not wholly inside its guard, or `quakevr/progs.dat` changing. Globals: 51,358 without the tests (64,511 with them); the
 format is 32-bit, so no 65,536 limit applies to either.
+
+## Regressions of 2026-11-03 (branch `agent/regress1103`)
+
+The full run on next cb4b9b75d against the baseline, each case alone first, then a bisect of next's 82 first-parent merges
+since 5095e37b4 (`scratch/r1103_bisect.py`: one build and probe per merge, about a minute).
+
+- **Under load only: a kit error.** fist_alert, stats_levelchange and mapgun_transfer pass alone. mapgun_transfer's log shows
+  `Set-Content : Stream was not readable` from the kit's `run.ps1` line 193: it empties `<tree>/quakevr/tunables.cfg` on every
+  run, and with lanes every copy shares that one file. It was in 33 of the run's logs. fist_alert's and stats_levelchange's "no
+  error" check greps `rror` in output they don't log, so for those two this is inferred, not read. Reproduced on a scratch
+  file: 8 copies x 40 writes, 315 errors; written only when not empty, 0. The fix is the kit's (not applied, so not yet seen in a
+  loaded run). throw_spin also passes alone: under load one of its 18 runs printed nothing (458 s against 143 s), cause not shown.
+- **mapflameburn: a test bug.** `vr_rigid_place 52` took e1m2's torch by its edict number; 52 is a door now, so the torch stayed
+  put and the player never burned. `vr_rigid_place near:<classname>` takes the nearest of a class, whatever its number.
+- **grip_state: a test bug.** It read the main hand's rig at view row 10; 1bde000d3 (the legacy options' removal) moved it to 5.
+  It finds the drawn hand by its mirror flag now.
+- **agrunt_206: the runner's map.** The test needs a map with knights; run on vrtesthall it can't try one. On e1m4 15/0.
+- **rigstudio_subjects: a game bug, shown by the test.** Worn packs always on (ac8d4326e) and enforcers' lift zones (64e57b618)
+  are tied to a wearer by `.vr_wp_wearer`, not `.owner`, so the studio neither removed them nor counted them as the subject's:
+  each change of subject tore the old one's pack off ("its wearer gone") and left it lying there. `VR_RigStudio_Remove` removes it,
+  the census counts it. Back to 13/1; the one left is the baseline's (step 4, a grunt given weapon 26 holds nothing).
+- **agrunt_35: a test that passed by luck.** 7576310ed (Flaky round 3) aimed every blow at its target and made the tests'
+  `VR_AGT_Hunt` finish a spawn first, so a test's monster turns like a map's. Mjolnir's swing now passes about 20 units off a
+  crowbar held still and lands. Undoing either change alone doesn't bring the parry back (the old line for Mjolnir: gap 20.3;
+  the old hunt: gap 18.4; that one read with test 35's new move on), so it took both. The directional parry is right that it lands.
+  Test 35 now moves your weapon onto the way of a blow that landed, as a player would, and still wants a parry per weapon: 6/0,
+  Mjolnir score 1.00. Whether a grunt's Mjolnir should swing that wide is the author's question: only the test was changed.
+- **eval: no melee regression.** Exit 1 is two takes differing from `kit/eval_baseline.csv`, all PASS -> PASS with the same decap.
+  `slash_diagonal_down_left 12-30-13`: zone in 3.7 -> 4.7 of 12.3, damage 49.5 the same, every run. 9b90e2859 (his tweaks as
+  defaults): the new `vr_closequarters_*`; with the old six set the replay reads 3.7 again. A second take moves by 0.1 damage and
+  changes between runs (`slash_backswing_up_left` with 6 copies, `slash_overhead 12-33-47` with 8); alone, six replays never moved.
+  So a row does depend a little on the shard, against eval.sh's header. The source of that isn't found.
+- **ragdoll_stagger:** 51/6 in nearly every run since 2026-10-31 (52/5 once): the baseline's 52/5 is the odd one, not a new failure.

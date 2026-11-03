@@ -26,13 +26,14 @@ KIT = os.environ.get("KIT", "C:/OHWorkspace/qvr-kit")
 BASH = os.environ.get("QVR_BASH", "C:/Program Files/Git/bin/bash.exe")  # (not WSL's)
 
 SETUP = "map e1m1;wait60;developer 1;vr_debug_2h_grip 1;vr_weapon_grip_mode 0;vr_weapon_grab_anywhere 1;"
-# Per holding hand: its key and grip button, the other hand's, the mock poses, the drawn helping hand's vr_dumpview row
-# (hand_rig or the feminine hand_rig_f: 4 the off hand, 10 the main hand) and the impulse base (150 the main hand, 170 the off hand).
+# Per holding hand: its key and grip button, the other hand's, the mock poses, the drawn helping hand's vr_dumpview mirror
+# flag (hand_rig or the feminine hand_rig_f: 1 the off hand, 0 the main hand; the row numbers move as view models are
+# added) and the impulse base (150 the main hand, 170 the off hand).
 HANDS = {
     "main": dict(grab="right", other="off", ograb="left", pose="vr_mock_hand main 0.15 1.2 -0.45 70 0 0;vr_mock_hand off -0.1 1.0 -0.3;",
-                 row=4, base=150),
+                 mir=1, base=150),
     "off": dict(grab="left", other="main", ograb="right", pose="vr_mock_hand off -0.15 1.2 -0.45 70 0 0;vr_mock_hand main 0.1 1.0 -0.3;",
-                row=10, base=170),
+                mir=0, base=170),
 }
 SWORD, SHOTGUN, CROWBAR, SUPER_SHOTGUN = 13, 4, 17, 5
 PUMP, BLADE, ANYWHERE = 0.75, 0.6, 0.4
@@ -124,7 +125,7 @@ def control():
 
 def run(agent, script):
     out = subprocess.run([BASH, f"{KIT}/run.sh", agent, "-Script", script + "toggleconsole;quit", "-Filter",
-                          r"^=== |grips reset|by its blade|2h grip|^ ?(4|10) progs/hand_rig|hand: two-handed|rror"],
+                          r"^=== |grips reset|by its blade|2h grip|^ *\d+ progs/hand_rig|hand: two-handed|rror"],
                          capture_output=True, text=True).stdout
     sections, name = {}, None
     for line in out.splitlines():
@@ -137,9 +138,9 @@ def run(agent, script):
     return out, sections
 
 
-def drawn(lines, row):
+def drawn(lines, mir):
     for line in lines:
-        m = re.match(rf"\s*{row} progs/hand_rig(?:_f)?\.mdl.*org \(([-\d. ]+)\) ang \(([-\d ]+)\)", line)
+        m = re.match(rf"\s*\d+ progs/hand_rig(?:_f)?\.mdl\s+vis 1 mir {mir} .*org \(([-\d. ]+)\) ang \(([-\d ]+)\)", line)
         if m:
             return [float(v) for v in m.group(1).split()], [float(v) for v in m.group(2).split()]
     return None
@@ -164,8 +165,8 @@ def main():
         if keep:
             open(f"grip_state_{h}.txt", "w").write(text)
         blade = lambda n: any("by its blade" in l for l in sec.get(n, []))
-        row = HANDS[h]["row"]
-        ref = drawn(ctl.get(f"control_{h}", []), row)
+        mir = HANDS[h]["mir"]
+        ref = drawn(ctl.get(f"control_{h}", []), mir)
         check(blade("sword_blade"), "sword: held two-handed by its blade")
         check(any("both hands hold it" in l for l in sec.get("sword_both", [])), "sword: both hands on the carried blade")
         for n in ("shotgun_pump", "swap_gripped", "shotgun_pump2", "shotgun_anywhere"):
@@ -173,7 +174,7 @@ def main():
         check(any("grips reset" in l for l in sec.get("swap_gripped", [])), "swap while gripped: the grips reset")
         check(any("took the weapon anywhere" in l for l in sec.get("shotgun_anywhere", [])), "shotgun: taken anywhere")
         for n in ("shotgun_pump", "shotgun_pump2"):
-            got = drawn(sec.get(n, []), row)
+            got = drawn(sec.get(n, []), mir)
             same = ref is not None and got is not None and all(abs(a - b) < 0.5 for a, b in zip(ref[0] + ref[1], got[0] + got[1]))
             check(same, f"{n}: the helping hand drawn as without the sword before ({got} vs {ref})")
         print(f"  (crowbar by its blade: {'yes' if blade('crowbar_blade') else 'no'})")

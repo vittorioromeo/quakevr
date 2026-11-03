@@ -311,7 +311,7 @@ ankerl::unordered_dense::map<int, glm::mat3> carried; // entity -> its axes in t
 // puts a rigid body there, turned so, moving so and spinning so (radians per second), awake;
 // "vr_rigid_place <entity> main|off [<forward> <left> <up> [<pitch> <yaw> <roll>]]" at the first player's hand
 // (and so far from it along its axes), still. <entity>: its number, a classname (the newest), or "new" (the
-// newest rigid body: a backpack just dropped).
+// newest rigid body: a backpack just dropped), or "near:<classname>" (the nearest of them to the first player).
 void place_f()
 {
     if(!sv.active || Cmd_Argc() < 3)
@@ -334,6 +334,26 @@ void place_f()
     {
         const int num = Q_atoi(which);
         ent = num > 0 && num < qcvm->num_edicts ? EDICT_NUM(num) : nullptr;
+    }
+    else if(!strncmp(which, "near:", 5))
+    {
+        // The nearest to the first player of a classname: what a test just let go of, whatever its edict number.
+        const glm::vec3 from = geom::vec(progs::playerEdict()->v.origin);
+        float best = FLT_MAX;
+        for(int i = 1; i < qcvm->num_edicts; i++)
+        {
+            edict_t* e = EDICT_NUM(i);
+            if(e->free || strcmp(PR_GetString(e->v.classname), which + 5))
+            {
+                continue;
+            }
+            const float d = glm::length(geom::vec(e->v.origin) - from);
+            if(d < best)
+            {
+                best = d;
+                ent = e;
+            }
+        }
     }
     else
     {
