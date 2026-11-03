@@ -40,5 +40,4 @@ Your footsteps: slow stick walking is much quieter than a run (adjust under Debu
 Revolver out: tilting it or a wrist flick drops nothing; a short push back along the bore throws the shells that way (pulling it in to inspect at speed may eject: raise Eject Push Speed if so); a quick pull back with a shell in the other hand keeps the loaded shells in. See through the empty chambers swung out; shells seat cleanly in them. {test:revolver}
 Autosaves: Load Autosave (main, pause and death menus) lists this game's autosaves newest first; none is made while monsters are on you or your health is low. {test:autosave_e1m1}
 An enemy's lava nail sets you on fire. {test:burn_lava_nail}
-Moving water (a current) is water everywhere: blood drifts and splashes in it; looking at or near the sky never counts as being in water.
 Disable Haptics on: bullet time's pulse and the gadget's gear-light buttons don't buzz. {test:no_haptics}
