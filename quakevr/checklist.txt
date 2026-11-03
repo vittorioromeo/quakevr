@@ -2,6 +2,13 @@
 # Reload List refreshes this page; no rebuild needed. Ticked items are retired (their marks stay in checklist_ticks.txt); older items are in git history.
 # Sections run in test order: newest and most important first, dev tools last. A line's text is the key of its tick: reword a line and it is untested again.
 
+[0. Flatscreen play (-flatscreenmode)]
+Flatscreen (-flatscreenmode): an axe in the main hand, LMB swings it and the foe in front takes the blow; RMB does the same for the off hand; V still punches
+Flatscreen melee: a gun's fire button is its own shot and a chainsaw's trigger only runs its chain — neither one swings; a hand that already swung is not disturbed by the other hand's button unless both hold a swinging weapon
+Flatscreen: the drawn hands stay on their arms through a punch, a knock and when you look straight up (Flatscreen Arm Hold 1; 0 puts them back where they were placed)
+Flatscreen: Flatscreen Hand Pitch 65 keeps the hands inside the arc the arms sweep when you look up or down (90: all the way, as before)
+Flatscreen: Debug > Flatplay Punch, or vr_flat_punch main/off in the console, swings from the keyboard; in a headset it answers that flatscreen play is not running
+
 [1. New: ammo screens, grunt movement, AD]
 AD: turn, snap/smooth turn and walk on ad_azad's snowfield (or load your s3 save): no black frames, sky and lamps steady {test:ad_fog_flicker}
 AD hub, lower level: walk into each original slipgate (E1-E4, end): that episode's first map (or end) loads, AD's rules kept
