@@ -7701,12 +7701,12 @@ format is 32-bit, so no 65,536 limit applies to either.
 The full run on next cb4b9b75d against the baseline, each case alone first, then a bisect of next's 82 first-parent merges
 since 5095e37b4 (`scratch/r1103_bisect.py`: one build and probe per merge, about a minute).
 
-- **Under load only: one kit error, three cases.** fist_alert, stats_levelchange and mapgun_transfer pass alone. All three
-  failed on `Set-Content : Stream was not readable` from the kit's `run.ps1` line 193: it empties `<tree>/quakevr/tunables.cfg`
-  on every run, and with lanes every copy shares that one file. It was in 33 of the run's logs; only tests that read their
-  run's stderr noticed (fist_alert's and stats_levelchange's "no error" greps `rror`, the PowerShell test stops on it).
-  Reproduced on a scratch file: 8 copies x 40 writes, 315 errors; written only when not empty, 0. The fix is the kit's
-  (one condition on line 193 and on line 150). throw_spin also passes alone: under load one of its 18 runs printed nothing.
+- **Under load only: a kit error.** fist_alert, stats_levelchange and mapgun_transfer pass alone. mapgun_transfer's log shows
+  `Set-Content : Stream was not readable` from the kit's `run.ps1` line 193: it empties `<tree>/quakevr/tunables.cfg` on every
+  run, and with lanes every copy shares that one file. It was in 33 of the run's logs. fist_alert's and stats_levelchange's "no
+  error" check greps `rror` in output they don't log, so for those two this is inferred, not read. Reproduced on a scratch
+  file: 8 copies x 40 writes, 315 errors; written only when not empty, 0. The fix is the kit's (not applied, so not yet seen in a
+  loaded run). throw_spin also passes alone: under load one of its 18 runs printed nothing (458 s against 143 s), cause not shown.
 - **mapflameburn: a test bug.** `vr_rigid_place 52` took e1m2's torch by its edict number; 52 is a door now, so the torch stayed
   put and the player never burned. `vr_rigid_place near:<classname>` takes the nearest of a class, whatever its number.
 - **grip_state: a test bug.** It read the main hand's rig at view row 10; 1bde000d3 (the legacy options' removal) moved it to 5.
