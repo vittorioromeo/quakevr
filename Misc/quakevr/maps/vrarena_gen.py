@@ -24,14 +24,21 @@
 #     the sixth, the half and the five-sixths mark of each cardinal wall, a border moulding where the ceiling meets the
 #     walls, and a coffer over each of the 8 ceiling lights: a frame, a ring of glowing tiles under it, a lit panel in
 #     its recess;
-#   - 48 lights: 8 under the coffers, 4 over the towers, 4 over the walkways, 4 over the dais, 4 in the corners, 12 in
-#     front of the uprights' lamps and 12 in front of the walls' sconces (the arena read too dark -- the author's ask,
-#     2026-10-29 -- and a bright face is not a light source: each fixture's light sits 10 units out from its lamp and
-#     carries _dirt -1, the house rule for lamps, since -dirt would else put a lamp back out in front of its own wall),
-#     with a soft minimum light so no corner goes black.
-# 254 brushes (light on Quest 3). Brushes are kept apart: they meet face to face, exactly coplanar, none runs into
-# another, and the shell is closed (qbsp sees no leak). --check verifies the points, the stair steps, that, and that
-# the open ring of the floor (700..1000 out, below 160 high) holds nothing.
+#   - the towers wear their own plates (tech07_2, not the walls' panels), pinned to each face's own edges so that a corner
+#     is the end of a plate on both its faces, and a hooded lamp in the middle of each of their 3 open faces (the hood's
+#     slope is too steep to be a top: no step and no ledge); each deck's underside has 4 lit panels;
+#   - one clip brush per wall, floor to ceiling, one flat face 16 out, in front of all the wall's trim: for the players' and
+#     the monsters' hulls the wall is flat, and for the climbing hands there is no hold on the trim (the ledge map reads
+#     the clip brushes from the BSP's BRUSHLIST lump: qbsp -wrbrushes). Shots, ragdolls and the look still meet the trim;
+#   - 100 lights: 8 under the coffers, 4 over the towers, 4 over the walkways, 4 over the dais, 4 in the corners, 12 in
+#     front of the uprights' lamps, 12 in front of the walls' sconces, 12 in front of the towers' lamps, 8 under the decks,
+#     8 on the dais' lamps and 24 on the lit stair risers (a bright face is not a light source: each fixture's light sits
+#     10 units out from its lamp and carries _dirt -1, the house rule for lamps, since -dirt would else put a lamp back
+#     out in front of its own wall), with a soft minimum light so no corner goes black.
+# 290 brushes (light on Quest 3). Brushes are kept apart: they meet face to face, exactly coplanar, none runs into
+# another (the walls' clip stands over their trim on purpose, and cuts nothing), and the shell is closed (qbsp sees no
+# leak). --check verifies the points, the stair steps, that, that no trim stands out past the clip, and that the open ring
+# of the floor (700..1000 out, below 160 high) holds nothing.
 # The textures are id's own base set -- e1m1's and the base maps around it (the author's ask) -- read from
 # quakevr/wads/id_textures.wad, which Misc/trenchbroom/make_id_wad.py makes from your own paks and the repository
 # never sees; like vrcalibration's and vrstart's, the compiled vrarena.bsp carries them (MAPPING.md, "Textures and id's
@@ -64,7 +71,7 @@ import mapgeom as mg  # noqa: E402  (the hull / box / MapWriter helpers)
 MAPNAME = "vrarena"
 DEFAULT_TOOLS = "C:/OHWorkspace/ericw-tools-2.0.0-alpha11-win64"  # (qbsp 2.0: this map has no slivers to lose faces at)
 OUT = os.path.join(ROOT, "quakevr", "maps", MAPNAME + ".map")
-QBSP_ARGS = ["-bsp2"]
+QBSP_ARGS = ["-bsp2", "-wrbrushes"]   # (-wrbrushes: the BRUSHLIST lump, where the ledge map finds the clip brushes)
 PRESETS = {
     "fast": dict(vis=["-fast"], light=["-lit", "-lux", "-lightgrid", "-lightgrid_dist", "128", "128", "128"]),
     "final": dict(vis=[], light=["-extra4", "-dirt", "-dirtscale", "1.5", "-dirtdepth", "96", "-bounce", "-lit",
@@ -86,7 +93,11 @@ PRESETS = {
 IDTEX = dict(floor=("ground1_2", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),      # 64: id's base floor plates: 49 m of them
              wall=("tech14_1", "world", (0, 1), 1.0, (0.0, 0.0, 96.0)),       # 128: the walls' panels, butted with the
                                                                               # rail at 96 and the cornice at 352
-             tower=("tech14_1", "fitv", (0, 2), 1.0, (0.0, 0.0, 0.0)),        # 128: exactly two panels up a 256 tower
+             tower=("tech07_2", "fit", (2, 3), 1.0, (0.0, 0.0, 0.0)),         # 128: the towers' own riveted plates (not the
+                                                                              # walls' panels), pinned to each face's own
+                                                                              # edges: 2 across a 180 face and 3 up its 256,
+                                                                              # so a corner is the end of a plate on both
+                                                                              # its faces, whichever way it is looked at
              wainscot=("metal4_4", "fitv", (0, 1), 1.0, (0.0, 0.0, 0.0)),     # 64: one plate exactly in the 64-high band
              strip=("tech04_1", "fitv", (0, 1), 1.0, (0.0, 0.0, 0.0)),        # 128 x 16: skirting, rail, cornice, frame
              pilaster=("tech04_3", "fit", (1, 0), 1.0, (0.0, 0.0, 0.0)),      # 16 x 128: one flute across an upright exactly
@@ -114,7 +125,7 @@ IDTEX = dict(floor=("ground1_2", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),      # 
              pad_side=("plat_side1", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)))  # 64 x 16: 1 up the 16-high lip, 2 across
 DEVTEX = dict(floor=("qvr_floor", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),
               wall=("qvr_wall", "world", (0, 1), 1.0, (0.0, 0.0, 96.0)),
-              tower=("qvr_panel", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),
+              tower=("qvr_panel", "fit", (2, 3), 1.0, (0.0, 0.0, 0.0)),
               wainscot=("qvr_wall", "world", (0, 1), 1.0, (0.0, 0.0, 16.0)),
               strip=("qvr_trim", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),
               pilaster=("qvr_trim", "world", (0, 1), 1.0, (0.0, 0.0, 0.0)),
@@ -259,8 +270,16 @@ DAIS_LAMP_X, DAIS_LAMP_Z0 = 72, 56          # the dais' lamps: either side of ea
                                             # dais' face, 56..88 (above a jump from the floor, below the dais' top)
 COFFER_R, COFFER_DROP = 650, 32               # the ceiling's coffers: 192 frames, hung 32 below the ceiling
 LIGHT_MIN = "90"                              # the worldspawn's minimum light (soft: the room seen everywhere)
+CLIP_D = 16                                   # the walls' clip: one flat face this far out, floor to ceiling, in front of
+                                              # all their trim (the deepest of it stands exactly this far out)
+TOWER_LAMP_Z0, TOWER_LAMP_Z1 = 128, 160       # the towers' lamps: the walls' hooded lamp, 32 square, 8 out of a face
+TOWER_HOOD = 12                               # ... under a hood sloping this much up to the face: too steep for a top, so
+                                              # it is no step and no ledge (vr_ledges.hpp's minTopNormal)
+TOWER_LAMP_LIGHT, TOWER_LAMP_WAIT = "125", "0.66"
+SOFFIT_YS, SOFFIT_LIGHT, SOFFIT_WAIT = (160, 440), "160", "0.65"  # the decks' undersides: 4 lit panels on each
 
 SPAWNS, ITEMS, STEPS = [], [], []   # filled by geometry(): the spawn points, the item points, every stair step
+CLIPS, WALL_TRIM = [], []           # ... and the walls' clip brushes and what they stand in front of (--check)
 
 
 def octagon(h, cut):
@@ -385,13 +404,16 @@ def geometry(mw):
     band(shell, oct8, ZF, SKIRT, 8, "strip")
     band(shell, oct8, SKIRT, WAIN, 4, "wainscot")
     band(shell, oct8, WAIN, RAIL, 8, "strip")
-    # ... and a clip over the wainscot (the 4 between its face and the skirting's and the rail's): the walls' trim was a
-    # step a player or a monster walked up onto (the skirting's top, 16 up and 4 deep; the author, 2026-11-01). For the
-    # players' and the monsters' hulls the wall's foot is now one flat face 8 out from the floor to the rail's top at 96,
-    # out of reach of a step or a jump; shots, hands and the look still meet the trim as it is.
-    band(shell, inset(oct8, 4), SKIRT, WAIN, 4, "clip")
     band(shell, oct8, CORN - 16, CORN, 8, "strip")
     band(shell, oct8, CORN, ZH, 16, "strip")
+    # ... and one clip over all of it, floor to ceiling: the walls' trim was somewhere to stand and to climb (the rail, a
+    # sconce's plate, a lamp's hood; the author, 2026-11-01 and 2026-11-02). For the players' and the monsters' hulls each
+    # wall is now one flat face CLIP_D out, and for the climbing hands no hold (vr_ledges.cpp: a hold inside a clip brush
+    # is no ledge). Shots, ragdolls and the look still meet the trim as it is. It covers the wall walk's outer CLIP_D too:
+    # the decks are 128 wide, and nobody stands on what is in a wall's clip.
+    clips = []
+    band(clips, oct8, ZF, ZH, CLIP_D, "clip")
+    CLIPS[:] = clips
 
     # ---- the uprights and their lamps: one at the middle of each cut corner, one at the third and one at the
     # two-thirds mark of each cardinal wall -- 16 wide, 8 out of the wall, from the rail to the cornice, each with a
@@ -476,10 +498,34 @@ def geometry(mw):
     flight(towers, "tower stair (south-west)", -312, -236, 0, -1, 64, 16, 16, 16, 4, lights) # up the SW tower's east face
     flight(towers, "tower stair (south-east)", 236, -312, 1, 0, 64, 16, 16, 16, 4, lights)   # up the SE tower's north face
 
+    # ---- a hooded lamp in the middle of each tower's 3 open faces (the fourth has its flight), each with its light 10
+    # out from it: the floor round a tower and its faces read dark (the author, 2026-11-02), and a tower shades the corner
+    # behind it from the ceiling's lights. The hood's slope is what keeps a lamp from being a step up a tower.
+    for (sx, sy), third in (((1, 1), (0, -1)), ((-1, 1), (1, 0)), ((-1, -1), (0, 1)), ((1, -1), (-1, 0))):
+        mid, half = (TOW_A + TOW_B) // 2, (TOW_B - TOW_A) // 2
+        for nx, ny in ((sx, 0), (0, sy), third):
+            tx, ty = -ny, nx                                # along the face
+            fx, fy = sx * mid + nx * half, sy * mid + ny * half
+            front = [(fx + tx * s + nx * LAMP_D, fy + ty * s + ny * LAMP_D) for s in (-16, 16)]
+            back = [(fx + tx * s, fy + ty * s) for s in (-16, 16)]
+            pts = ([(x, y, z) for x, y in front for z in (TOWER_LAMP_Z0, TOWER_LAMP_Z1)]
+                   + [(x, y, z) for x, y in back for z in (TOWER_LAMP_Z0, TOWER_LAMP_Z1 + TOWER_HOOD)])
+            lamp = laid(pts, *TEX["lamp"], u_axis=(tx, ty, 0.0))
+            towers.append(mg.hull(pts, roles("recess", "frame", "recess", pts),
+                                  lambda n, c, nn=(nx, ny, 0.0), lamp=lamp: lamp if mg.dot(n, nn) > 0.9 else None))
+            lights.append(((fx + nx * (LAMP_D + LAMP_OUT), fy + ny * (LAMP_D + LAMP_OUT),
+                            (TOWER_LAMP_Z0 + TOWER_LAMP_Z1) / 2), TOWER_LAMP_LIGHT, TOWER_LAMP_WAIT, LAMP_KEYS))
+
     # ---- the wall walk at 256: 2 decks along the east and the west wall, and a bridge from each to the two tower
     # tops it passes (so the high ring is reached only by way of the towers, and drops 256 to the floor)
     for s in (1, -1):
         walk.append(cuboid(s * H, -DECK_Y, WALK_TOP - 64, s * DECK_X0, DECK_Y, WALK_TOP, "deck", "deck_side"))
+        # ... each deck's underside with 4 lit panels (the coffers' light3_3 in a small frame): the wall under it is in
+        # the deck's own shadow, the darkest part of the room
+        for yy in (-SOFFIT_YS[1], -SOFFIT_YS[0], SOFFIT_YS[0], SOFFIT_YS[1]):
+            x0, x1 = sorted((s * (DECK_X0 + 32), s * (DECK_X0 + 96)))
+            walk.append(cuboid(x0, yy - 32, WALK_TOP - 72, x1, yy + 32, WALK_TOP - 64, "recess", "riser", "lit"))
+            lights.append(((s * (DECK_X0 + 64), yy, WALK_TOP - 84), SOFFIT_LIGHT, SOFFIT_WAIT, LAMP_KEYS))
     for sx, sy in ((1, 1), (-1, 1), (-1, -1), (1, -1)):
         walk.append(cuboid(sx * TOW_B, sy * 370, WALK_TOP - 64, sx * DECK_X0, sy * 434, WALK_TOP, "deck", "deck_side"))
 
@@ -512,12 +558,13 @@ def geometry(mw):
     for sx, sy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
         lights.append(((sx * 180, sy * 180, 140), "170", "0.66"))     # over the dais, one facing each staircase
 
-    mw.world.extend(shell + coffers)
+    WALL_TRIM[:] = shell
+    mw.world.extend(shell + coffers + clips)
     mw.group("dais").extend(dais)
     mw.group("towers").extend(towers)
     mw.group("walkways").extend(walk)
 
-    # ---- the points: the player, the 12 spawn points (4 ground, 8 high), the 3 item points, the 24 lights
+    # ---- the points: the player, the 12 spawn points (4 ground, 8 high), the 3 item points, the lights
     SPAWNS[:] = ([(sx * 402, sy * 402, WALK_TOP, 2) for sx, sy in ((1, 1), (-1, 1), (-1, -1), (1, -1))]
                  + [(sx * 736, sy * 288, WALK_TOP, 2) for sx, sy in ((1, 1), (-1, 1), (-1, -1), (1, -1))]
                  + [(sx * 640, sy * 640, ZF, 1) for sx, sy in ((1, 1), (-1, 1), (-1, -1), (1, -1))])
@@ -670,11 +717,31 @@ def check(brushes, feat, ents):
         if p in seen:
             dup += 1
         seen.add(p)
+    # A clip brush stands over the trim on purpose (qbsp leaves it out of what is drawn and of hull 0, so it cuts nothing),
+    # so clip against the rest is no intrusion; clip against clip still is, and the rest against the rest. What the clip
+    # must do instead: nothing of the walls' trim stands out past its one flat face.
+    is_clip = [any(b is c for c in CLIPS) for b in brushes]
     pairs = 0
     for i in range(len(brushes)):
         for j in range(i + 1, len(brushes)):
+            if is_clip[i] != is_clip[j]:
+                continue
             if intrudes(nrm[i], pts[i], nrm[j], pts[j]):
                 pairs += 1
+    oct8 = octagon(H, CUT)
+    proud = 0
+    for b in WALL_TRIM:
+        for q in grid_points(b):
+            d = []
+            for i in range(8):
+                a, e = oct8[i], oct8[(i + 1) % 8]
+                t = mg.norm((e[0] - a[0], e[1] - a[1], 0.0))
+                d.append((q[0] / mg.SNAP - a[0]) * -t[1] + (q[1] / mg.SNAP - a[1]) * t[0])
+            if min(d) > CLIP_D + 0.1:
+                proud += 1
+    print("  wall clip: %d brushes, one flat face %d out; points of the walls' trim standing out past it: %d"
+          % (len(CLIPS), CLIP_D, proud))
+    bad += proud
     # the open ring: from 700 to 1000 out, below 160 high, no feature stands in the way (the walls are the room's own
     # shell, not an obstacle in it, and the wall walk starts above the ring's height)
     ring = 0

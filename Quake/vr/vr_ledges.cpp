@@ -21,6 +21,11 @@
 // so another model's solid (a door over a world ledge, the world under a plat's lip) is checked when a hold is taken
 // (vr_climb.cpp: the room over the hold, the drop, the line of sight).
 //
+// A clip brush is the mapper's word that a body doesn't go there, so a hold inside one is no ledge either (a map's way of
+// making a wall flat: a trim behind a clip can be seen and touched, not climbed). A BSP keeps its clip brushes only in the
+// bodies' hulls, grown by the box and merged with the rest, which can't say where one is; so the brushes come from the
+// file's BRUSHLIST lump (qbsp -wrbrushes), read once for each map. A map compiled without it: its ledges as ever.
+//
 // A grid of 64-unit cells lists the ledges in each cell (a sorted vector of (cell, ledge)), for the ledges near a hand.
 //
 // Kept until the map changes (a different world model); a saved game of the same map keeps them. Not affected by
@@ -35,6 +40,7 @@
 #include "vr_lines.hpp"
 #include "vr_mem.hpp"
 #include "vr_progs.hpp"
+#include "vr_relight.hpp"
 
 #include "Zancle/Algorithm/AnyOf.hpp"
 #include "Zancle/Algorithm/Fill.hpp"
@@ -77,10 +83,121 @@ struct LedgeScratch
 
 using geom::vec;
 
-// A model's hull 0, in its own space.
+// One model's clip brushes (the BSPX lump BRUSHLIST), in its own space: bounds and any slanted planes, inside all of them.
+struct ClipBrushes
+{
+    struct Brush
+    {
+        glm::vec3 mins{0.f}, maxs{0.f};
+        int firstPlane{0}, planes{0};
+    };
+    za::Vector<Brush> brushes;
+    za::Vector<glm::vec4> planes;
+
+    [[nodiscard]] bool contains(const glm::vec3& p) const
+    {
+        return za::anyOf(brushes.begin(), brushes.end(), [&](const Brush& b) {
+            if(p.x <= b.mins.x || p.y <= b.mins.y || p.z <= b.mins.z || p.x >= b.maxs.x || p.y >= b.maxs.y || p.z >= b.maxs.z)
+            {
+                return false;
+            }
+            for(int i = 0; i < b.planes; i++)
+            {
+                const glm::vec4& q = planes[static_cast<za::SizeT>(b.firstPlane + i)];
+                if(q.x * p.x + q.y * p.y + q.z * p.z >= q.w)
+                {
+                    return false;
+                }
+            }
+            return true;
+        });
+    }
+};
+
+// The current map's, by model number (the world 0, "*N" N), for the world model they were read for.
+struct WorldClips
+{
+    char world[MAX_QPATH]{};
+    int vertexes{0}, surfaces{0};
+    ankerl::unordered_dense::map<int, ClipBrushes> models;
+} worldClips;
+
+// BRUSHLIST: for each model a header (version, the model's number, its brushes, their planes), then for each brush its
+// bounds (6 floats), its contents and plane count (2 shorts), its planes (4 floats each: normal, distance).
+void readClipBrushes(const qmodel_t* w)
+{
+    constexpr int contentsClip = -8; // (qbsp's BSPXBRUSHES_CONTENTS_CLIP)
+    worldClips.models.clear();
+    q_strlcpy(worldClips.world, w->name, sizeof(worldClips.world));
+    worldClips.vertexes = w->numvertexes;
+    worldClips.surfaces = w->numsurfaces;
+    const za::Vector<unsigned char> lump = relight::mapBspxLump(w->name, "BRUSHLIST");
+    const unsigned char* const d = lump.data();
+    const za::SizeT n = lump.size();
+    const auto i32At = [&](za::SizeT at) { int v = 0; memcpy(&v, d + at, 4); return v; };
+    const auto f32At = [&](za::SizeT at) { float v = 0.f; memcpy(&v, d + at, 4); return v; };
+    za::SizeT at = 0;
+    while(at + 16 <= n)
+    {
+        const int version = i32At(at), modelNum = i32At(at + 4), brushCount = i32At(at + 8);
+        at += 16;
+        if(version != 1)
+        {
+            return;
+        }
+        ClipBrushes& out = worldClips.models[modelNum];
+        for(int b = 0; b < brushCount && at + 28 <= n; b++)
+        {
+            ClipBrushes::Brush brush;
+            brush.mins = glm::vec3{f32At(at), f32At(at + 4), f32At(at + 8)};
+            brush.maxs = glm::vec3{f32At(at + 12), f32At(at + 16), f32At(at + 20)};
+            short contents = 0;
+            unsigned short planes = 0;
+            memcpy(&contents, d + at + 24, 2);
+            memcpy(&planes, d + at + 26, 2);
+            at += 28;
+            if(at + static_cast<za::SizeT>(planes) * 16 > n)
+            {
+                return;
+            }
+            brush.firstPlane = static_cast<int>(out.planes.size());
+            brush.planes = planes;
+            if(contents == contentsClip)
+            {
+                for(int p = 0; p < planes; p++)
+                {
+                    const za::SizeT q = at + static_cast<za::SizeT>(p) * 16;
+                    out.planes.pushBack(glm::vec4{f32At(q), f32At(q + 4), f32At(q + 8), f32At(q + 12)});
+                }
+                out.brushes.pushBack(brush);
+            }
+            at += static_cast<za::SizeT>(planes) * 16;
+        }
+    }
+}
+
+// The model's clip brushes (nullptr: none, or a map without the lump).
+[[nodiscard]] const ClipBrushes* clipBrushesOf(const qmodel_t* model)
+{
+    const qmodel_t* w = sv.worldmodel;
+    if(!w)
+    {
+        return nullptr;
+    }
+    if(strcmp(worldClips.world, w->name) || worldClips.vertexes != w->numvertexes || worldClips.surfaces != w->numsurfaces)
+    {
+        readClipBrushes(w);
+    }
+    const int num = model->name[0] == '*' ? Q_atoi(model->name + 1) : 0;
+    const auto it = worldClips.models.find(num);
+    return it != worldClips.models.end() && !it->second.brushes.empty() ? &it->second : nullptr;
+}
+
+// A model's hull 0, in its own space (and where its clip brushes are).
 struct Hull
 {
     hull_t* hull;
+    const ClipBrushes* clips;
 
     [[nodiscard]] bool solid(const glm::vec3& p) const
     {
@@ -237,6 +354,11 @@ struct Test
     glm::vec3 hold = lip - o * holdInset;
     hold.z = topHeight(lip, line.normal, hold);
     if(!h.clear(hold + up * 2.f, hold + up * (2.f + handRoom)))
+    {
+        return r;
+    }
+    // A clip brush there: the mapper says no body goes there, so no hand either.
+    if(h.clips && h.clips->contains(hold + up * 2.f))
     {
         return r;
     }
@@ -521,7 +643,7 @@ za::U32 lastSerial = 0;              // the last map made's Map::serial (build, 
     hull_t* hull = const_cast<hull_t*>(&model->hulls[0]);
     if(model->type == mod_brush && hull->clipnodes && hull->planes && model->surfaces)
     {
-        const Hull h{hull};
+        const Hull h{hull, clipBrushesOf(model)};
         za::Vector<Piece> pieces;
         findPieces(model, h, pieces, map->faces);
         map->pieces = static_cast<int>(pieces.size());
