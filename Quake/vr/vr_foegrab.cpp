@@ -528,9 +528,12 @@ bool tryTake(edict_t* player, Holder& hd, int h, const VrMove& move)
     }
     // (A hand gone into a live monster's body, drawn held out of it by the face it went in by: it takes hold where it is
     // drawn, not through the body (his note 2026-11-01 18:55: the backpack taken through a grunt facing him).)
-    if(const int in = local ? modelcollide::throughBody(h) : 0; in > 0)
+    glm::vec3 through{0.f}; // (the tracked palm is here from where the hold is taken: a hold's slack, Hold::slack)
+    const int intoBody = local ? modelcollide::throughBody(h) : 0;
+    if(const int in = intoBody; in > 0)
     {
         const glm::vec3 out = modelcollide::drawnOffset(h);
+        through = out;
         palm += out;
         for(glm::vec4& s : fist)
         {
@@ -575,11 +578,33 @@ bool tryTake(edict_t* player, Holder& hd, int h, const VrMove& move)
     // (Its pack's own box as drawn and the fist's spheres, no leniency: his note, the pack taken with the hand off it.)
     if(const PackFound pack = packSearch(fist, lo, hi, 0.f); pack.m)
     {
-        return takePack(player, hd, h, pack.m, palm, pack.gap);
+        const bool took = takePack(player, hd, h, pack.m, palm, pack.gap);
+        if(took)
+        {
+            hd.holds[h].slack = glm::length(through);
+            hd.holds[h].lastPalm = palm - through;
+        }
+        return took;
     }
-    edict_t* const best = found.best;
-    const hitmodel::Hit& bestHit = found.hit;
-    const float bestGap = found.bestGap;
+    // (Held out by its box's face, the hand can be off the skin there, a waist's 8-15 cm: gripping inside the body took
+    // nothing. Then that body's skin nearest where the hand really is: never another's, never a pack behind it.)
+    Search inside;
+    if(!found.best && intoBody > 0)
+    {
+        for(glm::vec4& s : fist)
+        {
+            s -= glm::vec4{through, 0.f};
+        }
+        inside = search(fist, lo - through, hi - through, lenient, false);
+        if(inside.best != EDICT_NUM(intoBody))
+        {
+            inside = Search{};
+        }
+    }
+    const Search& chosen = inside.best ? inside : found;
+    edict_t* const best = chosen.best;
+    const hitmodel::Hit& bestHit = chosen.hit;
+    const float bestGap = chosen.bestGap;
     if(!best)
     {
         if(debug(fabs(qcvm->time - hd.pressedAt[h]) < 1e-6 ? 1 : 3))
@@ -607,7 +632,8 @@ bool tryTake(edict_t* player, Holder& hd, int h, const VrMove& move)
     g.local = glm::transpose(body) * (point - origin);
     g.palmOff = glm::transpose(body) * (palm - point);
     g.palmAt = palm;
-    g.lastPalm = palm;
+    g.lastPalm = palm - through;
+    g.slack = glm::length(through);
     g.since = qcvm->time;
     g.strength = za::clamp(callQc(bindings().foegrab.Strength, player, best, static_cast<float>(h), 0.f, 0.5f), 0.f, 1.f);
     setFieldFloat(best, fields().vr_foegrab_letgo, 0.f);
@@ -2813,7 +2839,9 @@ void pullToHands(const Foe& foe, int players, float hold, float dt, const glm::v
                 continue;
             }
             at += target - cur; // (where the slowing puts it)
-            pull += palmOf(EDICT_NUM(c + 1), *move, h) - at;
+            const glm::vec3 toPalm = palmOf(EDICT_NUM(c + 1), *move, h) - at;
+            const float fromSpot = glm::length(toPalm);
+            pull += fromSpot > g.slack ? toPalm * ((fromSpot - g.slack) / fromSpot) : glm::vec3{0.f};
             pulling++;
         }
     }
@@ -3017,7 +3045,10 @@ void qvr::foegrab::afterPoses()
             {
                 g.palmAt = at;
             }
-            g.stretch = glm::distance(palmOf(player, *move, h), g.palmAt);
+            // (A hand that took hold from inside its body: that far is no stretch, until it has come out to the spot.)
+            const float fromSpot = glm::distance(palmOf(player, *move, h), g.palmAt);
+            g.slack = za::min(g.slack, fromSpot);
+            g.stretch = fromSpot - g.slack;
             if(debug(2))
             {
                 edict_t* m = EDICT_NUM(g.ent);
