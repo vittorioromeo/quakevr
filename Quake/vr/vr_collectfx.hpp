@@ -47,6 +47,10 @@ void clear();
 
 [[nodiscard]] int liveCount();
 
+// A shell is still being drawn sliding into chamber `chamber` of the heavy revolver in `hand` (vr_reload_insert_time, game
+// time): the chamber's own shell shows only when it ends (vr_view.cpp setupRevolverParts).
+[[nodiscard]] bool chamberFilling(int hand, int chamber);
+
 // The copies drawn this frame (copy `i` of maxCopies, null if none): the box ones cast shadows as the boxes do
 // (vr_lighting.cpp collectBrushes; the alias ones are in cl_visedicts).
 inline constexpr int maxCopies = 8;

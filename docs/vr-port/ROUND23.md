@@ -8100,3 +8100,13 @@ Checklist:
 - [parry2] A monster's directional parry lets nothing through. Debug > Tunables > Combat > Directional Parry: Let Through: Armed Humanoids, Monsters, Timing Window.
 - [parry2] A dog's bite or leap, a fiend's leap: a weapon held level across in front parries; upright, the blow lands.
 
+## Revolver feel, armour crack volume (2026-11-03)
+
+- A loaded shell shows in its chamber only when its slide in ends (`collectfx::chamberFilling`, game time: plain in bullet time).
+- Eject push (`VR_Revolver_PushStep`): the hand's motion along the way the shells fall, accumulated with a fade
+  (`vr_revolver_eject_window` 0.2 s) to `vr_revolver_eject_travel` (0.05 m), having reached `vr_revolver_eject_speed`.
+  Frames off the cone (now 60) or turning too fast (now 600 deg/s) no longer reset: they just add nothing; going back subtracts.
+- Flicks: one force, `VR_Revolver_FlickForce`: roll + `vr_revolver_flick_hand_weight` (150 deg/s per m/s) x the hand's motion the
+  same way, capped at `vr_revolver_flick_hand_cap` (1) x the roll: no roll, no force.
+- Armour crack: `vr_agrunt_armor_crack_volume` 2.5 (was 1), `vr_agrunt_armor_crack_attn` 0.5 (was 1). It was already on CHAN_AUTO,
+  which nothing on the body cuts off, so the channel is unchanged: it was being masked, not cut.

@@ -298,6 +298,40 @@ void() VR_RVT_Flicks =
     float r9 = 0;
     for(k = 0; k < 60 && !r9; k++) { r9 = VR_Revolver_FlickRate(h, 350, dt); }
     VR_Test_Check(r9 == 1, sprintf("default flick (30 deg at 350 deg/s): out after %g frames = %.3f s (window %g s)", k, k * dt, w0));
+    // The force: the roll plus the hand's motion the same way (150 deg/s per m/s, at most the roll again); the hand alone none.
+    float hw0 = cvar_hget(cvarh_vr_revolver_flick_hand_weight);
+    float hc0 = cvar_hget(cvarh_vr_revolver_flick_hand_cap);
+    cvar_set("vr_revolver_flick_hand_weight", "150");
+    cvar_set("vr_revolver_flick_hand_cap", "1");
+    VR_Test_Check(VR_Revolver_FlickForce(0, 3) == 0 && VR_Revolver_FlickForce(5, 3) == 10 && VR_Revolver_FlickForce(250, 1) == 400 &&
+        VR_Revolver_FlickForce(400, -1) == 400 && VR_Revolver_FlickForce(-250, -1) == -400 && VR_Revolver_FlickForce(-250, 1) == -250,
+        sprintf("the flick's force: hand alone %g, 250 deg/s with 1 m/s %g, against it %g", VR_Revolver_FlickForce(0, 3),
+            VR_Revolver_FlickForce(250, 1), VR_Revolver_FlickForce(400, -1)));
+    cvar_set("vr_revolver_flick_hand_weight", ftos(hw0));
+    cvar_set("vr_revolver_flick_hand_cap", ftos(hc0));
+    // The eject push, accumulated (its defaults: 5 cm, reaching 1 m/s): a curved push with a wiggling wrist goes; a wiggle in
+    // place, a sweep far off the way, a fast turn and a slow push don't.
+    float pe0 = cvar_hget(cvarh_vr_revolver_eject_speed);
+    cvar_set("vr_revolver_eject_speed", "1");
+    float p1 = 0;
+    for(k = 0; k < 40 && !p1; k++) { p1 = VR_Revolver_PushStep(h, 1.5, (k & 1) ? 75 : 20, (k & 4) ? 900 : 200, dt); }
+    float p1k = k;
+    h.rvh_ejrun = h.rvh_ejpeak = h.rvh_ejframes = 0;
+    float p2 = 0;
+    for(k = 0; k < 40 && !p2; k++) { p2 = VR_Revolver_PushStep(h, (k & 2) ? -1.2 : 1.2, 10, 100, dt); }
+    h.rvh_ejrun = h.rvh_ejpeak = h.rvh_ejframes = 0;
+    float p3 = 0;
+    for(k = 0; k < 40 && !p3; k++) { p3 = VR_Revolver_PushStep(h, 1.5, 75, 100, dt); }
+    h.rvh_ejrun = h.rvh_ejpeak = h.rvh_ejframes = 0;
+    float p4 = 0;
+    for(k = 0; k < 40 && !p4; k++) { p4 = VR_Revolver_PushStep(h, 1.9, 10, 900, dt); }
+    h.rvh_ejrun = h.rvh_ejpeak = h.rvh_ejframes = 0;
+    float p5 = 0;
+    for(k = 0; k < 40 && !p5; k++) { p5 = VR_Revolver_PushStep(h, 0.8, 10, 100, dt); }
+    h.rvh_ejrun = h.rvh_ejpeak = h.rvh_ejframes = 0;
+    cvar_set("vr_revolver_eject_speed", ftos(pe0));
+    VR_Test_Check(p1 == 1 && p2 == 0 && p3 == 0 && p4 == 0 && p5 == 0,
+        sprintf("the eject push: curved and wiggling goes after %g frames (%g); wiggle %g, far off %g, fast turn %g, slow %g (want 0)", p1k, p1, p2, p3, p4, p5));
     remove(h);
 };
 
