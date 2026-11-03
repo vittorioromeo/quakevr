@@ -11,7 +11,9 @@
 //     goes on on the off hand;
 //   4 a staggering grunt grabbed: not yours at once (vr_agrunt_tug_downed_scale 0.5), held still 0.4 s it keeps it,
 //     pulled at 0.6 m/s: its stagger ends mid-tug and the tug goes on as a standing one, under standing rules (his call
-//     2026-11-02, "Standing rules"): torn away; yours within 2 s only if it was still staggering;
+//     2026-11-02, "Standing rules"): won only by the standing break force or impulse, not the eased share (his tug values
+//     of 2026-11-03, 450 N, 200 N s, let go at 85 cm, win this pull; 750, 350, 40 cm tore it away); yours within 2 s only
+//     if it was still staggering;
 //   5 the same, knocked down: the physical downed tug (his note 2026-10-31: the hand should "actually grab the enemy
 //     hand/weapon and move it, while the enemy physically resists by pulling back"): physical (ragdolltug 6), its arm's
 //     pull felt in the hold held still (joint force > 0), pulled its weapon moves over 8 units, won within 2 s;
@@ -267,8 +269,9 @@ void() VR_AG2_Frame =
         }
         else if(ph == 4 && vr_ag2_rose)
         {
-            VR_AGT_Check(sprintf("%s it got up mid-tug, the tug went on standing: torn away (standing rules):", what),
-                !won && vr_ag_tug_why == "torn away");
+            VR_AGT_Check(sprintf("%s it got up mid-tug, the tug went on standing (standing rules: %s, %.0f N s):", what, vr_ag_tug_why,
+                g.vr_ag_tug_imp), won ? g.vr_ag_tug_peak >= cvar_hget(cvarh_vr_agrunt_tug_break_force) ||
+                g.vr_ag_tug_imp >= cvar_hget(cvarh_vr_agrunt_tug_break_impulse) : vr_ag_tug_why == "torn away");
         }
         else
         {
