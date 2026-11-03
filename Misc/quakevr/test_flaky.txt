@@ -7,7 +7,8 @@
 teleporters_chase ragdoll_ragtest ragdoll_grab ragdoll_guard judo
 # Varies with sv_random_seed fixed, cause not found; its 90% floor is a question for him (ROUND23.md, "Flaky tests, round 2").
 agrunt_67
-# Its one check left depends on the seed: a replaced grunt drops no extra weapon, a vanilla one 8-13 of 40: his call.
+# Two checks hang on the draw: a replaced grunt drops no extra weapon, a vanilla one 8-13 of 40 (his call); the enforcer's
+# damage a shot within 20% (not looked into).
 agrunt_71
 # With the seed they repeat exactly, and fail: not looked into.
 agrunt_18 agrunt_78 nail_1
