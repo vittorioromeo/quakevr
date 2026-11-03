@@ -49,6 +49,8 @@ Toolgun > Spawn > Armed Humanoid > Infected With > Ogre: kill him; his weapon fa
 Worn Backpacks > Fit has a page each for grunts, knights and death knights; moving a slider moves only that kind's pack, at once.
 An enforcer holding a sword or nothing can be lifted by the pack on its back too.
 Lifting by the pack: does the body really come off the floor? (On the mock it barely rises: knights and death knights a few units, enforcers none.)
+Bending down to grab a lying grunt never hurts it, against the floor or a wall; a headbutt on a lying body lands only when your head reaches its body.
+A grunt shoved off a high ledge drops its weapon on landing, even if it wasn't knocked down; a low drop that doesn't hurt it keeps it.
 
 
 [3. Bodies: grabbing, throwing, hits]
