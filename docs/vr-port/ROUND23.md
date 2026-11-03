@@ -7472,3 +7472,27 @@ outcome from every armed kind: open, a narrow slot, boxed in), `vr_toolgun_armed
 **Not done:** no 3D preview (as asked: its text line); no per-skill scaling of a preset (it is exact at every skill; only
 health and score still go by skill); the wave clear's drops stay the director's (by wave number); a preset can't name maps'
 spawn groups (a delay instead); kinds from the mission packs and AD aren't in the table (a row each when wanted).
+
+## The heavy revolver: ejecting takes a push; a cylinder with real holes (branch `agent/revolver2`, his notes of 2026-11-03)
+
+His notes: tilting it dropped the shells with no motion ("I should have to actually perform a small amount of motion with my
+hand... a linear hand motion towards the direction the holes are pointing"), and the chambers were black paint.
+
+**The push** (QC `VR_Revolver_Push`, replacing `vr_revolver_eject_tilt`, gone). Swung out, its shells leave when the hand moves
+back along the bore (the way the chambers open: -`vr_rv_axis`) at `vr_revolver_eject_speed` (1 m/s, Heavy Revolver page) at its
+fastest, over `vr_revolver_eject_travel` (0.03 m) and at least two frames (one alone: a tracking glitch), within
+`vr_revolver_eject_cone` (35 deg) of that way, the hand turning no faster than `vr_revolver_eject_turn` (350 deg/s; the last three
+Debug > Tunables). The speed is the hand's own at the grip (`.handvel`), not the cylinder's, so a flick of the wrist hardly
+moves it and one hard enough to is over the turn limit; tilting moves nothing. No eject with a shell in the other hand or
+within `vr_revolver_spin_hold` of loading (the gun is brought back quickly then), nor two-handed. No tilt condition: the way the
+holes point is the gun's, wherever it points. Out, live shells go at the hand's velocity x `vr_revolver_eject_impulse` (1.5, Heavy
+Revolver page) with a little scatter; the spent casings (client, `QVR_CASING_PUSHED`, vr_shells.cpp) at the port's tracked velocity x
+the same. B/Y and the ejector rod drop them as before. The other reload modes never reach this code (`VR_Revolver_ReloadFrame`: manual only).
+
+**The holes** (`Misc/quakevr/models_src/revolver/cut_chambers.py`, its README, "The chambers"): real geometry, not alpha: ten-sided
+through holes, walls inside, in the .blend without touching his hand-edited skin but for 18 freed texels. Gun 1021 -> 1285
+triangles (the cylinder 256 -> 520). All the revolver's MDLs re-exported (the shell's unchanged); the barrel mask re-marked (92
+triangles; it goes by triangle count: **a mask he painted himself on the old model reads as none now**; his cfg had none).
+
+Tests: `vr_rv_test 1` step 13 rewritten (`map vrtesthall;wait30;developer 1;vr_rv_test 1`, ends on "rvtest: N passed, M failed").
+Models: 26 directions x frames 0, 1, 3: covered with back faces but not culled: 0 pixels; every edge of the Cylinder shared by two faces.
