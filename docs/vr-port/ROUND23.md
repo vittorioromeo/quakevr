@@ -7405,6 +7405,54 @@ stick is always heard, however slowly. The feet still count every touchdown for 
 
 Each footstep is still within a frame of the drawn touchdown (13.9 ms most), and the old trigger plays none in these phases.
 
+## A dead fiend leapt on; armed knights' guns trailed their sidesteps (branch `agent/fiendgun`, his notes of 2026-11-03)
+
+**The dead fiend** (vrfiringrange_2026-11-03_02-01-47). Its entities file: health -1, `vr_corpse` 2, a ragdoll, think
+`demon1_jump1..10` round and round for good, enemy a thing gone (id 234), velocity 0 sampled (the ragdoll takes each leap's
+velocity at once). Shots, blows and a neck snap, on the ground and in mid-leap, knocked down, staggered, and every poke at a
+lying corpse leave it dead (scenes 1-8, 10-18 pass before the fix too). What does it: a fiend's leap strikes something that
+dies of the blow and blows up (the range's barrels), the blast kills the fiend **inside `Demon_JumpTouch`**, inside its
+`T_Damage(other, ...)`; Killed sets its death's think and the touch goes on and writes its landing's over it (`demon1_jump11`,
+then run, then its AI leaps again: `Demon_JumpTouch` itself returns at once on a dead one, so its leap never ends and its
+three-second retry goes round). Its enemy, set by Killed, is the barrel since removed; its limbs' blast pop makes its health -1
+and its body not solid, so it arms as a corpse in a held frame. The first line's health check could not see this: it was
+alive when the touch began. Fix: `VR_Leap_BlowEnded()` (combat.qc: parried or dead), asked after the blow by Quake's fiend, dog
+and spawn in place of their parry-only check; AD's leaps (fiend, dog, fury, minotaur, spider, swampling, spawn, voreling, elf,
+zombie knight, Judicator) ask their health before their landing. Those set their exit think before the blow, so only their
+re-jump branch (no floor under it) could rise: read in the code, not run. The gremlin's blow is commented out, the hunter ogre's
+touch and the steel claw's set no think after a blow. `vr_deadanim_test 20`, `21`, `22` (`Misc/quakevr/deadleap_test.sh`,
+QC `vr_deadleap_test.qc`; Debug > Tests): 18 scenes each: before 17 passed, scene 9 failed for all three (a fiend's body 29 frames of its AI, a
+dog's 43, a spawn's 28 and 1114 units on); after 18 passed. His own kill is not on record (the take starts with it already
+leaping): this cause is the one path that gives his numbers, not a replay of it; in the test's 5 s the dead fiend ran its AI
+and did not yet reach its leap's loop.
+
+**The guns** (vrragtriggers_2026-11-03_02-23-27). Test 205 (`vr_agrunt_test 205`, `vr_armedgrunt_gunlag_test.qc`): each kind
+with a nail pistol plays its run frames, moved at 120 u/s by the test; the numbers its drawn hand from its drawn head, off its
+run on the spot's (forward, left, up):
+
+| | forward | right | backwards | left |
+|---|---|---|---|---|
+| Grunt before | 0, 0, 0.1 | 0.4, 2.2, -0.1 | 0.1, -0.3, 0.1 | 0.7, -2.3, -0.1 |
+| Grunt after | 0, 0, 0.1 | 0, 0, 0 | 0, 0, 0.1 | 0, -0.1, 0 |
+| Enforcer before | -0.2, 0, 0.1 | 2.2, 0.5, 0.8 | -0.2, 0.3, 0 | 0.9, 0, 0.5 |
+| Enforcer after | -0.2, 0, 0.1 | 0, 0.2, -0.1 | -0.2, 0, 0.1 | -0.1, -0.1, 0.1 |
+| Knight before | 0.1, 0, 0 | **-5.8, 6.5, -2.4** | 0.3, -1.7, 0 | **0.1, -9.7, -0.8** |
+| Knight after | 0.1, 0.1, 0 | 0, 0.1, 0 | 0.6, -0.5, -0.1 | 0.4, -0.4, -0.1 |
+| Death knight before | 0.1, 0, 0.1 | **-3.5, 8.9, 0.3** | -0.3, -2, 0 | **-3.5, -10.2, -0.4** |
+| Death knight after | 0, 0, 0 | 0, 0.2, 0 | 0, -0.1, 0 | 0.1, -0.3, 0.1 |
+
+The cause: the strafe lean and turn (`aglegs::lean`, `vr_agrunt_strafe_lean`, `_turn`) are laid on every bone, moving the chest
+across (the upper body's hold keeps its turn out, its place stays: "its waist where the hips have it"), while the targets are
+placed from its anchor vertex as the frames have it, carried only by the hold (`anchorShift`). The turn's upright goes through
+its middle, so the chest moves by how far it stands from it: a knight's and a death knight's stand forward of it and their lean
+adds to that (their chests 3 to 4 units across each way); a grunt's and an enforcer's stand behind it, against the lean (under
+1 and 3 units, with the gun off the chest by at most 2.6). Not the body root, last frame's pose, the IK order, smoothing or
+`vr_agarms_lod` (which reuses the same targets past its near range; test 205 is near). Fix: the anchor rides the lean and turn too
+(`anchorRide`, vr_hitreact_skin.cpp). A general rule, so the grunts' and enforcers' sideways numbers go to 0 as well; the rest of
+theirs are unchanged. At a steady straight walk there was no offset to speak of: what he saw coming on and backing off would be
+the sideways part of a real path, which test 205 does not play (its own moves, no AI). The frames' own sway of the gun on
+the chest stays (rms about the mean: knight 1.2, others 0.5 to 0.8). Side-view frames: test 205 with `scratch1 1`.
+
 ## Arena wave editor and generic infection (branch `agent/waveeditor`)
 
 His words: "a simple wave editor tool so that I can set up waves the way I want ... any armed humanoid configuration with

@@ -1187,6 +1187,7 @@ void() ad_judge_JumpTouch =
 		}
 	}
 
+	if (self.health < 1) return; // QVR: dead of its own blow (a barrel's blast): its death's frames stand (VR_Leap_BlowEnded)
 	// Is the Judge floating in the air?
 	if (!checkbottom(self)) {
 		// Is the Judge standing on something?		
