@@ -152,6 +152,7 @@ void() ad_Demon_JumpTouch =
 		}
 	}
 
+	if (self.health < 1) return; // QVR: dead of its own blow (a barrel's blast): its death's frames stand (VR_Leap_BlowEnded)
 	// Is the demon floating in the air?
 	if (!checkbottom(self)) {
 		// Is the demon standing on something?

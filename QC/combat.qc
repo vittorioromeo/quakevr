@@ -2558,6 +2558,15 @@ void(entity m) VR_Parry_Pose =
     }
 };
 
+// A leap's touch (self the leaper) after dealing its blow: did that blow end the leap? A parry staggered it (VR_Parry_Recover
+// owns its think and has cancelled the touch), or it died of it: a barrel it struck blew up, its blast killed the leaper
+// inside its own touch (its death's think set; a landing written over that left a dead body leaping and running on:
+// vrfiringrange_2026-11-03_02-01-47, vr_deadanim_test 20-22). AD's own leaps ask the same with their health.
+float() VR_Leap_BlowEnded =
+{
+    return self.health <= 0 || self.vr_parry_stagger_until > time;
+};
+
 void() VR_Parry_Recover =
 {
     if(self.health <= 0 || self.vr_knockdown)
