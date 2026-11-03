@@ -492,6 +492,36 @@ QVR_WEAPON_KEY(ReloadHoldCurlIndex, "reload_hold_curl_index")
 QVR_WEAPON_KEY(ReloadHoldCurlMiddle, "reload_hold_curl_middle")
 QVR_WEAPON_KEY(ReloadHoldCurlRing, "reload_hold_curl_ring")
 QVR_WEAPON_KEY(ReloadHoldCurlPinky, "reload_hold_curl_pinky")
+// Embedded blades (ROUND23.md, "Embedded blades"; vr_axestick.cpp): how the weapon sticks in what it meets: 0 not at all,
+// 1 by its point (its tip: the Muzzle anchor and offset; its line from the hand there; the blade's start: BladeFrom), 2 by
+// its edge. An edge's weapon: its blades' edges in its model's own space (an alias model's vertices as scale * v +
+// scale_origin): each one's ends (A, B) and the way it faces (O: out of the edge, square to it, in the blade's plane), the
+// head's middle on the handle's axis and the handle's far end (Butt). New keys: no migration.
+QVR_WEAPON_KEY(Embed, "embed")
+QVR_WEAPON_KEY(EmbedE1AX, "em_e1a_x")
+QVR_WEAPON_KEY(EmbedE1AY, "em_e1a_y")
+QVR_WEAPON_KEY(EmbedE1AZ, "em_e1a_z")
+QVR_WEAPON_KEY(EmbedE1BX, "em_e1b_x")
+QVR_WEAPON_KEY(EmbedE1BY, "em_e1b_y")
+QVR_WEAPON_KEY(EmbedE1BZ, "em_e1b_z")
+QVR_WEAPON_KEY(EmbedE1OX, "em_e1o_x")
+QVR_WEAPON_KEY(EmbedE1OY, "em_e1o_y")
+QVR_WEAPON_KEY(EmbedE1OZ, "em_e1o_z")
+QVR_WEAPON_KEY(EmbedE2AX, "em_e2a_x")
+QVR_WEAPON_KEY(EmbedE2AY, "em_e2a_y")
+QVR_WEAPON_KEY(EmbedE2AZ, "em_e2a_z")
+QVR_WEAPON_KEY(EmbedE2BX, "em_e2b_x")
+QVR_WEAPON_KEY(EmbedE2BY, "em_e2b_y")
+QVR_WEAPON_KEY(EmbedE2BZ, "em_e2b_z")
+QVR_WEAPON_KEY(EmbedE2OX, "em_e2o_x")
+QVR_WEAPON_KEY(EmbedE2OY, "em_e2o_y")
+QVR_WEAPON_KEY(EmbedE2OZ, "em_e2o_z")
+QVR_WEAPON_KEY(EmbedHeadX, "em_head_x")
+QVR_WEAPON_KEY(EmbedHeadY, "em_head_y")
+QVR_WEAPON_KEY(EmbedHeadZ, "em_head_z")
+QVR_WEAPON_KEY(EmbedButtX, "em_butt_x")
+QVR_WEAPON_KEY(EmbedButtY, "em_butt_y")
+QVR_WEAPON_KEY(EmbedButtZ, "em_butt_z")
 // Flatscreen play (vr_flatsight.cpp): this weapon's ironsight place, added to vr_flat_ads_fwd / _up / _out (units in the
 // view's frame: forward, up, out at the holding hand's side): what brings its sights to the crosshair.
 QVR_WEAPON_KEY(FlatAdsFwd, "flat_ads_fwd")

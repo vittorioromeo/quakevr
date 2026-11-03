@@ -1342,10 +1342,11 @@ bool nearestPosed(const glm::vec3& p, float beyond, Hit& out, float& dist)
     return true;
 }
 
-bool anchorFrame(edict_t* ent, int tri, float u, float v, glm::vec3& point, glm::mat3& axes)
+bool anchorFrame(edict_t* ent, int tri, float u, float v, glm::vec3& point, glm::mat3& axes, bool notSolid)
 {
     Drawn d;
-    if(tri < 0 || !target(ent) || !drawnOf(ent, d) || static_cast<za::SizeT>(tri) >= d.mesh->tris.size())
+    const bool body = notSolid ? (ent && !ent->free && ((int)ent->v.flags & FL_MONSTER)) : target(ent);
+    if(tri < 0 || !body || !drawnOf(ent, d) || static_cast<za::SizeT>(tri) >= d.mesh->tris.size())
     {
         return false;
     }

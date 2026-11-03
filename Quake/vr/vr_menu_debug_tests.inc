@@ -1143,6 +1143,13 @@ za::Vector<Item> pageDebugTests()
         command("Throw the Nearest Prop Up", "developer 1; impulse 222")
             .help("The loose prop nearest you thrown straight up as yours from just over your head: it falls back on you "
                   "and hurts you (Your Throws Spare You For, on Throwing and Physics). Prints the throw and the hit."),
+        header("Embedded Blades"),
+        command("Embedded Blades Check", "vr_embed_test 1")
+            .help("Destructive: in the open with god and notarget (vrtesthall): swords thrown at the wall ahead (point first, "
+                  "flat, by the hilt; its sag), at a live body, a corpse, a knocked down one, a ragdoll; dying, gibbing and "
+                  "cutting with one in; a plate; vr_embed 0. Prints embedtest: N passed, M failed."),
+        command("Sword in a Wall and a Corpse", "vr_embed_test 2")
+            .help("A sword thrown into the wall ahead and one into a corpse beside it, to look at."),
         header("Thrown Axe"),
         row(opt::vr_test_axe),
         row(opt::vr_test_axe_speed),

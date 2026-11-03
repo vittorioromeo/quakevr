@@ -119,6 +119,10 @@ QVR_FIELD(vr_stick_dir)    // the way the blade faces (into what it is in)
 QVR_FIELD(vr_stick_wiggle) // QC's: degrees the axe is rocked about its edge (a force grab's tug)
 QVR_FIELD(vr_stick_vel)    // in flight: its velocity and
 QVR_FIELD(vr_stick_spin)   // spin at the last step (a change: it hit something, and never sticks after)
+QVR_FIELD(vr_stick_embed)  // how it stuck (weapons.txt embed: 1 by its point, 2 by its edge)
+QVR_FIELD(vr_stick_depth)  // by its point: units from the tip back to where it went in
+QVR_FIELD(vr_stick_sag)    // by its point, in the level: degrees it sags under its weight now, and
+QVR_FIELD(vr_stick_sagv)   // how fast (degrees a second)
 
 // Model transforms (networked as entity update extras).
 QVR_FIELD(model_scale)

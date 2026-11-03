@@ -22,6 +22,10 @@ float(entity e) VR_AxeStick_IsStuck;
 float(entity e) VR_AxeStick_Tugging;
 void(entity e, entity xPlayer, float xHand) VR_AxeStick_Tug;
 void() VR_AxeStick_Think;
+float(entity e) VR_AxeStick_Kept;
+float(entity e, entity xPlayer, float xHand) VR_AxeStick_HandTug;
+void(entity e, float xTakes) VR_AxeStick_CutPrepare;
+void(entity e) VR_AxeStick_CutDone;
 void(entity e) VR_AxeStick_PulledOut;
 #ifdef QVR_TESTS
 void() VR_AxeStick_TestThrow;

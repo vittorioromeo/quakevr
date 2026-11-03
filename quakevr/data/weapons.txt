@@ -353,6 +353,31 @@ defaults
 // slot 0: progs/v_axe.mdl (vr_wofs_*_01)
 weapon 0
 {
+    embed "2"
+    em_e1a_x "20.13"
+    em_e1a_y "-0.12"
+    em_e1a_z "15.81"
+    em_e1b_x "24.18"
+    em_e1b_y "-0.1"
+    em_e1b_z "27.3"
+    em_e1o_x "0.9398"
+    em_e1o_y "0.0"
+    em_e1o_z "-0.3417"
+    em_e2a_x "-3.0"
+    em_e2a_y "-0.1"
+    em_e2a_z "24.5"
+    em_e2b_x "1.27"
+    em_e2b_y "-0.07"
+    em_e2b_z "35.52"
+    em_e2o_x "-0.9398"
+    em_e2o_y "0.0"
+    em_e2o_z "0.3417"
+    em_head_x "10.79"
+    em_head_y "0"
+    em_head_z "25.58"
+    em_butt_x "0.2"
+    em_butt_y "0"
+    em_butt_z "-3.55"
     2h_dispmd "0.0"
     2h_fxd_hp "0.0"
     2h_fxd_hr "0.0"
@@ -2047,6 +2072,7 @@ weapon 17
 // slot 18: progs/v_ksword.mdl (vr_wofs_*_19)
 weapon 18
 {
+    embed "1"
     // VR: the knights' swords (Misc/quakevr/make_swords.py), laid along the axe's handle: the axe's
     // settings, with Offset moved by 0.66 * (the axe's scale_origin - the sword's) and HandOffset by
     // 0.34 * (the axe's hand anchor - the sword's), so the hand holds the grip where it holds the
@@ -2137,6 +2163,7 @@ weapon 18
 // slot 19: progs/v_hksword.mdl (vr_wofs_*_20)
 weapon 19
 {
+    embed "1"
     2h_dispmd "1"
     2h_fxd_hp "-1.5"
     2h_fxd_hr "0.0"
@@ -2653,6 +2680,31 @@ weapon 23
 // slot 24: owned/mg3/progs/v_hammer.mdl (vr_wofs_*_25)
 weapon 24
 {
+    embed "2"
+    em_e1a_x "21.72"
+    em_e1a_y "-0.4"
+    em_e1a_z "24.57"
+    em_e1b_x "24.54"
+    em_e1b_y "-0.39"
+    em_e1b_z "32.55"
+    em_e1o_x "0.9398"
+    em_e1o_y "0.0"
+    em_e1o_z "-0.3417"
+    em_e2a_x "-1.6"
+    em_e2a_y "0.0"
+    em_e2a_z "35.41"
+    em_e2b_x "1.13"
+    em_e2b_y "0.0"
+    em_e2b_z "42.93"
+    em_e2o_x "-0.9398"
+    em_e2o_y "0.0"
+    em_e2o_z "0.3417"
+    em_head_x "13.18"
+    em_head_y "0"
+    em_head_z "32.15"
+    em_butt_x "0.2"
+    em_butt_y "0"
+    em_butt_z "-3.55"
     2h_dispmd "0.0"
     2h_fxd_hp "0.0"
     2h_fxd_hr "0.0"
@@ -2754,6 +2806,31 @@ weapon 24
 // slot 25: owned/mg3/progs/v_hammer_glow.mdl (vr_wofs_*_26)
 weapon 25
 {
+    embed "2"
+    em_e1a_x "21.72"
+    em_e1a_y "-0.4"
+    em_e1a_z "24.57"
+    em_e1b_x "24.54"
+    em_e1b_y "-0.39"
+    em_e1b_z "32.55"
+    em_e1o_x "0.9398"
+    em_e1o_y "0.0"
+    em_e1o_z "-0.3417"
+    em_e2a_x "-1.6"
+    em_e2a_y "0.0"
+    em_e2a_z "35.41"
+    em_e2b_x "1.13"
+    em_e2b_y "0.0"
+    em_e2b_z "42.93"
+    em_e2o_x "-0.9398"
+    em_e2o_y "0.0"
+    em_e2o_z "0.3417"
+    em_head_x "13.18"
+    em_head_y "0"
+    em_head_z "32.15"
+    em_butt_x "0.2"
+    em_butt_y "0"
+    em_butt_z "-3.55"
     2h_dispmd "0.0"
     2h_fxd_hp "0.0"
     2h_fxd_hr "0.0"
@@ -3539,6 +3616,31 @@ weapon 32
 // slot 33: progs/v_shadaxe3.mdl#vr (vr_wofs_*_34)
 weapon 33
 {
+    embed "2"
+    em_e1a_x "17.08"
+    em_e1a_y "0.11"
+    em_e1a_z "11.64"
+    em_e1b_x "22.11"
+    em_e1b_y "-0.04"
+    em_e1b_z "26.36"
+    em_e1o_x "0.9398"
+    em_e1o_y "0.0"
+    em_e1o_z "-0.3417"
+    em_e2a_x "17.08"
+    em_e2a_y "0.11"
+    em_e2a_z "11.64"
+    em_e2b_x "22.11"
+    em_e2b_y "-0.04"
+    em_e2b_z "26.36"
+    em_e2o_x "0.9398"
+    em_e2o_y "0.0"
+    em_e2o_z "-0.3417"
+    em_head_x "9.71"
+    em_head_y "0"
+    em_head_z "22.58"
+    em_butt_x "0.2"
+    em_butt_y "0"
+    em_butt_z "-3.55"
     2h_hand_av "4.65 0 8.67"
     2h_mode "1"
     ch_mode_z "1"
@@ -4119,6 +4221,7 @@ weapon 38
 // slot 40: progs/w_dfurysword1.mdl#melee (vr_wofs_*_41)
 weapon 40
 {
+    embed "1"
     2h_dispmd "1"
     2h_fxd_hp "-1.5"
     2h_fxd_hr "0.0"
@@ -4228,6 +4331,7 @@ weapon 40
 // slot 41: progs/w_dknightsword.mdl#melee (vr_wofs_*_42)
 weapon 41
 {
+    embed "1"
     2h_dispmd "1"
     2h_fxd_hp "-1.5"
     2h_fxd_hr "0.0"
@@ -4317,6 +4421,7 @@ weapon 41
 // slot 42: progs/w_zombiesword.mdl#melee (vr_wofs_*_43)
 weapon 42
 {
+    embed "1"
     2h_dispmd "1"
     2h_fxd_hp "-1.5"
     2h_fxd_hr "0.0"
@@ -4406,6 +4511,7 @@ weapon 42
 // slot 43: progs/w_dguardsword.mdl#melee (vr_wofs_*_44)
 weapon 43
 {
+    embed "1"
     2h_dispmd "1"
     2h_fxd_hp "-1.5"
     2h_fxd_hr "0.0"
@@ -4695,6 +4801,7 @@ weapon 45
 // slot 46: progs/sword.mdl#melee (vr_wofs_*_47)
 weapon 46
 {
+    embed "1"
     2h_dispmd "1"
     2h_fxd_hp "-1.5"
     2h_fxd_hr "0.0"
@@ -4787,6 +4894,7 @@ weapon 46
 // slot 47: progs/w_dprincesword.mdl#melee (vr_wofs_*_48)
 weapon 47
 {
+    embed "1"
     2h_dispmd "1"
     2h_fxd_hp "-1.5"
     2h_fxd_hr "0.0"
@@ -4877,6 +4985,7 @@ weapon 47
 // slot 48: progs/w_justicesword.mdl#melee (vr_wofs_*_49)
 weapon 48
 {
+    embed "1"
     2h_dispmd "1"
     2h_fxd_hp "-1.5"
     2h_fxd_hr "0.0"
@@ -4967,6 +5076,7 @@ weapon 48
 // slot 49: progs/w_judgesword.mdl#melee (vr_wofs_*_50)
 weapon 49
 {
+    embed "1"
     2h_dispmd "1"
     2h_fxd_hp "-1.5"
     2h_fxd_hr "0.0"

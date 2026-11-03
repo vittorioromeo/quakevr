@@ -108,8 +108,9 @@ bool nearestPosed(const glm::vec3& p, float beyond, Hit& out, float& dist);
 
 // Where the place (u, v) on triangle `tri` of `ent`'s model (a Hit's) is as drawn now, and a frame there: x along the
 // triangle's first edge, z its normal (outwards), y their cross. What stays on the model where it was hit follows it (a
-// thrown axe stuck in a monster, vr_axestick.cpp). False: no target, or no such triangle.
-bool anchorFrame(edict_s* ent, int tri, float u, float v, glm::vec3& point, glm::mat3& axes);
+// thrown axe stuck in a monster, vr_axestick.cpp). False: no target, or no such triangle. `notSolid`: a body not solid just
+// now too (a monster dying, a limb being cut).
+bool anchorFrame(edict_s* ent, int tri, float u, float v, glm::vec3& point, glm::mat3& axes, bool notSolid = false);
 
 void serverFrame();  // the lerp's state (VR_ServerFrameEnd)
 void afterLoad();    // every precached alias model's hierarchy built
