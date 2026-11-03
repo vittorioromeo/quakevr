@@ -2,6 +2,7 @@
 
 #include "vr_waveeditor.hpp"
 
+#include "vr_agpose_shared.h"
 #include "vr_arenawaves.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
@@ -56,8 +57,11 @@ constexpr const char keyRows[] = "abcdefghijklmnopqrstuvwxyz0123456789_-";
 constexpr int maxKinds = 24;
 constexpr int maxInfect = 16;
 constexpr int maxSpots = 400;
+constexpr int armedRows = 4;  // (QC VR_AM_COUNT)
+constexpr int codeTop = 128;  // the "weapon" keys asked: 1..127 (QC VR_AG_Decode's codes)
 
-// The game's lists: asked of QC once a map (and the armed page's catalogue: toolgun::armed).
+// The game's lists: asked of QC once a map. The weapons by each armed row, all of them whatever vr_agknight and
+// vr_agdknight say (those are about what a map's knights become; the toolgun's list follows them, a preset names its kind).
 struct Catalogue
 {
     const void* progs{nullptr};
@@ -67,6 +71,11 @@ struct Catalogue
     int kindRow[maxKinds]{}; // its armed row, -1 a plain monster
     int infect{0};
     char infectName[maxInfect][24]{};
+    float ad{-1.f};
+    int fits[armedRows][codeTop]{}; // QC VR_AM_UiWeapon's: 0 not; 1 + 2 one-handed + 4 * its class
+    char codeName[codeTop][40]{};
+    int codes[codeTop]{};           // those any row holds: by class (melee first), then code
+    int codeCount{0};
 };
 
 // A widget laid out this frame: the tests click them by name.
@@ -149,12 +158,12 @@ void refreshCatalogue()
         c.progs = nullptr;
         return;
     }
-    toolgun::armed::refresh();
-    if(c.progs == sv.qcvm.progs && !strcmp(c.map, sv.name))
+    if(c.progs == sv.qcvm.progs && !strcmp(c.map, sv.name) && c.ad == vr_ad_mounted.value)
     {
         return;
     }
     c.progs = sv.qcvm.progs;
+    c.ad = vr_ad_mounted.value;
     setText(c.map, sv.name);
     const progs::ServerVm vm;
     const func_t kindCount = progs::findFunction("VR_ARENA_KindCount");
@@ -167,6 +176,43 @@ void refreshCatalogue()
     {
         progs::qcText(c.kindName[i], sizeof(c.kindName[i]), kindName, static_cast<float>(i));
         c.kindRow[i] = static_cast<int>(progs::qcFloat(kindRow, static_cast<float>(i)));
+    }
+    const func_t weapon = progs::findFunction("VR_AM_UiWeapon");
+    const func_t weaponName = progs::findFunction("VR_AM_UiWeaponName");
+    c.codeCount = 0;
+    for(int code = 1; code < codeTop; code++)
+    {
+        int cls = -1;
+        for(int row = 0; row < armedRows; row++)
+        {
+            c.fits[row][code] = static_cast<int>(progs::qcFloat(weapon, static_cast<float>(row), static_cast<float>(code)));
+            if(c.fits[row][code] && cls < 0)
+            {
+                cls = c.fits[row][code] / 4;
+            }
+        }
+        if(cls < 0)
+        {
+            continue;
+        }
+        progs::qcText(c.codeName[code], sizeof(c.codeName[code]), weaponName, static_cast<float>(code));
+        const auto classOf = [&](int other) {
+            for(int row = 0; row < armedRows; row++)
+            {
+                if(c.fits[row][other])
+                {
+                    return c.fits[row][other] / 4;
+                }
+            }
+            return 0;
+        };
+        int at = c.codeCount++;
+        while(at > 0 && classOf(c.codes[at - 1]) > cls)
+        {
+            c.codes[at] = c.codes[at - 1];
+            at--;
+        }
+        c.codes[at] = code;
     }
     c.infect = za::clamp(static_cast<int>(progs::qcFloat(infectCount)), 0, maxInfect);
     for(int i = 0; i < c.infect; i++)
@@ -188,13 +234,25 @@ void refreshCatalogue()
     return -2;
 }
 
+[[nodiscard]] int fitsOf(int row, int code)
+{
+    return row >= 0 && row < armedRows && code > 0 && code < codeTop ? ed.cat.fits[row][code] : 0;
+}
+
+// The two held one in each hand: both pair, both melee or both guns (QC VR_AM_UiPairs).
+[[nodiscard]] bool pairsOf(int row, int code, int code2)
+{
+    const int a = fitsOf(row, code), b = fitsOf(row, code2);
+    return (a & 2) && (b & 2) && ((a >> 2) == VR_AG_CLASS_MELEE) == ((b >> 2) == VR_AG_CLASS_MELEE);
+}
+
 // The weapon's code by its name (0: none such for that row), as QC finds it (VR_ARENA_WeaponCode).
 [[nodiscard]] int codeOf(int row, const char* name)
 {
-    for(int i = 0; i < toolgun::armed::weaponCount(); i++)
+    for(int i = 0; i < ed.cat.codeCount; i++)
     {
-        const int code = toolgun::armed::weaponCode(i);
-        if(toolgun::armed::fits(row, code) && !strcmp(toolgun::armed::codeName(code), name))
+        const int code = ed.cat.codes[i];
+        if(fitsOf(row, code) && !strcmp(ed.cat.codeName[code], name))
         {
             return code;
         }
@@ -232,7 +290,7 @@ void refreshCatalogue()
             {
                 return "an off hand weapon its kind can't hold";
             }
-            if(!mainCode || !toolgun::armed::pairs(row, mainCode, off))
+            if(!mainCode || !pairsOf(row, mainCode, off))
             {
                 return "off hand doesn't pair with the main hand";
             }
@@ -789,7 +847,7 @@ void entryColumn()
     }
     const bool armed = row >= 0;
     const int mainCode = armed && strcmp(e->mainHand, "random") != 0 && strcmp(e->mainHand, "none") != 0 ? codeOf(row, e->mainHand) : 0;
-    if(armed && strcmp(e->off, "none") != 0 && ed.dirty && (!mainCode || !codeOf(row, e->off) || !toolgun::armed::pairs(row, mainCode, codeOf(row, e->off))))
+    if(armed && strcmp(e->off, "none") != 0 && ed.dirty && (!mainCode || !pairsOf(row, mainCode, codeOf(row, e->off))))
     {
         setText(e->off, "none");
     }
@@ -806,11 +864,11 @@ void entryColumn()
             setText(e->mainHand, "none");
             ed.dirty = true;
         }
-        for(int i = 0; i < toolgun::armed::weaponCount(); i++)
+        for(int i = 0; i < ed.cat.codeCount; i++)
         {
-            const int code = toolgun::armed::weaponCode(i);
-            const char* name = toolgun::armed::codeName(code);
-            if(toolgun::armed::fits(row, code) && pickItem("Main Hand", name, !strcmp(e->mainHand, name)))
+            const int code = ed.cat.codes[i];
+            const char* name = ed.cat.codeName[code];
+            if(fitsOf(row, code) && pickItem("Main Hand", name, !strcmp(e->mainHand, name)))
             {
                 setText(e->mainHand, name);
                 ed.dirty = true;
@@ -819,18 +877,18 @@ void entryColumn()
         ImGui::EndCombo();
     }
     ImGui::SetNextItemWidth(width);
-    if(pickBegin("Off Hand", e->off, armed && mainCode != 0 && toolgun::armed::oneHanded(row, mainCode)))
+    if(pickBegin("Off Hand", e->off, armed && (fitsOf(row, mainCode) & 2) != 0))
     {
         if(pickItem("Off Hand", "none", !strcmp(e->off, "none")))
         {
             setText(e->off, "none");
             ed.dirty = true;
         }
-        for(int i = 0; i < toolgun::armed::weaponCount(); i++)
+        for(int i = 0; i < ed.cat.codeCount; i++)
         {
-            const int code = toolgun::armed::weaponCode(i);
-            const char* name = toolgun::armed::codeName(code);
-            if(toolgun::armed::fits(row, code) && toolgun::armed::pairs(row, mainCode, code) && pickItem("Off Hand", name, !strcmp(e->off, name)))
+            const int code = ed.cat.codes[i];
+            const char* name = ed.cat.codeName[code];
+            if(pairsOf(row, mainCode, code) && pickItem("Off Hand", name, !strcmp(e->off, name)))
             {
                 setText(e->off, name);
                 ed.dirty = true;
@@ -1117,9 +1175,12 @@ void drawWindow()
     }
     else
     {
+        // (never its place from an imgui.ini written on a larger window: all of it on the screen, every time it opens)
         const ImVec2 screen = ImGui::GetIO().DisplaySize;
-        ImGui::SetNextWindowPos(ImVec2{0.f, 0.f}, ImGuiCond_FirstUseEver);
-        ImGui::SetNextWindowSize(ImVec2{za::min(1120.f, screen.x), za::min(760.f, screen.y)}, ImGuiCond_FirstUseEver);
+        flags |= ImGuiWindowFlags_NoSavedSettings;
+        ImGui::SetNextWindowPos(ImVec2{0.f, 0.f}, ImGuiCond_Appearing);
+        ImGui::SetNextWindowSize(ImVec2{za::min(1120.f, screen.x), za::min(760.f, screen.y)}, ImGuiCond_Appearing);
+        ImGui::SetNextWindowSizeConstraints(ImVec2{320.f, 240.f}, screen);
     }
     bool keep = true;
     if(!ImGui::Begin("Arena Wave Editor", &keep, flags))

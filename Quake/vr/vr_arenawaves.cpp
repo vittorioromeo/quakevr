@@ -415,6 +415,17 @@ void play_f()
     play(map, Cmd_Argv(1), p, Cmd_Argc() > 2 ? Q_atoi(Cmd_Argv(2)) : 0);
 }
 
+// vr_arena_assign <map> <skill 0..3> <preset | default>: which preset plays there (the editor's row, from the console).
+void assign_f()
+{
+    if(Cmd_Argc() < 4)
+    {
+        Con_Printf("vr_arena_assign <map> <skill 0..3> <preset | default>\n");
+        return;
+    }
+    setAssigned(Cmd_Argv(1), za::clamp(Q_atoi(Cmd_Argv(2)), 0, skillCount - 1), !strcmp(Cmd_Argv(3), "default") ? "" : Cmd_Argv(3));
+}
+
 // vr_arena_preset_list: the saved presets and what's assigned where.
 void list_f()
 {
@@ -852,7 +863,7 @@ void play(const char* map, const char* name, const Preset& p, int wave)
     {
         Cvar_SetValueQuick(&vr_arena_goto, static_cast<float>(wave)); // (the arena's jump, its first frame)
     }
-    Cbuf_AddText(va("map %s\n", target));
+    Cbuf_InsertText(va("map %s\n", target)); // (next: what follows in a script runs in the map)
     Con_Printf("arena preset: %s plays in %s from wave %d\n", name, target, za::max(wave, 1));
 }
 
@@ -874,6 +885,7 @@ const za::String& lastReport()
 void registerCommands()
 {
     Cmd_AddCommand("vr_arena_play", play_f);
+    Cmd_AddCommand("vr_arena_assign", assign_f);
     Cmd_AddCommand("vr_arena_preset_list", list_f);
     Cmd_AddCommand("vr_arena_waves_fixture", fixture_f);
     Cmd_AddCommand("vr_arena_waves_test", test_f);

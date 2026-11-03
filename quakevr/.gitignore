@@ -86,3 +86,7 @@
 /doom/wads/*
 !/doom/wads/README.txt
 /bodytrack_solve_dump.csv
+# The arena wave editor: his own presets and choices (only the example ships), the tests' folder
+/arena_waves/*
+!/arena_waves/example_mixed.txt
+/arena_waves_test/
