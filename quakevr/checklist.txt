@@ -54,6 +54,9 @@ A grunt shoved off a high ledge drops its weapon on landing, even if it wasn't k
 Armed humanoids' steps while firing now follow Retreat Readiness, Aggressiveness, their kind and your blade; expect them further back when you hold a melee weapon.
 A gun-and-axe holder up close stands and swings its axe rather than backing away firing.
 A super nailgun holder's last odd round is a single nail, with no console error.
+Revolver out: tilting it or a wrist flick drops nothing; a short push back along the bore throws the shells that way. Pulling it in to inspect at speed may eject: raise Eject Push Speed if so.
+Revolver out: a quick pull back with a shell in the other hand keeps the loaded shells in.
+Revolver: see through the empty chambers swung out; shells seat cleanly in them.
 
 
 [3. Bodies: grabbing, throwing, hits]
