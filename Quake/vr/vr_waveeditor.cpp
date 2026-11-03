@@ -628,7 +628,7 @@ void presetBar()
         ed.askSaveAs = true;
     }
     ImGui::SameLine();
-    if(btn("Delete", ed.name[0] != 0))
+    if(btn("Delete", aw::removable(ed.name))) // (a player's copy, never a shipped preset: vr_arenawaves.hpp)
     {
         ed.askDelete = true;
     }

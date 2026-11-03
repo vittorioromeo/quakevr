@@ -18,6 +18,13 @@
 // (skill 0 Easy .. 3 Nightmare). No line for a map and skill: Default, the director's own waves, exactly as ever. A map
 // named there is an arena map (QC VR_ARENA_On), so a new arena needs only its name there.
 //
+// Shipped and the player's. arena_waves/ is versioned: what git tracks there ships (Windows/package-quakevr.ps1's
+// allowlist), nothing else does. A development build (the author's) saves straight there, so a preset he makes is a new
+// file to commit. A release build never writes there: a player's saves and assignments go to arena_waves_user/ (not
+// tracked, not in a package, so no update touches it) and win over the shipped ones by name, or by map and skill (a
+// `default` line undoes a shipped assignment). Save on a shipped preset keeps the player's own copy; Delete takes only that
+// copy, bringing the shipped one back.
+//
 // The engine reads and writes the files and checks what it can alone (the file's form, armour, pieces); what depends on
 // the game's tables (the kinds, weapons, infections) QC checks as the map starts, reporting through arenawavesreport.
 
@@ -82,6 +89,7 @@ struct Preset
 [[nodiscard]] bool load(const char* name, Preset& out, za::String& report);
 [[nodiscard]] bool save(const char* name, const Preset& p, za::String& report);
 bool removeFile(const char* name);
+[[nodiscard]] bool removable(const char* name); // whether there is a file of the writer's own to remove (not a shipped one)
 [[nodiscard]] za::Vector<za::String> list();
 
 // assign.cfg: the preset for a map and skill ("": Default), and setting it ("" clears it; the file rewritten sorted).

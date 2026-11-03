@@ -130,6 +130,13 @@ models with an arm, made for the flat view. To do: bloody skins for `progs/v_sho
 picked while the bit is set: `MG3_BloodyBits()`), or MG3's models stripped and laid as the Super Axe's are
 (`vr_monstermods.cpp superAxePoses`), with their own weapon settings slots.
 
+### Armed humanoids picking up a second weapon (the author, 2026-11-03)
+
+`vr_agrunt_dual_pickup` (Armed Grunts: "Pick Up a Second") stays off by default until this is revisited: in combat it would
+be silly for an enemy to stop shooting the player with its current weapon to go and pick another one up. To do: make
+`VR_AG_WantsSecond` (`QC/vr_armedgrunt.qc`) smarter, so that one goes for a second weapon only if it is very close by and
+wouldn't take much downtime; then look at the default again.
+
 ## In progress, 2026-10-15 (other workers; not open here)
 
 Glove customization, Model vertex wobble (2) (rigged monsters' vertices rebuilt from the fitted skeleton). Their texts were removed from

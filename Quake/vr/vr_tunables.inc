@@ -366,6 +366,8 @@ QVR_TUNABLE(vr_crate_health_box, "0.2") // the chance a crate holds a small heal
 QVR_TUNABLE(vr_crate_item_pop, "3.5") // how hard what a crate held pops out when it breaks (m/s: up, and a little outwards)
 QVR_TUNABLE(vr_crate_crowbar, "0.1") // the chance a crate placed about the map (the top of a stack) has a crowbar lying on it (next map)
 QVR_TUNABLE(vr_crate_crowbar_max, "4") // most crowbars on crates in a map
+QVR_TUNABLE(vr_crate_flaregun, "0.1") // the chance a top placed about the map (a crate's or an upright barrel's) has a loaded flare gun lying on it, rolled apart from the crowbars (next map)
+QVR_TUNABLE(vr_crate_flaregun_max, "2") // most flare guns on crates in a map
 
 // Carrying and Throwing > Force Grab
 QVR_TUNABLE(vr_forcegrab_outline, "1") // the glow round what a hand's force grab points at (strength, 0 off)
