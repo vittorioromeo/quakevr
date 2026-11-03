@@ -1,6 +1,0 @@
-# burn_lava_nail: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". A monster's lava nail at you, as vr_burn_test 16 (the armed lists hold no lava gun), then calm.
-title A monster's lava nail hits you as the scene starts: you burn (god; Reset Test again)
-map vrtesthall
-god
-cmd vr_burn_test 16
-hint A lava nail just hit you: you are on fire. Reset Test does it again.

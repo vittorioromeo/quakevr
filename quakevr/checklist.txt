@@ -7,29 +7,11 @@
 [Failed: waiting for your answer]
 
 [1. Armed humanoids: fighting them]
-Arcane Dimensions (unverified in tests): plain grunts, enforcers, knights and death knights are armed; AD's rocket/grenade/plasma soldiers and point knights are not. {test:ad_armed_mix}
-AD: kill a cleaver hunter ogre and a death sergeant: both fall as ragdolls (no "got 0 vertices" in the console at startup), the weapon dropped beside them, the fist on the arm. {test:ad_sergeant_ogre}
-Armed grunt knocked down: it keeps its gun until it lands hard. Hold a downed one and swing it hard into a wall or the floor: it drops it; swing it and reverse in mid-air, or fling it low along the floor hitting nothing: it keeps it. Do the speeds feel right near walls? {test:agrunt_fall}
-A grunt shoved off a high ledge drops its weapon on landing, even if it wasn't knocked down; a low drop that doesn't hurt it keeps it. {test:agrunt_ledge}
-Worn packs beyond the grunts: knights and death knights holding a gun (on the upper back) and enforcers holding anything: grip the pack and pull up: does the body really come off the floor (on the mock it barely rises: knights and death knights a few units, enforcers none), and does the pack look right on them? Worn Backpacks > Fit has a page each for grunts, knights and death knights; moving a slider moves only that kind's pack, at once. {test:worn_packs_kinds}
 Push a hand into a grunt's belly and grip, with both hands for a judo throw: it takes hold and stays held, with no instant "breaks free" shove, and doesn't take the pack behind it. {test:punch_grunts}
-Bending down to grab a lying grunt never hurts it, against the floor or a wall; a headbutt on a lying body lands only when your head reaches its body. {test:grunts_to_throw}
-Armed humanoids fighting: their steps while firing follow Retreat Readiness, Aggressiveness, their kind and your blade: expect them further back when you hold a melee weapon (the axe at your feet). A gun-and-axe holder up close stands and swings its axe rather than backing away firing. {test:agrunt_mix}
-An armed grunt's Mjolnir swung from the far end of its reach, and a death knight's uppercut, now connect with you standing still instead of passing beside or over you; stepping back out of reach still makes them miss. {test:agrunt_reach}
-A super nailgun holder's last odd round is a single nail, with no console error. {test:agrunt_ammo}
-Knights and death knights with a gun (a shotgun or pistol, also from the toolgun or a wave): the gun stays with the body as it sidesteps and circles. Knock it out of his hand: he picks up a gun again, with "Pick Up Ranged Weapons" off; one with a sword doesn't. {test:knight_guns}
-Fresh settings, e1m4 (or any map with knights): every knight holds a sword in his hand, swings it, can be parried and disarmed; killing the one by the door opens it as before; no knight ever takes up a gun lying about. Map knights now roll armour by skill: do kills take too long? {test:knights_e1m4}
 Armour plate breaking on an armed enemy: a short metal crack from a recording, no longer the armour chime backwards. If it sounds wrong, name a runner-up (518731 or 875432). {test:agarmor_plates}
-A replaced grunt or enforcer, whatever it holds, drops what it holds and its backpack, never an extra weapon; a plain grunt or enforcer (`vr_agrunt_repl` 0) still sometimes does. {test:agrunt_repl_map}
-Toolgun > Spawn > Armed Humanoid > Infected With > Ogre: kill him; his weapon falls and he rises as an ogre. {test:toolgun_armed}
 Debug > Tools > Arena Wave Editor: build a wave with an armed grunt, dual axes, red armour and infected with shambler; save it, assign it to Normal, then Play from wave 1. Is the panel readable, do the laser, stick scrolling and panel keys work? {test:vrarena_calm}
 Rig Studio: changing the subject leaves no backpack lying on the floor. {test:agrunt_pose_studio}
-A fiend, dog or spawn killed by a blast its own leap set off stays dead. {test:leap_blast}
-Crates and upright barrels about the maps sometimes have a loaded flare gun lying on top, about as often as a crowbar, at most 2 a map {test:flaregun_crates}
-A crate can have both a crowbar and a flare gun, side by side and not touching: take each {test:flaregun_crates}
 Wave presets you save in the Arena Wave Editor now show in git status (arena_waves/), to commit and ship.
-Monsters beside lava warm on the side facing it, in the lava's colour, and a wall between them blocks it; Debug > Tunables > Graphics > Models and Effects > Light Grid: Lava Light and its range change it at once. {test:light_grid_lava}
-Blood, dust and gun smoke beside a monster in a dark room are lit from the same probes as the monster; vr_model_light_grid 0 for the floor's, to compare. {test:light_grid_dark}
 Models near slime and teleporters take a light tint too (e1m1's slime); Slime Light and Teleporter Light set how much (same Tunables page).
 Plain monsters parry by direction: with vr_agknight 0, a knight's chop: sword level across where its blade comes down: sparks, it staggers; upright: the blow lands. Ogre's side swing: upright in its way; its overhead smash: level across. Fiend's claws, shambler's arms: across each as it comes. Dog: low, level across its head.
 A leap landing on you, a fish's bite: a weapon level across in front parries, as before.
@@ -37,7 +19,6 @@ Debug > Show Disarm Volumes near a monster: its blow's line on its weapon or lim
 A monster's or armed grunt's swing: hold your weapon across its way early: parried, no damage, plain. Turn it to the angle or move it in just before the blade arrives: a stronger parry (it staggers where a plain one flinches, by the parry balance).
 A monster's directional parry lets nothing through. Debug > Tunables > Combat > Directional Parry: Let Through: Armed Humanoids, Monsters, Timing Window.
 A dog's bite or leap, a fiend's leap: a weapon held level across in front parries; upright, the blow lands.
-Throw a sword point first at a wall: it sticks and sags with a little spring; flat or by the hilt it bounces. {test:embed_throw}
 Throw a sword into a grunt: it bleeds; kill it and the blade stays in the corpse, riding the body. {test:embed_throw}
 Grip a blade in a corpse: it only comes out once you pull about 8 cm; letting go leaves it in. {test:embed_throw}
 Gib the body or cut off the limb with a blade in it: the blade falls. {test:embed_throw}
@@ -65,9 +46,5 @@ A crowbar on an explosive box now knocks (blunt) instead of clanging: right, or 
 The arena is nice: play it, feels good? Note improvements. {test:arena_run}
 
 [5. Moving, weapons and the world]
-Run hard with the stick (and in the arena if you like): speed holds, no dips every few steps, the world goes by evenly (Debug > Tests "Game Time From the Display Clock" off to compare; only tested on a headset: if motion feels wrong, say so). Stick about straight: you run exactly where you look; looking down doesn't slow you or bend a diagonal (Debug > Tests "Stick: Show Speed" shows the push angle and heading). Stick page "Stick Straight Zone" (15 deg) and "Stick Full Push Hold" (0.4 s): letting go still stops at once; easing to a lower push from a full run slows after about 0.4 s. {test:stick_run}
-Your footsteps: slow stick walking is much quieter than a run (adjust under Debug > Tunables > Body > Player Footsteps); turning in the room or with the stick, or moving a little in the room: no footstep sounds. {test:stick_run}
 Revolver out: tilting it or a wrist flick drops nothing; a short push back along the bore throws the shells that way (pulling it in to inspect at speed may eject: raise Eject Push Speed if so); a quick pull back with a shell in the other hand keeps the loaded shells in. See through the empty chambers swung out; shells seat cleanly in them. {test:revolver}
 Autosaves: Load Autosave (main, pause and death menus) lists this game's autosaves newest first; none is made while monsters are on you or your health is low. {test:autosave_e1m1}
-An enemy's lava nail sets you on fire. {test:burn_lava_nail}
-Disable Haptics on: bullet time's pulse and the gadget's gear-light buttons don't buzz. {test:no_haptics}

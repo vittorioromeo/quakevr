@@ -1,9 +1,0 @@
-# agrunt_repl_map: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one"
-title Armed humanoid replacements: The Installation's grunts and enforcers armed, with variety
-map e2m1
-cvar vr_agrunt_repl 1
-cvar vr_agrunt_repl_common 0.3
-cvar vr_agrunt_repl_rare 0.2
-cvar vr_agrunt_repl_rare_map 0
-cvar vr_agrunt_repl_dual 0.15
-cvar vr_agrunt_repl_gunaxe 0.15

@@ -1,9 +1,0 @@
-# ad_sergeant_ogre: see docs/vr-port/TESTING.md, "Checklist scenarios: how to write one". Needs Arcane Dimensions running. Two AD kills that fall as ragdolls.
-title AD: a hunter ogre and a death sergeant to kill, a rocket launcher in hand (god, calm)
-map vrtesthall
-god
-notarget
-give "Rocket Launcher" main
-spawn "AD Hunter Ogre" 350 -70
-spawn "AD Death Sergeant" 350 70
-cmd impulse 9
