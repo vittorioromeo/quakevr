@@ -1386,7 +1386,7 @@ void testFrame()
     case 31: check(false, "Close: the editor stayed open"); testVerdict(); break;
     case 32: click("Add Wave"); break;
     case 33: click("Add Wave"); break;
-    case 34: check(ed.preset.waves.size() == 3, "three waves to play"); ed.playWave = 1; clickToClose("Play", 1, 36); break;
+    case 34: check(ed.preset.waves.size() == 3, "three waves to play"); setText(ed.map, "vrarena"); ed.playWave = 1; clickToClose("Play", 1, 36); break;
     case 35: check(false, "Play from wave 1: the editor stayed open"); testVerdict(); break;
     case 36: click("Play from wave"); break;
     case 37:
