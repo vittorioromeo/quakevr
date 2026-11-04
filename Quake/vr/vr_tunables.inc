@@ -1773,7 +1773,7 @@ QVR_TUNABLE(vr_model_light_teleport, "0.35") // ... teleporters
 QVR_TUNABLE(vr_model_light_teleport_range, "256")
 
 // Flatscreen > Held Weapon
-QVR_TUNABLE(vr_flat_gun_fwd, "3.5") // the held weapon, hipfire: how far in front of its shoulder it sits (-30..30 units; 17: where the pose put it)
+QVR_TUNABLE(vr_flat_gun_fwd, "5") // the held weapon, hipfire: how far in front of its shoulder it sits (-30..30 units; 17: where the pose put it)
 QVR_TUNABLE(vr_flat_gun_down, "10") // the held weapon, hipfire: how far below its shoulder it sits (-30..30; positive is lower; 9 as before)
 QVR_TUNABLE(vr_flat_gun_out, "2") // the held weapon, hipfire: how far off the body's centre line it sits, out at the holding hand's own side (-30..30; 2.5 as before; negative brings it across the centre line)
 QVR_TUNABLE(vr_flat_gun_near, "24") // the held weapon, hipfire: how far the drawn view may stand from his own head before the hands stop being kept on the drawn view and stay on the body (8..60 units; 24: the mode's camNear). The view at his eyes counts 0, a full crouch counts vr_flat_crouch_drop; the camera's own nudges (vr_flat_cam_fwd / _up / _side) are put back before the measure, so moving the eye does not read as "the view is somewhere else" and the gun keeps following it
@@ -1799,8 +1799,8 @@ QVR_TUNABLE(vr_flat_aim_time, "0.15") // the same ironsight: how long its whole 
 QVR_TUNABLE(vr_flat_aim_point, "1") // 1: a gun points from its muzzle at what the ray through the screen's centre hits, every frame, hipfire and ironsight (the shot goes through the crosshair at any range); 0: along the view, beside the crosshair by the muzzle's distance off the ray
 
 // Flatscreen > Eye
-QVR_TUNABLE(vr_flat_cam_fwd, "3.5") // how far the flatscreen eye is nudged forward, in the view's frame (-20..20 units; + is forward, towards what he looks at)
-QVR_TUNABLE(vr_flat_cam_up, "3.5") // the same, up (-20..20; + is higher; the crouch's own drop (vr_flat_crouch_drop) is added to it, not replaced by it)
+QVR_TUNABLE(vr_flat_cam_fwd, "0") // how far the flatscreen eye is nudged forward, in the view's frame (-20..20 units; + is forward, towards what he looks at)
+QVR_TUNABLE(vr_flat_cam_up, "0") // the same, up (-20..20; + is higher; the crouch's own drop (vr_flat_crouch_drop) is added to it, not replaced by it)
 QVR_TUNABLE(vr_flat_cam_side, "0") // the same, sideways (-20..20; + is the view's own right, which is his left when he looks at it on the screen)
 
 // Flatscreen > Crouch
@@ -1835,7 +1835,7 @@ QVR_TUNABLE(vr_embed_enter_time, "0.12") // s a stab takes to go on to its depth
 QVR_TUNABLE(vr_embed_swing_speed, "1") // m/s the hand must drive a swung axe at
 QVR_TUNABLE(vr_embed_swing_angle, "90") // degrees at most the blow goes off the blade's plane
 QVR_TUNABLE(vr_embed_axe_depth, "12") // cm an axe's edge goes in at twice its least speed, vr_embed on (half at it; at most 60% of the blade)
-QVR_TUNABLE(vr_embed_hold_axe_stick, "3") // cm before an axe moves
+QVR_TUNABLE(vr_embed_hold_axe_stick, "2") // cm before an axe moves
 QVR_TUNABLE(vr_embed_hold_axe_rate, "70") // cm/s an axe slides at most
 QVR_TUNABLE(vr_embed_hold_axe_travel, "10") // cm an axe is pulled to come free
 QVR_TUNABLE(vr_embed_stagger_axe_speed, "9") // m/s a swung axe does

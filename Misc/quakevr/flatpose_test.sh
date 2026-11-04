@@ -154,7 +154,11 @@ check $(gate 9 500 0) "point: hipfire, the far wall: the same"
 read -r coff caway con <<<"$(pointline 10)"
 check $(awk -v o="${coff:-0}" -v p="${con:-1}" 'BEGIN { exit !(o > 8 && p + 0 == 0) }' && echo 1 || echo 0) "point: the control: the same offsets along the view, and the shot passes ${coff:-?} units off the point and misses him"
 
-# g. The near plane at a gun held at the camera: the author's own close pose, the ironsight on. Two frames as shipped, and
+# g. The near plane at a gun held at the camera: a close pose pinned here ($CLOSE), the ironsight on -- the pose his
+# 2026-11-03 tuning shipped (vr_flat_gun_fwd 3.5 with the eye nudged 3.5 forward and up, which puts the gun at the drawn
+# eye). His 2026-11-04 tuning ships gun_fwd 5 with no nudge, and that pose leaves the gun well out from the eye: the case
+# keeps its own numbers rather than following the defaults, because what it measures is a gun standing at the near plane.
+# Two frames at the pinned pose, and
 # one with vr_nearclip 4 and vr_nearclip_held 0, the desktop's plane this mode drew at. Without the mode's near plane
 # (VR_FlatNearPlane) vr_nearclip does nothing here: the third frame reads as the first and the check fails.
 log=$HERE/scratch/pose_near.log
@@ -165,7 +169,7 @@ mapfile -t near < <(ls -tr "$SHOTS"/*.png | tail -3)
 mad() { python "$HERE/pixdiff_ab.py" "$1" "$2" | grep -a -o "per channel [0-9.]*" | awk '{ print $3 }'; }
 same=$(mad "${near[0]}" "${near[1]}"); cut=$(mad "${near[0]}" "${near[2]}")
 grep -a "near plane:" "$log" | head -1 | sed 's/^/  status:/' | cut -c1-120
-echo "  a gun at the camera: two frames as shipped differ by $same a channel, the desktop's near plane against them by $cut"
+echo "  a gun at the camera: two frames at the pinned pose differ by $same a channel, the desktop's near plane against them by $cut"
 check $(grep -aq "near plane: 0.1 units (vr_nearclip), float depth" "$log" && echo 1 || echo 0) "near: the mode's near plane is the headset's, on float depth"
 check $(awk -v s="${same:-99}" -v c="${cut:-0}" 'BEGIN { exit !(s <= 0.5 && c >= 3) }' && echo 1 || echo 0) "near: the gun at the camera is not cut as the desktop's near plane cuts it"
 verdict; exit $fail

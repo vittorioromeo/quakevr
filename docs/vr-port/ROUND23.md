@@ -1,4 +1,4 @@
-﻿# Round 23: after 1.1.0-beta4
+# Round 23: after 1.1.0-beta4
 
 A per-feature reference (condensed from the per-worker notes; current behaviour only). Round 22 (`ROUND22.md`) covers
 1.0.1 to 1.1.0-beta4. Add new work as a section per feature (or fold it into its feature's section): what it does,
@@ -8250,3 +8250,31 @@ His words: "The weapon studio imgui window needs to be movable, resizable, and c
   7 failed` (Ctrl's bind x3, the ironsight FOV ramp x4). The diff here is three Weapon Studio files and no case in either
   suite opens the Weapon Studio; they reproduce in a run of their own, so they came in with the baseline this branch was cut
   from (`origin/next` at `84669b3a0`, which merges `origin/vr-cleanup`). Left for the coordinator.
+
+## His tuning of 2026-11-04 is the shipped default (branch `agent/promote1104`, brief promote1104)
+
+His words: "Please re-promote my current tuning." `Misc/quakevr/tune_promote.py` run against his `quakevr/tunables.cfg`
+(read only; his checkout untouched, its `git status` empty), `--check` first and then for real:
+
+- `vr_flat_gun_fwd` 3.5 -> **5**, `vr_flat_cam_fwd` 3.5 -> **0**, `vr_flat_cam_up` 3.5 -> **0**,
+  `vr_embed_hold_axe_stick` 3 -> **2** (`tune_promote: 4 promoted, 0 unchanged, 0 unknown`; a second `--check` after the
+  write reads `0 promoted, 4 unchanged`: his file and `Quake/vr/vr_tunables.inc` say the same now). The eye's nudges are
+  back to where FLATPLAY.md's *View Forward 0 / View Up 0* line had been standing all along -- stale against 11-03's
+  promotion, right again today; `vr_flat_cam_side` was and stays 0. The 11-03 promotion's other values stay as shipped.
+- The one shipped number still written down wrong: FLATPLAY.md's held-weapon sentence read `vr_flat_gun_fwd` 17,
+  `vr_flat_gun_down` 9, `vr_flat_gun_out` 2.5 -- how they shipped before 11-03, left standing by that promotion. Now
+  5, 10, 2, what the code reads.
+- `Misc/quakevr/flatpose_test.sh` section g keeps its pinned close pose (`vr_flat_gun_fwd 3.5`, the eye nudged 3.5 forward
+  and up): what the case measures is a gun standing at the near plane, and his 11-04 pose -- `gun_fwd 5`, no nudge --
+  leaves the gun out from the eye and would not exercise that plane at all. A test that pins a value keeps pinning it;
+  only its wording changed ("as shipped" -> "the pinned pose", with the date the pose belongs to). No gate was loosened:
+  the axe's 3 -> 2 is read by `QC/vr_embedhold.qc` from the constant and no case states that threshold, and
+  `axe_stick_rates.sh` measures thrown axes, which this constant does not touch.
+- Built clean (`build.sh pickup`: `built`, QC and engine `Done. 0 warnings`). `flatplay_test.sh pickup`: **27 passed,
+  1 failed** -- the red is the shotgun's grip case, and it is not this change: the same run with the old four numbers
+  tuned back at runtime prints the identical `hotspot: 11.7 units from the held hand (fwd 11.6, right -0.8, up -1.1 of it)`,
+  the same red line the wsched lane left for the coordinator. `flatkeys_test.sh pickup`: **24 passed, 4 failed** -- all
+  four are the `vr_flat_aim_time` ironsight-ease cases, the same four left red above; nothing here touches that cvar.
+  The eye-nudge cases read as the doc says: the drawn eye 22.0 above his origin and 28.0 with the nudges, his origin
+  88.0 and 88.0. Held weapon at the shipped pose: `scratch/flatgun_1104.png` -- the shotgun in view, muzzle down the
+  screen's middle, not buried in the view and not off its edge.
