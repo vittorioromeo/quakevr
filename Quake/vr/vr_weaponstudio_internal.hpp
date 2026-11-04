@@ -152,6 +152,12 @@ struct Preview
     int noteFrame{-1};
 };
 
+// The smallest the window may be made, and the largest it is offered (its own frame, in vr_weaponstudio_ui.cpp; the
+// self-test checks it). At this size its top row -- the slot, "my main hand", "my off hand" and `close` -- is still
+// one line, and a key row's label, its drag and its box are still together on one line, with `close` reachable.
+inline constexpr float winMinW = 560.f;
+inline constexpr float winMinH = 360.f;
+
 struct State
 {
     bool open{false};
@@ -196,12 +202,32 @@ struct State
     char clickName[40]{""};
     float clickX{0.f};
     float clickY{0.f};
+    bool dragging{false};    // the click above is held and walked by (clickDX, clickDY): a drag, not a tap
+    float clickDX{0.f};
+    float clickDY{0.f};
+    int keyPhase{0};         // a key press fed to ImGui: 1 down, 2 up (the tests' Escape)
+    // Where the window sits and how big it is. Kept here for the session -- no cvar, no ImGui ini file: read back
+    // from ImGui at the window's End, applied again the frame the window appears. (Set-always every frame would
+    // snap back every drag and resize he makes.)
+    bool winPlaced{false};
+    float winX{0.f};
+    float winY{0.f};
+    float winW{0.f};
+    float winH{0.f};
+    // The window-frame checks (drag, resize, its title bar's X, Escape) count here and end with their own verdict.
+    int schedPassed{0};
+    int schedFailed{0};
+    float schedX{0.f}; // where it was before the drag, and how big it was made
+    float schedY{0.f};
+    float schedW{0.f};
+    float schedH{0.f};
 };
 
 extern State st;
 
 // What vr_weaponstudio.cpp and vr_weaponstudio_ui.cpp share.
 void noteSpot(const char* name);
+void noteSpotAt(const char* name, float x, float y); // a spot that is not a widget: the title bar, a corner
 [[nodiscard]] const Spot* spotNamed(const char* name);
 void feedMock();        // the tests' mouse, fed before the ImGui frame
 void testFrame();

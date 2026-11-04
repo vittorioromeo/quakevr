@@ -8221,3 +8221,32 @@ own help says "the window: Debug > Tools > Weapon Studio", but no such row exist
 no Weapon Studio `command(...)` row, and neither does QC): today the window opens from the console only. The row belongs
 in Debug > Tools (`command("Weapon Studio", "vr_weaponstudio")`) whenever the menu is next touched — it means nothing in
 a headset, where the tool refuses to open.
+
+## Weapon Studio: its window moves, resizes and closes (branch `agent/wsched`, brief wsched)
+
+His words: "The weapon studio imgui window needs to be movable, resizable, and closable."
+
+- It is a plain root window now. `Begin` is given its pos and size on the frame it *appears* (`ImGuiCond_Appearing`) from
+  the studio's own state (`winPlaced/winX/winY/winW/winH` in the struct), and they are read back from `GetWindowPos` and
+  `GetWindowSize` at `End`: dragging its title bar moves it, pulling its lower-right corner resizes it, and `vr_weaponstudio
+  open` finds it where he left it at the size he left it. Session state in the studio's struct -- no cvar, no function-local
+  static. (`Size` and `SizeFull` are the same number unless the window is collapsed, so no scrollbar arithmetic; the size is
+  simply not saved while it is collapsed.) The title bar keeps naming the slot, and it can still be collapsed by its arrow.
+- `SetNextWindowSizeConstraints` holds it at 560x360 (`winMinW`, `winMinH`, in the internal header so the test can name them):
+  at that size the top row's buttons stay on one line, `close` stays under the mouse, and the key rows scroll below it behind
+  the same `BeginChild("keys", ...)`, whose height the wrap helpers still measure. No new layout system: the same window at
+  940x520 and at its minimum passes the same "every widget I clicked was on the screen" check (960x540).
+- Closing: the title bar's `X` (`Begin`'s `p_open`) and `Escape` (ignored while a text box has the keyboard, `io.WantTextInput`)
+  both set `askClose`, acted on in `afterWindow` *after* `ImGui::End` -- the `close` button's path; the window never closes
+  itself from inside its own `Begin`.
+- Its self-test now drags its corner (940x520 -> 560x360, and the minimum holds), drags its title bar (10,10 -> 160,130),
+  presses `Escape`, reopens and checks the pos and size came back, and clicks its `X`: new verdict line `wsched: 8 passed,
+  0 failed`, printed after `weaponstudio: 22 passed, 0 failed` so the run ends on a verdict rather than on a timeout. A bug
+  found on the way, worth remembering: adding the drag phases to the mock mouse dropped the *release* frame from a plain
+  click, and 11 of the tool's own checks went red -- a press is only a click once it lets go. The test's debug markers are
+  switched off at its verdict. Screenshot of the window moved and resized: `scratch/wsched.png`.
+- Two suites were not green in this lane and this change is not why: `flatplay: 23 passed, 5 failed` (grip behind the held
+  hand, the held weapon's place, the eye nudges, the aiming measures reading the nudged camera) and `flatkeys: 21 passed,
+  7 failed` (Ctrl's bind x3, the ironsight FOV ramp x4). The diff here is three Weapon Studio files and no case in either
+  suite opens the Weapon Studio; they reproduce in a run of their own, so they came in with the baseline this branch was cut
+  from (`origin/next` at `84669b3a0`, which merges `origin/vr-cleanup`). Left for the coordinator.
