@@ -40,6 +40,7 @@
 #include "vr_toolgun.hpp"
 #include "vr_arenacards.hpp"
 #include "vr_waveeditor.hpp"
+#include "vr_weaponstudio.hpp" // (its window pausing his own walking: VR_AdjustMove below)
 #include "vr_geom.hpp"
 
 #include "Zancle/Base/IsFinite.hpp"
@@ -1945,6 +1946,19 @@ bool primaryHeld(int hand)
 // steers (the head in mode 1, else that hand) up or down while pushing forward swims up or down (from the old engine's VR_Move).
 extern "C" void VR_AdjustMove(float* forwardmove, float* sidemove, float* upmove)
 {
+    // The Weapon Studio's window owns his move keys while it is open -- W A S D and Q E fly its drawn camera there
+    // (vr_weaponstudio.cpp) -- so his own walking is paused for those frames, whatever his keys and his sticks were
+    // pressed to. Nothing here is kept, so the window's Close gives the walking back exactly as it was; his looking is
+    // untouched either way.
+    if(weaponstudio::active())
+    {
+        *forwardmove = 0.f;
+        *sidemove = 0.f;
+        *upmove = 0.f;
+        lastStickSpeed = 0.f;
+        return;
+    }
+
     const float m = glm::length(moveAxes);
     const bool running = ((in_speed.state & 1) != 0) != (cl_alwaysrun.value != 0.f);
     const float threshold = CLAMP(0.1f, vr_move_autorun_threshold.value, 1.f);

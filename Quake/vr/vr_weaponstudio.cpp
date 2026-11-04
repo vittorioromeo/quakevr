@@ -1401,6 +1401,281 @@ void testClosedFrame()
     schedVerdict();
 }
 
+// ---- The drawn camera: while the window is open, its keys and its mouse ----------------------------------------
+// The view flown out of his head, so the weapon he is holding and both hand poses can be seen from outside. The keys
+// are the Rig Studio's -- W A S D forward, left, back and right, Q E down and up, Shift 3x -- and so is the rest of
+// its camera: a middle-drag or an Alt+left drag orbits, the wheel zooms, and the orbiting and zooming speeds are
+// vr_rigstudio_orbit_speed and vr_rigstudio_zoom_speed. Only the flying speed is the Studio's own
+// (vr_weaponstudio_fly_speed, in its preferences row). While the window is open these are his move keys' job -- his
+// own walking is paused for those frames (VR_AdjustMove, vr_input.cpp) and comes back with the window, nothing kept.
+//
+// `off` is the default, and what `camera reset` and the window's Close leave behind: while it is off
+// VR_WeaponStudioView below never touches the view, so the drawn eye stays the engine's own -- his eyes, his crouch's
+// drop, the mode's own nudges included -- and every number the game measures stays exactly as it was.
+//
+// Out past flatplay's keepNear (vr_flat_gun_near, 8..60: 24 at the defaults) the drawn view stops counting as his own
+// eyes, which is the case the flatscreen already handles: the drawn hands, the weapon and the crosshair stay with the
+// body (flatplay::viewIsHisOwn / drawnOffset, vr_flatplay.cpp) instead of being dragged along with the camera. The
+// Studio's markers and its line-up read-outs are measured from the body's pose (viewFrame, measureHand), never from
+// this camera, so they do not move with it either -- only where they land on the screen does.
+namespace
+{
+
+constexpr float camPitchMax = 89.f;   // the orbit's pitch limit (the Rig Studio's)
+constexpr float camDistMax = 4000.f;  // how far the eye may be taken from his head (the Rig Studio's zoom range)
+constexpr float camZoomStep = 16.f;   // the wheel's step at the near end, so a zoom from his own eyes still moves it
+constexpr float camFast = 3.f;        // Shift: three times the flying speed
+
+// Where his own eyes are and where he looks: what the camera is put on top of, and what "back to my eyes" means.
+[[nodiscard]] glm::vec3 hisEyes()
+{
+    const hands::State& s = hands::current();
+    if(s.valid)
+        return s.head;
+    return {r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
+}
+
+[[nodiscard]] glm::vec3 hisTurn()
+{
+    const hands::State& s = hands::current();
+    if(s.valid)
+        return {s.headAngles[0], s.headAngles[1], 0.f};
+    return {r_refdef.viewangles[0], r_refdef.viewangles[1], 0.f};
+}
+
+[[nodiscard]] glm::vec3 viewTurn()
+{
+    return {r_refdef.viewangles[0], r_refdef.viewangles[1], r_refdef.viewangles[2]};
+}
+
+// The eye the view is drawn from this frame: off, the engine's own; on, the one flown out.
+[[nodiscard]] glm::vec3 camEye()
+{
+    if(!st.camOn)
+        return {r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]};
+    return st.camPos;
+}
+
+// Put the eye on top of his own, looking where he looks: where the camera starts.
+void camBegin()
+{
+    st.camOn = true;
+    st.camPos = hisEyes();
+    st.camTurn = hisTurn();
+}
+
+void camBack(const bool announce)
+{
+    if(!st.camOn)
+    {
+        if(announce)
+            Con_Printf("weaponstudio: the camera is already at his eyes\n");
+        return;
+    }
+    st.camOn = false;
+    st.camPos = glm::vec3{0.f};
+    st.camTurn = glm::vec3{0.f};
+    if(announce)
+        Con_Printf("weaponstudio: camera back to his eyes (vr_weaponstudio camera reset)\n");
+}
+
+// Not further from his head than the Rig Studio's camera ever goes.
+void camKeep()
+{
+    const glm::vec3 head = hisEyes();
+    const glm::vec3 off = st.camPos - head;
+    const float d = glm::length(off);
+    if(d > camDistMax)
+        st.camPos = head + off * (camDistMax / d);
+}
+
+// How far the eye stands from his head: 0.00 while the camera is off, and how far it was flown once it is on.
+[[nodiscard]] float camOff()
+{
+    if(!st.camOn)
+        return 0.f;
+    return glm::length(st.camPos - hisEyes());
+}
+
+void camFly(const glm::vec3& move, const bool fast, const float dt)
+{
+    if(move.x == 0.f && move.y == 0.f && move.z == 0.f)
+        return;
+    if(!st.camOn)
+        camBegin();
+    glm::vec3 fwd, right, up;
+    basisOf(st.camTurn, fwd, right, up);
+    const float speed = za::max(vr_weaponstudio_fly_speed.value, 1.f) * (fast ? camFast : 1.f);
+    st.camPos += (fwd * move.x + right * move.y + up * move.z) * (speed * za::min(dt, 0.1f));
+    camKeep();
+}
+
+// A drag orbits the view: the eye walks the ring it stands on round his head and keeps looking at him, so the weapon
+// and both hands stay the thing being looked at. (At his own eyes there is no ring to walk, and there the drag turns
+// the view the way the Rig Studio's look does.)
+void camOrbit(const glm::vec2& d)
+{
+    if(!st.camOn)
+        camBegin();
+    const glm::vec3 head = hisEyes();
+    const glm::vec3 r = st.camPos - head;
+    const float dist = glm::length(r);
+    const float o = vr_rigstudio_orbit_speed.value;
+    if(dist < 1.f)
+    {
+        st.camTurn[1] -= d.x * o;
+        st.camTurn[0] = za::clamp(st.camTurn[0] + d.y * o, -camPitchMax, camPitchMax);
+        return;
+    }
+    // The turn it aims with, read off the line from the eye to him (pitch down is positive, as everywhere here; and
+    // its asin taken with atan2, as angleBetweenDeg above does).
+    const glm::vec3 look = r * (-1.f / dist);
+    float yaw = za::atan2(look.y, look.x) * radToDeg;
+    float pitch = -za::atan2(look.z, sqrtf(look.x * look.x + look.y * look.y)) * radToDeg;
+    yaw -= d.x * o;
+    pitch = za::clamp(pitch + d.y * o, -camPitchMax, camPitchMax);
+    const glm::vec3 aimed = forwardOf({pitch, yaw, 0.f});
+    st.camPos = head - aimed * dist;
+    st.camTurn = {pitch, yaw, 0.f};
+    camKeep();
+}
+
+// The wheel walks the eye along its own line of sight: up brings it nearer what it looks at, down takes it back out.
+// The step is a share of the distance, as the Rig Studio's zoom is, with a floor so a zoom from his own eyes moves it.
+void camZoom(const float wheel)
+{
+    if(!st.camOn)
+        camBegin();
+    glm::vec3 fwd, right, up;
+    basisOf(st.camTurn, fwd, right, up);
+    const float step = (camOff() + camZoomStep) * za::clamp(vr_rigstudio_zoom_speed.value, 0.01f, 0.9f) * wheel;
+    st.camPos -= fwd * step;
+    camKeep();
+}
+
+void camPrint(const char* state)
+{
+    const glm::vec3 head = hisEyes();
+    const glm::vec3 eye = camEye();
+    const glm::vec3 turn = st.camOn ? st.camTurn : viewTurn();
+    Con_Printf("weaponstudio camera %s: %s eye %.2f %.2f %.2f turn %.2f %.2f  off his head %.2f  his head %.2f %.2f "
+               "%.2f  the game's eye %.2f %.2f %.2f apart %.2f  fly %.0f u/s\n",
+               state, st.camOn ? "flown" : "off his eyes", eye.x, eye.y, eye.z, turn.x, turn.y, camOff(),
+               head.x, head.y, head.z, r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2],
+               glm::length(glm::vec3{r_refdef.vieworg[0], r_refdef.vieworg[1], r_refdef.vieworg[2]} - head),
+               za::max(vr_weaponstudio_fly_speed.value, 1.f));
+}
+
+// The keys and the mouse, while the window is open and no text entry has the keyboard (neither an ImGui input box
+// nor the game's own console: key_dest). The keys are read from ImGui and from the game's move buttons both, so a
+// hand and a script drive the same camera.
+void cameraInput()
+{
+    ImGuiIO& io = ImGui::GetIO();
+    if(st.testing)
+        return; // (its own fed mouse is the self-test's business; the camera is not part of it)
+    if(key_dest != key_game || io.WantTextInput || io.KeyCtrl)
+        return;
+
+    const auto down = [](const ImGuiKey key, const kbutton_t& button) {
+        return ImGui::IsKeyDown(key) || (button.state & 1) != 0;
+    };
+    const glm::vec3 move{(down(ImGuiKey_W, in_forward) ? 1.f : 0.f) - (down(ImGuiKey_S, in_back) ? 1.f : 0.f),
+                         (down(ImGuiKey_D, in_moveright) ? 1.f : 0.f) - (down(ImGuiKey_A, in_moveleft) ? 1.f : 0.f),
+                         (down(ImGuiKey_E, in_up) ? 1.f : 0.f) - (down(ImGuiKey_Q, in_down) ? 1.f : 0.f)};
+    const bool fast = io.KeyShift || (in_speed.state & 1) != 0;
+    camFly(move, fast, io.DeltaTime);
+
+    if(io.WantCaptureMouse)
+        return; // (its own widgets own the mouse that frame)
+    const glm::vec2 d{io.MouseDelta.x, io.MouseDelta.y};
+    if(d.x != 0.f || d.y != 0.f)
+    {
+        if(ImGui::IsMouseDown(ImGuiMouseButton_Middle) || (io.KeyAlt && ImGui::IsMouseDown(ImGuiMouseButton_Left)))
+            camOrbit(d);
+    }
+    if(io.MouseWheel != 0.f)
+        camZoom(io.MouseWheel);
+}
+
+// vr_weaponstudio camera [reset | <x> <y> <z> | <pitch> <yaw> | drag <right> <down> | print]: the same camera without
+// a hand on the mouse. <x> <y> <z> stands the eye that many units off his own eyes -- ahead, his view's own right,
+// and up, the frame vr_flat_cam_fwd, vr_flat_cam_side and vr_flat_cam_up use -- measured where he stands and looks
+// now. <pitch> <yaw> is the flown eye's turn, measured off his own look. `drag <right> <down>` is a middle-drag with
+// nobody's hand on the mouse: it calls the very orbit a middle-drag calls, with the same pixels. `reset` puts it back
+// at his eyes, and `print` -- with no numbers -- says where it is.
+void cameraCmd()
+{
+    if(!st.open)
+    {
+        Con_Printf("weaponstudio: its camera belongs to the open window -- vr_weaponstudio open first\n");
+        return;
+    }
+    const int args = Cmd_Argc() - 2;
+    if(args <= 0 || !strcmp(Cmd_Argv(2), "print"))
+    {
+        camPrint("is");
+        return;
+    }
+    if(args == 1)
+    {
+        if(!strcmp(Cmd_Argv(2), "reset"))
+        {
+            camBack(true);
+            return;
+        }
+        Con_Printf("weaponstudio: camera reset, or three numbers off his eyes (ahead right up), or two (pitch yaw), "
+                   "or drag <right> <down>, or print\n");
+        return;
+    }
+    if(!st.camOn)
+        camBegin();
+    // `drag <right> <down>` is a middle-drag with nobody's hand on the mouse: it calls the very orbit a middle-drag
+    // calls, with the same pixels, and prints the turn it came to (a test reads its two prints).
+    if(args == 3 && !strcmp(Cmd_Argv(2), "drag"))
+    {
+        camOrbit(glm::vec2{static_cast<float>(Q_atof(Cmd_Argv(3))), static_cast<float>(Q_atof(Cmd_Argv(4)))});
+        camPrint("turned");
+        return;
+    }
+    if(args == 3)
+    {
+        glm::vec3 fwd, right, up;
+        basisOf(hisTurn(), fwd, right, up);
+        st.camPos = hisEyes() + fwd * Q_atof(Cmd_Argv(2)) + right * Q_atof(Cmd_Argv(3)) + up * Q_atof(Cmd_Argv(4));
+        camKeep();
+        camPrint("placed");
+        return;
+    }
+    if(args == 2)
+    {
+        const glm::vec3 base = hisTurn();
+        st.camTurn[0] = za::clamp(base[0] + Q_atof(Cmd_Argv(2)), -camPitchMax, camPitchMax);
+        st.camTurn[1] = base[1] + Q_atof(Cmd_Argv(3));
+        camPrint("turned");
+        return;
+    }
+    Con_Printf("weaponstudio: camera reset, or three numbers off his eyes (ahead right up), or two (pitch yaw), "
+               "or drag <right> <down>, or print\n");
+}
+
+} // namespace
+
+// V_CalcRefdef (Quake/view.c): the flown camera over the drawn view, after the mode put its own view there. Off by
+// default, and while it is off nothing here runs: the view stays where the game put it.
+extern "C" int VR_WeaponStudioView(float* origin, float* angles)
+{
+    if(!st.open || !st.camOn)
+        return 0;
+    origin[0] = st.camPos.x;
+    origin[1] = st.camPos.y;
+    origin[2] = st.camPos.z;
+    angles[0] = st.camTurn.x;
+    angles[1] = st.camTurn.y;
+    angles[2] = 0.f;
+    return 1;
+}
+
 // ---- Open, close, the console commands ----------------------------------------------------------------------------
 
 void openStudio()
@@ -1417,6 +1692,8 @@ void openStudio()
     st.clickPhase = 0;
     st.spots.clear();
     st.markers.clear();
+    st.camOn = false; // (`off`: the view stays where the game put it until a key, a drag or the wheel takes it out)
+    st.wantCamReset = false;
     detail::clearTouched();
     if(!validSlot(st.slot))
         st.slot = validSlot(weapons::heldSlot(1)) ? weapons::heldSlot(1) : 0;
@@ -1425,6 +1702,9 @@ void openStudio()
     m_state = m_none;
     Con_Printf("weaponstudio: open (slot %d, %d keys, %d slots in use) -- vr_weaponstudio_close gives the game back\n",
                st.slot, detail::tableSize, weapons::slotsUsed());
+    Con_Printf("weaponstudio: its camera is off (his own eyes). W A S D and Q E fly it out, Shift 3x, a middle-drag or "
+               "an Alt+left drag orbits it round him, the wheel zooms; his own walking is paused while the window is "
+               "open, and vr_weaponstudio camera reset brings the view back without closing it\n");
 }
 
 void closeStudio()
@@ -1434,6 +1714,8 @@ void closeStudio()
     st.open = false;
     st.askClose = false;
     st.clickPhase = 0;
+    camBack(false); // (the view goes back to his eyes with the window: nothing of the camera is kept)
+    st.wantCamReset = false;
     if(st.keyPhase > 0)
     {
         // (The Escape press we fed and never released: let it go, so ImGui does not keep holding the key down.)
@@ -1604,8 +1886,14 @@ void command_f()
     {
         st.hold = argc > 2 ? Q_atoi(Cmd_Argv(2)) != 0 : !st.hold;
         Con_Printf("weaponstudio: while the window is open the game's physics is %s\n",
-                   st.hold ? "held (monsters and props stand still; the player still walks and looks)"
+                   st.hold ? "held (monsters and props stand still; his own walking is paused too, its keys flying the "
+                            "Studio's camera -- vr_weaponstudio camera)"
                            : "running (nothing is held: the preview humanoid moves)");
+        return;
+    }
+    if(!strcmp(sub, "camera"))
+    {
+        cameraCmd();
         return;
     }
     if(!strcmp(sub, "reset"))
@@ -1624,8 +1912,12 @@ void command_f()
         return;
     }
     Con_Printf("weaponstudio [open|close|test|slot [n]|preview [kind weapon weapon2]|align [hand 0|1|2 [apply]]|");
-    Con_Printf("hold [0|1]|reset [slot]|print [slot]|copy [from to]]\n");
+    Con_Printf("hold [0|1]|camera [reset|<ahead right up off his eyes>|<pitch yaw off his look>|print]|");
+    Con_Printf("reset [slot]|print [slot]|copy [from to]]\n");
     Con_Printf("  the window: Debug > Tools > Weapon Studio, or vr_weaponstudio open (flat screen only)\n");
+    Con_Printf("  its camera, while its window is open: W A S D and Q E fly the drawn view out of his eyes (Shift 3x, "
+               "vr_weaponstudio_fly_speed), a middle-drag or an Alt+left drag orbits it round him, the wheel zooms "
+               "(vr_rigstudio_orbit_speed, vr_rigstudio_zoom_speed)\n");
     Con_Printf("  every key is vr_wofs_<key>_<slot+1> -- the same cvars the Weapon Offsets / Weapon Weights menus use\n");
 }
 
@@ -1642,6 +1934,11 @@ void afterWindow(const bool keep)
 {
     if(!keep || st.askClose)
         closeStudio(); // (after ImGui::End, never from inside the window)
+    if(st.wantCamReset)
+    {
+        st.wantCamReset = false;
+        camBack(true); // (the window's "camera back to my eyes", done the same way as its other buttons)
+    }
     if(st.wantMake)
         makePreview();
     if(st.wantRemove)
@@ -1695,6 +1992,7 @@ void clientFrame()
         SDL_SetRelativeMouseMode(SDL_FALSE);
     if(SDL_ShowCursor(SDL_QUERY) != SDL_ENABLE)
         SDL_ShowCursor(SDL_ENABLE);
+    cameraInput(); // (its keys and its mouse: the drawn camera, while no text entry has the keyboard)
     testFrame();
     st.spots.clear(); // (the window's widgets, for the tests' mouse: what the last frame offered is already used)
     drawOverlays();

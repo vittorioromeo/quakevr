@@ -3,7 +3,10 @@
 // game itself draws it: the player's own (its view model and IK) and an armed humanoid spawned frozen beside the
 // player. It is a new reader and writer of the same store the menus use (the vr_wofs_<key>_NN stand-in cvars): the
 // menus, the config, the console and the game see every change at once. Flat screen only (start with -flatscreenmode);
-// the game's physics is held while it is open. See vr_weaponstudio.cpp and vr_weaponstudio_ui.cpp.
+// the game's physics is held while it is open, and while its window is open its keys and its mouse belong to its own
+// drawn camera -- W A S D and Q E fly the view out of his eyes so the held weapon and both hand poses are seen from
+// outside -- which pauses his own walking until the window closes (VR_AdjustMove, vr_input.cpp). See vr_weaponstudio.cpp
+// and vr_weaponstudio_ui.cpp.
 
 #pragma once
 
@@ -13,9 +16,9 @@
 namespace qvr::weaponstudio
 {
 
-// The commands: vr_weaponstudio (open, or a subcommand: close, open, slot, preview, align, reset, print, copy, test),
-// vr_weaponstudio_close, vr_weaponstudio_slot, vr_weaponstudio_preview, vr_weaponstudio_align, vr_weaponstudio_test;
-// and Debug > Tools' row.
+// The commands: vr_weaponstudio (open, or a subcommand: close, open, slot, preview, align, camera, reset, print, copy,
+// test), vr_weaponstudio_close, vr_weaponstudio_slot, vr_weaponstudio_preview, vr_weaponstudio_align,
+// vr_weaponstudio_test; and Debug > Tools' row.
 void init();
 void shutdown(); // (VR_Shutdown: the window closed, its preview subject let go)
 

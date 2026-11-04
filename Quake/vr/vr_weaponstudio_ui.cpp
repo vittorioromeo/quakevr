@@ -417,9 +417,28 @@ void aimPanel()
     tip("show the crosshair the shots are lined up with");
     sameLineCheck("hold the game");
     ImGui::Checkbox("hold the game", &st.hold);
-    tip("the game's physics is held while this window is open: monsters and props stand still, the player still walks "
-        "and looks (vr_weaponstudio hold 0 lets them run)");
+    tip("the game's physics is held while this window is open: monsters and props stand still. Your own walking is "
+        "paused for those frames too -- those keys fly this window's camera, just below -- and your looking is untouched");
     noteSpot("hold");
+
+    // The window's own camera: the view flown out of his eyes, so the weapon he is holding and both hand poses can be
+    // seen from outside. Its keys are the Rig Studio's and so are its orbit and zoom speeds; only its flying speed is
+    // its own cvar.
+    // One row, with the long story in its tip: what sits above the pages' list has to stay short, or that list's
+    // buttons are drawn past the bottom of the window and no click reaches them (the tool's own test clicks them).
+    ImGui::SetNextItemWidth(220.f);
+    float fly = vr_weaponstudio_fly_speed.value;
+    q_snprintf(textBuf, sizeof(textBuf), "fly its camera out (W A S D, Q E, Shift 3x)##camfly");
+    if(ImGui::DragFloat(textBuf, &fly, 4.f, 5.f, 600.f, "%.0f u/s"))
+        Cvar_SetValueQuick(&vr_weaponstudio_fly_speed, za::clamp(fly, 5.f, 600.f));
+    tip("how fast its eye moves (vr_weaponstudio_fly_speed; Shift is 3x this). A middle-drag or an Alt+left drag "
+        "orbits the view round you and the wheel zooms it, at the Rig Studio's vr_rigstudio_orbit_speed and "
+        "vr_rigstudio_zoom_speed. It is off until you press a key -- while it is off the view is your own eyes, and "
+        "nothing the game measures changes. Out past the mode's keep-near distance (vr_flat_gun_near) the drawn hands, "
+        "the weapon and the crosshair stay with the body instead of following the view, so the held weapon and both "
+        "hand poses are seen from outside; the markers here and the read-outs below are measured from your body, not "
+        "from this camera. vr_weaponstudio camera reset, or the button in this window's top row, brings the view back "
+        "without closing it.");
 
     for(int h = 1; h >= 0; h--)
     {
@@ -635,6 +654,10 @@ bool drawWindow()
             st.slot = h;
     }
     tip("edit the weapon your off hand is holding (a two-handed grip, a shield)");
+    sameLineBtn("camera back to my eyes");
+    if(btn("camera back to my eyes", "cam_reset"))
+        st.wantCamReset = true; // (done after ImGui::End, in vr_weaponstudio.cpp)
+    tip("the view is your own eyes again, without closing this window (vr_weaponstudio camera reset)");
     sameLineBtn("close");
     if(btn("close", "close"))
         askClose = true; // (done after ImGui::End, in vr_weaponstudio.cpp)

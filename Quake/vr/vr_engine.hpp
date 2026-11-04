@@ -23,6 +23,7 @@ extern "C" {
 extern cvar_t r_particles; // r_part.c: particle effects enabled
 extern cvar_t sv_gravity;							// sv_phys.c
 extern cvar_t sv_maxvelocity;						// sv_phys.c
+extern kbutton_t in_forward, in_back, in_moveright, in_moveleft, in_up, in_down; // cl_input.c: the move buttons, so a tool reads the same +forward a hand presses (vr_weaponstudio.cpp's flown camera)
 int ED_FindFieldOffset (const char *name);			// pr_edict.c
 dfunction_t *VR_ED_FindFunction (const char *fn_name);	// pr_edict.c (vr_ad.cpp)
 trace_t SV_ClipMoveToEntity (edict_t *ent, vec3_t start, vec3_t mins, vec3_t maxs, vec3_t end); // world.c

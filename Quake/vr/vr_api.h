@@ -582,6 +582,7 @@ int VR_ImGuiTextMode (void);							// Key_TextEntry in the game: -1 no tool's Im
 void VR_ImGuiRender (void);								// GL_EndRendering, before the swap: the flat-screen tools' ImGui windows drawn (vr_imgui.cpp)
 int VR_RigStudioView (float *origin, float *angles);	// V_CalcRefdef: the Rig Studio's camera over the view (nonzero: set; vr_rigstudio.cpp)
 int VR_RigStudioHolds (void);							// Host_ServerFrame: nonzero while the Rig Studio holds the game still (its scene frozen)
+int VR_WeaponStudioView (float *origin, float *angles);	// V_CalcRefdef: the Weapon Studio's camera flown out of his eyes over the view, while its window is open (nonzero: set; vr_weaponstudio.cpp). While its camera is `off` -- the default, and what its Close and its reset leave -- the view is left exactly where the engine put it
 // The main menu's lettering as a font (vr_bigfont.cpp): its letters cut from id's menu pictures in the pak, rows of text
 // 24 pixels high whose small capitals end on row 15.
 int VR_BigFont_CanDraw (const char *text);				// M_Main_Draw: nonzero if every letter of `text` is there
