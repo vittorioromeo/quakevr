@@ -165,15 +165,34 @@ shot=$(grep -a 'test hurt:' "$log" | awk '{ if (match($0, /health [0-9.]+ -> [0-
 adsline=$(grep -a "ads on" "$log" | head -1)
 echo "  with the ironsight on the knight takes $(awk -v s="${shot:-0}" 'BEGIN { printf "%.1f", s + 0 }') units of damage; $adsline ($log)"
 check $(awk -v s="${shot:-0}" -v n="$(grep -c "ads on" "$log")" 'BEGIN { exit !(s + 0 > 0 && n > 0) }' && echo 1 || echo 0) "flatscreen aim: with the ironsight on the shot still hits what the crosshair points at"
-# 8: the free hand and the held weapon's grip. The shotgun's hotspot (measured here, and the same in the headset's view:
-# 5 units off the held hand, 3.2 to its rear and 3.8 below it) is not a place a second hand can take, so the mode keeps
-# its support pose; the rocket launcher's and the proximity gun's stand 12.5 and 12.8 units ahead of it, and vr_twohand
-# takes the hold there (its own goodDistance, goodDot and foregrip stickiness decide it; vr_flatsight only supplies the
-# press a flatscreen hand is always making).
+# 8: the free hand and the held weapon's grip. The rule is vr_twohand's own (its gripTakeUnits, goodDot and foregrip
+# stickiness decide it; vr_flatsight only supplies the press a flatscreen hand is always making, and carries the free
+# hand onto the held weapon's grip hotspot when its own gate passes: the hotspot ahead of the held hand's forward
+# direction past vr_2h_angle_threshold). A grip the mode's support pose can reach is taken; a grip it cannot reach is
+# left alone. Which of those the shotgun's hotspot is follows the pose the mode ships, so the case drives the pose it
+# describes: vr_flat_gun_fwd 17, where its nearest grip hotspot measures 4.9 units from the held hand, 3.2 to its rear
+# and 3.7 below it -- out of the support pose's reach, so the mode keeps its own pose. The pose has to be set before the
+# gun is picked up, which this case now does: at the shipped pose the free hand closes onto the shotgun's pump within
+# 40 frames, and a hold already closed does not move when the pose is retuned -- tuning 17 after the pickup left the
+# hotspot at fwd 11.6 with the hand on it ("2h grip: off hand on the grip already closed: no hold"), tuning it first
+# gave fwd -3.2 and no hold at all (scratch/grip_order_probe.sh, 2026-11-04).
+# The rocket launcher's and the proximity gun's stand 12.5 and 12.8 units ahead of the held hand and vr_twohand takes
+# the hold there, at the shipped pose.
+# 2026-11-04 (agent/flatfix; re-based, the reason written down, no gate moved and no engine rule changed): the shotgun's
+# half of this case read the shipped pose, and the shipped pose moved. 29577aa8e promoted vr_flat_gun_fwd 17 -> 3.5 (his
+# number, 2026-11-03) and f75ad8048 re-promoted it to 5, the shipped default today; measured in this same case at 5 the
+# shotgun's nearest grip hotspot is 11.7 units from the held hand, 11.6 ahead of it, right -0.8 and up -1.1, and it is
+# 4.8 units off the support pose's hand -- inside vr_twohand's 5.50 take distance, dot 0.99 against the 0.65 it needs --
+# so the free hand closes onto it as the launcher's does, while the launcher reads 12.6 units ahead at 5 and at 17
+# alike. Only vr_flat_gun_fwd moves the shotgun's number: tuning it alone flips fwd -3.2 <-> +11.6 (scratch/grip_probe.sh
+# and Misc/quakevr/flatfix_test.sh, which pins what the shipped pose does to all three weapons with numbers). Whether
+# the shipped pose should keep 5 with the shotgun's free hand on its pump, or the support-pose rule should be narrowed,
+# or the shotgun's grip hotspot (its hs1..hs4_x/y/z, quakevr/data/weapons.txt slot 1) should move back, is his call, not
+# mine: his comfort numbers stay shipped and this case now sets the pose its sentence describes.
 log=$HERE/scratch/flatgrip.log
-bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; god; notarget; developer 1; vr_mock_eye_size 256; vr_debug_2h_grip 1; impulse 154; wait40; vr_flatplay_status; wait5; impulse 158; wait40; vr_flatplay_status; wait5; impulse 159; wait60; vr_flatplay_status; toggleconsole; quit" -Filter "^  two hands:|^  grip:|^  hotspot:|^2h grip: " > "$log" 2>&1
+bash $KIT/run.sh $AGENT -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; god; notarget; developer 1; vr_mock_eye_size 256; vr_debug_2h_grip 1; tune vr_flat_gun_fwd 17; impulse 154; wait60; vr_flatplay_status; tune_reset; impulse 158; wait40; vr_flatplay_status; wait5; impulse 159; wait60; vr_flatplay_status; toggleconsole; quit" -Filter "^  two hands:|^  grip:|^  hotspot:|^2h grip: " > "$log" 2>&1
 grep -aE "^  two hands:|^  hotspot:" "$log" | sed 's/^/  /'
-check $(grep -q "off hand where the mode's pose puts it" "$log" && awk '/hotspot: / { if (match($0, /fwd -[0-9.]+/)) behind = 1 } END { exit !behind }' "$log" && echo 1 || echo 0) "flatscreen grip: a grip standing behind the held hand (the shotgun's) is left alone: the free hand stays on the mode's support pose, and nothing is folded onto the held hand"
+check $(grep -q "off hand where the mode's pose puts it" "$log" && awk '/hotspot: / { if (match($0, /fwd -[0-9.]+/)) behind = 1 } END { exit !behind }' "$log" && echo 1 || echo 0) "flatscreen grip: at the pose the rule was written against (vr_flat_gun_fwd tuned to 17 in the run, before the shotgun is picked up) a grip standing behind the held hand (the shotgun's) is left alone: the free hand stays on the mode's support pose, and nothing is folded onto the held hand"
 check $(grep -q "on its grip hotspot (held holding: helpKind 1" "$log" && grep -q "2h grip: off hand took it" "$log" && echo 1 || echo 0) "flatscreen grip: a grip ahead of the held hand (the rocket launcher's, the proximity gun's) is taken: helpKind 1, the transition in full, on vr_twohand's own rules"
 # 9: in the headset the ironsight is not running at all: vr_flat_aim says so, the ironsight and the grip lines never
 # print, and nothing of the mode's prints either (VR_FlatAdsFov hands gl_screen.c back the field of view it was asked
