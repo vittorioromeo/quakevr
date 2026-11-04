@@ -188,6 +188,8 @@ struct State
     int testStep{0};
     int testWait{0};
     int closeTries{0}; // (the Close click and its retries: a stuck test still ends with a verdict line)
+    int poseFrames{0};  // (the hold preview's wait for the arms solve's note: counted frames, ended by the note)
+    int clickOffscreen{0}; // clicks whose spot fell outside the screen: the window does not fit it
     int passed{0};
     int failed{0};
     int clickPhase{0};

@@ -844,6 +844,9 @@ void makePreview()
     st.preview.noteFrame = -1;
     Con_Printf("weaponstudio preview: %s placed at %.0f %.0f %.0f facing you (weapon %d%s)\n", spawn, at.x, at.y, at.z,
                code, code2 ? ", its off hand too" : "");
+    if(st.hold)
+        Con_Printf("weaponstudio preview: the game's time is held, so its arms solve never runs and its pose stays "
+                   "unseen: switch off \"hold the game\" (vr_weaponstudio hold 0) to see how it is held\n");
 }
 
 void removePreview()
@@ -945,6 +948,13 @@ void check(const bool ok, const char* what)
     Con_Printf("weaponstudio test: %s: %s\n", what, ok ? "ok" : "FAIL");
 }
 
+// (The window has to fit the screen it is drawn on: a widget outside it is drawn past its clip, and no click -- the
+// tests' synthetic mouse or a real one -- ever reaches it. Every click the test makes counts here.)
+void checkFits()
+{
+    check(st.clickOffscreen == 0, "the window fits the screen: every widget the test clicked was on it");
+}
+
 void testVerdict()
 {
     st.testing = false;
@@ -979,6 +989,12 @@ void feedMock()
         }
         st.clickX = s->x;
         st.clickY = s->y;
+        const ImVec2 ds = ImGui::GetIO().DisplaySize;
+        const bool onScreen = s->x >= 0.f && s->x < ds.x && s->y >= 0.f && s->y < ds.y;
+        if(!onScreen)
+            st.clickOffscreen++;
+        Con_Printf("weaponstudio test: click %s at %.0f,%.0f (screen %.0fx%.0f)%s\n", st.clickName, s->x, s->y, ds.x,
+                   ds.y, onScreen ? "" : "  OFF SCREEN: the window does not fit this screen");
         imgui::feedMouse(st.clickX, st.clickY, false, 0.f);
         st.clickPhase = 2;
         return;
@@ -994,7 +1010,7 @@ void feedMock()
 }
 
 constexpr int testFrames = 4; // frames a click is given to land and its widget to answer
-constexpr int testPoseFrames = 45; // and the arms solve's pose note
+constexpr int poseWaitMax = 400; // and the most the hold preview waits for the arms solve's note, before it says FAIL
 
 void testFrame()
 {
@@ -1082,17 +1098,43 @@ void testFrame()
         break;
     case 8:
         check(st.preview.made, "an armed humanoid preview placed");
+        // Its pose comes from QC's own frame (vr_armedgrunt_pose.qc sends it, QVR_SVC_ARMPOSE): while the window holds
+        // the game's time the server does not frame and its arms solve never reports. The test lets them run, and puts
+        // the hold back with the preview.
+        st.hold = false;
+        Con_Printf("weaponstudio test: the game's time let go (a placed humanoid's pose needs the server's frames)\n");
         st.testStep = 9;
-        st.testWait = testPoseFrames;
-        break;
-    case 9:
-        check(st.preview.noteFrame >= 0, "the shipped arms solve reported its pose");
-        st.testStep = 10;
+        st.poseFrames = 0;
         st.testWait = testFrames;
-        click("preview_remove");
+        break;
+    case 9: // the shipped arms solve reports the pose when it next poses this monster (vr_hitreact_skin.cpp's note):
+             // the test waits for that note, not for a guessed number of frames
+        if(st.preview.noteFrame >= 0)
+        {
+            Con_Printf("weaponstudio test: its pose \"%s\" (slots %d and %d) after %d frames\n", st.preview.pose,
+                       st.preview.slot, st.preview.slotL, st.poseFrames);
+            check(true, "the shipped arms solve reported its pose");
+            st.testStep = 10;
+            st.testWait = testFrames;
+            click("preview_remove");
+            break;
+        }
+        if(st.poseFrames >= poseWaitMax)
+        {
+            Con_Printf("weaponstudio test: no pose note for preview ent %d (kind %d, weapon %d) in %d frames\n",
+                       st.preview.ent, st.preview.kind, st.preview.code, st.poseFrames);
+            check(false, "the shipped arms solve reported its pose");
+            st.testStep = 10;
+            st.testWait = testFrames;
+            click("preview_remove");
+            break;
+        }
+        st.poseFrames += testFrames;
+        st.testWait = testFrames;
         break;
     case 10:
         check(!st.preview.made, "the preview humanoid removed");
+        st.hold = true; // (back to the window's own default)
         st.testStep = 11;
         st.testWait = 2;
         break;
@@ -1121,6 +1163,7 @@ void testFrame()
             break;
         }
         check(false, "Close gave the game back (its button never took the click)");
+        checkFits();
         testVerdict();
         break;
     default:
@@ -1136,6 +1179,7 @@ void testClosedFrame()
     if(st.clickPhase > 0)
         return; // (its release is still on its way)
     check(!st.open && !holds(), "Close gave the game back");
+    checkFits();
     testVerdict();
 }
 
@@ -1197,6 +1241,7 @@ void startTest()
     st.failed = 0;
     st.clickPhase = 0;
     st.testClosing = false;
+    st.clickOffscreen = 0;
     st.showMarkers = true;
     Con_Printf("weaponstudio test: begin (window open, slot %d, %d keys, page %s)\n", st.slot, detail::tableSize,
                detail::groupLabel(st.group));

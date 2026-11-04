@@ -31,9 +31,10 @@ namespace qvr::weaponstudio
 namespace
 {
 
-constexpr float pageColW = 186.f; // one page column (the pages' list sits in pageCols of them)
+constexpr float pageColW = 178.f; // one page column (the pages' list sits in pageCols of them)
 constexpr float labelW = 216.f;   // where a key's editor starts
-constexpr float comboW = 200.f;   // a Combo's width: left to themselves they take the whole row and wrap the line
+constexpr float comboW = 176.f;   // a Combo's width: left to themselves they take the whole row and wrap the line
+constexpr float filterW = 200.f;  // the key filter box
 constexpr float keyRowsMin = 150.f; // the key rows stay at least this tall, whatever the screen
 constexpr int pageCols = 2;       // 16 pages in one column are taller than a 540-row screen's window
 
@@ -178,6 +179,44 @@ bool wordCombo(const char* label, int& cur, const char* list, const int count, c
     return on;
 }
 
+// ---- Rows that fit the screen ------------------------------------------------------------------------------------
+
+// (Buttons and combos sit side by side and ImGui does not wrap them: on a 960x540 screen the window's top rows ran
+// past its right edge, where neither a real mouse nor the tests' synthetic click reaches a widget. Before one that
+// would not fit in what is left of the line, drop to a new line.)
+[[nodiscard]] float buttonW(const char* label)
+{
+    return ImGui::CalcTextSize(label).x + ImGui::GetStyle().FramePadding.x * 2.f;
+}
+
+void sameLine(const float w)
+{
+    ImGui::SameLine();
+    if(w > ImGui::GetContentRegionAvail().x)
+        ImGui::NewLine();
+}
+
+void sameLineBtn(const char* label)
+{
+    sameLine(buttonW(label));
+}
+
+void sameLineCombo() // (a Combo is as wide as SetNextItemWidth made it, whatever its label says)
+{
+    sameLine(comboW);
+}
+
+void sameLineCheck(const char* label)
+{
+    sameLine(ImGui::CalcTextSize(label).x + ImGui::GetFontSize() + ImGui::GetStyle().FramePadding.x * 2.f);
+}
+
+void tip(const char* text)
+{
+    if(ImGui::IsItemHovered())
+        ImGui::SetTooltip("%s", text);
+}
+
 // ---- One key's row ---------------------------------------------------------------------------------------------
 
 void keyRow(const detail::Entry& e, const int slot)
@@ -300,16 +339,17 @@ void keysColumn(const int slot)
     ImGui::TextWrapped("%s", groupHints[static_cast<int>(st.group)]);
 
     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{6.f, 6.f});
-    ImGui::SetNextItemWidth(220.f);
+    ImGui::SetNextItemWidth(filterW);
     ImGui::InputTextWithHint("##filter", "filter: part of a key's name", st.filter, sizeof(st.filter));
     noteSpot("filter");
-    ImGui::SameLine();
+    sameLineBtn("clear filter");
     if(btn("clear filter", "filter_clear"))
         st.filter[0] = 0;
     if(st.filter[0])
     {
-        ImGui::SameLine();
-        ImGui::TextDisabled("only the keys whose name contains \"%s\"", st.filter);
+        q_snprintf(textBuf, sizeof(textBuf), "only the keys whose name contains \"%s\"", st.filter);
+        sameLine(ImGui::CalcTextSize(textBuf).x);
+        ImGui::TextUnformatted(textBuf);
     }
     ImGui::PopStyleVar();
 
@@ -371,17 +411,14 @@ void aimPanel()
     ImGui::Separator();
     ImGui::TextUnformatted("Aiming, lined up: your hands, the weapon, its muzzle, its sights, where it shoots");
     ImGui::Checkbox("markers", &st.showMarkers);
-    if(ImGui::IsItemHovered())
-        ImGui::SetTooltip("show the muzzle, the shot line, the barrel, the sight line and the fist, over the view");
-    ImGui::SameLine();
+    tip("show the muzzle, the shot line, the barrel, the sight line and the fist, over the view");
+    sameLineCheck("crosshair");
     ImGui::Checkbox("crosshair", &st.showCrosshair);
-    if(ImGui::IsItemHovered())
-        ImGui::SetTooltip("show the crosshair the shots are lined up with");
-    ImGui::SameLine();
+    tip("show the crosshair the shots are lined up with");
+    sameLineCheck("hold the game");
     ImGui::Checkbox("hold the game", &st.hold);
-    if(ImGui::IsItemHovered())
-        ImGui::SetTooltip("the game's physics is held while this window is open: monsters and props stand still, the "
-                          "player still walks and looks (vr_weaponstudio hold 0 lets them run)");
+    tip("the game's physics is held while this window is open: monsters and props stand still, the player still walks "
+        "and looks (vr_weaponstudio hold 0 lets them run)");
     noteSpot("hold");
 
     for(int h = 1; h >= 0; h--)
@@ -408,29 +445,29 @@ void aimPanel()
         }
     }
 
-    ImGui::TextWrapped("The line-up measures a held weapon and prints what would line the sights up with where the gun "
-                       "actually shoots; writing it fills the slot's Shot Pitch and Shot Yaw.");
+    ImGui::TextWrapped("The line-up prints what would line the sights up with where the gun actually shoots; writing "
+                       "it fills the slot's Shot Pitch and Shot Yaw.");
     if(btn("line up both hands (measure)", "align"))
     {
         st.wantAlign = true;
         st.alignHand = 2;
         st.alignApply = false;
     }
-    ImGui::SameLine();
+    sameLineBtn("main hand");
     if(btn("main hand", "align_main"))
     {
         st.wantAlign = true;
         st.alignHand = 1;
         st.alignApply = false;
     }
-    ImGui::SameLine();
+    sameLineBtn("off hand");
     if(btn("off hand", "align_off"))
     {
         st.wantAlign = true;
         st.alignHand = 0;
         st.alignApply = false;
     }
-    ImGui::SameLine();
+    sameLineBtn("line up and write both");
     if(btn("line up and write both", "align_write"))
     {
         st.wantAlign = true;
@@ -450,7 +487,7 @@ void holdPanel()
     q_snprintf(textBuf, sizeof(textBuf), "kind##kind");
     if(wordCombo(textBuf, st.previewKind, kindList, kinds, "preview_kind"))
         st.previewCode2 = 0;
-    ImGui::SameLine();
+    sameLineCombo();
     const int weapons = buildWeaponList(st.previewKind, false);
     int mainIndex = 0;
     for(int i = 0; i < weapons; i++)
@@ -464,7 +501,7 @@ void holdPanel()
     q_snprintf(textBuf, sizeof(textBuf), "main hand##code");
     if(wordCombo(textBuf, mainIndex, weaponList, weapons, "preview_code"))
         st.previewCode = weapons > 0 ? toolgun::armed::weaponCode(mainIndex) : 0;
-    ImGui::SameLine();
+    sameLineCombo();
     const int offCount = buildWeaponList(st.previewKind, true);
     int offIndex = 0;
     for(int i = 1; i < offCount; i++)
@@ -483,10 +520,13 @@ void holdPanel()
     {
         st.wantMake = true; // (placing one takes the previous one away first)
     }
-    ImGui::SameLine();
+    sameLineBtn("remove it");
     if(btn("remove it", "preview_remove"))
         st.wantRemove = true;
-    ImGui::TextDisabled("it stands frozen in front of you, facing you, like the Rig Studio's subject");
+    sameLine(470.f); // (its own line when the row is already full: it is a note, not a widget)
+    ImGui::TextUnformatted("it stands frozen in front of you, facing you, like the Rig Studio's subject");
+    ImGui::TextDisabled("its pose below comes from the game's own arms solve: with \"hold the game\" on the server does "
+                        "not frame, so it stays unseen until that box is off");
 
     if(!st.preview.made)
     {
@@ -519,67 +559,73 @@ bool drawWindow()
 {
     bool askClose = false;
     const ImVec2 ds = ImGui::GetIO().DisplaySize;
-    ImGui::SetNextWindowPos(ImVec2{14.f, 14.f}, ImGuiCond_Always);
-    ImGui::SetNextWindowSize(ImVec2{za::min(1220.f, ds.x - 28.f), za::min(900.f, ds.y - 28.f)}, ImGuiCond_Always);
+    ImGui::SetNextWindowPos(ImVec2{10.f, 10.f}, ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2{za::min(1220.f, ds.x - 20.f), za::min(900.f, ds.y - 20.f)}, ImGuiCond_Always);
     ImGui::Begin("Weapon Studio", nullptr, ImGuiWindowFlags_NoSavedSettings);
 
     const int slot = shownSlot();
     st.slot = slot;
 
-    // Slot, and what the player is holding.
+    // Slot, what the player is holding, and Close, on one row that has to fit the screen (sameLine drops to a new
+    // line rather than pushing a button past the window's right edge, where no click reaches it).
     const int slotCount = buildSlotList();
     int chosen = za::clamp(slot, 0, za::max(0, slotCount - 1));
     if(wordCombo("slot##slot", chosen, slotList, slotCount, "slot"))
         st.slot = chosen;
-    ImGui::SameLine();
-    if(btn("edit what my main hand holds", "held_main"))
+    sameLineBtn("my main hand");
+    if(btn("my main hand", "held_main"))
     {
         const int h = weapons::heldSlot(1);
         if(h >= 0 && h < weapons::slotsUsed())
             st.slot = h;
     }
-    ImGui::SameLine();
-    if(btn("off hand", "held_off"))
+    tip("edit the weapon your main hand is holding");
+    sameLineBtn("my off hand");
+    if(btn("my off hand", "held_off"))
     {
         const int h = weapons::heldSlot(0);
         if(h >= 0 && h < weapons::slotsUsed())
             st.slot = h;
     }
-    ImGui::SameLine();
-    if(btn("reset this slot to its defaults", "reset"))
-        st.wantReset = true;
-    ImGui::SameLine();
-    if(btn("print this slot's changes", "print"))
-        st.wantPrint = true;
-    ImGui::SameLine();
+    tip("edit the weapon your off hand is holding (a two-handed grip, a shield)");
+    sameLineBtn("close");
     if(btn("close", "close"))
         askClose = true; // (done after ImGui::End, in vr_weaponstudio.cpp)
 
+    ImGui::NewLine();
     // What this slot is, and the ways to move settings around it.
     const cvar_t* id = weapons::cvar(slot, weapons::Key::ID);
     const int from = weapons::inheritsFrom(slot);
-    ImGui::Text("slot %d: %s", slot, id && id->string ? shortModel(id->string) : "?");
-    ImGui::SameLine();
+    ImGui::AlignTextToFramePadding();
+    q_snprintf(textBuf, sizeof(textBuf), "slot %d: %s", slot, id && id->string ? shortModel(id->string) : "?");
+    ImGui::TextUnformatted(textBuf);
+    sameLine(250.f);
     ImGui::TextDisabled("%d slots in use, %d keys in all, %d changed by this window", weapons::slotsUsed(),
                         detail::tableSize, detail::touchedCount(slot));
     if(from >= 0)
     {
-        ImGui::SameLine();
+        sameLine(140.f);
         ImGui::TextDisabled("it copies slot %d", from);
-        ImGui::SameLine();
+        sameLineBtn("stop copying");
         if(btn("stop copying", "stop_copy"))
             st.wantStopCopy = true;
     }
-    ImGui::SameLine();
+    sameLineCombo();
     int cf = za::clamp(st.copyFromSlot, 0, za::max(0, slotCount - 1));
     if(wordCombo("copy another slot's values into this one##copyfrom", cf, slotList, slotCount, "copy_from"))
         st.copyFromSlot = cf;
-    ImGui::SameLine();
+    sameLineBtn("copy");
     if(btn("copy", "copy_into"))
     {
         st.copyFromSlot = cf;
         st.wantCopy = true;
     }
+    sameLineBtn("reset this slot to its defaults");
+    if(btn("reset this slot to its defaults", "reset"))
+        st.wantReset = true;
+    sameLineBtn("print this slot's changes");
+    if(btn("print this slot's changes", "print"))
+        st.wantPrint = true;
 
     // The aiming read-out and the held-weapon panel come first; the pages and the key rows fill what is left. Kept
     // below the pages' list they stood past the bottom of a small screen's window: their buttons were drawn outside the
@@ -597,9 +643,9 @@ bool drawWindow()
     ImGui::EndChild();
 
     ImGui::Separator();
-    ImGui::TextDisabled("every key here is the game's own weapon setting: written through its stand-in cvar, so the "
-                        "Weapon Offsets and Weapon Weights menus, the config file and the game all see it at once. The "
-                        "menus are unchanged and keep working.");
+    ImGui::TextWrapped("every key here is the game's own weapon setting, written through its stand-in cvar: the Weapon "
+                       "Offsets and Weapon Weights menus, the config file and the game all see it at once. The menus "
+                       "are unchanged and keep working.");
 
     ImGui::End();
     return !askClose;
