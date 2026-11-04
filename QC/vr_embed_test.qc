@@ -2178,6 +2178,164 @@ void() VR_EM_Scene =
 void(float ask) VR_EE_Ask;       // (vr_embed_edge_test.qc)
 float(entity p) VR_EE_Frame;
 
+// ---- 21: skewering gibs (vr_skewer.qc)
+entity vr_ets_g[4];
+entity vr_ets_r;       // one still on the blade
+float vr_ets_n;
+
+// A loose gib before `p`, as ThrowGib's (still, armed once takedamage).
+entity(entity p, vector xAt) VR_ETS_Gib =
+{
+    entity g = spawn();
+    setmodel(g, "progs/gib1.mdl");
+    setsize(g, '0 0 0', '0 0 0');
+    setorigin(g, xAt);
+    g.movetype = MOVETYPE_NONE;
+    g.solid = SOLID_NOT;
+    g.think = SUB_Remove;
+    g.ltime = time;
+    g.nextthink = time + 10;
+    VR_MakeGibGrabbable(g);
+    VR_Gib_MakeDestroyable(g, 1);
+    return g;
+};
+
+// The blow of the main hand on `g`, as a sweep finds it.
+void(entity p, entity g, float xKind, float xSpeed) VR_ETS_Blow =
+{
+    entity b = VR_Blow(cVR_MainHand);
+    vector axis = normalize(b.mh_far - b.mh_grip);
+    b.mh_c_ent = g;
+    b.mh_c_pos = b.mh_far;
+    b.mh_c_dir = axis;
+    b.mh_c_f = 1;
+    b.mh_speed = xSpeed;
+    b.mh_kind = xKind;
+    VR_Melee_Deal(cVR_MainHand);
+};
+
+// How far the middle of `g` is from where it rides.
+float(entity p, entity g) VR_ETS_Off =
+{
+    VR_Melee_Line(p, cVR_MainHand, VR_Melee_Thing(p, cVR_MainHand));
+    vector line = vr_mline_far - vr_mline_grip;
+    float back = min(cvar_hget(cvarh_vr_embed_skewer_depth) + g.vr_skewer_slot * cvar_hget(cvarh_vr_embed_skewer_gap), vlen(line) * 0.85);
+    return vlen(g.origin + (g.mins + g.maxs) * 0.5 - (vr_mline_far - normalize(line) * back));
+};
+
+void() VR_ETS_Step =
+{
+    entity p = self;
+    float i;
+    entity g = vr_ets_g[0];
+    if(vr_et_s == 0)
+    {
+        cvar_set("vr_embed", "1");
+        cvar_set("vr_embed_skewer_most", "3");
+        localcmd("+grabmain\n");
+        VR_ET_To(10);
+    }
+    else if(vr_et_s == 10 && VR_HandGrabUtil_IsHandGrabbing(p, cVR_MainHand))
+    {
+        VR_EH_Give(WID_SWORD, 0);
+        VR_Blow(cVR_MainHand).mh_far = '0 0 0';
+        VR_ET_To(1); // (its line, from the next frame's melee)
+    }
+    else if(vr_et_s == 1 && VR_Blow(cVR_MainHand).mh_far != '0 0 0')
+    {
+        makevectors(p.v_angle);
+        for(i = 0; i < 4; ++i)
+        {
+            vr_ets_g[i] = VR_ETS_Gib(p, VR_Blow(cVR_MainHand).mh_far + v_forward * (4 + i * 8));
+        }
+        VR_ET_To(2);
+    }
+    else if(vr_et_s == 2 && g.takedamage && vr_ets_g[3].takedamage) // (armed)
+    {
+        VR_Test_Check(p.ishuman && VR_Skewer_HasBlade(p, cVR_MainHand), sprintf("a pointed blade in the hand (ishuman %g, embed %g, wid %g, gorging %g, carry %g)", p.ishuman, weaponvalue(WeaponIdToModel(VRGetEntWeapon(p, cVR_MainHand), VRGetEntWeaponFlags(p, cVR_MainHand)), "embed"), VRGetEntWeapon(p, cVR_MainHand), g.gorging, g.carry_player != world));
+        for(i = 0; i < 3; ++i)
+        {
+            VR_ETS_Blow(p, vr_ets_g[i], VR_MKIND_STAB, 6);
+            VR_Test_Check(vr_ets_g[i].vr_gib && vr_ets_g[i].model != string_null && vr_ets_g[i].vr_skewer_p == p, sprintf("stab %g: not destroyed, on the blade", i));
+        }
+        VR_Test_Check(vr_ets_g[1].vr_skewer_slot != g.vr_skewer_slot && vr_ets_g[2].vr_skewer_slot != vr_ets_g[1].vr_skewer_slot, "each its own place along it");
+        VR_Test_Check(!VR_Blow_Strikable(g), "the blade's own blows pass it");
+        VR_Test_Check(g.think == VR_Skewer_Think, "its fade held");
+        VR_ETS_Blow(p, vr_ets_g[3], VR_MKIND_STAB, 30);
+        VR_Test_Check(vr_ets_g[3].vr_skewer_p == world, "the fourth is past the blade's most: not on it");
+        vr_et_at = g.origin;
+        setorigin(p, p.origin + '0 0 16');
+        VR_ET_To(3);
+    }
+    else if(vr_et_s == 3 && time > vr_et_t0 && (p.flags & FL_ONGROUND) && p.velocity == '0 0 0') // (the player back on the floor)
+    {
+        VR_Test_Check(VR_ETS_Off(p, g) < 2, sprintf("it rides the blade as the hand moves (%.2f units off where it rides)", VR_ETS_Off(p, g)));
+        // A slash and a hilt blow on loose ones: burst as ever.
+        vr_ets_g[3] = VR_ETS_Gib(p, VR_Blow(cVR_MainHand).mh_far + v_forward * 4);
+        vr_ets_n = 0;
+        VR_ET_To(4);
+    }
+    else if(vr_et_s == 4 && vr_ets_g[3].takedamage)
+    {
+        VR_ETS_Blow(p, vr_ets_g[3], VR_MKIND_SLASH, 30);
+        VR_Test_Check(!vr_ets_g[3].vr_gib || vr_ets_g[3].model == string_null, "a slash on a loose gib bursts it");
+        // The other hand's grip takes one.
+        VRSetHandEmpty(p, cVR_OffHand);
+        localcmd(sprintf("vr_mock_hand_glide 0\nvr_mock_hand_to off %v\n", g.origin));
+        VR_ET_To(11);
+    }
+    else if(vr_et_s == 11 && vlen(VRGetHandPos(cVR_OffHand) - g.origin) < 6)
+    {
+        localcmd("+graboff\n");
+        VR_ET_To(12);
+    }
+    else if(vr_et_s == 12 && VR_Carry_IsHolding(p, cVR_OffHand))
+    {
+        // (Any of them: all are in reach. One only, the rest stay on.)
+        entity held = VR_Carry_Held(p, cVR_OffHand);
+        vr_ets_n = 0;
+        for(i = 0; i < 3; ++i)
+        {
+            if(vr_ets_g[i].vr_skewer_p == p)
+            {
+                vr_ets_n = vr_ets_n + 1;
+                vr_ets_r = vr_ets_g[i];
+            }
+        }
+        VR_Test_Check(held.vr_gib && held.vr_skewer_p == world && held.carry_player == p && held.think == SUB_Remove && held.nextthink > time + 25, "the other hand's grip holds one, its fade anew");
+        VR_Test_Check(vr_ets_n == 2, sprintf("the rest stay on the blade (%g)", vr_ets_n));
+        // A weapon's switch: what is on the blade falls.
+        VR_EH_Give(WID_SHOTGUN, 0);
+        VR_ET_To(6);
+    }
+    else if(vr_et_s == 6 && vr_ets_r.vr_skewer_p == world)
+    {
+        VR_Test_Check(vr_ets_r.solid == SOLID_NOT_BUT_TOUCHABLE && (vr_ets_r.flags & FL_FORCEGRABBABLE) && vr_ets_r.think == SUB_Remove && vr_ets_r.nextthink > time + 25, sprintf("a switch: off the blade, loose, its fade anew (solid %g, think %g, fade %.1f s)", vr_ets_r.solid, vr_ets_r.think == SUB_Remove, vr_ets_r.nextthink - time));
+        VR_Test_Check(vr_ets_r.vr_gib && vr_ets_r.model != string_null, "and not destroyed");
+        vr_et_at = vr_ets_r.origin;
+        VR_ET_To(7);
+    }
+    else if(vr_et_s == 7 && vr_ets_r.origin_z < vr_et_at_z - 2)
+    {
+        VR_Test_Check(TRUE, "and it falls");
+        localcmd("-graboff\n");
+        // vr_embed off: as ever.
+        cvar_set("vr_embed", "0");
+        VR_EH_Give(WID_SWORD, 0);
+        vr_ets_g[3] = VR_ETS_Gib(p, VR_Blow(cVR_MainHand).mh_far + v_forward * 4);
+        VR_ET_To(8);
+    }
+    else if(vr_et_s == 8 && vr_ets_g[3].takedamage)
+    {
+        VR_ETS_Blow(p, vr_ets_g[3], VR_MKIND_STAB, 30);
+        VR_Test_Check(vr_ets_g[3].vr_skewer_p == world, "vr_embed off: a stab skewers nothing");
+        cvar_set("vr_embed", "1");
+        localcmd("-grabmain\n");
+        VR_Test_Verdict();
+        vr_et_on = 0;
+    }
+};
+
 void() VR_Embed_TestFrame =
 {
     float ask = cvar_hget(cvarh_vr_embed_test);
@@ -2187,6 +2345,12 @@ void() VR_Embed_TestFrame =
         if(ask == 13 || ask == 14 || ask == 15 || ask == 16 || ask == 17 || ask == 18 || ask == 19 || ask == 20)
         {
             VR_EE_Ask(ask);
+        }
+        if(ask == 21)
+        {
+            VR_Test_BeginFlags("embedskewer", VR_TEST_LOUD);
+            vr_et_on = 21;
+            VR_ET_To(0);
         }
         if(ask == 1)
         {
@@ -2298,6 +2462,20 @@ cvar_set("vr_hit_stagger", "0"); // (a blow's own chances: it's the blade's stag
             VR_ET_NextCase();
         }
         VR_ET_Step();
+    }
+    else if(vr_et_on == 21)
+    {
+        if(time - vr_et_t0 > VR_ET_GIVEUP)
+        {
+            VR_Test_Check(FALSE, sprintf("timed out: state %g", vr_et_s));
+            cvar_set("vr_embed", "1");
+            VR_Test_Verdict();
+            vr_et_on = 0;
+        }
+        else
+        {
+            VR_ETS_Step();
+        }
     }
     else if(vr_et_on == 6)
     {

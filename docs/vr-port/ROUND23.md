@@ -8375,3 +8375,13 @@ own walking is paused while the window is open and given back exactly when it cl
 - **Floating blade:** VR_AxeStick_Stuck notes the body's model before its blow, so a blow that gibs makes VR_AxeStick_Think drop it at its next think.
 - **Wound:** `vr_embed_wound_blood` 8 spurts/s while a blade is in a living body: the stump fountain's drops (no effect is actually named a blood waterfall).
 - **Tests:** on origin/next 9ffcc29dc, `vr_embed_test 7` with `vr_embed 1` reads 13 passed, 15 failed with or without this branch, and without `vr_embed 1` 9 and 19; `vr_embed_test 1` doesn't stick a thrown sword even in a wall on either. So the checks added here (cases 6 of test 7 and the corpse case of test 1) have not passed yet: **the hold changes are unverified until those are fixed.**
+
+## Skewering gibs (branch `agent/skewer`, brief skewer)
+
+A stab (`VR_Embed_StabWhy`, shared with bodies, no speed floor beyond the stab's own) by a pointed blade in the hand on a loose gib, head or limb puts it on the blade (`QC/vr_skewer.qc`, behind `vr_embed`). Tunables in Combat > Embedded Blades > Stab: `vr_embed_skewer_most` 3 (0: off), `vr_embed_skewer_depth` 8, `vr_embed_skewer_gap` 7.
+
+- The gib drives itself: its think each frame, its own think waiting in `.vr_skewer_think` (a fade starts over as it comes off: `VR_Gib_FadeAnew`). No list on the player, so a burst one can't dangle.
+- Not solid on the blade: sweeps and touches pass it (`VR_Blow_Strikable`, `VR_Melee_BoxTarget`), force grabs too (flag off). Splash can still burst it. Small gibs are never skewered, and a gib held in the other hand keeps today's rule (a stab bursts it).
+- A touch by a blade driven along its line no longer bursts a loose gib (`VR_Skewer_Thrust` in `VR_Gib_Struck`): the sweep's blow judges it.
+- A blade left in a body keeps its gibs (`VR_Skewer_BladeStuck`, riding the blade's frame) until it is out of a body; back in the hand they ride the hand (`VR_Skewer_BladeBack`).
+- Test: `vr_embed_test 21` (`embedskewer: N passed, M failed`), Debug > Tests. It deals its blows straight to `VR_Melee_Deal` (not a mock swing); the other hand closes a real grip (`+graboff`). A grip in reach of several takes the first by edict, not the nearest.

@@ -1155,6 +1155,9 @@ za::Vector<Item> pageDebugTests()
             .help("Stabs and swings that stagger or don't, pulling and pushing a staggering body, knocked down with it held, dragging "
                   "a standing body, past arm's reach, your speed, a dead body, a heavy one, a boss, vr_embed 0. Prints embedmove: N "
                   "passed, M failed."),
+        command("Embedded Blades: Skewering Check", "vr_embed_test 21")
+            .help("Destructive: in the open with god and notarget (vrtesthall): stabs gibs onto a held sword, up to its most, slashes "
+                  "another, takes one off with the other hand, switches weapon. Prints embedskewer: N passed, M failed."),
         command("Embedded Blades: the Edges Check", "vr_embed_test 13")
             .help("Destructive: vr_embed off during a hold, a body and its holder through a teleporter, armed enemies, a body going, "
                   "real two-handed stabs, stabs on a knocked down body and an active ragdoll, the other hand on the body, bullet time. "

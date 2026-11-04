@@ -2817,6 +2817,8 @@ float(float xHand, float xWpnId, string xSound, void(float xHand) xWpnFn) DoXHan
     return FALSE;
 }
 
+float(float xHand, entity b, entity g, vector xAt, vector xDir, float xSpeed, float xKind) VR_Skewer_Blow; // (vr_skewer.qc)
+
 // The blow of `xHand` VR_Melee_Strike (or VR_Melee_StrikeMore) found, in mh_c_*: dealt by the weapon in that hand.
 void(float xHand) VR_Melee_Deal =
 {
@@ -2830,8 +2832,12 @@ void(float xHand) VR_Melee_Deal =
 
     if(b.mh_c_ent.vr_gib)
     {
-        // A loose gib or head (vr_melee.qc sweeps them since round 21's melee fixes): it bursts as a held one does.
-        VR_Gib_Blow(xHand, b.mh_c_ent, b.mh_speed, b.mh_c_pos, b.mh_c_dir);
+        // A loose gib or head (vr_melee.qc sweeps them since round 21's melee fixes): a stab skewers it, else it bursts as a
+        // held one does.
+        if(!VR_Skewer_Blow(xHand, b, b.mh_c_ent, b.mh_c_pos, b.mh_c_dir, b.mh_speed, b.mh_kind))
+        {
+            VR_Gib_Blow(xHand, b.mh_c_ent, b.mh_speed, b.mh_c_pos, b.mh_c_dir);
+        }
     }
     else if(VR_Melee_CorpseTarget(b.mh_c_ent))
     {
