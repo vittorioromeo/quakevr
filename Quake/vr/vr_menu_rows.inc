@@ -4710,6 +4710,10 @@ QVR_SLIDER(vr_gunfx_wisp_opacity, "Wisp Max Opacity", 0.02f, 1.f, 0.02f, "%.2f",
     "Amount. 1: no cap.")
 QVR_SLIDER(vr_gunfx_wisp_rise, "Wisp Rise", 0.f, 60.f, 1.f, "%.0f cm/s", ext(0.f, 200.f),
     "How fast the smoke rises off the barrel (Smoke Turbulence curls it).")
+QVR_TOGGLE(vr_smoke_blow, "Blow on the Smoke",
+    "Blow into your microphone with a smoking muzzle at your mouth: the wisp goes forward and fades faster. Off: the "
+    "microphone is never opened for this; on: only while there is smoke near your mouth (no microphone: nothing happens). "
+    "Debug > Show Microphone Level and Tunables > Blow Threshold set how hard a blow must be.")
 QVR_TOGGLE(vr_gunfx_impacts, "Impacts by Material",
     "Bullets and nails hitting walls throw up what the surface is made of: dust off stone and ground, sparks "
     "off metal, chips off wood (flesh has the gore's blood mist).")
@@ -6045,6 +6049,12 @@ QVR_TOGGLE(vr_nailslide_debug, "Slide: Print",
 QVR_TOGGLE(vr_debug_impacts, "Print Impact Effects",
     "vr_debug_impacts: every particle2 message and QC sound the server sends (\"impfx p2 <preset> <count> "
     "...\", \"impfx snd ...\"): the hit ladders' output (vr_impacts.cpp).")
+QVR_TOGGLE(vr_debug_mic_level, "Show Microphone Level",
+    "vr_debug_mic_level: the microphone stays open and its live level floats low in your view, against Blow Threshold "
+    "(Blow on the Smoke): blow and talk to see where to set it.")
+QVR_SLIDER(vr_test_mic_level, "Fake Microphone Level", -0.05f, 0.5f, 0.05f, "%.2f", ext(-1.f, 1.f),
+    "vr_test_mic_level: 0 or more is taken for the microphone's level, none opened (Blow on the Smoke with no breath); "
+    "below 0: the real one.")
 QVR_TOGGLE(vr_debug_gunfx, "Print Gunfire Particles",
     "vr_debug_gunfx: each shot's particles (\"gunfx shot ...\", \"gunfx port ...\", \"gunfx impact ...\") and your "
     "barrels' heat (\"gunfx heat hand .. heat .. glow ..\" a shot, \"gunfx heat cold ..\" once cooled). "

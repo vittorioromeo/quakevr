@@ -8,7 +8,9 @@
 #include "vr_portals.hpp"
 #include "vr_profile.hpp"
 #include "vr_ribbons.hpp"
+#include "vr_testkit.hpp"
 #include "vr_units.hpp"
+#include "vr_voicenotes.hpp"
 
 #include "Zancle/Container/Vector.hpp"
 #include "Zancle/Math/Clamp.hpp"
@@ -140,6 +142,53 @@ void report(const char* what, int hand, const HandWisps& h, double since)
     }
 }
 
+// Your breath this frame (vr_smoke_blow).
+struct Blow
+{
+    float power{0.f}; // 0 not blowing, 0.5 at the threshold .. 1 at twice it
+    glm::vec3 mouth{0.f};
+    glm::vec3 facing{1.f, 0.f, 0.f};
+    float reach{0.f}; // units
+};
+float blowHeld = 0.f; // seconds the level has been above the threshold
+int blowListens = 0;  // frames the microphone was wanted (vr_smoke_blow_check)
+
+// The microphone is wanted only with the setting on and smoke within twice the reach of your mouth.
+[[nodiscard]] Blow blowFrame(float dt)
+{
+    Blow b;
+    b.reach = za::clamp(vr_smoke_blow_reach.value, 0.01f, 2.f) * units::metresToUnits();
+    bool closeBy = false;
+    if(vr_smoke_blow.value != 0.f && wanted() && voicenotes::mouth(b.mouth, b.facing))
+    {
+        for(HandWisps& h : hands)
+        {
+            for(Strand& s : h.strands)
+            {
+                for(int i = 0; i < s.count && !closeBy; i++)
+                {
+                    closeBy = glm::distance(s.at(i).pos, b.mouth) < 2.f * b.reach;
+                }
+            }
+        }
+    }
+    if(!closeBy)
+    {
+        blowHeld = 0.f;
+        return b;
+    }
+    blowListens++;
+    voicenotes::wantMicLevel();
+    const float level = voicenotes::micLevel();
+    const float threshold = za::max(vr_smoke_blow_threshold.value, 0.001f);
+    blowHeld = level >= threshold ? blowHeld + dt : 0.f;
+    if(blowHeld >= vr_smoke_blow_hold.value && level >= threshold)
+    {
+        b.power = za::clamp(0.5f * level / threshold, 0.5f, 1.f);
+    }
+    return b;
+}
+
 // Once a frame (`dt` seconds of the game's time): each hand's barrels let go of points while they smoke, the points
 // carried up and about, the old ones forgotten.
 void advance(float dt)
@@ -152,6 +201,9 @@ void advance(float dt)
     const float turb = kFlowAccel * za::clamp(vr_gunfx_turbulence.value, 0.f, 3.f);
     const float clock = static_cast<float>(fmod(cl.time, 2000.0));
     const float relax = za::min(1.f, kRelax * dt);
+    const Blow blow = blowFrame(dt);
+    const float blowPush = za::clamp(vr_smoke_blow_push.value, 0.f, 100.f) * m2u;
+    const float blowFade = za::clamp(vr_smoke_blow_fade.value, 0.f, 50.f);
     for(int hand = 0; hand < kSources; hand++)
     {
         HandWisps& h = hands[hand];
@@ -220,6 +272,14 @@ void advance(float dt)
             for(int i = 0; i < s.count; i++)
             {
                 Node& n = s.at(i);
+                if(blow.power > 0.f)
+                {
+                    // (your breath: full within half the reach, nothing past it)
+                    const float d = glm::distance(n.pos, blow.mouth);
+                    const float felt = blow.power * (1.f - glm::smoothstep(0.5f * blow.reach, blow.reach, d));
+                    n.vel += blow.facing * (blowPush * felt * dt);
+                    n.age = za::min(n.age + blowFade * felt * dt, fade);
+                }
                 n.age += dt;
                 const float swirl = turb * glm::smoothstep(0.f, 0.5f, n.age) * (0.6f + n.age / fade);
                 n.vel += (glm::vec3{0.f, 0.f, rise} - n.vel) * relax + flow(n.pos, clock + s.phase) * (swirl * dt);
@@ -284,7 +344,98 @@ int build(HandWisps& h, Strand& s, int barrel, const ribbons::View& view, za::Ve
     return drawn;
 }
 
+// vr_smoke_blow_check: the real advance() on a fake trail with a fake level: a point at your mouth and one past the
+// reach, against the same with no breath (exactly the same where nothing should change).
+struct Probe
+{
+    glm::vec3 inReach{0.f}, outReach{0.f};
+    float inAge{0.f}, outAge{0.f};
+    int listens{0};
+};
+
+[[nodiscard]] Probe probe(float setting, float level, int frames, bool withNear = true)
+{
+    Cvar_SetValueQuick(&vr_smoke_blow, setting);
+    Cvar_SetValueQuick(&vr_test_mic_level, level);
+    glm::vec3 mouth{0.f}, facing{1.f, 0.f, 0.f};
+    (void)voicenotes::mouth(mouth, facing);
+    const float reach = za::clamp(vr_smoke_blow_reach.value, 0.01f, 2.f) * units::metresToUnits();
+    Strand& s = hands[kSources - 1].strands[0];
+    s = Strand{};
+    Node n;
+    n.strength = 1.f;
+    n.first = true;
+    n.pos = mouth + facing * (3.f * reach);
+    s.push(n);
+    n.first = false;
+    n.pos = mouth + facing * (withNear ? 0.3f * reach : 4.f * reach);
+    s.push(n);
+    blowHeld = 0.f;
+    const int before = blowListens;
+    for(int i = 0; i < frames; i++)
+    {
+        advance(1.f / 72.f);
+    }
+    Probe p;
+    p.outReach = s.at(0).pos;
+    p.outAge = s.at(0).age;
+    p.inReach = s.at(1).pos;
+    p.inAge = s.at(1).age;
+    p.listens = blowListens - before;
+    s = Strand{};
+    return p;
+}
+
+void check_f()
+{
+    glm::vec3 mouth, facing;
+    if(!voicenotes::mouth(mouth, facing) || !wanted())
+    {
+        Con_Printf("vr_smoke_blow_check: FAIL no head, or no wisps wanted\n");
+        testkit::verdict("vr_smoke_blow_check", 0, 1);
+        return;
+    }
+    const float setting = vr_smoke_blow.value;
+    const float fake = vr_test_mic_level.value;
+    const float threshold = za::max(vr_smoke_blow_threshold.value, 0.001f);
+    constexpr int kFrames = 72;
+    const int shortFrames = static_cast<int>(vr_smoke_blow_hold.value * 72.f) - 1;
+    const Probe still = probe(0.f, 2.f * threshold, kFrames);
+    const Probe hard = probe(1.f, 2.f * threshold, kFrames);
+    const Probe soft = probe(1.f, threshold, kFrames);
+    const Probe quiet = probe(1.f, 0.5f * threshold, kFrames);
+    const Probe shortBlow = probe(1.f, 2.f * threshold, shortFrames);
+    const Probe shortStill = probe(0.f, 2.f * threshold, shortFrames);
+    const Probe atOnce = probe(1.f, 2.f * threshold, 1);
+    const Probe farOnly = probe(1.f, 2.f * threshold, kFrames, false);
+    Cvar_SetValueQuick(&vr_smoke_blow, setting);
+    Cvar_SetValueQuick(&vr_test_mic_level, fake);
+    const auto ahead = [&](const Probe& p) { return glm::dot(p.inReach - still.inReach, facing); };
+    const auto same = [](const Probe& a, const Probe& b) {
+        return a.inReach == b.inReach && a.outReach == b.outReach && a.inAge == b.inAge && a.outAge == b.outAge;
+    };
+    constexpr const char* kName = "vr_smoke_blow_check";
+    testkit::Tally tally;
+    Con_Printf("vr_smoke_blow_check: near ahead hard %.2f soft %.2f units, age still %.2f hard %.2f soft %.2f; far moved %.3f\n",
+        ahead(hard), ahead(soft), still.inAge, hard.inAge, soft.inAge, glm::distance(hard.outReach, still.outReach));
+    tally.check(ahead(hard) > 1.f, kName, "a blow pushes the smoke at the mouth forward");
+    tally.check(hard.inAge > still.inAge + 0.05f, kName, "a blow ages the smoke at the mouth");
+    tally.check(ahead(hard) > ahead(soft) && ahead(soft) > 0.f && hard.inAge > soft.inAge, kName, "a harder blow does more");
+    tally.check(hard.outReach == still.outReach && hard.outAge == still.outAge, kName, "smoke past the reach is untouched");
+    tally.check(same(quiet, still), kName, "below the threshold nothing changes");
+    tally.check(same(shortBlow, shortStill), kName, "shorter than the hold nothing changes");
+    tally.check(still.listens == 0, kName, "off: the microphone is not wanted");
+    tally.check(atOnce.listens == 1, kName, "on, smoke at the mouth: it is");
+    tally.check(farOnly.listens == 0, kName, "on, smoke far off: it is not");
+    tally.verdict(kName);
+}
+
 } // namespace
+
+void init()
+{
+    Cmd_AddCommand("vr_smoke_blow_check", check_f);
+}
 
 void handFrame(int hand, const Gun& gun, bool fired)
 {

@@ -1686,10 +1686,13 @@ QVR_CVAR(vr_gunfx_wisp_spread, "3", CVAR_ARCHIVE)      // times thicker (and fai
 QVR_CVAR(vr_gunfx_wisp_amount, "1", CVAR_ARCHIVE)      // their opacity, times (0-4)
 QVR_CVAR(vr_gunfx_wisp_opacity, "1", CVAR_ARCHIVE)     // the most opaque they get (0.02-1: a cap on Wisp Amount's opacity)
 QVR_CVAR(vr_gunfx_wisp_rise, "90", CVAR_ARCHIVE)       // cm a second the smoke rises (0-200; vr_gunfx_turbulence curls it)
+QVR_CVAR(vr_smoke_blow, "0", CVAR_ARCHIVE)            // 1: blow into the microphone with a smoking muzzle at your mouth: the wisp goes forward and fades faster (opt-in: the microphone opens only with smoke near your mouth)
 QVR_CVAR(vr_gunfx_impacts, "1", CVAR_ARCHIVE)          // bullets' and nails' wall hits by the surface's material (vr_impacts.cpp): dust off stone, sparks off metal, chips off wood
 QVR_CVAR(vr_gunfx_ozone, "1", CVAR_ARCHIVE)            // a faint bluish ozone haze where the thunderbolt's beam plays on a surface
 QVR_CVAR(vr_gunfx_enemies, "1", CVAR_ARCHIVE)          // the monsters' guns too (the grunts', the enforcers', the armed grunts')
 QVR_CVAR(vr_debug_gunfx, "0", CVAR_NONE)               // 1: each shot's gunfire particles ("gunfx shot ...", "gunfx port ...") and your barrels' heat ("gunfx heat ...")
+QVR_CVAR(vr_debug_mic_level, "0", CVAR_NONE)          // 1: the microphone open, its live level floating low in the view against vr_smoke_blow_threshold
+QVR_CVAR(vr_test_mic_level, "-1", CVAR_NONE)          // 0 or more: taken for the microphone's level (no microphone opened); below 0: the real one
 QVR_CVAR(vr_debug_ribbon_overlap, "0", CVAR_NONE)      // 1: the muzzle wisps' ribbons blend where they overlap themselves again (the old creases on sharp turns; vr_ribbons.cpp), to compare
 QVR_CVAR(vr_debug_impacts, "0", CVAR_NONE)             // 1: every particle2 message and QC sound the server sends ("impfx p2 ...", "impfx snd ...": the impact table's output, vr_impacts.cpp)
 QVR_CVAR(vr_impact_qc_test, "0", CVAR_NONE)            // the QC runs every hit ladder on every material once (vr_impacts_test.qc; Debug > Tests)

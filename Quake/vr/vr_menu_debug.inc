@@ -869,6 +869,10 @@ za::Vector<Item> pageDebugReports()
             .help("vr_keyhook_status: whether this game holds the desktop keyboard hook (only with the window's focus) and "
                   "the longest it went unserviced since the last report: every key press on the desktop waits for it."),
         command("Microphones", "vr_note_devices").help("vr_note_devices: the microphones Voice Notes can record from."),
+        row(opt::vr_debug_mic_level),
+        row(opt::vr_test_mic_level),
+        command("Check Blowing on Smoke", "vr_smoke_blow_check")
+            .help("vr_smoke_blow_check: fake breath on fake wisps at your mouth and past its reach: what moves and fades, what does not (console)."),
         command("Save Note Context", "vr_note_context")
             .help("vr_note_context: a voice note's context saved now without a sound (quakevr/notes): the .txt (checklist "
                   "item, hands, monsters near, settings changed), the instant replay take, the console's lines, the frame times."),

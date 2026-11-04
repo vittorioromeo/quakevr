@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <glm/glm.hpp>
+
 namespace qvr::voicenotes
 {
 
@@ -28,6 +30,16 @@ void frame();
 // The off hand's upper face button, as input sees it: true if it starts or ends a note (the
 // button's own key then stays untouched).
 [[nodiscard]] bool offhandButton(bool pressed);
+
+// The microphone's level for whoever listens (blowing on smoke): the same device as the notes', opened on its own while
+// wanted. Call wantMicLevel() each frame it is needed: it opens on the first and closes some seconds after the last; no
+// microphone: nothing said, the level stays 0. micLevel(): its RMS (0..1), smoothed over a fraction of a second
+// (vr_test_mic_level: a fake one, none opened).
+void wantMicLevel();
+[[nodiscard]] float micLevel();
+
+// Your mouth and the way you face, in the world: false with no head (not in VR).
+[[nodiscard]] bool mouth(glm::vec3& at, glm::vec3& facing);
 
 void shutdown();
 // Waits for the files still being saved on the pool (notes' sounds, screenshots) and reports them (VR_Shutdown).

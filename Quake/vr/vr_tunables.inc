@@ -741,6 +741,11 @@ QVR_TUNABLE(vr_gunfx_turbulence, "1") // how much the gunfire smoke swirls as it
 QVR_TUNABLE(vr_gunfx_shell_trail, "1.6") // every spent casing's smoke trail, times (0 none; 1 the old faint one)
 QVR_TUNABLE(vr_gunfx_heat_light_radius, "48") // a glowing barrel's light's reach in units at full heat (vr_hotblade.cpp)
 QVR_TUNABLE(vr_gunfx_wisp_pixels, "1.5") // the thinnest they are drawn, in pixels (fainter instead: no shimmer far off; 0.5-8)
+QVR_TUNABLE(vr_smoke_blow_threshold, "0.06") // blowing on smoke: the microphone's level (RMS, 0..1) that counts as a blow
+QVR_TUNABLE(vr_smoke_blow_hold, "0.12") // ... seconds above it before it does
+QVR_TUNABLE(vr_smoke_blow_reach, "0.35") // ... metres from your mouth the smoke feels it (fading from half of this)
+QVR_TUNABLE(vr_smoke_blow_push, "4") // ... metres a second squared it pushes the smoke the way you face, at twice the threshold (half at the threshold)
+QVR_TUNABLE(vr_smoke_blow_fade, "2") // ... extra seconds the smoke ages each second, likewise
 
 // Weapons > Weapon Offsets - Flashlight
 QVR_TUNABLE(vr_flashlight_mount_preview, "0") // Weapon Offsets > Flashlight: the torch's place on the page's weapon drawn while the page is shown
