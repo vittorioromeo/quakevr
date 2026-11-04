@@ -201,21 +201,32 @@ ramped() { awk -v w="$1" -v d="$2" -v f1="$3" -v f2="$4" -v s1="$5" -v s2="$6" \
 # still moving when it was.
 midway() { awk -v w="$1" 'BEGIN{split(w,x," "); exit !(x[1]-x[2] < 11 && x[3] >= 40 && x[4] >= 0.6)}' && echo 1 || echo 0; }
 
-run adsflat flat "$P; vr_flatplay_debug 2; $AIM; vr_flatplay_status" 'flatsight:|  ironsight:'
+# 2026-11-04 (agent/flatfix, the four cases below re-based; their gates untouched): these cases name a
+# vr_flat_aim_time and a vr_flat_aim_fov and their gates are the frames and seconds those values make, but they read the
+# shipped defaults and the defaults moved under them. 29577aa8e (2026-11-03: his tuning promoted) set
+# vr_flat_aim_fov 12 -> 40 and vr_flat_aim_time 0.25 -> 0.15, and f75ad8048 (2026-11-04) promoted the rest of his
+# flatscreen numbers and left these two. The engine answers what the cvar says -- measured at the shipped pair the whole
+# 40 deg is taken over 11 frames in 0.139 s; tuned to 0 the whole depth is one frame, to 0.05 four frames in 0.042 s, to
+# 0.25 18 frames in 0.25 s, to 1 s it is still closing 60 frames after the press (Misc/quakevr/flatfix_test.sh prints
+# that table). So the gates were not wrong, they were pinned to defaults the shipped game no longer carries: each case
+# now sets the value its check names (vr_flat_aim_fov 12, and vr_flat_aim_time where the case names one), and what the
+# shipped pair does is pinned with numbers in flatfix_test.sh instead.
+AIMFOV12="tune vr_flat_aim_fov 12;"
+run adsflat flat "$P; vr_flatplay_debug 2; $AIMFOV12 tune vr_flat_aim_time 0.25; $AIM; vr_flatplay_status" 'flatsight:|  ironsight:'
 r1=$(adsramp "$S/adsflat.log")
 check $(ramped "$r1" 12 14 22 0.18 0.30) \
     "ironsight ease: vr_flat_aim_time 0.25 closes the field of view by vr_flat_aim_fov 12 over 18 frames and opens it back over the same ($r1 = wide narrow frames seconds)"
 check $(grep -qa 'vr_flat_aim_time' "$S/adsflat.log" && echo 1 || echo 0) \
     "ironsight ease: vr_flatplay_status prints the travel's own seconds alongside the field of view it takes off ($(grep -a 'ironsight:' "$S/adsflat.log" | head -1 | sed 's/ (.*//'))"
-run adsfast flat "$P; vr_flatplay_debug 2; tune vr_flat_aim_time 0; $AIM" 'flatsight:'
+run adsfast flat "$P; vr_flatplay_debug 2; $AIMFOV12 tune vr_flat_aim_time 0; $AIM" 'flatsight:'
 r2=$(adsramp "$S/adsfast.log")
 check $(ramped "$r2" 12 1 2 0 0.03) \
     "ironsight ease: vr_flat_aim_time 0 is instant -- the whole vr_flat_aim_fov in one frame, no ramp at all ($r2)"
-run adslow flat "$P; vr_flatplay_debug 2; tune vr_flat_aim_time 1; $AIM" 'flatsight:'
+run adslow flat "$P; vr_flatplay_debug 2; $AIMFOV12 tune vr_flat_aim_time 1; $AIM" 'flatsight:'
 r3=$(adsramp "$S/adslow.log")
 check $(midway "$r3") \
     "ironsight ease: vr_flat_aim_time 1 is still closing 60 frames after the press ($r3) -- the depth is reached over the cvar's seconds, not at the press"
-run adsfloor flat "$P; vr_flatplay_debug 2; tune vr_flat_aim_time 0.05; $AIM" 'flatsight:'
+run adsfloor flat "$P; vr_flatplay_debug 2; $AIMFOV12 tune vr_flat_aim_time 0.05; $AIM" 'flatsight:'
 r4=$(adsramp "$S/adsfloor.log")
 check $(ramped "$r4" 12 3 6 0.03 0.07) \
     "ironsight ease: vr_flat_aim_time 0.05, the slider's floor, is over in a few frames ($r4)"
