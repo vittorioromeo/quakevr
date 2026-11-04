@@ -34,6 +34,8 @@ float AXESTICK_EDGE = 2;        // by its edge
 .entity vr_stick_tugger;
 .float  vr_stick_cutmark; // when the cut under way (VR_AxeStick_CutPrepare) was found to take the limb it is in
 .float  vr_stick_bone;    // the bone of the body it went into, as the body stood then (ragdolllimb: -1 the torso, -2 no rig)
+.float  vr_stick_runs;    // the open wound's next spurt
+float   vr_embed_woundspurts; // (for the test: how many so far)
 
 float vr_embed_stabbing;  // (vr_embedhold.qc)
 float(entity e) VR_Embed_Held;
@@ -101,6 +103,8 @@ float(entity m, float xBone) VR_AxeStick_LooseIn =
 // is still the throw's.
 void(float xKind, float xSpeed) VR_AxeStick_Stuck =
 {
+    // (As it was before its blow: one that gibs it changes it, and the blade mustn't stay floating where the body was.)
+    self.vr_stick_model = other.modelindex;
     self.vr_stick_bone = (xKind == AXESTICK_MODEL || xKind == AXESTICK_MONSTERBOX) ? ragdolllimb(other, self.vr_stick_at) : -1;
     // In an arm or a leg (a limb not the head's): loose on it; in the torso, the pelvis, the head: rigid.
     self.vr_stick_loose = VR_AxeStick_LooseIn(other, self.vr_stick_bone);
@@ -126,7 +130,6 @@ void(float xKind, float xSpeed) VR_AxeStick_Stuck =
     }
     self.throwhit = QVR_THROWHIT_HIT;
     self.vr_stick_by = VR_Throw_Thrower(self); // (its owner; past vr_throw_self_grace who threw it)
-    self.vr_stick_model = other.modelindex;
     self.vr_stick_next = time + AXESTICK_BLEED_TICK;
     self.vr_stick_owed = 0;
     self.vr_stick_tug = 0;
@@ -248,7 +251,7 @@ void() VR_AxeStick_Think =
     entity h = self.vr_stick_ent;
     // (vr_embed: it stays in a dead body until the model it is in changes or goes: gibbed, removed.)
     if(!VR_AxeStick_On(self) ||
-       (h != world && (h.modelindex != self.vr_stick_model || h.model == string_null)) ||
+       (h != world && (h.modelindex != self.vr_stick_model || h.model == string_null || h.vr_gib)) ||
        (!cvar_hget(cvarh_vr_embed) && VR_AxeStick_InMonster(self) && (h.health <= 0 || h.solid == SOLID_NOT)))
     {
         VR_AxeStick_Fall(self);
@@ -258,6 +261,15 @@ void() VR_AxeStick_Think =
     if(VR_Embed_Held(self) && VR_Embed_HoldThink())
     {
         return; // (out, in the hand)
+    }
+
+    // The open wound runs while a blade is in a living body: the stumps' drops (VR_Decap_FountainThink), falling.
+    float spurts = cvar_hget(cvarh_vr_embed_wound_blood);
+    if(spurts > 0 && cvar_hget(cvarh_vr_embed) && VR_AxeStick_InMonster(self) && h.health > 0 && time >= self.vr_stick_runs)
+    {
+        self.vr_stick_runs = time + 1 / spurts;
+        particle2(self.vr_stick_at - self.vr_stick_dir * 1.5, self.vr_stick_dir * -2 - '0 0 3', QVR_PARTICLE_PRESET_BLOODTRAIL, 2);
+        vr_embed_woundspurts = vr_embed_woundspurts + 1;
     }
 
     if(self.vr_stick_tug)

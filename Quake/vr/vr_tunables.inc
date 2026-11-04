@@ -1837,7 +1837,6 @@ QVR_TUNABLE(vr_embed_swing_angle, "90") // degrees at most the blow goes off the
 QVR_TUNABLE(vr_embed_axe_depth, "12") // cm an axe's edge goes in at twice its least speed, vr_embed on (half at it; at most 60% of the blade)
 QVR_TUNABLE(vr_embed_hold_axe_stick, "2") // cm before an axe moves
 QVR_TUNABLE(vr_embed_hold_axe_rate, "70") // cm/s an axe slides at most
-QVR_TUNABLE(vr_embed_hold_axe_travel, "10") // cm an axe is pulled to come free
 QVR_TUNABLE(vr_embed_stagger_axe_speed, "9") // m/s a swung axe does
 QVR_TUNABLE(vr_embed_stagger_axe, "0.3") // s an axe's does
 QVR_TUNABLE(vr_embed_move_axe_force, "400") // N an axe does
@@ -1848,9 +1847,10 @@ QVR_TUNABLE(vr_embed_hold_sword_stick_deep, "8") // ... in as far as it goes
 QVR_TUNABLE(vr_embed_hold_sword_rate, "100") // cm/s a sword slides at most, barely in
 QVR_TUNABLE(vr_embed_hold_sword_rate_deep, "35") // ... in as far as it goes
 QVR_TUNABLE(vr_embed_hold_sword_most, "90") // % of the blade it goes in at most
-QVR_TUNABLE(vr_embed_hold_sword_out, "0") // cm of its tip still in as it comes free
 QVR_TUNABLE(vr_embed_hold_corpse, "0.5") // times the stick in a dead body (the rate divided by it)
-QVR_TUNABLE(vr_embed_tug_corpse, "8") // cm a hand gripping a blade in a dead body must pull to take it (0: at once)
+QVR_TUNABLE(vr_embed_slide_sound_cm, "3") // cm a blade slides, in or out, between two flesh sounds (0: none)
+QVR_TUNABLE(vr_embed_slide_sound_vol, "0.35") // their volume
+QVR_TUNABLE(vr_embed_wound_blood, "8") // spurts a second running from an open wound with a blade in a living body (0: none)
 QVR_TUNABLE(vr_embed_hold_break, "45") // cm the hand may go off the axis before the blade comes free
 QVR_TUNABLE(vr_embed_hold_reach, "90.5") // cm the hand may have gone further from where the blade went in before it comes free (a limb moved away)
 QVR_TUNABLE(vr_embed_hold_reach_corpse, "4") // times that in a dead body (it falls away from the hand, the hold goes on)
