@@ -626,15 +626,7 @@ za::Vector<Item> pageWofsSights()
         s("Muzzle Y", Key::MuzzleOffsetY, -30.f, 30.f, 0.1f, "%.2f").extend(-150.f, 150.f),
         s("Muzzle Z", Key::MuzzleOffsetZ, -30.f, 30.f, 0.1f, "%.2f").extend(-150.f, 150.f),
         s("Shot Pitch (up)", Key::ShotPitch, -10.f, 10.f, 0.1f, "%+.1f").extend(-45.f, 45.f).help(shotHelp),
-        s("Shot Yaw (left)", Key::ShotYaw, -10.f, 10.f, 0.1f, "%+.1f").extend(-45.f, 45.f).help(shotHelp),
-        header("Flatscreen Ironsight"),
-        s("Forward", Key::FlatAdsFwd, -30.f, 30.f, 0.5f, "%+.1f")
-            .help("Playing on the desktop screen (-flatscreenmode): this gun's final ironsight place, added to Debug > Tunables > "
-                  "Flatscreen > Ironsight's for every gun: forward along the crosshair's ray."),
-        s("Up", Key::FlatAdsUp, -30.f, 30.f, 0.5f, "%+.1f")
-            .help("The same, above the crosshair's ray (negative lowers the gun, which brings its sights up to the crosshair). "
-                  "The gun still points at what the crosshair is on."),
-        s("Out", Key::FlatAdsOut, -30.f, 30.f, 0.5f, "%+.1f").help("The same, to the holding hand's own side of the ray.")
+        s("Shot Yaw (left)", Key::ShotYaw, -10.f, 10.f, 0.1f, "%+.1f").extend(-45.f, 45.f).help(shotHelp)
     );
     return list;
 }

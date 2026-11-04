@@ -392,6 +392,39 @@ float strikeLength(int h, const hands::State& s, const glm::vec3& pos)
 
 } // namespace
 
+float gunBack(int hand, const glm::vec3& from, const glm::vec3& pos, const glm::vec3& rot, const glm::vec3& muzzle,
+    const glm::vec3& way, float most)
+{
+    constexpr float leastOut = 0.1f; // a surface the way runs along: going back does not take the weapon off it
+    makeShape(hand, rot, muzzle);
+    float back = 0.f;
+    for(int round = 0; round < 3 && back < most; round++)
+    {
+        float more = 0.f;
+        for(const glm::vec3& o : shape[hand])
+        {
+            const glm::vec3 end = pos + way * back + o;
+            const auto tr = lineTrace(from, end);
+            if(!tr || tr->startsolid || tr->allsolid || tr->fraction >= 1.f)
+            {
+                continue;
+            }
+            const glm::vec3 n = worldtrace::normal(*tr);
+            const float out = glm::dot(way, n);
+            if(out > leastOut)
+            {
+                more = za::max(more, (za::max(glm::dot(worldtrace::endPos(*tr) - end, n), 0.f) + gunMargin) / out);
+            }
+        }
+        if(more <= 0.f)
+        {
+            break;
+        }
+        back += more;
+    }
+    return za::min(back, most);
+}
+
 void resolvePositions(hands::State& s, float /* turnYaw */)
 {
     // On the real clock, every frame: cl.time moves in steps with the server's messages (72 Hz, or

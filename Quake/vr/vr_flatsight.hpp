@@ -49,6 +49,20 @@ void apply(hands::State& s, const glm::vec3& aim, const glm::vec3& reach);
 // the hand before the next placing carries it by. Nothing outside the mode.
 void notePlaced(const hands::State& s);
 
+// vr_view.cpp, the frame's weapons placed, the hands still as drawn: each weapon's sight line in its hand's frame, what the
+// ironsight is solved from. Nothing outside the mode.
+void noteDrawn(const hands::State& s);
+
+// flatplay::drawnOffset: the sight's place for the drawn hand `h` in the frame of the camera it is drawn with: its place and
+// its turn. The share of it this frame (0: not on a sight, and they are left alone; 1: the sights lie on the ray).
+[[nodiscard]] float drawnSight(int h, glm::vec3& hand, glm::mat3& turn);
+
+// The crosshair's ray for a view at `aim`: its forward, turned to where vr_flat_ads_screen_x / _y have the sight picture.
+[[nodiscard]] glm::vec3 rayDir(const glm::vec3& aim);
+
+// The sight picture's place on the screen, this frame: percent of the screen's height, x right, y up. 0 0 at its centre.
+[[nodiscard]] glm::vec2 screenPlace();
+
 // How far the ironsight's travel has gone this frame (st.adsT, 0..1): the fraction its shift onto the crosshair and the
 // field of view's narrowing are spent over, and what flatplay eases vr_flat_gun_near to vr_flat_ads_near by when it
 // decides whether a drawn view counts as the player's own eyes (flatplay::keepNear). 0 outside the mode.

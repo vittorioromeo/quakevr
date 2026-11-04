@@ -1490,7 +1490,9 @@ bool removedKeyLine(const char* name)
     // vr_hotspots_check still read (2h_dispmd, 2h_fxd_ox/oy/oz, gunoff_x/y/z) went with that check.
     constexpr const char* removed[] = {"2h_fxd_mh_ox", "2h_fxd_mh_oy", "2h_fxd_mh_oz", "2h_blade", "2h_fgr_open",
         "2h_fgr_thumb", "fgr_index", "fgr_middle", "fgr_open", "fgr_pinky", "fgr_ring", "fgr_thumb", "fgr_x", "fgr_y",
-        "fgr_z", "length", "2h_dispmd", "2h_fxd_ox", "2h_fxd_oy", "2h_fxd_oz", "gunoff_x", "gunoff_y", "gunoff_z"};
+        "fgr_z", "length", "2h_dispmd", "2h_fxd_ox", "2h_fxd_oy", "2h_fxd_oz", "gunoff_x", "gunoff_y", "gunoff_z",
+        // 2026-11-05: the flatscreen ironsight is solved from the sight line (vr_flatsight.cpp).
+        "flat_ads_fwd", "flat_ads_up", "flat_ads_out"};
     constexpr size_t prefix = 8; // "vr_wofs_"
     const size_t len = strlen(name);
     if(len < prefix + 4 || q_strncasecmp(name, "vr_wofs_", prefix) != 0 || name[len - 3] != '_' ||

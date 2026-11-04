@@ -176,13 +176,13 @@ hands onto each other. A weapon whose model has no such hotspot, a grip a second
 the pose above exactly as it is, and `vr_flatplay_status` prints the measure the choice rests on: "hotspot: 5.0 units from
 the held hand (fwd -3.2, right 0.4, up -3.8 of it)".
 
-The mouse wheel's button (`K_MOUSE3`), or `vr_flat_aim` from the console, turns the ironsight on: the held hand is moved
-so that the muzzle's own point -- the one the shot starts from -- stands at the sight's place (`centreOnCrosshair`, see
-below), and the field of view narrows by `vr_flat_aim_fov`: `gl_screen.c` asks `VR_FlatAdsFov` where it chooses
-`r_refdef.basefov`, and the mouse look's own measure comes from the same `basefov` (`in_sdl.c`'s `IN_FovScale`), so the look and
-the crosshair keep their feel. It refuses while dual wielding, and on a weapon with no sight line.
+The mouse wheel's button (`K_MOUSE3`), or `vr_flat_aim` from the console, turns the ironsight on: the held weapon is brought
+onto its sight line (see The ironsight's solve, below), and the field of view narrows by `vr_flat_aim_fov`: `gl_screen.c` asks
+`VR_FlatAdsFov` where it chooses `r_refdef.basefov`, and the mouse look's own measure comes from the same `basefov` (`in_sdl.c`'s
+`IN_FovScale`), so the look and the crosshair keep their feel. It refuses while dual wielding, and on a weapon with no sight
+line (the melee weapons; the fallback is no ironsight at all, the hipfire pose stays and the view does not narrow).
 `vr_flatplay_status` prints both hands and the ironsight, and `vr_flatplay_debug 2` adds a `flatsight:` line each frame
-with where the muzzle stands off the crosshair before and after the move, and what its place asks.
+with where the muzzle stands off the crosshair before and after the move, the eye relief and how far a wall has it back.
 
 The narrowing is no step at the press. `vr_flat_aim_time` (0.25, 0.05..1.00 seconds, 0: at once) is how long the
 ironsight's whole travel takes â€” onto the crosshair, and back off it â€” and the field of view is narrowed by
@@ -237,15 +237,37 @@ pass him; and a client not hosting has no world to trace (`vr_trace.hpp`), so it
 keeps the muzzle's offset at near targets. Hand and Weapon Together (`whole_*`) corrects a controller's hold and does not apply
 here (it moved and turned the hand after the shot was solved: 1.2 degrees off, on the shotgun).
 
-**The ironsight's place** -- **Ironsight Forward** (`vr_flat_ads_fwd`), **Ironsight Up** (`vr_flat_ads_up`), **Ironsight Out**
-(`vr_flat_ads_out`), all 0 on every gun, and each weapon's own `flat_ads_fwd`, `flat_ads_up`, `flat_ads_out` on top
-(`quakevr/data/weapons.txt`, Weapon Offsets > Flatscreen Ironsight; every gun ships at forward 4, up -3, from images of the
-shotgun, the nail gun, the rocket launcher and the nail pistol: the muzzle stands just under the crosshair, the sights along
-its top are in view, the crosshair is clear). This is the muzzle's final place: on the crosshair's ray, then up and out off it,
-and forward along it, over `vr_flat_aim_time`. The gun still points at what the crosshair is on, from there. Sights with a muzzle
-exactly on the ray look along the barrel from behind the receiver, which fills the middle of the screen. **Flatscreen Ironsight
+**The ironsight's solve.** Each gun has a sight line (`sightalign::sightLine`: a rear and a front point on its model, found on
+the painted sights or read from `vr_sightalign_table.inc`, the same ones Align Sights to My Aim and `vr_sight_check` read). The hand
+is solved from it, with no number per weapon: `noteDrawn` takes the two points as the hand holds them, off the weapon as drawn,
+and `sighted` turns that line by the least turn onto the crosshair's ray and slides it along until the rear sight stands
+**Ironsight Eye Relief** (`vr_flat_ads_relief`) from the eye. So both sights lie on the ray at any field of view, any eye nudge and
+any eye relief. `flatplay::drawnOffset` does it last, from the camera the frame is drawn with (`drawnSight`, its bob, kick and roll
+in it): the looks are spent out over the travel, and the arm's hold does not apply to it, because the relief already keeps the
+hand in the arm's reach (`reliefFor`: nearer than asked on a look straight up, further than asked where a gun's sights stand far
+ahead of its hand). The game's hand stands at the same place, its muzzle on the drawn gun's, turned to shoot at what the crosshair
+is on: the bore lies under the sights, so that turn differs from the drawn one a little, as much as the two lines differ at the
+crosshair's point; the shot goes through the point whatever the sights do (`flatpose_test.sh` section f).
+
+**Moving the picture.** **Ironsight Picture Right** and **Up** (`vr_flat_ads_screen_x`, `vr_flat_ads_screen_y`, percent of the
+screen's height, 0 0: the centre) move the whole sight picture on the screen. Sights lined up through the eye can only stand on a
+ray through the eye, so it is that ray that moves: the crosshair goes with it (`VR_FlatCrosshairShift`, `SCR_DrawCrosshair`), and so does
+what the shots aim at (`crosshairRay`, through `flatsight::rayDir`). The look stays the view's. The sights stay lined up, on the ray
+through the crosshair, and the shots through what it is on; the rows only change where on the screen all three stand.
+
+A weapon with no sight line has no ironsight. The per-weapon `flat_ads_*` keys and the globals `vr_flat_ads_fwd`, `_up`, `_out` are
+gone (their config lines are dropped quietly, `removedKeyLine`; a `tunables.cfg` line says it is left out). **Flatscreen Ironsight
 With The Crosshair** (`vr_flat_ads_near`, 24) is the keep distance the sight uses, mixed out of `vr_flat_gun_near` by how far the
-sight's travel has gone.
+sight's travel has gone. `vr_flat_sight_check` (Debug > Reports) measures the weapon as drawn against the view it is drawn with;
+`Misc/quakevr/flatsight_test.sh` reads it for every gun.
+
+**Against the walls** (**Gun Against Walls**, `vr_flat_gun_collide`, on). A held weapon goes back along the way into the body until
+it is out of the level (`pushBack`; `handpose::gunBack`, the headset's stop's points, traces and margin): towards its shoulder in
+hipfire, along the ray in the ironsight, so the sights stay on it. It stops with the arm folded, or the rear sight at 3 units from
+the eye: past that, the gun's end enters the wall and the depth buffer hides it there, as it does past `vr_gun_wall_max` in a
+headset. A wall met pushes it back at once, nearly; cleared, it comes out over a moment. It is the game's pose that moves, so the
+gun aims from where it is pushed to and the shots leave from there. A blow is left alone: a hand throwing a punch is not stopped.
+Models stop the drawn gun as in a headset (`vr_model_collide`, drawn only: the view runs it in this mode too).
 
 **His eye on the screen** -- **View Forward** (`vr_flat_cam_fwd`, 0), **View Up** (`vr_flat_cam_up`, 0), **View Sideways**
 (`vr_flat_cam_side`, 0), -20..20 units: where the flatscreen camera stands in the view's own frame of reference --

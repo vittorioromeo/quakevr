@@ -1055,7 +1055,13 @@ void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles
     const float lagAmount = za::clamp(vr_flat_turnlag.value, 0.f, 3.f);
     const float lagCap = maxLagDeg * lagAmount;
 
-    const glm::vec2 lag{softCap(feel.lag.x * lagShown * lagAmount, lagCap), softCap(feel.lag.y * lagShown * lagAmount, lagCap)};
+    // On the ironsight the hand is the solve's, from this camera (the block below): the looks are spent out over its travel.
+    glm::vec3 sightHand{0.f};
+    glm::mat3 sightTurn{1.f};
+    const float onSight = flatsight::drawnSight(h, sightHand, sightTurn);
+    const float looks = 1.f - onSight;
+
+    const glm::vec2 lag{softCap(feel.lag.x * lagShown * lagAmount, lagCap) * looks, softCap(feel.lag.y * lagShown * lagAmount, lagCap) * looks};
 
     const glm::mat3 poseAxes = axes(aim);
     const glm::mat3 drawnAxes = axes(camAngles + glm::vec3{lag.x, lag.y, 0.f});
@@ -1067,7 +1073,7 @@ void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles
     const float rest = 1.f - za::clamp(feel.amp, 0.f, 1.f);
     const glm::vec3 bobLocal{0.f, bob * (bobSide * feel.amp * za::sin(feel.phase) + breathSide * rest * za::sin(feel.breath * 0.5f)),
         bob * (bobUp * feel.amp * (za::cos(2.f * feel.phase) - 1.f) * 0.5f + breathUp * rest * za::sin(feel.breath))};
-    const glm::vec3 local = feel.sway + bobLocal;
+    const glm::vec3 local = (feel.sway + bobLocal) * looks;
 
     glm::vec3 drawn = to + turn * (s.pos[h] - from) + camAxes * local;
 
@@ -1091,6 +1097,10 @@ void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles
         }
     }
 
+    // The last word on the ironsight: the sights on the ray of the camera this frame is drawn with, the solve's hand in its
+    // frame (it stays within the arm: vr_flatsight.cpp's reliefFor), whatever the frame's bob, kick and nudges did to it.
+    drawn += (to + camAxes * sightHand - drawn) * onSight;
+
     pos = drawn - s.pos[h];
 
     // The hand's turn in the view's frame (the pose's: onto what the crosshair is on), eased as gunTurnEase says.
@@ -1105,15 +1115,16 @@ void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles
         feel.gunTurn[h] = glm::slerp(feel.gunTurn[h], gunTurn, ease(gunTurnEase, feel.dt));
     }
     feel.gunTurnAt[h] = feel.lastTime;
-    const glm::mat3 handAxes = drawnAxes * glm::mat3_cast(feel.gunTurn[h]);
+    const glm::quat drawnTurn = onSight > 0.f ? glm::slerp(feel.gunTurn[h], glm::quat_cast(sightTurn), onSight) : feel.gunTurn[h];
+    const glm::mat3 handAxes = drawnAxes * glm::mat3_cast(drawnTurn);
     const glm::vec3 drawnRot = hands::anglesFromVectors(handAxes[0], handAxes[2]);
     for(int i = 0; i < 3; i++)
     {
         angles[i] = za::remainder(drawnRot[i] - s.rot[h][i], 360.f);
     }
-    angles.x += bob * breathPitch * rest * za::sin(feel.breath);
-    angles.y += bob * bobYaw * feel.amp * za::sin(feel.phase);
-    angles.z += bob * bobRoll * feel.amp * za::sin(feel.phase);
+    angles.x += looks * bob * breathPitch * rest * za::sin(feel.breath);
+    angles.y += looks * bob * bobYaw * feel.amp * za::sin(feel.phase);
+    angles.z += looks * bob * bobRoll * feel.amp * za::sin(feel.phase);
 
     probeArm(s, h, drawn, drawnRot);
 }
@@ -1127,7 +1138,22 @@ void drawnOffset(const hands::State& s, int h, glm::vec3& pos, glm::vec3& angles
 void crosshairRay(const hands::State& s, const glm::vec3& aim, glm::vec3& org, glm::vec3& dir)
 {
     org = viewIsHisOwn(s) ? s.head + camShiftWorld(aim) : s.head;
-    dir = hands::forward(aim);
+    dir = flatsight::rayDir(aim); // (forward, unless the ironsight's picture is moved on the screen, the crosshair with it)
+}
+
+glm::vec3 shoulderOf(const hands::State& s, int h)
+{
+    return shoulder(s, h);
+}
+
+float armReach()
+{
+    return armSpan();
+}
+
+glm::vec3 eyeNudge(const glm::vec3& aim)
+{
+    return camShiftWorld(aim);
 }
 
 void printMove(const hands::State& s)
@@ -1189,13 +1215,13 @@ void status_f()
         vr_flat_pitch_up.value, vr_flat_pitch_down.value, -lookUp, lookDown);
     // Short lines: the console wraps a long one, and these numbers are meant to be read off it and typed back in.
     Con_Printf("  where the weapon and the hands sit, in the view's frame (forward, out at the hand's own side, down):\n"
-               "    held weapon %g %g %g; the ironsight's place, every gun: forward %g up %g out %g (vr_flat_gun_*, vr_flat_ads_*)\n"
+               "    held weapon %g %g %g (vr_flat_gun_*)\n"
                "    an empty hand %g %g %g, a supporting hand %g %g %g (vr_flat_empty_*, vr_flat_support_*)\n"
                "    vr_flat_reach %g times their size; a bigger _down is the lower hand\n"
                "    the drawn view counts as his own eyes while it stands within %g of his head (vr_flat_gun_near),\n"
                "    eased to %g while the ironsight is on (vr_flat_ads_near).\n",
-        poseNum(vr_flat_gun_fwd), poseNum(vr_flat_gun_down), poseNum(vr_flat_gun_out), poseNum(vr_flat_ads_fwd),
-        poseNum(vr_flat_ads_up), poseNum(vr_flat_ads_out), poseNum(vr_flat_empty_fwd), poseNum(vr_flat_empty_down),
+        poseNum(vr_flat_gun_fwd), poseNum(vr_flat_gun_down), poseNum(vr_flat_gun_out),
+        poseNum(vr_flat_empty_fwd), poseNum(vr_flat_empty_down),
         poseNum(vr_flat_empty_out), poseNum(vr_flat_support_fwd), poseNum(vr_flat_support_down),
         poseNum(vr_flat_support_out), za::clamp(vr_flat_reach.value, 0.25f, 3.f), keepNear(),
         za::clamp(vr_flat_ads_near.value, nearMin, nearMax));

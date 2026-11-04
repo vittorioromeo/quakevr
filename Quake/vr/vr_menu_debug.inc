@@ -736,6 +736,9 @@ za::Vector<Item> pageDebugReports()
             .help("-flatscreenmode: the VR gameplay on the desktop screen. Whether the mode is on, its keys, and what it "
                   "stands in for (reloading off, the flashlight worn, 1 and 2 cycling the weapons collected)."),
         row(opt::vr_flatplay_debug),
+        command("Flatscreen Sight Check", "vr_flat_sight_check")
+            .help("The held gun's sight line as last drawn, against the view: how far each sight stands off the ray through the "
+                  "crosshair, near and far, printed to the console. Flatscreen play only."),
         command("Flatscreen Punch", "vr_flat_punch")
             .help("A punch with the main hand (`vr_flat_punch off` for the off hand): the same motion the fire button of a "
                   "hand holding a swinging weapon makes, and V's punch. Flatscreen play only."),

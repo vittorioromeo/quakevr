@@ -1783,6 +1783,7 @@ QVR_TUNABLE(vr_model_light_teleport_range, "256")
 QVR_TUNABLE(vr_flat_gun_fwd, "5") // the held weapon, hipfire: how far in front of its shoulder it sits (-30..30 units; 17: where the pose put it)
 QVR_TUNABLE(vr_flat_gun_down, "10") // the held weapon, hipfire: how far below its shoulder it sits (-30..30; positive is lower; 9 as before)
 QVR_TUNABLE(vr_flat_gun_out, "2") // the held weapon, hipfire: how far off the body's centre line it sits, out at the holding hand's own side (-30..30; 2.5 as before; negative brings it across the centre line)
+QVR_TUNABLE(vr_flat_gun_collide, "1") // a held weapon goes back along the way into the body until it is out of the walls (0: it goes through)
 QVR_TUNABLE(vr_flat_gun_near, "24") // the held weapon, hipfire: how far the drawn view may stand from his own head before the hands stop being kept on the drawn view and stay on the body (8..60 units; 24: the mode's camNear). The view at his eyes counts 0, a full crouch counts vr_flat_crouch_drop; the camera's own nudges (vr_flat_cam_fwd / _up / _side) are put back before the measure, so moving the eye does not read as "the view is somewhere else" and the gun keeps following it
 QVR_TUNABLE(vr_flat_reach, "1") // times how far the hands sit from the head (0.25..3): the whole viewmodel's size
 QVR_TUNABLE(vr_flat_pose_pitch, "65") // how far the hands follow the view up and down, in degrees (0..90; 90: the full look, as before)
@@ -1797,9 +1798,9 @@ QVR_TUNABLE(vr_flat_support_down, "11") // the same free hand: how far below its
 QVR_TUNABLE(vr_flat_support_out, "5") // the same free hand: how far out at its own side (-30..30; 5 as before)
 
 // Flatscreen > Ironsight
-QVR_TUNABLE(vr_flat_ads_fwd, "-3.5") // the ironsight's final place, on every gun (the weapon's own flat_ads_fwd, weapons.txt, on top): forward along the crosshair's ray, units off where the hipfire pose has the muzzle (-30..30)
-QVR_TUNABLE(vr_flat_ads_up, "2") // the same, up off the crosshair's ray (+ higher: a negative number lowers the gun so its sights come up to the crosshair; the weapon's flat_ads_up on top). The gun stays pointed at what the ray hits
-QVR_TUNABLE(vr_flat_ads_out, "-0.15") // the same, sideways off the ray (+ out at the holding hand's own side; the weapon's flat_ads_out on top)
+QVR_TUNABLE(vr_flat_ads_relief, "10") // the ironsight: how far from the eye the rear sight stands, along the sight line (3..30 units; the sights stay on the ray at any value). vr_flatsight.cpp solves the hand from the weapon's sight line
+QVR_TUNABLE(vr_flat_ads_screen_x, "0") // the ironsight: the whole sight picture moved right on the screen, percent of its height (-25..25; 0: the centre). The crosshair and the shots go with it
+QVR_TUNABLE(vr_flat_ads_screen_y, "0") // the same, up (negative: down)
 QVR_TUNABLE(vr_flat_ads_near, "24") // vr_flat_gun_near with the ironsight on, eased to it over the same seconds (8..60; 24: the same distance, so the ironsight changes nothing about it by default)
 QVR_TUNABLE(vr_flat_aim_fov, "40") // the flatscreen ironsight (vr_flat_aim, the mouse wheel's button; vr_flatsight.cpp): how many degrees the field of view narrows while it is on, on the view's own base fov (0..45; 0: the view stays wide). The look's speed keeps its measure (in_sdl.c IN_FovScale) and the HUD is unchanged
 QVR_TUNABLE(vr_flat_aim_time, "0.15") // the same ironsight: how long its whole travel takes, in seconds -- onto the crosshair, and back off it (0.05..1.00; 0: at once). The field of view is narrowed by vr_flat_aim_fov's degrees times how far that travel has gone, so the view closes and opens with the weapon instead of at the press
