@@ -1,6 +1,7 @@
 // vr_view.cpp -- see vr_view.hpp. Ported from the old engine's view.cpp (V_RenderView_*).
 
 #include "vr_view_internal.hpp"
+#include "vr_weaponstudio.hpp" // (vr_weaponstudio_viewFrame: its view-side markers, over this view)
 #include "vr_agarmor.hpp"
 #include "vr_axestick.hpp"
 #include "vr_kickcancel.hpp"
@@ -4876,6 +4877,7 @@ extern "C" void VR_SetupViewEntities()
         if(!posingNow)
         {
             sightalign::viewFrame(s); // Align Sights to My Aim: its samples, Show Sight Line
+            weaponstudio::viewFrame(s); // vr_weaponstudio: the muzzle, sight, shot and grip markers and their readouts
         }
         bodycal::viewFrame(s); // Body Calibration: its samples
         held::drawCarryProbes();
