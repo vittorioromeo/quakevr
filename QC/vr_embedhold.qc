@@ -478,9 +478,11 @@ float(entity p) VR_Embed_TetherShare =
 };
 
 float vr_embed_slidesounds; // (for the test: how many so far)
+float vr_embed_slidebloods; // (and how many spurts)
 
-// The blade `e` slid `xMoved` units: every so far, in or out, the flesh clip of that way, quieter.
-void(entity e, float xMoved, float xCm) VR_Embed_SlideSound =
+// The blade `e` slid `xMoved` units: every so far, in or out, the flesh clip of that way, quieter, and blood spurting out of
+// the wound (as VR_AxeStick_PulledOut's), in a live body or a corpse.
+void(entity e, float xMoved, float xCm) VR_Embed_SlideFlesh =
 {
     float every = cvar_hget(cvarh_vr_embed_slide_sound_cm) * xCm;
     if(every <= 0 || xMoved == 0)
@@ -493,6 +495,12 @@ void(entity e, float xMoved, float xCm) VR_Embed_SlideSound =
         VR_SoundVaried(e, CHAN_AUTO, xMoved > 0 ? "vr/blade_flesh_in.wav" : "vr/blade_flesh_out.wav", max(0, min(1, cvar_hget(cvarh_vr_embed_slide_sound_vol))), ATTN_NORM);
         e.vr_hold_sndgo = 0;
         vr_embed_slidesounds = vr_embed_slidesounds + 1;
+        float blood = cvar_hget(cvarh_vr_embed_slide_blood);
+        if(blood > 0 && VR_AxeStick_InMonster(e))
+        {
+            SpawnBlood(e.vr_stick_at, e.vr_stick_dir * -120, blood);
+            vr_embed_slidebloods = vr_embed_slidebloods + 1;
+        }
     }
 };
 
@@ -678,7 +686,7 @@ float() VR_Embed_HoldThink =
         float moved = e.vr_stick_slide - was;
         e.vr_hold_err = e.vr_hold_err - moved;
         // (Stopped by how far it goes, the hand past it is a gap as any other: coming back to the drawn hand does nothing.)
-        VR_Embed_SlideSound(e, moved, cm);
+        VR_Embed_SlideFlesh(e, moved, cm);
         if(moved > 0 && cvar_hget(cvarh_vr_embed_hold_slide_damage) > 0 && h.takedamage && h.health > 0)
         {
             e.vr_hold_owed = e.vr_hold_owed + moved / (10 * cm) * cvar_hget(cvarh_vr_embed_hold_slide_damage);

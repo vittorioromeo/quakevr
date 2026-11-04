@@ -306,6 +306,34 @@ void parseEvent()
     }
 }
 
+void parseBladeWound()
+{
+    const int blade = MSG_ReadShort();
+    const int body = MSG_ReadShort();
+    glm::vec3 at, dir;
+    for(int i = 0; i < 3; i++)
+    {
+        at[i] = MSG_ReadCoord(cl.protocolflags);
+    }
+    for(int i = 0; i < 3; i++)
+    {
+        dir[i] = static_cast<float>(MSG_ReadChar()) / 127.f;
+    }
+    const int strength = MSG_ReadByte();
+    if(vr_wounds_debug.value >= 2)
+    {
+        Con_Printf("wounds: received blade %d in %d, strength %d\n", blade, body, strength);
+    }
+    if(strength > 0)
+    {
+        bloodstream::onBladeWound(blade, body, at, dir, strength);
+    }
+    else
+    {
+        bloodstream::stopBladeWound(blade);
+    }
+}
+
 void parseClear()
 {
     Event ev;

@@ -1863,7 +1863,8 @@ QVR_TUNABLE(vr_embed_hold_sword_most, "90") // % of the blade it goes in at most
 QVR_TUNABLE(vr_embed_hold_corpse, "0.5") // times the stick in a dead body (the rate divided by it)
 QVR_TUNABLE(vr_embed_slide_sound_cm, "3") // cm a blade slides, in or out, between two flesh sounds (0: none)
 QVR_TUNABLE(vr_embed_slide_sound_vol, "0.35") // their volume
-QVR_TUNABLE(vr_embed_wound_blood, "8") // spurts a second running from an open wound with a blade in a living body (0: none)
+QVR_TUNABLE(vr_embed_slide_blood, "10") // how much blood spurts out of the wound at each of those steps, going in or out (0: none)
+QVR_TUNABLE(vr_embed_wound_stream, "1") // how hard the blood stream (vr_bloodstream.cpp) of a wound with a blade in a living body pours, unending until the blade is out (0: none)
 QVR_TUNABLE(vr_embed_hold_break, "45") // cm the hand may go off the axis before the blade comes free
 QVR_TUNABLE(vr_embed_hold_reach, "90.5") // cm the hand may have gone further from where the blade went in before it comes free (a limb moved away)
 QVR_TUNABLE(vr_embed_hold_reach_corpse, "4") // times that in a dead body (it falls away from the hand, the hold goes on)

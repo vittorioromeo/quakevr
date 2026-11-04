@@ -2,6 +2,7 @@
 float vr_eh_in0;   // case 6: how far in it was, and the gap to cross, as the pull right out began
 float vr_eh_sounds; // and its slide sounds, its wound's spurts as it was struck
 float vr_eh_spurts;
+float vr_eh_bloods;
 float vr_eh_travel; // units of pull so far
 // vr_embed_test.qc -- Embedded blades, stage 1 (ROUND23.md, "Embedded blades"; vr_axestick.qc, vr_axestick.cpp).
 // `vr_embed_test 1` (Debug > Tests > Embedded Blades; god, notarget, map vrtesthall, on your feet in the open): a thrown
@@ -263,6 +264,31 @@ void() VR_ET_Step =
         {
             float bled = vr_et_v - vr_et_m.health;
             VR_Test_Check(bled >= 3 && bled <= 8, sprintf("it bleeds it (%g in a second, the rate %g)", bled, cvar_hget(cvarh_vr_axestick_bleed)));
+            VR_Test_Check(bladewoundage(vr_et_w) > 0, sprintf("the wound runs its blood stream (for %.2f s)", bladewoundage(vr_et_w)));
+            VR_ET_To(7);
+        }
+        else if(vr_et_s == 7 && t > cvar_hget(cvarh_vr_gore_streams_time) * 1.25 + 0.2)
+        {
+            // (Longer than any stream lasts by itself; then out, and in again for what follows.)
+            VR_Test_Check(bladewoundage(vr_et_w) > cvar_hget(cvarh_vr_gore_streams_time) * 1.25, sprintf("it outlasts any timed one (pouring %.1f s; those at most %.1f s)", bladewoundage(vr_et_w), cvar_hget(cvarh_vr_gore_streams_time) * 1.25));
+            VR_AxeStick_Free(vr_et_w, '0 0 0');
+            VR_ET_To(8);
+        }
+        else if(vr_et_s == 8 && t > 0.1)
+        {
+            VR_Test_Check(bladewoundage(vr_et_w) == 0, sprintf("the blade out, it stops (%.2f s)", bladewoundage(vr_et_w)));
+            remove(vr_et_w);
+            vr_et_w = VR_ET_SwordAt(VR_ET_Chest(vr_et_m), 72, TRUE);
+            VR_ET_To(9);
+        }
+        else if(vr_et_s == 9 && VR_ET_Resolved(vr_et_w))
+        {
+            VR_Test_Check(VR_AxeStick_InMonster(vr_et_w) && vr_et_w.vr_stick_ent == vr_et_m, sprintf("it sticks in a live body again (kind %g)", vr_et_w.vr_stick_kind));
+            VR_ET_To(10);
+        }
+        else if(vr_et_s == 10 && t > 0.1)
+        {
+            VR_Test_Check(bladewoundage(vr_et_w) > 0, "that wound runs its own stream");
             vr_et_m.health = 1;
             T_Damage(vr_et_m, p, p, 2);
             VR_Test_Check(vr_et_m.health <= 0 && vr_et_m.modelindex != 0, "the body died whole");
@@ -270,6 +296,7 @@ void() VR_ET_Step =
         }
         else if(vr_et_s == 4 && t >= 1.2)
         {
+            VR_Test_Check(bladewoundage(vr_et_w) == 0, sprintf("the body dead, it stops though the blade stays in (%.2f s)", bladewoundage(vr_et_w)));
             VR_Test_Check(VR_AxeStick_IsStuck(vr_et_w) && vr_et_w.vr_stick_ent == vr_et_m, sprintf("it stays in the dead body (kind %g, solid %g)", vr_et_w.vr_stick_kind, vr_et_m.solid));
             vr_et_v = vr_et_m.health;
             vr_et_at = vr_et_w.vr_stick_at;
@@ -357,6 +384,7 @@ void() VR_ET_Step =
             vr_eh_in0 = vr_et_w.vr_stick_depth + vr_et_w.vr_stick_slide;
             vr_eh_travel = 0;
             vr_eh_sounds = vr_embed_slidesounds;
+            vr_eh_bloods = vr_embed_slidebloods;
             VR_ET_To(7);
         }
         else if(vr_et_s == 7 && VRGetEntWeapon(p, h) != WID_SWORD && vr_eh_travel < vr_eh_in0 + 12)
@@ -369,6 +397,7 @@ void() VR_ET_Step =
             VR_Test_Check(VRGetEntWeapon(p, h) == WID_SWORD, sprintf("pulled: it comes into the hand (holds %g)", VRGetEntWeapon(p, h)));
             VR_Test_Check(vr_eh_travel >= vr_eh_in0, sprintf("out only after a pull as long as it was in: %.1f units for %.1f", vr_eh_travel, vr_eh_in0));
             VR_Test_Check(vr_embed_slidesounds > vr_eh_sounds, sprintf("sliding out sounds (%g)", vr_embed_slidesounds - vr_eh_sounds));
+            VR_Test_Check(vr_embed_slidebloods > vr_eh_bloods, sprintf("sliding out of a corpse spurts blood (%g)", vr_embed_slidebloods - vr_eh_bloods));
             bprint(sprintf("embedpull: %.1f units in, the hand pulled %.1f, %g sounds\n", vr_eh_in0, vr_eh_travel, vr_embed_slidesounds - vr_eh_sounds));
             localcmd("-graboff\nvr_mock_hand_glide 0\n");
             VR_ET_To(8);
@@ -1123,7 +1152,8 @@ void() VR_EH_Step =
             vr_et_v2 = vr_et_m.health;
             vr_et_at = VRGetHandPos(h);
             vr_eh_sounds = vr_embed_slidesounds;
-            vr_eh_spurts = vr_embed_woundspurts;
+            vr_eh_bloods = vr_embed_slidebloods;
+            vr_eh_spurts = vr_embed_woundruns;
             vector a0 = vr_et_w.vr_stick_dir;
             VR_EH_HandTo(vr_et_at + a0 * 6, 0.3); // (6 units deeper)
             VR_ET_To(11);
@@ -1134,7 +1164,9 @@ void() VR_EH_Step =
             VR_Test_Check(VR_AxeStick_InMonster(vr_et_w) && VR_EH_Blade() == vr_et_w, "held still");
             VR_Test_Check(vr_et_m.health >= vr_et_v2 - 5, sprintf("sliding deeper deals nothing but the bleeding (%g to %g)", vr_et_v2, vr_et_m.health));
             VR_Test_Check(vr_embed_slidesounds > vr_eh_sounds, sprintf("sliding deeper sounds (%g)", vr_embed_slidesounds - vr_eh_sounds));
-            VR_Test_Check(vr_embed_woundspurts > vr_eh_spurts, sprintf("the wound runs (%g spurts)", vr_embed_woundspurts - vr_eh_spurts));
+            VR_Test_Check(vr_embed_slidebloods > vr_eh_bloods, sprintf("sliding deeper spurts blood (%g)", vr_embed_slidebloods - vr_eh_bloods));
+            VR_Test_Check(vr_embed_woundruns > vr_eh_spurts, sprintf("the wound runs (%g words)", vr_embed_woundruns - vr_eh_spurts));
+            VR_Test_Check(bladewoundage(vr_et_w) > 0, sprintf("its stream is pouring (for %.2f s)", bladewoundage(vr_et_w)));
             // Resistance: by how deep.
             float sShallow = VR_Embed_Stick(vr_et_w, 0, FALSE);
             float sDeep = VR_Embed_Stick(vr_et_w, 1, FALSE);
@@ -1161,10 +1193,19 @@ void() VR_EH_Step =
         else if(vr_et_s == 15 && t > 0.4)
         {
             VR_Test_Check(vr_et_w.vr_stick_slide == vr_et_v && VR_EH_Blade() == vr_et_w, sprintf("the real hand back to the drawn one moves nothing (%.2f to %.2f)", vr_et_v, vr_et_w.vr_stick_slide));
+            // Held on longer than any stream lasts by itself (kept alive to see it: the bleeding would kill it).
             vr_et_v2 = vr_et_m.health;
+            vr_et_m.health = 1000;
+            VR_ET_To(16);
+        }
+        else if(vr_et_s == 16 && t > cvar_hget(cvarh_vr_gore_streams_time) * 1.25 + 0.2)
+        {
+            VR_Test_Check(bladewoundage(vr_et_w) > cvar_hget(cvarh_vr_gore_streams_time) * 1.25, sprintf("its stream outlasts any timed one (pouring %.1f s; those at most %.1f s)", bladewoundage(vr_et_w), cvar_hget(cvarh_vr_gore_streams_time) * 1.25));
+            vr_et_m.health = vr_et_v2;
             vr_et_at = VRGetHandPos(h);
             vr_eh_in0 = vr_et_w.vr_stick_depth + vr_et_w.vr_stick_slide;
             vr_eh_sounds = vr_embed_slidesounds;
+            vr_eh_bloods = vr_embed_slidebloods;
             VR_EH_HandTo(vr_et_at - vr_et_w.vr_stick_dir * (vr_eh_in0 + 12), 1.6); // (slowly, right out)
             VR_ET_To(13);
         }
@@ -1173,6 +1214,7 @@ void() VR_EH_Step =
             VR_Test_Check(w == world && VRGetEntWeapon(p, h) == WID_SWORD, sprintf("pulled right out: free, in the hand (holds %g)", VRGetEntWeapon(p, h)));
             VR_Test_Check(vlen(VRGetHandPos(h) - vr_et_at) >= vr_eh_in0 - 0.5, sprintf("the hand pulled as far as it was in: %.1f units for %.1f", vlen(VRGetHandPos(h) - vr_et_at), vr_eh_in0));
             VR_Test_Check(vr_embed_slidesounds > vr_eh_sounds, sprintf("sliding out sounds (%g)", vr_embed_slidesounds - vr_eh_sounds));
+            VR_Test_Check(vr_embed_slidebloods > vr_eh_bloods, sprintf("sliding out spurts blood (%g)", vr_embed_slidebloods - vr_eh_bloods));
             vr_et_v = vr_et_m.health;
             VR_EH_HandTo(VRGetHandPos(h) - vr_eh_fw * 4, 0.05);
             VR_ET_To(14);
@@ -1180,6 +1222,7 @@ void() VR_EH_Step =
         else if(vr_et_s == 14 && t > 0.12)
         {
             VR_Test_Check(vr_et_m.health == vr_et_v, sprintf("pulling out struck nothing (%g to %g)", vr_et_v, vr_et_m.health));
+            VR_Test_Check(bladewoundage(vr_et_w) == 0, sprintf("the blade out, its stream stopped (%.2f s)", bladewoundage(vr_et_w)));
             VR_EH_NextCase();
         }
         return;
@@ -2466,6 +2509,93 @@ void() VR_ETS_Step =
     }
 };
 
+// `vr_embed_test 22`: the wound's blood stream (VR_AxeStick_WoundRun, vr_bloodstream.cpp), by itself: a blade's stick state put on
+// a grunt with no throw or stab (it thinks as the blade's think does), the stream read on the local client. Pouring; past any
+// timed stream; stopped by coming out, by being removed, by the body's death. Ends `embedstream: N passed, M failed`.
+entity(entity xBody) VR_ETW_Blade =
+{
+    entity b = spawn();
+    b.vr_stick_kind = AXESTICK_MONSTERBOX;
+    b.vr_stick_ent = xBody;
+    b.vr_stick_at = VR_ET_Chest(xBody);
+    b.vr_stick_dir = normalize(b.vr_stick_at - (self.origin + '0 0 22'));
+    return b;
+};
+
+void() VR_ETW_Step =
+{
+    float t = time - vr_et_t0;
+    float most = cvar_hget(cvarh_vr_gore_streams_time) * 1.25;
+    if(vr_et_w != world && vr_et_s != 4 && vr_et_s != 6)
+    {
+        VR_AxeStick_WoundRun(vr_et_w);
+    }
+    if(vr_et_s == 0)
+    {
+        vr_et_m = VR_ET_Grunt(72);
+        VR_ET_To(1);
+    }
+    else if(vr_et_s == 1 && t > 0.1)
+    {
+        vr_et_w = VR_ETW_Blade(vr_et_m);
+        VR_ET_To(2);
+    }
+    else if(vr_et_s == 2 && t > 0.2)
+    {
+        VR_Test_Check(bladewoundage(vr_et_w) > 0, sprintf("the wound runs its stream (for %.2f s, %g words)", bladewoundage(vr_et_w), vr_embed_woundruns));
+        // (The slide's step, by itself: the stabs of test 7 reach it in the hand.)
+        float cm = 0.01 * VRMetersToUnits();
+        float was = vr_embed_slidebloods;
+        VR_Embed_SlideFlesh(vr_et_w, cm, cm); // (a cm: short of a step)
+        VR_Test_Check(vr_embed_slidebloods == was, "a slide short of its step spurts nothing");
+        VR_Embed_SlideFlesh(vr_et_w, cvar_hget(cvarh_vr_embed_slide_sound_cm) * cm, cm);
+        VR_Test_Check(vr_embed_slidebloods == was + 1, "a step going in spurts blood");
+        VR_Embed_SlideFlesh(vr_et_w, cvar_hget(cvarh_vr_embed_slide_sound_cm) * -cm, cm);
+        VR_Test_Check(vr_embed_slidebloods == was + 2, "a step coming out spurts blood");
+        VR_ET_To(3);
+    }
+    else if(vr_et_s == 3 && t > most + 0.2)
+    {
+        VR_Test_Check(bladewoundage(vr_et_w) > most, sprintf("it outlasts any timed one (pouring %.1f s; those at most %.1f s)", bladewoundage(vr_et_w), most));
+        VR_AxeStick_Free(vr_et_w, '0 0 0');
+        VR_ET_To(4);
+    }
+    else if(vr_et_s == 4 && t > 0.1)
+    {
+        VR_Test_Check(bladewoundage(vr_et_w) == 0, sprintf("the blade out, it stops (%.2f s)", bladewoundage(vr_et_w)));
+        remove(vr_et_w);
+        vr_et_w = VR_ETW_Blade(vr_et_m);
+        VR_ET_To(5);
+    }
+    else if(vr_et_s == 5 && t > 0.2)
+    {
+        VR_Test_Check(bladewoundage(vr_et_w) > 0, "in again: it runs again");
+        remove(vr_et_w); // (no word: into the hand)
+        VR_ET_To(6);
+    }
+    else if(vr_et_s == 6 && t > 0.1)
+    {
+        VR_Test_Check(bladewoundage(vr_et_w) == 0, sprintf("the blade removed, it stops (%.2f s)", bladewoundage(vr_et_w)));
+        vr_et_w = VR_ETW_Blade(vr_et_m);
+        VR_ET_To(7);
+    }
+    else if(vr_et_s == 7 && t > 0.2)
+    {
+        VR_Test_Check(bladewoundage(vr_et_w) > 0, "in again: it runs again");
+        vr_et_m.health = 1;
+        T_Damage(vr_et_m, self, self, 2);
+        VR_ET_To(8);
+    }
+    else if(vr_et_s == 8 && t > 0.1)
+    {
+        VR_Test_Check(bladewoundage(vr_et_w) == 0, sprintf("the body dead, it stops though the blade is still in (%.2f s)", bladewoundage(vr_et_w)));
+        remove(vr_et_w);
+        vr_et_w = world;
+        VR_Test_Verdict();
+        vr_et_on = 0;
+    }
+};
+
 void() VR_Embed_TestFrame =
 {
     float ask = cvar_hget(cvarh_vr_embed_test);
@@ -2480,6 +2610,13 @@ void() VR_Embed_TestFrame =
         {
             VR_Test_BeginFlags("embedskewer", VR_TEST_LOUD);
             vr_et_on = 21;
+            VR_ET_To(0);
+        }
+        if(ask == 22)
+        {
+            VR_Test_BeginFlags("embedstream", VR_TEST_LOUD);
+            cvar_set("vr_embed", "1");
+            vr_et_on = 22;
             VR_ET_To(0);
         }
         if(ask == 1)
@@ -2605,6 +2742,19 @@ cvar_set("vr_hit_stagger", "0"); // (a blow's own chances: it's the blade's stag
         else
         {
             VR_ETS_Step();
+        }
+    }
+    else if(vr_et_on == 22)
+    {
+        if(time - vr_et_t0 > max(VR_ET_GIVEUP, cvar_hget(cvarh_vr_gore_streams_time) * 1.25 + 2))
+        {
+            VR_Test_Check(FALSE, sprintf("timed out: state %g", vr_et_s));
+            VR_Test_Verdict();
+            vr_et_on = 0;
+        }
+        else
+        {
+            VR_ETW_Step();
         }
     }
     else if(vr_et_on == 6)

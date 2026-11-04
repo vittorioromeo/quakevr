@@ -3890,7 +3890,8 @@ vr_embed_hold_sword_most|2|Tunables|Sword: Most In|Advanced VR Options > Debug >
 vr_embed_hold_corpse|2|Tunables|Dead Body: Stick|Advanced VR Options > Debug > Tunables > Dead Body: Stick
 vr_embed_slide_sound_cm|2|Tunables|Slide Sound: Every|Advanced VR Options > Debug > Tunables > Slide Sound: Every
 vr_embed_slide_sound_vol|2|Tunables|Slide Sound: Volume|Advanced VR Options > Debug > Tunables > Slide Sound: Volume
-vr_embed_wound_blood|2|Tunables|Wound Blood: Rate|Advanced VR Options > Debug > Tunables > Wound Blood: Rate
+vr_embed_slide_blood|2|Tunables|Slide Blood: Amount|Advanced VR Options > Debug > Tunables > Slide Blood: Amount
+vr_embed_wound_stream|2|Tunables|Wound Stream: Strength|Advanced VR Options > Debug > Tunables > Wound Stream: Strength
 vr_embed_hold_break|2|Tunables|Off the Axis: Breaks At|Advanced VR Options > Debug > Tunables > Off the Axis: Breaks At
 vr_embed_hold_reach|2|Tunables|Too Far: Breaks At|Advanced VR Options > Debug > Tunables > Too Far: Breaks At
 vr_embed_hold_reach_corpse|2|Tunables|Too Far: In a Dead Body|Advanced VR Options > Debug > Tunables > Too Far: In a Dead Body

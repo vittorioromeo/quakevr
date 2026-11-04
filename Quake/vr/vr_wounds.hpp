@@ -40,6 +40,9 @@ namespace qvr::wounds
 void parseEvent();
 // QVR_SVC_WOUNDCLEAR: the entity's wounds forgotten (removed on the server: the next one in its slot starts clean).
 void parseClear();
+
+// QVR_SVC_BLADEWOUND: the blood stream of the wound a blade is in runs on or stops (bloodstream::onBladeWound).
+void parseBladeWound();
 // QVR_SVC_WEAPONGONE: a weapon's record freed on the server (QC vr_weaponinst.qc): its blood forgotten.
 void parseWeaponGone();
 // The gore's burst (vr_gore.cpp's EventBurst: a monster gibbed, a gib bursting) at `org`, `size` times a gib's: its

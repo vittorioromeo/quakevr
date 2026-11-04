@@ -44,6 +44,51 @@ void sendWoundEvent(int num, const float* org, const float* dir, int kind, int a
     woundsSent[static_cast<za::SizeT>(num)] = 1;
 }
 
+// The wound a blade is in (QC VR_AxeStick_WoundRun; vr_bloodstream.cpp): void(entity blade, entity body, vector at, vector
+// dir, float strength) bladewound. Its blood stream runs on, unreliable, a word every so often; `strength` 0: it stops,
+// reliable. The blade's removal is sent as a wound's is (onEdictFree): that stops it too.
+void PF_bladewound()
+{
+    const float strength = G_FLOAT(OFS_PARM4);
+    sizebuf_t& msg = strength > 0.f ? sv.datagram : sv.reliable_datagram;
+    if(sv.state != ss_active || msg.cursize + 32 > (strength > 0.f ? MAX_DATAGRAM : msg.maxsize))
+    {
+        return;
+    }
+    const int blade = NUM_FOR_EDICT(G_EDICT(OFS_PARM0));
+    const float* at = G_VECTOR(OFS_PARM2);
+    const float* dir = G_VECTOR(OFS_PARM3);
+    MSG_WriteByte(&msg, protocol::svc_quakevr);
+    MSG_WriteByte(&msg, protocol::QVR_SVC_BLADEWOUND);
+    MSG_WriteShort(&msg, blade);
+    MSG_WriteShort(&msg, NUM_FOR_EDICT(G_EDICT(OFS_PARM1)));
+    for(int i = 0; i < 3; i++)
+    {
+        MSG_WriteCoord(&msg, at[i], sv.protocolflags);
+    }
+    for(int i = 0; i < 3; i++)
+    {
+        MSG_WriteChar(&msg, CLAMP(-127, static_cast<int>(dir[i] * 127.f), 127));
+    }
+    MSG_WriteByte(&msg, strength > 0.f ? CLAMP(1, static_cast<int>(strength * 100.f + 0.5f), 255) : 0);
+    if(strength > 0.f)
+    {
+        VR_BroadcastMessageEnd(); // a boundary (vr_server.cpp)
+    }
+    if(blade >= static_cast<int>(woundsSent.size()))
+    {
+        woundsSent.resize(static_cast<za::SizeT>(blade) + 1, 0);
+    }
+    woundsSent[static_cast<za::SizeT>(blade)] = 1;
+}
+
+// float(entity blade) bladewoundage: how long the stream of the wound this blade is in has been pouring, s (0: none). The
+// local client's (the test's).
+void PF_bladewoundage()
+{
+    G_FLOAT(OFS_RETURN) = bloodstream::bladeWoundAge(NUM_FOR_EDICT(G_EDICT(OFS_PARM0)));
+}
+
 // A gore sound (vr_goresound.cpp): float(float kind, entity e, vector at, float strength) goresound. `kind` QVR_GORESND_*,
 // `e` its entity (a choke's: the monster, whose cry is dropped for a moment), `strength` 0..1. Unreliable, to every
 // client. 1: sent; 0: not (vr_gore 0, vr_gore_sound 0, a choke too soon).
