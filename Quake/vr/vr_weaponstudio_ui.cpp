@@ -424,25 +424,21 @@ void aimPanel()
     // The window's own camera: the view flown out of his eyes, so the weapon he is holding and both hand poses can be
     // seen from outside. Its keys are the Rig Studio's and so are its orbit and zoom speeds; only its flying speed is
     // its own cvar.
-    ImGui::TextWrapped("The view, flown out of your eyes: W A S D ahead, left, back and right, Q E down and up, Shift "
-                       "3x; a middle-drag or an Alt+left drag orbits it round you, the wheel zooms. It is off until you "
-                       "press one -- while it is off the view is your own eyes, and nothing the game measures changes. "
-                       "Out past the mode's keep-near distance (vr_flat_gun_near) the drawn hands, the weapon and the "
-                       "crosshair stay with the body instead of following the view, so the held weapon and both hand "
-                       "poses are seen from outside; the markers here and the read-outs below are measured from your "
-                       "body, not from this camera. vr_weaponstudio camera reset, or the button in this window's top "
-                       "row, brings the view back without closing it.");
-    sameLine(300.f);
+    // One row, with the long story in its tip: what sits above the pages' list has to stay short, or that list's
+    // buttons are drawn past the bottom of the window and no click reaches them (the tool's own test clicks them).
     ImGui::SetNextItemWidth(220.f);
     float fly = vr_weaponstudio_fly_speed.value;
-    q_snprintf(textBuf, sizeof(textBuf), "camera fly speed##camfly");
+    q_snprintf(textBuf, sizeof(textBuf), "fly its camera out (W A S D, Q E, Shift 3x)##camfly");
     if(ImGui::DragFloat(textBuf, &fly, 4.f, 5.f, 600.f, "%.0f u/s"))
         Cvar_SetValueQuick(&vr_weaponstudio_fly_speed, za::clamp(fly, 5.f, 600.f));
-    tip("how fast the eye moves (vr_weaponstudio_fly_speed; Shift is 3x this)");
-    q_snprintf(textBuf, sizeof(textBuf), "its orbit and wheel: %.2f deg a pixel, %.2f of the distance a step "
-                                         "(the Rig Studio's)",
-               vr_rigstudio_orbit_speed.value, vr_rigstudio_zoom_speed.value);
-    ImGui::TextDisabled("%s", textBuf);
+    tip("how fast its eye moves (vr_weaponstudio_fly_speed; Shift is 3x this). A middle-drag or an Alt+left drag "
+        "orbits the view round you and the wheel zooms it, at the Rig Studio's vr_rigstudio_orbit_speed and "
+        "vr_rigstudio_zoom_speed. It is off until you press a key -- while it is off the view is your own eyes, and "
+        "nothing the game measures changes. Out past the mode's keep-near distance (vr_flat_gun_near) the drawn hands, "
+        "the weapon and the crosshair stay with the body instead of following the view, so the held weapon and both "
+        "hand poses are seen from outside; the markers here and the read-outs below are measured from your body, not "
+        "from this camera. vr_weaponstudio camera reset, or the button in this window's top row, brings the view back "
+        "without closing it.");
 
     for(int h = 1; h >= 0; h--)
     {

@@ -8278,3 +8278,92 @@ His words: "Please re-promote my current tuning." `Misc/quakevr/tune_promote.py`
   The eye-nudge cases read as the doc says: the drawn eye 22.0 above his origin and 28.0 with the nudges, his origin
   88.0 and 88.0. Held weapon at the shipped pose: `scratch/flatgun_1104.png` -- the shotgun in view, muzzle down the
   screen's middle, not buried in the view and not off its edge.
+
+## The Weapon Studio's camera, flown out of his eyes (branch `agent/wscam`, brief wscam)
+
+His words: "Please make it possible to freely move the camera away from the player's eyes while the vr_weaponstudio window
+is open, so that I can actually see the weapon being held and the hand poses." While its window is open he flies the drawn
+camera with W A S D and Q E (Shift 3x), orbits it with a middle-drag or an Alt+left drag and zooms it with the wheel; his
+own walking is paused while the window is open and given back exactly when it closes.
+
+- Where it lives: `camOn`, `camPos`, `camTurn`, `wantCamReset` -- four fields in the studio's own `struct State`
+  (`vr_weaponstudio_internal.hpp`), beside the window's `winX/winY/winW/winH` from the wsched round: file-scope state in
+  the tool's struct, no function-local static, no cvar holding a pose. `camOn` is **false** until he moves it, `openStudio`
+  clears it, and `VR_WeaponStudioView` returns 0 unless the window is open *and* it is on -- with the feature in the build
+  and untouched, every number the mode already prints is the number it printed before it.
+- The override: the camera is a world position plus a Quake-angles turn, anchored on his head eye (`hands::current().head`)
+  and written into the refdef by `VR_WeaponStudioView (origin, angles)` -- its own line in `V_CalcRefdef` in `Quake/view.c`
+  after `VR_RigStudioView` and `VR_FlatViewDrop`, `extern "C"` in `Quake/vr/vr_api.h`. `vr_mock_camera` plays no part: with
+  `-flatscreenmode` no backend starts, so the drawn view is the only view there is. Its bounds are its own: pitch clamped
+  to +-89 (`camPitchMax`), the eye kept within 4000 units of his head (`camDistMax`), the wheel's step 16 (`camZoomStep`).
+- The keys (`cameraInput()`, run from `clientFrame` before the window is drawn): W A S D and Q E fly it and Shift is 3x
+  that (`camFast`); a middle-drag or an Alt+left drag orbits it round him and the wheel zooms it, at the Rig Studio's
+  `vr_rigstudio_orbit_speed` and `vr_rigstudio_zoom_speed` -- reused as the brief asked, not new constants. It reads the
+  key twice over, `ImGui::IsKeyDown` *and* the game's kbuttons (`in_forward` ... `in_down`, `in_speed`, now declared in
+  `vr_engine.hpp`), so the console drives exactly the camera a hand drives. It reads nothing unless its window is open,
+  `key_dest == key_game`, no text box has the keyboard (`io.WantTextInput`) and Ctrl is not held; the mouse half waits for
+  `io.WantCaptureMouse`, so its widgets keep their own clicks and drags first.
+- His walking, paused and given back (`vr_input.cpp`): `VR_AdjustMove` returns with `*forwardmove`, `*sidemove`, `*upmove`
+  and `lastStickSpeed` all zero while `weaponstudio::active()`. Through a test fly `flatcam` still reads `origin 480.0
+  -352.0 88.1` -- he did not move. Nothing is saved to be restored, so `closeStudio` gives the movement back exactly: the
+  guard is simply no longer true.
+- Back to his eyes: its top row gained `camera back to my eyes` before `close`. It only sets `st.wantCamReset`, acted on in
+  `afterWindow` *after* `ImGui::End` -- the same wrap the title bar's `X` and `Escape` use, so no ImGui call happens inside
+  its own `Begin`. From the console the same thing is `vr_weaponstudio camera [print | reset | <x> <y> <z> | <pitch> <yaw>]`:
+  `print` reports the camera, `reset` is the button's path, `<x y z>` are units off his eyes in *his* view's frame (its
+  basis taken from his look), `<pitch yaw>` are added to his look. `vr_weaponstudio camera drag <right> <down>` runs the
+  same orbit a middle-drag runs -- it exists because `vr_imgui.cpp`'s `beginFrame` feeds only the left button to the mock
+  mouse, so a middle-drag cannot be fed from a test; the shared shim was left alone. Outside the window the command refuses:
+  "its camera belongs to the open window -- vr_weaponstudio open first". `closeStudio` calls `camBack` as it closes, so the
+  view is his eyes again and the next open starts off.
+- One new cvar: `QVR_CVAR(vr_weaponstudio_fly_speed, "120", CVAR_ARCHIVE)` in `Quake/vr/vr_cvars.inc`, its comment naming
+  what it flies and that its orbit and wheel belong to the Rig Studio's two. Its row is in the Studio's preferences row,
+  next to markers / crosshair / hold the game. The first version of that row -- a slider plus a wrapped explanation --
+  turned the tool's own self-test red (15 passed, 8 failed): content standing *above* `BeginChild("keys", ...)` pushes the
+  key rows outside the clip on a 960x540 screen, which is the wsched round's line, still commented at
+  `vr_weaponstudio_ui.cpp:677`. It is one row now: the slider, its label naming the keys, the rest on its hover `tip`.
+- What does not move with the camera: nothing that measures the body. The mode's keep-near rule (`vr_flat_gun_near`,
+  8..60, shipped 24) already holds the drawn hands, the weapon and the crosshair with the body once the drawn eye stands
+  further from his head than that, so a flown-out camera *looks at* the weapon instead of wearing it -- the same arms from
+  the same solver, the same markers in the same world places. Before and during a fly the mode's own `flatarm` probe reads
+  the same five numbers (off-wrist, past its arm, arm, shoulder-to-hand and `ik` within 0.2 u, bend within 0.5 u, `ik <= 1`),
+  and `vr_weaponstudio align both` printed `0.79 / -2.84 / -0.39 / 3.8 / 4.2` with the camera at his eyes and the identical
+  five with it 60 units out. The hold preview humanoid is drawn from the body the same way.
+- New suite `Misc/quakevr/wscam_test.sh`: **wscam: 23 passed, 0 failed**. Its 23 checks: the camera prints `off` and the
+  drawn eye is his head eye when its window opens (apart 0.05, off his head 0.00); `+forward` held 120 frames at 120 u/s
+  puts the drawn eye 77.46 units from his head (the printed fly is 120 u/s, his head has not moved, and the held weapon
+  leaves the eye's neighbourhood -- `flatview local` x 4.0 down to -53.2, the keep-near rule putting it back on the body);
+  the five arm numbers before and during that fly; `align both` printed twice and identical; a `camera 200 0 0` then
+  `camera drag 60 0` turns the view (yaw 90.00 to -114.00, its eye 561.35 -169.29) and the direction from that eye back to
+  his head is the turn it now holds, within 1.5 deg -- an orbit keeps him inside it; `camera 80 40 20` lands 91.65 out;
+  `camera reset` prints "weaponstudio: camera back to his eyes"; `vr_weaponstudio close` returns the view to his eyes
+  (apart 0.05 again, its `flatview` and `flatcam` numbers matching what they were before the window opened, within 0.5, and
+  his own origin unchanged) and the command refuses after it. No new instrumentation: it reads the studio's `camera print`
+  and the numbers FLATPLAY already prints (`flatview`, `flatarm`, `flatcam`).
+- Two things a test here has to know, both learned the hard way: the console wraps a long print, so a record is re-joined
+  by testing whether a line starts its tag (`^(weaponstudio|flat)`), and gawk reads a bare `/regexp/` passed to a function
+  as a *boolean* against `$0` ("regexp constant for parameter #2 yields boolean value") -- patterns have to travel as
+  strings. A frame-counted fly is not a fixed distance either: the same 120 frames at 120 u/s measured 57.67 once and 77.46
+  again, because the fly is driven by `io.DeltaTime` capped at 0.1 s a frame, so the check asks for at least 40 units.
+- Green where the brief asked for green: its in-game self-test `weaponstudio: 22 passed, 0 failed` -- its window cases (it
+  moves, it resizes to its minimum, it closes) live inside that self-test, and there is no separate `wsched_test.sh` in
+  `Misc/quakevr` -- and its shell harness `weaponstudio: 14 passed, 0 failed`. `flatplay: 27 passed, 1 failed`, the one red
+  his own known shotgun-grip hotspot case (11.7 units from the held hand), and `flatkeys: 24 passed, 4 failed`, his four
+  known `vr_flat_aim_time` ironsight-ease reds; run as a batch of four suites at once flatplay also showed the knight-punch
+  grip case and came back green in a run of its own. Built clean: `Done. 0 warnings`, `fgdgen: 378 entities, quakevr.fgd
+  covers every spawn function`, `built`. The numbers are written up in `scratch/results.txt`.
+- Screenshot `scratch/wscam.png` (and `scratch/wscam_full.png`, its first frame at the full 2400x1350): the shotgun held,
+  its Studio open -- top row showing `camera back to my eyes`, preferences row showing `120 u/s  fly its camera out (W A S D,
+  Q E, Shift 3x)` -- the camera flown 38.47 units out of his head (`camera -18 -30 16`: behind, to his left, above; the eye
+  450.00 -370.00 126.06) and turned 24.6 pitch / 338 yaw off his look. From there: his arm and hand and sleeve, and along
+  the held weapon its `Muzzle`, `Barrel` and `Sights` markers with the sight line, the white line the gun actually shoots,
+  and the `Grip` and `Fist` markers at the hands. Taken at 2400x1350 on purpose: the kit fixes its game window at 960x540
+  and the Studio opens at `min(1220, screen - 20)` by its own rule, so at 960x540 that window covers 940x520 of the frame
+  and the first attempts showed only wall texture in its margins. The run begins `vid_unlock; vid_width 2400; vid_height
+  1350; vid_restart` -- the kit's `-width`/`-height` lock the mode until `vid_unlock` -- which leaves a 1170 px strip at the
+  panel's right for the view. Nothing about the feature was changed for the picture.
+- Decisions the brief left open: the pose is kept in world space, anchored on his head eye, so it does not drift when he
+  turns his own view, and `camera <x y z>` is read in his view's frame because that is how he names a place to stand; the
+  orbit's and the wheel's speeds are the Rig Studio's two cvars rather than new ones; the Studio's fly row shows only the
+  new cvar and says the rest on hover, because its window has to fit the screen it is on; `vr_imgui.cpp` was not touched to
+  make a synthetic middle button feedable; and the refusal when its window is closed is a printed line, not an error.
