@@ -8443,3 +8443,59 @@ the second case. One gun of a kind in each hand stays no pass; a gun caught or p
 The carried hand-off (`VRHandOffWeapon`) needs none: the gun stays where it is, and carried guns are not `gun` here.
 
 `vr_debug_draw_blend` (Debug > Tests), which TESTING.md still described but the code had lost, prints a hand's blend per frame.
+
+## The two flatscreen red groups resolved: the ease is honoured, the shotgun's grip is his call (agent/flatfix, 2026-11-04)
+
+Five reds, one root cause each, both resolved by re-basing the test and writing the reason down: no engine line changed, no gate
+widened, no check deleted, no `vr_flat_*` default moved. `flatkeys 24/4 -> 28/0`, `flatplay 27/1 -> 28/0`, new
+`Misc/quakevr/flatfix_test.sh 19/0`, `flatpose 20/1 -> 20/1` (untouched, its red documented below), eval canary 38/44 with
+"0 differ from the baseline: CANARY OK", `Done. 0 warnings`. Numbers throughout: `armor/scratch/results.txt`.
+
+**The ironsight ease (flatkeys' 4 reds) does what its two numbers say.** One press, the shipped pair (`vr_flat_aim_fov 40`,
+`vr_flat_aim_time 0.15`), read off the per-frame `flatsight:` record: fov_x 106.26 -> 63.74 (42.52 deg taken off), fov_y 73.74 ->
+38.55 (35.19), across 11 drawn frames and 0.1389 s of the game's clock. Holding `vr_flat_aim_fov 12` so the depth is separable from
+the seconds, `vr_flat_aim_time` 0.05 / 0.25 / 1 / 0 measures 0.0416 s over 4 frames, 0.2361 s over 18, 0.7500 s over 55 (still
+closing when the press was let go 60 frames in, at fov 96.75), and 0 s over 1 frame. Holding `vr_flat_aim_time 0.25`,
+`vr_flat_aim_fov` 0 / 12 / 45 measures 0.00 / 11.87 / 48.44 deg. fov_x's drop is 1.063x the printed `vr_flat_aim_fov`, and the view
+lags `adsT` by one frame (`vr_flatsight.cpp` `fovNarrowNow()` 295, `frame()` 442, `aimSeconds()` 135 clamps to [0.05, 1] with 0
+instant). Nothing to fix in the engine: the four cases were red because 29577aa8e promoted his tuning (`vr_flat_aim_fov 12 -> 40`,
+`vr_flat_aim_time 0.25 -> 0.15`, `vr_flat_gun_fwd 17 -> 3.5`, among 29 tunables and 30 cvars) while their gates were written
+against 12 and 0.25. Each of the four runs now opens with `tune vr_flat_aim_fov 12;` so the case measures the pair its sentence
+names, the gates are byte for byte what they were (`12 14 22 0.18 0.30`, `12 1 2 0 0.03`, the `midway` helper, `12 3 6 0.03 0.07`),
+and every case ends on `tune_reset` so no tuning carries. Re-base dated 2026-11-04 in the case comments.
+
+**The shotgun's grip hotspot (flatplay's red) is where his promoted pose puts it.** At the shipped pose the shotgun's nearest grip
+hotspot is `11.7 units from the held hand (fwd 11.6, right -0.8, up -1.1 of it)`, `4.8 units off its grip` against
+`vr_twohand`'s `gripTakeUnits` 5.50, dot 0.99 against the 0.65 it needs, `hands 11.7 apart`, `muzzle 14.0 off the held hand` -- so
+the free hand closes onto it (`2h grip: off hand took it`, `helpKind 1, transition 1.00`) as it does on the launcher's. Tuning
+`vr_flat_gun_fwd` 17 alone puts it `4.9 units from the held hand (fwd -3.2, right 0.2, up -3.7 of it)` and the mode says `no grip
+there a second hand can take`. Only that one knob moves it: the launcher reads `fwd 12.5` at 5 and at 17 alike and its hold is
+taken in both (0.0 off the support hand at 5, 5.3 at 17), the proximity gun's `fwd 12.8` likewise. The mechanism is
+`chooseGrip()` (`vr_view_weapon.cpp` 987-1050: the offered hotspot is the one nearest the free hand's support pose, less its
+`bias`; `s.grip2H[hand]` at 1023) feeding flatsight's carry gate (`vr_flatsight.cpp` ~542, `st.gripFwd >
+vr_2h_angle_threshold * st.gripReach`). Which change put it there: 29577aa8e's 17 -> 3.5, re-promoted to 5 by f75ad8048. A hold
+already closed is not re-evaluated until the weapon changes -- pickup at 5 then tune 17 leaves `fwd 11.6` and `off hand on the grip
+already closed: no hold`, tune 17 first gives -3.2 and no hold (`scratch/grip_order_probe.sh`), which is why case 8 now tunes
+before the gun is picked up; its check text says so. The support pose was not touched to show any of it: both runs print
+`an empty hand 5 13 7, a supporting hand 12 11 5`.
+
+**Both options for the grip, with the numbers they have to live with -- his decision, made by him, not by me.** (a) Narrow the
+support-pose rule: a blanket "ahead -> not taken" cannot work, because the rocket launcher's hotspot stands 12.5 units ahead and
+the proximity gun's 12.8 ahead and both holds are green today, while the shotgun's is 11.6 ahead; distance from the held hand
+(11.7 / 12.6 / 12.9) separates them no better, so the discriminator would have to be the hotspot's kind and stickiness (`bias`,
+`grip2HCup`/`grip2HPalm`) rather than geometry -- the shotgun passes today with 0.70 units of slack (4.8 against 5.50) and the
+launcher at 17 with 0.2 (5.3 against 5.50), so any narrowing has to be that thin. (b) Move the shotgun's hotspot: slot 1's
+`hs1..hs4_x/y/z` and `hs*_bias` in `quakevr/data/weapons.txt`; ~0.7 units further out of the support hand's reach ends the hold
+with nothing else changed, and 14.8 units along -fwd (the 12 the pose moved plus the 2.8 the reading changed: -3.2 at 17, +11.6 at
+5) restores the geometry the rule was written against. His comfort numbers stay shipped either way.
+
+**The new harness** is `Misc/quakevr/flatfix_test.sh` (`flatfix: 19 passed, 0 failed`): five flatscreen runs -- `ease_ship` pins the
+shipped pair against the numbers the same run's `vr_flatplay_status` prints (42.52 deg against the printed 40, 0.1389 s against the
+printed 0.15), `ease_time` the four times (0.05, 0.25, 1, 0) with the frame count rising in step and strictly ordered, `ease_fov`
+0/12/45 strictly ordered too, `grip_ship` all three guns ahead of the held hand and all three holds taken at the shipped pose,
+`grip_gun17` the shotgun behind it and left alone while the launcher's and proximity gun's holds stay taken, plus the same support
+pose printed in both grip runs. `FLATFIX_DRY=1` re-reads a captured run instead of starting the game.
+
+**Documented red, hidden by nothing:** `flatpose: FAIL near: the gun at the camera is not cut as the desktop's near plane cuts it`
+("a gun at the camera: two frames at the pinned pose differ by 9.85 a channel, the desktop's near plane against them by 16.34"),
+20 passed, 1 failed before and after, identical lines. It is not in either group and I did not touch it.
