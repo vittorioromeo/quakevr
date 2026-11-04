@@ -83,6 +83,7 @@ struct FlatState
     // The game's pose (poseHands): each hand's place off its shoulder in the view's own frame (forward, right, up), eased
     // from one pose to the next (a weapon taken, a punch). In the view's frame, so the hands stay locked to the view.
     glm::vec3 local[2]{glm::vec3{0.f}, glm::vec3{0.f}};
+    float hang[2]{0.f, 0.f}; // how far an empty hand has gone to hanging at rest (poseHands)
     bool localSeen[2]{false, false};
     double lastTime{-1e9};
 
@@ -294,6 +295,7 @@ constexpr float grabReach = 12.f;
 
 // Easing from one pose to the next (a weapon taken, a punch, a reach), in the view's frame.
 constexpr float handEase = 15.f;
+constexpr float hangPitch = 60.f; // an empty hand at rest: its fingers this far below level (degrees)
 
 // V's punch and E's reach last this long after the press (vr_flatplay_status).
 constexpr float punchTotal = punchWind + punchStrike + punchDwell + punchBack;
@@ -365,7 +367,7 @@ constexpr float punchTotal = punchWind + punchStrike + punchDwell + punchBack;
     return bones * za::max(1.f, vr_body_arm_stretch.value) + za::max(0.f, vr_body_shoulder_reach.value) * m2w;
 }
 
-// Where a hand sits relative to its shoulder, in the view's frame: the held weapon's pose (vr_flat_gun_fwd / _down /
+// Where a hand sits relative to its shoulder, in the view's frame: the held weapon's pose (vr_flat_gun_ahead / _down /
 // _out), the free hand's next to the other hand's gun (vr_flat_support_*), an empty hand's (vr_flat_empty_*). Positive
 // is forward, out at that hand's own side, and down (the z term reads the negative of the cvar, which is why the cvars
 // read "how far below": a bigger number is a lower hand, as it was when these were the constants). vr_flat_reach
@@ -375,7 +377,7 @@ constexpr float punchTotal = punchWind + punchStrike + punchDwell + punchBack;
     const float side = h == HAND_OFF ? -1.f : 1.f;
     if(heldIn(h) >= 0)
     {
-        return {poseNum(vr_flat_gun_fwd) * reach, side * poseNum(vr_flat_gun_out) * reach, -poseNum(vr_flat_gun_down) * reach};
+        return {poseNum(vr_flat_gun_ahead) * reach, side * poseNum(vr_flat_gun_out) * reach, -poseNum(vr_flat_gun_down) * reach};
     }
     if(otherHolds)
     {
@@ -859,6 +861,7 @@ void init()
     Cmd_AddCommand("+flatcrouch", crouchHold_f); // Left Ctrl's hold, the console's way (a bind or a script can hold it)
     Cmd_AddCommand("-flatcrouch", crouchRelease_f);
     Cmd_AddCommand("vr_flat_punch", punch_f);
+    Cmd_AddCommand("vr_flat_orbit", orbit_f);
     flatsight::init(); // vr_flat_aim, the ironsight (vr_flatsight.cpp): registered either way, so a headset run can be
                        // told it is flatscreen play only
 }
@@ -963,6 +966,24 @@ void poseHands(hands::State& s, const glm::vec3& aim)
         s.pos[h] = shoulder(s, h) + nudge + fwd * off.x + right * off.y + up * off.z;
         s.rot[h] = aimRotAtCrosshair(aim, h);
         s.rot[h].z += vr_fakevr_handroll.value;
+
+        // An empty hand at rest hangs from its shoulder whatever the look: level with the body, its fingers down, not out
+        // in front of him pointing where he looks. Not while it does anything: a punch, E's reach, a grip it is going to.
+        const bool hangs = heldIn(h) < 0 && !punching(h) && (h != HAND_OFF || glm::length(grabOffset()) <= 0.f) &&
+                           !(flatsight::adsHelper(h));
+        if(dt > 0.0)
+        {
+            fs.hang[h] += ((hangs ? 1.f : 0.f) - fs.hang[h]) * ease(handEase, static_cast<float>(dt));
+        }
+        if(fs.hang[h] > 0.f)
+        {
+            glm::vec3 levelFwd, levelRight, levelUp;
+            hands::angleVectors({0.f, aim.y, 0.f}, levelFwd, levelRight, levelUp);
+            const glm::vec3 level = shoulder(s, h) + nudge + levelFwd * off.x + levelRight * off.y + levelUp * off.z;
+            s.pos[h] += (level - s.pos[h]) * fs.hang[h];
+            s.rot[h].x += (hangPitch - s.rot[h].x) * fs.hang[h];
+            s.rot[h].z *= 1.f - fs.hang[h];
+        }
     }
 
     // The ironsight and the free hand on a grip (vr_flatsight.cpp): over the pose just made, with E's reach for the
@@ -1156,6 +1177,16 @@ glm::vec3 eyeNudge(const glm::vec3& aim)
     return camShiftWorld(aim);
 }
 
+Orbit orbit;
+
+// vr_flat_orbit [yaw] [distance] [down]: the drawn view off him, looking back at his pose. No arguments: back in his eyes.
+void orbit_f()
+{
+    orbit.yaw = Cmd_Argc() > 1 ? Q_atof(Cmd_Argv(1)) : 0.f;
+    orbit.dist = Cmd_Argc() > 1 ? za::max(30.f, Cmd_Argc() > 2 ? static_cast<float>(Q_atof(Cmd_Argv(2))) : 44.f) : 0.f;
+    orbit.down = Cmd_Argc() > 3 ? Q_atof(Cmd_Argv(3)) : 8.f;
+}
+
 void printMove(const hands::State& s)
 {
     // The main hand's shot as the move sends it (its weapon's Shot Pitch and Yaw on the hand's angles) against the view
@@ -1220,7 +1251,7 @@ void status_f()
                "    vr_flat_reach %g times their size; a bigger _down is the lower hand\n"
                "    the drawn view counts as his own eyes while it stands within %g of his head (vr_flat_gun_near),\n"
                "    eased to %g while the ironsight is on (vr_flat_ads_near).\n",
-        poseNum(vr_flat_gun_fwd), poseNum(vr_flat_gun_down), poseNum(vr_flat_gun_out),
+        poseNum(vr_flat_gun_ahead), poseNum(vr_flat_gun_down), poseNum(vr_flat_gun_out),
         poseNum(vr_flat_empty_fwd), poseNum(vr_flat_empty_down),
         poseNum(vr_flat_empty_out), poseNum(vr_flat_support_fwd), poseNum(vr_flat_support_down),
         poseNum(vr_flat_support_out), za::clamp(vr_flat_reach.value, 0.25f, 3.f), keepNear(),
@@ -1307,6 +1338,27 @@ extern "C" void VR_FlatViewDrop(float* vieworg, const float* viewangles)
     vieworg[0] += nudge.x;
     vieworg[1] += nudge.y;
     vieworg[2] += nudge.z - qvr::flatplay::crouchDrop();
+}
+
+// V_CalcRefdef, after it: vr_flat_orbit's camera, off him: looking at his own pose from `yaw` degrees round the view, `dist`
+// units off (Debug > Reports). A drawn view that far from his head is not his own eyes (viewIsHisOwn): the hands, the gun and
+// the crosshair's ray stay as his head has them, so what is drawn is the pose he plays with.
+extern "C" void VR_FlatOrbitView(float* vieworg, float* viewangles)
+{
+    if(!qvr::flatplay::active() || chase_active.value || qvr::flatplay::orbit.dist <= 0.f)
+    {
+        return;
+    }
+    const float yaw = viewangles[1] + qvr::flatplay::orbit.yaw;
+    const glm::vec3 fwd = qvr::hands::forward({0.f, yaw, 0.f});
+    for(int i = 0; i < 3; i++)
+    {
+        vieworg[i] += fwd[i] * qvr::flatplay::orbit.dist;
+    }
+    vieworg[2] -= qvr::flatplay::orbit.down;
+    viewangles[0] = 0.f;
+    viewangles[1] = yaw + 180.f;
+    viewangles[2] = 0.f;
 }
 
 // Quake/host.c's Host_WriteConfigurationToFile, before Key_WriteBindings: flatscreen play's Ctrl bind given back so the

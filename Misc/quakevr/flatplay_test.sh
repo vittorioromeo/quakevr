@@ -28,7 +28,7 @@
 #      grip stands where a second hand can reach it (the rocket launcher's, the proximity gun's: vr_twohand takes the hold,
 #      helpKind 1) and left on the mode's support pose when it does not (the shotgun's stands behind the held hand). None
 #      of it runs in the headset: vr_flat_aim says the mode is not running, and no ironsight, grip or eye-nudge line prints.
-#   7. the pose numbers and the eye's nudges, all of them Debug-menu rows now (vr_flat_gun_fwd/_down/_out/_near,
+#   7. the pose numbers and the eye's nudges, all of them Debug-menu rows now (vr_flat_gun_ahead/_down/_out/_near,
 #      vr_flat_ads_relief/_screen_x/_screen_y/_near, vr_flat_empty_* and vr_flat_support_*, vr_flat_cam_fwd/_up/_side): the held
 #      weapon's place moves where he drives it and stops at its clamp, the ironsight's own set carries the weapon aside
 #      on top of the pose it aligned to, and none of it moves the shot -- every shot stays on the crosshair, which is
@@ -199,16 +199,16 @@ offasked() { awk '{ for (i = 1; i <= NF; i++) { if ($i == "crosshair") a = $(i+3
 # The last record's "crosshair B -> A" pair (a class's first records are stale: the pose and its probe run before the
 # view is made, as in the fov reads above).
 muzzle() { awk '{ for (i = 1; i <= NF; i++) if ($i == "crosshair") { b = $(i+1) + 0; a = $(i+3) + 0 } } END { printf "%.2f %.2f", b + 0, a + 0 }'; }
-# 10: the hipfire pose, moved and clamped. The defaults first, then vr_flat_gun_fwd 26 / _down 4 / _out 8 / _near 14,
-# then 999 asked for both (vr_flat_gun_fwd stops at 30, vr_flat_gun_near at 60: vr_flatplay_status prints what the code
+# 10: the hipfire pose, moved and clamped. The defaults first, then vr_flat_gun_ahead 26 / _down 4 / _out 8 / _near 14,
+# then 999 asked for both (vr_flat_gun_ahead stops at 30, vr_flat_gun_near at 60: vr_flatplay_status prints what the code
 # reads). Standing still, so the muzzle's distance off the ray is the pose's own, with nothing centring it.
 log=$HERE/scratch/flatpose.log
-bash $KIT/run.sh $AGENT -Low -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; god; notarget; developer 1; r_norefresh 0; vr_mock_eye_size 256; setpos 480 -352 88 0 0 0; impulse 154; wait25; vr_flatplay_debug 2; wait30; tune vr_flat_gun_fwd 26; tune vr_flat_gun_down 4; tune vr_flat_gun_out 8; tune vr_flat_gun_near 14; wait30; tune vr_flat_gun_fwd 999; tune vr_flat_gun_near 999; wait15; vr_flatplay_status; tune_reset; toggleconsole; quit" -Filter "^flatsight:|^flataim:|held weapon|of his head" > "$log" 2>&1
+bash $KIT/run.sh $AGENT -Low -ExtraArgs "-flatscreenmode" -Script "map e1m1; wait60; god; notarget; developer 1; r_norefresh 0; vr_mock_eye_size 256; setpos 480 -352 88 0 0 0; impulse 154; wait25; vr_flatplay_debug 2; wait30; tune vr_flat_gun_ahead 26; tune vr_flat_gun_down 4; tune vr_flat_gun_out 8; tune vr_flat_gun_near 14; wait30; tune vr_flat_gun_ahead 999; tune vr_flat_gun_near 999; wait15; vr_flatplay_status; tune_reset; toggleconsole; quit" -Filter "^flatsight:|^flataim:|held weapon|of his head" > "$log" 2>&1
 read -r p0b p0a <<<"$(recs "$log" | grep -a "^flatsight: " | head -6 | muzzle)"
 read -r p1b p1a <<<"$(recs "$log" | grep -a "^flatsight: " | tail -6 | muzzle)"
 deg=$(grep -a "^flataim: " "$log" | tail -n +8 | shotdeg)
 grep -a "^  where the weapon" "$log" | sed 's/^/  /'
-echo "  muzzle off the crosshair's ray, nothing centring it: $p0b units with the defaults, $p1b with vr_flat_gun_down 4 _out 8 and vr_flat_gun_fwd at its 30 clamp (999 asked for); the shots at most ${deg% *} deg off the point the crosshair is on ($deg records, $log)"
+echo "  muzzle off the crosshair's ray, nothing centring it: $p0b units with the defaults, $p1b with vr_flat_gun_down 4 _out 8 and vr_flat_gun_ahead at its 30 clamp (999 asked for); the shots at most ${deg% *} deg off the point the crosshair is on ($deg records, $log)"
 check $(grep -q "held weapon 30 4 8" "$log" && grep -q "within 60 of his head" "$log" && echo 1 || echo 0) "flatscreen pose: the numbers are his to drive and stop at their clamp (999 reads as 30 and 60 in the code)"
 check $(awk -v b="$p0b" -v c="$p1b" -v d="${deg% *}" -v n="${deg#* }" 'BEGIN { exit !(b > 0 && c > 0 && (c - b > 1 || b - c > 1) && n > 20 && d <= 0.1) }' && echo 1 || echo 0) "flatscreen pose: the held weapon's place moves with the numbers and every shot stays on the crosshair"
 # 11: the ironsight's eye relief: the muzzle stands where the gun solved from its sight line has it, at full

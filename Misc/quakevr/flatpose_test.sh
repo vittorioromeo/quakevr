@@ -5,7 +5,7 @@
 # east and no pitch, the shotgun in the main hand (impulse 154), and prints what it read rather than gating it:
 #   a. the defaults: the muzzle's distance off the crosshair's ray with the ironsight off, then with it settled on, and
 #      the field of view it settles at (vr_flat_aim_fov 12);
-#   b. the hipfire pose moved (vr_flat_gun_fwd 26 vr_flat_gun_down 4 vr_flat_gun_out 8 vr_flat_gun_near 14): the muzzle's
+#   b. the hipfire pose moved (vr_flat_gun_ahead 26 vr_flat_gun_down 4 vr_flat_gun_out 8 vr_flat_gun_near 14): the muzzle's
 #      place, and the direction the shots go (flatmove:'s degrees off the view), which the pose is not allowed to move;
 #   c. the ironsight's own numbers moved (vr_flat_ads_relief 16, the picture at vr_flat_ads_screen_x 2 _y -2): the muzzle's distance off
 #      the ray, and the damage to a knight standing on the crosshair 24 units away (not forward: a hand further forward
@@ -61,11 +61,11 @@ echo "  defaults: the muzzle $off0 units off the crosshair's ray with the ironsi
 
 # b. the hipfire pose moved, the ironsight off so the measure is the pose's own.
 log=$HERE/scratch/pose_gun.log
-bash $KIT/run.sh $AGENT -Low -ExtraArgs "-flatscreenmode" -Script "$P; wait60; vr_flatplay_debug 2; wait30; tune vr_flat_gun_fwd 26; tune vr_flat_gun_down 4; tune vr_flat_gun_out 8; tune vr_flat_gun_near 14; wait40; vr_flatplay_status; wait; tune_reset; toggleconsole; quit" -Filter "^flatsight: |^flataim: |^  where the weapon" > "$log" 2>&1
+bash $KIT/run.sh $AGENT -Low -ExtraArgs "-flatscreenmode" -Script "$P; wait60; vr_flatplay_debug 2; wait30; tune vr_flat_gun_ahead 26; tune vr_flat_gun_down 4; tune vr_flat_gun_out 8; tune vr_flat_gun_near 14; wait40; vr_flatplay_status; wait; tune_reset; toggleconsole; quit" -Filter "^flatsight: |^flataim: |^  where the weapon" > "$log" 2>&1
 read -r g0 g1 <<<"$(recs "$log" | grep -a "^flatsight: " | grep -a "ads off" | tail -4 | muzzle)"
 deg=$(shotdeg "$log")
 grep -a "^  where the weapon" "$log" | head -1 | sed 's/^/  status:/' | cut -c1-400
-echo "  vr_flat_gun_fwd 26 vr_flat_gun_down 4 vr_flat_gun_out 8 vr_flat_gun_near 14: the muzzle $g0 units off the crosshair's ray (it was $off0 at the defaults); the shots over the run at most ${deg% *} deg off the point the crosshair is on, over ${deg#* } records, $log"
+echo "  vr_flat_gun_ahead 26 vr_flat_gun_down 4 vr_flat_gun_out 8 vr_flat_gun_near 14: the muzzle $g0 units off the crosshair's ray (it was $off0 at the defaults); the shots over the run at most ${deg% *} deg off the point the crosshair is on, over ${deg#* } records, $log"
 check $(awk -v d="${deg% *}" -v n="${deg#* }" 'BEGIN { exit !(n > 20 && d <= 0.1) }' && echo 1 || echo 0) "pose: moved, and every shot still points at what the crosshair is on"
 
 # c. the ironsight's own numbers moved, onto a knight standing on the crosshair 24 units away. Three shots, each at a fresh
@@ -155,14 +155,14 @@ read -r coff caway con <<<"$(pointline 10)"
 check $(awk -v o="${coff:-0}" -v p="${con:-1}" 'BEGIN { exit !(o > 8) }' && echo 1 || echo 0) "point: the control: the picture moved further, the shot along the view, and it passes ${coff:-?} units off the crosshair's point"
 
 # g. The near plane at a gun held at the camera: a close pose pinned here ($CLOSE), the ironsight on -- the pose his
-# 2026-11-03 tuning shipped (vr_flat_gun_fwd 3.5 with the eye nudged 3.5 forward and up, which puts the gun at the drawn
+# 2026-11-03 tuning shipped (vr_flat_gun_ahead 3.5 with the eye nudged 3.5 forward and up, which puts the gun at the drawn
 # eye). His 2026-11-04 tuning ships gun_fwd 5 with no nudge, and that pose leaves the gun well out from the eye: the case
 # keeps its own numbers rather than following the defaults, because what it measures is a gun standing at the near plane.
 # Two frames at the pinned pose, and
 # one with vr_nearclip 4 and vr_nearclip_held 0, the desktop's plane this mode drew at. Without the mode's near plane
 # (VR_FlatNearPlane) vr_nearclip does nothing here: the third frame reads as the first and the check fails.
 log=$HERE/scratch/pose_near.log
-CLOSE="tune vr_flat_gun_fwd 3.5; tune vr_flat_gun_down 10; tune vr_flat_gun_out 2; tune vr_flat_ads_relief 3; tune vr_flat_aim_fov 40; tune vr_flat_aim_time 0.15; tune vr_flat_cam_fwd 3.5; tune vr_flat_cam_up 3.5; tune vr_flat_bob 0"
+CLOSE="tune vr_flat_gun_ahead 3.5; tune vr_flat_gun_down 10; tune vr_flat_gun_out 2; tune vr_flat_ads_relief 3; tune vr_flat_aim_fov 40; tune vr_flat_aim_time 0.15; tune vr_flat_cam_fwd 3.5; tune vr_flat_cam_up 3.5; tune vr_flat_bob 0"
 bash $KIT/run.sh $AGENT -Low -Clean -ExtraArgs "-flatscreenmode" -Script "$P; wait60; $CLOSE; vr_flat_aim 1; wait40; vr_flatplay_status; screenshot; wait2; screenshot; vr_nearclip 4; vr_nearclip_held 0; wait2; screenshot; toggleconsole; quit" -Full -Filter "near plane" > "$log" 2>&1
 SHOTS="$KIT/bases/$AGENT/qbase/quakevr/screenshots"
 mapfile -t near < <(ls -tr "$SHOTS"/*.png | tail -3)

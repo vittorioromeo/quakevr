@@ -96,6 +96,16 @@ void crosshairRay(const hands::State& s, const glm::vec3& aim, glm::vec3& org, g
 // drawn body measures whether the view is inside its head from the eye it nudges (vr_avatar.cpp).
 [[nodiscard]] glm::vec3 eyeNudge(const glm::vec3& aim);
 
+// vr_flat_orbit: the drawn view off him, looking back at his own pose (a test aid: Debug > Reports).
+struct Orbit
+{
+    float yaw{0.f};  // degrees round from the view's forward
+    float dist{0.f}; // units off (0: in his eyes)
+    float down{8.f}; // units below his eyes
+};
+extern Orbit orbit;
+void orbit_f();
+
 // Tests (vr_flatplay_debug 2): the drawn weapon in the camera's frame, a line a frame.
 void printDrawn(const float* origin, const float* angles);
 

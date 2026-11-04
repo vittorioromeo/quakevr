@@ -28,7 +28,7 @@ player at all: held weapons, the force grab, melee, the holsters, body touches.
 **The arms are posed by the game** (`flatplay::poseHands`, called from `Quake/vr/vr_hands.cpp` in place of the old
 straight-out-in-front pose). The pose is built from the view angles, the weapon in each hand and the player's own motion:
 
-- a held weapon sits out in front of the chest, on the centre line; an empty hand hangs at its side; the free hand
+- a held weapon sits out in front of the chest, on its own side, the elbow bent; an empty hand hangs at its side whatever the look (fingers down, level with the body: `hangPitch`, until it punches, reaches or goes to a grip); the free hand
   rests near the other hand's gun;
 - the hands are turned so the weapon in them shoots along the crosshair, whatever that weapon's Shot Pitch and Yaw
   (`aimRotAtCrosshair` inverts `weapons::shotAngles`), and a gun points from its muzzle at what the crosshair is on
@@ -209,16 +209,16 @@ default), read in the view's own frame and clamped at the read (`poseNum`: -30..
 `vr_flatplay_status` prints the pose and the eye's place, and `vr_flatplay_debug 2` prints them every frame (`flatsight:`,
 `flatcam:`, `flatmove:`).
 
-**The held weapon** â€” **Flatscreen Gun Forward** (`vr_flat_gun_fwd`, 5), **Flatscreen Gun Down** (`vr_flat_gun_down`, 10), **Flatscreen Gun Out**
-(`vr_flat_gun_out`, 2): how far out in front of the chest the gun sits, how far below the chest, and how far to one side.
+**The held weapon** â€” **Flatscreen Gun Forward** (`vr_flat_gun_ahead`, 14), **Flatscreen Gun Down** (`vr_flat_gun_down`, 12), **Flatscreen Gun Out**
+(`vr_flat_gun_out`, 4): how far out in front of the chest the gun sits, how far below the chest, and how far to one side.
 Forward is along the look; *down* is written as a positive number of units *below*, and *out* as a positive number of units
 *away from the body's centre line* â€” the main hand's right, the off hand's left, which is the side `twohand` measures its
 grips to. Each is scaled by `vr_flat_reach`, as the pose always was. **Flatscreen Gun With The Crosshair** (`vr_flat_gun_near`, 24, 8..60) is how
 far the drawn view may stand from his head and still carry the gun with it; below that the gun is left on his body while the
 view comes down, which is what a small `vr_flat_crouch_drop` with a small keep distance looks like.
 
-**The empty hand** (`vr_flat_empty_fwd` 5, `vr_flat_empty_down` 13, `vr_flat_empty_out` 7) hangs at its side, and **the
-free hand's rest** near the other hand's gun (`vr_flat_support_fwd` 12, `vr_flat_support_down` 11, `vr_flat_support_out` 5)
+**The empty hand** (`vr_flat_empty_fwd` 5, `vr_flat_empty_down` 15, `vr_flat_empty_out` 7) hangs at its side, and **the
+free hand's rest** beside him while the other hand has a gun (`vr_flat_support_fwd` 6, `vr_flat_support_down` 15, `vr_flat_support_out` 6)
 is where it waits before a grip takes it. Neither is a look bolted on: the empty hand still travels onto the held weapon's
 two-hand hotspot (`pinToGrip`, `helpKind 1`) and `twohand::apply` still runs over the pose, so the two-handed grip, its
 `helpKind` and its transition are the game's own whatever these are set to.

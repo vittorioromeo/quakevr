@@ -3,7 +3,7 @@
 # walls (docs/vr-port/FLATPLAY.md, "The ironsight's solve", "Against the walls"). Reads vr_flat_sight_check, which measures the
 # weapon as drawn, not the solve: how far its rear and front sights stand off the ray through the crosshair, and where the
 # sight line is 4096 past the rear sight, as an angle. Fast mode; the runs end with their own scripts.
-#   a. every weapon (impulse 150 + id), at three fields of view, then with the eye nudged: within tolerance on every gun that has
+#   a. every weapon (vr_test_give_wid, impulse 149), at three fields of view, then with the eye nudged: within tolerance on every gun that has
 #      a sight line, and the ones without are listed;
 #   b. looks up and down, a run forward with the looks on, a bigger eye relief: the same on the shotgun;
 #   c. the picture moved on the screen: the sights lie on the moved ray, and the gun still points at the crosshair's point;
@@ -15,14 +15,14 @@ export QVR_AUTHOR_WAIT_ALWAYS=1
 HERE=$(dirname "$0"); mkdir -p "$HERE/scratch"
 TOL=0.02 # units off the ray, each sight; degrees far along
 P="map e1m1; god; notarget; developer 1; r_norefresh 0; setpos 480 -352 88 0 0 0"
-ONE() { echo "vr_flat_aim 0; wait3; impulse $1; wait25; vr_flat_aim 1; wait30; vr_flat_sight_check;"; }
+ONE() { echo "vr_flat_aim 0; wait3; vr_test_give_wid $1; impulse 149; wait25; vr_flat_aim 1; wait30; vr_flat_sight_check;"; }
 # Worst of: rear off, front off, far degrees, over the lines of a log; and how many lines with sights.
 worst() { grep -a "^flatsightcheck: .* rear off" "$1" | awk '{ for (i = 1; i <= NF; i++) { if ($i == "rear" && $(i+1) == "off") { r = $(i+2) + 0 } if ($i == "front" && $(i+1) == "off") f = $(i+2) + 0; if ($i == "far") { d = $(i+3); gsub(/[(]/, "", d); d = d + 0 } } if (r > a) a = r; if (f > b) b = f; if (d > c) c = d; n++ } END { printf "%.4f %.4f %.4f %d", a + 0, b + 0, c + 0, n + 0 }'; }
 good() { awk -v r="$1" -v f="$2" -v d="$3" -v n="$4" -v t="$TOL" -v m="$5" 'BEGIN { exit !(r <= t && f <= t && d <= t && n >= m) }' && echo 1 || echo 0; }
 
 # a. Every weapon, at three fields of view and with the eye nudged.
 ALL=""
-for i in $(seq 150 181); do ALL="$ALL $(ONE $i)"; done
+for i in $(seq 1 31); do ALL="$ALL $(ONE $i)"; done
 logs=""
 for F in "fov 90" "fov 110" "fov 70" "fov 90; tune vr_flat_cam_fwd 6; tune vr_flat_cam_up -4; tune vr_flat_cam_side 3"; do
   n=$((n + 1)); log=$HERE/scratch/flatsight_a$n.log; logs="$logs $log"

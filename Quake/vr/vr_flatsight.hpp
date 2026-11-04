@@ -68,6 +68,9 @@ void noteDrawn(const hands::State& s);
 // decides whether a drawn view counts as the player's own eyes (flatplay::keepNear). 0 outside the mode.
 [[nodiscard]] float adsShare();
 
+// Whether the empty hand `h` is going to, or is on, the held weapon's two-handed grip.
+[[nodiscard]] bool adsHelper(int h);
+
 // The field of view to render with: `basefov`, narrowed by vr_flat_aim_fov while the ironsight is on. Outside the
 // mode, or with it off, exactly `basefov` (gl_screen.c through VR_FlatAdsFov).
 [[nodiscard]] float fov(float basefov);

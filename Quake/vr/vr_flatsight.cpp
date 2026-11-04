@@ -821,6 +821,11 @@ glm::vec2 screenPlace()
     return screenShift();
 }
 
+bool adsHelper(int h)
+{
+    return h == st.helping && st.gripWanted;
+}
+
 float adsShare()
 {
     // How far this frame's travel has gone, whatever the toggle says about the next one: what the weapon's shift onto the
