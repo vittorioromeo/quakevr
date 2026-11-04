@@ -8420,3 +8420,11 @@ the removed-setting line, the control is still the one Unknown command, and 0 ba
 config lands on 222. Its own tests are in scratch/results.txt: woretire: 16 passed, 2 failed, those 2 carrying
 the known pre-existing reds (4 ironsight-ease cases in flatkeys, 1 grip case in flatplay); weaponstudio 14/0,
 flatplay 27/1, flatkeys 24/4, eval canary 38/44 with every verdict where it was.
+
+### Skewered gibs stay with the blade, and weigh (branch `agent/skewer2`)
+
+- A gib follows its blade by the weapon's record (`.vr_skewer_inst`, `VR_Skewer_Find`), whichever path moved it: the hand, the `thrown_weapon` of that record (dropped, thrown, left in a body), a hand again. The old `VR_Skewer_BladeStuck` and `BladeBack` hooks are gone. Holstered or switched, the record is in neither place: it falls.
+- Physics: one body, no joint. The engine's `addSkeweredShapes` adds a sphere per gib to the thrown blade's body, density from its mass, so mass and centre of mass follow; `.vr_skewer_gen` changing remakes the body. The gibs never move on the blade, so a joint would only add bodies to keep in step.
+- Thrown burst: `VR_Skewer_Impact` on each gib's own path, at or above `vr_embed_skewer_throw_burst` (7 m/s), something within its radius ahead. A gib further along than what the blade hit has nothing ahead of it.
+- Swung burst: `VR_Skewer_SwingHit` in `VR_Melee_Deal`, at or above `vr_embed_skewer_swing_burst` (3 m/s), the contact within the gib's radius of its place along the blade. Not a stab, not a blow on a gib.
+- The hand's weight: thinks tally kg, kg m, kg m^2 about the grip into `.vr_skewer_load_*` for `computeLoad`: the masses add, the balance moves, the inertia gains each gib's. `vr_embed_skewer_mass_gib` 0.5, `_head` 1.5; a limb its own `.vr_prop_mass`. Listen server only, as `propMass`.

@@ -1677,6 +1677,7 @@ void() W_Frame =
         ImpulseCommands();
     }
 
+    VR_Skewer_Frame(); // (the gibs on the hands' blades: vr_skewer.qc)
     VR_Carry_TwoHandFrame();
     VR_Carry_HandFrame(cVR_MainHand);
     VR_Carry_HandFrame(cVR_OffHand);

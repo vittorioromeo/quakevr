@@ -199,6 +199,7 @@ struct Slot // what one edict is in the world (by its number)
     glm::vec3 arrival{0.f}; // props: the velocity this frame's step began with (0 asleep): what a touch after it sees
     float gravityScale{1.f};
     float massSetting{0.f}; // props: the Mass set for its model when it was made (vr_props.inc; 0: none)
+    float skewerGen{0.f};   // a thrown blade: its .vr_skewer_gen when it was made (the gibs on it: addSkeweredShapes)
     float massScale{1.f};   // props: its estimate's Mass x when it was made (props::massScale)
     float size{1.f};        // props: its model's Size when it was made (Held Object Offsets: props::drawnSize)
     bool asleep{false};

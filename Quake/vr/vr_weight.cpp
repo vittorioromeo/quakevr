@@ -23,6 +23,7 @@
 #include "vr_modelmetadata.hpp"
 #include "vr_weight_internal.hpp"
 #include "vr_box3d.hpp"
+#include "vr_progs.hpp"
 #include "vr_cvars.hpp"
 #include "vr_engine.hpp"
 #include "vr_fatigue.hpp"
@@ -291,6 +292,40 @@ namespace
     return l;
 }
 
+// The gibs skewered on the blade in hand `h` (QC vr_skewer.qc; a listen server's own player entity, as propMass: a client of another
+// server feels none): kg, kg m and kg m^2 about the grip.
+[[nodiscard]] glm::vec3 skeweredGibs(int h)
+{
+    glm::vec3 out{0.f};
+    if(!sv.active || cl.viewentity <= 0 || cl.viewentity >= sv.qcvm.num_edicts)
+    {
+        return out;
+    }
+    qcvm_t* const old = qcvm;
+    if(old != &sv.qcvm)
+    {
+        if(old)
+        {
+            PR_SwitchQCVM(nullptr);
+        }
+        PR_SwitchQCVM(&sv.qcvm);
+    }
+    const int field = h == HAND_MAIN ? progs::fields().vr_skewer_load_main : progs::fields().vr_skewer_load_off;
+    if(field >= 0)
+    {
+        out = progs::fieldVec(EDICT_NUM(cl.viewentity), field);
+    }
+    if(old != &sv.qcvm)
+    {
+        PR_SwitchQCVM(nullptr);
+        if(old)
+        {
+            PR_SwitchQCVM(old);
+        }
+    }
+    return out;
+}
+
 // What hand `h` holds. With the hands (`s`), a two-handed hold's pivot: between the two grips (a box held by its sides,
 // a gun by its handle and foregrip), where the thing turns about, so its weight's pull and its inertia are about there.
 [[nodiscard]] Load computeLoad(int h, const hands::State* s)
@@ -361,6 +396,13 @@ namespace
     l.valid = true;
     l.model = weapons::cvar(slot, weapons::Key::ID)->string;
     gunLoad(l, mass, weapons::value(slot, weapons::Key::Balance) * 0.01f, za::max(weapons::value(slot, weapons::Key::Span), 1.f) * 0.01f);
+    // Gibs on its blade: the sum of the masses, the balance point moved to them, each one's turn about the grip.
+    if(const glm::vec3 gibs = skeweredGibs(h); gibs.x > 0.f)
+    {
+        l.com.x = (mass * l.com.x + gibs.y) / (mass + gibs.x);
+        l.mass = mass + gibs.x;
+        l.inertia += glm::vec3{gibs.x * gunRollRadius2, gibs.z, gibs.z};
+    }
     l.twoHanded = za::clamp(twohand::support(h), 0.f, 1.f); // (a hotspot's grip, or the other hand anywhere on it)
     l.tune = weaponTuning(slot);
     l.slot = slot;
