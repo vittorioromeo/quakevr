@@ -30,6 +30,7 @@
 
 #include "Zancle/Math/MinMax.hpp"
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -55,13 +56,27 @@ double startTime = 0.0;
 za::Vector<za::I16> samples;
 za::String baseName;                 // notes/<map>_<date>_<time>, without the extension
 
-[[nodiscard]] bool ensureAudio()
+SDL_AudioDeviceID meter = 0;          // the level meter's own capture device (wantMicLevel)
+int meterRate = wantedRate;
+double meterUntil = 0.0;              // realtime it closes at, unless wanted again
+double meterRetryAt = 0.0;            // no microphone: realtime to try again at
+double meterLastSamples = 0.0;
+float meterLevel = 0.f;
+constexpr double meterLinger = 10.0;  // seconds open after the last want (no opening and closing as a gun comes and goes)
+constexpr double meterRetry = 30.0;   // seconds between tries with no microphone
+constexpr double meterStale = 0.25;   // seconds with no samples: the level is 0 (the device went away)
+constexpr float meterSmooth = 0.06f;  // seconds, the level's smoothing
+
+[[nodiscard]] bool ensureAudio(bool quiet = false)
 {
     if(!audioInit)
     {
         if(SDL_InitSubSystem(SDL_INIT_AUDIO) < 0)
         {
-            Con_Printf("VR notes: no audio (%s)\n", SDL_GetError());
+            if(!quiet)
+            {
+                Con_Printf("VR notes: no audio (%s)\n", SDL_GetError());
+            }
             return false;
         }
         audioInit = true;
@@ -70,7 +85,7 @@ za::String baseName;                 // notes/<map>_<date>_<time>, without the e
 }
 
 // The capture device vr_note_device names (a part of its name), or null for the default.
-[[nodiscard]] const char* deviceName()
+[[nodiscard]] const char* deviceName(bool quiet = false)
 {
     const char* wanted = vr_note_device.string;
     if(!wanted || !wanted[0])
@@ -86,7 +101,10 @@ za::String baseName;                 // notes/<map>_<date>_<time>, without the e
             return name;
         }
     }
-    Con_Printf("VR notes: no microphone named like \"%s\"; using the default (vr_note_devices lists them)\n", wanted);
+    if(!quiet)
+    {
+        Con_Printf("VR notes: no microphone named like \"%s\"; using the default (vr_note_devices lists them)\n", wanted);
+    }
     return nullptr;
 }
 
@@ -362,19 +380,77 @@ void stop()
     haptics::pulse(HAND_OFF, 0.05f, 0.5f, 120.f);
 }
 
-// Whether the off hand is at the mouth: within reach of a point a little below and in front of
-// the eyes.
+// Whether the off hand is at the mouth.
 [[nodiscard]] bool offhandAtMouth()
 {
-    const hands::State& s = hands::current();
-    if(!s.valid)
+    glm::vec3 at, facing;
+    return mouth(at, facing) && glm::distance(hands::current().pos[HAND_OFF], at) < mouthReach * units::metresToUnits();
+}
+
+void closeMeter()
+{
+    if(meter)
     {
-        return false;
+        SDL_CloseAudioDevice(meter);
+        meter = 0;
     }
-    const float m2u = units::metresToUnits();
-    const glm::vec3 fwd = hands::forward(glm::vec3{0.f, s.headAngles.y, 0.f});
-    const glm::vec3 mouth = s.head + fwd * (0.06f * m2u) - glm::vec3{0.f, 0.f, 0.09f * m2u};
-    return glm::distance(s.pos[HAND_OFF], mouth) < mouthReach * m2u;
+    meterLevel = 0.f;
+}
+
+// Once a frame: the samples since the last, their RMS into the level.
+void meterFrame()
+{
+    if(meter && realtime > meterUntil)
+    {
+        closeMeter();
+    }
+    if(!meter)
+    {
+        return;
+    }
+    za::I16 buffer[2048];
+    double sum = 0.0;
+    int count = 0;
+    for(Uint32 got; (got = SDL_DequeueAudio(meter, buffer, sizeof(buffer))) > 0;)
+    {
+        const int n = static_cast<int>(got / sizeof(za::I16));
+        for(int i = 0; i < n; i++)
+        {
+            sum += static_cast<double>(buffer[i]) * static_cast<double>(buffer[i]);
+        }
+        count += n;
+    }
+    if(count > 0)
+    {
+        const float rms = static_cast<float>(sqrt(sum / count) / 32768.0);
+        const float seconds = static_cast<float>(count) / static_cast<float>(meterRate);
+        meterLevel += (rms - meterLevel) * (1.f - exp(-seconds / meterSmooth));
+        meterLastSamples = realtime;
+    }
+    else if(realtime - meterLastSamples > meterStale)
+    {
+        meterLevel = 0.f;
+    }
+}
+
+// vr_debug_mic_level: the level, floating low in the view (above the notes' REC).
+void meterDebug()
+{
+    if(vr_debug_mic_level.value == 0.f)
+    {
+        return;
+    }
+    wantMicLevel();
+    const hands::State& s = hands::current();
+    if(s.valid)
+    {
+        char text[48];
+        q_snprintf(text, sizeof(text), "MIC %.3f / %.3f", micLevel(), vr_smoke_blow_threshold.value);
+        const float m2u = units::metresToUnits();
+        const glm::vec3 fwd = hands::forward(glm::vec3{0.f, s.headAngles.y, 0.f});
+        const glm::vec3 at = s.head + fwd * (0.7f * m2u) - glm::vec3{0.f, 0.f, 0.2f * m2u};
+        text3d::queue(text, at, glm::vec3{0.f, s.headAngles.y, 0.f}, text3d::Align::Centre, 0.07f);
+    }
 }
 
 void noteDown_f()
@@ -443,6 +519,8 @@ void frame()
 {
     notectx::frame();
     pollFiles(false);
+    meterDebug();
+    meterFrame();
     if(!recording)
     {
         return;
@@ -487,9 +565,59 @@ bool offhandButton(bool pressed)
     return false;
 }
 
+void wantMicLevel()
+{
+    if(vr_test_mic_level.value >= 0.f)
+    {
+        return; // (a fake level: no microphone)
+    }
+    meterUntil = realtime + meterLinger;
+    if(meter || realtime < meterRetryAt)
+    {
+        return;
+    }
+    meterRetryAt = realtime + meterRetry;
+    if(!ensureAudio(true))
+    {
+        return;
+    }
+    SDL_AudioSpec want{}, have{};
+    want.freq = wantedRate;
+    want.format = AUDIO_S16SYS;
+    want.channels = 1;
+    want.samples = 256; // (16 ms: the level follows the breath)
+    meter = SDL_OpenAudioDevice(deviceName(true), 1, &want, &have, SDL_AUDIO_ALLOW_FREQUENCY_CHANGE);
+    if(meter)
+    {
+        meterRate = have.freq;
+        meterLastSamples = realtime;
+        SDL_PauseAudioDevice(meter, 0);
+    }
+}
+
+float micLevel()
+{
+    return vr_test_mic_level.value >= 0.f ? vr_test_mic_level.value : meterLevel;
+}
+
+bool mouth(glm::vec3& at, glm::vec3& facing)
+{
+    const hands::State& s = hands::current();
+    if(!s.valid)
+    {
+        return false;
+    }
+    // (a little below and in front of the eyes)
+    const float m2u = units::metresToUnits();
+    at = s.head + hands::forward(glm::vec3{0.f, s.headAngles.y, 0.f}) * (0.06f * m2u) - glm::vec3{0.f, 0.f, 0.09f * m2u};
+    facing = hands::forward(s.headAngles);
+    return true;
+}
+
 void shutdown()
 {
     stop();
+    closeMeter();
 }
 
 void finishWrites()

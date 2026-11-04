@@ -938,6 +938,7 @@ za::Vector<Item> pageWeaponEffects()
         row(opt::vr_gunfx_wisp_amount),
         row(opt::vr_gunfx_wisp_opacity),
         row(opt::vr_gunfx_wisp_rise),
+        row(opt::vr_smoke_blow),
         row(opt::vr_gunfx_impacts),
         row(opt::vr_gunfx_ozone),
         row(opt::vr_gunfx_enemies),
