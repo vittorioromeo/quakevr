@@ -118,6 +118,7 @@
 #include "vr_server.hpp"
 #include "vr_view.hpp"
 #include "vr_walltorch.hpp"
+#include "vr_muzzlewisps.hpp"
 #include "vr_voicenotes.hpp"
 #include "vr_detail.hpp"
 #include "vr_extmaps.hpp"
@@ -2186,6 +2187,7 @@ extern "C" void VR_Init()
     input::init();
     inputlag::registerCommands();
     voicenotes::init();
+    muzzlewisps::init();
     highlights::init();
     lootbeams::init();
     proposedefaults::init();

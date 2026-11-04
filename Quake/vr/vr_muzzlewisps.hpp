@@ -7,6 +7,10 @@
 // ribbon (vr_ribbons.hpp), all of them in one draw. Your guns only; settings: Weapons > Weapon Effects > Gunfire
 // Particles (vr_gunfx_wisp*). vr_debug_gunfx 1 prints "gunfx wisps start ..." as a gun's start (and how long after its
 // last shot) and "gunfx wisps faded ..." once they are gone.
+//
+// Blowing on them (vr_smoke_blow, opt-in; vr_smoke_blow_* tunables): with smoke near your mouth the microphone's level
+// is listened to (voicenotes::micLevel); above the threshold for a moment, the smoke within reach of your mouth is pushed
+// the way you face and ages faster. vr_smoke_blow_check tests it with a fake level on fake wisps.
 
 #pragma once
 
@@ -54,5 +58,7 @@ void drawTranslucent();
 
 // Everything forgotten (a new map, a disconnect).
 void clear();
+
+void init(); // commands
 
 } // namespace qvr::muzzlewisps
