@@ -39,6 +39,15 @@ enum Melee : int
 };
 void onWound(int ent, const glm::vec3& at, const glm::vec3& dir, int kind, int amount, int melee);
 
+// A blade is in entity `ent`'s wound at `at`, going `dir` (QVR_SVC_BLADEWOUND, QC VR_AxeStick_WoundRun): its stream, bound
+// to the body as any, runs on at `strength` / 100 and doesn't weaken or end while these words keep coming (bladeWordLasts:
+// only for a word that never comes), past the caps' taking. It stops at stopBladeWound, or forget(blade): its removal.
+void onBladeWound(int blade, int ent, const glm::vec3& at, const glm::vec3& dir, int strength);
+void stopBladeWound(int blade);
+
+// How long the stream of the wound `blade` is in has been pouring, s; 0: none (the test's).
+[[nodiscard]] float bladeWoundAge(int blade);
+
 // Once a frame, after the view's entities and the ragdolls are posed (vr_view.cpp): the streams moved, drawn, painted.
 void frame();
 

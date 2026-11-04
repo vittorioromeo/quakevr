@@ -3,6 +3,7 @@
 #include "vr_ambient.hpp"
 #include "vr_random.hpp"
 #include "vr_bloodstream.hpp"
+#include "vr_drawnpose.hpp"
 #include "vr_anchor.hpp"
 #include "vr_cvars.hpp"
 #include "vr_decals.hpp"
@@ -101,6 +102,8 @@ struct Stream
     glm::vec3 smoothOut{0.f}; // (zero: not yet)
     double start = 0.0;
     float duration = 6.f;
+    int blade = -1;          // the blade in the wound it runs from, while it does: no duration, no weakening (onBladeWound)
+    double bladeUntil = 0.0; // as far as its last word goes
     float power = 1.f;  // how hard it pours (the hit's damage)
     float phase = 0.f;  // its heartbeat's
     float speedMul = 1.f; // its own force (vr_gore_streams_speed_var)
@@ -166,8 +169,10 @@ struct Pending
     int ent;
     glm::vec3 at, dir;
     int amount;
+    int blade = -1;
 };
 constexpr int maxPending = 32;
+constexpr double bladeWordLasts = 1.0; // s a blade's word holds its stream (QC sends one every 0.25 s)
 Pending pending[maxPending];
 int pendingCount = 0;
 
@@ -416,8 +421,20 @@ int rebinds = 0, unbound = 0; // since the map began
 
 // Vertex `v` of the stream's body as drawn now (a ragdoll's, else the animated model's through matrix `m`); for a
 // ragdoll its bone's turn too.
-[[nodiscard]] bool vertexNow(const Stream& s, const entity_t& e, bool rag, const float m[16], int v, glm::vec3& at, glm::quat& rot)
+// `ent`, an armed humanoid drawn alive on the authored rig ("#rig2": no .mdl pose to read), its vertices as drawn (the world) into
+// `out`, in the .mdl's order; false if it isn't (the local server's: drawnpose::armedMesh).
+[[nodiscard]] bool armedAsDrawn(int ent, za::Vector<glm::vec3>& out)
 {
+    return sv.active && cls.state == ca_connected && drawnpose::armedMesh(ent, out, nullptr) && !out.empty();
+}
+
+[[nodiscard]] bool vertexNow(const Stream& s, const entity_t& e, bool rag, bool live, const float m[16], int v, glm::vec3& at, glm::quat& rot)
+{
+    if(live)
+    {
+        at = scratchNow[static_cast<za::SizeT>(v)];
+        return true;
+    }
     if(rag)
     {
         return ragdollVertex(s.ent, v, at, rot);
@@ -454,6 +471,7 @@ int rebinds = 0, unbound = 0; // since the map began
     {
         return false;
     }
+    bool live = false;
     if(rag)
     {
         if(s.pose != Pose::Ragdoll)
@@ -478,8 +496,16 @@ int rebinds = 0, unbound = 0; // since the map began
             s.pose = Pose::Animated;
         }
         s.outWorld = yawTurn(s.outLocal, drawnTurn.y);
-        render::drawnEntityMatrix(*e, e->scale ? e->scale : ENTSCALE_DEFAULT, m);
-        p[0] = bytePoint(m, anchor::posedVertex(*e, s.corner[0], 0.f));
+        live = armedAsDrawn(s.ent, scratchNow) && za::max(s.corner[0], za::max(s.corner[1], s.corner[2])) < static_cast<int>(scratchNow.size());
+        if(live)
+        {
+            p[0] = scratchNow[static_cast<za::SizeT>(s.corner[0])];
+        }
+        else
+        {
+            render::drawnEntityMatrix(*e, e->scale ? e->scale : ENTSCALE_DEFAULT, m);
+            p[0] = bytePoint(m, anchor::posedVertex(*e, s.corner[0], 0.f));
+        }
     }
     if(!s.onTriangle)
     {
@@ -491,7 +517,7 @@ int rebinds = 0, unbound = 0; // since the map began
     glm::quat r2;
     for(int k = 1; k < 3; k++)
     {
-        if(!vertexNow(s, *e, rag, m, s.corner[k], p[k], r2))
+        if(!vertexNow(s, *e, rag, live, m, s.corner[k], p[k], r2))
         {
             p[k] = p[0];
         }
@@ -515,7 +541,7 @@ int rebinds = 0, unbound = 0; // since the map began
 [[nodiscard]] bool posedNow(int ent)
 {
     za::Vector<glm::vec3>& now = scratchNow;
-    if(!ragdoll::skinnedVertices(ent, now, nullptr, true))
+    if(!ragdoll::skinnedVertices(ent, now, nullptr, true) && !armedAsDrawn(ent, now))
     {
         const entity_t* e = entityOf(ent, nullptr);
         if(!e || !anchor::posedVertices(*e, 0.f, scratchRest, now))
@@ -551,8 +577,9 @@ int rebinds = 0, unbound = 0; // since the map began
     return bestD < reach * reach ? best : -1;
 }
 
-// A free slot for a stream on `ent`: past its cap or the cap in all, the weakest's.
-[[nodiscard]] Stream* slotFor(int ent)
+// A free slot for a stream on `ent`: past its cap or the cap in all, the weakest's. Never one with a blade in its wound, and
+// those don't count for the body's cap (`forBlade`: one takes a place beside them).
+[[nodiscard]] Stream* slotFor(int ent, bool forBlade)
 {
     const int perBody = za::max(1, static_cast<int>(vr_gore_streams_per_body.value));
     const int most = maxStreams();
@@ -570,6 +597,10 @@ int rebinds = 0, unbound = 0; // since the map began
             continue;
         }
         live++;
+        if(s.blade >= 0)
+        {
+            continue;
+        }
         if(!weakest || left(s) < left(*weakest))
         {
             weakest = &s;
@@ -583,7 +614,7 @@ int rebinds = 0, unbound = 0; // since the map began
             }
         }
     }
-    if(onBody >= perBody)
+    if(onBody >= perBody && !forBlade)
     {
         return weakestOnBody;
     }
@@ -594,11 +625,15 @@ int rebinds = 0, unbound = 0; // since the map began
     return weakest;
 }
 
-void start(int ent, const glm::vec3& at, const glm::vec3& dir, int amount, float reach = 24.f)
+void start(int ent, const glm::vec3& at, const glm::vec3& dir, int amount, int blade = -1, float reach = 24.f)
 {
     const entity_t* e = entityOf(ent, nullptr);
     if(!e || !posedNow(ent))
     {
+        if(vr_wounds_debug.value >= 2)
+        {
+            Con_Printf("bloodstream: no start on %d: %s (%s)\n", ent, e ? "not posed" : "no entity", e && e->model ? e->model->name : "no model");
+        }
         return;
     }
     const int v = nearestVertex(at, reach);
@@ -633,7 +668,7 @@ void start(int ent, const glm::vec3& at, const glm::vec3& dir, int amount, float
     {
         return;
     }
-    Stream* slot = slotFor(ent);
+    Stream* slot = slotFor(ent, blade >= 0);
     if(!slot)
     {
         return;
@@ -688,7 +723,9 @@ void start(int ent, const glm::vec3& at, const glm::vec3& dir, int amount, float
     }
     s.start = cl.time;
     s.duration = za::clamp(vr_gore_streams_time.value, 1.f, 30.f) * vrand::range(rng, 0.75f, 1.25f);
-    s.power = za::clamp(0.7f + amount / 40.f, 0.7f, 1.4f);
+    s.power = blade >= 0 ? amount / 100.f : za::clamp(0.7f + amount / 40.f, 0.7f, 1.4f);
+    s.blade = blade;
+    s.bladeUntil = cl.time + bladeWordLasts;
     s.phase = vrand::range(rng, 0.f, 1.f);
     s.nextArc = 0.0;
     s.nextPaint = cl.time + 0.2;
@@ -701,7 +738,7 @@ void start(int ent, const glm::vec3& at, const glm::vec3& dir, int amount, float
 // How strongly it pours at age `t`: a gush, weakening, beating.
 [[nodiscard]] float flow(const Stream& s, float t)
 {
-    const float u = za::clamp(t / s.duration, 0.f, 1.f);
+    const float u = s.blade >= 0 ? 0.f : za::clamp(t / s.duration, 0.f, 1.f);
     const float envelope = za::pow(1.f - u, 1.4f) * (t < 0.4f ? 1.35f - 0.35f * t / 0.4f : 1.f);
     const float beat = za::sin((t * heartRate + s.phase) * 6.2831853f);
     const float pulse = 0.55f + 0.45f * za::max(0.f, beat) * za::max(0.f, beat);
@@ -924,10 +961,14 @@ void update(Stream& s, float dt)
     if(s.emitting)
     {
         strength = flow(s, age);
-        if(age >= s.duration || strength < 0.02f)
+        if(s.blade >= 0 ? cl.time > s.bladeUntil : (age >= s.duration || strength < 0.02f))
         {
             s.emitting = false;
         }
+    }
+    if(!s.emitting)
+    {
+        s.blade = -1; // (its next word, if the blade is still in, starts it afresh)
     }
     if(s.emitting)
     {
@@ -1173,6 +1214,60 @@ void onWound(int ent, const glm::vec3& at, const glm::vec3& dir, int kind, int a
     }
 }
 
+void onBladeWound(int blade, int ent, const glm::vec3& at, const glm::vec3& dir, int strength)
+{
+    if(!enabled() || ent == cl.viewentity)
+    {
+        return;
+    }
+    for(Stream& s : streams)
+    {
+        if(s.used && s.emitting && s.blade == blade && s.ent == ent)
+        {
+            s.bladeUntil = cl.time + bladeWordLasts;
+            s.power = strength / 100.f;
+            return;
+        }
+    }
+    if(pendingCount < maxPending)
+    {
+        pending[pendingCount++] = {ent, at, dir, strength, blade};
+    }
+}
+
+void stopBladeWound(int blade)
+{
+    for(Stream& s : streams)
+    {
+        if(s.used && s.blade == blade)
+        {
+            s.emitting = false; // (what is falling lands)
+            s.blade = -1;
+        }
+    }
+    int kept = 0;
+    for(int i = 0; i < pendingCount; i++)
+    {
+        if(pending[i].blade != blade)
+        {
+            pending[kept++] = pending[i];
+        }
+    }
+    pendingCount = kept;
+}
+
+float bladeWoundAge(int blade)
+{
+    for(const Stream& s : streams)
+    {
+        if(s.used && s.emitting && s.blade == blade)
+        {
+            return za::max(0.001f, static_cast<float>(cl.time - s.start));
+        }
+    }
+    return 0.f;
+}
+
 void frame()
 {
     QVR_PROFILE("bloodstreams");
@@ -1193,7 +1288,7 @@ void frame()
     }
     for(int i = 0; i < pendingCount; i++)
     {
-        start(pending[i].ent, pending[i].at, pending[i].dir, pending[i].amount);
+        start(pending[i].ent, pending[i].at, pending[i].dir, pending[i].amount, pending[i].blade);
     }
     pendingCount = 0;
     const float dt = static_cast<float>(za::clamp(dtd, 0.0, 0.1));
@@ -1265,6 +1360,7 @@ void count()
 
 void forget(int ent, bool drop)
 {
+    stopBladeWound(ent); // (`ent` a blade removed: the wound it was in stops running)
     for(Stream& s : streams)
     {
         if(s.used && s.ent == ent)
@@ -1318,7 +1414,7 @@ void info_f()
             {
                 render::drawnEntityMatrix(*e, e->scale ? e->scale : ENTSCALE_DEFAULT, m);
             }
-            if(!vertexNow(s, *e, rag, m, s.oldVertex, old, rot))
+            if(!vertexNow(s, *e, rag, false, m, s.oldVertex, old, rot))
             {
                 old = surf;
             }
@@ -1401,7 +1497,7 @@ void test_f()
     {
         const glm::vec3 side = glm::vec3{-toEye.y, toEye.x, 0.f} * vrand::range(rng, -6.f, 6.f);
         const glm::vec3 at = o + toEye * 12.f + side + glm::vec3{0.f, 0.f, mid + 4.f + vrand::range(rng, -6.f, 6.f)};
-        start(best, at, -toEye, 20, 64.f);
+        start(best, at, -toEye, 20, -1, 64.f);
     }
     Con_Printf("vr_gore_stream_test: %d on entity %d (%s)\n", n, best, e.model->name);
 }

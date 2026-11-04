@@ -52,6 +52,8 @@ VR Settings > Move Towards: Torso: look or point a hand aside while pushing the 
 Weapon Studio: wheel up zooms the camera in, and the id row is plain grey text.
 Weapon Studio: copy another slot into this one, and the model and its hand offset stay.
 Debug > Tunables > Weapons > Other > Weapon Studio: Fly Speed changes the Studio camera's speed.
+Stab and hold a grunt past 10 s: an unbroken stream from the wound follows the body, then stops as the blade leaves or the body dies. {test:embed_stab}
+Slide a blade in and out, live and in a corpse: blood spurts every 3 cm. {test:embed_stab}
 
 [3. Bodies: grabbing, throwing, hits]
 Neck snap standing and on a lifted body: it goes limp, still held. Leg grabs: pull one down by the shins, drag it by the legs, lift it by the legs. {test:grunts_to_throw}

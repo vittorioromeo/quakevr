@@ -6,6 +6,7 @@
 #include "vr_arenawaves.hpp"
 #include "vr_progs.hpp"
 #include "vr_playersteps.hpp"
+#include "vr_bloodstream.hpp"
 #include "vr_brushes.hpp"
 #include "vr_goresound.hpp"
 #include "Zancle/Algorithm/Sort.hpp"
@@ -808,6 +809,8 @@ constexpr VrBuiltin vrBuiltins[] = {
     {"admeleehead", PF_admeleehead},
     {"meleeshow", PF_meleeshow},
     {"embedsay", PF_embedsay},
+    {"bladewound", PF_bladewound},
+    {"bladewoundage", PF_bladewoundage},
     {"magholsterpoll", PF_magholsterpoll},
     {"holsterpos", PF_holsterpos},
     {"modelbounds", PF_modelbounds},

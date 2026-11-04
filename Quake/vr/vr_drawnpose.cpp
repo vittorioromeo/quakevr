@@ -120,11 +120,15 @@ Source bone(edict_t* ent, int b, rigpose::Rigid& out, float& scale)
 
 bool armedMesh(edict_t* ent, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>* normals, za::U32* build)
 {
+    return armedMesh(viewNum(ent), out, normals, build);
+}
+
+bool armedMesh(int num, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>* normals, za::U32* build)
+{
     if(build)
     {
         *build = 0;
     }
-    const int num = viewNum(ent);
     glm::mat4 m;
     // (its own .mdl: while a frame draws it, between rig2::swapModels and restoreModels, cl_entities[num].model is its
     // skinned copy, armsWanted on which says no: Show Disarm Volumes drew its hand's hull from its animation frame then,

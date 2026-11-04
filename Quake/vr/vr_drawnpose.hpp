@@ -36,6 +36,8 @@ enum class Source : int
 // `build`: which making of the vertices these are (the same number: the same vertices and normals; 0: made for this call
 // alone), for what callers keep made from them (hitmodel's triangle hierarchy).
 [[nodiscard]] bool armedMesh(edict_s* ent, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>* normals, za::U32* build = nullptr);
+// The same by its entity number (the client's own code, outside the server's VM: the blood streams).
+[[nodiscard]] bool armedMesh(int num, za::Vector<glm::vec3>& out, za::Vector<glm::vec3>* normals, za::U32* build = nullptr);
 
 [[nodiscard]] const char* sourceName(Source s);
 

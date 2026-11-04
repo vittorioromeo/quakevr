@@ -44,6 +44,7 @@ vr_embed_test    16       vr_embed_edge_test.qc            the save's scene: hel
 vr_embed_test    17       vr_embed_edge_test.qc            the save's scene: left in a staggering body
 vr_embed_test    18       vr_embed_edge_test.qc            after a level change: the blade held is in the hand
 vr_embed_test    19       vr_embed_edge_test.qc            the map's own Ogre, Shambler or boss
+vr_embed_test    22       vr_embed_test.qc                 the wound's blood stream with a blade in: runs, past any timed one; stops out, removed, dead
 vr_embed_test    21       vr_embed_test.qc                 skewering gibs: rides, most, slash, other hand, switch, drop, throw, swing's contact, the hand's load
 vr_embed_test    20       vr_embed_edge_test.qc            after a level change: what you have of a blade left
 vr_ad_test       1        vr_ad_bridge_test.qc             (see vr_ad_bridge_test.qc)
