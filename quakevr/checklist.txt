@@ -5,6 +5,7 @@
 # Lines are only for something new or changed you can see or feel: one line per feature or flow, never "works as before" (2026-11-03 coalesce: 86 lines down to 39, 25 of them ticked and retired; 37 of the 39 have a Test button).
 
 [Failed: waiting for your answer]
+The shipped shotgun defaults (Shot Pitch -2.193277, Shot Yaw -0.84292) leave its sight line 0.79 deg off where the gun really shoots, measured on the mock headset's hold. Weapon Studio says -2.842429 / -0.386059 would line them up (measured 0.00). Apply it, or judge it against your own hold in the Weapon Studio first?
 
 [1. Armed humanoids: fighting them]
 Push a hand into a grunt's belly and grip, with both hands for a judo throw: it takes hold and stays held, with no instant "breaks free" shove, and doesn't take the pack behind it. {test:punch_grunts}
@@ -51,3 +52,8 @@ The arena is nice: play it, feels good? Note improvements. {test:arena_run}
 [5. Moving, weapons and the world]
 Revolver out: tilting it or a wrist flick drops nothing; a short push back along the bore throws the shells that way (pulling it in to inspect at speed may eject: raise Eject Push Speed if so); a quick pull back with a shell in the other hand keeps the loaded shells in. See through the empty chambers swung out; shells seat cleanly in them. {test:revolver}
 Autosaves: Load Autosave (main, pause and death menus) lists this game's autosaves newest first; none is made while monsters are on you or your health is low. {test:autosave_e1m1}
+
+[6. Dev tools: the Weapon Studio (flat screen only, -flatscreenmode)]
+Weapon Studio (Debug > Tools > Weapon Studio, or `vr_weaponstudio open`): every weapon setting in one window, on the same store the Weapon Offsets and Weapon Weights menus write — are its pages (Placement, Fingers, Muzzle, Two-Handed, Hotspots, Stock, Ammo, Holstered, Effects, Flashlight, Weights, Blade, Reload, Embedded) easier to work in than the two menus?
+Weapon Studio, sights: `vr_weaponstudio align both` prints how far each held gun's sight line is from where it shoots; `align both apply` writes its Shot Pitch and Shot Yaw — does the muzzle marker sit on the shot line and does aiming feel right? (measured: shotgun 0.79 -> 0.00 deg)
+Weapon Studio, holds: `vr_weaponstudio preview <kind> <weapon> [weapon2]` stands an armed humanoid in front of you holding the weapon, its pose read from the shipped arms solve — does it hold it as you expect, and does it match what your own hands' IK does?
